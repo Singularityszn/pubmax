@@ -1,5 +1,6 @@
 "use client";
 
+import { PintPriceBadge } from "@/components/PriceBadge";
 import { offlineOrMessage } from "@/lib/apiErrorMessage";
 
 // "Last Pint" card — the signature utility (PRD user stories 19-24). Given a
@@ -152,11 +153,11 @@ export function lastRideDecisionCopy(
   }
 }
 
-// A colour cue per state (brass/warm for relaxed, ink for urgent) using the
+// A colour cue per state (amber for relaxed, ink for urgent) using the
 // same CSS custom properties the rest of the map panel reads from.
 const DECISION_COLOUR: Record<LastPintDecisionKind, string> = {
   order_one_more: "var(--accent-good, #2f7a3d)",
-  half_pint_only: "var(--brass, #ff5a5f)",
+  half_pint_only: "var(--amber)",
   settle_up_now: "var(--accent-warn, #b5651d)",
   train_risk: "var(--accent-risk, #b3261e)",
   live_data_unavailable: "var(--ink-soft, #6b726a)",
@@ -629,7 +630,7 @@ export default function LastTrainCard({
                   >
                     <span style={styles.pubName}>{pub.name}</span>
                     {typeof pub.price === "number" ? (
-                      <span style={styles.pubPrice}>£{pub.price.toFixed(2)}</span>
+                      <PintPriceBadge priceGbp={pub.price} venueId={pub.id} />
                     ) : null}
                   </button>
                 </li>
@@ -637,7 +638,7 @@ export default function LastTrainCard({
                 <li key={pub.id} style={styles.pubPlain}>
                   <span style={styles.pubName}>{pub.name}</span>
                   {typeof pub.price === "number" ? (
-                    <span style={styles.pubPrice}>£{pub.price.toFixed(2)}</span>
+                    <PintPriceBadge priceGbp={pub.price} venueId={pub.id} />
                   ) : null}
                 </li>
               ),
@@ -809,12 +810,6 @@ const styles: Record<string, React.CSSProperties> = {
     flex: 1,
     minWidth: 0,
   },
-  pubPrice: {
-    fontVariantNumeric: "tabular-nums",
-    fontWeight: 600,
-    whiteSpace: "nowrap",
-    color: "var(--ink-soft, #6b726a)",
-  },
   provenance: {
     margin: "8px 0 0",
     fontSize: 11,
@@ -835,7 +830,7 @@ const styles: Record<string, React.CSSProperties> = {
     padding: 0,
     border: "none",
     background: "none",
-    color: "var(--brass, #ff5a5f)",
+    color: "var(--ink)",
     font: "inherit",
     fontSize: 12,
     cursor: "pointer",
@@ -873,8 +868,8 @@ const styles: Record<string, React.CSSProperties> = {
     minHeight: 44,
     padding: "6px 10px",
     borderRadius: "var(--radius-sm, 6px)",
-    border: "1px solid var(--line, #d9d4c7)",
-    background: "var(--brass, #ff5a5f)",
+    border: "1px solid var(--control-secondary-border)",
+    background: "var(--control-secondary-surface)",
     color: "var(--paper, #fff)",
     font: "inherit",
     fontSize: 12,

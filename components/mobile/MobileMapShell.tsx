@@ -39,13 +39,20 @@ const CONTEXTUAL_SHEETS: readonly MapSheetKind[] = [
 ];
 
 /**
- * The map edge: London shows TfL at the top, with Near me at the thumb.
+ * The map edge: Near me at the thumb, and TfL at the top ONLY while a tube
+ * line is badly disrupted.
  *
  * Near me is a round FAB rather than a bar chip because that is what a map
  * reader already knows a locate control looks like, and because the one top
  * bar has no room left at 320px (design judgement 2026-08-01, finding 2.3).
  * Its state stays in the accessible name: "Near me", "Locating", "Nearby 12",
  * "Try near me".
+ *
+ * TfL is not a resting control (taste pass, 18 Oct 2026: nine controls floated
+ * over the phone map). Its everyday home is the Transit tab of More map
+ * controls, the same panel the TfL sheet shows. It comes back to the map edge
+ * only with something urgent to say, because a closed or suspended line is
+ * news a reader needs before they set out, not after they think to look.
  */
 function MapEdgeControls({
   tfl,
@@ -66,7 +73,7 @@ function MapEdgeControls({
     <div className="mobileMapUtilityCorner" aria-label="Map utilities">
       {tfl ? (
         <IconButton className="mobileMapTflButton" aria-label={tfl.ariaLabel} aria-expanded={tflOpen} onClick={onOpenTfl}>
-          <TrainFront size={19} />
+          <TrainFront size={20} />
           {tfl.statusSuffix ? <span className="mobileMapCornerSuffix" aria-hidden="true">{tfl.statusSuffix}</span> : null}
           {tfl.badge ? <span className="mobileMapCornerBadge">{tfl.badge}</span> : null}
         </IconButton>
@@ -106,13 +113,20 @@ function contextualSheetKind(
     : null;
 }
 
-function tflCornerForCity(
+/**
+ * The TfL control the map edge paints: London's, and only while its badge has
+ * something urgent to count. A routine, clear or unavailable feed rests in
+ * More map controls, Transit.
+ */
+function tflEdgeForCity(
   cityId: CityId,
   status: "checking" | "clear" | "issues" | "unavailable",
   count: number,
   urgentCount: number,
 ): CornerUtilityModel | null {
-  return cityId === "london" ? buildTflCorner(status, count, urgentCount) : null;
+  if (cityId !== "london") return null;
+  const corner = buildTflCorner(status, count, urgentCount);
+  return corner.badge ? corner : null;
 }
 
 /** The sheets that open at full height; every other kind opens at half. */
@@ -175,7 +189,7 @@ function MapChipRow({
         aria-haspopup="dialog"
         onClick={() => onOpen("drink")}
       >
-        <GlassWater size={15} aria-hidden="true" />
+        <GlassWater size={16} aria-hidden="true" />
         <span className="mobileMapDrinkChipLabel">{drinkLaneLabel}</span>
       </button>
     </div>
@@ -337,7 +351,7 @@ export default function MobileMapShell({ cityId = DEFAULT_CITY_ID, cityLabel, li
             aria-expanded={overlay === "search"}
             onClick={() => setLimitedOverlay("search")}
           >
-            <Search size={19} />
+            <Search size={20} />
           </IconButton>
         </header>
         {overlay === "search" ? (
@@ -367,7 +381,7 @@ export default function MobileMapShell({ cityId = DEFAULT_CITY_ID, cityLabel, li
     savedOnlyActive,
     openNowActive,
   });
-  const tflCorner = tflCornerForCity(cityId, tflStatus, tflCount, tflUrgentCount);
+  const tflOnMap = tflEdgeForCity(cityId, tflStatus, tflCount, tflUrgentCount);
   const planPill = planActivationPill({ planActive, planStopCount, builtStopCount });
   const sheetKind = contextualSheetKind(overlay, sheetsEnabled, cityId);
   // The plan door and the bottom card it rides in stand down for everything
@@ -381,7 +395,7 @@ export default function MobileMapShell({ cityId = DEFAULT_CITY_ID, cityLabel, li
       disabled={!planInteractive}
       onClick={onPlan}
     >
-      <Route size={19} aria-hidden="true" />
+      <Route size={20} aria-hidden="true" />
       <span>
         <strong>{planPill.strong}</strong>
         {planPill.small ? <small>{planPill.small}</small> : null}
@@ -424,14 +438,14 @@ export default function MobileMapShell({ cityId = DEFAULT_CITY_ID, cityLabel, li
             onUseMyLocation={onNearMe}
             onOpenArea={() => set("choose-area")}
           />
-          <IconButton aria-label="Search the map" aria-expanded={overlay === "search"} onClick={() => set("search")}><Search size={19} /></IconButton>
+          <IconButton aria-label="Search the map" aria-expanded={overlay === "search"} onClick={() => set("search")}><Search size={20} /></IconButton>
           <IconButton
             className="mobileMapFiltersButton"
             aria-label={filtersChip.ariaLabel}
             aria-expanded={overlay === "filters"}
             onClick={() => set("filters")}
           >
-            <SlidersHorizontal size={19} />
+            <SlidersHorizontal size={20} />
             {/* The badge counts refinements. The accessible name already names
                 them, so the glyph is decorative. */}
             {filtersChip.refinements ? (
@@ -460,7 +474,7 @@ export default function MobileMapShell({ cityId = DEFAULT_CITY_ID, cityLabel, li
               onClick={onClearQuery}
               aria-label={`Clear pub search: ${activeQuery}`}
             >
-              <Search size={15} aria-hidden="true" />
+              <Search size={16} aria-hidden="true" />
               <span className="mobileMapQueryChipText">{activeQuery}</span>
               <X size={16} aria-hidden="true" className="mobileMapQueryChipDismiss" />
             </button>
@@ -481,7 +495,7 @@ export default function MobileMapShell({ cityId = DEFAULT_CITY_ID, cityLabel, li
           the same as the desktop rail does. */}
       {overlay !== "search" && nearMeError ? (
         <div className="mobileMapNearMeAlert" role="alert">
-          <LocateOff size={17} aria-hidden="true" />
+          <LocateOff size={16} aria-hidden="true" />
           <p className="mobileMapNearMeAlertText">{nearMeError}</p>
           <button
             type="button"
@@ -489,7 +503,7 @@ export default function MobileMapShell({ cityId = DEFAULT_CITY_ID, cityLabel, li
             aria-label="Dismiss the Near me message"
             onClick={onDismissNearMeError}
           >
-            <X size={17} aria-hidden="true" />
+            <X size={16} aria-hidden="true" />
           </button>
           <button
             type="button"
@@ -503,14 +517,15 @@ export default function MobileMapShell({ cityId = DEFAULT_CITY_ID, cityLabel, li
           </button>
         </div>
       ) : null}
-      {/* The map edge: London shows TfL at the top, Near me at the thumb.
-          Near me is a round FAB rather than a bar chip because that is what a
-          map reader already knows a locate control looks like, and because the
-          bar has no room left at 320px. Its state stays in the accessible
-          name ("Near me", "Locating", "Nearby 12", "Try near me"). */}
+      {/* The map edge: Near me at the thumb, and TfL at the top only while a
+          line is badly disrupted (its everyday home is More map controls,
+          Transit). Near me is a round FAB rather than a bar chip because that
+          is what a map reader already knows a locate control looks like, and
+          because the bar has no room left at 320px. Its state stays in the
+          accessible name ("Near me", "Locating", "Nearby 12", "Try near me"). */}
       {overlay !== "search" ? (
         <MapEdgeControls
-          tfl={tflCorner}
+          tfl={tflOnMap}
           tflOpen={overlay === "tfl"}
           onOpenTfl={() => set("tfl")}
           nearMe={nearMe}

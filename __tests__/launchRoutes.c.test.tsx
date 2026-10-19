@@ -166,8 +166,11 @@ describe("launch routes (group c) carry one primary action", () => {
       /class="screenPrimary" data-primary-action=""><a[^>]*href="\/map\?q=Camden"[^>]*>Open the map here<\/a>/,
     );
     expect(rendered).toMatch(/<h1[^>]*>Pubs in Camden\.<\/h1>/);
-    // The crawl deep-link under the head stays a text link, not a second button.
-    expect(rendered).toContain("Start a crawl from cheapest pubs");
+    // The head's two doors are the only actions above the list: the old
+    // "Start a crawl from cheapest pubs" link was a third (taste plan,
+    // 18 Oct 2026), and the pubs follow the head as one row list.
+    expect(rendered).not.toContain("Start a crawl from cheapest pubs");
+    expect(rendered).toContain('class="rowList boroughRows boroughPubRows');
   });
 
   it("/crawls carries one primary action", () => {

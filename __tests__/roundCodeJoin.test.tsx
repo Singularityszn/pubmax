@@ -64,8 +64,13 @@ describe("RoundCodeJoin", () => {
 
   it("is a quiet secondary on /rounds, beside the starter's one primary", () => {
     expect(container.querySelector("[data-primary-action]")).toBeNull();
+    // The launch table's quiet secondary: "Open a round code", folded under the
+    // start form, in plain words rather than a lesson in link syntax.
+    expect(container.querySelector("summary")?.textContent).toBe("Open a round code");
+    expect(container.querySelector('label[for="round-code-join-input"]')?.textContent).toContain("Round code");
     const page = readFileSync(join(process.cwd(), "app/rounds/page.tsx"), "utf8");
-    expect(page).toContain("action={<RoundCodeJoin />}");
+    expect(page).toContain("<RoundCodeJoin />");
     expect(page).not.toContain("Add it to that link");
+    expect(page).not.toContain("Join with a link");
   });
 });

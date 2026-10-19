@@ -24,7 +24,7 @@
   content: "";
   grid-column: 1 / -1;
   height: 4px;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: var(--line);
 }
 
@@ -72,7 +72,7 @@
   --sheet-step-accent: var(--state-active-border);
 }
 
-@media (max-width: 760px) {
+@media (max-width: 900px) {
   .sheetStepProgress__segment {
     display: block;
   }

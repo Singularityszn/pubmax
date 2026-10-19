@@ -7,9 +7,9 @@
 .picksAlternatives {
   display: grid;
   gap: 8px;
-  margin: 14px 0 0;
-  padding-top: 12px;
-  border-top: 1px solid var(--line-soft, var(--line));
+  margin: var(--space-3) 0 0;
+  padding-top: var(--space-3);
+  border-top: 1px solid var(--line-soft);
 }
 
 /* Reads as a label, not a heading: the section above it already owns the
@@ -46,31 +46,33 @@
   }
 }
 
-@media (max-width: 430px) {
+@media (max-width: 640px) {
   .picksAlternativesList {
     flex-direction: column;
     gap: 0;
   }
 }
 
-/* Thumb-sized reach without a thumb-sized box, the .todayCardFootLink deal:
-   the row keeps its visual height and the extra target comes from a negative
-   block margin. */
+/* Thumb-sized reach without a thumb-sized box: the row keeps its visual
+   height and the extra target comes from a negative block margin. A door
+   that is not the page's primary reads as a link in ink, never a coral word
+   (docs/DESIGN_SYSTEM.md "Coral is spent twice"; taste plan, 18 Oct 2026). */
 .picksAlternativesLink {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: var(--space-2);
   min-height: 44px;
-  margin-block: -10px;
-  font-size: 0.85rem;
-  font-weight: 700;
-  color: var(--state-active-ink);
-  text-decoration: none;
+  margin-block: calc(-1 * var(--space-2));
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--ink);
+  text-decoration: underline;
+  text-decoration-color: var(--hairline-strong);
+  text-underline-offset: 3px;
 }
 
 @media (hover: hover) and (pointer: fine) {
   .picksAlternativesLink:hover {
-    text-decoration: underline;
-    text-underline-offset: 3px;
+    text-decoration-color: currentColor;
   }
 }

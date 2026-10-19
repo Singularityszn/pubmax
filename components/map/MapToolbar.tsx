@@ -78,7 +78,7 @@ function DrinkLaneButton({
       aria-expanded={open}
       onClick={onToggle}
     >
-      <GlassWater size={15} aria-hidden="true" />
+      <GlassWater size={16} aria-hidden="true" />
       <span>{`Drink: ${laneLabel}`}</span>
     </button>
   );
@@ -490,7 +490,7 @@ export default function MapToolbar({
           aria-pressed={planningOpen}
           aria-label={planningOpen ? "Close plan" : "Plan an outing"}
         >
-          <Route size={15} aria-hidden="true" />
+          <Route size={16} aria-hidden="true" />
           {/* One label only — the old CSS-hidden sibling span still leaked into
               textContent/AT trees as the "Plan an outingPlan" dual label. */}
           <span className={isMobile === true ? "planBtnShort" : "planBtnFull"}>

@@ -68,26 +68,26 @@ export default function BoroughPassportSlice({ boroughName, venueIds }: BoroughP
     : passport;
   const hasActivity = !shownPassport.isEmpty;
 
+  // A stranger has no passport, so the section has no rows: four zeros under
+  // a heading is an empty state standing in as page content (taste plan,
+  // 18 Oct 2026). It renders nothing once the account answers with no handle.
+  if (!identityLoading && !handle) return null;
+
   return (
     <section
       className={`boroughSection boroughPassport${identityLoading ? " boroughPassportLoading" : ""}`}
       aria-labelledby="boroughPassportHeading"
       aria-busy={identityLoading}
     >
-      <h2 id="boroughPassportHeading" className="boroughSectionTitle">
+      <h2 id="boroughPassportHeading" className="listingSectionTitle">
         {identityLoading ? "Borough passport" : `Your ${boroughName} passport`}
       </h2>
-      <p className="boroughSectionDek">
+      <p className="listingSectionDek">
         {identityLoading ? (
           <span className="boroughPassportSkeleton boroughPassportSkeletonCopy" aria-hidden="true" />
-        ) : handle ? (
-          <>
-            Pubs logged, drinks tried, and pints stamped in {boroughName} for @{handle}.
-          </>
         ) : (
           <>
-            Claim a handle on your profile to start collecting borough chapters. Session-only
-            for now, no home address stored.
+            Pubs logged, drinks tried, and pints stamped in {boroughName} for @{handle}.
           </>
         )}
       </p>
@@ -116,7 +116,7 @@ export default function BoroughPassportSlice({ boroughName, venueIds }: BoroughP
             {identityLoading ? (
               <span className="boroughPassportSkeleton" aria-hidden="true" />
             ) : shownPassport.cheapestPintGbp == null ? (
-              "–"
+              "None yet"
             ) : (
               formatGbp(shownPassport.cheapestPintGbp)
             )}
@@ -132,19 +132,15 @@ export default function BoroughPassportSlice({ boroughName, venueIds }: BoroughP
             </>
           ) : null}
           <Link href={handle ? `/u/${encodeURIComponent(handle)}` : "/u/you"}>
-            Open full passport →
+            Open full passport
           </Link>
         </p>
       ) : handle ? (
         <p className="boroughPassportFoot">
           Nothing stamped in {boroughName} yet.{" "}
-          <Link prefetch={false} href={`/map?q=${encodeURIComponent(boroughName)}`}>Log a pint on the map →</Link>
+          <Link prefetch={false} href={`/map?q=${encodeURIComponent(boroughName)}`}>Log a pint on the map</Link>
         </p>
-      ) : (
-        <p className="boroughPassportFoot">
-          <Link href="/u/you">Set your handle →</Link>
-        </p>
-      )}
+      ) : null}
     </section>
   );
 }

@@ -16,8 +16,8 @@
   font-family: var(--font-body);
   /* The control row, read rather than restated: a price is set in the same type
      as the buttons it stands beside. */
-  font-size: var(--control-font-size, 0.86rem);
-  font-weight: var(--control-font-weight, 700);
+  font-size: var(--control-font-size);
+  font-weight: var(--control-font-weight);
   font-variant-numeric: tabular-nums;
   font-feature-settings: "tnum";
   line-height: 1;

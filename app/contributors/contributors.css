@@ -1,151 +1,61 @@
+/* /contributors. Taste pass, 18 Oct 2026: the head is the shared Screen
+   (components/ui/screen.css), so the page takes its width and gutter and
+   starts on the same left edge as every other route. The record is a RowList
+   (components/ui/row-list.tsx), one hairline between rows, the whole row one
+   tap target onto the profile. It used to be a stack of bordered cards with a
+   coral rank and coral counts on a coral-washed page, under a pill that looked
+   like a control and was not. Launch tokens only. */
+
 .contributorPage {
   min-height: 100dvh;
   color: var(--ink);
-  background:
-    linear-gradient(
-      180deg,
-      color-mix(in srgb, var(--brass) 4%, var(--paper)) 0,
-      var(--paper) 300px
-    );
 }
 
-/* The head is the shared Screen primitive (components/ui/screen.css). The
-   main column already pays the gutters, so the record drops its own. No card
-   around the head: a heading with a list under it is already a section. */
 .contributorMain {
-  width: min(860px, 100%);
-  margin: 0 auto;
-  padding: 0 var(--page-gutter) 88px;
-}
-
-.contributorMain .contributorRecord {
-  width: 100%;
-  padding-inline: 0;
-}
-
-.contributorWindow {
-  width: fit-content;
-  margin: 0;
-  padding: 5px 10px;
-  border: 1px solid var(--line);
-  border-radius: var(--radius-pill);
-  background: var(--panel);
-  color: var(--ink-soft);
-  font-size: 0.76rem;
-  font-weight: 700;
+  padding-bottom: calc(var(--space-12) * 2 + env(safe-area-inset-bottom, 0px));
 }
 
 .contributorThin {
-  margin: 22px 0 8px;
-  color: var(--ink-soft);
-  line-height: 1.55;
-  font-size: 0.84rem;
-  font-weight: 600;
+  max-width: 46rem;
+  margin: var(--space-4) 0 var(--space-2);
+  color: var(--color-text-muted);
+  font-size: var(--text-sm);
+  line-height: var(--leading-normal);
 }
 
 .contributorList {
-  display: grid;
-  gap: 8px;
-  margin: 22px 0 0;
-  padding: 0;
-  list-style: none;
-}
-
-.contributorRow {
-  display: grid;
-  grid-template-columns: 32px minmax(0, 1fr) auto;
-  align-items: center;
-  gap: 12px;
-  min-width: 0;
-  padding: 15px;
-  border: 1px solid var(--line);
-  border-radius: 16px;
-  background: var(--panel-raised);
+  max-width: 46rem;
+  margin-top: var(--space-4);
 }
 
 .contributorRank {
-  align-self: start;
-  padding-top: 2px;
-  color: var(--brass);
-  font-family: var(--font-data, var(--font-body));
-  font-size: 0.9rem;
-  font-weight: 700;
+  min-width: 2ch;
+  color: var(--color-text-muted);
+  font-family: var(--font-data);
+  font-size: var(--text-sm);
+  font-weight: 600;
   font-variant-numeric: tabular-nums;
 }
 
 .contributorIdentity {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
   min-width: 0;
-}
-
-.contributorIdentity > a {
-  display: inline-block;
-  min-height: 44px;
-  padding: 10px 0;
-  overflow-wrap: anywhere;
-  color: var(--ink);
-  font-weight: 750;
-  text-underline-offset: 3px;
-}
-
-.contributorLanes {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 7px 14px;
-  margin: 1px 0 0;
-}
-
-.contributorLanes div {
-  display: flex;
-  gap: 5px;
-  min-width: 0;
-  color: var(--ink-soft);
-  font-size: 0.75rem;
-}
-
-.contributorLanes dt,
-.contributorLanes dd {
-  margin: 0;
-}
-
-.contributorLanes dd {
-  color: var(--brass);
-  font-family: var(--font-data, var(--font-body));
-  font-weight: 700;
-  font-variant-numeric: tabular-nums;
 }
 
 .contributorTotal {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  min-width: 68px;
-  margin: 0;
-  color: var(--ink-soft);
-  font-size: 0.68rem;
+  display: inline-flex;
+  align-items: baseline;
+  gap: var(--space-1);
+  color: var(--color-text-muted);
+  font-size: var(--text-xs);
 }
 
 .contributorTotal strong {
   color: var(--ink);
-  font-family: var(--font-data, var(--font-body));
-  font-size: 1.35rem;
+  font-family: var(--font-data);
+  font-size: var(--text-md);
+  font-weight: 600;
   font-variant-numeric: tabular-nums;
-}
-
-@media (max-width: 480px) {
-  .contributorMain {
-    padding-top: 18px;
-  }
-
-  .contributorRow {
-    grid-template-columns: 24px minmax(0, 1fr);
-    gap: 8px;
-  }
-
-  .contributorTotal {
-    grid-column: 2;
-    flex-direction: row;
-    align-items: baseline;
-    gap: 5px;
-    min-width: 0;
-  }
 }

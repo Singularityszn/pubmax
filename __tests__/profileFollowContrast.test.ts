@@ -61,7 +61,7 @@ describe("mutual-follow action", () => {
       profileCss,
       ".profilePage .followBtn.isMates:hover:not(:disabled)",
     );
-    const inkMix = /color-mix\(in srgb, var\(--color-positive, var\(--pint\)\) (\d+)%, var\(--ink\)\)/
+    const inkMix = /color-mix\(in srgb, var\(--color-positive(?:, var\(--pint\))?\) (\d+)%, var\(--ink\)\)/
       .exec(mateRule)?.[1];
 
     expect(inkMix).toBeTruthy();

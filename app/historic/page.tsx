@@ -19,7 +19,10 @@ import { loadGroupedVenues } from "@/lib/venueDataset";
 import HistoricBoroughLinks, {
   type HistoricBoroughLink,
 } from "@/components/seo/HistoricBoroughLinks";
-import HistoricPageClient from "./HistoricPageClient";
+import { PUB_PHOTOS } from "@/lib/landingImagery";
+import HistoricPageClient, {
+  type HistoricIndexSummary,
+} from "./HistoricPageClient";
 
 import "./historic.css";
 
@@ -75,6 +78,43 @@ function buildBoroughLinks(
     });
 }
 
+// The desktop side pane's figures: counted from the records on the page's own
+// dataset, never estimated. The oldest is the first entry of the register's
+// own "oldest first" order that states a date, so the pane and the list agree.
+function buildSummary(
+  pubs: Awaited<ReturnType<typeof loadHistoricPubs>>,
+): HistoricIndexSummary {
+  const oldestFirst = filterAndSortHistoric(pubs, {
+    borough: null,
+    listedOnly: false,
+    hasDate: true,
+    sort: "oldest",
+  });
+  const oldest = oldestFirst[0];
+  // The pub the lead photograph shows: a pub we hold a photograph OF (rule 1
+  // of lib/landingImagery.ts), preferring its fuller, dated record.
+  const photographed = pubs.filter((pub) => pub.venueId && PUB_PHOTOS[pub.venueId]);
+  const leadPub = photographed.find((pub) => pub.dateLabel) ?? photographed[0];
+  return {
+    total: pubs.length,
+    boroughs: new Set(pubs.map((pub) => pub.borough).filter(Boolean)).size,
+    listed: pubs.filter((pub) => pub.listed).length,
+    oldest:
+      oldest && oldest.dateLabel
+        ? { name: oldest.name, slug: oldest.slug, dateLabel: oldest.dateLabel }
+        : null,
+    leadPub: leadPub
+      ? {
+          name: leadPub.name,
+          slug: leadPub.slug,
+          venueId: leadPub.venueId,
+          dateLabel: leadPub.dateLabel ?? null,
+          listed: leadPub.listed,
+        }
+      : null,
+  };
+}
+
 type HistoricPageProps = {
   searchParams?: Promise<Record<string, string | string[] | undefined>>;
 };
@@ -109,6 +149,7 @@ export default async function HistoricPage({
         filters={resolvedFilters}
         page={pageResult.page}
         totalPages={pageResult.totalPages}
+        summary={buildSummary(pubs)}
       />
       <HistoricBoroughLinks boroughs={boroughLinks} />
     </>

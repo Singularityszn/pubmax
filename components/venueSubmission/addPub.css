@@ -35,8 +35,8 @@
   gap: 12px;
   margin: 0;
   padding: 16px;
-  border: 1px solid var(--line-soft, var(--line));
-  border-radius: var(--control-radius, 14px);
+  border: 1px solid var(--line-soft);
+  border-radius: var(--control-radius);
   background: var(--panel);
   min-width: 0;
 }
@@ -44,7 +44,7 @@
 .addPubSectionTitle {
   margin: 0;
   padding: 0;
-  font-size: 1rem;
+  font-size: var(--text-base);
   font-weight: 700;
   color: var(--ink);
 }
@@ -53,19 +53,19 @@
   display: grid;
   gap: 6px;
   min-width: 0;
-  font-size: 0.86rem;
+  font-size: var(--text-sm);
   font-weight: 600;
-  color: var(--ink-soft, var(--ink));
+  color: var(--ink-soft);
 }
 
 .addPubField input,
 .addPubField select,
 .addPubField textarea {
   width: 100%;
-  min-height: var(--control-height, 44px);
+  min-height: var(--control-height);
   padding: 10px 12px;
   border: 1px solid var(--line);
-  border-radius: var(--control-radius, 14px);
+  border-radius: var(--control-radius);
   background: var(--paper);
   color: var(--ink);
   font: inherit;
@@ -86,7 +86,7 @@
 
 .addPubHint {
   margin: 0;
-  font-size: 0.8rem;
+  font-size: var(--text-xs);
   line-height: 1.45;
   color: var(--muted);
 }
@@ -97,7 +97,7 @@
   gap: 10px;
   align-items: end;
   padding-bottom: 12px;
-  border-bottom: 1px solid var(--line-soft, var(--line));
+  border-bottom: 1px solid var(--line-soft);
 }
 
 .addPubFiles,
@@ -119,7 +119,7 @@
   gap: 8px;
   min-width: 0;
   overflow-wrap: anywhere;
-  font-size: 0.86rem;
+  font-size: var(--text-sm);
 }
 
 .addPubAddedName {
@@ -128,7 +128,7 @@
 
 .addPubAddedStatus {
   color: var(--muted);
-  font-size: 0.8rem;
+  font-size: var(--text-xs);
 }
 
 .addPubRemove {
@@ -139,7 +139,7 @@
   background: transparent;
   color: var(--ink);
   font: inherit;
-  font-size: 0.82rem;
+  font-size: var(--text-sm);
   text-decoration: underline;
   text-underline-offset: 3px;
   cursor: pointer;
@@ -150,7 +150,7 @@
   gap: 12px;
   padding: 16px;
   border: 1px solid var(--amber);
-  border-radius: var(--control-radius, 14px);
+  border-radius: var(--control-radius);
   background: var(--panel);
 }
 
@@ -174,13 +174,13 @@
 .addPubError,
 .addPubErrors {
   margin: 0;
-  color: var(--tint-ink-negative, var(--brick));
-  font-size: 0.86rem;
+  color: var(--tint-ink-negative);
+  font-size: var(--text-sm);
 }
 
 .addPubDoneTitle {
   margin: 0;
-  font-size: 1.15rem;
+  font-size: var(--text-md);
   line-height: 1.3;
 }
 

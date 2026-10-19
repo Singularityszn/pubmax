@@ -245,31 +245,6 @@ async function expectUnclippedCaption(locator: Locator, expected: string): Promi
   expect(state.clientHeight).toBe(state.scrollHeight);
 }
 
-async function expectBoundedProse(
-  locator: Locator,
-  expected: string | undefined,
-  lineClamp: number,
-): Promise<void> {
-  if (expected !== undefined) {
-    await expect(locator).toHaveText(expected);
-  }
-  const state = await locator.evaluate((element) => {
-    const style = getComputedStyle(element);
-    return {
-      overflow: style.overflow,
-      lineClamp: style.getPropertyValue("-webkit-line-clamp"),
-      clientHeight: element.clientHeight,
-      lineHeight: Number.parseFloat(style.lineHeight),
-    };
-  });
-
-  expect(state.overflow).toBe("hidden");
-  expect(state.lineClamp).toBe(String(lineClamp));
-  expect(state.clientHeight).toBeLessThanOrEqual(
-    Math.ceil(state.lineHeight * lineClamp) + 1,
-  );
-}
-
 for (const viewport of VIEWPORTS) {
   for (const captionCase of FIXTURE_ONLY_CAPTION_CASES) {
     test(`fixture-only CSS contract: ${captionCase.name} at ${viewport.width}px`, async ({ page }) => {
@@ -339,34 +314,31 @@ for (const viewport of VIEWPORTS) {
 }
 
 for (const viewport of VIEWPORTS.filter(({ width }) => width >= 390)) {
-  test(`historic disclosures retain the full 1583 text at ${viewport.width}px`, async ({
+  // The register prints every cited hook whole (taste plan, 18 Oct 2026): no
+  // two-line clamp and no "Show more" to open, so the 1583 sentence is on the
+  // page as it stands, with its date and its source under it.
+  test(`historic entries print the full 1583 text at ${viewport.width}px`, async ({
     page,
   }) => {
     await page.setViewportSize(viewport);
     const response = await page.goto("/historic");
     expect(response?.status()).toBe(200);
 
-    const card = page
-      .locator(".historicCard")
+    const entry = page
+      .locator(".historicEntry")
       .filter({ hasText: "The Grapes" });
-    await expect(card).toBeVisible();
-    const disclosure = card.locator(".proseDisclosure");
-    await expect(disclosure).not.toHaveAttribute("open", "");
-    const hook = disclosure.locator(".proseDisclosureText");
+    await expect(entry).toBeVisible();
+    await expect(entry.locator(".proseDisclosure")).toHaveCount(0);
+    const hook = entry.locator(".historicHook");
     await expect(hook).toHaveText(THE_GRAPES_HOOK);
-    await expectBoundedProse(hook, THE_GRAPES_HOOK, 2);
-    await expect(disclosure.getByText("Show more", { exact: true })).toBeVisible();
-    await disclosure.locator("summary").click();
-    await expect(disclosure).toHaveAttribute("open", "");
     await expectUnclippedCaption(hook, THE_GRAPES_HOOK);
-    await expect(disclosure.getByText("Show less", { exact: true })).toBeVisible();
     await expect(hook).toContainText("since 1583");
-    const provenance = card.locator(".historicProvenance");
+    const provenance = entry.locator(".historicProvenance");
     await expect(provenance).toBeVisible();
-    await expect(card.locator(".historicEra")).toHaveText(THE_GRAPES_DATE_LABEL);
-    await expect(card.locator(".historicCite")).toBeVisible();
+    await expect(entry.locator(".historicDate")).toHaveText(THE_GRAPES_DATE_LABEL);
+    await expect(entry.locator(".historicCite")).toBeVisible();
     const [hookBox, provenanceBox] = await Promise.all([
-      disclosure.boundingBox(),
+      hook.boundingBox(),
       provenance.boundingBox(),
     ]);
     expect(hookBox).not.toBeNull();
@@ -375,34 +347,19 @@ for (const viewport of VIEWPORTS.filter(({ width }) => width >= 390)) {
       hookBox!.y + hookBox!.height,
     );
 
+    // The borough chapter lists its historic pubs as rows: the name, then the
+    // date and grade as meta, and the row opens the pub's own story page.
     const boroughResponse = await page.goto("/borough/tower-hamlets");
     expect(boroughResponse?.status()).toBe(200);
 
-    const boroughCard = page
-      .locator(".boroughHeritageCard")
-      .filter({ hasText: "The Grapes" });
-    await expect(boroughCard).toBeVisible();
-    const boroughDisclosure = boroughCard.locator(".proseDisclosure");
-    const boroughHook = boroughDisclosure.locator(".proseDisclosureText");
-    await expect(boroughHook).toHaveText(THE_GRAPES_HOOK);
-    await expectBoundedProse(boroughHook, THE_GRAPES_HOOK, 2);
-    await boroughDisclosure.locator("summary").click();
-    await expect(boroughDisclosure).toHaveAttribute("open", "");
-    await expectUnclippedCaption(boroughHook, THE_GRAPES_HOOK);
-    await expect(boroughHook).toContainText("since 1583");
-    const boroughLink = boroughCard.locator(".boroughHeritageMapLink");
-    await expect(boroughLink).toBeVisible();
-    await expect(boroughCard.locator(".boroughHeritageEra")).toHaveText(
-      THE_GRAPES_DATE_LABEL,
-    );
-    const [boroughHookBox, boroughLinkBox] = await Promise.all([
-      boroughDisclosure.boundingBox(),
-      boroughLink.boundingBox(),
-    ]);
-    expect(boroughHookBox).not.toBeNull();
-    expect(boroughLinkBox).not.toBeNull();
-    expect(boroughLinkBox!.y).toBeGreaterThanOrEqual(
-      boroughHookBox!.y + boroughHookBox!.height,
+    const boroughRow = page
+      .locator(".boroughRows .rowListItem")
+      .filter({ hasText: "The Grapes" })
+      .filter({ hasText: THE_GRAPES_DATE_LABEL });
+    await expect(boroughRow).toBeVisible();
+    await expect(boroughRow.locator(".rowListTitleLink")).toHaveAttribute(
+      "href",
+      /^\/historic\/[a-z0-9-]+$/,
     );
     await expect(page.locator(".boroughHeritageProvenance")).toBeVisible();
   });

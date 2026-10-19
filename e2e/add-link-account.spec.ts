@@ -110,7 +110,7 @@ test("the sign-up door opens the account form with the add link still on it", as
   await expect(page).toHaveURL(new RegExp(`/login\\?mode=signup&from=${RETURN_TO}`));
   // The new-account door, and the handle+password form beside it: both are the
   // real ways in, and both are reached with the add link intact.
-  await expect(page.getByRole("heading", { name: "Let's get you in" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Make an account" })).toBeVisible();
   await expect(page.getByTestId("e2e-login-toggle")).toHaveCount(0);
   await page.getByRole("tab", { name: "Sign in" }).click();
   await expect(page.getByTestId("e2e-login-toggle")).toBeVisible();

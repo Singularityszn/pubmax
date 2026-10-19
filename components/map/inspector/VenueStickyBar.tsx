@@ -62,7 +62,7 @@ export default function VenueStickyBar({
           aria-pressed={inCrawl}
           onClick={() => onToggleStop(venue.id)}
         >
-          <RouteIcon size={15} aria-hidden="true" />
+          <RouteIcon size={16} aria-hidden="true" />
           {inCrawl ? "Remove" : "Crawl"}
         </button>
       ) : null}
@@ -74,7 +74,7 @@ export default function VenueStickyBar({
         }}
         aria-label={`Share ${venue.name}`}
       >
-        <Share2 size={15} aria-hidden="true" />
+        <Share2 size={16} aria-hidden="true" />
         Share
       </button>
       {/* No Train button here: the getting-home fold on the Overview is the

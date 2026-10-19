@@ -32,7 +32,11 @@ const REQUIRED_TARGETS: Partial<Record<LaunchRoute, readonly string[]>> = {
   "/about": [".aboutLogoLinks .aboutLink"],
   "/discover": [".discoverBrandChip", "a.leaderboardPub"],
   "/pubs": [".pubsJumpChip"],
-  "/social": [".findLot__follow"],
+  // A stranger's Find your lot no longer carries a "Sign in to invite" door
+  // (taste pass, 18 Oct 2026: the head keeps the only door), so the signed-out
+  // page's own control row is the Posts / Pubs & pints switcher, and the
+  // handle field below still holds Find your lot to its floor.
+  "/social": [".socialSwitcher a"],
   "/login": [".authSignIn.authMagicLinkButton"],
 };
 

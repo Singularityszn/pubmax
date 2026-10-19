@@ -199,7 +199,7 @@ export default function VenueBuzz({
     >
       <div className="venueBuzzHead">
         <span className="venueBuzzEyebrow">
-          <Newspaper size={12} aria-hidden="true" />
+          <Newspaper size={14} aria-hidden="true" />
           Around the web: AI summary of press &amp; reviews
         </span>
         <span
@@ -219,7 +219,7 @@ export default function VenueBuzz({
           {mentions.map((m) => (
             <li key={m.url} className="venueBuzzMention">
               <a href={m.url} target="_blank" rel="noreferrer noopener">
-                <ExternalLink size={10} aria-hidden="true" />
+                <ExternalLink size={14} aria-hidden="true" />
                 {m.label}
               </a>
             </li>

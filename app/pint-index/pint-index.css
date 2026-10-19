@@ -1,83 +1,82 @@
-/* The London Pint Index (Wave S3.3). Self-contained: depends only on the
-   globally-loaded design tokens (--brass, --ink, --line, --panel…), so both the
-   light and dark themes track automatically. Mobile-first, comfortable at 390px;
-   the league table scrolls horizontally inside its own container rather than
-   pushing the page body sideways. Mirrors the borough/discover aesthetic. */
+/* The London Pint Index (Wave S3.3) and its dated editions. Tokens only, so
+   both themes track. The shell, the section heading and the quiet link are the
+   listing pages' own (components/listing/listing.css); the league table
+   scrolls inside its own container rather than pushing the page sideways.
 
-/* The head (kicker, heading, the one primary action) is the Screen primitive
-   (components/ui/screen.tsx) via PintIndexScreen.tsx, which owns the page
-   gutter, so the page itself carries none: an inline padding here would double
-   it. */
+   Nothing on this page is coral (taste plan, 18 Oct 2026): the rank, the
+   borough links, the edition you are reading, the download and the footnote
+   all wore it, and a tinted note box sat under three section headings. Coral
+   is the Screen primary's alone. */
+
 .pintIndexPage {
-  max-width: 960px;
-  margin: 0 auto;
-  padding: 28px 0 80px;
-  color: var(--ink);
+  padding-block: var(--space-2) var(--space-12);
 }
 
-/* --- headline stat tiles -------------------------------------------------- */
+/* --- headline figures ------------------------------------------------------- */
 
+/* Four figures, not four boxes: the figure carries the weight, its label sits
+   above it in sentence case, and a hairline over each groups the pair. */
 .pintIndexStats {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 12px;
+  gap: var(--space-5);
   margin: 0;
   padding: 0;
   list-style: none;
 }
 
 .pintIndexStat {
-  padding: 14px 16px;
-  border: 1px solid var(--line);
-  border-radius: 12px;
-  background: var(--panel-raised, #fff);
+  padding-top: var(--space-3);
+  border-top: 1px solid var(--line-soft);
 }
 
 .pintIndexStat dt {
-  margin: 0 0 6px;
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  color: var(--ink-soft);
+  margin: 0 0 var(--space-1);
+  color: var(--color-text-muted);
+  font-size: var(--text-xs);
 }
 
 .pintIndexStat dd {
   margin: 0;
-  font-size: 24px;
+  color: var(--color-text);
+  font-family: var(--font-data);
+  font-size: var(--text-xl);
   font-weight: 700;
   font-variant-numeric: tabular-nums;
-  color: var(--ink);
 }
 
 .pintIndexStat dd small {
   display: block;
   margin-top: 2px;
-  font-size: 12px;
+  color: var(--color-text-muted);
+  font-family: var(--font-body);
+  font-size: var(--text-xs);
   font-weight: 500;
-  color: var(--ink-soft);
 }
 
 /* --- section shell -------------------------------------------------------- */
 
 .pintIndexSection {
-  margin: 40px 0 0;
+  margin: var(--space-10) 0 0;
 }
 
+/* The editions page still names its sections through these two classes. */
 .pintIndexSectionTitle {
-  margin: 0 0 6px;
-  font-family: var(--font-garamond, var(--serif));
-  font-size: 24px;
+  margin: 0 0 var(--space-2);
+  color: var(--color-text);
+  font-family: var(--font-display);
+  font-size: var(--text-lg);
   font-weight: 700;
-  color: var(--ink);
+  line-height: var(--leading-tight);
+  letter-spacing: var(--tracking-tight);
 }
 
 .pintIndexSectionDek {
-  margin: 0 0 16px;
-  max-width: 64ch;
-  color: var(--ink-soft);
-  font-size: 15px;
-  line-height: 1.55;
+  margin: 0 0 var(--space-4);
+  max-width: var(--content-max);
+  color: var(--color-text-soft);
+  font-size: var(--text-sm);
+  line-height: var(--leading-normal);
 }
 
 /* --- league table --------------------------------------------------------- */
@@ -85,9 +84,6 @@
 .pintIndexTableWrap {
   overflow-x: auto;
   touch-action: pan-y;
-  border: 1px solid var(--line);
-  border-radius: 12px;
-  background: var(--panel);
 }
 
 .pintIndexTable {
@@ -97,15 +93,14 @@
   font-variant-numeric: tabular-nums;
 }
 
+/* A column head is a label: sentence case, muted, no tracking. */
 .pintIndexTable thead th {
+  padding: var(--space-2) var(--space-3);
+  border-bottom: 1px solid var(--hairline-strong);
+  color: var(--color-text-muted);
+  font-size: var(--text-xs);
+  font-weight: 600;
   text-align: left;
-  padding: 12px 14px;
-  font-size: 11px;
-  letter-spacing: 1.5px;
-  text-transform: uppercase;
-  color: var(--ink-soft);
-  border-bottom: 1px solid var(--line);
-  background: var(--panel-raised);
   white-space: nowrap;
 }
 
@@ -115,92 +110,95 @@
   white-space: nowrap;
 }
 
-.pintIndexTable tbody tr {
-  border-bottom: 1px solid var(--line);
-}
-
-.pintIndexTable tbody tr:last-child {
-  border-bottom: 0;
+.pintIndexTable tbody tr + tr {
+  border-top: 1px solid var(--line-soft);
 }
 
 .pintIndexTable td,
 .pintIndexTable th[scope="row"] {
-  padding: 12px 14px;
-  vertical-align: middle;
+  padding: var(--space-3);
+  color: var(--color-text);
   font-weight: 400;
-  color: var(--ink);
+  vertical-align: middle;
 }
 
-.pintIndexRank {
-  width: 44px;
-  text-align: center;
-  color: var(--brass);
-  font-weight: 700;
+/* Figures in the data face. */
+.pintIndexTable td.pintIndexNum {
+  font-family: var(--font-data);
+}
+
+/* The rank: a muted figure, not a coral one. */
+.pintIndexTable td.pintIndexRank {
+  width: 3ch;
+  color: var(--color-text-muted);
 }
 
 .pintIndexBoroughLink {
+  color: var(--color-text);
   font-weight: 600;
-  color: var(--ink);
   text-decoration: none;
 }
 
-.pintIndexBoroughLink:hover {
-  color: var(--brass);
-  text-decoration: underline;
+@media (hover: hover) and (pointer: fine) {
+  .pintIndexBoroughLink:hover {
+    text-decoration: underline;
+    text-underline-offset: 3px;
+  }
+}
+
+.pintIndexBoroughLink:focus-visible {
+  outline: 2px solid var(--color-text);
+  outline-offset: 2px;
+  border-radius: var(--radius-sm);
 }
 
 /* The column the table is ranked on: cheapest-first ranks on the average, the
    dearest-end view ranks on the dearest pint. Weight only, and the selector
-   carries `td` so it outweighs `.pintIndexTable td` above, which had been
-   quietly winning and leaving this rule with nothing to say.
-
-   Weight rather than the page's brass on purpose: --brass is the coral
-   (#ff5a5f), which lands near 2.5:1 against the light table surface. Bold ink
-   marks the ranked column in both themes without spending contrast to do it. */
+   carries `td` so it outweighs `.pintIndexTable td` above. */
 .pintIndexTable td.pintIndexRanked {
   font-weight: 700;
 }
 
 .pintIndexNoPrice {
-  color: var(--ink-soft);
-  font-size: 13px;
+  color: var(--color-text-muted);
+  font-size: var(--text-sm);
 }
 
 /* --- CSV download + methodology ------------------------------------------- */
 
-/* A text button reads the --control-* row (docs/DESIGN_SYSTEM.md): this was
-   a coral-tinted pill printing the raw coral as a WORD on the light ground,
-   which is 2.9:1, beside the head's own 14px-corner controls. */
+/* A neutral secondary on the --control-* row: the head paints the primary. */
 .pintIndexDownload {
   display: inline-flex;
   align-items: center;
-  min-height: var(--control-height, 44px);
-  margin-top: 16px;
-  padding: 0 var(--control-pad-x, 16px);
-  border-radius: var(--control-radius, 14px);
-  border: 1px solid var(--control-secondary-border, var(--line));
-  background: var(--control-secondary-surface, var(--panel-raised));
-  color: var(--ink);
-  font-weight: var(--control-font-weight, 700);
-  font-size: var(--control-font-size, 0.86rem);
+  min-height: var(--control-height);
+  margin-top: var(--space-4);
+  padding: 0 var(--control-pad-x);
+  border: 1px solid var(--hairline-strong);
+  border-radius: var(--control-radius);
+  color: var(--color-text);
+  font-size: var(--control-font-size);
+  font-weight: 600;
   text-decoration: none;
 }
 
-.pintIndexDownload:hover {
-  background: color-mix(in srgb, var(--brass) 20%, var(--panel));
+@media (hover: hover) and (pointer: fine) {
+  .pintIndexDownload:hover {
+    border-color: var(--state-selected-border);
+    background: var(--state-selected-surface);
+  }
 }
 
 .pintIndexDownload:focus-visible {
-  outline: 2px solid var(--brass);
+  outline: 2px solid var(--color-text);
   outline-offset: 2px;
 }
 
 .pintIndexProse p {
-  margin: 0 0 12px;
-  max-width: 64ch;
-  color: var(--ink-soft);
-  font-size: 15px;
-  line-height: 1.6;
+  margin: 0 0 var(--space-3);
+  max-width: var(--content-max);
+  color: var(--color-text-soft);
+  font-size: var(--text-sm);
+  line-height: var(--leading-normal);
 }
 
 .pintIndexProse p:last-child {
@@ -208,88 +206,73 @@
 }
 
 .pintIndexProse strong {
-  color: var(--ink);
+  color: var(--color-text);
 }
 
+/* A note under a section heading (the editions page): plain muted words, no
+   tinted box. */
 .pintIndexNote {
-  margin: 16px 0 0;
-  padding: 14px 16px;
-  border: 1px solid color-mix(in srgb, var(--brass) 28%, var(--line));
-  border-radius: var(--radius);
-  background: color-mix(in srgb, var(--brass) 8%, var(--panel-raised));
-  color: var(--ink-soft);
-  font-size: 14px;
-  line-height: 1.5;
+  margin: var(--space-2) 0 var(--space-4);
+  max-width: var(--content-max);
+  color: var(--color-text-soft);
+  font-size: var(--text-sm);
+  line-height: var(--leading-normal);
 }
 
-/* --- borough index links -------------------------------------------------- */
+/* --- dated editions ---------------------------------------------------------- */
 
 .pintIndexBoroughLinks {
   list-style: none;
-  margin: 16px 0 0;
+  margin: var(--space-4) 0 0;
   padding: 0;
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
+  gap: var(--space-2);
 }
 
-.pintIndexBoroughLinks a {
-  display: inline-flex;
-  align-items: center;
-  /* The tap floor: these were 38px. */
-  min-height: 44px;
-  padding: 6px 12px;
-  border: 1px solid var(--line);
-  border-radius: 999px;
-  background: var(--panel);
-  color: var(--ink);
-  font-size: 13px;
-  font-weight: 600;
-  text-decoration: none;
-}
-
-.pintIndexBoroughLinks a:hover {
-  border-color: var(--brass);
-  color: var(--color-accent-ink);
-}
-
-.pintIndexBoroughLinks a:focus-visible {
-  outline: 2px solid var(--brass);
-  outline-offset: 2px;
-}
-
-/* The edition you are already reading: same shape as its siblings, no link. */
+.pintIndexBoroughLinks a,
 .pintIndexEditionCurrent {
   display: inline-flex;
   align-items: center;
   min-height: 44px;
-  padding: 6px 12px;
-  border: 1px solid var(--brass);
-  border-radius: 999px;
-  background: color-mix(in srgb, var(--brass) 12%, var(--panel));
-  /* A word in the accent on a TINT of the accent takes the tint ink, not the
-     ladder ink: --color-accent-ink is tuned against the page and the card, and
-     over this tint on the recessed panel it reads 4.25:1. */
-  color: var(--tint-ink-accent);
-  font-size: 13px;
+  padding: 0 var(--space-3);
+  border: 1px solid var(--hairline-strong);
+  border-radius: var(--control-radius);
+  color: var(--color-text);
+  font-size: var(--text-sm);
   font-weight: 600;
-}
-
-.pintIndexFootnote {
-  margin: 40px 0 0;
-  font-family: var(--font-garamond, var(--serif));
-  font-style: italic;
-  color: var(--ink-soft);
-}
-
-.pintIndexFootnote a {
-  color: var(--brass);
-  font-style: normal;
   text-decoration: none;
 }
 
-.pintIndexFootnote a:hover {
+@media (hover: hover) and (pointer: fine) {
+  .pintIndexBoroughLinks a:hover {
+    border-color: var(--state-selected-border);
+  }
+}
+
+.pintIndexBoroughLinks a:focus-visible {
+  outline: 2px solid var(--color-text);
+  outline-offset: 2px;
+}
+
+/* The edition you are already reading is the selected one: ink, not coral. */
+.pintIndexEditionCurrent {
+  border-color: var(--state-selected-border);
+  background: var(--state-selected-surface);
+  color: var(--state-selected-ink);
+}
+
+.pintIndexFootnote {
+  margin: var(--space-10) 0 0;
+  color: var(--color-text-muted);
+}
+
+.pintIndexFootnote a:not(.listingLink) {
+  color: var(--color-text);
+  font-weight: 600;
   text-decoration: underline;
+  text-decoration-color: var(--hairline-strong);
+  text-underline-offset: 3px;
 }
 
 /* Screen-reader-only utility (table caption). */
@@ -306,13 +289,6 @@
 }
 
 @media (max-width: 640px) {
-  .pintIndexPage {
-    padding: 20px 0
-      calc(
-        var(--mobile-tab-clearance, 72px) + 48px + env(safe-area-inset-bottom, 0px)
-      );
-  }
-
   .pintIndexStats {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }

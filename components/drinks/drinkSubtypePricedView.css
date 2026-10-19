@@ -20,7 +20,7 @@
   margin-top: 20px;
 }
 
-@media (min-width: 900px) {
+@media (min-width: 901px) {
   .softDrinksWater__layout {
     grid-template-columns: minmax(0, 1fr) minmax(280px, 360px);
     align-items: start;
@@ -37,7 +37,7 @@
 .softDrinksWater__chip {
   min-height: 44px;
   padding: 10px 14px;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   border: 1px solid var(--line);
   background: var(--paper);
   color: var(--ink);
@@ -58,7 +58,7 @@
 
 /* The global focus rule squares a control off; a pill restates its radius. */
 .softDrinksWater__chip:focus-visible {
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
 }
 
 .softDrinksWater__list {
@@ -75,7 +75,7 @@
   grid-template-columns: minmax(0, 1fr) auto;
   gap: 12px;
   padding: 14px 16px;
-  border-radius: 12px;
+  border-radius: var(--radius);
   border: 1px solid var(--line);
   background: var(--card, var(--paper));
 }
@@ -86,8 +86,10 @@
   text-decoration: none;
 }
 
-.softDrinksWater__venue:hover {
-  text-decoration: underline;
+@media (hover: hover) and (pointer: fine) {
+  .softDrinksWater__venue:hover {
+    text-decoration: underline;
+  }
 }
 
 .softDrinksWater__borough {
@@ -113,17 +115,14 @@
   color: var(--accent-price-ink);
 }
 
+/* Placement only: the face is the one price look (components/PriceBadge.tsx). */
 .softDrinksWater__price {
   align-self: start;
-  font-family: var(--font-data);
-  font-weight: 800;
-  font-variant-numeric: tabular-nums;
-  color: var(--accent-price-ink);
 }
 
 .softDrinksWater__mapFrame {
   display: block;
-  border-radius: 16px;
+  border-radius: var(--radius-lg);
   border: 1px solid var(--line);
   overflow: hidden;
   text-decoration: none;
@@ -135,7 +134,7 @@
 }
 
 .softDrinksWater__mapDot {
-  fill: var(--cat-soft-drink, var(--accent));
+  fill: var(--cat-soft-drink);
 }
 
 .softDrinksWater__mapCaption {
@@ -154,8 +153,8 @@
 
 .softDrinksWater__sectionTitle {
   margin: 0;
-  font-family: var(--font-display, var(--serif));
-  font-size: var(--text-lg, 1.25rem);
+  font-family: var(--font-display);
+  font-size: var(--text-lg);
   font-weight: 700;
   color: var(--ink);
 }

@@ -171,7 +171,7 @@ describe("core UI audit fixes", () => {
   it("keeps the plan entry placeholder readable on a phone", () => {
     expect(planEntry).toMatch(/placeholder="Quiet in Clapham for 4"/);
     expect(planEntry).not.toMatch(/placeholder="[^"]*…/);
-    expect(planCss).toMatch(/@media \(max-width: 760px\)[\s\S]*?\.planPage__intro\s*\{\s*margin:\s*10px auto 10px/);
+    expect(planCss).toMatch(/@media \(max-width: 900px\)[\s\S]*?\.planPage__intro\s*\{\s*margin:\s*10px auto 10px/);
   });
 
   it("leaves the map's own tools up during first-session arrival", () => {

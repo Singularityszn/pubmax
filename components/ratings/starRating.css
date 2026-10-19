@@ -1,23 +1,24 @@
 /* Star ratings (PRD E3). Tokens only — colour rides `--rating-accent`, which
-   defaults to the app's one brass accent; a category surface re-tints by
-   setting the var (never new hexes here). */
+   defaults to ink: a rating is a value, not an action, so it never wears the
+   coral the one primary owns. A category surface re-tints by setting the var
+   (never new hexes here). */
 
 .starRating {
   display: inline-flex;
   align-items: center;
   line-height: 1;
-  --rating-accent: var(--color-accent);
+  --rating-accent: var(--ink);
 }
 
 .starRatingGlyphs {
   position: relative;
   display: inline-block;
-  font-size: 1.05rem;
+  font-size: var(--text-base);
   letter-spacing: 0.08em;
 }
 
 .starRating--sm .starRatingGlyphs {
-  font-size: 0.85rem;
+  font-size: var(--text-sm);
 }
 
 .starRatingRow {
@@ -38,7 +39,7 @@
 
 .starRating--interactive {
   cursor: pointer;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   touch-action: manipulation;
 }
 
@@ -58,37 +59,37 @@
 
 .ratingCount {
   font-family: var(--font-data);
-  font-size: 0.75rem;
+  font-size: var(--text-xs);
   color: var(--color-text-muted);
 }
 
 .ratingUnrated {
-  font-size: 0.8rem;
+  font-size: var(--text-xs);
   color: var(--color-text-muted);
   font-style: italic;
 }
 
 .ratingPrompt {
-  font-size: 0.8rem;
+  font-size: var(--text-xs);
   color: var(--color-text-soft);
 }
 
 .ratingNote {
-  font-size: 0.78rem;
+  font-size: var(--text-xs);
   color: var(--color-text-muted);
 }
 
 .ratingError {
-  font-size: 0.78rem;
+  font-size: var(--text-xs);
   color: var(--color-negative);
 }
 
 .ratingHandleInput {
   font: inherit;
-  font-size: 0.8rem;
+  font-size: var(--text-xs);
   padding: 0.2rem 0.45rem;
   border: 1px solid var(--color-border);
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
   background: var(--color-surface-raised);
   color: var(--color-text);
   max-width: 11rem;

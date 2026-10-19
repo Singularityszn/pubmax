@@ -14,16 +14,16 @@
 
 /* Tone selection. `auto` follows the theme; `ink` / `coral` force a tone. */
 .nightSeal--auto {
-  color: var(--ink-deep, #060607);
+  color: var(--ink-deep);
 }
 html[data-theme="dark"] .nightSeal--auto {
-  color: var(--brass, #ff5a5f);
+  color: var(--brass);
 }
 .nightSeal--ink {
-  color: var(--ink-deep, #060607);
+  color: var(--ink-deep);
 }
 .nightSeal--coral {
-  color: var(--brass, #ff5a5f);
+  color: var(--brass);
 }
 
 .nightSeal__ring {

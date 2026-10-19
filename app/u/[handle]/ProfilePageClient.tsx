@@ -1388,8 +1388,13 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
   }
 
   function timelineSection() {
+    // A visitor on a handle with no pints meets no Timeline: the passport above
+    // already says it is blank, and a heading over "No pints logged" said it
+    // twice. The owner keeps the section, where it is where pints will land.
+    const emptyForVisitor =
+      state !== "loading" && drops.length === 0 && !isOwnProfile && !isYouRoute;
     return (
-      !youSignedOut ? (
+      !youSignedOut && !emptyForVisitor ? (
         <section id="timeline" className="profileDropsSection" aria-labelledby="dropsHeading">
           <h2 id="dropsHeading" className="profileSectionHeading">
             Timeline
@@ -1658,6 +1663,7 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
                     ownerHandle={isYouRoute ? viewerHandle : routeHandle}
                     groups={saved}
                     followedLists={followedLists}
+                    isOwner={isYouRoute || isOwnProfile}
                   />
                 </div>
               ) : null}
