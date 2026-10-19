@@ -1,12 +1,12 @@
 /* Compact /tonight rail summary. It stands in for the full Deals and Music
-   lanes, so it shows only where the rail does: from 1100px, the one breakpoint
+   lanes, so it shows only where the rail does: from 1024px, the one breakpoint
    where the phone lanes hide. Below it phones read the full lanes. */
 
 .tonightOnTonightSummary {
   display: none;
 }
 
-@media (min-width: 1100px) {
+@media (min-width: 1024px) {
   .tonightOnTonightSummary {
     display: block;
     margin: 0;
@@ -26,14 +26,14 @@
     align-items: center;
     gap: 8px;
     margin: 0;
-    font-size: var(--text-md, 1.16rem);
+    font-size: var(--text-md);
     font-weight: 700;
     color: var(--ink);
   }
 
   .tonightOnTonightSummaryCount {
     color: var(--ink-soft);
-    font-size: 0.76rem;
+    font-size: var(--text-xs);
     font-weight: 600;
     font-variant-numeric: tabular-nums;
     white-space: nowrap;
@@ -42,7 +42,7 @@
   .tonightOnTonightSummaryKinds {
     margin: 0 0 10px;
     color: var(--ink-soft);
-    font-size: 0.82rem;
+    font-size: var(--text-sm);
     line-height: 1.45;
   }
 
@@ -54,21 +54,25 @@
     gap: 6px;
     min-height: 40px;
     margin: 0 0 10px;
-    color: var(--color-accent-ink);
-    font-size: 0.82rem;
+    color: var(--ink);
+    font-size: var(--text-sm);
     font-weight: 650;
     font-variant-numeric: tabular-nums;
-    text-decoration: none;
+    text-decoration: underline;
+    text-decoration-color: var(--hairline-strong);
+    text-underline-offset: 3px;
   }
 
-  .tonightOnTonightSummaryEnding:hover {
-    text-decoration: underline;
+  @media (hover: hover) and (pointer: fine) {
+    .tonightOnTonightSummaryEnding:hover {
+      text-decoration-color: currentColor;
+    }
   }
 
   .tonightOnTonightSummaryEnding:focus-visible {
     outline: 2px solid var(--brass);
     outline-offset: 2px;
-    border-radius: 4px;
+    border-radius: var(--radius-sm);
   }
 
   .tonightOnTonightSummaryTitles {
@@ -79,7 +83,7 @@
     flex-direction: column;
     gap: 4px;
     color: var(--ink);
-    font-size: 0.84rem;
+    font-size: var(--text-sm);
     line-height: 1.4;
   }
 
@@ -93,7 +97,7 @@
   .tonightOnTonightSummaryNote {
     margin: 0 0 12px;
     color: var(--ink-soft);
-    font-size: 0.76rem;
+    font-size: var(--text-xs);
     line-height: 1.45;
   }
 
@@ -101,19 +105,23 @@
     display: inline-flex;
     align-items: center;
     min-height: 44px;
-    color: var(--color-accent-ink);
-    font-size: 0.82rem;
+    color: var(--ink);
+    font-size: var(--text-sm);
     font-weight: 650;
-    text-decoration: none;
+    text-decoration: underline;
+    text-decoration-color: var(--hairline-strong);
+    text-underline-offset: 3px;
   }
 
-  .tonightOnTonightSummaryLink:hover {
-    text-decoration: underline;
+  @media (hover: hover) and (pointer: fine) {
+    .tonightOnTonightSummaryLink:hover {
+      text-decoration-color: currentColor;
+    }
   }
 
   .tonightOnTonightSummaryLink:focus-visible {
     outline: 2px solid var(--brass);
     outline-offset: 2px;
-    border-radius: 4px;
+    border-radius: var(--radius-sm);
   }
 }

@@ -4,7 +4,7 @@
 
 .venueAreaPriceCompare {
   margin: 0.35rem 0 0;
-  font-size: 0.82rem;
+  font-size: var(--text-sm);
   line-height: 1.35;
   color: var(--muted);
 }

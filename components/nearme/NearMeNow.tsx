@@ -740,6 +740,13 @@ function NearMeIdleIntro({
   const patches = (
     <div className="nmnQuickPatches">
       <p className="nmnQuickPatchesLabel">Or pick a patch</p>
+      {/* What a patch answers, said once and only on the page: the map's
+          sheet is a tighter host with its own title. */}
+      {titledByHost ? null : (
+        <p className="nmnQuickPatchesNote">
+          Each one lists its pubs cheapest first, with the day each price was listed.
+        </p>
+      )}
       <ul className="nmnAreaChips" aria-label="Pick an area">
         {NIGHT_PATCHES.map((entry) => (
           <li key={entry.id}>
@@ -768,7 +775,7 @@ function NearMeIdleIntro({
           data-primary-action=""
           onClick={onLocate}
         >
-          <LocateFixed size={18} aria-hidden="true" /> Find my pint
+          <LocateFixed size={16} aria-hidden="true" /> Find my pint
         </button>
         {hint}
         {patches}
@@ -788,7 +795,7 @@ function NearMeIdleIntro({
       titleId="near-title"
       primary={
         <button type="button" onClick={onLocate}>
-          <LocateFixed size={18} aria-hidden="true" /> Find my pint
+          <LocateFixed size={16} aria-hidden="true" /> Find my pint
         </button>
       }
     >
@@ -828,7 +835,7 @@ export function NearMeReadUnavailable({
     <div className="nmnStatus nmnStatusFail" role="status">
       <p>We could not read the pub list for {areaLabel} just now.</p>
       <button type="button" className="nmnRetry nmnRetryGhost" onClick={onRetry}>
-        <RotateCw size={15} aria-hidden="true" /> Try again
+        <RotateCw size={16} aria-hidden="true" /> Try again
       </button>
     </div>
   );
@@ -861,7 +868,7 @@ function NearMeOutsideCoverage({
       />
       <footer className="nmnFoot nmnFootArea">
         <button type="button" className="nmnRetry nmnRetryGhost" onClick={onLocate}>
-          <LocateFixed size={15} aria-hidden="true" /> Try my location again
+          <LocateFixed size={16} aria-hidden="true" /> Try my location again
         </button>
       </footer>
     </div>
@@ -920,7 +927,7 @@ function NearMeLocatedAnswer({
           <MapPin size={16} aria-hidden="true" /> Open the full map
         </a>
         <button type="button" className="nmnRetry nmnRetryGhost" onClick={onLocate}>
-          <RotateCw size={15} aria-hidden="true" /> Update location
+          <RotateCw size={16} aria-hidden="true" /> Update location
         </button>
       </footer>
     </>
@@ -1028,7 +1035,7 @@ function NearMeAreaAnswer({
           onPickBorough={onPickBorough}
         />
         <button type="button" className="nmnRetry nmnRetryGhost" onClick={onLocate}>
-          <LocateFixed size={15} aria-hidden="true" /> Try my location again
+          <LocateFixed size={16} aria-hidden="true" /> Try my location again
         </button>
       </footer>
     </>
@@ -1076,7 +1083,7 @@ function NearMeCardBody({
           <span className="nmnCardBorough">{card.borough}</span>
           {card.walkMinutes != null ? (
             <span className="nmnCardWalk">
-              <Footprints size={13} aria-hidden="true" />
+              <Footprints size={14} aria-hidden="true" />
               {card.walkMinutes} min
               {distance ? ` · ${distance}` : null}
             </span>
@@ -1247,7 +1254,7 @@ function AreaPicker({
         aria-expanded={open}
         onClick={() => (open ? close() : setOpen(true))}
       >
-        <MapPin size={15} aria-hidden="true" /> Change area
+        <MapPin size={16} aria-hidden="true" /> Change area
         <ChevronDown size={14} aria-hidden="true" className={open ? "nmnAreaCaretOpen" : undefined} />
       </button>
       <div className={`nmnAreaPanel${open ? " nmnAreaPanelOpen" : ""}`} aria-hidden={!open}>
@@ -1302,7 +1309,7 @@ function AreaPicker({
             tabIndex={open ? undefined : -1}
             onClick={() => setShowBoroughs(true)}
           >
-            More areas <ChevronDown size={13} aria-hidden="true" />
+            More areas <ChevronDown size={14} aria-hidden="true" />
           </button>
         )}
       </div>

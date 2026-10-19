@@ -317,7 +317,7 @@ export default function A2HSInstallPrompt(): React.JSX.Element | null {
         onClick={() => close(true)}
         aria-label="Not now"
       >
-        <X size={18} aria-hidden="true" />
+        <X size={20} aria-hidden="true" />
       </button>
 
       <p className="a2hsEyebrow">Add to home screen</p>
@@ -357,7 +357,7 @@ export default function A2HSInstallPrompt(): React.JSX.Element | null {
           <ol className="a2hsSteps">
             <li className="a2hsStep">
               <span className="a2hsStepIcon" aria-hidden="true">
-                <Share size={18} />
+                <Share size={20} />
               </span>
               <span>
                 Tap <strong>Share</strong> in Safari&apos;s toolbar.
@@ -365,7 +365,7 @@ export default function A2HSInstallPrompt(): React.JSX.Element | null {
             </li>
             <li className="a2hsStep">
               <span className="a2hsStepIcon" aria-hidden="true">
-                <Plus size={18} />
+                <Plus size={20} />
               </span>
               <span>
                 Choose <strong>Add to Home Screen</strong>.

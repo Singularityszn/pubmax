@@ -32,16 +32,14 @@
   min-width: var(--map-layers-fab-h);
   min-height: var(--map-layers-fab-h);
   padding: 0 14px 0 12px;
-  border: 1px solid var(--control-secondary-border, var(--color-border));
-  border-radius: 999px;
-  background: var(--control-secondary-surface, var(--color-surface-raised));
+  border: 1px solid var(--control-secondary-border);
+  border-radius: var(--radius-pill);
+  background: var(--control-secondary-surface);
   color: var(--color-text);
-  font-size: 0.78rem;
+  font-size: var(--text-xs);
   font-weight: 800;
   letter-spacing: 0.01em;
-  box-shadow:
-    0 10px 22px color-mix(in srgb, var(--ink-deep) 16%, transparent),
-    0 0 0 1px color-mix(in srgb, var(--brass) 12%, transparent);
+  box-shadow: var(--map-overlay-shadow-tight);
   cursor: pointer;
   touch-action: manipulation;
   transition:
@@ -80,10 +78,10 @@
   /* U6d — extra bottom padding so the last chip row never sits clipped
      against the panel's rounded bottom edge while scrolling. */
   padding: 12px 12px 18px;
-  border: 1px solid color-mix(in srgb, var(--brass) 26%, var(--line));
-  border-radius: 18px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
   background: var(--panel-raised);
-  box-shadow: 0 18px 40px color-mix(in srgb, var(--ink-deep) 22%, transparent);
+  box-shadow: var(--map-overlay-shadow);
   animation: mapLayersPanelIn var(--duration-base) var(--ease-out) both;
 }
 
@@ -107,8 +105,8 @@
 }
 
 .mapLayersPanelHead strong {
-  font-family: var(--font-display, var(--serif));
-  font-size: 1rem;
+  font-family: var(--font-display);
+  font-size: var(--text-base);
   color: var(--ink);
 }
 
@@ -118,7 +116,7 @@
   width: 44px;
   height: 44px;
   border: 0;
-  border-radius: 999px;
+  border-radius: 50%;
   /* A quiet way out, like every other close on the map: it rested on a coral
      wash, which read as the panel's action. */
   background: transparent;
@@ -137,7 +135,7 @@
 .mapLayersHint {
   margin: 0 0 10px;
   color: var(--muted);
-  font-size: 0.75rem;
+  font-size: var(--text-xs);
   line-height: 1.35;
 }
 
@@ -157,14 +155,11 @@
   width: 100%;
   padding: 0 12px;
   border: 0;
-  border-radius: 12px;
+  border-radius: var(--radius);
   background: var(--panel-raised);
   color: var(--ink);
-  font-size: 0.78rem;
+  font-size: var(--text-xs);
   font-weight: 750;
-  box-shadow:
-    0 8px 18px color-mix(in srgb, var(--ink-deep) 12%, transparent),
-    0 0 0 1px color-mix(in srgb, var(--brass) 16%, transparent);
   cursor: pointer;
   touch-action: manipulation;
   transition: transform var(--duration-fast) var(--ease-out);
@@ -176,9 +171,6 @@
 }
 
 .mapLayersReaderAction.isOn {
-  box-shadow:
-    0 8px 18px color-mix(in srgb, var(--ink-deep) 12%, transparent),
-    0 0 0 1px color-mix(in srgb, var(--brass) 42%, transparent);
 }
 
 .mapLayersReaderCount {
@@ -210,10 +202,10 @@
   min-height: 36px;
   padding: 5px 10px;
   border: 1px solid color-mix(in srgb, var(--line) 72%, var(--pint) 28%);
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: color-mix(in srgb, var(--panel) 80%, var(--panel-raised));
   color: var(--ink-soft);
-  font-size: 0.72rem;
+  font-size: var(--text-xs);
   font-weight: 700;
   cursor: pointer;
   touch-action: manipulation;
@@ -264,7 +256,7 @@
 .mapLayersSectionLabel {
   margin: 12px 0 6px;
   color: var(--color-text-muted);
-  font-size: 0.75rem;
+  font-size: var(--text-xs);
   font-weight: 800;
   letter-spacing: 0.06em;
   text-transform: uppercase;
@@ -276,11 +268,11 @@
   gap: 6px;
   min-height: 44px;
   padding: 6px 12px;
-  border: 1px solid color-mix(in srgb, var(--line) 72%, var(--brass) 28%);
-  border-radius: 999px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-pill);
   background: color-mix(in srgb, var(--panel) 80%, var(--panel-raised));
   color: var(--ink-soft);
-  font-size: 0.75rem;
+  font-size: var(--text-xs);
   font-weight: 700;
   cursor: pointer;
   touch-action: manipulation;
@@ -297,8 +289,8 @@
 }
 
 .mapLayersChip.isOn {
-  border-color: var(--brass);
-  background: linear-gradient(135deg, var(--brass), var(--brass-bright));
+  border-color: var(--state-selected-border);
+  background: var(--state-selected-surface);
   color: var(--color-on-accent);
 }
 
@@ -367,7 +359,7 @@
   gap: 8px;
   padding-bottom: 12px;
   margin-bottom: 4px;
-  border-bottom: 1px solid var(--hairline, var(--line));
+  border-bottom: 1px solid var(--hairline);
 }
 
 /* Both actions sit in a row here rather than in the map-edge column, so their

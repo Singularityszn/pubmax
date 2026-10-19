@@ -79,12 +79,12 @@ describe("the front door's two answers", () => {
     });
   });
 
-  it("names the /tonight recommendations as recommendations when listings are empty, never as tonight's talk", () => {
+  it("leads with the /tonight recommendations when listings are empty, names them as recommendations, and says nothing is confirmed", () => {
     expect(tonightAnswer({ unread: false, count: 0, hypedCount: 4 }, STAMP).line).toBe(
-      "Nothing’s confirmed on tonight yet. Here are 4 pubs Londoners keep recommending.",
+      "4 pubs Londoners keep recommending. Nothing’s confirmed on tonight yet.",
     );
     expect(tonightAnswer({ unread: false, count: 0, hypedCount: 1 }, STAMP).line).toBe(
-      "Nothing’s confirmed on tonight yet. Here’s a pub Londoners keep recommending.",
+      "A pub Londoners keep recommending. Nothing’s confirmed on tonight yet.",
     );
     // Listings still win when both lanes have rows.
     expect(tonightAnswer({ unread: false, count: 3, hypedCount: 4 }, STAMP).line).toBe(

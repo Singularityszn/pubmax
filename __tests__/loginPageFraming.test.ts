@@ -15,7 +15,7 @@ const SIGNIN_DOOR = {
 };
 
 const SIGNUP_DOOR = {
-  title: "Let's get you in",
+  title: "Make an account",
   lead: "Log a pint price, plan a crawl, keep your nights. Takes a handle and a minute.",
 };
 

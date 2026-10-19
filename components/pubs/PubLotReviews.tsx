@@ -56,7 +56,7 @@ export default function PubLotReviews({ venueId, venueName }: { venueId: string;
           <li key={review.postId} className="pubLot__review">
             <div className="pubLot__head">
               <strong>@{review.authorHandle}</strong>
-              <ReviewStars rating={review.rating} size={12} />
+              <ReviewStars rating={review.rating} size={14} />
               <time dateTime={review.createdAt}>{reviewDate(review.createdAt)}</time>
             </div>
             {review.body ? <p>{review.body}</p> : null}

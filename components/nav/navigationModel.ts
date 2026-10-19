@@ -11,8 +11,14 @@ export type PrimaryNavItem = {
 
 /**
  * The routes Social owns: its canonical shell plus the retired aliases that
- * still render or 308 there, so a reader on /feed or /crawls/soho sees the
+ * still render or 308 there, so a reader on /feed or /stories sees the
  * Social tab lit.
+ *
+ * /crawls is NOT one of them. It renders a page of its own, the walkable
+ * route packs, and every door into it is a planning door: Tonight's "More
+ * ways to plan tonight", the historic page's "Start a crawl", a landmark's
+ * "Browse route packs". So it lights Plan, and a crawl story at
+ * /crawls/<slug> lights Plan the way a shared plan at /plan/<id> does.
  */
 export const SOCIAL_NAV_MATCH: readonly string[] = [
   "/social",
@@ -20,8 +26,10 @@ export const SOCIAL_NAV_MATCH: readonly string[] = [
   "/drinks",
   "/feed",
   "/stories",
-  "/crawls",
 ];
+
+/** The routes Plan owns: the composer, a shared plan and the crawl routes. */
+export const PLAN_NAV_MATCH: readonly string[] = ["/plan", "/crawls"];
 
 /**
  * The FIVE durable destinations in the PUBMAXX shell, and the ONE vocabulary
@@ -52,8 +60,9 @@ export const SOCIAL_NAV_MATCH: readonly string[] = [
 export const PRIMARY_NAV_ITEMS: readonly PrimaryNavItem[] = [
   { key: "map", href: "/map", label: "Map", match: ["/map"] },
   { key: "now", href: "/tonight", label: "Tonight", match: ["/tonight"] },
-  // Plan owns the composer and a shared plan at /plan/[id].
-  { key: "plan", href: "/plan", label: "Plan", match: ["/plan"] },
+  // Plan owns the composer, a shared plan at /plan/[id] and the crawl routes
+  // (PLAN_NAV_MATCH).
+  { key: "plan", href: "/plan", label: "Plan", match: [...PLAN_NAV_MATCH] },
   // Social owns its shell and its retired aliases (SOCIAL_NAV_MATCH). The label
   // here is the launched name; a bar names it through primaryNavLabel.
   { key: "social", href: "/social", label: "Social", match: [...SOCIAL_NAV_MATCH] },

@@ -322,6 +322,14 @@ export const LONDON_MAP_PUB_DOT_COUNT = ${plainDots.length};
 /** How many historic pubs the drawing shows, pins included. */
 export const LONDON_MAP_PUB_COUNT = ${inFrame.length};
 
+/**
+ * Every cited historic pub, inside the frame or not: the count /about and
+ * /historic print. The landing prints THIS one, because the drawing it once
+ * labelled is gone and a frame count beside /about's total read as two
+ * answers to one question (site review, 18 Oct 2026: 298 against 342).
+ */
+export const HISTORIC_PUB_COUNT = ${pubs.length};
+
 export type LondonMapPin = {
   slug: string;
   name: string;

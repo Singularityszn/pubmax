@@ -65,6 +65,18 @@ async function quietPage(page: Page): Promise<void> {
   });
 }
 
+/** The product's control corner, resolved from its token on this page. */
+async function controlRadius(page: Page): Promise<string> {
+  return page.evaluate(() => {
+    const probe = document.createElement("div");
+    probe.style.borderRadius = "var(--control-radius)";
+    document.body.append(probe);
+    const radius = getComputedStyle(probe).borderTopLeftRadius;
+    probe.remove();
+    return radius;
+  });
+}
+
 for (const viewport of WIDTHS) {
   test(`${viewport.name}px: the profile editor's form buttons are the one button family`, async ({
     page,
@@ -98,8 +110,9 @@ for (const viewport of WIDTHS) {
       expect(box.height).toBeGreaterThanOrEqual(44);
     }
     // And that family is the product's, not the editor's own: the control row
-    // is 14px corners at weight 700.
-    expect(reference!.radius).toBe("14px");
+    // takes the control corner token at weight 700. The token is read rather
+    // than typed (14px until the corner snap of 18 Oct 2026 set it to 8px).
+    expect(reference!.radius).toBe(await controlRadius(page));
     expect(reference!.weight).toBe("700");
 
     // The three form submits the backlog named, each one of that family.
@@ -188,7 +201,7 @@ for (const viewport of WIDTHS) {
       expect(box.weight).toBe(reference.weight);
       expect(box.fontSize).toBe(reference.fontSize);
     }
-    expect(reference.radius).toBe("14px");
+    expect(reference.radius).toBe(await controlRadius(page));
 
     // The chosen square carries its state on aria-pressed, on both surfaces.
     await expect(page.locator('.pubsZoneChips .uiChip--number[aria-pressed="true"]')).toHaveCount(1);

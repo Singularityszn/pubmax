@@ -234,7 +234,8 @@ test("borough index lists boroughs, each linking to its own page (§14/§25)", a
   // is populated in practice — but guard for [] so an empty dataset shows its
   // friendly note rather than failing the run.
   await expect(page.locator(".screenTitle").first()).toBeVisible();
-  const cards = page.locator(".boroughGrid .boroughCard");
+  // One list of boroughs (taste plan, 18 Oct 2026); each row's link is its title.
+  const cards = page.locator(".boroughRows .boroughRow .rowListTitleLink");
   await expect
     .poll(async () => (await cards.count()) + (await page.locator(".boroughEmpty").count()))
     .toBeGreaterThan(0);
@@ -262,7 +263,7 @@ test("a real borough page ranks pubs that link onto the map (§14/§25)", async 
 
   // The ranked table renders (guard for the empty state in case the dataset ever
   // stops carrying this borough — the page must still not fail).
-  const pubs = page.locator(".boroughTable .boroughPub");
+  const pubs = page.locator(".boroughPubRows .rowListTitleLink");
   await expect
     .poll(async () => (await pubs.count()) + (await page.locator(".boroughEmpty").count()))
     .toBeGreaterThan(0);

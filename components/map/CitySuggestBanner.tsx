@@ -189,7 +189,7 @@ export default function CitySuggestBanner({
           aria-label="Dismiss city suggestion"
           onClick={dismiss}
         >
-          <X size={14} strokeWidth={2.25} aria-hidden="true" />
+          <X size={14} aria-hidden="true" />
         </button>
       </div>
     );
@@ -211,7 +211,7 @@ export default function CitySuggestBanner({
           aria-label="Dismiss place suggestion"
           onClick={dismiss}
         >
-          <X size={14} strokeWidth={2.25} aria-hidden="true" />
+          <X size={14} aria-hidden="true" />
         </button>
       </div>
     );
@@ -240,7 +240,7 @@ export default function CitySuggestBanner({
         aria-label="Dismiss city suggestion"
         onClick={dismiss}
       >
-        <X size={14} strokeWidth={2.25} aria-hidden="true" />
+        <X size={14} aria-hidden="true" />
       </button>
     </div>
   );

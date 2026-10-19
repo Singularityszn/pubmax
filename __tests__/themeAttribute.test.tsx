@@ -6,6 +6,7 @@ import { createRoot } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import ThemeAttribute from "@/components/ThemeAttribute";
+import { BROWSER_BAR_COLOR } from "@/lib/browserBarColor";
 import { THEME_STORAGE_KEY } from "@/lib/themePreference";
 import { LEGACY_STORAGE_KEY, MODE_STORAGE_KEY } from "@/lib/viewMode";
 
@@ -128,5 +129,30 @@ describe("ThemeAttribute", () => {
     mount()();
     expect(document.documentElement.dataset.mode).toBe("lock-in");
     expect(document.documentElement.dataset.legacy).toBeUndefined();
+  });
+
+  // The viewport's two theme-color tags follow the OS scheme. A reader who
+  // picks dark in the app on a light phone must still get the dark bar.
+  it("paints both browser-bar tags in the in-app theme, and follows a toggle", () => {
+    const tags = ["(prefers-color-scheme: light)", "(prefers-color-scheme: dark)"].map((media) => {
+      const meta = document.createElement("meta");
+      meta.name = "theme-color";
+      meta.media = media;
+      meta.content = "#000000";
+      document.head.appendChild(meta);
+      return meta;
+    });
+    document.documentElement.dataset.theme = "dark";
+    const unmount = mount();
+    expect(tags.map((tag) => tag.content)).toEqual([BROWSER_BAR_COLOR.dark, BROWSER_BAR_COLOR.dark]);
+
+    act(() => {
+      document.documentElement.dataset.theme = "light";
+    });
+    return Promise.resolve().then(() => {
+      expect(tags.map((tag) => tag.content)).toEqual([BROWSER_BAR_COLOR.light, BROWSER_BAR_COLOR.light]);
+      unmount();
+      for (const tag of tags) tag.remove();
+    });
   });
 });

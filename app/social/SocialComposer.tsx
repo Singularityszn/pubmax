@@ -243,7 +243,7 @@ function ReviewEditor({ draft, onDraft }: { draft: Draft; onDraft: (draft: Draft
           onPointerUp={(event) => { if (rating === null) onDraft({ ...draft, rating: Number(event.currentTarget.value) }); }}
         />
         {rating !== null
-          ? <ReviewStars rating={rating} size={18} />
+          ? <ReviewStars rating={rating} size={20} />
           : <span className="socialReviewEditor__hint">Slide to score</span>}
       </div>
     </div>

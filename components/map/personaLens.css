@@ -22,24 +22,26 @@
   background: var(--panel-raised);
   color: var(--ink);
   font: inherit;
-  font-size: 13px;
+  font-size: var(--text-sm);
   line-height: 1.2;
   white-space: nowrap;
   cursor: pointer;
-  transition: border-color 180ms var(--ease-out, ease-out);
+  transition: border-color 180ms var(--ease-out);
 }
 
 .personaLensTrigger > svg {
-  color: var(--brass);
+  color: var(--color-text-muted);
   flex-shrink: 0;
 }
 
-.personaLensTrigger:hover {
-  border-color: color-mix(in srgb, var(--brass) 45%, var(--line));
+@media (hover: hover) and (pointer: fine) {
+  .personaLensTrigger:hover {
+    border-color: var(--hairline-strong);
+  }
 }
 
 .personaLensTrigger.isActive {
-  border-color: var(--brass);
+  border-color: var(--state-selected-border);
   color: var(--ink);
 }
 
@@ -55,14 +57,16 @@
   justify-content: center;
   padding: 4px;
   border: 1px solid var(--line);
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: var(--panel-raised);
   color: var(--muted);
   cursor: pointer;
 }
 
-.personaLensClear:hover {
-  color: var(--ink);
+@media (hover: hover) and (pointer: fine) {
+  .personaLensClear:hover {
+    color: var(--ink);
+  }
 }
 
 .personaLensPanel {
@@ -74,10 +78,10 @@
   max-height: min(60vh, 420px);
   display: flex;
   flex-direction: column;
-  border-radius: var(--radius, 12px);
-  border: 1px solid color-mix(in srgb, var(--brass) 24%, var(--line));
+  border-radius: var(--radius);
+  border: 1px solid var(--line);
   background: var(--panel-raised);
-  box-shadow: var(--shadow-sm, 0 8px 28px rgba(0, 0, 0, 0.4));
+  box-shadow: var(--shadow-sm);
   overflow: hidden;
 }
 
@@ -97,7 +101,7 @@
   background: transparent;
   color: var(--ink);
   font: inherit;
-  font-size: 13px;
+  font-size: var(--text-sm);
   outline: none;
 }
 
@@ -108,7 +112,7 @@
 
 .personaLensGroupLabel {
   margin: 8px 8px 4px;
-  font-size: 11px;
+  font-size: var(--text-2xs);
   letter-spacing: 0.06em;
   text-transform: uppercase;
   color: var(--muted);
@@ -127,22 +131,27 @@
   font: inherit;
   text-align: left;
   cursor: pointer;
-  transition: background 150ms var(--ease-out, ease-out);
+  transition: background 150ms var(--ease-out);
 }
 
-.personaLensOption:hover,
 .personaLensOption.isHighlighted,
 .personaLensOption.isSelected {
-  background: color-mix(in srgb, var(--brass) 14%, transparent);
+  background: var(--state-selected-surface);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .personaLensOption:hover {
+    background: color-mix(in srgb, var(--ink) 6%, transparent);
+  }
 }
 
 .personaLensOptionClear {
   color: var(--muted);
-  font-size: 12px;
+  font-size: var(--text-xs);
 }
 
 .personaLensOptionName {
-  font-size: 13px;
+  font-size: var(--text-sm);
   font-weight: 600;
 }
 
@@ -150,7 +159,7 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  font-size: 12px;
+  font-size: var(--text-xs);
   color: var(--ink-soft);
 }
 
@@ -159,33 +168,33 @@
   align-items: center;
   gap: 3px;
   padding: 1px 6px;
-  border-radius: 999px;
-  background: color-mix(in srgb, var(--brass) 18%, transparent);
-  color: var(--brass);
-  font-size: 10px;
+  border-radius: var(--radius-pill);
+  background: transparent;
+  color: var(--color-text-muted);
+  font-size: var(--text-2xs);
   font-weight: 600;
   white-space: nowrap;
 }
 
 .personaLensEmpty {
   margin: 10px;
-  font-size: 12px;
+  font-size: var(--text-xs);
   color: var(--muted);
 }
 
 /* ── Card overlay ───────────────────────────────────────────────────────── */
 .personaLensCard {
   position: absolute;
-  z-index: var(--z-map-cards, 460);
+  z-index: var(--z-map-cards);
   display: flex;
   flex-direction: column;
   gap: 10px;
   padding: 16px 16px 14px;
-  border: 1px solid color-mix(in srgb, var(--brass) 22%, var(--line));
-  border-radius: var(--radius-lg, 16px);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
   background: var(--panel-raised);
   color: var(--ink);
-  box-shadow: var(--shadow-sm, 0 10px 30px rgba(0, 0, 0, 0.45));
+  box-shadow: var(--shadow-sm);
   overflow-y: auto;
 }
 
@@ -207,8 +216,8 @@
     right: 8px;
     bottom: calc(84px + env(safe-area-inset-bottom, 0px));
     max-height: 62vh;
-    border-bottom-left-radius: var(--radius, 12px);
-    border-bottom-right-radius: var(--radius, 12px);
+    border-bottom-left-radius: var(--radius);
+    border-bottom-right-radius: var(--radius);
   }
 }
 
@@ -220,7 +229,7 @@
 }
 
 .personaLensCardEyebrow {
-  font-size: 11px;
+  font-size: var(--text-2xs);
   letter-spacing: 0.06em;
   text-transform: uppercase;
   color: var(--color-text-muted);
@@ -232,14 +241,16 @@
   justify-content: center;
   padding: 4px;
   border: none;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: transparent;
   color: var(--muted);
   cursor: pointer;
 }
 
-.personaLensCardClose:hover {
-  color: var(--ink);
+@media (hover: hover) and (pointer: fine) {
+  .personaLensCardClose:hover {
+    color: var(--ink);
+  }
 }
 
 .personaLensCardTitle {
@@ -250,14 +261,14 @@
 
 .personaLensCardName {
   margin: 0;
-  font-size: 19px;
+  font-size: var(--text-md);
   line-height: 1.15;
   font-weight: 700;
 }
 
 .personaLensCardKnownFor {
   margin: 2px 0 0;
-  font-size: 12px;
+  font-size: var(--text-xs);
   color: var(--muted);
 }
 
@@ -269,21 +280,21 @@
 }
 
 .personaLensCardDrinkName {
-  font-size: 15px;
+  font-size: var(--text-base);
   color: var(--ink);
 }
 
 .personaLensCardCategory {
   padding: 1px 8px;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   border: 1px solid var(--line);
-  font-size: 11px;
+  font-size: var(--text-2xs);
   color: var(--ink-soft);
 }
 
 .personaLensCardPubTie {
   margin: 0;
-  font-size: 12px;
+  font-size: var(--text-xs);
   color: var(--river);
 }
 
@@ -298,22 +309,22 @@
 
 .personaLensCardIngredient {
   padding: 3px 9px;
-  border-radius: 999px;
-  background: color-mix(in srgb, var(--brass) 10%, var(--paper));
+  border-radius: var(--radius-pill);
+  background: var(--paper);
   border: 1px solid var(--line);
-  font-size: 12px;
+  font-size: var(--text-xs);
   color: var(--ink-soft);
 }
 
 .personaLensCardOrder {
   margin: 2px 0 0;
-  font-size: 13px;
+  font-size: var(--text-sm);
   color: var(--ink);
 }
 
 .personaLensCardOrderLabel {
   display: block;
-  font-size: 11px;
+  font-size: var(--text-2xs);
   letter-spacing: 0.05em;
   text-transform: uppercase;
   color: var(--muted);
@@ -322,7 +333,7 @@
 
 .personaLensCardWhy {
   margin: 0;
-  font-size: 13px;
+  font-size: var(--text-sm);
   line-height: 1.45;
   color: var(--ink-soft);
 }
@@ -331,21 +342,23 @@
   display: inline-flex;
   align-items: center;
   gap: 5px;
-  font-size: 12px;
+  font-size: var(--text-xs);
   color: var(--river);
   text-decoration: none;
   width: fit-content;
 }
 
-.personaLensCardSource:hover {
-  text-decoration: underline;
+@media (hover: hover) and (pointer: fine) {
+  .personaLensCardSource:hover {
+    text-decoration: underline;
+  }
 }
 
 .personaLensCardDisclaimer {
   margin: 4px 0 0;
   padding-top: 8px;
   border-top: 1px solid var(--line);
-  font-size: 11px;
+  font-size: var(--text-2xs);
   line-height: 1.4;
   color: var(--muted);
 }

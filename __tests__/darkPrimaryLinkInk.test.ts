@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import postcss, { type Rule } from "postcss";
+import postcss, { type AtRule, type ChildNode, type Rule } from "postcss";
 
 import { describe, expect, it } from "vitest";
 
@@ -15,11 +15,6 @@ const PRIMARIES = [
   { file: "app/ledger/[id]/ledger.css", selector: ".ledgerPrimaryLink", hover: true },
   { file: "app/invite/[token]/invite.css", selector: ".invite__primary", hover: true },
   { file: "app/p/[id]/permalink.css", selector: ".permalink__primary", hover: true },
-  {
-    file: "components/ledger/readLedgerButton.css",
-    selector: '.ledgerReadButton[aria-pressed="true"]',
-    hover: false,
-  },
 ];
 
 const DARK = 'html[data-theme="dark"]';
@@ -29,7 +24,19 @@ type Declarations = Map<string, string>;
 /** Each top-level selector mapped to the declarations it ends up with, last write winning. */
 function declarationsBySelector(file: string): Map<string, Declarations> {
   const model = new Map<string, Declarations>();
+  // Top-level rules, plus the hover rules that live one level down in the
+  // fine-pointer query (__tests__/hoverOnlyForPointers.test.ts).
+  const nodes: ChildNode[] = [];
   postcss.parse(readFileSync(join(process.cwd(), file), "utf8")).each((node) => {
+    if (node.type === "atrule" && /hover\s*:\s*hover/.test((node as AtRule).params)) {
+      (node as AtRule).each((child) => {
+        nodes.push(child);
+      });
+    } else {
+      nodes.push(node);
+    }
+  });
+  nodes.forEach((node) => {
     if (node.type !== "rule") return;
     for (const raw of (node as Rule).selectors) {
       const selector = raw.replace(/\s+/g, " ").trim();
@@ -69,4 +76,26 @@ describe("a primary stays readable in the dark theme", () => {
       });
     }
   }
+});
+
+// The Read toggle's pressed state is a selection, not a primary, so in dark it
+// reads the neutral selected row rather than a coral fill (docs/DESIGN_SYSTEM.md
+// "Coral is spent twice"). Light keeps its ink-on-paper press.
+describe("a pressed toggle stays readable in the dark theme", () => {
+  const file = "components/ledger/readLedgerButton.css";
+  const selector = '.ledgerReadButton[aria-pressed="true"]';
+  const model = declarationsBySelector(file);
+
+  it(`${file} ${selector} paints ink on ink in light, so dark needs its own pair`, () => {
+    const light = model.get(selector);
+    expect(light?.get("background")).toBe("var(--ink-deep)");
+    expect(light?.get("color")).toBe("var(--panel-raised)");
+  });
+
+  it(`${file} ${selector} wears the selected row in dark`, () => {
+    const dark = model.get(`${DARK} ${selector}`);
+    expect(dark?.get("background")).toBe("var(--state-selected-surface)");
+    expect(dark?.get("border-color")).toBe("var(--state-selected-border)");
+    expect(dark?.get("color")).toBe("var(--state-selected-ink)");
+  });
 });

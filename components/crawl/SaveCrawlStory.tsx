@@ -232,9 +232,9 @@ export default function SaveCrawlStory({ stops, defaultTitle }: SaveCrawlStoryPr
               style={{
                 padding: "4px 10px",
                 borderRadius: "999px",
-                border: `1px solid ${active ? "var(--brass)" : "var(--line)"}`,
-                background: active ? "var(--brass)" : "var(--panel-raised)",
-                color: active ? "var(--panel-raised)" : "var(--ink-soft)",
+                border: `1px solid ${active ? "var(--state-selected-border)" : "var(--line)"}`,
+                background: active ? "var(--state-selected-surface)" : "var(--panel-raised)",
+                color: active ? "var(--state-selected-ink)" : "var(--ink-soft)",
                 fontSize: "12px",
                 cursor: "pointer",
               }}
@@ -284,13 +284,13 @@ export default function SaveCrawlStory({ stops, defaultTitle }: SaveCrawlStoryPr
       </div>
 
       {saveError ? (
-        <p role="alert" style={{ margin: 0, fontSize: "13px", color: "var(--brass)" }}>
+        <p role="alert" style={{ margin: 0, fontSize: "13px", color: "var(--color-negative)" }}>
           {saveError}
         </p>
       ) : null}
 
       {copyError ? (
-        <p role="status" style={{ margin: 0, fontSize: "13px", color: "var(--brass)" }}>
+        <p role="status" style={{ margin: 0, fontSize: "13px", color: "var(--color-text-muted)" }}>
           {copyError}
         </p>
       ) : null}
@@ -298,7 +298,7 @@ export default function SaveCrawlStory({ stops, defaultTitle }: SaveCrawlStoryPr
       {permaLink ? (
         <p style={{ margin: 0, fontSize: "13px", color: "var(--ink-soft)" }}>
           Permanent link (copied):{" "}
-          <a href={permaLink} style={{ color: "var(--brass)", wordBreak: "break-all" }}>
+          <a href={permaLink} style={{ color: "var(--ink)", textDecoration: "underline", wordBreak: "break-all" }}>
             {permaLink}
           </a>
         </p>

@@ -1,5 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
 import { mobileMapShellControl } from "./helpers/mobileMapShell";
+import { ICON_SIZE } from "../lib/iconScale";
 
 test.use({ launchOptions: { args: ["--use-angle=swiftshader", "--enable-unsafe-swiftshader"] } });
 test.setTimeout(90_000);
@@ -123,7 +124,8 @@ test("the longest drink lanes keep a three-digit Tonight count whole on a 320px 
         throw new Error(`drink parts missing for ${where}: ${JSON.stringify(drinkParts)}`);
       }
       expect(drinkLabel.scrollWidth, `drink label, ${where}`).toBeLessThanOrEqual(drinkLabel.clientWidth);
-      expect(Math.round(drinkIcon.width), `glass icon, ${where}`).toBe(15);
+      // The glass draws at the icon scale's inline step (lib/iconScale.ts).
+      expect(Math.round(drinkIcon.width), `glass icon, ${where}`).toBe(ICON_SIZE.inline);
       expect(Math.round(drink.height), `drink chip height, ${where}`).toBe(44);
       expect(drink.width, `drink chip width, ${where}`).toBeGreaterThanOrEqual(44);
       expect(drink.left, `drink chip inside the viewport, ${where}`).toBeGreaterThanOrEqual(0);
@@ -154,7 +156,7 @@ test("the longest drink lanes keep a three-digit Tonight count whole on a 320px 
       expect(label.scrollWidth, `Tonight label, ${where}`).toBeLessThanOrEqual(label.clientWidth);
       expect(count.scrollWidth, `listing count, ${where}`).toBeLessThanOrEqual(count.clientWidth);
       expect(label.bottom, `Tonight label clear of the count, ${where}`).toBeLessThanOrEqual(count.top);
-      expect(Math.round(icon.width), `calendar icon, ${where}`).toBe(18);
+      expect(Math.round(icon.width), `calendar icon, ${where}`).toBe(ICON_SIZE.inline);
       expect(tonight.height, `Tonight lens tap height, ${where}`).toBeGreaterThanOrEqual(44);
       expect(tonight.width, `Tonight lens tap width, ${where}`).toBeGreaterThanOrEqual(44);
       expect(tonight.left, `Tonight lens inside the viewport, ${where}`).toBeGreaterThanOrEqual(0);
