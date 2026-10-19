@@ -17,6 +17,11 @@ type FakeConversation = {
   endSession: ReturnType<typeof vi.fn<() => Promise<void>>>;
   setMicMuted: ReturnType<typeof vi.fn>;
   sendUserMessage: ReturnType<typeof vi.fn>;
+  // The level meter (PalVoiceMeter.tsx) reads these on every animation frame
+  // while the line is open, so a fake without them throws whenever a frame
+  // lands inside a test.
+  getInputVolume: () => number;
+  getOutputByteFrequencyData: () => Uint8Array;
 };
 
 const client = vi.hoisted(() => ({
@@ -55,6 +60,8 @@ function fakeConversation(options: FakeSessionOptions, id: string): FakeConversa
     getId: () => id,
     setMicMuted: vi.fn(),
     sendUserMessage: vi.fn(),
+    getInputVolume: () => 0,
+    getOutputByteFrequencyData: () => new Uint8Array(0),
     endSession: vi.fn(async () => {
       options.onStatusChange?.({ status: "disconnected" });
       options.onDisconnect?.({ reason: "user" });
