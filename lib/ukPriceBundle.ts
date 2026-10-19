@@ -150,6 +150,12 @@ const CATEGORY_QUARANTINE: ReadonlyArray<
   { sourceUrl: "https://www.thebluemonklondon.com/bar", category: "wine", priceGbp: 16.4, drinkLabel: "Cantillon Gueuze" },
   { sourceUrl: "https://www.thebluemonklondon.com/bar", category: "wine", priceGbp: 12.15, drinkLabel: "Cantillon Rose de Gambrinus 37.5cl" },
   { sourceUrl: "https://www.thebluemonklondon.com/bar", category: "wine", priceGbp: 12.15 },
+  // A strength in the printed label that contradicts the heading: an 11% Aperol
+  // filed as alcohol-free, and three 0.05% to 0.5% beers filed as beer.
+  { sourceUrl: "https://blackcapcamden.co.uk", category: "alcohol-free", priceGbp: 6.5, drinkLabel: "Aperol 11%" },
+  { sourceUrl: "https://blackcapcamden.co.uk", category: "beer", priceGbp: 7, drinkLabel: "Queer Bold AF Pale Ale 0.5%" },
+  { sourceUrl: "https://theblacksmithsse16.com/drink", category: "beer", priceGbp: 6.7, drinkLabel: "Adnams Ghost Ship Pale Ale 0.05%" },
+  { sourceUrl: "https://thecottonmillpub.com", category: "beer", priceGbp: 5, drinkLabel: "Adnams 0.5% Ghost ship" },
   // Shard 3. The Imperial Arms PDF reads its columns out of order, so liqueurs
   // land as coffee, gins as vodka and 0.5% beers as beer, and one £7.40 figure
   // lands under five spirits. The Greyhound page mixes its food menu in.
