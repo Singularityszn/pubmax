@@ -6,6 +6,7 @@ import {
   enoughToAct,
   expectedCalibrationError,
   loadDecisions,
+  recommendForDecision,
   recommendThreshold,
   renderReport,
   thresholdTable,
@@ -65,6 +66,28 @@ describe("calibration arithmetic", () => {
     expect(enoughToAct(pick)).toBe(true);
     expect(enoughToAct(recommendThreshold(thresholdTable(rows.slice(0, 5))))).toBe(false);
   });
+
+  it("searches a decision's floor in hundredths, the precision the code uses", () => {
+    const thresholdRows = [
+      // Two wrong cases, so a set that holds them is 20 of 22 right: under the 95% bar.
+      { id: "wrong1", score: 0.17, correct: false, shouldClear: false },
+      { id: "wrong2", score: 0.17, correct: false, shouldClear: false },
+      ...Array.from({ length: 20 }, (_, index) => ({ id: `right${index}`, score: 0.18, correct: true, shouldClear: true })),
+    ];
+    const decision = { name: "test", kind: "noul" as const, current: 0.33, rows: [], thresholdRows };
+    expect(recommendForDecision(decision)).toMatchObject({ threshold: 0.18, count: 20 });
+  });
+
+  it("searches a refusal floor from the top, over the cases at or below it", () => {
+    const thresholdRows = [
+      ...Array.from({ length: 20 }, (_, index) => ({ id: `no${index}`, score: 0.1, correct: true, shouldClear: true })),
+      { id: "yes1", score: 0.42, correct: false, shouldClear: false },
+      { id: "yes2", score: 0.42, correct: false, shouldClear: false },
+    ];
+    const decision = { name: "test", kind: "noul" as const, current: 0.35, rows: [], thresholdRows, direction: "below" as const };
+    // 0.41 refuses the twenty right cases and neither wrong one; 0.42 would take both in.
+    expect(recommendForDecision(decision)).toMatchObject({ threshold: 0.41, count: 20, accuracy: 1, recall: 1 });
+  });
 });
 
 describe("the recorded decisions", () => {
@@ -77,7 +100,9 @@ describe("the recorded decisions", () => {
       "Pub Pal fence: fitToTravelAfterDrinking",
       "Pub Pal fence: getHomeTonight",
       "Same pub: merge",
+      "Same pub: refuse",
       "Heritage listing: is the pub building",
+      "Heritage listing: refuse",
     ]);
     for (const decision of decisions) {
       expect(decision.rows.length, decision.name).toBeGreaterThan(0);
@@ -96,7 +121,9 @@ describe("the recorded decisions", () => {
       "ASK_ROUTER_TOOL_FLOOR",
       "PUB_PAL_FENCE_NOUL_THRESHOLD",
       "SAME_PUB_MERGE_THRESHOLD",
+      "SAME_PUB_REFUSE_THRESHOLD",
       "HERITAGE_STRUCTURE_ACCEPT_THRESHOLD",
+      "HERITAGE_STRUCTURE_REFUSE_THRESHOLD",
     ]) {
       expect(report).toContain(constant);
     }

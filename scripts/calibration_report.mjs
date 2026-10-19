@@ -25,7 +25,10 @@ const BIN_COUNT = 10;
 const TARGET_ACCURACY = 0.95;
 /** Fewer cases than this above a threshold is too few to move a floor on. */
 const MIN_CASES_TO_ACT = 20;
+/** The thresholds the report prints: tenths, for reading. */
 const THRESHOLDS = Array.from({ length: BIN_COUNT }, (_, index) => index / BIN_COUNT);
+/** The thresholds a recommendation is searched over: hundredths, the precision the floors in code use (0.33, 0.82). */
+const SEARCH_THRESHOLDS = Array.from({ length: 101 }, (_, index) => index / 100);
 
 function readJson(path) {
   return JSON.parse(readFileSync(join(ROOT, path), "utf8"));
@@ -91,11 +94,13 @@ export function wilsonLowerBound(successes, trials) {
  * For each threshold: the rows whose score clears it, how many of those are
  * right, and what share of all rows clears it. `recall` is the share of the
  * rows that should clear (`shouldClear`) that do, when the decision has one.
+ * A floor clears a score at or above it; a refusal floor (`"below"`) clears a
+ * score at or below it.
  */
-export function thresholdTable(rows, thresholds = THRESHOLDS) {
+export function thresholdTable(rows, thresholds = THRESHOLDS, direction = "above") {
   const positives = rows.filter((row) => row.shouldClear).length;
   return thresholds.map((threshold) => {
-    const above = rows.filter((row) => row.score >= threshold);
+    const above = rows.filter((row) => (direction === "below" ? row.score <= threshold : row.score >= threshold));
     const right = above.filter((row) => row.correct).length;
     const caught = above.filter((row) => row.shouldClear).length;
     return {
@@ -109,9 +114,20 @@ export function thresholdTable(rows, thresholds = THRESHOLDS) {
   });
 }
 
-/** The lowest threshold whose cases above it are at least `target` right. */
-export function recommendThreshold(table, target = TARGET_ACCURACY) {
-  return table.find((row) => row.count > 0 && row.accuracy >= target) ?? null;
+/**
+ * The widest threshold whose cleared cases are at least `target` right: the
+ * lowest floor, or for a refusal floor the highest.
+ */
+export function recommendThreshold(table, target = TARGET_ACCURACY, direction = "above") {
+  const ordered = direction === "below" ? [...table].reverse() : table;
+  return ordered.find((row) => row.count > 0 && row.accuracy >= target) ?? null;
+}
+
+/** A decision's recommendation, searched at the precision the code uses. */
+export function recommendForDecision(decision) {
+  if (!decision.thresholdRows) return null;
+  const direction = decision.direction ?? "above";
+  return recommendThreshold(thresholdTable(decision.thresholdRows, SEARCH_THRESHOLDS, direction), TARGET_ACCURACY, direction);
 }
 
 /** Whether a recommendation rests on enough cases to act on. */
@@ -249,7 +265,7 @@ function pubPalFenceDecisions() {
   ];
 }
 
-function labelledNoulDecision({ name, path, label, code, current }) {
+function labelledNoulDecision({ name, path, label, code, current, refuse = false }) {
   const recorded = readJson(path);
   // Only a hand label is truth. A `keyless-heuristic` label is the old word
   // matcher's verdict, the thing the judgment replaced, so grading against it
@@ -259,9 +275,11 @@ function labelledNoulDecision({ name, path, label, code, current }) {
     id: row.id,
     probability: row.probability,
     score: row.probability,
-    shouldClear: row[label],
+    shouldClear: refuse ? !row[label] : row[label],
     correct: row[label],
   }));
+  // A refusal is right when the label is no, so its threshold rows grade the other way.
+  const thresholdRows = refuse ? rows.map((row) => ({ ...row, correct: !row.correct })) : rows;
   return {
     name,
     kind: "noul",
@@ -275,7 +293,8 @@ function labelledNoulDecision({ name, path, label, code, current }) {
     model: recorded.model,
     recordedAt: recorded.recordedAt ?? "on a date the recording does not store",
     rows,
-    thresholdRows: rows,
+    thresholdRows,
+    ...(refuse ? { direction: "below" } : {}),
   };
 }
 
@@ -291,11 +310,27 @@ export function loadDecisions() {
       current: 0.82,
     }),
     labelledNoulDecision({
+      name: "Same pub: refuse",
+      path: "__tests__/fixtures/typesafe/same-pub-probabilities.json",
+      label: "labelSame",
+      code: "`SAME_PUB_REFUSE_THRESHOLD` in `lib/samePubIdentity.ts`",
+      current: 0.35,
+      refuse: true,
+    }),
+    labelledNoulDecision({
       name: "Heritage listing: is the pub building",
       path: "__tests__/fixtures/typesafe/heritage-structure-probabilities.json",
       label: "labelListingIsPubBuilding",
       code: "`HERITAGE_STRUCTURE_ACCEPT_THRESHOLD` in `lib/heritageListingStructure.ts`",
       current: 0.8,
+    }),
+    labelledNoulDecision({
+      name: "Heritage listing: refuse",
+      path: "__tests__/fixtures/typesafe/heritage-structure-probabilities.json",
+      label: "labelListingIsPubBuilding",
+      code: "`HERITAGE_STRUCTURE_REFUSE_THRESHOLD` in `lib/heritageListingStructure.ts`",
+      current: 0.35,
+      refuse: true,
     }),
   ];
 }
@@ -310,6 +345,7 @@ function decisionSection(decision) {
   lines.push(`- Data: ${decision.source}.`);
   lines.push(`- Model \`${decision.model}\`, recorded ${decision.recordedAt}. Cases: ${decision.rows.length}.`);
   lines.push(`- Threshold in code: ${decision.code}${decision.current === null ? "" : ` = ${decision.current}`}.`);
+  if (decision.direction === "below") lines.push("- A refusal floor: a P(yes) at or below it refuses, and a refusal is right when the hand label is no.");
   if (decision.scoreRule) lines.push(`- Score compared with the threshold: ${decision.scoreRule}.`);
   const ece = expectedCalibrationError(decision.rows);
   lines.push(`- Expected calibration error: **${num(ece)}**.`);
@@ -328,12 +364,13 @@ function decisionSection(decision) {
     lines.push("No threshold acts on this answer alone, so no threshold is recommended.", "");
     return lines.join("\n");
   }
-  const table = thresholdTable(decision.thresholdRows);
+  const below = decision.direction === "below";
+  const table = thresholdTable(decision.thresholdRows, THRESHOLDS, decision.direction);
   const hasRecall = decision.thresholdRows.some((row) => row.shouldClear !== undefined);
   lines.push(
     hasRecall
-      ? "| Threshold | Cases at or above | Right | Wilson 95% low | Share clearing | Recall |"
-      : "| Threshold | Cases at or above | Right | Wilson 95% low | Share clearing |",
+      ? `| Threshold | Cases at or ${below ? "below" : "above"} | Right | Wilson 95% low | Share clearing | Recall |`
+      : `| Threshold | Cases at or ${below ? "below" : "above"} | Right | Wilson 95% low | Share clearing |`,
   );
   lines.push(hasRecall ? "| ---: | ---: | ---: | ---: | ---: | ---: |" : "| ---: | ---: | ---: | ---: | ---: |");
   for (const row of table) {
@@ -343,10 +380,10 @@ function decisionSection(decision) {
   }
   lines.push("");
   if (decision.excluded) lines.push(`${decision.excluded} case(s) chose \`none\` and never publish, so they are left out of this table.`, "");
-  const pick = recommendThreshold(table);
+  const pick = recommendForDecision(decision);
   if (pick) {
     lines.push(
-      `**Recommendation:** ${pick.threshold.toFixed(1)} is the lowest threshold whose cases at or above it are at least 95% right (${pct(pick.accuracy)} of ${pick.count}; ${pct(pick.share)} of the recorded cases clear it${hasRecall ? `, recall ${pct(pick.recall)}` : ""}). The Wilson lower bound is ${pct(pick.wilsonLower)}, so at this sample size the true accuracy could be that low.`,
+      `**Recommendation:** ${pick.threshold.toFixed(2)} is the ${below ? "highest" : "lowest"} threshold, searched in steps of 0.01, whose cases at or ${below ? "below" : "above"} it are at least 95% right (${pct(pick.accuracy)} of ${pick.count}; ${pct(pick.share)} of the recorded cases clear it${hasRecall ? `, recall ${pct(pick.recall)}` : ""}). The Wilson lower bound is ${pct(pick.wilsonLower)}, so at this sample size the true accuracy could be that low.`,
     );
     if (!enoughToAct(pick)) {
       lines.push(
@@ -365,15 +402,17 @@ function decisionSection(decision) {
 
 export function renderReport(decisions, date) {
   const summary = decisions.map((decision) => {
-    const pick = decision.thresholdRows ? recommendThreshold(thresholdTable(decision.thresholdRows)) : null;
+    const pick = recommendForDecision(decision);
+    const sign = decision.direction === "below" ? "at most " : "";
     const recommended = !decision.thresholdRows
       ? "not thresholded"
       : !pick
         ? "none reaches 95%"
         : enoughToAct(pick)
-          ? pick.threshold.toFixed(1)
-          : `${pick.threshold.toFixed(1)} (too few cases)`;
-    return `| ${decision.name} | ${decision.rows.length} | ${num(expectedCalibrationError(decision.rows))} | ${decision.current ?? "none"} | ${recommended} |`;
+          ? `${sign}${pick.threshold.toFixed(2)}`
+          : `${sign}${pick.threshold.toFixed(2)} (too few cases)`;
+    const current = decision.current === null ? "none" : `${sign}${decision.current}`;
+    return `| ${decision.name} | ${decision.rows.length} | ${num(expectedCalibrationError(decision.rows))} | ${current} | ${recommended} |`;
   });
   return [
     `# TypeSafe calibration report, ${date}`,
@@ -385,7 +424,7 @@ export function renderReport(decisions, date) {
     "- Each case's TypeSafe answer was recorded once, offline, by the `scripts/record_*_probabilities.ts` scripts. This report calls no model.",
     "- A **Choice** row is right when the chosen option was the right one. A **yes/no** row counts as yes when the right answer was yes, so its observed yes rate should match its mean P(yes).",
     "- **Expected calibration error (ECE)** is the count-weighted gap between stated confidence and observed accuracy across ten bins. 0 is perfectly calibrated.",
-    "- A **recommendation** is the lowest threshold whose cases at or above it are at least 95% right, with the share of recorded cases that clear it. The share is over the fixture cases, not over live traffic, because no live probabilities are logged.",
+    "- A **recommendation** is the lowest threshold whose cases at or above it are at least 95% right, with the share of recorded cases that clear it. It is searched in steps of 0.01, the precision the floors in code use; the tables print tenths for reading. For a **refusal floor** it is the highest threshold whose cases at or below it are at least 95% right. The share is over the fixture cases, not over live traffic, because no live probabilities are logged.",
     "- The samples are small (12 to 70 cases), so read the Wilson lower bound beside each accuracy before moving a threshold.",
     "",
     "## Summary",

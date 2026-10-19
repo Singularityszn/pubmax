@@ -7,20 +7,22 @@ A dated record, written by `node scripts/calibration_report.mjs`. It changes no 
 - Each case's TypeSafe answer was recorded once, offline, by the `scripts/record_*_probabilities.ts` scripts. This report calls no model.
 - A **Choice** row is right when the chosen option was the right one. A **yes/no** row counts as yes when the right answer was yes, so its observed yes rate should match its mean P(yes).
 - **Expected calibration error (ECE)** is the count-weighted gap between stated confidence and observed accuracy across ten bins. 0 is perfectly calibrated.
-- A **recommendation** is the lowest threshold whose cases at or above it are at least 95% right, with the share of recorded cases that clear it. The share is over the fixture cases, not over live traffic, because no live probabilities are logged.
+- A **recommendation** is the lowest threshold whose cases at or above it are at least 95% right, with the share of recorded cases that clear it. It is searched in steps of 0.01, the precision the floors in code use; the tables print tenths for reading. For a **refusal floor** it is the highest threshold whose cases at or below it are at least 95% right. The share is over the fixture cases, not over live traffic, because no live probabilities are logged.
 - The samples are small (12 to 70 cases), so read the Wilson lower bound beside each accuracy before moving a threshold.
 
 ## Summary
 
 | Decision | Cases | ECE | Threshold in code | Recommended |
 | --- | ---: | ---: | ---: | ---: |
-| Ask router: tool choice | 70 | 0.05 | 0.6 | 0.0 |
+| Ask router: tool choice | 70 | 0.05 | 0.6 | 0.00 |
 | Ask router: wantsMap | 70 | 0.09 | none | not thresholded |
-| Pub Pal fence: fires | 44 | 0.10 | 0.33 | 0.2 |
+| Pub Pal fence: fires | 44 | 0.10 | 0.33 | 0.14 |
 | Pub Pal fence: fitToTravelAfterDrinking | 29 | 0.08 | none | not thresholded |
 | Pub Pal fence: getHomeTonight | 44 | 0.12 | none | not thresholded |
-| Same pub: merge | 10 | 0.16 | 0.82 | 0.5 (too few cases) |
-| Heritage listing: is the pub building | 12 | 0.05 | 0.8 | 0.2 (too few cases) |
+| Same pub: merge | 10 | 0.16 | 0.82 | 0.43 (too few cases) |
+| Same pub: refuse | 10 | 0.16 | at most 0.35 | at most 0.69 (too few cases) |
+| Heritage listing: is the pub building | 12 | 0.05 | 0.8 | 0.16 (too few cases) |
+| Heritage listing: refuse | 12 | 0.05 | at most 0.35 | at most 0.95 (too few cases) |
 
 ## Ask router: tool choice
 
@@ -56,7 +58,7 @@ A dated record, written by `node scripts/calibration_report.mjs`. It changes no 
 | 0.8 | 64 | 97% | 89% | 91% |
 | 0.9 | 62 | 98% | 91% | 89% |
 
-**Recommendation:** 0.0 is the lowest threshold whose cases at or above it are at least 95% right (97% of 70; 100% of the recorded cases clear it). The Wilson lower bound is 90%, so at this sample size the true accuracy could be that low.
+**Recommendation:** 0.00 is the lowest threshold, searched in steps of 0.01, whose cases at or above it are at least 95% right (97% of 70; 100% of the recorded cases clear it). The Wilson lower bound is 90%, so at this sample size the true accuracy could be that low.
 
 Every case here is one the regex router already routes right, so these rows cannot show what the floor exists to prevent: a judged tool overriding a right regex route on a new ask. Record cases the regex gets wrong before lowering it.
 
@@ -116,7 +118,7 @@ No threshold acts on this answer alone, so no threshold is recommended.
 | 0.8 | 21 | 100% | 85% | 48% | 75% |
 | 0.9 | 17 | 100% | 82% | 39% | 61% |
 
-**Recommendation:** 0.2 is the lowest threshold whose cases at or above it are at least 95% right (100% of 27; 61% of the recorded cases clear it, recall 96%). The Wilson lower bound is 88%, so at this sample size the true accuracy could be that low.
+**Recommendation:** 0.14 is the lowest threshold, searched in steps of 0.01, whose cases at or above it are at least 95% right (96% of 28; 64% of the recorded cases clear it, recall 96%). The Wilson lower bound is 82%, so at this sample size the true accuracy could be that low.
 
 A missed fence is the harm here, so read recall beside accuracy: below the threshold the regex is the only net.
 
@@ -197,9 +199,47 @@ No threshold acts on this answer alone, so no threshold is recommended.
 | 0.8 | 5 | 100% | 57% | 50% | 83% |
 | 0.9 | 4 | 100% | 51% | 40% | 67% |
 
-**Recommendation:** 0.5 is the lowest threshold whose cases at or above it are at least 95% right (100% of 6; 60% of the recorded cases clear it, recall 100%). The Wilson lower bound is 61%, so at this sample size the true accuracy could be that low.
+**Recommendation:** 0.43 is the lowest threshold, searched in steps of 0.01, whose cases at or above it are at least 95% right (100% of 6; 60% of the recorded cases clear it, recall 100%). The Wilson lower bound is 61%, so at this sample size the true accuracy could be that low.
 
 Only 6 cases clear it, fewer than the 20 this report asks for before a floor moves. Keep the current threshold and label more cases first.
+
+## Same pub: refuse
+
+- Data: `__tests__/fixtures/typesafe/same-pub-probabilities.json`, graded against the hand label `labelSame`; 24 rows labelled by the keyless heuristic are left out.
+- Model `jev-1.13.0`, recorded 2026-09-20T14:20:55.210Z. Cases: 10.
+- Threshold in code: `SAME_PUB_REFUSE_THRESHOLD` in `lib/samePubIdentity.ts` = 0.35.
+- A refusal floor: a P(yes) at or below it refuses, and a refusal is right when the hand label is no.
+- Expected calibration error: **0.16**.
+
+| Bin | Count | Mean P(yes) | Observed yes rate |
+| --- | ---: | ---: | ---: |
+| 0.0 to 0.1 | 0 | n/a | n/a |
+| 0.1 to 0.2 | 2 | 0.11 | 0% |
+| 0.2 to 0.3 | 0 | n/a | n/a |
+| 0.3 to 0.4 | 1 | 0.32 | 0% |
+| 0.4 to 0.5 | 1 | 0.42 | 0% |
+| 0.5 to 0.6 | 0 | n/a | n/a |
+| 0.6 to 0.7 | 0 | n/a | n/a |
+| 0.7 to 0.8 | 1 | 0.70 | 100% |
+| 0.8 to 0.9 | 1 | 0.89 | 100% |
+| 0.9 to 1.0 | 4 | 0.94 | 100% |
+
+| Threshold | Cases at or below | Right | Wilson 95% low | Share clearing | Recall |
+| ---: | ---: | ---: | ---: | ---: | ---: |
+| 0.0 | 0 | n/a | n/a | 0% | 0% |
+| 0.1 | 0 | n/a | n/a | 0% | 0% |
+| 0.2 | 2 | 100% | 34% | 20% | 50% |
+| 0.3 | 2 | 100% | 34% | 20% | 50% |
+| 0.4 | 3 | 100% | 44% | 30% | 75% |
+| 0.5 | 4 | 100% | 51% | 40% | 100% |
+| 0.6 | 4 | 100% | 51% | 40% | 100% |
+| 0.7 | 5 | 80% | 38% | 50% | 100% |
+| 0.8 | 5 | 80% | 38% | 50% | 100% |
+| 0.9 | 7 | 57% | 25% | 70% | 100% |
+
+**Recommendation:** 0.69 is the highest threshold, searched in steps of 0.01, whose cases at or below it are at least 95% right (100% of 4; 40% of the recorded cases clear it, recall 100%). The Wilson lower bound is 51%, so at this sample size the true accuracy could be that low.
+
+Only 4 cases clear it, fewer than the 20 this report asks for before a floor moves. Keep the current threshold and label more cases first.
 
 ## Heritage listing: is the pub building
 
@@ -234,9 +274,47 @@ Only 6 cases clear it, fewer than the 20 this report asks for before a floor mov
 | 0.8 | 5 | 100% | 57% | 42% | 100% |
 | 0.9 | 5 | 100% | 57% | 42% | 100% |
 
-**Recommendation:** 0.2 is the lowest threshold whose cases at or above it are at least 95% right (100% of 5; 42% of the recorded cases clear it, recall 100%). The Wilson lower bound is 57%, so at this sample size the true accuracy could be that low.
+**Recommendation:** 0.16 is the lowest threshold, searched in steps of 0.01, whose cases at or above it are at least 95% right (100% of 5; 42% of the recorded cases clear it, recall 100%). The Wilson lower bound is 57%, so at this sample size the true accuracy could be that low.
 
 Only 5 cases clear it, fewer than the 20 this report asks for before a floor moves. Keep the current threshold and label more cases first.
+
+## Heritage listing: refuse
+
+- Data: `__tests__/fixtures/typesafe/heritage-structure-probabilities.json`, graded against the hand label `labelListingIsPubBuilding`.
+- Model `jev-1.13.0`, recorded on a date the recording does not store. Cases: 12.
+- Threshold in code: `HERITAGE_STRUCTURE_REFUSE_THRESHOLD` in `lib/heritageListingStructure.ts` = 0.35.
+- A refusal floor: a P(yes) at or below it refuses, and a refusal is right when the hand label is no.
+- Expected calibration error: **0.05**.
+
+| Bin | Count | Mean P(yes) | Observed yes rate |
+| --- | ---: | ---: | ---: |
+| 0.0 to 0.1 | 5 | 0.04 | 0% |
+| 0.1 to 0.2 | 2 | 0.14 | 0% |
+| 0.2 to 0.3 | 0 | n/a | n/a |
+| 0.3 to 0.4 | 0 | n/a | n/a |
+| 0.4 to 0.5 | 0 | n/a | n/a |
+| 0.5 to 0.6 | 0 | n/a | n/a |
+| 0.6 to 0.7 | 0 | n/a | n/a |
+| 0.7 to 0.8 | 0 | n/a | n/a |
+| 0.8 to 0.9 | 0 | n/a | n/a |
+| 0.9 to 1.0 | 5 | 0.97 | 100% |
+
+| Threshold | Cases at or below | Right | Wilson 95% low | Share clearing | Recall |
+| ---: | ---: | ---: | ---: | ---: | ---: |
+| 0.0 | 0 | n/a | n/a | 0% | 0% |
+| 0.1 | 5 | 100% | 57% | 42% | 71% |
+| 0.2 | 7 | 100% | 65% | 58% | 100% |
+| 0.3 | 7 | 100% | 65% | 58% | 100% |
+| 0.4 | 7 | 100% | 65% | 58% | 100% |
+| 0.5 | 7 | 100% | 65% | 58% | 100% |
+| 0.6 | 7 | 100% | 65% | 58% | 100% |
+| 0.7 | 7 | 100% | 65% | 58% | 100% |
+| 0.8 | 7 | 100% | 65% | 58% | 100% |
+| 0.9 | 7 | 100% | 65% | 58% | 100% |
+
+**Recommendation:** 0.95 is the highest threshold, searched in steps of 0.01, whose cases at or below it are at least 95% right (100% of 7; 58% of the recorded cases clear it, recall 100%). The Wilson lower bound is 65%, so at this sample size the true accuracy could be that low.
+
+Only 7 cases clear it, fewer than the 20 this report asks for before a floor moves. Keep the current threshold and label more cases first.
 
 ## Not scored here
 
