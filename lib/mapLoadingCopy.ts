@@ -12,18 +12,6 @@ export function mapLoadingPrimaryLine(cityDisplayName: string): string {
 }
 
 /**
- * The loading screens' freshness line. It dates the bundled London pint
- * snapshot, in the same words as `formatPintDatasetAsOf`, and nothing more:
- * Pint Drops and sourced menu rows carry their own, sometimes newer, dates, so
- * calling this day the newest price on the map would understate them (Codex on
- * #2276). `day` arrives formatted by the server.
- */
-export function mapPricesReadLine(day: string): string | null {
-  const trimmed = day.trim();
-  return trimmed ? `London pint prices: a snapshot from ${trimmed}.` : null;
-}
-
-/**
  * What the held frame has actually reached. Pin reveal is the only complete
  * answer: a painted basemap or a loaded slim index is progress towards tappable
  * pins, never the arrival.

@@ -96,7 +96,7 @@ type PubMaxingShellProps = {
   /** The published fare-zone medians (`loadZonePintIndex`), so every surface prints one figure per zone. */
   zonePintIndex?: ZonePintIndex | null;
   /**
-   * The bundled London pint snapshot's date line (`mapPricesReadLine`), built by the
+   * The bundled London pint snapshot's date line (`mapPricesReadLineFor`), built by the
    * page on the server. Both loading screens print it; null prints nothing.
    */
   pricesReadLine?: string | null;

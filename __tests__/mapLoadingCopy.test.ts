@@ -9,8 +9,8 @@ import {
   mapLoadingHeld,
   mapLoadingPrimaryLine,
   mapLoadingProgressPercent,
-  mapPricesReadLine,
 } from "@/lib/mapLoadingCopy";
+import { formatPintDatasetSnapshot } from "@/lib/dataFreshness";
 import { resolveMapDisplayName } from "@/lib/mapDisplayName";
 import { mapPricesReadLineFor } from "@/lib/mapPricesReadLine.server";
 
@@ -167,20 +167,16 @@ describe("resolveMapDisplayName", () => {
       resolveMapDisplayName({ cityDisplayName: "Bristol", placeName: "   " }),
     ).toBe("Bristol");
   });
-
-  it("dates the bundled London snapshot, never as the newest price, and nothing for a blank day", () => {
-    const line = mapPricesReadLine("2 October 2026");
-    expect(line).toBe("London pint prices: a snapshot from 2 October 2026.");
-    expect(line).not.toMatch(/newest|latest/i);
-    expect(mapPricesReadLine("  ")).toBeNull();
-  });
 });
 
 // Codex on #2276: /map printed the snapshot line and /map/london did not. Every
 // London map route now asks one helper, and only London gets a line.
 describe("mapPricesReadLineFor", () => {
-  it("gives London its snapshot line and every other city none", () => {
-    expect(mapPricesReadLineFor("london")).toMatch(/^London pint prices: a snapshot from \d{1,2} \w+ \d{4}\.$/);
+  it("gives London its snapshot line, in the snapshot owner's words, and every other city none", () => {
+    const line = mapPricesReadLineFor("london");
+    expect(line).toBe(`London pint prices. ${formatPintDatasetSnapshot()}.`);
+    expect(line).toMatch(/^London pint prices\. Snapshot from \d{1,2} \w+ \d{4}\.$/);
+    expect(line).not.toMatch(/newest|latest/i);
     expect(mapPricesReadLineFor("manchester")).toBeNull();
   });
 
