@@ -436,6 +436,10 @@ const nextConfig = {
       cacheRule("/fonts/:path*", UNHASHED_PUBLIC_ASSET_CACHE_CONTROL),
       cacheRule("/night-signals/:path*", UNHASHED_PUBLIC_ASSET_CACHE_CONTROL),
       cacheRule("/sounds/:path*", UNHASHED_PUBLIC_ASSET_CACHE_CONTROL),
+      // The map's pre-drawn icon atlases. npm run build:map-icon-sprites writes
+      // them at fixed URLs, and the canvas asks with a ?v= of the PNG's own
+      // hash, so a redrawn atlas is a new URL to every browser.
+      cacheRule("/map-icons/:path*", UNHASHED_PUBLIC_ASSET_CACHE_CONTROL),
       cacheRule(
         "/pal/:asset(" + palMascotAssetPattern + ")",
         UNHASHED_PUBLIC_ASSET_CACHE_CONTROL,

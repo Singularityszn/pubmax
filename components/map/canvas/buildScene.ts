@@ -3,7 +3,6 @@ import {
   applyBasemapTaste,
   applySelectionMute,
 } from "@/lib/mapBasemapTaste";
-import { CATEGORY_COLORS } from "@/lib/categoryColors";
 import { isTransitNetworkVisible } from "@/lib/poiToggleGroups";
 import { TRANSPORT_CATEGORIES, type PoiCategory } from "@/lib/pois";
 import {
@@ -12,7 +11,6 @@ import {
   PILL_ICON_KEY_PREFIX,
   UK_BASE_ICON_KEY,
   venuePinIconKey,
-  type IconTokens,
 } from "@/lib/mapIcons";
 import { LONDON_RESTAURANT_MIN_ZOOM } from "@/lib/londonRestaurants";
 import { USER_LOCATION_ACCURACY_RADIUS_PX } from "@/lib/mapReaderPosition";
@@ -31,14 +29,13 @@ import {
   type Tokens,
   withAlpha,
   DASH_SEQ,
-  registerMapIcons,
   GLOW_BASE_STROKE_OPACITY,
   GLOW_BASE_STROKE_WIDTH,
   GLOW_SELECTED_STROKE_WIDTH,
+  iconTokensFor,
   OSM_ATTRIBUTION,
-  pricePillTokens,
-  venuePinEdgeTokens,
 } from "./tokens";
+import { registerSceneIconImages } from "./iconSprite";
 import {
   AMBIENT_CATEGORIES,
   poiFilter,
@@ -659,27 +656,11 @@ export function buildTransitLines(ctx: SceneCtx) {
 
 function registerSceneIcons(ctx: SceneCtx) {
   const { map, tokens, dark } = ctx;
-  // --- Designed marker images: landmark pictograms + TfL symbols, re-tinted
-  // from the live theme tokens (a setStyle wipes them, so re-register here).
-  const iconTokens: IconTokens = {
-    ink: tokens.ink,
-    paper: dark ? tokens.inkDeep : tokens.paper,
-    brass: tokens.brass,
-    brassBright: tokens.brassBright,
-    river: tokens.river,
-    riverBright: tokens.riverBright,
-    pint: tokens.pint,
-    amber: tokens.amber,
-    brick: tokens.brick,
-    muted: tokens.muted,
-    // The drink pin's rim + casing. Dark only, and for the reason spelled out on
-    // venuePinEdgeTokens: `paper` above resolves to a near-black in dark, so the
-    // glasses' "light rim" was a black one against a near-black basemap.
-    ...venuePinEdgeTokens(tokens, dark),
-    ...pricePillTokens(tokens),
-    coffee: dark ? CATEGORY_COLORS.coffee.dark : CATEGORY_COLORS.coffee.light,
-  };
-  registerMapIcons(map, iconTokens);
+  // --- Designed marker images (landmarks, TfL marks, glasses, pills), in the
+  // live theme's colours. A setStyle wipes them, so every build registers them
+  // again: from the pre-drawn sprite when it can answer, drawn when it cannot
+  // (components/map/canvas/iconSprite.ts).
+  registerSceneIconImages(map, dark ? "dark" : "light", iconTokensFor(tokens, dark));
   markPubmaxTiming("pubmax:map-icons-ready");
 }
 

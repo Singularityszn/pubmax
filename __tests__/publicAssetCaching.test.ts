@@ -89,6 +89,8 @@ const EDITED_IN_PLACE_ASSETS = filesOutsideData.filter(
     file.startsWith("/vendor/") ||
     file.startsWith("/store-assets/") ||
     file.startsWith("/brand/") ||
+    // npm run build:map-icon-sprites rewrites these in place.
+    file.startsWith("/map-icons/") ||
     /^\/(?:icon-|apple-touch-icon|favicon)/.test(file) ||
     [
       "/theme-init.js",

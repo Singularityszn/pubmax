@@ -127,6 +127,7 @@
     "build:food-price-updates": "node --conditions=react-server --import tsx scripts/build_food_price_updates.mjs",
     "build:price-bands": "tsx scripts/build_price_bands.mjs",
     "build:discover-board": "tsx scripts/build_discover_board.mjs",
+    "build:map-icon-sprites": "node scripts/build-map-icon-sprites.mjs",
     "arize:smoke": "tsx scripts/arizeSmoke.ts",
     "backfill:site-harvest-drink-labels": "tsx scripts/backfill_site_harvest_drink_labels.mjs",
     "harvest:soft-drinks-menus": "tsx scripts/harvest_soft_drinks_menus.mjs",

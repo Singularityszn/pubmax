@@ -132,6 +132,7 @@ import {
   ukBaseUnnamedFilter,
   type SceneCtx,
 } from "@/components/map/canvas/buildScene";
+import { preloadMapIconSprite, resolveMissingMapIcon } from "@/components/map/canvas/iconSprite";
 import { createDonutClusterSync, type DonutClusterSync } from "@/components/map/canvas/donutClusters";
 import {
   BASEMAP_RETRY_NOTICE,
@@ -1609,6 +1610,8 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
       if (!webgl2.hasContext) {
         throw new Error(webgl2.status || "WebGL2 context unavailable");
       }
+      // The icon atlas decodes while the style loads (canvas/iconSprite.ts).
+      preloadMapIconSprite(themeRef.current);
       map = new maplibregl.Map({
         container,
         style: MAP_STYLES[themeRef.current],
@@ -1919,11 +1922,11 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
     // MapLibre 6 resolves missing images before firing styleimagemissing, so
     // use its supported resolver. OpenFreeMap references sprite images we
     // never render at our zoom/layers; a transparent pixel keeps those misses
-    // quiet without shipping the real texture.
+    // quiet without shipping the real texture. One of OUR icon ids gets the
+    // real icon instead, never a transparent hole.
     map.setMissingStyleImageResolver((id) => {
-      if (!map.hasImage(id)) {
-        map.addImage(id, { width: 1, height: 1, data: new Uint8Array(4) });
-      }
+      if (map.hasImage(id) || resolveMissingMapIcon(map, id, themeRef.current)) return;
+      map.addImage(id, { width: 1, height: 1, data: new Uint8Array(4) });
     });
 
     // Rebuilds the whole scene from theme tokens. Runs on first load and after
@@ -3748,6 +3751,7 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
       // stale-themed layers and skip style.load entirely).
       pinRevealCoordinator.cancel();
       beginTileFailureGeneration();
+      preloadMapIconSprite(next);
       setProtectedStyle(MAP_STYLES[next], false);
     });
     themeObserver.observe(document.documentElement, {
