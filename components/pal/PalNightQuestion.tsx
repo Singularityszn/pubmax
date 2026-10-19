@@ -5,7 +5,7 @@ import type { Route } from "next";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 
-import { isPlanActiveNow, readActivePlan, subscribeActivePlan } from "@/lib/activePlan";
+import { isPlanActiveNow, msUntilActivePlanEdge, readActivePlan, subscribeActivePlan } from "@/lib/activePlan";
 import {
   msUntilPalNightBoundary,
   PAL_NIGHT_ANSWER_STORAGE_KEY,
@@ -46,15 +46,29 @@ function absoluteUrl(path: string): string {
 type Crew = { planId: string; inviteUrl: string | null };
 type Sent = "idle" | "sent" | "failed";
 
-/** Tonight's saved plan with a seat on it, and its crew link once read. */
+// setTimeout holds at most this many milliseconds; a plan further off than
+// that is simply re-checked when this timer runs out.
+const LONGEST_TIMER_MS = 2 ** 31 - 1;
+
+/**
+ * Tonight's saved plan with a seat on it, and its crew link once read. A page
+ * left open checks again when the plan's active window opens or closes, so
+ * yesterday's plan is never offered at the next noon.
+ */
 function useTonightsCrew(): Crew | null {
   const [crew, setCrew] = useState<Crew | null>(null);
   useEffect(() => {
     let active = true;
+    let timer = 0;
     const read = () => {
       if (!active) return;
+      const now = Date.now();
       const ref = readActivePlan();
-      const planId = ref && (ref.role === "host" || ref.role === "guest") && isPlanActiveNow(ref, Date.now()) ? ref.id : null;
+      window.clearTimeout(timer);
+      const edge = msUntilActivePlanEdge(ref, now);
+      // A second past the edge, so the clock has crossed it.
+      if (edge !== null) timer = window.setTimeout(read, Math.min(edge + 1000, LONGEST_TIMER_MS));
+      const planId = ref && (ref.role === "host" || ref.role === "guest") && isPlanActiveNow(ref, now) ? ref.id : null;
       setCrew(planId ? { planId, inviteUrl: null } : null);
       if (!planId) return;
       void ensurePlanInviteToken(planId).then((token) => {
@@ -66,6 +80,7 @@ function useTonightsCrew(): Crew | null {
     const unsubscribe = subscribeActivePlan(read);
     return () => {
       active = false;
+      window.clearTimeout(timer);
       unsubscribe();
     };
   }, []);

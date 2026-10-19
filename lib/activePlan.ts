@@ -141,6 +141,22 @@ export function isPlanActiveNow(ref: ActivePlanRef | null, now: number): boolean
 }
 
 /**
+ * How long until the plan's active window next opens or closes, or null once
+ * it has closed (or its start is unreadable). A page left open re-checks at
+ * that edge, because no plan event fires when the clock alone crosses it.
+ */
+export function msUntilActivePlanEdge(ref: ActivePlanRef | null, now: number): number | null {
+  if (!ref) return null;
+  const start = Date.parse(ref.startTime);
+  if (Number.isNaN(start)) return null;
+  const opens = start - ACTIVE_PLAN_PRE_MS;
+  const closes = start + ACTIVE_PLAN_POST_MS;
+  if (now < opens) return opens - now;
+  if (now <= closes) return closes - now;
+  return null;
+}
+
+/**
  * Is `now` inside the recap grace period that follows a confirmed ending? True
  * for [completedAt, completedAt + RECAP_GRACE]. An absent or unparseable
  * timestamp is treated as outside the window — a stranded recap never keeps the

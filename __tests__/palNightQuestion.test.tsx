@@ -254,6 +254,35 @@ describe("the question on /pal", () => {
       expect(new URL(fallback.href).hash).toBe("#share");
     });
 
+    it("stops offering last night's plan on a page left open past its window", async () => {
+      writePalNightAnswer(window.localStorage, "sesh", LONDON_LATE);
+      tonightsPlan();
+      await render();
+      expect(whoButton()).toBeDefined();
+      // To the next London noon: the plan's window closed at 05:30 and the question opens again.
+      await act(async () => { vi.advanceTimersByTime(13 * 60 * 60_000); });
+      await act(async () => { await Promise.resolve(); });
+      expect(host.textContent).toContain(PAL_NIGHT_QUESTION);
+      const sesh = [...host.querySelectorAll<HTMLAnchorElement>("a.palChoice")][1]!;
+      sesh.addEventListener("click", (event) => event.preventDefault());
+      await act(async () => sesh.click());
+      expect(whoButton()).toBeUndefined();
+      expect(whoLink()).toBeUndefined();
+      const open = [...host.querySelectorAll<HTMLAnchorElement>("a")].find((link) => link.textContent === "Open the plan")!;
+      expect(new URL(open.href).pathname).toBe("/plan");
+    });
+
+    it("starts offering the crew link when tonight's plan window opens on a page left open", async () => {
+      writePalNightAnswer(window.localStorage, "sesh", LONDON_LATE);
+      // The plan starts at 02:40 London, so its window opens at 23:40.
+      writeActivePlan({ id: PLAN_ID, startTime: new Date(LONDON_LATE.getTime() + (3 * 60 + 10) * 60_000).toISOString(), stopIndex: 0, role: "host" });
+      await render();
+      expect(whoButton()).toBeUndefined();
+      await act(async () => { vi.advanceTimersByTime(11 * 60_000); });
+      await act(async () => { await Promise.resolve(); });
+      expect(whoButton()).toBeDefined();
+    });
+
     it("is not offered for a plan with no seat on it", async () => {
       writePalNightAnswer(window.localStorage, "sesh", LONDON_LATE);
       tonightsPlan(null);
