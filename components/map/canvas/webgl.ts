@@ -30,8 +30,8 @@ export function probeWebGl2(): { hasContext: boolean; status: string } {
  * it: a 390x664 map stage became a 1170x1992 canvas, nine times the pixels of
  * a 1x screen, every one of them shaded on each frame with the extrusions and
  * labels on top. At 2 the same stage is 780x1328, 44% of the pixels, and the
- * text and pins stay sharp. Measured against production in iPhone emulation
- * at 4x CPU throttle: pins visible 8.2-8.5s at 3x, 6.5-6.9s at 2x.
+ * text and pins stay sharp. In iPhone emulation the GPU spent 41% less time
+ * up to the settled pins (docs/rules/perf-budgets-and-measured-findings.md).
  */
 export const MAX_MAP_PIXEL_RATIO = 2;
 
@@ -73,7 +73,10 @@ export function followMapPixelRatio(
   const arm = () => {
     disarm();
     if (typeof win.matchMedia !== "function") return;
-    query = win.matchMedia(`(resolution: ${win.devicePixelRatio}dppx)`);
+    const next = win.matchMedia(`(resolution: ${win.devicePixelRatio}dppx)`);
+    // Every WebGL2 browser has it; a test double may not.
+    if (typeof next?.addEventListener !== "function") return;
+    query = next;
     query.addEventListener("change", onChange);
   };
   arm();
