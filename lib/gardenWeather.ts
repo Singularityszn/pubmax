@@ -1,7 +1,8 @@
 // Beer-garden weather heuristic — pure, no fetch, no React. The /discover
 // GardenTonightCard feeds this the /api/citymcp/status weather block and only
 // renders when it says yes. Honest empty: missing data means NOT garden
-// weather (we never invent sunshine).
+// weather (we never invent sunshine). A rain chance is a forecast, so a low
+// one is printed as a chance and never as "dry".
 
 export const MIN_FEELS_LIKE_C = 16;
 export const MAX_PRECIP_PROBABILITY_PCT = 40;
@@ -16,13 +17,17 @@ function isFiniteNumber(value: unknown): value is number {
   return typeof value === "number" && Number.isFinite(value);
 }
 
+function isKnownPercent(value: unknown): value is number {
+  return isFiniteNumber(value) && value >= 0 && value <= 100;
+}
+
 /**
  * True when it's decent beer-garden weather:
  *  - feels-like is known and >= MIN_FEELS_LIKE_C
- *  - precip probability, when known, is < MAX_PRECIP_PROBABILITY_PCT
- *  - not explicitly night (isDay === false blocks; undefined does not,
- *    because city_status may omit it and a warm dry evening still counts)
- * Missing feels-like → false (we never guess warmth).
+ *  - precip probability is known, inside 0..100, and < MAX_PRECIP_PROBABILITY_PCT
+ *  - it is known to be daytime (isDay === true)
+ * Any missing, null, non-finite or malformed reading → false: we never guess
+ * warmth, a dry sky or daylight.
  */
 export function isGardenWeather(
   weather: GardenWeatherInput | null | undefined,
@@ -30,13 +35,9 @@ export function isGardenWeather(
   if (!weather) return false;
   if (!isFiniteNumber(weather.feelsLikeC)) return false;
   if (weather.feelsLikeC < MIN_FEELS_LIKE_C) return false;
-  if (
-    isFiniteNumber(weather.precipProbabilityPct) &&
-    weather.precipProbabilityPct >= MAX_PRECIP_PROBABILITY_PCT
-  ) {
-    return false;
-  }
-  if (weather.isDay === false) return false;
+  if (!isKnownPercent(weather.precipProbabilityPct)) return false;
+  if (weather.precipProbabilityPct >= MAX_PRECIP_PROBABILITY_PCT) return false;
+  if (weather.isDay !== true) return false;
   return true;
 }
 
@@ -49,10 +50,11 @@ export function gardenWeatherHeadline(
   weather: GardenWeatherInput | null | undefined,
 ): string | null {
   if (!weather || !isGardenWeather(weather)) return null;
-  if (!isFiniteNumber(weather.feelsLikeC)) return null;
-  const rain =
-    isFiniteNumber(weather.precipProbabilityPct)
-      ? `${Math.round(weather.precipProbabilityPct)}% chance of rain`
-      : "dry";
-  return `Feels like ${Math.round(weather.feelsLikeC)}°C, ${rain}. Beer-garden weather.`;
+  if (
+    !isFiniteNumber(weather.feelsLikeC) ||
+    !isKnownPercent(weather.precipProbabilityPct)
+  ) {
+    return null;
+  }
+  return `Feels like ${Math.round(weather.feelsLikeC)}°C, ${Math.round(weather.precipProbabilityPct)}% chance of rain. Beer-garden weather.`;
 }

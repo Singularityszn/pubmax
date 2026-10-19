@@ -282,9 +282,14 @@ describe("Price Pulse: an unapproved edition never renders", () => {
       expect(html).not.toContain(ed.title.replace(/'/g, "&#x27;"));
       for (const line of ed.items) expect(html).not.toContain(line.said.replace(/"/g, "&quot;").replace(/'/g, "&#x27;"));
     }
-    expect(html).toContain("No edition is published yet");
+    // With no approved edition the page never opens on an empty state (taste
+    // plan, 18 Oct 2026): the explainer leads, and one line at the foot says
+    // editions go up once each is checked.
+    expect(html).not.toContain("No edition is published yet");
     expect(html).toContain('id="where-your-6-goes"');
     expect(html).toContain("Where your £6 goes");
+    expect(html).toContain("once each is checked by hand");
+    expect(html.indexOf('id="where-your-6-goes"')).toBeLessThan(html.indexOf("once each is checked by hand"));
   });
 
   it("the share card carries no edition at all", () => {

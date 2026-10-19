@@ -51,16 +51,13 @@ test.describe("messages mobile surface", () => {
     const main = page.locator(".messagesMain");
     await expect(main).toBeVisible();
     await expect(page.getByRole("heading", { name: "Messages", exact: true })).toBeVisible();
-    await expect(page.locator(".messagesCourtesyNote")).toContainText(
-      "Messages need a signed-in account",
-    );
     await expect(page.locator(".messagesInboxPane")).toBeVisible();
     await expect(page.locator(".messagesThreadPane")).toBeHidden();
     // The empty state is the shared EmptyState primitive, whose title is a
     // paragraph rather than a heading (components/ui/empty-state.tsx).
     await expect(
       page.locator(".messagesInboxPane .emptyStateTitle", {
-        hasText: /sign in to message|nobody in here yet/i,
+        hasText: /your conversations show here|nobody in here yet/i,
       }),
     ).toBeVisible();
 
@@ -79,8 +76,6 @@ test.describe("messages mobile surface", () => {
 
     const main = page.locator(".messagesMain");
     await expect(main).toBeVisible();
-    await expect(page.locator(".messagesInboxPane")).toBeHidden();
-    await expect(page.locator(".messagesThreadPane")).toBeVisible();
     await expectNoHorizontalOverflow(page);
 
     const backToInbox = main.getByRole("link", { name: /back to inbox/i }).first();
@@ -95,8 +90,14 @@ test.describe("messages mobile surface", () => {
     }
 
     // Keyless/signed-out runs cannot reach the participant-gated 404 branch,
-    // but the deep link should still fail gracefully as a sign-in surface.
-    await expect(page.getByText(/sign in to read and send messages/i)).toBeVisible();
+    // but the deep link should still fail gracefully as a sign-in surface: the
+    // same one column as /messages, the head's one door over one empty state,
+    // rather than a thread pane that said "sign in" with no way to.
+    await expect(page.locator(".messagesThreadPane")).toBeHidden();
+    await expect(page.locator(".messagesInboxPane")).toBeVisible();
+    await expect(
+      main.getByRole("link", { name: "Sign in", exact: true }),
+    ).toHaveAttribute("href", "/login?mode=signin&from=%2Fmessages");
     await expectTapTargetsAtLeast44(
       main.locator("a, button").and(page.locator(":visible")),
       "signed-out thread control",

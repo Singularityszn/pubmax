@@ -112,14 +112,92 @@ test.describe("Today mobile block geometry", () => {
     await page.goto("/today");
     await expect(page.getByTestId("today-screen")).toBeVisible({ timeout: 45_000 });
     await expect(page.locator(".mobileTabBar").filter({ visible: true })).toBeHidden();
-    const actions = page.locator(".todayFoot a");
-    await actions.last().scrollIntoViewIfNeeded();
-    await expect(actions).toHaveCount(3);
-    await expect(actions.last()).toBeVisible();
+    // Every way onward is reachable on a desktop with no tab bar. The foot
+    // carried three links until the taste pass (18 Oct 2026) said each way
+    // once: Tonight is the Now pair at the top, the map is the head's own
+    // secondary, and the foot keeps the one way that is said nowhere else.
+    const screen = page.getByTestId("today-screen");
+    for (const [scope, href] of [
+      [page.locator(".nowSegment"), "/tonight"],
+      [screen.locator("[data-primary-action]"), "/near?locate=1"],
+      [screen.locator(".screenSecondary"), "/map"],
+      [page.locator(".todayFoot"), "/plan"],
+    ] as const) {
+      const action = scope.locator(`a[href="${href}"]`);
+      await expect(action, `${href} is a way onward from /today`).toHaveCount(1);
+      await action.scrollIntoViewIfNeeded();
+      await expect(action).toBeVisible();
+    }
     expect(
       await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth),
     ).toBeLessThanOrEqual(1);
   });
+});
+
+// The last line of a page ends above the create disc and the tab bar when the
+// page is scrolled to the very bottom, and the body is the only thing that
+// reserved the room (components/nav/mobileNav.css, --chrome-bottom-clearance;
+// source fence __tests__/chromeBottomClearance.test.ts).
+test.describe("the foot of a scrolling page clears the phone chrome", () => {
+  test.use({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
+
+  for (const route of ["/", "/today", "/tonight", "/founders", "/historic"]) {
+    test(`${route} ends above the create disc and the tab bar`, async ({ page }) => {
+      await page.addInitScript(() => {
+        localStorage.setItem("pubmax-tour-v1-done", "1");
+        localStorage.setItem("pubmaxx:analytics-consent:v1", "denied");
+      });
+      await page.goto(route);
+      const tabBar = page.getByRole("navigation", { name: "Primary" });
+      await expect(tabBar).toBeVisible({ timeout: 45_000 });
+      await expect(page.locator(".createFab")).toBeVisible();
+
+      const foot = await page.evaluate(async () => {
+        const settle = () => new Promise((resolve) => setTimeout(resolve, 300));
+        for (let i = 0; i < 6; i += 1) {
+          window.scrollTo(0, document.documentElement.scrollHeight);
+          await settle();
+        }
+        const probe = document.createElement("div");
+        probe.style.paddingBottom = "var(--chrome-bottom-clearance)";
+        document.body.append(probe);
+        const token = Number.parseFloat(getComputedStyle(probe).paddingBottom);
+        probe.remove();
+
+        let lowest = 0;
+        const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+        while (walker.nextNode()) {
+          const node = walker.currentNode;
+          const owner = node.parentElement;
+          if (!node.textContent?.trim() || !owner) continue;
+          if (owner.closest(".mobileTabBar, .createFabRoot, nextjs-portal, [aria-hidden='true']")) continue;
+          const style = getComputedStyle(owner);
+          if (style.position === "fixed" || style.visibility === "hidden") continue;
+          const range = document.createRange();
+          range.selectNodeContents(node);
+          for (const rect of range.getClientRects()) {
+            if (rect.width >= 1 && rect.height >= 1) lowest = Math.max(lowest, rect.bottom);
+          }
+        }
+        return {
+          token,
+          bodyPaddingBottom: Number.parseFloat(getComputedStyle(document.body).paddingBottom),
+          lowestText: lowest,
+          fabTop: document.querySelector(".createFab")!.getBoundingClientRect().top,
+          railTop: document.querySelector(".mobileTabList")!.getBoundingClientRect().top,
+        };
+      });
+
+      expect(foot.token, "the phone publishes a clearance").toBeGreaterThan(0);
+      expect(foot.bodyPaddingBottom).toBeCloseTo(foot.token, 0);
+      expect(foot.lowestText, "the last line ends above the create disc").toBeLessThanOrEqual(
+        foot.fabTop + 0.5,
+      );
+      expect(foot.lowestText, "the last line ends above the tab bar").toBeLessThanOrEqual(
+        foot.railTop + 0.5,
+      );
+    });
+  }
 });
 
 test.describe("Android install prompt", () => {

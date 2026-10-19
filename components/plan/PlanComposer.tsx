@@ -1976,6 +1976,25 @@ function PlanComposerForm({
       setRouteStatus("The accepted pub stays as Stop 1. Refresh the route to change the other stops.");
       return false;
     }
+    const stopIdentitiesChanged = stops.length !== mutation.stops.length
+      || stops.some((stop, index) => stop.venueId !== mutation.stops[index]?.venueId);
+    if (stopIdentitiesChanged) {
+      // A valid route proof can survive a swap, but the earlier cost list cannot.
+      setCultureOpener((current) => {
+        if (!current?.costs) return current;
+        return {
+          ...current,
+          costs: {
+            ...current.costs,
+            knownItems: [],
+            knownSubtotalPence: null,
+            unknownItems: current.costs.unknownItems.includes("drinks")
+              ? current.costs.unknownItems
+              : [...current.costs.unknownItems, "drinks"],
+          },
+        };
+      });
+    }
     setStops(mutation.stops);
     setGroundingProof(mutation.groundingProof);
     setCreateOperationKey(mutation.createOperationKey);

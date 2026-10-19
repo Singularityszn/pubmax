@@ -46,7 +46,7 @@
 .landingPhotoCredit {
   margin: 0;
   color: var(--landing-photo-ink-soft);
-  font-size: 0.625rem;
+  font-size: var(--text-2xs);
   line-height: 1.35;
   text-wrap: pretty;
 }
@@ -65,8 +65,10 @@
   text-underline-offset: 2px;
 }
 
-.landingPhotoCredit a:hover {
-  color: #fbf9f6;
+@media (hover: hover) and (pointer: fine) {
+  .landingPhotoCredit a:hover {
+    color: #fbf9f6;
+  }
 }
 
 /* A framed picture at the head of a borough or area landing. It is a picture
@@ -77,7 +79,7 @@
   aspect-ratio: 16 / 9;
   max-height: 260px;
   border-radius: var(--radius-lg);
-  border: 1px solid var(--line-soft, var(--line));
+  border: 1px solid var(--line-soft);
 }
 
 /* A band carries no text over it but its own credit, so the full dimming a
@@ -95,5 +97,5 @@
 .landingPhoto--band .landingPhotoCredit {
   background: rgb(12 10 9 / 0.72);
   padding: 0.2rem 0.45rem;
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
 }

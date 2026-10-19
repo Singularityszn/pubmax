@@ -1,6 +1,7 @@
 import type { PubPalAppearance, PubPalSpecies } from "@/lib/pubPal";
 import { PubPalMascot } from "@/components/pal/PubPalMascot";
 import { pubPalMascotSlugFor } from "@/lib/pubPalMascot";
+import { palGenomeStyle, type PalGenome } from "@/lib/palGenome";
 import "./pubPal.css";
 
 // A stored legacy species with no master draws its old silhouette. Every
@@ -15,9 +16,14 @@ const legacySilhouettes: Partial<Record<PubPalSpecies, string>> = {
   bot: "M14 17h52v47H14zM26 34h8m12 0h8M28 50h24M40 17V8m-6 0h12",
 };
 
-export function PubPalAvatar({ appearance, name, compact = false }: { appearance: PubPalAppearance; name: string; compact?: boolean }) {
+export function PubPalAvatar({ appearance, name, compact = false, genome }: { appearance: PubPalAppearance; name: string; compact?: boolean; genome?: PalGenome }) {
   return (
-    <div className={`palAvatar pal-${appearance.species} pal-${appearance.signalAffinity} ${compact ? "isCompact" : ""}`} role="img" aria-label={`${name}, a ${appearance.signalAffinity} hologram cyber ${appearance.species}`}>
+    <div
+      className={`palAvatar pal-${appearance.species} pal-${appearance.signalAffinity} ${compact ? "isCompact" : ""}`}
+      role="img"
+      aria-label={`${name}, a ${appearance.signalAffinity} hologram cyber ${appearance.species}`}
+      {...(genome ? { "data-genome": "", style: palGenomeStyle(genome) as React.CSSProperties } : {})}
+    >
       <span className="palHalo" aria-hidden="true" />
       <span className="palBody" aria-hidden="true">
         {pubPalMascotSlugFor(appearance.species) ? (

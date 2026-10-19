@@ -307,7 +307,7 @@ function PriceDoor({
       aria-label={`${LOG_PRICE_DOOR_LABEL} at ${venue.name}`}
       onClick={onLogTonightPrice}
     >
-      <PlusCircle size={15} aria-hidden="true" /> {LOG_PRICE_DOOR_LABEL}
+      <PlusCircle size={16} aria-hidden="true" /> {LOG_PRICE_DOOR_LABEL}
     </button>
   );
 }
@@ -1155,7 +1155,7 @@ export default function VenueOverviewTab({
       {/* Patch yardstick: this pint against the borough Pint Index average, or
           the fare-zone median when the Index has no row. Same displayable pint
           stack as the then-and-now block. Renders nothing without a yardstick. */}
-      {experienceLens === "all" && isPubVenue(venue) ? (
+      {restingPintView && isPubVenue(venue) ? (
         <VenueAreaPriceCompare
           priceGbp={overviewPintGbp}
           primaryBorough={venue.primaryBorough}
@@ -1331,10 +1331,10 @@ export default function VenueOverviewTab({
               margin: "12px 0 0",
               minHeight: "42px",
               fontWeight: 700,
-              color: "var(--brass)",
+              color: "var(--state-active-ink)",
             }}
           >
-            <MapPin size={15} aria-hidden="true" /> You&rsquo;re here
+            <MapPin size={16} aria-hidden="true" /> You&rsquo;re here
           </p>
         ) : (
           <button
@@ -1353,7 +1353,7 @@ export default function VenueOverviewTab({
               gap: "6px",
             }}
           >
-            <MapPin size={15} aria-hidden="true" />
+            <MapPin size={16} aria-hidden="true" />
             {presenceState === "sending" ? "Checking in…" : "I'm here"}
           </button>
         )}

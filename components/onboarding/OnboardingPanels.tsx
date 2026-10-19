@@ -8,6 +8,8 @@
 
 import { Check, ShieldCheck } from "lucide-react";
 
+import { PintPriceBadge } from "@/components/PriceBadge";
+
 import { NEAR_PRICE_TRUST_CAPTION } from "@/lib/nearPriceTrust";
 import {
   BUDGET_CHOICES,
@@ -54,7 +56,7 @@ export function BudgetPanel({
               onClick={() => onChoose(choice.id)}
             >
               <span>{choice.label}</span>
-              {selected ? <Check size={18} aria-hidden="true" /> : null}
+              {selected ? <Check size={16} aria-hidden="true" /> : null}
             </button>
           );
         })}
@@ -216,7 +218,7 @@ export function ResultPanel({
             <li key={card.id}>
               <strong>{card.name}</strong>
               <span>{[card.borough, walkLabel(card)].filter(Boolean).join(", ")}</span>
-              <b>{formatGbp(card.cheapestPrice)}</b>
+              <PintPriceBadge priceGbp={card.cheapestPrice} venueId={card.id} />
             </li>
           ))}
         </ul>

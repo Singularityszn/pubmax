@@ -72,7 +72,7 @@ export default function VenueWikidataHistory({ venueId, venueName }: Props) {
             {fact.sourceRef ? (
               <a href={fact.sourceRef} target="_blank" rel="noopener noreferrer">
                 {fact.fact}
-                <ExternalLink size={12} aria-hidden="true" />
+                <ExternalLink size={14} aria-hidden="true" />
               </a>
             ) : (
               <span>{fact.fact}</span>

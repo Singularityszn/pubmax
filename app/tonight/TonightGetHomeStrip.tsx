@@ -63,7 +63,7 @@ export default function TonightGetHomeStrip({ origin }: Props) {
     <>
       {summary ? (
         <div className="tonightGetHome" data-testid="tonight-get-home">
-          <TrainFront size={15} aria-hidden="true" className="tonightGetHomeIcon" />
+          <TrainFront size={16} aria-hidden="true" className="tonightGetHomeIcon" />
           <p className="tonightGetHomeCopy">
             <span className="tonightGetHomeStatus">{summary.statusLine}</span>{" "}
             <span>{summary.trainLine}</span>

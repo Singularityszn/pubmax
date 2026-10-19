@@ -71,8 +71,10 @@ describe("the profile message control waits for the live session", () => {
   it("keeps the door once the session has answered nobody", () => {
     const html = messageButton({ providerAuthState: "signed-out" });
 
+    // One quiet link to the sign-in page, never the whole form in the hero.
     expect(html).toContain("Sign in to message");
-    expect(html).toContain("Continue with email");
+    expect(html).toContain('href="/login?mode=signin&amp;from=%2Fu%2Fkaran"');
+    expect(html).not.toContain("Continue with email");
   });
 
   it("offers Message to a signed-in account", () => {

@@ -5,6 +5,10 @@ import { renderToStaticMarkup } from "react-dom/server";
 
 import { describe, expect, it, vi } from "vitest";
 
+// The shared top nav is a client component that needs the app router; these
+// pages are read as server markup, so the nav renders nothing here.
+vi.mock("@/components/nav/SiteNav", () => ({ default: () => null }));
+
 import PrivacyPage from "@/app/privacy/page";
 import TermsPage from "@/app/terms/page";
 import { CONTACT_EMAIL } from "@/lib/siteContact";

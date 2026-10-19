@@ -21,7 +21,7 @@
   min-width: 44px;
   min-height: 44px;
   border: 1px solid transparent;
-  border-radius: 999px;
+  border-radius: 50%;
   color: var(--ink-soft);
   text-decoration: none;
   transition:

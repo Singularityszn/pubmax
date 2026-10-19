@@ -176,12 +176,11 @@ describe("Social viewer surfaces", () => {
   it("renders public pack cards beside one sign-in action without follow controls", async () => {
     await renderSocial();
 
-    expect(host.querySelector(".socialBoundary")?.textContent).toContain(
+    // One column: the boundary's one line, then the packs under it.
+    expect(host.querySelector(".socialDoorSlot")?.textContent).toContain(
       "Sign in to use Social.",
     );
-    expect(host.querySelector(".socialRailEmpty")?.textContent).toContain(
-      "No posts to read yet.",
-    );
+    expect(host.querySelector(".socialDoor .starterPacks")).not.toBeNull();
     expect(host.querySelectorAll('a[href*="/login"]')).toHaveLength(1);
     expect(host.querySelectorAll(".starterPacks__card")).toHaveLength(1);
     expect(host.querySelectorAll(".starterPacks__follow")).toHaveLength(0);

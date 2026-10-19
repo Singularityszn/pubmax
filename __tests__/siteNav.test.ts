@@ -23,7 +23,7 @@ vi.mock("@/components/auth/SignInButton", () => ({ default: () => null }));
 vi.mock("@/components/brand/PubmaxxWordmark", () => ({ default: () => null }));
 // SiteNavMore keeps real markup so the overflow link contract is tested.
 
-async function renderSiteNav(active?: "today" | "tonight"): Promise<string> {
+async function renderSiteNav(active?: "today" | "tonight" | "crawls"): Promise<string> {
   const { default: SiteNav } = await import("@/components/nav/SiteNav");
   return renderToStaticMarkup(createElement(SiteNav, active ? { active } : undefined));
 }
@@ -122,11 +122,19 @@ describe("SiteNav current page state", () => {
     expect(row.match(/aria-current="page"/g) ?? []).toHaveLength(0);
   });
 
-  it.each(["/social", "/feed", "/crawls/soho"])("marks Social current on %s", async (pathname) => {
+  it.each(["/social", "/feed"])("marks Social current on %s", async (pathname) => {
     navigationState.pathname = pathname;
     const markup = await renderSiteNav();
     const row = markup.match(/<ul class="siteNavLinks">[\s\S]*?<\/ul>/)?.[0] ?? "";
     expect(row.match(/aria-current="page"[^>]*>Social</g) ?? []).toHaveLength(1);
+  });
+
+  it.each(["/crawls", "/crawls/soho"])("marks Plan, never Social, current on %s", async (pathname) => {
+    navigationState.pathname = pathname;
+    const markup = await renderSiteNav("crawls");
+    const row = markup.match(/<ul class="siteNavLinks">[\s\S]*?<\/ul>/)?.[0] ?? "";
+    expect(row.match(/aria-current="page"[^>]*>Plan</g) ?? []).toHaveLength(1);
+    expect(row).not.toMatch(/aria-current="page"[^>]*>Social</);
   });
 
   it("marks Tonight current when the host page is Tonight", async () => {

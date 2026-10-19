@@ -1,24 +1,120 @@
 /* The Spoons value ranking. One column that reads top to bottom on a phone and
    the same on a desktop, wider: the page is a table, so the table gets the
-   width and nothing sits beside it. */
+   width and nothing sits beside it. The shell and the gutter are the listing
+   pages' own (components/listing/listing.css), so the page shares its left
+   edge and its phone gutter with its siblings. Tokens only, no coral. */
 .spoonsPage {
-  padding: 24px 16px 64px;
-  max-width: 68rem;
-  margin: 0 auto;
+  padding-block: var(--space-2) var(--space-12);
   min-width: 0;
 }
 
+/* The lede reads at a line length a reader can follow: it ran 150 characters
+   wide. */
 .spoonsLede {
-  margin: 0 0 16px;
+  margin: 0 0 var(--space-5);
+  max-width: 65ch;
   min-width: 0;
-  color: var(--ink);
-  font-size: 0.95rem;
-  line-height: 1.55;
-  overflow-wrap: anywhere;
+  color: var(--color-text-soft);
+  font-size: var(--text-base);
+  line-height: var(--leading-normal);
+  text-wrap: pretty;
 }
 
-/* The cuts. Same chip as the map's lane picker, so a reader who has met one
-   has met both.
+/* --- the shape of the whole -------------------------------------------------- */
+
+.spoonsHistogram {
+  margin: 0 0 var(--space-8);
+  max-width: var(--content-max);
+}
+
+.spoonsHistogramTitle {
+  margin: 0 0 var(--space-3);
+  color: var(--color-text);
+  font-size: var(--text-sm);
+  font-weight: 600;
+}
+
+.spoonsHistogramPlot {
+  position: relative;
+}
+
+/* One bar per half unit, a 2px gap between bars, no track: the page is the
+   ground. The commonest bin is the one bar in full ink, and it names its own
+   count. */
+.spoonsHistogramBars {
+  display: flex;
+  align-items: flex-end;
+  gap: 2px;
+  height: 7.5rem;
+  padding-top: var(--space-5);
+  border-bottom: 1px solid var(--hairline-strong);
+}
+
+.spoonsHistogramBar {
+  position: relative;
+  flex: 1 1 0;
+  min-width: 0;
+  border-radius: 2px 2px 0 0;
+  background: color-mix(in srgb, var(--color-text) 40%, var(--paper));
+}
+
+.spoonsHistogramBar.isCommonest {
+  background: var(--color-text);
+}
+
+.spoonsHistogramPeak {
+  position: absolute;
+  bottom: 100%;
+  left: 50%;
+  margin-bottom: var(--space-1);
+  transform: translateX(-50%);
+  color: var(--color-text);
+  font-family: var(--font-data);
+  font-size: var(--text-2xs);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+/* The least, the median and the most, under the axis where they fall. */
+.spoonsHistogramAxis {
+  position: relative;
+  height: 2.5rem;
+}
+
+.spoonsHistogramMark {
+  position: absolute;
+  top: var(--space-1);
+  display: grid;
+  gap: 0;
+  color: var(--color-text-muted);
+  font-size: var(--text-2xs);
+  line-height: var(--leading-snug);
+  white-space: nowrap;
+  transform: translateX(-50%);
+  text-align: center;
+}
+
+.spoonsHistogramMark b {
+  color: var(--color-text);
+  font-family: var(--font-data);
+  font-size: var(--text-xs);
+  font-variant-numeric: tabular-nums;
+}
+
+/* The ends hold their edge so a label never hangs off the plot. */
+.spoonsHistogramMark--least {
+  transform: none;
+  text-align: start;
+}
+
+.spoonsHistogramMark--most {
+  transform: translateX(-100%);
+  text-align: end;
+}
+
+/* --- the cuts ------------------------------------------------------------------ */
+
+/* Same chip as the map's lane picker, so a reader who has met one has met both.
 
    A SIDEWAYS RAIL ON A PHONE, never a wrapped block: nine chips wrapped to
    three 44px rows at 390px and pushed the first table row off the screen, which
@@ -26,8 +122,8 @@
    tab stop, so the browser scrolls a focused one into view. */
 .spoonsTableCuts {
   display: flex;
-  gap: 6px;
-  margin: 0 0 12px;
+  gap: var(--space-2);
+  margin: 0 0 var(--space-3);
   min-width: 0;
   overflow-x: auto;
   scrollbar-width: none;
@@ -40,75 +136,81 @@
 
 .spoonsTableCut {
   flex: none;
-  white-space: nowrap;
-}
-
-.spoonsTableCut {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: var(--space-2);
   min-height: 44px;
-  padding: 7px 12px;
-  border: 1px solid var(--line-soft);
-  border-radius: var(--control-radius, 12px);
+  padding: 0 var(--space-3);
+  border: 1px solid var(--hairline-strong);
+  border-radius: var(--control-radius);
   background: transparent;
-  color: var(--muted);
+  color: var(--color-text-soft);
   font: inherit;
-  font-size: 0.78rem;
-  font-weight: 700;
+  font-size: var(--text-sm);
+  font-weight: 600;
+  white-space: nowrap;
   cursor: pointer;
   touch-action: manipulation;
 }
 
-.spoonsTableCut:hover,
-.spoonsTableCut:focus-visible {
-  color: var(--ink);
+@media (hover: hover) and (pointer: fine) {
+  .spoonsTableCut:hover {
+    border-color: var(--state-selected-border);
+    color: var(--color-text);
+  }
 }
 
 .spoonsTableCut:focus-visible {
-  outline: 2px solid var(--brass);
+  color: var(--color-text);
+  outline: 2px solid var(--color-text);
   outline-offset: -2px;
 }
 
+/* The chosen cut reads in ink (docs/DESIGN_SYSTEM.md, "Coral is spent twice"). */
 .spoonsTableCut.isSelected {
-  background: var(--panel-raised);
-  color: var(--ink);
-  font-weight: 800;
-  box-shadow: var(--shadow-sm);
+  border-color: var(--state-selected-border);
+  background: var(--state-selected-surface);
+  color: var(--state-selected-ink);
 }
 
 .spoonsTableCutCount {
-  color: var(--ink-soft);
+  color: var(--color-text-muted);
+  font-family: var(--font-data);
+  font-size: var(--text-xs);
   font-variant-numeric: tabular-nums;
-  font-weight: 600;
 }
+
+.spoonsTableCut.isSelected .spoonsTableCutCount {
+  color: var(--state-selected-ink);
+}
+
+/* --- the table ------------------------------------------------------------------ */
 
 /* Wide content scrolls inside its own box. The page body never scrolls
    sideways. */
 .spoonsTableScroll {
   overflow-x: auto;
   min-width: 0;
-  border: 1px solid var(--line-soft);
-  border-radius: var(--radius-md, 14px);
 }
 
 .spoonsTable {
   width: 100%;
   border-collapse: collapse;
-  font-size: 0.78rem;
+  font-size: var(--text-sm);
 }
 
 .spoonsTableCaption {
-  padding: 10px 12px;
-  color: var(--ink-soft);
-  font-size: 0.72rem;
+  padding: 0 0 var(--space-2);
+  color: var(--color-text-muted);
+  font-size: var(--text-xs);
   text-align: left;
   caption-side: top;
 }
 
+/* One hairline between rows, across every cell, rank included. */
 .spoonsTable th,
 .spoonsTable td {
-  padding: 10px 8px;
+  padding: var(--space-3) var(--space-2);
   border-top: 1px solid var(--line-soft);
   text-align: left;
   vertical-align: top;
@@ -123,24 +225,30 @@
   top: 0;
   z-index: 1;
   border-top: 0;
-  background: var(--panel);
-  color: var(--ink-soft);
-  font-size: 0.72rem;
-  font-weight: 700;
+  border-bottom: 1px solid var(--hairline-strong);
+  background: var(--paper);
+  color: var(--color-text-muted);
+  font-size: var(--text-xs);
+  font-weight: 600;
   white-space: nowrap;
 }
 
 .spoonsTableRank {
-  color: var(--ink-soft);
+  width: 3ch;
+  color: var(--color-text-muted);
+  font-family: var(--font-data);
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }
 
 .spoonsTablePub {
+  color: var(--color-text);
+  font-weight: 600;
+}
+
+.spoonsTablePubLines {
   display: grid;
   gap: 2px;
-  color: var(--ink);
-  font-weight: 700;
 }
 
 .spoonsTablePub a {
@@ -150,15 +258,22 @@
   display: block;
   padding-block: 15px;
   margin-block: -15px;
-  color: var(--ink);
+  color: var(--color-text);
   text-decoration: underline;
-  text-underline-offset: 2px;
+  text-decoration-color: var(--hairline-strong);
+  text-underline-offset: 3px;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .spoonsTablePub a:hover {
+    text-decoration-color: currentColor;
+  }
 }
 
 .spoonsTableWhere {
-  color: var(--ink-soft);
-  font-size: 0.72rem;
-  font-weight: 500;
+  color: var(--color-text-muted);
+  font-size: var(--text-xs);
+  font-weight: 400;
 }
 
 .spoonsTableUnits {
@@ -167,16 +282,12 @@
   vertical-align: top;
 }
 
-/* The one coloured figure in the row. It always prints its unit, so it can
-   never be read as the price of a pint. */
+/* A figure with its unit, in the data face and plain ink. Units are not a
+   price, so they wear no price band. */
 .spoonsTableUnitsFigure {
-  display: inline-block;
-  padding: 2px 8px;
-  border: 1px solid var(--price-band-border, var(--line));
-  border-radius: var(--control-radius, 12px);
-  background: var(--price-band-surface, var(--panel-raised));
-  color: var(--price-band-ink, var(--ink));
-  font-weight: 800;
+  color: var(--color-text);
+  font-family: var(--font-data);
+  font-weight: 700;
   font-variant-numeric: tabular-nums;
 }
 
@@ -186,35 +297,39 @@
 .spoonsTableRound {
   display: block;
   margin-top: 2px;
-  color: var(--ink-soft);
-  font-size: 0.72rem;
-  font-weight: 500;
-  line-height: 1.45;
+  color: var(--color-text-soft);
+  font-size: var(--text-xs);
+  font-weight: 400;
+  line-height: var(--leading-snug);
 }
 
 .spoonsTableCost {
-  color: var(--ink);
+  color: var(--color-text);
+  font-family: var(--font-data);
   font-variant-numeric: tabular-nums;
   font-weight: 700;
 }
 
+/* --- the credit ------------------------------------------------------------------ */
+
 .spoonsCredit {
   display: grid;
-  gap: 8px;
-  margin: 24px 0 0;
-  padding: 16px 0 0;
+  gap: var(--space-2);
+  max-width: var(--content-max);
+  margin: var(--space-6) 0 0;
+  padding: var(--space-4) 0 0;
   border-top: 1px solid var(--line-soft);
   min-width: 0;
-  color: var(--ink-soft);
-  font-size: 0.82rem;
-  line-height: 1.55;
+  color: var(--color-text-soft);
+  font-size: var(--text-sm);
+  line-height: var(--leading-normal);
 }
 
 .spoonsCreditTitle {
   margin: 0;
-  color: var(--ink);
-  font-size: 0.95rem;
-  font-weight: 800;
+  color: var(--color-text);
+  font-size: var(--text-base);
+  font-weight: 700;
 }
 
 .spoonsCredit p {
@@ -224,33 +339,23 @@
 }
 
 .spoonsCredit a {
-  color: var(--brass-ink, var(--brass));
+  color: var(--color-text);
+  font-weight: 600;
   text-decoration: underline;
-  text-underline-offset: 2px;
+  text-decoration-color: var(--hairline-strong);
+  text-underline-offset: 3px;
 }
 
 /* With room for them, the chips wrap into a block rather than hiding a cut
    behind a scroll nobody looks for. */
-@media (min-width: 768px) {
+@media (min-width: 641px) {
   .spoonsTableCuts {
     flex-wrap: wrap;
     overflow-x: visible;
   }
 
-  .spoonsPage {
-    padding: 32px 24px 80px;
-  }
-
-  .spoonsTable {
-    font-size: 0.86rem;
-  }
-
   .spoonsTable th,
   .spoonsTable td {
-    padding: 10px 12px;
-  }
-
-  .spoonsTableRound {
-    font-size: 0.78rem;
+    padding: var(--space-3);
   }
 }

@@ -42,19 +42,19 @@ const PLACES_CITY_PARAM = "city";
 
 /** Kicker above the heading, per the shell's kicker-then-heading rhythm. */
 export const PLACES_KICKER = "Places";
-export const PLACES_TITLE = "Pick a city.";
-export const PLACES_LEDE = "Set one and the map and Near both open there.";
+export const PLACES_TITLE = "London only, for now.";
+export const PLACES_LEDE =
+  "London is the one city with listed pint prices. More cities come when their prices are in.";
 
 /**
- * The waitlist under the live city list.
+ * The city request, the list screen's quiet way onward.
  *
  * Product owner, Oct 2026 UX audit: the list shows only the cities with listed
  * pint prices (London today), because eleven rows marked "Prices coming" read
- * as eleven promises. The other city maps still answer by URL and by search;
- * this line names the gap once and gives a reader the one thing they can do
- * about it.
+ * as eleven promises. Taste plan, 18 Oct 2026: with one such city the screen
+ * says so in its heading, so the request sits beside the one door rather than
+ * under a heading of its own.
  */
-export const PLACES_WAITLIST_TITLE = "More cities when the prices are in.";
 export const PLACES_WAITLIST_LABEL = "Want your city next? Tell us.";
 export const PLACES_WAITLIST_HREF = `${HELLO_MAILTO}?subject=City%20request`;
 
@@ -68,11 +68,16 @@ export const PLACES_WAITLIST_HREF = `${HELLO_MAILTO}?subject=City%20request`;
 export const PLACES_LIST_PRIMARY_LABEL = "Open London";
 export const PLACES_LIST_SECONDARY_LABEL = UK_NATIONAL_ENTRY_LABEL;
 
-/** The one way back to the full list while a query stands. */
-export const PLACES_SHOW_ALL_LABEL = "Show every city";
+/** The one way back to an empty field while a query stands. */
+export const PLACES_SHOW_ALL_LABEL = "Clear the search";
 
-export const PLACES_SEARCH_LABEL = "Find a city";
-export const PLACES_SEARCH_PLACEHOLDER = "Search a city";
+export const PLACES_SEARCH_LABEL = "Find a town";
+export const PLACES_SEARCH_PLACEHOLDER = "Search a town";
+
+/** The section under the head: the UK map, which shows pubs without prices. */
+export const PLACES_UK_TITLE = "Pubs elsewhere in the UK";
+export const PLACES_UK_LINE =
+  "Outside London the map shows the pubs, without prices yet. Find a town to open it there.";
 
 /** The one primary action a city panel offers. */
 export const PLACES_SET_CITY_LABEL = "Set as my city";
@@ -220,21 +225,21 @@ export function placesTownLookupPending(
  * What the picker says when the place index will not answer.
  *
  * The chooser's own line ends "The five city maps are below", which is true
- * THERE: its full city list always renders under the search panel. Here the
- * list is filtered out while a query stands, so a reader told the maps are
- * below would be looking at a screen holding none. The lead is shared and this
- * surface finishes it by naming the button that brings its list back.
+ * THERE: its full city list always renders under the search panel. Here there
+ * is no list under the field, so the lead is shared and this surface finishes
+ * it by naming the button that is still on screen and the UK map link beside
+ * the heading.
  */
 export function placesTownSearchUnavailableLine(): string {
-  return `${TOWN_SEARCH_UNAVAILABLE_LEAD} ${PLACES_SHOW_ALL_LABEL} to pick one.`;
+  return `${TOWN_SEARCH_UNAVAILABLE_LEAD} ${PLACES_SHOW_ALL_LABEL}, or browse the UK map.`;
 }
 
 /** The one line a search that matched nothing prints. */
 export function placesSearchEmptyLine(query: string): string {
   const typed = query.trim();
   return typed
-    ? `No city here called ${typed}. Try another name.`
-    : "No cities to show.";
+    ? `No town here called ${typed}. Try another name.`
+    : "No towns to show.";
 }
 
 /** `?city=` is a closed id or nothing. An unknown value is the city list. */

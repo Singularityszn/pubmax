@@ -128,7 +128,7 @@ export default async function LandmarkChapterPage({ params }: PageProps) {
         rel="noreferrer"
       >
         Source: {landmark.source.label}
-        <ExternalLink size={13} aria-hidden="true" />
+        <ExternalLink size={14} aria-hidden="true" />
       </a>
 
       <div className="landmarkChapterActions">

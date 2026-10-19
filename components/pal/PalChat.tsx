@@ -17,6 +17,8 @@ import {
   useSyncExternalStore,
 } from "react";
 import Link from "next/link";
+
+import { PintPriceBadge } from "@/components/PriceBadge";
 import { useRouter } from "next/navigation";
 import { ArrowUp, MapPin, Sparkles } from "lucide-react";
 
@@ -193,12 +195,12 @@ export function AnswerCard({
           <div className="palChatCardTop">
             <p className="palChatCardTitle">{card.title}</p>
             {typeof card.price === "number" ? (
-              <span className="palChatCardPrice">£{card.price.toFixed(2)}</span>
+              <PintPriceBadge className="palChatCardPrice" priceGbp={card.price} venueId={card.venueId || null} />
             ) : null}
           </div>
           {card.place ? (
             <p className="palChatCardPlace">
-              <MapPin size={12} aria-hidden="true" />
+              <MapPin size={14} aria-hidden="true" />
               <span>{card.place}</span>
             </p>
           ) : null}
@@ -779,7 +781,7 @@ export default function PalChat() {
         {empty && glance.status === "ready" && glanceLine ? (
           <div className="palGlance" role="note" aria-label="Tonight at a glance">
             <span className="palGlanceLabel">
-              <Sparkles size={13} aria-hidden="true" /> Tonight
+              <Sparkles size={14} aria-hidden="true" /> Tonight
             </span>
             <p className="palGlanceLine">{glanceLine}</p>
             <p className="palGlanceReceipt">
@@ -793,7 +795,7 @@ export default function PalChat() {
         {empty && glance.status === "empty" ? (
           <div className="palGlance" role="note" aria-label="Tonight at a glance">
             <span className="palGlanceLabel">
-              <Sparkles size={13} aria-hidden="true" /> Tonight
+              <Sparkles size={14} aria-hidden="true" /> Tonight
             </span>
             <p className="palGlanceLine">
               {GLANCE_QUIET_LINE}{" "}
@@ -815,7 +817,7 @@ export default function PalChat() {
         {empty && cheapestLine ? (
           <div className="palGlance" role="note" aria-label="Listed price nearby">
             <span className="palGlanceLabel">
-              <MapPin size={13} aria-hidden="true" /> Listed price
+              <MapPin size={14} aria-hidden="true" /> Listed price
             </span>
             <p className="palGlanceLine">
               {cheapestLine}{" "}
@@ -865,7 +867,7 @@ export default function PalChat() {
           disabled={pending || !query.trim()}
           aria-label="Ask"
         >
-          <ArrowUp size={18} aria-hidden="true" />
+          <ArrowUp size={20} aria-hidden="true" />
         </button>
       </form>
       </Screen>
