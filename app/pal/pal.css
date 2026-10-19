@@ -12,8 +12,12 @@
   min-height: 100dvh;
   overflow: hidden;
   /* The shared top nav sits above this in the flow (app/pal/page.tsx), so the
-     page only needs the head's own breathing room, not a bar's clearance. */
-  padding: calc(var(--space-6) + env(safe-area-inset-top)) clamp(1rem, 4vw, 4.5rem) calc(6rem + env(safe-area-inset-bottom));
+     page only needs the head's own breathing room, not a bar's clearance.
+     The bar also pays the notch (components/nav/siteNav.css), so the top
+     safe-area inset is never added here again: added twice, it put a blank
+     band the height of the notch between the bar and the head on an iPhone
+     (__tests__/pageShellSafeAreaTop.test.ts). */
+  padding: var(--space-6) clamp(1rem, 4vw, 4.5rem) calc(6rem + env(safe-area-inset-bottom));
   color: var(--pal-paper);
   font-family: var(--font-body);
 }
@@ -185,6 +189,18 @@ body:has(.palExperience) {
    a different dark from the page's, all four read as straight seams across the
    portrait. Filling the core makes the existing mask do the cutting. */
 .palPortraitMascot { width: 100%; height: 100%; display: block; }
+/* THE PHOTOGRAPH OVERSCANS THE DISC, SO ITS MOTION NEVER SHOWS THE GROUND.
+   The state motion below rotates and lifts the photograph about its bottom
+   centre, and filled to exactly 100% its square edge swung inside the circle:
+   a pale sliver of the core's light ground on the disc's left edge of the
+   /pal meeting portrait at 1440 and 1280, and on its foot at 390 (Pal UI
+   audit, 19 Oct 2026). Held 10% larger, the photograph still reaches past
+   the mask at the widest swing, and a core that holds a photograph is on the
+   photograph's own dark rather than the page's light, so a frame between
+   keyframes cannot flash a light seam. `scale` composes with the keyframes'
+   `transform`, so no motion is rewritten. */
+.palPortrait .palPortraitCore:has(> .palPortraitMascot) { background: var(--ink-deep); }
+.palPortraitCore > .palPortraitMascot { scale: 1.1; }
 .palPortraitMascot img { width: 100%; height: 100%; object-fit: cover; }
 .palPortraitAccessory { position: absolute; z-index: 3; bottom: 22%; left: 50%; transform: translateX(-50%); padding: .35rem .65rem; border: 1px solid color-mix(in srgb, var(--signal) 40%, transparent); border-radius: 2rem; background: color-mix(in srgb, var(--ink-deep) 82%, transparent); color: color-mix(in srgb, var(--signal) 70%, white); font: 650 .59rem/1 var(--font-body); letter-spacing: .08em; text-transform: uppercase; }
 
@@ -340,7 +356,7 @@ body:has(.palExperience) {
 /* Voice off: one honest line plus the writing door, at the same 44px floor. */
 .palVoiceWriteLink { min-height: 2.9rem; padding: 0 .85rem; border: 1px solid var(--pal-line); border-radius: var(--radius); display: flex; align-items: center; justify-content: center; gap: .5rem; background: var(--panel-raised); color: var(--pal-paper); text-decoration: none; }
 
-.palLoading { position: absolute; inset: calc(4.75rem + env(safe-area-inset-top)) clamp(1rem, 4vw, 4.5rem) calc(6rem + env(safe-area-inset-bottom)); display: grid; place-items: center; color: var(--pal-soft); }
+.palLoading { position: absolute; inset: 4.75rem clamp(1rem, 4vw, 4.5rem) calc(6rem + env(safe-area-inset-bottom)); display: grid; place-items: center; color: var(--pal-soft); }
 
 /* The voice panel's live parts: the edge, the meter, the transcript, the
    panel head, and the Pal's genome and 3D head. Kept as one block after the
@@ -487,7 +503,7 @@ body:has(.analyticsConsentPrompt) .palPrintRow { display: none; }
      published footprint (--night-pill-clearance, 0px unless a pill is floating),
      so the "Meet your Pub Pal" CTA always clears BOTH the tab bar and the pill
      instead of hiding behind either. */
-  .palExperience { padding: calc(1.75rem + env(safe-area-inset-top)) 1rem calc(var(--tabbar-h, 64px) + env(safe-area-inset-bottom, 0px) + 3.25rem + var(--night-pill-clearance, 0px)); }
+  .palExperience { padding: 1.75rem 1rem calc(var(--tabbar-h, 64px) + env(safe-area-inset-bottom, 0px) + 3.25rem + var(--night-pill-clearance, 0px)); }
   .palTopbar { grid-template-columns: 1fr auto; }
   .palOnboarding .palTopbar { grid-template-columns: 1fr auto 1fr; }
   .palHomeHero, .palOnboardingLayout, .palControls { grid-template-columns: 1fr; }
