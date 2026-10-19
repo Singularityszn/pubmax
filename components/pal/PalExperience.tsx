@@ -56,6 +56,8 @@ import { safeLocalStorage } from "@/lib/safeStorage";
 import { useStepHistory } from "@/lib/useStepHistory";
 
 const STORAGE_KEY = "pubmax_pub_pal_v1";
+// How long the wake-up stretch plays after the person unmutes their Pal.
+const PAL_WAKE_MS = 1_400;
 const PRIVACY_KEY = "pubmax_pub_pal_privacy_v1";
 
 const speciesCopy = {
@@ -124,6 +126,7 @@ const palStateSpeech: Record<PalAnimationState, string> = {
   speaking: "Here's what I found. You choose what happens next.",
   celebrating: "Saved. Nice one.",
   sleeping: "I'm on mute. Tap Muted below when you want me back.",
+  waking: "Awake. I'll speak when you ask.",
   error: "That failed. Text chat still works, and nothing was saved.",
 };
 
@@ -833,8 +836,11 @@ export default function PalExperience() {
       if (activeOwnerRef.current !== ownerId || body.pal.ownerId !== ownerId) return;
       setPal(body.pal);
       writeStored(STORAGE_KEY, body.pal);
-      setPalAnimationState("celebrating");
-      window.setTimeout(() => setPalAnimationState("idle"), 900);
+      // A Pal the person just unmuted stretches awake. Any other setting
+      // gets the plain "saved" celebration.
+      const woke = patch.muted === false && !body.pal.muted;
+      setPalAnimationState(woke ? "waking" : "celebrating");
+      window.setTimeout(() => setPalAnimationState("idle"), woke ? PAL_WAKE_MS : 900);
     } catch (cause) {
       if (activeOwnerRef.current !== ownerId) return;
       setPalAnimationState("error");

@@ -67,4 +67,13 @@ describe("the head's pose", () => {
     expect(thinking.roll).toBeGreaterThan(0);
     expect(thinking.pitch).toBeLessThan(0);
   });
+
+  it("lifts its head and stretches out of the sleeping droop when it wakes", () => {
+    const sleeping = palHeadTarget({ ...still, mode: "idle", state: "sleeping" });
+    const waking = palHeadTarget({ ...still, mode: "idle", state: "waking" });
+    expect(sleeping.pitch).toBeGreaterThan(0);
+    expect(waking.pitch).toBeLessThan(0);
+    expect(waking.lift).toBeGreaterThan(0);
+    expect(waking.scale).toBeGreaterThan(1);
+  });
 });
