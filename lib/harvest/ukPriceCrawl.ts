@@ -275,11 +275,12 @@ function isHalfOfABarePair(after: string, priceGbp: number): boolean {
 }
 
 function isHalfMeasure(before: string): boolean {
+  // "½ pint" or "1/2 Pint" right before the figure is the half on its own,
+  // with or without the word half anywhere on the line.
+  if (/[½]|\b1\/2\b/.test(before.slice(-14))) return true;
   const at = before.toLowerCase().lastIndexOf("half");
   if (at < 0) return false;
-  const between = before.slice(at + 4);
-  if (/[½]|\b1\/2\b/.test(before.slice(-14))) return true;
-  return !between.includes("£");
+  return !before.slice(at + 4).includes("£");
 }
 
 const PRICE_PATTERN = /£\s?(\d{1,2}(?:\.\d{1,2})?)(?![\da-z]|\.\d)/gi;

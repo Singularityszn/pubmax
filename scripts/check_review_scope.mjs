@@ -113,6 +113,8 @@ export const REGENERATED_LANES = [
       /^scripts\/build_slim_index\.mjs$/,
       /^scripts\/lib\/slimShards\.mjs$/,
       /^public\/data\/pint_prices_app_dataset\.json$/,
+      // The builder reads the UK price bundle for each venue's soft-drink hints.
+      /^public\/data\/uk_prices\/rows\.json$/,
       /^public\/data\/venue_menu_enrichment\.json$/,
       /^data\/famous_venues\/[^/]+\.json$/,
     ],
