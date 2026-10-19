@@ -73,6 +73,7 @@ import type { PriceEvidenceMission } from "@/lib/priceEvidenceMissions";
 import VenueCommunitySignals from "@/components/map/VenueCommunitySignals";
 import VenuePriceThen from "@/components/map/VenuePriceThen";
 import VenueAreaPriceCompare from "@/components/map/VenueAreaPriceCompare";
+import VenuePintNeedle from "@/components/map/VenuePintNeedle";
 import VenueWeatherRecommendations from "@/components/map/VenueWeatherRecommendations";
 import type { CommunityPricesState } from "@/components/map/useCommunityPrices";
 import VenueActionStrip from "@/components/map/VenueActionStrip";
@@ -1154,14 +1155,20 @@ export default function VenueOverviewTab({
       ) : null}
       {/* Patch yardstick: this pint against the borough Pint Index average, or
           the fare-zone median when the Index has no row. Same displayable pint
-          stack as the then-and-now block. Renders nothing without a yardstick. */}
+          stack as the then-and-now block. Renders nothing without a yardstick.
+          Beside it, where this pint sits against its city: a half-dial of the
+          city's three price bands, read through lib/priceBand.ts like the pin,
+          so the two can never disagree. Renders nothing without a pint. */}
       {restingPintView && isPubVenue(venue) ? (
-        <VenueAreaPriceCompare
-          priceGbp={overviewPintGbp}
-          primaryBorough={venue.primaryBorough}
-          zone={venue.zone}
-          zoneIndex={zoneIndex}
-        />
+        <>
+          <VenueAreaPriceCompare
+            priceGbp={overviewPintGbp}
+            primaryBorough={venue.primaryBorough}
+            zone={venue.zone}
+            zoneIndex={zoneIndex}
+          />
+          <VenuePintNeedle venueId={venue.id} priceGbp={overviewPintGbp} />
+        </>
       ) : null}
       {/* The submission loop itself: pick a drink, type tonight's price, and
           the pin, the list row and the row above restamp on the same tap.
