@@ -1,0 +1,42 @@
+{
+  "version": 1,
+  "sourceUrl": "https://moyletts.co.uk",
+  "observedAt": "2026-10-19T16:20:41.693Z",
+  "evidence": "Moylett's | Irish Pub in Lower Clapton, Hackney | E5 8EE MOYLETT&#39;S ☘ LOWER CLAPTON ☘ £5.80 GUINNESS ☘ LIVE MUSIC ☘ CHESS CLUB · 1ST WED ☘ DOG FRIENDLY ☘ OPEN 7 DAYS A WEEK ☘ ↓ SEE WHAT&#39;S ON ↓ ☘ MOYLETT&#39;S ☘ LOWER CLAPTON ☘ £5.80 GUINNESS ☘ LIVE MUSIC ☘ CHESS CLUB · 1ST WED ☘ DOG FRIENDLY ☘ OPEN 7 DAYS A WEEK ☘ ↓ SEE WHAT&#39;S ON ↓ ☘ MOYLETT&#39;S ☘ LOWER CLAPTON ☘ £5.80 GUINNESS ☘ LIVE MUSIC ☘ CHESS CLUB · 1ST WED ☘ DOG FRIENDLY ☘ OPEN 7 DAYS A WEEK ☘ ↓ SEE WHAT&#39;S ON ↓ ☘ MOYLETT&#39;S ☘ LOWER CLAPTON ☘ £5.80 GUINNESS ☘ LIVE MUSIC ☘ CHESS CLUB · 1ST WED ☘ DOG FRIENDLY ☘ OPEN 7 D",
+  "evidenceReadAt": "2026-10-19T16:21:42.080Z",
+  "reader": "scripts/harvest/uk-prices/run.mjs --london --exa-sites --exa-sites-only (Exa-found site, address check, shared ukPriceCrawl rules, live robots)",
+  "rows": [
+    {
+      "host": "moyletts.co.uk",
+      "venueId": "venue-uk-w594763297",
+      "osmId": "way/594763297",
+      "name": "Moyletts",
+      "postcode": "E5 8EE",
+      "lat": 51.5557339,
+      "lng": -0.056236,
+      "category": "beer",
+      "priceGbp": 5.8,
+      "drinkLabel": "E5 8EE MOYLETT'S ☘ LOWER CLAPTON ☘",
+      "sourceUrl": "https://moyletts.co.uk",
+      "observedAt": "2026-10-19T16:20:41.693Z",
+      "pubsOnHost": 1,
+      "linesOnPage": 6
+    },
+    {
+      "host": "moyletts.co.uk",
+      "venueId": "venue-uk-w594763297",
+      "osmId": "way/594763297",
+      "name": "Moyletts",
+      "postcode": "E5 8EE",
+      "lat": 51.5557339,
+      "lng": -0.056236,
+      "category": "beer",
+      "priceGbp": 5.8,
+      "drinkLabel": "FRIENDLY ☘ OPEN 7 DAYS A WEEK ☘ ↓ SEE WHAT'S ON ↓ ☘ MOYLETT'S ☘ LOWER CLAPTON ☘",
+      "sourceUrl": "https://moyletts.co.uk",
+      "observedAt": "2026-10-19T16:20:41.693Z",
+      "pubsOnHost": 1,
+      "linesOnPage": 6
+    }
+  ]
+}

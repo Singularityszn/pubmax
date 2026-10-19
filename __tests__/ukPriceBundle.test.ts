@@ -206,6 +206,15 @@ describe("which rows a surface may treat as a fact", () => {
     expect(authoritativeBundleRows([valid])).toEqual([valid]);
   });
 
+  it("lists Venue 5's draught pint, not the bottles its menu prints below it", () => {
+    const published: UkPriceBundleRow[] = JSON.parse(readFileSync("public/data/uk_prices/rows.json", "utf8"));
+    const venue = published.filter((row) => row.sourceUrl === "https://venue5.com/drinks-menu/");
+    // "Bottle Beer" heads Peroni, Budweiser, Corona and Desperados at £4.95;
+    // the draught list above it runs from Guinness at £5.75 to £6.20.
+    expect(venue.some((row) => row.category === "beer" && row.priceGbp === 4.95)).toBe(false);
+    expect(bundlePricesForCategory(venue, "beer").listed?.priceGbp).toBe(5.75);
+  });
+
   it("hands an authority lane the published rows and never the modelled ones", () => {
     expect(authoritativeBundleRows([listed, estimate])).toEqual([listed]);
   });

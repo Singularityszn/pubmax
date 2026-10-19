@@ -173,6 +173,17 @@ describe("review scope guard", () => {
     expect(report.categoryCounts.regenerated).toBe(1);
   });
 
+  it("permits the slim venue payload when the diff carries the price bundle it reads", () => {
+    const report = summarizeReviewScope([
+      "public/data/uk_prices/rows.json",
+      "public/data/venues_slim.json",
+      "public/data/venues_slim.cell.51.400_-0.375.json",
+    ]);
+
+    expect(report.ok).toBe(true);
+    expect(report.regeneratedLanes).toEqual(["venues_slim"]);
+  });
+
   it("permits the slim venue payload when the diff carries the slim builder", () => {
     const report = summarizeReviewScope([
       "scripts/build_slim_index.mjs",

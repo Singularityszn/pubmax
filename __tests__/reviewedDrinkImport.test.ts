@@ -49,12 +49,15 @@ describe("bounded reviewed drink import", () => {
       ? JSON.parse(readFileSync(join(prepared.options.scratchDir, "latest.json"), "utf8"))
       : current;
     // The legacy rows are whatever latest.json holds before the Eagle's 22; the
-    // pin on what they are is __tests__/reviewedDrinkSourceImport.test.ts.
-    const legacyCount = current.updates.filter((row: { itemId?: unknown }) => row.itemId === undefined).length;
+    // pin on what they are is __tests__/reviewedDrinkSourceImport.test.ts. Rows
+    // a later nightly pass appended were read after this test's clock.
+    const snapshot = current.updates.filter((row: { observedAt: string }) => Date.parse(row.observedAt) <= NOW);
+    const laterRows = current.updates.length - snapshot.length;
+    const legacyCount = snapshot.filter((row: { itemId?: unknown }) => row.itemId === undefined).length;
     const existing = current.updates.slice(0, legacyCount);
 
-    expect(result.addedRows).toBe(current.updates.length === legacyCount ? 22 : 0);
-    expect(result.totalRows).toBe(legacyCount + 22);
+    expect(result.addedRows).toBe(snapshot.length === legacyCount ? 22 : 0);
+    expect(result.totalRows).toBe(legacyCount + 22 + laterRows);
     expect(body.updates.slice(0, legacyCount)).toEqual(existing);
     const parsed = parseDrinkPriceUpdates(body.updates, NOW);
     expect(parsed).toHaveLength(legacyCount + 22);
@@ -69,7 +72,7 @@ describe("bounded reviewed drink import", () => {
     ]);
     expect(eagle.filter((row) => row.category === "alcohol-free")).toHaveLength(12);
     expect(eagle.every((row) => row.abv === undefined)).toBe(true);
-    expect(body.generatedAt).toBe("2026-10-13T10:19:25.911Z");
+    if (laterRows === 0) expect(body.generatedAt).toBe("2026-10-13T10:19:25.911Z");
     if (result.written) {
       expect(body.reviewedImports[0].inputSha256).toBe(prepared.options.expectedSha256);
       expect(body.reviewedImports[0].sourcePdfSha256).toBe(sha(PDF_BYTES));

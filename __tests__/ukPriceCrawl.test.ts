@@ -398,6 +398,14 @@ describe("what a page states", () => {
     expect(reading.drops.filter((reason) => reason === "half-measure-not-a-pint")).toHaveLength(3);
   });
 
+  it("drops a figure written as a 1/2 pint when the line never says half", () => {
+    const reading = readVenueDrinkPrices(
+      "<p>Paulaner Lager Helles 4.9% 1/2 Pint &pound;4.05 Sierra Nevada IPA 4.2% 1/2 Pint &pound;4.20 Pint &pound;6.50</p>",
+    );
+    expect(reading.kept.map((row) => row.priceGbp)).toEqual([6.5]);
+    expect(reading.drops.filter((reason) => reason === "half-measure-not-a-pint")).toHaveLength(2);
+  });
+
   it("keeps two neighbouring pints that are not a half and its pint", () => {
     const reading = readVenueDrinkPrices("<p>Draught beer Peroni &pound;6.50 Camden Hells lager &pound;6.90</p>");
     expect(reading.kept.map((row) => row.priceGbp)).toEqual([6.5, 6.9]);
