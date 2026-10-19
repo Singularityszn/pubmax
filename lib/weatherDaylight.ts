@@ -129,3 +129,17 @@ export function daylightForNightArea(slug: NightAreaSlug, at: Date): DaylightAt 
   if (!coords) return null;
   return daylightAt(coords[0], coords[1], at);
 }
+
+/**
+ * Sunset and day or night for one map point at `at`. Null when the point is
+ * not a usable coordinate or the calculation gives no valid sunset, so a
+ * caller makes no sunset claim rather than a wrong one.
+ */
+export function daylightForPoint(latDeg: unknown, lngDeg: unknown, at: Date): DaylightAt | null {
+  if (typeof latDeg !== "number" || typeof lngDeg !== "number") return null;
+  if (!Number.isFinite(latDeg) || !Number.isFinite(lngDeg)) return null;
+  if (Math.abs(latDeg) > 90 || Math.abs(lngDeg) > 180) return null;
+  if (!Number.isFinite(at.getTime())) return null;
+  const daylight = daylightAt(latDeg, lngDeg, at);
+  return Number.isFinite(daylight.sunsetAt.getTime()) ? daylight : null;
+}

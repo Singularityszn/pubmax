@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { defined } from "@/__tests__/helpers/defined";
 import {
   bboxContainsPoint,
   bboxIntersects,
@@ -8,6 +9,7 @@ import {
   shardsForBounds,
   shardForPoint,
   type MapBounds,
+  type ShardEntry,
   type ShardManifest,
 } from "@/lib/slimShards";
 import { offlineCache } from "@/lib/offlineCache";
@@ -96,6 +98,118 @@ describe("slimShards pure geometry", () => {
     const bounds = { west: 1.1, south: 1.1, east: 1.9, north: 1.9 };
     expect(shardsForBounds(gridManifest, bounds).map((shard) => shard.id)).toEqual(["centre"]);
     expect(shardsForBounds(gridManifest, bounds, 1).map((shard) => shard.id)).toEqual(["centre", "north"]);
+  });
+});
+
+describe("foreground viewport reads under shard contention", () => {
+  const realFetch = globalThis.fetch;
+  const revision = "foreground-regression";
+
+  beforeEach(() => {
+    vi.stubEnv("NODE_ENV", "production");
+    vi.stubEnv("NEXT_PUBLIC_SW_VERSION", revision);
+    vi.resetModules();
+  });
+
+  afterEach(() => {
+    globalThis.fetch = realFetch;
+    vi.unstubAllEnvs();
+    vi.resetModules();
+  });
+
+  it.each([
+    { title: "serves a new viewport before queued neighbours", source: "neighbours", queued: false },
+    { title: "promotes a queued neighbour when it becomes visible", source: "neighbours", queued: true },
+    { title: "promotes a visible target ahead of queued all() reads", source: "all", queued: true },
+  ])("$title", async ({ source, queued }) => {
+    const { createSlimShardLoader } = await import("@/lib/slimShards");
+    const neighbours = [-1, 0, 1].flatMap((column) =>
+      [-1, 0, 1].map((row): ShardEntry => ({
+        id: `pan-neighbour-${column}-${row}`,
+        core: column === 0 && row === 0,
+        partition: "grid",
+        url: `/data/pan-neighbour-${column}-${row}.json`,
+        count: 1,
+        bbox: [column, 51 + row, column + 1, 52 + row],
+      })),
+    );
+    const target: ShardEntry = queued
+      ? defined(neighbours[8], "queued viewport target")
+      : {
+          id: "new-pan-target", core: false, partition: "grid",
+          url: "/data/new-pan-target.json", count: 1, bbox: [5, 51, 6, 52],
+        };
+    const shards = queued ? neighbours : [...neighbours, target];
+    const requestKey = (shard: ShardEntry) => `${shard.url}?v=${revision}`;
+    const rowFor = (shard: ShardEntry) =>
+      slimRow(shard.id, shard.bbox[1] + 0.5, shard.bbox[0] + 0.5);
+    const byKey = new Map(shards.map((shard) => [requestKey(shard), shard]));
+    const held = new Map<string, () => void>();
+    const requests: string[] = [];
+    let active = 0;
+    let peak = 0;
+    globalThis.fetch = (input: RequestInfo | URL) => {
+      const key = String(input);
+      if (key === `/data/venues_slim.manifest.json?v=${revision}`) {
+        return Promise.resolve(Response.json({ ...MANIFEST, revision, shards }));
+      }
+      requests.push(key);
+      const shard = defined(byKey.get(key), `shard for request ${key}`);
+      if (held.has(key)) throw new Error(`duplicate pending request ${key}`);
+      active += 1;
+      peak = Math.max(peak, active);
+      return new Promise<Response>((resolve) => {
+        held.set(key, () => {
+          held.delete(key);
+          active -= 1;
+          resolve(Response.json({ revision, rows: [rowFor(shard)] }));
+        });
+      });
+    };
+    const answer = (key: string) => defined(held.get(key), `pending request ${key}`)();
+    const loader = createSlimShardLoader("london", { bypassInFlight: true });
+    const background = source === "all"
+      ? loader.all()
+      : loader.inBounds({ west: 0.1, south: 51.1, east: 0.9, north: 51.9 }, 1);
+    const viewportReads: Array<ReturnType<typeof loader.inBounds>> = [];
+    const targetKey = requestKey(target);
+    const bounds = {
+      west: target.bbox[0] + 0.1, south: target.bbox[1] + 0.1,
+      east: target.bbox[2] - 0.1, north: target.bbox[3] - 0.1,
+    };
+    try {
+      await vi.waitFor(() => expect(requests).toHaveLength(4));
+      expect(active).toBe(4);
+      expect(requests).not.toContain(targetKey);
+      expect(loader.coverageComplete(bounds)).toBe(false);
+      viewportReads.push(loader.inBounds(bounds), loader.inBounds(bounds));
+      // The settled manifest resumes both viewport calls before a slot opens.
+      await Promise.resolve();
+      expect(requests).toHaveLength(4);
+      answer(defined(requests[0], "first active request"));
+      await vi.waitFor(() => expect(requests).toHaveLength(5));
+      expect(requests[4]).toBe(targetKey);
+      answer(targetKey);
+      for (const viewport of viewportReads) {
+        await expect(viewport).resolves.toEqual([rowFor(target)]);
+      }
+      expect(loader.coverageComplete(bounds)).toBe(true);
+    } finally {
+      // Drain every held response even when the dispatch-order assertion fails.
+      await vi.waitFor(() => {
+        for (const release of [...held.values()]) release();
+        expect(requests).toHaveLength(shards.length);
+        expect(active).toBe(0);
+      });
+      await Promise.all([background, ...viewportReads]);
+    }
+    expect((await background).map((row) => row.id).sort()).toEqual(
+      neighbours.map((shard) => shard.id).sort(),
+    );
+    expect([...requests].sort()).toEqual(shards.map(requestKey).sort());
+    expect(peak).toBe(4);
+    expect(active).toBe(0);
+    expect(held.size).toBe(0);
   });
 });
 
