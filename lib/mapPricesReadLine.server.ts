@@ -1,3 +1,5 @@
+import "server-only";
+
 import type { CityId } from "@/lib/cities";
 import { formatObservedDate, PINT_DATASET_OBSERVED_AT } from "@/lib/dataFreshness";
 import { mapPricesReadLine } from "@/lib/mapLoadingCopy";
