@@ -28,14 +28,16 @@ test("the Pal reads the year back from this device", async ({ page }) => {
   await page.route("**/api/pint-drops/stats?**", (route) => route.fulfill({
     json: { stats: { handle: ACCOUNTS.A.handle, pintsMapped: 6, total: 6, streak: { current: 0, best: 0 }, byBorough: [{ borough: "Camden", count: 4 }, { borough: "Islington", count: 2 }] } },
   }));
-  await page.addInitScript(({ year: thisYear, appearance, personality, voice }) => {
+  await page.addInitScript(({ year: thisYear, ownerId, appearance, personality, voice }) => {
     const now = "2026-10-04T12:00:00.000Z";
     window.localStorage.setItem("pubmaxx:analytics-consent:v1", "denied");
     window.localStorage.setItem("pubmax-tour-v1-done", "1");
     window.localStorage.setItem("pubmax_onboarding_dismissed", "1");
     window.sessionStorage.setItem("pubmax_onboarding_dismissed", "1");
+    // A device account A signed in to before, so its stored Pal stays.
+    window.localStorage.setItem("pubmax_account_owner", ownerId);
     window.localStorage.setItem("pubmax_pub_pal_v1", JSON.stringify({
-      id: "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb", ownerId: "owner-e2e", name: "Ripley",
+      id: "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb", ownerId, name: "Ripley",
       adultAttestedAt: now, appearance, personality, voice, muted: false, hidden: false,
       proposalPreferences: {}, masteryPoints: 0, createdAt: now, updatedAt: now,
     }));
@@ -46,7 +48,7 @@ test("the Pal reads the year back from this device", async ({ page }) => {
       soho: { stopIds: ["venue-1ufn31x", "venue-1t8siin", "venue-xiesdn"], visited: ["venue-1ufn31x", "venue-1t8siin", "venue-xiesdn"], startedAt: `${thisYear}-02-20T19:00:00.000Z`, completedAt: `${thisYear}-02-20T22:00:00.000Z` },
       again: { stopIds: ["venue-xiesdn", "venue-xjf3n0"], visited: ["venue-xiesdn", "venue-xjf3n0"], startedAt: `${thisYear}-10-17T19:00:00.000Z`, completedAt: `${thisYear}-10-17T22:00:00.000Z` },
     } }));
-  }, { year, ...DEFAULT_PAL_DRAFT });
+  }, { year, ownerId: ACCOUNTS.A.id, ...DEFAULT_PAL_DRAFT });
   await seedSignedIn(page, "A");
   await page.goto("/pal");
 
