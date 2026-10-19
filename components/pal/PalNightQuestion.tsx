@@ -43,7 +43,9 @@ function absoluteUrl(path: string): string {
   }
 }
 
-type Crew = { planId: string; inviteUrl: string | null };
+// The crew link is unknown ("loading") until the invite-token read lands, so a
+// quick tap never takes the plan-page fallback that a token would have beaten.
+type Crew = { planId: string; invite: "loading" | "none" | { url: string } };
 type Sent = "idle" | "sent" | "whatsapp" | "failed";
 
 // setTimeout holds at most this many milliseconds; a plan further off than
@@ -73,12 +75,20 @@ function useTonightsCrew(): Crew | null {
       // A second past the edge, so the clock has crossed it.
       if (edge !== null) timer = window.setTimeout(read, Math.min(edge + 1000, LONGEST_TIMER_MS));
       const planId = ref && (ref.role === "host" || ref.role === "guest") && isPlanActiveNow(ref, now) ? ref.id : null;
-      setCrew(planId ? { planId, inviteUrl: null } : null);
+      setCrew(planId ? { planId, invite: "loading" } : null);
       if (!planId) return;
-      void ensurePlanInviteToken(planId).then((token) => {
-        if (!active || mine !== generation || !token || !isClassicPlanInviteToken(token)) return;
-        setCrew({ planId, inviteUrl: absoluteUrl(planCrewSharePath(planId, token)) });
-      });
+      void ensurePlanInviteToken(planId).then(
+        (token) => {
+          if (!active || mine !== generation) return;
+          setCrew({
+            planId,
+            invite: token && isClassicPlanInviteToken(token) ? { url: absoluteUrl(planCrewSharePath(planId, token)) } : "none",
+          });
+        },
+        () => {
+          if (active && mine === generation) setCrew({ planId, invite: "none" });
+        },
+      );
     };
     queueMicrotask(read);
     const unsubscribe = subscribeActivePlan(read);
@@ -102,14 +112,21 @@ function PalNightCrew({ crew, palName }: { crew: Crew; palName: string }) {
   const [sent, setSent] = useState<Sent>("idle");
 
   const invitePage = `/plan/${crew.planId}#share` as Route;
-  if (!crew.inviteUrl) {
+  if (crew.invite === "loading") {
+    return (
+      <button type="button" className="palNightQuestionOpen" disabled aria-busy="true">
+        Who&apos;s coming?
+      </button>
+    );
+  }
+  if (crew.invite === "none") {
     return (
       <Link className="palNightQuestionOpen" href={invitePage}>
         Who&apos;s coming?
       </Link>
     );
   }
-  const inviteUrl = crew.inviteUrl;
+  const inviteUrl = crew.invite.url;
   const share = async () => {
     const outcome = await shareNightObject({ title: "Tonight", text: palNightInviteText(palName), url: inviteUrl });
     // A WhatsApp fallback only opens a draft, so it is ready to send, not sent.

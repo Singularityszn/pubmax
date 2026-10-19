@@ -209,6 +209,41 @@ describe("the question on /pal", () => {
       writeActivePlan({ id: PLAN_ID, startTime: new Date(LONDON_LATE.getTime() - 60 * 60_000).toISOString(), stopIndex: 0, role });
     }
 
+    it("holds Who's coming? until the crew link is read, so a quick tap never takes the fallback", async () => {
+      writePalNightAnswer(window.localStorage, "sesh", LONDON_LATE);
+      let resolveToken: (token: string | null) => void = () => undefined;
+      crew.pending = new Promise((resolve) => { resolveToken = resolve; });
+      tonightsPlan();
+      await render();
+      expect(whoLink()).toBeUndefined();
+      const held = whoButton()!;
+      expect(held.disabled).toBe(true);
+      expect(held.getAttribute("aria-busy")).toBe("true");
+      await act(async () => held.click());
+      expect(crew.shared).toHaveLength(0);
+      await act(async () => {
+        resolveToken("0123456789abcdef0123456789abcdef");
+        await Promise.resolve();
+        await Promise.resolve();
+      });
+      const ready = whoButton()!;
+      expect(ready.disabled).toBe(false);
+      expect(ready.hasAttribute("aria-busy")).toBe(false);
+      await act(async () => ready.click());
+      expect(crew.shared).toHaveLength(1);
+      expect(new URL(crew.shared[0]!.url).hash).toBe("#invite=0123456789abcdef0123456789abcdef");
+    });
+
+    it("opens the plan's own invite tools when the crew link read fails", async () => {
+      writePalNightAnswer(window.localStorage, "sesh", LONDON_LATE);
+      crew.pending = Promise.reject(new Error("offline"));
+      tonightsPlan();
+      await render();
+      await act(async () => { await Promise.resolve(); await Promise.resolve(); });
+      expect(whoButton()).toBeUndefined();
+      expect(new URL(whoLink()!.href).hash).toBe("#share");
+    });
+
     it("is not offered before tonight's plan is saved", async () => {
       writePalNightAnswer(window.localStorage, "sesh", LONDON_LATE);
       await render();
@@ -310,7 +345,7 @@ describe("the question on /pal", () => {
       // The plan's window closes at 23:35 London, five minutes from now.
       writeActivePlan({ id: PLAN_ID, startTime: new Date(LONDON_LATE.getTime() - (8 * 60 - 5) * 60_000).toISOString(), stopIndex: 0, role: "host" });
       await render();
-      expect(whoLink()).toBeDefined();
+      expect(whoButton()?.disabled).toBe(true);
       await act(async () => { vi.advanceTimersByTime(6 * 60_000); });
       expect(whoLink()).toBeUndefined();
       await act(async () => {
