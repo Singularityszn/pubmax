@@ -83,7 +83,7 @@
   align-items: start;
 }
 
-.planPage__side { display: grid; gap: 20px; }
+.planPage__side { display: grid; gap: var(--space-8); }
 
 @media (min-width: 901px) {
   .planPage__hero {
@@ -98,18 +98,20 @@
   }
 }
 
+/* A saved plan reads as one page of sections, not a stack of cards
+   (docs/DESIGN_SYSTEM.md > Edges: the de-box rule). The route, the invite,
+   the crew and the vibe each open on a hairline with room above it; none of
+   them is lifted, filled or rounded. */
 .planSummary,
 .planCrew,
 .planVibe,
 .planShare {
   position: relative;
-  border: 1px solid var(--line);
-  border-radius: clamp(18px, 3vw, 28px);
-  background: color-mix(in srgb, var(--panel-raised) 94%, transparent);
-  box-shadow: var(--shadow-sm);
+  padding-top: var(--space-6);
+  border-top: 1px solid var(--hairline);
 }
 
-.planSummary { min-height: 500px; padding: clamp(26px, 5vw, 52px); overflow: hidden; }
+.planSummary { padding-bottom: var(--space-6); }
 .planSummary__heading { margin-left: 72px; }
 /* The teaser has no route rail to clear, so its heading lines up with the card's
    own copy instead of sitting 72px (57px at 390) in. */
@@ -178,11 +180,20 @@
 .planCollab {
   display: grid;
   gap: 16px;
-  margin: 30px 0 0 72px;
-  padding: 18px;
-  border: 1px solid var(--line);
-  border-radius: var(--radius-lg);
-  background: color-mix(in srgb, var(--panel) 92%, transparent);
+  margin: var(--space-6) 0 0 72px;
+  padding: var(--space-6) 0 0;
+  border-top: 1px solid var(--hairline);
+}
+/* The Round form under the route is a section of the route, not a card in it:
+   the same hairline and space as the crew decisions below it. */
+.planSummary > .roundStarter {
+  max-width: none;
+  margin: var(--space-6) 0 0;
+  padding: var(--space-6) 0 0;
+  border: 0;
+  border-top: 1px solid var(--hairline);
+  border-radius: 0;
+  background: transparent;
 }
 /* A grid row does not shrink below its content by default, so one wide select
    or badge pushed the preferences panel 20px past this card at 768. Each row
@@ -190,7 +201,7 @@
 .planCollab > * { min-width: 0; }
 .planCollab__heading { display: flex; align-items: start; justify-content: space-between; gap: 12px; }
 .planCollab__heading h3 { margin: 0; font-family: var(--display, var(--serif)); font-size: var(--text-lg); }
-.planCollab__heading > span { padding: 6px 10px; border-radius: var(--radius-pill); background: var(--panel); color: var(--plan-stamp-ink); font-size: var(--text-2xs); font-weight: 850; text-transform: uppercase; }
+.planCollab__heading > span { padding: 6px 10px; border-radius: var(--radius-pill); background: var(--panel); color: var(--color-text-muted); font-size: var(--text-2xs); font-weight: 850; text-transform: uppercase; }
 .planCollab button,
 .planCollab input,
 .planCollab select,
@@ -446,11 +457,12 @@
   background-position: 140% 0;
 }
 
-.planCrew,
-.planVibe,
-.planShare { padding: 26px; }
+.planCrew h2,
+.planVibe h2,
+.planShare h2 { font-size: var(--text-xl); line-height: var(--leading-tight); }
 .planCrew__heading { display: flex; align-items: start; justify-content: space-between; gap: 16px; }
-.planCrew__heading > span { min-width: 44px; height: 44px; display: grid; place-items: center; border-radius: 50%; background: var(--ink); color: var(--paper); font-weight: 800; }
+/* The head count is a figure beside the heading, not a filled disc. */
+.planCrew__heading > span { min-width: 44px; height: 44px; display: grid; place-items: center; color: var(--color-text-muted); font-family: var(--font-data); font-size: var(--text-md); font-weight: 700; font-variant-numeric: tabular-nums; }
 .planCrew__list { list-style: none; margin: 22px 0; padding: 0; display: grid; gap: 8px; }
 .planCrew__list li { min-height: 48px; padding: 10px 12px; display: flex; justify-content: space-between; gap: 12px; align-items: center; border-bottom: 1px solid var(--line-soft); }
 .planCrew__list small { color: var(--color-text-muted); font-weight: 750; }
@@ -536,10 +548,14 @@
   }
 }
 .planInviteNext__whatsapp--pending {
-  border-style: dashed;
+  justify-content: flex-start;
+  min-height: 0;
+  padding: 0;
+  border: 0;
   background: transparent;
-  color: var(--muted);
-  font-weight: 650;
+  color: var(--color-text-muted);
+  font-size: var(--text-sm);
+  font-weight: 500;
   cursor: default;
 }
 @media (hover: hover) and (pointer: fine) {
@@ -1170,10 +1186,6 @@ html[data-theme="dark"] .planPage {
   --plan-stamp-ink: color-mix(in srgb, var(--plan-accent-strong) 85%, var(--ink));
   background: var(--paper);
 }
-html[data-theme="dark"] .planSummary,
-html[data-theme="dark"] .planCrew,
-html[data-theme="dark"] .planVibe,
-html[data-theme="dark"] .planShare { border-radius: var(--radius); }
 /* Dark ink on amber fills only — primary CTAs use coral + --color-on-accent. */
 html[data-theme="dark"] .planSummary__marker,
 html[data-theme="dark"] .planCrew__join button { color: #090d0b; }
@@ -1217,7 +1229,6 @@ html[data-theme="dark"] .planCrew__join button { color: #090d0b; }
   .planComposer__stops,
   .planComposer__lock,
   .planComposer__error { grid-column: 1; }
-  .planSummary { padding: 26px 20px; }
   .planSummary__rail { left: 43px; top: 105px; }
   .planSummary__heading { margin-left: 57px; }
   .planSummary__heading.planSummary__heading--teaser { margin-left: 0; }
@@ -1228,7 +1239,7 @@ html[data-theme="dark"] .planCrew__join button { color: #090d0b; }
   .planSummary__editorActions { display: grid; grid-template-columns: 1fr; }
   /* The line sits with the heading text, to the right of the rail. */
   .planSummary__status { margin-left: 57px; }
-  .planCollab { margin-left: 0; padding: 15px; }
+  .planCollab { margin-left: 0; }
   .planCollab__fields { grid-template-columns: 1fr; }
   .planSummary__stops li { grid-template-columns: 48px 1fr; gap: 14px; }
   .planSummary__marker { width: 42px; height: 42px; box-shadow: 0 0 0 5px var(--panel-raised); }
@@ -1454,12 +1465,12 @@ html[data-theme="dark"] .planCrew__join button { color: #090d0b; }
    Reveals only: host name, broad area, time, stop count, vibe, accessibility.
    No venue ids or names appear in the rendered output. */
 .invitePreview {
-  padding: clamp(22px, 4vw, 44px) 0 clamp(22px, 4vw, 44px) 72px;
+  padding: var(--space-5) 0 0;
 }
 .invitePreview h2 {
-  margin: 8px 0 28px;
+  margin: var(--space-2) 0 var(--space-6);
   font-family: var(--display, var(--serif));
-  font-size: clamp(1.5rem, 3.5vw, 2.6rem);
+  font-size: var(--text-xl);
   letter-spacing: -0.04em;
   line-height: 1.05;
   text-wrap: balance;
@@ -1493,31 +1504,24 @@ html[data-theme="dark"] .planCrew__join button { color: #090d0b; }
   font-size: var(--text-sm);
   line-height: 1.45;
 }
-/* A coral fill carries DARK ink here, the way the landing hero CTA and the
-   map's sanctioned coral marks do. White on --plan-accent read 3.41:1 in
-   light and 2.15:1 over the dark theme's amber; --color-on-accent reads
-   5.33:1 and 8.45:1. --brass-accessible stays the login primary alone. */
+/* One primary per route (docs/design/LAUNCH_SCREENS.md): the head's "Send
+   to the crew" is this page's coral. The invitee's way to the crew form is a
+   quiet ink link with an underline, a 44px row to tap, never a second fill. */
 .invitePreview__join {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  padding: 12px 22px;
-  border-radius: var(--radius-pill);
-  background: var(--plan-accent);
-  color: var(--color-on-accent);
-  font-size: var(--text-sm);
-  font-weight: 800;
-  letter-spacing: 0.01em;
-  text-decoration: none;
-  transition: background 140ms ease;
+  min-height: 44px;
+  color: var(--ink);
+  font-size: var(--text-base);
+  font-weight: 700;
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 0.2em;
 }
 @media (hover: hover) and (pointer: fine) {
   .invitePreview__join:hover {
-    background: var(--plan-accent-strong);
+    text-decoration-thickness: 2px;
   }
-}
-@media (max-width: 640px) {
-  .invitePreview { padding-left: 0; }
 }
 
 /* THE ANSWER IS PINNED, AND THE CHROME THAT COVERED IT STANDS DOWN.

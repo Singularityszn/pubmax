@@ -255,7 +255,6 @@ export default async function PlanPage({ params }: Props) {
           ) : null}
           {!completed ? (
             <section className="planShare" aria-labelledby="plan-share-title">
-              <p className="planPage__eyebrow">Send the invite</p>
               <h2 id="plan-share-title">Get the crew in</h2>
               <p>WhatsApp the night link, or copy the invite. Mates tap &quot;I&apos;m in&quot; and add a name.</p>
               <PlanInviteNextStep
