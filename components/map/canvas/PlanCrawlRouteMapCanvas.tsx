@@ -5,6 +5,7 @@ import * as maplibregl from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 
 import { syncPlanRoutePreviewScene } from "@/components/map/canvas/planRoutePreviewScene";
+import { mapPixelRatio } from "@/components/map/canvas/webgl";
 import {
   MAP_STYLES,
   LONDON_VIEW,
@@ -90,6 +91,7 @@ export default function PlanCrawlRouteMapCanvas({
       pitch: PREVIEW_PITCH,
       bearing: PREVIEW_BEARING,
       maxBounds: UK_BOUNDS,
+      pixelRatio: mapPixelRatio(),
       attributionControl: { compact: true, customAttribution: OSM_ATTRIBUTION },
       interactive: false,
     });

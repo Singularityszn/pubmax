@@ -8,7 +8,7 @@ import "./map/mapCameraControls.css";
 import * as maplibregl from "maplibre-gl";
 
 import { MAPLIBRE_WORKER_URL } from "@/lib/maplibreWorkerAssets";
-import { probeWebGl2 } from "@/components/map/canvas/webgl";
+import { mapPixelRatio, probeWebGl2 } from "@/components/map/canvas/webgl";
 import { createPalMapMarker, palPinIsCheap, type PalMapMarker } from "@/components/map/canvas/palMarker";
 import { crewPalLook, type CrewPal } from "@/lib/crewPals";
 import { palWalkPathFrom, palWalkStopsFromKey } from "@/components/map/canvas/palWalk";
@@ -1613,6 +1613,9 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
         style: MAP_STYLES[themeRef.current],
         ...mapViewRef.current,
         maxBounds: maxBoundsRef.current,
+        // A 3x phone draws at 2x: a third of the canvas pixels gone, and the
+        // pins still sharp (webgl.ts).
+        pixelRatio: mapPixelRatio(),
         // ODbL credit for the pub layers we draw ourselves. Set on the map, not
         // on a source, so it survives every style swap (theme toggle, fallback
         // styles) and shows in every city - the rail-lines source's own
