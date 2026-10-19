@@ -119,6 +119,19 @@ export default function PalPostcard({
   // waits on image loads or a canvas first.
   const preparedRef = useRef<File | null>(null);
   const stopsKey = stops.join("\n");
+  // The image takes the card's colours, so a theme change draws it again.
+  const [themeVersion, setThemeVersion] = useState(0);
+  useEffect(() => {
+    const bump = () => setThemeVersion((version) => version + 1);
+    const observer = new MutationObserver(bump);
+    observer.observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
+    const scheme = window.matchMedia?.("(prefers-color-scheme: dark)");
+    scheme?.addEventListener?.("change", bump);
+    return () => {
+      observer.disconnect();
+      scheme?.removeEventListener?.("change", bump);
+    };
+  }, []);
   useEffect(() => {
     preparedRef.current = null;
     const content = postcardContent(pal, stopsKey.split("\n"), title, completedAt);
@@ -138,7 +151,7 @@ export default function PalPostcard({
       cancelled = true;
       window.clearTimeout(timer);
     };
-  }, [pal, stopsKey, title, completedAt]);
+  }, [pal, stopsKey, title, completedAt, themeVersion]);
 
   const content = postcardContent(pal, stops, title, completedAt);
   if (!content) return null;

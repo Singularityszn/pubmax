@@ -61,8 +61,7 @@ import {
 import {
   appendPalVoiceLine,
   correctPalVoiceLine,
-  palAsksForMap,
-  palAsksForNextStop,
+  palVoiceMapIntent,
   palNextStop,
   palNightStopsFrom,
   palVoiceLine,
@@ -433,8 +432,9 @@ function VoiceControls({ onStateChange, resetPendingSession, text, setText, erro
             setTentative("");
             setAwaitingPal(true);
             nextStopRequestRef.current += 1;
-            if (palAsksForMap(content)) openMapRef.current();
-            else if (palAsksForNextStop(content) && nightIsOnRef.current()) void openNextStopRef.current();
+            const intent = palVoiceMapIntent(content, nightIsOnRef.current());
+            if (intent === "next-stop") void openNextStopRef.current();
+            else if (intent === "map") openMapRef.current();
             const conversationId = conversationIdRef.current;
             if (!conversationId) return;
             void syncVoiceToolTurn({
@@ -540,16 +540,12 @@ function VoiceControls({ onStateChange, resetPendingSession, text, setText, erro
     if (!value || voiceConnecting) return;
     // A newer line from the person retires a "next stop" read still on its way.
     nextStopRequestRef.current += 1;
-    if (palAsksForMap(value)) {
+    const intent = palVoiceMapIntent(value, nightIsOn());
+    if (intent) {
       setLines((current) => appendPalVoiceLine(current, palVoiceLine("you", value, "typed")));
       setText("");
-      openMap();
-      return;
-    }
-    if (palAsksForNextStop(value) && nightIsOn()) {
-      setLines((current) => appendPalVoiceLine(current, palVoiceLine("you", value, "typed")));
-      setText("");
-      void openNextStop();
+      if (intent === "next-stop") void openNextStop();
+      else openMap();
       return;
     }
     if (status !== "connected") {

@@ -305,6 +305,37 @@ describe("the postcard on the recap", () => {
       Object.assign(navigator, { canShare: undefined, share: undefined });
     });
 
+    it("draws the image again in the new colours after a theme switch", async () => {
+      fakeCanvas();
+      store(pal());
+      document.documentElement.setAttribute("data-theme", "light");
+      await render();
+      await act(async () => {
+        await new Promise((resolve) => setTimeout(resolve, 20));
+      });
+      const share = vi.fn<(data: { files: File[] }) => Promise<void>>(async () => {});
+      Object.assign(navigator, { canShare: () => true, share });
+      act(() => saveButton().click());
+      const before = share.mock.calls[0]![0].files[0];
+
+      // A theme switch drops the light image; the card draws a fresh one.
+      await act(async () => {
+        document.documentElement.setAttribute("data-theme", "dark");
+        await new Promise((resolve) => setTimeout(resolve, 20));
+      });
+      await act(async () => {
+        await new Promise((resolve) => setTimeout(resolve, 20));
+      });
+      act(() => saveButton().click());
+      expect(share).toHaveBeenCalledTimes(2);
+      expect(share.mock.calls[1]![0].files[0]).not.toBe(before);
+      await act(async () => {
+        await Promise.resolve();
+      });
+      document.documentElement.removeAttribute("data-theme");
+      Object.assign(navigator, { canShare: undefined, share: undefined });
+    });
+
     it("downloads the image where the device cannot share files", async () => {
       store(pal());
       await render();

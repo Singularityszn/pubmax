@@ -125,6 +125,9 @@ export function palAsksForMap(text: string): boolean {
 const NEXT_STOP_RE =
   /\b(?:next\s+(?:stop|pub|bar|one|place)|where(?:'s|\s+is)?\s+next|where\s+to\s+next|what'?s\s+next|what\s+is\s+next)\b/;
 const NEXT_STOP_NEGATION_RE = /\b(?:don'?t|do not|dont|never|not|no need to|stop)\b/;
+// After the ask, "stop" may only be the noun ("next stop"), so it is not read
+// as a refusal there: "what's next, but do not open it yet" is.
+const NEXT_STOP_AFTER_NEGATION_RE = /\b(?:don'?t|do not|dont|never|not|no need to|hold off)\b/;
 // "What's next tomorrow", "Tomorrow, what's next?" and "where next weekend"
 // ask about another day, not this night's next stop, wherever the day sits.
 const NEXT_STOP_LATER_RE =
@@ -140,10 +143,23 @@ export function palAsksForNextStop(text: string): boolean {
     .trim();
   const ask = NEXT_STOP_RE.exec(normalized);
   if (!ask) return false;
-  // "Don't take me to the next stop yet" is not an ask. "Stop" inside the ask
-  // itself ("next stop") is the noun, so only the words before it are read.
+  // "Don't take me to the next stop yet" and "what's next, but not yet" are
+  // not asks. "Stop" inside the ask itself ("next stop") is the noun.
   if (NEXT_STOP_NEGATION_RE.test(normalized.slice(0, ask.index))) return false;
+  if (NEXT_STOP_AFTER_NEGATION_RE.test(normalized.slice(ask.index + ask[0].length))) return false;
   return !NEXT_STOP_LATER_RE.test(normalized);
+}
+
+/**
+ * The one decision the voice panel acts on, spoken or typed. While a night is
+ * on, a next-stop ask wins over a plain map ask, so "show me the map for the
+ * next stop" opens that stop rather than the bare map. With no night on it is
+ * an ordinary map ask.
+ */
+export function palVoiceMapIntent(text: string, nightIsOn: boolean): "next-stop" | "map" | null {
+  if (nightIsOn && palAsksForNextStop(text)) return "next-stop";
+  if (palAsksForMap(text)) return "map";
+  return null;
 }
 
 type PalNightStop = { venueId: string; venueName: string };
