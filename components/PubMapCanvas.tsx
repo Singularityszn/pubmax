@@ -10,6 +10,7 @@ import * as maplibregl from "maplibre-gl";
 import { MAPLIBRE_WORKER_URL } from "@/lib/maplibreWorkerAssets";
 import { probeWebGl2 } from "@/components/map/canvas/webgl";
 import { createPalMapMarker, palPinIsCheap, type PalMapMarker } from "@/components/map/canvas/palMarker";
+import { crewPalLook, type CrewPal } from "@/lib/crewPals";
 import { palWalkPathFrom, palWalkStopsFromKey } from "@/components/map/canvas/palWalk";
 import {
   Crosshair,
@@ -261,6 +262,11 @@ type PubMapCanvasProps = {
    */
   nationalBrowse?: boolean;
   route: Venue[];
+  /**
+   * Pals walk together: the crew Pals of the plan whose route this is
+   * (lib/crewPals.ts). Empty unless `route` is the active plan's own route.
+   */
+  crewPals?: readonly CrewPal[];
   selectedVenueId: string;
   onVenueClick: (id: string) => void;
   /**
@@ -705,6 +711,7 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
     filteredVenueCount,
     venueDataReady,
     route,
+    crewPals,
     selectedVenueId,
     onVenueClick,
     onReaderTouchedMap,
@@ -1211,6 +1218,15 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
   const palMarkerRef = useRef<PalMapMarker | null>(null);
   // The last crawl stop the Pal was sent to, so a re-render never resends it.
   const palVisitKeyRef = useRef("");
+  // Pals walk together: the crew's opted-in Pals, walking the same route a
+  // step behind the reader's own, and the walk they were last sent on.
+  const crewMarkersRef = useRef<PalMapMarker[]>([]);
+  const palWalkRef = useRef<Parameters<PalMapMarker["walk"]>[0] | null>(null);
+  const walkPals = useCallback((walk: Parameters<PalMapMarker["walk"]>[0]) => {
+    palWalkRef.current = walk;
+    palMarkerRef.current?.walk(walk);
+    for (const marker of crewMarkersRef.current) marker.walk(walk);
+  }, []);
   // M7 pin entrance — armed once per mount at the first ACTUAL pin reveal
   // (settleSceneReady when the D2 tile-paint gate never armed, else that
   // gate's revealPins), and driven off the shared entrance/dash/pulse RAF loop
@@ -4275,7 +4291,7 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
         routeLineRef.current = body.line;
         applyRouteData();
         const stops = palWalkStopsFromKey(routeCoordKey);
-        palMarkerRef.current?.walk({ key: routeCoordKey, stops, path: palWalkPathFrom(body.line), road: true });
+        walkPals({ key: routeCoordKey, stops, path: palWalkPathFrom(body.line), road: true });
       })
       .catch((error) => {
         if (error instanceof DOMException && error.name === "AbortError") return;
@@ -4288,7 +4304,7 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
       window.clearTimeout(timeout);
       controller.abort();
     };
-  }, [routeCoordKey, mapReady, applyRouteData]);
+  }, [routeCoordKey, mapReady, applyRouteData, walkPals]);
 
   // The Pal walks a crawl route of two or more stops (the road line takes over
   // above once routed), and goes to a stop the reader taps; with no crawl it
@@ -4298,7 +4314,7 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
     if (!mapReady) return;
     const stops = palWalkStopsFromKey(routeCoordKey);
     if (stops.length > 1) {
-      palMarkerRef.current?.walk({ key: routeCoordKey, stops, path: stops });
+      walkPals({ key: routeCoordKey, stops, path: stops });
       const stop = selectedVenueId ? routeIds.split(",").indexOf(selectedVenueId) : -1;
       const visitKey = `${routeCoordKey}|${selectedVenueId}`;
       if (stop >= 0 && visitKey !== palVisitKeyRef.current) palMarkerRef.current?.visit(stop);
@@ -4311,7 +4327,24 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
     // so it re-reads whenever the pins' data is rebuilt above.
     const pin = venue ? pubsDataRef.current.features.find((feature) => feature.properties?.id === venue.id) : undefined;
     palMarkerRef.current?.perch(venue ? [venue.longitude, venue.latitude] : null, { cheap: palPinIsCheap(pin?.properties) });
-  }, [routeCoordKey, routeIds, selectedVenueId, venues, venueSignals, favoritePint, drinkCategory, lensPrices, spoonsValue, mapReady]);
+  }, [routeCoordKey, routeIds, selectedVenueId, venues, venueSignals, favoritePint, drinkCategory, lensPrices, spoonsValue, mapReady, walkPals]);
+
+  // The crew's Pals: made when the crew read lands, walked on the route the
+  // reader's own Pal is on, and gone with the plan's route.
+  const crewPalKey = (crewPals ?? []).map((pal) => `${pal.id}:${pal.muted ? 1 : 0}`).join(",");
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!mapReady || !map || !crewPals || crewPals.length === 0) return;
+    const markers = crewPals.map((pal, index) => createPalMapMarker(map, { pal: crewPalLook(pal), index }));
+    crewMarkersRef.current = markers;
+    if (palWalkRef.current) for (const marker of markers) marker.walk(palWalkRef.current);
+    return () => {
+      for (const marker of markers) marker.destroy();
+      if (crewMarkersRef.current === markers) crewMarkersRef.current = [];
+    };
+    // crewPalKey stands for crewPals: a new array of the same Pals keeps them walking.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [crewPalKey, mapReady]);
 
   const didFitQueryOnArrivalRef = useRef(false);
   useEffect(() => {

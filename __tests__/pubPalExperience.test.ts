@@ -511,6 +511,56 @@ describe("Pub Pal control saving", () => {
   });
 });
 
+describe("Pub Pal shown to the crew", () => {
+  it("is private until the person turns it on, and saves only that choice", async () => {
+    await act(async () => root?.unmount());
+    const ownerId = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
+    const timestamp = "2026-10-04T12:00:00.000Z";
+    let pal: PubPal = {
+      id: "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",
+      ownerId,
+      name: "Moss",
+      adultAttestedAt: timestamp,
+      appearance: DEFAULT_PAL_DRAFT.appearance,
+      personality: DEFAULT_PAL_DRAFT.personality,
+      voice: DEFAULT_PAL_DRAFT.voice,
+      muted: false,
+      hidden: false,
+      proposalPreferences: { memories: false, routes: true },
+      masteryPoints: 0,
+      createdAt: timestamp,
+      updatedAt: timestamp,
+    };
+    const patches: unknown[] = [];
+    authState.current = { user: { id: ownerId }, loading: false, configured: true };
+    transport.request.mockImplementation(async (input, init) => {
+      if (input === "/api/pub-pal" && init?.method === "PATCH") {
+        const patch = JSON.parse(String(init.body)) as Partial<PubPal>;
+        patches.push(patch);
+        pal = { ...pal, ...patch };
+        return Response.json({ pal });
+      }
+      if (input === "/api/pub-pal") return Response.json({ pal, adultOnFile: true });
+      if (input === "/api/pub-pal/memories") return Response.json({ memories: [] });
+      throw new Error(`Unexpected Pal request: ${String(input)}`);
+    });
+    root = createRoot(container);
+    await act(async () => root?.render(createElement(PalExperience)));
+    await settle();
+
+    expect(buttonContaining("Private to you").getAttribute("aria-pressed")).toBe("false");
+    await act(async () => buttonContaining("Tap to let your crew see it walk on a plan's map").click());
+    await settle();
+    expect(patches).toEqual([{ crewVisible: true }]);
+    expect(buttonContaining("Shown to your crew").getAttribute("aria-pressed")).toBe("true");
+
+    await act(async () => buttonContaining("Shown to your crew").click());
+    await settle();
+    expect(patches).toEqual([{ crewVisible: true }, { crewVisible: false }]);
+    expect(buttonContaining("Private to you").getAttribute("aria-pressed")).toBe("false");
+  });
+});
+
 describe("Pub Pal when the browser refuses storage", () => {
   // A full or blocked localStorage costs the cached copy of the Pal, never the
   // Pal itself or a working toggle: a write that throws must not drop the
