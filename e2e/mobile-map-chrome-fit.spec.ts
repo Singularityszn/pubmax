@@ -5,6 +5,7 @@ import { PERFORMANCE_BUDGETS } from "../lib/performanceBudgets";
 import { expectStreamedPageSettled } from "./helpers/streamedPage";
 import {
   expectMobileMapShellReady,
+  forgetHeldTubeStatus,
   mobileMapShellControl,
   routeTubeStatus,
 } from "./helpers/mobileMapShell";
@@ -882,6 +883,7 @@ test("390px TfL rests in More map controls and comes to the edge only when a lin
   await page.unrouteAll({ behavior: "ignoreErrors" });
   await routeTubeStatus(page, "urgent");
   await installPositiveTonightResponse(page);
+  await forgetHeldTubeStatus(page);
   await page.reload();
   await expectMobileMapShellReady(page, 45_000);
   const tfl = await mobileMapShellControl(page, "tfl");
