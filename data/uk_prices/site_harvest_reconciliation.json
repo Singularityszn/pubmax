@@ -10133,6 +10133,166 @@
         "rowCount": 7821,
         "siteHarvestRows": 3698
       }
+    },
+    {
+      "sourceEvidencePath": "data/uk_prices/later_publications/2026-10-19-moyletts-co-uk.json",
+      "sourceEvidenceSha256": "a89fb99b4a5e76005b96178e7578ceb1ab5903da6bbab28b851af8bcd5bd7192",
+      "sourceUrl": "https://moyletts.co.uk",
+      "sourceObservedAt": "2026-10-19T16:20:41.693Z",
+      "addedRows": 2,
+      "currentLedger": {
+        "sha256": "88a9304a84acc36d014ee36f89ef0e65f4944aede90dab13d380c25da7ad086c",
+        "rowCount": 3794,
+        "rowIdentitySetSha256": "d747d1d691a72c92b30fa9d3da10b6010bf45078f128169d148047106f370838"
+      },
+      "currentBundle": {
+        "rowCount": 8041,
+        "siteHarvestRows": 3918
+      }
+    },
+    {
+      "sourceEvidencePath": "data/uk_prices/later_publications/2026-10-19-moyletts-co-uk-blog-moyletts-spotlight-2-matt-leppier-our-in-house-kitchen.json",
+      "sourceEvidenceSha256": "a98778557e6c2ebf7abeab68266fe1b1d410303bd0b45f7bbcd8e7e248ddb49a",
+      "sourceUrl": "https://moyletts.co.uk/blog/moyletts-spotlight-2-matt-leppier-our-in-house-kitchen",
+      "sourceObservedAt": "2026-10-19T16:20:41.693Z",
+      "addedRows": 1,
+      "currentLedger": {
+        "sha256": "ae6793764d9ec66db7e51a76ae277a402a3c13825699eb3568a4e4de7285f66c",
+        "rowCount": 3795,
+        "rowIdentitySetSha256": "3d14b7c88f6746c2382e70adafc776920c56e95a4e63932a478976832fe9609f"
+      },
+      "currentBundle": {
+        "rowCount": 8041,
+        "siteHarvestRows": 3918
+      }
+    },
+    {
+      "sourceEvidencePath": "data/uk_prices/later_publications/2026-10-19-venue5-com-drinks-menu.json",
+      "sourceEvidenceSha256": "b775d75979358720cf2bb530ecf92ca1450d167364bb64a8a8ab940f927ab53f",
+      "sourceUrl": "https://venue5.com/drinks-menu/",
+      "sourceObservedAt": "2026-10-19T16:20:53.510Z",
+      "addedRows": 95,
+      "currentLedger": {
+        "sha256": "0fdc040d821fb7f289f95486e47d018eaccfeb5c985e6ed191267c6a4935b71e",
+        "rowCount": 3890,
+        "rowIdentitySetSha256": "05bd3ceff6d378b973af8d6ed2a1dcb96601f99227d8279f027bc7f0ca13a3ae"
+      },
+      "currentBundle": {
+        "rowCount": 8041,
+        "siteHarvestRows": 3918
+      }
+    },
+    {
+      "sourceEvidencePath": "data/uk_prices/later_publications/2026-10-19-venue5-com-banquet-hall-menu.json",
+      "sourceEvidenceSha256": "25c9eef0e9dca413158b775528780448720f5fa09b9d526d3f8d78ac92897c30",
+      "sourceUrl": "https://venue5.com/banquet-hall-menu/",
+      "sourceObservedAt": "2026-10-19T16:20:53.510Z",
+      "addedRows": 5,
+      "currentLedger": {
+        "sha256": "f77579e625a47935e4f2e3636bfe92d857a6cd749b25899663545ac2609f7cf7",
+        "rowCount": 3895,
+        "rowIdentitySetSha256": "683f08529a38d65ec688fc12cc149dd324eab3e42832d6ba667b9011db12717f"
+      },
+      "currentBundle": {
+        "rowCount": 8041,
+        "siteHarvestRows": 3918
+      }
+    },
+    {
+      "sourceEvidencePath": "data/uk_prices/later_publications/2026-10-19-theartichoke-net-menu-page-2.json",
+      "sourceEvidenceSha256": "64511a524f41430e524e5cf1d99be44fe43b5a34820c5ba12c020fd81b520ff8",
+      "sourceUrl": "https://theartichoke.net/menu-page-2/",
+      "sourceObservedAt": "2026-10-19T16:21:08.701Z",
+      "addedRows": 13,
+      "currentLedger": {
+        "sha256": "6203a97925316e00a0ecf6fd2e8c3c9de2b2ae13ecaa442cc3b15b5dc8a436b6",
+        "rowCount": 3908,
+        "rowIdentitySetSha256": "9381da090835eff2145c2f08bc846c9726340dbba621316bcbf215436b0d4fbb"
+      },
+      "currentBundle": {
+        "rowCount": 8041,
+        "siteHarvestRows": 3918
+      }
+    },
+    {
+      "sourceEvidencePath": "data/uk_prices/later_publications/2026-10-19-foxandduck-co-uk-our-menus.json",
+      "sourceEvidenceSha256": "8a179c3a2e9e5d6c1fb7fc27e608cd06545bc7efabf898596203d076c4ffdbf7",
+      "sourceUrl": "https://foxandduck.co.uk/our-menus/",
+      "sourceObservedAt": "2026-10-19T16:21:18.862Z",
+      "addedRows": 4,
+      "currentLedger": {
+        "sha256": "d0a6eb9dffca9762b7d447d6950de64b94655e9669bf79b79e84d8a9d96a95a6",
+        "rowCount": 3912,
+        "rowIdentitySetSha256": "e81310c03a8e87267cd442b2abac634a308a35609291beea12acd6a8ebe28cfd"
+      },
+      "currentBundle": {
+        "rowCount": 8041,
+        "siteHarvestRows": 3918
+      }
+    },
+    {
+      "sourceEvidencePath": "data/uk_prices/later_publications/2026-10-19-alexanderpope-co-uk-food-and-drink.json",
+      "sourceEvidenceSha256": "e74e9aa3b0eb6b444ad9a8cc724e991bee5cc5f404c96895701119f88ef54519",
+      "sourceUrl": "https://www.alexanderpope.co.uk/food-and-drink/",
+      "sourceObservedAt": "2026-10-19T16:21:25.320Z",
+      "addedRows": 13,
+      "currentLedger": {
+        "sha256": "20684ae4fcc1b71174a56f0ad1f1183dc6d16272f2e800cb30ff9ab4509ce282",
+        "rowCount": 3925,
+        "rowIdentitySetSha256": "90a12a23f56ea6eb8d3f150ee74902b2ffefcbc2027d6d02413391cd45e9b595"
+      },
+      "currentBundle": {
+        "rowCount": 8041,
+        "siteHarvestRows": 3918
+      }
+    },
+    {
+      "sourceEvidencePath": "data/uk_prices/later_publications/2026-10-19-silverfoxmicropub-com-drinks.json",
+      "sourceEvidenceSha256": "9885583188ecee3ae944e653d104f054d93705341b468184934caba394c7f231",
+      "sourceUrl": "https://www.silverfoxmicropub.com/drinks",
+      "sourceObservedAt": "2026-10-19T16:21:29.579Z",
+      "addedRows": 49,
+      "currentLedger": {
+        "sha256": "466575c4ba1fd97150af93afae6126100fd4cd88ba2a0dc6f84dfe41e9cf6962",
+        "rowCount": 3974,
+        "rowIdentitySetSha256": "d4f0be165457d009ff22f5de7691fc90749b44100185818ceeac2aa84f6e271f"
+      },
+      "currentBundle": {
+        "rowCount": 8041,
+        "siteHarvestRows": 3918
+      }
+    },
+    {
+      "sourceEvidencePath": "data/uk_prices/later_publications/2026-10-19-loreoftheland-com-menu-drinks-menu.json",
+      "sourceEvidenceSha256": "a09661d0d3c90b3b013159c180b93f8e06ff36607a72d915a72127e7923cedf6",
+      "sourceUrl": "https://loreoftheland.com/menu/drinks-menu/",
+      "sourceObservedAt": "2026-10-19T16:21:31.607Z",
+      "addedRows": 29,
+      "currentLedger": {
+        "sha256": "5e2c96cf2590de32e5ae23479dc2c801f3adcf3c1ff222c183b7be681b132336",
+        "rowCount": 4003,
+        "rowIdentitySetSha256": "5de7b0cff41807496cbfc58971df62ea3d0dd4ea8d6e50aeb0c4d3924d40c9cb"
+      },
+      "currentBundle": {
+        "rowCount": 8041,
+        "siteHarvestRows": 3918
+      }
+    },
+    {
+      "sourceEvidencePath": "data/uk_prices/later_publications/2026-10-19-loreoftheland-com-menu-wine-list.json",
+      "sourceEvidenceSha256": "0eeb8709e7ecd04b80eac0b7ec97024af8ad1b96be16f86816cb51b584ca7f00",
+      "sourceUrl": "https://loreoftheland.com/menu/wine-list/",
+      "sourceObservedAt": "2026-10-19T16:21:31.607Z",
+      "addedRows": 9,
+      "currentLedger": {
+        "sha256": "e1288ab4bff179811334a07650e4c76ea0cd081fce8180cbd50a48a5c7a4a30c",
+        "rowCount": 4012,
+        "rowIdentitySetSha256": "e80aac08531c2bb7bc2280ad0abd1e2c153ea7651f1bfa6366814a778756157b"
+      },
+      "currentBundle": {
+        "rowCount": 8041,
+        "siteHarvestRows": 3918
+      }
     }
   ]
 }
