@@ -110,9 +110,15 @@ html[data-theme="dark"] .mapOpeningGroundPicture {
        touch (a drag moves the camera, which stands the preview down) and
        reads as mounted to everything that asks. Only the drawing goes
        transparent: MapLibre's control corner keeps the basemap's credit on
-       screen over the picture of that same basemap. */
+       screen over the picture of that same basemap. The container's own
+       paper is an inline style (paintContainerBase in PubMapCanvas.tsx), so
+       only !important lets the picture show through it. */
     html[data-map-preview="on"]:has(.mapOpeningGround) .mapCanvasWrap .maplibregl-canvas-container {
       opacity: 0;
+    }
+
+    html[data-map-preview="on"]:has(.mapOpeningGround) .mapCanvasWrap .maplibregl-map {
+      background: transparent !important;
     }
   }
 }
