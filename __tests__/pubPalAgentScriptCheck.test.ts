@@ -178,6 +178,36 @@ describe("pubpal:agent --check", () => {
     expect(privacyDrift.writes).toBe("");
   });
 
+  it("reports an agent still on the provider's turn-taking defaults and lays the listening settings over it", () => {
+    const live = matchingLive();
+    // An agent provisioned before the listening settings: provider defaults,
+    // plus a dashboard-only turn setting the update must keep.
+    live.agent.conversation_config.turn = { turn_eagerness: "normal", turn_timeout: 7 };
+    live.agent.conversation_config.asr = { quality: "high", provider: "scribe_realtime", user_input_audio_format: "pcm_16000" };
+    const drift = check(live);
+    expect(drift.status).toBe(1);
+    expect(drift.writes).toBe("");
+    expect(drift.output).toContain("conversation_config.turn.turn_eagerness: live normal, wanted patient");
+    expect(drift.output).toContain("conversation_config.turn.transcribe_on_disabled_interruptions");
+    expect(drift.output).toContain("conversation_config.asr.keywords");
+
+    const updated = check({ ...live, allowWrites: true }, true);
+    expect(updated.status, updated.output).toBe(0);
+    expect(updated.live.agent.conversation_config.turn).toEqual({
+      turn_eagerness: "patient",
+      turn_timeout: 7,
+      transcribe_on_disabled_interruptions: true,
+    });
+    expect(updated.live.agent.conversation_config.asr).toMatchObject({
+      quality: "high",
+      provider: "scribe_realtime",
+      user_input_audio_format: "pcm_16000",
+    });
+    expect(updated.live.agent.conversation_config.asr.keywords).toContain("Wetherspoons");
+    const receipt = check(updated.live);
+    expect(receipt.status, receipt.output).toBe(0);
+  });
+
   it.each([
     [BASE_URL, "https://pubpal-test.ngrok.app"],
     ["https://pubpal-test.ngrok.app", BASE_URL],

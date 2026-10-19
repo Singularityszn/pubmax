@@ -17,6 +17,7 @@ import {
   useSyncExternalStore,
 } from "react";
 import Link from "next/link";
+import type { Route } from "next";
 
 import { PintPriceBadge } from "@/components/PriceBadge";
 import { useRouter } from "next/navigation";
@@ -48,9 +49,19 @@ import {
 import { rankNearMe } from "@/lib/nearMeAnswer";
 import { CENTRAL_PATCH, readRememberedArea, resolveNightPatch } from "@/lib/nightPatches";
 import {
+  palFlyToHref,
   palKnownVenueIds,
   resolvePalVenueOpenTarget,
 } from "@/lib/palOpenVenue";
+import { isPlanActiveNow, readActivePlan } from "@/lib/activePlan";
+import { readPlanMemberProjection } from "@/components/plan/usePlanMemberRead";
+import {
+  palAsksForMap,
+  palNextStop,
+  palNightStopsFrom,
+  palVoiceMapIntent,
+} from "@/lib/palVoiceTranscript";
+import { palPubAskVenue, type PalMapAskVenue } from "@/lib/palMapAsk";
 import { formatPalWhen, type PalAnswer, type PalCard } from "@/lib/palChat";
 import { venueAcceptUrl, venueMapUrl } from "@/lib/venueMapUrl";
 import { palRecall, type PalRecall } from "@/lib/palRecall";
@@ -92,6 +103,45 @@ type Entry =
       recall: PalRecall | null;
     }
   | { kind: "error"; id: string; message: string; needsSignIn?: boolean; retryQuery?: string };
+
+/**
+ * What "take me there" points at in the written chat: the newest Pal answer
+ * only, never an older one. Its first pub proposal, else its first pub card;
+ * with neither, its words are read for a listed pub (lib/palMapAsk.ts).
+ */
+function palLastAnswerVenue(entries: readonly Entry[]): {
+  venue: PalMapAskVenue | null;
+  palLines: string[];
+} {
+  for (let index = entries.length - 1; index >= 0; index -= 1) {
+    const entry = entries[index]!;
+    if (entry.kind !== "answer") continue;
+    const { cards, message } = entry.answer;
+    const cardName = (venueId: string): string | undefined => {
+      const card = cards.find((row) => row.venueId === venueId);
+      // A journey card is titled "Journey 1" and names the pub as its place.
+      return card ? (/^Journey \d/.test(card.title) ? card.place : card.title) || undefined : undefined;
+    };
+    for (const proposal of entry.proposals) {
+      if (proposal.kind === "open_venue") {
+        return {
+          venue: { id: proposal.venueId, name: cardName(proposal.venueId) ?? proposal.label.replace(/^Open\s+/, "") },
+          palLines: [],
+        };
+      }
+      if (proposal.kind === "fly_to" && proposal.venueId) {
+        return {
+          venue: { id: proposal.venueId, name: cardName(proposal.venueId) ?? proposal.place ?? proposal.label },
+          palLines: [],
+        };
+      }
+    }
+    const card = cards.find((row) => row.venueId);
+    if (card) return { venue: { id: card.venueId, name: cardName(card.venueId) ?? card.title }, palLines: [] };
+    return { venue: null, palLines: [message] };
+  }
+  return { venue: null, palLines: [] };
+}
 
 function VenueLink({
   card,
@@ -311,10 +361,73 @@ export default function PalChat() {
     window.scrollTo({ top: page.scrollHeight });
   }, [entries, pending, streamText, keyboardInset]);
 
+  // "Show me the map", or "next stop" while a planned night is on, is the
+  // person asking to GO to the map, so it goes there (the same decision the
+  // voice panel makes, palVoiceMapIntent) instead of reaching the Pal, which
+  // can only answer it in words. Any later ask retires a next-stop read.
+  // "Take me there" and "where is The Lamb?" open that one pub when the chat
+  // can name it, and otherwise reach the Pal, unless they ask for the map too.
+  const mapAskRef = useRef(0);
+  const entriesRef = useRef<Entry[]>([]);
+  useEffect(() => {
+    entriesRef.current = entries;
+  }, [entries]);
+  const openMapFromAsk = useCallback(
+    async (text: string): Promise<boolean> => {
+      const request = ++mapAskRef.current;
+      const plan = readActivePlan();
+      const intent = palVoiceMapIntent(text, isPlanActiveNow(plan, Date.now()));
+      if (!intent) return false;
+      let href: string = "/map";
+      let line = "Opening the map";
+      if (intent === "pub") {
+        const last = palLastAnswerVenue(entriesRef.current);
+        const venue = await palPubAskVenue(text, {
+          lastVenue: last.venue,
+          palLines: last.palLines,
+          loadVenues: () => loadSlimVenuesForCity(DEFAULT_CITY_ID),
+        });
+        if (request !== mapAskRef.current) return true;
+        if (venue) {
+          href = resolvePalVenueOpenTarget(venue.id, knownVenueIds).href;
+          line = `Opening ${venue.name}`;
+        } else if (!palAsksForMap(text)) {
+          return false;
+        }
+      }
+      setEntries((prev) => [...prev, { kind: "user", id: nextId(), text }]);
+      setQuery((current) => current.trim() === text ? "" : current);
+      if (intent === "next-stop" && plan) {
+        const body = await readPlanMemberProjection(plan.id);
+        if (request !== mapAskRef.current) return true;
+        const next = palNextStop(palNightStopsFrom(body), plan.stopIndex);
+        if (next) {
+          href = next.href;
+          line = `Opening ${next.venueName}, your next stop`;
+        }
+      }
+      setEntries((prev) => [
+        ...prev,
+        {
+          kind: "answer",
+          id: nextId(),
+          answer: { status: "answered", message: line, cards: [] },
+          locality: null,
+          proposals: [],
+          recall: null,
+        },
+      ]);
+      router.push(href as Route);
+      return true;
+    },
+    [knownVenueIds, nextId, router],
+  );
+
   const ask = useCallback(
     async (raw: string, options: { preserveDraft?: boolean } = {}) => {
       const text = raw.trim();
       if (!text || pending) return;
+      if (await openMapFromAsk(text)) return;
       sessionRef.current ??= createPalChatSession();
       // Read the recall BEFORE this ask joins the transcript, so the Pal never
       // recalls the question it is answering.
@@ -359,7 +472,7 @@ export default function PalChat() {
         { kind: "answer", id: nextId(), answer: result, locality, proposals, recall },
       ]);
     },
-    [nextId, pending],
+    [nextId, openMapFromAsk, pending],
   );
 
   const dismissProposal = useCallback((entryId: string, proposalId: string) => {
@@ -381,12 +494,7 @@ export default function PalChat() {
     }
     trackEvent("concierge_result_tap");
     if (proposal.kind === "fly_to") {
-      const params = new URLSearchParams({
-        lat: String(proposal.lat),
-        lng: String(proposal.lng),
-      });
-      if (proposal.place) params.set("place", proposal.place);
-      router.push(`/map?${params.toString()}`);
+      router.push(palFlyToHref(proposal, knownVenueIds));
       return;
     }
     if (proposal.kind === "report_occupancy") {
@@ -476,7 +584,7 @@ export default function PalChat() {
         if (entryId) dismissProposal(entryId, proposal.id);
       })();
     }
-  }, [auth, dismissProposal, nextId, openVenue, router]);
+  }, [auth, dismissProposal, knownVenueIds, nextId, openVenue, router]);
 
   const onSubmit = useCallback(
     (event: React.FormEvent<HTMLFormElement>) => {

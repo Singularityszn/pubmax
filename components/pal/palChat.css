@@ -6,7 +6,9 @@
   display: flex;
   flex-direction: column;
   min-height: 100dvh;
-  padding-top: env(safe-area-inset-top, 0px);
+  /* No top safe-area inset: SiteNav renders above this main and already pays
+     the notch (components/nav/siteNav.css); paid here too it was a blank band
+     the notch's height under the bar (__tests__/pageShellSafeAreaTop.test.ts). */
   /* Plain paper: coral is the composer's submit, never a wash behind it. */
   background: var(--paper);
   color: var(--ink);
@@ -351,8 +353,14 @@
    first-open dead zone with receipts. Enters with transform+opacity only
    (ease-out, under 300ms); the zone below is empty and the composer is
    pinned, so the entrance shifts nothing. */
+/* THE PANEL KEEPS THE TRANSCRIPT'S COLUMN. At `min(30rem, 100%)` it ran edge
+   to edge on a phone, its border cut by both sides of the screen with no
+   gutter, while on a desktop it sat centred 104px inside the column the
+   bubbles and chips start on (Pal UI audit, 19 Oct 2026, 390 and 1280). It
+   now pays the transcript's own gutter and measure, so its left edge is the
+   bubbles' left edge at every width. */
 .palGlance {
-  width: min(30rem, 100%);
+  width: calc(min(46rem, 100%) - 2 * clamp(1rem, 4vw, 1.5rem));
   margin: 0.9rem auto 0;
   padding: 0.7rem 0.9rem;
   border: 1px solid var(--line);
@@ -513,9 +521,12 @@
     padding-bottom: var(--night-pill-clearance, 0px);
   }
   .palChatComposer {
-    --pal-composer-clearance: calc(
+    /* The phone's own foot: the bar's lane and the re-open pill. The consent
+       rule below stands on this rather than restating it. */
+    --pal-composer-foot: calc(
       var(--tabbar-h, 64px) + env(safe-area-inset-bottom, 0px) + var(--night-pill-clearance, 0px)
     );
+    --pal-composer-clearance: var(--pal-composer-foot);
 
     padding-bottom: 0.7rem;
   }
@@ -523,6 +534,32 @@
      only thing under the composer is the keyboard's own inset. */
   .palChatComposer[data-keyboard-open] {
     --pal-composer-clearance: 0px;
+  }
+  /* THE CONSENT CARD NEVER COVERS THE FIELD. The card parks in the lane above
+     the tab bar (app/globals.css) and publishes its measured height
+     (--analytics-consent-reserve), so while it is up the composer stands on
+     it, as the message thread's composer does (app/messages/messages.css).
+     Before this the field and the Ask button sat under the card on a fresh
+     /pal/chat at 390 and 360 (Pal UI audit, 19 Oct 2026). With the keyboard
+     up the card steps aside instead: a person typing has the field first. */
+  body:has(.analyticsConsentPrompt) .palChatComposer:not([data-keyboard-open]) {
+    --pal-composer-clearance: calc(
+      var(--pal-composer-foot)
+        + var(--analytics-consent-reserve, var(--analytics-consent-mobile-clearance))
+    );
+  }
+  body:has(.palChatComposer[data-keyboard-open]) .analyticsConsentPrompt {
+    visibility: hidden;
+    pointer-events: none;
+  }
+}
+
+/* The desktop consent strip is fixed to the foot of the window, so the sticky
+   composer stands on its measured top edge rather than sliding under it (the
+   field and the Ask button were under the strip at 1440x900 and 1280x720). */
+@media (min-width: 641px) {
+  body:has(.analyticsConsentPrompt) .palChatComposer {
+    --pal-composer-clearance: var(--analytics-consent-reserve, var(--analytics-consent-clearance));
   }
 }
 

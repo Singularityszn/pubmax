@@ -67,3 +67,31 @@ test.describe("the Pub Pal composer on a phone", () => {
     await expectComposerInView(page);
   });
 });
+
+// The analytics consent card parks on the foot of the window after the first
+// answer (lib/consentAnswerMoment.ts). The composer is sticky, so a reader who
+// scrolls back up the thread still has the field on screen, and the card must
+// never be the thing on top of it (Pal UI audit, 19 Oct 2026: the field and
+// Ask sat under the card at 1440, 1280, 390 and 360 until the page's foot).
+for (const viewport of [PHONE, { width: 1280, height: 720 }]) {
+  test(`stands on the consent card, never under it, at ${viewport.width}px`, async ({ page }) => {
+    await page.setViewportSize(viewport);
+    await page.addInitScript(() => {
+      window.localStorage.setItem("pubmax-tour-v1-done", "1");
+      window.sessionStorage.setItem("pubmax_onboarding_dismissed", "1");
+      window.localStorage.removeItem("pubmaxx:analytics-consent:v1");
+    });
+    await page.goto("/pal/chat");
+    await page.locator(".palChatInput").fill("cheap pint near Bank");
+    await page.locator(".palChatSend").click();
+    await expect(page.locator(".palChatBubble--pending")).toHaveCount(0, { timeout: 15_000 });
+    const card = page.locator(".analyticsConsentPrompt");
+    await expect(card).toBeVisible({ timeout: 15_000 });
+    // Back to the top of the thread: the composer is pinned, the card is up.
+    await page.evaluate(() => window.scrollTo(0, 0));
+    await expectComposerInView(page);
+    const dock = await page.locator(".palChatComposer").boundingBox();
+    const cardBox = await card.boundingBox();
+    expect(dock!.y + dock!.height).toBeLessThanOrEqual(cardBox!.y + 1);
+  });
+}
