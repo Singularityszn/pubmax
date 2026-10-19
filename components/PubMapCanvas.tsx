@@ -9,6 +9,8 @@ import * as maplibregl from "maplibre-gl";
 
 import { MAPLIBRE_WORKER_URL } from "@/lib/maplibreWorkerAssets";
 import { probeWebGl2 } from "@/components/map/canvas/webgl";
+import { createPalMapMarker, type PalMapMarker } from "@/components/map/canvas/palMarker";
+import { palWalkPathFrom, palWalkStopsFromKey } from "@/components/map/canvas/palWalk";
 import {
   Crosshair,
   MapPinned,
@@ -1205,6 +1207,10 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
     filteredVenueCountRef.current = filteredVenueCount;
   }, [filteredVenueCount, venues]);
   const selectedIdRef = useRef(selectedVenueId);
+  // The reader's Pub Pal perched beside the selected pin (palMarker.ts).
+  const palMarkerRef = useRef<PalMapMarker | null>(null);
+  // The last crawl stop the Pal was sent to, so a re-render never resends it.
+  const palVisitKeyRef = useRef("");
   // M7 pin entrance — armed once per mount at the first ACTUAL pin reveal
   // (settleSceneReady when the D2 tile-paint gate never armed, else that
   // gate's revealPins), and driven off the shared entrance/dash/pulse RAF loop
@@ -3597,6 +3603,7 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
     const donutSync: DonutClusterSync = createDonutClusterSync(map, cinematic, {
       enabled: useDomDonutClusters,
     });
+    palMarkerRef.current = createPalMapMarker(map);
     // One RAF loop for motivated feedback only: pin entrance, route direction,
     // and the selected-pin pulse. The old perpetual camera orbit changed the
     // whole canvas every frame while idle, forcing tile churn that read as
@@ -3764,6 +3771,8 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
       window.removeEventListener("blur", onBlur);
       window.removeEventListener("focus", onFocus);
       donutSync.destroy();
+      palMarkerRef.current?.destroy();
+      palMarkerRef.current = null;
       removePaintedPinProbe();
       removeMapCameraProbe();
       removeMapReaderPositionProbe();
@@ -4265,6 +4274,8 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
         if (!body || body.source !== "ors" || !body.line?.features?.length) return;
         routeLineRef.current = body.line;
         applyRouteData();
+        const stops = palWalkStopsFromKey(routeCoordKey);
+        palMarkerRef.current?.walk({ key: routeCoordKey, stops, path: palWalkPathFrom(body.line), road: true });
       })
       .catch((error) => {
         if (error instanceof DOMException && error.name === "AbortError") return;
@@ -4278,6 +4289,26 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
       controller.abort();
     };
   }, [routeCoordKey, mapReady, applyRouteData]);
+
+  // The Pal walks a crawl route of two or more stops (the road line takes over
+  // above once routed), and goes to a stop the reader taps; with no crawl it
+  // perches beside the selected pin.
+  const routeIds = route.map((v) => v.id).join(",");
+  useEffect(() => {
+    if (!mapReady) return;
+    const stops = palWalkStopsFromKey(routeCoordKey);
+    if (stops.length > 1) {
+      palMarkerRef.current?.walk({ key: routeCoordKey, stops, path: stops });
+      const stop = selectedVenueId ? routeIds.split(",").indexOf(selectedVenueId) : -1;
+      const visitKey = `${routeCoordKey}|${selectedVenueId}`;
+      if (stop >= 0 && visitKey !== palVisitKeyRef.current) palMarkerRef.current?.visit(stop);
+      palVisitKeyRef.current = visitKey;
+      return;
+    }
+    palVisitKeyRef.current = "";
+    const venue = selectedVenueId ? venues.find((v) => v.id === selectedVenueId) : undefined;
+    palMarkerRef.current?.perch(venue ? [venue.longitude, venue.latitude] : null);
+  }, [routeCoordKey, routeIds, selectedVenueId, venues, mapReady]);
 
   const didFitQueryOnArrivalRef = useRef(false);
   useEffect(() => {

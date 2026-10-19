@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, type Dispatch, type SetStateAction } from "react";
+import { useEffect, useMemo, useRef, useState, type Dispatch, type SetStateAction } from "react";
 import Link from "next/link";
 import {
   ArrowLeft,
@@ -43,6 +43,10 @@ import {
   type PubPalMemory,
 } from "@/lib/pubPal";
 import PalPortrait from "./PalPortrait";
+import PalPrint from "./PalPrint";
+import { usePalHead3D } from "./usePalHead3D";
+import { palGenomeFor } from "@/lib/palGenome";
+import { createPalVoiceSignal } from "@/lib/palVoiceSignal";
 import PubPalVoice from "@/components/pubpal/PubPalVoice";
 import { Button } from "@/components/ui/button";
 import Screen from "@/components/ui/screen";
@@ -305,22 +309,33 @@ function PalHomeScreen({
 }) {
   const visiblePalState: PalAnimationState = pal.muted ? "sleeping" : palAnimationState;
   const proposalPreferences = pal.proposalPreferences ?? { memories: true, routes: true };
+  // The voice panel publishes its live levels here and the portrait reads
+  // them, so the head turns, leans and nods with the conversation.
+  const [voiceSignal] = useState(createPalVoiceSignal);
+  const headRef = useRef<HTMLDivElement>(null);
+  // Seeded by the Pal's own id: the same genome on every device and visit.
+  const genome = useMemo(() => palGenomeFor(pal.id, pal.personality), [pal.id, pal.personality]);
+  usePalHead3D(headRef, { signal: voiceSignal, state: visiblePalState, temperament: genome.temperament });
   return (
     <main id="main" className="palExperience palHome">
       <div className="palTopbar">
         <Link href="/map"><ArrowLeft size={17} /> Map</Link>
       </div>
       <section className="palHomeHero" aria-labelledby="pal-home-title">
-        <div className="palHomePortrait">
-          <PalPortrait appearance={pal.appearance} name={pal.name} state={visiblePalState} />
+        <div className="palHomePortrait" ref={headRef}>
+          <PalPortrait appearance={pal.appearance} name={pal.name} state={visiblePalState} genome={genome} />
           <p className="palSpeech">{palStateSpeech[visiblePalState]}</p>
         </div>
         <div className="palHomeCopy">
           <p className="palEyebrow">Your Pub Pal</p>
           <h1 id="pal-home-title" tabIndex={-1}>{pal.name}</h1>
           <p>Your {signalCopy[pal.appearance.signalAffinity].toLowerCase()} {pal.appearance.species}, set up for your nights out. You decide what it can do.</p>
+          <div className="palPrintRow">
+            <PalPrint print={genome.print} />
+            <span>{pal.name}&apos;s print. No other Pal has this one.</span>
+          </div>
           <Link className="palPrimary" href="/plan">Plan with {pal.name}<ArrowRight size={18} /></Link>
-          <PubPalVoice muted={pal.muted} onStateChange={setPalAnimationState} />
+          <PubPalVoice muted={pal.muted} onStateChange={setPalAnimationState} palName={pal.name} signal={voiceSignal} appearance={pal.appearance} genome={genome} />
         </div>
       </section>
       <section className="palControls" aria-labelledby="pal-controls-title">

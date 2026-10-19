@@ -122,6 +122,8 @@ import {
   type VenueCoord,
 } from "@/components/night/nightModeSheetModel";
 import "./nightMode.css";
+import PalCheer from "@/components/pal/PalCheer";
+import { announcePalMoment } from "@/lib/palMoments";
 
 const SWIPE_DISMISS_PX = 72;
 
@@ -831,6 +833,8 @@ function NightModeSheet({
           );
         }
         setPlan(canonical);
+        // The night really ended: every Pal on screen cheers (lib/palMoments.ts).
+        announcePalMoment({ kind: "night-finished", stops: canonical.stops.length });
         // The ending really saved, so the food half of the shortlist ratio is
         // countable. It rides the SAVED selection rather than the tap, because
         // a refused save leaves the night exactly where it was. Only the hours
@@ -1030,6 +1034,7 @@ function NightModeSheet({
         />
         {recap ? (
           <div className="nightCard__recapInvite">
+            <PalCheer moment="night-finished" stops={stops.length} />
             <p className="nightCard__recapLede">
               That&rsquo;s the night. Keep it as a private Memory. The
               route and any words you add, nothing posted.
