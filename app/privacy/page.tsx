@@ -855,6 +855,8 @@ export default function PrivacyPage() {
             removed. We never delete our only complete backup, so if newer
             backups fail, that one is kept past 8 weeks until a newer backup
             completes. A failed backup sends us an alert so we can fix it.
+            If the backup Mac is asleep, powered off, or unavailable, deletion
+            is delayed until the next run.
           </li>
           <li>
             <strong>Social account records:</strong>{" "}the private product account
