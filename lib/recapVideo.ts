@@ -153,11 +153,19 @@ export function buildRecapVideoInput(input: {
     momentsByVenue.set(moment.venueId as string, queue);
   }
 
+  // A recap pint names its Venue but not its visit, so a pub on the Route
+  // twice shows no price at either Stop rather than the same prices at both.
+  const visits = new Map<string, number>();
+  for (const stop of view.route) visits.set(stop.venueId, (visits.get(stop.venueId) ?? 0) + 1);
+
   const stops: RecapVideoStop[] = view.route.map((stop, index) => ({
     venueName: stop.venueName,
-    priceLabels: view.pints
-      .filter((pint) => pint.venueId === stop.venueId && pint.priceLabel)
-      .map((pint) => pint.priceLabel as string),
+    priceLabels:
+      (visits.get(stop.venueId) ?? 0) > 1
+        ? []
+        : view.pints
+            .filter((pint) => pint.venueId === stop.venueId && pint.priceLabel)
+            .map((pint) => pint.priceLabel as string),
     timeLabel: londonTime(momentsByVenue.get(stop.venueId)?.shift()?.occurredAt),
     point: points[index] ?? null,
   }));

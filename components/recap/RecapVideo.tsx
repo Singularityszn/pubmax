@@ -3,7 +3,9 @@
 // between the Stops, the Friends the crew published, and the PUBMAXX
 // wordmark. Every word and figure comes from `lib/recapVideo.ts`, which takes
 // them from the published recap and invents none. Colours are the design
-// system's own variables, so the video wears the page's theme.
+// system's own variables, so the video wears the page's theme. The data face
+// sets figures alone, an eyebrow reads muted, a coral word is `--brass-ink`,
+// and a Stop's number sits in ink because a coral fill is the page's action.
 
 import { AbsoluteFill, Sequence, interpolate, useCurrentFrame } from "remotion";
 
@@ -28,11 +30,10 @@ const page: React.CSSProperties = {
 };
 
 const eyebrow: React.CSSProperties = {
-  fontFamily: "var(--font-data)",
-  fontSize: 40,
-  letterSpacing: 4,
-  textTransform: "uppercase",
-  color: "var(--brass)",
+  fontFamily: "var(--font-body)",
+  fontSize: 44,
+  fontWeight: 600,
+  color: "var(--color-text-muted)",
   margin: 0,
 };
 
@@ -69,8 +70,8 @@ function StopBeat({ stop, number }: { stop: RecapVideoStop; number: number }) {
           width: 140,
           height: 140,
           borderRadius: 999,
-          background: "var(--brass)",
-          color: "var(--color-on-accent)",
+          background: "var(--ink)",
+          color: "var(--paper)",
           fontFamily: "var(--font-data)",
           fontSize: 72,
           fontWeight: 700,
@@ -142,7 +143,7 @@ function RouteBeat({ stops, durationInFrames }: { stops: RecapVideoStop[]; durat
           const shown = drawn >= (points.length === 1 ? 0 : index / (points.length - 1)) - 0.001;
           return (
             <g key={index} opacity={shown ? 1 : 0.25}>
-              <circle cx={point.x * size} cy={point.y * size} r={34} fill="var(--brass)" />
+              <circle cx={point.x * size} cy={point.y * size} r={34} fill="var(--ink)" />
               <text
                 x={point.x * size}
                 y={point.y * size + 14}
@@ -150,7 +151,7 @@ function RouteBeat({ stops, durationInFrames }: { stops: RecapVideoStop[]; durat
                 fontSize={38}
                 fontWeight={700}
                 fontFamily="var(--font-data)"
-                fill="var(--color-on-accent)"
+                fill="var(--paper)"
               >
                 {index + 1}
               </text>
@@ -184,7 +185,7 @@ function Outro() {
   const line = useFadeIn(10);
   return (
     <AbsoluteFill style={{ ...page, alignItems: "center", textAlign: "center" }}>
-      <p style={{ ...display, fontSize: 132, letterSpacing: 6, color: "var(--brass)", ...mark }}>{BRAND_NAME}</p>
+      <p style={{ ...display, fontSize: 132, letterSpacing: 6, color: "var(--brass-ink)", ...mark }}>{BRAND_NAME}</p>
       <p style={{ fontSize: 48, marginTop: 32, color: "var(--ink-soft)", ...line }}>Night logged on {BRAND_NAME}.</p>
     </AbsoluteFill>
   );

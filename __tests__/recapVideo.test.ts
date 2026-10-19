@@ -74,6 +74,20 @@ describe("the recap video script", () => {
     ]);
   });
 
+  it("shows no price at a pub the Route visits twice, because a pint names no visit", () => {
+    const route = [
+      { position: 0, venueId: "v-lamb", venueName: "The Lamb", caption: null },
+      { position: 1, venueId: "v-crown", venueName: "The Crown", caption: null },
+      { position: 2, venueId: "v-lamb", venueName: "The Lamb", caption: null },
+    ];
+    const pints = [
+      { venueId: "v-lamb", venueName: "The Lamb", drink: "Bitter", priceGbp: 5.4, priceLabel: "£5.40", note: null },
+      { venueId: "v-crown", venueName: "The Crown", drink: "Stout", priceGbp: 6.1, priceLabel: "£6.10", note: null },
+    ];
+    const input = buildRecapVideoInput({ view: view({ route, pints }), published });
+    expect(input?.stops.map((stop) => stop.priceLabels)).toEqual([[], ["£6.10"], []]);
+  });
+
   it("gives a Stop's time in London time, and no time when the moment has none", () => {
     const input = buildRecapVideoInput({ view: view(), published });
     // 19:40 UTC on 17 July is 20:40 in London (BST).
