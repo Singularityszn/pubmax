@@ -188,7 +188,7 @@ describe("Pal venue card navigation", () => {
         venueId: "venue-a",
       }],
     };
-    await askPal("take me to The Anchor");
+    await askPal("fly me to The Anchor");
 
     const confirm = container.querySelector<HTMLButtonElement>(".palChatProposalConfirm");
     if (!confirm) throw new Error("Fly-to proposal not found");
@@ -291,5 +291,73 @@ describe("Pal map asks in the written chat", () => {
 
     expect(askSession).toHaveBeenCalled();
     expect(router.push).not.toHaveBeenCalled();
+  });
+});
+
+describe("Pal pub asks in the written chat", () => {
+  it("takes \"take me there\" to the pub the Pal just carded", async () => {
+    await askPal("quiet pint in Brixton");
+    askSession.mockClear();
+    await askPal("take me there");
+
+    expect(askSession).not.toHaveBeenCalled();
+    expect(container.textContent).toContain("Opening The Anchor");
+    expect(router.push).toHaveBeenCalledWith("/map?sel=venue-a");
+  });
+
+  it("takes \"take me there\" to the pub a proposal names before its first card", async () => {
+    sessionAnswer.value = {
+      ...answer,
+      cards: [
+        { ...answer.cards[0], key: "venue-b", venueId: "venue-b", title: "The Crown" },
+        answer.cards[0],
+      ],
+      proposals: [{ id: "open:venue-a", kind: "open_venue", label: "Open The Anchor", venueId: "venue-a" }],
+    };
+    loadSlimResult.mockResolvedValue({ status: "ready", rows: [] });
+    await askPal("show me The Anchor");
+    await askPal("show me it on the map");
+
+    expect(router.push).toHaveBeenCalledWith("/map?sel=venue-a");
+  });
+
+  it("reads the Pal's own words when its newest answer carried no card", async () => {
+    sessionAnswer.value = { ...answer, message: "Try The Anchor, it is quiet now.", cards: [] };
+    await askPal("somewhere quiet");
+    askSession.mockClear();
+    await askPal("take me there");
+
+    expect(askSession).not.toHaveBeenCalled();
+    expect(router.push).toHaveBeenCalledWith("/map?sel=venue-a");
+  });
+
+  it("opens a listed pub the person names", async () => {
+    await askPal("where is the Anchor?");
+
+    expect(askSession).not.toHaveBeenCalled();
+    expect(router.push).toHaveBeenCalledWith("/map?sel=venue-a");
+  });
+
+  it("asks the Pal when the name is not one listed pub, or nothing was named", async () => {
+    sessionAnswer.value = { ...answer, message: "Which Crown do you mean?", cards: [] };
+    await askPal("where is The Crown?");
+    expect(askSession).toHaveBeenCalledTimes(1);
+    await askPal("take me there");
+    expect(router.push).not.toHaveBeenCalled();
+  });
+
+  it("asks the Pal when the person refuses", async () => {
+    await askPal("quiet pint in Brixton");
+    await askPal("don't take me there yet");
+
+    expect(askSession).toHaveBeenCalledTimes(2);
+    expect(router.push).not.toHaveBeenCalled();
+  });
+
+  it("still opens the map for \"show me on the map\" when no pub is named", async () => {
+    await askPal("show me on the map");
+
+    expect(askSession).not.toHaveBeenCalled();
+    expect(router.push).toHaveBeenCalledWith("/map");
   });
 });

@@ -13,6 +13,9 @@
 // map in their own voice is the same as tapping the Map link, so the panel
 // opens /map with a beat to say "stay here".
 
+import { palMapAskTarget } from "@/lib/palMapAsk";
+import { venueMapUrl } from "@/lib/venueMapUrl";
+
 export type PalVoiceSpeaker = "you" | "pal";
 
 export type PalVoiceLine = {
@@ -156,8 +159,11 @@ export function palAsksForNextStop(text: string): boolean {
  * next stop" opens that stop rather than the bare map. With no night on it is
  * an ordinary map ask.
  */
-export function palVoiceMapIntent(text: string, nightIsOn: boolean): "next-stop" | "map" | null {
+export function palVoiceMapIntent(text: string, nightIsOn: boolean): "next-stop" | "pub" | "map" | null {
   if (nightIsOn && palAsksForNextStop(text)) return "next-stop";
+  // One pub on the map ("take me there", "where is The Lamb?"): the caller
+  // names it (lib/palMapAsk.ts), else a map ask still opens the map.
+  if (palMapAskTarget(text)) return "pub";
   if (palAsksForMap(text)) return "map";
   return null;
 }
@@ -176,7 +182,7 @@ export function palNextStop(
   const at = Number.isInteger(stopIndex) && stopIndex >= 0 ? stopIndex : 0;
   const next = stops[Math.min(at + 1, stops.length - 1)]!;
   if (!next.venueId) return null;
-  return { href: `/map?sel=${encodeURIComponent(next.venueId)}`, venueName: next.venueName };
+  return { href: venueMapUrl(next.venueId), venueName: next.venueName };
 }
 
 /** The night's stops from a plan read body, or none. */
