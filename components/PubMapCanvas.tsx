@@ -8,7 +8,7 @@ import "./map/mapCameraControls.css";
 import * as maplibregl from "maplibre-gl";
 
 import { MAPLIBRE_WORKER_URL } from "@/lib/maplibreWorkerAssets";
-import { mapPixelRatio, probeWebGl2 } from "@/components/map/canvas/webgl";
+import { followMapPixelRatio, mapPixelRatio, probeWebGl2 } from "@/components/map/canvas/webgl";
 import { createPalMapMarker, palPinIsCheap, type PalMapMarker } from "@/components/map/canvas/palMarker";
 import { crewPalLook, type CrewPal } from "@/lib/crewPals";
 import { palWalkPathFrom, palWalkStopsFromKey } from "@/components/map/canvas/palWalk";
@@ -1550,6 +1550,7 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
     let autoRetryTimer: ReturnType<typeof setTimeout> | undefined;
     let contextLostTimer: ReturnType<typeof setTimeout> | undefined;
     let didConstruct = false;
+    let stopFollowingPixelRatio: (() => void) | undefined;
     let constructCleanup: (() => void) | undefined;
     let deferredSceneIdleId: number | null = null;
     let deferredSceneFrameId: number | null = null;
@@ -1641,6 +1642,7 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
         });
       }
       markPubmaxTiming("pubmax:map-constructed");
+      stopFollowingPixelRatio = followMapPixelRatio(map);
       // A camera that moves before the pins are revealed (the arrival turn on
       // a desktop that waits for its basemap, an opening location, a resumed
       // view) is a frame the preview did not draw, and it must not hang in
@@ -1677,6 +1679,8 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
         creditObserver.observe(creditLane);
       }
     } catch (error) {
+      stopFollowingPixelRatio?.();
+      stopFollowingPixelRatio = undefined;
       reducedQuery.removeEventListener("change", onReducedChange);
       window.removeEventListener("blur", onBlur);
       window.removeEventListener("focus", onFocus);
@@ -3755,6 +3759,7 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
     // teardown here so the effect's single cleanup (below) can run it whether or
     // not construction was deferred by the size gate.
     constructCleanup = () => {
+      stopFollowingPixelRatio?.();
       cancelAnimationFrame(rafId);
       if (firstFrameTimer) clearTimeout(firstFrameTimer);
       map.off("render", onFirstFrame);

@@ -5,7 +5,7 @@ import * as maplibregl from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 
 import { syncPlanRoutePreviewScene } from "@/components/map/canvas/planRoutePreviewScene";
-import { mapPixelRatio } from "@/components/map/canvas/webgl";
+import { followMapPixelRatio, mapPixelRatio } from "@/components/map/canvas/webgl";
 import {
   MAP_STYLES,
   LONDON_VIEW,
@@ -96,6 +96,7 @@ export default function PlanCrawlRouteMapCanvas({
       interactive: false,
     });
     mapRef.current = map;
+    const stopFollowingPixelRatio = followMapPixelRatio(map);
     const attributionSlot = attributionSlotRef?.current ?? null;
     // MapLibre opens the compact attribution expanded and only collapses it on
     // a drag, which this static preview never gets, so the panel would sit on
@@ -182,6 +183,7 @@ export default function PlanCrawlRouteMapCanvas({
       cancelAnimationFrame(drawFrame);
       drawingRef.current = false;
       themeObserver.disconnect();
+      stopFollowingPixelRatio();
       const parked = attributionSlot?.querySelector(".maplibregl-ctrl-bottom-right");
       if (parked) container.appendChild(parked);
       map.remove();

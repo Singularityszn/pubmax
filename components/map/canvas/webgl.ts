@@ -39,3 +39,43 @@ export function mapPixelRatio(devicePixelRatio = window.devicePixelRatio): numbe
   if (!Number.isFinite(devicePixelRatio) || devicePixelRatio <= 0) return 1;
   return Math.min(devicePixelRatio, MAX_MAP_PIXEL_RATIO);
 }
+
+type PixelRatioMap = {
+  getPixelRatio(): number;
+  setPixelRatio(pixelRatio: number): void;
+};
+
+/**
+ * Keep a capped map's ratio in step with the screen it is on.
+ *
+ * MapLibre reads `devicePixelRatio` afresh on every resize only while no
+ * `pixelRatio` is set; the cap is a fixed override, so browser zoom or a window
+ * dragged to another monitor would leave the canvas at the ratio it opened
+ * with, blurred on the sharper screen or paying for pixels the duller one
+ * cannot show. A `resolution` media query fires once when the ratio leaves its
+ * value, so it is re-armed at the new value on every change. Returns the
+ * teardown.
+ */
+export function followMapPixelRatio(
+  map: PixelRatioMap,
+  win: Pick<Window, "devicePixelRatio" | "matchMedia"> = window,
+): () => void {
+  let query: MediaQueryList | null = null;
+  const onChange = () => {
+    arm();
+    const next = mapPixelRatio(win.devicePixelRatio);
+    if (next !== map.getPixelRatio()) map.setPixelRatio(next);
+  };
+  const disarm = () => {
+    query?.removeEventListener("change", onChange);
+    query = null;
+  };
+  const arm = () => {
+    disarm();
+    if (typeof win.matchMedia !== "function") return;
+    query = win.matchMedia(`(resolution: ${win.devicePixelRatio}dppx)`);
+    query.addEventListener("change", onChange);
+  };
+  arm();
+  return disarm;
+}
