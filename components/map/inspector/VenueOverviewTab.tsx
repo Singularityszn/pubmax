@@ -73,6 +73,7 @@ import type { PriceEvidenceMission } from "@/lib/priceEvidenceMissions";
 import VenueCommunitySignals from "@/components/map/VenueCommunitySignals";
 import VenuePriceThen from "@/components/map/VenuePriceThen";
 import VenueAreaPriceCompare from "@/components/map/VenueAreaPriceCompare";
+import VenuePintNeedle from "@/components/map/VenuePintNeedle";
 import VenueWeatherRecommendations from "@/components/map/VenueWeatherRecommendations";
 import type { CommunityPricesState } from "@/components/map/useCommunityPrices";
 import VenueActionStrip from "@/components/map/VenueActionStrip";
@@ -1271,14 +1272,20 @@ export default function VenueOverviewTab({
       {/* Patch yardstick: this pint against the borough Pint Index average, or
           the fare-zone median when the Index has no row. Its line names the
           pint it compares ("£4.20 here."), so it reads on its own away from
-          the price block. Renders nothing without a yardstick. */}
+          the price block. Renders nothing without a yardstick.
+          Beside it, where this pint sits against its city: a half-dial of the
+          city's three price bands, read through lib/priceBand.ts like the pin,
+          so the two can never disagree. Renders nothing without a pint. */}
       {restingPintView && isPubVenue(venue) ? (
-        <VenueAreaPriceCompare
-          priceGbp={overviewPintGbp}
-          primaryBorough={venue.primaryBorough}
-          zone={venue.zone}
-          zoneIndex={zoneIndex}
-        />
+        <>
+          <VenueAreaPriceCompare
+            priceGbp={overviewPintGbp}
+            primaryBorough={venue.primaryBorough}
+            zone={venue.zone}
+            zoneIndex={zoneIndex}
+          />
+          <VenuePintNeedle venueId={venue.id} priceGbp={overviewPintGbp} />
+        </>
       ) : null}
       {/* FSA food hygiene rating (FHRS), matched by postcode + fuzzy name
           server-side. Renders nothing for an unmatched pub. */}

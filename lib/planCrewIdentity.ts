@@ -11,6 +11,7 @@ import {
   __setMemoryPlanOwnerUserId,
   claimMemoryPlanMembership,
   hashPlanMemberToken,
+  memoryPlanCrewUserIds,
   memoryPlanHostUserId,
   planMemberIdentityResult,
   planIdempotencyDigest,
@@ -285,3 +286,31 @@ export async function planHostUserId(planId: string): Promise<string | null> {
   }
 }
 
+/**
+ * Every active crew seat an account has claimed, with its account (Pals walk
+ * together). Server-only: the caller must already hold the plan's member
+ * capability, and no account id from here may leave the server.
+ */
+export async function planCrewUserIds(
+  planId: string,
+): Promise<{ ok: true; value: Array<{ memberId: string; userId: string }> } | { ok: false }> {
+  if (!isPlanId(planId)) return { ok: true, value: [] };
+  if (!isSupabaseConfigured()) return { ok: true, value: memoryPlanCrewUserIds(planId) };
+  try {
+    const { data, error } = await requireSupabaseAdmin()
+      .from(MEMBERS)
+      .select("id,user_id")
+      .eq("plan_id", planId)
+      .is("membership_revoked_at", null)
+      .not("user_id", "is", null);
+    if (error) return { ok: false };
+    return {
+      ok: true,
+      value: (data ?? [])
+        .map((row) => ({ memberId: String((row as { id: unknown }).id), userId: cleanUserId((row as { user_id: unknown }).user_id) }))
+        .filter((seat) => seat.userId.length > 0),
+    };
+  } catch {
+    return { ok: false };
+  }
+}

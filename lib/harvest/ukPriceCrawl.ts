@@ -261,6 +261,19 @@ function isFirstOfAMeasurePair(after: string): boolean {
   return /^\s*[|/]\s*£/.test(after);
 }
 
+/**
+ * A draught table that heads its columns "Half" and "Pint" once prints each line
+ * as a bare pair: "Carling 4.0% £3.60 £7.20". No measure word sits beside either
+ * figure, so the pair is read by its shape: a figure followed at once by a second
+ * figure about twice its size is the half.
+ */
+function isHalfOfABarePair(after: string, priceGbp: number): boolean {
+  const next = /^\s*£\s?(\d{1,2}(?:\.\d{1,2})?)(?!\d)/.exec(after);
+  if (!next) return false;
+  const ratio = Number(next[1]) / priceGbp;
+  return ratio >= 1.7 && ratio <= 2.3;
+}
+
 function isHalfMeasure(before: string): boolean {
   const at = before.toLowerCase().lastIndexOf("half");
   if (at < 0) return false;
@@ -866,8 +879,11 @@ function decideKeylessUkPriceAt(
   // A preceding item's printed measure cannot turn this item's pint into a
   // bottle. A paired price has no second label, so it keeps the nearby context.
   const before = drinkLabel ?? text.slice(Math.max(0, at - 30), at);
-  const after = text.slice(at + verbatim.length, at + verbatim.length + 6);
-  if (category === "beer" && (isHalfMeasure(before) || isFirstOfAMeasurePair(after))) {
+  const after = text.slice(at + verbatim.length, at + verbatim.length + 12);
+  if (
+    category === "beer" &&
+    (isHalfMeasure(before) || isFirstOfAMeasurePair(after) || isHalfOfABarePair(after, priceGbp))
+  ) {
     return { drop: "half-measure-not-a-pint" };
   }
   if (category === "beer" && isBottledMeasure(before)) {
