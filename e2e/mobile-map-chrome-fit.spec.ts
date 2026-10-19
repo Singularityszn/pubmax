@@ -1834,13 +1834,17 @@ for (const viewport of VIEWPORTS) {
 
     // The idle screen carries the location line; the answered screen carries
     // the price column, the patch-coverage note and the footer's two links.
+    // /near streams its body into a hidden segment and React swaps it in on a
+    // timer, so until that lands the document can hold the hint twice.
     const idle = await page.goto("/near");
     expect(idle?.status()).toBe(200);
+    await expectStreamedPageSettled(page);
     await expect(page.locator(".nmnHint")).toBeVisible();
     await expectTextClearOfCreateAction(page, [".nmnHint"]);
 
     const answered = await page.goto("/near?patch=soho");
     expect(answered?.status()).toBe(200);
+    await expectStreamedPageSettled(page);
     await expect(page.locator(".nmnCard").first()).toBeVisible();
     await expect(page.locator(".nmnPatchTier")).toBeVisible();
     // The collected line waits on the price-trust read, which lands after the
