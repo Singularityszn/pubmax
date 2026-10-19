@@ -1,0 +1,79 @@
+/* PalYear.tsx: the person's year read back by their Pal. Ink and tokens
+   only: it is a year read back, never a score, so nothing here is coral,
+   brass or the cheap-price green. */
+.palYear {
+  width: min(84rem, 100%);
+  margin: 0 auto;
+  padding: 20px;
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-lg);
+  background: var(--panel-raised);
+  color: var(--ink);
+}
+.palYearHead {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.palYearHead h2 {
+  margin: 0;
+  font-size: var(--text-xl);
+}
+.palYearHead .palEyebrow {
+  margin: 0;
+}
+.palYearStamp {
+  flex: 0 0 auto;
+  width: 40px;
+  height: 40px;
+  padding: 5px;
+  border: 1px dashed var(--hairline-strong);
+  border-radius: var(--radius-sm);
+}
+.palYearStamp .palPrint {
+  display: block;
+  width: 100%;
+  height: 100%;
+  padding: 0;
+  background: transparent;
+  fill: var(--ink);
+}
+.palYearLines {
+  margin: 16px 0 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 10px;
+}
+.palYearLines li {
+  padding: 12px 14px;
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--ink) 5%, var(--panel-raised));
+  font-size: var(--text-md);
+  line-height: 1.4;
+}
+.palYearEmpty {
+  margin: 16px 0 0;
+  font-size: var(--text-md);
+}
+.palYearNote {
+  margin: 12px 0 0;
+  color: var(--muted);
+  font-size: var(--text-sm);
+}
+@media (prefers-reduced-motion: no-preference) {
+  .palYearLines li {
+    animation: palYearLine 420ms cubic-bezier(0.2, 0.7, 0.2, 1) both;
+  }
+  .palYearLines li:nth-child(2) { animation-delay: 90ms; }
+  .palYearLines li:nth-child(3) { animation-delay: 180ms; }
+  .palYearLines li:nth-child(4) { animation-delay: 270ms; }
+  .palYearLines li:nth-child(5) { animation-delay: 360ms; }
+  .palYearLines li:nth-child(6) { animation-delay: 450ms; }
+}
+@keyframes palYearLine {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+}

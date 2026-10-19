@@ -416,6 +416,33 @@ describe("the Pal on the map", () => {
     marker.destroy();
   });
 
+  it("walks a crew member's Pal a step behind, with no stored Pal of the reader's own", () => {
+    const crewPal = pal({ id: "cccccccc-cccc-4ccc-8ccc-cccccccccccc", name: "Moss" });
+    const first = createPalMapMarker(map, { pal: crewPal, index: 0 });
+    const second = createPalMapMarker(map, { pal: crewPal, index: 1 });
+    first.perch([-0.1, 51.5]);
+    second.perch([-0.1, 51.5]);
+    const [a, b] = markerHarness.instances;
+    expect(a!.options.element.classList.contains("isCrew")).toBe(true);
+    expect(a!.options.element.dataset.palCrew).toBe("0");
+    expect(b!.options.element.dataset.palCrew).toBe("1");
+    expect(a!.options.offset).toEqual([14 + 24, -12]);
+    expect(b!.options.offset).toEqual([14 + 48, -12]);
+    first.destroy();
+    second.destroy();
+  });
+
+  it("never lets a crew Pal answer the reader's own Pal moments", () => {
+    const crewMarker = createPalMapMarker(map, { pal: pal({ name: "Moss" }), index: 0 });
+    crewMarker.perch([-0.1, 51.5]);
+    announcePalMoment({ kind: "crawl-finished", stops: 2 });
+    announcePalMoment({ kind: "price-added" });
+    const element = markerHarness.instances[0]!.options.element;
+    expect(element.classList.contains("isVictory")).toBe(false);
+    expect(element.classList.contains("isCheering")).toBe(false);
+    crewMarker.destroy();
+  });
+
   it("celebrates beside a perched pub, and not at all once gone", () => {
     store(pal());
     const marker = createPalMapMarker(map);
