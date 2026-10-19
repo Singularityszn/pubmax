@@ -68,7 +68,21 @@ describe("the Pal's evening question", () => {
     expect(msUntilPalNightBoundary(LONDON_NOON)).toBe(12 * 60 * 60_000);
   });
 
-  it("hands the planner a plan of the size it promises, cheapest first, for tonight", () => {
+  it("lands on London noon on both clock-change days", () => {
+    // 29 March 2026, 00:30 GMT: the clocks go forward at 01:00, so noon BST is 10.5 hours away.
+    const spring = new Date("2026-03-29T00:30:00Z");
+    expect(msUntilPalNightBoundary(spring)).toBe(10.5 * 60 * 60_000);
+    expect(new Date(spring.getTime() + msUntilPalNightBoundary(spring)).toISOString()).toBe("2026-03-29T11:00:00.000Z");
+    // 25 October 2026, 00:30 BST: the clocks go back at 02:00, so noon GMT is 12.5 hours away.
+    const autumn = new Date("2026-10-24T23:30:00Z");
+    expect(msUntilPalNightBoundary(autumn)).toBe(12.5 * 60 * 60_000);
+    expect(new Date(autumn.getTime() + msUntilPalNightBoundary(autumn)).toISOString()).toBe("2026-10-25T12:00:00.000Z");
+    // The evening before each change still closes at London midnight.
+    expect(msUntilPalNightBoundary(new Date("2026-03-28T23:30:00Z"))).toBe(30 * 60_000);
+    expect(msUntilPalNightBoundary(new Date("2026-10-24T22:30:00Z"))).toBe(30 * 60_000);
+  });
+
+  it("hands the planner a plan of the size, mood and value budget it promises, for tonight", () => {
     const shapes = Object.fromEntries(PAL_NIGHT_CHOICES.map((choice) => {
       const { context } = inferNightContext(choice.plan, LONDON_NOON);
       return [choice.id, { stops: context.stopCount, budget: context.budget, daypart: context.daypart, atmosphere: context.atmosphere }];
@@ -159,9 +173,9 @@ describe("the question on /pal", () => {
     expect(host.textContent).toContain(PAL_NIGHT_QUESTION);
     const links = [...host.querySelectorAll<HTMLAnchorElement>("a.palChoice")];
     expect(links.map((link) => link.textContent)).toEqual([
-      "Quiet coupleTwo pubs, nothing pricey",
-      "Proper seshFour pubs, cheapest first",
-      "Absolute carnageSix pubs, cheapest first",
+      "Quiet coupleTwo quiet pubs, on a budget",
+      "Proper seshFour lively pubs, on a budget",
+      "Absolute carnageSix lively pubs, on a budget",
     ]);
     expect(links.map((link) => new URL(link.href).searchParams.get("query"))).toEqual(PAL_NIGHT_CHOICES.map((choice) => choice.plan));
     expect(links.every((link) => new URL(link.href).pathname === "/plan")).toBe(true);
@@ -172,7 +186,7 @@ describe("the question on /pal", () => {
     const sesh = [...host.querySelectorAll<HTMLAnchorElement>("a.palChoice")][1]!;
     sesh.addEventListener("click", (event) => event.preventDefault());
     await act(async () => sesh.click());
-    expect(host.querySelector("[role='status']")?.textContent).toBe("Proper sesh it is. Four pubs, cheapest first.");
+    expect(host.querySelector("[role='status']")?.textContent).toBe("Proper sesh it is. Four lively pubs, on a budget.");
     const open = [...host.querySelectorAll<HTMLAnchorElement>("a")].find((link) => link.textContent === "Open the plan")!;
     expect(new URL(open.href).searchParams.get("query")).toBe("4 pubs tonight, lively and cheap");
     expect(JSON.parse(window.localStorage.getItem(PAL_NIGHT_ANSWER_STORAGE_KEY) ?? "null")?.answer).toBe("sesh");
@@ -253,7 +267,7 @@ describe("the question on /pal", () => {
     writePalNightAnswer(window.localStorage, "quiet", LONDON_LATE);
     await render();
     expect(host.textContent).not.toContain(PAL_NIGHT_QUESTION);
-    expect(host.querySelector("[role='status']")?.textContent).toBe("A quiet couple it is. Two pubs, nothing pricey.");
+    expect(host.querySelector("[role='status']")?.textContent).toBe("A quiet couple it is. Two quiet pubs, on a budget.");
   });
 
   it("starts asking at noon on a page left open since the morning", async () => {
@@ -280,7 +294,7 @@ describe("the question on /pal", () => {
     });
     expect(host.textContent).not.toContain(PAL_NIGHT_QUESTION);
     expect(host.querySelector("[role='status']")?.textContent).toBe(
-      "Absolute carnage it is. Six pubs, cheapest first, and mind the last train.",
+      "Absolute carnage it is. Six lively pubs, on a budget, and mind the last train.",
     );
   });
 

@@ -1,6 +1,6 @@
 // "What kind of night is it?": the Pal's question on /pal, asked once an
 // evening. Cheeky pub language, never a drink nudge: each answer is the shape
-// of a plan (how many pubs, how lively, cheapest first), handed to /plan as the
+// of a plan (how many pubs, how lively, on a budget), handed to /plan as the
 // words the planner already reads (lib/nightPlanning.ts), and no answer counts
 // drinks. Asked from noon to midnight London time; the small hours belong to
 // "get home" (lib/palSummonLine.ts), so it is never asked then.
@@ -21,7 +21,7 @@ export type PalNightChoice = {
   reply: string;
   /** The night in the invite the person sends: "Ripley's planning a proper sesh tonight." */
   invite: string;
-  /** The plan in the planner's own words: stops, mood and cheapest first. */
+  /** The plan in the planner's own words: stops, mood and a value budget. */
   plan: string;
 };
 
@@ -29,24 +29,24 @@ export const PAL_NIGHT_CHOICES: readonly PalNightChoice[] = [
   {
     id: "quiet",
     label: "Quiet couple",
-    hint: "Two pubs, nothing pricey",
-    reply: "A quiet couple it is. Two pubs, nothing pricey.",
+    hint: "Two quiet pubs, on a budget",
+    reply: "A quiet couple it is. Two quiet pubs, on a budget.",
     invite: "a quiet couple",
     plan: "2 pubs tonight, quiet and not pricey",
   },
   {
     id: "sesh",
     label: "Proper sesh",
-    hint: "Four pubs, cheapest first",
-    reply: "Proper sesh it is. Four pubs, cheapest first.",
+    hint: "Four lively pubs, on a budget",
+    reply: "Proper sesh it is. Four lively pubs, on a budget.",
     invite: "a proper sesh",
     plan: "4 pubs tonight, lively and cheap",
   },
   {
     id: "carnage",
     label: "Absolute carnage",
-    hint: "Six pubs, cheapest first",
-    reply: "Absolute carnage it is. Six pubs, cheapest first, and mind the last train.",
+    hint: "Six lively pubs, on a budget",
+    reply: "Absolute carnage it is. Six lively pubs, on a budget, and mind the last train.",
     invite: "absolute carnage",
     plan: "6 pubs tonight, lively and cheap",
   },
@@ -64,11 +64,18 @@ export function palNightQuestionOpen(now: Date): boolean {
 /**
  * How long until the question next opens (noon) or closes (midnight), London
  * time, so a page left open re-checks at the boundary rather than on a poll.
+ * A clock change before the boundary makes that day 23 or 25 hours long, so
+ * the wall-clock gap is corrected by where London's clock really lands.
  */
 export function msUntilPalNightBoundary(now: Date): number {
   const sinceMidnight = londonMsSinceMidnight(now);
   const noon = PAL_NIGHT_QUESTION_FROM_HOUR * 60 * 60 * 1000;
-  return (sinceMidnight < noon ? noon : LONDON_DAY_MS) - sinceMidnight;
+  const goal = sinceMidnight < noon ? noon : 0;
+  const gap = (sinceMidnight < noon ? noon : LONDON_DAY_MS) - sinceMidnight;
+  let drift = londonMsSinceMidnight(new Date(now.getTime() + gap)) - goal;
+  if (drift > LONDON_DAY_MS / 2) drift -= LONDON_DAY_MS;
+  if (drift < -LONDON_DAY_MS / 2) drift += LONDON_DAY_MS;
+  return gap - drift;
 }
 
 /**

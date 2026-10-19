@@ -64,7 +64,7 @@ test("the Pal asks what kind of night it is, and the answer opens that plan", as
   // Back on /pal the same evening, the Pal answers instead of asking again.
   await page.goto("/pal");
   const answered = page.getByTestId("pal-night-question");
-  await expect(answered.getByRole("status")).toHaveText("Proper sesh it is. Four pubs, cheapest first.", { timeout: 60_000 });
+  await expect(answered.getByRole("status")).toHaveText("Proper sesh it is. Four lively pubs, on a budget.", { timeout: 60_000 });
   await expect(answered.getByRole("link", { name: "Open the plan" })).toBeVisible();
   await expect(async () => {
     await answered.scrollIntoViewIfNeeded();
@@ -119,7 +119,7 @@ test("once tonight's plan is saved, the Pal hands out the crew link", async ({ p
   await page.goto("/pal");
 
   const card = page.getByTestId("pal-night-question");
-  await expect(card.getByRole("status").first()).toHaveText("Proper sesh it is. Four pubs, cheapest first.", { timeout: 60_000 });
+  await expect(card.getByRole("status").first()).toHaveText("Proper sesh it is. Four lively pubs, on a budget.", { timeout: 60_000 });
   const who = card.getByRole("button", { name: "Who's coming?" });
   await expect(who).toBeVisible({ timeout: 30_000 });
   // The page renders again as the server's Pal and the plan read land.
