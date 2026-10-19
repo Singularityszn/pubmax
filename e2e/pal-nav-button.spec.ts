@@ -91,6 +91,26 @@ for (const width of [320, 390]) {
   }
 }
 
+test("on a short phone the face sits inside the rail, clear of the page above it", async ({ page }) => {
+  test.setTimeout(120_000);
+  await page.setViewportSize({ width: 320, height: 568 });
+  await seed(page, { theme: "light", withPal: true });
+  await page.goto("/tonight");
+  const dock = page.getByRole("navigation", { name: "Primary" });
+  const door = dock.getByRole("link", { name: "Pub Pal, Ripley", exact: true });
+  await expect(door).toBeVisible({ timeout: 60_000 });
+  await expect(dock.getByRole("link")).toHaveText(["Map", "Tonight", "Pal", "Plan", "Social", "You"]);
+  const rail = (await page.locator(".mobileTabList").boundingBox())!;
+  const face = (await door.locator(".palNavFace").boundingBox())!;
+  expect(face.y).toBeGreaterThanOrEqual(rail.y);
+  expect(face.y + face.height).toBeLessThanOrEqual(rail.y + rail.height);
+  const doorBox = (await door.boundingBox())!;
+  expect(Math.min(doorBox.width, doorBox.height)).toBeGreaterThanOrEqual(44);
+  await page.waitForTimeout(600);
+  await mkdir(SHOTS, { recursive: true });
+  await page.screenshot({ path: `${SHOTS}/dock-320x568.png`, clip: { x: 0, y: rail.y - 40, width: 320, height: 568 - (rail.y - 40) } });
+});
+
 test("the desktop bar names the person's Pal and opens /pal", async ({ page }) => {
   test.setTimeout(120_000);
   await page.setViewportSize({ width: 1280, height: 800 });

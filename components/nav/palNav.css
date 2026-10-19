@@ -79,6 +79,37 @@
   }
 }
 
+/* A SHORT PHONE HAS NO ROOM ABOVE THE RAIL. At 568px tall a page's primary
+   action can end on the rail's own top edge (the Social Sign in does at the
+   large text scale, e2e/consent-after-first-answer.spec.ts), and a face risen
+   26px over it would cover half of it. Below 600px tall the face sits inside
+   the rail, and its word is kept for the accessible name only, because the
+   face and the word do not both fit the rail's 44px. */
+@media (max-width: 640px) and (max-height: 600px) {
+  .mobileTabPal {
+    justify-content: center;
+    padding: 0 2px;
+  }
+  .mobileTabPal .palNavFace {
+    width: 40px;
+    height: 40px;
+    margin-top: 0;
+    border-width: 2px;
+    box-shadow: none;
+  }
+  .mobileTabPal.isActive .palNavFace {
+    border-width: 3px;
+  }
+  .mobileTabPal .mobileTabLabel {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+}
+
 /* ── The desktop bar ────────────────────────────────────────────────────── */
 .siteNavPal {
   display: inline-flex;
