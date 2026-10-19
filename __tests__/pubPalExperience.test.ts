@@ -476,6 +476,56 @@ describe("Pub Pal control saving", () => {
     expect(portraitState()).toBe("sleeping");
   });
 
+  it("leaves no animation timer behind when the page closes mid-stretch", async () => {
+    await act(async () => root?.unmount());
+    const ownerId = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
+    const timestamp = "2026-10-04T12:00:00.000Z";
+    let pal: PubPal = {
+      id: "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",
+      ownerId,
+      name: "Moss",
+      adultAttestedAt: timestamp,
+      appearance: DEFAULT_PAL_DRAFT.appearance,
+      personality: DEFAULT_PAL_DRAFT.personality,
+      voice: DEFAULT_PAL_DRAFT.voice,
+      muted: true,
+      hidden: false,
+      proposalPreferences: { memories: false, routes: true },
+      masteryPoints: 0,
+      createdAt: timestamp,
+      updatedAt: timestamp,
+    };
+    authState.current = { user: { id: ownerId }, loading: false, configured: true };
+    transport.request.mockImplementation(async (input, init) => {
+      if (input === "/api/pub-pal" && init?.method === "PATCH") {
+        pal = { ...pal, ...(JSON.parse(String(init.body)) as Partial<PubPal>) };
+        return Response.json({ pal });
+      }
+      if (input === "/api/pub-pal") return Response.json({ pal, adultOnFile: true });
+      if (input === "/api/pub-pal/memories") return Response.json({ memories: [] });
+      throw new Error(`Unexpected Pal request: ${String(input)}`);
+    });
+    root = createRoot(container);
+    await act(async () => root?.render(createElement(PalExperience)));
+    await settle();
+
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    try {
+      await act(async () => buttonContaining("Tap to allow voice").click());
+      await act(async () => { await vi.advanceTimersByTimeAsync(100); });
+      expect(container.querySelector(".palHomePortrait .palPortrait")?.getAttribute("data-pal-state")).toBe("waking");
+      const errors = vi.spyOn(console, "error").mockImplementation(() => undefined);
+      await act(async () => root?.unmount());
+      root = null;
+      // The stretch would end at 1.4 seconds; after unmount nothing is left to fire.
+      expect(vi.getTimerCount()).toBe(0);
+      vi.advanceTimersByTime(5_000);
+      expect(errors).not.toHaveBeenCalled();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it("tells the Pal's door in this same tab each time it saves the Pal", async () => {
     await act(async () => root?.unmount());
     const ownerId = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
