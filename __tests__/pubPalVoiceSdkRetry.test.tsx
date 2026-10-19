@@ -17,6 +17,10 @@ type FakeConversation = {
   endSession: ReturnType<typeof vi.fn<() => Promise<void>>>;
   setMicMuted: ReturnType<typeof vi.fn>;
   sendUserMessage: ReturnType<typeof vi.fn>;
+  getInputVolume: () => number;
+  getOutputVolume: () => number;
+  getInputByteFrequencyData: () => Uint8Array;
+  getOutputByteFrequencyData: () => Uint8Array;
 };
 
 const client = vi.hoisted(() => ({
@@ -55,6 +59,12 @@ function fakeConversation(options: FakeSessionOptions, id: string): FakeConversa
     getId: () => id,
     setMicMuted: vi.fn(),
     sendUserMessage: vi.fn(),
+    // The level meter reads these on every animation frame while a session
+    // is live. Without them a frame that lands mid-test throws in the SDK.
+    getInputVolume: () => 0,
+    getOutputVolume: () => 0,
+    getInputByteFrequencyData: () => new Uint8Array(0),
+    getOutputByteFrequencyData: () => new Uint8Array(0),
     endSession: vi.fn(async () => {
       options.onStatusChange?.({ status: "disconnected" });
       options.onDisconnect?.({ reason: "user" });
