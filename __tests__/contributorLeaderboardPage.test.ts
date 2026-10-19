@@ -38,17 +38,21 @@ describe("ContributorRecord", () => {
     });
 
     expect(html).toContain("Contributor record");
-    expect(html).toContain(
-      "All visible identity-backed contributions, all time",
-    );
+    // The window rides in the lede in plain words. The pill that printed it
+    // looked like a control and was not (taste pass, 18 Oct 2026).
+    expect(html).toContain("counted over all time");
+    expect(html).not.toContain("contributorWindow");
     expect(html.match(/class="contributorRank"[^>]*>1</g)).toHaveLength(2);
     expect(html).toContain('href="/u/alex"');
-    expect(html).toContain("Prices");
-    expect(html).toContain("Visit Reports");
-    expect(html).toContain("Recommendations");
-    expect(html).toContain("Legacy price logs without a handle are not ranked");
-    expect(html).toContain("Only identity-backed contributions are ranked");
+    // A lane with nothing in it is left out of the row's line.
+    expect(html).toContain("1 Visit Report · 1 Recommendation");
+    expect(html).toContain("1 price · 1 Visit Report");
+    expect(html).toContain("Equal totals share a place");
+    // The record is rows on hairlines, not a stack of cards.
+    expect(html).toContain('class="rowList contributorList"');
     expect(html).not.toMatch(/winner|points|score/i);
+    // Plumbing words stay off the screen (docs/VOICE.md).
+    expect(html).not.toMatch(/identity-backed/i);
   });
 
   it("states a failed read without turning it into contributor absence", () => {
@@ -61,11 +65,9 @@ describe("ContributorRecord", () => {
       entries: [],
     });
 
-    expect(html).toContain("All-time record unavailable");
-    expect(html).toContain(
-      "couldn&#x27;t check the full identity-backed record",
-    );
-    expect(html).toContain("Only identity-backed contributions are ranked");
+    expect(html).toContain("Record unavailable");
+    expect(html).toContain("We could not load the record just now");
+    expect(html).toContain("no partial totals are shown");
     expect(html).not.toMatch(/no contributors|nobody has contributed/i);
   });
 
@@ -79,9 +81,8 @@ describe("ContributorRecord", () => {
       entries: [],
     });
 
-    expect(html).toContain(
-      "Visible named posts can still sit outside this identity-backed record",
-    );
+    expect(html).toContain('class="emptyStateTitle">The record starts with the first pint');
+    expect(html).toContain("Log a price with a public profile and it counts here.");
     expect(html).not.toContain("First public names land here");
     expect(html).not.toMatch(/no contributors|nobody has contributed/i);
   });

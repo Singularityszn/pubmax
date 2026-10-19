@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { BookOpen, ExternalLink } from "lucide-react";
+import { PintPriceBadge } from "@/components/PriceBadge";
 import { useStaggeredRead } from "@/lib/useStaggeredRead";
 
 import { ClaimBadge } from "@/components/map/venueInspectorBits";
@@ -162,7 +163,7 @@ export default function VenueStoryTab({
                       rel="noopener noreferrer"
                     >
                       Source
-                      <ExternalLink size={13} />
+                      <ExternalLink size={14} />
                     </a>
                   ) : null}
                 </div>
@@ -188,7 +189,7 @@ export default function VenueStoryTab({
               rel="noopener noreferrer"
             >
               Story source
-              <ExternalLink size={13} />
+              <ExternalLink size={14} />
             </a>
           ) : null}
         </div>
@@ -211,7 +212,7 @@ export default function VenueStoryTab({
               {claim.sourceRef ? (
                 <a href={claim.sourceRef} target="_blank" rel="noreferrer">
                   {claim.label}
-                  <ExternalLink size={13} />
+                  <ExternalLink size={14} />
                 </a>
               ) : null}
             </div>
@@ -272,7 +273,7 @@ export default function VenueStoryTab({
                         rel="noreferrer"
                       >
                         {source.label}
-                        <ExternalLink size={13} />
+                        <ExternalLink size={14} />
                       </a>
                     ) : null}
                   </div>
@@ -300,7 +301,11 @@ export default function VenueStoryTab({
         {venue.prices.slice(0, 6).map((price) => (
           <div key={price.app_price_id}>
             <span>{price.pint_name}</span>
-            <strong>{formatPrice(price.price_gbp)}</strong>
+            {price.price_gbp === null ? (
+              <span>{formatPrice(null)}</span>
+            ) : (
+              <PintPriceBadge priceGbp={price.price_gbp} venueId={venue.id} />
+            )}
           </div>
         ))}
       </div>

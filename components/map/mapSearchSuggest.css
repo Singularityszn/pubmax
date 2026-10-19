@@ -69,7 +69,7 @@
 .mapSearchSuggest--toolbar > label {
   min-height: 44px;
   border: 0;
-  border-radius: 10px;
+  border-radius: var(--radius);
   background: transparent;
   padding-inline: 10px;
 }
@@ -78,7 +78,7 @@
   width: 100%;
   min-width: 0;
   min-height: 44px;
-  font-size: 0.85rem;
+  font-size: var(--text-sm);
 }
 
 .mapSearchSuggest--toolbar .mapSearchSuggestPanel {
@@ -90,9 +90,9 @@
 }
 
 .mapSearchSuggestPanel {
-  border: 1px solid var(--color-border, var(--line));
-  border-radius: var(--radius, 12px);
-  background: var(--color-surface-raised, var(--panel-raised));
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  background: var(--color-surface-raised);
   box-shadow: var(--shadow-md, 0 12px 30px rgba(0, 0, 0, 0.18));
   overflow: hidden;
   animation: mapSearchSuggestIn 140ms ease;
@@ -115,7 +115,7 @@
 }
 
 .mapSearchSuggestGroup + .mapSearchSuggestGroup {
-  border-top: 1px solid var(--color-border-soft, var(--line-soft, var(--line)));
+  border-top: 1px solid var(--color-border-soft);
 }
 
 .mapSearchSuggestGroupHead {
@@ -125,18 +125,18 @@
   gap: 8px;
   margin: 0;
   padding: 8px 14px 4px;
-  font-size: 0.68rem;
+  font-size: var(--text-2xs);
   font-weight: 750;
   text-transform: uppercase;
   letter-spacing: 0.06em;
-  color: var(--color-text-muted, var(--muted));
+  color: var(--color-text-muted);
 }
 
 .mapSearchSuggestOrigin {
   text-transform: none;
   letter-spacing: 0;
   font-weight: 600;
-  font-size: 0.66rem;
+  font-size: var(--text-2xs);
   opacity: 0.85;
 }
 
@@ -149,13 +149,18 @@
   min-height: 44px;
   padding: 6px 14px;
   cursor: pointer;
-  color: var(--color-text, var(--ink));
+  color: var(--color-text);
   transition: background-color 120ms ease;
 }
 
-.mapSearchSuggestRow.isActive,
-.mapSearchSuggestRow:hover {
-  background: var(--state-active-surface, color-mix(in srgb, var(--color-accent, var(--brass)) 12%, transparent));
+.mapSearchSuggestRow.isActive {
+  background: var(--state-active-surface);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .mapSearchSuggestRow:hover {
+    background: var(--state-active-surface);
+  }
 }
 
 /* The quiet labels (type, borough) drop under the name when the name needs the
@@ -171,22 +176,22 @@
 
 .mapSearchSuggestRowIcon {
   flex: none;
-  color: var(--color-text-muted, var(--muted));
+  color: var(--color-text-muted);
 }
 
 /* The name is the row. It wraps to a second line rather than losing its end to
    an ellipsis: "King's ..." and "Shore..." are not places a reader can pick. */
 .mapSearchSuggestRowName {
   min-width: 0;
-  font-size: 0.94rem;
+  font-size: var(--text-base);
   font-weight: 650;
   overflow-wrap: anywhere;
 }
 
 .mapSearchSuggestBorough {
   flex: none;
-  font-size: 0.72rem;
-  color: var(--color-text-muted, var(--muted));
+  font-size: var(--text-xs);
+  color: var(--color-text-muted);
 }
 
 /* The price and the distance keep their width. A wrapping name asks for more
@@ -206,9 +211,9 @@
   align-items: flex-end;
   max-width: 180px;
   min-width: 0;
-  font-size: 0.86rem;
+  font-size: var(--text-sm);
   font-weight: 700;
-  color: var(--color-text, var(--ink));
+  color: var(--color-text);
 }
 
 .mapSearchSuggestPrice > span,
@@ -219,15 +224,15 @@
 }
 
 .mapSearchSuggestPriceProvenance {
-  font-size: 0.66rem;
+  font-size: var(--text-2xs);
   font-weight: 500;
-  color: var(--color-text-muted, var(--muted));
+  color: var(--color-text-muted);
 }
 
 .mapSearchSuggestDistance {
   flex: none;
-  font-size: 0.74rem;
-  color: var(--color-text-muted, var(--muted));
+  font-size: var(--text-xs);
+  color: var(--color-text-muted);
   white-space: nowrap;
 }
 
@@ -235,9 +240,9 @@
   display: grid;
   gap: 4px;
   min-height: 72px;
-  border-top: 1px solid var(--color-border-soft, var(--line-soft, var(--line)));
+  border-top: 1px solid var(--color-border-soft);
   padding: 14px;
-  color: var(--color-text-soft, var(--ink-soft, var(--ink)));
+  color: var(--color-text-soft);
 }
 
 .mapSearchSuggestEmptyTitle,
@@ -246,14 +251,14 @@
 }
 
 .mapSearchSuggestEmptyTitle {
-  font-size: 0.9rem;
+  font-size: var(--text-sm);
   font-weight: 700;
-  color: var(--color-text, var(--ink));
+  color: var(--color-text);
 }
 
 .mapSearchSuggestEmptyHint {
   max-width: 38ch;
-  font-size: 0.78rem;
+  font-size: var(--text-xs);
   line-height: 1.45;
 }
 
@@ -263,9 +268,9 @@
   min-height: 44px;
   display: inline-flex;
   align-items: center;
-  font-size: 0.82rem;
+  font-size: var(--text-sm);
   font-weight: 700;
-  color: var(--tint-ink-accent, var(--ink));
+  color: var(--ink);
   text-decoration: underline;
   text-underline-offset: 3px;
 }

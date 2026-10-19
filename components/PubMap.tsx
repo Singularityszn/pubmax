@@ -1199,12 +1199,12 @@ function MobileMapTonightLens({
       aria-label={tonightLens.ariaLabel}
       onClick={onOpen}
     >
-      <CalendarClock size={18} aria-hidden="true" />
+      <CalendarClock size={16} aria-hidden="true" />
       <span className="mobileMapTonightLensText">
         <strong>{tonightLens.label}</strong>
         <small>{tonightLens.count} {tonightLens.count === 1 ? "listing" : "listings"}{nearReader ? " near you" : " in London"}</small>
       </span>
-      <ChevronRight size={18} aria-hidden="true" className="mobileMapTonightLensChevron" />
+      <ChevronRight size={16} aria-hidden="true" className="mobileMapTonightLensChevron" />
     </button>
   );
 }
@@ -6169,7 +6169,7 @@ export default function PubMap({
         <TabsContent value="layers" className="mobileLayersPanel">
           <div className="mobileLayerShortcuts">
             <Button className="mobilePlannerLaunch w-full uiButton--start" onClick={openPlanning}>
-              <MapPinned size={18} aria-hidden="true" />
+              <MapPinned size={16} aria-hidden="true" />
               Plan an outing
             </Button>
             {isLondon ? (
@@ -6180,7 +6180,7 @@ export default function PubMap({
                 aria-label="On tonight near you"
                 onClick={() => changeMapOverlay("tonight")}
               >
-                <CalendarClock size={18} aria-hidden="true" />
+                <CalendarClock size={16} aria-hidden="true" />
                 On tonight
               </Button>
             ) : null}
@@ -6195,7 +6195,7 @@ export default function PubMap({
                 changeMapOverlay("none");
               }}
             >
-              <List size={18} aria-hidden="true" />
+              <List size={16} aria-hidden="true" />
               {mapListOpen ? "Hide venue list" : "List view"}
             </Button>
             {/* Pub Pal left the one top bar so the place name beside the
@@ -6223,7 +6223,7 @@ export default function PubMap({
             disabled={!cameraReset}
             onClick={() => cameraReset?.run()}
           >
-            <Navigation2 size={18} aria-hidden="true" />
+            <Navigation2 size={16} aria-hidden="true" />
             Reset view
           </Button>
           <MapLayersControl embedded poiHidden={poiHidden} onPoiHiddenChange={setPoiHidden} activeBandId={activeBandId} onBandChange={setActiveBandId} storyBands={cityStoryBands} cityId={cityId} />
@@ -6705,7 +6705,7 @@ export default function PubMap({
                 : "map-selection-lookup-failed"
           }
         >
-          <MapPinned className="ukPlaceArrivalIcon" size={18} aria-hidden="true" />
+          <MapPinned className="ukPlaceArrivalIcon" size={16} aria-hidden="true" />
           <span className="ukPlaceArrivalCopy">
             <strong>{mapSelectionNoticeCopy(selectionNotice, retiredSelectionName)}</strong>
           </span>
@@ -6718,7 +6718,7 @@ export default function PubMap({
             }}
             aria-label="Dismiss pub lookup note"
           >
-            <X size={18} aria-hidden="true" />
+            <X size={20} aria-hidden="true" />
           </button>
         </aside>
       ) : !mapAmbientBannersVisible({ canvasUnavailable: mapCanvasUnavailable }) ? null : ukPlaceArrival ? (

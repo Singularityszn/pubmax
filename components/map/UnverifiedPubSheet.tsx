@@ -73,13 +73,13 @@ export function HarvestOverlayFields({ overlay }: { overlay: PublicHarvestOverla
           {overlay.website ? (
             <a href={overlay.website} target="_blank" rel="noopener noreferrer">
               Pub website
-              <ExternalLink size={13} aria-hidden="true" />
+              <ExternalLink size={14} aria-hidden="true" />
             </a>
           ) : null}
           {overlay.menuUrl ? (
             <a href={overlay.menuUrl} target="_blank" rel="noopener noreferrer">
               Look at the menu
-              <ExternalLink size={13} aria-hidden="true" />
+              <ExternalLink size={14} aria-hidden="true" />
             </a>
           ) : null}
         </div>
@@ -91,7 +91,7 @@ export function HarvestOverlayFields({ overlay }: { overlay: PublicHarvestOverla
             <span>Web</span>
             <a href={overlay.lore.sourceRef} target="_blank" rel="noopener noreferrer">
               Source
-              <ExternalLink size={13} aria-hidden="true" />
+              <ExternalLink size={14} aria-hidden="true" />
             </a>
           </div>
         </div>
@@ -216,7 +216,7 @@ export default function UnverifiedPubSheet({
     <div className="unverifiedPub">
       <div className="unverifiedPubHead">
         <span className="unverifiedPubTag">
-          <Sparkles size={12} aria-hidden="true" />
+          <Sparkles size={14} aria-hidden="true" />
           {communityPrice
             ? "Community price"
             : pricesKnown
@@ -228,7 +228,7 @@ export default function UnverifiedPubSheet({
         <UnverifiedPubName pub={pub} />
         {detailVenue.address ? (
           <p className="unverifiedPubAddress">
-            <MapPin size={13} aria-hidden="true" />
+            <MapPin size={14} aria-hidden="true" />
             {detailVenue.address}
           </p>
         ) : null}

@@ -13,9 +13,9 @@
   height: 100%;
   overflow: hidden;
   border-radius: 50%;
-  border: 2px solid var(--panel-raised, #fffdf9);
-  box-shadow: 0 .35rem .8rem color-mix(in srgb, var(--ink-deep, #0c0c0e) 35%, transparent);
-  background: var(--ink-deep, #0c0c0e);
+  border: 2px solid var(--panel-raised);
+  box-shadow: var(--map-overlay-shadow-tight);
+  background: var(--ink-deep);
   transform-origin: 50% 100%;
 }
 .palMapMarkerBody img {
@@ -47,10 +47,11 @@
   height: .4rem;
   margin: -.2rem 0 0 -.2rem;
   border-radius: 50%;
-  background: var(--brass, #ff5a5f);
+  /* No coral on the map's chrome: the sparks are the pint's green and amber. */
+  background: var(--amber);
   opacity: 0;
 }
-.palMapSparks i:nth-child(even) { background: var(--pint, #18a76d); }
+.palMapSparks i:nth-child(even) { background: var(--pint); }
 
 @media (prefers-reduced-motion: no-preference) {
   .palMapMarker.isLanding .palMapMarkerBody { animation: palMapLand .55s cubic-bezier(.2, .9, .3, 1.25) both; }

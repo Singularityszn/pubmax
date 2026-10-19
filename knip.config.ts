@@ -168,6 +168,7 @@ const config: KnipConfig = {
     "scripts/gen-pubpal-mascot.mjs",
     "scripts/gen-store-assets.mjs",
     "scripts/landing/build-landing-map.mjs",
+    "scripts/landing/build-london-collage.mjs",
     "scripts/landing/build-landing-photos.mjs",
     "scripts/harvest/uk-pubs/start-bars-when-pubs-done.mjs",
 

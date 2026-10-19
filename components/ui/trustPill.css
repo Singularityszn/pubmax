@@ -73,8 +73,10 @@
   text-decoration: underline;
 }
 
-.trustPillMethodLink:hover {
-  color: var(--color-text);
+@media (hover: hover) and (pointer: fine) {
+  .trustPillMethodLink:hover {
+    color: var(--color-text);
+  }
 }
 
 .trustPillBasis {

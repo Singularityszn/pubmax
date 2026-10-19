@@ -99,7 +99,9 @@ test.describe("mobile Activity", () => {
     await expect(page.getByRole("heading", { name: "Activity", exact: true })).toBeVisible();
     // EmptyState (#1365) prints its title as a line under the Screen's one h1.
     await expect(page.getByText("Nothing's landed yet.", { exact: true })).toBeVisible();
-    await expectTappable(page.getByRole("link", { name: "Open Social" }), "Open Social CTA");
+    // The empty state carries no door of its own: the head's quiet "Find your
+    // lot" already goes to /social (taste pass, 18 Oct 2026).
+    await expectTappable(page.getByRole("link", { name: "Find your lot" }), "Find your lot link");
 
     const siteNav = page.getByRole("navigation", { name: "Site navigation" });
     await expectTappable(siteNav.getByLabel("Open PUBMAXX landing page"), "mobile site wordmark");
@@ -122,9 +124,10 @@ test.describe("mobile Activity", () => {
   test("empty state feeds the growth loop without clipping", async ({ page }) => {
     await page.goto("/activity");
 
-    // Since the unified Social shell (#765) the empty state's one way onward
-    // is Social itself; /feed is a retired alias of it.
-    await page.getByRole("link", { name: "Open Social" }).click();
+    // Since the unified Social shell (#765) the way onward from an empty feed
+    // is Social itself; /feed is a retired alias of it. The head's quiet link
+    // is that one door, so the empty state does not print a second.
+    await page.getByRole("link", { name: "Find your lot" }).click();
     await expect(page).toHaveURL(/\/social$/);
     await expect(page.getByRole("navigation", { name: "Primary" })).toBeVisible();
     await expectNoHorizontalOverflow(page);

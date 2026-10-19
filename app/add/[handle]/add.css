@@ -5,7 +5,6 @@
 .addShell {
   min-height: 100dvh;
   background: var(--paper);
-  padding-bottom: var(--mobile-tab-clearance, 96px);
 }
 
 /* Host for the confirm card. Phone: full-width stack under the nav.
@@ -30,7 +29,7 @@
   display: none;
   margin: 12px auto 0;
   color: var(--muted);
-  font-size: 0.75rem;
+  font-size: var(--text-xs);
   font-weight: 600;
   letter-spacing: 0.04em;
   text-transform: uppercase;
@@ -63,9 +62,9 @@
     max-width: 480px;
     margin: 0;
     border: 1px solid var(--line);
-    border-radius: 18px;
+    border-radius: var(--radius-lg);
     background: var(--panel-raised);
-    box-shadow: var(--shadow-sm, 0 7px 18px rgba(60, 30, 20, 0.09));
+    box-shadow: var(--shadow-sm);
   }
 
   .confirmFollow {
@@ -93,41 +92,41 @@
 .confirmFollowEyebrow {
   margin: 0;
   font-weight: 700;
-  font-size: 0.72rem;
+  font-size: var(--text-xs);
   letter-spacing: 0.01em;
   color: var(--ink-soft);
 }
 
 .confirmFollowTitle {
   margin: 0;
-  font-size: 1.6rem;
+  font-size: var(--text-xl);
   line-height: 1.15;
   color: var(--ink);
 }
 
 .confirmFollowBody {
   margin: 0;
-  font-size: 0.95rem;
+  font-size: var(--text-base);
   line-height: 1.5;
-  color: var(--ink-soft, var(--muted));
+  color: var(--ink-soft);
 }
 
 .confirmFollowUrl {
   display: block;
   padding: 12px 14px;
   border: 1px dashed var(--feed-border);
-  border-radius: var(--radius, 8px);
+  border-radius: var(--radius);
   background: var(--panel-raised);
   color: var(--ink);
-  font-size: 0.85rem;
+  font-size: var(--text-sm);
   word-break: break-all;
 }
 
 .confirmFollowError {
   margin: 0;
   font-weight: 600;
-  font-size: 0.9rem;
-  color: var(--brick, #9c3d2e);
+  font-size: var(--text-sm);
+  color: var(--brick);
 }
 
 .confirmFollowAvatar {
@@ -141,7 +140,7 @@
   background: var(--panel-raised);
   color: var(--ink);
   font-weight: 800;
-  font-size: 1.4rem;
+  font-size: var(--text-lg);
   line-height: 1;
   overflow: hidden;
 }
@@ -154,12 +153,12 @@
   min-height: 52px;
   padding: 0 18px;
   border: 0;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: var(--brass);
-  color: var(--color-on-accent, #fff);
+  color: var(--color-on-accent);
   font: inherit;
   font-weight: 800;
-  font-size: 1rem;
+  font-size: var(--text-base);
   text-decoration: none;
   cursor: pointer;
 }
@@ -182,7 +181,7 @@
   align-items: center;
   color: var(--muted);
   font-weight: 600;
-  font-size: 0.9rem;
+  font-size: var(--text-sm);
   text-decoration: none;
 }
 
@@ -192,7 +191,7 @@
   margin: -6px 0 0;
   color: var(--muted);
   font-weight: 600;
-  font-size: 0.9rem;
+  font-size: var(--text-sm);
 }
 
 .confirmFollowSecondary {
@@ -202,13 +201,13 @@
   justify-content: center;
   min-height: 48px;
   padding: 0 18px;
-  border: 1px solid var(--line, var(--feed-border));
-  border-radius: 999px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-pill);
   background: transparent;
   color: var(--ink);
   font: inherit;
   font-weight: 700;
-  font-size: 0.95rem;
+  font-size: var(--text-base);
   text-decoration: none;
   cursor: pointer;
 }

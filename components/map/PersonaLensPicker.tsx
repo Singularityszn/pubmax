@@ -207,7 +207,7 @@ export default function PersonaLensPicker({
         aria-controls={open ? listId : undefined}
         onClick={() => setOpen((value) => !value)}
       >
-        <GlassWater size={15} aria-hidden="true" />
+        <GlassWater size={16} aria-hidden="true" />
         <span className="personaLensTriggerLabel">
           {active ? active.name : "Drink like..."}
         </span>
@@ -219,7 +219,7 @@ export default function PersonaLensPicker({
           aria-label="Clear persona lens"
           onClick={() => choose(null)}
         >
-          <X size={13} aria-hidden="true" />
+          <X size={14} aria-hidden="true" />
         </button>
       ) : null}
 
@@ -285,7 +285,7 @@ export default function PersonaLensPicker({
                         {persona.drink}
                         {fits ? (
                           <span className="personaLensFitsTag">
-                            <Sparkles size={11} aria-hidden="true" />
+                            <Sparkles size={14} aria-hidden="true" />
                             fits tonight
                           </span>
                         ) : null}

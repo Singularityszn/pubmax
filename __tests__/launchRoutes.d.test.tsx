@@ -239,9 +239,14 @@ describe("launch routes (group d) carry one primary action", () => {
     const rendered = renderToStaticMarkup(createElement(RoundsIndex));
     expect(primaryCount(rendered)).toBe(1);
     // F18: the primary is the starter's own submit, not a link to the map.
-    expect(rendered).toMatch(/<button[^>]*data-primary-action=""[^>]*>[\s\S]*Start a Round<\/button>/);
+    expect(rendered).toMatch(/<button[^>]*data-primary-action=""[^>]*>[\s\S]*Start a round<\/button>/);
     expect(rendered).not.toMatch(/<a[^>]*href="\/map"[^>]*>Start a round<\/a>/);
-    expect(rendered).toContain('class="emptyStateTitle">Join with a link');
+    // The launch table's quiet secondary, in plain words: no card, no kicker
+    // over the form, and a real label above the handle field.
+    expect(rendered).toContain('<summary class="roundCodeJoinSummary">Open a round code</summary>');
+    expect(rendered).toMatch(/<label class="roundStarterLabel" for="[^"]+">Your handle<\/label>/);
+    expect(rendered).not.toContain("roundStarterBadge");
+    expect(rendered).not.toContain("Join with a link");
   });
 
   it("/add-a-pub carries one primary action, and it is the form's own send", async () => {
@@ -312,7 +317,7 @@ describe("launch routes (group d) carry one primary action", () => {
     );
     expect(primaryCount(rendered)).toBe(1);
     expect(rendered).toMatch(/data-primary-action=""><a[^>]*href="\/map\?log=1"[^>]*>Drop a pint<\/a>/);
-    expect(rendered).toContain('class="emptyStateTitle">No identity-backed totals yet');
+    expect(rendered).toContain('class="emptyStateTitle">The record starts with the first pint');
   });
 
   // A legal page has no action (docs/design/LAUNCH_SCREENS.md): a kicker and

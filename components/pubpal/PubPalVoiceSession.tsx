@@ -613,7 +613,7 @@ function VoiceControls({ onStateChange, resetPendingSession, text, setText, erro
       <div className="palVoiceActions">
         {status === "connected" ? (
           <button type="button" onClick={stopCurrentAttempt}>
-            <MicOff size={18} /> End
+            <MicOff size={16} /> End
           </button>
         ) : (
           <button
@@ -622,7 +622,7 @@ function VoiceControls({ onStateChange, resetPendingSession, text, setText, erro
             aria-busy={isStarting}
             onClick={() => { void start(); }}
           >
-            <Mic size={18} /> {isStarting ? "Starting" : "Start voice chat"}
+            <Mic size={16} /> {isStarting ? "Starting" : "Start voice chat"}
           </button>
         )}
         {voiceConnecting && (
@@ -632,7 +632,7 @@ function VoiceControls({ onStateChange, resetPendingSession, text, setText, erro
         )}
         {(voiceConnecting || error) && (
           <Link className="palVoiceWriteLink" href={text.trim() ? palWrittenAskHref(text.trim()) : "/pal/chat"} prefetch={false} onNavigate={stopCurrentAttempt}>
-            <Send size={17} aria-hidden="true" /> Ask in writing
+            <Send size={16} aria-hidden="true" /> Ask in writing
           </Link>
         )}
         <label>
@@ -650,7 +650,7 @@ function VoiceControls({ onStateChange, resetPendingSession, text, setText, erro
             disabled={voiceConnecting}
             aria-label="Send message"
           >
-            <Send size={17} />
+            <Send size={16} />
           </button>
         </label>
       </div>

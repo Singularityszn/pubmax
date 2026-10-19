@@ -62,12 +62,12 @@ export default function TonightShareButton(): React.JSX.Element {
         >
           {copied ? (
             <>
-              <Check size={15} aria-hidden="true" />
+              <Check size={16} aria-hidden="true" />
               Link copied
             </>
           ) : (
             <>
-              <Share2 size={15} aria-hidden="true" />
+              <Share2 size={16} aria-hidden="true" />
               Share
             </>
           )}
