@@ -17,6 +17,7 @@ import {
   useSyncExternalStore,
 } from "react";
 import Link from "next/link";
+import type { Route } from "next";
 
 import { PintPriceBadge } from "@/components/PriceBadge";
 import { useRouter } from "next/navigation";
@@ -48,9 +49,17 @@ import {
 import { rankNearMe } from "@/lib/nearMeAnswer";
 import { CENTRAL_PATCH, readRememberedArea, resolveNightPatch } from "@/lib/nightPatches";
 import {
+  palFlyToHref,
   palKnownVenueIds,
   resolvePalVenueOpenTarget,
 } from "@/lib/palOpenVenue";
+import { isPlanActiveNow, readActivePlan } from "@/lib/activePlan";
+import { readPlanMemberProjection } from "@/components/plan/usePlanMemberRead";
+import {
+  palNextStop,
+  palNightStopsFrom,
+  palVoiceMapIntent,
+} from "@/lib/palVoiceTranscript";
 import { formatPalWhen, type PalAnswer, type PalCard } from "@/lib/palChat";
 import { venueAcceptUrl, venueMapUrl } from "@/lib/venueMapUrl";
 import { palRecall, type PalRecall } from "@/lib/palRecall";
@@ -311,10 +320,52 @@ export default function PalChat() {
     window.scrollTo({ top: page.scrollHeight });
   }, [entries, pending, streamText, keyboardInset]);
 
+  // "Show me the map", or "next stop" while a planned night is on, is the
+  // person asking to GO to the map, so it goes there (the same decision the
+  // voice panel makes, palVoiceMapIntent) instead of reaching the Pal, which
+  // can only answer it in words. Any later ask retires a next-stop read.
+  const mapAskRef = useRef(0);
+  const openMapFromAsk = useCallback(
+    async (text: string): Promise<boolean> => {
+      const request = ++mapAskRef.current;
+      const plan = readActivePlan();
+      const intent = palVoiceMapIntent(text, isPlanActiveNow(plan, Date.now()));
+      if (!intent) return false;
+      setEntries((prev) => [...prev, { kind: "user", id: nextId(), text }]);
+      setQuery((current) => current.trim() === text ? "" : current);
+      let href = "/map";
+      let line = "Opening the map";
+      if (intent === "next-stop" && plan) {
+        const body = await readPlanMemberProjection(plan.id);
+        if (request !== mapAskRef.current) return true;
+        const next = palNextStop(palNightStopsFrom(body), plan.stopIndex);
+        if (next) {
+          href = next.href;
+          line = `Opening ${next.venueName}, your next stop`;
+        }
+      }
+      setEntries((prev) => [
+        ...prev,
+        {
+          kind: "answer",
+          id: nextId(),
+          answer: { status: "answered", message: line, cards: [] },
+          locality: null,
+          proposals: [],
+          recall: null,
+        },
+      ]);
+      router.push(href as Route);
+      return true;
+    },
+    [nextId, router],
+  );
+
   const ask = useCallback(
     async (raw: string, options: { preserveDraft?: boolean } = {}) => {
       const text = raw.trim();
       if (!text || pending) return;
+      if (await openMapFromAsk(text)) return;
       sessionRef.current ??= createPalChatSession();
       // Read the recall BEFORE this ask joins the transcript, so the Pal never
       // recalls the question it is answering.
@@ -359,7 +410,7 @@ export default function PalChat() {
         { kind: "answer", id: nextId(), answer: result, locality, proposals, recall },
       ]);
     },
-    [nextId, pending],
+    [nextId, openMapFromAsk, pending],
   );
 
   const dismissProposal = useCallback((entryId: string, proposalId: string) => {
@@ -381,12 +432,7 @@ export default function PalChat() {
     }
     trackEvent("concierge_result_tap");
     if (proposal.kind === "fly_to") {
-      const params = new URLSearchParams({
-        lat: String(proposal.lat),
-        lng: String(proposal.lng),
-      });
-      if (proposal.place) params.set("place", proposal.place);
-      router.push(`/map?${params.toString()}`);
+      router.push(palFlyToHref(proposal, knownVenueIds));
       return;
     }
     if (proposal.kind === "report_occupancy") {
@@ -476,7 +522,7 @@ export default function PalChat() {
         if (entryId) dismissProposal(entryId, proposal.id);
       })();
     }
-  }, [auth, dismissProposal, nextId, openVenue, router]);
+  }, [auth, dismissProposal, knownVenueIds, nextId, openVenue, router]);
 
   const onSubmit = useCallback(
     (event: React.FormEvent<HTMLFormElement>) => {
