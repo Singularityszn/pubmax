@@ -390,6 +390,19 @@ describe("what a page states", () => {
     expect(reading.kept.map((row) => row.priceGbp)).toEqual([4.6, 4.7, 5, 4.8]);
   });
 
+  it("takes the pint of a bare pair under Half and Pint column heads", () => {
+    const reading = readVenueDrinkPrices(
+      "<p>Draught Half Pint Peroni 5.0% &pound;3.90 &pound;7.70 Carling 4.0% &pound;3.60 &pound;7.20 Jubel 4.0% &pound;4.10 &pound;8.00</p>",
+    );
+    expect(reading.kept.map((row) => row.priceGbp)).toEqual([7.7, 7.2, 8]);
+    expect(reading.drops.filter((reason) => reason === "half-measure-not-a-pint")).toHaveLength(3);
+  });
+
+  it("keeps two neighbouring pints that are not a half and its pint", () => {
+    const reading = readVenueDrinkPrices("<p>Draught beer Peroni &pound;6.50 Camden Hells lager &pound;6.90</p>");
+    expect(reading.kept.map((row) => row.priceGbp)).toEqual([6.5, 6.9]);
+  });
+
   it("takes the pint column of a half|pint table pair", () => {
     const reading = readVenueDrinkPrices("<p>Estrella Damm £4.00 | £6.80</p>");
     expect(reading.kept.map((row) => row.priceGbp)).toEqual([6.8]);

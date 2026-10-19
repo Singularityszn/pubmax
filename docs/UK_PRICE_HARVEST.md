@@ -77,6 +77,31 @@ report counts them under `londonScope.curatedWebsites`. Per host it reads the ho
 drinks list, to a per-host page ceiling. Resumable: `data-harvest/uk_prices/hosts.json`
 records what each host answered, so a rerun continues.
 
+### Websites Exa found
+
+OpenStreetMap states a website for about one London pub in two. The Exa lane
+finds the others, and the document lane reads them only after an address check:
+
+```
+npm run harvest:uk-pubs -- --london --enrich      # Exa, London pubs (EXA_API_KEY)
+npm run harvest:uk-exa-sites                      # cut data/uk_prices/exa_site_candidates.json
+npm run harvest:uk-prices -- --london --exa-sites data/uk_prices/exa_site_candidates.json --exa-sites-only
+npm run build:uk-price-bundle
+npm run harvest:uk-record-publications -- --reader "<how the rows were read>"
+```
+
+The last step records the new rows in `data/uk_prices/site_harvest_reconciliation.json`,
+one later publication per source page, each with an evidence file the page's own
+words were re-read into. `__tests__/siteHarvestReconciliation.test.ts` fails
+until it runs.
+
+A site only Exa named gives a price only when one of its pages states the pub's
+own OSM postcode or house number and street. A namesake's site never binds and
+is counted as `exa-site-unbound`. An `--exa-sites-only` run writes its counts
+to `data/uk_prices/exa_sites_report.json`, never over `harvest_report.json`. The
+rule is in
+[`docs/rules/scripts-harvest-and-source-permission.md`](./rules/scripts-harvest-and-source-permission.md#an-exa-website-is-read-for-a-price-only-when-its-own-page-states-the-pub-s-address).
+
 ## Lane two: the browser
 
 `scripts/harvest/uk-prices/render.mjs`, using wigolo (AGPL, local). It exists

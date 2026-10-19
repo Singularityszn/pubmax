@@ -9813,6 +9813,230 @@
         "rowCount": 7413,
         "siteHarvestRows": 3298
       }
+    },
+    {
+      "sourceEvidencePath": "data/uk_prices/later_publications/2026-10-18-enidstreettavern-com-taplist.json",
+      "sourceEvidenceSha256": "c698d406d032c9706329cd4568a9de9d5cca426d36df7479b3493b7452f7bbfe",
+      "sourceUrl": "https://enidstreettavern.com/taplist",
+      "sourceObservedAt": "2026-10-18T20:49:30.822Z",
+      "addedRows": 15,
+      "currentLedger": {
+        "sha256": "2102e487a1c3e12d6e4f5341f183be9c359f2f982f8de82ec23429faa589a1c1",
+        "rowCount": 3334,
+        "rowIdentitySetSha256": "ca8308c7d31878ad06936ff630051d0a2e79f1d9c8a1ff5465ccaf748162ee9b"
+      },
+      "currentBundle": {
+        "rowCount": 7866,
+        "siteHarvestRows": 3336
+      }
+    },
+    {
+      "sourceEvidencePath": "data/uk_prices/later_publications/2026-10-18-thebeaufortpub-co-uk-menus.json",
+      "sourceEvidenceSha256": "59615a49612e36ad0a559956dcce4a841fc1cacaf5819dc2840b92221bbc66aa",
+      "sourceUrl": "https://www.thebeaufortpub.co.uk/menus/",
+      "sourceObservedAt": "2026-10-18T20:49:54.288Z",
+      "addedRows": 4,
+      "currentLedger": {
+        "sha256": "fb0e076edff15631c6b9aacc67db5b0a5939feb2d5c4a79c7d4a5cf35f0f1dd5",
+        "rowCount": 3338,
+        "rowIdentitySetSha256": "ad362d41305afaf6b8061d96945543d9add23a8be0a4baefa80e4cc638fc8741"
+      },
+      "currentBundle": {
+        "rowCount": 7866,
+        "siteHarvestRows": 3336
+      }
+    },
+    {
+      "sourceEvidencePath": "data/uk_prices/later_publications/2026-10-18-watermanstw9-co-uk-menu.json",
+      "sourceEvidenceSha256": "22e7bb0b5fd4ff38a6234081cbb47919391606b5887822eafae44e765e03416e",
+      "sourceUrl": "https://watermanstw9.co.uk/menu",
+      "sourceObservedAt": "2026-10-18T20:50:36.867Z",
+      "addedRows": 19,
+      "currentLedger": {
+        "sha256": "56d25a3129b3f0d3e4ddd7116ba801260e1ce0e107d522438315d5d867883416",
+        "rowCount": 3357,
+        "rowIdentitySetSha256": "ec73c018dd33e45c4beff3a19ebe262ed5e69f08bb31e1afa03373f3499b1ebb"
+      },
+      "currentBundle": {
+        "rowCount": 7866,
+        "siteHarvestRows": 3336
+      }
+    },
+    {
+      "sourceEvidencePath": "data/uk_prices/later_publications/2026-10-18-blackcapcamden-co-uk.json",
+      "sourceEvidenceSha256": "286d51e27fc2255601377cbcb62df614bdc5de7b182597650226d6170d649f2d",
+      "sourceUrl": "https://blackcapcamden.co.uk",
+      "sourceObservedAt": "2026-10-18T21:37:55.150Z",
+      "addedRows": 108,
+      "currentLedger": {
+        "sha256": "b6ba2ee52795cbf1d20bfa61e17ec9bf465dbbe35d00ba34bfbb2824c04af4e8",
+        "rowCount": 3465,
+        "rowIdentitySetSha256": "4f71f534e9c46e46d2d3c4a7630374b0fa00aebb50083e21d018b520cc244c05"
+      },
+      "currentBundle": {
+        "rowCount": 8024,
+        "siteHarvestRows": 3494
+      }
+    },
+    {
+      "sourceEvidencePath": "data/uk_prices/later_publications/2026-10-18-theduchessofkent-co-uk-food-and-drinks.json",
+      "sourceEvidenceSha256": "9e632ddb7387321e4651f7694d45ee03ab2e725129a0e4ce02bd9d5f579c0f6a",
+      "sourceUrl": "https://www.theduchessofkent.co.uk/food-and-drinks/",
+      "sourceObservedAt": "2026-10-18T21:37:58.600Z",
+      "addedRows": 8,
+      "currentLedger": {
+        "sha256": "b14e32553c48d9f5b77122ef8f734da95d19c67c01a86c9df87cee7b8c54e002",
+        "rowCount": 3473,
+        "rowIdentitySetSha256": "f3ef72f9b0c2c126aa0ff93cff5a3e0f8eb044ff260960b815e1ae6a1f5281e6"
+      },
+      "currentBundle": {
+        "rowCount": 8024,
+        "siteHarvestRows": 3494
+      }
+    },
+    {
+      "sourceEvidencePath": "data/uk_prices/later_publications/2026-10-18-theblacksmithsse16-com-drink.json",
+      "sourceEvidenceSha256": "0c1644637c1da0247be3d7734b0d402f4ff368c97da49048276115c884325ce8",
+      "sourceUrl": "https://theblacksmithsse16.com/drink",
+      "sourceObservedAt": "2026-10-18T21:37:58.704Z",
+      "addedRows": 20,
+      "currentLedger": {
+        "sha256": "87a945e71aa269952cec2824d0b2c382eeaef94018515bbb99ff64af1a2b310f",
+        "rowCount": 3493,
+        "rowIdentitySetSha256": "6827da1eb654b11fd06ad107f7a50b733c7355a889df742ec9c8dc2ab2eaf3a7"
+      },
+      "currentBundle": {
+        "rowCount": 8024,
+        "siteHarvestRows": 3494
+      }
+    },
+    {
+      "sourceEvidencePath": "data/uk_prices/later_publications/2026-10-18-thepaternoster-com-food-drink.json",
+      "sourceEvidenceSha256": "730d4184507ac380c27d6f8059dafa72043f208d94962a0319056fe7af48c5fd",
+      "sourceUrl": "https://www.thepaternoster.com/food-drink/",
+      "sourceObservedAt": "2026-10-18T21:38:00.909Z",
+      "addedRows": 20,
+      "currentLedger": {
+        "sha256": "1617865b6f4546b63209fd6d00a06bcc926ae315459e178aed164383085ca353",
+        "rowCount": 3513,
+        "rowIdentitySetSha256": "28e5adbffbafa6ef2c11c18c7d6992c87608dfcff9d3f0ae73aec418c079b7bd"
+      },
+      "currentBundle": {
+        "rowCount": 8024,
+        "siteHarvestRows": 3494
+      }
+    },
+    {
+      "sourceEvidencePath": "data/uk_prices/later_publications/2026-10-18-coachandhorsesbeckenham-com-wines.json",
+      "sourceEvidenceSha256": "d490b9b9200b1d5062931a42c2f59b3867dee058f213e88fbac3081b32d03363",
+      "sourceUrl": "https://www.coachandhorsesbeckenham.com/wines",
+      "sourceObservedAt": "2026-10-18T21:38:01.690Z",
+      "addedRows": 2,
+      "currentLedger": {
+        "sha256": "54df1d108672e1d8edcb4897b1fc87f209312d0082d43a0ee67409adfd2e8de1",
+        "rowCount": 3515,
+        "rowIdentitySetSha256": "acb9867aee1ee0114c5ad9918495cdff7f91f0e9fd4c01f8b787019c5968be96"
+      },
+      "currentBundle": {
+        "rowCount": 8020,
+        "siteHarvestRows": 3490
+      }
+    },
+    {
+      "sourceEvidencePath": "data/uk_prices/later_publications/2026-10-18-thecottonmillpub-com.json",
+      "sourceEvidenceSha256": "c28ac3170da7a2925bc28168e8424abdd27f8b815b8c4eb85d49ebc71dc653ed",
+      "sourceUrl": "https://thecottonmillpub.com",
+      "sourceObservedAt": "2026-10-18T22:46:13.457Z",
+      "addedRows": 6,
+      "currentLedger": {
+        "sha256": "36fbc5331632fc86c410ed6c50b56a98c8e9a644dd8d1fb1437ca445830299da",
+        "rowCount": 3521,
+        "rowIdentitySetSha256": "1d51fbd739056b2cedb8bd544790bfafd0df786fe10506c622dbd9c9b907f582"
+      },
+      "currentBundle": {
+        "rowCount": 8072,
+        "siteHarvestRows": 3542
+      }
+    },
+    {
+      "sourceEvidencePath": "data/uk_prices/later_publications/2026-10-18-thebluemonklondon-com-bar.json",
+      "sourceEvidenceSha256": "ff9891528507519114a5e9c508d725af62290f7a0b4f8b5d591c8dbe0990966a",
+      "sourceUrl": "https://www.thebluemonklondon.com/bar",
+      "sourceObservedAt": "2026-10-18T22:46:37.618Z",
+      "addedRows": 40,
+      "currentLedger": {
+        "sha256": "aadd7ce7f4f8f1cc55a29559950de1767c63e456e780e9286cd7949995433d4a",
+        "rowCount": 3561,
+        "rowIdentitySetSha256": "ca8536f9d364a5fedd23ae0354b7df616438ce3acf6e1d4c5e601fc34137c46a"
+      },
+      "currentBundle": {
+        "rowCount": 8072,
+        "siteHarvestRows": 3542
+      }
+    },
+    {
+      "sourceEvidencePath": "data/uk_prices/later_publications/2026-10-18-exale-uk-wines.json",
+      "sourceEvidenceSha256": "692601e52eca6e8cefe5bf6ee376f9a5f45c4a7d9e5150ca64e45424d6726001",
+      "sourceUrl": "https://www.exale.uk/wines",
+      "sourceObservedAt": "2026-10-18T22:46:43.301Z",
+      "addedRows": 6,
+      "currentLedger": {
+        "sha256": "be436f90949c1a0d89512bbd8bafa977baf61a2d49bedb74b90d948c752bd394",
+        "rowCount": 3567,
+        "rowIdentitySetSha256": "5790ff102cdba9feeaaaeb49337a5bc1d0ed85691caaa853c890b6e26a3aaec7"
+      },
+      "currentBundle": {
+        "rowCount": 8062,
+        "siteHarvestRows": 3532
+      }
+    },
+    {
+      "sourceEvidencePath": "data/uk_prices/later_publications/2026-10-18-imperialarmschislehurst-co-uk-wp-content-uploads-2026-03-tp251592-imperial-drinks-menu-final-pdf.json",
+      "sourceEvidenceSha256": "1e2d5ae3ae9663cc7e87a3cead8523ede1360f1afcb806c202d811cc8ed621e7",
+      "sourceUrl": "https://imperialarmschislehurst.co.uk/wp-content/uploads/2026/03/TP251592-Imperial-Drinks-Menu-Final.pdf",
+      "sourceObservedAt": "2026-10-18T23:31:18.614Z",
+      "addedRows": 85,
+      "currentLedger": {
+        "sha256": "1bcf48fdd1ed1b5ba72eac6e9a5b6796ba5b38ac6b897e74576e17a225420b62",
+        "rowCount": 3652,
+        "rowIdentitySetSha256": "1ebfa152a9b39d489f2c501eed22e2a2b0868d3194108d3f35f5f8e83492123a"
+      },
+      "currentBundle": {
+        "rowCount": 8181,
+        "siteHarvestRows": 3651
+      }
+    },
+    {
+      "sourceEvidencePath": "data/uk_prices/later_publications/2026-10-18-thegreyhoundhotel-com-food-drink.json",
+      "sourceEvidenceSha256": "add8a2ddb126342d0da53ed6549351ab73f4ad48e57c45d163aaddd8ce254bdf",
+      "sourceUrl": "https://www.thegreyhoundhotel.com/food-drink/",
+      "sourceObservedAt": "2026-10-18T23:32:29.015Z",
+      "addedRows": 21,
+      "currentLedger": {
+        "sha256": "87929d51fa8302cabfab141e024f854d95fede542327de5419c68d6c676d9467",
+        "rowCount": 3673,
+        "rowIdentitySetSha256": "1dacbad9be660f866a016d47644ee6b8828ab66046d7a211a82fbce645f9b002"
+      },
+      "currentBundle": {
+        "rowCount": 8181,
+        "siteHarvestRows": 3651
+      }
+    },
+    {
+      "sourceEvidencePath": "data/uk_prices/later_publications/2026-10-18-crownofmitcham-co-uk-menu.json",
+      "sourceEvidenceSha256": "871e4da14e2d0532d376b00f1708bed6f33f3a94004eab0b7011c1b641b0668f",
+      "sourceUrl": "https://www.crownofmitcham.co.uk/menu?menu=menu",
+      "sourceObservedAt": "2026-10-18T23:32:31.698Z",
+      "addedRows": 13,
+      "currentLedger": {
+        "sha256": "fed3c3e824226d61ff47182e2aff707e635dabae73ca7e013569f40b8e09a327",
+        "rowCount": 3686,
+        "rowIdentitySetSha256": "aadbafbe8592b2b937c0f55bae3c6dfbfa30bd7841090ca0ef4dda47c3559615"
+      },
+      "currentBundle": {
+        "rowCount": 7737,
+        "siteHarvestRows": 3622
+      }
     }
   ]
 }

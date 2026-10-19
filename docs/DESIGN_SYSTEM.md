@@ -79,6 +79,17 @@ Open design debt and raised design decisions live in
 [`docs/design/BACKLOG.md`](./design/BACKLOG.md), never in a `docs/proof/`
 directory: a proof records one finished measurement and nobody re-reads one.
 
+### Tools for checking a page
+
+Two outside references help a person check a page against this system. Both
+are optional, and neither is a dependency of the app: nothing here installs,
+loads or bundles them.
+
+| Tool | Use it for |
+|---|---|
+| [Squints](https://squints.app) | A free Chrome extension for a live page: rulers, the gap between two elements, the colour and the font that actually rendered, a column grid and slow motion. Use it to check a change against the tokens below: a spacing step, a radius from the corner scale, a colour that is a token and not a literal, and an animation at its real pace. |
+| [The Iconography Encyclopedia](https://encyclopedia.iconography.co) | A glossary of icon design terms (stroke weight, corner smoothing, boolean operations, naming). Use its words when you describe or review an icon. Icons still come from Lucide alone, at the scale under [Icons](#icons). |
+
 ## Launch tokens
 
 The September 2026 relaunch (issue #1354) builds every launch surface from

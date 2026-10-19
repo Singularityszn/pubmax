@@ -149,6 +149,12 @@ export type PubPal = {
   voice: PubPalVoice;
   muted: boolean;
   hidden: boolean;
+  /**
+   * The owner shows this Pal to the members of their crew plans (Pals walk
+   * together, migration 0194). Off unless the owner turned it on; a Pal saved
+   * before the choice existed reads as off.
+   */
+  crewVisible?: boolean;
   proposalPreferences: PalProposalPreferences;
   masteryPoints: number;
   createdAt: string;
