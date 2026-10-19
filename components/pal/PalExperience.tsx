@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, type Dispatch, type SetStateAction } from "react";
+import { useEffect, useMemo, useRef, useState, type Dispatch, type SetStateAction } from "react";
 import Link from "next/link";
 import {
   ArrowLeft,
@@ -43,6 +43,10 @@ import {
   type PubPalMemory,
 } from "@/lib/pubPal";
 import PalPortrait from "./PalPortrait";
+import PalPrint from "./PalPrint";
+import { usePalHead3D } from "./usePalHead3D";
+import { palGenomeFor } from "@/lib/palGenome";
+import { createPalVoiceSignal } from "@/lib/palVoiceSignal";
 import PubPalVoice from "@/components/pubpal/PubPalVoice";
 import { Button } from "@/components/ui/button";
 import Screen from "@/components/ui/screen";
@@ -191,7 +195,7 @@ function ChoiceButton({
     >
       <span>{title}</span>
       {note && <small>{note}</small>}
-      {selected && <Check size={17} aria-hidden="true" />}
+      {selected && <Check size={16} aria-hidden="true" />}
     </button>
   );
 }
@@ -243,7 +247,7 @@ export function PalMeetingScreen({
         kicker="Your Pub Pal"
         title="A little signal that becomes yours."
         titleId="pal-meeting-title"
-        lede="Pick its look and voice, and set what it's allowed to do. Then it helps you plan the night."
+        lede="Pick its look and voice, and set what it's allowed to do. Then ask it for tonight's route or the cheapest pint near you. It remembers your usual drink only after you approve it."
         primary={
           <button type="button" onClick={onMeet}>
             Meet your Pub Pal
@@ -305,22 +309,30 @@ function PalHomeScreen({
 }) {
   const visiblePalState: PalAnimationState = pal.muted ? "sleeping" : palAnimationState;
   const proposalPreferences = pal.proposalPreferences ?? { memories: true, routes: true };
+  // The voice panel publishes its live levels here and the portrait reads
+  // them, so the head turns, leans and nods with the conversation.
+  const [voiceSignal] = useState(createPalVoiceSignal);
+  const headRef = useRef<HTMLDivElement>(null);
+  // Seeded by the Pal's own id: the same genome on every device and visit.
+  const genome = useMemo(() => palGenomeFor(pal.id, pal.personality), [pal.id, pal.personality]);
+  usePalHead3D(headRef, { signal: voiceSignal, state: visiblePalState, temperament: genome.temperament });
   return (
     <main id="main" className="palExperience palHome">
-      <div className="palTopbar">
-        <Link href="/map"><ArrowLeft size={17} /> Map</Link>
-      </div>
       <section className="palHomeHero" aria-labelledby="pal-home-title">
-        <div className="palHomePortrait">
-          <PalPortrait appearance={pal.appearance} name={pal.name} state={visiblePalState} />
+        <div className="palHomePortrait" ref={headRef}>
+          <PalPortrait appearance={pal.appearance} name={pal.name} state={visiblePalState} genome={genome} />
           <p className="palSpeech">{palStateSpeech[visiblePalState]}</p>
         </div>
         <div className="palHomeCopy">
           <p className="palEyebrow">Your Pub Pal</p>
           <h1 id="pal-home-title" tabIndex={-1}>{pal.name}</h1>
           <p>Your {signalCopy[pal.appearance.signalAffinity].toLowerCase()} {pal.appearance.species}, set up for your nights out. You decide what it can do.</p>
-          <Link className="palPrimary" href="/plan">Plan with {pal.name}<ArrowRight size={18} /></Link>
-          <PubPalVoice muted={pal.muted} onStateChange={setPalAnimationState} />
+          <div className="palPrintRow">
+            <PalPrint print={genome.print} />
+            <span>{pal.name}&apos;s print. No other Pal has this one.</span>
+          </div>
+          <Link className="palPrimary" href="/plan">Plan with {pal.name}<ArrowRight size={16} /></Link>
+          <PubPalVoice muted={pal.muted} onStateChange={setPalAnimationState} palName={pal.name} signal={voiceSignal} appearance={pal.appearance} genome={genome} />
         </div>
       </section>
       <section className="palControls" aria-labelledby="pal-controls-title">
@@ -360,7 +372,7 @@ function PalHomeScreen({
             <h2 id="pal-memory-title">What {pal.name} remembers.</h2>
             <p>Only these confirmed facts shape suggestions. Correct or delete any of them. What you say in chat or by voice never shows up here.</p>
           </div>
-          <button type="button" onClick={() => void exportMemories()} disabled={saving}><Download size={17} /> Download my memories</button>
+          <button type="button" onClick={() => void exportMemories()} disabled={saving}><Download size={16} /> Download my memories</button>
         </div>
         {memories.length ? (
           <ul className="palMemoryList">
@@ -429,7 +441,7 @@ function PalOnboardingScreen({
   return (
     <main id="main" className="palExperience palOnboarding">
       <div className="palTopbar">
-        <button type="button" onClick={() => step <= firstStep ? setMode("meeting") : setStep((current) => current - 1)}><ArrowLeft size={17} /> Back</button>
+        <button type="button" onClick={() => step <= firstStep ? setMode("meeting") : setStep((current) => current - 1)}><ArrowLeft size={16} /> Back</button>
         <span>{step + 1 - firstStep} of {stepCount}</span>
         <Link href="/map">Skip Pal</Link>
       </div>
@@ -476,7 +488,7 @@ function PalOnboardingScreen({
             <div className="palStep">
               <p className="palEyebrow">Appearance</p>
               <h1>Tune the signal.</h1>
-              <fieldset><legend>Affinity</legend><div className="palChoiceGrid palChoiceGridThree">{SIGNAL_FAMILIES.map((signal) => <ChoiceButton key={signal} selected={draft.appearance.signalAffinity === signal} title={signalCopy[signal]} onClick={() => updateAppearance({ signalAffinity: signal })} />)}</div></fieldset>
+              <fieldset><legend>Affinity</legend><div className="palChoiceGrid">{SIGNAL_FAMILIES.map((signal) => <ChoiceButton key={signal} selected={draft.appearance.signalAffinity === signal} title={signalCopy[signal]} onClick={() => updateAppearance({ signalAffinity: signal })} />)}</div></fieldset>
               <fieldset><legend>Material</legend><div className="palChoiceGrid">{(["hologram", "chrome", "glass"] as const).map((material) => <ChoiceButton key={material} selected={draft.appearance.material === material} title={materialCopy[material]} onClick={() => updateAppearance({ material })} />)}</div></fieldset>
               <fieldset><legend>Accessory</legend><div className="palChoiceGrid">{(["none", "collar", "monocle", "signal-ring"] as const).map((accessory) => <ChoiceButton key={accessory} selected={draft.appearance.accessory === accessory} title={accessoryCopy[accessory]} onClick={() => updateAppearance({ accessory })} />)}</div></fieldset>
             </div>
@@ -521,9 +533,9 @@ function PalOnboardingScreen({
           <div className="palOnboardingActions">
             <button type="button" onClick={() => step <= firstStep ? setMode("meeting") : setStep((current) => current - 1)}>Back</button>
             {step < 4 ? (
-              <Button className="palPrimary" size="large" type="button" disabled={!canContinue || (step === 1 && !draft.name.trim())} onClick={() => setStep((current) => current + 1)}>Continue<ArrowRight size={18} /></Button>
+              <Button className="palPrimary" size="large" type="button" disabled={!canContinue || (step === 1 && !draft.name.trim())} onClick={() => setStep((current) => current + 1)}>Continue<ArrowRight size={16} /></Button>
             ) : signedIn ? (
-              <Button className="palPrimary" size="large" type="button" disabled={saving || !draft.name.trim()} onClick={() => void createPal()}>{saving ? "Creating your Pal" : "Create my Pal"}<Mic size={18} /></Button>
+              <Button className="palPrimary" size="large" type="button" disabled={saving || !draft.name.trim()} onClick={() => void createPal()}>{saving ? "Creating your Pal" : "Create my Pal"}<Mic size={16} /></Button>
             ) : (
               <button type="button" onClick={() => setStep(0)}>Start over</button>
             )}

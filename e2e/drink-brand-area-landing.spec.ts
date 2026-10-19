@@ -223,7 +223,7 @@ async function expectGlobalNavigationInViewport(page: Page): Promise<void> {
 }
 
 async function expectDesktopRowGeometry(page: Page, rows: Locator): Promise<void> {
-  if ((page.viewportSize()?.width ?? 0) <= 560) return;
+  if ((page.viewportSize()?.width ?? 0) <= 640) return;
 
   const geometry = await rows.evaluateAll((elements) =>
     elements.map((element) => {

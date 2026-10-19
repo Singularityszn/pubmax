@@ -82,6 +82,7 @@ describe("landing hero rhythm", () => {
         { id: "venue-3", name: "The Sir John Hawkshaw", area: "City of London", primaryBorough: "City of London", priceGbp: 3.49, hasThen: false },
       ],
       averages: { averageGbp: 5.54, cheapAverageGbp: 4.17, sampleSize: 950 },
+      priceReadLine: "The average above comes from prices read between 4 July 2026 and 2 October 2026.",
     }),
   );
 
@@ -115,10 +116,20 @@ describe("landing hero rhythm", () => {
     expect(hero).not.toContain('<p class="kicker">PUBMAXX</p>');
   });
 
+  it("dates the average below the first screen, never inside the hero", () => {
+    // At 320px a dated third lede line put the primary under the tab bar
+    // (e2e/landing-find-my-pint.spec.ts), so the date lives in the band below.
+    const hero = html.match(/<section class="screen lpHero"[\s\S]*?<\/section>/)?.[0] ?? "";
+    expect(hero).not.toContain("comes from prices read");
+    expect(html).toContain(
+      '<p class="lpPriceReads">The average above comes from prices read between 4 July 2026 and 2 October 2026.</p>',
+    );
+  });
+
   it("falls back to the map line when the dataset cannot back a saving", () => {
     const bare = renderToStaticMarkup(createElement(LandingPage, { card }));
     const hero = bare.match(/<section class="screen lpHero"[\s\S]*?<\/section>/)?.[0] ?? "";
-    expect(hero).toMatch(/<p class="screenLede">London on one map, with \d+ historic pubs marked/);
+    expect(hero).toMatch(/<p class="screenLede">London on one map, with \d+ historic pubs cited/);
   });
 
   it("prints every rail row as its own Pint Drop door, with a price stamp and no borough the heading already names", () => {

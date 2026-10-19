@@ -218,7 +218,7 @@ export default function VenueCommunitySignals({
     <details className="venueCommunitySignals">
       <summary className="vpsigSummary">
         <span className="vpsigSummaryTitle">
-          <MessagesSquare size={15} aria-hidden="true" />
+          <MessagesSquare size={16} aria-hidden="true" />
           What drinkers noticed
         </span>
         <span className="vpsigAccessSummary">

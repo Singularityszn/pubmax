@@ -3,19 +3,19 @@
    utility) lives in the appended section of app/globals.css. */
 
 .catShowcase {
-  border: 1px solid var(--color-border, var(--line));
+  border: 1px solid var(--color-border);
   border-radius: var(--radius);
   background: var(--panel);
-  padding: var(--space-5, 20px);
-  box-shadow: var(--shadow-sm, var(--shadow));
+  padding: var(--space-5);
+  box-shadow: var(--shadow-sm);
 }
 
 .catShowcase__title {
-  margin: 0 0 var(--space-4, 16px);
+  margin: 0 0 var(--space-4);
   font-family: var(--serif);
   font-size: var(--text-md);
   font-weight: 600;
-  letter-spacing: var(--tracking-tight, -0.01em);
+  letter-spacing: var(--tracking-tight);
   color: var(--ink);
 }
 
@@ -25,14 +25,14 @@
   padding: 0;
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
-  gap: var(--space-3, 12px);
+  gap: var(--space-3);
 }
 
 .catShowcase__item {
   display: flex;
   align-items: center;
-  gap: var(--space-3, 12px);
-  padding: var(--space-2, 8px) var(--space-3, 12px);
+  gap: var(--space-3);
+  padding: var(--space-2) var(--space-3);
   border: 1px solid var(--line-soft);
   border-radius: var(--radius-sm);
   background: var(--panel-raised);
@@ -79,7 +79,7 @@
    steady rhythm instead of the cards stretching to fill leftover space. */
 .catShowcase--explore .catShowcase__grid {
   display: flex;
-  gap: var(--space-3, 12px);
+  gap: var(--space-3);
   overflow-x: auto;
   touch-action: pan-y;
   overscroll-behavior-x: contain;
@@ -121,8 +121,8 @@
 .catShowcase__link {
   display: flex;
   align-items: center;
-  gap: var(--space-3, 12px);
-  padding: var(--space-3, 12px) var(--space-4, 16px);
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
   min-height: 64px;
   width: 100%;
   text-align: left;
@@ -131,27 +131,27 @@
   font: inherit;
   cursor: pointer;
   border-radius: var(--radius-sm);
-  border: 1px solid color-mix(in srgb, var(--cat, var(--brass)) 34%, var(--line-soft));
+  border: 1px solid color-mix(in srgb, var(--cat, var(--ink-soft)) 34%, var(--line-soft));
   background:
     linear-gradient(
       135deg,
-      color-mix(in srgb, var(--cat, var(--brass)) 12%, var(--panel-raised)) 0%,
+      color-mix(in srgb, var(--cat, var(--ink-soft)) 12%, var(--panel-raised)) 0%,
       var(--panel-raised) 72%
     );
   transition: border-color 0.18s ease, box-shadow 0.18s ease, transform 0.18s ease;
 }
 
 .catShowcase__item--active .catShowcase__link {
-  border-color: color-mix(in srgb, var(--cat, var(--brass)) 72%, transparent);
-  box-shadow: 0 0 0 2px color-mix(in srgb, var(--cat, var(--brass)) 28%, transparent);
+  border-color: color-mix(in srgb, var(--cat, var(--ink-soft)) 72%, transparent);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--cat, var(--ink-soft)) 28%, transparent);
 }
 
 /* Hover only on devices that actually hover — a finger tap must never leave a
    card looking "stuck" in its hover state. */
 @media (hover: hover) and (pointer: fine) {
   .catShowcase__link:hover {
-    border-color: color-mix(in srgb, var(--cat, var(--brass)) 62%, transparent);
-    box-shadow: 0 8px 20px color-mix(in srgb, var(--cat, var(--brass)) 16%, transparent);
+    border-color: color-mix(in srgb, var(--cat, var(--ink-soft)) 62%, transparent);
+    box-shadow: var(--shadow-sm);
   }
 }
 
@@ -162,18 +162,18 @@
 
 .catShowcase--explore .catShowcase__label {
   color: var(--ink);
-  font-size: var(--text-md, 1rem);
+  font-size: var(--text-md);
 }
 
 .catShowcase__hint {
-  font-size: var(--text-xs, 0.72rem);
+  font-size: var(--text-xs);
   font-weight: 600;
   color: var(--ink-soft);
 }
 
 .discoverLowNoBadge {
   font-family: var(--font-body);
-  font-size: 0.8rem;
+  font-size: var(--text-xs);
   font-weight: 900;
   letter-spacing: 0;
 }
@@ -303,12 +303,12 @@
     width: 44px;
     height: 44px;
     transform: translateY(-50%);
-    border-radius: var(--radius-pill, 999px);
+    border-radius: var(--radius-pill);
     border: 1px solid var(--line);
     background: var(--panel-raised);
     color: var(--ink);
     cursor: pointer;
-    box-shadow: var(--shadow-sm, var(--shadow));
+    box-shadow: var(--shadow-sm);
   }
 
   .catShowcase__arrow--prev {
@@ -333,7 +333,6 @@
 
 @media (hover: hover) and (pointer: fine) {
   .catShowcase__arrow:not(:disabled):hover {
-    border-color: color-mix(in srgb, var(--brass) 62%, var(--line));
-    box-shadow: 0 8px 20px color-mix(in srgb, var(--brass) 14%, transparent);
+    border-color: var(--hairline-strong);
   }
 }

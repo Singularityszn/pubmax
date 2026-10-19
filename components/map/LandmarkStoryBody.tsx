@@ -41,7 +41,7 @@ export function LandmarkStoryHead({
   return (
     <div className={`landmarkStoryHead${className ? ` ${className}` : ""}`}>
       <span className="landmarkStoryGlyph" aria-hidden="true">
-        <LandmarkIcon size={18} strokeWidth={1.75} />
+        <LandmarkIcon size={20} />
       </span>
       <h2 className="landmarkStoryTitle">{landmark.name}</h2>
       <Link className="landmarkStoryChapter" href={`/landmark/${encodeURIComponent(landmark.id)}`}>
@@ -107,7 +107,7 @@ export default function LandmarkStoryBody({
         rel="noreferrer"
       >
         Source: {landmark.source.label}
-        <ExternalLink size={13} aria-hidden="true" />
+        <ExternalLink size={14} aria-hidden="true" />
       </a>
       {nearby.length > 0 && (onStartCrawl || onAskPubmaxxer) ? (
         <div className="landmarkStoryActions">

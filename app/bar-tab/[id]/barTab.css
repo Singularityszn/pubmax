@@ -18,14 +18,14 @@
 .barTabEyebrow {
   margin: 0 0 6px;
   color: var(--ink-soft);
-  font-size: 0.72rem;
+  font-size: var(--text-xs);
   font-weight: 700;
   letter-spacing: 0.01em;
 }
 
 .barTabTitle {
   margin: 0;
-  font-family: var(--font-garamond, var(--serif, Georgia), "Times New Roman", serif);
+  font-family: var(--font-display);
   font-size: clamp(1.8rem, 6vw, 2.6rem);
   line-height: 1.05;
   color: var(--ink);
@@ -33,8 +33,8 @@
 
 .barTabAddress {
   margin: 6px 0 0;
-  color: var(--muted, #8a8577);
-  font-size: 0.92rem;
+  color: var(--muted);
+  font-size: var(--text-sm);
 }
 
 .barTabHeadRow {
@@ -45,34 +45,22 @@
   margin-top: 14px;
 }
 
+/* "From" and the cheapest pint, in the one price look (PriceBadge). */
 .barTabCheapest {
   display: inline-flex;
-  align-items: baseline;
-  gap: 7px;
-  padding: 6px 13px;
-  border-radius: var(--radius);
-  background: var(--ink-deep, #1c231d);
-  color: var(--brass-bright, #d8ab55);
-  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--brass) 40%, transparent);
+  align-items: center;
+  gap: var(--space-2);
+  color: var(--ink-soft);
 }
 
 .barTabCheapestLabel {
-  font-size: 0.62rem;
-  font-weight: 700;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-}
-
-.barTabCheapestValue {
-  font-family: var(--font-garamond, var(--serif, Georgia), serif);
-  font-size: 1.2rem;
-  font-weight: 700;
-  font-variant-numeric: tabular-nums;
+  font-size: var(--text-sm);
+  font-weight: 600;
 }
 
 .barTabCount {
   color: var(--ink-soft);
-  font-size: 0.88rem;
+  font-size: var(--text-sm);
   font-weight: 600;
 }
 
@@ -90,17 +78,20 @@
   align-items: center;
   min-height: 44px;
   padding: 0 12px;
-  color: var(--brass);
+  color: var(--ink);
   font-weight: 700;
-  font-size: 0.9rem;
-  text-decoration: none;
+  font-size: var(--text-sm);
+  text-decoration: underline;
+  text-underline-offset: 0.18em;
   border: 1px solid transparent;
-  border-radius: var(--radius-sm, 8px);
+  border-radius: var(--radius-sm);
 }
 
-.barTabMapLink:hover,
-.barTabLedgerLink:hover {
-  border-color: var(--brass);
+@media (hover: hover) and (pointer: fine) {
+  .barTabMapLink:hover,
+  .barTabLedgerLink:hover {
+    border-color: var(--hairline-strong);
+  }
 }
 
 .barTabMapLink:focus-visible,
@@ -109,7 +100,7 @@
   outline-offset: 2px;
 }
 
-/* The grid — 2 cols on phones, 3 from tablet up. */
+/* The photo wall: 2 across on a phone, then as many as fit. */
 .barTabGrid {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
@@ -119,9 +110,9 @@
   list-style: none;
 }
 
-@media (min-width: 700px) {
+@media (min-width: 641px) {
   .barTabGrid {
-    grid-template-columns: repeat(3, 1fr);
+    grid-template-columns: repeat(auto-fill, minmax(11rem, 1fr));
     gap: 10px;
   }
 }
@@ -135,7 +126,7 @@
   display: flex;
   aspect-ratio: 1;
   overflow: hidden;
-  border-radius: var(--radius-sm, 10px);
+  border-radius: var(--radius-sm);
   border: 1px solid var(--line);
   background: var(--panel-raised);
   text-decoration: none;
@@ -155,25 +146,16 @@
   transition: transform 0.2s ease;
 }
 
-.barTabTile--photo:hover .barTabTilePhoto {
-  transform: scale(1.03);
+@media (hover: hover) and (pointer: fine) {
+  .barTabTile--photo:hover .barTabTilePhoto {
+    transform: scale(1.03);
+  }
 }
 
 .barTabTilePrice {
   position: absolute;
   right: 8px;
   bottom: 8px;
-  padding: 4px 9px;
-  border-radius: 8px;
-  background: var(--ink-deep, #1c231d);
-  color: var(--brass-bright, #d8ab55);
-  font-family: var(--font-garamond, var(--serif, Georgia), serif);
-  font-size: 0.92rem;
-  font-weight: 700;
-  font-variant-numeric: tabular-nums;
-  box-shadow:
-    0 2px 8px rgba(0, 0, 0, 0.3),
-    inset 0 0 0 1px color-mix(in srgb, var(--brass) 40%, transparent);
 }
 
 /* Text-only drop → a mini receipt tile so the grid never has a gap. */
@@ -184,11 +166,7 @@
   gap: 6px;
   padding: 16px 12px;
   text-align: center;
-  background: linear-gradient(
-    160deg,
-    color-mix(in srgb, var(--brass) 9%, var(--panel)) 0%,
-    var(--panel) 68%
-  );
+  background: var(--panel);
 }
 
 .barTabTileEyebrow {
@@ -198,24 +176,23 @@
   letter-spacing: 0.01em;
 }
 
-.barTabTileReceiptPrice {
-  font-family: var(--font-garamond, var(--serif, Georgia), serif);
-  font-size: clamp(1.4rem, 6vw, 2rem);
+.barTabTileMemory {
+  font-family: var(--font-display);
+  font-size: var(--text-lg);
   font-weight: 700;
-  font-variant-numeric: tabular-nums;
   line-height: 1;
-  color: var(--pint, var(--brass));
+  color: var(--ink);
 }
 
 .barTabTileDrink {
   color: var(--ink);
-  font-size: 0.86rem;
+  font-size: var(--text-sm);
   font-weight: 600;
 }
 
 .barTabTileNote {
-  color: var(--muted, #8a8577);
-  font-size: 0.76rem;
+  color: var(--muted);
+  font-size: var(--text-xs);
   line-height: 1.4;
   display: -webkit-box;
   -webkit-line-clamp: 3;
@@ -244,14 +221,14 @@
 
 .barTabEmptyTitle {
   margin: 8px 0 10px;
-  font-family: var(--font-garamond, var(--serif, Georgia), serif);
-  font-size: 1.6rem;
+  font-family: var(--font-display);
+  font-size: var(--text-xl);
   color: var(--ink);
 }
 
 .barTabEmptyBody {
   margin: 0 0 18px;
-  color: var(--muted, #8a8577);
+  color: var(--muted);
 }
 
 .barTabPrimaryLink {

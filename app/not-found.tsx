@@ -45,16 +45,17 @@ export default function NotFound() {
         >
           <PubmaxxWordmark />
         </span>
-        {/* Plain text with no border and no fill, so tight tracking and no
-            uppercase transform (docs/DESIGN_SYSTEM.md, caps policy). Coral as
-            a word takes the ink token, which clears AA on the light ladder. */}
+        {/* The status code is a figure, so it takes the data face, and it is
+            a label rather than an action, so muted ink: coral is spent on the
+            one primary below (docs/DESIGN_SYSTEM.md, "Coral is spent twice"). */}
         <p
           style={{
             margin: "0 0 12px",
-            color: "var(--color-accent-ink)",
-            fontSize: "0.8rem",
-            fontWeight: 700,
-            letterSpacing: "0.01em",
+            color: "var(--color-text-muted)",
+            fontFamily: "var(--font-data)",
+            fontSize: "var(--text-xs)",
+            fontWeight: 600,
+            fontVariantNumeric: "tabular-nums",
           }}
         >
           404
@@ -62,8 +63,8 @@ export default function NotFound() {
         <h1
           style={{
             margin: "0 0 14px",
-            fontFamily: "var(--serif, Georgia, serif)",
-            fontSize: "clamp(1.8rem, 4vw, 2.6rem)",
+            fontFamily: "var(--font-display)",
+            fontSize: "clamp(var(--text-xl), 4vw, var(--text-3xl))",
             lineHeight: 1.1,
           }}
         >

@@ -583,7 +583,9 @@ describe("tonight provenance credits", () => {
       outEvents: [],
       whatsOnChecked: null,
     });
-    expect(credits.whatsOn).toBe("Quiet night · undated · via what’s-on");
+    // The chain carries no "undated" segment: the line under it says so in a
+    // sentence (TonightProvenanceLines), so the chain never reads like an enum.
+    expect(credits.whatsOn).toBe("Quiet night · via what’s-on");
     expect(credits.out).toBeNull();
     expect(credits.whatsOnDated && credits.outDated).toBe(false);
   });

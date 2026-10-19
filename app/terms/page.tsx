@@ -4,6 +4,7 @@ import Link from "next/link";
 import Kicker from "@/components/ui/kicker";
 import { CONTACT_EMAIL, CONTACT_MAILTO } from "@/lib/siteContact";
 import { appPageTitle, metadataSiteName } from "@/lib/brandNaming";
+import SiteNav from "@/components/nav/SiteNav";
 
 import "../legal.css";
 
@@ -34,6 +35,8 @@ export const metadata: Metadata = {
 
 export default function TermsPage() {
   return (
+    <>
+    <SiteNav />
     <main id="main" className="legalPage">
       {/* A legal page has no primary action (docs/design/LAUNCH_SCREENS.md),
           so the head is a kicker and the heading, never a Screen. */}
@@ -359,5 +362,6 @@ export default function TermsPage() {
         </p>
       </section>
     </main>
+    </>
   );
 }

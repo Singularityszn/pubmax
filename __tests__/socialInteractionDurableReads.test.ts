@@ -58,6 +58,7 @@ vi.mock("@/lib/socialPostStore", async (importOriginal) => {
 
 vi.mock("@/lib/supabase", () => ({
   hashActor: (value: string) => value,
+  isSupabaseConfigured: () => false,
   requiresSupabaseStore: () => true,
   requireSupabaseAdmin: () => ({
     rpc: async (name: string) => {

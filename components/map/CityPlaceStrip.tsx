@@ -253,7 +253,7 @@ export default function CityPlaceStrip({
       <div className="cityPlaceStripChips">
         {typeof rating === "number" ? (
           <span className="cityPlaceStripChip" data-kind="rating">
-            <Star size={12} aria-hidden="true" />
+            <Star size={14} aria-hidden="true" />
             <span>
               {rating.toFixed(1)}
               {typeof userRatingCount === "number" && userRatingCount > 0 ? (
@@ -268,13 +268,13 @@ export default function CityPlaceStrip({
             data-kind={openNow ? "open" : "closed"}
             aria-label={openNow ? "Open now" : "Closed now"}
           >
-            <Info size={12} aria-hidden="true" />
+            <Info size={14} aria-hidden="true" />
             <span>{openNow ? "Open now" : "Closed now"}</span>
           </span>
         ) : null}
         {hygiene ? (
           <span className="cityPlaceStripChip" data-kind="hygiene">
-            <UtensilsCrossed size={12} aria-hidden="true" />
+            <UtensilsCrossed size={14} aria-hidden="true" />
             {hygieneSourceHref ? (
               <a
                 href={hygieneSourceHref}
@@ -290,7 +290,7 @@ export default function CityPlaceStrip({
         ) : null}
         {transitLines.length > 0 ? (
           <span className="cityPlaceStripChip" data-kind="transit">
-            <TrainFront size={12} aria-hidden="true" />
+            <TrainFront size={14} aria-hidden="true" />
             <span title={transitSource ? `Source: ${transitSource}` : undefined}>
               {transitLines.join("  ·  ")}
             </span>
@@ -302,7 +302,7 @@ export default function CityPlaceStrip({
                 rel="noreferrer noopener"
                 aria-label="Transit source"
               >
-                <ExternalLink size={10} aria-hidden="true" />
+                <ExternalLink size={14} aria-hidden="true" />
               </a>
             ) : null}
           </span>

@@ -11,8 +11,6 @@ import {
 import { WEB_ONBOARDING_START_HREF } from "@/lib/firstRunRoute";
 import { isNativeApp } from "@/lib/nativePlatform";
 
-import "@/components/ui/chip.css";
-
 /** The words on the chip. Exported so the pins read the same string. */
 export const NEAR_ONBOARDING_CHIP_LABEL = "New here? Set your budget and patch";
 
@@ -21,7 +19,9 @@ export const NEAR_ONBOARDING_CHIP_LABEL = "New here? Set your budget and patch";
  * 2026). The landing's "Cheapest pints near me" now lands every visitor on
  * `/near?locate=1` and answers first; a first-time visitor (no seen mark,
  * lib/firstRunTour.ts) finds this one quiet chip under the answer instead of a
- * five-step gate in front of it.
+ * five-step gate in front of it. It is a quiet text link: drawn as a chip it
+ * read as one more area to pick beside the patch chips (taste plan, 18 Oct
+ * 2026).
  *
  * The server snapshot says "seen", so the prerendered document never carries
  * the chip and hydration never disagrees with it. It is a client navigation,
@@ -42,7 +42,7 @@ export default function NearOnboardingChip() {
   if (seen || isNativeApp()) return null;
   return (
     <p className="nmnFirstRunChip">
-      <Link prefetch={false} href={WEB_ONBOARDING_START_HREF} className="uiChip">
+      <Link prefetch={false} href={WEB_ONBOARDING_START_HREF} className="nmnFirstRunLink">
         {NEAR_ONBOARDING_CHIP_LABEL}
       </Link>
     </p>

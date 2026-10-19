@@ -1,69 +1,99 @@
-/* Crawl Story poster. All selectors here are new + scoped to this page; the
-   values lean on the existing design-system CSS vars so the poster inherits the
-   "printed guidebook" theme (brass accent, cream paper, display headings via
-   var(--serif) — the legacy alias that now resolves to Space Grotesk). */
+/* /crawls: the curated routes and the Crawl Story poster (?s=).
+   The shell and its one left edge are the listing pages' own
+   (components/listing/listing.css). Tokens only, both themes track. Coral is
+   the Screen primary's alone (docs/DESIGN_SYSTEM.md, "Coral is spent twice"):
+   no coral pill, link, tint, disc or outline anywhere under the head. */
 
 .crawlsShell {
   min-height: 100dvh;
-  background: var(--paper);
-  color: var(--ink);
-  padding: 24px var(--page-gutter) 64px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 28px;
+  padding-block: var(--space-2) var(--space-12);
 }
 
 /* --- shared bits ---------------------------------------------------------- */
 
+/* A group label: muted words, sentence case, the body face. */
 .crawlEyebrow {
-  margin: 0 0 8px;
-  font-size: 13px;
-  letter-spacing: 0.01em;
-  /* A kicker is a label in muted ink (docs/DESIGN_SYSTEM.md "Coral is spent
-     twice"); --state-active-ink is the "you are here" marker, not a kicker. */
+  margin: 0 0 var(--space-2);
   color: var(--color-text-muted);
-  font-weight: 700;
+  font-size: var(--text-sm);
+  font-weight: 600;
 }
 
-/* --- empty state ---------------------------------------------------------- */
+/* --- the listing ----------------------------------------------------------- */
 
-/* The listing state is a Screen (components/ui/screen.tsx): kicker, heading,
-   one primary action, then the routes. It used to be a bordered panel holding
-   bordered cards, which is card-in-card (docs/VOICE.md "Template patterns"),
-   so the panel is gone and space does the grouping. Deliberate non-adopter of
-   --content-max: it runs wider (760px) than the reading column so the compact
-   rows do not look starved. The shell already pays the page gutter for the
-   poster state, so the Screen's own gutter is switched off here. */
-.crawlsShell .crawlEmpty {
-  width: 100%;
-  max-width: 760px;
-  padding-inline: 0;
+/* Everything under the head reads in one column, as wide as the head. The
+   compact rows run a little wider than the reading column so a route's name
+   and its price range fit one line. */
+.crawlLayout > * {
+  max-width: 47.5rem;
+}
+
+/* From 1024px (the desktop breakpoint) the data column holds two: the list at the reading width and,
+   beside it, the featured crawl as a sticky pane (the DesktopRail pattern,
+   components/desktop/DesktopRail.tsx: sticky, clear of the floating nav,
+   aligned to the top). It is the SAME element placed in the second column,
+   never a CSS `order` and never a copy, so a keyboard and a screen reader
+   meet it where the DOM puts it: after the route packs, before the list.
+   Everything else stays in the first column, one row each, so the pane's
+   span covers the whole list. A phone keeps the one column. */
+@media (min-width: 1024px) {
+  .crawlLayout {
+    display: grid;
+    grid-template-columns: minmax(0, var(--content-max)) minmax(0, 1fr);
+    column-gap: var(--space-10);
+    align-items: start;
+  }
+
+  .crawlLayout > * {
+    grid-column: 1;
+    max-width: none;
+  }
+
+  /* A link keeps its own width rather than stretching to the column's. */
+  .crawlLayout > .crawlSecondaryBtn {
+    justify-self: start;
+  }
+
+  .crawlLayout > .curatedFeaturedWrap {
+    grid-column: 2;
+    grid-row: 1 / span 8;
+    position: sticky;
+    top: calc(2 * var(--space-12));
+    margin: 0;
+  }
+}
+
+/* The shared Round starter is a form on this page, not a raised card: one
+   hairline above it, the page's left edge, no box (DESIGN_SYSTEM.md "Edges").
+   The heading inside it already says what it is. */
+.crawlLayout > .roundStarter {
+  margin: 0;
+  padding: var(--space-6) 0 0;
+  border: 0;
+  border-top: 1px solid var(--line-soft);
+  border-radius: 0;
+  background: transparent;
 }
 
 .crawlEmptyBody {
-  margin: 0 0 24px;
-  max-width: 440px;
-  color: var(--ink-soft);
-  line-height: 1.55;
+  margin: 0 0 var(--space-4);
+  max-width: var(--content-max);
+  color: var(--color-text-soft);
+  line-height: var(--leading-normal);
 }
 
 .crawlOwnLead {
-  margin-bottom: 16px;
+  margin-top: var(--space-6);
 }
 
-/* --- route packs (compact jump-nav above the crawl grid) ------------------ */
-/* E4 (Gate-Z): this used to be a dense two-column text index (title + blurb +
-   "Open on map" + "Browse N routes" per pack) stacked above the curated card
-   grid it precedes — duplicate content, since every pack's routes already
-   surface as full cards (thumbnail, price range, badges, CTA) below. Now a
-   slim chip row: click a pack to filter the grid to its routes (?pack=id),
-   full pack blurb still reachable via the chip's title tooltip. */
+/* --- route packs ---------------------------------------------------------- */
+/* A slim chip row: a pack filters the list to its routes (?pack=id); its blurb
+   rides the chip's title. On a phone the eleven chips are ONE row that
+   scrolls sideways, the next chip peeking past the edge, rather than a block
+   that filled the first screen. */
 
 .routePackNav {
-  width: 100%;
-  margin: 0 0 28px;
-  text-align: left;
+  margin: 0 0 var(--space-8);
 }
 
 .routePackChipRow {
@@ -72,42 +102,40 @@
   padding: 0;
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
+  gap: var(--space-2);
 }
 
 .routePackChip {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: var(--space-2);
   min-height: 44px;
-  padding: 6px 12px;
-  border-radius: 999px;
-  border: 1px solid var(--line);
-  background: var(--panel);
-  color: var(--ink-soft);
-  font-size: 13px;
+  padding: 0 var(--space-3);
+  border: 1px solid var(--hairline-strong);
+  border-radius: var(--control-radius);
+  color: var(--color-text-soft);
+  font-size: var(--text-sm);
   font-weight: 600;
   text-decoration: none;
-  transition:
-    border-color 0.15s ease,
-    color 0.15s ease,
-    background-color 0.15s ease;
+  white-space: nowrap;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .routePackChip {
+    transition: border-color var(--duration-fast) var(--ease-out),
+      background-color var(--duration-fast) var(--ease-out);
+  }
 }
 
 @media (hover: hover) and (pointer: fine) {
   .routePackChip:hover {
-    border-color: var(--brass);
-    color: var(--state-active-ink);
+    border-color: var(--state-selected-border);
+    color: var(--color-text);
   }
 }
 
 .routePackChip:focus-visible {
-  border-color: var(--brass);
-  color: var(--state-active-ink);
-}
-
-.routePackChip:focus-visible {
-  outline: 2px solid var(--brass);
+  outline: 2px solid var(--color-text);
   outline-offset: 2px;
 }
 
@@ -118,245 +146,220 @@
 }
 
 .routePackChipCount {
-  font-size: 12px;
-  font-weight: 700;
-  opacity: 0.7;
+  color: var(--color-text-muted);
+  font-family: var(--font-data);
+  font-size: var(--text-xs);
+  font-variant-numeric: tabular-nums;
+}
+
+.routePackChip.isActive .routePackChipCount {
+  color: var(--state-selected-ink);
 }
 
 .routePackActiveNote {
-  margin: 10px 0 0;
-  font-size: 13px;
-  color: var(--ink-soft);
+  margin: var(--space-3) 0 0;
+  color: var(--color-text-soft);
+  font-size: var(--text-sm);
 }
 
 .routePackActiveNote a {
-  color: var(--state-active-ink);
-  font-weight: 700;
+  color: var(--color-text);
+  font-weight: 600;
+  text-decoration: underline;
+  text-decoration-color: var(--hairline-strong);
+  text-underline-offset: 3px;
 }
 
-/* --- the featured crawl card ---------------------------------------------- */
+@media (max-width: 640px) {
+  .routePackChipRow {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+    scrollbar-width: none;
+    /* Bleed to the screen's edges so the row reads as one strip, with the
+       gutter kept as padding for the first and last chip. */
+    margin-inline: calc(-1 * var(--page-gutter));
+    padding-inline: var(--page-gutter);
+    scroll-padding-inline: var(--page-gutter);
+  }
+
+  .routePackChipRow::-webkit-scrollbar {
+    display: none;
+  }
+
+  .routePackChipRow > li {
+    flex: 0 0 auto;
+  }
+}
+
+/* --- the featured crawl ---------------------------------------------------- */
+
+/* One card, because the featured route IS raised above the rest. Four
+   things in it: the name, one line, a meta line, one quiet link. */
+.curatedFeaturedWrap {
+  margin: 0 0 var(--space-8);
+  max-width: var(--content-max);
+}
 
 .curatedCard {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 10px;
-  padding: 20px 18px;
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
+  display: grid;
+  gap: var(--space-2);
+  padding: var(--space-5);
+  border: 1px solid var(--line-soft);
+  border-radius: var(--radius-lg);
   background: var(--panel-raised);
-  box-shadow: var(--shadow);
 }
 
-.curatedBadge {
-  padding: 3px 10px;
-  border-radius: 999px;
-  border: 1px solid var(--brass);
-  color: var(--state-active-ink);
-  font-size: 12px;
-  font-weight: 700;
-  letter-spacing: 0.6px;
-  text-transform: uppercase;
+/* A photograph leads the card edge to edge, its credit on the line under it,
+   then the four things the card says. */
+.curatedCard--photo {
+  overflow: hidden;
+  padding-top: 0;
+}
+
+.curatedPhoto {
+  margin: 0 calc(-1 * var(--space-5)) var(--space-2);
+}
+
+.curatedPhoto .placePhoto__frame {
+  border-radius: 0;
+}
+
+.curatedPhoto .placePhoto__caption {
+  padding-inline: var(--space-5);
+}
+
+@media (min-width: 1024px) {
+  .curatedPhoto .placePhoto__frame {
+    aspect-ratio: 4 / 3;
+  }
 }
 
 .curatedName {
   margin: 0;
-  font-family: var(--serif);
-  font-size: 21px;
-  line-height: 1.15;
-  color: var(--ink);
+  color: var(--color-text);
+  font-family: var(--font-display);
+  font-size: var(--text-lg);
+  font-weight: 700;
+  line-height: var(--leading-tight);
+  letter-spacing: var(--tracking-tight);
 }
 
 .curatedBlurb {
   margin: 0;
-  flex: 1 1 auto;
-  color: var(--ink-soft);
-  font-size: 14px;
-  line-height: 1.5;
+  max-width: 60ch;
+  color: var(--color-text-soft);
+  font-size: var(--text-base);
+  line-height: var(--leading-normal);
+  text-wrap: pretty;
 }
 
 .curatedMeta {
   margin: 0;
-  font-size: 12px;
+  color: var(--color-text-muted);
+  font-size: var(--text-sm);
+}
+
+/* A figure, so the data face; a range with no band stays neutral ink. */
+.curatedPriceRange {
+  color: var(--color-text);
+  font-family: var(--font-data);
   font-weight: 700;
-  letter-spacing: 0.01em;
-  color: var(--ink-soft);
+  font-variant-numeric: tabular-nums;
 }
 
-/* --- honest route metrics on the curated card (E4) ------------------------ */
-
-.curatedRoute {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
-/* Route-shape thumbnail. currentColor drives the polyline + dots, so a muted
-   ink tone here (not the loud brass) keeps it a quiet supporting mark. */
-.curatedRouteThumb {
-  flex: 0 0 auto;
-  width: 58px;
-  height: 58px;
-  color: var(--ink-soft);
-  border: 1px solid var(--line);
-  border-radius: var(--radius-sm);
-  background: var(--panel-raised);
-}
-
-.curatedRouteMeta {
-  font-size: 12px;
-  line-height: 1.4;
-  color: var(--ink-soft);
-}
-
-.curatedPriceFrom {
-  font-size: 12px;
-  font-weight: 700;
-  letter-spacing: 0.01em;
-  /* A price with no band stays neutral: --accent-price-ink is the brass plaque
-     for non-price metal, never a price colour (docs/DESIGN_SYSTEM.md). */
-  color: var(--ink-soft);
-}
-
-/* "Starts at Big Ben"-style origin chip (story 27). */
-.curatedOriginChip {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  padding: 3px 9px;
-  border: 1px solid var(--line);
-  border-radius: 999px;
-  color: var(--ink-soft);
-  font-size: 12px;
-  font-weight: 600;
-}
-
-.curatedOriginChip svg {
-  color: var(--brass);
-}
-
-.curatedPlaceStoryChip {
-  border-color: color-mix(in srgb, var(--brass) 35%, var(--line));
-  color: var(--ink);
-  background: color-mix(in srgb, var(--brass) 8%, transparent);
-}
-
-/* The card's own way onto the map reads as a link, not as a second filled
-   control: the Screen head above already paints the one primary action. */
+/* The card's way onto the map is a quiet ink link: the head above already
+   paints the one primary action. */
 .curatedPlanBtn {
-  margin-top: auto;
+  justify-self: start;
   display: inline-flex;
   align-items: center;
   min-height: 44px;
-  color: var(--state-active-ink);
-  font-size: 14px;
-  font-weight: 700;
-  text-decoration: none;
+  color: var(--color-text);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  text-decoration: underline;
+  text-decoration-color: var(--hairline-strong);
+  text-underline-offset: 3px;
 }
 
 @media (hover: hover) and (pointer: fine) {
   .curatedPlanBtn:hover {
-    text-decoration: underline;
+    text-decoration-color: currentColor;
   }
 }
 
 .curatedPlanBtn:focus-visible {
-  outline: 2px solid var(--brass);
+  outline: 2px solid var(--color-text);
   outline-offset: 2px;
-  border-radius: 3px;
+  border-radius: var(--radius-sm);
 }
 
-/* --- featured crawl (one full card, replaces the old repeated grid) ------- */
-
-.curatedFeaturedWrap {
-  width: 100%;
-  max-width: var(--content-max);
-  margin: 0 0 28px;
-  text-align: left;
-}
-
-.curatedFeaturedEyebrow {
-  margin: 0 0 10px;
-}
-
-.curatedFeaturedCard {
-  width: 100%;
-}
-
-/* --- compact crawl rows (E: kill the template-repetition wall) ------------ */
-/* Every crawl after the featured one is a single scannable line — name, area,
-   stop count, price range — grouped under its crawlStyle theme heading.
-   Taps open the same map deep-link the old full card's CTA used (curated
-   crawls have no dedicated detail route). */
+/* --- compact crawl rows ---------------------------------------------------- */
+/* Every crawl after the featured one is a single scannable line (name, area,
+   stop count, price range) grouped under its theme. Taps open the same map
+   deep-link the featured card's link uses. */
 
 .crawlCompactGroups {
-  width: 100%;
   display: grid;
-  gap: 22px;
-  margin: 0 0 28px;
-  text-align: left;
+  gap: var(--space-6);
+  margin: 0 0 var(--space-8);
 }
 
 .crawlCompactGroup {
   display: grid;
-  gap: 8px;
+  gap: var(--space-2);
 }
 
 .crawlCompactGroupHeading {
   margin: 0;
-  /* Sentence case: caps are for stamps, and a group title is a label. */
+  color: var(--color-text-muted);
   font-size: var(--text-sm);
-  font-weight: 700;
-  color: var(--ink-soft);
+  font-weight: 600;
 }
 
-.crawlCompactList {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
-  overflow: hidden;
-  background: var(--panel-raised);
-}
-
+/* The rows are the shared RowList (components/ui/rowList.css): no panel
+   round a group, one hairline between rows. The link is the whole row, so it
+   takes the row's grid here rather than the primitive's title overlay. */
 .crawlCompactRow + .crawlCompactRow {
-  border-top: 1px solid var(--line);
+  border-top: 1px solid var(--line-soft);
 }
 
 .crawlCompactLink {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  min-height: 44px;
-  padding: 10px 14px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--space-3);
+  min-height: 56px;
+  padding: var(--space-3) var(--space-2);
+  border-radius: var(--radius-sm);
   color: inherit;
   text-decoration: none;
-  transition: background-color 0.15s ease, transform 0.15s ease;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .crawlCompactLink {
+    transition: background-color var(--duration-fast) var(--ease-out);
+  }
 }
 
 @media (hover: hover) and (pointer: fine) {
   .crawlCompactLink:hover {
-    background: color-mix(in srgb, var(--brass) 6%, transparent);
+    background: var(--panel);
   }
 }
 
 .crawlCompactLink:focus-visible {
-  outline: 2px solid var(--brass);
+  outline: 2px solid var(--color-text);
   outline-offset: -2px;
 }
 
-.crawlCompactLink:active {
-  transform: scale(0.97);
-  --shared-press-scale: 1;
-}
-
 .crawlCompactName {
-  font-family: var(--serif);
-  font-size: 15px;
-  font-weight: 700;
-  color: var(--ink);
   overflow: hidden;
+  color: var(--color-text);
+  font-family: var(--font-display);
+  font-size: var(--text-base);
+  font-weight: 700;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -364,10 +367,9 @@
 .crawlCompactMetaRow {
   display: flex;
   align-items: center;
-  gap: 10px;
-  font-size: 12px;
-  color: var(--ink-soft);
+  gap: var(--space-3);
   overflow: hidden;
+  font-size: var(--text-xs);
 }
 
 .crawlCompactArea {
@@ -381,65 +383,51 @@
 }
 
 .crawlCompactPrice {
-  flex: 0 0 auto;
-  margin-left: auto;
   /* A figure, so the data face; a range with no band stays neutral ink. */
+  color: var(--color-text);
   font-family: var(--font-data);
+  font-size: var(--text-xs);
   font-weight: 700;
-  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
 }
 
-@media (prefers-reduced-motion: reduce) {
-  .crawlCompactLink {
-    transition: none;
-  }
+/* --- poster (?s=) ------------------------------------------------------------ */
 
-  .crawlCompactLink:active {
-    transform: none;
-  }
-}
-
-/* --- poster --------------------------------------------------------------- */
-
-/* The poster holds a bordered receipt, so the poster itself takes no border of
-   its own (card-in-card is on the template-pattern ban list). */
-.crawlPoster {
-  width: 100%;
-  max-width: var(--content-max);
-  padding: 8px 0 0;
-}
-
-/* The poster's head is the Screen primitive (components/ui/screen.tsx): kicker,
-   the story's own name, one primary action. The shell already pays the page
-   gutter, so the Screen's own gutter is switched off inside the poster, and
-   the rule under the head sits on the head alone, not under the whole poster. */
-.crawlsShell .crawlPosterHead {
-  width: 100%;
+/* The poster's head is the Screen primitive, inside the listing section's
+   edge; the poster reads in the reading column. */
+.crawlPoster > .crawlPosterHead {
   padding-inline: 0;
+  width: 100%;
+}
+
+.crawlPosterHead > :not(.screenHead) {
+  max-width: var(--content-max);
 }
 
 .crawlPosterHead > .screenHead {
-  border-bottom: 2px solid var(--line);
-  padding-bottom: 20px;
+  border-bottom: 1px solid var(--line-soft);
+  padding-bottom: var(--space-5);
 }
 
 .crawlTags {
   list-style: none;
-  margin: 16px 0 0;
+  margin: var(--space-4) 0 0;
   padding: 0;
   display: flex;
   flex-wrap: wrap;
-  gap: 6px;
+  gap: var(--space-2);
 }
 
+/* A vibe tag is a word, in the neutral badge trio. */
 .crawlTag {
-  padding: 4px 12px;
-  border-radius: 999px;
-  border: 1px solid var(--brass);
-  color: var(--state-active-ink);
-  font-size: 12px;
+  padding: var(--space-1) var(--space-3);
+  border: 1px solid var(--badge-border);
+  border-radius: var(--radius-pill);
+  background: var(--badge-surface);
+  color: var(--badge-ink);
+  font-size: var(--text-xs);
   font-weight: 600;
-  letter-spacing: 0.3px;
 }
 
 /* --- stops ---------------------------------------------------------------- */
@@ -447,29 +435,27 @@
 .crawlStops {
   list-style: none;
   margin: 0;
-  padding: 8px 0 0;
+  padding: var(--space-2) 0 0;
 }
 
 .crawlStop {
   display: flex;
   align-items: flex-start;
-  gap: 14px;
-  padding: 16px 0;
-  border-bottom: 1px dashed var(--line);
+  gap: var(--space-3);
+  padding: var(--space-4) 0;
+  border-bottom: 1px solid var(--line-soft);
 }
 
+/* A stop's number is a muted figure, not a coral disc. */
 .crawlStopNumber {
   flex: 0 0 auto;
-  width: 30px;
-  height: 30px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 50%;
-  background: var(--brass);
-  color: var(--panel-raised);
-  font-weight: 700;
-  font-size: 14px;
+  min-width: 2ch;
+  padding-top: 2px;
+  color: var(--color-text-muted);
+  font-family: var(--font-data);
+  font-size: var(--text-sm);
+  font-variant-numeric: tabular-nums;
+  text-align: end;
 }
 
 .crawlStopBody {
@@ -479,57 +465,55 @@
 
 .crawlStopBody strong {
   display: block;
-  font-size: 17px;
-  line-height: 1.25;
+  font-size: var(--text-md);
+  line-height: var(--leading-snug);
 }
 
 .crawlStopNote {
-  margin: 4px 0 0;
-  color: var(--ink-soft);
-  font-size: 14px;
-  line-height: 1.45;
+  margin: var(--space-1) 0 0;
+  color: var(--color-text-soft);
+  font-size: var(--text-sm);
+  line-height: var(--leading-normal);
 }
 
 .crawlStopPrice {
   flex: 0 0 auto;
-  font-family: var(--serif);
-  font-size: 17px;
-  font-weight: 700;
-  color: var(--ink);
   padding-top: 2px;
+  color: var(--color-text);
+  font-family: var(--font-data);
+  font-size: var(--text-base);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
 }
 
-/* --- receipt-style total -------------------------------------------------- */
+/* --- the total -------------------------------------------------------------- */
 
 .crawlReceipt {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-top: 18px;
-  padding: 16px 18px;
-  border: 1px solid var(--brass);
-  border-radius: 12px;
-  background: color-mix(in srgb, var(--brass) 8%, var(--panel-raised));
+  margin-top: var(--space-4);
+  padding: var(--space-4) 0;
+  border-top: 1px solid var(--hairline-strong);
 }
 
 .crawlReceipt > span {
   display: flex;
   flex-direction: column;
   font-weight: 700;
-  letter-spacing: 0.4px;
 }
 
 .crawlReceipt small {
   margin-top: 2px;
+  color: var(--color-text-muted);
   font-weight: 400;
-  color: var(--ink-soft);
-  letter-spacing: 0;
 }
 
 .crawlReceipt strong {
-  font-family: var(--serif);
-  font-size: 28px;
-  color: var(--accent-price-ink);
+  color: var(--color-text);
+  font-family: var(--font-data);
+  font-size: var(--text-xl);
+  font-variant-numeric: tabular-nums;
 }
 
 /* --- actions -------------------------------------------------------------- */
@@ -537,50 +521,45 @@
 .crawlActions {
   display: flex;
   flex-wrap: wrap;
-  gap: 10px;
-  margin-top: 22px;
+  gap: var(--space-3);
+  margin-top: var(--space-5);
 }
 
-/* Every action under the stops is a bordered secondary: the Screen head owns
+/* Every action under the stops is a neutral secondary: the Screen head owns
    the one filled control on the page. */
 .crawlSecondaryBtn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 8px;
+  gap: var(--space-2);
   min-height: 44px;
-  padding: 11px 18px;
-  border-radius: var(--radius);
-  font-size: 15px;
+  padding: 0 var(--space-4);
+  border: 1px solid var(--hairline-strong);
+  border-radius: var(--control-radius);
+  background: transparent;
+  color: var(--color-text);
+  font-size: var(--text-sm);
   font-weight: 600;
-  cursor: pointer;
   text-decoration: none;
-  box-sizing: border-box;
-  background: var(--panel-raised);
-  color: var(--ink);
-  border: 1px solid var(--line);
+  cursor: pointer;
 }
 
 @media (hover: hover) and (pointer: fine) {
   .crawlSecondaryBtn:hover {
-    border-color: var(--brass);
+    border-color: var(--state-selected-border);
+    background: var(--state-selected-surface);
   }
 }
 
 .crawlSecondaryBtn:focus-visible {
-  outline: 2px solid var(--brass);
+  outline: 2px solid var(--color-text);
   outline-offset: 2px;
 }
 
 .crawlFootnote {
-  margin: 22px 0 0;
-  text-align: center;
-  font-family: var(--serif);
-  font-style: italic;
-  color: var(--ink-soft);
-}
-
-@media (max-width: 520px) {
+  margin: var(--space-5) 0 0;
+  color: var(--color-text-muted);
+  font-size: var(--text-sm);
 }
 
 /* RoundStarter styles live in components/round/roundStarter.css (shared with Plan drawer). */

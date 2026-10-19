@@ -14,7 +14,10 @@ import {
 } from "@/lib/pintIndexArrival";
 import type { PintIndexSurface } from "@/lib/analyticsEvents";
 import { formatPrice } from "@/lib/venues";
+import { priceBand } from "@/lib/priceBand";
+import PriceBadge from "@/components/PriceBadge";
 
+import "@/components/ui/rowList.css";
 import "./pintIndexArrival.css";
 
 // The one tap between "interesting London number" and "what about my patch".
@@ -28,6 +31,14 @@ import "./pintIndexArrival.css";
 // The figures here are the map's own recorded prices, not the cited Index
 // observations above them, so their source and baseline as-of date are stamped
 // once underneath, like every other number on the page.
+//
+// The areas are a list read down the page, the shared RowList shape (taste
+// plan, 18 Oct 2026): the area's name, its priced-pub count as quiet meta and
+// its cheapest pint at the row's end in its price band. They were tiles in a
+// coral-tinted card (card in card), five then three with holes beside them,
+// and the price was neither banded nor set as a figure. The rows reuse the
+// RowList classes rather than the component, because each is a plain anchor
+// with its own analytics, for the reason given beside it below.
 
 type PintIndexArrivalProps = {
   areas: ArrivalArea[];
@@ -64,33 +75,40 @@ export default function PintIndexArrival({ areas, surface }: PintIndexArrivalPro
         another. Pick an area and the map opens on the cheapest pint we have on
         record there. No sign-up, and we won&rsquo;t ask where you are.
       </p>
-      <ul className="pintArrivalAreas" aria-label="Open an area on the map">
+      <ul className="rowList pintArrivalAreas" aria-label="Open an area on the map">
         {areas.map((area) => (
-          <li key={area.slug}>
-            {/* A plain anchor, deliberately, where the rest of the site routes
-                client-side. The map freezes at mount whether this arrival is
-                intentional (lib/explicitMapIntent) and what the camera owes
-                it, both read from the URL it mounted with. Reached by a soft
-                navigation from here it inherits THIS page's empty query, so it
-                opens on all of London and stacks the first-run welcome over
-                it. A full load hands the map its real arrival, which is the
-                whole promise of the tap. */}
-            <a
-              className="pintArrivalArea"
-              href={arrivalMapHref(area)}
-              onClick={() => trackEvent("pint_index_area_opened", { surface, area: area.slug })}
-            >
-              <span className="pintArrivalAreaName">{area.name}</span>
-              <span className="pintArrivalAreaMeta">
-                {`${formatPrice(area.cheapestGbp)} cheapest of ${area.pricedCount} priced pubs`}
+          <li key={area.slug} className="rowListItem rowListItem--link pintArrivalArea">
+            <span className="rowListBody">
+              {/* A plain anchor, deliberately, where the rest of the site routes
+                  client-side. The map freezes at mount whether this arrival is
+                  intentional (lib/explicitMapIntent) and what the camera owes
+                  it, both read from the URL it mounted with. Reached by a soft
+                  navigation from here it inherits THIS page's empty query, so it
+                  opens on all of London and stacks the first-run welcome over
+                  it. A full load hands the map its real arrival, which is the
+                  whole promise of the tap. */}
+              <a
+                className="rowListTitle rowListTitleLink pintArrivalAreaName"
+                href={arrivalMapHref(area)}
+                onClick={() => trackEvent("pint_index_area_opened", { surface, area: area.slug })}
+              >
+                {area.name}
+              </a>
+              <span className="rowListMeta">
+                Cheapest of {area.pricedCount} priced pubs
               </span>
-            </a>
+            </span>
+            <span className="rowListTrailing">
+              <PriceBadge variant="current" band={priceBand(area.cheapestGbp, { city: "london" })}>
+                {formatPrice(area.cheapestGbp)}
+              </PriceBadge>
+            </span>
           </li>
         ))}
       </ul>
       <p className="pintArrivalSource">
         Prices and counts from the London pint-price dataset, {formatPintDatasetAsOf()}.{" "}
-        <Link href="/borough">Somewhere else in mind? Every borough is here</Link>
+        <Link href="/borough" className="pintArrivalMore">Somewhere else in mind? Every borough is here</Link>
       </p>
     </section>
   );
