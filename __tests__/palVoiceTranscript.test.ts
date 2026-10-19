@@ -118,7 +118,7 @@ describe("the next stop of a night", () => {
   });
 
   it("does not hear a question about another day", () => {
-    for (const line of ["What's next tomorrow?", "what's next week", "where next weekend", "what is next on Saturday"]) {
+    for (const line of ["What's next tomorrow?", "what's next week", "where next weekend", "what is next on Saturday", "Tomorrow, what's next?", "on Friday where to next"]) {
       expect(palAsksForNextStop(line)).toBe(false);
     }
   });

@@ -125,8 +125,8 @@ export function palAsksForMap(text: string): boolean {
 const NEXT_STOP_RE =
   /\b(?:next\s+(?:stop|pub|bar|one|place)|where(?:'s|\s+is)?\s+next|where\s+to\s+next|what'?s\s+next|what\s+is\s+next)\b/;
 const NEXT_STOP_NEGATION_RE = /\b(?:don'?t|do not|dont|never|not|no need to|stop)\b/;
-// "What's next tomorrow" and "where next weekend" ask about another day, not
-// this night's next stop.
+// "What's next tomorrow", "Tomorrow, what's next?" and "where next weekend"
+// ask about another day, not this night's next stop, wherever the day sits.
 const NEXT_STOP_LATER_RE =
   /\b(?:tomorrow|weekend|week|month|year|monday|tuesday|wednesday|thursday|friday|saturday|sunday)\b/;
 
@@ -143,7 +143,7 @@ export function palAsksForNextStop(text: string): boolean {
   // "Don't take me to the next stop yet" is not an ask. "Stop" inside the ask
   // itself ("next stop") is the noun, so only the words before it are read.
   if (NEXT_STOP_NEGATION_RE.test(normalized.slice(0, ask.index))) return false;
-  return !NEXT_STOP_LATER_RE.test(normalized.slice(ask.index + ask[0].length));
+  return !NEXT_STOP_LATER_RE.test(normalized);
 }
 
 type PalNightStop = { venueId: string; venueName: string };

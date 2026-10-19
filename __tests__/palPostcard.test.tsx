@@ -3,6 +3,9 @@ import { act, createElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+const auth = vi.hoisted(() => ({ userId: "owner" as string | null }));
+vi.mock("@/components/auth/authContext", () => ({ useAuth: () => ({ user: auth.userId ? { id: auth.userId } : null }) }));
+
 import PalPostcard from "@/components/pal/PalPostcard";
 import {
   PAL_POSTCARD_MAX_STOPS,
@@ -135,6 +138,21 @@ describe("the postcard on the recap", () => {
     await render();
     const text = host.textContent ?? "";
     expect(text).not.toMatch(/£|pint|drink/i);
+  });
+
+  it("never shows a Pal another account left on this device", async () => {
+    store(pal());
+    auth.userId = "someone-else";
+    await render();
+    expect(host.querySelector(".palPostcard")).toBeNull();
+    act(() => root?.unmount());
+    root = null;
+    host.remove();
+
+    auth.userId = null;
+    await render();
+    expect(host.querySelector(".palPostcard")).toBeNull();
+    auth.userId = "owner";
   });
 
   it("is never made for no Pal, a hidden Pal, or a night of one stop", async () => {

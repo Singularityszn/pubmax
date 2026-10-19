@@ -3,6 +3,7 @@ import { randomUUID } from "node:crypto";
 import { mkdir } from "node:fs/promises";
 
 import { DEFAULT_PAL_DRAFT } from "../lib/pubPal";
+import { ACCOUNTS, installAuthDoubles, seedSignedIn } from "./helpers/authDoubles";
 
 // The Pal postcard (components/pal/PalPostcard.tsx): on a finished night's
 // private recap, the reader's own Pal stands at the last stop of the route.
@@ -50,18 +51,23 @@ test("a finished night's recap shows the Pal at the last stop, with no drink cou
   expect(completion.ok()).toBe(true);
 
   await page.setViewportSize({ width: 390, height: 844 });
-  await page.addInitScript(({ id, token, appearance, personality, voice }) => {
+  // The card wears the stored Pal only for the signed-in account that owns it,
+  // on a device that account signed in to before.
+  await installAuthDoubles(page);
+  await page.addInitScript(({ id, token, ownerId, appearance, personality, voice }) => {
     const now = "2026-10-04T12:00:00.000Z";
     window.localStorage.setItem("pubmaxx:analytics-consent:v1", "denied");
     window.localStorage.setItem("pubmax-tour-v1-done", "1");
     window.localStorage.setItem("pubmax_onboarding_dismissed", "1");
     window.sessionStorage.setItem(`pubmax-plan-member:${id}`, token);
+    window.localStorage.setItem("pubmax_account_owner", ownerId);
     window.localStorage.setItem("pubmax_pub_pal_v1", JSON.stringify({
-      id: "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb", ownerId: "owner-e2e", name: "Ripley",
+      id: "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb", ownerId, name: "Ripley",
       adultAttestedAt: now, appearance, personality, voice, muted: false, hidden: false,
       proposalPreferences: {}, masteryPoints: 0, createdAt: now, updatedAt: now,
     }));
-  }, { id: planId, token: created.memberToken, ...DEFAULT_PAL_DRAFT });
+  }, { id: planId, token: created.memberToken, ownerId: ACCOUNTS.A.id, ...DEFAULT_PAL_DRAFT });
+  await seedSignedIn(page, "A");
 
   // The plan page exchanges the member token for the plan's own session.
   await page.goto(`/plan/${planId}`);

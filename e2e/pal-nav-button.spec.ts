@@ -32,6 +32,7 @@ async function seed(page: Page, { theme, withPal }: { theme: "light" | "dark"; w
     window.sessionStorage.setItem("pubmax_onboarding_dismissed", "1");
     window.localStorage.setItem("pubmax-theme", chosen);
     if (seeded) {
+      window.localStorage.setItem("pubmax_account_owner", ownerId);
       window.localStorage.setItem("pubmax_pub_pal_v1", JSON.stringify({
         id: "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb", ownerId, name: "Ripley",
         adultAttestedAt: now, appearance, personality, voice, muted: false, hidden: false,

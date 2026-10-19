@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 
+import { useAuth } from "@/components/auth/authContext";
 import { palCheerLine } from "@/components/pal/PalCheer";
 import PalPrint from "@/components/pal/PalPrint";
 import { PubPalMascot } from "@/components/pal/PubPalMascot";
@@ -48,10 +49,14 @@ export default function PalPostcard({
   const [pal, setPal] = useState<PubPal | null>(null);
   const [save, setSave] = useState<SaveState>("idle");
   const cardRef = useRef<HTMLElement>(null);
+  // The stored Pal is a device cache, so it stands on the card only for the
+  // signed-in account that owns it.
+  const accountId = useAuth().user?.id ?? null;
   useEffect(() => {
     const stored = readLocalPal();
-    queueMicrotask(() => setPal(stored));
-  }, []);
+    const own = stored && accountId && stored.ownerId === accountId ? stored : null;
+    queueMicrotask(() => setPal(own));
+  }, [accountId]);
 
   const names = palPostcardStops(stops);
   if (!pal || pal.hidden || names.length < 2) return null;

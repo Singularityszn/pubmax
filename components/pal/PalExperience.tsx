@@ -52,10 +52,10 @@ import { Button } from "@/components/ui/button";
 import Screen from "@/components/ui/screen";
 import { setActivePlanPalContext } from "@/lib/activePlan";
 import { readFirstRunCompanion } from "@/lib/firstRunTour";
+import { LOCAL_PAL_KEY } from "@/lib/localPal";
 import { safeLocalStorage } from "@/lib/safeStorage";
 import { useStepHistory } from "@/lib/useStepHistory";
 
-const STORAGE_KEY = "pubmax_pub_pal_v1";
 // How long the wake-up stretch plays after the person unmutes their Pal.
 const PAL_WAKE_MS = 1_400;
 const PRIVACY_KEY = "pubmax_pub_pal_privacy_v1";
@@ -169,7 +169,7 @@ function readStored(key: string): string | null {
 
 function readStoredPal(ownerId: string): PubPal | null {
   try {
-    const value = JSON.parse(readStored(STORAGE_KEY) ?? "null") as (PubPal & { proposalPreferences?: PubPal["proposalPreferences"] }) | null;
+    const value = JSON.parse(readStored(LOCAL_PAL_KEY) ?? "null") as (PubPal & { proposalPreferences?: PubPal["proposalPreferences"] }) | null;
     return value?.ownerId === ownerId
       ? { ...value, proposalPreferences: value.proposalPreferences ?? { memories: true, routes: true } }
       : null;
@@ -691,7 +691,7 @@ export default function PalExperience() {
         const next = response.ok ? body.pal ?? null : readStoredPal(user.id);
         if (next?.ownerId === ownerId) {
           setActivePlanPalContext({ id: next.id, name: next.name });
-          writeStored(STORAGE_KEY, next);
+          writeStored(LOCAL_PAL_KEY, next);
           setPal(next);
           setDraft({
             adultConfirmed: true,
@@ -794,7 +794,7 @@ export default function PalExperience() {
       const next = body.pal;
       if (activeOwnerRef.current !== ownerId || next.ownerId !== ownerId) return;
 
-      writeStored(STORAGE_KEY, next);
+      writeStored(LOCAL_PAL_KEY, next);
       writeStored(`${PRIVACY_KEY}:${ownerId}`, { proposeMemories: privacy.proposeMemories });
       setPal(next);
       setActivePlanPalContext({ id: next.id, name: next.name });
@@ -819,7 +819,7 @@ export default function PalExperience() {
     setControlSaving(true);
     const optimistic = { ...pal, ...patch, updatedAt: new Date().toISOString() };
     setPal(optimistic);
-    writeStored(STORAGE_KEY, optimistic);
+    writeStored(LOCAL_PAL_KEY, optimistic);
     try {
       const response = await authedActionFetch("/api/pub-pal", {
         method: "PATCH",
@@ -832,7 +832,7 @@ export default function PalExperience() {
       }
       if (activeOwnerRef.current !== ownerId || body.pal.ownerId !== ownerId) return;
       setPal(body.pal);
-      writeStored(STORAGE_KEY, body.pal);
+      writeStored(LOCAL_PAL_KEY, body.pal);
       // A Pal the person just unmuted stretches awake. Any other setting
       // gets the plain "saved" celebration.
       const woke = patch.muted === false && !body.pal.muted;
@@ -842,7 +842,7 @@ export default function PalExperience() {
       if (activeOwnerRef.current !== ownerId) return;
       setPalAnimationState("error");
       setPal(pal);
-      writeStored(STORAGE_KEY, pal);
+      writeStored(LOCAL_PAL_KEY, pal);
       setError(
         offlineOrMessage(cause instanceof Error
             ? cause.message
@@ -867,7 +867,7 @@ export default function PalExperience() {
     const optimistic = { ...pal, proposalPreferences, updatedAt: new Date().toISOString() };
     setPal(optimistic);
     if (kind === "memories") setPrivacy((current) => ({ ...current, proposeMemories: enabled }));
-    writeStored(STORAGE_KEY, optimistic);
+    writeStored(LOCAL_PAL_KEY, optimistic);
     try {
       const response = await authedActionFetch("/api/pub-pal", {
         method: "PATCH",
@@ -878,14 +878,14 @@ export default function PalExperience() {
       if (!response.ok || !body.pal) throw new Error(errorMessageFrom(body, "We couldn't save your suggestion settings."));
       if (activeOwnerRef.current !== ownerId || body.pal.ownerId !== ownerId) return;
       setPal(body.pal);
-      writeStored(STORAGE_KEY, body.pal);
+      writeStored(LOCAL_PAL_KEY, body.pal);
       setPalAnimationState("celebrating");
       window.setTimeout(() => setPalAnimationState("idle"), 900);
     } catch (cause) {
       if (activeOwnerRef.current !== ownerId) return;
       setPal(previous);
       setPrivacy((current) => ({ ...current, proposeMemories: previous.proposalPreferences.memories }));
-      writeStored(STORAGE_KEY, previous);
+      writeStored(LOCAL_PAL_KEY, previous);
       setError(cause instanceof Error ? cause.message : "We couldn't save your suggestion settings.");
       setPalAnimationState("error");
     } finally {
@@ -1007,7 +1007,7 @@ export default function PalExperience() {
       const body = await response.json().catch(() => ({})) as { error?: string };
       if (!response.ok) throw new Error(errorMessageFrom(body, "We couldn't delete your Pal."));
       if (activeOwnerRef.current !== ownerId) return;
-      removeStored(STORAGE_KEY);
+      removeStored(LOCAL_PAL_KEY);
       removeStored(`${PRIVACY_KEY}:${ownerId}`);
       setActivePlanPalContext(null);
       setMemories([]);
