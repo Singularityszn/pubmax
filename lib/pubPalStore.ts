@@ -34,7 +34,7 @@ function proposalPreferences(value: unknown, fallback: PalProposalPreferences = 
 
 function palFromRow(row: Record<string, unknown>): PubPal {
   const appearance = row.appearance as PubPal["appearance"];
-  return { id: String(row.id), ownerId: String(row.owner_id), name: String(row.name), adultAttestedAt: String(row.adult_attested_at), appearance: { ...appearance, species: compatiblePalSpecies(appearance?.species) ?? "robin" }, personality: row.personality as PubPal["personality"], voice: row.voice as PubPal["voice"], muted: Boolean(row.muted), hidden: Boolean(row.hidden), proposalPreferences: proposalPreferences(row.proposal_preferences), masteryPoints: Number(row.mastery_points ?? 0), createdAt: String(row.created_at), updatedAt: String(row.updated_at) };
+  return { id: String(row.id), ownerId: String(row.owner_id), name: String(row.name), adultAttestedAt: String(row.adult_attested_at), appearance: { ...appearance, species: compatiblePalSpecies(appearance?.species) ?? "robin" }, personality: row.personality as PubPal["personality"], voice: row.voice as PubPal["voice"], muted: Boolean(row.muted), hidden: Boolean(row.hidden), crewVisible: row.crew_visible === true, proposalPreferences: proposalPreferences(row.proposal_preferences), masteryPoints: Number(row.mastery_points ?? 0), createdAt: String(row.created_at), updatedAt: String(row.updated_at) };
 }
 
 function memoryFromRow(row: Record<string, unknown>): PubPalMemory {
@@ -69,7 +69,7 @@ export async function createPubPalResult(ownerId: string, raw: unknown): Promise
   const now = new Date().toISOString();
   const controls = raw as Record<string, unknown>;
   const preferences = proposalPreferences(controls.proposalPreferences);
-  const pal: PubPal = { id: randomUUID(), ownerId, name: draft.name, adultAttestedAt: now, appearance: draft.appearance, personality: draft.personality, voice: draft.voice, muted: controls.muted === true, hidden: controls.hidden === true, proposalPreferences: preferences, masteryPoints: 0, createdAt: now, updatedAt: now };
+  const pal: PubPal = { id: randomUUID(), ownerId, name: draft.name, adultAttestedAt: now, appearance: draft.appearance, personality: draft.personality, voice: draft.voice, muted: controls.muted === true, hidden: controls.hidden === true, crewVisible: false, proposalPreferences: preferences, masteryPoints: 0, createdAt: now, updatedAt: now };
   if (!isSupabaseConfigured()) { pals.set(ownerId, pal); return { ok: true, value: pal }; }
   try {
     const { data, error } = await admin().from("pub_pals").insert({ id: pal.id, owner_id: ownerId, name: pal.name, adult_attested_at: now, appearance: pal.appearance, personality: pal.personality, voice: pal.voice, muted: pal.muted, hidden: pal.hidden, proposal_preferences: pal.proposalPreferences }).select("*").single();
@@ -85,16 +85,43 @@ export async function updatePubPalResult(ownerId: string, raw: unknown): Promise
   const existing = existingResult.value;
   if (!existing || !raw || typeof raw !== "object") return { ok: false, error: "not_found" };
   const input = raw as Record<string, unknown>;
-  const next: PubPal = { ...existing, muted: typeof input.muted === "boolean" ? input.muted : existing.muted, hidden: typeof input.hidden === "boolean" ? input.hidden : existing.hidden, proposalPreferences: proposalPreferences(input.proposalPreferences, existing.proposalPreferences), updatedAt: new Date().toISOString() };
+  const next: PubPal = { ...existing, muted: typeof input.muted === "boolean" ? input.muted : existing.muted, hidden: typeof input.hidden === "boolean" ? input.hidden : existing.hidden, crewVisible: typeof input.crewVisible === "boolean" ? input.crewVisible : existing.crewVisible === true, proposalPreferences: proposalPreferences(input.proposalPreferences, existing.proposalPreferences), updatedAt: new Date().toISOString() };
   if (!isSupabaseConfigured()) { pals.set(ownerId, next); return { ok: true, value: next }; }
   const patch: Record<string, unknown> = { updated_at: next.updatedAt };
   if (typeof input.muted === "boolean") patch.muted = input.muted;
   if (typeof input.hidden === "boolean") patch.hidden = input.hidden;
+  if (typeof input.crewVisible === "boolean") patch.crew_visible = input.crewVisible;
   if (input.proposalPreferences && typeof input.proposalPreferences === "object") patch.proposal_preferences = next.proposalPreferences;
   try {
     const { data, error } = await admin().from("pub_pals").update(patch).eq("owner_id", ownerId).select("*").maybeSingle();
     if (error) return { ok: false, error: "error" };
     return data ? { ok: true, value: palFromRow(data as Record<string, unknown>) } : { ok: false, error: "not_found" };
+  } catch {
+    return { ok: false, error: "error" };
+  }
+}
+
+/**
+ * The Pals these owners show to their crew (Pals walk together): only a Pal
+ * whose owner turned "Show my Pal to my crew" on and did not hide it. The
+ * caller (GET /api/plans/[id]/pals) has already proved the reader is a member
+ * of a plan these owners are members of; this read never widens that.
+ */
+export async function listCrewVisiblePalsResult(ownerIds: readonly string[]): Promise<PubPalStoreResult<PubPal[]>> {
+  const owners = [...new Set(ownerIds.filter((id) => typeof id === "string" && id.length > 0))];
+  if (owners.length === 0) return { ok: true, value: [] };
+  if (!isSupabaseConfigured()) {
+    return { ok: true, value: owners.map((id) => pals.get(id)).filter((pal): pal is PubPal => Boolean(pal && pal.crewVisible === true && !pal.hidden)) };
+  }
+  try {
+    const { data, error } = await admin()
+      .from("pub_pals")
+      .select("*")
+      .in("owner_id", owners)
+      .eq("crew_visible", true)
+      .eq("hidden", false);
+    if (error) return { ok: false, error: "error" };
+    return { ok: true, value: (data ?? []).map((row) => palFromRow(row as Record<string, unknown>)) };
   } catch {
     return { ok: false, error: "error" };
   }

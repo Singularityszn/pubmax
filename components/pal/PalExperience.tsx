@@ -15,6 +15,7 @@ import {
   ShieldCheck,
   Sparkles,
   Trash2,
+  UsersRound,
   Volume2,
   VolumeX,
 } from "lucide-react";
@@ -299,7 +300,7 @@ function PalHomeScreen({
   setPalAnimationState: Dispatch<SetStateAction<PalAnimationState>>;
   controlSaving: boolean;
   saving: boolean;
-  updateControl: (patch: Partial<Pick<PubPal, "muted" | "hidden">>) => Promise<void>;
+  updateControl: (patch: Partial<Pick<PubPal, "muted" | "hidden" | "crewVisible">>) => Promise<void>;
   updateProposalPreference: (kind: "memories" | "routes" | "taste", enabled: boolean) => Promise<void>;
   removePal: () => Promise<void>;
   exportMemories: () => Promise<void>;
@@ -356,6 +357,12 @@ function PalHomeScreen({
           <button type="button" disabled={controlSaving || saving} onClick={() => void updateControl({ hidden: !pal.hidden })} aria-pressed={pal.hidden}>
             {pal.hidden ? <EyeOff /> : <Eye />}
             <span><strong>{pal.hidden ? "Hidden" : "Visible"}</strong><small>{pal.hidden ? "Pal shortcuts are off" : "Pal can appear in shortcuts"}</small></span>
+          </button>
+          {/* Pals walk together (lib/crewPals.ts): off until the person turns it
+              on, and only crew members of the same plan ever see it. */}
+          <button type="button" disabled={controlSaving || saving} onClick={() => void updateControl({ crewVisible: pal.crewVisible !== true })} aria-pressed={pal.crewVisible === true}>
+            <UsersRound />
+            <span><strong>{pal.crewVisible ? "Shown to your crew" : "Private to you"}</strong><small>{pal.crewVisible ? "Your crew sees it walk on a plan's map" : "Tap to let your crew see it walk on a plan's map"}</small></span>
           </button>
           <button type="button" disabled={controlSaving || saving} onClick={() => void updateProposalPreference("memories", !proposalPreferences.memories)} aria-pressed={proposalPreferences.memories}>
             <ShieldCheck />
@@ -815,7 +822,7 @@ export default function PalExperience() {
     }
   };
 
-  const updateControl = async (patch: Partial<Pick<PubPal, "muted" | "hidden">>) => {
+  const updateControl = async (patch: Partial<Pick<PubPal, "muted" | "hidden" | "crewVisible">>) => {
     if (!pal || controlSavingRef.current || palMutationRef.current) return;
     const ownerId = pal.ownerId;
     const lock = { ownerId, requestId: ++controlRequestIdRef.current };

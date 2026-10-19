@@ -11,8 +11,10 @@ import "./palMarker.css";
 // The Pal on the map: the reader's own Pub Pal perched beside the pub they
 // have open, or, on a crawl, walking the route from stop to stop.
 //
-// It is ONE DOM marker, the same bounded-count exception the donut clusters
-// take (donutClusters.ts), and it keeps to the map's rules:
+// It is a bounded count of DOM markers, the same exception the donut clusters
+// take (donutClusters.ts): ONE for the reader's own Pal, plus at most
+// CREW_PALS_MAX crew Pals on a crew plan (lib/crewPals.ts), each a step behind
+// the last. It keeps to the map's rules:
 // - it never moves the camera ("Nothing moves this camera but the reader"):
 //   it only appears where the reader is already looking, beside the selected
 //   pin, and hops when the selection changes;
@@ -90,8 +92,16 @@ function prefersReducedMotion(): boolean {
   }
 }
 
+/** What the marker draws of a Pal: its look, never its owner. */
+export type PalMarkerLook = Pick<PubPal, "id" | "personality" | "muted"> & {
+  appearance: Pick<PubPal["appearance"], "species">;
+};
+
+/** How far behind the reader's own Pal each crew Pal walks, in pixels. */
+const CREW_STEP_PX = 24;
+
 /** The marker's markup, as plain DOM: the map's markers live outside React. */
-export function palMarkerElement(pal: PubPal): HTMLElement | null {
+export function palMarkerElement(pal: PalMarkerLook): HTMLElement | null {
   const slug = pubPalMascotSlugFor(pal.appearance.species);
   if (!slug) return null;
   const element = document.createElement("div");
@@ -123,11 +133,25 @@ export function palMarkerElement(pal: PubPal): HTMLElement | null {
   return element;
 }
 
-export function createPalMapMarker(map: maplibregl.Map): PalMapMarker {
-  const pal = readLocalPal();
-  if (!pal || pal.hidden) return NO_PAL;
+/**
+ * The reader's own Pal, or, with `crew`, one crew member's Pal on a crew plan
+ * (Pals walk together, lib/crewPals.ts). A crew Pal walks the same route a
+ * step behind the one before it, and only the reader's own Pal answers the
+ * reader's Pal moments.
+ */
+export function createPalMapMarker(map: maplibregl.Map, crew?: { pal: PalMarkerLook; index: number }): PalMapMarker {
+  const own = crew ? null : readLocalPal();
+  if (!crew && (!own || own.hidden)) return NO_PAL;
+  const pal: PalMarkerLook = crew ? crew.pal : own!;
   const element = palMarkerElement(pal);
   if (!element) return NO_PAL;
+  const crewStep = crew ? (crew.index + 1) * CREW_STEP_PX : 0;
+  const perchOffset: [number, number] = [PERCH_OFFSET[0] + crewStep, PERCH_OFFSET[1]];
+  const walkOffset: [number, number] = [WALK_OFFSET[0] - crewStep, WALK_OFFSET[1]];
+  if (crew) {
+    element.classList.add("isCrew");
+    element.dataset.palCrew = String(crew.index);
+  }
   const body = element.querySelector<HTMLElement>(".palMapMarkerBody")!;
 
   let marker: maplibregl.Marker | null = null;
@@ -199,7 +223,7 @@ export function createPalMapMarker(map: maplibregl.Map): PalMapMarker {
     element.classList.remove("isWalking");
     element.dataset.palWalk = state;
     perchedAt = null;
-    place(walk.stops[stop]!, PERCH_OFFSET);
+    place(walk.stops[stop]!, perchOffset);
     restartClass(state === "visited" ? "isCheering" : "isLanding");
     if (victoryPending) victory();
   };
@@ -222,7 +246,7 @@ export function createPalMapMarker(map: maplibregl.Map): PalMapMarker {
       walk.metres = metres;
       body.style.setProperty("--pal-facing", String(visit.to < visit.from ? -heading : heading));
       element.classList.add("isWalking");
-      place(at, WALK_OFFSET);
+      place(at, walkOffset);
       frame = requestAnimationFrame(step);
       return;
     }
@@ -237,7 +261,7 @@ export function createPalMapMarker(map: maplibregl.Map): PalMapMarker {
     element.classList.toggle("isWalking", moment.pausedAt === null);
     if (moment.pausedAt !== null && moment.pausedAt !== pausedAt) restartClass("isLanding");
     pausedAt = moment.pausedAt;
-    place(moment.at, WALK_OFFSET);
+    place(moment.at, walkOffset);
     frame = requestAnimationFrame(step);
   };
 
@@ -258,7 +282,7 @@ export function createPalMapMarker(map: maplibregl.Map): PalMapMarker {
       const key = `${lngLat[0].toFixed(6)},${lngLat[1].toFixed(6)}|${pin?.cheap ? "cheap" : ""}`;
       if (key === perchedAt) return;
       perchedAt = key;
-      place(lngLat, PERCH_OFFSET);
+      place(lngLat, perchOffset);
       if (pin?.cheap) {
         element.dataset.palPin = "cheap";
         restartClass("isCheering");
@@ -295,7 +319,7 @@ export function createPalMapMarker(map: maplibregl.Map): PalMapMarker {
         walk.elapsed = plan.durationMs;
         walk.restAt = 0;
         element.dataset.palWalk = "waiting";
-        place(route.stops[0]!, PERCH_OFFSET);
+        place(route.stops[0]!, perchOffset);
         return;
       }
       const start = () => {
@@ -310,7 +334,7 @@ export function createPalMapMarker(map: maplibregl.Map): PalMapMarker {
       if (typeof map.loaded === "function" && !map.loaded()) {
         // Stand at the first stop until the map has painted.
         element.dataset.palWalk = "setting-off";
-        place(route.stops[0]!, WALK_OFFSET);
+        place(route.stops[0]!, walkOffset);
         const timer = window.setTimeout(start, START_WAIT_MS);
         map.once("idle", start);
         cancelStart = () => {
@@ -359,8 +383,9 @@ export function createPalMapMarker(map: maplibregl.Map): PalMapMarker {
     },
   };
 
-  // A finished crawl or night: on a crawl, run to the last stop first.
-  const unsubscribe = subscribePalMoments((moment) => {
+  // A finished crawl or night: on a crawl, run to the last stop first. A crew
+  // Pal walks for its own owner, so it never answers the reader's moments.
+  const unsubscribe = crew ? () => {} : subscribePalMoments((moment) => {
     if (!marker) return;
     if (!palMomentIsFinish(moment)) {
       // A kept price: a happy hop where it stands.

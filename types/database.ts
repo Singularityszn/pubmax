@@ -3489,6 +3489,7 @@ export type Database = {
           created_at: string;
           updated_at: string;
           proposal_preferences: Json;
+          crew_visible: boolean;
         };
         Insert: {
           id: string;
@@ -3504,6 +3505,7 @@ export type Database = {
           created_at?: string;
           updated_at?: string;
           proposal_preferences?: Json;
+          crew_visible?: boolean;
         };
         Update: {
           id?: string;
@@ -3519,6 +3521,7 @@ export type Database = {
           created_at?: string;
           updated_at?: string;
           proposal_preferences?: Json;
+          crew_visible?: boolean;
         };
         Relationships: [
           {
