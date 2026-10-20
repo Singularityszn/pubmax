@@ -54,6 +54,8 @@ describe("POST /api/pub-pal/chat", () => {
   it.each([
     "Where can I buy beer in Soho? How many pints can I have before driving?",
     "Where can I buy beer after cycling through Soho? Would it be safe to drive after two beers?",
+    "Can I drink 1.5 pints in Soho before driving?",
+    "Would it be safe to drive after 1.5 pints?",
   ])("answers mixed discovery and alcohol allowance with the safety handoff: %s", async (query) => {
     vi.stubEnv("ELEVENLABS_API_KEY", "");
     vi.stubEnv("TYPESAFE_API_KEY", "");

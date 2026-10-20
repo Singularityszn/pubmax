@@ -96,6 +96,10 @@ describe("propose_plan over the Pal webhook", () => {
     { conversationId: "conv_mixedsafety01", query: "Where can I buy beer in Soho? How many pints can I have before driving?" },
     { conversationId: null, query: "Where can I buy beer after cycling through Soho? Would it be safe to drive after two beers?" },
     { conversationId: "conv_temporalsafety01", query: "Where can I buy beer after cycling through Soho? Would it be safe to drive after two beers?" },
+    { conversationId: null, query: "Can I drink 1.5 pints in Soho before driving?" },
+    { conversationId: "conv_decimalsafety00", query: "Can I drink 1.5 pints in Soho before driving?" },
+    { conversationId: null, query: "Would it be safe to drive after 1.5 pints?" },
+    { conversationId: "conv_decimalsafety01", query: "Would it be safe to drive after 1.5 pints?" },
   ])("fences mixed discovery and alcohol allowance in voice tools: $conversationId $query", async ({ conversationId, query }) => {
     if (conversationId) {
       await registerPubPalToolTurn(conversationId, {

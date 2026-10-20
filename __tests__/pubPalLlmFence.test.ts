@@ -143,6 +143,27 @@ describe("Pub Pal fence without TypeSafe key", () => {
     await expect(resolvePubPalFenceIntent(query)).resolves.toEqual({ fenced: true, sobrietyOnly: true });
   });
 
+  it.each([
+    "Can I drink 1.5 pints in Soho before driving?",
+    "Would it be safe to drive after 1.5 pints?",
+    "Before cycling, can I drink 0.5 pints?",
+    "Can I drink 1.5 pints and still ride my bike?",
+    "Can I drink beer near St. James before driving?",
+    "Can I drink beer near J. Smith's before driving?",
+    "Can I drink beer, e.g. two pints, before driving?",
+    "Can I drink beer at 5 p.m. before driving?",
+    "Where can I buy beer after cycling. Would it be safe to drive after 1.5 pints?",
+  ])("preserves non-terminal periods in an alcohol safety question: %s", async (query) => {
+    const direct = {
+      fenced: isPubPalGetHomeOrSobrietyIntent(query),
+      sobrietyOnly: isPubPalSobrietyOnlyIntent(query),
+    };
+    expect(direct).toEqual({ fenced: true, sobrietyOnly: true });
+    await expect(resolvePubPalFenceIntent(query)).resolves.toEqual({ fenced: true, sobrietyOnly: true });
+    mockSystemOneFromFixture(0.01, 0.01);
+    await expect(resolvePubPalFenceIntent(query)).resolves.toEqual({ fenced: true, sobrietyOnly: true });
+  });
+
   it("retains mixed discovery and alcohol safety only from user history", async () => {
     const content = "Where can I buy beer in Soho? How many pints can I have before driving?";
     await expect(resolvePubPalFenceIntent("What about Soho?", [{ role: "user", content }]))
@@ -258,6 +279,10 @@ describe("Pub Pal fence without TypeSafe key", () => {
     "Where can I buy beer in Soho? After driving, should I have beer?",
     "Where can I buy beer before dinner? After driving, should I have beer?",
     "Where can I buy beer before dinner? After cycling, should I have beer?",
+    "Where can I buy beer before dinner. After driving, should I have beer?",
+    "Where can I buy beer before dinner. after cycling, should I have beer?",
+    "Where can I buy beer before dinner... After driving, should I have beer?",
+    "Where can I buy beer at 5 p.m. before dinner? After driving, should I have beer?",
     "Where can I buy nonalcoholic beer in Soho before driving?",
     "Find a safe cycling route to beer gardens in Soho",
     "I am the designated driver. Find alcohol-free pubs in Soho.",

@@ -33,31 +33,33 @@ function withoutAlcoholFreeDrinks(message: string): string {
 }
 
 function asksAboutAlcoholAndVehicleFitness(message: string): boolean {
-  return withoutAlcoholFreeDrinks(message).split(/[.!?;]+/).some((text) => {
-    if (!ALCOHOL_RE.test(text) || !VEHICLE_OPERATION_RE.test(text)) return false;
-    if (ALCOHOL_ALLOWANCE_RE.test(text)) return true;
-    const allowanceText = text.replace(
-      /\bwhere\s+(?:can|could|may|should)\s+(?:i|we)\s+(?:buy|find|get|have|drink)\b/gi,
-      "",
-    );
-    if (!PERSONAL_ALLOWANCE_RE.test(allowanceText) && !PERSONAL_FITNESS_RE.test(text)) return false;
+  return withoutAlcoholFreeDrinks(message)
+    .split(/[!?;]+|(?<!\b(?:[a-z]|st|mr|mrs|ms|dr|prof|jr|sr|vs|etc))\.(?=\s|$)/i)
+    .some((text) => {
+      if (!ALCOHOL_RE.test(text) || !VEHICLE_OPERATION_RE.test(text)) return false;
+      if (ALCOHOL_ALLOWANCE_RE.test(text)) return true;
+      const allowanceText = text.replace(
+        /\bwhere\s+(?:can|could|may|should)\s+(?:i|we)\s+(?:buy|find|get|have|drink)\b/gi,
+        "",
+      );
+      if (!PERSONAL_ALLOWANCE_RE.test(allowanceText) && !PERSONAL_FITNESS_RE.test(text)) return false;
 
-    const parts = text.split(/\b(before|after|and\s+still)\b/i);
-    for (let index = 1; index < parts.length; index += 2) {
-      const relation = parts[index] ?? "";
-      const left = parts[index - 1] ?? "";
-      const right = parts[index + 1] ?? "";
-      const alcoholAt = right.search(ALCOHOL_RE);
-      const operationAt = right.search(VEHICLE_OPERATION_RE);
-      if (/^before$/i.test(relation) && operationAt >= 0
-        && (ALCOHOL_RE.test(left) || alcoholAt > operationAt)) return true;
-      if (/^after$/i.test(relation) && alcoholAt >= 0
-        && (VEHICLE_OPERATION_RE.test(left) || operationAt > alcoholAt)) return true;
-      if (/^and\s+still$/i.test(relation)
-        && ALCOHOL_RE.test(left) && operationAt >= 0) return true;
-    }
-    return false;
-  });
+      const parts = text.split(/\b(before|after|and\s+still)\b/i);
+      for (let index = 1; index < parts.length; index += 2) {
+        const relation = parts[index] ?? "";
+        const left = parts[index - 1] ?? "";
+        const right = parts[index + 1] ?? "";
+        const alcoholAt = right.search(ALCOHOL_RE);
+        const operationAt = right.search(VEHICLE_OPERATION_RE);
+        if (/^before$/i.test(relation) && operationAt >= 0
+          && (ALCOHOL_RE.test(left) || alcoholAt > operationAt)) return true;
+        if (/^after$/i.test(relation) && alcoholAt >= 0
+          && (VEHICLE_OPERATION_RE.test(left) || operationAt > alcoholAt)) return true;
+        if (/^and\s+still$/i.test(relation)
+          && ALCOHOL_RE.test(left) && operationAt >= 0) return true;
+      }
+      return false;
+    });
 }
 
 const PUB_PAL_GET_HOME_REGISTER_CLOSER =
