@@ -69,7 +69,11 @@ const discoveryRequests = [
   "Can I drink only alcohol-free beer in Soho before driving?",
   "I am the designated driver. Find alcohol-free pubs in Soho.",
   "What are the parking options near pubs in Soho?",
-  "Can I have a pint in Soho after driving there?"
+  "Can I have a pint in Soho after driving there?",
+  "What route can I drive to Soho?",
+  "Which route should we cycle to Soho?",
+  "Can I ride the bus to Soho?",
+  "Could we ride the train to Soho?"
 ];
 
 for (const width of [390, 1440]) {

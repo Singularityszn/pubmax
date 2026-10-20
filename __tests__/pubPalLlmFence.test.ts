@@ -190,12 +190,12 @@ describe("Pub Pal fence without TypeSafe key", () => {
   });
 
   it.each([
-    [{ role: "user", content: "I have had two beers in Soho." }],
-    [{ role: "user", content: "I like beer." }],
-    [{ role: "user", content: "I have had two alcohol-free beers." }],
-    [{ role: "assistant", content: "I have had two beers in Soho." }],
-    [{ role: "user", content: "I drank water and my friend drank wine." }],
-  ] satisfies PubPalFenceTurn[][])("keeps the neutral current-question response independent of consumption in history: %j", async (turn) => {
+    { turn: { role: "user", content: "I have had two beers in Soho." } },
+    { turn: { role: "user", content: "I like beer." } },
+    { turn: { role: "user", content: "I have had two alcohol-free beers." } },
+    { turn: { role: "assistant", content: "I have had two beers in Soho." } },
+    { turn: { role: "user", content: "I drank water and my friend drank wine." } },
+  ] satisfies { turn: PubPalFenceTurn }[])("keeps the neutral current-question response independent of consumption in history: %j", async ({ turn }) => {
     for (const query of ["Can I drive?", "Can I drive to a beer garden?", "Is it safe to drive?"]) {
       await expect(resolvePubPalFenceIntent(query, [turn]))
         .resolves.toEqual({ fenced: true, sobrietyOnly: false });
@@ -218,6 +218,10 @@ describe("Pub Pal fence without TypeSafe key", () => {
     "Where can I buy alcohol-free beer in Soho?",
     "Find four quiet pubs in Soho under £7 per pint.",
     "What time does the bus leave Soho?",
+    "What route can I drive to Soho?",
+    "Which route should we cycle to Soho?",
+    "Can I ride the bus to Soho?",
+    "Could we ride the train to Soho?",
     "Can I have a pint in Soho after driving there?",
     "Where can I buy 0.0% beer in Soho before driving?",
     "Where can I buy non-alcoholic beer in Soho before driving?",
