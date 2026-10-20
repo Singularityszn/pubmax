@@ -411,18 +411,18 @@
     {
       "path": "/updates",
       "readySelector": "main.legalPage",
-      "why": "The public updates page uses the existing legal content shell. Seeded 20 October 2026 unmeasured, in family with /credits and /how-we-estimate. The production sweep can lower these ceilings.",
+      "why": "The public updates page uses the legal content shell. Five production-build samples on 20 October 2026 at 3449404bd under the tracked method measured median server render 8 ms, 771 KB decoded JS, 36 requests and LCP 400 ms (worst 408). The initial ceilings stay in family with /credits and /how-we-estimate.",
       "serverRenderMs": 150,
-      "jsDecodedKB": 910,
+      "jsDecodedKB": 900,
       "requests": 37,
       "lcpMs": 500
     },
     {
       "path": "/feedback",
       "readySelector": "main.feedbackPage",
-      "why": "The public feedback page uses Screen and SiteNav without a form or third-party integration. Seeded 20 October 2026 unmeasured, in family with /credits and /how-we-estimate. The production sweep can lower these ceilings.",
+      "why": "The public feedback page uses Screen and SiteNav without a form or third-party integration. Five production-build samples on 20 October 2026 at 3449404bd under the tracked method measured median server render 7 ms, 771 KB decoded JS, 36 requests and LCP 400 ms (worst 400). The initial ceilings stay in family with the public content pages.",
       "serverRenderMs": 150,
-      "jsDecodedKB": 910,
+      "jsDecodedKB": 900,
       "requests": 37,
       "lcpMs": 500
     },

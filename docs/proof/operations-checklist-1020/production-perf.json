@@ -1,0 +1,120 @@
+[
+  {
+    "path": "/updates",
+    "samples": [
+      {
+        "requests": 36,
+        "jsDecodedKB": 771,
+        "serverRenderMs": 15,
+        "lcpMs": 408,
+        "cls": 0.000003336800438168332,
+        "boundarySource": "page-ready",
+        "stillOpen": []
+      },
+      {
+        "requests": 36,
+        "jsDecodedKB": 771,
+        "serverRenderMs": 9,
+        "lcpMs": 396,
+        "cls": 0.000003336800438168332,
+        "boundarySource": "page-ready",
+        "stillOpen": []
+      },
+      {
+        "requests": 36,
+        "jsDecodedKB": 771,
+        "serverRenderMs": 8,
+        "lcpMs": 400,
+        "cls": 0.000003336800438168332,
+        "boundarySource": "page-ready",
+        "stillOpen": []
+      },
+      {
+        "requests": 36,
+        "jsDecodedKB": 771,
+        "serverRenderMs": 8,
+        "lcpMs": 400,
+        "cls": 0.000003336800438168332,
+        "boundarySource": "page-ready",
+        "stillOpen": []
+      },
+      {
+        "requests": 36,
+        "jsDecodedKB": 771,
+        "serverRenderMs": 8,
+        "lcpMs": 396,
+        "cls": 0.000003336800438168332,
+        "boundarySource": "page-ready",
+        "stillOpen": []
+      }
+    ],
+    "aggregate": {
+      "serverRenderMs": 8,
+      "jsDecodedKB": 771,
+      "requests": 36,
+      "lcpMs": 400,
+      "cls": 0.000003336800438168332,
+      "boundarySource": "page-ready",
+      "stillOpen": []
+    }
+  },
+  {
+    "path": "/feedback",
+    "samples": [
+      {
+        "requests": 36,
+        "jsDecodedKB": 771,
+        "serverRenderMs": 7,
+        "lcpMs": 400,
+        "cls": 0.000003336800438168332,
+        "boundarySource": "page-ready",
+        "stillOpen": []
+      },
+      {
+        "requests": 36,
+        "jsDecodedKB": 771,
+        "serverRenderMs": 7,
+        "lcpMs": 400,
+        "cls": 0.000003336800438168332,
+        "boundarySource": "page-ready",
+        "stillOpen": []
+      },
+      {
+        "requests": 36,
+        "jsDecodedKB": 771,
+        "serverRenderMs": 10,
+        "lcpMs": 400,
+        "cls": 0.000003336800438168332,
+        "boundarySource": "page-ready",
+        "stillOpen": []
+      },
+      {
+        "requests": 36,
+        "jsDecodedKB": 771,
+        "serverRenderMs": 7,
+        "lcpMs": 396,
+        "cls": 0.000003336800438168332,
+        "boundarySource": "page-ready",
+        "stillOpen": []
+      },
+      {
+        "requests": 36,
+        "jsDecodedKB": 771,
+        "serverRenderMs": 9,
+        "lcpMs": 396,
+        "cls": 0.000003336800438168332,
+        "boundarySource": "page-ready",
+        "stillOpen": []
+      }
+    ],
+    "aggregate": {
+      "serverRenderMs": 7,
+      "jsDecodedKB": 771,
+      "requests": 36,
+      "lcpMs": 400,
+      "cls": 0.000003336800438168332,
+      "boundarySource": "page-ready",
+      "stillOpen": []
+    }
+  }
+]
