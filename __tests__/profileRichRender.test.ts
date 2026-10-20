@@ -334,3 +334,23 @@ describe("an unmeasured count never renders as zero", () => {
     expect(buildPassport([]).isEmpty).toBe(true);
   });
 });
+
+
+describe("profile statistics name only sections the page can show", () => {
+  const render = (sectionLinks?: { timeline: boolean; crawls: boolean; memories: boolean }) => renderToStaticMarkup(createElement(ProfileHeader, {
+    profile: { handle: "alice", displayName: "Alice" }, stats: STATS, followers: 0, following: 0, sectionLinks,
+  } as HeaderProps));
+  it("keeps the figures without promising absent section destinations", () => {
+    const markup = render();
+    expect(markup).not.toContain('/u/alice#');
+    expect(markup).toContain('Pints logged: 3.');
+    expect(markup).toContain('Memories: 0.');
+    expect(markup).toContain('/u/alice/people/followers');
+  });
+  it("opens a real timeline without linking unavailable crawls or private memories", () => {
+    const markup = render({ timeline: true, crawls: false, memories: false });
+    expect(markup).toContain('/u/alice#timeline');
+    expect(markup).not.toContain('/u/alice#crawl-stories');
+    expect(markup).not.toContain('/u/alice#night-memories');
+  });
+});

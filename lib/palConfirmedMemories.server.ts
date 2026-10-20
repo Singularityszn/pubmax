@@ -73,7 +73,7 @@ export function palMemoryPreamble(memories: PalRecalledMemory[] | null): string[
   }
   if (memories.length === 0) return ["I have not confirmed anything for you to remember about me."];
   return [
-    "Things I confirmed you should remember about me. Use them as preferences, never as facts about a pub:",
+    "Things I confirmed you should remember about me. Preferences guide picks. Past nights are my personal reports, including explicitly reported spend. Preserve the stated pub and date. Never infer a bill from price observations or treat memories as current facts about a pub:",
     ...memories.map((memory) => `- ${memory.label}: ${memory.value}`),
   ];
 }
@@ -125,7 +125,7 @@ export async function recallPalMemoriesForConversation(
       answerHint:
         (memories.length === 0
           ? "The person has not confirmed anything to remember yet."
-          : `The person confirmed these preferences: ${memories.map((memory) => `${memory.label}: ${memory.value}`).join("; ")}. Treat them as preferences, never as facts about a pub.`) +
+          : `The person confirmed these preferences and past-night reports: ${memories.map((memory) => `${memory.label}: ${memory.value}`).join("; ")}. Use preferences for picks. Past nights are personal history, including explicitly reported spend. Preserve the stated pub and date. Never infer or sum price observations into a bill, or treat memories as current facts about a pub.`) +
         tasteHint,
       memories: memories.map(({ kind, value }) => ({ kind, value })),
     },

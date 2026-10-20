@@ -1394,14 +1394,20 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
     );
   }
 
+  function hasTimelineSection() {
+    return !youSignedOut && (state === "loading" || drops.length > 0 || isOwnProfile || isYouRoute);
+  }
+
+  function hasCrawlsSection() {
+    return !youSignedOut && (authoredCrawls.length > 0 || ownUnlistedCrawls.length > 0);
+  }
+
   function timelineSection() {
     // A visitor on a handle with no pints meets no Timeline: the passport above
     // already says it is blank, and a heading over "No pints logged" said it
     // twice. The owner keeps the section, where it is where pints will land.
-    const emptyForVisitor =
-      state !== "loading" && drops.length === 0 && !isOwnProfile && !isYouRoute;
     return (
-      !youSignedOut && !emptyForVisitor ? (
+      hasTimelineSection() ? (
         <section id="timeline" className="profileDropsSection" aria-labelledby="dropsHeading">
           <h2 id="dropsHeading" className="profileSectionHeading">
             Timeline
@@ -1434,8 +1440,7 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
   // published one, so an empty section never sits under a zero - or when the
   // owner has an unlisted crawl, which lives nowhere else at all.
   function crawlsSection() {
-    return !youSignedOut &&
-      (authoredCrawls.length > 0 || ownUnlistedCrawls.length > 0) ? (
+    return hasCrawlsSection() ? (
         <section
           id="crawl-stories"
           className="profileDropsSection"
@@ -1549,6 +1554,7 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
                 <ProfileHeader
                   profile={profile}
                   stats={stats}
+                  sectionLinks={{ timeline: hasTimelineSection(), crawls: hasCrawlsSection(), memories: Boolean(user) && (isOwnProfile || isYouRoute) }}
                   socialLinks={visibleSocialData.socialLinks}
                   crawls={storyCount}
                   memories={stats.memoriesPosted}

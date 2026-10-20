@@ -23,3 +23,12 @@ describe("voice tool display data", () => {
     expect(palVoiceToolAnswer(input)).toBeNull();
   });
 });
+
+
+it("shows a canonical tool result only with the requested-tool receipt", () => {
+  const canonical = { ...event, tool_name: "venue_prices", full_tool_result: JSON.stringify({ requestedTool: "venue_prices", result }) };
+  expect(palVoiceToolAnswer(canonical)?.cards).toHaveLength(4);
+  expect(palVoiceToolAnswer({ ...canonical, full_tool_result: JSON.stringify({ requestedTool: "venue_heritage", result }) })).toBeNull();
+  expect(palVoiceToolAnswer({ ...canonical, full_tool_result: JSON.stringify({ result }) })).toBeNull();
+  expect(palVoiceToolAnswer({ ...canonical, full_tool_result: JSON.stringify({ requestedTool: "venue_prices", result: { ...result, tool: "propose_memory" } }) })).toBeNull();
+});

@@ -81,7 +81,7 @@ import { palMapAskTarget, palPubAskVenue } from "@/lib/palMapAsk";
 import { venueMapUrl } from "@/lib/venueMapUrl";
 import { loadSlimVenuesForCity } from "@/lib/venuesSlim";
 import PalRecommendationMap from "@/components/pal/PalRecommendationMap";
-import { PintPriceBadge } from "@/components/PriceBadge";
+import PalCardPrice from "@/components/pal/PalCardPrice";
 import type { PalCard } from "@/lib/palChat";
 import { palVoiceToolAnswer } from "@/lib/palVoiceToolAnswer";
 import PalMemoryConfirmCard, { type PalMemoryCard } from "@/components/pal/PalMemoryConfirmCard";
@@ -712,8 +712,9 @@ function VoiceControls({ onStateChange, resetPendingSession, text, setText, erro
             {voiceCards.filter((card) => card.venueId).map((card) => (
               <li key={card.key}>
                 <Link href={venueMapUrl(card.venueId)} prefetch={false}>{card.title}</Link>{" "}
-                {typeof card.price === "number" ? <PintPriceBadge priceGbp={card.price} venueId={card.venueId} /> : null}{" "}
+                <PalCardPrice card={card} />{" "}
                 {card.provenance.url ? <a href={card.provenance.url} target="_blank" rel="noreferrer noopener">{card.provenance.label}</a> : <span>{card.provenance.label}</span>}
+                {card.note ? <p>{card.note}</p> : null}
               </li>
             ))}
           </ul>

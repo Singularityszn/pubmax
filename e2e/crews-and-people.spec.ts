@@ -147,7 +147,12 @@ test.describe("A profile statistic is a way in", () => {
 
     const links = stats.locator("a.profileStatLink");
     const count = await links.count();
-    expect(count).toBeGreaterThanOrEqual(4);
+    expect(await stats.getByRole("listitem").count()).toBeGreaterThanOrEqual(4);
+    const missingTargets = await links.evaluateAll((anchors) => anchors.filter((anchor) => {
+      const hash = new URL((anchor as HTMLAnchorElement).href).hash;
+      return hash && !document.getElementById(hash.slice(1));
+    }).map((anchor) => anchor.getAttribute("href")));
+    expect(missingTargets).toEqual([]);
     for (let index = 0; index < count; index += 1) {
       const href = await links.nth(index).getAttribute("href");
       expect(href, "every tile carries a destination").toBeTruthy();
@@ -159,7 +164,7 @@ test.describe("A profile statistic is a way in", () => {
     page,
   }) => {
     await page.goto("/u/pubmaxx");
-    const link = page.locator("a.profileStatLink").first();
+    const link = page.locator(".profileStats .profileStatLink").first();
     const box = await link.boundingBox();
     expect(box?.height ?? 0).toBeGreaterThanOrEqual(44);
 

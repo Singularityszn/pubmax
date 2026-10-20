@@ -21,9 +21,9 @@
 // Which grounded source a card came from. `directory` = our own first-party
 // venue index (deterministic rank); `whats-on` = a verified What's-On row that
 // carries its own attributable {label, url} source.
-import type { AskMenuEvidence } from "@/lib/ask/types";
+import type { AskMenuEvidence, AskSource } from "@/lib/ask/types";
 
-type PalProvenanceKind = "directory" | "whats-on" | "published-menu";
+type PalProvenanceKind = AskSource["kind"];
 
 type PalProvenance = {
   // The chip label a reader sees. Never blank — a card is not rendered without

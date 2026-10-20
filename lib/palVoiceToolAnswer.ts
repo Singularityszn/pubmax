@@ -11,10 +11,15 @@ export function palVoiceToolAnswer(event: unknown): (PalAnswer & { proposals: As
     || value.is_error !== false || value.is_called !== true || value.truncated === true
     || typeof value.full_tool_result !== "string" || value.full_tool_result.length > 128_000) return null;
   try {
-    const body = JSON.parse(value.full_tool_result) as { result?: Record<string, unknown> };
+    const body = JSON.parse(value.full_tool_result) as { requestedTool?: unknown; result?: Record<string, unknown> };
     const result = body?.result;
-    if (!result || result.ok !== true || result.tool !== value.tool_name) return null;
+    if (!result || result.ok !== true || typeof result.tool !== "string") return null;
     const memory = value.tool_name === "propose_memory";
+    if (memory ? result.tool !== "propose_memory" : !isAskToolName(result.tool)) return null;
+    // A fenced server call can choose a different canonical tool. Its receipt
+    // must still identify the provider request that produced this result.
+    if (result.tool !== value.tool_name && body.requestedTool !== value.tool_name) return null;
+    if (body.requestedTool !== undefined && body.requestedTool !== value.tool_name) return null;
     if (!Array.isArray(memory ? result.proposals : result.cards)) return null;
     const answer = palChatResultFromBody({ answer: result.answerHint, cards: memory ? [] : result.cards, proposals: memory ? result.proposals : [], status: "ready" });
     return answer.status === "error" ? null : answer;

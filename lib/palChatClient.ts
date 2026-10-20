@@ -9,7 +9,7 @@ import {
   type PalAnswer,
   type PalCard,
 } from "@/lib/palChat";
-import type { AskMenuEvidence, AskProposal, AskTurn } from "@/lib/ask/types";
+import { isAskSourceKind, type AskMenuEvidence, type AskProposal, type AskTurn } from "@/lib/ask/types";
 import { AuthActionSessionError, authedActionFetch } from "@/lib/authedFetch";
 import { answerFromBody } from "@/lib/conciergeAskClient";
 import {
@@ -69,8 +69,7 @@ export function palChatResultFromBody(body: unknown): PalChatResult {
         typeof provenanceRaw?.label === "string" && provenanceRaw.label.trim()
           ? provenanceRaw.label.trim()
           : DIRECTORY_PROVENANCE_LABEL;
-      const kind =
-        provenanceRaw?.kind === "whats-on" ? "whats-on" : provenanceRaw?.kind === "published-menu" ? "published-menu" : "directory";
+      const kind = isAskSourceKind(provenanceRaw?.kind) ? provenanceRaw.kind : "directory";
       cards.push({
         key:
           typeof item.key === "string" && item.key

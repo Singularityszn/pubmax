@@ -145,6 +145,15 @@ describe("Pal locality line", () => {
 });
 
 describe("Pal venue card navigation", () => {
+  it("keeps an unmeasured drink price neutral", async () => {
+    sessionAnswer.value = { ...answer, cards: [{ ...answer.cards[0], title: "Red wine at The Anchor", price: 7.5, note: "Seen 2 October 2026. Corroboration pending.", provenance: { kind: "community-price", label: "People-logged" } }] };
+    await askPal("Recorded drinks please");
+    const price = container.querySelector(".palChatCardPrice");
+    expect(price?.textContent).toBe("£7.50");
+    expect(price?.getAttribute("title")).toBeNull();
+    expect(container.textContent).toContain("Seen 2 October 2026. Corroboration pending.");
+  });
+
   it("routes a confirmed fly-to proposal with its place through the client router", async () => {
     sessionAnswer.value = {
       ...answer,
@@ -280,6 +289,21 @@ describe("Pal map asks in the written chat", () => {
     expect(planRead).toHaveBeenCalledWith("plan-1");
     expect(container.textContent).toContain("Opening The Crown, your next stop");
     expect(router.push).toHaveBeenCalledWith("/map?sel=venue-b");
+  });
+
+  it("retires an outstanding next-stop read when a new conversation starts", async () => {
+    activePlan.value = { id: "plan-1", stopIndex: 0 };
+    activePlan.on = true;
+    let release!: (value: unknown) => void;
+    planRead.mockReturnValue(new Promise((resolve) => { release = resolve; }));
+    await askPal("where next?");
+    const reset = [...container.querySelectorAll<HTMLButtonElement>("button")].find((button) => button.textContent === "New conversation");
+    if (!reset) throw new Error("New conversation was not offered");
+    await act(async () => reset.click());
+    await act(async () => release({ stops: [{ venueId: "venue-a", venueName: "The Anchor" }, { venueId: "venue-b", venueName: "The Crown" }] }));
+    expect(router.push).not.toHaveBeenCalled();
+    expect(container.textContent).not.toContain("Opening The Crown");
+    expect(container.querySelectorAll(".palChatUser")).toHaveLength(0);
   });
 
   it("asks the Pal about a next stop when no night is on", async () => {

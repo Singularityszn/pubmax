@@ -19,7 +19,7 @@ import {
 import Link from "next/link";
 import type { Route } from "next";
 
-import { PintPriceBadge } from "@/components/PriceBadge";
+import PalCardPrice from "@/components/pal/PalCardPrice";
 import { useRouter } from "next/navigation";
 import { ArrowUp, MapPin, Sparkles } from "lucide-react";
 
@@ -234,9 +234,7 @@ export function AnswerCard({
         <VenueLink card={card} onOpen={onOpen} knownVenueIds={knownVenueIds}>
           <div className="palChatCardTop">
             <p className="palChatCardTitle">{card.title}</p>
-            {typeof card.price === "number" ? (
-              <PintPriceBadge className="palChatCardPrice" priceGbp={card.price} venueId={card.venueId || null} />
-            ) : null}
+            <PalCardPrice card={card} className="palChatCardPrice" />
           </div>
           {card.place ? (
             <p className="palChatCardPlace">
@@ -739,6 +737,7 @@ function PalChatBody({ owner }: { owner: string | null }) {
 
       {!empty ? <button type="button" className="palChatReset" disabled={pending} onClick={() => {
         if (owner) clearPalChatThread(owner);
+        mapAskRef.current += 1;
         sessionRef.current = null;
         priorAsksRef.current = [];
         conversationRef.current = { id: "", at: 0 };

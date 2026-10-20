@@ -124,10 +124,10 @@ for (const width of [390, 1440]) {
       const request = { tool_name: tool, tool_call_id: `${tool}-${eventId}`, tool_type: "webhook", event_id: eventId };
       socket.send(JSON.stringify({ type: "agent_tool_request", agent_tool_request: request }));
       socket.send(JSON.stringify({ type: "agent_tool_response_full_payload", agent_tool_response_full_payload: {
-        ...request, is_error: false, is_called: true, full_tool_result: JSON.stringify({ result }),
+        ...request, is_error: false, is_called: true, full_tool_result: JSON.stringify({ requestedTool: tool, result }),
       } }));
     };
-    deliver("search_venues", { ok: true, tool: "search_venues", answerHint: answer.answer, cards: answer.cards });
+    deliver("venue_prices", { ok: true, tool: "search_venues", answerHint: answer.answer, cards: answer.cards });
     await expect(page.getByRole("list", { name: "Pubs from the voice answer" }).locator("li")).toHaveCount(4);
     const map = page.getByRole("region", { name: "4 pubs on the map" });
     await map.scrollIntoViewIfNeeded();
@@ -135,6 +135,15 @@ for (const width of [390, 1440]) {
     await expect(page).toHaveURL(/\/pal$/);
     await mkdir("artifacts/pubpal-complete-1019", { recursive: true });
     await page.screenshot({ path: `artifacts/pubpal-complete-1019/voice-map-${width}.png` });
+
+    deliver("venue_drinks", { ok: true, tool: "venue_drinks", answerHint: "Two recorded drinks.", cards: [
+      { ...answer.cards[0], key: "wine", title: "Red wine at Shakespeares Head", price: 7.5, note: "Seen 2 October 2026. Corroboration pending.", provenance: { kind: "community-price", label: "People-logged" } },
+      { ...answer.cards[0], key: "meal", title: "Lunch at Shakespeares Head", price: 18, note: "Published menu. Read 2 October 2026. Availability unknown.", provenance: { kind: "published-menu", label: "Pub menu" }, menuEvidence: { kind: "published-menu", itemId: "lunch", itemName: "Lunch", menu: "food", category: "meal", currency: "GBP", serving: "portion", caloriesKcal: null, caloriesProvenance: null, dietary: [], dietaryProvenance: null, observedAt: "2026-10-02", source: "Pub menu", sourceUrl: null, licence: "Published menu", availability: "unknown" } },
+    ] });
+    const sourced = page.getByRole("list", { name: "Pubs from the voice answer" });
+    await expect(sourced.locator("li")).toHaveCount(2);
+    await expect(sourced).toContainText("Seen 2 October 2026. Corroboration pending.");
+    await expect(sourced.locator('.priceBadge[title]')).toHaveCount(0);
 
     let writes = 0;
     const memories: Array<Record<string, unknown>> = [];

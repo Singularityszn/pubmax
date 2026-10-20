@@ -87,9 +87,9 @@ const TOOL_DESCRIPTIONS = {
   report_occupancy:
     "Propose a crowd report for a pub. Writes nothing until the reader confirms.",
   recall_memories:
-    "On the first substantive request, read confirmed preferences before a factual tool unless the message already supplies them. Do not use for greetings or thanks alone. Read-only. Never facts about a pub.",
+    "On the first substantive request, read confirmed preferences and past-night reports before a factual tool unless the message already supplies them. Do not use for greetings or thanks alone. Read-only. Never facts about a pub.",
   propose_memory:
-    "Propose one preference for the Pal to remember in typed or voice chat. Saves nothing until the person confirms the card in the app.",
+    "Propose one lasting preference or explicitly reported past-night outcome for the Pal to remember in typed or voice chat. Saves nothing until the person confirms the card in the app.",
 };
 
 function loadDotEnv() {
@@ -158,11 +158,11 @@ const TOOL_WEBHOOK_BODY_PROPERTIES = {
     kind: {
       type: "string",
       enum: [...PUB_PAL_MEMORY_KINDS],
-      description: "What sort of preference this is.",
+      description: "The preference kind, or night_outcome for an explicit past-night report.",
     },
     value: {
       type: "string",
-      description: "The preference in the person's own words, one short line.",
+      description: "The preference or past-night report in the person's own words, one short line. Preserve any stated pub, date and spend. Never infer expenditure from a price observation.",
     },
   },
 };
