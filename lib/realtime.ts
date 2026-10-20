@@ -25,6 +25,8 @@
 //   • No Supabase env (isAuthConfigured() false) → returns a no-op unsubscribe
 //     and, if a `poll` fn was supplied, drives it on an interval instead. The
 //     app behaves exactly as it does today (fetch-on-mount, no live updates).
+//   • A signed-out browser polls without joining the private topic. The SDK's
+//     auth events attach it after sign-in and remove it after sign-out.
 //   • Channel fails to JOIN within ~5s, or errors/closes mid-session → we stop
 //     leaning on realtime and fall back to polling `poll` every 30s. Nothing
 //     throws; a dropped channel can never crash the host page.
@@ -33,7 +35,8 @@
 // client that may open a Realtime socket. The server service-role client
 // (lib/supabase.ts) must NEVER be used for subscriptions.
 
-import { getSupabaseBrowser, isAuthConfigured } from "@/lib/authClient";
+import { ensureSupabaseBrowser, getSupabaseBrowser, isAuthConfigured } from "@/lib/authClient";
+import type { RealtimeChannel } from "@supabase/supabase-js";
 import { PINT_DROPS_LIVE_EVENT, PINT_DROPS_LIVE_TOPIC } from "@/lib/pintDropsTopics";
 
 // ── "X spilling right now" — a pure counter ──────────────────────────────────
@@ -126,106 +129,114 @@ function subscribePintDropSignal(
   if (options?.enabled === false) return () => {};
   const poll = options?.poll;
 
-  // No browser client (no public env, or SSR) → realtime is impossible. Degrade
-  // to polling if a poll fn was given, else a pure no-op. Never throws. supabase-js
-  // now loads lazily (dynamic import), so a cold-cache subscribe also lands here
-  // and polls until the client warms (AuthProvider primes it per route mount).
-  const supabase = getSupabaseBrowser();
-  if (!supabase || !isAuthConfigured()) {
+  if (typeof window === "undefined") return () => {};
+  if (!isAuthConfigured()) {
     if (!poll) return () => {};
     const id = setInterval(poll, POLL_INTERVAL_MS);
     return () => clearInterval(id);
   }
 
   let disposed = false;
+  let eligible = false;
+  let authRevision = 0;
+  let client: ReturnType<typeof getSupabaseBrowser> = null;
+  let authSubscription: { unsubscribe: () => void } | null = null;
   let pollTimer: ReturnType<typeof setInterval> | null = null;
   let joinTimer: ReturnType<typeof setTimeout> | null = null;
-  // Hold the channel in a mutable slot: the fallback path removes it, and a
-  // resubscribe (future) would swap it. Typed loosely to avoid coupling to the
-  // exact supabase-js RealtimeChannel type across versions.
-  let channel: ReturnType<typeof supabase.channel> | null = null;
+  let channel: RealtimeChannel | null = null;
 
-  // Switch to the polling fallback exactly once. Idempotent: repeated triggers
-  // (watchdog + a later error) don't stack intervals.
-  //
-  // RE-ENTRANCY: removeChannel() → channel.unsubscribe() fires the subscribe
-  // status callback SYNCHRONOUSLY with "CLOSED", which lands right back here.
-  // So every guard (pollTimer, channel = null) must be settled BEFORE the
-  // removeChannel call — the original order (remove first, guards after) let
-  // the re-entrant call see both guards unset and recurse into removeChannel
-  // until "Maximum call stack size exceeded".
-  function fallBackToPolling() {
-    if (disposed || pollTimer) return;
-    if (joinTimer) {
-      clearTimeout(joinTimer);
-      joinTimer = null;
-    }
+  function startPolling() {
+    if (!disposed && poll && !pollTimer) pollTimer = setInterval(poll, POLL_INTERVAL_MS);
+  }
+
+  function stopPolling() {
+    if (pollTimer) clearInterval(pollTimer);
+    pollTimer = null;
+  }
+
+  function dropChannel() {
+    if (joinTimer) clearTimeout(joinTimer);
+    joinTimer = null;
     const dead = channel;
-    channel = null; // re-entry guard: the CLOSED callback sees no channel
-    if (poll) pollTimer = setInterval(poll, POLL_INTERVAL_MS);
-    // Best-effort remove the dead channel; ignore any error. Do this LAST —
-    // see the re-entrancy note above.
-    if (dead) {
-      try {
-        void supabase!.removeChannel(dead);
-      } catch {
-        /* already gone */
-      }
+    // Set the guard before removal, because unsubscribe can emit CLOSED.
+    channel = null;
+    if (dead && client) {
+      try { void client.removeChannel(dead); } catch { /* already gone */ }
     }
   }
 
-  try {
-    channel = supabase.channel(PINT_DROPS_LIVE_TOPIC, { config: { private: true } });
-    channel.on(
-      // supabase-js overloads `.on('broadcast', ...)` with a string literal the
-      // base types don't model; cast keeps this helper self-contained.
-      "broadcast" as never,
-      { event: PINT_DROPS_LIVE_EVENT } as never,
-      () => {
-        // SIGNAL ONLY. We deliberately ignore the payload — see the header.
-        if (!disposed) onSignal();
-      },
-    );
-
-    // Watchdog: if we haven't joined by JOIN_TIMEOUT_MS, assume realtime is
-    // unavailable behind this network and fall back to polling.
-    joinTimer = setTimeout(fallBackToPolling, JOIN_TIMEOUT_MS);
-
-    channel.subscribe((status: string) => {
-      if (disposed) return;
-      if (status === "SUBSCRIBED") {
-        // Joined — cancel the watchdog. Realtime is live; no polling needed.
-        if (joinTimer) {
-          clearTimeout(joinTimer);
-          joinTimer = null;
-        }
-      } else if (
-        status === "CHANNEL_ERROR" ||
-        status === "TIMED_OUT" ||
-        status === "CLOSED"
-      ) {
-        // The channel dropped or never came up mid-session — degrade gracefully.
-        fallBackToPolling();
-      }
-    });
-  } catch {
-    // Constructing/subscribing threw (e.g. transport unavailable) — never let
-    // that crash the caller; just poll instead.
-    fallBackToPolling();
+  function fallBackToPolling() {
+    if (disposed) return;
+    dropChannel();
+    startPolling();
   }
+
+  function attach() {
+    if (disposed || !eligible || !client || channel) return;
+    try {
+      const next = client.channel(PINT_DROPS_LIVE_TOPIC, { config: { private: true } });
+      channel = next;
+      next.on("broadcast" as never, { event: PINT_DROPS_LIVE_EVENT } as never, () => {
+        if (!disposed && eligible && channel === next) onSignal();
+      });
+      joinTimer = setTimeout(fallBackToPolling, JOIN_TIMEOUT_MS);
+      next.subscribe((status: string) => {
+        if (disposed || channel !== next) return;
+        if (status === "SUBSCRIBED") {
+          if (joinTimer) clearTimeout(joinTimer);
+          joinTimer = null;
+          stopPolling();
+        } else if (status === "CHANNEL_ERROR" || status === "TIMED_OUT" || status === "CLOSED") {
+          fallBackToPolling();
+        }
+      });
+    } catch {
+      fallBackToPolling();
+    }
+  }
+
+  function initialize(next: NonNullable<typeof client>) {
+    if (disposed) return;
+    client = next;
+    try {
+      // INITIAL_SESSION resolves the SDK's current session. Later auth events
+      // recover a signed-out mount without a navigation or another join attempt
+      // under the anonymous key. The SDK still owns every channel token.
+      authSubscription = next.auth.onAuthStateChange((_event, session) => {
+        const revision = ++authRevision;
+        if (!session) eligible = false;
+        // Do not call back into the SDK while its auth callback holds the lock.
+        queueMicrotask(() => {
+          if (disposed || revision !== authRevision) return;
+          if (!session) {
+            eligible = false;
+            fallBackToPolling();
+          } else if (!eligible) {
+            eligible = true;
+            attach();
+          }
+        });
+      }).data.subscription;
+    } catch {
+      fallBackToPolling();
+    }
+  }
+
+  // Poll while the lazy client or its initial session is unresolved. A failed
+  // transport also keeps this lane. TOKEN_REFRESHED does not retry a broken
+  // socket, so a refused channel cannot turn into a refresh-driven join loop.
+  startPolling();
+  const ready = getSupabaseBrowser();
+  if (ready) initialize(ready);
+  else void ensureSupabaseBrowser().then((loaded) => {
+    if (loaded) initialize(loaded);
+  }).catch(fallBackToPolling);
 
   return () => {
     disposed = true;
-    if (joinTimer) clearTimeout(joinTimer);
-    if (pollTimer) clearInterval(pollTimer);
-    if (channel) {
-      try {
-        void supabase.removeChannel(channel);
-      } catch {
-        /* already gone */
-      }
-      channel = null;
-    }
+    authSubscription?.unsubscribe();
+    stopPolling();
+    dropChannel();
   };
 }
 
@@ -240,7 +251,7 @@ function subscribePintDropSignal(
  * of the `supabase_realtime` publication and closes to browser SELECT. Do not
  * put the table back, and do not re-open SELECT, to "fix" realtime. The nudge
  * is the private broadcast above. Polling via `options.poll` is the fallback
- * when the channel cannot join, including for a browser with no session.
+ * when the channel cannot join, while a browser with no session starts polling without opening a channel.
  */
 export function subscribeToNewDrops(
   onDrop: LiveSignal,
