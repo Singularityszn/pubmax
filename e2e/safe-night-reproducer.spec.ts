@@ -74,6 +74,7 @@ const discoveryRequests = [
   "What are the parking options near pubs in Soho?",
   "Can I have a pint in Soho after driving there?",
   "What route can I drive to Soho?",
+  "Which route to Soho can I drive?",
   "Which route should we cycle to Soho?",
   "Can I ride the bus to Soho?",
   "Could we ride the train to Soho?"

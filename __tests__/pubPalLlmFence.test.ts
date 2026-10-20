@@ -222,6 +222,7 @@ describe("Pub Pal fence without TypeSafe key", () => {
     "Find four quiet pubs in Soho under £7 per pint.",
     "What time does the bus leave Soho?",
     "What route can I drive to Soho?",
+    "Which route to Soho can I drive?",
     "Which route should we cycle to Soho?",
     "Can I ride the bus to Soho?",
     "Could we ride the train to Soho?",
