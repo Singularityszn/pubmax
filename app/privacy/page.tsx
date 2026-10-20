@@ -27,7 +27,7 @@ import "../legal.css";
 const PAGE_TITLE = "Privacy";
 const PAGE_DESCRIPTION =
   "What PUBMAXX collects, why, who else sees it, how long we keep it, and how to get it deleted. Written against the app's behaviour.";
-const LAST_UPDATED = "19 October 2026";
+const LAST_UPDATED = "20 October 2026";
 
 export const metadata: Metadata = {
   title: PAGE_TITLE,
@@ -625,6 +625,22 @@ export default function PrivacyPage() {
             account.
           </li>
         </ul>
+        <p className="legalBody">
+          Pub Pal keeps up to 24 conversation entries in this tab, including
+          your questions, answers, sourced cards and pending proposals. It uses
+          your browser&rsquo;s sessionStorage when available, so you can return
+          to the chat after browsing a pub.
+        </p>
+        <p className="legalBody">
+          We do not restore a saved conversation after more than two idle
+          minutes. We remove an older copy when the chat reads it. Until then,
+          the copy can remain in tab storage.
+        </p>
+        <p className="legalBody">
+          Changing accounts, signing out or choosing New conversation clears
+          the current thread. Confirmed Pal memories stay separate. A pending
+          proposal becomes a memory only after you confirm it.
+        </p>
         <p className="legalBody">
           Because nothing non-essential is set before you agree to it, the first
           visit choice is a small prompt rather than a wall in front of the map.
