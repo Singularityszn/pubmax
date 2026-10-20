@@ -136,7 +136,9 @@ export function useSheetHeightDrag(onDismiss: () => void): SheetHeightDrag {
     [animateTo, capsForViewport, setRestingSnap],
   );
 
-  const settleToRest = useCallback((targetSnap: SheetSnap = sheetSnapRef.current) => {
+  const settleToRest = useCallback((requestedSnap?: SheetSnap) => {
+    if (dismissingRef.current && requestedSnap === undefined) return;
+    const targetSnap = requestedSnap ?? sheetSnapRef.current;
     dismissingRef.current = false;
     setRestingSnap(targetSnap);
     setEntering(false);

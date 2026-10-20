@@ -298,7 +298,7 @@ export default function HistoricPubDetail({
         <section className="hdActions" aria-label="Explore this pub">
           {mapHref ? (
             <div className="hdActionRow">
-              <Link prefetch={false} className="hdAction" href={mapHref}>
+              <Link prefetch={false} className="hdAction" href="/pal/chat">
                 <PubPalMascot size={14} circular lazy />
                 Ask your Pub Pal
               </Link>
