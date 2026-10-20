@@ -234,9 +234,12 @@ describe("Pub Pal fence without TypeSafe key", () => {
     }
   });
 
-  it("does not infer consumption from having trouble finding a beer garden", async () => {
+  it.each([
+    "I have had trouble finding beer gardens in Soho.",
+    "I have had trouble finding pubs and beer gardens in Soho.",
+  ])("does not infer consumption from a beer-garden search: %s", async (report) => {
     await expect(resolvePubPalFenceIntent("Can I drive there?", [
-      { role: "user", content: "I have had trouble finding beer gardens in Soho." },
+      { role: "user", content: report },
     ])).resolves.toEqual({ fenced: false, sobrietyOnly: false });
   });
 
@@ -251,6 +254,9 @@ describe("Pub Pal fence without TypeSafe key", () => {
     "I have had dinner and two beers.",
     "I have had a couple of beers.",
     "I drank a bottle of wine.",
+    "I drank two cold beers.",
+    "I have had two cold beers.",
+    "I have had 1.5 pints.",
   ])("recognizes a consumed amount or mixed meal report: %s", async (report) => {
     await expect(resolvePubPalFenceIntent(`${report} Can I drive?`))
       .resolves.toEqual({ fenced: true, sobrietyOnly: true });

@@ -33,10 +33,10 @@ function withoutAlcoholFreeDrinks(message: string): string {
 }
 
 function reportsAlcoholConsumption(message: string): boolean {
-  return withoutAlcoholFreeDrinks(message).split(/[.!?]/).some((clause) => {
+  return withoutAlcoholFreeDrinks(message).split(/[!?]|\.(?!\d)/).some((clause) => {
     const report = clause.match(/\b(?:i|we)(?:['’]ve|\s+have)?\s+(?:had|drunk|drank|consumed|been\s+(?:drinking|consuming))\b(.*)/i);
-    const object = report?.[1] ?? "";
-    const reportsDrink = /(?:^\s*|\b(?:and|with|plus|then)\s+)(?:(?:only|about|around|roughly|a|an|some|one|two|three|four|five|six|seven|eight|nine|ten|several|couple|few|half|of|bottles?|cans?|glasses?|shots?|\d+(?:[.,]\d+)?)\s+)*(?:alcohol|drinks?|pints?|beers?|wine|cider|spirits?|soft\s+beverage)\b/i.test(object);
+    const object = (report?.[1] ?? "").replace(/\bbeer\s+gardens?\b/gi, "garden");
+    const reportsDrink = /(?:^\s*|\b(?:and|with|plus|then)\s+)(?:(?:only|about|around|roughly|a|an|some|one|two|three|four|five|six|seven|eight|nine|ten|several|couple|few|half|of|too|many|much|more|than|less|at|least|cold|warm|hot|small|large|strong|weak|craft|local|draft|draught|bottled|canned|bottles?|cans?|glasses?|shots?|\d+(?:[.,]\d+)?)\s+)*(?:alcohol|drinks?|pints?|beers?|wine|cider|spirits?|soft\s+beverage)\b/i.test(object);
     const reportsAlcohol = reportsDrink && /\b(?:alcohol|drinks?|pints?|beers?|wine|cider|spirits?)\b/i.test(object);
     const reportsDrunkenness = /\b(?:i(?:['’]m|\s+am)|we(?:['’]re|\s+are))\b.{0,40}\bdrunk\b/i.test(clause);
     return reportsAlcohol || reportsDrunkenness;
