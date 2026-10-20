@@ -18,10 +18,12 @@ Full rules: [`docs/rules/components-map-canvas-and-pins.md`](../docs/rules/compo
 - [A pin's fill says the price; its EDGE is what makes it findable, and dark mode needs two tones for that.](../docs/rules/components-map-canvas-and-pins.md#a-pin-s-fill-says-the-price-its-edge-is-what-makes-it-findable-and-dark-mode-nee)
 - [A CLUSTER IS A NEUTRAL DISC THAT READS "FROM" ITS CHEAPEST PRICE, AND A PRICED PIN IS A PILL FROM STREET ZOOM.](../docs/rules/components-map-canvas-and-pins.md#a-cluster-is-a-neutral-disc-that-reads-from-its-cheapest-price-and-a-priced-pin-)
 - [AN AGING PRICE LOOKS AGING, NEVER FRESH.](../docs/rules/components-map-canvas-and-pins.md#an-aging-price-looks-aging-never-fresh)
+- [THE MAP DRAWS ITS ICONS AT BUILD TIME, AND A PHONE DRAWS ONLY WHAT THE SPRITE CANNOT ANSWER FOR.](../docs/rules/components-map-canvas-and-pins.md#the-map-draws-its-icons-at-build-time-and-a-phone-draws-only-what-the-sprite-can)
 - [The live Pint Index arrival must full-load the map.](../docs/rules/components-map-canvas-and-pins.md#the-live-pint-index-arrival-must-full-load-the-map)
 - [A MAP THAT NEVER MOUNTS IS THE SHELL'S PROBLEM, AND NOTHING ON /map MAY WAIT FOR IT FOR EVER.](../docs/rules/components-map-canvas-and-pins.md#a-map-that-never-mounts-is-the-shell-s-problem-and-nothing-on-map-may-wait-for-i)
 - [THE PINS ARRIVE DURING THE ARRIVAL FLIGHT, NEVER BEFORE THE BASEMAP.](../docs/rules/components-map-canvas-and-pins.md#the-pins-arrive-during-the-arrival-flight-never-before-the-basemap)
 - [THE DOCUMENT DRAWS THE OPENING PRICES BEFORE THE ENGINE, AND ONLY THE ONES IT WILL DRAW.](../docs/rules/components-map-canvas-and-pins.md#the-document-draws-the-opening-prices-before-the-engine-and-only-the-ones-it-wil)
+- [THE OPENING PRICES STAND ON A PICTURE OF THE OPENING STREETS, AND ONLY FOR THE CAMERA IT WAS TAKEN FROM.](../docs/rules/components-map-canvas-and-pins.md#the-opening-prices-stand-on-a-picture-of-the-opening-streets-and-only-for-the-ca)
 
 ## Sheets, chrome and navigation
 

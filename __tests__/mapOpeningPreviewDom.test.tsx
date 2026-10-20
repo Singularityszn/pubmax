@@ -12,10 +12,12 @@ import { DONUT_CAPTION_SCALE } from "@/lib/donutClusterGeometry";
 import {
   MAP_OPENING_FRAME_EVENT,
   MAP_OPENING_PREVIEW_CAMERA,
+  MAP_OPENING_PREVIEW_DONE_MARK,
   MAP_OPENING_PREVIEW_RETRACT_EVENT,
   type MapOpeningFrame,
 } from "@/lib/mapOpeningPreview";
 import type { OpeningPreviewDisc } from "@/lib/mapOpeningPreviewDiscs";
+import type { OpeningGround } from "@/lib/mapOpeningSnapshot";
 import { FIRST_PINS_SEEN_KEY, PINS_VISIBLE_EVENT } from "@/lib/performanceMarks";
 
 const themeInit = readFileSync(join(process.cwd(), "public/theme-init.js"), "utf8");
@@ -186,5 +188,83 @@ describe("MapOpeningPreview", () => {
       window.dispatchEvent(new Event(PINS_VISIBLE_EVENT));
     });
     expect(document.documentElement.dataset.mapPreview).toBeUndefined();
+  });
+
+  it("after the reveal, holds until the loading frame over the canvas lifts", async () => {
+    // The picture under the discs holds the canvas hidden while it shows, so
+    // standing down while the loading frame still covers the canvas would put
+    // that frame back on screen between the preview and the map.
+    const loading = document.createElement("div");
+    loading.className = "mapLoading";
+    document.body.append(loading);
+    try {
+      document.documentElement.dataset.mapPreview = "on";
+      await mount();
+      await act(() => {
+        window.dispatchEvent(new Event(PINS_VISIBLE_EVENT));
+      });
+      expect(document.documentElement.dataset.mapPreview).toBe("on");
+      await act(async () => {
+        loading.remove();
+        await Promise.resolve();
+      });
+      expect(document.documentElement.dataset.mapPreview).toBe("done");
+      expect(performance.getEntriesByName(MAP_OPENING_PREVIEW_DONE_MARK)).toHaveLength(1);
+    } finally {
+      loading.remove();
+    }
+  });
+
+  it("still stands down at once when the camera moves before the loading frame lifts", async () => {
+    const loading = document.createElement("div");
+    loading.className = "mapLoading";
+    document.body.append(loading);
+    try {
+      document.documentElement.dataset.mapPreview = "on";
+      await mount();
+      await act(() => {
+        window.dispatchEvent(new Event(PINS_VISIBLE_EVENT));
+        window.dispatchEvent(new Event(MAP_OPENING_PREVIEW_RETRACT_EVENT));
+      });
+      expect(document.documentElement.dataset.mapPreview).toBe("done");
+    } finally {
+      loading.remove();
+    }
+  });
+});
+
+describe("the opening basemap picture under the discs", () => {
+  const GROUND: OpeningGround = {
+    rect: { x: -322, y: -848, width: 644, height: 1356 },
+    light: "/landing/map-opening/london-light.webp?v=abc",
+    dark: "/landing/map-opening/london-dark.webp?v=def",
+  };
+
+  it("ships in the document, decorative, on the discs' own camera, behind them", () => {
+    const html = renderToStaticMarkup(createElement(MapOpeningPreview, { discs: [DISC], ground: GROUND }));
+    expect(html.indexOf('class="mapOpeningGround"')).toBeGreaterThanOrEqual(0);
+    // Before the discs' layer in the document, and a sibling of it rather than
+    // a child of its 3-D context, so it can never cut through a disc.
+    expect(html.indexOf('class="mapOpeningGround"')).toBeLessThan(html.indexOf('class="mapOpeningPreview"'));
+    expect(html).toMatch(/class="mapOpeningGround" aria-hidden="true"/);
+    expect(html).toContain(`--map-preview-pitch:${MAP_OPENING_PREVIEW_CAMERA.pitch}deg`);
+    expect(html).toContain("--x:-322px");
+    expect(html).toContain("--y:-848px");
+    expect(html).toContain("--w:644px");
+    expect(html).toContain("--h:1356px");
+    // Both themes are named; the stylesheet asks for the one in use only.
+    expect(html).toContain("london-light.webp?v=abc");
+    expect(html).toContain("london-dark.webp?v=def");
+    expect(html).not.toContain("<img");
+  });
+
+  it("is left out when the build has no picture for this camera", () => {
+    const html = renderToStaticMarkup(createElement(MapOpeningPreview, { discs: [DISC], ground: null }));
+    expect(html).not.toContain("mapOpeningGround");
+    expect(html).toContain('class="mapOpeningPreview"');
+  });
+
+  it("is left out with the discs when the build found no discs", () => {
+    expect(renderToStaticMarkup(createElement(MapOpeningPreview, { discs: [], ground: GROUND }))).toBe("");
   });
 });

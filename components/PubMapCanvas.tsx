@@ -8,7 +8,7 @@ import "./map/mapCameraControls.css";
 import * as maplibregl from "maplibre-gl";
 
 import { MAPLIBRE_WORKER_URL } from "@/lib/maplibreWorkerAssets";
-import { probeWebGl2 } from "@/components/map/canvas/webgl";
+import { followMapPixelRatio, mapPixelRatio, probeWebGl2 } from "@/components/map/canvas/webgl";
 import { createPalMapMarker, palPinIsCheap, type PalMapMarker } from "@/components/map/canvas/palMarker";
 import { crewPalLook, type CrewPal } from "@/lib/crewPals";
 import { palWalkPathFrom, palWalkStopsFromKey } from "@/components/map/canvas/palWalk";
@@ -132,6 +132,7 @@ import {
   ukBaseUnnamedFilter,
   type SceneCtx,
 } from "@/components/map/canvas/buildScene";
+import { preloadMapIconSprite, resolveMissingMapIcon } from "@/components/map/canvas/iconSprite";
 import { createDonutClusterSync, type DonutClusterSync } from "@/components/map/canvas/donutClusters";
 import {
   BASEMAP_RETRY_NOTICE,
@@ -238,7 +239,13 @@ import {
   type MapRenderedState,
 } from "@/lib/mapRenderedState";
 import { markPubmaxTiming, PINS_VISIBLE_EVENT } from "@/lib/performanceMarks";
-import { MAP_OPENING_PREVIEW_RETRACT_EVENT, publishMapOpeningFrame } from "@/lib/mapOpeningPreview";
+import {
+  MAP_OPENING_PREVIEW_DONE_MARK,
+  MAP_OPENING_PREVIEW_RETRACT_EVENT,
+  publishMapOpeningFrame,
+  sameCameraPose,
+  type OpeningCameraPose,
+} from "@/lib/mapOpeningPreview";
 import {
   ARRIVAL_BEARING_POLL_MS,
   nextArrivalBearingWait,
@@ -1550,6 +1557,7 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
     let autoRetryTimer: ReturnType<typeof setTimeout> | undefined;
     let contextLostTimer: ReturnType<typeof setTimeout> | undefined;
     let didConstruct = false;
+    let stopFollowingPixelRatio: (() => void) | undefined;
     let constructCleanup: (() => void) | undefined;
     let deferredSceneIdleId: number | null = null;
     let deferredSceneFrameId: number | null = null;
@@ -1608,11 +1616,16 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
       if (!webgl2.hasContext) {
         throw new Error(webgl2.status || "WebGL2 context unavailable");
       }
+      // The icon atlas decodes while the style loads (canvas/iconSprite.ts).
+      preloadMapIconSprite(themeRef.current);
       map = new maplibregl.Map({
         container,
         style: MAP_STYLES[themeRef.current],
         ...mapViewRef.current,
         maxBounds: maxBoundsRef.current,
+        // A 3x phone draws at 2x: a third of the canvas pixels gone, and the
+        // pins still sharp (webgl.ts).
+        pixelRatio: mapPixelRatio(),
         // ODbL credit for the pub layers we draw ourselves. Set on the map, not
         // on a source, so it survives every style swap (theme toggle, fallback
         // styles) and shows in every city - the rail-lines source's own
@@ -1638,19 +1651,41 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
         });
       }
       markPubmaxTiming("pubmax:map-constructed");
-      // A camera that moves before the pins are revealed (the arrival turn on
-      // a desktop that waits for its basemap, an opening location, a resumed
-      // view) is a frame the preview did not draw, and it must not hang in
-      // place while the ground slides under it: it stands down as the move
-      // STARTS. After the reveal the preview is gone and this listens no more.
+      stopFollowingPixelRatio = followMapPixelRatio(map);
+      // A camera that moves while the document's opening preview is up (the
+      // arrival turn, an opening location, a resumed view) is a frame the
+      // preview did not draw, and it must not hang in place while the ground
+      // slides under it: it stands down on the first frame the camera has
+      // MOVED. Not on `movestart`, which `resize()` also fires with the camera
+      // where it was: the phone's first resize stood the preview down within
+      // half a second of construction on every cold visit, seconds before the
+      // reveal (measured, 390x844, 4x CPU). Once the preview has stood down
+      // this listens no more.
       {
         const constructed = map;
-        const onOpeningMoveStart = () => {
-          constructed.off("movestart", onOpeningMoveStart);
-          if (performance.getEntriesByName(PINS_VISIBLE_EVENT).length > 0) return;
+        const poseOf = (): OpeningCameraPose => {
+          const centre = constructed.getCenter();
+          return {
+            center: [centre.lng, centre.lat],
+            zoom: constructed.getZoom(),
+            pitch: constructed.getPitch(),
+            bearing: constructed.getBearing(),
+          };
+        };
+        const constructedPose = poseOf();
+        // Padding moves the picture without moving the centre.
+        const paddingOf = () => JSON.stringify(constructed.getPadding());
+        const constructedPadding = paddingOf();
+        const onOpeningMove = () => {
+          if (performance.getEntriesByName(MAP_OPENING_PREVIEW_DONE_MARK).length > 0) {
+            constructed.off("move", onOpeningMove);
+            return;
+          }
+          if (sameCameraPose(poseOf(), constructedPose) && paddingOf() === constructedPadding) return;
+          constructed.off("move", onOpeningMove);
           window.dispatchEvent(new Event(MAP_OPENING_PREVIEW_RETRACT_EVENT));
         };
-        constructed.on("movestart", onOpeningMoveStart);
+        constructed.on("move", onOpeningMove);
       }
       onBasemapProviderChangeRef.current?.(null);
       onMapConstructedRef.current?.();
@@ -1674,6 +1709,8 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
         creditObserver.observe(creditLane);
       }
     } catch (error) {
+      stopFollowingPixelRatio?.();
+      stopFollowingPixelRatio = undefined;
       reducedQuery.removeEventListener("change", onReducedChange);
       window.removeEventListener("blur", onBlur);
       window.removeEventListener("focus", onFocus);
@@ -1912,11 +1949,11 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
     // MapLibre 6 resolves missing images before firing styleimagemissing, so
     // use its supported resolver. OpenFreeMap references sprite images we
     // never render at our zoom/layers; a transparent pixel keeps those misses
-    // quiet without shipping the real texture.
+    // quiet without shipping the real texture. One of OUR icon ids gets the
+    // real icon instead, never a transparent hole.
     map.setMissingStyleImageResolver((id) => {
-      if (!map.hasImage(id)) {
-        map.addImage(id, { width: 1, height: 1, data: new Uint8Array(4) });
-      }
+      if (map.hasImage(id) || resolveMissingMapIcon(map, id, themeRef.current)) return;
+      map.addImage(id, { width: 1, height: 1, data: new Uint8Array(4) });
     });
 
     // Rebuilds the whole scene from theme tokens. Runs on first load and after
@@ -3741,6 +3778,7 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
       // stale-themed layers and skip style.load entirely).
       pinRevealCoordinator.cancel();
       beginTileFailureGeneration();
+      preloadMapIconSprite(next);
       setProtectedStyle(MAP_STYLES[next], false);
     });
     themeObserver.observe(document.documentElement, {
@@ -3752,6 +3790,7 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
     // teardown here so the effect's single cleanup (below) can run it whether or
     // not construction was deferred by the size gate.
     constructCleanup = () => {
+      stopFollowingPixelRatio?.();
       cancelAnimationFrame(rafId);
       if (firstFrameTimer) clearTimeout(firstFrameTimer);
       map.off("render", onFirstFrame);

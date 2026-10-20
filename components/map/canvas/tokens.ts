@@ -9,6 +9,7 @@ import {
   MAP_ICON_SPECS,
   iconId,
   rasterize,
+  type IconSpec,
   type IconTokens,
 } from "@/lib/mapIcons";
 
@@ -411,24 +412,72 @@ export function withAlpha(hex: string, alpha: number): string {
   return `rgba(${(n >> 16) & 255}, ${(n >> 8) & 255}, ${n & 255}, ${alpha})`;
 }
 
-// Register every designed marker image (landmark pictograms + TfL symbols) with
-// the map, re-tinting from the live theme tokens. Called from buildScene on the
-// first load and after each theme-driven setStyle (which wipes prior images).
+/**
+ * The colours every designed map icon is drawn with, per theme. ONE recipe,
+ * read by the scene at runtime and by `npm run build:map-icon-sprites`, which
+ * draws the shipped sprite from it, so the two cannot disagree about what a
+ * dark pin's rim is. `scripts/lib/mapIconSpriteFingerprint.mjs` hashes this
+ * declaration, so changing it makes the sprite fence ask for a rebuild.
+ */
+export function iconTokensFor(tokens: Tokens, dark: boolean): IconTokens {
+  return {
+    ink: tokens.ink,
+    paper: dark ? tokens.inkDeep : tokens.paper,
+    brass: tokens.brass,
+    brassBright: tokens.brassBright,
+    river: tokens.river,
+    riverBright: tokens.riverBright,
+    pint: tokens.pint,
+    amber: tokens.amber,
+    brick: tokens.brick,
+    muted: tokens.muted,
+    // The drink pin's rim + casing. Dark only, and for the reason spelled out on
+    // venuePinEdgeTokens: `paper` above resolves to a near-black in dark, so the
+    // glasses' "light rim" was a black one against a near-black basemap.
+    ...venuePinEdgeTokens(tokens, dark),
+    ...pricePillTokens(tokens),
+    coffee: dark ? CATEGORY_COLORS.coffee.dark : CATEGORY_COLORS.coffee.light,
+  };
+}
+
+/** The pixel ratio every designed icon is drawn at, in the browser or in the sprite. */
+export const MAP_ICON_PIXEL_RATIO = 2;
+
+/**
+ * MapLibre's image options for a spec drawn at MAP_ICON_PIXEL_RATIO. The spec
+ * states its nine-slice in CSS px, and MapLibre reads it in image pixels.
+ */
+export function mapIconImageOptions(spec: IconSpec) {
+  const r = MAP_ICON_PIXEL_RATIO;
+  const stretch = spec.stretch;
+  return {
+    pixelRatio: r,
+    ...(stretch
+      ? {
+          stretchX: stretch.x.map(([from, to]) => [from * r, to * r] as [number, number]),
+          stretchY: stretch.y.map(([from, to]) => [from * r, to * r] as [number, number]),
+          content: stretch.content.map((n) => n * r) as [number, number, number, number],
+        }
+      : {}),
+  };
+}
+
+/** Draw ONE designed icon in the browser and hand it to the map. */
+export function addDrawnMapIcon(
+  map: maplibregl.Map,
+  spec: IconSpec,
+  tokens: IconTokens,
+) {
+  const id = iconId(spec.ns, spec.key);
+  if (map.hasImage(id)) map.removeImage(id);
+  map.addImage(id, rasterize(spec, tokens, MAP_ICON_PIXEL_RATIO), mapIconImageOptions(spec));
+}
+
+// Draw every designed marker image (landmark pictograms, TfL symbols, glasses,
+// pills) in the browser, re-tinted from the live theme tokens. This is the
+// FALLBACK. The scene registers the pre-drawn sprite first
+// (components/map/canvas/iconSprite.ts), and draws only when that sprite has not
+// arrived, has failed, or was drawn in other colours than the live theme's.
 export function registerMapIcons(map: maplibregl.Map, tokens: IconTokens) {
-  for (const spec of MAP_ICON_SPECS) {
-    const id = iconId(spec.ns, spec.key);
-    if (map.hasImage(id)) map.removeImage(id);
-    const stretch = spec.stretch;
-    map.addImage(id, rasterize(spec, tokens), {
-      pixelRatio: 2,
-      ...(stretch
-        ? {
-            // MapLibre reads these in image pixels, the spec states them in CSS px.
-            stretchX: stretch.x.map(([from, to]) => [from * 2, to * 2] as [number, number]),
-            stretchY: stretch.y.map(([from, to]) => [from * 2, to * 2] as [number, number]),
-            content: stretch.content.map((n) => n * 2) as [number, number, number, number],
-          }
-        : {}),
-    });
-  }
+  for (const spec of MAP_ICON_SPECS) addDrawnMapIcon(map, spec, tokens);
 }
