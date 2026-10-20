@@ -1073,7 +1073,7 @@ function transcriptLines(): string[] {
 }
 
 describe("Pub Pal voice transcript", () => {
-  it("shows sourced voice results and discards responses superseded by another question or an ended session", async () => {
+  it.each(["search_venues", "cheapest_pint_near"])("retains choices until a completed %s replaces them and rejects stale responses", async (replacementTool) => {
     const canvas = vi.spyOn(HTMLCanvasElement.prototype, "getContext").mockReturnValue(null);
     const session = await startLiveSession();
     const result = (id: string, eventId: number, name: string) => ({
@@ -1091,8 +1091,20 @@ describe("Pub Pal voice transcript", () => {
     expect(container.querySelector('[aria-label="Pubs from the voice answer"] a')?.textContent).toContain("The Lamb");
     expect(container.querySelector('[aria-label="Pubs from the voice answer"]')?.textContent).toContain("Source read 2 October 2026");
     await act(async () => {
+      session.onMessage?.({ role: "user", message: "Thanks", event_id: 5 });
+      session.onAgentToolResponse?.(result("first", 4, "Old result"));
+    });
+    expect(container.querySelector('[aria-label="Pubs from the voice answer"] a')?.textContent).toContain("The Lamb");
+    await act(async () => {
       session.onMessage?.({ role: "user", message: "Actually Camden", event_id: 7 });
       session.onAgentToolResponse?.(result("first", 4, "Old result"));
+    });
+    expect(container.querySelector('[aria-label="Pubs from the voice answer"] a')?.textContent).toContain("The Lamb");
+    await act(async () => {
+      session.onAgentToolRequest?.({ tool_call_id: "empty", event_id: 7, tool_name: replacementTool });
+      session.onAgentToolResponse?.({ ...result("empty", 7, ""), tool_name: replacementTool, full_tool_result: JSON.stringify({ result: {
+        ok: true, tool: replacementTool, answerHint: "No matching pubs.", cards: [],
+      } }) });
     });
     expect(container.querySelector('[aria-label="Pubs from the voice answer"]')).toBeNull();
     await act(async () => {
@@ -1110,7 +1122,7 @@ describe("Pub Pal voice transcript", () => {
     ["search_venues", "journey", "city_status"],
     ["journey", "search_venues", "city_status"],
     ["city_status", "journey", "search_venues"],
-  ])("preserves current-turn pubs across independent responses: %s, %s, %s", async (...tools) => {
+  ])("preserves authoritative pubs across independent responses: %s, %s, %s", async (...tools) => {
     const canvas = vi.spyOn(HTMLCanvasElement.prototype, "getContext").mockReturnValue(null);
     const session = await startLiveSession();
     await act(async () => {
@@ -1133,8 +1145,11 @@ describe("Pub Pal voice transcript", () => {
     }
     expect([...container.querySelectorAll('[aria-label="Pubs from the voice answer"] li > a:first-child')].map((link) => link.textContent))
       .toEqual(["Soho pub 1", "Soho pub 2", "Soho pub 3", "Soho pub 4"]);
-    await typeAndSend("Actually Camden");
-    expect(container.querySelector('[aria-label="Pubs from the voice answer"]')).toBeNull();
+    for (const message of ["Thanks", "Actually Camden"]) {
+      await typeAndSend(message);
+      expect([...container.querySelectorAll('[aria-label="Pubs from the voice answer"] li > a:first-child')].map((link) => link.textContent))
+        .toEqual(["Soho pub 1", "Soho pub 2", "Soho pub 3", "Soho pub 4"]);
+    }
     canvas.mockRestore();
   });
   it("prints what the person said and what the Pal answered, by name", async () => {

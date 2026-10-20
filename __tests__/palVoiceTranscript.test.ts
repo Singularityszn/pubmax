@@ -131,6 +131,10 @@ const VOICE_MAP_TABLE: ReadonlyArray<readonly [string, "next-stop" | "map" | nul
   ["ok next stop then", "next-stop", null],
   // Map asks.
   ["Open the map", "map", "map"],
+  ["Show those pubs on the map", "map", "map"],
+  ["Can you show me these choices on the map please", "map", "map"],
+  ["Show them on the map", "map", "map"],
+  ["Do not show those pubs on the map", null, null],
   ["map please", "map", "map"],
   ["can you show me the pub map", "map", "map"],
   // A line that asks for both: the next stop wins while a night is on.

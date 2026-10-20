@@ -35,6 +35,13 @@ const TAIL = String.raw`(?:\s+(?:please|then|now|for me|mate))*$`;
 const ON_MAP = String.raw`(?:\s+on\s+(?:the\s+|a\s+)?maps?)?`;
 const BACK_REF = String.raw`(?:it|that|that one|that pub|that place|this one|this pub|this place|there)`;
 
+const CURRENT_MAP_RE = new RegExp(`${LEAD}(?:show|open|find|locate|pull\\s+up)(?:\\s+me)?\\s+(?:them|(?:these|those|the\\s+same)(?:\\s+(?:pubs|bars|venues|places|choices|recommendations|results))?)\\s+on\\s+(?:the\\s+|a\\s+)?maps?${TAIL}`);
+
+export function palAsksForCurrentMap(text: string): boolean {
+  const normalized = normalizeAsk(text);
+  return !NEGATION_RE.test(normalized) && CURRENT_MAP_RE.test(normalized);
+}
+
 const LAST_RES = [
   new RegExp(`${LEAD}(?:take|bring|get|walk)\\s+me\\s+(?:there|to\\s+${BACK_REF})${ON_MAP}${TAIL}`),
   new RegExp(`${LEAD}(?:let'?s\\s+)?go\\s+there${TAIL}`),
@@ -59,7 +66,7 @@ const NOT_A_NAME_RE = new RegExp(`^(?:(?:the|a|my)\\s+)?maps?$|^${BACK_REF}$|\\b
 /** Does the person ask to see one pub on the map, and which? */
 export function palMapAskTarget(text: string): PalMapAskTarget | null {
   const normalized = normalizeAsk(text);
-  if (!normalized || NEGATION_RE.test(normalized)) return null;
+  if (!normalized || NEGATION_RE.test(normalized) || palAsksForCurrentMap(text)) return null;
   if (LAST_RES.some((re) => re.test(normalized))) return { kind: "last" };
   for (const re of NAMED_RES) {
     const name = re.exec(normalized)?.[1]?.trim();
@@ -72,6 +79,7 @@ export function palMapAskTarget(text: string): PalMapAskTarget | null {
 
 /** A request for recommendations still needs an answer before any map move. */
 export function palAsksForVenueDiscovery(text: string): boolean {
+  if (palAsksForCurrentMap(text)) return false;
   const normalized = normalizeAsk(text);
   if (/\b(?:pubs|bars|venues|places|somewhere|anywhere|a place)\b/.test(normalized)) return true;
   const target = palMapAskTarget(text);

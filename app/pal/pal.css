@@ -201,11 +201,6 @@ body:has(.palExperience) {
    `transform`, so no motion is rewritten. */
 .palPortrait .palPortraitCore:has(> .palPortraitMascot) { background: var(--ink-deep); }
 .palPortraitCore > .palPortraitMascot { scale: 1.1; }
-.palModelLayer { position: absolute; inset: 0; z-index: 3; }
-.palModelCanvas { display: block; width: 100%; height: 100%; opacity: 0; }
-.palModelCanvas[data-model-ready="true"] { opacity: 1; }
-.palPortrait:has(.palModelCanvas[data-model-ready="true"]) .palPortraitCore { opacity: 0; }
-.palHomePortrait[data-head-3d="live"] .palPortrait:has(.palModelCanvas[data-model-ready="true"]) { transform: none; }
 .palPortraitMascot img { width: 100%; height: 100%; object-fit: cover; }
 .palPortraitAccessory { position: absolute; z-index: 3; bottom: 22%; left: 50%; transform: translateX(-50%); padding: .35rem .65rem; border: 1px solid color-mix(in srgb, var(--signal) 40%, transparent); border-radius: 2rem; background: color-mix(in srgb, var(--ink-deep) 82%, transparent); color: color-mix(in srgb, var(--signal) 70%, white); font: 650 .59rem/1 var(--font-body); letter-spacing: .08em; text-transform: uppercase; }
 

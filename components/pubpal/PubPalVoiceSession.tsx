@@ -504,10 +504,8 @@ function VoiceControls({ onStateChange, resetPendingSession, text, setText, erro
             nextStopRequestRef.current += 1;
             const intent = palVoiceMapIntent(content, nightIsOnRef.current());
             const retainedMap = intent === "map" && showMapRef.current();
-            if (!retainedMap) {
-              currentToolCalls.current.clear();
-              setVoiceResults({});
-            } else setAwaitingPal(false);
+            currentToolCalls.current.clear();
+            if (retainedMap) setAwaitingPal(false);
             if (intent === "next-stop") void openNextStopRef.current();
             else if (intent === "pub") void openPubRef.current(content);
             const conversationId = conversationIdRef.current;
@@ -538,10 +536,11 @@ function VoiceControls({ onStateChange, resetPendingSession, text, setText, erro
               || request?.id !== event.tool_call_id) return;
             const answer = palVoiceToolAnswer(event);
             if (answer) {
+              const resultKey = answer.tool === "cheapest_pint_near" ? "search_venues" : answer.tool;
               if (event.tool_name !== "propose_memory") setVoiceResults((current) =>
-                (current[answer.tool]?.order ?? -1) > request.order ? current : {
+                (current[resultKey]?.order ?? -1) > request.order ? current : {
                   ...current,
-                  [answer.tool]: { cards: answer.cards, order: request.order },
+                  [resultKey]: { cards: answer.cards, order: request.order },
                 });
               const proposals = answer.proposals.filter((proposal): proposal is PalMemoryCard => proposal.kind === "remember_memory");
               if (proposals.length) setMemoryCards((current) => [...current, ...proposals.filter((proposal) => !current.some((prior) => prior.id === proposal.id))].slice(-3));
@@ -641,6 +640,7 @@ function VoiceControls({ onStateChange, resetPendingSession, text, setText, erro
     if (!value || voiceConnecting) return;
     // A newer line from the person retires a "next stop" read still on its way.
     nextStopRequestRef.current += 1;
+    currentToolCalls.current.clear();
     const intent = palVoiceMapIntent(value, nightIsOn());
     if (intent === "pub") {
       // One pub: opened when it can be named, else the line goes to the Pal.
@@ -671,8 +671,6 @@ function VoiceControls({ onStateChange, resetPendingSession, text, setText, erro
     }
     onStateChange?.("thinking");
     lastUserEvent.current += 1;
-    currentToolCalls.current.clear();
-    setVoiceResults({});
     setLines((current) => appendPalVoiceLine(current, palVoiceLine("you", value, "typed")));
     setAwaitingPal(true);
     sendUserMessage(value);

@@ -121,10 +121,11 @@ for (const viewport of [{ width: 390, height: 844 }, { width: 1440, height: 1000
       await page.getByRole("button", { name: "Ask", exact: true }).click();
       await expect(page.locator(".palChatRow--pal").last()).toContainText("welcome");
     }
-    await field.fill("Show me the map");
+    const followup = acknowledge ? "Show me the map" : "Show those pubs on the map";
+    await field.fill(followup);
     await page.getByRole("button", { name: "Ask", exact: true }).click();
     await expect(map).toBeFocused();
-    await expect(page.locator(".palChatRow--user").filter({ hasText: "Show me the map" })).toHaveCount(1);
+    await expect(page.locator(".palChatRow--user").filter({ hasText: followup })).toHaveCount(1);
     await expect(page).toHaveURL(/\/pal\/chat$/);
     expect(await map.locator("canvas").evaluate((node, old) => node === old, identity)).toBe(true);
     expect(await settledPinPositions(canvas)).toEqual(moved);

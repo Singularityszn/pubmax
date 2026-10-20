@@ -267,7 +267,7 @@ export function PalMeetingScreen({
         <div className="palMeetingPortrait">
           {/* The meeting screen's LCP element on a desktop: measured at 403 CSS
               px square against a 288 px heading block. */}
-          <PalPortrait appearance={appearance} name="Unclaimed Pub Pal" state="noticing" priority live />
+          <PalPortrait appearance={appearance} name="Unclaimed Pub Pal" state="noticing" priority />
           <p className="palSpeech" aria-live="polite">There you are. What kind of night are we making?</p>
         </div>
       </Screen>
@@ -331,7 +331,7 @@ function PalHomeScreen({
     <main id="main" className="palExperience palHome">
       <section className="palHomeHero" aria-labelledby="pal-home-title">
         <div className="palHomePortrait" ref={headRef}>
-          <PalPortrait appearance={pal.appearance} name={pal.name} state={visiblePalState} genome={genome} live signal={voiceSignal} />
+          <PalPortrait appearance={pal.appearance} name={pal.name} state={visiblePalState} genome={genome} />
           <p className="palSpeech">{palStateSpeech[visiblePalState]}</p>
         </div>
         <div className="palHomeCopy">
@@ -470,7 +470,6 @@ function PalOnboardingScreen({
           <PalPortrait
             appearance={draft.appearance}
             name={previewName}
-            live
             state={(["listening", "noticing", "celebrating", "speaking", "thinking"] as PalAnimationState[])[step] ?? "idle"}
           />
           <p className="palSpeech" aria-live="polite">{previewSpeech(step, draft)}</p>

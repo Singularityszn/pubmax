@@ -436,17 +436,29 @@ for (const detailFirst of [true, false]) {
         await map.scrollIntoViewIfNeeded();
         for (const pin of await pins.all()) await pin.tap({ trial: true });
         const camera = await map.locator(".palChatMapAnchor").evaluateAll(nodes => nodes.map(node => (node as HTMLElement).style.transform));
-        if (spoken) hear(socket, "Show me the map");
+        const thanks = page.getByRole("log", { name: "Voice chat transcript" }).locator(".palVoiceLine--you").filter({ hasText: "Thanks" });
+        const previousThanks = await thanks.count();
+        if (spoken) hear(socket, "Thanks");
         else {
-          await page.getByPlaceholder("Or type the night you want…", { exact: true }).fill("Show me the map");
+          await page.getByPlaceholder("Or type the night you want…", { exact: true }).fill("Thanks");
           await page.getByRole("button", { name: "Send message", exact: true }).click();
         }
-        await expect(map).toBeFocused();
-        await expect(page).toHaveURL(/\/pal$/);
-        expect(await canvas.evaluate((node, old) => node === old, identity)).toBe(true);
-        expect(await map.locator(".palChatMapAnchor").evaluateAll(nodes => nodes.map(node => (node as HTMLElement).style.transform))).toEqual(camera);
-        expect(await pins.evaluateAll(nodes => nodes.map(node => node.getAttribute("data-venue-id")))).toEqual(bank.map((card: { venueId: string }) => card.venueId));
-        await map.screenshot({ path: testInfo.outputPath(`${width}-${spoken ? "spoken" : "typed"}-map-followup.png`) });
+        await expect(thanks).toHaveCount(previousThanks + 1);
+        say(socket, "You are welcome.");
+        await expect(page.getByRole("log", { name: "Voice chat transcript" })).toContainText("You are welcome.");
+        for (const followup of ["Show those pubs on the map", "Show me the map"]) {
+          if (spoken) hear(socket, followup);
+          else {
+            await page.getByPlaceholder("Or type the night you want…", { exact: true }).fill(followup);
+            await page.getByRole("button", { name: "Send message", exact: true }).click();
+          }
+          await expect(map).toBeFocused();
+          await expect(page).toHaveURL(/\/pal$/);
+          expect(await canvas.evaluate((node, old) => node === old, identity)).toBe(true);
+          expect(await map.locator(".palChatMapAnchor").evaluateAll(nodes => nodes.map(node => (node as HTMLElement).style.transform))).toEqual(camera);
+          expect(await pins.evaluateAll(nodes => nodes.map(node => node.getAttribute("data-venue-id")))).toEqual(bank.map((card: { venueId: string }) => card.venueId));
+          await map.screenshot({ path: testInfo.outputPath(`${width}-${spoken ? "spoken" : "typed"}-${followup}-map-followup.png`) });
+        }
       }
     }
     await page.setViewportSize({ width: 390, height: 1000 });
