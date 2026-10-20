@@ -208,7 +208,7 @@
   place-items: center;
   width: 44px;
   height: 44px;
-  transform: translate(-50%, -50%);
+  translate: -50% -50%;
   border: 2px solid var(--ink);
   border-radius: 50%;
   background: var(--panel-raised);

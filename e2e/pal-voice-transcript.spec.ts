@@ -114,6 +114,67 @@ async function openLiveVoice(page: Page, memoryProposals = false): Promise<WebSo
   return opened;
 }
 
+test.describe("phone voice map tap targets", () => {
+  test.use({ hasTouch: true });
+
+  for (const pinNumber of [1, 2, 3, 4]) {
+    test(`independent transport replies keep four pins tappable and pin ${pinNumber} opens its pub`, async ({ page }) => {
+      test.setTimeout(90_000);
+      await page.setViewportSize({ width: 390, height: 844 });
+      const socket = await openLiveVoice(page);
+      hear(socket, "Find four pubs in Soho and check Tube delays.");
+      const response = await page.request.post("/api/pub-pal/chat", { data: {
+        query: "Find me four pubs in Soho and show them on the map.",
+      } });
+      expect(response.ok()).toBe(true);
+      const answer = await response.json();
+      expect(answer.cards).toHaveLength(4);
+      let toolId = 0;
+      const deliver = (tool: string, cards: unknown[]) => {
+        const request = { tool_name: tool, tool_call_id: `transport-${++toolId}`, tool_type: "webhook", event_id: eventId };
+        socket.send(JSON.stringify({ type: "agent_tool_request", agent_tool_request: request }));
+        socket.send(JSON.stringify({ type: "agent_tool_response_full_payload", agent_tool_response_full_payload: {
+          ...request, is_error: false, is_called: true,
+          full_tool_result: JSON.stringify({ requestedTool: tool, result: { ok: true, tool, answerHint: "Recorded results.", cards } }),
+        } }));
+      };
+      const map = page.getByRole("region", { name: "4 pubs on the map" });
+      const list = page.getByRole("list", { name: "Pubs from the voice answer" });
+      const checkPins = async () => {
+        await map.scrollIntoViewIfNeeded();
+        await page.mouse.move(0, 0);
+        await expect(map.locator('[data-map-ready="true"]')).toBeVisible({ timeout: 20_000 });
+        await expect(map.locator(".palChatMapPin")).toHaveCount(4);
+        await expect.poll(() => map.locator(".palChatMapPin").evaluateAll((pins) => pins.map((pin) => {
+          const box = pin.getBoundingClientRect();
+          const target = document.elementFromPoint(box.x + box.width / 2, box.y + box.height / 2);
+          return target === pin || pin.contains(target);
+        }))).toEqual([true, true, true, true]);
+        for (const card of answer.cards) {
+          const pin = map.locator(`.palChatMapPin[data-venue-id="${card.venueId}"]`);
+          await expect(pin).toHaveAttribute("href", `/map?sel=${card.venueId}`);
+          await pin.tap({ trial: true });
+        }
+      };
+      deliver("search_venues", answer.cards);
+      await expect(list.locator("li")).toHaveCount(4);
+      await checkPins();
+      for (const tool of ["city_status", "journey"]) {
+        deliver(tool, [{ key: tool, title: `${tool} answer`, note: "Transport information." }]);
+        say(socket, `${tool} completed.`);
+        await expect(page.getByRole("log", { name: "Voice chat transcript" })).toContainText(`${tool} completed.`);
+        await expect(list.locator("li")).toHaveCount(4);
+        await checkPins();
+      }
+      await test.info().attach("voice-map-after-transport", { body: await map.screenshot({ path: test.info().outputPath("voice-map-after-transport.png") }), contentType: "image/png" });
+      const pin = map.locator(".palChatMapPin").nth(pinNumber - 1);
+      const destination = await pin.getAttribute("href");
+      await pin.tap();
+      await expect(page).toHaveURL(new RegExp(`${destination!.replace("?", "\\?")}$`));
+    });
+  }
+});
+
 for (const width of [390, 1440]) {
   test(`${width}px: real SDK tool events show four mapped pubs and require a tap before keeping a voice memory`, async ({ page }) => {
     test.setTimeout(90_000);

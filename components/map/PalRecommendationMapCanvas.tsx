@@ -22,6 +22,7 @@ export default function PalRecommendationMapCanvas({ points, onUnavailable }: {
 
   useEffect(() => {
     if (!host.current || !points.length) return;
+    host.current.removeAttribute("data-map-ready");
     let map: maplibregl.Map;
     let stopped = false;
     let fallback = false;

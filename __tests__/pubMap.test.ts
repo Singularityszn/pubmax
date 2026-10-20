@@ -1080,10 +1080,12 @@ describe("mapSelectionFrame", () => {
     expect(answer.detailOpen).toBe(false);
     expect(answer.resolvable).toBe(false);
     expect(answer.selectedId).toBeUndefined();
+    const resolved = { id: "v2", name: "The Crown" } as never;
     expect(mapSelectionFrame({
       selectedVenueId: "v2",
-      selectedVenue: { ...crown, id: "v2" },
-      venueById: new Map([["v2", { ...crown, id: "v2" }]]),
+      selectedVenue: resolved,
+      selectedBasePub: null,
+      venueById: new Map([["v2", resolved]]),
       isPubVenue,
       lookupFailed: true,
     }).detailOpen).toBe(true);
