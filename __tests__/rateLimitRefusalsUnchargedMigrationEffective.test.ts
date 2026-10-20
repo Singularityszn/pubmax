@@ -142,6 +142,21 @@ describe.skipIf(skipReason !== null)("0181 rate-limit refusals uncharged", () =>
     ).toBe("0");
   });
 
+  it("admits one near-cap warning per lane and threshold during a concurrent cooldown", async () => {
+    requireSession().applyFile(FORWARD);
+    const warning80 = "select public.check_rate_limit('paid_spend.near_cap.ask.80', 1, 900000)";
+    const verdicts = await requireSession().concurrentResults(Array(12).fill(warning80));
+    expect(verdicts.filter((verdict) => verdict === "f")).toHaveLength(1);
+    expect(verdicts.filter((verdict) => verdict === "t")).toHaveLength(11);
+    expect(requireSession().sql(
+      "select public.check_rate_limit('paid_spend.near_cap.ask.90', 1, 900000)",
+    )).toBe("f");
+    requireSession().sql(`update public.rate_limits
+      set hits = array[now() - interval '16 minutes']
+      where key = 'paid_spend.near_cap.ask.80'`);
+    expect(requireSession().sql(warning80)).toBe("f");
+  });
+
   it("rolls back to charging every call", () => {
     requireSession().applyFile(ROLLBACK);
 
