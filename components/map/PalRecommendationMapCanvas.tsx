@@ -48,6 +48,10 @@ export default function PalRecommendationMapCanvas({ points, onUnavailable }: {
     const bounds = new maplibregl.LngLatBounds();
     points.forEach((point) => bounds.extend([point.lng, point.lat]));
     const fit = () => map.fitBounds(bounds, { padding: 90, maxZoom: 17, duration: 0 });
+    let userMovedCamera = false;
+    map.on("movestart", (event) => {
+      if (event.originalEvent) userMovedCamera = true;
+    });
     // Fit before the first painted frame. The opening view never shows all London.
     fit();
 
@@ -124,7 +128,11 @@ export default function PalRecommendationMapCanvas({ points, onUnavailable }: {
       armTimeout();
     });
     observer.observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
-    const resize = new ResizeObserver(() => { map.resize(); positionPins(); });
+    const resize = new ResizeObserver(() => {
+      map.resize();
+      if (!userMovedCamera) fit();
+      positionPins();
+    });
     resize.observe(host.current);
     return () => {
       stopped = true;

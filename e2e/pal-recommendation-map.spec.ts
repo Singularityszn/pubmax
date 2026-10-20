@@ -1,6 +1,100 @@
-import { expect, test } from "@playwright/test";
+import { expect, test, type Locator } from "@playwright/test";
+
+async function pinPositions(canvas: Locator) {
+  return canvas.evaluate((element) => {
+    const frame = element.getBoundingClientRect();
+    return Array.from(element.querySelectorAll(".palChatMapAnchor"), (anchor) => {
+      const pin = anchor.getBoundingClientRect();
+      return { x: Math.round((pin.x - frame.x - frame.width / 2) * 10) / 10, y: Math.round((pin.y - frame.y - frame.height / 2) * 10) / 10 };
+    });
+  });
+}
+
+async function settledPinPositions(canvas: Locator) {
+  let previous = "";
+  let stable = 0;
+  await expect.poll(async () => {
+    const current = JSON.stringify(await pinPositions(canvas));
+    stable = current === previous ? stable + 1 : 0;
+    previous = current;
+    return stable;
+  }, { intervals: [100] }).toBeGreaterThanOrEqual(3);
+  return pinPositions(canvas);
+}
+
+test("phone rotation keeps all four answer pins framed until the user moves the camera", async ({ page }) => {
+  test.setTimeout(90_000);
+  await page.setViewportSize({ width: 844, height: 390 });
+  await page.goto("/pal/chat");
+  await page.getByRole("textbox", { name: "Where, how many, what budget", exact: true }).fill("Find me four pubs in Soho and show them on the map.");
+  await page.getByRole("button", { name: "Ask", exact: true }).click();
+  const map = page.getByRole("region", { name: "4 pubs on the map" });
+  const canvas = map.locator('.palChatMapCanvas[data-map-ready="true"]');
+  await expect(canvas).toBeVisible({ timeout: 20_000 });
+  const ids = await map.locator(".palChatMapPin").evaluateAll((pins) => pins.map((pin) => pin.getAttribute("data-venue-id")));
+  expect(ids).toHaveLength(4);
+  for (const viewport of [{ width: 390, height: 844 }, { width: 844, height: 390 }, { width: 390, height: 844 }]) {
+    await page.setViewportSize(viewport);
+    await canvas.scrollIntoViewIfNeeded();
+    await expect.poll(() => canvas.evaluate((element) => {
+      const frame = element.getBoundingClientRect();
+      return Array.from(element.querySelectorAll(".palChatMapPin"), (pin) => {
+        const box = pin.getBoundingClientRect();
+        const target = document.elementFromPoint(box.x + box.width / 2, box.y + box.height / 2);
+        return box.left >= frame.left && box.right <= frame.right && box.top >= frame.top && box.bottom <= frame.bottom
+          && (target === pin || pin.contains(target));
+      });
+    })).toEqual([true, true, true, true]);
+    expect(await map.locator(".palChatMapPin").evaluateAll((pins) => pins.map((pin) => pin.getAttribute("data-venue-id")))).toEqual(ids);
+  }
+  const framed = await settledPinPositions(canvas);
+  const box = await canvas.boundingBox();
+  expect(box).not.toBeNull();
+  await page.mouse.move(box!.x + box!.width / 2, box!.y + 30);
+  await page.mouse.down();
+  await page.mouse.move(box!.x + box!.width / 2 + 65, box!.y + 50, { steps: 15 });
+  await page.mouse.up();
+  const moved = await settledPinPositions(canvas);
+  expect(Math.abs(moved[0]!.x - framed[0]!.x)).toBeGreaterThan(40);
+  for (const viewport of [{ width: 844, height: 390 }, { width: 390, height: 844 }]) {
+    await page.setViewportSize(viewport);
+    await canvas.scrollIntoViewIfNeeded();
+    const rotated = await settledPinPositions(canvas);
+    expect(rotated).toHaveLength(4);
+    rotated.forEach((position, index) => {
+      expect(Math.abs(position.x - moved[index]!.x)).toBeLessThanOrEqual(1);
+      expect(Math.abs(position.y - moved[index]!.y)).toBeLessThanOrEqual(1);
+    });
+  }
+});
 
 for (const viewport of [{ width: 390, height: 844 }, { width: 1440, height: 1000 }]) {
+  test(`repeated budget follow-ups retain Soho through reload at ${viewport.width}px`, async ({ page }) => {
+    test.setTimeout(90_000);
+    await page.setViewportSize(viewport);
+    await page.goto("/pal/chat");
+    const composer = page.getByRole("textbox", { name: "Where, how many, what budget", exact: true });
+    await composer.fill("Find me four pubs in Soho and show them on the map.");
+    await page.getByRole("button", { name: "Ask", exact: true }).click();
+    await expect(page.locator(".palChatCards .palChatCard")).toHaveCount(4);
+    for (const [index, budget] of [6.80, 6.70, 6.60, 6.50].entries()) {
+      if (index === 3) await page.reload();
+      await composer.fill(`Same area, under £${budget.toFixed(2)} a pint`);
+      const responsePromise = page.waitForResponse((response) => new URL(response.url()).pathname === "/api/pub-pal/chat" && response.request().method() === "POST");
+      await page.getByRole("button", { name: "Ask", exact: true }).click();
+      expect((await responsePromise).ok()).toBe(true);
+      await expect(page.locator(".palChatCards")).toHaveCount(index + 2);
+      const reply = page.locator(".palChatRow--pal").last();
+      await expect(reply.locator(".palChatLocality")).toHaveText("In Soho, the area you named.");
+      await expect(reply.locator(".palChatRecall")).toHaveCount(0);
+      await expect(reply).toContainText("Shakespeares Head");
+      await expect(reply).not.toContainText("Name a listed pub to check a price");
+      const prices = await reply.locator(".palChatCardPrice").allTextContents();
+      expect(prices.length).toBeGreaterThan(0);
+      for (const price of prices) expect(Number(price.replace(/[^0-9.]/g, ""))).toBeLessThanOrEqual(budget);
+    }
+  });
+
   test(`four Soho recommendations stay with their map at ${viewport.width}px`, async ({ page }) => {
     await page.setViewportSize(viewport);
     await page.goto("/pal/chat");

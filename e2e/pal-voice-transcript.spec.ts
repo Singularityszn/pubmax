@@ -141,9 +141,22 @@ for (const width of [390, 1440]) {
       { ...answer.cards[0], key: "meal", title: "Lunch at Shakespeares Head", price: 18, note: "Published menu. Read 2 October 2026. Availability unknown.", provenance: { kind: "published-menu", label: "Pub menu" }, menuEvidence: { kind: "published-menu", itemId: "lunch", itemName: "Lunch", menu: "food", category: "meal", currency: "GBP", serving: "portion", caloriesKcal: null, caloriesProvenance: null, dietary: [], dietaryProvenance: null, observedAt: "2026-10-02", source: "Pub menu", sourceUrl: null, licence: "Published menu", availability: "unknown" } },
     ] });
     const sourced = page.getByRole("list", { name: "Pubs from the voice answer" });
-    await expect(sourced.locator("li")).toHaveCount(2);
-    await expect(sourced).toContainText("Seen 2 October 2026. Corroboration pending.");
-    await expect(sourced.locator('.priceBadge[title]')).toHaveCount(0);
+    await expect(sourced.locator("li")).toHaveCount(6);
+    for (const card of answer.cards) {
+      const recommendation = sourced.locator("li").filter({ has: page.getByRole("link", { name: card.title, exact: true }) });
+      await expect(recommendation).toHaveCount(1);
+      await expect(recommendation.locator('.priceBadge[title]')).toHaveCount(1);
+    }
+    const wine = sourced.locator("li").filter({ has: page.getByRole("link", { name: "Red wine at Shakespeares Head", exact: true }) });
+    const meal = sourced.locator("li").filter({ has: page.getByRole("link", { name: "Lunch at Shakespeares Head", exact: true }) });
+    await expect(wine).toContainText("£7.50");
+    await expect(wine).toContainText("Seen 2 October 2026. Corroboration pending.");
+    await expect(meal).toContainText("£18.00");
+    await expect(meal).toContainText("Published menu. Read 2 October 2026. Availability unknown.");
+    await expect(wine.locator('.priceBadge[title]')).toHaveCount(0);
+    await expect(meal.locator('.priceBadge[title]')).toHaveCount(0);
+    await expect(map).toBeVisible();
+    await expect(map.locator(".palChatMapPin")).toHaveCount(4);
 
     let writes = 0;
     const memories: Array<Record<string, unknown>> = [];

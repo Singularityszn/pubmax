@@ -16,7 +16,7 @@ for (const width of [390, 1440]) {
     });
     await installDeterministicMapBasemap(page);
     await page.goto("/pal/chat");
-    const input = page.getByRole("textbox", { name: "Describe the outing", exact: true });
+    const input = page.getByRole("textbox", { name: "Where, how many, what budget", exact: true });
     await input.fill("Wine prices at Sherlock Holmes");
     const reply = page.waitForResponse((response) =>
       new URL(response.url()).pathname === "/api/pub-pal/chat" && response.request().method() === "POST",
@@ -68,7 +68,7 @@ for (const query of [
 ]) {
   test(`the rendered chat preserves the complete journey question: ${query}`, async ({ page }) => {
     await page.goto("/pal/chat");
-    const input = page.getByRole("textbox", { name: "Describe the outing", exact: true });
+    const input = page.getByRole("textbox", { name: "Where, how many, what budget", exact: true });
     await input.fill(query);
     const responsePromise = page.waitForResponse((response) =>
       new URL(response.url()).pathname === "/api/pub-pal/chat" && response.request().method() === "POST",
@@ -162,7 +162,7 @@ for (const chip of VIBE_CHIPS.filter((chip) => chip.id !== "bender")) {
 for (const query of ["somewhere cheap and quiet", "Somewhere cheap in Soho"]) {
   test(`typed discovery retains the budget through chat: ${query}`, async ({ page }) => {
     await page.goto("/pal/chat");
-    const input = page.getByRole("textbox", { name: "Describe the outing", exact: true });
+    const input = page.getByRole("textbox", { name: "Where, how many, what budget", exact: true });
     await expect(input).toBeVisible();
     await input.fill(query);
     const responsePromise = page.waitForResponse((response) =>
@@ -193,7 +193,7 @@ for (const query of [
 ]) {
   test(`typed item and destination constraints survive rendered chat: ${query}`, async ({ page }) => {
     await page.goto("/pal/chat");
-    const input = page.getByRole("textbox", { name: "Describe the outing", exact: true });
+    const input = page.getByRole("textbox", { name: "Where, how many, what budget", exact: true });
     await expect(input).toBeVisible();
     await input.fill(query);
     const responsePromise = page.waitForResponse((response) =>

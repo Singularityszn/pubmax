@@ -44,4 +44,16 @@ describe("palRecall", () => {
     );
     expect(recall?.topic).toBe("LONDON");
   });
+
+  it.each(["area", "patch", "neighborhood", "neighbourhood"])("does not recall budget follow-up wording for the same %s", (area) => {
+    expect(palRecall([
+      "Find four pubs in Soho",
+      `Same ${area}, under £6.80 a pint`,
+      `Same ${area}, under £6.70 a pint`,
+    ], `Same ${area}, under £6.60 a pint`)).toBeNull();
+    expect(palRecall([
+      `Same ${area}, under £6.80 a pint in Soho`,
+      "anything else?",
+    ], `Same ${area}, under £6.60 a pint in Soho`)).toEqual({ topic: "Soho", line: "You asked about Soho earlier." });
+  });
 });

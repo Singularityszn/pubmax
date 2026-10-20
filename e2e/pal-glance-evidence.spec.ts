@@ -34,7 +34,7 @@ for (const width of [390, 1440]) {
         const body = await response.json();
         expect(Array.isArray(body.rows)).toBe(true);
         const hasListings = body.rows.length > 0;
-        const composer = page.getByRole("textbox", { name: "Describe the outing", exact: true });
+        const composer = page.getByRole("textbox", { name: "Where, how many, what budget", exact: true });
         const ask = page.getByRole("button", { name: "Ask", exact: true });
         await expect(async () => {
           await composer.fill("Check the sources");
