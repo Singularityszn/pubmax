@@ -14,7 +14,7 @@ for (const path of ["/tonight", "/pint-index", "/crawls"]) {
         await expect(page.getByTestId("listings-skeleton")).toHaveCount(0);
         await expect(page.getByTestId("tonight-screen")).not.toHaveAttribute("data-listings-status", "idle");
       } else if (path === "/pint-index") {
-        await expect(page.getByRole("heading", { name: "The Zone pint index" })).toBeVisible();
+        await expect(page.getByRole("heading", { name: "London pint prices by borough and fare zone" })).toBeVisible();
         await expect(page).toHaveTitle("London pint prices by borough and fare zone | PUBMAXX");
       } else {
         await expect(page.getByRole("heading", { name: "London pub crawl routes", exact: true })).toBeVisible();

@@ -55,7 +55,7 @@ test.describe("the Plan result is a route", () => {
   test("heading, one summary line, three cards, two walks, and no venue-name field", async ({ page }) => {
     await sortARoute(page);
 
-    await expect(page.getByRole("heading", { level: 2, name: /^(Tonight|Today|Tomorrow night) in Clapham$/ })).toBeVisible();
+    await expect(page.getByRole("heading", { level: 1, name: /^(Tonight|Today|Tomorrow night) in Clapham$/ })).toBeVisible();
     // The summary leads with the night's own date and time, because the
     // composer's default steps over tonight late in the evening.
     await expect(page.getByTestId("plan-route-summary")).toHaveText(

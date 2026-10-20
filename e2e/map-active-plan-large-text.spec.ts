@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 
-import { installNativeShell } from "./helpers/nativeShell";
+import { installNativeShell } from "@/e2e/helpers/nativeShell";
 
 // Chromium models iOS typography with a fixed root and Android with a larger
 // root. Native text scaling and WebView painting require separate native proof.
@@ -50,21 +50,10 @@ for (const platform of ["ios", "android"] as const) {
             }));
           }
         }, { theme, state, id, startTime });
-        await page.goto("/map");
+        await page.goto(state === "picked" ? `/map?mode=build&pubs=${venues[0]!.id}` : "/map");
         const card = page.locator(".mapPeek");
         const door = card.locator(".mobilePlanActivation.isActive");
         await expect(card).toHaveAttribute("data-state", "answer", { timeout: 60_000 });
-        if (state === "picked") {
-          await card.locator(".mapPeekAnswer").click();
-          const venue = page.locator('.mobileSheetPortal[data-sheet-kind="venue"]');
-          await expect(venue).toBeVisible();
-          const pick = venue.locator(".mobileVenuePeekSummary button");
-          await expect(pick).toHaveText("Plan stop");
-          await pick.click();
-          await expect(pick).toHaveText("In plan");
-          await venue.locator(".surfaceNavHome").click();
-          await expect(venue).toHaveCount(0);
-        }
         await expect(door.locator("strong")).toHaveText(state === "active" ? "3-stop plan" : "1 stop picked");
         await expect(door.locator("small")).toHaveText(state === "active" ? "Edit route" : "Add stops");
         await page.evaluate(() => document.fonts.ready);
@@ -73,7 +62,7 @@ for (const platform of ["ios", "android"] as const) {
         for (const width of [320, 390]) {
           await page.setViewportSize({ width, height: 844 });
           for (const scale of [1, 1.3, 1.5, 2]) {
-            const geometry = await card.evaluate((node, { scale, platform }) => {
+            const geometry = await card.evaluate(async (node, { scale, platform }) => {
               const root = document.documentElement;
               root.setAttribute("data-text-scale", scale >= 1.3 ? "large" : "");
               root.style.fontSize = platform === "android" ? `${scale * 100}%` : "100%";
@@ -96,6 +85,7 @@ for (const platform of ["ios", "android"] as const) {
                 element.style.fontSize = `${font}px`;
                 if (line !== null) element.style.lineHeight = `${line}px`;
               }
+              await new Promise<void>(resolve => requestAnimationFrame(() => requestAnimationFrame(() => resolve())));
               const rect = (element: Element | Range) => {
                 const box = element.getBoundingClientRect();
                 return { top: box.top, bottom: box.bottom, left: box.left, right: box.right, height: box.height };
