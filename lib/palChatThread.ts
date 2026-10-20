@@ -5,6 +5,7 @@ import type { RememberedArea } from "@/lib/nightPatches";
 import type { PalAnswer } from "@/lib/palChat";
 import { palChatResultFromBody } from "@/lib/palChatClient";
 import { resolvePalLocality, type PalLocality } from "@/lib/palLocality";
+import { windowPalSessionTurns } from "@/lib/palSessionSummary";
 import type { PalRecall } from "@/lib/palRecall";
 import { isPubPalConversationId, PUB_PAL_CONVERSATION_IDLE_MS } from "@/lib/pubPalConversationId";
 import { readSurfaceSnapshot, writeSurfaceSnapshot } from "@/lib/surfaceDataCache";
@@ -52,7 +53,7 @@ function menuEvidence(value: unknown): AskMenuEvidence | undefined {
 
 /** Use the existing tab cache, including its account-change purge and age limit. */
 export function savePalChatThread(owner: string, entries: PalChatEntry[], conversationId: string, conversationAt: number, turns: readonly AskTurn[]): void {
-  writeSurfaceSnapshot(key(owner), { version: 2, entries: entries.slice(-24), conversationId, conversationAt, turns: turns.slice(-6) });
+  writeSurfaceSnapshot(key(owner), { version: 2, entries: entries.slice(-24), conversationId, conversationAt, turns: windowPalSessionTurns("", [...turns]).turns });
 }
 
 export function clearPalChatThread(owner: string): void {
@@ -119,7 +120,7 @@ export function readPalChatThread(owner: string, now = Date.now()): PalChatThrea
       entries.push({ kind: "error", id, message: text(entry.message, 2000), needsSignIn: entry.needsSignIn === true, ...(typeof entry.retryQuery === "string" ? { retryQuery: text(entry.retryQuery, 500) } : {}) });
     } else return null;
   }
-  for (const raw of saved.turns.slice(-6)) {
+  for (const raw of saved.turns) {
     const turn = record(raw);
     if (!turn || (turn.role !== "user" && turn.role !== "assistant") || typeof turn.content !== "string") return null;
     turns.push({ role: turn.role, content: text(turn.content, 8000) });
@@ -127,5 +128,6 @@ export function readPalChatThread(owner: string, now = Date.now()): PalChatThrea
   const conversationAt = typeof saved.conversationAt === "number" && Number.isFinite(saved.conversationAt) ? saved.conversationAt : 0;
   const conversationId = typeof saved.conversationId === "string" && isPubPalConversationId(saved.conversationId)
     && conversationAt <= now && now - conversationAt < PUB_PAL_CONVERSATION_IDLE_MS ? saved.conversationId : "";
-  return { entries, priorAsks: turns.filter((turn) => turn.role === "user").map((turn) => turn.content), turns, conversationId, conversationAt };
+  const recent = windowPalSessionTurns("", turns).turns;
+  return { entries, priorAsks: recent.filter((turn) => turn.role === "user").map((turn) => turn.content), turns: recent, conversationId, conversationAt };
 }

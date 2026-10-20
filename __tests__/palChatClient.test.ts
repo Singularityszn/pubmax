@@ -17,6 +17,9 @@ import { AuthActionSessionError } from "@/lib/authedFetch";
 import { PAL_ERROR_FALLBACK } from "@/lib/palChat";
 import { createPalChatSession } from "@/lib/palChatClient";
 import { defined } from "@/__tests__/helpers/defined";
+import { refineRoutedAskQuery } from "@/lib/ask/router";
+import { resolvePalLocality } from "@/lib/palLocality";
+import type { AskTurn } from "@/lib/ask/types";
 
 function jsonResponse(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {
@@ -43,6 +46,32 @@ it("continues a restored tab conversation with its prior turns and provider bind
   expect(bodies[0]).toMatchObject({ threadId: "conv_returntest1", turns: [{ role: "user", content: "Four pubs in Soho" }, { role: "assistant", content: "Four sourced choices." }] });
   expect(onConversationId).toHaveBeenCalledWith("conv_returntest1");
   expect(onTurns).toHaveBeenCalledWith([{ role: "user", content: "Four pubs in Soho" }, { role: "assistant", content: "Four sourced choices." }, { role: "user", content: "What fits under £6.50?" }, { role: "assistant", content: "Two fit that budget." }]);
+});
+
+it("retains the resolved area through repeated budget follow-ups and session restoration", async () => {
+  let saved: AskTurn[] = [];
+  const areas: string[] = [];
+  const options = {
+    onTurns: (turns: AskTurn[]) => { saved = turns; },
+    fetchImpl: async (_input: RequestInfo | URL, init?: RequestInit) => {
+      const body = JSON.parse(String(init?.body)) as { query: string; turns: AskTurn[] };
+      const users = body.turns.filter((turn) => turn.role === "user").map((turn) => turn.content);
+      const query = refineRoutedAskQuery(body.query, users.at(-1), users);
+      areas.push(resolvePalLocality(query, null).label);
+      return jsonResponse({ answer: "Listed choices.", cards: [] });
+    },
+  };
+  let ask = createPalChatSession(options);
+  await ask("Find four pubs in Soho", "london");
+  for (const budget of [7, 6.8, 6.6, 6.4, 6.2, 6]) {
+    await ask(`Same area, under £${budget} a pint`, "london");
+    expect(saved.length).toBeLessThanOrEqual(6);
+    ask = createPalChatSession({ ...options, initialTurns: saved });
+  }
+  expect(areas).toEqual(Array(7).fill("Soho"));
+  await ask("Find four pubs in Camden", "london");
+  await ask("Same area, under £7 a pint", "london");
+  expect(areas.slice(-2)).toEqual(["Camden", "Camden"]);
 });
 
 const VENUE_BODY = {

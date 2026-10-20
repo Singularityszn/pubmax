@@ -1,6 +1,7 @@
+import { refineVenueBudgetFollowUp } from "@/lib/ask/router";
 import type { PubPalFenceTurn } from "@/lib/pubPalLlmFence";
 
-/** How many of the person's newest lines a Pal session carries word for word. */
+/** How many of the person's newest lines a Pal session carries. */
 export const PAL_SESSION_RECENT_TURNS = 6;
 
 /**
@@ -55,7 +56,7 @@ function rollSummary(summary: string, evicted: PubPalFenceTurn[]): string {
 }
 
 /**
- * Keep the newest lines word for word and roll every older one into the
+ * Keep the newest lines and roll every older one into the
  * summary. The store and the typed turn both window through here, so a line is
  * never dropped without reaching the summary.
  */
@@ -63,9 +64,15 @@ export function windowPalSessionTurns(
   summary: string,
   turns: PubPalFenceTurn[],
 ): { summary: string; turns: PubPalFenceTurn[] } {
-  const cut = Math.max(0, turns.length - PAL_SESSION_RECENT_TURNS);
-  if (cut === 0) return { summary, turns };
-  return { summary: rollSummary(summary, turns.slice(0, cut)), turns: turns.slice(cut) };
+  const priorUsers: string[] = [];
+  const resolved = turns.map((turn) => {
+    if (turn.role !== "user") return turn;
+    const content = refineVenueBudgetFollowUp(turn.content, priorUsers) ?? turn.content;
+    priorUsers.push(content);
+    return { ...turn, content };
+  });
+  const cut = Math.max(0, resolved.length - PAL_SESSION_RECENT_TURNS);
+  return { summary: cut ? rollSummary(summary, turns.slice(0, cut)) : summary, turns: resolved.slice(cut) };
 }
 
 /** The one turn a typed ask carries for its older history. Empty when nothing has rolled off yet. */

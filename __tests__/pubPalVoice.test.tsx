@@ -1103,6 +1103,40 @@ describe("Pub Pal voice transcript", () => {
     expect(container.querySelector('[aria-label="Pubs from the voice answer"]')).toBeNull();
     canvas.mockRestore();
   });
+  it.each([
+    ["search_venues", "city_status", "journey"],
+    ["journey", "city_status", "search_venues"],
+    ["city_status", "search_venues", "journey"],
+    ["search_venues", "journey", "city_status"],
+    ["journey", "search_venues", "city_status"],
+    ["city_status", "journey", "search_venues"],
+  ])("preserves current-turn pubs across independent responses: %s, %s, %s", async (...tools) => {
+    const canvas = vi.spyOn(HTMLCanvasElement.prototype, "getContext").mockReturnValue(null);
+    const session = await startLiveSession();
+    await act(async () => {
+      session.onMessage?.({ role: "user", message: "Find four pubs in Soho and check Tube delays", event_id: 4 });
+    });
+    for (const tool of tools) {
+      await act(async () => {
+        session.onAgentToolRequest?.({ tool_call_id: tool, event_id: 4 });
+        session.onAgentToolResponse?.({
+          tool_call_id: tool, event_id: 4, tool_name: tool, is_error: false, is_called: true,
+          full_tool_result: JSON.stringify({ result: {
+            ok: true, tool, answerHint: "Sourced result.",
+            cards: tool === "search_venues" ? [1, 2, 3, 4].map((id) => ({
+              key: `pub-${id}`, venueId: `venue-${id}`, title: `Soho pub ${id}`, place: "Soho", note: "", price: 6,
+              provenance: { kind: "directory", label: "On record" },
+            })) : [{ key: "pub-1", venueId: "", title: "Travel status", price: null }],
+          } }),
+        });
+      });
+    }
+    expect([...container.querySelectorAll('[aria-label="Pubs from the voice answer"] li > a:first-child')].map((link) => link.textContent))
+      .toEqual(["Soho pub 1", "Soho pub 2", "Soho pub 3", "Soho pub 4"]);
+    await typeAndSend("Actually Camden");
+    expect(container.querySelector('[aria-label="Pubs from the voice answer"]')).toBeNull();
+    canvas.mockRestore();
+  });
   it("prints what the person said and what the Pal answered, by name", async () => {
     const session = await startLiveSession();
     expect(container.textContent).toContain("Talk to Ripley.");

@@ -3,6 +3,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { DEVICE_IDENTITY_CHANGED_EVENT } from "@/lib/deviceAccountIdentity";
 import { readPalChatThread, savePalChatThread, clearPalChatThread, type PalChatEntry } from "@/lib/palChatThread";
 import { clearSurfaceCache, SURFACE_CACHE_NAMESPACE, writeSurfaceSnapshot } from "@/lib/surfaceDataCache";
+import { refineRoutedAskQuery } from "@/lib/ask/router";
+import { resolvePalLocality } from "@/lib/palLocality";
 import type { AskTurn } from "@/lib/ask/types";
 
 const NOW = Date.parse("2026-10-20T00:00:00Z");
@@ -30,6 +32,17 @@ describe("the current Pal conversation in a tab", () => {
     expect(restored.turns).toEqual([{ role: "user", content: "Find me four pubs in Soho" }, { role: "assistant", content: "A listed Soho pub." }]);
     expect(restored.priorAsks).toEqual(["Find me four pubs in Soho"]);
     expect(restored.conversationId).toBe("conv_returntest1");
+  });
+  it("restores the area after raw refinements exceed the history window", () => {
+    const turns: AskTurn[] = [...transcript];
+    for (const budget of [7, 6.8, 6.6, 6.4]) {
+      turns.push({ role: "user", content: `Same area, under £${budget} a pint` }, { role: "assistant", content: "Listed choices." });
+    }
+    savePalChatThread("owner-a", entries(), "", 0, turns);
+    const restored = readPalChatThread("owner-a")!;
+    expect(restored.turns).toHaveLength(6);
+    const query = refineRoutedAskQuery("Same area, under £6 a pint", restored.priorAsks.at(-1), restored.priorAsks);
+    expect(resolvePalLocality(query, null).label).toBe("Soho");
   });
   it("does not give another account or an anonymous viewer the conversation", () => {
     savePalChatThread("owner-a", entries(), "", 0, transcript);

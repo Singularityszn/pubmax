@@ -17,6 +17,7 @@ import {
   PAL_CHAT_STREAM_TYPE,
   readPalChatStream,
 } from "@/lib/palChatStream";
+import { windowPalSessionTurns } from "@/lib/palSessionSummary";
 import { isPubPalConversationId } from "@/lib/pubPalConversationId";
 
 export type PalChatResult =
@@ -114,7 +115,7 @@ export function createPalChatSession(options: SessionOptions = {}) {
   const timeoutMs = options.timeoutMs ?? PAL_CHAT_TIMEOUT_MS;
   const fetchImpl = options.fetchImpl ?? signedInFetch;
   let currentId = 0;
-  const turns: AskTurn[] = (options.initialTurns ?? []).slice(-6).map((turn) => ({ ...turn }));
+  let turns: AskTurn[] = windowPalSessionTurns("", [...(options.initialTurns ?? [])]).turns;
   let threadId = options.initialConversationId && isPubPalConversationId(options.initialConversationId) ? options.initialConversationId : "";
 
   /**
@@ -193,9 +194,11 @@ export function createPalChatSession(options: SessionOptions = {}) {
         options.onConversationId?.(threadId);
       }
       if (result.status !== "error") {
-        turns.push({ role: "user", content: query });
-        turns.push({ role: "assistant", content: result.message });
-        while (turns.length > 6) turns.shift();
+        turns = windowPalSessionTurns("", [
+          ...turns,
+          { role: "user", content: query },
+          { role: "assistant", content: result.message },
+        ]).turns;
         options.onTurns?.(turns.map((turn) => ({ ...turn })));
       }
       return result;

@@ -512,7 +512,10 @@ function VoiceControls({ onStateChange, resetPendingSession, text, setText, erro
               || !currentToolCalls.current.has(event.tool_call_id)) return;
             const answer = palVoiceToolAnswer(event);
             if (answer) {
-              if (event.tool_name !== "propose_memory") setVoiceCards(answer.cards);
+              if (event.tool_name !== "propose_memory") setVoiceCards((current) => [
+                ...current.filter((card) => !answer.cards.some((incoming) => incoming.key === card.key && incoming.venueId === card.venueId)),
+                ...answer.cards,
+              ]);
               const proposals = answer.proposals.filter((proposal): proposal is PalMemoryCard => proposal.kind === "remember_memory");
               if (proposals.length) setMemoryCards((current) => [...current, ...proposals.filter((proposal) => !current.some((prior) => prior.id === proposal.id))].slice(-3));
             }
