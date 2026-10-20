@@ -38,17 +38,23 @@ function asksAboutAlcoholAndVehicleFitness(message: string): boolean {
   const operationAt = text.search(VEHICLE_OPERATION_RE);
   if (alcoholAt < 0 || operationAt < 0) return false;
   if (ALCOHOL_ALLOWANCE_RE.test(text)) return true;
-  if (/\bwhere\s+(?:can|could|may|should)\s+(?:i|we)\s+(?:buy|find|get|have|drink)\b/i.test(text)) return false;
-  if (!PERSONAL_ALLOWANCE_RE.test(text) && !PERSONAL_FITNESS_RE.test(text)) return false;
+  const allowanceText = text.replace(
+    /\bwhere\s+(?:can|could|may|should)\s+(?:i|we)\s+(?:buy|find|get|have|drink)\b/gi,
+    "",
+  );
+  if (!PERSONAL_ALLOWANCE_RE.test(allowanceText) && !PERSONAL_FITNESS_RE.test(text)) return false;
 
   const beforeAt = text.search(/\bbefore\b/i);
   const afterAt = text.search(/\bafter\b/i);
   const stillAt = text.search(/\band\s+still\b/i);
-  const alcoholBeforeOperation = beforeAt >= 0 && operationAt > beforeAt
-    && (alcoholAt < beforeAt || operationAt < alcoholAt);
-  const operationAfterAlcohol = afterAt >= 0 && alcoholAt > afterAt
-    && (operationAt < afterAt || operationAt > alcoholAt);
-  return alcoholBeforeOperation || operationAfterAlcohol || (stillAt >= 0 && operationAt > stillAt);
+  const operationAfterBeforeAt = beforeAt < 0 ? -1 : text.slice(beforeAt).search(VEHICLE_OPERATION_RE);
+  const alcoholAfterAt = afterAt < 0 ? -1 : text.slice(afterAt).search(ALCOHOL_RE);
+  const alcoholBeforeOperation = operationAfterBeforeAt >= 0
+    && (alcoholAt < beforeAt || ALCOHOL_RE.test(text.slice(beforeAt + operationAfterBeforeAt)));
+  const operationAfterAlcohol = alcoholAfterAt >= 0
+    && (operationAt < afterAt || VEHICLE_OPERATION_RE.test(text.slice(afterAt + alcoholAfterAt)));
+  return alcoholBeforeOperation || operationAfterAlcohol
+    || (stillAt >= 0 && VEHICLE_OPERATION_RE.test(text.slice(stillAt)));
 }
 
 const PUB_PAL_GET_HOME_REGISTER_CLOSER =

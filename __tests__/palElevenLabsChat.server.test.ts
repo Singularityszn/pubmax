@@ -185,6 +185,7 @@ vi.mock("@/lib/palTaste.server", () => ({ readPalTaste: tasteMocks.readPalTaste 
 
 import { VIBE_CHIPS } from "@/lib/vibeChips";
 import { runPalElevenLabsChatTurn } from "@/lib/palElevenLabsChat.server";
+import { pubPalGetHomeRegisterAnswer } from "@/lib/pubPalLlmFence";
 import { readPubPalToolTurn } from "@/lib/pubPalToolTurnStore";
 import { DEFAULT_PAL_DRAFT } from "@/lib/pubPal";
 import { __resetPubPalStore, confirmPalMemoryResult, createPubPalResult } from "@/lib/pubPalStore";
@@ -336,6 +337,35 @@ describe("runPalElevenLabsChatTurn", () => {
     expect(storeMocks.registerPubPalToolTurn).toHaveBeenCalledWith(
       "conv_regression01", expect.objectContaining({ query }),
     );
+  });
+
+  it.each([
+    "Where can I buy beer in Soho? How many pints can I have before driving?",
+    "How many pints can I have before driving? Where should we have beer in Soho?",
+    "Where can I drink beer in Soho? Would it be safe to drive after two beers?",
+  ])("fences mixed discovery and alcohol allowance before provider startup: %s", async (query) => {
+    vi.stubEnv("TYPESAFE_API_KEY", "");
+    const actual = await vi.importActual<typeof import("@/lib/pubPalLlmFence")>("@/lib/pubPalLlmFence");
+    fenceMocks.resolvePubPalFenceIntent.mockImplementation((message) => actual.resolvePubPalFenceIntent(message));
+    vi.mocked(pubPalGetHomeRegisterAnswer).mockImplementationOnce(actual.pubPalGetHomeRegisterAnswer);
+
+    const outcome = await runPalElevenLabsChatTurn({
+      query,
+      ownerId: "11111111-1111-4111-8111-111111111111",
+    });
+
+    expect(outcome).toEqual({
+      ok: true,
+      message: "I can't tell you whether to have another drink. Open Getting Home on the venue sheet for last-train times, ride links, and the TfL planner.",
+      cards: [],
+      proposals: [],
+      conversationId: "",
+      toolsUsed: [],
+    });
+    expect(fetch).not.toHaveBeenCalled();
+    expect(wsState.socketsOpened).toBe(0);
+    expect(tasteMocks.readPalTaste).not.toHaveBeenCalled();
+    expect(storeMocks.registerPubPalToolTurn).not.toHaveBeenCalled();
   });
 
   it("keeps the sobriety fence before configured price coverage", async () => {
