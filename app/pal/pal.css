@@ -546,7 +546,7 @@ body:has(.analyticsConsentPrompt) .palPrintRow { display: none; }
 /* The signed-in first answer includes voice and typing. While consent owns
    the phone's foot, its portrait and title yield room to those controls. */
 body:has(.analyticsConsentPrompt) .palHomeCopy h1 { font-size: var(--text-xl); line-height: var(--leading-tight); }
-@media (max-width: 640px) and (max-height: 900px) {
+@media (max-width: 900px) and (max-height: 1100px) {
   body:has(.analyticsConsentPrompt) .palHomeHero { padding-top: var(--space-1); gap: var(--space-4); }
   body:has(.analyticsConsentPrompt) .palHomePortrait { min-height: 10rem; grid-template-columns: 10rem minmax(0, 1fr); gap: var(--space-3); }
   body:has(.analyticsConsentPrompt) .palHomePortrait .palPortrait { width: 10rem; }
@@ -555,6 +555,10 @@ body:has(.analyticsConsentPrompt) .palHomeCopy h1 { font-size: var(--text-xl); l
   body:has(.analyticsConsentPrompt) .palHomeCopy h1 { font-size: var(--text-lg); }
   body:has(.analyticsConsentPrompt) .palHomeCopy > p:not(.palEyebrow) { margin-top: var(--space-2); line-height: var(--leading-snug); }
   body:has(.analyticsConsentPrompt) .palHomeCopy .palPrimary { margin-top: var(--space-2); }
+  body:has(.analyticsConsentPrompt) .palHome .palVoice { margin-top: var(--space-2); }
+  body:has(.analyticsConsentPrompt) .palHome .palVoiceEmpty { display: none; }
+  body:has(.analyticsConsentPrompt) .palHome .palVoiceHead { min-height: 44px; }
+  body:has(.analyticsConsentPrompt) .palHome .palVoiceFace { width: 44px; height: 44px; }
 }
 
 @media (prefers-reduced-motion: reduce) {

@@ -70,6 +70,9 @@ import { palLocalityLine, resolvePalLocality, type PalLocality } from "@/lib/pal
 import { PLAN_FIELD_LABEL } from "@/lib/planCopy";
 import { planPalRouteHandoffHref } from "@/lib/planOccasion";
 import { writePlanningIntent } from "@/lib/planningIntent";
+import { authedActionFetch } from "@/lib/authedFetch";
+import { palChatResultFromBody } from "@/lib/palChatClient";
+import { palOpeningMessage } from "@/lib/palOpening";
 import { createPalChatSession } from "@/lib/palChatClient";
 import { refineRoutedAskQuery } from "@/lib/ask/router";
 import { clearPalChatThread, readPalChatThread, savePalChatThread, type PalChatEntry as Entry, type PalChatThread } from "@/lib/palChatThread";
@@ -290,6 +293,7 @@ function PalChatBody({ owner }: { owner: string | null }) {
   const auth = captureAccountAuth(user?.id ?? null, session);
   const [entries, setEntries] = useState<Entry[]>([]);
   const [query, setQuery] = useState("");
+  const browserReady = useSyncExternalStore(() => () => {}, () => true, () => false);
   const [pending, setPending] = useState(false);
   // The answer text so far while the Pal is still writing it, "" until it starts.
   const [streamText, setStreamText] = useState("");
@@ -307,6 +311,7 @@ function PalChatBody({ owner }: { owner: string | null }) {
     serverSoftKeyboardOpen,
   );
   const composerInput = useRef<HTMLInputElement | null>(null);
+  const openingReadRef = useRef(0);
   const sessionRef = useRef<ReturnType<typeof createPalChatSession> | null>(null);
   const counterRef = useRef(0);
   // Every ask this thread has carried, oldest first. In-thread only.
@@ -314,7 +319,7 @@ function PalChatBody({ owner }: { owner: string | null }) {
   const conversationRef = useRef({ id: "", at: 0 });
   const turnsRef = useRef<AskTurn[]>([]);
   const savedEntriesRef = useRef<Entry[] | null>(null);
-  const createSession = useCallback((initial?: PalChatThread) => createPalChatSession({
+  const createSession = useCallback((initial?: Pick<PalChatThread, "turns" | "conversationId">) => createPalChatSession({
     initialTurns: initial?.turns,
     initialConversationId: initial?.conversationId,
     onConversationId(id) { conversationRef.current = { id, at: Date.now() }; },
@@ -349,6 +354,32 @@ function PalChatBody({ owner }: { owner: string | null }) {
     counterRef.current += 1;
     return `t-${counterRef.current}`;
   }, []);
+
+  useEffect(() => {
+    if (!owner || owner === "anonymous" || entries.length || sessionRef.current || readPalChatThread(owner)?.entries.length) return;
+    const request = ++openingReadRef.current;
+    let active = true;
+    void (async () => {
+      let answer = palOpeningMessage("", { memories: null, taste: null });
+      let conversationId = "";
+      try {
+        const response = await authedActionFetch("/api/pub-pal/chat", { method: "GET" }, { requiresIdentity: true });
+        const body = await response.json();
+        const result = palChatResultFromBody(body);
+        if (response.ok && result.status !== "error") {
+          answer = result.message;
+          conversationId = typeof body.conversationId === "string" ? body.conversationId : "";
+        }
+      } catch { /* Keep an honest unavailable opening. */ }
+      if (!active || request !== openingReadRef.current || sessionRef.current || priorAsksRef.current.length) return;
+      const turns: AskTurn[] = [{ role: "assistant", content: answer }];
+      sessionRef.current = createSession({ turns, conversationId });
+      turnsRef.current = turns;
+      conversationRef.current = { id: conversationId, at: Date.now() };
+      setEntries([{ kind: "answer", id: nextId(), answer: { status: "empty", message: answer, cards: [] }, locality: null, proposals: [], recall: null }]);
+    })();
+    return () => { active = false; };
+  }, [owner, entries.length, createSession, nextId]);
 
   useEffect(() => {
     let alive = true;
@@ -461,6 +492,7 @@ function PalChatBody({ owner }: { owner: string | null }) {
     async (raw: string, options: { preserveDraft?: boolean } = {}) => {
       const text = raw.trim();
       if (!text || pending) return;
+      openingReadRef.current += 1;
       if (await openMapFromAsk(text)) return;
       sessionRef.current ??= createSession();
       // Read the recall BEFORE this ask joins the transcript, so the Pal never
@@ -736,6 +768,7 @@ function PalChatBody({ owner }: { owner: string | null }) {
       >
 
       {!empty ? <button type="button" className="palChatReset" disabled={pending} onClick={() => {
+        openingReadRef.current += 1;
         if (owner) clearPalChatThread(owner);
         mapAskRef.current += 1;
         sessionRef.current = null;
@@ -1017,6 +1050,7 @@ function PalChatBody({ owner }: { owner: string | null }) {
           ref={composerInput}
           className="palChatInput"
           value={query}
+          disabled={!browserReady}
           onChange={(event) => setQuery(event.target.value)}
           placeholder="Quiet-ish near Bank, not pricey"
           maxLength={500}
@@ -1027,7 +1061,7 @@ function PalChatBody({ owner }: { owner: string | null }) {
           type="submit"
           className="palChatSend pressable"
           data-primary-action=""
-          disabled={pending || !query.trim()}
+          disabled={!browserReady || pending || !query.trim()}
           aria-label="Ask"
         >
           <ArrowUp size={20} aria-hidden="true" />

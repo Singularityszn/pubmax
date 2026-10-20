@@ -1,6 +1,6 @@
 import { resolveElevenLabsVoiceForPal, type PalVoiceSelection } from "@/lib/palElevenLabsVoice";
 import type { PubPal } from "@/lib/pubPal";
-import type { PalTaste } from "@/lib/palTaste";
+import { palOpeningMessage, type PalOpeningContext } from "@/lib/palOpening";
 
 export {
   PAL_VOICE_GET_HOME_REGISTER_INTRO,
@@ -19,25 +19,9 @@ export type PalVoiceOverrides = {
   firstMessage: string;
 };
 
-type GreetingContext = { taste: PalTaste | null };
-
-function firstMessageFor(pal: PubPal, context?: GreetingContext): string {
-  const hello = `Hi, I'm ${pal.name}.`;
-  const visit = context?.taste?.lastVisit;
-  if (visit?.name) {
-    const date = new Date(`${visit.on}T12:00:00Z`);
-    const day = Number.isFinite(date.getTime()) ? ` on ${date.toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric", timeZone: "UTC" })}` : "";
-    const pint = visit.recordedPints?.[0];
-    const price = pint ? `, with ${pint.drink} at £${pint.priceGbp.toFixed(2)} a pint` : "";
-    return `${hello} Last time, you logged ${visit.name}${day}${price}. Something similar tonight?`;
-  }
-  if (context?.taste?.declaredDrink) return `${hello} Your profile says "${context.taste.declaredDrink}". Something along those lines tonight?`;
-  return `${hello} What kind of night are you planning?`;
-}
-
-export function buildPalVoiceOverrides(pal: PubPal, context?: GreetingContext): PalVoiceOverrides {
+export function buildPalVoiceOverrides(pal: PubPal, context?: { taste: import("@/lib/palTaste").PalTaste | null; memories?: PalOpeningContext["memories"] }): PalVoiceOverrides {
   return {
     ...resolveElevenLabsVoiceForPal(pal),
-    firstMessage: firstMessageFor(pal, context),
+    firstMessage: palOpeningMessage(pal.name, context ? { ...context, memories: context.memories === undefined ? [] : context.memories } : undefined),
   };
 }

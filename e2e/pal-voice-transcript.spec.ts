@@ -52,7 +52,7 @@ function hear(socket: WebSocketRoute, text: string, tentative = false): void {
     : { type: "user_transcript", user_transcription_event: { user_transcript: text, event_id: eventId } }));
 }
 
-async function openLiveVoice(page: Page, memoryProposals = false): Promise<WebSocketRoute> {
+async function openLiveVoice(page: Page, memoryProposals = false, firstMessage?: string): Promise<WebSocketRoute> {
   const timestamp = "2026-10-04T12:00:00.000Z";
   const pal = {
     id: "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb", ownerId: ACCOUNTS.A.id,
@@ -71,7 +71,7 @@ async function openLiveVoice(page: Page, memoryProposals = false): Promise<WebSo
     }
     const body = route.request().postDataJSON() as { action?: string } | null;
     if (body?.action === "release") return route.fulfill({ status: 204 });
-    return route.fulfill({ json: { signedUrl: SIGNED_URL, conversationId: "conv_e2e_transcript", maxSessionSeconds: 180 } });
+    return route.fulfill({ json: { signedUrl: SIGNED_URL, conversationId: "conv_e2e_transcript", maxSessionSeconds: 180, ...(firstMessage ? { overrides: { firstMessage, voiceId: null } } : {}) } });
   });
 
   let resolveSocket!: (socket: WebSocketRoute) => void;
@@ -80,6 +80,9 @@ async function openLiveVoice(page: Page, memoryProposals = false): Promise<WebSo
     socket.onMessage((message) => {
       const event = JSON.parse(String(message)) as { type?: string };
       if (event.type !== "conversation_initiation_client_data") return;
+      if (firstMessage) {
+        expect(event).toMatchObject({ conversation_config_override: { agent: { first_message: firstMessage } } });
+      }
       socket.send(JSON.stringify({
         type: "conversation_initiation_metadata",
         conversation_initiation_metadata_event: {
@@ -88,6 +91,7 @@ async function openLiveVoice(page: Page, memoryProposals = false): Promise<WebSo
           user_input_audio_format: "pcm_16000",
         },
       }));
+      if (firstMessage) say(socket, firstMessage);
       resolveSocket(socket);
     });
   });
@@ -346,4 +350,100 @@ test("the head stays a still photograph under reduced motion", async ({ page }) 
   const head = page.locator(".palHomePortrait");
   await expect(head).not.toHaveAttribute("data-head-3d", "live");
   await expect(head.locator(".palPortrait")).toHaveCSS("transform", "none");
+});
+
+
+test.describe("repeated voice search", () => {
+  test.use({ hasTouch: true });
+for (const detailFirst of [true, false]) {
+  test(`repeated voice searches replace old recommendations and preserve independent detail (${detailFirst})`, async ({ page }) => {
+    test.setTimeout(90_000);
+    await page.setViewportSize({ width: 390, height: 1000 });
+    const socket = await openLiveVoice(page);
+    hear(socket, "Find four pubs in Soho, then four near Bank.");
+    const results = [];
+    for (const query of ["Find four pubs in Soho", "Find four pubs near Bank"]) {
+      const response = await page.request.post("/api/pub-pal/chat", { data: { query } });
+      expect(response.ok()).toBe(true);
+      const answer = await response.json();
+      expect(answer.cards).toHaveLength(4);
+      results.push(answer.cards);
+    }
+    const [soho, bank] = results;
+    expect(bank.map((card: { venueId: string }) => card.venueId)).not.toEqual(soho.map((card: { venueId: string }) => card.venueId));
+    const request = (tool: string, id: string) => {
+      const event = { tool_name: tool, tool_call_id: id, tool_type: "webhook", event_id: eventId };
+      socket.send(JSON.stringify({ type: "agent_tool_request", agent_tool_request: event }));
+      return event;
+    };
+    const complete = (event: ReturnType<typeof request>, cards: unknown[]) => socket.send(JSON.stringify({
+      type: "agent_tool_response_full_payload", agent_tool_response_full_payload: {
+        ...event, is_error: false, is_called: true,
+        full_tool_result: JSON.stringify({ requestedTool: event.tool_name, result: { ok: true, tool: event.tool_name, answerHint: "Recorded results.", cards } }),
+      },
+    }));
+    const first = request("search_venues", "first-search");
+    complete(first, soho);
+    const list = page.getByRole("list", { name: "Pubs from the voice answer" });
+    await expect(list.locator("li")).toHaveCount(4);
+    const menu = request("venue_drinks", "menu-old-pub");
+    const detail = [{ ...soho[0], key: "menu-detail", title: "Menu at the earlier pub" }];
+    if (detailFirst) complete(menu, detail);
+    const lateOld = request("search_venues", "late-old-search");
+    const latest = request("search_venues", "latest-search");
+    complete(latest, bank);
+    if (!detailFirst) complete(menu, detail);
+    complete(lateOld, soho);
+    complete(latest, bank);
+    complete(request("city_status", "status"), [{ key: "status", title: "Tube status", note: "No severe delays." }]);
+    await expect(list.locator("li")).toHaveCount(5);
+    await expect(list.getByRole("link", { name: "Menu at the earlier pub", exact: true })).toHaveCount(1);
+    for (const card of bank) await expect(list.getByRole("link", { name: card.title, exact: true })).toHaveCount(1);
+    const map = page.getByRole("region", { name: "4 pubs on the map", exact: true });
+    await map.scrollIntoViewIfNeeded();
+    await expect(map.locator('[data-map-ready="true"]')).toBeVisible({ timeout: 20_000 });
+    const pins = map.locator(".palChatMapPin");
+    await expect(pins).toHaveCount(4);
+    expect(await pins.evaluateAll(nodes => nodes.map(node => node.getAttribute("data-venue-id")))).toEqual(bank.map((card: { venueId: string }) => card.venueId));
+    const canvas = map.locator("canvas");
+    const identity = await canvas.elementHandle();
+    const before = await map.locator(".palChatMapAnchor").evaluateAll(nodes => nodes.map(node => (node as HTMLElement).style.transform));
+    const box = await canvas.boundingBox();
+    await page.mouse.move(box!.x + box!.width / 2, box!.y + box!.height / 2);
+    await page.mouse.down();
+    await page.mouse.move(box!.x + box!.width / 2 + 25, box!.y + box!.height / 2 + 15, { steps: 8 });
+    await page.mouse.up();
+    await expect.poll(() => map.locator(".palChatMapAnchor").evaluateAll(nodes => nodes.map(node => (node as HTMLElement).style.transform))).not.toEqual(before);
+    // Compare the next result only after the reader's pan stops moving the pins.
+    let previous = "";
+    let settled = 0;
+    await expect.poll(async () => {
+      const positions = JSON.stringify(await map.locator(".palChatMapAnchor").evaluateAll(nodes => nodes.map(node => (node as HTMLElement).style.transform)));
+      settled = positions === previous ? settled + 1 : 0;
+      previous = positions;
+      return settled;
+    }, { intervals: [100] }).toBeGreaterThanOrEqual(3);
+    const panned = await map.locator(".palChatMapAnchor").evaluateAll(nodes => nodes.map(node => (node as HTMLElement).style.transform));
+    complete(request("journey", "independent-journey"), [{ ...soho[0], key: "journey-detail", title: "Journey from the earlier pub" }]);
+    await expect(list.getByRole("link", { name: "Journey from the earlier pub", exact: true })).toBeVisible();
+    expect(await canvas.evaluate((node, old) => node === old, identity)).toBe(true);
+    expect(await map.locator(".palChatMapAnchor").evaluateAll(nodes => nodes.map(node => (node as HTMLElement).style.transform))).toEqual(panned);
+    await expect(pins).toHaveCount(4);
+    complete(request("search_venues", "changed-after-pan"), soho);
+    await expect.poll(() => pins.evaluateAll(nodes => nodes.map(node => node.getAttribute("data-venue-id")))).toEqual(soho.map((card: { venueId: string }) => card.venueId));
+    await expect(map.locator('[data-map-ready="true"]')).toBeVisible({ timeout: 20_000 });
+    for (const pin of await pins.all()) await pin.tap({ trial: true });
+    await page.getByRole("button", { name: "End", exact: true }).click();
+    await expect(pins).toHaveCount(4);
+    await page.getByRole("button", { name: "Start voice chat", exact: true }).click();
+    await expect(list).toHaveCount(0);
+  });
+}
+
+});
+
+test("the real SDK carries a grounded returning opening into a fresh voice session", async ({ page }) => {
+  const greeting = 'Hi, I\'m Ripley. You told me: "I visited The Crown on 10 October 2026, drank Camden Hells and spent £26.80 in total." Something similar tonight?';
+  await openLiveVoice(page, false, greeting);
+  await expect(page.getByRole("log", { name: "Voice chat transcript" })).toContainText(greeting);
 });

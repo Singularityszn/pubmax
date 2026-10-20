@@ -1032,7 +1032,7 @@ type LiveSession = {
   onConnect?: () => void;
   onDisconnect?: (details?: unknown) => void;
   onMessage?: (message: { role: string; message: string; event_id?: number }) => void;
-  onAgentToolRequest?: (event: { tool_call_id: string; event_id: number }) => void;
+  onAgentToolRequest?: (event: { tool_call_id: string; event_id: number; tool_name: string }) => void;
   onAgentToolResponse?: (event: { tool_call_id: string; event_id: number; tool_name: string; is_error: boolean; is_called: boolean; full_tool_result: string }) => void;
   onAgentResponseCorrection?: (event: { original_agent_response: string; corrected_agent_response: string }) => void;
   onDebug?: (event: unknown) => void;
@@ -1085,7 +1085,7 @@ describe("Pub Pal voice transcript", () => {
     });
     await act(async () => {
       session.onMessage?.({ role: "user", message: "Find pubs in Soho", event_id: 4 });
-      session.onAgentToolRequest?.({ tool_call_id: "first", event_id: 4 });
+      session.onAgentToolRequest?.({ tool_call_id: "first", event_id: 4, tool_name: "search_venues" });
       session.onAgentToolResponse?.(result("first", 4, "The Lamb"));
     });
     expect(container.querySelector('[aria-label="Pubs from the voice answer"] a')?.textContent).toContain("The Lamb");
@@ -1096,7 +1096,7 @@ describe("Pub Pal voice transcript", () => {
     });
     expect(container.querySelector('[aria-label="Pubs from the voice answer"]')).toBeNull();
     await act(async () => {
-      session.onAgentToolRequest?.({ tool_call_id: "second", event_id: 7 });
+      session.onAgentToolRequest?.({ tool_call_id: "second", event_id: 7, tool_name: "search_venues" });
       session.onDisconnect?.();
       session.onAgentToolResponse?.(result("second", 7, "Late result"));
     });
@@ -1118,7 +1118,7 @@ describe("Pub Pal voice transcript", () => {
     });
     for (const tool of tools) {
       await act(async () => {
-        session.onAgentToolRequest?.({ tool_call_id: tool, event_id: 4 });
+        session.onAgentToolRequest?.({ tool_call_id: tool, event_id: 4, tool_name: tool });
         session.onAgentToolResponse?.({
           tool_call_id: tool, event_id: 4, tool_name: tool, is_error: false, is_called: true,
           full_tool_result: JSON.stringify({ result: {

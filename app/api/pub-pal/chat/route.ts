@@ -1,3 +1,7 @@
+import { openPalConversation } from "@/lib/palOpening.server";
+import { palOpeningAcceptance, palOpeningFollowUp } from "@/lib/palOpening";
+import { readOwnedPubPalToolTurn, registerPubPalToolTurn } from "@/lib/pubPalToolTurnStore";
+import { isPubPalConversationId } from "@/lib/pubPalConversationId";
 import { publicApiError } from "@/lib/apiError";
 import { askCardSources } from "@/lib/ask/types";
 import { jsonNoStore } from "@/lib/apiResponses";
@@ -113,6 +117,45 @@ function streamTurn(input: PalElevenLabsChatInput, request: Request): Response {
   });
 }
 
+export async function GET(request: Request): Promise<Response> {
+  const ownerId = await callerUserId(request);
+  if (!ownerId) return publicApiError("Sign in to read your Pal opening.", "UNAUTHENTICATED", 401);
+  try {
+    return jsonNoStore(await openPalConversation(ownerId));
+  } catch {
+    return publicApiError("Your saved memories could not be read just now.", "UNAVAILABLE", 503, { retryable: true });
+  }
+}
+
+async function openingReply(request: Request, record: Record<string, unknown>, query: string): Promise<Response | null> {
+  const social = socialTurnKind(query);
+  const firstGreeting = social === "greeting" && !record.threadId && normaliseTurns(record.turns).length === 0;
+  const similar = palOpeningAcceptance(query);
+  if (firstGreeting || similar) {
+    const ownerId = await callerUserId(request);
+    if (ownerId) {
+      try {
+        if (firstGreeting) return jsonNoStore(await openPalConversation(ownerId));
+        const threadId = typeof record.threadId === "string" && isPubPalConversationId(record.threadId) ? record.threadId : null;
+        const prior = threadId ? await readOwnedPubPalToolTurn(threadId, ownerId) : null;
+        const opening = prior?.turns.find((turn) => turn.role === "assistant")?.content;
+        const answer = opening ? palOpeningFollowUp(query, opening) : null;
+        if (answer && threadId && prior) {
+          await registerPubPalToolTurn(threadId, {
+            ownerId, cityId: prior.cityId, query,
+            turns: [...prior.turns, ...(prior.query ? [{ role: "user" as const, content: prior.query }] : [])],
+            cards: [], proposals: [], hints: [answer], toolsUsed: [],
+          });
+          return jsonNoStore({ answer, conversationId: threadId, cards: [], proposals: [], sources: [], toolsUsed: [], status: "ready" });
+        }
+      } catch {
+        return publicApiError("Your saved conversation could not be read just now.", "UNAVAILABLE", 503, { retryable: true });
+      }
+    }
+  }
+  return null;
+}
+
 export async function POST(request: Request): Promise<Response> {
   const limiterKey = `pub-pal-chat:${hashIp(clientIp(request))}`;
   // The limiter answers before anything else is asked: the token check is a
@@ -142,6 +185,9 @@ export async function POST(request: Request): Promise<Response> {
   if (!query) {
     return publicApiError("Ask a question.", "QUERY_REQUIRED", 400);
   }
+
+  const opening = await openingReply(request, record, query);
+  if (opening) return opening;
 
   // Voice is optional. Keyless deploys still answer from the same grounded
   // tools as /api/ask, and they never call OpenRouter.

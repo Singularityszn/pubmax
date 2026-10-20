@@ -15,6 +15,7 @@ const voiceState = vi.hoisted(() => ({
   configured: true,
   ceilingSpent: false,
   events: [] as string[],
+  memories: [] as import("@/lib/pubPal").PubPalMemory[],
   palLookupFails: false,
   palPresent: true,
   rpc: vi.fn(),
@@ -51,6 +52,7 @@ vi.mock("@/lib/authServer", () => ({
 }));
 
 vi.mock("@/lib/pubPalStore", () => ({
+  listPalMemoriesResult: async () => ({ ok: true, value: voiceState.memories }),
   getPubPalResult: async () => voiceState.palLookupFails
     ? { ok: false as const, error: "error" as const }
     : { ok: true as const, value: voiceState.palPresent ? voiceState.pal : null },
@@ -125,6 +127,7 @@ describe("Pub Pal voice token route", () => {
   beforeEach(() => {
     tasteRead.mockReset();
     tasteRead.mockResolvedValue(null);
+    voiceState.memories = [];
     voiceState.configured = true;
     voiceState.ceilingSpent = false;
     voiceState.events.length = 0;
@@ -343,6 +346,20 @@ describe("Pub Pal voice token route", () => {
     expect(response.status).toBe(200);
     expect(tasteRead).toHaveBeenCalledExactlyOnceWith(voiceState.userId);
     expect((await response.json()).overrides.firstMessage).toContain("The Crown on 10 October 2026, with Camden Hells at £5.80 a pint");
+  });
+
+  it("greets a confirmed reported night without a diary visit or inferred bill", async () => {
+    voiceState.rpc.mockResolvedValue({ data: true, error: null });
+    vi.stubGlobal("fetch", vi.fn(async () => Response.json({ signed_url: SIGNED_URL })));
+    voiceState.memories = [{ id: "night", palId: voiceState.pal.id, kind: "night_outcome", provenance: "user_confirmed",
+      value: "I visited The Crown on 10 October 2026, drank Camden Hells and spent £26.80 in total.",
+      createdAt: "2026-10-11T00:00:00Z", updatedAt: "2026-10-11T00:00:00Z" }];
+    const response = await POST(issueRequest());
+    expect(response.status).toBe(200);
+    const greeting = (await response.json()).overrides.firstMessage;
+    expect(greeting).toContain("I visited The Crown on 10 October 2026, drank Camden Hells and spent £26.80 in total.");
+    expect(greeting).toContain("Something similar");
+    expect(greeting).not.toContain("£26.80 a pint");
   });
 
   it("returns overrides, session cap, and pal-derived prompt fields", async () => {

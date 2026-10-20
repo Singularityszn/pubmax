@@ -76,7 +76,7 @@ async function priorOwnedSession(threadId: unknown, ownerId: string): Promise<Pr
   const prior = await readOwnedPubPalToolTurn(threadId, ownerId);
   if (!prior) return { turns: [], summary: "" };
   const asks = [...prior.turns, { role: "user" as const, content: prior.query }].filter(
-    (turn) => turn.role === "user" && turn.content.trim(),
+    (turn) => turn.content.trim(),
   );
   return { ...windowPalSessionTurns(prior.summary, asks), conversationId: threadId };
 }
@@ -97,10 +97,11 @@ function userMessageText(
   memories: PalRecalledMemory[] | null,
   taste: PalTaste | null,
 ): string {
-  const priorAsks = prior.turns;
+  const priorAsks = prior.turns.filter((turn) => turn.role === "user");
   return [
     ...palPersonalContext(memories, taste),
     ...palSessionSummaryTurn(prior.summary),
+    ...prior.turns.filter((turn) => turn.role === "assistant").map((turn) => `Earlier Pal opening in this conversation: ${turn.content}`),
     ...(priorAsks.length > 0
       ? ["My earlier asks in this chat, oldest first:", ...priorAsks.map((turn) => `- ${turn.content}`)]
       : []),

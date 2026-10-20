@@ -145,18 +145,21 @@ test.describe("A profile statistic is a way in", () => {
     const stats = page.locator(".profileStats");
     await expect(stats).toBeVisible();
 
-    const links = stats.locator("a.profileStatLink");
-    expect(await stats.getByRole("listitem").count()).toBeGreaterThanOrEqual(4);
-    await expect.poll(() => links.evaluateAll((anchors) => anchors.filter((anchor) => {
-      const hash = new URL((anchor as HTMLAnchorElement).href).hash;
-      return hash && !document.getElementById(hash.slice(1));
-    }).map((anchor) => anchor.getAttribute("href")))).toEqual([]);
-    const count = await links.count();
-    for (let index = 0; index < count; index += 1) {
-      const href = await links.nth(index).getAttribute("href");
-      expect(href, "every tile carries a destination").toBeTruthy();
-      expect(href).toMatch(/^\/u\/pubmaxx(#|\/people\/)/);
-    }
+    await expect(async () => {
+      const current = await stats.evaluate((node) => ({
+        tiles: node.querySelectorAll('[role="listitem"]').length,
+        links: [...node.querySelectorAll<HTMLAnchorElement>("a.profileStatLink")].map((anchor) => ({
+          href: anchor.getAttribute("href"),
+          targetExists: !anchor.hash || Boolean(document.getElementById(anchor.hash.slice(1))),
+        })),
+      }));
+      expect(current.tiles).toBe(6);
+      expect(current.links.length).toBeGreaterThanOrEqual(2);
+      for (const link of current.links) {
+        expect(link.href, "every linked tile carries a destination").toMatch(/^\/u\/pubmaxx(#|\/people\/)/);
+        expect(link.targetExists, `${link.href} opens a real section`).toBe(true);
+      }
+    }).toPass();
   });
 
   test("the tiles stay 44px tall and the row never scrolls sideways at 390px", async ({
@@ -165,13 +168,18 @@ test.describe("A profile statistic is a way in", () => {
     await page.goto("/u/pubmaxx");
     const stats = page.getByRole("list", { name: "Profile statistics", exact: true });
     await expect(stats).toBeVisible();
-    const tiles = stats.locator(".profileStatLink");
-    await expect(tiles).toHaveCount(6);
-    for (const tile of await tiles.all()) {
-      await expect(tile).toBeVisible();
-      const box = await tile.boundingBox();
-      expect(box?.height ?? 0).toBeGreaterThanOrEqual(44);
-    }
+    await expect(async () => {
+      const tiles = await stats.locator(".profileStatLink").evaluateAll((nodes) => nodes.map((node) => {
+        const box = node.getBoundingClientRect();
+        return { height: box.height, width: box.width, visible: getComputedStyle(node).visibility !== "hidden" };
+      }));
+      expect(tiles).toHaveLength(6);
+      for (const tile of tiles) {
+        expect(tile.visible).toBe(true);
+        expect(tile.width).toBeGreaterThan(0);
+        expect(tile.height).toBeGreaterThanOrEqual(44);
+      }
+    }).toPass();
 
     const overflow = await page.evaluate(
       () => document.documentElement.scrollWidth - document.documentElement.clientWidth,

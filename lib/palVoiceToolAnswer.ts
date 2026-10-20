@@ -4,7 +4,7 @@ import type { AskProposal } from "@/lib/ask/types";
 import { palChatResultFromBody } from "@/lib/palChatClient";
 
 /** Read display facts from the webhook result, never from the agent's speech. */
-export function palVoiceToolAnswer(event: unknown): (PalAnswer & { proposals: AskProposal[] }) | null {
+export function palVoiceToolAnswer(event: unknown): (PalAnswer & { proposals: AskProposal[]; tool: string }) | null {
   if (!event || typeof event !== "object") return null;
   const value = event as Record<string, unknown>;
   if (typeof value.tool_name !== "string" || (!isAskToolName(value.tool_name) && value.tool_name !== "propose_memory")
@@ -22,7 +22,7 @@ export function palVoiceToolAnswer(event: unknown): (PalAnswer & { proposals: As
     if (body.requestedTool !== undefined && body.requestedTool !== value.tool_name) return null;
     if (!Array.isArray(memory ? result.proposals : result.cards)) return null;
     const answer = palChatResultFromBody({ answer: result.answerHint, cards: memory ? [] : result.cards, proposals: memory ? result.proposals : [], status: "ready" });
-    return answer.status === "error" ? null : answer;
+    return answer.status === "error" ? null : { ...answer, tool: result.tool };
   } catch {
     return null;
   }

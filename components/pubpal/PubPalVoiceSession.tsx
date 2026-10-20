@@ -17,6 +17,7 @@ import type { Route } from "next";
 import {
   useCallback,
   useEffect,
+  useMemo,
   useRef,
   useState,
   type Dispatch,
@@ -195,9 +196,14 @@ function VoiceControls({ onStateChange, resetPendingSession, text, setText, erro
   const [hearing, setHearing] = useState(false);
   const [tentative, setTentative] = useState("");
   const [awaitingPal, setAwaitingPal] = useState(false);
-  const [voiceCards, setVoiceCards] = useState<PalCard[]>([]);
+  const [voiceResults, setVoiceResults] = useState<Record<string, { tool: string; cards: PalCard[] }>>({});
+  const { voiceCards, recommendationCards } = useMemo(() => {
+    const cards = [...new Map(Object.values(voiceResults).flatMap((result) => result.cards)
+      .map((card) => [`${card.key}:${card.venueId}`, card])).values()];
+    return { voiceCards: cards, recommendationCards: Object.values(voiceResults).findLast((result) => result.tool === "search_venues")?.cards ?? cards };
+  }, [voiceResults]);
   const [memoryCards, setMemoryCards] = useState<PalMemoryCard[]>([]);
-  const currentToolCalls = useRef(new Set<string>());
+  const currentToolCalls = useRef(new Map<string, string>());
   const lastUserEvent = useRef(0);
   const [mapPending, setMapPending] = useState(false);
   const [mapLabel, setMapLabel] = useState("Opening the map");
@@ -398,7 +404,7 @@ function VoiceControls({ onStateChange, resetPendingSession, text, setText, erro
     if (startController.isStarting()) return;
     currentToolCalls.current.clear();
     lastUserEvent.current = 0;
-    setVoiceCards([]);
+    setVoiceResults({});
     setMemoryCards([]);
     const attempt: VoiceSessionAttempt = {
       cancelled: false,
@@ -476,7 +482,7 @@ function VoiceControls({ onStateChange, resetPendingSession, text, setText, erro
             if (typeof event_id === "number" && event_id < lastUserEvent.current) return;
             setLines((current) => appendPalVoiceLine(current, palVoiceLine("you", content)));
             currentToolCalls.current.clear();
-            setVoiceCards([]);
+            setVoiceResults({});
             if (typeof event_id === "number") lastUserEvent.current = event_id;
             setTentative("");
             setAwaitingPal(true);
@@ -505,17 +511,17 @@ function VoiceControls({ onStateChange, resetPendingSession, text, setText, erro
           },
           onAgentToolRequest: (event) => {
             if (!ownsAttempt(attempt) || event.event_id < lastUserEvent.current) return;
-            currentToolCalls.current.add(event.tool_call_id);
+            currentToolCalls.current.set(event.tool_name, event.tool_call_id);
           },
           onAgentToolResponse: (event) => {
             if (!ownsAttempt(attempt) || event.event_id < lastUserEvent.current
-              || !currentToolCalls.current.has(event.tool_call_id)) return;
+              || currentToolCalls.current.get(event.tool_name) !== event.tool_call_id) return;
             const answer = palVoiceToolAnswer(event);
             if (answer) {
-              if (event.tool_name !== "propose_memory") setVoiceCards((current) => [
-                ...current.filter((card) => !answer.cards.some((incoming) => incoming.key === card.key && incoming.venueId === card.venueId)),
-                ...answer.cards,
-              ]);
+              if (event.tool_name !== "propose_memory") setVoiceResults((current) => ({
+                ...current,
+                [event.tool_name]: { tool: answer.tool, cards: answer.cards },
+              }));
               const proposals = answer.proposals.filter((proposal): proposal is PalMemoryCard => proposal.kind === "remember_memory");
               if (proposals.length) setMemoryCards((current) => [...current, ...proposals.filter((proposal) => !current.some((prior) => prior.id === proposal.id))].slice(-3));
             }
@@ -645,7 +651,7 @@ function VoiceControls({ onStateChange, resetPendingSession, text, setText, erro
     onStateChange?.("thinking");
     lastUserEvent.current += 1;
     currentToolCalls.current.clear();
-    setVoiceCards([]);
+    setVoiceResults({});
     setLines((current) => appendPalVoiceLine(current, palVoiceLine("you", value, "typed")));
     setAwaitingPal(true);
     sendUserMessage(value);
@@ -710,7 +716,7 @@ function VoiceControls({ onStateChange, resetPendingSession, text, setText, erro
       />
       {voiceCards.some((card) => card.venueId) ? (
         <div className="palVoiceResults">
-          <PalRecommendationMap cards={voiceCards} />
+          <PalRecommendationMap cards={recommendationCards} />
           <ul aria-label="Pubs from the voice answer">
             {voiceCards.filter((card) => card.venueId).map((card) => (
               <li key={card.key}>

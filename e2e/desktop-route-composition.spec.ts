@@ -65,7 +65,7 @@ test.describe("desktop route composition", () => {
   });
 
   test("Near leads with the answer and rails the mode control", async ({ page }) => {
-    await page.goto("/near");
+    await page.goto("/near?patch=soho");
 
     const answer = page.locator(".nmnPageBody > .nmn");
     const control = page.locator(".nmnPageBody > .nearModeSwitch");
@@ -141,11 +141,13 @@ test.describe("phone route composition", () => {
     // __tests__/todayPicksHonesty.test.ts). Either way it holds its place in
     // the column, so the order check reads both.
     const cards = page.locator(".todayStack :is(.todayCard, .todayPicksFallback)");
-    const cardIds = await cards.evaluateAll((elements) =>
-      elements.map((element) => element.getAttribute("data-testid")),
-    );
+    const current = await cards.evaluateAll((elements) => elements.map((element) => ({
+      id: element.getAttribute("data-testid"), box: element.getBoundingClientRect().toJSON(),
+    })));
+    const cardIds = current.map((card) => card.id);
     const expectedCardIds = [
-      "today-weather",
+      // The server omits weather when no fresh snapshot is available.
+      ...(cardIds.includes("today-weather") ? ["today-weather"] : []),
       "today-tube",
       "today-picks",
       "today-get-there",
@@ -154,11 +156,8 @@ test.describe("phone route composition", () => {
       "today-fact",
     ];
     expect(cardIds).toEqual(expectedCardIds);
-    const boxes = await cards.evaluateAll((elements) =>
-      elements.map((element) => element.getBoundingClientRect().toJSON()),
-    );
-    expect(boxes.every((box) => box.width < 390)).toBe(true);
-    expect(boxes.every((box, index) => index === 0 || box.top > boxes[index - 1]!.top)).toBe(true);
+    expect(current.every(({ box }) => box.width > 0 && box.width < 390)).toBe(true);
+    expect(current.every(({ box }, index) => index === 0 || box.top > current[index - 1]!.box.top)).toBe(true);
   });
 
   test("We're out keeps one stacked column on a phone", async ({ page }) => {

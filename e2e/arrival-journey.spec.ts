@@ -205,8 +205,11 @@ test.describe("first-timer", () => {
       sheet.getByText("Date of birth Optional", { exact: true }),
     ).toBeVisible();
 
-    // One action, and nothing that offers to skip what was never demanded.
-    await expect(sheet.getByRole("button")).toHaveCount(1);
+    // One claim action. Session exits remain available for the wrong account.
+    await expect(sheet.getByRole("button", { name: "Claim handle", exact: true })).toHaveCount(1);
+    await expect(sheet.getByRole("button", { name: "Switch account", exact: true })).toBeVisible();
+    await expect(sheet.getByRole("button", { name: "Sign out", exact: true })).toBeVisible();
+    await expect(sheet.getByRole("button")).toHaveCount(3);
     await expect(sheet.getByText("Skip optional details")).toHaveCount(0);
     await expect(sheet.locator("select")).toHaveCount(0);
 

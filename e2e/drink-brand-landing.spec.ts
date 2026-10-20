@@ -223,7 +223,7 @@ async function assertLandingContract(page: Page): Promise<void> {
         .evaluate((node) => getComputedStyle(node, "::after").content),
     )
     .toBe("none");
-  await expect(rows.first()).toContainText("J.J. Moon's - JD Wetherspoon");
+  await expect(rows.first().locator(".drinkBrandDirectory__venue")).toHaveText("J.J. Moon's");
   await expect(rows.first()).toContainText("£3.09");
   // One publisher block per price: the hero states the "From" figure's, and
   // every row states its own beside its own figure, rank 1 included
