@@ -63,14 +63,15 @@ import {
   palVoiceMapIntent,
 } from "@/lib/palVoiceTranscript";
 import { palMapAskTarget, palPubAskVenue, type PalMapAskVenue } from "@/lib/palMapAsk";
-import { formatPalWhen, type PalAnswer, type PalCard } from "@/lib/palChat";
+import { formatPalWhen, type PalCard } from "@/lib/palChat";
 import { venueAcceptUrl, venueMapUrl } from "@/lib/venueMapUrl";
-import { palRecall, type PalRecall } from "@/lib/palRecall";
+import { palRecall } from "@/lib/palRecall";
 import { palLocalityLine, resolvePalLocality, type PalLocality } from "@/lib/palLocality";
 import { PLAN_FIELD_LABEL } from "@/lib/planCopy";
 import { planPalRouteHandoffHref } from "@/lib/planOccasion";
 import { writePlanningIntent } from "@/lib/planningIntent";
 import { createPalChatSession } from "@/lib/palChatClient";
+import { clearPalChatThread, readPalChatThread, savePalChatThread, type PalChatEntry as Entry, type PalChatThread } from "@/lib/palChatThread";
 import {
   cheapestGlanceLine,
   cheapestGlanceReceipt,
@@ -91,19 +92,6 @@ import { VIBE_CHIPS } from "@/lib/vibeChips";
 import { useWhatsOnTonight } from "@/components/map/useWhatsOnTonight";
 
 import "./palChat.css";
-
-type Entry =
-  | { kind: "user"; id: string; text: string }
-  | {
-      kind: "answer";
-      id: string;
-      answer: PalAnswer;
-      locality: PalLocality | null;
-      proposals: AskProposal[];
-      /** In-thread recall only (lib/palRecall). Never a durable memory. */
-      recall: PalRecall | null;
-    }
-  | { kind: "error"; id: string; message: string; needsSignIn?: boolean; retryQuery?: string };
 
 /**
  * What "take me there" points at in the written chat: the newest Pal answer
@@ -290,6 +278,13 @@ export function AnswerCard({
 }
 
 export default function PalChat() {
+  const { user } = useAuth();
+  const viewer = useViewerSession();
+  const owner = user?.id ?? (viewer.signedOut ? "anonymous" : null);
+  return <PalChatBody key={user?.id ?? "anonymous"} owner={owner} />;
+}
+
+function PalChatBody({ owner }: { owner: string | null }) {
   const router = useRouter();
   const { user, session } = useAuth();
   const viewerSession = useViewerSession();
@@ -317,6 +312,36 @@ export default function PalChat() {
   const counterRef = useRef(0);
   // Every ask this thread has carried, oldest first. In-thread only.
   const priorAsksRef = useRef<string[]>([]);
+  const conversationRef = useRef({ id: "", at: 0 });
+  const savedEntriesRef = useRef<Entry[] | null>(null);
+  const createSession = useCallback((initial?: PalChatThread) => createPalChatSession({
+    initialTurns: initial?.turns,
+    initialConversationId: initial?.conversationId,
+    onConversationId(id) { conversationRef.current = { id, at: Date.now() }; },
+  }), []);
+
+  useEffect(() => {
+    if (!owner || sessionRef.current || priorAsksRef.current.length) return;
+    const saved = readPalChatThread(owner);
+    if (!saved?.entries.length) return;
+    let active = true;
+    queueMicrotask(() => {
+      if (!active) return;
+      sessionRef.current = createSession(saved);
+      conversationRef.current = { id: saved.conversationId, at: saved.conversationAt };
+      counterRef.current = saved.entries.length;
+      priorAsksRef.current = saved.priorAsks;
+      savedEntriesRef.current = saved.entries;
+      setEntries(saved.entries);
+    });
+    return () => { active = false; };
+  }, [owner, createSession]);
+
+  useEffect(() => {
+    if (!owner || pending || !entries.length || entries === savedEntriesRef.current) return;
+    savePalChatThread(owner, entries, conversationRef.current.id, conversationRef.current.at);
+    savedEntriesRef.current = entries;
+  }, [entries, pending, owner]);
 
   const nextId = useCallback(() => {
     counterRef.current += 1;
@@ -435,7 +460,7 @@ export default function PalChat() {
       const text = raw.trim();
       if (!text || pending) return;
       if (await openMapFromAsk(text)) return;
-      sessionRef.current ??= createPalChatSession();
+      sessionRef.current ??= createSession();
       // Read the recall BEFORE this ask joins the transcript, so the Pal never
       // recalls the question it is answering.
       const recall = palRecall(priorAsksRef.current, text);
@@ -479,7 +504,7 @@ export default function PalChat() {
         { kind: "answer", id: nextId(), answer: result, locality, proposals, recall },
       ]);
     },
-    [nextId, openMapFromAsk, pending],
+    [nextId, openMapFromAsk, pending, createSession],
   );
 
   const dismissProposal = useCallback((entryId: string, proposalId: string) => {
@@ -615,7 +640,9 @@ export default function PalChat() {
     if (!text || text.length > 500) return;
     // Defer out of the effect body (React 19 idiom, as TonightClient's
     // settle()): ask() sets state, which must not run synchronously here.
-    const timer = setTimeout(() => void ask(text), 0);
+    const timer = setTimeout(() => {
+      if (priorAsksRef.current.at(-1) !== text) void ask(text);
+    }, 0);
     return () => clearTimeout(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps -- fire once on mount
   }, []);
@@ -704,6 +731,18 @@ export default function PalChat() {
         lede="Straight answers from what we've actually seen. Every card shows its source. No made-up venues, prices or events."
         secondary={<Link prefetch={false} href="/pal">Back to your Pub Pal</Link>}
       >
+
+      {!empty ? <button type="button" className="palChatReset" disabled={pending} onClick={() => {
+        if (owner) clearPalChatThread(owner);
+        sessionRef.current = null;
+        priorAsksRef.current = [];
+        conversationRef.current = { id: "", at: 0 };
+        savedEntriesRef.current = null;
+        counterRef.current = 0;
+        setEntries([]);
+        setQuery("");
+        composerInput.current?.focus();
+      }}>New conversation</button> : null}
 
       <div className="palChatScroll" ref={scrollRef}>
         <div className="palChatTranscript" aria-live="polite">

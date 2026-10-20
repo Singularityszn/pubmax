@@ -32,16 +32,19 @@ vi.mock("@/lib/venuesSlim", () => ({
   loadSlimVenuesForCity: vi.fn().mockResolvedValue([]),
   loadSlimVenuesForCityResult: vi.fn().mockResolvedValue({ status: "ready", rows: [] }),
 }));
-vi.mock("@/lib/palChatClient", () => ({
+vi.mock("@/lib/palChatClient", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/lib/palChatClient")>()),
   createPalChatSession: () => askSession,
 }));
 
 import PalChat from "@/components/pal/PalChat";
+import { clearSurfaceCache } from "@/lib/surfaceDataCache";
 
 let container: HTMLDivElement;
 let root: Root | null = null;
 
 beforeEach(async () => {
+  clearSurfaceCache();
   (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
   askSession.mockReset();
   container = document.createElement("div");

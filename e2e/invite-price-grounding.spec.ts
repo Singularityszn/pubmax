@@ -5,6 +5,7 @@ test.beforeEach(async ({ page }) => {
   await page.addInitScript(() => {
     localStorage.setItem("pubmaxx:analytics-consent:v1", "denied");
     localStorage.setItem("pubmax-tour-v1-done", "1");
+    localStorage.setItem("pubmax:identityNudge:dismissedAt:v1", String(Date.now()));
     sessionStorage.setItem("pubmax_onboarding_dismissed", "1");
   });
 });
@@ -50,7 +51,7 @@ test("a guest who joined on the plan can return there from an RSVP ownership ref
   await page.getByRole("button", { name: "Maybe", exact: true }).click();
   await expect(page.getByRole("button", { name: "Maybe", exact: true })).toHaveAttribute("aria-pressed", "true");
   await page.getByRole("button", { name: "RSVP", exact: true }).click();
-  await expect(page.getByText("Change your crew status on the plan.", { exact: true })).toBeVisible();
+  await expect(page.getByRole("status").filter({ hasText: "Change your crew status on the plan." })).toBeVisible();
   const recovery = page.getByRole("link", { name: "Open the plan", exact: true });
   await expect(recovery).toHaveAttribute("href", `/plan/${id}`);
   await recovery.click();

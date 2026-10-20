@@ -812,3 +812,16 @@
   color: var(--ink-soft);
   overflow-wrap: anywhere;
 }
+.palChatReset {
+  min-height: 44px;
+  padding: 8px 0;
+  margin-bottom: 12px;
+  border: 0;
+  background: transparent;
+  color: var(--ink-soft);
+  font: inherit;
+  font-size: var(--text-sm);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}

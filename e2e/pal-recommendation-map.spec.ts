@@ -43,5 +43,15 @@ for (const viewport of [{ width: 390, height: 844 }, { width: 1440, height: 1000
     await expect(page).toHaveURL(new RegExp(`/map\\?sel=${selectedId}`));
     await expect(page.locator(".venueInspector")).toBeAttached({ timeout: 30_000 });
     await expect(page.locator(".venueInspector")).toContainText("Shakespeares Head");
+    await page.goBack();
+    if (new URL(page.url()).pathname === "/map") await page.goBack();
+    await expect(page).toHaveURL(/\/pal\/chat$/);
+    await expect(page.locator(".palChatCards .palChatCard")).toHaveCount(4);
+    await expect(page.getByRole("region", { name: "4 pubs on the map" })).toBeVisible();
+    await page.getByRole("button", { name: "New conversation", exact: true }).click();
+    await expect(page.locator(".palChatCards .palChatCard")).toHaveCount(0);
+    await expect(page.getByRole("textbox", { name: "Where, how many, what budget" })).toBeFocused();
+    await page.reload();
+    await expect(page.locator(".palChatCards .palChatCard")).toHaveCount(0);
   });
 }

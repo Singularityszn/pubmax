@@ -555,7 +555,7 @@ export default function PlanInviteRsvp({
       {rsvpError ? (
         <p className="inviteRsvp__error" role="status">
           {rsvpError}
-          {rsvpPlanRecovery ? <> <Link href={`/plan/${planId}`}>Open the plan</Link></> : null}
+          {rsvpPlanRecovery ? <> <Link prefetch={false} href={`/plan/${planId}`}>Open the plan</Link></> : null}
         </p>
       ) : null}
 

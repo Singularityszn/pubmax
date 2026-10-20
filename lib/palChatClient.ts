@@ -28,10 +28,20 @@ const PAL_CHAT_TIMEOUT_MS = 25_000;
 type SessionOptions = {
   timeoutMs?: number;
   fetchImpl?: typeof fetch;
+  initialTurns?: readonly AskTurn[];
+  initialConversationId?: string;
+  onConversationId?: (id: string) => void;
 };
 
 const signedInFetch: typeof fetch = (input, init) =>
   authedActionFetch(input, init ?? {}, { requiresIdentity: true });
+
+function cardTiming(item: Record<string, unknown>): Pick<PalCard, "when" | "confidence"> {
+  const timing: Pick<PalCard, "when" | "confidence"> = {};
+  if (typeof item.when === "string" && Number.isFinite(Date.parse(item.when))) timing.when = item.when;
+  if (typeof item.confidence === "string") timing.confidence = item.confidence;
+  return timing;
+}
 
 export function palChatResultFromBody(body: unknown): PalChatResult {
   // Prefer the Ask agent shape when present.
@@ -70,6 +80,7 @@ export function palChatResultFromBody(body: unknown): PalChatResult {
         place: typeof item.place === "string" ? item.place : "",
         note: typeof item.note === "string" ? item.note : "",
         ...(item.menuEvidence && typeof item.menuEvidence === "object" ? { menuEvidence: item.menuEvidence as AskMenuEvidence } : {}),
+        ...cardTiming(item),
         price:
           typeof item.price === "number" && Number.isFinite(item.price)
             ? item.price
@@ -103,8 +114,8 @@ export function createPalChatSession(options: SessionOptions = {}) {
   const timeoutMs = options.timeoutMs ?? PAL_CHAT_TIMEOUT_MS;
   const fetchImpl = options.fetchImpl ?? signedInFetch;
   let currentId = 0;
-  const turns: AskTurn[] = [];
-  let threadId = "";
+  const turns: AskTurn[] = (options.initialTurns ?? []).slice(-6).map((turn) => ({ ...turn }));
+  let threadId = options.initialConversationId && isPubPalConversationId(options.initialConversationId) ? options.initialConversationId : "";
 
   /**
    * `onText`, when given, asks for the streamed answer and is called with all of
@@ -179,6 +190,7 @@ export function createPalChatSession(options: SessionOptions = {}) {
           : undefined;
       if (typeof conversationId === "string" && isPubPalConversationId(conversationId)) {
         threadId = conversationId;
+        options.onConversationId?.(threadId);
       }
       if (result.status !== "error") {
         turns.push({ role: "user", content: query });

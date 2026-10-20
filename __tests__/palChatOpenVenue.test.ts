@@ -37,7 +37,8 @@ vi.mock("@/lib/venuesSlim", () => ({
   loadSlimVenuesForCity: loadSlim,
   loadSlimVenuesForCityResult: loadSlimResult,
 }));
-vi.mock("@/lib/palChatClient", () => ({
+vi.mock("@/lib/palChatClient", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/lib/palChatClient")>()),
   createPalChatSession: () => askSession,
 }));
 vi.mock("@/lib/activePlan", () => ({
@@ -49,6 +50,7 @@ vi.mock("@/components/plan/usePlanMemberRead", () => ({
 }));
 
 import PalChat from "@/components/pal/PalChat";
+import { clearSurfaceCache } from "@/lib/surfaceDataCache";
 import { defined } from "@/__tests__/helpers/defined";
 
 let container: HTMLDivElement;
@@ -72,6 +74,7 @@ const answer = {
 };
 
 beforeEach(async () => {
+  clearSurfaceCache();
   (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
   router.push.mockReset();
   trackEvent.mockReset();

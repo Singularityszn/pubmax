@@ -25,6 +25,23 @@ function jsonResponse(body: unknown, status = 200): Response {
   });
 }
 
+it("continues a restored tab conversation with its prior turns and provider binding", async () => {
+  const bodies: Record<string, unknown>[] = [];
+  const onConversationId = vi.fn();
+  const ask = createPalChatSession({
+    initialTurns: [{ role: "user", content: "Four pubs in Soho" }, { role: "assistant", content: "Four sourced choices." }],
+    initialConversationId: "conv_returntest1",
+    onConversationId,
+    fetchImpl: async (_input, init) => {
+      bodies.push(JSON.parse(String(init?.body)));
+      return jsonResponse({ answer: "Two fit that budget.", cards: [], conversationId: "conv_returntest1" });
+    },
+  });
+  await ask("What fits under £6.50?", "london");
+  expect(bodies[0]).toMatchObject({ threadId: "conv_returntest1", turns: [{ role: "user", content: "Four pubs in Soho" }, { role: "assistant", content: "Four sourced choices." }] });
+  expect(onConversationId).toHaveBeenCalledWith("conv_returntest1");
+});
+
 const VENUE_BODY = {
   venues: [
     {

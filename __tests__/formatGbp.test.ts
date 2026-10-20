@@ -59,7 +59,7 @@ describe("formatGbp — canonical GBP string", () => {
     expect(formatZoneGbp(5.4)).toBe(formatGbp(5.4));
     expect(priceStamp(5.4)).toBe(formatGbp(5.4));
     expect(formatPlanInviteSpendBand({ minGbp: 5.4, maxGbp: 5.4 })).toBe(
-      `${formatGbp(5.4)} per person`,
+      `${formatGbp(5.4)} per pint`,
     );
   });
 
