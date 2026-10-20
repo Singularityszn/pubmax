@@ -188,12 +188,13 @@ describe("profile statistics are ways in", () => {
       following: 9,
       crawls: 3,
       memories: 2,
+      sectionLinks: { timeline: true, crawls: true, memories: true },
     }),
   );
 
   it("links every one of the six tiles", () => {
     const tiles = html.match(/class="profileStat"/g) ?? [];
-    const links = html.match(/class="profileStatLink"/g) ?? [];
+    const links = html.match(/<a[^>]*class="profileStatLink"/g) ?? [];
     expect(tiles).toHaveLength(6);
     expect(links).toHaveLength(6);
   });
