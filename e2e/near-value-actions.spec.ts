@@ -1,9 +1,9 @@
 import { expect, test, type Locator, type Page, type TestInfo } from "@playwright/test";
 
-import { NEAR_PRICE_TRUST_CAPTION } from "../lib/nearPriceTrust";
-import { uiUxChromiumProjectUse } from "../scripts/lib/uiUxBattleTestBrowser.mjs";
-import { desktopVenueDrawer, expectSoleDesktopDrawer } from "./helpers/mapSurfaceDrawers";
-import { expectMobileMapShellReady, mobileMapShellControl } from "./helpers/mobileMapShell";
+import { NEAR_PRICE_TRUST_CAPTION } from "@/lib/nearPriceTrust";
+import { uiUxChromiumProjectUse } from "@/scripts/lib/uiUxBattleTestBrowser.mjs";
+import { desktopVenueDrawer, expectSoleDesktopDrawer } from "@/e2e/helpers/mapSurfaceDrawers";
+import { expectMobileMapShellReady, mobileMapShellControl } from "@/e2e/helpers/mobileMapShell";
 
 // The painted-map shots below need a real WebGL context, so this file launches
 // with the same SwiftShader arguments chromium-gl uses, the way
@@ -66,6 +66,15 @@ async function prepareReader(page: Page, layout: Layout, theme: Theme): Promise<
       });
     }
   }, theme);
+}
+
+async function returnFromSelectedMapToNear(page: Page): Promise<void> {
+  await page.goBack();
+  if (new URL(page.url()).pathname === "/map") {
+    await expect(page).not.toHaveURL(/[?&]sel=/);
+    await page.goBack();
+  }
+  await expect(page).toHaveURL(/\/near\?patch=soho/);
 }
 
 async function grantLocation(page: Page): Promise<void> {
@@ -176,7 +185,7 @@ async function recordShot(page: Page, testInfo: TestInfo, name: string): Promise
   await expect
     .poll(
       () => page.evaluate(() => document.getAnimations().filter(
-        (animation) => animation.playState === "running",
+        (animation) => animation.playState === "running" && animation.timeline === document.timeline,
       ).length),
       { message: "screenshot surface has finished its visual transitions", timeout: 15_000 },
     )
@@ -318,7 +327,7 @@ for (const layout of LAYOUTS) {
         await expectSelectedVenue(page, layout, browsedName);
         await expectBrowseOnly(page);
 
-        await page.goBack();
+        await returnFromSelectedMapToNear(page);
         const keep = page.locator(".nmnAccept").first();
         await expect(keep).toBeVisible();
         const keepName = await keptName(keep);
@@ -419,7 +428,7 @@ for (const layout of LAYOUTS) {
         await expectSelectedVenue(page, layout, browsedName);
         await expectBrowseOnly(page);
 
-        await page.goBack();
+        await returnFromSelectedMapToNear(page);
         const keep = page.locator(".nmnAccept").first();
         await expect(keep).toBeVisible();
         const keepName = await keptName(keep);

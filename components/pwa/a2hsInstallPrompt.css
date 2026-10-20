@@ -54,7 +54,11 @@
   width: auto;
   max-width: 27rem;
   margin-inline: auto;
-  padding: var(--space-3);
+  padding: var(--space-2) var(--space-3);
+}
+
+.a2hsSheet--android .a2hsClose {
+  top: var(--space-2);
 }
 
 .a2hsSheet--android .a2hsEyebrow {
