@@ -52,3 +52,12 @@ No new migrations, live schema changes, real alerts, paid provider requests, env
 Fresh npm ci installed 731 packages. It reported five high-severity dependency advisories in the unchanged dependency tree. Dependencies were not changed.
 
 The parent owns the final combined verify gate and publication.
+
+## Existing production prerequisite
+
+A read-only production check on 20 October 2026 confirmed migration
+`0181_rate_limit_refusals_uncharged`, recorded as version `20261017221918`.
+The live `public.check_rate_limit(text, integer, integer)` definition also matches
+its admitted-only behavior. A refused claim retains the pruned hit array and
+keeps `expires_at` unchanged. The check read only metadata and the function definition.
+It did not call the limiter, alter a row, or send an alert.
