@@ -122,6 +122,16 @@ describe("Pub Pal fence without TypeSafe key", () => {
     vi.mocked(systemOne).mockReset();
   });
 
+  it.each([
+    "How many pints can I have in Soho before driving home?",
+    "How many pints can I have in Soho before I drive home?",
+  ])("fences drinking before driving home: %s", async (query) => {
+    await expect(resolvePubPalFenceIntent(query)).resolves.toEqual({
+      fenced: true,
+      sobrietyOnly: false,
+    });
+  });
+
   it("never throws and keeps regex behaviour when systemOne returns null", async () => {
     await expect(
       resolvePubPalFenceIntent("When is the last train home?"),
