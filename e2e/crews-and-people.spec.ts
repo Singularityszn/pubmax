@@ -146,13 +146,12 @@ test.describe("A profile statistic is a way in", () => {
     await expect(stats).toBeVisible();
 
     const links = stats.locator("a.profileStatLink");
-    const count = await links.count();
     expect(await stats.getByRole("listitem").count()).toBeGreaterThanOrEqual(4);
-    const missingTargets = await links.evaluateAll((anchors) => anchors.filter((anchor) => {
+    await expect.poll(() => links.evaluateAll((anchors) => anchors.filter((anchor) => {
       const hash = new URL((anchor as HTMLAnchorElement).href).hash;
       return hash && !document.getElementById(hash.slice(1));
-    }).map((anchor) => anchor.getAttribute("href")));
-    expect(missingTargets).toEqual([]);
+    }).map((anchor) => anchor.getAttribute("href")))).toEqual([]);
+    const count = await links.count();
     for (let index = 0; index < count; index += 1) {
       const href = await links.nth(index).getAttribute("href");
       expect(href, "every tile carries a destination").toBeTruthy();

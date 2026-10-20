@@ -215,7 +215,7 @@ function favouriteNightOf(weekdays: Counts, visits: number): string | null {
   return top && top.count / visits >= 0.4 ? top.label : null;
 }
 
-/** Null when the person has logged nothing the Pal could learn from. */
+/** Null when neither a declared drink nor usable logged signals are available. */
 export function buildPalTaste(input: PalTasteInput): PalTaste | null {
   const declaredDrink = cleanText(input.favouriteDrink ?? "", DRINK_CAP);
   const nameOf: NameOf = (venueId, fallback = "") => cleanText(input.placeOf(venueId)?.name || fallback, NAME_CAP);

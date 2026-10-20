@@ -221,19 +221,15 @@ Live proof after a real run: `node scripts/pubpal/prove-pal-text-tool.mjs --base
    that opened the conversation, read from the server-side conversation binding
    and never from the request body. Typed chat puts the same lines ahead of the
    ask on the server, or one line saying nothing is confirmed, so it does not
-   need the tool. A confirmed `night_outcome` is the person's report of a past night.
-   It can include their stated pub, date, drinks and expenditure. Recall reported spend
-   as reported. Never infer a bill from pint-price observations or add those observations
-   into expenditure. A new conversation can recall the same approved report for its
-   bound owner. Another account cannot read it. A second Pal-only webhook, `propose_memory`, adds a memory card
+   need the tool. [ADR 0016](adr/0016-pub-pal-confirmed-memory-recall.md) owns
+   confirmed-memory access, past-night reports and the confirmation rule.
+   A second Pal-only webhook, `propose_memory`, adds a memory card
    to a typed or voice chat for the bound account, only when that Pal has memory
    proposals on. They are on for a new Pal; a Pal saved with them off keeps
    them off. Voice displays the card from `agent_tool_response_full_payload`.
    Ask-tool responses include a `requestedTool` receipt. This binds a canonical result,
-   such as venue discovery returned for a price request, to its original SDK tool call. It
-   saves nothing: the memory exists once the person taps
-   Confirm, which posts to `POST /api/pub-pal/memories`. Speech alone cannot
-   confirm it. Before the card is made, `lib/palMemoryRelation.server.ts` sorts the fact against the person's
+   such as venue discovery returned for a price request, to its original SDK tool call.
+   Before the card is made, `lib/palMemoryRelation.server.ts` sorts the fact against the person's
    confirmed memories: a fact they already have makes no card, and one that
    replaces or withdraws a memory makes an "Update" or "Forget" card that
    PATCHes or DELETEs that memory on Confirm. The card sends the value it
@@ -255,7 +251,7 @@ Live proof after a real run: `node scripts/pubpal/prove-pal-text-tool.mjs --base
    It is opt-out: the "Taste read" toggle on the Pal's page writes
    the `taste` key of `proposal_preferences` (inside the existing jsonb, so no migration;
    a missing key is on). The setting is read fresh before every read, so
-   turning it off stops the next turn reading any logs, past the cache, and a
+   turning it off stops the next turn reading the favourite drink or logs, past the cache, and a
    Pal that cannot be read fails closed.
    Without ElevenLabs keys, a signed-in ask with no area, mood or budget runs
    `search_venues` off the read's patch, vibe and usual price instead of
@@ -304,6 +300,11 @@ It does not change the public error response or establish a provider failure's c
 ---
 
 ## Checking it
+
+Local builds, tests and controlled provider sockets do not establish live voice recall or production agent configuration.
+Provider access and the production workspace remain unresolved for this change.
+Live voice recall, physical-device acceptance, deployment and exhaustive website acceptance remain unverified.
+The checks below require separate provider access and do not resolve those limits by themselves.
 
 ```bash
 # Read-only drift check. It GETs the live agent and tools, compares them with
