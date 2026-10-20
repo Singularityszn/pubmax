@@ -1,7 +1,7 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import { useCallback, useEffect, useId, useState } from "react";
+import { Component, useCallback, useEffect, useId, useState, type ReactNode } from "react";
 
 import { probeWebGl2 } from "@/components/map/canvas/webgl";
 import { DEFAULT_CITY_ID } from "@/lib/cities";
@@ -14,6 +14,25 @@ const MapCanvas = dynamic(() => import("@/components/map/PalRecommendationMapCan
   ssr: false,
   loading: () => <div className="palChatMapCanvas"><p className="palChatMapStatus">Loading the pub map…</p></div>,
 });
+
+class RecommendationMapBoundary extends Component<
+  { children: ReactNode; onUnavailable: () => void },
+  { failed: boolean }
+> {
+  state = { failed: false };
+
+  static getDerivedStateFromError() {
+    return { failed: true };
+  }
+
+  componentDidCatch() {
+    this.props.onUnavailable();
+  }
+
+  render() {
+    return this.state.failed ? null : this.props.children;
+  }
+}
 
 /** These are choices, so the map draws pins without inventing a walking route. */
 export default function PalRecommendationMap({ cards }: { cards: PalCard[] }) {
@@ -47,7 +66,9 @@ export default function PalRecommendationMap({ cards }: { cards: PalCard[] }) {
         {points?.map((point) => `${point.number}. ${point.name}`).join(" · ") ?? "Locating the pubs in this answer…"}
       </p>
       {points?.length ? (
-        <MapCanvas points={points} onUnavailable={onUnavailable} />
+        <RecommendationMapBoundary onUnavailable={onUnavailable}>
+          <MapCanvas points={points} onUnavailable={onUnavailable} />
+        </RecommendationMapBoundary>
       ) : <div className="palChatMapCanvas"><p className="palChatMapStatus" role="status">Loading the pub map…</p></div>}
     </section>
   );

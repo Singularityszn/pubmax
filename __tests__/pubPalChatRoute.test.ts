@@ -1,4 +1,4 @@
-import { CHAINED_ALCOHOL_FITNESS_QUESTIONS } from "./fixtures/pubPalTemporalSafety";
+import { CHAINED_ALCOHOL_FITNESS_QUESTIONS, QUANTITY_FITNESS_CASES } from "./fixtures/pubPalTemporalSafety";
 import { QUALIFIED_PRICE_REQUESTS } from "./fixtures/askPriceSubjects";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -51,6 +51,32 @@ describe("POST /api/pub-pal/chat", () => {
     vi.unstubAllEnvs();
     vi.unstubAllGlobals();
   });
+
+  it.each(QUANTITY_FITNESS_CASES.flatMap((entry) => (["current", "user", "assistant"] as const).map((role) => ({ ...entry, role }))))(
+    "classifies numeric quantities in typed $role turns: $query", async ({ query, fenced, role }) => {
+      vi.stubEnv("ELEVENLABS_API_KEY", "");
+      vi.stubEnv("TYPESAFE_API_KEY", "");
+      vi.stubGlobal("fetch", offlineFetch);
+      const response = await POST(new Request("http://localhost/api/pub-pal/chat", {
+        method: "POST", headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          query: role === "current" ? query : "Find four quiet pubs in Soho",
+          turns: role === "current" ? [] : [{ role, content: query }], cityId: "london",
+        }),
+      }));
+      expect(response.status).toBe(200);
+      const body = await response.json();
+      if (fenced && role !== "assistant") {
+        expect(body.answer).toBe("I can't tell you whether to have another drink. Open Getting Home on the venue sheet for last-train times, ride links, and the TfL planner.");
+        expect(body.cards).toEqual([]);
+        expect(body.toolsUsed).toEqual([]);
+      } else {
+        expect(body.answer).not.toContain("Getting Home");
+        if (role !== "current") expect(body.cards.length).toBeGreaterThan(0);
+      }
+      expect(runPalElevenLabsChatTurn).not.toHaveBeenCalled();
+    },
+  );
 
   it.each([
     ...CHAINED_ALCOHOL_FITNESS_QUESTIONS,

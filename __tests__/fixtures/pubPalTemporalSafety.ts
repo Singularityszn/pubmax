@@ -14,3 +14,15 @@ export const CHAINED_ALCOHOL_FITNESS_QUESTIONS = [
   "After 1.5 pints before finding a pub, would it be safe to cycle?",
   "After dinner after two beers, can I ride my bike?",
 ];
+
+export const QUANTITY_FITNESS_CASES = [
+  { query: "Are 1.5 pints safe before driving in Soho?", fenced: true },
+  { query: "Are 2 pints safe before driving in Soho?", fenced: true },
+  { query: "Is one beer safe before cycling in Soho?", fenced: true },
+  { query: "Can I drink 1.5 alcohol-free pints before driving?", fenced: false },
+  { query: "Can I drink 2 alcohol-free pints before driving?", fenced: false },
+  { query: "Can I drink one alcohol-free beer before cycling?", fenced: false },
+  { query: "Can I drink only 1.5 non-alcoholic beers before cycling?", fenced: false },
+  { query: "Can I drink 1.5 zero-alcohol drinks before riding my bike?", fenced: false },
+  { query: "Can I drink 1.5 0.0% pints before driving?", fenced: false },
+];

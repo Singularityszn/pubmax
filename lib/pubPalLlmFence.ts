@@ -19,11 +19,11 @@ const VEHICLE_OPERATION_RE = /\b(?:driv(?:e|ing)|cycl(?:e|ing)|rid(?:e|ing)\s+(?
 const PERSONAL_ALLOWANCE_RE = /\b(?:how\s+(?:many|much|long)|(?:can|could|may|should)\s+(?:i|we)\s+(?:have|drink|consume|drive|cycle|ride))\b/i;
 const PERSONAL_OPERATION_QUESTION_RE = /\b(?:can|could|may|should)\s+(?:i|we)\s+(?:drive|cycle|ride\s+(?:(?:my|a|the)\s+)?(?:bike|motorbike|motorcycle|scooter|e[- ]?bike))\b/i;
 const PERSONAL_FITNESS_RE = /\b(?:(?:am\s+i|(?:is|would)\s+it(?:\s+be)?|(?:will|would)\s+i\s+be)\s+(?:safe|fit|sober|drunk|okay|ok)|(?:safe|fit|sober|drunk|okay|ok)\s+(?:enough\s+)?to\s+(?:drive|cycle|ride))\b/i;
-const ALCOHOL_ALLOWANCE_RE = /\b(?:is|are)\s+(?:one|two|three|a|an|\d+)\s+(?:pints?|beers?|drinks?|wine|cider)\s+(?:okay|ok|safe)\b/i;
+const ALCOHOL_ALLOWANCE_RE = /\b(?:is|are)\s+(?:one|two|three|a|an|\d+(?:\.\d+)?)\s+(?:pints?|beers?|drinks?|wine|cider)\s+(?:okay|ok|safe)\b/i;
 
 function withoutAlcoholFreeDrinks(message: string): string {
   return message.replace(
-    /\b(?:(drink(?:ing)?|drunk|consum(?:e|ing))\s+(?:only\s+)?(?:(?:one|two|three|a|an|\d+)\s+)?)?(?:alcohol[-\s]+free|non[-\s]*alcoholic|zero[-\s]+alcohol|0(?:[.,]0)?%)\s+(?:beers?|pints?|drinks?|wine|cider|spirits?)\b/gi,
+    /\b(?:(drink(?:ing)?|drunk|consum(?:e|ing))\s+(?:only\s+)?(?:(?:one|two|three|a|an|\d+(?:\.\d+)?)\s+)?)?(?:alcohol[-\s]+free|non[-\s]*alcoholic|zero[-\s]+alcohol|0(?:[.,]0)?%)\s+(?:beers?|pints?|drinks?|wine|cider|spirits?)\b/gi,
     (_match, verb: string | undefined) => {
       if (!verb) return "soft beverage";
       const consumption = /ing$/i.test(verb) ? "consuming" : /^drunk$/i.test(verb) ? "consumed" : "consume";

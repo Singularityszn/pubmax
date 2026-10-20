@@ -1,4 +1,4 @@
-import { CHAINED_ALCOHOL_FITNESS_QUESTIONS } from "./fixtures/pubPalTemporalSafety";
+import { CHAINED_ALCOHOL_FITNESS_QUESTIONS, QUANTITY_FITNESS_CASES } from "./fixtures/pubPalTemporalSafety";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import probabilities from "@/__tests__/fixtures/typesafe/pubPalFenceProbabilities.json";
@@ -120,6 +120,19 @@ describe("Pub Pal fence without TypeSafe key", () => {
 
   afterEach(() => {
     vi.mocked(systemOne).mockReset();
+  });
+
+  it.each(QUANTITY_FITNESS_CASES)("classifies complete numeric quantities: $query", async ({ query, fenced }) => {
+    expect(isPubPalGetHomeOrSobrietyIntent(query)).toBe(fenced);
+    expect(isPubPalSobrietyOnlyIntent(query)).toBe(fenced);
+    for (const negativeClassification of [false, true]) {
+      if (negativeClassification) mockSystemOneFromFixture(0.01, 0.01);
+      await expect(resolvePubPalFenceIntent(query)).resolves.toEqual({ fenced, sobrietyOnly: fenced });
+      await expect(resolvePubPalFenceIntent("Find four quiet pubs in Soho", [{ role: "user", content: query }]))
+        .resolves.toEqual({ fenced, sobrietyOnly: fenced });
+      await expect(resolvePubPalFenceIntent("Find four quiet pubs in Soho", [{ role: "assistant", content: query }]))
+        .resolves.toEqual({ fenced: false, sobrietyOnly: false });
+    }
   });
 
   it.each([

@@ -1,4 +1,4 @@
-import { CHAINED_ALCOHOL_FITNESS_QUESTIONS } from "./fixtures/pubPalTemporalSafety";
+import { CHAINED_ALCOHOL_FITNESS_QUESTIONS, QUANTITY_FITNESS_CASES } from "./fixtures/pubPalTemporalSafety";
 import { VIBE_CHIPS } from "@/lib/vibeChips";
 import { JOURNEY_ENDPOINT_REQUESTS, NAMED_QUALIFIED_PRICE_REQUESTS, NAMED_TERMINAL_PRICE_REQUESTS, QUALIFIED_PRICE_REQUESTS } from "./fixtures/askPriceSubjects";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -91,6 +91,31 @@ describe("propose_plan over the Pal webhook", () => {
     __resetPubPalToolTurnStore();
     vi.unstubAllGlobals();
   });
+
+  it.each(QUANTITY_FITNESS_CASES.flatMap((entry) => (["current", "user", "assistant"] as const).map((role) => ({ ...entry, role }))))(
+    "classifies numeric quantities in voice $role turns: $query", async ({ query, fenced, role }) => {
+      const conversationId = "conv_quantityvoice01";
+      await registerPubPalToolTurn(conversationId, {
+        query: role === "current" ? query : "Find four quiet pubs in Soho",
+        turns: role === "current" ? [] : [{ role, content: query }],
+        cityId: "london", ownerId: "11111111-1111-4111-8111-111111111111",
+      });
+      const { result } = await invokePubPalAskTool({
+        toolName: "search_venues", args: { query: "pubs in Soho" }, conversationId,
+      });
+      if (fenced && role !== "assistant") {
+        expect(result).toMatchObject({
+          ok: true, fenced: true, cards: [], proposals: [],
+          answerHint: "I can't tell you whether to have another drink. Open Getting Home on the venue sheet for last-train times, ride links, and the TfL planner.",
+        });
+        expect((await readPubPalToolTurn(conversationId))?.cards).toEqual([]);
+      } else {
+        expect(result.fenced).not.toBe(true);
+        expect(result.answerHint).not.toContain("Getting Home");
+        if (role !== "current") expect(result.cards).toEqual(expect.arrayContaining([expect.objectContaining({ venueId: expect.any(String) })]));
+      }
+    },
+  );
 
   it.each([
     ...CHAINED_ALCOHOL_FITNESS_QUESTIONS.flatMap((query) => [

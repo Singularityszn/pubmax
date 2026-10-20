@@ -1,4 +1,4 @@
-import { CHAINED_ALCOHOL_FITNESS_QUESTIONS } from "./fixtures/pubPalTemporalSafety";
+import { CHAINED_ALCOHOL_FITNESS_QUESTIONS, QUANTITY_FITNESS_CASES } from "./fixtures/pubPalTemporalSafety";
 import { offlineFetch } from "@/evals/pal/offlineFetch";
 import { NAMED_QUALIFIED_PRICE_REQUESTS, QUALIFIED_PRICE_REQUESTS } from "./fixtures/askPriceSubjects";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -193,6 +193,7 @@ import { __resetPubPalStore, confirmPalMemoryResult, createPubPalResult } from "
 
 describe("runPalElevenLabsChatTurn", () => {
   beforeEach(() => {
+    vi.mocked(pubPalGetHomeRegisterAnswer).mockReset().mockReturnValue("Getting Home has the trains.");
     wsState.socketsOpened = 0;
     wsState.lastInitPayload = null;
     wsState.userMessageText = null;
@@ -339,6 +340,35 @@ describe("runPalElevenLabsChatTurn", () => {
       "conv_regression01", expect.objectContaining({ query }),
     );
   });
+
+  it.each(QUANTITY_FITNESS_CASES.flatMap((entry) => (["current", "user", "assistant"] as const).map((role) => ({ ...entry, role }))))(
+    "classifies numeric quantities in provider $role turns: $query", async ({ query, fenced, role }) => {
+      vi.stubEnv("TYPESAFE_API_KEY", "");
+      const actual = await vi.importActual<typeof import("@/lib/pubPalLlmFence")>("@/lib/pubPalLlmFence");
+      fenceMocks.resolvePubPalFenceIntent.mockImplementation(actual.resolvePubPalFenceIntent);
+      vi.mocked(pubPalGetHomeRegisterAnswer).mockImplementationOnce(actual.pubPalGetHomeRegisterAnswer);
+      if (role !== "current") storeMocks.readOwnedPubPalToolTurn.mockResolvedValue({
+        ...toolTurnPayload, query: "Find four quiet pubs in Soho", turns: [{ role, content: query }],
+      });
+      const outcome = await runPalElevenLabsChatTurn({
+        query: role === "current" ? query : "Find four quiet pubs in Soho",
+        threadId: role === "current" ? undefined : "conv_quantityprevious01",
+        ownerId: "11111111-1111-4111-8111-111111111111",
+      });
+      expect(outcome.ok).toBe(true);
+      if (fenced && role !== "assistant") {
+        expect(outcome).toMatchObject({
+          message: "I can't tell you whether to have another drink. Open Getting Home on the venue sheet for last-train times, ride links, and the TfL planner.",
+          conversationId: "", cards: [], proposals: [], toolsUsed: [],
+        });
+        expect(fetch).not.toHaveBeenCalled();
+        expect(wsState.socketsOpened).toBe(0);
+      } else {
+        expect(outcome).toMatchObject({ message: SOURCED_ANSWER });
+        expect(wsState.socketsOpened).toBe(1);
+      }
+    },
+  );
 
   it.each([
     ...CHAINED_ALCOHOL_FITNESS_QUESTIONS,
