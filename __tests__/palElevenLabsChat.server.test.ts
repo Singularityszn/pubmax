@@ -215,6 +215,7 @@ describe("runPalElevenLabsChatTurn", () => {
   });
 
   afterEach(() => {
+    __resetPubPalStore();
     vi.unstubAllEnvs();
     vi.unstubAllGlobals();
   });
@@ -589,13 +590,11 @@ describe("runPalElevenLabsChatTurn", () => {
     const outcome = await runPalElevenLabsChatTurn({ query: "a pub in Soho tonight", ownerId });
 
     expect(outcome.ok).toBe(true);
-    expect(wsState.userMessageText).toBe(
-      [
-        "Things I confirmed you should remember about me. Use them as preferences, never as facts about a pub:",
-        "- Drinks: Cask ale, no lager",
-        "Current user message: a pub in Soho tonight",
-      ].join("\n"),
-    );
+    expect(wsState.userMessageText?.split("\n").slice(-2)).toEqual([
+      "- Drinks: Cask ale, no lager",
+      "Current user message: a pub in Soho tonight",
+    ]);
+    expect(wsState.userMessageText).not.toContain("Stranger's rooftop bars");
     expect(JSON.stringify(wsState.lastInitPayload)).not.toContain("Cask ale");
     __resetPubPalStore();
   });

@@ -6,14 +6,14 @@ import type { PalCard } from "@/lib/palChat";
 import { palChatResultFromBody } from "@/lib/palChatClient";
 
 const card: PalCard = { key: "price", venueId: "venue-e1srzr", title: "Recorded price", place: "Soho", note: "", price: 9, provenance: { kind: "directory", label: "On record" } };
-const menuCard = (menu: "food" | "drink", serving: string | null): PalCard => ({ ...card, provenance: { kind: "published-menu", label: "Pub menu" }, menuEvidence: {
-  kind: "published-menu", itemId: "item", itemName: "Item", menu, category: menu === "food" ? "meal" : "beer", currency: "GBP", serving,
+const menuCard = (menu: "food" | "drink", serving: string | null, category = menu === "food" ? "meal" : "beer"): PalCard => ({ ...card, provenance: { kind: "published-menu", label: "Pub menu" }, menuEvidence: {
+  kind: "published-menu", itemId: "item", itemName: "Item", menu, category, currency: "GBP", serving,
   caloriesKcal: null, caloriesProvenance: null, dietary: [], dietaryProvenance: null, observedAt: "2026-10-02", source: "Pub menu", sourceUrl: null, licence: "Published menu", availability: "unknown",
 } });
 const render = (value: PalCard) => renderToStaticMarkup(createElement(PalCardPrice, { card: value }));
 
 describe("the measure on a Pal price", () => {
-  it.each([menuCard("food", "portion"), menuCard("drink", "175ml"), menuCard("drink", null), { ...card, provenance: { kind: "community-price", label: "People-logged" } } as PalCard])("does not compare meals, small servings or unmeasured observations with pint prices", (value) => {
+  it.each([menuCard("food", "portion"), menuCard("drink", "175ml"), menuCard("drink", null), menuCard("drink", "pint", "wine"), { ...card, provenance: { kind: "community-price", label: "People-logged" } } as PalCard])("does not compare meals, small servings or unmeasured observations with pint prices", (value) => {
     const markup = render(value);
     expect(markup).toContain("£9.00");
     expect(markup).not.toContain('title=');
