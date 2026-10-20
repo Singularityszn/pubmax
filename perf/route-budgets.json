@@ -409,6 +409,24 @@
       "lcpMs": 500
     },
     {
+      "path": "/updates",
+      "readySelector": "main.legalPage",
+      "why": "The public updates page uses the existing legal content shell. Seeded 20 October 2026 unmeasured, in family with /credits and /how-we-estimate. The production sweep can lower these ceilings.",
+      "serverRenderMs": 150,
+      "jsDecodedKB": 910,
+      "requests": 37,
+      "lcpMs": 500
+    },
+    {
+      "path": "/feedback",
+      "readySelector": "main.feedbackPage",
+      "why": "The public feedback page uses Screen and SiteNav without a form or third-party integration. Seeded 20 October 2026 unmeasured, in family with /credits and /how-we-estimate. The production sweep can lower these ceilings.",
+      "serverRenderMs": 150,
+      "jsDecodedKB": 910,
+      "requests": 37,
+      "lcpMs": 500
+    },
+    {
       "path": "/how-we-estimate",
       "readySelector": "main.legalPage",
       "why": "The authority page every estimated price links to. It shares the legal shell and composes nothing per request, so it sits on the same floor as /privacy and /terms.",
