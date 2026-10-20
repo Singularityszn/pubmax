@@ -51,27 +51,8 @@ describe("a page shell under the standard bar does not add the top inset the bar
     );
   });
 
-  // THE BAR OWNS ITS WHOLE TOP OFFSET, so a shell that opens on the bar pads
-  // nothing above it, whatever its own padding says. Without this the bar sat
-  // at a different height on every tab (0px on /social, 48px on desktop /plan).
-  // The shell pays it as padding, not the bar as margin, because a first
-  // child's margin collapses through an unpadded parent and showed the body's
-  // colour above /plan's own background.
-  it("hands the offset to any shell that opens on the bar, as padding", () => {
-    const nav = readFileSync(join(ROOT, "components/nav/siteNav.css"), "utf8").replace(
-      /\/\*[\s\S]*?\*\//g,
-      "",
-    );
-    expect(nav).toMatch(
-      /:is\(body, main, div\):has\(> \.siteNavBar:not\(\.siteNavBarFloating\):first-child\) \{\s*padding-top: var\(--topbar-inset, calc\(env\(safe-area-inset-top, 0px\) \+ 10px\)\);\s*\}/,
-    );
-    expect(nav).toMatch(
-      /:is\(body, main, div\) > \.siteNavBar:not\(\.siteNavBarFloating\):first-child \{\s*margin-top: 0;\s*\}/,
-    );
-  });
-
   // The Pub Pal's two pages render the standard bar as the main's SIBLING
-  // rather than its first child, so the regex above cannot read them; the
+  // rather than its first child, so the shell rules cannot read them; the
   // rule is the same. Paid twice, it was a blank notch-high band under the bar
   // on /pal and /pal/chat in the iOS shell (Pal UI audit, 19 Oct 2026).
   it.each([

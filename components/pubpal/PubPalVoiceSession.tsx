@@ -196,14 +196,16 @@ function VoiceControls({ onStateChange, resetPendingSession, text, setText, erro
   const [hearing, setHearing] = useState(false);
   const [tentative, setTentative] = useState("");
   const [awaitingPal, setAwaitingPal] = useState(false);
-  const [voiceResults, setVoiceResults] = useState<Record<string, { tool: string; cards: PalCard[] }>>({});
+  const [voiceResults, setVoiceResults] = useState<Record<string, { cards: PalCard[]; order: number }>>({});
   const { voiceCards, recommendationCards } = useMemo(() => {
     const cards = [...new Map(Object.values(voiceResults).flatMap((result) => result.cards)
       .map((card) => [`${card.key}:${card.venueId}`, card])).values()];
-    return { voiceCards: cards, recommendationCards: Object.values(voiceResults).findLast((result) => result.tool === "search_venues")?.cards ?? cards };
+    return { voiceCards: cards, recommendationCards: voiceResults.search_venues?.cards ?? cards };
   }, [voiceResults]);
   const [memoryCards, setMemoryCards] = useState<PalMemoryCard[]>([]);
-  const currentToolCalls = useRef(new Map<string, string>());
+  const currentToolCalls = useRef(new Map<string, { id: string; order: number }>());
+  const toolRequestOrder = useRef(0);
+  const resultsRef = useRef<HTMLDivElement>(null);
   const lastUserEvent = useRef(0);
   const [mapPending, setMapPending] = useState(false);
   const [mapLabel, setMapLabel] = useState("Opening the map");
@@ -246,9 +248,24 @@ function VoiceControls({ onStateChange, resetPendingSession, text, setText, erro
     }, PAL_VOICE_MAP_DELAY_MS);
   }, [router]);
   const openMapRef = useRef(openMap);
+  const showMap = useCallback((): boolean => {
+    if (recommendationCards.some((card) => card.venueId)) {
+      const map = resultsRef.current?.querySelector<HTMLElement>(".palChatMap");
+      if (map) {
+        stayHere();
+        map.focus({ preventScroll: true });
+        map.scrollIntoView({ block: "center" });
+        return true;
+      }
+    }
+    openMap();
+    return false;
+  }, [recommendationCards, stayHere, openMap]);
+  const showMapRef = useRef(showMap);
   useEffect(() => {
     openMapRef.current = openMap;
-  }, [openMap]);
+    showMapRef.current = showMap;
+  }, [openMap, showMap]);
 
   // "Next stop" during a planned night that is on: the map opens on the stop
   // after the one the person reached (their own Night Mode cursor). With no
@@ -481,16 +498,18 @@ function VoiceControls({ onStateChange, resetPendingSession, text, setText, erro
             }
             if (typeof event_id === "number" && event_id < lastUserEvent.current) return;
             setLines((current) => appendPalVoiceLine(current, palVoiceLine("you", content)));
-            currentToolCalls.current.clear();
-            setVoiceResults({});
             if (typeof event_id === "number") lastUserEvent.current = event_id;
             setTentative("");
             setAwaitingPal(true);
             nextStopRequestRef.current += 1;
             const intent = palVoiceMapIntent(content, nightIsOnRef.current());
+            const retainedMap = intent === "map" && showMapRef.current();
+            if (!retainedMap) {
+              currentToolCalls.current.clear();
+              setVoiceResults({});
+            } else setAwaitingPal(false);
             if (intent === "next-stop") void openNextStopRef.current();
             else if (intent === "pub") void openPubRef.current(content);
-            else if (intent === "map") openMapRef.current();
             const conversationId = conversationIdRef.current;
             if (!conversationId) return;
             void syncVoiceToolTurn({
@@ -511,17 +530,19 @@ function VoiceControls({ onStateChange, resetPendingSession, text, setText, erro
           },
           onAgentToolRequest: (event) => {
             if (!ownsAttempt(attempt) || event.event_id < lastUserEvent.current) return;
-            currentToolCalls.current.set(event.tool_name, event.tool_call_id);
+            currentToolCalls.current.set(event.tool_name, { id: event.tool_call_id, order: ++toolRequestOrder.current });
           },
           onAgentToolResponse: (event) => {
+            const request = currentToolCalls.current.get(event.tool_name);
             if (!ownsAttempt(attempt) || event.event_id < lastUserEvent.current
-              || currentToolCalls.current.get(event.tool_name) !== event.tool_call_id) return;
+              || request?.id !== event.tool_call_id) return;
             const answer = palVoiceToolAnswer(event);
             if (answer) {
-              if (event.tool_name !== "propose_memory") setVoiceResults((current) => ({
-                ...current,
-                [event.tool_name]: { tool: answer.tool, cards: answer.cards },
-              }));
+              if (event.tool_name !== "propose_memory") setVoiceResults((current) =>
+                (current[answer.tool]?.order ?? -1) > request.order ? current : {
+                  ...current,
+                  [answer.tool]: { cards: answer.cards, order: request.order },
+                });
               const proposals = answer.proposals.filter((proposal): proposal is PalMemoryCard => proposal.kind === "remember_memory");
               if (proposals.length) setMemoryCards((current) => [...current, ...proposals.filter((proposal) => !current.some((prior) => prior.id === proposal.id))].slice(-3));
             }
@@ -634,7 +655,7 @@ function VoiceControls({ onStateChange, resetPendingSession, text, setText, erro
       setLines((current) => appendPalVoiceLine(current, palVoiceLine("you", value, "typed")));
       setText("");
       if (intent === "next-stop") void openNextStop();
-      else openMap();
+      else showMap();
       return;
     }
     sendToPal(value);
@@ -715,7 +736,7 @@ function VoiceControls({ onStateChange, resetPendingSession, text, setText, erro
         onStayHere={stayHere}
       />
       {voiceCards.some((card) => card.venueId) ? (
-        <div className="palVoiceResults">
+        <div className="palVoiceResults" ref={resultsRef}>
           <PalRecommendationMap cards={recommendationCards} />
           <ul aria-label="Pubs from the voice answer">
             {voiceCards.filter((card) => card.venueId).map((card) => (

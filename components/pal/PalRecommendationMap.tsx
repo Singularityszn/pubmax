@@ -41,7 +41,7 @@ export default function PalRecommendationMap({ cards }: { cards: PalCard[] }) {
     return <p className="palChatMapStatus" role="status">The map preview is unavailable. Open a pub below to see its location.</p>;
   }
   return (
-    <section className="palChatMap" aria-labelledby={titleId} aria-describedby={descriptionId}>
+    <section className="palChatMap" tabIndex={-1} aria-labelledby={titleId} aria-describedby={descriptionId}>
       <p id={titleId} className="palChatMapTitle">{points ? `${points.length} ${points.length === 1 ? "pub" : "pubs"} on the map` : "Your pubs on the map"}</p>
       <p id={descriptionId} className="palChatMapCaption">
         {points?.map((point) => `${point.number}. ${point.name}`).join(" · ") ?? "Locating the pubs in this answer…"}

@@ -114,11 +114,11 @@
    the bar drops its margin there: a margin on a first child collapses through
    an unpadded parent, which left a 12px band of the body's colour above a page
    that paints its own background (/plan). Padding cannot collapse. */
-:is(body, main, div):has(> .siteNavBar:not(.siteNavBarFloating):first-child) {
+:is(body, main, div, .routeLoadingShell):has(> .siteNavBar:not(.siteNavBarFloating):first-child) {
   padding-top: var(--topbar-inset, calc(env(safe-area-inset-top, 0px) + 10px));
 }
 
-:is(body, main, div) > .siteNavBar:not(.siteNavBarFloating):first-child {
+:is(body, main, div, .routeLoadingShell) > .siteNavBar:not(.siteNavBarFloating):first-child {
   margin-top: 0;
 }
 

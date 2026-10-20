@@ -108,6 +108,7 @@
 }
 .momentIntent strong { display: block; font-size: var(--text-sm); }
 .momentIntent span { display: block; margin-top: 3px; color: var(--muted); font-size: var(--text-xs); line-height: 1.35; }
+.momentIntentCurrent span { color: var(--state-selected-ink); }
 .momentIntent svg { color: currentColor; }
 
 /* The composer is the page's own form, not a card: its fields carry the

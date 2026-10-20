@@ -12,9 +12,11 @@ test.beforeEach(async ({ page }) => {
 });
 
 for (const width of [390, 1440]) {
-  test(`${width}px: the companion paints a real model and restores its portrait after graphics loss`, async ({ page }) => {
+  for (const theme of ["light", "dark"] as const) {
+  test(`${width}px ${theme}: the companion paints a real model and restores its portrait after graphics loss`, async ({ page }, testInfo) => {
     await page.setViewportSize({ width, height: 900 });
-    await page.emulateMedia({ reducedMotion: "no-preference" });
+    await page.emulateMedia({ reducedMotion: "no-preference", colorScheme: theme });
+    await page.addInitScript(value => localStorage.setItem("pubmax-theme", value), theme);
     await page.goto("/pal");
     const canvas = page.locator('.palModelCanvas[data-model-ready="true"]');
     await expect(canvas).toBeVisible({ timeout: 20_000 });
@@ -22,7 +24,7 @@ for (const width of [390, 1440]) {
     await expect(portrait).toHaveCSS("opacity", "0");
     await canvas.scrollIntoViewIfNeeded();
     await mkdir("artifacts/pubpal-complete-1019", { recursive: true });
-    await page.screenshot({ path: `artifacts/pubpal-complete-1019/companion-3d-${width}.png` });
+    await page.screenshot({ path: testInfo.outputPath(`companion-${theme}-${width}.png`) });
     // This is the browser's context-loss extension, not a fabricated UI event.
     await canvas.evaluate((element) => {
       (element as HTMLCanvasElement).getContext("webgl2")?.getExtension("WEBGL_lose_context")?.loseContext();
@@ -31,6 +33,7 @@ for (const width of [390, 1440]) {
     await expect(page.getByRole("img", { name: "Pub Pal", exact: true })).toBeVisible();
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   });
+  }
 }
 
 test("reduced motion keeps the still portrait and loads no model canvas", async ({ page }) => {

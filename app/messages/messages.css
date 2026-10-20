@@ -573,11 +573,9 @@ html[data-theme="dark"] .messagesPage {
 }
 
 /* Own messages use the launch accent; received messages use the neutral surface. */
-/* Mine is ink, not coral: coral is spent on the send button
-   (docs/DESIGN_SYSTEM.md "Coral is spent twice"). */
 .messageBubbleMine {
-  background: var(--ink);
-  color: var(--paper);
+  background: var(--messages-accent);
+  color: var(--color-on-accent);
 }
 
 /* theirs: left, a panel fill and no edge */

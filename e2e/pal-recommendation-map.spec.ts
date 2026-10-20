@@ -69,6 +69,60 @@ test("phone rotation keeps all four answer pins framed until the user moves the 
 });
 
 for (const viewport of [{ width: 390, height: 844 }, { width: 1440, height: 1000 }]) {
+  test(`an empty replacement search keeps plain-map navigation at ${viewport.width}px`, async ({ page }) => {
+    await page.setViewportSize(viewport);
+    await page.goto("/pal/chat");
+    const field = page.getByRole("textbox", { name: "Where, how many, what budget", exact: true });
+    await field.fill("Find four pubs in Soho");
+    await page.getByRole("button", { name: "Ask", exact: true }).click();
+    const map = page.getByRole("region", { name: "4 pubs on the map", exact: true });
+    await expect(map.locator('[data-map-ready="true"]')).toBeVisible({ timeout: 20_000 });
+    await map.scrollIntoViewIfNeeded();
+    for (const pin of await map.locator(".palChatMapPin").all()) await pin.click({ trial: true });
+    await page.route("**/api/pub-pal/chat", route => route.fulfill({ json: {
+      answer: "No matching listed pubs for the replacement search.", cards: [], proposals: [], sources: [], status: "ready", toolsUsed: ["search_venues"],
+    } }));
+    await field.fill("Find four pubs in a different area");
+    await page.getByRole("button", { name: "Ask", exact: true }).click();
+    await expect(page.getByText("No matching listed pubs for the replacement search.", { exact: true })).toBeVisible();
+    await field.fill("Show me the map");
+    await page.getByRole("button", { name: "Ask", exact: true }).click();
+    await expect(page).toHaveURL(/\/map$/);
+  });
+
+  test(`a typed map follow-up retains the four choices and the reader's camera at ${viewport.width}px`, async ({ page }, testInfo) => {
+    await page.setViewportSize(viewport);
+    await page.goto("/pal/chat");
+    const field = page.getByRole("textbox", { name: "Where, how many, what budget", exact: true });
+    await field.fill("Find me four pubs in Soho and show them on the map.");
+    await page.getByRole("button", { name: "Ask", exact: true }).click();
+    const map = page.getByRole("region", { name: "4 pubs on the map", exact: true });
+    const canvas = map.locator('.palChatMapCanvas[data-map-ready="true"]');
+    await expect(canvas).toBeVisible({ timeout: 20_000 });
+    const pins = map.locator(".palChatMapPin");
+    const ids = await pins.evaluateAll(nodes => nodes.map(node => node.getAttribute("data-venue-id")));
+    expect(ids).toHaveLength(4);
+    await canvas.scrollIntoViewIfNeeded();
+    for (const pin of await pins.all()) await pin.click({ trial: true });
+    const identity = await map.locator("canvas").elementHandle();
+    const box = await canvas.boundingBox();
+    await page.mouse.move(box!.x + box!.width / 2, box!.y + 30);
+    await page.mouse.down();
+    await page.mouse.move(box!.x + box!.width / 2 + 25, box!.y + 40, { steps: 10 });
+    await page.mouse.up();
+    const moved = await settledPinPositions(canvas);
+    await map.screenshot({ path: testInfo.outputPath("choices-before-map-followup.png") });
+    await field.fill("Show me the map");
+    await page.getByRole("button", { name: "Ask", exact: true }).click();
+    await expect(map).toBeFocused();
+    await expect(page).toHaveURL(/\/pal\/chat$/);
+    expect(await map.locator("canvas").evaluate((node, old) => node === old, identity)).toBe(true);
+    expect(await settledPinPositions(canvas)).toEqual(moved);
+    expect(await pins.evaluateAll(nodes => nodes.map(node => node.getAttribute("data-venue-id")))).toEqual(ids);
+    for (const pin of await pins.all()) await pin.click({ trial: true });
+    await map.screenshot({ path: testInfo.outputPath("choices-after-map-followup.png") });
+  });
+
   test(`repeated budget follow-ups retain Soho through reload at ${viewport.width}px`, async ({ page }) => {
     test.setTimeout(90_000);
     await page.setViewportSize(viewport);

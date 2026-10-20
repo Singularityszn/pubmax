@@ -288,12 +288,13 @@ export default function PalChat() {
 
 function PalChatBody({ owner }: { owner: string | null }) {
   const router = useRouter();
-  const { user, session } = useAuth();
+  const { user, session, providerAuthState } = useAuth();
   const viewerSession = useViewerSession();
   const auth = captureAccountAuth(user?.id ?? null, session);
   const [entries, setEntries] = useState<Entry[]>([]);
   const [query, setQuery] = useState("");
   const browserReady = useSyncExternalStore(() => () => {}, () => true, () => false);
+  const inputReady = browserReady && owner !== null;
   const [pending, setPending] = useState(false);
   // The answer text so far while the Pal is still writing it, "" until it starts.
   const [streamText, setStreamText] = useState("");
@@ -413,6 +414,7 @@ function PalChatBody({ owner }: { owner: string | null }) {
   // composer is pinned over its foot; the region's own scrollTop is set too
   // for the one case where it is the scroller (a bounded host).
   useEffect(() => {
+    if (document.activeElement?.matches(".palChatMap")) return;
     const last = entries.at(-1);
     if (!pending && last?.kind === "answer" && last.answer.cards.length > 0 && newestAnswerRef.current?.scrollIntoView) {
       newestAnswerRef.current.scrollIntoView({ block: "start" });
@@ -443,6 +445,16 @@ function PalChatBody({ owner }: { owner: string | null }) {
       const plan = readActivePlan();
       const intent = palVoiceMapIntent(text, isPlanActiveNow(plan, Date.now()));
       if (!intent) return false;
+      if (intent === "map") {
+        const current = entriesRef.current.findLast((entry) => entry.kind === "answer");
+        const map = scrollRef.current?.querySelector<HTMLElement>(".palChatMap");
+        if (current?.kind === "answer" && current.answer.cards.some((card) => card.venueId) && map) {
+          setQuery((value) => value.trim() === text ? "" : value);
+          map.focus({ preventScroll: true });
+          map.scrollIntoView({ block: "center" });
+          return true;
+        }
+      }
       let href: string = "/map";
       let line = "Opening the map";
       if (intent === "pub") {
@@ -491,7 +503,7 @@ function PalChatBody({ owner }: { owner: string | null }) {
   const ask = useCallback(
     async (raw: string, options: { preserveDraft?: boolean } = {}) => {
       const text = raw.trim();
-      if (!text || pending) return;
+      if (!text || pending || !owner) return;
       openingReadRef.current += 1;
       if (await openMapFromAsk(text)) return;
       sessionRef.current ??= createSession();
@@ -539,7 +551,7 @@ function PalChatBody({ owner }: { owner: string | null }) {
         { kind: "answer", id: nextId(), answer: result, locality, proposals, recall },
       ]);
     },
-    [nextId, openMapFromAsk, pending, createSession],
+    [nextId, openMapFromAsk, pending, createSession, owner],
   );
 
   const dismissProposal = useCallback((entryId: string, proposalId: string) => {
@@ -668,7 +680,7 @@ function PalChatBody({ owner }: { owner: string | null }) {
   // fire under StrictMode re-mounts.
   const autoAskedRef = useRef(false);
   useEffect(() => {
-    if (autoAskedRef.current) return;
+    if (!owner || autoAskedRef.current) return;
     autoAskedRef.current = true;
     const preset = new URLSearchParams(window.location.search).get("ask");
     const text = preset?.trim() ?? "";
@@ -679,8 +691,8 @@ function PalChatBody({ owner }: { owner: string | null }) {
       if (priorAsksRef.current.at(-1) !== text) void ask(text);
     }, 0);
     return () => clearTimeout(timer);
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- fire once on mount
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- fire once after owner settlement
+  }, [owner]);
 
   const empty = entries.length === 0 && !pending;
   const mappedAnswerId = entries.findLast((entry) => entry.kind === "answer" && entry.answer.cards.length > 0)?.id;
@@ -824,7 +836,7 @@ function PalChatBody({ owner }: { owner: string | null }) {
                     <Button
                       type="button"
                       variant="ghost"
-                      disabled={pending}
+                      disabled={!inputReady || pending}
                       aria-label={`Ask again: ${entry.retryQuery}`}
                       onClick={() => { if (entry.retryQuery) void ask(entry.retryQuery, { preserveDraft: true }); }}
                     >
@@ -959,6 +971,7 @@ function PalChatBody({ owner }: { owner: string | null }) {
             {VIBE_CHIPS.map((chip) => (
               <VibeChipButton
                 key={chip.id}
+                disabled={!inputReady || pending}
                 onClick={() => {
                   trackEvent("tonight_vibe_select", { vibe: chip.id });
                   void ask(chip.ask);
@@ -1036,6 +1049,10 @@ function PalChatBody({ owner }: { owner: string | null }) {
         ) : null}
       </div>
 
+      {!owner ? <p role="status">
+        {providerAuthState !== "unavailable" ? "Checking your account before you type." : "Your account could not be checked. Try again before you type."}
+        {providerAuthState === "unavailable" ? <Button type="button" variant="ghost" onClick={() => window.location.reload()}>Try account check again</Button> : null}
+      </p> : null}
       <form
         className="palChatComposer"
         onSubmit={onSubmit}
@@ -1050,7 +1067,7 @@ function PalChatBody({ owner }: { owner: string | null }) {
           ref={composerInput}
           className="palChatInput"
           value={query}
-          disabled={!browserReady}
+          disabled={!inputReady}
           onChange={(event) => setQuery(event.target.value)}
           placeholder="Quiet-ish near Bank, not pricey"
           maxLength={500}
@@ -1061,7 +1078,7 @@ function PalChatBody({ owner }: { owner: string | null }) {
           type="submit"
           className="palChatSend pressable"
           data-primary-action=""
-          disabled={!browserReady || pending || !query.trim()}
+          disabled={!inputReady || pending || !query.trim()}
           aria-label="Ask"
         >
           <ArrowUp size={20} aria-hidden="true" />

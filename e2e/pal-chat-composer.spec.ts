@@ -49,7 +49,11 @@ test.describe("the Pub Pal composer on a phone", () => {
     await expectComposerInView(page);
     await expect(page.locator(".createFabRoot")).toBeHidden();
 
-    await page.locator(".palChatInput").fill("cheap pint near Bank");
+    const field = page.getByRole("textbox", { name: "Where, how many, what budget", exact: true });
+    await expect(field).toBeEnabled();
+    await field.click();
+    await field.fill("cheap pint near Bank");
+    await expect(field).toHaveValue("cheap pint near Bank");
     await page.locator(".palChatSend").click();
     await expect(page.locator(".palChatRow--user")).toHaveCount(1);
     await expect(page.locator(".palChatBubble--pending")).toHaveCount(0, { timeout: 15_000 });
@@ -59,8 +63,13 @@ test.describe("the Pub Pal composer on a phone", () => {
 
   test("keeps the composer on screen with the keyboard up", async ({ page }) => {
     await page.goto("/pal/chat");
-    await page.locator(".palChatInput").fill("cheap pint near Bank");
+    const field = page.getByRole("textbox", { name: "Where, how many, what budget", exact: true });
+    await expect(field).toBeEnabled();
+    await field.click();
+    await field.fill("cheap pint near Bank");
+    await expect(field).toHaveValue("cheap pint near Bank");
     await page.locator(".palChatSend").click();
+    await expect(page.locator(".palChatRow--user")).toHaveCount(1);
     await expect(page.locator(".palChatBubble--pending")).toHaveCount(0, { timeout: 15_000 });
     await page.setViewportSize(PHONE_WITH_KEYBOARD);
     await page.locator(".palChatInput").focus();
@@ -82,8 +91,13 @@ for (const viewport of [PHONE, { width: 1280, height: 720 }]) {
       window.localStorage.removeItem("pubmaxx:analytics-consent:v1");
     });
     await page.goto("/pal/chat");
-    await page.locator(".palChatInput").fill("cheap pint near Bank");
+    const field = page.getByRole("textbox", { name: "Where, how many, what budget", exact: true });
+    await expect(field).toBeEnabled();
+    await field.click();
+    await field.fill("cheap pint near Bank");
+    await expect(field).toHaveValue("cheap pint near Bank");
     await page.locator(".palChatSend").click();
+    await expect(page.locator(".palChatRow--user")).toHaveCount(1);
     await expect(page.locator(".palChatBubble--pending")).toHaveCount(0, { timeout: 15_000 });
     const card = page.locator(".analyticsConsentPrompt");
     await expect(card).toBeVisible({ timeout: 15_000 });

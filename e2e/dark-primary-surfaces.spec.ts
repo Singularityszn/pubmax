@@ -399,6 +399,40 @@ test("bounds user-entered search identity while keeping fixed qualifiers visible
   );
 });
 
+test("an opened city-status feed survives an unchanged background refresh", async ({ page }) => {
+  await page.setViewportSize({ width: 800, height: 800 });
+  const status = {
+    weather: null, tubeLines: [],
+    signals: [{ headline: "Major London transport disruption", severity: "major", kind: "transport", areas: ["London"] }],
+  };
+  // This is the persisted public-response snapshot contract, aged beyond the
+  // five-second reuse window so the real cache consumer must refresh it.
+  await page.addInitScript(value => {
+    sessionStorage.setItem("pubmax:citySuggestDismiss:v1", "1");
+    sessionStorage.setItem("pubmax.surface.v1:/api/citymcp/status", JSON.stringify({ value, storedAt: Date.now() - 6000 }));
+  }, status);
+  await installDeterministicMapBasemap(page);
+  let release!: () => void;
+  const refresh = new Promise<void>(resolve => { release = resolve; });
+  await page.route("**/api/citymcp/status**", async route => {
+    await refresh;
+    await route.fulfill({ json: { ...status, asOf: "2026-07-30T18:01:00.000Z" } });
+  });
+  await page.goto("/map");
+  const toggle = page.getByRole("button", { name: /Major London transport disruption/ });
+  await expect(toggle).toBeVisible();
+  await toggle.click();
+  const sheet = page.getByRole("region", { name: "Live London updates for tonight" });
+  await expect(sheet).toBeVisible();
+  await expect(sheet.locator(".cityStatusSignalSheetMeta")).toHaveText("CityMCP");
+  release();
+  await expect(sheet.locator(".cityStatusSignalSheetMeta")).toContainText("Updated");
+  await expect(toggle).toHaveAttribute("aria-expanded", "true");
+  await page.getByRole("button", { name: "Close signals list" }).click();
+  await expect(sheet).toHaveCount(0);
+  await expect(toggle).toBeFocused();
+});
+
 test("expanded city-status sheet follows wrapped headline geometry", async ({
   page,
 }) => {
@@ -415,7 +449,7 @@ test("expanded city-status sheet follows wrapped headline geometry", async ({
     // wrapped headline, so the ask is already answered.
     window.sessionStorage.setItem("pubmax:citySuggestDismiss:v1", "1");
   });
-  await installDeterministicMapBasemap(page);
+  await installDeterministicMapBasemap(page, { styleDelayMs: 2500 });
   await page.route("**/api/whats-on**", (route) =>
     route.fulfill({
       status: 200,
@@ -459,6 +493,18 @@ test("expanded city-status sheet follows wrapped headline geometry", async ({
   await sheet.evaluate(async (element) => {
     await Promise.all(element.getAnimations().map((animation) => animation.finished));
   });
+  let previous = "";
+  let stable = 0;
+  await expect.poll(async () => {
+    const points = await page.evaluate(() => (window as Window & {
+      __pubmaxPaintedMapTapPoints?: () => unknown[];
+    }).__pubmaxPaintedMapTapPoints?.() ?? []);
+    const current = JSON.stringify(points);
+    stable = points.length && current === previous ? stable + 1 : 0;
+    previous = current;
+    return stable;
+  }, { intervals: [100] }).toBeGreaterThanOrEqual(3);
+  await expect(sheet).toBeVisible();
   const [bannerBox, sheetBox] = await Promise.all([
     banner.boundingBox(),
     sheet.boundingBox(),

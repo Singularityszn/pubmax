@@ -2,6 +2,7 @@ import { openPalConversation } from "@/lib/palOpening.server";
 import { palOpeningAcceptance, palOpeningFollowUp } from "@/lib/palOpening";
 import { readOwnedPubPalToolTurn, registerPubPalToolTurn } from "@/lib/pubPalToolTurnStore";
 import { isPubPalConversationId } from "@/lib/pubPalConversationId";
+import { resolvePubPalFenceIntent } from "@/lib/pubPalLlmFence";
 import { publicApiError } from "@/lib/apiError";
 import { askCardSources } from "@/lib/ask/types";
 import { jsonNoStore } from "@/lib/apiResponses";
@@ -118,6 +119,10 @@ function streamTurn(input: PalElevenLabsChatInput, request: Request): Response {
 }
 
 export async function GET(request: Request): Promise<Response> {
+  const limiterKey = `pub-pal-chat:${hashIp(clientIp(request))}`;
+  if (await isLimited(limiterKey, limiterKey, RATE_LIMIT, RATE_WINDOW_MS, { failClosed: true })) {
+    return publicApiError("Too many asks, slow down.", "RATE_LIMITED", 429, { retryable: true });
+  }
   const ownerId = await callerUserId(request);
   if (!ownerId) return publicApiError("Sign in to read your Pal opening.", "UNAUTHENTICATED", 401);
   try {
@@ -130,22 +135,27 @@ export async function GET(request: Request): Promise<Response> {
 async function openingReply(request: Request, record: Record<string, unknown>, query: string): Promise<Response | null> {
   const social = socialTurnKind(query);
   const firstGreeting = social === "greeting" && !record.threadId && normaliseTurns(record.turns).length === 0;
-  const similar = palOpeningAcceptance(query);
-  if (firstGreeting || similar) {
+  const threadId = typeof record.threadId === "string" && isPubPalConversationId(record.threadId) ? record.threadId : null;
+  if (firstGreeting || threadId) {
     const ownerId = await callerUserId(request);
     if (ownerId) {
       try {
         if (firstGreeting) return jsonNoStore(await openPalConversation(ownerId));
-        const threadId = typeof record.threadId === "string" && isPubPalConversationId(record.threadId) ? record.threadId : null;
         const prior = threadId ? await readOwnedPubPalToolTurn(threadId, ownerId) : null;
-        const opening = prior?.turns.find((turn) => turn.role === "assistant")?.content;
-        const answer = opening ? palOpeningFollowUp(query, opening) : null;
-        if (answer && threadId && prior) {
-          await registerPubPalToolTurn(threadId, {
-            ownerId, cityId: prior.cityId, query,
-            turns: [...prior.turns, ...(prior.query ? [{ role: "user" as const, content: prior.query }] : [])],
-            cards: [], proposals: [], hints: [answer], toolsUsed: [],
-          });
+        // The sole assistant turn and matching result hint are the pending opening.
+        // Clearing its hint consumes it without adding this ask to earlier history.
+        if (!threadId || !prior || prior.query || prior.turns.length !== 1 || prior.turns[0]?.role !== "assistant"
+          || prior.hints.length !== 1 || prior.hints[0] !== prior.turns[0].content) return null;
+        let answer: string | null = null;
+        if (palOpeningAcceptance(query)) {
+          const fence = await resolvePubPalFenceIntent(query, normaliseTurns(record.turns));
+          if (!fence.fenced) answer = palOpeningFollowUp(query, prior.turns[0].content);
+        }
+        await registerPubPalToolTurn(threadId, {
+          ownerId, cityId: prior.cityId, query: answer ? query : "", turns: prior.turns,
+          cards: [], proposals: [], hints: answer ? [answer] : [], toolsUsed: [],
+        });
+        if (answer) {
           return jsonNoStore({ answer, conversationId: threadId, cards: [], proposals: [], sources: [], toolsUsed: [], status: "ready" });
         }
       } catch {

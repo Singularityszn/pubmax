@@ -33,7 +33,7 @@ describe("resolveElevenLabsVoiceIdForPal", () => {
       placeOf: () => ({ name: "The Crown", patch: "Soho" }),
     });
     const greeting = buildPalVoiceOverrides(basePal, { taste }).firstMessage;
-    expect(greeting).toBe("Hi, I'm Ripley. Last time, you logged The Crown on 10 October 2026, with Camden Hells at £5.80 a pint. Something similar tonight?");
+    expect(greeting).toBe("Hi, I'm Ripley. You logged The Crown on 10 October 2026, with Camden Hells at £5.80 a pint. Something similar tonight?");
     expect(greeting).not.toContain("spent");
   });
 

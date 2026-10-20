@@ -48,6 +48,25 @@ it("continues a restored tab conversation with its prior turns and provider bind
   expect(onTurns).toHaveBeenCalledWith([{ role: "user", content: "Four pubs in Soho" }, { role: "assistant", content: "Four sourced choices." }, { role: "user", content: "What fits under £6.50?" }, { role: "assistant", content: "Two fit that budget." }]);
 });
 
+it("retires the old thread when a safety reply explicitly clears its conversation binding", async () => {
+  const bodies: Record<string, unknown>[] = [];
+  const onConversationId = vi.fn();
+  const ask = createPalChatSession({
+    initialConversationId: "conv_openingtest1",
+    onConversationId,
+    fetchImpl: async (_input, init) => {
+      bodies.push(JSON.parse(String(init?.body)));
+      return jsonResponse({ answer: "Open Getting Home on the venue sheet.", cards: [], conversationId: "" });
+    },
+  });
+  await ask("Help me get home", "london");
+  await ask("Yes", "london");
+  expect(bodies[0]?.threadId).toBe("conv_openingtest1");
+  expect(bodies[1]).not.toHaveProperty("threadId");
+  expect(bodies[1]?.turns).toContainEqual({ role: "user", content: "Help me get home" });
+  expect(onConversationId).toHaveBeenCalledWith("");
+});
+
 it("retains the resolved area through repeated budget follow-ups and session restoration", async () => {
   let saved: AskTurn[] = [];
   const areas: string[] = [];

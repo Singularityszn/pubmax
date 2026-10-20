@@ -189,7 +189,7 @@ export function createPalChatSession(options: SessionOptions = {}) {
         body && typeof body === "object" && !Array.isArray(body)
           ? (body as Record<string, unknown>).conversationId
           : undefined;
-      if (typeof conversationId === "string" && isPubPalConversationId(conversationId)) {
+      if (typeof conversationId === "string" && (conversationId === "" || isPubPalConversationId(conversationId))) {
         threadId = conversationId;
         options.onConversationId?.(threadId);
       }

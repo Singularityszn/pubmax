@@ -356,7 +356,7 @@ test("the head stays a still photograph under reduced motion", async ({ page }) 
 test.describe("repeated voice search", () => {
   test.use({ hasTouch: true });
 for (const detailFirst of [true, false]) {
-  test(`repeated voice searches replace old recommendations and preserve independent detail (${detailFirst})`, async ({ page }) => {
+  test(`repeated voice searches replace old recommendations and preserve independent detail (${detailFirst})`, async ({ page }, testInfo) => {
     test.setTimeout(90_000);
     await page.setViewportSize({ width: 390, height: 1000 });
     const socket = await openLiveVoice(page);
@@ -376,10 +376,10 @@ for (const detailFirst of [true, false]) {
       socket.send(JSON.stringify({ type: "agent_tool_request", agent_tool_request: event }));
       return event;
     };
-    const complete = (event: ReturnType<typeof request>, cards: unknown[]) => socket.send(JSON.stringify({
+    const complete = (event: ReturnType<typeof request>, cards: unknown[], canonical = event.tool_name) => socket.send(JSON.stringify({
       type: "agent_tool_response_full_payload", agent_tool_response_full_payload: {
         ...event, is_error: false, is_called: true,
-        full_tool_result: JSON.stringify({ requestedTool: event.tool_name, result: { ok: true, tool: event.tool_name, answerHint: "Recorded results.", cards } }),
+        full_tool_result: JSON.stringify({ requestedTool: event.tool_name, result: { ok: true, tool: canonical, answerHint: "Recorded results.", cards } }),
       },
     }));
     const first = request("search_venues", "first-search");
@@ -429,10 +429,40 @@ for (const detailFirst of [true, false]) {
     expect(await canvas.evaluate((node, old) => node === old, identity)).toBe(true);
     expect(await map.locator(".palChatMapAnchor").evaluateAll(nodes => nodes.map(node => (node as HTMLElement).style.transform))).toEqual(panned);
     await expect(pins).toHaveCount(4);
+    for (const width of [390, 1440]) {
+      await page.setViewportSize({ width, height: 1000 });
+      await map.screenshot({ path: testInfo.outputPath(`${width}-choices-before-map-followups.png`) });
+      for (const spoken of [true, false]) {
+        await map.scrollIntoViewIfNeeded();
+        for (const pin of await pins.all()) await pin.tap({ trial: true });
+        const camera = await map.locator(".palChatMapAnchor").evaluateAll(nodes => nodes.map(node => (node as HTMLElement).style.transform));
+        if (spoken) hear(socket, "Show me the map");
+        else {
+          await page.getByPlaceholder("Or type the night you want…", { exact: true }).fill("Show me the map");
+          await page.getByRole("button", { name: "Send message", exact: true }).click();
+        }
+        await expect(map).toBeFocused();
+        await expect(page).toHaveURL(/\/pal$/);
+        expect(await canvas.evaluate((node, old) => node === old, identity)).toBe(true);
+        expect(await map.locator(".palChatMapAnchor").evaluateAll(nodes => nodes.map(node => (node as HTMLElement).style.transform))).toEqual(camera);
+        expect(await pins.evaluateAll(nodes => nodes.map(node => node.getAttribute("data-venue-id")))).toEqual(bank.map((card: { venueId: string }) => card.venueId));
+        await map.screenshot({ path: testInfo.outputPath(`${width}-${spoken ? "spoken" : "typed"}-map-followup.png`) });
+      }
+    }
+    await page.setViewportSize({ width: 390, height: 1000 });
     complete(request("search_venues", "changed-after-pan"), soho);
     await expect.poll(() => pins.evaluateAll(nodes => nodes.map(node => node.getAttribute("data-venue-id")))).toEqual(soho.map((card: { venueId: string }) => card.venueId));
     await expect(map.locator('[data-map-ready="true"]')).toBeVisible({ timeout: 20_000 });
     for (const pin of await pins.all()) await pin.tap({ trial: true });
+    const alias = request("venue_prices", "alias-search");
+    complete(alias, bank, "search_venues");
+    await expect.poll(() => pins.evaluateAll(nodes => nodes.map(node => node.getAttribute("data-venue-id")))).toEqual(bank.map((card: { venueId: string }) => card.venueId));
+    const oldAlias = request("venue_prices", "late-alias-search");
+    const newestSearch = request("search_venues", "newest-search");
+    complete(newestSearch, soho);
+    complete(oldAlias, bank, "search_venues");
+    await expect.poll(() => pins.evaluateAll(nodes => nodes.map(node => node.getAttribute("data-venue-id")))).toEqual(soho.map((card: { venueId: string }) => card.venueId));
+    await expect(list.locator("li")).toHaveCount(6);
     await page.getByRole("button", { name: "End", exact: true }).click();
     await expect(pins).toHaveCount(4);
     await page.getByRole("button", { name: "Start voice chat", exact: true }).click();
