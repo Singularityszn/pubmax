@@ -193,6 +193,20 @@
   overflow-wrap: anywhere;
 }
 
+.invite__stopSource {
+  margin: 4px 0 0;
+  color: var(--ink-soft);
+  font-size: var(--text-xs);
+  font-weight: 400;
+  line-height: 1.5;
+}
+
+.invite__stopSource a {
+  color: inherit;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
 /* Layout only: the figure is the one price look (components/PriceBadge.tsx). */
 .invite__stopPrice {
   flex: 0 0 auto;

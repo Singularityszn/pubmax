@@ -4,6 +4,8 @@ import Link from "next/link";
 import RouteThumbnail from "@/app/crawls/RouteThumbnail";
 import InvitePageView from "@/components/plan/InvitePageView";
 import { PintPriceBadge } from "@/components/PriceBadge";
+import ListedPriceSource from "@/components/venue/ListedPriceSource";
+import { venueListedPint, type VenueListedPint } from "@/lib/venueListedPint";
 import PlanInviteRsvp from "@/components/plan/PlanInviteRsvp";
 import type { PlanInviteRsvpSummary } from "@/lib/planInvite";
 import { reactionStore, rsvpStore } from "@/lib/planInviteRsvpStore";
@@ -46,6 +48,7 @@ type InviteStop = {
   position: number;
   price: string | null;
   priceGbp: number | null;
+  listedPint: VenueListedPint | null;
   coordinates: [number, number] | null;
 };
 
@@ -87,6 +90,7 @@ async function loadStops(stops: PlanStopDTO[]): Promise<InviteStop[]> {
       position: stop.position,
       price: venue && typeof venue.cheapestPrice === "number" ? formatPrice(venue.cheapestPrice) : null,
       priceGbp: venue && typeof venue.cheapestPrice === "number" ? venue.cheapestPrice : null,
+      listedPint: venue ? venueListedPint(venue) : null,
       coordinates: venue ? ([venue.longitude, venue.latitude] as [number, number]) : null,
     };
   });
@@ -294,7 +298,10 @@ export default async function PlanInvitePage({ params }: PageProps) {
           {stops.map((stop) => (
             <li className="invite__stop" key={`${stop.position}-${stop.venueId}`}>
               <span className="invite__stopPosition">{stop.position + 1}</span>
-              <span className="invite__stopName">{stop.venueName}</span>
+              <div className="invite__stopName">
+                <span>{stop.venueName}</span>
+                {stop.listedPint ? <ListedPriceSource evidence={stop.listedPint} className="invite__stopSource" /> : null}
+              </div>
               {stop.priceGbp !== null ? (
                 <PintPriceBadge className="invite__stopPrice" priceGbp={stop.priceGbp} venueId={stop.venueId} />
               ) : null}

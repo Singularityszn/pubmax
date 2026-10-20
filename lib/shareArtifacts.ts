@@ -67,14 +67,14 @@ export function planInviteSpendBandFromListedPrices(
   return { minGbp: Math.min(...resolved), maxGbp: Math.max(...resolved) };
 }
 
-/** "£4.50–£6.00 per person", collapsing when min and max match. */
+/** Listed pint price range, collapsing when min and max match. */
 export function formatPlanInviteSpendBand(band: PlanInviteSpendBand): string {
   const label = formatGbp;
   const range =
     band.minGbp === band.maxGbp
       ? label(band.minGbp)
       : `${label(band.minGbp)}–${label(band.maxGbp)}`;
-  return `${range} per person`;
+  return `${range} per pint`;
 }
 
 export type PlanInviteShareInput = {

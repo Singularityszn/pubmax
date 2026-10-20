@@ -42,12 +42,12 @@ describe("buildPlanInviteShareText", () => {
         spendBand: { minGbp: 4.5, maxGbp: 6 },
       }),
     ).toBe(
-      "Friday in Soho · 3 stops · starts 19:00 · £4.50–£6.00 per person. Open the link and tap I'm in.",
+      "Friday in Soho · 3 stops · starts 19:00 · £4.50–£6.00 per pint. Open the link and tap I'm in.",
     );
   });
 
   it("collapses a single-price band to one figure", () => {
-    expect(formatPlanInviteSpendBand({ minGbp: 4.5, maxGbp: 4.5 })).toBe("£4.50 per person");
+    expect(formatPlanInviteSpendBand({ minGbp: 4.5, maxGbp: 4.5 })).toBe("£4.50 per pint");
   });
 
   it("omits the spend band when any stop price is missing", () => {
