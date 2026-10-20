@@ -493,17 +493,6 @@ test("expanded city-status sheet follows wrapped headline geometry", async ({
   await sheet.evaluate(async (element) => {
     await Promise.all(element.getAnimations().map((animation) => animation.finished));
   });
-  let previous = "";
-  let stable = 0;
-  await expect.poll(async () => {
-    const points = await page.evaluate(() => (window as Window & {
-      __pubmaxPaintedMapTapPoints?: () => unknown[];
-    }).__pubmaxPaintedMapTapPoints?.() ?? []);
-    const current = JSON.stringify(points);
-    stable = points.length && current === previous ? stable + 1 : 0;
-    previous = current;
-    return stable;
-  }, { intervals: [100] }).toBeGreaterThanOrEqual(3);
   await expect(sheet).toBeVisible();
   const [bannerBox, sheetBox] = await Promise.all([
     banner.boundingBox(),

@@ -76,3 +76,20 @@ for (const width of [390, 1440]) {
     });
   }
 }
+
+
+test("motion preference changes keep the portrait and resume the live model without reload", async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await page.goto("/pal");
+  const portrait = page.locator(".palPortraitCore");
+  await expect(portrait).toHaveCSS("opacity", "1");
+  await expect(page.locator(".palModelCanvas")).toHaveCount(0);
+  await page.emulateMedia({ reducedMotion: "no-preference" });
+  await expect(page.locator('.palModelCanvas[data-model-ready="true"]')).toBeVisible({ timeout: 20_000 });
+  await expect(portrait).toHaveCSS("opacity", "0");
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await expect(portrait).toHaveCSS("opacity", "1");
+  await expect(page.locator(".palModelCanvas")).toHaveCount(0);
+  await page.emulateMedia({ reducedMotion: "no-preference" });
+  await expect(page.locator('.palModelCanvas[data-model-ready="true"]')).toBeVisible({ timeout: 20_000 });
+});

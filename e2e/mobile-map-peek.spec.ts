@@ -123,7 +123,7 @@ test("320px quiet price status stays complete at 200% text with both doors usabl
     document.documentElement.setAttribute("data-text-scale", "large");
   });
   await expect(page.locator("html")).toHaveCSS("font-size", "32px");
-  await expect(status).toHaveCSS("font-size", "30px");
+  await expect(status).toHaveCSS("font-size", "32px");
   await page.evaluate(async () => {
     await document.fonts.ready;
     await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));

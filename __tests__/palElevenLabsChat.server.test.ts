@@ -495,7 +495,7 @@ describe("runPalElevenLabsChatTurn", () => {
     expect(JSON.stringify(wsState.lastInitPayload)).not.toContain("quiet pubs in Soho");
   });
 
-  it("asks for the signed URL while the earlier-turn read is still in flight", async () => {
+  it("waits for the owned context safety check before requesting a signed URL", async () => {
     let releasePrior: (value: null) => void = () => {};
     storeMocks.readOwnedPubPalToolTurn.mockImplementation(
       () => new Promise((resolve) => { releasePrior = resolve; }),
@@ -508,9 +508,10 @@ describe("runPalElevenLabsChatTurn", () => {
     });
     await Promise.resolve();
 
-    expect(vi.mocked(fetch)).toHaveBeenCalledTimes(1);
+    expect(vi.mocked(fetch)).not.toHaveBeenCalled();
     releasePrior(null);
     expect((await pending).ok).toBe(true);
+    expect(vi.mocked(fetch)).toHaveBeenCalledTimes(1);
   });
 
   it("registers the turn under the signed URL's conversation before the socket names it", async () => {

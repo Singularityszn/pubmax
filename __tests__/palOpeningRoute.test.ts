@@ -163,11 +163,13 @@ describe("owner-bound returning conversation", () => {
     expect(stored?.turns).toEqual([{ role: "assistant", content: initial.answer }]);
   });
 
-  it("keeps the get-home fence after a personal opening, a get-home ask and Yes with the old thread", async () => {
-    vi.stubEnv("ELEVENLABS_API_KEY", "controlled-test-key");
-    vi.stubEnv("ELEVENLABS_PUB_PAL_AGENT_ID", "controlled-test-agent");
+  it.each([false, true])("keeps the get-home fence after a personal opening and Yes, configured: %s", async (configured) => {
+    vi.stubEnv("ELEVENLABS_API_KEY", configured ? "controlled-test-key" : "");
+    vi.stubEnv("ELEVENLABS_PUB_PAL_AGENT_ID", configured ? "controlled-test-agent" : "");
     await confirmNight();
     const initial = await (await opening()).json();
+    const requests = vi.spyOn(globalThis, "fetch");
+    const priorRead = vi.spyOn(turnStore, "readOwnedPubPalToolTurn").mockRejectedValue(new Error("Unavailable history"));
     const home = await (await POST(request({ query: "Help me get home", threadId: initial.conversationId }))).json();
     expect(home.answer).toContain("Getting Home");
     const later = await (await POST(request({ query: "Yes", threadId: initial.conversationId, turns: [
@@ -178,6 +180,8 @@ describe("owner-bound returning conversation", () => {
     expect(later.answer).toContain("Getting Home");
     expect(later.answer).not.toContain("Which area and price per pint");
     expect(later.answer).not.toContain(report);
+    expect(requests).not.toHaveBeenCalled();
+    expect(priorRead).not.toHaveBeenCalled();
   });
 
   it("limits an opening before authentication or personal reads", async () => {

@@ -192,15 +192,6 @@ export async function runPalElevenLabsChatTurn(
   // and the test is on the ask alone, so it is decided before anything leaves.
   const unsupported = unsupportedPriceComparison(query);
   const answeredFromRecords = Boolean(unsupported) || recordedDrinkComparison(query);
-  // Otherwise the signed URL, the owner's memories and taste depend on neither the
-  // earlier asks nor the fence, so all three leave now and travel under the
-  // prior-turn read and the fence check instead of queueing behind them.
-  // None ever rejects. A fenced turn drops the URL unused: no socket is
-  // opened, so no conversation starts on it.
-  const sessionRead = answeredFromRecords ? null : fetchPalSignedConversation({ apiKey, agentId });
-  // Read from the signed-in owner's own Pal and logs, never from the request body.
-  const memoriesRead = answeredFromRecords ? null : readConfirmedPalMemories(input.ownerId, query);
-  const tasteRead = answeredFromRecords ? null : readPalTaste(input.ownerId);
   let prior: PriorSession;
   try {
     prior = await priorOwnedSession(input.threadId, input.ownerId);
@@ -225,6 +216,12 @@ export async function runPalElevenLabsChatTurn(
     };
   }
 
+  // Only unfenced turns start provider and personal reads. These independent
+  // reads run together after the owned context and safety check finish.
+  const sessionRead = answeredFromRecords ? null : fetchPalSignedConversation({ apiKey, agentId });
+  // Read from the signed-in owner's own Pal and logs, never from the request body.
+  const memoriesRead = answeredFromRecords ? null : readConfirmedPalMemories(input.ownerId, query);
+  const tasteRead = answeredFromRecords ? null : readPalTaste(input.ownerId);
   // The three reads are null exactly when the records answer; testing them here
   // also tells the compiler so.
   if (answeredFromRecords || !sessionRead || !memoriesRead || !tasteRead) {

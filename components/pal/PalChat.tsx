@@ -75,7 +75,7 @@ import { palChatResultFromBody } from "@/lib/palChatClient";
 import { palOpeningMessage } from "@/lib/palOpening";
 import { createPalChatSession } from "@/lib/palChatClient";
 import { refineRoutedAskQuery } from "@/lib/ask/router";
-import { clearPalChatThread, readPalChatThread, savePalChatThread, type PalChatEntry as Entry, type PalChatThread } from "@/lib/palChatThread";
+import { clearPalChatThread, palChatMapAnswer, readPalChatThread, savePalChatThread, type PalChatEntry as Entry, type PalChatThread } from "@/lib/palChatThread";
 import {
   cheapestGlanceLine,
   cheapestGlanceReceipt,
@@ -446,9 +446,10 @@ function PalChatBody({ owner }: { owner: string | null }) {
       const intent = palVoiceMapIntent(text, isPlanActiveNow(plan, Date.now()));
       if (!intent) return false;
       if (intent === "map") {
-        const current = entriesRef.current.findLast((entry) => entry.kind === "answer");
+        const current = palChatMapAnswer(entriesRef.current);
         const map = scrollRef.current?.querySelector<HTMLElement>(".palChatMap");
-        if (current?.kind === "answer" && current.answer.cards.some((card) => card.venueId) && map) {
+        if (current && current.answer.cards.some((card) => card.venueId) && map) {
+          setEntries((prev) => [...prev, { kind: "user", id: nextId(), text }]);
           setQuery((value) => value.trim() === text ? "" : value);
           map.focus({ preventScroll: true });
           map.scrollIntoView({ block: "center" });
@@ -695,7 +696,8 @@ function PalChatBody({ owner }: { owner: string | null }) {
   }, [owner]);
 
   const empty = entries.length === 0 && !pending;
-  const mappedAnswerId = entries.findLast((entry) => entry.kind === "answer" && entry.answer.cards.length > 0)?.id;
+  const mappedAnswer = palChatMapAnswer(entries);
+  const mappedAnswerId = mappedAnswer?.answer.cards.some((card) => card.venueId) ? mappedAnswer.id : undefined;
   // Tonight-at-a-glance data: the same /api/whats-on spine the map fetches,
   // enabled only while the transcript is empty (one light fetch; the glance
   // leaves the moment the conversation starts).

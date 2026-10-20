@@ -61,6 +61,7 @@ export type PalAnswer = {
   status: "answered" | "empty";
   message: string;
   cards: PalCard[];
+  toolsUsed?: import("@/lib/ask/types").AskToolName[];
 };
 
 // Provenance label for a first-party directory row. Matches the house

@@ -15,6 +15,12 @@ export type PalChatEntry =
   | { kind: "answer"; id: string; answer: PalAnswer; locality: PalLocality | null; proposals: AskProposal[]; recall: PalRecall | null }
   | { kind: "error"; id: string; message: string; needsSignIn?: boolean; retryQuery?: string };
 
+/** Search results own the map until another search replaces them, including an empty result. */
+export function palChatMapAnswer(entries: readonly PalChatEntry[]): Extract<PalChatEntry, { kind: "answer" }> | undefined {
+  return entries.findLast((entry): entry is Extract<PalChatEntry, { kind: "answer" }> => entry.kind === "answer"
+    && Boolean(entry.answer.toolsUsed?.some((tool) => tool === "search_venues" || tool === "cheapest_pint_near")));
+}
+
 export type PalChatThread = {
   entries: PalChatEntry[];
   priorAsks: string[];
@@ -84,7 +90,7 @@ function restoreAnswer(entry: Record<string, unknown>, id: string, query: string
       ...(typeof card?.confidence === "string" ? { confidence: card.confidence } : {}),
     };
   });
-  const result = palChatResultFromBody({ answer: text(answer.message, 8000), cards, proposals: entry.proposals });
+  const result = palChatResultFromBody({ answer: text(answer.message, 8000), cards, proposals: entry.proposals, toolsUsed: answer.toolsUsed });
   if (result.status === "error") return null;
   const area = record(record(entry.locality)?.area);
   const remembered: RememberedArea | null = area?.kind === "night-patch" && typeof area.id === "string"

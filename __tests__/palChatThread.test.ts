@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { DEVICE_IDENTITY_CHANGED_EVENT } from "@/lib/deviceAccountIdentity";
-import { readPalChatThread, savePalChatThread, clearPalChatThread, type PalChatEntry } from "@/lib/palChatThread";
+import { readPalChatThread, savePalChatThread, clearPalChatThread, palChatMapAnswer, type PalChatEntry } from "@/lib/palChatThread";
 import { clearSurfaceCache, SURFACE_CACHE_NAMESPACE, writeSurfaceSnapshot } from "@/lib/surfaceDataCache";
 import { refineRoutedAskQuery } from "@/lib/ask/router";
 import { resolvePalLocality } from "@/lib/palLocality";
@@ -113,5 +113,32 @@ describe("the current Pal conversation in a tab", () => {
     const storageKey = Object.keys(sessionStorage).find((name) => name.startsWith(SURFACE_CACHE_NAMESPACE))!;
     writeSurfaceSnapshot(storageKey.slice(SURFACE_CACHE_NAMESPACE.length), { version: 2, entries: "damaged", turns: [] });
     expect(readPalChatThread("owner-a")).toBeNull();
+  });
+});
+
+
+describe("the current chat recommendation map", () => {
+  it.each(["search_venues", "cheapest_pint_near"] as const)("retains %s across acknowledgements and detail answers, including a tab restore", (tool) => {
+    const timeline = entries();
+    const search = timeline[1];
+    if (search?.kind !== "answer") throw new Error("Expected the answer fixture");
+    search.answer.toolsUsed = [tool];
+    timeline.push({ ...search, id: "ack", answer: { status: "empty", message: "You are welcome.", cards: [], toolsUsed: [] } });
+    timeline.push({ ...search, id: "detail", answer: { ...search.answer, toolsUsed: ["venue_drinks"] } });
+    timeline.push({ ...search, id: "unattested", answer: { status: "answered", message: "Other detail", cards: search.answer.cards } });
+    expect(palChatMapAnswer(timeline)?.id).toBe(search.id);
+    savePalChatThread("owner-a", timeline, "", 0, transcript);
+    const restored = readPalChatThread("owner-a")!;
+    expect(palChatMapAnswer(restored.entries)?.answer.cards[0]?.venueId).toBe("venue-e1srzr");
+  });
+  it.each(["search_venues", "cheapest_pint_near"] as const)("an empty %s replacement clears the earlier map, including after restore", (tool) => {
+    const timeline = entries();
+    const search = timeline[1];
+    if (search?.kind !== "answer") throw new Error("Expected the answer fixture");
+    search.answer.toolsUsed = [tool];
+    timeline.push({ ...search, id: "empty", answer: { status: "empty", message: "Nothing sourced.", cards: [], toolsUsed: [tool] } });
+    expect(palChatMapAnswer(timeline)?.answer.cards).toEqual([]);
+    savePalChatThread("owner-a", timeline, "", 0, transcript);
+    expect(palChatMapAnswer(readPalChatThread("owner-a")!.entries)?.answer.cards).toEqual([]);
   });
 });

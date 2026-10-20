@@ -12,13 +12,23 @@ export default function PalModelLayer(props: { species: PubPalSpecies; state: Pa
   const host = useRef<HTMLSpanElement>(null);
   const [visible, setVisible] = useState(false);
   useEffect(() => {
-    if (!host.current || typeof WebGL2RenderingContext !== "function" || typeof matchMedia !== "function" || typeof IntersectionObserver !== "function"
-      || matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    if (!host.current || typeof WebGL2RenderingContext !== "function" || typeof matchMedia !== "function" || typeof IntersectionObserver !== "function") return;
+    const motion = matchMedia("(prefers-reduced-motion: reduce)");
+    let reachedView = false;
+    const update = () => setVisible(reachedView && !motion.matches);
     const observer = new IntersectionObserver(([entry]) => {
-      if (entry?.isIntersecting) { setVisible(true); observer.disconnect(); }
+      if (entry?.isIntersecting) {
+        reachedView = true;
+        update();
+        observer.disconnect();
+      }
     });
     observer.observe(host.current);
-    return () => observer.disconnect();
+    motion.addEventListener("change", update);
+    return () => {
+      observer.disconnect();
+      motion.removeEventListener("change", update);
+    };
   }, []);
   return <span ref={host} className="palModelLayer">{visible ? <Model {...props} /> : null}</span>;
 }

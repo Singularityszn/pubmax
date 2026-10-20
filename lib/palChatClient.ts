@@ -9,7 +9,7 @@ import {
   type PalAnswer,
   type PalCard,
 } from "@/lib/palChat";
-import { isAskSourceKind, type AskMenuEvidence, type AskProposal, type AskTurn } from "@/lib/ask/types";
+import { isAskToolName, isAskSourceKind, type AskMenuEvidence, type AskProposal, type AskTurn } from "@/lib/ask/types";
 import { AuthActionSessionError, authedActionFetch } from "@/lib/authedFetch";
 import { answerFromBody } from "@/lib/conciergeAskClient";
 import {
@@ -98,6 +98,7 @@ export function palChatResultFromBody(body: unknown): PalChatResult {
     return {
       status: cards.length > 0 ? "answered" : "empty",
       message: ask.message,
+      ...(Array.isArray(record.toolsUsed) ? { toolsUsed: record.toolsUsed.filter((tool): tool is import("@/lib/ask/types").AskToolName => typeof tool === "string" && isAskToolName(tool)) } : {}),
       cards,
       proposals: ask.proposals,
     };

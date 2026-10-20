@@ -35,6 +35,7 @@ beforeEach(() => {
 afterEach(async () => {
   await act(async () => root.unmount());
   container.remove();
+  vi.useRealTimers();
 });
 
 async function open(): Promise<void> {
@@ -74,6 +75,29 @@ describe("SaveToListControl chips", () => {
     expect(container.querySelector(".saveToListToast")?.textContent).toBe(
       'Removed from "Want to Visit"',
     );
+  });
+
+  it("keeps each new receipt visible for its full two seconds", async () => {
+    vi.useFakeTimers();
+    await open();
+    await act(async () => { chip("Want to Visit").click(); });
+    await act(async () => { vi.advanceTimersByTime(1000); });
+    await act(async () => { chip("Date Night").click(); });
+    const receipt = 'Saved to "Date Night" on this device';
+    expect(container.querySelector(".saveToListToast")?.textContent).toBe(receipt);
+    await act(async () => { vi.advanceTimersByTime(1999); });
+    expect(container.querySelector(".saveToListToast")?.textContent).toBe(receipt);
+    await act(async () => { vi.advanceTimersByTime(1); });
+    expect(container.querySelector(".saveToListToast")).toBeNull();
+  });
+
+  it("cancels the receipt clock when the control unmounts", async () => {
+    vi.useFakeTimers();
+    await open();
+    await act(async () => { chip("Want to Visit").click(); });
+    expect(vi.getTimerCount()).toBe(1);
+    await act(async () => { root.render(null); });
+    expect(vi.getTimerCount()).toBe(0);
   });
 
   it("opens with the lists this pub is already in pressed", async () => {

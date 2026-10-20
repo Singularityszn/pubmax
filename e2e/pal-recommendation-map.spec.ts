@@ -1,5 +1,8 @@
 import { expect, test, type Locator } from "@playwright/test";
 
+// WebKit service workers bypass the controlled chat-response fixture.
+test.use({ serviceWorkers: "block" });
+
 async function pinPositions(canvas: Locator) {
   return canvas.evaluate((element) => {
     const frame = element.getBoundingClientRect();
@@ -90,7 +93,8 @@ for (const viewport of [{ width: 390, height: 844 }, { width: 1440, height: 1000
     await expect(page).toHaveURL(/\/map$/);
   });
 
-  test(`a typed map follow-up retains the four choices and the reader's camera at ${viewport.width}px`, async ({ page }, testInfo) => {
+  for (const acknowledge of [false, true]) {
+  test(`a typed map follow-up${acknowledge ? " after an acknowledgement" : ""} retains the four choices and the reader's camera at ${viewport.width}px`, async ({ page }, testInfo) => {
     await page.setViewportSize(viewport);
     await page.goto("/pal/chat");
     const field = page.getByRole("textbox", { name: "Where, how many, what budget", exact: true });
@@ -112,9 +116,15 @@ for (const viewport of [{ width: 390, height: 844 }, { width: 1440, height: 1000
     await page.mouse.up();
     const moved = await settledPinPositions(canvas);
     await map.screenshot({ path: testInfo.outputPath("choices-before-map-followup.png") });
+    if (acknowledge) {
+      await field.fill("Thanks");
+      await page.getByRole("button", { name: "Ask", exact: true }).click();
+      await expect(page.locator(".palChatRow--pal").last()).toContainText("welcome");
+    }
     await field.fill("Show me the map");
     await page.getByRole("button", { name: "Ask", exact: true }).click();
     await expect(map).toBeFocused();
+    await expect(page.locator(".palChatRow--user").filter({ hasText: "Show me the map" })).toHaveCount(1);
     await expect(page).toHaveURL(/\/pal\/chat$/);
     expect(await map.locator("canvas").evaluate((node, old) => node === old, identity)).toBe(true);
     expect(await settledPinPositions(canvas)).toEqual(moved);
@@ -122,6 +132,8 @@ for (const viewport of [{ width: 390, height: 844 }, { width: 1440, height: 1000
     for (const pin of await pins.all()) await pin.click({ trial: true });
     await map.screenshot({ path: testInfo.outputPath("choices-after-map-followup.png") });
   });
+
+  }
 
   test(`repeated budget follow-ups retain Soho through reload at ${viewport.width}px`, async ({ page }) => {
     test.setTimeout(90_000);

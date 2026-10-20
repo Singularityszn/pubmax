@@ -2,7 +2,7 @@ import { openPalConversation } from "@/lib/palOpening.server";
 import { palOpeningAcceptance, palOpeningFollowUp } from "@/lib/palOpening";
 import { readOwnedPubPalToolTurn, registerPubPalToolTurn } from "@/lib/pubPalToolTurnStore";
 import { isPubPalConversationId } from "@/lib/pubPalConversationId";
-import { resolvePubPalFenceIntent } from "@/lib/pubPalLlmFence";
+import { pubPalGetHomeRegisterAnswer, resolvePubPalFenceIntent } from "@/lib/pubPalLlmFence";
 import { publicApiError } from "@/lib/apiError";
 import { askCardSources } from "@/lib/ask/types";
 import { jsonNoStore } from "@/lib/apiResponses";
@@ -147,10 +147,7 @@ async function openingReply(request: Request, record: Record<string, unknown>, q
         if (!threadId || !prior || prior.query || prior.turns.length !== 1 || prior.turns[0]?.role !== "assistant"
           || prior.hints.length !== 1 || prior.hints[0] !== prior.turns[0].content) return null;
         let answer: string | null = null;
-        if (palOpeningAcceptance(query)) {
-          const fence = await resolvePubPalFenceIntent(query, normaliseTurns(record.turns));
-          if (!fence.fenced) answer = palOpeningFollowUp(query, prior.turns[0].content);
-        }
+        if (palOpeningAcceptance(query)) answer = palOpeningFollowUp(query, prior.turns[0].content);
         await registerPubPalToolTurn(threadId, {
           ownerId, cityId: prior.cityId, query: answer ? query : "", turns: prior.turns,
           cards: [], proposals: [], hints: answer ? [answer] : [], toolsUsed: [],
@@ -196,12 +193,25 @@ export async function POST(request: Request): Promise<Response> {
     return publicApiError("Ask a question.", "QUERY_REQUIRED", 400);
   }
 
+  const configured = palVoiceConfigured();
+  const ownerId = configured ? await callerUserId(request) : null;
+  if (configured && !ownerId) {
+    return publicApiError("Sign in to ask Pub Pal.", "UNAUTHENTICATED", 401);
+  }
+  const fence = await resolvePubPalFenceIntent(query, normaliseTurns(record.turns));
+  if (fence.fenced) {
+    return jsonNoStore({
+      answer: pubPalGetHomeRegisterAnswer("", fence.sobrietyOnly),
+      cards: [], proposals: [], sources: [], toolsUsed: [], status: "ready", conversationId: "",
+    });
+  }
+
   const opening = await openingReply(request, record, query);
   if (opening) return opening;
 
   // Voice is optional. Keyless deploys still answer from the same grounded
   // tools as /api/ask, and they never call OpenRouter.
-  if (!palVoiceConfigured()) {
+  if (!configured) {
     try {
       const turns = normaliseTurns(record.turns);
       const social = socialTurnKind(query);
@@ -275,11 +285,6 @@ export async function POST(request: Request): Promise<Response> {
     }
   }
 
-  const ownerId = await callerUserId(request);
-  if (!ownerId) {
-    return publicApiError("Sign in to ask Pub Pal.", "UNAUTHENTICATED", 401);
-  }
-
   const budgetRefusal = await paidSpendBudgetRefusal("pub-pal-chat");
   if (budgetRefusal) return budgetRefusal;
 
@@ -288,7 +293,7 @@ export async function POST(request: Request): Promise<Response> {
     cityId: record.cityId,
     threadId: record.threadId,
     fenceTurns: normaliseTurns(record.turns).filter((item) => item.role === "user"),
-    ownerId,
+    ownerId: ownerId!,
   };
   if (acceptsPalChatStream(request.headers.get("accept"))) return streamTurn(turn, request);
 

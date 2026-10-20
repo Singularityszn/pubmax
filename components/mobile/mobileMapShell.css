@@ -831,7 +831,19 @@
     text-align: left;
     cursor: pointer;
   }
+  .mapPeek:has(.mapPeekAnswer.isQuiet) {
+    height: auto;
+    min-height: var(--map-peek-h);
+    grid-template-rows: minmax(var(--map-peek-row-h), auto) auto;
+  }
   .mapPeekAnswer.isQuiet { cursor: default; }
+  .mapPeekAnswer.isQuiet .mapPeekLine { height: auto; }
+  .mapPeekAnswer.isQuiet :is(.mapPeekName, .mapPeekHush) {
+    min-width: 0;
+    overflow: visible;
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
   /* Press feedback on pointer-down, a tint rather than a scale: the row is wide
      and text-led, and a scaled line of copy reads as the text shaking. */
   .mapPeekAnswer {
