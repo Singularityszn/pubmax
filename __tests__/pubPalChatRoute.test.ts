@@ -51,6 +51,26 @@ describe("POST /api/pub-pal/chat", () => {
     vi.unstubAllGlobals();
   });
 
+  it("answers mixed discovery and alcohol allowance with the safety handoff", async () => {
+    vi.stubEnv("ELEVENLABS_API_KEY", "");
+    vi.stubEnv("TYPESAFE_API_KEY", "");
+    vi.stubGlobal("fetch", offlineFetch);
+    const response = await POST(new Request("http://localhost/api/pub-pal/chat", {
+      method: "POST", headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        query: "Where can I buy beer in Soho? How many pints can I have before driving?",
+        cityId: "london",
+      }),
+    }));
+    expect(response.status).toBe(200);
+    const body = await response.json();
+    expect(body.answer).toBe("I can't tell you whether to have another drink. Open Getting Home on the venue sheet for last-train times, ride links, and the TfL planner.");
+    expect(body.cards).toEqual([]);
+    expect(body.proposals).toEqual([]);
+    expect(body.toolsUsed).toEqual([]);
+    expect(runPalElevenLabsChatTurn).not.toHaveBeenCalled();
+  });
+
   it("uses the preceding Soho discovery for a longer budget follow-up", async () => {
     vi.stubEnv("ELEVENLABS_API_KEY", "");
     vi.stubGlobal("fetch", offlineFetch);

@@ -122,6 +122,31 @@ describe("Pub Pal fence without TypeSafe key", () => {
   });
 
   it.each([
+    "Where can I buy beer in Soho? How many pints can I have before driving?",
+    "How many pints can I have before driving? Where can I buy beer in Soho?",
+    "Where could we find beer in Soho, and how long after drinking can I drive?",
+    "Where may I get beer in Soho? Can I drink two pints before I cycle?",
+    "Where should we have beer in Soho? Before riding my bike, can I have two pints?",
+    "Where can I drink beer in Soho? Would it be safe to drive after two beers?",
+    "Where can I buy alcohol-free beer in Soho? How many pints can I have before driving?",
+    "Where can I buy beer in Soho? Is one beer okay before riding my bike?",
+  ])("keeps discovery from masking a separate alcohol allowance: %s", async (query) => {
+    expect(isPubPalGetHomeOrSobrietyIntent(query)).toBe(true);
+    expect(isPubPalSobrietyOnlyIntent(query)).toBe(true);
+    await expect(resolvePubPalFenceIntent(query)).resolves.toEqual({ fenced: true, sobrietyOnly: true });
+    mockSystemOneFromFixture(0.01, 0.01);
+    await expect(resolvePubPalFenceIntent(query)).resolves.toEqual({ fenced: true, sobrietyOnly: true });
+  });
+
+  it("retains mixed discovery and alcohol safety only from user history", async () => {
+    const content = "Where can I buy beer in Soho? How many pints can I have before driving?";
+    await expect(resolvePubPalFenceIntent("What about Soho?", [{ role: "user", content }]))
+      .resolves.toEqual({ fenced: true, sobrietyOnly: true });
+    await expect(resolvePubPalFenceIntent("Quiet garden near Soho", [{ role: "assistant", content }]))
+      .resolves.toEqual({ fenced: false, sobrietyOnly: false });
+  });
+
+  it.each([
     "How many pints can I have before driving?",
     "How many pints can I have in Soho before driving?",
     "Can I drink two pints in Soho before I drive?",
@@ -212,6 +237,11 @@ describe("Pub Pal fence without TypeSafe key", () => {
 
   it.each([
     "Quiet garden near Soho",
+    "Where can I buy beer in Soho before driving?",
+    "Where could we find beer in Soho before cycling?",
+    "Where may I get beer in Soho before riding my bike?",
+    "Where should we have beer in Soho before driving?",
+    "Where can I drink beer in Soho before driving?",
     "Where can I buy alcohol-free beer in Soho before driving?",
     "Where can I drink alcohol-free beer in Soho before driving?",
     "Where could I drink alcohol-free beer in Soho before driving?",

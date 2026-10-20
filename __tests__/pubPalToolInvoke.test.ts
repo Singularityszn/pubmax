@@ -91,6 +91,26 @@ describe("propose_plan over the Pal webhook", () => {
     vi.unstubAllGlobals();
   });
 
+  it.each([null, "conv_mixedsafety01"])("fences mixed discovery and alcohol allowance in voice tools: %s", async (conversationId) => {
+    const query = "Where can I buy beer in Soho? How many pints can I have before driving?";
+    if (conversationId) {
+      await registerPubPalToolTurn(conversationId, {
+        query, cityId: "london", ownerId: "11111111-1111-4111-8111-111111111111",
+      });
+    }
+    const { result } = await invokePubPalAskTool({
+      toolName: "search_venues", args: { query: conversationId ? "beer in Soho" : query }, conversationId,
+    });
+    expect(result).toMatchObject({
+      ok: true, fenced: true, cards: [], proposals: [],
+      answerHint: "I can't tell you whether to have another drink. Open Getting Home on the venue sheet for last-train times, ride links, and the TfL planner.",
+    });
+    if (conversationId) {
+      expect((await readPubPalToolTurn(conversationId))?.cards).toEqual([]);
+      expect((await readPubPalToolTurn(conversationId))?.hints).toContain(result.answerHint);
+    }
+  });
+
   it("uses the stored prior area for a budget refinement without rewriting its history", async () => {
     const query = "Same area, but under £6.30 a pint.";
     await registerPubPalToolTurn("conv_budgetfollow1", { query, cityId: "london", ownerId: "11111111-1111-4111-8111-111111111111",
