@@ -164,9 +164,15 @@ test.describe("A profile statistic is a way in", () => {
     page,
   }) => {
     await page.goto("/u/pubmaxx");
-    const link = page.locator(".profileStats .profileStatLink").first();
-    const box = await link.boundingBox();
-    expect(box?.height ?? 0).toBeGreaterThanOrEqual(44);
+    const stats = page.getByRole("list", { name: "Profile statistics", exact: true });
+    await expect(stats).toBeVisible();
+    const tiles = stats.locator(".profileStatLink");
+    await expect(tiles).toHaveCount(6);
+    for (const tile of await tiles.all()) {
+      await expect(tile).toBeVisible();
+      const box = await tile.boundingBox();
+      expect(box?.height ?? 0).toBeGreaterThanOrEqual(44);
+    }
 
     const overflow = await page.evaluate(
       () => document.documentElement.scrollWidth - document.documentElement.clientWidth,

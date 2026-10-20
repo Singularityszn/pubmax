@@ -1046,7 +1046,7 @@ export function mapSelectionFrame(input: {
     !londonRestaurantOpen &&
     !londonFoodPlaceOpen &&
     !venueById.has(selectedVenueId) &&
-    !(input.lookupFailed && isUkBaseId(selectedVenueId));
+    !input.lookupFailed;
   return {
     selectedId: selectedVenue?.id,
     resolvable: selectedVenueId ? venueById.has(selectedVenueId) : false,

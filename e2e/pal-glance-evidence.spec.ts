@@ -60,7 +60,8 @@ for (const width of [390, 1440]) {
           await expect(tonight.locator(".palGlanceReceipt")).toContainText("Sources: J D Wetherspoon - Food & drink. Oldest listing observed 2 October 2026.");
         }
         await expect(tonight.getByRole("link", { name: "See listings and sources.", exact: true })).toHaveAttribute("href", "/tonight");
-        await expect(price).toContainText("£2.95 at The Three Tuns - LSE Student Union");
+        await expect(price).toContainText("£4.20 at Hercules Pillars");
+        await expect(price).not.toContainText("The Three Tuns - LSE Student Union");
         await expect(price.locator(".palGlanceLine")).toContainText(/Lowest listed price|Listed price around/);
         await expect(price.locator(".palGlanceReceipt")).toContainText("Pint Prices");
         await expect(price.locator(".palGlanceReceipt")).toContainText("Source read 2 October 2026");
@@ -75,12 +76,12 @@ for (const width of [390, 1440]) {
         expect(layout.content).toBeLessThanOrEqual(layout.available + 1);
         expect(layout.document).toBeLessThanOrEqual(layout.viewport);
         const venue = price.getByRole("link", { name: "Price source and venue details.", exact: true });
-        await expect(venue).toHaveAttribute("href", "/map?sel=venue-p7p18j");
+        await expect(venue).toHaveAttribute("href", "/map?sel=venue-a3iffy");
         if (width === 1440 && theme === "light") {
           await venue.scrollIntoViewIfNeeded();
           await expect(async () => {
             await venue.click();
-            await expect(page).toHaveURL(/\/map\?sel=venue-p7p18j$/, { timeout: 1_000 });
+            await expect(page).toHaveURL(/\/map\?sel=venue-a3iffy$/, { timeout: 1_000 });
           }).toPass({ timeout: 20_000 });
           await expect(page.getByRole("tab", { name: "Menu", exact: true })).toBeVisible({ timeout: 45_000 });
           await page.goBack();

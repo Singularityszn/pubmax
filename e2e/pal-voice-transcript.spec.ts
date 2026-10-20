@@ -20,12 +20,17 @@ test.use({
   },
 });
 
-/** Half a second of a soft 220 Hz tone as base64 PCM16 at 16 kHz. */
+/** Half a second of speech-band harmonics as base64 PCM16 at 16 kHz. */
 function toneChunk(): string {
   const samples = 8_000;
   const buffer = Buffer.alloc(samples * 2);
   for (let index = 0; index < samples; index += 1) {
-    const value = Math.sin((2 * Math.PI * 220 * index) / 16_000) * 0.25 * 0x7fff;
+    // A lone tone fills too few spectrum bins to exercise the voice meter.
+    let wave = 0;
+    for (let harmonic = 1; harmonic <= 20; harmonic += 1) {
+      wave += Math.sin((2 * Math.PI * 120 * harmonic * index) / 16_000);
+    }
+    const value = (wave / 20) * 0.5 * 0x7fff;
     buffer.writeInt16LE(Math.round(value), index * 2);
   }
   return buffer.toString("base64");
@@ -145,7 +150,13 @@ for (const width of [390, 1440]) {
     for (const card of answer.cards) {
       const recommendation = sourced.locator("li").filter({ has: page.getByRole("link", { name: card.title, exact: true }) });
       await expect(recommendation).toHaveCount(1);
-      await expect(recommendation.locator('.priceBadge[title]')).toHaveCount(1);
+      await expect(recommendation).toContainText(card.note);
+      await expect(recommendation.locator('.priceBadge[title]')).toHaveCount(typeof card.price === "number" ? 1 : 0);
+      if (typeof card.price === "number") {
+        await expect(recommendation.locator('.priceBadge')).toHaveText(`£${card.price.toFixed(2)}`);
+      } else {
+        await expect(recommendation.locator('.priceBadge')).toHaveCount(0);
+      }
     }
     const wine = sourced.locator("li").filter({ has: page.getByRole("link", { name: "Red wine at Shakespeares Head", exact: true }) });
     const meal = sourced.locator("li").filter({ has: page.getByRole("link", { name: "Lunch at Shakespeares Head", exact: true }) });

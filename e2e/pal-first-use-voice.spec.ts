@@ -42,7 +42,9 @@ for (const width of [390, 1440]) {
     await expect(publishedCard).toContainText("Serving size not recorded.");
     await expect(publishedCard).toContainText("Price observed 2026-09-21.");
     await expect(publishedCard.locator('a[href="https://www.greeneking.co.uk/pubs/greater-london/sherlock-holmes/menu"]')).toBeVisible();
-    await page.getByRole("button", { name: "Open Sherlock Holmes", exact: true }).click();
+    const venueLink = publishedCard.locator(`a.palChatCardMain[href="/map?sel=${body.proposals[0].venueId}"]`);
+    await expect(venueLink).toBeVisible();
+    await venueLink.click();
     await expect(page).toHaveURL(new RegExp(`sel=${body.proposals[0].venueId}`));
     const menu = page.getByRole("tab", { name: "Menu", exact: true });
     await expect(async () => {

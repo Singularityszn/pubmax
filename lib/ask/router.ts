@@ -4,7 +4,7 @@
 import { detectWhatsOnIntent } from "@/lib/concierge/whatsOn";
 import type { AskToolName } from "@/lib/ask/types";
 import type { DrinkCategory } from "@/lib/drinks";
-import { isKnownAskPlacePhrase } from "@/lib/ask/venueResolution";
+import { isKnownAskPlacePhrase } from "@/lib/ask/placePhrases";
 import { palAsksForVenueDiscovery } from "@/lib/palMapAsk";
 import { defaultKnownAreas, deterministicAreaInText, extractExplicitBudget } from "@/lib/concierge/intentPolicy";
 
