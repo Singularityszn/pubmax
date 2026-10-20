@@ -1242,73 +1242,6 @@ export default function VenueOverviewTab({
           <NextBadgeChips />
       </Disclosure>
       {gettingHome}
-      {/* BELOW THE FOLD BECAUSE THEY LAND LATE (captain, 19 Oct 2026). Each of
-          these rows renders nothing until its own read answers, which is 3 to
-          5 seconds after the sheet opens on a slow phone. Above the
-          getting-home fold the area line and the hygiene rating pushed its
-          summary down about 80px under a reader's finger, and a tap whose
-          press and release straddled the move was lost. A row that appears
-          after the sheet opens may not sit above a control. */}
-      {/* What a tenner buys here, when this pub is one of the Wetherspoons the
-          Spoons value ranking holds. Its own heading names the question, so it
-          reads on its own away from today's price, and it renders nothing for
-          every other pub. Never a price lane: the figure is a units count
-          somebody else read off a menu (lib/spoonsValue.ts). */}
-      <VenueSpoonsValueRow venueId={venue.id} visible={restingPintView} />
-      {/* What a pint here used to cost: one dated figure from the archives,
-          against the price on record now. Its line prints both figures
-          ("£3.10 in Jun 2019. £5.40 now."), so it reads on its own away from
-          today's price. History only - the old figure never enters bands,
-          pins, cheapest buckets or the Pint Index (lib/priceHistory.ts).
-          Renders nothing for a pub with no history. Hidden under a drink
-          lens: an old pint does not answer coffee. */}
-      {restingPintView ? (
-        <VenuePriceThen
-          venueId={venue.id}
-        // "Now" is only offered where today's figure is a pint. A bar or food
-        // venue's cheapestPrice is an anchor price (a cocktail, a dish), so it
-        // is withheld rather than compared against an old pint.
-          currentPriceGbp={isPubVenue(venue) ? overviewPintGbp : null}
-        />
-      ) : null}
-      {/* Patch yardstick: this pint against the borough Pint Index average, or
-          the fare-zone median when the Index has no row. Its line names the
-          pint it compares ("£4.20 here."), so it reads on its own away from
-          the price block. Renders nothing without a yardstick.
-          Beside it, where this pint sits against its city: a half-dial of the
-          city's three price bands, read through lib/priceBand.ts like the pin,
-          so the two can never disagree. Renders nothing without a pint. */}
-      {restingPintView && isPubVenue(venue) ? (
-        <>
-          <VenueAreaPriceCompare
-            priceGbp={overviewPintGbp}
-            primaryBorough={venue.primaryBorough}
-            zone={venue.zone}
-            zoneIndex={zoneIndex}
-          />
-          <VenuePintNeedle venueId={venue.id} priceGbp={overviewPintGbp} />
-        </>
-      ) : null}
-      {/* FSA food hygiene rating (FHRS), matched by postcode + fuzzy name
-          server-side. Renders nothing for an unmatched pub. */}
-      <VenueHygiene
-        venueId={venue.id}
-        venueName={venue.name}
-        address={venue.address}
-      />
-      {/* Read-first community observations: character, access and eating sit
-          here so drinkers see them without opening price submit. Authoring
-          stays on the price-entry path above (VenuePriceEntryPanel). The same
-          venue-price read status feeds both, so a failed lookup never words
-          as an empty pub. */}
-      <VenueCommunitySignals
-        venueId={venue.id}
-        venueName={venue.name}
-        signals={communityPrices.signalsByVenueId.get(venue.id) ?? []}
-        readStatus={venueReadStatus}
-        now={now}
-        readOnly
-      />
       {/* Desktop only: on a phone the peek's ONE plan door owns the crawl
           toggle (lib/venuePlanDoor.ts), and this would be a second. */}
       {mode === "build" && isPubVenue(venue) && !phoneSheet ? (
@@ -1385,6 +1318,69 @@ export default function VenueOverviewTab({
           </p>
         ) : null}
       </div>
+      {/* Late supplemental reads stay below the main controls. The area
+          comparison can arrive between pointer press and release, so it must
+          not move the list, night, check-in or getting-home controls. */}
+      {/* What a tenner buys here, when this pub is one of the Wetherspoons the
+          Spoons value ranking holds. Its own heading names the question, so it
+          reads on its own away from today's price, and it renders nothing for
+          every other pub. Never a price lane: the figure is a units count
+          somebody else read off a menu (lib/spoonsValue.ts). */}
+      <VenueSpoonsValueRow venueId={venue.id} visible={restingPintView} />
+      {/* What a pint here used to cost: one dated figure from the archives,
+          against the price on record now. Its line prints both figures
+          ("£3.10 in Jun 2019. £5.40 now."), so it reads on its own away from
+          today's price. History only - the old figure never enters bands,
+          pins, cheapest buckets or the Pint Index (lib/priceHistory.ts).
+          Renders nothing for a pub with no history. Hidden under a drink
+          lens: an old pint does not answer coffee. */}
+      {restingPintView ? (
+        <VenuePriceThen
+          venueId={venue.id}
+        // "Now" is only offered where today's figure is a pint. A bar or food
+        // venue's cheapestPrice is an anchor price (a cocktail, a dish), so it
+        // is withheld rather than compared against an old pint.
+          currentPriceGbp={isPubVenue(venue) ? overviewPintGbp : null}
+        />
+      ) : null}
+      {/* Patch yardstick: this pint against the borough Pint Index average, or
+          the fare-zone median when the Index has no row. Its line names the
+          pint it compares ("£4.20 here."), so it reads on its own away from
+          the price block. Renders nothing without a yardstick.
+          Beside it, where this pint sits against its city: a half-dial of the
+          city's three price bands, read through lib/priceBand.ts like the pin,
+          so the two can never disagree. Renders nothing without a pint. */}
+      {restingPintView && isPubVenue(venue) ? (
+        <>
+          <VenueAreaPriceCompare
+            priceGbp={overviewPintGbp}
+            primaryBorough={venue.primaryBorough}
+            zone={venue.zone}
+            zoneIndex={zoneIndex}
+          />
+          <VenuePintNeedle venueId={venue.id} priceGbp={overviewPintGbp} />
+        </>
+      ) : null}
+      {/* FSA food hygiene rating (FHRS), matched by postcode + fuzzy name
+          server-side. Renders nothing for an unmatched pub. */}
+      <VenueHygiene
+        venueId={venue.id}
+        venueName={venue.name}
+        address={venue.address}
+      />
+      {/* Read-first community observations: character, access and eating sit
+          here so drinkers see them without opening price submit. Authoring
+          stays on the price-entry path above (VenuePriceEntryPanel). The same
+          venue-price read status feeds both, so a failed lookup never words
+          as an empty pub. */}
+      <VenueCommunitySignals
+        venueId={venue.id}
+        venueName={venue.name}
+        signals={communityPrices.signalsByVenueId.get(venue.id) ?? []}
+        readStatus={venueReadStatus}
+        now={now}
+        readOnly
+      />
     </div>
   );
 }
