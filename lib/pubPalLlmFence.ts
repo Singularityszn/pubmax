@@ -15,10 +15,13 @@ const PUB_PAL_SOBRIETY_ONLY_RE =
   /\b(?:should\s+i\s+have\s+(?:one\s+)?more|one\s+more\s+(?:drink|pint)|am\s+i\s+(?:okay|ok|fine|sober|drunk)|sobri(?:ety|ous)|drunk\s+enough|fit\s+to\s+drive)\b/i;
 
 const ALCOHOL_RE = /\b(?:alcohol|drinks?|drinking|drunk|pints?|beers?|wine|cider|spirits?)\b/i;
-const VEHICLE_OPERATION_RE = /\b(?:driv(?:e|ing)|cycl(?:e|ing)|rid(?:e|ing)\s+(?:(?:my|a|the)\s+)?bike)\b/i;
+const VEHICLE_OPERATION_RE = /\b(?:driv(?:e|ing)|cycl(?:e|ing)|rid(?:e|ing)\s+(?:(?:my|a|the)\s+)?(?:bike|motorbike|motorcycle|scooter|e[- ]?bike))\b/i;
 const PERSONAL_ALLOWANCE_RE = /\b(?:how\s+(?:many|much|long)|(?:can|could|may|should)\s+(?:i|we)\s+(?:have|drink|consume|drive|cycle|ride))\b/i;
-const PERSONAL_OPERATION_QUESTION_RE = /\b(?:can|could|may|should)\s+(?:i|we)\s+(?:drive|cycle|ride\s+(?:(?:my|a|the)\s+)?bike)\b/i;
-const FACTUAL_ROUTE_QUESTION_RE = /\b(?:what|which)\s+(?:(?:driving|cycling|bike)\s+)?routes?\b/i;
+const PERSONAL_OPERATION_QUESTION_RE = /\b(?:can|could|may|should)\s+(?:i|we)\s+(?:drive|cycle|ride\s+(?:(?:my|a|the)\s+)?(?:bike|motorbike|motorcycle|scooter|e[- ]?bike))\b/i;
+const FACTUAL_ROUTE_QUESTION_RE = new RegExp(
+  String.raw`\b(?:what|which)\s+(?:(?:driving|cycling|bike)\s+)?routes?\s+${PERSONAL_OPERATION_QUESTION_RE.source}`,
+  "gi",
+);
 const PERSONAL_FITNESS_RE = /\b(?:(?:am\s+i|(?:is|would)\s+it(?:\s+be)?|(?:will|would)\s+i\s+be)\s+(?:safe|fit|sober|drunk|okay|ok)|(?:safe|fit|sober|drunk|okay|ok)\s+(?:enough\s+)?to\s+(?:drive|cycle|ride))\b/i;
 const ALCOHOL_ALLOWANCE_RE = /\b(?:is|are)\s+(?:one|two|three|a|an|\d+)\s+(?:pints?|beers?|drinks?|wine|cider)\s+(?:okay|ok|safe)\b/i;
 
@@ -101,8 +104,7 @@ function regexFenceIntent(
     sobrietyOnly = true;
   }
   const asksFitness = PERSONAL_FITNESS_RE.test(message);
-  const asksPersonalVehicleFitness = (PERSONAL_OPERATION_QUESTION_RE.test(message)
-    && !FACTUAL_ROUTE_QUESTION_RE.test(message))
+  const asksPersonalVehicleFitness = PERSONAL_OPERATION_QUESTION_RE.test(message.replace(FACTUAL_ROUTE_QUESTION_RE, " "))
     || (asksFitness && VEHICLE_OPERATION_RE.test(message));
   if (sobrietyOnly) {
     return { fenced: true, sobrietyOnly: true };

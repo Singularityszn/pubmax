@@ -20,7 +20,8 @@ const registerRequests = [
   "How many pints can I have in Soho before driving back?",
   "Before I drive, can I have two pints in Soho?",
   "Can I cycle after two pints?",
-  "Can I have two beers and still drive?"
+  "Can I have two beers and still drive?",
+  "Can I ride my motorbike after two pints in Soho?"
 ];
 
 const neutralRequests = [
@@ -56,7 +57,9 @@ const neutralRequests = [
   "Is it safe to drive?",
   "Can I cycle to a pub serving beer in Soho?",
   "I drank water and no less than two beers in Soho. Can I drive?",
-  "I drank water and discussed wine in Soho. Can I drive?"
+  "I drank water and discussed wine in Soho. Can I drive?",
+  "I have had two beers in Soho. Can I drive? Which route goes to Soho?",
+  "What route can I drive to Soho, and can I drive?"
 ];
 
 const discoveryRequests = [
