@@ -185,6 +185,43 @@ describe("Pub Pal fence without TypeSafe key", () => {
       .resolves.toEqual({ fenced: true, sobrietyOnly: true });
   });
 
+  it("retains a drinking report when the driving follow-up names a beer garden", async () => {
+    const turns: PubPalFenceTurn[] = [
+      { role: "user", content: "I have had two beers in Soho." },
+    ];
+    await expect(resolvePubPalFenceIntent("Can I drive to a beer garden?", turns))
+      .resolves.toEqual({ fenced: true, sobrietyOnly: true });
+    mockSystemOneFromFixture(0.01, 0.01);
+    await expect(resolvePubPalFenceIntent("Can I drive to a beer garden?", turns))
+      .resolves.toEqual({ fenced: true, sobrietyOnly: true });
+  });
+
+  it("does not treat an earlier alcohol-free report as alcoholic consumption", async () => {
+    await expect(resolvePubPalFenceIntent("Can I drive to a beer garden?", [
+      { role: "user", content: "I have had two alcohol-free beers in Soho." },
+    ])).resolves.toEqual({ fenced: false, sobrietyOnly: false });
+  });
+
+  it.each([
+    "Can I drink alcohol-free beer in Soho before driving?",
+    "I have been drinking alcohol-free beer. Can I drive?",
+  ])("preserves an explicitly alcohol-free consumption object: %s", async (query) => {
+    await expect(resolvePubPalFenceIntent(query)).resolves.toEqual({ fenced: false, sobrietyOnly: false });
+    mockSystemOneFromFixture(0.01, 0.01);
+    await expect(resolvePubPalFenceIntent(query)).resolves.toEqual({ fenced: false, sobrietyOnly: false });
+  });
+
+  it("does not let an earlier preference mask a later consumption report", async () => {
+    const turns: PubPalFenceTurn[] = [
+      { role: "user", content: "I like beer." },
+      { role: "user", content: "I have had two pints." },
+    ];
+    await expect(resolvePubPalFenceIntent("Can I drive?", turns))
+      .resolves.toEqual({ fenced: true, sobrietyOnly: true });
+    await expect(resolvePubPalFenceIntent("I like beer. I have had two pints. Can I drive?"))
+      .resolves.toEqual({ fenced: true, sobrietyOnly: true });
+  });
+
   it("does not infer consumption from an assistant's words or a user preference", async () => {
     await expect(resolvePubPalFenceIntent("Can I drive?", [
       { role: "assistant", content: "I have had two beers in Soho." },

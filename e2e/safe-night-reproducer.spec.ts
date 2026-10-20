@@ -23,6 +23,7 @@ const safetyRequests = [
   "I have had two beers. Can I drive?",
   "I have had two beers in Soho. Can I drive?",
   "I'm drunk in Soho. Can I drive?",
+  "I like beer. I have had two pints in Soho. Can I drive?",
 ];
 
 const discoveryRequests = [
@@ -31,6 +32,8 @@ const discoveryRequests = [
   "Find a safe cycling route to beer gardens in Soho",
   "Where could I drink alcohol-free beer in Soho before driving?",
   "Can I find a pub to drink alcohol-free beer in Soho before driving?",
+  "Can I drink alcohol-free beer in Soho before driving?",
+  "I have been drinking alcohol-free beer. Can I drive?",
 ];
 
 for (const width of [390, 1440]) {
@@ -84,35 +87,37 @@ for (const width of [390, 1440]) {
     });
   }
 
-  test(`${width}px: a short driving follow-up uses the person's earlier report`, async ({ page }, info) => {
-    await page.setViewportSize({ width, height: 1000 });
-    await page.goto("/pal/chat");
-    const field = page.getByRole("textbox", { name: "Where, how many, what budget", exact: true });
-    await expect(field).toBeEnabled();
-    const report = "I have had two beers in Soho.";
-    await field.fill(report);
-    const firstReply = page.waitForResponse((response) =>
-      new URL(response.url()).pathname === "/api/pub-pal/chat" && response.request().method() === "POST");
-    await page.getByRole("button", { name: "Ask", exact: true }).click();
-    const first = await firstReply;
-    expect(first.status()).toBe(200);
-    await expect(page.locator(".palChatRow--pal").last()).toContainText((await first.json()).answer);
-    await field.fill("Can I drive?");
-    const nextReply = page.waitForResponse((response) =>
-      new URL(response.url()).pathname === "/api/pub-pal/chat" && response.request().method() === "POST");
-    await page.getByRole("button", { name: "Ask", exact: true }).click();
-    const response = await nextReply;
-    expect(response.status()).toBe(200);
-    const body = await response.json();
-    const sent = response.request().postDataJSON();
-    expect(sent.turns).toContainEqual(expect.objectContaining({ role: "user", content: report }));
-    expect(body.cards).toEqual([]);
-    const answer = page.locator(".palChatRow--pal").last();
-    await expect(answer).toContainText(body.answer);
-    await expect(answer).toContainText("Getting Home");
-    await expect(answer.locator(".palChatCard")).toHaveCount(0);
-    await info.attach("public follow-up response", {
-      body: JSON.stringify({ request: sent, response: body }), contentType: "application/json",
+  for (const followUp of ["Can I drive?", "Can I drive to a beer garden?"]) {
+    test(`${width}px: the earlier drinking report applies to ${followUp}`, async ({ page }, info) => {
+      await page.setViewportSize({ width, height: 1000 });
+      await page.goto("/pal/chat");
+      const field = page.getByRole("textbox", { name: "Where, how many, what budget", exact: true });
+      await expect(field).toBeEnabled();
+      const report = "I have had two beers in Soho.";
+      await field.fill(report);
+      const firstReply = page.waitForResponse((response) =>
+        new URL(response.url()).pathname === "/api/pub-pal/chat" && response.request().method() === "POST");
+      await page.getByRole("button", { name: "Ask", exact: true }).click();
+      const first = await firstReply;
+      expect(first.status()).toBe(200);
+      await expect(page.locator(".palChatRow--pal").last()).toContainText((await first.json()).answer);
+      await field.fill(followUp);
+      const nextReply = page.waitForResponse((response) =>
+        new URL(response.url()).pathname === "/api/pub-pal/chat" && response.request().method() === "POST");
+      await page.getByRole("button", { name: "Ask", exact: true }).click();
+      const response = await nextReply;
+      expect(response.status()).toBe(200);
+      const body = await response.json();
+      const sent = response.request().postDataJSON();
+      expect(sent.turns).toContainEqual(expect.objectContaining({ role: "user", content: report }));
+      expect(body.cards).toEqual([]);
+      const answer = page.locator(".palChatRow--pal").last();
+      await expect(answer).toContainText(body.answer);
+      await expect(answer).toContainText("Getting Home");
+      await expect(answer.locator(".palChatCard")).toHaveCount(0);
+      await info.attach("public follow-up response", {
+        body: JSON.stringify({ request: sent, response: body }), contentType: "application/json",
+      });
     });
-  });
+  }
 }
