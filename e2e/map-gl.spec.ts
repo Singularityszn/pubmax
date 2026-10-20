@@ -1,6 +1,7 @@
 import { test, expect, type Page } from "@playwright/test";
 import sharp from "sharp";
 
+import { expectMapToolbarReady } from "./helpers/mapToolbar";
 import { installDeterministicMapBasemap } from "./helpers/mapNetworkFixtures";
 
 test.describe.configure({ mode: "serial" });
@@ -925,12 +926,14 @@ test("/map shows a readable fallback when the phone render loop never draws a fr
 
   // Venue content survives: static list rows + the directory link.
   await expect(page.locator(".mapFallbackBrowse")).toBeVisible();
-  const browseBox = await page.locator(".mapFallbackBrowse").boundingBox();
-  expect(browseBox!.width).toBeGreaterThanOrEqual(44);
-  expect(browseBox!.height).toBeGreaterThanOrEqual(44);
   await expect
     .poll(async () => page.locator(".mapFallbackVenue").count(), { timeout: 15_000 })
     .toBeGreaterThan(0);
+  for (const control of await fallback.locator("button, a").all()) {
+    const box = (await control.boundingBox())!;
+    expect.soft(box.width, await control.innerText()).toBeGreaterThanOrEqual(44);
+    expect.soft(box.height, await control.innerText()).toBeGreaterThanOrEqual(44);
+  }
 
   const fallbackBackground = rgbChannels(
     await fallback.evaluate((node) => getComputedStyle(node).backgroundColor),
@@ -940,10 +943,15 @@ test("/map shows a readable fallback when the phone render loop never draws a fr
     ["explanation", fallback.locator("p")],
     ["venue", fallback.locator(".mapFallbackVenueName").first()],
     ["Browse link", fallback.locator(".mapFallbackBrowse")],
+    ["Technical details", fallback.locator(".mapFallbackDisclosureToggle")],
     ["Retry", fallback.locator(".mapFallbackRetry")],
   ] as const) {
-    const foreground = rgbChannels(
-      await control.evaluate((node) => getComputedStyle(node).color),
+    const style = await control.evaluate((node) => ({
+      color: getComputedStyle(node).color,
+      opacity: Number(getComputedStyle(node).opacity),
+    }));
+    const foreground = rgbChannels(style.color).map((channel, index) =>
+      channel * style.opacity + fallbackBackground[index]! * (1 - style.opacity),
     );
     expect(
       contrastRatio(foreground, fallbackBackground),
@@ -1114,8 +1122,8 @@ test("desktop area search resolves a gazetteer locality and fits the map", async
   expect(response?.status()).toBe(200);
   await expect(page.locator(".maplibreMap canvas").first()).toBeVisible({ timeout: 20_000 });
 
-  const search = page.locator("#mapSearchInput");
-  await expect(search).toBeVisible({ timeout: 30_000 });
+  await expectMapToolbarReady(page);
+  const search = page.locator(".mapToolbar").getByRole("combobox", { name: "Search pubs", exact: true });
   await search.fill("Willesden");
 
   const listbox = page.getByRole("listbox", { name: "Search suggestions" });
@@ -1125,7 +1133,13 @@ test("desktop area search resolves a gazetteer locality and fits the map", async
   await expect(willesden).toContainText(/from centre/i);
   await expect(willesden.locator(".mapSearchSuggestCoverage")).toHaveCount(0);
 
-  await search.press("ArrowDown");
+  const suggestionCount = await listbox.getByRole("option").count();
+  for (let step = 0; step < suggestionCount; step += 1) {
+    await search.press("ArrowDown");
+    if (await search.getAttribute("aria-activedescendant") === await willesden.getAttribute("id")) break;
+  }
+  await expect(willesden).toHaveAttribute("aria-selected", "true");
+  await expect(search).toHaveAttribute("aria-activedescendant", (await willesden.getAttribute("id"))!);
   await search.press("Enter");
   await expect(listbox).toHaveCount(0);
 
