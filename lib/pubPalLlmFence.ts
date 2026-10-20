@@ -16,7 +16,10 @@ const PUB_PAL_SOBRIETY_ONLY_RE =
 
 const ALCOHOL_RE = /\b(?:alcohol|drinks?|drinking|drunk|pints?|beers?|wine|cider|spirits?)\b/i;
 const VEHICLE_OPERATION_RE = /\b(?:driv(?:e|ing)|cycl(?:e|ing)|rid(?:e|ing)\s+(?:(?:my|a|the)\s+)?bike)\b/i;
-const PERSONAL_ALLOWANCE_RE = /\b(?:how\s+(?:many|much|long)|(?:can|could|may|should)\s+i)\b/i;
+const PERSONAL_ALLOWANCE_RE = /\b(?:how\s+(?:many|much|long)|(?:can|could|may|should)\s+(?:i|we)\s+(?:have|drink|consume|drive|cycle|ride))\b/i;
+const PERSONAL_OPERATION_QUESTION_RE = /\b(?:can|could|may|should)\s+(?:i|we)\s+(?:drive|cycle|ride)\b/i;
+const PERSONAL_FITNESS_RE = /\b(?:(?:am\s+i|(?:is|would)\s+it(?:\s+be)?|(?:will|would)\s+i\s+be)\s+(?:safe|fit|sober|drunk|okay|ok)|(?:safe|fit|sober|drunk|okay|ok)\s+(?:enough\s+)?to\s+(?:drive|cycle|ride))\b/i;
+const ALCOHOL_ALLOWANCE_RE = /\b(?:is|are)\s+(?:one|two|three|a|an|\d+)\s+(?:pints?|beers?|drinks?|wine|cider)\s+(?:okay|ok|safe)\b/i;
 
 function asksAboutAlcoholAndVehicleFitness(message: string): boolean {
   const text = message.replace(
@@ -26,7 +29,14 @@ function asksAboutAlcoholAndVehicleFitness(message: string): boolean {
   const alcoholAt = text.search(ALCOHOL_RE);
   const operationAt = text.search(VEHICLE_OPERATION_RE);
   if (alcoholAt < 0 || operationAt < 0) return false;
-  if (/\b(?:safe|fit|sober|drunk|okay|ok)\b/i.test(text)) return true;
+  const consumedAt = text.search(/\b(?:i|we)(?:['’]ve|\s+have)?\s+(?:had|drunk|drank|been\s+drinking)\b/i);
+  const reportsAlcohol = consumedAt >= 0 && alcoholAt > consumedAt
+    && !/[.!?]/.test(text.slice(consumedAt, alcoholAt));
+  const reportsDrunkenness = /\b(?:i(?:['’]m|\s+am)|we(?:['’]re|\s+are))\b[^.!?]{0,40}\bdrunk\b/i.test(text);
+  if ((reportsAlcohol || reportsDrunkenness)
+    && PERSONAL_OPERATION_QUESTION_RE.test(text)) return true;
+  if (PERSONAL_FITNESS_RE.test(text) || ALCOHOL_ALLOWANCE_RE.test(text)) return true;
+  if (/\bwhere\s+(?:can|could|may|should)\s+(?:i|we)\s+(?:buy|find|get|have|drink)\b/i.test(text)) return false;
   if (!PERSONAL_ALLOWANCE_RE.test(text)) return false;
 
   const beforeAt = text.search(/\bbefore\b/i);
@@ -87,6 +97,8 @@ function regexFenceIntent(
     }
     sobrietyOnly = true;
   }
+  if (PERSONAL_OPERATION_QUESTION_RE.test(message)
+    && asksAboutAlcoholAndVehicleFitness(texts.join("\n"))) sobrietyOnly = true;
   if (sobrietyOnly) {
     return { fenced: true, sobrietyOnly: true };
   }

@@ -141,6 +141,59 @@ describe("Pub Pal fence without TypeSafe key", () => {
       .resolves.toEqual({ fenced: false, sobrietyOnly: false });
   });
 
+  it("fences a direct operation question after reported drinking", async () => {
+    const query = "I have had two beers in Soho. Can I drive?";
+    await expect(resolvePubPalFenceIntent(query))
+      .resolves.toEqual({ fenced: true, sobrietyOnly: true });
+    mockSystemOneFromFixture(0.01, 0.01);
+    await expect(resolvePubPalFenceIntent(query))
+      .resolves.toEqual({ fenced: true, sobrietyOnly: true });
+  });
+
+  it("keeps the drinking verb in an alcohol-free venue search out of the fitness fence", async () => {
+    await expect(resolvePubPalFenceIntent("Where can I drink alcohol-free beer in Soho before driving?"))
+      .resolves.toEqual({ fenced: false, sobrietyOnly: false });
+  });
+
+  it("keeps safe cycling-route facts out of the personal fitness fence", async () => {
+    const query = "Find a safe cycling route to beer gardens in Soho";
+    await expect(resolvePubPalFenceIntent(query)).resolves.toEqual({ fenced: false, sobrietyOnly: false });
+    mockSystemOneFromFixture(0.01, 0.01);
+    await expect(resolvePubPalFenceIntent(query)).resolves.toEqual({ fenced: false, sobrietyOnly: false });
+  });
+
+  it.each([
+    "Where could I drink alcohol-free beer in Soho before driving?",
+    "Can I find a pub to drink alcohol-free beer in Soho before driving?",
+  ])("preserves equivalent alcohol-free venue discovery: %s", async (query) => {
+    await expect(resolvePubPalFenceIntent(query)).resolves.toEqual({ fenced: false, sobrietyOnly: false });
+  });
+
+  it("fences a direct operation question after reported drunkenness", async () => {
+    await expect(resolvePubPalFenceIntent("I'm drunk in Soho. Can I drive?"))
+      .resolves.toEqual({ fenced: true, sobrietyOnly: true });
+  });
+
+  it("uses the person's earlier drinking report for a short driving follow-up", async () => {
+    const turns: PubPalFenceTurn[] = [
+      { role: "user", content: "I have had two beers in Soho." },
+    ];
+    await expect(resolvePubPalFenceIntent("Can I drive?", turns))
+      .resolves.toEqual({ fenced: true, sobrietyOnly: true });
+    mockSystemOneFromFixture(0.01, 0.01);
+    await expect(resolvePubPalFenceIntent("Can I drive?", turns))
+      .resolves.toEqual({ fenced: true, sobrietyOnly: true });
+  });
+
+  it("does not infer consumption from an assistant's words or a user preference", async () => {
+    await expect(resolvePubPalFenceIntent("Can I drive?", [
+      { role: "assistant", content: "I have had two beers in Soho." },
+    ])).resolves.toEqual({ fenced: false, sobrietyOnly: false });
+    await expect(resolvePubPalFenceIntent("Can I drive?", [
+      { role: "user", content: "I like beer." },
+    ])).resolves.toEqual({ fenced: false, sobrietyOnly: false });
+  });
+
   it.each([
     "Can I drink two pints in Soho before I drive?",
     "How many pints can I have in Soho before driving back?",
