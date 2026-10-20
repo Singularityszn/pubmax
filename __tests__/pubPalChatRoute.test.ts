@@ -51,6 +51,21 @@ describe("POST /api/pub-pal/chat", () => {
     vi.unstubAllGlobals();
   });
 
+  it("uses the preceding Soho discovery for a longer budget follow-up", async () => {
+    vi.stubEnv("ELEVENLABS_API_KEY", "");
+    vi.stubGlobal("fetch", offlineFetch);
+    const response = await POST(new Request("http://localhost/api/pub-pal/chat", {
+      method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({
+        query: "Same area, but under £6.50 a pint.", cityId: "london",
+        turns: [{ role: "user", content: "Find me four pubs in Soho and show them on the map." }, { role: "assistant", content: "Four listed choices." }],
+      }),
+    }));
+    const body = await response.json();
+    expect(body.toolsUsed).toEqual(["search_venues"]);
+    expect(body.cards).toEqual(expect.arrayContaining([expect.objectContaining({ venueId: "venue-e1srzr" })]));
+    expect(body.cards.every((card: { price: number | null }) => typeof card.price === "number" && card.price <= 6.5)).toBe(true);
+  });
+
   it.each(QUALIFIED_PRICE_REQUESTS)("refuses qualified item comparisons through chat: $query", async ({ query, wording }) => {
     vi.stubEnv("ELEVENLABS_API_KEY", "");
     const response = await POST(new Request("http://localhost/api/pub-pal/chat", {

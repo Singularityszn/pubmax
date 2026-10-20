@@ -91,6 +91,18 @@ describe("propose_plan over the Pal webhook", () => {
     vi.unstubAllGlobals();
   });
 
+  it("uses the stored prior area for a budget refinement without rewriting its history", async () => {
+    const query = "Same area, but under £6.30 a pint.";
+    await registerPubPalToolTurn("conv_budgetfollow1", { query, cityId: "london", ownerId: "11111111-1111-4111-8111-111111111111",
+      turns: [{ role: "user", content: "Find me four pubs in Soho and show them on the map." }, { role: "user", content: "Same area, but under £6.50 a pint." }],
+    });
+    const { result } = await invokePubPalAskTool({ toolName: "venue_prices", args: { query: "pints in Camden" }, conversationId: "conv_budgetfollow1" });
+    expect(result.tool).toBe("search_venues");
+    expect(result.cards).toEqual(expect.arrayContaining([expect.objectContaining({ venueId: "venue-e1srzr" })]));
+    expect(result.cards).not.toEqual(expect.arrayContaining([expect.objectContaining({ venueId: "venue-15i2wst" })]));
+    expect((await readPubPalToolTurn("conv_budgetfollow1"))?.query).toBe(query);
+  });
+
   it.each(JOURNEY_ENDPOINT_REQUESTS)("preserves stored journey endpoints over provider rewrites: $query", async ({ query, from, to, venueId, name }) => {
     resetJourneyCache();
     const journeyFetch = vi.fn<typeof fetch>(async () => Response.json({ jsonrpc: "2.0", result: { structuredContent: { journeys: [{ durationMinutes: 12, legs: [] }] } } }));

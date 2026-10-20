@@ -219,6 +219,18 @@ describe("runPalElevenLabsChatTurn", () => {
     vi.unstubAllGlobals();
   });
 
+  it("keeps the budget follow-up and owned context intact for its webhook", async () => {
+    storeMocks.readOwnedPubPalToolTurn.mockResolvedValue({ ...toolTurnPayload, query: "Find me four pubs in Soho and show them on the map.", turns: [], summary: "" });
+    const query = "Same area, but under £6.50 a pint.";
+    const outcome = await runPalElevenLabsChatTurn({ query, ownerId: "11111111-1111-4111-8111-111111111111", threadId: "conv_ownedfollow1",
+      fenceTurns: [{ role: "user", content: "Find pubs in Camden" }],
+    });
+    expect(outcome.ok).toBe(true);
+    expect(storeMocks.registerPubPalToolTurn).toHaveBeenCalledWith("conv_regression01", expect.objectContaining({ query, turns: [{ role: "user", content: "Find me four pubs in Soho and show them on the map." }] }));
+    expect(wsState.userMessageText).toContain(`Current user message: ${query}`);
+    expect(wsState.userMessageText).not.toContain("Camden");
+  });
+
   it("review regression: returns independent transit with the unsupported price answer", async () => {
     vi.stubGlobal("fetch", offlineFetch);
     const outcome = await runPalElevenLabsChatTurn({ query: "Any tube delays and how much is a burger in Camden?", ownerId: "11111111-1111-4111-8111-111111111111" });

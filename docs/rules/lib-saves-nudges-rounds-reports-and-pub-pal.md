@@ -2,7 +2,7 @@
 
 Moved from [`lib/AGENTS.md`](../../lib/AGENTS.md). Authoritative policy detail lives here; the area index stays short.
 
-- **The current Pal conversation survives browsing a result in the same tab.** `lib/palChatThread.ts` uses `surfaceDataCache` for the last 24 entries. The cache expires after five idle minutes and clears at the existing account boundary. An unresolved viewer cannot restore an account's thread. The chat restores sourced cards, pending confirmation proposals and recent turns. Restoring a proposal performs no write. `New conversation` clears this thread without changing confirmed Pal memories. Provider correlation ids expire independently after ten minutes. Pins: `__tests__/palChatThread.test.ts`, `__tests__/palChatClient.test.ts`, `e2e/pal-recommendation-map.spec.ts`, `e2e/pal-thread-boundary.spec.ts`.
+- **The current Pal conversation survives browsing a result in the same tab.** `lib/palChatThread.ts` uses `surfaceDataCache` for the last 24 entries. The cache expires after two idle minutes and clears at the existing account boundary. An unresolved viewer cannot restore an account's thread. The chat restores sourced cards, pending confirmation proposals and actual API turns. Local navigation receipts stay out of provider history. Explicit same-area pint budgets retain the most recent named area across refinements. Restoring a proposal performs no write. `New conversation` clears this thread without changing confirmed Pal memories. The cache and provider correlation use the same idle-window constant. Pins: `__tests__/palChatThread.test.ts`, `__tests__/palChatClient.test.ts`, `e2e/pal-recommendation-map.spec.ts`, `e2e/pal-thread-boundary.spec.ts`.
 
 <a id="a-visit-report-is-an-account-of-one-visit-never-a-venue-rating"></a>
 

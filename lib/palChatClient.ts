@@ -31,6 +31,7 @@ type SessionOptions = {
   initialTurns?: readonly AskTurn[];
   initialConversationId?: string;
   onConversationId?: (id: string) => void;
+  onTurns?: (turns: AskTurn[]) => void;
 };
 
 const signedInFetch: typeof fetch = (input, init) =>
@@ -196,6 +197,7 @@ export function createPalChatSession(options: SessionOptions = {}) {
         turns.push({ role: "user", content: query });
         turns.push({ role: "assistant", content: result.message });
         while (turns.length > 6) turns.shift();
+        options.onTurns?.(turns.map((turn) => ({ ...turn })));
       }
       return result;
     } catch (error) {

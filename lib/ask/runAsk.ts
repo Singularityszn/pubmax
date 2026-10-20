@@ -206,7 +206,7 @@ export async function runAsk(input: RunAskInput): Promise<AskResponseBody> {
     // Incorporate last user refinement phrases into the routed query when the
     // current ask is short ("cheaper", "closer to the Tube").
     const priorUser = [...turns].reverse().find((t) => t.role === "user");
-    const routedQuery = refineRoutedAskQuery(query, priorUser?.content);
+    const routedQuery = refineRoutedAskQuery(query, priorUser?.content, turns.filter((turn) => turn.role === "user").map((turn) => turn.content));
     let venues: Array<{ id: string; name: string; area: string }> = [];
     try {
       venues = (await loadConciergeVenues(cityId)).map((venue) => ({

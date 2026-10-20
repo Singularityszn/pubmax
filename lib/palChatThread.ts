@@ -6,7 +6,7 @@ import type { PalAnswer } from "@/lib/palChat";
 import { palChatResultFromBody } from "@/lib/palChatClient";
 import { resolvePalLocality, type PalLocality } from "@/lib/palLocality";
 import type { PalRecall } from "@/lib/palRecall";
-import { isPubPalConversationId } from "@/lib/pubPalConversationId";
+import { isPubPalConversationId, PUB_PAL_CONVERSATION_IDLE_MS } from "@/lib/pubPalConversationId";
 import { readSurfaceSnapshot, writeSurfaceSnapshot } from "@/lib/surfaceDataCache";
 
 export type PalChatEntry =
@@ -22,7 +22,7 @@ export type PalChatThread = {
   conversationAt: number;
 };
 
-const key = (owner: string) => `/pal/chat#current-thread-v1/${encodeURIComponent(owner)}`;
+const key = (owner: string) => `/pal/chat#current-thread-v2/${encodeURIComponent(owner)}`;
 const record = (value: unknown): Record<string, unknown> | null => value && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : null;
 const text = (value: unknown, max: number) => typeof value === "string" ? value.slice(0, max) : "";
 
@@ -51,18 +51,55 @@ function menuEvidence(value: unknown): AskMenuEvidence | undefined {
 }
 
 /** Use the existing tab cache, including its account-change purge and age limit. */
-export function savePalChatThread(owner: string, entries: PalChatEntry[], conversationId: string, conversationAt: number): void {
-  writeSurfaceSnapshot(key(owner), { version: 1, entries: entries.slice(-24), conversationId, conversationAt });
+export function savePalChatThread(owner: string, entries: PalChatEntry[], conversationId: string, conversationAt: number, turns: readonly AskTurn[]): void {
+  writeSurfaceSnapshot(key(owner), { version: 2, entries: entries.slice(-24), conversationId, conversationAt, turns: turns.slice(-6) });
 }
 
 export function clearPalChatThread(owner: string): void {
   writeSurfaceSnapshot(key(owner), null);
 }
 
+function restoreAnswer(entry: Record<string, unknown>, id: string, query: string | undefined): PalChatEntry | null {
+  const answer = record(entry.answer);
+  if (typeof answer?.message !== "string" || !Array.isArray(answer.cards)) return null;
+  if (answer.cards.some((value) => {
+    const card = record(value);
+    return !card || typeof card.title !== "string" || !card.title.trim()
+      || (card.price !== null && (typeof card.price !== "number" || !Number.isFinite(card.price)));
+  })) return null;
+  // A tab snapshot can be damaged. Keep only the card's primitive facts
+  // and safe source links through the same normalizer as a new response.
+  const cards = answer.cards.slice(0, 6).map((rawCard) => {
+    const card = record(rawCard);
+    const provenance = record(card?.provenance);
+    const url = safeUrl(provenance?.url);
+    const evidence = menuEvidence(card?.menuEvidence);
+    return {
+      key: text(card?.key, 120), venueId: text(card?.venueId, 120), title: text(card?.title, 300),
+      place: text(card?.place, 300), note: text(card?.note, 3000), price: card?.price,
+      provenance: { label: text(provenance?.label, 500), kind: provenance?.kind, ...(url ? { url } : {}) },
+      ...(evidence ? { menuEvidence: evidence } : {}),
+      ...(typeof card?.when === "string" ? { when: card.when } : {}),
+      ...(typeof card?.confidence === "string" ? { confidence: card.confidence } : {}),
+    };
+  });
+  const result = palChatResultFromBody({ answer: text(answer.message, 8000), cards, proposals: entry.proposals });
+  if (result.status === "error") return null;
+  const area = record(record(entry.locality)?.area);
+  const remembered: RememberedArea | null = area?.kind === "night-patch" && typeof area.id === "string"
+    ? { kind: "patch", id: area.id } : area?.kind === "borough" && typeof area.name === "string" ? { kind: "borough", name: area.name } : null;
+  const recall = record(entry.recall);
+  const originalScope = record(entry.locality)?.scope;
+  const heldLocality = resolvePalLocality("", remembered);
+  const locality: PalLocality | null = heldLocality.grounded && (originalScope === "query" || originalScope === "remembered") ? { ...heldLocality, scope: originalScope } : query ? resolvePalLocality(query, null) : null;
+  return { kind: "answer", id, answer: result, locality, proposals: result.proposals,
+    recall: typeof recall?.line === "string" && typeof recall.topic === "string" ? { line: text(recall.line, 1000), topic: text(recall.topic, 200) } : null };
+}
+
 /** Restore this owner's facts and proposals. A proposal still needs a fresh tap. */
 export function readPalChatThread(owner: string, now = Date.now()): PalChatThread | null {
-  const saved = record(readSurfaceSnapshot<unknown>(key(owner), undefined, now));
-  if (saved?.version !== 1 || !Array.isArray(saved.entries)) return null;
+  const saved = record(readSurfaceSnapshot<unknown>(key(owner), PUB_PAL_CONVERSATION_IDLE_MS, now));
+  if (saved?.version !== 2 || !Array.isArray(saved.entries) || !Array.isArray(saved.turns)) return null;
   const entries: PalChatEntry[] = [];
   const priorAsks: string[] = [];
   const turns: AskTurn[] = [];
@@ -74,47 +111,21 @@ export function readPalChatThread(owner: string, now = Date.now()): PalChatThrea
       const query = text(entry.text, 500);
       entries.push({ kind: "user", id, text: query });
       priorAsks.push(query);
-      turns.push({ role: "user", content: query });
     } else if (entry.kind === "answer") {
-      const answer = record(entry.answer);
-      if (typeof answer?.message !== "string" || !Array.isArray(answer.cards)) return null;
-      if (answer.cards.some((value) => {
-        const card = record(value);
-        return !card || typeof card.title !== "string" || !card.title.trim()
-          || (card.price !== null && (typeof card.price !== "number" || !Number.isFinite(card.price)));
-      })) return null;
-      // A tab snapshot can be damaged. Keep only the card's primitive facts
-      // and safe source links through the same normalizer as a new response.
-      const cards = answer.cards.slice(0, 6).map((rawCard) => {
-        const card = record(rawCard);
-        const provenance = record(card?.provenance);
-        const url = safeUrl(provenance?.url);
-        const evidence = menuEvidence(card?.menuEvidence);
-        return {
-          key: text(card?.key, 120), venueId: text(card?.venueId, 120), title: text(card?.title, 300),
-          place: text(card?.place, 300), note: text(card?.note, 3000), price: card?.price,
-          provenance: { label: text(provenance?.label, 500), kind: provenance?.kind, ...(url ? { url } : {}) },
-          ...(evidence ? { menuEvidence: evidence } : {}),
-          ...(typeof card?.when === "string" ? { when: card.when } : {}),
-          ...(typeof card?.confidence === "string" ? { confidence: card.confidence } : {}),
-        };
-      });
-      const result = palChatResultFromBody({ answer: text(answer.message, 8000), cards, proposals: entry.proposals });
-      if (result.status === "error") return null;
-      const query = priorAsks.at(-1);
-      const area = record(record(entry.locality)?.area);
-      const remembered: RememberedArea | null = area?.kind === "night-patch" && typeof area.id === "string"
-        ? { kind: "patch", id: area.id } : area?.kind === "borough" && typeof area.name === "string" ? { kind: "borough", name: area.name } : null;
-      const recall = record(entry.recall);
-      entries.push({ kind: "answer", id, answer: result, locality: query ? resolvePalLocality(query, remembered) : null, proposals: result.proposals,
-        recall: typeof recall?.line === "string" && typeof recall.topic === "string" ? { line: text(recall.line, 1000), topic: text(recall.topic, 200) } : null });
-      turns.push({ role: "assistant", content: result.message });
+      const answer = restoreAnswer(entry, id, priorAsks.at(-1));
+      if (!answer) return null;
+      entries.push(answer);
     } else if (entry.kind === "error" && typeof entry.message === "string") {
       entries.push({ kind: "error", id, message: text(entry.message, 2000), needsSignIn: entry.needsSignIn === true, ...(typeof entry.retryQuery === "string" ? { retryQuery: text(entry.retryQuery, 500) } : {}) });
     } else return null;
   }
+  for (const raw of saved.turns.slice(-6)) {
+    const turn = record(raw);
+    if (!turn || (turn.role !== "user" && turn.role !== "assistant") || typeof turn.content !== "string") return null;
+    turns.push({ role: turn.role, content: text(turn.content, 8000) });
+  }
   const conversationAt = typeof saved.conversationAt === "number" && Number.isFinite(saved.conversationAt) ? saved.conversationAt : 0;
   const conversationId = typeof saved.conversationId === "string" && isPubPalConversationId(saved.conversationId)
-    && conversationAt <= now && now - conversationAt < 10 * 60_000 ? saved.conversationId : "";
-  return { entries, priorAsks: priorAsks.slice(-12), turns: turns.slice(-6), conversationId, conversationAt };
+    && conversationAt <= now && now - conversationAt < PUB_PAL_CONVERSATION_IDLE_MS ? saved.conversationId : "";
+  return { entries, priorAsks: turns.filter((turn) => turn.role === "user").map((turn) => turn.content), turns, conversationId, conversationAt };
 }

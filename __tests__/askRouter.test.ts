@@ -297,6 +297,23 @@ describe("routeAskDeterministically: Pub Pal V0.1 concierge tools", () => {
     );
   });
 
+  it.each(["Same area, but under £6.50 a pint.", "In the same area but under £6.50 please"])("keeps a longer budget refinement in the discovered area: %s", (query) => {
+    const refined = refineRoutedAskQuery(query, "Find me four pubs in Soho and show them on the map.");
+    expect(refined).toContain("pubs in Soho");
+    expect(routeAskDeterministically(refined).map((call) => call.name)).toEqual(["search_venues"]);
+  });
+
+  it.each(["Pint at The Lamb in the same area under £6.50", "Same area but cheapest wine under £6.50", "Pubs in Camden in the same area under £6.50"])("keeps a new named subject or place: %s", (query) => {
+    expect(refineRoutedAskQuery(query, "Find four pubs in Soho")).toBe(query);
+  });
+
+  it("keeps the explicit area across successive budget refinements", () => {
+    const prior = ["Find four pubs in Soho", "Same area, under £6.50 a pint"];
+    const refined = refineRoutedAskQuery("Same area but under £6.30 a pint", prior.at(-1), prior);
+    expect(refined).toContain("pubs in Soho");
+    expect(routeAskDeterministically(refined).map((call) => call.name)).toEqual(["search_venues"]);
+  });
+
   it("keeps a cheap CRAWL on propose_plan", () => {
     const calls = routeAskDeterministically("Plan a cheapest crawl in Soho");
     expect(calls.some((c) => c.name === "cheapest_pint_near")).toBe(false);

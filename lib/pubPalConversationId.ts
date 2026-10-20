@@ -5,6 +5,9 @@
  */
 const PUB_PAL_CONVERSATION_ID_PATTERN = /^conv_[A-Za-z0-9]{8,64}$/;
 
+/** Current conversation correlation expires after two idle minutes. */
+export const PUB_PAL_CONVERSATION_IDLE_MS = 2 * 60_000;
+
 export function isPubPalConversationId(value: string): boolean {
   return PUB_PAL_CONVERSATION_ID_PATTERN.test(value);
 }

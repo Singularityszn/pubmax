@@ -6,6 +6,7 @@ import type { AskToolName } from "@/lib/ask/types";
 import type { DrinkCategory } from "@/lib/drinks";
 import { isKnownAskPlacePhrase } from "@/lib/ask/venueResolution";
 import { palAsksForVenueDiscovery } from "@/lib/palMapAsk";
+import { defaultKnownAreas, deterministicAreaInText, extractExplicitBudget } from "@/lib/concierge/intentPolicy";
 
 export type RoutedToolCall = {
   name: AskToolName;
@@ -350,10 +351,28 @@ export function socialTurnKind(query: string): "greeting" | "thanks" | null {
  * own claim wins, so a pint ask after a wifi ask cannot be swallowed by
  * find_desk matching the earlier sentence.
  */
+const SAME_AREA_REFERENCE_RE = /(?:\b(?:in|near|around)\s+)?\b(?:the\s+)?same\s+(?:area|patch|neighbou?rhood)\b/i;
+
+/** A pint-budget refinement keeps the discovered area without replacing a named subject. */
+export function refineVenueBudgetFollowUp(query: string, priorUserContent: string | readonly string[] | null | undefined): string | null {
+  if (!priorUserContent || !SAME_AREA_REFERENCE_RE.test(query)
+    || extractExplicitBudget(query) === undefined || /\bat\s+\S/i.test(query)) return null;
+  const price = resolveAskPriceIntent(query);
+  if (price.kind !== "none" && price.kind !== "pint") return null;
+  const knownAreas = defaultKnownAreas();
+  if (deterministicAreaInText(query.replace(SAME_AREA_REFERENCE_RE, ""), knownAreas)) return null;
+  const priorLines = typeof priorUserContent === "string" ? [priorUserContent] : priorUserContent;
+  const priorArea = priorLines.map((line) => socialTurnKind(line) ? undefined : deterministicAreaInText(line.replace(SAME_AREA_REFERENCE_RE, ""), knownAreas)).findLast(Boolean);
+  return priorArea ? query.replace(SAME_AREA_REFERENCE_RE, `pubs in ${priorArea}`) : null;
+}
+
 export function refineRoutedAskQuery(
   query: string,
   priorUserContent: string | null | undefined,
+  priorUserContents?: readonly string[],
 ): string {
+  const budgetFollowUp = refineVenueBudgetFollowUp(query, priorUserContents ?? priorUserContent);
+  if (budgetFollowUp) return budgetFollowUp;
   const words = query.trim().split(/\s+/).filter(Boolean);
   if (!priorUserContent || words.length === 0 || words.length > 4) return query;
   if (socialTurnKind(priorUserContent)) return query;

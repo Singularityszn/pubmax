@@ -34,7 +34,7 @@ import IntentLink from "@/components/nav/IntentLink";
 import SiteNav from "@/components/nav/SiteNav";
 import { captureAccountAuth } from "@/lib/accountBoundFetch";
 import { trackEvent } from "@/lib/analytics";
-import type { AskProposal } from "@/lib/ask/types";
+import type { AskProposal, AskTurn } from "@/lib/ask/types";
 import { occupancyReceiptLine } from "@/lib/occupancy";
 import { confirmPalMemoryProposal } from "@/lib/palMemoryConfirmClient";
 import { confirmOccupancyProposal } from "@/components/map/useVenueOccupancy";
@@ -71,6 +71,7 @@ import { PLAN_FIELD_LABEL } from "@/lib/planCopy";
 import { planPalRouteHandoffHref } from "@/lib/planOccasion";
 import { writePlanningIntent } from "@/lib/planningIntent";
 import { createPalChatSession } from "@/lib/palChatClient";
+import { refineRoutedAskQuery } from "@/lib/ask/router";
 import { clearPalChatThread, readPalChatThread, savePalChatThread, type PalChatEntry as Entry, type PalChatThread } from "@/lib/palChatThread";
 import {
   cheapestGlanceLine,
@@ -313,11 +314,13 @@ function PalChatBody({ owner }: { owner: string | null }) {
   // Every ask this thread has carried, oldest first. In-thread only.
   const priorAsksRef = useRef<string[]>([]);
   const conversationRef = useRef({ id: "", at: 0 });
+  const turnsRef = useRef<AskTurn[]>([]);
   const savedEntriesRef = useRef<Entry[] | null>(null);
   const createSession = useCallback((initial?: PalChatThread) => createPalChatSession({
     initialTurns: initial?.turns,
     initialConversationId: initial?.conversationId,
     onConversationId(id) { conversationRef.current = { id, at: Date.now() }; },
+    onTurns(turns) { turnsRef.current = turns; },
   }), []);
 
   useEffect(() => {
@@ -331,6 +334,7 @@ function PalChatBody({ owner }: { owner: string | null }) {
       conversationRef.current = { id: saved.conversationId, at: saved.conversationAt };
       counterRef.current = saved.entries.length;
       priorAsksRef.current = saved.priorAsks;
+      turnsRef.current = saved.turns;
       savedEntriesRef.current = saved.entries;
       setEntries(saved.entries);
     });
@@ -339,7 +343,7 @@ function PalChatBody({ owner }: { owner: string | null }) {
 
   useEffect(() => {
     if (!owner || pending || !entries.length || entries === savedEntriesRef.current) return;
-    savePalChatThread(owner, entries, conversationRef.current.id, conversationRef.current.at);
+    savePalChatThread(owner, entries, conversationRef.current.id, conversationRef.current.at, turnsRef.current);
     savedEntriesRef.current = entries;
   }, [entries, pending, owner]);
 
@@ -489,7 +493,8 @@ function PalChatBody({ owner }: { owner: string | null }) {
         return;
       }
       // Ground WHERE this answer applies from the query and remembered area.
-      const locality = resolvePalLocality(text, readRememberedArea());
+      const priorUsers = turnsRef.current.filter((turn) => turn.role === "user").map((turn) => turn.content).slice(0, -1);
+      const locality = resolvePalLocality(refineRoutedAskQuery(text, priorUsers.at(-1), priorUsers), readRememberedArea());
       const proposals =
         result.status === "answered" || result.status === "empty"
           ? result.proposals ?? []
@@ -737,6 +742,7 @@ function PalChatBody({ owner }: { owner: string | null }) {
         sessionRef.current = null;
         priorAsksRef.current = [];
         conversationRef.current = { id: "", at: 0 };
+        turnsRef.current = [];
         savedEntriesRef.current = null;
         counterRef.current = 0;
         setEntries([]);

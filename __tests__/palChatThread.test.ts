@@ -3,8 +3,10 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { DEVICE_IDENTITY_CHANGED_EVENT } from "@/lib/deviceAccountIdentity";
 import { readPalChatThread, savePalChatThread, clearPalChatThread, type PalChatEntry } from "@/lib/palChatThread";
 import { clearSurfaceCache, SURFACE_CACHE_NAMESPACE, writeSurfaceSnapshot } from "@/lib/surfaceDataCache";
+import type { AskTurn } from "@/lib/ask/types";
 
 const NOW = Date.parse("2026-10-20T00:00:00Z");
+const transcript: AskTurn[] = [{ role: "user", content: "Find me four pubs in Soho" }, { role: "assistant", content: "A listed Soho pub." }];
 const entries = (): PalChatEntry[] => [
   { kind: "user", id: "t-7", text: "Find me four pubs in Soho" },
   { kind: "answer", id: "t-8", answer: { status: "answered", message: "A listed Soho pub.", cards: [
@@ -22,7 +24,7 @@ afterEach(() => { clearSurfaceCache(); vi.useRealTimers(); vi.restoreAllMocks();
 
 describe("the current Pal conversation in a tab", () => {
   it("restores sourced facts and the context for the next question", () => {
-    savePalChatThread("owner-a", entries(), "conv_returntest1", NOW);
+    savePalChatThread("owner-a", entries(), "conv_returntest1", NOW, transcript);
     const restored = readPalChatThread("owner-a")!;
     expect(restored.entries[1]).toMatchObject({ answer: { cards: [{ title: "Shakespeares Head (Soho)", price: 6.25, provenance: { label: "Pint Prices. Source read 2 October 2026." } }] } });
     expect(restored.turns).toEqual([{ role: "user", content: "Find me four pubs in Soho" }, { role: "assistant", content: "A listed Soho pub." }]);
@@ -30,9 +32,19 @@ describe("the current Pal conversation in a tab", () => {
     expect(restored.conversationId).toBe("conv_returntest1");
   });
   it("does not give another account or an anonymous viewer the conversation", () => {
-    savePalChatThread("owner-a", entries(), "", 0);
+    savePalChatThread("owner-a", entries(), "", 0, transcript);
     expect(readPalChatThread("owner-b")).toBeNull();
     expect(readPalChatThread("anonymous")).toBeNull();
+  });
+  it("keeps navigation receipts out of the next provider request", () => {
+    const timeline: PalChatEntry[] = [...entries(), { kind: "user", id: "t-9", text: "Take me there" }, {
+      kind: "answer", id: "t-10", answer: { status: "answered", message: "Opening the pub", cards: [] }, locality: null, proposals: [], recall: null,
+    }];
+    savePalChatThread("owner-a", timeline, "", 0, transcript);
+    const restored = readPalChatThread("owner-a")!;
+    expect(restored.entries).toHaveLength(4);
+    expect(restored.turns).toEqual(transcript);
+    expect(restored.priorAsks).toEqual(["Find me four pubs in Soho"]);
   });
   it("retains menu and event evidence without confirming a pending memory", () => {
     const request = vi.spyOn(globalThis, "fetch");
@@ -47,7 +59,7 @@ describe("the current Pal conversation in a tab", () => {
       dietary: [], dietaryProvenance: null, observedAt: "2026-10-02", source: "Pub menu", sourceUrl: "https://example.com/menu", licence: "Published menu", availability: "unknown",
     };
     answer.proposals = [{ id: "remember:ale", kind: "remember_memory", label: "Remember cask ale", memoryKind: "drink_preference", value: "Cask ale" }];
-    savePalChatThread("owner-a", thread, "", 0);
+    savePalChatThread("owner-a", thread, "", 0, transcript);
     const restored = readPalChatThread("owner-a")!;
     expect(restored.entries[1]).toMatchObject({
       answer: { cards: [{ when: "2026-10-20T19:00:00Z", confidence: "confirmed", menuEvidence: { caloriesKcal: 180, caloriesProvenance: { sourceUrl: "https://example.com/menu" } } }] },
@@ -56,37 +68,37 @@ describe("the current Pal conversation in a tab", () => {
     expect(request).not.toHaveBeenCalled();
   });
   it("drops the conversation at the existing account boundary", () => {
-    savePalChatThread("owner-a", entries(), "", 0);
+    savePalChatThread("owner-a", entries(), "", 0, transcript);
     window.dispatchEvent(new Event(DEVICE_IDENTITY_CHANGED_EVENT));
     expect(readPalChatThread("owner-a")).toBeNull();
     expect(sessionStorage.length).toBe(0);
   });
   it("ages out rather than becoming permanent memory", () => {
-    savePalChatThread("owner-a", entries(), "", 0);
-    vi.advanceTimersByTime(6 * 60_000);
+    savePalChatThread("owner-a", entries(), "", 0, transcript);
+    vi.advanceTimersByTime(3 * 60_000);
     expect(readPalChatThread("owner-a")).toBeNull();
   });
   it("starts a fresh provider thread when its correlation id is old or future dated", () => {
-    for (const timestamp of [NOW - 11 * 60_000, NOW + 1]) {
-      savePalChatThread("owner-a", entries(), "conv_returntest1", timestamp);
+    for (const timestamp of [NOW - 3 * 60_000, NOW + 1]) {
+      savePalChatThread("owner-a", entries(), "conv_returntest1", timestamp, transcript);
       const restored = readPalChatThread("owner-a")!;
       expect(restored.entries).toHaveLength(2);
       expect(restored.conversationId).toBe("");
     }
   });
   it("lets the person explicitly start a new conversation", () => {
-    savePalChatThread("owner-a", entries(), "", 0);
+    savePalChatThread("owner-a", entries(), "", 0, transcript);
     clearPalChatThread("owner-a");
     expect(readPalChatThread("owner-a")).toBeNull();
   });
   it("rejects damaged tab state and never restores an executable source URL", () => {
     const unsafe = entries();
     if (unsafe[1]?.kind === "answer") unsafe[1].answer.cards[0]!.provenance.url = "javascript:alert(1)";
-    savePalChatThread("owner-a", unsafe, "", 0);
+    savePalChatThread("owner-a", unsafe, "", 0, transcript);
     const restored = readPalChatThread("owner-a")!;
     expect(restored.entries[1]?.kind === "answer" && restored.entries[1].answer.cards[0]?.provenance.url).toBeUndefined();
     const storageKey = Object.keys(sessionStorage).find((name) => name.startsWith(SURFACE_CACHE_NAMESPACE))!;
-    writeSurfaceSnapshot(storageKey.slice(SURFACE_CACHE_NAMESPACE.length), { version: 1, entries: "damaged" });
+    writeSurfaceSnapshot(storageKey.slice(SURFACE_CACHE_NAMESPACE.length), { version: 2, entries: "damaged", turns: [] });
     expect(readPalChatThread("owner-a")).toBeNull();
   });
 });

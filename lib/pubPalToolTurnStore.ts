@@ -3,7 +3,7 @@ import "server-only";
 import type { AskCard, AskProposal } from "@/lib/ask/types";
 import type { CityId } from "@/lib/cities";
 import type { PubPalFenceTurn } from "@/lib/pubPalLlmFence";
-import { isPubPalConversationId } from "@/lib/pubPalConversationId";
+import { isPubPalConversationId, PUB_PAL_CONVERSATION_IDLE_MS } from "@/lib/pubPalConversationId";
 import { PAL_SESSION_RECENT_TURNS, windowPalSessionTurns } from "@/lib/palSessionSummary";
 import {
   createDualBackendStore,
@@ -13,7 +13,7 @@ import {
 import { requireSupabaseAdmin } from "@/lib/supabase";
 
 /** Two minutes after the user's last line. The purge cron deletes expired rows every minute. */
-export const PUB_PAL_TOOL_TURN_TTL_MS = 120_000;
+export const PUB_PAL_TOOL_TURN_TTL_MS = PUB_PAL_CONVERSATION_IDLE_MS;
 
 const PUB_PAL_TOOL_TURN_MIGRATION_HINT = "apply migration 0169";
 

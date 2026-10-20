@@ -176,7 +176,7 @@ export async function POST(request: Request): Promise<Response> {
       if (answer.toolsUsed.length === 1 && answer.toolsUsed[0] === "search_venues") {
         const priorUser = [...turns].reverse().find((turn) => turn.role === "user");
         const { intent } = await parseConciergeIntent(
-          refineRoutedAskQuery(query, priorUser?.content),
+          refineRoutedAskQuery(query, priorUser?.content, turns.filter((turn) => turn.role === "user").map((turn) => turn.content)),
           { skipModel: true },
         );
         if (
