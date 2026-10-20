@@ -1548,17 +1548,17 @@ export default function PubMap({
   // We drop the loading skeleton immediately in that case even if slim pins
   // are still in flight, so the fallback card isn't hidden behind chrome.
   const [mapCanvasErrored, setMapCanvasErrored] = useState(false);
-  // A map that cannot draw (no WebGL, or no pub list) never reveals pins, so
-  // the document's opening prices (components/map/MapOpeningPreview.tsx) would
-  // stand over the fallback for ever. Tell them to stand down instead.
-  useEffect(() => {
-    if (!mapCanvasErrored && !venueIndexFailed) return;
-    window.dispatchEvent(new Event(MAP_OPENING_PREVIEW_RETRACT_EVENT));
-  }, [mapCanvasErrored, venueIndexFailed]);
   // The two failures the canvas cannot report, because neither leaves a canvas
   // to report them: its module never loaded, and it never answered at all.
   // lib/mapCanvasAvailability.ts owns what either one means and what it says.
   const [mapCanvasModuleFailed, setMapCanvasModuleFailed] = useState(false);
+  // A map that cannot draw (no module, WebGL, or pub list) never reveals pins, so
+  // the document's opening prices (components/map/MapOpeningPreview.tsx) would
+  // stand over the fallback for ever. Tell them to stand down instead.
+  useEffect(() => {
+    if (!mapCanvasModuleFailed && !mapCanvasErrored && !venueIndexFailed) return;
+    window.dispatchEvent(new Event(MAP_OPENING_PREVIEW_RETRACT_EVENT));
+  }, [mapCanvasModuleFailed, mapCanvasErrored, venueIndexFailed]);
   // Stamped with the attempt it lapsed on rather than a bare flag: a retry
   // bumps the attempt and the derived answer goes false with it, so nothing has
   // to reset this from inside an effect body.

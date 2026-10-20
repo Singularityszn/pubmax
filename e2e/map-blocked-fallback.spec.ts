@@ -148,6 +148,9 @@ test.describe("a blocked map library keeps the pubs reachable", () => {
 
       await expect(fallback(page)).toBeVisible({ timeout: 45_000 });
       expect(aborted(), "the map chunk was never actually blocked").toBeGreaterThan(0);
+      // Opening prices must leave when the map cannot load, so the fallback
+      // pub names and directory link stay readable.
+      await expect(page.locator(".mapOpeningPreview")).toBeHidden();
       // The whole-app error page is the defect this replaces.
       await expect(spilled(page)).toHaveCount(0);
       await expect(fallback(page)).toContainText("Map couldn't load");
