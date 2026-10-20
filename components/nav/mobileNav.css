@@ -70,9 +70,10 @@
      4px gap, the pill, an 8px frame. The pill keeps its berth; the card only
      adds what is above it. Android grows rem geometry with its root font.
      iOS keeps that root unchanged, so its applied text scale grows only the
-     layout lengths. Every berth reading --map-peek-h follows the same row. */
+     layout lengths. Wrapped status text can grow beyond this minimum. */
   --map-peek-row-h: calc(2.75rem * var(--native-text-layout-scale, 1));
   --map-peek-h: calc(var(--map-peek-row-h) + var(--plan-activation-h) + 20px);
+  --map-peek-clearance-h: var(--map-peek-rendered-h, var(--map-peek-h));
 
   /* Member: the map-edge corner column. Its box spans most of the viewport, but
      what sits in this band is the Near me FAB parked at the column's own bottom
@@ -145,7 +146,7 @@ body {
    consent card takes the pill's slot and stands the bottom card down, so this
    never applies beside it. */
 body:has(.mapStage):has(.mapPeek):not(:has(.analyticsConsentPrompt)) {
-  --float-stack-top-plan: calc(var(--plan-activation-bottom) - 8px + var(--map-peek-h));
+  --float-stack-top-plan: calc(var(--plan-activation-bottom) - 8px + var(--map-peek-clearance-h));
   --map-corner-bottom: calc(var(--float-stack-top-plan) + 14px);
   --float-stack-top-map-corner: calc(var(--map-corner-bottom) + var(--map-corner-locate-size));
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useRef } from "react";
+import { useCallback, useLayoutEffect, useRef } from "react";
 import { ChevronUp } from "lucide-react";
 
 import { mapPeekSummary, type MapPeekModel } from "@/lib/mapPeek";
@@ -11,7 +11,7 @@ import { useSpringValue } from "@/lib/useSpringValue";
 // Plan. It is the ONE bottom layer, so the plan door rides inside it rather than
 // floating beside it. Drag it up to open the venue list.
 //
-// It moves by TRANSFORM only (the box never resizes), tracks the finger 1:1,
+// A drag moves it by TRANSFORM only, tracks the finger 1:1,
 // rubber-bands at both ends and hands the release velocity to a critically
 // damped spring. It commits on distance or on a flick, never on a detent tick:
 // lib/nativeHaptics.ts keeps haptics for kept actions, so this surface has none.
@@ -114,6 +114,29 @@ export default function MapPeekSheet({
   const dragRef = useRef<DragState | null>(null);
   const draggedRef = useRef(false);
   const pressedButtonRef = useRef<HTMLButtonElement | null>(null);
+  const sheetRef = useRef<HTMLElement | null>(null);
+  const visibleHeightRef = useRef(0);
+
+  useLayoutEffect(() => {
+    const sheet = sheetRef.current;
+    if (!sheet) return;
+    const root = document.documentElement;
+    const publish = () => {
+      // Covering removes the plan door. Keep the last visible berth until
+      // the card returns, so controls do not fall behind the opening drawer.
+      if (!covered) visibleHeightRef.current = Math.ceil(sheet.getBoundingClientRect().height);
+      if (visibleHeightRef.current > 0) {
+        root.style.setProperty("--map-peek-rendered-h", `${visibleHeightRef.current}px`);
+      }
+    };
+    publish();
+    const observer = typeof ResizeObserver === "undefined" ? null : new ResizeObserver(publish);
+    observer?.observe(sheet);
+    return () => {
+      observer?.disconnect();
+      root.style.removeProperty("--map-peek-rendered-h");
+    };
+  }, [covered, model.status]);
 
   const onPointerDown = useCallback(
     (event: React.PointerEvent<HTMLElement>) => {
@@ -224,6 +247,7 @@ export default function MapPeekSheet({
 
   return (
     <section
+      ref={sheetRef}
       className="mapPeek"
       aria-label={model.status === "unavailable" ? "Map unavailable" : "Cheapest in this view"}
       data-state={model.status}
