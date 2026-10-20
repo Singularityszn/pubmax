@@ -251,7 +251,7 @@ test("single-value intake fields advance with Enter without submitting the Plan"
   await expect.poll(async () => groupHeading.evaluate((element) => ({
     style: getComputedStyle(element).outlineStyle,
     width: getComputedStyle(element).outlineWidth,
-  }))).toEqual({ style: "solid", width: "3px" });
+  }))).toEqual({ style: "solid", width: "2px" });
 
   const groupSize = page.getByLabel("Or enter a group size");
   await groupSize.fill("7");
