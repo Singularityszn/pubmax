@@ -1621,7 +1621,7 @@ html[data-theme="dark"] .planCrew__join button { color: #090d0b; }
 
 /* ── Plan result: the route first ────────────────────────────────────────────
    Once a route is on the page the page IS the route: a heading and one summary
-   line, a map strip, then one card per Stop with the walk between them. Every
+   line, one card per Stop with the walk between them, then the map strip. Every
    setting lives behind "Tune details". Built from the launch tokens only; the
    route line is the map's own `--route-line`, so the strip and the full map
    read as one route system.

@@ -377,10 +377,10 @@ header.loginPageHead {
   text-wrap: pretty;
 }
 
-/* A link inside a sentence keeps the sentence's own spacing. The old 44px
-   minimum WIDTH centred "terms" in a box wider than the word, so it printed
-   with a gap on each side. The tap height stays. */
+/* Extend each link's target without adding gaps to the sentence. */
 .loginPageLegal a {
+  padding-inline: var(--space-2);
+  margin-inline: calc(-1 * var(--space-2));
   display: inline-flex;
   align-items: center;
   min-height: 44px;

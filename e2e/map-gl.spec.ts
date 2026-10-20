@@ -925,6 +925,9 @@ test("/map shows a readable fallback when the phone render loop never draws a fr
 
   // Venue content survives: static list rows + the directory link.
   await expect(page.locator(".mapFallbackBrowse")).toBeVisible();
+  const browseBox = await page.locator(".mapFallbackBrowse").boundingBox();
+  expect(browseBox!.width).toBeGreaterThanOrEqual(44);
+  expect(browseBox!.height).toBeGreaterThanOrEqual(44);
   await expect
     .poll(async () => page.locator(".mapFallbackVenue").count(), { timeout: 15_000 })
     .toBeGreaterThan(0);

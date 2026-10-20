@@ -2751,9 +2751,11 @@ html[data-theme="dark"] .appShell .mapStage .maplibregl-ctrl-group button .mapli
 }
 
 .mapFallbackBrowse {
-  display: inline-block;
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
   margin-top: 10px;
-  color: var(--color-text-muted);
+  color: var(--color-on-inverse);
   font-size: var(--text-sm);
   font-weight: 600;
   text-decoration: underline;
