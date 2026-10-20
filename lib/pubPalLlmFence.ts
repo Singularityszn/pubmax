@@ -47,16 +47,17 @@ function asksAboutAlcoholAndVehicleFitness(message: string): boolean {
       const parts = text.split(/\b(before|after|and\s+still)\b/i);
       for (let index = 1; index < parts.length; index += 2) {
         const relation = parts[index] ?? "";
-        const left = parts[index - 1] ?? "";
+        const left = parts.slice(0, index).join("");
         const right = parts[index + 1] ?? "";
-        const alcoholAt = right.search(ALCOHOL_RE);
-        const operationAt = right.search(VEHICLE_OPERATION_RE);
-        if (/^before$/i.test(relation) && operationAt >= 0
+        const remaining = parts.slice(index + 1).join("");
+        const alcoholAt = remaining.search(ALCOHOL_RE);
+        const operationAt = remaining.search(VEHICLE_OPERATION_RE);
+        if (/^before$/i.test(relation) && VEHICLE_OPERATION_RE.test(right)
           && (ALCOHOL_RE.test(left) || alcoholAt > operationAt)) return true;
-        if (/^after$/i.test(relation) && alcoholAt >= 0
+        if (/^after$/i.test(relation) && ALCOHOL_RE.test(right)
           && (VEHICLE_OPERATION_RE.test(left) || operationAt > alcoholAt)) return true;
         if (/^and\s+still$/i.test(relation)
-          && ALCOHOL_RE.test(left) && operationAt >= 0) return true;
+          && ALCOHOL_RE.test(left) && VEHICLE_OPERATION_RE.test(right)) return true;
       }
       return false;
     });

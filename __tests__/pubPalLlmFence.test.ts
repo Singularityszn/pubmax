@@ -1,3 +1,4 @@
+import { CHAINED_ALCOHOL_FITNESS_QUESTIONS } from "./fixtures/pubPalTemporalSafety";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import probabilities from "@/__tests__/fixtures/typesafe/pubPalFenceProbabilities.json";
@@ -162,6 +163,37 @@ describe("Pub Pal fence without TypeSafe key", () => {
     await expect(resolvePubPalFenceIntent(query)).resolves.toEqual({ fenced: true, sobrietyOnly: true });
     mockSystemOneFromFixture(0.01, 0.01);
     await expect(resolvePubPalFenceIntent(query)).resolves.toEqual({ fenced: true, sobrietyOnly: true });
+  });
+
+  it.each(CHAINED_ALCOHOL_FITNESS_QUESTIONS)("retains alcohol evidence across timing phrases: %s", async (query) => {
+    expect({
+      fenced: isPubPalGetHomeOrSobrietyIntent(query),
+      sobrietyOnly: isPubPalSobrietyOnlyIntent(query),
+    }).toEqual({ fenced: true, sobrietyOnly: true });
+    for (const classification of [null, "negative"]) {
+      if (classification) mockSystemOneFromFixture(0.01, 0.01);
+      await expect(resolvePubPalFenceIntent(query)).resolves.toEqual({ fenced: true, sobrietyOnly: true });
+      await expect(resolvePubPalFenceIntent("What about Soho?", [{ role: "user", content: query }]))
+        .resolves.toEqual({ fenced: true, sobrietyOnly: true });
+      await expect(resolvePubPalFenceIntent("Quiet garden near Soho", [{ role: "assistant", content: query }]))
+        .resolves.toEqual({ fenced: false, sobrietyOnly: false });
+    }
+  });
+
+  it.each([
+    "Can I drink two pints before dinner after driving?",
+    "Can I drink 1.5 pints after cycling before dinner?",
+    "Can I drink beer near St. James before finding a pub after riding my bike?",
+    "After driving before dinner, can I drink two pints?",
+    "Before two beers after dinner, can I have a meal after cycling?",
+    "Can I drink beer after dinner? Where can I buy beer before driving?",
+    "Where can I buy beer before dinner? After driving, should I have beer?",
+  ])("preserves operation-before-alcohol and independent discovery questions: %s", async (query) => {
+    expect(isPubPalGetHomeOrSobrietyIntent(query)).toBe(false);
+    expect(isPubPalSobrietyOnlyIntent(query)).toBe(false);
+    await expect(resolvePubPalFenceIntent(query)).resolves.toEqual({ fenced: false, sobrietyOnly: false });
+    mockSystemOneFromFixture(0.01, 0.01);
+    await expect(resolvePubPalFenceIntent(query)).resolves.toEqual({ fenced: false, sobrietyOnly: false });
   });
 
   it("retains mixed discovery and alcohol safety only from user history", async () => {

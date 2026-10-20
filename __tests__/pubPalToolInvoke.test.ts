@@ -1,3 +1,4 @@
+import { CHAINED_ALCOHOL_FITNESS_QUESTIONS } from "./fixtures/pubPalTemporalSafety";
 import { VIBE_CHIPS } from "@/lib/vibeChips";
 import { JOURNEY_ENDPOINT_REQUESTS, NAMED_QUALIFIED_PRICE_REQUESTS, NAMED_TERMINAL_PRICE_REQUESTS, QUALIFIED_PRICE_REQUESTS } from "./fixtures/askPriceSubjects";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -92,6 +93,11 @@ describe("propose_plan over the Pal webhook", () => {
   });
 
   it.each([
+    ...CHAINED_ALCOHOL_FITNESS_QUESTIONS.flatMap((query) => [
+      { conversationId: null, query },
+      { conversationId: "conv_chainedsafety01", query },
+      { conversationId: "conv_chainedhistory01", query },
+    ]),
     { conversationId: null, query: "Where can I buy beer in Soho? How many pints can I have before driving?" },
     { conversationId: "conv_mixedsafety01", query: "Where can I buy beer in Soho? How many pints can I have before driving?" },
     { conversationId: null, query: "Where can I buy beer after cycling through Soho? Would it be safe to drive after two beers?" },
@@ -103,7 +109,9 @@ describe("propose_plan over the Pal webhook", () => {
   ])("fences mixed discovery and alcohol allowance in voice tools: $conversationId $query", async ({ conversationId, query }) => {
     if (conversationId) {
       await registerPubPalToolTurn(conversationId, {
-        query, cityId: "london", ownerId: "11111111-1111-4111-8111-111111111111",
+        query: conversationId === "conv_chainedhistory01" ? "What about Soho?" : query,
+        turns: conversationId === "conv_chainedhistory01" ? [{ role: "user", content: query }] : [],
+        cityId: "london", ownerId: "11111111-1111-4111-8111-111111111111",
       });
     }
     const { result } = await invokePubPalAskTool({
@@ -117,6 +125,20 @@ describe("propose_plan over the Pal webhook", () => {
       expect((await readPubPalToolTurn(conversationId))?.cards).toEqual([]);
       expect((await readPubPalToolTurn(conversationId))?.hints).toContain(result.answerHint);
     }
+  });
+
+  it("excludes chained alcohol questions from assistant history in voice tools", async () => {
+    await registerPubPalToolTurn("conv_chainedassistant01", {
+      query: "Find four quiet pubs in Soho", cityId: "london",
+      ownerId: "11111111-1111-4111-8111-111111111111",
+      turns: [{ role: "assistant", content: CHAINED_ALCOHOL_FITNESS_QUESTIONS[0] }],
+    });
+    const { result } = await invokePubPalAskTool({
+      toolName: "search_venues", args: { query: "pubs in Soho" }, conversationId: "conv_chainedassistant01",
+    });
+    expect(result.fenced).not.toBe(true);
+    expect(result.cards).toEqual(expect.arrayContaining([expect.objectContaining({ venueId: expect.any(String) })]));
+    expect(result.answerHint).not.toContain("I can't tell you whether to have another drink.");
   });
 
   it("uses the stored prior area for a budget refinement without rewriting its history", async () => {
