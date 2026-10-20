@@ -20,7 +20,7 @@ The unit and controlled SDK proofs cover alert output and auth transitions separ
 
 The same build was reused without rebuilding.
 The existing `preparePerfPage` and `runPerfRoute` helpers measured both pages under
-`perf/route-budgets.json`'s method: Desktop Chrome, 4x CPU throttle, Fast 4G,
+`perf/route-budgets.json`'s method: Desktop Chrome at 390 by 844, 4x CPU throttle, Fast 4G,
 one discarded warmup, three measured samples and two required resamples.
 All samples used the page's own readiness boundary.
 
@@ -35,5 +35,5 @@ No existing route ceiling increased.
 The sample rows are retained in `production-perf.json` beside this record.
 These figures describe the new pages. They cannot rank the slowest five production pages.
 
-The private logs and desktop captures remain under `artifacts/operations-checklist-1020/`.
+The private logs and phone captures remain under `artifacts/operations-checklist-1020/`.
 The ordinary CI performance sweep remains a separate check on the submitted head.
