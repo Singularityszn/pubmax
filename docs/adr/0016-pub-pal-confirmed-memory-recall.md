@@ -23,7 +23,8 @@ had to say it again every night.
    webhook body, so one conversation can only read its own account's Pal.
 3. **Two read paths.** Typed chat puts the confirmed lines ahead of the ask on
    the server (the typed preamble). Voice calls the Pal-only `recall_memories`
-   webhook. Both read through `lib/palConfirmedMemories.server.ts`.
+   webhook. Signed-in text and voice openings can also reference confirmed context
+   when the taste read permits it. All paths read through `lib/palConfirmedMemories.server.ts`.
 4. **Writes stay confirm-gated.** The Pal-only `propose_memory` webhook adds
    a visible card to typed and voice chat. The webhook saves nothing.
    Only the person's confirmation can create, update or delete a memory through

@@ -67,9 +67,8 @@ async function waitForPubPalToolTurn(
 type PriorSession = { turns: PubPalFenceTurn[]; summary: string; conversationId?: string };
 
 /**
- * The signed-in owner's earlier asks, read from their own stored turn and never
- * from the request. The newest stay word for word and older ones roll into the
- * session summary.
+ * Read earlier context from the signed-in owner's stored turn, never the request.
+ * The shared session window resolves same-area budget references before eviction.
  */
 async function priorOwnedSession(threadId: unknown, ownerId: string): Promise<PriorSession> {
   if (typeof threadId !== "string" || !isPubPalConversationId(threadId)) return { turns: [], summary: "" };

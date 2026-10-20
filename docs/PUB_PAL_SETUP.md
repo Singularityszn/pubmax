@@ -179,6 +179,15 @@ Provider-backed typed chat uses the agent in text-only mode via `/api/pub-pal/ch
 The server opens its WebSocket. Voice opens a browser WebSocket from the signed URL.
 Live proof after a real run: `node scripts/pubpal/prove-pal-text-tool.mjs --base-url https://pubmaxxing.com`.
 
+`GET /api/pub-pal/chat` prepares the signed-in owner's opening without a provider session, including on keyless deployments.
+A first typed greeting can request the same opening.
+The opening uses confirmed past-night reports, the latest logged visit or the profile's favourite drink when the taste read permits it.
+An unavailable memory read produces an explicit unavailable message.
+An affirmative reply to a past-night opening asks for an area and a price per pint.
+It never converts reported expenditure into a pint budget.
+Voice uses the same opening builder in its first-message override.
+[ADR 0016](adr/0016-pub-pal-confirmed-memory-recall.md) owns confirmed-memory access.
+
 1. **Hosted LLM** (`gemini-2.5-flash-lite` by default) on the ElevenLabs plan.
 2. **Webhook tools** for the ADR 0014 allowlist (same handlers as `/api/ask`).
    Each tool sets `pre_tool_speech: "force"` and `execution_mode: "immediate"`,
@@ -236,7 +245,9 @@ Live proof after a real run: `node scripts/pubpal/prove-pal-text-tool.mjs --base
    showed as replaced, and the route answers 409 when the memory has changed
    since, so a stale card never overwrites a newer fact. Without a TypeSafe key only exact
    duplicates are caught and every other offer is an ordinary card. Typed chat also carries
-   a rolling session summary turn capped at 300 UTF-8 bytes, label included.
+   recent turns through `windowPalSessionTurns` in `lib/palSessionSummary.ts`.
+   It resolves same-area pint-budget references before older turns leave the window.
+   Older user asks form a rolling session summary turn capped at 300 UTF-8 bytes, label included.
    A byte-level BPE token always covers at least one byte, so the turn is at
    most 300 tokens for any input. It is built only from the person's own older
    asks and never used as a fact source.

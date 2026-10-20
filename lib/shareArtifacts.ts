@@ -54,7 +54,7 @@ export type PlanInviteSpendBand = {
   maxGbp: number;
 };
 
-/** Listed stop prices in GBP. Returns null unless every stop carries a price. */
+/** Listed pint-price range in GBP, never a per-person total. Missing stop prices return null. */
 export function planInviteSpendBandFromListedPrices(
   pricesGbp: readonly (number | null | undefined)[],
 ): PlanInviteSpendBand | null {
