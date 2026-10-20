@@ -71,7 +71,9 @@ vi.mock("@/lib/supabase", () => ({
 }));
 
 const voiceBind = vi.hoisted(() => vi.fn(async () => {}));
-const tasteRead = vi.hoisted(() => vi.fn(async (_ownerId: string) => null as import("@/lib/palTaste").PalTaste | null));
+const tasteRead = vi.hoisted(() => vi.fn<
+  (ownerId: string) => Promise<import("@/lib/palTaste").PalTaste | null>
+>(async () => null));
 vi.mock("@/lib/palTaste.server", () => ({ readPalTaste: tasteRead }));
 
 vi.mock("@/lib/pubPalToolTurnStore", () => ({
