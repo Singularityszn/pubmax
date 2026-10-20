@@ -51,6 +51,8 @@ function toVenue(value: unknown): ConciergeVenue | null {
     lat: row.lat,
     lng: row.lng,
     cheapestPrice: row.cheapestPrice as number | null,
+    ...(typeof row.priceSource === "string" ? { priceSource: row.priceSource } : {}),
+    ...(typeof row.priceObservedAt === "string" ? { priceObservedAt: row.priceObservedAt } : {}),
     amenities: {
       beerGarden: bool(amenities, "beerGarden"),
       cocktails: bool(amenities, "cocktails"),

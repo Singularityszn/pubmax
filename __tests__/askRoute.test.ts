@@ -55,6 +55,14 @@ function post(body: unknown, ip: string): Promise<Response> {
 }
 
 describe("POST /api/ask", () => {
+  it("carries each Soho pint publisher and read date into its answer card", async () => {
+    const response = await post({ query: "Find me four pubs in Soho", cityId: "london" }, "203.0.113.183");
+    const body = await response.json();
+    expect(response.status).toBe(200);
+    const card = body.cards.find((item: { venueId: string }) => item.venueId === "venue-e1srzr");
+    expect(card).toMatchObject({ price: 6.25, provenance: { kind: "directory", label: "Pint Prices. Source read 2 October 2026." } });
+  });
+
   it("asks for a listed pub instead of arbitrary cards for an unanchored pint comparison", async () => {
     const query = "Cheapest pint";
     const body = await (await post({ query, cityId: "london" }, "203.0.113.82")).json();

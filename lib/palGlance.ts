@@ -12,6 +12,7 @@
 // apologise — the ask path reports outages when the user actually asks).
 
 import { formatObservedDate } from "@/lib/dataFreshness";
+import { listedPriceReceipt } from "@/lib/listedPriceReceipt";
 import type { NearMeScope } from "@/lib/nearMeAnswer";
 import type { WhatsOnRow } from "@/lib/whatsOn";
 
@@ -103,15 +104,8 @@ export function cheapestGlanceLine(
   return `${area}: ${formatPrice(card.cheapestPrice)} at ${card.name}${walk}.`;
 }
 
-function sourceReadDate(value: string | undefined, now: number): string | null {
-  const ms = value ? Date.parse(value) : Number.NaN;
-  return Number.isFinite(ms) && ms <= now ? formatObservedDate(new Date(ms)) : null;
-}
-
 export function cheapestGlanceReceipt(card: CheapestGlanceCard, now = Date.now()): string {
-  const source = card.priceSource || "Publisher not recorded";
-  const date = sourceReadDate(card.priceObservedAt, now);
-  return `${source}. ${date ? `Source read ${date}` : "Source read date unknown"}.`;
+  return listedPriceReceipt(card, now);
 }
 
 /** Every counted row owns its read date, including an older source lane. */

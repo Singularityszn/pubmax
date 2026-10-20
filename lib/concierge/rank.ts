@@ -41,6 +41,8 @@ export type ConciergeVenue = {
   lat: number;
   lng: number;
   cheapestPrice: number | null;
+  priceSource?: string;
+  priceObservedAt?: string;
   amenities: {
     beerGarden: boolean;
     cocktails: boolean;
