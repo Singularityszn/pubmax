@@ -119,7 +119,7 @@ describe("held pint evidence while venue details load", () => {
   it.each(HELD)("preserves the $name evidence when the latest logged-price read fails", async (fixture) => {
     await render({
       lane: fixture.lane, pintTrust: fixture.trust ?? null, detailLoading: false,
-      priceReadStatus: "unavailable", dropReadStatus: "unavailable",
+      priceReadStatus: "degraded", dropReadStatus: "unavailable",
     });
     expect(host.textContent).toBe(fixture.figure + fixture.caption);
     expect(host.querySelector('[role="status"]')).toBeNull();

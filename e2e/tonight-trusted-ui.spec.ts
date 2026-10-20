@@ -137,7 +137,7 @@ test.describe("Tonight trusted UI", () => {
     expect(box?.height).toBeGreaterThanOrEqual(48);
     const appearance = await accept.evaluate((button) => {
       const probe = document.createElement("span");
-      probe.style.cssText = "position:fixed;background:var(--state-active-surface);border:1px solid var(--state-active-border);color:var(--state-active-ink)";
+      probe.style.cssText = "position:fixed;background:var(--control-secondary-surface);border:1px solid var(--control-secondary-border);color:var(--ink)";
       document.body.appendChild(probe);
       const actual = getComputedStyle(button);
       const expected = getComputedStyle(probe);
