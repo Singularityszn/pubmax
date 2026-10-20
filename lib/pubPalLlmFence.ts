@@ -23,15 +23,21 @@ const ALCOHOL_ALLOWANCE_RE = /\b(?:is|are)\s+(?:one|two|three|a|an|\d+)\s+(?:pin
 
 function withoutAlcoholFreeDrinks(message: string): string {
   return message.replace(
-    /\b(?:(?:drink(?:ing)?|drunk|consum(?:e|ing))\s+(?:(?:one|two|three|a|an|\d+)\s+)?)?(?:alcohol[-\s]+free|non[-\s]*alcoholic|zero[-\s]+alcohol|0(?:[.,]0)?%)\s+(?:beers?|pints?|drinks?|wine|cider|spirits?)\b/gi,
-    "soft beverage",
+    /\b(?:(drink(?:ing)?|drunk|consum(?:e|ing))\s+(?:only\s+)?(?:(?:one|two|three|a|an|\d+)\s+)?)?(?:alcohol[-\s]+free|non[-\s]*alcoholic|zero[-\s]+alcohol|0(?:[.,]0)?%)\s+(?:beers?|pints?|drinks?|wine|cider|spirits?)\b/gi,
+    (_match, verb: string | undefined) => {
+      if (!verb) return "soft beverage";
+      const consumption = /ing$/i.test(verb) ? "consuming" : /^drunk$/i.test(verb) ? "consumed" : "consume";
+      return `${consumption} soft beverage`;
+    },
   );
 }
 
 function reportsAlcoholConsumption(message: string): boolean {
   return withoutAlcoholFreeDrinks(message).split(/[.!?]/).some((clause) => {
-    const consumedAt = clause.search(/\b(?:i|we)(?:['’]ve|\s+have)?\s+(?:had|drunk|drank|been\s+drinking)\b/i);
-    const reportsAlcohol = consumedAt >= 0 && ALCOHOL_RE.test(clause.slice(consumedAt));
+    const report = clause.match(/\b(?:i|we)(?:['’]ve|\s+have)?\s+(?:had|drunk|drank|consumed|been\s+(?:drinking|consuming))\b(.*)/i);
+    const object = report?.[1] ?? "";
+    const reportsDrink = /^\s*(?:only\s+)?(?:(?:a|an|some|one|two|three|four|five|six|several|\d+)\s+)?(?:alcohol|drinks?|pints?|beers?|wine|cider|spirits?|soft\s+beverage)\b/i.test(object);
+    const reportsAlcohol = reportsDrink && /\b(?:alcohol|drinks?|pints?|beers?|wine|cider|spirits?)\b/i.test(object);
     const reportsDrunkenness = /\b(?:i(?:['’]m|\s+am)|we(?:['’]re|\s+are))\b.{0,40}\bdrunk\b/i.test(clause);
     return reportsAlcohol || reportsDrunkenness;
   });

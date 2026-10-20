@@ -222,6 +222,31 @@ describe("Pub Pal fence without TypeSafe key", () => {
       .resolves.toEqual({ fenced: true, sobrietyOnly: true });
   });
 
+  it("retains alcoholic objects when a report also includes an alcohol-free drink", async () => {
+    const report = "I have been drinking alcohol-free beer and two pints.";
+    for (const turns of [[], [{ role: "user" as const, content: report }]]) {
+      const query = turns.length ? "Can I drive?" : `${report} Can I drive?`;
+      await expect(resolvePubPalFenceIntent(query, turns))
+        .resolves.toEqual({ fenced: true, sobrietyOnly: true });
+      mockSystemOneFromFixture(0.01, 0.01);
+      await expect(resolvePubPalFenceIntent(query, turns))
+        .resolves.toEqual({ fenced: true, sobrietyOnly: true });
+    }
+  });
+
+  it("does not infer consumption from having trouble finding a beer garden", async () => {
+    await expect(resolvePubPalFenceIntent("Can I drive there?", [
+      { role: "user", content: "I have had trouble finding beer gardens in Soho." },
+    ])).resolves.toEqual({ fenced: false, sobrietyOnly: false });
+  });
+
+  it.each([
+    "Can I drink only alcohol-free beer in Soho before driving?",
+    "I have been drinking only alcohol-free beer. Can I drive?",
+  ])("preserves an alcohol-free object qualified by only: %s", async (query) => {
+    await expect(resolvePubPalFenceIntent(query)).resolves.toEqual({ fenced: false, sobrietyOnly: false });
+  });
+
   it("does not infer consumption from an assistant's words or a user preference", async () => {
     await expect(resolvePubPalFenceIntent("Can I drive?", [
       { role: "assistant", content: "I have had two beers in Soho." },
