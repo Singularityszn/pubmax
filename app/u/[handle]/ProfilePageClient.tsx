@@ -2,7 +2,7 @@
 
 import dynamic from "next/dynamic";
 import Link from "next/link";
-import { notFound, useRouter } from "next/navigation";
+import { notFound, useRouter, useSearchParams } from "next/navigation";
 import { use, useEffect, useRef, useState, useSyncExternalStore } from "react";
 
 import ClaimMomentWelcome from "@/components/profile/ClaimMomentWelcome";
@@ -448,6 +448,7 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
   const routeHandle = normalizeHandle(use(params)?.handle);
   const isYouRoute = routeHandle === YOU_SENTINEL;
   const router = useRouter();
+  const editRequested = useSearchParams().get("edit") === "1";
   const documentComplete = useDocumentComplete();
   const { accountRevision, user, identityResolved, loading: sessionLoading, signOut } = useAuth();
   const viewerSession = useViewerSession();
@@ -1094,21 +1095,21 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
 
   // "Edit profile" is reachable from the site nav, which can only carry a URL,
   // so ?edit=1 opens the editing surface on arrival. The parameter is spent
-  // once: it is stripped straight away, so Back never re-opens the editor.
+  // once after opening, so same-profile navigation works and Back cannot reopen it.
   useEffect(() => {
-    if (!isOwnProfile) return;
-    const url = new URL(window.location.href);
-    if (url.searchParams.get("edit") !== "1") return;
-    url.searchParams.delete("edit");
-    window.history.replaceState(null, "", `${url.pathname}${url.search}${url.hash}`);
+    if (!isOwnProfile || !editRequested) return;
     const frame = window.requestAnimationFrame(() => {
+      const url = new URL(window.location.href);
+      if (url.searchParams.get("edit") !== "1") return;
       setEditing(true);
+      url.searchParams.delete("edit");
+      window.history.replaceState(null, "", `${url.pathname}${url.search}${url.hash}`);
       window.requestAnimationFrame(() => {
         document.getElementById("profile-editing")?.scrollIntoView({ block: "start" });
       });
     });
     return () => window.cancelAnimationFrame(frame);
-  }, [isOwnProfile]);
+  }, [isOwnProfile, editRequested]);
 
   // A stored row changed under an OPEN editor: a photo went up, a cover moved,
   // one came down. The header repaints from the reply without a refetch and the
