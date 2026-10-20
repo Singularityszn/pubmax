@@ -7,105 +7,177 @@
 //     "Following" are never the same pixels.
 //  3. A profile statistic is a way in, not a number in a box.
 
-import { createElement } from "react";
-import { readFileSync } from "node:fs";
-import { join } from "node:path";
-import { renderToStaticMarkup } from "react-dom/server";
-import { describe, expect, it, vi } from "vitest";
+// @vitest-environment jsdom
 
-vi.mock("@/lib/authedFetch", () => ({
-  authedFetch: async () => new Response("{}", { status: 403 }),
-  authedActionFetch: async () => new Response("{}", { status: 403 }),
+import { act, createElement, type ReactElement } from "react";
+import { createRoot, type Root } from "react-dom/client";
+import { renderToStaticMarkup } from "react-dom/server";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+
+const auth = vi.hoisted(() => ({
+  identityResolved: false,
+  accountRevision: 1,
+  user: null as { id: string } | null,
 }));
+const transport = vi.hoisted(() => ({ action: vi.fn(), identity: vi.fn() }));
+
+vi.mock("@/components/auth/AuthProvider", () => ({ useAuth: () => auth }));
+vi.mock("@/lib/authedFetch", () => ({
+  authedFetch: transport.action,
+  authedActionFetch: transport.action,
+}));
+vi.mock("@/lib/currentIdentityRead", () => ({ readAuthedIdentity: transport.identity }));
+vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn() }) }));
+vi.mock("@/components/nav/SiteNav", () => ({ default: () => null }));
+vi.mock("@/lib/useSocialFriendsLaunch", () => ({ useSocialFriendsLaunch: () => true }));
 
 import CrewsPanel from "@/components/social/CrewsPanel";
 import FollowButton from "@/components/profile/FollowButton";
 import ProfileHeader from "@/components/profile/ProfileHeader";
 import type { Profile, ProfileStats } from "@/lib/profiles";
 
-const socialPageClient = readFileSync(
-  join(process.cwd(), "app/social/SocialPageClient.tsx"),
-  "utf8",
-);
-const profileClient = readFileSync(
-  join(process.cwd(), "app/u/[handle]/ProfilePageClient.tsx"),
-  "utf8",
-);
-const foundingMembershipHook = readFileSync(
-  join(process.cwd(), "components/founding/useFoundingMembership.ts"),
-  "utf8",
-);
-const crewDetailClient = readFileSync(
-  join(process.cwd(), "app/social/crews/[crewId]/CrewDetailClient.tsx"),
-  "utf8",
-);
+import CrewDetailClient from "@/app/social/crews/[crewId]/CrewDetailClient";
+import { useFoundingMembership } from "@/components/founding/useFoundingMembership";
+
+let host: HTMLDivElement;
+let root: Root;
+
+beforeEach(() => {
+  (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
+  auth.identityResolved = false;
+  auth.user = null;
+  transport.action.mockReset();
+  transport.identity.mockReset();
+  host = document.createElement("div");
+  document.body.appendChild(host);
+  root = createRoot(host);
+});
+
+afterEach(async () => {
+  await act(async () => root.unmount());
+  host.remove();
+});
+
+async function mount(element: ReactElement): Promise<void> {
+  await act(async () => { root.render(element); });
+}
+
+function Membership() {
+  const membership = useFoundingMembership();
+  return createElement("output", null, membership.state, ":", membership.number);
+}
 
 describe("crews stay behind the Social gate", () => {
-  it("waits for the live identity answer before checking Social access", () => {
-    expect(socialPageClient).toContain("identityResolved");
-    expect(socialPageClient).toMatch(/if \(initialState\.tab === "discover"\)/);
-    expect(foundingMembershipHook).toMatch(/if \(!userId \|\| !identityResolved\)/);
-    expect(crewDetailClient).toContain("identityResolved");
-    expect(crewDetailClient).toMatch(/if \(!identityResolved\) return;/);
+  it("waits for live identity before reading access or crews", async () => {
+    auth.user = { id: "account-a" };
+    await mount(createElement(CrewsPanel, { resolveAccess: true }));
+    expect(host.querySelector('[role="status"]')?.getAttribute("aria-label")).toBe("Loading your crews");
+    expect(host.querySelector('[role="status"]')?.getAttribute("aria-busy")).toBe("true");
+    expect(host.textContent).not.toContain("Try again");
+    expect(transport.action).not.toHaveBeenCalled();
   });
 
-  it("renders a neutral skeleton while its viewer identity resolves", () => {
-    const html = renderToStaticMarkup(
-      createElement(CrewsPanel, { resolveAccess: true }),
-    );
-    expect(html).toContain("socialIdentitySkeletons");
-    expect(html).toContain("Loading your crews");
-    expect(html).not.toContain("Try again");
+  it("offers signed-out readers sign-in without reading protected data", async () => {
+    auth.identityResolved = true;
+    await mount(createElement(CrewsPanel, { resolveAccess: true }));
+    expect(host.querySelector("a")?.textContent).toBe("Sign in");
+    expect(host.querySelector("a")?.getAttribute("href")).toBe("/login?mode=signin&from=%2Fsocial");
+    expect(host.querySelector("button")).toBeNull();
+    expect(transport.action).not.toHaveBeenCalled();
   });
 
-  it("mounts on /social only inside the verified branch", () => {
-    // The composer stays behind verified access. The crew card may render its
-    // own neutral identity state before that answer lands.
-    expect(socialPageClient).toMatch(
-      /showViewerCards \? \(\s*<CrewsPanel/,
-    );
-    // The head's own signed-out branch (the Post link in the Screen) sits
-    // earlier in the file, so the match is tempered to the branch that ends
-    // at the access check rather than spanning from the first signed-out
-    // ternary through everything between.
-    const signedOut = socialPageClient.match(
-      /viewerPhase === "signed-out" \? \((?:(?!viewerPhase === "signed-out")[\s\S])*?\) : access === "checking"/,
-    )?.[0];
-    expect(signedOut, "signed-out boundary present").toBeTruthy();
-    expect(signedOut).toContain("SocialAccessBoundary");
-    expect(signedOut).not.toMatch(/CrewsPanel|PeopleDirectory/);
-    // Friend formation itself rides the rail on `isPosts` alone, with no access
-    // gate in front of it. A crew may never join it there either.
-    const friendFormation = socialPageClient
-      .split("\n")
-      .filter((line) => line.includes("isPosts ?"));
-    expect(friendFormation.length).toBeGreaterThan(0);
-    for (const line of friendFormation) expect(line).not.toMatch(/CrewsPanel/);
+  it.each(["preview", "refused"])("hides crews when Social answers %s", async (state) => {
+    auth.identityResolved = true;
+    auth.user = { id: "account-a" };
+    transport.action.mockResolvedValue(Response.json({ state }, { status: state === "refused" ? 403 : 200 }));
+    await mount(createElement(CrewsPanel, { resolveAccess: true }));
+    expect(host.textContent).toBe("");
+    expect(transport.action.mock.calls.map(([url]) => url)).toEqual(["/api/social/access"]);
   });
 
-  it("asks the gate itself wherever no parent already did", () => {
-    expect(profileClient).toMatch(/<CrewsPanel[\s\S]{0,120}resolveAccess/);
+  it("shows the empty state only after verified access and a successful list read", async () => {
+    auth.user = { id: "account-a" };
+    let resolveAccess!: (value: Response) => void;
+    const access = new Promise<Response>((resolve) => { resolveAccess = resolve; });
+    transport.action.mockImplementation((url: string) => url === "/api/social/access"
+      ? access : Promise.resolve(Response.json({ items: [], nextCursor: null })));
+    await mount(createElement(CrewsPanel, { resolveAccess: true }));
+    expect(transport.action).not.toHaveBeenCalled();
+    auth.identityResolved = true;
+    await mount(createElement(CrewsPanel, { resolveAccess: true }));
+    expect(host.textContent).toBe("");
+    expect(transport.action.mock.calls.map(([url]) => url)).toEqual(["/api/social/access"]);
+    await act(async () => { resolveAccess(Response.json({ state: "verified" })); });
+    expect(host.querySelector('[role="status"]')?.textContent).toBe("No crews yet. Start one and your lot can join the night.");
+    expect(host.querySelector("button")?.textContent).toBe("Start a crew");
+    expect(transport.action.mock.calls.map(([url]) => url)).toEqual(["/api/social/access", "/api/social/crews"]);
   });
 
-  it("reads the launch flag through Social access, never through the browser", () => {
-    // Code only. A comment may name the flag to explain the rule; the same
-    // split the we-are-out fence uses.
-    const code = (source: string) =>
-      source
-        .split("\n")
-        .filter((line) => !line.trim().startsWith("//") && !line.trim().startsWith("*"))
-        .join("\n");
-    for (const source of [
-      readFileSync(join(process.cwd(), "components/social/CrewsPanel.tsx"), "utf8"),
-      readFileSync(
-        join(process.cwd(), "app/social/crews/[crewId]/CrewDetailClient.tsx"),
-        "utf8",
-      ),
-    ]) {
-      expect(code(source)).not.toMatch(/process\.env/);
-      expect(code(source)).not.toMatch(/PUBMAX_SOCIAL_FRIENDS_LAUNCH/);
-      expect(source).not.toContain("—");
-    }
+  it("still waits for identity when its parent already verified access", async () => {
+    auth.user = { id: "account-a" };
+    transport.action.mockResolvedValue(Response.json({ items: [], nextCursor: null }));
+    await mount(createElement(CrewsPanel));
+    expect(transport.action).not.toHaveBeenCalled();
+    auth.identityResolved = true;
+    await mount(createElement(CrewsPanel));
+    expect(transport.action.mock.calls.map(([url]) => url)).toEqual(["/api/social/crews"]);
+    expect(host.textContent).toContain("No crews yet.");
+  });
+
+  it("renders a crew from a successful list read", async () => {
+    auth.identityResolved = true;
+    auth.user = { id: "account-a" };
+    transport.action.mockResolvedValue(Response.json({ items: [{
+      kind: "member", crewId: "50000000-0000-4000-8000-000000000001",
+      title: "Friday in Camden", phase: "planning", nightArea: "camden",
+      startsAt: "2026-08-07T18:30:00.000Z",
+      viewer: { memberId: "30000000-0000-4000-8000-000000000001", role: "owner" },
+    }], nextCursor: null }));
+    await mount(createElement(CrewsPanel));
+    const link = host.querySelector('a[href^="/social/crews/"]');
+    expect(link?.textContent).toContain("Friday in Camden");
+    expect(link?.getAttribute("href")).toBe("/social/crews/50000000-0000-4000-8000-000000000001");
+    expect(host.textContent).not.toContain("No crews yet.");
+  });
+
+  it("offers retry after a failed list read instead of claiming there are no crews", async () => {
+    auth.identityResolved = true;
+    auth.user = { id: "account-a" };
+    transport.action.mockResolvedValue(Response.json({}, { status: 503 }));
+    await mount(createElement(CrewsPanel));
+    expect(host.querySelector('[role="alert"]')?.textContent).toContain("Couldn't load your crews.");
+    expect(host.textContent).not.toContain("No crews yet.");
+    transport.action.mockResolvedValue(Response.json({ items: [], nextCursor: null }));
+    const retry = Array.from(host.querySelectorAll("button")).find((button) => button.textContent === "Try again");
+    expect(retry).toBeDefined();
+    await act(async () => { retry!.click(); });
+    expect(host.querySelector('[role="alert"]')).toBeNull();
+    expect(host.textContent).toContain("No crews yet.");
+  });
+
+  it("holds the crew detail read until identity resolves and preserves a refusal", async () => {
+    transport.action.mockResolvedValue(Response.json({}, { status: 403 }));
+    const detail = () => createElement(CrewDetailClient, { crewId: "50000000-0000-4000-8000-000000000001", invitationId: null });
+    await mount(detail());
+    expect(transport.action).not.toHaveBeenCalled();
+    auth.identityResolved = true;
+    await mount(detail());
+    expect(transport.action).toHaveBeenCalled();
+    expect(host.textContent).not.toContain("Who is in");
+    expect(host.textContent).not.toContain("Leave this crew");
+  });
+
+  it("reads founding membership only for a settled signed-in identity", async () => {
+    transport.identity.mockResolvedValue({ ok: true, body: { foundingMemberNumber: 7 } });
+    await mount(createElement(Membership));
+    expect(host.textContent).toBe("loading:");
+    auth.user = { id: "account-a" };
+    await mount(createElement(Membership));
+    expect(transport.identity).not.toHaveBeenCalled();
+    auth.identityResolved = true;
+    await mount(createElement(Membership));
+    expect(transport.identity).toHaveBeenCalledWith("account-a");
+    expect(host.textContent).toBe("member:7");
   });
 });
 

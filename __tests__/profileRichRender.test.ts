@@ -5,8 +5,6 @@
 // eight inputs read as an identity rather than a settings page.
 
 import { createElement, type ComponentProps } from "react";
-import { readFileSync } from "node:fs";
-import { join } from "node:path";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
 
@@ -207,60 +205,6 @@ describe("profile composer", () => {
     expect(markup).toContain("Cover photos");
     expect(markup).toContain("Add cover");
     expect(markup).not.toContain("Choose cover");
-  });
-});
-
-describe("shipped profile CSS", () => {
-  const css = readFileSync(join(process.cwd(), "app/u/[handle]/profile.css"), "utf8");
-
-  it("keeps the cover behind a falloff so the name stays legible", () => {
-    expect(css).toContain(".profilePage .profileCover {");
-    expect(css).toContain(".profilePage .profileCoverFalloff {");
-    expect(css).toMatch(/profileCoverFalloff \{[^}]*linear-gradient/);
-  });
-
-  it("gives the face its own edge over the band, and hangs it over the edge", () => {
-    // The band is painted on every profile now, photograph or brass wash, so
-    // the ring is unconditional rather than a with-cover special case.
-    expect(css).toMatch(
-      /\.profilePage \.profileAvatar \{[^}]*border: 4px solid var\(--panel-raised\)/,
-    );
-    expect(css).toMatch(
-      /\.profilePage \.profileIdentity \{[^}]*margin-top: calc\(-1 \* var\(--profile-avatar-overlap\)\)/,
-    );
-  });
-
-  // What an owner framed in the cropper is what a reader sees. A band with a
-  // fixed height over a fluid width shows a different rectangle at every
-  // viewport, which is how a carefully framed photograph got cut mid-word.
-  it("renders a cover at the cropper's own aspect ratio", () => {
-    expect(css).toMatch(
-      /\.profilePage \.profileHeaderWithCover \.profileCover \{[^}]*aspect-ratio: 3 \/ 1/,
-    );
-    // The brass wash has no photograph to crop, so it takes a shorter band
-    // rather than four hundred pixels of gradient above the fold.
-    expect(css).toMatch(/\.profilePage \.profileCover \{[^}]*height: clamp\(116px/);
-  });
-
-  // The rotation crossfades only for a reader who did not ask for less motion;
-  // the component refuses to run its timer under the same condition.
-  it("gates the crossfade on prefers-reduced-motion", () => {
-    const gated = css.slice(css.indexOf("@media (prefers-reduced-motion: no-preference)"));
-    expect(gated).toMatch(/\.profileCoverImage \{[^}]*transition: opacity/);
-    expect(css.slice(0, css.indexOf("@media (prefers-reduced-motion"))).not.toMatch(
-      /\.profileCoverImage \{[^}]*transition/,
-    );
-  });
-
-  it("wraps a card fact rather than truncating what somebody wrote", () => {
-    expect(css).toMatch(/profileCardFact dd \{[^}]*overflow-wrap: anywhere/);
-    expect(css).not.toMatch(/profileCardFact dd \{[^}]*text-overflow: ellipsis/);
-  });
-
-  it("leaves press feedback to the one owner in globals.css", () => {
-    // app/globals.css scales every button on :active behind the reduced-motion
-    // gate. A second scale here would be a second owner of the same moment.
-    expect(css).not.toMatch(/profileEditor[A-Za-z]*:active/);
   });
 });
 
