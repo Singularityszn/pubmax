@@ -259,6 +259,8 @@ describe("Pub Pal fence without TypeSafe key", () => {
     "I have had two cold beers.",
     "I have had 1.5 pints.",
     "I drank red wine.",
+    "I have had at least two pints.",
+    "I have had dinner at the pub and two beers.",
   ])("recognizes a consumed amount or mixed meal report: %s", async (report) => {
     await expect(resolvePubPalFenceIntent(`${report} Can I drive?`))
       .resolves.toEqual({ fenced: true, sobrietyOnly: true });
