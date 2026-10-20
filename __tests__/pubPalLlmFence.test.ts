@@ -223,6 +223,7 @@ describe("Pub Pal fence without TypeSafe key", () => {
     "What time does the bus leave Soho?",
     "What route can I drive to Soho?",
     "Which route to Soho can I drive?",
+    "Which route to Elephant and Castle can I drive?",
     "Which route should we cycle to Soho?",
     "Can I ride the bus to Soho?",
     "Could we ride the train to Soho?",
