@@ -36,7 +36,7 @@ function reportsAlcoholConsumption(message: string): boolean {
   return withoutAlcoholFreeDrinks(message).split(/[.!?]/).some((clause) => {
     const report = clause.match(/\b(?:i|we)(?:['’]ve|\s+have)?\s+(?:had|drunk|drank|consumed|been\s+(?:drinking|consuming))\b(.*)/i);
     const object = report?.[1] ?? "";
-    const reportsDrink = /^\s*(?:only\s+)?(?:(?:a|an|some|one|two|three|four|five|six|several|\d+)\s+)?(?:alcohol|drinks?|pints?|beers?|wine|cider|spirits?|soft\s+beverage)\b/i.test(object);
+    const reportsDrink = /(?:^\s*|\b(?:and|with|plus|then)\s+)(?:(?:only|about|around|roughly|a|an|some|one|two|three|four|five|six|seven|eight|nine|ten|several|couple|few|half|of|bottles?|cans?|glasses?|shots?|\d+(?:[.,]\d+)?)\s+)*(?:alcohol|drinks?|pints?|beers?|wine|cider|spirits?|soft\s+beverage)\b/i.test(object);
     const reportsAlcohol = reportsDrink && /\b(?:alcohol|drinks?|pints?|beers?|wine|cider|spirits?)\b/i.test(object);
     const reportsDrunkenness = /\b(?:i(?:['’]m|\s+am)|we(?:['’]re|\s+are))\b.{0,40}\bdrunk\b/i.test(clause);
     return reportsAlcohol || reportsDrunkenness;

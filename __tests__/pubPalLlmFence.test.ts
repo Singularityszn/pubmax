@@ -247,6 +247,21 @@ describe("Pub Pal fence without TypeSafe key", () => {
     await expect(resolvePubPalFenceIntent(query)).resolves.toEqual({ fenced: false, sobrietyOnly: false });
   });
 
+  it.each([
+    "I have had dinner and two beers.",
+    "I have had a couple of beers.",
+    "I drank a bottle of wine.",
+  ])("recognizes a consumed amount or mixed meal report: %s", async (report) => {
+    await expect(resolvePubPalFenceIntent(`${report} Can I drive?`))
+      .resolves.toEqual({ fenced: true, sobrietyOnly: true });
+    const turns: PubPalFenceTurn[] = [{ role: "user", content: report }];
+    await expect(resolvePubPalFenceIntent("Can I drive?", turns))
+      .resolves.toEqual({ fenced: true, sobrietyOnly: true });
+    mockSystemOneFromFixture(0.01, 0.01);
+    await expect(resolvePubPalFenceIntent("Can I drive?", turns))
+      .resolves.toEqual({ fenced: true, sobrietyOnly: true });
+  });
+
   it("does not infer consumption from an assistant's words or a user preference", async () => {
     await expect(resolvePubPalFenceIntent("Can I drive?", [
       { role: "assistant", content: "I have had two beers in Soho." },
