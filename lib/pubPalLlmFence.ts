@@ -15,7 +15,6 @@ const PUB_PAL_SOBRIETY_ONLY_RE =
   /\b(?:should\s+i\s+have\s+(?:one\s+)?more|one\s+more\s+(?:drink|pint)|am\s+i\s+(?:okay|ok|fine|sober|drunk)|sobri(?:ety|ous)|drunk\s+enough|fit\s+to\s+drive)\b/i;
 
 const ALCOHOL_RE = /\b(?:alcohol|drinks?|drinking|drunk|pints?|beers?|wine|cider|spirits?)\b/i;
-const ALCOHOL_OBJECT_RE = /\b(?:alcohol|drinks?|pints?|beers?|wine|cider|spirits?)\b/i;
 const VEHICLE_OPERATION_RE = /\b(?:driv(?:e|ing)|cycl(?:e|ing)|rid(?:e|ing)\s+(?:(?:my|a|the)\s+)?bike)\b/i;
 const PERSONAL_ALLOWANCE_RE = /\b(?:how\s+(?:many|much|long)|(?:can|could|may|should)\s+(?:i|we)\s+(?:have|drink|consume|drive|cycle|ride))\b/i;
 const PERSONAL_OPERATION_QUESTION_RE = /\b(?:can|could|may|should)\s+(?:i|we)\s+(?:drive|cycle|ride)\b/i;
@@ -33,45 +32,14 @@ function withoutAlcoholFreeDrinks(message: string): string {
   );
 }
 
-function reportsAlcoholConsumption(message: string): boolean {
-  return withoutAlcoholFreeDrinks(message).split(/[!?]|\.(?!\d)/).some((clause) => {
-    const reports = clause.matchAll(/\b(?:i|we)(?:['’]ve|\s+have)?\s+(had|drunk|drank|consumed|been\s+(?:drinking|consuming))\b/gi);
-    const reportsAlcohol = Array.from(reports).some((report) => {
-      const action = report[1];
-      if (!action) return false;
-      const remainder = clause.slice(report.index + report[0].length);
-      if (/^had$/i.test(action) && /^\s*(?:trouble|difficulty|problems?|a\s+hard\s+time)\b/i.test(remainder)) return false;
-      return remainder.split(/\b(?:and|plus|then)\b/i).some((part, index) => {
-        const continuation = index > 0 ? part.match(/^\s*(?:have\s+)?(had|drunk|drank|consumed|been\s+(?:drinking|consuming))\b/i) : null;
-        const continuedObject = continuation ? part.slice(continuation[0].length) : part;
-        const object = (continuedObject.split(/\b(?:at(?!\s+least\b)|in|near|while|when|before|after)\b/i)[0] ?? "")
-          .replace(/\b(?:beer\s+gardens?|wine\s+bars?)\b/gi, "venue");
-        const beverageAt = object.search(ALCOHOL_OBJECT_RE);
-        if (beverageAt < 0) return false;
-        const beforeBeverage = object.slice(0, beverageAt);
-        if (index > 0 && !continuation && /\b(?:i|we|he|she|they|you|had|drunk|drank|consumed|drinking|consuming|bought|purchased|ordered|served|sold|found|brought|carried|offered|recommended|suggested|saw|visited|went|avoid(?:ed|ing)?|abstain(?:ed|ing)?|refus(?:e|ed|ing)|skipped|not|never|no|without)\b/i.test(beforeBeverage)) return false;
-        const currentAction = continuation?.[1] ?? action;
-        const reportsDrink = (index === 0 && !/^had$/i.test(action))
-          || (continuation !== null && !/^had$/i.test(currentAction))
-          || (index > 0 && continuation === null)
-          || /^\s*(?:(?:only|about|around|roughly|a|an|some|one|two|three|four|five|six|seven|eight|nine|ten|several|couple|few|half|of|too|many|much|more|than|less|at|least|cold|warm|hot|small|large|strong|weak|craft|local|draft|draught|bottled|canned|red|white|rose|rosé|sparkling|dry|sweet|bottles?|cans?|glasses?|shots?|\d+(?:[.,]\d+)?)\s+)*(?:alcohol|drinks?|pints?|beers?|wine|cider|spirits?|soft\s+beverage)\b/i.test(object);
-        return reportsDrink;
-      });
-    });
-    const reportsDrunkenness = /\b(?:i(?:['’]m|\s+am)|we(?:['’]re|\s+are))\b.{0,40}\bdrunk\b/i.test(clause);
-    return reportsAlcohol || reportsDrunkenness;
-  });
-}
-
 function asksAboutAlcoholAndVehicleFitness(message: string): boolean {
   const text = withoutAlcoholFreeDrinks(message);
   const alcoholAt = text.search(ALCOHOL_RE);
   const operationAt = text.search(VEHICLE_OPERATION_RE);
   if (alcoholAt < 0 || operationAt < 0) return false;
-  if (reportsAlcoholConsumption(text) && PERSONAL_OPERATION_QUESTION_RE.test(text)) return true;
-  if (PERSONAL_FITNESS_RE.test(text) || ALCOHOL_ALLOWANCE_RE.test(text)) return true;
+  if (ALCOHOL_ALLOWANCE_RE.test(text)) return true;
   if (/\bwhere\s+(?:can|could|may|should)\s+(?:i|we)\s+(?:buy|find|get|have|drink)\b/i.test(text)) return false;
-  if (!PERSONAL_ALLOWANCE_RE.test(text)) return false;
+  if (!PERSONAL_ALLOWANCE_RE.test(text) && !PERSONAL_FITNESS_RE.test(text)) return false;
 
   const beforeAt = text.search(/\bbefore\b/i);
   const afterAt = text.search(/\bafter\b/i);
@@ -99,13 +67,13 @@ export type PubPalFenceIntent = {
   sobrietyOnly: boolean;
 };
 
-/** Deterministic keyless fallback. */
+/** Direct get-home and alcohol-allowance vocabulary; resolution also routes neutral personal questions. */
 export function isPubPalGetHomeOrSobrietyIntent(text: string): boolean {
   const trimmed = text.trim();
   return PUB_PAL_GET_HOME_SOBRIETY_RE.test(trimmed) || asksAboutAlcoholAndVehicleFitness(trimmed);
 }
 
-/** Deterministic keyless fallback. */
+/** Direct get-home and alcohol-allowance vocabulary; resolution also routes neutral personal questions. */
 export function isPubPalSobrietyOnlyIntent(text: string): boolean {
   const trimmed = text.trim();
   if (PUB_PAL_GET_HOME_SOBRIETY_RE.test(trimmed)) return PUB_PAL_SOBRIETY_ONLY_RE.test(trimmed);
@@ -133,9 +101,11 @@ function regexFenceIntent(
   }
   const asksPersonalVehicleFitness = PERSONAL_OPERATION_QUESTION_RE.test(message)
     || (PERSONAL_FITNESS_RE.test(message) && VEHICLE_OPERATION_RE.test(message));
-  if (asksPersonalVehicleFitness && texts.slice(1).some(reportsAlcoholConsumption)) sobrietyOnly = true;
   if (sobrietyOnly) {
     return { fenced: true, sobrietyOnly: true };
+  }
+  if (asksPersonalVehicleFitness) {
+    return { fenced: true, sobrietyOnly: false };
   }
   return { fenced: false, sobrietyOnly: false };
 }
