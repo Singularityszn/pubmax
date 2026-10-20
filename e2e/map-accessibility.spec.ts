@@ -216,9 +216,15 @@ async function openVenueListWithKeyboard(page: Page): Promise<Locator> {
   await tabTo(page, list);
   await page.keyboard.press("Enter");
 
-  const firstVenue = page.locator(".mapVenueListItem").first();
-  await expect(firstVenue).toBeFocused();
-  return firstVenue;
+  // The pub stream can reorder the first row while focus correctly stays on
+  // the venue the keyboard reader reached. Follow that venue, not its index.
+  const focusedVenue = page.locator(".mapVenueListItem:focus");
+  await expect(focusedVenue).toHaveCount(1);
+  const venueId = await focusedVenue.getAttribute("data-venue-id");
+  expect(venueId).toBeTruthy();
+  const venue = page.locator(`.mapVenueListItem[data-venue-id=${JSON.stringify(venueId)}]`);
+  await expect(venue).toBeFocused();
+  return venue;
 }
 
 test.describe("map keyboard and screen-reader venue path", () => {
@@ -599,9 +605,11 @@ test.describe("map keyboard and screen-reader venue path", () => {
 
     const firstVenue = await openVenueListWithKeyboard(page);
     const firstVenueId = await firstVenue.getAttribute("data-venue-id");
-    const secondVenueCandidate = page.locator(".mapVenueListItem").nth(1);
-    const secondVenueId = await secondVenueCandidate.getAttribute("data-venue-id");
     expect(firstVenueId).toBeTruthy();
+    const secondVenueCandidate = page.locator(
+      `.mapVenueListItem:not([data-venue-id=${JSON.stringify(firstVenueId)}])`,
+    ).first();
+    const secondVenueId = await secondVenueCandidate.getAttribute("data-venue-id");
     expect(secondVenueId).toBeTruthy();
     expect(secondVenueId).not.toBe(firstVenueId);
     const secondVenue = page.locator(
