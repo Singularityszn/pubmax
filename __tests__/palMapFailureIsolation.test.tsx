@@ -2,7 +2,7 @@
 
 import { act, createElement, type ReactNode } from "react";
 import { createRoot, type Root } from "react-dom/client";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi, type Mock } from "vitest";
 import type { PalRecommendationPoint } from "@/lib/palRecommendationMap";
 
 const voice = vi.hoisted(() => ({
@@ -57,7 +57,7 @@ type Session = {
 let host: HTMLDivElement;
 let root: Root;
 let escaped: unknown[];
-let imported: ReturnType<typeof vi.fn>;
+let imported: Mock<() => void>;
 
 beforeEach(() => {
   vi.resetModules();

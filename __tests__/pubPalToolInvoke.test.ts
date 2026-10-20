@@ -153,10 +153,12 @@ describe("propose_plan over the Pal webhook", () => {
   });
 
   it("excludes chained alcohol questions from assistant history in voice tools", async () => {
+    const query = CHAINED_ALCOHOL_FITNESS_QUESTIONS[0];
+    if (query === undefined) throw new Error("A chained alcohol question fixture is required.");
     await registerPubPalToolTurn("conv_chainedassistant01", {
       query: "Find four quiet pubs in Soho", cityId: "london",
       ownerId: "11111111-1111-4111-8111-111111111111",
-      turns: [{ role: "assistant", content: CHAINED_ALCOHOL_FITNESS_QUESTIONS[0] }],
+      turns: [{ role: "assistant", content: query }],
     });
     const { result } = await invokePubPalAskTool({
       toolName: "search_venues", args: { query: "pubs in Soho" }, conversationId: "conv_chainedassistant01",
