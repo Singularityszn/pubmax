@@ -34,6 +34,7 @@ const safetyRequests = [
   "I drank red wine in Soho. Can I drive?",
   "I have had at least two pints in Soho. Can I drive?",
   "I have had dinner at the pub and two beers in Soho. Can I drive?",
+  "I drank alcohol-free beer and red wine in Soho. Can I drive?",
 ];
 
 const discoveryRequests = [
@@ -50,6 +51,8 @@ const discoveryRequests = [
   "I have had trouble finding pubs and beer gardens in Soho. Can I drive there?",
   "I have had trouble finding pubs and wine bars in Soho. Can I drive there?",
   "I drank water in a wine bar. Can I drive?",
+  "I drank water at dinner and then bought wine in Soho. Can I drive?",
+  "I drank water at dinner and my friend drank wine in Soho. Can I drive?",
 ];
 
 for (const width of [390, 1440]) {

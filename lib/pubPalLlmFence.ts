@@ -40,12 +40,12 @@ function reportsAlcoholConsumption(message: string): boolean {
       if (!action) return false;
       const remainder = clause.slice(report.index + report[0].length);
       if (/^had$/i.test(action) && /^\s*(?:trouble|difficulty|problems?|a\s+hard\s+time)\b/i.test(remainder)) return false;
-      const object = remainder.split(/\b(?:and|plus|then)\b/i)
-        .map((part) => part.split(/\b(?:at(?!\s+least\b)|in|near|while|when|before|after)\b/i)[0] ?? "")
-        .join(" and ")
-        .replace(/\b(?:beer\s+gardens?|wine\s+bars?)\b/gi, "venue");
-      const reportsDrink = !/^had$/i.test(action) || /(?:^\s*|\b(?:and|with|plus|then)\s+)(?:(?:only|about|around|roughly|a|an|some|one|two|three|four|five|six|seven|eight|nine|ten|several|couple|few|half|of|too|many|much|more|than|less|at|least|cold|warm|hot|small|large|strong|weak|craft|local|draft|draught|bottled|canned|bottles?|cans?|glasses?|shots?|\d+(?:[.,]\d+)?)\s+)*(?:alcohol|drinks?|pints?|beers?|wine|cider|spirits?|soft\s+beverage)\b/i.test(object);
-      return reportsDrink && /\b(?:alcohol|drinks?|pints?|beers?|wine|cider|spirits?)\b/i.test(object);
+      return remainder.split(/\b(?:and|plus|then)\b/i).some((part, index) => {
+        const object = (part.split(/\b(?:at(?!\s+least\b)|in|near|while|when|before|after)\b/i)[0] ?? "")
+          .replace(/\b(?:beer\s+gardens?|wine\s+bars?)\b/gi, "venue");
+        const reportsDrink = (index === 0 && !/^had$/i.test(action)) || /^\s*(?:(?:only|about|around|roughly|a|an|some|one|two|three|four|five|six|seven|eight|nine|ten|several|couple|few|half|of|too|many|much|more|than|less|at|least|cold|warm|hot|small|large|strong|weak|craft|local|draft|draught|bottled|canned|red|white|rose|rosé|sparkling|dry|sweet|bottles?|cans?|glasses?|shots?|\d+(?:[.,]\d+)?)\s+)*(?:alcohol|drinks?|pints?|beers?|wine|cider|spirits?|soft\s+beverage)\b/i.test(object);
+        return reportsDrink && /\b(?:alcohol|drinks?|pints?|beers?|wine|cider|spirits?)\b/i.test(object);
+      });
     });
     const reportsDrunkenness = /\b(?:i(?:['’]m|\s+am)|we(?:['’]re|\s+are))\b.{0,40}\bdrunk\b/i.test(clause);
     return reportsAlcohol || reportsDrunkenness;

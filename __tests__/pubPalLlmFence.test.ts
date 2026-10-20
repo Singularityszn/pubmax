@@ -261,6 +261,7 @@ describe("Pub Pal fence without TypeSafe key", () => {
     "I drank red wine.",
     "I have had at least two pints.",
     "I have had dinner at the pub and two beers.",
+    "I drank alcohol-free beer and red wine.",
   ])("recognizes a consumed amount or mixed meal report: %s", async (report) => {
     await expect(resolvePubPalFenceIntent(`${report} Can I drive?`))
       .resolves.toEqual({ fenced: true, sobrietyOnly: true });
@@ -283,6 +284,20 @@ describe("Pub Pal fence without TypeSafe key", () => {
 
   it("does not infer alcohol consumption from water at a wine bar", async () => {
     await expect(resolvePubPalFenceIntent("I drank water in a wine bar. Can I drive?"))
+      .resolves.toEqual({ fenced: false, sobrietyOnly: false });
+  });
+
+  it.each([
+    "I drank water at dinner and then bought wine in Soho.",
+    "I drank water at dinner and my friend drank wine in Soho.",
+  ])("keeps another activity or person's drink out of personal consumption: %s", async (report) => {
+    await expect(resolvePubPalFenceIntent(`${report} Can I drive?`))
+      .resolves.toEqual({ fenced: false, sobrietyOnly: false });
+    const turns: PubPalFenceTurn[] = [{ role: "user", content: report }];
+    await expect(resolvePubPalFenceIntent("Can I drive?", turns))
+      .resolves.toEqual({ fenced: false, sobrietyOnly: false });
+    mockSystemOneFromFixture(0.01, 0.01);
+    await expect(resolvePubPalFenceIntent("Can I drive?", turns))
       .resolves.toEqual({ fenced: false, sobrietyOnly: false });
   });
 
