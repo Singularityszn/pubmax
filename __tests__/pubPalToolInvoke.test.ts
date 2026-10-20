@@ -91,8 +91,12 @@ describe("propose_plan over the Pal webhook", () => {
     vi.unstubAllGlobals();
   });
 
-  it.each([null, "conv_mixedsafety01"])("fences mixed discovery and alcohol allowance in voice tools: %s", async (conversationId) => {
-    const query = "Where can I buy beer in Soho? How many pints can I have before driving?";
+  it.each([
+    { conversationId: null, query: "Where can I buy beer in Soho? How many pints can I have before driving?" },
+    { conversationId: "conv_mixedsafety01", query: "Where can I buy beer in Soho? How many pints can I have before driving?" },
+    { conversationId: null, query: "Where can I buy beer after cycling through Soho? Would it be safe to drive after two beers?" },
+    { conversationId: "conv_temporalsafety01", query: "Where can I buy beer after cycling through Soho? Would it be safe to drive after two beers?" },
+  ])("fences mixed discovery and alcohol allowance in voice tools: $conversationId $query", async ({ conversationId, query }) => {
     if (conversationId) {
       await registerPubPalToolTurn(conversationId, {
         query, cityId: "london", ownerId: "11111111-1111-4111-8111-111111111111",

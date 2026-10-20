@@ -26,10 +26,15 @@ export function venueListedPint(
 ): VenueListedPint | null {
   const priceGbp = venue.cheapestPrice;
   if (typeof priceGbp !== "number" || !Number.isFinite(priceGbp) || priceGbp <= 0) return null;
-  const { publisher, observedOn } = answerEvidenceFor({ priceGbp, prices: venue.prices });
+  const pintName = venue.cheapestPint.trim();
+  if (!pintName) return null;
+  const prices = venue.prices.filter((row) => row.price_gbp === priceGbp
+    && row.pint_name.trim().toLowerCase() === pintName.toLowerCase());
+  if (prices.length === 0) return null;
+  const { publisher, observedOn } = answerEvidenceFor({ priceGbp, prices });
   return {
     priceGbp,
-    pintName: venue.cheapestPint.trim() || null,
+    pintName,
     publisher,
     observedOn,
   };

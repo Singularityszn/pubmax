@@ -343,6 +343,7 @@ describe("runPalElevenLabsChatTurn", () => {
     "Where can I buy beer in Soho? How many pints can I have before driving?",
     "How many pints can I have before driving? Where should we have beer in Soho?",
     "Where can I drink beer in Soho? Would it be safe to drive after two beers?",
+    "Where can I buy beer after cycling through Soho? Would it be safe to drive after two beers?",
   ])("fences mixed discovery and alcohol allowance before provider startup: %s", async (query) => {
     vi.stubEnv("TYPESAFE_API_KEY", "");
     const actual = await vi.importActual<typeof import("@/lib/pubPalLlmFence")>("@/lib/pubPalLlmFence");

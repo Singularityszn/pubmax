@@ -17,7 +17,6 @@ import {
   planInviteSpendBandFromListedPrices,
   type PlanInviteSpendBand,
 } from "@/lib/shareArtifacts";
-import { formatPrice } from "@/lib/venues";
 import { lookupVenueDetail } from "@/lib/venueDetailIndex";
 import { planAlcoholOptionalInviteLine } from "@/lib/planAlcoholOptional";
 
@@ -46,8 +45,6 @@ type InviteStop = {
   venueId: string;
   venueName: string;
   position: number;
-  price: string | null;
-  priceGbp: number | null;
   listedPint: VenueListedPint | null;
   coordinates: [number, number] | null;
 };
@@ -88,8 +85,6 @@ async function loadStops(stops: PlanStopDTO[]): Promise<InviteStop[]> {
       venueId: stop.venueId,
       venueName: stop.venueName,
       position: stop.position,
-      price: venue && typeof venue.cheapestPrice === "number" ? formatPrice(venue.cheapestPrice) : null,
-      priceGbp: venue && typeof venue.cheapestPrice === "number" ? venue.cheapestPrice : null,
       listedPint: venue ? venueListedPint(venue) : null,
       coordinates: venue ? ([venue.longitude, venue.latitude] as [number, number]) : null,
     };
@@ -121,7 +116,7 @@ async function loadInitialSummaries(
 }
 
 function inviteSpendBand(stops: readonly InviteStop[]): PlanInviteSpendBand | null {
-  return planInviteSpendBandFromListedPrices(stops.map((stop) => stop.priceGbp));
+  return planInviteSpendBandFromListedPrices(stops.map((stop) => stop.listedPint?.priceGbp));
 }
 
 function inviteDescription(
@@ -302,8 +297,8 @@ export default async function PlanInvitePage({ params }: PageProps) {
                 <span>{stop.venueName}</span>
                 {stop.listedPint ? <ListedPriceSource evidence={stop.listedPint} className="invite__stopSource" /> : null}
               </div>
-              {stop.priceGbp !== null ? (
-                <PintPriceBadge className="invite__stopPrice" priceGbp={stop.priceGbp} venueId={stop.venueId} />
+              {stop.listedPint ? (
+                <PintPriceBadge className="invite__stopPrice" priceGbp={stop.listedPint.priceGbp} venueId={stop.venueId} />
               ) : null}
             </li>
           ))}

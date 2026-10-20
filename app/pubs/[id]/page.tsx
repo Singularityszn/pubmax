@@ -61,7 +61,7 @@ const SHOWN_PINTS = 6;
 function pintRows(venue: Venue): Array<{ name: string; price: number; evidence: ReturnType<typeof answerEvidenceFor> }> {
   const cheapest = new Map<string, { name: string; price: number; rows: VenuePrice[] }>();
   for (const row of venue.prices) {
-    if (typeof row.price_gbp !== "number" || !row.pint_name.trim()) continue;
+    if (typeof row.price_gbp !== "number" || !Number.isFinite(row.price_gbp) || row.price_gbp <= 0 || !row.pint_name.trim()) continue;
     const key = row.pint_name.trim().toLowerCase();
     const held = cheapest.get(key);
     if (held) {
@@ -70,7 +70,7 @@ function pintRows(venue: Venue): Array<{ name: string; price: number; evidence: 
     } else cheapest.set(key, { name: titleCase(row.pint_name.trim()), price: row.price_gbp, rows: [row] });
   }
   return [...cheapest.values()].sort((a, b) => a.price - b.price || a.name.localeCompare(b.name))
-    .map(({ rows, ...pint }) => ({ ...pint, evidence: answerEvidenceFor({ priceGbp: pint.price, prices: rows }) }));
+    .map(({ rows, ...pint }) => ({ ...pint, evidence: answerEvidenceFor({ priceGbp: pint.price, prices: rows.filter((row) => row.price_gbp === pint.price) }) }));
 }
 
 /** "BIRRA MORETTI" reads as a shout; the source files some names in capitals. */
@@ -163,10 +163,10 @@ export default async function PubPage({ params }: PageProps) {
           titleId="pub-title"
           answer={
             <ul className="pubPage__facts" aria-label="At a glance">
-              {venue.cheapestPrice !== null ? (
+              {listedPint ? (
                 <li>
-                  <PintPriceBadge priceGbp={venue.cheapestPrice} venueId={venue.id} />
-                  <div><span>cheapest pint{venue.cheapestPint ? `, ${titleCase(venue.cheapestPint)}` : ""}</span>{listedPint ? <ListedPriceSource evidence={listedPint} className="pubPage__priceSource" /> : null}</div>
+                  <PintPriceBadge priceGbp={listedPint.priceGbp} venueId={venue.id} />
+                  <div><span>cheapest pint{listedPint.pintName ? `, ${titleCase(listedPint.pintName)}` : ""}</span><ListedPriceSource evidence={listedPint} className="pubPage__priceSource" /></div>
                 </li>
               ) : null}
               {band ? <li><span>{priceBandLabel(band)} for the area</span></li> : null}

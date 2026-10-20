@@ -51,14 +51,17 @@ describe("POST /api/pub-pal/chat", () => {
     vi.unstubAllGlobals();
   });
 
-  it("answers mixed discovery and alcohol allowance with the safety handoff", async () => {
+  it.each([
+    "Where can I buy beer in Soho? How many pints can I have before driving?",
+    "Where can I buy beer after cycling through Soho? Would it be safe to drive after two beers?",
+  ])("answers mixed discovery and alcohol allowance with the safety handoff: %s", async (query) => {
     vi.stubEnv("ELEVENLABS_API_KEY", "");
     vi.stubEnv("TYPESAFE_API_KEY", "");
     vi.stubGlobal("fetch", offlineFetch);
     const response = await POST(new Request("http://localhost/api/pub-pal/chat", {
       method: "POST", headers: { "content-type": "application/json" },
       body: JSON.stringify({
-        query: "Where can I buy beer in Soho? How many pints can I have before driving?",
+        query,
         cityId: "london",
       }),
     }));

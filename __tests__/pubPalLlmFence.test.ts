@@ -132,6 +132,9 @@ describe("Pub Pal fence without TypeSafe key", () => {
     "Where can I buy beer in Soho? Is one beer okay before riding my bike?",
     "Where can I buy beer after cycling through Soho? How many pints can I have before driving?",
     "Where can I buy beer after cycling through Soho? Can I have two beers and still drive?",
+    "Where can I buy beer after cycling through Soho? Would it be safe to drive after two beers?",
+    "Where can I buy beer after driving through Soho? Would it be safe to cycle after two pints?",
+    "Where can I buy beer after cycling through Soho? After two beers, would it be safe to drive?",
   ])("keeps discovery from masking a separate alcohol allowance: %s", async (query) => {
     expect(isPubPalGetHomeOrSobrietyIntent(query)).toBe(true);
     expect(isPubPalSobrietyOnlyIntent(query)).toBe(true);
@@ -181,6 +184,7 @@ describe("Pub Pal fence without TypeSafe key", () => {
     "Can I drive to a beer garden?",
     "Can I cycle to a pub serving beer in Soho?",
     "Before drinking beer, can I drive past Soho?",
+    "Where can I buy beer before dinner? Before having beer, should I drive?",
     "I have had two beers in Soho. Can I drive?",
     "I'm drunk in Soho. Can I drive?",
     "I like beer. I have had two pints. Can I drive?",
@@ -252,6 +256,8 @@ describe("Pub Pal fence without TypeSafe key", () => {
     "Can I drink only alcohol-free beer in Soho before driving?",
     "How long after driving before I can buy beer in Soho?",
     "Where can I buy beer in Soho? After driving, should I have beer?",
+    "Where can I buy beer before dinner? After driving, should I have beer?",
+    "Where can I buy beer before dinner? After cycling, should I have beer?",
     "Where can I buy nonalcoholic beer in Soho before driving?",
     "Find a safe cycling route to beer gardens in Soho",
     "I am the designated driver. Find alcohol-free pubs in Soho.",
