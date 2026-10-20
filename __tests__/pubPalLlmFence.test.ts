@@ -237,6 +237,7 @@ describe("Pub Pal fence without TypeSafe key", () => {
   it.each([
     "I have had trouble finding beer gardens in Soho.",
     "I have had trouble finding pubs and beer gardens in Soho.",
+    "I have had trouble finding pubs and wine bars in Soho.",
   ])("does not infer consumption from a beer-garden search: %s", async (report) => {
     await expect(resolvePubPalFenceIntent("Can I drive there?", [
       { role: "user", content: report },
@@ -257,6 +258,7 @@ describe("Pub Pal fence without TypeSafe key", () => {
     "I drank two cold beers.",
     "I have had two cold beers.",
     "I have had 1.5 pints.",
+    "I drank red wine.",
   ])("recognizes a consumed amount or mixed meal report: %s", async (report) => {
     await expect(resolvePubPalFenceIntent(`${report} Can I drive?`))
       .resolves.toEqual({ fenced: true, sobrietyOnly: true });
@@ -266,6 +268,20 @@ describe("Pub Pal fence without TypeSafe key", () => {
     mockSystemOneFromFixture(0.01, 0.01);
     await expect(resolvePubPalFenceIntent("Can I drive?", turns))
       .resolves.toEqual({ fenced: true, sobrietyOnly: true });
+  });
+
+  it("uses the person's earlier drinking report for an explicit fitness follow-up", async () => {
+    const turns: PubPalFenceTurn[] = [{ role: "user", content: "I have had two beers in Soho." }];
+    await expect(resolvePubPalFenceIntent("Is it safe to drive?", turns))
+      .resolves.toEqual({ fenced: true, sobrietyOnly: true });
+    mockSystemOneFromFixture(0.01, 0.01);
+    await expect(resolvePubPalFenceIntent("Is it safe to drive?", turns))
+      .resolves.toEqual({ fenced: true, sobrietyOnly: true });
+  });
+
+  it("does not infer alcohol consumption from water at a wine bar", async () => {
+    await expect(resolvePubPalFenceIntent("I drank water in a wine bar. Can I drive?"))
+      .resolves.toEqual({ fenced: false, sobrietyOnly: false });
   });
 
   it("does not infer consumption from an assistant's words or a user preference", async () => {

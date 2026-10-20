@@ -31,6 +31,7 @@ const safetyRequests = [
   "I drank two cold beers in Soho. Can I drive?",
   "I have had two cold beers in Soho. Can I drive?",
   "I have had 1.5 pints in Soho. Can I drive?",
+  "I drank red wine in Soho. Can I drive?",
 ];
 
 const discoveryRequests = [
@@ -45,6 +46,8 @@ const discoveryRequests = [
   "I have been drinking only alcohol-free beer. Can I drive?",
   "I have had trouble finding beer gardens in Soho. Can I drive there?",
   "I have had trouble finding pubs and beer gardens in Soho. Can I drive there?",
+  "I have had trouble finding pubs and wine bars in Soho. Can I drive there?",
+  "I drank water in a wine bar. Can I drive?",
 ];
 
 for (const width of [390, 1440]) {
@@ -98,7 +101,7 @@ for (const width of [390, 1440]) {
     });
   }
 
-  for (const followUp of ["Can I drive?", "Can I drive to a beer garden?"]) {
+  for (const followUp of ["Can I drive?", "Can I drive to a beer garden?", "Is it safe to drive?"]) {
     test(`${width}px: the earlier drinking report applies to ${followUp}`, async ({ page }, info) => {
       await page.setViewportSize({ width, height: 1000 });
       await page.goto("/pal/chat");

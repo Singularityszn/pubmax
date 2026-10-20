@@ -34,10 +34,15 @@ function withoutAlcoholFreeDrinks(message: string): string {
 
 function reportsAlcoholConsumption(message: string): boolean {
   return withoutAlcoholFreeDrinks(message).split(/[!?]|\.(?!\d)/).some((clause) => {
-    const report = clause.match(/\b(?:i|we)(?:['’]ve|\s+have)?\s+(?:had|drunk|drank|consumed|been\s+(?:drinking|consuming))\b(.*)/i);
-    const object = (report?.[1] ?? "").replace(/\bbeer\s+gardens?\b/gi, "garden");
-    const reportsDrink = /(?:^\s*|\b(?:and|with|plus|then)\s+)(?:(?:only|about|around|roughly|a|an|some|one|two|three|four|five|six|seven|eight|nine|ten|several|couple|few|half|of|too|many|much|more|than|less|at|least|cold|warm|hot|small|large|strong|weak|craft|local|draft|draught|bottled|canned|bottles?|cans?|glasses?|shots?|\d+(?:[.,]\d+)?)\s+)*(?:alcohol|drinks?|pints?|beers?|wine|cider|spirits?|soft\s+beverage)\b/i.test(object);
-    const reportsAlcohol = reportsDrink && /\b(?:alcohol|drinks?|pints?|beers?|wine|cider|spirits?)\b/i.test(object);
+    const reports = clause.matchAll(/\b(?:i|we)(?:['’]ve|\s+have)?\s+(had|drunk|drank|consumed|been\s+(?:drinking|consuming))\b/gi);
+    const reportsAlcohol = Array.from(reports).some((report) => {
+      const remainder = clause.slice(report.index + report[0].length);
+      if (/^had$/i.test(report[1]) && /^\s*(?:trouble|difficulty|problems?|a\s+hard\s+time)\b/i.test(remainder)) return false;
+      const object = remainder.split(/\b(?:at|in|near|while|when|before|after)\b/i)[0]
+        .replace(/\b(?:beer\s+gardens?|wine\s+bars?)\b/gi, "venue");
+      const reportsDrink = !/^had$/i.test(report[1]) || /(?:^\s*|\b(?:and|with|plus|then)\s+)(?:(?:only|about|around|roughly|a|an|some|one|two|three|four|five|six|seven|eight|nine|ten|several|couple|few|half|of|too|many|much|more|than|less|at|least|cold|warm|hot|small|large|strong|weak|craft|local|draft|draught|bottled|canned|bottles?|cans?|glasses?|shots?|\d+(?:[.,]\d+)?)\s+)*(?:alcohol|drinks?|pints?|beers?|wine|cider|spirits?|soft\s+beverage)\b/i.test(object);
+      return reportsDrink && /\b(?:alcohol|drinks?|pints?|beers?|wine|cider|spirits?)\b/i.test(object);
+    });
     const reportsDrunkenness = /\b(?:i(?:['’]m|\s+am)|we(?:['’]re|\s+are))\b.{0,40}\bdrunk\b/i.test(clause);
     return reportsAlcohol || reportsDrunkenness;
   });
@@ -111,8 +116,9 @@ function regexFenceIntent(
     }
     sobrietyOnly = true;
   }
-  if (PERSONAL_OPERATION_QUESTION_RE.test(message)
-    && texts.slice(1).some(reportsAlcoholConsumption)) sobrietyOnly = true;
+  const asksPersonalVehicleFitness = PERSONAL_OPERATION_QUESTION_RE.test(message)
+    || (PERSONAL_FITNESS_RE.test(message) && VEHICLE_OPERATION_RE.test(message));
+  if (asksPersonalVehicleFitness && texts.slice(1).some(reportsAlcoholConsumption)) sobrietyOnly = true;
   if (sobrietyOnly) {
     return { fenced: true, sobrietyOnly: true };
   }
