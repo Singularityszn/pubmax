@@ -181,6 +181,11 @@ describe("Pub Pal fence without TypeSafe key", () => {
     "I have had trouble finding pubs and wine bars. Can I drive there?",
     "I have had two beers in Soho. Can I drive? Which route goes to Soho?",
     "What route can I drive to Soho, and can I drive?",
+    "What route can I drive to Soho?",
+    "Which route should we cycle to Soho?",
+    "Which route to Soho can I drive?",
+    "Which route to Elephant and Castle can I drive?",
+    "Which route to Soho and also can I drive?",
   ])("hands a personal driving question to transport without inferring consumption: %s", async (query) => {
     const neutral = { fenced: true, sobrietyOnly: false };
     await expect(resolvePubPalFenceIntent(query)).resolves.toEqual(neutral);
@@ -221,10 +226,6 @@ describe("Pub Pal fence without TypeSafe key", () => {
     "Where can I buy alcohol-free beer in Soho?",
     "Find four quiet pubs in Soho under £7 per pint.",
     "What time does the bus leave Soho?",
-    "What route can I drive to Soho?",
-    "Which route to Soho can I drive?",
-    "Which route to Elephant and Castle can I drive?",
-    "Which route should we cycle to Soho?",
     "Can I ride the bus to Soho?",
     "Could we ride the train to Soho?",
     "Can I have a pint in Soho after driving there?",

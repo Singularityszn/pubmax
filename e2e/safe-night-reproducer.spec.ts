@@ -59,7 +59,12 @@ const neutralRequests = [
   "I drank water and no less than two beers in Soho. Can I drive?",
   "I drank water and discussed wine in Soho. Can I drive?",
   "I have had two beers in Soho. Can I drive? Which route goes to Soho?",
-  "What route can I drive to Soho, and can I drive?"
+  "What route can I drive to Soho, and can I drive?",
+  "What route can I drive to Soho?",
+  "Which route should we cycle to Soho?",
+  "Which route to Soho can I drive?",
+  "Which route to Elephant and Castle can I drive?",
+  "Which route to Soho and also can I drive?"
 ];
 
 const discoveryRequests = [
@@ -73,10 +78,6 @@ const discoveryRequests = [
   "I am the designated driver. Find alcohol-free pubs in Soho.",
   "What are the parking options near pubs in Soho?",
   "Can I have a pint in Soho after driving there?",
-  "What route can I drive to Soho?",
-  "Which route to Soho can I drive?",
-  "Which route to Elephant and Castle can I drive?",
-  "Which route should we cycle to Soho?",
   "Can I ride the bus to Soho?",
   "Could we ride the train to Soho?"
 ];
