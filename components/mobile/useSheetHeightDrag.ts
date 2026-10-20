@@ -74,7 +74,12 @@ function presentHeight(raw: number, fullCap: number): number {
 
 export function useSheetHeightDrag(onDismiss: () => void): SheetHeightDrag {
   const keyboardOpen = useSyncExternalStore(subscribeSoftKeyboard, readSoftKeyboardOpen, serverSoftKeyboardOpen);
-  const [sheetSnap, setRestingSnap] = useState<SheetSnap>("half");
+  const [sheetSnap, storeRestingSnap] = useState<SheetSnap>("half");
+  const sheetSnapRef = useRef<SheetSnap>("half");
+  const setRestingSnap = useCallback((snap: SheetSnap) => {
+    sheetSnapRef.current = snap;
+    storeRestingSnap(snap);
+  }, []);
   const [dragging, setDragging] = useState(false);
   const [entering, setEntering] = useState(false);
   const enteringTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -128,16 +133,16 @@ export function useSheetHeightDrag(onDismiss: () => void): SheetHeightDrag {
       setEntering(false);
       animateTo(capsForViewport()[snap], { dampingRatio: 1 });
     },
-    [animateTo, capsForViewport],
+    [animateTo, capsForViewport, setRestingSnap],
   );
 
-  const settleToRest = useCallback((targetSnap: SheetSnap = sheetSnap) => {
+  const settleToRest = useCallback((targetSnap: SheetSnap = sheetSnapRef.current) => {
     dismissingRef.current = false;
     setRestingSnap(targetSnap);
     setEntering(false);
     stop();
     animateTo(capsForViewport()[targetSnap], { dampingRatio: 1 });
-  }, [animateTo, capsForViewport, sheetSnap, stop]);
+  }, [animateTo, capsForViewport, setRestingSnap, stop]);
 
   // THE ENTRANCE MOVES THE SHEET, NEVER THE LAYOUT.
   //
@@ -168,7 +173,7 @@ export function useSheetHeightDrag(onDismiss: () => void): SheetHeightDrag {
         SHEET_ENTRANCE_MS,
       );
     },
-    [capsForViewport, jumpTo, stop],
+    [capsForViewport, jumpTo, setRestingSnap, stop],
   );
 
   useEffect(() => () => {
@@ -190,11 +195,9 @@ export function useSheetHeightDrag(onDismiss: () => void): SheetHeightDrag {
   // springing, and the field that holds focus is brought back into its
   // scroller the way the browser does for the document itself.
   const sheetHeightRef = useRef(sheetHeight);
-  const sheetSnapRef = useRef(sheetSnap);
   useEffect(() => {
     sheetHeightRef.current = sheetHeight;
-    sheetSnapRef.current = sheetSnap;
-  }, [sheetHeight, sheetSnap]);
+  }, [sheetHeight]);
   // The sheet's own header and footer can grow too (the venue command bar lands
   // after the sheet opens), so MobileSharedSheet calls this when they resize.
   const recapToViewport = useCallback(() => {
@@ -240,7 +243,7 @@ export function useSheetHeightDrag(onDismiss: () => void): SheetHeightDrag {
         },
       });
     },
-    [animateTo, jumpTo],
+    [animateTo, jumpTo, setRestingSnap],
   );
 
   const requestDismiss = useCallback(
@@ -347,7 +350,7 @@ export function useSheetHeightDrag(onDismiss: () => void): SheetHeightDrag {
           Math.abs(velocity) >= MOMENTUM_VELOCITY_THRESHOLD ? 0.8 : 1,
       });
     },
-    [animateTo, dismissWithVelocity],
+    [animateTo, dismissWithVelocity, setRestingSnap],
   );
 
   return {

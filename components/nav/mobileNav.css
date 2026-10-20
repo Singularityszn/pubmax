@@ -73,7 +73,7 @@
      layout lengths. Wrapped status text can grow beyond this minimum. */
   --map-peek-row-h: calc(2.75rem * var(--native-text-layout-scale, 1));
   --map-peek-h: calc(var(--map-peek-row-h) + var(--plan-activation-h) + 20px);
-  --map-peek-clearance-h: var(--map-peek-rendered-h, var(--map-peek-h));
+  --map-peek-clearance-h: max(var(--map-peek-rendered-h, 0px), var(--map-peek-h));
 
   /* Member: the map-edge corner column. Its box spans most of the viewport, but
      what sits in this band is the Near me FAB parked at the column's own bottom

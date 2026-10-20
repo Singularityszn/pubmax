@@ -234,7 +234,7 @@ test.describe("map keyboard and screen-reader venue path", () => {
     await page.goto("/map");
 
     for (const name of ["Zoom in", "Zoom out"] as const) {
-      const control = page.getByRole("button", { name });
+      const control = page.getByRole("button", { name, exact: true });
       await expect(control).toBeVisible({ timeout: 30_000 });
       const box = await control.boundingBox();
       expect(box).not.toBeNull();
