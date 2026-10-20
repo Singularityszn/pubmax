@@ -2,6 +2,15 @@ import { expect, test } from "@playwright/test";
 
 test.use({ serviceWorkers: "block" });
 
+test.beforeAll(async ({ request }, info) => {
+  const response = await request.get("/api/version");
+  expect(response.status()).toBe(200);
+  await info.attach("runtime version", {
+    body: JSON.stringify(await response.json()),
+    contentType: "application/json",
+  });
+});
+
 const safetyRequests = [
   "How many pints can I have in Soho before driving home?",
   "How many pints can I have before driving?",
