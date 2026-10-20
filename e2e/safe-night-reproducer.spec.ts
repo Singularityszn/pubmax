@@ -35,6 +35,8 @@ const safetyRequests = [
   "I have had at least two pints in Soho. Can I drive?",
   "I have had dinner at the pub and two beers in Soho. Can I drive?",
   "I drank alcohol-free beer and red wine in Soho. Can I drive?",
+  "I drank water and then drank two beers in Soho. Can I drive?",
+  "I drank water and dark beer in Soho. Can I drive?",
 ];
 
 const discoveryRequests = [
