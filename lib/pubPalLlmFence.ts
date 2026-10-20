@@ -14,6 +14,31 @@ const PUB_PAL_GET_HOME_SOBRIETY_RE =
 const PUB_PAL_SOBRIETY_ONLY_RE =
   /\b(?:should\s+i\s+have\s+(?:one\s+)?more|one\s+more\s+(?:drink|pint)|am\s+i\s+(?:okay|ok|fine|sober|drunk)|sobri(?:ety|ous)|drunk\s+enough|fit\s+to\s+drive)\b/i;
 
+const ALCOHOL_RE = /\b(?:alcohol|drinks?|drinking|drunk|pints?|beers?|wine|cider|spirits?)\b/i;
+const VEHICLE_OPERATION_RE = /\b(?:driv(?:e|ing)|cycl(?:e|ing)|rid(?:e|ing)\s+(?:(?:my|a|the)\s+)?bike)\b/i;
+const PERSONAL_ALLOWANCE_RE = /\b(?:how\s+(?:many|much|long)|(?:can|could|may|should)\s+i)\b/i;
+
+function asksAboutAlcoholAndVehicleFitness(message: string): boolean {
+  const text = message.replace(
+    /\b(?:alcohol[-\s]+free|non[-\s]*alcoholic|zero[-\s]+alcohol|0(?:[.,]0)?%)\s+(?:beers?|pints?|drinks?|wine|cider|spirits?)\b/gi,
+    "",
+  );
+  const alcoholAt = text.search(ALCOHOL_RE);
+  const operationAt = text.search(VEHICLE_OPERATION_RE);
+  if (alcoholAt < 0 || operationAt < 0) return false;
+  if (/\b(?:safe|fit|sober|drunk|okay|ok)\b/i.test(text)) return true;
+  if (!PERSONAL_ALLOWANCE_RE.test(text)) return false;
+
+  const beforeAt = text.search(/\bbefore\b/i);
+  const afterAt = text.search(/\bafter\b/i);
+  const stillAt = text.search(/\band\s+still\b/i);
+  const alcoholBeforeOperation = beforeAt >= 0 && operationAt > beforeAt
+    && (alcoholAt < beforeAt || operationAt < alcoholAt);
+  const operationAfterAlcohol = afterAt >= 0 && alcoholAt > afterAt
+    && (operationAt < afterAt || operationAt > alcoholAt);
+  return alcoholBeforeOperation || operationAfterAlcohol || (stillAt >= 0 && operationAt > stillAt);
+}
+
 const PUB_PAL_GET_HOME_REGISTER_CLOSER =
   "Open Getting Home on the venue sheet for last-train times, ride links, and the TfL planner.";
 
@@ -30,14 +55,17 @@ export type PubPalFenceIntent = {
   sobrietyOnly: boolean;
 };
 
-/** Keyless fallback: regex table only. */
+/** Deterministic keyless fallback. */
 export function isPubPalGetHomeOrSobrietyIntent(text: string): boolean {
-  return PUB_PAL_GET_HOME_SOBRIETY_RE.test(text.trim());
+  const trimmed = text.trim();
+  return PUB_PAL_GET_HOME_SOBRIETY_RE.test(trimmed) || asksAboutAlcoholAndVehicleFitness(trimmed);
 }
 
-/** Keyless fallback: regex table only. */
+/** Deterministic keyless fallback. */
 export function isPubPalSobrietyOnlyIntent(text: string): boolean {
-  return PUB_PAL_SOBRIETY_ONLY_RE.test(text.trim());
+  const trimmed = text.trim();
+  if (PUB_PAL_GET_HOME_SOBRIETY_RE.test(trimmed)) return PUB_PAL_SOBRIETY_ONLY_RE.test(trimmed);
+  return asksAboutAlcoholAndVehicleFitness(trimmed);
 }
 
 function regexFenceIntent(

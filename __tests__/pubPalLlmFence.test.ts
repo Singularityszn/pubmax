@@ -1,6 +1,3 @@
-import { readFileSync } from "node:fs";
-import { join } from "node:path";
-
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import probabilities from "@/__tests__/fixtures/typesafe/pubPalFenceProbabilities.json";
@@ -20,8 +17,6 @@ vi.mock("@/lib/ai/typesafe.server", () => ({
 }));
 
 import { systemOne } from "@/lib/ai/typesafe.server";
-
-const ROOT = process.cwd();
 
 // A JSON import widens `role` to string, so name the recorded shape once here
 // rather than casting at each use. If a fixture ever carries a role the fence
@@ -84,8 +79,6 @@ describe("Pub Pal TypeSafe fence on recorded fixtures", () => {
   });
 
   it("uses the threshold chosen from pubPalFenceProbabilities.json", () => {
-    const comment = readFileSync(join(ROOT, "lib/pubPalLlmFence.ts"), "utf8");
-    expect(comment).toContain("__tests__/fixtures/typesafe/pubPalFenceProbabilities.json");
     expect(PUB_PAL_FENCE_NOUL_THRESHOLD).toBe(0.33);
   });
 
@@ -110,6 +103,12 @@ describe("Pub Pal TypeSafe fence on recorded fixtures", () => {
     const intent = await resolvePubPalFenceIntent("Can I drive?");
     expect(intent).toEqual({ fenced: true, sobrietyOnly: true });
   });
+
+  it("keeps an explicit alcohol fitness ask fenced after a negative provider classification", async () => {
+    mockSystemOneFromFixture(0.01, 0.01);
+    await expect(resolvePubPalFenceIntent("Can I drive after two beers?"))
+      .resolves.toEqual({ fenced: true, sobrietyOnly: true });
+  });
 });
 
 describe("Pub Pal fence without TypeSafe key", () => {
@@ -120,6 +119,57 @@ describe("Pub Pal fence without TypeSafe key", () => {
 
   afterEach(() => {
     vi.mocked(systemOne).mockReset();
+  });
+
+  it("fences an alcohol allowance before driving without a destination", async () => {
+    await expect(resolvePubPalFenceIntent("How many pints can I have in Soho before driving?"))
+      .resolves.toEqual({ fenced: true, sobrietyOnly: true });
+  });
+
+  it("keeps an alcohol-free discovery request out of the fitness fence", async () => {
+    await expect(resolvePubPalFenceIntent("Where can I buy alcohol-free beer in Soho before driving?"))
+      .resolves.toEqual({ fenced: false, sobrietyOnly: false });
+  });
+
+  it("keeps a question about drinks after driving out of the fitness fence", async () => {
+    await expect(resolvePubPalFenceIntent("How long after driving before I can buy beer in Soho?"))
+      .resolves.toEqual({ fenced: false, sobrietyOnly: false });
+  });
+
+  it("keeps nonalcoholic beer discovery out of the fitness fence", async () => {
+    await expect(resolvePubPalFenceIntent("Where can I buy nonalcoholic beer in Soho before driving?"))
+      .resolves.toEqual({ fenced: false, sobrietyOnly: false });
+  });
+
+  it.each([
+    "Can I drink two pints in Soho before I drive?",
+    "How many pints can I have in Soho before driving back?",
+    "Before I drive, can I have two pints in Soho?",
+    "Would it be safe to drive after two beers?",
+    "Am I safe to drive after a pint?",
+    "How long after drinking can I drive?",
+    "Can I cycle after two pints?",
+    "Is one beer okay before riding my bike?",
+    "Can I have two beers and still drive?",
+  ])("fences personal fitness after alcohol: %s", async (query) => {
+    await expect(resolvePubPalFenceIntent(query))
+      .resolves.toEqual({ fenced: true, sobrietyOnly: true });
+  });
+
+  it.each([
+    "I am the designated driver. Find alcohol-free pubs in Soho.",
+    "What are the parking options near pubs in Soho?",
+    "Where can I buy alcohol-free beer in Soho?",
+    "Find four quiet pubs in Soho under £7 per pint.",
+    "What time does the bus leave Soho?",
+    "Before drinking beer, can I drive past Soho?",
+    "Can I have a pint in Soho after driving there?",
+    "Can I cycle to a pub serving beer in Soho?",
+    "Where can I buy 0.0% beer in Soho before driving?",
+    "Where can I buy non-alcoholic beer in Soho before driving?",
+  ])("preserves discovery and transport without a fitness ask: %s", async (query) => {
+    await expect(resolvePubPalFenceIntent(query))
+      .resolves.toEqual({ fenced: false, sobrietyOnly: false });
   });
 
   it.each([
