@@ -1,6 +1,14 @@
 import { randomUUID } from "node:crypto";
 import { expect, test } from "@playwright/test";
 
+test.beforeEach(async ({ page }) => {
+  await page.addInitScript(() => {
+    localStorage.setItem("pubmaxx:analytics-consent:v1", "denied");
+    localStorage.setItem("pubmax-tour-v1-done", "1");
+    sessionStorage.setItem("pubmax_onboarding_dismissed", "1");
+  });
+});
+
 for (const width of [390, 1440]) {
   test(`invite pint prices keep their unit and source at ${width}px`, async ({ page, request }) => {
     const created = await request.post("/api/plans", { headers: { "idempotency-key": randomUUID() }, data: {
