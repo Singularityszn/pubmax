@@ -31,7 +31,7 @@ try {
     `style-src 'self' 'unsafe-inline' ${csp.resourceDomains.join(" ")}`, `connect-src 'self' ${csp.connectDomains.join(" ")}`,
     `img-src 'self' data: ${csp.resourceDomains.join(" ")}`, `font-src 'self' ${csp.resourceDomains.join(" ")}`, "frame-src 'none'"].join("; ");
   const encoded = JSON.stringify(plan).replaceAll("<", "\\u003c");
-  const html = `<!doctype html><meta name="viewport" content="width=device-width,initial-scale=1"><style>body{margin:0}iframe{border:0;width:100%;height:100vh}</style><iframe title="Night Architect" src="/widget" sandbox="allow-scripts allow-same-origin"></iframe><script>
+  const html = `<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><style>body{margin:0}iframe{border:0;width:100%;height:100vh}</style><iframe title="Night Architect" src="/widget" sandbox="allow-scripts allow-same-origin"></iframe><script>
     const frame=document.querySelector('iframe');window.links=[];window.requests=[];window.deny=false;
     const send=m=>frame.contentWindow.postMessage({jsonrpc:'2.0',...m},location.origin);
     addEventListener('message',event=>{
@@ -44,8 +44,8 @@ try {
       if(m.method==='ui/message'){window.requests.push(m.params);send({id:m.id,result:{isError:false}});}
     });</script>`;
   host = createServer((req, res) => {
-    if (req.url === "/widget") res.writeHead(200, { "Content-Type": "text/html", "Content-Security-Policy": policy }).end(widget);
-    else res.writeHead(200, { "Content-Type": "text/html" }).end(html);
+    if (req.url === "/widget") res.writeHead(200, { "Content-Type": "text/html; charset=utf-8", "Content-Security-Policy": policy }).end(widget);
+    else res.writeHead(200, { "Content-Type": "text/html; charset=utf-8" }).end(html);
   });
   await new Promise((resolve) => host.listen(0, "127.0.0.1", resolve));
   browser = await chromium.launch({ channel: process.env.PUBMAX_BROWSER_CHANNEL || undefined, headless: true, args: ["--enable-unsafe-swiftshader"] });
@@ -57,22 +57,39 @@ try {
     await page.goto(`http://127.0.0.1:${host.address().port}`);
     const frame = page.frameLocator('iframe[title="Night Architect"]');
     await frame.locator("#venues > li").nth(2).waitFor();
-    await frame.locator(".maplibregl-canvas").waitFor();
+    await frame.locator('#map[data-state="ready"], #map[data-state="degraded"]').waitFor({ timeout: 45_000 });
+    assert.equal(await frame.getByRole("heading", { level: 1 }).textContent(), "Your pub evening");
     assert.equal(await frame.locator("#evening").isVisible(), true);
+    for (const [index, pub] of plan.structuredContent.venues.entries()) {
+      const item = frame.locator("#venues > li").nth(index);
+      assert.equal(await item.getByRole("heading", { level: 2 }).textContent(), `${index + 1}. ${pub.name}`);
+      for (const price of pub.prices) {
+        if (!price.observedAt || !Number.isFinite(Date.parse(price.observedAt))) continue;
+        const date = new Intl.DateTimeFormat("en-GB", { timeZone: "Europe/London", day: "numeric", month: "long", year: "numeric" }).format(new Date(price.observedAt));
+        const stamps = item.locator("time").filter({ hasText: date });
+        assert.ok(await stamps.evaluateAll((nodes, raw) => nodes.some((node) => node.getAttribute("datetime") === raw), price.observedAt));
+      }
+      const button = await item.getByRole("button", { name: `Find another pub for stop ${index + 1}`, exact: true }).boundingBox();
+      const link = await item.getByRole("link", { name: "Open pub in PUBMAXX" }).boundingBox();
+      assert.ok(button && link && link.y >= button.y + button.height + 8, "Replacement and venue link must have separate space");
+    }
     assert.match(await frame.locator("#evening").textContent(), /not a guaranteed bill/);
     await frame.getByRole("button", { name: "Find another pub for stop 2", exact: true }).click();
     await frame.locator("#status").filter({ hasText: "Alternative requested" }).waitFor();
     assert.equal(await page.evaluate(() => window.requests.length), 1);
     const pubLink = frame.locator("#venues > li").first().getByRole("link", { name: "Open pub in PUBMAXX" });
     await pubLink.click();
+    await page.waitForFunction(() => window.links.length === 1);
     assert.equal(await page.evaluate(() => window.links.length), 1);
     await page.evaluate(() => { window.deny = true; });
     await pubLink.click();
+    await page.waitForFunction(() => window.links.length === 2);
     await frame.locator("#status").filter({ hasText: "Copy this address" }).waitFor();
     assert.equal(await frame.locator("body").evaluate((body) => body.scrollWidth > innerWidth), false);
     await page.screenshot({ path: `${output}${viewport.width}.png`, fullPage: true });
     assert.deepEqual(errors, []);
-    checks.push({ viewport, replacementMessage: true, linkRequest: true, deniedLinkFallback: true, horizontalOverflow: false });
+    const mapState = await frame.locator("#map").getAttribute("data-state");
+    checks.push({ viewport, mapState, replacementMessage: true, linkRequest: true, deniedLinkFallback: true, horizontalOverflow: false });
     await page.close();
   }
   const alternatives = await client.callTool({ name: "pubmaxx_search_venues", arguments: { query: "Soho", limit: 8 } });

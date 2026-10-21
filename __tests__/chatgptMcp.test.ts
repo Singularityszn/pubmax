@@ -84,7 +84,7 @@ it("retains evidence gaps and never promises the full bill from a partial price 
 it("replaces a stop using public records and recalculates the estimate without retaining old constraints", async () => {
   const client = await planner();
   const result = await client.callTool({ name: "pubmaxx_replace_stop", arguments: {
-    venueIds: ["venue-one", "venue-two", "venue-three"], position: 2, replacementVenueId: "venue-four", drinkCategory: null, zeroProof: false, budgetPence: 2000,
+    venueIds: ["venue-one", "venue-two", "venue-three"], position: 2, replacementVenueId: "venue-four", drinkCategory: null, zeroProof: false,
   } });
   expect(result.isError).not.toBe(true);
   expect(result.structuredContent).toMatchObject({
@@ -132,4 +132,46 @@ it("does not replace alcohol-free route costs with beer prices", async () => {
   } });
   expect(result.isError).not.toBe(true);
   expect(result.structuredContent).toMatchObject({ budget: { knownPence: 0, missingPrices: 3 }, zeroProof: true });
+});
+
+const replacement = {
+  venueIds: ["venue-one", "venue-two", "venue-three"], position: 2,
+  replacementVenueId: "venue-four", drinkCategory: "beer", zeroProof: false, budgetPence: 2000,
+};
+it.each(["undated", "stale", "future", "unattributed", "missing", "modelled", "selected-drink"])("refuses a replacement ceiling with %s evidence", async (kind) => {
+  const client = await connect({ detail: async (id) => ({
+    ...venue, id,
+    prices: kind === "missing" ? [] : [{
+      drink: "Lager", priceGbp: 5,
+      observedAt: kind === "undated" ? null : kind === "stale" ? "2020-01-01T12:00:00Z"
+        : kind === "future" ? "2099-01-01T12:00:00Z" : new Date().toISOString(),
+      status: "estimate", ...(kind === "modelled" ? { basis: "regional model" } : {}),
+      publisher: kind === "unattributed" ? null : { label: "Menu", url: "https://pub.example/menu" },
+    }],
+  }) });
+  const result = await client.callTool({ name: "pubmaxx_replace_stop", arguments: {
+    ...replacement, ...(kind === "selected-drink" ? { drinkCategory: "wine" } : {}),
+  } });
+  expect(result.isError).toBe(true);
+});
+it.each([1, 2, 3])("checks the ceiling evidence at stop %i", async (position) => {
+  const client = await connect({ detail: async (id) => ({
+    ...venue, id,
+    prices: [{ drink: "Lager", priceGbp: 5, observedAt: new Date().toISOString(), status: "recorded",
+      publisher: id === ["venue-one", "venue-four", "venue-three"][position - 1] ? null : { label: "Menu", url: "https://pub.example/menu" },
+    }],
+  }) });
+  expect((await client.callTool({ name: "pubmaxx_replace_stop", arguments: replacement })).isError).toBe(true);
+});
+it("uses the same attributable price for a replacement ceiling and its returned budget", async () => {
+  const client = await connect({ detail: async (id) => ({
+    ...venue, id,
+    prices: [{ drink: "Lager", priceGbp: 6,
+      observedAt: new Date(Date.now() - 20 * 86400_000).toISOString(), status: "recorded",
+      publisher: { label: "Menu", url: "https://pub.example/menu" } }],
+  }) });
+  const result = await client.callTool({ name: "pubmaxx_replace_stop", arguments: replacement });
+  expect(result.isError).not.toBe(true);
+  expect(result.structuredContent).toMatchObject({ budget: { knownPence: 1800, missingPrices: 0, limitPence: 2000, guaranteed: false } });
+  expect((await client.callTool({ name: "pubmaxx_replace_stop", arguments: { ...replacement, budgetPence: 1700 } })).isError).toBe(true);
 });

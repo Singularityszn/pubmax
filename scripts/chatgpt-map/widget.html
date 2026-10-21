@@ -9,14 +9,15 @@
   *{box-sizing:border-box}body{margin:0}header{padding:20px 20px 12px}h1{font-family:"Space Grotesk",system-ui,sans-serif;font-size:24px;line-height:1.2;margin:0 0 8px}p{font-size:14px;line-height:1.5;margin:0 0 8px;color:var(--muted)}
   main{display:grid;grid-template-columns:minmax(0,1.5fr) minmax(0,1fr);min-width:0}#map{--map-height:420px;height:var(--map-height);min-width:0;background:var(--line)}#venues{min-width:0;max-height:420px;overflow:auto;padding:0 16px;margin:0;list-style:none}#status{overflow-wrap:anywhere}
   li{padding:16px 0;border-bottom:1px solid var(--line)}h2{font-size:17px;margin:0 0 7px;overflow-wrap:anywhere}a{color:inherit;text-underline-offset:3px}button{font:inherit;padding:10px 14px;border:1px solid var(--line);border-radius:6px;background:var(--paper);color:var(--ink);cursor:pointer;min-height:44px}button:focus-visible,a:focus-visible{outline:3px solid var(--brass);outline-offset:3px}.pin{border-radius:50%;background:var(--brass);color:var(--color-on-accent);border:2px solid var(--panel-overlay);width:38px;height:38px;padding:0;font-weight:700;box-shadow:0 2px 8px #0003}.maplibregl-popup-content{background:var(--paper);color:var(--ink)}.price{font-variant-numeric:tabular-nums;margin-bottom:4px}footer{padding:14px 20px}#status{padding:0 20px}
+  .venue-actions{display:flex;flex-direction:column;align-items:flex-start;gap:12px;margin-top:12px}
   .popup-card{max-height:calc(var(--map-height) - 110px);overflow:auto;overflow-wrap:anywhere}
   @media(max-width:600px){main{grid-template-columns:minmax(0,1fr)}#map{--map-height:280px}#venues{max-height:none}}
   /* PUBMAXX_SHARED_STYLES */
 </style>
-<header><h1>Pubs in <span id="area">your borough</span></h1><p id="notice">Choose a London borough in the conversation to see listed pint prices.</p></header>
+<header><h1 id="heading">Pubs in your borough</h1><p id="notice">Choose a London borough in the conversation to see listed pint prices.</p></header>
 <section id="evening" hidden style="padding:0 20px 12px" aria-label="Evening estimate"></section>
 <p id="status" role="status">Waiting for public venues.</p>
-<main><div id="map" role="region" aria-label="Public pub map"></div><ol id="venues" aria-label="Listed pubs"></ol></main>
+<main><div id="map" data-state="loading" role="region" aria-label="Public pub map"></div><ol id="venues" aria-label="Listed pubs"></ol></main>
 <footer><p>Listed prices can change. Friend locations stay inside PUBMAXX.</p><a href="https://pubmaxxing.com/map" target="_blank" rel="noopener noreferrer">Open PUBMAXX</a></footer>
 <script type="application/json" id="mcp-apps-sdk">PUBMAXX_MCP_APPS_SDK</script>
 <script type="module">
@@ -34,6 +35,7 @@
   const MAX_URL_LENGTH = 2048;
   let stopSizeNotifications = () => {};
   const element = (id) => document.getElementById(id);
+  const priceDay = new Intl.DateTimeFormat("en-GB", {timeZone:"Europe/London",day:"numeric",month:"long",year:"numeric"});
   const money = new Intl.NumberFormat("en-GB", {style:"currency",currency:"GBP"});
   const MAPLIBRE_URL = "https://unpkg.com/maplibre-gl@6.13.0/dist/";
   let maplibre;
@@ -43,7 +45,7 @@
     resultStatus = message;
     element("status").textContent = [resultStatus, mapFailure].filter(Boolean).join(" ");
   }
-  function mapFailed(message) {if(tornDown)return;mapFailure = message;updateStatus();}
+  function mapFailed(message) {if(tornDown)return;mapFailure = message;element("map").dataset.state="degraded";updateStatus();}
   async function openLink(event) {
     const link=event.target instanceof Element?event.target.closest("a[href]"):null;
     if(tornDown||!link||window.parent===window)return;
@@ -76,14 +78,20 @@
   function safeVenues(input) {
     if (!Array.isArray(input)) return [];
     return input.slice(0,30).filter(v=>v&&typeof v.name==="string"&&v.name.length<=160&&typeof v.id==="string"&&Number.isFinite(v.latitude)&&Math.abs(v.latitude)<=90&&Number.isFinite(v.longitude)&&Math.abs(v.longitude)<=180)
-      .map(v=>({name:v.name,latitude:v.latitude,longitude:v.longitude,href:safeLink(v.href),history:Array.isArray(v.history)?v.history.slice(0,6).filter(f=>f&&typeof f.fact==="string"&&f.fact.length<=1000&&safeHttpsUrl(f.sourceRef)).map(f=>({fact:f.fact,sourceRef:safeHttpsUrl(f.sourceRef).href})):[],prices:Array.isArray(v.prices)?v.prices.slice(0,3).filter(p=>p&&typeof p.drink==="string"&&p.drink.length<=160&&Number.isFinite(p.priceGbp)&&p.priceGbp>0).map(p=>({drink:p.drink,priceGbp:p.priceGbp,observedAt:typeof p.observedAt==="string"&&p.observedAt.length<=40?p.observedAt:null,status:p.status==="estimate"?"estimate":null,band:["cheap","average","expensive"].includes(p.band)?p.band:null,publisher:safePublisher(p.publisher)})):[]}));
+      .map(v=>({priceUnavailable:v.priceReads?.bundle==="unavailable"||v.priceReads?.updates==="unavailable",name:v.name,latitude:v.latitude,longitude:v.longitude,href:safeLink(v.href),history:Array.isArray(v.history)?v.history.slice(0,6).filter(f=>f&&typeof f.fact==="string"&&f.fact.length<=1000&&safeHttpsUrl(f.sourceRef)).map(f=>({fact:f.fact,sourceRef:safeHttpsUrl(f.sourceRef).href})):[],prices:Array.isArray(v.prices)?v.prices.slice(0,3).filter(p=>p&&typeof p.drink==="string"&&p.drink.length<=160&&Number.isFinite(p.priceGbp)&&p.priceGbp>0).map(p=>({drink:p.drink,priceGbp:p.priceGbp,observedAt:typeof p.observedAt==="string"&&p.observedAt.length<=40?p.observedAt:null,status:p.status==="estimate"?"estimate":null,band:["cheap","average","expensive"].includes(p.band)?p.band:null,publisher:safePublisher(p.publisher),basis:typeof p.basis==="string"?p.basis.slice(0,300):null})):[]}));
   }
   function card(venue, parent, position) {
     text("h2",isEvening&&Number.isInteger(position)?`${position+1}. ${venue.name}`:venue.name,parent);
-    if (!venue.prices.length) text("p","No listed price here yet.",parent);
+    if(venue.priceUnavailable)text("p","Some price records could not be read. Available figures may be incomplete.",parent);
+    else if (!venue.prices.length) text("p","No listed price here yet.",parent);
     for (const price of venue.prices) {
-      text("p",`${money.format(price.priceGbp)} · ${price.drink}`,parent).className=price.band?`price priceBand-${price.band}`:"price";
-      if (price.status || price.observedAt) text("p",`${price.status==="estimate"?"Estimate":"On record"} · ${price.observedAt?`Read ${price.observedAt}`:"Price date not recorded"}`,parent);
+      text("p",`${price.status==="estimate"?"Estimate · ":""}${money.format(price.priceGbp)} · ${price.drink}`,parent).className=price.band?`price priceBand-${price.band}`:"price";
+      const dated=text("p",`${price.status==="estimate"?"Estimate":"On record"} · `,parent);
+      if(price.observedAt&&Number.isFinite(Date.parse(price.observedAt))){
+        const stamp=text("time",`${price.basis?"Modelled":"Read"} ${priceDay.format(new Date(price.observedAt))}`,dated);
+        stamp.dateTime=price.observedAt;stamp.title=price.observedAt;
+      }else dated.append("Price date not recorded");
+      if(price.basis)text("p",`Estimate basis: ${price.basis}`,parent);
       const source = text("p","",parent);
       if (price.publisher?.url) {const a=text("a",`Publisher: ${price.publisher.label}`,source);a.href=price.publisher.url;a.target="_blank";a.rel="noopener noreferrer";}
       else if (price.publisher) source.textContent=`Publisher: ${price.publisher.label}. Link unavailable.`;
@@ -93,8 +101,9 @@
       text("p",fact.fact,parent);
       const citation=text("a","Read the history source",parent);citation.href=fact.sourceRef;citation.target="_blank";citation.rel="noopener noreferrer";
     }
+    const actions=document.createElement("div");actions.className="venue-actions";parent.append(actions);
     if (isEvening && Number.isInteger(position)) {
-      const button=text("button",`Find another pub for stop ${position+1}`,parent);
+      const button=text("button",`Find another pub for stop ${position+1}`,actions);
       button.type="button";
       button.addEventListener("click",async()=>{
         if(tornDown)return;
@@ -107,7 +116,7 @@
         finally {if(!tornDown)button.disabled=false;}
       });
     }
-    if (venue.href) {const link=text("a","Open pub in PUBMAXX",parent);link.href=venue.href;link.target="_blank";link.rel="noopener noreferrer";}
+    if (venue.href) {const link=text("a","Open pub in PUBMAXX",actions);link.href=venue.href;link.target="_blank";link.rel="noopener noreferrer";}
   }
   function showMarkers() {
     if (!map || !maplibre) return;
@@ -152,8 +161,8 @@
     const data=result?.structuredContent;
     if (!data || typeof data.area!=="string" || data.area.length>80) return;
     latestVenues=safeVenues(data.venues);
-    element("area").textContent=data.area;
     isEvening=Array.isArray(data.venueIds)&&data.venueIds.length===3;
+    element("heading").textContent=isEvening?"Your pub evening":`Pubs in ${data.area}`;
     const summary=element("evening");summary.replaceChildren();summary.hidden=!isEvening;
     if(isEvening){
       if(Number.isSafeInteger(data.budget?.knownPence)&&data.budget.knownPence>=0)text("p",`Known drink costs: ${money.format(data.budget.knownPence/100)} per person. This is an estimate, not a guaranteed bill.`,summary);
@@ -206,6 +215,7 @@
     maplibre.setWorkerUrl(workerUrl);
     map=new maplibre.Map({container:"map",style:"https://tiles.openfreemap.org/styles/positron",center:[-0.12,51.52],zoom:10,attributionControl:{compact:true,customAttribution:"Pub data © OpenStreetMap contributors (ODbL)"}});
     map.addControl(new maplibre.NavigationControl({showCompass:false}));
+    map.on("idle",()=>{if(!tornDown&&!mapFailure)element("map").dataset.state="ready";});
     map.on("error",()=>{mapFailed("Streets could not load. Listed pubs remain below.");});
     showMarkers();
   }

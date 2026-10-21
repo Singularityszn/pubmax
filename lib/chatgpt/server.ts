@@ -2,12 +2,14 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { registerAppResource, registerAppTool, RESOURCE_MIME_TYPE } from "@modelcontextprotocol/ext-apps/server";
 import { z } from "zod";
 import { DRINK_CATEGORIES } from "@/lib/drinks";
+import { buildPriceEvidence, priceEvidenceUsableForCeiling } from "@/lib/planRouteEvidence";
 import { cleanSelectedDrinkPriceEvidence } from "@/lib/planSelectedDrinkPriceEvidence";
 import { estimateStraightLinePlanWalking } from "@/lib/walkRouteLegs";
 
 export type PublicPub = {
   id: string; name: string; area: string; latitude: number; longitude: number; href: string;
-  prices: Array<{ drink: string; priceGbp: number; observedAt: string | null; status: "recorded" | "estimate"; publisher: { label: string; url: string | null } | null }>;
+  prices: Array<{ drink: string; priceGbp: number; observedAt: string | null; status: "recorded" | "estimate"; basis?: string; publisher: { label: string; url: string | null } | null }>;
+  priceReads?: { bundle: "ready" | "empty" | "unavailable"; updates: "ready" | "unavailable" };
   history: Array<{ fact: string; sourceRef: string; observedAt?: string }>;
 };
 export type EveningInput = {
@@ -67,7 +69,18 @@ async function routeResult(
   const category = generated ? context?.drinkCategory ?? null : "drinkCategory" in input ? input.drinkCategory : null;
   const zeroProof = generated ? context?.zeroProof === true : "zeroProof" in input && input.zeroProof;
   const pintCosts = !zeroProof && (category === null || category === "beer");
-  // Replacement has no selected-drink evidence. It must not substitute beer prices.
+  const replacementPrices = generated ? [] : venues.map((pub) => {
+    const price = pintCosts ? pub.prices[0] : null;
+    return buildPriceEvidence({
+      pence: price && !price.basis ? Math.round(price.priceGbp * 100) : null,
+      label: price?.publisher?.label, url: price?.publisher?.url,
+      observedAt: price?.observedAt, now: Date.now(),
+    });
+  });
+  if (!generated && input.budgetPence !== undefined
+    && !replacementPrices.every(priceEvidenceUsableForCeiling)) {
+    throw new NightArchitectError("This budget ceiling needs attributable, non-stale pint prices at every stop. Remove the ceiling for an estimate with gaps.");
+  }
   const costs = venues.map((pub, index) => {
     if (generated) {
       const selected = cleanSelectedDrinkPriceEvidence(stops[index]?.selectedDrinkPriceEvidence);
@@ -75,6 +88,7 @@ async function routeResult(
       const pence = stops[index]?.estimatedPintPricePence;
       return typeof pence === "number" && Number.isSafeInteger(pence) && pence > 0 ? pence : null;
     }
+    if (input.budgetPence !== undefined) return replacementPrices[index]?.pence ?? null;
     return pintCosts && pub.prices[0] ? Math.round(pub.prices[0].priceGbp * 100) : null;
   });
   const knownPence = costs.reduce<number>((sum, cost) => sum + (cost ?? 0), 0);

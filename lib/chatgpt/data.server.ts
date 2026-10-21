@@ -1,7 +1,11 @@
 import "server-only";
 import { loadConciergeVenues } from "@/lib/concierge/venues.server";
 import { lookupVenueDetail } from "@/lib/venueDetailIndex";
-import { legacyPintPriceObservedAt, namedLegacyPintPriceSource } from "@/lib/drinks";
+import { isDemoDrinkProvenance } from "@/lib/drinks";
+import { venueMenuForInspector, venueMenuLookupKeys } from "@/lib/venueMenu";
+import { venuePriceUpdatesFor } from "@/lib/priceUpdates.server";
+import { ukPriceBundleRowsFor } from "@/lib/ukPriceBundle.server";
+import { bundlePricesForCategory } from "@/lib/ukPriceBundle";
 import { PRICE_AUTHORITY_MAX_AGE_MS } from "@/lib/priceAuthorityWindow";
 import { venueMapUrl } from "@/lib/venueMapUrl";
 import { retrieveHeritageWithStatus } from "@/lib/heritage";
@@ -27,18 +31,41 @@ export async function publicPubDetails(id: string, includeHistory: boolean): Pro
   if (detail.status !== "found") return null;
   const pub = detail.venue;
   const now = Date.now();
-  const prices: PublicPub["prices"] = pub.prices
-    .filter((price) => typeof price.price_gbp === "number" && Number.isFinite(price.price_gbp) && price.price_gbp > 0)
-    .slice(0, 3).map((price) => {
-      const source = namedLegacyPintPriceSource(price);
-      const observedAt = legacyPintPriceObservedAt(price);
-      const time = observedAt ? Date.parse(observedAt) : NaN;
-      return {
-        drink: (price.pint_name || "Pint").slice(0, 160), priceGbp: price.price_gbp as number,
-        observedAt, status: Number.isFinite(time) && time <= now && now - time <= PRICE_AUTHORITY_MAX_AGE_MS ? "recorded" : "estimate",
-        publisher: source ? { label: source.label.slice(0, 160), url: httpsUrl(source.url) } : null,
-      };
+  const [bundle, updates] = await Promise.all([
+    ukPriceBundleRowsFor(id),
+    venuePriceUpdatesFor(venueMenuLookupKeys(pub)),
+  ]);
+  const prices: PublicPub["prices"] = venueMenuForInspector(pub, updates?.drink ?? [])
+    .filter((drink) => drink.category === "beer" && drink.servingSize?.toLowerCase() === "pint"
+      && !isDemoDrinkProvenance(drink.provenance) && Number.isFinite(drink.priceGbp) && drink.priceGbp > 0)
+    .map((drink) => ({
+      drink: drink.name.slice(0, 160), priceGbp: drink.priceGbp,
+      observedAt: drink.provenance.observedAt ?? null, status: "estimate",
+      publisher: drink.provenance.source === "app-dataset" ? null
+        : { label: drink.provenance.source.slice(0, 160), url: httpsUrl(drink.provenance.sourceUrl) },
+    }));
+  const { listed, estimate } = bundlePricesForCategory(bundle.rows, "beer");
+  if (listed) {
+    const row = bundle.rows.find((row) => row.category === "beer" && row.standing === "listed"
+      && row.sourceUrl === listed.sourceUrl && row.observedAt === listed.observedAt
+      && row.priceGbp === listed.priceGbp);
+    prices.push({
+      drink: (row?.drinkLabel || "Pint").slice(0, 160), priceGbp: listed.priceGbp,
+      observedAt: listed.observedAt, status: "estimate",
+      publisher: { label: (row?.publisher || "Published menu").slice(0, 160), url: httpsUrl(listed.sourceUrl) },
     });
+  }
+  if (!prices.length && estimate) prices.push({
+    drink: "Pint", priceGbp: estimate.priceGbp, observedAt: estimate.computedAt,
+    status: "estimate", publisher: null, basis: estimate.basis,
+  });
+  for (const price of prices) {
+    const time = price.observedAt ? Date.parse(price.observedAt) : NaN;
+    price.status = !price.basis && Number.isFinite(time) && time <= now && now - time <= PRICE_AUTHORITY_MAX_AGE_MS
+      ? "recorded" : "estimate";
+  }
+  prices.sort((left, right) => (Date.parse(right.observedAt ?? "") || 0) - (Date.parse(left.observedAt ?? "") || 0)
+    || left.priceGbp - right.priceGbp);
   let history: PublicPub["history"] = [];
   if (includeHistory) {
     try {
@@ -53,7 +80,8 @@ export async function publicPubDetails(id: string, includeHistory: boolean): Pro
     id: pub.id, name: pub.name.slice(0, 160), area: pub.primaryBorough,
     latitude: pub.latitude, longitude: pub.longitude,
     href: new URL(venueMapUrl(pub.id), "https://pubmaxxing.com").href,
-    prices, history,
+    prices: prices.slice(0, 3), history,
+    priceReads: { bundle: bundle.status, updates: updates === null ? "unavailable" : "ready" },
   };
 }
 

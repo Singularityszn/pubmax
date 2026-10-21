@@ -304,14 +304,14 @@ try {
         try {
           await session.send("Debugger.enable");
           let target;
-          const statement = 'element("area").textContent=data.area;';
+          const statement = 'isEvening=Array.isArray(data.venueIds)&&data.venueIds.length===3;';
           for (const script of scripts) {
             const { scriptSource } = await session.send("Debugger.getScriptSource", { scriptId: script.scriptId });
             const lines = scriptSource.split("\n");
             const line = lines.findIndex((text, index) => text.includes(statement) && lines[index - 1]?.includes("latestVenues=safeVenues(data.venues)"));
             if (line >= 0) {
               assert.equal(target, undefined, "Multiple actual render projection statements found");
-              target = { scriptId: script.scriptId, lineNumber: script.startLine + line, columnNumber: lines[line].indexOf("element(") + (line === 0 ? script.startColumn : 0) };
+              target = { scriptId: script.scriptId, lineNumber: script.startLine + line, columnNumber: lines[line].indexOf("isEvening=") + (line === 0 ? script.startColumn : 0) };
             }
           }
           assert.ok(target, "Actual served widget render projection statement missing");
