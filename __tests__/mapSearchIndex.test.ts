@@ -25,6 +25,20 @@ const packs: MapSearchPack[] = [
 ];
 
 describe("map search index", () => {
+  it("shows literal Hatton matches without unrelated fuzzy venue results", () => {
+    const index = buildMapSearchIndex(cities, [{
+      cityId: "london",
+      venues: [
+        { id: "hatton", name: "The Sir Christopher Hatton", area: "Hatton Garden" },
+        { id: "chatterton", name: "Chatterton Arms", area: "Bromley" },
+        { id: "palm", name: "Palm Riverside | Shisha & Hookah Lounge | Lebanese Restaurant | Cocktail Bar | Wandsworth London", area: "Wandsworth" },
+      ],
+    }]);
+
+    expect(searchMapSearchIndex(index, "Hatton").map((result) => result.id))
+      .toEqual(["hatton"]);
+  });
+
   it("keeps only compact city and venue search fields", () => {
     const index = buildMapSearchIndex(cities, packs);
 
