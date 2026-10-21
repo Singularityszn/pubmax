@@ -1,7 +1,9 @@
 import { randomUUID } from "node:crypto";
 import { expect, test, type Page, type TestInfo } from "@playwright/test";
+import { resolvedColour } from "./helpers/hitArea";
 
 async function expectPublisherTargets(page: Page, testInfo: TestInfo) {
+  const ink = await resolvedColour(page, ".listedPriceSource", "var(--color-text)");
   const links = page.locator(".listedPriceSource").getByRole("link");
   expect(await links.count()).toBeGreaterThan(0);
   for (const [index, link] of (await links.all()).entries()) {
@@ -16,6 +18,7 @@ async function expectPublisherTargets(page: Page, testInfo: TestInfo) {
           [box.top + 1, box.top + box.height / 2, box.bottom - 1].map((y) =>
             document.elementFromPoint(x, y)?.closest("a") === anchor)),
         underline: getComputedStyle(anchor).textDecorationLine,
+        colour: getComputedStyle(anchor).color,
       };
     });
     await testInfo.attach(`publisher-${index}`, { body: JSON.stringify(target), contentType: "application/json" });
@@ -23,6 +26,7 @@ async function expectPublisherTargets(page: Page, testInfo: TestInfo) {
     expect.soft(target.height, `publisher ${index} height`).toBeGreaterThanOrEqual(44);
     expect(target.ownsPoints, `publisher ${index} hit ownership`).toEqual(Array(9).fill(true));
     expect(target.underline).toContain("underline");
+    expect(target.colour, `publisher ${index} ink`).toBe(ink);
     const href = await link.getAttribute("href");
     expect(href).toMatch(/^https:\/\//);
     if (!href) throw new Error("The publisher link must have a destination.");
@@ -40,36 +44,46 @@ async function expectPublisherTargets(page: Page, testInfo: TestInfo) {
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
 }
 
-for (const width of [390, 1440]) {
-  for (const path of ["/pubs/venue-18uogns", "/ledger/venue-18uogns"]) {
-    test(`${width}px: ${path} shows the price's publisher and read day`, async ({ page }, testInfo) => {
-      await page.setViewportSize({ width, height: 900 });
-      await page.goto(path);
-      await expect(page.getByRole("heading", { name: "Ye Olde Swiss Cottage", exact: true })).toBeVisible();
-      const source = page.locator(".listedPriceSource").first();
-      await expect(source.getByRole("link", { name: "Pint Prices", exact: true })).toBeVisible({ timeout: 1_000 });
-      await expect(source.locator("time")).toHaveAttribute("datetime", "2026-10-02");
-      await testInfo.attach("citation-layout", { body: await page.screenshot({ fullPage: true }), contentType: "image/png" });
-      await expectPublisherTargets(page, testInfo);
+for (const theme of ["light", "dark"] as const) {
+  test.describe(`${theme} publisher links`, () => {
+    test.beforeEach(async ({ page }) => {
+      await page.addInitScript((value) => localStorage.setItem("pubmax-theme", value), theme);
     });
-  }
 
-  test(`${width}px: invite publisher links retain their citation and own 44px targets`, async ({ page, request }, testInfo) => {
-    const created = await request.post("/api/plans", { headers: { "idempotency-key": randomUUID() }, data: {
-      title: "Publisher target proof", creatorName: "Local host",
-      startTime: new Date(Date.now() + 3 * 3600_000).toISOString(),
-      stops: [{ venueId: "venue-e1srzr", venueName: "Shakespeares Head (Soho)" }],
-    } });
-    expect(created.status()).toBe(201);
-    const id = (await created.json()).plan.plan.id;
-    const { inviteToken } = await (await request.get(`/api/plans/${id}`)).json();
-    expect(inviteToken).toBeTruthy();
-    await page.setViewportSize({ width, height: 900 });
-    await page.goto(`/invite/${inviteToken}`);
-    const source = page.locator(".listedPriceSource");
-    await expect(source).toHaveText("Listed by Pint Prices, collected 2 October 2026.");
-    await expect(source.locator("time")).toHaveAttribute("datetime", "2026-10-02");
-    await testInfo.attach("citation-layout", { body: await page.screenshot({ fullPage: true }), contentType: "image/png" });
-    await expectPublisherTargets(page, testInfo);
+    for (const width of [390, 1440]) {
+      for (const path of ["/pubs/venue-18uogns", "/ledger/venue-18uogns"]) {
+        test(`${width}px: ${path} shows the price's publisher and read day`, async ({ page }, testInfo) => {
+          await page.setViewportSize({ width, height: 900 });
+          await page.goto(path);
+          await expect(page.locator("html")).toHaveAttribute("data-theme", theme);
+          await expect(page.getByRole("heading", { name: "Ye Olde Swiss Cottage", exact: true })).toBeVisible();
+          const source = page.locator(".listedPriceSource").first();
+          await expect(source.getByRole("link", { name: "Pint Prices", exact: true })).toBeVisible({ timeout: 1_000 });
+          await expect(source.locator("time")).toHaveAttribute("datetime", "2026-10-02");
+          await testInfo.attach("citation-layout", { body: await page.screenshot({ fullPage: true }), contentType: "image/png" });
+          await expectPublisherTargets(page, testInfo);
+        });
+      }
+
+      test(`${width}px: invite publisher links retain their citation and own 44px targets`, async ({ page, request }, testInfo) => {
+        const created = await request.post("/api/plans", { headers: { "idempotency-key": randomUUID() }, data: {
+          title: "Publisher target proof", creatorName: "Local host",
+          startTime: new Date(Date.now() + 3 * 3600_000).toISOString(),
+          stops: [{ venueId: "venue-e1srzr", venueName: "Shakespeares Head (Soho)" }],
+        } });
+        expect(created.status()).toBe(201);
+        const id = (await created.json()).plan.plan.id;
+        const { inviteToken } = await (await request.get(`/api/plans/${id}`)).json();
+        expect(inviteToken).toBeTruthy();
+        await page.setViewportSize({ width, height: 900 });
+        await page.goto(`/invite/${inviteToken}`);
+        await expect(page.locator("html")).toHaveAttribute("data-theme", theme);
+        const source = page.locator(".listedPriceSource");
+        await expect(source).toHaveText("Listed by Pint Prices, collected 2 October 2026.");
+        await expect(source.locator("time")).toHaveAttribute("datetime", "2026-10-02");
+        await testInfo.attach("citation-layout", { body: await page.screenshot({ fullPage: true }), contentType: "image/png" });
+        await expectPublisherTargets(page, testInfo);
+      });
+    }
   });
 }

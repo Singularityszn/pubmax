@@ -7,3 +7,7 @@
   min-height: 44px;
   vertical-align: baseline;
 }
+
+.publisher:any-link {
+  color: var(--color-text);
+}
