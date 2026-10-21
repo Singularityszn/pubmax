@@ -2,9 +2,9 @@
 
 import { act, createElement } from "react";
 import { createRoot } from "react-dom/client";
-import { afterEach, expect, it } from "vitest";
+import { afterEach, expect, it, vi } from "vitest";
 
-import { useMapOpeningArrival } from "@/components/map/useMapOpeningArrival";
+import { useMapOpeningArrival, useNamedMapAreaArrival } from "@/components/map/useMapOpeningArrival";
 import { getCity } from "@/lib/cities";
 import { mapAreaOpeningView, parseMapAreaArrival } from "@/lib/mapAreaArrival";
 import { openingViewportFrom } from "@/lib/pubMap";
@@ -75,4 +75,49 @@ it("rejects unknown areas and areas from another city", () => {
   expect(parseMapAreaArrival("?area=https%3A%2F%2Fexample.com", "london")).toBeNull();
   expect(parseMapAreaArrival("?area=piccadilly-soho&q=Churchill+Arms", "london")).toBeNull();
   expect(parseMapAreaArrival("?area=piccadilly-soho&sel=venue-17h8293", "london")).toBeNull();
+});
+
+it("consumes a pending named area when the reader takes the camera before venue loading ends", async () => {
+  const root = createRoot(document.createElement("div"));
+  const onSelect = vi.fn();
+  const readerActed = { current: false };
+  const area = parseMapAreaArrival("?area=piccadilly-soho", "london");
+  function Opening({ ready }: { ready: boolean }) {
+    useNamedMapAreaArrival({ area, ready, readerActed, onSelect });
+    return null;
+  }
+  try {
+    await act(async () => root.render(createElement(Opening, { ready: false })));
+    readerActed.current = true;
+    await act(async () => root.render(createElement(Opening, { ready: false })));
+    await act(async () => root.render(createElement(Opening, { ready: true })));
+    expect(onSelect).not.toHaveBeenCalled();
+    readerActed.current = false;
+    await act(async () => root.render(createElement(Opening, { ready: false })));
+    await act(async () => root.render(createElement(Opening, { ready: true })));
+    expect(onSelect).not.toHaveBeenCalled();
+  } finally {
+    act(() => root.unmount());
+  }
+});
+
+it("applies an untouched named arrival once when its venues become ready", async () => {
+  const root = createRoot(document.createElement("div"));
+  const onSelect = vi.fn();
+  const readerActed = { current: false };
+  const area = parseMapAreaArrival("?area=piccadilly-soho", "london");
+  function Opening({ ready }: { ready: boolean }) {
+    useNamedMapAreaArrival({ area, ready, readerActed, onSelect });
+    return null;
+  }
+  try {
+    await act(async () => root.render(createElement(Opening, { ready: false })));
+    expect(onSelect).not.toHaveBeenCalled();
+    await act(async () => root.render(createElement(Opening, { ready: true })));
+    expect(onSelect).toHaveBeenCalledExactlyOnceWith(area);
+    await act(async () => root.render(createElement(Opening, { ready: true })));
+    expect(onSelect).toHaveBeenCalledOnce();
+  } finally {
+    act(() => root.unmount());
+  }
 });
