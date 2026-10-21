@@ -94,7 +94,21 @@ try {
     assert.match(await frame.locator("#evening").textContent(), /not a guaranteed bill/);
     assert.equal(await frame.locator("#map").getAttribute("data-state"), "ready");
     const activatePins = async (result) => {
-      await page.screenshot({ path: `${output}pins-${viewport.width}-${result.structuredContent.routeChanged ? "replacement" : "original"}.png`, fullPage: true });
+      const capture = await frame.locator("#map").evaluateHandle((node) => {
+        const widths = [node.clientWidth];
+        const observe = () => widths.push(node.clientWidth);
+        window.proofMap.on("resize", observe);
+        return { widths, observe };
+      });
+      let widths;
+      try {
+        // Full-page capture temporarily shrinks mobile iframes in Chrome.
+        await page.screenshot({ path: `${output}pins-${viewport.width}-${result.structuredContent.routeChanged ? "replacement" : "original"}.png`, fullPage: false });
+      } finally {
+        widths = await capture.evaluate(({ widths, observe }) => { window.proofMap.off("resize", observe); return widths; });
+        await capture.dispose();
+      }
+      assert.ok(widths.every((width) => width === widths[0]), `Evidence capture must preserve the map width: ${widths}`);
       const pins = await frame.locator(".pin").all();
       assert.equal(pins.length, 3);
       const boxes = await Promise.all(pins.map((pin) => pin.boundingBox()));
@@ -159,7 +173,7 @@ try {
     await page.evaluate((result) => window.sendResult(result), replaced);
     await recentered;
     await frame.locator('#map[data-state="ready"]').waitFor({ timeout: 45_000 });
-    await page.screenshot({ path: `${output}${viewport.width}.png`, fullPage: true });
+    await page.screenshot({ path: `${output}${viewport.width}.png`, fullPage: false });
     assert.deepEqual(errors, []);
     const mapState = await frame.locator("#map").getAttribute("data-state");
     assert.equal(mapState, "ready", "Captured map must remain ready");
