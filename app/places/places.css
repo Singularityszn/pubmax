@@ -322,11 +322,14 @@
 }
 
 .placesAreaName {
+  display: inline-block;
   margin: 0 0 2px;
   font-family: var(--font-display);
   font-size: var(--text-sm);
   font-weight: 700;
   color: var(--color-text);
+  text-decoration: underline;
+  text-underline-offset: 3px;
 }
 
 .placesAreaLine {

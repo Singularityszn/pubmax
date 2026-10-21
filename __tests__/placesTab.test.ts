@@ -598,6 +598,7 @@ describe("Places screen", () => {
       );
       expect(london).toContain("Clapham");
       expect(london).toContain("Where to drink in London");
+      expect(london).toMatch(/<a[^>]*href="\/map\?area=piccadilly-soho"[^>]*>Piccadilly &amp; Soho<\/a>/);
 
       const bath = renderToStaticMarkup(
         createElement(PlacesClient, { cityId: "bath" as const }),
