@@ -18,7 +18,7 @@ The server binds to loopback, rejects foreign Host and Origin values, bounds req
 
 The root [command reference](../../README.md) describes `test:chatgpt-map` and its inclusion in `verify`. Browser proof remains a separate runtime check.
 
-`npm run proof:browser` uses the root app's Playwright installation and cached Chromium to check the actual widget with real MCP venue results at 390px and 1440px. It opens the three-price Ice Wharf popup, checks map, attribution and navigation clearance, scrolls every price into view, and activates each publisher and pub link through native Enter. It also retains the single-price and marker Enter/Space checks. A controlled local host answers the UI bridge initialization, sends `ping`, teardown and theme changes, and enforces the resource's declared CSP. Screenshots and JSON stay in ignored `artifacts/chatgpt-map/`. This check does not establish an authenticated ChatGPT connection or compatibility with its production host policy.
+`npm run proof:browser` uses the root app's Playwright installation and cached Chromium to check the actual widget with real MCP venue results at 390px and 1440px. It opens the first three-price venue popup and checks map, attribution and navigation clearance. It scrolls every price into view and activates each publisher and pub link through native Enter. It also retains the single-price and marker Enter/Space checks. A controlled local host answers the UI bridge initialization, sends `ping`, teardown and theme changes, and enforces the resource's declared CSP. Screenshots and JSON stay in ignored `artifacts/chatgpt-map/`. This check does not establish an authenticated ChatGPT connection or compatibility with its production host policy.
 
 `npm run proof:lifecycle` drives nine teardown, input-boundary and publisher-disclosure cases against the actual widget and installed SDK. It holds real host replies, observes platform worker-URL cleanup, checks raw and normalised oversized links with retained public prices, and verifies a full copy-address fallback at the accepted URL limit. A native debugger breakpoint in the actual widget checks that an unused oversized venue ID is omitted from retained state while venue cards and prices remain. Unsafe publisher links retain a bounded recorded label with an unavailable-link disclosure in both list and popup; an absent publisher and a safe clickable publisher are separate controls. Receipts and captures stay in ignored `artifacts/chatgpt-map-lifecycle/`. The controlled host does not prove authenticated ChatGPT or external navigation.
 
@@ -28,7 +28,7 @@ Official references: [MCP app quickstart](https://developers.openai.com/plugins/
 
 ## Night Architect integration
 
-The hosted application now also defines `/api/mcp` for anonymous search, venue details, three-stop planning and replacement. Its current implementation and pilot instructions are in [the integration guide](../../docs/integrations/chatgpt-night-architect.md). This local loopback server retains its borough-only tool.
+The [integration guide](../../docs/integrations/chatgpt-night-architect.md) owns the Next.js endpoint contract and pilot instructions. This local loopback server retains its borough-only tool.
 
 Use `PUBMAX_BROWSER_CHANNEL=chrome` with the browser proof commands when the default Playwright executable is unavailable. The proof uses the installed Chrome browser and leaves the shared browser cache unchanged.
 

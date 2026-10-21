@@ -17,11 +17,18 @@ Search accepts a district when the existing London area catalogue recognizes its
 
 The host renders the map through the MCP Apps UI bridge. The replacement button asks ChatGPT to find an alternative. The host can refuse that message. The widget then gives a conversation fallback.
 
+Venue links open the selected pub in PUBMAXX. The plugin does not transfer the complete route into the website.
+
+A supplied start must be in the future, within 14 days, between 17:30 and 04:00 London time.
+The plugin allows six hours from that start instead of using a website preset finish.
+
 ## Evidence and privacy
 
 A fresh response does not mean a fresh price observation. Each price retains its source and recorded observation date. Undated and old bundled prices remain estimates under the shared price authority policy.
 
 A budget covers one selected drink at each stop for one person. Food, travel and admission are extra. Missing prices prevent a guaranteed total. Venue cards show listed pint prices separately from the selected-drink route budget.
+
+A pint budget ceiling requires attributable current prices at every stop. Remove the ceiling when that evidence is missing.
 
 Generation retains the existing planner's walking basis. Replacement uses a disclosed straight-line estimate. A straight-line estimate cannot confirm a strict walking limit. Replacement clears old route confidence and operating evidence. Alcohol-free and other selected-drink costs remain unavailable unless supported. They never borrow a beer price.
 
@@ -34,10 +41,19 @@ The endpoint bounds requests to 32 KiB and applies 120 requests per minute per h
 ## Local checks
 
 1. Install root dependencies with `npm ci`.
-2. Run `npx vitest run __tests__/chatgptMcp.test.ts __tests__/chatgptMcpHttp.test.ts`.
+2. Run `npx vitest run __tests__/chatgptMcp.test.ts __tests__/chatgptMcpHttp.test.ts __tests__/chatgptMcpData.test.ts __tests__/chatgptGeneration.test.ts`.
 3. Run `npm run test:chatgpt-map` for the existing local map protocol tests.
-4. Run `npm run verify` and the production build.
-5. Run the browser proof against a private production server using the command below.
+4. Run `npm run verify` for the repository checks.
+5. Build and serve a private production server with the commands below.
+6. Run the browser proof in another terminal.
+
+For a keyless local check, use the same build directory and keyless flag for both commands.
+The keyless flag permits loopback requests to the production build without enabling them on Vercel.
+
+```sh
+PUBMAX_E2E_KEYLESS=1 NEXT_DIST_DIR=.next-night-architect npm run build
+PUBMAX_E2E_KEYLESS=1 NEXT_DIST_DIR=.next-night-architect npm run start -- --hostname 127.0.0.1 --port 38761
+```
 
 The standalone map proofs also accept `PUBMAX_BROWSER_CHANNEL=chrome` when the installed Chrome browser is needed. This does not download or replace the shared Playwright cache.
 
@@ -46,6 +62,7 @@ PUBMAX_MCP_BASE_URL=http://127.0.0.1:38761 PUBMAX_BROWSER_CHANNEL=chrome npm --p
 ```
 
 The browser proof uses the real HTTP tools and real public data. Its iframe host is controlled locally. It does not prove authenticated ChatGPT compatibility or public hosting.
+Record source checks, protocol checks, real-data checks, browser behavior and the production build separately.
 
 ## Pilot and public release
 
