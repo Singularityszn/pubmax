@@ -27,6 +27,10 @@
  * reservation and halt. Every counter, receipt and scope is kept.
  * --max-new-places-calls <n> bounds one invocation under the original cap and
  * stops it normally, so a later invocation continues the same task.
+ * --quarantine-source-429 <checkpoint SHA256> is the matching disposition for a
+ * returned robots or anchor 429. It sends nothing, snapshots those bytes, records
+ * the held row's operator and clears only that halt. Pending rows on that
+ * operator, its www alias included, never reach the wire again.
  *
  * The committed artifact keeps the place id and derived verdict fields only;
  * no Google-sourced names, addresses or statuses are stored (Maps ToS).
@@ -413,6 +417,16 @@ function sameOperator(left, right) {
     a.hostname.replace(/^www\./, "") === b.hostname.replace(/^www\./, "");
 }
 
+/** True when a URL sits on an operator by the same www rule. A malformed URL does not. */
+function onOperator(operator, url) {
+  try { return typeof url === "string" && sameOperator(operator, url); } catch { return false; }
+}
+
+/** A row touches an operator when any of its source or anchor URLs sits on it. */
+function touchesOperator(row, operator) {
+  return [...rowOwnSourceUrls(row ?? {}), row?.anchor?.sourceUrl].some((url) => onOperator(operator, url));
+}
+
 /** Robots keeps its existing absent/HTML/challenge/retry decisions. Only its wire is replaced. */
 function createSourceAccess(dispatch, assertRunning) {
   const robots = createRobotsChecker({ fetchImpl: async (url, init) => {
@@ -464,7 +478,8 @@ function parseRunOptions(argv) {
   const values = new Map();
   for (let index = 0; index < argv.length; index += 1) {
     const flag = argv[index];
-    if (!["--write", "--limit", "--ids", "--spent-receipt", "--acknowledge-http-429", "--max-new-places-calls"].includes(flag) || values.has(flag)) {
+    if (!["--write", "--limit", "--ids", "--spent-receipt", "--acknowledge-http-429", "--max-new-places-calls",
+      "--quarantine-source-429"].includes(flag) || values.has(flag)) {
       throw new Error(`Unknown or duplicate option: ${flag}`);
     }
     if (flag === "--write") values.set(flag, true);
@@ -490,10 +505,17 @@ function parseRunOptions(argv) {
   if (bound !== undefined && (!/^[1-9]\d*$/.test(bound) || !Number.isSafeInteger(Number(bound)))) {
     throw new Error("--max-new-places-calls must be a positive integer");
   }
+  const sourceQuarantine = values.get("--quarantine-source-429") ?? null;
+  if (sourceQuarantine !== null && !/^[a-f0-9]{64}$/.test(sourceQuarantine)) {
+    throw new Error("Source 429 quarantine refused: expected a checkpoint SHA256");
+  }
+  if (sourceQuarantine !== null && (acknowledgment !== null || bound !== undefined)) {
+    throw new Error("Source 429 quarantine refused: it takes no acknowledgment or invocation bound");
+  }
   return {
     write: values.has("--write"), limit: parseVerificationLimit(argv),
     ids: ids?.sort() ?? null, receiptPath: values.get("--spent-receipt") ?? null,
-    acknowledgment, maxNewPlacesCalls: bound === undefined ? null : Number(bound),
+    acknowledgment, maxNewPlacesCalls: bound === undefined ? null : Number(bound), sourceQuarantine,
   };
 }
 
@@ -535,6 +557,9 @@ export async function runVerification({
   }
   if (options.acknowledgment && !existsSync(checkpointPath)) {
     throw new Error("HTTP 429 acknowledgment refused: no checkpoint exists for this receipt");
+  }
+  if (options.sourceQuarantine && !existsSync(checkpointPath)) {
+    throw new Error("Source 429 quarantine refused: no checkpoint exists for this receipt");
   }
   let state;
   let isNew = false;
@@ -605,6 +630,18 @@ export async function runVerification({
     state.journal = null;
     persist();
   };
+  const finish = () => {
+    const checks = state.records.filter((record) => record.check).map((record) => record.check);
+    // A pending row a source quarantine holds is still blocked, so a full run never reports it as checked.
+    const held = (record) => record.status === "pending" && (state.sourceQuarantines ?? []).some((item) => item.id === record.id ||
+      touchesOperator(rows.find((entry) => entry.row.id === record.id)?.row, item.operator));
+    const sourceBlocked = state.records.filter((record) => record.status === "source-blocked" || held(record)).map((record) => record.id);
+    const summary = summarizeVerification(checks);
+    return {
+      ...summary, sourceBlocked, placesCalls: state.placesCalls, sourceCalls: state.sourceCalls,
+      exitCode: options.limit != null || options.ids ? 0 : Number(summary.closed.length > 0 || summary.unverified.length > 0 || sourceBlocked.length > 0),
+    };
+  };
   try {
     if (isNew) {
       const outFile = `verification_${initialDay}.json`;
@@ -656,7 +693,11 @@ export async function runVerification({
             !state.journal.files.every((item) => Object.hasOwn(state.expected, item.file)))) ||
           (state.http429Acknowledgments !== undefined && (!Array.isArray(state.http429Acknowledgments) ||
             !state.http429Acknowledgments.every((item) => /^[a-f0-9]{64}$/.test(item?.checkpointSha256) &&
-              state.snapshots.includes(item.checkpointSha256) && state.records.some((record) => record.id === item.id))))) {
+              state.snapshots.includes(item.checkpointSha256) && state.records.some((record) => record.id === item.id)))) ||
+          (state.sourceQuarantines !== undefined && (!Array.isArray(state.sourceQuarantines) ||
+            !state.sourceQuarantines.every((item) => /^[a-f0-9]{64}$/.test(item?.checkpointSha256) &&
+              state.snapshots.includes(item.checkpointSha256) && state.records.some((record) => record.id === item.id) &&
+              typeof item.operator === "string" && /^https?:\/\/[^/?#]+$/.test(item.operator))))) {
         throw new Error("Invalid checkpoint source or journal");
       }
       for (const hash of state.snapshots) {
@@ -664,12 +705,60 @@ export async function runVerification({
           throw new Error("Immutable snapshot changed or missing");
         }
       }
-      const originalIds = new Set(PACK_FILES.flatMap((file) => {
+      const originalRows = new Map(PACK_FILES.flatMap((file) => {
         const hash = state.sourceHashes[file];
         if (!state.snapshots.includes(hash)) throw new Error("Invalid source snapshot binding");
-        return JSON.parse(readFileSync(join(taskDir, "snapshots", hash), "utf8")).map((row) => row.id);
+        return JSON.parse(readFileSync(join(taskDir, "snapshots", hash), "utf8")).map((row) => [row.id, row]);
       }));
-      if (!state.records.every((record) => originalIds.has(record.id))) throw new Error("Checkpoint target source changed");
+      if (!state.records.every((record) => originalRows.has(record.id))) throw new Error("Checkpoint target source changed");
+      if (options.sourceQuarantine) {
+        // An operator disposition for one exact known returned source 429. It sends nothing and grants nothing.
+        const refuse = (reason) => { throw new Error(`Source 429 quarantine refused: ${reason}`); };
+        const kind = state.lastResponse?.kind;
+        if (sha256(checkpointBytes) !== options.sourceQuarantine) refuse("hash is not the current checkpoint");
+        if (state.sourceQuarantines?.some((item) => item.checkpointSha256 === options.sourceQuarantine)) refuse("quarantine already used");
+        if (!["robots", "head"].includes(kind) || state.lastResponse.status !== 429 || state.halt !== `${kind} HTTP 429`) {
+          refuse("checkpoint holds no known returned source 429");
+        }
+        if (state.active != null) refuse("an active reservation contradicts a returned source 429");
+        if (state.journal) refuse("unresolved write journal");
+        verifyExpected();
+        // The sequential producer halts on its first pending row. Rows an earlier quarantine holds stand aside.
+        const quarantined = (record) => record.status === "pending" && (state.sourceQuarantines ?? []).some((item) =>
+          item.id === record.id || touchesOperator(originalRows.get(record.id), item.operator));
+        const order = state.records.filter((record) => !quarantined(record));
+        const cursor = order.findIndex((record) => record.status === "pending");
+        if (cursor === -1 || order.slice(cursor).some((record) => record.status !== "pending")) {
+          refuse("held row is not the unambiguous sequential cursor");
+        }
+        const held = order[cursor];
+        const row = originalRows.get(held.id);
+        const anchorUrl = row?.anchor?.sourceUrl;
+        let operator = null;
+        try {
+          if (typeof anchorUrl === "string" && isHarvestableOperatorUrl(anchorUrl) &&
+              rowOwnSourceUrls(row).some((source) => isUnderSource(source, anchorUrl))) {
+            const { protocol, hostname, port } = new URL(anchorUrl);
+            operator = `${protocol}//${hostname.replace(/^www\./, "")}${port ? `:${port}` : ""}`;
+          }
+        } catch { operator = null; }
+        if (!operator) refuse("held row has no resolvable source boundary");
+        // A boundary the wire recorded must agree with the derived one. Without one the binding is inferred.
+        const { id: recordedId, origin: recordedOrigin } = state.lastResponse;
+        if ((recordedId === undefined) !== (recordedOrigin === undefined)) refuse("partial source boundary evidence");
+        if (recordedId !== undefined && (recordedId !== held.id || !onOperator(operator, recordedOrigin))) {
+          refuse("recorded source boundary does not match the held row");
+        }
+        const original = snapshot(checkpointBytes);
+        if (!state.snapshots.includes(original)) state.snapshots.push(original);
+        state.sourceQuarantines = [...(state.sourceQuarantines ?? []), {
+          checkpointSha256: original, id: held.id, operator, kind, status: 429, reason: "source_http_429",
+          binding: recordedId === undefined ? "inferred" : "recorded", disposition: "quarantined_without_request",
+        }];
+        state.halt = null;
+        persist();
+        return finish();
+      }
       if (options.acknowledgment) {
         // An operator disposition for one exact known returned Places 429. It grants no new calls.
         const refuse = (reason) => { throw new Error(`HTTP 429 acknowledgment refused: ${reason}`); };
@@ -704,6 +793,10 @@ export async function runVerification({
     const dispatch = async (kind, url, init) => {
       assertRunning();
       verifyExpected();
+      // Neither a redirect nor a later row may reach a quarantined source operator.
+      if (kind !== "places" && (state.sourceQuarantines ?? []).some((item) => onOperator(item.operator, String(url)))) {
+        stop("quarantined source operator reached");
+      }
       const counter = kind === "places" ? "placesCalls" : "sourceCalls";
       const maximum = kind === "places" ? liveCallLimit : MAX_SOURCE_CALLS;
       if (state[counter] >= maximum) stop(`${kind === "places" ? "Places" : "source"} budget exhausted`);
@@ -718,6 +811,8 @@ export async function runVerification({
         const retryAfter = retryAfterEvidence(response.headers.get("retry-after"));
         state.lastResponse = {
           kind, status: response.status, ...places429Evidence.get(response), ...(retryAfter ? { retryAfter } : {}),
+          // A source response keeps the row and origin it was sent for, so a later hold is bound.
+          ...(kind === "places" ? {} : { id: activeId, origin: new URL(url).origin }),
         };
         persist();
         if (response.status === 429) stop(`${kind} HTTP 429`);
@@ -780,6 +875,8 @@ export async function runVerification({
       activeId = record.id;
       const row = byId.get(record.id);
       if (!row) throw new Error("Target source fingerprint changed");
+      // A row on a quarantined source operator stays held. It never reaches the wire.
+      if ((state.sourceQuarantines ?? []).some((item) => item.id === record.id || touchesOperator(row, item.operator))) continue;
       const memo = new Map();
       const headSource = (url) => {
         if (!memo.has(url)) memo.set(url, access.head(url));
@@ -807,13 +904,7 @@ export async function runVerification({
       record.applied = true;
       persist();
     }
-    const checks = state.records.filter((record) => record.check).map((record) => record.check);
-    const sourceBlocked = state.records.filter((record) => record.status === "source-blocked").map((record) => record.id);
-    const summary = summarizeVerification(checks);
-    return {
-      ...summary, sourceBlocked, placesCalls: state.placesCalls, sourceCalls: state.sourceCalls,
-      exitCode: options.limit != null || options.ids ? 0 : Number(summary.closed.length > 0 || summary.unverified.length > 0 || sourceBlocked.length > 0),
-    };
+    return finish();
   } finally {
     if (!checkpointBroken) unlinkSync(lockPath);
   }

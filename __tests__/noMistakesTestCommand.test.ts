@@ -39,7 +39,7 @@ import { defined } from "@/__tests__/helpers/defined";
 
 const ROOT = process.cwd();
 
-type RepoConfig = { commands?: { prepare?: string; test?: string } };
+type RepoConfig = { commands?: { prepare?: string; test?: string }; auto_fix?: Record<string, unknown> };
 
 function repoConfig(): RepoConfig {
   return parse(readFileSync(join(ROOT, ".no-mistakes.yaml"), "utf8")) ?? {};
@@ -175,5 +175,32 @@ describe("the no-mistakes repository test command", () => {
     });
 
     expect(stamped).toBe(committed);
+  });
+
+  it("gives the Test step one real attempt and no automatic repair, beside the CI rule", () => {
+    const config = repoConfig();
+    expect(config.auto_fix).toEqual({ ci: 0, test: 0 });
+    // A zero repair budget skips no Test. The trusted commands still run it once.
+    expect(config.commands).toEqual({
+      prepare: "npm ci --prefer-offline",
+      test: "npm run verify:no-mistakes:changed",
+    });
+  });
+
+  it("runs the full fallback with a 2 GB Node heap", () => {
+    const [fallback] = checkSteps({
+      full: "next.config.mjs is a shared foundation",
+      lint: [],
+      typecheck: [],
+      tests: [],
+      rls: false,
+      validateData: false,
+      dbTypes: false,
+      e2eSkips: false,
+      chatgptMap: false,
+    });
+    expect(defined(fallback).command).toBe("npm");
+    expect(defined(fallback).args).toEqual(["run", "verify"]);
+    expect(defined(fallback).env).toEqual({ NODE_OPTIONS: "--max-old-space-size=2048" });
   });
 });

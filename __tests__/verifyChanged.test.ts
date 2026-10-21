@@ -10,6 +10,7 @@
 
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
+import { pathToFileURL } from "node:url";
 
 import { describe, expect, it } from "vitest";
 import { parse } from "yaml";
@@ -88,6 +89,21 @@ describe("the full-suite escalation", () => {
     expect(checkSteps(full).map((step) => [step.command, ...step.args].join(" "))).toEqual([
       "npm run verify",
     ]);
+  });
+
+  it("caps the full merge bar at a 2 GB Node heap and leaves scoped steps on the inherited one", () => {
+    expect(defined(checkSteps(plan(modified("package.json")))[0]).env).toEqual({
+      NODE_OPTIONS: "--max-old-space-size=2048",
+    });
+    for (const step of checkSteps(plan(modified("lib/priceLabel.ts")))) expect(step.env, step.label).toBeUndefined();
+  });
+
+  it("builds with one Next worker and keeps the build typecheck on", async () => {
+    const { default: config } = (await import(pathToFileURL(join(ROOT, "next.config.mjs")).href)) as {
+      default: { experimental?: { cpus?: number }; typescript?: { ignoreBuildErrors?: boolean } };
+    };
+    expect(config.experimental?.cpus).toBe(1);
+    expect(config.typescript?.ignoreBuildErrors).toBeUndefined();
   });
 });
 

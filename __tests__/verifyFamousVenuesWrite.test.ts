@@ -277,6 +277,272 @@ describe("verify:famous-venues daily batch", () => {
   });
 });
 
+describe("famous verifier source 429 quarantine", () => {
+  let root: string;
+  let stateRoot: string;
+  let famous: string;
+  let receipt: string;
+  type Checkpoint = {
+    halt?: string | null;
+    active?: unknown;
+    journal?: unknown;
+    lastResponse?: Record<string, unknown>;
+    records: Array<{ id: string; status: string }>;
+    expected: Record<string, string | null>;
+  };
+  const venue = (id: string, origin: string, anchor = `${origin}/menu`) => ({
+    ...wongKei(anchor),
+    id,
+    sourceUrl: `${origin}/`,
+    story: { sourceUrl: `${origin}/` },
+    fameGates: [{ sourceUrl: `${origin}/` }],
+  });
+  const venues = [
+    venue("a-done", "https://done.example"),
+    venue("b-blocked", "https://blocked.example"),
+    venue("c-held", "https://held.example"),
+    venue("d-alias", "https://www.held.example"),
+    venue("e-free", "https://free.example"),
+    venue("f-offsource", "https://off.example", "https://elsewhere.example/menu"),
+  ];
+  const args = (...extra: string[]) =>
+    ["--write", "--ids", venues.map((item) => item.id).join(","), "--spent-receipt", receipt, ...extra];
+  const quarantine = (hash: string) => args("--quarantine-source-429", hash);
+  const sha256 = (bytes: Buffer | string) => createHash("sha256").update(bytes).digest("hex");
+  const json = (file: string) => JSON.parse(readFileSync(file, "utf8"));
+  const taskDir = () => path.join(stateRoot, readdirSync(stateRoot)[0]);
+  const checkpointFile = () => path.join(taskDir(), "checkpoint.json");
+  const files = (dir: string) => readdirSync(dir).sort().map((name) => [name, readFileSync(path.join(dir, name))] as const);
+  const snapshots = () => files(path.join(taskDir(), "snapshots"));
+  const outputs = () => files(famous);
+  const statuses = (checkpoint: Checkpoint) => checkpoint.records.map((record) => [record.id, record.status]);
+  const host = (url: string | URL | Request) => new URL(String(url)).hostname;
+  const onHeld = (url: string | URL | Request) => host(url).replace(/^www\./, "") === "held.example";
+  const network = () => vi.fn(async (url: string | URL | Request, init?: RequestInit) => {
+    if (host(url) === "places.googleapis.com") return Response.json(placesFixture("operational_match.json").body);
+    if (onHeld(url)) return new Response(null, { status: 429, headers: { "retry-after": "60" } });
+    if (String(url).endsWith("/robots.txt")) return new Response("User-agent: *\nAllow: /\n");
+    if (init?.method === "HEAD") return new Response(null, { status: host(url) === "blocked.example" ? 403 : 200 });
+    throw new Error("Unexpected mocked request");
+  });
+  const denied = () => vi.fn(async () => { throw new Error("A quarantine sends no request"); });
+  const run = (fetchImpl: typeof fetch, argv = args(), apiKey = "fake-test-key") => runVerification({
+    argv, root, stateRoot, fetchImpl, apiKey, now: () => new Date("2026-10-21T12:00:00.000Z"),
+  });
+  const halt = async () => {
+    await expect(run(network())).rejects.toThrow(/robots HTTP 429/);
+    return readFileSync(checkpointFile());
+  };
+  const rewritten = (edit: (checkpoint: Checkpoint) => void) => (bytes: Buffer) => {
+    const checkpoint = JSON.parse(bytes.toString("utf8"));
+    edit(checkpoint);
+    const next = Buffer.from(`${JSON.stringify(checkpoint, null, 2)}\n`);
+    return { bytes: next, hash: sha256(next) };
+  };
+  const legacy = (checkpoint: Checkpoint, ...blocked: string[]) => {
+    checkpoint.lastResponse = { kind: "robots", status: 429 };
+    for (const record of checkpoint.records) {
+      if (blocked.includes(record.id)) Object.assign(record, { status: "source-blocked", finding: "anchor_source_unreachable" });
+    }
+  };
+
+  beforeEach(() => {
+    vi.stubGlobal("fetch", vi.fn(async () => { throw new Error("Live fetch denied in this suite"); }));
+    root = mkdtempSync(path.join(tmpdir(), "pubmax-famous-quarantine-"));
+    stateRoot = path.join(root, "state");
+    famous = path.join(root, "data", "famous_venues");
+    mkdirSync(famous, { recursive: true });
+    for (const file of ["bars.json", "late_food.json", "restaurants.json"]) {
+      writeFileSync(path.join(famous, file), JSON.stringify(file === "late_food.json" ? venues : []));
+    }
+    receipt = path.join(root, "receipt.json");
+    writeFileSync(receipt, JSON.stringify({ placesCalls: 21, maxPlacesCalls: 40 }));
+  });
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    rmSync(root, { recursive: true, force: true });
+  });
+
+  it("quarantines a recorded robots 429 operator with no request or key, then continues only independent rows", async () => {
+    const original = await halt();
+    const hash = sha256(original);
+    const halted = JSON.parse(original.toString("utf8"));
+    expect(halted.halt).toBe("robots HTTP 429");
+    expect(halted.active).toBeNull();
+    expect(halted.lastResponse).toEqual({
+      kind: "robots", status: 429, retryAfter: "60", id: "c-held", origin: "https://held.example",
+    });
+    expect(statuses(halted)).toEqual([
+      ["a-done", "completed"], ["b-blocked", "source-blocked"], ["c-held", "pending"],
+      ["d-alias", "pending"], ["e-free", "pending"], ["f-offsource", "pending"],
+    ]);
+    const priorSnapshots = snapshots();
+    const priorOutputs = outputs();
+
+    const quiet = denied();
+    await expect(run(quiet, quarantine(hash), "")).resolves.toMatchObject({
+      rowsChecked: 1, confirmed: 1, sourceBlocked: ["b-blocked", "c-held", "d-alias"], placesCalls: 22, sourceCalls: halted.sourceCalls, exitCode: 0,
+    });
+    expect(quiet).not.toHaveBeenCalled();
+    expect(fetch).not.toHaveBeenCalled();
+    const quarantined = json(checkpointFile());
+    expect(quarantined.halt).toBeNull();
+    expect(quarantined.active).toBeNull();
+    expect(quarantined.journal).toBeNull();
+    for (const key of ["placesCalls", "sourceCalls", "receiptHash", "scopeHash", "expected", "sourceHashes", "records", "lastResponse"]) {
+      expect(quarantined[key], key).toEqual(halted[key]);
+    }
+    expect(quarantined.sourceQuarantines).toEqual([{
+      checkpointSha256: hash, id: "c-held", operator: "https://held.example", kind: "robots", status: 429,
+      reason: "source_http_429", binding: "recorded", disposition: "quarantined_without_request",
+    }]);
+    expect(quarantined.snapshots).toEqual([...halted.snapshots, hash]);
+    expect(readFileSync(path.join(taskDir(), "snapshots", hash))).toEqual(original);
+    expect(snapshots().filter(([name]) => name !== hash)).toEqual(priorSnapshots);
+    expect(outputs()).toEqual(priorOutputs);
+
+    const later = network();
+    await expect(run(later)).resolves.toMatchObject({
+      rowsChecked: 2, confirmed: 2, sourceBlocked: ["b-blocked", "c-held", "d-alias", "f-offsource"], placesCalls: 23, exitCode: 0,
+    });
+    expect(later.mock.calls.map(([url]) => host(url))).toEqual(["free.example", "free.example", "places.googleapis.com"]);
+    expect(statuses(json(checkpointFile()))).toEqual([
+      ["a-done", "completed"], ["b-blocked", "source-blocked"], ["c-held", "pending"],
+      ["d-alias", "pending"], ["e-free", "completed"], ["f-offsource", "source-blocked"],
+    ]);
+
+    const settled = readFileSync(checkpointFile());
+    const replay = denied();
+    await expect(run(replay, quarantine(hash), "")).rejects.toThrow(/Source 429 quarantine refused/);
+    const reentry = network();
+    await expect(run(reentry)).resolves.toMatchObject({ rowsChecked: 2, placesCalls: 23 });
+    expect(replay).not.toHaveBeenCalled();
+    expect(reentry).not.toHaveBeenCalled();
+    expect(readFileSync(checkpointFile())).toEqual(settled);
+  });
+
+  it("reports a quarantined pending row as blocked and fails a full default run while it stays held", async () => {
+    writeFileSync(path.join(famous, "late_food.json"), JSON.stringify([venues[2]]));
+    const priorOutputs = outputs();
+    const full = ["--write"];
+    const first = network();
+    await expect(run(first, full)).rejects.toThrow(/Verification halted: robots HTTP 429/);
+    expect(first.mock.calls.map(([url]) => String(url))).toEqual(["https://held.example/robots.txt"]);
+    const original = readFileSync(checkpointFile());
+    const halted = JSON.parse(original.toString("utf8"));
+    expect(json(path.join(taskDir(), "snapshots", halted.receiptHash))).toEqual({
+      kind: "famous-venues-daily", day: "2026-10-21", placesCalls: 0, maxPlacesCalls: 100,
+    });
+    expect(halted).toMatchObject({ halt: "robots HTTP 429", active: null, journal: null, placesCalls: 0 });
+    expect(statuses(halted)).toEqual([["c-held", "pending"]]);
+
+    const quiet = denied();
+    await expect(run(quiet, [...full, "--quarantine-source-429", sha256(original)], "")).resolves.toMatchObject({
+      rowsChecked: 0, sourceBlocked: ["c-held"], placesCalls: 0, exitCode: 1,
+    });
+    const quarantined = readFileSync(checkpointFile());
+    const priorSnapshots = snapshots();
+    const later = denied();
+    await expect(run(later, full)).resolves.toEqual({
+      rowsChecked: 0, confirmed: 0, closed: [], unverified: [], sourceBlocked: ["c-held"],
+      placesCalls: 0, sourceCalls: halted.sourceCalls, exitCode: 1,
+    });
+    expect(quiet).not.toHaveBeenCalled();
+    expect(later).not.toHaveBeenCalled();
+    expect(fetch).not.toHaveBeenCalled();
+    expect(readFileSync(checkpointFile())).toEqual(quarantined);
+    expect(snapshots()).toEqual(priorSnapshots);
+    expect(outputs()).toEqual(priorOutputs);
+    const final = json(checkpointFile());
+    for (const key of ["placesCalls", "sourceCalls", "receiptHash", "scopeHash", "expected", "sourceHashes", "records", "lastResponse"]) {
+      expect(final[key], key).toEqual(halted[key]);
+    }
+    expect(final.sourceQuarantines).toEqual([expect.objectContaining({ id: "c-held", operator: "https://held.example" })]);
+  });
+
+  it("infers the held row from the legacy wire shape only through the sequential cursor and its anchor", async () => {
+    const halted = JSON.parse((await halt()).toString("utf8"));
+    halted.lastResponse = { kind: "robots", status: 429 };
+    const legacyBytes = Buffer.from(`${JSON.stringify(halted, null, 2)}\n`);
+    writeFileSync(checkpointFile(), legacyBytes);
+    const quiet = denied();
+    await expect(run(quiet, quarantine(sha256(legacyBytes)), "")).resolves.toMatchObject({ placesCalls: 22 });
+    expect(quiet).not.toHaveBeenCalled();
+    const quarantined = json(checkpointFile());
+    expect(quarantined.sourceQuarantines).toEqual([expect.objectContaining({
+      checkpointSha256: sha256(legacyBytes), id: "c-held", operator: "https://held.example", binding: "inferred",
+    })]);
+    expect(quarantined.lastResponse).toEqual({ kind: "robots", status: 429 });
+    expect(quarantined.records).toEqual(halted.records);
+    const later = network();
+    await expect(run(later)).resolves.toMatchObject({ placesCalls: 23 });
+    expect(later.mock.calls.some(([url]) => onHeld(url))).toBe(false);
+  });
+
+  const refusals: Array<[string, (bytes: Buffer) => { bytes: Buffer; hash: string }]> = [
+    ["a hash of other bytes", (bytes) => ({ bytes, hash: sha256(Buffer.concat([bytes, Buffer.from(" ")])) })],
+    ["a returned Places 429", rewritten((checkpoint) => {
+      checkpoint.halt = "places HTTP 429";
+      checkpoint.lastResponse = { kind: "places", status: 429 };
+    })],
+    ["an unknown response kind", rewritten((checkpoint) => {
+      checkpoint.halt = "firecrawl HTTP 429";
+      checkpoint.lastResponse = { kind: "firecrawl", status: 429 };
+    })],
+    ["no returned status, as after a timeout", rewritten((checkpoint) => { delete checkpoint.lastResponse; })],
+    ["a non-429 source response", rewritten((checkpoint) => { checkpoint.lastResponse = { kind: "robots", status: 503 }; })],
+    ["no durable halt", rewritten((checkpoint) => { checkpoint.halt = null; })],
+    ["an active reservation", rewritten((checkpoint) => { checkpoint.active = { id: "c-held", kind: "robots" }; })],
+    ["an unresolved write journal", rewritten((checkpoint) => {
+      const late = readFileSync(path.join(famous, "late_food.json"), "utf8");
+      checkpoint.journal = { files: [{ file: "late_food.json", bytes: late, before: checkpoint.expected["late_food.json"], after: sha256(late) }] };
+    })],
+    ["a recorded boundary for another row", rewritten((checkpoint) => { checkpoint.lastResponse = { ...checkpoint.lastResponse, id: "e-free" }; })],
+    ["a recorded boundary on another operator", rewritten((checkpoint) => {
+      checkpoint.lastResponse = { ...checkpoint.lastResponse, origin: "https://free.example" };
+    })],
+    ["partial boundary evidence", rewritten((checkpoint) => { checkpoint.lastResponse = { kind: "robots", status: 429, id: "c-held" }; })],
+    ["an ambiguous legacy cursor", rewritten((checkpoint) => legacy(checkpoint, "e-free"))],
+    ["a legacy cursor row with no source boundary", rewritten((checkpoint) => legacy(checkpoint, "c-held", "d-alias", "e-free"))],
+  ];
+
+  it.each(refusals)("refuses a source 429 quarantine with %s and changes nothing", async (_label, prepare) => {
+    const { bytes, hash } = prepare(await halt());
+    writeFileSync(checkpointFile(), bytes);
+    const priorSnapshots = snapshots();
+    const priorOutputs = outputs();
+    const quiet = denied();
+    await expect(run(quiet, quarantine(hash), "")).rejects.toThrow(/Source 429 quarantine refused/);
+    expect(quiet).not.toHaveBeenCalled();
+    expect(readFileSync(checkpointFile())).toEqual(bytes);
+    expect(snapshots()).toEqual(priorSnapshots);
+    expect(outputs()).toEqual(priorOutputs);
+  });
+
+  it("refuses a quarantine across an unrelated producer edit", async () => {
+    const hash = sha256(await halt());
+    const bytes = readFileSync(checkpointFile());
+    writeFileSync(path.join(famous, "restaurants.json"), JSON.stringify([{ id: "another-owner" }]));
+    const quiet = denied();
+    await expect(run(quiet, quarantine(hash), "")).rejects.toThrow(/preimage/);
+    expect(quiet).not.toHaveBeenCalled();
+    expect(readFileSync(checkpointFile())).toEqual(bytes);
+  });
+
+  it.each<[string, string[], RegExp]>([
+    ["an acknowledgment beside it", ["--quarantine-source-429", "a".repeat(64), "--acknowledge-http-429", "b".repeat(64)], /Source 429 quarantine refused/],
+    ["an invocation bound beside it", ["--quarantine-source-429", "a".repeat(64), "--max-new-places-calls", "1"], /Source 429 quarantine refused/],
+    ["a malformed hash", ["--quarantine-source-429", "HELD"], /Source 429 quarantine refused/],
+    ["no checkpoint for its receipt", ["--quarantine-source-429", "a".repeat(64)], /Source 429 quarantine refused: no checkpoint/],
+    ["a caller-supplied row", ["--quarantine-source-429", "a".repeat(64), "--source-id", "c-held"], /Unknown or duplicate option/],
+  ])("refuses a source 429 quarantine with %s before any state or request", async (_label, extra, refusal) => {
+    const quiet = denied();
+    await expect(run(quiet, args(...extra), "")).rejects.toThrow(refusal);
+    expect(quiet).not.toHaveBeenCalled();
+    expect(existsSync(stateRoot)).toBe(false);
+  });
+});
+
 describe("famous verifier targeted durable continuation", () => {
   let root: string;
   let stateRoot: string;

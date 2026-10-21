@@ -18,5 +18,7 @@ commands:
   test: "npm run verify:no-mistakes:changed"
 
 # CI failures require a source-fix decision before any repair can change a spec.
+# A Test failure takes no automatic repair. The Test step itself still runs once.
 auto_fix:
   ci: 0
+  test: 0

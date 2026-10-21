@@ -256,6 +256,7 @@ const nextConfig = {
     // real 401 with the token form, not a 200 console shell. Nothing else
     // calls unauthorized() or forbidden().
     authInterrupts: true,
+    cpus: 1,
   },
   env: {
     // See swVersion above — SW cache-busting build id.
