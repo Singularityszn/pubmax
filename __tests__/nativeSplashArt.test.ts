@@ -1,8 +1,9 @@
+// @vitest-environment jsdom
+
 import { copyFileSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, symlinkSync } from "node:fs";
 import { basename, dirname, join } from "node:path";
 
 import { execFileSync } from "node:child_process";
-import { JSDOM } from "jsdom";
 import sharp from "sharp";
 import { describe, expect, it } from "vitest";
 
@@ -148,18 +149,18 @@ describe("no native splash launches on the retired coral field", () => {
 
 describe("the iOS launch screen is the same master, wired the way iOS 26 draws it", () => {
   it("names the colour set and the imageset from Info.plist, and no storyboard", () => {
-    const plist = new JSDOM(readFileSync(IOS_INFO_PLIST, "utf8"), { contentType: "application/xml" });
+    const plist = new DOMParser().parseFromString(readFileSync(IOS_INFO_PLIST, "utf8"), "application/xml");
+    expect(plist.getElementsByTagName("parsererror")).toHaveLength(0);
     const entries = (dict: Element) => new Map(Array.from(dict.children)
       .filter((node) => node.tagName === "key")
       .map((key) => [key.textContent, key.nextElementSibling]));
-    const root = entries(defined(plist.window.document.querySelector("plist > dict") ?? undefined));
+    const root = entries(defined(plist.querySelector("plist > dict") ?? undefined));
     expect(root.has("UILaunchStoryboardName")).toBe(false);
     const launch = defined(root.get("UILaunchScreen") ?? undefined);
     expect(launch.tagName).toBe("dict");
     const screen = entries(launch);
     expect(screen.get("UIColorName")?.textContent).toBe("LaunchBackground");
     expect(screen.get("UIImageName")?.textContent).toBe("LaunchMark");
-    plist.window.close();
   });
 
   it("paints the field from the one ink token, once, for both appearances", () => {
