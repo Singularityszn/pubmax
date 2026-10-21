@@ -56,7 +56,7 @@ export async function publicPubDetails(id: string, includeHistory: boolean): Pro
     });
   }
   if (!prices.length && estimate) prices.push({
-    drink: "Pint", priceGbp: estimate.priceGbp, observedAt: estimate.computedAt,
+    drink: "Pint", priceGbp: estimate.priceGbp, observedAt: null, computedAt: estimate.computedAt,
     status: "estimate", publisher: null, basis: estimate.basis,
   });
   for (const price of prices) {

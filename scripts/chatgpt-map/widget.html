@@ -46,6 +46,7 @@
     element("status").textContent = [resultStatus, mapFailure].filter(Boolean).join(" ");
   }
   function mapFailed(message) {if(tornDown)return;mapFailure = message;element("map").dataset.state="degraded";updateStatus();}
+  function mapLoading() {element("map").dataset.state="loading";}
   async function openLink(event) {
     const link=event.target instanceof Element?event.target.closest("a[href]"):null;
     if(tornDown||!link||window.parent===window)return;
@@ -78,7 +79,7 @@
   function safeVenues(input) {
     if (!Array.isArray(input)) return [];
     return input.slice(0,30).filter(v=>v&&typeof v.name==="string"&&v.name.length<=160&&typeof v.id==="string"&&Number.isFinite(v.latitude)&&Math.abs(v.latitude)<=90&&Number.isFinite(v.longitude)&&Math.abs(v.longitude)<=180)
-      .map(v=>({priceUnavailable:v.priceReads?.bundle==="unavailable"||v.priceReads?.updates==="unavailable",name:v.name,latitude:v.latitude,longitude:v.longitude,href:safeLink(v.href),history:Array.isArray(v.history)?v.history.slice(0,6).filter(f=>f&&typeof f.fact==="string"&&f.fact.length<=1000&&safeHttpsUrl(f.sourceRef)).map(f=>({fact:f.fact,sourceRef:safeHttpsUrl(f.sourceRef).href})):[],prices:Array.isArray(v.prices)?v.prices.slice(0,3).filter(p=>p&&typeof p.drink==="string"&&p.drink.length<=160&&Number.isFinite(p.priceGbp)&&p.priceGbp>0).map(p=>({drink:p.drink,priceGbp:p.priceGbp,observedAt:typeof p.observedAt==="string"&&p.observedAt.length<=40?p.observedAt:null,status:p.status==="estimate"?"estimate":null,band:["cheap","average","expensive"].includes(p.band)?p.band:null,publisher:safePublisher(p.publisher),basis:typeof p.basis==="string"?p.basis.slice(0,300):null})):[]}));
+      .map(v=>({priceUnavailable:v.priceReads?.bundle==="unavailable"||v.priceReads?.updates==="unavailable",name:v.name,latitude:v.latitude,longitude:v.longitude,href:safeLink(v.href),history:Array.isArray(v.history)?v.history.slice(0,6).filter(f=>f&&typeof f.fact==="string"&&f.fact.length<=1000&&safeHttpsUrl(f.sourceRef)).map(f=>({fact:f.fact,sourceRef:safeHttpsUrl(f.sourceRef).href})):[],prices:Array.isArray(v.prices)?v.prices.slice(0,3).filter(p=>p&&typeof p.drink==="string"&&p.drink.length<=160&&Number.isFinite(p.priceGbp)&&p.priceGbp>0).map(p=>({drink:p.drink,priceGbp:p.priceGbp,observedAt:typeof p.observedAt==="string"&&p.observedAt.length<=40?p.observedAt:null,computedAt:typeof p.computedAt==="string"&&p.computedAt.length<=40?p.computedAt:null,status:p.status==="estimate"?"estimate":null,band:["cheap","average","expensive"].includes(p.band)?p.band:null,publisher:safePublisher(p.publisher),basis:typeof p.basis==="string"?p.basis.slice(0,300):null})):[]}));
   }
   function card(venue, parent, position) {
     text("h2",isEvening&&Number.isInteger(position)?`${position+1}. ${venue.name}`:venue.name,parent);
@@ -87,10 +88,11 @@
     for (const price of venue.prices) {
       text("p",`${price.status==="estimate"?"Estimate · ":""}${money.format(price.priceGbp)} · ${price.drink}`,parent).className=price.band?`price priceBand-${price.band}`:"price";
       const dated=text("p",`${price.status==="estimate"?"Estimate":"On record"} · `,parent);
-      if(price.observedAt&&Number.isFinite(Date.parse(price.observedAt))){
-        const stamp=text("time",`${price.basis?"Modelled":"Read"} ${priceDay.format(new Date(price.observedAt))}`,dated);
-        stamp.dateTime=price.observedAt;stamp.title=price.observedAt;
-      }else dated.append("Price date not recorded");
+      const date=price.basis?price.computedAt:price.observedAt;
+      if(date&&Number.isFinite(Date.parse(date))){
+        const stamp=text("time",`${price.basis?"Modelled":"Read"} ${priceDay.format(new Date(date))}`,dated);
+        stamp.dateTime=date;stamp.title=date;
+      }else dated.append(price.basis?"Calculation date not recorded":"Price date not recorded");
       if(price.basis)text("p",`Estimate basis: ${price.basis}`,parent);
       const source = text("p","",parent);
       if (price.publisher?.url) {const a=text("a",`Publisher: ${price.publisher.label}`,source);a.href=price.publisher.url;a.target="_blank";a.rel="noopener noreferrer";}
@@ -130,7 +132,7 @@
         const box=popup.getElement().getBoundingClientRect();
         const shiftX=Math.max(bounds.left+10-box.left,0)-Math.max(box.right-bounds.right+50,0);
         const shiftY=Math.max(bounds.top+10-box.top,0)-Math.max(box.bottom-bounds.bottom+60,0);
-        if (shiftX||shiftY) map.panBy([-shiftX,-shiftY],{duration:0});
+        if (shiftX||shiftY) {mapLoading();map.panBy([-shiftX,-shiftY],{duration:0});}
       });
       const marker=new maplibre.Marker({element:button}).setLngLat([venue.longitude,venue.latitude]).setPopup(popup).addTo(map);
       // Own keyboard activation so popup focus cannot trigger a second native click.
@@ -144,16 +146,19 @@
     });
     const drawRoute=()=>{
       if(tornDown||!map)return;
+      mapLoading();
       const data={type:"Feature",properties:{},geometry:{type:"LineString",coordinates:isEvening?latestVenues.map(v=>[v.longitude,v.latitude]):[]}};
       const source=map.getSource("evening-route");
       if(source)source.setData(data);
       else if(isEvening){map.addSource("evening-route",{type:"geojson",data});map.addLayer({id:"evening-route",type:"line",source:"evening-route",paint:{"line-color":getComputedStyle(document.documentElement).getPropertyValue("--brass").trim()||"#d2634a","line-width":3,"line-dasharray":[2,2]}});}
     };
+    mapLoading();
     if(map.isStyleLoaded())drawRoute();else map.once("load",drawRoute);
     if (latestVenues.length) {
       const bounds=new maplibre.LngLatBounds();latestVenues.forEach(v=>bounds.extend([v.longitude,v.latitude]));
       map.fitBounds(bounds,{padding:45,maxZoom:14,duration:0});
     }
+    map.triggerRepaint();
   }
   function render(result) {
     if (tornDown) return;
@@ -215,7 +220,7 @@
     maplibre.setWorkerUrl(workerUrl);
     map=new maplibre.Map({container:"map",style:"https://tiles.openfreemap.org/styles/positron",center:[-0.12,51.52],zoom:10,attributionControl:{compact:true,customAttribution:"Pub data © OpenStreetMap contributors (ODbL)"}});
     map.addControl(new maplibre.NavigationControl({showCompass:false}));
-    map.on("idle",()=>{if(!tornDown&&!mapFailure)element("map").dataset.state="ready";});
+    map.on("idle",()=>{if(!tornDown)element("map").dataset.state=mapFailure?"degraded":"ready";});
     map.on("error",()=>{mapFailed("Streets could not load. Listed pubs remain below.");});
     showMarkers();
   }

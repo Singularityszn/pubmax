@@ -1,7 +1,8 @@
 import { afterEach, describe, expect, it } from "vitest";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
-import { createNightArchitectServer, type NightArchitectData } from "@/lib/chatgpt/server";
+import { createNightArchitectServer, type NightArchitectData, type PublicPub } from "@/lib/chatgpt/server";
+import { publicPubDetails } from "@/lib/chatgpt/data.server";
 
 const venue = {
   id: "venue-test", name: "The Test Arms", area: "Camden",
@@ -72,11 +73,11 @@ async function planner() {
 }
 it("retains evidence gaps and never promises the full bill from a partial price total", async () => {
   const client = await planner();
-  const result = await client.callTool({ name: "pubmaxx_plan_evening", arguments: { request: "Three pubs in Camden", budgetPence: 2000 } });
+  const result = await client.callTool({ name: "pubmaxx_plan_evening", arguments: { request: "Three pubs in Camden" } });
   expect(result.isError).not.toBe(true);
   expect(result.structuredContent).toMatchObject({
     venueIds: ["venue-one", "venue-two", "venue-three"],
-    budget: { knownPence: 500, missingPrices: 2, limitPence: 2000, guaranteed: false },
+    budget: { knownPence: 500, missingPrices: 2, limitPence: null, guaranteed: false },
     walking: { basis: "straight-line", withinLimitConfirmed: false },
     warnings: expect.arrayContaining(["Opening times need checking."]),
   });
@@ -174,4 +175,94 @@ it("uses the same attributable price for a replacement ceiling and its returned 
   expect(result.isError).not.toBe(true);
   expect(result.structuredContent).toMatchObject({ budget: { knownPence: 1800, missingPrices: 0, limitPence: 2000, guaranteed: false } });
   expect((await client.callTool({ name: "pubmaxx_replace_stop", arguments: { ...replacement, budgetPence: 1700 } })).isError).toBe(true);
+});
+
+it("includes the Black Cap public listing when the generator lacks a slim pint price", async () => {
+  const cap = await publicPubDetails("venue-1jh3vn9", false);
+  expect(cap?.prices[0]).toMatchObject({ priceGbp: 6.5, observedAt: "2026-10-18T21:37:55.150Z" });
+  const ids = [cap!.id, "venue-two", "venue-three"];
+  const client = await connect({
+    detail: async (id) => id === cap!.id ? publicPubDetails(id, false) : { ...venue, id },
+    generate: async () => ({ grounded: true, stops: ids.map((venueId) => ({ venueId, estimatedPintPricePence: null })) }),
+  });
+  const result = await client.callTool({ name: "pubmaxx_plan_evening", arguments: { request: "Camden pubs" } });
+  expect(result.isError).not.toBe(true);
+  expect(result.structuredContent).toMatchObject({
+    budget: { knownPence: 650, missingPrices: 2 },
+    stopEvidence: [
+      { pintPrice: cap!.prices[0], priceEvidence: { pence: 650, source: { label: "blackcapcamden.co.uk", url: "https://blackcapcamden.co.uk/" } } },
+      { pintPrice: null }, { pintPrice: null },
+    ],
+  });
+});
+
+it.each([0, 1, 2])("uses public evidence for generated stop %i and the ceiling", async (position) => {
+  const ids = ["venue-one", "venue-two", "venue-three"];
+  const observedAt = new Date().toISOString();
+  const client = await connect({
+    detail: async (id) => ({ ...venue, id, prices: [{
+      drink: "Pint", priceGbp: id === ids[position] ? 6.5 : 5, observedAt, status: "recorded",
+      publisher: { label: "Pub menu", url: "https://pub.example/menu" },
+    }] }),
+    generate: async () => ({ grounded: true, stops: ids.map((venueId) => ({
+      venueId, estimatedPintPricePence: null,
+      priceEvidence: { pence: 400, source: { label: "Old menu", url: "https://pub.example/old", observedAt: "2020-01-01" } },
+    })) }),
+  });
+  const result = await client.callTool({ name: "pubmaxx_plan_evening", arguments: { request: "Camden pubs", budgetPence: 2000 } });
+  expect(result.isError).not.toBe(true);
+  expect(result.structuredContent).toMatchObject({
+    budget: { knownPence: 1650, missingPrices: 0 },
+    stopEvidence: ids.map((_, index) => ({
+      priceEvidence: { pence: index === position ? 650 : 500, source: { label: "Pub menu", url: "https://pub.example/menu", observedAt } },
+      pintPrice: { priceGbp: index === position ? 6.5 : 5, observedAt },
+    })),
+  });
+  expect((await client.callTool({ name: "pubmaxx_plan_evening", arguments: { request: "Camden pubs", budgetPence: 1600 } })).isError).toBe(true);
+});
+
+it.each(["undated", "stale", "future", "unattributed", "missing", "modelled"])("refuses a generated ceiling with %s public evidence", async (kind) => {
+  const ids = ["venue-one", "venue-two", "venue-three"];
+  const prices: PublicPub["prices"] = kind === "missing" ? [] : [{
+    drink: "Pint", priceGbp: 5, status: "estimate",
+    observedAt: kind === "undated" || kind === "modelled" ? null : kind === "stale" ? "2020-01-01"
+      : kind === "future" ? "2099-01-01" : new Date().toISOString(),
+    ...(kind === "modelled" ? { basis: "regional model", computedAt: new Date().toISOString() } : {}),
+    publisher: kind === "unattributed" ? null : { label: "Menu", url: "https://pub.example/menu" },
+  }];
+  const client = await connect({
+    detail: async (id) => ({ ...venue, id, prices }),
+    generate: async () => ({ grounded: true, stops: ids.map((venueId) => ({ venueId, estimatedPintPricePence: 500 })) }),
+  });
+  expect((await client.callTool({ name: "pubmaxx_plan_evening", arguments: { request: "Camden pubs", budgetPence: 2000 } })).isError).toBe(true);
+  const estimate = await client.callTool({ name: "pubmaxx_plan_evening", arguments: { request: "Camden pubs" } });
+  expect(estimate.isError).not.toBe(true);
+  expect(estimate.structuredContent).toMatchObject({ budget: { knownPence: kind === "missing" ? 0 : 1500, missingPrices: kind === "missing" ? 3 : 0 } });
+  if (kind === "modelled") expect(estimate.structuredContent).toMatchObject({
+    stopEvidence: ids.map(() => ({ pintPrice: { observedAt: null, computedAt: expect.any(String), basis: "regional model" } })),
+  });
+});
+
+it.each([
+  { category: "wine", zeroProof: false, evidenceCategory: "wine", expected: 2400 },
+  { category: "wine", zeroProof: false, evidenceCategory: "cider", expected: 0 },
+  { category: "soft-drink", zeroProof: true, evidenceCategory: "soft-drink", expected: 0 },
+])("preserves selected-drink costs for $category with zeroProof=$zeroProof and evidence=$evidenceCategory", async ({ category, zeroProof, evidenceCategory, expected }) => {
+  const ids = ["venue-one", "venue-two", "venue-three"];
+  const client = await connect({
+    detail: async (id) => ({ ...pubs[0]!, id }),
+    generate: async () => ({
+      grounded: true, inferredContext: { drinkCategory: category, zeroProof },
+      stops: ids.map((venueId) => ({
+        venueId, estimatedPintPricePence: 500,
+        selectedDrinkPriceEvidence: { category: evidenceCategory, pence: 800, serving: null, source: "community", reportedAt: "2026-10-01T12:00:00.000Z" },
+      })),
+    }),
+  });
+  const result = await client.callTool({ name: "pubmaxx_plan_evening", arguments: { request: "Camden pubs" } });
+  expect(result.isError).not.toBe(true);
+  expect(result.structuredContent).toMatchObject({
+    budget: { knownPence: expected, missingPrices: expected ? 0 : 3, priceBasis: "selected-drink" },
+    stopEvidence: ids.map(() => ({ pintPrice: null, priceEvidence: null, selectedDrinkPriceEvidence: expected ? { category, pence: 800 } : null })),
+  });
 });

@@ -8,7 +8,7 @@ import { estimateStraightLinePlanWalking } from "@/lib/walkRouteLegs";
 
 export type PublicPub = {
   id: string; name: string; area: string; latitude: number; longitude: number; href: string;
-  prices: Array<{ drink: string; priceGbp: number; observedAt: string | null; status: "recorded" | "estimate"; basis?: string; publisher: { label: string; url: string | null } | null }>;
+  prices: Array<{ drink: string; priceGbp: number; observedAt: string | null; computedAt?: string; status: "recorded" | "estimate"; basis?: string; publisher: { label: string; url: string | null } | null }>;
   priceReads?: { bundle: "ready" | "empty" | "unavailable"; updates: "ready" | "unavailable" };
   history: Array<{ fact: string; sourceRef: string; observedAt?: string }>;
 };
@@ -69,27 +69,26 @@ async function routeResult(
   const category = generated ? context?.drinkCategory ?? null : "drinkCategory" in input ? input.drinkCategory : null;
   const zeroProof = generated ? context?.zeroProof === true : "zeroProof" in input && input.zeroProof;
   const pintCosts = !zeroProof && (category === null || category === "beer");
-  const replacementPrices = generated ? [] : venues.map((pub) => {
-    const price = pintCosts ? pub.prices[0] : null;
+  const pintPrices = venues.map((pub) => pintCosts ? pub.prices[0] ?? null : null);
+  const priceEvidence = pintPrices.map((price) => {
     return buildPriceEvidence({
       pence: price && !price.basis ? Math.round(price.priceGbp * 100) : null,
       label: price?.publisher?.label, url: price?.publisher?.url,
       observedAt: price?.observedAt, now: Date.now(),
     });
   });
-  if (!generated && input.budgetPence !== undefined
-    && !replacementPrices.every(priceEvidenceUsableForCeiling)) {
+  if (input.budgetPence !== undefined && (pintCosts || !generated)
+    && !priceEvidence.every(priceEvidenceUsableForCeiling)) {
     throw new NightArchitectError("This budget ceiling needs attributable, non-stale pint prices at every stop. Remove the ceiling for an estimate with gaps.");
   }
-  const costs = venues.map((pub, index) => {
-    if (generated) {
-      const selected = cleanSelectedDrinkPriceEvidence(stops[index]?.selectedDrinkPriceEvidence);
-      if (!pintCosts) return selected?.category === category && !zeroProof ? selected.pence : null;
-      const pence = stops[index]?.estimatedPintPricePence;
-      return typeof pence === "number" && Number.isSafeInteger(pence) && pence > 0 ? pence : null;
-    }
-    if (input.budgetPence !== undefined) return replacementPrices[index]?.pence ?? null;
-    return pintCosts && pub.prices[0] ? Math.round(pub.prices[0].priceGbp * 100) : null;
+  const selectedPrices = stops.map((stop) => {
+    const selected = cleanSelectedDrinkPriceEvidence(stop?.selectedDrinkPriceEvidence);
+    return !pintCosts && !zeroProof && selected?.category === category ? selected : null;
+  });
+  const costs = pintPrices.map((price, index) => {
+    if (!pintCosts) return selectedPrices[index]?.pence ?? null;
+    const pence = price ? Math.round(price.priceGbp * 100) : null;
+    return typeof pence === "number" && Number.isSafeInteger(pence) && pence > 0 ? pence : null;
   });
   const knownPence = costs.reduce<number>((sum, cost) => sum + (cost ?? 0), 0);
   const missingPrices = costs.filter((cost) => cost === null).length;
@@ -109,7 +108,7 @@ async function routeResult(
     walking: { minutes: walkingMinutes, basis: walkingBasis, limitMinutes: input.maxWalkingMinutes ?? null, withinLimitConfirmed: walkingBasis !== "straight-line" && input.maxWalkingMinutes !== undefined },
     startsAt: input.startsAt ?? null, warnings,
     planningConfidence: confidence,
-    stopEvidence: generated ? stops.map((stop) => ({ priceEvidence: stop?.priceEvidence ?? null, selectedDrinkPriceEvidence: stop?.selectedDrinkPriceEvidence ?? null, operationalEvidence: stop?.operationalEvidence ?? null })) : null,
+    stopEvidence: generated ? stops.map((stop, index) => ({ priceEvidence: pintCosts ? priceEvidence[index] : null, pintPrice: pintPrices[index], selectedDrinkPriceEvidence: selectedPrices[index], operationalEvidence: stop?.operationalEvidence ?? null })) : null,
     routeChanged: generated === null,
     contentTrust: "untrusted_external_evidence",
   });

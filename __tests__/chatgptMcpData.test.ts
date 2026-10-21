@@ -39,7 +39,7 @@ it("uses a newer menu observation without exposing demo or unsafe publisher link
   expect(pub?.prices.some((price) => price.drink === "Demo lager")).toBe(false);
   expect(pub?.prices.find((price) => price.drink === "Unsafe link lager")?.publisher).toEqual({ label: "Unsafe menu link", url: null });
 });
-it("labels a modelled figure as an estimate and keeps its basis and date", async () => {
+it("keeps a model calculation date separate from source observations", async () => {
   vi.spyOn(bundleReader, "ukPriceBundleRowsFor").mockResolvedValue({ status: "ready", rows: [{
     venueId: id, name: "Fox and Pheasant", category: "beer", priceGbp: 6.73,
     lane: "estimate", standing: "estimate", sourceUrl: null, publisher: null,
@@ -47,6 +47,6 @@ it("labels a modelled figure as an estimate and keeps its basis and date", async
   }] });
   vi.spyOn(updatesReader, "venuePriceUpdatesFor").mockResolvedValue({ food: [], drink: [] });
   expect((await publicPubDetails(id, false))?.prices).toContainEqual({
-    drink: "Pint", priceGbp: 6.73, observedAt: "2026-10-05T23:53:08.357Z", basis: "regional_baseline:kensington-and-chelsea", status: "estimate", publisher: null,
+    drink: "Pint", priceGbp: 6.73, observedAt: null, computedAt: "2026-10-05T23:53:08.357Z", basis: "regional_baseline:kensington-and-chelsea", status: "estimate", publisher: null,
   });
 });

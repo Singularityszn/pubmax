@@ -86,6 +86,7 @@ try {
     await page.waitForFunction(() => window.links.length === 2);
     await frame.locator("#status").filter({ hasText: "Copy this address" }).waitFor();
     assert.equal(await frame.locator("body").evaluate((body) => body.scrollWidth > innerWidth), false);
+    await frame.locator('#map[data-state="ready"], #map[data-state="degraded"]').waitFor({ timeout: 45_000 });
     await page.screenshot({ path: `${output}${viewport.width}.png`, fullPage: true });
     assert.deepEqual(errors, []);
     const mapState = await frame.locator("#map").getAttribute("data-state");
