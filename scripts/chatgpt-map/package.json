@@ -10,7 +10,8 @@
     "start": "node --import tsx server.mjs",
     "test": "node --import tsx --test public-venues.test.mjs server.test.mjs shared-styles.test.mjs",
     "proof:browser": "node --import tsx browser-proof.mjs",
-    "proof:lifecycle": "node --import tsx widget-lifecycle-proof.mjs"
+    "proof:lifecycle": "node --import tsx widget-lifecycle-proof.mjs",
+    "proof:night": "node --import tsx night-architect-proof.mjs"
   },
   "allowScripts": {
     "esbuild": true,

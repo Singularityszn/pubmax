@@ -79,7 +79,7 @@ try {
   host = createServer((_req, res) => res.writeHead(200, { "Content-Type": "text/html" }).end(html));
   await new Promise((resolve) => host.listen(0, "127.0.0.1", resolve));
   const hostUrl = `http://127.0.0.1:${host.address().port}`;
-  browser = await chromium.launch({ headless: true, args: ["--enable-unsafe-swiftshader"] });
+  browser = await chromium.launch({ channel: process.env.PUBMAX_BROWSER_CHANNEL || undefined, headless: true, args: ["--enable-unsafe-swiftshader"] });
 
   for (const name of ["inline-capability", "pending-link", "late-import", "worker-blob", "url-bounds", "url-boundary-fallback", "pending-initialization", "unused-id-retention", "publisher-label-retention"]) {
     const check = { name };

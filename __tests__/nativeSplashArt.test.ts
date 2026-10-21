@@ -1,5 +1,5 @@
 import { readFileSync, readdirSync } from "node:fs";
-import { join } from "node:path";
+import { basename, dirname, join } from "node:path";
 
 import sharp from "sharp";
 import { describe, expect, it } from "vitest";
@@ -184,10 +184,10 @@ describe("light and dark are the same splash, on purpose", () => {
     // drawable-port-night-xhdpi is the night twin of drawable-port-xhdpi. The
     // pair existing at all is Capacitor's doing; them being IDENTICAL is the
     // #523 decision, and it is the half that broke.
-    const nights = androidFiles.filter((file) => file.includes("-night"));
+    const nights = androidFiles.filter((file) => basename(dirname(file)).includes("-night"));
     expect(nights.length).toBeGreaterThan(0);
     for (const night of nights) {
-      const day = night.replace("-night", "");
+      const day = join(dirname(dirname(night)), basename(dirname(night)).replace("-night", ""), basename(night));
       const [a, b] = await Promise.all([samples(night), samples(day)]);
       expect(`${night.slice(ROOT.length + 1)} matches its day twin`).toBe(
         `${night.slice(ROOT.length + 1)} matches its day twin`,

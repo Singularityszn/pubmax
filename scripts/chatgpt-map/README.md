@@ -25,3 +25,9 @@ The root [command reference](../../README.md) describes `test:chatgpt-map` and i
 The [evidence record](../../docs/proof/chatgpt-public-map-20260929/README.md#current-checks) owns check results and distinguishes the first candidate from later review fixes. ChatGPT developer-mode testing needs approved public hosting, an HTTPS endpoint, a reviewed Host/Origin policy and actual account connection. No tunnel, account connection or distribution submission runs automatically. Native ChatGPT Maps has no embed contract established by the sources checked.
 
 Official references: [MCP app quickstart](https://developers.openai.com/plugins/build/app-quickstart), [UI resources and bridge](https://developers.openai.com/plugins/build/chatgpt-ui).
+
+## Night Architect integration
+
+The hosted application now also defines `/api/mcp` for anonymous search, venue details, three-stop planning and replacement. Its current implementation and pilot instructions are in [the integration guide](../../docs/integrations/chatgpt-night-architect.md). This local loopback server retains its borough-only tool.
+
+Use `PUBMAX_BROWSER_CHANNEL=chrome` with the browser proof commands when the default Playwright executable is unavailable. The proof uses the installed Chrome browser and leaves the shared browser cache unchanged.

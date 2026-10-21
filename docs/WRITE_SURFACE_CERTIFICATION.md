@@ -6,7 +6,7 @@ reviewed surface—even when a POST is semantically read-only. The regression te
 Adding a mutating route or removing its authority/abuse boundary fails
 CI until this certification is deliberately updated.
 
-> **Inventory: 152 mutating handlers across 120 route files.** Each exported
+> **Inventory: 162 mutating handlers across 129 route files.** Each exported
 > `POST`, `PUT`, `PATCH`, or `DELETE` is one reviewed surface. A file with two
 > mutation methods contributes two entries. Read-only handlers do not enter this
 > inventory. Both counts are merge-conflict coordination points.
@@ -126,6 +126,7 @@ Protection in a sibling method cannot certify another method.
 - `POST app/api/plans/[id]/recap`
 - `POST app/api/plans/[id]/session`
 - `POST app/api/plans/[id]/vibe-votes`
+- `POST app/api/mcp`
 - `POST app/api/plans/generate`
 - `POST app/api/presence`
 - `POST app/api/price-submit`
@@ -1626,3 +1627,11 @@ npx vitest run __tests__/writeSurfaceCertification.test.ts __tests__/rateLimit.t
 The structural scan, live atomic-limiter check, and deployment configuration must
 all remain green. A future route added without a reviewed boundary fails the closed
 inventory count and boundary assertions in CI.
+
+### `app/api/mcp` - anonymous ChatGPT planning tools
+
+POST is a stateless MCP transport. It accepts no account credentials or plan writes.
+Each request passes origin checks, a 32 KiB body limit and the hashed-address rate limit.
+Generation delegates to the existing plan route and retains its paid-spend ceiling.
+Tool errors use the MCP result contract. HTTP errors use the public API envelope.
+The anonymous paid-route probe proves that a spent generation ceiling makes no paid provider call.
