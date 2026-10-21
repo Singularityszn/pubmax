@@ -83,7 +83,7 @@ export function generatedMapDrinkLane(context: Pick<NightContext, "drinkCategory
 export function hasCrawlArrivalParams(search: string): boolean {
   // Intentional deep links (landmark/band/food/log/etc.) must also suppress
   // curated onboarding — not only crawl planner params (#79 follow-up).
-  return /[?&](pubs|sel|style|mode|q|drink|cocktails|landmark|band|food|max|alt|log|crawl|experience|mapNotice)=/.test(
+  return /[?&](pubs|sel|style|mode|q|area|drink|cocktails|landmark|band|food|max|alt|log|crawl|experience|mapNotice)=/.test(
     search,
   );
 }
@@ -849,12 +849,13 @@ export function restoredSessionFrame<NightAreaSlug extends string = string>(inpu
   };
 }
 
-/** The viewport the map opens on: a resume snapshot, else a restored session, else none. */
+/** An explicit area wins over a resume snapshot and a restored session. */
 export function openingViewportFrom(
   resumeViewport: MapViewportSnapshot | null,
   restoredSession: RestoredSessionLike<string>,
+  explicitViewport: MapViewportSnapshot | null = null,
 ): MapViewportSnapshot | null {
-  return resumeViewport ?? restoredSession?.viewport ?? null;
+  return explicitViewport ?? resumeViewport ?? restoredSession?.viewport ?? null;
 }
 
 /**
