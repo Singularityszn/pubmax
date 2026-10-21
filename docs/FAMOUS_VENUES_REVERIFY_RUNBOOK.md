@@ -4,28 +4,30 @@ The famous bars, late-food spots and restaurants in `data/famous_venues/` (`bars
 
 The app does not check a famous venue's expiry when it serves it. The slim index was built on a fixed date, and every row in it keeps showing until the next `refresh:slim`. The freshness gate is the only warning, and it is set to fire two weeks before the earliest row in the current build expires.
 
-## Where it stands (as committed on 2026-10-16)
+## Publication on 2026-10-21
 
 | | |
 | --- | --- |
-| Slim built at | 2026-10-05 (`venues_slim.json` `generatedAt`, the `famous_venues` literal stamp) |
-| Gate turns red | 2026-10-21 00:00 UTC (the 384h budget runs out) |
-| Rows shipping | 82 (37 bars, 20 late food, 25 restaurants) |
-| Those rows lapse | 2026-11-04. After that day the slim still shows them, unverified. |
-| Withheld | 6 seed rows: 4 whose window closed on 2026-09-24 (below), and `food-wong-kei` and `food-golden-dragon`, which have no price anchor and are held back on purpose |
+| Slim built at | 2026-10-21 (`venues_slim.json` `generatedAt`, the `famous_venues` literal stamp) |
+| Gate turns red | After 2026-11-06 00:00 UTC, when the 384-hour budget is exceeded |
+| Rows shipping | 69 (27 bars, 19 late food, 23 restaurants) |
+| Those rows lapse | 2026-11-20. After that day the slim still shows them until rebuilt. |
+| Withheld | 19 complete seed rows archived in `data/famous_venues/withheld_2026-10-21.json` |
 
-The four lapsed rows, with what the last runs found:
+The captain authorised withholding unverifiable entries while retaining their history.
+Withdrawal from current recommendations does not assert that a venue closed.
+The fixed seed files contain only confirmed rows after this publication.
+The archive retains original rows, price observations, source checks, repaired candidates, and restoration requirements.
+`removed.json` records each withdrawn ID for the existing slim rebuild guard.
+Restoration requires supported identity and price evidence, removal of the ID from `removed.json`, and another slim rebuild.
 
-| Row | Last result |
-| --- | --- |
-| `bar-beaufort-bar-savoy` | `places_no_result` on 2026-09-25 and 2026-10-03; not checked on 2026-10-05 |
-| `food-mangal-1` | `places_no_confident_match` on 2026-10-05 (exact name, but 403 m from the seed location) |
-| `food-lahore-kebab-house` | `places_closed_temporarily` on 2026-10-05 |
-| `food-maroush-edgware-road` | `places_no_confident_match` on 2026-10-05 (name tokens did not match) |
+The [publication report](FAMOUS_VENUES_REVERIFY_2026-10-21.md) records the evidence and quota limits.
+Lahore Kebab House returned on its genuine 2026-10-21 confirmation.
+Price dates remain separate from venue confirmation dates.
 
 ## Who can do this
 
-Anyone with a Google Places API key who can reach `places.googleapis.com`. The npm script reads `GOOGLE_PLACES_API_KEY` from `.env.local`. A full run makes one Text Search call per seed row (88 today) and stops at 100. The committed verification file keeps only the place id and the verdict, never Google's names, addresses or statuses (Maps terms).
+Anyone with a Google Places API key who can reach `places.googleapis.com`. The npm script reads `GOOGLE_PLACES_API_KEY` from `.env.local`. A full run makes one Text Search call per active seed row and stops at 100. Check available daily quota before selecting a batch. The committed verification file keeps only the place id and the verdict, never Google's names, addresses or statuses (Maps terms).
 
 ## Steps
 
@@ -40,13 +42,15 @@ Anyone with a Google Places API key who can reach `places.googleapis.com`. The n
    - **The venue still trades and the match was the problem.** Fix the row (name, address, `lat`/`lng` or `anchor`) and re-check it on a later day with `npm run verify:famous-venues -- --write --limit N`, where N is the number of rows you fixed. It cannot be re-checked the same day: the full run's checks count against `--limit`, so a same-day `--limit` run calls Places for nothing. On a later day the run takes rows oldest `observedAt` first, and an unverified row kept its old date while every confirmed row moved to the full run's day, so the rows it picks are the ones you fixed. Then repeat steps 4 to 6.
    - **The venue is gone.** Delete the row and add its id to `removed.json`.
    - **You leave it.** It ships until its old `expiresAt` and then drops out on the next refresh.
+   - **The captain authorises withholding.** Archive the full original row and the source failure before removing it from the active seed. Add its ID to `removed.json`. Record restoration requirements without asserting closure.
 4. Run `npm run refresh:slim`. It rebuilds `public/data/venues_slim.json` at the latest seed `observedAt` or `expiresAt` on or before today, and fails rather than silently drop a shipped venue. Commit the slim it writes.
 5. Update the `famous_venues` entry in `data/freshness_registry.json`:
    - `stamp.value`: the new slim `generatedAt`.
    - `stalenessBudgetHours`: hours from that stamp to two weeks before the earliest `expiresAt` still in the build.
 
    If every row was confirmed today, that is 384 again. Any unverified row that still ships makes it shorter. `npx vitest run __tests__/venuesSlim.test.ts` prints the exact expected values if you get either one wrong.
-6. Run `npm run check:freshness`, `npm run validate-data` and `npx vitest run __tests__/venuesSlim.test.ts __tests__/famousVenuesSeed.test.ts __tests__/verifyFamousVenuesWrite.test.ts __tests__/famousVenuePlacesVerify.test.ts`. The pack counts in `venuesSlim.test.ts` follow the slim's own clock, so they need no hand edits.
+6. Run `npm run build:uk-base` if withdrawn venues owned base rows. This regenerates base shards and their place indexes without obsolete curated-owner references.
+7. Run `npm run check:freshness`, `npm run validate-data` and `npx vitest run __tests__/venuesSlim.test.ts __tests__/famousVenuesSeed.test.ts __tests__/verifyFamousVenuesWrite.test.ts __tests__/famousVenuePlacesVerify.test.ts`. The pack counts in `venuesSlim.test.ts` follow the slim's own clock, so they need no hand edits.
 
 The rule behind steps 4 and 5 is "A slim rebuild that drops a shipped famous venue fails" in `docs/rules/scripts-builders-and-publishers.md`.
 

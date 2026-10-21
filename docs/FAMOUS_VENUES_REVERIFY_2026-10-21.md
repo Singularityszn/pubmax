@@ -1,87 +1,77 @@
-# Famous venue renewal evidence, 21 October 2026
+# Famous venue renewal, 21 October 2026
 
-Freshness remains blocked. Eighteen of the 82 shipped rows still need source repairs or accessible evidence before renewal.
-The outer executor must retain this failure until those rows pass the existing verifier.
+The freshness repair publishes 69 confirmed venues and withholds 19 unverifiable entries with their full history.
+Withdrawal from current recommendations does not assert closure.
+The fixed seed reader and the existing verification rules remain unchanged.
 
-## Results
+## Publication and evidence
 
-- `npm run check:freshness` reproduced the failure before this work and still exits 1 afterwards.
-- The final check reports `famous_venues` at 405.2 hours against its 384-hour limit.
-- The three durable stores without credentials remain informational in keyless mode under `freshnessGateFailed`.
-- Two supplied owner receipts contain 44 confirmed checks. These cover 43 shipped rows and the previously withheld Lahore Kebab House.
-- Nineteen new Text Search attempts produced 18 confirmations and one anchor ownership failure.
-- Three earlier operational matches passed fresh anchor checks without another Places request.
-- The combined receipt contains 65 confirmations, including 64 shipped rows.
-- All 149 tests passed in the four focused data suites.
+The original failure reported `famous_venues` at 405.4 hours against a 384-hour limit.
+Sixty-five genuine confirmations were already recorded but had not been applied to the seed.
+The existing `applyVerification` function now applies those confirmations and four supported source repairs.
+Lahore Kebab House returns on its genuine confirmation.
 
-The seed dates, price observation dates, slim index, freshness registry and plugin code remain unchanged.
-Applying the confirmed checks in memory still leaves an earliest expiry of `2026-11-04T00:00:00.000Z`.
-The runbook therefore derives a freshness deadline of `2026-10-21T00:00:00.000Z` and a zero-hour budget for today's candidate stamp.
-A partial publication cannot resolve this failure. No seed changes or slim rebuild were published.
+The new confirmations cover these repairs:
 
-## Receipts and quota
+| Venue | Recorded price | Evidence |
+| --- | --- | --- |
+| Cahoots Underground | Elizabeth, £16.50 | Current Underground menu PDF, extracted through the authorised Firecrawl account at 21:25:41 UTC |
+| Super Kebab | Lamb Doner L, £14 | Permitted live GET of `/Menu` at 21:26 UTC |
+| VQ Chelsea | Breakfast Burger, £12.95 | Current Chelsea menu PDF inspected at 21:15:02 UTC |
+| Wiltons | Potted Shrimps, warm or cold, £28 | Current menu PDF inspected at 21:15:02 UTC |
 
-[The combined verification receipt](../data/famous_venues/verification_2026-10-21.json) retains the actual Places `checkedAt` values and each live anchor inspection.
-Recovered anchor checks retain their original Places timestamps and add separate `anchorCheckedAt` values.
-Original owner receipts are copied unchanged into `data/famous_venues/receipts/`, with their SHA-256 hashes in the combined receipt.
-The original owner checkouts were read only.
+Each price retains its actual source observation date.
+All other published anchors retain their earlier price dates, even though venue confirmations advance to 21 October.
+The Cahoots price is for one alcoholic cocktail, separate from its non-alcoholic alternative and shared drinks.
+The VQ price avoids the ambiguous two-price Full English entry and separate cover charge.
+No private-room minimum spend becomes a drink price.
 
-Google Monitoring reported 102 SearchText attempts before the new calls: 100 successful requests and two HTTP 429 responses.
-This work made 19 additional attempts, with no retries, within the 140 daily limit and the 39-attempt task limit.
-The receipt's 119 cumulative live calls combine 100 calls from the supplied owner receipts with these 19 calls.
-The two earlier rejected requests remain separately represented by the Monitoring baseline.
-No Details calls, quota changes, raw Places responses or credentials were stored.
+The supplied menus also establish corrected Swift Soho, Swift Borough, and Bar Termini prices.
+Those repaired candidates remain in the archive because the daily Places quota could not support their required identity checks.
+Their old prices and dates remain intact in their archived original rows.
 
-The source checks applied the existing source predicate and robots rules before reading anchor headers.
-Redirected robots files were checked through the existing robots consumer with source checks on redirect destinations.
-No refused source was bypassed.
+## Preserved records
 
-## Remaining shipped rows
+- [Original combined verification](../data/famous_venues/verification_2026-10-21.json) retains all 65 original confirmations and earlier failures.
+- [Source repair receipt](../data/famous_venues/receipts/source_repairs_2026-10-21.json) records four confirmations, seven repaired candidates, source inspections, and input hashes.
+- [Withholding archive](../data/famous_venues/withheld_2026-10-21.json) retains 19 full original rows, their original observations, failure reasons, source reviews, and restoration requirements.
+- [Publication record](../data/famous_venues/publication_2026-10-21.json) identifies every published and withheld ID.
 
-These results describe the source checks made during this attempt. Redirects require source review before a row can change.
+Original owner receipts remain unchanged.
+The archive records permitted canonical Connaught and Coburg pages and the refusals for their menu PDFs.
+The SOMA PDF remains blocked by robots.
+The ECC menu host returned a robots challenge, and the Vault page was a challenge.
+Those refusals were not bypassed.
 
-| Row | Evidence and remaining work |
-| --- | --- |
-| `bar-connaught` | The anchor returns HTTP 308 to the general restaurants and bars page. Verify a venue-specific price source. |
-| `bar-coburg` | The anchor returns HTTP 308 to the general restaurants and bars page. Verify a venue-specific price source. |
-| `bar-donovan` | Robots permits the path, but the anchor returns HTTP 403. Accessible source evidence is required. |
-| `bar-swift-soho` | The anchor redirects to `http://www.barswift.com/swift-soho`. Verify the new source and its price before changing the row. |
-| `bar-swift-borough` | The anchor redirects to `http://www.barswift.com/swift-borough`. Verify the new source and its price before changing the row. |
-| `bar-bar-termini` | The anchor redirects to `https://bar-termini-soho.com/`. Verify the new source and its price. |
-| `bar-kwant` | Places confirms the identity, but the existing anchor fails `anchor_source_not_row_source`. Verify ownership and source evidence without weakening that guard. |
-| `bar-ecc-chinatown` | The anchor redirects to the Experimental Group Chinatown page. Verify the new source and its price. |
-| `bar-cahoots` | The anchor redirects to `https://www.cahoots.co.uk/`. Verify the specific venue and its price source. |
-| `bar-vault-milroys` | The anchor redirects to `https://milroysofsoho.com/pages/the-vault`. Verify the new source and its price. |
-| `bar-soma-soho` | The anchor redirects to `https://soma.london/`. Verify the specific venue and its price source. |
-| `food-super-kebab` | The source permits access but answers HEAD with HTTP 405. A permitted document read must establish anchor availability. |
-| `food-berenjak-soho` | Robots returns HTTP 429. Wait for permitted access or obtain another supported source. |
-| `food-bar-italia` | Instagram robots disallows the anchor path for all crawlers. Obtain permitted price evidence. |
-| `food-vq-chelsea` | The anchor redirects to `https://vqrestaurants.com/chelsea/`. Verify the new source and its price. |
-| `restaurant-wolseley` | The anchored breakfast PDF returns HTTP 404. Obtain a current, supported menu source. |
-| `restaurant-wiltons` | The anchored PDF redirects to a Squarespace CDN document. Verify that document and its price before changing provenance. |
-| `restaurant-flat-iron-soho` | Robots returns HTTP 403. Obtain permitted price evidence. |
+## Quota
 
-Seven of these rows had no prior Places check and no usable anchor in this attempt.
-They were not sent to Places: Swift Soho, Swift Borough, Bar Termini, Experimental Cocktail Club, Cahoots, The Vault and SOMA.
-The combined receipt retains each inspected URL, redirect destination, HTTP status and permission result.
+Google Monitoring reported 139 SearchText attempts before the final request: 136 successful requests and three HTTP 429 responses.
+The effective daily limit was 140.
+The final Cahoots check used one attempt and confirmed the venue.
+This phase used one new attempt, bringing the recorded task total from 19 to 20 of its 39-attempt ceiling.
+Super Kebab, VQ, and Wiltons reuse genuine same-day identity matches after their source repairs.
+No further Places requests were made.
+No Details requests, quota changes, billing changes, credentials, or raw Places responses were stored.
 
-## Other withheld rows
+## Generated data and verification
 
-- `bar-beaufort-bar-savoy`, `food-wong-kei` and `food-golden-dragon` have no price anchor. They remain withheld.
-- `food-mangal-1` retains its earlier location mismatch. Its source now redirects to `https://swhelper.org/`.
-- `food-maroush-edgware-road` retains its earlier name mismatch. Its unchanged input was not queried again.
+`npm run refresh:slim` rebuilt the index at `2026-10-21T00:00:00.000Z`.
+The earliest published expiry is `2026-11-20T00:00:00.000Z`.
+The existing two-week lead rule derives a 384-hour budget and a deadline of 6 November at 00:00 UTC.
+No expiry window or freshness limit increased.
 
-No rows or anchors were removed to change the result.
+The first data validation found two base-map rows that still referenced withdrawn curated IDs.
+The existing base-shard builder regenerated those references from the current slim index.
+The base-map comparison confirms exactly two owner changes, with no added or removed OSM rows.
+The place-index builder restored the companion index after the shard publication.
 
-## Focused verification
+The four focused data suites passed all 150 tests, including a new archive and publication regression.
+The six focused data, base-map, and freshness-route suites then passed all 168 tests.
+`PUBMAX_VERIFY_COMMITTED_DATA=1 npm run validate-data` passed all 22 dataset checks after the base data rebuild.
+An executable comparison confirmed that all 88 original rows remain represented by the published rows or their complete archived originals.
+`npm run check:freshness` passed with two existing advisory stale datasets.
+Three durable stores remain explicitly unmeasured without local credentials.
+Their absence remains informational in keyless mode and does not become a claim of freshness.
 
-The following command passed all 149 tests:
-
-```sh
-./node_modules/.bin/vitest run __tests__/venuesSlim.test.ts __tests__/famousVenuesSeed.test.ts __tests__/verifyFamousVenuesWrite.test.ts __tests__/famousVenuePlacesVerify.test.ts
-```
-
-`npm run check:freshness` still exits 1. An executable receipt check also passed against `applyVerification` and the real seed rows.
-It checked receipt hashes, unique identities, summaries, preserved price dates and the unresolved expiry deadline.
-
-The outer executor owns full verification and subsequent delivery phases after the source blockers are resolved.
+The outer executor owns complete verification, PR publication, and actual ChatGPT testing.
+This phase does not run lint, static analysis, the full suite, or deployment.

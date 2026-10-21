@@ -23,7 +23,7 @@
       }
     ],
     "sourceUrl": "https://tbtk.co.uk/",
-    "observedAt": "2026-10-05",
+    "observedAt": "2026-10-21",
     "anchor": {
       "kind": "large_doner",
       "label": "Large lamb doner",
@@ -44,7 +44,7 @@
       "lng": -0.07422
     },
     "sourceName": "tbtk.co.uk",
-    "expiresAt": "2026-11-04",
+    "expiresAt": "2026-11-20",
     "discoveredVia": "manual",
     "extractedVia": "manual"
   },
@@ -67,14 +67,14 @@
         "sourceUrl": "https://www.superkebab.net/"
       }
     ],
-    "sourceUrl": "https://www.superkebab.net/",
-    "observedAt": "2026-10-05",
+    "sourceUrl": "https://www.superkebab.net/Menu",
+    "observedAt": "2026-10-21",
     "anchor": {
       "kind": "large_doner",
-      "label": "Large lamb doner",
-      "price": 13,
-      "observedAt": "2026-07-26",
-      "sourceUrl": "https://www.superkebab.net/"
+      "label": "Lamb Doner L",
+      "price": 14,
+      "observedAt": "2026-10-21",
+      "sourceUrl": "https://www.superkebab.net/Menu"
     },
     "story": {
       "text": "Super Kebab hand-makes its lamb doner and uses a rotating mechanical slicer to keep every shaving crisp at the edge.",
@@ -89,56 +89,7 @@
       "lng": -0.07505
     },
     "sourceName": "superkebab.net",
-    "expiresAt": "2026-11-04",
-    "discoveredVia": "manual",
-    "extractedVia": "manual"
-  },
-  {
-    "id": "food-mangal-1",
-    "name": "Mangal 1",
-    "address": "10 Arcola Street, London E8 2DJ",
-    "borough": "Hackney",
-    "lat": 51.54905,
-    "lng": -0.07072,
-    "kind": "food",
-    "hasStory": true,
-    "fameGates": [
-      {
-        "kind": "longevity",
-        "sourceUrl": "https://www.timeout.com/london/restaurants/mangal-ocakbasi"
-      },
-      {
-        "kind": "cultural_weight",
-        "sourceUrl": "https://mangal1.com/"
-      },
-      {
-        "kind": "distinct_experience",
-        "sourceUrl": "https://mangal1.com/"
-      }
-    ],
-    "sourceUrl": "https://mangal1.com/",
-    "observedAt": "2026-08-25",
-    "anchor": {
-      "kind": "signature_item",
-      "label": "Adana kebab",
-      "price": 18,
-      "observedAt": "2026-07-26",
-      "sourceUrl": "https://mangal1.com/"
-    },
-    "story": {
-      "text": "Ali Dirik opened Dalston's first ocakbasi in 1991, establishing the charcoal-counter template that transformed the neighbourhood.",
-      "sourceUrl": "https://mangal1.com/"
-    },
-    "category": "late_food",
-    "job": "crawl_ending_food",
-    "description": "Ali Dirik opened Dalston's first ocakbasi in 1991, establishing the charcoal-counter template that transformed the neighbourhood.",
-    "area": "Hackney",
-    "location": {
-      "lat": 51.54905,
-      "lng": -0.07072
-    },
-    "sourceName": "mangal1.com",
-    "expiresAt": "2026-09-24",
+    "expiresAt": "2026-11-20",
     "discoveredVia": "manual",
     "extractedVia": "manual"
   },
@@ -166,7 +117,7 @@
       }
     ],
     "sourceUrl": "https://mangal2.com/",
-    "observedAt": "2026-10-05",
+    "observedAt": "2026-10-21",
     "anchor": {
       "kind": "signature_item",
       "label": "Adana kebab",
@@ -187,7 +138,7 @@
       "lng": -0.074917
     },
     "sourceName": "mangal2.com",
-    "expiresAt": "2026-11-04",
+    "expiresAt": "2026-11-20",
     "discoveredVia": "manual",
     "extractedVia": "manual",
     "placesNameAliases": [
@@ -214,7 +165,7 @@
       }
     ],
     "sourceUrl": "https://gokyuzurestaurant.co.uk/",
-    "observedAt": "2026-10-05",
+    "observedAt": "2026-10-21",
     "anchor": {
       "kind": "large_doner",
       "label": "Large lamb doner",
@@ -235,7 +186,7 @@
       "lng": -0.09882
     },
     "sourceName": "gokyuzurestaurant.co.uk",
-    "expiresAt": "2026-11-04",
+    "expiresAt": "2026-11-20",
     "discoveredVia": "manual",
     "extractedVia": "manual"
   },
@@ -259,7 +210,7 @@
       }
     ],
     "sourceUrl": "https://anteplilerlondon.co.uk/",
-    "observedAt": "2026-10-05",
+    "observedAt": "2026-10-21",
     "anchor": {
       "kind": "signature_item",
       "label": "Adana kebab",
@@ -280,7 +231,7 @@
       "lng": -0.098941
     },
     "sourceName": "anteplilerlondon.co.uk",
-    "expiresAt": "2026-11-04",
+    "expiresAt": "2026-11-20",
     "discoveredVia": "manual",
     "extractedVia": "manual",
     "placesNameAliases": [
@@ -307,7 +258,7 @@
       }
     ],
     "sourceUrl": "https://diyarbakir.co.uk/",
-    "observedAt": "2026-10-05",
+    "observedAt": "2026-10-21",
     "anchor": {
       "kind": "signature_item",
       "label": "Diyarbakir special kebab",
@@ -328,7 +279,7 @@
       "lng": -0.098863
     },
     "sourceName": "diyarbakir.co.uk",
-    "expiresAt": "2026-11-04",
+    "expiresAt": "2026-11-20",
     "discoveredVia": "manual",
     "extractedVia": "manual"
   },
@@ -352,7 +303,7 @@
       }
     ],
     "sourceUrl": "https://halarestaurant.co.uk/",
-    "observedAt": "2026-10-05",
+    "observedAt": "2026-10-21",
     "anchor": {
       "kind": "signature_item",
       "label": "Adana Kofte (Large)",
@@ -373,7 +324,7 @@
       "lng": -0.09904
     },
     "sourceName": "halarestaurant.co.uk",
-    "expiresAt": "2026-11-04",
+    "expiresAt": "2026-11-20",
     "discoveredVia": "manual",
     "extractedVia": "manual"
   },
@@ -397,7 +348,7 @@
       }
     ],
     "sourceUrl": "https://selale.co.uk/",
-    "observedAt": "2026-10-05",
+    "observedAt": "2026-10-21",
     "anchor": {
       "kind": "signature_item",
       "label": "Adana kebab",
@@ -418,7 +369,7 @@
       "lng": -0.10079
     },
     "sourceName": "selale.co.uk",
-    "expiresAt": "2026-11-04",
+    "expiresAt": "2026-11-20",
     "discoveredVia": "manual",
     "extractedVia": "manual",
     "placesNameAliases": [
@@ -445,7 +396,7 @@
       }
     ],
     "sourceUrl": "https://eatlebab.com/",
-    "observedAt": "2026-10-05",
+    "observedAt": "2026-10-21",
     "anchor": {
       "kind": "signature_item",
       "label": "Lamb adana kebab",
@@ -466,7 +417,7 @@
       "lng": -0.13918
     },
     "sourceName": "eatlebab.com",
-    "expiresAt": "2026-11-04",
+    "expiresAt": "2026-11-20",
     "discoveredVia": "manual",
     "extractedVia": "manual",
     "placesNameAliases": [
@@ -493,7 +444,7 @@
       }
     ],
     "sourceUrl": "https://testirestaurant.co.uk/",
-    "observedAt": "2026-10-05",
+    "observedAt": "2026-10-21",
     "anchor": {
       "kind": "signature_item",
       "label": "Mixed kebab",
@@ -514,57 +465,12 @@
       "lng": -0.07475
     },
     "sourceName": "testirestaurant.co.uk",
-    "expiresAt": "2026-11-04",
+    "expiresAt": "2026-11-20",
     "discoveredVia": "manual",
     "extractedVia": "manual",
     "placesNameAliases": [
       "testi restaurant"
     ]
-  },
-  {
-    "id": "food-berenjak-soho",
-    "name": "Berenjak Soho",
-    "address": "27 Romilly Street, London W1D 5AL",
-    "borough": "Westminster",
-    "lat": 51.51286,
-    "lng": -0.13057,
-    "kind": "food",
-    "hasStory": true,
-    "fameGates": [
-      {
-        "kind": "recognition",
-        "sourceUrl": "https://www.timeout.com/london/restaurants/berenjak"
-      },
-      {
-        "kind": "distinct_experience",
-        "sourceUrl": "https://berenjaklondon.com/soho"
-      }
-    ],
-    "sourceUrl": "https://berenjaklondon.com/soho",
-    "observedAt": "2026-10-05",
-    "anchor": {
-      "kind": "signature_item",
-      "label": "Jujeh kabab",
-      "price": 19,
-      "observedAt": "2026-07-26",
-      "sourceUrl": "https://berenjaklondon.com/soho"
-    },
-    "story": {
-      "text": "Berenjak models a Tehran hole-in-the-wall, grilling Persian kebabs over charcoal beside a tiny hayat courtyard.",
-      "sourceUrl": "https://berenjaklondon.com/soho"
-    },
-    "category": "late_food",
-    "job": "crawl_ending_food",
-    "description": "Berenjak models a Tehran hole-in-the-wall, grilling Persian kebabs over charcoal beside a tiny hayat courtyard.",
-    "area": "Westminster",
-    "location": {
-      "lat": 51.51286,
-      "lng": -0.13057
-    },
-    "sourceName": "berenjaklondon.com",
-    "expiresAt": "2026-11-04",
-    "discoveredVia": "manual",
-    "extractedVia": "manual"
   },
   {
     "id": "food-fm-mangal",
@@ -586,7 +492,7 @@
       }
     ],
     "sourceUrl": "https://www.fmmangal.co.uk/",
-    "observedAt": "2026-10-05",
+    "observedAt": "2026-10-21",
     "anchor": {
       "kind": "signature_item",
       "label": "Adana kebab",
@@ -607,7 +513,7 @@
       "lng": -0.09057
     },
     "sourceName": "fmmangal.co.uk",
-    "expiresAt": "2026-11-04",
+    "expiresAt": "2026-11-20",
     "discoveredVia": "manual",
     "extractedVia": "manual"
   },
@@ -631,7 +537,7 @@
       }
     ],
     "sourceUrl": "https://lahore-kebabhouse.com/",
-    "observedAt": "2026-08-25",
+    "observedAt": "2026-10-21",
     "anchor": {
       "kind": "signature_item",
       "label": "Seekh kebab",
@@ -652,7 +558,7 @@
       "lng": -0.06362
     },
     "sourceName": "lahore-kebabhouse.com",
-    "expiresAt": "2026-09-24",
+    "expiresAt": "2026-11-20",
     "discoveredVia": "manual",
     "extractedVia": "manual"
   },
@@ -680,7 +586,7 @@
       }
     ],
     "sourceUrl": "https://www.tayyabs.co.uk/",
-    "observedAt": "2026-10-05",
+    "observedAt": "2026-10-21",
     "anchor": {
       "kind": "signature_item",
       "label": "Lamb chops",
@@ -701,7 +607,7 @@
       "lng": -0.06351
     },
     "sourceName": "tayyabs.co.uk",
-    "expiresAt": "2026-11-04",
+    "expiresAt": "2026-11-20",
     "discoveredVia": "manual",
     "extractedVia": "manual"
   },
@@ -725,7 +631,7 @@
       }
     ],
     "sourceUrl": "https://www.maroush.com/restaurants/edgware-road",
-    "observedAt": "2026-10-05",
+    "observedAt": "2026-10-21",
     "anchor": {
       "kind": "signature_item",
       "label": "Chicken shawarma",
@@ -746,52 +652,7 @@
       "lng": -0.16085
     },
     "sourceName": "maroush.com",
-    "expiresAt": "2026-11-04",
-    "discoveredVia": "manual",
-    "extractedVia": "manual"
-  },
-  {
-    "id": "food-maroush-edgware-road",
-    "name": "Maroush Edgware Road",
-    "address": "21 Edgware Road, London W2 2JE",
-    "borough": "Westminster",
-    "lat": 51.51415,
-    "lng": -0.16008,
-    "kind": "food",
-    "hasStory": true,
-    "fameGates": [
-      {
-        "kind": "longevity",
-        "sourceUrl": "https://www.timeout.com/london/restaurants/maroush-i"
-      },
-      {
-        "kind": "cultural_weight",
-        "sourceUrl": "https://www.maroush.com/restaurants"
-      }
-    ],
-    "sourceUrl": "https://www.maroush.com/restaurants",
-    "observedAt": "2026-08-25",
-    "anchor": {
-      "kind": "signature_item",
-      "label": "Lamb shawarma",
-      "price": 10.5,
-      "observedAt": "2026-07-26",
-      "sourceUrl": "https://www.maroush.com/restaurants"
-    },
-    "story": {
-      "text": "Marouf Abouzaki opened Maroush on Edgware Road in 1981 and helped make the street London's Lebanese heart.",
-      "sourceUrl": "https://www.maroush.com/blog/little-beirut-london-edgware-road"
-    },
-    "category": "late_food",
-    "job": "crawl_ending_food",
-    "description": "Marouf Abouzaki opened Maroush on Edgware Road in 1981 and helped make the street London's Lebanese heart.",
-    "area": "Westminster",
-    "location": {
-      "lat": 51.51415,
-      "lng": -0.16008
-    },
-    "sourceName": "maroush.com",
-    "expiresAt": "2026-09-24",
+    "expiresAt": "2026-11-20",
     "discoveredVia": "manual",
     "extractedVia": "manual"
   },
@@ -815,7 +676,7 @@
       }
     ],
     "sourceUrl": "https://kebabkid.co.uk/",
-    "observedAt": "2026-10-05",
+    "observedAt": "2026-10-21",
     "anchor": {
       "kind": "large_doner",
       "label": "Large lamb doner",
@@ -836,7 +697,7 @@
       "lng": -0.19992
     },
     "sourceName": "kebabkid.co.uk",
-    "expiresAt": "2026-11-04",
+    "expiresAt": "2026-11-20",
     "discoveredVia": "manual",
     "extractedVia": "manual"
   },
@@ -864,7 +725,7 @@
       }
     ],
     "sourceUrl": "https://www.beigelbake.co.uk/",
-    "observedAt": "2026-10-05",
+    "observedAt": "2026-10-21",
     "anchor": {
       "kind": "signature_item",
       "label": "Salt beef beigel",
@@ -885,7 +746,7 @@
       "lng": -0.07193
     },
     "sourceName": "beigelbake.co.uk",
-    "expiresAt": "2026-11-04",
+    "expiresAt": "2026-11-20",
     "discoveredVia": "manual",
     "extractedVia": "manual"
   },
@@ -909,7 +770,7 @@
       }
     ],
     "sourceUrl": "https://www.polobar.co.uk/",
-    "observedAt": "2026-10-05",
+    "observedAt": "2026-10-21",
     "anchor": {
       "kind": "signature_item",
       "label": "Full English breakfast",
@@ -930,7 +791,7 @@
       "lng": -0.08019
     },
     "sourceName": "polobar.co.uk",
-    "expiresAt": "2026-11-04",
+    "expiresAt": "2026-11-20",
     "discoveredVia": "manual",
     "extractedVia": "manual",
     "placesNameAliases": [
@@ -957,7 +818,7 @@
       }
     ],
     "sourceUrl": "https://duckandwaffle.com/london",
-    "observedAt": "2026-10-05",
+    "observedAt": "2026-10-21",
     "anchor": {
       "kind": "signature_item",
       "label": "Duck and waffle",
@@ -978,94 +839,7 @@
       "lng": -0.08105
     },
     "sourceName": "duckandwaffle.com",
-    "expiresAt": "2026-11-04",
-    "discoveredVia": "manual",
-    "extractedVia": "manual"
-  },
-  {
-    "id": "food-wong-kei",
-    "name": "Wong Kei",
-    "address": "41-43 Wardour Street, London W1D 6PY",
-    "borough": "Westminster",
-    "lat": 51.51173,
-    "lng": -0.13265,
-    "kind": "food",
-    "hasStory": true,
-    "fameGates": [
-      {
-        "kind": "longevity",
-        "sourceUrl": "https://wongkeilondon.com/"
-      },
-      {
-        "kind": "cultural_weight",
-        "sourceUrl": "https://en.wikipedia.org/wiki/Wong_Kei"
-      }
-    ],
-    "sourceUrl": "https://wongkeilondon.com/",
-    "observedAt": "2026-10-05",
-    "story": {
-      "text": "Chinatown's vast, brisk canteen has served Cantonese roast meats and noodles across multiple floors since the 1970s.",
-      "sourceUrl": "https://wongkeilondon.com/"
-    },
-    "category": "late_food",
-    "job": "crawl_ending_food",
-    "description": "Chinatown's vast, brisk canteen has served Cantonese roast meats and noodles across multiple floors since the 1970s.",
-    "area": "Westminster",
-    "location": {
-      "lat": 51.51173,
-      "lng": -0.13265
-    },
-    "sourceName": "wongkeilondon.com",
-    "expiresAt": "2026-11-04",
-    "discoveredVia": "manual",
-    "extractedVia": "manual"
-  },
-  {
-    "id": "food-bar-italia",
-    "name": "Bar Italia",
-    "address": "22 Frith Street, London W1D 4RF",
-    "borough": "Westminster",
-    "lat": 51.51343,
-    "lng": -0.13165,
-    "kind": "food",
-    "hasStory": true,
-    "fameGates": [
-      {
-        "kind": "longevity",
-        "sourceUrl": "https://www.instagram.com/baritaliasoho"
-      },
-      {
-        "kind": "cultural_weight",
-        "sourceUrl": "https://en.wikipedia.org/wiki/Bar_Italia"
-      },
-      {
-        "kind": "distinct_experience",
-        "sourceUrl": "https://www.instagram.com/baritaliasoho"
-      }
-    ],
-    "sourceUrl": "https://www.instagram.com/baritaliasoho",
-    "observedAt": "2026-10-05",
-    "anchor": {
-      "kind": "signature_item",
-      "label": "Panini",
-      "price": 8.5,
-      "observedAt": "2026-07-26",
-      "sourceUrl": "https://www.instagram.com/baritaliasoho"
-    },
-    "story": {
-      "text": "The Polledri family opened Bar Italia in 1949 beneath the room where John Logie Baird first demonstrated television.",
-      "sourceUrl": "https://www.instagram.com/baritaliasoho"
-    },
-    "category": "late_food",
-    "job": "crawl_ending_food",
-    "description": "The Polledri family opened Bar Italia in 1949 beneath the room where John Logie Baird first demonstrated television.",
-    "area": "Westminster",
-    "location": {
-      "lat": 51.51343,
-      "lng": -0.13165
-    },
-    "sourceName": "instagram.com",
-    "expiresAt": "2026-11-04",
+    "expiresAt": "2026-11-20",
     "discoveredVia": "manual",
     "extractedVia": "manual"
   },
@@ -1088,14 +862,14 @@
         "sourceUrl": "https://www.vqrestaurants.com/locations/chelsea"
       }
     ],
-    "sourceUrl": "https://www.vqrestaurants.com/locations/chelsea",
-    "observedAt": "2026-10-05",
+    "sourceUrl": "https://vqrestaurants.com/wp-content/uploads/2026/02/VQ-Chelsea-Menu.pdf",
+    "observedAt": "2026-10-21",
     "anchor": {
       "kind": "signature_item",
-      "label": "Full English breakfast",
-      "price": 17.95,
-      "observedAt": "2026-07-26",
-      "sourceUrl": "https://www.vqrestaurants.com/locations/chelsea"
+      "label": "Breakfast Burger",
+      "price": 12.95,
+      "observedAt": "2026-10-21",
+      "sourceUrl": "https://vqrestaurants.com/wp-content/uploads/2026/02/VQ-Chelsea-Menu.pdf"
     },
     "story": {
       "text": "VQ began as Chelsea's Vingt-Quatre in 1995, making a proper sit-down meal available to west London around the clock.",
@@ -1110,49 +884,8 @@
       "lng": -0.18156
     },
     "sourceName": "vqrestaurants.com",
-    "expiresAt": "2026-11-04",
+    "expiresAt": "2026-11-20",
     "discoveredVia": "manual",
     "extractedVia": "manual"
-  },
-  {
-    "id": "food-golden-dragon",
-    "name": "Golden Dragon",
-    "address": "28-29 Gerrard Street, London W1D 6JW",
-    "borough": "Westminster",
-    "lat": 51.51169,
-    "lng": -0.13121,
-    "kind": "food",
-    "hasStory": true,
-    "fameGates": [
-      {
-        "kind": "longevity",
-        "sourceUrl": "https://www.timeout.com/london/restaurants/golden-dragon"
-      },
-      {
-        "kind": "cultural_weight",
-        "sourceUrl": "https://goldendragonlondon.com/"
-      }
-    ],
-    "sourceUrl": "https://goldendragonlondon.com/",
-    "observedAt": "2026-10-05",
-    "story": {
-      "text": "Golden Dragon's long Gerrard Street dining room is a Chinatown constant for dim sum by day and Cantonese roast meats late.",
-      "sourceUrl": "https://goldendragonlondon.com/"
-    },
-    "category": "late_food",
-    "job": "crawl_ending_food",
-    "description": "Golden Dragon's long Gerrard Street dining room is a Chinatown constant for dim sum by day and Cantonese roast meats late.",
-    "area": "Westminster",
-    "location": {
-      "lat": 51.51169,
-      "lng": -0.13121
-    },
-    "sourceName": "goldendragonlondon.com",
-    "expiresAt": "2026-11-04",
-    "discoveredVia": "manual",
-    "extractedVia": "manual",
-    "placesNameAliases": [
-      "golden dragon chinatown"
-    ]
   }
 ]
