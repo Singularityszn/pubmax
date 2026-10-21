@@ -20,7 +20,9 @@ function allowedOrigin(request: Request): boolean {
   return origin === "https://chatgpt.com" || origin === "https://pubmaxxing.com" || origin === own;
 }
 function allowedHost(request: Request): boolean {
-  const hostname = new URL(request.url).hostname;
+  // Next.js can replace the URL authority with the server's own address.
+  const hostname = request.headers.get("host")?.toLowerCase().replace(/:\d+$/, "");
+  if (!hostname) return false;
   return hostname === "pubmaxxing.com" || hostname === process.env.VERCEL_URL
     || hostname === process.env.VERCEL_BRANCH_URL
     || ((process.env.NODE_ENV !== "production" || (process.env.PUBMAX_E2E_KEYLESS === "1" && !process.env.VERCEL_ENV)) && ["localhost", "127.0.0.1", "[::1]"].includes(hostname));
