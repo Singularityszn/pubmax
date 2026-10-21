@@ -1,4 +1,5 @@
 import type { CityId } from "@/lib/cities";
+import type { VenueKind } from "@/lib/venues";
 import { isVerifiedClosedCuratedVenue } from "@/lib/verifiedClosedPubs";
 import { venueSearchNames } from "@/lib/venueSearchNames.mjs";
 
@@ -18,6 +19,7 @@ type MapSearchVenue = {
   /** The dataset's own name when it carries an operator suffix; matched, never shown. */
   sourceName?: string;
   area: string;
+  venueKind?: VenueKind;
 };
 
 export type MapSearchPack = {
@@ -90,6 +92,10 @@ function matchScore(query: string, name: string, area = ""): number | null {
   if (areaWords.some((word) => word.startsWith(query))) return 34;
   if (normalisedName.includes(query)) return 40;
   if (normalisedArea.includes(query)) return 42;
+  // A space in a pub's spelling is not a typo: Black Friar still matches Blackfriar.
+  const compactQuery = query.replace(/ /g, "");
+  if (normalisedName.replace(/ /g, "").includes(compactQuery)) return 40;
+  if (normalisedArea.replace(/ /g, "").includes(compactQuery)) return 42;
   if (isSubsequence(query, normalisedName)) return 60;
   if (isSubsequence(query, normalisedArea)) return 62;
   return null;
@@ -111,6 +117,7 @@ export function buildMapSearchIndex(
         name: venue.name,
         ...(venue.sourceName ? { sourceName: venue.sourceName } : {}),
         area: venue.area ?? "",
+        ...(venue.venueKind !== undefined ? { venueKind: venue.venueKind } : {}),
         cityId: pack.cityId,
       });
     }
@@ -147,7 +154,11 @@ export function searchMapSearchIndex(
     }
   }
 
+  // Typo recovery is a fallback. Literal matches must not acquire unrelated
+  // rows just because the query's letters occur somewhere in a long name.
+  const hasLiteralMatch = candidates.some(({ score }) => score < 60);
   return candidates
+    .filter(({ score }) => !hasLiteralMatch || score < 60)
     .sort((left, right) => {
       if (left.score !== right.score) return left.score - right.score;
       if (left.result.kind !== right.result.kind) {
