@@ -68,7 +68,7 @@ for (const width of [390, 1440]) {
       await expect(page.getByRole("heading", { name: "Portrait audit", exact: true })).toBeVisible();
       const portrait = page.locator(".palHomePortrait");
       await expect(portrait.locator(".palPortraitCore")).toHaveCSS("opacity", "1");
-      const image = portrait.getByRole("img", { name: "Pub Pal", exact: true });
+      const image = portrait.getByRole("img", { name: "Pub Pal", exact: true, includeHidden: true });
       await expect.poll(() => image.evaluate(node => (node as HTMLImageElement).naturalWidth)).toBeGreaterThan(0);
       await expect(image).toHaveAttribute("src", new RegExp(`/pal/circuit-${species}-`));
       const model = portrait.getByRole("img", { name: /Portrait audit in 3D/ });
@@ -107,7 +107,7 @@ test("the owned real model restores its original portrait after graphics loss an
   await page.goto("/pal");
   const portrait = page.locator(".palHomePortrait");
   const model = portrait.getByRole("img", { name: /Portrait audit in 3D/ });
-  const image = portrait.getByRole("img", { name: "Pub Pal", exact: true });
+  const image = portrait.getByRole("img", { name: "Pub Pal", exact: true, includeHidden: true });
   await expect(model).toBeVisible();
   await model.focus();
   await page.keyboard.press("ArrowRight");
