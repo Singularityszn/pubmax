@@ -126,7 +126,7 @@
     },
     {
       "path": "/pubs",
-      "readySelector": ".pubsPage",
+      "readySelector": "main.pubsShell",
       "why": "The one launch surface whose server render was not a shell: it re-parsed the 6.7 MB price dataset per request until the shared priced-venue index was reused. The ceiling is here so that read cannot come back unnoticed. Its JS ceiling was stale by 850 KB: the 2026-09-01 sweep measured 1092 KB decoded over 25 chunks, the same shared baseline /about carries, with none of the heavy libraries in any of them. Its request ceiling is left alone for the reason /about's is.",
       "serverRenderMs": 150,
       "jsDecodedKB": 1200,
