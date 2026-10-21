@@ -31,3 +31,5 @@ Official references: [MCP app quickstart](https://developers.openai.com/plugins/
 The hosted application now also defines `/api/mcp` for anonymous search, venue details, three-stop planning and replacement. Its current implementation and pilot instructions are in [the integration guide](../../docs/integrations/chatgpt-night-architect.md). This local loopback server retains its borough-only tool.
 
 Use `PUBMAX_BROWSER_CHANNEL=chrome` with the browser proof commands when the default Playwright executable is unavailable. The proof uses the installed Chrome browser and leaves the shared browser cache unchanged.
+
+`PUBMAX_BROWSER_CHANNEL=chrome npm run proof:night-widget` runs the Night Architect widget checks with the installed Chrome browser. Unit coverage does not launch a browser.

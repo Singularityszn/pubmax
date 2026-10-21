@@ -11,7 +11,8 @@
     "test": "node --import tsx --test public-venues.test.mjs server.test.mjs shared-styles.test.mjs",
     "proof:browser": "node --import tsx browser-proof.mjs",
     "proof:lifecycle": "node --import tsx widget-lifecycle-proof.mjs",
-    "proof:night": "node --import tsx night-architect-proof.mjs"
+    "proof:night": "node --import tsx night-architect-proof.mjs",
+    "proof:night-widget": "cd ../.. && node --conditions=react-server --import tsx --test scripts/chatgpt-map/night-architect-widget-proof.ts"
   },
   "allowScripts": {
     "esbuild": true,

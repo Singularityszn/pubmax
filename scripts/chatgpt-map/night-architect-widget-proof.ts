@@ -1,4 +1,5 @@
-import { expect, it } from "vitest";
+import { test } from "node:test";
+import { expect } from "@playwright/test";
 import { chromium } from "playwright";
 import { nightArchitectWidget } from "@/lib/chatgpt/widget.server";
 
@@ -13,7 +14,7 @@ export class Map {
   addControl() {}
   isStyleLoaded() { return this.styleLoaded; }
   getSource(id) { return this.sources[id]; }
-  addSource(id) { this.change('source');this.sources[id]={setData:()=>this.change('source')}; }
+  addSource(id, options) { this.change('source');this.sources[id]={data:options.data,setData:data=>{this.sources[id].data=data;this.change('source');}}; }
   addLayer() {}
   fitBounds() { this.change('bounds'); }
   panBy() { this.change('pan'); }
@@ -56,7 +57,7 @@ function evening(name: string) {
     area: "Camden", venueIds: ["venue-one", "venue-two", "venue-three"],
     budget: { knownPence: 2000 },
     venues: [{
-      id: "venue-one", name, latitude: 51.54, longitude: -0.14,
+      id: "venue-one", name, latitude: 51.54, longitude: name === "Deferred route" ? -0.15 : -0.14,
       href: "https://pubmaxxing.com/map?venue=venue-one", history: [],
       prices: [
         { drink: "Model pint", priceGbp: 6.73, status: "estimate", observedAt: null, computedAt: "2026-10-05T23:53:08.357Z", basis: "regional model", publisher: null },
@@ -66,9 +67,9 @@ function evening(name: string) {
   } };
 }
 
-it.each([390, 1440])("updates the executable widget after idle at width %i", async (width) => {
+for (const width of [390, 1440]) test(`updates the executable widget after idle at width ${width}`, async () => {
   const widget = await nightArchitectWidget();
-  const browser = await chromium.launch({ headless: true });
+  const browser = await chromium.launch({ channel: process.env.PUBMAX_BROWSER_CHANNEL || undefined, headless: true });
   try {
     const page = await browser.newPage({ viewport: { width, height: 900 } });
     const errors: string[] = [];
@@ -91,6 +92,7 @@ it.each([390, 1440])("updates the executable widget after idle at width %i", asy
       await page.evaluate((result) => (window as unknown as { sendResult(result: unknown): void }).sendResult(result), evening(name));
       await frame.getByRole("heading", { name: `1. ${name}`, exact: true }).waitFor();
     };
+    await emit("load");
     await emit("idle");
     expect(await frame.locator("#map").getAttribute("data-state")).toBe("ready");
     await send("First evening");
@@ -109,9 +111,10 @@ it.each([390, 1440])("updates the executable widget after idle at width %i", asy
     await emit("idle");
     expect(await frame.locator("#map").getAttribute("data-state")).toBe("ready");
     await frame.evaluate(() => { (window as unknown as { testMap: { styleLoaded: boolean } }).testMap.styleLoaded = false; });
+    await send("Superseded route");
     await send("Deferred route");
     expect(await frame.locator("#map").getAttribute("data-state")).toBe("loading");
-    await emit("load");
+    expect(await frame.evaluate(() => (window as unknown as { testMap: { sources: Record<string, { data: { geometry: { coordinates: number[][] } } }> } }).testMap.sources["evening-route"]!.data.geometry.coordinates)).toEqual([[-0.15, 51.54]]);
     expect(await frame.locator("#map").getAttribute("data-state")).toBe("loading");
     await emit("idle");
     expect(await frame.locator("#map").getAttribute("data-state")).toBe("ready");

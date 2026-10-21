@@ -47,6 +47,6 @@ it("keeps a model calculation date separate from source observations", async () 
   }] });
   vi.spyOn(updatesReader, "venuePriceUpdatesFor").mockResolvedValue({ food: [], drink: [] });
   expect((await publicPubDetails(id, false))?.prices).toContainEqual({
-    drink: "Pint", priceGbp: 6.73, observedAt: null, computedAt: "2026-10-05T23:53:08.357Z", basis: "regional_baseline:kensington-and-chelsea", status: "estimate", publisher: null,
+    drink: "Pint", priceGbp: 6.73, observedAt: null, computedAt: "2026-10-05T23:53:08.357Z", basis: "Typical prices in the region", status: "estimate", publisher: null,
   });
 });

@@ -26,7 +26,7 @@ export async function generatePublicEvening(
     body.intake = {
       version: 1, area: null, groupSize: null, stopCount: 3,
       budget: input.budgetPence === undefined ? null : { tier: "value", limitPence: input.budgetPence },
-      timeWindow: { id: option.id, start: option.start, end: option.end, exactStartIso: new Date(input.startsAt).toISOString() },
+      timeWindow: { id: option.id, start: option.start, end: null, exactStartIso: new Date(input.startsAt).toISOString() },
       accessibilityNeeds: [],
       skipped: ["area", "group-size", "accessibility", ...(input.budgetPence === undefined ? ["budget"] : [])],
     };

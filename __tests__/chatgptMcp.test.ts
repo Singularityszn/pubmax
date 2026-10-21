@@ -266,3 +266,26 @@ it.each([
     stopEvidence: ids.map(() => ({ pintPrice: null, priceEvidence: null, selectedDrinkPriceEvidence: expected ? { category, pence: 800 } : null })),
   });
 });
+
+
+it.each([
+  { limit: 2500, explicit: undefined, price: 8, attributable: true, accepted: true, expected: 2500 },
+  { limit: 2000, explicit: undefined, price: 8, attributable: true, accepted: false, expected: 2000 },
+  { limit: 2500, explicit: undefined, price: 5, attributable: false, accepted: false, expected: 2500 },
+  { limit: 2000, explicit: 3000, price: 8, attributable: true, accepted: true, expected: 3000 },
+  { limit: 3000, explicit: 2000, price: 8, attributable: true, accepted: false, expected: 2000 },
+])("applies the effective budget for $limit with explicit $explicit", async ({ limit, explicit, price, attributable, accepted, expected }) => {
+  const ids = ["venue-one", "venue-two", "venue-three"];
+  const client = await connect({
+    detail: async (id) => ({ ...venue, id, prices: [{
+      drink: "Pint", priceGbp: price, observedAt: new Date().toISOString(), status: "recorded",
+      publisher: attributable ? { label: "Pub menu", url: "https://pub.example/menu" } : null,
+    }] }),
+    generate: async () => ({ grounded: true, inferredContext: { budgetLimitPence: limit }, stops: ids.map((venueId) => ({ venueId })) }),
+  });
+  const result = await client.callTool({ name: "pubmaxx_plan_evening", arguments: {
+    request: `Three pubs in Camden under £${limit / 100}`, ...(explicit === undefined ? {} : { budgetPence: explicit }),
+  } });
+  expect(result.isError === true).toBe(!accepted);
+  if (accepted) expect(result.structuredContent).toMatchObject({ budget: { knownPence: 2400, limitPence: expected, guaranteed: false } });
+});

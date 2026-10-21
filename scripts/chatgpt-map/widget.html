@@ -8,10 +8,10 @@
   :root{color-scheme:light dark;font-family:Inter,system-ui,sans-serif;color:var(--ink);background:var(--paper)}
   *{box-sizing:border-box}body{margin:0}header{padding:20px 20px 12px}h1{font-family:"Space Grotesk",system-ui,sans-serif;font-size:24px;line-height:1.2;margin:0 0 8px}p{font-size:14px;line-height:1.5;margin:0 0 8px;color:var(--muted)}
   main{display:grid;grid-template-columns:minmax(0,1.5fr) minmax(0,1fr);min-width:0}#map{--map-height:420px;height:var(--map-height);min-width:0;background:var(--line)}#venues{min-width:0;max-height:420px;overflow:auto;padding:0 16px;margin:0;list-style:none}#status{overflow-wrap:anywhere}
-  li{padding:16px 0;border-bottom:1px solid var(--line)}h2{font-size:17px;margin:0 0 7px;overflow-wrap:anywhere}a{color:inherit;text-underline-offset:3px}button{font:inherit;padding:10px 14px;border:1px solid var(--line);border-radius:6px;background:var(--paper);color:var(--ink);cursor:pointer;min-height:44px}button:focus-visible,a:focus-visible{outline:3px solid var(--brass);outline-offset:3px}.pin{border-radius:50%;background:var(--brass);color:var(--color-on-accent);border:2px solid var(--panel-overlay);width:38px;height:38px;padding:0;font-weight:700;box-shadow:0 2px 8px #0003}.maplibregl-popup-content{background:var(--paper);color:var(--ink)}.price{font-variant-numeric:tabular-nums;margin-bottom:4px}footer{padding:14px 20px}#status{padding:0 20px}
+  li{padding:16px 0;border-bottom:1px solid var(--line)}h2{font-size:17px;margin:0 0 7px;overflow-wrap:anywhere}a{color:inherit;text-underline-offset:3px}button{font:inherit;padding:10px 14px;border:1px solid var(--line);border-radius:6px;background:var(--paper);color:var(--ink);cursor:pointer;min-height:44px}button:focus-visible,a:focus-visible{outline:3px solid var(--brass);outline-offset:3px}.pin{border-radius:50%;background:var(--brass);color:var(--color-on-accent);border:2px solid var(--panel-overlay);width:44px;height:44px;padding:0;font-weight:700;box-shadow:0 2px 8px #0003}.maplibregl-popup-content{background:var(--paper);color:var(--ink)}.price{font-variant-numeric:tabular-nums;margin-bottom:4px}footer{padding:14px 20px}#status{padding:0 20px}
   .venue-actions{display:flex;flex-direction:column;align-items:flex-start;gap:12px;margin-top:12px}
   .popup-card{max-height:calc(var(--map-height) - 110px);overflow:auto;overflow-wrap:anywhere}
-  @media(max-width:600px){main{grid-template-columns:minmax(0,1fr)}#map{--map-height:280px}#venues{max-height:none}}
+  @media(max-width:600px){main{grid-template-columns:minmax(0,1fr)}#map{--map-height:320px}#venues{max-height:none}}
   /* PUBMAXX_SHARED_STYLES */
 </style>
 <header><h1 id="heading">Pubs in your borough</h1><p id="notice">Choose a London borough in the conversation to see listed pint prices.</p></header>
@@ -24,6 +24,7 @@
   let sdk;
   let app;
   let map;
+  let mapLoaded = false;
   let markers = [];
   let latestVenues = [];
   let isEvening = false;
@@ -120,6 +121,14 @@
     }
     if (venue.href) {const link=text("a","Open pub in PUBMAXX",actions);link.href=venue.href;link.target="_blank";link.rel="noopener noreferrer";}
   }
+  function drawRoute() {
+    if(tornDown||!map)return;
+    mapLoading();
+    const data={type:"Feature",properties:{},geometry:{type:"LineString",coordinates:isEvening?latestVenues.map(v=>[v.longitude,v.latitude]):[]}};
+    const source=map.getSource("evening-route");
+    if(source)source.setData(data);
+    else if(isEvening){map.addSource("evening-route",{type:"geojson",data});map.addLayer({id:"evening-route",type:"line",source:"evening-route",paint:{"line-color":getComputedStyle(document.documentElement).getPropertyValue("--brass").trim()||"#d2634a","line-width":3,"line-dasharray":[2,2]}});}
+  }
   function showMarkers() {
     if (!map || !maplibre) return;
     markers.forEach(marker=>marker.remove());markers=[];
@@ -144,19 +153,11 @@
       });
       markers.push(marker);
     });
-    const drawRoute=()=>{
-      if(tornDown||!map)return;
-      mapLoading();
-      const data={type:"Feature",properties:{},geometry:{type:"LineString",coordinates:isEvening?latestVenues.map(v=>[v.longitude,v.latitude]):[]}};
-      const source=map.getSource("evening-route");
-      if(source)source.setData(data);
-      else if(isEvening){map.addSource("evening-route",{type:"geojson",data});map.addLayer({id:"evening-route",type:"line",source:"evening-route",paint:{"line-color":getComputedStyle(document.documentElement).getPropertyValue("--brass").trim()||"#d2634a","line-width":3,"line-dasharray":[2,2]}});}
-    };
     mapLoading();
-    if(map.isStyleLoaded())drawRoute();else map.once("load",drawRoute);
+    if(mapLoaded)drawRoute();
     if (latestVenues.length) {
       const bounds=new maplibre.LngLatBounds();latestVenues.forEach(v=>bounds.extend([v.longitude,v.latitude]));
-      map.fitBounds(bounds,{padding:45,maxZoom:14,duration:0});
+      map.fitBounds(bounds,{padding:{top:45,right:80,bottom:85,left:45},maxZoom:17,duration:0});
     }
     map.triggerRepaint();
   }
@@ -220,6 +221,9 @@
     maplibre.setWorkerUrl(workerUrl);
     map=new maplibre.Map({container:"map",style:"https://tiles.openfreemap.org/styles/positron",center:[-0.12,51.52],zoom:10,attributionControl:{compact:true,customAttribution:"Pub data © OpenStreetMap contributors (ODbL)"}});
     map.addControl(new maplibre.NavigationControl({showCompass:false}));
+    map.once("load",()=>{mapLoaded=true;drawRoute();});
+    map.on("movestart",mapLoading);
+    map.on("dataloading",mapLoading);
     map.on("idle",()=>{if(!tornDown)element("map").dataset.state=mapFailure?"degraded":"ready";});
     map.on("error",()=>{mapFailed("Streets could not load. Listed pubs remain below.");});
     showMarkers();

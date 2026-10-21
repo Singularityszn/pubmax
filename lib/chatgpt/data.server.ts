@@ -57,7 +57,8 @@ export async function publicPubDetails(id: string, includeHistory: boolean): Pro
   }
   if (!prices.length && estimate) prices.push({
     drink: "Pint", priceGbp: estimate.priceGbp, observedAt: null, computedAt: estimate.computedAt,
-    status: "estimate", publisher: null, basis: estimate.basis,
+    status: "estimate", publisher: null,
+    basis: estimate.basis.startsWith("regional_baseline:") ? "Typical prices in the region" : "Modelled from available price records",
   });
   for (const price of prices) {
     const time = price.observedAt ? Date.parse(price.observedAt) : NaN;

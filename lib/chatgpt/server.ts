@@ -66,6 +66,7 @@ async function routeResult(
   }
   const stops = Array.isArray(generated?.stops) ? generated.stops.map(record) : [];
   const context = record(generated?.inferredContext);
+  const budgetPence = input.budgetPence ?? (typeof context?.budgetLimitPence === "number" ? context.budgetLimitPence : undefined);
   const category = generated ? context?.drinkCategory ?? null : "drinkCategory" in input ? input.drinkCategory : null;
   const zeroProof = generated ? context?.zeroProof === true : "zeroProof" in input && input.zeroProof;
   const pintCosts = !zeroProof && (category === null || category === "beer");
@@ -77,7 +78,7 @@ async function routeResult(
       observedAt: price?.observedAt, now: Date.now(),
     });
   });
-  if (input.budgetPence !== undefined && (pintCosts || !generated)
+  if (budgetPence !== undefined && (pintCosts || !generated)
     && !priceEvidence.every(priceEvidenceUsableForCeiling)) {
     throw new NightArchitectError("This budget ceiling needs attributable, non-stale pint prices at every stop. Remove the ceiling for an estimate with gaps.");
   }
@@ -98,12 +99,12 @@ async function routeResult(
   if (!generated) warnings.push("The route changed. Opening hours, access and other preferences need checking again.");
   if (!generated && !pintCosts) warnings.push("Prices for your selected drink are unavailable after this replacement. Pint prices are not used for its budget.");
   if (missingPrices) warnings.push("Some stop prices are missing. The known total is not the cost of the whole evening.");
-  if (input.budgetPence !== undefined && knownPence > input.budgetPence) throw new NightArchitectError("The known prices exceed your budget. Try another route.");
+  if (budgetPence !== undefined && knownPence > budgetPence) throw new NightArchitectError("The known prices exceed your budget. Try another route.");
   const confidence = record(generated?.planningConfidence);
   if (Array.isArray(confidence?.warnings)) warnings.push(...confidence.warnings.filter((item): item is string => typeof item === "string").slice(0, 24));
   return result({
     area: "your evening", venues, venueIds: ids, priceNotice: NOTICE,
-    budget: { knownPence, missingPrices, limitPence: input.budgetPence ?? null, guaranteed: false, priceBasis: pintCosts ? "pint" : "selected-drink" },
+    budget: { knownPence, missingPrices, limitPence: budgetPence ?? null, guaranteed: false, priceBasis: pintCosts ? "pint" : "selected-drink" },
     drinkCategory: category, zeroProof,
     walking: { minutes: walkingMinutes, basis: walkingBasis, limitMinutes: input.maxWalkingMinutes ?? null, withinLimitConfirmed: walkingBasis !== "straight-line" && input.maxWalkingMinutes !== undefined },
     startsAt: input.startsAt ?? null, warnings,
