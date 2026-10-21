@@ -5,6 +5,7 @@ export type CameraIntentKind =
   | "nearby"
   | "opening-location"
   | "query"
+  | "search-recovery"
   | "route"
   | "venue"
   | "landmark"

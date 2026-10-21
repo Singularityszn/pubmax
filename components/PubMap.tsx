@@ -506,7 +506,7 @@ import { mapAmbientBannersVisible, pickMapSurfaceToast } from "@/lib/mapSurfaceC
 import { resolveMapDisplayName } from "@/lib/mapDisplayName";
 import MapLoadingFrame from "@/components/map/MapLoadingFrame";
 import MapSearchEmptyState from "@/components/map/MapSearchEmptyState";
-import { useMapOpeningArrival } from "@/components/map/useMapOpeningArrival";
+import { useMapOpeningArrival, useNamedMapAreaArrival } from "@/components/map/useMapOpeningArrival";
 import { mapAreaOpeningView } from "@/lib/mapAreaArrival";
 import { useMapPinsRevealed } from "@/components/map/useMapPinsRevealed";
 import { useMapSecondaryStreamHold } from "@/components/map/useMapSecondaryStreamHold";
@@ -4302,6 +4302,7 @@ export default function PubMap({
   // unrelated churn (drops/signals) never yanks the camera; only a query
   // change drives a move.
   const [searchFitToken, setSearchFitToken] = useState(0);
+  const [searchRecoveryToken, setSearchRecoveryToken] = useState(0);
   const [searchAreaNewsArea, setSearchAreaNewsArea] = useState<string | null>(null);
   // The query whose camera an explicit pick already owns. Cleared on every
   // keystroke, so the next word re-arms the typed-search move.
@@ -4955,19 +4956,17 @@ export default function PubMap({
     },
     [cityId, clearAreaSheetTimer, clearLogIntent, moveMapCameraTo],
   );
-  const namedAreaArrivalAppliedRef = useRef(false);
-  useEffect(() => {
-    if (!namedAreaArrival || namedAreaArrivalAppliedRef.current || !mapCanvasReady || !loaded) return;
-    const option = areaElsewhereOptions(cityId).find((area) => area.slug === namedAreaArrival.slug);
+  const selectNamedAreaArrival = useCallback((area: NightArea) => {
+    const option = areaElsewhereOptions(cityId).find((option) => option.slug === area.slug);
     if (!option) return;
-    let cancelled = false;
-    queueMicrotask(() => {
-      if (cancelled || namedAreaArrivalAppliedRef.current) return;
-      namedAreaArrivalAppliedRef.current = true;
-      selectSearchArea({ ...option, areaNewsArea: namedAreaArrival.slug, kind: "area" });
-    });
-    return () => { cancelled = true; };
-  }, [cityId, loaded, mapCanvasReady, namedAreaArrival, selectSearchArea]);
+    selectSearchArea({ ...option, areaNewsArea: area.slug, kind: "area" });
+  }, [cityId, selectSearchArea]);
+  useNamedMapAreaArrival({
+    area: namedAreaArrival,
+    ready: mapCanvasReady && loaded,
+    readerActed: mapCameraTouchedRef,
+    onSelect: selectNamedAreaArrival,
+  });
   // §4.8: picking a search result records the typed "map-search" origin, unlike
   // a browse pin tap. The current search input text is NOT proof of origin — only
   // an explicit result selection through this seam is.
@@ -6805,7 +6804,7 @@ export default function PubMap({
             moveMapCameraTo({ center: [match.longitude, match.latitude], zoom: 14.5 });
           } else {
             setNearbyMapResult(null);
-            setSearchFitToken((token) => token + 1);
+            setSearchRecoveryToken((token) => token + 1);
           }
         }}
         onClear={clearMapQuery}
@@ -6920,6 +6919,7 @@ export default function PubMap({
         maxBounds={UK_BOUNDS}
         fitQueryOnArrival={shouldFitQueryVenuesOnArrival(arrivalSearch)}
         searchFitToken={searchFitToken}
+        searchRecoveryToken={searchRecoveryToken}
         userLocation={userLocation}
         nearMePending={nearbyLoading}
         readerPosition={readerPosition}
