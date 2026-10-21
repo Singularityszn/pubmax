@@ -250,6 +250,9 @@
     },
     "eslint-plugin-import": {
       "eslint": "$eslint"
+    },
+    "@opentelemetry/instrumentation@0.46.0": {
+      "import-in-the-middle": "1.15.0"
     }
   }
 }
