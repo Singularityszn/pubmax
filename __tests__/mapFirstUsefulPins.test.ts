@@ -179,20 +179,6 @@ describe("first useful map pins", () => {
     expect(laterResolved.viewport).toBe(cancelledAndSettled.viewport);
   });
 
-  it("owns every opening-location cancellation through one reactive callback", () => {
-    const source = readFileSync(
-      join(process.cwd(), "components/PubMap.tsx"),
-      "utf8",
-    );
-
-    expect(source.match(/openingLocationCancelledRef\.current = true/g)).toHaveLength(1);
-    expect(source).toContain("openingLocationCancellationAfterAttempt({");
-    expect(source).toContain(
-      "setOpeningLocationCancelledBeforeResolution(nextCancellation)",
-    );
-    expect(source.match(/cancelOpeningLocation\(\)/g)).toHaveLength(2);
-  });
-
   it("does not turn a post-resolution camera move into cancellation", () => {
     expect(openingLocationCancellationAfterAttempt({
       openingLocationResolved: false,

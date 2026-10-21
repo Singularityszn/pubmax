@@ -41,6 +41,19 @@ export function mountOriginalPalMesh(host, { modelUrl, onStatus }) {
   let visible = true;
   let renderer;
   let loadTimer = 0;
+  let resourceFailed = false;
+  const manager = new THREE.LoadingManager();
+  manager.onError = () => { resourceFailed = true; };
+  const loader = new GLTFLoader(manager);
+  // Embedded GLB images use img-src blob:, already allowed by the product CSP.
+  // ImageBitmapLoader would fetch the blob under the stricter connect-src.
+  loader.register((parser) => ({
+    name: "PUBMAX_original_textures",
+    loadTexture(index) {
+      const texture = parser.json.textures[index];
+      return parser.loadTextureImage(index, texture.source, new THREE.TextureLoader(manager));
+    },
+  }));
   const scene = new THREE.Scene();
   const poseGroup = new THREE.Group();
   const originalOrientation = new THREE.Group();
@@ -146,20 +159,15 @@ export function mountOriginalPalMesh(host, { modelUrl, onStatus }) {
       if (!response.ok) throw new Error("Model read unavailable");
       const bytes = await response.arrayBuffer();
       if (disposed) return null;
-      let textureFailed = false;
-      const manager = new THREE.LoadingManager();
-      manager.onError = () => { textureFailed = true; };
-      const gltf = await new GLTFLoader(manager).parseAsync(bytes, new URL(".", new URL(modelUrl, location.href)).href);
-      if (textureFailed) {
-        disposeModel(gltf.scene);
-        throw new Error("Original Pal texture unavailable");
-      }
-      return gltf;
+      return loader.parseAsync(bytes, new URL(".", new URL(modelUrl, location.href)).href);
     })
     .then((gltf) => {
       clearTimeout(loadTimer);
       if (!gltf) return;
       if (disposed) { disposeModel(gltf.scene); return; }
+      // GLTFLoader can resolve with a null map after an image failure.
+      // A partial, untextured model must never replace the original artwork.
+      if (resourceFailed) { disposeModel(gltf.scene); throw new Error("Model texture unavailable"); }
       model = gltf.scene;
       originalOrientation.add(model);
       resize();
@@ -177,22 +185,22 @@ export function mountOriginalPalMesh(host, { modelUrl, onStatus }) {
     });
 
   function dispose() {
-      if (disposed) return;
-      disposed = true;
-      clearTimeout(loadTimer);
-      controller.abort();
-      resizeObserver.disconnect();
-      canvas.removeEventListener("webglcontextlost", lost);
-      canvas.removeEventListener("webglcontextrestored", restored);
-      canvas.removeEventListener("pointerdown", pointerDown);
-      canvas.removeEventListener("pointermove", pointerMove);
-      canvas.removeEventListener("pointerup", pointerEnd);
-      canvas.removeEventListener("pointercancel", pointerEnd);
-      if (model) disposeModel(model);
-      renderer.dispose();
-      renderer.forceContextLoss();
-      canvas.remove();
-    }
+    if (disposed) return;
+    disposed = true;
+    clearTimeout(loadTimer);
+    controller.abort();
+    resizeObserver.disconnect();
+    canvas.removeEventListener("webglcontextlost", lost);
+    canvas.removeEventListener("webglcontextrestored", restored);
+    canvas.removeEventListener("pointerdown", pointerDown);
+    canvas.removeEventListener("pointermove", pointerMove);
+    canvas.removeEventListener("pointerup", pointerEnd);
+    canvas.removeEventListener("pointercancel", pointerEnd);
+    if (model) disposeModel(model);
+    renderer.dispose();
+    renderer.forceContextLoss();
+    canvas.remove();
+  }
 
   return {
     renderPose(pose, now) {

@@ -136,6 +136,9 @@ describe("Pub Pal fence without TypeSafe key", () => {
   });
 
   it.each([
+    "Cheap pints near Soho. How many can I have before driving?",
+    "Cheap pints near Soho? How many could we have before cycling?",
+    "Wine near Soho; how much can I drink before riding my bike?",
     "Where can I buy beer in Soho? How many pints can I have before driving?",
     "How many pints can I have before driving? Where can I buy beer in Soho?",
     "Where could we find beer in Soho, and how long after drinking can I drive?",
@@ -309,6 +312,9 @@ describe("Pub Pal fence without TypeSafe key", () => {
 
   it.each([
     "Quiet garden near Soho",
+    "Cheap alcohol-free pints near Soho. How many can I have before driving?",
+    "Cheap pints near Soho. How many can I have after driving?",
+    "Soft drinks near Soho. How many pubs can I visit before driving?",
     "Where can I buy beer in Soho before driving?",
     "Where could we find beer in Soho before cycling?",
     "Where may I get beer in Soho before riding my bike?",

@@ -463,6 +463,8 @@ type PubMapCanvasProps = {
    * this token. Starts at 0 (no-op) so first paint is untouched.
    */
   searchFitToken?: number;
+  /** Explicit Show matching pubs request. Each click has its own identity. */
+  searchRecoveryToken?: number;
   /** Precise location retained only in memory after explicit permission. */
   userLocation?: { lat: number; lng: number } | null;
   readerPosition?: MapReaderPosition | null;
@@ -768,6 +770,7 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
     londonRestaurants,
     fitQueryOnArrival,
     searchFitToken,
+    searchRecoveryToken,
     userLocation,
     readerPosition,
     poiHidden: controlledPoiHidden,
@@ -4409,6 +4412,11 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
     if (!mapReady || searchFitToken <= 0) return;
     fitQueryVenues();
   }, [searchFitToken, mapReady, fitQueryVenues]);
+
+  useEffect(() => {
+    if (!mapReady || !searchRecoveryToken) return;
+    fitQueryVenues("search-recovery", searchRecoveryToken);
+  }, [searchRecoveryToken, mapReady, fitQueryVenues]);
 
   // A granted location is a temporary map aid, not a persisted Home Area.
   // Frame the local pub cloud once, then leave the camera entirely under the

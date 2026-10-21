@@ -64,6 +64,7 @@ import {
   placesTownSearchUnavailableLine,
 } from "@/lib/places";
 import { useUkPlaceIndex } from "@/lib/useUkPlaceIndex";
+import { mapAreaHref } from "@/lib/mapAreaArrival";
 
 import "@/components/listing/listing.css";
 import "./places.css";
@@ -359,7 +360,7 @@ function CityPanel({
             <ul className="placesAreaList">
               {areas.map((area) => (
                 <li key={area.slug} className="placesAreaItem">
-                  <p className="placesAreaName">{area.name}</p>
+                  <a className="placesAreaName" href={mapAreaHref(area)}>{area.name}</a>
                   <p className="placesAreaLine">{area.description}</p>
                 </li>
               ))}

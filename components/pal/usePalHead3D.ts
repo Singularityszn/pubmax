@@ -265,16 +265,15 @@ export function usePalHead3D(
       const writeProperty = (name: string, value: string) => {
         if (style.getPropertyValue(name) !== value) style.setProperty(name, value);
       };
-      if (meshReady && mesh) {
-        mesh.renderPose(pose, now);
-      } else {
-        writeProperty("--pal-yaw", `${pose.yaw.toFixed(2)}deg`);
-        writeProperty("--pal-pitch", `${pose.pitch.toFixed(2)}deg`);
-        writeProperty("--pal-roll", `${pose.roll.toFixed(2)}deg`);
-        writeProperty("--pal-lean", `${pose.lean.toFixed(1)}px`);
-        writeProperty("--pal-lift", `${pose.lift.toFixed(1)}px`);
-        writeProperty("--pal-scale", pose.scale.toFixed(3));
-      }
+      if (meshReady && mesh) mesh.renderPose(pose, now);
+      // Keep the image pose current too, so a graphics failure restores it
+      // at the same voice state. Only the live-image CSS applies this pose.
+      writeProperty("--pal-yaw", `${pose.yaw.toFixed(2)}deg`);
+      writeProperty("--pal-pitch", `${pose.pitch.toFixed(2)}deg`);
+      writeProperty("--pal-roll", `${pose.roll.toFixed(2)}deg`);
+      writeProperty("--pal-lean", `${pose.lean.toFixed(1)}px`);
+      writeProperty("--pal-lift", `${pose.lift.toFixed(1)}px`);
+      writeProperty("--pal-scale", pose.scale.toFixed(3));
       // The light stays put while the head turns, so its sheen slides across
       // from where the genome says the light catches this Pal.
       writeProperty("--pal-sheen-dx", `${(-pose.yaw * 2).toFixed(1)}%`);

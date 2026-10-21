@@ -1,7 +1,8 @@
 import "server-only";
 
+import { defaultKnownAreas, deterministicAreaInText, extractExplicitBudget } from "@/lib/concierge/intentPolicy";
 import { composeAnswer, runAsk } from "@/lib/ask/runAsk";
-import { recordedDrinkComparison, unsupportedPriceComparison } from "@/lib/ask/router";
+import { recordedDrinkComparison, refineRoutedAskQuery, resolveAskPriceIntent, routeAskDeterministically, unsupportedPriceComparison } from "@/lib/ask/router";
 import type { AskCard, AskProposal } from "@/lib/ask/types";
 import { resolveAskCityId } from "@/lib/ask/tools";
 import {
@@ -29,6 +30,7 @@ import {
 } from "@/lib/pubPalToolTurnStore";
 
 const CHAT_TIMEOUT_MS = 22_000;
+const LOCAL_TURN_WRITE_BUDGET_MS = 1_500;
 const TOOL_TURN_WAIT_MS = 4_000;
 const TOOL_TURN_POLL_MS = 120;
 // A reply is the answer once this long has passed with no tool event after it.
@@ -174,6 +176,31 @@ export async function preparePalElevenLabsChatTurn(
   return { prior, fence };
 }
 
+/** Constrained local record answers that need no provider narration or durable plan write. */
+export function palChatRecordQuery(query: string, turns: readonly PubPalFenceTurn[] = []): string | null {
+  const priorAsks = turns.filter((turn) => turn.role === "user").map((turn) => turn.content);
+  const routedQuery = refineRoutedAskQuery(query, priorAsks.at(-1), priorAsks);
+  if (unsupportedPriceComparison(routedQuery) || recordedDrinkComparison(routedQuery)) return routedQuery;
+  const intent = resolveAskPriceIntent(routedQuery);
+  const calls = routeAskDeterministically(routedQuery);
+  const area = deterministicAreaInText(routedQuery, defaultKnownAreas());
+  // A count belongs to the requested pubs, not the party. The router remains
+  // authoritative for the number of cards and all other requested tools.
+  const countedPubs = /\b(?:[1-6]|one|two|three|four|five|six)\s+(?:(?:good|quiet|lively|cosy|cozy|cheap|historic|local|nearby|listed|great|best)\s+)*pubs?\b/i.test(routedQuery);
+  const localDiscovery = Boolean(area) && intent.kind === "none" && countedPubs
+    && calls.length === 1 && calls[0].name === "search_venues";
+  const localPlan = Boolean(area) && (intent.kind === "none" || intent.kind === "plan")
+    && /\b(?:crawl|three[- ]stop|3[- ]stop)\b/i.test(routedQuery)
+    && calls.length === 1 && calls[0].name === "propose_plan";
+  // Listed pint discovery is local. Keep mixed requests and other tools on
+  // their own paths rather than dropping a sibling request to gain speed.
+  const pintBudget = /\bpints?\b/i.test(routedQuery) && extractExplicitBudget(routedQuery) !== undefined;
+  const localPints = (intent.kind === "pint" || (intent.kind === "none" && pintBudget)) && calls.length > 0
+    && calls.every((call) => call.name === "search_venues" || call.name === "cheapest_pint_near");
+  return localDiscovery || localPlan || localPints
+    ? routedQuery : null;
+}
+
 export async function runPalElevenLabsChatTurn(
   input: PalElevenLabsChatInput,
   context?: PalElevenLabsChatContext,
@@ -210,7 +237,6 @@ export async function runPalElevenLabsChatTurn(
   // A price comparison the records answer opens no provider session (below),
   // and the test is on the ask alone, so it is decided before anything leaves.
   const unsupported = unsupportedPriceComparison(query);
-  const answeredFromRecords = Boolean(unsupported) || recordedDrinkComparison(query);
   try {
     context ??= await preparePalElevenLabsChatTurn(input);
   } catch {
@@ -219,6 +245,8 @@ export async function runPalElevenLabsChatTurn(
   }
   const { prior, fence: { fenced, sobrietyOnly } } = context;
   const turns = prior.turns;
+  const recordQuery = palChatRecordQuery(query, turns);
+  const answeredFromRecords = recordQuery !== null;
   if (fenced) {
     return {
       ok: true,
@@ -239,19 +267,35 @@ export async function runPalElevenLabsChatTurn(
   // The three reads are null exactly when the records answer; testing them here
   // also tells the compiler so.
   if (answeredFromRecords || !sessionRead || !memoriesRead || !tasteRead) {
-    const result = await runAsk({ query, cityId, skipModel: true });
+    const result = await runAsk({ query: recordQuery ?? query, cityId, skipModel: true });
     // A first answer from the records opens no provider session, so it gets a
     // local thread: the follow-up reads this turn back instead of starting blind.
-    const threadId = unsupported ? "" : prior.conversationId ?? newPalLocalThreadId();
+    let threadId = unsupported ? "" : prior.conversationId ?? newPalLocalThreadId();
+    let historyUnavailable = false;
     if (threadId) {
-      await registerPubPalToolTurn(threadId, {
-        query, cityId, ownerId: input.ownerId, turns: prior.turns, summary: prior.summary,
-        cards: result.cards, proposals: result.proposals, hints: [result.answer], toolsUsed: result.toolsUsed,
-      });
+      let timer: ReturnType<typeof setTimeout> | undefined;
+      try {
+        const stored = await Promise.race([
+          registerPubPalToolTurn(threadId, {
+            query, cityId, ownerId: input.ownerId, turns: prior.turns, summary: prior.summary,
+            cards: result.cards, proposals: result.proposals, hints: [result.answer], toolsUsed: result.toolsUsed,
+          }).then(() => true, () => false),
+          new Promise<false>((resolve) => { timer = setTimeout(() => resolve(false), LOCAL_TURN_WRITE_BUDGET_MS); }),
+        ]);
+        if (!stored) {
+          // A public record answer needs no persisted conversation. Clear the
+          // client correlation so a later ask cannot rely on a missing turn.
+          threadId = "";
+          historyUnavailable = true;
+          recordFailure("UNAVAILABLE", "registration");
+        }
+      } finally {
+        clearTimeout(timer);
+      }
     }
     return {
       ok: true,
-      message: result.answer,
+      message: historyUnavailable ? `${result.answer} Conversation history could not be kept. Name the area again in your next ask.` : result.answer,
       cards: result.cards,
       proposals: result.proposals,
       conversationId: threadId,

@@ -638,7 +638,7 @@ describe("POST /api/pub-pal/chat", () => {
       new Request("http://localhost/api/pub-pal/chat", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ query: "Cheapest pint in Clapham?" }),
+        body: JSON.stringify({ query: "Quiet pubs in Clapham?" }),
       }),
     );
     expect(response.status).toBe(429);
@@ -648,7 +648,7 @@ describe("POST /api/pub-pal/chat", () => {
   describe("when the caller asks for a stream", () => {
     const STREAM_ACCEPT = "application/x-ndjson";
 
-    function streamRequest(body: unknown = { query: "Cheapest pint in Clapham?" }): Request {
+    function streamRequest(body: unknown = { query: "Quiet pubs in Clapham?" }): Request {
       return new Request("http://localhost/api/pub-pal/chat", {
         method: "POST",
         headers: { "content-type": "application/json", accept: STREAM_ACCEPT },

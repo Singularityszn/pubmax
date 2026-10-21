@@ -69,7 +69,10 @@ test("a venue sheet shows Google Places hours and address", async ({ page }) => 
   await expect(sheet.getByRole("heading", { name: PLACES_VENUE.name })).toBeInViewport();
   await expect(sheet.locator(".venueAddress")).toContainText(PLACES_VENUE.postcode);
   await sheet.getByText("Details and practical info").click();
-  const places = sheet.locator(".venuePlacesDetails");
+  const places = sheet.locator(".venuePlacesDetails").filter({
+    has: page.getByText("Opening hours", { exact: true }),
+  });
+  await expect(places).toHaveCount(1);
   await expect(places).toBeVisible();
   await places.getByText("Opening hours", { exact: true }).click();
   await expect(places.locator("dt").first()).toHaveText("Monday");

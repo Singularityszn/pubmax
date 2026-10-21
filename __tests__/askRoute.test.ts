@@ -42,6 +42,7 @@ beforeEach(() => {
 
 afterEach(() => {
   vi.unstubAllGlobals();
+  vi.unstubAllEnvs();
 });
 
 function post(body: unknown, ip: string): Promise<Response> {
@@ -55,6 +56,82 @@ function post(body: unknown, ip: string): Promise<Response> {
 }
 
 describe("POST /api/ask", () => {
+  it.each([
+    { query: "A pub crawl in Soho for three, not pricey", count: 3, tool: "propose_plan" },
+    { query: "Two quiet pubs near Borough Market", count: 2, tool: "search_venues" },
+  ])("returns useful grounded cards for the production ask: $query", async ({ query, count, tool }) => {
+    vi.stubEnv("TYPESAFE_API_KEY", "");
+    const deniedFetch = vi.fn(async () => { throw new Error("External egress denied"); });
+    vi.stubGlobal("fetch", deniedFetch);
+    const response = await post({ query, cityId: "london" }, "203.0.113.187");
+    expect(response.status).toBe(200);
+    const body = await response.json();
+    expect(body.status).toBe("ready");
+    expect(body.toolsUsed).toEqual([tool]);
+    expect(body.cards).toHaveLength(count);
+    expect(body.cards.every((card: { venueId?: string; provenance?: { label?: string } }) => Boolean(card.venueId) && Boolean(card.provenance?.label))).toBe(true);
+    if (tool === "propose_plan") {
+      expect(body.cards.every((card: { price: number | null }) => typeof card.price === "number" && card.price > 0 && card.price <= 6)).toBe(true);
+      const draft = body.proposals.find((proposal: { kind: string }) => proposal.kind === "draft_plan");
+      expect(draft).toMatchObject({ label: "Open in Plan", query });
+      expect(draft.stopIds).toEqual(body.cards.map((card: { venueId: string }) => card.venueId));
+      expect(body.answer).toContain("Nothing is saved");
+    } else {
+      expect(body.cards.every((card: { place?: string; note?: string }) => /Borough|Southwark|London Bridge/i.test(`${card.place} ${card.note}`))).toBe(true);
+      expect(body.proposals.every((proposal: { kind: string }) => proposal.kind === "open_venue")).toBe(true);
+    }
+    expect(deniedFetch).not.toHaveBeenCalled();
+    expect(modelLoopMock).not.toHaveBeenCalled();
+  });
+
+  it("keeps configured routing and narration disabled for a local plan", async () => {
+    vi.stubEnv("OPENROUTER_API_KEY", "unused-test-key");
+    vi.stubEnv("TYPESAFE_API_KEY", "unused-test-key");
+    const deniedFetch = vi.fn(async () => { throw new Error("External egress denied"); });
+    vi.stubGlobal("fetch", deniedFetch);
+    try {
+      const body = await runAsk({ query: "A pub crawl in Soho for three, not pricey", cityId: "london", skipModel: true });
+      expect(body.toolsUsed).toEqual(["propose_plan"]);
+      expect(body.proposals.find((proposal) => proposal.kind === "draft_plan")?.stopIds).toHaveLength(3);
+      expect(modelLoopMock).not.toHaveBeenCalled();
+      expect(deniedFetch).not.toHaveBeenCalled();
+    } finally { vi.unstubAllEnvs(); }
+  });
+
+  it("withholds a plan when no listed positive pint price meets the parsed ceiling", async () => {
+    const query = "Plan a crawl in Soho for three under £0.01 a pint";
+    const result = await runAskTool("propose_plan", {}, { cityId: "london", query, skipModel: true });
+    expect(result.ok).toBe(false);
+    expect(result.data).toMatchObject({ intent: { maxPintPrice: 0.01 } });
+    expect(result.cards).toEqual([]);
+    expect(result.proposals).toEqual([]);
+    expect(result.answerHint).toMatch(/No three-stop route/);
+  });
+
+  it("keeps the explicit plan ceiling and recorded price evidence", async () => {
+    const query = "Plan a crawl in Soho under £6.50 a pint";
+    const result = await runAskTool("propose_plan", {}, { cityId: "london", query, skipModel: true });
+    expect(result.data).toMatchObject({ intent: { maxPintPrice: 6.5 } });
+    expect(result.cards.length).toBeGreaterThan(0);
+    for (const card of result.cards) {
+      expect(typeof card.price === "number" && card.price > 0 && card.price <= 6.5).toBe(true);
+      expect(result.priceEvidence).toContainEqual({
+        cardKey: card.key, venueId: card.venueId, priceGbp: card.price,
+        kind: "listed-pint", category: "beer", source: "directory", reportedAt: null, serving: "pint",
+      });
+    }
+    if (result.cards.length < 3) expect(result.proposals).toEqual([]);
+  });
+
+  it("keeps the discovery count, quiet preference and Borough Market area together", async () => {
+    const query = "Two quiet pubs near Borough Market";
+    const result = await runAskTool("search_venues", { query, limit: 2 }, { cityId: "london", query, skipModel: true });
+    expect(result.ok).toBe(true);
+    expect(result.data).toMatchObject({ intent: { mood: ["quiet"], area: "Borough Market" } });
+    expect(result.cards).toHaveLength(2);
+    expect(result.cards.every((card) => Boolean(card.venueId) && Boolean(card.provenance?.label))).toBe(true);
+  });
+
   it("carries each Soho pint publisher and read date into its answer card", async () => {
     const response = await post({ query: "Find me four pubs in Soho", cityId: "london" }, "203.0.113.183");
     const body = await response.json();
@@ -307,6 +384,7 @@ describe("POST /api/ask", () => {
 
   it.each([
     ["propose_plan", "Plan a big night for four of us, with cheap pints and a lively route", { mood: ["lively"], groupSize: 4, maxPintPrice: 6 }],
+    ["propose_plan", "A pub crawl in Soho for three, not pricey", { mood: [], groupSize: 3, maxPintPrice: 6, area: "Soho" }],
     ["search_venues", "Find cheap quiet pubs in Soho", { mood: ["quiet"], groupSize: 2, maxPintPrice: 6, area: "Soho" }],
     ["search_venues", "somewhere cheap and quiet", { mood: ["quiet"], groupSize: 2, maxPintPrice: 6 }],
     ["search_venues", "Somewhere cheap in Soho", { mood: [], groupSize: 2, maxPintPrice: 6, area: "Soho" }],
