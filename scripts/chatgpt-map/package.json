@@ -19,7 +19,7 @@
   "dependencies": {
     "@modelcontextprotocol/ext-apps": "2.0.3",
     "@modelcontextprotocol/sdk": "1.32.1",
-    "postcss": "8.5.30",
+    "postcss": "8.5.31",
     "tsx": "4.23.15",
     "zod": "4.6.7"
   }

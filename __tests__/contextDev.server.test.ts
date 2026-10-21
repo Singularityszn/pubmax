@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 import {
   CONTEXT_DEV_MAX_ATTEMPTS,
   CONTEXT_DEV_MAX_RETRY_AFTER_MS,
+  batchSubmit,
   contextDevApiKey,
   createContextDevBudget,
   extract,
@@ -12,6 +13,31 @@ import {
 } from "@/lib/contextDev";
 
 const noSleep = async () => {};
+
+describe("batchSubmit", () => {
+  it("submits the current markdown format contract to the batch API", async () => {
+    const url = "https://www.fullers.co.uk/event-finder";
+    const fetchImpl = vi.fn(async (_input: unknown, init?: RequestInit) => {
+      const body = JSON.parse(String(init?.body));
+      if (body.input?.data?.formats?.markdown !== true) {
+        return jsonResponse({ error: "formats.markdown is required" }, 400);
+      }
+      return jsonResponse({ id: "batch-markdown", invalid_urls: [] });
+    });
+
+    await expect(batchSubmit([url], {
+      env: { CONTEXT_DEV_API_KEY: "test-key" } as unknown as NodeJS.ProcessEnv,
+      fetchImpl: fetchImpl as unknown as typeof fetch,
+      sleepImpl: noSleep,
+    })).resolves.toEqual({
+      status: "ok",
+      batchId: "batch-markdown",
+      submitted: 1,
+      invalidUrls: 0,
+    });
+    expect(fetchImpl).toHaveBeenCalledTimes(1);
+  });
+});
 
 function jsonResponse(body: unknown, status = 200, headers: Record<string, string> = {}) {
   return new Response(JSON.stringify(body), {

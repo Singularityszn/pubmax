@@ -218,3 +218,28 @@ All eleven documented upstream repositories were checked at their default branch
 [mryll/skills](https://github.com/mryll/skills), commit `e0bacd42498b18e4c5472689bd7a0c19bd72da68`, MIT (licence copied into the skill directory). `ste`: Simplified Technical English (ASD-STE100), with a dictionary checker script (`scripts/ste-check.sh`, POSIX shell and gawk, no network access). The root `AGENTS.md` law "Talk to the captain in Simplified Technical English" points here. Agents write their replies in STE style from memory. They run the skill when the captain asks for a checked rewrite or an STE compliance check.
 
 Local corrections in `scripts/ste-check.sh` (pull request 2184, from Codex review findings): a technical-verb category must be exactly 1 to 4 with an optional letter (`tv12` was accepted), and a word plus apostrophe-s is checked as a possessive under rule GR-8 instead of always being reported as a contraction. A pronoun or adverb plus apostrophe-s (`it's`, `there's`, `let's`) is still a contraction.
+
+## Refresh, 21 October 2026
+
+The installed skills were checked against the twelve upstream tips below. Earlier entries record the previous imports.
+
+| Source repository | Checked commit |
+| --- | --- |
+| emilkowalski/skills | `2d228630ba1446365f614a108cb8252f1feda202` |
+| Leonxlnx/taste-skill | `6010f91a9935f1c167dfc500fb1a475681892e6b` |
+| jakubkrehel/skills | `4c66b1fa86e9ab70187b43d7da9b6fdb29f2ef63` |
+| gnurio/refactoring-ui-plugin | `00781eab1dde7fdb720d63f8d6c8148bf5835a31` |
+| shadcn-labs/skills | `5316082202ab6a7e0779b16b5c58b846c006a460` |
+| maplibre/maplibre-agent-skills | `dedd23bce464d34cdbf87c6ddeb941c741e337e0` |
+| Cap-go/capgo-skills | `e90bb5639130e34387f00bf0a95c6d47e4a2ebb8` |
+| supabase/agent-skills | `c9be0e931b7930f7d02126d04774d904c381e7d7` |
+| vercel-labs/agent-skills | `063bee94c3f4df8453406c830b0a7df0f2860278` |
+| elevenlabs/skills | `269e5f0e5a4cf296a8a38beb166245b89d5e2c1c` |
+| PostHog/skills | `9d786a19107997c05ae1fbdd9a49a755557bbc4d` |
+| mryll/skills | `e0bacd42498b18e4c5472689bd7a0c19bd72da68` |
+
+19 installed skill trees received updates. The refresh keeps the installed discovery names and the local corrections described above. MapLibre sprite references link to the upstream skill because that skill is not vendored. Capacitor references retain the version 8 boundary, debug-only flags, temporary ATS restrictions, and protection against deleting shared dependencies.
+
+Twelve alternate taste skills remain at their last imported versions because their directories no longer exist upstream. They are `brandkit`, `brutalist-skill`, `gpt-tasteskill`, `image-to-code-skill`, `imagegen-frontend-mobile`, `imagegen-frontend-web`, `minimalist-skill`, `output-skill`, `redesign-skill`, `soft-skill`, `stitch-skill`, and `taste-skill-v1`. The surviving `taste-skill` receives the current upstream version.
+
+The four custom project skills have no upstream update. The refactoring plugin index remains an index, not a discoverable skill. All 89 discoverable project skills have unique names and valid metadata. Relative links in changed Markdown files resolve.

@@ -55,7 +55,7 @@ export function typesafeConfigured(env: Record<string, string | undefined> = pro
  * `timeoutMs` is the whole cost of the call and not the cost of one attempt.
  */
 export async function systemOne<Q extends Questions>(
-  state: EntryType,
+  state: NonNullable<EntryType>,
   questions: Q,
   options: SystemOneOptions = {},
 ): Promise<SystemOneResult<Q> | null> {
