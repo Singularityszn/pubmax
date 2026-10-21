@@ -3,11 +3,11 @@
   "verifiedAt": "2026-10-21",
   "method": "places_text_search: live Google Places API (New); placeId and derived verdict fields only (Maps ToS).",
   "summary": {
-    "rowsChecked": 3,
-    "confirmed": 3,
+    "rowsChecked": 21,
+    "confirmed": 21,
     "closed": [],
     "unverified": [],
-    "placesLiveApiCalls": 3
+    "placesLiveApiCalls": 21
   },
   "checks": [
     {
@@ -42,6 +42,204 @@
       "placeId": "ChIJrx4282IddkgRTeHNjFC_CEA",
       "matchReason": "exact_normalized_name;postcode_E2 8AX",
       "checkedAt": "2026-10-21T11:17:53.777Z"
+    },
+    {
+      "id": "bar-cocktail-trading-company",
+      "method": "places_text_search",
+      "sourceUrl": "https://thecocktailtradingco.com/",
+      "outcome": "confirmed",
+      "result": "places_operational",
+      "textQuery": "The Cocktail Trading Co. E1 6GQ London",
+      "placeId": "ChIJLdASRtUEdkgRQBluAGfwXuo",
+      "matchReason": "places_name_alias;postcode_E1 6GQ",
+      "checkedAt": "2026-10-21T21:13:03.859Z"
+    },
+    {
+      "id": "bar-disrepute",
+      "method": "places_text_search",
+      "sourceUrl": "https://www.disrepute.co.uk/",
+      "outcome": "confirmed",
+      "result": "places_operational",
+      "textQuery": "Disrepute W1F 9RR London",
+      "placeId": "ChIJUzv6p9UEdkgRf3JNfE64VXk",
+      "matchReason": "exact_normalized_name;postcode_W1F 9RR",
+      "checkedAt": "2026-10-21T21:18:37.573Z"
+    },
+    {
+      "id": "bar-equal-parts",
+      "method": "places_text_search",
+      "sourceUrl": "https://www.equalpartslondon.com/",
+      "outcome": "confirmed",
+      "result": "places_operational",
+      "textQuery": "Equal Parts E2 8NA London",
+      "placeId": "ChIJc96hMGIddkgRor8RI0Qujc0",
+      "matchReason": "exact_normalized_name;postcode_E2 8NA",
+      "checkedAt": "2026-10-21T21:18:38.575Z"
+    },
+    {
+      "id": "bar-eve",
+      "method": "places_text_search",
+      "sourceUrl": "https://www.evebar.co.uk/",
+      "outcome": "confirmed",
+      "result": "places_operational",
+      "textQuery": "Eve Bar WC2E 7HG London",
+      "placeId": "ChIJww-u68sEdkgRKOXSvAb2TiY",
+      "matchReason": "places_name_alias;within_6m",
+      "checkedAt": "2026-10-21T21:18:39.097Z"
+    },
+    {
+      "id": "bar-gordons-wine-bar",
+      "method": "places_text_search",
+      "sourceUrl": "https://www.gordonswinebar.com/",
+      "outcome": "confirmed",
+      "result": "places_operational",
+      "textQuery": "Gordon's Wine Bar WC2N 6NE London",
+      "placeId": "ChIJSWvAzM4EdkgRaZcCMhRbk0Q",
+      "matchReason": "exact_normalized_name;postcode_WC2N 6NE",
+      "checkedAt": "2026-10-21T21:18:39.563Z"
+    },
+    {
+      "id": "bar-happiness-forgets",
+      "method": "places_text_search",
+      "sourceUrl": "https://www.happinessforgets.com/",
+      "outcome": "confirmed",
+      "result": "places_operational",
+      "textQuery": "Happiness Forgets N1 6NU London",
+      "placeId": "ChIJc71T0bocdkgRrt_uEpoLBoE",
+      "matchReason": "exact_normalized_name;postcode_N1 6NU",
+      "checkedAt": "2026-10-21T21:18:40.363Z"
+    },
+    {
+      "id": "bar-mr-foggs-residence",
+      "method": "places_text_search",
+      "sourceUrl": "https://www.mr-foggs.com/mr-foggs-residence",
+      "outcome": "confirmed",
+      "result": "places_operational",
+      "textQuery": "Mr Fogg's Residence W1J 6JD London",
+      "placeId": "ChIJYQWg1isFdkgRT9l43V_GL5Y",
+      "matchReason": "exact_normalized_name;postcode_W1J 6JD",
+      "checkedAt": "2026-10-21T21:18:40.810Z"
+    },
+    {
+      "id": "bar-nightjar-shoreditch",
+      "method": "places_text_search",
+      "sourceUrl": "https://www.barnightjar.com/",
+      "outcome": "confirmed",
+      "result": "places_operational",
+      "textQuery": "Nightjar Shoreditch EC1V 1JB London",
+      "placeId": "ChIJO5NM4aUcdkgR-XrNmE-75f8",
+      "matchReason": "places_name_alias;postcode_EC1V 1JB",
+      "checkedAt": "2026-10-21T21:18:41.217Z"
+    },
+    {
+      "id": "bar-oriole",
+      "method": "places_text_search",
+      "sourceUrl": "https://www.oriolebar.com/",
+      "outcome": "confirmed",
+      "result": "places_operational",
+      "textQuery": "Oriole WC2E 9AB London",
+      "placeId": "ChIJP-efSFIbdkgRnCF-jDmn864",
+      "matchReason": "exact_normalized_name;postcode_WC2E 9AB",
+      "checkedAt": "2026-10-21T21:18:41.856Z"
+    },
+    {
+      "id": "bar-punch-room",
+      "method": "places_text_search",
+      "sourceUrl": "https://www.editionhotels.com/london/restaurants-and-bars/punch-room",
+      "outcome": "confirmed",
+      "result": "places_operational",
+      "textQuery": "Punch Room W1T 3NP London",
+      "placeId": "ChIJl43wbCsbdkgRbQWe5tzXWjA",
+      "matchReason": "exact_normalized_name;postcode_W1T 3NP",
+      "checkedAt": "2026-10-21T21:18:42.414Z"
+    },
+    {
+      "id": "bar-satans-whiskers",
+      "method": "places_text_search",
+      "sourceUrl": "https://satanswhiskers.com/",
+      "outcome": "confirmed",
+      "result": "places_operational",
+      "textQuery": "Satan's Whiskers E2 9RA London",
+      "placeId": "ChIJf9GjdNscdkgRPi-9Fxb6iDo",
+      "matchReason": "exact_normalized_name;postcode_E2 9RA",
+      "checkedAt": "2026-10-21T21:18:43.274Z"
+    },
+    {
+      "id": "bar-seed-library",
+      "method": "places_text_search",
+      "sourceUrl": "https://www.seedlibraryshoreditch.com/",
+      "outcome": "confirmed",
+      "result": "places_operational",
+      "textQuery": "Seed Library E1 6JQ London",
+      "placeId": "ChIJK0w18ZgddkgRQYTOSLWTceY",
+      "matchReason": "exact_normalized_name;postcode_E1 6JQ",
+      "checkedAt": "2026-10-21T21:18:43.748Z"
+    },
+    {
+      "id": "bar-side-hustle",
+      "method": "places_text_search",
+      "sourceUrl": "https://www.hilton.com/en/hotels/lonnmnd-nomad-london/dining/side-hustle",
+      "outcome": "confirmed",
+      "result": "places_operational",
+      "textQuery": "Side Hustle WC2E 7AW London",
+      "placeId": "ChIJ522V2_wFdkgRbYNuPW8Br0E",
+      "matchReason": "exact_normalized_name;postcode_WC2E 7AW",
+      "checkedAt": "2026-10-21T21:18:44.314Z"
+    },
+    {
+      "id": "bar-three-sheets-dalston",
+      "method": "places_text_search",
+      "sourceUrl": "https://www.threesheets-bar.com/",
+      "outcome": "confirmed",
+      "result": "places_operational",
+      "textQuery": "Three Sheets Dalston E8 4AB London",
+      "placeId": "ChIJ1TU305McdkgRca2LGIqPjlQ",
+      "matchReason": "exact_normalized_name;postcode_E8 4AB",
+      "checkedAt": "2026-10-21T21:18:46.666Z"
+    },
+    {
+      "id": "bar-three-sheets-soho",
+      "method": "places_text_search",
+      "sourceUrl": "https://www.threesheets-bar.com/soho",
+      "outcome": "confirmed",
+      "result": "places_operational",
+      "textQuery": "Three Sheets Soho W1D 4AP London",
+      "placeId": "ChIJxZHPBAAFdkgR-HXCu1vnNQM",
+      "matchReason": "exact_normalized_name;postcode_W1D 4AP",
+      "checkedAt": "2026-10-21T21:18:47.018Z"
+    },
+    {
+      "id": "bar-trailer-happiness",
+      "method": "places_text_search",
+      "sourceUrl": "https://www.trailerh.com/",
+      "outcome": "confirmed",
+      "result": "places_operational",
+      "textQuery": "Trailer Happiness W11 2DY London",
+      "placeId": "ChIJG_Zl6B0QdkgRMptLf4dCvV0",
+      "matchReason": "exact_normalized_name;postcode_W11 2DY",
+      "checkedAt": "2026-10-21T21:18:56.081Z"
+    },
+    {
+      "id": "bar-viajante87",
+      "method": "places_text_search",
+      "sourceUrl": "https://viajante87.com/",
+      "outcome": "confirmed",
+      "result": "places_operational",
+      "textQuery": "Viajante87 W11 3JZ London",
+      "placeId": "ChIJVQ2gdw0PdkgRU4KWg39k68Q",
+      "matchReason": "exact_normalized_name;postcode_W11 3JZ",
+      "checkedAt": "2026-10-21T21:18:58.383Z"
+    },
+    {
+      "id": "food-antepliler",
+      "method": "places_text_search",
+      "sourceUrl": "https://anteplilerlondon.co.uk/",
+      "outcome": "confirmed",
+      "result": "places_operational",
+      "textQuery": "Antepliler N4 1AG London",
+      "placeId": "ChIJ3c66vvQbdkgRFWuDWVLrRc8",
+      "matchReason": "places_name_alias;postcode_N4 1AG",
+      "checkedAt": "2026-10-21T21:48:54.428Z"
     }
   ]
 }

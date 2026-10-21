@@ -1,0 +1,4169 @@
+{
+  "version": 1,
+  "capturedAt": "2026-10-21T23:43:21.787354Z",
+  "meaning": "Original seed history before selected evidence composition. Historical price anchors are not current recommendation data.",
+  "selectedCohortIds": [
+    "bar-a-bar-with-shapes",
+    "bar-american-bar-savoy",
+    "bar-artesian",
+    "bar-bar-termini",
+    "bar-cahoots",
+    "bar-callooh-callay",
+    "bar-coburg",
+    "bar-cocktail-trading-company",
+    "bar-connaught",
+    "bar-discount-suit-company",
+    "bar-disrepute",
+    "bar-donovan",
+    "bar-dukes",
+    "bar-ecc-chinatown",
+    "bar-equal-parts",
+    "bar-eve",
+    "bar-gordons-wine-bar",
+    "bar-happiness-forgets",
+    "bar-kwant",
+    "bar-lyaness",
+    "bar-mr-foggs-residence",
+    "bar-nightjar-shoreditch",
+    "bar-oriole",
+    "bar-punch-room",
+    "bar-satans-whiskers",
+    "bar-scarfes",
+    "bar-seed-library",
+    "bar-side-hustle",
+    "bar-soma-soho",
+    "bar-swift-borough",
+    "bar-swift-soho",
+    "bar-three-sheets-dalston",
+    "bar-three-sheets-soho",
+    "bar-trailer-happiness",
+    "bar-vault-milroys",
+    "bar-viajante87",
+    "food-antepliler",
+    "food-bar-italia",
+    "food-beigel-bake",
+    "food-berenjak-soho",
+    "food-best-turkish-kebab",
+    "food-diyarbakir",
+    "food-duck-waffle",
+    "food-fm-mangal",
+    "food-gokyuzu-harringay",
+    "food-hala",
+    "food-kebab-kid-fulham",
+    "food-lahore-kebab-house",
+    "food-le-bab-soho",
+    "food-mangal-2",
+    "food-polo-bar",
+    "food-ranoush-edgware-road",
+    "food-selale",
+    "food-super-kebab",
+    "food-tayyabs",
+    "food-testi",
+    "food-vq-chelsea",
+    "restaurant-blacklock-soho",
+    "restaurant-bob-bob-ricard",
+    "restaurant-brasserie-zedel",
+    "restaurant-dishoom-covent-garden",
+    "restaurant-duck-and-waffle",
+    "restaurant-flat-iron-soho",
+    "restaurant-hawksmoor-seven-dials",
+    "restaurant-hoppers-soho",
+    "restaurant-ivy-west-street",
+    "restaurant-j-sheekey",
+    "restaurant-moro",
+    "restaurant-ottolenghi-spitalfields",
+    "restaurant-padella-borough",
+    "restaurant-poppies-spitalfields",
+    "restaurant-quo-vadis",
+    "restaurant-regency-cafe",
+    "restaurant-river-cafe",
+    "restaurant-rochelle-canteen",
+    "restaurant-roti-king-euston",
+    "restaurant-rules",
+    "restaurant-scotts",
+    "restaurant-st-john-smithfield",
+    "restaurant-veeraswamy",
+    "restaurant-wiltons",
+    "restaurant-wolseley",
+    "venue-1kpe609"
+  ],
+  "originalOutsideSelectedIds": [
+    "bar-beaufort-bar-savoy",
+    "food-golden-dragon",
+    "food-mangal-1",
+    "food-maroush-edgware-road",
+    "food-wong-kei"
+  ],
+  "packs": {
+    "bars.json": [
+      {
+        "id": "bar-american-bar-savoy",
+        "name": "American Bar at The Savoy",
+        "address": "Strand, London WC2R 0EZ",
+        "borough": "Westminster",
+        "lat": 51.51046,
+        "lng": -0.12008,
+        "kind": "bar",
+        "hasStory": true,
+        "fameGates": [
+          {
+            "kind": "recognition",
+            "sourceUrl": "https://www.thesavoylondon.com/restaurants-and-bars/american-bar"
+          },
+          {
+            "kind": "longevity",
+            "sourceUrl": "https://www.theworlds50best.com/discovery/Establishments/UK/London/American-Bar.html"
+          },
+          {
+            "kind": "cultural_weight",
+            "sourceUrl": "https://www.thesavoylondon.com/restaurants-and-bars/american-bar"
+          }
+        ],
+        "sourceUrl": "https://www.thesavoylondon.com/restaurants-and-bars/american-bar",
+        "observedAt": "2026-10-05",
+        "anchor": {
+          "kind": "house_cocktail",
+          "label": "Welcome to The Savoy",
+          "price": 25,
+          "observedAt": "2026-07-26",
+          "sourceUrl": "https://www.thesavoylondon.com/restaurants-and-bars/american-bar"
+        },
+        "story": {
+          "text": "London's original cocktail bar has served guests since 1893 and gave the world Harry Craddock's Savoy Cocktail Book.",
+          "sourceUrl": "https://www.thesavoylondon.com/restaurants-and-bars/american-bar"
+        },
+        "category": "bar",
+        "job": "late_night_bar",
+        "description": "London's original cocktail bar has served guests since 1893 and gave the world Harry Craddock's Savoy Cocktail Book.",
+        "area": "Westminster",
+        "location": {
+          "lat": 51.51046,
+          "lng": -0.12008
+        },
+        "sourceName": "thesavoylondon.com",
+        "expiresAt": "2026-11-04",
+        "discoveredVia": "manual",
+        "extractedVia": "manual",
+        "placesNameAliases": [
+          "american bar"
+        ]
+      },
+      {
+        "id": "bar-beaufort-bar-savoy",
+        "name": "Beaufort Wine Bar",
+        "address": "Strand, London WC2R 0EZ",
+        "borough": "Westminster",
+        "lat": 51.51038,
+        "lng": -0.12025,
+        "kind": "bar",
+        "hasStory": true,
+        "fameGates": [
+          {
+            "kind": "cultural_weight",
+            "sourceUrl": "https://www.hot-dinners.com/2026090815351/Gastroblog/Latest-news/savoy-beaufort-wine-bar-opening"
+          },
+          {
+            "kind": "distinct_experience",
+            "sourceUrl": "https://www.thesavoylondon.com/restaurants-and-bars/beaufort-wine-bar"
+          }
+        ],
+        "sourceUrl": "https://www.thesavoylondon.com/restaurants-and-bars/beaufort-wine-bar",
+        "observedAt": "2026-08-25",
+        "story": {
+          "text": "The Savoy has relaunched its Beaufort Bar as a wine bar, pouring more than 120 of its 250-plus wines by the glass through Coravin.",
+          "sourceUrl": "https://www.thesavoylondon.com/restaurants-and-bars/beaufort-wine-bar"
+        },
+        "category": "bar",
+        "job": "late_night_bar",
+        "description": "The Savoy has relaunched its Beaufort Bar as a wine bar, pouring more than 120 of its 250-plus wines by the glass through Coravin.",
+        "area": "Westminster",
+        "location": {
+          "lat": 51.51038,
+          "lng": -0.12025
+        },
+        "sourceName": "thesavoylondon.com",
+        "expiresAt": "2026-09-24",
+        "discoveredVia": "manual",
+        "extractedVia": "manual"
+      },
+      {
+        "id": "bar-connaught",
+        "name": "Connaught Bar",
+        "address": "Carlos Place, London W1K 2AL",
+        "borough": "Westminster",
+        "lat": 51.51005,
+        "lng": -0.1491,
+        "kind": "bar",
+        "hasStory": true,
+        "fameGates": [
+          {
+            "kind": "recognition",
+            "sourceUrl": "https://www.theworlds50best.com/bars/the-list/connaught-bar.html"
+          },
+          {
+            "kind": "distinct_experience",
+            "sourceUrl": "https://www.the-connaught.co.uk/restaurants-bars/connaught-bar"
+          }
+        ],
+        "sourceUrl": "https://www.the-connaught.co.uk/restaurants-bars/connaught-bar",
+        "observedAt": "2026-10-05",
+        "anchor": {
+          "kind": "house_cocktail",
+          "label": "Connaught signature cocktail",
+          "price": 26,
+          "observedAt": "2026-07-26",
+          "sourceUrl": "https://www.the-connaught.co.uk/restaurants-bars/connaught-bar"
+        },
+        "story": {
+          "text": "Its martini trolley brings house bitters tableside, the ritual behind the bar's repeated global awards.",
+          "sourceUrl": "https://www.the-connaught.co.uk/restaurants-bars/connaught-bar"
+        },
+        "category": "bar",
+        "job": "late_night_bar",
+        "description": "Its martini trolley brings house bitters tableside, the ritual behind the bar's repeated global awards.",
+        "area": "Westminster",
+        "location": {
+          "lat": 51.51005,
+          "lng": -0.1491
+        },
+        "sourceName": "the-connaught.co.uk",
+        "expiresAt": "2026-11-04",
+        "discoveredVia": "manual",
+        "extractedVia": "manual"
+      },
+      {
+        "id": "bar-coburg",
+        "name": "Coburg Bar",
+        "address": "Carlos Place, London W1K 2AL",
+        "borough": "Westminster",
+        "lat": 51.5101,
+        "lng": -0.14916,
+        "kind": "bar",
+        "hasStory": true,
+        "fameGates": [
+          {
+            "kind": "recognition",
+            "sourceUrl": "https://www.timeout.com/london/bars-and-pubs/coburg-bar"
+          },
+          {
+            "kind": "distinct_experience",
+            "sourceUrl": "https://www.the-connaught.co.uk/restaurants-bars/coburg-bar"
+          }
+        ],
+        "sourceUrl": "https://www.the-connaught.co.uk/restaurants-bars/coburg-bar",
+        "observedAt": "2026-10-05",
+        "anchor": {
+          "kind": "house_cocktail",
+          "label": "Coburg signature cocktail",
+          "price": 25,
+          "observedAt": "2026-07-26",
+          "sourceUrl": "https://www.the-connaught.co.uk/restaurants-bars/coburg-bar"
+        },
+        "story": {
+          "text": "The Connaught's quieter drinking room pairs carved fireplaces and art with cocktails named for Mayfair characters.",
+          "sourceUrl": "https://www.the-connaught.co.uk/restaurants-bars/coburg-bar"
+        },
+        "category": "bar",
+        "job": "late_night_bar",
+        "description": "The Connaught's quieter drinking room pairs carved fireplaces and art with cocktails named for Mayfair characters.",
+        "area": "Westminster",
+        "location": {
+          "lat": 51.5101,
+          "lng": -0.14916
+        },
+        "sourceName": "the-connaught.co.uk",
+        "expiresAt": "2026-11-04",
+        "discoveredVia": "manual",
+        "extractedVia": "manual"
+      },
+      {
+        "id": "bar-dukes",
+        "name": "DUKES Bar",
+        "address": "35 St James's Place, London SW1A 1NY",
+        "borough": "Westminster",
+        "lat": 51.50562,
+        "lng": -0.1399,
+        "kind": "bar",
+        "hasStory": true,
+        "fameGates": [
+          {
+            "kind": "longevity",
+            "sourceUrl": "https://www.dukeshotel.com/dukesbar.html"
+          },
+          {
+            "kind": "cultural_weight",
+            "sourceUrl": "https://www.timeout.com/london/bars-and-pubs/dukes-bar-1"
+          },
+          {
+            "kind": "distinct_experience",
+            "sourceUrl": "https://www.dukeshotel.com/dukesbar.html"
+          }
+        ],
+        "sourceUrl": "https://www.dukeshotel.com/dukesbar.html",
+        "observedAt": "2026-10-05",
+        "anchor": {
+          "kind": "house_cocktail",
+          "label": "DUKES Martini",
+          "price": 26.5,
+          "observedAt": "2026-07-26",
+          "sourceUrl": "https://www.dukeshotel.com/dukesbar.html"
+        },
+        "story": {
+          "text": "Ian Fleming drank here, and the famously unstirred tableside martini helped shape the James Bond association.",
+          "sourceUrl": "https://www.dukeshotel.com/dukesbar.html"
+        },
+        "category": "bar",
+        "job": "late_night_bar",
+        "description": "Ian Fleming drank here, and the famously unstirred tableside martini helped shape the James Bond association.",
+        "area": "Westminster",
+        "location": {
+          "lat": 51.50562,
+          "lng": -0.1399
+        },
+        "sourceName": "dukeshotel.com",
+        "expiresAt": "2026-11-04",
+        "discoveredVia": "manual",
+        "extractedVia": "manual"
+      },
+      {
+        "id": "bar-donovan",
+        "name": "Donovan Bar",
+        "address": "33 Albemarle Street, London W1S 4BP",
+        "borough": "Westminster",
+        "lat": 51.50853,
+        "lng": -0.14265,
+        "kind": "bar",
+        "hasStory": true,
+        "fameGates": [
+          {
+            "kind": "recognition",
+            "sourceUrl": "https://www.timeout.com/london/bars-and-pubs/the-donovan-bar"
+          },
+          {
+            "kind": "cultural_weight",
+            "sourceUrl": "https://www.roccofortehotels.com/hotels-and-resorts/brown-s-hotel/dining/donovan-bar"
+          }
+        ],
+        "sourceUrl": "https://www.roccofortehotels.com/hotels-and-resorts/brown-s-hotel/dining/donovan-bar",
+        "observedAt": "2026-10-05",
+        "anchor": {
+          "kind": "house_cocktail",
+          "label": "Donovan signature cocktail",
+          "price": 25,
+          "observedAt": "2026-07-26",
+          "sourceUrl": "https://www.roccofortehotels.com/hotels-and-resorts/brown-s-hotel/dining/donovan-bar"
+        },
+        "story": {
+          "text": "Terence Donovan's photographs line a Mayfair room whose drinks are directed by legendary bartender Salvatore Calabrese.",
+          "sourceUrl": "https://www.roccofortehotels.com/hotels-and-resorts/brown-s-hotel/dining/donovan-bar"
+        },
+        "category": "bar",
+        "job": "late_night_bar",
+        "description": "Terence Donovan's photographs line a Mayfair room whose drinks are directed by legendary bartender Salvatore Calabrese.",
+        "area": "Westminster",
+        "location": {
+          "lat": 51.50853,
+          "lng": -0.14265
+        },
+        "sourceName": "roccofortehotels.com",
+        "expiresAt": "2026-11-04",
+        "discoveredVia": "manual",
+        "extractedVia": "manual"
+      },
+      {
+        "id": "bar-scarfes",
+        "name": "Scarfes Bar",
+        "address": "252 High Holborn, London WC1V 7EN",
+        "borough": "Camden",
+        "lat": 51.51744,
+        "lng": -0.11805,
+        "kind": "bar",
+        "hasStory": true,
+        "fameGates": [
+          {
+            "kind": "recognition",
+            "sourceUrl": "https://www.theworlds50best.com/bars/the-list/scarfes-bar.html"
+          },
+          {
+            "kind": "distinct_experience",
+            "sourceUrl": "https://www.rosewoodhotels.com/en/london/dining/scarfes-bar"
+          }
+        ],
+        "sourceUrl": "https://www.rosewoodhotels.com/en/london/dining/scarfes-bar",
+        "observedAt": "2026-10-05",
+        "anchor": {
+          "kind": "house_cocktail",
+          "label": "Scarfes signature cocktail",
+          "price": 24,
+          "observedAt": "2026-07-26",
+          "sourceUrl": "https://www.rosewoodhotels.com/en/london/dining/scarfes-bar"
+        },
+        "story": {
+          "text": "Gerald Scarfe's original caricatures turn this firelit hotel bar into a living satirical gallery.",
+          "sourceUrl": "https://www.rosewoodhotels.com/en/london/dining/scarfes-bar"
+        },
+        "category": "bar",
+        "job": "late_night_bar",
+        "description": "Gerald Scarfe's original caricatures turn this firelit hotel bar into a living satirical gallery.",
+        "area": "Camden",
+        "location": {
+          "lat": 51.51744,
+          "lng": -0.11805
+        },
+        "sourceName": "rosewoodhotels.com",
+        "expiresAt": "2026-11-04",
+        "discoveredVia": "manual",
+        "extractedVia": "manual"
+      },
+      {
+        "id": "bar-artesian",
+        "name": "Artesian",
+        "address": "1C Portland Place, London W1B 1JA",
+        "borough": "Westminster",
+        "lat": 51.51808,
+        "lng": -0.14372,
+        "kind": "bar",
+        "hasStory": true,
+        "fameGates": [
+          {
+            "kind": "recognition",
+            "sourceUrl": "https://www.theworlds50best.com/discovery/Establishments/UK/London/Artesian.html"
+          },
+          {
+            "kind": "distinct_experience",
+            "sourceUrl": "https://www.langhamhotels.com/en/the-langham/london/dine/artesian"
+          }
+        ],
+        "sourceUrl": "https://www.langhamhotels.com/en/the-langham/london/dine/artesian",
+        "observedAt": "2026-10-05",
+        "anchor": {
+          "kind": "house_cocktail",
+          "label": "Artesian signature cocktail",
+          "price": 23,
+          "observedAt": "2026-07-26",
+          "sourceUrl": "https://www.langhamhotels.com/en/the-langham/london/dine/artesian"
+        },
+        "story": {
+          "text": "Named for the 360-foot well beneath the Langham, Artesian became the defining world-best hotel bar of the 2010s.",
+          "sourceUrl": "https://www.langhamhotels.com/en/the-langham/london/dine/artesian"
+        },
+        "category": "bar",
+        "job": "late_night_bar",
+        "description": "Named for the 360-foot well beneath the Langham, Artesian became the defining world-best hotel bar of the 2010s.",
+        "area": "Westminster",
+        "location": {
+          "lat": 51.51808,
+          "lng": -0.14372
+        },
+        "sourceName": "langhamhotels.com",
+        "expiresAt": "2026-11-04",
+        "discoveredVia": "manual",
+        "extractedVia": "manual"
+      },
+      {
+        "id": "bar-lyaness",
+        "name": "Lyaness",
+        "address": "20 Upper Ground, London SE1 9PD",
+        "borough": "Southwark",
+        "lat": 51.50703,
+        "lng": -0.10604,
+        "kind": "bar",
+        "hasStory": true,
+        "fameGates": [
+          {
+            "kind": "recognition",
+            "sourceUrl": "https://www.theworlds50best.com/discovery/Establishments/UK/London/Lyaness.html"
+          },
+          {
+            "kind": "distinct_experience",
+            "sourceUrl": "https://www.seacontainerslondon.com/eat-drink/lyaness"
+          }
+        ],
+        "sourceUrl": "https://www.seacontainerslondon.com/eat-drink/lyaness",
+        "observedAt": "2026-10-05",
+        "anchor": {
+          "kind": "house_cocktail",
+          "label": "Lyaness ingredient-led cocktail",
+          "price": 18,
+          "observedAt": "2026-07-26",
+          "sourceUrl": "https://www.seacontainerslondon.com/eat-drink/lyaness"
+        },
+        "story": {
+          "text": "Ryan Chetiyawardana's team builds drinks from a pantry of invented ingredients rather than a conventional cocktail canon.",
+          "sourceUrl": "https://www.seacontainerslondon.com/eat-drink/lyaness"
+        },
+        "category": "bar",
+        "job": "late_night_bar",
+        "description": "Ryan Chetiyawardana's team builds drinks from a pantry of invented ingredients rather than a conventional cocktail canon.",
+        "area": "Southwark",
+        "location": {
+          "lat": 51.50703,
+          "lng": -0.10604
+        },
+        "sourceName": "seacontainerslondon.com",
+        "expiresAt": "2026-11-04",
+        "discoveredVia": "manual",
+        "extractedVia": "manual"
+      },
+      {
+        "id": "bar-nightjar-shoreditch",
+        "name": "Nightjar Shoreditch",
+        "address": "129 City Road, London EC1V 1JB",
+        "borough": "Hackney",
+        "lat": 51.52682,
+        "lng": -0.08782,
+        "kind": "bar",
+        "hasStory": true,
+        "fameGates": [
+          {
+            "kind": "recognition",
+            "sourceUrl": "https://www.theworlds50best.com/discovery/Establishments/UK/London/Nightjar.html"
+          },
+          {
+            "kind": "cultural_weight",
+            "sourceUrl": "https://www.barnightjar.com/"
+          }
+        ],
+        "sourceUrl": "https://www.barnightjar.com/",
+        "observedAt": "2026-10-21",
+        "anchor": {
+          "kind": "house_cocktail",
+          "label": "Nightjar signature cocktail",
+          "price": 17,
+          "observedAt": "2026-07-26",
+          "sourceUrl": "https://www.barnightjar.com/"
+        },
+        "story": {
+          "text": "Nightjar helped revive London's hidden speakeasy bar, pairing elaborate historical drinks with nightly live jazz.",
+          "sourceUrl": "https://www.barnightjar.com/"
+        },
+        "category": "bar",
+        "job": "late_night_bar",
+        "description": "Nightjar helped revive London's hidden speakeasy bar, pairing elaborate historical drinks with nightly live jazz.",
+        "area": "Hackney",
+        "location": {
+          "lat": 51.52682,
+          "lng": -0.08782
+        },
+        "sourceName": "barnightjar.com",
+        "expiresAt": "2026-11-20",
+        "discoveredVia": "manual",
+        "extractedVia": "manual",
+        "placesNameAliases": [
+          "nightjar"
+        ]
+      },
+      {
+        "id": "bar-three-sheets-soho",
+        "name": "Three Sheets Soho",
+        "address": "13 Manette Street, London W1D 4AP",
+        "borough": "Westminster",
+        "lat": 51.51436,
+        "lng": -0.13085,
+        "kind": "bar",
+        "hasStory": true,
+        "fameGates": [
+          {
+            "kind": "recognition",
+            "sourceUrl": "https://www.theinfatuation.com/london/reviews/three-sheets-soho"
+          },
+          {
+            "kind": "distinct_experience",
+            "sourceUrl": "https://www.threesheets-bar.com/soho"
+          }
+        ],
+        "sourceUrl": "https://www.threesheets-bar.com/soho",
+        "observedAt": "2026-10-21",
+        "anchor": {
+          "kind": "house_cocktail",
+          "label": "Three Sheets seasonal cocktail",
+          "price": 14,
+          "observedAt": "2026-07-26",
+          "sourceUrl": "https://www.threesheets-bar.com/soho"
+        },
+        "story": {
+          "text": "The Tempest brothers brought their meticulously simple seasonal drinks west to a marble-topped room on quiet Manette Street.",
+          "sourceUrl": "https://www.threesheets-bar.com/soho"
+        },
+        "category": "bar",
+        "job": "late_night_bar",
+        "description": "The Tempest brothers brought their meticulously simple seasonal drinks west to a marble-topped room on quiet Manette Street.",
+        "area": "Westminster",
+        "location": {
+          "lat": 51.51436,
+          "lng": -0.13085
+        },
+        "sourceName": "threesheets-bar.com",
+        "expiresAt": "2026-11-20",
+        "discoveredVia": "manual",
+        "extractedVia": "manual"
+      },
+      {
+        "id": "bar-oriole",
+        "name": "Oriole",
+        "address": "7-9 Slingsby Place, London WC2E 9AB",
+        "borough": "Westminster",
+        "lat": 51.51238,
+        "lng": -0.1267,
+        "kind": "bar",
+        "hasStory": true,
+        "fameGates": [
+          {
+            "kind": "recognition",
+            "sourceUrl": "https://www.theworlds50best.com/discovery/Establishments/UK/London/Oriole.html"
+          },
+          {
+            "kind": "distinct_experience",
+            "sourceUrl": "https://www.oriolebar.com/"
+          }
+        ],
+        "sourceUrl": "https://www.oriolebar.com/",
+        "observedAt": "2026-10-21",
+        "anchor": {
+          "kind": "house_cocktail",
+          "label": "Oriole signature cocktail",
+          "price": 18.5,
+          "observedAt": "2026-07-26",
+          "sourceUrl": "https://www.oriolebar.com/"
+        },
+        "story": {
+          "text": "Oriole's new Covent Garden home keeps its traveller's-cabinet drinks and live-music supper-club spirit.",
+          "sourceUrl": "https://www.oriolebar.com/"
+        },
+        "category": "bar",
+        "job": "late_night_bar",
+        "description": "Oriole's new Covent Garden home keeps its traveller's-cabinet drinks and live-music supper-club spirit.",
+        "area": "Westminster",
+        "location": {
+          "lat": 51.51238,
+          "lng": -0.1267
+        },
+        "sourceName": "oriolebar.com",
+        "expiresAt": "2026-11-20",
+        "discoveredVia": "manual",
+        "extractedVia": "manual"
+      },
+      {
+        "id": "bar-swift-soho",
+        "name": "Swift Soho",
+        "address": "12 Old Compton Street, London W1D 4TQ",
+        "borough": "Westminster",
+        "lat": 51.51338,
+        "lng": -0.13184,
+        "kind": "bar",
+        "hasStory": true,
+        "fameGates": [
+          {
+            "kind": "recognition",
+            "sourceUrl": "https://www.theworlds50best.com/discovery/Establishments/UK/London/Swift.html"
+          },
+          {
+            "kind": "distinct_experience",
+            "sourceUrl": "https://www.barswift.com/soho"
+          }
+        ],
+        "sourceUrl": "https://www.barswift.com/soho",
+        "observedAt": "2026-10-05",
+        "anchor": {
+          "kind": "house_cocktail",
+          "label": "Swift seasonal cocktail",
+          "price": 14,
+          "observedAt": "2026-07-26",
+          "sourceUrl": "https://www.barswift.com/soho"
+        },
+        "story": {
+          "text": "A bright aperitivo bar upstairs gives way to a dark whisky-and-live-music basement below.",
+          "sourceUrl": "https://www.barswift.com/soho"
+        },
+        "category": "bar",
+        "job": "late_night_bar",
+        "description": "A bright aperitivo bar upstairs gives way to a dark whisky-and-live-music basement below.",
+        "area": "Westminster",
+        "location": {
+          "lat": 51.51338,
+          "lng": -0.13184
+        },
+        "sourceName": "barswift.com",
+        "expiresAt": "2026-11-04",
+        "discoveredVia": "manual",
+        "extractedVia": "manual"
+      },
+      {
+        "id": "bar-swift-borough",
+        "name": "Swift Borough",
+        "address": "66 Borough High Street, London SE1 1XF",
+        "borough": "Southwark",
+        "lat": 51.50501,
+        "lng": -0.08985,
+        "kind": "bar",
+        "hasStory": true,
+        "fameGates": [
+          {
+            "kind": "recognition",
+            "sourceUrl": "https://www.timeout.com/london/bars-and-pubs/swift-borough"
+          },
+          {
+            "kind": "distinct_experience",
+            "sourceUrl": "https://www.barswift.com/borough"
+          }
+        ],
+        "sourceUrl": "https://www.barswift.com/borough",
+        "observedAt": "2026-10-05",
+        "anchor": {
+          "kind": "house_cocktail",
+          "label": "Swift seasonal cocktail",
+          "price": 14,
+          "observedAt": "2026-07-26",
+          "sourceUrl": "https://www.barswift.com/borough"
+        },
+        "story": {
+          "text": "Swift's south-London room carries the group's award-winning fast cocktail service into Borough's old market streets.",
+          "sourceUrl": "https://www.barswift.com/borough"
+        },
+        "category": "bar",
+        "job": "late_night_bar",
+        "description": "Swift's south-London room carries the group's award-winning fast cocktail service into Borough's old market streets.",
+        "area": "Southwark",
+        "location": {
+          "lat": 51.50501,
+          "lng": -0.08985
+        },
+        "sourceName": "barswift.com",
+        "expiresAt": "2026-11-04",
+        "discoveredVia": "manual",
+        "extractedVia": "manual"
+      },
+      {
+        "id": "bar-bar-termini",
+        "name": "Bar Termini",
+        "address": "7 Old Compton Street, London W1D 5JE",
+        "borough": "Westminster",
+        "lat": 51.51364,
+        "lng": -0.13054,
+        "kind": "bar",
+        "hasStory": true,
+        "fameGates": [
+          {
+            "kind": "recognition",
+            "sourceUrl": "https://www.theworlds50best.com/discovery/Establishments/UK/London/Bar-Termini.html"
+          },
+          {
+            "kind": "distinct_experience",
+            "sourceUrl": "https://www.bar-termini.com/"
+          }
+        ],
+        "sourceUrl": "https://www.bar-termini.com/",
+        "observedAt": "2026-10-05",
+        "anchor": {
+          "kind": "house_cocktail",
+          "label": "House Negroni",
+          "price": 13,
+          "observedAt": "2026-07-26",
+          "sourceUrl": "https://www.bar-termini.com/"
+        },
+        "story": {
+          "text": "Tony Conigliaro compressed an Italian station bar into twenty seats, tiny coffees and bottled house Negronis.",
+          "sourceUrl": "https://www.bar-termini.com/"
+        },
+        "category": "bar",
+        "job": "late_night_bar",
+        "description": "Tony Conigliaro compressed an Italian station bar into twenty seats, tiny coffees and bottled house Negronis.",
+        "area": "Westminster",
+        "location": {
+          "lat": 51.51364,
+          "lng": -0.13054
+        },
+        "sourceName": "bar-termini.com",
+        "expiresAt": "2026-11-04",
+        "discoveredVia": "manual",
+        "extractedVia": "manual"
+      },
+      {
+        "id": "bar-three-sheets-dalston",
+        "name": "Three Sheets Dalston",
+        "address": "510b Kingsland Road, London E8 4AB",
+        "borough": "Hackney",
+        "lat": 51.5468,
+        "lng": -0.07558,
+        "kind": "bar",
+        "hasStory": true,
+        "fameGates": [
+          {
+            "kind": "recognition",
+            "sourceUrl": "https://www.theworlds50best.com/discovery/Establishments/UK/London/Three-Sheets-Dalston.html"
+          },
+          {
+            "kind": "distinct_experience",
+            "sourceUrl": "https://www.threesheets-bar.com/"
+          }
+        ],
+        "sourceUrl": "https://www.threesheets-bar.com/",
+        "observedAt": "2026-10-21",
+        "anchor": {
+          "kind": "house_cocktail",
+          "label": "Three Sheets seasonal cocktail",
+          "price": 13,
+          "observedAt": "2026-07-26",
+          "sourceUrl": "https://www.threesheets-bar.com/"
+        },
+        "story": {
+          "text": "The Tempest brothers made a stripped-back Dalston shopfront famous with a short list of deceptively simple drinks.",
+          "sourceUrl": "https://www.threesheets-bar.com/"
+        },
+        "category": "bar",
+        "job": "late_night_bar",
+        "description": "The Tempest brothers made a stripped-back Dalston shopfront famous with a short list of deceptively simple drinks.",
+        "area": "Hackney",
+        "location": {
+          "lat": 51.5468,
+          "lng": -0.07558
+        },
+        "sourceName": "threesheets-bar.com",
+        "expiresAt": "2026-11-20",
+        "discoveredVia": "manual",
+        "extractedVia": "manual"
+      },
+      {
+        "id": "bar-happiness-forgets",
+        "name": "Happiness Forgets",
+        "address": "8-9 Hoxton Square, London N1 6NU",
+        "borough": "Hackney",
+        "lat": 51.52756,
+        "lng": -0.08195,
+        "kind": "bar",
+        "hasStory": true,
+        "fameGates": [
+          {
+            "kind": "recognition",
+            "sourceUrl": "https://www.theworlds50best.com/discovery/Establishments/UK/London/Happiness-Forgets.html"
+          },
+          {
+            "kind": "distinct_experience",
+            "sourceUrl": "https://www.happinessforgets.com/"
+          }
+        ],
+        "sourceUrl": "https://www.happinessforgets.com/",
+        "observedAt": "2026-10-21",
+        "anchor": {
+          "kind": "house_cocktail",
+          "label": "House cocktail",
+          "price": 13.5,
+          "observedAt": "2026-07-26",
+          "sourceUrl": "https://www.happinessforgets.com/"
+        },
+        "story": {
+          "text": "Its basement mantra, high-end cocktails without high-end attitude, made Hoxton hospitality itself the attraction.",
+          "sourceUrl": "https://www.happinessforgets.com/"
+        },
+        "category": "bar",
+        "job": "late_night_bar",
+        "description": "Its basement mantra, high-end cocktails without high-end attitude, made Hoxton hospitality itself the attraction.",
+        "area": "Hackney",
+        "location": {
+          "lat": 51.52756,
+          "lng": -0.08195
+        },
+        "sourceName": "happinessforgets.com",
+        "expiresAt": "2026-11-20",
+        "discoveredVia": "manual",
+        "extractedVia": "manual"
+      },
+      {
+        "id": "bar-discount-suit-company",
+        "name": "Discount Suit Company",
+        "address": "29A Wentworth Street, London E1 7TB",
+        "borough": "Tower Hamlets",
+        "lat": 51.51603,
+        "lng": -0.07454,
+        "kind": "bar",
+        "hasStory": true,
+        "fameGates": [
+          {
+            "kind": "recognition",
+            "sourceUrl": "https://www.timeout.com/london/bars-and-pubs/discount-suit-company"
+          },
+          {
+            "kind": "distinct_experience",
+            "sourceUrl": "https://discountsuitcompany.co.uk/"
+          }
+        ],
+        "sourceUrl": "https://discountsuitcompany.co.uk/",
+        "observedAt": "2026-10-21",
+        "anchor": {
+          "kind": "house_cocktail",
+          "label": "House cocktail",
+          "price": 13,
+          "observedAt": "2026-07-26",
+          "sourceUrl": "https://discountsuitcompany.co.uk/"
+        },
+        "story": {
+          "text": "A former Spitalfields tailor's stockroom hides below an unmarked doorway, with the old shop name left intact.",
+          "sourceUrl": "https://discountsuitcompany.co.uk/"
+        },
+        "category": "bar",
+        "job": "late_night_bar",
+        "description": "A former Spitalfields tailor's stockroom hides below an unmarked doorway, with the old shop name left intact.",
+        "area": "Tower Hamlets",
+        "location": {
+          "lat": 51.51603,
+          "lng": -0.07454
+        },
+        "sourceName": "discountsuitcompany.co.uk",
+        "expiresAt": "2026-11-20",
+        "discoveredVia": "manual",
+        "extractedVia": "manual"
+      },
+      {
+        "id": "bar-satans-whiskers",
+        "name": "Satan's Whiskers",
+        "address": "343 Cambridge Heath Road, London E2 9RA",
+        "borough": "Tower Hamlets",
+        "lat": 51.53065,
+        "lng": -0.05806,
+        "kind": "bar",
+        "hasStory": true,
+        "fameGates": [
+          {
+            "kind": "recognition",
+            "sourceUrl": "https://www.theworlds50best.com/bars/the-list/satans-whiskers.html"
+          },
+          {
+            "kind": "distinct_experience",
+            "sourceUrl": "https://satanswhiskers.com/"
+          }
+        ],
+        "sourceUrl": "https://satanswhiskers.com/",
+        "observedAt": "2026-10-21",
+        "anchor": {
+          "kind": "house_cocktail",
+          "label": "Daily changing cocktail",
+          "price": 13.5,
+          "observedAt": "2026-07-26",
+          "sourceUrl": "https://satanswhiskers.com/"
+        },
+        "story": {
+          "text": "Taxidermy and hip-hop frame a daily-changing list that made this Bethnal Green corner a bartender pilgrimage.",
+          "sourceUrl": "https://satanswhiskers.com/"
+        },
+        "category": "bar",
+        "job": "late_night_bar",
+        "description": "Taxidermy and hip-hop frame a daily-changing list that made this Bethnal Green corner a bartender pilgrimage.",
+        "area": "Tower Hamlets",
+        "location": {
+          "lat": 51.53065,
+          "lng": -0.05806
+        },
+        "sourceName": "satanswhiskers.com",
+        "expiresAt": "2026-11-20",
+        "discoveredVia": "manual",
+        "extractedVia": "manual"
+      },
+      {
+        "id": "bar-seed-library",
+        "name": "Seed Library",
+        "address": "100 Shoreditch High Street, London E1 6JQ",
+        "borough": "Hackney",
+        "lat": 51.52484,
+        "lng": -0.07704,
+        "kind": "bar",
+        "hasStory": true,
+        "fameGates": [
+          {
+            "kind": "recognition",
+            "sourceUrl": "https://www.timeout.com/london/bars-and-pubs/seed-library-one-hundred-shoreditch-1"
+          },
+          {
+            "kind": "distinct_experience",
+            "sourceUrl": "https://www.seedlibraryshoreditch.com/"
+          }
+        ],
+        "sourceUrl": "https://www.seedlibraryshoreditch.com/",
+        "observedAt": "2026-10-21",
+        "anchor": {
+          "kind": "house_cocktail",
+          "label": "Seed Library cocktail",
+          "price": 14,
+          "observedAt": "2026-07-26",
+          "sourceUrl": "https://www.seedlibraryshoreditch.com/"
+        },
+        "story": {
+          "text": "Mr Lyan's low-lit basement treats familiar drinks as analogue sketches rather than polished hotel-bar theatre.",
+          "sourceUrl": "https://www.seedlibraryshoreditch.com/"
+        },
+        "category": "bar",
+        "job": "late_night_bar",
+        "description": "Mr Lyan's low-lit basement treats familiar drinks as analogue sketches rather than polished hotel-bar theatre.",
+        "area": "Hackney",
+        "location": {
+          "lat": 51.52484,
+          "lng": -0.07704
+        },
+        "sourceName": "seedlibraryshoreditch.com",
+        "expiresAt": "2026-11-20",
+        "discoveredVia": "manual",
+        "extractedVia": "manual"
+      },
+      {
+        "id": "bar-equal-parts",
+        "name": "Equal Parts",
+        "address": "245 Hackney Road, London E2 8NA",
+        "borough": "Tower Hamlets",
+        "lat": 51.5318,
+        "lng": -0.06658,
+        "kind": "bar",
+        "hasStory": true,
+        "fameGates": [
+          {
+            "kind": "recognition",
+            "sourceUrl": "https://www.timeout.com/london/news/the-best-bar-in-london-in-2025-according-to-time-out-072125"
+          },
+          {
+            "kind": "distinct_experience",
+            "sourceUrl": "https://www.equalpartslondon.com/"
+          }
+        ],
+        "sourceUrl": "https://www.equalpartslondon.com/",
+        "observedAt": "2026-10-21",
+        "anchor": {
+          "kind": "house_cocktail",
+          "label": "Equal Parts cocktail",
+          "price": 13,
+          "observedAt": "2026-07-26",
+          "sourceUrl": "https://www.equalpartslondon.com/"
+        },
+        "story": {
+          "text": "The Sager + Wilde team made a bartender's bar from a dozen spare cocktails, several built from genuinely equal parts.",
+          "sourceUrl": "https://www.equalpartslondon.com/"
+        },
+        "category": "bar",
+        "job": "late_night_bar",
+        "description": "The Sager + Wilde team made a bartender's bar from a dozen spare cocktails, several built from genuinely equal parts.",
+        "area": "Tower Hamlets",
+        "location": {
+          "lat": 51.5318,
+          "lng": -0.06658
+        },
+        "sourceName": "equalpartslondon.com",
+        "expiresAt": "2026-11-20",
+        "discoveredVia": "manual",
+        "extractedVia": "manual"
+      },
+      {
+        "id": "bar-viajante87",
+        "name": "Viajante87",
+        "address": "87 Notting Hill Gate, London W11 3JZ",
+        "borough": "Kensington and Chelsea",
+        "lat": 51.50895,
+        "lng": -0.19725,
+        "kind": "bar",
+        "hasStory": true,
+        "fameGates": [
+          {
+            "kind": "recognition",
+            "sourceUrl": "https://www.theworlds50best.com/discovery/Establishments/UK/London/Viajante87.html"
+          },
+          {
+            "kind": "distinct_experience",
+            "sourceUrl": "https://viajante87.com/"
+          }
+        ],
+        "sourceUrl": "https://viajante87.com/",
+        "observedAt": "2026-10-21",
+        "anchor": {
+          "kind": "house_cocktail",
+          "label": "Viajante87 cocktail",
+          "price": 16,
+          "observedAt": "2026-07-26",
+          "sourceUrl": "https://viajante87.com/"
+        },
+        "story": {
+          "text": "A subterranean Notting Hill room links Latin American ingredients to a low-waste cocktail laboratory.",
+          "sourceUrl": "https://viajante87.com/"
+        },
+        "category": "bar",
+        "job": "late_night_bar",
+        "description": "A subterranean Notting Hill room links Latin American ingredients to a low-waste cocktail laboratory.",
+        "area": "Kensington and Chelsea",
+        "location": {
+          "lat": 51.50895,
+          "lng": -0.19725
+        },
+        "sourceName": "viajante87.com",
+        "expiresAt": "2026-11-20",
+        "discoveredVia": "manual",
+        "extractedVia": "manual"
+      },
+      {
+        "id": "bar-a-bar-with-shapes",
+        "name": "A Bar with Shapes for a Name",
+        "address": "232 Kingsland Road, London E2 8AX",
+        "borough": "Hackney",
+        "lat": 51.53565,
+        "lng": -0.07634,
+        "kind": "bar",
+        "hasStory": true,
+        "fameGates": [
+          {
+            "kind": "recognition",
+            "sourceUrl": "https://www.theworlds50best.com/discovery/Establishments/UK/London/A-Bar-with-Shapes-For-a-Name.html"
+          },
+          {
+            "kind": "distinct_experience",
+            "sourceUrl": "https://alchemybar.com/?alc-location=bar-with-shapes-for-a-name"
+          }
+        ],
+        "sourceUrl": "https://alchemybar.com/?alc-location=bar-with-shapes-for-a-name",
+        "observedAt": "2026-10-21",
+        "anchor": {
+          "kind": "house_cocktail",
+          "label": "Shapes cocktail",
+          "price": 14,
+          "observedAt": "2026-07-26",
+          "sourceUrl": "https://alchemybar.com/?alc-location=bar-with-shapes-for-a-name"
+        },
+        "story": {
+          "text": "Bauhaus ideas govern everything from the geometric name to deliberately functional, stripped-back cocktails.",
+          "sourceUrl": "https://alchemybar.com/?alc-location=bar-with-shapes-for-a-name"
+        },
+        "category": "bar",
+        "job": "late_night_bar",
+        "description": "Bauhaus ideas govern everything from the geometric name to deliberately functional, stripped-back cocktails.",
+        "area": "Hackney",
+        "location": {
+          "lat": 51.53565,
+          "lng": -0.07634
+        },
+        "sourceName": "alchemybar.com",
+        "expiresAt": "2026-11-20",
+        "discoveredVia": "manual",
+        "extractedVia": "manual"
+      },
+      {
+        "id": "bar-kwant",
+        "name": "Kwānt",
+        "address": "52 Stratton Street, London W1J 8LN",
+        "borough": "Westminster",
+        "lat": 51.507185,
+        "lng": -0.143285,
+        "kind": "bar",
+        "hasStory": true,
+        "fameGates": [
+          {
+            "kind": "recognition",
+            "sourceUrl": "https://www.theworlds50best.com/discovery/Establishments/UK/London/Kw%C4%81nt-Mayfair.html"
+          },
+          {
+            "kind": "distinct_experience",
+            "sourceUrl": "https://www.instagram.com/kwantmayfair"
+          }
+        ],
+        "sourceUrl": "https://www.theworlds50best.com/discovery/Establishments/UK/London/Kw%C4%81nt-Mayfair.html",
+        "observedAt": "2026-10-05",
+        "anchor": {
+          "kind": "house_cocktail",
+          "label": "Cocktail (average)",
+          "price": 17,
+          "observedAt": "2026-08-25",
+          "sourceUrl": "https://thenudge.com/kwant-mayfair"
+        },
+        "story": {
+          "text": "Erik Lorincz reopened Kwānt on Stratton Street with vintage spirits, Polynesian decor and the same madcap cocktail craft that made the Heddon Street room famous.",
+          "sourceUrl": "https://www.theworlds50best.com/discovery/Establishments/UK/London/Kw%C4%81nt-Mayfair.html"
+        },
+        "category": "bar",
+        "job": "late_night_bar",
+        "description": "Erik Lorincz reopened Kwānt on Stratton Street with vintage spirits, Polynesian decor and the same madcap cocktail craft that made the Heddon Street room famous.",
+        "area": "Mayfair",
+        "location": {
+          "lat": 51.507185,
+          "lng": -0.143285
+        },
+        "sourceName": "theworlds50best.com",
+        "expiresAt": "2026-11-04",
+        "discoveredVia": "manual",
+        "extractedVia": "manual",
+        "placesNameAliases": [
+          "kwant mayfair"
+        ]
+      },
+      {
+        "id": "bar-side-hustle",
+        "name": "Side Hustle",
+        "address": "28 Bow Street, London WC2E 7AW",
+        "borough": "Westminster",
+        "lat": 51.51322,
+        "lng": -0.12185,
+        "kind": "bar",
+        "hasStory": true,
+        "fameGates": [
+          {
+            "kind": "recognition",
+            "sourceUrl": "https://www.timeout.com/london/bars-and-pubs/side-hustle"
+          },
+          {
+            "kind": "distinct_experience",
+            "sourceUrl": "https://www.hilton.com/en/hotels/lonnmnd-nomad-london/dining/side-hustle"
+          }
+        ],
+        "sourceUrl": "https://www.hilton.com/en/hotels/lonnmnd-nomad-london/dining/side-hustle",
+        "observedAt": "2026-10-21",
+        "anchor": {
+          "kind": "house_cocktail",
+          "label": "Side Hustle agave cocktail",
+          "price": 18,
+          "observedAt": "2026-07-26",
+          "sourceUrl": "https://www.hilton.com/en/hotels/lonnmnd-nomad-london/dining/side-hustle"
+        },
+        "story": {
+          "text": "Latin American agave drinks occupy the former Bow Street police station that once held Oscar Wilde and the Kray twins.",
+          "sourceUrl": "https://www.hilton.com/en/hotels/lonnmnd-nomad-london/dining/side-hustle"
+        },
+        "category": "bar",
+        "job": "late_night_bar",
+        "description": "Latin American agave drinks occupy the former Bow Street police station that once held Oscar Wilde and the Kray twins.",
+        "area": "Westminster",
+        "location": {
+          "lat": 51.51322,
+          "lng": -0.12185
+        },
+        "sourceName": "hilton.com",
+        "expiresAt": "2026-11-20",
+        "discoveredVia": "manual",
+        "extractedVia": "manual"
+      },
+      {
+        "id": "bar-callooh-callay",
+        "name": "Callooh Callay",
+        "address": "65 Rivington Street, London EC2A 3AY",
+        "borough": "Hackney",
+        "lat": 51.52616,
+        "lng": -0.08052,
+        "kind": "bar",
+        "hasStory": true,
+        "fameGates": [
+          {
+            "kind": "recognition",
+            "sourceUrl": "https://www.theworlds50best.com/discovery/Establishments/UK/London/Callooh-Callay.html"
+          },
+          {
+            "kind": "distinct_experience",
+            "sourceUrl": "https://calloohcallaybar.com/"
+          }
+        ],
+        "sourceUrl": "https://calloohcallaybar.com/",
+        "observedAt": "2026-10-21",
+        "anchor": {
+          "kind": "house_cocktail",
+          "label": "Callooh Callay cocktail",
+          "price": 14,
+          "observedAt": "2026-07-26",
+          "sourceUrl": "https://calloohcallaybar.com/"
+        },
+        "story": {
+          "text": "Guests pass through a wardrobe into the back room, an Alice-in-Wonderland trick Shoreditch has copied for years.",
+          "sourceUrl": "https://calloohcallaybar.com/"
+        },
+        "category": "bar",
+        "job": "late_night_bar",
+        "description": "Guests pass through a wardrobe into the back room, an Alice-in-Wonderland trick Shoreditch has copied for years.",
+        "area": "Hackney",
+        "location": {
+          "lat": 51.52616,
+          "lng": -0.08052
+        },
+        "sourceName": "calloohcallaybar.com",
+        "expiresAt": "2026-11-20",
+        "discoveredVia": "manual",
+        "extractedVia": "manual"
+      },
+      {
+        "id": "bar-ecc-chinatown",
+        "name": "Experimental Cocktail Club",
+        "address": "13A Gerrard Street, London W1D 5PS",
+        "borough": "Westminster",
+        "lat": 51.51177,
+        "lng": -0.13116,
+        "kind": "bar",
+        "hasStory": true,
+        "fameGates": [
+          {
+            "kind": "recognition",
+            "sourceUrl": "https://www.timeout.com/london/bars-and-pubs/experimental-cocktail-club"
+          },
+          {
+            "kind": "distinct_experience",
+            "sourceUrl": "https://www.experimentalcocktailclub.com/london"
+          }
+        ],
+        "sourceUrl": "https://www.experimentalcocktailclub.com/london",
+        "observedAt": "2026-10-05",
+        "anchor": {
+          "kind": "house_cocktail",
+          "label": "ECC cocktail",
+          "price": 16,
+          "observedAt": "2026-07-26",
+          "sourceUrl": "https://www.experimentalcocktailclub.com/london"
+        },
+        "story": {
+          "text": "An unmarked Chinatown door leads to the London outpost of the Paris group that exported its speakeasy style worldwide.",
+          "sourceUrl": "https://www.experimentalcocktailclub.com/london"
+        },
+        "category": "bar",
+        "job": "late_night_bar",
+        "description": "An unmarked Chinatown door leads to the London outpost of the Paris group that exported its speakeasy style worldwide.",
+        "area": "Westminster",
+        "location": {
+          "lat": 51.51177,
+          "lng": -0.13116
+        },
+        "sourceName": "experimentalcocktailclub.com",
+        "expiresAt": "2026-11-04",
+        "discoveredVia": "manual",
+        "extractedVia": "manual",
+        "placesNameAliases": [
+          "experimental cocktail club chinatown"
+        ]
+      },
+      {
+        "id": "bar-disrepute",
+        "name": "Disrepute",
+        "address": "4 Kingly Court, London W1F 9RR",
+        "borough": "Westminster",
+        "lat": 51.51302,
+        "lng": -0.13896,
+        "kind": "bar",
+        "hasStory": true,
+        "fameGates": [
+          {
+            "kind": "cultural_weight",
+            "sourceUrl": "https://www.timeout.com/london/bars-and-pubs/disrepute"
+          },
+          {
+            "kind": "distinct_experience",
+            "sourceUrl": "https://www.disrepute.co.uk/"
+          }
+        ],
+        "sourceUrl": "https://www.disrepute.co.uk/",
+        "observedAt": "2026-10-21",
+        "anchor": {
+          "kind": "house_cocktail",
+          "label": "Disrepute cocktail",
+          "price": 16,
+          "observedAt": "2026-07-26",
+          "sourceUrl": "https://www.disrepute.co.uk/"
+        },
+        "story": {
+          "text": "The basement revives the address's 1960s Pinstripe Club notoriety, where ministers and models once mixed.",
+          "sourceUrl": "https://www.disrepute.co.uk/"
+        },
+        "category": "bar",
+        "job": "late_night_bar",
+        "description": "The basement revives the address's 1960s Pinstripe Club notoriety, where ministers and models once mixed.",
+        "area": "Westminster",
+        "location": {
+          "lat": 51.51302,
+          "lng": -0.13896
+        },
+        "sourceName": "disrepute.co.uk",
+        "expiresAt": "2026-11-20",
+        "discoveredVia": "manual",
+        "extractedVia": "manual"
+      },
+      {
+        "id": "bar-cahoots",
+        "name": "Cahoots Underground",
+        "address": "13 Kingly Court, London W1B 5PW",
+        "borough": "Westminster",
+        "lat": 51.51304,
+        "lng": -0.13914,
+        "kind": "bar",
+        "hasStory": true,
+        "fameGates": [
+          {
+            "kind": "recognition",
+            "sourceUrl": "https://www.timeout.com/london/bars-and-pubs/cahoots"
+          },
+          {
+            "kind": "distinct_experience",
+            "sourceUrl": "https://www.cahoots-london.com/"
+          }
+        ],
+        "sourceUrl": "https://www.cahoots-london.com/",
+        "observedAt": "2026-10-05",
+        "anchor": {
+          "kind": "house_cocktail",
+          "label": "Cahoots cocktail",
+          "price": 16.5,
+          "observedAt": "2026-07-26",
+          "sourceUrl": "https://www.cahoots-london.com/"
+        },
+        "story": {
+          "text": "A decommissioned Underground carriage and wartime station set make the journey part of the drink.",
+          "sourceUrl": "https://www.cahoots-london.com/"
+        },
+        "category": "bar",
+        "job": "late_night_bar",
+        "description": "A decommissioned Underground carriage and wartime station set make the journey part of the drink.",
+        "area": "Westminster",
+        "location": {
+          "lat": 51.51304,
+          "lng": -0.13914
+        },
+        "sourceName": "cahoots-london.com",
+        "expiresAt": "2026-11-04",
+        "discoveredVia": "manual",
+        "extractedVia": "manual"
+      },
+      {
+        "id": "bar-mr-foggs-residence",
+        "name": "Mr Fogg's Residence",
+        "address": "15 Bruton Lane, London W1J 6JD",
+        "borough": "Westminster",
+        "lat": 51.50938,
+        "lng": -0.14504,
+        "kind": "bar",
+        "hasStory": true,
+        "fameGates": [
+          {
+            "kind": "recognition",
+            "sourceUrl": "https://www.timeout.com/london/bars-and-pubs/mr-foggs-residence"
+          },
+          {
+            "kind": "distinct_experience",
+            "sourceUrl": "https://www.mr-foggs.com/mr-foggs-residence"
+          }
+        ],
+        "sourceUrl": "https://www.mr-foggs.com/mr-foggs-residence",
+        "observedAt": "2026-10-21",
+        "anchor": {
+          "kind": "house_cocktail",
+          "label": "Mr Fogg's cocktail",
+          "price": 17,
+          "observedAt": "2026-07-26",
+          "sourceUrl": "https://www.mr-foggs.com/mr-foggs-residence"
+        },
+        "story": {
+          "text": "Phileas Fogg's fictional Mayfair home is rebuilt as a cabinet of travel trophies, maps and Victorian curios.",
+          "sourceUrl": "https://www.mr-foggs.com/mr-foggs-residence"
+        },
+        "category": "bar",
+        "job": "late_night_bar",
+        "description": "Phileas Fogg's fictional Mayfair home is rebuilt as a cabinet of travel trophies, maps and Victorian curios.",
+        "area": "Westminster",
+        "location": {
+          "lat": 51.50938,
+          "lng": -0.14504
+        },
+        "sourceName": "mr-foggs.com",
+        "expiresAt": "2026-11-20",
+        "discoveredVia": "manual",
+        "extractedVia": "manual"
+      },
+      {
+        "id": "bar-vault-milroys",
+        "name": "The Vault at Milroy's",
+        "address": "3 Greek Street, London W1D 4NX",
+        "borough": "Westminster",
+        "lat": 51.51449,
+        "lng": -0.13037,
+        "kind": "bar",
+        "hasStory": true,
+        "fameGates": [
+          {
+            "kind": "recognition",
+            "sourceUrl": "https://www.timeout.com/london/bars-and-pubs/the-vault-of-soho"
+          },
+          {
+            "kind": "distinct_experience",
+            "sourceUrl": "https://milroys.co.uk/pages/the-vault"
+          }
+        ],
+        "sourceUrl": "https://milroys.co.uk/pages/the-vault",
+        "observedAt": "2026-10-05",
+        "anchor": {
+          "kind": "house_cocktail",
+          "label": "Vault cocktail",
+          "price": 15,
+          "observedAt": "2026-07-26",
+          "sourceUrl": "https://milroys.co.uk/pages/the-vault"
+        },
+        "story": {
+          "text": "A bookcase in London's oldest whisky specialist swings open onto a candlelit cocktail cellar.",
+          "sourceUrl": "https://milroys.co.uk/pages/the-vault"
+        },
+        "category": "bar",
+        "job": "late_night_bar",
+        "description": "A bookcase in London's oldest whisky specialist swings open onto a candlelit cocktail cellar.",
+        "area": "Westminster",
+        "location": {
+          "lat": 51.51449,
+          "lng": -0.13037
+        },
+        "sourceName": "milroys.co.uk",
+        "expiresAt": "2026-11-04",
+        "discoveredVia": "manual",
+        "extractedVia": "manual",
+        "placesNameAliases": [
+          "vault"
+        ]
+      },
+      {
+        "id": "bar-soma-soho",
+        "name": "SOMA Soho",
+        "address": "14 Denman Street, London W1D 7HJ",
+        "borough": "Westminster",
+        "lat": 51.51072,
+        "lng": -0.13429,
+        "kind": "bar",
+        "hasStory": true,
+        "fameGates": [
+          {
+            "kind": "recognition",
+            "sourceUrl": "https://www.theworlds50best.com/discovery/Establishments/UK/London/Soma.html"
+          },
+          {
+            "kind": "distinct_experience",
+            "sourceUrl": "https://somasoho.com/"
+          }
+        ],
+        "sourceUrl": "https://somasoho.com/",
+        "observedAt": "2026-10-05",
+        "anchor": {
+          "kind": "house_cocktail",
+          "label": "SOMA cocktail",
+          "price": 15,
+          "observedAt": "2026-07-26",
+          "sourceUrl": "https://somasoho.com/"
+        },
+        "story": {
+          "text": "Kricket's basement bar recasts Indian flavours such as chaat, clarified lassi and curry leaf as spare cocktails.",
+          "sourceUrl": "https://somasoho.com/"
+        },
+        "category": "bar",
+        "job": "late_night_bar",
+        "description": "Kricket's basement bar recasts Indian flavours such as chaat, clarified lassi and curry leaf as spare cocktails.",
+        "area": "Westminster",
+        "location": {
+          "lat": 51.51072,
+          "lng": -0.13429
+        },
+        "sourceName": "somasoho.com",
+        "expiresAt": "2026-11-04",
+        "discoveredVia": "manual",
+        "extractedVia": "manual"
+      },
+      {
+        "id": "bar-cocktail-trading-company",
+        "name": "The Cocktail Trading Co.",
+        "address": "68 Bethnal Green Road, London E1 6GQ",
+        "borough": "Tower Hamlets",
+        "lat": 51.52433,
+        "lng": -0.07136,
+        "kind": "bar",
+        "hasStory": true,
+        "fameGates": [
+          {
+            "kind": "recognition",
+            "sourceUrl": "https://www.theworlds50best.com/discovery/Establishments/UK/London/The-Cocktail-Trading-Company.html"
+          },
+          {
+            "kind": "distinct_experience",
+            "sourceUrl": "https://thecocktailtradingco.com/"
+          }
+        ],
+        "sourceUrl": "https://thecocktailtradingco.com/",
+        "observedAt": "2026-10-21",
+        "anchor": {
+          "kind": "house_cocktail",
+          "label": "CTC house cocktail",
+          "price": 13,
+          "observedAt": "2026-07-26",
+          "sourceUrl": "https://thecocktailtradingco.com/"
+        },
+        "story": {
+          "text": "A bartender-owned Shoreditch room became known for irreverent serves without sacrificing classic technique.",
+          "sourceUrl": "https://thecocktailtradingco.com/"
+        },
+        "category": "bar",
+        "job": "late_night_bar",
+        "description": "A bartender-owned Shoreditch room became known for irreverent serves without sacrificing classic technique.",
+        "area": "Tower Hamlets",
+        "location": {
+          "lat": 51.52433,
+          "lng": -0.07136
+        },
+        "sourceName": "thecocktailtradingco.com",
+        "expiresAt": "2026-11-20",
+        "discoveredVia": "manual",
+        "extractedVia": "manual",
+        "placesNameAliases": [
+          "cocktail trading co shoreditch"
+        ]
+      },
+      {
+        "id": "bar-trailer-happiness",
+        "name": "Trailer Happiness",
+        "address": "177 Portobello Road, London W11 2DY",
+        "borough": "Kensington and Chelsea",
+        "lat": 51.51528,
+        "lng": -0.20434,
+        "kind": "bar",
+        "hasStory": true,
+        "fameGates": [
+          {
+            "kind": "recognition",
+            "sourceUrl": "https://www.theworlds50best.com/discovery/Establishments/UK/London/Trailer-Happiness.html"
+          },
+          {
+            "kind": "cultural_weight",
+            "sourceUrl": "https://www.trailerh.com/"
+          }
+        ],
+        "sourceUrl": "https://www.trailerh.com/",
+        "observedAt": "2026-10-21",
+        "anchor": {
+          "kind": "house_cocktail",
+          "label": "Rum cocktail",
+          "price": 13.5,
+          "observedAt": "2026-07-26",
+          "sourceUrl": "https://www.trailerh.com/"
+        },
+        "story": {
+          "text": "This Portobello basement has championed serious rum and mid-century tiki culture for more than two decades.",
+          "sourceUrl": "https://www.trailerh.com/"
+        },
+        "category": "bar",
+        "job": "late_night_bar",
+        "description": "This Portobello basement has championed serious rum and mid-century tiki culture for more than two decades.",
+        "area": "Kensington and Chelsea",
+        "location": {
+          "lat": 51.51528,
+          "lng": -0.20434
+        },
+        "sourceName": "trailerh.com",
+        "expiresAt": "2026-11-20",
+        "discoveredVia": "manual",
+        "extractedVia": "manual"
+      },
+      {
+        "id": "bar-eve",
+        "name": "Eve Bar",
+        "address": "34-35 Southampton Street, London WC2E 7HG",
+        "borough": "Westminster",
+        "lat": 51.510759,
+        "lng": -0.122029,
+        "kind": "bar",
+        "hasStory": true,
+        "fameGates": [
+          {
+            "kind": "recognition",
+            "sourceUrl": "https://www.top50cocktailbars.com/Bars/UK/Greater-London/Eve-Bar.html"
+          },
+          {
+            "kind": "distinct_experience",
+            "sourceUrl": "https://www.evebar.co.uk/"
+          }
+        ],
+        "sourceUrl": "https://www.evebar.co.uk/",
+        "observedAt": "2026-10-21",
+        "anchor": {
+          "kind": "house_cocktail",
+          "label": "Eve cocktail",
+          "price": 16,
+          "observedAt": "2026-07-26",
+          "sourceUrl": "https://www.evebar.co.uk/"
+        },
+        "story": {
+          "text": "Adam Handling's subterranean bar turns kitchen offcuts into polished cocktails beneath Covent Garden.",
+          "sourceUrl": "https://www.evebar.co.uk/"
+        },
+        "category": "bar",
+        "job": "late_night_bar",
+        "description": "Adam Handling's subterranean bar turns kitchen offcuts into polished cocktails beneath Covent Garden.",
+        "area": "Westminster",
+        "location": {
+          "lat": 51.510759,
+          "lng": -0.122029
+        },
+        "sourceName": "evebar.co.uk",
+        "expiresAt": "2026-11-20",
+        "discoveredVia": "manual",
+        "extractedVia": "manual",
+        "placesNameAliases": [
+          "eve bar covent garden"
+        ]
+      },
+      {
+        "id": "bar-punch-room",
+        "name": "Punch Room",
+        "address": "10 Berners Street, London W1T 3NP",
+        "borough": "Westminster",
+        "lat": 51.51637,
+        "lng": -0.13618,
+        "kind": "bar",
+        "hasStory": true,
+        "fameGates": [
+          {
+            "kind": "recognition",
+            "sourceUrl": "https://www.theworlds50best.com/discovery/Establishments/UK/London/Punch-Room.html"
+          },
+          {
+            "kind": "distinct_experience",
+            "sourceUrl": "https://www.editionhotels.com/london/restaurants-and-bars/punch-room"
+          }
+        ],
+        "sourceUrl": "https://www.editionhotels.com/london/restaurants-and-bars/punch-room",
+        "observedAt": "2026-10-21",
+        "anchor": {
+          "kind": "house_cocktail",
+          "label": "Single-serve punch",
+          "price": 18,
+          "observedAt": "2026-07-26",
+          "sourceUrl": "https://www.editionhotels.com/london/restaurants-and-bars/punch-room"
+        },
+        "story": {
+          "text": "A wood-panelled private-club room made the old communal punch bowl the centre of a modern cocktail programme.",
+          "sourceUrl": "https://www.editionhotels.com/london/restaurants-and-bars/punch-room"
+        },
+        "category": "bar",
+        "job": "late_night_bar",
+        "description": "A wood-panelled private-club room made the old communal punch bowl the centre of a modern cocktail programme.",
+        "area": "Westminster",
+        "location": {
+          "lat": 51.51637,
+          "lng": -0.13618
+        },
+        "sourceName": "editionhotels.com",
+        "expiresAt": "2026-11-20",
+        "discoveredVia": "manual",
+        "extractedVia": "manual"
+      },
+      {
+        "id": "bar-gordons-wine-bar",
+        "name": "Gordon's Wine Bar",
+        "address": "47 Villiers Street, London WC2N 6NE",
+        "borough": "Westminster",
+        "lat": 51.50797,
+        "lng": -0.12373,
+        "kind": "bar",
+        "hasStory": true,
+        "fameGates": [
+          {
+            "kind": "longevity",
+            "sourceUrl": "https://en.wikipedia.org/wiki/Gordon's_Wine_Bar"
+          },
+          {
+            "kind": "cultural_weight",
+            "sourceUrl": "https://www.gordonswinebar.com/"
+          },
+          {
+            "kind": "distinct_experience",
+            "sourceUrl": "https://www.gordonswinebar.com/"
+          }
+        ],
+        "sourceUrl": "https://www.gordonswinebar.com/",
+        "observedAt": "2026-10-21",
+        "anchor": {
+          "kind": "wine",
+          "label": "175ml house wine",
+          "price": 8.9,
+          "observedAt": "2026-07-26",
+          "sourceUrl": "https://www.gordonswinebar.com/"
+        },
+        "story": {
+          "text": "Family-run since 1890, Gordon's pours wine by candlelight in a vaulted cellar beneath Kipling House.",
+          "sourceUrl": "https://www.gordonswinebar.com/"
+        },
+        "category": "bar",
+        "job": "late_night_bar",
+        "description": "Family-run since 1890, Gordon's pours wine by candlelight in a vaulted cellar beneath Kipling House.",
+        "area": "Westminster",
+        "location": {
+          "lat": 51.50797,
+          "lng": -0.12373
+        },
+        "sourceName": "gordonswinebar.com",
+        "expiresAt": "2026-11-20",
+        "discoveredVia": "manual",
+        "extractedVia": "manual"
+      },
+      {
+        "id": "venue-1kpe609",
+        "name": "The French House",
+        "address": "49 Dean Street, London W1D 5BG",
+        "borough": "Westminster",
+        "lat": 51.51312,
+        "lng": -0.13196,
+        "kind": "bar",
+        "hasStory": true,
+        "fameGates": [
+          {
+            "kind": "longevity",
+            "sourceUrl": "https://www.frenchhousesoho.com/"
+          },
+          {
+            "kind": "cultural_weight",
+            "sourceUrl": "https://en.wikipedia.org/wiki/The_French_House,_Soho"
+          },
+          {
+            "kind": "distinct_experience",
+            "sourceUrl": "https://www.frenchhousesoho.com/"
+          }
+        ],
+        "sourceUrl": "https://www.frenchhousesoho.com/",
+        "observedAt": "2026-10-05",
+        "anchor": {
+          "kind": "pint",
+          "label": "Half pint house lager",
+          "price": 3.4,
+          "observedAt": "2026-07-26",
+          "sourceUrl": "https://www.frenchhousesoho.com/"
+        },
+        "story": {
+          "text": "Soho's wartime Free French gathered here, and the bar still serves beer only in half-pints.",
+          "sourceUrl": "https://www.frenchhousesoho.com/"
+        },
+        "category": "bar",
+        "job": "late_night_bar",
+        "description": "Soho's wartime Free French gathered here, and the bar still serves beer only in half-pints.",
+        "area": "Westminster",
+        "location": {
+          "lat": 51.51312,
+          "lng": -0.13196
+        },
+        "sourceName": "frenchhousesoho.com",
+        "expiresAt": "2026-11-04",
+        "discoveredVia": "manual",
+        "extractedVia": "manual"
+      }
+    ],
+    "late_food.json": [
+      {
+        "id": "food-best-turkish-kebab",
+        "name": "The Best Turkish Kebab",
+        "address": "125 Stoke Newington Road, London N16 8BT",
+        "borough": "Hackney",
+        "lat": 51.55847,
+        "lng": -0.07422,
+        "kind": "food",
+        "hasStory": true,
+        "fameGates": [
+          {
+            "kind": "recognition",
+            "sourceUrl": "https://www.theinfatuation.com/london/reviews/the-best-turkish-kebab"
+          },
+          {
+            "kind": "longevity",
+            "sourceUrl": "https://tbtk.co.uk/"
+          },
+          {
+            "kind": "cultural_weight",
+            "sourceUrl": "https://tbtk.co.uk/"
+          }
+        ],
+        "sourceUrl": "https://tbtk.co.uk/",
+        "observedAt": "2026-10-05",
+        "anchor": {
+          "kind": "large_doner",
+          "label": "Large lamb doner",
+          "price": 15,
+          "observedAt": "2026-07-26",
+          "sourceUrl": "https://tbtk.co.uk/"
+        },
+        "story": {
+          "text": "Stoke Newington's celebrity-photo-lined doner counter marked 44 years of shoulder-cut lamb and queue-side carving in 2026.",
+          "sourceUrl": "https://tbtk.co.uk/"
+        },
+        "category": "late_food",
+        "job": "crawl_ending_food",
+        "description": "Stoke Newington's celebrity-photo-lined doner counter marked 44 years of shoulder-cut lamb and queue-side carving in 2026.",
+        "area": "Hackney",
+        "location": {
+          "lat": 51.55847,
+          "lng": -0.07422
+        },
+        "sourceName": "tbtk.co.uk",
+        "expiresAt": "2026-11-04",
+        "discoveredVia": "manual",
+        "extractedVia": "manual"
+      },
+      {
+        "id": "food-super-kebab",
+        "name": "Super Kebab",
+        "address": "54 Stoke Newington Road, London N16 7XB",
+        "borough": "Hackney",
+        "lat": 51.55398,
+        "lng": -0.07505,
+        "kind": "food",
+        "hasStory": true,
+        "fameGates": [
+          {
+            "kind": "recognition",
+            "sourceUrl": "https://www.timeout.com/london/blog/a-meat-slicing-robot-has-appeared-in-a-stoke-newington-kebab-shop-082015"
+          },
+          {
+            "kind": "distinct_experience",
+            "sourceUrl": "https://www.superkebab.net/"
+          }
+        ],
+        "sourceUrl": "https://www.superkebab.net/",
+        "observedAt": "2026-10-05",
+        "anchor": {
+          "kind": "large_doner",
+          "label": "Large lamb doner",
+          "price": 13,
+          "observedAt": "2026-07-26",
+          "sourceUrl": "https://www.superkebab.net/"
+        },
+        "story": {
+          "text": "Super Kebab hand-makes its lamb doner and uses a rotating mechanical slicer to keep every shaving crisp at the edge.",
+          "sourceUrl": "https://www.superkebab.net/"
+        },
+        "category": "late_food",
+        "job": "crawl_ending_food",
+        "description": "Super Kebab hand-makes its lamb doner and uses a rotating mechanical slicer to keep every shaving crisp at the edge.",
+        "area": "Hackney",
+        "location": {
+          "lat": 51.55398,
+          "lng": -0.07505
+        },
+        "sourceName": "superkebab.net",
+        "expiresAt": "2026-11-04",
+        "discoveredVia": "manual",
+        "extractedVia": "manual"
+      },
+      {
+        "id": "food-mangal-1",
+        "name": "Mangal 1",
+        "address": "10 Arcola Street, London E8 2DJ",
+        "borough": "Hackney",
+        "lat": 51.54905,
+        "lng": -0.07072,
+        "kind": "food",
+        "hasStory": true,
+        "fameGates": [
+          {
+            "kind": "longevity",
+            "sourceUrl": "https://www.timeout.com/london/restaurants/mangal-ocakbasi"
+          },
+          {
+            "kind": "cultural_weight",
+            "sourceUrl": "https://mangal1.com/"
+          },
+          {
+            "kind": "distinct_experience",
+            "sourceUrl": "https://mangal1.com/"
+          }
+        ],
+        "sourceUrl": "https://mangal1.com/",
+        "observedAt": "2026-08-25",
+        "anchor": {
+          "kind": "signature_item",
+          "label": "Adana kebab",
+          "price": 18,
+          "observedAt": "2026-07-26",
+          "sourceUrl": "https://mangal1.com/"
+        },
+        "story": {
+          "text": "Ali Dirik opened Dalston's first ocakbasi in 1991, establishing the charcoal-counter template that transformed the neighbourhood.",
+          "sourceUrl": "https://mangal1.com/"
+        },
+        "category": "late_food",
+        "job": "crawl_ending_food",
+        "description": "Ali Dirik opened Dalston's first ocakbasi in 1991, establishing the charcoal-counter template that transformed the neighbourhood.",
+        "area": "Hackney",
+        "location": {
+          "lat": 51.54905,
+          "lng": -0.07072
+        },
+        "sourceName": "mangal1.com",
+        "expiresAt": "2026-09-24",
+        "discoveredVia": "manual",
+        "extractedVia": "manual"
+      },
+      {
+        "id": "food-mangal-2",
+        "name": "Mangal 2",
+        "address": "4 Stoke Newington Road, London N16 7XN",
+        "borough": "Hackney",
+        "lat": 51.550797,
+        "lng": -0.074917,
+        "kind": "food",
+        "hasStory": true,
+        "fameGates": [
+          {
+            "kind": "recognition",
+            "sourceUrl": "https://www.theinfatuation.com/london/reviews/mangal-ii"
+          },
+          {
+            "kind": "longevity",
+            "sourceUrl": "https://mangal2.com/"
+          },
+          {
+            "kind": "cultural_weight",
+            "sourceUrl": "https://mangal2.com/"
+          }
+        ],
+        "sourceUrl": "https://mangal2.com/",
+        "observedAt": "2026-10-05",
+        "anchor": {
+          "kind": "signature_item",
+          "label": "Adana kebab",
+          "price": 19,
+          "observedAt": "2026-07-26",
+          "sourceUrl": "https://mangal2.com/"
+        },
+        "story": {
+          "text": "The second-generation Dirik family turned a beloved Dalston ocakbasi into a nationally recognised modern Turkish dining room.",
+          "sourceUrl": "https://mangal2.com/"
+        },
+        "category": "late_food",
+        "job": "crawl_ending_food",
+        "description": "The second-generation Dirik family turned a beloved Dalston ocakbasi into a nationally recognised modern Turkish dining room.",
+        "area": "Hackney",
+        "location": {
+          "lat": 51.550797,
+          "lng": -0.074917
+        },
+        "sourceName": "mangal2.com",
+        "expiresAt": "2026-11-04",
+        "discoveredVia": "manual",
+        "extractedVia": "manual",
+        "placesNameAliases": [
+          "mangal 2 restaurant"
+        ]
+      },
+      {
+        "id": "food-gokyuzu-harringay",
+        "name": "Gökyüzü Green Lanes",
+        "address": "26-28 Grand Parade, London N4 1LG",
+        "borough": "Haringey",
+        "lat": 51.57695,
+        "lng": -0.09882,
+        "kind": "food",
+        "hasStory": true,
+        "fameGates": [
+          {
+            "kind": "longevity",
+            "sourceUrl": "https://www.timeout.com/london/restaurants/gokyuzu"
+          },
+          {
+            "kind": "cultural_weight",
+            "sourceUrl": "https://gokyuzurestaurant.co.uk/"
+          }
+        ],
+        "sourceUrl": "https://gokyuzurestaurant.co.uk/",
+        "observedAt": "2026-10-05",
+        "anchor": {
+          "kind": "large_doner",
+          "label": "Large lamb doner",
+          "price": 21,
+          "observedAt": "2026-07-26",
+          "sourceUrl": "https://gokyuzurestaurant.co.uk/"
+        },
+        "story": {
+          "text": "The Yavuz family brought recipes from their Kurdish village to Green Lanes in 1999 and grew a London Turkish institution.",
+          "sourceUrl": "https://gokyuzurestaurant.co.uk/"
+        },
+        "category": "late_food",
+        "job": "crawl_ending_food",
+        "description": "The Yavuz family brought recipes from their Kurdish village to Green Lanes in 1999 and grew a London Turkish institution.",
+        "area": "Haringey",
+        "location": {
+          "lat": 51.57695,
+          "lng": -0.09882
+        },
+        "sourceName": "gokyuzurestaurant.co.uk",
+        "expiresAt": "2026-11-04",
+        "discoveredVia": "manual",
+        "extractedVia": "manual"
+      },
+      {
+        "id": "food-antepliler",
+        "name": "Antepliler",
+        "address": "46 Grand Parade, Green Lanes, London N4 1AG",
+        "borough": "Haringey",
+        "lat": 51.579345,
+        "lng": -0.098941,
+        "kind": "food",
+        "hasStory": true,
+        "fameGates": [
+          {
+            "kind": "longevity",
+            "sourceUrl": "https://www.timeout.com/london/restaurants/antepliler"
+          },
+          {
+            "kind": "cultural_weight",
+            "sourceUrl": "https://anteplilerlondon.co.uk/about/"
+          }
+        ],
+        "sourceUrl": "https://anteplilerlondon.co.uk/",
+        "observedAt": "2026-10-21",
+        "anchor": {
+          "kind": "signature_item",
+          "label": "Adana kebab",
+          "price": 24.5,
+          "observedAt": "2026-10-05",
+          "sourceUrl": "https://anteplilerlondon.co.uk/wp-content/uploads/2026/09/Antepliler_Menu_A3_PRINT.pdf"
+        },
+        "story": {
+          "text": "Named for the people of Gaziantep, Antepliler helped make Green Lanes synonymous with baklava, lahmacun and charcoal kebabs.",
+          "sourceUrl": "https://anteplilerlondon.co.uk/about/"
+        },
+        "category": "late_food",
+        "job": "crawl_ending_food",
+        "description": "Named for the people of Gaziantep, Antepliler helped make Green Lanes synonymous with baklava, lahmacun and charcoal kebabs.",
+        "area": "Haringey",
+        "location": {
+          "lat": 51.579345,
+          "lng": -0.098941
+        },
+        "sourceName": "anteplilerlondon.co.uk",
+        "expiresAt": "2026-11-20",
+        "discoveredVia": "manual",
+        "extractedVia": "manual",
+        "placesNameAliases": [
+          "antepliler restaurant"
+        ]
+      },
+      {
+        "id": "food-diyarbakir",
+        "name": "Diyarbakir Kitchen",
+        "address": "52-53 Grand Parade, Green Lanes, London N4 1AG",
+        "borough": "Haringey",
+        "lat": 51.578953,
+        "lng": -0.098863,
+        "kind": "food",
+        "hasStory": true,
+        "fameGates": [
+          {
+            "kind": "longevity",
+            "sourceUrl": "https://www.theinfatuation.com/london/reviews/diyarbakr-restaurant"
+          },
+          {
+            "kind": "cultural_weight",
+            "sourceUrl": "https://diyarbakir.co.uk/"
+          }
+        ],
+        "sourceUrl": "https://diyarbakir.co.uk/",
+        "observedAt": "2026-10-05",
+        "anchor": {
+          "kind": "signature_item",
+          "label": "Diyarbakir special kebab",
+          "price": 24,
+          "observedAt": "2026-07-26",
+          "sourceUrl": "https://diyarbakir.co.uk/"
+        },
+        "story": {
+          "text": "This Green Lanes stalwart built its name on Kurdish and south-eastern Turkish charcoal cooking served late from an open grill.",
+          "sourceUrl": "https://diyarbakir.co.uk/"
+        },
+        "category": "late_food",
+        "job": "crawl_ending_food",
+        "description": "This Green Lanes stalwart built its name on Kurdish and south-eastern Turkish charcoal cooking served late from an open grill.",
+        "area": "Haringey",
+        "location": {
+          "lat": 51.578953,
+          "lng": -0.098863
+        },
+        "sourceName": "diyarbakir.co.uk",
+        "expiresAt": "2026-11-04",
+        "discoveredVia": "manual",
+        "extractedVia": "manual"
+      },
+      {
+        "id": "food-hala",
+        "name": "Hala Restaurant",
+        "address": "29-31 Grand Parade, London N4 1LG",
+        "borough": "Haringey",
+        "lat": 51.57717,
+        "lng": -0.09904,
+        "kind": "food",
+        "hasStory": true,
+        "fameGates": [
+          {
+            "kind": "recognition",
+            "sourceUrl": "https://www.theinfatuation.com/london/reviews/hala-restaurant"
+          },
+          {
+            "kind": "cultural_weight",
+            "sourceUrl": "https://halarestaurant.co.uk/"
+          }
+        ],
+        "sourceUrl": "https://halarestaurant.co.uk/",
+        "observedAt": "2026-10-05",
+        "anchor": {
+          "kind": "signature_item",
+          "label": "Adana Kofte (Large)",
+          "price": 24.5,
+          "observedAt": "2026-08-25",
+          "sourceUrl": "https://halarestaurant.co.uk/"
+        },
+        "story": {
+          "text": "Hala's bread oven and long charcoal counter have fed Green Lanes tables with pide, mezze and kebabs for more than two decades.",
+          "sourceUrl": "https://halarestaurant.co.uk/"
+        },
+        "category": "late_food",
+        "job": "crawl_ending_food",
+        "description": "Hala's bread oven and long charcoal counter have fed Green Lanes tables with pide, mezze and kebabs for more than two decades.",
+        "area": "Haringey",
+        "location": {
+          "lat": 51.57717,
+          "lng": -0.09904
+        },
+        "sourceName": "halarestaurant.co.uk",
+        "expiresAt": "2026-11-04",
+        "discoveredVia": "manual",
+        "extractedVia": "manual"
+      },
+      {
+        "id": "food-selale",
+        "name": "Selale",
+        "address": "1-2-3 Salisbury Promenade, London N8 0RX",
+        "borough": "Haringey",
+        "lat": 51.58671,
+        "lng": -0.10079,
+        "kind": "food",
+        "hasStory": true,
+        "fameGates": [
+          {
+            "kind": "recognition",
+            "sourceUrl": "https://www.timeout.com/london/restaurants/selale"
+          },
+          {
+            "kind": "longevity",
+            "sourceUrl": "https://selale.co.uk/"
+          }
+        ],
+        "sourceUrl": "https://selale.co.uk/",
+        "observedAt": "2026-10-05",
+        "anchor": {
+          "kind": "signature_item",
+          "label": "Adana kebab",
+          "price": 19.5,
+          "observedAt": "2026-07-26",
+          "sourceUrl": "https://selale.co.uk/"
+        },
+        "story": {
+          "text": "A veteran Green Lanes ocakbasi, Selale pairs a glass-fronted charcoal grill with the communal platters that define the strip.",
+          "sourceUrl": "https://selale.co.uk/"
+        },
+        "category": "late_food",
+        "job": "crawl_ending_food",
+        "description": "A veteran Green Lanes ocakbasi, Selale pairs a glass-fronted charcoal grill with the communal platters that define the strip.",
+        "area": "Haringey",
+        "location": {
+          "lat": 51.58671,
+          "lng": -0.10079
+        },
+        "sourceName": "selale.co.uk",
+        "expiresAt": "2026-11-04",
+        "discoveredVia": "manual",
+        "extractedVia": "manual",
+        "placesNameAliases": [
+          "selale restaurant"
+        ]
+      },
+      {
+        "id": "food-le-bab-soho",
+        "name": "Le Bab Soho",
+        "address": "Kingly Court, Carnaby Street, London W1B 5PW",
+        "borough": "Westminster",
+        "lat": 51.51303,
+        "lng": -0.13918,
+        "kind": "food",
+        "hasStory": true,
+        "fameGates": [
+          {
+            "kind": "recognition",
+            "sourceUrl": "https://www.timeout.com/london/restaurants/le-bab"
+          },
+          {
+            "kind": "distinct_experience",
+            "sourceUrl": "https://eatlebab.com/"
+          }
+        ],
+        "sourceUrl": "https://eatlebab.com/",
+        "observedAt": "2026-10-05",
+        "anchor": {
+          "kind": "signature_item",
+          "label": "Lamb adana kebab",
+          "price": 16.5,
+          "observedAt": "2026-07-26",
+          "sourceUrl": "https://eatlebab.com/"
+        },
+        "story": {
+          "text": "Le Bab put Michelin-trained cooking into a Soho kebab shop, serving charcoal meat on house flatbreads in Kingly Court.",
+          "sourceUrl": "https://eatlebab.com/"
+        },
+        "category": "late_food",
+        "job": "crawl_ending_food",
+        "description": "Le Bab put Michelin-trained cooking into a Soho kebab shop, serving charcoal meat on house flatbreads in Kingly Court.",
+        "area": "Westminster",
+        "location": {
+          "lat": 51.51303,
+          "lng": -0.13918
+        },
+        "sourceName": "eatlebab.com",
+        "expiresAt": "2026-11-04",
+        "discoveredVia": "manual",
+        "extractedVia": "manual",
+        "placesNameAliases": [
+          "le bab"
+        ]
+      },
+      {
+        "id": "food-testi",
+        "name": "Testi",
+        "address": "38 Stoke Newington High Street, London N16 7PL",
+        "borough": "Hackney",
+        "lat": 51.55553,
+        "lng": -0.07475,
+        "kind": "food",
+        "hasStory": true,
+        "fameGates": [
+          {
+            "kind": "longevity",
+            "sourceUrl": "https://hackneypost.co.uk/stoke-newingtons-testi-tops-british-kebab-awards/"
+          },
+          {
+            "kind": "distinct_experience",
+            "sourceUrl": "https://testirestaurant.co.uk/"
+          }
+        ],
+        "sourceUrl": "https://testirestaurant.co.uk/",
+        "observedAt": "2026-10-05",
+        "anchor": {
+          "kind": "signature_item",
+          "label": "Mixed kebab",
+          "price": 25,
+          "observedAt": "2026-07-26",
+          "sourceUrl": "https://testirestaurant.co.uk/"
+        },
+        "story": {
+          "text": "Testi is the compact Stoke Newington ocakbasi where regulars sit almost within arm's reach of the charcoal fire.",
+          "sourceUrl": "https://testirestaurant.co.uk/"
+        },
+        "category": "late_food",
+        "job": "crawl_ending_food",
+        "description": "Testi is the compact Stoke Newington ocakbasi where regulars sit almost within arm's reach of the charcoal fire.",
+        "area": "Hackney",
+        "location": {
+          "lat": 51.55553,
+          "lng": -0.07475
+        },
+        "sourceName": "testirestaurant.co.uk",
+        "expiresAt": "2026-11-04",
+        "discoveredVia": "manual",
+        "extractedVia": "manual",
+        "placesNameAliases": [
+          "testi restaurant"
+        ]
+      },
+      {
+        "id": "food-berenjak-soho",
+        "name": "Berenjak Soho",
+        "address": "27 Romilly Street, London W1D 5AL",
+        "borough": "Westminster",
+        "lat": 51.51286,
+        "lng": -0.13057,
+        "kind": "food",
+        "hasStory": true,
+        "fameGates": [
+          {
+            "kind": "recognition",
+            "sourceUrl": "https://www.timeout.com/london/restaurants/berenjak"
+          },
+          {
+            "kind": "distinct_experience",
+            "sourceUrl": "https://berenjaklondon.com/soho"
+          }
+        ],
+        "sourceUrl": "https://berenjaklondon.com/soho",
+        "observedAt": "2026-10-05",
+        "anchor": {
+          "kind": "signature_item",
+          "label": "Jujeh kabab",
+          "price": 19,
+          "observedAt": "2026-07-26",
+          "sourceUrl": "https://berenjaklondon.com/soho"
+        },
+        "story": {
+          "text": "Berenjak models a Tehran hole-in-the-wall, grilling Persian kebabs over charcoal beside a tiny hayat courtyard.",
+          "sourceUrl": "https://berenjaklondon.com/soho"
+        },
+        "category": "late_food",
+        "job": "crawl_ending_food",
+        "description": "Berenjak models a Tehran hole-in-the-wall, grilling Persian kebabs over charcoal beside a tiny hayat courtyard.",
+        "area": "Westminster",
+        "location": {
+          "lat": 51.51286,
+          "lng": -0.13057
+        },
+        "sourceName": "berenjaklondon.com",
+        "expiresAt": "2026-11-04",
+        "discoveredVia": "manual",
+        "extractedVia": "manual"
+      },
+      {
+        "id": "food-fm-mangal",
+        "name": "FM Mangal",
+        "address": "54 Camberwell Church Street, London SE5 8QZ",
+        "borough": "Southwark",
+        "lat": 51.47375,
+        "lng": -0.09057,
+        "kind": "food",
+        "hasStory": true,
+        "fameGates": [
+          {
+            "kind": "recognition",
+            "sourceUrl": "https://www.timeout.com/london/restaurants/fm-mangal"
+          },
+          {
+            "kind": "longevity",
+            "sourceUrl": "https://www.fmmangal.co.uk/"
+          }
+        ],
+        "sourceUrl": "https://www.fmmangal.co.uk/",
+        "observedAt": "2026-10-05",
+        "anchor": {
+          "kind": "signature_item",
+          "label": "Adana kebab",
+          "price": 18.5,
+          "observedAt": "2026-07-26",
+          "sourceUrl": "https://www.fmmangal.co.uk/"
+        },
+        "story": {
+          "text": "Camberwell's much-loved ocakbasi starts every table with smoky grilled onions in pomegranate dressing.",
+          "sourceUrl": "https://www.fmmangal.co.uk/"
+        },
+        "category": "late_food",
+        "job": "crawl_ending_food",
+        "description": "Camberwell's much-loved ocakbasi starts every table with smoky grilled onions in pomegranate dressing.",
+        "area": "Southwark",
+        "location": {
+          "lat": 51.47375,
+          "lng": -0.09057
+        },
+        "sourceName": "fmmangal.co.uk",
+        "expiresAt": "2026-11-04",
+        "discoveredVia": "manual",
+        "extractedVia": "manual"
+      },
+      {
+        "id": "food-lahore-kebab-house",
+        "name": "Lahore Kebab House",
+        "address": "2-10 Umberston Street, London E1 1PY",
+        "borough": "Tower Hamlets",
+        "lat": 51.51408,
+        "lng": -0.06362,
+        "kind": "food",
+        "hasStory": true,
+        "fameGates": [
+          {
+            "kind": "longevity",
+            "sourceUrl": "https://www.timeout.com/london/restaurants/lahore-kebab-house"
+          },
+          {
+            "kind": "cultural_weight",
+            "sourceUrl": "https://lahore-kebabhouse.com/"
+          }
+        ],
+        "sourceUrl": "https://lahore-kebabhouse.com/",
+        "observedAt": "2026-08-25",
+        "anchor": {
+          "kind": "signature_item",
+          "label": "Seekh kebab",
+          "price": 9,
+          "observedAt": "2026-07-26",
+          "sourceUrl": "https://lahore-kebabhouse.com/"
+        },
+        "story": {
+          "text": "Founded in 1972, this Whitechapel canteen made vast Pakistani grills, BYOB tables and family feasts a London rite.",
+          "sourceUrl": "https://lahore-kebabhouse.com/"
+        },
+        "category": "late_food",
+        "job": "crawl_ending_food",
+        "description": "Founded in 1972, this Whitechapel canteen made vast Pakistani grills, BYOB tables and family feasts a London rite.",
+        "area": "Tower Hamlets",
+        "location": {
+          "lat": 51.51408,
+          "lng": -0.06362
+        },
+        "sourceName": "lahore-kebabhouse.com",
+        "expiresAt": "2026-09-24",
+        "discoveredVia": "manual",
+        "extractedVia": "manual"
+      },
+      {
+        "id": "food-tayyabs",
+        "name": "Tayyabs",
+        "address": "83-89 Fieldgate Street, London E1 1JU",
+        "borough": "Tower Hamlets",
+        "lat": 51.51618,
+        "lng": -0.06351,
+        "kind": "food",
+        "hasStory": true,
+        "fameGates": [
+          {
+            "kind": "recognition",
+            "sourceUrl": "https://www.tayyabs.co.uk/"
+          },
+          {
+            "kind": "longevity",
+            "sourceUrl": "https://www.timeout.com/london/restaurants/tayyabs"
+          },
+          {
+            "kind": "cultural_weight",
+            "sourceUrl": "https://www.tayyabs.co.uk/"
+          }
+        ],
+        "sourceUrl": "https://www.tayyabs.co.uk/",
+        "observedAt": "2026-10-05",
+        "anchor": {
+          "kind": "signature_item",
+          "label": "Lamb chops",
+          "price": 13.95,
+          "observedAt": "2026-07-26",
+          "sourceUrl": "https://www.tayyabs.co.uk/"
+        },
+        "story": {
+          "text": "The Tayyab family has served Punjabi food in Whitechapel since 1972, with sizzling lamb chops as the table's inevitable first order.",
+          "sourceUrl": "https://www.tayyabs.co.uk/"
+        },
+        "category": "late_food",
+        "job": "crawl_ending_food",
+        "description": "The Tayyab family has served Punjabi food in Whitechapel since 1972, with sizzling lamb chops as the table's inevitable first order.",
+        "area": "Tower Hamlets",
+        "location": {
+          "lat": 51.51618,
+          "lng": -0.06351
+        },
+        "sourceName": "tayyabs.co.uk",
+        "expiresAt": "2026-11-04",
+        "discoveredVia": "manual",
+        "extractedVia": "manual"
+      },
+      {
+        "id": "food-ranoush-edgware-road",
+        "name": "Ranoush Juice",
+        "address": "43 Edgware Road, London W2 2JE",
+        "borough": "Westminster",
+        "lat": 51.51469,
+        "lng": -0.16085,
+        "kind": "food",
+        "hasStory": true,
+        "fameGates": [
+          {
+            "kind": "longevity",
+            "sourceUrl": "https://www.timeout.com/london/restaurants/ranoush-juice-3"
+          },
+          {
+            "kind": "cultural_weight",
+            "sourceUrl": "https://www.maroush.com/restaurants/edgware-road"
+          }
+        ],
+        "sourceUrl": "https://www.maroush.com/restaurants/edgware-road",
+        "observedAt": "2026-10-05",
+        "anchor": {
+          "kind": "signature_item",
+          "label": "Chicken shawarma",
+          "price": 9.5,
+          "observedAt": "2026-07-26",
+          "sourceUrl": "https://www.maroush.com/restaurants/edgware-road"
+        },
+        "story": {
+          "text": "Maroush's fast counter has wrapped shawarma and pressed fruit late into the night on Edgware Road since the 1980s.",
+          "sourceUrl": "https://www.maroush.com/restaurants/edgware-road"
+        },
+        "category": "late_food",
+        "job": "crawl_ending_food",
+        "description": "Maroush's fast counter has wrapped shawarma and pressed fruit late into the night on Edgware Road since the 1980s.",
+        "area": "Westminster",
+        "location": {
+          "lat": 51.51469,
+          "lng": -0.16085
+        },
+        "sourceName": "maroush.com",
+        "expiresAt": "2026-11-04",
+        "discoveredVia": "manual",
+        "extractedVia": "manual"
+      },
+      {
+        "id": "food-maroush-edgware-road",
+        "name": "Maroush Edgware Road",
+        "address": "21 Edgware Road, London W2 2JE",
+        "borough": "Westminster",
+        "lat": 51.51415,
+        "lng": -0.16008,
+        "kind": "food",
+        "hasStory": true,
+        "fameGates": [
+          {
+            "kind": "longevity",
+            "sourceUrl": "https://www.timeout.com/london/restaurants/maroush-i"
+          },
+          {
+            "kind": "cultural_weight",
+            "sourceUrl": "https://www.maroush.com/restaurants"
+          }
+        ],
+        "sourceUrl": "https://www.maroush.com/restaurants",
+        "observedAt": "2026-08-25",
+        "anchor": {
+          "kind": "signature_item",
+          "label": "Lamb shawarma",
+          "price": 10.5,
+          "observedAt": "2026-07-26",
+          "sourceUrl": "https://www.maroush.com/restaurants"
+        },
+        "story": {
+          "text": "Marouf Abouzaki opened Maroush on Edgware Road in 1981 and helped make the street London's Lebanese heart.",
+          "sourceUrl": "https://www.maroush.com/blog/little-beirut-london-edgware-road"
+        },
+        "category": "late_food",
+        "job": "crawl_ending_food",
+        "description": "Marouf Abouzaki opened Maroush on Edgware Road in 1981 and helped make the street London's Lebanese heart.",
+        "area": "Westminster",
+        "location": {
+          "lat": 51.51415,
+          "lng": -0.16008
+        },
+        "sourceName": "maroush.com",
+        "expiresAt": "2026-09-24",
+        "discoveredVia": "manual",
+        "extractedVia": "manual"
+      },
+      {
+        "id": "food-kebab-kid-fulham",
+        "name": "Kebab Kid",
+        "address": "90 New King's Road, London SW6 4LU",
+        "borough": "Hammersmith and Fulham",
+        "lat": 51.47346,
+        "lng": -0.19992,
+        "kind": "food",
+        "hasStory": true,
+        "fameGates": [
+          {
+            "kind": "recognition",
+            "sourceUrl": "https://www.timeout.com/london/restaurants/kebab-kid"
+          },
+          {
+            "kind": "longevity",
+            "sourceUrl": "https://kebabkid.co.uk/"
+          }
+        ],
+        "sourceUrl": "https://kebabkid.co.uk/",
+        "observedAt": "2026-10-05",
+        "anchor": {
+          "kind": "large_doner",
+          "label": "Large lamb doner",
+          "price": 13.5,
+          "observedAt": "2026-07-26",
+          "sourceUrl": "https://kebabkid.co.uk/"
+        },
+        "story": {
+          "text": "A Fulham late-night fixture since 1976, Kebab Kid is still known for hand-stacked doner and a queue after closing time.",
+          "sourceUrl": "https://kebabkid.co.uk/"
+        },
+        "category": "late_food",
+        "job": "crawl_ending_food",
+        "description": "A Fulham late-night fixture since 1976, Kebab Kid is still known for hand-stacked doner and a queue after closing time.",
+        "area": "Hammersmith and Fulham",
+        "location": {
+          "lat": 51.47346,
+          "lng": -0.19992
+        },
+        "sourceName": "kebabkid.co.uk",
+        "expiresAt": "2026-11-04",
+        "discoveredVia": "manual",
+        "extractedVia": "manual"
+      },
+      {
+        "id": "food-beigel-bake",
+        "name": "Beigel Bake",
+        "address": "159 Brick Lane, London E1 6SB",
+        "borough": "Tower Hamlets",
+        "lat": 51.52452,
+        "lng": -0.07193,
+        "kind": "food",
+        "hasStory": true,
+        "fameGates": [
+          {
+            "kind": "longevity",
+            "sourceUrl": "https://en.wikipedia.org/wiki/Beigel_Bake"
+          },
+          {
+            "kind": "cultural_weight",
+            "sourceUrl": "https://www.beigelbake.co.uk/"
+          },
+          {
+            "kind": "distinct_experience",
+            "sourceUrl": "https://www.beigelbake.co.uk/"
+          }
+        ],
+        "sourceUrl": "https://www.beigelbake.co.uk/",
+        "observedAt": "2026-10-05",
+        "anchor": {
+          "kind": "signature_item",
+          "label": "Salt beef beigel",
+          "price": 7.5,
+          "observedAt": "2026-08-25",
+          "sourceUrl": "https://www.beigelbake.co.uk/"
+        },
+        "story": {
+          "text": "Open around the clock since 1979, the white-fronted Brick Lane bakery boils beigels continuously and carves salt beef to order.",
+          "sourceUrl": "https://www.beigelbake.co.uk/"
+        },
+        "category": "late_food",
+        "job": "crawl_ending_food",
+        "description": "Open around the clock since 1979, the white-fronted Brick Lane bakery boils beigels continuously and carves salt beef to order.",
+        "area": "Tower Hamlets",
+        "location": {
+          "lat": 51.52452,
+          "lng": -0.07193
+        },
+        "sourceName": "beigelbake.co.uk",
+        "expiresAt": "2026-11-04",
+        "discoveredVia": "manual",
+        "extractedVia": "manual"
+      },
+      {
+        "id": "food-polo-bar",
+        "name": "Polo Bar",
+        "address": "176 Bishopsgate, London EC2M 4NQ",
+        "borough": "City of London",
+        "lat": 51.51773,
+        "lng": -0.08019,
+        "kind": "food",
+        "hasStory": true,
+        "fameGates": [
+          {
+            "kind": "longevity",
+            "sourceUrl": "https://www.timeout.com/london/things-to-do/11-unexpected-late-night-spots-worth-staying-up-for"
+          },
+          {
+            "kind": "distinct_experience",
+            "sourceUrl": "https://www.polobar.co.uk/"
+          }
+        ],
+        "sourceUrl": "https://www.polobar.co.uk/",
+        "observedAt": "2026-10-05",
+        "anchor": {
+          "kind": "signature_item",
+          "label": "Full English breakfast",
+          "price": 15.9,
+          "observedAt": "2026-07-26",
+          "sourceUrl": "https://www.polobar.co.uk/"
+        },
+        "story": {
+          "text": "A 24-hour Bishopsgate cafe since 1959, Polo Bar feeds night workers and missed-train travellers opposite Liverpool Street.",
+          "sourceUrl": "https://www.polobar.co.uk/"
+        },
+        "category": "late_food",
+        "job": "crawl_ending_food",
+        "description": "A 24-hour Bishopsgate cafe since 1959, Polo Bar feeds night workers and missed-train travellers opposite Liverpool Street.",
+        "area": "City of London",
+        "location": {
+          "lat": 51.51773,
+          "lng": -0.08019
+        },
+        "sourceName": "polobar.co.uk",
+        "expiresAt": "2026-11-04",
+        "discoveredVia": "manual",
+        "extractedVia": "manual",
+        "placesNameAliases": [
+          "polo bar 24 hour great british cafe"
+        ]
+      },
+      {
+        "id": "food-duck-waffle",
+        "name": "Duck & Waffle",
+        "address": "110 Bishopsgate, London EC2N 4AY",
+        "borough": "City of London",
+        "lat": 51.51503,
+        "lng": -0.08105,
+        "kind": "food",
+        "hasStory": true,
+        "fameGates": [
+          {
+            "kind": "recognition",
+            "sourceUrl": "https://www.timeout.com/london/news/londons-24-hour-restaurant-duck-waffle-is-open-again-for-sky-high-dining-090921"
+          },
+          {
+            "kind": "distinct_experience",
+            "sourceUrl": "https://duckandwaffle.com/london"
+          }
+        ],
+        "sourceUrl": "https://duckandwaffle.com/london",
+        "observedAt": "2026-10-05",
+        "anchor": {
+          "kind": "signature_item",
+          "label": "Duck and waffle",
+          "price": 28,
+          "observedAt": "2026-07-26",
+          "sourceUrl": "https://duckandwaffle.com/london"
+        },
+        "story": {
+          "text": "Forty floors above the City, the namesake confit duck and waffle made a sunrise meal part of London's night out.",
+          "sourceUrl": "https://duckandwaffle.com/london"
+        },
+        "category": "late_food",
+        "job": "crawl_ending_food",
+        "description": "Forty floors above the City, the namesake confit duck and waffle made a sunrise meal part of London's night out.",
+        "area": "City of London",
+        "location": {
+          "lat": 51.51503,
+          "lng": -0.08105
+        },
+        "sourceName": "duckandwaffle.com",
+        "expiresAt": "2026-11-04",
+        "discoveredVia": "manual",
+        "extractedVia": "manual"
+      },
+      {
+        "id": "food-wong-kei",
+        "name": "Wong Kei",
+        "address": "41-43 Wardour Street, London W1D 6PY",
+        "borough": "Westminster",
+        "lat": 51.51173,
+        "lng": -0.13265,
+        "kind": "food",
+        "hasStory": true,
+        "fameGates": [
+          {
+            "kind": "longevity",
+            "sourceUrl": "https://wongkeilondon.com/"
+          },
+          {
+            "kind": "cultural_weight",
+            "sourceUrl": "https://en.wikipedia.org/wiki/Wong_Kei"
+          }
+        ],
+        "sourceUrl": "https://wongkeilondon.com/",
+        "observedAt": "2026-10-05",
+        "story": {
+          "text": "Chinatown's vast, brisk canteen has served Cantonese roast meats and noodles across multiple floors since the 1970s.",
+          "sourceUrl": "https://wongkeilondon.com/"
+        },
+        "category": "late_food",
+        "job": "crawl_ending_food",
+        "description": "Chinatown's vast, brisk canteen has served Cantonese roast meats and noodles across multiple floors since the 1970s.",
+        "area": "Westminster",
+        "location": {
+          "lat": 51.51173,
+          "lng": -0.13265
+        },
+        "sourceName": "wongkeilondon.com",
+        "expiresAt": "2026-11-04",
+        "discoveredVia": "manual",
+        "extractedVia": "manual"
+      },
+      {
+        "id": "food-bar-italia",
+        "name": "Bar Italia",
+        "address": "22 Frith Street, London W1D 4RF",
+        "borough": "Westminster",
+        "lat": 51.51343,
+        "lng": -0.13165,
+        "kind": "food",
+        "hasStory": true,
+        "fameGates": [
+          {
+            "kind": "longevity",
+            "sourceUrl": "https://www.instagram.com/baritaliasoho"
+          },
+          {
+            "kind": "cultural_weight",
+            "sourceUrl": "https://en.wikipedia.org/wiki/Bar_Italia"
+          },
+          {
+            "kind": "distinct_experience",
+            "sourceUrl": "https://www.instagram.com/baritaliasoho"
+          }
+        ],
+        "sourceUrl": "https://www.instagram.com/baritaliasoho",
+        "observedAt": "2026-10-05",
+        "anchor": {
+          "kind": "signature_item",
+          "label": "Panini",
+          "price": 8.5,
+          "observedAt": "2026-07-26",
+          "sourceUrl": "https://www.instagram.com/baritaliasoho"
+        },
+        "story": {
+          "text": "The Polledri family opened Bar Italia in 1949 beneath the room where John Logie Baird first demonstrated television.",
+          "sourceUrl": "https://www.instagram.com/baritaliasoho"
+        },
+        "category": "late_food",
+        "job": "crawl_ending_food",
+        "description": "The Polledri family opened Bar Italia in 1949 beneath the room where John Logie Baird first demonstrated television.",
+        "area": "Westminster",
+        "location": {
+          "lat": 51.51343,
+          "lng": -0.13165
+        },
+        "sourceName": "instagram.com",
+        "expiresAt": "2026-11-04",
+        "discoveredVia": "manual",
+        "extractedVia": "manual"
+      },
+      {
+        "id": "food-vq-chelsea",
+        "name": "VQ Chelsea",
+        "address": "325 Fulham Road, London SW10 9QL",
+        "borough": "Kensington and Chelsea",
+        "lat": 51.48664,
+        "lng": -0.18156,
+        "kind": "food",
+        "hasStory": true,
+        "fameGates": [
+          {
+            "kind": "longevity",
+            "sourceUrl": "https://www.theinfatuation.com/london/reviews/vingt-quatre"
+          },
+          {
+            "kind": "distinct_experience",
+            "sourceUrl": "https://www.vqrestaurants.com/locations/chelsea"
+          }
+        ],
+        "sourceUrl": "https://www.vqrestaurants.com/locations/chelsea",
+        "observedAt": "2026-10-05",
+        "anchor": {
+          "kind": "signature_item",
+          "label": "Full English breakfast",
+          "price": 17.95,
+          "observedAt": "2026-07-26",
+          "sourceUrl": "https://www.vqrestaurants.com/locations/chelsea"
+        },
+        "story": {
+          "text": "VQ began as Chelsea's Vingt-Quatre in 1995, making a proper sit-down meal available to west London around the clock.",
+          "sourceUrl": "https://www.vqrestaurants.com/locations/chelsea"
+        },
+        "category": "late_food",
+        "job": "crawl_ending_food",
+        "description": "VQ began as Chelsea's Vingt-Quatre in 1995, making a proper sit-down meal available to west London around the clock.",
+        "area": "Kensington and Chelsea",
+        "location": {
+          "lat": 51.48664,
+          "lng": -0.18156
+        },
+        "sourceName": "vqrestaurants.com",
+        "expiresAt": "2026-11-04",
+        "discoveredVia": "manual",
+        "extractedVia": "manual"
+      },
+      {
+        "id": "food-golden-dragon",
+        "name": "Golden Dragon",
+        "address": "28-29 Gerrard Street, London W1D 6JW",
+        "borough": "Westminster",
+        "lat": 51.51169,
+        "lng": -0.13121,
+        "kind": "food",
+        "hasStory": true,
+        "fameGates": [
+          {
+            "kind": "longevity",
+            "sourceUrl": "https://www.timeout.com/london/restaurants/golden-dragon"
+          },
+          {
+            "kind": "cultural_weight",
+            "sourceUrl": "https://goldendragonlondon.com/"
+          }
+        ],
+        "sourceUrl": "https://goldendragonlondon.com/",
+        "observedAt": "2026-10-05",
+        "story": {
+          "text": "Golden Dragon's long Gerrard Street dining room is a Chinatown constant for dim sum by day and Cantonese roast meats late.",
+          "sourceUrl": "https://goldendragonlondon.com/"
+        },
+        "category": "late_food",
+        "job": "crawl_ending_food",
+        "description": "Golden Dragon's long Gerrard Street dining room is a Chinatown constant for dim sum by day and Cantonese roast meats late.",
+        "area": "Westminster",
+        "location": {
+          "lat": 51.51169,
+          "lng": -0.13121
+        },
+        "sourceName": "goldendragonlondon.com",
+        "expiresAt": "2026-11-04",
+        "discoveredVia": "manual",
+        "extractedVia": "manual",
+        "placesNameAliases": [
+          "golden dragon chinatown"
+        ]
+      }
+    ],
+    "restaurants.json": [
+      {
+        "id": "restaurant-rules",
+        "name": "Rules",
+        "address": "35 Maiden Lane, London WC2E 7LB",
+        "borough": "Westminster",
+        "lat": 51.5108285,
+        "lng": -0.1231906,
+        "kind": "restaurant",
+        "hasStory": true,
+        "fameGates": [
+          {
+            "kind": "longevity",
+            "sourceUrl": "https://rules.co.uk/history"
+          },
+          {
+            "kind": "recognition",
+            "sourceUrl": "https://en.wikipedia.org/wiki/Rules_(restaurant)"
+          }
+        ],
+        "sourceUrl": "https://rules.co.uk/our-menus",
+        "observedAt": "2026-10-05",
+        "anchor": {
+          "kind": "signature_dish",
+          "label": "Steak & Kidney Pudding",
+          "course": "mains",
+          "price": 26.25,
+          "observedAt": "2026-08-25",
+          "sourceUrl": "https://rules.co.uk/our-menus"
+        },
+        "story": {
+          "text": "Rules has served traditional British cooking in Covent Garden since 1798.",
+          "sourceUrl": "https://rules.co.uk/history"
+        },
+        "category": "restaurant",
+        "job": "near_pub_food",
+        "description": "Rules has served traditional British cooking in Covent Garden since 1798.",
+        "area": "Covent Garden",
+        "location": {
+          "lat": 51.5108285,
+          "lng": -0.1231906
+        },
+        "sourceName": "rules.co.uk",
+        "expiresAt": "2026-11-04",
+        "discoveredVia": "manual",
+        "extractedVia": "manual"
+      },
+      {
+        "id": "restaurant-ivy-west-street",
+        "name": "The Ivy West Street",
+        "address": "1-5 West Street, London WC2H 9NQ",
+        "borough": "Camden",
+        "lat": 51.512931,
+        "lng": -0.1280402,
+        "kind": "restaurant",
+        "hasStory": true,
+        "fameGates": [
+          {
+            "kind": "cultural_weight",
+            "sourceUrl": "https://ivycollection.com/restaurants-near-me/the-ivy-london/the-ivy-west-street-covent-garden"
+          },
+          {
+            "kind": "recognition",
+            "sourceUrl": "https://en.wikipedia.org/wiki/The_Ivy_(UK)"
+          }
+        ],
+        "sourceUrl": "https://ivycollection.com/restaurants-near-me/the-ivy-london/the-ivy-west-street-covent-garden/the-original-ivy-heritage-menu",
+        "observedAt": "2026-10-05",
+        "anchor": {
+          "kind": "signature_dish",
+          "label": "The Ivy Shepherd's Pie",
+          "course": "mains",
+          "price": 29.95,
+          "observedAt": "2026-08-25",
+          "sourceUrl": "https://ivycollection.com/restaurants-near-me/the-ivy-london/the-ivy-west-street-covent-garden/the-original-ivy-heritage-menu"
+        },
+        "story": {
+          "text": "The Ivy has been a West End meeting place for actors, writers and audiences since 1917.",
+          "sourceUrl": "https://ivycollection.com/restaurants-near-me/the-ivy-london/the-ivy-west-street-covent-garden"
+        },
+        "category": "restaurant",
+        "job": "near_pub_food",
+        "description": "The Ivy has been a West End meeting place for actors, writers and audiences since 1917.",
+        "area": "Covent Garden",
+        "location": {
+          "lat": 51.512931,
+          "lng": -0.1280402
+        },
+        "sourceName": "ivycollection.com",
+        "expiresAt": "2026-11-04",
+        "discoveredVia": "manual",
+        "extractedVia": "manual",
+        "placesNameAliases": [
+          "original ivy west end"
+        ]
+      },
+      {
+        "id": "restaurant-scotts",
+        "name": "Scott's",
+        "address": "20 Mount Street, London W1K 2HE",
+        "borough": "Westminster",
+        "lat": 51.5098163,
+        "lng": -0.1509327,
+        "kind": "restaurant",
+        "hasStory": true,
+        "fameGates": [
+          {
+            "kind": "longevity",
+            "sourceUrl": "https://scotts-mayfair.com"
+          },
+          {
+            "kind": "recognition",
+            "sourceUrl": "https://en.wikipedia.org/wiki/Scott%27s_(restaurant)"
+          }
+        ],
+        "sourceUrl": "https://scotts-mayfair.com/wp-content/uploads/2025/10/ALC-01.10.2025-1.pdf",
+        "observedAt": "2026-10-05",
+        "anchor": {
+          "kind": "signature_dish",
+          "label": "Dover Sole, 16oz",
+          "course": "mains",
+          "price": 54,
+          "observedAt": "2026-07-27",
+          "sourceUrl": "https://scotts-mayfair.com/wp-content/uploads/2025/10/ALC-01.10.2025-1.pdf"
+        },
+        "story": {
+          "text": "Scott's traces its seafood rooms to 1851 and remains a Mayfair institution.",
+          "sourceUrl": "https://scotts-mayfair.com"
+        },
+        "category": "restaurant",
+        "job": "near_pub_food",
+        "description": "Scott's traces its seafood rooms to 1851 and remains a Mayfair institution.",
+        "area": "Mayfair",
+        "location": {
+          "lat": 51.5098163,
+          "lng": -0.1509327
+        },
+        "sourceName": "scotts-mayfair.com",
+        "expiresAt": "2026-11-04",
+        "discoveredVia": "manual",
+        "extractedVia": "manual"
+      },
+      {
+        "id": "restaurant-j-sheekey",
+        "name": "J Sheekey",
+        "address": "28-32 St Martin's Court, London WC2N 4AL",
+        "borough": "Westminster",
+        "lat": 51.51138,
+        "lng": -0.12758,
+        "kind": "restaurant",
+        "hasStory": true,
+        "fameGates": [
+          {
+            "kind": "longevity",
+            "sourceUrl": "https://j-sheekey.co.uk/our-story"
+          },
+          {
+            "kind": "recognition",
+            "sourceUrl": "https://www.timeout.com/london/restaurants/j-sheekey"
+          }
+        ],
+        "sourceUrl": "https://j-sheekey.co.uk/wp-content/uploads/2026/05/JSheekey_Spring-Menus_ALC-28_05_26-VW.pdf",
+        "observedAt": "2026-10-05",
+        "anchor": {
+          "kind": "signature_dish",
+          "label": "J. Sheekey Fish Pie",
+          "course": "mains",
+          "price": 25,
+          "observedAt": "2026-07-27",
+          "sourceUrl": "https://j-sheekey.co.uk/wp-content/uploads/2026/05/JSheekey_Spring-Menus_ALC-28_05_26-VW.pdf"
+        },
+        "story": {
+          "text": "J Sheekey has fed theatregoers and performers beside the West End stages since 1896.",
+          "sourceUrl": "https://j-sheekey.co.uk/our-story"
+        },
+        "category": "restaurant",
+        "job": "near_pub_food",
+        "description": "J Sheekey has fed theatregoers and performers beside the West End stages since 1896.",
+        "area": "Covent Garden",
+        "location": {
+          "lat": 51.51138,
+          "lng": -0.12758
+        },
+        "sourceName": "j-sheekey.co.uk",
+        "expiresAt": "2026-11-04",
+        "discoveredVia": "manual",
+        "extractedVia": "manual"
+      },
+      {
+        "id": "restaurant-quo-vadis",
+        "name": "Quo Vadis",
+        "address": "26-29 Dean Street, London W1D 3LL",
+        "borough": "Westminster",
+        "lat": 51.5140415,
+        "lng": -0.1325841,
+        "kind": "restaurant",
+        "hasStory": true,
+        "fameGates": [
+          {
+            "kind": "cultural_weight",
+            "sourceUrl": "https://www.quovadissoho.co.uk/history"
+          },
+          {
+            "kind": "recognition",
+            "sourceUrl": "https://www.timeout.com/london/restaurants/quo-vadis"
+          }
+        ],
+        "sourceUrl": "https://www.quovadissoho.co.uk/wp-content/uploads/2019/01/QV195-June-26-ALC_01.pdf",
+        "observedAt": "2026-10-05",
+        "anchor": {
+          "kind": "signature_dish",
+          "label": "Smoked Eel Sandwich",
+          "course": "bar-snacks",
+          "price": 18.5,
+          "observedAt": "2026-07-27",
+          "sourceUrl": "https://www.quovadissoho.co.uk/wp-content/uploads/2019/01/QV195-June-26-ALC_01.pdf"
+        },
+        "story": {
+          "text": "Quo Vadis occupies a Georgian Soho house once lived in by Karl Marx.",
+          "sourceUrl": "https://www.quovadissoho.co.uk/history"
+        },
+        "category": "restaurant",
+        "job": "near_pub_food",
+        "description": "Quo Vadis occupies a Georgian Soho house once lived in by Karl Marx.",
+        "area": "Soho",
+        "location": {
+          "lat": 51.5140415,
+          "lng": -0.1325841
+        },
+        "sourceName": "quovadissoho.co.uk",
+        "expiresAt": "2026-11-04",
+        "discoveredVia": "manual",
+        "extractedVia": "manual"
+      },
+      {
+        "id": "restaurant-st-john-smithfield",
+        "name": "St. JOHN Smithfield",
+        "address": "26 St John Street, London EC1M 4AY",
+        "borough": "Islington",
+        "lat": 51.5204809,
+        "lng": -0.1012748,
+        "kind": "restaurant",
+        "hasStory": true,
+        "fameGates": [
+          {
+            "kind": "distinct_experience",
+            "sourceUrl": "https://stjohnrestaurant.com/a/restaurants/smithfield"
+          },
+          {
+            "kind": "recognition",
+            "sourceUrl": "https://en.wikipedia.org/wiki/St._John_(restaurant)"
+          }
+        ],
+        "sourceUrl": "https://stjohnrestaurant.com/a/menus/1",
+        "observedAt": "2026-10-05",
+        "anchor": {
+          "kind": "signature_dish",
+          "label": "Roast Bone Marrow & Parsley Salad",
+          "course": "starters",
+          "price": 16.5,
+          "observedAt": "2026-07-27",
+          "sourceUrl": "https://stjohnrestaurant.com/a/menus/1"
+        },
+        "story": {
+          "text": "Fergus Henderson opened St. JOHN in a former smokehouse in 1994 and made nose-to-tail cooking its signature.",
+          "sourceUrl": "https://stjohnrestaurant.com/a/restaurants/smithfield"
+        },
+        "category": "restaurant",
+        "job": "near_pub_food",
+        "description": "Fergus Henderson opened St. JOHN in a former smokehouse in 1994 and made nose-to-tail cooking its signature.",
+        "area": "Smithfield",
+        "location": {
+          "lat": 51.5204809,
+          "lng": -0.1012748
+        },
+        "sourceName": "stjohnrestaurant.com",
+        "expiresAt": "2026-11-04",
+        "discoveredVia": "manual",
+        "extractedVia": "manual",
+        "placesNameAliases": [
+          "st john"
+        ]
+      },
+      {
+        "id": "restaurant-river-cafe",
+        "name": "The River Cafe",
+        "address": "Thames Wharf, Rainville Road, London W6 9HA",
+        "borough": "Hammersmith and Fulham",
+        "lat": 51.4837627,
+        "lng": -0.2245519,
+        "kind": "restaurant",
+        "hasStory": true,
+        "fameGates": [
+          {
+            "kind": "cultural_weight",
+            "sourceUrl": "https://www.rivercafe.co.uk/about"
+          },
+          {
+            "kind": "recognition",
+            "sourceUrl": "https://en.wikipedia.org/wiki/The_River_Caf%C3%A9_(London)"
+          }
+        ],
+        "sourceUrl": "https://www.rivercafe.co.uk/",
+        "observedAt": "2026-10-05",
+        "anchor": {
+          "kind": "signature_dish",
+          "label": "Chocolate Nemesis",
+          "course": "desserts",
+          "price": 15,
+          "observedAt": "2026-08-25",
+          "sourceUrl": "https://www.rivercafe.co.uk/"
+        },
+        "story": {
+          "text": "Ruth Rogers and Rose Gray opened The River Cafe beside the Thames in 1987.",
+          "sourceUrl": "https://www.rivercafe.co.uk/about"
+        },
+        "category": "restaurant",
+        "job": "near_pub_food",
+        "description": "Ruth Rogers and Rose Gray opened The River Cafe beside the Thames in 1987.",
+        "area": "Hammersmith",
+        "location": {
+          "lat": 51.4837627,
+          "lng": -0.2245519
+        },
+        "sourceName": "rivercafe.co.uk",
+        "expiresAt": "2026-11-04",
+        "discoveredVia": "manual",
+        "extractedVia": "manual"
+      },
+      {
+        "id": "restaurant-wolseley",
+        "name": "The Wolseley",
+        "address": "160 Piccadilly, London W1J 9EB",
+        "borough": "Westminster",
+        "lat": 51.5073927,
+        "lng": -0.1409072,
+        "kind": "restaurant",
+        "hasStory": true,
+        "fameGates": [
+          {
+            "kind": "distinct_experience",
+            "sourceUrl": "https://www.thewolseley.com/history"
+          },
+          {
+            "kind": "recognition",
+            "sourceUrl": "https://en.wikipedia.org/wiki/The_Wolseley"
+          }
+        ],
+        "sourceUrl": "https://www.thewolseley.com/app/uploads/2026/02/00506_WOLSELEY_Winter_2025_Breakfast_A5-12pp_Kcals29.pdf",
+        "observedAt": "2026-10-05",
+        "anchor": {
+          "kind": "signature_dish",
+          "label": "Eggs Benedict, large",
+          "course": "breakfast",
+          "price": 21.5,
+          "observedAt": "2026-07-27",
+          "sourceUrl": "https://www.thewolseley.com/app/uploads/2026/02/00506_WOLSELEY_Winter_2025_Breakfast_A5-12pp_Kcals29.pdf"
+        },
+        "story": {
+          "text": "The Wolseley fills a listed former car showroom with the rituals of a grand European cafe.",
+          "sourceUrl": "https://www.thewolseley.com/history"
+        },
+        "category": "restaurant",
+        "job": "near_pub_food",
+        "description": "The Wolseley fills a listed former car showroom with the rituals of a grand European cafe.",
+        "area": "Piccadilly",
+        "location": {
+          "lat": 51.5073927,
+          "lng": -0.1409072
+        },
+        "sourceName": "thewolseley.com",
+        "expiresAt": "2026-11-04",
+        "discoveredVia": "manual",
+        "extractedVia": "manual",
+        "placesNameAliases": [
+          "wolseley piccadilly"
+        ]
+      },
+      {
+        "id": "restaurant-brasserie-zedel",
+        "name": "Brasserie Zédel",
+        "address": "20 Sherwood Street, London W1F 7ED",
+        "borough": "Westminster",
+        "lat": 51.5106309,
+        "lng": -0.1355893,
+        "kind": "restaurant",
+        "hasStory": true,
+        "fameGates": [
+          {
+            "kind": "distinct_experience",
+            "sourceUrl": "https://www.brasseriezedel.com"
+          },
+          {
+            "kind": "recognition",
+            "sourceUrl": "https://www.timeout.com/london/restaurants/brasserie-zedel"
+          }
+        ],
+        "sourceUrl": "https://www.brasseriezedel.com/wp-content/uploads/2020/02/Zedel-summer-2026-Kcal-combined-wine-menu.pdf",
+        "observedAt": "2026-10-05",
+        "anchor": {
+          "kind": "signature_dish",
+          "label": "Steak Haché et Frites",
+          "course": "mains",
+          "price": 16,
+          "observedAt": "2026-07-27",
+          "sourceUrl": "https://www.brasseriezedel.com/wp-content/uploads/2020/02/Zedel-summer-2026-Kcal-combined-wine-menu.pdf"
+        },
+        "story": {
+          "text": "Brasserie Zédel serves French classics in a vast 1930s dining room below Piccadilly.",
+          "sourceUrl": "https://www.brasseriezedel.com"
+        },
+        "category": "restaurant",
+        "job": "near_pub_food",
+        "description": "Brasserie Zédel serves French classics in a vast 1930s dining room below Piccadilly.",
+        "area": "Piccadilly",
+        "location": {
+          "lat": 51.5106309,
+          "lng": -0.1355893
+        },
+        "sourceName": "brasseriezedel.com",
+        "expiresAt": "2026-11-04",
+        "discoveredVia": "manual",
+        "extractedVia": "manual"
+      },
+      {
+        "id": "restaurant-veeraswamy",
+        "name": "Veeraswamy",
+        "address": "Victory House, 99 Regent Street, London W1B 4EZ",
+        "borough": "Westminster",
+        "lat": 51.5098955,
+        "lng": -0.1379192,
+        "kind": "restaurant",
+        "hasStory": true,
+        "fameGates": [
+          {
+            "kind": "longevity",
+            "sourceUrl": "https://www.veeraswamy.com/about"
+          },
+          {
+            "kind": "recognition",
+            "sourceUrl": "https://en.wikipedia.org/wiki/Veeraswamy"
+          }
+        ],
+        "sourceUrl": "https://www.veeraswamy.com/menu",
+        "observedAt": "2026-10-05",
+        "anchor": {
+          "kind": "signature_dish",
+          "label": "Raj Kachori",
+          "course": "starters",
+          "price": 19,
+          "observedAt": "2026-08-25",
+          "sourceUrl": "https://www.veeraswamy.com/menu"
+        },
+        "story": {
+          "text": "Veeraswamy opened in 1926 and is London's oldest surviving Indian restaurant.",
+          "sourceUrl": "https://www.veeraswamy.com/about"
+        },
+        "category": "restaurant",
+        "job": "near_pub_food",
+        "description": "Veeraswamy opened in 1926 and is London's oldest surviving Indian restaurant.",
+        "area": "Regent Street",
+        "location": {
+          "lat": 51.5098955,
+          "lng": -0.1379192
+        },
+        "sourceName": "veeraswamy.com",
+        "expiresAt": "2026-11-04",
+        "discoveredVia": "manual",
+        "extractedVia": "manual"
+      },
+      {
+        "id": "restaurant-dishoom-covent-garden",
+        "name": "Dishoom Covent Garden",
+        "address": "12 Upper St Martin's Lane, London WC2H 9FB",
+        "borough": "Westminster",
+        "lat": 51.5124271,
+        "lng": -0.126856,
+        "kind": "restaurant",
+        "hasStory": true,
+        "fameGates": [
+          {
+            "kind": "cultural_weight",
+            "sourceUrl": "https://www.dishoom.com/covent-garden"
+          },
+          {
+            "kind": "recognition",
+            "sourceUrl": "https://en.wikipedia.org/wiki/Dishoom_(restaurant)"
+          }
+        ],
+        "sourceUrl": "https://www.dishoom.com/menu/collection-covent-garden",
+        "observedAt": "2026-10-05",
+        "anchor": {
+          "kind": "signature_dish",
+          "label": "Bacon Naan Roll",
+          "course": "breakfast",
+          "price": 11.7,
+          "observedAt": "2026-07-27",
+          "sourceUrl": "https://www.dishoom.com/menu/collection-covent-garden"
+        },
+        "story": {
+          "text": "Dishoom's first Bombay-cafe dining room opened in Covent Garden in 2010.",
+          "sourceUrl": "https://www.dishoom.com/covent-garden"
+        },
+        "category": "restaurant",
+        "job": "near_pub_food",
+        "description": "Dishoom's first Bombay-cafe dining room opened in Covent Garden in 2010.",
+        "area": "Covent Garden",
+        "location": {
+          "lat": 51.5124271,
+          "lng": -0.126856
+        },
+        "sourceName": "dishoom.com",
+        "expiresAt": "2026-11-04",
+        "discoveredVia": "manual",
+        "extractedVia": "manual"
+      },
+      {
+        "id": "restaurant-ottolenghi-spitalfields",
+        "name": "Ottolenghi Spitalfields",
+        "address": "50 Artillery Lane, London E1 7LJ",
+        "borough": "Tower Hamlets",
+        "lat": 51.5182341,
+        "lng": -0.0773112,
+        "kind": "restaurant",
+        "hasStory": true,
+        "fameGates": [
+          {
+            "kind": "cultural_weight",
+            "sourceUrl": "https://ottolenghi.co.uk/pages/restaurants/spitalfields"
+          },
+          {
+            "kind": "recognition",
+            "sourceUrl": "https://en.wikipedia.org/wiki/Yotam_Ottolenghi"
+          }
+        ],
+        "sourceUrl": "https://ottolenghi.co.uk/pages/restaurants/spitalfields",
+        "observedAt": "2026-10-05",
+        "anchor": {
+          "kind": "signature_dish",
+          "label": "Shakshuka",
+          "course": "breakfast",
+          "price": 15.5,
+          "observedAt": "2026-08-25",
+          "sourceUrl": "https://ottolenghi.co.uk/pages/restaurants/spitalfields"
+        },
+        "story": {
+          "text": "Ottolenghi Spitalfields turns the chef's vivid salads, bakes and Middle Eastern flavours into an all-day restaurant.",
+          "sourceUrl": "https://ottolenghi.co.uk/pages/restaurants/spitalfields"
+        },
+        "category": "restaurant",
+        "job": "near_pub_food",
+        "description": "Ottolenghi Spitalfields turns the chef's vivid salads, bakes and Middle Eastern flavours into an all-day restaurant.",
+        "area": "Spitalfields",
+        "location": {
+          "lat": 51.5182341,
+          "lng": -0.0773112
+        },
+        "sourceName": "ottolenghi.co.uk",
+        "expiresAt": "2026-11-04",
+        "discoveredVia": "manual",
+        "extractedVia": "manual"
+      },
+      {
+        "id": "restaurant-moro",
+        "name": "Moro",
+        "address": "34-36 Exmouth Market, London EC1R 4QE",
+        "borough": "Islington",
+        "lat": 51.5258357,
+        "lng": -0.1090005,
+        "kind": "restaurant",
+        "hasStory": true,
+        "fameGates": [
+          {
+            "kind": "cultural_weight",
+            "sourceUrl": "https://moro.co.uk/about"
+          },
+          {
+            "kind": "recognition",
+            "sourceUrl": "https://guide.michelin.com/gb/en/greater-london/london/restaurant/moro"
+          }
+        ],
+        "sourceUrl": "https://moro.co.uk/menu",
+        "observedAt": "2026-10-05",
+        "anchor": {
+          "kind": "signature_dish",
+          "label": "Charcoal-grilled Lamb",
+          "course": "mains",
+          "price": 38,
+          "observedAt": "2026-08-25",
+          "sourceUrl": "https://moro.co.uk/menu"
+        },
+        "story": {
+          "text": "Moro has cooked across the flavours of Spain and the Muslim Mediterranean on Exmouth Market since 1997.",
+          "sourceUrl": "https://moro.co.uk/about"
+        },
+        "category": "restaurant",
+        "job": "near_pub_food",
+        "description": "Moro has cooked across the flavours of Spain and the Muslim Mediterranean on Exmouth Market since 1997.",
+        "area": "Clerkenwell",
+        "location": {
+          "lat": 51.5258357,
+          "lng": -0.1090005
+        },
+        "sourceName": "moro.co.uk",
+        "expiresAt": "2026-11-04",
+        "discoveredVia": "manual",
+        "extractedVia": "manual"
+      },
+      {
+        "id": "restaurant-rochelle-canteen",
+        "name": "Rochelle Canteen",
+        "address": "Rochelle School, Arnold Circus, London E2 7ES",
+        "borough": "Tower Hamlets",
+        "lat": 51.525615,
+        "lng": -0.074167,
+        "kind": "restaurant",
+        "hasStory": true,
+        "fameGates": [
+          {
+            "kind": "distinct_experience",
+            "sourceUrl": "https://rochellecanteen.com"
+          },
+          {
+            "kind": "recognition",
+            "sourceUrl": "https://guide.michelin.com/gb/en/greater-london/london/restaurant/rochelle-canteen"
+          }
+        ],
+        "sourceUrl": "https://rochellecanteen.com/menu",
+        "observedAt": "2026-10-05",
+        "anchor": {
+          "kind": "signature_dish",
+          "label": "Chocolate Tart",
+          "course": "desserts",
+          "price": 11,
+          "observedAt": "2026-07-27",
+          "sourceUrl": "https://rochellecanteen.com/menu"
+        },
+        "story": {
+          "text": "Rochelle Canteen sits behind the gates of a former Victorian school in Arnold Circus.",
+          "sourceUrl": "https://rochellecanteen.com"
+        },
+        "category": "restaurant",
+        "job": "near_pub_food",
+        "description": "Rochelle Canteen sits behind the gates of a former Victorian school in Arnold Circus.",
+        "area": "Shoreditch",
+        "location": {
+          "lat": 51.525615,
+          "lng": -0.074167
+        },
+        "sourceName": "rochellecanteen.com",
+        "expiresAt": "2026-11-04",
+        "discoveredVia": "manual",
+        "extractedVia": "manual"
+      },
+      {
+        "id": "restaurant-duck-and-waffle",
+        "name": "Duck & Waffle",
+        "address": "110 Bishopsgate, London EC2N 4AY",
+        "borough": "City of London",
+        "lat": 51.5162092,
+        "lng": -0.0810446,
+        "kind": "restaurant",
+        "hasStory": true,
+        "fameGates": [
+          {
+            "kind": "distinct_experience",
+            "sourceUrl": "https://www.duckandwaffle.com/london"
+          },
+          {
+            "kind": "recognition",
+            "sourceUrl": "https://www.timeout.com/london/restaurants/duck-waffle"
+          }
+        ],
+        "sourceUrl": "https://www.duckandwaffle.com/london/menu/dinner",
+        "observedAt": "2026-10-05",
+        "anchor": {
+          "kind": "signature_dish",
+          "label": "Duck & Waffle",
+          "course": "mains",
+          "price": 26,
+          "observedAt": "2026-07-27",
+          "sourceUrl": "https://www.duckandwaffle.com/london/menu/dinner"
+        },
+        "story": {
+          "text": "Duck & Waffle pairs its namesake dish with a dining room forty floors above Bishopsgate.",
+          "sourceUrl": "https://www.duckandwaffle.com/london"
+        },
+        "category": "restaurant",
+        "job": "near_pub_food",
+        "description": "Duck & Waffle pairs its namesake dish with a dining room forty floors above Bishopsgate.",
+        "area": "City of London",
+        "location": {
+          "lat": 51.5162092,
+          "lng": -0.0810446
+        },
+        "sourceName": "duckandwaffle.com",
+        "expiresAt": "2026-11-04",
+        "discoveredVia": "manual",
+        "extractedVia": "manual"
+      },
+      {
+        "id": "restaurant-padella-borough",
+        "name": "Padella Borough Market",
+        "address": "6 Southwark Street, London SE1 1TQ",
+        "borough": "Southwark",
+        "lat": 51.505008,
+        "lng": -0.08981,
+        "kind": "restaurant",
+        "hasStory": true,
+        "fameGates": [
+          {
+            "kind": "distinct_experience",
+            "sourceUrl": "https://www.padella.co/borough-market"
+          },
+          {
+            "kind": "recognition",
+            "sourceUrl": "https://www.timeout.com/london/restaurants/padella"
+          }
+        ],
+        "sourceUrl": "https://www.padella.co/borough-market",
+        "observedAt": "2026-10-05",
+        "anchor": {
+          "kind": "signature_dish",
+          "label": "Pici Cacio & Pepe",
+          "course": "mains",
+          "price": 13.5,
+          "observedAt": "2026-08-25",
+          "sourceUrl": "https://www.padella.co/borough-market"
+        },
+        "story": {
+          "text": "Padella rolls pasta in the window at its original Borough Market counter.",
+          "sourceUrl": "https://www.padella.co/borough-market"
+        },
+        "category": "restaurant",
+        "job": "near_pub_food",
+        "description": "Padella rolls pasta in the window at its original Borough Market counter.",
+        "area": "Borough Market",
+        "location": {
+          "lat": 51.505008,
+          "lng": -0.08981
+        },
+        "sourceName": "padella.co",
+        "expiresAt": "2026-11-04",
+        "discoveredVia": "manual",
+        "extractedVia": "manual"
+      },
+      {
+        "id": "restaurant-blacklock-soho",
+        "name": "Blacklock Soho",
+        "address": "24 Great Windmill Street, London W1D 7LG",
+        "borough": "Westminster",
+        "lat": 51.5117726,
+        "lng": -0.1346407,
+        "kind": "restaurant",
+        "hasStory": true,
+        "fameGates": [
+          {
+            "kind": "distinct_experience",
+            "sourceUrl": "https://theblacklock.com/restaurants/blacklock-soho"
+          },
+          {
+            "kind": "recognition",
+            "sourceUrl": "https://www.timeout.com/london/restaurants/blacklock"
+          }
+        ],
+        "sourceUrl": "https://theblacklock.com/menus",
+        "observedAt": "2026-10-05",
+        "anchor": {
+          "kind": "signature_dish",
+          "label": "All In",
+          "course": "sharers",
+          "price": 28,
+          "observedAt": "2026-07-27",
+          "sourceUrl": "https://theblacklock.com/menus"
+        },
+        "story": {
+          "text": "Blacklock built its Soho name on charcoal-grilled chops served from a former basement brothel.",
+          "sourceUrl": "https://theblacklock.com/restaurants/blacklock-soho"
+        },
+        "category": "restaurant",
+        "job": "near_pub_food",
+        "description": "Blacklock built its Soho name on charcoal-grilled chops served from a former basement brothel.",
+        "area": "Soho",
+        "location": {
+          "lat": 51.5117726,
+          "lng": -0.1346407
+        },
+        "sourceName": "theblacklock.com",
+        "expiresAt": "2026-11-04",
+        "discoveredVia": "manual",
+        "extractedVia": "manual"
+      },
+      {
+        "id": "restaurant-poppies-spitalfields",
+        "name": "Poppies Spitalfields",
+        "address": "6-8 Hanbury Street, London E1 6QR",
+        "borough": "Tower Hamlets",
+        "lat": 51.520297,
+        "lng": -0.074097,
+        "kind": "restaurant",
+        "hasStory": true,
+        "fameGates": [
+          {
+            "kind": "cultural_weight",
+            "sourceUrl": "https://poppiesfishandchips.co.uk/poppies-spitalfields"
+          },
+          {
+            "kind": "recognition",
+            "sourceUrl": "https://www.visitlondon.com/things-to-do/place/19469810-poppies-fish-and-chips"
+          }
+        ],
+        "sourceUrl": "https://poppiesfishandchips.co.uk/menu",
+        "observedAt": "2026-10-05",
+        "anchor": {
+          "kind": "signature_dish",
+          "label": "Regular Haddock & Chips",
+          "course": "mains",
+          "price": 20.99,
+          "observedAt": "2026-08-25",
+          "sourceUrl": "https://poppiesfishandchips.co.uk/menu"
+        },
+        "story": {
+          "text": "Poppies serves fish and chips amid Pop Newland's collection of mid-century East End memorabilia.",
+          "sourceUrl": "https://poppiesfishandchips.co.uk/poppies-spitalfields"
+        },
+        "category": "restaurant",
+        "job": "near_pub_food",
+        "description": "Poppies serves fish and chips amid Pop Newland's collection of mid-century East End memorabilia.",
+        "area": "Spitalfields",
+        "location": {
+          "lat": 51.520297,
+          "lng": -0.074097
+        },
+        "sourceName": "poppiesfishandchips.co.uk",
+        "expiresAt": "2026-11-04",
+        "discoveredVia": "manual",
+        "extractedVia": "manual",
+        "placesNameAliases": [
+          "poppies fish chips"
+        ]
+      },
+      {
+        "id": "restaurant-wiltons",
+        "name": "Wiltons",
+        "address": "55 Jermyn Street, London SW1Y 6LX",
+        "borough": "Westminster",
+        "lat": 51.5076994,
+        "lng": -0.1392041,
+        "kind": "restaurant",
+        "hasStory": true,
+        "fameGates": [
+          {
+            "kind": "longevity",
+            "sourceUrl": "https://wiltons.co.uk/history"
+          },
+          {
+            "kind": "recognition",
+            "sourceUrl": "https://guide.michelin.com/gb/en/greater-london/london/restaurant/wiltons"
+          }
+        ],
+        "sourceUrl": "https://wiltons.co.uk/s/010726-Copy.pdf",
+        "observedAt": "2026-10-05",
+        "anchor": {
+          "kind": "signature_dish",
+          "label": "Potted Shrimps",
+          "course": "starters",
+          "price": 28,
+          "observedAt": "2026-07-27",
+          "sourceUrl": "https://wiltons.co.uk/s/010726-Copy.pdf"
+        },
+        "story": {
+          "text": "Wiltons grew from an 1742 oyster stall into a Jermyn Street dining room.",
+          "sourceUrl": "https://wiltons.co.uk/history"
+        },
+        "category": "restaurant",
+        "job": "near_pub_food",
+        "description": "Wiltons grew from an 1742 oyster stall into a Jermyn Street dining room.",
+        "area": "St James's",
+        "location": {
+          "lat": 51.5076994,
+          "lng": -0.1392041
+        },
+        "sourceName": "wiltons.co.uk",
+        "expiresAt": "2026-11-04",
+        "discoveredVia": "manual",
+        "extractedVia": "manual",
+        "placesNameAliases": [
+          "wiltons restaurant"
+        ]
+      },
+      {
+        "id": "restaurant-hawksmoor-seven-dials",
+        "name": "Hawksmoor Seven Dials",
+        "address": "11 Langley Street, London WC2H 9JG",
+        "borough": "Westminster",
+        "lat": 51.5134572,
+        "lng": -0.1257487,
+        "kind": "restaurant",
+        "hasStory": true,
+        "fameGates": [
+          {
+            "kind": "cultural_weight",
+            "sourceUrl": "https://thehawksmoor.com/locations/seven-dials"
+          },
+          {
+            "kind": "recognition",
+            "sourceUrl": "https://en.wikipedia.org/wiki/Hawksmoor_(restaurant)"
+          }
+        ],
+        "sourceUrl": "https://thehawksmoor.com/locations/seven-dials/food/menu",
+        "observedAt": "2026-10-05",
+        "anchor": {
+          "kind": "signature_dish",
+          "label": "Rib-eye, 350g",
+          "course": "mains",
+          "price": 45,
+          "observedAt": "2026-08-25",
+          "sourceUrl": "https://thehawksmoor.com/locations/seven-dials/food/menu"
+        },
+        "story": {
+          "text": "Hawksmoor Seven Dials grills British beef in the former Watney-Combe brewery.",
+          "sourceUrl": "https://thehawksmoor.com/locations/seven-dials"
+        },
+        "category": "restaurant",
+        "job": "near_pub_food",
+        "description": "Hawksmoor Seven Dials grills British beef in the former Watney-Combe brewery.",
+        "area": "Covent Garden",
+        "location": {
+          "lat": 51.5134572,
+          "lng": -0.1257487
+        },
+        "sourceName": "thehawksmoor.com",
+        "expiresAt": "2026-11-04",
+        "discoveredVia": "manual",
+        "extractedVia": "manual"
+      },
+      {
+        "id": "restaurant-bob-bob-ricard",
+        "name": "Bob Bob Ricard Soho",
+        "address": "1 Upper James Street, London W1F 9DF",
+        "borough": "Westminster",
+        "lat": 51.5123234,
+        "lng": -0.1371738,
+        "kind": "restaurant",
+        "hasStory": true,
+        "fameGates": [
+          {
+            "kind": "distinct_experience",
+            "sourceUrl": "https://www.bobbobricard.com/soho"
+          },
+          {
+            "kind": "recognition",
+            "sourceUrl": "https://en.wikipedia.org/wiki/Bob_Bob_Ricard"
+          }
+        ],
+        "sourceUrl": "https://www.bobbobricard.com/soho/menu",
+        "observedAt": "2026-10-05",
+        "anchor": {
+          "kind": "signature_dish",
+          "label": "Chicken Kyiv",
+          "course": "mains",
+          "price": 22,
+          "observedAt": "2026-07-27",
+          "sourceUrl": "https://www.bobbobricard.com/soho/menu"
+        },
+        "story": {
+          "text": "Bob Bob Ricard wraps Anglo-Russian cooking in blue booths with a champagne call button at each table.",
+          "sourceUrl": "https://www.bobbobricard.com/soho"
+        },
+        "category": "restaurant",
+        "job": "near_pub_food",
+        "description": "Bob Bob Ricard wraps Anglo-Russian cooking in blue booths with a champagne call button at each table.",
+        "area": "Soho",
+        "location": {
+          "lat": 51.5123234,
+          "lng": -0.1371738
+        },
+        "sourceName": "bobbobricard.com",
+        "expiresAt": "2026-11-04",
+        "discoveredVia": "manual",
+        "extractedVia": "manual"
+      },
+      {
+        "id": "restaurant-flat-iron-soho",
+        "name": "Flat Iron Soho",
+        "address": "17 Beak Street, London W1F 9RW",
+        "borough": "Westminster",
+        "lat": 51.5121137,
+        "lng": -0.1383699,
+        "kind": "restaurant",
+        "hasStory": true,
+        "fameGates": [
+          {
+            "kind": "cultural_weight",
+            "sourceUrl": "https://flatironsteak.co.uk/restaurant/soho"
+          },
+          {
+            "kind": "recognition",
+            "sourceUrl": "https://www.timeout.com/london/restaurants/flat-iron"
+          }
+        ],
+        "sourceUrl": "https://flatironsteak.co.uk/menu",
+        "observedAt": "2026-10-05",
+        "anchor": {
+          "kind": "signature_dish",
+          "label": "Flat Iron Steak",
+          "course": "mains",
+          "price": 15,
+          "observedAt": "2026-07-27",
+          "sourceUrl": "https://flatironsteak.co.uk/menu"
+        },
+        "story": {
+          "text": "Flat Iron's first permanent restaurant made its one-steak blackboard a Soho fixture.",
+          "sourceUrl": "https://flatironsteak.co.uk/restaurant/soho"
+        },
+        "category": "restaurant",
+        "job": "near_pub_food",
+        "description": "Flat Iron's first permanent restaurant made its one-steak blackboard a Soho fixture.",
+        "area": "Soho",
+        "location": {
+          "lat": 51.5121137,
+          "lng": -0.1383699
+        },
+        "sourceName": "flatironsteak.co.uk",
+        "expiresAt": "2026-11-04",
+        "discoveredVia": "manual",
+        "extractedVia": "manual"
+      },
+      {
+        "id": "restaurant-roti-king-euston",
+        "name": "Roti King Euston",
+        "address": "40 Doric Way, London NW1 1LH",
+        "borough": "Camden",
+        "lat": 51.5290041,
+        "lng": -0.132048,
+        "kind": "restaurant",
+        "hasStory": true,
+        "fameGates": [
+          {
+            "kind": "distinct_experience",
+            "sourceUrl": "https://www.rotiking.com"
+          },
+          {
+            "kind": "recognition",
+            "sourceUrl": "https://www.timeout.com/london/restaurants/roti-king"
+          }
+        ],
+        "sourceUrl": "https://rotiking.com/food-drink",
+        "observedAt": "2026-10-05",
+        "anchor": {
+          "kind": "signature_dish",
+          "label": "Chicken Roti Canai",
+          "course": "mains",
+          "price": 10.95,
+          "observedAt": "2026-08-25",
+          "sourceUrl": "https://rotiking.com/food-drink"
+        },
+        "story": {
+          "text": "Roti King built its reputation on Malaysian roti canai in a compact basement beside Euston.",
+          "sourceUrl": "https://rotiking.com/"
+        },
+        "category": "restaurant",
+        "job": "near_pub_food",
+        "description": "Roti King built its reputation on Malaysian roti canai in a compact basement beside Euston.",
+        "area": "Euston",
+        "location": {
+          "lat": 51.5290041,
+          "lng": -0.132048
+        },
+        "sourceName": "rotiking.com",
+        "expiresAt": "2026-11-04",
+        "discoveredVia": "manual",
+        "extractedVia": "manual",
+        "placesNameAliases": [
+          "roti king"
+        ]
+      },
+      {
+        "id": "restaurant-regency-cafe",
+        "name": "Regency Cafe",
+        "address": "17-19 Regency Street, London SW1P 4BY",
+        "borough": "Westminster",
+        "lat": 51.494002,
+        "lng": -0.1320948,
+        "kind": "restaurant",
+        "hasStory": true,
+        "fameGates": [
+          {
+            "kind": "longevity",
+            "sourceUrl": "https://regencycafe.co.uk"
+          },
+          {
+            "kind": "recognition",
+            "sourceUrl": "https://en.wikipedia.org/wiki/Regency_Cafe"
+          }
+        ],
+        "sourceUrl": "https://regencycafe.co.uk/menu",
+        "observedAt": "2026-10-05",
+        "anchor": {
+          "kind": "signature_dish",
+          "label": "Set Breakfast",
+          "course": "breakfast",
+          "price": 9.99,
+          "observedAt": "2026-08-25",
+          "sourceUrl": "https://regencycafe.co.uk/menu"
+        },
+        "story": {
+          "text": "Regency Cafe has served fry-ups from its tiled Westminster dining room since 1946.",
+          "sourceUrl": "https://regencycafe.co.uk"
+        },
+        "category": "restaurant",
+        "job": "near_pub_food",
+        "description": "Regency Cafe has served fry-ups from its tiled Westminster dining room since 1946.",
+        "area": "Westminster",
+        "location": {
+          "lat": 51.494002,
+          "lng": -0.1320948
+        },
+        "sourceName": "regencycafe.co.uk",
+        "expiresAt": "2026-11-04",
+        "discoveredVia": "manual",
+        "extractedVia": "manual"
+      },
+      {
+        "id": "restaurant-hoppers-soho",
+        "name": "Hoppers Soho",
+        "address": "49 Frith Street, London W1D 4SG",
+        "borough": "Westminster",
+        "lat": 51.51324,
+        "lng": -0.1314,
+        "kind": "restaurant",
+        "hasStory": true,
+        "fameGates": [
+          {
+            "kind": "distinct_experience",
+            "sourceUrl": "https://www.hopperslondon.com/soho"
+          },
+          {
+            "kind": "recognition",
+            "sourceUrl": "https://www.timeout.com/london/restaurants/hoppers"
+          }
+        ],
+        "sourceUrl": "https://www.hopperslondon.com/wp-content/uploads/2026/06/Hoppers-Soho-Main-Menu-A3-JUNE-2026-UPDATE.pdf",
+        "observedAt": "2026-10-05",
+        "anchor": {
+          "kind": "signature_dish",
+          "label": "Bone Marrow Varuval",
+          "course": "short-eats",
+          "price": 13.5,
+          "observedAt": "2026-07-27",
+          "sourceUrl": "https://www.hopperslondon.com/wp-content/uploads/2026/06/Hoppers-Soho-Main-Menu-A3-JUNE-2026-UPDATE.pdf"
+        },
+        "story": {
+          "text": "Hoppers brought Sri Lankan hoppers, dosas and Tamil bar snacks to its first Soho room in 2015.",
+          "sourceUrl": "https://www.hopperslondon.com/soho"
+        },
+        "category": "restaurant",
+        "job": "near_pub_food",
+        "description": "Hoppers brought Sri Lankan hoppers, dosas and Tamil bar snacks to its first Soho room in 2015.",
+        "area": "Soho",
+        "location": {
+          "lat": 51.51324,
+          "lng": -0.1314
+        },
+        "sourceName": "hopperslondon.com",
+        "expiresAt": "2026-11-04",
+        "discoveredVia": "manual",
+        "extractedVia": "manual"
+      }
+    ]
+  }
+}
