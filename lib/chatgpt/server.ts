@@ -52,18 +52,12 @@ function routeWalking(venues: PublicPub[], generated: Record<string, unknown> | 
   return { walkingMinutes, walkingBasis };
 }
 
-async function routeResult(
-  data: NightArchitectData, ids: string[], input: z.infer<typeof draftSchema> | z.infer<typeof replacementSchema>,
+type RouteInput = z.infer<typeof draftSchema> | z.infer<typeof replacementSchema>;
+
+function routePricing(
+  venues: PublicPub[], input: RouteInput,
   generated: Record<string, unknown> | null,
 ) {
-  if (new Set(ids).size !== 3) throw new NightArchitectError("Choose three different pubs for this evening.");
-  const loaded = await Promise.all(ids.map((id) => data.detail(id, input.includeHistory)));
-  if (loaded.some((pub) => pub === null)) throw new NightArchitectError("A pub is no longer available. Search again before planning.");
-  const venues = loaded as PublicPub[];
-  const { walkingMinutes, walkingBasis } = routeWalking(venues, generated);
-  if (input.maxWalkingMinutes !== undefined && walkingMinutes > input.maxWalkingMinutes) {
-    throw new NightArchitectError("This route exceeds your walking limit. Try a smaller area or replace a stop.");
-  }
   const stops = Array.isArray(generated?.stops) ? generated.stops.map(record) : [];
   const context = record(generated?.inferredContext);
   const budgetPence = input.budgetPence ?? (typeof context?.budgetLimitPence === "number" ? context.budgetLimitPence : undefined);
@@ -93,6 +87,22 @@ async function routeResult(
   });
   const knownPence = costs.reduce<number>((sum, cost) => sum + (cost ?? 0), 0);
   const missingPrices = costs.filter((cost) => cost === null).length;
+  return { stops, budgetPence, category, zeroProof, pintCosts, pintPrices, priceEvidence, selectedPrices, knownPence, missingPrices };
+}
+
+async function routeResult(
+  data: NightArchitectData, ids: string[], input: RouteInput,
+  generated: Record<string, unknown> | null,
+) {
+  if (new Set(ids).size !== 3) throw new NightArchitectError("Choose three different pubs for this evening.");
+  const loaded = await Promise.all(ids.map((id) => data.detail(id, input.includeHistory)));
+  if (loaded.some((pub) => pub === null)) throw new NightArchitectError("A pub is no longer available. Search again before planning.");
+  const venues = loaded as PublicPub[];
+  const { walkingMinutes, walkingBasis } = routeWalking(venues, generated);
+  if (input.maxWalkingMinutes !== undefined && walkingMinutes > input.maxWalkingMinutes) {
+    throw new NightArchitectError("This route exceeds your walking limit. Try a smaller area or replace a stop.");
+  }
+  const { stops, budgetPence, category, zeroProof, pintCosts, pintPrices, priceEvidence, selectedPrices, knownPence, missingPrices } = routePricing(venues, input, generated);
   const warnings = [NOTICE, "Costs cover one selected drink per stop per person. Food, travel and admission are extra."];
   if (walkingBasis === "straight-line") warnings.push("Walking uses straight-line estimates. Street routes can take longer.");
   if (!input.startsAt) warnings.push("No start time was supplied. Opening hours are not confirmed for your visit.");
