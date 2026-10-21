@@ -610,16 +610,37 @@ through a variable key. Pin: `__tests__/deploymentVersionRoute.test.ts`.
 
 ### Known GitHub check sources
 
-The latest code-level gate is healthy locally and on Vercel. If GitHub shows red checks, identify which app owns the failure before changing product code:
+Read each check against its commit and workflow. A green integration status does
+not prove that a deployment ran. Identify the owner and result before changing
+product code:
 
 | Check source | What it means | Fix path |
 |---|---|---|
-| `CI / Verify and build` | First-party GitHub Actions workflow from `.github/workflows/ci.yml`. Currently configured for push/PR/manual, but GitHub-hosted runs fail before job allocation. | If a run reports `startup_failure` with zero jobs, fix GitHub account/runners/settings rather than product code. |
-| `Vercel` | Automatic deployment gate. Runs `npm run validate-data` and the Next build before deploy; does not run lint, typecheck, or tests (see above). | Fix code/build/env, then redeploy. |
+| First-party CI | GitHub Actions workflows under `.github/workflows/`. A successful run proves only the jobs that ran at that commit. Push browser checks do not include the full scheduled suite. | Read failed job logs. Keep skipped checks separate from successful checks. |
+| `Vercel` | The `chengdu` project uses an Ignored Build Step that skips Git and API builds. GitHub can report success with the description `Canceled by Ignored Build Step`. | Check the deployment state and source. Require `READY`, then verify the SHA and deployment ID through `/api/version`. A canceled build proves neither compilation nor deployment. The captain approves any build-policy change. |
 | `Supabase Preview` | Supabase GitHub integration. | If it says `Remote migration versions not found in local migrations directory`, sync migration history: pull/export the missing remote migrations or repair the Supabase migration table so remote and `supabase/migrations/` agree. Do not delete local migrations to make this pass. |
-| GitHub Actions `startup_failure` | GitHub failed before allocating a job. GitHub shows no jobs and no logs. | It is not a code test failure. Vercel still blocks broken builds; run `npm run ci` locally for the full gate until runners are fixed. |
+| GitHub Actions `startup_failure` | GitHub failed before allocating a job. GitHub shows no jobs and no logs. | Investigate the runner or account. Do not infer a product failure or a Vercel build result. Run `npm run ci` locally for the full local gate. |
 | `Greptile Review` | External AI review/check app. | Treat as code-review signal, not a build gate. Address concrete findings in PR comments. |
-| `dbt Cloud`, `starslingdev`, other queued app suites | External GitHub Apps attached to the repo. | Disable unused apps or remove them from required checks; they are not part of PubMaxxing's build unless explicitly configured. |
+| Other external app suites | Checks owned by GitHub Apps rather than the first-party workflows. | Identify the integration and its requirement. The captain approves changes to repository or integration settings. |
+
+The build-policy handoff is in [the build methodology](agents/build-methodology.md#handing-off-to-the-captains-local-codex).
+The daily browser and performance workflows already build and measure the app.
+Their schedules do not create a Vercel preview.
+
+#### Daily Git preview proposal
+
+This procedure requires the captain's approval before any Vercel setting changes.
+
+1. Reuse the existing daily browser and performance workflows.
+2. Select the exact Main SHA after reviewing those runs, including failed and skipped jobs.
+3. Advance one dedicated preview branch at most once per Europe/London calendar day.
+4. Allow only that branch through the Ignored Build Step. Keep it separate from the production branch.
+5. Require a `READY` Preview deployment with matching SHA and deployment ID in `/api/version`.
+6. Test desktop and mobile journeys on that immutable preview URL.
+
+The branch name and setting change remain proposals. No unattended scheduler is
+required. The daily limit is an operating rule. This procedure does not grant
+production promotion authority.
 
 ### Agent workflow for Codex / Opus
 
@@ -627,9 +648,9 @@ Before pushing a branch:
 
 1. Run `npm run ci` locally.
 2. Commit only product/docs changes, not local agent state such as `.agents/`, `.claude/`, `.mcp.json`, `.playwright-mcp/`, or skill inventory files.
-3. Push the branch.
-4. Check `gh run list --workflow CI --limit 5` and `gh pr checks <pr-number>` if a PR exists.
-5. Treat Vercel failures as blockers. Treat GitHub Actions `startup_failure`, Supabase Preview, and Greptile as separate integration/review queues.
+3. Use the final-head no-mistakes gate for publication, as required by [the build methodology](agents/build-methodology.md#completing-a-task).
+4. Check the exact-head CI runs and PR checks with `gh-axi`.
+5. Record build, integration, review and deployment results separately. A skipped Vercel build cannot satisfy preview acceptance.
 
 ## Identity boundary (demo vs production private actions)
 
