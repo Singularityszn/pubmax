@@ -154,6 +154,7 @@ const PAID_ROUTES: PaidRouteCase[] = [
         },
       });
       request.headers.set("accept", "application/json, text/event-stream");
+      request.headers.set("host", "localhost");
       return (await import("@/app/api/mcp/route")).POST(request);
     },
     answer: { status: 200, body: { result: { isError: true, structuredContent: { error: { code: PAID_SPEND_REFUSAL_CODE } } } } },
