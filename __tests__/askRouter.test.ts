@@ -6,6 +6,24 @@ import { ASK_TOOL_NAMES, isAskToolName } from "@/lib/ask/types";
 
 describe("routeAskDeterministically", () => {
   it.each([
+    "Find me three pubs near Soho with listed pint prices. Show the source dates and the map.",
+    "Find me 3 pubs near Soho with recorded pint prices. Include sources and the map.",
+    "Find me three pubs in Soho with pint prices and show the map",
+  ])("recognises sourced pint discovery with a requested count and map: %s", (query) => {
+    expect(unsupportedPriceComparison(query)).toBeNull();
+    expect(routeAskDeterministically(query)).toEqual([
+      { name: "search_venues", args: { query, limit: 3 } },
+    ]);
+  });
+  it.each([
+    "Find me three pubs near Soho with listed pint prices. How much is a burger? Show the source dates and the map.",
+    "Find me three pubs near Soho with listed pint prices. Show wine prices and source dates.",
+    "Find me three pubs near Soho with listed pint and burger prices. Show the source dates and the map.",
+  ])("keeps unsupported items beside presentation requests: %s", (query) => {
+    expect(unsupportedPriceComparison(query)).not.toBeNull();
+    expect(routeAskDeterministically(query)).toEqual([]);
+  });
+  it.each([
     ["Find me two quiet pubs in Soho", 2],
     ["Show me 6 pubs in Soho on the map", 6],
     ["Find me three good places in Soho for six people", 3],

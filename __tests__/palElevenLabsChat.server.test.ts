@@ -141,7 +141,7 @@ vi.mock("@/lib/pubPalLlmFence", () => ({
 const NOTHING_CONFIRMED = "I have not confirmed anything for you to remember about me.";
 
 const toolTurnPayload = {
-    query: "Which pubs near Soho have a pint under £5?",
+    query: "Which quiet pubs near Soho have a beer garden?",
     cityId: "london" as const,
     turns: [],
     summary: "",
@@ -223,16 +223,54 @@ describe("runPalElevenLabsChatTurn", () => {
     vi.unstubAllGlobals();
   });
 
-  it("keeps the budget follow-up and owned context intact for its webhook", async () => {
+  it.each([
+    "Cheap pints near Soho",
+    "Cheapest decent pint for a quick one after work",
+    "Find me three pubs near Soho with listed pint prices. Show the source dates and the map.",
+  ])("answers local pint discovery when the provider is unavailable: %s", async (query) => {
+    vi.stubEnv("TYPESAFE_API_KEY", "unused-test-key");
+    const deniedFetch = vi.fn(offlineFetch);
+    vi.stubGlobal("fetch", deniedFetch);
+    const outcome = await runPalElevenLabsChatTurn({ query, ownerId: "11111111-1111-4111-8111-111111111111" });
+    expect(outcome).toMatchObject({ ok: true, toolsUsed: ["search_venues"] });
+    if (!outcome.ok) return;
+    expect(outcome.cards.length).toBe(query.startsWith("Find") ? 3 : 4);
+    expect(outcome.cards.every((card) => typeof card.price === "number" && card.price > 0)).toBe(true);
+    expect(outcome.cards.every((card) => /Recorded|Source|Publisher/i.test(card.provenance?.label ?? ""))).toBe(true);
+    expect(outcome.proposals.length).toBeGreaterThan(0);
+    expect(wsState.socketsOpened).toBe(0);
+    expect(deniedFetch).not.toHaveBeenCalled();
+    expect(tasteMocks.readPalTaste).not.toHaveBeenCalled();
+    expect(storeMocks.registerPubPalToolTurn).toHaveBeenCalledWith(outcome.conversationId, expect.objectContaining({ query, ownerId: "11111111-1111-4111-8111-111111111111", cards: outcome.cards }));
+  });
+
+  it.each(["failed", "stalled"] as const)("keeps local cards when conversation registration is %s", async (failure) => {
+    storeMocks.registerPubPalToolTurn.mockImplementationOnce(() => failure === "failed"
+      ? Promise.reject(new Error("Store unavailable")) : new Promise(() => {}));
+    const outcome = await runPalElevenLabsChatTurn({ query: "Cheap pints near Soho", ownerId: "11111111-1111-4111-8111-111111111111" });
+    expect(outcome).toMatchObject({ ok: true, conversationId: "", toolsUsed: ["search_venues"] });
+    if (outcome.ok) {
+      expect(outcome.cards).toHaveLength(4);
+      expect(outcome.message).toContain("Conversation history could not be kept");
+    }
+    expect(wsState.socketsOpened).toBe(0);
+  }, 3_000);
+
+  it("keeps the owned area and budget for a local follow-up", async () => {
     storeMocks.readOwnedPubPalToolTurn.mockResolvedValue({ ...toolTurnPayload, query: "Find me four pubs in Soho and show them on the map.", turns: [], summary: "" });
     const query = "Same area, but under £6.50 a pint.";
     const outcome = await runPalElevenLabsChatTurn({ query, ownerId: "11111111-1111-4111-8111-111111111111", threadId: "conv_ownedfollow1",
       fenceTurns: [{ role: "user", content: "Find pubs in Camden" }],
     });
     expect(outcome.ok).toBe(true);
-    expect(storeMocks.registerPubPalToolTurn).toHaveBeenCalledWith("conv_regression01", expect.objectContaining({ query, turns: [{ role: "user", content: "Find me four pubs in Soho and show them on the map." }] }));
-    expect(wsState.userMessageText).toContain(`Current user message: ${query}`);
-    expect(wsState.userMessageText).not.toContain("Camden");
+    expect(storeMocks.registerPubPalToolTurn).toHaveBeenCalledWith("conv_ownedfollow1", expect.objectContaining({ query, turns: [{ role: "user", content: "Find me four pubs in Soho and show them on the map." }] }));
+    if (outcome.ok) {
+      expect(outcome.cards.length).toBeGreaterThan(0);
+      expect(outcome.cards.every((card) => typeof card.price === "number" && card.price <= 6.5)).toBe(true);
+      expect(outcome.cards.some((card) => card.venueId === "venue-e1srzr")).toBe(true);
+    }
+    expect(wsState.socketsOpened).toBe(0);
+    expect(wsState.userMessageText).toBeNull();
   });
 
   it("review regression: returns independent transit with the unsupported price answer", async () => {
@@ -265,6 +303,17 @@ describe("runPalElevenLabsChatTurn", () => {
     }
   });
 
+  it("keeps quiet-pub constraints in a local cheap-pint answer", async () => {
+    const query = "Find cheap quiet pubs in Soho";
+    const outcome = await runPalElevenLabsChatTurn({ query, ownerId: "11111111-1111-4111-8111-111111111111" });
+    expect(outcome).toMatchObject({ ok: true, toolsUsed: ["search_venues"] });
+    if (outcome.ok) {
+      expect(outcome.cards.length).toBeGreaterThan(0);
+      expect(outcome.cards.every((card) => typeof card.price === "number" && card.price <= 6)).toBe(true);
+    }
+    expect(wsState.socketsOpened).toBe(0);
+  });
+
   it.each(QUALIFIED_PRICE_REQUESTS)("fences the full qualified subject before configured startup: $query", async ({ query, wording }) => {
     const outcome = await runPalElevenLabsChatTurn({ query, ownerId: "11111111-1111-4111-8111-111111111111" });
     expect(outcome).toMatchObject({ ok: true, message: expect.stringMatching(wording), cards: [], proposals: [], toolsUsed: [] });
@@ -275,7 +324,6 @@ describe("runPalElevenLabsChatTurn", () => {
 
   it.each([
     "Plan a big night for four of us, with cheap pints and a lively route",
-    "Find cheap quiet pubs in Soho",
   ])("preserves supported constraints when starting configured chat: %s", async (query) => {
     const outcome = await runPalElevenLabsChatTurn({
       query, ownerId: "11111111-1111-4111-8111-111111111111",
@@ -322,7 +370,7 @@ describe("runPalElevenLabsChatTurn", () => {
   });
 
   it.each([
-    ...VIBE_CHIPS.map((chip) => chip.ask),
+    ...VIBE_CHIPS.filter((chip) => chip.ask !== "Cheapest decent pint for a quick one after work").map((chip) => chip.ask),
     "somewhere cheap and quiet", "Somewhere cheap in Soho",
   ])("accepts the original supported question at configured startup: %s", async (query) => {
     wsState.storeFilled = false;
@@ -528,7 +576,7 @@ describe("runPalElevenLabsChatTurn", () => {
   });
 
   it("returns the post-query agent reply, not the configured first_message greeting", async () => {
-    const query = "Which pubs near Soho have a pint under £5?";
+    const query = "Which quiet pubs near Soho have a beer garden?";
     const outcome = await runPalElevenLabsChatTurn({
       query,
       ownerId: "11111111-1111-4111-8111-111111111111",
@@ -831,7 +879,7 @@ describe("runPalElevenLabsChatTurn", () => {
     wsState.replyScript = [{ afterMs: 0, event: agentResponse(SOURCED_ANSWER) }];
 
     const outcome = await runPalElevenLabsChatTurn({
-      query: "Which pubs near Soho have a pint under £5?",
+      query: "Which quiet pubs near Soho have a beer garden?",
       ownerId: "11111111-1111-4111-8111-111111111111",
     });
 
@@ -849,7 +897,7 @@ describe("runPalElevenLabsChatTurn", () => {
     ];
 
     const outcome = await runPalElevenLabsChatTurn({
-      query: "Which pubs near Soho have a pint under £5?",
+      query: "Which quiet pubs near Soho have a beer garden?",
       ownerId: "11111111-1111-4111-8111-111111111111",
     });
 
@@ -870,7 +918,7 @@ describe("runPalElevenLabsChatTurn", () => {
     ];
 
     const outcome = await runPalElevenLabsChatTurn({
-      query: "Which pubs near Soho have a pint under £5?",
+      query: "Which quiet pubs near Soho have a beer garden?",
       ownerId: "11111111-1111-4111-8111-111111111111",
     });
 
@@ -889,7 +937,7 @@ describe("runPalElevenLabsChatTurn", () => {
     ];
 
     const outcome = await runPalElevenLabsChatTurn({
-      query: "Which pubs near Soho have a pint under £5?",
+      query: "Which quiet pubs near Soho have a beer garden?",
       ownerId: "11111111-1111-4111-8111-111111111111",
     });
 
@@ -908,7 +956,7 @@ describe("runPalElevenLabsChatTurn", () => {
     ];
 
     const outcome = await runPalElevenLabsChatTurn({
-      query: "Which pubs near Soho have a pint under £5?",
+      query: "Which quiet pubs near Soho have a beer garden?",
       ownerId: "11111111-1111-4111-8111-111111111111",
     });
 
@@ -927,7 +975,7 @@ describe("runPalElevenLabsChatTurn", () => {
     ];
 
     const outcome = await runPalElevenLabsChatTurn({
-      query: "Which pubs near Soho have a pint under £5?",
+      query: "Which quiet pubs near Soho have a beer garden?",
       ownerId: "11111111-1111-4111-8111-111111111111",
     });
 
@@ -981,7 +1029,7 @@ describe("runPalElevenLabsChatTurn", () => {
       ];
 
       const outcome = await runPalElevenLabsChatTurn({
-        query: "Which pubs near Soho have a pint under £5?",
+        query: "Which quiet pubs near Soho have a beer garden?",
         ownerId: OWNER,
         onProgress: (event) => progress.push(event),
       });
@@ -1067,7 +1115,7 @@ describe("runPalElevenLabsChatTurn", () => {
       ];
 
       const pending = runPalElevenLabsChatTurn({
-        query: "Which pubs near Soho have a pint under £5?",
+        query: "Which quiet pubs near Soho have a beer garden?",
         ownerId: "11111111-1111-4111-8111-111111111111",
       });
       let settled = false;
@@ -1110,7 +1158,7 @@ describe("runPalElevenLabsChatTurn", () => {
       ];
 
       const pending = runPalElevenLabsChatTurn({
-        query: "Which pubs near Soho have a pint under £5?",
+        query: "Which quiet pubs near Soho have a beer garden?",
         ownerId: "11111111-1111-4111-8111-111111111111",
       });
       await vi.advanceTimersByTimeAsync(4_000);
@@ -1125,7 +1173,7 @@ describe("runPalElevenLabsChatTurn", () => {
       ];
 
       const pending = runPalElevenLabsChatTurn({
-        query: "Which pubs near Soho have a pint under £5?",
+        query: "Which quiet pubs near Soho have a beer garden?",
         ownerId: "11111111-1111-4111-8111-111111111111",
       });
       let settled = false;
@@ -1147,7 +1195,7 @@ describe("runPalElevenLabsChatTurn", () => {
       ];
 
       const pending = runPalElevenLabsChatTurn({
-        query: "Which pubs near Soho have a pint under £5?",
+        query: "Which quiet pubs near Soho have a beer garden?",
         ownerId: "11111111-1111-4111-8111-111111111111",
       });
       await vi.advanceTimersByTimeAsync(22_000);
@@ -1163,7 +1211,7 @@ describe("runPalElevenLabsChatTurn", () => {
       ];
 
       const pending = runPalElevenLabsChatTurn({
-        query: "Which pubs near Soho have a pint under £5?",
+        query: "Which quiet pubs near Soho have a beer garden?",
         ownerId: "11111111-1111-4111-8111-111111111111",
       });
       await vi.advanceTimersByTimeAsync(22_000);
