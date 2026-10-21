@@ -202,7 +202,8 @@
     "server-only": "0.0.1",
     "sharp": "^0.35.5",
     "tailwind-merge": "^3.7.0",
-    "web-push": "^3.6.7"
+    "web-push": "^3.6.7",
+    "three": "0.186.1"
   },
   "devDependencies": {
     "@axe-core/playwright": "^4.13.0",
@@ -233,7 +234,8 @@
     "tsx": "^4.23.15",
     "typescript": "6.0.3",
     "vitest": "^5.0.4",
-    "yaml": "^2.9.1"
+    "yaml": "^2.9.1",
+    "@types/three": "0.186.0"
   },
   "overrides": {
     "uuid": "14.0.2",

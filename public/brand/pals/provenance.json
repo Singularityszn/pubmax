@@ -1,0 +1,71 @@
+{
+  "method": "Pinned official TripoSR CPU reconstruction, source RGB projection, Blender topology repair and baking",
+  "hiddenGeometry": "Inferred from the original single view",
+  "models": [
+    {
+      "species": "robin",
+      "source": "public/pal/circuit-robin-512.png",
+      "sourceSha256": "e51e15f913a2168c41abfc16c931247bc37459dde5679af5693a0e2c981440b1",
+      "file": "circuit-robin-c69915c4a4df.glb",
+      "sha256": "c69915c4a4df2bd44e52a91d9d4f301182d0d45e612215ad88a726e2ba87f327",
+      "bytes": 1696408,
+      "textureEncoding": "JPEG quality95"
+    },
+    {
+      "species": "greyhound",
+      "source": "public/pal/circuit-greyhound-512.png",
+      "sourceSha256": "27c2d114f7a3c02809a3667a0cc28534caeefa8b2f98c2ac822ef7410e2bd48a",
+      "file": "circuit-greyhound-da3e419643d6.glb",
+      "sha256": "da3e419643d6b8fa359c2cf2b0ecc99a50e19b6455e3c58c2fae93000f9cd172",
+      "bytes": 1457744,
+      "textureEncoding": "JPEG quality95"
+    },
+    {
+      "species": "cat",
+      "source": "public/pal/circuit-cat-512.png",
+      "sourceSha256": "b060f648e127995a01c40dbbbea82e6ebcfd7b4629dc67c6f9465cb4963fa74e",
+      "file": "circuit-cat-670f87fb3ef4.glb",
+      "sha256": "670f87fb3ef4d113c97042c6e2a59c2fceb9273abbe88f6bece3b4ab9518d51d",
+      "bytes": 1518904,
+      "textureEncoding": "JPEG quality95"
+    },
+    {
+      "species": "fox",
+      "source": "public/pal/circuit-fox-512.png",
+      "sourceSha256": "a75b030ba29707280e48fe0741e37fbbe773cfc4a5fc75e9e02d9e3e56a79e57",
+      "file": "circuit-fox-80d07a250094.glb",
+      "sha256": "80d07a250094238a5bae7a0b5d7ccaa5cc31e06203dc9518a0e9d341d64771ba",
+      "bytes": 1321444,
+      "textureEncoding": "JPEG quality95"
+    },
+    {
+      "species": "pigeon",
+      "source": "public/pal/circuit-pigeon-512.png",
+      "sourceSha256": "cdc9186d882f85f957e08dfe07302c7e69c5d726d5fb499cd44fec66a4fe0397",
+      "file": "circuit-pigeon-8176ffb4669b.glb",
+      "sha256": "8176ffb4669b0dc3db01fecb3625e6dd2c136672d7bf814a03ec7b7e3ff88558",
+      "bytes": 1529536,
+      "textureEncoding": "JPEG quality95"
+    },
+    {
+      "species": "badger",
+      "source": "public/pal/circuit-badger-512.png",
+      "sourceSha256": "7986cd55540dbbd4daa5e3d0411060eadfdf4192f0a2fd2f017366589c75d2c3",
+      "file": "circuit-badger-fc2985451408.glb",
+      "sha256": "fc29854514084db1e4a6595fe57b22d2857e98df71b5bd0fdbf0b056a743ed7b",
+      "bytes": 1686740,
+      "textureEncoding": "JPEG quality95"
+    },
+    {
+      "species": "corgi",
+      "source": "public/pal/circuit-corgi-512.png",
+      "sourceSha256": "0ddc53fe7eba066c5c9535b1a8241cc89f7c4d368a92f5aa49aaadf3f6ab3150",
+      "file": "circuit-corgi-d1976c8a1f13.glb",
+      "sha256": "d1976c8a1f13ae50efa47c3fd55f490cf9a13d1537e207a42312adfa2efc3c69",
+      "bytes": 1327148,
+      "textureEncoding": "JPEG quality95"
+    }
+  ],
+  "license": "TripoSR-LICENSE.txt",
+  "productAcceptance": "Original-image models adopted under the 21 October 2026 user instruction. Hidden geometry is inferred. Live deployment and physical-device acceptance require separate verification."
+}

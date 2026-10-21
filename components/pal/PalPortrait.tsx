@@ -7,7 +7,7 @@ import {
 } from "@/lib/pubPal";
 import { palGenomeStyle, type PalGenome } from "@/lib/palGenome";
 import { PubPalMascot } from "@/components/pal/PubPalMascot";
-import { pubPalMascotSlugFor } from "@/lib/pubPalMascot";
+import { pubPalMascotSlugFor, pubPalMascotModelStyle } from "@/lib/pubPalMascot";
 
 /**
  * A stored legacy species with no master of its own draws an icon. `hound` is
@@ -52,7 +52,7 @@ function legacyIconFor(species: PubPalSpecies): { Icon: LucideIcon; description:
 const PORTRAIT_MASCOT_SIZES =
   "(max-width: 760px) min(10.44rem, 41.76vw), min(24.36rem, 42.92vw)";
 
-export default function PalPortrait({ appearance, name, compact = false, state = "idle", priority = false, genome }: {
+export default function PalPortrait({ appearance, name, compact = false, state = "idle", priority = false, genome, modelSurface = false }: {
   appearance: PubPalAppearance;
   name: string;
   compact?: boolean;
@@ -61,6 +61,8 @@ export default function PalPortrait({ appearance, name, compact = false, state =
   priority?: boolean;
   /** This Pal's genome: how its photograph is held. None for a draft. */
   genome?: PalGenome;
+  /** Reserved for the owned large portrait and its existing pose owner. */
+  modelSurface?: boolean;
 }) {
   const mascotSize = compact ? 96 : 192;
   // A species that ships a master is drawn as that photograph. The legacy
@@ -97,6 +99,18 @@ export default function PalPortrait({ appearance, name, compact = false, state =
           />
         ) : legacy ? (
           <legacy.Icon className="palLegacyIcon" strokeWidth={1.15} />
+        ) : null}
+        {rendered && modelSurface && !compact ? (
+          <span
+            className="palOriginalModelHost"
+            data-pal-model-host=""
+            style={pubPalMascotModelStyle(appearance.species) as React.CSSProperties}
+            role="img"
+            aria-label={`${name} in 3D. Use the arrow keys to turn. Home faces forward.`}
+            aria-hidden="true"
+          >
+            <span className="palOriginalModelFraming" data-pal-model-drawing="" aria-hidden="true" />
+          </span>
         ) : null}
       </span>
       {appearance.accessory !== "none" ? <span className="palPortraitAccessory" aria-hidden="true">{appearance.accessory.replace("-", " ")}</span> : null}

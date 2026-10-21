@@ -49,6 +49,7 @@ import PalNightQuestion from "./PalNightQuestion";
 import PalYear from "./PalYear";
 import PalPrint from "./PalPrint";
 import { usePalHead3D } from "./usePalHead3D";
+import { pubPalMascotModelSrc } from "@/lib/pubPalMascot";
 import { palGenomeFor } from "@/lib/palGenome";
 import { createPalVoiceSignal } from "@/lib/palVoiceSignal";
 import PubPalVoice from "@/components/pubpal/PubPalVoice";
@@ -326,12 +327,12 @@ function PalHomeScreen({
   const headRef = useRef<HTMLDivElement>(null);
   // Seeded by the Pal's own id: the same genome on every device and visit.
   const genome = useMemo(() => palGenomeFor(pal.id, pal.personality), [pal.id, pal.personality]);
-  usePalHead3D(headRef, { signal: voiceSignal, state: visiblePalState, temperament: genome.temperament });
+  usePalHead3D(headRef, { signal: voiceSignal, state: visiblePalState, temperament: genome.temperament, modelUrl: pubPalMascotModelSrc(pal.appearance.species) });
   return (
     <main id="main" className="palExperience palHome">
       <section className="palHomeHero" aria-labelledby="pal-home-title">
         <div className="palHomePortrait" ref={headRef}>
-          <PalPortrait appearance={pal.appearance} name={pal.name} state={visiblePalState} genome={genome} />
+          <PalPortrait appearance={pal.appearance} name={pal.name} state={visiblePalState} genome={genome} modelSurface />
           <p className="palSpeech">{palStateSpeech[visiblePalState]}</p>
         </div>
         <div className="palHomeCopy">
