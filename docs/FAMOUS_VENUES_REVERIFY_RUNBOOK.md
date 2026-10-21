@@ -10,9 +10,9 @@ The app does not check a famous venue's expiry when it serves it. The slim index
 | --- | --- |
 | Slim built at | 2026-10-21 (`venues_slim.json` `generatedAt`, the `famous_venues` literal stamp) |
 | Gate turns red | After 2026-11-06 00:00 UTC, when the 384-hour budget is exceeded |
-| Rows shipping | 69 (27 bars, 19 late food, 23 restaurants) |
+| Rows shipping | 70 (27 bars, 19 late food, 24 restaurants) |
 | Those rows lapse | 2026-11-20. After that day the slim still shows them until rebuilt. |
-| Withheld | 19 complete seed rows archived in `data/famous_venues/withheld_2026-10-21.json` |
+| Withheld | 18 complete withheld seed rows archived in `data/famous_venues/withheld_2026-10-21.json` |
 
 The captain authorised withholding unverifiable entries while retaining their history.
 Withdrawal from current recommendations does not assert that a venue closed.
@@ -23,6 +23,9 @@ Restoration requires supported identity and price evidence, removal of the ID fr
 
 The [publication report](FAMOUS_VENUES_REVERIFY_2026-10-21.md) records the evidence and quota limits.
 Lahore Kebab House returned on its genuine 2026-10-21 confirmation.
+Wolseley returned after its official current breakfast PDF repaired the old source failure.
+The archive retains its full original row under `restoredRows`.
+Its derived confirmation reuses the original same-day Places identity receipt without another request.
 Price dates remain separate from venue confirmation dates.
 
 ## Who can do this
@@ -49,8 +52,10 @@ Anyone with a Google Places API key who can reach `places.googleapis.com`. The n
    - `stalenessBudgetHours`: hours from that stamp to two weeks before the earliest `expiresAt` still in the build.
 
    If every row was confirmed today, that is 384 again. Any unverified row that still ships makes it shorter. `npx vitest run __tests__/venuesSlim.test.ts` prints the exact expected values if you get either one wrong.
-6. Run `npm run build:uk-base` if withdrawn venues owned base rows. This regenerates base shards and their place indexes without obsolete curated-owner references.
-7. Run `npm run check:freshness`, `npm run validate-data` and `npx vitest run __tests__/venuesSlim.test.ts __tests__/famousVenuesSeed.test.ts __tests__/verifyFamousVenuesWrite.test.ts __tests__/famousVenuePlacesVerify.test.ts`. The pack counts in `venuesSlim.test.ts` follow the slim's own clock, so they need no hand edits.
+6. If withdrawals affect `data/pub_walk_pairs.json`, prune only withdrawn endpoints and remap indices while retaining every valid measured pair.
+   Re-measure changed opening clusters through the real MapLibre painted-pin browser probe before updating its fixture.
+7. Run `npm run build:uk-base` if withdrawn venues owned base rows. This regenerates base shards and their place indexes without obsolete curated-owner references.
+8. Run `npm run check:freshness`, `npm run validate-data` and `npx vitest run __tests__/venuesSlim.test.ts __tests__/famousVenuesSeed.test.ts __tests__/verifyFamousVenuesWrite.test.ts __tests__/famousVenuePlacesVerify.test.ts`. The pack counts in `venuesSlim.test.ts` follow the slim's own clock, so they need no hand edits.
 
 The rule behind steps 4 and 5 is "A slim rebuild that drops a shipped famous venue fails" in `docs/rules/scripts-builders-and-publishers.md`.
 

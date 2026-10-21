@@ -10,6 +10,10 @@
     {
       "receipt": "data/famous_venues/receipts/source_repairs_2026-10-21.json",
       "count": 4
+    },
+    {
+      "receipt": "data/famous_venues/receipts/wolseley_source_repair_2026-10-21.json",
+      "count": 1
     }
   ],
   "activeIds": [
@@ -81,6 +85,7 @@
     "restaurant-st-john-smithfield",
     "restaurant-veeraswamy",
     "restaurant-wiltons",
+    "restaurant-wolseley",
     "venue-1kpe609"
   ],
   "withheldIds": [
@@ -101,9 +106,9 @@
     "food-wong-kei",
     "food-bar-italia",
     "food-golden-dragon",
-    "restaurant-wolseley",
     "restaurant-flat-iron-soho"
   ],
   "withholdingAudit": "data/famous_venues/withheld_2026-10-21.json",
-  "priceDates": "Only seven source repair candidates carry newly observed menu prices. The four confirmed candidates ship. All other anchors retain their original observation dates."
+  "priceDates": "Eight source repair candidates carry newly observed menu prices. Five confirmed candidates ship. All other anchors retain their original observation dates.",
+  "updatedAt": "2026-10-21T21:46:28.857Z"
 }

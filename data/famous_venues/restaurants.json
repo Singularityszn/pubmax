@@ -1071,5 +1071,54 @@
     "expiresAt": "2026-11-20",
     "discoveredVia": "manual",
     "extractedVia": "manual"
+  },
+  {
+    "id": "restaurant-wolseley",
+    "name": "The Wolseley",
+    "address": "160 Piccadilly, London W1J 9EB",
+    "borough": "Westminster",
+    "lat": 51.5073927,
+    "lng": -0.1409072,
+    "kind": "restaurant",
+    "hasStory": true,
+    "fameGates": [
+      {
+        "kind": "distinct_experience",
+        "sourceUrl": "https://www.thewolseley.com/history"
+      },
+      {
+        "kind": "recognition",
+        "sourceUrl": "https://en.wikipedia.org/wiki/The_Wolseley"
+      }
+    ],
+    "sourceUrl": "https://www.thewolseleypiccadilly.com/app/uploads/2017/10/00728_WOLSELEY_OG_Winter_2026_All_Day_KCALS_BREAKFAST.pdf",
+    "observedAt": "2026-10-21",
+    "anchor": {
+      "kind": "signature_dish",
+      "label": "The English",
+      "course": "breakfast",
+      "price": 24.5,
+      "observedAt": "2026-10-21",
+      "sourceUrl": "https://www.thewolseleypiccadilly.com/app/uploads/2017/10/00728_WOLSELEY_OG_Winter_2026_All_Day_KCALS_BREAKFAST.pdf"
+    },
+    "story": {
+      "text": "The Wolseley fills a listed former car showroom with the rituals of a grand European cafe.",
+      "sourceUrl": "https://www.thewolseley.com/history"
+    },
+    "category": "restaurant",
+    "job": "near_pub_food",
+    "description": "The Wolseley fills a listed former car showroom with the rituals of a grand European cafe.",
+    "area": "Piccadilly",
+    "location": {
+      "lat": 51.5073927,
+      "lng": -0.1409072
+    },
+    "sourceName": "thewolseleypiccadilly.com",
+    "expiresAt": "2026-11-20",
+    "discoveredVia": "manual",
+    "extractedVia": "manual",
+    "placesNameAliases": [
+      "wolseley piccadilly"
+    ]
   }
 ]

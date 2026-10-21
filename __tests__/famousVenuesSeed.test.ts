@@ -68,7 +68,7 @@ function loadSeed(file: string): FamousVenueRow[] {
 const PACKS = [
   ["bars.json", 27, "bar"],
   ["late_food.json", 19, "food"],
-  ["restaurants.json", 23, "restaurant"],
+  ["restaurants.json", 24, "restaurant"],
 ] as const;
 
 describe("famous venue seeds", () => {
@@ -82,8 +82,8 @@ describe("famous venue seeds", () => {
       originalSeedRow: FamousVenueRow;
     }> };
     const active = PACKS.flatMap(([file]) => loadSeed(file));
-    expect(active).toHaveLength(69);
-    expect(audit.rows).toHaveLength(19);
+    expect(active).toHaveLength(70);
+    expect(audit.rows).toHaveLength(18);
     const activeIds = new Set(active.map((row) => row.id));
     expect(activeIds.has("food-lahore-kebab-house")).toBe(true);
     for (const row of audit.rows) {
@@ -100,6 +100,36 @@ describe("famous venue seeds", () => {
       path.join(ROOT, "public/data/venues_slim.json"), "utf8",
     )).rows.map((row: { id: string }) => row.id));
     for (const row of audit.rows) expect(shipped.has(row.originalSeedRow.id)).toBe(false);
+  });
+
+  it("restores Wolseley only with its supported breakfast price and retained identity receipt", () => {
+    const row = loadSeed("restaurants.json").find((venue) => venue.id === "restaurant-wolseley");
+    const sourceUrl = "https://www.thewolseleypiccadilly.com/app/uploads/2017/10/00728_WOLSELEY_OG_Winter_2026_All_Day_KCALS_BREAKFAST.pdf";
+    expect(row).toMatchObject({
+      sourceUrl,
+      observedAt: "2026-10-21",
+      anchor: { kind: "signature_dish", label: "The English", course: "breakfast", price: 24.5,
+        observedAt: "2026-10-21", sourceUrl },
+    });
+    const audit = JSON.parse(readFileSync(path.join(ROOT, "data/famous_venues/withheld_2026-10-21.json"), "utf8"));
+    expect(audit.restoredRows).toEqual([expect.objectContaining({
+      id: "restaurant-wolseley", status: "restored_supported",
+      originalSeedRow: expect.objectContaining({
+        anchor: expect.objectContaining({ label: "Eggs Benedict, large", price: 21.5, observedAt: "2026-07-27" }),
+      }),
+    })]);
+    const receipt = JSON.parse(readFileSync(path.join(ROOT, "data/famous_venues/receipts/wolseley_source_repair_2026-10-21.json"), "utf8"));
+    expect(receipt.newPlacesLiveApiCalls).toBe(0);
+    expect(receipt.checks).toEqual([expect.objectContaining({
+      id: "restaurant-wolseley", outcome: "confirmed", sourceUrl,
+      placeId: "ChIJr_4cVy8FdkgRIrNbO93eUFM", checkedAt: "2026-10-21T07:18:57.664Z",
+      anchorCheckedAt: "2026-10-21T21:26:35.814Z",
+    })]);
+    const publication = JSON.parse(readFileSync(path.join(ROOT, "data/famous_venues/publication_2026-10-21.json"), "utf8"));
+    expect(publication.activeIds).toContain(row!.id);
+    expect(publication.withheldIds).not.toContain(row!.id);
+    const removed = JSON.parse(readFileSync(path.join(ROOT, "data/famous_venues/removed.json"), "utf8"));
+    expect(removed).not.toContain(row!.id);
   });
 
   it.each([...PACKS])(

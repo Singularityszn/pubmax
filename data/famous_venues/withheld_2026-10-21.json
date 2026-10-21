@@ -31,6 +31,14 @@
     {
       "path": "/tmp/pubmaxx-firecrawl-cahoots-pdf.json",
       "sha256": "605d5f014efd506eed09740d40cc56dc00136209336dda90f1e00498a27fd00e"
+    },
+    {
+      "path": "/tmp/pubmaxx-firecrawl-wolseley-page.json",
+      "sha256": "24eb857f9bfae4635adc8df234f4d7a2f5e28f05195aadf64c3986ba092adcc7"
+    },
+    {
+      "path": "/tmp/pubmaxx-firecrawl-wolseley-pdf.json",
+      "sha256": "eed2a1cc3707c062713970a1d6186d22e247ed8fe47dfe60924aa1ef1e9ca05d"
     }
   ],
   "rows": [
@@ -1727,99 +1735,6 @@
       ]
     },
     {
-      "id": "restaurant-wolseley",
-      "pack": "restaurants.json",
-      "status": "withheld_unverified",
-      "reviewedAt": "2026-10-21T21:27:34.521Z",
-      "reason": "The old breakfast PDF returns HTTP 404. No current supported menu was supplied.",
-      "originalSeedRow": {
-        "id": "restaurant-wolseley",
-        "name": "The Wolseley",
-        "address": "160 Piccadilly, London W1J 9EB",
-        "borough": "Westminster",
-        "lat": 51.5073927,
-        "lng": -0.1409072,
-        "kind": "restaurant",
-        "hasStory": true,
-        "fameGates": [
-          {
-            "kind": "distinct_experience",
-            "sourceUrl": "https://www.thewolseley.com/history"
-          },
-          {
-            "kind": "recognition",
-            "sourceUrl": "https://en.wikipedia.org/wiki/The_Wolseley"
-          }
-        ],
-        "sourceUrl": "https://www.thewolseley.com/app/uploads/2026/02/00506_WOLSELEY_Winter_2025_Breakfast_A5-12pp_Kcals29.pdf",
-        "observedAt": "2026-10-05",
-        "anchor": {
-          "kind": "signature_dish",
-          "label": "Eggs Benedict, large",
-          "course": "breakfast",
-          "price": 21.5,
-          "observedAt": "2026-07-27",
-          "sourceUrl": "https://www.thewolseley.com/app/uploads/2026/02/00506_WOLSELEY_Winter_2025_Breakfast_A5-12pp_Kcals29.pdf"
-        },
-        "story": {
-          "text": "The Wolseley fills a listed former car showroom with the rituals of a grand European cafe.",
-          "sourceUrl": "https://www.thewolseley.com/history"
-        },
-        "category": "restaurant",
-        "job": "near_pub_food",
-        "description": "The Wolseley fills a listed former car showroom with the rituals of a grand European cafe.",
-        "area": "Piccadilly",
-        "location": {
-          "lat": 51.5073927,
-          "lng": -0.1409072
-        },
-        "sourceName": "thewolseley.com",
-        "expiresAt": "2026-11-04",
-        "discoveredVia": "manual",
-        "extractedVia": "manual",
-        "placesNameAliases": [
-          "wolseley piccadilly"
-        ]
-      },
-      "previousCheck": {
-        "id": "restaurant-wolseley",
-        "method": "places_text_search",
-        "sourceUrl": "https://www.thewolseley.com/app/uploads/2026/02/00506_WOLSELEY_Winter_2025_Breakfast_A5-12pp_Kcals29.pdf",
-        "outcome": "unverified",
-        "result": "anchor_source_unreachable",
-        "textQuery": "The Wolseley W1J 9EB London",
-        "placeId": "ChIJr_4cVy8FdkgRIrNbO93eUFM",
-        "matchReason": "places_name_alias;postcode_W1J 9EB",
-        "checkedAt": "2026-10-21T07:18:57.664Z",
-        "receipt": "data/famous_venues/receipts/verification_2026-10-21_pubpal-complete-1019.json"
-      },
-      "previousInspection": {
-        "id": "restaurant-wolseley",
-        "url": "https://www.thewolseley.com/app/uploads/2026/02/00506_WOLSELEY_Winter_2025_Breakfast_A5-12pp_Kcals29.pdf",
-        "checkedAt": "2026-10-21T21:08:49.084Z",
-        "allowedBySourcePolicy": true,
-        "permission": {
-          "allowed": true,
-          "reason": "no-rules-published",
-          "robots": "absent",
-          "evidence": "https://www.thewolseley.com/robots.txt returns 404, which publishes no restriction."
-        },
-        "head": {
-          "status": 404,
-          "location": null
-        }
-      },
-      "sourceReview": {
-        "canonicalUrl": "https://www.thewolseley.com/app/uploads/2026/02/00506_WOLSELEY_Winter_2025_Breakfast_A5-12pp_Kcals29.pdf",
-        "canonicalPageCheckedAt": null
-      },
-      "restorationRequirements": [
-        "Establish a confident current venue identity through the existing Places verifier.",
-        "Obtain a permitted, venue-specific price anchor with its actual observation date.",
-        "Apply a genuine confirmation, remove this ID from removed.json, and rebuild the slim index."
-      ]
-    },
-    {
       "id": "restaurant-flat-iron-soho",
       "pack": "restaurants.json",
       "status": "withheld_unverified",
@@ -1904,6 +1819,105 @@
         "Obtain a permitted, venue-specific price anchor with its actual observation date.",
         "Apply a genuine confirmation, remove this ID from removed.json, and rebuild the slim index."
       ]
+    }
+  ],
+  "restoredRows": [
+    {
+      "id": "restaurant-wolseley",
+      "pack": "restaurants.json",
+      "status": "restored_supported",
+      "reviewedAt": "2026-10-21T21:27:34.521Z",
+      "reason": "The old PDF returned 404. The official replacement breakfast PDF now supports The English at £24.50.",
+      "originalSeedRow": {
+        "id": "restaurant-wolseley",
+        "name": "The Wolseley",
+        "address": "160 Piccadilly, London W1J 9EB",
+        "borough": "Westminster",
+        "lat": 51.5073927,
+        "lng": -0.1409072,
+        "kind": "restaurant",
+        "hasStory": true,
+        "fameGates": [
+          {
+            "kind": "distinct_experience",
+            "sourceUrl": "https://www.thewolseley.com/history"
+          },
+          {
+            "kind": "recognition",
+            "sourceUrl": "https://en.wikipedia.org/wiki/The_Wolseley"
+          }
+        ],
+        "sourceUrl": "https://www.thewolseley.com/app/uploads/2026/02/00506_WOLSELEY_Winter_2025_Breakfast_A5-12pp_Kcals29.pdf",
+        "observedAt": "2026-10-05",
+        "anchor": {
+          "kind": "signature_dish",
+          "label": "Eggs Benedict, large",
+          "course": "breakfast",
+          "price": 21.5,
+          "observedAt": "2026-07-27",
+          "sourceUrl": "https://www.thewolseley.com/app/uploads/2026/02/00506_WOLSELEY_Winter_2025_Breakfast_A5-12pp_Kcals29.pdf"
+        },
+        "story": {
+          "text": "The Wolseley fills a listed former car showroom with the rituals of a grand European cafe.",
+          "sourceUrl": "https://www.thewolseley.com/history"
+        },
+        "category": "restaurant",
+        "job": "near_pub_food",
+        "description": "The Wolseley fills a listed former car showroom with the rituals of a grand European cafe.",
+        "area": "Piccadilly",
+        "location": {
+          "lat": 51.5073927,
+          "lng": -0.1409072
+        },
+        "sourceName": "thewolseley.com",
+        "expiresAt": "2026-11-04",
+        "discoveredVia": "manual",
+        "extractedVia": "manual",
+        "placesNameAliases": [
+          "wolseley piccadilly"
+        ]
+      },
+      "previousCheck": {
+        "id": "restaurant-wolseley",
+        "method": "places_text_search",
+        "sourceUrl": "https://www.thewolseley.com/app/uploads/2026/02/00506_WOLSELEY_Winter_2025_Breakfast_A5-12pp_Kcals29.pdf",
+        "outcome": "unverified",
+        "result": "anchor_source_unreachable",
+        "textQuery": "The Wolseley W1J 9EB London",
+        "placeId": "ChIJr_4cVy8FdkgRIrNbO93eUFM",
+        "matchReason": "places_name_alias;postcode_W1J 9EB",
+        "checkedAt": "2026-10-21T07:18:57.664Z",
+        "receipt": "data/famous_venues/receipts/verification_2026-10-21_pubpal-complete-1019.json"
+      },
+      "previousInspection": {
+        "id": "restaurant-wolseley",
+        "url": "https://www.thewolseley.com/app/uploads/2026/02/00506_WOLSELEY_Winter_2025_Breakfast_A5-12pp_Kcals29.pdf",
+        "checkedAt": "2026-10-21T21:08:49.084Z",
+        "allowedBySourcePolicy": true,
+        "permission": {
+          "allowed": true,
+          "reason": "no-rules-published",
+          "robots": "absent",
+          "evidence": "https://www.thewolseley.com/robots.txt returns 404, which publishes no restriction."
+        },
+        "head": {
+          "status": 404,
+          "location": null
+        }
+      },
+      "sourceReview": {
+        "canonicalUrl": "https://thewolseleypiccadilly.com/menu/breakfast/",
+        "canonicalPageCheckedAt": "2026-10-21T21:26:28.815Z",
+        "menuUrl": "https://www.thewolseleypiccadilly.com/app/uploads/2017/10/00728_WOLSELEY_OG_Winter_2026_All_Day_KCALS_BREAKFAST.pdf",
+        "menuCheckedAt": "2026-10-21T21:26:35.814Z"
+      },
+      "restorationRequirements": [
+        "Establish a confident current venue identity through the existing Places verifier.",
+        "Obtain a permitted, venue-specific price anchor with its actual observation date.",
+        "Apply a genuine confirmation, remove this ID from removed.json, and rebuild the slim index."
+      ],
+      "restoredAt": "2026-10-21T21:46:28.855Z",
+      "restorationReceipt": "data/famous_venues/receipts/wolseley_source_repair_2026-10-21.json"
     }
   ]
 }
