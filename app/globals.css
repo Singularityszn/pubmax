@@ -472,6 +472,7 @@
   --z-float-action: 1290;    /* floating create action — BELOW the map sheet portal (1300), so an open sheet is never painted over */
   --z-modal: 1200;           /* siteNav floating rails, full-screen overlays */
   --z-overlay-top: 1300;     /* map onboarding — topmost transient overlay */
+  --z-context-prompt: 1320;  /* contextual push cards, above map sheets and below the primary dock */
   --z-splash: 1400;          /* aperture splash - pre-paint full-viewport takeover, above everything */
 
   /* — Spill (always-dark) palette: the "spilling right now" / spill-composer
@@ -2633,19 +2634,8 @@ html[data-theme="dark"] .appShell .mapStage .maplibregl-ctrl-group button .mapli
   background: none;
   font: inherit;
   font-size: var(--text-xs);
-  color: var(--color-text-muted);
-  opacity: 0.85;
+  color: var(--color-on-inverse);
   cursor: pointer;
-}
-
-.mapFallbackDisclosureToggle:focus-visible {
-  opacity: 1;
-}
-
-@media (hover: hover) and (pointer: fine) {
-  .mapFallbackDisclosureToggle:hover {
-    opacity: 1;
-  }
 }
 
 .mapFallbackDisclosureToggle:focus-visible {
@@ -2653,8 +2643,8 @@ html[data-theme="dark"] .appShell .mapStage .maplibregl-ctrl-group button .mapli
   outline-offset: 2px;
 }
 
-/* The technical diagnostic — a printer's-mark footnote: monospaced, dim, so it
-   reads as a stamp rather than prose. Wraps so long statusMessages don't clip. */
+/* Raw diagnostics stay in a small footnote. Long status messages wrap
+   within the card. */
 .mapFallbackDetail {
   display: block;
   max-width: 340px;
@@ -2664,7 +2654,6 @@ html[data-theme="dark"] .appShell .mapStage .maplibregl-ctrl-group button .mapli
   letter-spacing: 0.02em;
   line-height: 1.4;
   color: var(--color-on-inverse);
-  opacity: 0.75;
   overflow-wrap: anywhere;
 }
 
@@ -2718,6 +2707,7 @@ html[data-theme="dark"] .appShell .mapStage .maplibregl-ctrl-group button .mapli
   justify-content: space-between;
   gap: 12px;
   width: 100%;
+  min-height: 44px;
   padding: 8px 12px;
   border: 1px solid color-mix(in srgb, var(--color-on-inverse) 18%, transparent);
   border-radius: var(--radius-sm);
@@ -2750,9 +2740,11 @@ html[data-theme="dark"] .appShell .mapStage .maplibregl-ctrl-group button .mapli
 }
 
 .mapFallbackBrowse {
-  display: inline-block;
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
   margin-top: 10px;
-  color: var(--color-text-muted);
+  color: var(--color-on-inverse);
   font-size: var(--text-sm);
   font-weight: 600;
   text-decoration: underline;

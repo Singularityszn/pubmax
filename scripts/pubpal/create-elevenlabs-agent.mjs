@@ -62,7 +62,7 @@ const MAX_SESSION_SECONDS = PAL_VOICE_MAX_SESSION_SECONDS;
 /** Short descriptions aligned with lib/ask/tools.ts allowlist, plus the Pal-only memory tools. */
 const TOOL_DESCRIPTIONS = {
   search_venues:
-    "Rank listed pubs by mood, area, group size, and budget. Never invents venues.",
+    "Find one to six listed pubs by mood, area, group size, and budget. Pass the requested result count as limit. Never invent venues.",
   whats_on:
     "Look up sourced What's On listings (quiz, sport, deals) for tonight or a weekday.",
   venue_heritage:
@@ -87,9 +87,9 @@ const TOOL_DESCRIPTIONS = {
   report_occupancy:
     "Propose a crowd report for a pub. Writes nothing until the reader confirms.",
   recall_memories:
-    "On the first substantive request, read confirmed preferences before a factual tool unless the message already supplies them. Do not use for greetings or thanks alone. Read-only. Never facts about a pub.",
+    "On the first substantive request, read confirmed preferences and past-night reports before a factual tool unless the message already supplies them. Do not use for greetings or thanks alone. Read-only. Never facts about a pub.",
   propose_memory:
-    "Typed chat only. Propose one preference for the Pal to remember. Saves nothing until the person confirms the card.",
+    "Propose one lasting preference or explicitly reported past-night outcome for the Pal to remember in typed or voice chat. Saves nothing until the person confirms the card in the app.",
 };
 
 function loadDotEnv() {
@@ -148,6 +148,7 @@ const TOOL_WEBHOOK_BODY_PROPERTIES = {
   search_venues: {
     conversation_id: conversationIdProperty(),
     query: { type: "string", description: "The venue search ask." },
+    limit: { type: "number", description: "Number of pub recommendations requested, from 1 to 6. This is not the number of people. Use 4 when no result count is requested." },
   },
   recall_memories: {
     conversation_id: conversationIdProperty(),
@@ -157,11 +158,11 @@ const TOOL_WEBHOOK_BODY_PROPERTIES = {
     kind: {
       type: "string",
       enum: [...PUB_PAL_MEMORY_KINDS],
-      description: "What sort of preference this is.",
+      description: "The preference kind, or night_outcome for an explicit past-night report.",
     },
     value: {
       type: "string",
-      description: "The preference in the person's own words, one short line.",
+      description: "The preference or past-night report in the person's own words, one short line. Preserve any stated pub, date and spend. Never infer expenditure from a price observation.",
     },
   },
 };
@@ -190,6 +191,7 @@ const CLIENT_EVENTS = [
   "agent_response_correction",
   "agent_tool_request",
   "agent_tool_response",
+  "agent_tool_response_full_payload",
   "agent_response_complete",
 ];
 

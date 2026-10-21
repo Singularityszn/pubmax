@@ -104,9 +104,9 @@ export default async function LandmarkChapterPage({ params }: PageProps) {
         {/* Deep-link to THIS landmark on the map (?landmark= is the existing
             shareable-URL param PubMap seeds from) — a bare /map dead-ends with
             nothing selected. */}
-        <Link prefetch={false} className="landmarkChapterEyebrow" href={mapHref}>
+        <a className="landmarkChapterEyebrow" href={mapHref}>
           PUBMAXX · London stories
-        </Link>
+        </a>
         <h1 className="landmarkChapterTitle">{landmark.name}</h1>
       </header>
 
@@ -132,13 +132,13 @@ export default async function LandmarkChapterPage({ params }: PageProps) {
       </a>
 
       <div className="landmarkChapterActions">
-        <Link prefetch={false} className="landmarkChapterBtn" href={mapHref}>
+        <a className="landmarkChapterBtn" href={mapHref}>
           Open on the map
-        </Link>
+        </a>
         {crawlIds.length > 0 ? (
-          <Link className="landmarkChapterBtn landmarkChapterBtnPrimary" href={startCrawlHref(crawlIds)}>
+          <a className="landmarkChapterBtn landmarkChapterBtnPrimary" href={startCrawlHref(crawlIds)}>
             Start a crawl here
-          </Link>
+          </a>
         ) : null}
       </div>
 
@@ -151,10 +151,10 @@ export default async function LandmarkChapterPage({ params }: PageProps) {
           <ul className="landmarkChapterPubList">
             {nearby.map(({ venue, km }) => (
               <li key={venue.id}>
-                <Link prefetch={false} href={`/map?sel=${encodeURIComponent(venue.id)}`}>
+                <a href={`/map?sel=${encodeURIComponent(venue.id)}`}>
                   <span>{venue.name}</span>
                   <span className="landmarkChapterPubDist">{formatLogNearbyDistance(km)}</span>
-                </Link>
+                </a>
               </li>
             ))}
           </ul>

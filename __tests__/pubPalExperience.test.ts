@@ -672,6 +672,6 @@ describe("Pub Pal when the browser refuses storage", () => {
     expect(patches).toBe(3);
     expect(pal.proposalPreferences).toEqual({ memories: false, routes: true, taste: false });
     expect(buttonContaining("Taste read off").getAttribute("aria-pressed")).toBe("false");
-    expect(buttonContaining("Pal won't read your diary, drops or saves")).toBeTruthy();
+    expect(buttonContaining("Pal won't read your favourite drink, diary, drops or saves")).toBeTruthy();
   });
 });

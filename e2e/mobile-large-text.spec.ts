@@ -115,6 +115,49 @@ for (const scale of [1.3, 1.5, 2]) {
 // The iOS shell enlarges text through -webkit-text-size-adjust with the root
 // left at 16px. Its layout scale grows the card separately. Actual iOS startup
 // and WebKit painting need native proof and are not modelled here.
+test("Android font growth clears map controls before the next height measurement", async ({ page }) => {
+  await page.setViewportSize({ width: 412, height: 840 });
+  await installNativeShell(page, "android");
+  await page.goto("/map");
+  await expectMobileMapShellReady(page);
+  await expect(page.locator(".mapPeek .mobilePlanActivation")).toBeVisible();
+  await page.evaluate(() => {
+    document.documentElement.style.fontSize = "100%";
+    document.documentElement.setAttribute("data-text-scale", "large");
+  });
+  await expect.poll(() => page.locator(".mapPeek").evaluate((element) => ({
+    height: element.getBoundingClientRect().height,
+    measured: parseFloat(document.documentElement.style.getPropertyValue("--map-peek-rendered-h")),
+  }))).toEqual({ height: 112, measured: 112 });
+
+  const geometry = await page.evaluate(() => {
+    const root = document.documentElement;
+    root.style.fontSize = "200%";
+    const card = document.querySelector(".mapPeek")!.getBoundingClientRect();
+    return {
+      font: parseFloat(getComputedStyle(root).fontSize),
+      measured: root.style.getPropertyValue("--map-peek-rendered-h"),
+      height: card.height,
+      controls: [".mobileMapLocateFab", ".createFab"].map((selector) => {
+        const box = document.querySelector(selector)!.getBoundingClientRect();
+        return {
+          selector,
+          painted: box.width > 0 && box.height > 0,
+          overlap: card.left < box.right && box.left < card.right
+            && card.top < box.bottom && box.top < card.bottom,
+        };
+      }),
+    };
+  });
+  expect(geometry.font).toBe(32);
+  expect(geometry.measured, "the previous measurement is still held in this frame").toBe("112px");
+  expect(geometry.height).toBe(156);
+  expect(geometry.controls).toEqual([
+    { selector: ".mobileMapLocateFab", painted: true, overlap: false },
+    { selector: ".createFab", painted: true, overlap: false },
+  ]);
+});
+
 for (const scale of [1.3, 1.5, 2]) {
   test(`Android ${scale}x text grows the map's bottom card with its text, and the controls above it follow`, async ({ page }) => {
     await page.setViewportSize({ width: 412, height: 840 });

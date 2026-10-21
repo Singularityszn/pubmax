@@ -1,0 +1,13 @@
+.publisher {
+  /* The following citation text must not take hits at the link's edge. */
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  min-width: 44px;
+  min-height: 44px;
+  vertical-align: baseline;
+}
+
+.publisher:any-link {
+  color: var(--color-text);
+}

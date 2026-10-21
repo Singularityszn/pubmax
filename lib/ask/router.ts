@@ -4,7 +4,9 @@
 import { detectWhatsOnIntent } from "@/lib/concierge/whatsOn";
 import type { AskToolName } from "@/lib/ask/types";
 import type { DrinkCategory } from "@/lib/drinks";
-import { isKnownAskPlacePhrase } from "@/lib/ask/venueResolution";
+import { isKnownAskPlacePhrase } from "@/lib/ask/placePhrases";
+import { palAsksForVenueDiscovery } from "@/lib/palMapAsk";
+import { defaultKnownAreas, deterministicAreaInText, extractExplicitBudget } from "@/lib/concierge/intentPolicy";
 
 export type RoutedToolCall = {
   name: AskToolName;
@@ -241,7 +243,7 @@ export function resolveAskPriceIntent(query: string): AskPriceIntent {
 }
 
 export function isVenueDiscoveryAsk(query: string): boolean {
-  if (VENUE_DISCOVERY_RE.test(query)) return true;
+  if (VENUE_DISCOVERY_RE.test(query) || palAsksForVenueDiscovery(query)) return true;
   const priceQuery = priceQuestion(query);
   const intent = resolveAskPriceIntent(priceQuery);
   return PRICE_COMPARISON_RE.test(priceQuery)
@@ -349,10 +351,28 @@ export function socialTurnKind(query: string): "greeting" | "thanks" | null {
  * own claim wins, so a pint ask after a wifi ask cannot be swallowed by
  * find_desk matching the earlier sentence.
  */
+const SAME_AREA_REFERENCE_RE = /(?:\b(?:in|near|around)\s+)?\b(?:the\s+)?same\s+(?:area|patch|neighbou?rhood)\b/i;
+
+/** A pint-budget refinement keeps the discovered area without replacing a named subject. */
+export function refineVenueBudgetFollowUp(query: string, priorUserContent: string | readonly string[] | null | undefined): string | null {
+  if (!priorUserContent || !SAME_AREA_REFERENCE_RE.test(query)
+    || extractExplicitBudget(query) === undefined || /\bat\s+\S/i.test(query)) return null;
+  const price = resolveAskPriceIntent(query);
+  if (price.kind !== "none" && price.kind !== "pint") return null;
+  const knownAreas = defaultKnownAreas();
+  if (deterministicAreaInText(query.replace(SAME_AREA_REFERENCE_RE, ""), knownAreas)) return null;
+  const priorLines = typeof priorUserContent === "string" ? [priorUserContent] : priorUserContent;
+  const priorArea = priorLines.map((line) => socialTurnKind(line) ? undefined : deterministicAreaInText(line.replace(SAME_AREA_REFERENCE_RE, ""), knownAreas)).findLast(Boolean);
+  return priorArea ? query.replace(SAME_AREA_REFERENCE_RE, `pubs in ${priorArea}`) : null;
+}
+
 export function refineRoutedAskQuery(
   query: string,
   priorUserContent: string | null | undefined,
+  priorUserContents?: readonly string[],
 ): string {
+  const budgetFollowUp = refineVenueBudgetFollowUp(query, priorUserContents ?? priorUserContent);
+  if (budgetFollowUp) return budgetFollowUp;
   const words = query.trim().split(/\s+/).filter(Boolean);
   if (!priorUserContent || words.length === 0 || words.length > 4) return query;
   if (socialTurnKind(priorUserContent)) return query;
@@ -488,6 +508,12 @@ function conciergeClaim(
   );
 }
 
+function requestedVenueCount(query: string): number {
+  const count = query.match(/\b(1|2|3|4|5|6|one|two|three|four|five|six)\s+(?:(?:good|quiet|lively|cosy|cozy|cheap|historic|local|nearby|listed|great|best)\s+)*(?:pubs?|bars?|venues?|places?)\b/i)?.[1]?.toLowerCase();
+  const words: Record<string, number> = { one: 1, two: 2, three: 3, four: 4, five: 5, six: 6 };
+  return count ? words[count] ?? Number(count) : 4;
+}
+
 /**
  * Choose tools for a free-text ask. Order matters: specialised intents beat the
  * default venue search. Cap at two tools so the keyless path stays snappy.
@@ -529,7 +555,7 @@ export function routeAskDeterministically(query: string): RoutedToolCall[] {
   }
 
   if (priceIntent.kind === "drink-venues") {
-    push("search_venues", { query: text, limit: 4 });
+    push("search_venues", { query: text, limit: requestedVenueCount(text) });
     return calls;
   }
 
@@ -555,13 +581,13 @@ export function routeAskDeterministically(query: string): RoutedToolCall[] {
     push("propose_plan", { query: text });
   }
 
-  if (OPEN_MAP_RE.test(text) && !PLAN_RE.test(text) && calls.length === 0) {
+  if (OPEN_MAP_RE.test(text) && !PLAN_RE.test(text) && !isVenueDiscoveryAsk(text) && !palAsksForVenueDiscovery(text) && calls.length === 0) {
     const venueName = stripIntentWords(text);
     push("propose_map_action", venueName ? { venueName } : { query: text });
   }
 
   if (calls.length === 0) {
-    push("search_venues", { query: text, limit: 4 });
+    push("search_venues", { query: text, limit: requestedVenueCount(text) });
   }
 
   return calls;

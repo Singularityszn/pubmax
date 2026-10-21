@@ -1,3 +1,4 @@
+import { COMMUNITY_SHEET_FIXTURE_VENUE_ID } from "@/e2e/helpers/communitySheetFixture";
 import { expect, test } from "@playwright/test";
 
 function stableVenueIdFromKey(key: string): string {
@@ -32,10 +33,11 @@ test.beforeEach(async ({ page }) => {
   });
 });
 
-test("mobile venue sticky Share and Crawl actions stay tappable in build mode", async ({
+test("mobile venue Share clipboard fallback and the one Plan door stay tappable in build mode", async ({
   page,
 }) => {
   await page.addInitScript(() => {
+    window.open = () => null;
     Object.defineProperty(navigator, "share", {
       configurable: true,
       value: undefined,
@@ -50,7 +52,7 @@ test("mobile venue sticky Share and Crawl actions stay tappable in build mode", 
     });
   });
 
-  const response = await page.goto(`/map?sel=${ARNOS_ARMS_ID}&mode=build`);
+  const response = await page.goto(`/map?sel=${ARNOS_ARMS_ID}&mode=build&pubs=${COMMUNITY_SHEET_FIXTURE_VENUE_ID}`);
   expect(response?.status()).toBe(200);
 
   const portal = page.locator('.mobileSheetPortal[data-sheet-kind="venue"]');
@@ -71,13 +73,17 @@ test("mobile venue sticky Share and Crawl actions stay tappable in build mode", 
     `/map?sel=${ARNOS_ARMS_ID}`,
   );
 
-  const crawlButton = stickyActions.getByRole("button", { name: "Crawl" });
-  await expect(crawlButton).toHaveAttribute("aria-pressed", "false");
-  await crawlButton.click();
-  const removeButton = stickyActions.getByRole("button", { name: "Remove" });
-  await expect(removeButton).toHaveAttribute("aria-pressed", "true");
-  await removeButton.click();
-  await expect(crawlButton).toHaveAttribute("aria-pressed", "false");
+  await expect(stickyActions.getByRole("button")).toHaveText(["Share"]);
+  await portal.getByRole("tab", { name: "Overview", exact: true }).click();
+  const planDoor = portal.locator(".mobileVenuePeekSummary").getByRole("button", { name: "Plan stop", exact: true });
+  await expect(planDoor).toHaveAttribute("aria-pressed", "false");
+  await planDoor.click();
+  const inPlan = portal.locator(".mobileVenuePeekSummary").getByRole("button", { name: "In plan", exact: true });
+  await expect(inPlan).toHaveAttribute("aria-pressed", "true");
+  await expect.poll(() => new URL(page.url()).searchParams.get("pubs")).toBe(`${COMMUNITY_SHEET_FIXTURE_VENUE_ID},${ARNOS_ARMS_ID}`);
+  await inPlan.click();
+  await expect(planDoor).toHaveAttribute("aria-pressed", "false");
+  await expect.poll(() => new URL(page.url()).searchParams.get("pubs")).toBe(COMMUNITY_SHEET_FIXTURE_VENUE_ID);
 
 });
 

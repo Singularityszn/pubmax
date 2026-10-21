@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState, useSyncExternalStore } from "react";
+import Link from "next/link";
 
 import InviteMapLink from "@/components/plan/InviteMapLink";
 import { discardBody } from "@/lib/responseBody";
@@ -256,6 +257,7 @@ export default function PlanInviteRsvp({
   const [status, setStatus] = useState<RsvpStatus | null>(null);
   const [submittingRsvp, setSubmittingRsvp] = useState(false);
   const [rsvpError, setRsvpError] = useState<string | null>(null);
+  const [rsvpPlanRecovery, setRsvpPlanRecovery] = useState(false);
   const [rsvpCommitted, setRsvpCommitted] = useState(false);
   const [pendingReaction, setPendingReaction] = useState<ReactionKey | null>(null);
   const [reactionError, setReactionError] = useState<string | null>(null);
@@ -358,6 +360,7 @@ export default function PlanInviteRsvp({
       setStatus(chosen);
       setSubmittingRsvp(true);
       setRsvpError(null);
+      setRsvpPlanRecovery(false);
       writeStoredGuestName(trimmedName);
 
       try {
@@ -372,9 +375,14 @@ export default function PlanInviteRsvp({
         });
         const res = submitted.response;
         if (!res.ok) {
+          const failure = res.status === 403 ? await res.clone().json().catch(() => null) as { code?: unknown } | null : null;
+          const recoverOnPlan = submitted.capability?.role === "guest" && failure?.code === "PLAN_INVITE_RSVP_FORBIDDEN";
+          setRsvpPlanRecovery(recoverOnPlan);
           discardBody(res);
           setRsvpError(
-            res.status === 429
+            recoverOnPlan
+              ? "Change your crew status on the plan."
+              : res.status === 429
               ? "That's a lot of RSVPs. Give it a moment."
               : res.status === 404
                 ? "This invite link isn't valid."
@@ -547,6 +555,7 @@ export default function PlanInviteRsvp({
       {rsvpError ? (
         <p className="inviteRsvp__error" role="status">
           {rsvpError}
+          {rsvpPlanRecovery ? <> <Link prefetch={false} href={`/plan/${planId}`}>Open the plan</Link></> : null}
         </p>
       ) : null}
 

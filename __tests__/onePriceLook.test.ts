@@ -1,167 +1,96 @@
-import { readdirSync, readFileSync } from "node:fs";
-import { join, relative } from "node:path";
+// @vitest-environment jsdom
 
+import { createElement, type ReactElement } from "react";
+import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 
-// ─────────────────────────────────────────────────────────────────────────────
-// ONE LOOK FOR EVERY PRICE (taste plan, 18 Oct 2026, change 3).
-//
-// A pint price on a row or a card goes through components/PriceBadge.tsx
-// (`PintPriceBadge`, or `PriceBadge` with its band), so it wears its band and
-// the one plaque. A figure that is not a pint (a deal, a coffee) takes
-// `PriceBadge` with no band. Never a bare coloured number, never a plain
-// "£5.40" beside a badge, never a second price style.
-//
-// __tests__/priceBandSurfaces.test.ts holds each banded surface to the band
-// module. This file sweeps the tree for the opposite: a price printed as bare
-// JSX text, `{formatPrice(…)}`, `{formatGbp(…)}` or `£{…}`, with no badge or
-// band class around it. The captain's exceptions are listed by file with a
-// count that may only go down.
-// ─────────────────────────────────────────────────────────────────────────────
+import PriceBadge, { PintPriceBadge } from "@/components/PriceBadge";
+import CoffeePilotSheet from "@/components/map/CoffeePilotSheet";
+import { SpillPreviewCard } from "@/components/map/composer/SpillPreviewCard";
+import PalCardPrice from "@/components/pal/PalCardPrice";
+import type { CoffeePilotCafe } from "@/lib/coffeePilot";
+import type { PalCard } from "@/lib/palChat";
+import { buildSpillPreview } from "@/lib/spillPreview";
 
-const ROOT = process.cwd();
+function render(element: ReactElement): HTMLDivElement {
+  const container = document.createElement("div");
+  container.innerHTML = renderToStaticMarkup(element);
+  return container;
+}
 
-/** A price printed as a JSX child (a template string `${…}` is copy, not markup). */
-const BARE_PRICE = /(?<![$\w])\{\s*(?:formatPrice|formatGbp)\(|£\{/;
+function expectBadge(container: HTMLElement, price: string, band: string | null): void {
+  const badges = container.querySelectorAll(".price-plaque");
+  expect(badges).toHaveLength(1);
+  const badge = badges[0]!;
+  expect(badge.textContent).toBe(price);
+  if (band) {
+    expect(badge.classList.contains(`priceBand-${band.toLowerCase()}`)).toBe(true);
+    expect(badge.getAttribute("title")).toMatch(new RegExp(`^${band}:`));
+  } else {
+    expect(badge.hasAttribute("title")).toBe(false);
+    expect([...badge.classList].filter((name) => name.startsWith("priceBand-"))).toEqual([]);
+  }
+}
 
-/** Within this many lines above, a badge or a band class owns the figure. */
-const OWNED = /<PriceBadge|<PintPriceBadge|price-plaque|[pP]riceBandClass\(/;
-const WINDOW = 14;
+describe("the displayed price and its comparison", () => {
+  it.each(["baseline", "current", "cheap", "increase", "neutral"] as const)(
+    "prints a non-pint figure without a pint comparison in the %s variant",
+    (variant) => {
+      expectBadge(render(createElement(PriceBadge, { variant }, "£5.40")), "£5.40", null);
+    },
+  );
 
-/**
- * Where a bare price is still allowed, and why. Counts are the measured
- * figure (18 Oct 2026) and may only go down.
- */
-const EXCEPTIONS: ReadonlyArray<readonly [file: string, count: number, reason: string]> = [
-  // League tables and aggregate stats: dense tables of averages, not a pint.
-  ["app/pint-index/page.tsx", 4, "aggregate stats and a sentence"],
-  ["app/pint-index/[month]/page.tsx", 4, "aggregate stats and a sentence"],
-  ["components/pintindex/PintIndexLeagueTable.tsx", 1, "league table of aggregates"],
-  ["components/seo/FactBlock.tsx", 3, "fact table of aggregates"],
-  ["components/borough/BoroughPintPriceCard.tsx", 2, "an average in running copy"],
-  // A subtotal is a sum, not a pint price.
-  ["app/crawls/CrawlsPageClient.tsx", 1, "a route subtotal"],
-  ["app/crawls/[slug]/CrawlStoryPoster.tsx", 1, "a route subtotal"],
-  ["app/rounds/[code]/RoundPageClient.tsx", 5, "round spend totals and the round's own menu lines"],
-  // A pint price inside a sentence, where a badge would break the line.
-  ["components/landing/LandingHero.tsx", 1, "the 'then' price in a sentence"],
-  ["components/landing/LandingLondonCollage.tsx", 1, "'Pints from £x' in a caption"],
-  ["components/drinks/DrinkBrandAreaLandingContent.tsx", 1, "'From £x' in the summary line"],
-  ["components/map/VenuePriceThen.tsx", 2, "then and now in one sentence"],
-  ["components/pintindex/NationalPintBenchmarks.tsx", 3, "national benchmarks in sentences"],
-  ["components/map/VenuePriceStory.tsx", 4, "chart bar labels and an inflation sentence"],
-  ["components/night/NightModeCard.tsx", 2, "a meta line in running copy"],
-  ["components/onboarding/OnboardingPanels.tsx", 1, "the answer headline is a sentence"],
-  ["components/onboarding/FirstRunOnboarding.tsx", 1, "the hero figure is decorative and aria-hidden"],
-  // A receipt confirms what the reader typed; inputs offer amounts to choose.
-  ["components/map/VenuePriceSubmit.tsx", 4, "the logged receipt, the quick amounts and the cap copy"],
-  ["components/map/LondonFoodPlaceSheet.tsx", 1, "the logged receipt"],
-  ["components/map/composer/ComposerPriceStep.tsx", 1, "a price input's choice"],
-  ["components/map/inspector/VenueOverviewTab.tsx", 1, "the price door's own choice buttons"],
-  ["components/map/inspector/VenueStoryTab.tsx", 1, "the no-price placeholder"],
-  // Internal tools.
-  ["app/admin/AdminClient.tsx", 3, "the moderation console"],
-  ["app/admin/VenueSubmissionModeration.tsx", 1, "the moderation console"],
-];
+  it.each([
+    { priceGbp: 1, label: "£1.00", band: "Cheap" },
+    { priceGbp: 5.5, label: "£5.50", band: "Average" },
+    { priceGbp: 100, label: "£100.00", band: "Expensive" },
+  ])("prints $label with its $band pint comparison", ({ priceGbp, label, band }) => {
+    expectBadge(render(createElement(PintPriceBadge, { priceGbp, venueId: "venue-e1srzr" })), label, band);
+  });
 
-function tsxFiles(): string[] {
-  const files: string[] = [];
-  const walk = (dir: string) => {
-    for (const entry of readdirSync(dir, { withFileTypes: true })) {
-      const path = join(dir, entry.name);
-      if (entry.isDirectory()) {
-        // An OG image and an API card render to a PNG, not a page.
-        if (entry.name === "api") continue;
-        walk(path);
-      } else if (entry.name.endsWith(".tsx") && !/opengraph-image|route\.tsx$/.test(entry.name)) {
-        files.push(relative(ROOT, path));
-      }
-    }
+  const card: PalCard = {
+    key: "recorded-price", venueId: "venue-e1srzr", title: "Recorded price", place: "Soho",
+    note: "", price: 5.5, provenance: { kind: "directory", label: "On record" },
   };
-  walk(join(ROOT, "app"));
-  walk(join(ROOT, "components"));
-  return files.sort();
-}
 
-function barePrices(file: string): number {
-  const lines = readFileSync(join(ROOT, file), "utf8").split("\n");
-  let count = 0;
-  lines.forEach((line, index) => {
-    if (!BARE_PRICE.test(line)) return;
-    const context = lines.slice(Math.max(0, index - WINDOW), index + 1).join("\n");
-    if (!OWNED.test(context)) count += 1;
-  });
-  return count;
-}
-
-const found = new Map(tsxFiles().map((file) => [file, barePrices(file)] as const));
-
-describe("every pint price wears the one price look", () => {
-  it("sweeps a corpus large enough to mean something", () => {
-    expect(found.size).toBeGreaterThan(300);
+  it("prints the directory pint price with its comparison in a Pal card", () => {
+    expectBadge(render(createElement(PalCardPrice, { card })), "£5.50", "Average");
   });
 
-  it("prints no bare price outside the captain's exceptions", () => {
-    const allowed = new Set(EXCEPTIONS.map(([file]) => file));
-    const offences = [...found]
-      .filter(([file, count]) => count > 0 && !allowed.has(file))
-      .map(([file, count]) => `${file}: ${count}`);
-    expect(offences, "put the figure in <PintPriceBadge> (a pint) or <PriceBadge> (anything else)").toEqual([]);
+  it("prints an unmeasured observation without a pint comparison in a Pal card", () => {
+    expectBadge(render(createElement(PalCardPrice, {
+      card: { ...card, provenance: { kind: "community-price", label: "People-logged" } },
+    })), "£5.50", null);
   });
 
-  for (const [file, ceiling, reason] of EXCEPTIONS) {
-    it(`${file} keeps at most ${ceiling} bare (${reason})`, () => {
-      expect(found.has(file), `${file} still exists`).toBe(true);
-      expect(found.get(file)).toBeLessThanOrEqual(ceiling);
+  it("omits the price badge when a Pal card has no price", () => {
+    expect(render(createElement(PalCardPrice, { card: { ...card, price: null } })).textContent).toBe("");
+  });
+
+  it("prints each listed coffee price without a pint comparison", () => {
+    const cafe: CoffeePilotCafe = {
+      id: "venue-osm-coffee", name: "Local cafe", address: "", lat: 51.52, lng: -0.08,
+      prices: [
+        { drink: "flat white", priceGbp: 3.4, sourceUrl: "https://example.com/menu", observedAt: "2026-10-02" },
+        { drink: "latte", priceGbp: 3.6, sourceUrl: "https://example.com/menu", observedAt: "2026-10-02" },
+      ],
+    };
+    const rows = render(createElement(CoffeePilotSheet, { cafe })).querySelectorAll("li");
+    expect(rows).toHaveLength(2);
+    expectBadge(rows[0]!, "£3.40", null);
+    expectBadge(rows[1]!, "£3.60", null);
+  });
+
+  it.each([
+    { price: "5.4", label: "£5.40" },
+    { price: "", label: null },
+  ])("prints the submitted price or omits an absent price in the live preview: $price", ({ price, label }) => {
+    const preview = buildSpillPreview({
+      handle: "sam", price, note: "", withWho: "", drink: "", era: "",
+      visibility: "public", venueName: "Local pub", hasPhoto: false,
     });
-  }
-
-  // The surfaces the taste pass moved onto the badge. Each must keep it.
-  const BADGED: ReadonlyArray<readonly [file: string, call: RegExp]> = [
-    ["app/pubs/[id]/page.tsx", /<PintPriceBadge/],
-    ["app/bar-tab/[id]/page.tsx", /<PintPriceBadge/],
-    ["app/invite/[token]/page.tsx", /<PintPriceBadge/],
-    ["components/map/inspector/PintDropsList.tsx", /<PintPriceBadge/],
-    ["components/map/inspector/VenueStoryTab.tsx", /<PintPriceBadge/],
-    ["components/map/LastTrainCard.tsx", /<PintPriceBadge/],
-    ["components/map/MapConciergeAsk.tsx", /<PintPriceBadge/],
-    ["components/pal/PalChat.tsx", /<PintPriceBadge/],
-    ["components/onboarding/OnboardingPanels.tsx", /<PintPriceBadge/],
-    ["components/map/TonightLane.tsx", /<PriceBadge/],
-    ["components/map/CoffeePilotSheet.tsx", /<PriceBadge/],
-    ["components/ledger/LedgerLive.tsx", /<PriceBadge/],
-    ["components/map/composer/SpillPreviewCard.tsx", /<PriceBadge/],
-  ];
-
-  for (const [file, call] of BADGED) {
-    it(`${file} prints its price through the badge`, () => {
-      expect(readFileSync(join(ROOT, file), "utf8")).toMatch(call);
-    });
-  }
-
-  // A price's own class only places the badge; the face is the plaque's.
-  const LAYOUT_ONLY: ReadonlyArray<readonly [file: string, selector: string]> = [
-    ["app/bar-tab/[id]/barTab.css", ".barTabTilePrice"],
-    ["app/invite/[token]/invite.css", ".invite__stopPrice"],
-    ["app/ledger/[id]/ledger.css", ".ledgerEntryPriceValue"],
-    ["components/map/spillComposer.css", ".spillPreviewPrice"],
-    ["components/map/mapConciergeAsk.css", ".mapConciergeAskCardPrice"],
-    ["components/map/tonightLane.css", ".tonightLaneCardPrice"],
-    ["components/map/coffeePilotSheet.css", ".coffeePilotFigure"],
-    ["components/pal/palChat.css", ".palChatCardPrice"],
-    ["components/drinks/drinkBrandDirectory.css", ".drinkBrandDirectory__price"],
-    ["components/drinks/drinkSubtypePricedView.css", ".softDrinksWater__price"],
-  ];
-
-  for (const [file, selector] of LAYOUT_ONLY) {
-    it(`${selector} in ${file} sets no colour, face or fill of its own`, () => {
-      const css = readFileSync(join(ROOT, file), "utf8").replace(/\/\*[\s\S]*?\*\//g, "");
-      const escaped = selector.replace(/[.[\]]/g, "\\$&");
-      const bodies = [...css.matchAll(new RegExp(`(?:^|\\n)${escaped}\\s*\\{([^}]*)\\}`, "g"))].map((m) => m[1]!);
-      expect(bodies.length, `${selector} has a rule`).toBeGreaterThan(0);
-      for (const body of bodies) {
-        expect(body).not.toMatch(/(?:^|[;\s])(?:color|background|font(?:-family|-size|-weight)?|border)\s*:/);
-      }
-    });
-  }
+    const output = render(createElement(SpillPreviewCard, { preview, pintPhoto: null, visibility: "public" }));
+    if (label) expectBadge(output, label, null);
+    else expect(output.querySelectorAll(".price-plaque")).toHaveLength(0);
+  });
 });

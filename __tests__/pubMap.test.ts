@@ -1068,7 +1068,7 @@ describe("mapSelectionFrame", () => {
     ).toBe(true);
   });
 
-  it("keeps a curated deep link's skeleton open after a failed lookup, for the index to resolve", () => {
+  it("holds a failed curated deep link with the sheet shut until its record resolves", () => {
     const answer = mapSelectionFrame({
       selectedVenueId: "v2",
       selectedVenue: undefined,
@@ -1077,7 +1077,18 @@ describe("mapSelectionFrame", () => {
       isPubVenue,
       lookupFailed: true,
     });
-    expect(answer.detailOpen).toBe(true);
+    expect(answer.detailOpen).toBe(false);
+    expect(answer.resolvable).toBe(false);
+    expect(answer.selectedId).toBeUndefined();
+    const resolved = { id: "v2", name: "The Crown" } as never;
+    expect(mapSelectionFrame({
+      selectedVenueId: "v2",
+      selectedVenue: resolved,
+      selectedBasePub: null,
+      venueById: new Map([["v2", resolved]]),
+      isPubVenue,
+      lookupFailed: true,
+    }).detailOpen).toBe(true);
   });
 
   it("holds the sheet shut while nothing is selected", () => {

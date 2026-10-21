@@ -997,9 +997,9 @@ export function londonVenueSelection<Cafe, Restaurant>(input: {
  * one read.
  * A deep-linked `sel=` before the slim index resolves still counts as detail
  * open (`pendingDeepLinkSelection`) so the venue skeleton can mount while the
- * shard loads. A base pub whose cold restore could not be answered has no
- * record coming, so its selection holds with the sheet shut and the selection
- * notice says what happened; a curated id keeps its skeleton for the index.
+ * shard loads. After a failed lookup, no record is pending for either a base
+ * pub or a curated venue absent from the index. The selection holds with the
+ * sheet shut, and the selection notice explains the failed lookup.
  */
 export type MapSelectionFrame = {
   selectedId: string | undefined;
@@ -1046,7 +1046,7 @@ export function mapSelectionFrame(input: {
     !londonRestaurantOpen &&
     !londonFoodPlaceOpen &&
     !venueById.has(selectedVenueId) &&
-    !(input.lookupFailed && isUkBaseId(selectedVenueId));
+    !input.lookupFailed;
   return {
     selectedId: selectedVenue?.id,
     resolvable: selectedVenueId ? venueById.has(selectedVenueId) : false,

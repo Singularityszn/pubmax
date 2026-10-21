@@ -2,6 +2,34 @@ import { expect, test } from "@playwright/test";
 
 const ADMIN_TOKEN = process.env.PW_E2E_ADMIN_TOKEN ?? "pubmax-e2e-admin-token";
 
+for (const width of [390, 1280]) {
+  for (const exit of ["callout", "keyboard", "primary"] as const) {
+    test(`anonymous moderator exit ${exit} reaches the map at ${width}px`, async ({ page, request }) => {
+      await page.setViewportSize({ width, height: 844 });
+      const document = await page.goto("/admin");
+      expect(document?.status()).toBe(401);
+      await expect(page.getByRole("heading", { name: "Moderator sign-in" })).toBeVisible();
+      await expect(page.getByRole("tablist", { name: "Admin sections" })).toHaveCount(0);
+      const link = exit === "primary"
+        ? page.getByRole("navigation", { name: width === 390 ? "Primary" : "Site navigation", exact: true }).getByRole("link", { name: "Map", exact: true })
+        : page.getByRole("link", { name: "Back to the map", exact: true });
+      if (exit === "keyboard") {
+        await link.focus();
+        await link.press("Enter");
+      } else {
+        await link.click();
+      }
+      await expect(page).toHaveURL(/\/map(?:\?|$)/);
+      await expect(page.getByRole("heading", { name: "Moderator sign-in" })).toHaveCount(0);
+      await expect(page.getByRole("tablist", { name: "Admin sections" })).toHaveCount(0);
+      expect((await request.get("/admin")).status()).toBe(401);
+      const session = await request.get("/api/admin/session");
+      expect(session.status()).toBe(200);
+      expect(await session.json()).toEqual({ authenticated: false });
+    });
+  }
+}
+
 test("anonymous GET /admin is a 401, and the moderator console never paints", async ({
   page,
   request,

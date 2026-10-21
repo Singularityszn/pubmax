@@ -145,6 +145,8 @@
 .pubPage__pints li:first-child {
   border-top: 0;
 }
+.pubPage__priceSource { margin: var(--space-1) 0 0; color: var(--ink-soft); font-size: var(--text-sm); line-height: 1.5; }
+.pubPage__priceSource a { color: inherit; text-decoration: underline; text-underline-offset: .15em; }
 
 .pubPage__hours {
   display: grid;

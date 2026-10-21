@@ -8,6 +8,8 @@
 // lives in lib/nativePushPrompt.ts (shouldOfferPushPrompt). This component also
 // applies the route and shared-budget gates before it presents the two actions.
 
+import { FOCUS_TRAP_EXEMPT_ATTRIBUTE, readStrictModalFocusTrap, serverStrictModalFocusTrap, subscribeStrictModalFocusTrap } from "@/lib/useFocusTrap";
+
 import { usePathname } from "next/navigation";
 import { useEffect, useState, useSyncExternalStore } from "react";
 
@@ -47,7 +49,12 @@ export default function NativePushPrompt(): React.JSX.Element | null {
       && hasPromptBudgetFor(PUSH_SURFACE),
     getPushPromptServerSnapshot,
   );
-  const canShow = visible && hasBudget;
+  const strictModalOpen = useSyncExternalStore(
+    subscribeStrictModalFocusTrap,
+    readStrictModalFocusTrap,
+    serverStrictModalFocusTrap,
+  );
+  const canShow = visible && hasBudget && !strictModalOpen;
 
   // Claim the shared one-prompt-per-session budget at the moment it shows
   // (docs/PROMPT_ORCHESTRATION.md).
@@ -73,7 +80,7 @@ export default function NativePushPrompt(): React.JSX.Element | null {
   }
 
   return (
-    <div className="nativePushPrompt">
+    <div className="nativePushPrompt nativePushPrompt--permission" {...{ [FOCUS_TRAP_EXEMPT_ATTRIBUTE]: "" }}>
       <div
         className="nativePushPrompt__card"
         role="dialog"

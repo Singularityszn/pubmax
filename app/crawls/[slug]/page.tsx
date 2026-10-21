@@ -35,18 +35,19 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   }
 
   const title = story.title;
+  const completePrice = story.stops.length > 0 && story.stops.every((stop) => typeof stop.priceGbp === "number");
   const topTag = story.vibeTags[0];
   const cardParams = new URLSearchParams();
   cardParams.set("title", title);
   cardParams.set("stops", String(story.stops.length));
-  if (story.totalGbp > 0) cardParams.set("total", story.totalGbp.toFixed(2));
+  if (completePrice && story.totalGbp > 0) cardParams.set("total", story.totalGbp.toFixed(2));
   if (topTag) cardParams.set("tag", topTag);
   const cardUrl = `/api/crawl-card?${cardParams.toString()}`;
 
   const description =
     story.summary ||
     `A London pub crawl. ${story.stops.length} stop${story.stops.length === 1 ? "" : "s"}${
-      story.totalGbp > 0 ? `, ${formatGbp(story.totalGbp)} a round` : ""
+      completePrice && story.totalGbp > 0 ? `, ${formatGbp(story.totalGbp)} a round` : ""
     }.`;
 
   return {

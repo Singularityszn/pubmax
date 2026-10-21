@@ -17,6 +17,7 @@ import type { Route } from "next";
 import {
   useCallback,
   useEffect,
+  useMemo,
   useRef,
   useState,
   type Dispatch,
@@ -77,9 +78,14 @@ import type { PalVoiceSignal } from "@/lib/palVoiceSignal";
 import { isPlanActiveNow, readActivePlan } from "@/lib/activePlan";
 import { readPlanMemberProjection } from "@/components/plan/usePlanMemberRead";
 import type { PalGenome } from "@/lib/palGenome";
-import { palPubAskVenue } from "@/lib/palMapAsk";
+import { palMapAskTarget, palPubAskVenue } from "@/lib/palMapAsk";
 import { venueMapUrl } from "@/lib/venueMapUrl";
 import { loadSlimVenuesForCity } from "@/lib/venuesSlim";
+import PalRecommendationMap from "@/components/pal/PalRecommendationMap";
+import PalCardPrice from "@/components/pal/PalCardPrice";
+import type { PalCard } from "@/lib/palChat";
+import { palVoiceToolAnswer } from "@/lib/palVoiceToolAnswer";
+import PalMemoryConfirmCard, { type PalMemoryCard } from "@/components/pal/PalMemoryConfirmCard";
 
 type VoiceTokenResponse = {
   signedUrl?: string;
@@ -161,7 +167,7 @@ type VoiceTranscript = {
   setLines: Dispatch<SetStateAction<PalVoiceLine[]>>;
 };
 
-function VoiceControls({ onStateChange, resetPendingSession, text, setText, error, setError, palName, transcript, signal, appearance, genome }: {
+function VoiceControls({ onStateChange, resetPendingSession, text, setText, error, setError, palName, transcript, signal, appearance, genome, onMemoryChange }: {
   onStateChange?: (state: PalAnimationState) => void;
   resetPendingSession: (error: string | null) => void;
   text: string;
@@ -173,12 +179,14 @@ function VoiceControls({ onStateChange, resetPendingSession, text, setText, erro
   signal?: PalVoiceSignal;
   appearance?: PubPalAppearance;
   genome?: PalGenome;
+  onMemoryChange?: () => void;
 }) {
   const router = useRouter();
   const {
     startSession,
     endSession,
     sendUserMessage,
+    sendContextualUpdate,
     getInputVolume = silentVolume,
     getOutputByteFrequencyData = silentSpectrum,
   } = useConversationControls();
@@ -188,6 +196,17 @@ function VoiceControls({ onStateChange, resetPendingSession, text, setText, erro
   const [hearing, setHearing] = useState(false);
   const [tentative, setTentative] = useState("");
   const [awaitingPal, setAwaitingPal] = useState(false);
+  const [voiceResults, setVoiceResults] = useState<Record<string, { cards: PalCard[]; order: number }>>({});
+  const { voiceCards, recommendationCards } = useMemo(() => {
+    const cards = [...new Map(Object.values(voiceResults).flatMap((result) => result.cards)
+      .map((card) => [`${card.key}:${card.venueId}`, card])).values()];
+    return { voiceCards: cards, recommendationCards: voiceResults.search_venues?.cards ?? cards };
+  }, [voiceResults]);
+  const [memoryCards, setMemoryCards] = useState<PalMemoryCard[]>([]);
+  const currentToolCalls = useRef(new Map<string, { id: string; order: number }>());
+  const toolRequestOrder = useRef(0);
+  const resultsRef = useRef<HTMLDivElement>(null);
+  const lastUserEvent = useRef(0);
   const [mapPending, setMapPending] = useState(false);
   const [mapLabel, setMapLabel] = useState("Opening the map");
   const mapTimerRef = useRef<number | null>(null);
@@ -229,9 +248,24 @@ function VoiceControls({ onStateChange, resetPendingSession, text, setText, erro
     }, PAL_VOICE_MAP_DELAY_MS);
   }, [router]);
   const openMapRef = useRef(openMap);
+  const showMap = useCallback((): boolean => {
+    if (recommendationCards.some((card) => card.venueId)) {
+      const map = resultsRef.current?.querySelector<HTMLElement>(".palChatMap");
+      if (map) {
+        stayHere();
+        map.focus({ preventScroll: true });
+        map.scrollIntoView({ block: "center" });
+        return true;
+      }
+    }
+    openMap();
+    return false;
+  }, [recommendationCards, stayHere, openMap]);
+  const showMapRef = useRef(showMap);
   useEffect(() => {
     openMapRef.current = openMap;
-  }, [openMap]);
+    showMapRef.current = showMap;
+  }, [openMap, showMap]);
 
   // "Next stop" during a planned night that is on: the map opens on the stop
   // after the one the person reached (their own Night Mode cursor). With no
@@ -271,7 +305,7 @@ function VoiceControls({ onStateChange, resetPendingSession, text, setText, erro
     });
     if (disposedRef.current || request !== nextStopRequestRef.current) return true;
     if (venue) openMapRef.current(venueMapUrl(venue.id), `Opening ${venue.name}`);
-    else if (palAsksForMap(text)) openMapRef.current();
+    else if (palMapAskTarget(text)?.kind === "last" && palAsksForMap(text)) openMapRef.current();
     else return false;
     return true;
   }, []);
@@ -385,6 +419,10 @@ function VoiceControls({ onStateChange, resetPendingSession, text, setText, erro
   const start = async () => {
     if (disposedRef.current) return;
     if (startController.isStarting()) return;
+    currentToolCalls.current.clear();
+    lastUserEvent.current = 0;
+    setVoiceResults({});
+    setMemoryCards([]);
     const attempt: VoiceSessionAttempt = {
       cancelled: false,
       releaseRequired: false,
@@ -449,7 +487,7 @@ function VoiceControls({ onStateChange, resetPendingSession, text, setText, erro
           connectionType: "websocket",
           workletPaths: ELEVENLABS_WORKLET_PATHS,
           libsampleratePath: ELEVENLABS_LIBSAMPLERATE_PATH,
-          onMessage: ({ role, message }) => {
+          onMessage: ({ role, message, event_id }) => {
             if (!ownsAttempt(attempt)) return;
             const content = message.trim();
             if (!content) return;
@@ -458,14 +496,18 @@ function VoiceControls({ onStateChange, resetPendingSession, text, setText, erro
               setAwaitingPal(false);
               return;
             }
+            if (typeof event_id === "number" && event_id < lastUserEvent.current) return;
             setLines((current) => appendPalVoiceLine(current, palVoiceLine("you", content)));
+            if (typeof event_id === "number") lastUserEvent.current = event_id;
             setTentative("");
             setAwaitingPal(true);
             nextStopRequestRef.current += 1;
             const intent = palVoiceMapIntent(content, nightIsOnRef.current());
+            const retainedMap = intent === "map" && showMapRef.current();
+            currentToolCalls.current.clear();
+            if (retainedMap) setAwaitingPal(false);
             if (intent === "next-stop") void openNextStopRef.current();
             else if (intent === "pub") void openPubRef.current(content);
-            else if (intent === "map") openMapRef.current();
             const conversationId = conversationIdRef.current;
             if (!conversationId) return;
             void syncVoiceToolTurn({
@@ -483,6 +525,26 @@ function VoiceControls({ onStateChange, resetPendingSession, text, setText, erro
             if (!ownsAttempt(attempt)) return;
             const heard = tentativeUserTranscriptFrom(event);
             if (heard !== null) setTentative(heard);
+          },
+          onAgentToolRequest: (event) => {
+            if (!ownsAttempt(attempt) || event.event_id < lastUserEvent.current) return;
+            currentToolCalls.current.set(event.tool_name, { id: event.tool_call_id, order: ++toolRequestOrder.current });
+          },
+          onAgentToolResponse: (event) => {
+            const request = currentToolCalls.current.get(event.tool_name);
+            if (!ownsAttempt(attempt) || event.event_id < lastUserEvent.current
+              || request?.id !== event.tool_call_id) return;
+            const answer = palVoiceToolAnswer(event);
+            if (answer) {
+              const resultKey = answer.tool === "cheapest_pint_near" ? "search_venues" : answer.tool;
+              if (event.tool_name !== "propose_memory") setVoiceResults((current) =>
+                (current[resultKey]?.order ?? -1) > request.order ? current : {
+                  ...current,
+                  [resultKey]: { cards: answer.cards, order: request.order },
+                });
+              const proposals = answer.proposals.filter((proposal): proposal is PalMemoryCard => proposal.kind === "remember_memory");
+              if (proposals.length) setMemoryCards((current) => [...current, ...proposals.filter((proposal) => !current.some((prior) => prior.id === proposal.id))].slice(-3));
+            }
           },
           overrides: overrides
             ? {
@@ -578,6 +640,7 @@ function VoiceControls({ onStateChange, resetPendingSession, text, setText, erro
     if (!value || voiceConnecting) return;
     // A newer line from the person retires a "next stop" read still on its way.
     nextStopRequestRef.current += 1;
+    currentToolCalls.current.clear();
     const intent = palVoiceMapIntent(value, nightIsOn());
     if (intent === "pub") {
       // One pub: opened when it can be named, else the line goes to the Pal.
@@ -592,7 +655,7 @@ function VoiceControls({ onStateChange, resetPendingSession, text, setText, erro
       setLines((current) => appendPalVoiceLine(current, palVoiceLine("you", value, "typed")));
       setText("");
       if (intent === "next-stop") void openNextStop();
-      else openMap();
+      else showMap();
       return;
     }
     sendToPal(value);
@@ -607,6 +670,7 @@ function VoiceControls({ onStateChange, resetPendingSession, text, setText, erro
       return;
     }
     onStateChange?.("thinking");
+    lastUserEvent.current += 1;
     setLines((current) => appendPalVoiceLine(current, palVoiceLine("you", value, "typed")));
     setAwaitingPal(true);
     sendUserMessage(value);
@@ -669,6 +733,30 @@ function VoiceControls({ onStateChange, resetPendingSession, text, setText, erro
         mapLabel={mapLabel}
         onStayHere={stayHere}
       />
+      {voiceCards.some((card) => card.venueId) ? (
+        <div className="palVoiceResults" ref={resultsRef}>
+          <PalRecommendationMap cards={recommendationCards} />
+          <ul aria-label="Pubs from the voice answer">
+            {voiceCards.filter((card) => card.venueId).map((card) => (
+              <li key={card.key}>
+                <Link href={venueMapUrl(card.venueId)} prefetch={false}>{card.title}</Link>{" "}
+                <PalCardPrice card={card} />{" "}
+                {card.provenance.url ? <a href={card.provenance.url} target="_blank" rel="noreferrer noopener">{card.provenance.label}</a> : <span>{card.provenance.label}</span>}
+                {card.note ? <p>{card.note}</p> : null}
+              </li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
+      {memoryCards.length ? <section aria-label="Memory suggestions" className="palVoiceMemoryCards">
+        {memoryCards.map((proposal) => <PalMemoryConfirmCard key={proposal.id} proposal={proposal}
+          onDismiss={() => setMemoryCards((current) => current.filter((card) => card.id !== proposal.id))}
+          onConfirmed={(value) => {
+            onMemoryChange?.();
+            if (liveRef.current) sendContextualUpdate?.(`The person confirmed the app's memory card: ${value}. The app completed the requested memory change.`);
+          }} />)}
+        <p className="palChatProposalNote">A saved memory goes with each Pub Pal chat to ElevenLabs, which answers it. You can delete it on your Pal page.</p>
+      </section> : null}
       <div className="palVoiceActions">
         {status === "connected" ? (
           <button type="button" onClick={stopCurrentAttempt}>
@@ -732,12 +820,14 @@ export default function PubPalVoiceSession({
   signal,
   appearance,
   genome,
+  onMemoryChange,
 }: {
   onStateChange?: (state: PalAnimationState) => void;
   palName?: string;
   signal?: PalVoiceSignal;
   appearance?: PubPalAppearance;
   genome?: PalGenome;
+  onMemoryChange?: () => void;
 }) {
   const [sdkGeneration, setSdkGeneration] = useState(0);
   // The transcript outlives an SDK reset and a session that ended, so the
@@ -764,6 +854,7 @@ export default function PubPalVoiceSession({
         signal={signal}
         appearance={appearance}
         genome={genome}
+        onMemoryChange={onMemoryChange}
       />
     </ConversationProvider>
   );

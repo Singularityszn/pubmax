@@ -1,5 +1,5 @@
 import { expect, test, type CDPSession, type Page } from "@playwright/test";
-import { expectMobileMapShellReady, mobileMapShellControl } from "./helpers/mobileMapShell";
+import { expectMobileMapShellReady, mobileMapShellControl, routeTubeStatus } from "./helpers/mobileMapShell";
 
 // The phone map's bottom card: "Cheapest in this view", the plan door inside it,
 // a pull up that opens List view. Rules: docs/rules/components-sheets-chrome-and-navigation.md,
@@ -109,6 +109,72 @@ test("the card names the cheapest listed pub in view, and the door rides inside 
   expect(doorBox!.y + doorBox!.height).toBeLessThan(box.y + box.height);
 });
 
+test.describe("failed price reads with enlarged text", () => {
+  test.use({ serviceWorkers: "block" });
+
+  test("the long unread status keeps map controls clear as text grows and shrinks", async ({ page }, testInfo) => {
+    await page.setViewportSize({ width: 320, height: PHONE.height });
+    await routeTubeStatus(page, "routine");
+    await page.route("**/api/price-submit?drinkCategory=alcohol-free", (route) => route.fulfill({
+      status: 503,
+      json: { error: "Controlled unavailable price read" },
+    }));
+    await openMap(page, { url: "/map?drink=alcohol-free" });
+    const card = page.locator('.mapPeek[data-state="unread"]');
+    const status = card.locator(".mapPeekHush");
+    await expect(status).toHaveText("Could not read prices just now");
+    const nearMe = await mobileMapShellControl(page, "nearMe");
+    const credit = page.locator(".maplibregl-ctrl-attrib");
+    const toggle = credit.locator(".maplibregl-ctrl-attrib-button");
+
+    async function expectControlsClear(): Promise<void> {
+      await expect(async () => {
+        const cardBounds = await card.boundingBox();
+        expect(cardBounds).not.toBeNull();
+        for (const [name, control] of [["Near me", nearMe], ["Map credit", toggle]] as const) {
+          const bounds = await control.boundingBox();
+          expect(bounds, `${name} is painted`).not.toBeNull();
+          expect(bounds!.y + bounds!.height, `${name} stays above the whole price card`).toBeLessThanOrEqual(cardBounds!.y);
+          expect(await control.evaluate((element) => {
+            const box = element.getBoundingClientRect();
+            return element.contains(document.elementFromPoint(box.x + box.width / 2, box.y + box.height / 2));
+          }), `${name} owns its centre`).toBe(true);
+        }
+      }).toPass({ timeout: 5_000 });
+    }
+
+    await page.evaluate(() => {
+      document.documentElement.style.setProperty("font-size", "32px", "important");
+      document.documentElement.setAttribute("data-text-scale", "large");
+    });
+    await expect(status).toHaveCSS("font-size", "32px");
+    await page.evaluate(async () => { await document.fonts.ready; });
+    await expectControlsClear();
+    const largeHeight = (await card.boundingBox())!.height;
+    const screenshot = testInfo.outputPath("unread-price-320-text200-controls.png");
+    await page.screenshot({ path: screenshot });
+    await testInfo.attach("long unread status keeps map controls usable", { path: screenshot, contentType: "image/png" });
+
+    await toggle.click();
+    await expect(credit).toHaveClass(/maplibregl-compact-show/);
+    await toggle.click();
+    await expect(credit).not.toHaveClass(/maplibregl-compact-show/);
+
+    await page.evaluate(() => {
+      document.documentElement.style.removeProperty("font-size");
+      document.documentElement.removeAttribute("data-text-scale");
+    });
+    await expect(status).toHaveCSS("font-size", "16px");
+    await expect.poll(async () => (await card.boundingBox())!.height).toBeLessThan(largeHeight);
+    await expectControlsClear();
+    await card.locator(".mapPeekList").click();
+    await expect(page.locator(".mapVenueList--open")).toBeVisible();
+    await page.keyboard.press("Escape");
+    await expect(card).toBeVisible();
+    await expectControlsClear();
+  });
+});
+
 test("320px quiet price status stays complete at 200% text with both doors usable", async ({ page }, testInfo) => {
   await page.setViewportSize({ width: 320, height: PHONE.height });
   await page.route("**/api/price-submit?drinkCategory=alcohol-free", (route) => route.fulfill({
@@ -123,7 +189,7 @@ test("320px quiet price status stays complete at 200% text with both doors usabl
     document.documentElement.setAttribute("data-text-scale", "large");
   });
   await expect(page.locator("html")).toHaveCSS("font-size", "32px");
-  await expect(status).toHaveCSS("font-size", "30px");
+  await expect(status).toHaveCSS("font-size", "32px");
   await page.evaluate(async () => {
     await document.fonts.ready;
     await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));

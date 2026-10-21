@@ -93,6 +93,25 @@ describe("confirmed Pub Pal memories in the agent loop", () => {
     expect(await readConfirmedPalMemories(STRANGER)).toEqual([]);
   });
 
+  it("recalls explicitly reported spend in a new owner-bound conversation", async () => {
+    const outcome = "On 19 October 2026 I spent £26.80 at Golden Lion and drank cask ale.";
+    await palWithMemories(OWNER, [{ kind: "night_outcome", value: outcome }]);
+    for (const id of ["conv_spendfirst01", "conv_spendreturn1"]) {
+      await bindPubPalToolTurn(id, OWNER, "london");
+      await appendOwnedPubPalUserTurn(id, OWNER, { role: "user", content: "What did I spend last time?" }, "london");
+      const body = await (await recall(id)).json();
+      expect(body.result.memories).toContainEqual({ kind: "night_outcome", value: outcome });
+      expect(body.result.answerHint).toMatch(/reported spend/i);
+      expect(body.result.answerHint).toContain("£26.80");
+      expect(body.result.answerHint).toMatch(/never.*(?:infer|sum)/i);
+    }
+    const typed = palMemoryPreamble(await readConfirmedPalMemories(OWNER, "What did I spend last time?")).join(" ");
+    expect(typed).toContain(outcome);
+    expect(typed).toMatch(/reported spend/i);
+    await bindPubPalToolTurn("conv_spendother01", STRANGER, "london");
+    expect(JSON.stringify(await (await recall("conv_spendother01")).json())).not.toContain("26.80");
+  });
+
   it("caps how many memories reach the prompt", async () => {
     await palWithMemories(
       OWNER,
@@ -115,10 +134,11 @@ describe("confirmed Pub Pal memories in the agent loop", () => {
     const unavailable = palMemoryPreamble(null).join(" ");
     expect(unavailable).toMatch(/could not be read/i);
     expect(unavailable).not.toMatch(/not confirmed anything/i);
-    expect(palMemoryPreamble([{ kind: "drink_preference", label: "Drinks", value: "Cask ale" }])).toEqual([
-      "Things I confirmed you should remember about me. Use them as preferences, never as facts about a pub:",
-      "- Drinks: Cask ale",
-    ]);
+    const preamble = palMemoryPreamble([{ kind: "drink_preference", label: "Drinks", value: "Cask ale" }]);
+    expect(preamble).toContain("- Drinks: Cask ale");
+    expect(preamble[0]).toMatch(/Preferences guide picks/);
+    expect(preamble[0]).toMatch(/personal reports.*reported spend/);
+    expect(preamble[0]).toMatch(/Never infer a bill/);
   });
 
   it("answers the recall webhook with the memories of the account bound to the conversation", async () => {

@@ -175,9 +175,12 @@ for (const viewport of VIEWPORTS) {
       // on the Layers tab it lives in, after the entrance has finished.
       const layerTabs = page.getByRole("tablist", { name: "Map control sections" });
       const layersTab = layerTabs.getByRole("tab", { name: "Layers" });
-      await layersTab.click();
       const toggle = page.getByRole("button", { name: `Switch to ${theme === "light" ? "dark" : "light"} theme` });
-      await expect(toggle).toBeVisible();
+      await expect(async () => {
+        await layersTab.click();
+        await expect(layersTab).toHaveAttribute("aria-selected", "true", { timeout: 1_000 });
+        await expect(toggle).toBeVisible({ timeout: 1_000 });
+      }).toPass({ timeout: 20_000 });
       // The map layers group is a dynamic chunk (components/PubMap.tsx) fetched
       // when this tab first renders, and its Place stories chips grow the sheet
       // to its cap when they land. Two equal reads before then are not a

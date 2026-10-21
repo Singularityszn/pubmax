@@ -52,6 +52,17 @@ describe("palAsksForMap", () => {
   });
 });
 
+describe("map requests that still need an answer", () => {
+  it.each([
+    "Find me four pubs in Soho and show them on the map.",
+    "Show me quiet pubs in Soho on the map",
+    "Show me Soho on the map",
+    "Show me the map with four cheap pubs near Bank",
+  ])("keeps discovery in the conversation: %s", (query) => {
+    expect(palVoiceMapIntent(query, false)).toBeNull();
+  });
+});
+
 describe("the voice transcript", () => {
   it("drops empty lines and a Pal line sent twice", () => {
     const first = appendPalVoiceLine([], palVoiceLine("pal", "Evening."));
@@ -120,6 +131,10 @@ const VOICE_MAP_TABLE: ReadonlyArray<readonly [string, "next-stop" | "map" | nul
   ["ok next stop then", "next-stop", null],
   // Map asks.
   ["Open the map", "map", "map"],
+  ["Show those pubs on the map", "map", "map"],
+  ["Can you show me these choices on the map please", "map", "map"],
+  ["Show them on the map", "map", "map"],
+  ["Do not show those pubs on the map", null, null],
   ["map please", "map", "map"],
   ["can you show me the pub map", "map", "map"],
   // A line that asks for both: the next stop wins while a night is on.

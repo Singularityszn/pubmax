@@ -254,11 +254,7 @@ export default function CityStatusBanner({ cityId, viewedArea = null, allowCityw
   const [data, setData] = useState<StatusResponse | null>(null);
   const [dismissed, setDismissed] = useState<boolean>(false);
   const [expanded, setExpanded] = useState(false);
-  const [expandedArea, setExpandedArea] = useState(viewedArea);
-  if (expandedArea !== viewedArea) {
-    setExpandedArea(viewedArea);
-    setExpanded(false);
-  }
+  const [expandedFeed, setExpandedFeed] = useState("");
   const aborted = useRef(false);
   const rootRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
@@ -293,7 +289,6 @@ export default function CityStatusBanner({ cityId, viewedArea = null, allowCityw
         void Promise.resolve().then(() => {
           if (!aborted.current) {
             setData(body);
-            setExpanded(false);
           }
         });
       },
@@ -309,6 +304,13 @@ export default function CityStatusBanner({ cityId, viewedArea = null, allowCityw
   const affectedLines = (allowCitywideStatus ? data?.tubeLines ?? [] : []).filter(
     (line) => line.line && line.status && line.status.toLowerCase() !== "good service",
   );
+  // Initial map settlement can name an area without changing a city-wide feed.
+  // Close only when the details change, not while the reader opens the same feed.
+  const feed = JSON.stringify([signals, affectedLines]);
+  if (expandedFeed !== feed) {
+    setExpandedFeed(feed);
+    setExpanded(false);
+  }
   // Gate on genuine severity so the map's first paint isn't cluttered by a
   // second centred pill (weather/info) stacked under the city switcher.
   const visible = Boolean(

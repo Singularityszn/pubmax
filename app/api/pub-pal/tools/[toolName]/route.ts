@@ -71,5 +71,5 @@ export async function POST(request: Request, context: RouteContext): Promise<Res
     args,
     conversationId,
   });
-  return jsonNoStore(outcome);
+  return jsonNoStore({ ...outcome, requestedTool: normalized });
 }

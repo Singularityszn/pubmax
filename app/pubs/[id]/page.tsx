@@ -13,6 +13,10 @@ import Screen from "@/components/ui/screen";
 import VenuePhotoWall from "@/components/venue/VenuePhotoWall";
 import VenueReadUnavailable from "@/components/venue/VenueReadUnavailable";
 import VisitReportPanel from "@/components/visits/VisitReportPanel";
+import ListedPriceSource from "@/components/venue/ListedPriceSource";
+import { answerEvidenceFor } from "@/lib/landingHero";
+import { venueListedPint } from "@/lib/venueListedPint";
+import type { VenuePrice } from "@/lib/venues";
 import { getListedBuilding } from "@/lib/heritageListings";
 import { priceBandLabel, type PriceBand } from "@/lib/priceBand";
 import { lookupVenueDetail } from "@/lib/venueDetailIndex";
@@ -54,15 +58,19 @@ const AMENITIES: ReadonlyArray<{ key: keyof Venue["amenities"]; label: string }>
 const SHOWN_PINTS = 6;
 
 /** The cheapest price per pint name, cheapest first: one row per pour. */
-function pintRows(venue: Venue): Array<{ name: string; price: number }> {
-  const cheapest = new Map<string, { name: string; price: number }>();
+function pintRows(venue: Venue): Array<{ name: string; price: number; evidence: ReturnType<typeof answerEvidenceFor> }> {
+  const cheapest = new Map<string, { name: string; price: number; rows: VenuePrice[] }>();
   for (const row of venue.prices) {
-    if (typeof row.price_gbp !== "number" || !row.pint_name.trim()) continue;
+    if (typeof row.price_gbp !== "number" || !Number.isFinite(row.price_gbp) || row.price_gbp <= 0 || !row.pint_name.trim()) continue;
     const key = row.pint_name.trim().toLowerCase();
     const held = cheapest.get(key);
-    if (!held || row.price_gbp < held.price) cheapest.set(key, { name: titleCase(row.pint_name.trim()), price: row.price_gbp });
+    if (held) {
+      held.rows.push(row);
+      held.price = Math.min(held.price, row.price_gbp);
+    } else cheapest.set(key, { name: titleCase(row.pint_name.trim()), price: row.price_gbp, rows: [row] });
   }
-  return [...cheapest.values()].sort((a, b) => a.price - b.price || a.name.localeCompare(b.name));
+  return [...cheapest.values()].sort((a, b) => a.price - b.price || a.name.localeCompare(b.name))
+    .map(({ rows, ...pint }) => ({ ...pint, evidence: answerEvidenceFor({ priceGbp: pint.price, prices: rows.filter((row) => row.price_gbp === pint.price) }) }));
 }
 
 /** "BIRRA MORETTI" reads as a shout; the source files some names in capitals. */
@@ -120,6 +128,7 @@ export default async function PubPage({ params }: PageProps) {
   const status = venueAmenityStatus(venue);
   const amenities = AMENITIES.filter(({ key }) => status[key] === "known-true");
   const pints = pintRows(venue);
+  const listedPint = venueListedPint(venue);
   const band = venue.priceBand === undefined ? null : BANDS[venue.priceBand];
   const hours = venue.openingHours;
   const story = venue.curation.heritageNote?.trim() ?? "";
@@ -154,10 +163,10 @@ export default async function PubPage({ params }: PageProps) {
           titleId="pub-title"
           answer={
             <ul className="pubPage__facts" aria-label="At a glance">
-              {venue.cheapestPrice !== null ? (
+              {listedPint ? (
                 <li>
-                  <PintPriceBadge priceGbp={venue.cheapestPrice} venueId={venue.id} />
-                  <span>cheapest pint{venue.cheapestPint ? `, ${titleCase(venue.cheapestPint)}` : ""}</span>
+                  <PintPriceBadge priceGbp={listedPint.priceGbp} venueId={venue.id} />
+                  <div><span>cheapest pint{listedPint.pintName ? `, ${titleCase(listedPint.pintName)}` : ""}</span><ListedPriceSource evidence={listedPint} className="pubPage__priceSource" /></div>
                 </li>
               ) : null}
               {band ? <li><span>{priceBandLabel(band)} for the area</span></li> : null}
@@ -192,7 +201,7 @@ export default async function PubPage({ params }: PageProps) {
             <ul className="pubPage__pints">
               {pints.slice(0, SHOWN_PINTS).map((pint) => (
                 <li key={pint.name}>
-                  <span>{pint.name}</span>
+                  <div><span>{pint.name}</span><ListedPriceSource evidence={pint.evidence} className="pubPage__priceSource" /></div>
                   <PintPriceBadge priceGbp={pint.price} venueId={venue.id} />
                 </li>
               ))}

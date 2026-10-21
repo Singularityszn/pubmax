@@ -15,6 +15,9 @@ import {
   touchPubPalToolTurn,
 } from "@/lib/pubPalToolTurnStore";
 
+import { resolvePubPalToolQuery } from "@/lib/pubPalToolInvoke.server";
+import { resolvePalLocality } from "@/lib/palLocality";
+
 const CONVERSATION_ID = "conv_storetest01";
 const OWNER_ID = "11111111-1111-4111-8111-111111111111";
 const OTHER_OWNER_ID = "22222222-2222-4222-8222-222222222222";
@@ -200,6 +203,19 @@ describe("pubPalToolTurnStore (durable backend purge)", () => {
     __resetPubPalToolTurnStore();
   });
 
+  it.each([false, true])("retains the area across voice refinements with durable storage %s", async (configured) => {
+    durable.configured = configured;
+    await bindPubPalToolTurn(CONVERSATION_ID, OWNER_ID, "london");
+    await appendOwnedPubPalUserTurn(CONVERSATION_ID, OWNER_ID, { role: "user", content: "Find four pubs in Soho" }, "london");
+    for (const budget of [7, 6.8, 6.6, 6.4, 6.2, 6, 5.8, 5.6]) {
+      const content = `Same area, under £${budget} a pint`;
+      await appendOwnedPubPalUserTurn(CONVERSATION_ID, OWNER_ID, { role: "user", content }, "london");
+      const stored = (await readOwnedPubPalToolTurn(CONVERSATION_ID, OWNER_ID))!;
+      expect(stored.turns.length).toBeLessThanOrEqual(6);
+      const query = resolvePubPalToolQuery({ turnQuery: stored.query, args: {}, turns: stored.turns });
+      expect(resolvePalLocality(query, null).label).toBe("Soho");
+    }
+  });
   it("keeps both results when two tools append to one turn at once", async () => {
     durable.configured = true;
     await registerPubPalToolTurn(CONVERSATION_ID, {

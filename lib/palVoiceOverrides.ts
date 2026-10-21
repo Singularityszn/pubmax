@@ -1,5 +1,6 @@
 import { resolveElevenLabsVoiceForPal, type PalVoiceSelection } from "@/lib/palElevenLabsVoice";
 import type { PubPal } from "@/lib/pubPal";
+import { palOpeningMessage, type PalOpeningContext } from "@/lib/palOpening";
 
 export {
   PAL_VOICE_GET_HOME_REGISTER_INTRO,
@@ -18,9 +19,9 @@ export type PalVoiceOverrides = {
   firstMessage: string;
 };
 
-export function buildPalVoiceOverrides(pal: PubPal): PalVoiceOverrides {
+export function buildPalVoiceOverrides(pal: PubPal, context?: { taste: import("@/lib/palTaste").PalTaste | null; memories?: PalOpeningContext["memories"] }): PalVoiceOverrides {
   return {
     ...resolveElevenLabsVoiceForPal(pal),
-    firstMessage: `Hi, I'm ${pal.name}. What kind of night are you planning?`,
+    firstMessage: palOpeningMessage(pal.name, context ? { ...context, memories: context.memories === undefined ? [] : context.memories } : undefined),
   };
 }

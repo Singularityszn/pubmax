@@ -8,7 +8,7 @@
   min-height: 100dvh;
   /* No top safe-area inset: SiteNav renders above this main and already pays
      the notch (components/nav/siteNav.css); paid here too it was a blank band
-     the notch's height under the bar (__tests__/pageShellSafeAreaTop.test.ts). */
+     the notch's height under the bar (e2e/page-shell-safe-area-top.spec.ts). */
   /* Plain paper: coral is the composer's submit, never a wash behind it. */
   background: var(--paper);
   color: var(--ink);
@@ -123,7 +123,108 @@
 
 .palChatRow--pal {
   align-items: stretch;
+  scroll-margin-block-start: 1rem;
 }
+
+.palChatMap {
+  position: relative;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  background: var(--panel-raised);
+}
+
+.palChatMapTitle {
+  margin: 0;
+  padding: 0.8rem 0.9rem 0.3rem;
+  font-weight: 700;
+}
+
+.palChatMapCaption {
+  margin: 0;
+  padding: 0 0.9rem 0.8rem;
+  color: var(--ink-soft);
+  font-size: var(--text-sm);
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+
+.palChatMapCanvas {
+  position: relative;
+  width: 100%;
+  height: clamp(16rem, 38vw, 21rem);
+}
+
+.palChatMapFrame {
+  position: relative;
+}
+
+.palChatMapLoading {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  display: grid;
+  place-items: center;
+  margin: 0;
+  background: var(--panel-raised);
+  color: var(--ink-soft);
+}
+
+.palChatMapCanvas[data-map-ready="true"] + .palChatMapLoading {
+  display: none;
+}
+
+.palChatMapCanvas:not([data-map-ready="true"]) .palChatMapAnchor {
+  visibility: hidden;
+}
+
+.palChatMapAnchor {
+  width: 0;
+  height: 0;
+}
+
+.palChatMapAnchor svg {
+  position: absolute;
+  left: -160px;
+  top: -160px;
+  width: 320px;
+  height: 320px;
+  overflow: visible;
+  pointer-events: none;
+}
+
+.palChatMapAnchor line {
+  stroke: var(--ink);
+  stroke-width: 1.5;
+}
+
+.palChatMapAnchor circle {
+  fill: var(--ink);
+}
+
+.palChatMap .palChatMapPin {
+  position: absolute;
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  translate: -50% -50%;
+  border: 2px solid var(--ink);
+  border-radius: 50%;
+  background: var(--panel-raised);
+  color: var(--ink);
+  font-family: var(--font-data);
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.palChatMapStatus {
+  padding: 0.9rem;
+  margin: 0;
+  color: var(--ink-soft);
+  line-height: 1.5;
+}
+
 
 .palChatBubble {
   max-width: 85%;
@@ -710,4 +811,17 @@
   line-height: 1.45;
   color: var(--ink-soft);
   overflow-wrap: anywhere;
+}
+.palChatReset {
+  min-height: 44px;
+  padding: 8px 0;
+  margin-bottom: 12px;
+  border: 0;
+  background: transparent;
+  color: var(--ink-soft);
+  font: inherit;
+  font-size: var(--text-sm);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
 }

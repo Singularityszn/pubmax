@@ -54,7 +54,7 @@ export type PlanInviteSpendBand = {
   maxGbp: number;
 };
 
-/** Listed stop prices in GBP. Returns null unless every stop carries a price. */
+/** Listed pint-price range in GBP, never a per-person total. Missing stop prices return null. */
 export function planInviteSpendBandFromListedPrices(
   pricesGbp: readonly (number | null | undefined)[],
 ): PlanInviteSpendBand | null {
@@ -67,14 +67,14 @@ export function planInviteSpendBandFromListedPrices(
   return { minGbp: Math.min(...resolved), maxGbp: Math.max(...resolved) };
 }
 
-/** "£4.50–£6.00 per person", collapsing when min and max match. */
+/** Listed pint price range, collapsing when min and max match. */
 export function formatPlanInviteSpendBand(band: PlanInviteSpendBand): string {
   const label = formatGbp;
   const range =
     band.minGbp === band.maxGbp
       ? label(band.minGbp)
       : `${label(band.minGbp)}–${label(band.maxGbp)}`;
-  return `${range} per person`;
+  return `${range} per pint`;
 }
 
 export type PlanInviteShareInput = {

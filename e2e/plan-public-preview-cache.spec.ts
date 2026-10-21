@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { expect, test, type APIRequestContext, type Route } from "@playwright/test";
+import { expect, test, type APIRequestContext } from "@playwright/test";
 
 const anchorId = "venue-11e0hkh";
 const privateTitle = "Private anchored preview browser fixture";
@@ -73,19 +73,6 @@ test("the worker refuses legacy Plan HTML during navigation network failures", a
   const legacyMarker = "Legacy private accepted venue";
   const legacyCache = "pubmax-sw-plan-private-preview-before-fix";
   const safeCache = `pubmax-sw-preview-plan-v2-${version}`;
-  const aborted: string[] = [];
-  const offlinePaths = new Set([unsafePath, `/plan/${id}`]);
-  const offlineNavigation = async (route: Route) => {
-    const url = new URL(route.request().url());
-    if (route.request().serviceWorker() && offlinePaths.has(url.pathname)) {
-      aborted.push(url.pathname);
-      await route.abort("internetdisconnected");
-    } else {
-      await route.continue();
-    }
-  };
-  const offlinePattern = /\/plan\//;
-  let intercepting = false;
   try {
     await page.goto("/offline.html");
     // A synthetic historical cache entry models HTML that an earlier worker
@@ -104,19 +91,19 @@ test("the worker refuses legacy Plan HTML during navigation network failures", a
     // Test actual fallback before any live Plan navigation. The old worker
     // can migrate this entry into its current family, so disappearance of
     // the original cache name alone does not prove privacy.
-    await context.route(offlinePattern, offlineNavigation);
-    intercepting = true;
+    await context.setOffline(true);
+    expect(await page.evaluate(() => navigator.onLine)).toBe(false);
     const legacy = await page.goto(unsafePath);
     expect(legacy).not.toBeNull();
     const legacyBody = await legacy!.text();
     await info.attach("legacy-navigation.html", { contentType: "text/html", body: legacyBody });
-    expect(aborted).toContain(unsafePath);
+    expect(legacy!.fromServiceWorker()).toBe(true);
     expect(legacyBody).not.toContain(legacyMarker);
     await expect.poll(() => page.evaluate(async () =>
       (await caches.keys()).filter((name) => name.startsWith("pubmax-sw-plan-")),
     )).toEqual([]);
-    await context.unroute(offlinePattern, offlineNavigation);
-    intercepting = false;
+    await context.setOffline(false);
+    expect(await page.evaluate(() => navigator.onLine)).toBe(true);
 
     const live = await page.goto(`/plan/${id}`);
     expect(live?.status()).toBe(200);
@@ -128,21 +115,17 @@ test("the worker refuses legacy Plan HTML during navigation network failures", a
       return response ? response.text() : "";
     }, { name: safeCache, path: `/plan/${id}` })).toBe(html);
 
-    await context.route(offlinePattern, offlineNavigation);
-    intercepting = true;
+    await context.setOffline(true);
+    expect(await page.evaluate(() => navigator.onLine)).toBe(false);
     const cached = await page.goto(`/plan/${id}`);
     expect(cached?.status()).toBe(200);
     expect(await cached!.text()).toBe(html);
-    expect(aborted).toContain(`/plan/${id}`);
+    expect(cached!.fromServiceWorker()).toBe(true);
     await info.attach("worker-owned-navigation-failures.json", {
-      contentType: "application/json", body: JSON.stringify({ version, legacyCache, safeCache, aborted }),
+      contentType: "application/json", body: JSON.stringify({ version, legacyCache, safeCache, offlinePaths: [unsafePath, `/plan/${id}`], networkOffline: !await page.evaluate(() => navigator.onLine) }),
     });
     await info.attach("public-plan-offline.png", { contentType: "image/png", body: await page.screenshot() });
   } finally {
-    try {
-      if (intercepting) await context.unroute(offlinePattern, offlineNavigation);
-    } finally {
-      await context.close();
-    }
+    await context.close();
   }
 });

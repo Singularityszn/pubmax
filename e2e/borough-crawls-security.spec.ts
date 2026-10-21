@@ -28,18 +28,11 @@ test.describe("borough page", () => {
 
     await expect(page.locator("h1.screenTitle")).toContainText("Pubs in");
 
-    const pubs = page.locator(".boroughTable .boroughPub");
-    const empty = page.locator(".boroughEmpty");
-    await expect
-      .poll(async () => (await pubs.count()) + (await empty.count()))
-      .toBeGreaterThan(0);
-
-    if ((await pubs.count()) > 0) {
-      // Real ranked rows, each linking onto the map with the pub selected.
-      await expect(pubs.first()).toHaveAttribute("href", /^\/map\?sel=/);
-    } else {
-      await expect(empty).toBeVisible();
-    }
+    const pubs = page.getByRole("list", { name: "Pubs in Westminster, cheapest pint first", exact: true });
+    await expect(pubs).toBeVisible();
+    const destinations = await pubs.locator(".rowListTitleLink").evaluateAll((links) => links.map((link) => link.getAttribute("href")));
+    expect(destinations.length).toBeGreaterThan(0);
+    for (const href of destinations) expect(href).toMatch(/^\/map\?sel=venue-/);
 
     expect(errors).toEqual([]);
   });

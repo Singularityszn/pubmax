@@ -15,6 +15,7 @@ vi.mock("@/components/wanted/WantedList", () => ({
 vi.mock("@/components/nav/SiteNav", () => ({ default: () => null }));
 vi.mock("@/components/nav/SiteNavMore", () => ({ default: () => null }));
 vi.mock("next/navigation", () => ({
+  useSearchParams: () => new URLSearchParams(window.location.search),
   useRouter: () => ({ replace: () => undefined, push: () => undefined, prefetch: () => undefined }),
   usePathname: () => "/u/test",
   notFound: () => {

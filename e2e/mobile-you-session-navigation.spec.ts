@@ -38,7 +38,7 @@ for (const theme of ["light", "dark"] as const) {
     await expect(you).toHaveAttribute("href", "/u/you");
     await expect(async () => {
       await you.click();
-      await expect(page.getByRole("heading", { name: "Make the night yours.", exact: true }))
+      await expect(page.getByRole("heading", { name: "Claim your @handle.", exact: true }))
         .toBeVisible({ timeout: 1_000 });
     }).toPass({ timeout: 20_000 });
     await expect(page).toHaveURL(/\/u\/you$/);

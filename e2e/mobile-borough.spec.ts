@@ -57,7 +57,7 @@ test.describe("mobile Borough discovery", () => {
 
     await boroughRows.first().locator(".rowListTitleLink").click();
     await expect(page).toHaveURL(/\/borough\/[a-z0-9-]+$/);
-    await expect(page.getByRole("heading", { name: /^Pubs in / })).toBeVisible();
+    await expect(page.getByRole("heading", { level: 1, name: /^Pubs in / })).toBeVisible();
     await expectNoHorizontalOverflow(page);
 
     // Every list on the chapter is a RowList: the whole row is the target.

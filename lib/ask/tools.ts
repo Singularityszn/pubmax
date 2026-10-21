@@ -5,6 +5,7 @@ import { DEFAULT_CITY_ID, parseCityId, type CityId } from "@/lib/cities";
 import { isIndependentAskTool, isVenueDiscoveryAsk, resolveAskJourney, resolveAskPriceIntent, routeAskDeterministically } from "@/lib/ask/router";
 import { communityCategoryEvidence, listedPintEvidence } from "@/lib/ask/toolContract";
 import { formatGbp } from "@/lib/formatGbp";
+import { listedPriceReceipt } from "@/lib/listedPriceReceipt";
 import {
   drivesMap,
   type CommunityPrice,
@@ -95,6 +96,7 @@ function venueCard(
   venue: ConciergeVenue,
   note: string,
   key?: string,
+  now?: number,
 ): AskCard {
   return {
     key: key ?? venue.id,
@@ -103,7 +105,9 @@ function venueCard(
     place: venue.area,
     note,
     price: venue.cheapestPrice,
-    provenance: directoryProvenance(),
+    provenance: venue.cheapestPrice !== null && venue.cheapestPrice > 0
+      ? { kind: "directory", label: listedPriceReceipt(venue, now) }
+      : directoryProvenance(),
   };
 }
 
@@ -117,12 +121,16 @@ async function toolSearchVenues(
   try {
     const parsed = await parseConciergeIntent(query, { skipModel: true });
     const venues = await loadConciergeVenues(ctx.cityId);
-    const ranked = rankConciergeVenues(venues, parsed.intent, {
+    const ceiling = parsed.intent.maxPintPrice;
+    const eligible = ceiling === undefined ? venues : venues.filter((venue) =>
+      venue.cheapestPrice !== null && venue.cheapestPrice > 0 && venue.cheapestPrice <= ceiling,
+    );
+    const ranked = rankConciergeVenues(eligible, parsed.intent, {
       limit,
       areaCircle: areaCircleForAsk(ctx.cityId, parsed.intent.area),
     });
     const cards = ranked.map((row) =>
-      venueCard(row.venue, rankedNote(row), row.venue.id),
+      venueCard(row.venue, rankedNote(row), row.venue.id, ctx.now),
     );
     const proposals: AskProposal[] = cards
       .filter((c) => c.venueId)
@@ -155,7 +163,7 @@ async function toolSearchVenues(
       proposals,
       answerHint:
         cards.length > 0
-          ? ""
+          ? cards.length < limit ? `Only ${cards.length} listed ${cards.length === 1 ? "pub matches" : "pubs match"} those choices.` : ""
           : "Nothing listed matches that. Try a nearby area or a broader mood.",
     };
   } catch {
@@ -372,6 +380,7 @@ async function toolVenuePrices(
       ? "Current recorded pint on the listed index."
       : "No current recorded pint on the listed index.",
     `${venue.id}:curated`,
+    ctx.now,
   );
 
   const communityRead = await readCommunityPricesWithStatus(venue.id);
@@ -704,7 +713,7 @@ async function toolProposePlan(
         data: { intent: parsed.intent },
         provenance: [directoryProvenance()],
         cards: ranked.map((row) =>
-          venueCard(row.venue, rankedNote(row)),
+          venueCard(row.venue, rankedNote(row), undefined, ctx.now),
         ),
         proposals: [],
         answerHint:
@@ -712,7 +721,7 @@ async function toolProposePlan(
       };
     }
     const cards = ranked.map((row, index) =>
-      venueCard(row.venue, `Stop ${index + 1}: ${rankedNote(row, "Listed pick")}`),
+      venueCard(row.venue, `Stop ${index + 1}: ${rankedNote(row, "Listed pick")}`, undefined, ctx.now),
     );
     const stopIds = cards.map((c) => c.venueId);
     const stopNames = cards.map((c) => c.title);
@@ -796,7 +805,7 @@ async function toolProposeMapAction(
       tool: "propose_map_action",
       data: { venueId: venue.id, lat: venue.lat, lng: venue.lng },
       provenance: [directoryProvenance()],
-      cards: [venueCard(venue, "Confirm to open or fly on the map.")],
+      cards: [venueCard(venue, "Confirm to open or fly on the map.", undefined, ctx.now)],
       proposals,
       answerHint: `Ready to open ${venue.name} on the map when you confirm.`,
     };

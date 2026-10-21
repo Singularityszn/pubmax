@@ -22,6 +22,7 @@ import { readPalTaste } from "@/lib/palTaste.server";
 import { DEFAULT_PAL_DRAFT } from "@/lib/pubPal";
 import * as pubPalStore from "@/lib/pubPalStore";
 import type { RatingValue } from "@/lib/ratings";
+import { profileStore } from "@/lib/profileStore";
 
 async function logVisit(ownerUserId: string, visitedOn: string, rating: RatingValue | null): Promise<void> {
   const created = await diaryStore().create({
@@ -37,6 +38,14 @@ async function logVisit(ownerUserId: string, visitedOn: string, rating: RatingVa
 }
 
 describe("readPalTaste", () => {
+  it("uses the owner's declared favourite drink without borrowing another handle's profile", async () => {
+    const handles = vi.spyOn(profileStore(), "getHandleByUserId").mockImplementation(async (ownerId) => ownerId === "owner-profile" ? "own-profile" : null);
+    const profiles = vi.spyOn(profileStore(), "getByHandle").mockResolvedValue({ id: "profile-1", handle: "own-profile", userId: "owner-profile", favouriteDrink: "Gin and beer", createdAt: "2026-10-01T00:00:00Z", updatedAt: "2026-10-01T00:00:00Z" });
+    expect(await readPalTaste("owner-profile", 1_000)).toMatchObject({ declaredDrink: "Gin and beer", visits: 0 });
+    expect(profiles).toHaveBeenCalledWith("own-profile");
+    handles.mockResolvedValue("someone-else");
+    expect(await readPalTaste("owner-mismatch", 1_000)).toBeNull();
+  });
   afterEach(() => {
     vi.restoreAllMocks();
     pubPalStore.__resetPubPalStore();

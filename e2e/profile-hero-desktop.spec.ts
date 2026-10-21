@@ -1,9 +1,10 @@
 import { expect, test, type Page } from "@playwright/test";
 import sharp from "sharp";
+import { PROFILE_COVER_ROTATION_MS } from "../lib/profileCovers";
+import { installAuthDoubles, seedSignedIn } from "./helpers/authDoubles";
 
 // The profile hero's rendered geometry, which is the only place the redesign is
-// actually true. The CSS is fenced in __tests__/profileRichRender.test.ts; this
-// measures what a browser lays out.
+// actually true. This measures what a browser lays out.
 //
 // FOUR things this proves.
 //
@@ -26,6 +27,7 @@ import sharp from "sharp";
 const DESKTOP = { width: 1440, height: 900 };
 const PHONE = { width: 390, height: 844 };
 const HANDLE = "testdrinker";
+const LONG_FACT = "Quiz".repeat(80);
 const PROFILE_ID = "eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee";
 const GENERATIONS = [
   "aaaaaaa1-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
@@ -66,6 +68,7 @@ async function installCoverRotation(page: Page): Promise<void> {
             id: PROFILE_ID,
             handle: HANDLE,
             displayName: "Test Drinker",
+            favouriteDrink: LONG_FACT,
             bio: "Cheap pints, long walks home, and a soft spot for a back-room quiz.",
             coverUrl: covers[0],
             coverUrls: covers,
@@ -254,3 +257,110 @@ test.describe("the phone profile hero", () => {
     expect(hero.documentScrollsSideways).toBe(false);
   });
 });
+
+for (const viewport of [DESKTOP, PHONE]) {
+  test.describe(`profile rendering at ${viewport.width}px`, () => {
+    test.use({ viewport });
+
+    test("paints the cover falloff and avatar edge without clipping profile facts", async ({ page }) => {
+      await openProfile(page);
+      const paint = await page.locator("header.profileHeader").evaluate((header) => {
+        const cover = header.querySelector<HTMLElement>(".profileCover")!;
+        const falloff = header.querySelector<HTMLElement>(".profileCoverFalloff")!;
+        const avatar = header.querySelector<HTMLElement>(".profileAvatar")!;
+        const fact = header.querySelector<HTMLElement>(".profileCardFact dd")!;
+        const coverBox = cover.getBoundingClientRect();
+        const falloffBox = falloff.getBoundingClientRect();
+        const factBox = fact.getBoundingClientRect();
+        const avatarStyle = getComputedStyle(avatar);
+        return {
+          falloffBackground: getComputedStyle(falloff).backgroundImage,
+          coverBox: { width: coverBox.width, height: coverBox.height },
+          falloffBox: { width: falloffBox.width, height: falloffBox.height },
+          borderWidths: [avatarStyle.borderTopWidth, avatarStyle.borderRightWidth, avatarStyle.borderBottomWidth, avatarStyle.borderLeftWidth],
+          borderStyles: [avatarStyle.borderTopStyle, avatarStyle.borderRightStyle, avatarStyle.borderBottomStyle, avatarStyle.borderLeftStyle],
+          borderColor: avatarStyle.borderTopColor,
+          text: fact.textContent,
+          factHeight: factBox.height,
+          factLineHeight: Number.parseFloat(getComputedStyle(fact).lineHeight),
+          factClientWidth: fact.clientWidth,
+          factScrollWidth: fact.scrollWidth,
+          factClientHeight: fact.clientHeight,
+          factScrollHeight: fact.scrollHeight,
+          pageWidth: document.documentElement.clientWidth,
+          pageScrollWidth: document.documentElement.scrollWidth,
+        };
+      });
+      expect(paint.falloffBackground).not.toBe("none");
+      expect(paint.falloffBox).toEqual(paint.coverBox);
+      expect(paint.borderWidths).toEqual(["4px", "4px", "4px", "4px"]);
+      expect(paint.borderStyles).toEqual(["solid", "solid", "solid", "solid"]);
+      expect(paint.borderColor).not.toBe("rgba(0, 0, 0, 0)");
+      expect(paint.text).toBe(LONG_FACT);
+      expect(paint.factHeight).toBeGreaterThan(paint.factLineHeight * 2);
+      expect(paint.factScrollWidth).toBeLessThanOrEqual(paint.factClientWidth);
+      expect(paint.factScrollHeight).toBeLessThanOrEqual(paint.factClientHeight);
+      expect(paint.pageScrollWidth).toBeLessThanOrEqual(paint.pageWidth + 1);
+    });
+
+    for (const reducedMotion of ["reduce", "no-preference"] as const) {
+      test(`honors ${reducedMotion} for the cover rotation`, async ({ page }) => {
+        await page.emulateMedia({ reducedMotion });
+        await page.clock.install();
+        await openProfile(page);
+        const frames = page.locator(".profileCoverImage");
+        await expect(frames).toHaveCount(reducedMotion === "reduce" ? 1 : 2);
+        const active = page.locator(".profileCoverImageActive");
+        await expect(active).toHaveAttribute("src", new RegExp(GENERATIONS[0]!));
+        const transition = await frames.first().evaluate((frame) => ({
+          duration: getComputedStyle(frame).transitionDuration,
+          property: getComputedStyle(frame).transitionProperty,
+        }));
+        if (reducedMotion === "no-preference") {
+          expect(transition.property).toBe("opacity");
+          expect(transition.duration).toBe("0.9s");
+        }
+        await page.clock.runFor(PROFILE_COVER_ROTATION_MS + 1);
+        await expect(active).toHaveAttribute("src", new RegExp(GENERATIONS[reducedMotion === "reduce" ? 0 : 1]!));
+        if (reducedMotion === "reduce") {
+          await expect(frames).toHaveCount(1);
+          expect(await active.evaluate((frame) => ({
+            opacity: getComputedStyle(frame).opacity,
+            animations: frame.getAnimations().length,
+          }))).toEqual({ opacity: "1", animations: 0 });
+        }
+      });
+
+      test(`honors ${reducedMotion} for editor press feedback`, async ({ page }) => {
+        await page.emulateMedia({ reducedMotion });
+        await installAuthDoubles(page);
+        await seedSignedIn(page, "A");
+        await page.route((url) => url.pathname === "/api/profiles/karan", (route) => route.fulfill({
+          json: {
+            profile: { handle: "karan", displayName: "Karan", bio: "A profile", visibility: "private" },
+            projection: "full", socialLinks: [], counts: { followers: 0, following: 0 },
+          },
+        }));
+        await page.goto("/u/karan?edit=1");
+        const editor = page.getByRole("region", { name: "Editing your profile", exact: true });
+        await expect(editor.getByLabel("Display name", { exact: true })).toHaveValue("Karan");
+        const cancel = editor.getByRole("button", { name: "Cancel", exact: true });
+        await cancel.scrollIntoViewIfNeeded();
+        const box = await cancel.boundingBox();
+        expect(box).not.toBeNull();
+        await page.mouse.move(box!.x + box!.width / 2, box!.y + box!.height / 2);
+        await page.mouse.down();
+        try {
+          await expect.poll(() => cancel.evaluate((button) => ({
+            scale: getComputedStyle(button).scale,
+            transform: getComputedStyle(button).transform,
+          }))).toEqual({ scale: reducedMotion === "reduce" ? "none" : "0.97", transform: "none" });
+        } finally {
+          await page.mouse.move(0, 0);
+          await page.mouse.up();
+        }
+        await expect(editor).toBeVisible();
+      });
+    }
+  });
+}

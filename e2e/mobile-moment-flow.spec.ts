@@ -1,4 +1,17 @@
 import { expect, test } from "@playwright/test";
+import AxeBuilder from "@axe-core/playwright";
+
+for (const width of [390, 1440]) {
+  test(`${width}px: the selected Moment text passes dark-theme contrast`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 900 });
+    await page.emulateMedia({ colorScheme: "dark" });
+    await page.addInitScript(() => localStorage.setItem("pubmax-theme", "dark"));
+    await page.goto("/moment");
+    await expect(page.locator(".momentIntentCurrent span")).toBeVisible();
+    const result = await new AxeBuilder({ page }).include("main").withRules(["color-contrast"]).analyze();
+    expect(result.violations).toEqual([]);
+  });
+}
 
 test.describe("mobile Moment journey", () => {
   test.use({ viewport: { width: 390, height: 844 } });
