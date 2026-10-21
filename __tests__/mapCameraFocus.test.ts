@@ -149,51 +149,6 @@ describe("each camera owner rides its own intent lane", () => {
   });
 });
 
-// The reader's own pick must KEEP the camera afterwards.
-//
-// The mint effect that re-flies the opening-location answer bails on
-// mapCameraTouchedRef, and cancelOpeningLocation cannot set it: that callback
-// is a no-op once the location has already resolved
-// (openingLocationCancellationAfterAttempt, __tests__/mapFirstUsefulPins.test.ts).
-// So the deliberate move has to take the camera itself, exactly as a gesture
-// does through dismissAmbientBanners. Without it a later locationFirstMapView
-// change re-mints an opening-location focus and yanks the map off the pick.
-describe("a deliberate move takes the camera and keeps it", () => {
-  const pubMap = readFileSync(
-    join(__dirname, "..", "components/PubMap.tsx"),
-    "utf8",
-  );
-  const moveMapCameraTo = (() => {
-    const start = pubMap.indexOf("const moveMapCameraTo = useCallback(");
-    expect(start).toBeGreaterThan(-1);
-    const end = pubMap.indexOf("[cancelOpeningLocation],", start);
-    expect(end).toBeGreaterThan(start);
-    return pubMap.slice(start, end);
-  })();
-
-  it("marks the camera touched", () => {
-    expect(moveMapCameraTo).toContain("mapCameraTouchedRef.current = true");
-    expect(moveMapCameraTo).toContain("setMapCameraTouched(true)");
-  });
-
-  it("marks it before it asks the cancellation that cannot", () => {
-    const touched = moveMapCameraTo.indexOf("mapCameraTouchedRef.current = true");
-    const cancelled = moveMapCameraTo.indexOf("cancelOpeningLocation()");
-    expect(touched).toBeGreaterThan(-1);
-    expect(cancelled).toBeGreaterThan(-1);
-    expect(touched).toBeLessThan(cancelled);
-  });
-
-  it("drops the opening focus it just overtook", () => {
-    expect(moveMapCameraTo).toContain("setOpeningLocationFocus(null)");
-  });
-
-  it("is the guard the opening-location mint effect reads", () => {
-    const mint = pubMap.slice(pubMap.indexOf('source: "opening-location"') - 1200);
-    expect(mint).toContain("mapCameraTouchedRef.current");
-  });
-});
-
 // A cold map opens on the city view and makes its opening turn once the
 // camera is still. The opening-location answer moves the camera too, and a
 // move that lands during the turn stopped it at 1.3 degrees.

@@ -35,6 +35,21 @@ describe("configured Pub Pal local record answers", () => {
   });
   afterEach(() => { vi.unstubAllEnvs(); vi.unstubAllGlobals(); });
 
+  it.each([false, true])("refuses a driving allowance that refers to earlier pints, configured=%s", async (configured) => {
+    vi.stubEnv("ELEVENLABS_API_KEY", configured ? "test-key" : "");
+    const response = await POST(new Request("http://localhost/api/pub-pal/chat", {
+      method: "POST", headers: { "content-type": "application/json" },
+      body: JSON.stringify({ query: "Cheap pints near Soho. How many can I have before driving?", cityId: "london" }),
+    }));
+    expect(response.status).toBe(200);
+    expect(await response.json()).toMatchObject({
+      answer: "I can't tell you whether to have another drink. Open Getting Home on the venue sheet for last-train times, ride links, and the TfL planner.",
+      cards: [], proposals: [], toolsUsed: [],
+    });
+    expect(fetch).not.toHaveBeenCalled();
+    expect(paidSpendBudgetRefusal).not.toHaveBeenCalled();
+  });
+
   it.each(REQUESTS.flatMap((request) => [false, true].map((stream) => ({ ...request, stream }))))(
     "returns dated pub cards without a paid provider: $query, stream=$stream", async ({ query, count, stream }) => {
       const response = await POST(new Request("http://localhost/api/pub-pal/chat", {

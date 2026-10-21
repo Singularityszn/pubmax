@@ -35,7 +35,14 @@ function withoutAlcoholFreeDrinks(message: string): string {
 function asksAboutAlcoholAndVehicleFitness(message: string): boolean {
   return withoutAlcoholFreeDrinks(message)
     .split(/[!?;]+|(?<!\b(?:[a-z]|st|mr|mrs|ms|dr|prof|jr|sr|vs|etc))\.(?=\s|$)/i)
-    .some((text) => {
+    .some((sentence, index, sentences) => {
+      // A quantity question can refer to alcohol named in an earlier sentence.
+      const text = ALCOHOL_RE.test(sentences.slice(0, index).join(" "))
+        ? sentence.replace(
+          /\b(how\s+(?:many|much))(\s+(?:can|could|may|should)\s+(?:i|we)\s+(?:have|drink|consume))\b/gi,
+          "$1 drinks$2",
+        )
+        : sentence;
       if (!ALCOHOL_RE.test(text) || !VEHICLE_OPERATION_RE.test(text)) return false;
       if (ALCOHOL_ALLOWANCE_RE.test(text)) return true;
       const allowanceText = text.replace(

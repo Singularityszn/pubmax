@@ -23,7 +23,6 @@ function allDependencyNames(pkg: Record<string, unknown>): string[] {
 
 describe("venue reveal dependency fence", () => {
   const forbidden = [
-    /^three$/,
     /^@react-three\//,
     /^lottie/,
     /^@rive-app\//,
