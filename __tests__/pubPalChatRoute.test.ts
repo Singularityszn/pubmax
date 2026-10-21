@@ -10,7 +10,8 @@ vi.mock("@/lib/supabase", () => ({
   checkRateLimitDurableDetailed: async () => ({ verdict: false, reason: "counted" }),
 }));
 
-vi.mock("@/lib/palElevenLabsChat.server", () => ({
+vi.mock("@/lib/palElevenLabsChat.server", async (original) => ({
+  ...await original<typeof import("@/lib/palElevenLabsChat.server")>(),
   runPalElevenLabsChatTurn: vi.fn(),
 }));
 
@@ -595,7 +596,7 @@ describe("POST /api/pub-pal/chat", () => {
       threadId: "conv_previous01",
       fenceTurns: [{ role: "user", content: "Earlier question." }],
       ownerId: authState.userId,
-    });
+    }, expect.objectContaining({ fence: { fenced: false, sobrietyOnly: false } }));
   });
 
   // The token check is a GoTrue round trip, so a request the limiter refuses

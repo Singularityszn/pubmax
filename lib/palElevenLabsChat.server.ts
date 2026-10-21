@@ -18,6 +18,7 @@ import { isPubPalConversationId, newPalLocalThreadId } from "@/lib/pubPalConvers
 import {
   pubPalGetHomeRegisterAnswer,
   resolvePubPalFenceIntent,
+  type PubPalFenceIntent,
   type PubPalFenceTurn,
 } from "@/lib/pubPalLlmFence";
 import {
@@ -155,8 +156,27 @@ type PalChatFailureStage =
   | "configuration" | "input" | "context" | "signed_url" | "registration"
   | "tool_result" | "deadline" | "caller_cancel" | "socket_error" | "socket_close" | "turn";
 
+export type PalElevenLabsChatContext = {
+  prior: PriorSession;
+  fence: PubPalFenceIntent;
+};
+
+/** Prepare owned history and its safety result once, before any opening or provider turn. */
+export async function preparePalElevenLabsChatTurn(
+  input: PalElevenLabsChatInput,
+): Promise<PalElevenLabsChatContext> {
+  const prior = await priorOwnedSession(input.threadId, input.ownerId);
+  const fenceTurns = (input.fenceTurns ?? []).filter((turn) => turn.role === "user");
+  const fence = await resolvePubPalFenceIntent(input.query.trim().slice(0, 500), [
+    ...fenceTurns,
+    ...prior.turns,
+  ]);
+  return { prior, fence };
+}
+
 export async function runPalElevenLabsChatTurn(
   input: PalElevenLabsChatInput,
+  context?: PalElevenLabsChatContext,
 ): Promise<PalElevenLabsChatOutcome> {
   const startedAt = Date.now();
   const recordFailure = (
@@ -191,19 +211,14 @@ export async function runPalElevenLabsChatTurn(
   // and the test is on the ask alone, so it is decided before anything leaves.
   const unsupported = unsupportedPriceComparison(query);
   const answeredFromRecords = Boolean(unsupported) || recordedDrinkComparison(query);
-  let prior: PriorSession;
   try {
-    prior = await priorOwnedSession(input.threadId, input.ownerId);
+    context ??= await preparePalElevenLabsChatTurn(input);
   } catch {
     recordFailure("UNAVAILABLE", "context");
     return { ok: false, code: "UNAVAILABLE" };
   }
+  const { prior, fence: { fenced, sobrietyOnly } } = context;
   const turns = prior.turns;
-  const fenceTurns = (input.fenceTurns ?? []).filter((turn) => turn.role === "user");
-  const { fenced, sobrietyOnly } = await resolvePubPalFenceIntent(query, [
-    ...fenceTurns,
-    ...turns,
-  ]);
   if (fenced) {
     return {
       ok: true,

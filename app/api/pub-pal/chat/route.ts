@@ -2,7 +2,7 @@ import { openPalConversation } from "@/lib/palOpening.server";
 import { palOpeningAcceptance, palOpeningFollowUp } from "@/lib/palOpening";
 import { readOwnedPubPalToolTurn, registerPubPalToolTurn } from "@/lib/pubPalToolTurnStore";
 import { isPubPalConversationId } from "@/lib/pubPalConversationId";
-import { pubPalGetHomeRegisterAnswer, resolvePubPalFenceIntent } from "@/lib/pubPalLlmFence";
+import { pubPalGetHomeRegisterAnswer, regexFenceIntent, resolvePubPalFenceIntent } from "@/lib/pubPalLlmFence";
 import { publicApiError } from "@/lib/apiError";
 import { askCardSources } from "@/lib/ask/types";
 import { jsonNoStore } from "@/lib/apiResponses";
@@ -21,6 +21,8 @@ import {
 } from "@/lib/palChatStream";
 import {
   runPalElevenLabsChatTurn,
+  preparePalElevenLabsChatTurn,
+  type PalElevenLabsChatContext,
   type PalElevenLabsChatInput,
   type PalElevenLabsChatOutcome,
 } from "@/lib/palElevenLabsChat.server";
@@ -70,7 +72,7 @@ function answerBody(outcome: Extract<PalElevenLabsChatOutcome, { ok: true }>) {
  * its normal JSON status before this runs, so a refusal never opens a stream.
  * Only a failure after the stream began is an `error` event.
  */
-function streamTurn(input: PalElevenLabsChatInput, request: Request): Response {
+function streamTurn(input: PalElevenLabsChatInput, context: PalElevenLabsChatContext, request: Request): Response {
   const encoder = new TextEncoder();
   const abort = new AbortController();
   request.signal.addEventListener("abort", () => abort.abort(), { once: true });
@@ -88,7 +90,7 @@ function streamTurn(input: PalElevenLabsChatInput, request: Request): Response {
           ...input,
           signal: abort.signal,
           onProgress: send,
-        });
+        }, context);
         send(
           outcome.ok
             ? { type: "final", body: answerBody(outcome) }
@@ -198,7 +200,25 @@ export async function POST(request: Request): Promise<Response> {
   if (configured && !ownerId) {
     return publicApiError("Sign in to ask Pub Pal.", "UNAUTHENTICATED", 401);
   }
-  const fence = await resolvePubPalFenceIntent(query, normaliseTurns(record.turns));
+  const turns = normaliseTurns(record.turns);
+  const turn: PalElevenLabsChatInput = {
+    query,
+    cityId: record.cityId,
+    threadId: record.threadId,
+    fenceTurns: turns.filter((item) => item.role === "user"),
+    ownerId: ownerId!,
+  };
+  // Current and browser safety requests must still answer when stored history is unavailable.
+  let fence = configured ? regexFenceIntent(query, turns) : await resolvePubPalFenceIntent(query, turns);
+  let context: PalElevenLabsChatContext | undefined;
+  if (configured && !fence.fenced) {
+    try {
+      context = await preparePalElevenLabsChatTurn(turn);
+      fence = context.fence;
+    } catch {
+      return publicApiError(PAL_ERROR_FALLBACK, "UNAVAILABLE", 503, { retryable: true });
+    }
+  }
   if (fence.fenced) {
     return jsonNoStore({
       answer: pubPalGetHomeRegisterAnswer("", fence.sobrietyOnly),
@@ -213,7 +233,6 @@ export async function POST(request: Request): Promise<Response> {
   // tools as /api/ask, and they never call OpenRouter.
   if (!configured) {
     try {
-      const turns = normaliseTurns(record.turns);
       const social = socialTurnKind(query);
       if (social) {
         return jsonNoStore({
@@ -288,16 +307,9 @@ export async function POST(request: Request): Promise<Response> {
   const budgetRefusal = await paidSpendBudgetRefusal("pub-pal-chat");
   if (budgetRefusal) return budgetRefusal;
 
-  const turn: PalElevenLabsChatInput = {
-    query,
-    cityId: record.cityId,
-    threadId: record.threadId,
-    fenceTurns: normaliseTurns(record.turns).filter((item) => item.role === "user"),
-    ownerId: ownerId!,
-  };
-  if (acceptsPalChatStream(request.headers.get("accept"))) return streamTurn(turn, request);
+  if (acceptsPalChatStream(request.headers.get("accept"))) return streamTurn(turn, context!, request);
 
-  const outcome = await runPalElevenLabsChatTurn(turn);
+  const outcome = await runPalElevenLabsChatTurn(turn, context);
 
   if (!outcome.ok) {
     return publicApiError(PAL_ERROR_FALLBACK, "UNAVAILABLE", 503, { retryable: true });

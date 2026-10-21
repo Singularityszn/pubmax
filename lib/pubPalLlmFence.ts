@@ -92,7 +92,7 @@ export function isPubPalSobrietyOnlyIntent(text: string): boolean {
   return asksAboutAlcoholAndVehicleFitness(trimmed);
 }
 
-function regexFenceIntent(
+export function regexFenceIntent(
   message: string,
   recentTurns: PubPalFenceTurn[] = [],
 ): PubPalFenceIntent {
@@ -150,7 +150,8 @@ export async function resolvePubPalFenceIntent(
   if (!trimmed) return { fenced: false, sobrietyOnly: false };
 
   const response = await systemOne(
-    { message: trimmed, recentTurns: recentTurns.slice(-6) },
+    // Typed chat combines six browser turns with six owned turns in one classification.
+    { message: trimmed, recentTurns: recentTurns.filter((turn) => turn.role === "user").slice(-12) },
     PUB_PAL_FENCE_QUESTIONS,
     { lane: "typesafe", timeoutMs: 4_000 },
   );
