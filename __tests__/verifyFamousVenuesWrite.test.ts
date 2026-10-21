@@ -1,4 +1,5 @@
-import { mkdtempSync, mkdirSync, readFileSync, readdirSync, renameSync, rmSync, writeFileSync } from "node:fs";
+import { createHash } from "node:crypto";
+import { existsSync, mkdtempSync, mkdirSync, readFileSync, readdirSync, renameSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 
@@ -313,6 +314,7 @@ describe("famous verifier targeted durable continuation", () => {
     writeFileSync(receipt, JSON.stringify({ placesCalls: 98, maxPlacesCalls: 100 }));
   });
   afterEach(() => {
+    vi.useRealTimers();
     vi.mocked(renameSync).mockRestore();
     vi.unstubAllGlobals();
     rmSync(root, { recursive: true, force: true });
@@ -499,5 +501,421 @@ describe("famous verifier targeted durable continuation", () => {
     rmSync(path.join(task, "checkpoint.json"));
     await expect(run(resumed, args("a"))).rejects.toThrow(/checkpoint/);
     expect(resumed).not.toHaveBeenCalled();
+  });
+
+  type Prepared = { bytes: Buffer; hash: string };
+  type DurableCheckpoint = {
+    halt?: string | null;
+    active?: { id: string; kind: string } | null;
+    lastResponse?: { kind: string; status: number };
+    journal?: unknown;
+    expected: Record<string, string | null>;
+  };
+  type Transport = ReturnType<typeof network>;
+  const sha256 = (bytes: Buffer | string) => createHash("sha256").update(bytes).digest("hex");
+  const taskDir = () => path.join(stateRoot, readdirSync(stateRoot)[0]);
+  const checkpointFile = () => path.join(taskDir(), "checkpoint.json");
+  const snapshotEntries = () => readdirSync(path.join(taskDir(), "snapshots")).sort()
+    .map((name) => [name, readFileSync(path.join(taskDir(), "snapshots", name))] as const);
+  const fundReceipt = (placesCalls: number, maxPlacesCalls = 100) =>
+    writeFileSync(receipt, JSON.stringify({ placesCalls, maxPlacesCalls }));
+  const placesDispatches = (fetchImpl: Transport) =>
+    fetchImpl.mock.calls.filter(([url]) => String(url).includes("places.googleapis.com")).length;
+  const lastDispatch = (fetchImpl: Transport) => String(fetchImpl.mock.calls[fetchImpl.mock.calls.length - 1]?.[0]);
+  const placesFailure = (failAt: number, failure: () => Response) => {
+    let searches = 0;
+    const base = network();
+    return vi.fn(async (url: string | URL | Request, init?: RequestInit) =>
+      String(url).includes("places.googleapis.com") && ++searches === failAt ? failure() : base(url, init));
+  };
+  const known429 = () => new Response(null, { status: 429, headers: { "retry-after": "60" } });
+  const acknowledge = (hash: string, ids = "a,b,c") => [...args(ids), "--acknowledge-http-429", hash];
+  const bounded = (bound: string, ids = "a,b,c") => [...args(ids), "--max-new-places-calls", bound];
+  const statuses = (checkpoint: { records: Array<{ id: string; status: string }> }) =>
+    checkpoint.records.map((record) => [record.id, record.status]);
+  const present = (value: Record<string, unknown> | undefined) =>
+    Object.fromEntries(Object.entries(value ?? {}).filter(([, item]) => item != null));
+  const flush = () => new Promise((resolve) => setImmediate(resolve));
+  const quota429 = (body: unknown, retryAfter: string) => () => Response.json(body, {
+    status: 429, headers: { "retry-after": retryAfter, "x-debug-trace": "HEADER_CANARY" },
+  });
+  const endlessBody = (trace = { pulls: 0, cancelled: false }) => new ReadableStream<Uint8Array>({
+    pull(controller) {
+      trace.pulls += 1;
+      if (trace.pulls > 64) controller.error(new Error("fixture endless body overran its bound"));
+      else controller.enqueue(new Uint8Array(64 * 1024).fill(123));
+    },
+    cancel() {
+      trace.cancelled = true;
+    },
+  });
+
+  it("completes a known returned Places 429 recovery bound to the exact checkpoint hash without resetting accounting", async () => {
+    fundReceipt(90);
+    const first = placesFailure(2, known429);
+    await expect(run(first)).rejects.toThrow(/places HTTP 429/i);
+    expect(placesDispatches(first)).toBe(2);
+    const original = readFileSync(checkpointFile());
+    const hash = sha256(original);
+    const halted = JSON.parse(original.toString("utf8"));
+    expect(halted.placesCalls).toBe(92);
+    expect(halted.halt).toMatch(/^places HTTP 429$/i);
+    expect(statuses(halted)).toEqual([["a", "completed"], ["b", "pending"], ["c", "pending"]]);
+    const priorSnapshots = snapshotEntries();
+
+    const resumed = network();
+    const recovering = run(resumed, acknowledge(hash));
+    await expect(recovering).resolves.toMatchObject({
+      rowsChecked: 3, confirmed: 3, closed: [], unverified: [], sourceBlocked: [], placesCalls: 94, exitCode: 0,
+    });
+    const summary = await recovering;
+    expect(placesDispatches(resumed)).toBe(2);
+    expect(summary.sourceCalls).toBe(halted.sourceCalls + resumed.mock.calls.length - 2);
+    const recovered = json(checkpointFile());
+    expect(recovered.placesCalls).toBe(94);
+    expect(recovered.sourceCalls).toBe(summary.sourceCalls);
+    expect(recovered.halt ?? null).toBeNull();
+    expect(recovered.active ?? null).toBeNull();
+    expect(recovered.journal ?? null).toBeNull();
+    expect(statuses(recovered)).toEqual([["a", "completed"], ["b", "completed"], ["c", "completed"]]);
+    expect(recovered.records[0]).toEqual(halted.records[0]);
+    expect(recovered.receiptHash).toBe(halted.receiptHash);
+    expect(recovered.scopeHash).toBe(halted.scopeHash);
+    expect(recovered.sourceHashes).toEqual(halted.sourceHashes);
+    expect(recovered.http429Acknowledgments).toEqual([{ checkpointSha256: hash, id: "b" }]);
+    expect(recovered.snapshots).toHaveLength(halted.snapshots.length + 1);
+    expect(recovered.snapshots).toEqual(expect.arrayContaining([...halted.snapshots, hash]));
+    expect(readFileSync(path.join(taskDir(), "snapshots", hash))).toEqual(original);
+    expect(snapshotEntries().filter(([name]) => name !== hash)).toEqual(priorSnapshots);
+    expect(packs().map((venue: Row) => venue.observedAt)).toEqual(["2026-10-21", "2026-10-21", "2026-10-21"]);
+    const artifact = json(path.join(famous, "verification_2026-10-21.json"));
+    expect(artifact.checks.map((check: { id: string }) => check.id)).toEqual(["a", "b", "c"]);
+    expect(artifact.summary.placesLiveApiCalls).toBe(3);
+
+    const later = network();
+    await expect(run(later)).resolves.toMatchObject({ rowsChecked: 3, placesCalls: 94 });
+    expect(later).not.toHaveBeenCalled();
+    expect(readdirSync(stateRoot)).toHaveLength(1);
+  });
+
+  it("refuses to replay a used Places 429 acknowledgment", async () => {
+    fundReceipt(90);
+    await expect(run(placesFailure(2, known429))).rejects.toThrow(/places HTTP 429/i);
+    const hash = sha256(readFileSync(checkpointFile()));
+    await expect(run(network(), acknowledge(hash))).resolves.toMatchObject({ placesCalls: 94 });
+    const bytes = readFileSync(checkpointFile());
+    const resumed = network();
+    await expect(run(resumed, acknowledge(hash))).rejects.toThrow(/HTTP 429 acknowledgment refused/);
+    expect(resumed).not.toHaveBeenCalled();
+    expect(readFileSync(checkpointFile())).toEqual(bytes);
+  });
+
+  const rewritten = (edit: (checkpoint: DurableCheckpoint) => void) => (bytes: Buffer): Prepared => {
+    const checkpoint = JSON.parse(bytes.toString("utf8"));
+    edit(checkpoint);
+    const next = Buffer.from(`${JSON.stringify(checkpoint, null, 2)}\n`);
+    return { bytes: next, hash: sha256(next) };
+  };
+  const refusedAcknowledgments: Array<[string, (bytes: Buffer) => Prepared]> = [
+    ["a hash of other bytes", (bytes) => ({ bytes, hash: sha256(Buffer.concat([bytes, Buffer.from(" ")])) })],
+    ["a stale hash from before a rewrite", (bytes) => ({ bytes: Buffer.concat([bytes, Buffer.from("\n")]), hash: sha256(bytes) })],
+    ["the hash of another immutable snapshot", (bytes) => ({ bytes, hash: JSON.parse(bytes.toString("utf8")).snapshots[0] })],
+    ["a source 429 response", rewritten((checkpoint) => { checkpoint.lastResponse = { kind: "robots", status: 429 }; })],
+    ["a non-429 Places response", rewritten((checkpoint) => { checkpoint.lastResponse = { kind: "places", status: 503 }; })],
+    ["no response evidence", rewritten((checkpoint) => { delete checkpoint.lastResponse; })],
+    ["no durable halt", rewritten((checkpoint) => { checkpoint.halt = null; })],
+    ["an unrelated halt", rewritten((checkpoint) => { checkpoint.halt = "provider request failed"; })],
+    ["no active reservation", rewritten((checkpoint) => { checkpoint.active = null; })],
+    ["a reservation for a completed row", rewritten((checkpoint) => { checkpoint.active = { id: "a", kind: "places" }; })],
+    ["a reservation for an unknown row", rewritten((checkpoint) => { checkpoint.active = { id: "zz", kind: "places" }; })],
+    ["a source reservation", rewritten((checkpoint) => { checkpoint.active = { id: "b", kind: "head" }; })],
+    ["an unresolved write journal", rewritten((checkpoint) => {
+      const bars = readFileSync(path.join(famous, "bars.json"), "utf8");
+      checkpoint.journal = { files: [{ file: "bars.json", bytes: bars, before: checkpoint.expected["bars.json"], after: sha256(bars) }] };
+    })],
+  ];
+
+  it.each(refusedAcknowledgments)("refuses a Places 429 acknowledgment with %s and leaves accounting untouched", async (_label, prepare) => {
+    fundReceipt(90);
+    await expect(run(placesFailure(2, known429))).rejects.toThrow(/places HTTP 429/i);
+    const { bytes, hash } = prepare(readFileSync(checkpointFile()));
+    writeFileSync(checkpointFile(), bytes);
+    const priorSnapshots = snapshotEntries();
+    const resumed = network();
+    await expect(run(resumed, acknowledge(hash))).rejects.toThrow(/HTTP 429 acknowledgment refused/);
+    expect(resumed).not.toHaveBeenCalled();
+    expect(readFileSync(checkpointFile())).toEqual(bytes);
+    expect(snapshotEntries()).toEqual(priorSnapshots);
+    expect(packs()[1]).toEqual(venues[1]);
+  });
+
+  const haltedElsewhere: Array<[string, number, string, () => Transport, RegExp, number]> = [
+    ["an exhausted original grant", 98, "a,b", () => placesFailure(2, known429), /places HTTP 429/i, 100],
+    ["a source 429", 90, "a,b,c", () => {
+      const base = network();
+      return vi.fn(async (url: string | URL | Request, init?: RequestInit) => String(url).endsWith("/robots.txt")
+        ? new Response(null, { status: 429, headers: { "retry-after": "60" } }) : base(url, init));
+    }, /robots HTTP 429/, 90],
+    ["an unrelated provider halt", 90, "a,b,c", () => placesFailure(2, () => new Response("{}", { status: 503 })), /provider HTTP 503/, 92],
+  ];
+
+  it.each(haltedElsewhere)("refuses a Places 429 acknowledgment after %s", async (_label, spent, ids, transport, halt, spentAfter) => {
+    fundReceipt(spent);
+    await expect(run(transport(), args(ids))).rejects.toThrow(halt);
+    const bytes = readFileSync(checkpointFile());
+    expect(JSON.parse(bytes.toString("utf8")).placesCalls).toBe(spentAfter);
+    const resumed = network();
+    await expect(run(resumed, acknowledge(sha256(bytes), ids))).rejects.toThrow(/HTTP 429 acknowledgment refused/);
+    expect(resumed).not.toHaveBeenCalled();
+    expect(readFileSync(checkpointFile())).toEqual(bytes);
+  });
+
+  it("refuses a Places 429 acknowledgment for a receipt without a checkpoint", async () => {
+    const fetchImpl = network();
+    await expect(run(fetchImpl, acknowledge(sha256("{}")))).rejects.toThrow(/HTTP 429 acknowledgment refused/);
+    expect(fetchImpl).not.toHaveBeenCalled();
+    expect(existsSync(path.join(stateRoot, sha256(readFileSync(receipt))))).toBe(false);
+    expect(packs()).toEqual(venues);
+  });
+
+  it("keeps a crashed Places reservation fail-closed and unacknowledgeable", async () => {
+    fundReceipt(90);
+    const actual = await vi.importActual<typeof import("node:fs")>("node:fs");
+    vi.mocked(renameSync).mockImplementation((from, to) => {
+      if (String(to).endsWith("checkpoint.json")) {
+        const next = json(String(from));
+        if (next.active?.kind === "places" && next.active.id === "b") {
+          actual.renameSync(from, to);
+          throw new Error("fixture crash after reservation checkpoint");
+        }
+      }
+      return actual.renameSync(from, to);
+    });
+    const first = network();
+    await expect(run(first)).rejects.toThrow(/crash after reservation/);
+    vi.mocked(renameSync).mockImplementation(actual.renameSync);
+    expect(placesDispatches(first)).toBe(1);
+    // Simulate an operator releasing this fixture's dead writer, never a live lock.
+    rmSync(path.join(taskDir(), "lock"));
+    const bytes = readFileSync(checkpointFile());
+    expect(JSON.parse(bytes.toString("utf8")).placesCalls).toBe(92);
+    const resumed = network();
+    await expect(run(resumed, acknowledge(sha256(bytes)))).rejects.toThrow(/HTTP 429 acknowledgment refused/);
+    expect(readFileSync(checkpointFile())).toEqual(bytes);
+    await expect(run(resumed)).rejects.toThrow(/indeterminate/);
+    expect(resumed).not.toHaveBeenCalled();
+    expect(packs()[1]).toEqual(venues[1]);
+  });
+
+  it("stops an invocation at its new Places bound and continues the same task under another bound", async () => {
+    fundReceipt(90);
+    const first = network();
+    await expect(run(first, bounded("1"))).resolves.toMatchObject({ rowsChecked: 1, confirmed: 1, placesCalls: 91, exitCode: 0 });
+    expect(placesDispatches(first)).toBe(1);
+    expect(lastDispatch(first)).toContain("places.googleapis.com");
+    const paused = json(checkpointFile());
+    expect(paused.placesCalls).toBe(91);
+    expect(paused.sourceCalls).toBe(first.mock.calls.length - 1);
+    expect(paused.halt ?? null).toBeNull();
+    expect(paused.active ?? null).toBeNull();
+    expect(statuses(paused)).toEqual([["a", "completed"], ["b", "pending"], ["c", "pending"]]);
+    expect(packs().map((venue: Row) => venue.observedAt)).toEqual(["2026-10-21", "2026-08-25", "2026-08-25"]);
+
+    const second = network();
+    await expect(run(second, bounded("2"))).resolves.toMatchObject({ rowsChecked: 3, confirmed: 3, placesCalls: 93, exitCode: 0 });
+    expect(placesDispatches(second)).toBe(2);
+    const finished = json(checkpointFile());
+    expect(finished.placesCalls).toBe(93);
+    expect(finished.sourceCalls).toBe(paused.sourceCalls + second.mock.calls.length - 2);
+    expect(finished.scopeHash).toBe(paused.scopeHash);
+    expect(finished.receiptHash).toBe(paused.receiptHash);
+    expect(statuses(finished)).toEqual([["a", "completed"], ["b", "completed"], ["c", "completed"]]);
+    expect(readdirSync(stateRoot)).toHaveLength(1);
+    expect(json(path.join(famous, "verification_2026-10-21.json")).summary.placesLiveApiCalls).toBe(3);
+
+    const third = network();
+    await expect(run(third)).resolves.toMatchObject({ rowsChecked: 3, placesCalls: 93 });
+    expect(third).not.toHaveBeenCalled();
+  });
+
+  it("retries only the acknowledged row under a one-call invocation bound", async () => {
+    fundReceipt(90);
+    await expect(run(placesFailure(2, known429))).rejects.toThrow(/places HTTP 429/i);
+    const hash = sha256(readFileSync(checkpointFile()));
+    const resumed = network();
+    await expect(run(resumed, [...acknowledge(hash), "--max-new-places-calls", "1"]))
+      .resolves.toMatchObject({ rowsChecked: 2, placesCalls: 93, exitCode: 0 });
+    expect(placesDispatches(resumed)).toBe(1);
+    expect(lastDispatch(resumed)).toContain("places.googleapis.com");
+    const paused = json(checkpointFile());
+    expect(paused.halt ?? null).toBeNull();
+    expect(paused.active ?? null).toBeNull();
+    expect(statuses(paused)).toEqual([["a", "completed"], ["b", "completed"], ["c", "pending"]]);
+    const later = network();
+    await expect(run(later)).resolves.toMatchObject({ rowsChecked: 3, placesCalls: 94 });
+    expect(placesDispatches(later)).toBe(1);
+    expect(json(checkpointFile()).http429Acknowledgments).toEqual([{ checkpointSha256: hash, id: "b" }]);
+  });
+
+  it("lets the original receipt ceiling win over a larger invocation bound", async () => {
+    fundReceipt(99);
+    const fetchImpl = network();
+    await expect(run(fetchImpl, bounded("5"))).rejects.toThrow(/Places budget exhausted/);
+    expect(placesDispatches(fetchImpl)).toBe(1);
+    expect(json(checkpointFile()).placesCalls).toBe(100);
+    expect(packs().map((venue: Row) => venue.observedAt)).toEqual(["2026-10-21", "2026-08-25", "2026-08-25"]);
+    const resumed = network();
+    await expect(run(resumed, bounded("1"))).rejects.toThrow(/halt|budget/);
+    expect(resumed).not.toHaveBeenCalled();
+    expect(json(checkpointFile()).placesCalls).toBe(100);
+  });
+
+  it.each(["0", "-1", "1.5", "two"])("refuses the invocation bound %s before transport", async (bound) => {
+    const fetchImpl = network();
+    await expect(run(fetchImpl, bounded(bound))).rejects.toThrow(/--max-new-places-calls must be a positive integer/);
+    expect(fetchImpl).not.toHaveBeenCalled();
+    expect(existsSync(stateRoot)).toBe(false);
+    expect(packs()).toEqual(venues);
+  });
+
+  it("persists only allowlisted Places 429 quota evidence beside hostile error text", async () => {
+    const fetchImpl = placesFailure(2, quota429({
+      error: {
+        code: 429,
+        message: "Quota exceeded MESSAGE_CANARY for key fake-test-key",
+        status: "RESOURCE_EXHAUSTED",
+        details: [
+          {
+            "@type": "type.googleapis.com/google.rpc.ErrorInfo",
+            reason: "RATE_LIMIT_EXCEEDED",
+            domain: "googleapis.com",
+            metadata: {
+              quota_metric: "places.googleapis.com/search_text_requests",
+              quota_limit: "SearchTextRequestsPerMinutePerProject",
+              consumer: "projects/123456789012",
+              service: "places.googleapis.com",
+              note: "METADATA_CANARY https://evil.example/collect",
+            },
+          },
+          { "@type": "type.googleapis.com/google.rpc.QuotaFailure", violations: [{ subject: "SUBJECT_CANARY", description: "DESCRIPTION_CANARY" }] },
+          { "@type": "type.googleapis.com/google.rpc.RetryInfo", retryDelay: "30s" },
+          { "@type": "type.googleapis.com/google.rpc.Help", links: [{ description: "HELP_CANARY", url: "https://evil.example/help" }] },
+        ],
+      },
+    }, "60"));
+    await expect(run(fetchImpl, args("a,b"))).rejects.toThrow(/places HTTP 429/i);
+    const text = readFileSync(checkpointFile(), "utf8");
+    const checkpoint = JSON.parse(text);
+    expect(checkpoint.halt).toMatch(/^places HTTP 429$/i);
+    expect(present(checkpoint.lastResponse)).toEqual({
+      kind: "places",
+      status: 429,
+      errorStatus: "RESOURCE_EXHAUSTED",
+      quotaMetric: "places.googleapis.com/search_text_requests",
+      quotaLimit: "SearchTextRequestsPerMinutePerProject",
+      quotaConsumer: "projects/123456789012",
+      retryDelay: "30s",
+      retryAfter: "60",
+    });
+    for (const leaked of ["CANARY", "evil.example", "fake-test-key", "Quota exceeded", "OPERATIONAL", "41-43 Wardour St, London W1D 6PY, UK"]) {
+      expect(text).not.toContain(leaked);
+    }
+  });
+
+  it.each<[string, unknown, string]>([
+    ["identifiers outside their known patterns", {
+      error: {
+        code: 429,
+        message: "MESSAGE_CANARY",
+        status: "STATUS_CANARY",
+        details: [
+          {
+            "@type": "type.googleapis.com/google.rpc.ErrorInfo",
+            reason: "RATE_LIMIT_EXCEEDED",
+            domain: "googleapis.com",
+            metadata: {
+              quota_metric: "https://evil.example/METRIC_CANARY",
+              quota_limit: "Limit LIMIT_CANARY <script>",
+              consumer: "projects/123456789012/../CONSUMER_CANARY",
+            },
+          },
+          { "@type": "type.googleapis.com/google.rpc.RetryInfo", retryDelay: "-30s" },
+        ],
+      },
+    }, "60 RETRY_AFTER_CANARY"],
+    ["values of the wrong type", {
+      error: {
+        code: "429",
+        status: ["RESOURCE_EXHAUSTED"],
+        message: { text: "MESSAGE_CANARY" },
+        details: { "@type": "type.googleapis.com/google.rpc.RetryInfo", retryDelay: "30s", note: "DETAILS_CANARY" },
+      },
+    }, "-1"],
+  ])("drops Places 429 evidence with %s and invents no reset window", async (_label, body, retryAfter) => {
+    await expect(run(placesFailure(1, quota429(body, retryAfter)), args("a"))).rejects.toThrow(/places HTTP 429/i);
+    const text = readFileSync(checkpointFile(), "utf8");
+    expect(present(JSON.parse(text).lastResponse)).toEqual({ kind: "places", status: 429 });
+    expect(text).not.toContain("CANARY");
+    expect(text).not.toContain("evil.example");
+  });
+
+  it.each<[string, () => ConstructorParameters<typeof Response>[0]]>([
+    ["missing", () => null],
+    ["malformed", () => '{"error":{"status":"RESOURCE_EXHAUSTED","message":"MESSAGE_CANARY"'],
+    ["oversized", () => new Uint8Array(1024 * 1024 + 1).fill(123)],
+    ["unreadable", () => new ReadableStream<Uint8Array>({ start(controller) { controller.error(new Error("UNREADABLE_CANARY")); } })],
+    ["endless", () => endlessBody()],
+  ])("keeps a returned Places 429 known when its body is %s", async (_label, body) => {
+    const failure = () => new Response(body(), { status: 429, headers: { "retry-after": "45" } });
+    await expect(run(placesFailure(1, failure), args("a"))).rejects.toThrow(/places HTTP 429/i);
+    const bytes = readFileSync(checkpointFile());
+    const checkpoint = JSON.parse(bytes.toString("utf8"));
+    expect(checkpoint.halt).toMatch(/^places HTTP 429$/i);
+    expect(checkpoint.placesCalls).toBe(99);
+    expect(present(checkpoint.lastResponse)).toEqual({ kind: "places", status: 429, retryAfter: "45" });
+    expect(bytes.toString("utf8")).not.toContain("CANARY");
+    const resumed = network();
+    await expect(run(resumed, acknowledge(sha256(bytes), "a"))).resolves.toMatchObject({ confirmed: 1, placesCalls: 100 });
+    expect(placesDispatches(resumed)).toBe(1);
+  });
+
+  it("cancels an endless Places 429 body within the Places byte bound", async () => {
+    const trace = { pulls: 0, cancelled: false };
+    const failure = () => new Response(endlessBody(trace), { status: 429 });
+    await expect(run(placesFailure(1, failure), args("a"))).rejects.toThrow(/places HTTP 429/i);
+    expect(trace.cancelled).toBe(true);
+    expect(trace.pulls).toBeLessThanOrEqual((1024 * 1024) / (64 * 1024) + 2);
+    expect(json(checkpointFile()).halt).toMatch(/^places HTTP 429$/i);
+  });
+
+  it("keeps a stalled Places 429 body known at the 20 second deadline and aborts its dispatch", async () => {
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    try {
+      const dispatched: { signal?: AbortSignal | null } = {};
+      const base = network();
+      const fetchImpl = vi.fn(async (url: string | URL | Request, init?: RequestInit) => {
+        if (!String(url).includes("places.googleapis.com")) return base(url, init);
+        dispatched.signal = init?.signal;
+        return new Response(new ReadableStream<Uint8Array>({
+          start(controller) {
+            init?.signal?.addEventListener("abort", () => controller.error(new Error("STALLED_CANARY aborted")), { once: true });
+          },
+        }), { status: 429, headers: { "retry-after": "45" } });
+      });
+      const outcome = run(fetchImpl, args("a")).then(() => null, (error: Error) => error);
+      await vi.advanceTimersByTimeAsync(20_000);
+      await flush();
+      await flush();
+      const settled = await Promise.race([outcome, Promise.resolve("still pending")]);
+      expect(settled).toBeInstanceOf(Error);
+      expect(String(settled)).toMatch(/places HTTP 429/i);
+      expect(dispatched.signal?.aborted).toBe(true);
+      const checkpoint = json(checkpointFile());
+      expect(checkpoint.halt).toMatch(/^places HTTP 429$/i);
+      expect(checkpoint.placesCalls).toBe(99);
+      expect(present(checkpoint.lastResponse)).toEqual({ kind: "places", status: 429, retryAfter: "45" });
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });

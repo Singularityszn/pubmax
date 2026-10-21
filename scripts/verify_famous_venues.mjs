@@ -21,6 +21,12 @@
  * Completed checks are checkpointed before applying them. A failed Places
  * call remains spent and halts the receipt's task. --write refuses an existing
  * daily artifact on a new full run. Partial and explicit-ID runs merge checks.
+ * A returned Places 429 halts with its known status. --acknowledge-http-429
+ * <checkpoint SHA256> is an operator disposition for that exact checkpoint,
+ * not a spend grant. It snapshots those bytes and clears only the failed
+ * reservation and halt. Every counter, receipt and scope is kept.
+ * --max-new-places-calls <n> bounds one invocation under the original cap and
+ * stops it normally, so a later invocation continues the same task.
  *
  * The committed artifact keeps the place id and derived verdict fields only;
  * no Google-sourced names, addresses or statuses are stored (Maps ToS).
@@ -325,16 +331,48 @@ function cancelResponse(response) {
   response?.body?.cancel().catch(() => {});
 }
 
+const places429Evidence = new WeakMap();
+const HTTP_DATE = /^(?:Mon|Tue|Wed|Thu|Fri|Sat|Sun), \d{2} (?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec) \d{4} \d{2}:\d{2}:\d{2} GMT$/;
+
+/** Retry-After is kept only as delta seconds or an HTTP date. Anything else is dropped. */
+function retryAfterEvidence(value) {
+  if (value === null) return null;
+  return /^\d{1,10}$/.test(value) || (HTTP_DATE.test(value) && !Number.isNaN(Date.parse(value))) ? value : null;
+}
+
+/** Only allowlisted quota identifiers in their known patterns leave a returned Places 429 body. */
+function quotaEvidenceFromBody(bytes) {
+  let error;
+  try { error = JSON.parse(new TextDecoder().decode(bytes))?.error; } catch { return {}; }
+  if (!error || typeof error !== "object" || error.code !== 429) return {};
+  const details = Array.isArray(error.details) ? error.details : [];
+  const detail = (type) => details.find((item) => item?.["@type"] === `type.googleapis.com/google.rpc.${type}`);
+  const metadata = detail("ErrorInfo")?.metadata;
+  const known = (value, valid) => (typeof value === "string" && value.length <= 128 && valid(value) ? value : null);
+  const evidence = {
+    errorStatus: known(error.status, (value) => value === "RESOURCE_EXHAUSTED"),
+    quotaMetric: known(metadata?.quota_metric, (value) => /^places\.googleapis\.com\/[a-z][a-z0-9_]{0,63}$/.test(value)),
+    quotaLimit: known(metadata?.quota_limit, (value) =>
+      /^[A-Za-z][A-Za-z0-9]{0,127}$/.test(value) && /Per(?:Second|Minute|Hour|Day)/.test(value)),
+    quotaConsumer: known(metadata?.consumer, (value) => /^projects\/\d{1,20}$/.test(value)),
+    retryDelay: known(detail("RetryInfo")?.retryDelay, (value) => /^\d{1,10}(?:\.\d{1,9})?s$/.test(value)),
+  };
+  return Object.fromEntries(Object.entries(evidence).filter(([, value]) => value !== null));
+}
+
 /** A single dispatch, including its complete body, has one deadline and byte bound. */
 async function boundedWireFetch(fetchImpl, kind, url, init) {
   const controller = new AbortController();
   const timeoutMs = kind === "places" ? 20_000 : 15_000;
   let response;
+  let known429;
   let timer;
-  const timeout = new Promise((_, reject) => {
+  const timeout = new Promise((done, reject) => {
     timer = setTimeout(() => {
       controller.abort();
-      reject(new Error(`${kind} request timeout`));
+      // A returned Places 429 stays known when its body stalls past the deadline.
+      if (known429) done(known429);
+      else reject(new Error(`${kind} request timeout`));
     }, timeoutMs);
   });
   const work = (async () => {
@@ -344,6 +382,12 @@ async function boundedWireFetch(fetchImpl, kind, url, init) {
       signal: init?.signal ? AbortSignal.any([init.signal, controller.signal]) : controller.signal,
     });
     if (response.redirected) throw new Error("automatic redirect refused");
+    if (kind === "places" && response.status === 429) {
+      known429 = new Response(null, { status: 429, headers: response.headers });
+      const bytes = await readBoundedBody(response, 1024 * 1024).catch(() => null);
+      places429Evidence.set(known429, bytes ? quotaEvidenceFromBody(bytes) : {});
+      return known429;
+    }
     if (kind === "head" || response.status === 429 || (response.status >= 300 && response.status < 400)) {
       cancelResponse(response);
       return new Response(null, { status: response.status, headers: response.headers });
@@ -420,7 +464,7 @@ function parseRunOptions(argv) {
   const values = new Map();
   for (let index = 0; index < argv.length; index += 1) {
     const flag = argv[index];
-    if (!["--write", "--limit", "--ids", "--spent-receipt"].includes(flag) || values.has(flag)) {
+    if (!["--write", "--limit", "--ids", "--spent-receipt", "--acknowledge-http-429", "--max-new-places-calls"].includes(flag) || values.has(flag)) {
       throw new Error(`Unknown or duplicate option: ${flag}`);
     }
     if (flag === "--write") values.set(flag, true);
@@ -438,9 +482,18 @@ function parseRunOptions(argv) {
   if (ids && (ids.some((id) => !id) || new Set(ids).size !== ids.length)) {
     throw new Error("Empty or duplicate target IDs");
   }
+  const acknowledgment = values.get("--acknowledge-http-429") ?? null;
+  if (acknowledgment !== null && !/^[a-f0-9]{64}$/.test(acknowledgment)) {
+    throw new Error("HTTP 429 acknowledgment refused: expected a checkpoint SHA256");
+  }
+  const bound = values.get("--max-new-places-calls");
+  if (bound !== undefined && (!/^[1-9]\d*$/.test(bound) || !Number.isSafeInteger(Number(bound)))) {
+    throw new Error("--max-new-places-calls must be a positive integer");
+  }
   return {
     write: values.has("--write"), limit: parseVerificationLimit(argv),
     ids: ids?.sort() ?? null, receiptPath: values.get("--spent-receipt") ?? null,
+    acknowledgment, maxNewPlacesCalls: bound === undefined ? null : Number(bound),
   };
 }
 
@@ -479,6 +532,9 @@ export async function runVerification({
   const knownIds = new Set(rows.map(({ row }) => row.id));
   if (!existsSync(checkpointPath) && options.ids?.some((id) => !knownIds.has(id))) {
     throw new Error("Unknown target ID");
+  }
+  if (options.acknowledgment && !existsSync(checkpointPath)) {
+    throw new Error("HTTP 429 acknowledgment refused: no checkpoint exists for this receipt");
   }
   let state;
   let isNew = false;
@@ -574,7 +630,8 @@ export async function runVerification({
       persist();
     } else {
       if (statSync(checkpointPath).size > MAX_STATE_BYTES) throw new Error("checkpoint exceeds byte limit");
-      try { state = JSON.parse(readFileSync(checkpointPath, "utf8")); }
+      const checkpointBytes = readFileSync(checkpointPath);
+      try { state = JSON.parse(checkpointBytes.toString("utf8")); }
       catch { throw new Error("Invalid checkpoint JSON"); }
       if (state.version !== 1 || state.scopeHash !== scopeHash || state.receiptHash !== receiptHash) {
         throw new Error("Checkpoint scope or target mismatch");
@@ -596,7 +653,10 @@ export async function runVerification({
               ["confirmed", "closed", "unverified"].includes(record.check.outcome) &&
               /^\d{4}-\d{2}-\d{2}T/.test(record.check.checkedAt)))) ||
           (state.journal && (!Array.isArray(state.journal.files) || state.journal.files.length > 4 ||
-            !state.journal.files.every((item) => Object.hasOwn(state.expected, item.file))))) {
+            !state.journal.files.every((item) => Object.hasOwn(state.expected, item.file)))) ||
+          (state.http429Acknowledgments !== undefined && (!Array.isArray(state.http429Acknowledgments) ||
+            !state.http429Acknowledgments.every((item) => /^[a-f0-9]{64}$/.test(item?.checkpointSha256) &&
+              state.snapshots.includes(item.checkpointSha256) && state.records.some((record) => record.id === item.id))))) {
         throw new Error("Invalid checkpoint source or journal");
       }
       for (const hash of state.snapshots) {
@@ -610,30 +670,54 @@ export async function runVerification({
         return JSON.parse(readFileSync(join(taskDir, "snapshots", hash), "utf8")).map((row) => row.id);
       }));
       if (!state.records.every((record) => originalIds.has(record.id))) throw new Error("Checkpoint target source changed");
+      if (options.acknowledgment) {
+        // An operator disposition for one exact known returned Places 429. It grants no new calls.
+        const refuse = (reason) => { throw new Error(`HTTP 429 acknowledgment refused: ${reason}`); };
+        const pending = state.records.find((record) => record.id === state.active?.id && record.status === "pending");
+        if (sha256(checkpointBytes) !== options.acknowledgment) refuse("hash is not the current checkpoint");
+        if (state.http429Acknowledgments?.some((item) => item.checkpointSha256 === options.acknowledgment)) refuse("acknowledgment already used");
+        if (state.halt !== "places HTTP 429" || state.lastResponse?.kind !== "places" || state.lastResponse.status !== 429) {
+          refuse("checkpoint holds no known returned Places 429");
+        }
+        if (state.active?.kind !== "places" || !pending) refuse("no matching active pending Places reservation");
+        if (state.journal) refuse("unresolved write journal");
+        if (state.placesCalls >= liveCallLimit) refuse("original Places grant exhausted");
+        const original = snapshot(checkpointBytes);
+        if (!state.snapshots.includes(original)) state.snapshots.push(original);
+        state.http429Acknowledgments = [...(state.http429Acknowledgments ?? []), { checkpointSha256: original, id: pending.id }];
+        state.active = null;
+        state.halt = null;
+        persist();
+      }
       verifyExpected();
       replayJournal();
-      if (state.active) stop("indeterminate dispatched row requires operator review");
+      if (state.active && !state.halt) stop("indeterminate dispatched row requires operator review");
     }
     assertRunning();
     if (!apiKey && state.records.some((record) => record.status === "pending")) {
       throw new Error("GOOGLE_PLACES_API_KEY is required");
     }
     let activeId;
+    let newPlacesCalls = 0;
+    const invocationBoundReached = () =>
+      options.maxNewPlacesCalls !== null && newPlacesCalls >= options.maxNewPlacesCalls;
     const dispatch = async (kind, url, init) => {
       assertRunning();
       verifyExpected();
       const counter = kind === "places" ? "placesCalls" : "sourceCalls";
       const maximum = kind === "places" ? liveCallLimit : MAX_SOURCE_CALLS;
       if (state[counter] >= maximum) stop(`${kind === "places" ? "Places" : "source"} budget exhausted`);
+      if (kind === "places" && invocationBoundReached()) throw new Error("Places invocation bound reached");
       state[counter] += 1;
+      if (kind === "places") newPlacesCalls += 1;
       state.active = { id: activeId, kind };
       persist();
       try {
         const response = await boundedWireFetch(fetchImpl, kind, url, init);
         if (kind !== "places") state.active = null;
+        const retryAfter = retryAfterEvidence(response.headers.get("retry-after"));
         state.lastResponse = {
-          kind, status: response.status,
-          retryAfter: (response.headers.get("retry-after") ?? "").replace(/[^\x20-\x7e]/g, "").slice(0, 80),
+          kind, status: response.status, ...places429Evidence.get(response), ...(retryAfter ? { retryAfter } : {}),
         };
         persist();
         if (response.status === 429) stop(`${kind} HTTP 429`);
@@ -691,6 +775,8 @@ export async function runVerification({
     for (const record of state.records) {
       assertRunning();
       if (record.status !== "pending") continue;
+      // An invocation bound stops normally before more source preflight. The same task continues later.
+      if (invocationBoundReached()) break;
       activeId = record.id;
       const row = byId.get(record.id);
       if (!row) throw new Error("Target source fingerprint changed");
