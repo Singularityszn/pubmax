@@ -1,4 +1,7 @@
 import { expect, test, type Page } from "@playwright/test";
+import { uiUxChromiumProjectUse } from "../scripts/lib/uiUxBattleTestBrowser.mjs";
+
+test.use(uiUxChromiumProjectUse(process.env.UI_UX_BROWSER_CHANNEL));
 
 // The Pub Pal's composer, measured on a production build.
 //

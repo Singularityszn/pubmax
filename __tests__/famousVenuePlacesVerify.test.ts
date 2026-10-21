@@ -1,7 +1,8 @@
-import { readFileSync } from "node:fs";
+import { mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
 import path from "node:path";
 
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
   decidePlacesVerification,
@@ -13,6 +14,7 @@ import {
   placesFromSearchPayload,
 } from "@/scripts/lib/googlePlacesTextSearch.mjs";
 import {
+  runVerification,
   toCommittedPlacesCheck,
   verifyRowWithPlaces,
 } from "@/scripts/verify_famous_venues.mjs";
@@ -220,5 +222,118 @@ describe("Places Text Search client", () => {
     );
     expect(fetchImpl).toHaveBeenCalledTimes(1);
     expect(client.getLiveCallCount()).toBe(1);
+  });
+});
+
+describe("famous verifier permission before paid dispatch", () => {
+  let root: string;
+  let famous: string;
+  let receipt: string;
+  beforeEach(() => {
+    vi.stubGlobal("fetch", vi.fn(async () => { throw new Error("Live fetch denied"); }));
+    root = mkdtempSync(path.join(tmpdir(), "pubmax-famous-source-mock-"));
+    famous = path.join(root, "data", "famous_venues");
+    mkdirSync(famous, { recursive: true });
+    receipt = path.join(root, "spent.json");
+    writeFileSync(receipt, JSON.stringify({ placesCalls: 98, maxPlacesCalls: 100 }));
+  });
+  afterEach(() => { vi.useRealTimers(); vi.unstubAllGlobals(); rmSync(root, { recursive: true, force: true }); });
+  const writeRows = (rows = [sampleRow]) => {
+    for (const file of ["bars.json", "late_food.json", "restaurants.json"]) {
+      writeFileSync(path.join(famous, file), JSON.stringify(file === "bars.json" ? rows : []));
+    }
+  };
+  const run = (fetchImpl: typeof fetch, ids = sampleRow.id) => runVerification({
+    argv: ["--write", "--ids", ids, "--spent-receipt", receipt], root,
+    stateRoot: path.join(root, "state"), apiKey: "fake-key", fetchImpl,
+    now: () => new Date("2026-10-21T12:00:00Z"),
+  });
+  const check = () => JSON.parse(readFileSync(path.join(famous, "bars.json"), "utf8"))[0];
+
+  it.each([403, 404, 503])("withholds an HTTP %s anchor before Places and keeps the row unchanged", async (status) => {
+    writeRows();
+    const fetchImpl = vi.fn(async (url: string | URL | Request) => String(url).endsWith("/robots.txt")
+      ? new Response("User-agent: *\nAllow: /\n") : new Response(null, { status }));
+    await run(fetchImpl);
+    expect(fetchImpl.mock.calls.some(([url]) => String(url).includes("places.googleapis.com"))).toBe(false);
+    expect(check()).toEqual(sampleRow);
+  });
+
+  it("refuses a sourcePolicy URL before any request", async () => {
+    writeRows([{ ...sampleRow, sourceUrl: "http://127.0.0.1/", anchor: { sourceUrl: "http://127.0.0.1/menu" } }]);
+    const fetchImpl = vi.fn();
+    await run(fetchImpl);
+    expect(fetchImpl).not.toHaveBeenCalled();
+  });
+
+  it.each(["User-agent: *\nDisallow: /\n", "<html>Just a moment</html>"])("refuses robots denial or challenge before the anchor", async (body) => {
+    writeRows();
+    const fetchImpl = vi.fn(async () => new Response(body));
+    await run(fetchImpl);
+    expect(fetchImpl).toHaveBeenCalledTimes(1);
+    expect(check()).toEqual(sampleRow);
+  });
+
+  it("accepts absent robots and follows only a canonical anchor redirect", async () => {
+    writeRows();
+    const fetchImpl = vi.fn(async (url: string | URL | Request) => {
+      const value = String(url);
+      if (value.endsWith("/robots.txt")) return new Response(null, { status: 404 });
+      if (value.includes("places.googleapis.com")) return Response.json(loadFixture("operational_match.json").body);
+      return value.endsWith("/menu") ? new Response(null, { status: 301, headers: { location: "/menu/" } }) : new Response(null);
+    });
+    await run(fetchImpl);
+    expect(check().observedAt).toBe("2026-10-21");
+    expect(fetchImpl.mock.calls.filter(([url]) => String(url).includes("places.googleapis.com"))).toHaveLength(1);
+    expect(fetchImpl.mock.calls.filter(([url]) => String(url).includes("/menu"))).toHaveLength(2);
+  });
+
+  it("refuses a cross-operator robots redirect without requesting its target", async () => {
+    writeRows();
+    const fetchImpl = vi.fn(async () => new Response(null, { status: 302, headers: { location: "https://another.example/robots.txt" } }));
+    await run(fetchImpl);
+    expect(fetchImpl.mock.calls.every(([url]) => !String(url).includes("another.example"))).toBe(true);
+    expect(check()).toEqual(sampleRow);
+  });
+
+  it("keeps a 429 terminal even when the robots checker catches and retries it", async () => {
+    writeRows();
+    const fetchImpl = vi.fn(async () => new Response(null, { status: 429 }));
+    await expect(run(fetchImpl)).rejects.toThrow(/429|halt/);
+    expect(fetchImpl).toHaveBeenCalledTimes(1);
+  });
+
+  it("refuses the 127th source dispatch even through a swallowed robots failure", async () => {
+    const rows = Array.from({ length: 64 }, (_, index) => ({
+      ...sampleRow, id: `row-${String(index).padStart(2, "0")}`,
+      sourceUrl: `https://venue-${index}.example/`, anchor: { sourceUrl: `https://venue-${index}.example/menu` },
+    }));
+    writeRows(rows);
+    const fetchImpl = vi.fn(async (url: string | URL | Request) => String(url).endsWith("/robots.txt")
+      ? new Response("User-agent: *\nAllow: /\n") : new Response(null, { status: 403 }));
+    await expect(run(fetchImpl, rows.map((row) => row.id).join(","))).rejects.toThrow(/source.*budget|halt/);
+    expect(fetchImpl).toHaveBeenCalledTimes(126);
+  });
+
+  it("bounds robots streams before the existing checker can read them", async () => {
+    writeRows();
+    const fetchImpl = vi.fn(async () => new Response(new Uint8Array(512 * 1024 + 1)));
+    await run(fetchImpl);
+    expect(fetchImpl.mock.calls.every(([url]) => String(url).endsWith("/robots.txt"))).toBe(true);
+    expect(check()).toEqual(sampleRow);
+  });
+
+  it("times out source requests and preserves the existing single unreachable retry", async () => {
+    writeRows();
+    vi.useFakeTimers();
+    const fetchImpl = vi.fn((_url: string | URL | Request, init?: RequestInit) => new Promise<Response>((_resolve, reject) => {
+      init?.signal?.addEventListener("abort", () => reject(new Error("fixture aborted")), { once: true });
+    }));
+    const result = run(fetchImpl);
+    await vi.advanceTimersByTimeAsync(32_000);
+    await result;
+    expect(fetchImpl).toHaveBeenCalledTimes(2);
+    expect(fetchImpl.mock.calls.every(([url]) => String(url).endsWith("/robots.txt"))).toBe(true);
+    expect(check()).toEqual(sampleRow);
   });
 });

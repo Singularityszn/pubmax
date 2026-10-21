@@ -97,6 +97,7 @@ import {
   mergePlanTemplateFields,
   nightAreaFromPlanQuery,
   reconcileGeneratedNightContext,
+  replacePlanQueryArea,
   syncPlanIntakeAreaFromQuery,
 } from "@/lib/planComposerChipFill";
 import { writePlanCapability } from "@/lib/planSessionCapability";
@@ -2105,7 +2106,13 @@ function PlanComposerForm({
       ? { draft: planIntake, context: next }
       : applyPlanStopCount(planIntake, next, next.stopCount);
     setNightContext(reconciled.context);
-    setPlanIntake(reconciled.draft);
+    if (patch.nightArea) {
+      const query = replacePlanQueryArea(conciergeQuery, patch.nightArea);
+      setConciergeQuery(query);
+      setPlanIntake(syncPlanIntakeAreaFromQuery(reconciled.draft, query));
+    } else {
+      setPlanIntake(reconciled.draft);
+    }
     setExplicitNightContext((current) => ({ ...current, ...patch }));
     if (!user) writeDeviceNightContext(reconciled.context ?? next);
   }

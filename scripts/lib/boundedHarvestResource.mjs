@@ -16,7 +16,7 @@ async function cancelBody(response) {
   }
 }
 
-async function readBoundedBody(response, maxBytes) {
+export async function readBoundedBody(response, maxBytes) {
   const declared = response.headers.get("content-length");
   if (declared !== null) {
     const size = Number(declared);

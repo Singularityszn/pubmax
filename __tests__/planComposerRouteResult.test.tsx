@@ -45,6 +45,7 @@ import PlanComposer, { planComposerVenueIndexPath } from "@/components/plan/Plan
 import { resolveFutureLondonStartIso } from "@/lib/planIntake";
 import { readPlanningIntent, writePlanningIntent } from "@/lib/planningIntent";
 import { parsePlanGenerationRequest } from "@/lib/planGenerationRequest";
+import { inferNightContext } from "@/lib/nightPlanning";
 
 const GENERATED = {
   routeRevision: 1,
@@ -875,5 +876,69 @@ describe("swapping one stop in place", () => {
     expect(document.querySelector(".planComposer__routeStale")).toBeNull();
     expect(document.querySelector("#plan-lock-hint")?.textContent ?? "").not.toMatch(/Refresh the route/);
     expect(document.body.textContent).toContain("Pub C");
+  });
+});
+
+describe("choosing another area after an unsupported request", () => {
+  it("uses the chosen supported area and keeps the rest of the request", async () => {
+    fetchMock.mockImplementation(async (input, init) => {
+      if (!String(input).includes("/api/plans/generate")) return Response.json([]);
+      const request = JSON.parse(String(init?.body));
+      return Response.json({ ...GENERATED, inferredContext: inferNightContext(request.query).context });
+    });
+    await mountComposer();
+    await sortIt("Quiet in Clapham for 4");
+    await openTune();
+
+    const query = document.querySelector<HTMLInputElement>("#plan-concierge-query")!;
+    await act(async () => {
+      Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")!.set!.call(query, "Quiet pints in Hackney for 4 under £6");
+      query.dispatchEvent(new Event("input", { bubbles: true }));
+    });
+    await settle();
+
+    const again = [...document.querySelectorAll<HTMLButtonElement>("[role='dialog'] button")]
+      .find((button) => button.textContent === "Plan it again")!;
+    expect(document.querySelector("#plan-concierge-status")?.textContent).toContain("Hackney is saved.");
+    expect(again.disabled).toBe(true);
+
+    const area = document.querySelector<HTMLSelectElement>("#plan-context-area")!;
+    await act(async () => {
+      area.value = "victoria";
+      area.dispatchEvent(new Event("change", { bubbles: true }));
+    });
+    await settle();
+
+    expect(again.disabled).toBe(false);
+    expect(query.value).toBe("Quiet pints for 4 under £6 in Victoria");
+    expect(document.querySelector("#plan-concierge-status")?.textContent).not.toContain("Hackney is saved.");
+
+    await act(async () => { again.click(); });
+    await settle();
+
+    const generated = fetchMock.mock.calls.filter(([input]) => String(input).includes("/api/plans/generate"));
+    expect(generated).toHaveLength(2);
+    const requestBody = String(generated[1][1]?.body);
+    expect(JSON.parse(requestBody)).toMatchObject({
+      query: "Quiet pints for 4 under £6 in Victoria",
+      context: { nightArea: "victoria" },
+      intake: { area: null },
+    });
+    expect((await parsePlanGenerationRequest(new Request("http://localhost/api/plans/generate", {
+      method: "POST", body: requestBody,
+    }))).ok).toBe(true);
+
+    await openTune();
+    const laterQuery = document.querySelector<HTMLInputElement>("#plan-concierge-query")!;
+    await act(async () => {
+      Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")!.set!.call(laterQuery, "Quiet pints in Hackney for 4 under £6");
+      laterQuery.dispatchEvent(new Event("input", { bubbles: true }));
+    });
+    await settle();
+    const laterAgain = [...document.querySelectorAll<HTMLButtonElement>("[role='dialog'] button")]
+      .find((button) => button.textContent === "Plan it again")!;
+    expect(laterAgain.disabled).toBe(true);
+    expect(document.querySelector("#plan-concierge-status")?.textContent).toContain("Hackney is saved.");
+    expect(fetchMock.mock.calls.filter(([input]) => String(input).includes("/api/plans/generate"))).toHaveLength(2);
   });
 });

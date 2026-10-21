@@ -140,6 +140,12 @@ function stripTemplateGeography(query: string): string {
     .trim();
 }
 
+export function replacePlanQueryArea(query: string, slug: NightAreaSlug): string {
+  const area = NIGHT_AREAS.find((candidate) => candidate.slug === slug);
+  if (!area) return query;
+  return [stripTemplateGeography(query), `in ${area.name}`].filter(Boolean).join(" ");
+}
+
 /** Align stop count with the generated route so Lock it in can enable. */
 export function reconcileGeneratedNightContext(
   inferred: NightContext,

@@ -1,4 +1,7 @@
 import { expect, test } from "@playwright/test";
+import { uiUxChromiumProjectUse } from "../scripts/lib/uiUxBattleTestBrowser.mjs";
+
+test.use(uiUxChromiumProjectUse(process.env.UI_UX_BROWSER_CHANNEL));
 
 // The Pal chat's claims have to match what the app knows. With no location
 // shared, the cheapest-pint glance measured from the middle of the area and

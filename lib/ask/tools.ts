@@ -702,7 +702,11 @@ async function toolProposePlan(
   try {
     const parsed = await parseConciergeIntent(query, { skipModel: true });
     const venues = await loadConciergeVenues(ctx.cityId);
-    const ranked = rankConciergeVenues(venues, parsed.intent, {
+    const ceiling = parsed.intent.maxPintPrice;
+    const eligible = ceiling === undefined ? venues : venues.filter((venue) =>
+      venue.cheapestPrice !== null && venue.cheapestPrice > 0 && venue.cheapestPrice <= ceiling,
+    );
+    const ranked = rankConciergeVenues(eligible, parsed.intent, {
       limit: 3,
       areaCircle: areaCircleForAsk(ctx.cityId, parsed.intent.area),
     });

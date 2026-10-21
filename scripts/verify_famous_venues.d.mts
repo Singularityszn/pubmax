@@ -47,6 +47,7 @@ export function anchorRenewalBlock(
   | "anchor_source_not_row_source"
   | "anchor_source_unreachable"
   | "anchor_source_redirected"
+  | "anchor_source_http_error"
   | null
 >;
 
@@ -97,3 +98,22 @@ export function selectVerificationBatch<
   entries: readonly Entry[],
   options?: { limit?: number | null; skipIds?: Iterable<string> },
 ): Entry[];
+
+/** CLI operation. State-root, clock and transport injection are for offline fixture execution. */
+export function runVerification(options?: {
+  argv?: string[];
+  root?: string;
+  stateRoot?: string;
+  now?: () => Date;
+  fetchImpl?: typeof fetch;
+  apiKey?: string;
+}): Promise<{
+  rowsChecked: number;
+  confirmed: number;
+  closed: string[];
+  unverified: string[];
+  sourceBlocked: string[];
+  placesCalls: number;
+  sourceCalls: number;
+  exitCode: number;
+}>;

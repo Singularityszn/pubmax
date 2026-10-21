@@ -66,6 +66,7 @@ const SURFACE_READ_EXEMPTIONS = [
   { path: "components/night/NightCalmLine.tsx", fetchCount: 1, reason: "night calm is an optional live signal" },
   { path: "components/night/NightModeCard.tsx", fetchCount: 6, reason: "night venue data and actions are no-store interactive flows; the plan state itself is the shared read in components/plan/usePlanMemberRead.ts" },
   { path: "components/pal/PalYear.tsx", fetchCount: 2, reason: "the year card reads the signed-in person's own mapped-price count once and at most two pub names for its lines; a name or count that does not arrive is left out, never painted as a cached zero" },
+  { path: "components/pal/originalPalMeshRenderer.mjs", fetchCount: 1, reason: "the selected Pal's content-hashed GLB is a static graphics asset with its own abort and disposal lifecycle, like the map icon atlas, never a reloadable data surface" },
   { path: "components/pintdrop/CommentThread.tsx", fetchCount: 1, reason: "comments are Social interaction reads and mutations" },
   { path: "components/plan/FairMeetingOrigins.tsx", fetchCount: 1, reason: "the fair meeting comparison reads each candidate pub's public venue record only after an explicit opt-in, no-store, aborted on opt-out, a changed stop list, a new plan or member and unmount, and never sends the private starting areas. __tests__/fairMeetingCoarseOrigins.test.tsx renders that lifecycle at the fetch boundary" },
   { path: "components/plan/MatchGroupPrefs.tsx", fetchCount: 3, reason: "shared plan collaboration state is no-store" },

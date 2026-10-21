@@ -4,6 +4,8 @@ export class BoundedHarvestResourceError extends Error {
   code: string;
 }
 
+export function readBoundedBody(response: Response, maxBytes: number): Promise<Uint8Array>;
+
 export function fetchBoundedHarvestResource(input: {
   url: string;
   fetchImpl?: (url: string, init: RequestInit) => Promise<Response>;

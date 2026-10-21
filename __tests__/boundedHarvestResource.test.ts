@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 import {
   BoundedHarvestResourceError,
   fetchBoundedHarvestResource,
+  readBoundedBody,
 } from "@/scripts/lib/boundedHarvestResource.mjs";
 
 const URL = "https://menus.example/menu.pdf";
@@ -10,6 +11,13 @@ const allowed = () => true;
 const robotsAllowed = async () => ({ allowed: true, reason: "allowed" as const, evidence: "fixture" });
 
 describe("bounded harvested resources", () => {
+  it("exports the existing reader with declared and streamed size enforcement", async () => {
+    await expect(readBoundedBody(new Response("", { headers: { "content-length": "101" } }), 100))
+      .rejects.toMatchObject({ code: "too-large" });
+    await expect(readBoundedBody(new Response(new Uint8Array(101)), 100))
+      .rejects.toMatchObject({ code: "too-large" });
+    expect([...await readBoundedBody(new Response(new Uint8Array([1, 2])), 100)]).toEqual([1, 2]);
+  });
   it("requires a caller-supplied source policy before any request", async () => {
     const fetchImpl = vi.fn();
     await expect(

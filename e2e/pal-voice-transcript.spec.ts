@@ -3,6 +3,7 @@ import { mkdir } from "node:fs/promises";
 
 import { DEFAULT_PAL_DRAFT } from "../lib/pubPal";
 import { ACCOUNTS, installAuthDoubles, seedSignedIn } from "./helpers/authDoubles";
+import { UI_UX_CHROMIUM_ARGS, uiUxChromiumProjectUse } from "../scripts/lib/uiUxBattleTestBrowser.mjs";
 
 // The voice panel on /pal, driven through the REAL ElevenLabs SDK against a
 // stand-in for the provider's socket. The stand-in speaks the provider's own
@@ -14,9 +15,10 @@ const SHOTS = "artifacts/pal-voice-transcript";
 const SIGNED_URL = "wss://api.elevenlabs.io/v1/convai/conversation?agent_id=agent_e2e&conversation_signature=e2e";
 
 test.use({
+  ...uiUxChromiumProjectUse(process.env.UI_UX_BROWSER_CHANNEL),
   permissions: ["microphone"],
   launchOptions: {
-    args: ["--use-fake-ui-for-media-stream", "--use-fake-device-for-media-stream"],
+    args: [...UI_UX_CHROMIUM_ARGS, "--use-fake-ui-for-media-stream", "--use-fake-device-for-media-stream"],
   },
 });
 
@@ -116,6 +118,28 @@ async function openLiveVoice(page: Page, memoryProposals = false, firstMessage?:
     await expect(page.getByRole("status").filter({ hasText: /Pal is (listening|talking)/ })).toBeVisible({ timeout: 2_000 });
   }).toPass({ timeout: 30_000 });
   return opened;
+}
+
+for (const width of [390, 1440]) {
+  test(`${width}px: the original 3D Pal stays visible during a real SDK voice turn`, async ({ page }, testInfo) => {
+    await page.setViewportSize({ width, height: 1000 });
+    const socket = await openLiveVoice(page);
+    const surface = width === 390 ? page.locator(".palVoiceFace") : page.locator(".palHomePortrait");
+    await surface.scrollIntoViewIfNeeded();
+    await expect(surface.locator('[data-model-state="ready"]')).toHaveCount(1);
+    await expect(surface.locator("canvas")).toBeVisible();
+    if (width === 390) {
+      await expect(surface).toHaveAttribute("aria-hidden", "true");
+      await expect(surface.locator("[data-pal-model-host]")).not.toHaveAttribute("tabindex");
+    }
+    hear(socket, "I like a quiet pub and a lager.");
+    say(socket, "Let's find a quiet pub with lager.");
+    await expect(page.getByRole("log", { name: "Voice chat transcript" })).toContainText("Let's find a quiet pub with lager.");
+    await expect(surface.locator("canvas")).toBeVisible();
+    await testInfo.attach("original-pal-with-voice", { body: await surface.screenshot(), contentType: "image/png" });
+    await page.getByRole("button", { name: "End", exact: true }).click();
+    await expect(page.getByRole("button", { name: "Start voice chat", exact: true })).toBeVisible();
+  });
 }
 
 test.describe("phone voice map tap targets", () => {

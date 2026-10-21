@@ -117,6 +117,8 @@ export function extractExplicitBudget(text: string): number | undefined {
   if (!explicitBudget) return undefined;
   const n = Number(explicitBudget);
   if (!Number.isFinite(n)) return undefined;
+  // A positive human ceiling must not rise to the model's lower bound.
+  if (n > 0 && n < 3) return n;
   return Math.min(15, Math.max(3, n));
 }
 

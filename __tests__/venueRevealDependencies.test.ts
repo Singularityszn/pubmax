@@ -23,14 +23,15 @@ function allDependencyNames(pkg: Record<string, unknown>): string[] {
 
 describe("venue reveal dependency fence", () => {
   const forbidden = [
-    /^three$/,
     /^@react-three\//,
     /^lottie/,
     /^@rive-app\//,
     /^@designcodeio\//,
   ];
 
-  it("does not add forbidden 3D or motion-library packages", () => {
+  // Three.js owns the requested original Pal models. Venue reveal keeps its
+  // existing CSS motion and does not gain a second animation framework.
+  it("does not add additional 3D or motion-library frameworks", () => {
     const names = allDependencyNames(readPackageJson());
     for (const name of names) {
       for (const pattern of forbidden) {

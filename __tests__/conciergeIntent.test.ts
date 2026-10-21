@@ -538,6 +538,15 @@ describe("extractExplicitBudget needs money, not just a cap word (LIB-D4)", () =
     expect(extractExplicitBudget(text)).toBe(expected);
   });
 
+  it.each([
+    ["under £0.01 a pint", 0.01],
+    ["under £2.95 a pint", 2.95],
+    ["under £3 a pint", 3],
+    ["under £99 a pint", 15],
+  ])("preserves the explicit positive ceiling in %j", (text, expected) => {
+    expect(extractExplicitBudget(text)).toBe(expected);
+  });
+
   it("keeps a group of eight out of the pint budget in the parsed intent", async () => {
     const parsed = await parseConciergeIntent("Crawl in Camden up to 8 of us", { skipModel: true });
     expect(parsed.intent.maxPintPrice).toBeUndefined();

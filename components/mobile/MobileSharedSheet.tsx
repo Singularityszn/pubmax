@@ -8,7 +8,7 @@ import SurfaceNav from "@/components/ui/surface-nav";
 import { homeActionLabel } from "@/lib/surfaceStack";
 import { useSheetHeightDrag } from "@/components/mobile/useSheetHeightDrag";
 import { SheetFooterContext } from "@/components/mobile/sheetFooterContext";
-import { useFocusTrap } from "@/lib/useFocusTrap";
+import { readStrictModalFocusTrap, useFocusTrap } from "@/lib/useFocusTrap";
 import { mobileSheetFocusContained, mobileSheetIsModal } from "@/lib/mobileSheetA11y";
 import type { MapSheetDetent, MapSheetKind } from "@/lib/mobileShell";
 
@@ -47,6 +47,7 @@ export default function MobileSharedSheet({
   initialSnap = "half",
   requestedSnap,
   onClose,
+  returnFocusTarget,
   onDismiss = onClose,
   closeLabel,
   backLabel = null,
@@ -64,6 +65,8 @@ export default function MobileSharedSheet({
   requestedSnap?: MapSheetDetent;
   /** Home: leave every open sheet and return to the map. */
   onClose: () => void;
+  /** Current map control when the original opener has left the page. */
+  returnFocusTarget?: () => HTMLElement | null;
   /** Gesture dismiss: Back to parent when one exists, otherwise Home. */
   onDismiss?: () => void;
   closeLabel?: string;
@@ -89,11 +92,15 @@ export default function MobileSharedSheet({
   const initialSnapRequestRef = useRef<MapSheetDetent | null>(null);
   const onDismissRef = useRef(onDismiss);
   const onCloseRef = useRef(onClose);
+  const returnFocusTargetRef = useRef(returnFocusTarget);
   const dismissToRef = useRef<(() => void) | null>(null);
   useEffect(() => {
     onDismissRef.current = onDismiss;
     onCloseRef.current = onClose;
   }, [onClose, onDismiss]);
+  useEffect(() => {
+    returnFocusTargetRef.current = returnFocusTarget;
+  }, [returnFocusTarget]);
   const onInterruptRevealRef = useRef(onInterruptReveal);
   useEffect(() => {
     onInterruptRevealRef.current = onInterruptReveal;
@@ -188,7 +195,20 @@ export default function MobileSharedSheet({
     return () => {
       cancelAnimationFrame(frame);
       window.removeEventListener("keydown", onKey);
-      previousFocus.current?.focus({ preventScroll: true });
+      const origin = previousFocus.current;
+      if (origin?.isConnected && origin !== document.body && origin !== document.documentElement) {
+        origin.focus({ preventScroll: true });
+      } else if (returnFocusTargetRef.current) {
+        // Wait for the shared trap to release inert. A newer focus choice wins.
+        requestAnimationFrame(() => {
+          const active = document.activeElement;
+          if (readStrictModalFocusTrap() || (
+            active && active !== document.body && active !== document.documentElement
+          )) return;
+          const target = returnFocusTargetRef.current?.();
+          if (target?.isConnected && !target.closest("[inert]")) target.focus({ preventScroll: true });
+        });
+      }
     };
   }, [initialSnap, kind, openAtSnap, requestEscape]);
 

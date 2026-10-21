@@ -7140,6 +7140,7 @@ export default function PubMap({
             initialSnap="half"
             requestedSnap={detailOpen ? sheetSnap : plannerSheetSnap}
             onClose={mapSurfaceTrail.home}
+            returnFocusTarget={() => document.querySelector<HTMLButtonElement>('.mobileMapTopbar button[aria-label="Search the map"]')}
             onDismiss={
               mapSurfaceTrail.backLabel
                 ? mapSurfaceTrail.back

@@ -1,4 +1,7 @@
 import { expect, test } from '@playwright/test';
+import { uiUxChromiumProjectUse } from "../scripts/lib/uiUxBattleTestBrowser.mjs";
+
+test.use(uiUxChromiumProjectUse(process.env.UI_UX_BROWSER_CHANNEL));
 import { ACCOUNTS, accessJwt, installAuthDoubles } from './helpers/authDoubles';
 
 test('an unresolved owner cannot accept a draft before a delayed account restore', async ({ page }) => {

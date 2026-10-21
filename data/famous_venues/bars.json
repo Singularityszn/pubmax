@@ -791,7 +791,7 @@
       }
     ],
     "sourceUrl": "https://discountsuitcompany.co.uk/",
-    "observedAt": "2026-10-05",
+    "observedAt": "2026-10-21",
     "anchor": {
       "kind": "house_cocktail",
       "label": "House cocktail",
@@ -812,7 +812,7 @@
       "lng": -0.07454
     },
     "sourceName": "discountsuitcompany.co.uk",
-    "expiresAt": "2026-11-04",
+    "expiresAt": "2026-11-20",
     "discoveredVia": "manual",
     "extractedVia": "manual"
   },
@@ -1016,7 +1016,7 @@
       }
     ],
     "sourceUrl": "https://alchemybar.com/?alc-location=bar-with-shapes-for-a-name",
-    "observedAt": "2026-10-05",
+    "observedAt": "2026-10-21",
     "anchor": {
       "kind": "house_cocktail",
       "label": "Shapes cocktail",
@@ -1037,7 +1037,7 @@
       "lng": -0.07634
     },
     "sourceName": "alchemybar.com",
-    "expiresAt": "2026-11-04",
+    "expiresAt": "2026-11-20",
     "discoveredVia": "manual",
     "extractedVia": "manual"
   },
@@ -1154,7 +1154,7 @@
       }
     ],
     "sourceUrl": "https://calloohcallaybar.com/",
-    "observedAt": "2026-10-05",
+    "observedAt": "2026-10-21",
     "anchor": {
       "kind": "house_cocktail",
       "label": "Callooh Callay cocktail",
@@ -1175,7 +1175,7 @@
       "lng": -0.08052
     },
     "sourceName": "calloohcallaybar.com",
-    "expiresAt": "2026-11-04",
+    "expiresAt": "2026-11-20",
     "discoveredVia": "manual",
     "extractedVia": "manual"
   },

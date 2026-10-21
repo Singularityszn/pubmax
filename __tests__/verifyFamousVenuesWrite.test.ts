@@ -1,7 +1,8 @@
-import { readFileSync } from "node:fs";
+import { mkdtempSync, mkdirSync, readFileSync, readdirSync, renameSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
 import path from "node:path";
 
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
   type AnchorSourceHead,
@@ -9,10 +10,16 @@ import {
   idsCoveredByPartialVerifications,
   parseVerificationLimit,
   remainingBatchSize,
+  runVerification,
   selectVerificationBatch,
   summarizeVerification,
   verifyRowWithPlaces,
 } from "@/scripts/verify_famous_venues.mjs";
+
+vi.mock("node:fs", async (original) => {
+  const fs = await original<typeof import("node:fs")>();
+  return { ...fs, renameSync: vi.fn(fs.renameSync) };
+});
 
 type Row = { id: string; name: string; observedAt: string; expiresAt: string };
 
@@ -266,5 +273,231 @@ describe("verify:famous-venues daily batch", () => {
     expect(parseVerificationLimit(["--write"])).toBeNull();
     expect(parseVerificationLimit(["--limit", "40"])).toBe(40);
     expect(() => parseVerificationLimit(["--limit", "0"])).toThrow(/positive integer/);
+  });
+});
+
+describe("famous verifier targeted durable continuation", () => {
+  let root: string;
+  let stateRoot: string;
+  let famous: string;
+  let receipt: string;
+  const day = () => new Date("2026-10-21T12:00:00.000Z");
+  const venues = ["a", "b", "c"].map((id) => ({
+    ...wongKei("https://wongkei.example/wardour-street/menu"),
+    id,
+    anchor: { sourceUrl: "https://wongkei.example/wardour-street/menu", observedAt: "2026-08-25" },
+  }));
+  const json = (file: string) => JSON.parse(readFileSync(file, "utf8"));
+  const packs = () => json(path.join(famous, "bars.json"));
+  const args = (ids = "a,b,c", evidence = receipt) => ["--write", "--ids", ids, "--spent-receipt", evidence];
+  const network = () => vi.fn(async (url: string | URL | Request, init?: RequestInit) => {
+    if (String(url).includes("places.googleapis.com")) return Response.json(placesFixture("operational_match.json").body);
+    if (String(url).endsWith("/robots.txt")) return new Response("User-agent: *\nAllow: /\n");
+    if (init?.method === "HEAD") return new Response(null, { status: 200 });
+    throw new Error("Unexpected mocked request");
+  });
+  const run = (fetchImpl: typeof fetch, argv = args(), now = day) => runVerification({
+    argv, root, stateRoot, fetchImpl, now, apiKey: "fake-test-key",
+  });
+
+  beforeEach(() => {
+    vi.stubGlobal("fetch", vi.fn(async () => { throw new Error("Live fetch denied in this suite"); }));
+    root = mkdtempSync(path.join(tmpdir(), "pubmax-famous-mock-"));
+    stateRoot = path.join(root, "state");
+    famous = path.join(root, "data", "famous_venues");
+    mkdirSync(famous, { recursive: true });
+    for (const file of ["bars.json", "late_food.json", "restaurants.json"]) {
+      writeFileSync(path.join(famous, file), JSON.stringify(file === "bars.json" ? venues : []));
+    }
+    receipt = path.join(root, "receipt.json");
+    writeFileSync(receipt, JSON.stringify({ placesCalls: 98, maxPlacesCalls: 100 }));
+  });
+  afterEach(() => {
+    vi.mocked(renameSync).mockRestore();
+    vi.unstubAllGlobals();
+    rmSync(root, { recursive: true, force: true });
+  });
+
+  it("retains two renewals from 98 spent calls, refuses a third, and cannot reset through a copied receipt", async () => {
+    const fetchImpl = network();
+    await expect(run(fetchImpl)).rejects.toThrow(/budget/);
+    expect(fetchImpl.mock.calls.filter(([url]) => String(url).includes("places.googleapis.com"))).toHaveLength(2);
+    expect(packs().map((v: Row) => v.observedAt)).toEqual(["2026-10-21", "2026-10-21", "2026-08-25"]);
+    expect(packs()[0].anchor.observedAt).toBe("2026-08-25");
+    const artifact = json(path.join(famous, "verification_2026-10-21.json"));
+    expect(artifact.checks.map((c: { id: string }) => c.id)).toEqual(["a", "b"]);
+    const copy = path.join(root, "copied-receipt.json");
+    writeFileSync(copy, readFileSync(receipt));
+    const resumed = network();
+    await expect(run(resumed, args("a,b,c", copy))).rejects.toThrow(/halt|budget/);
+    expect(resumed).not.toHaveBeenCalled();
+    const serialized = JSON.stringify(artifact);
+    expect(serialized).not.toContain("OPERATIONAL");
+    expect(serialized).not.toContain("41-43 Wardour St, London W1D 6PY, UK");
+    expect(serialized).not.toContain("fake-test-key");
+  });
+
+  it("uses a finite receipt ceiling before another provider dispatch", async () => {
+    writeFileSync(receipt, JSON.stringify({ placesCalls: 39, maxPlacesCalls: 40 }));
+    const fetchImpl = network();
+    await expect(run(fetchImpl)).rejects.toThrow(/budget/);
+    expect(fetchImpl.mock.calls.filter(([url]) => String(url).includes("places.googleapis.com"))).toHaveLength(1);
+    expect(packs().map((venue: Row) => venue.observedAt)).toEqual(["2026-10-21", "2026-08-25", "2026-08-25"]);
+    const task = path.join(stateRoot, readdirSync(stateRoot)[0]);
+    expect(json(path.join(task, "checkpoint.json")).placesCalls).toBe(40);
+    const resumed = network();
+    await expect(run(resumed)).rejects.toThrow(/halt|budget/);
+    expect(resumed).not.toHaveBeenCalled();
+  });
+
+  it.each([0, -1, 1.5, 101, "40", null])("refuses the invalid receipt ceiling %s before transport", async (maxPlacesCalls) => {
+    writeFileSync(receipt, JSON.stringify({ placesCalls: 0, maxPlacesCalls }));
+    const fetchImpl = network();
+    await expect(run(fetchImpl)).rejects.toThrow(/receipt budget/);
+    expect(fetchImpl).not.toHaveBeenCalled();
+    expect(packs()).toEqual(venues);
+  });
+
+  it("keeps an exhausted original 100-request receipt blocked", async () => {
+    writeFileSync(receipt, JSON.stringify({ placesCalls: 100, maxPlacesCalls: 100 }));
+    const fetchImpl = network();
+    await expect(run(fetchImpl, args("a"))).rejects.toThrow(/budget/);
+    expect(fetchImpl.mock.calls.filter(([url]) => String(url).includes("places.googleapis.com"))).toHaveLength(0);
+    expect(packs()).toEqual(venues);
+    const task = path.join(stateRoot, readdirSync(stateRoot)[0]);
+    expect(json(path.join(task, "checkpoint.json")).placesCalls).toBe(100);
+  });
+
+  it("refuses a durable counter above its receipt ceiling before transport", async () => {
+    writeFileSync(receipt, JSON.stringify({ placesCalls: 0, maxPlacesCalls: 1 }));
+    const initial = network();
+    await run(initial, args("a"));
+    expect(initial.mock.calls.filter(([url]) => String(url).includes("places.googleapis.com"))).toHaveLength(1);
+    const task = path.join(stateRoot, readdirSync(stateRoot)[0]);
+    const checkpointPath = path.join(task, "checkpoint.json");
+    const checkpoint = json(checkpointPath);
+    checkpoint.placesCalls = 2;
+    writeFileSync(checkpointPath, JSON.stringify(checkpoint));
+    const resumed = network();
+    await expect(run(resumed, args("a"))).rejects.toThrow(/checkpoint counters/);
+    expect(resumed).not.toHaveBeenCalled();
+  });
+
+  it.each(["missing", "a,a"])("refuses invalid target %s without transport", async (ids) => {
+    const fetchImpl = network();
+    await expect(run(fetchImpl, args(ids))).rejects.toThrow(/unknown|duplicate/i);
+    expect(fetchImpl).not.toHaveBeenCalled();
+  });
+
+  it("requires an immutable receipt with explicit targets and rejects a malformed count", async () => {
+    const fetchImpl = network();
+    await expect(run(fetchImpl, ["--ids", "a"])).rejects.toThrow(/receipt/);
+    writeFileSync(receipt, '{"placesCalls":-1,"maxPlacesCalls":100}');
+    await expect(run(fetchImpl)).rejects.toThrow(/receipt/);
+    expect(fetchImpl).not.toHaveBeenCalled();
+  });
+
+  it.each(["failure", "429"])("counts provider %s, retains completed rows, and never repeats the failed row", async (failure) => {
+    let searches = 0;
+    const base = network();
+    const fetchImpl = vi.fn(async (url: string | URL | Request, init?: RequestInit) => {
+      if (String(url).includes("places.googleapis.com") && ++searches === 2) {
+        if (failure === "429") return new Response(null, { status: 429, headers: { "retry-after": "60" } });
+        throw new Error("fixture interruption");
+      }
+      return base(url, init);
+    });
+    await expect(run(fetchImpl)).rejects.toThrow(/halt|429|provider/);
+    expect(packs()[0].observedAt).toBe("2026-10-21");
+    expect(packs()[1]).toEqual(venues[1]);
+    const resumed = network();
+    await expect(run(resumed)).rejects.toThrow(/halt/);
+    expect(resumed).not.toHaveBeenCalled();
+    const task = path.join(stateRoot, readdirSync(stateRoot)[0]);
+    expect(json(path.join(task, "checkpoint.json")).placesCalls).toBe(100);
+  });
+
+  it("replays the old check without another call and counts only the new day's artifact call", async () => {
+    const actual = await vi.importActual<typeof import("node:fs")>("node:fs");
+    vi.mocked(renameSync).mockImplementation((from, to) => {
+      if (String(to) === path.join(famous, "verification_2026-10-21.json")) throw new Error("fixture output interruption");
+      return actual.renameSync(from, to);
+    });
+    const fetchImpl = network();
+    await expect(run(fetchImpl, args("a,b"))).rejects.toThrow(/output interruption/);
+    expect(packs()[0].observedAt).toBe("2026-10-21");
+    vi.mocked(renameSync).mockImplementation(actual.renameSync);
+    const resumed = network();
+    await run(resumed, args("a,b"), () => new Date("2026-10-22T12:00:00Z"));
+    expect(resumed.mock.calls.filter(([url]) => String(url).includes("places.googleapis.com"))).toHaveLength(1);
+    expect(packs()[0].observedAt).toBe("2026-10-21");
+    expect(packs()[1].observedAt).toBe("2026-10-22");
+    expect(json(path.join(famous, "verification_2026-10-21.json")).checks[0].checkedAt).toBe("2026-10-21T12:00:00.000Z");
+    expect(json(path.join(famous, "verification_2026-10-21.json")).summary.placesLiveApiCalls).toBe(1);
+    expect(json(path.join(famous, "verification_2026-10-22.json")).summary.placesLiveApiCalls).toBe(1);
+    const task = path.join(stateRoot, readdirSync(stateRoot)[0]);
+    expect(json(path.join(task, "checkpoint.json")).placesCalls).toBe(100);
+  });
+
+  it("rejects third-party pack changes instead of replaying across them", async () => {
+    await run(network(), args("a"));
+    const changed = packs(); changed[1].name = "Another owner's edit";
+    writeFileSync(path.join(famous, "bars.json"), JSON.stringify(changed));
+    const resumed = network();
+    await expect(run(resumed, args("a"))).rejects.toThrow(/changed|preimage|unrelated/);
+    expect(resumed).not.toHaveBeenCalled();
+    expect(packs()[1].name).toBe("Another owner's edit");
+  });
+
+  it("keeps a completed provider dispatch indeterminate until its derived check is durable", async () => {
+    const actual = await vi.importActual<typeof import("node:fs")>("node:fs");
+    vi.mocked(renameSync).mockImplementation((from, to) => {
+      if (String(to).endsWith("checkpoint.json")) {
+        const next = json(String(from));
+        if (next.active?.kind === "places" && next.lastResponse?.kind === "places") {
+          actual.renameSync(from, to);
+          throw new Error("fixture crash after response checkpoint");
+        }
+      }
+      return actual.renameSync(from, to);
+    });
+    await expect(run(network(), args("a"))).rejects.toThrow(/crash after response/);
+    vi.mocked(renameSync).mockImplementation(actual.renameSync);
+    const task = path.join(stateRoot, readdirSync(stateRoot)[0]);
+    expect(json(path.join(task, "checkpoint.json")).placesCalls).toBe(99);
+    const resumed = network();
+    await expect(run(resumed, args("a"))).rejects.toThrow(/EEXIST/);
+    // Simulate an operator releasing this fixture's dead writer, never a live lock.
+    rmSync(path.join(task, "lock"));
+    await expect(run(resumed, args("a"))).rejects.toThrow(/indeterminate/);
+    expect(resumed).not.toHaveBeenCalled();
+    expect(packs()[0]).toEqual(venues[0]);
+  });
+
+  it("counts an oversized provider body and halts without storing its content", async () => {
+    const base = network();
+    const fetchImpl = vi.fn(async (url: string | URL | Request, init?: RequestInit) => String(url).includes("places.googleapis.com")
+      ? new Response(new Uint8Array(1024 * 1024 + 1)) : base(url, init));
+    await expect(run(fetchImpl, args("a"))).rejects.toThrow(/provider/);
+    const task = path.join(stateRoot, readdirSync(stateRoot)[0]);
+    const checkpoint = json(path.join(task, "checkpoint.json"));
+    expect(checkpoint.placesCalls).toBe(99);
+    expect(checkpoint.halt).toMatch(/provider/);
+    expect(packs()[0]).toEqual(venues[0]);
+  });
+
+  it("preserves immutable snapshots and refuses scope changes or a damaged checkpoint", async () => {
+    await run(network(), args("a"));
+    const task = path.join(stateRoot, readdirSync(stateRoot)[0]);
+    const snapshotDir = path.join(task, "snapshots");
+    const before = readdirSync(snapshotDir).map((name) => [name, readFileSync(path.join(snapshotDir, name), "utf8")]);
+    const resumed = network();
+    await expect(run(resumed, args("b"))).rejects.toThrow(/scope|target/);
+    await run(resumed, args("a"));
+    expect(resumed).not.toHaveBeenCalled();
+    expect(readdirSync(snapshotDir).map((name) => [name, readFileSync(path.join(snapshotDir, name), "utf8")])).toEqual(before);
+    rmSync(path.join(task, "checkpoint.json"));
+    await expect(run(resumed, args("a"))).rejects.toThrow(/checkpoint/);
+    expect(resumed).not.toHaveBeenCalled();
   });
 });
