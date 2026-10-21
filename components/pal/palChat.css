@@ -8,7 +8,7 @@
   min-height: 100dvh;
   /* No top safe-area inset: SiteNav renders above this main and already pays
      the notch (components/nav/siteNav.css); paid here too it was a blank band
-     the notch's height under the bar (__tests__/pageShellSafeAreaTop.test.ts). */
+     the notch's height under the bar (e2e/page-shell-safe-area-top.spec.ts). */
   /* Plain paper: coral is the composer's submit, never a wash behind it. */
   background: var(--paper);
   color: var(--ink);

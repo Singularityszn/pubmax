@@ -1,7 +1,7 @@
 import { refineVenueBudgetFollowUp } from "@/lib/ask/router";
 import type { PubPalFenceTurn } from "@/lib/pubPalLlmFence";
 
-/** How many of the person's newest lines a Pal session carries. */
+/** How many recent user and assistant lines a Pal session carries. */
 export const PAL_SESSION_RECENT_TURNS = 6;
 
 /**
@@ -56,9 +56,8 @@ function rollSummary(summary: string, evicted: PubPalFenceTurn[]): string {
 }
 
 /**
- * Keep the newest lines and roll every older one into the
- * summary. The store and the typed turn both window through here, so a line is
- * never dropped without reaching the summary.
+ * Keep the newest lines and summarize older user asks. Older assistant lines
+ * do not enter the summary. The store and typed turns use the same window.
  */
 export function windowPalSessionTurns(
   summary: string,

@@ -16,7 +16,7 @@
      The bar also pays the notch (components/nav/siteNav.css), so the top
      safe-area inset is never added here again: added twice, it put a blank
      band the height of the notch between the bar and the head on an iPhone
-     (__tests__/pageShellSafeAreaTop.test.ts). */
+     (e2e/page-shell-safe-area-top.spec.ts). */
   padding: var(--space-6) clamp(1rem, 4vw, 4.5rem) calc(6rem + env(safe-area-inset-bottom));
   color: var(--pal-paper);
   font-family: var(--font-body);
