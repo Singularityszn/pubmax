@@ -12,6 +12,7 @@ import { readSpoonsValue } from "@/lib/spoonsValue.server";
 import { pricePulseLastModified, publishedEditions } from "@/lib/pricePulse";
 import { PRICE_PULSE_EDITION_FILES } from "@/lib/pricePulseEditions";
 import { EXPLAINER_REVIEWED_ON } from "@/lib/pricePulseExplainer";
+import { PUBLIC_UPDATES } from "@/lib/publicUpdates";
 import {
   drinkBrandAreaLandingRoute,
   loadDrinkBrandAreaLandings,
@@ -202,6 +203,12 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     { path: "/privacy", priority: 0.3, changeFrequency: "yearly", lastModified: now },
     { path: "/terms", priority: 0.3, changeFrequency: "yearly", lastModified: now },
     { path: "/credits", priority: 0.3, changeFrequency: "monthly", lastModified: now },
+    {
+      path: "/updates",
+      priority: 0.4,
+      changeFrequency: "weekly",
+      lastModified: new Date(`${PUBLIC_UPDATES[0].date}T00:00:00Z`),
+    },
     // The public account-deletion page. Play Console holds this URL in its Data
     // safety form and expects to be able to open it, so it is listed like the
     // other token-free content pages rather than living only behind a link.

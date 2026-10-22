@@ -215,7 +215,7 @@ describe("the shipped budget file", () => {
     // the sitemap advertises (7 September 2026).
     // docs/PERFORMANCE_BUDGETS.md "Which routes are budgeted" holds the list;
     // __tests__/sitemap.test.ts fails a family that is advertised and unmeasured.
-    expect(PERFORMANCE_BUDGETS.routes).toHaveLength(48);
+    expect(PERFORMANCE_BUDGETS.routes).toHaveLength(49);
   });
 
   it("gives every route a readiness selector and a reason", () => {
