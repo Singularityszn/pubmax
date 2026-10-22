@@ -87,6 +87,40 @@ describe("Pal fail-closed price eval", () => {
     },
   );
 
+  it.each([
+    "The opening hours are unknown.",
+    "The price at The Coronet is listed and the opening hours are unknown.",
+    "No pint is available.",
+    "There is no listed figure for opening hours.",
+    "The opening hours are not known.",
+    "The heritage is not recorded.",
+    ...["cannot", "can't", "do not", "don't"].flatMap((inability) =>
+      ["confirm", "verify", "provide", "know"].map((verb) => `I ${inability} ${verb} the opening hours.`)),
+    "The price is listed, but the opening hours are unknown.",
+    "I cannot confirm the opening hours. The price is listed.",
+  ])("rejects an unrelated absence statement: %s", async (answer) => {
+    const body = await ask("How much is a pint at The Coronet?");
+    const outcome = gradePalCase({ ...body, answer }, {
+      priceAnswer: { venueId: "venue-60y3sa", value: null },
+    }, index);
+    expect(outcome.pass).toBe(false);
+    expect(outcome.checks).toContainEqual(expect.objectContaining({ name: "unknown_price_disclosed", pass: false }));
+  });
+
+  it.each([
+    "The price is unknown.",
+    "The pint price at The Coronet is not known.",
+    "The price for The Coronet is not recorded.",
+    "No current recorded pint price is available.",
+    ...["cannot", "can't", "do not", "don't"].flatMap((inability) =>
+      ["confirm", "verify", "provide", "know"].map((verb) => `I ${inability} ${verb} the price.`)),
+  ])("accepts a price absence statement: %s", async (answer) => {
+    const body = await ask("How much is a pint at The Coronet?");
+    expect(gradePalCase({ ...body, answer }, {
+      priceAnswer: { venueId: "venue-60y3sa", value: null },
+    }, index).pass).toBe(true);
+  });
+
   it("rejects silence about the unknown price", async () => {
     const body = await ask("How much is a pint at The Coronet?");
     const outcome = gradePalCase({ ...body, answer: "The Coronet is in Islington." }, {

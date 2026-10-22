@@ -38,14 +38,19 @@ async function readVenueHours(query: string, ctx: AskToolContext): Promise<AskTo
     .replace(/^(?:what(?:['’]s|\s+(?:is|are))|(?:can|could|would)\s+you\s+(?:tell|show)\s+me|(?:tell|show)\s+me)\s+/i, "")
     .split(/\b(?:near|next to|close to|beside|around)\b/i)[0] ?? "";
   const [before, after] = question.split(/\b(?:opening|closing)\s+(?:hours|times)\b/i);
-  const subject = after?.trim() ? after : before ?? "";
-  const name = wordsOnly(subject.replace(/['’]s(?=\s*[,.;:!?]*\s*$)/i, "")
+  const subject = (after?.trim() ? after : before ?? "")
     .replace(/^\s*(?:of|at|for)\s+/i, "").replace(
-    /^\s*(?:a|an|the)\s+(?:(?!(?:pub|bar|venue|place)\b)[^\s,.!?;]+\s+)*(?:pub|bar|venue|place)\s+(?:called|named)\s+/i, "",
-  )).replace(/^the\s+/, "");
-  const matches = venues.filter((candidate) => venueSearchNames(candidate).some(
-    (label: string) => wordsOnly(label).replace(/^the\s+/, "") === name,
-  ));
+      /^\s*(?:a|an|the)\s+(?:(?!(?:pub|bar|venue|place)\b)[^\s,.!?;]+\s+)*(?:pub|bar|venue|place)\s+(?:called|named)\s+/i, "",
+    );
+  const matchingVenues = (phrase: string) => {
+    const name = wordsOnly(phrase).replace(/^the\s+/, "");
+    return venues.filter((candidate) => venueSearchNames(candidate).some(
+      (label: string) => wordsOnly(label).replace(/^the\s+/, "") === name,
+    ));
+  };
+  const completeMatches = matchingVenues(subject);
+  const matches = completeMatches.length ? completeMatches
+    : matchingVenues(subject.replace(/['’]s(?=\s*[,.;:!?]*\s*$)/i, ""));
   const venue = matches.length === 1 ? matches[0] : null;
   if (!venue) return empty;
 

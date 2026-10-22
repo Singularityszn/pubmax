@@ -48,6 +48,51 @@ describe("recorded opening-hours sources", () => {
     expect(body.sources[0]?.url).toBe(site.sourceUrl);
   });
 
+  it("isolates the requested pub before reading details", async () => {
+    io.venues.mockResolvedValue([
+      { id: "blackfriar", name: "The Blackfriar", area: "City", lat: 51.5, lng: -0.1 },
+      { id: "old-bell", name: "The Old Bell Tavern", area: "City", lat: 51.5, lng: -0.1 },
+    ]);
+    io.detail.mockResolvedValue({ status: "found", venue: { siteFacts: site } });
+    const body = await runAsk({
+      query: "What are the opening hours of The Blackfriar near The Old Bell Tavern?", now, skipModel: true,
+    });
+    expect(body.cards.map((card) => card.venueId)).toEqual(["blackfriar"]);
+    expect(io.detail).toHaveBeenCalledExactlyOnceWith("blackfriar");
+  });
+
+  it.each([
+    ["What are the opening hours of Erin's?", "erins"],
+    ["What are Erin's opening hours?", "erins"],
+    ["What are the opening hours of Erin's's?", "erins"],
+    ["What are Erin's's opening hours?", "erins"],
+    ["What are the opening hours at a pub called Erin's - Listed?", "erins"],
+    ["What are the opening hours at a pub named Erin's - Listed's?", "erins"],
+    ["What are the opening hours of Erin?", "erin"],
+  ])("prefers complete names and aliases before possessives: %s", async (query, venueId) => {
+    io.venues.mockResolvedValue([
+      { id: "erins", name: "Erin's", sourceName: "Erin's - Listed", area: "City", lat: 51.5, lng: -0.1 },
+      { id: "erin", name: "Erin", area: "Camden", lat: 51.5, lng: -0.1 },
+    ]);
+    io.detail.mockResolvedValue({ status: "found", venue: { siteFacts: site } });
+    const body = await runAsk({ query, now, skipModel: true });
+    expect(body.cards.map((card) => card.venueId)).toEqual([venueId]);
+    expect(io.detail).toHaveBeenCalledExactlyOnceWith(venueId);
+  });
+
+  it("rejects an ambiguous complete name before any detail or schedule read", async () => {
+    io.venues.mockResolvedValue([
+      { id: "erins-one", name: "Erin's", area: "City", lat: 51.5, lng: -0.1 },
+      { id: "erins-two", name: "Erin's", area: "Camden", lat: 51.5, lng: -0.1 },
+      { id: "erin", name: "Erin", area: "Camden", lat: 51.5, lng: -0.1 },
+    ]);
+    const body = await runAsk({ query: "What are the opening hours of Erin's?", now, skipModel: true });
+    expect(body.cards).toEqual([]);
+    expect(body.answer).toContain("Which pub do you mean?");
+    expect(io.detail).not.toHaveBeenCalled();
+    expect(io.schedules).not.toHaveBeenCalled();
+  });
+
   it("keeps Google's own hours and date ahead of website hours", async () => {
     io.detail.mockResolvedValue({ status: "found", venue: {
       siteFacts: site,
