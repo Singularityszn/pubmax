@@ -44,7 +44,10 @@ test.describe("completed public discovery documents without JavaScript", () => {
   test("Tonight exposes recommendations and a completed listing availability answer", async ({ page }) => {
     const response = await page.goto("/tonight");
     expect(response?.status()).toBe(200);
-    await expect(page.getByRole("heading", { name: "Pubs Londoners keep recommending" })).toBeVisible();
+    await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
+    // Recommendations can expire. The keyless listing availability answer
+    // must remain readable even when no recommendation clears its age limit.
+    await expect(page.locator('[data-testid="tonight-lede"]')).toBeVisible();
     await expect(page.locator('[data-testid="tonight-lede"]')).not.toContainText("Loading listings");
     await expect(page.locator('[data-testid="tonight-lede"]')).toContainText(/not available|No confirmed|not set up|not configured|couldn.t|unavailable|Nothing confirmed/i);
   });
