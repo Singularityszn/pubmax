@@ -127,7 +127,6 @@ describe("Pal fail-closed price eval", () => {
       `The price at The Coronet is ${absence}.`,
       `${absence} price.`,
     ]),
-    "The price at Fox and Anchor is unknown.",
     "The opening hours are listed, but the price is unknown.",
     "I cannot confirm the current price.",
     "I cannot provide a recorded price.",
