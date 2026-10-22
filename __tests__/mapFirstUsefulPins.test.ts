@@ -1,8 +1,5 @@
 // @vitest-environment jsdom
 
-import { readFileSync } from "node:fs";
-import { join } from "node:path";
-
 import { act, createElement, useEffect } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -13,6 +10,7 @@ import {
   openingLocationCancellationAfterAttempt,
   resolveInitialSlimShardLifecycle,
   scheduleSlimShardViewportLoad,
+  scheduleSlimShardRingLoads,
 } from "@/lib/slimShards";
 
 (globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT?: boolean })
@@ -83,16 +81,24 @@ describe("first useful map pins", () => {
     expect(setTimeout).toHaveBeenCalledWith(refreshLoad, 1_000);
   });
 
-  it("wires every settled viewport through the two ring lanes", () => {
-    const source = readFileSync(
-      join(process.cwd(), "components/PubMap.tsx"),
-      "utf8",
-    );
-
-    expect(source).toContain("scheduleRingLoad(loader, bounds);");
-    expect(source).not.toContain('scheduleRingLoad(loader, bounds, "target")');
-    expect(source).not.toContain('scheduleRingLoad(loader, bounds, "refresh")');
-    expect(source).toContain("useInitialSlimShardStart({");
+  it("loads the visible ring before the neighbouring ring for each settled viewport", () => {
+    const reads: string[] = [];
+    const idle: Array<() => void> = [];
+    const timing = {
+      requestIdleCallback: (callback: IdleRequestCallback) => {
+        idle.push(() => callback({ didTimeout: false, timeRemaining: () => 50 }));
+        return idle.length;
+      },
+      setTimeout: vi.fn(),
+    };
+    for (const viewport of ["Soho", "Camden"]) {
+      scheduleSlimShardRingLoads(() => reads.push(viewport), () => reads.push(`${viewport} neighbours`), timing);
+      expect(reads.at(-1)).toBe(viewport);
+      idle.shift()?.();
+      expect(reads.at(-1)).toBe(`${viewport} neighbours`);
+    }
+    expect(reads).toEqual(["Soho", "Soho neighbours", "Camden", "Camden neighbours"]);
+    expect(timing.setTimeout).not.toHaveBeenCalled();
   });
 
   it("keeps the compatibility-core viewport stable while location resolves", () => {

@@ -1,6 +1,7 @@
 import "server-only";
 
 import { defaultKnownAreas, deterministicAreaInText, extractExplicitBudget } from "@/lib/concierge/intentPolicy";
+import { NIGHT_AREAS } from "@/lib/nightAreas";
 import { composeAnswer, runAsk } from "@/lib/ask/runAsk";
 import { recordedDrinkComparison, refineRoutedAskQuery, resolveAskPriceIntent, routeAskDeterministically, unsupportedPriceComparison } from "@/lib/ask/router";
 import type { AskCard, AskProposal } from "@/lib/ask/types";
@@ -178,7 +179,33 @@ export async function preparePalElevenLabsChatTurn(
 
 /** Constrained local record answers that need no provider narration or durable plan write. */
 export function palChatRecordQuery(query: string, turns: readonly PubPalFenceTurn[] = []): string | null {
+  if (unsupportedPriceComparison(query) || recordedDrinkComparison(query)) return query;
   const priorAsks = turns.filter((turn) => turn.role === "user").map((turn) => turn.content);
+  const sameArea = /(?:\b(?:in|near|around)\s+)?\b(?:the\s+)?same\s+(?:area|patch|neighbou?rhood)\b/gi;
+  if (sameArea.test(query)) {
+    const namedQuery = query.replace(sameArea, "");
+    const namedArea = deterministicAreaInText(namedQuery, defaultKnownAreas());
+    let resolvedArea = namedArea;
+    if (!resolvedArea) {
+      for (const prior of [...priorAsks].reverse()) {
+        const text = prior.replace(sameArea, "");
+        const area = deterministicAreaInText(text, defaultKnownAreas());
+        if (!area) continue;
+        const candidates = NIGHT_AREAS.filter((candidate) => [candidate.name, ...candidate.aliases].some((label) => {
+          const escaped = label.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+          return new RegExp(`\\b${escaped}\\b`, "iu").test(text);
+        }));
+        const location = text.match(/\b(?:in|near|around)\s+(.+?)(?=[.!?]|$)/iu)?.[1] ?? area;
+        const places = location.replace(area, "").replace(/,?\s*\band\s+(?:show|put|open|map)\b.*$/i, "");
+        if (candidates.length > 1 || /\b(?:or|and)\b|[,/]/i.test(places)
+          || (candidates.length === 0 && /\b(?:or|and)\b|[,/]/i.test(area))) return null;
+        resolvedArea = area;
+        break;
+      }
+    }
+    if (!resolvedArea) return null;
+    query = namedArea ? namedQuery : query.replace(sameArea, `in ${resolvedArea}`);
+  }
   const routedQuery = refineRoutedAskQuery(query, priorAsks.at(-1), priorAsks);
   if (unsupportedPriceComparison(routedQuery) || recordedDrinkComparison(routedQuery)) return routedQuery;
   const intent = resolveAskPriceIntent(routedQuery);

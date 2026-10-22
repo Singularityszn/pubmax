@@ -9,20 +9,19 @@ import { pubPalMascotModelSrc } from "@/lib/pubPalMascot";
 import provenance from "@/public/brand/pals/provenance.json";
 import { DEFAULT_PAL_DRAFT, PAL_ONBOARDING_SPECIES } from "@/lib/pubPal";
 
-function portrait(modelSurface: boolean, compact = false) {
+function portrait(compact = false) {
   const container = document.createElement("div");
   container.innerHTML = renderToStaticMarkup(createElement(PalPortrait, {
     appearance: DEFAULT_PAL_DRAFT.appearance,
     name: "Nova",
     compact,
-    ...{ modelSurface },
   }));
   return container;
 }
 
 describe("the original Pal model portrait", () => {
   it("reserves the owned full portrait's named 3D surface while retaining its original picture", () => {
-    const container = portrait(true);
+    const container = portrait();
     const model = container.querySelector('[role="img"][aria-label*="Nova in 3D"]');
     expect(model).not.toBeNull();
     expect(model?.getAttribute("aria-hidden")).toBe("true");
@@ -30,11 +29,10 @@ describe("the original Pal model portrait", () => {
     expect(container.querySelector("img")?.getAttribute("src")).toContain("/pal/circuit-robin-");
   });
 
-  it("keeps compact avatars and the unclaimed meeting portrait as pictures", () => {
-    for (const container of [portrait(false), portrait(true, true)]) {
-      expect(container.querySelector('[aria-label*="in 3D"]')).toBeNull();
-      expect(container.querySelector("img")).not.toBeNull();
-    }
+  it("keeps compact avatars as pictures", () => {
+    const container = portrait(true);
+    expect(container.querySelector('[aria-label*="in 3D"]')).toBeNull();
+    expect(container.querySelector("img")).not.toBeNull();
   });
 });
 

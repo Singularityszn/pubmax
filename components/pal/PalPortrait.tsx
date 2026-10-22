@@ -57,7 +57,7 @@ function legacyIconFor(species: PubPalSpecies): { Icon: LucideIcon; description:
 const PORTRAIT_MASCOT_SIZES =
   "(max-width: 760px) min(10.44rem, 41.76vw), min(24.36rem, 42.92vw)";
 
-export default function PalPortrait({ appearance, name, compact = false, state = "idle", priority = false, genome, signal, modelSurface }: {
+export default function PalPortrait({ appearance, name, compact = false, state = "idle", priority = false, genome, signal }: {
   appearance: PubPalAppearance;
   name: string;
   compact?: boolean;
@@ -67,22 +67,13 @@ export default function PalPortrait({ appearance, name, compact = false, state =
   /** This Pal's genome: how its photograph is held. None for a draft. */
   genome?: PalGenome;
   signal?: PalVoiceSignal;
-  /**
-   * Unset, a full portrait draws its selected model under its own pose loop.
-   * True keeps the model surface for a caller whose frame already runs that
-   * loop. False keeps the still picture.
-   */
-  modelSurface?: boolean;
 }) {
   const frameRef = useRef<HTMLDivElement>(null);
-  // With modelSurface true the caller's frame runs the pose loop, so this
-  // frame stays out of it and the model never gets a second owner.
-  const ownsPose = modelSurface !== true;
   usePalHead3D(frameRef, {
     signal,
     state,
     temperament: genome?.temperament,
-    modelUrl: compact || modelSurface === false ? null : pubPalMascotModelSrc(appearance.species),
+    modelUrl: compact ? null : pubPalMascotModelSrc(appearance.species),
   });
   const mascotSize = compact ? 96 : 192;
   // A species that ships a master is drawn as that photograph. The legacy
@@ -93,7 +84,7 @@ export default function PalPortrait({ appearance, name, compact = false, state =
 
   return (
     <div
-      ref={ownsPose ? frameRef : undefined}
+      ref={frameRef}
       className={`palPortrait palPortrait-${appearance.signalAffinity} palPortrait-${appearance.material} ${compact ? "isCompact" : ""}`}
       data-pal-state={state}
       {...(genome ? { "data-genome": "", style: palGenomeStyle(genome) as React.CSSProperties } : {})}
@@ -121,7 +112,7 @@ export default function PalPortrait({ appearance, name, compact = false, state =
         ) : legacy ? (
           <legacy.Icon className="palLegacyIcon" strokeWidth={1.15} />
         ) : null}
-        {rendered && modelSurface !== false && !compact ? (
+        {rendered && !compact ? (
           <span
             className="palOriginalModelHost"
             data-pal-model-host=""

@@ -311,6 +311,49 @@ describe("runPalElevenLabsChatTurn", () => {
     expect(wsState.userMessageText).toBeNull();
   });
 
+  it.each([
+    ["Find me four pubs in the same area", "search_venues", 4],
+    ["A three-stop pub crawl in the same area", "propose_plan", 3],
+    ["Pints under £6.50 in the same area", "search_venues", 4],
+  ])("resolves the owned place before executing %s", async (query, tool, count) => {
+    storeMocks.readOwnedPubPalToolTurn.mockResolvedValue({ ...toolTurnPayload, query: "Find me four pubs in Soho", turns: [], summary: "" });
+    const deniedFetch = vi.fn(async () => { throw new Error("Provider egress denied"); });
+    vi.stubGlobal("fetch", deniedFetch);
+    const outcome = await runPalElevenLabsChatTurn({ query, ownerId: "11111111-1111-4111-8111-111111111111", threadId: "conv_ownedfollow1",
+      fenceTurns: [{ role: "user", content: "Find pubs in Camden" }],
+    });
+    expect(outcome).toMatchObject({ ok: true, toolsUsed: [tool] });
+    if (outcome.ok) {
+      expect(outcome.cards).toHaveLength(count);
+      const explicit = await runPalElevenLabsChatTurn({ query: query.replace("the same area", "Soho"), ownerId: "11111111-1111-4111-8111-111111111111" });
+      expect(explicit.ok).toBe(true);
+      if (explicit.ok) expect(outcome.cards.map((card) => card.venueId)).toEqual(explicit.cards.map((card) => card.venueId));
+    }
+    expect(deniedFetch).not.toHaveBeenCalled();
+    expect(wsState.socketsOpened).toBe(0);
+  });
+
+  it.each([
+    [],
+    [{ role: "assistant" as const, content: "Find me four pubs in Soho" }],
+    [{ role: "user" as const, content: "Find me four pubs in Soho or Camden" }],
+    [{ role: "user" as const, content: "Find me four pubs in Soho or Oxford" }],
+    [{ role: "user" as const, content: "Find me four pubs in Oxford and York" }],
+  ])("keeps unresolved references on the provider path: %j", (turns) => {
+    for (const query of ["Find me four pubs in the same area", "A pub crawl in the same area", "Pints under £6.50 in the same area"]) {
+      expect(palChatRecordQuery(query, turns)).toBeNull();
+    }
+  });
+
+  it("keeps the current named area ahead of an owned area reference", () => {
+    expect(palChatRecordQuery("Find me four pubs in Camden, not the same area", [{ role: "user", content: "Find pubs in Soho" }])).toContain("Camden");
+  });
+
+  it("keeps unsupported item comparisons independent of unresolved place references", () => {
+    const query = "Cheapest wine in the same area";
+    expect(palChatRecordQuery(query)).toBe(query);
+  });
+
   it("review regression: returns independent transit with the unsupported price answer", async () => {
     vi.stubGlobal("fetch", offlineFetch);
     const outcome = await runPalElevenLabsChatTurn({ query: "Any tube delays and how much is a burger in Camden?", ownerId: "11111111-1111-4111-8111-111111111111" });

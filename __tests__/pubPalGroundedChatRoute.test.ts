@@ -40,6 +40,33 @@ describe("configured Pub Pal local record answers", () => {
   });
   afterEach(() => { vi.unstubAllEnvs(); vi.unstubAllGlobals(); });
 
+  it.each([
+    ["Find me four pubs in the same area", "search_venues", 4],
+    ["A three-stop pub crawl in the same area", "propose_plan", 3],
+    ["Pints under £6.50 in the same area", "search_venues", 4],
+  ])("answers an owned same-area follow-up without provider routing: %s", async (query, tool, count) => {
+    const ask = (body: Record<string, unknown>) => POST(new Request("http://localhost/api/pub-pal/chat", {
+      method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body),
+    }));
+    const first = await ask({ query: "Find me four pubs in Soho", cityId: "london" });
+    expect(first.status).toBe(200);
+    const initial = await first.json();
+    expect(initial.conversationId).toBeTruthy();
+    const response = await ask({ query, cityId: "london", threadId: initial.conversationId,
+      turns: [{ role: "user", content: "Find me four pubs in Camden" }],
+    });
+    expect(response.status).toBe(200);
+    const answer = await response.json() as AskResponseBody;
+    expect(answer.toolsUsed).toEqual([tool]);
+    expect(answer.cards).toHaveLength(count);
+    const explicit = await ask({ query: query.replace("the same area", "Soho"), cityId: "london" });
+    expect(explicit.status).toBe(200);
+    const expected = await explicit.json() as AskResponseBody;
+    expect(answer.cards.map((card) => card.venueId)).toEqual(expected.cards.map((card) => card.venueId));
+    expect(fetch).not.toHaveBeenCalled();
+    expect(paidSpendBudgetRefusal).not.toHaveBeenCalled();
+  });
+
   it.each([false, true])("refuses a driving allowance that refers to earlier pints, configured=%s", async (configured) => {
     vi.stubEnv("ELEVENLABS_API_KEY", configured ? "test-key" : "");
     const response = await POST(new Request("http://localhost/api/pub-pal/chat", {

@@ -549,7 +549,7 @@ export async function runVerification({
   if (resolve(taskDir).startsWith(`${resolve(famousDir)}${sep}`) || resolve(taskDir) === resolve(famousDir)) {
     throw new Error("Checkpoint snapshots cannot alias producer outputs");
   }
-  const scopeHash = sha256(JSON.stringify({ write: options.write, limit: options.limit, ids: options.ids, receiptHash }));
+  const scopeHash = sha256(JSON.stringify({ limit: options.limit, ids: options.ids, receiptHash }));
   const { rows } = loadPacks(famousDir);
   const knownIds = new Set(rows.map(({ row }) => row.id));
   if (!existsSync(checkpointPath) && options.ids?.some((id) => !knownIds.has(id))) {
@@ -656,7 +656,7 @@ export async function runVerification({
       const candidates = options.ids ? rows.filter(({ row }) => options.ids.includes(row.id)) : rows;
       const entries = room === 0 ? [] : selectVerificationBatch(candidates, { limit: room, skipIds });
       state = {
-        version: 1, receiptHash, scopeHash, placesCalls: receipt.placesCalls, sourceCalls: 0,
+        version: 2, receiptHash, scopeHash, placesCalls: receipt.placesCalls, sourceCalls: 0,
         expected: {}, snapshots: [], records: entries.map(({ row }) => ({ id: row.id, status: "pending" })),
         active: null, journal: null, halt: null,
       };
@@ -670,7 +670,10 @@ export async function runVerification({
       const checkpointBytes = readFileSync(checkpointPath);
       try { state = JSON.parse(checkpointBytes.toString("utf8")); }
       catch { throw new Error("Invalid checkpoint JSON"); }
-      if (state.version !== 1 || state.scopeHash !== scopeHash || state.receiptHash !== receiptHash) {
+      const expectedScope = state.version === 1
+        ? sha256(JSON.stringify({ write: options.write, limit: options.limit, ids: options.ids, receiptHash }))
+        : scopeHash;
+      if (![1, 2].includes(state.version) || state.scopeHash !== expectedScope || state.receiptHash !== receiptHash) {
         throw new Error("Checkpoint scope or target mismatch");
       }
       if (!Number.isSafeInteger(state.placesCalls) || state.placesCalls < receipt.placesCalls || state.placesCalls > liveCallLimit ||
@@ -860,7 +863,7 @@ export async function runVerification({
     };
     // A completed check may be durable even when its output journal was not yet created.
     for (const record of state.records) {
-      if (record.status === "completed" && !record.applied) {
+      if (options.write && record.status === "completed" && !record.applied) {
         commitCheck(record.check);
         record.applied = true;
         persist();
@@ -901,7 +904,7 @@ export async function runVerification({
       state.active = null;
       persist();
       commitCheck(record.check);
-      record.applied = true;
+      record.applied = options.write;
       persist();
     }
     return finish();

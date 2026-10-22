@@ -201,6 +201,6 @@ describe("the no-mistakes repository test command", () => {
     });
     expect(defined(fallback).command).toBe("npm");
     expect(defined(fallback).args).toEqual(["run", "verify"]);
-    expect(defined(fallback).env).toEqual({ NODE_OPTIONS: "--max-old-space-size=2048" });
+    expect(defined(fallback).env).toEqual({ NODE_OPTIONS: "--max-old-space-size=2048", VITEST_MAX_WORKERS: "1" });
   });
 });

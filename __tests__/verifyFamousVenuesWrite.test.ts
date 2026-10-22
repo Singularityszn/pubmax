@@ -586,6 +586,66 @@ describe("famous verifier targeted durable continuation", () => {
     rmSync(root, { recursive: true, force: true });
   });
 
+  it("publishes the daily report on the same receipt without another request", async () => {
+    await expect(run(network(), [])).resolves.toMatchObject({ rowsChecked: 3, placesCalls: 3 });
+    expect(packs()).toEqual(venues);
+    const task = path.join(stateRoot, readdirSync(stateRoot)[0]);
+    const checkpointPath = path.join(task, "checkpoint.json");
+    const reported = json(checkpointPath);
+    const quiet = vi.fn(async () => { throw new Error("Daily publication must not send a request"); });
+    await expect(run(quiet, ["--write"])).resolves.toMatchObject({ rowsChecked: 3, placesCalls: 3 });
+    const published = json(checkpointPath);
+    expect(published.scopeHash).toBe(reported.scopeHash);
+    expect(published.receiptHash).toBe(reported.receiptHash);
+    expect(published.sourceCalls).toBe(reported.sourceCalls);
+    expect(quiet).not.toHaveBeenCalled();
+    expect(json(path.join(famous, "verification_2026-10-21.json")).checks).toHaveLength(3);
+  });
+
+  it("publishes recorded report checks without another request or budget allowance", async () => {
+    const reportArgs = args("a,b").filter((arg) => arg !== "--write");
+    const fetchImpl = network();
+    await expect(run(fetchImpl, reportArgs)).resolves.toMatchObject({ rowsChecked: 2, placesCalls: 100 });
+    expect(packs()).toEqual(venues);
+    expect(existsSync(path.join(famous, "verification_2026-10-21.json"))).toBe(false);
+    const task = path.join(stateRoot, readdirSync(stateRoot)[0]);
+    const checkpointPath = path.join(task, "checkpoint.json");
+    const reported = json(checkpointPath);
+    expect(reported.records.every((record: { applied?: boolean }) => !record.applied)).toBe(true);
+    const beforeSnapshots = readdirSync(path.join(task, "snapshots"));
+    const quiet = vi.fn(async () => { throw new Error("Publication must not send a request"); });
+    await expect(run(quiet, args("a,b"))).resolves.toMatchObject({ rowsChecked: 2, placesCalls: 100 });
+    expect(quiet).not.toHaveBeenCalled();
+    const published = json(checkpointPath);
+    for (const key of ["receiptHash", "scopeHash", "placesCalls", "sourceCalls", "sourceHashes"]) {
+      expect(published[key]).toEqual(reported[key]);
+    }
+    expect(published.records.every((record: { applied?: boolean }) => record.applied)).toBe(true);
+    expect(readdirSync(path.join(task, "snapshots"))).toEqual(expect.arrayContaining(beforeSnapshots));
+    expect(packs().map((venue: Row) => venue.observedAt)).toEqual(["2026-10-21", "2026-10-21", "2026-08-25"]);
+    expect(json(path.join(famous, "verification_2026-10-21.json")).summary.placesLiveApiCalls).toBe(2);
+    await run(quiet, reportArgs);
+    await run(quiet, args("a,b"));
+    expect(quiet).not.toHaveBeenCalled();
+  });
+
+  it("refuses a report-to-write transition for an older mode-bound checkpoint", async () => {
+    const reportArgs = args("a").filter((arg) => arg !== "--write");
+    await run(network(), reportArgs);
+    const task = path.join(stateRoot, readdirSync(stateRoot)[0]);
+    const checkpointPath = path.join(task, "checkpoint.json");
+    const legacy = json(checkpointPath);
+    legacy.version = 1;
+    legacy.scopeHash = createHash("sha256").update(JSON.stringify({ write: false, limit: null, ids: ["a"], receiptHash: legacy.receiptHash })).digest("hex");
+    writeFileSync(checkpointPath, JSON.stringify(legacy));
+    const before = readFileSync(checkpointPath);
+    const quiet = vi.fn(async () => { throw new Error("Older state must stay closed"); });
+    await expect(run(quiet, args("a"))).rejects.toThrow(/scope or target mismatch/);
+    expect(quiet).not.toHaveBeenCalled();
+    expect(readFileSync(checkpointPath)).toEqual(before);
+    expect(packs()).toEqual(venues);
+  });
+
   it("retains two renewals from 98 spent calls, refuses a third, and cannot reset through a copied receipt", async () => {
     const fetchImpl = network();
     await expect(run(fetchImpl)).rejects.toThrow(/budget/);

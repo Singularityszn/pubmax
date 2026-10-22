@@ -1,3 +1,5 @@
+// @vitest-environment jsdom
+
 // Picking an area must move the map, every time.
 //
 // DEFECT (captain, live, 2026-09-01, mobile): the map header read
@@ -10,10 +12,11 @@
 // flown at token 1 then picked an area, that pick arrived as token 1, and the
 // canvas read it as a move it had already made.
 
-import { readFileSync } from "node:fs";
-import { join } from "node:path";
-
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
+import { act, createElement } from "react";
+import { createRoot } from "react-dom/client";
+import type { Map as MapLibreMap } from "maplibre-gl";
+import { useMapCamera } from "@/components/map/canvas/useMapCamera";
 
 import {
   cameraIntentForFocusSource,
@@ -83,40 +86,6 @@ describe("two camera owners can never mint the same identity", () => {
   });
 });
 
-describe("the canvas holds the identity, never a bare number", () => {
-  const canvas = readFileSync(
-    join(__dirname, "..", "components/PubMapCanvas.tsx"),
-    "utf8",
-  );
-
-  it("compares through the shared rule", () => {
-    expect(canvas).toContain("mapCameraFocusMoves(focusPoint, focusKeyRef.current)");
-    // The number-only compare is what let one owner's move look like another's.
-    expect(canvas).not.toContain("focusPoint.token === focusTokenRef.current");
-  });
-});
-
-describe("both camera owners name themselves", () => {
-  const pubMap = readFileSync(
-    join(__dirname, "..", "components/PubMap.tsx"),
-    "utf8",
-  );
-
-  it("stamps a source on every focus it mints", () => {
-    expect(pubMap).toContain('source: "opening-location"');
-    expect(nextAreaCameraFocus(null, { center: LONDON, zoom: 14 }).source).toBe(
-      "area",
-    );
-  });
-
-  it("keeps the area lane as the ONE deliberate move", () => {
-    // moveMapCameraTo is the single door the choose-area pick, the Area
-    // sheet's "go somewhere else" and a map-search select all go through.
-    expect(pubMap).toContain("const moveMapCameraTo = useCallback(");
-    expect(pubMap).toContain("setAreaFocus((prev) => nextAreaCameraFocus(prev, camera));");
-  });
-});
-
 // The second half of the same defect, surfaced by MapLibre 6.10.0 readying the
 // map early enough that the opening-location answer can fly FIRST.
 //
@@ -140,13 +109,7 @@ describe("each camera owner rides its own intent lane", () => {
     expect(new Set(lanes).size).toBe(sources.length);
   });
 
-  it("is the rule the canvas asks, rather than a ternary of its own", () => {
-    const canvas = readFileSync(
-      join(__dirname, "..", "components/PubMapCanvas.tsx"),
-      "utf8",
-    );
-    expect(canvas).toContain("cameraIntentForFocusSource(focusPoint.source)");
-  });
+
 });
 
 // A cold map opens on the city view and makes its opening turn once the
@@ -169,4 +132,40 @@ describe("the opening answer settles before the turn may start", () => {
     expect(openingCameraSettled({ ...unsettled, cancelled: true })).toBe(true);
     expect(openingCameraSettled({ ...unsettled, touched: true })).toBe(true);
   });
+});
+
+(globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
+
+it.each([false, true])("executes opening and area moves in separate lanes, reduced motion=%s", (reduced) => {
+  const frames = new Map<number, FrameRequestCallback>();
+  let frameId = 0;
+  vi.stubGlobal("requestAnimationFrame", (callback: FrameRequestCallback) => { frames.set(++frameId, callback); return frameId; });
+  vi.stubGlobal("cancelAnimationFrame", (id: number) => frames.delete(id));
+  const map = { stop: vi.fn(), easeTo: vi.fn() };
+  const refs: Parameters<typeof useMapCamera>[0] = {
+    mapRef: { current: map as unknown as MapLibreMap },
+    reducedRef: { current: reduced },
+    cityViewRef: { current: { center: LONDON, zoom: 14, pitch: 34, bearing: 0 } },
+    cityBoundsRef: { current: [[-0.5, 51.3], [0.2, 51.7]] },
+    routeRef: { current: [] }, venuesRef: { current: [] },
+    gestureCameraRef: { current: { active: false, endedAt: Number.NEGATIVE_INFINITY } },
+  };
+  let camera: ReturnType<typeof useMapCamera> | undefined;
+  function Camera() { camera = useMapCamera(refs); return null; }
+  const root = createRoot(document.createElement("div"));
+  try {
+    act(() => root.render(createElement(Camera)));
+    for (const source of ["opening-location", "area"] as const) {
+      camera!.cinematic({ center: LONDON, zoom: 14, duration: 900 }, cameraIntentForFocusSource(source));
+      const pending = [...frames.values()];
+      frames.clear();
+      act(() => pending.forEach((callback) => callback(0)));
+    }
+    expect(map.easeTo).toHaveBeenCalledTimes(2);
+    expect(map.easeTo).toHaveBeenNthCalledWith(1, { center: LONDON, zoom: 14, duration: reduced ? 0 : 900 });
+    expect(map.easeTo).toHaveBeenNthCalledWith(2, { center: LONDON, zoom: 14, duration: reduced ? 0 : 900 });
+  } finally {
+    act(() => root.unmount());
+    vi.unstubAllGlobals();
+  }
 });
