@@ -4347,14 +4347,9 @@ export default function PubMap({
     return () => window.clearTimeout(handle);
   }, [mapSearchFieldFocused, searchOverlayOpen, trimmedMapQuery, selectVenue, ukPlaceArrival]);
 
-  // #397: a query restored from the URL (?q=) must fly to its matches exactly
-  // like typed search does (#371). The typed-search effect above deliberately
-  // skips first paint, and the arrival framing prop can miss the restore on the
-  // slow two-stage venue load (mapReady fires before slim pins match) — leaving
-  // the query in the field and a pin count on screen while the camera sits on
-  // the default view with no match in sight. Drive the same select-one /
-  // fit-many result here once the map is ready and the slim pins have matched.
-  // A zero-result query never moves the camera and never claims pins.
+  // A restored query frames its matches without reopening a closed sheet.
+  // Explicit sel owns sheet restoration, while typed search keeps its own
+  // select-one behavior. Wait until both the map and matching pins are ready.
   const didRestoreQueryFlyRef = useRef(false);
   useEffect(() => {
     const matches = filteredVenues;
@@ -4382,18 +4377,13 @@ export default function PubMap({
     // No matches can also mean the slim pins are still loading. Keep waiting
     // without consuming the one-shot restore.
     if (restore === "wait") return;
-    const firstMatchId = matches[0]?.id;
     // Defer the state write out of the effect body (matches the typed-search
     // effect above) and latch on the actual fire, so re-renders while the pins
     // are still settling reschedule cleanly instead of losing the fly-to.
     const handle = window.setTimeout(() => {
       didRestoreQueryFlyRef.current = true;
       searchQueryCameraOwnedRef.current = trimmedMapQuery;
-      if (restore === "select-single" && firstMatchId) {
-        selectVenue(firstMatchId);
-      } else if (restore === "fit-many") {
-        setSearchFitToken((token) => token + 1);
-      }
+      setSearchFitToken((token) => token + 1);
     }, 0);
     return () => window.clearTimeout(handle);
   }, [
@@ -4402,7 +4392,6 @@ export default function PubMap({
     arrivalSearch,
     trimmedMapQuery,
     selectedVenueId,
-    selectVenue,
   ]);
 
   const focusMapSearch = useCallback(() => {
