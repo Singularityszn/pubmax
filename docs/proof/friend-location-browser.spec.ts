@@ -18,7 +18,7 @@ async function attachEvidence(page: Page, fixture: Fixture, checkpoint: string):
   const panel = page.getByRole("region", { name: "Friend locations" });
   const statusNode = panel.getByRole("status");
   const status = await statusNode.count() ? await statusNode.textContent() : null;
-  const knownStatus = ["Sharing with selected mates.", "Updates paused while this page is hidden.", "Choose who can see you."];
+  const knownStatus = ["Sharing with selected mates.", "Updates paused while this page is hidden.", "Choose who can see you.", "Location updates stopped. Stop sharing, then start again.", "Locations could not be checked. Try again."];
   const receipt = {
     checkpoint, syntheticPositionsOnly: true,
     sourceHead: execFileSync("git", ["rev-parse", "HEAD"], { encoding: "utf8" }).trim(),
@@ -27,7 +27,16 @@ async function attachEvidence(page: Page, fixture: Fixture, checkpoint: string):
     permission: await page.evaluate(() => navigator.permissions.query({ name: "geolocation" }).then((permission) => permission.state)),
     nativeWatch: {
       activeIds: trace.active,
-      events: trace.events.map((event) => ({ kind: event.kind, id: event.id, source: event.source, state: event.state })),
+      events: trace.events.map((event) => ({ kind: event.kind, id: event.id, source: event.source, state: event.state, errorCode: event.errorCode, errorName: event.errorName, status: event.status })),
+    },
+    updateDiagnostics: {
+      patchRequests: fixture.calls.filter((call) => call.method === "PATCH").length,
+      completedPatchRequests: fixture.calls.filter((call) => call.method === "PATCH" && call.completed).length,
+      watchTaggedPatches: trace.events.filter((event) => event.kind === "patch" && event.source === "friend-watch").length,
+      otherTaggedPatches: trace.events.filter((event) => event.kind === "patch" && event.source === "other").length,
+      watchCallbacks: trace.events.filter((event) => event.kind === "callback").length,
+      nativeWatchErrors: trace.events.filter((event) => event.kind === "error").length,
+      nativeCurrentErrors: trace.events.filter((event) => event.kind === "current-error").length,
     },
     requests: fixture.calls.map((call) => ({
       method: call.method, completed: call.completed,
@@ -107,6 +116,16 @@ async function proveWorkingWatch(page: Page, context: BrowserContext, fixture: F
       }
     }
     throw new Error("No completed browser PATCH from a working native friend watcher.");
+  } catch (error) {
+    try {
+      await attachEvidence(page, fixture, "working-watch-failed");
+    } catch {
+      await test.info().attach("working-watch diagnostics unavailable", {
+        body: JSON.stringify({ checkpoint: "working-watch-failed", unavailable: true }),
+        contentType: "application/json",
+      }).catch(() => {});
+    }
+    throw error;
   } finally { fixture.releaseReads(); }
 }
 
