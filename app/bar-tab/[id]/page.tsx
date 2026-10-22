@@ -28,6 +28,9 @@ import "./barTab.css";
 //
 // A server component: the first paint already carries the grid. The only client
 // slivers are the ShareBar strips (native-share + copy-link fallback).
+//
+// missing is the not-found card. unavailable is the read-unavailable surface.
+// lookupVenueDetail does not cache a failed read, so the next request reads again.
 
 type PageProps = { params: Promise<{ id: string }> };
 
