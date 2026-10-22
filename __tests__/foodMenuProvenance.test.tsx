@@ -4,6 +4,7 @@ import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 import FoodMenu from "@/components/food/FoodMenu";
+import { buildFoodPricePack } from "../scripts/build_food_price_updates.mjs";
 import type { FoodItem } from "@/lib/food";
 import { venueFoodMenuForInspector } from "@/lib/venueFoodMenu";
 import {
@@ -178,6 +179,53 @@ describe("food menu price evidence", () => {
     expect(calories?.querySelector("a")?.getAttribute("href")).toBe("https://example.com/menu");
     expect(calories?.querySelector("time")?.getAttribute("datetime")).toBe("2026-10-13T12:00:00.000Z");
     expect(doc.body.textContent).not.toContain("Untrusted input");
+  });
+
+  it.each([1, 2])("keeps fact provenance after %i pack rebuild and serialization cycles", (cycles) => {
+    const now = Date.parse("2026-10-15T12:00:00.000Z");
+    const original = {
+      venueKey: "retained-menu-test",
+      itemName: "Soup (one bowl)",
+      category: "starters",
+      priceGbp: 5,
+      caloriesKcal: 0,
+      dietary: ["vegan"],
+      source: { label: "Original menu", url: "https://example.com/menu", licence: "Published facts" },
+      observedAt: "2026-10-12T12:00:00.000Z",
+    };
+    let serialized = JSON.stringify({ updates: [
+      original,
+      { ...original, priceGbp: 6, caloriesKcal: undefined, dietary: undefined,
+        source: { label: "Later price", url: "https://example.com/prices", licence: "Published price" },
+        observedAt: "2026-10-13T12:00:00.000Z" },
+    ] });
+    for (let cycle = 0; cycle < cycles; cycle += 1) {
+      const { pack } = buildFoodPricePack({
+        existing: JSON.parse(serialized),
+        harvested: [{ ...original, venueKey: "different-pub", observedAt: "2026-10-14T12:00:00.000Z" }],
+        now,
+      });
+      serialized = JSON.stringify(pack);
+    }
+    const updates = parseFoodPriceUpdates(JSON.parse(serialized), now);
+    const items = venueFoodMenuForInspector({ id: "retained-menu-test", prices: [] }, updates);
+    const doc = new DOMParser().parseFromString(renderToStaticMarkup(createElement(FoodMenu, { items })), "text/html");
+    expect(doc.querySelectorAll(".drinkRow")).toHaveLength(1);
+    expect(doc.querySelector(".drinkName")?.textContent).toBe("Soup (one bowl)");
+    expect(doc.querySelector(".drinkPrice")?.textContent).toBe("£6.00");
+    expect(doc.querySelector(".drinkRowSide a")?.textContent).toBe("Later price");
+    expect(doc.querySelector(".drinkRowSide a")?.getAttribute("href")).toBe("https://example.com/prices");
+    expect(doc.querySelector(".drinkRowSide time")?.getAttribute("datetime")).toBe("2026-10-13T12:00:00.000Z");
+    const dietary = doc.querySelector(".drinkServing");
+    expect(dietary?.textContent).toContain("vegan");
+    expect(dietary?.querySelector("a")?.textContent).toBe("Original menu");
+    expect(dietary?.querySelector("a")?.getAttribute("href")).toBe("https://example.com/menu");
+    expect(dietary?.querySelector("time")?.getAttribute("datetime")).toBe("2026-10-12T12:00:00.000Z");
+    const calories = doc.querySelector(".foodCalories");
+    expect(calories?.textContent).toContain("0 kcal on the menu");
+    expect(calories?.querySelector("a")?.textContent).toBe("Original menu");
+    expect(calories?.querySelector("a")?.getAttribute("href")).toBe("https://example.com/menu");
+    expect(calories?.querySelector("time")?.getAttribute("datetime")).toBe("2026-10-12T12:00:00.000Z");
   });
 
   it("keeps dietary evidence beside the labels when it matches the price observation", () => {
