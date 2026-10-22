@@ -48,6 +48,51 @@ afterEach(() => {
 });
 
 describe("Pal fail-closed hours eval", () => {
+  it.each([
+    "Find me a pub in Soho with late opening hours",
+    "Show me pubs in Soho with late closing times",
+    "Find somewhere in Soho with late opening times",
+  ])("preserves discovery through runAsk and tool dispatch: %s", async (query) => {
+    const body = await runAsk({ query, now, skipModel: true, fetchImpl: offlineFetch });
+    expect(body.cards.length).toBeGreaterThan(0);
+    expect(body.answer).not.toContain("Which pub do you mean?");
+    expect(body.toolsUsed).toEqual(["search_venues"]);
+    const result = await runAskTool("search_venues", { query }, { query, cityId: "london", now, skipModel: true });
+    expect(result.cards.length).toBeGreaterThan(0);
+    expect(result.answerHint).not.toContain("Which pub do you mean?");
+  });
+
+  it.each(["answer", "card"] as const)("rejects unsupported 24:00 in an unknown-hours %s", (target) => {
+    const body = target === "answer"
+      ? { ...response, answer: `${response.answer} Closes at 24:00.` }
+      : { ...response, cards: [{ key: "coronet", venueId: "venue-60y3sa", title: "The Coronet", place: "London", price: null, note: "Closes at 24:00." }] };
+    expect(gradePalCase(body, reference, index).checks).toContainEqual(
+      expect.objectContaining({ name: "unknown_hours_empty", pass: false }),
+    );
+  });
+
+  it.each(["answer", "card"] as const)("rejects extra 24:00 in a known-hours %s", async (target) => {
+    const original = await askKnown();
+    const body = target === "answer"
+      ? { ...original, answer: `${original.answer} Closes at 24:00.` }
+      : { ...original, cards: original.cards.map((card) => ({ ...card, note: `${card.note} Closes at 24:00.` })) };
+    const result = gradePalCase(body, knownReference, index);
+    expect(result.checks).toContainEqual(expect.objectContaining({ name: "known_hours_value", pass: false }));
+    if (target === "card") {
+      expect(result.checks).toContainEqual(expect.objectContaining({ name: "known_hours_source", pass: false }));
+    }
+  });
+
+  it("accepts recorded 24:00 closing hours", () => {
+    const source = { kind: "directory" as const, label: "Recorded website" };
+    const line = "Thursday 12:00 to 24:00";
+    const body = { ...response, answer: line, cards: [{
+      key: "coronet", venueId: "venue-60y3sa", title: "The Coronet", place: "London", price: null,
+      note: line, provenance: source,
+    }], sources: [source] };
+    expect(gradePalCase(body, { hoursAnswer: { venueId: "venue-60y3sa", value: [line], source: source.label } }, index).pass).toBe(true);
+  });
+
   it("pins ten unknown schedules and two sourced schedules to the venue dataset", async () => {
     expect(Number.isFinite(now)).toBe(true);
     expect(new Set(dataset.cases.map((entry) => entry.id)).size).toBe(12);

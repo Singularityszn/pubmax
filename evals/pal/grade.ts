@@ -19,7 +19,7 @@ function push(
 }
 
 function hoursClaims(text: string): string[] {
-  return text.match(/\b(?:[01]?\d|2[0-3]):[0-5]\d\b|\b(?:0?[1-9]|1[0-2])(?:[.:][0-5]\d)?\s*[ap]\.?m\.?|\b(?:midnight|noon|24\s*hours?|open\s+(?:now|all day)|closed\s+now|(?:Sunday|Monday|Tuesday|Wednesday|Thursday|Friday|Saturday)\s+closed)\b/gi) ?? [];
+  return text.match(/\b(?:(?:[01]?\d|2[0-3]):[0-5]\d|24:00)\b|\b(?:0?[1-9]|1[0-2])(?:[.:][0-5]\d)?\s*[ap]\.?m\.?|\b(?:midnight|noon|24\s*hours?|open\s+(?:now|all day)|closed\s+now|(?:Sunday|Monday|Tuesday|Wednesday|Thursday|Friday|Saturday)\s+closed)\b/gi) ?? [];
 }
 
 function matchesKnownHours(text: string, lines: string[]): boolean {

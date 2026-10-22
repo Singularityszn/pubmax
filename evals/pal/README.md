@@ -64,6 +64,23 @@ questions and hosted assistant adapters remain unfinished.
 The existing `eval:pal:live` command does not run these hours cases.
 Run them with `npx vitest run __tests__/palFailClosedHours.test.ts`.
 
+The review regressions reproduced three defects before correction. Discovery
+requests with hours entered named-hours handling. Unsupported `24:00` claims
+passed the grader. Keyless chat replaced named-hours results with a discovery
+prompt, including unknown hours and read failures. The regression run failed
+13 tests across `palFailClosedHours.test.ts` and `pubPalChatHours.test.ts`.
+
+The shared hours predicate now excludes discovery and crawl requests. The grader
+detects `24:00` in answers and card notes, while it accepts recorded `24:00`
+hours. Keyless chat preserves named-hours results before its discovery fallback.
+The chat regression calls the existing POST handler with real Ask execution
+and controlled record reads. It covers sourced hours, unknown hours, unmatched
+pubs and read failures without provider access.
+
+Run the focused review checks with
+`./node_modules/.bin/vitest run __tests__/askRouter.test.ts __tests__/askVenueHours.test.ts __tests__/palFailClosedHours.test.ts __tests__/palEvalGrade.test.ts __tests__/pubPalChatHours.test.ts __tests__/pubPalChatRoute.test.ts`.
+The outer Test phase owns repository-wide validation, including `npm run verify`.
+
 `__tests__/palFailClosedHeritage.test.ts` adds twelve real-venue heritage asks
 from `fail-closed-heritage.json`. Ten venues have no recorded heritage. The Argyll
 Arms and The Clachan have facts with named sources and source URLs. The test

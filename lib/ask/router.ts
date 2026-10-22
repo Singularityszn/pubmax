@@ -14,7 +14,8 @@ export type RoutedToolCall = {
 };
 
 export function isVenueHoursQuestion(query: string): boolean {
-  return /\b(?:opening|closing)\s+(?:hours|times)\b/i.test(query) && !PLAN_RE.test(query);
+  return /\b(?:opening|closing)\s+(?:hours|times)\b/i.test(query)
+    && !PLAN_RE.test(query) && !isVenueDiscoveryAsk(query);
 }
 
 const CITY_STATUS_RE =

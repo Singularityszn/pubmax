@@ -20,6 +20,9 @@ describe("routeAskDeterministically", () => {
     "Show me quiet pubs in Soho on the map",
     "Show me four pubs in Soho",
     "Find four pubs in Soho under £6 a pint.",
+    "Find me a pub in Soho with late opening hours",
+    "Show me pubs in Soho with late closing times",
+    "Find somewhere in Soho with late opening times",
   ])("answers discovery before offering map actions: %s", (query) => {
     expect(routeAskDeterministically(query)).toEqual([
       { name: "search_venues", args: { query, limit: 4 } },
