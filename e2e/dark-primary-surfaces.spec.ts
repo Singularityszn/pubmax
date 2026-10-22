@@ -244,11 +244,19 @@ for (const viewport of VIEWPORTS) {
     expect(landingMaterial.backgroundImage).toBe("none");
     expect(landingMaterial.backdropFilter).toBe("none");
 
-    const cityInput = page.locator(".cityChooserSearchInput");
+    // The city search lives on Places now. Reach it through the phone's real
+    // navigation, keeping the placeholder contrast check on the current input.
+    const cityInput = page.getByRole("searchbox", { name: "Find a city", exact: true });
+    await expect(async () => {
+      await page.getByRole("navigation", { name: "Primary", exact: true })
+        .getByRole("link", { name: "Places", exact: true }).click();
+      await expect(cityInput).toBeVisible({ timeout: 1_000 });
+    }).toPass({ timeout: 20_000 });
+    await expect(page).toHaveURL(/\/places(?:[?#]|$)/);
     await cityInput.scrollIntoViewIfNeeded();
-    measurements.landingPlaceholder = await expectRenderedTextContrast(cityInput, {
+    measurements.placesPlaceholder = await expectRenderedTextContrast(cityInput, {
       pseudo: "::placeholder",
-      surfaceLocator: page.locator(".cityChooserSearchField"),
+      surfaceLocator: page.locator(".placesSearchField"),
     });
     await expectNoHorizontalOverflow(page);
 

@@ -18,8 +18,15 @@ export const AUDITED_ROUTES = [
   {
     name: "tonight",
     path: "/tonight",
+    // picksState owns settlement. An unconfigured read is unavailable, not an
+    // empty night, and correctly offers alternatives without a useless Retry.
+    // The same map primary moved from tonightFootLink into Screen.
     readySelector:
-      '[data-testid="tonight-screen"][data-listings-status="ready"]:has(.tonightFootLink), [data-testid="tonight-screen"][data-listings-status="empty"]:has(.tonightStatusLink), [data-testid="tonight-screen"][data-listings-status="error"]:has(.tonightStatusError .tonightRetry), [data-testid="tonight-screen"]:not([data-listings-status]):has(.tonightFootLink, .tonightStatusLink, .tonightStatusError .tonightRetry)',
+      [
+        '[data-testid="tonight-screen"][data-picks-state="ready"]:has(.tonightRow):has([data-primary-action] a[href="/map"])',
+        '[data-testid="tonight-screen"][data-picks-state="genuinely_empty"]:has(.tonightStatusLink[href="/map"]):has([data-primary-action] a[href="/map"])',
+        '[data-testid="tonight-screen"][data-picks-state="temporarily_unavailable"]:has(.tonightStatusError [role="status"]):has(.picksAlternativesLink[data-picks-way="pubs-near"]):has(.picksAlternativesLink[data-picks-way="plan"]):has([data-primary-action] a[href="/map"])',
+      ].join(", "),
     pendingSelectors: ["[data-testid='listings-skeleton']"],
     waitForAuthResolution: true,
   },

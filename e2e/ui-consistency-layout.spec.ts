@@ -673,6 +673,52 @@ async function captureSurface(
     await expect(arrivalCard).toBeVisible({ timeout: 45_000 });
     await arrivalCard.getByRole("button", { name: "Close" }).click();
     await expect(arrivalCard).toHaveCount(0, { timeout: 15_000 });
+
+    // An untouched first route must not ask for analytics. Earn the consent
+    // state through actual navigation before measuring the mounted strip.
+    const consent = page.getByLabel("Anonymous analytics choice", { exact: true });
+    await expect.poll(() => page.evaluate(() =>
+      sessionStorage.getItem("pubmax:consent-first-route:v1"),
+    )).not.toBeNull();
+    await expect(consent).toHaveCount(0);
+    expect(await page.evaluate(() =>
+      sessionStorage.getItem("pubmax:consent-answer-moment:v1"),
+    )).toBeNull();
+    if (CAPTURE_EVIDENCE) {
+      await page.screenshot({
+        path: path.join(EVIDENCE_ROOT, `map-first-visit-unanswered-${viewport.width}.png`),
+        fullPage: false,
+      });
+    }
+
+    const landing = page.locator(".lpHero");
+    await expect(async () => {
+      if (!await landing.isVisible()) {
+        await page.getByRole("link", { name: "Open PUBMAXX landing page", exact: true })
+          .click({ timeout: 1_000 });
+      }
+      await expect(landing).toBeVisible({ timeout: 1_000 });
+    }).toPass({ timeout: 20_000 });
+    await expect(consent).toBeVisible({ timeout: 30_000 });
+
+    const map = page.locator(".mapCanvasWrap");
+    await expect(async () => {
+      if (!await map.isVisible()) {
+        await page.getByRole("link", { name: "Open the map", exact: true })
+          .click({ timeout: 1_000 });
+      }
+      await expect(map).toBeVisible({ timeout: 1_000 });
+    }).toPass({ timeout: 20_000 });
+    await expect(page).toHaveURL(/\/map(?:[/?#]|$)/);
+    await expect(page.locator(
+      viewport.width <= 640 ? ".mobileMapChrome" : ".mapToolbar",
+    )).toBeVisible({ timeout: 45_000 });
+    await expect(page.locator(".mapLoading")).toBeHidden({ timeout: 45_000 });
+    await expect(arrivalCard).toHaveCount(0);
+    await expect(consent).toBeVisible({ timeout: 30_000 });
+    await expect.poll(() => page.evaluate(() =>
+      sessionStorage.getItem("pubmax:consent-answer-moment:v1"),
+    )).toBe("second-route");
   }
   await settle(page);
 

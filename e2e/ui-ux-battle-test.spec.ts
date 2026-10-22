@@ -51,6 +51,32 @@ test("route filters constrain named flows to complete dependencies", () => {
     .toEqual(["tonight-browse", "map-pan-zoom"]);
 });
 
+test("Tonight audit readiness requires settled picks and their actual content", async ({ page }) => {
+  const route = AUDITED_ROUTES.find(({ name }) => name === "tonight")!;
+  const primary = '<div data-primary-action><a href="/map">See them on the map</a></div>';
+  const row = '<ul><li class="tonightRow"><a class="tonightRowLink" href="/map">Open on map</a></li></ul>';
+  const empty = '<p class="tonightStatus" role="status"><a class="tonightStatusLink" href="/map">The map still knows where the cheap pints are</a></p>';
+  const unavailable = '<div class="tonightStatusError"><p role="status">Live listings not set up yet.</p></div>';
+  const failed = `<div class="tonightStatusError"><p role="status">Couldn't reach tonight's listings just now.</p><button class="tonightRetry">Retry listings</button></div>`;
+  const alternatives = '<div class="picksAlternatives"><a class="picksAlternativesLink" data-picks-way="pubs-near" href="/near">Pubs near you</a><a class="picksAlternativesLink" data-picks-way="plan" href="/plan">Plan the night instead</a></div>';
+  const cases = [
+    { state: "ready", status: "ready", content: row, settled: true },
+    { state: "genuinely_empty", status: "empty", content: empty, settled: true },
+    { state: "temporarily_unavailable", status: "empty", content: unavailable + alternatives, settled: true },
+    { state: "temporarily_unavailable", status: "error", content: failed + alternatives, settled: true },
+    // Held rows can still paint while a refresh runs. They are not settled.
+    { state: "refreshing", status: "ready", content: row, settled: false },
+    { state: "ready", status: "ready", content: "", settled: false },
+    { state: "genuinely_empty", status: "empty", content: "", settled: false },
+    { state: "temporarily_unavailable", status: "empty", content: unavailable, settled: false },
+  ];
+  for (const { state, status, content, settled } of cases) {
+    await page.setContent(`<main data-testid="tonight-screen" data-listings-status="${status}" data-picks-state="${state}">${content}${primary}</main>`);
+    await expect(page.locator(route.readySelector), `${state} has its settled content`)
+      .toHaveCount(settled ? 1 : 0);
+  }
+});
+
 test("audit browser policy supplies SwiftShader to every caller", () => {
   expect(UI_UX_CHROMIUM_ARGS).toContain("--use-angle=swiftshader");
   expect(UI_UX_CHROMIUM_ARGS).toContain("--enable-unsafe-swiftshader");
@@ -406,9 +432,12 @@ test("audited labels keep readable contrast in reachable states", async ({ baseU
 
     const tonightRoute = AUDITED_ROUTES.find((route) => route.name === "tonight")!;
     await navigateToAuditedRoute(page, baseURL!, tonightRoute);
-    await page.locator(".tonightFootLink").hover();
+    const tonightPrimary = page.getByTestId("tonight-screen")
+      .locator('[data-primary-action] a[href="/map"]');
+    await expect(tonightPrimary).toHaveText("See them on the map");
+    await tonightPrimary.hover();
     const tonight = await new AxeBuilder({ page })
-      .include(".tonightFootLink")
+      .include('[data-testid="tonight-screen"] [data-primary-action] a[href="/map"]')
       .withRules(["color-contrast"])
       .analyze();
     expect(tonight.violations, `${theme} Tonight contrast`).toEqual([]);
@@ -440,11 +469,38 @@ test.describe("UI UX battle-test guardrails", () => {
       localStorage.setItem("pubmax:e2e-defer-shell:v1", "now");
     });
     await page.goto("/today");
+    const consent = page.getByLabel("Anonymous analytics choice", { exact: true });
+    await expect.poll(() => page.evaluate(() =>
+      sessionStorage.getItem("pubmax:consent-first-route:v1"),
+    )).not.toBeNull();
+    await expect(consent).toHaveCount(0);
+    const map = page.locator(".mapCanvasWrap");
+    await expect(async () => {
+      if (!await map.isVisible()) {
+        await page.getByRole("link", { name: "Open the map", exact: true })
+          .click({ timeout: 1_000 });
+      }
+      await expect(map).toBeVisible({ timeout: 1_000 });
+    }).toPass({ timeout: 20_000 });
+    await expect(page).toHaveURL(/\/map(?:[/?#]|$)/);
+    await expect(consent).toBeVisible({ timeout: 30_000 });
+    await expect.poll(() => page.evaluate(() =>
+      sessionStorage.getItem("pubmax:consent-answer-moment:v1"),
+    )).toBe("second-route");
     const privacy = page.locator(".analyticsConsentPrompt a");
     await expect(privacy).toBeVisible();
     const box = await privacy.boundingBox();
     expect(box?.width).toBeGreaterThanOrEqual(44);
     expect(box?.height).toBeGreaterThanOrEqual(44);
+    expect(await privacy.evaluate((element) => {
+      const rect = element.getBoundingClientRect();
+      const hit = document.elementFromPoint(rect.x + rect.width / 2, rect.y + rect.height / 2);
+      return hit !== null && element.contains(hit);
+    }), "Privacy is a reachable consent control").toBe(true);
+    await privacy.click();
+    await expect(page).toHaveURL(/\/privacy(?:[?#]|$)/);
+    await expect(page.getByRole("heading", { name: "How PUBMAXX handles your data", exact: true }))
+      .toBeVisible();
   });
 
   test("audited mobile routes keep tap targets and page width within contract", async ({
@@ -462,11 +518,29 @@ test.describe("UI UX battle-test guardrails", () => {
     for (const route of AUDITED_ROUTES) {
       await navigateToAuditedRoute(page, baseURL!, route);
 
+      // The skip link is clipped until focused. Prove its exposed keyboard
+      // state and real activation before measuring ordinary pointer targets.
+      const skipLink = page.getByRole("link", { name: "Skip to main content", exact: true });
+      await skipLink.focus();
+      await expect(skipLink).toBeFocused();
+      await expect(skipLink).toBeInViewport({ ratio: 1 });
+      const skipBox = await skipLink.boundingBox();
+      expect(skipBox?.width, `${route.path} focused skip target width`).toBeGreaterThanOrEqual(44);
+      expect(skipBox?.height, `${route.path} focused skip target height`).toBeGreaterThanOrEqual(44);
+      await expect(async () => {
+        await skipLink.focus();
+        await page.keyboard.press("Enter");
+        await expect(page.locator("main#main")).toBeFocused({ timeout: 1_000 });
+      }).toPass({ timeout: 20_000 });
+
       const result = await page.evaluate(() => {
         const visible = (element: Element) => {
           const style = getComputedStyle(element);
           const rect = element.getBoundingClientRect();
+          const clippedSkipLink = element.matches(".skipLink:not(:focus)")
+            && style.clipPath === "inset(50%)";
           return (
+            !clippedSkipLink &&
             style.display !== "none" &&
             style.visibility !== "hidden" &&
             style.pointerEvents !== "none" &&
