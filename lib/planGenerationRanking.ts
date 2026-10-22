@@ -22,8 +22,7 @@ function priceAndZeroProof(
     if (category && category !== "beer") {
       const price = drinkLensPrices?.get(venue.id);
       if (price?.category === category && price.priceGbp > 0) {
-        // Steep enough that a couple of pounds beats a short walk inside the area.
-        score += Math.min(5, 24 / price.priceGbp);
+        score += Math.min(5, 10 / price.priceGbp);
         reasons.push(`${price.source === "listed" ? `listed ${price.servingSize ?? ""}` : "corroborated community"} ${CATEGORY_META[category].label.toLowerCase()} price ${formatGbp(price.priceGbp)}`);
       }
     } else if (!context.zeroProof) {

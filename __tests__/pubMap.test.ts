@@ -11,6 +11,7 @@ import {
   builtStopsNeedingHydration,
   detailStatusFor,
   mapSelectionNotice,
+  mapSelectionNoticeCopy,
   mapSelectionNoticeFromSearch,
   MAP_SELECTION_NOTICE_PARAM,
   MAP_SELECTION_LOOKUP_FAILED_NOTE,
@@ -242,6 +243,11 @@ describe("detailStatusFor", () => {
     expect(detailStatusFor("v1", detail, status)).toBe("ready");
   });
 
+  it("is retired when the detail held is a pub that left the map, however it arrived", () => {
+    const detail = new Map<string, Venue>([["v1", { ...makeVenue(), retired: true }]]);
+    expect(detailStatusFor("v1", detail, status)).toBe("retired");
+  });
+
   it("falls back to the tracked status, defaulting to loading", () => {
     const tracked = new Map<string, VenueDetailStatus>([["v1", "unavailable"]]);
     expect(detailStatusFor("v1", empty, tracked)).toBe("unavailable");
@@ -282,6 +288,14 @@ describe("mapSelectionNotice", () => {
 
   it("stays silent with no selection", () => {
     expect(mapSelectionNotice({ ...base, selectedVenueId: "" })).toBeNull();
+  });
+
+  it("names a retired pub's link as that pub, no longer on the map", () => {
+    expect(mapSelectionNotice({ ...base, detailStatus: "retired" })).toBe("retired");
+    expect(mapSelectionNoticeCopy("retired", "The Duck")).toBe(
+      "The Duck is no longer on the map. It may have closed.",
+    );
+    expect(mapSelectionNoticeCopy("unknown", null)).toBe(UNKNOWN_MAP_SELECTION_NOTE);
   });
 
   it("ships quiet empty-state voice with no em dash", () => {

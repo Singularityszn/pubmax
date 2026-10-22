@@ -23,6 +23,12 @@
 // every layer are untouched, so nothing downstream that stores an app price id
 // is disturbed.
 //
+// EVERY ROW CARRIES THE DAY IT WAS READ. A row the source still states takes
+// this run's instant in `scraped_at_values`, whether or not its figure moved,
+// and a row the source no longer states keeps the day it was last read. The
+// app dates each price from its own row, so the registry stamp below is the
+// day the dataset was last collected and never the day of a row nobody read.
+//
 // The registry stamp stays owned by scripts/export_app_dataset_json.py
 // (--collected-at, with --stamp-only for this lane), so one writer keeps the
 // single source of truth.
@@ -347,17 +353,16 @@ async function main() {
     );
   }
 
-  let reObserved = 0;
   let changed = 0;
-  const updates = new Map();
+  // Every re-observed row, with the figure the source states for it today.
+  const observed = new Map();
   for (const row of pricedRows) {
     const fresh = freshPriceFor(observations, row);
     if (fresh === null) continue;
-    reObserved += 1;
-    if (Math.abs(fresh - Number(row.price_gbp)) < 0.005) continue;
-    changed += 1;
-    updates.set(String(row.app_price_id), fresh);
+    observed.set(String(row.app_price_id), fresh);
+    if (Math.abs(fresh - Number(row.price_gbp)) >= 0.005) changed += 1;
   }
+  const reObserved = observed.size;
 
   const coverage = pricedRows.length === 0 ? 0 : reObserved / pricedRows.length;
   console.log(
@@ -378,24 +383,32 @@ async function main() {
   }
 
   for (const row of rows) {
-    const fresh = updates.get(String(row.app_price_id));
+    const fresh = observed.get(String(row.app_price_id));
     if (fresh === undefined) continue;
     row.price_gbp = Math.round(fresh * 100) / 100;
     row.price_text = priceText(row.price_gbp);
+    row.scraped_at_values = collectedAt;
   }
   await writeFile(DATASET_JSON, JSON.stringify(rows), "utf8");
 
   // The CSV is the export's input, so it takes the same figures: leaving it
   // behind would make the next `npm run export:data` revert this collection.
+  // Each record is read against the source by its OWN pub, address and pint,
+  // never by the bundle's app price id: the CSV's ids were reassigned by a
+  // later build and no longer name the same rows the bundle's ids name.
   const csv = await readFile(DATASET_CSV, "utf8");
   const records = splitCsvRecords(csv);
   const header = splitCsvLine(records[0]);
-  const idIndex = header.indexOf("app_price_id");
+  const nameIndex = header.indexOf("pub_name");
+  const addressIndex = header.indexOf("address");
+  const pintIndex = header.indexOf("pint_name");
   const priceIndex = header.indexOf("price_gbp");
   const textIndex = header.indexOf("price_text");
   const scrapedIndex = header.indexOf("scraped_at_values");
-  if (idIndex < 0 || priceIndex < 0 || textIndex < 0) {
-    throw new Error(`${DATASET_CSV} is missing app_price_id/price_gbp/price_text`);
+  if ([nameIndex, addressIndex, pintIndex, priceIndex, textIndex, scrapedIndex].some((index) => index < 0)) {
+    throw new Error(
+      `${DATASET_CSV} is missing pub_name/address/pint_name/price_gbp/price_text/scraped_at_values`,
+    );
   }
   let csvChanged = 0;
   const out = [records[0]];
@@ -405,16 +418,27 @@ async function main() {
       continue;
     }
     const cells = splitCsvLine(record);
-    const fresh = updates.get(cells[idIndex]);
-    if (fresh === undefined) {
+    const fresh = Number.isFinite(Number.parseFloat(cells[priceIndex]))
+      ? freshPriceFor(observations, {
+          pub_name: cells[nameIndex],
+          address: cells[addressIndex],
+          pint_name: cells[pintIndex],
+          price_gbp: cells[priceIndex],
+        })
+      : null;
+    if (fresh === null) {
       out.push(record);
       continue;
     }
-    cells[priceIndex] = String(Math.round(fresh * 100) / 100);
-    cells[textIndex] = priceText(Math.round(fresh * 100) / 100);
-    // The row's own evidence stamp moves with its figure: a price read today
-    // may not keep the day the old one was read.
-    if (scrapedIndex >= 0) cells[scrapedIndex] = collectedAt;
+    // A figure that did not move keeps its cell as written, so only the day
+    // it was read changes on that record.
+    if (Math.abs(fresh - Number(cells[priceIndex])) >= 0.005) {
+      cells[priceIndex] = String(Math.round(fresh * 100) / 100);
+      cells[textIndex] = priceText(Math.round(fresh * 100) / 100);
+    }
+    // The row's own evidence stamp is the day the source last stated it, so it
+    // moves on every re-observed row, not only on a row whose figure moved.
+    cells[scrapedIndex] = collectedAt;
     csvChanged += 1;
     out.push(joinCsvLine(cells));
   }
@@ -435,8 +459,8 @@ async function main() {
   report.output.sha256 = createHash("sha256").update(nextCsv, "utf8").digest("hex");
   await writeFile(BUILD_REPORT, `${JSON.stringify(report, null, 2)}\n`, "utf8");
 
-  console.log(`Wrote ${updates.size} price update(s) to ${DATASET_JSON}`);
-  console.log(`Wrote ${csvChanged} price update(s) to ${DATASET_CSV}`);
+  console.log(`Dated ${observed.size} re-observed row(s) in ${DATASET_JSON}, ${changed} with a moved price`);
+  console.log(`Dated ${csvChanged} re-observed record(s) in ${DATASET_CSV}`);
   console.log(`Re-stamped ${BUILD_REPORT} output hash`);
   console.log(
     "Now stamp the collection date (the registry is the single source of truth):\n" +

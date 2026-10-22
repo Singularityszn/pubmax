@@ -65,6 +65,8 @@ export type SlimVenue = {
   anchorCourse?: FoodCategory;
   anchorObservedAt?: string;
   anchorSourceUrl?: string;
+  /** A pub that left OpenStreetMap, served by id only so a stored reference names it. */
+  retired?: true;
 };
 
 function isBoolean(value: unknown): value is boolean {

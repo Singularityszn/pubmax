@@ -301,7 +301,10 @@ beforeAll(async () => {
   if (!r.ok) {
     throw new Error(`seed failed: ${r.err}\n${r.out}`);
   }
-}, 60_000);
+  // A cluster boot plus the migration chain shares the host with other
+  // Postgres suites under `npm run verify`; 60s timed out there. Same 180s
+  // ceiling as vitest.config.mts and every other Postgres-backed beforeAll.
+}, 180_000);
 
 afterAll(async () => {
   if (session) await session.stop();

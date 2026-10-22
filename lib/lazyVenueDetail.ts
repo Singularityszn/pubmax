@@ -7,8 +7,10 @@ export function mergeLazyDetailPins(slimPins: Venue[], detailById: Map<string, V
     return detailById.get(pin.id) ?? pin;
   });
 
+  // A retired pub is answered by id for a stored reference and is never a pin,
+  // so it joins no nearby, search or filter set either.
   for (const [id, venue] of detailById) {
-    if (!seen.has(id)) merged.push(venue);
+    if (!seen.has(id) && !venue.retired) merged.push(venue);
   }
 
   return merged;

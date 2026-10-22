@@ -61,18 +61,19 @@ function drinkMenuObservationBudgetDays(
 }
 
 function drinkMenuObservationMeta(
-  observedAt: string,
+  observedAt: string | null,
   freshnessBudgetDays: number | null,
   now: number = Date.now(),
-): { label: string; formattedDate: string } | null {
+): { label: string; formattedDate: string; dateTime: string } | null {
+  if (!observedAt) return null;
   const observedAtMs = Date.parse(observedAt);
   if (!Number.isFinite(observedAtMs)) return null;
   const formattedDate = OBSERVATION_DAY.format(new Date(observedAtMs));
   if (freshnessBudgetDays === null) {
-    return { label: SNAPSHOT_CAPTION_PREFIX, formattedDate };
+    return { label: SNAPSHOT_CAPTION_PREFIX, formattedDate, dateTime: observedAt };
   }
   const stale = now - observedAtMs > freshnessBudgetDays * DAY_MS;
-  return { label: stale ? "Last seen" : "Seen", formattedDate };
+  return { label: stale ? "Last seen" : "Seen", formattedDate, dateTime: observedAt };
 }
 
 // The venue Menu (PRD E1): a venue's drinks grouped by category, each section
@@ -164,7 +165,7 @@ function DrinkRow({ drink, venueId }: { drink: Drink; venueId?: string }) {
         {observation ? (
           <span className="drinkObservationAge">
             {observation.label}{" "}
-            <time dateTime={drink.provenance.observedAt}>
+            <time dateTime={observation.dateTime}>
               {observation.formattedDate}
             </time>
           </span>

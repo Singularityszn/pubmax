@@ -12,11 +12,15 @@
  * Provenance: every row is stamped source=OpenStreetMap Overpass, the OSM id,
  * and the seed's fetched-at date, mirroring the gazetteer seed conventions.
  *
- * Dedupe: a cheap name+coord key blocks re-adding the exact same OSM row, and a
- * strengthened distance + name-similarity check (shared with the canonicalize
- * step) skips an OSM pub that already exists in the dataset under a matching-ish
- * name within a few metres — so a re-fetch never doubles a pin. canonicalize is
- * still the backstop for anything that slips through.
+ * Dedupe: an OSM element already stamped on a row is never added again, because
+ * canonicalize:venues later snaps a row's coordinates onto the priced row it
+ * merges with, so neither the exact key nor the distance check can see it from
+ * the seed's raw OSM point. A cheap name+coord key then blocks re-adding the
+ * exact same OSM row, and a strengthened distance + name-similarity check
+ * (shared with the canonicalize step) skips an OSM pub that already exists in
+ * the dataset under a matching-ish name within a few metres — so a re-fetch
+ * never doubles a pin. canonicalize is still the backstop for anything that
+ * slips through.
  *
  * Idempotent: re-running with the same seed adds 0 rows. Safe no-op when the
  * seed is missing or empty (e.g. Overpass was unreachable at fetch time).
@@ -62,6 +66,12 @@ function venueKey(name, lat, lng) {
   return `${normName(name)}|${Number(lat).toFixed(4)}|${Number(lng).toFixed(4)}`;
 }
 
+// The OSM element a merged row was stamped with, from its data_quality_notes.
+function stampedOsmId(row) {
+  const match = /(?:^|\|)osm_overpass\|([^|]+)/.exec(String(row.data_quality_notes ?? ""));
+  return match ? match[1] : null;
+}
+
 function nextAppPriceId(existing) {
   let max = 0;
   for (const row of existing) {
@@ -85,6 +95,7 @@ function main() {
   const app = JSON.parse(readFileSync(APP_PATH, "utf8"));
   if (!Array.isArray(app)) throw new Error("app dataset must be an array");
 
+  const existingOsmIds = new Set(app.map(stampedOsmId).filter(Boolean));
   const existingKeys = new Set(app.map((row) => venueKey(row.pub_name, row.latitude, row.longitude)));
   // Pre-index existing venues for the near-duplicate check.
   const existingVenues = app
@@ -119,6 +130,11 @@ function main() {
     if (!name || !borough || !Number.isFinite(lat) || !Number.isFinite(lng)) continue;
     if (!inLondon(lat, lng)) continue;
 
+    const osmId = String(pub.osmId ?? "");
+    if (osmId && existingOsmIds.has(osmId)) {
+      skippedDup += 1;
+      continue;
+    }
     const key = venueKey(name, lat, lng);
     if (existingKeys.has(key)) {
       skippedDup += 1;
@@ -128,13 +144,13 @@ function main() {
       skippedDup += 1;
       continue;
     }
+    if (osmId) existingOsmIds.add(osmId);
     existingKeys.add(key);
     existingVenues.push({ normName: normalizeVenueIdentityName(name), lat, lng, pc: postcodeOutward(pub.address) });
     seq += 1;
     added += 1;
     byBorough[borough] = (byBorough[borough] ?? 0) + 1;
 
-    const osmId = String(pub.osmId ?? "");
     const amenity = pub.amenity ? String(pub.amenity) : "pub";
     app.push({
       app_price_id: `app_price_${String(seq).padStart(6, "0")}`,

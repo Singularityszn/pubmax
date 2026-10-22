@@ -54,11 +54,11 @@
       "cityId": "manchester",
       "name": "Chorlton-on-Medlock",
       "centre": {
-        "lat": 53.4645,
-        "lng": -2.22901
+        "lat": 53.46464,
+        "lng": -2.22851
       },
-      "radiusKm": 1.6,
-      "pubCount": 18
+      "radiusKm": 1.7,
+      "pubCount": 17
     },
     {
       "slug": "manchester-heaton-norris",
@@ -76,11 +76,11 @@
       "cityId": "birmingham",
       "name": "Birmingham city centre",
       "centre": {
-        "lat": 52.47901,
-        "lng": -1.90084
+        "lat": 52.4791,
+        "lng": -1.90089
       },
       "radiusKm": 1.6,
-      "pubCount": 88
+      "pubCount": 87
     },
     {
       "slug": "birmingham-vauxhall",
@@ -120,7 +120,7 @@
       "cityId": "birmingham",
       "name": "Harborne",
       "centre": {
-        "lat": 52.45619,
+        "lat": 52.4562,
         "lng": -1.94718
       },
       "radiusKm": 1.6,
@@ -131,11 +131,11 @@
       "cityId": "birmingham",
       "name": "Aston",
       "centre": {
-        "lat": 52.50416,
-        "lng": -1.87667
+        "lat": 52.50421,
+        "lng": -1.87699
       },
       "radiusKm": 1.4,
-      "pubCount": 15
+      "pubCount": 14
     },
     {
       "slug": "leeds-city-centre",
@@ -149,17 +149,6 @@
       "pubCount": 77
     },
     {
-      "slug": "leeds-hyde-park",
-      "cityId": "leeds",
-      "name": "Hyde Park",
-      "centre": {
-        "lat": 53.81478,
-        "lng": -1.56685
-      },
-      "radiusKm": 1.7,
-      "pubCount": 24
-    },
-    {
       "slug": "leeds-armley",
       "cityId": "leeds",
       "name": "Armley",
@@ -171,15 +160,15 @@
       "pubCount": 23
     },
     {
-      "slug": "leeds-bruntcliffe",
+      "slug": "leeds-hyde-park",
       "cityId": "leeds",
-      "name": "Bruntcliffe",
+      "name": "Hyde Park",
       "centre": {
-        "lat": 53.74629,
-        "lng": -1.60485
+        "lat": 53.81484,
+        "lng": -1.56578
       },
       "radiusKm": 1.5,
-      "pubCount": 21
+      "pubCount": 23
     },
     {
       "slug": "leeds-hunslet",
@@ -215,12 +204,23 @@
       "pubCount": 14
     },
     {
+      "slug": "leeds-kirkstall",
+      "cityId": "leeds",
+      "name": "Kirkstall",
+      "centre": {
+        "lat": 53.81855,
+        "lng": -1.60113
+      },
+      "radiusKm": 1.8,
+      "pubCount": 11
+    },
+    {
       "slug": "bristol-city-centre",
       "cityId": "bristol",
       "name": "Bristol city centre",
       "centre": {
-        "lat": 51.45412,
-        "lng": -2.59607
+        "lat": 51.45401,
+        "lng": -2.59615
       },
       "radiusKm": 1.5,
       "pubCount": 79

@@ -31,6 +31,7 @@ function v(
             pint_name: over.cheapestPint ?? "",
             price_gbp: over.cheapestPrice,
             pub_url: `https://www.pint-prices.com/pub/${over.id}`,
+            scraped_at_values: PINT_DATASET_OBSERVED_AT.toISOString(),
           },
         ]
       : []);

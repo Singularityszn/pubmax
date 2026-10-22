@@ -173,12 +173,10 @@ const PAID_ROUTES: PaidRouteCase[] = [
     answer: CEILING_SPENT,
   },
   {
-    route: "app/api/pub-pal/llm/route.ts",
+    route: "app/api/pub-pal/chat/route.ts",
     call: async () =>
-      (await import("@/app/api/pub-pal/llm/route")).POST(
-        jsonPost("http://localhost/api/pub-pal/llm", {
-          messages: [{ role: "user", content: "Where is a quiet pint" }],
-        }),
+      (await import("@/app/api/pub-pal/chat/route")).POST(
+        jsonPost("http://localhost/api/pub-pal/chat", { query: "Where is a quiet pint" }),
       ),
     answer: UNAUTHENTICATED,
   },
@@ -328,16 +326,7 @@ const KNOWN_UNGUARDED_ANONYMOUS_PAID_ROUTES: Array<{
   route: string;
   owner: string;
   call: () => Promise<Response>;
-}> = [
-  {
-    route: "app/api/pub-pal/chat/route.ts",
-    owner: "pubmax-sec-pubpal",
-    call: async () =>
-      (await import("@/app/api/pub-pal/chat/route")).POST(
-        jsonPost("http://localhost/api/pub-pal/chat", { query: "Where is a quiet pint" }),
-      ),
-  },
-];
+}> = [];
 
 function isPaidHost(host: string): boolean {
   return PAID_PROVIDER_DOMAINS.some((domain) => host === domain || host.endsWith(`.${domain}`));

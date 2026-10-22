@@ -111,7 +111,7 @@ export default async function BarTabPage({ params }: PageProps) {
     await headers();
     return <TabReadUnavailable id={id} />;
   }
-  if (read.status === "missing") {
+  if (read.status !== "found") {
     await headers();
     return <NotInTheTab />;
   }

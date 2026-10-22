@@ -183,8 +183,8 @@ function WeatherCard({ weather }: { weather: WeatherBrief | null }) {
 // ONE FIGURE, ONE PLACE, DATED. This card used to lead with the cheapest listed
 // pint as well, off `rows[0]` of the very module `TodayPintsCard` prints below
 // it, so the page showed one pub's price twice and dated it once: only the
-// pints card carries `formatPintDatasetSnapshot()`. The dated copy is the one
-// that stayed (#1426 follow-up).
+// pints card carries a snapshot date (the oldest read among its rows). The
+// dated copy is the one that stayed (#1426 follow-up).
 function PicksCard({
   picks,
   filteredPickCount,

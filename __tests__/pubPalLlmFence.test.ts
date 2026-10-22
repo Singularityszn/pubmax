@@ -8,6 +8,7 @@ import {
   isPubPalGetHomeOrSobrietyIntent,
   isPubPalSobrietyOnlyIntent,
   pubPalFenceFromNouls,
+  pubPalGetHomeRegisterAnswer,
   PUB_PAL_FENCE_NOUL_THRESHOLD,
   type PubPalFenceTurn,
   resolvePubPalFenceIntent,
@@ -151,5 +152,13 @@ describe("pubPalFenceFromNouls", () => {
       sobrietyOnly: false,
     });
     expect(pubPalFenceFromNouls(0, 0)).toEqual({ fenced: false, sobrietyOnly: false });
+  });
+});
+
+describe("pubPalGetHomeRegisterAnswer", () => {
+  it("keeps the grounded fact and hands off to Getting Home", () => {
+    const answer = pubPalGetHomeRegisterAnswer("Last train from Waterloo is 00:32.", false);
+    expect(answer).toContain("Last train from Waterloo is 00:32.");
+    expect(answer).toContain("Getting Home");
   });
 });

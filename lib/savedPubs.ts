@@ -189,6 +189,35 @@ function toggleSave(
   return next;
 }
 
+/**
+ * The same saves, each under the id its venue carries now. A venue whose id was
+ * merged or superseded keeps one save per list, never two, so the "Saved only"
+ * filter, the sheet's toggle and the profile list all see one save for it.
+ * Pure: the first save per (venue, list) wins.
+ */
+export function canonicalizeSaved(
+  list: readonly SavedPub[],
+  canonical: (venueId: string) => string,
+): SavedPub[] {
+  let next: SavedPub[] = [];
+  for (const entry of list) {
+    const venueId = canonical(entry.venueId);
+    if (isSaved(next, venueId, entry.listType)) continue;
+    next = [...next, venueId === entry.venueId ? entry : { ...entry, venueId }];
+  }
+  return next;
+}
+
+/** Rewrite this device's saves under their venues' current ids. Returns the list held. */
+export function canonicalizeStoredSaved(canonical: (venueId: string) => string): SavedPub[] {
+  const current = getSaved();
+  const next = canonicalizeSaved(current, canonical);
+  if (next.length !== current.length || next.some((entry, index) => entry !== current[index])) {
+    write(next);
+  }
+  return next;
+}
+
 // Read + group in one call for the profile view.
 export function savedByList(): Partial<Record<ListType, SavedPub[]>> {
   return groupByList(getSaved());

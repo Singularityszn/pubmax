@@ -10,7 +10,7 @@
       "sha256": "4bde028b4242740372fed5f7678b4e34887e8f3ba4e0fccc231a0c16bb49dc24"
     },
     "data/osm/uk/uk_osm_pubs.json": {
-      "sha256": "e2271bc37cd7855e8eb6d3e0d24fd868d637ad970d10aca6a39ebb108ad5d066"
+      "sha256": "1bd94a9528a47e212b5a2cbffdc0fbbeedc9ce2cd71b1cf4a8b8ce8a1a516154"
     },
     "data/postcode_coordinate_corrections.json": {
       "sha256": "95997a516fd8ba7acab7a5b1e0b6f5a2d6fc30bf8c1d374859f58f8227e26b87"
@@ -23,7 +23,7 @@
     }
   },
   "checkedRows": 2193,
-  "outwardCodeReferences": 2611,
+  "outwardCodeReferences": 2616,
   "corrections": [
     {
       "decisionId": "sir-michael-balcon-ealing",
@@ -336,7 +336,7 @@
   ],
   "output": {
     "path": "data/pint_prices_app_dataset.csv",
-    "sha256": "ba28535423f468f285cb97d7bfc7ce6f834c50523cffe49fa91572b6bbf48c16",
+    "sha256": "9beff33ce357748df7ac3d78cbb726f3cb5f34fb118d554943746260c8bafc83",
     "rows": 3084
   }
 }

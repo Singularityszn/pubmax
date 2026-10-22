@@ -453,7 +453,7 @@ describe("the Overview chip", () => {
 
   it("a non-drop lane carries no chip state", () => {
     expect(renderOverview([], venue({ cheapestPrice: 6.2 }))).not.toContain("data-pint-trust=");
-    expect(trustChipStateFor({ lane: "baseline", standing: "none", publisher: null, cheapestPrice: 6.2 }, "none")).toBeNull();
+    expect(trustChipStateFor({ lane: "baseline", standing: "none", publisher: null, observedOn: null, cheapestPrice: 6.2 }, "none")).toBeNull();
     expect(trustChipStateFor(null, "none")).toBeNull();
   });
 });

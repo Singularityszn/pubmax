@@ -91,6 +91,25 @@ export const REGENERATED_LANES = [
       /^data\/famous_venues\/[^/]+\.json$/,
     ],
   },
+  {
+    id: "city_venues_slim",
+    output: /^public\/data\/cities\/[^/]+\/venues_slim[^/]*\.json$/,
+    inputs: [
+      /^scripts\/build_city_slim_index\.mjs$/,
+      /^scripts\/fetch_city_osm_pubs\.mjs$/,
+      /^scripts\/lib\/slimShards\.mjs$/,
+      /^lib\/cityVenueId\.mjs$/,
+      /^data\/cities\/[^/]+\/osm_pubs\.json$/,
+    ],
+  },
+  {
+    id: "uk_pub_search",
+    output: /^data\/generated\/uk_pub_search\.json$/,
+    inputs: [
+      /^scripts\/build_uk_pub_search_index\.mjs$/,
+      /^data\/osm\/uk\/uk_osm_pubs\.json$/,
+    ],
+  },
 ];
 
 const EVIDENCE_PATH = /^(?:docs\/(?:proof|reviews|evidence)|e2e-shots|screenshots)(?:\/|$)/;

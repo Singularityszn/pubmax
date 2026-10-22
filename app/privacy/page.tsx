@@ -742,10 +742,14 @@ export default function PrivacyPage() {
           <div className="legalRow">
             <dt>AI features</dt>
             <dd>
-              If you ask The Landlord about a pub, or talk to Pub Pal, the text
-              or audio of that request goes to the model provider that answers
-              it (OpenRouter, and ElevenLabs for voice) and nothing else about
-              you goes with it.
+              If you ask The Landlord about a pub, or talk to Pub Pal by typing
+              or by voice, the text or audio of that request goes to the model
+              provider that answers it (OpenRouter, and ElevenLabs at{" "}
+              <code>api.elevenlabs.io</code> when Pub Pal voice or typed chat is
+              configured). Nothing else about you goes with it. We do not keep
+              the audio. Recent lines are stored against your account for two
+              minutes after your last line, then deleted by a clean-up that
+              runs every minute.
             </dd>
           </div>
           <div className="legalRow">
@@ -815,6 +819,12 @@ export default function PrivacyPage() {
             <strong>Your account and what you posted:</strong>{" "}until you delete
             it, or ask us to. Ask, and we&rsquo;ll delete the account and the
             personal content attached to it within 30 days.
+          </li>
+          <li>
+            <strong>Pub Pal lines:</strong>{" "}recent lines from typed chat and
+            voice are stored against your account for two minutes after your
+            last line, then deleted by a clean-up that runs every minute. We
+            do not keep the audio.
           </li>
           <li>
             <strong>After you delete your account:</strong>{" "}the prices and

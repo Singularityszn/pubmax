@@ -57,4 +57,13 @@ describe("mergeLazyDetailPins", () => {
     expect(mergeLazyDetailPins([slim], new Map([["venue-b", detail]])).map((item) => item.id))
       .toEqual(["venue-a", "venue-b"]);
   });
+
+  it("never pins a retired pub a shared crawl link hydrated", () => {
+    const slim = venue("venue-a", "Slim A");
+    const retired: Venue = { ...venue("venue-bhm-17j3xm7", "The Duck"), retired: true };
+
+    expect(
+      mergeLazyDetailPins([slim], new Map([["venue-bhm-17j3xm7", retired]])).map((item) => item.id),
+    ).toEqual(["venue-a"]);
+  });
 });

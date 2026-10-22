@@ -49,7 +49,7 @@ Map Ask on `/api/ask` and `/pal/chat` typed asks stay keyless without ElevenLabs
 |---|---|
 | `ELEVENLABS_API_KEY` | **Server-only** ElevenLabs account key. Never exposed to the browser; `/api/pub-pal/voice-token` mints short-lived session URLs. |
 | `ELEVENLABS_PUB_PAL_AGENT_ID` | Agent id from `npm run pubpal:agent -- --base-url https://your-deployment`. |
-| `ELEVENLABS_LLM_SHARED_SECRET` | **Server-only** secret for webhook tools at `/api/pub-pal/tools/{name}` (and legacy `/api/pub-pal/llm` if wired). |
+| `ELEVENLABS_LLM_SHARED_SECRET` | **Server-only** secret for webhook tools at `/api/pub-pal/tools/{name}`. |
 | `ELEVENLABS_VOICE_*` | Per-species and onboarding voice ids (`lib/palElevenLabsVoice.ts`). See `docs/PUB_PAL_SETUP.md`. |
 
 ### Optional — other integrations

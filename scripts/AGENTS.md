@@ -28,6 +28,7 @@ Full rules: [`docs/rules/scripts-harvest-and-source-permission.md`](../docs/rule
 - [The London harvest reads first-party pages, and a skip is a finding.](../docs/rules/scripts-harvest-and-source-permission.md#the-london-harvest-reads-first-party-pages-and-a-skip-is-a-finding)
 - [THE WETHERSPOON DIRECTORY IS THE PUBS THE CHAIN RUNS TODAY, AND IT IS NEVER EDITED BY HAND.](../docs/rules/scripts-harvest-and-source-permission.md#the-wetherspoon-directory-is-the-pubs-the-chain-runs-today-and-it-is-never-edite)
 - [The UK venue extraction is OSM-stated or it does not exist.](../docs/rules/scripts-harvest-and-source-permission.md#the-uk-venue-extraction-is-osm-stated-or-it-does-not-exist)
+- [The nightly Tavily pass spends the plan and writes Listed evidence only.](../docs/rules/scripts-harvest-and-source-permission.md#the-nightly-tavily-pass-spends-the-plan-and-writes-listed-evidence-only)
 
 ## Builders and publishers
 

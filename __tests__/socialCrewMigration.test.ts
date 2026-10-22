@@ -884,14 +884,32 @@ describe.skipIf(skipReason !== null)("Social Crew migration foundation", () => {
         ('${metadataFirstHost}','${metadataFirstPlan}','Host','${metadataFirstToken}','in',now(),now(),true)
     `);
 
+    // Each statement runs in its own psql process, so a fixed sleep cannot
+    // order them on a loaded host. The first session takes an advisory lock
+    // after its first call; the second waits for that lock, or for the first
+    // session's committed effect, before it makes its own call.
+    const afterFirstCall = (key: number, committed: string): string =>
+      `do $first_call$
+       begin
+         while not exists (
+           select 1 from pg_catalog.pg_locks
+           where locktype = 'advisory' and classid = 0 and objid = ${key}
+             and objsubid = 1 and granted and pid <> pg_catalog.pg_backend_pid()
+         ) and not exists (${committed}) loop
+           perform pg_catalog.pg_sleep(0.01);
+         end loop;
+       end
+       $first_call$;`;
+
     const conversionFirst = await db.concurrentResults([
       `begin;
        set local deadlock_timeout='50ms'; set local statement_timeout='10s';
        select public.create_social_crew_atomic('${ALICE_ACCOUNT}','${conversionFirstPlan}','${conversionFirstToken}','private','metadata-race-key-01','${DIGEST_A}');
+       select pg_catalog.pg_advisory_xact_lock(7531101::bigint);
        select pg_sleep(0.5); commit;`,
       `begin;
        set local deadlock_timeout='50ms'; set local statement_timeout='10s';
-       select pg_sleep(0.2);
+       ${afterFirstCall(7531101, `select 1 from public.plans where id='${conversionFirstPlan}' and social_owner_account_id is not null`)}
        select public.update_legacy_plan_status_context_atomic('${conversionFirstPlan}','${conversionFirstToken}','active','{"nightArea":"Soho"}'::jsonb);
        commit;`,
     ]);
@@ -904,10 +922,11 @@ describe.skipIf(skipReason !== null)("Social Crew migration foundation", () => {
       `begin;
        set local deadlock_timeout='50ms'; set local statement_timeout='10s';
        select public.update_legacy_plan_status_context_atomic('${metadataFirstPlan}','${metadataFirstToken}','active','{"nightArea":"Soho"}'::jsonb);
+       select pg_catalog.pg_advisory_xact_lock(7531102::bigint);
        select pg_sleep(0.5); commit;`,
       `begin;
        set local deadlock_timeout='50ms'; set local statement_timeout='10s';
-       select pg_sleep(0.2);
+       ${afterFirstCall(7531102, `select 1 from public.plans where id='${metadataFirstPlan}' and status='active'`)}
        select public.create_social_crew_atomic('${ALICE_ACCOUNT}','${metadataFirstPlan}','${metadataFirstToken}','private','metadata-race-key-02','${DIGEST_A}');
        commit;`,
     ]);

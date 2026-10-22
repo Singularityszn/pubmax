@@ -94,6 +94,11 @@ export async function fetchLocalPlaywrightMenuPage(
   const browser = await browserType.launch({ headless: true });
   try {
     const page = await browser.newPage({ userAgent: HARVEST_USER_AGENT, serviceWorkers: "block" });
+    // A page socket is an upgrade, so the HTTP route below never sees it.
+    // Close every one: a menu render has no legitimate websocket.
+    await page.routeWebSocket(/.*/, (socket) => {
+      socket.close();
+    });
     await page.route("**/*", async (route) => {
       const requestUrl = route.request().url();
       const resourceType = route.request().resourceType();

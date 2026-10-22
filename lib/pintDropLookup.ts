@@ -21,7 +21,8 @@ import {
 } from "@/lib/retiredContributor";
 import { getSupabaseAdmin, isSupabaseConfigured } from "@/lib/supabase";
 import { normalizeHandle } from "@/lib/profiles";
-import { resolveVenue, venueMapUrl } from "@/lib/venueIndex";
+import { storedVenueName } from "@/lib/storedVenueRef";
+import { resolveStoredVenue, venueMapUrl } from "@/lib/venueIndex";
 
 // Standalone Pint Drop permalink lookup (PRD §8). ONE public read: turn a drop
 // id into a leak-proof, share-ready DTO for /p/[id] and its OG card. Server-only
@@ -192,7 +193,7 @@ async function enrich(
   authorRetiredAt?: string,
 ): Promise<PublicDrop | null> {
   if (!permittedOnPermalink(fields, viewer)) return null;
-  const venue = await resolveVenue(fields.venueId);
+  const venue = await resolveStoredVenue(fields.venueId);
   // ANONYMITY GUARANTEE (issue #29): an anonymous drop's real handle never leaves
   // the server — swap it for the withheld label before it can reach the page/OG
   // card. The author still reads their own anonymous drop with the label (their
@@ -212,7 +213,7 @@ async function enrich(
   return {
     ...fields,
     handle,
-    venueName: venue?.name ?? "A London pub",
+    venueName: venue ? storedVenueName(venue) : "A London pub",
     venueMapUrl: venueMapUrl(fields.venueId),
     ...(avatarUrl ? { avatarUrl } : {}),
   };

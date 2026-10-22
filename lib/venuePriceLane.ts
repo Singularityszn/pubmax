@@ -14,7 +14,6 @@ import { PRICE_AUTHORITY_MAX_AGE_DAYS } from "@/lib/priceAuthorityWindow";
 import { answerEvidenceFor, type AnswerPublisher } from "@/lib/landingHero";
 import type { PricedVenue } from "@/lib/priceUpdates";
 import type { EstimatedPriceInput, ListedPriceInput, PriceStanding } from "@/lib/priceTier";
-import { isoDate, PINT_DATASET_OBSERVED_AT } from "@/lib/dataFreshness";
 import { formatTrustDay, trustPillLabel } from "@/lib/trustPill";
 import { isPubVenue } from "@/lib/venueKindFilters";
 import type { Venue } from "@/lib/venues";
@@ -122,6 +121,8 @@ export type VenuePriceLane =
       standing: PriceStanding;
       /** Who published it, for the note that links out. Null when nobody did. */
       publisher: AnswerPublisher | null;
+      /** ISO day the publisher's row was last read at its source. Null when no row records a read. */
+      observedOn: string | null;
     }
   | {
       lane: "aged";
@@ -192,15 +193,11 @@ export function venuePriceLane(
     };
   }
   if (cheapestPrice !== null) {
-    const { publisher, standing } = answerEvidenceFor(
-      {
-        priceGbp: cheapestPrice,
-        prices: venue.prices ?? [],
-        collectedOn: isoDate(PINT_DATASET_OBSERVED_AT),
-      },
+    const { publisher, standing, observedOn } = answerEvidenceFor(
+      { priceGbp: cheapestPrice, prices: venue.prices ?? [] },
       now,
     );
-    return { lane: "baseline", cheapestPrice, standing, publisher };
+    return { lane: "baseline", cheapestPrice, standing, publisher, observedOn };
   }
   // AN AGED REPORT SITS BELOW THE BASELINE AND ABOVE THE MODEL. Below, because
   // a report past the window is no longer about tonight and the baseline at
@@ -258,21 +255,24 @@ export function venueSourcedPrice(venue: Venue): PricedVenue["sourcedPrice"] {
  * claim a listing and says what it really is instead, which is the same fork
  * the Overview's own note has always drawn.
  *
- * The day is the bundled dataset's collection day, in the format the landing
- * card prints it, because a price we hold is only as good as the day we read
- * it. A row that has aged past the listed window stops claiming a listing on
- * its own, without anything being rewritten.
+ * The day is the day THIS ROW was last read at its source, in the format the
+ * landing card prints it, because a price we hold is only as good as the day we
+ * read it. It is never the dataset's collection day: a re-collection re-reads
+ * only the rows its source still states, and a row it did not read keeps the
+ * day it was read. A row that has aged past the listed window stops claiming a
+ * listing on its own, without anything being rewritten.
  */
 export const BASELINE_NO_PUBLISHER_CAPTION = "Price on record, publisher not recorded";
 
 export function baselineTrustCaption(lane: {
   standing: PriceStanding;
   publisher: AnswerPublisher | null;
+  observedOn: string | null;
 }): string {
-  if (lane.standing !== "listed" || !lane.publisher) {
+  if (lane.standing !== "listed" || !lane.publisher || !lane.observedOn) {
     return BASELINE_NO_PUBLISHER_CAPTION;
   }
-  return `${trustPillLabel("listed")} · collected ${formatTrustDay(PINT_DATASET_OBSERVED_AT.getTime())}`;
+  return `${trustPillLabel("listed")} · collected ${formatTrustDay(Date.parse(`${lane.observedOn}T12:00:00.000Z`))}`;
 }
 
 export function venuePriceLaneObservedGbp(lane: VenuePriceLane): number | null {

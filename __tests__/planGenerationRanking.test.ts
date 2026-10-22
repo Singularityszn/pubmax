@@ -46,6 +46,41 @@ const AFTER_WORK_GROUP: NightContext = {
 };
 
 describe("Plan generation ranking evidence", () => {
+  // £9 at 0.10 km versus £7 at 0.22 km. Daytime distance weight leaves the
+  // cheaper glass ahead. After 23:00 the weight is three, so the nearer glass
+  // leads. A price weight of 24 would keep the cheaper glass ahead at night.
+  function wineWalk(daypart: NightContext["daypart"]) {
+    const nearer = venue(true, "nearer-dearer");
+    nearer.cheapestPrice = 4;
+    const farther = venue(false, "farther-cheaper");
+    farther.cheapestPrice = 6;
+    const winePrices: ReadonlyMap<string, MapLensPrice> = new Map([
+      [nearer.id, { venueId: nearer.id, category: "wine", categoryLabel: "Wine", priceGbp: 9, source: "community" }],
+      [farther.id, { venueId: farther.id, category: "wine", categoryLabel: "Wine", priceGbp: 7, source: "community" }],
+    ]);
+    const context = { ...AFTER_WORK_GROUP, daypart, budget: "value" as const, drinkCategory: "wine" as const };
+    return {
+      nearer: scoreVenueForPlan(nearer, context, 0.1, [], [], null, undefined, undefined, winePrices),
+      farther: scoreVenueForPlan(farther, context, 0.22, [], [], null, undefined, undefined, winePrices),
+    };
+  }
+
+  it("lets a couple of pounds of wine outrank a short walk in the daytime", () => {
+    const scored = wineWalk("daytime");
+
+    expect(scored.farther.score).toBeGreaterThan(scored.nearer.score);
+    expect(scored.farther.reasons).toContain("corroborated community wine price £7.00");
+    expect(scored.farther.reasons.join(" ")).not.toMatch(/pints from/i);
+  });
+
+  it("lets a short walk outrank a couple of pounds of wine once the late distance weight applies", () => {
+    const scored = wineWalk("get_home");
+
+    expect(scored.nearer.score).toBeGreaterThan(scored.farther.score);
+    expect(scored.nearer.reasons).toContain("corroborated community wine price £9.00");
+    expect(scored.nearer.reasons.join(" ")).not.toMatch(/pints from/i);
+  });
+
   it("ranks cheap wine by trusted wine prices rather than pint prices", () => {
     const cheapPint = venue(true, "cheap-pint");
     cheapPint.cheapestPrice = 4;

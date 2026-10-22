@@ -142,6 +142,7 @@ FIELDS = [
     "has_individual_pub_page_row",
     "is_clean_canonical_app_row",
     "data_quality_notes",
+    "scraped_at_values",
 ]
 
 

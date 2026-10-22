@@ -255,7 +255,6 @@ export default async function BoroughPage({ params }: PageProps) {
   const faq = faqItems(factStats, {
     monthYear: formatMonthYear(observedAt),
     year: String(observedAt.getFullYear()),
-    observedDate: formatObservedDate(observedAt),
   });
   const faqLd = faqPageJsonLd(faq);
   const jsonLdGraph = [

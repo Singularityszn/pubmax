@@ -306,7 +306,11 @@ describe("baseline price-source presentation", () => {
     const render = () =>
       renderToStaticMarkup(
         createElement(DrinkMenu, {
-          drinks: venueDrinkMenu("venue-test", [price("")], () => []),
+          drinks: venueDrinkMenu(
+            "venue-test",
+            [{ ...price(""), scraped_at_values: PINT_DATASET_OBSERVED_AT.toISOString() }],
+            () => [],
+          ),
           venueName: "The Test Arms",
         }),
       );
