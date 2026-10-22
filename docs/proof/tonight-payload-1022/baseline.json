@@ -1,0 +1,474 @@
+{
+  "capturedOn": "2026-10-22",
+  "localHead": "90864cf3ffd18001bc4db95e655868c55fbcda44",
+  "localDocument": {
+    "home": {
+      "status": 200,
+      "htmlBytes": 102717,
+      "inlineScriptBytes": 69352,
+      "flightBytes": 49197,
+      "flightRecords": 305
+    },
+    "tonight": {
+      "status": 200,
+      "htmlBytes": 177778,
+      "inlineScriptBytes": 117411,
+      "flightBytes": 92323,
+      "flightRecords": 349
+    }
+  },
+  "localProps": {
+    "modelBytes": 53246,
+    "sizes": [
+      {
+        "name": "mapSelectableVenueIds",
+        "bytes": 35295,
+        "count": 2250
+      },
+      {
+        "name": "photos",
+        "bytes": 8125
+      },
+      {
+        "name": "hypedPubs",
+        "bytes": 5383,
+        "count": 12
+      },
+      {
+        "name": "quietPint",
+        "bytes": 2965
+      },
+      {
+        "name": "initialListings",
+        "bytes": 761
+      },
+      {
+        "name": "cheapPints",
+        "bytes": 581,
+        "count": 4
+      },
+      {
+        "name": "softPlansWindow",
+        "bytes": 4
+      }
+    ]
+  },
+  "production": {
+    "home": {
+      "status": 200,
+      "htmlBytes": 101782,
+      "inlineScriptBytes": 68637,
+      "flightBytes": 48724
+    },
+    "tonight": {
+      "status": 200,
+      "htmlBytes": 271877,
+      "inlineScriptBytes": 209708,
+      "flightBytes": 176271,
+      "props": [
+        {
+          "name": "initialListings",
+          "bytes": 85501
+        },
+        {
+          "name": "mapSelectableVenueIds",
+          "bytes": 35295,
+          "count": 2250
+        },
+        {
+          "name": "photos",
+          "bytes": 8125
+        },
+        {
+          "name": "hypedPubs",
+          "bytes": 5383,
+          "count": 12
+        },
+        {
+          "name": "quietPint",
+          "bytes": 2965
+        },
+        {
+          "name": "cheapPints",
+          "bytes": 581,
+          "count": 4
+        },
+        {
+          "name": "softPlansWindow",
+          "bytes": 4
+        }
+      ]
+    },
+    "version": {
+      "ok": true,
+      "deploymentId": "dpl_H8cZfyzhPPUorvaNVF8hiddpwjxn",
+      "gitCommitSha": "e81aaa6a04b720ddb8ef4b909b35ffad445b0088"
+    }
+  },
+  "productionListingFields": [
+    {
+      "path": "initialListings.out",
+      "bytes": 44461,
+      "type": "object"
+    },
+    {
+      "path": "initialListings.out.body",
+      "bytes": 44421,
+      "type": "object"
+    },
+    {
+      "path": "initialListings.out.body.events",
+      "bytes": 43792,
+      "count": 78,
+      "type": "object"
+    },
+    {
+      "path": "initialListings.whatsOn",
+      "bytes": 40994,
+      "type": "object"
+    },
+    {
+      "path": "initialListings.whatsOn.rows",
+      "bytes": 40645,
+      "count": 63,
+      "type": "object"
+    },
+    {
+      "path": "initialListings.out.body.providers",
+      "bytes": 143,
+      "count": 2,
+      "type": "object"
+    },
+    {
+      "path": "initialListings.out.body.unmatchedPlaces",
+      "bytes": 125,
+      "count": 6,
+      "type": "object"
+    },
+    {
+      "path": "initialListings.out.body.attribution",
+      "bytes": 87,
+      "count": 1,
+      "type": "object"
+    },
+    {
+      "path": "initialListings.whatsOn.revalidation",
+      "bytes": 57,
+      "type": "object"
+    },
+    {
+      "path": "initialListings.out.body.observedAt",
+      "bytes": 43,
+      "type": "object"
+    },
+    {
+      "path": "initialListings.whatsOn.kindObservedAt",
+      "bytes": 35,
+      "type": "object"
+    },
+    {
+      "path": "initialListings.whatsOn.servedAt",
+      "bytes": 26,
+      "type": "string"
+    },
+    {
+      "path": "initialListings.whatsOn.sourceObservedAt",
+      "bytes": 26,
+      "type": "string"
+    },
+    {
+      "path": "initialListings.whatsOn.kindObservedAt.deal",
+      "bytes": 26,
+      "type": "string"
+    },
+    {
+      "path": "initialListings.whatsOn.asOf",
+      "bytes": 26,
+      "type": "string"
+    },
+    {
+      "path": "initialListings.out.body.observedAt.ticketmaster",
+      "bytes": 26,
+      "type": "string"
+    },
+    {
+      "path": "initialListings.whatsOn.revalidation.reason",
+      "bytes": 24,
+      "type": "string"
+    },
+    {
+      "path": "initialListings.whatsOn.sourceFreshnessKind",
+      "bytes": 19,
+      "type": "string"
+    },
+    {
+      "path": "initialListings.whatsOn.localityBasis",
+      "bytes": 16,
+      "type": "string"
+    },
+    {
+      "path": "initialListings.out.body.unmatchedSources",
+      "bytes": 16,
+      "count": 1,
+      "type": "object"
+    },
+    {
+      "path": "initialListings.renderedAt",
+      "bytes": 13,
+      "type": "number"
+    },
+    {
+      "path": "initialListings.whatsOn.revalidation.status",
+      "bytes": 12,
+      "type": "string"
+    },
+    {
+      "path": "initialListings.whatsOn.readStatus",
+      "bytes": 7,
+      "type": "string"
+    },
+    {
+      "path": "initialListings.out.body.status",
+      "bytes": 7,
+      "type": "string"
+    },
+    {
+      "path": "initialListings.out.body.listingsStatus",
+      "bytes": 7,
+      "type": "string"
+    },
+    {
+      "path": "initialListings.out.body.venueMatch",
+      "bytes": 7,
+      "type": "string"
+    },
+    {
+      "path": "initialListings.out.failed",
+      "bytes": 5,
+      "type": "boolean"
+    },
+    {
+      "path": "initialListings.out.pending",
+      "bytes": 5,
+      "type": "boolean"
+    },
+    {
+      "path": "initialListings.out.body.openPlans",
+      "bytes": 2,
+      "count": 0,
+      "type": "object"
+    },
+    {
+      "path": "initialListings.out.body.unmatchedCount",
+      "bytes": 2,
+      "type": "number"
+    },
+    {
+      "path": "initialListings.out.body.unmatchedPlaceCount",
+      "bytes": 2,
+      "type": "number"
+    }
+  ],
+  "productionComposition": {
+    "renderedAt": "2026-10-22T13:54:45.928Z",
+    "whatsOnRows": 63,
+    "outRows": 78,
+    "outRowsWithVenueId": 1,
+    "eligibleOutRows": 1,
+    "eligibleOutJsonBytes": 565,
+    "allOutJsonBytes": 43792,
+    "composition": {
+      "listingRows": 64,
+      "primaryListingRows": 0,
+      "outEvents": 0,
+      "listingsStatus": "empty"
+    }
+  },
+  "localPerf": {
+    "method": "e2e/helpers/perfMeasurement.ts preparePerfPage and runPerfRoute with tracked budgets",
+    "browser": "Google Chrome 154.0.8037.93 via channel=chrome",
+    "limitation": "All samples used harness-ready fallback and retained open /api/pint-drops requests. Indicative only. No budget acceptance or ratchet.",
+    "results": {
+      "/": {
+        "samples": [
+          {
+            "requests": 47,
+            "jsDecodedKB": 877,
+            "serverRenderMs": 88,
+            "lcpMs": 288,
+            "cls": 5.932089667854812e-06,
+            "boundarySource": "harness-ready",
+            "stillOpen": [
+              "http://127.0.0.1:3228/api/pint-drops",
+              "http://127.0.0.1:3228/api/pint-drops"
+            ]
+          },
+          {
+            "requests": 47,
+            "jsDecodedKB": 877,
+            "serverRenderMs": 83,
+            "lcpMs": 276,
+            "cls": 0,
+            "boundarySource": "harness-ready",
+            "stillOpen": [
+              "http://127.0.0.1:3228/api/pint-drops",
+              "http://127.0.0.1:3228/api/pint-drops",
+              "http://127.0.0.1:3228/api/pint-drops"
+            ]
+          },
+          {
+            "requests": 47,
+            "jsDecodedKB": 877,
+            "serverRenderMs": 88,
+            "lcpMs": 280,
+            "cls": 0,
+            "boundarySource": "harness-ready",
+            "stillOpen": [
+              "http://127.0.0.1:3228/api/pint-drops",
+              "http://127.0.0.1:3228/api/pint-drops",
+              "http://127.0.0.1:3228/api/pint-drops",
+              "http://127.0.0.1:3228/api/pint-drops"
+            ]
+          },
+          {
+            "requests": 47,
+            "jsDecodedKB": 877,
+            "serverRenderMs": 88,
+            "lcpMs": 288,
+            "cls": 0,
+            "boundarySource": "harness-ready",
+            "stillOpen": [
+              "http://127.0.0.1:3228/api/pint-drops",
+              "http://127.0.0.1:3228/api/pint-drops",
+              "http://127.0.0.1:3228/api/pint-drops",
+              "http://127.0.0.1:3228/api/pint-drops",
+              "http://127.0.0.1:3228/api/pint-drops"
+            ]
+          },
+          {
+            "requests": 47,
+            "jsDecodedKB": 877,
+            "serverRenderMs": 86,
+            "lcpMs": 328,
+            "cls": 0,
+            "boundarySource": "harness-ready",
+            "stillOpen": [
+              "http://127.0.0.1:3228/api/pint-drops",
+              "http://127.0.0.1:3228/api/pint-drops",
+              "http://127.0.0.1:3228/api/pint-drops",
+              "http://127.0.0.1:3228/api/pint-drops",
+              "http://127.0.0.1:3228/api/pint-drops",
+              "http://127.0.0.1:3228/api/pint-drops"
+            ]
+          }
+        ],
+        "aggregate": {
+          "serverRenderMs": 88,
+          "jsDecodedKB": 877,
+          "requests": 47,
+          "lcpMs": 288,
+          "cls": 0,
+          "boundarySource": "harness-ready",
+          "stillOpen": [
+            "http://127.0.0.1:3228/api/pint-drops"
+          ]
+        }
+      },
+      "/tonight": {
+        "samples": [
+          {
+            "requests": 67,
+            "jsDecodedKB": 1052,
+            "serverRenderMs": 89,
+            "lcpMs": 244,
+            "cls": 0,
+            "boundarySource": "harness-ready",
+            "stillOpen": [
+              "http://127.0.0.1:3228/api/pint-drops",
+              "http://127.0.0.1:3228/api/pint-drops",
+              "http://127.0.0.1:3228/api/pint-drops",
+              "http://127.0.0.1:3228/api/pint-drops",
+              "http://127.0.0.1:3228/api/pint-drops",
+              "http://127.0.0.1:3228/api/pint-drops"
+            ]
+          },
+          {
+            "requests": 67,
+            "jsDecodedKB": 1052,
+            "serverRenderMs": 89,
+            "lcpMs": 248,
+            "cls": 0,
+            "boundarySource": "harness-ready",
+            "stillOpen": [
+              "http://127.0.0.1:3228/api/pint-drops",
+              "http://127.0.0.1:3228/api/pint-drops",
+              "http://127.0.0.1:3228/api/pint-drops",
+              "http://127.0.0.1:3228/api/pint-drops",
+              "http://127.0.0.1:3228/api/pint-drops",
+              "http://127.0.0.1:3228/api/pint-drops"
+            ]
+          },
+          {
+            "requests": 63,
+            "jsDecodedKB": 1038,
+            "serverRenderMs": 86,
+            "lcpMs": 236,
+            "cls": 0,
+            "boundarySource": "harness-ready",
+            "stillOpen": [
+              "http://127.0.0.1:3228/api/pint-drops",
+              "http://127.0.0.1:3228/api/pint-drops",
+              "http://127.0.0.1:3228/api/pint-drops",
+              "http://127.0.0.1:3228/api/pint-drops",
+              "http://127.0.0.1:3228/api/pint-drops",
+              "http://127.0.0.1:3228/api/pint-drops"
+            ]
+          },
+          {
+            "requests": 67,
+            "jsDecodedKB": 1052,
+            "serverRenderMs": 87,
+            "lcpMs": 184,
+            "cls": 0.0022581104048276846,
+            "boundarySource": "harness-ready",
+            "stillOpen": [
+              "http://127.0.0.1:3228/api/pint-drops",
+              "http://127.0.0.1:3228/api/pint-drops",
+              "http://127.0.0.1:3228/api/pint-drops",
+              "http://127.0.0.1:3228/api/pint-drops",
+              "http://127.0.0.1:3228/api/pint-drops",
+              "http://127.0.0.1:3228/api/pint-drops"
+            ]
+          },
+          {
+            "requests": 67,
+            "jsDecodedKB": 1052,
+            "serverRenderMs": 88,
+            "lcpMs": 256,
+            "cls": 0,
+            "boundarySource": "harness-ready",
+            "stillOpen": [
+              "http://127.0.0.1:3228/api/pint-drops",
+              "http://127.0.0.1:3228/api/pint-drops",
+              "http://127.0.0.1:3228/api/pint-drops",
+              "http://127.0.0.1:3228/api/pint-drops",
+              "http://127.0.0.1:3228/api/pint-drops",
+              "http://127.0.0.1:3228/api/pint-drops"
+            ]
+          }
+        ],
+        "aggregate": {
+          "serverRenderMs": 88,
+          "jsDecodedKB": 1052,
+          "requests": 67,
+          "lcpMs": 244,
+          "cls": 0,
+          "boundarySource": "harness-ready",
+          "stillOpen": [
+            "http://127.0.0.1:3228/api/pint-drops"
+          ]
+        }
+      }
+    }
+  }
+}
