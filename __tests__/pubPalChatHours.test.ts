@@ -52,6 +52,21 @@ afterEach(() => {
 
 describe("keyless Pub Pal hours answers", () => {
   it.each([
+    ["Seething Lane Tap: A BrewDog Pub", "venue-17hwv2n"],
+    ["Tower Bridge Arms: A BrewDog Pub", "venue-tktxa2"],
+  ])("returns hours for an exact name containing a pub description: %s", async (name, venueId) => {
+    io.detail.mockResolvedValue({ status: "found", venue: { siteFacts: {
+      sourceUrl: "https://example.org/hours", readOn: "2026-10-20",
+      hours: { hours: { 4: [{ opens: "12:00", closes: "23:00" }] }, statedDays: [4], evidence: "Thursday noon to 11pm" },
+    } } });
+    const body = await ask(`What are the opening hours of ${name}?`);
+    expect(body.answer).toContain(`${name}: recorded regular opening hours: Thursday 12:00 to 23:00`);
+    expect(body.cards).toHaveLength(1);
+    expect(body.cards[0].venueId).toBe(venueId);
+    expect(body.sources[0]?.url).toBe("https://example.org/hours");
+  });
+
+  it.each([
     "What are the opening hours of The Crosse Keys and are there Tube delays?",
     "Are there Tube delays and what are The Crosse Keys' opening hours?",
   ])("preserves both tool answers in chat: %s", async (query) => {
