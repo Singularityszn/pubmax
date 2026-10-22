@@ -26,7 +26,7 @@ import path from "node:path";
 import process from "node:process";
 import { fileURLToPath } from "node:url";
 
-import { parseFoodPriceUpdates } from "../lib/foodPriceUpdates.ts";
+import { parseFoodPriceObservations, parseFoodPriceUpdates } from "../lib/foodPriceUpdates.ts";
 
 const ROOT = process.cwd();
 const PACK_DIR = path.join(ROOT, "public/data/food_price_updates");
@@ -62,7 +62,7 @@ export function buildFoodPricePack({ existing, harvested, now = Date.now() }) {
     );
   }
   const restated = new Set(accepted.map((row) => row.venueKey));
-  const kept = parseFoodPriceUpdates(existing, now).filter((row) => !restated.has(row.venueKey));
+  const kept = parseFoodPriceObservations(existing, now).filter((row) => !restated.has(row.venueKey));
   const updates = [...kept, ...accepted].sort(
     (a, b) => a.venueKey.localeCompare(b.venueKey) || a.category.localeCompare(b.category) || a.itemName.localeCompare(b.itemName),
   );

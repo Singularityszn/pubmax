@@ -141,19 +141,35 @@ export function applyFoodPriceUpdatesToMenu(
   return merged;
 }
 
-export function parseFoodPriceUpdates(raw: unknown, now: number = Date.now()): FoodPriceUpdate[] {
+/** Keep validated source observations for packs that will be read again. */
+export function parseFoodPriceObservations(raw: unknown, now: number = Date.now()): FoodPriceUpdate[] {
   const rows = Array.isArray(raw)
     ? raw
     : typeof raw === "object" && raw !== null && Array.isArray((raw as { updates?: unknown }).updates)
       ? (raw as { updates: unknown[] }).updates
       : [];
+  return rows
+    .filter((row): row is FoodPriceUpdate => isValidFoodPriceUpdate(row, now))
+    .map((row) => ({
+      venueKey: row.venueKey,
+      itemName: row.itemName,
+      category: row.category,
+      priceGbp: row.priceGbp,
+      caloriesKcal: row.caloriesKcal,
+      description: row.description,
+      dietary: row.dietary,
+      source: { label: row.source.label, url: row.source.url, licence: row.source.licence },
+      observedAt: row.observedAt,
+    }));
+}
+
+export function parseFoodPriceUpdates(raw: unknown, now: number = Date.now()): FoodPriceUpdate[] {
   const newestByKey = new Map<string, {
     price: FoodPriceUpdate;
     dietary?: FoodPriceUpdate;
     calories?: FoodPriceUpdate;
   }>();
-  for (const row of rows) {
-    if (!isValidFoodPriceUpdate(row, now)) continue;
+  for (const row of parseFoodPriceObservations(raw, now)) {
     const key = rowKey(row.venueKey, row.itemName, row.category);
     const existing = newestByKey.get(key);
     if (!existing) {
