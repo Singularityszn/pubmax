@@ -1,10 +1,39 @@
-import { expect, test } from "@playwright/test";
+import { expect, test, type Locator } from "@playwright/test";
 
 import { installDeterministicMapBasemap } from "./helpers/mapNetworkFixtures";
 import { beginPublicEvidence } from "./helpers/publicPageEvidence";
 
 if (process.env.PUBMAX_PUBLIC_EVIDENCE_PHASE) {
   test.use({ trace: "off", video: "off" });
+}
+
+async function expectDietaryEvidenceLayout(dietary: Locator) {
+  const layout = await dietary.evaluate((element) => {
+    const label = element.querySelector("span");
+    const source = element.querySelector(".drinkProvChip");
+    const date = element.querySelector(".drinkObservationAge");
+    if (!label || !source || !date) return null;
+    const labelBox = label.getBoundingClientRect();
+    const sourceBox = source.getBoundingClientRect();
+    const dateBox = date.getBoundingClientRect();
+    const container = element.getBoundingClientRect();
+    return {
+      sourceFragments: source.getClientRects().length,
+      labelBottom: labelBox.bottom,
+      sourceTop: sourceBox.top,
+      sourceBottom: sourceBox.bottom,
+      sourceRight: sourceBox.right,
+      dateTop: dateBox.top,
+      dateRight: dateBox.right,
+      containerRight: container.right,
+    };
+  });
+  expect(layout).not.toBeNull();
+  expect(layout!.sourceFragments).toBe(1);
+  expect(layout!.sourceTop).toBeGreaterThanOrEqual(layout!.labelBottom);
+  expect(layout!.dateTop).toBeGreaterThanOrEqual(layout!.sourceBottom);
+  expect(layout!.sourceRight).toBeLessThanOrEqual(layout!.containerRight);
+  expect(layout!.dateRight).toBeLessThanOrEqual(layout!.containerRight);
 }
 
 for (const width of [390, 1440]) {
@@ -147,6 +176,7 @@ for (const menu of [
     await expect(dietary.getByRole("link", { name: menu.publisher, exact: true })).toHaveAttribute("href", menu.source);
     await expect(dietary.locator("time")).toHaveAttribute("datetime", menu.observedAt);
     await expect(dietary.locator("time")).toHaveText("13 October 2026");
+    await expectDietaryEvidenceLayout(dietary);
     await expect(row.locator(".foodCalories")).toContainText(`${menu.calories} kcal on the menu`);
     const price = row.locator(".drinkRowSide");
     await expect(price.getByRole("link", { name: menu.publisher, exact: true })).toHaveAttribute("href", menu.source);
@@ -204,6 +234,7 @@ test.describe("public screenshot evidence", () => {
         await expect(dietary.getByRole("link", { name: "The New Inn - official published menu", exact: true })).toHaveAttribute("href", "https://www.newinnealing.com/food-and-drink");
         await expect(dietary.locator("time")).toHaveAttribute("datetime", "2026-10-13T09:43:11.443Z");
         await expect(dietary.locator("time")).toHaveText("13 October 2026");
+        await expectDietaryEvidenceLayout(dietary);
       } else {
         await expect(dietary).toHaveText("vegan");
         await expect(dietary.locator("a, time")).toHaveCount(0);
