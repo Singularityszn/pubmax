@@ -287,6 +287,18 @@ async function exerciseWorklets(
         const pcmOutput = new Int16Array(1_600).fill(16_384);
         pcmQueued = true;
         concat.port.postMessage({ type: "buffer", buffer: pcmOutput.buffer });
+        // Each native suspension returns the offline renderer to its task
+        // queue so the one queued PCM message can run before rendering ends.
+        // Only the real process event acknowledges that concat has started.
+        for (
+          let frame = 256;
+          frame < context.length && !concatStarted && !deadlineExpired && processorErrors.length === 0;
+          frame += 128
+        ) {
+          const quantum = context.suspend(frame / context.sampleRate);
+          await context.resume();
+          await quantum;
+        }
         await context.resume();
         const [audio] = await Promise.all([rendering, events]);
         const channel = audio.getChannelData(0);
