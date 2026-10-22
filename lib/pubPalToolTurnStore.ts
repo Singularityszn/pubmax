@@ -38,7 +38,7 @@ export type PubPalToolTurn = {
 };
 
 type StoredTurn = PubPalToolTurn & { ownerId: string };
-type RevisionedStoredTurn = StoredTurn & { revision: number | null };
+type RevisionedStoredTurn = StoredTurn & { revision: number | null; createdAt: string };
 
 type PubPalToolTurnPayload = {
   query: string;
@@ -253,6 +253,7 @@ type ToolTurnRow = {
   owner_id: string | null;
   payload: unknown;
   expires_at: string;
+  created_at: string;
 };
 
 async function purgeExpiredRows(): Promise<void> {
@@ -271,7 +272,7 @@ type StoredLookup =
 async function lookupStoredRow(conversationId: string): Promise<StoredLookup> {
   const { data, error } = await requireSupabaseAdmin()
     .from("pub_pal_tool_turns")
-    .select("conversation_id, owner_id, payload, expires_at")
+    .select("conversation_id, owner_id, payload, expires_at, created_at")
     .eq("conversation_id", conversationId)
     .gt("expires_at", new Date().toISOString())
     .maybeSingle();
@@ -280,6 +281,9 @@ async function lookupStoredRow(conversationId: string): Promise<StoredLookup> {
   const row = data as ToolTurnRow;
   // A null owner is not a free claim. Bind and register refuse it.
   if (!row.owner_id) return { status: "unowned" };
+  if (typeof row.created_at !== "string" || !Number.isFinite(Date.parse(row.created_at))) {
+    throw new Error("Invalid Pub Pal conversation creation time.");
+  }
   const payload = row.payload as PubPalToolTurnPayload;
   if (!payload || typeof payload !== "object" || Array.isArray(payload)) {
     throw new Error("Invalid Pub Pal conversation payload.");
@@ -295,6 +299,8 @@ async function lookupStoredRow(conversationId: string): Promise<StoredLookup> {
     turn: {
       ...turnFromPayload(payload, new Date(row.expires_at).getTime(), row.owner_id),
       revision: revision ?? null,
+      // Preserve raw PostgreSQL microseconds for generation comparison and CAS.
+      createdAt: row.created_at,
     },
   };
 }
@@ -335,6 +341,7 @@ async function updateStoredRow(
     })
     .eq("conversation_id", conversationId)
     .eq("owner_id", expected.ownerId)
+    .eq("created_at", expected.createdAt)
     .eq("expires_at", new Date(expected.expiresAt).toISOString())
     .gt("expires_at", new Date().toISOString());
   update = expected.revision === null
@@ -394,9 +401,14 @@ const supabasePubPalToolTurnStore: PubPalToolTurnStore = {
         }),
       run: async () => {
         await purgeExpiredRows();
+        let createdAt: string | undefined;
         for (let attempt = 0; attempt < DURABLE_WRITE_ATTEMPTS; attempt++) {
           const existing = claimedTurn(await lookupStoredRow(conversationId));
           if (existing && existing.ownerId !== input.ownerId) throw new PubPalToolTurnAccessError();
+          if (createdAt !== undefined && (!existing || existing.createdAt !== createdAt)) {
+            throw new PubPalToolTurnAccessError();
+          }
+          if (existing) createdAt ??= existing.createdAt;
           const next = mergeOwned(existing, input, userLineAt);
           if (existing) {
             next.expiresAt = Math.max(existing.expiresAt, next.expiresAt);
@@ -481,10 +493,13 @@ const supabasePubPalToolTurnStore: PubPalToolTurnStore = {
         }),
       run: async () => {
         await purgeExpiredRows();
+        let createdAt: string | undefined;
         for (let attempt = 0; attempt < DURABLE_WRITE_ATTEMPTS; attempt++) {
           const lookup = await lookupStoredRow(conversationId);
           if (lookup.status !== "owned" || lookup.turn.ownerId !== ownerId) return false;
           const existing = lookup.turn;
+          if (createdAt !== undefined && existing.createdAt !== createdAt) return false;
+          createdAt ??= existing.createdAt;
           const next = {
             ...existing,
             turns: [...existing.turns, turn].slice(-6),
@@ -512,12 +527,15 @@ const supabasePubPalToolTurnStore: PubPalToolTurnStore = {
         }),
       run: async () => {
         let ownerId: string | undefined;
+        let createdAt: string | undefined;
         for (let attempt = 0; attempt < DURABLE_WRITE_ATTEMPTS; attempt++) {
           const lookup = await lookupStoredRow(conversationId);
           if (lookup.status !== "owned") return;
           const existing = lookup.turn;
           if (ownerId !== undefined && existing.ownerId !== ownerId) throw new PubPalToolTurnAccessError();
+          if (createdAt !== undefined && existing.createdAt !== createdAt) return;
           ownerId = existing.ownerId;
+          createdAt ??= existing.createdAt;
           const next = {
             ...existing,
             cards: [...existing.cards, ...(patch.cards ?? [])],
