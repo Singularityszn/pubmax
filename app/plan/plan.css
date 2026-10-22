@@ -1270,6 +1270,7 @@ html[data-theme="dark"] .planCrew__join button { color: #090d0b; }
    DASHED for the straight-line approximation. The card chrome below only
    frames the canvas; the map layers paint the route. */
 .planRouteMiniMap {
+  position: relative;
   margin: 22px 0 4px;
   padding: 12px;
   border: 1px solid var(--line);
@@ -1288,9 +1289,15 @@ html[data-theme="dark"] .planCrew__join button { color: #090d0b; }
   text-decoration: none;
   border-radius: var(--radius-lg, 18px);
 }
-.planRouteMiniMap--clickable:focus-visible {
+.planRouteMiniMap__routeLink {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  border-radius: inherit;
+}
+.planRouteMiniMap__routeLink:focus-visible {
   outline: 2px solid var(--plan-accent-strong);
-  outline-offset: 3px;
+  outline-offset: -3px;
 }
 .planRouteMiniMap__title {
   margin: 0 0 8px;

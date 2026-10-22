@@ -56,6 +56,7 @@ export default function MapLoadingSkeleton({
 }: MapLoadingSkeletonProps) {
   return (
     <main id="main"
+      tabIndex={-1}
       className="mapSkeleton"
       aria-busy="true"
       aria-describedby="mapSkeletonStatus"

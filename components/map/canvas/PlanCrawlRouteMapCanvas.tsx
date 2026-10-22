@@ -77,11 +77,14 @@ export default function PlanCrawlRouteMapCanvas({
       interactive: false,
     });
     mapRef.current = map;
-    // MapLibre opens the compact attribution expanded and only collapses it on
-    // a drag, which this static preview never gets, so the panel would sit on
-    // the last stop. Start it at the (i) button. Not a synthetic click: the
-    // preview sits inside the card's clickable figure and the click would
-    // navigate to the map.
+    // This preview is read-only. MapLibre gives its canvas tabindex=-1 even
+    // with interactive=false; remove that focus target before hiding the
+    // decorative canvas. Its attribution control is a sibling and stays usable.
+    const decorativeCanvas = map.getCanvas();
+    decorativeCanvas.removeAttribute("tabindex");
+    decorativeCanvas.setAttribute("aria-hidden", "true");
+    // MapLibre opens compact attribution expanded and only collapses it on a
+    // drag, which this preview never gets. Start it at the (i) button.
     const attribution = container.querySelector<HTMLElement>(".maplibregl-ctrl-attrib");
     attribution?.classList.remove("maplibregl-compact-show");
     attribution?.removeAttribute("open");
@@ -127,7 +130,6 @@ export default function PlanCrawlRouteMapCanvas({
     <div
       ref={containerRef}
       className="planRouteMiniMap__canvas maplibreMap"
-      aria-hidden="true"
       data-testid="plan-crawl-route-map"
     />
   );

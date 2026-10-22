@@ -10,7 +10,7 @@ import MobileSharedSheet from "@/components/mobile/MobileSharedSheet";
 
 it.each([320, 390, 430].flatMap((width) =>
   (["planner", "venue"] as const).map((kind) => ({ width, kind })),
-))("leaves $width px $kind Escape to the phone sheet", ({ width, kind }) => {
+))("leaves $width px $kind Escape to the phone sheet", async ({ width, kind }) => {
   const onBack = vi.fn();
   const onHome = vi.fn();
   function MapKeys({ mobileViewport }: { mobileViewport: boolean }) {
@@ -54,6 +54,7 @@ it.each([320, 390, 430].flatMap((width) =>
     expect(onBack).toHaveBeenCalledTimes(2);
     act(() => root.render(<><MapKeys mobileViewport={false} /></>));
     act(() => window.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" })));
+    await new Promise((resolve) => setTimeout(resolve, 0));
     expect(onBack).toHaveBeenCalledTimes(3);
   } finally {
     act(() => root.unmount());
@@ -63,7 +64,7 @@ it.each([320, 390, 430].flatMap((width) =>
   }
 });
 
-it("handles Escape when an earlier key listener rerenders the map", () => {
+it("handles Escape when an earlier key listener rerenders the map", async () => {
   const onBack = vi.fn();
   function MapKeys({ revision }: { revision: number }) {
     useMapKeyboardShortcuts({
@@ -95,6 +96,7 @@ it("handles Escape when an earlier key listener rerenders the map", () => {
     act(() => {
       window.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" }));
     });
+    await new Promise((resolve) => setTimeout(resolve, 0));
     expect(onBack).toHaveBeenCalledExactlyOnceWith(1);
   } finally {
     window.removeEventListener("keydown", earlierListener);

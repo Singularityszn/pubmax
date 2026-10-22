@@ -1,5 +1,7 @@
 "use client";
 
+import { routeStopsWithAvailableBackups } from "@/lib/planRouteEditor";
+
 import {
   FormEvent,
   useEffect,
@@ -45,7 +47,7 @@ import {
 import { cleanNightContext, type NightContext } from "@/lib/nightPlanning";
 import { planUsesPintPrices } from "@/lib/planGenerationDto";
 import { categoryLabel, DRINK_CATEGORIES, type DrinkCategory } from "@/lib/drinks";
-import { cleanSelectedDrinkPriceEvidence, selectedDrinkPriceDescription, type SelectedDrinkPriceEvidence } from "@/lib/planSelectedDrinkPriceEvidence";
+import { cleanSelectedDrinkPriceEvidence, planStopEvidenceForContext, selectedDrinkPriceDescription, type SelectedDrinkPriceEvidence } from "@/lib/planSelectedDrinkPriceEvidence";
 export { selectedDrinkPriceDescription } from "@/lib/planSelectedDrinkPriceEvidence";
 import { CITIES, DEFAULT_CITY_ID, type CityId } from "@/lib/cities";
 import {
@@ -82,6 +84,7 @@ import {
   composerGeolocationMaySeedIntake,
   mergeSubmittedNightContext,
   mergePlanTemplateFields,
+  newQuerySupersedesDrinkChoice,
   nightAreaFromPlanQuery,
   reconcileGeneratedNightContext,
   syncPlanIntakeAreaFromQuery,
@@ -733,7 +736,7 @@ export function composerCreatePayload(input: {
   creatorName: string;
   startTime: string;
   cityId?: CityId | null;
-  stops: ReadonlyArray<{ venueId: string; venueName: string; selectedDrinkPriceEvidence?: unknown }>;
+  stops: ReadonlyArray<{ venueId: string; venueName: string; selectedDrinkPriceEvidence?: unknown; alternatives?: RouteAlternative[] }>;
   groundingProof?: string | null;
   planAnchor?: GeneratedPlanAnchor | null;
   context?: NightContext | null;
@@ -743,15 +746,16 @@ export function composerCreatePayload(input: {
     creatorName: input.creatorName,
     startTime: input.startTime,
     ...(input.cityId ? { cityId: input.cityId } : {}),
-    stops: input.stops.map(({ venueId, venueName, selectedDrinkPriceEvidence }) => {
-      const evidence = cleanSelectedDrinkPriceEvidence(selectedDrinkPriceEvidence);
-      return {
-        venueId,
-        venueName,
-        ...(evidence && input.context && !input.context.zeroProof
-          && evidence.category === input.context.drinkCategory
-          ? { selectedDrinkPriceEvidence: evidence } : {}),
-      };
+    stops: routeStopsWithAvailableBackups(input.stops).map((stop, position) => {
+      const evidence = cleanSelectedDrinkPriceEvidence(stop.selectedDrinkPriceEvidence);
+      const priced = planStopEvidenceForContext({
+        venueId: stop.venueId, venueName: stop.venueName, position,
+        ...(evidence ? { selectedDrinkPriceEvidence: evidence } : {}),
+        ...(stop.alternatives?.length ? { alternatives: stop.alternatives } : {}),
+      }, input.context);
+      return { venueId: priced.venueId, venueName: priced.venueName,
+        ...(priced.selectedDrinkPriceEvidence ? { selectedDrinkPriceEvidence: priced.selectedDrinkPriceEvidence } : {}),
+        ...(priced.alternatives?.length ? { alternatives: priced.alternatives } : {}) };
     }),
     ...(input.groundingProof ? { groundingProof: input.groundingProof } : {}),
     ...(input.planAnchor ? { anchor: input.planAnchor } : {}),
@@ -1045,9 +1049,13 @@ function initialComposerStops(
       alternatives: [],
     })) ?? [];
   if (recoveredRouteDraft?.stops.length) return recoveredRouteDraft.stops;
-  if (recoveredPlanStops.length) return recoveredPlanStops;
+  if (recoveredPlanStops.length) return recoveredPlanStops.map((stop, index) =>
+    index === 0 && stop.venueId === handoff?.heldVenueId && handoff.acceptedAnchor?.selectedDrinkPriceEvidence
+      ? { ...stop, selectedDrinkPriceEvidence: handoff.acceptedAnchor.selectedDrinkPriceEvidence } : stop,
+  );
   const provisional = seedProvisionalStop1({
     acceptedVenueId: handoff?.heldVenueId,
+    selectedDrinkPriceEvidence: handoff?.acceptedAnchor?.selectedDrinkPriceEvidence,
     recoveredRouteStops: recoveredRouteDraft?.stops,
     recoveredPlanStops,
   });
@@ -1306,7 +1314,12 @@ function PlanComposerForm({
   const [conciergeNote, setConciergeNote] = useState("");
   const routeDraftFields = initialComposerRouteDraft(recoveredRouteDraft);
   const [nightContext, setNightContext] = useState<NightContext | null>(routeDraftFields.nightContext);
-  const [explicitNightContext, setExplicitNightContext] = useState<Partial<NightContext>>({});
+  // Acceptance carries one drink choice, not a complete inferred night. Existing
+  // recovered route context and later explicit edits retain their precedence.
+  const [explicitNightContext, setExplicitNightContext] = useState<Partial<NightContext>>(() =>
+    !routeDraftFields.nightContext && handoff?.acceptedAnchor?.selectedDrinkPriceEvidence
+      ? { drinkCategory: handoff.acceptedAnchor.selectedDrinkPriceEvidence.category } : {},
+  );
   const [routeRevision, setRouteRevision] = useState<RouteRevision | null>(routeDraftFields.routeRevision);
   const [routeStale, setRouteStale] = useState(routeDraftFields.routeStale);
   // WHETHER THE GENERATOR HAS ANSWERED, which is the moment the page's one
@@ -1316,6 +1329,7 @@ function PlanComposerForm({
   // exactly the surface that still needs it (e2e/plan-held-acceptance.spec.ts).
   // A recovered route draft IS a route, so it seeds this true.
   const [routeSorted, setRouteSorted] = useState(Boolean(recoveredRouteDraft));
+  const lastGeneratedQueryRef = useRef<string | null>(recoveredRouteDraft ? draftFields.conciergeQuery : null);
   const [groundingProof, setGroundingProof] = useState(routeDraftFields.groundingProof);
   const [createOperationKey, setCreateOperationKey] = useState(routeDraftFields.createOperationKey);
   const [planAnchor, setPlanAnchor] = useState(routeDraftFields.planAnchor);
@@ -1724,9 +1738,20 @@ function PlanComposerForm({
     // send the pre-skip intake to the server.
     const query = queryOverride ?? conciergeQuery;
     const queryArea = nightAreaFromPlanQuery(query);
+    const supersedesDrinkChoice = newQuerySupersedesDrinkChoice(lastGeneratedQueryRef.current, query);
     const explicitContextBase = explicitContextOverride
       ? { ...explicitNightContext, ...explicitContextOverride }
-      : explicitNightContext;
+      : { ...explicitNightContext };
+    if (supersedesDrinkChoice) {
+      delete explicitContextBase.drinkCategory;
+      delete explicitContextBase.zeroProof;
+      setExplicitNightContext((current) => {
+        const next = { ...current };
+        delete next.drinkCategory;
+        delete next.zeroProof;
+        return next;
+      });
+    }
     const explicitContext = Object.prototype.hasOwnProperty.call(explicitContextBase, "nightArea")
       ? explicitContextBase
       : nightContext?.nightArea
@@ -1767,16 +1792,24 @@ function PlanComposerForm({
     setRouteStatus("Refreshing the route, rechecking every stop against your updated night.");
     let responseStatus: number | null = null;
     try {
+      const requestBody = buildPlanGenerationIntakeBody(
+        intake,
+        query,
+        nightContext,
+        submittedContext,
+        handoff?.acceptedAnchor,
+      );
+      if (supersedesDrinkChoice) {
+        // Earlier context and an accepted quote can both carry the old drink.
+        // Keep the venue and other constraints; the server reads the new query.
+        delete requestBody.context?.drinkCategory;
+        delete requestBody.context?.zeroProof;
+        delete requestBody.anchor?.selectedDrinkPriceEvidence;
+      }
       const response = await fetch("/api/plans/generate", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify(buildPlanGenerationIntakeBody(
-          intake,
-          query,
-          nightContext,
-          submittedContext,
-          handoff?.acceptedAnchor,
-        )),
+        body: JSON.stringify(requestBody),
       });
       responseStatus = response.status;
       const body = await readApiJson(response) as {
@@ -1810,6 +1843,7 @@ function PlanComposerForm({
         return;
       }
       setStops(suggested);
+      lastGeneratedQueryRef.current = query.trim();
       setRouteSorted(true);
       setCultureOpener(cleanCultureOpener(body.cultureOpener));
       const grounded = isGroundedGeneratedRoute(body, suggested);
