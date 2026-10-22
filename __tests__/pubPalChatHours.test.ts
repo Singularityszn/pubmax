@@ -63,6 +63,9 @@ describe("keyless Pub Pal hours answers", () => {
     ["What are the closing times for The Blackfriar next to The Old Bell Tavern?", "The Blackfriar"],
     ["What are the closing hours of Blackfriar near The Old Bell Tavern?", "The Blackfriar"],
     ["What are the opening times at The Black Friar, Blackfriars?", "The Blackfriar"],
+    ["What are The Black Friar, Blackfriars' opening hours, please?", "The Blackfriar"],
+    ["What are The Blackfriar's opening hours near The Old Bell Tavern?", "The Blackfriar"],
+    ["What are the opening hours of The Blackfriar near The Old Bell Tavern, please?", "The Blackfriar"],
   ])("uses the hours subject rather than a landmark: %s", async (query, name) => {
     const body = await ask(query);
     expect(body.cards).toHaveLength(1);
@@ -78,6 +81,8 @@ describe("keyless Pub Pal hours answers", () => {
     "What are the opening hours of The Blackfriar and The Old Bell Tavern?",
     "What are the opening hours of The Old Bell Tavern or The Blackfriar?",
     "What are the opening hours of Imaginary Moon Tavern near The Old Bell Tavern?",
+    "What are The Blackfriar and The Old Bell Tavern's opening hours, please?",
+    "What are the opening hours of The Blackfriar and The Old Bell Tavern, please?",
   ])("requests clarification before reading an ambiguous or unknown subject: %s", async (query) => {
     const body = await ask(query);
     expect(body.answer).toContain("Which pub do you mean?");
@@ -96,6 +101,14 @@ describe("keyless Pub Pal hours answers", () => {
   it.each([
     "What are the opening hours of The Crosse Keys?",
     "What are the opening hours at a pub called The Crosse Keys?",
+    "What are The Crosse Keys' opening hours?",
+    "What are the opening hours of The Crosse Keys, please?",
+    "What are The Crosse Keys’ opening hours, please?",
+    "What are The Crosse Keys opening hours?",
+    "What are the opening hours of The Crosse Keys, please?!",
+    "What is The Crosse Keys' closing times?",
+    "Could you tell me The Crosse Keys' opening hours, please?",
+    "Please show me the opening times for The Crosse Keys.",
   ])("preserves the recorded hours, card and source: %s", async (query) => {
     io.detail.mockResolvedValue({ status: "found", venue: { siteFacts: {
       sourceUrl: "https://example.org/hours", readOn: "2026-10-20",

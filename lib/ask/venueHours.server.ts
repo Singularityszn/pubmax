@@ -32,10 +32,15 @@ async function readVenueHours(query: string, ctx: AskToolContext): Promise<AskTo
     answerHint: "Which pub do you mean? I need its name to check the opening hours.",
   };
   const venues = await loadConciergeVenues(ctx.cityId);
-  const [before, after] = query.replace(/[.!?]+\s*$/, "").split(/\b(?:opening|closing)\s+(?:hours|times)\b/i);
-  const subject = (after?.trim() ? after : before ?? "")
+  const question = query.trim().replace(/[.!?,;:]+$/, "")
+    .replace(/(?:,\s*|\s+)please$/i, "")
+    .replace(/^please[,\s]+/i, "")
+    .replace(/^(?:what(?:['’]s|\s+(?:is|are))|(?:can|could|would)\s+you\s+(?:tell|show)\s+me|(?:tell|show)\s+me)\s+/i, "")
     .split(/\b(?:near|next to|close to|beside|around)\b/i)[0] ?? "";
-  const name = wordsOnly(subject.replace(/^\s*(?:of|at|for)\s+/i, "").replace(
+  const [before, after] = question.split(/\b(?:opening|closing)\s+(?:hours|times)\b/i);
+  const subject = after?.trim() ? after : before ?? "";
+  const name = wordsOnly(subject.replace(/['’]s(?=\s*[,.;:!?]*\s*$)/i, "")
+    .replace(/^\s*(?:of|at|for)\s+/i, "").replace(
     /^\s*(?:a|an|the)\s+(?:(?!(?:pub|bar|venue|place)\b)[^\s,.!?;]+\s+)*(?:pub|bar|venue|place)\s+(?:called|named)\s+/i, "",
   )).replace(/^the\s+/, "");
   const matches = venues.filter((candidate) => venueSearchNames(candidate).some(

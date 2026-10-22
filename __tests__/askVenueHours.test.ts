@@ -1,8 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-const io = vi.hoisted(() => ({ detail: vi.fn(), schedules: vi.fn() }));
+const io = vi.hoisted(() => ({ venues: vi.fn(), detail: vi.fn(), schedules: vi.fn() }));
 vi.mock("@/lib/concierge/venues.server", () => ({
-  loadConciergeVenues: async () => [{ id: "venue-example", name: "Example Arms", area: "Camden", lat: 51.5, lng: -0.1 }],
+  loadConciergeVenues: io.venues,
 }));
 vi.mock("@/lib/venueDetailIndex", () => ({ lookupVenueDetail: io.detail }));
 vi.mock("@/lib/planRouteEvidence.server", () => ({ planOpeningSchedulesForVenues: io.schedules }));
@@ -17,6 +17,7 @@ const site = {
 const ask = () => runAsk({ query: "What are the opening hours of Example Arms?", now, skipModel: true });
 
 beforeEach(() => {
+  io.venues.mockResolvedValue([{ id: "venue-example", name: "Example Arms", area: "Camden", lat: 51.5, lng: -0.1 }]);
   io.detail.mockResolvedValue({ status: "found", venue: {} });
   io.schedules.mockResolvedValue(new Map());
   vi.stubGlobal("fetch", vi.fn(() => { throw new Error("Hours tests must stay offline."); }));
@@ -28,6 +29,25 @@ afterEach(() => {
 });
 
 describe("recorded opening-hours sources", () => {
+  it.each([
+    "What are The King's Arms' opening hours?",
+    "What are The King's Arms's opening hours, please?",
+    "What are the opening hours of The King's Arms, please?",
+    "What are the opening hours of The King's Arms - JD Wetherspoon, please?",
+    "What are The King’s Arms’ opening hours?",
+  ])("preserves name words, internal apostrophes and source aliases: %s", async (query) => {
+    io.venues.mockResolvedValue([{
+      id: "venue-example", name: "The King's Arms", sourceName: "The King's Arms - JD Wetherspoon",
+      area: "Camden", lat: 51.5, lng: -0.1,
+    }]);
+    io.detail.mockResolvedValue({ status: "found", venue: { siteFacts: site } });
+    const body = await runAsk({ query, now, skipModel: true });
+    expect(body.answer).toContain("The King's Arms: recorded regular opening hours: Thursday 12:00 to 23:00");
+    expect(body.cards).toHaveLength(1);
+    expect(body.cards[0]?.venueId).toBe("venue-example");
+    expect(body.sources[0]?.url).toBe(site.sourceUrl);
+  });
+
   it("keeps Google's own hours and date ahead of website hours", async () => {
     io.detail.mockResolvedValue({ status: "found", venue: {
       siteFacts: site,
