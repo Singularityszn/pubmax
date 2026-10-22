@@ -37,7 +37,17 @@ const LAYOUT_PIN_JOBS = ["layout-pins-1", "layout-pins-2", "layout-pins-3"];
 const LAYOUT_PIN_IF =
   "${{ !cancelled() && (needs.change-scope.result != 'success' || needs.change-scope.outputs.scope == 'code') }}";
 const PUBLIC_EVIDENCE_IF =
+  "${{ github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository && (github.head_ref == 'codex/pubmaxx-food-evidence-1022' || github.head_ref == 'codex/ops-feedback-1022' || github.head_ref == 'codex/ops-updates-1022') && (env.LAYOUT_SHARD == '1' || env.LAYOUT_SHARD == '2') }}";
+const FOOD_PUBLIC_EVIDENCE_IF =
+  "${{ github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository && github.head_ref == 'codex/pubmaxx-food-evidence-1022' && (env.LAYOUT_SHARD == '1' || env.LAYOUT_SHARD == '2') }}";
+const OPS_PUBLIC_EVIDENCE_IF =
   "${{ github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository && (github.head_ref == 'codex/ops-feedback-1022' || github.head_ref == 'codex/ops-updates-1022') && (env.LAYOUT_SHARD == '1' || env.LAYOUT_SHARD == '2') }}";
+const PUBLIC_EVIDENCE_REF =
+  "${{ env.LAYOUT_SHARD == '1' && github.event.pull_request.head.sha || (github.head_ref == 'codex/pubmaxx-food-evidence-1022' && '325122c23eb9d8bc809c4388448c0e5459146152' || github.event.pull_request.base.sha) }}";
+const PUBLIC_EVIDENCE_BASE =
+  "${{ github.head_ref == 'codex/pubmaxx-food-evidence-1022' && '325122c23eb9d8bc809c4388448c0e5459146152' || github.event.pull_request.base.sha }}";
+const PUBLIC_EVIDENCE_SPEC =
+  "${{ github.head_ref == 'codex/pubmaxx-food-evidence-1022' && 'e2e/food-menu-discovery.spec.ts' || github.head_ref == 'codex/ops-feedback-1022' && 'e2e/feedback.spec.ts' || 'e2e/public-updates.spec.ts' }}";
 
 // A `${{ ... }}` expression is one word even though it holds spaces.
 function runWords(run: string | undefined): string[] {
@@ -171,19 +181,24 @@ describe("browser CI policy", () => {
     for (const id of LAYOUT_PIN_JOBS) {
       const steps = defined(jobs[id]).steps;
       const checkout = defined(steps.find((step) => step.name === "Checkout public evidence source"));
+      const install = defined(steps.find((step) => step.name === "Install public evidence source dependencies"));
       const capture = defined(steps.find((step) => step.name === "Capture signed-out public evidence"));
-      const upload = defined(steps.find((step) => step.name === "Upload signed-out public evidence"));
-      for (const step of [checkout, capture, upload]) expect(step.if).toBe(PUBLIC_EVIDENCE_IF);
+      const foodUpload = defined(steps.find((step) => step.name === "Upload Food public evidence"));
+      const opsUpload = defined(steps.find((step) => step.name === "Upload Ops public evidence"));
+      for (const step of [checkout, install, capture]) expect(step.if).toBe(PUBLIC_EVIDENCE_IF);
       expect(checkout.uses).toBe("actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1");
       expect(checkout.with).toEqual({
-        ref: "${{ env.LAYOUT_SHARD == '1' && github.event.pull_request.head.sha || github.event.pull_request.base.sha }}",
+        ref: PUBLIC_EVIDENCE_REF,
         path: ".public-proof-source",
         "persist-credentials": false,
       });
+      expect(steps.indexOf(install)).toBeGreaterThan(steps.indexOf(checkout));
+      expect(steps.indexOf(capture)).toBeGreaterThan(steps.indexOf(install));
       expect(capture.env?.PUBMAX_PUBLIC_EVIDENCE_ROOT).toBe("${{ github.workspace }}/.public-proof-source");
       expect(capture.env?.PUBMAX_PUBLIC_EVIDENCE_SHA).toBe(checkout.with?.ref);
       expect(capture.env?.PUBMAX_PUBLIC_EVIDENCE_HEAD).toBe("${{ github.event.pull_request.head.sha }}");
-      expect(capture.env?.PUBMAX_PUBLIC_EVIDENCE_BASE).toBe("${{ github.event.pull_request.base.sha }}");
+      expect(capture.env?.PUBMAX_PUBLIC_EVIDENCE_BASE).toBe(PUBLIC_EVIDENCE_BASE);
+      expect(capture.env?.PUBLIC_EVIDENCE_SPEC).toBe(PUBLIC_EVIDENCE_SPEC);
       expect(capture.env?.PW_SKIP_KEYLESS_WEBSERVER).toBe("1");
       const run = runWords(capture.run);
       expect(run.filter((word) => word.startsWith("--project="))).toEqual(["--project=chromium"]);
@@ -192,19 +207,31 @@ describe("browser CI policy", () => {
       expect(steps.indexOf(capture)).toBeGreaterThan(
         steps.findIndex((step) => step.name === "Gate the layout-pinning shard"),
       );
-      expect(upload.uses).toBe("actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9");
-      expect(upload.with?.path).toBe([
-        "${{ runner.temp }}/pubmax-public-evidence/account-390.png",
-        "${{ runner.temp }}/pubmax-public-evidence/account-768.png",
-        "${{ runner.temp }}/pubmax-public-evidence/account-1440.png",
+      const pageFiles = [
         "${{ runner.temp }}/pubmax-public-evidence/page-390.png",
         "${{ runner.temp }}/pubmax-public-evidence/page-768.png",
         "${{ runner.temp }}/pubmax-public-evidence/page-1440.png",
         "${{ runner.temp }}/pubmax-public-evidence/identity.json",
         "",
-      ].join("\n"));
-      expect(upload.with?.["if-no-files-found"]).toBe("error");
-      expect(upload.with?.name).toBe("public-ui-pr${{ github.event.pull_request.number }}-${{ env.LAYOUT_SHARD == '1' && 'after' || 'before' }}-${{ github.event.pull_request.head.sha }}");
+      ];
+      for (const { upload, condition, files } of [
+        { upload: foodUpload, condition: FOOD_PUBLIC_EVIDENCE_IF, files: pageFiles },
+        { upload: opsUpload, condition: OPS_PUBLIC_EVIDENCE_IF, files: [
+          "${{ runner.temp }}/pubmax-public-evidence/account-390.png",
+          "${{ runner.temp }}/pubmax-public-evidence/account-768.png",
+          "${{ runner.temp }}/pubmax-public-evidence/account-1440.png",
+          ...pageFiles,
+        ] },
+      ]) {
+        expect(upload.if).toBe(condition);
+        expect(steps.indexOf(upload)).toBeGreaterThan(steps.indexOf(capture));
+        expect(upload.uses).toBe("actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9");
+        expect(upload.with?.path).toBe(files.join("\n"));
+        expect(upload.with?.["if-no-files-found"]).toBe("error");
+        expect(upload.with?.["retention-days"]).toBe(7);
+        expect(upload.with?.["compression-level"]).toBe(0);
+        expect(upload.with?.name).toBe("public-ui-pr${{ github.event.pull_request.number }}-${{ env.LAYOUT_SHARD == '1' && 'after' || 'before' }}-${{ github.event.pull_request.head.sha }}");
+      }
     }
   });
 

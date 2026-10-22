@@ -3,7 +3,7 @@ import { execFileSync } from "node:child_process";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { realpathSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
-import { expect, type Page, type TestInfo } from "@playwright/test";
+import { expect, type Page, type Response, type TestInfo } from "@playwright/test";
 
 function requiredEnv(name: string): string {
   const value = process.env[name];
@@ -15,12 +15,23 @@ function git(root: string, ...args: string[]): string {
   return execFileSync("git", ["-C", root, ...args], { encoding: "utf8" }).trim();
 }
 
-/** Capture only signed-out public pages from the separately checked-out source. */
-export async function capturePublicPageEvidence(
+export type PublicEvidenceFeature = "feedback" | "updates" | "food-menu-discovery";
+export type PublicEvidenceFile =
+  | `page-${390 | 768 | 1440}.png`
+  | `account-${390 | 768 | 1440}.png`;
+
+export interface PublicEvidenceSession {
+  readonly phase: "before" | "after";
+  capture(file: PublicEvidenceFile, response: Response): Promise<void>;
+  finish(): Promise<void>;
+}
+
+/** Bind one signed-out public scenario to its separately checked-out source. */
+export async function beginPublicEvidence(
   page: Page,
   testInfo: TestInfo,
-  feature: "feedback" | "updates",
-): Promise<void> {
+  feature: PublicEvidenceFeature,
+): Promise<PublicEvidenceSession> {
   const phase = requiredEnv("PUBMAX_PUBLIC_EVIDENCE_PHASE");
   if (phase !== "before" && phase !== "after") throw new Error("Unknown evidence phase");
   const sourceRoot = realpathSync(requiredEnv("PUBMAX_PUBLIC_EVIDENCE_ROOT"));
@@ -64,6 +75,81 @@ export async function capturePublicPageEvidence(
     status: number;
     sha256: string;
   }> = [];
+  const expectedFiles: PublicEvidenceFile[] = [390, 768, 1440].flatMap((width) =>
+    (feature === "food-menu-discovery" ? ["page"] : ["account", "page"])
+      .map((name) => `${name}-${width}.png` as PublicEvidenceFile),
+  );
+  let finished = false;
+  return {
+    phase,
+    async capture(file, response) {
+      if (finished) throw new Error("Public evidence session already finished");
+      expect(expectedFiles).toContain(file);
+      expect(captures.some((capture) => capture.file === file)).toBe(false);
+      const viewport = page.viewportSize();
+      if (!viewport) throw new Error("Public evidence requires an explicit viewport");
+      expect(file.endsWith(`-${viewport.width}.png`)).toBe(true);
+      const currentUrl = new URL(page.url());
+      expect(currentUrl.origin).toBe(baseURL.origin);
+      expect(response.request().isNavigationRequest()).toBe(true);
+      expect(response.request().frame()).toBe(page.mainFrame());
+      expect(response.url()).toBe(currentUrl.href);
+      await page.evaluate(() => document.fonts.ready.then(() => undefined));
+      expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+      const bytes = await page.screenshot({ path: join(output, file), fullPage: true, animations: "disabled" });
+      captures.push({
+        file,
+        route: `${currentUrl.pathname}${currentUrl.search}`,
+        ...viewport,
+        status: response.status(),
+        sha256: createHash("sha256").update(bytes).digest("hex"),
+      });
+    },
+    async finish() {
+      if (finished) throw new Error("Public evidence session already finished");
+      expect(captures.map((capture) => capture.file).sort()).toEqual([...expectedFiles].sort());
+      expect(git(sourceRoot, "rev-parse", "HEAD")).toBe(expectedSha);
+      expect(git(sourceRoot, "status", "--porcelain", "--untracked-files=no")).toBe("");
+      const finalVersionResponse = await page.request.get(new URL("/api/version", baseURL).href);
+      expect(finalVersionResponse.ok()).toBe(true);
+      const finalVersion: { gitCommitSha?: string } = await finalVersionResponse.json();
+      expect(finalVersion.gitCommitSha).toBe(expectedSha);
+      const configPath = testInfo.config.configFile;
+      if (!configPath) throw new Error("Public evidence requires the repository Playwright config");
+      const config = await readFile(configPath);
+      await writeFile(join(output, "identity.json"), JSON.stringify({
+        feature,
+        phase,
+        sourceGitSha,
+        servedGitCommitSha: version.gitCommitSha,
+        finalServedGitCommitSha: finalVersion.gitCommitSha,
+        publishedHead,
+        immutableBase: baseSha,
+        driverGitSha: git(dirname(configPath), "rev-parse", "HEAD"),
+        configSha256: createHash("sha256").update(config).digest("hex"),
+        nodeVersion: process.version,
+        browserVersion: page.context().browser()?.version(),
+        runId: process.env.GITHUB_RUN_ID,
+        runAttempt: process.env.GITHUB_RUN_ATTEMPT,
+        signedOut: true,
+        serverMode: "keyless",
+        externalRequests: "blocked",
+        colorScheme: "light",
+        captures,
+      }, null, 2) + "\n");
+      finished = true;
+    },
+  };
+}
+
+/** Capture only signed-out public pages from the separately checked-out source. */
+export async function capturePublicPageEvidence(
+  page: Page,
+  testInfo: TestInfo,
+  feature: "feedback" | "updates",
+): Promise<void> {
+  const evidence = await beginPublicEvidence(page, testInfo, feature);
+  const { phase } = evidence;
   const linkName = feature === "feedback" ? "Send feedback" : "Updates";
   for (const viewport of [
     { width: 390, height: 844 },
@@ -94,40 +180,8 @@ export async function capturePublicPageEvidence(
           expect(target.hash).toBe("");
         }
       }
-      await page.evaluate(() => document.fonts.ready.then(() => undefined));
-      expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
-      const file = `${route === "/u/you" ? "account" : "page"}-${viewport.width}.png`;
-      const bytes = await page.screenshot({ path: join(output, file), fullPage: true, animations: "disabled" });
-      captures.push({ file, route, ...viewport, status: response!.status(), sha256: createHash("sha256").update(bytes).digest("hex") });
+      await evidence.capture(`${route === "/u/you" ? "account" : "page"}-${viewport.width}.png` as PublicEvidenceFile, response!);
     }
   }
-  expect(git(sourceRoot, "rev-parse", "HEAD")).toBe(expectedSha);
-  expect(git(sourceRoot, "status", "--porcelain", "--untracked-files=no")).toBe("");
-  const finalVersionResponse = await page.request.get(new URL("/api/version", baseURL).href);
-  expect(finalVersionResponse.ok()).toBe(true);
-  const finalVersion: { gitCommitSha?: string } = await finalVersionResponse.json();
-  expect(finalVersion.gitCommitSha).toBe(expectedSha);
-  const configPath = testInfo.config.configFile;
-  if (!configPath) throw new Error("Public evidence requires the repository Playwright config");
-  const config = await readFile(configPath);
-  await writeFile(join(output, "identity.json"), JSON.stringify({
-    feature,
-    phase,
-    sourceGitSha,
-    servedGitCommitSha: version.gitCommitSha,
-    finalServedGitCommitSha: finalVersion.gitCommitSha,
-    publishedHead,
-    immutableBase: baseSha,
-    driverGitSha: git(dirname(configPath), "rev-parse", "HEAD"),
-    configSha256: createHash("sha256").update(config).digest("hex"),
-    nodeVersion: process.version,
-    browserVersion: page.context().browser()?.version(),
-    runId: process.env.GITHUB_RUN_ID,
-    runAttempt: process.env.GITHUB_RUN_ATTEMPT,
-    signedOut: true,
-    serverMode: "keyless",
-    externalRequests: "blocked",
-    colorScheme: "light",
-    captures,
-  }, null, 2) + "\n");
+  await evidence.finish();
 }
