@@ -52,6 +52,9 @@ export async function GET(request: Request): Promise<Response> {
   const asserted = new URL(request.url).searchParams.get("handle") ?? "";
   const actor = await requireLinkedActor(request, asserted);
   if (!actor.ok) {
+    if (actor.status === 503) {
+      return publicApiErrorFromStatus(actor.error, actor.status);
+    }
     // No JWT and no handle → empty inbox so the page still renders.
     if (!asserted.trim()) {
       return jsonNoStore({ conversations: [], status: "ready" }, { status: 200 });
