@@ -1,7 +1,7 @@
 import { expect, test, type Locator } from "@playwright/test";
-import { MAP_CANVAS_READINESS_CEILING_MS } from "@/lib/mapCanvasAvailability";
 
 import { installDeterministicMapBasemap } from "./helpers/mapNetworkFixtures";
+import { expectMapLoadingFrameReleased } from "./helpers/mobileMapShell";
 import { beginPublicEvidence } from "./helpers/publicPageEvidence";
 
 if (process.env.PUBMAX_PUBLIC_EVIDENCE_PHASE) {
@@ -240,9 +240,7 @@ test.describe("public screenshot evidence", () => {
         await expect(dietary).toHaveText("vegan");
         await expect(dietary.locator("a, time")).toHaveCount(0);
       }
-      await expect(page.locator(".mapLoading")).toHaveCount(0, {
-        timeout: MAP_CANVAS_READINESS_CEILING_MS,
-      });
+      await expectMapLoadingFrameReleased(page);
       const bounds = await row.boundingBox();
       expect(bounds).not.toBeNull();
       expect(bounds!.x).toBeGreaterThanOrEqual(0);
