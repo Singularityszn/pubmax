@@ -30,6 +30,9 @@ export default function AccountLegalRow(): React.JSX.Element {
           <Link href="/account/delete">Deleting your account</Link>
         </li>
         <li>
+          <Link href="/feedback">Send feedback</Link>
+        </li>
+        <li>
           <Link href="/updates">Updates</Link>
         </li>
         <li>

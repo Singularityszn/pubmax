@@ -203,6 +203,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     { path: "/privacy", priority: 0.3, changeFrequency: "yearly", lastModified: now },
     { path: "/terms", priority: 0.3, changeFrequency: "yearly", lastModified: now },
     { path: "/credits", priority: 0.3, changeFrequency: "monthly", lastModified: now },
+    { path: "/feedback", priority: 0.3, changeFrequency: "yearly", lastModified: now },
     {
       path: "/updates",
       priority: 0.4,

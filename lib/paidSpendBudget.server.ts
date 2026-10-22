@@ -1,5 +1,8 @@
 import "server-only";
 
+import { after } from "next/server";
+
+import { ALERT_COOLDOWN_MS, alertWebhookUrl, sendAlert } from "@/lib/alertSink";
 import { publicApiError } from "@/lib/apiError";
 import { log } from "@/lib/log";
 import {
@@ -8,9 +11,39 @@ import {
   PAID_SPEND_REFUSAL_LINE,
   paidSpendBudgetKey,
   paidSpendDailyBudget,
+  paidSpendWarningThreshold,
   type PaidSpendLane,
 } from "@/lib/paidSpendBudget";
-import { isLimited } from "@/lib/pintDrops";
+import { isLimited, RATE_LIMIT_RPC_TIMEOUT_MS } from "@/lib/pintDrops";
+import { checkRateLimitDurableDetailed, readRateLimitDurableUsage } from "@/lib/supabase";
+
+/** A durable claim prevents concurrent instances from sending the same warning. */
+async function warnBeforeRequestCap(lane: PaidSpendLane, budget: number): Promise<void> {
+  try {
+    if (!alertWebhookUrl() || budget <= 0) return;
+    const used = await readRateLimitDurableUsage(
+      paidSpendBudgetKey(lane),
+      PAID_SPEND_BUDGET_WINDOW_MS,
+      AbortSignal.timeout(RATE_LIMIT_RPC_TIMEOUT_MS),
+    );
+    if (used === null) return;
+    const threshold = paidSpendWarningThreshold(used, budget);
+    if (threshold === null) return;
+    const source = `paid_spend.near_cap.${lane}.${threshold}`;
+    const { verdict } = await checkRateLimitDurableDetailed(
+      source, 1, ALERT_COOLDOWN_MS, AbortSignal.timeout(RATE_LIMIT_RPC_TIMEOUT_MS),
+    );
+    // Unknown admission must never fall back to an instance-local warning claim.
+    if (verdict !== false) return;
+    const remaining = budget - used;
+    await sendAlert({
+      source,
+      text: `${lane}: ${used}/${budget} requests in the rolling 24-hour window (${threshold}% warning, ${remaining} request${remaining === 1 ? "" : "s"} remaining)`,
+    });
+  } catch {
+    // Monitoring cannot change the paid request's admission verdict.
+  }
+}
 
 /**
  * Spend one call from a paid lane's deployment-wide daily ceiling.
@@ -31,7 +64,15 @@ export async function paidSpendBudgetRefusal(lane: PaidSpendLane): Promise<Respo
   const spent = await isLimited(key, key, budget, PAID_SPEND_BUDGET_WINDOW_MS, {
     failClosed: true,
   });
-  if (!spent) return null;
+  if (!spent) {
+    const warning = warnBeforeRequestCap(lane, budget);
+    try {
+      after(warning);
+    } catch {
+      // Outside a request scope, the bounded monitoring promise still runs.
+    }
+    return null;
+  }
   // One structured line an operator can alert on. The lane and the ceiling are
   // the whole record: no address, no key, no caller.
   log("warn", "paid_spend.budget_spent", { lane, budget, windowMs: PAID_SPEND_BUDGET_WINDOW_MS });

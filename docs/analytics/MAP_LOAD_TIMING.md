@@ -30,8 +30,18 @@ Every `*_ms` value is milliseconds from navigation start, the same clock as the 
 `pubmax:*` marks. A milestone is the first mark at or after this visit's first render,
 so an in-app return to the map does not reuse an earlier visit's marks.
 
+Milestone fields are optional. A missing field means no matching mark exists for
+this visit when the outcome occurs. It does not mean zero milliseconds.
+The sanitizer accepts finite numbers from 0 through 86,400,000 and rounds them
+to integers. It drops negative, oversized, non-finite, and non-number values.
+
 | Property | Meaning |
 | --- | --- |
+| `map_chunk_ready_ms` | `pubmax:map-chunk-ready`: the loaded map chunk reached the `PubMap` mount effect. |
+| `slim_venues_ready_ms` | `pubmax:slim-venues-ready`: the map received its slim venue data, including restored data. |
+| `map_style_load_ms` | `pubmax:map-style-load`: MapLibre reached `style.load` with the style structure ready. |
+| `map_icons_ready_ms` | `pubmax:map-icons-ready`: the scene registered its map icon images. |
+| `pubs_source_loaded_ms` | `pubmax:pubs-source-loaded`: the `pubs` source reported loaded after venue data became ready. |
 | `map_constructed_ms`, `scene_built_ms`, `first_pins_ms`, `pins_visible_ms` | The milestones. `pins_visible_ms` is present only on `painted`. |
 | `mount_ms` | When the map first rendered. It is about 0 after a cold landing and larger after an in-app navigation. |
 | `elapsed_ms` | When the outcome was recorded. |
@@ -47,6 +57,29 @@ so an in-app return to the map does not reuse an earlier visit's marks.
 | `device_memory`, `hardware_concurrency` | Present only where the browser exposes them. |
 | `venue_count` | The venues the map held when the outcome was recorded. |
 | `surface` | The coarse pageview surface (for example `/map`), or `other`. |
+
+## Use the stages to locate delays
+
+All milestones use the document clock. For an in-app return, subtract `mount_ms`
+to compare the time since that map visit began. Compare production visits with
+the same device class and visibility conditions.
+
+- A late `map_chunk_ready_ms` points to work before the map component mounts,
+  including code download, evaluation, and scheduling. This mark does not isolate
+  network download time.
+- A late `slim_venues_ready_ms` points to venue data readiness. Restored data and
+  newly loaded data use the same mark.
+- The gap between `map_constructed_ms` and `map_style_load_ms` helps locate
+  delays before the map style becomes ready.
+- `map_icons_ready_ms` separates icon registration from the later scene and
+  source milestones.
+- `pubs_source_loaded_ms` identifies when the venue source becomes ready.
+  The gap before `pins_visible_ms` helps locate delays after source readiness,
+  including the pin reveal and paint work.
+
+Stages can overlap. These timestamps do not form a serial list of durations.
+A missing mark cannot establish which stage caused a delay.
+Use measured changes in time-to-pins to assess speed.
 
 ## Saved query: p50, p95 and p99 by device class
 
