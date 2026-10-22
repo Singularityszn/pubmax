@@ -13,7 +13,7 @@ import { getVenueDetail } from "@/lib/venueDetailIndex";
 import { planOpeningSchedulesForVenues } from "@/lib/planRouteEvidence.server";
 
 const index = loadPalEvalVenueIndex();
-const reference = { hoursAnswer: { value: null } } as const;
+const reference = { hoursAnswer: { venueId: "venue-60y3sa", value: null } } as const;
 const now = Date.parse(dataset.now);
 function expectations(entry: typeof dataset.cases[number]): PalEvalAnswerExpectations {
   if (entry.value === null) return { hoursAnswer: { venueId: entry.venueId, value: null } };
@@ -27,7 +27,7 @@ function askKnown() {
 }
 const response: AskResponseBody = {
   answer: "The opening hours of The Coronet are not known.",
-  cards: [],
+  cards: [{ key: "hours:venue-60y3sa", venueId: "venue-60y3sa", title: "The Coronet", place: "Islington", price: null, note: "" }],
   proposals: [],
   sources: [],
   status: "ready",
@@ -109,7 +109,6 @@ describe("Pal fail-closed hours eval", () => {
     "No opening hours are recorded for The Coronet.",
     "No opening hours recorded for The Coronet.",
     "The price is listed, but the opening hours are unknown.",
-    "The opening hours of Fox and Anchor are unknown.",
   ])("accepts a bounded missing-hours statement: %s", (answer) => {
     expect(gradePalCase({ ...response, answer }, reference, index).pass).toBe(true);
   });
@@ -339,7 +338,7 @@ describe("Pal fail-closed hours eval", () => {
       query: "What are the opening hours of The Crosse Keys?",
       now: Date.parse("2030-10-22T18:00:00Z"), skipModel: true, fetchImpl: offlineFetch,
     });
-    expect(gradePalCase(body, reference, index).pass).toBe(true);
+    expect(gradePalCase(body, { hoursAnswer: { venueId: knownCase.venueId, value: null } }, index).pass).toBe(true);
     expect(body.cards[0]?.provenance).toBeUndefined();
   });
 
