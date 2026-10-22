@@ -580,6 +580,7 @@ export default function MapSearchSuggest({
     <div className={`mapSearchSuggest mapSearchSuggest--${mode}`}>
       <SearchField
         id={id}
+        label="Search places"
         role="combobox"
         aria-expanded={showPanel}
         aria-controls={listboxId}

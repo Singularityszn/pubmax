@@ -465,7 +465,7 @@ export default function MobileMapShell({ cityId = DEFAULT_CITY_ID, cityLabel, li
               type="button"
               className="mobileMapQueryChip"
               onClick={onClearQuery}
-              aria-label={`Clear pub search: ${activeQuery}`}
+              aria-label={`Clear search: ${activeQuery}`}
             >
               <Search size={15} aria-hidden="true" />
               <span className="mobileMapQueryChipText">{activeQuery}</span>

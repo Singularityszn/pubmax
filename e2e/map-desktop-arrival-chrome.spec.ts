@@ -24,7 +24,7 @@ const ARRIVAL_TIMEOUT_MS = 90_000;
  * it, a reason beside it, and never in silence.
  */
 const ARRIVAL_CONTROLS = [
-  "Search pubs",
+  "Search places",
   "Filters",
   "Drink: Pints",
   "Plan an outing",

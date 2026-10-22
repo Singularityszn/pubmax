@@ -34,7 +34,7 @@ test("mobile top-bar search filters the map and clears only the query", async ({
   await page.getByRole("button", { name: "Search the map" }).click();
   // The field suggests pubs as it is typed in, so it is a combobox, not a
   // bare searchbox (components/map/MapSearchSuggest.tsx).
-  const search = page.getByRole("combobox", { name: "Search pubs" });
+  const search = page.getByRole("combobox", { name: "Search places" });
   await expect(search).toBeVisible({ timeout: 20_000 });
   await search.fill("Definitely no such London pub 987654");
 

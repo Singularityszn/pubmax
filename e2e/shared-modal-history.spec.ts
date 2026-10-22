@@ -21,7 +21,7 @@ for (const finalOpen of [false, true]) {
     await page.emulateMedia({ reducedMotion: "reduce" });
     await page.goto("/map");
     await expectMapToolbarReady(page);
-    const search = page.locator(".mapToolbar").getByRole("combobox", { name: "Search pubs" });
+    const search = page.locator(".mapToolbar").getByRole("combobox", { name: "Search places" });
     await expect(async () => {
       await search.fill("The French House");
       const option = page.getByRole("listbox", { name: "Search suggestions" })

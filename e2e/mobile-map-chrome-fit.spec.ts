@@ -617,7 +617,7 @@ for (const viewport of VIEWPORTS) {
 
     const search = topbar.getByRole("button", { name: "Search the map" });
     await tapRenderedCentre(page, search, viewport.width, "Search");
-    const searchField = page.getByRole("combobox", { name: "Search pubs" });
+    const searchField = page.getByRole("combobox", { name: "Search places" });
     await expect(searchField).toBeVisible();
     await search.click();
     await expect(searchField).toHaveCount(0);

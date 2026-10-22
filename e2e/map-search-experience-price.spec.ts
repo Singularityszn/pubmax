@@ -69,7 +69,7 @@ test("Food search retains a published meal quote when Restaurants are hidden", a
   await filterButton.click();
   await expect(filters).toHaveCount(0);
 
-  await toolbar.getByRole("combobox", { name: "Search pubs" }).fill("Rules");
+  await toolbar.getByRole("combobox", { name: "Search places" }).fill("Rules");
   const listbox = page.getByRole("listbox", { name: "Search suggestions" });
   const option = listbox.getByRole("group", { name: "Venues", exact: true })
     .locator('[role="option"][data-venue-id="restaurant-rules"]');

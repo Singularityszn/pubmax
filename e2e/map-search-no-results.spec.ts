@@ -47,7 +47,7 @@ async function openMapSearch(page: Page, width: number) {
   });
   await page.locator(".mapLoading").waitFor({ state: "hidden", timeout: 45_000 }).catch(() => {});
   const search = page
-    .locator('#mapSearchInput, #mobileMapSearchInput, input[type="search"][aria-label="Search pubs"]')
+    .locator('#mapSearchInput, #mobileMapSearchInput, input[type="search"][aria-label="Search places"]')
     .first();
   if (width < 768) {
     // The phone top bar paints its search toggle from server HTML, so a lone

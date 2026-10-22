@@ -78,7 +78,7 @@ test("No alcohol search retains an owned published soft-drink quote when Pubs ar
   await filterButton.click();
   await expect(filters).toHaveCount(0);
 
-  await toolbar.getByRole("combobox", { name: "Search pubs" }).fill("The Plough");
+  await toolbar.getByRole("combobox", { name: "Search places" }).fill("The Plough");
   const listbox = page.getByRole("listbox", { name: "Search suggestions" });
   const option = listbox.getByRole("group", { name: "Venues", exact: true })
     .locator(`[role="option"][data-venue-id="${ploughId}"]`);
