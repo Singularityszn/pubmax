@@ -208,4 +208,52 @@ describe("pub list import HTTP entry point", () => {
     });
     expect(log).not.toHaveBeenCalled();
   });
+
+  it("matches signed-in prose through OpenRouter without fetching the source link", async () => {
+    vi.stubEnv("OPENROUTER_API_KEY", "test-key");
+    vi.stubEnv("PUBMAX_ALERT_WEBHOOK_URL", "");
+    const fetch = vi.spyOn(globalThis, "fetch").mockResolvedValue(Response.json({
+      choices: [{ message: { content: JSON.stringify({ items: [
+        { name: "The Harp", areaHint: "" }, { name: "The Blue Bell", areaHint: "" },
+      ] }) } }],
+    }));
+    const { POST } = await import("@/app/api/pub-list-import/route");
+
+    const response = await POST(request({
+      text: "Try The Harp and The Blue Bell.", sourceUrl: "https://www.tiktok.com/@pubs/video/123",
+    }));
+
+    expect(response.status).toBe(200);
+    expect(await response.json()).toMatchObject({
+      importId: expect.any(String),
+      items: [
+        { state: "matched", venue: { id: "venue-harp", layer: "curated" } },
+        { state: "matched", venue: { id: "venue-uk-n2", layer: "national", price: null } },
+      ],
+    });
+    expect(fetch).toHaveBeenCalledTimes(1);
+    expect(fetch.mock.calls[0]?.[0]).toBe("https://openrouter.ai/api/v1/chat/completions");
+    expect(boundary.rpc.mock.calls[2]?.[1]).toMatchObject({
+      p_key: "paid-spend:pub-list-import", p_limit: 1000, p_window_ms: 86_400_000,
+    });
+  });
+
+  it("keeps deterministic matches when the durable model budget cannot answer", async () => {
+    vi.stubEnv("OPENROUTER_API_KEY", "test-key");
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    const fetch = vi.spyOn(globalThis, "fetch").mockRejectedValue(new Error("No network allowed."));
+    boundary.rpc.mockImplementation((_name, args) => ({
+      abortSignal: () => Promise.resolve({
+        data: false,
+        error: args.p_key === "paid-spend:pub-list-import" ? { code: "PGRST202", message: "Missing RPC" } : null,
+      }),
+    }));
+    const { POST } = await import("@/app/api/pub-list-import/route");
+
+    const response = await POST(request({ text: "The Harp" }));
+
+    expect(response.status).toBe(200);
+    expect((await response.json()).items).toMatchObject([{ state: "matched", venue: { id: "venue-harp" } }]);
+    expect(fetch).not.toHaveBeenCalled();
+  });
 });

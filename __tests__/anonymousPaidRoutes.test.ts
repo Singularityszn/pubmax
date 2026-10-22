@@ -146,6 +146,14 @@ const cronProbe = (job: string): PaidRouteCase => ({
 /** Every route handler that can reach a paid provider, called with no session. */
 const PAID_ROUTES: PaidRouteCase[] = [
   {
+    route: "app/api/pub-list-import/route.ts",
+    call: async () =>
+      (await import("@/app/api/pub-list-import/route")).POST(
+        jsonPost("http://localhost/api/pub-list-import", { text: "Try The Harp and The Blue Bell." }),
+      ),
+    answer: UNAUTHENTICATED,
+  },
+  {
     route: "app/api/mcp/route.ts",
     call: async () => {
       const request = jsonPost("http://localhost/api/mcp", {
@@ -357,6 +365,7 @@ const PAID_CLIENTS: Record<string, string> = {
   "@typesafe-ai/sdk": "TypeSafe",
   "@/lib/ask/modelLoop": "OpenRouter (ask)",
   "@/lib/heritage": "OpenRouter (heritage)",
+  "@/lib/pubListImport.server": "OpenRouter (pub list import)",
   "@/lib/palElevenLabsChat.server": "ElevenLabs (chat)",
   "@/app/api/pub-pal/voice-token/route": "ElevenLabs (voice)",
   "@/lib/profileAvatarModeration": "OpenAI (image moderation)",
