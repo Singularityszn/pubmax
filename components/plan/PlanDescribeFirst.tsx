@@ -17,13 +17,15 @@ export default function PlanDescribeFirst({
   onSubmit,
   onGuideMeInstead,
   onQueryChange,
+  onStopCountChange,
   onPrefillQueryChange,
   initialQuery = "",
   ready = true,
 }: {
   onSubmit: (query: string, stopCount?: PlanStopCount) => void;
-  onGuideMeInstead: () => void;
+  onGuideMeInstead: (stopCount?: PlanStopCount) => void;
   onQueryChange?: (query: string) => void;
+  onStopCountChange?: (stopCount: PlanStopCount) => void;
   /** External handoffs only: URL or Ask prefills while the field stays untouched. */
   onPrefillQueryChange?: (query: string) => void;
   /** Prefill from a confirmed Night OS Ask draft_plan proposal. */
@@ -41,6 +43,7 @@ export default function PlanDescribeFirst({
   // so an `?occasion=` deep link would otherwise land on an empty field and
   // read as a broken destination. Adopt a later prefill only while the field is
   // untouched, never over something the visitor typed.
+  useEffect(() => { onStopCountChange?.(stopCount); }, [onStopCountChange, stopCount]);
   const [touched, setTouched] = useState(false);
   const [stopCountTouched, setStopCountTouched] = useState(false);
   const appliedPrefill = useRef(initialQuery);
@@ -149,7 +152,7 @@ export default function PlanDescribeFirst({
         <button
           type="button"
           aria-disabled={ready ? undefined : true}
-          onClick={() => { if (ready) onGuideMeInstead(); }}
+          onClick={() => { if (ready) onGuideMeInstead(stopCount); }}
         >
           Guide me instead
         </button>

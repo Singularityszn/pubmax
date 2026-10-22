@@ -44,6 +44,7 @@ vi.mock("@/components/auth/AuthProvider", () => ({
 // surface itself stays real: it is what adopts the prefill.
 vi.mock("@/components/plan/PlanIntake", () => ({ default: () => null }));
 vi.mock("@/components/plan/PlanCultureOpener", () => ({ default: () => null }));
+vi.mock("@/components/plan/PlanRouteMiniMap", () => ({ default: () => null }));
 vi.mock("@/components/wanted/WantedPlanChips", () => ({ default: () => null }));
 
 vi.mock("@/lib/analytics", () => ({
@@ -52,7 +53,7 @@ vi.mock("@/lib/analytics", () => ({
   laneSourceFromSearch: () => null,
 }));
 
-import PlanComposer from "@/components/plan/PlanComposer";
+import PlanComposer from "@/components/plan/PlanEntry";
 import { ASK_PLAN_DRAFT_STORAGE_KEY } from "@/lib/ask/types";
 import {
   createPlanIntakeDraft,
@@ -174,11 +175,13 @@ async function mountComposer(): Promise<void> {
 
 /** Prefill and Pal auto-generate both schedule microtasks off effects. */
 async function settleComposerEffects(): Promise<void> {
-  await act(async () => {
-    await Promise.resolve();
-    await Promise.resolve();
-    await Promise.resolve();
-  });
+  // The entry now also resolves the full composer only for a real handoff.
+  for (let turn = 0; turn < 2; turn += 1) {
+    await act(async () => {
+      await vi.dynamicImportSettled();
+      await Promise.resolve();
+    });
+  }
 }
 
 /**
@@ -469,7 +472,7 @@ describe("PlanComposer never drops a URL ask", () => {
     });
 
     expect(getCurrentPosition).not.toHaveBeenCalled();
-    expect(readPlanIntakeDraft(localStorage)).toBeNull();
+    expect(readPlanIntakeDraft(localStorage)?.answers).toMatchObject({ area: null, stopCount: 3 });
   });
 
   it("keeps the full describe-first ask in the composer while typing", async () => {

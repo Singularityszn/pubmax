@@ -16,6 +16,8 @@ import { usePathname, useRouter } from "next/navigation";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { useViewerHandle } from "@/components/auth/useViewerHandle";
 import PlanDescribeFirst from "@/components/plan/PlanDescribeFirst";
+import { initialComposerDraftFields, readPlanComposerRecovery, type PlanComposerRecovery } from "@/components/plan/PlanComposerRecovery";
+import type { PlanEntryRequest } from "@/components/plan/PlanEntry";
 import PlanCultureOpener from "@/components/plan/PlanCultureOpener";
 import dynamic from "next/dynamic";
 import { SlidersHorizontal } from "lucide-react";
@@ -66,8 +68,7 @@ import {
   type PlanStopCount,
 } from "@/lib/planStopCount";
 import { planHasRoute, type PlanState } from "@/lib/plan";
-import { parsePlanDraft, PLAN_DRAFT_KEY, readPlanDraftEnvelope, writePlanDraftEnvelope } from "@/lib/planDraft";
-import { readPlanRouteDraftEnvelope } from "@/lib/planRouteDraft";
+import { parsePlanDraft, writePlanDraftEnvelope } from "@/lib/planDraft";
 import {
   PLANNING_INTENT_SOURCES,
   readPlanningIntent,
@@ -80,7 +81,6 @@ import {
   composerLockErrorFromResponse,
   londonServiceDateLabel,
   releaseAcceptedPlanContext,
-  resolveComposerHydration,
   seedProvisionalStop1,
   UNRESOLVED_ACCEPTED_STOP_LABEL,
   UNRESOLVED_ACCEPTED_VENUE_LABEL,
@@ -106,14 +106,11 @@ import {
   clearPlanIntakeDraft,
   canSeedPlanIntakeArea,
   createPlanIntakeDraft,
-  defaultLondonStartInput,
   londonDateTimeInputFromIso,
   londonDateTimeInputToIso,
   nightAreaForPlanIntakePatch,
   planIntakeHandoff,
   planIntakeNightContextPatch,
-  readPlanIntakeDraft,
-  readPlanIntakeDraftWithMetadata,
   reopenPlanIntakeStep,
   resolveFutureLondonStartIso,
   resolvePlanIntakeAreaSeed,
@@ -1067,10 +1064,6 @@ export function nightAreaCoverageMeta(area: NightArea, now = new Date()): string
   return `Last checked ${reviewed} · review through ${expires}.`;
 }
 
-function nextEvening(): string {
-  return defaultLondonStartInput();
-}
-
 function unsupportedPatchForCurrentGenerator(
   draft: PlanIntakeDraft,
   contextPatch: Partial<NightContext>,
@@ -1176,31 +1169,6 @@ export function PlanComposerErrorNotice({ message }: { message: string }) {
   return <p className="planComposer__error" role="alert">{message}</p>;
 }
 
-type ComposerDraftFields = {
-  title: string;
-  creatorName: string;
-  startTime: string | (() => string);
-  conciergeQuery: string;
-};
-
-/**
- * Prefer arbitrated accepted context when the handoff is present. The ?? chain
- * keeps generic Plan values when no accepted context exists.
- * `startTime` keeps the bare `nextEvening` function reference (not a call) so
- * `useState` still lazily initialises it when neither source has a value.
- */
-function initialComposerDraftFields(
-  handoff: ComposerHydration | null,
-  recoveredDraft: ReturnType<typeof parsePlanDraft>,
-): ComposerDraftFields {
-  return {
-    title: handoff?.title ?? recoveredDraft?.title ?? "Tonight, sorted",
-    creatorName: handoff?.creatorName ?? recoveredDraft?.creatorName ?? "",
-    startTime: handoff?.startsAt ?? recoveredDraft?.startTime ?? nextEvening,
-    conciergeQuery: recoveredDraft?.conciergeQuery ?? "",
-  };
-}
-
 function initialComposerStops(
   recoveredRouteDraft: StoredRouteDraft | null,
   recoveredDraft: ReturnType<typeof parsePlanDraft>,
@@ -1293,7 +1261,9 @@ function PlanComposerForm({
   hasDurableIntakeDraft,
   handoff: hydratedHandoff,
   canPersist,
+  entryRequest,
 }: {
+  entryRequest?: PlanEntryRequest;
   recoveredDraft: ReturnType<typeof parsePlanDraft>;
   recoveredRouteDraft: StoredRouteDraft | null;
   recoveredIntake: PlanIntakeDraft;
@@ -1321,7 +1291,7 @@ function PlanComposerForm({
   const draftFields = initialComposerDraftFields(handoff, recoveredDraft);
   const [title, setTitle] = useState(draftFields.title);
   const [creatorName, setCreatorName] = useState(draftFields.creatorName);
-  const [startTime, setStartTime] = useState(draftFields.startTime);
+  const [startTime, setStartTime] = useState(entryRequest?.startTime ?? draftFields.startTime);
   const [stops, setStops] = useState<DraftStop[]>(
     initialComposerStops(recoveredRouteDraft, recoveredDraft, handoff),
   );
@@ -1340,7 +1310,7 @@ function PlanComposerForm({
   // just chose, and describe-first is the only surface that can show it. A
   // chip link (`occasion`, `describe`) does not, so those keep the rule.
   const initialEntryMode: "describe" | "wizard" =
-    hasDurableIntakeDraft && !recoveredIntake.completed && !urlPrefill.handoffAsk
+    entryRequest?.mode === "wizard" || (hasDurableIntakeDraft && !recoveredIntake.completed && !urlPrefill.handoffAsk)
       ? "wizard"
       : "describe";
   // A URL ask is never dropped in silence. Where describe-first cannot render
@@ -1355,12 +1325,14 @@ function PlanComposerForm({
       entryMode: initialEntryMode,
     });
   const [conciergeQuery, setConciergeQuery] = useState(
-    (askNeedsConciergeField ? urlAsk ?? "" : "") || draftFields.conciergeQuery,
+    entryRequest?.query ?? ((askNeedsConciergeField ? urlAsk ?? "" : "") || draftFields.conciergeQuery),
   );
-  const [planIntake, setPlanIntake] = useState(recoveredIntake);
+  const [planIntake, setPlanIntake] = useState(() => entryRequest?.mode === "wizard" && entryRequest.stopCount !== undefined
+    ? { ...recoveredIntake, answers: { ...recoveredIntake.answers, stopCount: entryRequest.stopCount } }
+    : recoveredIntake);
   const initialPlanIntakeRef = useRef(recoveredIntake);
   const [entryMode, setEntryMode] = useState<"describe" | "wizard">(initialEntryMode);
-  const [askDraftQuery, setAskDraftQuery] = useState(urlAsk ?? "");
+  const [askDraftQuery, setAskDraftQuery] = useState(entryRequest?.query ?? urlAsk ?? "");
   const askDraftConsumedRef = useRef(false);
   // An ask the address carries is applied ONCE. This effect re-runs whenever
   // the surface it has to write into can change - releasing a held acceptance
@@ -1828,6 +1800,21 @@ function PlanComposerForm({
       requestedStopCount === undefined ? undefined : { stopCount: requestedStopCount },
     );
   }
+
+  const entrySubmissionStarted = useRef(false);
+  useEffect(() => {
+    if (!canPersist || entryRequest?.mode !== "submit") return;
+    let cancelled = false;
+    void Promise.resolve().then(() => {
+      if (cancelled || entrySubmissionStarted.current) return;
+      entrySubmissionStarted.current = true;
+      submitFromEntry(entryRequest.query, entryRequest.stopCount);
+    });
+    return () => { cancelled = true; };
+    // The captured request is consumed once, after this form mounts. A changing
+    // render closure must not repeat the generation request.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [canPersist, entryRequest]);
 
   function updatePlanStartTime(value: string) {
     setStartTime(value);
@@ -2433,7 +2420,7 @@ function PlanComposerForm({
       </div>
     </section>
   );
-  const coverageBlock = (
+  const coverageBlock = composerVisible ? (
     <section className="planComposer__coverage" aria-labelledby="plan-coverage-title">
       <details>
         <summary>
@@ -2491,7 +2478,7 @@ function PlanComposerForm({
         </div>
       </details>
     </section>
-  );
+  ) : null;
   const fieldsBlock = (
     <>
       <div className="planComposer__field planComposer__field--wide">
@@ -2605,7 +2592,10 @@ function PlanComposerForm({
           onSubmit={submitFromEntry}
           onQueryChange={setConciergeQuery}
           onPrefillQueryChange={adoptDescribePrefillQuery}
-          onGuideMeInstead={() => setEntryMode("wizard")}
+          onGuideMeInstead={(stopCount) => {
+            if (stopCount !== undefined) updatePlanIntake({ ...planIntake, answers: { ...planIntake.answers, stopCount } });
+            setEntryMode("wizard");
+          }}
         />
       ) : !(resultMode && planIntake.completed) && planComposerShowsIntake({
         heldVenueId,
@@ -2668,59 +2658,30 @@ function PlanComposerForm({
   );
 }
 
-export default function PlanComposer() {
+export default function PlanComposer({ recovery, entryRequest }: {
+  recovery?: PlanComposerRecovery;
+  entryRequest?: PlanEntryRequest;
+} = {}) {
   const hydrated = useSyncExternalStore(
     () => () => {},
     () => true,
     () => false,
   );
-  // L11: resolve persisted state through arbitration before the form writes a
-  // product default. A generic Plan with no recovered context gets no panel.
-  const handoff = useMemo<ComposerHydration | null>(() => {
-    if (!hydrated) return null;
-    try {
-      const resolved = resolveComposerHydration({
-        planDraft: readPlanDraftEnvelope(safeSessionStorage()),
-        routeDraft: readPlanRouteDraftEnvelope(safeLocalStorage()),
-        intakeDraft: readPlanIntakeDraftWithMetadata(),
-        planningIntent: readPlanningIntent(),
-        rememberedArea: readRememberedArea(),
-      });
-      return resolved.active ? resolved : null;
-    } catch {
-      return null;
-    }
-  }, [hydrated]);
-  const recoveredDraft = useMemo(() => {
-    if (!hydrated) return null;
-    try { return parsePlanDraft(safeSessionStorage()?.getItem(PLAN_DRAFT_KEY) ?? null); } catch { return null; }
-  }, [hydrated]);
-  const recoveredRouteDraft = useMemo(() => {
-    if (!hydrated) return null;
-    try { return parsePlanRouteDraft(safeLocalStorage()?.getItem(PLAN_ROUTE_DRAFT_KEY) ?? null); } catch { return null; }
-  }, [hydrated]);
-  const recoveredIntake = useMemo(() => {
-    if (!hydrated) return { draft: createPlanIntakeDraft(), hasDurableDraft: false };
-    const durableDraft = readPlanIntakeDraft();
-    return {
-      draft: durableDraft ?? createPlanIntakeDraft(),
-      hasDurableDraft: Boolean(durableDraft),
-    };
-  }, [hydrated]);
-  // The form is MOUNTED AGAIN once hydrated, so its state initialisers read the
-  // recovered drafts. Whatever the server-painted form held is thrown away with
-  // it, so that form takes no input (`canPersist` reaches the describe-first
-  // field as `ready`). On a slow load the browser suite typed a query into it,
-  // lost it at the remount, and tapped Sort it on an empty field (5 Oct 2026).
+  const restored = useMemo(() => hydrated ? recovery ?? readPlanComposerRecovery() : null, [hydrated, recovery]);
+  const recoveredRouteDraft = useMemo(() => parsePlanRouteDraft(restored?.routeRaw ?? null), [restored]);
+  // The server-painted field cannot accept input before the recovered form
+  // replaces it. The entry controller passes its original recovery read, so its
+  // own fresh query write cannot be mistaken for a returning draft.
   return (
     <PlanComposerForm
       key={hydrated ? "hydrated" : "server"}
-      recoveredDraft={recoveredDraft}
+      recoveredDraft={restored?.recoveredDraft ?? null}
       recoveredRouteDraft={recoveredRouteDraft}
-      recoveredIntake={recoveredIntake.draft}
-      hasDurableIntakeDraft={recoveredIntake.hasDurableDraft}
-      handoff={handoff}
+      recoveredIntake={restored?.intake ?? createPlanIntakeDraft()}
+      hasDurableIntakeDraft={restored?.hasDurableIntakeDraft ?? false}
+      handoff={restored?.handoff ?? null}
       canPersist={hydrated}
+      entryRequest={entryRequest}
     />
   );
 }

@@ -85,6 +85,9 @@ const displayFace = Space_Grotesk({
   subsets: ["latin"],
   variable: "--font-display",
   display: "swap",
+  // The initial request queue must first load the code that makes input safe.
+  // swap still paints the metric-matched fallback while this face loads.
+  preload: false,
   // Variable weight axis (300–700). Weight is set per-rule in CSS (headings
   // 500–700 per the display-weight discipline); the variable face carries the
   // full range, so no reflow between weights.
@@ -99,6 +102,7 @@ const bodySans = Inter({
   subsets: ["latin"],
   variable: "--font-body",
   display: "swap",
+  preload: false,
 });
 
 // Vendored, not fetched. next/font/google rewrites each face's file URL into a
@@ -121,7 +125,7 @@ const dataMono = localFont({
   declarations: [{ prop: "font-family", value: "JetBrains Mono" }],
   variable: "--font-data",
   display: "swap",
-  // NOT preloaded, unlike the display and body faces. next/font preloads every
+  // NOT preloaded, like the display and body faces. next/font preloads every
   // declared face from the document head, so this one cost a request and its
   // bytes on the critical path of all 35 budgeted routes while no route paints
   // its largest element in it: it is the price stamp and the numerals, and the

@@ -129,13 +129,14 @@ it("uses the remembered area when geolocation fails", async () => {
 
 it("does not persist a location after the wizard closes during resolution", async () => {
   await click("Guide me instead");
+  const beforeClosing = readPlanIntakeDraft();
   await act(async () => {
     locate(position);
     root!.unmount();
     root = null;
     await vi.dynamicImportSettled();
   });
-  expect(readPlanIntakeDraft()).toBeNull();
+  expect(readPlanIntakeDraft()).toEqual(beforeClosing);
 });
 
 it("restores the unfinished guide after hydration", async () => {
