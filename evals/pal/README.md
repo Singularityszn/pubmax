@@ -14,7 +14,7 @@ The key also encodes the current keyless Ask regression baseline at the pinned i
 Invented-venue and directory price checks are absolute: every card `venueId` must exist in `public/data/venues_slim.json`, and directory pint prices must match the slim index within tolerance.
 
 A directory card with a price fails when its venue has no recorded price. A null price remains valid.
-These checks score structured cards. They do not detect invented values in answer text, opening hours or heritage claims.
+These baseline checks score structured cards. The fail-closed subsets below also check answer text, hours and heritage.
 
 `__tests__/palFailClosedPrices.test.ts` adds twelve single-venue price asks from
 `fail-closed-prices.json`: ten unknown prices and two known prices with named
@@ -30,7 +30,7 @@ Run this subset with `npx vitest run __tests__/palFailClosedPrices.test.ts`.
 These are bounded code checks for single-venue pint-price questions. They detect
 numeric pound and pence amounts, including bare decimals. They do not grade
 spelled-out amounts or every possible refusal wording. They do not cover
-heritage, the hosted Pub Pal agent, or the Night Architect MCP tools.
+the hosted Pub Pal agent or the Night Architect MCP tools.
 The existing `eval:pal:live` command does not run this new subset.
 
 `__tests__/palFailClosedHours.test.ts` tests the `hoursAnswer: { value: null }`
@@ -60,9 +60,31 @@ The code checks require the current schedule format. They do not judge equivalen
 free-form wording or spelled-out times.
 
 This covers explicit opening/closing hours and times questions. Open-now
-questions, heritage, and hosted assistant adapters remain unfinished.
+questions and hosted assistant adapters remain unfinished.
 The existing `eval:pal:live` command does not run these hours cases.
 Run them with `npx vitest run __tests__/palFailClosedHours.test.ts`.
+
+`__tests__/palFailClosedHeritage.test.ts` adds twelve real-venue heritage asks
+from `fail-closed-heritage.json`. Ten venues have no recorded heritage. The Argyll
+Arms and The Clachan have facts with named sources and source URLs. The test
+checks each reference against the current local heritage reader and venue index.
+
+This subset calls `runAskTool("venue_heritage")` with the canonical venue ID.
+It does not test typed-question routing. That route can lose the venue ID and
+return an absence statement despite recorded facts. See `FOLLOW_UPS.md`.
+
+The `heritageAnswer` expectation rejects extra prose in answers and card notes.
+Unknown heritage requires one of four explicit absence statements and no source.
+Known heritage requires the recorded facts, their named sources and exact URLs.
+The card containing the facts must also contain matching provenance. Replay tests
+add dates, people and listing grades, change a fact, and remove or replace sources.
+
+These code checks accept a bounded set of answer forms. They do not judge
+paraphrases. A future wording judge must not replace the fact and source checks.
+The three subsets now hold 30 unknown asks and six known asks. All run in the
+normal offline test lane. The hosted assistant adapters and an opt-in live run
+of these subsets remain unfinished. `eval:pal:live` does not run them.
+Run the heritage subset with `npx vitest run __tests__/palFailClosedHeritage.test.ts`.
 
 Memory has its own suite: [`memory/`](memory/README.md) grades what Pub Pal
 remembers about the person it is talking to (`npm run eval:pal:memory`).
