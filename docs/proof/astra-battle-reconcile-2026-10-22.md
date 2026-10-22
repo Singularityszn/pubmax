@@ -141,6 +141,11 @@ The surrounding-pin repair left remote query matches outside the held local memb
 A typed Richmond query therefore kept the camera at the emulated Trafalgar Square location.
 Reloading the same query without that membership framed Richmond.
 The follow-up releases Near me membership when typed search takes camera ownership, preserving the other filters.
+The later review correction also releases that membership when a venue is selected through either search-suggestion path.
+Explicit selections retain camera ownership, so the deferred typed search cannot replace them.
+The expanded regression covers contextual price pins after Close and query-only Reload for both suggestion paths.
+It also updates obsolete Tonight expectations for matched music, source credit, and separate Deals and Music sections.
+These later corrections are not covered by the `db8d344` result below. The outer validation phase owns their results.
 The phone regression also waits for the shared mobile map shell after navigation and reload.
 
 The combined production build at `db8d344045b9aefd1a618922ef76881e87959279` passed.

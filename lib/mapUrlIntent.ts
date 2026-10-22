@@ -39,4 +39,3 @@ export function searchHasExplicitMapIntent(search: string): boolean {
     isUkNationalBrowse(search)
   );
 }
-
