@@ -20,6 +20,7 @@ import HandlePasswordSignIn from "@/components/auth/HandlePasswordSignIn";
 import type { MagicLinkResult } from "@/lib/passwordlessAuth";
 import SocialSignInButtons from "@/components/auth/SocialSignInButtons";
 import Kicker from "@/components/ui/kicker";
+import { Button } from "@/components/ui/button";
 import Screen from "@/components/ui/screen";
 import { BRAND_NAME } from "@/lib/brandNaming";
 import { isClerkProductSessionAvailable } from "@/lib/clerkAvailability";
@@ -354,6 +355,7 @@ export default function LoginPage({
     user,
     loading,
     configured,
+    supabaseAuthState,
     clerkIntegrationConfigured,
     socialProviders,
     signInWithGoogle,
@@ -515,6 +517,8 @@ export default function LoginPage({
     clerkIntegrationConfigured,
   );
   const hasAuthSurface = configured || clerkSessionAvailable;
+  const authUnavailable =
+    !loading && !user && configured && supabaseAuthState === "unavailable";
   // Adding an account is the ONE case where a live session does not get the
   // signed-in card: the person came here to bring a second account onto this
   // device, and telling them they are already in would be answering a question
@@ -522,18 +526,23 @@ export default function LoginPage({
   const adding = addAccount && Boolean(user);
   const showSignedIn = Boolean(user) && !adding;
   const returning = Boolean(welcomeBack) && !useDifferentAccount;
-  const head = loginPageHeadCopy({
-    sessionKnown: !loading,
-    adding,
-    signedIn: Boolean(user),
-    returning,
-    intent,
-    door,
-  });
+  const head = authUnavailable
+    ? {
+        title: "Sign-in is temporarily unavailable",
+        lead: "We couldn't check your account right now.",
+      }
+    : loginPageHeadCopy({
+        sessionKnown: !loading,
+        adding,
+        signedIn: Boolean(user),
+        returning,
+        intent,
+        door,
+      });
   const showWelcomeBack =
-    !loading && !showSignedIn && hasAuthSurface && Boolean(welcomeBack) && !useDifferentAccount;
+    !loading && !authUnavailable && !showSignedIn && hasAuthSurface && Boolean(welcomeBack) && !useDifferentAccount;
   const showForm =
-    !loading && !showSignedIn && hasAuthSurface && (!welcomeBack || useDifferentAccount);
+    !loading && !authUnavailable && !showSignedIn && hasAuthSurface && (!welcomeBack || useDifferentAccount);
 
 
   // ONE primary for the page, decided by the same state the body is. A signed-in
@@ -582,6 +591,15 @@ export default function LoginPage({
             Sign-in is not configured on this build. You can still browse the
             map.
           </p>
+        ) : null}
+
+        {authUnavailable ? (
+          <section className="loginPageNotice loginPageUnavailable" role="alert">
+            <p>Try again to load sign-in. You can still browse the map.</p>
+            <Button type="button" onClick={() => window.location.reload()}>
+              Try again
+            </Button>
+          </section>
         ) : null}
 
         {loginPageShowsSkeleton({ sessionKnown: !loading, hasAuthSurface }) ? (
@@ -657,11 +675,13 @@ export default function LoginPage({
             <LogIn size={14} aria-hidden="true" />
             Browse without signing in
           </Link>
-          <p className="loginPageLegal">
-            {door.legalLead}{" "}
-            <Link href="/terms">terms</Link> and{" "}
-            <Link href="/privacy">privacy notice</Link>.
-          </p>
+          {!authUnavailable ? (
+            <p className="loginPageLegal">
+              {door.legalLead}{" "}
+              <Link href="/terms">terms</Link> and{" "}
+              <Link href="/privacy">privacy notice</Link>.
+            </p>
+          ) : null}
         </footer>
       </div>
     </main>
