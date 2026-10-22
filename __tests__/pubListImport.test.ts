@@ -1,10 +1,96 @@
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("server-only", () => ({}));
 
 import { importPubList } from "@/lib/pubListImport.server";
 
 describe("pub list import", () => {
+  afterEach(() => vi.restoreAllMocks());
+
+  it("credits a supplied TikTok link without fetching the post", () => {
+    const fetchSpy = vi.spyOn(globalThis, "fetch").mockRejectedValue(new Error("No requests allowed."));
+    const result = importPubList({
+      text: "The Harp\nThe Crown",
+      sourceUrl: "https://www.tiktok.com/@london.pubs/video/123456",
+    }, { curated: [], national: [] });
+
+    expect(result.source).toEqual({
+      url: "https://www.tiktok.com/@london.pubs/video/123456",
+      platform: "tiktok",
+      handle: "@london.pubs",
+    });
+    expect(fetchSpy).not.toHaveBeenCalled();
+    expect(result.items.map((item) => item.name)).toEqual(["The Harp", "The Crown"]);
+  });
+
+  it.each([
+    ["https://www.instagram.com/london.pubs/", "@london.pubs"],
+    ["https://www.instagram.com/london.pubs/reel/ABC123/", "@london.pubs"],
+    ["https://www.instagram.com/p/ABC123/", null],
+    ["https://www.instagram.com/reel/ABC123/", null],
+    ["https://www.instagram.com/explore/", null],
+  ])("credits Instagram without inventing a creator absent from the path: %s", (sourceUrl, handle) => {
+    const result = importPubList({ text: "The Harp", sourceUrl }, { curated: [], national: [] });
+
+    expect(result.source).toEqual({ url: sourceUrl, platform: "instagram", handle });
+  });
+
+  it.each([
+    "https://vm.tiktok.com/ABC123/",
+    "https://vt.tiktok.com/ABC123/",
+    "https://vm.tiktok.com/@invented/video/123",
+    "https://www.tiktok.com/t/ABC123/",
+  ])("keeps short TikTok attribution without following redirects or guessing a handle: %s", (sourceUrl) => {
+    const fetchSpy = vi.spyOn(globalThis, "fetch").mockRejectedValue(new Error("No requests allowed."));
+    const result = importPubList({ text: "The Harp", sourceUrl }, { curated: [], national: [] });
+
+    expect(result.source).toEqual({ url: sourceUrl, platform: "tiktok", handle: null });
+    expect(fetchSpy).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    "not a link",
+    "http://example.com/post",
+    "javascript:alert(1)",
+    "https://user:secret@example.com/post",
+    "https://localhost/post",
+    "https://localhost./post",
+    "https://pub.local/post",
+    "https://pub.internal/post",
+    "https://127.0.0.1/post",
+    "https://2130706433/post",
+    "https://10.1.2.3/post",
+    "https://192.168.1.2/post",
+    "https://169.254.169.254/post",
+    "https://100.64.0.1/post",
+    "https://[::1]/post",
+    "https://[::ffff:169.254.169.254]/post",
+    "https://[fd00::1]/post",
+  ])("refuses unsafe source links without returning their contents or making requests: %s", (sourceUrl) => {
+    const fetchSpy = vi.spyOn(globalThis, "fetch").mockRejectedValue(new Error("No requests allowed."));
+
+    expect(() => importPubList({ text: "The Harp", sourceUrl }, { curated: [], national: [] }))
+      .toThrow(new RangeError("Use a public HTTPS source link without credentials."));
+    expect(fetchSpy).not.toHaveBeenCalled();
+  });
+
+  it.each([undefined, "", "  "])("allows an import without source attribution: %j", (sourceUrl) => {
+    const result = importPubList({ text: "The Harp", sourceUrl }, { curated: [], national: [] });
+
+    expect(result.source).toBeNull();
+    expect(result.items[0]).toMatchObject({ name: "The Harp", state: "unmatched" });
+  });
+
+  it.each([
+    "https://tiktok.com.example.org/@somebody/video/123",
+    "https://example.org/instagram.com/@somebody",
+    "https://example.org/note",
+  ])("keeps other public sources without claiming social platform attribution: %s", (sourceUrl) => {
+    const result = importPubList({ text: "The Harp", sourceUrl }, { curated: [], national: [] });
+
+    expect(result.source).toEqual({ url: sourceUrl, platform: "other", handle: null });
+  });
+
   it("keeps the pasted order and an unknown pub through the import entry point", () => {
     const result = importPubList({ text: "1. The Harp, Covent Garden\n2. The Imaginary Teapot" }, {
       curated: [{ id: "harp", name: "The Harp", area: "Covent Garden" }],

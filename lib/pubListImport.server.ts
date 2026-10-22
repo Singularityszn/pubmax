@@ -1,5 +1,13 @@
 import "server-only";
 
+import { isHarvestableOperatorUrl, normalizeHarvestHostname } from "@/lib/harvest/sourcePolicy";
+
+type ImportSource = {
+  url: string;
+  platform: "tiktok" | "instagram" | "other";
+  handle: string | null;
+};
+
 type ImportVenue = {
   id: string;
   name: string;
@@ -26,6 +34,40 @@ type ImportItem = ExtractedLine & (
   | { state: "ambiguous"; candidates: ImportCandidate[]; candidateCount: number }
   | { state: "unmatched" }
 );
+
+const INSTAGRAM_RESERVED_PATHS = new Set([
+  "p", "reel", "reels", "tv", "stories", "explore", "accounts", "direct", "share",
+  "about", "legal", "privacy", "terms", "developer", "web",
+]);
+
+function sourceAttribution(value: string | undefined): ImportSource | null {
+  if (value === undefined || value.trim() === "") return null;
+  if (!isHarvestableOperatorUrl(value)) {
+    throw new RangeError("Use a public HTTPS source link without credentials.");
+  }
+  const url = new URL(value.trim());
+  if (url.protocol !== "https:") {
+    throw new RangeError("Use a public HTTPS source link without credentials.");
+  }
+  const host = normalizeHarvestHostname(url.hostname)?.replace(/^(?:www|m)\./, "");
+  if (host === "vm.tiktok.com" || host === "vt.tiktok.com") {
+    return { url: url.href, platform: "tiktok", handle: null };
+  }
+  if (host === "tiktok.com") {
+    const handle = /^\/@([a-z0-9_.]{1,24})(?:\/|$)/i.exec(url.pathname)?.[1];
+    return { url: url.href, platform: "tiktok", handle: handle ? `@${handle}` : null };
+  }
+  if (host === "instagram.com") {
+    const parts = url.pathname.split("/").filter(Boolean);
+    const first = parts[0] ?? "";
+    const hasCreatorPath = parts.length === 1
+      || (parts.length === 3 && ["p", "reel", "tv"].includes(parts[1] ?? ""));
+    const handle = hasCreatorPath && /^[a-z0-9_.]{1,30}$/i.test(first)
+      && !INSTAGRAM_RESERVED_PATHS.has(first.toLowerCase()) ? `@${first}` : null;
+    return { url: url.href, platform: "instagram", handle };
+  }
+  return { url: url.href, platform: "other", handle: null };
+}
 
 function normalizedName(value: string): string {
   return value.toLocaleLowerCase("en-GB")
@@ -77,11 +119,16 @@ function matchLine(line: ExtractedLine, catalog: ImportCatalog): ImportItem {
 }
 
 /** Match only supplied text and venue records. This entry point performs no I/O. */
-export function importPubList(input: { text: string }, catalog: ImportCatalog): { items: ImportItem[]; truncated: boolean } {
+export function importPubList(
+  input: { text: string; sourceUrl?: string },
+  catalog: ImportCatalog,
+): { source: ImportSource | null; items: ImportItem[]; truncated: boolean } {
   if (input.text.length > 4000) throw new RangeError("The pub list must contain 4,000 characters or fewer.");
+  const source = sourceAttribution(input.sourceUrl);
   const lines = extractLines(input.text);
   if (!lines.length) throw new RangeError("Paste at least one pub name.");
   return {
+    source,
     items: lines.slice(0, 40).map((line) => matchLine(line, catalog)),
     truncated: lines.length > 40,
   };
