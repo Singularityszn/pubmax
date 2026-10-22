@@ -4700,11 +4700,20 @@ export default function PubMap({
     ukPlaces.length,
   ]);
   const limitedCoverageSearch = arrival.limitedCoverage;
+  // Search also finds venues hidden by the current canvas filters.
+  const searchExperienceLensPrices = useMemo(
+    () => experienceLens === "all" ? null
+      : lensPricesForVenues(venues, experienceLens, noAlcoholLensPrices),
+    [experienceLens, noAlcoholLensPrices, venues],
+  );
   const sharedMapSearchProps = {
     cityId,
     query: filters.query,
     onQueryChange: changeMapSearchQuery,
     venues: limitedCoverageSearch ? NO_SEARCH_VENUES : venues,
+    lensPrices: activeLensPricesFor(experienceLens, drinkLensPrices, searchExperienceLensPrices),
+    lensCategoryLabel: activeLensNoun,
+    lensStatus: drinkIndexStatus,
     localities: limitedCoverageSearch ? NO_LOCALITIES : localities,
     places: ukPlaces,
     includeLocalResults: !limitedCoverageSearch,
