@@ -21,6 +21,7 @@ import PersonaLensPicker from "@/components/map/PersonaLensPicker";
 import type { CityId } from "@/lib/cities";
 import { DEFAULT_CITY_ID } from "@/lib/cities";
 import { activeDrinkLane, drinkLaneLabel } from "@/lib/drinkLanes";
+import { listedServingGroup } from "@/lib/listedPriceComparison";
 import type { SpoonsValueLensState } from "@/lib/spoonsValue";
 import type { DrinkCategory } from "@/lib/drinks";
 import type { PersonaDrink } from "@/lib/personaDrinks";
@@ -146,6 +147,9 @@ type MapToolbarProps = {
   onDrinkLaneChange: (lane: DrinkCategory) => void;
   /** Completeness of the active lane's cross-venue read, for its own note. */
   drinkLaneStatus: CategoryPriceIndexStatus;
+  drinkServingGroups?: readonly string[];
+  drinkServingGroup?: string | null;
+  onDrinkServingGroupChange?: (serving: string | null) => void;
   /** The Spoons value lens, which shares this panel with the drink lanes. */
   spoonsValueOn: boolean;
   spoonsValueLens: SpoonsValueLensState;
@@ -195,9 +199,9 @@ type MapToolbarProps = {
   experienceSummary: string;
   onExperienceLensChange: (lens: MapExperienceLens) => void;
   /**
-   * The venue-type toggles, at 641px and wider (PlanAstra item 9). Absent on a
-   * base-pub-only arrival, where no curated kind is on the map to filter, and
-   * absent on a phone, which reads the same toggles in its Filters sheet.
+   * The venue-type toggles, at 641px and wider (PlanAstra item 9). They also
+   * filter UK base pubs and bars, so a base-led view keeps this one control and
+   * its active count. Phones read the same toggles in their Filters sheet.
    */
   venueKindVisibility?: VenueKindVisibility;
   onVenueKindVisibilityChange?: (next: VenueKindVisibility) => void;
@@ -216,6 +220,9 @@ export default function MapToolbar({
   onDrinkBrandChange,
   onDrinkLaneChange,
   drinkLaneStatus,
+  drinkServingGroups,
+  drinkServingGroup,
+  onDrinkServingGroupChange,
   spoonsValueOn,
   spoonsValueLens,
   onSpoonsValueChange,
@@ -334,7 +341,9 @@ export default function MapToolbar({
     return () => mq.removeEventListener("change", sync);
   }, []);
   const activeLane = activeDrinkLane(drinkCategory);
-  const laneLabel = drinkLaneLabel(activeLane);
+  const laneLabel = activeLane === "beer"
+    ? drinkLaneLabel(activeLane)
+    : `${drinkLaneLabel(activeLane)} · ${listedServingGroup(activeLane, drinkServingGroup) ?? "all servings"}`;
   // Every drink control is stood down while an experience view owns the map,
   // and brand is a pint-only refinement on top of that.
   const laneAvailable = experienceLens === "all";
@@ -447,6 +456,9 @@ export default function MapToolbar({
           <DrinkLanePicker
             lane={activeLane}
             status={drinkLaneStatus}
+            servingGroups={drinkServingGroups}
+            servingGroup={drinkServingGroup}
+            onServingGroupChange={onDrinkServingGroupChange}
             onChange={onDrinkLaneChange}
           />
           <SpoonsValueLensControl

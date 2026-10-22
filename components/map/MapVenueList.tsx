@@ -5,6 +5,9 @@ import { MapPin } from "lucide-react";
 
 import CompactVenuePrice from "@/components/map/CompactVenuePrice";
 import { formatLogNearbyDistance } from "@/lib/mapLogIntent";
+import { combineMapVenueListRows } from "@/lib/mapVenueList";
+import type { DrinkCategory } from "@/lib/drinks";
+import type { MapLensPrice } from "@/lib/mapExperienceLens";
 import type {
   MapVenueListModel,
   MapVenueListSortMode,
@@ -45,6 +48,8 @@ export default function MapVenueList({
   onBack,
   onHome,
   homeTitle = "the map",
+  drinkCategory = null,
+  servingGroup = null,
 }: {
   model: MapVenueListModel;
   ukBaseModel: UkBasePubListModel;
@@ -64,15 +69,22 @@ export default function MapVenueList({
   onBack?: () => void;
   onHome?: () => void;
   homeTitle?: string;
+  drinkCategory?: DrinkCategory | null;
+  servingGroup?: string | null;
 }) {
   const panelId = useId();
   const total = model.total + ukBaseModel.total;
   const shown = model.shown + ukBaseModel.shown;
   const truncated = model.truncated || ukBaseModel.truncated;
+  const priceOrderAvailable = model.rows.some((row) => row.sortPrice != null)
+    || ukBaseModel.rows.some((row) => row.sortPrice != null);
+  const effectiveSortMode = sortMode === "cheapest" && !priceOrderAvailable ? "nearest" : sortMode;
   const firstVenueRef = useRef<HTMLButtonElement>(null);
   const closeButtonRef = useRef<HTMLButtonElement>(null);
   const venueFocusAssignedRef = useRef(false);
-  const firstCuratedId = model.rows[0]?.id;
+  const groupedRows = drinkCategory ? combineMapVenueListRows(model.rows, ukBaseModel.rows, effectiveSortMode) : null;
+  const firstCombinedId = groupedRows?.[0]?.id;
+  const firstCuratedId = groupedRows ? undefined : model.rows[0]?.id;
   const firstBaseId = firstCuratedId ? undefined : ukBaseModel.rows[0]?.id;
 
   // The list opens from Layers, so the way back is this panel's own SurfaceNav
@@ -100,7 +112,7 @@ export default function MapVenueList({
       }
     });
     return () => cancelAnimationFrame(frame);
-  }, [firstBaseId, firstCuratedId, open]);
+  }, [firstBaseId, firstCuratedId, firstCombinedId, open]);
 
   // Closed, this component owns nothing on screen: the way IN is Layers, so a
   // named landmark region holding no content would only pad every screen
@@ -126,7 +138,7 @@ export default function MapVenueList({
                   : total === 0
                     ? "Nothing matches"
                     : truncated
-                      ? `${sortMode === "cheapest" ? "Cheapest" : "Nearest"} ${shown} of ${total}`
+                      ? `${effectiveSortMode === "cheapest" ? "Cheapest" : "Nearest"} ${shown} of ${total}`
                       : `${total} venue${total === 1 ? "" : "s"}`}
               </span>
             </div>
@@ -144,7 +156,7 @@ export default function MapVenueList({
               <button
                 type="button"
                 className="mapVenueListSortChip"
-                aria-pressed={sortMode === "nearest"}
+                aria-pressed={effectiveSortMode === "nearest"}
                 onClick={() => onSortModeChange("nearest")}
               >
                 Nearest
@@ -152,7 +164,8 @@ export default function MapVenueList({
               <button
                 type="button"
                 className="mapVenueListSortChip"
-                aria-pressed={sortMode === "cheapest"}
+                aria-pressed={effectiveSortMode === "cheapest"}
+                disabled={!priceOrderAvailable}
                 onClick={() => onSortModeChange("cheapest")}
               >
                 Cheapest
@@ -181,7 +194,30 @@ export default function MapVenueList({
             </p>
           ) : (
             <div className="mapVenueListGroups">
-              {model.rows.length > 0 ? (
+              {groupedRows ? (
+                <section className="mapVenueListGroup" aria-label="Drink offers and other venues">
+                  <h3 className="mapVenueListGroupTitle">{servingGroup ? `${servingGroup} menu prices` : "Choose a serving to compare menu prices"}</h3>
+                  <p className="mapVenueListCoverage">Other servings and community reports remain visible, unranked. Prices cover the published menus we have, not every offer.</p>
+                  <ul className="mapVenueListItems" aria-label="Drink offers and other venues">
+                    {groupedRows.map((row) => <li key={row.id}>
+                      <button ref={row.id === firstCombinedId ? firstVenueRef : undefined}
+                        id={`map-venue-list-item-${row.id}`} type="button" className="mapVenueListItem"
+                        data-venue-id={row.id} onClick={() => "pub" in row ? onSelectUkBasePub(row.pub) : onSelectVenue(row.id)}
+                        onPointerEnter={() => { if (!("pub" in row)) onPrefetchVenue(row.id); }}
+                        onFocus={() => { if (!("pub" in row)) onPrefetchVenue(row.id); }}>
+                        <span className="mapVenueListItemName"><MapPin size={14} aria-hidden="true" />{row.name}</span>
+                        <span className="mapVenueListItemMeta">
+                          {typeof row.distanceKm === "number" ? <span className="mapVenueListItemDist">{formatLogNearbyDistance(row.distanceKm)}</span> : null}
+                          <span className="mapVenueListCompactPrice"><span>{row.priceLabel}</span>
+                            {row.lensPrice ? <PriceProvenance price={row.lensPrice} ranked={row.sortPrice != null} /> : null}
+                          </span>
+                        </span>
+                      </button>
+                    </li>)}
+                  </ul>
+                </section>
+              ) : null}
+              {!groupedRows && model.rows.length > 0 ? (
                 <section className="mapVenueListGroup" aria-label="Listed pubs and venues">
                   <h3 className="mapVenueListGroupTitle">Listed pubs and venues</h3>
                   <ul className="mapVenueListItems" aria-label="Listed pubs and venues">
@@ -222,7 +258,7 @@ export default function MapVenueList({
                   </ul>
                 </section>
               ) : null}
-              {ukBaseModel.rows.length > 0 ? (
+              {!groupedRows && ukBaseModel.rows.length > 0 ? (
                 <section className="mapVenueListGroup mapVenueListGroup--unverified" aria-label="Other pubs and bars with no listed price">
                   <h3 className="mapVenueListGroupTitle">Other pubs and bars · no listed price</h3>
                   <ul className="mapVenueListItems" aria-label="Other pubs and bars with no listed price">
@@ -259,4 +295,18 @@ export default function MapVenueList({
         </div>
     </section>
   );
+}
+
+function PriceProvenance({ price, ranked }: { price: MapLensPrice; ranked: boolean }) {
+  let publisher = "Published menu";
+  if (price.sourceUrl) {
+    try { publisher = new URL(price.sourceUrl).hostname; } catch { /* Keep neutral source label. */ }
+  }
+  const date = price.observedAt ?? (price.submittedAt === undefined || !Number.isFinite(price.submittedAt) ? null : new Date(price.submittedAt).toISOString());
+  return <span className="mapVenueListPriceProvenance">
+    {price.drinkLabel ? `${price.drinkLabel} · ` : ""}{price.servingSize ?? "Serving not recorded"}
+    {` · ${price.source === "community" ? "Community report" : publisher}`}
+    {date ? ` · ${new Date(date).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" })}` : ""}
+    {!ranked ? " · Unranked" : ""}
+  </span>;
 }

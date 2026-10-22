@@ -28,12 +28,18 @@ export default function DrinkLanePicker({
   status = "ready",
   variant = "panel",
   onChange,
+  servingGroups = [],
+  servingGroup = null,
+  onServingGroupChange,
 }: {
   lane: DrinkCategory;
   /** How complete the selected lane's cross-venue read was, for the note. */
   status?: CategoryPriceIndexStatus;
   variant?: "panel" | "sheet";
   onChange: (lane: DrinkCategory) => void;
+  servingGroups?: readonly string[];
+  servingGroup?: string | null;
+  onServingGroupChange?: (serving: string | null) => void;
 }) {
   const active = MAP_DRINK_LANES.find((option) => option.category === lane);
   // A lane still loading, or one we could not read, must not be worded as a
@@ -84,6 +90,18 @@ export default function DrinkLanePicker({
           );
         })}
       </div>
+      {!active?.isDefault && onServingGroupChange ? (
+        <>
+          <p className="drinkLanePickerNote">Choose a serving size to compare menu prices.</p>
+          <div className="drinkLanePickerOptions" role="group" aria-label="Serving size for price comparison">
+            <button type="button" className={`drinkLanePickerOption${servingGroup === null ? " isSelected" : ""}`}
+              aria-pressed={servingGroup === null} onClick={() => onServingGroupChange(null)}>All servings · unranked</button>
+            {servingGroups.map((group) => <button key={group} type="button"
+              className={`drinkLanePickerOption${servingGroup === group ? " isSelected" : ""}`}
+              aria-pressed={servingGroup === group} onClick={() => onServingGroupChange(group)}>{group}</button>)}
+          </div>
+        </>
+      ) : null}
       {/* What the chosen lane can and cannot do. The pint lane keeps the map it
           always had; every other lane colours pins only where drinkers have
           logged and confirmed that drink, so its silence is honest rather than
@@ -91,7 +109,7 @@ export default function DrinkLanePicker({
       <p className="drinkLanePickerNote">
         {active?.isDefault
           ? "Pin colours follow the cheapest pint on record."
-          : `Pin colours follow confirmed ${active?.noun ?? "drink"} prices that drinkers logged. Pubs without one stay unknown.`}
+          : "Other servings and community reports stay visible, unranked."}
       </p>
       {note ? (
         <p className="drinkLanePickerStatus" role="status" aria-live="polite">
