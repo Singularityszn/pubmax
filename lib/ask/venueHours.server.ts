@@ -1,6 +1,7 @@
 import "server-only";
 
 import type { WeeklyOpeningHours } from "@/lib/busyness";
+import type { ConciergeVenue } from "@/lib/concierge/rank";
 import { loadConciergeVenues } from "@/lib/concierge/venues.server";
 import { DAY_MS } from "@/lib/dayMs";
 import { firstHttp } from "@/lib/httpUrl";
@@ -26,15 +27,9 @@ function hoursLines(hours: WeeklyOpeningHours): string[] {
   });
 }
 
-/** Answer a named pub's regular hours from existing records, without a provider call. */
-async function readVenueHours(query: string, ctx: AskToolContext): Promise<AskToolResult> {
-  const empty: AskToolResult = {
-    ok: true, tool: "search_venues", data: null, cards: [], proposals: [], provenance: [],
-    answerHint: "Which pub do you mean? I need its name to check the opening hours.",
-  };
-  const venues = await loadConciergeVenues(ctx.cityId);
+function requestedHoursVenue(query: string, venues: ConciergeVenue[]): ConciergeVenue | null {
   const hoursClauses = askRequestClauses(query).filter((clause) => /\b(?:opening|closing)\s+(?:hours|times)\b/i.test(clause));
-  if (hoursClauses.length > 1) return empty;
+  if (hoursClauses.length > 1) return null;
   const hoursClause = hoursClauses[0] ?? query;
   const question = hoursClause.trim().replace(/[.!?,;:]+$/, "")
     .replace(/(?:,\s*|\s+)please$/i, "")
@@ -55,7 +50,17 @@ async function readVenueHours(query: string, ctx: AskToolContext): Promise<AskTo
   const completeMatches = matchingVenues(subject);
   const matches = completeMatches.length ? completeMatches
     : matchingVenues(subject.replace(/['’]s(?=\s*[,.;:!?]*\s*$)/i, ""));
-  const venue = matches.length === 1 ? matches[0] : null;
+  return matches.length === 1 ? matches[0] ?? null : null;
+}
+
+/** Answer a named pub's regular hours from existing records, without a provider call. */
+async function readVenueHours(query: string, ctx: AskToolContext): Promise<AskToolResult> {
+  const empty: AskToolResult = {
+    ok: true, tool: "search_venues", data: null, cards: [], proposals: [], provenance: [],
+    answerHint: "Which pub do you mean? I need its name to check the opening hours.",
+  };
+  const venues = await loadConciergeVenues(ctx.cityId);
+  const venue = requestedHoursVenue(query, venues);
   if (!venue) return empty;
 
   const detail = await lookupVenueDetail(venue.id);
