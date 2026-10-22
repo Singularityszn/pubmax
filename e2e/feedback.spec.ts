@@ -48,8 +48,8 @@ test("feedback ignores query strings and fragments", async ({ page }) => {
 });
 
 if (process.env.PUBMAX_PUBLIC_EVIDENCE_PHASE) {
+  test.use({ trace: "off", video: "off" });
   test.describe("public screenshot evidence", () => {
-    test.use({ trace: "off", video: "off" });
     test("records the signed-out feedback source and viewport images", async ({ page }, testInfo) => {
       await capturePublicPageEvidence(page, testInfo, "feedback");
     });
