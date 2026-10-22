@@ -56,6 +56,13 @@ while retaining the document. Chromium can discard an intercepted unload
 request when navigation destroys that document, so this test does not
 establish production delivery during a real browser exit.
 
+A separate probe observed the native beacon during a real browser reload.
+The same probe found no pageleave beacon on production and one accepted
+pageleave beacon on the fixed local build. It preserved the native Blob
+and sendBeacon calls while recording their inputs. This proves that the
+browser queues the event during native pagehide. Provider receipt remains
+a production release check.
+
 ## Validation and limits
 
 - `npm run verify` passed. Unit coverage reported 42,504 passes and one
