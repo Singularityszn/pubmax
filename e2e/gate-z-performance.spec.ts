@@ -93,7 +93,7 @@ test("Gate Z mobile lab budgets stay inside the release targets", async ({ page 
   await page.getByRole("button", { name: "Describe the outing" }).click();
   await planningWarmup;
   const planner = page.locator('.mobileSheetPortal[data-sheet-kind="planner"]');
-  await planner.getByLabel("Describe the outing").fill("Three quiet pubs in Barnes under £24");
+  await planner.getByRole("textbox", { name: "Describe the outing", exact: true }).fill("Three quiet pubs in Barnes under £24");
   const buildRoute = planner.getByRole("button", { name: "Make a plan" });
   await buildRoute.evaluate((button) => button.addEventListener("click", () => {
     window.__pubmaxRouteReadinessStart = performance.now();
