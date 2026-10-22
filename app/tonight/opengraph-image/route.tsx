@@ -5,16 +5,16 @@ import { OG_CACHE_HEADERS } from "@/lib/ogBrand";
 import { fetchThingsToDo } from "@/lib/citymcp/client";
 import { buildTonightPosterModel } from "@/lib/tonightPoster";
 
-// Shareable "Tonight in London" OG poster (Wave D · D1, Next `opengraph-image`
-// convention). A collectible card in the app's printed-guidebook palette that
+// Shareable "Tonight in London" poster. The page owns both image metadata
+// fields and points them at this route, without file-convention overrides.
+// A collectible card in the app's printed-guidebook palette that
 // teases what's on tonight with an honest provenance stamp. Fail-soft: any
 // upstream error renders the clean generic poster (buildTonightPosterModel of
 // null), never a broken image.
 
 export const runtime = "nodejs";
-export const alt = "What's on in London tonight. PUBMAXX";
-export const size = { width: 1200, height: 630 };
-export const contentType = "image/png";
+export const revalidate = 300;
+const size = { width: 1200, height: 630 };
 
 // Brand palette (mirrors app/p/[id]/opengraph-image — the "printed guidebook").
 const PAPER = "#12100c";
@@ -25,7 +25,7 @@ const BRASS = "#d3a44a";
 const serif = 'Georgia, "Times New Roman", serif';
 const sans = 'Helvetica, "Helvetica Neue", Arial, sans-serif';
 
-export default async function Image() {
+export async function GET() {
   const result = await fetchThingsToDo({ window: "tonight", limit: 12 }).catch(
     () => null,
   );

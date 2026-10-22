@@ -908,6 +908,11 @@ button {
   gap: 10px;
 }
 
+.brandBlock h2 {
+  font-size: var(--text-lg);
+  line-height: 1.12;
+}
+
 .brandBlock {
   align-items: flex-start;
   margin-bottom: 20px;
@@ -2139,18 +2144,6 @@ html[data-theme="dark"] .appShell .mapStage .maplibregl-ctrl-group button .mapli
   margin: 0;
   color: inherit;
   font-family: var(--font-body);
-}
-
-.mapSkeletonCopy h1 {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  margin: -1px;
-  padding: 0;
-  overflow: hidden;
-  clip: rect(0 0 0 0);
-  white-space: nowrap;
-  border: 0;
 }
 
 /* The London pint snapshot date, on both loading screens: the same line in

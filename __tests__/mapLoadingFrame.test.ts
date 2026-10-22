@@ -3,9 +3,11 @@
 import { createElement, useEffect } from "react";
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
+import { renderToStaticMarkup } from "react-dom/server";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import MapLoading from "@/app/map/loading";
+import PubMaxingShell from "@/components/PubMaxingShell";
 import MapLoadingFrame from "@/components/map/MapLoadingFrame";
 import MapLoadingSkeleton from "@/components/map/MapLoadingSkeleton";
 import { MapPricesReadContext } from "@/components/map/mapPricesReadContext";
@@ -170,6 +172,27 @@ describe("the map's held loading frame", () => {
 });
 
 describe("the map's held skeleton", () => {
+  it("renders one London page heading alongside the route loading boundary", () => {
+    host.innerHTML = renderToStaticMarkup(createElement("div", null,
+      createElement(MapLoading),
+      createElement(PubMaxingShell),
+    ));
+
+    expect(Array.from(host.querySelectorAll("h1"), (heading) => heading.textContent))
+      .toEqual(["London pub map"]);
+  });
+
+  it("leaves the page heading to the map shell at both loading levels", () => {
+    act(() => {
+      root.render(createElement("div", null,
+        createElement(MapLoading),
+        createElement(MapLoadingSkeleton, { cityDisplayName: "London" }),
+      ));
+    });
+
+    expect(host.querySelectorAll("h1")).toHaveLength(0);
+  });
+
   function copy(): string {
     return host.querySelector<HTMLElement>(".mapSkeletonCopy")?.textContent ?? "";
   }
