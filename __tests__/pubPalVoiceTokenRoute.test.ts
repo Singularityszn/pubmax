@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { PAL_VOICE_MAX_SESSION_SECONDS, PAL_VOICE_MONTHLY_MINUTES } from "@/lib/palVoiceMetering";
+import { verifyPubPalVoiceOwnerProof } from "@/lib/pubPalVoiceOwnerProof.server";
 
 const voiceState = vi.hoisted(() => ({
   configured: true,
@@ -85,6 +86,7 @@ describe("Pub Pal voice token route", () => {
     vi.stubEnv("ELEVENLABS_API_KEY", "server-only-key");
     vi.stubEnv("ELEVENLABS_PUB_PAL_AGENT_ID", "pub-pal-agent");
     vi.stubEnv("ELEVENLABS_VOICE_FOX", "voice-fox-id");
+    vi.stubEnv("PLAN_IDEMPOTENCY_SECRET", "test-only-pub-pal-voice-owner-proof-secret");
   });
 
   afterEach(() => {
@@ -104,6 +106,21 @@ describe("Pub Pal voice token route", () => {
     expect(await response.json()).toMatchObject({ fallback: "text" });
     expect(providerFetch).not.toHaveBeenCalled();
     expect(voiceState.rpc).not.toHaveBeenCalled();
+  });
+
+  it.each(["", "too-short"])("refuses unavailable signing before quota or provider spend (%s)", async (secret) => {
+    vi.stubEnv("PLAN_IDEMPOTENCY_SECRET", secret);
+    vi.stubEnv("RATE_LIMIT_SALT", "");
+    const providerFetch = vi.fn();
+    vi.stubGlobal("fetch", providerFetch);
+
+    const response = await POST(issueRequest());
+
+    expect(response.status).toBe(503);
+    expect(await response.json()).toMatchObject({ fallback: "text" });
+    expect(providerFetch).not.toHaveBeenCalled();
+    expect(voiceState.rpc).not.toHaveBeenCalled();
+    expect(voiceBind).not.toHaveBeenCalled();
   });
 
   it("returns 503 when Pal ownership cannot be checked before quota or provider allocation", async () => {
@@ -247,6 +264,12 @@ describe("Pub Pal voice token route", () => {
       retention: "provider_default",
     });
     expect(body.conversationId).toBe("conv_voiceToken01");
+    expect(response.headers.get("cache-control")).toBe("no-store");
+    expect(verifyPubPalVoiceOwnerProof(body.voiceOwnerProof, voiceState.userId, body.conversationId)).toMatchObject({
+      ownerId: voiceState.userId,
+      conversationId: body.conversationId,
+    });
+    expect(verifyPubPalVoiceOwnerProof(body.voiceOwnerProof, voiceState.userId, "conv_unissued01")).toBeNull();
     expect(body.overrides).toMatchObject({
       voiceId: "voice-fox-id",
       firstMessage: expect.stringContaining("Ripley"),
@@ -273,6 +296,25 @@ describe("Pub Pal voice token route", () => {
     expect(response.status).toBe(200);
     expect(await response.json()).toMatchObject({ released: true });
     expect(voiceState.events).toEqual(["release_pub_pal_voice_trial"]);
+  });
+
+  it("still releases an existing reservation when signing is unavailable", async () => {
+    vi.stubEnv("PLAN_IDEMPOTENCY_SECRET", "");
+    vi.stubEnv("RATE_LIMIT_SALT", "");
+    voiceState.rpc.mockImplementation(async (name: string) => {
+      voiceState.events.push(name);
+      return { data: true, error: null };
+    });
+    const providerFetch = vi.fn();
+    vi.stubGlobal("fetch", providerFetch);
+
+    const response = await POST(releaseRequest(0));
+
+    expect(response.status).toBe(200);
+    expect(await response.json()).toMatchObject({ released: true });
+    expect(voiceState.events).toEqual(["release_pub_pal_voice_trial"]);
+    expect(providerFetch).not.toHaveBeenCalled();
+    expect(voiceBind).not.toHaveBeenCalled();
   });
 
   it("records billed minutes when the client releases after a live session", async () => {
@@ -411,5 +453,32 @@ describe("Pub Pal voice token route", () => {
 
     expect(response.status).toBe(503);
     expect(voiceState.events).toContain("release_pub_pal_voice_trial");
+  });
+
+  it("releases exactly one reservation if signing becomes unavailable after owner bind", async () => {
+    voiceState.rpc.mockImplementation(async (name: string) => {
+      voiceState.events.push(name);
+      return { data: true, error: null };
+    });
+    voiceBind.mockImplementation(async () => {
+      voiceState.events.push("owner_bind");
+      vi.stubEnv("PLAN_IDEMPOTENCY_SECRET", "");
+      vi.stubEnv("RATE_LIMIT_SALT", "");
+    });
+    vi.stubGlobal("fetch", vi.fn(async () => {
+      voiceState.events.push("provider_allocation");
+      return Response.json({ signed_url: "wss://voice.example/session", conversation_id: "conv_voiceToken01" });
+    }));
+
+    const response = await POST(issueRequest());
+
+    expect(response.status).toBe(503);
+    expect(await response.json()).not.toHaveProperty("voiceOwnerProof");
+    expect(voiceState.events).toEqual([
+      "consume_pub_pal_voice_trial",
+      "provider_allocation",
+      "owner_bind",
+      "release_pub_pal_voice_trial",
+    ]);
   });
 });
