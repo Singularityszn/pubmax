@@ -405,6 +405,7 @@ test("768px: the map zoom pair is pressable and the status banner keeps its widt
   await expect(page.locator(".mapLayersPanel .mapFitLondonBtn")).toBeVisible();
   await page.locator(".mapLayersClose").click();
   await expect(page.locator(".mapLayersPanel")).toHaveCount(0);
+  await expect(page.locator(".mapLoading")).toBeHidden({ timeout: 30_000 });
   const findings = await page.evaluate(() => {
     const owns = (selector: string) => {
       const element = document.querySelector(selector);
@@ -423,6 +424,32 @@ test("768px: the map zoom pair is pressable and the status banner keeps its widt
     // centred on the map, and its headline is not broken across more than two
     // lines, which is what a squeezed lane did to "dangerous".
     const box = banner.getBoundingClientRect();
+    const style = getComputedStyle(banner);
+    const staged = style.display === "none" || style.visibility === "hidden";
+    const stagingOwners = [
+      ".appShell.onboarding-open .mapOnboardingCard",
+      ".mapArrivalCard",
+      ".mapStage .citySuggestBanner",
+      ".mapStage .tonightLane--open",
+    ].filter((selector) => {
+      const owner = document.querySelector<HTMLElement>(selector);
+      if (!owner) return false;
+      const rect = owner.getBoundingClientRect();
+      const left = Math.max(0, rect.left);
+      const top = Math.max(0, rect.top);
+      const right = Math.min(window.innerWidth, rect.right);
+      const bottom = Math.min(window.innerHeight, rect.bottom);
+      if (rect.width <= 0 || rect.height <= 0 || right <= left || bottom <= top) return false;
+      // A mounted lower-priority owner can itself be staged or fading out.
+      // Its whole ancestor chain must paint before it can excuse hidden status.
+      for (let node: HTMLElement | null = owner; node; node = node.parentElement) {
+        const computed = getComputedStyle(node);
+        if (computed.display === "none" || computed.visibility !== "visible" ||
+          Number.parseFloat(computed.opacity) === 0) return false;
+      }
+      const hit = document.elementFromPoint((left + right) / 2, (top + bottom) / 2);
+      return Boolean(hit && owner.contains(hit));
+    });
     const headline = banner.querySelector("button");
     const lineHeight = headline ? parseFloat(getComputedStyle(headline).lineHeight) : 0;
     const headlineBox = headline?.getBoundingClientRect();
@@ -430,6 +457,8 @@ test("768px: the map zoom pair is pressable and the status banner keeps its widt
       zoomIn: owns(".maplibregl-ctrl-zoom-in"),
       zoomOut: owns(".maplibregl-ctrl-zoom-out"),
       banner: {
+        staged,
+        stagingOwners,
         width: box.width,
         centreOffset: Math.abs(box.left + box.width / 2 - window.innerWidth / 2),
         headlineLines:
@@ -439,7 +468,14 @@ test("768px: the map zoom pair is pressable and the status banner keeps its widt
   });
   expect(findings.zoomIn).toBe(true);
   expect(findings.zoomOut).toBe(true);
-  if (findings.banner) {
+  if (findings.banner?.staged) {
+    // The ambient cascade keeps lower eligible banners in the DOM but hidden.
+    // Require a painted, onscreen higher owner that owns its visible centre;
+    // mounted hidden owners cannot excuse zero geometry. A visible collapsed
+    // status banner still fails the unchanged geometry assertions below.
+    expect(findings.banner.stagingOwners.length).toBeGreaterThan(0);
+    await expect(page.locator(".cityStatusBanner")).toBeHidden();
+  } else if (findings.banner) {
     expect(findings.banner.width).toBeGreaterThan(160);
     expect(findings.banner.centreOffset).toBeLessThanOrEqual(2);
     expect(findings.banner.headlineLines).toBeLessThanOrEqual(2);
