@@ -1,0 +1,1923 @@
+{
+  "version": 1,
+  "reviewedAt": "2026-10-21T21:27:34.521Z",
+  "decision": "Withhold unverifiable entries and retain their history.",
+  "meaning": "Withdrawal from current recommendations does not assert closure.",
+  "sourceArtifacts": [
+    {
+      "path": "/tmp/pubmaxx-canonical-source-candidates.json",
+      "sha256": "e35151748ac41bdedb8fa5624a339d5e679ec13df3b704811d9bd513229240ae"
+    },
+    {
+      "path": "/tmp/pubmaxx-current-menus.json",
+      "sha256": "4a965346cfc8423039a934b9985644073e054ab7c412e803e14bd669d6a45f60"
+    },
+    {
+      "path": "/tmp/pubmaxx-current-menu-pdfs.json",
+      "sha256": "8284d3834ceb56e8785c0d30cb6e47129a0bbd346edfbee77a1e3607f2ca16d6"
+    },
+    {
+      "path": "/tmp/pubmaxx-connaught-current-pages.json",
+      "sha256": "3bb5bdc4756612cb37ef9924c521bc5162a8410ee1c0e8bcdf0351b6d4858f97"
+    },
+    {
+      "path": "/tmp/pubmaxx-connaught-current-pdfs.json",
+      "sha256": "4c4fff2ef6cc47bc2050a69255fb551551a0359d071959d0b22a0e38086d9526"
+    },
+    {
+      "path": "/tmp/pubmaxx-firecrawl-menu-evidence.json",
+      "sha256": "06896878c2d0560ea9cf95cd4038c61ee7e498bd02db3d67da368abab3d6edce"
+    },
+    {
+      "path": "/tmp/pubmaxx-firecrawl-cahoots-pdf.json",
+      "sha256": "605d5f014efd506eed09740d40cc56dc00136209336dda90f1e00498a27fd00e"
+    },
+    {
+      "path": "/tmp/pubmaxx-firecrawl-wolseley-page.json",
+      "sha256": "24eb857f9bfae4635adc8df234f4d7a2f5e28f05195aadf64c3986ba092adcc7"
+    },
+    {
+      "path": "/tmp/pubmaxx-firecrawl-wolseley-pdf.json",
+      "sha256": "eed2a1cc3707c062713970a1d6186d22e247ed8fe47dfe60924aa1ef1e9ca05d"
+    }
+  ],
+  "rows": [
+    {
+      "id": "bar-beaufort-bar-savoy",
+      "pack": "bars.json",
+      "status": "withheld_unverified",
+      "reviewedAt": "2026-10-21T21:27:34.521Z",
+      "reason": "No supported price anchor is available.",
+      "originalSeedRow": {
+        "id": "bar-beaufort-bar-savoy",
+        "name": "Beaufort Wine Bar",
+        "address": "Strand, London WC2R 0EZ",
+        "borough": "Westminster",
+        "lat": 51.51038,
+        "lng": -0.12025,
+        "kind": "bar",
+        "hasStory": true,
+        "fameGates": [
+          {
+            "kind": "cultural_weight",
+            "sourceUrl": "https://www.hot-dinners.com/2026090815351/Gastroblog/Latest-news/savoy-beaufort-wine-bar-opening"
+          },
+          {
+            "kind": "distinct_experience",
+            "sourceUrl": "https://www.thesavoylondon.com/restaurants-and-bars/beaufort-wine-bar"
+          }
+        ],
+        "sourceUrl": "https://www.thesavoylondon.com/restaurants-and-bars/beaufort-wine-bar",
+        "observedAt": "2026-08-25",
+        "story": {
+          "text": "The Savoy has relaunched its Beaufort Bar as a wine bar, pouring more than 120 of its 250-plus wines by the glass through Coravin.",
+          "sourceUrl": "https://www.thesavoylondon.com/restaurants-and-bars/beaufort-wine-bar"
+        },
+        "category": "bar",
+        "job": "late_night_bar",
+        "description": "The Savoy has relaunched its Beaufort Bar as a wine bar, pouring more than 120 of its 250-plus wines by the glass through Coravin.",
+        "area": "Westminster",
+        "location": {
+          "lat": 51.51038,
+          "lng": -0.12025
+        },
+        "sourceName": "thesavoylondon.com",
+        "expiresAt": "2026-09-24",
+        "discoveredVia": "manual",
+        "extractedVia": "manual"
+      },
+      "previousCheck": {
+        "id": "bar-beaufort-bar-savoy",
+        "method": "places_text_search",
+        "sourceUrl": "https://www.thesavoylondon.com/restaurants-and-bars/beaufort-wine-bar",
+        "outcome": "unverified",
+        "result": "anchor_missing",
+        "textQuery": "Beaufort Wine Bar WC2R 0EZ London",
+        "placeId": "ChIJ-9-i0csEdkgR5E8qINrsvws",
+        "matchReason": "exact_normalized_name;postcode_WC2R 0EZ",
+        "checkedAt": "2026-10-21T07:14:13.050Z",
+        "receipt": "data/famous_venues/receipts/verification_2026-10-21_pubpal-complete-1019.json"
+      },
+      "previousInspection": null,
+      "sourceReview": {
+        "canonicalUrl": "https://www.thesavoylondon.com/restaurants-and-bars/beaufort-wine-bar",
+        "canonicalPageCheckedAt": null
+      },
+      "restorationRequirements": [
+        "Establish a confident current venue identity through the existing Places verifier.",
+        "Obtain a permitted, venue-specific price anchor with its actual observation date.",
+        "Apply a genuine confirmation, remove this ID from removed.json, and rebuild the slim index."
+      ]
+    },
+    {
+      "id": "bar-connaught",
+      "pack": "bars.json",
+      "status": "withheld_unverified",
+      "reviewedAt": "2026-10-21T21:27:34.521Z",
+      "reason": "The canonical venue page is available, but robots disallows the linked menu PDF. The old generic cocktail price cannot be renewed.",
+      "originalSeedRow": {
+        "id": "bar-connaught",
+        "name": "Connaught Bar",
+        "address": "Carlos Place, London W1K 2AL",
+        "borough": "Westminster",
+        "lat": 51.51005,
+        "lng": -0.1491,
+        "kind": "bar",
+        "hasStory": true,
+        "fameGates": [
+          {
+            "kind": "recognition",
+            "sourceUrl": "https://www.theworlds50best.com/bars/the-list/connaught-bar.html"
+          },
+          {
+            "kind": "distinct_experience",
+            "sourceUrl": "https://www.the-connaught.co.uk/restaurants-bars/connaught-bar"
+          }
+        ],
+        "sourceUrl": "https://www.the-connaught.co.uk/restaurants-bars/connaught-bar",
+        "observedAt": "2026-10-05",
+        "anchor": {
+          "kind": "house_cocktail",
+          "label": "Connaught signature cocktail",
+          "price": 26,
+          "observedAt": "2026-07-26",
+          "sourceUrl": "https://www.the-connaught.co.uk/restaurants-bars/connaught-bar"
+        },
+        "story": {
+          "text": "Its martini trolley brings house bitters tableside, the ritual behind the bar's repeated global awards.",
+          "sourceUrl": "https://www.the-connaught.co.uk/restaurants-bars/connaught-bar"
+        },
+        "category": "bar",
+        "job": "late_night_bar",
+        "description": "Its martini trolley brings house bitters tableside, the ritual behind the bar's repeated global awards.",
+        "area": "Westminster",
+        "location": {
+          "lat": 51.51005,
+          "lng": -0.1491
+        },
+        "sourceName": "the-connaught.co.uk",
+        "expiresAt": "2026-11-04",
+        "discoveredVia": "manual",
+        "extractedVia": "manual"
+      },
+      "previousCheck": {
+        "id": "bar-connaught",
+        "method": "places_text_search",
+        "sourceUrl": "https://www.the-connaught.co.uk/restaurants-bars/connaught-bar",
+        "outcome": "unverified",
+        "result": "anchor_source_redirected",
+        "textQuery": "Connaught Bar W1K 2AL London",
+        "placeId": "ChIJ0aqjLCwFdkgRsvmYeG290jE",
+        "matchReason": "exact_normalized_name;postcode_W1K 2AL",
+        "checkedAt": "2026-10-21T07:19:12.067Z",
+        "receipt": "data/famous_venues/receipts/verification_2026-10-21_pubpal-complete-1019.json"
+      },
+      "previousInspection": {
+        "id": "bar-connaught",
+        "url": "https://www.the-connaught.co.uk/restaurants-bars/connaught-bar",
+        "checkedAt": "2026-10-21T21:08:38.328Z",
+        "allowedBySourcePolicy": true,
+        "permission": {
+          "allowed": true,
+          "reason": "allowed",
+          "robots": "rules-file",
+          "evidence": "https://www.the-connaught.co.uk/robots.txt permits /restaurants-bars/connaught-bar.",
+          "sitemaps": [
+            "https://www.maybourne.com/sitemap.xml"
+          ]
+        },
+        "head": {
+          "status": 308,
+          "location": "https://www.the-connaught.co.uk/restaurants-bars"
+        }
+      },
+      "sourceReview": {
+        "canonicalUrl": "https://www.maybourne.com/en/hotels/the-connaught/restaurants-bars/connaught-bar",
+        "menuRefusal": {
+          "id": "connaught-bar",
+          "pageUrl": "https://www.maybourne.com/en/hotels/the-connaught/restaurants-bars/connaught-bar",
+          "sourceUrl": "https://dxp.maybourne.com/contentassets/e4e490b61c004cdfb9ba66cf2018e231/the-connaught-bar-menu-june-2026.pdf",
+          "checkedAt": "2026-10-21T21:22:16.271Z",
+          "error": "https://dxp.maybourne.com/robots.txt disallows /contentassets/e4e490b61c004cdfb9ba66cf2018e231/the-connaught-bar-menu-june-2026.pdf for `*` (rule: /)."
+        },
+        "redirects": [
+          {
+            "url": "https://www.the-connaught.co.uk/restaurants-bars/connaught-bar",
+            "status": 308
+          },
+          {
+            "url": "https://www.the-connaught.co.uk/restaurants-bars",
+            "status": 308
+          },
+          {
+            "url": "https://www.the-connaught.co.uk/",
+            "status": 301
+          },
+          {
+            "url": "https://www.maybourne.com/en/hotels/the-connaught",
+            "status": 200
+          }
+        ],
+        "refused": null,
+        "canonicalPageCheckedAt": "2026-10-21T21:22:05.550Z"
+      },
+      "restorationRequirements": [
+        "Establish a confident current venue identity through the existing Places verifier.",
+        "Obtain a permitted, venue-specific price anchor with its actual observation date.",
+        "Apply a genuine confirmation, remove this ID from removed.json, and rebuild the slim index."
+      ]
+    },
+    {
+      "id": "bar-coburg",
+      "pack": "bars.json",
+      "status": "withheld_unverified",
+      "reviewedAt": "2026-10-21T21:27:34.521Z",
+      "reason": "The canonical venue page is available, but robots disallows the linked drinks PDF. The private Wine Room minimum spend is not a drink price.",
+      "originalSeedRow": {
+        "id": "bar-coburg",
+        "name": "Coburg Bar",
+        "address": "Carlos Place, London W1K 2AL",
+        "borough": "Westminster",
+        "lat": 51.5101,
+        "lng": -0.14916,
+        "kind": "bar",
+        "hasStory": true,
+        "fameGates": [
+          {
+            "kind": "recognition",
+            "sourceUrl": "https://www.timeout.com/london/bars-and-pubs/coburg-bar"
+          },
+          {
+            "kind": "distinct_experience",
+            "sourceUrl": "https://www.the-connaught.co.uk/restaurants-bars/coburg-bar"
+          }
+        ],
+        "sourceUrl": "https://www.the-connaught.co.uk/restaurants-bars/coburg-bar",
+        "observedAt": "2026-10-05",
+        "anchor": {
+          "kind": "house_cocktail",
+          "label": "Coburg signature cocktail",
+          "price": 25,
+          "observedAt": "2026-07-26",
+          "sourceUrl": "https://www.the-connaught.co.uk/restaurants-bars/coburg-bar"
+        },
+        "story": {
+          "text": "The Connaught's quieter drinking room pairs carved fireplaces and art with cocktails named for Mayfair characters.",
+          "sourceUrl": "https://www.the-connaught.co.uk/restaurants-bars/coburg-bar"
+        },
+        "category": "bar",
+        "job": "late_night_bar",
+        "description": "The Connaught's quieter drinking room pairs carved fireplaces and art with cocktails named for Mayfair characters.",
+        "area": "Westminster",
+        "location": {
+          "lat": 51.5101,
+          "lng": -0.14916
+        },
+        "sourceName": "the-connaught.co.uk",
+        "expiresAt": "2026-11-04",
+        "discoveredVia": "manual",
+        "extractedVia": "manual"
+      },
+      "previousCheck": {
+        "id": "bar-coburg",
+        "method": "places_text_search",
+        "sourceUrl": "https://www.the-connaught.co.uk/restaurants-bars/coburg-bar",
+        "outcome": "unverified",
+        "result": "anchor_source_redirected",
+        "textQuery": "Coburg Bar W1K 2AL London",
+        "placeId": "ChIJN_yCHzUFdkgRlBeo8sbWA7g",
+        "matchReason": "exact_normalized_name;postcode_W1K 2AL",
+        "checkedAt": "2026-10-21T07:19:12.417Z",
+        "receipt": "data/famous_venues/receipts/verification_2026-10-21_pubpal-complete-1019.json"
+      },
+      "previousInspection": {
+        "id": "bar-coburg",
+        "url": "https://www.the-connaught.co.uk/restaurants-bars/coburg-bar",
+        "checkedAt": "2026-10-21T21:08:38.342Z",
+        "allowedBySourcePolicy": true,
+        "permission": {
+          "allowed": true,
+          "reason": "allowed",
+          "robots": "rules-file",
+          "evidence": "https://www.the-connaught.co.uk/robots.txt permits /restaurants-bars/coburg-bar.",
+          "sitemaps": [
+            "https://www.maybourne.com/sitemap.xml"
+          ]
+        },
+        "head": {
+          "status": 308,
+          "location": "https://www.the-connaught.co.uk/restaurants-bars"
+        }
+      },
+      "sourceReview": {
+        "canonicalUrl": "https://www.maybourne.com/en/hotels/the-connaught/restaurants-bars/coburg-bar",
+        "menuRefusal": {
+          "id": "coburg-bar",
+          "pageUrl": "https://www.maybourne.com/en/hotels/the-connaught/restaurants-bars/coburg-bar",
+          "sourceUrl": "https://dxp.maybourne.com/contentassets/7df99218b96b40fd83cbb624a8efd323/coburg-bar-drinks-menu-2026.pdf",
+          "checkedAt": "2026-10-21T21:22:16.580Z",
+          "error": "https://dxp.maybourne.com/robots.txt disallows /contentassets/7df99218b96b40fd83cbb624a8efd323/coburg-bar-drinks-menu-2026.pdf for `*` (rule: /)."
+        },
+        "canonicalPageCheckedAt": "2026-10-21T21:22:05.908Z"
+      },
+      "restorationRequirements": [
+        "Establish a confident current venue identity through the existing Places verifier.",
+        "Obtain a permitted, venue-specific price anchor with its actual observation date.",
+        "Apply a genuine confirmation, remove this ID from removed.json, and rebuild the slim index."
+      ]
+    },
+    {
+      "id": "bar-donovan",
+      "pack": "bars.json",
+      "status": "withheld_unverified",
+      "reviewedAt": "2026-10-21T21:27:34.521Z",
+      "reason": "The permitted anchor request returned HTTP 403. No accessible replacement price evidence is available.",
+      "originalSeedRow": {
+        "id": "bar-donovan",
+        "name": "Donovan Bar",
+        "address": "33 Albemarle Street, London W1S 4BP",
+        "borough": "Westminster",
+        "lat": 51.50853,
+        "lng": -0.14265,
+        "kind": "bar",
+        "hasStory": true,
+        "fameGates": [
+          {
+            "kind": "recognition",
+            "sourceUrl": "https://www.timeout.com/london/bars-and-pubs/the-donovan-bar"
+          },
+          {
+            "kind": "cultural_weight",
+            "sourceUrl": "https://www.roccofortehotels.com/hotels-and-resorts/brown-s-hotel/dining/donovan-bar"
+          }
+        ],
+        "sourceUrl": "https://www.roccofortehotels.com/hotels-and-resorts/brown-s-hotel/dining/donovan-bar",
+        "observedAt": "2026-10-05",
+        "anchor": {
+          "kind": "house_cocktail",
+          "label": "Donovan signature cocktail",
+          "price": 25,
+          "observedAt": "2026-07-26",
+          "sourceUrl": "https://www.roccofortehotels.com/hotels-and-resorts/brown-s-hotel/dining/donovan-bar"
+        },
+        "story": {
+          "text": "Terence Donovan's photographs line a Mayfair room whose drinks are directed by legendary bartender Salvatore Calabrese.",
+          "sourceUrl": "https://www.roccofortehotels.com/hotels-and-resorts/brown-s-hotel/dining/donovan-bar"
+        },
+        "category": "bar",
+        "job": "late_night_bar",
+        "description": "Terence Donovan's photographs line a Mayfair room whose drinks are directed by legendary bartender Salvatore Calabrese.",
+        "area": "Westminster",
+        "location": {
+          "lat": 51.50853,
+          "lng": -0.14265
+        },
+        "sourceName": "roccofortehotels.com",
+        "expiresAt": "2026-11-04",
+        "discoveredVia": "manual",
+        "extractedVia": "manual"
+      },
+      "previousCheck": {
+        "id": "bar-donovan",
+        "method": "places_text_search",
+        "sourceUrl": "https://www.roccofortehotels.com/hotels-and-resorts/brown-s-hotel/dining/donovan-bar",
+        "outcome": "unverified",
+        "result": "anchor_source_unreachable",
+        "textQuery": "Donovan Bar W1S 4BP London",
+        "placeId": "ChIJPy_c8SkFdkgRamfYx4wZ6Xo",
+        "matchReason": "exact_normalized_name;postcode_W1S 4BP",
+        "checkedAt": "2026-10-21T07:19:13.234Z",
+        "receipt": "data/famous_venues/receipts/verification_2026-10-21_pubpal-complete-1019.json"
+      },
+      "previousInspection": {
+        "id": "bar-donovan",
+        "url": "https://www.roccofortehotels.com/hotels-and-resorts/brown-s-hotel/dining/donovan-bar",
+        "checkedAt": "2026-10-21T21:08:38.342Z",
+        "allowedBySourcePolicy": true,
+        "permission": {
+          "allowed": true,
+          "reason": "allowed",
+          "robots": "rules-file",
+          "evidence": "https://www.roccofortehotels.com/robots.txt permits /hotels-and-resorts/brown-s-hotel/dining/donovan-bar.",
+          "sitemaps": [
+            "https://www.roccofortehotels.com/sitemapindex.xml"
+          ]
+        },
+        "head": {
+          "status": 403,
+          "location": null
+        }
+      },
+      "sourceReview": {
+        "canonicalUrl": "https://www.roccofortehotels.com/hotels-and-resorts/brown-s-hotel/dining/donovan-bar",
+        "canonicalPageCheckedAt": null
+      },
+      "restorationRequirements": [
+        "Establish a confident current venue identity through the existing Places verifier.",
+        "Obtain a permitted, venue-specific price anchor with its actual observation date.",
+        "Apply a genuine confirmation, remove this ID from removed.json, and rebuild the slim index."
+      ]
+    },
+    {
+      "id": "bar-swift-soho",
+      "pack": "bars.json",
+      "status": "withheld_unverified",
+      "reviewedAt": "2026-10-21T21:27:34.521Z",
+      "reason": "The current menu repairs the price source, but no current Places identity check is available within the remaining daily quota.",
+      "originalSeedRow": {
+        "id": "bar-swift-soho",
+        "name": "Swift Soho",
+        "address": "12 Old Compton Street, London W1D 4TQ",
+        "borough": "Westminster",
+        "lat": 51.51338,
+        "lng": -0.13184,
+        "kind": "bar",
+        "hasStory": true,
+        "fameGates": [
+          {
+            "kind": "recognition",
+            "sourceUrl": "https://www.theworlds50best.com/discovery/Establishments/UK/London/Swift.html"
+          },
+          {
+            "kind": "distinct_experience",
+            "sourceUrl": "https://www.barswift.com/soho"
+          }
+        ],
+        "sourceUrl": "https://www.barswift.com/soho",
+        "observedAt": "2026-10-05",
+        "anchor": {
+          "kind": "house_cocktail",
+          "label": "Swift seasonal cocktail",
+          "price": 14,
+          "observedAt": "2026-07-26",
+          "sourceUrl": "https://www.barswift.com/soho"
+        },
+        "story": {
+          "text": "A bright aperitivo bar upstairs gives way to a dark whisky-and-live-music basement below.",
+          "sourceUrl": "https://www.barswift.com/soho"
+        },
+        "category": "bar",
+        "job": "late_night_bar",
+        "description": "A bright aperitivo bar upstairs gives way to a dark whisky-and-live-music basement below.",
+        "area": "Westminster",
+        "location": {
+          "lat": 51.51338,
+          "lng": -0.13184
+        },
+        "sourceName": "barswift.com",
+        "expiresAt": "2026-11-04",
+        "discoveredVia": "manual",
+        "extractedVia": "manual"
+      },
+      "previousCheck": null,
+      "previousInspection": {
+        "id": "bar-swift-soho",
+        "url": "https://www.barswift.com/soho",
+        "checkedAt": "2026-10-21T21:08:38.672Z",
+        "allowedBySourcePolicy": true,
+        "permission": {
+          "allowed": true,
+          "reason": "allowed",
+          "robots": "rules-file",
+          "evidence": "https://www.barswift.com/robots.txt permits /soho.",
+          "sitemaps": [
+            "https://www.barswift.com/sitemap.xml"
+          ]
+        },
+        "head": {
+          "status": 301,
+          "location": "http://www.barswift.com/swift-soho"
+        }
+      },
+      "sourceReview": {
+        "canonicalUrl": "https://www.barswift.com/swift-soho",
+        "redirects": [
+          {
+            "url": "https://www.barswift.com/soho",
+            "status": 301
+          },
+          {
+            "url": "http://www.barswift.com/swift-soho",
+            "status": 301
+          },
+          {
+            "url": "https://www.barswift.com/swift-soho",
+            "status": 200
+          }
+        ],
+        "refused": null,
+        "repairedCandidate": {
+          "id": "bar-swift-soho",
+          "name": "Swift Soho",
+          "address": "12 Old Compton Street, London W1D 4TQ",
+          "borough": "Westminster",
+          "lat": 51.51338,
+          "lng": -0.13184,
+          "kind": "bar",
+          "hasStory": true,
+          "fameGates": [
+            {
+              "kind": "recognition",
+              "sourceUrl": "https://www.theworlds50best.com/discovery/Establishments/UK/London/Swift.html"
+            },
+            {
+              "kind": "distinct_experience",
+              "sourceUrl": "https://www.barswift.com/soho"
+            }
+          ],
+          "sourceUrl": "https://static1.squarespace.com/static/6408946af82c2a0b73bbf390/t/6941495342573d28a491583d/1765886291972/Swift+Soho+Upstairs+Menu.pdf",
+          "observedAt": "2026-10-05",
+          "anchor": {
+            "kind": "house_cocktail",
+            "label": "Droplet",
+            "price": 13,
+            "observedAt": "2026-10-21",
+            "sourceUrl": "https://static1.squarespace.com/static/6408946af82c2a0b73bbf390/t/6941495342573d28a491583d/1765886291972/Swift+Soho+Upstairs+Menu.pdf"
+          },
+          "story": {
+            "text": "A bright aperitivo bar upstairs gives way to a dark whisky-and-live-music basement below.",
+            "sourceUrl": "https://www.barswift.com/soho"
+          },
+          "category": "bar",
+          "job": "late_night_bar",
+          "description": "A bright aperitivo bar upstairs gives way to a dark whisky-and-live-music basement below.",
+          "area": "Westminster",
+          "location": {
+            "lat": 51.51338,
+            "lng": -0.13184
+          },
+          "sourceName": "static1.squarespace.com",
+          "expiresAt": "2026-11-04",
+          "discoveredVia": "manual",
+          "extractedVia": "manual"
+        },
+        "priceEvidence": {
+          "sourceUrl": "https://static1.squarespace.com/static/6408946af82c2a0b73bbf390/t/6941495342573d28a491583d/1765886291972/Swift+Soho+Upstairs+Menu.pdf",
+          "pageUrl": "https://www.barswift.com/soho-menu",
+          "checkedAt": "2026-10-21T21:15:00.553Z",
+          "label": "Droplet",
+          "price": 13,
+          "currency": "GBP",
+          "unit": "one menu item",
+          "excerpt": "DROPLET 13"
+        },
+        "canonicalPageCheckedAt": null
+      },
+      "restorationRequirements": [
+        "Establish a confident current venue identity through the existing Places verifier.",
+        "Obtain a permitted, venue-specific price anchor with its actual observation date.",
+        "Apply a genuine confirmation, remove this ID from removed.json, and rebuild the slim index."
+      ]
+    },
+    {
+      "id": "bar-swift-borough",
+      "pack": "bars.json",
+      "status": "withheld_unverified",
+      "reviewedAt": "2026-10-21T21:27:34.521Z",
+      "reason": "The current menu repairs the price source, but no current Places identity check is available within the remaining daily quota.",
+      "originalSeedRow": {
+        "id": "bar-swift-borough",
+        "name": "Swift Borough",
+        "address": "66 Borough High Street, London SE1 1XF",
+        "borough": "Southwark",
+        "lat": 51.50501,
+        "lng": -0.08985,
+        "kind": "bar",
+        "hasStory": true,
+        "fameGates": [
+          {
+            "kind": "recognition",
+            "sourceUrl": "https://www.timeout.com/london/bars-and-pubs/swift-borough"
+          },
+          {
+            "kind": "distinct_experience",
+            "sourceUrl": "https://www.barswift.com/borough"
+          }
+        ],
+        "sourceUrl": "https://www.barswift.com/borough",
+        "observedAt": "2026-10-05",
+        "anchor": {
+          "kind": "house_cocktail",
+          "label": "Swift seasonal cocktail",
+          "price": 14,
+          "observedAt": "2026-07-26",
+          "sourceUrl": "https://www.barswift.com/borough"
+        },
+        "story": {
+          "text": "Swift's south-London room carries the group's award-winning fast cocktail service into Borough's old market streets.",
+          "sourceUrl": "https://www.barswift.com/borough"
+        },
+        "category": "bar",
+        "job": "late_night_bar",
+        "description": "Swift's south-London room carries the group's award-winning fast cocktail service into Borough's old market streets.",
+        "area": "Southwark",
+        "location": {
+          "lat": 51.50501,
+          "lng": -0.08985
+        },
+        "sourceName": "barswift.com",
+        "expiresAt": "2026-11-04",
+        "discoveredVia": "manual",
+        "extractedVia": "manual"
+      },
+      "previousCheck": null,
+      "previousInspection": {
+        "id": "bar-swift-borough",
+        "url": "https://www.barswift.com/borough",
+        "checkedAt": "2026-10-21T21:08:38.674Z",
+        "allowedBySourcePolicy": true,
+        "permission": {
+          "allowed": true,
+          "reason": "allowed",
+          "robots": "rules-file",
+          "evidence": "https://www.barswift.com/robots.txt permits /borough.",
+          "sitemaps": [
+            "https://www.barswift.com/sitemap.xml"
+          ]
+        },
+        "head": {
+          "status": 301,
+          "location": "http://www.barswift.com/swift-borough"
+        }
+      },
+      "sourceReview": {
+        "canonicalUrl": "https://www.barswift.com/swift-borough",
+        "redirects": [
+          {
+            "url": "https://www.barswift.com/borough",
+            "status": 301
+          },
+          {
+            "url": "http://www.barswift.com/swift-borough",
+            "status": 301
+          },
+          {
+            "url": "https://www.barswift.com/swift-borough",
+            "status": 200
+          }
+        ],
+        "refused": null,
+        "repairedCandidate": {
+          "id": "bar-swift-borough",
+          "name": "Swift Borough",
+          "address": "66 Borough High Street, London SE1 1XF",
+          "borough": "Southwark",
+          "lat": 51.50501,
+          "lng": -0.08985,
+          "kind": "bar",
+          "hasStory": true,
+          "fameGates": [
+            {
+              "kind": "recognition",
+              "sourceUrl": "https://www.timeout.com/london/bars-and-pubs/swift-borough"
+            },
+            {
+              "kind": "distinct_experience",
+              "sourceUrl": "https://www.barswift.com/borough"
+            }
+          ],
+          "sourceUrl": "https://static1.squarespace.com/static/6408946af82c2a0b73bbf390/t/6925e788ae9ae924287b8790/1764091784799/SWift+Borough+Upstairs+Menu_compressed.pdf",
+          "observedAt": "2026-10-05",
+          "anchor": {
+            "kind": "house_cocktail",
+            "label": "Mountain Spring",
+            "price": 16,
+            "observedAt": "2026-10-21",
+            "sourceUrl": "https://static1.squarespace.com/static/6408946af82c2a0b73bbf390/t/6925e788ae9ae924287b8790/1764091784799/SWift+Borough+Upstairs+Menu_compressed.pdf"
+          },
+          "story": {
+            "text": "Swift's south-London room carries the group's award-winning fast cocktail service into Borough's old market streets.",
+            "sourceUrl": "https://www.barswift.com/borough"
+          },
+          "category": "bar",
+          "job": "late_night_bar",
+          "description": "Swift's south-London room carries the group's award-winning fast cocktail service into Borough's old market streets.",
+          "area": "Southwark",
+          "location": {
+            "lat": 51.50501,
+            "lng": -0.08985
+          },
+          "sourceName": "static1.squarespace.com",
+          "expiresAt": "2026-11-04",
+          "discoveredVia": "manual",
+          "extractedVia": "manual"
+        },
+        "priceEvidence": {
+          "sourceUrl": "https://static1.squarespace.com/static/6408946af82c2a0b73bbf390/t/6925e788ae9ae924287b8790/1764091784799/SWift+Borough+Upstairs+Menu_compressed.pdf",
+          "pageUrl": "https://www.barswift.com/borough-menu",
+          "checkedAt": "2026-10-21T21:15:00.656Z",
+          "label": "Mountain Spring",
+          "price": 16,
+          "currency": "GBP",
+          "unit": "one menu item",
+          "excerpt": "MOUNTAIN SPRING 16"
+        },
+        "canonicalPageCheckedAt": null
+      },
+      "restorationRequirements": [
+        "Establish a confident current venue identity through the existing Places verifier.",
+        "Obtain a permitted, venue-specific price anchor with its actual observation date.",
+        "Apply a genuine confirmation, remove this ID from removed.json, and rebuild the slim index."
+      ]
+    },
+    {
+      "id": "bar-bar-termini",
+      "pack": "bars.json",
+      "status": "withheld_unverified",
+      "reviewedAt": "2026-10-21T21:27:34.521Z",
+      "reason": "The current menu repairs the price source, but no current Places identity check is available within the remaining daily quota.",
+      "originalSeedRow": {
+        "id": "bar-bar-termini",
+        "name": "Bar Termini",
+        "address": "7 Old Compton Street, London W1D 5JE",
+        "borough": "Westminster",
+        "lat": 51.51364,
+        "lng": -0.13054,
+        "kind": "bar",
+        "hasStory": true,
+        "fameGates": [
+          {
+            "kind": "recognition",
+            "sourceUrl": "https://www.theworlds50best.com/discovery/Establishments/UK/London/Bar-Termini.html"
+          },
+          {
+            "kind": "distinct_experience",
+            "sourceUrl": "https://www.bar-termini.com/"
+          }
+        ],
+        "sourceUrl": "https://www.bar-termini.com/",
+        "observedAt": "2026-10-05",
+        "anchor": {
+          "kind": "house_cocktail",
+          "label": "House Negroni",
+          "price": 13,
+          "observedAt": "2026-07-26",
+          "sourceUrl": "https://www.bar-termini.com/"
+        },
+        "story": {
+          "text": "Tony Conigliaro compressed an Italian station bar into twenty seats, tiny coffees and bottled house Negronis.",
+          "sourceUrl": "https://www.bar-termini.com/"
+        },
+        "category": "bar",
+        "job": "late_night_bar",
+        "description": "Tony Conigliaro compressed an Italian station bar into twenty seats, tiny coffees and bottled house Negronis.",
+        "area": "Westminster",
+        "location": {
+          "lat": 51.51364,
+          "lng": -0.13054
+        },
+        "sourceName": "bar-termini.com",
+        "expiresAt": "2026-11-04",
+        "discoveredVia": "manual",
+        "extractedVia": "manual"
+      },
+      "previousCheck": null,
+      "previousInspection": {
+        "id": "bar-bar-termini",
+        "url": "https://www.bar-termini.com/",
+        "checkedAt": "2026-10-21T21:08:39.621Z",
+        "allowedBySourcePolicy": true,
+        "permission": {
+          "allowed": true,
+          "reason": "allowed",
+          "robots": "rules-file",
+          "evidence": "https://www.bar-termini.com/robots.txt permits /.",
+          "sitemaps": [
+            "http://bar-termini-soho.com/sitemap.xml"
+          ]
+        },
+        "head": {
+          "status": 301,
+          "location": "https://bar-termini-soho.com/"
+        }
+      },
+      "sourceReview": {
+        "canonicalUrl": "https://bar-termini-soho.com/",
+        "redirects": [
+          {
+            "url": "https://www.bar-termini.com/",
+            "status": 301
+          },
+          {
+            "url": "https://bar-termini-soho.com/",
+            "status": 200
+          }
+        ],
+        "refused": null,
+        "repairedCandidate": {
+          "id": "bar-bar-termini",
+          "name": "Bar Termini",
+          "address": "7 Old Compton Street, London W1D 5JE",
+          "borough": "Westminster",
+          "lat": 51.51364,
+          "lng": -0.13054,
+          "kind": "bar",
+          "hasStory": true,
+          "fameGates": [
+            {
+              "kind": "recognition",
+              "sourceUrl": "https://www.theworlds50best.com/discovery/Establishments/UK/London/Bar-Termini.html"
+            },
+            {
+              "kind": "distinct_experience",
+              "sourceUrl": "https://www.bar-termini.com/"
+            }
+          ],
+          "sourceUrl": "https://bar-termini-soho.com/menu",
+          "observedAt": "2026-10-05",
+          "anchor": {
+            "kind": "house_cocktail",
+            "label": "House Negroni",
+            "price": 9.5,
+            "observedAt": "2026-10-21",
+            "sourceUrl": "https://bar-termini-soho.com/menu"
+          },
+          "story": {
+            "text": "Tony Conigliaro compressed an Italian station bar into twenty seats, tiny coffees and bottled house Negronis.",
+            "sourceUrl": "https://www.bar-termini.com/"
+          },
+          "category": "bar",
+          "job": "late_night_bar",
+          "description": "Tony Conigliaro compressed an Italian station bar into twenty seats, tiny coffees and bottled house Negronis.",
+          "area": "Westminster",
+          "location": {
+            "lat": 51.51364,
+            "lng": -0.13054
+          },
+          "sourceName": "bar-termini-soho.com",
+          "expiresAt": "2026-11-04",
+          "discoveredVia": "manual",
+          "extractedVia": "manual"
+        },
+        "priceEvidence": {
+          "sourceUrl": "https://bar-termini-soho.com/menu",
+          "pageUrl": "https://bar-termini-soho.com/",
+          "checkedAt": "2026-10-21T21:14:23.005Z",
+          "label": "House Negroni",
+          "price": 9.5,
+          "currency": "GBP",
+          "unit": "one menu item",
+          "excerpt": "HOUSE NEGRONI Classico - Superiore - Rosato - Robusto 9.5"
+        },
+        "canonicalPageCheckedAt": null
+      },
+      "restorationRequirements": [
+        "Establish a confident current venue identity through the existing Places verifier.",
+        "Obtain a permitted, venue-specific price anchor with its actual observation date.",
+        "Apply a genuine confirmation, remove this ID from removed.json, and rebuild the slim index."
+      ]
+    },
+    {
+      "id": "bar-kwant",
+      "pack": "bars.json",
+      "status": "withheld_unverified",
+      "reviewedAt": "2026-10-21T21:27:34.521Z",
+      "reason": "The existing price source is not owned by the row under the shared anchor rule. No supported replacement price was supplied.",
+      "originalSeedRow": {
+        "id": "bar-kwant",
+        "name": "Kwānt",
+        "address": "52 Stratton Street, London W1J 8LN",
+        "borough": "Westminster",
+        "lat": 51.507185,
+        "lng": -0.143285,
+        "kind": "bar",
+        "hasStory": true,
+        "fameGates": [
+          {
+            "kind": "recognition",
+            "sourceUrl": "https://www.theworlds50best.com/discovery/Establishments/UK/London/Kw%C4%81nt-Mayfair.html"
+          },
+          {
+            "kind": "distinct_experience",
+            "sourceUrl": "https://www.instagram.com/kwantmayfair"
+          }
+        ],
+        "sourceUrl": "https://www.theworlds50best.com/discovery/Establishments/UK/London/Kw%C4%81nt-Mayfair.html",
+        "observedAt": "2026-10-05",
+        "anchor": {
+          "kind": "house_cocktail",
+          "label": "Cocktail (average)",
+          "price": 17,
+          "observedAt": "2026-08-25",
+          "sourceUrl": "https://thenudge.com/kwant-mayfair"
+        },
+        "story": {
+          "text": "Erik Lorincz reopened Kwānt on Stratton Street with vintage spirits, Polynesian decor and the same madcap cocktail craft that made the Heddon Street room famous.",
+          "sourceUrl": "https://www.theworlds50best.com/discovery/Establishments/UK/London/Kw%C4%81nt-Mayfair.html"
+        },
+        "category": "bar",
+        "job": "late_night_bar",
+        "description": "Erik Lorincz reopened Kwānt on Stratton Street with vintage spirits, Polynesian decor and the same madcap cocktail craft that made the Heddon Street room famous.",
+        "area": "Mayfair",
+        "location": {
+          "lat": 51.507185,
+          "lng": -0.143285
+        },
+        "sourceName": "theworlds50best.com",
+        "expiresAt": "2026-11-04",
+        "discoveredVia": "manual",
+        "extractedVia": "manual",
+        "placesNameAliases": [
+          "kwant mayfair"
+        ]
+      },
+      "previousCheck": {
+        "id": "bar-kwant",
+        "method": "places_text_search",
+        "sourceUrl": "https://www.theworlds50best.com/discovery/Establishments/UK/London/Kw%C4%81nt-Mayfair.html",
+        "outcome": "unverified",
+        "result": "anchor_source_not_row_source",
+        "textQuery": "Kwānt W1J 8LN London",
+        "placeId": "ChIJ1x7C-XsFdkgRODpYDs4BDUA",
+        "matchReason": "places_name_alias;postcode_W1J 8LN",
+        "checkedAt": "2026-10-21T21:09:47.873Z"
+      },
+      "previousInspection": {
+        "id": "bar-kwant",
+        "url": "https://thenudge.com/kwant-mayfair",
+        "checkedAt": "2026-10-21T21:08:40.120Z",
+        "allowedBySourcePolicy": true,
+        "permission": {
+          "allowed": true,
+          "reason": "allowed",
+          "robots": "rules-file",
+          "evidence": "https://thenudge.com/robots.txt permits /kwant-mayfair.",
+          "sitemaps": [
+            "https://thenudge.com/sitemap_index.xml"
+          ]
+        },
+        "head": {
+          "status": 301,
+          "location": "https://thenudge.com/kwant-mayfair/"
+        }
+      },
+      "sourceReview": {
+        "canonicalUrl": "https://www.theworlds50best.com/discovery/Establishments/UK/London/Kw%C4%81nt-Mayfair.html",
+        "canonicalPageCheckedAt": null
+      },
+      "restorationRequirements": [
+        "Establish a confident current venue identity through the existing Places verifier.",
+        "Obtain a permitted, venue-specific price anchor with its actual observation date.",
+        "Apply a genuine confirmation, remove this ID from removed.json, and rebuild the slim index."
+      ]
+    },
+    {
+      "id": "bar-ecc-chinatown",
+      "pack": "bars.json",
+      "status": "withheld_unverified",
+      "reviewedAt": "2026-10-21T21:27:34.521Z",
+      "reason": "The canonical venue page is available, but the menu host robots request returned a challenge. The PDF was not fetched.",
+      "originalSeedRow": {
+        "id": "bar-ecc-chinatown",
+        "name": "Experimental Cocktail Club",
+        "address": "13A Gerrard Street, London W1D 5PS",
+        "borough": "Westminster",
+        "lat": 51.51177,
+        "lng": -0.13116,
+        "kind": "bar",
+        "hasStory": true,
+        "fameGates": [
+          {
+            "kind": "recognition",
+            "sourceUrl": "https://www.timeout.com/london/bars-and-pubs/experimental-cocktail-club"
+          },
+          {
+            "kind": "distinct_experience",
+            "sourceUrl": "https://www.experimentalcocktailclub.com/london"
+          }
+        ],
+        "sourceUrl": "https://www.experimentalcocktailclub.com/london",
+        "observedAt": "2026-10-05",
+        "anchor": {
+          "kind": "house_cocktail",
+          "label": "ECC cocktail",
+          "price": 16,
+          "observedAt": "2026-07-26",
+          "sourceUrl": "https://www.experimentalcocktailclub.com/london"
+        },
+        "story": {
+          "text": "An unmarked Chinatown door leads to the London outpost of the Paris group that exported its speakeasy style worldwide.",
+          "sourceUrl": "https://www.experimentalcocktailclub.com/london"
+        },
+        "category": "bar",
+        "job": "late_night_bar",
+        "description": "An unmarked Chinatown door leads to the London outpost of the Paris group that exported its speakeasy style worldwide.",
+        "area": "Westminster",
+        "location": {
+          "lat": 51.51177,
+          "lng": -0.13116
+        },
+        "sourceName": "experimentalcocktailclub.com",
+        "expiresAt": "2026-11-04",
+        "discoveredVia": "manual",
+        "extractedVia": "manual",
+        "placesNameAliases": [
+          "experimental cocktail club chinatown"
+        ]
+      },
+      "previousCheck": null,
+      "previousInspection": {
+        "id": "bar-ecc-chinatown",
+        "url": "https://www.experimentalcocktailclub.com/london",
+        "checkedAt": "2026-10-21T21:08:40.853Z",
+        "allowedBySourcePolicy": true,
+        "permission": {
+          "allowed": true,
+          "reason": "allowed",
+          "robots": "rules-file",
+          "evidence": "https://www.experimentalcocktailclub.com/robots.txt permits /london.",
+          "sitemaps": [
+            "https://www.experimentalcocktailclub.com/sitemap.xml",
+            "https://experimentalcocktailclub.webflow.io/sitemap.xml"
+          ]
+        },
+        "head": {
+          "status": 301,
+          "location": "https://www.experimentalgroup.com/london/experimental-cocktail-club-chinatown"
+        }
+      },
+      "sourceReview": {
+        "canonicalUrl": "https://www.experimentalgroup.com/london/experimental-cocktail-club-chinatown",
+        "redirects": [
+          {
+            "url": "https://www.experimentalcocktailclub.com/london",
+            "status": 301
+          },
+          {
+            "url": "https://www.experimentalgroup.com/london/experimental-cocktail-club-chinatown",
+            "status": 200
+          }
+        ],
+        "refused": null,
+        "canonicalPageCheckedAt": null
+      },
+      "restorationRequirements": [
+        "Establish a confident current venue identity through the existing Places verifier.",
+        "Obtain a permitted, venue-specific price anchor with its actual observation date.",
+        "Apply a genuine confirmation, remove this ID from removed.json, and rebuild the slim index."
+      ]
+    },
+    {
+      "id": "bar-vault-milroys",
+      "pack": "bars.json",
+      "status": "withheld_unverified",
+      "reviewedAt": "2026-10-21T21:27:34.521Z",
+      "reason": "The redirected venue page is a challenge. No permitted replacement price evidence is available.",
+      "originalSeedRow": {
+        "id": "bar-vault-milroys",
+        "name": "The Vault at Milroy's",
+        "address": "3 Greek Street, London W1D 4NX",
+        "borough": "Westminster",
+        "lat": 51.51449,
+        "lng": -0.13037,
+        "kind": "bar",
+        "hasStory": true,
+        "fameGates": [
+          {
+            "kind": "recognition",
+            "sourceUrl": "https://www.timeout.com/london/bars-and-pubs/the-vault-of-soho"
+          },
+          {
+            "kind": "distinct_experience",
+            "sourceUrl": "https://milroys.co.uk/pages/the-vault"
+          }
+        ],
+        "sourceUrl": "https://milroys.co.uk/pages/the-vault",
+        "observedAt": "2026-10-05",
+        "anchor": {
+          "kind": "house_cocktail",
+          "label": "Vault cocktail",
+          "price": 15,
+          "observedAt": "2026-07-26",
+          "sourceUrl": "https://milroys.co.uk/pages/the-vault"
+        },
+        "story": {
+          "text": "A bookcase in London's oldest whisky specialist swings open onto a candlelit cocktail cellar.",
+          "sourceUrl": "https://milroys.co.uk/pages/the-vault"
+        },
+        "category": "bar",
+        "job": "late_night_bar",
+        "description": "A bookcase in London's oldest whisky specialist swings open onto a candlelit cocktail cellar.",
+        "area": "Westminster",
+        "location": {
+          "lat": 51.51449,
+          "lng": -0.13037
+        },
+        "sourceName": "milroys.co.uk",
+        "expiresAt": "2026-11-04",
+        "discoveredVia": "manual",
+        "extractedVia": "manual",
+        "placesNameAliases": [
+          "vault"
+        ]
+      },
+      "previousCheck": null,
+      "previousInspection": {
+        "id": "bar-vault-milroys",
+        "url": "https://milroys.co.uk/pages/the-vault",
+        "checkedAt": "2026-10-21T21:09:13.761Z",
+        "permission": {
+          "allowed": true,
+          "reason": "allowed",
+          "robots": "rules-file",
+          "evidence": "https://milroys.co.uk/robots.txt permits /pages/the-vault.",
+          "sitemaps": [
+            "https://milroysofsoho.com/sitemap.xml"
+          ]
+        },
+        "head": {
+          "status": 301,
+          "location": "https://milroysofsoho.com/pages/the-vault"
+        }
+      },
+      "sourceReview": {
+        "canonicalUrl": "https://milroysofsoho.com/pages/the-vault",
+        "redirects": [
+          {
+            "url": "https://milroys.co.uk/pages/the-vault",
+            "status": 301
+          },
+          {
+            "url": "https://milroysofsoho.com/pages/the-vault",
+            "status": 200
+          }
+        ],
+        "refused": "challenge-page",
+        "canonicalPageCheckedAt": null
+      },
+      "restorationRequirements": [
+        "Establish a confident current venue identity through the existing Places verifier.",
+        "Obtain a permitted, venue-specific price anchor with its actual observation date.",
+        "Apply a genuine confirmation, remove this ID from removed.json, and rebuild the slim index."
+      ]
+    },
+    {
+      "id": "bar-soma-soho",
+      "pack": "bars.json",
+      "status": "withheld_unverified",
+      "reviewedAt": "2026-10-21T21:27:34.521Z",
+      "reason": "The canonical menu page links a PDF that robots disallows. No permitted price evidence is available.",
+      "originalSeedRow": {
+        "id": "bar-soma-soho",
+        "name": "SOMA Soho",
+        "address": "14 Denman Street, London W1D 7HJ",
+        "borough": "Westminster",
+        "lat": 51.51072,
+        "lng": -0.13429,
+        "kind": "bar",
+        "hasStory": true,
+        "fameGates": [
+          {
+            "kind": "recognition",
+            "sourceUrl": "https://www.theworlds50best.com/discovery/Establishments/UK/London/Soma.html"
+          },
+          {
+            "kind": "distinct_experience",
+            "sourceUrl": "https://somasoho.com/"
+          }
+        ],
+        "sourceUrl": "https://somasoho.com/",
+        "observedAt": "2026-10-05",
+        "anchor": {
+          "kind": "house_cocktail",
+          "label": "SOMA cocktail",
+          "price": 15,
+          "observedAt": "2026-07-26",
+          "sourceUrl": "https://somasoho.com/"
+        },
+        "story": {
+          "text": "Kricket's basement bar recasts Indian flavours such as chaat, clarified lassi and curry leaf as spare cocktails.",
+          "sourceUrl": "https://somasoho.com/"
+        },
+        "category": "bar",
+        "job": "late_night_bar",
+        "description": "Kricket's basement bar recasts Indian flavours such as chaat, clarified lassi and curry leaf as spare cocktails.",
+        "area": "Westminster",
+        "location": {
+          "lat": 51.51072,
+          "lng": -0.13429
+        },
+        "sourceName": "somasoho.com",
+        "expiresAt": "2026-11-04",
+        "discoveredVia": "manual",
+        "extractedVia": "manual"
+      },
+      "previousCheck": null,
+      "previousInspection": {
+        "id": "bar-soma-soho",
+        "url": "https://somasoho.com/",
+        "checkedAt": "2026-10-21T21:09:15.803Z",
+        "permission": {
+          "allowed": true,
+          "reason": "no-rules-published",
+          "robots": "absent",
+          "evidence": "https://somasoho.com/robots.txt returns 404, which publishes no restriction."
+        },
+        "head": {
+          "status": 301,
+          "location": "https://soma.london/"
+        }
+      },
+      "sourceReview": {
+        "canonicalUrl": "https://soma.london/",
+        "redirects": [
+          {
+            "url": "https://somasoho.com/",
+            "status": 301
+          },
+          {
+            "url": "https://soma.london/",
+            "status": 200
+          }
+        ],
+        "refused": null,
+        "canonicalPageCheckedAt": null
+      },
+      "restorationRequirements": [
+        "Establish a confident current venue identity through the existing Places verifier.",
+        "Obtain a permitted, venue-specific price anchor with its actual observation date.",
+        "Apply a genuine confirmation, remove this ID from removed.json, and rebuild the slim index."
+      ]
+    },
+    {
+      "id": "food-mangal-1",
+      "pack": "late_food.json",
+      "status": "withheld_unverified",
+      "reviewedAt": "2026-10-21T21:27:34.521Z",
+      "reason": "The Places match is outside the permitted location threshold. The former source redirects to an unrelated website.",
+      "originalSeedRow": {
+        "id": "food-mangal-1",
+        "name": "Mangal 1",
+        "address": "10 Arcola Street, London E8 2DJ",
+        "borough": "Hackney",
+        "lat": 51.54905,
+        "lng": -0.07072,
+        "kind": "food",
+        "hasStory": true,
+        "fameGates": [
+          {
+            "kind": "longevity",
+            "sourceUrl": "https://www.timeout.com/london/restaurants/mangal-ocakbasi"
+          },
+          {
+            "kind": "cultural_weight",
+            "sourceUrl": "https://mangal1.com/"
+          },
+          {
+            "kind": "distinct_experience",
+            "sourceUrl": "https://mangal1.com/"
+          }
+        ],
+        "sourceUrl": "https://mangal1.com/",
+        "observedAt": "2026-08-25",
+        "anchor": {
+          "kind": "signature_item",
+          "label": "Adana kebab",
+          "price": 18,
+          "observedAt": "2026-07-26",
+          "sourceUrl": "https://mangal1.com/"
+        },
+        "story": {
+          "text": "Ali Dirik opened Dalston's first ocakbasi in 1991, establishing the charcoal-counter template that transformed the neighbourhood.",
+          "sourceUrl": "https://mangal1.com/"
+        },
+        "category": "late_food",
+        "job": "crawl_ending_food",
+        "description": "Ali Dirik opened Dalston's first ocakbasi in 1991, establishing the charcoal-counter template that transformed the neighbourhood.",
+        "area": "Hackney",
+        "location": {
+          "lat": 51.54905,
+          "lng": -0.07072
+        },
+        "sourceName": "mangal1.com",
+        "expiresAt": "2026-09-24",
+        "discoveredVia": "manual",
+        "extractedVia": "manual"
+      },
+      "previousCheck": {
+        "id": "food-mangal-1",
+        "method": "places_text_search",
+        "sourceUrl": "https://mangal1.com/",
+        "outcome": "unverified",
+        "result": "places_no_confident_match",
+        "textQuery": "Mangal 1 E8 2DJ London",
+        "placeId": "ChIJTb9jiIscdkgRHnSg0phHSvc",
+        "matchReason": "name:exact_normalized_name;location:distance_403m",
+        "checkedAt": "2026-10-21T07:18:29.502Z",
+        "receipt": "data/famous_venues/receipts/verification_2026-10-21_pubpal-complete-1019.json"
+      },
+      "previousInspection": {
+        "id": "food-mangal-1",
+        "url": "https://mangal1.com/",
+        "checkedAt": "2026-10-21T21:09:21.985Z",
+        "permission": {
+          "allowed": true,
+          "reason": "no-rules-published",
+          "robots": "absent",
+          "evidence": "https://mangal1.com/robots.txt returns 404, which publishes no restriction."
+        },
+        "head": {
+          "status": 301,
+          "location": "https://swhelper.org/"
+        }
+      },
+      "sourceReview": {
+        "canonicalUrl": "https://mangal1.com/",
+        "canonicalPageCheckedAt": null
+      },
+      "restorationRequirements": [
+        "Establish a confident current venue identity through the existing Places verifier.",
+        "Obtain a permitted, venue-specific price anchor with its actual observation date.",
+        "Apply a genuine confirmation, remove this ID from removed.json, and rebuild the slim index."
+      ]
+    },
+    {
+      "id": "food-berenjak-soho",
+      "pack": "late_food.json",
+      "status": "withheld_unverified",
+      "reviewedAt": "2026-10-21T21:27:34.521Z",
+      "reason": "The robots request returned HTTP 429. No permitted replacement price evidence is available.",
+      "originalSeedRow": {
+        "id": "food-berenjak-soho",
+        "name": "Berenjak Soho",
+        "address": "27 Romilly Street, London W1D 5AL",
+        "borough": "Westminster",
+        "lat": 51.51286,
+        "lng": -0.13057,
+        "kind": "food",
+        "hasStory": true,
+        "fameGates": [
+          {
+            "kind": "recognition",
+            "sourceUrl": "https://www.timeout.com/london/restaurants/berenjak"
+          },
+          {
+            "kind": "distinct_experience",
+            "sourceUrl": "https://berenjaklondon.com/soho"
+          }
+        ],
+        "sourceUrl": "https://berenjaklondon.com/soho",
+        "observedAt": "2026-10-05",
+        "anchor": {
+          "kind": "signature_item",
+          "label": "Jujeh kabab",
+          "price": 19,
+          "observedAt": "2026-07-26",
+          "sourceUrl": "https://berenjaklondon.com/soho"
+        },
+        "story": {
+          "text": "Berenjak models a Tehran hole-in-the-wall, grilling Persian kebabs over charcoal beside a tiny hayat courtyard.",
+          "sourceUrl": "https://berenjaklondon.com/soho"
+        },
+        "category": "late_food",
+        "job": "crawl_ending_food",
+        "description": "Berenjak models a Tehran hole-in-the-wall, grilling Persian kebabs over charcoal beside a tiny hayat courtyard.",
+        "area": "Westminster",
+        "location": {
+          "lat": 51.51286,
+          "lng": -0.13057
+        },
+        "sourceName": "berenjaklondon.com",
+        "expiresAt": "2026-11-04",
+        "discoveredVia": "manual",
+        "extractedVia": "manual"
+      },
+      "previousCheck": {
+        "id": "food-berenjak-soho",
+        "method": "places_text_search",
+        "sourceUrl": "https://berenjaklondon.com/soho",
+        "outcome": "unverified",
+        "result": "anchor_source_unreachable",
+        "textQuery": "Berenjak Soho W1D 5AL London",
+        "placeId": "ChIJm2ZLEzMFdkgRZrDcaZENVrw",
+        "matchReason": "exact_normalized_name;postcode_W1D 5AL",
+        "checkedAt": "2026-10-21T07:18:38.022Z",
+        "receipt": "data/famous_venues/receipts/verification_2026-10-21_pubpal-complete-1019.json"
+      },
+      "previousInspection": {
+        "id": "food-berenjak-soho",
+        "url": "https://berenjaklondon.com/soho",
+        "checkedAt": "2026-10-21T21:08:46.425Z",
+        "allowedBySourcePolicy": true,
+        "permission": {
+          "allowed": false,
+          "reason": "robots-unreadable",
+          "robots": "http-refused",
+          "evidence": "https://berenjaklondon.com/robots.txt answered 429, so no permission can be read."
+        }
+      },
+      "sourceReview": {
+        "canonicalUrl": "https://berenjaklondon.com/soho",
+        "canonicalPageCheckedAt": null
+      },
+      "restorationRequirements": [
+        "Establish a confident current venue identity through the existing Places verifier.",
+        "Obtain a permitted, venue-specific price anchor with its actual observation date.",
+        "Apply a genuine confirmation, remove this ID from removed.json, and rebuild the slim index."
+      ]
+    },
+    {
+      "id": "food-maroush-edgware-road",
+      "pack": "late_food.json",
+      "status": "withheld_unverified",
+      "reviewedAt": "2026-10-21T21:27:34.521Z",
+      "reason": "The Places name does not confidently match this seed. The restaurant index redirect alone does not resolve identity.",
+      "originalSeedRow": {
+        "id": "food-maroush-edgware-road",
+        "name": "Maroush Edgware Road",
+        "address": "21 Edgware Road, London W2 2JE",
+        "borough": "Westminster",
+        "lat": 51.51415,
+        "lng": -0.16008,
+        "kind": "food",
+        "hasStory": true,
+        "fameGates": [
+          {
+            "kind": "longevity",
+            "sourceUrl": "https://www.timeout.com/london/restaurants/maroush-i"
+          },
+          {
+            "kind": "cultural_weight",
+            "sourceUrl": "https://www.maroush.com/restaurants"
+          }
+        ],
+        "sourceUrl": "https://www.maroush.com/restaurants",
+        "observedAt": "2026-08-25",
+        "anchor": {
+          "kind": "signature_item",
+          "label": "Lamb shawarma",
+          "price": 10.5,
+          "observedAt": "2026-07-26",
+          "sourceUrl": "https://www.maroush.com/restaurants"
+        },
+        "story": {
+          "text": "Marouf Abouzaki opened Maroush on Edgware Road in 1981 and helped make the street London's Lebanese heart.",
+          "sourceUrl": "https://www.maroush.com/blog/little-beirut-london-edgware-road"
+        },
+        "category": "late_food",
+        "job": "crawl_ending_food",
+        "description": "Marouf Abouzaki opened Maroush on Edgware Road in 1981 and helped make the street London's Lebanese heart.",
+        "area": "Westminster",
+        "location": {
+          "lat": 51.51415,
+          "lng": -0.16008
+        },
+        "sourceName": "maroush.com",
+        "expiresAt": "2026-09-24",
+        "discoveredVia": "manual",
+        "extractedVia": "manual"
+      },
+      "previousCheck": {
+        "id": "food-maroush-edgware-road",
+        "method": "places_text_search",
+        "sourceUrl": "https://www.maroush.com/restaurants",
+        "outcome": "unverified",
+        "result": "places_no_confident_match",
+        "textQuery": "Maroush Edgware Road W2 2JE London",
+        "placeId": "ChIJEaEJMTUFdkgRk-bgyHni1aI",
+        "matchReason": "name:name_token_mismatch;location:postcode_W2 2JE",
+        "checkedAt": "2026-10-21T07:18:47.936Z",
+        "receipt": "data/famous_venues/receipts/verification_2026-10-21_pubpal-complete-1019.json"
+      },
+      "previousInspection": {
+        "id": "food-maroush-edgware-road",
+        "url": "https://www.maroush.com/restaurants",
+        "checkedAt": "2026-10-21T21:08:46.426Z",
+        "allowedBySourcePolicy": true,
+        "permission": {
+          "allowed": true,
+          "reason": "allowed",
+          "robots": "rules-file",
+          "evidence": "https://www.maroush.com/robots.txt permits /restaurants.",
+          "sitemaps": [
+            "https://www.maroush.com/sitemap_index.xml"
+          ]
+        },
+        "head": {
+          "status": 301,
+          "location": "https://www.maroush.com/restaurants/"
+        }
+      },
+      "sourceReview": {
+        "canonicalUrl": "https://www.maroush.com/restaurants",
+        "canonicalPageCheckedAt": null
+      },
+      "restorationRequirements": [
+        "Establish a confident current venue identity through the existing Places verifier.",
+        "Obtain a permitted, venue-specific price anchor with its actual observation date.",
+        "Apply a genuine confirmation, remove this ID from removed.json, and rebuild the slim index."
+      ]
+    },
+    {
+      "id": "food-wong-kei",
+      "pack": "late_food.json",
+      "status": "withheld_unverified",
+      "reviewedAt": "2026-10-21T21:27:34.521Z",
+      "reason": "No supported price anchor is available.",
+      "originalSeedRow": {
+        "id": "food-wong-kei",
+        "name": "Wong Kei",
+        "address": "41-43 Wardour Street, London W1D 6PY",
+        "borough": "Westminster",
+        "lat": 51.51173,
+        "lng": -0.13265,
+        "kind": "food",
+        "hasStory": true,
+        "fameGates": [
+          {
+            "kind": "longevity",
+            "sourceUrl": "https://wongkeilondon.com/"
+          },
+          {
+            "kind": "cultural_weight",
+            "sourceUrl": "https://en.wikipedia.org/wiki/Wong_Kei"
+          }
+        ],
+        "sourceUrl": "https://wongkeilondon.com/",
+        "observedAt": "2026-10-05",
+        "story": {
+          "text": "Chinatown's vast, brisk canteen has served Cantonese roast meats and noodles across multiple floors since the 1970s.",
+          "sourceUrl": "https://wongkeilondon.com/"
+        },
+        "category": "late_food",
+        "job": "crawl_ending_food",
+        "description": "Chinatown's vast, brisk canteen has served Cantonese roast meats and noodles across multiple floors since the 1970s.",
+        "area": "Westminster",
+        "location": {
+          "lat": 51.51173,
+          "lng": -0.13265
+        },
+        "sourceName": "wongkeilondon.com",
+        "expiresAt": "2026-11-04",
+        "discoveredVia": "manual",
+        "extractedVia": "manual"
+      },
+      "previousCheck": {
+        "id": "food-wong-kei",
+        "method": "places_text_search",
+        "sourceUrl": "https://wongkeilondon.com/",
+        "outcome": "unverified",
+        "result": "anchor_missing",
+        "textQuery": "Wong Kei W1D 6PY London",
+        "placeId": "ChIJz-VvsdMEdkgR1lQfyxijRMw",
+        "matchReason": "exact_normalized_name;within_34m",
+        "checkedAt": "2026-10-21T07:18:50.796Z",
+        "receipt": "data/famous_venues/receipts/verification_2026-10-21_pubpal-complete-1019.json"
+      },
+      "previousInspection": null,
+      "sourceReview": {
+        "canonicalUrl": "https://wongkeilondon.com/",
+        "canonicalPageCheckedAt": null
+      },
+      "restorationRequirements": [
+        "Establish a confident current venue identity through the existing Places verifier.",
+        "Obtain a permitted, venue-specific price anchor with its actual observation date.",
+        "Apply a genuine confirmation, remove this ID from removed.json, and rebuild the slim index."
+      ]
+    },
+    {
+      "id": "food-bar-italia",
+      "pack": "late_food.json",
+      "status": "withheld_unverified",
+      "reviewedAt": "2026-10-21T21:27:34.521Z",
+      "reason": "Robots disallows the Instagram price source. No permitted replacement price evidence is available.",
+      "originalSeedRow": {
+        "id": "food-bar-italia",
+        "name": "Bar Italia",
+        "address": "22 Frith Street, London W1D 4RF",
+        "borough": "Westminster",
+        "lat": 51.51343,
+        "lng": -0.13165,
+        "kind": "food",
+        "hasStory": true,
+        "fameGates": [
+          {
+            "kind": "longevity",
+            "sourceUrl": "https://www.instagram.com/baritaliasoho"
+          },
+          {
+            "kind": "cultural_weight",
+            "sourceUrl": "https://en.wikipedia.org/wiki/Bar_Italia"
+          },
+          {
+            "kind": "distinct_experience",
+            "sourceUrl": "https://www.instagram.com/baritaliasoho"
+          }
+        ],
+        "sourceUrl": "https://www.instagram.com/baritaliasoho",
+        "observedAt": "2026-10-05",
+        "anchor": {
+          "kind": "signature_item",
+          "label": "Panini",
+          "price": 8.5,
+          "observedAt": "2026-07-26",
+          "sourceUrl": "https://www.instagram.com/baritaliasoho"
+        },
+        "story": {
+          "text": "The Polledri family opened Bar Italia in 1949 beneath the room where John Logie Baird first demonstrated television.",
+          "sourceUrl": "https://www.instagram.com/baritaliasoho"
+        },
+        "category": "late_food",
+        "job": "crawl_ending_food",
+        "description": "The Polledri family opened Bar Italia in 1949 beneath the room where John Logie Baird first demonstrated television.",
+        "area": "Westminster",
+        "location": {
+          "lat": 51.51343,
+          "lng": -0.13165
+        },
+        "sourceName": "instagram.com",
+        "expiresAt": "2026-11-04",
+        "discoveredVia": "manual",
+        "extractedVia": "manual"
+      },
+      "previousCheck": {
+        "id": "food-bar-italia",
+        "method": "places_text_search",
+        "sourceUrl": "https://www.instagram.com/baritaliasoho",
+        "outcome": "unverified",
+        "result": "anchor_source_unreachable",
+        "textQuery": "Bar Italia W1D 4RF London",
+        "placeId": "ChIJBbKU6NIEdkgRkC_IDZgxT1Y",
+        "matchReason": "exact_normalized_name;postcode_W1D 4RF",
+        "checkedAt": "2026-10-21T07:18:51.036Z",
+        "receipt": "data/famous_venues/receipts/verification_2026-10-21_pubpal-complete-1019.json"
+      },
+      "previousInspection": {
+        "id": "food-bar-italia",
+        "url": "https://www.instagram.com/baritaliasoho",
+        "checkedAt": "2026-10-21T21:08:46.426Z",
+        "allowedBySourcePolicy": true,
+        "permission": {
+          "allowed": false,
+          "reason": "robots-disallowed",
+          "robots": "rules-file",
+          "evidence": "https://www.instagram.com/robots.txt disallows /baritaliasoho for `*` (rule: /)."
+        }
+      },
+      "sourceReview": {
+        "canonicalUrl": "https://www.instagram.com/baritaliasoho",
+        "canonicalPageCheckedAt": null
+      },
+      "restorationRequirements": [
+        "Establish a confident current venue identity through the existing Places verifier.",
+        "Obtain a permitted, venue-specific price anchor with its actual observation date.",
+        "Apply a genuine confirmation, remove this ID from removed.json, and rebuild the slim index."
+      ]
+    },
+    {
+      "id": "food-golden-dragon",
+      "pack": "late_food.json",
+      "status": "withheld_unverified",
+      "reviewedAt": "2026-10-21T21:27:34.521Z",
+      "reason": "No supported price anchor is available.",
+      "originalSeedRow": {
+        "id": "food-golden-dragon",
+        "name": "Golden Dragon",
+        "address": "28-29 Gerrard Street, London W1D 6JW",
+        "borough": "Westminster",
+        "lat": 51.51169,
+        "lng": -0.13121,
+        "kind": "food",
+        "hasStory": true,
+        "fameGates": [
+          {
+            "kind": "longevity",
+            "sourceUrl": "https://www.timeout.com/london/restaurants/golden-dragon"
+          },
+          {
+            "kind": "cultural_weight",
+            "sourceUrl": "https://goldendragonlondon.com/"
+          }
+        ],
+        "sourceUrl": "https://goldendragonlondon.com/",
+        "observedAt": "2026-10-05",
+        "story": {
+          "text": "Golden Dragon's long Gerrard Street dining room is a Chinatown constant for dim sum by day and Cantonese roast meats late.",
+          "sourceUrl": "https://goldendragonlondon.com/"
+        },
+        "category": "late_food",
+        "job": "crawl_ending_food",
+        "description": "Golden Dragon's long Gerrard Street dining room is a Chinatown constant for dim sum by day and Cantonese roast meats late.",
+        "area": "Westminster",
+        "location": {
+          "lat": 51.51169,
+          "lng": -0.13121
+        },
+        "sourceName": "goldendragonlondon.com",
+        "expiresAt": "2026-11-04",
+        "discoveredVia": "manual",
+        "extractedVia": "manual",
+        "placesNameAliases": [
+          "golden dragon chinatown"
+        ]
+      },
+      "previousCheck": {
+        "id": "food-golden-dragon",
+        "method": "places_text_search",
+        "sourceUrl": "https://goldendragonlondon.com/",
+        "outcome": "unverified",
+        "result": "anchor_missing",
+        "textQuery": "Golden Dragon W1D 6JW London",
+        "placeId": "ChIJsVvuTtIEdkgRpsIH_WaE2es",
+        "matchReason": "places_name_alias;postcode_W1D 6JW",
+        "checkedAt": "2026-10-21T07:18:53.544Z",
+        "receipt": "data/famous_venues/receipts/verification_2026-10-21_pubpal-complete-1019.json"
+      },
+      "previousInspection": null,
+      "sourceReview": {
+        "canonicalUrl": "https://goldendragonlondon.com/",
+        "canonicalPageCheckedAt": null
+      },
+      "restorationRequirements": [
+        "Establish a confident current venue identity through the existing Places verifier.",
+        "Obtain a permitted, venue-specific price anchor with its actual observation date.",
+        "Apply a genuine confirmation, remove this ID from removed.json, and rebuild the slim index."
+      ]
+    },
+    {
+      "id": "restaurant-flat-iron-soho",
+      "pack": "restaurants.json",
+      "status": "withheld_unverified",
+      "reviewedAt": "2026-10-21T21:27:34.521Z",
+      "reason": "The robots request returned HTTP 403. No permitted replacement price evidence is available.",
+      "originalSeedRow": {
+        "id": "restaurant-flat-iron-soho",
+        "name": "Flat Iron Soho",
+        "address": "17 Beak Street, London W1F 9RW",
+        "borough": "Westminster",
+        "lat": 51.5121137,
+        "lng": -0.1383699,
+        "kind": "restaurant",
+        "hasStory": true,
+        "fameGates": [
+          {
+            "kind": "cultural_weight",
+            "sourceUrl": "https://flatironsteak.co.uk/restaurant/soho"
+          },
+          {
+            "kind": "recognition",
+            "sourceUrl": "https://www.timeout.com/london/restaurants/flat-iron"
+          }
+        ],
+        "sourceUrl": "https://flatironsteak.co.uk/menu",
+        "observedAt": "2026-10-05",
+        "anchor": {
+          "kind": "signature_dish",
+          "label": "Flat Iron Steak",
+          "course": "mains",
+          "price": 15,
+          "observedAt": "2026-07-27",
+          "sourceUrl": "https://flatironsteak.co.uk/menu"
+        },
+        "story": {
+          "text": "Flat Iron's first permanent restaurant made its one-steak blackboard a Soho fixture.",
+          "sourceUrl": "https://flatironsteak.co.uk/restaurant/soho"
+        },
+        "category": "restaurant",
+        "job": "near_pub_food",
+        "description": "Flat Iron's first permanent restaurant made its one-steak blackboard a Soho fixture.",
+        "area": "Soho",
+        "location": {
+          "lat": 51.5121137,
+          "lng": -0.1383699
+        },
+        "sourceName": "flatironsteak.co.uk",
+        "expiresAt": "2026-11-04",
+        "discoveredVia": "manual",
+        "extractedVia": "manual"
+      },
+      "previousCheck": {
+        "id": "restaurant-flat-iron-soho",
+        "method": "places_text_search",
+        "sourceUrl": "https://flatironsteak.co.uk/menu",
+        "outcome": "unverified",
+        "result": "anchor_source_unreachable",
+        "textQuery": "Flat Iron Soho W1F 9RW London",
+        "placeId": "ChIJL1pkqdUEdkgRS3MDjg6kzVc",
+        "matchReason": "exact_normalized_name;postcode_W1F 9RW",
+        "checkedAt": "2026-10-21T07:19:07.967Z",
+        "receipt": "data/famous_venues/receipts/verification_2026-10-21_pubpal-complete-1019.json"
+      },
+      "previousInspection": {
+        "id": "restaurant-flat-iron-soho",
+        "url": "https://flatironsteak.co.uk/menu",
+        "checkedAt": "2026-10-21T21:08:50.785Z",
+        "allowedBySourcePolicy": true,
+        "permission": {
+          "allowed": false,
+          "reason": "robots-unreadable",
+          "robots": "http-refused",
+          "evidence": "https://flatironsteak.co.uk/robots.txt answered 403, so no permission can be read."
+        }
+      },
+      "sourceReview": {
+        "canonicalUrl": "https://flatironsteak.co.uk/menu",
+        "canonicalPageCheckedAt": null
+      },
+      "restorationRequirements": [
+        "Establish a confident current venue identity through the existing Places verifier.",
+        "Obtain a permitted, venue-specific price anchor with its actual observation date.",
+        "Apply a genuine confirmation, remove this ID from removed.json, and rebuild the slim index."
+      ]
+    }
+  ],
+  "restoredRows": [
+    {
+      "id": "restaurant-wolseley",
+      "pack": "restaurants.json",
+      "status": "restored_supported",
+      "reviewedAt": "2026-10-21T21:27:34.521Z",
+      "reason": "The old PDF returned 404. The official replacement breakfast PDF now supports The English at £24.50.",
+      "originalSeedRow": {
+        "id": "restaurant-wolseley",
+        "name": "The Wolseley",
+        "address": "160 Piccadilly, London W1J 9EB",
+        "borough": "Westminster",
+        "lat": 51.5073927,
+        "lng": -0.1409072,
+        "kind": "restaurant",
+        "hasStory": true,
+        "fameGates": [
+          {
+            "kind": "distinct_experience",
+            "sourceUrl": "https://www.thewolseley.com/history"
+          },
+          {
+            "kind": "recognition",
+            "sourceUrl": "https://en.wikipedia.org/wiki/The_Wolseley"
+          }
+        ],
+        "sourceUrl": "https://www.thewolseley.com/app/uploads/2026/02/00506_WOLSELEY_Winter_2025_Breakfast_A5-12pp_Kcals29.pdf",
+        "observedAt": "2026-10-05",
+        "anchor": {
+          "kind": "signature_dish",
+          "label": "Eggs Benedict, large",
+          "course": "breakfast",
+          "price": 21.5,
+          "observedAt": "2026-07-27",
+          "sourceUrl": "https://www.thewolseley.com/app/uploads/2026/02/00506_WOLSELEY_Winter_2025_Breakfast_A5-12pp_Kcals29.pdf"
+        },
+        "story": {
+          "text": "The Wolseley fills a listed former car showroom with the rituals of a grand European cafe.",
+          "sourceUrl": "https://www.thewolseley.com/history"
+        },
+        "category": "restaurant",
+        "job": "near_pub_food",
+        "description": "The Wolseley fills a listed former car showroom with the rituals of a grand European cafe.",
+        "area": "Piccadilly",
+        "location": {
+          "lat": 51.5073927,
+          "lng": -0.1409072
+        },
+        "sourceName": "thewolseley.com",
+        "expiresAt": "2026-11-04",
+        "discoveredVia": "manual",
+        "extractedVia": "manual",
+        "placesNameAliases": [
+          "wolseley piccadilly"
+        ]
+      },
+      "previousCheck": {
+        "id": "restaurant-wolseley",
+        "method": "places_text_search",
+        "sourceUrl": "https://www.thewolseley.com/app/uploads/2026/02/00506_WOLSELEY_Winter_2025_Breakfast_A5-12pp_Kcals29.pdf",
+        "outcome": "unverified",
+        "result": "anchor_source_unreachable",
+        "textQuery": "The Wolseley W1J 9EB London",
+        "placeId": "ChIJr_4cVy8FdkgRIrNbO93eUFM",
+        "matchReason": "places_name_alias;postcode_W1J 9EB",
+        "checkedAt": "2026-10-21T07:18:57.664Z",
+        "receipt": "data/famous_venues/receipts/verification_2026-10-21_pubpal-complete-1019.json"
+      },
+      "previousInspection": {
+        "id": "restaurant-wolseley",
+        "url": "https://www.thewolseley.com/app/uploads/2026/02/00506_WOLSELEY_Winter_2025_Breakfast_A5-12pp_Kcals29.pdf",
+        "checkedAt": "2026-10-21T21:08:49.084Z",
+        "allowedBySourcePolicy": true,
+        "permission": {
+          "allowed": true,
+          "reason": "no-rules-published",
+          "robots": "absent",
+          "evidence": "https://www.thewolseley.com/robots.txt returns 404, which publishes no restriction."
+        },
+        "head": {
+          "status": 404,
+          "location": null
+        }
+      },
+      "sourceReview": {
+        "canonicalUrl": "https://thewolseleypiccadilly.com/menu/breakfast/",
+        "canonicalPageCheckedAt": "2026-10-21T21:26:28.815Z",
+        "menuUrl": "https://www.thewolseleypiccadilly.com/app/uploads/2017/10/00728_WOLSELEY_OG_Winter_2026_All_Day_KCALS_BREAKFAST.pdf",
+        "menuCheckedAt": "2026-10-21T21:26:35.814Z"
+      },
+      "restorationRequirements": [
+        "Establish a confident current venue identity through the existing Places verifier.",
+        "Obtain a permitted, venue-specific price anchor with its actual observation date.",
+        "Apply a genuine confirmation, remove this ID from removed.json, and rebuild the slim index."
+      ],
+      "restoredAt": "2026-10-21T21:46:28.855Z",
+      "restorationReceipt": "data/famous_venues/receipts/wolseley_source_repair_2026-10-21.json"
+    }
+  ]
+}
