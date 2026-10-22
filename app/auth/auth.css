@@ -490,8 +490,9 @@
   background: color-mix(in srgb, var(--brass) 10%, var(--panel-raised));
 }
 
-/* The tablet link row and the narrowest phone bars need the account trigger's
-   width back. Its accessible name stays on the 44px icon control. */
+/* Tablet band and the narrowest phone bars (≤360px) need the account trigger's
+   width back. At 361–640px SiteNav hides the compact label in the bar via
+   siteNav.css; the icon disc keeps the accessible name on a 44px control. */
 @media (max-width: 360px), (min-width: 641px) and (max-width: 900px) {
   .authUserNav .authCompactLabel {
     display: none;
