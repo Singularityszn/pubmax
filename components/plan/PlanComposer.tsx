@@ -1303,13 +1303,14 @@ function PlanComposerForm({
   // Acceptance carries one drink choice, not a complete inferred night. Existing
   // recovered route context and later explicit edits retain their precedence.
   const [explicitNightContext, setExplicitNightContext] = useState<Partial<NightContext>>(() => {
-    // The strict saved selection hint keeps its requested count. Default three
-    // is omitted by the intake wire, so it needs explicit context on recovery.
-    const selectedCount = recoveredRouteDraft?.hasSelectedRouteEdits === true
-      ? recoveredIntake.answers.stopCount ?? routeDraftFields.nightContext?.stopCount
-      : undefined;
+    // A saved intake answer owns the count, including default three omitted
+    // from the wire. Only selected edits may fall back to route context.
+    const recoveredCount = recoveredIntake.answers.stopCount
+      ?? (recoveredRouteDraft?.hasSelectedRouteEdits === true
+        ? routeDraftFields.nightContext?.stopCount
+        : undefined);
     return {
-      ...(isPlanStopCount(selectedCount) ? { stopCount: selectedCount } : {}),
+      ...(isPlanStopCount(recoveredCount) ? { stopCount: recoveredCount } : {}),
       ...(!routeDraftFields.nightContext && handoff?.acceptedAnchor?.selectedDrinkPriceEvidence
         ? { drinkCategory: handoff.acceptedAnchor.selectedDrinkPriceEvidence.category } : {}),
     };
@@ -1618,10 +1619,20 @@ function PlanComposerForm({
     });
     updateConciergeQuery(query);
     updatePlanIntake(skippedIntake);
+    const entryStopCount = skippedIntake.answers.stopCount;
+    // A fresh Pal ask supplies count-free intake. Retire the saved count for
+    // later edits and override the captured value on this first request too.
+    if (entryStopCount === undefined) {
+      setExplicitNightContext((current) => {
+        const next = { ...current };
+        delete next.stopCount;
+        return next;
+      });
+    }
     sortWithConcierge(
       query,
       skippedIntake,
-      requestedStopCount === undefined ? undefined : { stopCount: requestedStopCount },
+      { stopCount: entryStopCount },
     );
   }
 
