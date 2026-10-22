@@ -190,7 +190,9 @@ describe("first useful map pins", () => {
     expect(source).toContain(
       "setOpeningLocationCancelledBeforeResolution(nextCancellation)",
     );
-    expect(source.match(/cancelOpeningLocation\(\)/g)).toHaveLength(2);
+    // Gestures, deliberate camera moves and an accepted granted Near me
+    // restore all yield opening ownership through this same callback.
+    expect(source.match(/cancelOpeningLocation\(\)/g)).toHaveLength(3);
   });
 
   it("does not turn a post-resolution camera move into cancellation", () => {

@@ -149,7 +149,44 @@ describe("PlanComposer selected drink price submission", () => {
       title: "Cocktail night", creatorName: "Ada", startTime: "2026-09-30T19:00:00.000Z",
       stops: [swapped], context: { ...context, drinkCategory: "cocktail" },
     });
-    expect(payload.stops).toEqual([{ venueId: "b", venueName: "B", selectedDrinkPriceEvidence: cocktail }]);
+    expect(payload.stops).toEqual([{
+      venueId: "b", venueName: "B", selectedDrinkPriceEvidence: cocktail,
+      alternatives: [{ venueId: "a", venueName: "A" }],
+    }]);
+  });
+
+  it.each([
+    { name: "matching wine", nextContext: context, keepsQuote: true },
+    { name: "changed category", nextContext: { ...context, drinkCategory: "cocktail" as const }, keepsQuote: false },
+    { name: "zero-proof", nextContext: { ...context, zeroProof: true }, keepsQuote: false },
+  ])("keeps bounded backup identity and only matching public quotes ($name)", ({ nextContext, keepsQuote }) => {
+    const backup = {
+      venueId: "b", venueName: "B",
+      selectedDrinkPriceEvidence: { ...wine, actor: "private-backup-canary" },
+      accountId: "private-account-canary",
+      latitude: 51.515,
+    };
+    const payload = composerCreatePayload({
+      title: "Wine night", creatorName: "Ada", startTime: "2026-09-30T19:00:00.000Z",
+      stops: [{
+        venueId: "a", venueName: "A",
+        selectedDrinkPriceEvidence: { ...wine, contributor: "private-primary-canary" },
+        alternatives: [backup, { venueId: "c", venueName: "C", selectedDrinkPriceEvidence: wine }],
+      }, { venueId: "c", venueName: "C" }],
+      context: nextContext,
+    });
+    expect(payload.stops).toEqual([{
+      venueId: "a", venueName: "A",
+      ...(keepsQuote ? { selectedDrinkPriceEvidence: wine } : {}),
+      alternatives: [{
+        venueId: "b", venueName: "B",
+        ...(keepsQuote ? { selectedDrinkPriceEvidence: wine } : {}),
+      }],
+    }, { venueId: "c", venueName: "C" }]);
+    const serialized = JSON.stringify(payload);
+    for (const privateValue of ["private-backup-canary", "private-account-canary", "private-primary-canary", "51.515"]) {
+      expect(serialized).not.toContain(privateValue);
+    }
   });
 });
 
