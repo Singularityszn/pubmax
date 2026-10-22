@@ -176,8 +176,8 @@ export function parseFoodPriceUpdates(raw: unknown, now: number = Date.now()): F
   return Array.from(newestByKey.values(), ({ price, dietary, calories }) => ({
     ...price,
     dietary: dietary?.dietary,
-    dietaryProvenance: dietary ? { ...updateProvenance(dietary), sourceUrl: dietary.source.url } : undefined,
+    dietaryProvenance: dietary && dietary !== price ? { ...updateProvenance(dietary), sourceUrl: dietary.source.url } : undefined,
     caloriesKcal: calories?.caloriesKcal,
-    caloriesProvenance: calories ? { ...updateProvenance(calories), sourceUrl: calories.source.url } : undefined,
+    caloriesProvenance: calories && calories !== price ? { ...updateProvenance(calories), sourceUrl: calories.source.url } : undefined,
   }));
 }
