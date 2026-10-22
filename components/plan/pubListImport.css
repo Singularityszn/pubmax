@@ -1,0 +1,22 @@
+.pubImportDoor { max-width: 920px; margin: var(--space-4) auto; }
+.pubImport { color: var(--ink); overflow-wrap: anywhere; padding-bottom: var(--space-6); }
+.pubImport label { display: block; font-weight: 650; margin: var(--space-3) 0 var(--space-2); }
+.pubImport textarea, .pubImport input, .pubImport select {
+  box-sizing: border-box; width: 100%; min-height: 44px; padding: var(--space-3);
+  border: 1px solid var(--hairline); border-radius: var(--radius-sm);
+  background: var(--panel); color: var(--ink); font: inherit; font-size: 16px;
+}
+.pubImport textarea { resize: vertical; }
+.pubImport p { line-height: 1.5; }
+.pubImport__lines { list-style: none; padding: 0; margin: var(--space-4) 0; }
+.pubImport__lines > li { border-bottom: 1px solid var(--line-soft); padding: var(--space-4) 0; }
+.pubImport h3 { font-size: var(--text-lg); margin: var(--space-2) 0; }
+.pubImport__state { font-weight: 650; }
+.pubImport blockquote { margin: var(--space-3) 0; padding-left: var(--space-3); border-left: 2px solid var(--line-soft); }
+.pubImport blockquote p { margin-bottom: var(--space-2); }
+.pubImport cite { font-style: normal; font-size: var(--text-sm); }
+.pubImport__rowActions, .pubImport__actions { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+.pubImport__actions > button { flex: 1 1 100%; white-space: normal; }
+.pubImport a { color: var(--ink); text-decoration: underline; }
+.pubImport__map { position: relative; height: 260px; overflow: hidden; border-radius: var(--radius-sm); }
+.pubImport__map > div { height: 100%; }

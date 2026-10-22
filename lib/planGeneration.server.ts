@@ -109,7 +109,10 @@ export async function runAnchoredGeneration<T extends ScoredPlanCandidate & { se
 	area: NightArea;
 	coverage: ReturnType<typeof publicNightAreaCoverage>;
 }): Promise<{ done: Response } | { route: AnchoredRouteData<T> }> {
-	const { cityId, anchor, candidates, context, intake, requestNow, operationKey, area, coverage } = params;
+	const { cityId, anchor, context, intake, requestNow, operationKey, area, coverage } = params;
+	const candidates = anchor.venueIds
+		? params.candidates.filter(({ venue }) => anchor.venueIds!.includes(venue.id))
+		: params.candidates;
 	const nightArea = { id: area.slug, ...coverage };
 	const anchorConflict = (reason: string, message: string): { done: Response } => ({
 		done: jsonNoStore({
@@ -136,6 +139,10 @@ export async function runAnchoredGeneration<T extends ScoredPlanCandidate & { se
 		return anchorConflict(anchorResolution.code, anchorResolution.message);
 	}
 	const anchorVenueId = anchorResolution.canonical.venueId;
+	if (anchor.venueIds && (candidates.length !== anchor.venueIds.length
+		|| context.stopCount !== anchor.venueIds.length)) {
+		return anchorConflict("ANCHOR_ROUTE_CONFLICT", "Some listed pubs cannot join this crawl. Review the list and try again.");
+	}
 	const selection = await selectAnchoredPlanGenerationCandidates(
 		candidates,
 		context,

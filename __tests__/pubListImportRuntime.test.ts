@@ -161,3 +161,14 @@ describe("pub list import with runtime venue data", () => {
     expect(files.readSync).not.toHaveBeenCalled();
   });
 });
+
+it("reports missing price evidence for a curated pub as well as national pubs", async () => {
+  files.read.mockResolvedValue(JSON.stringify({ rows: [{
+    id: "venue-harp", name: "The Harp", borough: "Westminster", locality: "Covent Garden",
+    lat: 51.509, lng: -0.126, cheapestPrice: null,
+  }] }));
+  const { importPubList } = await import("@/lib/pubListImport.server");
+  const result = await importPubList({ text: "The Harp\nThe Blue Bell" });
+  expect(result.items[0]).toMatchObject({ venue: { layer: "curated", hasPrice: false } });
+  expect(result.items[1]).toMatchObject({ venue: { layer: "national", hasPrice: false, price: null } });
+});

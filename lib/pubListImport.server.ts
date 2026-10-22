@@ -2,6 +2,7 @@ import "server-only";
 
 import { z } from "zod";
 
+import type { ImportSource, ImportCandidate, ImportItem } from "@/lib/pubListImport";
 import { getCity } from "@/lib/cities";
 import { isHarvestableOperatorUrl, normalizeHarvestHostname } from "@/lib/harvest/sourcePolicy";
 import { traceArizeModelCall } from "@/lib/observability/arize";
@@ -13,12 +14,6 @@ import { readCityVenueIndex } from "@/lib/venueIndex";
 import { postcodeOutwardFromText } from "@/lib/venuePermalinkSlug";
 import { isVerifiedClosedCuratedVenue } from "@/lib/verifiedClosedPubs";
 
-type ImportSource = {
-  url: string;
-  platform: "tiktok" | "instagram" | "other";
-  handle: string | null;
-};
-
 type ImportVenue = {
   id: string;
   name: string;
@@ -26,6 +21,9 @@ type ImportVenue = {
   areaHints?: readonly string[];
   postcodeDistrict?: string;
   closed?: boolean;
+  hasPrice?: boolean;
+  lat?: number;
+  lng?: number;
 };
 
 type ImportCatalog = {
@@ -33,19 +31,7 @@ type ImportCatalog = {
   national: readonly ImportVenue[];
 };
 
-type ImportCandidate = Pick<ImportVenue, "id" | "name" | "area" | "postcodeDistrict"> & {
-  layer: "curated" | "national";
-  price?: null;
-  closed?: true;
-};
-
 type ExtractedLine = { rawLine: string; name: string; areaHint: string };
-
-type ImportItem = ExtractedLine & (
-  | { state: "matched" | "closed"; venue: ImportCandidate }
-  | { state: "ambiguous"; candidates: ImportCandidate[]; candidateCount: number }
-  | { state: "unmatched" }
-);
 
 async function loadCatalog(): Promise<ImportCatalog> {
   const curated = await readCityVenueIndex(getCity("london"));
@@ -57,6 +43,8 @@ async function loadCatalog(): Promise<ImportCatalog> {
     curated: [...curated.values()].map(({ venue, slimVenue }) => ({
       id: venue.id,
       name: venue.name,
+      lat: venue.lat, lng: venue.lng,
+      hasPrice: typeof slimVenue.cheapestPrice === "number" && slimVenue.cheapestPrice > 0,
       area: venueAreaLabel({ locality: slimVenue.locality, primaryBorough: venue.borough }),
       areaHints: [venue.borough],
       postcodeDistrict: postcodeOutwardFromText(slimVenue.filterHints?.searchText ?? "") ?? undefined,
@@ -65,7 +53,7 @@ async function loadCatalog(): Promise<ImportCatalog> {
     national: national.pubs.map((pub) => ({
       id: pub.id,
       name: pub.name,
-      area: pub.address,
+      area: pub.address, lat: pub.lat, lng: pub.lng,
       areaHints: pub.address.split(",").map((part) => part.trim()),
       postcodeDistrict: postcodeOutwardFromText(pub.address) ?? undefined,
       closed: pub.closed,
@@ -78,7 +66,7 @@ const INSTAGRAM_RESERVED_PATHS = new Set([
   "about", "legal", "privacy", "terms", "developer", "web",
 ]);
 
-function sourceAttribution(value: string | undefined): ImportSource | null {
+export function sourceAttribution(value: string | undefined): ImportSource | null {
   if (value === undefined || value.trim() === "") return null;
   if (!isHarvestableOperatorUrl(value)) {
     throw new RangeError("Use a public HTTPS source link without credentials.");
@@ -245,27 +233,26 @@ function extractLines(text: string): ExtractedLine[] {
 
 function matchLine(line: ExtractedLine, catalog: ImportCatalog): ImportItem {
   const name = normalizedName(line.name);
+  const hint = ` ${normalizedName(line.areaHint)} `;
+  const inHintedArea = (venue: ImportVenue) => [venue.area, venue.postcodeDistrict, ...(venue.areaHints ?? [])]
+    .some((area) => {
+      const normalized = area ? normalizedName(area) : "";
+      return normalized.length > 0 && hint.includes(` ${normalized} `);
+    });
+  // A known area can select a national namesake before a London pub. Unrecognised prose stays a hint.
+  const hasHintedMatch = Boolean(line.areaHint) && [...catalog.curated, ...catalog.national]
+    .some((venue) => normalizedName(venue.name) === name && inHintedArea(venue));
   for (const layer of ["curated", "national"] as const) {
-    let matches = [...new Map(catalog[layer]
-      .filter((venue) => normalizedName(venue.name) === name)
+    const matches = [...new Map(catalog[layer]
+      .filter((venue) => normalizedName(venue.name) === name && (!hasHintedMatch || inHintedArea(venue)))
       .map((venue) => [venue.id, venue])).values()];
     if (!matches.length) continue;
-    if (matches.length > 1 && line.areaHint) {
-      const hint = ` ${normalizedName(line.areaHint)} `;
-      const areaMatches = matches.filter((venue) => {
-        const areas = [venue.area, venue.postcodeDistrict, ...(venue.areaHints ?? [])];
-        return areas.some((area) => {
-          const normalized = area ? normalizedName(area) : "";
-          return normalized.length > 0 && hint.includes(` ${normalized} `);
-        });
-      });
-      if (areaMatches.length) matches = areaMatches;
-    }
     const candidates: ImportCandidate[] = matches.slice(0, 4).map((venue) => ({
       id: venue.id, name: venue.name, area: venue.area,
+      ...(venue.lat !== undefined && venue.lng !== undefined ? { lat: venue.lat, lng: venue.lng } : {}),
       ...(venue.postcodeDistrict ? { postcodeDistrict: venue.postcodeDistrict } : {}),
       ...(venue.closed ? { closed: true as const } : {}),
-      ...(layer === "national" ? { price: null } : {}),
+      ...(layer === "national" ? { price: null, hasPrice: false } : { hasPrice: venue.hasPrice }),
       layer,
     }));
     if (matches.length > 1) return { ...line, state: "ambiguous", candidates, candidateCount: matches.length };
@@ -301,4 +288,18 @@ export async function importPubList(
     items: lines.slice(0, 40).map((line) => matchLine(line, catalog)),
     truncated: lines.length > 40,
   };
+}
+
+/** Resolve saved IDs again. Drafts contain no pasted lines or creator claims. */
+export async function importedVenuesById(ids: readonly string[]): Promise<ImportCandidate[]> {
+  const catalog = await loadCatalog();
+  return ids.flatMap((id) => {
+    for (const layer of ["curated", "national"] as const) {
+      const venue = catalog[layer].find((candidate) => candidate.id === id);
+      if (venue) return [{ id, name: venue.name, area: venue.area, layer, lat: venue.lat, lng: venue.lng,
+        ...(venue.closed ? { closed: true as const } : {}),
+        ...(layer === "national" ? { price: null, hasPrice: false } : { hasPrice: venue.hasPrice }) }];
+    }
+    return [];
+  });
 }

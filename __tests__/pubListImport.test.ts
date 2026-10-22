@@ -328,7 +328,7 @@ describe("pub list import", () => {
 
     expect(items[0]).toEqual({
       rawLine: "The Blue Bell, York", name: "The Blue Bell", areaHint: "York", state: "matched",
-      venue: { id: "osm-york", name: "The Blue Bell", area: "York", layer: "national", price: null },
+      venue: { id: "osm-york", name: "The Blue Bell", area: "York", layer: "national", price: null, hasPrice: false },
     });
   });
 
@@ -392,4 +392,15 @@ describe("pub list import", () => {
 
     expect(items.map((item) => item.state)).toEqual(["matched", "matched"]);
   });
+});
+
+it("uses a named national area before a London namesake without that area", async () => {
+  const catalog = {
+    curated: [{ id: "london-blackfriar", name: "The Blackfriar", area: "City of London" }],
+    national: [{ id: "salford-blackfriar", name: "The Blackfriar", area: "Salford" }],
+  };
+  const salford = await importPubList({ text: "The Blackfriar, Salford" }, catalog, async () => []);
+  expect(salford.items[0]).toMatchObject({ state: "matched", venue: { id: "salford-blackfriar", layer: "national", price: null } });
+  const london = await importPubList({ text: "The Blackfriar, City of London" }, catalog, async () => []);
+  expect(london.items[0]).toMatchObject({ state: "matched", venue: { id: "london-blackfriar", layer: "curated" } });
 });

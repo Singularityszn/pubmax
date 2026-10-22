@@ -3293,6 +3293,44 @@ export type Database = {
         };
         Relationships: [];
       };
+      pub_list_night_drafts: {
+        Row: {
+          id: string;
+          owner_user_id: string;
+          venue_ids: string[];
+          source_url: string | null;
+          source_platform: string | null;
+          source_handle: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id: string;
+          owner_user_id: string;
+          venue_ids: string[];
+          source_url?: string | null;
+          source_platform?: string | null;
+          source_handle?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          owner_user_id?: string;
+          venue_ids?: string[];
+          source_url?: string | null;
+          source_platform?: string | null;
+          source_handle?: string | null;
+          created_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "pub_list_night_drafts_owner_user_id_fkey";
+            columns: ["owner_user_id"];
+            isOneToOne: false;
+            referencedRelation: "users";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       pub_pal_mastery_events: {
         Row: {
           id: string;
