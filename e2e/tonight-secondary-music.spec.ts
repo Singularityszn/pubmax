@@ -42,6 +42,14 @@ for (const width of [390, 1440]) {
     await page.goto("/tonight");
 
     await expect(page.getByRole("heading", { name: "Live music tonight", exact: true })).toBeVisible();
+    const musicList = page.locator('[aria-labelledby="music-tonight-title"] .dealsTonightList');
+    const musicCard = musicList.locator(".dealsTonightCard").first();
+    const listBox = await musicList.boundingBox();
+    const cardBox = await musicCard.boundingBox();
+    expect(listBox).not.toBeNull();
+    expect(cardBox).not.toBeNull();
+    expect(cardBox!.width).toBeGreaterThanOrEqual(listBox!.width - 1);
+    expect(await musicList.evaluate((list) => getComputedStyle(list).gridTemplateColumns.split(" ").length)).toBe(1);
     await expect(page.getByText("1 sourced live music listing below.", { exact: false })).toBeVisible();
     await expect(page.getByText("A pub gig", { exact: true })).toBeVisible();
     await expect(page.getByText("1 listing via Ticketmaster", { exact: false })).toBeVisible();
