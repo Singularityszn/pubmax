@@ -91,9 +91,10 @@ describe("the full-suite escalation", () => {
     ]);
   });
 
-  it("caps the full merge bar at a 2 GB Node heap and leaves scoped steps on the inherited one", () => {
+  it("caps the full merge bar at a 2 GB Node heap and one Vitest worker, and leaves scoped steps on the inherited environment", () => {
     expect(defined(checkSteps(plan(modified("package.json")))[0]).env).toEqual({
       NODE_OPTIONS: "--max-old-space-size=2048",
+      VITEST_MAX_WORKERS: "1",
     });
     for (const step of checkSteps(plan(modified("lib/priceLabel.ts")))) expect(step.env, step.label).toBeUndefined();
   });

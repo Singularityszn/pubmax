@@ -225,13 +225,14 @@ const TSCONFIG_DIR = "node_modules/.cache/verify-changed";
  * @returns {{ label: string, command: string, args: string[], env?: Record<string, string> }[]}
  */
 export function checkSteps(plan) {
-  // The full merge bar caps each Node heap it starts, over a higher inherited NODE_OPTIONS.
+  // The full merge bar caps each Node heap it starts, over a higher inherited NODE_OPTIONS,
+  // and runs Vitest on one worker, over the coverage run's own maxWorkers.
   if (plan.full) {
     return [{
       label: "full merge bar",
       command: "npm",
       args: ["run", "verify"],
-      env: { NODE_OPTIONS: "--max-old-space-size=2048" },
+      env: { NODE_OPTIONS: "--max-old-space-size=2048", VITEST_MAX_WORKERS: "1" },
     }];
   }
 
