@@ -431,7 +431,7 @@ export function securityProxy(request: NextRequest) {
   // silently dies under the CSP. The extra origin joins connect-src only under
   // `next dev` — production builds never widen.
   const devSupabaseConnect = (() => {
-    if (!isDev) return "";
+    /* LAB PATCH (ios qa, never commit): widen in prod build */
     const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
     if (!url) return "";
     try {
@@ -502,7 +502,7 @@ export function securityProxy(request: NextRequest) {
     // Clerk adds https://img.clerk.com here, its own account-avatar CDN. It is
     // a first-party ACCOUNT image, not a third-party venue photo, so the
     // "proxy-or-nothing" rule above is untouched: no venue imagery may join it.
-    `img-src 'self' data: blob: https://commons.wikimedia.org https://upload.wikimedia.org https://thumb.wikimedia.org${supabaseImg} https://*.googleusercontent.com https://gkbr-p-001.sitecorecontenthub.cloud${clerk.img.map((origin) => ` ${origin}`).join("")}`,
+    `img-src 'self' data: blob: https://commons.wikimedia.org https://upload.wikimedia.org https://thumb.wikimedia.org${supabaseImg}${devSupabaseConnect} https://*.googleusercontent.com https://gkbr-p-001.sitecorecontenthub.cloud${clerk.img.map((origin) => ` ${origin}`).join("")}`,
     "font-src 'self' data: https://tiles.openfreemap.org",
     // Clerk adds its Frontend API host (session, sign-in and sign-up calls) and
     // its abuse-protection hosts. Supabase's entries stay: both auth systems
