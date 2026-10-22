@@ -34,6 +34,9 @@ describe("routeAskDeterministically", () => {
     "Find me a welcoming dog-friendly pub in Soho with late opening hours",
     "Show me pubs in Soho with late closing times",
     "Find somewhere in Soho with late opening times",
+    "What are the opening hours of a quiet pub in Soho?",
+    "What are the closing times for any welcoming dog-friendly pub in Soho?",
+    "A welcoming dog-friendly pub in Soho with late opening hours",
   ])("answers discovery before offering map actions: %s", (query) => {
     expect(routeAskDeterministically(query)).toEqual([
       { name: "search_venues", args: { query, limit: 4 } },
@@ -43,8 +46,18 @@ describe("routeAskDeterministically", () => {
   it.each([
     "What are the opening hours at a pub called The Crosse Keys?",
     "What are the opening hours at a pub named The Crosse Keys?",
+    "What are the opening hours of Seething Lane Tap: A BrewDog Pub?",
+    "What are the closing times for Tower Bridge Arms: A BrewDog Pub?",
+    "What are Seething Lane Tap: A BrewDog Pub's opening hours?",
   ])("routes an explicit venue-hours question: %s", (query) => {
     expect(routeAskDeterministically(query)).toEqual([{ name: "search_venues", args: { query } }]);
+  });
+
+  it("keeps a complete pub name beside a transit request", () => {
+    const query = "Are there Tube delays and what are the opening hours at Tower Bridge Arms: A BrewDog Pub?";
+    expect(routeAskDeterministically(query)).toEqual([
+      { name: "city_status", args: {} }, { name: "search_venues", args: { query } },
+    ]);
   });
 
   it("preserves crawl planning with an hours preference", () => {

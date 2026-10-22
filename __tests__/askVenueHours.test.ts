@@ -30,6 +30,19 @@ afterEach(() => {
 });
 
 describe("recorded opening-hours sources", () => {
+  it.each(["pub", "bar", "venue", "place"])("keeps a %s description inside a name or alias", async (kind) => {
+    const name = `Example Arms: A Friendly ${kind}`;
+    const sourceName = `Example Arms: A Local ${kind}`;
+    io.venues.mockResolvedValue([{ id: "venue-example", name, sourceName, area: "Camden", lat: 51.5, lng: -0.1 }]);
+    io.detail.mockResolvedValue({ status: "found", venue: { siteFacts: site } });
+    for (const subject of [name, sourceName]) {
+      const body = await runAsk({ query: `What are the opening hours of ${subject}?`, now, skipModel: true });
+      expect(body.answer).toContain(`${name}: recorded regular opening hours: Thursday 12:00 to 23:00`);
+      expect(body.cards.map((card) => card.venueId)).toEqual(["venue-example"]);
+      expect(body.sources[0]?.url).toBe(site.sourceUrl);
+    }
+  });
+
   it.each([
     "What are The King's Arms' opening hours?",
     "What are The King's Arms's opening hours, please?",

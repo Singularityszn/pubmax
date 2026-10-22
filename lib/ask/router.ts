@@ -20,7 +20,7 @@ export function isVenueHoursQuestion(query: string): boolean {
   return /\b(?:opening|closing)\s+(?:hours|times)\b/i.test(query)
     && !PLAN_RE.test(query) && !isVenueDiscoveryAsk(subjectQuery)
     && requestedVenueCount(subjectQuery) === null
-    && !/\b(?:a|an|any|some)\s+(?:[^\s,.!?;]+\s+)*?(?:pub|bar|venue|place)\b/i.test(subjectQuery);
+    && !/(?:^|\b(?:find|show|recommend|suggest)(?:\s+me)?\s+|\b(?:opening|closing)\s+(?:hours|times)\s+(?:of|at|for)\s+)(?:a|an|any|some)\s+(?:[^\s,.!?;]+\s+)*?(?:pub|bar|venue|place)\b/i.test(subjectQuery);
 }
 
 const CITY_STATUS_RE =

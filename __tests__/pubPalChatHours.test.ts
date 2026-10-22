@@ -19,6 +19,7 @@ vi.mock("@/lib/authServer", () => ({ callerUserId: async () => null }));
 import { POST } from "@/app/api/pub-pal/chat/route";
 import { __resetPintDrops } from "@/lib/pintDrops";
 import { offlineFetch } from "@/evals/pal/offlineFetch";
+import { runAsk } from "@/lib/ask/runAsk";
 
 async function ask(query = "What are the opening hours of The Crosse Keys?") {
   const response = await POST(new Request("http://localhost/api/pub-pal/chat", {
@@ -64,6 +65,14 @@ describe("keyless Pub Pal hours answers", () => {
     expect(body.cards).toHaveLength(1);
     expect(body.cards[0].venueId).toBe(venueId);
     expect(body.sources[0]?.url).toBe("https://example.org/hours");
+    vi.stubEnv("OPENROUTER_API_KEY", "configured-test-key");
+    vi.stubEnv("TYPESAFE_API_KEY", "configured-test-key");
+    const transport = vi.fn<typeof fetch>(async () => { throw new Error("Hours must bypass providers."); });
+    const direct = await runAsk({ query: `What are the opening hours of ${name}?`, now: Date.now(), fetchImpl: transport });
+    expect(direct.answer).toBe(body.answer);
+    expect(direct.cards.map((card) => card.venueId)).toEqual([venueId]);
+    expect(direct.sources).toEqual(body.sources);
+    expect(transport).not.toHaveBeenCalled();
   });
 
   it.each([
