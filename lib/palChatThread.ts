@@ -98,7 +98,7 @@ function restoreAnswer(entry: Record<string, unknown>, id: string, query: string
   const recall = record(entry.recall);
   const originalScope = record(entry.locality)?.scope;
   const heldLocality = resolvePalLocality("", remembered);
-  const locality: PalLocality | null = heldLocality.grounded && (originalScope === "query" || originalScope === "remembered") ? { ...heldLocality, scope: originalScope } : query ? resolvePalLocality(query, null) : null;
+  const locality: PalLocality | null = entry.locality === null ? null : heldLocality.grounded && (originalScope === "query" || originalScope === "remembered") ? { ...heldLocality, scope: originalScope } : query ? resolvePalLocality(query, null) : null;
   return { kind: "answer", id, answer: result, locality, proposals: result.proposals,
     recall: typeof recall?.line === "string" && typeof recall.topic === "string" ? { line: text(recall.line, 1000), topic: text(recall.topic, 200) } : null };
 }

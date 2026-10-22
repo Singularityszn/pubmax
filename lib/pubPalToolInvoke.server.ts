@@ -12,7 +12,7 @@ import {
   resolvePubPalFenceIntent,
   type PubPalFenceTurn,
 } from "@/lib/pubPalLlmFence";
-import { isIndependentAskTool, refineVenueBudgetFollowUp, routeAskDeterministically, unsupportedPriceComparison } from "@/lib/ask/router";
+import { isIndependentAskTool, refineVenueAreaFollowUp, routeAskDeterministically, unsupportedPriceComparison } from "@/lib/ask/router";
 import {
   appendPubPalToolTurn,
   readPubPalToolTurn,
@@ -35,7 +35,7 @@ export function resolvePubPalToolQuery(input: {
     typeof input.args.query === "string" ? input.args.query.trim() : "";
   const query = fromTurn || fromArgs;
   const priorUsers = input.turns?.filter((turn) => turn.role === "user").map((turn) => turn.content);
-  return refineVenueBudgetFollowUp(query, priorUsers) ?? query;
+  return refineVenueAreaFollowUp(query, priorUsers) ?? query;
 }
 
 export function enrichPubPalToolArgs(

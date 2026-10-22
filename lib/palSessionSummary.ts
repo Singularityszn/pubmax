@@ -1,4 +1,4 @@
-import { refineVenueBudgetFollowUp } from "@/lib/ask/router";
+import { refineVenueAreaFollowUp } from "@/lib/ask/router";
 import type { PubPalFenceTurn } from "@/lib/pubPalLlmFence";
 
 /** How many recent user and assistant lines a Pal session carries. */
@@ -66,7 +66,7 @@ export function windowPalSessionTurns(
   const priorUsers: string[] = [];
   const resolved = turns.map((turn) => {
     if (turn.role !== "user") return turn;
-    const content = refineVenueBudgetFollowUp(turn.content, priorUsers) ?? turn.content;
+    const content = refineVenueAreaFollowUp(turn.content, priorUsers) ?? turn.content;
     priorUsers.push(content);
     return { ...turn, content };
   });

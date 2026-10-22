@@ -343,8 +343,35 @@ describe("routeAskDeterministically: Pub Pal V0.1 concierge tools", () => {
     expect(routeAskDeterministically(refined).map((call) => call.name)).toEqual(["search_venues"]);
   });
 
-  it.each(["Pint at The Lamb in the same area under £6.50", "Same area but cheapest wine under £6.50", "Pubs in Camden in the same area under £6.50"])("keeps a new named subject or place: %s", (query) => {
+  it.each(["Pint at The Lamb in the same area under £6.50", "Same area but cheapest wine under £6.50"])("keeps a new named subject or place: %s", (query) => {
     expect(refineRoutedAskQuery(query, "Find four pubs in Soho")).toBe(query);
+  });
+
+  it("uses the current named area before an earlier area reference", () => {
+    const query = refineRoutedAskQuery("Pubs in Camden in the same area under £6.50", "Find four pubs in Soho");
+    expect(query).toBe("Pubs in Camden under £6.50");
+  });
+
+  it.each([
+    ["Find me four pubs in the same area", "Find me four pubs in Soho", "search_venues"],
+    ["A three-stop pub crawl in the same patch", "A three-stop pub crawl in Soho", "propose_plan"],
+    ["Pints under £6.50 in the same neighbourhood", "Pints under £6.50 pubs in Soho", "search_venues"],
+  ])("resolves every area follow-up through the shared boundary: %s", (query, expected, tool) => {
+    const resolved = refineRoutedAskQuery(query, "Find four pubs in Soho");
+    expect(resolved).toBe(expected);
+    expect(routeAskDeterministically(resolved).map((call) => call.name)).toEqual([tool]);
+  });
+
+  it.each([
+    "Find pubs in Soho or Camden",
+    "Find pubs in Soho or Oxford",
+    "Find pubs in Oxford and York",
+    "Find pubs in Soho, Camden",
+  ])("does not replace an ambiguous owned area: %s", (ambiguous) => {
+    const users = ["Find pubs in Brixton", ambiguous, "Pints under £6.50 in the same area"];
+    const query = "Find four pubs in the same area";
+    expect(refineRoutedAskQuery(users[2]!, users[1], users.slice(0, 2))).toBe(users[2]);
+    expect(refineRoutedAskQuery(query, users.at(-1), users)).toBe(query);
   });
 
   it("keeps the explicit area across successive budget refinements", () => {

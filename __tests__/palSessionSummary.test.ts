@@ -40,6 +40,20 @@ describe("Pal rolling session summary", () => {
     const alone = windowPalSessionTurns("", [ask("Same area, under £7 a pint")]);
     expect(resolvePalLocality(alone.turns[0]!.content, null).grounded).toBe(false);
   });
+  it.each(["Soho or Camden", "Soho or Oxford", "Oxford and York"])("preserves unresolved %s across history normalization", (place) => {
+    const budget = "Pints under £6.50 in the same area";
+    const session = windowPalSessionTurns("", [ask(`Find pubs in ${place}`), ask(budget)]);
+    expect(session.turns.at(-1)?.content).toBe(budget);
+    const users = session.turns.map((turn) => turn.content);
+    const query = "Find four pubs in the same area";
+    expect(refineRoutedAskQuery(query, users.at(-1), users)).toBe(query);
+  });
+
+  it.each(["Find four pubs in the same area", "A pub crawl in the same area"])("retains resolved locality before eviction: %s", (query) => {
+    const session = windowPalSessionTurns("", [ask("Find pubs in Soho"), ask(query)]);
+    expect(resolvePalLocality(session.turns.at(-1)!.content, { kind: "borough", name: "Camden" }).label).toBe("Soho");
+  });
+
   it("rolls only the person's own lines, never a Pal reply", () => {
     const turns: PubPalFenceTurn[] = [
       ask("a pub for six"),

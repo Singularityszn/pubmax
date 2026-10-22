@@ -16,6 +16,13 @@ import {
   type TestInfo,
 } from "@playwright/test";
 
+import {
+  completedFinalVoiceReply,
+  type FinalVoiceAudio,
+  type FinalVoiceTool,
+  type FinalVoiceTurn,
+} from "./helpers/finalVoiceReply";
+
 // Live Pub Pal proof against a real deployment with ElevenLabs configured.
 //
 // PUB_PAL_PROOF_SELECTION picks one of two selections that never mix:
@@ -496,7 +503,6 @@ type VersionObservation = {
   deploymentId: string | null;
   matches: boolean;
 };
-type FinalTurn = { at: number; text: string };
 type OwnedBrowser = {
   browser?: Browser;
   closing?: Promise<void>;
@@ -844,24 +850,25 @@ async function runFinalViewport(viewport: FinalViewport, testInfo: TestInfo): Pr
   const failures: string[] = [];
   const owned: OwnedBrowser = {};
   finalActive = owned;
-  const userTranscripts: FinalTurn[] = [];
-  const agentResponses: FinalTurn[] = [];
-  const audioChunks: { at: number; pcm: Buffer }[] = [];
+  const userTranscripts: FinalVoiceTurn[] = [];
+  const agentResponses: FinalVoiceTurn[] = [];
+  const audioChunks: FinalVoiceAudio[] = [];
+  const toolEvents: FinalVoiceTool[] = [];
+  let frameOrder = 0;
   const frameCounts = new Map<string, number>();
   const timing: Record<string, number | undefined> = {};
   let audioFormat: string | undefined;
   let receivedAudioBytes = 0;
   let retainedAudioBytes = 0;
   let audioOverflow = false;
-  let lastAudioAt = 0;
   let socketsOpened = 0;
   let openSockets = 0;
   let socketsClosedAt: number | undefined;
   let clickAt: number | undefined;
   let watchdogFiredAt: number | undefined;
   let watchdog: ReturnType<typeof setTimeout> | undefined;
-  let heard: FinalTurn | undefined;
-  let selectedReply: FinalTurn | undefined;
+  let heard: FinalVoiceTurn | undefined;
+  let selectedReply: FinalVoiceTurn | undefined;
   let before: VersionObservation | undefined;
   let screenshotPath: string | undefined;
   const since = () => (clickAt === undefined ? 0 : Date.now() - clickAt);
@@ -873,9 +880,11 @@ async function runFinalViewport(viewport: FinalViewport, testInfo: TestInfo): Pr
     let event: {
       type?: unknown;
       conversation_initiation_metadata_event?: { agent_output_audio_format?: unknown };
-      user_transcription_event?: { user_transcript?: unknown };
-      agent_response_event?: { agent_response?: unknown };
-      audio_event?: { audio_base_64?: unknown };
+      user_transcription_event?: { user_transcript?: unknown; event_id?: unknown };
+      agent_response_event?: { agent_response?: unknown; event_id?: unknown };
+      audio_event?: { audio_base_64?: unknown; event_id?: unknown };
+      agent_tool_request?: { tool_call_id?: string; tool_name?: string; event_id?: unknown };
+      agent_tool_response_full_payload?: { tool_call_id?: string; tool_name?: string; event_id?: unknown; is_error?: boolean };
     };
     try {
       event = JSON.parse(payload.toString());
@@ -889,31 +898,39 @@ async function runFinalViewport(viewport: FinalViewport, testInfo: TestInfo): Pr
       frameCounts.set(type, (frameCounts.get(type) ?? 0) + 1);
     }
     const at = since();
-    if (type === "conversation_initiation_metadata") {
+    const order = ++frameOrder;
+    const eventId = (value: unknown) => typeof value === "number" && Number.isSafeInteger(value) ? value : undefined;
+    if (type === "agent_tool_request" || type === "agent_tool_response_full_payload") {
+      const tool = type === "agent_tool_request" ? event.agent_tool_request : event.agent_tool_response_full_payload;
+      toolEvents.push({
+        at, order, type: type === "agent_tool_request" ? "request" : "response",
+        callId: tool?.tool_call_id, name: tool?.tool_name, eventId: eventId(tool?.event_id),
+        isError: event.agent_tool_response_full_payload?.is_error,
+      });
+    } else if (type === "conversation_initiation_metadata") {
       const format = event.conversation_initiation_metadata_event?.agent_output_audio_format;
       if (typeof format === "string") audioFormat = format.slice(0, 64);
     } else if (type === "user_transcript") {
       const text = event.user_transcription_event?.user_transcript;
       if (typeof text === "string" && userTranscripts.length < 20) {
-        userTranscripts.push({ at, text: text.slice(0, 2_000) });
+        userTranscripts.push({ at, order, eventId: eventId(event.user_transcription_event?.event_id), text: text.slice(0, 2_000) });
       }
     } else if (type === "agent_response") {
       const text = event.agent_response_event?.agent_response;
       if (typeof text === "string" && agentResponses.length < 20) {
-        agentResponses.push({ at, text: text.slice(0, 4_000) });
+        agentResponses.push({ at, order, eventId: eventId(event.agent_response_event?.event_id), text: text.slice(0, 4_000) });
       }
     } else if (type === "audio") {
       const encoded = event.audio_event?.audio_base_64;
       if (typeof encoded !== "string" || !encoded) return;
       const pcm = Buffer.from(encoded, "base64");
       receivedAudioBytes += pcm.length;
-      lastAudioAt = at;
       if (audioOverflow || retainedAudioBytes + pcm.length > FINAL_AUDIO_CAP_BYTES) {
         audioOverflow = true;
         return;
       }
       retainedAudioBytes += pcm.length;
-      audioChunks.push({ at, pcm });
+      audioChunks.push({ at, order, eventId: eventId(event.audio_event?.event_id), pcm });
     }
   };
 
@@ -1002,31 +1019,18 @@ async function runFinalViewport(viewport: FinalViewport, testInfo: TestInfo): Pr
           `user_transcript "${spoken.text}" is not the approved request: missing or wrong ${missing.join(", ")}`,
         );
       }
-      const reply = await waitForFrame(
-        () => agentResponses.find((turn) => turn.at >= spoken.at && turn.text.trim() !== ""),
+      const completed = await waitForFrame(
+        () => completedFinalVoiceReply(
+          agentResponses, audioChunks, toolEvents, spoken, since(),
+          interactionBy - clickedAt, FINAL_REPLY_SETTLE_MS,
+        ),
         interactionBy,
         owned,
-        "an agent_response after the spoken request",
+        "the completed post-tool answer and its matching audio",
       );
-      selectedReply = reply;
-      timing.agentResponseMs = reply.at;
-      const firstReplyAudio = await waitForFrame(
-        () => audioChunks.find((chunk) => chunk.at >= reply.at),
-        interactionBy,
-        owned,
-        "audio after the selected agent response",
-      );
-      timing.firstReplyAudioMs = firstReplyAudio.at;
-      // Let the reply finish streaming; a reply cut off at the deadline is not accepted.
-      while (since() - lastAudioAt < FINAL_REPLY_SETTLE_MS) {
-        if (owned.closing) throw new Error("the owned browser closed while the reply was streaming");
-        if (Date.now() >= interactionBy) {
-          throw new Error(
-            "reply audio was still streaming at the interaction deadline; its WAV would be truncated",
-          );
-        }
-        await sleep(100);
-      }
+      selectedReply = completed.reply;
+      timing.agentResponseMs = completed.reply.at;
+      timing.firstReplyAudioMs = completed.audio[0].at;
       timing.replySettledMs = since();
       await page.screenshot({
         path: `${base}.png`,
@@ -1102,9 +1106,13 @@ async function runFinalViewport(viewport: FinalViewport, testInfo: TestInfo): Pr
   let replyAudioBytes = 0;
   let wavPath: string | undefined;
   if (heard && selectedReply) {
-    const selectedReplyAt = selectedReply.at;
+    const reply = selectedReply;
+    if (toolEvents.some((event) => event.order > reply.order)
+      || agentResponses.some((turn) => turn.order > reply.order)) {
+      failures.push("the selected reply was superseded after selection; final answer completion is unconfirmed");
+    }
     const pcm = Buffer.concat(
-      audioChunks.filter((chunk) => chunk.at >= selectedReplyAt).map((chunk) => chunk.pcm),
+      audioChunks.filter((chunk) => chunk.order > reply.order && chunk.eventId === reply.eventId).map((chunk) => chunk.pcm),
     );
     replyAudioBytes = pcm.length;
     if (!sampleRate) {
@@ -1169,6 +1177,7 @@ async function runFinalViewport(viewport: FinalViewport, testInfo: TestInfo): Pr
       socketsOpened,
       agentOutputAudioFormat: audioFormat ?? null,
       frameCounts: Object.fromEntries(frameCounts),
+      toolEvents,
     },
     transcript: {
       matched: heard?.text ?? null,
@@ -1183,7 +1192,7 @@ async function runFinalViewport(viewport: FinalViewport, testInfo: TestInfo): Pr
       capBytes: FINAL_AUDIO_CAP_BYTES,
       overflow: audioOverflow,
       wavPath: wavPath ?? null,
-      note: "This WAV contains provider-declared PCM received on or after the selected agent_response. Its reply boundary and text are recorded in transcript.selectedReply; physical speaker output was not tested.",
+      note: "This WAV contains only provider-declared PCM with the selected post-tool agent_response event ID. Its reply boundary and text are recorded in transcript.selectedReply; physical speaker output was not tested.",
     },
     screenshotPath: screenshotPath ?? null,
     turns: { spoken: clickAt === undefined ? 0 : 1, typed: 0 },

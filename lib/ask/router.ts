@@ -1,6 +1,7 @@
 // Deterministic Night OS Ask router (keyless path). Picks 1–2 allowlisted tools
 // from the user query without calling a paid model.
 
+import { NIGHT_AREAS } from "@/lib/nightAreas";
 import { detectWhatsOnIntent } from "@/lib/concierge/whatsOn";
 import type { AskToolName } from "@/lib/ask/types";
 import type { DrinkCategory } from "@/lib/drinks";
@@ -356,19 +357,40 @@ export function socialTurnKind(query: string): "greeting" | "thanks" | null {
  * own claim wins, so a pint ask after a wifi ask cannot be swallowed by
  * find_desk matching the earlier sentence.
  */
-const SAME_AREA_REFERENCE_RE = /(?:\b(?:in|near|around)\s+)?\b(?:the\s+)?same\s+(?:area|patch|neighbou?rhood)\b/i;
+export const SAME_AREA_REFERENCE_RE = /(?:\b(?:in|near|around)\s+)?\b(?:the\s+)?same\s+(?:area|patch|neighbou?rhood)\b/i;
 
-/** A pint-budget refinement keeps the discovered area without replacing a named subject. */
-export function refineVenueBudgetFollowUp(query: string, priorUserContent: string | readonly string[] | null | undefined): string | null {
-  if (!priorUserContent || !SAME_AREA_REFERENCE_RE.test(query)
-    || extractExplicitBudget(query) === undefined || /\bat\s+\S/i.test(query)) return null;
+export function refineVenueAreaFollowUp(query: string, priorUserContent: string | readonly string[] | null | undefined): string | null {
+  if (!SAME_AREA_REFERENCE_RE.test(query) || /\bat\s+\S/i.test(query)) return null;
   const price = resolveAskPriceIntent(query);
-  if (price.kind !== "none" && price.kind !== "pint") return null;
+  if (price.kind !== "none" && price.kind !== "pint" && price.kind !== "plan") return null;
   const knownAreas = defaultKnownAreas();
-  if (deterministicAreaInText(query.replace(SAME_AREA_REFERENCE_RE, ""), knownAreas)) return null;
-  const priorLines = typeof priorUserContent === "string" ? [priorUserContent] : priorUserContent;
-  const priorArea = priorLines.map((line) => socialTurnKind(line) ? undefined : deterministicAreaInText(line.replace(SAME_AREA_REFERENCE_RE, ""), knownAreas)).findLast(Boolean);
-  return priorArea ? query.replace(SAME_AREA_REFERENCE_RE, `pubs in ${priorArea}`) : null;
+  const namedQuery = query.replace(SAME_AREA_REFERENCE_RE, "");
+  const unambiguousArea = (text: string): string | null | undefined => {
+    const area = deterministicAreaInText(text, knownAreas);
+    if (!area) return undefined;
+    const candidates = NIGHT_AREAS.filter((candidate) => [candidate.name, ...candidate.aliases].some((label) => {
+      const escaped = label.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+      return new RegExp(`\\b${escaped}\\b`, "iu").test(text);
+    }));
+    const location = text.match(/\b(?:in|near|around)\s+(.+?)(?=[.!?]|$)/iu)?.[1] ?? area;
+    const places = location.replace(area, "").replace(/,?\s*\b(?:and\s+(?:show|put|open|map)|not)\b.*$/i, "");
+    return candidates.length > 1 || /\b(?:or|and)\b|[,/]/i.test(places)
+      || (candidates.length === 0 && /\b(?:or|and)\b|[,/]/i.test(area)) ? null : area;
+  };
+  const namedArea = unambiguousArea(namedQuery);
+  if (namedArea === null) return null;
+  if (namedArea) return namedQuery.replace(/\s+/g, " ").trim();
+  const priorLines = typeof priorUserContent === "string" ? [priorUserContent] : priorUserContent ?? [];
+  for (const line of [...priorLines].reverse()) {
+    if (socialTurnKind(line)) continue;
+    const area = unambiguousArea(line.replace(SAME_AREA_REFERENCE_RE, ""));
+    if (area === null) return null;
+    if (area) {
+      const prefix = extractExplicitBudget(query) !== undefined ? "pubs in" : "in";
+      return query.replace(SAME_AREA_REFERENCE_RE, `${prefix} ${area}`);
+    }
+  }
+  return null;
 }
 
 export function refineRoutedAskQuery(
@@ -376,8 +398,9 @@ export function refineRoutedAskQuery(
   priorUserContent: string | null | undefined,
   priorUserContents?: readonly string[],
 ): string {
-  const budgetFollowUp = refineVenueBudgetFollowUp(query, priorUserContents ?? priorUserContent);
-  if (budgetFollowUp) return budgetFollowUp;
+  if (SAME_AREA_REFERENCE_RE.test(query)) {
+    return refineVenueAreaFollowUp(query, priorUserContents ?? priorUserContent) ?? query;
+  }
   const words = query.trim().split(/\s+/).filter(Boolean);
   if (!priorUserContent || words.length === 0 || words.length > 4) return query;
   if (socialTurnKind(priorUserContent)) return query;

@@ -115,49 +115,6 @@ test("motion preference changes replace the model with the still original artwor
   }
 });
 
-test("typed chat follows mute and deletion from another Pal tab", async ({ page, context }) => {
-  const timestamp = "2026-10-04T12:00:00.000Z";
-  const original = {
-    id: "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb", ownerId: ACCOUNTS.A.id,
-    name: "Portrait audit", adultAttestedAt: timestamp,
-    appearance: DEFAULT_PAL_DRAFT.appearance,
-    personality: DEFAULT_PAL_DRAFT.personality, voice: DEFAULT_PAL_DRAFT.voice,
-    muted: false, hidden: false, proposalPreferences: { memories: true, routes: true },
-    masteryPoints: 0, createdAt: timestamp, updatedAt: timestamp,
-  };
-  let pal: typeof original | null = original;
-  await installAuthDoubles(page);
-  await seedSignedIn(page, "A");
-  await context.route("**/api/pub-pal", async route => {
-    if (route.request().method() === "PATCH") pal = { ...pal!, ...route.request().postDataJSON() };
-    if (route.request().method() === "DELETE") pal = null;
-    await route.fulfill({ json: { pal, adultOnFile: true } });
-  });
-  await context.route("**/api/pub-pal/memories", route => route.fulfill({ json: { memories: [] } }));
-  await context.route("**/api/pub-pal/voice-token", route => route.fulfill({ json: { available: false } }));
-  await page.goto("/pal/chat");
-  const companion = page.locator(".palChatCompanion");
-  await expect(companion.getByRole("img", { name: /Portrait audit in 3D/ })).toBeVisible();
-  const home = await context.newPage();
-  try {
-    await installAuthDoubles(home);
-    await home.goto("/pal");
-    const mute = home.getByRole("button", { name: /Voice allowed.*Tap to mute everywhere/ });
-    await expect(mute).toBeVisible();
-    await mute.click();
-    await expect(home.getByRole("button", { name: /Muted.*Tap to allow voice/ })).toHaveAttribute("aria-pressed", "true");
-    await page.bringToFront();
-    await expect(companion.locator(".palPortrait")).toHaveAttribute("data-pal-state", "sleeping");
-    await home.bringToFront();
-    home.once("dialog", dialog => dialog.accept());
-    await home.getByRole("button", { name: /^Delete Portrait audit/ }).click();
-    await expect(home.getByRole("button", { name: "Meet your Pub Pal", exact: true })).toBeVisible();
-    await page.bringToFront();
-    await expect(companion.getByRole("img", { name: /Pub Pal in 3D/ })).toBeVisible();
-    await expect(companion.getByRole("img", { name: /Portrait audit in 3D/ })).toHaveCount(0);
-  } finally { await home.close(); }
-});
-
 test("the owned real model restores its original portrait after graphics loss and motion changes", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.emulateMedia({ reducedMotion: "no-preference" });

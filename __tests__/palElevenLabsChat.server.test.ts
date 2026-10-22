@@ -185,7 +185,7 @@ const tasteMocks = vi.hoisted(() => ({
 vi.mock("@/lib/palTaste.server", () => ({ readPalTaste: tasteMocks.readPalTaste }));
 
 import { VIBE_CHIPS } from "@/lib/vibeChips";
-import { palChatRecordQuery, runPalElevenLabsChatTurn } from "@/lib/palElevenLabsChat.server";
+import { palChatRecordQuery, preparePalElevenLabsChatTurn, runPalElevenLabsChatTurn } from "@/lib/palElevenLabsChat.server";
 import { pubPalGetHomeRegisterAnswer } from "@/lib/pubPalLlmFence";
 import { readPubPalToolTurn } from "@/lib/pubPalToolTurnStore";
 import { DEFAULT_PAL_DRAFT } from "@/lib/pubPal";
@@ -342,6 +342,21 @@ describe("runPalElevenLabsChatTurn", () => {
   ])("keeps unresolved references on the provider path: %j", (turns) => {
     for (const query of ["Find me four pubs in the same area", "A pub crawl in the same area", "Pints under £6.50 in the same area"]) {
       expect(palChatRecordQuery(query, turns)).toBeNull();
+    }
+  });
+
+  it.each(["Soho or Camden", "Soho or Oxford", "Oxford and York"])("keeps normalized ambiguous %s on the provider path", async (place) => {
+    storeMocks.readOwnedPubPalToolTurn.mockResolvedValue({
+      ...toolTurnPayload, query: "Pints under £6.50 in the same area",
+      turns: [{ role: "user", content: `Find pubs in ${place}` }], summary: "",
+    });
+    const query = "Find four pubs in the same area";
+    const context = await preparePalElevenLabsChatTurn({
+      query, ownerId: "11111111-1111-4111-8111-111111111111", threadId: "conv_ownedfollow1",
+      fenceTurns: [{ role: "user", content: "Find pubs in Soho" }],
+    });
+    for (const followUp of [query, "A pub crawl in the same area", "Pints under £6.50 in the same area"]) {
+      expect(palChatRecordQuery(followUp, context.prior.turns)).toBeNull();
     }
   });
 

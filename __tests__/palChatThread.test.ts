@@ -33,6 +33,19 @@ describe("the current Pal conversation in a tab", () => {
     expect(restored.priorAsks).toEqual(["Find me four pubs in Soho"]);
     expect(restored.conversationId).toBe("conv_returntest1");
   });
+  it("preserves an unresolved locality when an ambiguous conversation is restored", () => {
+    const timeline = entries();
+    timeline[0] = { kind: "user", id: "t-7", text: "Find four pubs in Soho or Camden in the same area" };
+    savePalChatThread("owner-a", timeline, "", 0, [
+      { role: "user", content: "Find pubs in Soho or Camden" },
+      { role: "user", content: "Pints under £6.50 in the same area" },
+    ]);
+    const restored = readPalChatThread("owner-a")!;
+    expect(restored.entries[1]).toMatchObject({ kind: "answer", locality: null });
+    const query = "Find four pubs in the same area";
+    expect(refineRoutedAskQuery(query, restored.priorAsks.at(-1), restored.priorAsks)).toBe(query);
+  });
+
   it("restores the area after raw refinements exceed the history window", () => {
     const turns: AskTurn[] = [...transcript];
     for (const budget of [7, 6.8, 6.6, 6.4]) {
