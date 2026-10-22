@@ -3,10 +3,13 @@ import type { FriendLocationRead } from "../../lib/friendLocation";
 import { ACCOUNTS, accessJwt } from "./authDoubles";
 
 export type FriendBrowserEvent = {
-  kind: "watch" | "callback" | "error" | "clear" | "patch" | "visibility";
+  kind: "watch" | "callback" | "error" | "clear" | "patch" | "patch-response" | "patch-failure" | "current" | "current-callback" | "current-error" | "visibility";
   id?: number;
   source?: "friend-watch" | "other";
   state?: DocumentVisibilityState;
+  errorCode?: 1 | 2 | 3;
+  errorName?: "AbortError" | "TimeoutError" | "TypeError" | "other";
+  status?: number;
 };
 
 export async function installNativeFriendWatchTrace(page: Page): Promise<void> {
@@ -15,10 +18,26 @@ export async function installNativeFriendWatchTrace(page: Page): Promise<void> {
     const active = new Set<number>();
     const geo = navigator.geolocation;
     const watch = geo.watchPosition.bind(geo);
+    const current = geo.getCurrentPosition.bind(geo);
     const clear = geo.clearWatch.bind(geo);
     const fetch = window.fetch.bind(window);
     let source: "friend-watch" | "other" = "other";
     Object.assign(window, { __friendWatchTrace: { events, active } });
+
+    const errorCode = (code: number): FriendBrowserEvent["errorCode"] =>
+      code === 1 || code === 2 || code === 3 ? code : undefined;
+
+    geo.getCurrentPosition = (success, failure, options) => {
+      const friend = options?.enableHighAccuracy === true && options.maximumAge === 0;
+      if (friend) events.push({ kind: "current" });
+      current((position) => {
+        if (friend) events.push({ kind: "current-callback" });
+        success(position);
+      }, (error) => {
+        if (friend) events.push({ kind: "current-error", errorCode: errorCode(error.code) });
+        failure?.(error);
+      }, options);
+    };
 
     geo.watchPosition = (success, failure, options) => {
       const friend = options?.enableHighAccuracy === true && options.maximumAge === 0;
@@ -29,7 +48,7 @@ export async function installNativeFriendWatchTrace(page: Page): Promise<void> {
         source = friend ? "friend-watch" : "other";
         try { success(position); } finally { source = previous; }
       }, (error) => {
-        if (friend) events.push({ kind: "error", id });
+        if (friend) events.push({ kind: "error", id, errorCode: errorCode(error.code) });
         failure?.(error);
       }, options);
       if (friend) { active.add(id); events.push({ kind: "watch", id }); }
@@ -42,7 +61,19 @@ export async function installNativeFriendWatchTrace(page: Page): Promise<void> {
     window.fetch = (input, init) => {
       const url = new URL(typeof input === "string" ? input : input instanceof Request ? input.url : input.href, location.href);
       const method = init?.method ?? (input instanceof Request ? input.method : "GET");
-      if (url.pathname === "/api/friend-locations" && method === "PATCH") events.push({ kind: "patch", source });
+      if (url.pathname === "/api/friend-locations" && method === "PATCH") {
+        const patchSource = source;
+        events.push({ kind: "patch", source: patchSource });
+        return fetch(input, init).then((response) => {
+          events.push({ kind: "patch-response", source: patchSource, status: response.status });
+          return response;
+        }, (error: unknown) => {
+          const name = error instanceof Error ? error.name : "other";
+          const errorName = name === "AbortError" || name === "TimeoutError" || name === "TypeError" ? name : "other";
+          events.push({ kind: "patch-failure", source: patchSource, errorName });
+          throw error;
+        });
+      }
       return fetch(input, init);
     };
     document.addEventListener("visibilitychange", () => events.push({ kind: "visibility", state: document.visibilityState }));
@@ -64,6 +95,8 @@ export async function installFriendLocationBrowserDoubles(page: Page) {
   let own: FriendLocationRead["own"] = null;
   let holdReads = false;
   const heldReads = new Set<() => void>();
+  let holdStartPosts = false;
+  const heldStartPosts = new Set<() => void>();
 
   await page.route("**/api/friend-locations", async (route) => {
     const request = route.request();
@@ -89,6 +122,12 @@ export async function installFriendLocationBrowserDoubles(page: Page) {
         call.completed = true;
         return;
       }
+      if (holdStartPosts) {
+        await new Promise<void>((resolve) => {
+          const release = () => { heldStartPosts.delete(release); resolve(); };
+          heldStartPosts.add(release);
+        });
+      }
       generation++;
       own = {
         sessionId: "00000000-0000-4000-8000-0000000000c3", revision: 1,
@@ -113,6 +152,9 @@ export async function installFriendLocationBrowserDoubles(page: Page) {
 
   return {
     calls,
+    holdStartPosts() { holdStartPosts = true; },
+    releaseStartPosts() { holdStartPosts = false; for (const release of [...heldStartPosts]) release(); },
+    pendingStartPosts() { return heldStartPosts.size; },
     holdReads() { holdReads = true; },
     releaseReads() { holdReads = false; for (const release of [...heldReads]) release(); },
     pendingReads() { return heldReads.size; },

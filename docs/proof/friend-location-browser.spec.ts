@@ -12,13 +12,14 @@ test.use({
 });
 
 type Fixture = Awaited<ReturnType<typeof installFriendLocationBrowserDoubles>>;
+type WatchBaseline = { patchRequests: number; watchTaggedPatches: number };
 
 async function attachEvidence(page: Page, fixture: Fixture, checkpoint: string): Promise<void> {
   const trace = await readNativeFriendWatchTrace(page);
   const panel = page.getByRole("region", { name: "Friend locations" });
   const statusNode = panel.getByRole("status");
   const status = await statusNode.count() ? await statusNode.textContent() : null;
-  const knownStatus = ["Sharing with selected mates.", "Updates paused while this page is hidden.", "Choose who can see you."];
+  const knownStatus = ["Sharing with selected mates.", "Updates paused while this page is hidden.", "Choose who can see you.", "Location updates stopped. Stop sharing, then start again.", "Locations could not be checked. Try again."];
   const receipt = {
     checkpoint, syntheticPositionsOnly: true,
     sourceHead: execFileSync("git", ["rev-parse", "HEAD"], { encoding: "utf8" }).trim(),
@@ -27,7 +28,16 @@ async function attachEvidence(page: Page, fixture: Fixture, checkpoint: string):
     permission: await page.evaluate(() => navigator.permissions.query({ name: "geolocation" }).then((permission) => permission.state)),
     nativeWatch: {
       activeIds: trace.active,
-      events: trace.events.map((event) => ({ kind: event.kind, id: event.id, source: event.source, state: event.state })),
+      events: trace.events.map((event) => ({ kind: event.kind, id: event.id, source: event.source, state: event.state, errorCode: event.errorCode, errorName: event.errorName, status: event.status })),
+    },
+    updateDiagnostics: {
+      patchRequests: fixture.calls.filter((call) => call.method === "PATCH").length,
+      completedPatchRequests: fixture.calls.filter((call) => call.method === "PATCH" && call.completed).length,
+      watchTaggedPatches: trace.events.filter((event) => event.kind === "patch" && event.source === "friend-watch").length,
+      otherTaggedPatches: trace.events.filter((event) => event.kind === "patch" && event.source === "other").length,
+      watchCallbacks: trace.events.filter((event) => event.kind === "callback").length,
+      nativeWatchErrors: trace.events.filter((event) => event.kind === "error").length,
+      nativeCurrentErrors: trace.events.filter((event) => event.kind === "current-error").length,
     },
     requests: fixture.calls.map((call) => ({
       method: call.method, completed: call.completed,
@@ -78,27 +88,39 @@ async function prepareOwner(page: Page, context: BrowserContext) {
   }).toPass({ timeout: 30_000 });
   const panel = page.getByRole("region", { name: "Friend locations" });
   await panel.getByRole("checkbox", { name: ACCOUNTS.B.handle, exact: true }).check();
-  await panel.getByRole("button", { name: "Share my location", exact: true }).click();
+  let watchBaseline: WatchBaseline;
+  fixture.holdStartPosts();
+  try {
+    await panel.getByRole("button", { name: "Share my location", exact: true }).click();
+    await expect.poll(() => fixture.pendingStartPosts()).toBe(1);
+    const trace = await readNativeFriendWatchTrace(page);
+    expect(trace.active).toEqual([]);
+    watchBaseline = {
+      patchRequests: fixture.calls.filter((call) => call.method === "PATCH").length,
+      watchTaggedPatches: trace.events.filter((event) => event.kind === "patch" && event.source === "friend-watch").length,
+    };
+    expect(watchBaseline).toEqual({ patchRequests: 0, watchTaggedPatches: 0 });
+    // Chromium 153 flushes a pending watch with error 2 on override replacement.
+    // Move the synthetic provider before the server authorises the native watch.
+    await context.setGeolocation({ latitude: 51.514234, longitude: -0.126456, accuracy: 12 });
+  } finally { fixture.releaseStartPosts(); }
   await expect(panel.getByRole("status")).toHaveText("Sharing with selected mates.");
   await expect(page.locator(".friendLocationMarker")).toHaveCount(1);
   const start = fixture.calls.find((call) => call.method === "POST");
   expect(start?.body).toMatchObject({ recipients: [ACCOUNTS.B.id], latitude: 51.512, longitude: -0.123 });
   expect(Number(start?.body?.accuracy)).toBeGreaterThanOrEqual(110);
-  return { auth, fixture, panel };
+  return { auth, fixture, panel, watchBaseline };
 }
 
-async function proveWorkingWatch(page: Page, context: BrowserContext, fixture: Fixture): Promise<void> {
-  const baseline = fixture.calls.filter((call) => call.method === "PATCH").length;
-  const traced = (await readNativeFriendWatchTrace(page)).events.filter((event) => event.kind === "patch" && event.source === "friend-watch").length;
+async function proveWorkingWatch(page: Page, fixture: Fixture, baseline: WatchBaseline): Promise<void> {
   fixture.holdReads();
   try {
     for (let attempt = 0; attempt < 9; attempt++) {
-      await context.setGeolocation({ latitude: 51.514234 + attempt * 0.00001, longitude: -0.126456, accuracy: 12 });
       await page.waitForTimeout(3_000);
       const trace = await readNativeFriendWatchTrace(page);
       const patch = fixture.calls.slice().reverse().find((call) => call.method === "PATCH" && call.completed);
-      if (fixture.calls.filter((call) => call.method === "PATCH").length > baseline &&
-          trace.events.filter((event) => event.kind === "patch" && event.source === "friend-watch").length > traced) {
+      if (fixture.calls.filter((call) => call.method === "PATCH").length > baseline.patchRequests &&
+          trace.events.filter((event) => event.kind === "patch" && event.source === "friend-watch").length > baseline.watchTaggedPatches) {
         expect(patch?.body).toMatchObject({ latitude: 51.514, longitude: -0.126 });
         expect(Number(patch?.body?.accuracy)).toBeGreaterThanOrEqual(110);
         expect(trace.events.filter((event) => event.kind === "error")).toEqual([]);
@@ -107,6 +129,16 @@ async function proveWorkingWatch(page: Page, context: BrowserContext, fixture: F
       }
     }
     throw new Error("No completed browser PATCH from a working native friend watcher.");
+  } catch (error) {
+    try {
+      await attachEvidence(page, fixture, "working-watch-failed");
+    } catch {
+      await test.info().attach("working-watch diagnostics unavailable", {
+        body: JSON.stringify({ checkpoint: "working-watch-failed", unavailable: true }),
+        contentType: "application/json",
+      }).catch(() => {});
+    }
+    throw error;
   } finally { fixture.releaseReads(); }
 }
 
@@ -120,10 +152,10 @@ async function keepMovingForOnePoll(context: BrowserContext, page: Page): Promis
 
 test("a working watcher retires on actual tab hide and waits for authority before resuming", async ({ page, context }) => {
   test.setTimeout(120_000);
-  const { fixture, panel } = await prepareOwner(page, context);
+  const { fixture, panel, watchBaseline } = await prepareOwner(page, context);
   let other: Page | undefined;
   try {
-    await proveWorkingWatch(page, context, fixture);
+    await proveWorkingWatch(page, fixture, watchBaseline);
     await attachEvidence(page, fixture, "before-hide");
     const active = (await readNativeFriendWatchTrace(page)).active;
     other = await context.newPage();
@@ -157,9 +189,9 @@ test("a working watcher retires on actual tab hide and waits for authority befor
 
 test("explicit account sign-out retires a proven working watcher and private rendered state", async ({ page, context }) => {
   test.setTimeout(120_000);
-  const { auth, fixture } = await prepareOwner(page, context);
+  const { auth, fixture, watchBaseline } = await prepareOwner(page, context);
   try {
-    await proveWorkingWatch(page, context, fixture);
+    await proveWorkingWatch(page, fixture, watchBaseline);
     await attachEvidence(page, fixture, "before-sign-out");
     const active = (await readNativeFriendWatchTrace(page)).active;
     await auth.signedInAs(null);
