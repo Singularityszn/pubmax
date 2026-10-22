@@ -284,6 +284,7 @@ jobs:
           e2e/price-source-create-action.spec.ts
           e2e/profile-avatar.spec.ts
           e2e/profile-hero-desktop.spec.ts
+          e2e/public-updates.spec.ts
           e2e/quality-floor.spec.ts
           e2e/social-composer.spec.ts
           e2e/tonight-vibe-chips.spec.ts

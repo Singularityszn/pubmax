@@ -209,11 +209,11 @@ describe("check-budget-ratchet", () => {
 
 describe("the shipped budget file", () => {
   it("budgets every route the site serves a stranger", () => {
-    // The inventory includes the public feedback page and concrete instances
+    // The inventory includes both public pages and concrete instances
     // of every dynamic and static family advertised by the sitemap.
     // docs/PERFORMANCE_BUDGETS.md "Which routes are budgeted" holds the list;
     // __tests__/sitemap.test.ts fails a family that is advertised and unmeasured.
-    expect(PERFORMANCE_BUDGETS.routes).toHaveLength(49);
+    expect(PERFORMANCE_BUDGETS.routes).toHaveLength(50);
   });
 
   it("gives every route a readiness selector and a reason", () => {

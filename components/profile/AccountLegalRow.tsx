@@ -33,6 +33,9 @@ export default function AccountLegalRow(): React.JSX.Element {
           <Link href="/feedback">Send feedback</Link>
         </li>
         <li>
+          <Link href="/updates">Updates</Link>
+        </li>
+        <li>
           <a href={CONTACT_MAILTO}>{CONTACT_EMAIL}</a>
         </li>
         <li>
