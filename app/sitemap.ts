@@ -207,7 +207,9 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       path: "/updates",
       priority: 0.4,
       changeFrequency: "weekly",
-      lastModified: new Date(`${PUBLIC_UPDATES[0].date}T00:00:00Z`),
+      lastModified: new Date(Math.max(
+        ...PUBLIC_UPDATES.map((update) => Date.parse(`${update.date}T00:00:00Z`)),
+      )),
     },
     // The public account-deletion page. Play Console holds this URL in its Data
     // safety form and expects to be able to open it, so it is listed like the

@@ -190,6 +190,27 @@ describe("sitemap()", () => {
     expect(new Date(update!.lastModified!).toISOString()).toBe("2026-10-19T00:00:00.000Z");
   });
 
+  it("uses an appended newer release to date the updates page", async () => {
+    vi.resetModules();
+    vi.doMock("@/lib/publicUpdates", async (importOriginal) => {
+      const actual = await importOriginal<typeof import("@/lib/publicUpdates")>();
+      return {
+        PUBLIC_UPDATES: [
+          ...actual.PUBLIC_UPDATES,
+          { id: "appended-release", date: "2026-10-21", title: "A newer release", changes: ["A verified change."] },
+        ],
+      };
+    });
+    try {
+      const { default: appendedSitemap } = await import("@/app/sitemap");
+      const update = (await appendedSitemap()).find((entry) => entry.url === `${SITE}/updates`);
+      expect(new Date(update!.lastModified!).toISOString()).toBe("2026-10-21T00:00:00.000Z");
+    } finally {
+      vi.doUnmock("@/lib/publicUpdates");
+      vi.resetModules();
+    }
+  });
+
   it("advertises no /near page, because /near ships noindex", () => {
     // /near is a per-user, location-dependent view and carries
     // `robots: { index: false }` (app/near/page.tsx). A sitemap row for a

@@ -30,6 +30,8 @@ export const metadata: Metadata = {
 };
 
 export default function UpdatesPage() {
+  const updates = PUBLIC_UPDATES.toSorted((left, right) => right.date.localeCompare(left.date));
+
   return (
     <>
       <SiteNav />
@@ -40,7 +42,7 @@ export default function UpdatesPage() {
           <p className="legalLede">{DESCRIPTION}</p>
         </header>
         <section aria-label="Product updates">
-          {PUBLIC_UPDATES.map((update) => (
+          {updates.map((update) => (
             <article
               key={update.id}
               className="legalSection"

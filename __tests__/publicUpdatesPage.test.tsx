@@ -25,4 +25,28 @@ describe("the public updates page", () => {
     expect(metadata.title).toBe("Updates");
     expect(metadata.description).toBe("The latest changes to PUBMAXX, with the day each one went live.");
   });
+
+  it("shows an appended newer release before older notes", async () => {
+    vi.resetModules();
+    vi.doMock("@/lib/publicUpdates", async (importOriginal) => {
+      const actual = await importOriginal<typeof import("@/lib/publicUpdates")>();
+      return {
+        PUBLIC_UPDATES: [
+          ...actual.PUBLIC_UPDATES,
+          { id: "appended-release", date: "2026-10-21", title: "A newer release", changes: ["A verified change."] },
+        ],
+      };
+    });
+    try {
+      const { default: AppendedUpdatesPage } = await import("@/app/updates/page");
+      document.body.innerHTML = renderToStaticMarkup(createElement(AppendedUpdatesPage));
+
+      expect(Array.from(document.querySelectorAll("time"), (time) => time.dateTime))
+        .toEqual(["2026-10-21", "2026-10-19"]);
+      expect(document.querySelector("article h2")?.textContent).toBe("A newer release");
+    } finally {
+      vi.doUnmock("@/lib/publicUpdates");
+      vi.resetModules();
+    }
+  });
 });
