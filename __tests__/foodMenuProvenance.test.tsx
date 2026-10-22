@@ -5,6 +5,10 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 import FoodMenu from "@/components/food/FoodMenu";
 import type { FoodItem } from "@/lib/food";
+import {
+  applyFoodPriceUpdatesToMenu,
+  parseFoodPriceUpdates,
+} from "@/lib/foodPriceUpdates";
 
 const item = {
   id: "food-lunch",
@@ -20,6 +24,102 @@ function renderFood(overrides: Partial<FoodItem> = {}) {
 }
 
 describe("food menu price evidence", () => {
+  it("keeps the dietary publisher and date beside its label after a parsed price-only update", () => {
+    const now = Date.parse("2026-10-14T06:51:38.364Z");
+    const original = {
+      venueKey: "the-eagle-test",
+      itemName: "Mango sorbet (2 scoops)",
+      category: "desserts",
+      priceGbp: 3.5,
+      caloriesKcal: 0,
+      dietary: ["vegan"],
+      source: {
+        label: "The Eagle - official published menu",
+        url: "https://www.theeaglew12.co.uk/food-drink",
+        licence: "First-party facts, with the observation date and link",
+      },
+      observedAt: "2026-10-13T06:51:38.364Z",
+    };
+    const initial = applyFoodPriceUpdatesToMenu(
+      "the-eagle-test", [], parseFoodPriceUpdates([original], now),
+    );
+    const updates = parseFoodPriceUpdates([{
+      venueKey: original.venueKey,
+      itemName: original.itemName,
+      category: original.category,
+      priceGbp: 4,
+      source: {
+        ...original.source,
+        label: "Later price source",
+        url: "https://www.theeaglew12.co.uk/prices",
+      },
+      observedAt: "2026-10-14T06:00:00.000Z",
+    }], now);
+    const items = applyFoodPriceUpdatesToMenu("the-eagle-test", initial, updates);
+    const html = renderToStaticMarkup(createElement(FoodMenu, { items, venueName: "The Eagle" }));
+    const doc = new DOMParser().parseFromString(html, "text/html");
+    const price = doc.querySelector(".drinkRowSide");
+    expect(price?.textContent).toContain("£4.00");
+    expect(price?.querySelector("a")?.textContent).toBe("Later price source");
+    expect(price?.querySelector("a")?.getAttribute("href")).toBe("https://www.theeaglew12.co.uk/prices");
+    expect(price?.querySelector("time")?.getAttribute("datetime")).toBe("2026-10-14T06:00:00.000Z");
+    const dietary = doc.querySelector(".drinkServing");
+    expect(dietary?.textContent).toContain("vegan");
+    expect(dietary?.querySelector("a")?.textContent).toBe("The Eagle - official published menu");
+    expect(dietary?.querySelector("a")?.getAttribute("href")).toBe("https://www.theeaglew12.co.uk/food-drink");
+    expect(dietary?.querySelector("time")?.getAttribute("datetime")).toBe("2026-10-13T06:51:38.364Z");
+    expect(dietary?.querySelector("time")?.textContent).toBe("13 October 2026");
+  });
+
+  it("keeps dietary evidence beside the labels when it matches the price observation", () => {
+    const doc = new DOMParser().parseFromString(renderFood({
+      dietary: ["vegan", "vegetarian", "gluten-free"],
+      dietaryProvenance: { ...item.provenance, sourceUrl: item.source },
+    }), "text/html");
+    const dietary = doc.querySelector(".drinkServing");
+    expect(dietary?.textContent).toContain("vegan · vegetarian · gluten free");
+    expect(dietary?.querySelector("a")?.textContent).toBe("Young's official menu");
+    expect(dietary?.querySelector("a")?.getAttribute("href")).toBe(item.source);
+    expect(dietary?.querySelector("time")?.getAttribute("datetime")).toBe(item.provenance.observedAt);
+    expect(dietary?.querySelector("time")?.textContent).toBe("11 July 2026");
+    expect(doc.querySelector(".drinkRowSide a")?.getAttribute("href")).toBe(item.source);
+    expect(doc.querySelector(".drinkRowSide time")?.getAttribute("datetime")).toBe(item.provenance.observedAt);
+  });
+
+  it.each([
+    undefined,
+    { ...item.provenance, sourceUrl: item.source, source: "" },
+    { ...item.provenance, sourceUrl: item.source, source: "   " },
+    { ...item.provenance, sourceUrl: item.source, licence: "   " },
+    { ...item.provenance, sourceUrl: item.source, observedAt: "not-a-date" },
+    { ...item.provenance, sourceUrl: "" },
+    { ...item.provenance, sourceUrl: "javascript:alert(1)" },
+    { ...item.provenance, sourceUrl: item.source, source: "seed" },
+    { ...item.provenance, sourceUrl: item.source, source: "Example demo menu" },
+  ])("does not display a dietary claim with missing, malformed, or demo evidence: %j", (dietaryProvenance) => {
+    const html = renderFood({ dietary: ["vegan"], dietaryProvenance });
+    const doc = new DOMParser().parseFromString(html, "text/html");
+    expect(doc.querySelector(".drinkServing")).toBeNull();
+    expect(doc.body.textContent).not.toContain("vegan");
+    expect(doc.querySelector(".drinkRowSide")?.textContent).toContain("£12.50");
+    expect(doc.querySelector(".drinkRowSide a")?.getAttribute("href")).toBe(item.source);
+    expect(doc.querySelector(".drinkRowSide time")?.getAttribute("datetime")).toBe(item.provenance.observedAt);
+    expect(html).not.toContain("javascript:");
+  });
+
+  it.each([undefined, []])("does not display dietary evidence without dietary tags: %j", (dietary) => {
+    const doc = new DOMParser().parseFromString(renderFood({
+      dietary,
+      dietaryProvenance: {
+        ...item.provenance, source: "Independent dietary menu", sourceUrl: "https://example.com/dietary-menu",
+      },
+    }), "text/html");
+    expect(doc.querySelector(".drinkServing")).toBeNull();
+    expect(doc.body.textContent).not.toContain("Independent dietary menu");
+    expect(doc.querySelectorAll(".drinkRow a")).toHaveLength(1);
+    expect(doc.querySelectorAll(".drinkRow time")).toHaveLength(1);
+  });
+
   it("shows one attribution when the price and calories share the exact observation", () => {
     const html = renderFood({ caloriesKcal: 650, caloriesProvenance: {
       ...item.provenance, sourceUrl: item.source,
