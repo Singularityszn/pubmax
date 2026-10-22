@@ -39,3 +39,7 @@ fbceef96205988987a929fa6b01d70677647e42f:skills/api-design/SKILL.md:generic-api-
 0792bdf96c955fba0aef07e8855bc7b138319d88:.firecrawl/design-skills/pages/impeccable.style_live-mode.html:generic-api-key:137
 0792bdf96c955fba0aef07e8855bc7b138319d88:.firecrawl/design-skills/pages/impeccable.style_slop.html:generic-api-key:177
 0792bdf96c955fba0aef07e8855bc7b138319d88:.firecrawl/design-skills/pages/impeccable.style_tutorials_getting-started.html:generic-api-key:121
+
+# Synthetic rate_limits row key in a throwaway PostgreSQL migration test.
+# This is not an authentication credential. Exact historical finding only.
+40ce6f41da1d26ee2751f03793c9836d42f4e64e:__tests__/rateLimitRefusalsUnchargedMigrationEffective.test.ts:generic-api-key:156
