@@ -126,6 +126,60 @@ describe("food menu price evidence", () => {
     expect(calories?.querySelector("time")?.getAttribute("datetime")).toBe("2026-10-13T06:51:38.364Z");
   });
 
+  it.each([
+    { order: "oldest first", dietary: [], label: "withdrawn" },
+    { order: "newest first", dietary: [], label: "withdrawn" },
+    { order: "oldest first", dietary: ["vegetarian"], label: "vegetarian" },
+    { order: "newest first", dietary: ["vegetarian"], label: "vegetarian" },
+  ])("keeps $label dietary evidence and published zero calories with rows $order", ({ order, dietary, label }) => {
+    const source = {
+      label: "Menu publisher",
+      url: "https://example.com/menu",
+      licence: "Attributed menu facts",
+    };
+    const original = {
+      venueKey: "menu-history-test",
+      itemName: "Soup (one bowl)",
+      category: "starters",
+      priceGbp: 5,
+      caloriesKcal: 52,
+      dietary: ["vegan"],
+      source,
+      observedAt: "2026-10-12T12:00:00.000Z",
+    };
+    const rows = [
+      original,
+      { ...original, caloriesKcal: 0, dietary, observedAt: "2026-10-13T12:00:00.000Z",
+        caloriesProvenance: { source: "Untrusted input", sourceUrl: "https://example.com/untrusted", observedAt: "2026-10-14T12:00:00.000Z", licence: "Unknown" } },
+      { ...original, priceGbp: 6, caloriesKcal: undefined, dietary: undefined,
+        source: { ...source, label: "New price publisher", url: "https://example.com/prices" },
+        observedAt: "2026-10-14T12:00:00.000Z" },
+    ];
+    const updates = parseFoodPriceUpdates(order === "newest first" ? rows.toReversed() : rows, Date.parse("2026-10-15T12:00:00.000Z"));
+    const items = venueFoodMenuForInspector({ id: "menu-history-test", prices: [] }, updates);
+    const doc = new DOMParser().parseFromString(renderToStaticMarkup(createElement(FoodMenu, { items })), "text/html");
+    expect(doc.querySelectorAll(".drinkRow")).toHaveLength(1);
+    expect(doc.querySelector(".drinkName")?.textContent).toBe("Soup (one bowl)");
+    expect(doc.querySelector(".drinkPrice")?.textContent).toBe("£6.00");
+    expect(doc.querySelector(".drinkRowSide a")?.textContent).toBe("New price publisher");
+    expect(doc.querySelector(".drinkRowSide time")?.getAttribute("datetime")).toBe("2026-10-14T12:00:00.000Z");
+    const dietaryEvidence = doc.querySelector(".drinkServing");
+    if (label === "withdrawn") {
+      expect(dietaryEvidence).toBeNull();
+    } else {
+      expect(dietaryEvidence?.textContent).toContain("vegetarian");
+      expect(dietaryEvidence?.textContent).not.toContain("vegan");
+      expect(dietaryEvidence?.querySelector("a")?.getAttribute("href")).toBe("https://example.com/menu");
+      expect(dietaryEvidence?.querySelector("time")?.getAttribute("datetime")).toBe("2026-10-13T12:00:00.000Z");
+    }
+    const calories = doc.querySelector(".foodCalories");
+    expect(calories?.textContent).toContain("0 kcal on the menu");
+    expect(calories?.querySelector("a")?.textContent).toBe("Menu publisher");
+    expect(calories?.querySelector("a")?.getAttribute("href")).toBe("https://example.com/menu");
+    expect(calories?.querySelector("time")?.getAttribute("datetime")).toBe("2026-10-13T12:00:00.000Z");
+    expect(doc.body.textContent).not.toContain("Untrusted input");
+  });
+
   it("keeps dietary evidence beside the labels when it matches the price observation", () => {
     const doc = new DOMParser().parseFromString(renderFood({
       dietary: ["vegan", "vegetarian", "gluten-free"],
