@@ -33,6 +33,19 @@ spelled-out amounts or every possible refusal wording. They do not yet cover
 hours, heritage, the hosted Pub Pal agent, or the Night Architect MCP tools.
 The existing `eval:pal:live` command does not run this new subset.
 
+`__tests__/palFailClosedHours.test.ts` tests the `hoursAnswer: { value: null }`
+expectation. It requires an explicit statement about missing hours. It rejects
+numeric clock times, noon, midnight, 24-hour claims, and common open/closed claims
+in the answer or card notes. These wording checks are bounded patterns. They do
+not cover spelled-out times or every possible refusal or opening-status phrase.
+
+The hours test also runs a real offline question about The Coronet. The current
+keyless path returns unrelated pub picks without answering the hours question.
+The test proves that the evaluator rejects that response. It does not prove
+that the assistant answers hours questions correctly. A later routing fix must
+change that test to require an honest answer. The hours corpus, known-hours
+values and sources, and hosted assistant adapters remain unfinished.
+
 Memory has its own suite: [`memory/`](memory/README.md) grades what Pub Pal
 remembers about the person it is talking to (`npm run eval:pal:memory`).
 
