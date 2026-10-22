@@ -3172,7 +3172,7 @@ export default function PubMap({
 
   // Deep-links from /pubs (?sel=) must still paint the pin even if a filter
   // would otherwise hide a scraped gazetteer pub.
-  const { filteredPubVenues, kindVisibleMapVenues, canvasVenues } = useMapVenueCollections({
+  const { filteredPubVenues, searchMatchVenues, kindVisibleMapVenues, canvasVenues } = useMapVenueCollections({
     filteredVenues,
     pinVenues,
     nearbyMapResultForView,
@@ -4272,7 +4272,7 @@ export default function PubMap({
     }
   }, [activeBandId]);
 
-  const filteredVenueCount = filteredVenues.length;
+  const filteredVenueCount = searchMatchVenues.length;
   const filteredPubVenueCount = filteredPubVenues.length;
   const firstRouteId = firstIdOf(route);
   const firstFilteredVenueId = firstIdOf(filteredPubVenues);
@@ -4291,12 +4291,12 @@ export default function PubMap({
   // The query whose camera an explicit pick already owns. Cleared on every
   // keystroke, so the next word re-arms the typed-search move.
   const searchQueryCameraOwnedRef = useRef<string | null>(null);
-  const filteredVenuesRef = useRef(filteredVenues);
+  const searchMatchVenuesRef = useRef(searchMatchVenues);
   useEffect(() => {
-    filteredVenuesRef.current = filteredVenues;
-  }, [filteredVenues]);
+    searchMatchVenuesRef.current = searchMatchVenues;
+  }, [searchMatchVenues]);
   const selectTopSearchMatch = useCallback(() => {
-    const top = filteredVenuesRef.current[0];
+    const top = searchMatchVenuesRef.current[0];
     if (top) selectVenue(top.id);
   }, [selectVenue]);
 
@@ -4329,7 +4329,7 @@ export default function PubMap({
     const handle = window.setTimeout(() => {
       const move = typedSearchCameraMove({
         query: trimmedMapQuery,
-        matchCount: filteredVenuesRef.current.length,
+        matchCount: searchMatchVenuesRef.current.length,
         // Re-read at fire time: focus can return during the debounce.
         searchFieldFocused: isMapSearchField(document.activeElement),
         // An explicit pick (an area, a pub) already pointed the camera at an
@@ -4338,7 +4338,7 @@ export default function PubMap({
       });
       if (move === "select-one") {
         // Fly to the one match and open its sheet (reuses the pin path).
-        const [match] = filteredVenuesRef.current;
+        const [match] = searchMatchVenuesRef.current;
         if (!match) return;
         selectVenue(match.id);
       } else if (move === "fit-many") {
@@ -4359,7 +4359,7 @@ export default function PubMap({
   // A zero-result query never moves the camera and never claims pins.
   const didRestoreQueryFlyRef = useRef(false);
   useEffect(() => {
-    const matches = filteredVenues;
+    const matches = searchMatchVenues;
     const restore = resolveArrivalQueryRestore({
       arrivalSearch,
       currentQuery: trimmedMapQuery,
@@ -4400,7 +4400,7 @@ export default function PubMap({
     return () => window.clearTimeout(handle);
   }, [
     mapCanvasReady,
-    filteredVenues,
+    searchMatchVenues,
     arrivalSearch,
     trimmedMapQuery,
     selectedVenueId,
@@ -6787,7 +6787,6 @@ export default function PubMap({
           if (filteredPubVenueCount === 1 && match) {
             moveMapCameraTo({ center: [match.longitude, match.latitude], zoom: 14.5 });
           } else {
-            setNearbyMapResult(null);
             setSearchRecoveryToken((token) => token + 1);
           }
         }}

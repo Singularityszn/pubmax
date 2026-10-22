@@ -2,6 +2,7 @@
 // from the user query without calling a paid model.
 
 import { NIGHT_AREAS } from "@/lib/nightAreas";
+import { LONDON_BOROUGHS } from "@/lib/boroughs";
 import { detectWhatsOnIntent } from "@/lib/concierge/whatsOn";
 import type { AskToolName } from "@/lib/ask/types";
 import type { DrinkCategory } from "@/lib/drinks";
@@ -372,6 +373,20 @@ export function unambiguousAskArea(text: string): string | null | undefined {
   const places = location.replace(area, "").replace(/,?\s*\b(?:please|for|with|under|below|max|and\s+(?:show|put|open|map)|not)\b.*$/i, "");
   return candidates.length > 1 || /\b(?:or|and)\b|[,/]/i.test(places)
     || (candidates.length === 0 && /\b(?:or|and)\b|[,/]/i.test(area)) ? null : area;
+}
+
+export function resolveAskLocality(text: string):
+  | { kind: "supported" | "unsupported"; area: string }
+  | { kind: "ambiguous" | "missing" } {
+  const area = unambiguousAskArea(text);
+  if (area === null) return { kind: "ambiguous" };
+  if (area === undefined) return { kind: "missing" };
+  const key = area.toLocaleLowerCase("en-GB");
+  const supported = key === "london"
+    || defaultKnownAreas().some((label) => label.toLocaleLowerCase("en-GB") === key)
+    || LONDON_BOROUGHS.some((label) => label.toLocaleLowerCase("en-GB") === key)
+    || isKnownAskPlacePhrase(area);
+  return { kind: supported ? "supported" : "unsupported", area };
 }
 
 export function refineVenueAreaFollowUp(query: string, priorUserContent: string | readonly string[] | null | undefined): string | null {

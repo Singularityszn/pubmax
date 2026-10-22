@@ -29,10 +29,6 @@ export function useMapVenueCollections({
   query: string;
   searchPickedVenueId: string;
 }) {
-  const filteredPubVenues = useMemo(
-    () => filteredVenues.filter(isPubVenue),
-    [filteredVenues],
-  );
   const mapMembershipVenues = useMemo(
     () => venuesInNearbyMembership(pinVenues, nearbyMapResultForView),
     [pinVenues, nearbyMapResultForView],
@@ -45,9 +41,17 @@ export function useMapVenueCollections({
     () => filterVenuesByKind(experienceVisibleMapVenues, venueKindVisibility),
     [experienceVisibleMapVenues, venueKindVisibility],
   );
+  const searchMatchVenues = useMemo(() => {
+    const drawableIds = new Set(kindVisibleMapVenues.map((venue) => venue.id));
+    return filteredVenues.filter((venue) => drawableIds.has(venue.id));
+  }, [filteredVenues, kindVisibleMapVenues]);
+  const filteredPubVenues = useMemo(
+    () => searchMatchVenues.filter(isPubVenue),
+    [searchMatchVenues],
+  );
   const canvasVenues = useMemo(
     () => withForcedVenue(kindVisibleMapVenues, venueById, selectedVenueId || (query.trim() ? searchPickedVenueId : "")),
     [kindVisibleMapVenues, venueById, selectedVenueId, query, searchPickedVenueId],
   );
-  return { filteredPubVenues, kindVisibleMapVenues, canvasVenues };
+  return { filteredPubVenues, searchMatchVenues, kindVisibleMapVenues, canvasVenues };
 }
