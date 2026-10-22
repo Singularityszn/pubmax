@@ -1,0 +1,3 @@
+{
+  "/api/night-stories/[id]/contributors/route": "app/api/night-stories/[id]/contributors/route.js"
+}

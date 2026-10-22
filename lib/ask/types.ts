@@ -107,7 +107,7 @@ export function isAskToolName(value: string): value is AskToolName {
 }
 
 /** Session draft written when the user confirms a draft_plan proposal. */
-export const ASK_PLAN_DRAFT_STORAGE_KEY = "pubmax:ask-plan-draft:v1";
+export { ASK_PLAN_DRAFT_STORAGE_KEY } from "@/lib/planStorageKeys";
 
 export type AskPlanDraft = {
   query: string;

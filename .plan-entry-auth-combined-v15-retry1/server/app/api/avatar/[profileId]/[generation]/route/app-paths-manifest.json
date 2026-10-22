@@ -1,0 +1,3 @@
+{
+  "/api/avatar/[profileId]/[generation]/route": "app/api/avatar/[profileId]/[generation]/route.js"
+}

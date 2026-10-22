@@ -6,7 +6,7 @@ vi.mock("@/components/nav/SiteNav", () => ({
   default: () => createElement("nav"),
 }));
 
-vi.mock("@/components/plan/PlanComposer", () => ({
+vi.mock("@/components/plan/PlanEntry", () => ({
   default: () => createElement("form"),
 }));
 

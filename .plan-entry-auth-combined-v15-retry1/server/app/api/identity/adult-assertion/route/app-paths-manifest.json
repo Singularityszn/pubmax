@@ -1,0 +1,3 @@
+{
+  "/api/identity/adult-assertion/route": "app/api/identity/adult-assertion/route.js"
+}

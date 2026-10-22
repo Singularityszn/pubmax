@@ -289,7 +289,12 @@ const CoffeePilotLoadFailed = dynamic(
   () => import("@/components/map/CoffeePilotLoadFailed"),
   { ssr: false },
 );
-const MapToolbar = dynamic(() => import("@/components/map/MapToolbar"), {
+const MapToolbar = dynamic(() => {
+  // Desktop search is an arrival control. Start its bytes with the toolbar,
+  // while its own lazy panel retains the failure message and retry policy.
+  void import("@/components/map/MapSearchSuggest").catch(() => undefined);
+  return import("@/components/map/MapToolbar");
+}, {
   ssr: false,
 });
 // Desktop right-rail (D3.1): off the critical map chunk and never on mobile.

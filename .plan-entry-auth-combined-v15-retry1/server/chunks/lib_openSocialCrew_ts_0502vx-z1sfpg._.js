@@ -1,0 +1,3 @@
+module.exports=[579205,e=>{"use strict";let n="place:";e.s(["Y",0,50,"t",0,n,"i",0,"Open plans need a listed pub or a named public place.","h",0,function(e){let t=e?.trim()??"";if(!t)return{kind:"refused"};if(t.startsWith(n)){let e=function(e){if(!e.startsWith(n))return null;let t=e.slice(n.length).trim();return t.length>0?t:null}(t);return e?{kind:"place",placeId:e}:{kind:"refused"}}return t.includes(" ")||t.length>120?{kind:"refused"}:{kind:"venue",venueId:t}},"d",0,function(e){return e&&0!==e.length?[...e].sort((e,n)=>e.position-n.position)[0]??null:null}])}];
+
+//# sourceMappingURL=lib_openSocialCrew_ts_0502vx-z1sfpg._.js.map

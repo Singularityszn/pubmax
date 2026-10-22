@@ -1,0 +1,3 @@
+module.exports=[530141,a=>{"use strict";a.i(907997),a.i(599475),a.i(799152),a.i(516111);var b=a.i(261842);a.i(461417);let c=b.X;var d=a.i(352425);let e={alt:"The cheapest pints and best pubs in this London borough. PUBMAXX",contentType:"image/png",runtime:"nodejs",size:c};async function f(a){let{__metadata_id__:b,...c}=await a.params,f=(0,d.fillMetadataSegment)("/borough/[slug]",c,"opengraph-image",!1);return[function(a){let b={alt:a.alt,type:a.contentType||"image/png",url:f+"?0b036348120f599d"},{size:c}=a;return c&&(b.width=c.width,b.height=c.height),b}(e)]}a.s(["default",0,f],530141)},796974,function(a){a.n(a.i(530141))}];
+
+//# sourceMappingURL=app_borough_%5Bslug%5D_opengraph-image--metadata_1i7-vyz3dx0yf.js.map

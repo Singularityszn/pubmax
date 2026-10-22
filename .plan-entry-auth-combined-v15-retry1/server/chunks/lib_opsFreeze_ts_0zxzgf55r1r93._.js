@@ -1,0 +1,3 @@
+module.exports=[636909,e=>{"use strict";var o=e.i(857629);e.s(["f",0,function(e=process.env){return function(e=process.env){return"social"===(e.PUBMAX_SOCIAL_FREEZE??"").trim().toLowerCase()?{frozen:!0,scope:"social"}:{frozen:!1,scope:"off"}}(e).frozen?(0,o.N)("Reading stays open. Posting is paused for a bit while we sort something out.","SOCIAL_FROZEN",503,{retryable:!0}):null}])}];
+
+//# sourceMappingURL=lib_opsFreeze_ts_0zxzgf55r1r93._.js.map

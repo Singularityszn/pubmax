@@ -1,0 +1,15 @@
+{
+  "node": {
+    "00fcf8353b0745f30912c228185973b16ddf3ac256": {
+      "workers": {
+        "app/borough/[slug]/page": {
+          "moduleId": 739688,
+          "async": false
+        }
+      },
+      "exportedName": "invalidateCacheAction",
+      "filename": "node_modules/@clerk/nextjs/dist/esm/app-router/server-actions.js"
+    }
+  },
+  "edge": {}
+}

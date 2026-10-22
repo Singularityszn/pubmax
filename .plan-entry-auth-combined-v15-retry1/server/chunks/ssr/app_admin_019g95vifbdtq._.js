@@ -1,0 +1,3 @@
+module.exports=[[817455,a=>{let b=(0,a.i(211857).registerClientReference)(function(){throw Error("Attempted to call the default export of [project]/app/admin/AdminTokenForm.tsx from the server, but it's on the client. It's not possible to invoke a client function from the server, it can only be rendered as a Component or passed to props of a Client Component.")},"[project]/app/admin/AdminTokenForm.tsx","default");a.s(["default",0,b])},363914,a=>{var b=a.i(817455);a.n(b)},788573,a=>{var b=a.i(907997),c=a.i(363914);a.s(["default",0,function(){return(0,b.jsx)(c.default,{})}])}],153334,function(a){a.n(a.i(788573))}];
+
+//# sourceMappingURL=app_admin_019g95vifbdtq._.js.map

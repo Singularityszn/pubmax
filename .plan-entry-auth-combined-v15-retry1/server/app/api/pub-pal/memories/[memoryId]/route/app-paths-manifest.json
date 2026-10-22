@@ -1,0 +1,3 @@
+{
+  "/api/pub-pal/memories/[memoryId]/route": "app/api/pub-pal/memories/[memoryId]/route.js"
+}

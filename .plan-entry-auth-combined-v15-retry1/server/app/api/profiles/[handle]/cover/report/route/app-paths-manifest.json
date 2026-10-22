@@ -1,0 +1,3 @@
+{
+  "/api/profiles/[handle]/cover/report/route": "app/api/profiles/[handle]/cover/report/route.js"
+}

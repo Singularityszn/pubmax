@@ -1,0 +1,3 @@
+{
+  "/api/pub-pal/tools/[toolName]/route": "app/api/pub-pal/tools/[toolName]/route.js"
+}

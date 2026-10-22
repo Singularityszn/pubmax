@@ -1,0 +1,3 @@
+module.exports=[644095,e=>{"use strict";var n=e.i(240604),u=e.i(794234);async function a(e){let a=await (0,n.P)(e);return"unavailable"===a.status?{ok:!1,unavailable:!0}:"found"===a.status&&(0,u.A)(a.venue.kind)?{ok:!0,venueId:a.canonicalId,venueName:a.venue.name}:{ok:!1,unavailable:!1}}async function t(e,n){if(!e.venueProjected||!e.venueId)return{...e,venueName:null};if(n?.venueId===e.venueId)return{...e,venueName:n.venueName};let u=await a(e.venueId);return{...e,venueName:u.ok?u.venueName:null}}async function v(e){return Promise.all(e.map(e=>t(e)))}e.s(["t",0,t,"R",0,v,"m",0,a])}];
+
+//# sourceMappingURL=lib_socialPostVenue_server_ts_1c6fqmjl8z6ki._.js.map

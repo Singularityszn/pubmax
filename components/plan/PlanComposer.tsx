@@ -16,6 +16,8 @@ import { usePathname, useRouter } from "next/navigation";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { useViewerHandle } from "@/components/auth/useViewerHandle";
 import PlanDescribeFirst from "@/components/plan/PlanDescribeFirst";
+import { initialComposerDraftFields, readPlanComposerRecovery, type PlanComposerRecovery, type PlanEntryArrival } from "@/components/plan/PlanComposerRecovery";
+import type { PlanEntryRequest } from "@/components/plan/PlanEntry";
 import PlanCultureOpener from "@/components/plan/PlanCultureOpener";
 import dynamic from "next/dynamic";
 import { SlidersHorizontal } from "lucide-react";
@@ -66,8 +68,7 @@ import {
   type PlanStopCount,
 } from "@/lib/planStopCount";
 import { planHasRoute, type PlanState } from "@/lib/plan";
-import { parsePlanDraft, PLAN_DRAFT_KEY, readPlanDraftEnvelope, writePlanDraftEnvelope } from "@/lib/planDraft";
-import { readPlanRouteDraftEnvelope } from "@/lib/planRouteDraft";
+import { parsePlanDraft, writePlanDraftEnvelope } from "@/lib/planDraft";
 import {
   PLANNING_INTENT_SOURCES,
   readPlanningIntent,
@@ -80,7 +81,6 @@ import {
   composerLockErrorFromResponse,
   londonServiceDateLabel,
   releaseAcceptedPlanContext,
-  resolveComposerHydration,
   seedProvisionalStop1,
   UNRESOLVED_ACCEPTED_STOP_LABEL,
   UNRESOLVED_ACCEPTED_VENUE_LABEL,
@@ -106,14 +106,11 @@ import {
   clearPlanIntakeDraft,
   canSeedPlanIntakeArea,
   createPlanIntakeDraft,
-  defaultLondonStartInput,
   londonDateTimeInputFromIso,
   londonDateTimeInputToIso,
   nightAreaForPlanIntakePatch,
   planIntakeHandoff,
   planIntakeNightContextPatch,
-  readPlanIntakeDraft,
-  readPlanIntakeDraftWithMetadata,
   reopenPlanIntakeStep,
   resolveFutureLondonStartIso,
   resolvePlanIntakeAreaSeed,
@@ -1067,10 +1064,6 @@ export function nightAreaCoverageMeta(area: NightArea, now = new Date()): string
   return `Last checked ${reviewed} · review through ${expires}.`;
 }
 
-function nextEvening(): string {
-  return defaultLondonStartInput();
-}
-
 function unsupportedPatchForCurrentGenerator(
   draft: PlanIntakeDraft,
   contextPatch: Partial<NightContext>,
@@ -1176,31 +1169,6 @@ export function PlanComposerErrorNotice({ message }: { message: string }) {
   return <p className="planComposer__error" role="alert">{message}</p>;
 }
 
-type ComposerDraftFields = {
-  title: string;
-  creatorName: string;
-  startTime: string | (() => string);
-  conciergeQuery: string;
-};
-
-/**
- * Prefer arbitrated accepted context when the handoff is present. The ?? chain
- * keeps generic Plan values when no accepted context exists.
- * `startTime` keeps the bare `nextEvening` function reference (not a call) so
- * `useState` still lazily initialises it when neither source has a value.
- */
-function initialComposerDraftFields(
-  handoff: ComposerHydration | null,
-  recoveredDraft: ReturnType<typeof parsePlanDraft>,
-): ComposerDraftFields {
-  return {
-    title: handoff?.title ?? recoveredDraft?.title ?? "Tonight, sorted",
-    creatorName: handoff?.creatorName ?? recoveredDraft?.creatorName ?? "",
-    startTime: handoff?.startsAt ?? recoveredDraft?.startTime ?? nextEvening,
-    conciergeQuery: recoveredDraft?.conciergeQuery ?? "",
-  };
-}
-
 function initialComposerStops(
   recoveredRouteDraft: StoredRouteDraft | null,
   recoveredDraft: ReturnType<typeof parsePlanDraft>,
@@ -1268,12 +1236,13 @@ const NO_URL_PREFILL: UrlPrefill = { ask: null, handoffAsk: null };
  * hydration lands. On a client-side navigation the render-phase read can still
  * see the previous route, so `PlanComposerForm` re-reads in `useLayoutEffect`
  * after the router commits the new address. Nothing but `window.location` is
- * touched.
+ * touched for standalone callers. The entry controller supplies Next’s
+ * authoritative query so cached imports do not read the previous address.
  */
-function describeAskFromLocation(): UrlPrefill {
-  if (typeof window === "undefined") return NO_URL_PREFILL;
+function describeAskFromLocation(routeSearch?: string): UrlPrefill {
+  if (routeSearch === undefined && typeof window === "undefined") return NO_URL_PREFILL;
   try {
-    const { search } = window.location;
+    const search = routeSearch ?? window.location.search;
     return {
       ask: parsePlanDescribeFromSearch(search),
       handoffAsk: parsePlanHandoffQueryFromSearch(search),
@@ -1293,7 +1262,13 @@ function PlanComposerForm({
   hasDurableIntakeDraft,
   handoff: hydratedHandoff,
   canPersist,
+  entryRequest,
+  capturedAt,
+  routeSearch,
 }: {
+  entryRequest?: PlanEntryRequest;
+  capturedAt?: number;
+  routeSearch?: string;
   recoveredDraft: ReturnType<typeof parsePlanDraft>;
   recoveredRouteDraft: StoredRouteDraft | null;
   recoveredIntake: PlanIntakeDraft;
@@ -1318,7 +1293,7 @@ function PlanComposerForm({
   useEffect(() => {
     liveHeldVenueId.current = heldVenueId;
   }, [heldVenueId]);
-  const draftFields = initialComposerDraftFields(handoff, recoveredDraft);
+  const draftFields = initialComposerDraftFields(handoff, recoveredDraft, entryRequest?.capturedAt ?? capturedAt);
   const [title, setTitle] = useState(draftFields.title);
   const [creatorName, setCreatorName] = useState(draftFields.creatorName);
   const [startTime, setStartTime] = useState(draftFields.startTime);
@@ -1330,7 +1305,7 @@ function PlanComposerForm({
   const [venueIndexStatus, setVenueIndexStatus] = useState<"reading" | "read" | "failed">("reading");
   const pathname = usePathname();
   const [urlPrefill] = useState(() =>
-    canPersist ? describeAskFromLocation() : NO_URL_PREFILL,
+    canPersist ? describeAskFromLocation(routeSearch) : NO_URL_PREFILL,
   );
   const urlAsk = urlPrefill.ask;
   // Describe-first is the default open. A returning visitor with real,
@@ -1340,7 +1315,7 @@ function PlanComposerForm({
   // just chose, and describe-first is the only surface that can show it. A
   // chip link (`occasion`, `describe`) does not, so those keep the rule.
   const initialEntryMode: "describe" | "wizard" =
-    hasDurableIntakeDraft && !recoveredIntake.completed && !urlPrefill.handoffAsk
+    entryRequest?.mode === "wizard" || (hasDurableIntakeDraft && !recoveredIntake.completed && !urlPrefill.handoffAsk)
       ? "wizard"
       : "describe";
   // A URL ask is never dropped in silence. Where describe-first cannot render
@@ -1355,12 +1330,14 @@ function PlanComposerForm({
       entryMode: initialEntryMode,
     });
   const [conciergeQuery, setConciergeQuery] = useState(
-    (askNeedsConciergeField ? urlAsk ?? "" : "") || draftFields.conciergeQuery,
+    entryRequest?.query ?? ((askNeedsConciergeField ? urlAsk ?? "" : "") || draftFields.conciergeQuery),
   );
-  const [planIntake, setPlanIntake] = useState(recoveredIntake);
+  const [planIntake, setPlanIntake] = useState(() => entryRequest?.mode === "wizard" && entryRequest.stopCount !== undefined
+    ? { ...recoveredIntake, answers: { ...recoveredIntake.answers, stopCount: entryRequest.stopCount } }
+    : recoveredIntake);
   const initialPlanIntakeRef = useRef(recoveredIntake);
   const [entryMode, setEntryMode] = useState<"describe" | "wizard">(initialEntryMode);
-  const [askDraftQuery, setAskDraftQuery] = useState(urlAsk ?? "");
+  const [askDraftQuery, setAskDraftQuery] = useState(entryRequest?.query ?? urlAsk ?? "");
   const askDraftConsumedRef = useRef(false);
   // An ask the address carries is applied ONCE. This effect re-runs whenever
   // the surface it has to write into can change - releasing a held acceptance
@@ -1369,7 +1346,7 @@ function PlanComposerForm({
   const appliedUrlAskRef = useRef<string | null>(null);
   useLayoutEffect(() => {
     if (!canPersist) return;
-    const fresh = describeAskFromLocation();
+    const fresh = describeAskFromLocation(routeSearch);
     if (!fresh.ask) return;
     if (appliedUrlAskRef.current === fresh.ask) return;
     const ask = fresh.ask;
@@ -1393,7 +1370,7 @@ function PlanComposerForm({
       if (opensDescribeFirstForHandoff) setEntryMode("describe");
       if (askNeedsConciergeSurface) setConciergeQuery(ask);
     });
-  }, [canPersist, pathname, heldVenueId, recoveredIntake.completed, hasDurableIntakeDraft]);
+  }, [canPersist, pathname, routeSearch, heldVenueId, recoveredIntake.completed, hasDurableIntakeDraft]);
   useEffect(() => {
     // The URL ask is already in state; this effect exists to SPEND the draft,
     // which is a storage write and so waits for a browser that can persist.
@@ -1413,11 +1390,10 @@ function PlanComposerForm({
         } catch {
           raw = null;
         }
-        // The address is re-read HERE rather than closed over: this effect is
-        // scheduled by the mount render, which on a client-side navigation
-        // still saw the previous route, so a captured ask would read as none
-        // and hand the field back to the draft the URL just beat.
-        const askOnScreen = describeAskFromLocation().ask ?? appliedUrlAskRef.current;
+        // The entry's router query wins before a cached module mounts.
+        // Standalone callers still re-read the committed browser address,
+        // so the old mount address cannot hand input back to the spent draft.
+        const askOnScreen = describeAskFromLocation(routeSearch).ask ?? appliedUrlAskRef.current;
         if (askOnScreen || !raw) return;
         const parsed = JSON.parse(raw) as AskPlanDraft;
         const query = typeof parsed?.query === "string" ? parsed.query.trim().slice(0, 500) : "";
@@ -1427,7 +1403,7 @@ function PlanComposerForm({
         /* private mode or bad JSON */
       }
     });
-  }, [canPersist]);
+  }, [canPersist, routeSearch]);
   const palHandoffAutoGenerateStartedRef = useRef(false);
   // D3: a generated route must be SEEN. The reveal is requested by the
   // generation success path and runs in an effect, because on a describe-first
@@ -1469,16 +1445,15 @@ function PlanComposerForm({
   useEffect(() => {
     if (!canPersist) return;
     if (palHandoffAutoGenerateStartedRef.current) return;
-    // A client-side Pal Open in Plan still sees the previous route during the
-    // mount render, so urlPrefill.handoffAsk can be empty. Re-read the live
-    // address the same way the prefill layout effect does after the router
-    // commits it; gating on the stale read skipped the deferred generate.
-    const liveHandoff = describeAskFromLocation().handoffAsk ?? urlPrefill.handoffAsk;
+    // The entry supplies the current router query. Standalone callers still
+    // re-read the live address after the router commits a Pal handoff.
+    // Gating on their old mount address skipped the deferred generation.
+    const liveHandoff = describeAskFromLocation(routeSearch).handoffAsk ?? urlPrefill.handoffAsk;
     if (!shouldAutoGeneratePalHandoffPlan(liveHandoff)) return;
     palHandoffAutoGenerateStartedRef.current = true;
     // Defer until the URL ask prefill lands in describe-first or the concierge field.
     void Promise.resolve().then(() => {
-      const handoffAsk = describeAskFromLocation().handoffAsk ?? liveHandoff;
+      const handoffAsk = describeAskFromLocation(routeSearch).handoffAsk ?? liveHandoff;
       if (!handoffAsk?.trim()) return;
       submitFromEntry(
         handoffAsk.trim(),
@@ -1489,7 +1464,7 @@ function PlanComposerForm({
     // submitFromEntry is intentionally excluded: it is recreated on render,
     // while this effect must run only when the URL handoff changes.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [canPersist, urlPrefill.handoffAsk]);
+  }, [canPersist, routeSearch, urlPrefill.handoffAsk]);
   const [conciergeNote, setConciergeNote] = useState("");
   const routeDraftFields = initialComposerRouteDraft(recoveredRouteDraft);
   const [nightContext, setNightContext] = useState<NightContext | null>(routeDraftFields.nightContext);
@@ -1828,6 +1803,21 @@ function PlanComposerForm({
       requestedStopCount === undefined ? undefined : { stopCount: requestedStopCount },
     );
   }
+
+  const entrySubmissionStarted = useRef(false);
+  useEffect(() => {
+    if (!canPersist || entryRequest?.mode !== "submit") return;
+    let cancelled = false;
+    void Promise.resolve().then(() => {
+      if (cancelled || entrySubmissionStarted.current) return;
+      entrySubmissionStarted.current = true;
+      submitFromEntry(entryRequest.query, entryRequest.stopCount);
+    });
+    return () => { cancelled = true; };
+    // The captured request is consumed once, after this form mounts. A changing
+    // render closure must not repeat the generation request.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [canPersist, entryRequest]);
 
   function updatePlanStartTime(value: string) {
     setStartTime(value);
@@ -2433,7 +2423,7 @@ function PlanComposerForm({
       </div>
     </section>
   );
-  const coverageBlock = (
+  const coverageBlock = composerVisible ? (
     <section className="planComposer__coverage" aria-labelledby="plan-coverage-title">
       <details>
         <summary>
@@ -2491,7 +2481,7 @@ function PlanComposerForm({
         </div>
       </details>
     </section>
-  );
+  ) : null;
   const fieldsBlock = (
     <>
       <div className="planComposer__field planComposer__field--wide">
@@ -2605,7 +2595,10 @@ function PlanComposerForm({
           onSubmit={submitFromEntry}
           onQueryChange={setConciergeQuery}
           onPrefillQueryChange={adoptDescribePrefillQuery}
-          onGuideMeInstead={() => setEntryMode("wizard")}
+          onGuideMeInstead={(stopCount) => {
+            if (stopCount !== undefined) updatePlanIntake({ ...planIntake, answers: { ...planIntake.answers, stopCount } });
+            setEntryMode("wizard");
+          }}
         />
       ) : !(resultMode && planIntake.completed) && planComposerShowsIntake({
         heldVenueId,
@@ -2668,59 +2661,34 @@ function PlanComposerForm({
   );
 }
 
-export default function PlanComposer() {
+export default function PlanComposer({ recovery, arrival, entryRequest, routeSearch }: {
+  recovery?: PlanComposerRecovery;
+  arrival?: PlanEntryArrival;
+  routeSearch?: string;
+  entryRequest?: PlanEntryRequest;
+} = {}) {
   const hydrated = useSyncExternalStore(
     () => () => {},
     () => true,
     () => false,
   );
-  // L11: resolve persisted state through arbitration before the form writes a
-  // product default. A generic Plan with no recovered context gets no panel.
-  const handoff = useMemo<ComposerHydration | null>(() => {
-    if (!hydrated) return null;
-    try {
-      const resolved = resolveComposerHydration({
-        planDraft: readPlanDraftEnvelope(safeSessionStorage()),
-        routeDraft: readPlanRouteDraftEnvelope(safeLocalStorage()),
-        intakeDraft: readPlanIntakeDraftWithMetadata(),
-        planningIntent: readPlanningIntent(),
-        rememberedArea: readRememberedArea(),
-      });
-      return resolved.active ? resolved : null;
-    } catch {
-      return null;
-    }
-  }, [hydrated]);
-  const recoveredDraft = useMemo(() => {
-    if (!hydrated) return null;
-    try { return parsePlanDraft(safeSessionStorage()?.getItem(PLAN_DRAFT_KEY) ?? null); } catch { return null; }
-  }, [hydrated]);
-  const recoveredRouteDraft = useMemo(() => {
-    if (!hydrated) return null;
-    try { return parsePlanRouteDraft(safeLocalStorage()?.getItem(PLAN_ROUTE_DRAFT_KEY) ?? null); } catch { return null; }
-  }, [hydrated]);
-  const recoveredIntake = useMemo(() => {
-    if (!hydrated) return { draft: createPlanIntakeDraft(), hasDurableDraft: false };
-    const durableDraft = readPlanIntakeDraft();
-    return {
-      draft: durableDraft ?? createPlanIntakeDraft(),
-      hasDurableDraft: Boolean(durableDraft),
-    };
-  }, [hydrated]);
-  // The form is MOUNTED AGAIN once hydrated, so its state initialisers read the
-  // recovered drafts. Whatever the server-painted form held is thrown away with
-  // it, so that form takes no input (`canPersist` reaches the describe-first
-  // field as `ready`). On a slow load the browser suite typed a query into it,
-  // lost it at the remount, and tapped Sort it on an empty field (5 Oct 2026).
+  const restored = useMemo(() => hydrated ? recovery ?? readPlanComposerRecovery(arrival) : null, [hydrated, recovery, arrival]);
+  const recoveredRouteDraft = useMemo(() => parsePlanRouteDraft(restored?.routeRaw ?? null), [restored]);
+  // The server-painted field cannot accept input before the recovered form
+  // replaces it. The entry controller passes its original captured arrival,
+  // so a new typed request cannot displace recovered browser context.
   return (
     <PlanComposerForm
       key={hydrated ? "hydrated" : "server"}
-      recoveredDraft={recoveredDraft}
+      recoveredDraft={restored?.recoveredDraft ?? null}
       recoveredRouteDraft={recoveredRouteDraft}
-      recoveredIntake={recoveredIntake.draft}
-      hasDurableIntakeDraft={recoveredIntake.hasDurableDraft}
-      handoff={handoff}
+      recoveredIntake={restored?.intake ?? createPlanIntakeDraft()}
+      hasDurableIntakeDraft={restored?.hasDurableIntakeDraft ?? false}
+      handoff={restored?.handoff ?? null}
       canPersist={hydrated}
+      entryRequest={entryRequest}
+      capturedAt={restored?.capturedAt}
+      routeSearch={routeSearch}
     />
   );
 }

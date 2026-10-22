@@ -1,0 +1,3 @@
+{
+  "/api/cron/harvest-refresh/route": "app/api/cron/harvest-refresh/route.js"
+}

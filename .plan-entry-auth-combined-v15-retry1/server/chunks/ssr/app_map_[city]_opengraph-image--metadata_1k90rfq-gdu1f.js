@@ -1,0 +1,3 @@
+module.exports=[338313,a=>{"use strict";a.i(907997),a.i(599475),a.i(160870),a.i(759968),a.i(513150);var b=a.i(261842);a.i(461417);let c=b.X;var d=a.i(352425);let e={alt:"A city pub map on PUBMAXX",contentType:"image/png",runtime:"nodejs",size:c};async function f(a){let{__metadata_id__:b,...c}=await a.params,f=(0,d.fillMetadataSegment)("/map/[city]",c,"opengraph-image",!1);return[function(a){let b={alt:a.alt,type:a.contentType||"image/png",url:f+"?4bb993550ef376a8"},{size:c}=a;return c&&(b.width=c.width,b.height=c.height),b}(e)]}a.s(["default",0,f],338313)},79333,function(a){a.n(a.i(338313))}];
+
+//# sourceMappingURL=app_map_%5Bcity%5D_opengraph-image--metadata_1k90rfq-gdu1f.js.map

@@ -1,0 +1,3 @@
+(()=>{"use strict";module.exports=[496674,t=>{let i=t.i(896783).t;t.s(["f",0,i])},153435,t=>t.a(async(i,r)=>{try{var n=t.i(666680),a=t.i(723169),e=t.i(496674),s=t.i(44756),o=t.i(515221),u=i([s]);async function c(t,i,r){if(!(0,o._)())throw Error("Photo storage is unavailable. Your draft is still on this device.");return(0,s.u)("venue",(0,a.s)(t,i),(0,n.randomUUID)(),r,e.f)}async function l(t,i){(0,a.Y)(i,t)&&await (0,s.y)([t])}async function f(t,i,r=3600){if(!t||!(0,a.Y)(i,t)||!(0,o._)())return null;let{data:n,error:e}=await (0,o.Y)().storage.from(o.V).createSignedUrl(t,r);return e?null:n.signedUrl}[s]=u.then?(await u)():u,t.s(["U",0,l,"c",0,f,"k",0,c]),r()}catch(t){r(t)}},!1)]})();
+
+//# sourceMappingURL=lib_0skullnqvb1jh._.js.map

@@ -1,0 +1,1 @@
+.poiLabelCard .poiSwatch{box-shadow:0 0 0 1px color-mix(in srgb, var(--panel-raised) 70%, transparent)}html[data-legacy="1"] .poiLabelCard .poiSwatch{box-shadow:none}@media (forced-colors:active){.poiLabelCard .poiSwatch{box-shadow:none}}

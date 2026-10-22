@@ -15,6 +15,7 @@ import {
   resolveDescribeChipSubmit,
   syncPlanIntakeAreaFromQuery,
 } from "@/lib/planComposerChipFill";
+import * as nightPlanning from "@/lib/nightPlanning";
 import type { NightContext } from "@/lib/nightPlanning";
 
 vi.mock("@/components/wanted/WantedPlanChips", () => ({ default: () => null }));
@@ -313,6 +314,35 @@ describe("PlanDescribeFirst chip intent", () => {
         query.dispatchEvent(new Event("input", { bubbles: true }));
       });
       expect(onQueryChange).toHaveBeenLastCalledWith(value);
+    }
+  });
+
+  it("updates the requested count while typing without running unrelated night inference", async () => {
+    const fullInference = vi.spyOn(nightPlanning, "inferNightContext");
+    const onStopCountChange = vi.fn();
+    const onSubmit = vi.fn();
+    try {
+      await act(async () => {
+        root.render(createElement(PlanDescribeFirst, {
+          onSubmit,
+          onGuideMeInstead: vi.fn(),
+          onStopCountChange,
+        }));
+      });
+      fullInference.mockClear();
+      const query = container.querySelector<HTMLInputElement>("#plan-describe-first-query");
+      if (!query) throw new Error("describe-first query did not render");
+      const setter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, "value")?.set;
+      for (const value of ["F", "Five", "Five pubs in Camden"]) {
+        setter?.call(query, value);
+        await act(async () => query.dispatchEvent(new Event("input", { bubbles: true })));
+      }
+      expect(query.value).toBe("Five pubs in Camden");
+      expect(onStopCountChange).toHaveBeenLastCalledWith(5);
+      expect(onSubmit).not.toHaveBeenCalled();
+      expect(fullInference).not.toHaveBeenCalled();
+    } finally {
+      fullInference.mockRestore();
     }
   });
 

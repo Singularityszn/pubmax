@@ -1,0 +1,3 @@
+{
+  "/api/plans/[id]/invite-rsvp/route": "app/api/plans/[id]/invite-rsvp/route.js"
+}

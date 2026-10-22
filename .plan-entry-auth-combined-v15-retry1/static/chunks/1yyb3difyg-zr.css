@@ -1,0 +1,1 @@
+.lazyPanelFailed{min-width:0;color:var(--color-text,var(--ink));justify-content:space-between;align-items:center;gap:12px;padding:4px 4px 4px 8px;display:flex}.lazyPanelFailedCopy{min-width:0;font-size:var(--control-font-size,.875rem);color:var(--ink-soft,inherit);line-height:1.35}.lazyPanelFailed .uiButton{white-space:nowrap;flex:none}

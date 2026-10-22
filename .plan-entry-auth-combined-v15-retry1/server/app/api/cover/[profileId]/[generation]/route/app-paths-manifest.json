@@ -1,0 +1,3 @@
+{
+  "/api/cover/[profileId]/[generation]/route": "app/api/cover/[profileId]/[generation]/route.js"
+}

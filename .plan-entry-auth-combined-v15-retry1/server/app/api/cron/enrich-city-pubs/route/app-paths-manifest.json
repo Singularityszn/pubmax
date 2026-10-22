@@ -1,0 +1,3 @@
+{
+  "/api/cron/enrich-city-pubs/route": "app/api/cron/enrich-city-pubs/route.js"
+}

@@ -1,0 +1,3 @@
+module.exports=[683695,e=>{"use strict";var t=e.i(918230),r=e.i(431384),n=e.i(39813),i=e.i(515221);function a(){return(0,i._)()?n.P:n.e}async function u(e,n,i,u){let o=(0,r.e)(n??""),s=void 0===i?await (0,t.x)(e):i;if(!s)return o;try{let e=await a().getHandleByUserId(s);if(e)return e;if(u?.requireLinked)return""}catch{return""}return o}async function o(e,n){let i=await (0,t.x)(e);if(!i)return{ok:!1,status:401,error:"Sign in to message."};let u="";try{u=await a().getHandleByUserId(i)??""}catch{u=""}if(!u){let e=(0,r.e)(n??"");return e?{ok:!0,handle:e,userId:i}:{ok:!1,status:400,error:"Add your handle."}}return{ok:!0,handle:u,userId:i}}e.s(["Y",0,o,"y",0,u])}];
+
+//# sourceMappingURL=lib_messageAuth_ts_0fqek-bm197n5._.js.map

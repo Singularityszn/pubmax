@@ -1,0 +1,3 @@
+module.exports=[233966,a=>{"use strict";a.i(907997),a.i(599475),a.i(570396),a.i(673727),a.i(354366);var b=a.i(261842);a.i(461417),a.i(126130);let c=b.X;var d=a.i(352425);let e={alt:"London drink brand pint prices. PUBMAXX",contentType:"image/png",runtime:"nodejs",size:c};async function f(a){let{__metadata_id__:b,...c}=await a.params,f=(0,d.fillMetadataSegment)("/drink/[slug]",c,"opengraph-image",!1);return[function(a){let b={alt:a.alt,type:a.contentType||"image/png",url:f+"?1b3a59cf4bb911da"},{size:c}=a;return c&&(b.width=c.width,b.height=c.height),b}(e)]}a.s(["default",0,f],233966)},999033,function(a){a.n(a.i(233966))}];
+
+//# sourceMappingURL=app_drink_%5Bslug%5D_opengraph-image--metadata_1ig3epwbb_hdj.js.map

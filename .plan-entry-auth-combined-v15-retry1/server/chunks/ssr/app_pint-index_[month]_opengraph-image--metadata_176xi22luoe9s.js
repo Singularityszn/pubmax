@@ -1,0 +1,3 @@
+module.exports=[613404,a=>{"use strict";a.i(907997),a.i(599475),a.i(911924),a.i(853910);let b=a.i(261842).X;var c=a.i(352425);let d={alt:"A dated edition of The London Pint Index · PUBMAXX",contentType:"image/png",runtime:"nodejs",size:b};async function e(a){let{__metadata_id__:b,...e}=await a.params,f=(0,c.fillMetadataSegment)("/pint-index/[month]",e,"opengraph-image",!1);return[function(a){let b={alt:a.alt,type:a.contentType||"image/png",url:f+"?e424fe6fe48c8c63"},{size:c}=a;return c&&(b.width=c.width,b.height=c.height),b}(d)]}a.s(["default",0,e],613404)},320451,function(a){a.n(a.i(613404))}];
+
+//# sourceMappingURL=app_pint-index_%5Bmonth%5D_opengraph-image--metadata_176xi22luoe9s.js.map

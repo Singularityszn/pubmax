@@ -1,0 +1,3 @@
+{
+  "/api/cron/refresh-night-signals/route": "app/api/cron/refresh-night-signals/route.js"
+}

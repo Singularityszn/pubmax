@@ -1,0 +1,3 @@
+(()=>{"use strict";module.exports=[266326,n=>{n.s(["f",0,function(n){return`/u/${encodeURIComponent(n)}`}])},250115,n=>{n.s(["e",0,"PUBMAX_SOCIAL_FRIENDS_LAUNCH","f",0,"SOCIAL_PREVIEW","n",0,"Social is in preview right now.","g",0,function(n){return"0"!==n},"u",0,function(n=!0){return n},"r",0,function(n=!0){return n?"Social":"Social preview"}])}]})();
+
+//# sourceMappingURL=lib_1rgdnj_x7q3ju._.js.map

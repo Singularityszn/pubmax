@@ -1,0 +1,3 @@
+module.exports=[758220,a=>{"use strict";a.i(907997),a.i(599475),a.i(261842),a.i(532525),a.i(144472);var b=a.i(352425);let c={alt:"What's on in London tonight. PUBMAXXING",contentType:"image/png",runtime:"nodejs",size:{width:1200,height:630}};async function d(a){let{__metadata_id__:d,...e}=await a.params,f=(0,b.fillMetadataSegment)("/tonight",e,"opengraph-image",!1);return[function(a){let b={alt:a.alt,type:a.contentType||"image/png",url:f+"?d3bc9274d7cbe5f9"},{size:c}=a;return c&&(b.width=c.width,b.height=c.height),b}(c)]}a.s(["default",0,d],758220)},827422,function(a){a.n(a.i(758220))}];
+
+//# sourceMappingURL=app_tonight_opengraph-image--metadata_1gd2sx3ih1p8w.js.map

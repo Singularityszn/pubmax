@@ -1,0 +1,3 @@
+{
+  "/api/invite/[token]/rsvp/route": "app/api/invite/[token]/rsvp/route.js"
+}

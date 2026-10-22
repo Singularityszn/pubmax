@@ -1,9 +1,10 @@
+import { PLANNING_INTENT_STORAGE_KEY } from "@/lib/planStorageKeys";
 import { LONDON_BOROUGHS } from "@/lib/boroughs";
 import { CITIES, type CityId } from "@/lib/cities";
 import { NIGHT_PATCHES, type NightPatchId } from "@/lib/nightPatches";
 import { safeSessionStorage } from "@/lib/safeStorage";
 
-export const PLANNING_INTENT_STORAGE_KEY = "pubmax:planning-intent:v1";
+export { PLANNING_INTENT_STORAGE_KEY } from "@/lib/planStorageKeys";
 /**
  * A same-tab write raises no `storage` event, so a reader that only listened
  * for one kept the previous answer until a full page load. Every write and

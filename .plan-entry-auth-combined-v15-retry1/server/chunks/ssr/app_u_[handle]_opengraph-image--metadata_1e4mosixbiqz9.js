@@ -1,0 +1,3 @@
+module.exports=[957134,a=>{"use strict";a.i(907997),a.i(599475),a.i(580224),a.i(261842),a.i(461417);var b=a.i(352425);let c={alt:"Pint passport on PUBMAXXING",contentType:"image/png",runtime:"nodejs",size:{width:1200,height:630}};async function d(a){let{__metadata_id__:d,...e}=await a.params,f=(0,b.fillMetadataSegment)("/u/[handle]",e,"opengraph-image",!1);return[function(a){let b={alt:a.alt,type:a.contentType||"image/png",url:f+"?b04b46a82dd02737"},{size:c}=a;return c&&(b.width=c.width,b.height=c.height),b}(c)]}a.s(["default",0,d],957134)},472608,function(a){a.n(a.i(957134))}];
+
+//# sourceMappingURL=app_u_%5Bhandle%5D_opengraph-image--metadata_1e4mosixbiqz9.js.map

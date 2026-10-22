@@ -1,0 +1,3 @@
+(()=>{"use strict";module.exports=[293599,e=>e.a(async(t,a)=>{try{var n=await e.y("sharp-20c6a5da84e2135f");e.n(n),a()}catch(e){a(e)}},!0),846102,e=>{var t=e.i(895460),a=e.i(431384),n=e.i(39813);async function r(e){let t=[...new Set(e.map(e=>(0,a.e)(e)).filter(Boolean))];return 0===t.length?new Map:(0,n.A)().getApprovedAvatarUrlsByHandles(t)}async function i(e){if(0===e.length)return[];let t=await r(e.map(e=>e.handle));return e.map(e=>{let n=(0,a.e)(e.handle),r=n?t.get(n):void 0;return r?{...e,avatarUrl:r}:{...e}})}async function l(e){return i(await (0,t.h)(e,e=>e.handle))}e.s(["O",0,i,"w",0,function(e){return!!e?.userId?.trim()&&!(0,n.j)(e)},"H",0,l,"y",0,r])}]})();
+
+//# sourceMappingURL=%5Broot-of-the-server%5D__0jd1__muajgig._.js.map

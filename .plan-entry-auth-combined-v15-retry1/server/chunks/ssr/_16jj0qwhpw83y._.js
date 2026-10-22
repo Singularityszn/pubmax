@@ -1,0 +1,3 @@
+module.exports=[160488,a=>{a.v({badge:"E2sksq_badge"})},996447,a=>{"use strict";var b=a.i(907997),c=a.i(473306),d=a.i(160488);a.s(["f",0,function({children:a,variant:e="neutral",band:f=null,title:g,className:h,style:i}){let j=["priceBadge",`priceBadge--${e}`,(0,c._)(f),"price-plaque",d.default.badge,h].filter(Boolean).join(" ");return(0,b.jsx)("span",{className:j,style:i,title:g,children:a})}])},759968,a=>{"use strict";function b(a){return void 0===a||"pub"===a}a.s(["e",0,function(a){return b(a.kind)},"A",0,b])}];
+
+//# sourceMappingURL=_16jj0qwhpw83y._.js.map

@@ -1,0 +1,3 @@
+{
+  "/api/night-stories/[id]/publish-proposals/route": "app/api/night-stories/[id]/publish-proposals/route.js"
+}

@@ -1,0 +1,3 @@
+{
+  "/ingest/[...path]/route": "app/ingest/[...path]/route.js"
+}

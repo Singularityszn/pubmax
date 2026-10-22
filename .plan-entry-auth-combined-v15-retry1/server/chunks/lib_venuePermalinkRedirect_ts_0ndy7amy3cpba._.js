@@ -1,0 +1,3 @@
+module.exports=[780917,t=>{"use strict";t.i(551783);var e=t.i(379509),n=t.i(89171),o=t.i(240604),i=t.i(616761);async function r(t,r){let a,{slug:s}=await r.params;try{a=decodeURIComponent(s??"").trim()}catch{(0,e.notFound)()}a||(0,e.notFound)();let u=await (0,o.M)(a);u||(0,e.notFound)();let c=new URL((0,i.f)(u),t.url);return n.NextResponse.redirect(c,308)}t.s(["f",0,r])}];
+
+//# sourceMappingURL=lib_venuePermalinkRedirect_ts_0ndy7amy3cpba._.js.map

@@ -1,0 +1,3 @@
+module.exports=[522734,(a,b,c)=>{b.exports=a.x("fs",()=>require("fs"))},791227,a=>{a.v(b=>Promise.all(["server/chunks/ssr/[externals]_next_dist_compiled_@vercel_og_index_node_01np1ap3ph7h4.js"].map(b=>a.l(b))).then(()=>b(121425)))},814747,(a,b,c)=>{b.exports=a.x("path",()=>require("path"))},189352,a=>{"use strict";a.s(["f",0,function(a){return`\xa3${a.toFixed(2)}`}])},401652,a=>{"use strict";var b=a.i(580224);function c(a){return(0,b.f)(a)||"anon"}a.s(["H",0,function(a){return`@${c(a)}`},"$",0,c])}];
+
+//# sourceMappingURL=%5Broot-of-the-server%5D__00o740va5hurp._.js.map

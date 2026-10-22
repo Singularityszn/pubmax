@@ -1,0 +1,3 @@
+module.exports=[347741,l=>{"use strict";let n=[{id:"soho",label:"Soho",lat:51.5136,lng:-.1365},{id:"shoreditch",label:"Shoreditch",lat:51.5265,lng:-.0785},{id:"camden",label:"Camden",lat:51.539,lng:-.1426},{id:"london-bridge",label:"London Bridge",lat:51.5049,lng:-.0871},{id:"brixton",label:"Brixton",lat:51.4627,lng:-.1145},{id:"clapham",label:"Clapham",lat:51.4622,lng:-.1385},{id:"islington",label:"Islington",lat:51.5343,lng:-.1055},{id:"hackney",label:"Hackney",lat:51.5346,lng:-.0611}],a={id:"central",label:"central London",lat:51.5129,lng:-.13};l.s(["p",0,a,"_",0,n,"u",0,function(l){return l?l===a.id?a:n.find(n=>n.id===l)??null:null}])}];
+
+//# sourceMappingURL=lib_nightPatches_ts_1yjr4q-30ak2z._.js.map

@@ -13,7 +13,7 @@ import {
   navPathMatches,
   type PrimaryNavKey,
 } from "@/components/nav/navigationModel";
-import { requestMobileSheetDismiss } from "@/lib/mobileShell";
+import { requestMobileSheetDismiss } from "@/lib/mobileSheetDismiss";
 import {
   preferredCityMapHref,
   readPreferredCity,

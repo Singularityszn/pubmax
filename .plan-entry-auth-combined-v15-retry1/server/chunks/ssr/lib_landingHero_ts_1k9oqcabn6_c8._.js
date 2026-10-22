@@ -1,0 +1,3 @@
+module.exports=[209766,a=>{"use strict";var b=a.i(526195),c=a.i(780049);a.i(195210),a.s(["b",0,3,"O",0,function(a,d=Date.now()){let e=null;for(let c of a.prices){let d=(0,b.Q)(c);if(!d)continue;let f="number"==typeof c.price_gbp&&.005>Math.abs(c.price_gbp-a.priceGbp);if((!e||f)&&(e={row:c,publisher:{label:d.label,url:d.url}}),f)break}let f=e?.publisher??null,g=e?(0,b.b)(e.row):null,h=e?(0,b.G)(e.row):null,{standing:i}=(0,c.r)({listed:f&&g?{priceGbp:a.priceGbp,sourceUrl:f.url,observedAt:g}:null},d);return{publisher:f,standing:i,observedOn:h}}])}];
+
+//# sourceMappingURL=lib_landingHero_ts_1k9oqcabn6_c8._.js.map

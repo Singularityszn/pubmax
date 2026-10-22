@@ -4,10 +4,14 @@ import { describe, expect, it, vi } from "vitest";
 
 vi.mock("server-only", () => ({}));
 vi.mock("next/font/google", () => {
-  const face = () => ({ className: "font-mock", variable: "--font-mock" });
+  const face = (fontFamily: string) => ({
+    variable: "--font-mock",
+    className: "font-mock",
+    style: { fontFamily },
+  });
   return {
-    Space_Grotesk: face,
-    Inter: face,
+    Space_Grotesk: () => face("'Space Grotesk', 'Space Grotesk Fallback'"),
+    Inter: () => face("'Inter', 'Inter Fallback'"),
   };
 });
 vi.mock("next/font/local", () => ({

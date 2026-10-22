@@ -1,0 +1,3 @@
+module.exports=[846102,e=>{"use strict";var n=e.i(895460),t=e.i(431384),r=e.i(39813);async function a(e){let n=[...new Set(e.map(e=>(0,t.e)(e)).filter(Boolean))];return 0===n.length?new Map:(0,r.A)().getApprovedAvatarUrlsByHandles(n)}async function i(e){if(0===e.length)return[];let n=await a(e.map(e=>e.handle));return e.map(e=>{let r=(0,t.e)(e.handle),a=r?n.get(r):void 0;return a?{...e,avatarUrl:a}:{...e}})}async function l(e){return i(await (0,n.h)(e,e=>e.handle))}e.s(["O",0,i,"w",0,function(e){return!!e?.userId?.trim()&&!(0,r.j)(e)},"H",0,l,"y",0,a])}];
+
+//# sourceMappingURL=lib_avatarResolve_ts_0083f78fje4do._.js.map

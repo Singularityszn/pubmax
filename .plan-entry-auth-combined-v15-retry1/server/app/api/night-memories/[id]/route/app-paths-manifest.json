@@ -1,0 +1,3 @@
+{
+  "/api/night-memories/[id]/route": "app/api/night-memories/[id]/route.js"
+}

@@ -1,0 +1,3 @@
+{
+  "/api/cron/freshness-audit/route": "app/api/cron/freshness-audit/route.js"
+}

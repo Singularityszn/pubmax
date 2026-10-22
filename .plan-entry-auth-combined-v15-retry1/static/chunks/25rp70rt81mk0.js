@@ -1,0 +1,1 @@
+(globalThis.TURBOPACK||(globalThis.TURBOPACK=[])).push(["object"==typeof document?document.currentScript:void 0,67211,t=>{"use strict";t.S([624199,"landmarks,C"])}]);

@@ -384,7 +384,7 @@ test.describe("map keyboard and screen-reader venue path", () => {
     await expect.poll(() => baseRows.count(), { timeout: 5_000 }).toBe(0);
   });
 
-  test("keeps desktop drawer focus inside and restores chosen venue on Escape", async ({
+  test("cycles desktop drawer and toolbar focus and restores chosen venue on Escape", async ({
     page,
   }) => {
     test.setTimeout(180_000);
@@ -409,7 +409,14 @@ test.describe("map keyboard and screen-reader venue path", () => {
     const closeButton = drawer.getByRole("button", { name: /Close/ });
     await expect(drawer).toBeVisible();
     await expect(drawer).toHaveAttribute("role", "dialog");
-    await expect(drawer).toHaveAttribute("aria-modal", "true");
+    // At this desktop width the toolbar is an exempt region of the map trap.
+    const toolbar = page.locator(".mapToolbar");
+    await expect(toolbar).toHaveAttribute("data-focus-trap-exempt", "");
+    await expect(drawer).not.toHaveAttribute("aria-modal", "true");
+    await expect.poll(() => toolbar.evaluate(
+      (node) => node.closest('[inert], [aria-hidden="true"]') !== null,
+    )).toBe(false);
+    await expect.poll(() => new URL(page.url()).searchParams.get("sel")).toBe(chosenVenueId);
     await expect
       .poll(
         async () => closeButton.evaluate((node) => node === document.activeElement),
@@ -420,13 +427,37 @@ test.describe("map keyboard and screen-reader venue path", () => {
     const focusables = drawer.locator(
       'a[href]:visible, button:not([disabled]):visible, input:not([disabled]):visible, select:not([disabled]):visible, textarea:not([disabled]):visible, [tabindex]:not([tabindex="-1"]):visible',
     );
+    const toolbarFocusables = toolbar.locator(
+      'a[href]:visible, button:not([disabled]):visible, input:not([disabled]):visible, select:not([disabled]):visible, textarea:not([disabled]):visible, [tabindex]:not([tabindex="-1"]):visible',
+    );
     const firstFocusable = focusables.first();
     const lastFocusable = focusables.last();
-    await lastFocusable.focus();
+    const firstToolbarControl = toolbarFocusables.first();
+    const lastToolbarControl = toolbarFocusables.last();
+    await expect(firstToolbarControl).toBeVisible();
+    await expect(lastToolbarControl).toBeVisible();
+    await expect.poll(() => toolbarFocusables.evaluateAll((nodes) =>
+      nodes.every((node) => (node as HTMLElement).offsetParent !== null
+        && !node.closest('[inert], [aria-hidden="true"]')),
+    )).toBe(true);
+
+    // Venue content can add controls. Resolve the current edge before Tab,
+    // as drawer-route-chip-reachable.spec.ts does for the same map trap.
+    await expect(async () => {
+      await lastFocusable.focus();
+      await page.keyboard.press("Tab");
+      await expect(firstToolbarControl).toBeFocused({ timeout: 1_000 });
+    }).toPass({ timeout: 30_000 });
+    await page.keyboard.press("Shift+Tab");
+    await expect(lastFocusable).toBeFocused();
+
+    await lastToolbarControl.focus();
     await page.keyboard.press("Tab");
     await expect(firstFocusable).toBeFocused();
     await page.keyboard.press("Shift+Tab");
-    await expect(lastFocusable).toBeFocused();
+    await expect(lastToolbarControl).toBeFocused();
+    await page.keyboard.press("Tab");
+    await expect(firstFocusable).toBeFocused();
 
     await page.keyboard.press("Escape");
     await expect(drawer).toBeHidden();

@@ -1,0 +1,3 @@
+{
+  "/api/cron/purge-social-media/route": "app/api/cron/purge-social-media/route.js"
+}

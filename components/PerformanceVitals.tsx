@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
-import { onCLS, onFCP, onINP, onLCP, onTTFB, type Metric } from "web-vitals/attribution";
+import type { Metric } from "web-vitals/attribution";
 
 import { trackEvent } from "@/lib/analytics";
 import { vitalEventProps, type VitalMetric, type VitalRating } from "@/lib/webVitals";
@@ -53,11 +53,18 @@ function report(metric: Metric): void {
 export default function PerformanceVitals() {
   useEffect(() => {
     if (SAMPLE_RATE < 1 && Math.random() >= SAMPLE_RATE) return;
-    onCLS(report);
-    onFCP(report);
-    onINP(report);
-    onLCP(report);
-    onTTFB(report);
+    let active = true;
+    void import("web-vitals/attribution").then((vitals) => {
+      if (!active) return;
+      vitals.onCLS(report);
+      vitals.onFCP(report);
+      vitals.onINP(report);
+      vitals.onLCP(report);
+      vitals.onTTFB(report);
+    }).catch(() => {
+      // Optional field telemetry must not interrupt the product if loading fails.
+    });
+    return () => { active = false; };
   }, []);
 
   return null;

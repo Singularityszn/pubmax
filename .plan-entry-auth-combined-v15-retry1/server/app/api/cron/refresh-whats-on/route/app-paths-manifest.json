@@ -1,0 +1,3 @@
+{
+  "/api/cron/refresh-whats-on/route": "app/api/cron/refresh-whats-on/route.js"
+}

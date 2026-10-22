@@ -1,0 +1,3 @@
+module.exports=[900189,a=>{"use strict";a.i(907997),a.i(599475),a.i(226787),a.i(864515),a.i(261842),a.i(461417);var b=a.i(352425);let c={alt:"A historic London pub. PUBMAXXING",contentType:"image/png",runtime:"nodejs",size:{width:1200,height:630}};async function d(a){let{__metadata_id__:d,...e}=await a.params,f=(0,b.fillMetadataSegment)("/historic/[slug]",e,"opengraph-image",!1);return[function(a){let b={alt:a.alt,type:a.contentType||"image/png",url:f+"?83393c85930fb514"},{size:c}=a;return c&&(b.width=c.width,b.height=c.height),b}(c)]}a.s(["default",0,d],900189)},696190,function(a){a.n(a.i(900189))}];
+
+//# sourceMappingURL=app_historic_%5Bslug%5D_opengraph-image--metadata_04kq1wbhl3a7w.js.map

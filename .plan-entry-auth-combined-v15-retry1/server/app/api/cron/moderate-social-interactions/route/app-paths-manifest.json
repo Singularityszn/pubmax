@@ -1,0 +1,3 @@
+{
+  "/api/cron/moderate-social-interactions/route": "app/api/cron/moderate-social-interactions/route.js"
+}

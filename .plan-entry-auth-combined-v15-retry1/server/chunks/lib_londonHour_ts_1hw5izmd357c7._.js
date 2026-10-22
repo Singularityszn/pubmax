@@ -1,0 +1,3 @@
+module.exports=[779778,e=>{"use strict";let t=null;e.s(["f",0,function(e){let i,n,o,r,u;return Math.floor((i=(t??=new Intl.DateTimeFormat("en-GB",{hour:"2-digit",minute:"2-digit",second:"2-digit",hour12:!1,timeZone:"Europe/London"})).formatToParts(e),o=(n=e=>Number(i.find(t=>t.type===e)?.value))("hour")%24,r=n("minute"),u=n("second"),(Number.isFinite(o)&&Number.isFinite(r)&&Number.isFinite(u)?((60*o+r)*60+u)*1e3+(e.getTime()%1e3+1e3)%1e3:0)/36e5))}])}];
+
+//# sourceMappingURL=lib_londonHour_ts_1hw5izmd357c7._.js.map

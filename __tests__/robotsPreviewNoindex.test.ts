@@ -9,10 +9,14 @@ vi.mock("server-only", () => ({}));
 // next/font is not runnable under vitest; stub faces so the root layout can
 // export metadata without constructing real font CSS.
 vi.mock("next/font/google", () => {
-  const face = () => ({ className: "font-mock", variable: "--font-mock" });
+  const face = (fontFamily: string) => ({
+    variable: "--font-mock",
+    className: "font-mock",
+    style: { fontFamily },
+  });
   return {
-    Space_Grotesk: face,
-    Inter: face,
+    Space_Grotesk: () => face("'Space Grotesk', 'Space Grotesk Fallback'"),
+    Inter: () => face("'Inter', 'Inter Fallback'"),
   };
 });
 vi.mock("next/font/local", () => ({

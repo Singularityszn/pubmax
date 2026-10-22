@@ -1,0 +1,3 @@
+module.exports=[61290,e=>{"use strict";var a=e.i(857629),t=e.i(629783);let r={ask:1e3,heritage:1e3,"pub-pal-chat":2e3,"pub-pal-voice":200,"plan-generate":1e3,typesafe:5e3};var n=e.i(703053);async function s(e){let s=`paid-spend:${e}`,p=function(e,a=process.env){let t=a[`PUBMAX_PAID_SPEND_BUDGET_${e.toUpperCase().replaceAll("-","_")}`]?.trim();if(!t||!/^\d+$/.test(t))return r[e];let n=Number.parseInt(t,10);return Number.isSafeInteger(n)?n:r[e]}(e);return await (0,n.j)(s,s,p,864e5,{failClosed:!0})?((0,t.f)("warn","paid_spend.budget_spent",{lane:e,budget:p,windowMs:864e5}),(0,a.N)("We have answered as much as we can today.","DAILY_BUDGET_SPENT",429,{retryable:!0})):null}e.s(["f",0,s],61290)}];
+
+//# sourceMappingURL=lib_paidSpendBudget_server_ts_0k35z5_7_lron._.js.map

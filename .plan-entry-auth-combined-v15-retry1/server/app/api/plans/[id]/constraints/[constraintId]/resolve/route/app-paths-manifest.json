@@ -1,0 +1,3 @@
+{
+  "/api/plans/[id]/constraints/[constraintId]/resolve/route": "app/api/plans/[id]/constraints/[constraintId]/resolve/route.js"
+}

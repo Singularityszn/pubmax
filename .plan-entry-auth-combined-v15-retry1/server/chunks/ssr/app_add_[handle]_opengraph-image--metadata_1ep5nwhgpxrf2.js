@@ -1,0 +1,3 @@
+module.exports=[303796,a=>{"use strict";a.i(907997),a.i(599475),a.i(401652),a.i(580224),a.i(261842);var b=a.i(352425);let c={alt:"Add me to your lot on PUBMAXX",contentType:"image/png",runtime:"nodejs",size:{width:1200,height:630}};async function d(a){let{__metadata_id__:d,...e}=await a.params,f=(0,b.fillMetadataSegment)("/add/[handle]",e,"opengraph-image",!1);return[function(a){let b={alt:a.alt,type:a.contentType||"image/png",url:f+"?ac9176b61124ae79"},{size:c}=a;return c&&(b.width=c.width,b.height=c.height),b}(c)]}a.s(["default",0,d],303796)},649442,function(a){a.n(a.i(303796))}];
+
+//# sourceMappingURL=app_add_%5Bhandle%5D_opengraph-image--metadata_1ep5nwhgpxrf2.js.map

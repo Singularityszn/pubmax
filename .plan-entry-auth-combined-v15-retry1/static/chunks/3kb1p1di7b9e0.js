@@ -1,0 +1,1 @@
+(globalThis.TURBOPACK||(globalThis.TURBOPACK=[])).push(["object"==typeof document?document.currentScript:void 0,770989,e=>{"use strict";var t=e.i(482568);class i extends t.WebPlugin{async requestReview(){throw this.unimplemented("Not implemented on web.")}}e.s(["InAppReviewWeb",0,i])}]);

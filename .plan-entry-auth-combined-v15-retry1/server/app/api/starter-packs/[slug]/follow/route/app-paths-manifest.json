@@ -1,0 +1,3 @@
+{
+  "/api/starter-packs/[slug]/follow/route": "app/api/starter-packs/[slug]/follow/route.js"
+}

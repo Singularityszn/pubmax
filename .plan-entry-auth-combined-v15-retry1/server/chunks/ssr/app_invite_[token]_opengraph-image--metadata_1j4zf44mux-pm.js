@@ -1,0 +1,3 @@
+module.exports=[198878,a=>{"use strict";a.i(907997),a.i(599475),a.i(513454),a.i(89219),a.i(261900),a.i(145302),a.i(463889);var b=a.i(261842);a.i(461417);let c=b.X;var d=a.i(352425);let e={alt:"You're invited on PUBMAXX",contentType:"image/png",runtime:"nodejs",size:c};async function f(a){let{__metadata_id__:b,...c}=await a.params,f=(0,d.fillMetadataSegment)("/invite/[token]",c,"opengraph-image",!1);return[function(a){let b={alt:a.alt,type:a.contentType||"image/png",url:f+"?69ef338b32eff42d"},{size:c}=a;return c&&(b.width=c.width,b.height=c.height),b}(e)]}a.s(["default",0,f],198878)},762194,function(a){a.n(a.i(198878))}];
+
+//# sourceMappingURL=app_invite_%5Btoken%5D_opengraph-image--metadata_1j4zf44mux-pm.js.map

@@ -1,0 +1,3 @@
+{
+  "/api/cron/purge-pub-pal-turns/route": "app/api/cron/purge-pub-pal-turns/route.js"
+}

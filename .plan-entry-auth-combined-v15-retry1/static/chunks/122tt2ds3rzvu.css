@@ -1,0 +1,1 @@
+.loadingEmber{vertical-align:middle;flex:none;display:inline-block;overflow:visible}.loadingEmber__node{animation:.9s ease-in-out infinite alternate loadingEmberBreathe}@keyframes loadingEmberBreathe{0%{opacity:.6}to{opacity:1}}@media (prefers-reduced-motion:reduce){.loadingEmber__node{opacity:1;animation:none}}

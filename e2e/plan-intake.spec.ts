@@ -12,6 +12,7 @@ async function continueIntake(page: Page): Promise<void> {
 
 async function openWizard(page: Page): Promise<void> {
   await page.getByRole("button", { name: "Guide me instead" }).click();
+  await expect(page.getByRole("heading", { name: "Where should the night happen?", exact: true })).toBeVisible();
 }
 
 async function chooseClaphamAndContinue(page: Page): Promise<void> {

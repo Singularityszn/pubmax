@@ -1,0 +1,1 @@
+.desktopRail{flex-direction:column;gap:16px;min-width:0;display:flex}@media (min-width:1024px){.desktopRail{top:var(--desktop-rail-top,96px);align-self:start;position:sticky}}

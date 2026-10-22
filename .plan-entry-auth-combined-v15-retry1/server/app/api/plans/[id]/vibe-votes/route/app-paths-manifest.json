@@ -1,0 +1,3 @@
+{
+  "/api/plans/[id]/vibe-votes/route": "app/api/plans/[id]/vibe-votes/route.js"
+}

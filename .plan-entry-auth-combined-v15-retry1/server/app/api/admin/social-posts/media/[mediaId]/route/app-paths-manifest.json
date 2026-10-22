@@ -1,0 +1,3 @@
+{
+  "/api/admin/social-posts/media/[mediaId]/route": "app/api/admin/social-posts/media/[mediaId]/route.js"
+}

@@ -1,0 +1,3 @@
+module.exports=[212999,a=>{"use strict";let b,c={thinA:"42,10 47,10 13,54 8,54",thinB:"51,10 56,10 22,54 17,54",thick:"9,10 21,10 55,54 43,54"},d={coral:"#ff5a5f",coralBright:"#ff7a55",inkDeep:"#060607",paper:"#ffffff"};function e(a){return a.split(" ").map(a=>{let[b,c]=a.split(",").map(Number);return{x:b,y:c}})}function f(){return[...e(c.thinA),...e(c.thinB),...e(c.thick)]}d.paper,d.inkDeep,(b=f()).map(a=>a.x),b.map(a=>a.y),f().map(a=>Math.hypot(a.x-32,a.y-32)),a.s(["s",0,d,"o",0,{cx:32,cy:32,r:3.2},"W",0,15,"j",0,c,"e",0,"45,10 53,10 19,54 11,54","t",0,"0 0 64 64"])}];
+
+//# sourceMappingURL=lib_brandMark_mjs_1lks9es54saxj._.js.map

@@ -1,0 +1,3 @@
+{
+  "/api/profiles/[handle]/avatar/route": "app/api/profiles/[handle]/avatar/route.js"
+}

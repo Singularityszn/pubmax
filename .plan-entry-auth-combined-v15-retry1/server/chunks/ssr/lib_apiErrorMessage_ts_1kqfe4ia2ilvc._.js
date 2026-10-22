@@ -1,0 +1,3 @@
+module.exports=[977969,a=>{"use strict";let b="You look offline. Reconnect, then try again.",c="Could not mint an invite link.";async function d(a){return(a.headers.get("content-type")?.toLowerCase()??"").includes("application/json")?a.json().catch(()=>null):null}function e(a,b){let c="string"==typeof b&&b.trim()?b.trim():"Something went wrong. Try again.";if(!a||"object"!=typeof a)return c;let d=a.error;if("string"==typeof d&&d.trim())return d.trim();if(d&&"object"==typeof d){let a=d.message;if("string"==typeof a&&a.trim())return a.trim()}return c}a.s(["W",0,c,"R",0,e,"G",0,function(a,d){return d?e(a,c):b},"n",0,function(a){return"u">typeof navigator&&!1===navigator.onLine?b:a},"B",0,d])}];
+
+//# sourceMappingURL=lib_apiErrorMessage_ts_1kqfe4ia2ilvc._.js.map
