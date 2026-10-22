@@ -66,6 +66,10 @@ async function installPickerFixture(
   await page.route("**/api/messages**", async (route) => {
     const request = route.request();
     const path = new URL(request.url()).pathname;
+    if (path === "/api/messages/recipients") {
+      await route.fallback();
+      return;
+    }
     if (path === "/api/messages" && request.method() === "POST") {
       const body = (request.postDataJSON() ?? {}) as OpenedMessage;
       journal.opened.push(body);
