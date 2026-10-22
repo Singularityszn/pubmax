@@ -146,6 +146,20 @@ const cronProbe = (job: string): PaidRouteCase => ({
 /** Every route handler that can reach a paid provider, called with no session. */
 const PAID_ROUTES: PaidRouteCase[] = [
   {
+    route: "app/api/mcp/route.ts",
+    call: async () => {
+      const request = jsonPost("http://localhost/api/mcp", {
+        jsonrpc: "2.0", id: 1, method: "tools/call", params: {
+          name: "pubmaxx_plan_evening", arguments: { request: "A quiet crawl in Soho" },
+        },
+      });
+      request.headers.set("accept", "application/json, text/event-stream");
+      request.headers.set("host", "localhost");
+      return (await import("@/app/api/mcp/route")).POST(request);
+    },
+    answer: { status: 200, body: { result: { isError: true, structuredContent: { error: { code: PAID_SPEND_REFUSAL_CODE } } } } },
+  },
+  {
     route: "app/api/ask/route.ts",
     call: async () =>
       (await import("@/app/api/ask/route")).POST(

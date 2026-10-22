@@ -1,0 +1,47 @@
+{
+  "version": 4,
+  "verifiedAt": "2026-10-21",
+  "method": "places_text_search: live Google Places API (New); placeId and derived verdict fields only (Maps ToS).",
+  "summary": {
+    "rowsChecked": 3,
+    "confirmed": 3,
+    "closed": [],
+    "unverified": [],
+    "placesLiveApiCalls": 3
+  },
+  "checks": [
+    {
+      "id": "bar-callooh-callay",
+      "method": "places_text_search",
+      "sourceUrl": "https://calloohcallaybar.com/",
+      "outcome": "confirmed",
+      "result": "places_operational",
+      "textQuery": "Callooh Callay EC2A 3AY London",
+      "placeId": "ChIJJ9DmjrocdkgR-TgBZwwKdKc",
+      "matchReason": "exact_normalized_name;within_47m",
+      "checkedAt": "2026-10-21T10:23:20.548Z"
+    },
+    {
+      "id": "bar-discount-suit-company",
+      "method": "places_text_search",
+      "sourceUrl": "https://discountsuitcompany.co.uk/",
+      "outcome": "confirmed",
+      "result": "places_operational",
+      "textQuery": "Discount Suit Company E1 7TB London",
+      "placeId": "ChIJD6u4nrQcdkgRzUMkEzoTMdU",
+      "matchReason": "exact_normalized_name;postcode_E1 7TB",
+      "checkedAt": "2026-10-21T10:23:21.016Z"
+    },
+    {
+      "id": "bar-a-bar-with-shapes",
+      "method": "places_text_search",
+      "sourceUrl": "https://alchemybar.com/?alc-location=bar-with-shapes-for-a-name",
+      "outcome": "confirmed",
+      "result": "places_operational",
+      "textQuery": "A Bar with Shapes for a Name E2 8AX London",
+      "placeId": "ChIJrx4282IddkgRTeHNjFC_CEA",
+      "matchReason": "exact_normalized_name;postcode_E2 8AX",
+      "checkedAt": "2026-10-21T11:17:53.777Z"
+    }
+  ]
+}
