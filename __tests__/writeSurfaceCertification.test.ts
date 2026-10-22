@@ -195,7 +195,8 @@ describe("mutating API surface certification", () => {
     // 150: plus POST /api/drink-wall, the city Drink Wall upload.
     // 153: plus POST /api/pub-pal/chat, tool-turn, and tools/[toolName] (#Pal ElevenLabs brain).
     // 156: plus explicit friend-location start, update and revoke.
-    expect(mutationHandlers).toHaveLength(156);
+    // 157: plus the owner-only Social Crew completion route.
+    expect(mutationHandlers).toHaveLength(157);
     expect(certifiedMutationHandlers()).toEqual(
       mutationHandlers.map(mutationHandlerKey),
     );
