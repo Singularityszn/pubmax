@@ -4,9 +4,21 @@ import { callerUserId } from "@/lib/authServer";
 import { runAsk } from "@/lib/ask/runAsk";
 import type { AskTurn } from "@/lib/ask/types";
 import { PAL_ERROR_FALLBACK } from "@/lib/palChat";
-import { runPalElevenLabsChatTurn } from "@/lib/palElevenLabsChat.server";
+import {
+  resolvePalElevenLabsChatPrelude,
+  runPalElevenLabsChatTurn,
+} from "@/lib/palElevenLabsChat.server";
+import { PAL_CHAT_SERVER_TIMEOUT_MS } from "@/lib/palChatDeadline";
+import { pubPalGetHomeRegisterAnswer } from "@/lib/pubPalLlmFence";
 import { paidSpendBudgetRefusal } from "@/lib/paidSpendBudget.server";
 import { palVoiceConfigured } from "@/lib/pubPalVoiceConfig.server";
+import {
+  isPubPalRouteProposalAsk,
+  projectPubPalRouteProposals,
+  pubPalRouteProposalsAllowed,
+  pubPalRouteProposalsOffAnswer,
+  PubPalRoutePreferencesUnavailableError,
+} from "@/lib/pubPalRouteProposalPolicy.server";
 import { isLimited } from "@/lib/pintDrops";
 import { clientIp, hashIp } from "@/lib/supabase";
 
@@ -59,9 +71,42 @@ export async function POST(request: Request): Promise<Response> {
     return publicApiError("Ask a question.", "QUERY_REQUIRED", 400);
   }
 
+  const voiceConfigured = palVoiceConfigured();
+  const ownerId = await callerUserId(request);
+  try {
+    if (isPubPalRouteProposalAsk(query) && !await pubPalRouteProposalsAllowed(ownerId)) {
+      if (voiceConfigured && ownerId) {
+        const prelude = await resolvePalElevenLabsChatPrelude({
+          query,
+          threadId: record.threadId,
+          fenceTurns: normaliseTurns(record.turns).filter((turn) => turn.role === "user"),
+          ownerId,
+        }, Date.now() + PAL_CHAT_SERVER_TIMEOUT_MS);
+        if (!prelude.ok) {
+          return publicApiError(PAL_ERROR_FALLBACK, "UNAVAILABLE", 503, { retryable: true });
+        }
+        if (prelude.fenceIntent.fenced) {
+          return jsonNoStore({
+            answer: pubPalGetHomeRegisterAnswer("", prelude.fenceIntent.sobrietyOnly),
+            cards: [],
+            proposals: [],
+            sources: [],
+            status: "ready",
+            toolsUsed: [],
+            conversationId: "",
+          });
+        }
+      }
+      return jsonNoStore(pubPalRouteProposalsOffAnswer());
+    }
+  } catch (error) {
+    if (!(error instanceof PubPalRoutePreferencesUnavailableError)) throw error;
+    return publicApiError(error.message, "UNAVAILABLE", 503, { retryable: true });
+  }
+
   // Voice is optional. Keyless deploys still answer from the same grounded
   // tools as /api/ask, and they never call OpenRouter.
-  if (!palVoiceConfigured()) {
+  if (!voiceConfigured) {
     try {
       const answer = await runAsk({
         query,
@@ -70,14 +115,13 @@ export async function POST(request: Request): Promise<Response> {
         skipModel: true,
         traceRoute: "api/pub-pal/chat",
       });
-      return jsonNoStore(answer);
+      return jsonNoStore(await projectPubPalRouteProposals(answer, ownerId));
     } catch (error) {
       console.error("pub-pal-chat.unexpected_error", error);
       return publicApiError(PAL_ERROR_FALLBACK, "UNAVAILABLE", 503, { retryable: true });
     }
   }
 
-  const ownerId = await callerUserId(request);
   if (!ownerId) {
     return publicApiError("Sign in to ask Pub Pal.", "UNAUTHENTICATED", 401);
   }
@@ -97,13 +141,19 @@ export async function POST(request: Request): Promise<Response> {
     return publicApiError(PAL_ERROR_FALLBACK, "UNAVAILABLE", 503, { retryable: true });
   }
 
-  return jsonNoStore({
+  const answer = {
     answer: outcome.message,
     cards: outcome.cards,
     proposals: outcome.proposals,
     sources: [],
-    status: "ready",
+    status: "ready" as const,
     toolsUsed: outcome.toolsUsed,
     conversationId: outcome.conversationId,
-  });
+  };
+  try {
+    return jsonNoStore(await projectPubPalRouteProposals(answer, ownerId));
+  } catch (error) {
+    if (!(error instanceof PubPalRoutePreferencesUnavailableError)) throw error;
+    return publicApiError(error.message, "UNAVAILABLE", 503, { retryable: true });
+  }
 }

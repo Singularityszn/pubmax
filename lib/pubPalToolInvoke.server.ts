@@ -5,6 +5,7 @@ import {
   resolveAskCityId,
   runAskTool,
   type AskToolArgs,
+  type AskToolResult,
 } from "@/lib/ask/tools";
 import type { AskToolName } from "@/lib/ask/types";
 import { isAskToolName } from "@/lib/ask/types";
@@ -17,6 +18,22 @@ import {
   appendPubPalToolTurn,
   readPubPalToolInvocationTurn,
 } from "@/lib/pubPalToolTurnStore";
+import {
+  PUB_PAL_ROUTE_PROPOSALS_OFF,
+  pubPalRouteProposalsAllowed,
+} from "@/lib/pubPalRouteProposalPolicy.server";
+
+function routeProposalsOffResult(): AskToolResult {
+  return {
+    ok: true,
+    tool: "propose_plan",
+    data: null,
+    provenance: [],
+    cards: [],
+    proposals: [],
+    answerHint: PUB_PAL_ROUTE_PROPOSALS_OFF,
+  };
+}
 
 function isEmptyArg(value: unknown): boolean {
   if (value === undefined || value === null) return true;
@@ -124,11 +141,21 @@ export async function invokePubPalAskTool(input: {
     };
   }
 
-  const toolResult = await runAskTool(input.toolName as AskToolName, args, {
-    cityId,
-    query,
-    skipModel: true,
-  });
+  const ownerId = invocation?.origin.ownerId ?? null;
+  const routeTool = input.toolName === "propose_plan";
+  let toolResult = routeTool && !await pubPalRouteProposalsAllowed(ownerId)
+    ? routeProposalsOffResult()
+    : await runAskTool(input.toolName as AskToolName, args, {
+      cityId,
+      query,
+      skipModel: true,
+    });
+  if (
+    (routeTool || toolResult.proposals.some((proposal) => proposal.kind === "draft_plan")) &&
+    !await pubPalRouteProposalsAllowed(ownerId)
+  ) {
+    toolResult = routeProposalsOffResult();
+  }
 
   if (input.conversationId && invocation) {
     await appendPubPalToolTurn(input.conversationId, {
