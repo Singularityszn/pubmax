@@ -4,7 +4,7 @@ Speed is the promise this product makes. A promise nobody counts is a wish, so
 every budgeted route has a number, the number is tracked in the repository, and
 CI refuses a change that goes past it.
 
-- The ceilings: [`perf/route-budgets.json`](../perf/route-budgets.json). Every route the site serves a stranger, all 46 rows
+- The ceilings: [`perf/route-budgets.json`](../perf/route-budgets.json). Every route the site serves a stranger, all 47 rows
 - The pawl on the ratchet: [`scripts/check-budget-ratchet.mjs`](../scripts/check-budget-ratchet.mjs), which refuses a ceiling taken up against the base branch without a record
 - The rules and the failure table: [`lib/performanceBudgets.ts`](../lib/performanceBudgets.ts)
 - The measuring: [`e2e/performance-budget.spec.ts`](../e2e/performance-budget.spec.ts)
@@ -862,7 +862,10 @@ an unmeasured route reads as a pass and never fails again.
 
 ## Which routes are budgeted
 
-Every route the site serves a stranger. That is two lists.
+Every route the site serves a stranger. The table has 47 rows, including a
+direct measurement of `/social?tab=discover` under the existing discovery
+ceilings. `/discover` and `/drinks` each measure their own redirect to that
+page. The original route groups follow.
 
 **The 35 with no dynamic segment**, which is every such `page.tsx` less two:
 
