@@ -3,6 +3,30 @@ import { expect, test, type Locator, type Page } from "@playwright/test";
 const DESKTOP = { width: 1440, height: 900 };
 const MOBILE = { width: 390, height: 844 };
 const ARNOS_ARMS_ID = "venue-xjf3n0";
+// The list paints one page at a time. Its status counts the entire camera
+// projection, so movement/filter assertions must not compare two capped pages.
+async function projectedVenueTotal(page: Page): Promise<number> {
+  const text = (await page.locator(".mapVenueListCount").innerText()).trim();
+  if (text === "Nothing matches") return 0;
+  const full = text.match(/^(\d+) venues?$/);
+  const truncated = text.match(/^(?:Nearest|Cheapest) \d+ of (\d+)$/);
+  return Number(full?.[1] ?? truncated?.[1] ?? Number.NaN);
+}
+
+async function revealBasePubPage(page: Page, baseRows: Locator): Promise<void> {
+  await expect(async () => {
+    if ((await baseRows.count()) > 0) return;
+    const pagination = page.getByRole("navigation", { name: "Venue list pages" });
+    const range = pagination.locator(".mapVenueListPageRange");
+    const before = await range.innerText({ timeout: 1_000 });
+    const next = pagination.getByRole("button", { name: "Next", exact: true });
+    await expect(next).toBeEnabled({ timeout: 1_000 });
+    await next.click();
+    await expect(range).not.toHaveText(before, { timeout: 1_000 });
+    expect(await baseRows.count()).toBeGreaterThan(0);
+  }).toPass({ timeout: 20_000 });
+}
+
 const LOCKED_DARK_INK = [22, 18, 42] as const;
 const LOCKED_CORAL = [255, 90, 95] as const;
 const LOCKED_CORAL_BRIGHT = [255, 122, 85] as const;
@@ -210,11 +234,13 @@ test.describe("map keyboard and screen-reader venue path", () => {
     await openVenueListWithKeyboard(page);
 
     const rows = page.locator(".mapVenueListItem");
-    const beforeMove = await rows.count();
+    await expect.poll(() => projectedVenueTotal(page)).toBeGreaterThan(0);
+    const beforeMove = await projectedVenueTotal(page);
     const beforeMoveIds = await rows.evaluateAll((items) =>
       items.map((item) => item.getAttribute("data-venue-id")),
     );
     expect(beforeMove).toBeGreaterThan(0);
+    expect(beforeMoveIds.length).toBeGreaterThan(0);
     expect(beforeMoveIds.every(Boolean)).toBe(true);
 
     const zoomIn = page.getByRole("button", { name: "Zoom in" });
@@ -223,7 +249,7 @@ test.describe("map keyboard and screen-reader venue path", () => {
     await zoomIn.click();
 
     await expect
-      .poll(() => rows.count(), { timeout: 20_000 })
+      .poll(() => projectedVenueTotal(page), { timeout: 20_000 })
       .toBeLessThan(beforeMove);
     await expect
       .poll(
@@ -235,7 +261,7 @@ test.describe("map keyboard and screen-reader venue path", () => {
       )
       .not.toEqual(beforeMoveIds);
 
-    const beforeFilter = await rows.count();
+    const beforeFilter = await projectedVenueTotal(page);
     // The venue-type chips live in the toolbar's Filters panel (#1631).
     await page.getByRole("button", { name: /^Filters:/ }).click();
     const bars = page
@@ -244,7 +270,7 @@ test.describe("map keyboard and screen-reader venue path", () => {
     await expect(bars).toHaveAttribute("aria-pressed", "true");
     await bars.click();
     await expect(bars).toHaveAttribute("aria-pressed", "false");
-    await expect.poll(() => rows.count()).toBeLessThan(beforeFilter);
+    await expect.poll(() => projectedVenueTotal(page)).toBeLessThan(beforeFilter);
   });
 
   test("drops old base-pub rows during a disjoint pan before the next shard fetch", async ({
@@ -272,6 +298,9 @@ test.describe("map keyboard and screen-reader venue path", () => {
     const baseRows = page.locator(
       '.mapVenueListItem[data-venue-id^="venue-uk-"]',
     );
+    // Curated rows own the first page in the default All view. Reach the
+    // base-pub rows through the same Next control a keyboard reader uses.
+    await revealBasePubPage(page, baseRows);
     await expect.poll(() => baseRows.count(), { timeout: 20_000 }).toBeGreaterThan(0);
     const oldIds = new Set(
       await baseRows.evaluateAll((items) =>
@@ -298,7 +327,13 @@ test.describe("map keyboard and screen-reader venue path", () => {
     );
     expect(overlappingOldIds).toEqual([]);
 
+    await revealBasePubPage(page, baseRows);
     await expect.poll(() => baseRows.count(), { timeout: 20_000 }).toBeGreaterThan(0);
+    const nextIds = await baseRows.evaluateAll((items) =>
+      items.map((item) => item.getAttribute("data-venue-id") ?? ""),
+    );
+    expect(nextIds.every(Boolean)).toBe(true);
+    expect(nextIds.filter((id) => oldIds.has(id))).toEqual([]);
     await canvas.focus();
     // London opens already past UK_BASE_MIN_ZOOM (12). Three Minus presses
     // from a zoomed-in view often land back on that street-level camera, which

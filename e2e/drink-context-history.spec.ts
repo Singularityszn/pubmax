@@ -126,7 +126,7 @@ test("390px Drink retains Wine through Back Forward Home and reload", async ({ p
 test("canonical city pathname wins over obsolete city query during a drink edit", async ({ page }, testInfo) => {
   await page.goto("/map/bristol?city=manchester&drink=wine");
   await expect(page.locator("#mapSearchInput")).toHaveAttribute("placeholder", /Bristol/);
-  await page.getByRole("button", { name: "Drink: Wine", exact: true }).click();
+  await page.getByRole("button", { name: "Drink: Wine · all servings", exact: true }).click();
   await page.getByRole("group", { name: "Drink prices shown on the map" }).getByRole("button", { name: "Cocktails", exact: true }).click();
   await expect.poll(() => new URL(page.url()).searchParams.get("drink")).toBe("cocktail");
   expect(new URL(page.url()).searchParams.has("city")).toBe(false);

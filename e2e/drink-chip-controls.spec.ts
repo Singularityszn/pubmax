@@ -114,10 +114,22 @@ for (const viewport of [
       .getByRole("button", { name: "No alcohol", exact: true })
       .click();
     await noAlcoholIndex;
-    await expect(heading).toHaveText("No-alcohol price bands");
-    await expect(rows.last()).toHaveText(
-      "?No alcohol-free or soft drink price on the map",
+    // Loaded non-beer quotes remain on attributed detail rows. Without a
+    // comparable serving group, the real pin producer emits only bucket 3;
+    // the key must describe those grey pins, not promise price bands.
+    await expect(heading).toHaveText("No-alcohol view");
+    await expect(rows).toHaveText(["?Price not shown on pins"]);
+    await expect(rows.locator(".mapKeyPriceSwatch")).toHaveClass(
+      "mapKeyPriceSwatch mapKeyPriceSwatch--grey",
     );
+    await expect(key.locator('.mapKeySection[aria-labelledby="mapKeyPriceHeading"] > p'))
+      .toHaveText(
+        "Pins stay grey because alcohol-free or soft drink servings cannot be compared here. Check venue details for any recorded price and its source.",
+      );
+    await expect(key.locator('.mapKeySection[aria-labelledby="mapKeyClusterHeading"] p'))
+      .toHaveText(
+        "Clusters stay grey because alcohol-free or soft drink servings cannot be compared here. The number is every venue in the cluster.",
+      );
     await expect(key.locator(".mapKeyPriceRows")).not.toContainText("pint");
     await expect(key.locator(".mapKeyPriceRows")).not.toContainText(
       "venue type",
@@ -130,6 +142,21 @@ for (const viewport of [
     await expect(rows).toHaveText([
       "?Food pins and clusters stay grey",
     ]);
+
+    // Returning through the real All control restores the comparable pint
+    // and venue bands, rather than leaving the unknown-only key behind.
+    await mapViewGroup.getByRole("button", { name: "All", exact: true }).click();
+    await expect(heading).toHaveText("Pint prices and other venue price bands");
+    await expect(rows).toHaveText([
+      `£${priceBandLegendLabel("cheap")}; low for its venue type`,
+      `££${priceBandLegendLabel("average")}; middle for its venue type`,
+      `£££${priceBandLegendLabel("expensive")}; high for its venue type`,
+      "?No pint price on the map",
+    ]);
+    await expect(
+      sheet.getByRole("group", { name: "Venue types" })
+        .getByRole("button", { name: "Pints", exact: true }),
+    ).toBeVisible();
   });
 }
 

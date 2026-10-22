@@ -2,6 +2,96 @@ import { expect, test, type Locator, type Page, type TestInfo } from "@playwrigh
 
 const MOBILE_VIEWPORT = { width: 390, height: 844 };
 
+type VenueShareObservation = {
+  clipboardAvailable: boolean;
+  shares: Array<{
+    data: { title?: string; text?: string; url?: string };
+    outcome: "pending" | "shared" | "cancelled" | "failed";
+  }>;
+  windows: Array<{
+    href: string;
+    target: string | undefined;
+    features: string | undefined;
+    opened: boolean;
+  }>;
+  copies: Array<{ url: string; outcome: "pending" | "copied" | "failed" }>;
+};
+
+// Observe real browser APIs without supplying a native result, popup handle or
+// clipboard permission. The same tap can legitimately succeed, be dismissed,
+// or fall back; each outcome has its own product response.
+async function observeVenueShare(page: Page): Promise<void> {
+  await page.evaluate(() => {
+    const originalShare = navigator.share?.bind(navigator);
+    const originalOpen = window.open.bind(window);
+    const originalCopy = navigator.clipboard?.writeText?.bind(navigator.clipboard);
+    const observation: VenueShareObservation = {
+      clipboardAvailable: Boolean(originalCopy),
+      shares: [],
+      windows: [],
+      copies: [],
+    };
+    (window as typeof window & { __venueShareObservation: VenueShareObservation })
+      .__venueShareObservation = observation;
+    if (originalShare) {
+      Object.defineProperty(navigator, "share", {
+        configurable: true,
+        value: async (data: ShareData) => {
+          const attempt: VenueShareObservation["shares"][number] = {
+            data,
+            outcome: "pending",
+          };
+          observation.shares.push(attempt);
+          try {
+            await originalShare(data);
+            attempt.outcome = "shared";
+          } catch (error) {
+            attempt.outcome =
+              typeof error === "object" && error !== null &&
+                "name" in error && error.name === "AbortError"
+                ? "cancelled"
+                : "failed";
+            throw error;
+          }
+        },
+      });
+    }
+    window.open = (url, target, features) => {
+      const attempt = { href: String(url ?? ""), target, features, opened: false };
+      observation.windows.push(attempt);
+      const opened = originalOpen(url, target, features);
+      attempt.opened = Boolean(opened);
+      return opened;
+    };
+    if (originalCopy) {
+      Object.defineProperty(navigator.clipboard, "writeText", {
+        configurable: true,
+        value: async (url: string) => {
+          const attempt: VenueShareObservation["copies"][number] = {
+            url,
+            outcome: "pending",
+          };
+          observation.copies.push(attempt);
+          try {
+            await originalCopy(url);
+            attempt.outcome = "copied";
+          } catch (error) {
+            attempt.outcome = "failed";
+            throw error;
+          }
+        },
+      });
+    }
+  });
+}
+
+async function readVenueShare(page: Page): Promise<VenueShareObservation> {
+  return page.evaluate(() =>
+    (window as typeof window & { __venueShareObservation: VenueShareObservation })
+      .__venueShareObservation,
+  );
+}
+
 function stableVenueIdFromKey(key: string): string {
   let hash = 0x811c9dc5;
   for (let index = 0; index < key.length; index += 1) {
@@ -159,7 +249,8 @@ test("mobile venue footer stays pinned and actionable at every sheet detent", as
   const body = portal.locator(".mobileSharedSheetBody");
   // The footer carries no price action (the Overview's one price door owns
   // that, #1517); Share is the command every pub sheet keeps, so it is the one
-  // held in view at every detent, and its tap answers in the footer itself.
+  // held in view at every detent. Fallbacks answer in the footer; a completed
+  // or dismissed native share sheet deliberately stays quiet.
   const share = portal.getByRole("button", { name: "Share Arnos Arms" });
 
   await expect(sheet).toHaveClass(/sheet-half/);
@@ -195,8 +286,62 @@ test("mobile venue footer stays pinned and actionable at every sheet detent", as
   await expect(sheet).toHaveClass(/sheet-peek/);
   await expectSheetInsideViewport(page, sheet, footer);
   await expect(share).toBeInViewport();
+  await observeVenueShare(page);
   await share.click();
-  await expect(footer.locator(".venueSheetShareFeedback")).toBeVisible();
+  const feedback = footer.locator(".venueSheetShareFeedback");
+  await expect.poll(async () => {
+    const observed = await readVenueShare(page);
+    const nativeOutcome = observed.shares[0]?.outcome;
+    return nativeOutcome === "shared" || nativeOutcome === "cancelled" ||
+      (observed.windows.length === 1 && await feedback.isVisible());
+  }, { timeout: 10_000, message: "the actual share tap reaches a recorded outcome" })
+    .toBe(true);
+  const observed = await readVenueShare(page);
+  const canonicalUrl = new URL(`/map?sel=${ARNOS_ARMS_ID}`, page.url()).toString();
+  expect(observed.shares.length).toBeLessThanOrEqual(1);
+  const nativeShare = observed.shares[0];
+  if (nativeShare) {
+    expect(Object.keys(nativeShare.data).sort()).toEqual(["text", "title", "url"]);
+    expect(nativeShare.data.title).toBe("Arnos Arms");
+    expect(nativeShare.data.text).toContain("Arnos Arms");
+    expect(nativeShare.data.url).toBe(canonicalUrl);
+  }
+  if (nativeShare?.outcome === "shared" || nativeShare?.outcome === "cancelled") {
+    expect(observed.windows).toEqual([]);
+    expect(observed.copies).toEqual([]);
+    await expect(feedback).toHaveCount(0);
+  } else {
+    if (nativeShare) expect(nativeShare.outcome).toBe("failed");
+    expect(observed.windows).toHaveLength(1);
+    const fallback = observed.windows[0]!;
+    const whatsapp = new URL(fallback.href);
+    expect(whatsapp.origin).toBe("https://wa.me");
+    expect(whatsapp.searchParams.get("text")).toContain("Arnos Arms");
+    expect(whatsapp.searchParams.get("text")).toContain(canonicalUrl);
+    expect(fallback.target).toBe("_blank");
+    expect(fallback.features).toBe("noopener,noreferrer");
+    await expect(feedback).toBeVisible();
+    if (fallback.opened) {
+      expect(observed.copies).toEqual([]);
+      await expect(feedback).toHaveText("Opened WhatsApp to share the link.");
+    } else if (!observed.clipboardAvailable) {
+      expect(observed.copies).toEqual([]);
+      await expect(feedback).toHaveText(
+        "Sharing and clipboard are unavailable. Copy the page URL.",
+      );
+    } else {
+      expect(observed.copies).toHaveLength(1);
+      expect(observed.copies[0]!.url).toBe(canonicalUrl);
+      if (observed.copies[0]!.outcome === "copied") {
+        await expect(feedback).toHaveText("Share failed, but the link was copied.");
+      } else {
+        expect(observed.copies[0]!.outcome).toBe("failed");
+        await expect(feedback).toHaveText(
+          "Couldn't copy the link. Copy it from your browser bar.",
+        );
+      }
+    }
+  }
 
   expect(browserErrors).toEqual([]);
 });

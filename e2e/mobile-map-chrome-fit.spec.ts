@@ -1,4 +1,5 @@
 import { expect, test, type Locator, type Page } from "@playwright/test";
+import { ACCOUNTS, installAuthDoubles, seedSignedIn } from "./helpers/authDoubles";
 
 import { PRIMARY_NAV_ITEMS } from "../components/nav/navigationModel";
 import { PERFORMANCE_BUDGETS } from "../lib/performanceBudgets";
@@ -943,7 +944,9 @@ for (const viewport of VIEWPORTS) {
   test(`${viewport.width}px right-edge floating controls never overlap`, async ({
     page,
   }) => {
-    await page.addInitScript(() => {
+    await installAuthDoubles(page);
+    await seedSignedIn(page, "A");
+    await page.addInitScript((ownerId) => {
       // Consent is ANSWERED on purpose. Leaving it undecided renders
       // AnalyticsConsentPrompt, which lifts the map-edge column to its own
       // higher berth - the one berth where the collision this test exists for
@@ -956,7 +959,7 @@ for (const viewport of VIEWPORTS) {
         "pubmax_pub_pal_v1",
         JSON.stringify({
           id: "pal-e2e",
-          ownerId: "owner-e2e",
+          ownerId,
           name: "Ada",
           adultAttestedAt: now,
           appearance: {},
@@ -970,9 +973,10 @@ for (const viewport of VIEWPORTS) {
           updatedAt: now,
         }),
       );
-    });
+    }, ACCOUNTS.A.id);
     await openPhoneMap(page, viewport);
-    // The pill is stored-pal gated and mounts after a microtask.
+    // The pill requires a signed-in viewer and a matching cached owner,
+    // then mounts after a microtask.
     await expect(page.locator(".palSummon")).toBeVisible({ timeout: 30_000 });
     await expect(page.locator(".createFab")).toBeVisible();
 

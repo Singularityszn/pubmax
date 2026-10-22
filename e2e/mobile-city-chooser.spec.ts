@@ -53,5 +53,5 @@ test("mobile city chooser keeps choices tappable and opens the selected city map
     page.waitForURL(/places\?city=manchester/),
     manchester.click(),
   ]);
-  await expect(page.getByRole("heading", { name: /Manchester/ })).toBeVisible({ timeout: 10_000 });
+  await expect(page.getByRole("heading", { name: "Manchester", exact: true, level: 1 })).toBeVisible({ timeout: 10_000 });
 });

@@ -274,6 +274,9 @@ test("normal London entry paints UK base pubs and takes a price", async ({
   expect(openedSheet).not.toBeNull();
   await phoneSheet.getByRole("button", { name: "Collapse sheet", exact: true }).click();
   await expect(phoneSheet).toHaveClass(/sheet-half/);
+  // Snap ownership changes before the height spring finishes. Start the same
+  // drag from the settled half detent, not from a still-full presentation.
+  await expect(phoneSheet).toHaveAttribute("data-sheet-motion", "idle");
   const headerBox = await phoneSheet.locator(".mobileSharedSheetHeader").boundingBox();
   expect(headerBox).not.toBeNull();
   const dragX = headerBox!.x + 18;
