@@ -1,6 +1,7 @@
 import { expect, test } from "@playwright/test";
 
 import { CONTACT_EMAIL } from "../lib/siteContact";
+import { capturePublicPageEvidence } from "./helpers/publicPageEvidence";
 
 for (const viewport of [
   { width: 320, height: 568 },
@@ -45,3 +46,12 @@ test("feedback ignores query strings and fragments", async ({ page }) => {
   expect(target.hash).toBe("");
   await expect(page.getByRole("main")).not.toContainText("private-example");
 });
+
+if (process.env.PUBMAX_PUBLIC_EVIDENCE_PHASE) {
+  test.describe("public screenshot evidence", () => {
+    test.use({ trace: "off", video: "off" });
+    test("records the signed-out feedback source and viewport images", async ({ page }, testInfo) => {
+      await capturePublicPageEvidence(page, testInfo, "feedback");
+    });
+  });
+}
