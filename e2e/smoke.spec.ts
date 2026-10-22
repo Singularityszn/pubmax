@@ -1,4 +1,7 @@
 import { test, expect, type Page } from "@playwright/test";
+import { formatObservedDate, PINT_DATASET_OBSERVED_AT } from "@/lib/dataFreshness";
+
+const COLLECTED_DAY = formatObservedDate(PINT_DATASET_OBSERVED_AT);
 
 // P3.11 smoke suite. High-signal, non-flaky, WebGL-agnostic: nothing here asserts
 // that the MapLibre canvas actually paints (headless boxes have no GPU), only
@@ -23,7 +26,7 @@ test.beforeEach(async ({ page }) => {
   await dismissMapFirstRunTour(page);
 });
 
-test("landing / serves, shows hero + Demo honesty label + a direct map CTA", async ({
+test("landing / serves, shows hero + published price provenance + a direct map CTA", async ({
   page,
 }) => {
   const errors = watchPageErrors(page);
@@ -37,9 +40,26 @@ test("landing / serves, shows hero + Demo honesty label + a direct map CTA", asy
     "What a pint costs, pub by pub.",
   );
 
-  // Honesty guarantee: seeded demo cards are labelled "Demo" (P4 unified
-  // provenance vocabulary — see lib/provenanceLabels.ts).
-  await expect(page.getByText("Demo").first()).toBeVisible();
+  // The answer is a published source record, not a seeded demo: keep these
+  // provenance checks inside its named article rather than matching footer copy.
+  const answerCard = page.getByRole("article", { name: "The Blackfriar", exact: true });
+  await expect(
+    answerCard.getByRole("heading", { level: 2, name: "The Blackfriar", exact: true }),
+  ).toBeVisible();
+  await expect(answerCard.getByText("£6.50", { exact: true })).toBeVisible();
+  await expect(answerCard.getByText("a pint of Pravha", { exact: true })).toBeVisible();
+  await expect(
+    answerCard.getByText(`Listed by Pint Prices, collected ${COLLECTED_DAY}.`),
+  ).toBeVisible();
+  const sourceHref = await answerCard.getByRole("link", { name: "Pint Prices", exact: true }).getAttribute("href");
+  expect(sourceHref).not.toBeNull();
+  const sourceUrl = new URL(sourceHref!);
+  expect(sourceUrl.origin).toBe("https://www.pint-prices.com");
+  expect(decodeURIComponent(sourceUrl.pathname)).toBe(
+    "/pub/174 Queen Victoria St, Greater, London EC4V 4EG, UK/The Blackfriar",
+  );
+  expect(sourceUrl.search).toBe("");
+  expect(sourceUrl.hash).toBe("");
 
   // Map entry is direct. City choice remains a separate, labelled route.
   const cta = page.getByRole("link", { name: /open the map/i }).first();
