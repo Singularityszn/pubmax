@@ -42,6 +42,7 @@ function state(
     signalsByVenueId: new Map(),
     freshestByVenueId: new Map(),
     noAlcoholIndexStatus: "idle",
+    listedNoAlcoholPrices: [],
     provisionalBaseVenueIds: new Set(),
     loadProvisionalBaseVenues: () => {},
     loadVenue: () => {},

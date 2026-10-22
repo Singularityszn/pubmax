@@ -142,6 +142,7 @@ function communityPrices(venueId: string): CommunityPricesState {
     signalsByVenueId: new Map(),
     freshestByVenueId: new Map(),
     noAlcoholIndexStatus: "idle",
+    listedNoAlcoholPrices: [],
     loadNoAlcoholIndex: noop,
     loadDrinkCategoryIndex: noop,
     drinkCategoryIndexStatus: new Map(),
