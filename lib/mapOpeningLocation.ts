@@ -1,6 +1,8 @@
 import { safeLocalStorage } from "@/lib/safeStorage";
 
 const STORAGE_KEY = "pubmax:map-opening-location:v1";
+/** A recent opening hint, never a durable record of where the reader lives. */
+export const MAP_OPENING_LOCATION_MAX_AGE_MS = 30 * 60 * 1000;
 
 export type MapOpeningLocation = { lat: number; lng: number };
 
@@ -18,7 +20,26 @@ export type MapOpeningLocationEnvironment = {
 
 export type MapOpeningLocationReadOptions = {
   onPermissionPrompt?: () => void;
+  signal?: AbortSignal;
+  positionOptions?: PositionOptions;
 };
+
+/** Automatic location requests need a browser grant confirmed on this visit. */
+export async function readMapLocationPermission(
+  environment: Pick<MapOpeningLocationEnvironment, "permissions"> | null =
+    typeof navigator === "undefined" ? null : navigator,
+): Promise<PermissionState | null> {
+  if (typeof environment?.permissions?.query !== "function") return null;
+  try {
+    const permission = await environment.permissions.query({ name: "geolocation" });
+    const state = permission?.state;
+    return state === "granted" || state === "denied" || state === "prompt"
+      ? state
+      : null;
+  } catch {
+    return null;
+  }
+}
 
 function validLocation(value: unknown): value is MapOpeningLocation {
   if (!value || typeof value !== "object") return false;
@@ -37,6 +58,7 @@ function resolveStorage(storage?: Storage | null): Storage | null {
 
 export function readMapOpeningLocation(
   storage?: Storage | null,
+  now = Date.now(),
 ): MapOpeningLocation | null {
   const store = resolveStorage(storage);
   if (!store) return null;
@@ -44,8 +66,21 @@ export function readMapOpeningLocation(
     const raw = store.getItem(STORAGE_KEY);
     if (!raw) return null;
     const value: unknown = JSON.parse(raw);
-    return validLocation(value) ? value : null;
+    const savedAt = value && typeof value === "object"
+      ? (value as Record<string, unknown>).savedAt
+      : undefined;
+    if (
+      validLocation(value) &&
+      typeof savedAt === "number" && Number.isFinite(savedAt) &&
+      savedAt >= 0 && savedAt <= now &&
+      now - savedAt < MAP_OPENING_LOCATION_MAX_AGE_MS
+    ) {
+      return { lat: value.lat, lng: value.lng };
+    }
+    store.removeItem(STORAGE_KEY);
+    return null;
   } catch {
+    try { store.removeItem(STORAGE_KEY); } catch { /* Storage may be blocked. */ }
     return null;
   }
 }
@@ -53,12 +88,13 @@ export function readMapOpeningLocation(
 export function writeMapOpeningLocation(
   location: MapOpeningLocation,
   storage?: Storage | null,
+  now = Date.now(),
 ): void {
   if (!validLocation(location)) return;
   const store = resolveStorage(storage);
   if (!store) return;
   try {
-    store.setItem(STORAGE_KEY, JSON.stringify(location));
+    store.setItem(STORAGE_KEY, JSON.stringify({ lat: location.lat, lng: location.lng, savedAt: now }));
   } catch {
     // Location is an optional speed hint. Storage failure never blocks the map.
   }
@@ -89,10 +125,10 @@ export async function readOpeningMapLocation(
     typeof navigator === "undefined" ? null : navigator,
   options: MapOpeningLocationReadOptions = {},
 ): Promise<MapOpeningLocation | null> {
-  if (!environment?.geolocation) return null;
+  if (!environment?.geolocation || options.signal?.aborted) return null;
   const geolocation = environment.geolocation;
   const readCurrentLocation = () => new Promise<MapOpeningLocation | null>((resolve) => {
-    const settle = (value: MapOpeningLocation | null) => resolve(value);
+    const settle = (value: MapOpeningLocation | null) => resolve(options.signal?.aborted ? null : value);
     try {
       geolocation.getCurrentPosition(
         (position) => {
@@ -107,26 +143,19 @@ export async function readOpeningMapLocation(
           }
         },
         () => settle(null),
-        { enableHighAccuracy: false, timeout: 2_000, maximumAge: 60_000 },
+        options.positionOptions ?? { enableHighAccuracy: false, timeout: 2_000, maximumAge: 60_000 },
       );
     } catch {
       settle(null);
     }
   });
 
-  if (!environment.permissions || typeof environment.permissions.query !== "function") {
+  const permission = await readMapLocationPermission(environment);
+  if (options.signal?.aborted) return null;
+  if (permission === "denied") return null;
+  if (permission !== "granted") {
     options.onPermissionPrompt?.();
-    return readCurrentLocation();
-  }
-  try {
-    const permission = await environment.permissions.query({ name: "geolocation" });
-    if (permission?.state === "denied") return null;
-    if (permission?.state === "prompt") {
-      options.onPermissionPrompt?.();
-      return null;
-    }
-  } catch {
-    options.onPermissionPrompt?.();
+    return null;
   }
   return readCurrentLocation();
 }
