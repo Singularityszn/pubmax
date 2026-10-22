@@ -154,6 +154,27 @@ for (const journey of journeys) {
         && row.drinkLabel === "GORDONS" && row.servingSize === "25ml"
         && row.sourceUrl === albionGinSourceUrl && row.observedAt === ginSource?.observedAt,
       ), "Map Gin index must preserve the exact committed named offer and its real observation date").toBe(true);
+
+      await expect(async () => {
+        await page.getByRole("button", { name: "Search the map", exact: true }).click();
+        await expect(page.getByRole("combobox", { name: "Search pubs" })).toBeVisible({ timeout: 1_000 });
+      }).toPass({ timeout: 20_000 });
+      await page.getByRole("combobox", { name: "Search pubs" }).fill("Albion");
+      const listbox = page.getByRole("listbox", { name: "Search suggestions" });
+      const albion = listbox.getByRole("group", { name: "Venues", exact: true })
+        .locator(`[role="option"][data-venue-id="${canonicalVenueId(journey.anchor)}"]`);
+      await expect(albion).toBeVisible({ timeout: 30_000 });
+      // Inspect the row before selection: a correct venue sheet cannot repair
+      // a search result that borrowed this pub's £5.40 pint for the Gin lane.
+      await expect(albion.locator(".mapSearchSuggestPrice")).toHaveText("Gin · £4.00 · 25ml");
+      await expect(albion).not.toContainText("£5.40");
+      const albionName = await albion.locator(".mapSearchSuggestRowName").innerText();
+      await albion.click();
+      await expect(page).toHaveURL((url) => url.searchParams.get("sel") === canonicalVenueId(journey.anchor));
+      await expect(page.getByRole("heading", { name: albionName, exact: true })).toBeVisible();
+      expect(new URL(page.url()).searchParams.get("drink")).toBe("gin");
+      await page.getByRole("button", { name: "Close and return to the map", exact: true }).click();
+      await expect(page).toHaveURL((url) => !url.searchParams.has("sel") && url.searchParams.get("drink") === "gin");
     }
 
     await expect(async () => {
