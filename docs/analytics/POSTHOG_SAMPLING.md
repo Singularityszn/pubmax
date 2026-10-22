@@ -6,9 +6,9 @@ Project: PostHog EU (pubmaxxing.com).
 
 - Session replay, heatmaps, surveys and feature flags are off in `posthogBrowserConfig` (`lib/posthogClient.ts`). The privacy page promises all of them are off.
 - The browser SDK never calls `identify`. Every browser event carries the consented `anon_` device id only. A browser that a past release identified is reset to a fresh anonymous person when the SDK boots.
-- `before_send` (`sanitizePosthogEvent`) keeps only `$pageview`, `$web_vitals`, `$exception` and the closed `map_load_timing` shape (`lib/mapLoadTimingEvent.ts`). It cannot see the `/flags` request, so flags stay off at the config level. It keeps `$lib_custom_api_host`, which PostHog's reverse-proxy health check reads.
+- `before_send` (`sanitizePosthogEvent`) keeps only `$pageview`, `$pageleave`, `$web_vitals`, `$exception` and the closed `map_load_timing` shape (`lib/mapLoadTimingEvent.ts`). It cannot see the `/flags` request, so flags stay off at the config level. It keeps `$lib_custom_api_host`, which PostHog's reverse-proxy health check reads.
 - `$web_vitals` is the one field-vitals pipeline. There is no `web_vital` product event.
-- `$pageleave` is off: it carries time on page and scroll depth, which the privacy page does not list. Turning it on needs a privacy page change in the same PR.
+- The SDK sends the final `$pageleave` by beacon. An internal navigation carries the previous visit's measurements on the next explicit `$pageview`. The filter keeps UUID page identifiers, coarse paths, duration in seconds from 0 to 86,400, and scroll proportions from 0 to 1. It drops pixel positions and free text. Message, account and admin pages carry no engagement measurements. An excluded route interrupts previous-visit measurements. The privacy page describes this collection.
 - Capture is batched (`request_batching: true`), so one `/ingest` request carries a page's pageview, vitals and any exception.
 - Turning any of these on needs text masking, blocked message, admin and account surfaces, and a privacy page change in the same PR.
 - Fence: `__tests__/posthogSdkBoundary.test.ts` drives the real SDK with a stubbed fetch and a server config that switches every feature on.

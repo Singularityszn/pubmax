@@ -113,8 +113,11 @@ beforeAll(async () => {
   // pageview is still queued here.
   await settle(500);
   capturedBeforeUnload = decodedRequests().filter((request) => request.includes("$pageview")).length;
-  // Leaving the page flushes the queue in one beacon, and is where the SDK
-  // would add a $pageleave if it were on.
+  window.history.replaceState(null, "", "/privacy");
+  capturePosthogPageview("/privacy", ANON);
+  await settle(10);
+  // Internal navigation carries the previous visit on the next pageview.
+  // Leaving the document flushes the final pageleave in the same beacon.
   window.dispatchEvent(new Event("pagehide"));
   window.dispatchEvent(new Event("beforeunload"));
   await settle(100);
@@ -161,12 +164,19 @@ describe("PostHog SDK boundary (real posthog-js, stubbed fetch)", () => {
     expect(captures.every(({ url }) => url.startsWith("/ingest/"))).toBe(true);
   });
 
-  it("never sends $pageleave: the privacy page lists no time on page or scroll depth", () => {
-    expect(posthog.config.capture_pageleave).toBe(false);
-    for (const request of decodedRequests()) {
-      expect(request).not.toContain("$pageleave");
-      expect(request).not.toContain("$prev_pageview_duration");
-    }
+  it("sends the final pageleave with duration and scroll depth through ingest", () => {
+    const exits = decodedRequests().filter((request) => request.includes('"event":"$pageleave"'));
+    expect(exits).toHaveLength(1);
+    expect(exits[0]).toContain('"$prev_pageview_pathname":"/privacy"');
+    expect(exits[0]).toContain('"$prev_pageview_duration":');
+    expect(exits[0]).toContain('"$prev_pageview_max_content_percentage":');
+  });
+
+  it("keeps the previous visit measurements on internal navigation", () => {
+    const request = decodedRequests().find((entry) => entry.includes('"$prev_pageview_pathname":"/map"'));
+    expect(request).toContain('"$prev_pageview_id":');
+    expect(request).toContain('"$prev_pageview_duration":');
+    expect(request).toContain('"$prev_pageview_max_content_percentage":');
   });
 
   it("loads no recorder, heatmap or survey code and sends no $snapshot or $$heatmap", () => {

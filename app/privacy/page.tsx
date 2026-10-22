@@ -27,7 +27,7 @@ import "../legal.css";
 const PAGE_TITLE = "Privacy";
 const PAGE_DESCRIPTION =
   "What PUBMAXX collects, why, who else sees it, how long we keep it, and how to get it deleted. Written against the app's behaviour.";
-const LAST_UPDATED = "20 October 2026";
+const LAST_UPDATED = "22 October 2026";
 
 export const metadata: Metadata = {
   title: PAGE_TITLE,
@@ -469,6 +469,9 @@ export default function PrivacyPage() {
             Page visits and events include browser and version, operating
             system, device type, screen and viewport size, the referring page,
             recognised campaign parameters and coarse app paths. The browser
+            records page exits, time on each page and the furthest proportion
+            scrolled, so we can measure visits and reading depth. We exclude
+            message, account and admin pages from these measurements. The browser
             SDK also sends Web Vitals, and how long the map took to show its
             pubs, so we can measure loading and interaction performance. No
             account, handle, email, message content, free text or precise

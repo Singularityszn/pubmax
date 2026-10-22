@@ -10,6 +10,81 @@ import { currentAnalyticsAttributionProps } from "@/lib/analyticsAttribution.mjs
 const UUID = "018f47a2-8e71-7a7a-9f18-8b953d45b2da";
 
 describe("PostHog browser privacy boundary", () => {
+  it("keeps bounded engagement and coarse paths on page exits", () => {
+    const event: CaptureResult = {
+      uuid: UUID,
+      event: "$pageleave",
+      properties: {
+        distinct_id: `anon_${UUID}`,
+        $pathname: "/plan/private-plan",
+        $current_url: "https://pubmaxxing.com/plan/private-plan?invite=secret#token",
+        $pageview_id: UUID,
+        $prev_pageview_id: UUID,
+        $prev_pageview_pathname: "/plan/private-plan",
+        $prev_pageview_duration: 12.5,
+        $prev_pageview_max_content_percentage: 0.75,
+        $prev_pageview_last_scroll_percentage: 0.5,
+        $prev_pageview_last_content_percentage: Infinity,
+        $prev_pageview_max_scroll_percentage: -1,
+        $prev_pageview_max_scroll: "private text",
+        title: "Private plan name",
+        $set: { email: "person@example.com" },
+      },
+    };
+    const clean = sanitizePosthogEvent(event);
+    expect(clean?.event).toBe("$pageleave");
+    expect(clean?.properties).toMatchObject({
+      $pathname: "/plan/[id]",
+      $current_url: "https://pubmaxxing.com/plan/[id]",
+      $pageview_id: UUID,
+      $prev_pageview_id: UUID,
+      $prev_pageview_pathname: "/plan/[id]",
+      $prev_pageview_duration: 12.5,
+      $prev_pageview_max_content_percentage: 0.75,
+      $prev_pageview_last_scroll_percentage: 0.5,
+    });
+    expect(clean?.properties).not.toHaveProperty("$prev_pageview_last_content_percentage");
+    expect(clean?.properties).not.toHaveProperty("$prev_pageview_max_scroll_percentage");
+    expect(JSON.stringify(clean)).not.toMatch(/private-plan|secret|token|private text|Private plan name|person@example/);
+  });
+
+  it.each(["/admin", "/messages/private-thread", "/u/you", "/profile", "/unknown"])(
+    "does not send exit measurements for %s",
+    (pathname) => {
+      expect(sanitizePosthogEvent({
+        uuid: UUID,
+        event: "$pageleave",
+        properties: {
+          distinct_id: `anon_${UUID}`,
+          $pathname: pathname,
+          $prev_pageview_pathname: pathname,
+          $prev_pageview_id: UUID,
+          $prev_pageview_duration: 10,
+        },
+      })).toBeNull();
+    },
+  );
+
+  it("drops previous engagement after an excluded route interrupts a visit", () => {
+    const clean = sanitizePosthogEvent({
+      uuid: UUID,
+      event: "$pageview",
+      properties: {
+        distinct_id: `anon_${UUID}`,
+        $pubmaxx_anonymous_id: `anon_${UUID}`,
+        $pathname: "/map",
+        $pageview_id: UUID,
+        $prev_pageview_pathname: "/tonight",
+        $prev_pageview_id: UUID,
+        $prev_pageview_duration: 20,
+        $pubmaxx_skip_previous_engagement: true,
+      },
+    });
+    expect(clean?.properties.$pageview_id).toBe(UUID);
+    expect(clean?.properties).not.toHaveProperty("$prev_pageview_duration");
+    expect(clean?.properties).not.toHaveProperty("$pubmaxx_skip_previous_engagement");
+  });
+
   it("drops browser autocapture and unregistered custom events", () => {
     const event: CaptureResult = {
       uuid: UUID,
@@ -392,7 +467,7 @@ describe("PostHog browser privacy boundary", () => {
       autocapture: false,
       rageclick: false,
       capture_pageview: false,
-      capture_pageleave: false,
+      capture_pageleave: true,
       capture_performance: true,
       capture_heatmaps: false,
       capture_dead_clicks: false,

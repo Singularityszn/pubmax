@@ -91,6 +91,7 @@ type PostHogClient = (typeof import("posthog-js"))["default"];
 type PendingPageview = {
   pathname: string;
   anonymousId: string;
+  skipPreviousEngagement?: boolean;
 };
 
 const MAX_PENDING_PAGEVIEWS = 32;
@@ -151,6 +152,37 @@ function takeMapLoadTimingOutbox(now: number): PendingMapLoadTiming | null {
   }
 }
 let lastObservedPageviewPathname: string | null = null;
+let skipPreviousEngagement = false;
+
+const POSTHOG_UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+function engagementSurface(pathname: unknown): string | null {
+  if (typeof pathname !== "string" || /^(?:\/messages|\/u|\/you|\/profile|\/account|\/settings|\/login|\/signin|\/auth)(?:\/|$)/.test(pathname)) return null;
+  return analyticsPageviewSurfaceFromPath(pathname);
+}
+
+/** Keep only SDK page correlation, seconds and scroll proportions. */
+function pageEngagementProperties(properties: CaptureResult["properties"]): CaptureResult["properties"] {
+  const result: CaptureResult["properties"] = {};
+  if (typeof properties.$pageview_id === "string" && POSTHOG_UUID.test(properties.$pageview_id)) {
+    result.$pageview_id = properties.$pageview_id;
+  }
+  const previous = engagementSurface(properties.$prev_pageview_pathname);
+  if (!previous || properties.$pubmaxx_skip_previous_engagement === true) return result;
+  if (typeof properties.$prev_pageview_id !== "string" || !POSTHOG_UUID.test(properties.$prev_pageview_id)) return result;
+  result.$prev_pageview_id = properties.$prev_pageview_id;
+  result.$prev_pageview_pathname = previous;
+  const duration = properties.$prev_pageview_duration;
+  if (typeof duration === "number" && Number.isFinite(duration) && duration >= 0 && duration <= 86_400) {
+    result.$prev_pageview_duration = duration;
+  }
+  for (const dimension of ["last_scroll", "max_scroll", "last_content", "max_content"]) {
+    const key = `$prev_pageview_${dimension}_percentage`;
+    const value = properties[key];
+    if (typeof value === "number" && Number.isFinite(value) && value >= 0 && value <= 1) result[key] = value;
+  }
+  return result;
+}
 
 function safeExceptionType(value: unknown): string {
   return typeof value === "string" && SAFE_EXCEPTION_TYPES.has(value)
@@ -250,7 +282,7 @@ function resolvePosthogDeviceId(generatedId: string): string {
 }
 
 /**
- * Browser SDK owns explicit pageviews, standard web vitals, and scrubbed
+ * Browser SDK owns explicit pageviews, page exits, standard web vitals, and scrubbed
  * exception counts. Its before-send hook is a closed system-event registry:
  * DOM autocapture and custom product events are rejected here.
  *
@@ -275,9 +307,26 @@ export function sanitizePosthogEvent(event: CaptureResult | null): CaptureResult
       ...(event.timestamp ? { timestamp: event.timestamp } : {}),
       properties: {
         ...standardBrowserProperties(event.properties, pathname),
+        ...(engagementSurface(rawPathname) ? pageEngagementProperties(event.properties) : {}),
         distinct_id: distinctId,
         $device_id: distinctId,
         $pathname: pathname,
+      },
+    };
+  }
+
+  if (event.event === "$pageleave") {
+    const distinctId = event.properties.distinct_id;
+    const pathname = engagementSurface(event.properties.$pathname);
+    const engagement = pageEngagementProperties(event.properties);
+    if (!isAnonymousAnalyticsId(distinctId) || !pathname || !engagement.$prev_pageview_id) return null;
+    return {
+      uuid: event.uuid,
+      event: "$pageleave",
+      ...(event.timestamp ? { timestamp: event.timestamp } : {}),
+      properties: {
+        ...standardBrowserProperties(event.properties, String(engagement.$prev_pageview_pathname)),
+        ...engagement,
       },
     };
   }
@@ -373,9 +422,9 @@ export const posthogBrowserConfig = {
   autocapture: false,
   rageclick: false,
   capture_pageview: false,
-  // $pageleave stays off: it carries time on page and scroll depth, which the
-  // privacy page does not list among the things analytics collect.
-  capture_pageleave: false,
+  // The SDK puts route-exit measurements on the next explicit pageview and
+  // sends the final pageleave by beacon. before_send bounds both shapes.
+  capture_pageleave: true,
   capture_performance: true,
   // Replay, heatmaps, surveys, identify and flags stay off: the privacy page
   // promises none of them, and before_send would drop their events anyway.
@@ -438,6 +487,7 @@ export function syncPosthogConsent(consentAllowed: boolean): void {
     pendingMapLoadTiming = null;
     clearMapLoadTimingOutbox();
     lastObservedPageviewPathname = null;
+    skipPreviousEngagement = false;
     if (initialized) client?.opt_out_capturing();
     return;
   }
@@ -473,10 +523,12 @@ export function syncPosthogConsent(consentAllowed: boolean): void {
     }
     captureEnabled = true;
     const pageviews = pendingPageviews.splice(0);
-    for (const pageview of pageviews) {
+    for (const [index, pageview] of pageviews.entries()) {
       loadedClient.capture("$pageview", {
         $pathname: pageview.pathname,
         $pubmaxx_anonymous_id: pageview.anonymousId,
+        // Replayed views cannot measure earlier routes' scroll or duration.
+        ...((pageview.skipPreviousEngagement || index > 0) ? { $pubmaxx_skip_previous_engagement: true } : {}),
       });
     }
     const pending = pendingMapLoadTiming;
@@ -515,8 +567,6 @@ export function capturePosthogMapLoadTiming(
   );
 }
 
-const POSTHOG_SESSION_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-
 /**
  * The browser SDK's current session id, so a named product event forwarded by
  * /api/events joins the same session as the pageviews and $web_vitals around
@@ -527,7 +577,7 @@ export function posthogSessionId(): string | null {
   if (!consentAllowedNow || !initialized || !captureEnabled || !client) return null;
   try {
     const sessionId = client.get_session_id();
-    return typeof sessionId === "string" && POSTHOG_SESSION_ID.test(sessionId) ? sessionId : null;
+    return typeof sessionId === "string" && POSTHOG_UUID.test(sessionId) ? sessionId : null;
   } catch {
     return null;
   }
@@ -544,7 +594,12 @@ export function capturePosthogPageview(pathname: string, anonymousId: string | n
   lastObservedPageviewPathname = pathname;
 
   const analyticsSurface = analyticsPageviewSurfaceFromPath(pathname);
-  if (!analyticsSurface) return;
+  if (!analyticsSurface) {
+    skipPreviousEngagement = true;
+    return;
+  }
+  const skipPrevious = skipPreviousEngagement;
+  skipPreviousEngagement = false;
 
   if (!initialized || !client || !captureEnabled) {
     if (pendingPageviews.length >= MAX_PENDING_PAGEVIEWS) {
@@ -553,6 +608,7 @@ export function capturePosthogPageview(pathname: string, anonymousId: string | n
     pendingPageviews.push({
       pathname: analyticsSurface,
       anonymousId,
+      ...(skipPrevious ? { skipPreviousEngagement: true } : {}),
     });
     return;
   }
@@ -560,6 +616,7 @@ export function capturePosthogPageview(pathname: string, anonymousId: string | n
   client.capture("$pageview", {
     $pathname: analyticsSurface,
     $pubmaxx_anonymous_id: anonymousId,
+    ...(skipPrevious ? { $pubmaxx_skip_previous_engagement: true } : {}),
   });
 }
 

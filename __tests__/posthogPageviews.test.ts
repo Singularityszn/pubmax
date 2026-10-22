@@ -106,10 +106,12 @@ describe("explicit PostHog pageviews", () => {
         ["$pageview", {
           $pathname: "/map",
           $pubmaxx_anonymous_id: anonymousId,
+          $pubmaxx_skip_previous_engagement: true,
         }],
         ["$pageview", {
           $pathname: "/privacy",
           $pubmaxx_anonymous_id: anonymousId,
+          $pubmaxx_skip_previous_engagement: true,
         }],
       ]);
     });
@@ -125,10 +127,12 @@ describe("explicit PostHog pageviews", () => {
       ["$pageview", {
         $pathname: "/map",
         $pubmaxx_anonymous_id: anonymousId,
+        $pubmaxx_skip_previous_engagement: true,
       }],
       ["$pageview", {
         $pathname: "/privacy",
         $pubmaxx_anonymous_id: anonymousId,
+        $pubmaxx_skip_previous_engagement: true,
       }],
       ["$pageview", {
         $pathname: "/terms",
@@ -267,6 +271,7 @@ describe("explicit PostHog pageviews", () => {
         ["$pageview", {
           $pathname: "/map",
           $pubmaxx_anonymous_id: anonymousId,
+          $pubmaxx_skip_previous_engagement: true,
         }],
       ]);
       expect(JSON.stringify(posthogState.captures)).not.toContain(excludedPath);

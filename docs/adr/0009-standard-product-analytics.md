@@ -34,7 +34,10 @@ referrer and campaign parameters, Web Vitals, unique users, and retention.
   them in raw form.
 - Autocapture and session recording remain disabled. Product events remain a
   closed named registry, while explicit coarse pageviews, redacted exceptions,
-  and Web Vitals remain the only allowed browser SDK event classes.
+  Web Vitals, and page exits remain the only allowed browser SDK event classes.
+  The health repair of 22 October 2026 adds consented page-exit duration and
+  scroll proportions, with the privacy notice updated in the same change.
+  Message, account and admin pages have no engagement measurements.
 - Events must be deleted 12 months after collection. Pseudonymous person/device
   profiles must be deleted 12 months after their last activity. Provider-side
   configuration and verification are release gates, not assumptions made by
