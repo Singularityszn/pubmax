@@ -10,6 +10,9 @@ for (const viewport of [
     test.setTimeout(120_000);
     await page.setViewportSize(viewport);
     await page.emulateMedia({ reducedMotion: "reduce" });
+    await page.route("**/*", (route) => ["GET", "HEAD"].includes(route.request().method())
+      ? route.continue()
+      : route.abort());
     await page.addInitScript(() => {
       localStorage.setItem("pubmax-tour-v1-done", "1");
       localStorage.setItem("pubmax_onboarding_dismissed", "1");
@@ -44,6 +47,15 @@ for (const viewport of [
     await page.reload();
     await expect.poll(async () => Number(await page.locator(".mapCanvasWrap").getAttribute("data-venue-count")))
       .toBeGreaterThan(1);
+    await expect.poll(async () => page.evaluate(() => {
+      const camera = (window as Window & {
+        __pubmaxMapCamera?: { read(): { moving: boolean; settling: boolean } };
+      }).__pubmaxMapCamera?.read();
+      return Boolean(camera && !camera.moving && !camera.settling);
+    })).toBe(true);
+    await page.waitForTimeout(1_000);
+    await expect(page.locator("#main")).not.toHaveClass(/detail-open/);
+    await expect(page).toHaveURL(/\/map\?q=Hatton$/);
     await expect(page.getByText("Visiting another city?", { exact: true })).toHaveCount(0);
   });
 }
