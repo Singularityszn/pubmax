@@ -2,8 +2,9 @@ import { jsonNoStore } from "@/lib/apiResponses";
 import { publicApiError } from "@/lib/apiError";
 import { DEFAULT_CITY_ID, parseCityId } from "@/lib/cities";
 import { loadConciergeVenues } from "@/lib/concierge/venues.server";
+import { cultureOutingCosts, type CultureOpenerDTO } from "@/lib/cultureCrawl";
 import { planCultureOpenerFields } from "@/lib/cultureCrawl.server";
-import type { PlanningConfidence, PlanRouteTotals } from "@/lib/planIntelligence";
+import type { PlanBudgetSummary, PlanningConfidence, PlanRouteTotals } from "@/lib/planIntelligence";
 import { estimatePlanWalking, estimateStraightLinePlanWalking } from "@/lib/walkRouteLegs";
 import { planGenerationEndings } from "@/lib/planGenerationEndings.server";
 import {
@@ -19,6 +20,7 @@ import {
 } from "@/lib/planGeneration.server";
 import { planEvidenceWarning, planGenerationEvidenceGaps, planScoringDrinkCategory } from "@/lib/planGenerationRanking";
 import { selectPlanGenerationCandidates } from "@/lib/planGenerationSelection.server";
+import { priceEvidenceUsableForCeiling, type PlanPriceEvidence } from "@/lib/planRouteEvidence";
 import type { PlanConstraintReport, SelectedGroundedPlanStop } from "@/lib/planRouteOptimizer";
 import type { PlanningIntentSource } from "@/lib/planningIntent";
 import { mintPlanGroundingProof, mintPlanGroundingProofV2 } from "@/lib/planGrounding.server";
@@ -46,6 +48,33 @@ export async function GET(request: Request): Promise<Response> {
     status: 204,
     headers: { "cache-control": "no-store" },
   });
+}
+
+/**
+ * The Culture Crawl cost sibling. A culture outing always has costs nobody has
+ * priced: the POI layer holds no admission, and the planner holds no food or
+ * fares. Its pint subtotal is therefore partial, and the whole night never
+ * reads as within budget. An ordinary outing passes through unchanged.
+ */
+function cultureOutingFields(
+	cultureOpener: CultureOpenerDTO | undefined,
+	stops: readonly { venueId: string; venueName: string; priceEvidence: PlanPriceEvidence | null }[],
+	limitPence: number | null,
+	budgetSummary: PlanBudgetSummary,
+) {
+	if (!cultureOpener) return { cultureFields: {}, budgetSummary };
+	const costs = cultureOutingCosts({
+		limitPence,
+		stops: stops.map((stop) => ({
+			venueId: stop.venueId,
+			venueName: stop.venueName,
+			price: stop.priceEvidence && priceEvidenceUsableForCeiling(stop.priceEvidence) ? stop.priceEvidence : null,
+		})),
+	});
+	return {
+		cultureFields: { cultureOpener: { ...cultureOpener, costs } },
+		budgetSummary: { ...budgetSummary, withinLimit: null },
+	};
 }
 
 export async function POST(request: Request): Promise<Response> {
@@ -202,6 +231,12 @@ export async function POST(request: Request): Promise<Response> {
 		planningWeather,
 		priceContext: context,
 	});
+	const { cultureFields, budgetSummary: routeBudgetSummary } = cultureOutingFields(
+		cultureOpenerFields.cultureOpener,
+		stops,
+		context.budgetLimitPence,
+		budgetSummary,
+	);
 	// Ground the proof over exactly the venues this response commits to: the
 	// three chosen stops plus every alternative id we actually emit above.
 	const groundingCandidateIds = [
@@ -254,11 +289,11 @@ export async function POST(request: Request): Promise<Response> {
 		contextFieldSources: reconciled.fieldSources,
     confidence: reconciled.confidence,
 		planningConfidence,
-		budgetSummary,
+		budgetSummary: routeBudgetSummary,
 		routeTotals,
 		routeTiming: planRouteTimingDisclosure(groundedTiming),
 		endingRecommendations,
-		...cultureOpenerFields,
+		...cultureFields,
 		weatherEvidence: planningWeather,
 		nightArea,
 		...(constraintReport ? { constraintReport } : {}),

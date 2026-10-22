@@ -65,8 +65,12 @@ describe("Culture Crawl opener in the route preview", () => {
     expect(opener).not.toContain("planComposer__number");
     expect(opener).not.toContain("planComposer__swap");
     expect(opener).not.toContain("planComposer__remove");
-    // No figure of any kind rides beside a waypoint except its distance.
-    expect(opener).not.toMatch(/£|Pence|pricePence/);
+    // No figure of any kind rides beside a waypoint except its distance. The
+    // pub costs are a separate sibling after the note, and the rendered proof
+    // that they never price the place lives in cultureCrawlBudget.test.tsx.
+    const waypointBlock = opener.slice(opener.indexOf("{opener.waypoint ? ("), opener.indexOf("{opener.note}"));
+    expect(waypointBlock).toContain("opener.waypoint.distanceKm");
+    expect(waypointBlock).not.toMatch(/£|Pence|pricePence|pounds\(/);
     // The one line this component owns outright. The dash ban is tree-wide
     // (__tests__/emDashLaw.test.ts); the exclamation ban is per copy string.
     expect(opener).toContain(">Before the first pint<");
