@@ -17,16 +17,15 @@ The app set `capture_pageleave: false`. Its closed browser event filter also
 rejected pageleave events. The privacy notice did not describe duration or
 scroll depth.
 
-The repair enables the SDK's final pageleave beacon. Internal navigation
-keeps the previous visit's measurements on the next explicit pageview.
-The filter keeps UUID page identifiers, coarse paths, bounded seconds and
-scroll proportions. It removes pixel positions and free text.
-Message, account and admin pages have no engagement measurements.
-An excluded route interrupts the previous visit. Queued views omit earlier
-engagement because a late SDK cannot measure those routes accurately.
-The privacy notice now describes these measurements.
+The [browser SDK contract](../../analytics/POSTHOG_SAMPLING.md) owns the
+current collection limits. The [privacy notice](../../../app/privacy/page.tsx)
+describes them for users.
 
-## Before and after
+## Initial implementation evidence
+
+The results below describe the initial implementation through `bd06e7e1a`.
+They predate the consent repair in `59b3026c4` and the Activity exclusion
+in `c698a247c`. They do not validate those runtime changes.
 
 The real SDK regression command was:
 
@@ -49,7 +48,7 @@ A browser probe against production also reproduced two pageviews and zero
 pageleave events. Capture requests were intercepted, so this probe added no
 events to the production project.
 
-The built local app passes the pageleave browser test. It checks two
+The initial local build passed the pageleave browser test. It checks two
 pageviews, their linked previous-visit measurements, and one pageleave
 with bounded duration and scroll proportion. The test dispatches pagehide
 while retaining the document. Chromium can discard an intercepted unload
@@ -63,12 +62,12 @@ and sendBeacon calls while recording their inputs. This proves that the
 browser queues the event during native pagehide. Provider receipt remains
 a production release check.
 
-## Validation and limits
+## Initial validation and current limits
 
 - `npm run verify` passed. Unit coverage reported 42,504 passes and one
   deliberate skip. PostgreSQL runs reported 679 and 10 passes.
-- The final focused run passed 87 tests across five suites.
-- The final production build passed.
+- The initial focused run passed 87 tests across five suites.
+- The initial production build passed.
 - Changed TypeScript files passed ESLint.
 - The browser checks cover acceptance, refusal and the pagehide beacon.
 - Freshness checks reported two advisory stale datasets and three
@@ -76,6 +75,9 @@ a production release check.
 
 This evidence uses branch `codex/posthog-health-1022`, based on
 `325122c23eb9d8bc809c4388448c0e5459146152`.
+The Test phase must rebuild the current source in an isolated production
+artifact before browser validation. The earlier localhost:3317 server does
+not prove the consent and Activity repairs.
 No migration is required. Production deployment and fresh production
 ingestion remain release checks. The warning clears only after PostHog
 receives pageleave events and its scheduled health check runs again.

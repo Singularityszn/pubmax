@@ -476,7 +476,7 @@ that was missing: all 18 failed at this bar, and nobody noticed for months.
 - **A person.** No account identity joins `distinct_id`. ADR 0009.
 - **A place a stranger looked at.** `venue_sheet_opened` names a layer, never a venue.
 - **A server-minted confirmation.** See 3, tile 4.
-- **Time on page, session length, or a scroll depth.** Nothing in the registry carries
-  a duration, and adding one would make the pseudonymous id sharper than the product
-  needs it to be.
+- **Engagement on excluded pages.** The [browser SDK contract](POSTHOG_SAMPLING.md)
+  owns page-exit measurements and their privacy limits. These measurements do not
+  add duration or scroll properties to the named product-event registry.
 - **Traffic without consent.** Every figure here is a figure about consented visitors.

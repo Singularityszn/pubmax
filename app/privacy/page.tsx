@@ -507,9 +507,10 @@ export default function PrivacyPage() {
           </li>
           <li>
             Turning consent off deletes the browser analytics identifier and
-            stops PostHog page visits, product events, the hosting
+            stops PostHog page visits and exits, product events, the hosting
             provider&rsquo;s pageview counter and its Speed Insights Web
-            Vitals.
+            Vitals. If you allow analytics again, page measurements start fresh.
+            They exclude time and scrolling while analytics were off.
           </li>
         </ul>
 
