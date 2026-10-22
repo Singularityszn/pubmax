@@ -1,7 +1,5 @@
 import { ImageResponse } from "next/og";
 
-import { OG_CACHE_HEADERS } from "@/lib/ogBrand";
-
 import { fetchThingsToDo } from "@/lib/citymcp/client";
 import { buildTonightPosterModel } from "@/lib/tonightPoster";
 
@@ -102,6 +100,6 @@ export async function GET() {
         </div>
       </div>
     ),
-    { ...size, headers: OG_CACHE_HEADERS },
+    { ...size, headers: { "cache-control": "public, max-age=0, s-maxage=300" } },
   );
 }

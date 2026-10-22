@@ -19,10 +19,14 @@ test("Tonight's shared poster still serves a full-sized PNG at its existing URL"
   const response = await request.get("/tonight/opengraph-image");
   expect(response.status()).toBe(200);
   expect(response.headers()["content-type"]).toContain("image/png");
+  expect(response.headers()["cache-control"]).toBe("public, max-age=0, s-maxage=300");
   const png = await response.body();
   expect(png.subarray(1, 4).toString()).toBe("PNG");
   expect(png.readUInt32BE(16)).toBe(1200);
   expect(png.readUInt32BE(20)).toBe(630);
+  const head = await request.head("/tonight/opengraph-image");
+  expect(head.status()).toBe(200);
+  expect(head.headers()["cache-control"]).toBe("public, max-age=0, s-maxage=300");
 });
 
 for (const route of routes) {
