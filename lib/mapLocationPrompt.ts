@@ -1,4 +1,4 @@
-import { searchHasExplicitMapIntent } from "@/lib/explicitMapIntent";
+import { searchHasExplicitMapIntent } from "@/lib/mapUrlIntent";
 
 const CITY_SUGGEST_DISMISS_KEY = "pubmax:citySuggestDismiss:v1";
 
