@@ -3,6 +3,10 @@ import { expect, test } from "@playwright/test";
 import { installDeterministicMapBasemap } from "./helpers/mapNetworkFixtures";
 import { beginPublicEvidence } from "./helpers/publicPageEvidence";
 
+if (process.env.PUBMAX_PUBLIC_EVIDENCE_PHASE) {
+  test.use({ trace: "off", video: "off" });
+}
+
 for (const width of [390, 1440]) {
   for (const door of ["food", "all", "beer"]) {
     test(`${width}px: ${door} menu drill-in preserves arrow-key tab ownership on revisit`, async ({ page }) => {
@@ -154,7 +158,6 @@ for (const menu of [
 }
 
 test.describe("public screenshot evidence", () => {
-  test.use({ trace: "off", video: "off" });
   test.skip(!process.env.PUBMAX_PUBLIC_EVIDENCE_PHASE, "Requires the separate immutable source checkout");
 
   test("records the New Inn dietary publisher beside its menu label", async ({ page }, testInfo) => {
