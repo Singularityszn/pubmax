@@ -3,6 +3,8 @@ import {
   mkdirSync,
   mkdtempSync,
   readFileSync,
+  readdirSync,
+  symlinkSync,
   rmSync,
   writeFileSync,
 } from "node:fs";
@@ -134,6 +136,35 @@ describe("build scripts", () => {
     expect(packageJson.scripts?.["build:uk-base"]).toBe(
       "node scripts/build_uk_base_shards.mjs && node scripts/build_uk_place_index.mjs && node scripts/build_uk_pub_search_index.mjs",
     );
+  });
+
+  it("skips gitignored venue detail artifacts when validating committed bundled data", () => {
+    const root = mkdtempSync(path.join(tmpdir(), "pubmax-committed-data-test-"));
+    tempDirs.push(root);
+    mkdirSync(path.join(root, "scripts"));
+    cpSync(path.join(ROOT, "scripts", "validate-data.mjs"), path.join(root, "scripts", "validate-data.mjs"));
+    symlinkSync(path.join(ROOT, "scripts", "lib"), path.join(root, "scripts", "lib"));
+    for (const directory of ["lib", "public"]) {
+      symlinkSync(path.join(ROOT, directory), path.join(root, directory));
+    }
+    mkdirSync(path.join(root, "data"));
+    for (const entry of readdirSync(path.join(ROOT, "data"))) {
+      if (entry !== "generated") {
+        symlinkSync(path.join(ROOT, "data", entry), path.join(root, "data", entry));
+      }
+    }
+    const result = spawnSync("node", [path.join(root, "scripts", "validate-data.mjs")], {
+      cwd: root,
+      encoding: "utf8",
+      env: {
+        ...process.env,
+        PUBMAX_VERIFY_COMMITTED_DATA: "1",
+        DEPLOYMENT_VERSION: "local",
+      },
+    });
+    if (result.error) throw result.error;
+    expect(result.status).toBe(0);
+    expect(result.stdout).toContain("SKIP data/generated/venue_details.jsonl");
   });
 
   it("omits malformed optional URLs and skips rows with malformed critical URLs", () => {

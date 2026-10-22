@@ -686,3 +686,41 @@ describe("the proxy export Next.js actually runs", () => {
     ).toBe(true);
   });
 });
+
+describe("blocked public profile documents", () => {
+  it.each(["karansdad", "karan-father", "%6Baransdad"])(
+    "refuses %s before streaming while preserving CSP",
+    (handle) => {
+      const response = securityProxy(
+        new NextRequest(`https://pubmaxxing.com/u/${handle}`, {
+          headers: { host: "pubmaxxing.com", accept: "text/html" },
+        }),
+      );
+      expect(response.status).toBe(404);
+      expect(response.headers.get("x-middleware-rewrite")).toBe(
+        "https://pubmaxxing.com/_not-found",
+      );
+      const policy = response.headers.get("Content-Security-Policy") ?? "";
+      const nonce = response.headers.get("x-middleware-request-x-nonce");
+      expect(nonce).toBeTruthy();
+      expect(directive(policy, "script-src")).toContain(`'nonce-${nonce}'`);
+      expect(directive(policy, "script-src")).not.toContain("'unsafe-inline'");
+      expect(response.headers.get("x-middleware-request-content-security-policy"))
+        .toBe(policy);
+      expect(response.headers.get("X-Robots-Tag")).toContain("noindex");
+    },
+  );
+
+  it.each(["you", "karan", "alice"])(
+    "keeps %s on the normal profile route",
+    (handle) => {
+      const response = securityProxy(
+        new NextRequest(`https://pubmaxxing.com/u/${handle}`, {
+          headers: { host: "pubmaxxing.com", accept: "text/html" },
+        }),
+      );
+      expect(response.status).toBe(200);
+      expect(response.headers.get("x-middleware-rewrite")).toBeNull();
+    },
+  );
+});

@@ -15,11 +15,24 @@ import {
   MAP_DOCUMENT_TWIN_PATH,
   mapRequestNeedsDocumentTwin,
 } from "@/lib/mapDocumentTwin";
+import { isPubmaxxHandleImpersonationBlock } from "@/lib/pubmaxxIdentity";
 import { isStaticAssetPath } from "@/lib/staticAssetPrefixes.mjs";
 
 assertE2ELoginSafe();
 
 const CANONICAL_HOST = "pubmaxxing.com";
+
+// Refuse local identity-policy blocks before Next streams a soft 404.
+// Profile and moderation reads stay in the page.
+function isBlockedPublicProfilePath(pathname: string): boolean {
+  const segment = /^\/u\/([^/]+)$/.exec(pathname)?.[1];
+  if (!segment) return false;
+  try {
+    return isPubmaxxHandleImpersonationBlock(decodeURIComponent(segment));
+  } catch {
+    return false;
+  }
+}
 
 // THE ONE CSP EXCEPTION, AND ITS WHOLE LIST.
 //
@@ -368,6 +381,7 @@ export function securityProxy(request: NextRequest) {
     target.search = "";
     return applyNonProductionRobotsTag(NextResponse.redirect(target, 307));
   }
+  const blockedProfile = isBlockedPublicProfilePath(pathname);
   // A /map request whose DOCUMENT differs from the prerendered shell (a town
   // arrival, national browse, a curated share card) is rewritten to the twin
   // that renders it per request. The address bar keeps /map, and the twin is
@@ -381,7 +395,7 @@ export function securityProxy(request: NextRequest) {
           return target;
         })()
       : null;
-  if (shouldSkipContentSecurityPolicy(request)) {
+  if (shouldSkipContentSecurityPolicy(request) && !blockedProfile) {
     return applyNonProductionRobotsTag(
       documentTwinUrl ? NextResponse.rewrite(documentTwinUrl) : NextResponse.next(),
     );
@@ -531,9 +545,12 @@ export function securityProxy(request: NextRequest) {
         return { request: { headers: requestHeaders } };
       })();
 
-  const response = documentTwinUrl
-    ? NextResponse.rewrite(documentTwinUrl, forwardedRequest)
-    : NextResponse.next(forwardedRequest);
+  const response = blockedProfile
+    ? NextResponse.rewrite(new URL("/_not-found", request.url), { ...forwardedRequest, status: 404 })
+    : documentTwinUrl
+      ? NextResponse.rewrite(documentTwinUrl, forwardedRequest)
+      : NextResponse.next(forwardedRequest);
+  if (blockedProfile) response.headers.set("X-Robots-Tag", "noindex");
   // And on the RESPONSE header so the browser actually enforces it.
   response.headers.set("Content-Security-Policy", contentSecurityPolicy);
   return applyNonProductionRobotsTag(response);
