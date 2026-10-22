@@ -8,7 +8,7 @@ import { startRlsSession } from "../rls/session-harness.mjs";
 const ROOT = fileURLToPath(new URL("../../", import.meta.url));
 const MIGRATIONS = join(ROOT, "supabase/migrations");
 const V1_RELEASE = "20260806035204_0070_v1_release_security.sql";
-const LAST_MIGRATION = "20261002110000_0183_plan_saved_stop_counts.sql";
+const LAST_MIGRATION = "20261003031818_0185_plan_named_listed_drink_evidence.sql";
 
 // The Belle Vue occurs on the generated Clapham route for both queries. Each
 // observation has an independent, non-null actor for corroboration.
@@ -44,7 +44,7 @@ export async function startDisposablePlanDb() {
       .filter((name) => name.endsWith(".sql") && name > V1_RELEASE && name <= LAST_MIGRATION)
       .sort();
     if (laterMigrations.at(-1) !== LAST_MIGRATION) {
-      throw new Error("Disposable Plan fixture cannot find migration 0183");
+      throw new Error("Disposable Plan fixture cannot find migration 0185");
     }
     for (const migration of laterMigrations) {
       session.sqlFile(join(MIGRATIONS, migration));
