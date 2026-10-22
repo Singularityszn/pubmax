@@ -16,6 +16,23 @@ Invented-venue and directory price checks are absolute: every card `venueId` mus
 A directory card with a price fails when its venue has no recorded price. A null price remains valid.
 These checks score structured cards. They do not detect invented values in answer text, opening hours or heritage claims.
 
+`__tests__/palFailClosedPrices.test.ts` adds twelve single-venue price asks from
+`fail-closed-prices.json`: ten unknown prices and two known prices with named
+sources. The test checks these references against the committed venue dataset
+before it runs the real keyless `runAsk` path. Global network access fails the test.
+
+The `priceAnswer` expectation checks prices in the answer and card text as well
+as structured card prices. Unknown prices require an explicit absence statement.
+Known prices require the recorded value and publisher on the same card.
+Replay tests insert invented prices, remove sources, and omit the known value.
+Run this subset with `npx vitest run __tests__/palFailClosedPrices.test.ts`.
+
+These are bounded code checks for single-venue pint-price questions. They detect
+numeric pound and pence amounts, including bare decimals. They do not grade
+spelled-out amounts or every possible refusal wording. They do not yet cover
+hours, heritage, the hosted Pub Pal agent, or the Night Architect MCP tools.
+The existing `eval:pal:live` command does not run this new subset.
+
 Memory has its own suite: [`memory/`](memory/README.md) grades what Pub Pal
 remembers about the person it is talking to (`npm run eval:pal:memory`).
 

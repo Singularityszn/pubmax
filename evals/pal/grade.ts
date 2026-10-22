@@ -80,6 +80,34 @@ export function gradePalCase(
     );
   }
 
+  if (expect.priceAnswer) {
+    const reference = expect.priceAnswer;
+    const cards = body.cards.filter((card) => card.venueId === reference.venueId);
+    // This check covers single-venue price questions, not budgets or comparisons.
+    const text = [body.answer, ...body.cards.flatMap((card) => [card.title, card.note])].join("\n");
+    const amounts = [...text.matchAll(/(?:£\s*|\bGBP\s*)(\d+(?:\.\d+)?)|\b(\d+(?:\.\d+)?)\s*(?:pounds?|quid|GBP)\b|\b(\d+)\s*(?:pence|p)\b|\b(\d+\.\d{1,2})\b/gi)]
+      .map((match) => match[3] ? Number(match[3]) / 100 : Number(match[1] ?? match[2] ?? match[4]));
+    if (reference.value === null) {
+      push(checks, "unknown_price_empty", body.cards.every((card) => card.price === null) && amounts.length === 0,
+        `prices=${body.cards.map((card) => card.price).join(",")} amounts=${amounts.join(",")}`);
+      push(checks, "unknown_price_disclosed",
+        /\b(?:not known|unknown|not recorded|no listed figure|no (?:current )?recorded (?:pint|price)|(?:cannot|can't|do not|don't) (?:confirm|verify|provide|know))\b/i.test(body.answer),
+        body.answer);
+    } else {
+      const value = reference.value;
+      const tolerance = expect.priceTolerance ?? 0.02;
+      push(checks, "known_price_value",
+        cards.some((card) => card.price !== null && Math.abs(card.price - value) <= tolerance)
+          && amounts.length > 0 && amounts.every((amount) => Math.abs(amount - value) <= tolerance),
+        `expected=${value} amounts=${amounts.join(",")}`);
+      push(checks, "known_price_source", cards.some((card) =>
+        card.price !== null && Math.abs(card.price - value) <= tolerance
+          && card.provenance?.kind === "directory"
+          && (card.provenance.label === reference.source || card.provenance.label.startsWith(`${reference.source}.`))),
+      `expected=${reference.source}`);
+    }
+  }
+
   const firstVenueCard = body.cards.find((c) => c.venueId);
   if (expect.topVenueId) {
     push(

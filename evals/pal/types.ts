@@ -17,6 +17,10 @@ export type PalEvalAnswerExpectations = {
   topVenueId?: string;
   topPrice?: number;
   priceTolerance?: number;
+  priceAnswer?: { venueId: string } & (
+    | { value: null }
+    | { value: number; source: string }
+  );
 };
 
 export type PalEvalUsage = {
