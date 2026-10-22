@@ -59,6 +59,9 @@ const config: KnipConfig = {
     "scripts/record_concierge_intent_probabilities.ts",
     // Standalone disposable Plan browser proof; traces its database helper too.
     "scripts/e2e/run-disposable-plan-browser.mjs",
+    // Headed foreground-location proof runs through its checked-in Playwright
+    // config under docs/proof; trace the spec's real helper imports and exports.
+    "docs/proof/friend-location-browser.spec.ts",
   ],
   ignore: [
     ...AGENT_TOOLING_PATHS,
