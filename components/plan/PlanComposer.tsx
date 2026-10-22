@@ -1411,6 +1411,7 @@ function PlanComposerForm({
     singleStopVenueId: completeStops.length === 1 ? completeStops[0]?.venueId : null,
     planAnchor,
   });
+  const displayedError = error || (completeStops.length > 0 ? lockValidation?.message : null);
   const canLockPlan =
     composerVisible &&
     !submitting &&
@@ -2326,7 +2327,7 @@ function PlanComposerForm({
         >Add another stop</button>
       </fieldset>
 
-      {error ? <PlanComposerErrorNotice message={error} /> : null}
+      {displayedError ? <PlanComposerErrorNotice message={displayedError} /> : null}
       {/* THE ANSWER IS PINNED. On a phone this action sat at the natural end of
           a page several screens long, which is under the tab bar and under the
           floating create action: PlanAstra measured it 40% covered at 390. It
