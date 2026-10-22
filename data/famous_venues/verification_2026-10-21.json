@@ -1,0 +1,1807 @@
+{
+  "version": 4,
+  "verifiedAt": "2026-10-21",
+  "method": "places_text_search: same-day owner receipts plus bounded live Google Places API (New) Text Search; only placeId and derived verdict fields are retained.",
+  "publication": {
+    "status": "blocked",
+    "reason": "Source constraints prevent complete renewal. Seed dates, the slim index and the freshness registry are unchanged.",
+    "unrenewedShippedIds": [
+      "bar-connaught",
+      "bar-coburg",
+      "bar-donovan",
+      "bar-swift-soho",
+      "bar-swift-borough",
+      "bar-bar-termini",
+      "bar-kwant",
+      "bar-ecc-chinatown",
+      "bar-cahoots",
+      "bar-vault-milroys",
+      "bar-soma-soho",
+      "food-super-kebab",
+      "food-berenjak-soho",
+      "food-bar-italia",
+      "food-vq-chelsea",
+      "restaurant-wolseley",
+      "restaurant-wiltons",
+      "restaurant-flat-iron-soho"
+    ],
+    "pendingSeedIds": [
+      "bar-beaufort-bar-savoy",
+      "bar-connaught",
+      "bar-coburg",
+      "bar-donovan",
+      "bar-swift-soho",
+      "bar-swift-borough",
+      "bar-bar-termini",
+      "bar-kwant",
+      "bar-ecc-chinatown",
+      "bar-cahoots",
+      "bar-vault-milroys",
+      "bar-soma-soho",
+      "food-super-kebab",
+      "food-mangal-1",
+      "food-berenjak-soho",
+      "food-maroush-edgware-road",
+      "food-wong-kei",
+      "food-bar-italia",
+      "food-vq-chelsea",
+      "food-golden-dragon",
+      "restaurant-wolseley",
+      "restaurant-wiltons",
+      "restaurant-flat-iron-soho"
+    ],
+    "candidateEarliestExpiresAt": "2026-11-04T00:00:00.000Z",
+    "candidateFreshnessDeadline": "2026-10-21T00:00:00.000Z",
+    "candidateStamp": "2026-10-21T00:00:00.000Z",
+    "candidateStalenessBudgetHours": 0
+  },
+  "summary": {
+    "rowsChecked": 81,
+    "confirmed": 65,
+    "closed": [],
+    "unverified": [
+      "bar-beaufort-bar-savoy",
+      "food-super-kebab",
+      "food-mangal-1",
+      "food-berenjak-soho",
+      "food-maroush-edgware-road",
+      "food-wong-kei",
+      "food-bar-italia",
+      "food-vq-chelsea",
+      "food-golden-dragon",
+      "restaurant-wolseley",
+      "restaurant-wiltons",
+      "restaurant-flat-iron-soho",
+      "bar-connaught",
+      "bar-coburg",
+      "bar-donovan",
+      "bar-kwant"
+    ],
+    "placesLiveApiCalls": 119,
+    "newPlacesLiveApiCalls": 19,
+    "reusedConfirmedChecks": 44,
+    "recoveredAnchorChecks": [
+      "food-antepliler",
+      "restaurant-veeraswamy",
+      "restaurant-padella-borough"
+    ]
+  },
+  "quota": {
+    "checkedAt": "2026-10-21T21:09:40.341Z",
+    "searchTextAttemptsReported": 102,
+    "dailyLimit": 140,
+    "taskAttemptLimit": 39,
+    "plannedAttempts": 19
+  },
+  "receipts": [
+    {
+      "owner": "pubpal-complete-1019",
+      "path": "data/famous_venues/receipts/verification_2026-10-21_pubpal-complete-1019.json",
+      "sha256": "594c453a396ec76f04ae02277b5c9f99e40f008a5e452ac434a906ae311e68ae",
+      "placesLiveApiCalls": 97
+    },
+    {
+      "owner": "pubpal-original-3d-1021",
+      "path": "data/famous_venues/receipts/verification_2026-10-21_pubpal-original-3d-1021.json",
+      "sha256": "b7a9a1431fe34dbef1448616a981ca1cbeea706e2f621d51968b95d698709e1b",
+      "placesLiveApiCalls": 3
+    }
+  ],
+  "checks": [
+    {
+      "id": "bar-beaufort-bar-savoy",
+      "method": "places_text_search",
+      "sourceUrl": "https://www.thesavoylondon.com/restaurants-and-bars/beaufort-wine-bar",
+      "outcome": "unverified",
+      "result": "anchor_missing",
+      "textQuery": "Beaufort Wine Bar WC2R 0EZ London",
+      "placeId": "ChIJ-9-i0csEdkgR5E8qINrsvws",
+      "matchReason": "exact_normalized_name;postcode_WC2R 0EZ",
+      "checkedAt": "2026-10-21T07:14:13.050Z",
+      "receipt": "data/famous_venues/receipts/verification_2026-10-21_pubpal-complete-1019.json"
+    },
+    {
+      "id": "food-best-turkish-kebab",
+      "method": "places_text_search",
+      "sourceUrl": "https://tbtk.co.uk/",
+      "outcome": "confirmed",
+      "result": "places_operational",
+      "textQuery": "The Best Turkish Kebab N16 8BT London",
+      "placeId": "ChIJc_SZa4ocdkgRCSS76XrLRIo",
+      "matchReason": "exact_normalized_name;postcode_N16 8BT",
+      "checkedAt": "2026-10-21T07:18:25.905Z",
+      "receipt": "data/famous_venues/receipts/verification_2026-10-21_pubpal-complete-1019.json"
+    },
+    {
+      "id": "food-super-kebab",
+      "method": "places_text_search",
+      "sourceUrl": "https://www.superkebab.net/",
+      "outcome": "unverified",
+      "result": "anchor_source_unreachable",
+      "textQuery": "Super Kebab N16 7XB London",
+      "placeId": "ChIJsRTvjIscdkgRTgsnKbstWu4",
+      "matchReason": "exact_normalized_name;postcode_N16 7XB",
+      "checkedAt": "2026-10-21T07:18:28.418Z",
+      "receipt": "data/famous_venues/receipts/verification_2026-10-21_pubpal-complete-1019.json"
+    },
+    {
+      "id": "food-mangal-1",
+      "method": "places_text_search",
+      "sourceUrl": "https://mangal1.com/",
+      "outcome": "unverified",
+      "result": "places_no_confident_match",
+      "textQuery": "Mangal 1 E8 2DJ London",
+      "placeId": "ChIJTb9jiIscdkgRHnSg0phHSvc",
+      "matchReason": "name:exact_normalized_name;location:distance_403m",
+      "checkedAt": "2026-10-21T07:18:29.502Z",
+      "receipt": "data/famous_venues/receipts/verification_2026-10-21_pubpal-complete-1019.json"
+    },
+    {
+      "id": "food-mangal-2",
+      "method": "places_text_search",
+      "sourceUrl": "https://mangal2.com/",
+      "outcome": "confirmed",
+      "result": "places_operational",
+      "textQuery": "Mangal 2 N16 7XN London",
+      "placeId": "ChIJTb9jiIscdkgRqYg0ibUPTCw",
+      "matchReason": "places_name_alias;postcode_N16 7XN",
+      "checkedAt": "2026-10-21T07:18:29.721Z",
+      "receipt": "data/famous_venues/receipts/verification_2026-10-21_pubpal-complete-1019.json"
+    },
+    {
+      "id": "food-gokyuzu-harringay",
+      "method": "places_text_search",
+      "sourceUrl": "https://gokyuzurestaurant.co.uk/",
+      "outcome": "confirmed",
+      "result": "places_operational",
+      "textQuery": "Gökyüzü Green Lanes N4 1LG London",
+      "placeId": "ChIJUSFBifQbdkgRUHyy26cz5pA",
+      "matchReason": "exact_normalized_name;postcode_N4 1LG",
+      "checkedAt": "2026-10-21T07:18:30.288Z",
+      "receipt": "data/famous_venues/receipts/verification_2026-10-21_pubpal-complete-1019.json"
+    },
+    {
+      "id": "food-antepliler",
+      "method": "places_text_search",
+      "sourceUrl": "https://anteplilerlondon.co.uk/",
+      "outcome": "confirmed",
+      "result": "places_operational",
+      "textQuery": "Antepliler N4 1AG London",
+      "placeId": "ChIJ3c66vvQbdkgRFWuDWVLrRc8",
+      "matchReason": "places_name_alias;postcode_N4 1AG",
+      "checkedAt": "2026-10-21T07:18:30.605Z",
+      "receipt": "data/famous_venues/receipts/verification_2026-10-21_pubpal-complete-1019.json",
+      "anchorCheckedAt": "2026-10-21T21:08:45.459Z",
+      "priorResult": "anchor_source_unreachable"
+    },
+    {
+      "id": "food-diyarbakir",
+      "method": "places_text_search",
+      "sourceUrl": "https://diyarbakir.co.uk/",
+      "outcome": "confirmed",
+      "result": "places_operational",
+      "textQuery": "Diyarbakir Kitchen N4 1AG London",
+      "placeId": "ChIJq4hqSosbdkgRjwKJ1AtcmFQ",
+      "matchReason": "exact_normalized_name;postcode_N4 1AG",
+      "checkedAt": "2026-10-21T07:18:31.573Z",
+      "receipt": "data/famous_venues/receipts/verification_2026-10-21_pubpal-complete-1019.json"
+    },
+    {
+      "id": "food-hala",
+      "method": "places_text_search",
+      "sourceUrl": "https://halarestaurant.co.uk/",
+      "outcome": "confirmed",
+      "result": "places_operational",
+      "textQuery": "Hala Restaurant N4 1LG London",
+      "placeId": "ChIJry83ifQbdkgRuQNeF94T_Xk",
+      "matchReason": "exact_normalized_name;postcode_N4 1LG",
+      "checkedAt": "2026-10-21T07:18:34.068Z",
+      "receipt": "data/famous_venues/receipts/verification_2026-10-21_pubpal-complete-1019.json"
+    },
+    {
+      "id": "food-selale",
+      "method": "places_text_search",
+      "sourceUrl": "https://selale.co.uk/",
+      "outcome": "confirmed",
+      "result": "places_operational",
+      "textQuery": "Selale N8 0RX London",
+      "placeId": "ChIJsY8u2_AbdkgRlZEwQq7mA64",
+      "matchReason": "places_name_alias;postcode_N8 0RX",
+      "checkedAt": "2026-10-21T07:18:34.426Z",
+      "receipt": "data/famous_venues/receipts/verification_2026-10-21_pubpal-complete-1019.json"
+    },
+    {
+      "id": "food-le-bab-soho",
+      "method": "places_text_search",
+      "sourceUrl": "https://eatlebab.com/",
+      "outcome": "confirmed",
+      "result": "places_operational",
+      "textQuery": "Le Bab Soho W1B 5PW London",
+      "placeId": "ChIJk383D9UEdkgReldnHq6ek84",
+      "matchReason": "places_name_alias;postcode_W1B 5PW",
+      "checkedAt": "2026-10-21T07:18:35.970Z",
+      "receipt": "data/famous_venues/receipts/verification_2026-10-21_pubpal-complete-1019.json"
+    },
+    {
+      "id": "food-testi",
+      "method": "places_text_search",
+      "sourceUrl": "https://testirestaurant.co.uk/",
+      "outcome": "confirmed",
+      "result": "places_operational",
+      "textQuery": "Testi N16 7PL London",
+      "placeId": "ChIJIY4pxmEcdkgRvmnaEN34yAI",
+      "matchReason": "places_name_alias;postcode_N16 7PL",
+      "checkedAt": "2026-10-21T07:18:36.969Z",
+      "receipt": "data/famous_venues/receipts/verification_2026-10-21_pubpal-complete-1019.json"
+    },
+    {
+      "id": "food-berenjak-soho",
+      "method": "places_text_search",
+      "sourceUrl": "https://berenjaklondon.com/soho",
+      "outcome": "unverified",
+      "result": "anchor_source_unreachable",
+      "textQuery": "Berenjak Soho W1D 5AL London",
+      "placeId": "ChIJm2ZLEzMFdkgRZrDcaZENVrw",
+      "matchReason": "exact_normalized_name;postcode_W1D 5AL",
+      "checkedAt": "2026-10-21T07:18:38.022Z",
+      "receipt": "data/famous_venues/receipts/verification_2026-10-21_pubpal-complete-1019.json"
+    },
+    {
+      "id": "food-fm-mangal",
+      "method": "places_text_search",
+      "sourceUrl": "https://www.fmmangal.co.uk/",
+      "outcome": "confirmed",
+      "result": "places_operational",
+      "textQuery": "FM Mangal SE5 8QZ London",
+      "placeId": "ChIJcVbGWn8DdkgRLXTiU3HYPLA",
+      "matchReason": "exact_normalized_name;postcode_SE5 8QZ",
+      "checkedAt": "2026-10-21T07:18:38.342Z",
+      "receipt": "data/famous_venues/receipts/verification_2026-10-21_pubpal-complete-1019.json"
+    },
+    {
+      "id": "food-lahore-kebab-house",
+      "method": "places_text_search",
+      "sourceUrl": "https://lahore-kebabhouse.com/",
+      "outcome": "confirmed",
+      "result": "places_operational",
+      "textQuery": "Lahore Kebab House E1 1PY London",
+      "placeId": "ChIJQz3wNTMDdkgRYiTWfQvnb3M",
+      "matchReason": "exact_normalized_name;postcode_E1 1PY",
+      "checkedAt": "2026-10-21T07:18:39.096Z",
+      "receipt": "data/famous_venues/receipts/verification_2026-10-21_pubpal-complete-1019.json"
+    },
+    {
+      "id": "food-tayyabs",
+      "method": "places_text_search",
+      "sourceUrl": "https://www.tayyabs.co.uk/",
+      "outcome": "confirmed",
+      "result": "places_operational",
+      "textQuery": "Tayyabs E1 1JU London",
+      "placeId": "ChIJsXHacsscdkgRUnql8CSRexg",
+      "matchReason": "exact_normalized_name;postcode_E1 1JU",
+      "checkedAt": "2026-10-21T07:18:39.771Z",
+      "receipt": "data/famous_venues/receipts/verification_2026-10-21_pubpal-complete-1019.json"
+    },
+    {
+      "id": "food-ranoush-edgware-road",
+      "method": "places_text_search",
+      "sourceUrl": "https://www.maroush.com/restaurants/edgware-road",
+      "outcome": "confirmed",
+      "result": "places_operational",
+      "textQuery": "Ranoush Juice W2 2JE London",
+      "placeId": "ChIJEaEJMTUFdkgRk-bgyHni1aI",
+      "matchReason": "exact_normalized_name;postcode_W2 2JE",
+      "checkedAt": "2026-10-21T07:18:40.449Z",
+      "receipt": "data/famous_venues/receipts/verification_2026-10-21_pubpal-complete-1019.json"
+    },
+    {
+      "id": "food-maroush-edgware-road",
+      "method": "places_text_search",
+      "sourceUrl": "https://www.maroush.com/restaurants",
+      "outcome": "unverified",
+      "result": "places_no_confident_match",
+      "textQuery": "Maroush Edgware Road W2 2JE London",
+      "placeId": "ChIJEaEJMTUFdkgRk-bgyHni1aI",
+      "matchReason": "name:name_token_mismatch;location:postcode_W2 2JE",
+      "checkedAt": "2026-10-21T07:18:47.936Z",
+      "receipt": "data/famous_venues/receipts/verification_2026-10-21_pubpal-complete-1019.json"
+    },
+    {
+      "id": "food-kebab-kid-fulham",
+      "method": "places_text_search",
+      "sourceUrl": "https://kebabkid.co.uk/",
+      "outcome": "confirmed",
+      "result": "places_operational",
+      "textQuery": "Kebab Kid SW6 4LU London",
+      "placeId": "ChIJw5_SLXYPdkgRCPYhWuUGyJg",
+      "matchReason": "exact_normalized_name;postcode_SW6 4LU",
+      "checkedAt": "2026-10-21T07:18:48.149Z",
+      "receipt": "data/famous_venues/receipts/verification_2026-10-21_pubpal-complete-1019.json"
+    },
+    {
+      "id": "food-beigel-bake",
+      "method": "places_text_search",
+      "sourceUrl": "https://www.beigelbake.co.uk/",
+      "outcome": "confirmed",
+      "result": "places_operational",
+      "textQuery": "Beigel Bake E1 6SB London",
+      "placeId": "ChIJjUgahq0ddkgRDLV2zZrg4ck",
+      "matchReason": "exact_normalized_name;postcode_E1 6SB",
+      "checkedAt": "2026-10-21T07:18:48.954Z",
+      "receipt": "data/famous_venues/receipts/verification_2026-10-21_pubpal-complete-1019.json"
+    },
+    {
+      "id": "food-polo-bar",
+      "method": "places_text_search",
+      "sourceUrl": "https://www.polobar.co.uk/",
+      "outcome": "confirmed",
+      "result": "places_operational",
+      "textQuery": "Polo Bar EC2M 4NQ London",
+      "placeId": "ChIJM2nE97IcdkgRR7nvciwgIWY",
+      "matchReason": "places_name_alias;postcode_EC2M 4NQ",
+      "checkedAt": "2026-10-21T07:18:49.607Z",
+      "receipt": "data/famous_venues/receipts/verification_2026-10-21_pubpal-complete-1019.json"
+    },
+    {
+      "id": "food-duck-waffle",
+      "method": "places_text_search",
+      "sourceUrl": "https://duckandwaffle.com/london",
+      "outcome": "confirmed",
+      "result": "places_operational",
+      "textQuery": "Duck & Waffle EC2N 4AY London",
+      "placeId": "ChIJX__2lbIcdkgRPCpSjiwV5LM",
+      "matchReason": "exact_normalized_name;postcode_EC2N 4AY",
+      "checkedAt": "2026-10-21T07:18:50.152Z",
+      "receipt": "data/famous_venues/receipts/verification_2026-10-21_pubpal-complete-1019.json"
+    },
+    {
+      "id": "food-wong-kei",
+      "method": "places_text_search",
+      "sourceUrl": "https://wongkeilondon.com/",
+      "outcome": "unverified",
+      "result": "anchor_missing",
+      "textQuery": "Wong Kei W1D 6PY London",
+      "placeId": "ChIJz-VvsdMEdkgR1lQfyxijRMw",
+      "matchReason": "exact_normalized_name;within_34m",
+      "checkedAt": "2026-10-21T07:18:50.796Z",
+      "receipt": "data/famous_venues/receipts/verification_2026-10-21_pubpal-complete-1019.json"
+    },
+    {
+      "id": "food-bar-italia",
+      "method": "places_text_search",
+      "sourceUrl": "https://www.instagram.com/baritaliasoho",
+      "outcome": "unverified",
+      "result": "anchor_source_unreachable",
+      "textQuery": "Bar Italia W1D 4RF London",
+      "placeId": "ChIJBbKU6NIEdkgRkC_IDZgxT1Y",
+      "matchReason": "exact_normalized_name;postcode_W1D 4RF",
+      "checkedAt": "2026-10-21T07:18:51.036Z",
+      "receipt": "data/famous_venues/receipts/verification_2026-10-21_pubpal-complete-1019.json"
+    },
+    {
+      "id": "food-vq-chelsea",
+      "method": "places_text_search",
+      "sourceUrl": "https://www.vqrestaurants.com/locations/chelsea",
+      "outcome": "unverified",
+      "result": "anchor_source_redirected",
+      "textQuery": "VQ Chelsea SW10 9QL London",
+      "placeId": "ChIJSe29W2QFdkgRqu5f7VwN-S0",
+      "matchReason": "exact_normalized_name;postcode_SW10 9QL",
+      "checkedAt": "2026-10-21T07:18:51.498Z",
+      "receipt": "data/famous_venues/receipts/verification_2026-10-21_pubpal-complete-1019.json"
+    },
+    {
+      "id": "food-golden-dragon",
+      "method": "places_text_search",
+      "sourceUrl": "https://goldendragonlondon.com/",
+      "outcome": "unverified",
+      "result": "anchor_missing",
+      "textQuery": "Golden Dragon W1D 6JW London",
+      "placeId": "ChIJsVvuTtIEdkgRpsIH_WaE2es",
+      "matchReason": "places_name_alias;postcode_W1D 6JW",
+      "checkedAt": "2026-10-21T07:18:53.544Z",
+      "receipt": "data/famous_venues/receipts/verification_2026-10-21_pubpal-complete-1019.json"
+    },
+    {
+      "id": "restaurant-rules",
+      "method": "places_text_search",
+      "sourceUrl": "https://rules.co.uk/our-menus",
+      "outcome": "confirmed",
+      "result": "places_operational",
+      "textQuery": "Rules WC2E 7LB London",
+      "placeId": "ChIJbUnC58oEdkgR4pwzPtYGrbY",
+      "matchReason": "exact_normalized_name;postcode_WC2E 7LB",
+      "checkedAt": "2026-10-21T07:18:53.751Z",
+      "receipt": "data/famous_venues/receipts/verification_2026-10-21_pubpal-complete-1019.json"
+    },
+    {
+      "id": "restaurant-ivy-west-street",
+      "method": "places_text_search",
+      "sourceUrl": "https://ivycollection.com/restaurants-near-me/the-ivy-london/the-ivy-west-street-covent-garden/the-original-ivy-heritage-menu",
+      "outcome": "confirmed",
+      "result": "places_operational",
+      "textQuery": "The Ivy West Street WC2H 9NQ London",
+      "placeId": "ChIJVcvKc80EdkgRyV3q0YIzDvc",
+      "matchReason": "places_name_alias;postcode_WC2H 9NQ",
+      "checkedAt": "2026-10-21T07:18:54.104Z",
+      "receipt": "data/famous_venues/receipts/verification_2026-10-21_pubpal-complete-1019.json"
+    },
+    {
+      "id": "restaurant-scotts",
+      "method": "places_text_search",
+      "sourceUrl": "https://scotts-mayfair.com/wp-content/uploads/2025/10/ALC-01.10.2025-1.pdf",
+      "outcome": "confirmed",
+      "result": "places_operational",
+      "textQuery": "Scott's W1K 2HE London",
+      "placeId": "ChIJcf7z3i0FdkgRp8viwzBRRn8",
+      "matchReason": "exact_normalized_name;postcode_W1K 2HE",
+      "checkedAt": "2026-10-21T07:18:55.186Z",
+      "receipt": "data/famous_venues/receipts/verification_2026-10-21_pubpal-complete-1019.json"
+    },
+    {
+      "id": "restaurant-j-sheekey",
+      "method": "places_text_search",
+      "sourceUrl": "https://j-sheekey.co.uk/wp-content/uploads/2026/05/JSheekey_Spring-Menus_ALC-28_05_26-VW.pdf",
+      "outcome": "confirmed",
+      "result": "places_operational",
+      "textQuery": "J Sheekey WC2N 4AL London",
+      "placeId": "ChIJkfaU6s0EdkgRANlMp3C1f68",
+      "matchReason": "exact_normalized_name;postcode_WC2N 4AL",
+      "checkedAt": "2026-10-21T07:18:55.510Z",
+      "receipt": "data/famous_venues/receipts/verification_2026-10-21_pubpal-complete-1019.json"
+    },
+    {
+      "id": "restaurant-quo-vadis",
+      "method": "places_text_search",
+      "sourceUrl": "https://www.quovadissoho.co.uk/wp-content/uploads/2019/01/QV195-June-26-ALC_01.pdf",
+      "outcome": "confirmed",
+      "result": "places_operational",
+      "textQuery": "Quo Vadis W1D 3LL London",
+      "placeId": "ChIJQdL1JNMEdkgRxbWzk_RxYHI",
+      "matchReason": "exact_normalized_name;postcode_W1D 3LL",
+      "checkedAt": "2026-10-21T07:18:55.902Z",
+      "receipt": "data/famous_venues/receipts/verification_2026-10-21_pubpal-complete-1019.json"
+    },
+    {
+      "id": "restaurant-st-john-smithfield",
+      "method": "places_text_search",
+      "sourceUrl": "https://stjohnrestaurant.com/a/menus/1",
+      "outcome": "confirmed",
+      "result": "places_operational",
+      "textQuery": "St. JOHN Smithfield EC1M 4AY London",
+      "placeId": "ChIJFzO5YVEbdkgR1zdv5_hzZwg",
+      "matchReason": "places_name_alias;postcode_EC1M 4AY",
+      "checkedAt": "2026-10-21T07:18:56.289Z",
+      "receipt": "data/famous_venues/receipts/verification_2026-10-21_pubpal-complete-1019.json"
+    },
+    {
+      "id": "restaurant-river-cafe",
+      "method": "places_text_search",
+      "sourceUrl": "https://www.rivercafe.co.uk/",
+      "outcome": "confirmed",
+      "result": "places_operational",
+      "textQuery": "The River Cafe W6 9HA London",
+      "placeId": "ChIJxxa_ELAPdkgRF2wx7RLroiY",
+      "matchReason": "exact_normalized_name;postcode_W6 9HA",
+      "checkedAt": "2026-10-21T07:18:57.300Z",
+      "receipt": "data/famous_venues/receipts/verification_2026-10-21_pubpal-complete-1019.json"
+    },
+    {
+      "id": "restaurant-wolseley",
+      "method": "places_text_search",
+      "sourceUrl": "https://www.thewolseley.com/app/uploads/2026/02/00506_WOLSELEY_Winter_2025_Breakfast_A5-12pp_Kcals29.pdf",
+      "outcome": "unverified",
+      "result": "anchor_source_unreachable",
+      "textQuery": "The Wolseley W1J 9EB London",
+      "placeId": "ChIJr_4cVy8FdkgRIrNbO93eUFM",
+      "matchReason": "places_name_alias;postcode_W1J 9EB",
+      "checkedAt": "2026-10-21T07:18:57.664Z",
+      "receipt": "data/famous_venues/receipts/verification_2026-10-21_pubpal-complete-1019.json"
+    },
+    {
+      "id": "restaurant-brasserie-zedel",
+      "method": "places_text_search",
+      "sourceUrl": "https://www.brasseriezedel.com/wp-content/uploads/2020/02/Zedel-summer-2026-Kcal-combined-wine-menu.pdf",
+      "outcome": "confirmed",
+      "result": "places_operational",
+      "textQuery": "Brasserie Zédel W1F 7ED London",
+      "placeId": "ChIJl-cjD9QEdkgRVkkQt3pySRI",
+      "matchReason": "exact_normalized_name;postcode_W1F 7ED",
+      "checkedAt": "2026-10-21T07:18:59.326Z",
+      "receipt": "data/famous_venues/receipts/verification_2026-10-21_pubpal-complete-1019.json"
+    },
+    {
+      "id": "restaurant-veeraswamy",
+      "method": "places_text_search",
+      "sourceUrl": "https://www.veeraswamy.com/menu",
+      "outcome": "confirmed",
+      "result": "places_operational",
+      "textQuery": "Veeraswamy W1B 4EZ London",
+      "placeId": "ChIJnVRkK9QEdkgRz8uiqq2HfjM",
+      "matchReason": "exact_normalized_name;within_13m",
+      "checkedAt": "2026-10-21T07:19:00.284Z",
+      "receipt": "data/famous_venues/receipts/verification_2026-10-21_pubpal-complete-1019.json",
+      "anchorCheckedAt": "2026-10-21T21:09:23.918Z",
+      "priorResult": "anchor_source_unreachable"
+    },
+    {
+      "id": "restaurant-dishoom-covent-garden",
+      "method": "places_text_search",
+      "sourceUrl": "https://www.dishoom.com/menu/collection-covent-garden",
+      "outcome": "confirmed",
+      "result": "places_operational",
+      "textQuery": "Dishoom Covent Garden WC2H 9FB London",
+      "placeId": "ChIJxZXYx7cEdkgRdgAOZ6OHOJw",
+      "matchReason": "exact_normalized_name;postcode_WC2H 9FB",
+      "checkedAt": "2026-10-21T07:19:01.656Z",
+      "receipt": "data/famous_venues/receipts/verification_2026-10-21_pubpal-complete-1019.json"
+    },
+    {
+      "id": "restaurant-ottolenghi-spitalfields",
+      "method": "places_text_search",
+      "sourceUrl": "https://ottolenghi.co.uk/pages/restaurants/spitalfields",
+      "outcome": "confirmed",
+      "result": "places_operational",
+      "textQuery": "Ottolenghi Spitalfields E1 7LJ London",
+      "placeId": "ChIJ6QCtmrMcdkgRFV9oY5ypA6U",
+      "matchReason": "exact_normalized_name;postcode_E1 7LJ",
+      "checkedAt": "2026-10-21T07:19:02.353Z",
+      "receipt": "data/famous_venues/receipts/verification_2026-10-21_pubpal-complete-1019.json"
+    },
+    {
+      "id": "restaurant-moro",
+      "method": "places_text_search",
+      "sourceUrl": "https://moro.co.uk/menu",
+      "outcome": "confirmed",
+      "result": "places_operational",
+      "textQuery": "Moro EC1R 4QE London",
+      "placeId": "ChIJ96E0gkUbdkgRVXuRduEV-Nw",
+      "matchReason": "exact_normalized_name;postcode_EC1R 4QE",
+      "checkedAt": "2026-10-21T07:19:02.981Z",
+      "receipt": "data/famous_venues/receipts/verification_2026-10-21_pubpal-complete-1019.json"
+    },
+    {
+      "id": "restaurant-rochelle-canteen",
+      "method": "places_text_search",
+      "sourceUrl": "https://rochellecanteen.com/menu",
+      "outcome": "confirmed",
+      "result": "places_operational",
+      "textQuery": "Rochelle Canteen E2 7ES London",
+      "placeId": "ChIJNfBU2bkcdkgRJoQiLng7HHY",
+      "matchReason": "exact_normalized_name;within_19m",
+      "checkedAt": "2026-10-21T07:19:03.589Z",
+      "receipt": "data/famous_venues/receipts/verification_2026-10-21_pubpal-complete-1019.json"
+    },
+    {
+      "id": "restaurant-duck-and-waffle",
+      "method": "places_text_search",
+      "sourceUrl": "https://www.duckandwaffle.com/london/menu/dinner",
+      "outcome": "confirmed",
+      "result": "places_operational",
+      "textQuery": "Duck & Waffle EC2N 4AY London",
+      "placeId": "ChIJX__2lbIcdkgRPCpSjiwV5LM",
+      "matchReason": "exact_normalized_name;postcode_EC2N 4AY",
+      "checkedAt": "2026-10-21T07:19:04.552Z",
+      "receipt": "data/famous_venues/receipts/verification_2026-10-21_pubpal-complete-1019.json"
+    },
+    {
+      "id": "restaurant-padella-borough",
+      "method": "places_text_search",
+      "sourceUrl": "https://www.padella.co/borough-market",
+      "outcome": "confirmed",
+      "result": "places_operational",
+      "textQuery": "Padella Borough Market SE1 1TQ London",
+      "placeId": "ChIJdZ6paFcDdkgRpPUHPngIeq8",
+      "matchReason": "exact_normalized_name;postcode_SE1 1TQ",
+      "checkedAt": "2026-10-21T07:19:05.151Z",
+      "receipt": "data/famous_venues/receipts/verification_2026-10-21_pubpal-complete-1019.json",
+      "anchorCheckedAt": "2026-10-21T21:08:49.086Z",
+      "priorResult": "anchor_source_unreachable"
+    },
+    {
+      "id": "restaurant-blacklock-soho",
+      "method": "places_text_search",
+      "sourceUrl": "https://theblacklock.com/menus",
+      "outcome": "confirmed",
+      "result": "places_operational",
+      "textQuery": "Blacklock Soho W1D 7LG London",
+      "placeId": "ChIJOTAQhtMEdkgR9ZmC_mZR0UM",
+      "matchReason": "exact_normalized_name;postcode_W1D 7LG",
+      "checkedAt": "2026-10-21T07:19:05.532Z",
+      "receipt": "data/famous_venues/receipts/verification_2026-10-21_pubpal-complete-1019.json"
+    },
+    {
+      "id": "restaurant-poppies-spitalfields",
+      "method": "places_text_search",
+      "sourceUrl": "https://poppiesfishandchips.co.uk/menu",
+      "outcome": "confirmed",
+      "result": "places_operational",
+      "textQuery": "Poppies Spitalfields E1 6QR London",
+      "placeId": "ChIJX7eIgrYcdkgRJtmJIysIZVc",
+      "matchReason": "places_name_alias;postcode_E1 6QR",
+      "checkedAt": "2026-10-21T07:19:05.908Z",
+      "receipt": "data/famous_venues/receipts/verification_2026-10-21_pubpal-complete-1019.json"
+    },
+    {
+      "id": "restaurant-wiltons",
+      "method": "places_text_search",
+      "sourceUrl": "https://wiltons.co.uk/s/010726-Copy.pdf",
+      "outcome": "unverified",
+      "result": "anchor_source_redirected",
+      "textQuery": "Wiltons SW1Y 6LX London",
+      "placeId": "ChIJbemuSNYEdkgRGcSDvjPdl9s",
+      "matchReason": "places_name_alias;postcode_SW1Y 6LX",
+      "checkedAt": "2026-10-21T07:19:06.386Z",
+      "receipt": "data/famous_venues/receipts/verification_2026-10-21_pubpal-complete-1019.json"
+    },
+    {
+      "id": "restaurant-hawksmoor-seven-dials",
+      "method": "places_text_search",
+      "sourceUrl": "https://thehawksmoor.com/locations/seven-dials/food/menu",
+      "outcome": "confirmed",
+      "result": "places_operational",
+      "textQuery": "Hawksmoor Seven Dials WC2H 9JG London",
+      "placeId": "ChIJCWgQ38wEdkgROQYuPAFfDRo",
+      "matchReason": "exact_normalized_name;postcode_WC2H 9JG",
+      "checkedAt": "2026-10-21T07:19:06.961Z",
+      "receipt": "data/famous_venues/receipts/verification_2026-10-21_pubpal-complete-1019.json"
+    },
+    {
+      "id": "restaurant-bob-bob-ricard",
+      "method": "places_text_search",
+      "sourceUrl": "https://www.bobbobricard.com/soho/menu",
+      "outcome": "confirmed",
+      "result": "places_operational",
+      "textQuery": "Bob Bob Ricard Soho W1F 9DF London",
+      "placeId": "ChIJNzsd-NQEdkgRmrDZyr1DPUg",
+      "matchReason": "exact_normalized_name;postcode_W1F 9DF",
+      "checkedAt": "2026-10-21T07:19:07.470Z",
+      "receipt": "data/famous_venues/receipts/verification_2026-10-21_pubpal-complete-1019.json"
+    },
+    {
+      "id": "restaurant-flat-iron-soho",
+      "method": "places_text_search",
+      "sourceUrl": "https://flatironsteak.co.uk/menu",
+      "outcome": "unverified",
+      "result": "anchor_source_unreachable",
+      "textQuery": "Flat Iron Soho W1F 9RW London",
+      "placeId": "ChIJL1pkqdUEdkgRS3MDjg6kzVc",
+      "matchReason": "exact_normalized_name;postcode_W1F 9RW",
+      "checkedAt": "2026-10-21T07:19:07.967Z",
+      "receipt": "data/famous_venues/receipts/verification_2026-10-21_pubpal-complete-1019.json"
+    },
+    {
+      "id": "restaurant-roti-king-euston",
+      "method": "places_text_search",
+      "sourceUrl": "https://rotiking.com/food-drink",
+      "outcome": "confirmed",
+      "result": "places_operational",
+      "textQuery": "Roti King Euston NW1 1LH London",
+      "placeId": "ChIJtRRu9iQbdkgRqt8jDR1osYw",
+      "matchReason": "places_name_alias;postcode_NW1 1LH",
+      "checkedAt": "2026-10-21T07:19:08.236Z",
+      "receipt": "data/famous_venues/receipts/verification_2026-10-21_pubpal-complete-1019.json"
+    },
+    {
+      "id": "restaurant-regency-cafe",
+      "method": "places_text_search",
+      "sourceUrl": "https://regencycafe.co.uk/menu",
+      "outcome": "confirmed",
+      "result": "places_operational",
+      "textQuery": "Regency Cafe SW1P 4BY London",
+      "placeId": "ChIJ565hgN0EdkgRMhOboIZ7uJ8",
+      "matchReason": "exact_normalized_name;postcode_SW1P 4BY",
+      "checkedAt": "2026-10-21T07:19:10.845Z",
+      "receipt": "data/famous_venues/receipts/verification_2026-10-21_pubpal-complete-1019.json"
+    },
+    {
+      "id": "restaurant-hoppers-soho",
+      "method": "places_text_search",
+      "sourceUrl": "https://www.hopperslondon.com/wp-content/uploads/2026/06/Hoppers-Soho-Main-Menu-A3-JUNE-2026-UPDATE.pdf",
+      "outcome": "confirmed",
+      "result": "places_operational",
+      "textQuery": "Hoppers Soho W1D 4SG London",
+      "placeId": "ChIJr0tb59IEdkgRv-YdFGtD1CA",
+      "matchReason": "exact_normalized_name;postcode_W1D 4SG",
+      "checkedAt": "2026-10-21T07:19:11.278Z",
+      "receipt": "data/famous_venues/receipts/verification_2026-10-21_pubpal-complete-1019.json"
+    },
+    {
+      "id": "bar-american-bar-savoy",
+      "method": "places_text_search",
+      "sourceUrl": "https://www.thesavoylondon.com/restaurants-and-bars/american-bar",
+      "outcome": "confirmed",
+      "result": "places_operational",
+      "textQuery": "American Bar at The Savoy WC2R 0EZ London",
+      "placeId": "ChIJgXiP3MsEdkgRRp0YhagxGsg",
+      "matchReason": "places_name_alias;postcode_WC2R 0EZ",
+      "checkedAt": "2026-10-21T07:19:11.731Z",
+      "receipt": "data/famous_venues/receipts/verification_2026-10-21_pubpal-complete-1019.json"
+    },
+    {
+      "id": "bar-connaught",
+      "method": "places_text_search",
+      "sourceUrl": "https://www.the-connaught.co.uk/restaurants-bars/connaught-bar",
+      "outcome": "unverified",
+      "result": "anchor_source_redirected",
+      "textQuery": "Connaught Bar W1K 2AL London",
+      "placeId": "ChIJ0aqjLCwFdkgRsvmYeG290jE",
+      "matchReason": "exact_normalized_name;postcode_W1K 2AL",
+      "checkedAt": "2026-10-21T07:19:12.067Z",
+      "receipt": "data/famous_venues/receipts/verification_2026-10-21_pubpal-complete-1019.json"
+    },
+    {
+      "id": "bar-coburg",
+      "method": "places_text_search",
+      "sourceUrl": "https://www.the-connaught.co.uk/restaurants-bars/coburg-bar",
+      "outcome": "unverified",
+      "result": "anchor_source_redirected",
+      "textQuery": "Coburg Bar W1K 2AL London",
+      "placeId": "ChIJN_yCHzUFdkgRlBeo8sbWA7g",
+      "matchReason": "exact_normalized_name;postcode_W1K 2AL",
+      "checkedAt": "2026-10-21T07:19:12.417Z",
+      "receipt": "data/famous_venues/receipts/verification_2026-10-21_pubpal-complete-1019.json"
+    },
+    {
+      "id": "bar-dukes",
+      "method": "places_text_search",
+      "sourceUrl": "https://www.dukeshotel.com/dukesbar.html",
+      "outcome": "confirmed",
+      "result": "places_operational",
+      "textQuery": "DUKES Bar SW1A 1NY London",
+      "placeId": "ChIJLds3OEkFdkgRcYk3My6S59o",
+      "matchReason": "exact_normalized_name;postcode_SW1A 1NY",
+      "checkedAt": "2026-10-21T07:19:12.672Z",
+      "receipt": "data/famous_venues/receipts/verification_2026-10-21_pubpal-complete-1019.json"
+    },
+    {
+      "id": "bar-donovan",
+      "method": "places_text_search",
+      "sourceUrl": "https://www.roccofortehotels.com/hotels-and-resorts/brown-s-hotel/dining/donovan-bar",
+      "outcome": "unverified",
+      "result": "anchor_source_unreachable",
+      "textQuery": "Donovan Bar W1S 4BP London",
+      "placeId": "ChIJPy_c8SkFdkgRamfYx4wZ6Xo",
+      "matchReason": "exact_normalized_name;postcode_W1S 4BP",
+      "checkedAt": "2026-10-21T07:19:13.234Z",
+      "receipt": "data/famous_venues/receipts/verification_2026-10-21_pubpal-complete-1019.json"
+    },
+    {
+      "id": "bar-scarfes",
+      "method": "places_text_search",
+      "sourceUrl": "https://www.rosewoodhotels.com/en/london/dining/scarfes-bar",
+      "outcome": "confirmed",
+      "result": "places_operational",
+      "textQuery": "Scarfes Bar WC1V 7EN London",
+      "placeId": "ChIJi-8-gTUbdkgRlnM1J18fB24",
+      "matchReason": "exact_normalized_name;postcode_WC1V 7EN",
+      "checkedAt": "2026-10-21T07:19:13.656Z",
+      "receipt": "data/famous_venues/receipts/verification_2026-10-21_pubpal-complete-1019.json"
+    },
+    {
+      "id": "bar-artesian",
+      "method": "places_text_search",
+      "sourceUrl": "https://www.langhamhotels.com/en/the-langham/london/dine/artesian",
+      "outcome": "confirmed",
+      "result": "places_operational",
+      "textQuery": "Artesian W1B 1JA London",
+      "placeId": "ChIJEx8Vq9UadkgRaPTTkQzdmmk",
+      "matchReason": "exact_normalized_name;postcode_W1B 1JA",
+      "checkedAt": "2026-10-21T07:19:14.846Z",
+      "receipt": "data/famous_venues/receipts/verification_2026-10-21_pubpal-complete-1019.json"
+    },
+    {
+      "id": "bar-lyaness",
+      "method": "places_text_search",
+      "sourceUrl": "https://www.seacontainerslondon.com/eat-drink/lyaness",
+      "outcome": "confirmed",
+      "result": "places_operational",
+      "textQuery": "Lyaness SE1 9PD London",
+      "placeId": "ChIJ5WKTw7EEdkgRRhwij-alVfA",
+      "matchReason": "exact_normalized_name;postcode_SE1 9PD",
+      "checkedAt": "2026-10-21T07:19:16.089Z",
+      "receipt": "data/famous_venues/receipts/verification_2026-10-21_pubpal-complete-1019.json"
+    },
+    {
+      "id": "bar-callooh-callay",
+      "method": "places_text_search",
+      "sourceUrl": "https://calloohcallaybar.com/",
+      "outcome": "confirmed",
+      "result": "places_operational",
+      "textQuery": "Callooh Callay EC2A 3AY London",
+      "placeId": "ChIJJ9DmjrocdkgR-TgBZwwKdKc",
+      "matchReason": "exact_normalized_name;within_47m",
+      "checkedAt": "2026-10-21T10:23:20.548Z",
+      "receipt": "data/famous_venues/receipts/verification_2026-10-21_pubpal-original-3d-1021.json"
+    },
+    {
+      "id": "bar-discount-suit-company",
+      "method": "places_text_search",
+      "sourceUrl": "https://discountsuitcompany.co.uk/",
+      "outcome": "confirmed",
+      "result": "places_operational",
+      "textQuery": "Discount Suit Company E1 7TB London",
+      "placeId": "ChIJD6u4nrQcdkgRzUMkEzoTMdU",
+      "matchReason": "exact_normalized_name;postcode_E1 7TB",
+      "checkedAt": "2026-10-21T10:23:21.016Z",
+      "receipt": "data/famous_venues/receipts/verification_2026-10-21_pubpal-original-3d-1021.json"
+    },
+    {
+      "id": "bar-a-bar-with-shapes",
+      "method": "places_text_search",
+      "sourceUrl": "https://alchemybar.com/?alc-location=bar-with-shapes-for-a-name",
+      "outcome": "confirmed",
+      "result": "places_operational",
+      "textQuery": "A Bar with Shapes for a Name E2 8AX London",
+      "placeId": "ChIJrx4282IddkgRTeHNjFC_CEA",
+      "matchReason": "exact_normalized_name;postcode_E2 8AX",
+      "checkedAt": "2026-10-21T11:17:53.777Z",
+      "receipt": "data/famous_venues/receipts/verification_2026-10-21_pubpal-original-3d-1021.json"
+    },
+    {
+      "id": "bar-nightjar-shoreditch",
+      "method": "places_text_search",
+      "sourceUrl": "https://www.barnightjar.com/",
+      "outcome": "confirmed",
+      "result": "places_operational",
+      "textQuery": "Nightjar Shoreditch EC1V 1JB London",
+      "placeId": "ChIJO5NM4aUcdkgR-XrNmE-75f8",
+      "matchReason": "places_name_alias;postcode_EC1V 1JB",
+      "checkedAt": "2026-10-21T21:09:43.036Z"
+    },
+    {
+      "id": "bar-three-sheets-soho",
+      "method": "places_text_search",
+      "sourceUrl": "https://www.threesheets-bar.com/soho",
+      "outcome": "confirmed",
+      "result": "places_operational",
+      "textQuery": "Three Sheets Soho W1D 4AP London",
+      "placeId": "ChIJxZHPBAAFdkgR-HXCu1vnNQM",
+      "matchReason": "exact_normalized_name;postcode_W1D 4AP",
+      "checkedAt": "2026-10-21T21:09:43.925Z"
+    },
+    {
+      "id": "bar-oriole",
+      "method": "places_text_search",
+      "sourceUrl": "https://www.oriolebar.com/",
+      "outcome": "confirmed",
+      "result": "places_operational",
+      "textQuery": "Oriole WC2E 9AB London",
+      "placeId": "ChIJP-efSFIbdkgRnCF-jDmn864",
+      "matchReason": "exact_normalized_name;postcode_WC2E 9AB",
+      "checkedAt": "2026-10-21T21:09:44.770Z"
+    },
+    {
+      "id": "bar-three-sheets-dalston",
+      "method": "places_text_search",
+      "sourceUrl": "https://www.threesheets-bar.com/",
+      "outcome": "confirmed",
+      "result": "places_operational",
+      "textQuery": "Three Sheets Dalston E8 4AB London",
+      "placeId": "ChIJ1TU305McdkgRca2LGIqPjlQ",
+      "matchReason": "exact_normalized_name;postcode_E8 4AB",
+      "checkedAt": "2026-10-21T21:09:45.180Z"
+    },
+    {
+      "id": "bar-happiness-forgets",
+      "method": "places_text_search",
+      "sourceUrl": "https://www.happinessforgets.com/",
+      "outcome": "confirmed",
+      "result": "places_operational",
+      "textQuery": "Happiness Forgets N1 6NU London",
+      "placeId": "ChIJc71T0bocdkgRrt_uEpoLBoE",
+      "matchReason": "exact_normalized_name;postcode_N1 6NU",
+      "checkedAt": "2026-10-21T21:09:45.496Z"
+    },
+    {
+      "id": "bar-satans-whiskers",
+      "method": "places_text_search",
+      "sourceUrl": "https://satanswhiskers.com/",
+      "outcome": "confirmed",
+      "result": "places_operational",
+      "textQuery": "Satan's Whiskers E2 9RA London",
+      "placeId": "ChIJf9GjdNscdkgRPi-9Fxb6iDo",
+      "matchReason": "exact_normalized_name;postcode_E2 9RA",
+      "checkedAt": "2026-10-21T21:09:45.849Z"
+    },
+    {
+      "id": "bar-seed-library",
+      "method": "places_text_search",
+      "sourceUrl": "https://www.seedlibraryshoreditch.com/",
+      "outcome": "confirmed",
+      "result": "places_operational",
+      "textQuery": "Seed Library E1 6JQ London",
+      "placeId": "ChIJK0w18ZgddkgRQYTOSLWTceY",
+      "matchReason": "exact_normalized_name;postcode_E1 6JQ",
+      "checkedAt": "2026-10-21T21:09:46.369Z"
+    },
+    {
+      "id": "bar-equal-parts",
+      "method": "places_text_search",
+      "sourceUrl": "https://www.equalpartslondon.com/",
+      "outcome": "confirmed",
+      "result": "places_operational",
+      "textQuery": "Equal Parts E2 8NA London",
+      "placeId": "ChIJc96hMGIddkgRor8RI0Qujc0",
+      "matchReason": "exact_normalized_name;postcode_E2 8NA",
+      "checkedAt": "2026-10-21T21:09:46.741Z"
+    },
+    {
+      "id": "bar-viajante87",
+      "method": "places_text_search",
+      "sourceUrl": "https://viajante87.com/",
+      "outcome": "confirmed",
+      "result": "places_operational",
+      "textQuery": "Viajante87 W11 3JZ London",
+      "placeId": "ChIJVQ2gdw0PdkgRU4KWg39k68Q",
+      "matchReason": "exact_normalized_name;postcode_W11 3JZ",
+      "checkedAt": "2026-10-21T21:09:47.084Z"
+    },
+    {
+      "id": "bar-kwant",
+      "method": "places_text_search",
+      "sourceUrl": "https://www.theworlds50best.com/discovery/Establishments/UK/London/Kw%C4%81nt-Mayfair.html",
+      "outcome": "unverified",
+      "result": "anchor_source_not_row_source",
+      "textQuery": "Kwānt W1J 8LN London",
+      "placeId": "ChIJ1x7C-XsFdkgRODpYDs4BDUA",
+      "matchReason": "places_name_alias;postcode_W1J 8LN",
+      "checkedAt": "2026-10-21T21:09:47.873Z"
+    },
+    {
+      "id": "bar-side-hustle",
+      "method": "places_text_search",
+      "sourceUrl": "https://www.hilton.com/en/hotels/lonnmnd-nomad-london/dining/side-hustle",
+      "outcome": "confirmed",
+      "result": "places_operational",
+      "textQuery": "Side Hustle WC2E 7AW London",
+      "placeId": "ChIJ522V2_wFdkgRbYNuPW8Br0E",
+      "matchReason": "exact_normalized_name;postcode_WC2E 7AW",
+      "checkedAt": "2026-10-21T21:09:48.117Z"
+    },
+    {
+      "id": "bar-disrepute",
+      "method": "places_text_search",
+      "sourceUrl": "https://www.disrepute.co.uk/",
+      "outcome": "confirmed",
+      "result": "places_operational",
+      "textQuery": "Disrepute W1F 9RR London",
+      "placeId": "ChIJUzv6p9UEdkgRf3JNfE64VXk",
+      "matchReason": "exact_normalized_name;postcode_W1F 9RR",
+      "checkedAt": "2026-10-21T21:09:48.435Z"
+    },
+    {
+      "id": "bar-mr-foggs-residence",
+      "method": "places_text_search",
+      "sourceUrl": "https://www.mr-foggs.com/mr-foggs-residence",
+      "outcome": "confirmed",
+      "result": "places_operational",
+      "textQuery": "Mr Fogg's Residence W1J 6JD London",
+      "placeId": "ChIJYQWg1isFdkgRT9l43V_GL5Y",
+      "matchReason": "exact_normalized_name;postcode_W1J 6JD",
+      "checkedAt": "2026-10-21T21:09:48.841Z"
+    },
+    {
+      "id": "bar-cocktail-trading-company",
+      "method": "places_text_search",
+      "sourceUrl": "https://thecocktailtradingco.com/",
+      "outcome": "confirmed",
+      "result": "places_operational",
+      "textQuery": "The Cocktail Trading Co. E1 6GQ London",
+      "placeId": "ChIJLdASRtUEdkgRQBluAGfwXuo",
+      "matchReason": "places_name_alias;postcode_E1 6GQ",
+      "checkedAt": "2026-10-21T21:09:49.166Z"
+    },
+    {
+      "id": "bar-trailer-happiness",
+      "method": "places_text_search",
+      "sourceUrl": "https://www.trailerh.com/",
+      "outcome": "confirmed",
+      "result": "places_operational",
+      "textQuery": "Trailer Happiness W11 2DY London",
+      "placeId": "ChIJG_Zl6B0QdkgRMptLf4dCvV0",
+      "matchReason": "exact_normalized_name;postcode_W11 2DY",
+      "checkedAt": "2026-10-21T21:09:50.069Z"
+    },
+    {
+      "id": "bar-eve",
+      "method": "places_text_search",
+      "sourceUrl": "https://www.evebar.co.uk/",
+      "outcome": "confirmed",
+      "result": "places_operational",
+      "textQuery": "Eve Bar WC2E 7HG London",
+      "placeId": "ChIJww-u68sEdkgRKOXSvAb2TiY",
+      "matchReason": "places_name_alias;within_6m",
+      "checkedAt": "2026-10-21T21:09:56.561Z"
+    },
+    {
+      "id": "bar-punch-room",
+      "method": "places_text_search",
+      "sourceUrl": "https://www.editionhotels.com/london/restaurants-and-bars/punch-room",
+      "outcome": "confirmed",
+      "result": "places_operational",
+      "textQuery": "Punch Room W1T 3NP London",
+      "placeId": "ChIJl43wbCsbdkgRbQWe5tzXWjA",
+      "matchReason": "exact_normalized_name;postcode_W1T 3NP",
+      "checkedAt": "2026-10-21T21:09:56.917Z"
+    },
+    {
+      "id": "bar-gordons-wine-bar",
+      "method": "places_text_search",
+      "sourceUrl": "https://www.gordonswinebar.com/",
+      "outcome": "confirmed",
+      "result": "places_operational",
+      "textQuery": "Gordon's Wine Bar WC2N 6NE London",
+      "placeId": "ChIJSWvAzM4EdkgRaZcCMhRbk0Q",
+      "matchReason": "exact_normalized_name;postcode_WC2N 6NE",
+      "checkedAt": "2026-10-21T21:09:57.292Z"
+    },
+    {
+      "id": "venue-1kpe609",
+      "method": "places_text_search",
+      "sourceUrl": "https://www.frenchhousesoho.com/",
+      "outcome": "confirmed",
+      "result": "places_operational",
+      "textQuery": "The French House W1D 5BG London",
+      "placeId": "ChIJBUj2-9IEdkgRmSNxHI1mals",
+      "matchReason": "exact_normalized_name;postcode_W1D 5BG",
+      "checkedAt": "2026-10-21T21:09:57.570Z"
+    }
+  ],
+  "anchorInspections": [
+    {
+      "id": "bar-donovan",
+      "url": "https://www.roccofortehotels.com/hotels-and-resorts/brown-s-hotel/dining/donovan-bar",
+      "checkedAt": "2026-10-21T21:08:38.342Z",
+      "allowedBySourcePolicy": true,
+      "permission": {
+        "allowed": true,
+        "reason": "allowed",
+        "robots": "rules-file",
+        "evidence": "https://www.roccofortehotels.com/robots.txt permits /hotels-and-resorts/brown-s-hotel/dining/donovan-bar.",
+        "sitemaps": [
+          "https://www.roccofortehotels.com/sitemapindex.xml"
+        ]
+      },
+      "head": {
+        "status": 403,
+        "location": null
+      }
+    },
+    {
+      "id": "bar-connaught",
+      "url": "https://www.the-connaught.co.uk/restaurants-bars/connaught-bar",
+      "checkedAt": "2026-10-21T21:08:38.328Z",
+      "allowedBySourcePolicy": true,
+      "permission": {
+        "allowed": true,
+        "reason": "allowed",
+        "robots": "rules-file",
+        "evidence": "https://www.the-connaught.co.uk/robots.txt permits /restaurants-bars/connaught-bar.",
+        "sitemaps": [
+          "https://www.maybourne.com/sitemap.xml"
+        ]
+      },
+      "head": {
+        "status": 308,
+        "location": "https://www.the-connaught.co.uk/restaurants-bars"
+      }
+    },
+    {
+      "id": "bar-coburg",
+      "url": "https://www.the-connaught.co.uk/restaurants-bars/coburg-bar",
+      "checkedAt": "2026-10-21T21:08:38.342Z",
+      "allowedBySourcePolicy": true,
+      "permission": {
+        "allowed": true,
+        "reason": "allowed",
+        "robots": "rules-file",
+        "evidence": "https://www.the-connaught.co.uk/robots.txt permits /restaurants-bars/coburg-bar.",
+        "sitemaps": [
+          "https://www.maybourne.com/sitemap.xml"
+        ]
+      },
+      "head": {
+        "status": 308,
+        "location": "https://www.the-connaught.co.uk/restaurants-bars"
+      }
+    },
+    {
+      "id": "bar-nightjar-shoreditch",
+      "url": "https://www.barnightjar.com/",
+      "checkedAt": "2026-10-21T21:08:38.342Z",
+      "allowedBySourcePolicy": true,
+      "permission": {
+        "allowed": true,
+        "reason": "allowed",
+        "robots": "rules-file",
+        "evidence": "https://www.barnightjar.com/robots.txt permits /.",
+        "sitemaps": [
+          "https://www.barnightjar.com/sitemap.xml"
+        ]
+      },
+      "head": {
+        "status": 200,
+        "location": null
+      }
+    },
+    {
+      "id": "bar-three-sheets-soho",
+      "url": "https://www.threesheets-bar.com/soho",
+      "checkedAt": "2026-10-21T21:08:38.668Z",
+      "allowedBySourcePolicy": true,
+      "permission": {
+        "allowed": true,
+        "reason": "allowed",
+        "robots": "rules-file",
+        "evidence": "https://www.threesheets-bar.com/robots.txt permits /soho.",
+        "sitemaps": [
+          "https://www.threesheets-bar.com/sitemap.xml"
+        ]
+      },
+      "head": {
+        "status": 200,
+        "location": null
+      }
+    },
+    {
+      "id": "bar-swift-soho",
+      "url": "https://www.barswift.com/soho",
+      "checkedAt": "2026-10-21T21:08:38.672Z",
+      "allowedBySourcePolicy": true,
+      "permission": {
+        "allowed": true,
+        "reason": "allowed",
+        "robots": "rules-file",
+        "evidence": "https://www.barswift.com/robots.txt permits /soho.",
+        "sitemaps": [
+          "https://www.barswift.com/sitemap.xml"
+        ]
+      },
+      "head": {
+        "status": 301,
+        "location": "http://www.barswift.com/swift-soho"
+      }
+    },
+    {
+      "id": "bar-swift-borough",
+      "url": "https://www.barswift.com/borough",
+      "checkedAt": "2026-10-21T21:08:38.674Z",
+      "allowedBySourcePolicy": true,
+      "permission": {
+        "allowed": true,
+        "reason": "allowed",
+        "robots": "rules-file",
+        "evidence": "https://www.barswift.com/robots.txt permits /borough.",
+        "sitemaps": [
+          "https://www.barswift.com/sitemap.xml"
+        ]
+      },
+      "head": {
+        "status": 301,
+        "location": "http://www.barswift.com/swift-borough"
+      }
+    },
+    {
+      "id": "bar-oriole",
+      "url": "https://www.oriolebar.com/",
+      "checkedAt": "2026-10-21T21:08:38.670Z",
+      "allowedBySourcePolicy": true,
+      "permission": {
+        "allowed": true,
+        "reason": "allowed",
+        "robots": "rules-file",
+        "evidence": "https://www.oriolebar.com/robots.txt permits /.",
+        "sitemaps": [
+          "https://www.oriolebar.com/sitemap.xml"
+        ]
+      },
+      "head": {
+        "status": 200,
+        "location": null
+      }
+    },
+    {
+      "id": "bar-three-sheets-dalston",
+      "url": "https://www.threesheets-bar.com/",
+      "checkedAt": "2026-10-21T21:08:39.622Z",
+      "allowedBySourcePolicy": true,
+      "permission": {
+        "allowed": true,
+        "reason": "allowed",
+        "robots": "rules-file",
+        "evidence": "https://www.threesheets-bar.com/robots.txt permits /.",
+        "sitemaps": [
+          "https://www.threesheets-bar.com/sitemap.xml"
+        ]
+      },
+      "head": {
+        "status": 200,
+        "location": null
+      }
+    },
+    {
+      "id": "bar-happiness-forgets",
+      "url": "https://www.happinessforgets.com/",
+      "checkedAt": "2026-10-21T21:08:39.622Z",
+      "allowedBySourcePolicy": true,
+      "permission": {
+        "allowed": true,
+        "reason": "allowed",
+        "robots": "rules-file",
+        "evidence": "https://www.happinessforgets.com/robots.txt permits /.",
+        "sitemaps": [
+          "https://www.happinessforgets.com/sitemap.xml"
+        ]
+      },
+      "head": {
+        "status": 200,
+        "location": null
+      }
+    },
+    {
+      "id": "bar-bar-termini",
+      "url": "https://www.bar-termini.com/",
+      "checkedAt": "2026-10-21T21:08:39.621Z",
+      "allowedBySourcePolicy": true,
+      "permission": {
+        "allowed": true,
+        "reason": "allowed",
+        "robots": "rules-file",
+        "evidence": "https://www.bar-termini.com/robots.txt permits /.",
+        "sitemaps": [
+          "http://bar-termini-soho.com/sitemap.xml"
+        ]
+      },
+      "head": {
+        "status": 301,
+        "location": "https://bar-termini-soho.com/"
+      }
+    },
+    {
+      "id": "bar-satans-whiskers",
+      "url": "https://satanswhiskers.com/",
+      "checkedAt": "2026-10-21T21:08:39.622Z",
+      "allowedBySourcePolicy": true,
+      "permission": {
+        "allowed": true,
+        "reason": "allowed",
+        "robots": "rules-file",
+        "evidence": "https://satanswhiskers.com/robots.txt permits /.",
+        "sitemaps": [
+          "https://www.satanswhiskers.com/sitemap.xml"
+        ]
+      },
+      "head": {
+        "status": 301,
+        "location": "https://www.satanswhiskers.com/"
+      }
+    },
+    {
+      "id": "bar-seed-library",
+      "url": "https://www.seedlibraryshoreditch.com/",
+      "checkedAt": "2026-10-21T21:08:40.118Z",
+      "allowedBySourcePolicy": true,
+      "permission": {
+        "allowed": true,
+        "reason": "allowed",
+        "robots": "rules-file",
+        "evidence": "https://www.seedlibraryshoreditch.com/robots.txt permits /.",
+        "sitemaps": [
+          "https://www.seedlibraryshoreditch.com/sitemap.xml"
+        ]
+      },
+      "head": {
+        "status": 200,
+        "location": null
+      }
+    },
+    {
+      "id": "bar-kwant",
+      "url": "https://thenudge.com/kwant-mayfair",
+      "checkedAt": "2026-10-21T21:08:40.120Z",
+      "allowedBySourcePolicy": true,
+      "permission": {
+        "allowed": true,
+        "reason": "allowed",
+        "robots": "rules-file",
+        "evidence": "https://thenudge.com/robots.txt permits /kwant-mayfair.",
+        "sitemaps": [
+          "https://thenudge.com/sitemap_index.xml"
+        ]
+      },
+      "head": {
+        "status": 301,
+        "location": "https://thenudge.com/kwant-mayfair/"
+      }
+    },
+    {
+      "id": "bar-equal-parts",
+      "url": "https://www.equalpartslondon.com/",
+      "checkedAt": "2026-10-21T21:08:40.119Z",
+      "allowedBySourcePolicy": true,
+      "permission": {
+        "allowed": true,
+        "reason": "allowed",
+        "robots": "rules-file",
+        "evidence": "https://www.equalpartslondon.com/robots.txt permits /.",
+        "sitemaps": [
+          "https://www.equalpartslondon.com/sitemap.xml"
+        ]
+      },
+      "head": {
+        "status": 200,
+        "location": null
+      }
+    },
+    {
+      "id": "bar-viajante87",
+      "url": "https://viajante87.com/",
+      "checkedAt": "2026-10-21T21:08:40.120Z",
+      "allowedBySourcePolicy": true,
+      "permission": {
+        "allowed": true,
+        "reason": "allowed",
+        "robots": "rules-file",
+        "evidence": "https://viajante87.com/robots.txt permits /.",
+        "sitemaps": [
+          "/sitemap.xml"
+        ]
+      },
+      "head": {
+        "status": 200,
+        "location": null
+      }
+    },
+    {
+      "id": "bar-ecc-chinatown",
+      "url": "https://www.experimentalcocktailclub.com/london",
+      "checkedAt": "2026-10-21T21:08:40.853Z",
+      "allowedBySourcePolicy": true,
+      "permission": {
+        "allowed": true,
+        "reason": "allowed",
+        "robots": "rules-file",
+        "evidence": "https://www.experimentalcocktailclub.com/robots.txt permits /london.",
+        "sitemaps": [
+          "https://www.experimentalcocktailclub.com/sitemap.xml",
+          "https://experimentalcocktailclub.webflow.io/sitemap.xml"
+        ]
+      },
+      "head": {
+        "status": 301,
+        "location": "https://www.experimentalgroup.com/london/experimental-cocktail-club-chinatown"
+      }
+    },
+    {
+      "id": "bar-cahoots",
+      "url": "https://www.cahoots-london.com/",
+      "checkedAt": "2026-10-21T21:09:13.240Z",
+      "permission": {
+        "allowed": true,
+        "reason": "allowed",
+        "robots": "rules-file",
+        "evidence": "https://www.cahoots-london.com/robots.txt permits /.",
+        "sitemaps": [
+          "https://www.cahoots.co.uk/sitemap_index.xml"
+        ]
+      },
+      "head": {
+        "status": 302,
+        "location": "https://www.cahoots.co.uk/"
+      }
+    },
+    {
+      "id": "bar-disrepute",
+      "url": "https://www.disrepute.co.uk/",
+      "checkedAt": "2026-10-21T21:08:40.853Z",
+      "allowedBySourcePolicy": true,
+      "permission": {
+        "allowed": true,
+        "reason": "allowed",
+        "robots": "rules-file",
+        "evidence": "https://www.disrepute.co.uk/robots.txt permits /.",
+        "sitemaps": [
+          "https://www.disrepute.co.uk/sitemap.xml"
+        ]
+      },
+      "head": {
+        "status": 200,
+        "location": null
+      }
+    },
+    {
+      "id": "bar-side-hustle",
+      "url": "https://www.hilton.com/en/hotels/lonnmnd-nomad-london/dining/side-hustle",
+      "checkedAt": "2026-10-21T21:08:40.851Z",
+      "allowedBySourcePolicy": true,
+      "permission": {
+        "allowed": true,
+        "reason": "allowed",
+        "robots": "rules-file",
+        "evidence": "https://www.hilton.com/robots.txt permits /en/hotels/lonnmnd-nomad-london/dining/side-hustle.",
+        "sitemaps": [
+          "https://www.hilton.com/sitemap.xml"
+        ]
+      },
+      "head": {
+        "status": 301,
+        "location": "/en/hotels/lonnmnd-nomad-london/dining/side-hustle/"
+      }
+    },
+    {
+      "id": "bar-mr-foggs-residence",
+      "url": "https://www.mr-foggs.com/mr-foggs-residence",
+      "checkedAt": "2026-10-21T21:08:41.331Z",
+      "allowedBySourcePolicy": true,
+      "permission": {
+        "allowed": true,
+        "reason": "allowed",
+        "robots": "rules-file",
+        "evidence": "https://www.mr-foggs.com/robots.txt permits /mr-foggs-residence.",
+        "sitemaps": [
+          "https://www.mr-foggs.com/sitemap_index.xml"
+        ]
+      },
+      "head": {
+        "status": 301,
+        "location": "https://www.mr-foggs.com/mr-foggs-residence/"
+      }
+    },
+    {
+      "id": "bar-vault-milroys",
+      "url": "https://milroys.co.uk/pages/the-vault",
+      "checkedAt": "2026-10-21T21:09:13.761Z",
+      "permission": {
+        "allowed": true,
+        "reason": "allowed",
+        "robots": "rules-file",
+        "evidence": "https://milroys.co.uk/robots.txt permits /pages/the-vault.",
+        "sitemaps": [
+          "https://milroysofsoho.com/sitemap.xml"
+        ]
+      },
+      "head": {
+        "status": 301,
+        "location": "https://milroysofsoho.com/pages/the-vault"
+      }
+    },
+    {
+      "id": "bar-soma-soho",
+      "url": "https://somasoho.com/",
+      "checkedAt": "2026-10-21T21:09:15.803Z",
+      "permission": {
+        "allowed": true,
+        "reason": "no-rules-published",
+        "robots": "absent",
+        "evidence": "https://somasoho.com/robots.txt returns 404, which publishes no restriction."
+      },
+      "head": {
+        "status": 301,
+        "location": "https://soma.london/"
+      }
+    },
+    {
+      "id": "bar-cocktail-trading-company",
+      "url": "https://thecocktailtradingco.com/",
+      "checkedAt": "2026-10-21T21:08:41.334Z",
+      "allowedBySourcePolicy": true,
+      "permission": {
+        "allowed": true,
+        "reason": "no-rules-published",
+        "robots": "absent",
+        "evidence": "https://thecocktailtradingco.com/robots.txt returns 404, which publishes no restriction."
+      },
+      "head": {
+        "status": 200,
+        "location": null
+      }
+    },
+    {
+      "id": "bar-gordons-wine-bar",
+      "url": "https://www.gordonswinebar.com/",
+      "checkedAt": "2026-10-21T21:08:42.092Z",
+      "allowedBySourcePolicy": true,
+      "permission": {
+        "allowed": true,
+        "reason": "allowed",
+        "robots": "rules-file",
+        "evidence": "https://www.gordonswinebar.com/robots.txt permits /.",
+        "sitemaps": [
+          "https://www.gordonswinebar.com/sitemap_index.xml"
+        ]
+      },
+      "head": {
+        "status": 200,
+        "location": null
+      }
+    },
+    {
+      "id": "bar-eve",
+      "url": "https://www.evebar.co.uk/",
+      "checkedAt": "2026-10-21T21:08:42.091Z",
+      "allowedBySourcePolicy": true,
+      "permission": {
+        "allowed": true,
+        "reason": "allowed",
+        "robots": "rules-file",
+        "evidence": "https://www.evebar.co.uk/robots.txt permits /.",
+        "sitemaps": [
+          "https://www.evebar.co.uk/sitemap.xml"
+        ]
+      },
+      "head": {
+        "status": 200,
+        "location": null
+      }
+    },
+    {
+      "id": "bar-punch-room",
+      "url": "https://www.editionhotels.com/london/restaurants-and-bars/punch-room",
+      "checkedAt": "2026-10-21T21:08:42.091Z",
+      "allowedBySourcePolicy": true,
+      "permission": {
+        "allowed": true,
+        "reason": "allowed",
+        "robots": "rules-file",
+        "evidence": "https://www.editionhotels.com/robots.txt permits /london/restaurants-and-bars/punch-room.",
+        "sitemaps": [
+          "https://www.editionhotels.com/edition_sitemap.xml"
+        ]
+      },
+      "head": {
+        "status": 301,
+        "location": "https://www.editionhotels.com/london/restaurants-and-bars/punch-room/"
+      }
+    },
+    {
+      "id": "bar-trailer-happiness",
+      "url": "https://www.trailerh.com/",
+      "checkedAt": "2026-10-21T21:09:19.642Z",
+      "permission": {
+        "allowed": true,
+        "reason": "allowed",
+        "robots": "rules-file",
+        "evidence": "https://www.trailerh.com/robots.txt permits /.",
+        "sitemaps": [
+          "https://trailerh.com/sitemap_index.xml"
+        ]
+      },
+      "head": {
+        "status": 301,
+        "location": "https://trailerh.com/"
+      }
+    },
+    {
+      "id": "food-super-kebab",
+      "url": "https://www.superkebab.net/",
+      "checkedAt": "2026-10-21T21:08:45.459Z",
+      "allowedBySourcePolicy": true,
+      "permission": {
+        "allowed": true,
+        "reason": "no-rules-published",
+        "robots": "absent",
+        "evidence": "https://www.superkebab.net/robots.txt returns 404, which publishes no restriction."
+      },
+      "head": {
+        "status": 405,
+        "location": null
+      }
+    },
+    {
+      "id": "food-mangal-1",
+      "url": "https://mangal1.com/",
+      "checkedAt": "2026-10-21T21:09:21.985Z",
+      "permission": {
+        "allowed": true,
+        "reason": "no-rules-published",
+        "robots": "absent",
+        "evidence": "https://mangal1.com/robots.txt returns 404, which publishes no restriction."
+      },
+      "head": {
+        "status": 301,
+        "location": "https://swhelper.org/"
+      }
+    },
+    {
+      "id": "food-antepliler",
+      "url": "https://anteplilerlondon.co.uk/wp-content/uploads/2026/09/Antepliler_Menu_A3_PRINT.pdf",
+      "checkedAt": "2026-10-21T21:08:45.459Z",
+      "allowedBySourcePolicy": true,
+      "permission": {
+        "allowed": true,
+        "reason": "allowed",
+        "robots": "rules-file",
+        "evidence": "https://anteplilerlondon.co.uk/robots.txt permits /wp-content/uploads/2026/09/Antepliler_Menu_A3_PRINT.pdf.",
+        "sitemaps": [
+          "https://anteplilerlondon.co.uk/wp-sitemap.xml"
+        ]
+      },
+      "head": {
+        "status": 200,
+        "location": null
+      }
+    },
+    {
+      "id": "venue-1kpe609",
+      "url": "https://www.frenchhousesoho.com/",
+      "checkedAt": "2026-10-21T21:08:45.458Z",
+      "allowedBySourcePolicy": true,
+      "permission": {
+        "allowed": true,
+        "reason": "no-rules-published",
+        "robots": "absent",
+        "evidence": "https://www.frenchhousesoho.com/robots.txt returns 404, which publishes no restriction."
+      },
+      "head": {
+        "status": 200,
+        "location": null
+      }
+    },
+    {
+      "id": "food-berenjak-soho",
+      "url": "https://berenjaklondon.com/soho",
+      "checkedAt": "2026-10-21T21:08:46.425Z",
+      "allowedBySourcePolicy": true,
+      "permission": {
+        "allowed": false,
+        "reason": "robots-unreadable",
+        "robots": "http-refused",
+        "evidence": "https://berenjaklondon.com/robots.txt answered 429, so no permission can be read."
+      }
+    },
+    {
+      "id": "food-bar-italia",
+      "url": "https://www.instagram.com/baritaliasoho",
+      "checkedAt": "2026-10-21T21:08:46.426Z",
+      "allowedBySourcePolicy": true,
+      "permission": {
+        "allowed": false,
+        "reason": "robots-disallowed",
+        "robots": "rules-file",
+        "evidence": "https://www.instagram.com/robots.txt disallows /baritaliasoho for `*` (rule: /)."
+      }
+    },
+    {
+      "id": "food-vq-chelsea",
+      "url": "https://www.vqrestaurants.com/locations/chelsea",
+      "checkedAt": "2026-10-21T21:09:23.512Z",
+      "permission": {
+        "allowed": true,
+        "reason": "allowed",
+        "robots": "rules-file",
+        "evidence": "https://www.vqrestaurants.com/robots.txt permits /locations/chelsea.",
+        "sitemaps": [
+          "https://vqrestaurants.com/sitemap_index.xml"
+        ]
+      },
+      "head": {
+        "status": 301,
+        "location": "https://vqrestaurants.com/chelsea/"
+      }
+    },
+    {
+      "id": "food-maroush-edgware-road",
+      "url": "https://www.maroush.com/restaurants",
+      "checkedAt": "2026-10-21T21:08:46.426Z",
+      "allowedBySourcePolicy": true,
+      "permission": {
+        "allowed": true,
+        "reason": "allowed",
+        "robots": "rules-file",
+        "evidence": "https://www.maroush.com/robots.txt permits /restaurants.",
+        "sitemaps": [
+          "https://www.maroush.com/sitemap_index.xml"
+        ]
+      },
+      "head": {
+        "status": 301,
+        "location": "https://www.maroush.com/restaurants/"
+      }
+    },
+    {
+      "id": "restaurant-veeraswamy",
+      "url": "https://www.veeraswamy.com/menu",
+      "checkedAt": "2026-10-21T21:09:23.918Z",
+      "permission": {
+        "allowed": true,
+        "reason": "allowed",
+        "robots": "rules-file",
+        "evidence": "https://www.veeraswamy.com/robots.txt permits /menu.",
+        "sitemaps": [
+          "https://www.veeraswamy.com/xmlsitemap"
+        ]
+      },
+      "head": {
+        "status": 301,
+        "location": "/menu/"
+      }
+    },
+    {
+      "id": "restaurant-wiltons",
+      "url": "https://wiltons.co.uk/s/010726-Copy.pdf",
+      "checkedAt": "2026-10-21T21:08:49.086Z",
+      "allowedBySourcePolicy": true,
+      "permission": {
+        "allowed": true,
+        "reason": "allowed",
+        "robots": "rules-file",
+        "evidence": "https://wiltons.co.uk/robots.txt permits /s/010726-Copy.pdf.",
+        "sitemaps": [
+          "https://wiltons.co.uk/sitemap.xml"
+        ]
+      },
+      "head": {
+        "status": 302,
+        "location": "https://static1.squarespace.com/static/64b9649cfce925753d4eb423/t/6a45568c1944cd1697dbcc03/1782929036665/01.07.26+-+Copy.pdf"
+      }
+    },
+    {
+      "id": "restaurant-padella-borough",
+      "url": "https://www.padella.co/borough-market",
+      "checkedAt": "2026-10-21T21:08:49.086Z",
+      "allowedBySourcePolicy": true,
+      "permission": {
+        "allowed": true,
+        "reason": "allowed",
+        "robots": "rules-file",
+        "evidence": "https://www.padella.co/robots.txt permits /borough-market.",
+        "sitemaps": [
+          "https://www.padella.co/sitemap_index.xml"
+        ]
+      },
+      "head": {
+        "status": 301,
+        "location": "https://www.padella.co/borough-market/"
+      }
+    },
+    {
+      "id": "restaurant-wolseley",
+      "url": "https://www.thewolseley.com/app/uploads/2026/02/00506_WOLSELEY_Winter_2025_Breakfast_A5-12pp_Kcals29.pdf",
+      "checkedAt": "2026-10-21T21:08:49.084Z",
+      "allowedBySourcePolicy": true,
+      "permission": {
+        "allowed": true,
+        "reason": "no-rules-published",
+        "robots": "absent",
+        "evidence": "https://www.thewolseley.com/robots.txt returns 404, which publishes no restriction."
+      },
+      "head": {
+        "status": 404,
+        "location": null
+      }
+    },
+    {
+      "id": "restaurant-flat-iron-soho",
+      "url": "https://flatironsteak.co.uk/menu",
+      "checkedAt": "2026-10-21T21:08:50.785Z",
+      "allowedBySourcePolicy": true,
+      "permission": {
+        "allowed": false,
+        "reason": "robots-unreadable",
+        "robots": "http-refused",
+        "evidence": "https://flatironsteak.co.uk/robots.txt answered 403, so no permission can be read."
+      }
+    }
+  ]
+}
