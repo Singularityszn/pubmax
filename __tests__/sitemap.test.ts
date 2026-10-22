@@ -287,8 +287,13 @@ describe("sitemap()", () => {
 
   it("advertises no token / UGC / auth surface", () => {
     for (const url of urls) {
+      const pathname = new URL(url).pathname;
       for (const bad of FORBIDDEN_SUBSTRINGS) {
-        expect(url.includes(bad), `${url} must not contain ${bad}`).toBe(false);
+        // The private /feed family does not include the public /feedback page.
+        const forbidden = bad === "/feed"
+          ? pathname === bad || pathname.startsWith(`${bad}/`)
+          : url.includes(bad);
+        expect(forbidden, `${url} must not advertise ${bad}`).toBe(false);
       }
     }
   });
