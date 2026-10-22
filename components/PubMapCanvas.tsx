@@ -157,6 +157,7 @@ import {
   type UkBaseStreamStatus,
 } from "@/lib/ukBasePubs";
 import { useUkBaseStreaming } from "@/components/map/pubmap/useUkBaseStreaming";
+import type { VenueKindVisibility } from "@/lib/venueKindFilters";
 import type { MapViewportSnapshot } from "@/lib/mobileShell";
 import {
   PAINT_WATCHDOG_INTERVAL_MS,
@@ -228,6 +229,7 @@ maplibregl.setWorkerUrl(MAPLIBRE_WORKER_URL);
 
 type PubMapCanvasProps = {
   venues: Venue[];
+  venueKindVisibility: VenueKindVisibility;
   /** Count before the selected-venue force-include, for honest reveal notices. */
   filteredVenueCount?: number;
   /** Parent's slim venue read has settled for the active city. */
@@ -517,6 +519,7 @@ const PUB_PIN_LAYERS = [
 
 export default function PubMapCanvas({
   venues,
+  venueKindVisibility,
   filteredVenueCount = venues.length,
   venueDataReady,
   route,
@@ -1370,6 +1373,8 @@ export default function PubMapCanvas({
         style: MAP_STYLES[themeRef.current],
         ...mapViewRef.current,
         maxBounds: maxBoundsRef.current,
+        // Tilt keeps the reader's bearing; only the app compass resets it.
+        bearingSnap: 0,
         // ODbL credit for the pub layers we draw ourselves. Set on the map, not
         // on a source, so it survives every style swap (theme toggle, fallback
         // styles) and shows in every city - the rail-lines source's own
@@ -2889,6 +2894,11 @@ export default function PubMapCanvas({
     const scheduleContextRecovery = (reason: string) => {
       // Coalesce: canvas + map events fire together; don't stack timers.
       if (contextRecoveryTimer) return;
+      // MapLibre removed this style before emitting loss. Retire its queued
+      // scene work so only the restored style can build the next scene.
+      styleGeneration += 1;
+      styleStructureReadyRef.current = false;
+      cancelDeferredWork();
       if (contextLostTimer) clearTimeout(contextLostTimer);
       // Optimistic paint kick in case the browser is about to restore.
       try {
@@ -3445,14 +3455,15 @@ export default function PubMapCanvas({
     applyToMap,
     ukBaseDataRef,
     drawableVenueIds,
+    venueKindVisibility,
     provisionalVenueIds,
     // The Spoons value lens rides THIS layer: most of the pubs it ranks are
     // base pins rather than curated venues, so it is passed through rather
     // than suspending the layer the way an experience view does.
     spoonsValue,
-    // A non-null lensPrices map is the one signal that an experience view owns
-    // the map, the same one the curated pins read below.
-    suspended: lensPrices !== null,
+    // Experience views suspend the neutral base layer; a selected drink does
+    // not. Base identity and source remain neutral while its list can carry a quote.
+    suspended: lensPrices !== null && drinkCategory === null,
     // HELD is not SUSPENDED: a suspended layer is emptied and answers so, while
     // a held one has simply not been asked for yet and starts the moment the
     // priced pins are on screen.

@@ -280,6 +280,8 @@ body:has(.mobileMapUtilityCorner) {
 
   body:has(.appShell.detail-open) .mobileTabBar,
   body:has(.appShell.planning-open) .mobileTabBar,
+  /* The landmark portal owns the phone frame before shell classes update. */
+  body:has(.mobileSheetPortal[data-sheet-kind="landmark"]) .mobileTabBar,
   /* Night mode (components/plan/NightCrawlMode.tsx) is a fixed, full-screen
      surface with its own way out; the bar under it owned the centre of its
      lowest button, "Get me home", at 320x568 (verify-preview-4 RED 2). */

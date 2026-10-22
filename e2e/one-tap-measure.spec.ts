@@ -110,10 +110,21 @@ test("a half logged through the one-tap door travels as a half and moves no pin 
   // The closed question stands above the figure.
   const chips = submit.locator(".measureChip");
   await expect(chips).toHaveCount(3);
-  const chipBox = await chips.first().boundingBox();
-  const priceBox = await submit.locator(".vpsubField").boundingBox();
-  expect(chipBox?.y ?? 0).toBeLessThan(priceBox?.y ?? 0);
-  expect(chipBox?.height ?? 0, "a measure chip is a thumb target").toBeGreaterThanOrEqual(44);
+  const geometry = await submit.evaluate((form) => {
+    const chip = form.querySelector(".measureChip");
+    const field = form.querySelector(".vpsubField");
+    if (!(chip instanceof HTMLElement) || !(field instanceof HTMLElement)) return null;
+    const chipBox = chip.getBoundingClientRect();
+    const fieldBox = field.getBoundingClientRect();
+    return {
+      chipBottom: chipBox.bottom,
+      chipHeight: chipBox.height,
+      fieldTop: fieldBox.top,
+    };
+  });
+  if (!geometry) throw new Error("The measure chip and price field must both render.");
+  expect(geometry.chipBottom).toBeLessThanOrEqual(geometry.fieldTop);
+  expect(geometry.chipHeight, "a measure chip is a thumb target").toBeGreaterThanOrEqual(44);
 
   await submit.getByRole("radio", { name: "Half" }).click();
   await expect(submit.getByRole("radio", { name: "Half" })).toHaveAttribute(

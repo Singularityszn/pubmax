@@ -63,6 +63,7 @@ function HistoryHarness({
   zone = initialFilters.zone,
   plan,
   pending = false,
+  landmarkId = "",
 }: {
   query: string;
   drinkCategory?: Filters["drinkCategory"];
@@ -72,11 +73,12 @@ function HistoryHarness({
   zone?: Filters["zone"];
   plan?: Pick<CrawlUrlState, "mode" | "builtIds" | "crawlId">;
   pending?: boolean;
+  landmarkId?: string;
 }) {
   const state = useMemo(() => {
     const current = mapState(query, drinkCategory, selectedVenueId);
-    return { ...current, ...plan, filters: { ...current.filters, maxPrice, zone } };
-  }, [query, drinkCategory, selectedVenueId, maxPrice, zone, plan]);
+    return { ...current, ...plan, landmarkId, filters: { ...current.filters, maxPrice, zone } };
+  }, [query, drinkCategory, selectedVenueId, maxPrice, zone, plan, landmarkId]);
   const onSurfaceClose = useCrawlUrlSync(state, holdCleanUrl, pending);
   const trail = useMapSurfaceNavigation({
     arrivalSearch: window.location.search,
@@ -180,6 +182,24 @@ async function traverseHistory(action: () => void) {
 }
 
 describe("crawl identity after Map history traversal", () => {
+  it("keeps a clean Back checkpoint while a direct landmark story loads", async () => {
+    window.history.replaceState({}, "", "/map?landmark=covent-garden");
+    await act(async () => {
+      root.render(createElement(HistoryHarness, { query: "", landmarkId: "covent-garden" }));
+    });
+    expect(window.history.state.pubmaxMapSurface.stack).toMatchObject([
+      { id: "landmark", state: { landmarkId: "covent-garden" } },
+    ]);
+    expect(window.location.search).toBe("?landmark=covent-garden");
+
+    act(() => vi.advanceTimersByTime(300));
+    expect(window.location.search).toBe("?landmark=covent-garden");
+
+    await traverseHistory(() => closeHistorySurfaces());
+    expect(window.location.pathname + window.location.search).toBe("/map");
+    expect(window.history.state.pubmaxMapSurface.stack).toEqual([]);
+  });
+
   it.each(["back", "home", "forward"] as const)(
     "reloads edited stops after %s before the debounce",
     async (direction) => {
@@ -532,5 +552,25 @@ describe("crawl URL after Map history traversal", () => {
     });
 
     expect(window.location.pathname + window.location.search).toBe("/map");
+  });
+});
+
+describe("selected serving crawl URL continuity", () => {
+  it("keeps an explicit serving for the same category and retires it when category changes or clears", async () => {
+    window.history.replaceState({}, "", "/map?drink=gin&serving=25ml&contribute=price");
+    await act(async () => root.render(createElement(Harness, { query: "Brownswood", pending: false, drinkCategory: "gin" })));
+    act(() => vi.advanceTimersByTime(300));
+    expect(new URLSearchParams(window.location.search).get("serving")).toBe("25ml");
+    expect(new URLSearchParams(window.location.search).get("contribute")).toBe("price");
+    await act(async () => root.render(createElement(Harness, { query: "Brownswood", pending: false, drinkCategory: "wine" })));
+    act(() => vi.advanceTimersByTime(300));
+    expect(new URLSearchParams(window.location.search).has("serving")).toBe(false);
+    window.history.replaceState(window.history.state, "", "/map?drink=wine&serving=125ml");
+    await act(async () => root.render(createElement(Harness, { query: "Sydney", pending: false, drinkCategory: "wine" })));
+    act(() => vi.advanceTimersByTime(300));
+    expect(new URLSearchParams(window.location.search).get("serving")).toBe("125ml");
+    await act(async () => root.render(createElement(Harness, { query: "Sydney", pending: false, drinkCategory: "" })));
+    act(() => vi.advanceTimersByTime(300));
+    expect(new URLSearchParams(window.location.search).has("serving")).toBe(false);
   });
 });

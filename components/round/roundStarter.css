@@ -71,6 +71,7 @@
 .roundStarter .crawlPrimaryBtn {
   display: inline-flex;
   align-items: center;
+  min-height: 44px;
   gap: 8px;
   padding: 11px 18px;
   border-radius: var(--radius);
@@ -140,7 +141,7 @@
 .roundStarter.compact .roundStarterRow .crawlPrimaryBtn {
   padding: 8px 12px;
   font-size: 0.82rem;
-  min-height: 36px;
+  min-height: 44px;
 }
 
 .roundStarter.compact .roundStarterError {

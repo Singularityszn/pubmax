@@ -72,8 +72,13 @@ const LANDMARK_PARAM = "landmark";
 function withoutLandmarkParam(pathname: string, search: string, hash: string): string {
   const params = new URLSearchParams(search);
   params.delete(LANDMARK_PARAM);
-  const query = params.toString();
-  return `${pathname}${query ? `?${query}` : ""}${hash}`;
+  return cleanMapUrl(pathname, params.toString(), hash);
+}
+
+function landmarkSurfaceUrl(pathname: string, search: string, hash: string, landmarkId: string): string {
+  const clean = new URL(cleanMapUrl(pathname, search, hash), window.location.origin);
+  clean.searchParams.set(LANDMARK_PARAM, landmarkId);
+  return `${clean.pathname}${clean.search}${hash}`;
 }
 
 function selectedVenueId(stack: SurfaceStack<MapSurfaceState>): string {
@@ -102,13 +107,18 @@ function urlForStack(
   selectionHint: string,
 ): string {
   const { pathname, search, hash } = window.location;
+  const current = currentSurface(stack);
   const venueId = selectedVenueId(stack);
   const liveVenueId = new URLSearchParams(search).get("sel");
   return venueId
     ? liveVenueId === venueId
       ? refreshSelectionUrl(pathname, search, venueId, hash, selectionHint)
       : browseSelectionUrl(pathname, search, venueId, hash, selectionHint)
-    : cleanMapUrl(pathname, search, hash);
+    : current?.id === "landmark" && current.state?.landmarkId
+      ? landmarkSurfaceUrl(pathname, search, hash, current.state.landmarkId)
+      : stack.some((entry) => entry.id === "landmark")
+        ? cleanMapUrl(pathname, search, hash)
+        : withoutLandmarkParam(pathname, search, hash);
 }
 
 /**
@@ -226,7 +236,7 @@ export function useMapSurfaceNavigation({
       window.history.replaceState(
         stampMapSurfaceHistory(window.history.state, root, ""),
         "",
-        cleanMapUrl(pathname, search, hash),
+        withoutLandmarkParam(pathname, search, hash),
       );
       const selected = [shown] as SurfaceStack<MapSurfaceState>;
       window.history.pushState(
@@ -239,19 +249,21 @@ export function useMapSurfaceNavigation({
       return;
     }
 
-    // A story arrival (`?landmark=`) is the same shape as a selection arrival:
-    // the map is the root entry, the story sits over it, and Back from the
-    // story lands on the map without the story rather than on the page before.
-    if (
-      shown?.id === "landmark" &&
-      new URLSearchParams(arrivalSearch).has(LANDMARK_PARAM)
-    ) {
+    // Reserve the story entry before its catalogue resolves. The clean Map
+    // checkpoint must not inherit its ?landmark= during that wait.
+    const arrivalLandmarkId = new URLSearchParams(arrivalSearch).get(LANDMARK_PARAM);
+    if (arrivalLandmarkId && (!shown || shown.id === "landmark")) {
       window.history.replaceState(
         stampMapSurfaceHistory(window.history.state, root, ""),
         "",
         withoutLandmarkParam(pathname, search, hash),
       );
-      const story = [shown] as SurfaceStack<MapSurfaceState>;
+      const storyEntry: SurfaceEntry<MapSurfaceState> = shown ?? {
+        id: "landmark",
+        title: "Landmark",
+        state: { ...surfaceState, landmarkId: arrivalLandmarkId },
+      };
+      const story = [storyEntry] as SurfaceStack<MapSurfaceState>;
       window.history.pushState(
         stampMapSurfaceHistory(window.history.state, story, ""),
         "",
@@ -265,7 +277,9 @@ export function useMapSurfaceNavigation({
     window.history.replaceState(
       stampMapSurfaceHistory(window.history.state, root, ""),
       "",
-      currentBrowserUrl(),
+      new URLSearchParams(arrivalSearch).has(LANDMARK_PARAM)
+        ? withoutLandmarkParam(pathname, search, hash)
+        : currentBrowserUrl(),
     );
     if (shown) open(shown);
     flushPendingOpens();

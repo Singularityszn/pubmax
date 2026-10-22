@@ -1,5 +1,7 @@
 import { test, expect, type ConsoleMessage } from "@playwright/test";
 
+import { MAP_ARRIVAL_BEARING_DEG } from "@/lib/mapArrivalBearing";
+
 import { installDeterministicMapBasemap } from "./helpers/mapNetworkFixtures";
 
 // Map console-health regression (review issue #5). Runs under the `chromium-gl`
@@ -144,6 +146,21 @@ test("/map stays console-healthy across repeated /map↔/feed navigation", async
   await expect(page.locator(".mapCompassBtn")).toHaveCount(1);
   await expect(page.locator(".maplibregl-ctrl-compass")).toHaveCount(0);
   const compassNeedle = compass.locator("svg");
+  // A still north-facing camera may still be waiting for its opening turn.
+  // Read the completed arrival, as map-arrival-turn.spec.ts does, before
+  // measuring movement nobody asked for.
+  await expect.poll(async () => page.evaluate((bearing) => {
+    const probe = (window as unknown as {
+      __pubmaxMapCamera?: { read: () => { bearing: number; moving: boolean } };
+    }).__pubmaxMapCamera;
+    const camera = probe?.read();
+    return Boolean(camera && !camera.moving && Math.abs(camera.bearing - bearing) <= 0.25);
+  }, MAP_ARRIVAL_BEARING_DEG), { timeout: 90_000 }).toBe(true);
+  // The control follows camera events through React and a CSS transition.
+  await expect.poll(async () => compassNeedle.evaluate((element, bearing) =>
+    element.style.transform.includes(`rotate(${-bearing}deg)`)
+      && element.getAnimations().length === 0,
+  MAP_ARRIVAL_BEARING_DEG)).toBe(true);
   const bearingBeforeIdle = await compassNeedle.evaluate(
     (element) => getComputedStyle(element).transform,
   );

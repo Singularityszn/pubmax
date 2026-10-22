@@ -86,7 +86,7 @@
 @keyframes mapLayersPanelIn {
   from {
     opacity: 0;
-    transform: translateY(6px) scale(0.97);
+    transform: translateY(6px);
   }
   to {
     opacity: 1;
