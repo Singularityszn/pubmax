@@ -13,6 +13,9 @@ The key also encodes the current keyless Ask regression baseline at the pinned i
 
 Invented-venue and directory price checks are absolute: every card `venueId` must exist in `public/data/venues_slim.json`, and directory pint prices must match the slim index within tolerance.
 
+A directory card with a price fails when its venue has no recorded price. A null price remains valid.
+These checks score structured cards. They do not detect invented values in answer text, opening hours or heritage claims.
+
 Memory has its own suite: [`memory/`](memory/README.md) grades what Pub Pal
 remembers about the person it is talking to (`npm run eval:pal:memory`).
 

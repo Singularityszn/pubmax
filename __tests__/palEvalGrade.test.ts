@@ -138,4 +138,39 @@ describe("Pal eval price grading", () => {
   it("does not grade an event's entry fee as a pint price", () => {
     expect(gradePalCase(body([card(pint + 1, "whats-on")]), {}, index).pass).toBe(true);
   });
+
+  it("rejects an invented directory price when the real venue has no recorded price", () => {
+    // The Coronet is in the committed London directory without a pint price.
+    const unpricedVenueId = "venue-60y3sa";
+    expect(index.ids.has(unpricedVenueId)).toBe(true);
+    expect(index.priceById.has(unpricedVenueId)).toBe(false);
+
+    const outcome = gradePalCase(body([{
+      ...card(4.5, "directory"),
+      venueId: unpricedVenueId,
+      title: "The Coronet",
+    }]), {}, index);
+
+    expect(outcome.inventedVenues).toBe(0);
+    expect(outcome.pass).toBe(false);
+    expect(outcome.checks).toContainEqual({
+      name: `price_data:${unpricedVenueId}`,
+      pass: false,
+      detail: "card=4.5 index=unknown",
+    });
+  });
+
+  it("allows a directory card that leaves an unknown price empty", () => {
+    const outcome = gradePalCase({
+      ...body([]),
+      cards: [{
+        ...card(4.5, "directory"),
+        venueId: "venue-60y3sa",
+        title: "The Coronet",
+        price: null,
+      }],
+    }, {}, index);
+
+    expect(outcome.pass).toBe(true);
+  });
 });
