@@ -1,13 +1,18 @@
 import { mkdir, writeFile } from "node:fs/promises";
 
 import { expect, test } from "@playwright/test";
+import { mockPalVenueAnswer } from "./helpers/palProviderDouble";
 
 const PHONE = { width: 390, height: 844 };
 const SHOTS_DIR = process.env.PAL_OPENVENUE_SHOTS_DIR ?? "";
 
 async function askOnPhone(page: import("@playwright/test").Page, ask: string) {
-  await page.getByRole("textbox", { name: /Describe the outing/i }).fill(ask);
-  await page.getByRole("button", { name: "Ask" }).click();
+  await expect(async () => {
+    await page.getByRole("textbox", { name: /Describe the outing/i }).fill(ask);
+    await page.getByRole("button", { name: "Ask", exact: true }).click();
+    await expect(page.locator(".palChatRow--user").filter({ hasText: ask }))
+      .toBeVisible({ timeout: 1_000 });
+  }).toPass({ timeout: 20_000 });
   await expect(page.locator(".palChatBubble--pending")).toHaveCount(0, {
     timeout: 20_000,
   });
@@ -34,6 +39,7 @@ test.describe("Pub Pal venue card opens the map sheet", () => {
   }) => {
     test.setTimeout(120_000);
 
+    await mockPalVenueAnswer(page);
     await page.goto("/pal/chat");
     await askOnPhone(page, "Quiet-ish near Bank, not pricey");
 
@@ -46,7 +52,7 @@ test.describe("Pub Pal venue card opens the map sheet", () => {
 
     await expect(page).toHaveURL(/\/map\?sel=/, { timeout: 45_000 });
     const venueId = new URL(page.url()).searchParams.get("sel");
-    expect(venueId).toBeTruthy();
+    expect(venueId).toBe("venue-1h7w6h3");
 
     const inspector = page.locator(".venueInspector");
     await expect(inspector).toBeAttached({ timeout: 60_000 });
