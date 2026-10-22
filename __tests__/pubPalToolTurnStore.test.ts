@@ -24,6 +24,7 @@ type DurableTestRow = {
   owner_id: string | null;
   payload: Record<string, unknown>;
   expires_at: string;
+  created_at: string;
 };
 
 type DurableFilter = {
@@ -39,7 +40,7 @@ type DurableStatement = {
 };
 
 type DurableResult = {
-  data: DurableTestRow | DurableTestRow[] | null;
+  data: Partial<DurableTestRow> | Partial<DurableTestRow>[] | null;
   error: { code?: string; message: string } | null;
 };
 
@@ -60,14 +61,19 @@ class DurableQuery implements PromiseLike<DurableResult> {
   private body: DurableStatement["body"] = null;
   private filters: DurableFilter[] = [];
   private returning = false;
+  private columns: Array<keyof DurableTestRow> | null = null;
   private singular = false;
   private execution: Promise<DurableResult> | undefined;
 
-  select() { this.returning = true; return this; }
+  select(columns = "*") {
+    this.returning = true;
+    this.columns = columns === "*" ? null : columns.split(",").map((column) => column.trim() as keyof DurableTestRow);
+    return this;
+  }
   delete() { this.action = "delete"; return this; }
-  insert(row: DurableTestRow) { this.action = "insert"; this.body = structuredClone(row); return this; }
+  insert(row: Omit<DurableTestRow, "created_at"> & { created_at?: string }) { this.action = "insert"; this.body = structuredClone(row); return this; }
   update(row: Partial<DurableTestRow>) { this.action = "update"; this.body = structuredClone(row); return this; }
-  upsert(row: DurableTestRow) { this.action = "upsert"; this.body = structuredClone(row); return this; }
+  upsert(row: Omit<DurableTestRow, "created_at"> & { created_at?: string }) { this.action = "upsert"; this.body = structuredClone(row); return this; }
   eq(column: string, value: string | number) { this.filters.push({ column, operator: "eq", value }); return this; }
   gt(column: string, value: string) { this.filters.push({ column, operator: "gt", value }); return this; }
   lt(column: string, value: string) { this.filters.push({ column, operator: "lt", value }); return this; }
@@ -128,14 +134,25 @@ class DurableQuery implements PromiseLike<DurableResult> {
       for (const row of affected) durable.rows.set(row.conversation_id, row);
     }
     if (this.action === "insert" || this.action === "upsert") {
-      const row = structuredClone(this.body) as DurableTestRow;
-      if (this.action === "insert" && durable.rows.has(row.conversation_id)) {
+      const input = structuredClone(this.body) as Omit<DurableTestRow, "created_at"> & { created_at?: string };
+      const existing = durable.rows.get(input.conversation_id);
+      if (this.action === "insert" && existing) {
         return { data: null, error: { code: "23505", message: "duplicate conversation_id" } };
       }
+      // 0160 supplies created_at on INSERT. An UPDATE without it keeps the birth.
+      const row = {
+        ...input,
+        created_at: input.created_at ?? existing?.created_at ?? new Date().toISOString(),
+      };
       durable.rows.set(row.conversation_id, row);
       affected = [row];
     }
-    const data = !this.returning ? null : this.singular ? affected[0] ?? null : affected;
+    const columns = this.columns;
+    const projected = columns ? affected.map((row) => Object.fromEntries(columns.map((column) => {
+      if (!Object.hasOwn(row, column)) throw new Error(`Unsupported durable projection: ${column}`);
+      return [column, row[column]];
+    })) as Partial<DurableTestRow>) : affected;
+    const data = !this.returning ? null : this.singular ? projected[0] ?? null : projected;
     return { data: structuredClone(data), error: null };
   }
 }
@@ -626,5 +643,128 @@ describe("Pub Pal durable mutation interleavings (transport double)", () => {
       FIRST_QUERY, "Older line.", NEXT_QUERY,
     ].sort());
     expect(stored?.expiresAt).toBe(STARTED + 95_000 + PUB_PAL_TOOL_TURN_TTL_MS);
+  });
+
+  async function establishFreshContext() {
+    // Explicit future B1 same-CID reset fixture, not evidence of provider ID reuse.
+    vi.setSystemTime(STARTED + 125_000);
+    await purgeExpiredPubPalToolTurns();
+    expect(durable.rows.has(CONVERSATION_ID)).toBe(false);
+    await bindPubPalToolTurn(CONVERSATION_ID, OWNER_ID, "london");
+    expect(await appendOwnedPubPalUserTurn(
+      CONVERSATION_ID, OWNER_ID, { role: "user", content: "Fresh context line." }, "london",
+    )).toBe(true);
+    await appendPubPalToolTurn(CONVERSATION_ID, receipt("fresh", "venue_prices"));
+    expect(durable.rows.get(CONVERSATION_ID)?.created_at)
+      .toBe(new Date(STARTED + 125_000).toISOString());
+  }
+
+  async function expectFreshContextOnly() {
+    const stored = await readOwnedPubPalToolTurn(CONVERSATION_ID, OWNER_ID);
+    expect(stored?.query).toBe("Fresh context line.");
+    expect(stored?.turns).toEqual([{ role: "user", content: "Fresh context line." }]);
+    expect(stored?.cards).toEqual(receipt("fresh").cards);
+    expect(stored?.proposals).toEqual(receipt("fresh").proposals);
+    expect(stored?.hints).toEqual(["fresh"]);
+    expect(stored?.toolsUsed).toEqual(["venue_prices"]);
+    expect(stored?.expiresAt).toBe(STARTED + 125_000 + PUB_PAL_TOOL_TURN_TTL_MS);
+    expect(stored).not.toHaveProperty("created_at");
+    expect(stored).not.toHaveProperty("createdAt");
+    expect(stored).not.toHaveProperty("revision");
+  }
+
+  it("a late old-context receipt cannot retry into a fresh same-owner conversation row", async () => {
+    await registerFirstLine();
+    expect(durable.rows.get(CONVERSATION_ID)?.created_at).toBe(new Date(STARTED).toISOString());
+    vi.setSystemTime(STARTED + 119_000);
+    const held = holdWrites(1);
+    const late = appendPubPalToolTurn(CONVERSATION_ID, receipt("expired", "venue_heritage"));
+    const settled = late.then(() => null, (error: unknown) => error);
+    await held.allPending;
+    await establishFreshContext();
+    held.resumeWhere(() => true);
+    const error = await settled;
+    expect(error === null || error instanceof PubPalToolTurnAccessError).toBe(true);
+    await expectFreshContextOnly();
+  });
+
+  it.each(["user", "register"] as const)(
+    "an old owned %s mutation cannot overwrite a fresh context after its held write conflicts",
+    async (operation) => {
+      await registerFirstLine();
+      vi.setSystemTime(STARTED + 119_000);
+      const held = holdWrites(1);
+      const pending = operation === "user"
+        ? appendOwnedPubPalUserTurn(
+          CONVERSATION_ID, OWNER_ID, { role: "user", content: "Expired context line." }, "london",
+        )
+        : registerPubPalToolTurn(CONVERSATION_ID, {
+          query: "Expired context line.", cityId: "london", ownerId: OWNER_ID,
+          turns: [{ role: "user", content: "Expired context line." }],
+        });
+      const settled = pending.then(() => null, (error: unknown) => error);
+      await held.allPending;
+      await establishFreshContext();
+      held.resumeWhere(() => true);
+      const error = await settled;
+      expect(error === null || error instanceof PubPalToolTurnAccessError).toBe(true);
+      await expectFreshContextOnly();
+    },
+  );
+
+  it("keeps raw microsecond birth in live CAS guards without exposing it", async () => {
+    await registerFirstLine();
+    const birth = "2026-10-02T12:00:00.123456+00:00";
+    durable.rows.get(CONVERSATION_ID)!.created_at = birth;
+    durable.statements = [];
+    vi.setSystemTime(STARTED + 90_000);
+    expect(await appendOwnedPubPalUserTurn(
+      CONVERSATION_ID, OWNER_ID, { role: "user", content: NEXT_QUERY }, "london",
+    )).toBe(true);
+    await appendPubPalToolTurn(CONVERSATION_ID, receipt("A"));
+    const updates = durable.statements.filter((statement) => statement.action === "update");
+    expect(updates).toHaveLength(2);
+    for (const update of updates) {
+      expect(update.filters).toContainEqual({ column: "created_at", operator: "eq", value: birth });
+      expect(update.body).not.toHaveProperty("created_at");
+    }
+    const stored = await readOwnedPubPalToolTurn(CONVERSATION_ID, OWNER_ID);
+    expect(stored?.query).toBe(NEXT_QUERY);
+    expect(stored?.cards).toEqual(receipt("A").cards);
+    expect(stored?.expiresAt).toBe(STARTED + 90_000 + PUB_PAL_TOOL_TURN_TTL_MS);
+    expect(stored).not.toHaveProperty("createdAt");
+    expect(stored).not.toHaveProperty("created_at");
+    expect(stored).not.toHaveProperty("revision");
+    const row = durable.rows.get(CONVERSATION_ID)!;
+    expect(row.created_at).toBe(birth);
+    expect(row.payload).not.toHaveProperty("createdAt");
+    expect(row.payload).not.toHaveProperty("created_at");
+  });
+
+  it.each(["", "not-a-timestamp"])("refuses malformed birth %s instead of losing generation identity", async (birth) => {
+    await registerFirstLine();
+    const row = durable.rows.get(CONVERSATION_ID)!;
+    row.created_at = birth;
+    const before = structuredClone(row);
+    await expect(appendPubPalToolTurn(CONVERSATION_ID, receipt("A")))
+      .rejects.toThrow("Invalid Pub Pal conversation creation time");
+    expect(durable.rows.get(CONVERSATION_ID)).toEqual(before);
+  });
+
+  it("an old observed register cannot insert again after its context vanishes", async () => {
+    await registerFirstLine();
+    vi.setSystemTime(STARTED + 119_000);
+    const held = holdWrites(1);
+    const pending = registerPubPalToolTurn(CONVERSATION_ID, {
+      query: "Expired context line.", cityId: "london", ownerId: OWNER_ID,
+    }).then(() => null, (error: unknown) => error);
+    await held.allPending;
+    vi.setSystemTime(STARTED + 125_000);
+    await purgeExpiredPubPalToolTurns();
+    expect(durable.rows.has(CONVERSATION_ID)).toBe(false);
+    held.resumeWhere(() => true);
+    expect(await pending).toBeInstanceOf(PubPalToolTurnAccessError);
+    expect(durable.rows.has(CONVERSATION_ID)).toBe(false);
+    expect(await readOwnedPubPalToolTurn(CONVERSATION_ID, OWNER_ID)).toBeNull();
   });
 });
