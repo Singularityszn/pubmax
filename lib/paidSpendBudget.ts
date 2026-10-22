@@ -61,6 +61,12 @@ export type PaidSpendLane = (typeof PAID_SPEND_LANES)[number];
 /** Rolling window the ceiling covers. A rolling day, so midnight is not a burst. */
 export const PAID_SPEND_BUDGET_WINDOW_MS = 24 * 60 * 60 * 1000;
 
+/** Request counts only. A full or closed lane uses the existing refusal alert. */
+export function paidSpendWarningThreshold(used: number, budget: number): 80 | 90 | null {
+  if (budget <= 0 || used >= budget || used < Math.ceil(budget * 0.8)) return null;
+  return used >= Math.ceil(budget * 0.9) ? 90 : 80;
+}
+
 /**
  * Calls each lane may make in one rolling day across the WHOLE deployment.
  * Generous against real use and small against a script: `/api/ask` at 1,000 is
