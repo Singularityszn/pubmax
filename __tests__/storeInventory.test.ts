@@ -158,6 +158,11 @@ const STORE_INVENTORY: Record<string, StoreRow> = {
   "lib/roundsStore.ts": { class: "plain-dual-backend", selector: "selectStore" },
   "lib/savedPubsStore.ts": { class: "plain-dual-backend", selector: "selectStore" },
   "lib/socialConnectionStore.ts": { class: "plain-dual-backend", selector: "selectStore" },
+  "lib/socialCrewCompletionStore.ts": {
+    class: "not-dual-backend",
+    selector: "none",
+    reason: "Durable-only Social completion RPC and persisted completion read; no keyless Social Crew backend.",
+  },
   "lib/socialCrewStore.ts": {
     class: "not-dual-backend",
     selector: "none",

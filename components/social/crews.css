@@ -110,7 +110,8 @@
   font-weight: 650;
 }
 
-.crews__field input {
+.crews__field input,
+.crews__field select {
   width: 100%;
   min-height: 44px;
   padding: 0.65rem 0.85rem;
