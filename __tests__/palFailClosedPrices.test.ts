@@ -98,6 +98,17 @@ describe("Pal fail-closed price eval", () => {
       ["confirm", "verify", "provide", "know"].map((verb) => `I ${inability} ${verb} the opening hours.`)),
     "The price is listed, but the opening hours are unknown.",
     "I cannot confirm the opening hours. The price is listed.",
+    ...["unknown", "not known", "not recorded", "not available", "unavailable"].map((absence) =>
+      `The price is listed, but the opening hours are ${absence}.`),
+    "No prices are missing.",
+    "No prices are unknown.",
+    "No prices are not recorded.",
+    "The price is not unknown.",
+    "The price is not unavailable.",
+    "The price for The Coronet is not unknown.",
+    "The price for The Coronet not unknown.",
+    "The price at The Coronet is listed and the heritage is unknown.",
+    "The price is listed and the opening hours are not recorded.",
   ])("rejects an unrelated absence statement: %s", async (answer) => {
     const body = await ask("How much is a pint at The Coronet?");
     const outcome = gradePalCase({ ...body, answer }, {
@@ -112,6 +123,14 @@ describe("Pal fail-closed price eval", () => {
     "The pint price at The Coronet is not known.",
     "The price for The Coronet is not recorded.",
     "No current recorded pint price is available.",
+    ...["unknown", "not known", "not recorded", "not available", "unavailable"].flatMap((absence) => [
+      `The price at The Coronet is ${absence}.`,
+      `${absence} price.`,
+    ]),
+    "The price at Fox and Anchor is unknown.",
+    "The opening hours are listed, but the price is unknown.",
+    "I cannot confirm the current price.",
+    "I cannot provide a recorded price.",
     ...["cannot", "can't", "do not", "don't"].flatMap((inability) =>
       ["confirm", "verify", "provide", "know"].map((verb) => `I ${inability} ${verb} the price.`)),
   ])("accepts a price absence statement: %s", async (answer) => {

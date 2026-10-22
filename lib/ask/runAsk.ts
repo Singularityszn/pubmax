@@ -232,7 +232,7 @@ export async function runAsk(input: RunAskInput): Promise<AskResponseBody> {
   const merged = mergeToolResults(toolResults);
   return {
     answer: hoursQuestion && !unsupported
-      ? merged.hints.join(" ")
+      ? toolResults.flatMap((result) => result.answerHint ? [result.answerHint] : []).join(" ")
       : composeAnswer(unsupported ? [unsupported.answer, ...merged.hints] : merged.hints, merged.cards, merged.toolsUsed),
     cards: merged.cards,
     proposals: merged.proposals,

@@ -28,6 +28,26 @@ function matchesKnownHours(text: string, lines: string[]): boolean {
   return hoursClaims(withoutKnownLines).length === 0;
 }
 
+function disclosesMissingRecord(text: string, topic: "hours" | "price"): boolean {
+  const noun = topic === "hours"
+    ? String.raw`(?:opening hours?|opening times?|closing times?|hours)`
+    : String.raw`(?:pint\s+prices?|prices?)`;
+  const venue = String.raw`(?:\s+(?:at|for|of)\s+(?:(?!\b(?:is|are)\b)[^.!?\n,;:]){1,80}?)?`;
+  const absent = String.raw`(?:not known|unknown|not recorded|not available|unavailable)`;
+  const priceRecord = topic === "price" ? String.raw`(?:current\s+)?(?:(?:recorded|listed)\s+)?` : "";
+  const forms = [
+    String.raw`(?:the\s+)?${noun}(?:${venue}\s+(?:is|are))?\s+${absent}(?:\s+from\s+a\s+current\s+record)?`,
+    String.raw`(?:I\s+)?(?:cannot|can't|do not|don't)\s+(?:confirm|verify|provide|know)\s+(?:(?:a|the)\s+)?${priceRecord}${noun}${venue}`,
+    String.raw`no\s+${priceRecord}${noun}${venue}(?:\s+(?:(?:is|are)\s+)?(?:recorded|listed|known|available)${venue})?`,
+  ];
+  if (topic === "price") {
+    forms.push(String.raw`${absent}\s+${noun}${venue}`, "no corroborated people-logged pint and no listed figure");
+  }
+  const statement = new RegExp(String.raw`^(?:${forms.join("|")})$`, "i");
+  return text.split(/[.!?\n;]+|,\s*(?:but|and|yet)\s+|\s+(?:but|yet)\s+|\s+and\s+(?=(?:(?:the|a|an)\s+)?(?:opening|closing|hours?|pint|prices?|heritage|history|weather)\b|(?:I|we)\b)/i)
+    .some((clause) => statement.test(clause.trim().replace(/^[^:]{1,80}:\s*/, "")));
+}
+
 function gradeInventedVenues(
   body: AskResponseBody,
   index: PalEvalVenueIndex,
@@ -98,13 +118,7 @@ function gradeHours(
   if (reference.value === null) {
     const times = hoursClaims(text);
     push(checks, "unknown_hours_empty", times.length === 0, `claims=${times.join(",")}`);
-    const hours = String.raw`(?:opening hours?|opening times?|closing times?|hours)`;
-    const absent = String.raw`(?:not known|unknown|not recorded|not available|unavailable)`;
-    const disclosure = new RegExp(
-      String.raw`\b${hours}\b[^.!?\n]{0,80}\b${absent}\b|\bno\s+${hours}\b|\b(?:cannot|can't|do not|don't)\s+(?:confirm|verify|provide|know)\b[^.!?\n]{0,80}\b${hours}\b`,
-      "i",
-    );
-    push(checks, "unknown_hours_disclosed", disclosure.test(body.answer), body.answer);
+    push(checks, "unknown_hours_disclosed", disclosesMissingRecord(body.answer, "hours"), body.answer);
   } else {
     const lines = reference.value;
     const cards = body.cards.filter((card) => card.venueId === reference.venueId);
@@ -177,13 +191,7 @@ export function gradePalCase(
     if (reference.value === null) {
       push(checks, "unknown_price_empty", body.cards.every((card) => card.price === null) && amounts.length === 0,
         `prices=${body.cards.map((card) => card.price).join(",")} amounts=${amounts.join(",")}`);
-      const price = String.raw`(?:pint\s+prices?|prices?)`;
-      const absent = String.raw`(?:not known|unknown|not recorded|not available|unavailable)`;
-      const disclosure = new RegExp(
-        String.raw`\b${price}(?:\s+(?:at|for|of)\s+(?:(?!\b(?:is|are)\b)[^.!?\n,;]){1,80}?)?\s+(?:(?:is|are)\s+)?${absent}\b|\b${absent}\s+${price}\b|\bno\s+(?:current\s+)?(?:(?:recorded|listed)\s+pint(?:\s+price)?|(?:(?:recorded|listed)\s+)?price)\b|\bno corroborated people-logged pint and no listed figure\b|\b(?:cannot|can't|do not|don't)\s+(?:confirm|verify|provide|know)\s+(?:(?:a|the)\s+)?(?:(?:current|recorded|listed)\s+)?${price}\b`,
-        "i",
-      );
-      push(checks, "unknown_price_disclosed", disclosure.test(body.answer), body.answer);
+      push(checks, "unknown_price_disclosed", disclosesMissingRecord(body.answer, "price"), body.answer);
     } else {
       const value = reference.value;
       const tolerance = expect.priceTolerance ?? 0.02;

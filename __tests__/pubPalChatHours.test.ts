@@ -1,6 +1,10 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-const io = vi.hoisted(() => ({ detail: vi.fn(), schedules: vi.fn() }));
+const io = vi.hoisted(() => ({ detail: vi.fn(), schedules: vi.fn(), status: vi.fn() }));
+vi.mock("@/lib/citymcp/client", async (importOriginal) => ({
+  ...await importOriginal<typeof import("@/lib/citymcp/client")>(),
+  fetchCityStatus: io.status,
+}));
 vi.mock("@/lib/venueDetailIndex", () => ({ lookupVenueDetail: io.detail }));
 vi.mock("@/lib/planRouteEvidence.server", () => ({ planOpeningSchedulesForVenues: io.schedules }));
 vi.mock("@/lib/supabase", () => ({
@@ -35,6 +39,7 @@ beforeEach(() => {
   vi.stubGlobal("fetch", vi.fn(offlineFetch));
   io.detail.mockResolvedValue({ status: "found", venue: {} });
   io.schedules.mockResolvedValue(new Map());
+  io.status.mockResolvedValue({ asOf: "2026-10-22T18:00:00Z", signals: [], tubeLines: [{ line: "Central", status: "Minor delays" }] });
 });
 
 afterEach(() => {
@@ -46,6 +51,35 @@ afterEach(() => {
 });
 
 describe("keyless Pub Pal hours answers", () => {
+  it.each([
+    "What are the opening hours of The Crosse Keys and are there Tube delays?",
+    "Are there Tube delays and what are The Crosse Keys' opening hours?",
+  ])("preserves both tool answers in chat: %s", async (query) => {
+    io.detail.mockResolvedValue({ status: "found", venue: { siteFacts: {
+      sourceUrl: "https://example.org/hours", readOn: "2026-10-20",
+      hours: { hours: { 4: [{ opens: "12:00", closes: "23:00" }] }, statedDays: [4], evidence: "Thursday noon to 11pm" },
+    } } });
+    const body = await ask(query);
+    expect(body.toolsUsed).toEqual(["city_status", "search_venues"]);
+    expect(body.answer).toContain("Central: Minor delays");
+    expect(body.answer).toContain("The Crosse Keys: recorded regular opening hours: Thursday 12:00 to 23:00");
+    expect(body.cards.map((card: { venueId: string }) => card.venueId)).toEqual(["", "venue-zottpx"]);
+    expect(body.sources).toContainEqual(expect.objectContaining({ url: "https://example.org/hours" }));
+  });
+
+  it.each([
+    "What are the opening hours of The Blackfriar and The Old Bell Tavern and are there Tube delays?",
+    "What are the opening hours of The Blackfriar and what are the opening hours of The Old Bell Tavern and are there Tube delays?",
+    "Are there Tube delays and what are the opening hours of Imaginary Moon Tavern?",
+  ])("retains hours clarification beside a city answer: %s", async (query) => {
+    const body = await ask(query);
+    expect(body.answer).toContain("Central: Minor delays");
+    expect(body.answer).toContain("Which pub do you mean?");
+    expect(body.cards.map((card: { key: string }) => card.key)).toEqual(["city-status"]);
+    expect(io.detail).not.toHaveBeenCalled();
+    expect(io.schedules).not.toHaveBeenCalled();
+  });
+
   it.each([
     "Find me one quiet pub in Soho with late opening hours",
     "Find me 2 cosy local pubs in Soho with late opening hours",
@@ -66,14 +100,16 @@ describe("keyless Pub Pal hours answers", () => {
     ["What are The Black Friar, Blackfriars' opening hours, please?", "The Blackfriar"],
     ["What are The Blackfriar's opening hours near The Old Bell Tavern?", "The Blackfriar"],
     ["What are the opening hours of The Blackfriar near The Old Bell Tavern, please?", "The Blackfriar"],
+    ["What are the opening hours of The Blackfriar near The Old Bell Tavern and are there Tube delays?", "The Blackfriar"],
   ])("uses the hours subject rather than a landmark: %s", async (query, name) => {
     const body = await ask(query);
-    expect(body.cards).toHaveLength(1);
-    expect(body.cards[0].title).toBe(name);
-    expect(body.answer).toBe(`Opening hours for ${name} are not known from a current record.`);
-    expect(io.detail).toHaveBeenCalledExactlyOnceWith(body.cards[0].venueId);
+    const cards = body.cards.filter((card: { venueId: string }) => card.venueId);
+    expect(cards).toHaveLength(1);
+    expect(cards[0].title).toBe(name);
+    expect(body.answer).toContain(`Opening hours for ${name} are not known from a current record.`);
+    expect(io.detail).toHaveBeenCalledExactlyOnceWith(cards[0].venueId);
     expect(io.schedules).toHaveBeenCalledExactlyOnceWith([
-      expect.objectContaining({ id: body.cards[0].venueId, name }),
+      expect.objectContaining({ id: cards[0].venueId, name }),
     ]);
   });
 
