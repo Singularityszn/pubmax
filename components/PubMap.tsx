@@ -5672,6 +5672,8 @@ export default function PubMap({
           communityPrices={communityPrices}
           experienceLens={experienceLens}
           drinkLensCategory={mapDrinkLensCategory}
+          drinkLensSubtype={drinkPriceSubtype}
+          drinkServingGroup={drinkServingGroup}
         />
       );
     }

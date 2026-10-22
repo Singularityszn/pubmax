@@ -7,9 +7,12 @@ import type { CommunityPricesState } from "@/components/map/useCommunityPrices";
 import type { CommunityPrice } from "@/lib/communityPrice";
 import type { ListedCategoryPrice } from "@/lib/listedCategoryPrices";
 import type {
+  CategoryPriceIndexStatus,
+  MapLensPrice,
   MapExperienceLens,
   VenuePriceReadStatus,
 } from "@/lib/mapExperienceLens";
+import { drinkCategoryIndexKey } from "@/lib/listedPriceComparison";
 import type { UkBasePub } from "@/lib/ukBasePubs";
 
 vi.mock("@/components/auth/AuthProvider", () => ({
@@ -409,5 +412,192 @@ describe("base published menu quote ownership", () => {
     for (const [lens, category] of [["food", null], ["no-alcohol", null], ["all", "coffee"]] as const) {
       expect(renderPublished([listed], [], "ready", lens, category)).not.toContain("Rioja, Spain");
     }
+  });
+});
+
+describe("base sheet selected quote identity", () => {
+  const white: MapLensPrice = {
+    venueId: pub.id, category: "wine", categoryLabel: "White wine", source: "listed",
+    drinkLabel: "Chardonnay, Pays D'oc, France", priceGbp: 5.5, servingSize: "125ml",
+    sourceUrl: "https://www.sydneyarmschelsea.com/menu/", observedAt: "2026-09-29T10:40:17.846Z",
+  };
+  const red: ListedCategoryPrice = {
+    category: "wine", source: "listed", drinkLabel: "Rioja, Spain", priceGbp: 5.25,
+    servingSize: "125ml", sourceUrl: white.sourceUrl!, observedAt: white.observedAt!,
+  };
+  const genericCommunity: CommunityPrice = {
+    venueId: pub.id, drinkCategory: "wine", source: "community", priceGbp: 3.9,
+    submittedAt: Date.now(), corroborations: 2,
+  };
+
+  function renderSelected(options: {
+    category?: CommunityPrice["drinkCategory"];
+    subtype?: string | null;
+    serving?: string | null;
+    quotes?: MapLensPrice[];
+    status?: CategoryPriceIndexStatus;
+    extraIndex?: [string, MapLensPrice[]][];
+    genericQuotes?: ListedCategoryPrice[];
+    community?: CommunityPrice[];
+    experience?: MapExperienceLens;
+  } = {}) {
+    const category = options.category ?? "wine";
+    const subtype = "subtype" in options ? options.subtype : "wine-white";
+    const serving = "serving" in options ? options.serving : "125ml";
+    const key = drinkCategoryIndexKey(category, serving, subtype);
+    const communityPrices = state(options.community ?? [genericCommunity]);
+    communityPrices.listedPricesByVenueId = new Map([[pub.id, options.genericQuotes ?? [
+      red, { ...red, priceGbp: 10.5, servingSize: "250ml" },
+    ]]]);
+    communityPrices.listedDrinkPrices = new Map([
+      ...(options.extraIndex ?? []), [key, options.quotes ?? [white]],
+    ]);
+    communityPrices.drinkCategoryIndexStatus = new Map([[key, options.status ?? "ready"]]);
+    return renderToStaticMarkup(createElement(UnverifiedPubSheet, {
+      pub, communityPrices, experienceLens: options.experience ?? "all",
+      drinkLensCategory: options.experience && options.experience !== "all" ? null : category,
+      drinkLensSubtype: subtype, drinkServingGroup: serving,
+    }));
+  }
+
+  it("shows this pub's selected White wine 125ml quote instead of the generic Rioja minimum", () => {
+    const html = renderSelected({ quotes: [white, { ...white, venueId: "venue-uk-n999", drinkLabel: "Other pub Chardonnay", priceGbp: 2.1 }] });
+    expect(html).toContain("Chardonnay, Pays D&#x27;oc, France");
+    expect(html).toContain("£5.50");
+    expect(html).toContain("125ml");
+    expect(html).toContain(`href="${white.sourceUrl}"`);
+    expect(html).toContain("Price seen 29 September 2026");
+    expect(html).not.toContain("Rioja");
+    expect(html).not.toContain("£5.25");
+    expect(html).not.toContain("£10.50");
+    expect(html).not.toContain("£3.90");
+    expect(html).not.toContain("Other pub Chardonnay");
+    expect(html).not.toContain("Logged by a PUBMAXXER");
+  });
+
+  it("shows only own subtype quotes across source-stated measures when All servings is selected", () => {
+    const html = renderSelected({ serving: null, quotes: [white, { ...white, priceGbp: 11, servingSize: "250ml" }] });
+    expect(html).toContain("£5.50");
+    expect(html).toContain("£11.00");
+    expect(html).toContain("125ml");
+    expect(html).toContain("250ml");
+    expect(html).not.toContain("Rioja");
+    expect(html).not.toContain("£3.90");
+  });
+
+  it("keeps ready empty subtype results empty instead of borrowing a generic quote or community report", () => {
+    const html = renderSelected({ quotes: [] });
+    expect(html).toContain("No white wine menu price recorded here.");
+    expect(html).not.toContain("Rioja");
+    expect(html).not.toContain("£3.90");
+    expect(html).not.toContain("by drinkers yet");
+  });
+
+  it("does not borrow All-serving quotes when the selected serving read answered empty", () => {
+    const html = renderSelected({ serving: "175ml", quotes: [], extraIndex: [[drinkCategoryIndexKey("wine", null, "wine-white"), [white]]] });
+    expect(html).toContain("No white wine menu price recorded here.");
+    expect(html).not.toContain("£5.50");
+    expect(html).not.toContain("£5.25");
+  });
+
+  it.each(["idle", "loading"] as const)("uses own %s index status even when generic detail prices are ready", (status) => {
+    const html = renderSelected({ status });
+    expect(html).toContain("Checking published menu prices");
+    expect(html).not.toContain("No price yet");
+    expect(html).not.toContain("No white wine menu price");
+    expect(html).not.toContain("£5.50");
+    expect(html).not.toContain("Rioja");
+    expect(html).not.toContain("£3.90");
+  });
+
+  it("reports selected-index failure without calling the pub empty or using detail prices", () => {
+    const html = renderSelected({ status: "degraded" });
+    expect(html).toContain("Published menu prices unavailable just now");
+    expect(html).not.toContain("No price yet");
+    expect(html).not.toContain("No white wine menu price");
+    expect(html).not.toContain("£5.50");
+    expect(html).not.toContain("Rioja");
+    expect(html).not.toContain("£3.90");
+  });
+
+  it("does not claim absence when the selected successful scan is partial and has no row for this pub", () => {
+    const html = renderSelected({ status: "partial", quotes: [] });
+    expect(html).toContain("Published menu prices are incomplete.");
+    expect(html).not.toContain("No price yet");
+    expect(html).not.toContain("No white wine menu price");
+    expect(html).not.toContain("Rioja");
+  });
+
+  it("keeps attributable matching quotes from a partial successful selected scan", () => {
+    const html = renderSelected({ status: "partial" });
+    expect(html).toContain("£5.50");
+    expect(html).toContain(`href="${white.sourceUrl}"`);
+    expect(html).not.toContain("Rioja");
+    expect(html).not.toContain("£3.90");
+  });
+
+  it.each(["wine-made-up", "gin-london-dry"])("preserves generic category behavior for invalid or cross-category subtype %s", (subtype) => {
+    const html = renderSelected({ subtype, serving: null });
+    expect(html).toContain("Rioja, Spain");
+    expect(html).toContain("£5.25");
+    expect(html).toContain("£3.90");
+    expect(html).toContain("Logged by a PUBMAXXER");
+    expect(html).not.toContain("Chardonnay");
+  });
+
+  it("uses an explicit category serving index without implying a named subtype", () => {
+    const html = renderSelected({ subtype: null, quotes: [{ ...white, categoryLabel: "Wine", drinkLabel: "Rioja, Spain", priceGbp: 5.25 }] });
+    expect(html).toContain("£5.25");
+    expect(html).toContain("125ml");
+    expect(html).not.toContain("250ml");
+    expect(html).not.toContain("£10.50");
+    expect(html).not.toContain("£3.90");
+  });
+
+  it("does not accept a red drink or wrong serving even if stored under the selected White wine key", () => {
+    const html = renderSelected({ quotes: [
+      { ...white, drinkLabel: "Rioja, Spain", priceGbp: 5.25 },
+      { ...white, priceGbp: 11, servingSize: "250ml" },
+    ] });
+    expect(html).toContain("No white wine menu price recorded here.");
+    expect(html).not.toContain("£5.25");
+    expect(html).not.toContain("£11.00");
+  });
+
+  it("keeps selected Cider with unknown serving attributable and unranked", () => {
+    const html = renderSelected({ category: "beer", subtype: "beer-cider", serving: null, quotes: [{ ...white, category: "beer", categoryLabel: "Cider", drinkLabel: "Aspall Cider", priceGbp: 6.2, servingSize: null }] });
+    expect(html).toContain("Aspall Cider");
+    expect(html).toContain("£6.20");
+    expect(html).toContain("Serving not recorded");
+    expect(html).not.toContain("priceBand-");
+    expect(html).not.toContain("Rioja");
+    expect(html).not.toContain("per pint");
+  });
+
+  it("shows own explicit Cider pint quote without defaulting an unknown serving to a pint", () => {
+    const html = renderSelected({ category: "beer", subtype: "beer-cider", serving: "pint", quotes: [
+      { ...white, category: "beer", categoryLabel: "Cider", drinkLabel: "Aspall Cider", priceGbp: 6.2, servingSize: "pint" },
+      { ...white, category: "beer", categoryLabel: "Cider", drinkLabel: "Aspall Cider", priceGbp: 4.2, servingSize: null },
+    ] });
+    expect(html).toContain("£6.20");
+    expect(html).toContain("pint");
+    expect(html).not.toContain("£4.20");
+    expect(html).not.toContain("Serving not recorded");
+  });
+
+  it("leaves the no-alcohol experience on its existing per-venue quotes", () => {
+    const html = renderSelected({ experience: "no-alcohol", genericQuotes: [{ ...red, category: "soft-drink", drinkLabel: "Lemonade", priceGbp: 2.9 }] });
+    expect(html).toContain("Lemonade");
+    expect(html).toContain("£2.90");
+    expect(html).not.toContain("Chardonnay");
+    expect(html).not.toContain("£5.50");
+  });
+
+  it("leaves food view without a borrowed drink quote", () => {
+    const html = renderSelected({ experience: "food" });
+    expect(html).toContain("No sourced food price recorded here.");
+    expect(html).not.toContain("Chardonnay");
+    expect(html).not.toContain("Rioja");
+    expect(html).not.toContain("£3.90");
   });
 });
