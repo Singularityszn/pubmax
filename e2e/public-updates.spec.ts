@@ -17,8 +17,8 @@ test("a signed-out phone reader can open released updates from You", async ({ pa
 });
 
 if (process.env.PUBMAX_PUBLIC_EVIDENCE_PHASE) {
+  test.use({ trace: "off", video: "off" });
   test.describe("public screenshot evidence", () => {
-    test.use({ trace: "off", video: "off" });
     test("records the signed-out updates source and viewport images", async ({ page }, testInfo) => {
       await capturePublicPageEvidence(page, testInfo, "updates");
     });
