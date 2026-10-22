@@ -586,6 +586,23 @@ describe("famous verifier targeted durable continuation", () => {
     rmSync(root, { recursive: true, force: true });
   });
 
+  it.each([{ following: [] }, { following: ["--limit", "1"] }])("keeps fresh report work usable after a refused write: $following", async ({ following }) => {
+    writeFileSync(receipt, JSON.stringify({ placesCalls: 0, maxPlacesCalls: 100 }));
+    const artifact = path.join(famous, "verification_2026-10-21.json");
+    const committed = JSON.stringify({ verifiedAt: "2026-10-21", checks: [] });
+    writeFileSync(artifact, committed);
+    const rejected = network();
+    await expect(run(rejected, ["--write", "--spent-receipt", receipt])).rejects.toThrow("Refusing to overwrite");
+    expect(rejected).not.toHaveBeenCalled();
+    expect(existsSync(stateRoot)).toBe(false);
+    const fetchImpl = network();
+    await expect(run(fetchImpl, [...following, "--spent-receipt", receipt])).resolves.toMatchObject({ rowsChecked: following.length ? 1 : 3 });
+    const task = path.join(stateRoot, readdirSync(stateRoot)[0]);
+    expect(existsSync(path.join(task, "checkpoint.json"))).toBe(true);
+    expect(readFileSync(artifact, "utf8")).toBe(committed);
+    expect(packs()).toEqual(venues);
+  });
+
   it("publishes the daily report on the same receipt without another request", async () => {
     await expect(run(network(), [])).resolves.toMatchObject({ rowsChecked: 3, placesCalls: 3 });
     expect(packs()).toEqual(venues);

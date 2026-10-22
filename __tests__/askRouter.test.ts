@@ -372,6 +372,7 @@ describe("routeAskDeterministically: Pub Pal V0.1 concierge tools", () => {
     const query = "Find four pubs in the same area";
     expect(refineRoutedAskQuery(users[2]!, users[1], users.slice(0, 2))).toBe(users[2]);
     expect(refineRoutedAskQuery(query, users.at(-1), users)).toBe(query);
+    expect(refineRoutedAskQuery("Four quiet pubs", ambiguous)).toBe("Four quiet pubs");
   });
 
   it("keeps the explicit area across successive budget refinements", () => {

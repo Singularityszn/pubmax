@@ -49,26 +49,29 @@ function packageScripts(): Record<string, string> {
   return JSON.parse(readFileSync(join(ROOT, "package.json"), "utf8")).scripts;
 }
 
-// Splits the leading `NAME=value` assignments a POSIX shell applies to the
-// command's environment from the command they apply to.
-function splitTestCommand(): { env: Record<string, string>; command: string } {
-  const words = (repoConfig().commands?.test ?? "").trim().split(/\s+/).filter(Boolean);
-  const env: Record<string, string> = {};
-  while (words.length > 0 && /^[A-Z_][A-Z0-9_]*=\S*$/.test(defined(words[0]))) {
-    const [name, ...value] = words.shift()!.split("=");
-    env[defined(name)] = value.join("=");
-  }
-  return { env, command: words.join(" ") };
-}
+type Command = { argv: string[]; env: Record<string, string> };
 
-// Expands every `npm run <script>` into the text it runs, so the fence judges
-// what the step executes rather than the name it was given.
-function expand(command: string, scripts: Record<string, string>, seen: string[] = []): string {
-  return command.replace(/npm run ([\w:.-]+)/g, (_, name: string) => {
-    if (seen.includes(name)) throw new Error(`script cycle through ${name}`);
-    const body = scripts[name];
-    if (body === undefined) throw new Error(`commands.test names a missing script: ${name}`);
-    return expand(body, scripts, [...seen, name]);
+function commands(command: string, scripts: Record<string, string>, inherited: Record<string, string> = {}, seen: string[] = []): Command[] {
+  return command.split("&&").flatMap((part) => {
+    if (/[|;<>`$()"'\\\n]/.test(part)) throw new Error("Unsupported shell syntax in the gate command");
+    const argv = part.trim().split(/\s+/).filter(Boolean);
+    const env = { ...inherited };
+    while (/^[A-Z_][A-Z0-9_]*=/.test(argv[0] ?? "")) {
+      const [name, ...value] = argv.shift()!.split("=");
+      env[defined(name)] = value.join("=");
+    }
+    if (argv[0] === "npm" && argv[1] === "run") {
+      const name = defined(argv[2]);
+      if (seen.includes(name)) throw new Error(`script cycle through ${name}`);
+      const body = defined(scripts[name], `script ${name}`);
+      const forwarded = argv.slice(argv[3] === "--" ? 4 : 3);
+      return commands([body, ...forwarded].join(" "), scripts, env, [...seen, name]);
+    }
+    const call = { argv, env };
+    if (argv[0] === "node" && argv[1] === "scripts/run-with-restored-bundled-data.mjs") {
+      return [call, ...commands(argv.slice(2).join(" "), scripts, env, seen)];
+    }
+    return [call];
   });
 }
 
@@ -79,10 +82,15 @@ describe("the no-mistakes repository test command", () => {
   });
 
   it("runs the change-scoped checks, not the whole suite a second time", () => {
-    expect(splitTestCommand().command).toBe("npm run verify:no-mistakes:changed");
-    const expanded = expand(splitTestCommand().command, packageScripts());
-    expect(expanded).toContain("node scripts/verify-changed.mjs");
-    expect(expanded).not.toContain("node scripts/run-coverage.mjs");
+    const invoked = commands(repoConfig().commands?.test ?? "", packageScripts());
+    expect(invoked.map((call) => call.argv)).toContainEqual(["node", "scripts/verify-changed.mjs"]);
+    expect(invoked.some((call) => call.argv[1] === "scripts/run-coverage.mjs")).toBe(false);
+  });
+
+  it("does not mistake echoed command names for executable checks", () => {
+    const scripts = { ...packageScripts(), "verify:no-mistakes:changed": "echo node scripts/verify-changed.mjs", verify: "echo node scripts/run-coverage.mjs" };
+    expect(commands(repoConfig().commands?.test ?? "", scripts).map((call) => call.argv[0])).toEqual(["echo"]);
+    expect(commands("npm run verify", scripts).map((call) => call.argv[0])).toEqual(["echo"]);
   });
 
   it("falls back to the pre-push merge bar, which reaches the unit suite and never the browser suite", () => {
@@ -98,20 +106,15 @@ describe("the no-mistakes repository test command", () => {
       chatgptMap: false,
     });
     expect(fallback.map((step) => [step.command, ...step.args].join(" "))).toEqual(["npm run verify"]);
-    // The full fallback runs inside the same wrapper, so verify:no-mistakes stays its twin.
-    expect(packageScripts()["verify:no-mistakes"]).toBe(
-      defined(packageScripts()["verify:no-mistakes:changed"]).replace(
-        "node scripts/verify-changed.mjs",
-        "npm run verify",
-      ),
-    );
-    const expanded = expand("npm run verify", packageScripts());
-
-    expect(expanded).toContain("node scripts/run-coverage.mjs");
+    const scripts = packageScripts();
+    const invoked = commands("npm run verify", scripts);
+    expect(invoked.map((call) => call.argv)).toContainEqual(["node", "scripts/run-coverage.mjs", "--without-postgres"]);
+    expect(commands("npm run verify:no-mistakes", scripts).slice(1).map((call) => call.argv))
+      .toEqual(invoked.map((call) => call.argv));
     const [unit] = coverageRuns([]);
     expect(defined(unit).args.slice(0, 3)).toEqual(["run", "--coverage", "--maxWorkers=4"]);
     // The browser suite runs in the merge bar's own e2e workflow.
-    expect(expanded).not.toMatch(/playwright/);
+    expect(invoked.some((call) => call.argv[0] === "playwright" || call.argv[1] === "node_modules/@playwright/test/cli.js")).toBe(false);
   });
 
   it("gives forwarded CI excludes to the coverage run alone", () => {
@@ -154,13 +157,8 @@ describe("the no-mistakes repository test command", () => {
   });
 
   it("validates committed bundled data without regenerating slim shards", () => {
-    const expanded = expand(splitTestCommand().command, packageScripts());
-    const env: Record<string, string> = {};
-    for (const word of expanded.trim().split(/\s+/).filter(Boolean)) {
-      if (!/^[A-Z_][A-Z0-9_]*=\S*$/.test(word)) break;
-      const [name, ...value] = word.split("=");
-      env[defined(name)] = value.join("=");
-    }
+    const invoked = commands(repoConfig().commands?.test ?? "", packageScripts());
+    const env = defined(invoked.find((call) => call.argv[1] === "scripts/verify-changed.mjs")).env;
     expect(env.PUBMAX_VERIFY_COMMITTED_DATA).toBe("1");
     expect(env.DEPLOYMENT_VERSION).toBe("local");
 

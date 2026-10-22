@@ -75,7 +75,7 @@ import { authedActionFetch } from "@/lib/authedFetch";
 import { palChatResultFromBody } from "@/lib/palChatClient";
 import { palOpeningMessage } from "@/lib/palOpening";
 import { createPalChatSession } from "@/lib/palChatClient";
-import { refineRoutedAskQuery, SAME_AREA_REFERENCE_RE } from "@/lib/ask/router";
+import { refineRoutedAskQuery, SAME_AREA_REFERENCE_RE, unambiguousAskArea } from "@/lib/ask/router";
 import { clearPalChatThread, palChatMapAnswer, readPalChatThread, savePalChatThread, type PalChatEntry as Entry, type PalChatThread } from "@/lib/palChatThread";
 import {
   cheapestGlanceLine,
@@ -536,12 +536,11 @@ function PalChatBody({ owner }: { owner: string | null }) {
         ]);
         return;
       }
-      // Ground WHERE this answer applies from the query and remembered area.
       const priorUsers = turnsRef.current.filter((turn) => turn.role === "user").map((turn) => turn.content).slice(0, -1);
       const routedQuery = refineRoutedAskQuery(text, priorUsers.at(-1), priorUsers);
-      const locality = SAME_AREA_REFERENCE_RE.test(routedQuery)
+      const locality = SAME_AREA_REFERENCE_RE.test(routedQuery) || !unambiguousAskArea(routedQuery)
         ? null
-        : resolvePalLocality(routedQuery, readRememberedArea());
+        : resolvePalLocality(routedQuery, null);
       const proposals =
         result.status === "answered" || result.status === "empty"
           ? result.proposals ?? []

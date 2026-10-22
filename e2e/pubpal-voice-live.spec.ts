@@ -19,6 +19,8 @@ import {
 import {
   completedFinalVoiceReply,
   type FinalVoiceAudio,
+  type FinalVoiceAlignment,
+  type FinalVoiceCompletion,
   type FinalVoiceTool,
   type FinalVoiceTurn,
 } from "./helpers/finalVoiceReply";
@@ -459,7 +461,6 @@ const FINAL_COMBINED_LIMIT_MS = 180_000;
 const FINAL_TURN_BUDGET = 16;
 const FINAL_AUDIO_CAP_BYTES = 8 * 1024 * 1024;
 const FINAL_MAX_INPUT_WAV_BYTES = 16 * 1024 * 1024;
-const FINAL_REPLY_SETTLE_MS = 1_500;
 /** ElevenLabs pcm_<rate> output is 16-bit signed little-endian mono. Any other format builds no WAV. */
 const FINAL_PCM_RATES = new Map<string, number>([
   ["pcm_8000", 8_000],
@@ -854,6 +855,7 @@ async function runFinalViewport(viewport: FinalViewport, testInfo: TestInfo): Pr
   const agentResponses: FinalVoiceTurn[] = [];
   const audioChunks: FinalVoiceAudio[] = [];
   const toolEvents: FinalVoiceTool[] = [];
+  const completions: FinalVoiceCompletion[] = [];
   let frameOrder = 0;
   const frameCounts = new Map<string, number>();
   const timing: Record<string, number | undefined> = {};
@@ -869,6 +871,8 @@ async function runFinalViewport(viewport: FinalViewport, testInfo: TestInfo): Pr
   let watchdog: ReturnType<typeof setTimeout> | undefined;
   let heard: FinalVoiceTurn | undefined;
   let selectedReply: FinalVoiceTurn | undefined;
+  let selectedAudio: FinalVoiceAudio[] = [];
+  let selectedCompletion: FinalVoiceCompletion | undefined;
   let before: VersionObservation | undefined;
   let screenshotPath: string | undefined;
   const since = () => (clickAt === undefined ? 0 : Date.now() - clickAt);
@@ -882,7 +886,8 @@ async function runFinalViewport(viewport: FinalViewport, testInfo: TestInfo): Pr
       conversation_initiation_metadata_event?: { agent_output_audio_format?: unknown };
       user_transcription_event?: { user_transcript?: unknown; event_id?: unknown };
       agent_response_event?: { agent_response?: unknown; event_id?: unknown };
-      audio_event?: { audio_base_64?: unknown; event_id?: unknown };
+      agent_response_complete_event?: { event_id?: unknown };
+      audio_event?: { audio_base_64?: unknown; event_id?: unknown; alignment?: FinalVoiceAlignment };
       agent_tool_request?: { tool_call_id?: string; tool_name?: string; event_id?: unknown };
       agent_tool_response_full_payload?: { tool_call_id?: string; tool_name?: string; event_id?: unknown; is_error?: boolean };
     };
@@ -920,6 +925,8 @@ async function runFinalViewport(viewport: FinalViewport, testInfo: TestInfo): Pr
       if (typeof text === "string" && agentResponses.length < 20) {
         agentResponses.push({ at, order, eventId: eventId(event.agent_response_event?.event_id), text: text.slice(0, 4_000) });
       }
+    } else if (type === "agent_response_complete") {
+      completions.push({ at, order, eventId: eventId(event.agent_response_complete_event?.event_id) });
     } else if (type === "audio") {
       const encoded = event.audio_event?.audio_base_64;
       if (typeof encoded !== "string" || !encoded) return;
@@ -930,7 +937,11 @@ async function runFinalViewport(viewport: FinalViewport, testInfo: TestInfo): Pr
         return;
       }
       retainedAudioBytes += pcm.length;
-      audioChunks.push({ at, order, eventId: eventId(event.audio_event?.event_id), pcm });
+      const alignment = event.audio_event?.alignment;
+      audioChunks.push({ at, order, eventId: eventId(event.audio_event?.event_id), pcm,
+        alignment: alignment && Array.isArray(alignment.chars) && Array.isArray(alignment.char_durations_ms)
+          && Array.isArray(alignment.char_start_times_ms) ? alignment : undefined,
+      });
     }
   };
 
@@ -1021,17 +1032,20 @@ async function runFinalViewport(viewport: FinalViewport, testInfo: TestInfo): Pr
       }
       const completed = await waitForFrame(
         () => completedFinalVoiceReply(
-          agentResponses, audioChunks, toolEvents, spoken, since(),
-          interactionBy - clickedAt, FINAL_REPLY_SETTLE_MS,
+          agentResponses, audioChunks, toolEvents, completions, spoken, since(),
+          interactionBy - clickedAt, audioFormat ? FINAL_PCM_RATES.get(audioFormat) : undefined,
         ),
         interactionBy,
         owned,
         "the completed post-tool answer and its matching audio",
       );
       selectedReply = completed.reply;
+      selectedAudio = completed.audio;
+      selectedCompletion = completed.completion;
+      timing.agentResponseCompleteMs = completed.completion.at;
       timing.agentResponseMs = completed.reply.at;
       timing.firstReplyAudioMs = completed.audio[0].at;
-      timing.replySettledMs = since();
+      timing.replyCapturedMs = since();
       await page.screenshot({
         path: `${base}.png`,
         fullPage: true,
@@ -1104,6 +1118,7 @@ async function runFinalViewport(viewport: FinalViewport, testInfo: TestInfo): Pr
 
   const sampleRate = audioFormat ? FINAL_PCM_RATES.get(audioFormat) : undefined;
   let replyAudioBytes = 0;
+  let replyPcmSha256: string | undefined;
   let wavPath: string | undefined;
   if (heard && selectedReply) {
     const reply = selectedReply;
@@ -1111,10 +1126,12 @@ async function runFinalViewport(viewport: FinalViewport, testInfo: TestInfo): Pr
       || agentResponses.some((turn) => turn.order > reply.order)) {
       failures.push("the selected reply was superseded after selection; final answer completion is unconfirmed");
     }
-    const pcm = Buffer.concat(
-      audioChunks.filter((chunk) => chunk.order > reply.order && chunk.eventId === reply.eventId).map((chunk) => chunk.pcm),
-    );
+    if (audioChunks.some((chunk) => chunk.order > selectedAudio.at(-1)!.order)) {
+      failures.push("audio arrived after the selected capture; final audio completion is unconfirmed");
+    }
+    const pcm = Buffer.concat(selectedAudio.map((chunk) => chunk.pcm));
     replyAudioBytes = pcm.length;
+    replyPcmSha256 = createHash("sha256").update(pcm).digest("hex");
     if (!sampleRate) {
       failures.push(
         `provider output format ${audioFormat ?? "(not declared)"} is not an allowlisted 16-bit LE mono PCM format; no WAV built`,
@@ -1182,17 +1199,24 @@ async function runFinalViewport(viewport: FinalViewport, testInfo: TestInfo): Pr
     transcript: {
       matched: heard?.text ?? null,
       selectedReply: selectedReply ?? null,
+      selectedCompletion: selectedCompletion ?? null,
+      completions,
       userTranscripts,
       agentResponses,
     },
     audio: {
       receivedBytes: receivedAudioBytes,
       replyBytes: replyAudioBytes,
+      pcmSha256: replyPcmSha256 ?? null,
+      streamId: selectedAudio[0]?.eventId ?? null,
+      firstFrameOrder: selectedAudio[0]?.order ?? null,
+      lastFrameOrder: selectedAudio.at(-1)?.order ?? null,
+      lastAudioMs: selectedAudio.at(-1)?.at ?? null,
       sampleRate: sampleRate ?? null,
       capBytes: FINAL_AUDIO_CAP_BYTES,
       overflow: audioOverflow,
       wavPath: wavPath ?? null,
-      note: "This WAV contains only provider-declared PCM with the selected post-tool agent_response event ID. Its reply boundary and text are recorded in transcript.selectedReply; physical speaker output was not tested.",
+      note: "This WAV captures the WebSocket audio stream whose alignment covers the selected post-tool text through its final character. A matching response completion is required. Audio stream IDs are treated independently of response and tool IDs. Missing IDs, alignment or completion fail this proof. Physical speaker playback and WebRTC were not tested.",
     },
     screenshotPath: screenshotPath ?? null,
     turns: { spoken: clickAt === undefined ? 0 : 1, typed: 0 },

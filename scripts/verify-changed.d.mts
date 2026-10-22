@@ -42,3 +42,5 @@ export declare function planChecks(input: {
 }): CheckPlan;
 
 export declare function checkSteps(plan: CheckPlan): CheckStep[];
+
+export declare function runCheckStep(step: CheckStep): boolean;

@@ -8,17 +8,19 @@
 // These cases pin that plan: what escalates to the full suite, what is linted,
 // typechecked and tested, and that CI still runs every unit test on every PR.
 
+import { spawnSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
 
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { parse } from "yaml";
 
 import { POSTGRES_BACKED_SUITES } from "../scripts/rls/postgresSuites.mjs";
 import {
   FULL_SUITE_FAN_IN,
   checkSteps,
+  runCheckStep,
   fullSuiteReason,
   importGraph,
   planChecks,
@@ -26,6 +28,13 @@ import {
 } from "../scripts/verify-changed.mjs";
 import { unitShards } from "@/__tests__/helpers/ciWorkflow";
 import { defined } from "@/__tests__/helpers/defined";
+
+vi.mock("node:child_process", async (original) => ({
+  ...await original<typeof import("node:child_process")>(),
+  spawnSync: vi.fn(),
+}));
+
+afterEach(() => vi.unstubAllEnvs());
 
 const ROOT = process.cwd();
 
@@ -91,12 +100,29 @@ describe("the full-suite escalation", () => {
     ]);
   });
 
-  it("caps the full merge bar at a 2 GB Node heap and one Vitest worker, and leaves scoped steps on the inherited environment", () => {
+  it("caps the full merge bar at a 2 GB Node heap and one Vitest worker, and applies scoped limits at the subprocess boundary", () => {
     expect(defined(checkSteps(plan(modified("package.json")))[0]).env).toEqual({
       NODE_OPTIONS: "--max-old-space-size=2048",
       VITEST_MAX_WORKERS: "1",
     });
-    for (const step of checkSteps(plan(modified("lib/priceLabel.ts")))) expect(step.env, step.label).toBeUndefined();
+    vi.stubEnv("NODE_OPTIONS", "--max-old-space-size=4096");
+    vi.stubEnv("VITEST_MAX_WORKERS", "8");
+    vi.mocked(spawnSync).mockReturnValue({ status: 0 } as ReturnType<typeof spawnSync>);
+    const scoped = checkSteps(plan(modified("lib/priceLabel.ts")));
+    for (const step of scoped) {
+      expect(runCheckStep(step)).toBe(true);
+      expect(spawnSync).toHaveBeenLastCalledWith(step.command, step.args, expect.objectContaining({
+        env: expect.objectContaining({
+          NODE_OPTIONS: "--max-old-space-size=256", VITEST_MAX_WORKERS: "1",
+          GOMEMLIMIT: "256MiB", GOMAXPROCS: "1",
+        }),
+      }));
+    }
+    const full = defined(checkSteps(plan(modified("package.json")))[0]);
+    expect(runCheckStep(full)).toBe(true);
+    expect(spawnSync).toHaveBeenLastCalledWith("npm", ["run", "verify"], expect.objectContaining({
+      env: expect.objectContaining({ NODE_OPTIONS: "--max-old-space-size=2048", VITEST_MAX_WORKERS: "1" }),
+    }));
   });
 
   it("builds with one Next worker and keeps the build typecheck on", async () => {
@@ -199,7 +225,7 @@ describe("a change-scoped plan", () => {
     const steps = checkSteps(plan(modified("lib/priceLabel.ts")));
     const vitest = defined(steps.find((step) => step.label === "unit tests (related)"));
 
-    expect(vitest.args.slice(0, 4)).toEqual(["related", "--run", "--maxWorkers=2", "--passWithNoTests"]);
+    expect(vitest.args.slice(0, 4)).toEqual(["related", "--run", "--maxWorkers=1", "--passWithNoTests"]);
     for (const suite of POSTGRES_BACKED_SUITES) {
       expect(vitest.args.join(" ")).toContain(`--exclude ${suite}`);
     }

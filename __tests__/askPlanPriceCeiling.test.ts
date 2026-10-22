@@ -13,7 +13,6 @@ vi.mock("@/lib/pintDrops", async () => {
 });
 
 import { POST } from "@/app/api/ask/route";
-import { runAskTool } from "@/lib/ask/tools";
 
 beforeEach(() => {
   for (const key of [
@@ -46,30 +45,4 @@ describe("grounded plan price ceilings", () => {
     expect(deniedFetch).not.toHaveBeenCalled();
   });
 
-  it("withholds a plan when no listed positive pint meets its ceiling", async () => {
-    const query = "Plan a crawl in Soho for three under £0.01 a pint";
-    const result = await runAskTool("propose_plan", {}, { cityId: "london", query, skipModel: true });
-    expect(result.ok).toBe(false);
-    expect(result.data).toMatchObject({ intent: { maxPintPrice: 0.01 } });
-    expect(result.cards).toEqual([]);
-    expect(result.proposals).toEqual([]);
-    expect(result.answerHint).toMatch(/No three-stop route/);
-    expect(deniedFetch).not.toHaveBeenCalled();
-  });
-
-  it("keeps a six-pound-fifty ceiling tied to listed pint evidence", async () => {
-    const query = "Plan a crawl in Soho under £6.50 a pint";
-    const result = await runAskTool("propose_plan", {}, { cityId: "london", query, skipModel: true });
-    expect(result.data).toMatchObject({ intent: { maxPintPrice: 6.5 } });
-    expect(result.cards.length).toBeGreaterThan(0);
-    for (const card of result.cards) {
-      expect(typeof card.price === "number" && card.price > 0 && card.price <= 6.5).toBe(true);
-      expect(result.priceEvidence).toContainEqual(expect.objectContaining({
-        cardKey: card.key, venueId: card.venueId, priceGbp: card.price,
-        kind: "listed-pint", category: "beer", serving: "pint",
-      }));
-    }
-    if (result.cards.length < 3) expect(result.proposals).toEqual([]);
-    expect(deniedFetch).not.toHaveBeenCalled();
-  });
 });

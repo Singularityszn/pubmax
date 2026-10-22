@@ -259,7 +259,7 @@ export function checkSteps(plan) {
       args: [
         "related",
         "--run",
-        "--maxWorkers=2",
+        "--maxWorkers=1",
         "--passWithNoTests",
         ...POSTGRES_BACKED_SUITES.flatMap((suite) => ["--exclude", suite]),
         ...plan.tests,
@@ -279,7 +279,15 @@ export function checkSteps(plan) {
     command: "node",
     args: ["scripts/ci/install-script-allowlist.mjs", "--check"],
   });
-  return steps;
+  return steps.map((step) => ({
+    ...step,
+    env: {
+      NODE_OPTIONS: "--max-old-space-size=256",
+      VITEST_MAX_WORKERS: "1",
+      GOMEMLIMIT: "256MiB",
+      GOMAXPROCS: "1",
+    },
+  }));
 }
 
 /** The tsconfig the scoped typecheck reads: the root one, narrowed to these files and the ambient types. */
@@ -337,7 +345,7 @@ function shown(step) {
   return [step.command, ...folded, ...words].join(" ");
 }
 
-function run(step) {
+export function runCheckStep(step) {
   console.log(`\n[verify:changed] ▶ ${step.label}: ${shown(step)}`);
   const started = Date.now();
   const result = spawnSync(step.command, step.args, {
@@ -355,7 +363,7 @@ function main() {
   const base = mergeBase(process.env);
   if (!base) {
     console.log("[verify:changed] No merge-base with origin/main, so the full merge bar runs.");
-    process.exit(run(checkSteps({ full: "no merge-base" })[0]) ? 0 : 1);
+    process.exit(runCheckStep(checkSteps({ full: "no merge-base" })[0]) ? 0 : 1);
   }
 
   const changed = changedSince(base);
@@ -381,7 +389,7 @@ function main() {
     if (plan.typecheck.length > 0) writeScopedTsconfig(plan.typecheck);
   }
 
-  const failed = checkSteps(plan).filter((step) => !run(step)).map((step) => step.label);
+  const failed = checkSteps(plan).filter((step) => !runCheckStep(step)).map((step) => step.label);
   if (failed.length > 0) {
     console.error(`\n[verify:changed] FAILED: ${failed.join(", ")}`);
     process.exit(1);

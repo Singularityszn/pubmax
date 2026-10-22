@@ -561,6 +561,10 @@ export async function runVerification({
   if (options.sourceQuarantine && !existsSync(checkpointPath)) {
     throw new Error("Source 429 quarantine refused: no checkpoint exists for this receipt");
   }
+  if (!existsSync(taskDir) && options.write && !options.ids && options.limit == null
+      && existsSync(join(famousDir, `verification_${initialDay}.json`))) {
+    throw new Error("Refusing to overwrite the verified day's artifact");
+  }
   let state;
   let isNew = false;
   mkdirSync(stateRoot, { recursive: true, mode: 0o700 });
@@ -645,9 +649,6 @@ export async function runVerification({
   try {
     if (isNew) {
       const outFile = `verification_${initialDay}.json`;
-      if (options.write && !options.ids && options.limit == null && existsSync(join(famousDir, outFile))) {
-        throw new Error("Refusing to overwrite the verified day's artifact");
-      }
       if (options.ids?.some((id) => !knownIds.has(id))) throw new Error("Unknown target ID");
       const artifacts = loadVerificationArtifacts(famousDir);
       const skipIds = options.ids ? [] : options.limit == null ? [] : idsCoveredByPartialVerifications(artifacts, knownIds);

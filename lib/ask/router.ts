@@ -359,31 +359,33 @@ export function socialTurnKind(query: string): "greeting" | "thanks" | null {
  */
 export const SAME_AREA_REFERENCE_RE = /(?:\b(?:in|near|around)\s+)?\b(?:the\s+)?same\s+(?:area|patch|neighbou?rhood)\b/i;
 
+export function unambiguousAskArea(text: string): string | null | undefined {
+  text = text.replace(SAME_AREA_REFERENCE_RE, "");
+  const knownAreas = defaultKnownAreas();
+  const area = deterministicAreaInText(text, knownAreas);
+  if (!area) return undefined;
+  const candidates = NIGHT_AREAS.filter((candidate) => [candidate.name, ...candidate.aliases].some((label) => {
+    const escaped = label.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    return new RegExp(`\\b${escaped}\\b`, "iu").test(text);
+  }));
+  const location = text.match(/\b(?:in|near|around)\s+(.+?)(?=[!?]|\.(?:\s|$)|$)/iu)?.[1] ?? area;
+  const places = location.replace(area, "").replace(/,?\s*\b(?:and\s+(?:show|put|open|map)|not)\b.*$/i, "");
+  return candidates.length > 1 || /\b(?:or|and)\b|[,/]/i.test(places)
+    || (candidates.length === 0 && /\b(?:or|and)\b|[,/]/i.test(area)) ? null : area;
+}
+
 export function refineVenueAreaFollowUp(query: string, priorUserContent: string | readonly string[] | null | undefined): string | null {
   if (!SAME_AREA_REFERENCE_RE.test(query) || /\bat\s+\S/i.test(query)) return null;
   const price = resolveAskPriceIntent(query);
   if (price.kind !== "none" && price.kind !== "pint" && price.kind !== "plan") return null;
-  const knownAreas = defaultKnownAreas();
   const namedQuery = query.replace(SAME_AREA_REFERENCE_RE, "");
-  const unambiguousArea = (text: string): string | null | undefined => {
-    const area = deterministicAreaInText(text, knownAreas);
-    if (!area) return undefined;
-    const candidates = NIGHT_AREAS.filter((candidate) => [candidate.name, ...candidate.aliases].some((label) => {
-      const escaped = label.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-      return new RegExp(`\\b${escaped}\\b`, "iu").test(text);
-    }));
-    const location = text.match(/\b(?:in|near|around)\s+(.+?)(?=[.!?]|$)/iu)?.[1] ?? area;
-    const places = location.replace(area, "").replace(/,?\s*\b(?:and\s+(?:show|put|open|map)|not)\b.*$/i, "");
-    return candidates.length > 1 || /\b(?:or|and)\b|[,/]/i.test(places)
-      || (candidates.length === 0 && /\b(?:or|and)\b|[,/]/i.test(area)) ? null : area;
-  };
-  const namedArea = unambiguousArea(namedQuery);
+  const namedArea = unambiguousAskArea(namedQuery);
   if (namedArea === null) return null;
   if (namedArea) return namedQuery.replace(/\s+/g, " ").trim();
   const priorLines = typeof priorUserContent === "string" ? [priorUserContent] : priorUserContent ?? [];
   for (const line of [...priorLines].reverse()) {
     if (socialTurnKind(line)) continue;
-    const area = unambiguousArea(line.replace(SAME_AREA_REFERENCE_RE, ""));
+    const area = unambiguousAskArea(line.replace(SAME_AREA_REFERENCE_RE, ""));
     if (area === null) return null;
     if (area) {
       const prefix = extractExplicitBudget(query) !== undefined ? "pubs in" : "in";
@@ -406,7 +408,8 @@ export function refineRoutedAskQuery(
   if (socialTurnKind(priorUserContent)) return query;
   const current = routeAskDeterministically(query);
   if (current.some((call) => call.name !== "search_venues")) return query;
-  if (deterministicAreaInText(query, defaultKnownAreas())) return query;
+  if (unambiguousAskArea(query) !== undefined) return query;
+  if (unambiguousAskArea(priorUserContent) === null) return query;
   const priorPlace = extractArea(priorUserContent);
   if (priorPlace) return `${query} in ${priorPlace}`;
   return `${priorUserContent} - ${query}`;

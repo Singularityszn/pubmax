@@ -355,9 +355,18 @@ describe("runPalElevenLabsChatTurn", () => {
       query, ownerId: "11111111-1111-4111-8111-111111111111", threadId: "conv_ownedfollow1",
       fenceTurns: [{ role: "user", content: "Find pubs in Soho" }],
     });
-    for (const followUp of [query, "A pub crawl in the same area", "Pints under £6.50 in the same area"]) {
+    for (const followUp of [query, "Four quiet pubs", "A pub crawl in the same area", "Pints under £6.50 in the same area"]) {
       expect(palChatRecordQuery(followUp, context.prior.turns)).toBeNull();
     }
+  });
+
+  it.each(["Soho or Camden", "Soho or Oxford", "Oxford and York", "Soho, Camden"])("keeps all ambiguous %s discovery paths on the provider", (place) => {
+    for (const query of [`Find four pubs in ${place}`, `A pub crawl in ${place}`, `Pints under £6.50 in ${place}`]) {
+      expect(palChatRecordQuery(query)).toBeNull();
+    }
+    const turns = [{ role: "user" as const, content: `Find pubs in ${place}` }];
+    expect(palChatRecordQuery("Four quiet pubs", turns)).toBeNull();
+    expect(palChatRecordQuery("Find four pubs in Soho", turns)).toBe("Find four pubs in Soho");
   });
 
   it("keeps the current named area ahead of an owned area reference", () => {

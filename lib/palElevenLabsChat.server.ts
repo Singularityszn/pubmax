@@ -1,8 +1,8 @@
 import "server-only";
 
-import { defaultKnownAreas, deterministicAreaInText, extractExplicitBudget } from "@/lib/concierge/intentPolicy";
+import { extractExplicitBudget } from "@/lib/concierge/intentPolicy";
 import { composeAnswer, runAsk } from "@/lib/ask/runAsk";
-import { recordedDrinkComparison, refineRoutedAskQuery, SAME_AREA_REFERENCE_RE, resolveAskPriceIntent, routeAskDeterministically, unsupportedPriceComparison } from "@/lib/ask/router";
+import { recordedDrinkComparison, refineRoutedAskQuery, unambiguousAskArea, SAME_AREA_REFERENCE_RE, resolveAskPriceIntent, routeAskDeterministically, unsupportedPriceComparison } from "@/lib/ask/router";
 import type { AskCard, AskProposal } from "@/lib/ask/types";
 import { resolveAskCityId } from "@/lib/ask/tools";
 import {
@@ -185,13 +185,14 @@ export function palChatRecordQuery(query: string, turns: readonly PubPalFenceTur
   if (unsupportedPriceComparison(routedQuery) || recordedDrinkComparison(routedQuery)) return routedQuery;
   const intent = resolveAskPriceIntent(routedQuery);
   const calls = routeAskDeterministically(routedQuery);
-  const area = deterministicAreaInText(routedQuery, defaultKnownAreas());
+  const area = unambiguousAskArea(routedQuery);
+  if (!area) return null;
   // A count belongs to the requested pubs, not the party. The router remains
   // authoritative for the number of cards and all other requested tools.
   const countedPubs = /\b(?:[1-6]|one|two|three|four|five|six)\s+(?:(?:good|quiet|lively|cosy|cozy|cheap|historic|local|nearby|listed|great|best)\s+)*pubs?\b/i.test(routedQuery);
-  const localDiscovery = Boolean(area) && intent.kind === "none" && countedPubs
+  const localDiscovery = intent.kind === "none" && countedPubs
     && calls.length === 1 && calls[0].name === "search_venues";
-  const localPlan = Boolean(area) && (intent.kind === "none" || intent.kind === "plan")
+  const localPlan = (intent.kind === "none" || intent.kind === "plan")
     && /\b(?:crawl|three[- ]stop|3[- ]stop)\b/i.test(routedQuery)
     && calls.length === 1 && calls[0].name === "propose_plan";
   // Listed pint discovery is local. Keep mixed requests and other tools on
