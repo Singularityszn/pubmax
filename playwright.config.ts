@@ -227,6 +227,7 @@ export default defineConfig({
         "**/map-console-health.spec.ts",
         "**/map-credits.spec.ts",
         "**/map-opening-preview.spec.ts",
+        "**/map-arrival.spec.ts",
         "**/map-arrival-turn.spec.ts",
         "**/map-you-are-here.spec.ts",
         "**/map-arrival-card-pins.spec.ts",
@@ -354,8 +355,9 @@ export default defineConfig({
         // The document's opening prices held to the engine's own first frame:
         // a real camera and a real painted-pin probe to compare against.
         "**/map-opening-preview.spec.ts",
-        // The opening turn and the first-visit card's grip on the pins: both
+        // The arrival journeys, opening turn and first-visit card's grip on the pins
         // read a real camera and a real painted-pin probe.
+        "**/map-arrival.spec.ts",
         "**/map-arrival-turn.spec.ts",
         "**/map-arrival-card-pins.spec.ts",
         // The reader's own dot: a real GeoJSON source on a real scene, and a
