@@ -310,7 +310,7 @@ async function purgeExpiredRows(): Promise<void> {
   const { error } = await requireSupabaseAdmin()
     .from("pub_pal_tool_turns")
     .delete()
-    .lte("expires_at", new Date().toISOString());
+    .lte("expires_at", "now");
   if (error) throw new Error(error.message);
 }
 
@@ -324,7 +324,7 @@ async function lookupStoredRow(conversationId: string): Promise<StoredLookup> {
     .from("pub_pal_tool_turns")
     .select("conversation_id, owner_id, payload, expires_at, created_at")
     .eq("conversation_id", conversationId)
-    .gt("expires_at", new Date().toISOString())
+    .gt("expires_at", "now")
     .maybeSingle();
   if (error) throw new Error(error.message);
   if (!data) return { status: "missing" };
@@ -393,7 +393,7 @@ async function updateStoredRow(
     .eq("owner_id", expected.ownerId)
     .eq("created_at", expected.createdAt)
     .eq("expires_at", new Date(expected.expiresAt).toISOString())
-    .gt("expires_at", new Date().toISOString());
+    .gt("expires_at", "now");
   update = expected.revision === null
     ? update.is("payload->revision", null)
     : update.eq("payload->>revision", String(expected.revision));
