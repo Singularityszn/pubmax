@@ -112,7 +112,7 @@ The audit reported no unwaived high or critical vulnerability.
 The freshness check passed with two advisory stale datasets and three durable feeds that this keyless runtime cannot measure.
 Those feeds are not reported fresh.
 
-The final product-source build is `c32a3ad3b2b52eb08b4e189bf9bb33936f65239e`.
+The initial product-source build was `c32a3ad3b2b52eb08b4e189bf9bb33936f65239e`.
 Its production build passed, and all four desktop and phone browser regressions passed.
 The restored-map, Tonight consistency, and full-width music-card checks ran against that build.
 The local import-graph recheck passed 53 tests across three files.
@@ -120,3 +120,32 @@ Both CLI fixture suites passed all 80 tests after separating browser output.
 
 The publication gate still owns rebase, review, push, the pull request, and hosted CI.
 No publication-gate or hosted-CI pass is implied by these local results.
+
+
+## Published preview and review follow-up
+
+Karan approved one additional Git-source Preview build for PR #2321 at `3ec0047ec5dc03342da701cc6579cd3e97ad82ba`.
+That build is READY at https://chengdu-alz6ewg8e-pubmax69.vercel.app.
+Its public version response reports the exact SHA and `dpl_E4TyJkCSyGkCeMSggaK1NNoYGQf8`.
+The saved ignore command remains unchanged.
+
+Fresh hosted checks passed at 1440 by 1000 and 390 by 844.
+They cover Hatton selection, Close, query-only Reload, surrounding price pins, city-prompt suppression, and search suggestions.
+All 939 priced pubs retain their prices, and Hatton's public contribution remains £4.70.
+The hosted feeds now contain no music, and both Tonight views agree with those responses.
+This hosted check does not prove a populated music section.
+The separate recorded-feed checks prove that state on the local repair build.
+
+The external review then found a real Near me regression.
+The surrounding-pin repair left remote query matches outside the held local membership.
+A typed Richmond query therefore kept the camera at the emulated Trafalgar Square location.
+Reloading the same query without that membership framed Richmond.
+The follow-up releases Near me membership when typed search takes camera ownership, preserving the other filters.
+The phone regression also waits for the shared mobile map shell after navigation and reload.
+
+The combined production build at `db8d344045b9aefd1a618922ef76881e87959279` passed.
+All five map and Tonight browser regressions passed on that build, including Near me followed by the remote query.
+The focused worker checks also passed 75 tests, lint, and TypeScript.
+The published `3ec0047` preview does not contain this later follow-up.
+Remote suggestions whose map shards are not loaded remain a separate existing limitation.
+The published-head CI and the follow-up publication gate still require their own recorded outcomes.
