@@ -113,7 +113,8 @@ document.modelContext.registerTool(
 
 Implementation, trust boundaries, browser test steps, and tool contracts are in [`docs/WEBMCP.md`](docs/WEBMCP.md). Challenge answers and the demo script are in [`docs/WEBMCP_SUBMISSION.md`](docs/WEBMCP_SUBMISSION.md).
 
-For the separate local ChatGPT MCP Apps prototype, see the [public map setup guide](scripts/chatgpt-map/README.md).
+For PUBMAXX Night Architect in ChatGPT, see the [integration and pilot guide](docs/integrations/chatgpt-night-architect.md).
+The separate loopback prototype retains its [public map setup guide](scripts/chatgpt-map/README.md).
 
 Useful scripts:
 

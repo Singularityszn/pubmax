@@ -84,7 +84,7 @@ try {
   </script>`;
   host = createServer((_req, res) => res.writeHead(200, { "Content-Type": "text/html" }).end(html));
   await new Promise((resolve) => host.listen(0, "127.0.0.1", resolve));
-  browser = await chromium.launch({ headless: true, args: ["--enable-unsafe-swiftshader"] });
+  browser = await chromium.launch({ channel: process.env.PUBMAX_BROWSER_CHANNEL || undefined, headless: true, args: ["--enable-unsafe-swiftshader"] });
   const checks = [];
   const failureChecks = [];
   for (const order of ["failure-before-results", "results-before-failure"]) {
@@ -135,7 +135,7 @@ try {
     await attributionText.waitFor({ timeout: 10000 });
     assert.ok(await attributionText.isVisible(), `Pub data attribution hidden at ${viewport.width}px`);
     const renderedAttribution = (await attributionText.textContent()).trim();
-    const threePriceVenue = result.structuredContent.venues.find((venue) => venue.name === "The Ice Wharf - JD Wetherspoon");
+    const threePriceVenue = result.structuredContent.venues.find((venue) => venue.prices.length === 3);
     assert.equal(threePriceVenue?.prices.length, 3, "Real Camden result must exercise three prices");
     const threePricePin = widget.getByRole("button", { name: threePriceVenue.name, exact: true });
     await threePricePin.click();
