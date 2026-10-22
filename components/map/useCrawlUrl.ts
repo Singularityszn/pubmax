@@ -115,7 +115,10 @@ function writeCrawlUrl(encoded: string, preserveCrawlParam: boolean, servingChoi
     ? `${window.location.pathname}?${query}${window.location.hash}`
     : `${window.location.pathname}${window.location.hash}`;
   if (`${window.location.pathname}${window.location.search}${window.location.hash}` !== url) {
-    window.history.replaceState(window.history.state, "", url);
+    const state = { ...window.history.state };
+    // Publish our URL through Next's native-history adapter, as serving changes do.
+    delete state.__NA;
+    window.history.replaceState(state, "", url);
   }
 }
 
@@ -143,7 +146,9 @@ function writeLandedCrawlContext(encoded: string, preserveCrawlParam: boolean, s
   const query = live.toString();
   const url = `${window.location.pathname}${query ? `?${query}` : ""}${window.location.hash}`;
   if (`${window.location.pathname}${window.location.search}${window.location.hash}` !== url) {
-    window.history.replaceState(window.history.state, "", url);
+    const state = { ...window.history.state };
+    delete state.__NA;
+    window.history.replaceState(state, "", url);
   }
 }
 
