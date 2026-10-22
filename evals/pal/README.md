@@ -29,8 +29,8 @@ Run this subset with `npx vitest run __tests__/palFailClosedPrices.test.ts`.
 
 These are bounded code checks for single-venue pint-price questions. They detect
 numeric pound and pence amounts, including bare decimals. They do not grade
-spelled-out amounts or every possible refusal wording. They do not yet cover
-hours, heritage, the hosted Pub Pal agent, or the Night Architect MCP tools.
+spelled-out amounts or every possible refusal wording. They do not cover
+heritage, the hosted Pub Pal agent, or the Night Architect MCP tools.
 The existing `eval:pal:live` command does not run this new subset.
 
 `__tests__/palFailClosedHours.test.ts` tests the `hoursAnswer: { value: null }`
@@ -47,10 +47,22 @@ Stale records cannot supply current hours. These questions bypass paid model
 routing, including when provider keys are configured. The tool boundary uses
 the original question, so speculative arguments cannot substitute another pub.
 
+The hours dataset in `fail-closed-hours.json` contains twelve real-venue asks.
+Ten venues have no hours in the current dataset. Two venues have recorded hours
+from their named websites. The test checks these references against the venue
+records before it runs `runAsk` without network access.
+
+The known `hoursAnswer` expectation requires every recorded weekday and time in
+the answer. The matching venue card must carry those hours and their named
+source, date and URL. Extra numeric times and common opening-status claims fail.
+Replay tests alter a time, change a weekday, remove a day, and replace a source.
+The code checks require the current schedule format. They do not judge equivalent
+free-form wording or spelled-out times.
+
 This covers explicit opening/closing hours and times questions. Open-now
-questions, a larger hours corpus and a general known-hours grader remain
-unfinished. The hosted Pub Pal agent and Night Architect still need their own
-adapter checks.
+questions, heritage, and hosted assistant adapters remain unfinished.
+The existing `eval:pal:live` command does not run these hours cases.
+Run them with `npx vitest run __tests__/palFailClosedHours.test.ts`.
 
 Memory has its own suite: [`memory/`](memory/README.md) grades what Pub Pal
 remembers about the person it is talking to (`npm run eval:pal:memory`).

@@ -21,7 +21,9 @@ export type PalEvalAnswerExpectations = {
     | { value: null }
     | { value: number; source: string }
   );
-  hoursAnswer?: { value: null };
+  hoursAnswer?:
+    | { venueId?: string; value: null }
+    | { venueId: string; value: string[]; source: string; sourceUrl?: string };
 };
 
 export type PalEvalUsage = {

@@ -18,6 +18,16 @@ function push(
   checks.push({ name, pass, detail });
 }
 
+function hoursClaims(text: string): string[] {
+  return text.match(/\b(?:[01]?\d|2[0-3]):[0-5]\d\b|\b(?:0?[1-9]|1[0-2])(?:[.:][0-5]\d)?\s*[ap]\.?m\.?|\b(?:midnight|noon|24\s*hours?|open\s+(?:now|all day)|closed\s+now|(?:Sunday|Monday|Tuesday|Wednesday|Thursday|Friday|Saturday)\s+closed)\b/gi) ?? [];
+}
+
+function matchesKnownHours(text: string, lines: string[]): boolean {
+  if (!lines.length || !lines.every((line) => text.includes(line))) return false;
+  const withoutKnownLines = lines.reduce((remaining, line) => remaining.replaceAll(line, ""), text);
+  return hoursClaims(withoutKnownLines).length === 0;
+}
+
 function gradeInventedVenues(
   body: AskResponseBody,
   index: PalEvalVenueIndex,
@@ -81,16 +91,32 @@ export function gradePalCase(
   }
 
   if (expect.hoursAnswer) {
+    const reference = expect.hoursAnswer;
     const text = [body.answer, ...body.cards.map((card) => card.note)].join("\n");
-    const times = text.match(/\b(?:[01]?\d|2[0-3]):[0-5]\d\b|\b(?:0?[1-9]|1[0-2])(?:[.:][0-5]\d)?\s*[ap]\.?m\.?|\b(?:midnight|noon|24\s*hours?|open\s+(?:now|all day)|closed\s+now)\b/gi) ?? [];
-    push(checks, "unknown_hours_empty", times.length === 0, `claims=${times.join(",")}`);
-    const hours = String.raw`(?:opening hours?|opening times?|closing times?|hours)`;
-    const absent = String.raw`(?:not known|unknown|not recorded|not available|unavailable)`;
-    const disclosure = new RegExp(
-      String.raw`\b${hours}\b[^.!?\n]{0,80}\b${absent}\b|\bno\s+${hours}\b|\b(?:cannot|can't|do not|don't)\s+(?:confirm|verify|provide|know)\b[^.!?\n]{0,80}\b${hours}\b`,
-      "i",
-    );
-    push(checks, "unknown_hours_disclosed", disclosure.test(body.answer), body.answer);
+    if (reference.venueId) {
+      push(checks, "hours_venue", body.cards.some((card) => card.venueId === reference.venueId),
+        `expected=${reference.venueId}`);
+    }
+    if (reference.value === null) {
+      const times = hoursClaims(text);
+      push(checks, "unknown_hours_empty", times.length === 0, `claims=${times.join(",")}`);
+      const hours = String.raw`(?:opening hours?|opening times?|closing times?|hours)`;
+      const absent = String.raw`(?:not known|unknown|not recorded|not available|unavailable)`;
+      const disclosure = new RegExp(
+        String.raw`\b${hours}\b[^.!?\n]{0,80}\b${absent}\b|\bno\s+${hours}\b|\b(?:cannot|can't|do not|don't)\s+(?:confirm|verify|provide|know)\b[^.!?\n]{0,80}\b${hours}\b`,
+        "i",
+      );
+      push(checks, "unknown_hours_disclosed", disclosure.test(body.answer), body.answer);
+    } else {
+      const lines = reference.value;
+      const cards = body.cards.filter((card) => card.venueId === reference.venueId);
+      push(checks, "known_hours_value", matchesKnownHours(body.answer, lines) && matchesKnownHours(text, lines),
+        `expected=${lines.join(", ")}`);
+      push(checks, "known_hours_source", cards.some((card) => matchesKnownHours(card.note, lines)
+        && card.provenance?.kind === "directory" && card.provenance.label === reference.source
+        && (reference.sourceUrl === undefined || card.provenance.url === reference.sourceUrl)),
+      `expected=${reference.source}`);
+    }
   }
 
   if (expect.priceAnswer) {
