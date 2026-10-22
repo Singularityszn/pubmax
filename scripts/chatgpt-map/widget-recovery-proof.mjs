@@ -150,7 +150,7 @@ try {
   const executablePath = process.env.PUBMAX_MCP_CHROMIUM_EXECUTABLE;
   browser = await chromium.launch({ headless: true, ...(executablePath ? { executablePath } : {}), args: ["--enable-unsafe-swiftshader"] });
   receipt.browser = { playwrightVersion: JSON.parse(await readFile(new URL("../../node_modules/playwright/package.json", import.meta.url), "utf8")).version, lockedDefaultExecutable: chromium.executablePath(), launchedExecutable: executablePath ?? chromium.executablePath(), launchedVersion: browser.version(), explicitCachedFallback: Boolean(executablePath) };
-  for (const name of ["persistent-vector-outage", "transient-vector-recovery"]) {
+  for (const name of ["persistent-vector-outage", "transient-vector-recovery", "cached-vector-return"]) {
     const check = { name, tiles: [] };
     const context = await browser.newContext({ viewport: { width: 390, height: 844 }, colorScheme: "light" });
     let inspector, stage = "healthy", releaseRecovery = () => {};
@@ -208,6 +208,37 @@ try {
         assert.equal(await widget.locator("#venues > li").count(), 2, "Persistent outage lost newer MCP result");
         check.status = await widget.locator("#status").textContent();
         assert.ok(check.status.includes("2 listed pubs.") && check.status.includes("Streets could not load"), `Settled errored tiles or newer results masked continuing outage: ${check.status}`);
+      } else if (name === "cached-vector-return") {
+        assert.equal(Math.floor(check.before.zoom), 12, "Cache-return fixture must start with genuine healthy z12 streets");
+        assert.equal(Math.floor(check.failedView.zoom), 11, "Cache-return outage must fail genuinely new visible z11 tiles");
+        check.failedSettledView = await waitFor(async () => {
+          const view = await inspector.view();
+          return !view.moving && view.settled && check.tiles.every((tile) => tile.outcome !== "pending") ? view : null;
+        }, "Outage tile and parent requests did not settle before cached return");
+        check.cachedUrls = check.tiles.filter((tile) => tile.stage === "healthy" && tile.outcome === "fulfilled" && tileInView(tile, check.before)).map((tile) => tile.url).sort();
+        assert.ok(check.cachedUrls.length > 0, "Healthy z12 grid has no real fulfilled visible vector receipts");
+        assert.ok((await widget.locator("#status").textContent()).includes("Streets could not load"), "Outage warning disappeared before cached return");
+        const requestsBeforeReturn = check.tiles.length;
+        stage = "cached-return";
+        await widget.getByRole("button", { name: "Zoom in", exact: true }).click();
+        check.returnedView = await waitFor(async () => {
+          const view = await inspector.view();
+          return !view.moving && view.settled && view.styleLoaded && view.paintedStreets > 0 && Math.abs(view.zoom - check.before.zoom) < 0.000001 ? view : null;
+        }, "Cached z12 return did not paint actual streets at original camera zoom");
+        const reused = check.tiles.filter((tile) => tile.stage === "healthy" && tile.outcome === "fulfilled" && tileInView(tile, check.returnedView)).map((tile) => tile.url).sort();
+        assert.deepEqual(reused, check.cachedUrls, "Returned viewport does not reuse same previously fulfilled z12 URLs");
+        const frame = page.frames().find((candidate) => candidate.url() === `${base}/widget`);
+        assert.ok(frame);
+        await frame.evaluate(() => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))));
+        await page.screenshot({ path: `${output}${name}-painted.png`, fullPage: true });
+        check.newVectorRequests = check.tiles.slice(requestsBeforeReturn);
+        assert.deepEqual(check.newVectorRequests, [], "Cache-return setup fetched new vector tiles instead of reusing loaded data");
+        // Cache reuse has no new network or source callback prerequisite.
+        // Real native zoom, public painted-feature query and capture precede
+        // the warning-clear assertion. Neither map nor widget is reloaded.
+        await frame.waitForFunction(() => document.getElementById("status").textContent === "3 listed pubs.", null, { timeout: 5000 });
+        check.status = await widget.locator("#status").textContent();
+        assert.equal(await widget.locator("#venues > li").count(), 3, "Cached return lost real pub cards");
       } else {
         const priorUrls = new Set(check.tiles.map((tile) => tile.url));
         stage = "held-recovery";
