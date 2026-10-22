@@ -49,6 +49,10 @@ afterEach(() => {
 
 describe("Pal fail-closed hours eval", () => {
   it.each([
+    "Find me one quiet pub in Soho with late opening hours",
+    "Find me two cosy local pubs in Soho with late opening hours",
+    "Find me 3 good nearby bars in Soho with late opening hours",
+    "Find me six historic venues in Soho with late closing times",
     "Find me a pub in Soho with late opening hours",
     "Find me a quiet pub in Soho with late opening hours",
     "Find me a welcoming dog-friendly pub in Soho with late opening hours",

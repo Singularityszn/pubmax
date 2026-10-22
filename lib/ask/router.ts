@@ -19,6 +19,7 @@ export function isVenueHoursQuestion(query: string): boolean {
   );
   return /\b(?:opening|closing)\s+(?:hours|times)\b/i.test(query)
     && !PLAN_RE.test(query) && !isVenueDiscoveryAsk(subjectQuery)
+    && requestedVenueCount(subjectQuery) === null
     && !/\b(?:a|an|any|some)\s+(?:[^\s,.!?;]+\s+)*?(?:pub|bar|venue|place)\b/i.test(subjectQuery);
 }
 
@@ -517,10 +518,10 @@ function conciergeClaim(
   );
 }
 
-function requestedVenueCount(query: string): number {
+function requestedVenueCount(query: string): number | null {
   const count = query.match(/\b(1|2|3|4|5|6|one|two|three|four|five|six)\s+(?:(?:good|quiet|lively|cosy|cozy|cheap|historic|local|nearby|listed|great|best)\s+)*(?:pubs?|bars?|venues?|places?)\b/i)?.[1]?.toLowerCase();
   const words: Record<string, number> = { one: 1, two: 2, three: 3, four: 4, five: 5, six: 6 };
-  return count ? words[count] ?? Number(count) : 4;
+  return count ? words[count] ?? Number(count) : null;
 }
 
 /**
@@ -568,7 +569,7 @@ export function routeAskDeterministically(query: string): RoutedToolCall[] {
   }
 
   if (priceIntent.kind === "drink-venues") {
-    push("search_venues", { query: text, limit: requestedVenueCount(text) });
+    push("search_venues", { query: text, limit: requestedVenueCount(text) ?? 4 });
     return calls;
   }
 
@@ -600,7 +601,7 @@ export function routeAskDeterministically(query: string): RoutedToolCall[] {
   }
 
   if (calls.length === 0) {
-    push("search_venues", { query: text, limit: requestedVenueCount(text) });
+    push("search_venues", { query: text, limit: requestedVenueCount(text) ?? 4 });
   }
 
   return calls;
