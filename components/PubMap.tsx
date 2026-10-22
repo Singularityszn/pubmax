@@ -4334,6 +4334,9 @@ export default function PubMap({
         // answer for this query. Do not let the timer fire late and replace it.
         cameraOwnedByPick: searchQueryCameraOwnedRef.current === trimmedMapQuery,
       });
+      // Search takes the camera beyond the reader's location. Release its
+      // Near me membership so the matching venues can paint and frame there.
+      if (move !== "none") setNearbyMapResult(null);
       if (move === "select-one") {
         // Fly to the one match and open its sheet (reuses the pin path).
         const [match] = filteredVenuesRef.current;
