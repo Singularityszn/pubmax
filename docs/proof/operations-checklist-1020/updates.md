@@ -26,17 +26,32 @@ The canonical address is `/updates`. The sitemap uses the latest note's release 
 The new feedback and updates sitemap entries carry route budgets.
 The forbidden-path sitemap test now checks path boundaries so `/feedback` does not match `/feed`.
 
-The local proof folder is `artifacts/operations-checklist-1020/`:
+This directory retains these historical images in Git:
 
-- `updates-before.png` shows the absent route.
-- `updates-before-test.log` records the missing-module test failure.
-- `updates-after-mobile.png` shows the page at 390 by 844.
-- `updates-after-desktop.png` shows the page at 1440 by 1000.
-- `updates-sitemap-test.log` records 102 passing tests across the page, sitemap and budget suites.
+- [Before](./updates-before.png) shows the absent route.
+- [After on mobile](./updates-after-mobile.png) shows the development page at 390 by 844.
+- [Production phone capture](./updates-production-phone.png) records the historical production page.
 
-These screenshots use a private development server. Its hot-reload WebSocket failed,
-so its console cannot establish production health. Production browser checks remain separate.
+The desktop image and local test logs were not retained in this checkout.
+They are not evidence attached to this PR.
+
+The before and development images used a private development server. Its hot-reload WebSocket failed,
+so its console cannot establish production health. The production image is a historical capture,
+not a check of this PR head. Current production browser checks remain separate.
 No deployment or merge is claimed by this proof.
+
+## Hosted evidence from 22 October 2026
+
+[Browser run 39763593048](https://github.com/Singularityszn/pubmax/actions/runs/39763593048)
+captured the signed-out account and updates pages at widths of 390, 768 and 1440 pixels.
+Its after revision is `bd7dd939b5d6c1e2af54020ce96c9863c6604210`.
+Its immutable before revision is `325122c23eb9d8bc809c4388448c0e5459146152`.
+
+- [Before artifact](https://github.com/Singularityszn/pubmax/actions/runs/39763593048/artifacts/12421912262): `public-ui-pr2311-before-bd7dd939b5d6c1e2af54020ce96c9863c6604210`.
+- [After artifact](https://github.com/Singularityszn/pubmax/actions/runs/39763593048/artifacts/12423107257): `public-ui-pr2311-after-bd7dd939b5d6c1e2af54020ce96c9863c6604210`.
+
+Each artifact contains six public PNGs and `identity.json`, which records source and served revisions and image hashes.
+GitHub retains these artifacts for seven days. They do not establish acceptance of a later revision or a production deployment.
 
 ## Independent publication on 22 October 2026
 
