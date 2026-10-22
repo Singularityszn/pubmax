@@ -126,7 +126,7 @@ import { withoutTonightChainRows } from "@/lib/tonightChainLanes";
 import type { PicksContext } from "@/lib/picksState";
 import { parsePlanOccasionIdFromSearch } from "@/lib/planOccasion";
 import type { QuietPintModule } from "@/lib/quietPint";
-import { EMPTY_KIND_OBSERVED_AT, whatsOnBarePriceGbp, type WhatsOnKind, type WhatsOnRow } from "@/lib/whatsOn";
+import { EMPTY_KIND_OBSERVED_AT, musicLaneRows, whatsOnBarePriceGbp, type WhatsOnKind, type WhatsOnRow } from "@/lib/whatsOn";
 import {
   checkedLabel,
   laneKindFacets,
@@ -204,9 +204,8 @@ function TonightRailPhoto({ photo }: { photo: PlacePhotoData | null }) {
   return <PlacePhoto className="tonightRailPhoto" photo={photo} sizes="360px" />;
 }
 
-// Presentation order is independent of grouping: Deals/Music full lanes follow
-// the main list on phones. Desktop keeps a compact rail summary instead
-// (UI_UX_FIX_PRD #1), so the main column remains the only full listing spine.
+// These cards include pub-matched listings that cannot lead the primary list.
+// Keep them available in the rail at every width.
 function mobileSecondaryLanes(lanes: ReactNode): ReactNode {
   return (
     <div className="tonightSecondaryLanes tonightSecondaryLanes--mobile">{lanes}</div>
@@ -486,6 +485,18 @@ export default function TonightClient({
     () => (activeKind ? groupedAll.filter((g) => g.row.kind === activeKind) : groupedAll),
     [groupedAll, activeKind],
   );
+  const secondaryHeroes = useMemo(
+    () => withoutTonightChainRows(groupedSecondaryAll.map((group) => group.row)),
+    [groupedSecondaryAll],
+  );
+  const secondaryMusic = useMemo(() => musicLaneRows(secondaryHeroes), [secondaryHeroes]);
+  const creditedGroups = useMemo(() => {
+    const music = new Set(secondaryMusic);
+    const primary = new Set(grouped.map((group) => group.row));
+    return [...grouped, ...groupedSecondaryAll.filter(
+      (group) => music.has(group.row) && !primary.has(group.row),
+    )];
+  }, [grouped, groupedSecondaryAll, secondaryMusic]);
   const facets = useMemo(() => laneKindFacets(groupedAll.map((g) => g.row)), [groupedAll]);
   const displayedFacets = useMemo(() => laneKindFacets(grouped.map((g) => g.row)), [grouped]);
   const ready = listingsStatus === "ready";
@@ -531,12 +542,12 @@ export default function TonightClient({
   const whatsOnObservedAt = useMemo(
     () =>
       tonightWhatsOnObservedAt({
-        renderedGroups: grouped,
-        outEvents,
+        renderedGroups: creditedGroups,
+        outEvents: outBody?.events ?? [],
         kindObservedAt,
         now: renderedAt,
       }),
-    [grouped, outEvents, kindObservedAt, renderedAt],
+    [creditedGroups, outBody, kindObservedAt, renderedAt],
   );
   const checked = freshnessLabel(sourceFreshnessKind, whatsOnObservedAt);
   // The ordering claim rides the What's-On credit, so it is only made when
@@ -551,13 +562,13 @@ export default function TonightClient({
   const provenance = useMemo(
     () =>
       tonightProvenanceCredits({
-        renderedGroups: grouped,
-        outEvents,
+        renderedGroups: creditedGroups,
+        outEvents: outBody?.events ?? [],
         whatsOnChecked: checked,
         outObservedAt: outBody?.observedAt,
         pubSuggestionCount,
       }),
-    [grouped, outEvents, outBody, checked, pubSuggestionCount],
+    [creditedGroups, outBody, checked, pubSuggestionCount],
   );
   // A lane that could not answer is named beside the cards, not only in place
   // of them: a degraded Out answer still carrying Ticketmaster rows makes the
@@ -619,9 +630,6 @@ export default function TonightClient({
   // A chain row has its own labelled block now, so it leaves the generic Deals
   // lane: one Wetherspoon offer under two headings is the same offer counted
   // twice, and the unlabelled heading is the one that reads as the city's.
-  const secondaryHeroes = withoutTonightChainRows(
-    groupedSecondaryAll.map((group) => group.row),
-  );
   // The music lane mixes What's-On and Out cards, so one stamp has to cover
   // both reads, each dated by its own evidence (lib/tonightOutListings.ts).
   const musicLaneObservedAt = useMemo(
@@ -694,7 +702,7 @@ export default function TonightClient({
         state={listingsState}
         note={listingsNote}
         noteOffersRetry={noteOffersRetry}
-        emptyLead={tonightEmptyLead(status, outAnswer, pubSuggestionCount)}
+        emptyLead={tonightEmptyLead(status, outAnswer, pubSuggestionCount, secondaryMusic.length)}
         heldRowCount={primaryListingRows.length}
         context={picksContext}
         onRetry={retryListings}
