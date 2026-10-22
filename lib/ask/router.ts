@@ -14,8 +14,12 @@ export type RoutedToolCall = {
 };
 
 export function isVenueHoursQuestion(query: string): boolean {
+  const subjectQuery = stripTrailingPunctuation(query).replace(
+    /\b(?:a|an|the)\s+(?:(?!(?:pub|bar|venue|place)\b)[^\s,.!?;]+\s+)*(?:pub|bar|venue|place)\s+(?:called|named)\s+/gi, "",
+  );
   return /\b(?:opening|closing)\s+(?:hours|times)\b/i.test(query)
-    && !PLAN_RE.test(query) && !isVenueDiscoveryAsk(query);
+    && !PLAN_RE.test(query) && !isVenueDiscoveryAsk(subjectQuery)
+    && !/\b(?:a|an|any|some)\s+(?:[^\s,.!?;]+\s+)*?(?:pub|bar|venue|place)\b/i.test(subjectQuery);
 }
 
 const CITY_STATUS_RE =
