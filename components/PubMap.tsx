@@ -3182,6 +3182,10 @@ export default function PubMap({
     () => withForcedVenue(kindVisibleMapVenues, venueById, selectedVenueId),
     [kindVisibleMapVenues, venueById, selectedVenueId],
   );
+  const queryVenues = useMemo(() => {
+    const matchingIds = new Set(filteredVenues.map((venue) => venue.id));
+    return canvasVenues.filter((venue) => matchingIds.has(venue.id));
+  }, [canvasVenues, filteredVenues]);
   const experienceLensPrices = useMemo(
     () =>
       experienceLens === "all"
@@ -6874,6 +6878,7 @@ export default function PubMap({
         maxBounds={UK_BOUNDS}
         fitQueryOnArrival={shouldFitQueryVenuesOnArrival(arrivalSearch)}
         searchFitToken={searchFitToken}
+        queryVenues={queryVenues}
         userLocation={userLocation}
         nearMePending={nearbyLoading}
         readerPosition={readerPosition}

@@ -463,6 +463,8 @@ type PubMapCanvasProps = {
    * this token. Starts at 0 (no-op) so first paint is untouched.
    */
   searchFitToken?: number;
+  /** Search matches to frame while surrounding venues stay on the map. */
+  queryVenues?: Venue[];
   /** Precise location retained only in memory after explicit permission. */
   userLocation?: { lat: number; lng: number } | null;
   readerPosition?: MapReaderPosition | null;
@@ -768,6 +770,7 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
     londonRestaurants,
     fitQueryOnArrival,
     searchFitToken,
+    queryVenues = venues,
     userLocation,
     readerPosition,
     poiHidden: controlledPoiHidden,
@@ -1215,11 +1218,13 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
   // "no pubs visible" fallback).
   const bandMemberIdsRef = useRef<string[]>([]);
   const venuesRef = useRef(venues);
+  const queryVenuesRef = useRef(queryVenues);
   const filteredVenueCountRef = useRef(venues.length);
   useEffect(() => {
     venuesRef.current = venues;
+    queryVenuesRef.current = queryVenues;
     filteredVenueCountRef.current = filteredVenueCount;
-  }, [filteredVenueCount, venues]);
+  }, [filteredVenueCount, queryVenues, venues]);
   const selectedIdRef = useRef(selectedVenueId);
   // The reader's Pub Pal perched beside the selected pin (palMarker.ts).
   const palMarkerRef = useRef<PalMapMarker | null>(null);
@@ -1358,6 +1363,7 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
     cityBoundsRef,
     routeRef,
     venuesRef,
+    queryVenuesRef,
     gestureCameraRef,
   })
 
@@ -4395,10 +4401,10 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
     if (didFitQueryOnArrivalRef.current) return;
     // User already tapped a venue — leave the cinematic fly-to alone.
     if (selectedVenueId) return;
-    if (venues.length === 0) return;
+    if (queryVenues.length === 0) return;
     didFitQueryOnArrivalRef.current = true;
     fitQueryVenues();
-  }, [mapReady, fitQueryOnArrival, venues.length, selectedVenueId, fitQueryVenues]);
+  }, [mapReady, fitQueryOnArrival, queryVenues.length, selectedVenueId, fitQueryVenues]);
 
   // Reactive search framing (issue: map search dead-ends). When a live search
   // narrows to a multi-venue set the parent bumps `searchFitToken`; re-frame the
