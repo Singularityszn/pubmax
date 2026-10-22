@@ -50,6 +50,9 @@ afterEach(() => {
 describe("Pal fail-closed hours eval", () => {
   it.each([
     "Find me a pub in Soho with late opening hours",
+    "Find me a quiet pub in Soho with late opening hours",
+    "Find me a welcoming dog-friendly pub in Soho with late opening hours",
+    "Find me a pub in Soho near a pub called The Crosse Keys with late opening hours",
     "Show me pubs in Soho with late closing times",
     "Find somewhere in Soho with late opening times",
   ])("preserves discovery through runAsk and tool dispatch: %s", async (query) => {
@@ -60,6 +63,18 @@ describe("Pal fail-closed hours eval", () => {
     const result = await runAskTool("search_venues", { query }, { query, cityId: "london", now, skipModel: true });
     expect(result.cards.length).toBeGreaterThan(0);
     expect(result.answerHint).not.toContain("Which pub do you mean?");
+  });
+
+  it.each([
+    "What are the opening hours at a pub called The Crosse Keys?",
+    "What are the opening hours at a pub named The Crosse Keys?",
+    "What are the opening hours at a quiet pub called The Crosse Keys?",
+  ])("preserves an explicit venue name through runAsk and dispatch: %s", async (query) => {
+    const body = await runAsk({ query, now, skipModel: true, fetchImpl: offlineFetch });
+    expect(gradePalCase(body, knownReference, index).pass).toBe(true);
+    const result = await runAskTool("search_venues", { query }, { query, cityId: "london", now, skipModel: true });
+    expect(result.answerHint).toContain("The Crosse Keys: recorded regular opening hours:");
+    expect(result.cards[0]?.venueId).toBe(knownCase.venueId);
   });
 
   it.each(["answer", "card"] as const)("rejects unsupported 24:00 in an unknown-hours %s", (target) => {
@@ -232,11 +247,14 @@ describe("Pal fail-closed hours eval", () => {
     expect(body.answer).toContain("Which pub do you mean?");
   });
 
-  it("answers recorded hours without a model call even when providers are configured", async () => {
+  it.each([
+    "What are the opening hours of The Coronet?",
+    "What are the opening hours at a pub called The Coronet?",
+  ])("answers recorded hours without a model call even when providers are configured: %s", async (query) => {
     vi.stubEnv("OPENROUTER_API_KEY", "test-not-a-key");
     vi.stubEnv("TYPESAFE_API_KEY", "test-not-a-key");
     const transport = vi.fn(offlineFetch);
-    const body = await runAsk({ query: "What are the opening hours of The Coronet?", fetchImpl: transport });
+    const body = await runAsk({ query, fetchImpl: transport });
     expect(gradePalCase(body, reference, index).pass).toBe(true);
     expect(transport).not.toHaveBeenCalled();
   });

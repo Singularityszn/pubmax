@@ -46,12 +46,22 @@ afterEach(() => {
 });
 
 describe("keyless Pub Pal hours answers", () => {
-  it("preserves the recorded hours, card and source", async () => {
+  it("preserves discovery for a described pub with an hours preference", async () => {
+    const body = await ask("Find me a quiet pub in Soho with late opening hours");
+    expect(body.cards.length).toBeGreaterThan(0);
+    expect(body.answer).not.toContain("Which pub do you mean?");
+    expect(body.toolsUsed).toEqual(["search_venues"]);
+  });
+
+  it.each([
+    "What are the opening hours of The Crosse Keys?",
+    "What are the opening hours at a pub called The Crosse Keys?",
+  ])("preserves the recorded hours, card and source: %s", async (query) => {
     io.detail.mockResolvedValue({ status: "found", venue: { siteFacts: {
       sourceUrl: "https://example.org/hours", readOn: "2026-10-20",
       hours: { hours: { 4: [{ opens: "12:00", closes: "23:00" }] }, statedDays: [4], evidence: "Thursday noon to 11pm" },
     } } });
-    const body = await ask();
+    const body = await ask(query);
     expect(body.answer).toContain("Thursday 12:00 to 23:00");
     expect(body.cards).toHaveLength(1);
     expect(body.cards[0].venueId).toBe("venue-zottpx");

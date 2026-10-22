@@ -21,12 +21,26 @@ describe("routeAskDeterministically", () => {
     "Show me four pubs in Soho",
     "Find four pubs in Soho under £6 a pint.",
     "Find me a pub in Soho with late opening hours",
+    "Find me a quiet pub in Soho with late opening hours",
+    "Find me a welcoming dog-friendly pub in Soho with late opening hours",
     "Show me pubs in Soho with late closing times",
     "Find somewhere in Soho with late opening times",
   ])("answers discovery before offering map actions: %s", (query) => {
     expect(routeAskDeterministically(query)).toEqual([
       { name: "search_venues", args: { query, limit: 4 } },
     ]);
+  });
+
+  it.each([
+    "What are the opening hours at a pub called The Crosse Keys?",
+    "What are the opening hours at a pub named The Crosse Keys?",
+  ])("routes an explicit venue-hours question: %s", (query) => {
+    expect(routeAskDeterministically(query)).toEqual([{ name: "search_venues", args: { query } }]);
+  });
+
+  it("preserves crawl planning with an hours preference", () => {
+    const query = "Plan a crawl in Soho with late opening hours";
+    expect(routeAskDeterministically(query)).toEqual([{ name: "propose_plan", args: { query } }]);
   });
 
   it.each([
