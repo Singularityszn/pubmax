@@ -33,7 +33,8 @@ git diff e81aaa6a0 HEAD -- app/api/pub-pal/chat/route.ts lib/palElevenLabsChat.s
 
 That command returned no differences.
 `runPalElevenLabsChatTurn` reached its 22-second deadline without an acceptable final reply.
-The browser's 25-second timer explains the matching trace duration, but the trace alone cannot establish the server cause.
+The trace duration is consistent with the browser's 25-second timer.
+The trace alone cannot establish what ended the request or caused the server deadline.
 
 The server event rules out an earlier rejection for missing configuration, missing sign-in, request caps, or signed-URL acquisition.
 Those paths return before this deadline event. The safety classification also allowed the turn to proceed.
