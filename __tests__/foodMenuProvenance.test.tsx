@@ -5,6 +5,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 import FoodMenu from "@/components/food/FoodMenu";
 import type { FoodItem } from "@/lib/food";
+import { venueFoodMenuForInspector } from "@/lib/venueFoodMenu";
 import {
   applyFoodPriceUpdatesToMenu,
   parseFoodPriceUpdates,
@@ -69,6 +70,59 @@ describe("food menu price evidence", () => {
     expect(dietary?.querySelector("a")?.getAttribute("href")).toBe("https://www.theeaglew12.co.uk/food-drink");
     expect(dietary?.querySelector("time")?.getAttribute("datetime")).toBe("2026-10-13T06:51:38.364Z");
     expect(dietary?.querySelector("time")?.textContent).toBe("13 October 2026");
+  });
+
+  it("retains older dietary and calorie evidence when the inspector receives a normalized price history", () => {
+    const updates = parseFoodPriceUpdates([
+      {
+        venueKey: "the-eagle-test",
+        itemName: "Mango sorbet (2 scoops)",
+        category: "desserts",
+        priceGbp: 3.5,
+        caloriesKcal: 0,
+        dietary: ["vegan"],
+        source: {
+          label: "The Eagle - official published menu",
+          url: "https://www.theeaglew12.co.uk/food-drink",
+          licence: "First-party facts, with the observation date and link",
+        },
+        observedAt: "2026-10-13T06:51:38.364Z",
+      },
+      {
+        venueKey: "the-eagle-test",
+        itemName: "Mango sorbet (2 scoops)",
+        category: "desserts",
+        priceGbp: 4,
+        source: {
+          label: "Later price source",
+          url: "https://www.theeaglew12.co.uk/prices",
+          licence: "First-party price, with the observation date and link",
+        },
+        observedAt: "2026-10-14T06:00:00.000Z",
+      },
+    ], Date.parse("2026-10-14T06:51:38.364Z"));
+    const items = venueFoodMenuForInspector({ id: "the-eagle-test", prices: [] }, updates);
+    const html = renderToStaticMarkup(createElement(FoodMenu, { items, venueName: "The Eagle" }));
+    const doc = new DOMParser().parseFromString(html, "text/html");
+    const rows = doc.querySelectorAll(".drinkRow");
+    expect(rows).toHaveLength(1);
+    expect(rows[0].textContent).toContain("Mango sorbet (2 scoops)");
+    const price = rows[0].querySelector(".drinkRowSide");
+    expect(price?.textContent).toContain("£4.00");
+    expect(price?.querySelector("a")?.textContent).toBe("Later price source");
+    expect(price?.querySelector("a")?.getAttribute("href")).toBe("https://www.theeaglew12.co.uk/prices");
+    expect(price?.querySelector("time")?.getAttribute("datetime")).toBe("2026-10-14T06:00:00.000Z");
+    const dietary = rows[0].querySelector(".drinkServing");
+    expect(dietary?.textContent).toContain("vegan");
+    expect(dietary?.querySelector("a")?.textContent).toBe("The Eagle - official published menu");
+    expect(dietary?.querySelector("a")?.getAttribute("href")).toBe("https://www.theeaglew12.co.uk/food-drink");
+    expect(dietary?.querySelector("time")?.getAttribute("datetime")).toBe("2026-10-13T06:51:38.364Z");
+    expect(dietary?.querySelector("time")?.textContent).toBe("13 October 2026");
+    const calories = rows[0].querySelector(".foodCalories");
+    expect(calories?.textContent).toContain("0 kcal on the menu");
+    expect(calories?.querySelector("a")?.textContent).toBe("The Eagle - official published menu");
+    expect(calories?.querySelector("a")?.getAttribute("href")).toBe("https://www.theeaglew12.co.uk/food-drink");
+    expect(calories?.querySelector("time")?.getAttribute("datetime")).toBe("2026-10-13T06:51:38.364Z");
   });
 
   it("keeps dietary evidence beside the labels when it matches the price observation", () => {
