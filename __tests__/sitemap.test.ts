@@ -40,7 +40,7 @@ import type { MetadataRoute } from "next";
 // row returning is a conscious test edit, the same as a change to the list
 // above; the gate itself is proved in both directions by the fixture-driven
 // describe at the foot of this file. The ROUTE is unaffected either way.
-const STATIC_HUB_COUNT = 17;
+const STATIC_HUB_COUNT = 18;
 
 // Wave S1.2 — sitemap sanity. Runs the real generator against the bundled
 // dataset (process.cwd() is the repo root in tests, so public/data/*.json is
@@ -176,6 +176,11 @@ describe("sitemap()", () => {
     ]) {
       expect(urls).toContain(`${SITE}${hub}`);
     }
+  });
+
+  it("lists the public Pub Pal introduction once without advertising private chat", () => {
+    expect(urls.filter((url) => url === `${SITE}/pal`)).toHaveLength(1);
+    expect(urls).not.toContain(`${SITE}/pal/chat`);
   });
 
   it("lists the brand-relevant discovery routes a stranger can be sent to", () => {

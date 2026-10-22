@@ -14,9 +14,27 @@ export const dynamic = "force-static";
 // ceiling rather than a refresh the page needs.
 export const revalidate = 3600;
 
+const title = "Meet your Pub Pal";
+const description = "Meet, shape and control your private companion for a night out.";
+const image = "/pal/circuit-robin-512.png";
+
 export const metadata: Metadata = {
-  title: "Meet your Pub Pal",
-  description: "Meet, shape and control your private companion for a night out.",
+  title,
+  description,
+  alternates: { canonical: "/pal" },
+  openGraph: {
+    title,
+    description,
+    type: "website",
+    url: "/pal",
+    images: [{ url: image, width: 512, height: 512, alt: "Your Pub Pal, the Circuit Robin" }],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title,
+    description,
+    images: [image],
+  },
 };
 
 export default function PalPage() {
