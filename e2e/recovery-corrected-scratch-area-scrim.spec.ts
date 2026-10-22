@@ -1,0 +1,23 @@
+import {expect,test} from '@playwright/test';
+import {installDeterministicMapBasemap} from './helpers/mapNetworkFixtures';
+import {writeFileSync} from 'node:fs';
+const E='/Users/karanmanoharan/.codex/visualizations/2026/10/09/01a1221b-f805-78e1-82c3-4eeb27d73308/pr2078-reverification-20261011/raw/keyless';
+for(const theme of ['light','dark'] as const)test(`Relevant news under the strict modal scrim cannot receive a click ${theme}`,async({page,browser})=>{
+ test.setTimeout(90000);
+ await page.setViewportSize({width:1440,height:900});await page.emulateMedia({reducedMotion:'reduce',colorScheme:theme});await installDeterministicMapBasemap(page);
+ await page.addInitScript(t=>{localStorage.setItem('pubmax-theme',t);localStorage.setItem('pubmax:map-first-visit-arrival:v1','dismissed');localStorage.setItem('pubmax-tour-v1-done','1');localStorage.setItem('pubmax_onboarding_dismissed','1');sessionStorage.setItem('pubmax_onboarding_dismissed','1');sessionStorage.setItem('pubmax:citySuggestDismiss:v1','1');localStorage.setItem('pubmaxx:analytics-consent:v1','denied');},theme);
+ await page.route('**/api/citymcp/status**',r=>r.fulfill({status:200,contentType:'application/json',body:JSON.stringify({signals:[{headline:'Kingston Market Place closed following fire',severity:'major',areas:['Kingston']}],tubeLines:[],weather:null})}));
+ await page.goto('/map?mode=build&pubs=venue-ydvsco%2Cvenue-122zap1');await expect(page.locator('.mapLoading')).toBeHidden({timeout:45000});
+ await page.locator('.citySwitcherTrigger').filter({visible:true}).click();await page.getByRole('button',{name:'This area',exact:true}).click();await page.getByRole('searchbox',{name:'Search areas and postcodes'}).fill('Kingston');await page.locator('.chooseAreaSheet').filter({visible:true}).getByRole('button',{name:'Kingston upon Thames',exact:true}).click();
+ await expect(page.locator('.cityStatusBannerCopy')).toHaveText('Kingston Market Place closed following fire',{timeout:30000});
+ await page.locator('.mappedRouteChip').getByRole('button',{name:'Edit',exact:true}).click();await expect(page.locator('.routeList').filter({visible:true})).toBeVisible();await expect(page.locator('.cityStatusBannerLink')).toBeVisible();
+ const geometry=await page.locator('.cityStatusBannerDismiss').boundingBox();expect(geometry).not.toBeNull();const point={x:geometry!.x+geometry!.width/2,y:geometry!.y+geometry!.height/2};
+ await page.keyboard.press('Control+k');const modal=page.getByRole('dialog',{name:'Command palette'});await expect(modal).toBeVisible();
+ const hit=await page.evaluate(point=>{const e=document.elementFromPoint(point.x,point.y);return {className:e?.className,toastMounted:document.querySelectorAll('.cityStatusBannerCopy').length,toastText:document.querySelector('.cityStatusBannerCopy')?.textContent};},point);
+ expect(hit.className).toBe('cmdkBackdrop');expect(hit.toastMounted).toBe(1);
+ await expect(modal.getByRole('combobox',{name:'Search commands'})).toBeFocused();await page.keyboard.press('Tab');await expect(modal.getByRole('combobox',{name:'Search commands'})).toBeFocused();
+ await page.screenshot({path:`${E}/scrim-over-present-toast-${theme}.png`});
+ await page.mouse.click(point.x,point.y);await expect(modal).toHaveCount(0);await expect(page.locator('.cityStatusBannerCopy')).toBeVisible();expect(await page.evaluate(()=>localStorage.getItem('pubmax:cityStatusDismiss:v1'))).toBeNull();
+ await page.keyboard.press('Control+k');await expect(modal).toBeVisible();await page.keyboard.press('Escape');await expect(modal).toHaveCount(0);
+ writeFileSync(`${E}/scrim-hit-${theme}.json`,JSON.stringify({point,hit,afterScrimClick:'Modal closed, toast still visible',browserVersion:browser.version(),runtimeAuth:await page.locator('[data-auth-resolved="true"][data-auth-configured="false"]').count()},null,2));
+});
