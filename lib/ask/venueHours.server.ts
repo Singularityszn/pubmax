@@ -8,7 +8,8 @@ import { placesOpeningHours, PLACES_REFRESH_DAYS } from "@/lib/placesEnrichment"
 import { OPENING_EVIDENCE_FRESH_DAYS } from "@/lib/planRouteEvidence";
 import { planOpeningSchedulesForVenues } from "@/lib/planRouteEvidence.server";
 import { lookupVenueDetail } from "@/lib/venueDetailIndex";
-import { matchVenueNameWithinQuery } from "@/lib/ask/venueResolution";
+import { wordsOnly } from "@/lib/ask/placePhrases";
+import { venueSearchNames } from "@/lib/venueSearchNames.mjs";
 import type { AskToolContext, AskToolResult } from "@/lib/ask/toolContract";
 import type { AskSource } from "@/lib/ask/types";
 
@@ -31,7 +32,16 @@ async function readVenueHours(query: string, ctx: AskToolContext): Promise<AskTo
     answerHint: "Which pub do you mean? I need its name to check the opening hours.",
   };
   const venues = await loadConciergeVenues(ctx.cityId);
-  const venue = matchVenueNameWithinQuery(venues, query);
+  const [before, after] = query.replace(/[.!?]+\s*$/, "").split(/\b(?:opening|closing)\s+(?:hours|times)\b/i);
+  const subject = (after?.trim() ? after : before ?? "")
+    .split(/\b(?:near|next to|close to|beside|around)\b/i)[0] ?? "";
+  const name = wordsOnly(subject.replace(/^\s*(?:of|at|for)\s+/i, "").replace(
+    /^\s*(?:a|an|the)\s+(?:(?!(?:pub|bar|venue|place)\b)[^\s,.!?;]+\s+)*(?:pub|bar|venue|place)\s+(?:called|named)\s+/i, "",
+  )).replace(/^the\s+/, "");
+  const matches = venues.filter((candidate) => venueSearchNames(candidate).some(
+    (label: string) => wordsOnly(label).replace(/^the\s+/, "") === name,
+  ));
+  const venue = matches.length === 1 ? matches[0] : null;
   if (!venue) return empty;
 
   const detail = await lookupVenueDetail(venue.id);

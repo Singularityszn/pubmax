@@ -46,6 +46,46 @@ afterEach(() => {
 });
 
 describe("keyless Pub Pal hours answers", () => {
+  it.each([
+    "Find me one quiet pub in Soho with late opening hours",
+    "Find me 2 cosy local pubs in Soho with late opening hours",
+  ])("preserves counted discovery in chat: %s", async (query) => {
+    const body = await ask(query);
+    expect(body.cards.length).toBeGreaterThan(0);
+    expect(body.answer).not.toContain("Which pub do you mean?");
+    expect(io.detail).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ["What are the opening hours of The Blackfriar near The Old Bell Tavern?", "The Blackfriar"],
+    ["What are the opening hours at The Old Bell Tavern near The Blackfriar?", "The Old Bell Tavern"],
+    ["The Blackfriar near The Old Bell Tavern opening hours?", "The Blackfriar"],
+    ["What are the closing times for The Blackfriar next to The Old Bell Tavern?", "The Blackfriar"],
+    ["What are the closing hours of Blackfriar near The Old Bell Tavern?", "The Blackfriar"],
+    ["What are the opening times at The Black Friar, Blackfriars?", "The Blackfriar"],
+  ])("uses the hours subject rather than a landmark: %s", async (query, name) => {
+    const body = await ask(query);
+    expect(body.cards).toHaveLength(1);
+    expect(body.cards[0].title).toBe(name);
+    expect(body.answer).toBe(`Opening hours for ${name} are not known from a current record.`);
+    expect(io.detail).toHaveBeenCalledExactlyOnceWith(body.cards[0].venueId);
+    expect(io.schedules).toHaveBeenCalledExactlyOnceWith([
+      expect.objectContaining({ id: body.cards[0].venueId, name }),
+    ]);
+  });
+
+  it.each([
+    "What are the opening hours of The Blackfriar and The Old Bell Tavern?",
+    "What are the opening hours of The Old Bell Tavern or The Blackfriar?",
+    "What are the opening hours of Imaginary Moon Tavern near The Old Bell Tavern?",
+  ])("requests clarification before reading an ambiguous or unknown subject: %s", async (query) => {
+    const body = await ask(query);
+    expect(body.answer).toContain("Which pub do you mean?");
+    expect(body.cards).toEqual([]);
+    expect(io.detail).not.toHaveBeenCalled();
+    expect(io.schedules).not.toHaveBeenCalled();
+  });
+
   it("preserves discovery for a described pub with an hours preference", async () => {
     const body = await ask("Find me a quiet pub in Soho with late opening hours");
     expect(body.cards.length).toBeGreaterThan(0);
