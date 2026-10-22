@@ -6890,7 +6890,7 @@ export default function PubMap({
             fallback card is never hidden behind it. */}
         {renderMapLoadingChrome()}
         {renderMapCanvas()}
-        {!secondaryStreamsHeld && <FriendLocationControl map={friendLocationMap} />}
+        {!secondaryStreamsHeld && <FriendLocationControl map={friendLocationMap} arrivalPending={showMapArrivalCard} />}
         {renderMapSearchEmptyState()}
         {renderDesktopToolbar()}
         {renderDesktopMapOverlays()}
