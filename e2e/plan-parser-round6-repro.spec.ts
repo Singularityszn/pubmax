@@ -1,0 +1,2 @@
+import { test, expect } from "@playwright/test";
+for (const query of ["no bitter or lager, just cocktails in Soho under \u00a330 each", "a night on the Prosecco in Soho under \u00a330 each", "out on the Aperol in Soho under \u00a330 each"] ) test(query, async ({ request }) => { const response = await request.post("/api/plans/generate", { data: { query } }); expect(response.status()).toBe(422); });
