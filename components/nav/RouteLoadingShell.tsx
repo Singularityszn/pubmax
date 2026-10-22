@@ -10,7 +10,7 @@
 import SiteNav from "@/components/nav/SiteNav";
 import PintLoader from "@/components/ui/pint-loader";
 
-import "./mobileNav.css";
+import "./navigation.css";
 
 type RouteLoadingShellProps = {
   /** Short status label for AT + quiet on-screen copy (e.g. "Tonight"). */
