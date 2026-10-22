@@ -78,6 +78,7 @@ export async function capturePublicPageEvidence(
       expect(response!.status()).toBe(expectedStatus);
       if (route === "/u/you") {
         await expect(page.getByRole("heading", { name: "Claim your @handle." })).toBeVisible();
+        await expect(page.getByRole("heading", { name: "Privacy, terms and support", exact: true })).toBeVisible();
         const link = page.getByRole("link", { name: linkName, exact: true });
         if (phase === "after") await expect(link).toBeVisible();
         else await expect(link).toHaveCount(0);
