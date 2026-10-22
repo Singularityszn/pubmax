@@ -1,7 +1,7 @@
 import { QUALIFIED_PRICE_REQUESTS } from "./fixtures/askPriceSubjects";
 import { describe, expect, it } from "vitest";
 
-import { refineRoutedAskQuery, routeAskDeterministically, unsupportedPriceComparison } from "@/lib/ask/router";
+import { refineRoutedAskQuery, routeAskDeterministically, unambiguousAskArea, unsupportedPriceComparison } from "@/lib/ask/router";
 import { ASK_TOOL_NAMES, isAskToolName } from "@/lib/ask/types";
 
 describe("routeAskDeterministically", () => {
@@ -367,12 +367,26 @@ describe("routeAskDeterministically: Pub Pal V0.1 concierge tools", () => {
     "Find pubs in Soho or Oxford",
     "Find pubs in Oxford and York",
     "Find pubs in Soho, Camden",
+    "Find pubs in Soho or Oxford with food and a garden",
+    "Find pubs in Soho, Oxford, please",
   ])("does not replace an ambiguous owned area: %s", (ambiguous) => {
     const users = ["Find pubs in Brixton", ambiguous, "Pints under £6.50 in the same area"];
     const query = "Find four pubs in the same area";
     expect(refineRoutedAskQuery(users[2]!, users[1], users.slice(0, 2))).toBe(users[2]);
     expect(refineRoutedAskQuery(query, users.at(-1), users)).toBe(query);
     expect(refineRoutedAskQuery("Four quiet pubs", ambiguous)).toBe("Four quiet pubs");
+  });
+
+  it.each([
+    "Find four pubs in Soho, please",
+    "Four pubs in Soho with food and a garden",
+    "Four pubs near Soho for food and a garden",
+    "Four pubs around Soho under £6 or less",
+  ])("keeps request qualifiers outside the place alternatives: %s", (query) => {
+    expect(unambiguousAskArea(query)).toBe("Soho");
+    expect(routeAskDeterministically(query)).toEqual([{ name: "search_venues", args: { query, limit: 4 } }]);
+    expect(refineRoutedAskQuery("Four quiet pubs", query)).toBe("Four quiet pubs in Soho");
+    expect(refineRoutedAskQuery("Find four pubs in the same area", query)).toBe("Find four pubs in Soho");
   });
 
   it("keeps the explicit area across successive budget refinements", () => {

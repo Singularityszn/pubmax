@@ -26,8 +26,12 @@ describe("Pal rolling session summary", () => {
     expect(palSessionSummaryTurn("")).toEqual([]);
   });
 
-  it("resolves area references before older turns leave the provider window", () => {
-    let session = { summary: "", turns: [ask("Find four pubs in Soho")] };
+  it.each([
+    "Find four pubs in Soho",
+    "Find four pubs in Soho, please",
+    "Four pubs in Soho with food and a garden",
+  ])("resolves area references before older turns leave the provider window: %s", (query) => {
+    let session = { summary: "", turns: [ask(query)] };
     for (const budget of [7, 6.8, 6.6, 6.4, 6.2, 6, 5.8, 5.6]) {
       session = windowPalSessionTurns(session.summary, [...session.turns, ask(`Same area, under £${budget} a pint`)]);
       const users = session.turns.map((turn) => turn.content);

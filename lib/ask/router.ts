@@ -369,7 +369,7 @@ export function unambiguousAskArea(text: string): string | null | undefined {
     return new RegExp(`\\b${escaped}\\b`, "iu").test(text);
   }));
   const location = text.match(/\b(?:in|near|around)\s+(.+?)(?=[!?]|\.(?:\s|$)|$)/iu)?.[1] ?? area;
-  const places = location.replace(area, "").replace(/,?\s*\b(?:and\s+(?:show|put|open|map)|not)\b.*$/i, "");
+  const places = location.replace(area, "").replace(/,?\s*\b(?:please|for|with|under|below|max|and\s+(?:show|put|open|map)|not)\b.*$/i, "");
   return candidates.length > 1 || /\b(?:or|and)\b|[,/]/i.test(places)
     || (candidates.length === 0 && /\b(?:or|and)\b|[,/]/i.test(area)) ? null : area;
 }
@@ -409,8 +409,8 @@ export function refineRoutedAskQuery(
   const current = routeAskDeterministically(query);
   if (current.some((call) => call.name !== "search_venues")) return query;
   if (unambiguousAskArea(query) !== undefined) return query;
-  if (unambiguousAskArea(priorUserContent) === null) return query;
-  const priorPlace = extractArea(priorUserContent);
+  const priorPlace = unambiguousAskArea(priorUserContent);
+  if (priorPlace === null) return query;
   if (priorPlace) return `${query} in ${priorPlace}`;
   return `${priorUserContent} - ${query}`;
 }

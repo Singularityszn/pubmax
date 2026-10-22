@@ -587,16 +587,15 @@ describe("famous verifier targeted durable continuation", () => {
   });
 
   it.each([{ following: [] }, { following: ["--limit", "1"] }])("keeps fresh report work usable after a refused write: $following", async ({ following }) => {
-    writeFileSync(receipt, JSON.stringify({ placesCalls: 0, maxPlacesCalls: 100 }));
     const artifact = path.join(famous, "verification_2026-10-21.json");
     const committed = JSON.stringify({ verifiedAt: "2026-10-21", checks: [] });
     writeFileSync(artifact, committed);
     const rejected = network();
-    await expect(run(rejected, ["--write", "--spent-receipt", receipt])).rejects.toThrow("Refusing to overwrite");
+    await expect(run(rejected, ["--write"])).rejects.toThrow("Refusing to overwrite");
     expect(rejected).not.toHaveBeenCalled();
     expect(existsSync(stateRoot)).toBe(false);
     const fetchImpl = network();
-    await expect(run(fetchImpl, [...following, "--spent-receipt", receipt])).resolves.toMatchObject({ rowsChecked: following.length ? 1 : 3 });
+    await expect(run(fetchImpl, following)).resolves.toMatchObject({ rowsChecked: following.length ? 1 : 3 });
     const task = path.join(stateRoot, readdirSync(stateRoot)[0]);
     expect(existsSync(path.join(task, "checkpoint.json"))).toBe(true);
     expect(readFileSync(artifact, "utf8")).toBe(committed);

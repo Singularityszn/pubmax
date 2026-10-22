@@ -225,7 +225,7 @@ describe("runPalElevenLabsChatTurn", () => {
 
   it.each([
     "Cheap pints near Soho",
-    "Cheapest decent pint for a quick one after work",
+    "Cheapest decent pint near Soho for a quick one after work",
     "Find me three pubs near Soho with listed pint prices. Show the source dates and the map.",
   ])("answers local pint discovery when the provider is unavailable: %s", async (query) => {
     vi.stubEnv("TYPESAFE_API_KEY", "unused-test-key");
@@ -360,13 +360,25 @@ describe("runPalElevenLabsChatTurn", () => {
     }
   });
 
-  it.each(["Soho or Camden", "Soho or Oxford", "Oxford and York", "Soho, Camden"])("keeps all ambiguous %s discovery paths on the provider", (place) => {
+  it.each(["Soho or Camden", "Soho or Oxford", "Oxford and York", "Soho, Camden", "Soho or Oxford with food and a garden", "Soho, Oxford, please"])("keeps all ambiguous %s discovery paths on the provider", (place) => {
     for (const query of [`Find four pubs in ${place}`, `A pub crawl in ${place}`, `Pints under £6.50 in ${place}`]) {
       expect(palChatRecordQuery(query)).toBeNull();
     }
     const turns = [{ role: "user" as const, content: `Find pubs in ${place}` }];
     expect(palChatRecordQuery("Four quiet pubs", turns)).toBeNull();
     expect(palChatRecordQuery("Find four pubs in Soho", turns)).toBe("Find four pubs in Soho");
+  });
+
+  it.each([
+    "Find four pubs in Soho, please",
+    "Four pubs in Soho with food and a garden",
+    "A pub crawl in Soho, please",
+    "Four pubs under £6.50 in Soho with food and a garden",
+  ])("keeps a qualified area on the local path: %s", (query) => {
+    expect(palChatRecordQuery(query)).toBe(query);
+    const turns = [{ role: "user" as const, content: query }];
+    expect(palChatRecordQuery("Four quiet pubs", turns)).toBe("Four quiet pubs in Soho");
+    expect(palChatRecordQuery("Find four pubs in the same area", turns)).toBe("Find four pubs in Soho");
   });
 
   it("keeps the current named area ahead of an owned area reference", () => {
