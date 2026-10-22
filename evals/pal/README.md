@@ -22,8 +22,9 @@ sources. The test checks these references against the committed venue dataset
 before it runs the real keyless `runAsk` path. Global network access fails the test.
 
 The `priceAnswer` expectation checks prices in the answer and card text as well
-as structured card prices. Unknown prices require an explicit absence statement.
-Known prices require the recorded value and publisher on the same card.
+as structured card prices. Unknown prices require a complete absence statement
+about the requested price. Known prices require the recorded value and publisher
+on the same card.
 Replay tests insert invented prices, remove sources, and omit the known value.
 Run this subset with `npx vitest run __tests__/palFailClosedPrices.test.ts`.
 
@@ -31,21 +32,22 @@ These are bounded code checks for single-venue pint-price questions. They detect
 numeric pound and pence amounts, including bare decimals. They do not grade
 spelled-out amounts or every possible refusal wording. They do not cover
 the hosted Pub Pal agent or the Night Architect MCP tools.
-The existing `eval:pal:live` command does not run this new subset.
 
 `__tests__/palFailClosedHours.test.ts` tests the `hoursAnswer: { value: null }`
-expectation. It requires an explicit statement about missing hours. It rejects
+expectation. It requires a complete statement about missing hours. It rejects
 numeric clock times, noon, midnight, 24-hour claims, and common open/closed claims
 in the answer or card notes. These wording checks are bounded patterns. They do
 not cover spelled-out times or every possible refusal or opening-status phrase.
 
-The hours test runs real offline questions about The Coronet. The shared search
-tool now answers named opening-hours questions from existing records. It states
-when hours are unknown and returns no unrelated pubs or map proposals.
-The Crosse Keys case checks recorded hours with a named website and date.
-Stale records cannot supply current hours. These questions bypass paid model
-routing, including when provider keys are configured. The tool boundary uses
-the original question, so speculative arguments cannot substitute another pub.
+Both absence checks accept bounded refusal forms for their own topic.
+An optional venue name must match the referenced venue's indexed name or alias.
+The grader does not trust card titles as names. A venue suffix cannot consume
+extra predicates such as "remain unknown" or "have changed".
+`__tests__/palEvalGrade.test.ts` covers these shared absence forms and false positives.
+
+The hours suite checks named-pub matching, source selection and refusal behaviour
+through `runAsk`. [ADR 0014](../../docs/adr/0014-night-os-ask-agent.md) owns the
+routing and evidence rules.
 
 The hours dataset in `fail-closed-hours.json` contains twelve real-venue asks.
 Ten venues have no hours in the current dataset. Two venues have recorded hours
@@ -59,27 +61,10 @@ Replay tests alter a time, change a weekday, remove a day, and replace a source.
 The code checks require the current schedule format. They do not judge equivalent
 free-form wording or spelled-out times.
 
-This covers explicit opening/closing hours and times questions. Open-now
-questions and hosted assistant adapters remain unfinished.
-The existing `eval:pal:live` command does not run these hours cases.
-Run them with `npx vitest run __tests__/palFailClosedHours.test.ts`.
-
-The review regressions reproduced three defects before correction. Discovery
-requests with hours entered named-hours handling. Unsupported `24:00` claims
-passed the grader. Keyless chat replaced named-hours results with a discovery
-prompt, including unknown hours and read failures. The regression run failed
-13 tests across `palFailClosedHours.test.ts` and `pubPalChatHours.test.ts`.
-
-The shared hours predicate now excludes discovery and crawl requests. The grader
-detects `24:00` in answers and card notes, while it accepts recorded `24:00`
-hours. Keyless chat preserves named-hours results before its discovery fallback.
-The chat regression calls the existing POST handler with real Ask execution
-and controlled record reads. It covers sourced hours, unknown hours, unmatched
-pubs and read failures without provider access.
-
-Run the focused review checks with
-`./node_modules/.bin/vitest run __tests__/askRouter.test.ts __tests__/askVenueHours.test.ts __tests__/palFailClosedHours.test.ts __tests__/palEvalGrade.test.ts __tests__/pubPalChatHours.test.ts __tests__/pubPalChatRoute.test.ts`.
-The outer Test phase owns repository-wide validation, including `npm run verify`.
+The grader detects unsupported `24:00` claims in answers and card notes.
+It accepts `24:00` when the reference schedule records it.
+Run the hours subset with `npx vitest run __tests__/palFailClosedHours.test.ts`.
+The [Pub Pal feature guide](../../README.md#features) owns user-facing support and limits.
 
 `__tests__/palFailClosedHeritage.test.ts` adds twelve real-venue heritage asks
 from `fail-closed-heritage.json`. Ten venues have no recorded heritage. The Argyll
@@ -87,8 +72,8 @@ Arms and The Clachan have facts with named sources and source URLs. The test
 checks each reference against the current local heritage reader and venue index.
 
 This subset calls `runAskTool("venue_heritage")` with the canonical venue ID.
-It does not test typed-question routing. That route can lose the venue ID and
-return an absence statement despite recorded facts. See `FOLLOW_UPS.md`.
+It does not test typed-question routing. See the
+[heritage routing follow-up](FOLLOW_UPS.md) for that known product gap.
 
 The `heritageAnswer` expectation rejects extra prose in answers and card notes.
 Unknown heritage requires one of four explicit absence statements and no source.

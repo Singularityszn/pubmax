@@ -255,9 +255,9 @@ export async function POST(request: Request): Promise<Response> {
         skipModel: true,
         traceRoute: "api/pub-pal/chat",
       });
-      // search_venues ranks on area, mood, budget and group size only. With
-      // none of them it lists the same arbitrary pubs for any words ("hi how
-      // are you", "sup"), so ask for one instead.
+      // Discovery ranks on area, mood, budget and group size. Without one,
+      // it lists arbitrary pubs, so ask for a constraint. Preserve named-hours
+      // results, including refusals and read failures, before this fallback.
       if (!isVenueHoursQuestion(query) && answer.toolsUsed.length === 1 && answer.toolsUsed[0] === "search_venues") {
         const priorUser = [...turns].reverse().find((turn) => turn.role === "user");
         const { intent } = await parseConciergeIntent(
