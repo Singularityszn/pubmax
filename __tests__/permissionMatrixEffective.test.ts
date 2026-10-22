@@ -743,7 +743,6 @@ describe("invite capability", () => {
       }),
       context({ id: PLAN_ID }),
     );
-    console.error("CREATE CREW:", created.status, await created.clone().text());
     expect(created.status, await created.clone().text()).toBe(201);
     inviteToken = (await readJson<{ token: string }>(created)).token;
     expect(inviteToken).toBeTruthy();
@@ -979,7 +978,6 @@ describe("private Night Memory, Moment and its object", () => {
       request("/api/night-memories", { bearer: BEARER_BOB, body: { title: "Bob night" } }),
       context({}),
     );
-    console.error("CREATE CREW:", created.status, await created.clone().text());
     expect(created.status, await created.clone().text()).toBe(201);
     bobMemory = (await readJson<{ memory: { id: string } }>(created)).memory.id;
     expect(truth(`select owner_id from public.night_memories where id = '${bobMemory}'`)).toBe(BOB);
