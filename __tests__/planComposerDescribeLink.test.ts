@@ -1857,3 +1857,228 @@ describe("accepted Stop 1 description generation", () => {
     expect(document.querySelector(".planComposer__routeStale")).toBeNull();
   });
 });
+
+describe("accepted base-pub name hydration", () => {
+  const heldId = "venue-uk-n8308248176";
+  const otherId = "venue-uk-n8308248177";
+  const publicPub = {
+    id: heldId, name: "The Sydney Arms", kind: "pub",
+    address: "70 Sydney Street", lat: 51.4888, lng: -0.1695, curatedVenueId: "",
+  };
+
+  function acceptVenue(venueId = heldId): void {
+    expect(writePlanningIntent({
+      source: "map-search", cityId: "london", acceptedVenueId: venueId,
+      acceptedArea: null, startsAt: null,
+      displayEvidence: { kind: "directory", observedAt: null },
+    }, { storage: sessionStorage })).not.toBeNull();
+  }
+
+  function publicNameRequests(): string[] {
+    return vi.mocked(fetch).mock.calls.flatMap(([input]) => {
+      const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
+      return url.startsWith("/api/uk-base/") ? [url] : [];
+    });
+  }
+
+  function mockNameReads(options: {
+    index?: unknown;
+    indexStatus?: number;
+    indexThrows?: boolean;
+    pub?: unknown;
+    pubStatus?: number;
+    heldResponse?: Promise<Response>;
+  } = {}): void {
+    vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL) => {
+      const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
+      if (url === `/api/uk-base/${heldId}`) {
+        if (options.heldResponse) return options.heldResponse;
+        return Response.json({ pub: "pub" in options ? options.pub : publicPub }, {
+          status: options.pubStatus ?? 200,
+        });
+      }
+      if (url === `/api/uk-base/${otherId}`) {
+        return Response.json({ pub: { ...publicPub, id: otherId, name: "The Other Arms" } });
+      }
+      if (url.includes("/api/plans/generate")) {
+        return Response.json({
+          ...DEFAULT_GENERATE_BODY,
+          stops: [{ venueId: heldId, venueName: "Generated Sydney name" }, ...DEFAULT_GENERATE_BODY.stops.slice(1)],
+        });
+      }
+      if (options.indexThrows) throw new TypeError("Public index unavailable");
+      return Response.json(options.index ?? [], { status: options.indexStatus ?? 200 });
+    }));
+  }
+
+  function stopName(): string | undefined {
+    return document.querySelector<HTMLInputElement>("#venue-name-1")?.value;
+  }
+
+  it("resolves a held map base pub absent from the city index through its exact public ID", async () => {
+    mockNameReads();
+    acceptVenue();
+    await mountComposer();
+
+    expect(publicNameRequests()).toEqual([`/api/uk-base/${heldId}`]);
+    expect(stopName()).toBe(publicPub.name);
+    expect(document.querySelector(".planComposer__accepted")?.textContent).toContain(publicPub.name);
+    expect(document.querySelector(".planComposer__swap")?.getAttribute("aria-label"))
+      .toBe("The Sydney Arms is the accepted Stop 1. Swap is not available.");
+    expect(document.body.textContent).not.toContain(heldId);
+  });
+
+  it("keeps the city index primary and avoids a second public lookup when it owns the held ID", async () => {
+    mockNameReads({ index: [{ id: heldId, name: "Indexed Sydney name", kind: "pub" }] });
+    acceptVenue();
+    await mountComposer();
+
+    expect(stopName()).toBe("Indexed Sydney name");
+    expect(publicNameRequests()).toEqual([]);
+  });
+
+  it("does not route an orphan curated ID through the base-pub lookup", async () => {
+    mockNameReads();
+    acceptVenue("venue-orphan");
+    await mountComposer();
+
+    expect(stopName()).toBe("");
+    expect(publicNameRequests()).toEqual([]);
+    expect(document.body.textContent).not.toContain("venue-orphan");
+  });
+
+  it.each(["HTTP refusal", "thrown read"])("still resolves a base pub when the city index has a %s", async (failure) => {
+    mockNameReads({ indexStatus: failure === "HTTP refusal" ? 503 : 200, indexThrows: failure === "thrown read" });
+    acceptVenue();
+    await mountComposer();
+
+    expect(publicNameRequests()).toEqual([`/api/uk-base/${heldId}`]);
+    expect(stopName()).toBe(publicPub.name);
+  });
+
+  it.each([
+    { reason: "a different ID", pub: { ...publicPub, id: otherId } },
+    { reason: "a blank name", pub: { ...publicPub, name: "   " } },
+    { reason: "a bar", pub: { ...publicPub, kind: "bar" } },
+    { reason: "an omitted kind", pub: { ...publicPub, kind: undefined } },
+    { reason: "a missing pub", pub: null },
+  ])("does not assign a public response naming $reason to the accepted Stop 1", async ({ pub }) => {
+    mockNameReads({ pub });
+    acceptVenue();
+    await mountComposer();
+
+    expect(publicNameRequests()).toEqual([`/api/uk-base/${heldId}`]);
+    expect(stopName()).toBe("");
+    expect(document.querySelector(".planComposer__accepted")?.textContent).toContain("The pub you kept");
+    expect(document.body.textContent).not.toContain(heldId);
+  });
+
+  it("does not adopt a named body from a refused public lookup", async () => {
+    mockNameReads({ pubStatus: 503 });
+    acceptVenue();
+    await mountComposer();
+
+    expect(publicNameRequests()).toEqual([`/api/uk-base/${heldId}`]);
+    expect(stopName()).toBe("");
+  });
+
+  it("gives the still-unresolved accepted Stop 1 a nonblank accessible control label", async () => {
+    mockNameReads({ heldResponse: new Promise<Response>(() => undefined) });
+    acceptVenue();
+    await mountComposer();
+
+    expect(stopName()).toBe("");
+    expect(document.querySelector(".planComposer__swap")?.getAttribute("aria-label"))
+      .toBe("The pub you kept is the accepted Stop 1. Swap is not available.");
+    expect(document.body.textContent).not.toContain(heldId);
+  });
+
+  it("does not replace a name the drinker typed while the public lookup was pending", async () => {
+    let finishLookup: ((response: Response) => void) | undefined;
+    mockNameReads({ heldResponse: new Promise<Response>((resolve) => { finishLookup = resolve; }) });
+    acceptVenue();
+    await mountComposer();
+    expect(publicNameRequests()).toEqual([`/api/uk-base/${heldId}`]);
+
+    await act(async () => { typeInto("#venue-name-1", "My meeting pub"); });
+    expect(stopName()).toBe("My meeting pub");
+    await act(async () => { finishLookup!(Response.json({ pub: publicPub })); });
+    await settleComposerEffects();
+
+    expect(stopName()).toBe("My meeting pub");
+  });
+
+  it("does not revive accepted name hydration after the drinker releases that pub", async () => {
+    let finishLookup: ((response: Response) => void) | undefined;
+    mockNameReads({ heldResponse: new Promise<Response>((resolve) => { finishLookup = resolve; }) });
+    acceptVenue();
+    await mountComposer();
+    expect(publicNameRequests()).toEqual([`/api/uk-base/${heldId}`]);
+
+    await act(async () => { clickButton("Release this pub"); });
+    await act(async () => { finishLookup!(Response.json({ pub: publicPub })); });
+    await settleComposerEffects();
+
+    expect(stopName()).toBe("");
+    expect(document.querySelector(".planComposer__accepted")).toBeNull();
+    expect(publicNameRequests()).toEqual([`/api/uk-base/${heldId}`]);
+  });
+
+  it("keeps a generated name for the same accepted ID when an earlier public reply arrives", async () => {
+    let finishLookup: ((response: Response) => void) | undefined;
+    mockNameReads({ heldResponse: new Promise<Response>((resolve) => { finishLookup = resolve; }) });
+    acceptVenue();
+    await mountComposer();
+    expect(publicNameRequests()).toEqual([`/api/uk-base/${heldId}`]);
+
+    await act(async () => {
+      typeInto("#plan-concierge-query", "Three cheap pints in Camden");
+      clickButton("Make a plan");
+    });
+    await settleComposerEffects();
+    expect(stopName()).toBe("Generated Sydney name");
+    await act(async () => { finishLookup!(Response.json({ pub: publicPub })); });
+    await settleComposerEffects();
+
+    expect(stopName()).toBe("Generated Sydney name");
+  });
+
+  it("keeps a recovered named Stop 1 without requesting its base name again", async () => {
+    mockNameReads();
+    writePlanDraftEnvelope({
+      title: "", creatorName: "", startTime: "", conciergeQuery: "",
+      stops: [{ key: 1, venueId: heldId, venueName: "Recovered Sydney name" }],
+      acceptedAnchor: {
+        venueId: heldId, source: "map-search", cityId: "london", acceptedArea: null,
+        startsAt: null, expiresAt: new Date(Date.now() + 60 * 60 * 1000).toISOString(),
+      },
+    }, "planning-intent", sessionStorage);
+    await mountComposer();
+
+    expect(stopName()).toBe("Recovered Sydney name");
+    expect(publicNameRequests()).toEqual([]);
+  });
+
+  it("ignores an old public reply after a new map acceptance mounts", async () => {
+    let finishLookup: ((response: Response) => void) | undefined;
+    mockNameReads({ heldResponse: new Promise<Response>((resolve) => { finishLookup = resolve; }) });
+    acceptVenue();
+    await mountComposer();
+    expect(publicNameRequests()).toEqual([`/api/uk-base/${heldId}`]);
+
+    await act(async () => { root!.unmount(); });
+    root = null;
+    host?.remove();
+    sessionStorage.clear();
+    localStorage.clear();
+    acceptVenue(otherId);
+    await mountComposer();
+    expect(stopName()).toBe("The Other Arms");
+    await act(async () => { finishLookup!(Response.json({ pub: publicPub })); });
+    await settleComposerEffects();
+
+    expect(stopName()).toBe("The Other Arms");
+    expect(publicNameRequests()).toEqual([`/api/uk-base/${heldId}`, `/api/uk-base/${otherId}`]);
+    expect(document.querySelector(".planComposer__accepted")?.textContent).toContain("The Other Arms");
+  });
+});

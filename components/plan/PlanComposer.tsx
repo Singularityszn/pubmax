@@ -50,6 +50,7 @@ import { categoryLabel, DRINK_CATEGORIES, type DrinkCategory } from "@/lib/drink
 import { cleanSelectedDrinkPriceEvidence, planStopEvidenceForContext, selectedDrinkPriceDescription, type SelectedDrinkPriceEvidence } from "@/lib/planSelectedDrinkPriceEvidence";
 export { selectedDrinkPriceDescription } from "@/lib/planSelectedDrinkPriceEvidence";
 import { CITIES, DEFAULT_CITY_ID, type CityId } from "@/lib/cities";
+import { isNationalBaseVenueId } from "@/lib/cityVenueIds";
 import {
   isPlanStopCount,
   MAX_PLAN_STOP_COUNT,
@@ -650,11 +651,13 @@ export function acceptedPlanAreaLabel(area: Exclude<PlanningIntentArea, null>): 
 }
 
 export function acceptedStop1SwapLabel(venueName: string): string {
-  return `${venueName} is the accepted Stop 1. Swap is not available.`;
+  const label = venueName.trim() ? venueName : UNRESOLVED_ACCEPTED_VENUE_LABEL;
+  return `${label} is the accepted Stop 1. Swap is not available.`;
 }
 
 export function acceptedStop1RemoveLabel(venueName: string): string {
-  return `${venueName} is the accepted Stop 1. Remove is not available.`;
+  const label = venueName.trim() ? venueName : UNRESOLVED_ACCEPTED_VENUE_LABEL;
+  return `${label} is the accepted Stop 1. Remove is not available.`;
 }
 
 export function planComposerShowsDescribeFirst(input: {
@@ -1167,6 +1170,10 @@ function PlanComposerForm({
     initialComposerStops(recoveredRouteDraft, recoveredDraft, handoff),
   );
   const [venues, setVenues] = useState<PlanVenueOption[]>([]);
+  const heldStopRef = useRef({ heldVenueId, stop: stops[0] });
+  useLayoutEffect(() => {
+    heldStopRef.current = { heldVenueId, stop: stops[0] };
+  }, [heldVenueId, stops]);
   const pathname = usePathname();
   const [urlPrefill] = useState(() =>
     canPersist ? describeAskFromLocation() : NO_URL_PREFILL,
@@ -1436,26 +1443,70 @@ function PlanComposerForm({
   useEffect(() => {
     if (!composerVisible) return;
     let active = true;
-    fetch(planComposerVenueIndexPath(acceptedCityId))
-      .then((response) => response.json())
-      .then((rows: unknown) => {
-        if (!active) return;
-        const nextVenues = planVenueOptions(rows);
-        setVenues(nextVenues);
-        const acceptedVenueId = hydratedHandoff?.heldVenueId;
-        if (!acceptedVenueId) return;
-        const accepted = nextVenues.find((venue) => venue.id === acceptedVenueId);
-        if (!accepted) return;
-        setStops((current) => current.map((stop, index) => (
-          index === 0
-          && stop.venueId === acceptedVenueId
-          && stop.venueName.trim() === UNRESOLVED_ACCEPTED_VENUE_NAME
-            ? { ...stop, venueName: accepted.name }
-            : stop
-        )));
-      })
-      .catch(() => undefined);
-    return () => { active = false; };
+    const controller = new AbortController();
+    const acceptedVenueId = hydratedHandoff?.heldVenueId;
+    const readPaths = [planComposerVenueIndexPath(acceptedCityId)];
+    if (acceptedVenueId && isNationalBaseVenueId(acceptedVenueId)) {
+      readPaths.push(`/api/uk-base/${encodeURIComponent(acceptedVenueId)}`);
+    }
+    const needsAcceptedName = () => {
+      const held = heldStopRef.current;
+      return active && !controller.signal.aborted
+        && Boolean(acceptedVenueId)
+        && held.heldVenueId === acceptedVenueId
+        && held.stop?.venueId === acceptedVenueId
+        && held.stop.venueName.trim() === UNRESOLVED_ACCEPTED_VENUE_NAME;
+    };
+    void (async () => {
+      for (const [readIndex, path] of readPaths.entries()) {
+        // A base pub lives outside the city index. Read only this accepted ID,
+        // and only while its own Stop 1 still needs a public name.
+        if (readIndex > 0 && !needsAcceptedName()) return;
+        try {
+          const response = await fetch(path, {
+            signal: controller.signal,
+            headers: { accept: "application/json" },
+          });
+          if (!active || controller.signal.aborted) {
+            discardBody(response);
+            return;
+          }
+          if (!response.ok) {
+            discardBody(response);
+            continue;
+          }
+          const body: unknown = await response.json();
+          if (!active || controller.signal.aborted) return;
+          let accepted: PlanVenueOption | undefined;
+          if (readIndex === 0) {
+            const nextVenues = planVenueOptions(body);
+            setVenues(nextVenues);
+            accepted = nextVenues.find((venue) => venue.id === acceptedVenueId);
+          } else {
+            const pub = body && typeof body === "object" && "pub" in body ? body.pub : null;
+            if (!pub || typeof pub !== "object"
+              || !("id" in pub) || pub.id !== acceptedVenueId
+              || !("kind" in pub) || pub.kind !== "pub") return;
+            accepted = planVenueOptions([pub])[0];
+          }
+          if (!accepted) continue;
+          if (!needsAcceptedName()) return;
+          const acceptedName = accepted.name;
+          setStops((current) => current.map((stop, index) => (
+            index === 0
+            && heldStopRef.current.heldVenueId === acceptedVenueId
+            && stop.venueId === acceptedVenueId
+            && stop.venueName.trim() === UNRESOLVED_ACCEPTED_VENUE_NAME
+              ? { ...stop, venueName: acceptedName }
+              : stop
+          )));
+          return;
+        } catch {
+          if (!active || controller.signal.aborted) return;
+        }
+      }
+    })();
+    return () => { active = false; controller.abort(); };
   }, [composerVisible, acceptedCityId, hydratedHandoff?.heldVenueId]);
 
   useEffect(() => {
