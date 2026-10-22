@@ -3643,6 +3643,7 @@ export default function PubMap({
       initialTab: VenueTabRequest = "overview",
     ) => {
       if (!id) return;
+      setNearbyMapResult(null);
       setArrivalSelectionNotice(null);
       setSelectionNotice(null);
       setAcceptanceError(null);
