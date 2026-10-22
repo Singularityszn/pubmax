@@ -196,6 +196,9 @@ for (const kind of ["vodka", "zero-proof"] as const) {
       authority = { ...authority, stops: authority.stops.slice(0, -1) };
       await expect.poll(() => new URL(page.url()).searchParams.get("pubs")?.split(",") ?? [])
         .toEqual(authority.stops.map((stop) => stop.venueId));
+      // Removing a stop keeps its venue sheet open; return along the visible
+      // surface trail rather than looking for the map's covered plan control.
+      await page.getByRole("button", { name: "Back to Plan an outing", exact: true }).click();
       const editedPanel = await openRenderedPanel(page);
       await expect(editedPanel.locator(".routeList > li")).toHaveCount(authority.stops.length);
       await expect(editedPanel.locator(".routeHeader h2")).toHaveText(`${kind === "vodka" ? "Vodka" : "Alcohol-free"} plan`);
