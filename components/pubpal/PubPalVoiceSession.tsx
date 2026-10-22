@@ -290,13 +290,15 @@ function VoiceControls({ onStateChange }: { onStateChange?: (state: PalAnimation
             // tap, because a grant that was refused, a microphone that was
             // denied, and a socket that never opened are all sessions that
             // never started. `connectedAt` is null until here, so it is also
-            // the latch: a reconnect on the same attempt reports once.
-            if (attempt.connectedAt === null) trackEvent("voice_started");
-            attempt.connectedAt = Date.now();
-            clearCapTimer(attempt);
-            attempt.capTimer = window.setTimeout(() => {
-              void stop(attempt, "cap");
-            }, maxSessionSeconds * 1000);
+            // the latch: a reconnect reports once and keeps the first clock
+            // and deadline, so it cannot extend the cap or shorten billing.
+            if (attempt.connectedAt === null) {
+              trackEvent("voice_started");
+              attempt.connectedAt = Date.now();
+              attempt.capTimer = window.setTimeout(() => {
+                void stop(attempt, "cap");
+              }, maxSessionSeconds * 1000);
+            }
           },
           onDisconnect: () => {
             if (!ownsAttempt(attempt)) return;
