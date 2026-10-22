@@ -65,7 +65,6 @@ import {
   filterMapVenues,
   mapFiltersSuspendUkBasePubs,
   createMemberStabilizer,
-  withForcedVenue,
 } from "@/lib/filterMapVenues";
 import {
   OPEN_NOW_FILTER_CAPTION,
@@ -389,7 +388,7 @@ import {
 import { notifyCheapPintPingQualified } from "@/lib/cheapPintPingQualifyClient";
 import { getSaved, readCanonicalSaved } from "@/lib/savedPubs";
 import { loadVenueAliasMaps } from "@/lib/venueAliasMap";
-import { venuesInNearbyMembership } from "@/lib/mapNearbyMembership";
+import { useMapVenueCollections } from "@/components/map/useMapVenueCollections";
 import {
   createSlimShardLoader,
   boundsNameNowhere,
@@ -518,7 +517,6 @@ import {
   NO_ALCOHOL_LENS_PRICE_NOUN,
   filtersForDrinkPriceLens,
   filtersForExperienceLens,
-  filterVenuesForExperienceLens,
   isMapLensDrinkCategory,
   lensPricesForVenues,
   parseMapExperienceLensParam,
@@ -598,7 +596,6 @@ import { clearPlannerHandoff, desktopHandoffMoves, readPlannerHandoff } from "@/
 import { defaultPoiHiddenForViewport } from "@/lib/poiToggleGroups";
 import {
   defaultVenueKindVisibility,
-  filterVenuesByKind,
   hasSavedPubVenue,
   isPubVenue,
   type VenueKindVisibility,
@@ -3146,10 +3143,6 @@ export default function PubMap({
     () => (savedOnly ? pipelineVenues.filter((v) => savedIds.has(v.id)) : pipelineVenues),
     [pipelineVenues, savedOnly, savedIds],
   );
-  const filteredPubVenues = useMemo(
-    () => filteredVenues.filter(isPubVenue),
-    [filteredVenues],
-  );
 
   const pinVenues = useSearchStablePinVenues({
     searchFieldFocused: mapSearchFieldFocused,
@@ -3179,27 +3172,18 @@ export default function PubMap({
 
   // Deep-links from /pubs (?sel=) must still paint the pin even if a filter
   // would otherwise hide a scraped gazetteer pub.
-  const mapMembershipVenues = useMemo(
-    () => venuesInNearbyMembership(pinVenues, nearbyMapResultForView),
-    [pinVenues, nearbyMapResultForView],
-  );
-  const experienceVisibleMapVenues = useMemo(
-    () =>
-      filterVenuesForExperienceLens(
-        mapMembershipVenues,
-        experienceLens,
-        noAlcoholLensPrices,
-      ),
-    [experienceLens, mapMembershipVenues, noAlcoholLensPrices],
-  );
-  const kindVisibleMapVenues = useMemo(
-    () => filterVenuesByKind(experienceVisibleMapVenues, venueKindVisibility),
-    [experienceVisibleMapVenues, venueKindVisibility],
-  );
-  const canvasVenues = useMemo(
-    () => withForcedVenue(kindVisibleMapVenues, venueById, selectedVenueId || (filters.query.trim() ? searchPickedVenueId : "")),
-    [kindVisibleMapVenues, venueById, selectedVenueId, filters.query, searchPickedVenueId],
-  );
+  const { filteredPubVenues, kindVisibleMapVenues, canvasVenues } = useMapVenueCollections({
+    filteredVenues,
+    pinVenues,
+    nearbyMapResultForView,
+    experienceLens,
+    noAlcoholLensPrices,
+    venueKindVisibility,
+    venueById,
+    selectedVenueId,
+    query: filters.query,
+    searchPickedVenueId,
+  });
   const experienceLensPrices = useMemo(
     () =>
       experienceLens === "all"
