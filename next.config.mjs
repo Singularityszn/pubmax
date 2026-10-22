@@ -14,6 +14,8 @@ import { staticAssetHeaderSources } from "./lib/staticAssetPrefixes.mjs";
 import { runtimeDataPackRouteIncludes } from "./lib/venueIndexTracing.mjs";
 
 const projectRoot = path.dirname(fileURLToPath(import.meta.url));
+const elevenlabsVoiceSetup = "node_modules/@elevenlabs/client/dist/platform/web/VoiceSessionSetup.js";
+const elevenlabsOutputResamplerLoader = path.join(projectRoot, "scripts/loaders/elevenlabs-output-resampler.cjs");
 const palMascotAssetPattern =
   "(?:" + Object.values(PAL_MASCOT_SLUGS).join("|") + ")-" +
   "(?:avatar-)?" +
@@ -224,6 +226,24 @@ const nextConfig = {
   },
   turbopack: {
     root: projectRoot,
+    rules: {
+      [elevenlabsVoiceSetup]: {
+        condition: "browser",
+        loaders: [elevenlabsOutputResamplerLoader],
+        as: "*.js",
+      },
+    },
+  },
+  webpack(config, { isServer }) {
+    if (!isServer) {
+      config.module.rules.push({
+        test: /[\\/]node_modules[\\/]@elevenlabs[\\/]client[\\/]dist[\\/]platform[\\/]web[\\/]VoiceSessionSetup\.js$/,
+        include: path.join(projectRoot, elevenlabsVoiceSetup),
+        enforce: "pre",
+        use: [elevenlabsOutputResamplerLoader],
+      });
+    }
+    return config;
   },
   experimental: {
     // Next's route-aware compiler API uses the supported TypeScript 6 alias.
