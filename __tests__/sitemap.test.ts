@@ -40,7 +40,7 @@ import type { MetadataRoute } from "next";
 // row returning is a conscious test edit, the same as a change to the list
 // above; the gate itself is proved in both directions by the fixture-driven
 // describe at the foot of this file. The ROUTE is unaffected either way.
-const STATIC_HUB_COUNT = 17;
+const STATIC_HUB_COUNT = 18;
 
 // Wave S1.2 — sitemap sanity. Runs the real generator against the bundled
 // dataset (process.cwd() is the repo root in tests, so public/data/*.json is
@@ -179,7 +179,7 @@ describe("sitemap()", () => {
   });
 
   it("lists the brand-relevant discovery routes a stranger can be sent to", () => {
-    for (const hub of ["/", "/map", "/tonight", "/about", "/how-we-estimate"]) {
+    for (const hub of ["/", "/map", "/tonight", "/about", "/how-we-estimate", "/feedback"]) {
       expect(urls).toContain(`${SITE}${hub}`);
     }
   });
@@ -287,8 +287,13 @@ describe("sitemap()", () => {
 
   it("advertises no token / UGC / auth surface", () => {
     for (const url of urls) {
+      const pathname = new URL(url).pathname;
       for (const bad of FORBIDDEN_SUBSTRINGS) {
-        expect(url.includes(bad), `${url} must not contain ${bad}`).toBe(false);
+        // The private /feed family does not include the public /feedback page.
+        const forbidden = bad === "/feed"
+          ? pathname === bad || pathname.startsWith(`${bad}/`)
+          : url.includes(bad);
+        expect(forbidden, `${url} must not advertise ${bad}`).toBe(false);
       }
     }
   });
