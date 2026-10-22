@@ -1,0 +1,18 @@
+{
+  "source": "retained production capture from iteration 1",
+  "beforeRows": 78,
+  "afterRows": 2,
+  "beforeOutBytes": 44461,
+  "afterOutBytes": 1785,
+  "savedJsonBytes": 42676,
+  "retainedRows": [
+    {
+      "id": "events-tm-10bs932"
+    },
+    {
+      "id": "events-tm-34evkm",
+      "venueId": "venue-1137z1c"
+    }
+  ],
+  "preservesOtherBodyFields": true
+}
