@@ -27,9 +27,10 @@ Ship one Night OS Ask surface over a **server tool registry** and `POST /api/ask
    The list is pinned by `__tests__/askRouter.test.ts`; the V0.1 five keep
    their policy and their words in `lib/ask/conciergeTools.ts` and their
    handlers in `lib/ask/conciergeTools.server.ts`.
-2. **Grounded answers** — every card and figure carries provenance; tools never
-   invent pint prices. Uncorroborated community rows may appear on the pub’s
-   own sheet language only; map-authority claims require corroboration.
+2. **Grounded answers** - cards with recorded answers carry provenance, as does
+   every figure. Tools never invent pint prices. Uncorroborated community rows
+   may appear on the pub’s own sheet language only. Map-authority claims
+   require corroboration.
    `lib/ask/router.ts` owns price-subject routing for both HTTP paths.
    Named menu requests and unsupported price comparisons use deterministic
    `runAsk` even when a model provider is configured.
