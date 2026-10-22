@@ -1,0 +1,93 @@
+{
+  "scope": "controlled native Chrome, synthetic GoTrue auth, real local application routes/PostgreSQL/PostgREST",
+  "candidate": "406d56802b8f753befb2aaf3e3c2e9b8be227e50",
+  "source": {
+    "controllerSha256": "03598021db8bc94a6b03433cc49fe3fd8956db5a3d2c2e31426546a8ab329d02",
+    "componentSha256": "e39aaeed65bb3b609a7895dfa55557448ad09138f6e16562003bcd41c898f6ce",
+    "cssSha256": "d55dc4d02a87bd97fd0648a28116a7670aeadbd34bdeda41f4b06a121505346a",
+    "parsedModule": "2l8k0kkfiqb7x.js",
+    "moduleSha256": "22db81a8fe464e7770ea4a5c2024943c9e461f6aee5c5a33ec2e81443a561fdd",
+    "parsedModuleMatchedBuild": true,
+    "highAccuracyRequests": 3,
+    "trackedSourceChanged": false
+  },
+  "build": {
+    "exit": 0,
+    "restorationPassed": true,
+    "session": 26997,
+    "apiVersionStatus": 200,
+    "bothAnalyticsVariablesForcedFake": true,
+    "realAuthE2eEnabled": false
+  },
+  "browserBoundary": {
+    "iabFetchInterceptionSupported": true,
+    "iabBrowserSetPermissionSupported": false,
+    "chromiumFallbackApproved": true,
+    "nativePermissionAndGpsControlledThroughCdp": true,
+    "physicalDeviceProof": false,
+    "productionAuthenticationProof": false,
+    "bobOrCarolBrowserOpened": false
+  },
+  "share": {
+    "at": "2026-09-30T12:56:53.498Z",
+    "status": 200,
+    "generation": 1,
+    "revision": 1
+  },
+  "nativeWatchUpdate": {
+    "at": "2026-09-30T12:56:53.568Z",
+    "status": 200,
+    "generation": 1,
+    "revision": 2,
+    "watchSuccessObserved": true,
+    "watchClearedAfterFreshRequestTimeoutBeforeHide": true,
+    "periodicNativeProviderRestored": true,
+    "secondShareAfterProviderRefresh": false,
+    "productRootCauseEstablished": false
+  },
+  "peerReads": [
+    { "pointAgeSeconds": 63, "rowRevoked": false, "bobStatus": 200, "bobFriends": 1, "carolStatus": 200, "carolFriends": 0 },
+    { "pointAgeSeconds": 447, "rowRevoked": false, "bobStatus": 200, "bobFriends": 0, "carolStatus": 200, "carolFriends": 0 },
+    { "pointAgeSeconds": 737, "rowRevoked": false, "bobStatus": 200, "bobFriends": 0, "carolStatus": 200, "carolFriends": 0 }
+  ],
+  "stop": {
+    "reopenedClientShowedExistingSharePaused": true,
+    "nativeStopClicked": true,
+    "at": "2026-09-30T13:09:37.115Z",
+    "status": 200,
+    "generation": 2,
+    "own": false,
+    "storeRowRevoked": true,
+    "grants": 0,
+    "durableGeneration": 2,
+    "bobStatus": 200,
+    "bobFriends": 0,
+    "carolStatus": 200,
+    "carolFriends": 0
+  },
+  "cleanup": {
+    "signalsAt": "2026-09-30T13:10:19Z",
+    "absenceCheckedAt": "2026-09-30T13:10:48Z",
+    "serverSession": 71197,
+    "serverExit": 143,
+    "backendSession": 93670,
+    "backendExit": 0,
+    "watchdogSession": 73355,
+    "watchdogExit": 0,
+    "managedPostgresCleanupCompleted": true,
+    "recordedWorkerPidsAbsent": [3139, 75125, 75165, 75645, 95721, 95732, 75167, 75168, 75170, 75171, 75172, 75646, 77678, 77679, 77697, 77705, 77706],
+    "listenersAbsent": [3353, 60678, 60456],
+    "rootReportedBrowserPidsAbsent": [76554, 37176]
+  },
+  "pending": [
+    "Active native watch cancellation on real hide",
+    "Active native watch cancellation on sign-out",
+    "Human analytics identity/replay policy clarification",
+    "Overall privacy acceptance",
+    "Gate for this documentation addition"
+  ],
+  "overallNativeLifecyclePass": false,
+  "overallPrivacyPass": false,
+  "productionSqlApplied": false,
+  "publicationPerformed": false
+}

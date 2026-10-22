@@ -1,0 +1,29 @@
+{
+  "capturedDate": "2026-09-29",
+  "team": "pubmax69",
+  "project": "chengdu",
+  "production": {
+    "id": "dpl_HMqafPxYPcW1XwCbhSTfkMgfD9r6",
+    "state": "READY",
+    "sha": "b49b5850010d3cb0f28831cf548488cd1f54240e",
+    "alias": [
+      "pubmaxxing.com",
+      "www.pubmaxxing.com",
+      "www.pubmaxxing.co.uk",
+      "pubmaxxing.co.uk",
+      "pubmaxx.vercel.app",
+      "chengdu-pubmax69.vercel.app",
+      "chengdu-git-main-pubmax69.vercel.app"
+    ],
+    "url": "chengdu-ijkm7nrry-pubmax69.vercel.app",
+    "region": [
+      "lhr1"
+    ]
+  },
+  "latestMain": {
+    "id": "dpl_7zrXynUdb6WXRNVq347zR6J72cXu",
+    "state": "CANCELED",
+    "sha": "76de20674da64604af22872ff42ee08fca7f156a",
+    "errorLink": "https://vercel.com/docs/project-configuration/git-settings#ignored-build-step"
+  }
+}
