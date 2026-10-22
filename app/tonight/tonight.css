@@ -854,10 +854,6 @@
     margin-bottom: 0;
   }
 
-  .tonightSecondaryLanes--mobile {
-    display: none;
-  }
-
   .tonightContext > .tonightRailPhoto {
     display: grid;
   }
