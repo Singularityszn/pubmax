@@ -70,7 +70,7 @@ function classifyTypesafeFailure(err: unknown): SystemOneFailureReason {
  * must not treat a budget refusal like a transient 5xx.
  */
 export async function systemOneOutcome<Q extends Questions>(
-  state: EntryType,
+  state: NonNullable<EntryType>,
   questions: Q,
   options: { timeoutMs?: number; lane: TypesafeObservabilityLane },
 ): Promise<SystemOneOutcome<Q>> {
@@ -138,7 +138,7 @@ export async function systemOneOutcome<Q extends Questions>(
  * call fails, so callers keep their deterministic fallback.
  */
 export async function systemOne<Q extends Questions>(
-  state: EntryType,
+  state: NonNullable<EntryType>,
   questions: Q,
   options: { timeoutMs?: number; lane: TypesafeObservabilityLane },
 ): Promise<SystemOneResult<Q> | null> {
