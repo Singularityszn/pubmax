@@ -16,14 +16,20 @@ for (const width of [390, 1440]) {
       source: { label: "Ticketmaster", url: "https://www.ticketmaster.co.uk/event/fixture" },
       confidence: "listed",
     };
+    const deal = {
+      ...gig,
+      id: "ticketmaster-pub-deal",
+      kind: "deal",
+      title: "A pub deal",
+    };
     await page.route("**/api/whats-on?**", (route) => route.fulfill({
       json: {
-        rows: [gig],
+        rows: [gig, deal],
         readStatus: "ready",
         servedAt: new Date(now).toISOString(),
         sourceObservedAt: observedAt,
         sourceFreshnessKind: "provider-observed",
-        kindObservedAt: { music: observedAt },
+        kindObservedAt: { music: observedAt, deal: observedAt },
         localityBasis: "london-default",
       },
     }));
@@ -56,5 +62,19 @@ for (const width of [390, 1440]) {
     await expect(page.getByRole("link", { name: /A pub gig The Fixture Arms Ticketmaster/ })).toBeVisible();
     await expect(page.getByText("No confirmed events listed tonight.", { exact: false })).toHaveCount(0);
     await expect(page.getByText("No events listed", { exact: false })).toHaveCount(0);
+
+    const deals = page.locator('[aria-labelledby="deals-tonight-title"]');
+    await expect(deals).toHaveCount(1);
+    for (const resizedWidth of [width, 1023, 1024, 1440, 390]) {
+      await page.setViewportSize({ width: resizedWidth, height: 900 });
+      if (resizedWidth < 1024) {
+        await expect(deals).toBeVisible();
+        await expect(deals.getByText("A pub deal", { exact: true })).toBeVisible();
+      } else {
+        await expect(deals).toBeHidden();
+      }
+      await expect(page.getByRole("heading", { name: "Live music tonight", exact: true })).toBeVisible();
+      await expect(page.getByText("A pub gig", { exact: true })).toBeVisible();
+    }
   });
 }

@@ -204,14 +204,6 @@ function TonightRailPhoto({ photo }: { photo: PlacePhotoData | null }) {
   return <PlacePhoto className="tonightRailPhoto" photo={photo} sizes="360px" />;
 }
 
-// These cards include pub-matched listings that cannot lead the primary list.
-// Keep them available in the rail at every width.
-function mobileSecondaryLanes(lanes: ReactNode): ReactNode {
-  return (
-    <div className="tonightSecondaryLanes tonightSecondaryLanes--mobile">{lanes}</div>
-  );
-}
-
 // A thin night (0-2 confirmed listings) leaves the list short enough that the
 // page dies into empty gradient below it. Rather than invent listings (never,
 // "thin nights stay thin" is honest), the rest of the page answers what
@@ -644,11 +636,12 @@ export default function TonightClient({
   );
   const secondaryLanes = (
     <>
-      <DealsTonightLane rows={secondaryHeroes} anchor={dealAnchor} now={renderedAt} />
+      <div className="tonightSecondaryLanes tonightSecondaryLanes--mobile">
+        <DealsTonightLane rows={secondaryHeroes} anchor={dealAnchor} now={renderedAt} />
+      </div>
       <MusicTonightLane rows={secondaryHeroes} asOf={musicLaneObservedAt} />
     </>
   );
-  const mobileLanes = mobileSecondaryLanes(secondaryLanes);
   const newsArea = areaNewsSlug(tonightNear);
   const { lead: leadPhoto, pubs: pubPhotos } = tonightPagePhotos(photos, newsArea);
   const summaryRows = grouped.map((group) => group.row);
@@ -1089,7 +1082,7 @@ export default function TonightClient({
         </VibeChips>
       ) : null}
 
-      {mobileLanes}
+      {secondaryLanes}
 
         <div className="tonightEditorial">
           <EditorialRail />
