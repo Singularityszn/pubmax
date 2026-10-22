@@ -12,6 +12,7 @@ import {
   tonightWetherspoonVenueIds,
 } from "@/lib/tonightCheapPints";
 import { getPricedVenues } from "@/lib/venuePriceIndex";
+import { resolveTonightConditions } from "@/lib/tonightConditionsRoute";
 import { matchedWetherspoonsVenueIds } from "@/lib/wetherspoonsMatch.server";
 import TonightClient from "./TonightClient";
 
@@ -41,10 +42,9 @@ export const runtime = "nodejs";
 //   2. Nothing personal may reach this document. One prerendered copy is handed
 //      to every stranger, and the What's-On spine is fetched by the client.
 export const dynamic = "force-static";
-// The one input that moves between deploys is the London clock: the quiet-pint
-// window and the soft-plans window both read the hour. Five minutes bounds how
-// far a held copy can lag a window boundary, and the CDN regenerates in the
-// background so no reader waits for it.
+// The London clock and public weather reading can move between deploys.
+// Five minutes bounds how far a held copy can lag a window boundary. The CDN
+// regenerates in the background so no reader waits for it.
 export const revalidate = 300;
 
 export default async function TonightPage() {
@@ -54,19 +54,28 @@ export default async function TonightPage() {
   // Same fail-soft compose as /today: heritage-cited candidates joined to
   // verified pint prices. buildQuietPint returns null outside a quiet window
   // or when cited candidates are too few; the card then renders nothing.
-  const [pricedVenues, historicPubs, mapSelectableVenueIds, hyped, spoonsValue] =
-    await Promise.all([
-      getPricedVenues(),
-      loadHistoricPubs(),
-      loadMapSelectableVenueIds(),
-      // The pubs people are talking about. Read here rather than in the browser:
-      // this document is prerendered, so the rows cost the reader no request and
-      // the route's byte ceiling is untouched.
-      loadHypedPubs(),
-      // Read on the server for the chain cap alone; no row of it reaches the
-      // document.
-      readSpoonsValue(),
-    ]);
+  const [
+    pricedVenues,
+    historicPubs,
+    mapSelectableVenueIds,
+    hyped,
+    spoonsValue,
+    initialConditionsSummary,
+  ] = await Promise.all([
+    getPricedVenues(),
+    loadHistoricPubs(),
+    loadMapSelectableVenueIds(),
+    // The pubs people are talking about. Read here rather than in the browser:
+    // this document is prerendered, so the rows cost the reader no request and
+    // the route's byte ceiling is untouched.
+    loadHypedPubs(),
+    // Read on the server for the chain cap alone; no row of it reaches the
+    // document.
+    readSpoonsValue(),
+    // A public London reading paints before the listings. Location stays
+    // client-owned, and the strip refreshes through the same API resolver.
+    resolveTonightConditions({ point: null, now }).catch(() => null),
+  ]);
   // One row per chain in the cheapest list. The first-party Wetherspoon
   // directory join and the SpoonMe pack name a Wetherspoon the price listing
   // never labelled, and a pub the directory dropped still counts.
@@ -110,6 +119,7 @@ export default async function TonightPage() {
     <TonightClient
       quietPint={quietPint}
       softPlansWindow={softPlansWindow}
+      initialConditionsSummary={initialConditionsSummary}
       mapSelectableVenueIds={
         mapSelectableVenueIds ? [...mapSelectableVenueIds] : null
       }

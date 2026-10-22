@@ -10,6 +10,8 @@ import {
   REQUIRED_LCP_ROUTES,
   REQUIRED_PRODUCT_TIMINGS,
   VITAL_METRICS,
+  aggregateProductTimingSamples,
+  aggregateVitalsSamples,
   carriedDebtKeys,
   findProductTimingRegressions,
   findTargetBreaches,
@@ -23,6 +25,7 @@ import {
   productTimingKey,
   regressionCeiling,
   vitalsRecordKey,
+  type MeasuredVitals,
   type ProductTimingRecord,
   type VitalsRecord,
 } from "@/lib/webVitalsBaseline";
@@ -45,6 +48,36 @@ const record = (over: Partial<VitalsRecord> = {}): VitalsRecord => ({
   cls: 0.01,
   ...over,
 });
+
+type VitalsSample = MeasuredVitals & { interacted: boolean };
+
+const vitalsSample = (over: Partial<VitalsSample> = {}): VitalsSample => ({
+  lcpMs: 1000,
+  inpMs: 40,
+  cls: 0.01,
+  interacted: true,
+  ...over,
+});
+
+const productTimingRecord = (
+  over: Partial<ProductTimingRecord> = {},
+): ProductTimingRecord => ({
+  key: "map-usable-venues",
+  label: "usable venue results on /map",
+  device: "mobile",
+  startedAt: "navigation start",
+  ms: 4000,
+  ...over,
+});
+
+const invalidVitalValues = [
+  Number.NaN,
+  Number.POSITIVE_INFINITY,
+  Number.NEGATIVE_INFINITY,
+  -1,
+  null,
+  undefined,
+] as const;
 
 describe("the regression rule", () => {
   it("takes the larger of the percentage and the floor, so a small figure is not fenced to the pixel", () => {
@@ -91,27 +124,127 @@ describe("the regression rule", () => {
     expect(findVitalsRegressions([record({ device: "desktop" })], new Map())).toEqual([]);
   });
 
-  it("never reads an unmeasured figure as a regression", () => {
+  it("accepts zero CLS on a present measured row", () => {
     const key = vitalsRecordKey("/", "mobile", "cold");
     expect(
       findVitalsRegressions(
         [record()],
-        new Map([[key, { lcpMs: Number.NaN, inpMs: Number.NaN, cls: Number.NaN }]]),
+        new Map([[key, { lcpMs: 1000, inpMs: 40, cls: 0 }]]),
       ),
     ).toEqual([]);
   });
 
+  it("rejects every invalid metric on a present measured row", () => {
+    const key = vitalsRecordKey("/", "mobile", "cold");
+    const regressions = findVitalsRegressions(
+      [record()],
+      new Map([[key, { lcpMs: Number.NaN, inpMs: Number.NaN, cls: Number.NaN }]]),
+    );
+    expect(regressions.map(({ metric }) => metric).sort()).toEqual([...VITAL_METRICS].sort());
+  });
+
+  it.each(
+    VITAL_METRICS.flatMap((metric) =>
+      invalidVitalValues.map((invalid) => [metric, invalid] as const),
+    ),
+  )("rejects invalid %s=%s when other measured values are valid", (metric, invalid) => {
+    const key = vitalsRecordKey("/", "mobile", "cold");
+    const measured: Record<string, unknown> = { lcpMs: 1000, inpMs: 40, cls: 0.01 };
+    if (invalid === undefined) delete measured[metric];
+    else measured[metric] = invalid;
+
+    const regressions = findVitalsRegressions(
+      [record()],
+      new Map([[key, measured as unknown as MeasuredVitals]]),
+    );
+
+    expect(regressions.map(({ metric: reported }) => reported)).toEqual([metric]);
+    expect(regressions[0]?.measured).toBe(invalid);
+  });
+
+  it("aggregates medians from five finite interacted samples, including zero CLS", () => {
+    const samples = [
+      vitalsSample({ lcpMs: 1000, inpMs: 20, cls: 0 }),
+      vitalsSample({ lcpMs: 1100, inpMs: 30, cls: 0 }),
+      vitalsSample({ lcpMs: 1200, inpMs: 40, cls: 0 }),
+      vitalsSample({ lcpMs: 1300, inpMs: 50, cls: 0 }),
+      vitalsSample({ lcpMs: 1400, inpMs: 60, cls: 0 }),
+    ];
+
+    expect(aggregateVitalsSamples(samples)).toEqual({ lcpMs: 1200, inpMs: 40, cls: 0 });
+  });
+
+  it.each([
+    ["one successful and four actionless", [true, false, false, false, false]],
+    ["four successful and one actionless", [true, true, true, true, false]],
+  ] as const)("rejects %s samples", (_label, interactions) => {
+    const samples = interactions.map((interacted) =>
+      vitalsSample({ interacted, inpMs: interacted ? 40 : 16 }),
+    );
+
+    expect(() => aggregateVitalsSamples(samples)).toThrow();
+  });
+
+  it.each(
+    VITAL_METRICS.flatMap((metric) =>
+      invalidVitalValues.map((invalid) => [metric, invalid] as const),
+    ),
+  )("rejects a sample with invalid %s=%s even if median would hide it", (metric, invalid) => {
+    const samples = Array.from({ length: 5 }, () => vitalsSample());
+    const invalidSample = samples[0] as unknown as Record<string, unknown>;
+    if (invalid === undefined) delete invalidSample[metric];
+    else invalidSample[metric] = invalid;
+
+    expect(() => aggregateVitalsSamples(samples)).toThrow();
+  });
+
+  it("rejects an empty sample set", () => {
+    expect(() => aggregateVitalsSamples([])).toThrow();
+  });
+
   it("fences a product timing on the same rule", () => {
-    const timing: ProductTimingRecord = {
-      key: "map-usable-venues",
-      label: "usable venue results on /map",
-      device: "mobile",
-      startedAt: "navigation start",
-      ms: 4000,
-    };
+    const timing = productTimingRecord();
     const key = productTimingKey("map-usable-venues", "mobile");
     expect(findProductTimingRegressions([timing], new Map([[key, 5100]]))).toEqual([]);
     expect(findProductTimingRegressions([timing], new Map([[key, 5300]]))).toHaveLength(1);
+  });
+
+  it("skips an absent product timing and accepts a valid zero", () => {
+    const timing = productTimingRecord();
+    const key = productTimingKey(timing.key, timing.device);
+
+    expect(findProductTimingRegressions([timing], new Map())).toEqual([]);
+    expect(findProductTimingRegressions([timing], new Map([[key, 0]]))).toEqual([]);
+  });
+
+  it.each(invalidVitalValues)("rejects invalid present product timing %s", (invalid) => {
+    const timing = productTimingRecord();
+    const key = productTimingKey(timing.key, timing.device);
+    const measured = new Map<string, number>([[key, invalid as number]]);
+
+    const regressions = findProductTimingRegressions([timing], measured);
+
+    expect(regressions).toHaveLength(1);
+    expect(regressions[0]).toMatchObject({ key, metric: "ms", baseline: timing.ms });
+    expect(regressions[0]?.measured).toBe(invalid);
+  });
+
+  it("aggregates product timing medians including zero", () => {
+    expect(aggregateProductTimingSamples([0, 100, 200, 300, 400])).toBe(200);
+  });
+
+  it.each(invalidVitalValues)(
+    "rejects an invalid product timing sample %s even when median would hide it",
+    (invalid) => {
+      const samples: unknown[] = [invalid, 100, 100, 100, 100];
+      expect(() =>
+        aggregateProductTimingSamples(samples as unknown as readonly number[]),
+      ).toThrow();
+    },
+  );
+
+  it("rejects an empty product timing sample set", () => {
+    expect(() => aggregateProductTimingSamples([])).toThrow();
   });
 });
 

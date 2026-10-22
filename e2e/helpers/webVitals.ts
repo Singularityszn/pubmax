@@ -2,6 +2,7 @@ import { readFileSync } from "node:fs";
 
 import { expect, type CDPSession, type Page } from "@playwright/test";
 
+import { MOBILE_MAP_SESSION_KEY } from "../../lib/mobileShell";
 import type { VitalsDevice } from "../../lib/webVitalsBaseline";
 
 import { COMMUNITY_SHEET_FIXTURE_MAP_PATH } from "./communitySheetFixture";
@@ -338,9 +339,9 @@ export const PRIMARY_INTERACTIONS: Record<string, PrimaryInteraction> = {
     label: "typing the outing into describe-first",
   },
   "/map": {
-    selector: ".mapCompassBtn, .mapFitLondonBtn",
+    selector: '.mapLayersControl > .mapLayersFab, .mobileMapChrome button[aria-label="More map controls"]',
     kind: "click",
-    label: "a map chrome control",
+    label: "opening map controls",
   },
   [COMMUNITY_SHEET_FIXTURE_MAP_PATH]: {
     selector: ".venueInspector [role='tab']",
@@ -378,12 +379,10 @@ const PRIMARY_ACTION_TIMEOUT_MS = 20_000;
  * Browser state one sample's own interaction leaves behind for the next one.
  *
  * A WARM row is about a warm CACHE, and nothing else. `/pal` writes an
- * onboarding draft the moment its primary is tapped, so the warm sample
- * inherited the cold sample's draft and measured the ONBOARDING screen while
- * the cold row measured the meeting screen - two different screens, two
- * different LCP elements, recorded as one route's cold and warm figures. The
- * residue is the harness's own, not a visitor's, so it is cleared before every
- * sample; the HTTP cache, which is what the row is about, is untouched.
+ * onboarding draft when its primary is tapped; `/map` persists the opened
+ * sheet in its mobile session. Keeping either result changes the next sample's
+ * starting surface, so clear only those interaction residues. Other map
+ * session state and the HTTP cache remain untouched.
  */
 const SAMPLE_RESIDUE_KEY_PREFIXES: Record<string, readonly string[]> = {
   // lib/pubPal.ts PAL_ONBOARDING_DRAFT_KEY, plus the anonymous owner id it is
@@ -393,9 +392,32 @@ const SAMPLE_RESIDUE_KEY_PREFIXES: Record<string, readonly string[]> = {
 
 /** Clears what the previous sample's own interaction left in this browser. */
 export async function clearSampleResidue(page: Page, routePath: string): Promise<void> {
-  const prefixes = SAMPLE_RESIDUE_KEY_PREFIXES[routePath];
-  if (!prefixes) return;
   try {
+    if (routePath === "/map") {
+      await page.evaluate((sessionKey: string) => {
+        const raw = window.localStorage.getItem(sessionKey);
+        if (raw === null) return;
+
+        let session: unknown;
+        try {
+          session = JSON.parse(raw);
+        } catch {
+          return;
+        }
+        if (!session || typeof session !== "object" || Array.isArray(session)) return;
+        const savedSession = session as Record<string, unknown>;
+        if (savedSession.openSheet !== "layers") return;
+
+        window.localStorage.setItem(
+          sessionKey,
+          JSON.stringify({ ...savedSession, openSheet: null }),
+        );
+      }, MOBILE_MAP_SESSION_KEY);
+      return;
+    }
+
+    const prefixes = SAMPLE_RESIDUE_KEY_PREFIXES[routePath];
+    if (!prefixes) return;
     await page.evaluate((keyPrefixes: readonly string[]) => {
       for (const key of Object.keys(window.localStorage)) {
         if (keyPrefixes.some((prefix) => key.startsWith(prefix))) window.localStorage.removeItem(key);
