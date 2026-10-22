@@ -80,6 +80,19 @@ export function gradePalCase(
     );
   }
 
+  if (expect.hoursAnswer) {
+    const text = [body.answer, ...body.cards.map((card) => card.note)].join("\n");
+    const times = text.match(/\b(?:[01]?\d|2[0-3]):[0-5]\d\b|\b(?:0?[1-9]|1[0-2])(?:[.:][0-5]\d)?\s*[ap]\.?m\.?|\b(?:midnight|noon|24\s*hours?|open\s+(?:now|all day)|closed\s+now)\b/gi) ?? [];
+    push(checks, "unknown_hours_empty", times.length === 0, `claims=${times.join(",")}`);
+    const hours = String.raw`(?:opening hours?|opening times?|closing times?|hours)`;
+    const absent = String.raw`(?:not known|unknown|not recorded|not available|unavailable)`;
+    const disclosure = new RegExp(
+      String.raw`\b${hours}\b[^.!?\n]{0,80}\b${absent}\b|\bno\s+${hours}\b|\b(?:cannot|can't|do not|don't)\s+(?:confirm|verify|provide|know)\b[^.!?\n]{0,80}\b${hours}\b`,
+      "i",
+    );
+    push(checks, "unknown_hours_disclosed", disclosure.test(body.answer), body.answer);
+  }
+
   if (expect.priceAnswer) {
     const reference = expect.priceAnswer;
     const cards = body.cards.filter((card) => card.venueId === reference.venueId);
