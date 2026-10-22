@@ -44,7 +44,8 @@ for (const width of [390, 1440]) {
     await expect(page.getByRole("heading", { name: "Live music tonight", exact: true })).toBeVisible();
     await expect(page.getByText("1 sourced live music listing below.", { exact: false })).toBeVisible();
     await expect(page.getByText("A pub gig", { exact: true })).toBeVisible();
-    await expect(page.getByText("1 listing via Ticketmaster", { exact: false })).toBeVisible();
+    await expect(page.getByText("1 listing · Checked", { exact: false })).toBeVisible();
+    await expect(page.getByRole("link", { name: /A pub gig The Fixture Arms Ticketmaster/ })).toBeVisible();
     await expect(page.getByText("No confirmed events listed tonight.", { exact: false })).toHaveCount(0);
     await expect(page.getByText("No events listed", { exact: false })).toHaveCount(0);
   });
