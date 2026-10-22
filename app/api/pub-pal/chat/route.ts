@@ -165,6 +165,23 @@ async function openingReply(request: Request, record: Record<string, unknown>, q
   return null;
 }
 
+function keylessSocialReply(query: string, turns: AskTurn[]): Response | null {
+  const social = socialTurnKind(query);
+  if (!social) return null;
+  return jsonNoStore({
+    answer: social === "thanks"
+      ? "You're welcome."
+      : turns.some((turn) => turn.role === "assistant")
+        ? "Hey."
+        : "Hi. What kind of night are you planning?",
+    cards: [],
+    proposals: [],
+    sources: [],
+    status: "ready",
+    toolsUsed: [],
+  });
+}
+
 export async function POST(request: Request): Promise<Response> {
   const limiterKey = `pub-pal-chat:${hashIp(clientIp(request))}`;
   // The limiter answers before anything else is asked: the token check is a
@@ -233,21 +250,8 @@ export async function POST(request: Request): Promise<Response> {
   // tools as /api/ask, and they never call OpenRouter.
   if (!configured) {
     try {
-      const social = socialTurnKind(query);
-      if (social) {
-        return jsonNoStore({
-          answer: social === "thanks"
-            ? "You're welcome."
-            : turns.some((turn) => turn.role === "assistant")
-              ? "Hey."
-              : "Hi. What kind of night are you planning?",
-          cards: [],
-          proposals: [],
-          sources: [],
-          status: "ready",
-          toolsUsed: [],
-        });
-      }
+      const social = keylessSocialReply(query, turns);
+      if (social) return social;
       const answer = await runAsk({
         query,
         cityId: record.cityId,
