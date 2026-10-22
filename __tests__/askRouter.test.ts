@@ -112,6 +112,7 @@ describe("routeAskDeterministically", () => {
     "Plan a night with cheap pints and food and a lively route",
     "Plan a cheap quiet night in Soho for four",
     "Plan me 3 cheap pubs in Soho for four people",
+    "Plan a pub crawl in Soho that fits the opening hours",
   ])("preserves planning constraints in %s", (query) => {
     expect(unsupportedPriceComparison(query)).toBeNull();
     expect(routeAskDeterministically(query)).toEqual([{ name: "propose_plan", args: { query } }]);

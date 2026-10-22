@@ -1,6 +1,6 @@
 // Orchestrate one Night OS Ask turn: deterministic tools and optional model loop.
 
-import { recordedDrinkComparison, refineRoutedAskQuery, routeAskDeterministically, unsupportedPriceComparison } from "@/lib/ask/router";
+import { isVenueHoursQuestion, recordedDrinkComparison, refineRoutedAskQuery, routeAskDeterministically, unsupportedPriceComparison } from "@/lib/ask/router";
 import { routeAsk } from "@/lib/ask/routerJudged";
 import { loadConciergeVenues } from "@/lib/concierge/venues.server";
 import { runAskModelLoop } from "@/lib/ask/modelLoop";
@@ -181,12 +181,13 @@ export async function runAsk(input: RunAskInput): Promise<AskResponseBody> {
   };
 
   const recordedDrinks = recordedDrinkComparison(query);
-  let toolResults: AskToolResult[] = recordedDrinks || unsupported
+  const hoursQuestion = isVenueHoursQuestion(query);
+  let toolResults: AskToolResult[] = recordedDrinks || unsupported || hoursQuestion
     ? await Promise.all(routeAskDeterministically(query).map((call) => runAskTool(call.name, { ...call.args, query }, ctx)))
     : [];
 
   const allowModel =
-    !unsupported && !recordedDrinks && !input.skipModel && Boolean(process.env.OPENROUTER_API_KEY);
+    !unsupported && !recordedDrinks && !hoursQuestion && !input.skipModel && Boolean(process.env.OPENROUTER_API_KEY);
 
   if (allowModel) {
     const modelOutcome = await runAskModelLoop({
@@ -230,7 +231,9 @@ export async function runAsk(input: RunAskInput): Promise<AskResponseBody> {
 
   const merged = mergeToolResults(toolResults);
   return {
-    answer: composeAnswer(unsupported ? [unsupported.answer, ...merged.hints] : merged.hints, merged.cards, merged.toolsUsed),
+    answer: hoursQuestion && !unsupported
+      ? merged.hints.join(" ")
+      : composeAnswer(unsupported ? [unsupported.answer, ...merged.hints] : merged.hints, merged.cards, merged.toolsUsed),
     cards: merged.cards,
     proposals: merged.proposals,
     sources: merged.sources,

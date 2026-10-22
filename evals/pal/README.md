@@ -39,12 +39,18 @@ numeric clock times, noon, midnight, 24-hour claims, and common open/closed clai
 in the answer or card notes. These wording checks are bounded patterns. They do
 not cover spelled-out times or every possible refusal or opening-status phrase.
 
-The hours test also runs a real offline question about The Coronet. The current
-keyless path returns unrelated pub picks without answering the hours question.
-The test proves that the evaluator rejects that response. It does not prove
-that the assistant answers hours questions correctly. A later routing fix must
-change that test to require an honest answer. The hours corpus, known-hours
-values and sources, and hosted assistant adapters remain unfinished.
+The hours test runs real offline questions about The Coronet. The shared search
+tool now answers named opening-hours questions from existing records. It states
+when hours are unknown and returns no unrelated pubs or map proposals.
+The Crosse Keys case checks recorded hours with a named website and date.
+Stale records cannot supply current hours. These questions bypass paid model
+routing, including when provider keys are configured. The tool boundary uses
+the original question, so speculative arguments cannot substitute another pub.
+
+This covers explicit opening/closing hours and times questions. Open-now
+questions, a larger hours corpus and a general known-hours grader remain
+unfinished. The hosted Pub Pal agent and Night Architect still need their own
+adapter checks.
 
 Memory has its own suite: [`memory/`](memory/README.md) grades what Pub Pal
 remembers about the person it is talking to (`npm run eval:pal:memory`).
