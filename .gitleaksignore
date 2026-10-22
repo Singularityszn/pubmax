@@ -43,3 +43,12 @@ fbceef96205988987a929fa6b01d70677647e42f:skills/api-design/SKILL.md:generic-api-
 # Synthetic rate_limits row key in a throwaway PostgreSQL migration test.
 # This is not an authentication credential. Exact historical finding only.
 40ce6f41da1d26ee2751f03793c9836d42f4e64e:__tests__/rateLimitRefusalsUnchargedMigrationEffective.test.ts:generic-api-key:156
+
+# Compiled key-import code. The match spans a PEM header string and JavaScript,
+# not a private key. Exact historical finding only.
+9f895647b247688ed56ee6485998ea18a927e9a3:.plan-entry-auth-combined-v15-retry1/server/chunks/[root-of-the-server]__1ge7r6ykrte7_._.js:private-key:2
+
+# Compiled OpenTelemetry export initialization: an identifier assignment chain
+# ending in void 0, not an API key. Both chunks have the same non-credential.
+9f895647b247688ed56ee6485998ea18a927e9a3:.plan-entry-auth-combined-v15-retry1/server/chunks/node_modules_@vercel_otel_dist_node_index_0vtszs5ox-hp_.js:generic-api-key:1
+9f895647b247688ed56ee6485998ea18a927e9a3:.plan-entry-auth-combined-v15-retry1/server/chunks/node_modules_@vercel_otel_dist_node_index_1hdweb9y7-qp3.js:generic-api-key:1
