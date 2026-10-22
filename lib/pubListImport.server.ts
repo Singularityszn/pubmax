@@ -1,5 +1,7 @@
 import "server-only";
 
+import { z } from "zod";
+
 import { isHarvestableOperatorUrl, normalizeHarvestHostname } from "@/lib/harvest/sourcePolicy";
 
 type ImportSource = {
@@ -69,14 +71,51 @@ function sourceAttribution(value: string | undefined): ImportSource | null {
   return { url: url.href, platform: "other", handle: null };
 }
 
-function normalizedName(value: string): string {
+function normalizedText(value: string): string {
   return value.toLocaleLowerCase("en-GB")
     .replace(/&/g, " and ")
     .replace(/[’']/g, "")
     .replace(/[^\p{L}\p{N}\s]/gu, " ")
     .replace(/\s+/g, " ")
-    .trim()
-    .replace(/^(?:the|ye olde)\s+/, "");
+    .trim();
+}
+
+function normalizedName(value: string): string {
+  return normalizedText(value).replace(/^(?:the|ye olde)\s+/, "");
+}
+
+const fallbackSchema = z.array(z.object({
+  name: z.string().trim().min(1).max(4000),
+  areaHint: z.string().trim().max(4000),
+})).max(40);
+
+async function fallbackLines(
+  text: string,
+  extract: (text: string) => Promise<unknown>,
+): Promise<ExtractedLine[]> {
+  try {
+    const parsed = fallbackSchema.safeParse(await extract(text));
+    if (!parsed.success) return [];
+    const input = ` ${normalizedText(text)} `;
+    const seen = new Set<string>();
+    return parsed.data.flatMap(({ name, areaHint }) => {
+      const normalized = normalizedText(name);
+      if (!normalized || !input.includes(` ${normalized} `) || seen.has(normalized)) return [];
+      seen.add(normalized);
+      const rawLine = text.split(/\r?\n/).find((line) =>
+        ` ${normalizedText(line)} `.includes(` ${normalized} `)) ?? text;
+      const hint = normalizedText(areaHint);
+      return [{
+        rawLine,
+        name,
+        areaHint: hint && ` ${normalizedText(rawLine)} `.includes(` ${hint} `) ? areaHint : "",
+      }];
+    }).sort((left, right) => input.indexOf(` ${normalizedText(left.name)} `)
+      - input.indexOf(` ${normalizedText(right.name)} `));
+  } catch {
+    // A failed extractor leaves the deterministic result available for review.
+    return [];
+  }
 }
 
 function extractLines(text: string): ExtractedLine[] {
@@ -118,15 +157,26 @@ function matchLine(line: ExtractedLine, catalog: ImportCatalog): ImportItem {
   return { ...line, state: "unmatched" };
 }
 
-/** Match only supplied text and venue records. This entry point performs no I/O. */
-export function importPubList(
+/** The optional model adapter receives pasted text only, never the source URL. */
+export async function importPubList(
   input: { text: string; sourceUrl?: string },
   catalog: ImportCatalog,
-): { source: ImportSource | null; items: ImportItem[]; truncated: boolean } {
+  extractFallback?: (text: string) => Promise<unknown>,
+): Promise<{ source: ImportSource | null; items: ImportItem[]; truncated: boolean }> {
   if (input.text.length > 4000) throw new RangeError("The pub list must contain 4,000 characters or fewer.");
   const source = sourceAttribution(input.sourceUrl);
-  const lines = extractLines(input.text);
+  let lines = extractLines(input.text);
   if (!lines.length) throw new RangeError("Paste at least one pub name.");
+  if (lines.length < 2 && extractFallback) {
+    const extracted = await fallbackLines(input.text, extractFallback);
+    const known = lines.filter((line) => matchLine(line, catalog).state !== "unmatched");
+    const preservesKnown = known.every((line) => extracted.some((candidate) =>
+      normalizedName(candidate.name) === normalizedName(line.name)));
+    if (extracted.length && preservesKnown) {
+      lines = extracted.map((candidate) => known.find((line) =>
+        normalizedName(candidate.name) === normalizedName(line.name)) ?? candidate);
+    }
+  }
   return {
     source,
     items: lines.slice(0, 40).map((line) => matchLine(line, catalog)),
