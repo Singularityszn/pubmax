@@ -7,7 +7,7 @@ import { publicApiError } from "@/lib/apiError";
 import { askCardSources } from "@/lib/ask/types";
 import { jsonNoStore } from "@/lib/apiResponses";
 import { callerUserId } from "@/lib/authServer";
-import { refineRoutedAskQuery, socialTurnKind } from "@/lib/ask/router";
+import { isVenueHoursQuestion, refineRoutedAskQuery, socialTurnKind } from "@/lib/ask/router";
 import { runAsk } from "@/lib/ask/runAsk";
 import type { AskTurn } from "@/lib/ask/types";
 import { parseConciergeIntent } from "@/lib/concierge/intent";
@@ -258,7 +258,7 @@ export async function POST(request: Request): Promise<Response> {
       // search_venues ranks on area, mood, budget and group size only. With
       // none of them it lists the same arbitrary pubs for any words ("hi how
       // are you", "sup"), so ask for one instead.
-      if (answer.toolsUsed.length === 1 && answer.toolsUsed[0] === "search_venues") {
+      if (!isVenueHoursQuestion(query) && answer.toolsUsed.length === 1 && answer.toolsUsed[0] === "search_venues") {
         const priorUser = [...turns].reverse().find((turn) => turn.role === "user");
         const { intent } = await parseConciergeIntent(
           refineRoutedAskQuery(query, priorUser?.content, turns.filter((turn) => turn.role === "user").map((turn) => turn.content)),
