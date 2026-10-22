@@ -1,4 +1,4 @@
-import { readdirSync } from "node:fs";
+import { existsSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
@@ -14,6 +14,24 @@ const prerequisites = readdirSync(migrations)
   .filter((entry) => entry.endsWith(".sql") && entry < name)
   .sort()
   .map((entry) => join(migrations, entry));
+const pendingBatchNames = [
+  "20260929120000_0161_plan_selected_drink_evidence.sql",
+  "20260929130000_0162_plan_create_selected_drink_evidence.sql",
+  "20260929140000_0163_plan_replace_selected_drink_evidence.sql",
+  "20260929150000_0164_plan_proposal_selected_drink_evidence.sql",
+  "20260929160000_0165_plan_completion_selected_drink_evidence.sql",
+  "20260929170000_0166_plan_context_selected_drink_evidence.sql",
+  "20260929180000_0167_plan_replace_context_evidence.sql",
+  "20260930120000_0168_plan_proposal_context_evidence.sql",
+  "20260930121000_0175_friend_locations.sql",
+  "20261001073000_0176_plan_listed_drink_evidence.sql",
+  "20261001073100_0177_plan_manual_selected_evidence.sql",
+  "20261001090000_0178_plan_route_alternatives.sql",
+  "20261001091000_0179_plan_backup_context_evidence.sql",
+  "20261001092000_0180_completion_group_snapshot.sql",
+  "20261001092100_0181_social_crew_completion.sql",
+  "20261001092200_0182_completion_group_active_accounts.sql",
+] as const;
 const planId = "10000000-0000-4000-8000-000000000161";
 const memberId = "20000000-0000-4000-8000-000000000161";
 const evidence = JSON.stringify({
@@ -26,6 +44,7 @@ const evidence = JSON.stringify({
 
 let session: PostgresSession | null = null;
 let policiesBefore = "";
+let batchCatalogBefore = "";
 
 function db(): PostgresSession {
   if (!session) throw new Error("PostgreSQL session unavailable");
@@ -43,6 +62,72 @@ function policies(): string {
     from pg_policies where schemaname = 'public' and tablename = 'plan_stops'`);
 }
 
+// Capture the complete objects touched by this batch, including every overload
+// and every grantee. Route/table authorization remains in its single matrix.
+function batchCatalog(): string {
+  return db().sql(`with relations as (
+    select c.*, n.nspname from pg_class c join pg_namespace n on n.oid = c.relnamespace
+    where n.nspname || '.' || c.relname in (
+      'public.plan_stops', 'public.plan_completions', 'auth.users',
+      'public.private_friend_location_generations', 'public.private_friend_location_sessions',
+      'public.private_friend_location_grants', 'pubmax_private.plan_completion_group_snapshots'
+    )
+  ), functions as (
+    select p.*, n.nspname from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+    where n.nspname in ('public', 'pubmax_private') and p.proname in (
+      'create_plan_idempotent_atomic', 'replace_plan_route_atomic',
+      'decide_plan_route_proposal_atomic', 'update_legacy_plan_status_context_atomic',
+      'plan_completion_capture_selected_drink_evidence', 'friend_location_account_live',
+      'friend_location_grant_bound', 'friend_location_operation', 'purge_friend_locations',
+      'plan_stop_evidence_for_context', 'snapshot_plan_completion_group',
+      'erase_plan_completion_groups_on_account_delete', 'completion_group_week',
+      'lock_plan_completion_identities', 'complete_social_crew_plan_atomic', 'complete_plan_atomic'
+    )
+  ), entries as (
+    select jsonb_build_array('relation', nspname, relname, relkind, pg_get_userbyid(relowner),
+      relrowsecurity, relforcerowsecurity, relreplident) as item from relations
+    union all select jsonb_build_array('column', r.nspname, r.relname, a.attname,
+      format_type(a.atttypid, a.atttypmod), a.attnotnull, a.attidentity, a.attgenerated,
+      pg_get_expr(d.adbin, d.adrelid))
+      from relations r join pg_attribute a on a.attrelid = r.oid and a.attnum > 0 and not a.attisdropped
+      left join pg_attrdef d on d.adrelid = r.oid and d.adnum = a.attnum
+    union all select jsonb_build_array('relation-grant', r.nspname, r.relname,
+      pg_get_userbyid(g.grantor), case when g.grantee = 0 then 'PUBLIC' else pg_get_userbyid(g.grantee) end,
+      g.privilege_type, g.is_grantable)
+      from relations r cross join lateral aclexplode(coalesce(r.relacl, acldefault('r', r.relowner))) g
+    union all select jsonb_build_array('column-grant', r.nspname, r.relname, a.attname,
+      pg_get_userbyid(g.grantor), case when g.grantee = 0 then 'PUBLIC' else pg_get_userbyid(g.grantee) end,
+      g.privilege_type, g.is_grantable)
+      from relations r join pg_attribute a on a.attrelid = r.oid and a.attnum > 0 and not a.attisdropped
+      cross join lateral aclexplode(a.attacl) g
+    union all select jsonb_build_array('constraint', r.nspname, r.relname, c.conname,
+      c.contype, c.convalidated, pg_get_constraintdef(c.oid, false))
+      from relations r join pg_constraint c on c.conrelid = r.oid
+    union all select jsonb_build_array('index', r.nspname, r.relname, i.relname,
+      x.indisvalid, x.indisready, pg_get_indexdef(x.indexrelid))
+      from relations r join pg_index x on x.indrelid = r.oid join pg_class i on i.oid = x.indexrelid
+    union all select jsonb_build_array('trigger', r.nspname, r.relname, t.tgname,
+      t.tgenabled, pg_get_triggerdef(t.oid, false))
+      from relations r join pg_trigger t on t.tgrelid = r.oid where not t.tgisinternal
+    union all select jsonb_build_array('policy', p.schemaname, p.tablename, p.policyname,
+      p.permissive, p.roles, p.cmd, p.qual, p.with_check)
+      from pg_policies p join relations r on r.nspname = p.schemaname and r.relname = p.tablename
+    union all select jsonb_build_array('function', nspname, proname,
+      pg_get_function_identity_arguments(oid), pg_get_userbyid(proowner), pg_get_functiondef(oid)) from functions
+    union all select jsonb_build_array('function-grant', f.nspname, f.proname,
+      pg_get_function_identity_arguments(f.oid), pg_get_userbyid(g.grantor),
+      case when g.grantee = 0 then 'PUBLIC' else pg_get_userbyid(g.grantee) end,
+      g.privilege_type, g.is_grantable)
+      from functions f cross join lateral aclexplode(coalesce(f.proacl, acldefault('f', f.proowner))) g
+    union all select jsonb_build_array('default-grant', n.nspname, pg_get_userbyid(d.defaclrole),
+      d.defaclobjtype, pg_get_userbyid(g.grantor),
+      case when g.grantee = 0 then 'PUBLIC' else pg_get_userbyid(g.grantee) end,
+      g.privilege_type, g.is_grantable)
+      from pg_default_acl d join pg_namespace n on n.oid = d.defaclnamespace
+      cross join lateral aclexplode(d.defaclacl) g where n.nspname in ('public', 'pubmax_private')
+  ) select coalesce(jsonb_agg(item order by item::text), '[]'::jsonb)::text from entries`);
+}
+
 beforeAll(async () => {
   if (skipReason) return;
   session = await startPostgres({ label: "plan-evidence-0161", database: "pubmax_plan_evidence" });
@@ -57,6 +142,7 @@ beforeAll(async () => {
       insert into public.plan_crew_members (plan_id, name, token_hash, user_id)
       values ('${planId}', 'Member', '${"a".repeat(64)}', '${memberId}');`);
     policiesBefore = policies();
+    batchCatalogBefore = batchCatalog();
   } catch (error) {
     await session.stop();
     session = null;
@@ -143,5 +229,33 @@ describe.skipIf(skipReason !== null)("0161 selected drink evidence storage", () 
     expect(db().sql(`select venue_id || ':' || venue_name || ':' || position
       from public.plan_stops where plan_id = '${planId}'`)).toBe("venue-a:A:0");
     expect(policies()).toBe(policiesBefore);
+  });
+
+  it("reverses all sixteen pending migrations to the exact pre-batch catalog and route", () => {
+    expect(batchCatalog()).toBe(batchCatalogBefore);
+    const routeBefore = db().sql(`select to_jsonb(s)::text from public.plan_stops s where plan_id = '${planId}'`);
+    const batchPaths = pendingBatchNames.map((entry) => join(migrations, entry));
+    const rollbackPaths = [...pendingBatchNames].reverse()
+      .map((entry) => join(migrations, "rollback", entry.replace(/\.sql$/, "_rollback.sql")));
+    for (const path of [...batchPaths, ...rollbackPaths]) {
+      expect(existsSync(path), `Required pending-batch migration: ${path}`).toBe(true);
+    }
+
+    // Each file is transactional. Files containing BEGIN/COMMIT retain their
+    // own transaction; this does not assert one transaction across the batch.
+    for (const path of batchPaths) db().applyFileTransactional(path);
+    expect(columnExists()).toBe(true);
+    expect(db().sql(`select count(*) from information_schema.columns where table_schema = 'public'
+      and table_name = 'plan_stops' and column_name = 'alternatives'`)).toBe("1");
+    expect(db().sql(`select count(*) from pg_class c join pg_namespace n on n.oid = c.relnamespace
+      where n.nspname || '.' || c.relname in (
+        'public.private_friend_location_generations', 'public.private_friend_location_sessions',
+        'public.private_friend_location_grants', 'pubmax_private.plan_completion_group_snapshots'
+      )`)).toBe("4");
+    expect(batchCatalog()).not.toBe(batchCatalogBefore);
+
+    for (const path of rollbackPaths) db().applyFileTransactional(path);
+    expect(JSON.parse(batchCatalog())).toStrictEqual(JSON.parse(batchCatalogBefore));
+    expect(db().sql(`select to_jsonb(s)::text from public.plan_stops s where plan_id = '${planId}'`)).toBe(routeBefore);
   });
 });
