@@ -1,5 +1,5 @@
 import { randomBytes } from "node:crypto";
-import { resolve } from "node:path";
+import { isAbsolute, resolve } from "node:path";
 import { loadEnvConfig } from "@next/env";
 import { defineConfig, devices } from "@playwright/test";
 
@@ -101,6 +101,17 @@ if (
   throw new Error(
     "PUBMAX_E2E_LOGIN=1 requires real Supabase URL, publishable key, and service-role key in the local environment.",
   );
+}
+
+const PUBLIC_EVIDENCE_PHASE = process.env.PUBMAX_PUBLIC_EVIDENCE_PHASE;
+const PUBLIC_EVIDENCE_ROOT = process.env.PUBMAX_PUBLIC_EVIDENCE_ROOT;
+if (PUBLIC_EVIDENCE_PHASE && (
+  !["before", "after"].includes(PUBLIC_EVIDENCE_PHASE) ||
+  !PUBLIC_EVIDENCE_ROOT || !isAbsolute(PUBLIC_EVIDENCE_ROOT) ||
+  !process.env.CI || E2E_LOGIN || REAL_AUTH_CONFIGURED || DISPOSABLE_PLAN_DB ||
+  SKIP_WEBSERVER || !SKIP_KEYLESS_WEBSERVER || SCREENSHOT_RUN
+)) {
+  throw new Error("Public evidence needs a separate absolute checkout and one keyless CI server");
 }
 
 export const E2E_SERVER_ENV = {
@@ -460,6 +471,7 @@ export default defineConfig({
     ? undefined
     : [
       {
+        cwd: PUBLIC_EVIDENCE_PHASE ? PUBLIC_EVIDENCE_ROOT : undefined,
         command: SCREENSHOT_RUN
           ? `npm run start -- --port ${PORT}`
           : `node scripts/run-with-restored-next-env.mjs npm run build && npm run start -- --port ${PORT}${DISPOSABLE_PLAN_DB ? " --hostname 127.0.0.1" : ""}`,

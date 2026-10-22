@@ -1,5 +1,7 @@
 import { expect, test } from "@playwright/test";
 
+import { capturePublicPageEvidence } from "./helpers/publicPageEvidence";
+
 test("a signed-out phone reader can open released updates from You", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto("/u/you");
@@ -13,3 +15,12 @@ test("a signed-out phone reader can open released updates from You", async ({ pa
   await page.getByRole("link", { name: "Open the map", exact: true }).click();
   await expect(page).toHaveURL(/\/map$/);
 });
+
+if (process.env.PUBMAX_PUBLIC_EVIDENCE_PHASE) {
+  test.describe("public screenshot evidence", () => {
+    test.use({ trace: "off", video: "off" });
+    test("records the signed-out updates source and viewport images", async ({ page }, testInfo) => {
+      await capturePublicPageEvidence(page, testInfo, "updates");
+    });
+  });
+}
