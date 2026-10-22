@@ -7,6 +7,7 @@ import type { PalEvalAnswerExpectations } from "@/evals/pal/types";
 import { loadPalEvalVenueIndex } from "@/evals/pal/venueIndex";
 import { runAsk } from "@/lib/ask/runAsk";
 import { runAskTool } from "@/lib/ask/tools";
+import { resetCityStatusCache } from "@/lib/citymcp/client";
 import type { AskResponseBody } from "@/lib/ask/types";
 import { getVenueDetail } from "@/lib/venueDetailIndex";
 import { planOpeningSchedulesForVenues } from "@/lib/planRouteEvidence.server";
@@ -48,6 +49,71 @@ afterEach(() => {
 });
 
 describe("Pal fail-closed hours eval", () => {
+  it.each([
+    "What are the opening hours of The Crosse Keys and are there Tube delays?",
+    "Are there Tube delays and what are the opening hours of The Crosse Keys?",
+    "What are The Crosse Keys' opening hours, and are there Tube delays?",
+    "What are the opening hours at a pub called The Crosse Keys, please, and are there Tube delays?",
+  ])("retains both answers in a combined hours request: %s", async (query) => {
+    resetCityStatusCache();
+    const transport = vi.fn<typeof fetch>(async () => new Response(JSON.stringify({
+      jsonrpc: "2.0", result: { structuredContent: {
+        asOf: new Date(now).toISOString(), signals: [],
+        tubeLines: [{ line: "Central", status: "Minor delays" }],
+      } },
+    }), { headers: { "content-type": "application/json" } }));
+    try {
+      const body = await runAsk({ query, now, skipModel: true, fetchImpl: transport });
+      expect(body.toolsUsed).toEqual(["city_status", "search_venues"]);
+      expect(body.cards.map((card) => card.key)).toContain("city-status");
+      expect(body.cards.map((card) => card.venueId)).toContain(knownCase.venueId);
+      expect(body.answer).toContain("Central: Minor delays");
+      expect(body.answer).toContain("Thursday 08:00 to 23:00");
+      expect(body.sources).toContainEqual(expect.objectContaining({ label: knownCase.source, url: knownCase.sourceUrl }));
+      expect(transport).toHaveBeenCalledOnce();
+      const result = await runAskTool("search_venues", { query }, { query, cityId: "london", now, skipModel: true });
+      expect(gradePalCase({ ...body, answer: result.answerHint!, cards: result.cards }, knownReference, index).pass).toBe(true);
+    } finally {
+      resetCityStatusCache();
+    }
+  });
+
+  it.each([
+    ...["unknown", "not known", "not recorded", "not available", "unavailable"].map((absence) =>
+      `The opening hours are listed, but the price is ${absence}.`),
+    ...["cannot", "can't", "do not", "don't"].flatMap((inability) =>
+      ["confirm", "verify", "provide", "know"].map((verb) =>
+        `I ${inability} ${verb} the price, but the opening hours are listed.`)),
+    "No hours are missing.",
+    "No hours are unknown.",
+    "No hours are not recorded.",
+    "The opening hours are not unknown.",
+    "The opening hours are not unavailable.",
+    "The opening hours for The Coronet are not unknown.",
+    "The opening hours for The Coronet not unknown.",
+  ])("rejects incorrect hours topic or polarity: %s", async (answer) => {
+    const body = await runAsk({ query: "What are the opening hours of The Coronet?", now, skipModel: true });
+    expect(body.cards.map((card) => card.venueId)).toEqual(["venue-60y3sa"]);
+    expect(gradePalCase({ ...body, answer }, reference, index).checks).toContainEqual(
+      expect.objectContaining({ name: "unknown_hours_disclosed", pass: false }),
+    );
+  });
+
+  it.each([
+    ...["unknown", "not known", "not recorded", "not available", "unavailable"].map((absence) =>
+      `The opening hours of The Coronet are ${absence}.`,
+    ),
+    ...["cannot", "can't", "do not", "don't"].flatMap((inability) =>
+      ["confirm", "verify", "provide", "know"].map((verb) => `I ${inability} ${verb} the opening hours of The Coronet.`)),
+    "No opening hours.",
+    "No opening hours are recorded for The Coronet.",
+    "No opening hours recorded for The Coronet.",
+    "The price is listed, but the opening hours are unknown.",
+    "The opening hours of Fox and Anchor are unknown.",
+  ])("accepts a bounded missing-hours statement: %s", (answer) => {
+    expect(gradePalCase({ ...response, answer }, reference, index).pass).toBe(true);
+  });
+
   it.each([
     "What are the opening hours of Erin's?",
     "What are Erin's opening hours?",

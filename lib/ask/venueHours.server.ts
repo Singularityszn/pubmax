@@ -9,6 +9,7 @@ import { OPENING_EVIDENCE_FRESH_DAYS } from "@/lib/planRouteEvidence";
 import { planOpeningSchedulesForVenues } from "@/lib/planRouteEvidence.server";
 import { lookupVenueDetail } from "@/lib/venueDetailIndex";
 import { wordsOnly } from "@/lib/ask/placePhrases";
+import { askRequestClauses } from "@/lib/ask/router";
 import { venueSearchNames } from "@/lib/venueSearchNames.mjs";
 import type { AskToolContext, AskToolResult } from "@/lib/ask/toolContract";
 import type { AskSource } from "@/lib/ask/types";
@@ -32,7 +33,10 @@ async function readVenueHours(query: string, ctx: AskToolContext): Promise<AskTo
     answerHint: "Which pub do you mean? I need its name to check the opening hours.",
   };
   const venues = await loadConciergeVenues(ctx.cityId);
-  const question = query.trim().replace(/[.!?,;:]+$/, "")
+  const hoursClauses = askRequestClauses(query).filter((clause) => /\b(?:opening|closing)\s+(?:hours|times)\b/i.test(clause));
+  if (hoursClauses.length > 1) return empty;
+  const hoursClause = hoursClauses[0] ?? query;
+  const question = hoursClause.trim().replace(/[.!?,;:]+$/, "")
     .replace(/(?:,\s*|\s+)please$/i, "")
     .replace(/^please[,\s]+/i, "")
     .replace(/^(?:what(?:['’]s|\s+(?:is|are))|(?:can|could|would)\s+you\s+(?:tell|show)\s+me|(?:tell|show)\s+me)\s+/i, "")
