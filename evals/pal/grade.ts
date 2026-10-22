@@ -44,6 +44,79 @@ function gradeInventedVenues(
   return { inventedVenues, details };
 }
 
+function gradeHeritage(
+  body: AskResponseBody,
+  reference: NonNullable<PalEvalAnswerExpectations["heritageAnswer"]>,
+  checks: GradeOutcome["checks"],
+): void {
+  const normalise = (text: string) => text.trim().replace(/\s+/g, " ").toLowerCase();
+  const cards = body.cards.filter((card) => card.venueId === reference.venueId);
+  push(checks, "heritage_venue", cards.length > 0 && body.cards.every((card) =>
+    card.venueId === reference.venueId && normalise(card.title) === normalise(reference.venueName)),
+  `expected=${reference.venueId}`);
+  if (!reference.facts.length) {
+    // A closed set is deliberate: arbitrary prose needs a wording judge.
+    const allowed = new Set([
+      "I've got the basics but no fuller story on record yet. I won't make one up.",
+      `The history of ${reference.venueName} is not known.`,
+      `The heritage of ${reference.venueName} is not known.`,
+      `I cannot confirm the history of ${reference.venueName}.`,
+    ].map(normalise));
+    push(checks, "unknown_heritage_disclosed", allowed.has(normalise(body.answer)), body.answer);
+    push(checks, "unknown_heritage_empty", body.cards.every((card) =>
+      !card.note.trim() || allowed.has(normalise(card.note))), body.cards.map((card) => card.note).join("\n"));
+    push(checks, "unknown_heritage_unsourced", body.sources.length === 0 && body.cards.every((card) =>
+      !card.provenance || (card.provenance.kind === "heritage"
+        && card.provenance.label === "Heritage" && !card.provenance.url)), "No recorded heritage source");
+  } else {
+    const facts = reference.facts;
+    const factText = facts.map((fact) => fact.fact).join(" ");
+    const summary = `On record for ${reference.venueName}: ${facts.length} fact${facts.length === 1 ? "" : "s"}.`;
+    push(checks, "known_heritage_value", cards.some((card) => normalise(card.note) === normalise(factText))
+      && body.cards.every((card) => normalise(card.note) === normalise(factText))
+      && [summary, factText].map(normalise).includes(normalise(body.answer)), `expected=${factText}`);
+    const matchesSource = (source: NonNullable<typeof body.cards[number]["provenance"]>, fact: typeof facts[number]) =>
+      source.kind === "heritage" && source.label === fact.source && source.url === fact.sourceUrl;
+    push(checks, "known_heritage_source", cards.some((card) => card.provenance
+      && facts.some((fact) => card.note.includes(fact.fact) && matchesSource(card.provenance!, fact)))
+      && facts.every((fact) => body.sources.some((source) => matchesSource(source, fact)))
+      && body.sources.every((source) => facts.some((fact) => matchesSource(source, fact))),
+    `expected=${facts.map((fact) => fact.source).join(",")}`);
+  }
+}
+
+function gradeHours(
+  body: AskResponseBody,
+  reference: NonNullable<PalEvalAnswerExpectations["hoursAnswer"]>,
+  checks: GradeOutcome["checks"],
+): void {
+  const text = [body.answer, ...body.cards.map((card) => card.note)].join("\n");
+  if (reference.venueId) {
+    push(checks, "hours_venue", body.cards.some((card) => card.venueId === reference.venueId),
+      `expected=${reference.venueId}`);
+  }
+  if (reference.value === null) {
+    const times = hoursClaims(text);
+    push(checks, "unknown_hours_empty", times.length === 0, `claims=${times.join(",")}`);
+    const hours = String.raw`(?:opening hours?|opening times?|closing times?|hours)`;
+    const absent = String.raw`(?:not known|unknown|not recorded|not available|unavailable)`;
+    const disclosure = new RegExp(
+      String.raw`\b${hours}\b[^.!?\n]{0,80}\b${absent}\b|\bno\s+${hours}\b|\b(?:cannot|can't|do not|don't)\s+(?:confirm|verify|provide|know)\b[^.!?\n]{0,80}\b${hours}\b`,
+      "i",
+    );
+    push(checks, "unknown_hours_disclosed", disclosure.test(body.answer), body.answer);
+  } else {
+    const lines = reference.value;
+    const cards = body.cards.filter((card) => card.venueId === reference.venueId);
+    push(checks, "known_hours_value", matchesKnownHours(body.answer, lines) && matchesKnownHours(text, lines),
+      `expected=${lines.join(", ")}`);
+    push(checks, "known_hours_source", cards.some((card) => matchesKnownHours(card.note, lines)
+      && card.provenance?.kind === "directory" && card.provenance.label === reference.source
+      && (reference.sourceUrl === undefined || card.provenance.url === reference.sourceUrl)),
+    `expected=${reference.source}`);
+  }
+}
+
 export function gradePalCase(
   body: AskResponseBody,
   expect: PalEvalAnswerExpectations,
@@ -90,34 +163,9 @@ export function gradePalCase(
     );
   }
 
-  if (expect.hoursAnswer) {
-    const reference = expect.hoursAnswer;
-    const text = [body.answer, ...body.cards.map((card) => card.note)].join("\n");
-    if (reference.venueId) {
-      push(checks, "hours_venue", body.cards.some((card) => card.venueId === reference.venueId),
-        `expected=${reference.venueId}`);
-    }
-    if (reference.value === null) {
-      const times = hoursClaims(text);
-      push(checks, "unknown_hours_empty", times.length === 0, `claims=${times.join(",")}`);
-      const hours = String.raw`(?:opening hours?|opening times?|closing times?|hours)`;
-      const absent = String.raw`(?:not known|unknown|not recorded|not available|unavailable)`;
-      const disclosure = new RegExp(
-        String.raw`\b${hours}\b[^.!?\n]{0,80}\b${absent}\b|\bno\s+${hours}\b|\b(?:cannot|can't|do not|don't)\s+(?:confirm|verify|provide|know)\b[^.!?\n]{0,80}\b${hours}\b`,
-        "i",
-      );
-      push(checks, "unknown_hours_disclosed", disclosure.test(body.answer), body.answer);
-    } else {
-      const lines = reference.value;
-      const cards = body.cards.filter((card) => card.venueId === reference.venueId);
-      push(checks, "known_hours_value", matchesKnownHours(body.answer, lines) && matchesKnownHours(text, lines),
-        `expected=${lines.join(", ")}`);
-      push(checks, "known_hours_source", cards.some((card) => matchesKnownHours(card.note, lines)
-        && card.provenance?.kind === "directory" && card.provenance.label === reference.source
-        && (reference.sourceUrl === undefined || card.provenance.url === reference.sourceUrl)),
-      `expected=${reference.source}`);
-    }
-  }
+  if (expect.heritageAnswer) gradeHeritage(body, expect.heritageAnswer, checks);
+
+  if (expect.hoursAnswer) gradeHours(body, expect.hoursAnswer, checks);
 
   if (expect.priceAnswer) {
     const reference = expect.priceAnswer;

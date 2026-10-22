@@ -21,6 +21,11 @@ export type PalEvalAnswerExpectations = {
     | { value: null }
     | { value: number; source: string }
   );
+  heritageAnswer?: {
+    venueId: string;
+    venueName: string;
+    facts: Array<{ fact: string; source: string; sourceUrl: string }>;
+  };
   hoursAnswer?:
     | { venueId?: string; value: null }
     | { venueId: string; value: string[]; source: string; sourceUrl?: string };
