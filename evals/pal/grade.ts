@@ -104,13 +104,12 @@ export function gradePalCase(
   for (const card of body.cards) {
     if (!card.venueId || card.price === null || card.provenance?.kind !== "directory") continue;
     const recorded = index.priceById.get(card.venueId);
-    if (recorded === undefined) continue;
     const tol = expect.priceTolerance ?? 0.02;
     push(
       checks,
       `price_data:${card.venueId}`,
-      Math.abs(recorded - card.price) <= tol,
-      `card=${card.price} index=${recorded}`,
+      recorded !== undefined && Math.abs(recorded - card.price) <= tol,
+      `card=${card.price} index=${recorded ?? "unknown"}`,
     );
   }
 
