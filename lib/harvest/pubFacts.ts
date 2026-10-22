@@ -56,7 +56,7 @@ function hostOf(value: string): string | null {
   try {
     const url = new URL(value.trim());
     if (url.protocol !== "http:" && url.protocol !== "https:") return null;
-    return url.hostname.replace(/^www\./, "").toLowerCase();
+    return url.hostname.replace(/^www\./, "").replace(/\.$/, "").toLowerCase();
   } catch {
     return null;
   }

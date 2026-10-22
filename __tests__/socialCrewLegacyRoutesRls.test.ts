@@ -143,7 +143,10 @@ beforeAll(async () => {
     )
   `);
   if (!seeded.ok) throw new Error(`Could not seed legacy route proof: ${seeded.err}`);
-}, 120_000);
+  // A cluster boot plus the migration chain shares the host with other
+  // Postgres suites under `npm run test:rls`; 120s timed out there. Same 180s
+  // ceiling as vitest.config.mts and every other Postgres-backed beforeAll.
+}, 180_000);
 
 afterAll(async () => {
   globalThis.fetch = nativeFetch;
