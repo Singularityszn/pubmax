@@ -58,7 +58,7 @@ The repair preserves those source dates.
 
 The restored-map regression reproduced the original failure before the repair.
 The strengthened regression also reproduced the sheet reopening on a query-only reload.
-The repaired production build passed at desktop and phone widths.
+The local repair build in production mode passed at desktop and phone widths.
 Screenshots show painted pound labels with the explicit Hatton sheet open, after Close, and after Reload.
 After Close and Reload, the URL retains `q=Hatton` without `sel`, and the sheet stays closed.
 
@@ -77,9 +77,7 @@ Local write-free captures also blocked service workers where the replay required
 
 ## Approval and remaining gaps
 
-Karan approved the [manual daily build plan](astra-daily-build-proposal-2026-10-22.md).
-The plan uses one reviewed Git SHA at 09:00 London, with Preview as the default target.
-Failed attempts consume the slot unless Karan approves another attempt.
+The [approved manual daily build plan](astra-daily-build-proposal-2026-10-22.md) owns the build slot, target, retry, and promotion rules.
 The approval creates no saved schedule or project setting.
 
 The physical-phone map picture remains pending at Karan's explicit request.

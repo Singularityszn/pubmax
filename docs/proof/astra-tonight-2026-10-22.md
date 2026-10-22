@@ -19,6 +19,8 @@ The baseline was `e81aaa6a0`. Live evidence came from `https://pubmaxxing.com/to
 - The final focused run passed 102 tests across seven files. Related suites passed another 75 tests across seven files.
 - Scoped ESLint and TypeScript checks passed.
 
-`e2e/tonight-secondary-music.spec.ts` adds browser checks at 390 and 1440 pixels. The local browser run did not complete. The development server stalled before serving requests during Next's registry version check. The integration owner will run these checks and capture after images against the combined production build.
+`e2e/tonight-secondary-music.spec.ts` adds browser checks at 390 and 1440 pixels. The initial local browser run did not complete. The development server stalled before serving requests during Next's registry version check.
 
-No production write, deployment, environment setting, or billing setting changed. Full `npm run verify` belongs to the combined candidate.
+The [combined reconciliation record](astra-battle-reconcile-2026-10-22.md#final-local-verification) owns final browser and verification results.
+
+No production write, deployment, environment setting, or billing setting changed.

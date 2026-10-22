@@ -81,7 +81,7 @@ function hasOneMissingCharacter(query: string, value: string): boolean {
   return queryIndex === query.length;
 }
 
-/** Lower score wins. Area/city matches intentionally sit above venue names. */
+/** Lower score wins. */
 function matchScore(query: string, name: string, area = ""): number | null {
   const normalisedName = normalise(name);
   const normalisedArea = normalise(area);

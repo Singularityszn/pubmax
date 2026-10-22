@@ -16,9 +16,9 @@ The Vercel dashboard offers a per-deployment **Use project's Ignore Build Step**
 Clearing that checkbox starts a Git-source rebuild without changing the saved project command.
 This run used that control for commit `325122c23eb9d8bc809c4388448c0e5459146152` in the Preview environment.
 
-## Recommended operating plan
+## Approved operating plan
 
-1. Reserve one cloud build slot per London calendar day, provisionally at 09:00 Europe/London.
+1. Reserve one cloud build slot per London calendar day at 09:00 Europe/London.
 2. Select one reviewed commit with passing required checks before that slot.
 3. Record its complete SHA, target environment, and owner before the build starts.
 4. Create a Git-source deployment pinned to that SHA through the Vercel dashboard.

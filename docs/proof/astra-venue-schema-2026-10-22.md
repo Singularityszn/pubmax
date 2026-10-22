@@ -14,4 +14,4 @@ The source baseline was `e81aaa6a0`. Read-only live HTML is retained locally und
 
 `__tests__/ledgerJsonLd.test.tsx` renders the actual Ledger page through the venue lookup. Before the change, the restaurant and food cases failed. The pub and bar cases passed. The corrected cases preserve the Hatton and American Bar schemas and omit the incorrect restaurant and food schemas.
 
-The focused run passed 88 tests across six files. Scoped ESLint and `git diff --check` passed. The integration owner runs the final combined verification and deployed-preview checks. This work made no deployment, data, environment, billing or production-write change.
+The focused run passed 88 tests across six files. Scoped ESLint and `git diff --check` passed. The [combined reconciliation record](astra-battle-reconcile-2026-10-22.md#final-local-verification) owns final verification results and hosted-proof limits. This work made no deployment, data, environment, billing or production-write change.
