@@ -7,6 +7,7 @@ import { isPubPalConversationId } from "@/lib/pubPalConversationId";
 import {
   createDualBackendStore,
   createFailSoftGuard,
+  isUniqueViolation,
   onMissingDurableWrite,
 } from "@/lib/storeBackend";
 import { requireSupabaseAdmin } from "@/lib/supabase";
@@ -15,6 +16,8 @@ import { requireSupabaseAdmin } from "@/lib/supabase";
 export const PUB_PAL_TOOL_TURN_TTL_MS = 120_000;
 
 const PUB_PAL_TOOL_TURN_MIGRATION_HINT = "apply migration 0169";
+const DURABLE_WRITE_ATTEMPTS = 3;
+const WRITE_CONFLICT_MESSAGE = "Pub Pal conversation changed while saving. Try again.";
 
 export class PubPalToolTurnAccessError extends Error {
   constructor() {
@@ -35,6 +38,7 @@ export type PubPalToolTurn = {
 };
 
 type StoredTurn = PubPalToolTurn & { ownerId: string };
+type RevisionedStoredTurn = StoredTurn & { revision: number | null };
 
 type PubPalToolTurnPayload = {
   query: string;
@@ -44,6 +48,7 @@ type PubPalToolTurnPayload = {
   proposals: AskProposal[];
   hints: string[];
   toolsUsed?: string[];
+  revision?: number;
 };
 
 type OwnedWrite = {
@@ -82,7 +87,7 @@ function assertConversationId(conversationId: string): void {
   if (!isPubPalConversationId(conversationId)) throw new PubPalToolTurnAccessError();
 }
 
-function payloadFromTurn(turn: PubPalToolTurn): PubPalToolTurnPayload {
+function payloadFromTurn(turn: PubPalToolTurn, revision: number): PubPalToolTurnPayload {
   return {
     query: turn.query,
     cityId: turn.cityId,
@@ -91,6 +96,7 @@ function payloadFromTurn(turn: PubPalToolTurn): PubPalToolTurnPayload {
     proposals: turn.proposals,
     hints: turn.hints,
     toolsUsed: turn.toolsUsed,
+    revision,
   };
 }
 
@@ -260,7 +266,7 @@ async function purgeExpiredRows(): Promise<void> {
 type StoredLookup =
   | { status: "missing" }
   | { status: "unowned" }
-  | { status: "owned"; turn: StoredTurn };
+  | { status: "owned"; turn: RevisionedStoredTurn };
 
 async function lookupStoredRow(conversationId: string): Promise<StoredLookup> {
   const { data, error } = await requireSupabaseAdmin()
@@ -275,35 +281,74 @@ async function lookupStoredRow(conversationId: string): Promise<StoredLookup> {
   // A null owner is not a free claim. Bind and register refuse it.
   if (!row.owner_id) return { status: "unowned" };
   const payload = row.payload as PubPalToolTurnPayload;
+  if (!payload || typeof payload !== "object" || Array.isArray(payload)) {
+    throw new Error("Invalid Pub Pal conversation payload.");
+  }
+  const revision = payload.revision;
+  if (Object.hasOwn(payload, "revision") && (
+    typeof revision !== "number" || !Number.isSafeInteger(revision) || revision < 0
+  )) {
+    throw new Error("Invalid Pub Pal conversation revision.");
+  }
   return {
     status: "owned",
-    turn: turnFromPayload(payload, new Date(row.expires_at).getTime(), row.owner_id),
+    turn: {
+      ...turnFromPayload(payload, new Date(row.expires_at).getTime(), row.owner_id),
+      revision: revision ?? null,
+    },
   };
 }
 
-function claimedTurn(lookup: StoredLookup): StoredTurn | null {
+function claimedTurn(lookup: StoredLookup): RevisionedStoredTurn | null {
   if (lookup.status === "unowned") throw new PubPalToolTurnAccessError();
   return lookup.status === "owned" ? lookup.turn : null;
 }
 
-async function writeStoredRow(conversationId: string, stored: StoredTurn): Promise<void> {
+async function insertStoredRow(conversationId: string, stored: StoredTurn): Promise<boolean> {
   const { error } = await requireSupabaseAdmin()
     .from("pub_pal_tool_turns")
-    .upsert(
-      {
-        conversation_id: conversationId,
-        owner_id: stored.ownerId,
-        payload: payloadFromTurn(stored),
-        expires_at: new Date(stored.expiresAt).toISOString(),
-      },
-      { onConflict: "conversation_id" },
-    );
+    .insert({
+      conversation_id: conversationId,
+      owner_id: stored.ownerId,
+      payload: payloadFromTurn(stored, 1),
+      expires_at: new Date(stored.expiresAt).toISOString(),
+    });
+  if (isUniqueViolation(error)) return false;
   if (error) throw new Error(error.message);
+  return true;
+}
+
+async function updateStoredRow(
+  conversationId: string,
+  expected: RevisionedStoredTurn,
+  stored: StoredTurn,
+): Promise<boolean> {
+  if (expected.expiresAt <= Date.now()) return false;
+  if (expected.revision === Number.MAX_SAFE_INTEGER) {
+    throw new Error("Invalid Pub Pal conversation revision.");
+  }
+  let update = requireSupabaseAdmin()
+    .from("pub_pal_tool_turns")
+    .update({
+      payload: payloadFromTurn(stored, (expected.revision ?? 0) + 1),
+      expires_at: new Date(stored.expiresAt).toISOString(),
+    })
+    .eq("conversation_id", conversationId)
+    .eq("owner_id", expected.ownerId)
+    .eq("expires_at", new Date(expected.expiresAt).toISOString())
+    .gt("expires_at", new Date().toISOString());
+  update = expected.revision === null
+    ? update.is("payload->revision", null)
+    : update.eq("payload->>revision", String(expected.revision));
+  const { data, error } = await update.select("conversation_id").maybeSingle();
+  if (error) throw new Error(error.message);
+  return data !== null;
 }
 
 const supabasePubPalToolTurnStore: PubPalToolTurnStore = {
   async bind(conversationId, ownerId, cityId) {
     assertConversationId(conversationId);
+    const expiresAt = Date.now() + PUB_PAL_TOOL_TURN_TTL_MS;
     await guard<void>({
       context: "bind",
       onSchemaMiss: () =>
@@ -314,26 +359,31 @@ const supabasePubPalToolTurnStore: PubPalToolTurnStore = {
         }),
       run: async () => {
         await purgeExpiredRows();
-        const existing = claimedTurn(await lookupStoredRow(conversationId));
-        if (existing && existing.ownerId !== ownerId) throw new PubPalToolTurnAccessError();
-        if (existing) return;
-        await writeStoredRow(conversationId, {
-          query: "",
-          cityId,
-          turns: [],
-          expiresAt: Date.now() + PUB_PAL_TOOL_TURN_TTL_MS,
-          cards: [],
-          proposals: [],
-          hints: [],
-          toolsUsed: [],
-          ownerId,
-        });
+        for (let attempt = 0; attempt < DURABLE_WRITE_ATTEMPTS; attempt++) {
+          const existing = claimedTurn(await lookupStoredRow(conversationId));
+          if (existing && existing.ownerId !== ownerId) throw new PubPalToolTurnAccessError();
+          if (existing) return;
+          if (expiresAt <= Date.now()) throw new PubPalToolTurnAccessError();
+          if (await insertStoredRow(conversationId, {
+            query: "",
+            cityId,
+            turns: [],
+            expiresAt,
+            cards: [],
+            proposals: [],
+            hints: [],
+            toolsUsed: [],
+            ownerId,
+          })) return;
+        }
+        throw new Error(WRITE_CONFLICT_MESSAGE);
       },
     });
   },
 
   async register(conversationId, input) {
     assertConversationId(conversationId);
+    const userLineAt = Date.now();
     await guard<void>({
       context: "register",
       onSchemaMiss: () =>
@@ -344,9 +394,19 @@ const supabasePubPalToolTurnStore: PubPalToolTurnStore = {
         }),
       run: async () => {
         await purgeExpiredRows();
-        const existing = claimedTurn(await lookupStoredRow(conversationId));
-        if (existing && existing.ownerId !== input.ownerId) throw new PubPalToolTurnAccessError();
-        await writeStoredRow(conversationId, mergeOwned(existing, input, Date.now()));
+        for (let attempt = 0; attempt < DURABLE_WRITE_ATTEMPTS; attempt++) {
+          const existing = claimedTurn(await lookupStoredRow(conversationId));
+          if (existing && existing.ownerId !== input.ownerId) throw new PubPalToolTurnAccessError();
+          const next = mergeOwned(existing, input, userLineAt);
+          if (existing) {
+            next.expiresAt = Math.max(existing.expiresAt, next.expiresAt);
+            if (await updateStoredRow(conversationId, existing, next)) return;
+          } else {
+            if (next.expiresAt <= Date.now()) throw new PubPalToolTurnAccessError();
+            if (await insertStoredRow(conversationId, next)) return;
+          }
+        }
+        throw new Error(WRITE_CONFLICT_MESSAGE);
       },
     });
   },
@@ -408,6 +468,7 @@ const supabasePubPalToolTurnStore: PubPalToolTurnStore = {
 
   async appendOwnedUserTurn(conversationId, ownerId, turn, cityId) {
     assertConversationId(conversationId);
+    const expiresAt = Date.now() + PUB_PAL_TOOL_TURN_TTL_MS;
     return guard<boolean>({
       context: "append-owned",
       onSchemaMiss: () =>
@@ -420,15 +481,22 @@ const supabasePubPalToolTurnStore: PubPalToolTurnStore = {
         }),
       run: async () => {
         await purgeExpiredRows();
-        const lookup = await lookupStoredRow(conversationId);
-        if (lookup.status !== "owned" || lookup.turn.ownerId !== ownerId) return false;
-        const existing = lookup.turn;
-        existing.turns = [...existing.turns, turn].slice(-6);
-        if (turn.role === "user" && turn.content.trim()) existing.query = turn.content.trim();
-        existing.cityId = cityId;
-        existing.expiresAt = Date.now() + PUB_PAL_TOOL_TURN_TTL_MS;
-        await writeStoredRow(conversationId, existing);
-        return true;
+        for (let attempt = 0; attempt < DURABLE_WRITE_ATTEMPTS; attempt++) {
+          const lookup = await lookupStoredRow(conversationId);
+          if (lookup.status !== "owned" || lookup.turn.ownerId !== ownerId) return false;
+          const existing = lookup.turn;
+          const next = {
+            ...existing,
+            turns: [...existing.turns, turn].slice(-6),
+            expiresAt: Math.max(existing.expiresAt, expiresAt),
+          };
+          if (expiresAt >= existing.expiresAt) {
+            next.query = turn.content.trim();
+            next.cityId = cityId;
+          }
+          if (await updateStoredRow(conversationId, existing, next)) return true;
+        }
+        throw new Error(WRITE_CONFLICT_MESSAGE);
       },
     });
   },
@@ -443,18 +511,26 @@ const supabasePubPalToolTurnStore: PubPalToolTurnStore = {
           fallback: () => memoryPubPalToolTurnStore.append(conversationId, patch),
         }),
       run: async () => {
-        const lookup = await lookupStoredRow(conversationId);
-        if (lookup.status !== "owned") return;
-        const existing = lookup.turn;
-        if (patch.cards?.length) existing.cards.push(...patch.cards);
-        if (patch.proposals?.length) existing.proposals.push(...patch.proposals);
-        if (patch.hints?.length) existing.hints.push(...patch.hints);
-        if (patch.toolsUsed?.length) {
-          for (const name of patch.toolsUsed) {
-            if (!existing.toolsUsed.includes(name)) existing.toolsUsed.push(name);
+        let ownerId: string | undefined;
+        for (let attempt = 0; attempt < DURABLE_WRITE_ATTEMPTS; attempt++) {
+          const lookup = await lookupStoredRow(conversationId);
+          if (lookup.status !== "owned") return;
+          const existing = lookup.turn;
+          if (ownerId !== undefined && existing.ownerId !== ownerId) throw new PubPalToolTurnAccessError();
+          ownerId = existing.ownerId;
+          const next = {
+            ...existing,
+            cards: [...existing.cards, ...(patch.cards ?? [])],
+            proposals: [...existing.proposals, ...(patch.proposals ?? [])],
+            hints: [...existing.hints, ...(patch.hints ?? [])],
+            toolsUsed: [...existing.toolsUsed],
+          };
+          for (const name of patch.toolsUsed ?? []) {
+            if (!next.toolsUsed.includes(name)) next.toolsUsed.push(name);
           }
+          if (await updateStoredRow(conversationId, existing, next)) return;
         }
-        await writeStoredRow(conversationId, existing);
+        throw new Error(WRITE_CONFLICT_MESSAGE);
       },
     });
   },
