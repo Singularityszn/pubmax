@@ -4,12 +4,16 @@ import { describe, expect, it } from "vitest";
 import {
   parsePlanDraftEnvelope,
   PLAN_DRAFT_KEY,
+  PLAN_DRAFT_V2_KEY,
   readPlanDraftEnvelope,
   writePlanDraftEnvelope,
   type ParsedPlanDraft,
   type StoredPlanDraft,
 } from "@/lib/planDraft";
 import {
+  parsePlanRouteDraftEnvelope,
+  PLAN_ROUTE_DRAFT_KEY,
+  PLAN_ROUTE_DRAFT_V2_KEY,
   readPlanRouteDraftEnvelope,
   writePlanRouteDraftEnvelope,
   type ParsedPlanRouteDraft,
@@ -465,6 +469,36 @@ describe("releasing a held acceptance", () => {
     });
   }
 
+  function interruptedDraftStorage(original: Storage, legacyKey: string, canonicalKey: string) {
+    let phase: "legacy-denied" | "retry" | "healthy" = "legacy-denied";
+    let canClearLegacy = false;
+    const storage: Storage = {
+      get length() { return original.length; }, key: (index) => original.key(index),
+      clear: () => original.clear(), getItem: (key) => original.getItem(key),
+      setItem: (key, value) => {
+        if ((phase === "legacy-denied" && key === legacyKey)
+          || (phase === "retry" && (key === canonicalKey || (key === legacyKey && !canClearLegacy)))) {
+          throw new Error("draft write denied");
+        }
+        original.setItem(key, value);
+      },
+      removeItem: (key) => {
+        if (key === legacyKey && (phase === "legacy-denied" || (phase === "retry" && !canClearLegacy))) {
+          throw new Error("legacy removal denied");
+        }
+        original.removeItem(key);
+      },
+    };
+    return {
+      storage,
+      retryWithCanonicalWritesDenied(legacyCleanupAvailable: boolean) {
+        phase = "retry";
+        canClearLegacy = legacyCleanupAvailable;
+      },
+      restoreWrites() { phase = "healthy"; },
+    };
+  }
+
   it("leaves nothing for the next hydration to hold as Stop 1", () => {
     // The regression this pins: an accepted pub could not be put down for the
     // whole PlanningIntent TTL, so every /plan visit held it as Stop 1.
@@ -525,6 +559,119 @@ describe("releasing a held acceptance", () => {
     expect(planDraft?.draft.acceptedAnchor).toBeUndefined();
   });
 
+  it("confirms both draft versions and can retry a partially denied legacy write without changing current work", () => {
+    const storages = heldAcceptance();
+    const original = storages.planDraftStorage;
+    let denyLegacy = true;
+    const interrupted: Storage = {
+      get length() { return original.length; }, key: (index) => original.key(index),
+      clear: () => original.clear(), getItem: (key) => original.getItem(key),
+      setItem: (key, value) => {
+        if (denyLegacy && key === PLAN_DRAFT_KEY) throw new Error("legacy write denied");
+        original.setItem(key, value);
+      },
+      removeItem: (key) => {
+        if (denyLegacy && key === PLAN_DRAFT_KEY) throw new Error("legacy remove denied");
+        original.removeItem(key);
+      },
+    };
+    const options = { intent: storages.intentStorage, planDraft: interrupted,
+      routeDraft: storages.routeDraftStorage, now: NOW };
+    expect(releaseAcceptedPlanContext(options)).toBe(false);
+    // The canonical draft is released, but its rollback companion can still hold.
+    expect(readPlanDraftEnvelope(original, NOW)?.draft.acceptedAnchor).toBeUndefined();
+    expect(JSON.parse(original.getItem(PLAN_DRAFT_KEY)!).acceptedAnchor.venueId).toBe("venue-a");
+    expect(readPlanRouteDraftEnvelope(storages.routeDraftStorage, NOW)?.value.anchorVenueId).toBeNull();
+    denyLegacy = false;
+    expect(releaseAcceptedPlanContext(options)).toBe(true);
+    expect(JSON.parse(original.getItem(PLAN_DRAFT_KEY)!).acceptedAnchor).toBeUndefined();
+    expect(readPlanDraftEnvelope(original, NOW)?.draft.stops).toEqual([{ key: 1, venueId: "venue-a", venueName: "Venue A" }]);
+  });
+
+  it.each([
+    { legacyCleanup: "available", canClearLegacy: true },
+    { legacyCleanup: "denied", canClearLegacy: false },
+  ])("keeps current Plan work when canonical retry writes fail and legacy cleanup is $legacyCleanup", ({ canClearLegacy }) => {
+    const storages = heldAcceptance();
+    const original = storages.planDraftStorage;
+    const interrupted = interruptedDraftStorage(original, PLAN_DRAFT_KEY, PLAN_DRAFT_V2_KEY);
+    const options = { intent: storages.intentStorage, planDraft: interrupted.storage,
+      routeDraft: storages.routeDraftStorage, now: NOW };
+    expect(releaseAcceptedPlanContext(options)).toBe(false);
+    expect(parsePlanDraftEnvelope(original.getItem(PLAN_DRAFT_V2_KEY), null, NOW)?.draft.acceptedAnchor).toBeUndefined();
+    expect(parsePlanDraftEnvelope(null, original.getItem(PLAN_DRAFT_KEY), NOW)?.draft.acceptedAnchor?.venueId).toBe("venue-a");
+
+    // Current edits succeed canonically while the old rollback hold remains.
+    const current = storedPlan({
+      title: "Current two-pub night", creatorName: "Current host",
+      startTime: "2026-07-24T19:30:00.000Z", conciergeQuery: "Keep the revised route",
+      stops: [{ key: 1, venueId: "venue-b", venueName: "Venue B" },
+        { key: 2, venueId: "venue-a", venueName: "Venue A" }],
+    });
+    expect(writePlanDraftEnvelope(current, "manual", interrupted.storage, NOW + 1_000).v2).toBe(true);
+    expect(parsePlanDraftEnvelope(original.getItem(PLAN_DRAFT_V2_KEY), null, NOW + 1_000)?.draft).toEqual(current);
+    expect(parsePlanDraftEnvelope(null, original.getItem(PLAN_DRAFT_KEY), NOW + 1_000)?.draft.acceptedAnchor?.venueId).toBe("venue-a");
+
+    interrupted.retryWithCanonicalWritesDenied(canClearLegacy);
+    const released = releaseAcceptedPlanContext({ ...options, now: NOW + 2_000 });
+    // Inspect canonical work first: deletion must fail independently of return value.
+    expect(parsePlanDraftEnvelope(original.getItem(PLAN_DRAFT_V2_KEY), null, NOW + 2_000)?.draft).toEqual(current);
+    expect(released).toBe(canClearLegacy);
+    expect(parsePlanDraftEnvelope(null, original.getItem(PLAN_DRAFT_KEY), NOW + 2_000)?.draft.acceptedAnchor?.venueId)
+      .toBe(canClearLegacy ? undefined : "venue-a");
+
+    interrupted.restoreWrites();
+    expect(releaseAcceptedPlanContext({ ...options, now: NOW + 3_000 })).toBe(true);
+    expect(parsePlanDraftEnvelope(original.getItem(PLAN_DRAFT_V2_KEY), null, NOW + 3_000)?.draft).toEqual(current);
+    expect(parsePlanDraftEnvelope(null, original.getItem(PLAN_DRAFT_KEY), NOW + 3_000)?.draft.acceptedAnchor).toBeUndefined();
+  });
+
+  it.each([
+    { legacyCleanup: "available", canClearLegacy: true },
+    { legacyCleanup: "denied", canClearLegacy: false },
+  ])("keeps current Route work when canonical retry writes fail and legacy cleanup is $legacyCleanup", ({ canClearLegacy }) => {
+    const storages = heldAcceptance();
+    const original = storages.routeDraftStorage;
+    // Historical raw identity is accepted by the real legacy parser. Today's
+    // dual writer omits it from V1, so assert this fixture rather than assume it.
+    original.setItem(PLAN_ROUTE_DRAFT_KEY, JSON.stringify(routeDraft("route").value));
+    expect(parsePlanRouteDraftEnvelope(null, original.getItem(PLAN_ROUTE_DRAFT_KEY), NOW)?.value.anchorVenueId).toBe("venue-a");
+    const interrupted = interruptedDraftStorage(original, PLAN_ROUTE_DRAFT_KEY, PLAN_ROUTE_DRAFT_V2_KEY);
+    const options = { intent: storages.intentStorage, planDraft: storages.planDraftStorage,
+      routeDraft: interrupted.storage, now: NOW };
+    expect(releaseAcceptedPlanContext(options)).toBe(false);
+    const firstRelease = parsePlanRouteDraftEnvelope(original.getItem(PLAN_ROUTE_DRAFT_V2_KEY), null, NOW);
+    expect(firstRelease).not.toBeNull();
+    expect(firstRelease?.value.anchorVenueId).toBeNull();
+    expect(firstRelease?.value.groundingProof).toBeNull();
+    expect(parsePlanRouteDraftEnvelope(null, original.getItem(PLAN_ROUTE_DRAFT_KEY), NOW)?.value.anchorVenueId).toBe("venue-a");
+
+    const current: ParsedPlanRouteDraft["value"] = {
+      ...firstRelease!.value,
+      stops: [{ key: 1, venueId: "venue-b", venueName: "Venue B", reason: "Current first stop", alternatives: [] },
+        { key: 2, venueId: "venue-c", venueName: "Venue C", alternatives: [] },
+        { key: 3, venueId: "venue-a", venueName: "Venue A", alternatives: [] }],
+      routeTotals: { stopCount: 3, straightLineWalkingKm: 1.2, estimatedWalkingMinutes: 18, distanceBasis: "straight-line" },
+      transportBasis: "straight-line", warnings: ["Keep the current route note."],
+      operationKey: "current-operation-9", routeRevision: 9, routeStale: true,
+    };
+    expect(writePlanRouteDraftEnvelope(current, "manual", interrupted.storage, NOW + 1_000).v2).toBe(true);
+    expect(parsePlanRouteDraftEnvelope(original.getItem(PLAN_ROUTE_DRAFT_V2_KEY), null, NOW + 1_000)?.value).toEqual(current);
+    expect(parsePlanRouteDraftEnvelope(null, original.getItem(PLAN_ROUTE_DRAFT_KEY), NOW + 1_000)?.value.anchorVenueId).toBe("venue-a");
+
+    interrupted.retryWithCanonicalWritesDenied(canClearLegacy);
+    const released = releaseAcceptedPlanContext({ ...options, now: NOW + 2_000 });
+    expect(parsePlanRouteDraftEnvelope(original.getItem(PLAN_ROUTE_DRAFT_V2_KEY), null, NOW + 2_000)?.value).toEqual(current);
+    expect(released).toBe(canClearLegacy);
+    expect(parsePlanRouteDraftEnvelope(null, original.getItem(PLAN_ROUTE_DRAFT_KEY), NOW + 2_000)?.value.anchorVenueId ?? null)
+      .toBe(canClearLegacy ? null : "venue-a");
+
+    interrupted.restoreWrites();
+    expect(releaseAcceptedPlanContext({ ...options, now: NOW + 3_000 })).toBe(true);
+    expect(parsePlanRouteDraftEnvelope(original.getItem(PLAN_ROUTE_DRAFT_V2_KEY), null, NOW + 3_000)?.value).toEqual(current);
+    expect(parsePlanRouteDraftEnvelope(null, original.getItem(PLAN_ROUTE_DRAFT_KEY), NOW + 3_000)?.value.anchorVenueId ?? null).toBeNull();
+  });
+
   it("still releases what it can when a storage is denied", () => {
     const storages = heldAcceptance();
     const denied = {
@@ -541,6 +688,8 @@ describe("releasing a held acceptance", () => {
     })).not.toThrow();
     expect(readPlanningIntent({ storage: storages.intentStorage, now: NOW })).toBeNull();
     expect(readPlanRouteDraftEnvelope(storages.routeDraftStorage, NOW)?.value.anchorVenueId).toBeNull();
+    expect(releaseAcceptedPlanContext({ intent: storages.intentStorage, planDraft: denied,
+      routeDraft: storages.routeDraftStorage, now: NOW })).toBe(false);
   });
 });
 
