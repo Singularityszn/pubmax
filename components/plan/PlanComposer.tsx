@@ -1302,10 +1302,18 @@ function PlanComposerForm({
   const [nightContext, setNightContext] = useState<NightContext | null>(routeDraftFields.nightContext);
   // Acceptance carries one drink choice, not a complete inferred night. Existing
   // recovered route context and later explicit edits retain their precedence.
-  const [explicitNightContext, setExplicitNightContext] = useState<Partial<NightContext>>(() =>
-    !routeDraftFields.nightContext && handoff?.acceptedAnchor?.selectedDrinkPriceEvidence
-      ? { drinkCategory: handoff.acceptedAnchor.selectedDrinkPriceEvidence.category } : {},
-  );
+  const [explicitNightContext, setExplicitNightContext] = useState<Partial<NightContext>>(() => {
+    // The strict saved selection hint keeps its requested count. Default three
+    // is omitted by the intake wire, so it needs explicit context on recovery.
+    const selectedCount = recoveredRouteDraft?.hasSelectedRouteEdits === true
+      ? recoveredIntake.answers.stopCount ?? routeDraftFields.nightContext?.stopCount
+      : undefined;
+    return {
+      ...(isPlanStopCount(selectedCount) ? { stopCount: selectedCount } : {}),
+      ...(!routeDraftFields.nightContext && handoff?.acceptedAnchor?.selectedDrinkPriceEvidence
+        ? { drinkCategory: handoff.acceptedAnchor.selectedDrinkPriceEvidence.category } : {}),
+    };
+  });
   const [routeRevision, setRouteRevision] = useState<RouteRevision | null>(routeDraftFields.routeRevision);
   const [routeStale, setRouteStale] = useState(routeDraftFields.routeStale);
   // Recovery staleness can mean an expired proof or a partial held anchor.
@@ -1665,9 +1673,11 @@ function PlanComposerForm({
     // the count stayed at what was generated, Lock it in went quietly dead on
     // the mismatch, and the next Sort put the removed Stop straight back.
     if (isPlanStopCount(mutation.stops.length)) {
-      const reconciled = applyPlanStopCount(planIntake, nightContext, mutation.stops.length);
+      const stopCount = mutation.stops.length;
+      const reconciled = applyPlanStopCount(planIntake, nightContext, stopCount);
       setPlanIntake(reconciled.draft);
       setNightContext(reconciled.context);
+      setExplicitNightContext((current) => ({ ...current, stopCount }));
     }
     if (mutation.routeStale) setRouteStatus(status);
     return true;
