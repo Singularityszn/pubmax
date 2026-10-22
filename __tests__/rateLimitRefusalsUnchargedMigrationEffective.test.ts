@@ -144,7 +144,7 @@ describe.skipIf(skipReason !== null)("0181 rate-limit refusals uncharged", () =>
 
   it("admits one near-cap warning per lane and threshold during a concurrent cooldown", async () => {
     requireSession().applyFile(FORWARD);
-    const warning80 = "select public.check_rate_limit('paid_spend.near_cap.ask.80', 1, 900000)";
+    const warning80 = "select public.check_rate_limit('fixture-paid_spend.near_cap.ask.80', 1, 900000)";
     const verdicts = await requireSession().concurrentResults(Array(12).fill(warning80));
     expect(verdicts.filter((verdict) => verdict === "f")).toHaveLength(1);
     expect(verdicts.filter((verdict) => verdict === "t")).toHaveLength(11);
@@ -153,7 +153,7 @@ describe.skipIf(skipReason !== null)("0181 rate-limit refusals uncharged", () =>
     )).toBe("f");
     requireSession().sql(`update public.rate_limits
       set hits = array[now() - interval '16 minutes']
-      where key = 'paid_spend.near_cap.ask.80'`);
+      where key = 'fixture-paid_spend.near_cap.ask.80'`);
     expect(requireSession().sql(warning80)).toBe("f");
   });
 
