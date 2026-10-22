@@ -140,9 +140,9 @@ describe("private identity editor", () => {
     );
     expect(editorSource).toContain('setFullNameError("Add your name.")');
     // The gate is client-side in save(); the API keeps accepting nameless
-    // onboarding claims (AccountOnboarding is untouched).
+    // onboarding claims. The eager host still owns submission.
     const onboardingSource = readFileSync(
-      join(process.cwd(), "components/identity/AccountOnboarding.tsx"),
+      join(process.cwd(), "components/identity/AccountOnboardingHost.tsx"),
       "utf8",
     );
     expect(onboardingSource).not.toContain("Add your name.");

@@ -16,7 +16,8 @@
 // taps the one quiet control that asks. The landing never asks on arrival:
 // `?locate=1` is the geolocation ask and it rides a deliberate tap alone.
 
-import { namedLegacyPintPriceSource, type LegacyPintPrice } from "@/lib/drinks";
+import { namedLegacyPintPriceSource } from "@/lib/legacyPintPriceSource";
+import type { LegacyPintPrice } from "@/lib/drinks";
 import { formatGbp } from "@/lib/formatGbp";
 import { priceStandingFor, type PriceStanding } from "@/lib/priceTier";
 import { venueMapUrl } from "@/lib/venueMapUrl";

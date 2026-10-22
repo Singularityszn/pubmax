@@ -23,7 +23,7 @@ import {
 import {
   mapFirstVisitArrivalBlocksConsent,
   subscribeMapFirstVisitArrival,
-} from "@/lib/mapFirstVisitArrival";
+} from "@/lib/mapFirstVisitArrivalStore";
 
 /** sessionStorage slot holding the surface id that has spent the budget. */
 const STORAGE_KEY = "pubmax:prompt-budget:v1";

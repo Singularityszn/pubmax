@@ -1,5 +1,5 @@
 import { safeInviteReturnTo } from "@/lib/inviteReturnTo";
-import { isPlanId } from "@/lib/plan";
+import { isPlanId } from "@/lib/planId";
 
 const RETURN_ORIGIN = "https://pubmax.invalid";
 

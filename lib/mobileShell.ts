@@ -106,13 +106,10 @@ export type MobileMapSessionV1 = {
 
 export const MOBILE_MAP_SESSION_KEY = "pubmaxx.mobile-map-session.v1";
 
-/** Fired before primary-tab navigation so open map sheets can dismiss first. */
-export const MOBILE_SHEET_DISMISS_EVENT = "pubmax:mobile-sheet-dismiss";
-
-export function requestMobileSheetDismiss(): void {
-  if (typeof window === "undefined") return;
-  window.dispatchEvent(new CustomEvent(MOBILE_SHEET_DISMISS_EVENT));
-}
+export {
+  MOBILE_SHEET_DISMISS_EVENT,
+  requestMobileSheetDismiss,
+} from "@/lib/mobileSheetDismiss";
 
 const RESTORABLE_SHEETS = new Set<MapSheetKind>([
   "filters",

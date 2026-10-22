@@ -31,7 +31,7 @@ const state = vi.hoisted(() => ({
 }));
 
 vi.mock("@/components/auth/ArrivalWelcome", () => ({ default: () => null }));
-vi.mock("@/components/identity/AccountOnboarding", () => ({ default: () => null }));
+vi.mock("@/components/identity/AccountOnboardingHost", () => ({ default: () => null }));
 vi.mock("@/components/identity/IdentityNudge", () => ({ default: () => null }));
 vi.mock("@/lib/analytics", () => ({ analyticsCollectionAllowed: () => false, trackEvent: vi.fn() }));
 vi.mock("@/lib/authClient", () => ({
@@ -131,12 +131,16 @@ import { AuthProvider, useAuth } from "@/components/auth/AuthProvider";
 let root: Root | null = null;
 vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
 
+function recordSignOutPromise(promise: Promise<void>) {
+  state.signOutPromise = promise;
+}
+
 function Viewer() {
   const auth = useAuth();
   useEffect(() => { state.visibleAccounts.push(auth.user?.id ?? "signed-out"); }, [auth.user?.id]);
   return createElement("div", null,
     createElement("span", { "data-testid": "viewer" }, auth.user?.id ?? "signed-out"),
-    createElement("button", { onClick: () => { state.signOutPromise = auth.signOut("device"); } }, "Sign out"),
+    createElement("button", { onClick: () => recordSignOutPromise(auth.signOut("device")) }, "Sign out"),
   );
 }
 

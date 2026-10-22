@@ -4,10 +4,10 @@
 // prepends its own "@" produces "@@wapping_wall_ted". These helpers normalize
 // once and prepend exactly one "@", so "@@" is impossible.
 //
-// Pure + backend-free: reuses normalizeHandle from lib/profiles (lowercase, strip
+// Pure + backend-free: reuses normalizeHandle from lib/handleNormalize (lowercase, strip
 // any leading @s, keep [a-z0-9_], cap length) so display and identity can't drift.
 
-import { normalizeHandle } from "@/lib/profiles";
+import { normalizeHandle } from "@/lib/handleNormalize";
 
 // A stable placeholder for an empty/unknown handle. Matches the existing "anon"
 // UX (see TonightBoard's anonymous row) so nothing renders a bare "@".
@@ -25,4 +25,10 @@ export function handleOnly(raw: string | null | undefined): string {
 // NEVER yields "@@" — normalizeHandle strips every leading @ before we prepend.
 export function displayHandle(raw: string | null | undefined): string {
   return `@${handleOnly(raw)}`;
+}
+
+/** Initials for a handle-backed surface. Never leaks withheld handles. */
+export function avatarInitialFromHandle(handle: string, displayName?: string): string {
+  const source = (displayName?.trim() || normalizeHandle(handle)).trim();
+  return (source.charAt(0) || "?").toUpperCase();
 }

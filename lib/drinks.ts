@@ -1,5 +1,5 @@
 import { BEERS, normalizeBeer } from "@/lib/beers";
-import { firstHttp } from "@/lib/httpUrl";
+import { namedLegacyPintPriceSource } from "@/lib/legacyPintPriceSource";
 import { isNonAlcoholicDrink } from "@/lib/nonAlcoholicDrinks";
 
 // The all-drinks data model (PRD E1 — "extend, do not fork"). A venue today
@@ -218,30 +218,8 @@ export type LegacyPintPrice = {
   pub_url?: string;
 };
 
-type NamedPriceSource = {
-  label: string;
-  url: string;
-};
-
-function publisherLabelForUrl(sourceUrl: string): string {
-  const hostname = new URL(sourceUrl).hostname.toLocaleLowerCase("en-GB");
-  if (hostname === "pint-prices.com" || hostname.endsWith(".pint-prices.com")) {
-    return "Pint Prices";
-  }
-  return hostname.replace(/^www\./, "");
-}
-
-/** Named publisher carried by the price record itself, or null when absent. */
-export function namedLegacyPintPriceSource(
-  price: LegacyPintPrice,
-): NamedPriceSource | null {
-  const url = firstHttp(price.pub_url);
-  if (!url) return null;
-  return {
-    label: publisherLabelForUrl(url),
-    url,
-  };
-}
+// Compatibility export; publisher parsing lives in its focused pure leaf.
+export { namedLegacyPintPriceSource };
 
 // A pint row → a beer Drink. Rows without a numeric price are skipped (a menu
 // entry must carry a price; an unpriced pint is not a menu item). A valid

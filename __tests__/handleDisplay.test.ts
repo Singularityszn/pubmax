@@ -1,6 +1,22 @@
 import { describe, expect, it } from "vitest";
 
-import { displayHandle, handleOnly } from "@/lib/handleDisplay";
+import {
+  avatarInitialFromHandle,
+  displayHandle,
+  handleOnly,
+} from "@/lib/handleDisplay";
+
+describe("avatarInitialFromHandle", () => {
+  it("uses normalized handle initials and returns ? for empty or invalid handles", () => {
+    expect(avatarInitialFromHandle("@Alice! ")).toBe("A");
+    expect(avatarInitialFromHandle("")).toBe("?");
+    expect(avatarInitialFromHandle(" @!! ")).toBe("?");
+  });
+
+  it("uses trimmed displayName when the real handle must stay withheld", () => {
+    expect(avatarInitialFromHandle("private_handle", "  Anonymous guest ")).toBe("A");
+  });
+});
 
 describe("displayHandle", () => {
   it("prepends a single @ to a bare handle", () => {

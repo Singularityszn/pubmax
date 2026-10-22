@@ -4,6 +4,8 @@ import { cleanNightContext, type NightContext } from "@/lib/nightPlanning";
 import { isPlanStopCount } from "@/lib/planStopCount";
 import { cleanSelectedDrinkPriceEvidence, type SelectedDrinkPriceEvidence } from "@/lib/planSelectedDrinkPriceEvidence";
 
+export { isPlanId } from "@/lib/planId";
+
 export const PLAN_TITLE_MAX = 80;
 export const PLAN_STOP_MAX = 8;
 const PLAN_VENUE_ID_MAX = 80;
@@ -118,11 +120,18 @@ export function canTransitionPlannedNight(from: PlannedNightStatus, to: PlannedN
   return from === to || PLAN_TRANSITIONS[from].includes(to);
 }
 
+type PlanRouteAlternativeDTO = {
+  venueId: string;
+  venueName: string;
+  selectedDrinkPriceEvidence?: SelectedDrinkPriceEvidence;
+};
+
 export type PlanStopDTO = {
   venueId: string;
   venueName: string;
   position: number;
   selectedDrinkPriceEvidence?: SelectedDrinkPriceEvidence;
+  alternatives?: PlanRouteAlternativeDTO[];
 };
 
 export type PlanState = {
@@ -206,15 +215,10 @@ export type CleanPlanInput = {
   title: string;
   startTime: string;
   creatorName: string;
-  stops: Array<{ venueId: string; venueName: string; selectedDrinkPriceEvidence?: SelectedDrinkPriceEvidence }>;
+  stops: Array<{ venueId: string; venueName: string; selectedDrinkPriceEvidence?: SelectedDrinkPriceEvidence;
+    alternatives?: PlanRouteAlternativeDTO[] }>;
   context: NightContext | null;
 };
-
-const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-
-export function isPlanId(value: unknown): value is string {
-  return typeof value === "string" && UUID_RE.test(value);
-}
 
 export function cleanCreatePlan(input: CreatePlanInput): CleanPlanInput | null {
   const creatorName = cleanText(input.creatorName, 40);
@@ -225,21 +229,40 @@ export function cleanCreatePlan(input: CreatePlanInput): CleanPlanInput | null {
   const stops = input.stops.map((raw) => {
     const row = raw && typeof raw === "object" ? raw as Record<string, unknown> : {};
     const selectedDrinkPriceEvidence = cleanSelectedDrinkPriceEvidence(row.selectedDrinkPriceEvidence);
+    const rawAlternatives = row.alternatives;
+    if (rawAlternatives !== undefined && (!Array.isArray(rawAlternatives) || rawAlternatives.length > 24)) return null;
+    const alternatives = (rawAlternatives ?? []).map((rawAlternative: unknown) => {
+      if (!rawAlternative || typeof rawAlternative !== "object" || Array.isArray(rawAlternative)) return null;
+      const alternative = rawAlternative as Record<string, unknown>;
+      const venueId = cleanText(alternative.venueId, PLAN_VENUE_ID_MAX);
+      const venueName = cleanText(alternative.venueName, PLAN_VENUE_NAME_MAX);
+      if (!venueId || !venueName) return null;
+      const price = cleanSelectedDrinkPriceEvidence(alternative.selectedDrinkPriceEvidence);
+      return { venueId, venueName, ...(price ? { selectedDrinkPriceEvidence: price } : {}) };
+    });
+    if (alternatives.some((alternative: PlanRouteAlternativeDTO | null) => alternative === null)) return null;
     return {
       venueId: cleanText(row.venueId, PLAN_VENUE_ID_MAX),
       venueName: cleanText(row.venueName, PLAN_VENUE_NAME_MAX),
       ...(selectedDrinkPriceEvidence ? { selectedDrinkPriceEvidence } : {}),
+      ...(alternatives.length ? { alternatives: alternatives as PlanRouteAlternativeDTO[] } : {}),
     };
   });
-  if (stops.some((stop) => !stop.venueId || !stop.venueName)) return null;
-  if (new Set(stops.map((stop) => stop.venueId)).size !== stops.length) return null;
+  const validStops = stops.filter((stop): stop is NonNullable<typeof stop> => stop !== null);
+  if (validStops.length !== stops.length || validStops.some((stop) => !stop.venueId || !stop.venueName)) return null;
+  if (new Set(validStops.map((stop) => stop.venueId)).size !== validStops.length) return null;
+  const routeIds = new Set(validStops.map((stop) => stop.venueId));
+  if (validStops.some((stop) => {
+    const ids = stop.alternatives?.map((alternative) => alternative.venueId) ?? [];
+    return ids.some((id) => routeIds.has(id)) || new Set(ids).size !== ids.length;
+  })) return null;
   const context = input.context === undefined ? null : cleanNightContext(input.context);
   if (input.context !== undefined && !context) return null;
   return {
     title: cleanText(input.title, PLAN_TITLE_MAX) || "Tonight's Plan",
     startTime: new Date(startMs).toISOString(),
     creatorName,
-    stops,
+    stops: validStops,
     context,
   };
 }

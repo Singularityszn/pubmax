@@ -1,5 +1,5 @@
 import { dropWithdrawnAuthors } from "@/lib/accountPublicAccess.server";
-import { normalizeHandle } from "@/lib/profiles";
+import { normalizeHandle } from "@/lib/handleNormalize";
 import {
   isProfileTombstoned,
   profileStore,
@@ -8,10 +8,9 @@ import {
 
 export type AvatarUrlMap = ReadonlyMap<string, string>;
 
-// avatarInitialFromHandle now lives in lib/profiles.ts so a client avatar can
-// import it without dragging the profile store (and node:crypto) into the
-// browser bundle. Re-exported here for the server callers already using it.
-export { avatarInitialFromHandle } from "@/lib/profiles";
+// Keep the server-facing compatibility export; client avatars import the pure
+// display leaf directly instead of this profile-store module.
+export { avatarInitialFromHandle } from "@/lib/handleDisplay";
 
 /** Only a claimed, live profile may wear an uploaded avatar in public surfaces. */
 export function profileMayWearAvatar(

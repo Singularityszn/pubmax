@@ -5,23 +5,12 @@
 // survive this validator. File mtimes are never evidence of observation time.
 
 import { LONDON_BOROUGH_CLASSIFIER_VERSION } from "@/lib/londonBoroughPoint.mjs";
-import { slugifyVenueName } from "@/lib/venuePermalinkSlug";
+import { boroughCode } from "@/lib/boroughCode";
+import { LONDON_BOROUGH_NAMES } from "@/lib/londonBoroughNames.mjs";
 
-export const LONDON_BOROUGH_NAMES = [
-  "Barking and Dagenham", "Barnet", "Bexley", "Brent", "Bromley", "Camden",
-  "City of London", "Croydon", "Ealing", "Enfield", "Greenwich", "Hackney",
-  "Hammersmith and Fulham", "Haringey", "Harrow", "Havering", "Hillingdon",
-  "Hounslow", "Islington", "Kensington and Chelsea", "Kingston upon Thames",
-  "Lambeth", "Lewisham", "Merton", "Newham", "Redbridge",
-  "Richmond upon Thames", "Southwark", "Sutton", "Tower Hamlets",
-  "Waltham Forest", "Wandsworth", "Westminster",
-] as const;
-
+export { boroughCode } from "@/lib/boroughCode";
+export { LONDON_BOROUGH_NAMES } from "@/lib/londonBoroughNames.mjs";
 export type LondonBoroughName = (typeof LONDON_BOROUGH_NAMES)[number];
-
-export function boroughCode(name: string): string {
-  return slugifyVenueName(name);
-}
 const BOROUGH_BY_CODE = new Map(LONDON_BOROUGH_NAMES.map((name) => [boroughCode(name), name]));
 
 type PintIndexSourceBase = {

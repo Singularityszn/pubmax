@@ -48,8 +48,11 @@ describe("the first-visit card leaves the map usable", () => {
     // It takes NO arguments, because it is handed straight to a React event
     // prop: a `storage` parameter would receive the pointer event, `setItem`
     // would throw on it, and the catch would swallow the dismissal in silence.
-    expect(read("lib/mapFirstVisitArrival.ts")).toContain(
+    expect(read("lib/mapFirstVisitArrivalStore.ts")).toContain(
       "export function dismissMapFirstVisitArrivalOnMapUse(): void {",
+    );
+    expect(read("lib/mapFirstVisitArrival.ts")).toMatch(
+      /export\s*\{[^}]*dismissMapFirstVisitArrivalOnMapUse[^}]*\}\s*from "@\/lib\/mapFirstVisitArrivalStore"/,
     );
   });
 });

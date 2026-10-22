@@ -2,7 +2,7 @@
 // Session-scoped only — never a durable attribution cookie. Cleared once the
 // follow affordance is dismissed or the follow succeeds.
 
-import { normalizeHandle } from "@/lib/profiles";
+import { normalizeHandle } from "@/lib/handleNormalize";
 
 export const REFERRAL_FOLLOW_HANDLE_KEY = "pubmax:referral-follow-handle";
 
