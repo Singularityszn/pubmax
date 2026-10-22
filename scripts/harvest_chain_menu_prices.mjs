@@ -33,9 +33,11 @@ import { writeFileSync, mkdirSync, existsSync } from "node:fs";
 import path from "node:path";
 import process from "node:process";
 
-import { createRobotsChecker, fetchHarvestedPage } from "../lib/harvest/robots.ts";
+import { discardBody } from "../lib/responseBody.ts";
+import { createRobotsChecker } from "../lib/harvest/robots.ts";
 import {
   harvestSourcesOfKind,
+  isHarvestableChainMenuUrl,
   isHarvestSourceAllowed,
 } from "../lib/harvest/sourcePolicy.ts";
 import {
@@ -45,6 +47,7 @@ import {
   readChainPintPrices,
 } from "../lib/harvest/chainMenuPrices.ts";
 import { CITY_VENUE_PACKS } from "../lib/cityVenuePacks.mjs";
+import { fetchSourceBoundPage, permittedSitemapUrls } from "./lib/harvestCallerTransport.mjs";
 
 const ROOT = process.cwd();
 const DRINK_UPDATES = path.join(ROOT, "public/data/drink_price_updates/latest.json");
@@ -81,32 +84,85 @@ async function readChainPintPricesMaybeJudged(html, ctx) {
   return reading;
 }
 
-async function fetchText(url, robots) {
+async function fetchText(url, robots, sourcePredicate) {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), PAGE_TIMEOUT_MS);
+  let response = null;
   try {
-    const result = await fetchHarvestedPage(url, robots, {
-      headers: { accept: "text/html,application/xhtml+xml", "user-agent": USER_AGENT },
-      signal: controller.signal,
+    const result = await fetchSourceBoundPage(url, robots, {
+      sourcePredicate,
+      init: {
+        headers: { accept: "text/html,application/xhtml+xml", "user-agent": USER_AGENT },
+        signal: controller.signal,
+      },
     });
-    if (!result.ok) return { ok: false, status: result.response?.status ?? 0, body: "", error: result.reason };
-    const { response } = result;
-    if (!response.ok) return { ok: false, status: response.status, body: "" };
-    return { ok: true, status: response.status, body: await response.text() };
+    if (!result.ok) {
+      if (result.response) discardBody(result.response);
+      return {
+        ok: false,
+        status: result.response?.status ?? 0,
+        body: "",
+        finalUrl: result.url,
+        error: result.reason,
+      };
+    }
+    response = result.response;
+    if (!response.ok) {
+      discardBody(response);
+      return { ok: false, status: response.status, body: "", finalUrl: result.url };
+    }
+    return { ok: true, status: response.status, body: await response.text(), finalUrl: result.url };
   } catch (error) {
-    return { ok: false, status: 0, body: "", error: String(error) };
+    if (response) discardBody(response);
+    return { ok: false, status: 0, body: "", finalUrl: url, error: String(error) };
   } finally {
     clearTimeout(timer);
   }
 }
 
 /** Menu page URLs a source publishes about itself, from its own sitemap. */
+function sourceUrlPredicate(source) {
+  return (value) => isHarvestableChainMenuUrl(value, source.id, source.renderedMenuHosts ?? []);
+}
+
 async function menuPagesFor(source, spend, robots) {
-  if (!source.url.endsWith(".xml")) return [source.url];
-  if (!spend()) return [];
-  const sitemap = await fetchText(source.url, robots);
-  if (!sitemap.ok) return [];
-  return [...sitemap.body.matchAll(/<loc>([^<]+)<\/loc>/g)].map((match) => match[1].trim());
+  if (!source.url.endsWith(".xml")) return { pages: [source.url] };
+  if (!spend()) {
+    return {
+      pages: [],
+      refusal: {
+        id: source.id,
+        reason: "budget-exhausted",
+        checkedOn: source.access.checkedOn,
+        evidence: "page budget spent before sitemap read",
+      },
+    };
+  }
+  const sitemap = await fetchText(source.url, robots, sourceUrlPredicate(source));
+  if (!sitemap.ok) {
+    return {
+      pages: [],
+      refusal: {
+        id: source.id,
+        reason: "sitemap-fetch-failed",
+        checkedOn: new Date().toISOString().slice(0, 10),
+        evidence: sitemap.error ?? `HTTP ${sitemap.status}`,
+      },
+    };
+  }
+  const pages = permittedSitemapUrls(sitemap.body, sourceUrlPredicate(source));
+  if (pages.length === 0) {
+    return {
+      pages,
+      refusal: {
+        id: source.id,
+        reason: "sitemap-no-permitted-pages",
+        checkedOn: new Date().toISOString().slice(0, 10),
+        evidence: `sitemap landed at ${sitemap.finalUrl} but carried no permitted publisher URLs`,
+      },
+    };
+  }
+  return { pages };
 }
 
 function cityOfUrl(url) {
@@ -148,7 +204,9 @@ async function main() {
 
   for (const source of allowed) {
     const delayMs = (source.crawlDelaySeconds ?? 1) * 1000;
-    const pages = await menuPagesFor(source, spend, robots);
+    const plan = await menuPagesFor(source, spend, robots);
+    if (plan.refusal) skipped.push(plan.refusal);
+    const pages = plan.pages;
     for (const url of pages) {
       if (!spend()) {
         skipped.push({ id: source.id, reason: "budget-exhausted", checkedOn: source.access.checkedOn, evidence: `page budget of ${PAGE_BUDGET} spent` });
@@ -161,8 +219,18 @@ async function main() {
         break;
       }
       await sleep(delayMs);
-      const page = await fetchText(url, robots);
-      const city = cityOfUrl(url);
+      const page = await fetchText(url, robots, sourceUrlPredicate(source));
+      const pageUrl = page.finalUrl ?? url;
+      if (!isHarvestableChainMenuUrl(pageUrl, source.id, source.renderedMenuHosts ?? [])) {
+        skipped.push({
+          id: source.id,
+          reason: "redirect-outside-publisher",
+          checkedOn: new Date().toISOString().slice(0, 10),
+          evidence: `${url} landed at ${pageUrl}, outside the recorded publisher hosts`,
+        });
+        continue;
+      }
+      const city = cityOfUrl(pageUrl);
       const row = coverage.get(city) ?? { city, pagesRead: 0, venuesPriced: 0, pagesWithNoPrice: 0 };
       if (!page.ok) {
         row.pagesRead += 1;
@@ -172,7 +240,7 @@ async function main() {
       }
       const reading = await readChainPintPricesMaybeJudged(page.body, {
         pubName: source.label,
-        pageUrl: url,
+        pageUrl,
       });
       drops.push(...reading.drops);
       row.pagesRead += 1;
@@ -181,7 +249,7 @@ async function main() {
       else {
         row.venuesPriced += 1;
         rows.push({
-          url,
+          url: pageUrl,
           priceGbp: cheapest.priceGbp,
           ...(cheapest.drinkLabel ? { drinkLabel: cheapest.drinkLabel } : {}),
           sourceId: source.id,

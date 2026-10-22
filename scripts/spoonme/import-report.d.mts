@@ -2,10 +2,17 @@
 // false, and __tests__/spoonsValueImport.test.ts holds the basket and rank
 // rules the importer applies, so it has to be able to import them.
 
+import type { RobotsChecker } from "../../lib/harvest/robots";
+
 export const SPOONME_REPORT_URL: string;
 export const SPOONME_AUTHOR: string;
 export const SPOONME_PUBLISHED_AT: string;
 export const SPOONME_TITLE: string;
+
+export function fetchReport(
+  robots: RobotsChecker,
+  fetchImpl?: typeof fetch,
+): Promise<{ html: string; finalUrl: string }>;
 
 /** The longest a text field on an imported row may be. */
 export const MAX_ROW_TEXT: number;

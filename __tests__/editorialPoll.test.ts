@@ -98,6 +98,39 @@ describe("editorial poller: one request per feed per tick", () => {
     expect(snapshot.state.deserter?.lastFetchedAt).toBeUndefined();
   });
 
+  it("uses the injected fetch implementation for its default robots checker", async () => {
+    const calls: string[] = [];
+    const liveFetch = vi.fn(async () => {
+      throw new Error("live fetch must not be used by a fixture");
+    });
+    vi.stubGlobal("fetch", liveFetch);
+    try {
+      const snapshot = await pollEditorialFeeds({
+        now: NOW,
+        feeds: ONE_FEED,
+        previous: { version: 1, generatedAt: "2026-08-15T12:00:00.000Z", status: "ready", items: [] },
+        fetchImpl: (async (input) => {
+          const url = String(input);
+          calls.push(url);
+          if (url.endsWith("/robots.txt")) {
+            return new Response("User-agent: *\\nAllow: /\\n", { status: 200 });
+          }
+          return new Response(rssItem("Fixture feed", "https://deserter.co.uk/fixture"), { status: 200 });
+        }) as typeof fetch,
+      });
+
+      expect(snapshot.status).toBe("ready");
+      expect(snapshot.items).toHaveLength(1);
+      expect(calls).toEqual([
+        "https://deserter.co.uk/robots.txt",
+        "https://deserter.co.uk/feed/",
+      ]);
+      expect(liveFetch).not.toHaveBeenCalled();
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
   it("sends the named UA and If-Modified-Since, and never stores a body", async () => {
     const calls: Array<{ url: string; headers: Headers }> = [];
     const snapshot = await pollEditorialFeeds({

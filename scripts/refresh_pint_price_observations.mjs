@@ -47,7 +47,10 @@ import { readFile, writeFile } from "node:fs/promises";
 import path, { dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { createRobotsChecker, fetchHarvestedPage } from "../lib/harvest/robots.ts";
+import { discardBody } from "../lib/responseBody.ts";
+import { createRobotsChecker } from "../lib/harvest/robots.ts";
+import { isHarvestableOperatorUrl } from "../lib/harvest/sourcePolicy.ts";
+import { fetchSourceBoundPage, permittedSitemapUrls } from "./lib/harvestCallerTransport.mjs";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, "..");
@@ -77,6 +80,30 @@ const REQUEST_DELAY_MS = 100;
 const MIN_OBSERVATION_FLOOR = 2000;
 const MIN_COVERAGE_RATIO = 0.85;
 
+function isPintPricesPageUrl(value) {
+  if (!isHarvestableOperatorUrl(value)) return false;
+  try {
+    const url = new URL(value);
+    return (
+      url.origin === BASE_URL &&
+      (url.pathname.startsWith("/borough-results/") || url.pathname.startsWith("/pub/"))
+    );
+  } catch {
+    return false;
+  }
+}
+
+function isPintPricesSourceUrl(value) {
+  if (!isHarvestableOperatorUrl(value)) return false;
+  try {
+    const url = new URL(value);
+    return url.origin === BASE_URL &&
+      (url.pathname === "/static/sitemap.xml" || isPintPricesPageUrl(url.href));
+  } catch {
+    return false;
+  }
+}
+
 function normaliseKey(...parts) {
   return parts.map((part) => String(part ?? "").toLowerCase().replace(/[^a-z0-9]+/g, "")).join("::");
 }
@@ -98,16 +125,31 @@ function priceText(value) {
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 async function fetchText(url, robots) {
-  const result = await fetchHarvestedPage(url, robots, { headers: { "user-agent": USER_AGENT } });
-  if (!result.ok) throw new Error(`${url} refused by outbound page fence (${result.reason})`);
-  const { response } = result;
-  if (!response.ok) throw new Error(`${url} answered ${response.status}`);
-  return response.text();
+  let response = null;
+  try {
+    const result = await fetchSourceBoundPage(url, robots, {
+      sourcePredicate: isPintPricesSourceUrl,
+      init: { headers: { "user-agent": USER_AGENT } },
+    });
+    if (!result.ok) {
+      if (result.response) discardBody(result.response);
+      throw new Error(`${url} refused by outbound page fence (${result.reason})`);
+    }
+    response = result.response;
+    if (!response.ok) {
+      discardBody(response);
+      throw new Error(`${url} answered ${response.status}`);
+    }
+    return { body: await response.text(), finalUrl: result.url };
+  } catch (error) {
+    if (response) discardBody(response);
+    throw error;
+  }
 }
 
 async function readSitemapUrls(robots) {
-  const xml = await fetchText(SITEMAP_URL, robots);
-  const locs = [...xml.matchAll(/<loc>([^<]+)<\/loc>/g)].map((m) => m[1]);
+  const sitemap = await fetchText(SITEMAP_URL, robots);
+  const locs = permittedSitemapUrls(sitemap.body, isPintPricesPageUrl);
   return {
     boroughs: [...new Set(locs.filter((u) => u.includes("/borough-results/")))].sort(),
     pubs: [...new Set(locs.filter((u) => u.includes("/pub/")))].sort(),
@@ -215,13 +257,21 @@ async function collect() {
   let boroughPagesWithData = 0;
 
   for (const url of boroughs) {
-    const rows = readBoroughObservations(await fetchText(url, robots), observations);
+    const page = await fetchText(url, robots);
+    if (!isPintPricesPageUrl(page.finalUrl)) {
+      throw new Error(`${url} redirected outside pint-prices page paths (${page.finalUrl})`);
+    }
+    const rows = readBoroughObservations(page.body, observations);
     if (rows > 0) boroughPagesWithData += 1;
     await sleep(REQUEST_DELAY_MS);
   }
   let pubPagesWithData = 0;
   for (const url of pubs) {
-    const rows = readPubPageObservations(await fetchText(url, robots), observations);
+    const page = await fetchText(url, robots);
+    if (!isPintPricesPageUrl(page.finalUrl)) {
+      throw new Error(`${url} redirected outside pint-prices page paths (${page.finalUrl})`);
+    }
+    const rows = readPubPageObservations(page.body, observations);
     if (rows > 0) pubPagesWithData += 1;
     await sleep(REQUEST_DELAY_MS);
   }

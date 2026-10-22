@@ -45,7 +45,7 @@
 //   - A refreshed price is "sourced" (attributed), never community.
 //   - Never present stale as live — observedAt is required and validated.
 //
-// Run:  node scripts/refresh_drink_prices.mjs [--open-pr]
+// Run:  node --import tsx scripts/refresh_drink_prices.mjs [--open-pr]
 //   --open-pr   also open a GitHub PR with the new file (needs `gh` auth).
 
 import { readFileSync, writeFileSync, mkdirSync } from "node:fs";
@@ -54,7 +54,10 @@ import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 
 import { CONTACT_EMAIL } from "../lib/siteContact.mjs";
-import { createRobotsChecker, fetchHarvestedPage, HarvestOutboundRefusal } from "../lib/harvest/robots.ts";
+import { discardBody } from "../lib/responseBody.ts";
+import { createRobotsChecker, HarvestOutboundRefusal } from "../lib/harvest/robots.ts";
+import { isHarvestableDrinkUpdateUrl } from "../lib/harvest/sourcePolicy.ts";
+import { fetchSourceBoundPage, permittedSitemapUrls } from "./lib/harvestCallerTransport.mjs";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(__dirname, "..");
@@ -150,6 +153,27 @@ const CRAWL_DELAY_MS = 10_000;
 const REQUEST_BUDGET = 300; // hard ceiling of network requests per run
 const MAX_RETRIES = 4;
 
+function isWetherspoonsMenuUrl(value) {
+  if (!isHarvestableDrinkUpdateUrl(value)) return false;
+  try {
+    const url = new URL(value);
+    return url.origin === WETHERSPOONS_HOST && /^\/pub-menus\/[^/]+\/?$/.test(url.pathname);
+  } catch {
+    return false;
+  }
+}
+
+function isWetherspoonsSourceUrl(value) {
+  if (!isHarvestableDrinkUpdateUrl(value)) return false;
+  try {
+    const url = new URL(value);
+    return url.origin === WETHERSPOONS_HOST &&
+      (url.pathname === "/pub-menus-sitemap.xml" || isWetherspoonsMenuUrl(url.href));
+  } catch {
+    return false;
+  }
+}
+
 // London bounds (approx Greater London bbox) for the London-only filter, applied
 // via matched dataset rows' lat/lng.
 const LONDON_BOUNDS = { minLat: 51.28, maxLat: 51.70, minLng: -0.52, maxLng: 0.34 };
@@ -174,36 +198,47 @@ async function politeGet(url, ctx, robots) {
     ctx.requests += 1;
     let res;
     try {
-      const result = await fetchHarvestedPage(url, robots, {
-        headers: { "User-Agent": UA, Accept: "text/html,application/xml,application/json" },
-      }, { urlPolicy: "drink-update" });
-      if (!result.ok) throw new HarvestOutboundRefusal(`Outbound page fence refused ${url} (${result.reason}).`);
+      const result = await fetchSourceBoundPage(url, robots, {
+        sourcePredicate: isWetherspoonsSourceUrl,
+        init: {
+          headers: { "User-Agent": UA, Accept: "text/html,application/xml,application/json" },
+        },
+        urlPolicy: "drink-update",
+      });
+      if (!result.ok) {
+        if (result.response) discardBody(result.response);
+        throw new HarvestOutboundRefusal(`Outbound page fence refused ${url} (${result.reason}).`);
+      }
       res = result.response;
+      const finalUrl = result.url;
+      if (res.status === 429 || res.status >= 500) {
+        discardBody(res);
+        if (attempt >= MAX_RETRIES) {
+          throw new Error(`GET ${url} failed with ${res.status} after ${attempt} retries.`);
+        }
+        await sleep(2 ** attempt * 1000);
+        attempt += 1;
+        continue;
+      }
+      if (!res.ok) {
+        // 4xx (not 429): a hard, non-retryable answer. Record + skip this URL.
+        discardBody(res);
+        const answer = { body: "", finalUrl };
+        ctx.cache.set(url, answer);
+        console.warn(`  GET ${url} -> ${res.status} (skipped)`);
+        return answer;
+      }
+      const answer = { body: await res.text(), finalUrl };
+      ctx.cache.set(url, answer);
+      return answer;
     } catch (err) {
+      if (res) discardBody(res);
       if (err instanceof HarvestOutboundRefusal) throw err;
       if (attempt >= MAX_RETRIES) throw err;
       await sleep(2 ** attempt * 1000);
       attempt += 1;
       continue;
     }
-    if (res.status === 429 || res.status >= 500) {
-      if (attempt >= MAX_RETRIES) {
-        throw new Error(`GET ${url} failed with ${res.status} after ${attempt} retries.`);
-      }
-      await sleep(2 ** attempt * 1000);
-      attempt += 1;
-      continue;
-    }
-    if (!res.ok) {
-      // 4xx (not 429): a hard, non-retryable answer. Record + skip this URL.
-      const text = "";
-      ctx.cache.set(url, text);
-      console.warn(`  GET ${url} -> ${res.status} (skipped)`);
-      return text;
-    }
-    const text = await res.text();
-    ctx.cache.set(url, text);
-    return text;
   }
 }
 
@@ -419,7 +454,7 @@ async function fetchWetherspoons(source, options) {
 
   // 2) Sitemap -> candidate pub-menu URLs.
   const sitemapXml = await politeGet(SITEMAP_URL, ctx, robots);
-  const allUrls = [...sitemapXml.matchAll(/<loc>([^<]+)<\/loc>/g)].map((m) => m[1]);
+  const allUrls = permittedSitemapUrls(sitemapXml.body, isWetherspoonsMenuUrl);
   console.log(`  sitemap: ${allUrls.length} pub-menu URLs.`);
 
   // 3) Build dataset + resolve which pub URLs plausibly map to a LONDON venue in
@@ -443,8 +478,13 @@ async function fetchWetherspoons(source, options) {
   const rows = [];
   let priced = 0;
   for (const cand of candidates) {
-    const html = await politeGet(cand.url, ctx, robots);
-    if (!html) continue;
+    const page = await politeGet(cand.url, ctx, robots);
+    if (!page.body) continue;
+    if (!isWetherspoonsMenuUrl(page.finalUrl)) {
+      console.warn(`  GET ${cand.url} landed outside Wetherspoons menu paths; skipped`);
+      continue;
+    }
+    const html = page.body;
     if (scratchCacheDir) {
       try {
         writeFileSync(join(scratchCacheDir, `${slugFromMenuUrl(cand.url)}.html`), html, "utf8");
@@ -452,7 +492,7 @@ async function fetchWetherspoons(source, options) {
         /* scratch cache best-effort */
       }
     }
-    const identity = parsePubMenuPage(html, cand.url);
+    const identity = parsePubMenuPage(html, page.finalUrl);
     if (!identity) continue;
     // Re-match on the parsed (authoritative) identity, London-gated.
     const match = matchVenue(identity, londonDataset);
@@ -468,7 +508,7 @@ async function fetchWetherspoons(source, options) {
         category,
         priceGbp: item.priceGbp,
         servingSize: item.servingSize,
-        source: { label: source.label, url: identity.pageUrl, licence: source.licence },
+        source: { label: source.label, url: page.finalUrl, licence: source.licence },
         observedAt,
       });
     }

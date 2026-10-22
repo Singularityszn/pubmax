@@ -11,6 +11,7 @@ import {
   checkRowArithmetic,
   checkRowText,
   extractReportData,
+  fetchReport,
   isCreditUrl,
   rankByUnits,
 } from "@/scripts/spoonme/import-report.mjs";
@@ -160,6 +161,20 @@ describe("the credit the pack is required to carry", () => {
     );
     expect(source).toContain(SPOONME_REPORT_URL);
     expect(source).toMatch(/unofficial analysis, no licence stated, credited and linked/i);
+  });
+
+  it("returns the permitted final URL after a report redirect", async () => {
+    const landed = "https://spoonme.vercel.app/report/current";
+    const robots = async () => ({ allowed: true, reason: "allowed", evidence: "fixture" });
+    const fetched = await fetchReport(robots, async (input) => {
+      const url = String(input);
+      if (url === SPOONME_REPORT_URL) {
+        return new Response("", { status: 302, headers: { location: landed } });
+      }
+      return new Response("fixture report", { status: 200 });
+    });
+    expect(fetched.finalUrl).toBe(landed);
+    expect(fetched.html).toBe("fixture report");
   });
 });
 

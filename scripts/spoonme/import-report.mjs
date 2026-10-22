@@ -36,6 +36,7 @@ import { fileURLToPath } from "node:url";
 
 import { haversineMeters } from "../lib/geo.mjs";
 import { CONTACT_EMAIL } from "../../lib/siteContact.mjs";
+import { discardBody } from "../../lib/responseBody.ts";
 import { createRobotsChecker, fetchHarvestedPage } from "../../lib/harvest/robots.ts";
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..", "..");
@@ -75,14 +76,25 @@ const OUT_MAP = join(ROOT, "public", "data", "spoonme", "map.json");
 // Fetch + extract
 // ---------------------------------------------------------------------------
 
-async function fetchReport(robots) {
+export async function fetchReport(robots, fetchImpl) {
   const result = await fetchHarvestedPage(SPOONME_REPORT_URL, robots, {
     headers: { "User-Agent": USER_AGENT, Accept: "text/html" },
-  });
-  if (!result.ok) throw new Error(`Outbound page fence refused report URL (${result.reason})`);
+  }, fetchImpl ? { fetchImpl } : undefined);
+  if (!result.ok) {
+    if (result.response) discardBody(result.response);
+    throw new Error(`Outbound page fence refused report URL (${result.reason})`);
+  }
   const { response: res } = result;
-  if (!res.ok) throw new Error(`SpoonMe report answered ${res.status}`);
-  return await res.text();
+  if (!res.ok) {
+    discardBody(res);
+    throw new Error(`SpoonMe report answered ${res.status}`);
+  }
+  try {
+    return { html: await res.text(), finalUrl: result.url };
+  } catch (error) {
+    discardBody(res);
+    throw error;
+  }
 }
 
 /**
@@ -262,7 +274,14 @@ export function rankByUnits(rows) {
 // Build
 // ---------------------------------------------------------------------------
 
-function buildPack(report, directory, basePubs, retrievedAt, sourceSha256) {
+function buildPack(
+  report,
+  directory,
+  basePubs,
+  retrievedAt,
+  sourceSha256,
+  sourceUrl = SPOONME_REPORT_URL,
+) {
   const budgetPence = report.budgetPence;
   if (!Number.isInteger(budgetPence) || budgetPence <= 0) {
     throw new Error("The report states no budget");
@@ -396,7 +415,7 @@ function buildPack(report, directory, basePubs, retrievedAt, sourceSha256) {
       title: SPOONME_TITLE,
       author: SPOONME_AUTHOR,
       publisher: "SpoonMe",
-      sourceUrl: SPOONME_REPORT_URL,
+      sourceUrl,
       publishedAt: SPOONME_PUBLISHED_AT,
       retrievedAt,
       sourceSha256,
@@ -441,6 +460,7 @@ async function main() {
 
   let html;
   let retrievedAt;
+  let sourceUrl = SPOONME_REPORT_URL;
   if (fromFileAt >= 0) {
     html = readFileSync(args[fromFileAt + 1], "utf8");
     const stated = retrievedAtAt >= 0 ? args[retrievedAtAt + 1] : null;
@@ -449,7 +469,9 @@ async function main() {
     }
     retrievedAt = new Date(stated).toISOString();
   } else {
-    html = await fetchReport(createRobotsChecker());
+    const fetched = await fetchReport(createRobotsChecker());
+    html = fetched.html;
+    sourceUrl = fetched.finalUrl;
     retrievedAt = new Date().toISOString();
   }
   const sourceSha256 = createHash("sha256").update(html).digest("hex");
@@ -476,7 +498,7 @@ async function main() {
     }
   }
 
-  const pack = buildPack(report, directory, basePubs, retrievedAt, sourceSha256);
+  const pack = buildPack(report, directory, basePubs, retrievedAt, sourceSha256, sourceUrl);
   if (!isCreditUrl(pack.provenance.sourceUrl)) {
     throw new Error(
       `The credit needs an https source URL, and this one is ${JSON.stringify(pack.provenance.sourceUrl)}. Nothing was written.`,

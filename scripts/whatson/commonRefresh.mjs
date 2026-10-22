@@ -280,20 +280,28 @@ function sleep(ms) {
 
 /** @typedef {(url: string) => Promise<{ allowed: boolean, reason: string, evidence: string }>} OutboundRobotsCheck */
 
-async function fetchText(url, robots, fetchImpl, fetchHarvestedPage) {
+async function fetchText(url, robots, fetchImpl, fetchHarvestedPage, discardBody) {
   const result = await fetchHarvestedPage(url, robots, {
     headers: {
       accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
       "user-agent": COMMON_USER_AGENT,
     },
   }, fetchImpl ? { fetchImpl } : undefined);
-  if (!result.ok) throw new Error(`Common fetch ${url} refused: ${result.reason}`);
+  if (!result.ok) {
+    if (result.response) discardBody(result.response);
+    throw new Error(`Common fetch ${url} refused: ${result.reason}`);
+  }
   const res = result.response;
   if (!res.ok) {
-    await res.arrayBuffer();
+    discardBody(res);
     throw new Error(`Common fetch ${url} returned ${res.status}`);
   }
-  return res.text();
+  try {
+    return { text: await res.text(), finalUrl: result.url };
+  } catch (error) {
+    discardBody(res);
+    throw error;
+  }
 }
 
 function robotsForRefresh(robots, fetchImpl, createRobotsChecker) {
@@ -315,6 +323,7 @@ export async function refreshCommonEvents({
   // Keep module import provider- and TypeScript-loader-independent. The lane's
   // scheduler enables tsx only when this network-backed function runs.
   const { createRobotsChecker, fetchHarvestedPage } = await import("../../lib/harvest/robots.ts");
+  const { discardBody } = await import("../../lib/responseBody.ts");
   const pageRobots = robotsForRefresh(robots, fetchImpl, createRobotsChecker);
   const observedAt = new Date(nowMs).toISOString();
   const todayLondon = londonToday(nowMs);
@@ -350,8 +359,8 @@ export async function refreshCommonEvents({
     heldByUrl.set(row.source.url, row);
   }
 
-  const sitemap = await fetchText(COMMON_SITEMAP_URL, pageRobots, fetchImpl, fetchHarvestedPage);
-  const entries = parseCommonSitemapEntries(sitemap);
+  const sitemap = await fetchText(COMMON_SITEMAP_URL, pageRobots, fetchImpl, fetchHarvestedPage, discardBody);
+  const entries = parseCommonSitemapEntries(sitemap.text);
   const publishedByUrl = new Map();
   for (const entry of entries) {
     if (typeof entry.lastmod === "number") publishedByUrl.set(entry.url, londonToday(entry.lastmod));
@@ -379,14 +388,14 @@ export async function refreshCommonEvents({
     if (fetched > 0 && gapMs > 0) await sleep(gapMs);
     fetched += 1;
     try {
-      const html = await fetchText(url, pageRobots, fetchImpl, fetchHarvestedPage);
-      const parsed = parseCommonPostHtml(html);
+      const page = await fetchText(url, pageRobots, fetchImpl, fetchHarvestedPage, discardBody);
+      const parsed = parseCommonPostHtml(page.text);
       if (!parsed) {
         droppedUnparseable += 1;
         continue;
       }
       const row = toCommonEventRow({
-        url,
+        url: page.finalUrl,
         parsed,
         observedAt,
         todayLondon,

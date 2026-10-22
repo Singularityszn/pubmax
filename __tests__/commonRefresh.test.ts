@@ -199,6 +199,35 @@ describe("refreshCommonEvents", () => {
     rmSync(dir, { recursive: true, force: true });
   });
 
+  it("credits the final URL after a permitted post redirect", async () => {
+    const dir = mkdtempSync(join(tmpdir(), "common-refresh-"));
+    const outPath = join(dir, "events_london.json");
+    const requested = "https://www.common-social.com/post/redirected";
+    const landed = "https://www.common-social.com/post/current";
+    const fetchImpl = (async (target: string | URL) => {
+      const href = String(target);
+      if (href === COMMON_SITEMAP_URL) {
+        return new Response(`<urlset><url><loc>${requested}</loc></url></urlset>`, { status: 200 });
+      }
+      if (href === requested) {
+        return new Response("", { status: 302, headers: { location: landed } });
+      }
+      return new Response(post(href), { status: 200 });
+    }) as unknown as typeof fetch;
+
+    const report = await refreshCommonEvents({
+      nowMs: NOW_MS,
+      fetchImpl,
+      robots: allowRobots,
+      outPath,
+      gapMs: 0,
+    });
+
+    expect(report.rows).toHaveLength(1);
+    expect(report.rows[0]?.source.url).toBe(landed);
+    rmSync(dir, { recursive: true, force: true });
+  });
+
   it("drops a historical post rather than writing it out as next year's night", async () => {
     const dir = mkdtempSync(join(tmpdir(), "common-refresh-"));
     const outPath = join(dir, "events_london.json");

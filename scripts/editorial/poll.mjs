@@ -60,9 +60,10 @@ export async function pollEditorialFeeds({
   previous = emptySnapshot(),
   state = {},
   fetchImpl,
-  robots = createRobotsChecker(),
+  robots: suppliedRobots,
   force = false,
 } = {}) {
+  const robots = suppliedRobots ?? createRobotsChecker(fetchImpl ? { fetchImpl } : undefined);
   const nextState = { ...(state ?? {}) };
   let items = [...(previous?.items ?? [])];
   let anyDegraded = previous?.status === "degraded";

@@ -28,6 +28,7 @@ import { dirname, join, resolve } from "node:path";
 import process from "node:process";
 import { fileURLToPath } from "node:url";
 
+import { discardBody } from "../lib/responseBody.ts";
 import { createRobotsChecker, fetchHarvestedPage } from "../lib/harvest/robots.ts";
 import {
   harvestSource,
@@ -138,13 +139,20 @@ function createReader(source) {
         headers: { accept: "application/json", "user-agent": USER_AGENT },
         signal: controller.signal,
       });
-      if (!result.ok) throw new Error(`${url} was refused by outbound page fence (${result.reason})`);
+      if (!result.ok) {
+        if (result.response) discardBody(result.response);
+        throw new Error(`${url} was refused by outbound page fence (${result.reason})`);
+      }
       const { response } = result;
-      if (!response.ok) throw new Error(`${url} answered HTTP ${response.status}`);
+      if (!response.ok) {
+        discardBody(response);
+        throw new Error(`${url} answered HTTP ${response.status}`);
+      }
       return {
         items: await response.json(),
         total: Number(response.headers.get("x-wp-total")),
         totalPages: Number(response.headers.get("x-wp-totalpages")),
+        finalUrl: result.url,
       };
     } finally {
       clearTimeout(timer);
@@ -154,11 +162,13 @@ function createReader(source) {
 
 async function readCollection(read, collection) {
   const byId = new Map();
+  const finalUrls = [];
   let total = Number.NaN;
   for (let page = 1; page <= MAX_PAGES; page += 1) {
     const url = wetherspoonDirectoryEndpoint(collection, page);
     const answer = await read(url);
     if (!Array.isArray(answer.items)) throw new Error(`${url} did not answer a JSON array`);
+    if (typeof answer.finalUrl === "string") finalUrls.push(answer.finalUrl);
     for (const item of answer.items) byId.set(item.id, item);
     total = answer.total;
     console.log(`  ${collection} page ${page}/${answer.totalPages}: ${answer.items.length} (running ${byId.size})`);
@@ -169,7 +179,7 @@ async function readCollection(read, collection) {
   if (Number.isFinite(total) && byId.size !== total) {
     throw new Error(`${collection}: read ${byId.size} items but the endpoint states x-wp-total ${total}`);
   }
-  return [...byId.values()];
+  return { items: [...byId.values()], finalUrls };
 }
 
 function normalize(pubs, source, facById, regionById, statusById) {
@@ -213,7 +223,7 @@ function normalize(pubs, source, facById, regionById, statusById) {
         menuPricesAvailableOnWeb: false,
         source: {
           label: source.label,
-          url: p.link || "https://www.jdwetherspoon.com/",
+          url: p.link || source.url,
           licence: "first-party public website / REST API",
         },
       };
@@ -254,10 +264,14 @@ async function main() {
   const read = createReader(source);
 
   console.log(`Reading ${source.label} (${source.url}), ${source.crawlDelaySeconds ?? 1}s between requests`);
-  const pubs = await readCollection(read, "pubs");
-  const facilities = await readCollection(read, "facilities");
-  const regions = await readCollection(read, "region");
-  const statuses = await readCollection(read, "pub-status");
+  const pubsRead = await readCollection(read, "pubs");
+  const facilitiesRead = await readCollection(read, "facilities");
+  const regionsRead = await readCollection(read, "region");
+  const statusesRead = await readCollection(read, "pub-status");
+  const pubs = pubsRead.items;
+  const facilities = facilitiesRead.items;
+  const regions = regionsRead.items;
+  const statuses = statusesRead.items;
 
   const floor = Math.floor(committedCount() * MIN_SHARE_OF_COMMITTED);
   if (pubs.length < floor) {
@@ -267,17 +281,19 @@ async function main() {
   const facById = taxonomy(facilities);
   const regionById = taxonomy(regions);
   const statusById = taxonomy(statuses);
-  const slim = normalize(pubs, source, facById, regionById, statusById);
+  const observedSourceUrl = pubsRead.finalUrls[0] ?? source.url;
+  const observedSource = { ...source, url: observedSourceUrl };
+  const slim = normalize(pubs, observedSource, facById, regionById, statusById);
 
   const observedAt = new Date().toISOString();
   // Provenance invariant: every pub carries {source, observedAt}. This is
   // scraped/observed directory data, never presented as community data.
   for (const pub of slim) pub.observedAt = observedAt;
-  const provenance = { source: source.url, observedAt, kind: "scraped-directory" };
+  const provenance = { source: observedSourceUrl, observedAt, kind: "scraped-directory" };
 
   const payload = {
     generatedAt: observedAt,
-    source: source.url,
+    source: observedSourceUrl,
     discoveredVia: `First-party WP REST read under lib/harvest/sourcePolicy.ts \`${source.id}\``,
     count: slim.length,
     notes: [

@@ -45,6 +45,7 @@ import {
 } from "./quizParsers.mjs";
 import { loadCanonicalVenueIndex } from "./resolveVenueId.mjs";
 import { CONTACT_EMAIL } from "../../lib/siteContact.mjs";
+import { discardBody } from "../../lib/responseBody.ts";
 import { createRobotsChecker, fetchHarvestedPage } from "../../lib/harvest/robots.ts";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..", "..");
@@ -61,12 +62,24 @@ const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 async function politeFetch(url, robots) {
   const result = await fetchHarvestedPage(url, robots, { headers: { "user-agent": USER_AGENT } });
-  if (!result.ok) throw new Error(`Outbound page fence refused ${url} (${result.reason})`);
+  if (!result.ok) {
+    if (result.response) discardBody(result.response);
+    throw new Error(`Outbound page fence refused ${url} (${result.reason})`);
+  }
   const { response: res } = result;
-  if (!res.ok) throw new Error(`GET ${url} -> ${res.status}`);
-  const text = await res.text();
+  if (!res.ok) {
+    discardBody(res);
+    throw new Error(`GET ${url} -> ${res.status}`);
+  }
+  let text;
+  try {
+    text = await res.text();
+  } catch (error) {
+    discardBody(res);
+    throw error;
+  }
   await sleep(FETCH_DELAY_MS);
-  return text;
+  return { text, finalUrl: result.url };
 }
 
 async function loadQuestionOne(fromDir, robots) {
@@ -78,9 +91,9 @@ async function loadQuestionOne(fromDir, robots) {
     let url = QO_VENUES_URL;
     for (let i = 0; url && i < MAX_ARCHIVE_PAGES; i += 1) {
       console.log(`fetch ${url}`);
-      const html = await politeFetch(url, robots);
-      pages.push(html);
-      url = parseQuestionOneNextPage(html);
+      const page = await politeFetch(url, robots);
+      pages.push(page.text);
+      url = parseQuestionOneNextPage(page.text);
     }
   }
 
@@ -95,6 +108,7 @@ async function loadQuestionOne(fromDir, robots) {
   }
 
   const detailsByUrl = new Map();
+  const detailFinalUrls = new Map();
   for (const card of cards) {
     const slug = card.url.split("/").filter(Boolean).pop();
     if (fromDir) {
@@ -104,13 +118,19 @@ async function loadQuestionOne(fromDir, robots) {
     } else {
       console.log(`fetch ${card.url}`);
       try {
-        detailsByUrl.set(card.url, parseQuestionOneVenueDetail(await politeFetch(card.url, robots)));
+        const page = await politeFetch(card.url, robots);
+        detailsByUrl.set(card.url, parseQuestionOneVenueDetail(page.text));
+        detailFinalUrls.set(card.url, page.finalUrl);
       } catch (err) {
         console.warn(`  detail fetch failed (${err.message}); card-only data used`);
       }
     }
   }
-  return { cards, detailsByUrl };
+  const finalCards = cards.map((card) => ({ ...card, url: detailFinalUrls.get(card.url) ?? card.url }));
+  const finalDetailsByUrl = new Map(
+    [...detailsByUrl.entries()].map(([url, detail]) => [detailFinalUrls.get(url) ?? url, detail]),
+  );
+  return { cards: finalCards, detailsByUrl: finalDetailsByUrl };
 }
 
 async function loadSpeedQuizzingCoverage(fromDir, robots) {
@@ -121,7 +141,7 @@ async function loadSpeedQuizzingCoverage(fromDir, robots) {
     html = readFileSync(p, "utf8");
   } else {
     console.log(`fetch ${SQ_FIND_URL}`);
-    html = await politeFetch(SQ_FIND_URL, robots);
+    html = (await politeFetch(SQ_FIND_URL, robots)).text;
   }
   const events = parseSpeedQuizzingFindEvents(html);
   return {

@@ -40,6 +40,7 @@ import {
   buildSportAttributeRows,
 } from "./greeneKingSportParser.mjs";
 import { CONTACT_EMAIL } from "../../lib/siteContact.mjs";
+import { discardBody } from "../../lib/responseBody.ts";
 import { createRobotsChecker, fetchHarvestedPage } from "../../lib/harvest/robots.ts";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..", "..");
@@ -57,12 +58,24 @@ const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 async function politeFetch(url, robots) {
   const result = await fetchHarvestedPage(url, robots, { headers: { "user-agent": USER_AGENT } });
-  if (!result.ok) throw new Error(`Outbound page fence refused ${url} (${result.reason})`);
+  if (!result.ok) {
+    if (result.response) discardBody(result.response);
+    throw new Error(`Outbound page fence refused ${url} (${result.reason})`);
+  }
   const { response: res } = result;
-  if (!res.ok) throw new Error(`GET ${url} -> ${res.status}`);
-  const text = await res.text();
+  if (!res.ok) {
+    discardBody(res);
+    throw new Error(`GET ${url} -> ${res.status}`);
+  }
+  let text;
+  try {
+    text = await res.text();
+  } catch (error) {
+    discardBody(res);
+    throw error;
+  }
   await sleep(FETCH_DELAY_MS);
-  return text;
+  return { text, finalUrl: result.url };
 }
 
 // Load the venue identities we already hold (name+address+lat+lng+menuUrl).
@@ -85,13 +98,15 @@ async function resolveSportFlag(record, fromDir, robots) {
   } else {
     console.log(`fetch ${url}`);
     try {
-      html = await politeFetch(url, robots);
+      const page = await politeFetch(url, robots);
+      html = page.text;
+      return { showsSport: parseGreeneKingSportsFlag(html), finalUrl: page.finalUrl };
     } catch (err) {
       console.warn(`  fetch failed (${err.message}); flag undetermined`);
       return null;
     }
   }
-  return parseGreeneKingSportsFlag(html);
+  return { showsSport: parseGreeneKingSportsFlag(html), finalUrl: null };
 }
 
 async function main() {
@@ -104,8 +119,9 @@ async function main() {
   const records = loadVenues();
   const venues = [];
   for (const record of records) {
-    const showsSport = await resolveSportFlag(record, fromDir, robots);
-    venues.push({ record, showsSport });
+    const resolved = await resolveSportFlag(record, fromDir, robots);
+    const finalRecord = resolved?.finalUrl ? { ...record, menuUrl: resolved.finalUrl } : record;
+    venues.push({ record: finalRecord, showsSport: resolved?.showsSport ?? null });
   }
 
   const { rows, counts } = buildSportAttributeRows({ venues, observedAt });
