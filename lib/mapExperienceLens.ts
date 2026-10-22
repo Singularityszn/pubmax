@@ -1,7 +1,8 @@
-import { listedServingGroup } from "@/lib/listedPriceComparison";
+import { listedDrinkMatchesSubtype, listedServingGroup } from "@/lib/listedPriceComparison";
+import { parseDrinkSubtypeParam } from "@/lib/drinkSubtypes";
 
 import { normalizeUkPriceBundleDrinkLabel } from "@/lib/bundleDrinkFields";
-import { cleanSelectedDrinkPriceEvidence } from "@/lib/planSelectedDrinkPriceEvidence";
+import { cleanListedDrinkPriceEvidence, cleanSelectedDrinkPriceEvidence } from "@/lib/planSelectedDrinkPriceEvidence";
 import { priceStandingFor } from "@/lib/priceTier";
 import {
   drivesMap,
@@ -57,7 +58,7 @@ export function filtersForDrinkPriceLens(
   filters: Filters,
   category: DrinkCategory | null,
 ): Filters {
-  if (category === null || category === "beer") return filters;
+  if (category === null || (category === "beer" && !parseDrinkSubtypeParam(filters.drinkSubtype, category))) return filters;
   return {
     ...filters,
     maxPrice: Number.POSITIVE_INFINITY,
@@ -425,19 +426,24 @@ export function experienceLensSummary(
   return `No ${noun} prices logged here yet. Food venues still show menu prices we have.`;
 }
 
-export function readListedDrinkIndex(value: unknown, category: DrinkCategory): MapLensPrice[] {
+export function readListedDrinkIndex(value: unknown, category: DrinkCategory, drinkSubtype?: string | null): MapLensPrice[] {
   if (!Array.isArray(value)) return [];
+  const subtype = parseDrinkSubtypeParam(drinkSubtype, category);
   return value.slice(0, 1000).flatMap((row) => {
     if (!row || typeof row !== "object" || typeof row.venueId !== "string" || row.category !== category) return [];
     if (typeof row.observedAt !== "string" || !Number.isFinite(Date.parse(row.observedAt))) return [];
-    const evidence = cleanSelectedDrinkPriceEvidence({
+    const drinkLabel = normalizeUkPriceBundleDrinkLabel(row.drinkLabel);
+    if (!listedDrinkMatchesSubtype(category, drinkLabel, subtype?.id)) return [];
+    if (category === "beer" && !subtype) return [];
+    const clean = category === "beer" ? cleanListedDrinkPriceEvidence : cleanSelectedDrinkPriceEvidence;
+    const evidence = clean({
       category, pence: Math.round(row.priceGbp * 100), serving: row.servingSize,
       source: row.source, sourceUrl: row.sourceUrl, observedAt: new Date(row.observedAt).toISOString(),
     });
     if (evidence?.source !== "listed") return [];
-    return [{ venueId: row.venueId, category, categoryLabel: CATEGORY_META[category].label,
+    return [{ venueId: row.venueId, category, categoryLabel: subtype?.longLabel ?? CATEGORY_META[category].label,
       priceGbp: evidence.pence / 100, source: "listed" as const, servingSize: evidence.serving,
-      drinkLabel: normalizeUkPriceBundleDrinkLabel(row.drinkLabel),
+      drinkLabel,
       sourceUrl: evidence.sourceUrl, observedAt: evidence.observedAt }];
   });
 }
@@ -448,18 +454,22 @@ export function discoveryDrinkLensPrices(
   listed: readonly MapLensPrice[],
   now: number,
   serving?: string | null,
+  drinkSubtype?: string | null,
 ): Map<string, MapLensPrice> {
-  const selected = listedServingGroup(category, serving);
-  const prices = trustedDrinkLensPrices(rowsByVenue, category, now);
+  const subtype = parseDrinkSubtypeParam(drinkSubtype, category);
+  const selected = listedServingGroup(category, serving, subtype?.id);
+  // Community prices carry neither a named subtype nor a serving.
+  const prices = subtype ? new Map<string, MapLensPrice>() : trustedDrinkLensPrices(rowsByVenue, category, now);
   for (const quote of listed) {
     if (quote.category !== category || quote.source !== "listed") continue;
+    if (!listedDrinkMatchesSubtype(category, quote.drinkLabel, subtype?.id)) continue;
     const existing = prices.get(quote.venueId);
-    const matches = selected !== null && listedServingGroup(category, quote.servingSize) === selected;
+    const matches = selected !== null && listedServingGroup(category, quote.servingSize, subtype?.id) === selected;
     const existingMatches = existing?.source === "listed" && selected !== null
-      && listedServingGroup(category, existing.servingSize) === selected;
+      && listedServingGroup(category, existing.servingSize, subtype?.id) === selected;
     if (existing && (!matches || existingMatches)) continue;
     if (priceStandingFor({ listed: { priceGbp: quote.priceGbp, sourceUrl: quote.sourceUrl ?? "", observedAt: quote.observedAt ?? "" } }, now).standing !== "listed") continue;
-    prices.set(quote.venueId, quote);
+    prices.set(quote.venueId, subtype ? { ...quote, categoryLabel: subtype.longLabel } : quote);
   }
   return prices;
 }

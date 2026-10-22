@@ -15,6 +15,7 @@ import {
   DEFAULT_CITY_ID,
 } from "@/lib/cities";
 import { CATEGORY_META, type DrinkCategory } from "@/lib/drinks";
+import { parseDrinkSubtypeParam } from "@/lib/drinkSubtypes";
 import type { CategoryPriceIndexStatus, MapExperienceLens } from "@/lib/mapExperienceLens";
 import type { MapOverlay, MapSheetKind, MapViewportSnapshot } from "@/lib/mobileShell";
 import type { MapChosenArea } from "@/lib/mapChosenArea";
@@ -400,7 +401,8 @@ export function mapPlaceContext(input: {
  *
  * `other` is submittable but never lensable, so it selects no map lens: its pins
  * would print a figure labelled with a name that identifies no drink. Beer is
- * the lane the map RESTS in, so it is never a selected lens either. An
+ * the lane the map RESTS in; an explicit named beer subtype may own its own
+ * quote lens while generic beer remains the resting lane. An
  * experience view owns the map instead and stands the drink refinements down,
  * so the lane reads as the resting pint lane rather than naming a drink the
  * pins are not showing.
@@ -413,6 +415,7 @@ export type MapDrinkLensSelection = {
 
 export function mapDrinkLensSelection(input: {
   drinkCategory: Filters["drinkCategory"];
+  drinkSubtype?: string | null;
   experienceLens: MapExperienceLens;
   isMapLensDrinkCategory: (value: Filters["drinkCategory"]) => boolean;
   activeDrinkLane: (value: Filters["drinkCategory"]) => DrinkCategory;
@@ -420,20 +423,22 @@ export function mapDrinkLensSelection(input: {
 }): MapDrinkLensSelection {
   const {
     drinkCategory,
+    drinkSubtype,
     experienceLens,
     isMapLensDrinkCategory,
     activeDrinkLane,
     defaultDrinkLane,
   } = input;
+  const beerSubtype = parseDrinkSubtypeParam(drinkSubtype, "beer");
   const selectedDrinkCategory: DrinkCategory | null = isMapLensDrinkCategory(drinkCategory)
     ? (drinkCategory as DrinkCategory)
-    : null;
+    : drinkCategory === "" && beerSubtype ? "beer" : null;
   return {
     selectedDrinkCategory,
     mapDrinkLensCategory:
       experienceLens === "all" &&
       selectedDrinkCategory !== null &&
-      selectedDrinkCategory !== "beer"
+      (selectedDrinkCategory !== "beer" || beerSubtype !== null)
         ? selectedDrinkCategory
         : null,
     activeMapDrinkLane:
@@ -461,9 +466,10 @@ export function drinkIndexStatusFor(
 export function activeLensLabelFor(
   mapDrinkLensCategory: DrinkCategory | null,
   experienceLens: MapExperienceLens,
+  drinkSubtype?: string | null,
 ): string | null {
   return mapDrinkLensCategory
-    ? CATEGORY_META[mapDrinkLensCategory].label
+    ? parseDrinkSubtypeParam(drinkSubtype, mapDrinkLensCategory)?.longLabel ?? CATEGORY_META[mapDrinkLensCategory].label
     : experienceLens === "no-alcohol"
       ? "No-alcohol"
       : experienceLens === "food"

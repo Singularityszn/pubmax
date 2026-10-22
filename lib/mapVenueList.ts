@@ -151,14 +151,14 @@ function mapVenueListPintPriceLabel(
  * via venueSignals. A bare non-pub figure without complete provenance is not
  * shown on the row, so it cannot climb the cheapest sort.
  */
-function comparableLensAmount(price: MapLensPrice | undefined, serving?: string | null): number | null {
+function comparableLensAmount(price: MapLensPrice | undefined, serving?: string | null, drinkSubtype?: string | null): number | null {
   if (!price || !Number.isFinite(price.priceGbp) || price.priceGbp <= 0) return null;
   // Experience-only legacy callers retain their own quantity contract. Selected
   // drink lanes always supply null or a chosen group, so unknown serves never rank.
   if (serving === undefined) return price.priceGbp;
   if (price.source !== "listed" || !price.category || !serving) return null;
-  const selected = listedServingGroup(price.category, serving);
-  return selected && listedServingGroup(price.category, price.servingSize) === selected ? price.priceGbp : null;
+  const selected = listedServingGroup(price.category, serving, drinkSubtype);
+  return selected && listedServingGroup(price.category, price.servingSize, drinkSubtype) === selected ? price.priceGbp : null;
 }
 
 function byComparablePrice(left: { sortPrice?: number | null; name: string; id: string; distanceKm?: number },
@@ -199,6 +199,7 @@ export function buildMapVenueListModel(
   sortMode: MapVenueListSortMode = "nearest",
   venueSignals: MapVenueListVenueSignals | null = null,
   serving?: string | null,
+  drinkSubtype?: string | null,
 ): MapVenueListModel {
   const total = venues.length;
   const origin =
@@ -232,12 +233,13 @@ export function buildMapVenueListModel(
           return {
             ...row,
             ...(lensPrice ? { lensPrice } : {}),
-            sortPrice: comparableLensAmount(lensPrice, serving),
+            sortPrice: comparableLensAmount(lensPrice, serving, drinkSubtype),
             priceLabel: lensPrice
               ? `${lensPrice.categoryLabel} · ${formatGbp(lensPrice.priceGbp)}`
               : unknownLabel,
             priceBand:
               lensPrice && lensPrice.category === "beer"
+                && (!drinkSubtype || (serving === "pint" && listedServingGroup("beer", lensPrice.servingSize, drinkSubtype) === "pint"))
                 ? priceBand(lensPrice.priceGbp, priceBandAreaForVenue(row.id))
                 : null,
           };
@@ -260,6 +262,7 @@ export function buildUkBasePubListModel(
   lensPrices: ReadonlyMap<string, MapLensPrice> | null = null,
   sortMode: MapVenueListSortMode = "nearest",
   serving?: string | null,
+  drinkSubtype?: string | null,
 ): UkBasePubListModel {
   const origin =
     viewportCenter &&
@@ -271,7 +274,7 @@ export function buildUkBasePubListModel(
     id: pub.id,
     name: pub.name,
     ...(lensPrices?.get(pub.id) ? { lensPrice: lensPrices.get(pub.id),
-      sortPrice: comparableLensAmount(lensPrices.get(pub.id), serving) } : {}),
+      sortPrice: comparableLensAmount(lensPrices.get(pub.id), serving, drinkSubtype) } : {}),
     priceLabel: lensPrices?.get(pub.id)
       ? `${lensPrices.get(pub.id)!.categoryLabel} · ${formatGbp(lensPrices.get(pub.id)!.priceGbp)}`
       : pub.kind === "bar"

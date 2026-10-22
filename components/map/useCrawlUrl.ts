@@ -3,6 +3,8 @@
 import { useCallback, useEffect, useRef } from "react";
 
 import { listedServingGroup } from "@/lib/listedPriceComparison";
+import { parseDrinkSubtypeParam } from "@/lib/drinkSubtypes";
+import { isMapLensDrinkCategory } from "@/lib/drinks";
 import { encodeCrawl, seedCrawlState, type CrawlUrlState } from "@/lib/crawlUrl";
 
 // (a) seedCrawlState reads the URL once on mount for a lazy useState initializer;
@@ -13,6 +15,12 @@ import { encodeCrawl, seedCrawlState, type CrawlUrlState } from "@/lib/crawlUrl"
 export { seedCrawlState };
 
 export const CRAWL_URL_DEBOUNCE_MS = 300;
+
+export type CrawlServingChoice = {
+  category: string;
+  subtype: string | null;
+  serving: string | null;
+};
 
 // Owned Map params that encodeCrawl does not model but must survive a URL sync:
 // the Drop-intent flag, planner deep link, Map-owner selection, accepted-handoff markers,
@@ -35,10 +43,31 @@ const OWNED_PASSTHROUGH_PARAMS = [
   "mapNotice",
 ] as const;
 
+/** Undefined means no matching choice; null is an explicit All-servings choice. */
+function explicitCrawlServing(selected: URLSearchParams, choice?: CrawlServingChoice | null): string | null | undefined {
+  const category = selected.get("drink");
+  if (!choice || !isMapLensDrinkCategory(category) || category !== choice.category) return undefined;
+  const subtype = parseDrinkSubtypeParam(selected.get("sub"), category);
+  if (subtype?.id !== parseDrinkSubtypeParam(choice.subtype, category)?.id) return undefined;
+  return listedServingGroup(category, choice.serving, subtype?.id);
+}
+
+/** A serving belongs to the category and canonical subtype that chose it. */
+function retainedCrawlServing(selected: URLSearchParams, predecessor: URLSearchParams, choice?: CrawlServingChoice | null): string | null {
+  const explicit = explicitCrawlServing(selected, choice);
+  if (explicit !== undefined) return explicit;
+  const category = selected.get("drink");
+  const subtype = isMapLensDrinkCategory(category) ? parseDrinkSubtypeParam(selected.get("sub"), category) : null;
+  const previousSubtype = isMapLensDrinkCategory(category) ? parseDrinkSubtypeParam(predecessor.get("sub"), category) : null;
+  return category && category === predecessor.get("drink") && subtype?.id === previousSubtype?.id
+    ? listedServingGroup(category, predecessor.get("serving"), subtype?.id) : null;
+}
+
 export function mergeCrawlUrlSearch(
   encodedSearch: string,
   liveSearch: string,
   preserveCrawlParam = false,
+  servingChoice?: CrawlServingChoice | null,
 ): string {
   const params = new URLSearchParams(encodedSearch);
   const live = new URLSearchParams(liveSearch);
@@ -46,8 +75,7 @@ export function mergeCrawlUrlSearch(
     const value = live.get(key);
     if (value !== null && !params.has(key)) params.set(key, value);
   }
-  const category = params.get("drink");
-  const serving = category && category === live.get("drink") ? listedServingGroup(category, live.get("serving")) : null;
+  const serving = retainedCrawlServing(params, live, servingChoice);
   if (serving) params.set("serving", serving);
   const crawl = live.get("crawl");
   if (preserveCrawlParam && crawl !== null && !params.has("crawl")) {
@@ -76,11 +104,12 @@ export function crawlUrlWriteAllowed(
   return hold === null || encoded !== hold.encodedAtMount;
 }
 
-function writeCrawlUrl(encoded: string, preserveCrawlParam: boolean): void {
+function writeCrawlUrl(encoded: string, preserveCrawlParam: boolean, servingChoice?: CrawlServingChoice | null): void {
   const query = mergeCrawlUrlSearch(
     encoded,
     window.location.search,
     preserveCrawlParam,
+    servingChoice,
   );
   const url = query
     ? `${window.location.pathname}?${query}${window.location.hash}`
@@ -97,17 +126,20 @@ const CRAWL_CONTEXT_PARAMS = [
   "zone", "pubs", "band", "alt", "crawl", "routeDrink", "routeLow",
 ] as const;
 
-function writeLandedCrawlContext(encoded: string, preserveCrawlParam: boolean): void {
+function writeLandedCrawlContext(encoded: string, preserveCrawlParam: boolean, servingChoice?: CrawlServingChoice | null): void {
   // The landed entry owns selection, intents and place context. Only Map
   // filters changed while a surface was open cross this history boundary.
   const live = new URLSearchParams(window.location.search);
   const selected = new URLSearchParams(encoded);
+  const serving = retainedCrawlServing(selected, live, servingChoice);
   for (const key of CRAWL_CONTEXT_PARAMS) {
     const value = selected.get(key);
     if (key === "crawl" && preserveCrawlParam && value === null) continue;
     if (value === null) live.delete(key);
     else live.set(key, value);
   }
+  if (serving) live.set("serving", serving);
+  else live.delete("serving");
   const query = live.toString();
   const url = `${window.location.pathname}${query ? `?${query}` : ""}${window.location.hash}`;
   if (`${window.location.pathname}${window.location.search}${window.location.hash}` !== url) {
@@ -121,6 +153,7 @@ export function useCrawlUrlSync(
    *  restored over it. The address then stays clean until they act. */
   holdCleanUrl = false,
   holdSeededCrawlParam = false,
+  servingChoiceRef?: { current: CrawlServingChoice | null },
 ): () => void {
   const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const hold = useRef<CleanUrlHold | undefined>(undefined);
@@ -130,6 +163,9 @@ export function useCrawlUrlSync(
   useEffect(() => {
     if (typeof window === "undefined") return;
     const encoded = encodeCrawl(state);
+    if (servingChoiceRef?.current && explicitCrawlServing(new URLSearchParams(encoded), servingChoiceRef.current) === undefined) {
+      servingChoiceRef.current = null;
+    }
     if (hold.current === undefined) {
       hold.current = holdCleanUrl ? { encodedAtMount: encoded } : null;
     }
@@ -148,18 +184,18 @@ export function useCrawlUrlSync(
     if (!holdSeededCrawlParam) crawlHold.current = null;
     latestWrite.current = { encoded, preserveCrawlParam };
     if (timer.current) clearTimeout(timer.current);
-    timer.current = setTimeout(() => writeCrawlUrl(encoded, preserveCrawlParam), CRAWL_URL_DEBOUNCE_MS);
+    timer.current = setTimeout(() => writeCrawlUrl(encoded, preserveCrawlParam, servingChoiceRef?.current), CRAWL_URL_DEBOUNCE_MS);
 
     return () => {
       if (timer.current) clearTimeout(timer.current);
     };
-  }, [holdCleanUrl, holdSeededCrawlParam, state]);
+  }, [holdCleanUrl, holdSeededCrawlParam, state, servingChoiceRef]);
 
   return useCallback(() => {
     if (timer.current) clearTimeout(timer.current);
     if (latestWrite.current !== null) {
       const { encoded, preserveCrawlParam } = latestWrite.current;
-      writeLandedCrawlContext(encoded, preserveCrawlParam);
+      writeLandedCrawlContext(encoded, preserveCrawlParam, servingChoiceRef?.current);
     }
-  }, []);
+  }, [servingChoiceRef]);
 }

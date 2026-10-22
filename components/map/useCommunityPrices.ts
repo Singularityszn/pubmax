@@ -27,6 +27,7 @@ import {
   type ContributionGateStatus,
 } from "@/lib/contributionGateStatus";
 import { drinkCategoryIndexKey, listedServingGroup } from "@/lib/listedPriceComparison";
+import { parseDrinkSubtypeParam } from "@/lib/drinkSubtypes";
 import { DRINK_CATEGORIES, isDrinkCategory, type DrinkCategory } from "@/lib/drinks";
 import {
   MAX_QUOTES_PER_CATEGORY,
@@ -185,7 +186,7 @@ export type CommunityPricesState = {
   /** Load soft-drink and alcohol-free rows across venues, retrying failed reads. */
   loadNoAlcoholIndex: () => void;
   /** Load one selected drink category across venues once per session. */
-  loadDrinkCategoryIndex: (category: DrinkCategory, serving?: string | null) => void;
+  loadDrinkCategoryIndex: (category: DrinkCategory, serving?: string | null, drinkSubtype?: string | null) => void;
   /**
    * State of each cross-venue selected-drink read, on the same three-way scale
    * the no-alcohol index reports: a truncated-but-successful scan is "partial"
@@ -194,7 +195,7 @@ export type CommunityPricesState = {
    */
   drinkCategoryIndexStatus: ReadonlyMap<string, CategoryPriceIndexStatus>;
   listedDrinkPrices: ReadonlyMap<string, MapLensPrice[]>;
-  drinkServingGroups?: ReadonlyMap<DrinkCategory, readonly string[]>;
+  drinkServingGroups?: ReadonlyMap<string, readonly string[]>;
   /** Visibility marks found for UK base pubs read in this session. */
   provisionalBaseVenueIds: ReadonlySet<string>;
   /** Read unseen IDs among these on-screen base pubs. */
@@ -696,7 +697,7 @@ export function useCommunityPrices(): CommunityPricesState {
   >(() => new Map());
   const [listedDrinkPrices, setListedDrinkPrices] = useState<ReadonlyMap<string, MapLensPrice[]>>(() => new Map());
   const [listedNoAlcoholPrices, setListedNoAlcoholPrices] = useState<readonly MapLensPrice[]>([]);
-  const [drinkServingGroups, setDrinkServingGroups] = useState<ReadonlyMap<DrinkCategory, readonly string[]>>(() => new Map());
+  const [drinkServingGroups, setDrinkServingGroups] = useState<ReadonlyMap<string, readonly string[]>>(() => new Map());
   const noAlcoholIndexLoaded = useRef(false);
   const drinkCategoryIndexesLoaded = useRef<Set<string>>(new Set());
   const markDrinkCategoryIndex = useCallback(
@@ -859,16 +860,18 @@ export function useCommunityPrices(): CommunityPricesState {
   }, []);
 
   const loadDrinkCategoryIndex = useCallback(
-    (category: DrinkCategory, serving?: string | null) => {
-      const group = listedServingGroup(category, serving);
-      const key = drinkCategoryIndexKey(category, group);
+    (category: DrinkCategory, serving?: string | null, drinkSubtype?: string | null) => {
+      const subtype = parseDrinkSubtypeParam(drinkSubtype, category);
+      const group = listedServingGroup(category, serving, subtype?.id);
+      const key = drinkCategoryIndexKey(category, group, subtype?.id);
+      const groupsKey = drinkCategoryIndexKey(category, null, subtype?.id);
       if (drinkCategoryIndexesLoaded.current.has(key)) return;
       drinkCategoryIndexesLoaded.current.add(key);
       markDrinkCategoryIndex(key, "loading");
       void (async () => {
         try {
           const response = await fetch(
-            `/api/price-submit?drinkCategory=${encodeURIComponent(category)}${group ? `&serving=${encodeURIComponent(group)}` : ""}`,
+            `/api/price-submit?drinkCategory=${encodeURIComponent(category)}${group ? `&serving=${encodeURIComponent(group)}` : ""}${subtype ? `&drinkSubtype=${encodeURIComponent(subtype.id)}` : ""}`,
           );
           if (!response.ok) {
             discardBody(response);
@@ -877,27 +880,28 @@ export function useCommunityPrices(): CommunityPricesState {
           const body = await response.json();
           const result = readCategoryPriceIndexLoad(body);
           if (Array.isArray(body.servingGroups) && body.servingGroups.length <= 9999) {
-            const groups = body.servingGroups.map((value: unknown) => typeof value === "string" ? listedServingGroup(category, value) : null);
+            const groups = body.servingGroups.map((value: unknown) => typeof value === "string" ? listedServingGroup(category, value, subtype?.id) : null);
             if (groups.every((value: string | null) => value !== null)) {
-              setDrinkServingGroups((current) => new Map(current).set(category, [...new Set(groups)] as string[]));
+              setDrinkServingGroups((current) => new Map(current).set(groupsKey, [...new Set(groups)] as string[]));
             }
           }
-          setListedDrinkPrices((current) => new Map(current).set(key, readListedDrinkIndex(body.listedPrices, category)));
+          setListedDrinkPrices((current) => new Map(current).set(key, readListedDrinkIndex(body.listedPrices, category, subtype?.id)));
           if (result.status === "invalid") {
             drinkCategoryIndexesLoaded.current.delete(key);
             markDrinkCategoryIndex(key, "degraded");
             return;
           }
-          for (const row of result.prices) {
+          const categoryPrices = subtype ? [] : result.prices;
+          for (const row of categoryPrices) {
             loadedRows.current.set(
               row.venueId,
               upsertPrice(loadedRows.current.get(row.venueId) ?? [], row),
             );
           }
           setByVenueId((current) => {
-            if (result.prices.length === 0) return current;
+            if (categoryPrices.length === 0) return current;
             const next = new Map(current);
-            for (const row of result.prices) {
+            for (const row of categoryPrices) {
               next.set(
                 row.venueId,
                 upsertPrice(next.get(row.venueId) ?? [], row),

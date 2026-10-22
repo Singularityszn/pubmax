@@ -45,6 +45,7 @@ import { listedServingGroup } from "@/lib/listedPriceComparison";
 
 import { ukPriceBundleCategoryIndex, ukPriceBundleRowsFor } from "@/lib/ukPriceBundle.server";
 import { listedCategoryPrices } from "@/lib/listedCategoryPrices";
+import { parseDrinkSubtypeParam } from "@/lib/drinkSubtypes";
 import { publicApiError, publicApiErrorFromStatus } from "@/lib/apiError";
 import { jsonNoStore } from "@/lib/apiResponses";
 import { deriveCommunityPriceActor } from "@/lib/communityPriceActor";
@@ -565,14 +566,15 @@ export async function GET(request: Request): Promise<Response> {
     }
     const drinkCategory = searchParams.get("drinkCategory");
     if (isDrinkCategory(drinkCategory)) {
+      const subtype = parseDrinkSubtypeParam(searchParams.get("drinkSubtype"), drinkCategory);
       const requestedServing = searchParams.get("serving");
-      const serving = listedServingGroup(drinkCategory, requestedServing);
+      const serving = listedServingGroup(drinkCategory, requestedServing, subtype?.id);
       if (requestedServing !== null && !serving) {
         return publicApiError("Choose a source-stated serving size.", "INVALID_REQUEST", 400);
       }
       const [result, listed] = await Promise.all([
-        readCommunityPriceCategoryIndex([drinkCategory]),
-        ukPriceBundleCategoryIndex(drinkCategory, Date.now(), serving),
+        subtype ? Promise.resolve({ prices: [], truncated: false, degraded: false }) : readCommunityPriceCategoryIndex([drinkCategory]),
+        ukPriceBundleCategoryIndex(drinkCategory, Date.now(), serving, subtype?.id),
       ]);
       return jsonNoStore(
         {
