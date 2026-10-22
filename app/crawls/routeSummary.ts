@@ -2,9 +2,9 @@
 // HONEST straight-line summary for a curated crawl from the slim venue index
 // (lib/venuesSlim — the only client-side source of venue coords + price):
 // haversine leg distances at the shared WALK_KMH pace, and a "pints from"
-// range off each stop's cheapestPrice. Anything unresolvable is skipped —
-// a crawl whose stops aren't in the slim index simply gets no metrics, never
-// invented ones. Mirrors lib/routeLegs semantics ("straight-line", ceil to a
+// range off each stop's cheapestPrice. A route estimate needs every stop.
+// Missing coordinates withhold the total rather than shorten the route.
+// Mirrors lib/routeLegs semantics ("straight-line", ceil to a
 // whole minute, never "0 min") without importing the Venue-typed leg builder.
 
 import { curatedCrawls, type CuratedCrawl } from "@/lib/curatedCrawls";
@@ -25,20 +25,21 @@ export type CrawlRouteSummary = {
 
 /**
  * Walk venueIds in crawl order, resolving each against the slim index.
- * Missing venues are skipped (a partial line is still honest — it connects
- * only real, resolved stops). Fewer than 2 resolved stops → undefined:
- * there is no line to measure or draw.
+ * A missing venue withholds the total. Joining across a missing stop would
+ * measure a shorter route than the one the card links to. Fewer than two
+ * stops also withhold the estimate.
  */
 export function buildCrawlRouteSummary(
   venueIds: readonly string[],
   slimById: ReadonlyMap<string, SlimVenue>,
 ): CrawlRouteSummary | undefined {
+  if (venueIds.length < 2) return undefined;
   const points: [number, number][] = [];
   for (const id of venueIds) {
     const venue = slimById.get(id);
-    if (venue) points.push([venue.lng, venue.lat]);
+    if (!venue) return undefined;
+    points.push([venue.lng, venue.lat]);
   }
-  if (points.length < 2) return undefined;
   let totalKm = 0;
   for (let i = 1; i < points.length; i += 1) {
     const from = points[i - 1];
