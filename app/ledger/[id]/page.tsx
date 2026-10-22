@@ -26,6 +26,7 @@ import ListedPriceSource from "@/components/venue/ListedPriceSource";
 import VenuePriceThen from "@/components/map/VenuePriceThen";
 import { PintPriceBadge } from "@/components/PriceBadge";
 import { venueListedPint } from "@/lib/venueListedPint";
+import { isPubVenueKind } from "@/lib/venueKindFilters";
 import { displayDrinkName } from "@/components/listing/displayCase";
 
 import "./ledger.css";
@@ -209,10 +210,11 @@ export default async function LedgerPage({ params }: PageProps) {
     curation.heritageNote ? curation.heritageNote : "",
   ];
   const listedPint = venueListedPint(venue);
+  const hasPubOrBarSchema = isPubVenueKind(venue.kind) || venue.kind === "bar";
 
   return (
     <main id="main" className="ledgerPage">
-      <JsonLd data={venueJsonLd(venue, listedBuilding)} />
+      {hasPubOrBarSchema ? <JsonLd data={venueJsonLd(venue, listedBuilding)} /> : null}
       <LedgerLiveProvider venueId={canonicalId}>
         <header className="ledgerHead">
           <Link className="ledgerHomeLink" href="/">
