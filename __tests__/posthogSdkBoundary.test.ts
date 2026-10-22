@@ -192,3 +192,78 @@ describe("PostHog SDK boundary (real posthog-js, stubbed fetch)", () => {
     }
   });
 });
+
+describe("consent epochs at the real SDK boundary", () => {
+  it.each(["queued", "direct"])("isolates the first %s view and its exit after renewed consent", async (mode) => {
+    const { capturePosthogPageview, syncPosthogConsent } = await import("@/lib/posthogClient");
+    const events = () => decodedRequests().flatMap((request) => {
+      const body = request.slice(request.indexOf(" ") + 1);
+      if (!body) return [];
+      type EmittedEvent = { event: string; properties: Record<string, unknown> };
+      const parsed = JSON.parse(body) as EmittedEvent | EmittedEvent[] | { batch: EmittedEvent[] };
+      return Array.isArray(parsed) ? parsed : "batch" in parsed ? parsed.batch : [parsed];
+    });
+    const firstId = mode === "queued" ? "anon_1111111111111111" : "anon_3333333333333333";
+    const renewedId = mode === "queued" ? "anon_2222222222222222" : "anon_4444444444444444";
+    const start = Date.now();
+    vi.useFakeTimers({ toFake: ["Date"] });
+    try {
+      vi.setSystemTime(start);
+      posthog.set_config({ request_batching: false });
+      syncPosthogConsent(false);
+      window.localStorage.setItem("pubmaxx:analytics-id:v1", firstId);
+      window.history.replaceState(null, "", "/privacy");
+      syncPosthogConsent(true);
+      capturePosthogPageview("/privacy", firstId);
+      await vi.waitFor(() => expect(events()).toEqual(expect.arrayContaining([
+        expect.objectContaining({ properties: expect.objectContaining({ distinct_id: firstId }) }),
+      ])));
+      const oldView = events().find(({ event, properties }) => event === "$pageview" && properties.distinct_id === firstId)!;
+
+      syncPosthogConsent(false);
+      window.localStorage.removeItem("pubmaxx:analytics-id:v1");
+      const countAtWithdrawal = sent.length;
+      vi.setSystemTime(start + 120_000);
+      window.dispatchEvent(new Event("scroll"));
+      window.dispatchEvent(new Event("pagehide"));
+      await settle(10);
+      expect(sent).toHaveLength(countAtWithdrawal);
+
+      window.localStorage.setItem("pubmaxx:analytics-id:v1", renewedId);
+      syncPosthogConsent(true);
+      if (mode === "direct") await settle(10);
+      capturePosthogPageview("/privacy", renewedId);
+      await vi.waitFor(() => expect(events().some(({ properties }) => properties.distinct_id === renewedId)).toBe(true));
+      const renewedView = events().find(({ event, properties }) => event === "$pageview" && properties.distinct_id === renewedId)!;
+      expect(renewedView.properties.$pageview_id).toEqual(expect.any(String));
+      expect(renewedView.properties.$pageview_id).not.toBe(oldView.properties.$pageview_id);
+
+      vi.setSystemTime(start + 123_000);
+      window.dispatchEvent(new Event("pagehide"));
+      await settle(10);
+      const exit = events().find(({ event, properties }) => event === "$pageleave" && properties.distinct_id === renewedId)!;
+      expect(exit.properties).toMatchObject({
+        $prev_pageview_id: renewedView.properties.$pageview_id,
+        $prev_pageview_duration: expect.any(Number),
+        $prev_pageview_max_content_percentage: expect.any(Number),
+      });
+      expect(exit.properties.$prev_pageview_duration).toBeGreaterThan(2);
+      expect(exit.properties.$prev_pageview_duration).toBeLessThanOrEqual(3);
+      expect(exit.properties.$prev_pageview_id).not.toBe(oldView.properties.$pageview_id);
+
+      window.history.replaceState(null, "", "/terms");
+      capturePosthogPageview("/terms", renewedId);
+      await settle(10);
+      const nextView = events().find(({ event, properties }) => event === "$pageview" && properties.distinct_id === renewedId && properties.$pathname === "/terms")!;
+      expect(nextView.properties).toMatchObject({
+        $prev_pageview_id: renewedView.properties.$pageview_id,
+        $prev_pageview_duration: exit.properties.$prev_pageview_duration,
+      });
+      expect(renewedView.properties).not.toHaveProperty("$prev_pageview_id");
+      expect(Object.keys(renewedView.properties).filter((key) => key.startsWith("$prev_pageview_"))).toEqual([]);
+    } finally {
+      syncPosthogConsent(false);
+      vi.useRealTimers();
+    }
+  });
+});

@@ -482,12 +482,12 @@ export function syncPosthogConsent(consentAllowed: boolean): void {
   const revision = ++consentRevision;
   consentAllowedNow = consentAllowed;
   captureEnabled = false;
+  skipPreviousEngagement = true;
   if (!consentAllowed) {
     pendingPageviews.length = 0;
     pendingMapLoadTiming = null;
     clearMapLoadTimingOutbox();
     lastObservedPageviewPathname = null;
-    skipPreviousEngagement = false;
     if (initialized) client?.opt_out_capturing();
     return;
   }

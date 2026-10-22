@@ -73,6 +73,7 @@ describe("explicit PostHog pageviews", () => {
         ["$pageview", {
           $pathname: "/map",
           $pubmaxx_anonymous_id: anonymousId,
+          $pubmaxx_skip_previous_engagement: true,
         }],
       ]);
     });
@@ -102,6 +103,7 @@ describe("explicit PostHog pageviews", () => {
         ["$pageview", {
           $pathname: "/tonight",
           $pubmaxx_anonymous_id: anonymousId,
+          $pubmaxx_skip_previous_engagement: true,
         }],
         ["$pageview", {
           $pathname: "/map",
@@ -123,6 +125,7 @@ describe("explicit PostHog pageviews", () => {
       ["$pageview", {
         $pathname: "/tonight",
         $pubmaxx_anonymous_id: anonymousId,
+        $pubmaxx_skip_previous_engagement: true,
       }],
       ["$pageview", {
         $pathname: "/map",
@@ -158,6 +161,7 @@ describe("explicit PostHog pageviews", () => {
         ["$pageview", {
           $pathname: "/tonight",
           $pubmaxx_anonymous_id: anonymousId,
+          $pubmaxx_skip_previous_engagement: true,
         }],
       ]);
     });
@@ -201,6 +205,7 @@ describe("explicit PostHog pageviews", () => {
         {
           $pathname: "/map",
           $pubmaxx_anonymous_id: anonymousId,
+          $pubmaxx_skip_previous_engagement: true,
         },
       ]);
     });
@@ -226,6 +231,7 @@ describe("explicit PostHog pageviews", () => {
       ["$pageview", {
         $pathname: "/map",
         $pubmaxx_anonymous_id: anonymousId,
+        $pubmaxx_skip_previous_engagement: true,
       }],
     ]);
   });
@@ -267,6 +273,7 @@ describe("explicit PostHog pageviews", () => {
         ["$pageview", {
           $pathname: "/map",
           $pubmaxx_anonymous_id: anonymousId,
+          $pubmaxx_skip_previous_engagement: true,
         }],
         ["$pageview", {
           $pathname: "/map",
@@ -294,6 +301,7 @@ describe("explicit PostHog pageviews", () => {
         ["$pageview", {
           $pathname: "/messages/[id]",
           $pubmaxx_anonymous_id: anonymousId,
+          $pubmaxx_skip_previous_engagement: true,
         }],
       ]);
     });
