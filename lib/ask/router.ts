@@ -13,6 +13,10 @@ export type RoutedToolCall = {
   args: Record<string, unknown>;
 };
 
+export function isVenueHoursQuestion(query: string): boolean {
+  return /\b(?:opening|closing)\s+(?:hours|times)\b/i.test(query) && !PLAN_RE.test(query);
+}
+
 const CITY_STATUS_RE =
   /\b(tube|transit|delay|delays|weather|city status|how'?s london|right now in london)\b/i;
 const TRANSIT_INTERROGATIVE_PREFIX = String.raw`(?:is|are)\s+(?:there\s+)?(?:(?:any|the)\s+)?(?:tube|transit)\s+(?:(?:services?|lines?|trains?)\s+)?(?:running|operating|working|open|closed|delays?|delayed|disruptions?|disrupted|suspended)\b`;
@@ -539,6 +543,10 @@ export function routeAskDeterministically(query: string): RoutedToolCall[] {
   if (journey) push("journey", { from: "London Bridge", ...journey });
 
   if (priceIntent.kind === "unsupported") return calls;
+  if (isVenueHoursQuestion(text)) {
+    push("search_venues", { query: text });
+    return calls;
+  }
   if (priceIntent.kind === "menu") {
     push("venue_drinks", { venueName: priceIntent.venueName });
     return calls;
