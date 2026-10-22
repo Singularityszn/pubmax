@@ -40,8 +40,14 @@ export type ReviewScopeReport = {
   ok: boolean;
 };
 
+/** Git status preserves the distinction between a deletion and a new path. */
+export type ReviewChange = {
+  path: string;
+  status: string;
+};
+
 export function normalizeReviewPath(value: unknown): string;
-export function classifyReviewFile(value: unknown): {
+export function classifyReviewFile(value: unknown, status?: string): {
   path: string;
   category: ReviewCategory;
   domain: string | null;
@@ -51,7 +57,7 @@ export function changedFilesFromGit(
   base: string,
   head: string,
   cwd: string,
-): string[];
+): ReviewChange[];
 export function runReviewScopeCli(
   argv?: string[],
   cwd?: string,

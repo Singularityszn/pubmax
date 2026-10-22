@@ -6,45 +6,44 @@ import { describe, expect, it } from "vitest";
 
 import {
   changedFilesFromGit,
+  classifyReviewFile,
   MAX_REVIEW_FILES,
   MAX_RUNTIME_DOMAINS,
   summarizeReviewScope,
 } from "../scripts/check_review_scope.mjs";
 
 describe("review scope guard", () => {
-  const helperPackages = [
-    [".agents/skills/enhance-readme", "package-lock.json", "playwright", "1.59.1", "1.63.0"],
-    [".agents/skills/orchestrate/scripts", "bun.lock", "@cursor/sdk", "1.0.18", "1.0.34"],
-    [".agents/skills/poteto-mode/scripts", "bun.lock", "commander", "14.0.0", "15.0.0"],
-    ["skills/enhance-readme", "package-lock.json", "playwright", "1.59.1", "1.63.0"],
+  const retiredHelperPaths = [
+    ".agents/skills/enhance-readme/package.json",
+    ".agents/skills/enhance-readme/package-lock.json",
+    ".agents/skills/orchestrate/scripts/package.json",
+    ".agents/skills/orchestrate/scripts/bun.lock",
+    ".agents/skills/poteto-mode/scripts/package.json",
+    ".agents/skills/poteto-mode/scripts/bun.lock",
+    "skills/enhance-readme/package.json",
+    "skills/enhance-readme/package-lock.json",
   ] as const;
 
-  function withHelperDependencyDiff(
+  function withProjectSkillDiff(
     check: (repo: string, base: string, git: (...args: string[]) => string) => void,
   ) {
-    const repo = mkdtempSync(join(tmpdir(), "pubmax-helper-review-"));
+    const repo = mkdtempSync(join(tmpdir(), "pubmax-project-skill-review-"));
     const git = (...args: string[]) =>
       execFileSync("git", ["-c", "core.hooksPath=/dev/null", ...args], { cwd: repo, encoding: "utf8", stdio: "pipe" }).trim();
-    const writeMetadata = (after: boolean) => {
-      for (const [directory, lock, dependency, beforeVersion, afterVersion] of helperPackages) {
-        mkdirSync(join(repo, directory), { recursive: true });
-        const dependencies = { [dependency]: after ? afterVersion : beforeVersion };
-        writeFileSync(join(repo, directory, "package.json"), `${JSON.stringify({ private: true, dependencies })}\n`);
-        const locked = lock === "bun.lock"
-          ? { lockfileVersion: 1, workspaces: { "": { dependencies } }, packages: {} }
-          : { lockfileVersion: 3, packages: { "": { dependencies } } };
-        writeFileSync(join(repo, directory, lock), `${JSON.stringify(locked)}\n`);
-      }
-    };
     try {
       git("init", "-q");
       git("config", "user.email", "review-scope@example.invalid");
       git("config", "user.name", "Review Scope Test");
-      writeMetadata(false);
+      for (const path of retiredHelperPaths) {
+        mkdirSync(dirname(join(repo, path)), { recursive: true });
+        writeFileSync(join(repo, path), "{}\n");
+      }
       git("add", ".");
-      git("commit", "-qm", "seed helper dependency metadata");
+      git("commit", "-qm", "seed retired helper metadata");
       const base = git("rev-parse", "HEAD");
-      writeMetadata(true);
+      for (const path of retiredHelperPaths) rmSync(join(repo, path));
+      mkdirSync(join(repo, ".agents/skills/animate"), { recursive: true });
+      writeFileSync(join(repo, ".agents/skills/animate/SKILL.md"), "# Animate\nProject UI instructions.\n");
       check(repo, base, git);
     } finally {
       rmSync(repo, { recursive: true, force: true });
@@ -59,41 +58,43 @@ describe("review scope guard", () => {
     return { status: result.status, stderr: result.stderr, report: JSON.parse(result.stdout) };
   }
 
-  it("allows the eight existing helper dependency files through the public CLI", () => {
-    withHelperDependencyDiff((repo, base, git) => {
-      git("commit", "-am", "update helper dependencies");
+  it("allows retired helper deletions and a project UI skill through the public CLI", () => {
+    withProjectSkillDiff((repo, base, git) => {
+      git("add", "-A");
+      git("commit", "-qm", "keep project UI skill and delete retired helpers");
       const result = runGuard(repo, base, git("rev-parse", "HEAD"));
       expect(result.stderr).toBe("");
       expect({ status: result.status, forbidden: result.report.forbidden }).toEqual({ status: 0, forbidden: [] });
-      expect(result.report.categoryCounts).toEqual({ config: 8 });
-      expect(result.report.reviewFileCount).toBe(8);
+      expect(result.report.categoryCounts).toEqual({ other: 9 });
+      expect(result.report.fileCount).toBe(9);
+      expect(result.report.reviewFileCount).toBe(9);
       expect(result.report.domains).toEqual([]);
     });
   });
 
   it.each([
-    [".agents/skills/enhance-readme/SKILL.md", "skill-pack"],
     ["skills/enhance-readme/SKILL.md", "skill-pack"],
-    [".agents/skills/enhance-readme/scripts/record-readme-tour.mjs", "skill-pack"],
-    [".agents/skills/unrelated/package.json", "skill-pack"],
+    [".cursor/skills/animate/SKILL.md", "skill-pack"],
+    ["skills/enhance-readme/scripts/record-readme-tour.mjs", "skill-pack"],
+    ["lib/skills/unrelated/package.json", "skill-pack"],
     ["skills/unrelated/package-lock.json", "skill-pack"],
-    [".agents/skills/orchestrate/scripts/package-lock.json", "skill-pack"],
+    ["skills/orchestrate/scripts/package-lock.json", "skill-pack"],
     ["data/generated/venue-pack.json", "generated"],
-  ])("still rejects %s beside allowed helper metadata through the public CLI", (path, category) => {
-    withHelperDependencyDiff((repo, base, git) => {
+  ])("rejects %s beside project UI skills and retired helper deletions through the public CLI", (path, category) => {
+    withProjectSkillDiff((repo, base, git) => {
       mkdirSync(dirname(join(repo, path)), { recursive: true });
       const content = path.endsWith("SKILL.md")
-        ? "# Example skill\nChanged instructions remain skill-pack content.\n"
+        ? "# Example skill\nInstructions outside the project skill root.\n"
         : path.endsWith(".mjs")
           ? "export const tour = () => 'changed helper source';\n"
           : `${JSON.stringify({ private: true, dependencies: { commander: "15.0.0" } })}\n`;
       writeFileSync(join(repo, path), content);
-      git("add", ".");
-      git("commit", "-qm", "update helper dependencies and unrelated content");
+      git("add", "-A");
+      git("commit", "-qm", "delete retired helpers and add forbidden content");
       const result = runGuard(repo, base, git("rev-parse", "HEAD"));
       expect(result.stderr).toBe("");
       expect(result.status).toBe(1);
-      expect(result.report.forbidden).toContainEqual({ category, path });
+      expect(result.report.forbidden).toEqual([{ category, path }]);
       expect(result.report.ok).toBe(false);
     });
   });
@@ -294,6 +295,14 @@ describe("review scope guard", () => {
     expect(report.categories["skill-pack"]).toBeUndefined();
   });
 
+  it("classifies a deleted outside-root path when its public caller supplies Git status", () => {
+    expect(classifyReviewFile("skills/enhance-readme/package.json", "D")).toEqual({
+      path: "skills/enhance-readme/package.json",
+      category: "other",
+      domain: null,
+    });
+  });
+
   it("fails an added or modified skill path outside the project root", () => {
     const report = summarizeReviewScope([
       { path: "skills/example/SKILL.md", status: "A" },
@@ -414,7 +423,7 @@ describe("review scope guard", () => {
       git("commit", "-qm", "seed first branch");
       const head = git("rev-parse", "HEAD");
 
-      const files = changedFilesFromGit("0".repeat(40), head, repo);
+      const files: Array<{ path: string; status: string }> = changedFilesFromGit("0".repeat(40), head, repo);
       expect(files).toEqual([{ path: "public/data/venues_slim.json", status: "A" }]);
       expect(summarizeReviewScope(files).ok).toBe(false);
     } finally {
