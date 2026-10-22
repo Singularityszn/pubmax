@@ -177,9 +177,13 @@ export function gradePalCase(
     if (reference.value === null) {
       push(checks, "unknown_price_empty", body.cards.every((card) => card.price === null) && amounts.length === 0,
         `prices=${body.cards.map((card) => card.price).join(",")} amounts=${amounts.join(",")}`);
-      push(checks, "unknown_price_disclosed",
-        /\b(?:not known|unknown|not recorded|no listed figure|no (?:current )?recorded (?:pint|price)|(?:cannot|can't|do not|don't) (?:confirm|verify|provide|know))\b/i.test(body.answer),
-        body.answer);
+      const price = String.raw`(?:pint\s+prices?|prices?)`;
+      const absent = String.raw`(?:not known|unknown|not recorded|not available|unavailable)`;
+      const disclosure = new RegExp(
+        String.raw`\b${price}(?:\s+(?:at|for|of)\s+(?:(?!\b(?:is|are)\b)[^.!?\n,;]){1,80}?)?\s+(?:(?:is|are)\s+)?${absent}\b|\b${absent}\s+${price}\b|\bno\s+(?:current\s+)?(?:(?:recorded|listed)\s+pint(?:\s+price)?|(?:(?:recorded|listed)\s+)?price)\b|\bno corroborated people-logged pint and no listed figure\b|\b(?:cannot|can't|do not|don't)\s+(?:confirm|verify|provide|know)\s+(?:(?:a|the)\s+)?(?:(?:current|recorded|listed)\s+)?${price}\b`,
+        "i",
+      );
+      push(checks, "unknown_price_disclosed", disclosure.test(body.answer), body.answer);
     } else {
       const value = reference.value;
       const tolerance = expect.priceTolerance ?? 0.02;

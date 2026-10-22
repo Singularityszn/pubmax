@@ -49,6 +49,38 @@ afterEach(() => {
 
 describe("Pal fail-closed hours eval", () => {
   it.each([
+    "What are the opening hours of Erin's?",
+    "What are Erin's opening hours?",
+    "What are Erin's's opening hours?",
+    "What are the opening hours of Erin's's?",
+    "What are the opening hours at a pub called Erin's?",
+    "What are the opening hours at a pub named Erin's?",
+    "What are the opening hours at a pub called Erin's's?",
+    "What are the opening hours at a pub named Erin's's?",
+    "What are the opening hours of Erin’s, please?",
+  ])("preserves the listed apostrophe-s name: %s", async (query) => {
+    const venue = await getVenueDetail("venue-18orf8o");
+    expect(venue?.name).toBe("Erin's");
+    expect(venue?.siteFacts?.hours).toBeDefined();
+    const body = await runAsk({ query, now, skipModel: true, fetchImpl: offlineFetch });
+    expect(body.cards.map((card) => card.venueId)).toEqual(["venue-18orf8o"]);
+    expect(body.answer).toContain("Erin's: recorded regular opening hours:");
+    expect(body.answer).toContain("Thursday 11:30 to 23:00");
+    expect(body.cards[0]?.provenance?.url).toBe(venue?.siteFacts?.sourceUrl);
+    const result = await runAskTool("search_venues", { query }, { query, cityId: "london", now, skipModel: true });
+    expect(result.cards.map((card) => card.venueId)).toEqual(["venue-18orf8o"]);
+    expect(result.answerHint).toBe(body.answer);
+  });
+
+  it.each([
+    "What are The Crosse Keys' opening hours?",
+    "What are the opening hours of The Crosse Keys, please?",
+  ])("preserves ordinary question framing: %s", async (query) => {
+    const body = await runAsk({ query, now, skipModel: true, fetchImpl: offlineFetch });
+    expect(gradePalCase(body, knownReference, index).pass).toBe(true);
+  });
+
+  it.each([
     "Find me one quiet pub in Soho with late opening hours",
     "Find me two cosy local pubs in Soho with late opening hours",
     "Find me 3 good nearby bars in Soho with late opening hours",
