@@ -3,15 +3,16 @@ import { describe, expect, it } from "vitest";
 // The audit gate may waive named advisories (see WAIVED_ADVISORIES in the
 // script). These tests pin the blast radius of that mechanism: a waiver
 // covers exactly the advisory named, and a finding that mixes a waived
-// advisory with anything else still fails. The live map is empty after the
-// eslint 10 bump cleared GHSA-mh99-v99m-4gvg; classifyFindings is exercised
-// with a local map so the machinery stays pinned without a live waiver.
+// advisory with anything else still fails. The live map admits only the
+// unpatched braces advisory; local example waivers retain the independent
+// machinery checks and do not restore the old brace-expansion waiver.
 
 // @ts-expect-error - plain .mjs build script, no type declarations
 import { WAIVED_ADVISORIES, classifyFindings } from "../scripts/resilient-audit.mjs";
 
 const WAIVED_URL = "https://github.com/advisories/GHSA-xxxx-waived-zzzz";
 const OTHER_URL = "https://github.com/advisories/GHSA-xxxx-yyyy-zzzz";
+const BRACES_URL = "https://github.com/advisories/GHSA-vfj7-8cjw-p6xm";
 
 const EXAMPLE_WAIVERS = new Map([[WAIVED_URL, "high"]]);
 
@@ -19,9 +20,21 @@ function advisory(url: string, severity = "high") {
   return { source: 1, name: "pkg", dependency: "pkg", title: "t", url, severity };
 }
 
+function bracesFindings(severity = "high") {
+  return {
+    vulnerabilities: {
+      "@next/eslint-plugin-next": { severity, via: ["fast-glob"] },
+      braces: { severity, via: [{ ...advisory(BRACES_URL, severity), name: "braces", dependency: "braces" }] },
+      "eslint-config-next": { severity, via: ["@next/eslint-plugin-next"] },
+      "fast-glob": { severity, via: ["micromatch"] },
+      micromatch: { severity, via: ["braces"] },
+    },
+  };
+}
+
 describe("resilient-audit waivers", () => {
-  it("ships with no live waivers after the eslint 10 brace-expansion clear", () => {
-    expect([...WAIVED_ADVISORIES]).toEqual([]);
+  it("ships only the exact high braces advisory waiver", () => {
+    expect([...WAIVED_ADVISORIES]).toEqual([[BRACES_URL, "high"]]);
   });
 
   it("waives a finding whose only advisory is waived", () => {
@@ -110,5 +123,28 @@ describe("resilient-audit waivers", () => {
       },
     };
     expect(classifyFindings(report, EXAMPLE_WAIVERS)).toEqual({ waived: [], unwaived: [] });
+  });
+
+  it("recognizes all five actual Next lint-chain findings through the live waiver", () => {
+    expect(classifyFindings(bracesFindings())).toEqual({
+      waived: ["@next/eslint-plugin-next", "braces", "eslint-config-next", "fast-glob", "micromatch"],
+      unwaived: [],
+    });
+  });
+
+  it("rejects the live braces advisory if its severity becomes critical", () => {
+    expect(classifyFindings(bracesFindings("critical"))).toEqual({
+      waived: [],
+      unwaived: ["@next/eslint-plugin-next", "braces", "eslint-config-next", "fast-glob", "micromatch"],
+    });
+  });
+
+  it("rejects a new advisory mixed into the live braces chain", () => {
+    const report = bracesFindings();
+    report.vulnerabilities.braces.via.push(advisory(OTHER_URL));
+    expect(classifyFindings(report)).toEqual({
+      waived: [],
+      unwaived: ["@next/eslint-plugin-next", "braces", "eslint-config-next", "fast-glob", "micromatch"],
+    });
   });
 });

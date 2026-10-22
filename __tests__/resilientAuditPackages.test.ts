@@ -7,6 +7,7 @@ import { afterEach, describe, expect, it } from "vitest";
 
 const REPOSITORY = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const workspaces: string[] = [];
+const BRACES_URL = "https://github.com/advisories/GHSA-vfj7-8cjw-p6xm";
 
 type AuditFixture = { report?: unknown; stderr?: string; exitCode: number };
 type Receipt = { cwd: string; args: string[] };
@@ -56,7 +57,26 @@ const outage: AuditFixture = {
   exitCode: 1,
 };
 
-function runAudit(rootReport: AuditFixture, nestedReport: AuditFixture) {
+function bracesAuditReport(): AuditFixture {
+  return {
+    exitCode: 1,
+    report: {
+      auditReportVersion: 2,
+      vulnerabilities: {
+        "@next/eslint-plugin-next": { severity: "high", via: ["fast-glob"] },
+        braces: { severity: "high", via: [{ url: BRACES_URL, severity: "high" }] },
+        "eslint-config-next": { severity: "high", via: ["@next/eslint-plugin-next"] },
+        "fast-glob": { severity: "high", via: ["micromatch"] },
+        micromatch: { severity: "high", via: ["braces"] },
+      },
+      metadata: {
+        vulnerabilities: { info: 0, low: 0, moderate: 0, high: 5, critical: 0, total: 5 },
+      },
+    },
+  };
+}
+
+function runAudit(rootReport: AuditFixture, nestedReport: AuditFixture, productionReport?: AuditFixture) {
   const workspace = realpathSync(mkdtempSync(path.join(tmpdir(), "pubmax-audit-packages-")));
   workspaces.push(workspace);
   const scripts = path.join(workspace, "scripts");
@@ -71,15 +91,20 @@ function runAudit(rootReport: AuditFixture, nestedReport: AuditFixture) {
   }
   const fixtures = path.join(workspace, "audit-fixtures.json");
   const receiptsPath = path.join(workspace, "npm-receipts.jsonl");
-  writeFileSync(fixtures, JSON.stringify({ ".": rootReport, "scripts/chatgpt-map": nestedReport }));
+  writeFileSync(fixtures, JSON.stringify({
+    ".": rootReport,
+    "scripts/chatgpt-map": nestedReport,
+    ...(productionReport ? { ".:production": productionReport } : {}),
+  }));
   writeFileSync(receiptsPath, "");
   const fixtureProgram = path.join(bin, "fake-npm.mjs");
   writeFileSync(fixtureProgram, `import { appendFileSync, readFileSync } from "node:fs";
 import path from "node:path";
 const relative = path.relative(process.env.PUBMAX_AUDIT_FIXTURE_ROOT, process.cwd()).split(path.sep).join("/") || ".";
 appendFileSync(process.env.PUBMAX_AUDIT_FIXTURE_RECEIPTS, JSON.stringify({ cwd: relative, args: process.argv.slice(2) }) + "\\n");
-const fixture = JSON.parse(readFileSync(process.env.PUBMAX_AUDIT_FIXTURES, "utf8"))[relative];
-if (!fixture) throw new Error("Unexpected npm working directory: " + relative);
+const key = process.argv.includes("--omit=dev") ? relative + ":production" : relative;
+const fixture = JSON.parse(readFileSync(process.env.PUBMAX_AUDIT_FIXTURES, "utf8"))[key];
+if (!fixture) throw new Error("Unexpected npm audit invocation: " + key);
 if (fixture.report !== undefined) process.stdout.write(JSON.stringify(fixture.report));
 if (fixture.stderr) process.stderr.write(fixture.stderr);
 process.exit(fixture.exitCode);
@@ -159,5 +184,38 @@ describe("resilient audit package process boundary", () => {
     const { result, receipts } = runAudit(auditReport("root-fixture-moderate", "moderate"), auditReport("mcp-fixture-moderate", "moderate"));
     expect(result.status).toBe(0);
     expectBothPackages(receipts);
+  });
+
+  it("admits the exact dev-only braces waiver only after a fresh production audit is clean", () => {
+    const { result, receipts, output } = runAudit(bracesAuditReport(), auditReport(), auditReport());
+    expect(result.status).toBe(0);
+    expect(output).toContain("Waived (dev-only, see WAIVED_ADVISORIES)");
+    expect(receipts).toEqual([
+      { cwd: ".", args: ["audit", "--json", "--audit-level=high"] },
+      { cwd: ".", args: ["audit", "--json", "--audit-level=high", "--omit=dev"] },
+      { cwd: "scripts/chatgpt-map", args: ["audit", "--json", "--audit-level=high"] },
+    ]);
+  });
+
+  it("rejects the exact braces advisory if the fresh production audit contains it", () => {
+    const { result, receipts, output } = runAudit(bracesAuditReport(), auditReport(), bracesAuditReport());
+    expect(result.status).toBe(1);
+    expect(output).toContain("high/critical vulnerabilities in PRODUCTION dependencies");
+    expect(receipts).toEqual([
+      { cwd: ".", args: ["audit", "--json", "--audit-level=high"] },
+      { cwd: ".", args: ["audit", "--json", "--audit-level=high", "--omit=dev"] },
+      { cwd: "scripts/chatgpt-map", args: ["audit", "--json", "--audit-level=high"] },
+    ]);
+  });
+
+  it("fails closed for the exact braces waiver when the fresh production audit is unavailable", () => {
+    const { result, receipts, output } = runAudit(bracesAuditReport(), auditReport(), outage);
+    expect(result.status).toBe(1);
+    expect(output).toContain("production audit unavailable) - failing closed");
+    expect(receipts).toEqual([
+      { cwd: ".", args: ["audit", "--json", "--audit-level=high"] },
+      { cwd: ".", args: ["audit", "--json", "--audit-level=high", "--omit=dev"] },
+      { cwd: "scripts/chatgpt-map", args: ["audit", "--json", "--audit-level=high"] },
+    ]);
   });
 });
