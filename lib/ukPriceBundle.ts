@@ -90,8 +90,8 @@ export type UkPriceBundleRow = {
 };
 
 /**
- * Source-ledger observations with a printed item that contradicts its assigned
- * category. Keep the observations in site_harvest.jsonl for audit, but do not
+ * Source-ledger observations whose printed item contradicts its category or
+ * claims a modifier as a standalone price. Keep site_harvest.jsonl for audit; do not
  * let these exact claims become listed facts. Match the source and printed item
  * as well as category and price, so other drinks on these menus still publish.
  */
@@ -102,6 +102,9 @@ const CATEGORY_QUARANTINE: ReadonlyArray<
   { sourceUrl: "https://www.thealbionpub.com/uploads/drink.pdf?v=1772220206", category: "vodka", priceGbp: 9.5 },
   { sourceUrl: "https://www.thealbionpub.com/uploads/drink.pdf?v=1772220206", category: "wine", priceGbp: 6, drinkLabel: "TEQUILA ROSE" },
   { sourceUrl: "https://www.thealbionpub.com/uploads/drink.pdf?v=1772220206", category: "shot", priceGbp: 7, drinkLabel: "PIMM’S", servingSize: "25ml" },
+  // The menu adds this mixer price to spirits. Its old unnamed row is retained too.
+  { sourceUrl: "https://www.thealbionpub.com/uploads/drink.pdf?v=1772220206", category: "soft-drink", priceGbp: 1.9 },
+  { sourceUrl: "https://www.thealbionpub.com/uploads/drink.pdf?v=1772220206", category: "soft-drink", priceGbp: 1.9, drinkLabel: "MIX YOUR SPIRITS WITH DRAFT COKE , COKE ZERO , LEMONADE OR A SODA WATER" },
   { sourceUrl: "https://www.thewhitehartmoreton.co.uk/wine-list", category: "wine", priceGbp: 3.95, drinkLabel: "\u200b Courvoisier VSOP Cognac 25ml" },
   { sourceUrl: "https://www.thewhitehartmoreton.co.uk/wine-list", category: "wine", priceGbp: 3.95, drinkLabel: "\u200b Courvoisier VSOP Cognac", servingSize: "25ml" },
   { sourceUrl: "https://thebellonthegreen.com/drinks/", category: "wine", priceGbp: 4, drinkLabel: "London Pride 500ml" },

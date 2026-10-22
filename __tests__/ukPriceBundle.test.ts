@@ -687,3 +687,78 @@ describe("Albion retained current publisher category contradictions", () => {
     expect(JSON.stringify(ledger)).toBe(before);
   });
 });
+
+describe("Albion retained mixer add-on observations", () => {
+  const sourceUrl = "https://www.thealbionpub.com/uploads/drink.pdf?v=1772220206";
+  const mixerLabel = "MIX YOUR SPIRITS WITH DRAFT COKE , COKE ZERO , LEMONADE OR A SODA WATER";
+  const rawLedger = readFileSync("data/uk_prices/site_harvest.jsonl", "utf8");
+  const ledger = rawLedger.trim().split("\n").map((line) => JSON.parse(line));
+
+  // The saved publisher PDF places this £1.90 instruction beneath spirits,
+  // separately from its standalone soft drinks. Keep both source observations:
+  // dropping only the named claim would expose the old category-only amount.
+  it.each([undefined, mixerLabel])("withholds the exact retained £1.90 modifier with label %s", (drinkLabel) => {
+    const observations = ledger.filter((row) => row.sourceUrl === sourceUrl
+      && row.category === "soft-drink" && row.priceGbp === 1.9 && row.drinkLabel === drinkLabel);
+    expect(observations.length, "Retained governed observations must remain in the raw ledger").toBeGreaterThan(0);
+    for (const raw of observations) {
+      const claim: UkPriceBundleRow = { ...listed, venueId: raw.venueId, name: raw.name,
+        sourceUrl, publisher: "thealbionpub.com", category: "soft-drink", priceGbp: 1.9,
+        observedAt: raw.observedAt, ...(drinkLabel ? { drinkLabel } : {}) };
+      const now = Date.parse(claim.observedAt) + 1_000;
+      expect(isValidUkPriceBundleRow(claim)).toBe(true);
+      expect(parseUkPriceBundleRows([claim])).toEqual([]);
+      expect(authoritativeBundleRows([claim])).toEqual([]);
+      expect(bundlePricesForCategory([claim], "soft-drink").listed).toBeNull();
+      expect(strongestBundleRow([claim], now).standing).toBe("none");
+      expect(listedCategoryPrices([claim], now)).toEqual([]);
+    }
+    expect(readFileSync("data/uk_prices/site_harvest.jsonl", "utf8")).toBe(rawLedger);
+  });
+
+  it.each([
+    { category: "soft-drink", priceGbp: 4, drinkLabel: "COLA", servingSize: undefined },
+    { category: "soft-drink", priceGbp: 4, drinkLabel: "JUICE", servingSize: undefined },
+    { category: "alcohol-free", priceGbp: 5.5, drinkLabel: "HEINEKEN 0.0", servingSize: undefined },
+    { category: "gin", priceGbp: 4, drinkLabel: "GORDONS", servingSize: "25ml" },
+  ] as const)("retains actual neighboring $drinkLabel with its source, date and serving", (item) => {
+    const raw = ledger.findLast((row) => row.sourceUrl === sourceUrl && row.category === item.category
+      && row.priceGbp === item.priceGbp && row.drinkLabel === item.drinkLabel
+      && row.servingSize === item.servingSize);
+    expect(raw).toBeDefined();
+    const claim: UkPriceBundleRow = { ...listed, ...item, venueId: raw.venueId, name: raw.name,
+      sourceUrl, publisher: "thealbionpub.com", observedAt: raw.observedAt };
+    const now = Date.parse(claim.observedAt) + 1_000;
+    expect(parseUkPriceBundleRows([claim])).toEqual([claim]);
+    expect(authoritativeBundleRows([claim])).toEqual([claim]);
+    expect(bundlePricesForCategory([claim], item.category).listed).toEqual({
+      priceGbp: item.priceGbp, sourceUrl, observedAt: claim.observedAt,
+    });
+    expect(listedCategoryPrices([claim], now)).toEqual([
+      expect.objectContaining({ ...item, servingSize: item.servingSize ?? null,
+        sourceUrl, observedAt: claim.observedAt }),
+    ]);
+  });
+
+  it("does not withhold unrelated cheap prices or changed exact signatures", () => {
+    // Synthetic controls constrain the rule; they are not publisher claims.
+    const base: UkPriceBundleRow = { ...listed, sourceUrl, category: "soft-drink",
+      priceGbp: 1.9, drinkLabel: mixerLabel };
+    const controls: UkPriceBundleRow[] = [
+      { ...base, sourceUrl: "https://another-pub.example/menu" },
+      { ...base, drinkLabel: "Cola", servingSize: "330ml" },
+      { ...base, priceGbp: 2 },
+      { ...base, category: "alcohol-free" },
+      { ...base, lane: "drink-price-update" },
+    ];
+    expect(parseUkPriceBundleRows(controls)).toEqual(controls);
+    expect(authoritativeBundleRows(controls)).toEqual(controls);
+    for (const control of controls) {
+      expect(bundlePricesForCategory([control], control.category).listed?.priceGbp).toBe(control.priceGbp);
+      expect(listedCategoryPrices([control], NOW)).toEqual([
+        expect.objectContaining({ category: control.category, priceGbp: control.priceGbp,
+          drinkLabel: control.drinkLabel, servingSize: control.servingSize ?? null }),
+      ]);
+    }
+  });
+});
