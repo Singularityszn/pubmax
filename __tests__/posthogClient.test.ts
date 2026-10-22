@@ -48,7 +48,7 @@ describe("PostHog browser privacy boundary", () => {
     expect(JSON.stringify(clean)).not.toMatch(/private-plan|secret|token|private text|Private plan name|person@example/);
   });
 
-  it.each(["/admin", "/messages/private-thread", "/u/you", "/profile", "/unknown"])(
+  it.each(["/admin", "/activity", "/messages/private-thread", "/u/you", "/profile", "/unknown"])(
     "does not send exit measurements for %s",
     (pathname) => {
       expect(sanitizePosthogEvent({

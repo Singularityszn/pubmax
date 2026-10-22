@@ -54,6 +54,16 @@ function decodedRequests(): string[] {
   });
 }
 
+function emittedEvents() {
+  return decodedRequests().flatMap((request) => {
+    const body = request.slice(request.indexOf(" ") + 1);
+    if (!body) return [];
+    type EmittedEvent = { event: string; properties: Record<string, unknown> };
+    const parsed = JSON.parse(body) as EmittedEvent | EmittedEvent[] | { batch: EmittedEvent[] };
+    return Array.isArray(parsed) ? parsed : "batch" in parsed ? parsed.batch : [parsed];
+  });
+}
+
 function settle(ms = 300): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
@@ -196,13 +206,7 @@ describe("PostHog SDK boundary (real posthog-js, stubbed fetch)", () => {
 describe("consent epochs at the real SDK boundary", () => {
   it.each(["queued", "direct"])("isolates the first %s view and its exit after renewed consent", async (mode) => {
     const { capturePosthogPageview, syncPosthogConsent } = await import("@/lib/posthogClient");
-    const events = () => decodedRequests().flatMap((request) => {
-      const body = request.slice(request.indexOf(" ") + 1);
-      if (!body) return [];
-      type EmittedEvent = { event: string; properties: Record<string, unknown> };
-      const parsed = JSON.parse(body) as EmittedEvent | EmittedEvent[] | { batch: EmittedEvent[] };
-      return Array.isArray(parsed) ? parsed : "batch" in parsed ? parsed.batch : [parsed];
-    });
+    const events = emittedEvents;
     const firstId = mode === "queued" ? "anon_1111111111111111" : "anon_3333333333333333";
     const renewedId = mode === "queued" ? "anon_2222222222222222" : "anon_4444444444444444";
     const start = Date.now();
@@ -261,6 +265,71 @@ describe("consent epochs at the real SDK boundary", () => {
       });
       expect(renewedView.properties).not.toHaveProperty("$prev_pageview_id");
       expect(Object.keys(renewedView.properties).filter((key) => key.startsWith("$prev_pageview_"))).toEqual([]);
+    } finally {
+      syncPosthogConsent(false);
+      vi.useRealTimers();
+    }
+  });
+});
+
+describe("Activity privacy at the real SDK boundary", () => {
+  it.each(["navigation", "final exit"])("excludes Activity engagement on %s and resumes public measurements", async (mode) => {
+    const { capturePosthogPageview, syncPosthogConsent } = await import("@/lib/posthogClient");
+    const anonymousId = mode === "navigation" ? "anon_5555555555555555" : "anon_6666666666666666";
+    const events = () => emittedEvents().filter(({ properties }) => properties.distinct_id === anonymousId);
+    const start = Date.now();
+    vi.useFakeTimers({ toFake: ["Date"] });
+    try {
+      vi.setSystemTime(start);
+      posthog.set_config({ request_batching: false });
+      syncPosthogConsent(false);
+      window.localStorage.setItem("pubmaxx:analytics-id:v1", anonymousId);
+      window.history.replaceState(null, "", "/privacy");
+      syncPosthogConsent(true);
+      capturePosthogPageview("/privacy", anonymousId);
+      await vi.waitFor(() => expect(events()).toHaveLength(1));
+
+      vi.setSystemTime(start + 2_000);
+      window.history.replaceState(null, "", "/activity");
+      capturePosthogPageview("/activity", anonymousId);
+      await vi.waitFor(() => expect(events()).toHaveLength(2));
+      vi.setSystemTime(start + 32_000);
+      window.dispatchEvent(new Event("scroll"));
+      if (mode === "final exit") window.dispatchEvent(new Event("pagehide"));
+      await settle(10);
+
+      vi.setSystemTime(start + 42_000);
+      window.history.replaceState(null, "", "/terms");
+      capturePosthogPageview("/terms", anonymousId);
+      vi.setSystemTime(start + 45_000);
+      window.dispatchEvent(new Event("scroll"));
+      window.history.replaceState(null, "", "/about");
+      capturePosthogPageview("/about", anonymousId);
+      vi.setSystemTime(start + 47_000);
+      window.dispatchEvent(new Event("scroll"));
+      window.dispatchEvent(new Event("pagehide"));
+      await settle(10);
+
+      const termsView = events().find(({ event, properties }) => event === "$pageview" && properties.$pathname === "/terms")!;
+      const activityExits = events().filter(({ event, properties }) => event === "$pageleave" && properties.$prev_pageview_pathname === "/activity");
+      expect(activityExits).toEqual([]);
+      expect(Object.keys(termsView.properties).filter((key) => key.startsWith("$prev_pageview_"))).toEqual([]);
+      const activityView = events().find(({ event, properties }) => event === "$pageview" && properties.$pathname === "/activity")!;
+      expect(activityView.properties).not.toHaveProperty("$pageview_id");
+      expect(Object.keys(activityView.properties).filter((key) => key.startsWith("$prev_pageview_"))).toEqual([]);
+      const aboutView = events().find(({ event, properties }) => event === "$pageview" && properties.$pathname === "/about")!;
+      expect(aboutView.properties).toMatchObject({
+        $prev_pageview_id: termsView.properties.$pageview_id,
+        $prev_pageview_pathname: "/terms",
+        $prev_pageview_duration: 3,
+        $prev_pageview_max_content_percentage: expect.any(Number),
+      });
+      const publicExit = events().find(({ event, properties }) => event === "$pageleave" && properties.$prev_pageview_pathname === "/about")!;
+      expect(publicExit.properties).toMatchObject({
+        $prev_pageview_id: aboutView.properties.$pageview_id,
+        $prev_pageview_duration: 2,
+        $prev_pageview_max_content_percentage: expect.any(Number),
+      });
     } finally {
       syncPosthogConsent(false);
       vi.useRealTimers();

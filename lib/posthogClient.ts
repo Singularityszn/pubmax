@@ -157,7 +157,7 @@ let skipPreviousEngagement = false;
 const POSTHOG_UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 function engagementSurface(pathname: unknown): string | null {
-  if (typeof pathname !== "string" || /^(?:\/messages|\/u|\/you|\/profile|\/account|\/settings|\/login|\/signin|\/auth)(?:\/|$)/.test(pathname)) return null;
+  if (typeof pathname !== "string" || /^(?:\/activity|\/messages|\/u|\/you|\/profile|\/account|\/settings|\/login|\/signin|\/auth)(?:\/|$)/.test(pathname)) return null;
   return analyticsPageviewSurfaceFromPath(pathname);
 }
 
