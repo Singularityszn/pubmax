@@ -124,3 +124,11 @@ describe("chain and Tavily harvest readers without TYPESAFE_API_KEY", () => {
     expect(tavily).not.toMatch(/function extractPintPrices\s*\(/);
   });
 });
+
+it("accepts useful prices without proving that a complete menu was extracted", async () => {
+  const { pageStatesADrinksList } = await import("@/lib/harvest/ukPriceCrawl");
+  const reading = readVenueDrinkPrices(`${drinksList}<p>£10 Topsfield Tea</p>`, "html");
+  expect(reading.kept).toHaveLength(4);
+  expect(reading.drops).toContain("no-category-word-nearby");
+  expect(pageStatesADrinksList(reading)).toBe(true);
+});

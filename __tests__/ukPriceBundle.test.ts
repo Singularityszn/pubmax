@@ -335,3 +335,15 @@ describe("which price a reader is handed for one pub and one drink", () => {
     expect(bundlePricesForCategory([wine], "beer").listed).toBeNull();
   });
 });
+
+it("preserves older differently named prices when a later menu extract omits them", () => {
+  const bundle = JSON.parse(readFileSync("public/data/uk_prices/rows.json", "utf8")) as UkPriceBundleRow[];
+  const pageRows = bundle.filter((row) => row.lane === "site-harvest" &&
+    row.sourceUrl === "https://www.smallbeern8.co.uk/drinks");
+  expect(pageRows).toContainEqual(expect.objectContaining({
+    category: "beer", priceGbp: 5, observedAt: "2026-09-21T18:58:02.492Z",
+  }));
+  expect(pageRows).toContainEqual(expect.objectContaining({
+    category: "beer", priceGbp: 5, drinkLabel: "Session IPA , 4.0%, Two by Two (Newcastle)",
+  }));
+});
