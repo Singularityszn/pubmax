@@ -39,7 +39,7 @@ export async function GET(
     new URL(request.url).searchParams.get("viewer"),
   );
   try {
-    return jsonNoStore(await readLedgerLog(read.venue.id, read.venue.curation, viewer));
+    return jsonNoStore(await readLedgerLog(read.venue, viewer));
   } catch {
     // A Pint Drop store we could not read is an answer we do not have, never
     // an empty logbook: the same retryable envelope as a venue read that failed.
