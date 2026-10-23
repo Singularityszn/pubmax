@@ -3,9 +3,16 @@
 Branch: `codex/vercel-audit-fixes-1023`.
 Base: `d64a5cf0474407d51c7d2b521a7337c2c3f8c663`.
 
-These changes remain local. The task branch was not pushed or deployed. Production
-settings, databases, secrets, notification destinations, firewall rules and
-DNS records remain unchanged. Database proofs use throwaway local clusters.
+This dated record describes the combined source branch above. The
+`codex/analytics-polling-pr-1023` split contains only its analytics and badge
+changes, plus this record. Moderation, alert delivery, routing and hours-test
+repairs belong to separate branches. The results below do not validate the
+independent split.
+
+At the recorded run, the source branch was local and had no deployment.
+Production settings, databases, secrets, notification destinations, firewall
+rules and DNS records stayed unchanged. Database proofs used throwaway local
+clusters.
 
 ## Changes and evidence
 
@@ -126,5 +133,6 @@ For this machine, the run added a temporary Chrome configuration override,
 `PW_SKIP_KEYLESS_WEBSERVER=1` and `PUBMAX_TRACKED_OUTPUTS=public/data`.
 The override preserved the repository's build and server environment.
 
-Raw local logs remain under `artifacts/vercel-audit-fixes/`. The retained
+The original run wrote local logs under `artifacts/vercel-audit-fixes/`.
+Those logs are not included in this split. The retained
 [check summary](checks.json) records counts and limits without private data.
