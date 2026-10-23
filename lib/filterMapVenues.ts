@@ -17,7 +17,6 @@ export function filterMapVenues(
   const slimPinFilters: Filters = {
     ...filters,
     canonicalOnly: false,
-    requireBeerGarden: false,
     requireNonAlcoholic: false,
     requireLiveSports: false,
     requireWater: false,
@@ -46,7 +45,7 @@ export function filterMapVenues(
  * leaves none of them confirmed and the base layer must draw nothing.
  */
 export function mapFiltersSuspendUkBasePubs(filters: Filters): boolean {
-  return anyAccessibilityFilterActive({
+  return Boolean(filters.requireBeerGarden || filters.requireOutdoorSeating) || anyAccessibilityFilterActive({
     stepFree: filters.requireStepFree,
     accessibleToilet: filters.requireAccessibleToilet,
     seatedService: filters.requireSeatedService,
