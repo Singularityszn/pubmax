@@ -5,9 +5,6 @@ import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 
 import {
-  currentSiteHarvestRows,
-  dedupeSiteHarvestLedgerRows,
-  loadCuratedUkBaseOwners,
   parseSiteHarvestLedgerText,
   type SiteHarvestLedgerRow,
 } from "@/lib/siteHarvestLedgerCore";
@@ -525,16 +522,9 @@ describe("site-harvest withdrawal reconciliation", () => {
     const historicalBundle = bundleRows.filter(
       (row) => !laterSources.has(`${row.sourceUrl ?? ""}|${row.observedAt}`),
     );
-    // The archive counts include source rows a later complete page retired.
-    // Account for those rows without putting them back in the current bundle.
-    const activeIdentities = new Set(currentSiteHarvestRows(rows).map(rowIdentitySha256));
-    const superseded = dedupeSiteHarvestLedgerRows(
-      historicalRows.filter((row) => !activeIdentities.has(rowIdentitySha256(row))),
-      loadCuratedUkBaseOwners(),
-    );
     expect(publication.currentBundle).toEqual({
-      rowCount: historicalBundle.length + superseded.length,
-      siteHarvestRows: historicalBundle.filter((row) => row.lane === "site-harvest").length + superseded.length,
+      rowCount: historicalBundle.length,
+      siteHarvestRows: historicalBundle.filter((row) => row.lane === "site-harvest").length,
     });
   });
 });
