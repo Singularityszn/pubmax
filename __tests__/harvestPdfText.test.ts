@@ -70,7 +70,10 @@ describe("reading the words a PDF menu states", () => {
     const reading = readVenueDrinkPrices(text ?? "");
     expect(pageStatesADrinksList(reading)).toBe(true);
     const priced = cheapestPerCategory(reading);
-    expect(priced.find((row) => row.category === "beer")?.priceGbp).toBe(6.2);
+    expect(priced.filter((row) => row.category === "beer")).toEqual(expect.arrayContaining([
+      expect.objectContaining({ drinkLabel: "Neck Oil Session IPA pint -", priceGbp: 6.2 }),
+      expect.objectContaining({ drinkLabel: "Guinness pint -", priceGbp: 6.8 }),
+    ]));
     expect(priced.find((row) => row.category === "wine")?.priceGbp).toBe(7.5);
   });
 

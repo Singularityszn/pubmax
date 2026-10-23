@@ -22,7 +22,7 @@ export default function ListedDrinkCoverage({ coverage, status }: {
         </div>)}
       </dl>
       <p className="listingSectionDek">These counts are separate from the borough league and its CSV. Cafés are outside this pub count. The map&rsquo;s coffee list counts them separately. Map drink colours use confirmed prices from drinkers.</p>
-      <Link href="/map?drink=coffee" className="listingLink">See coffee on the map</Link>
+      <Link href="/map?drink=coffee" prefetch={false} className="listingLink">See coffee on the map</Link>
     </>}
   </section>;
 }

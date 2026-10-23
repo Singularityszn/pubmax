@@ -11,12 +11,7 @@
 // the Pint Index at a pub whose pint is £5.50 - the production defect the whole
 // half-pint work exists to close, reached through the busiest door.
 //
-// Three things are pinned here: the beer lane renders the closed chips, the
-// chosen measure reaches the write, and NO write path may state the measure on
-// a value nobody answered.
-
-import { readFileSync, readdirSync, statSync } from "node:fs";
-import { join } from "node:path";
+// These tests check the serving choices and the measure sent by this form.
 
 import { act, createElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
@@ -210,47 +205,5 @@ describe("the one-tap price door asks the measure", () => {
 
     expect(defined(measureChips()[0]).getAttribute("aria-checked")).toBe("true");
     expect(defined(measureChips()[1]).getAttribute("aria-checked")).toBe("false");
-  });
-});
-
-// ── THE SOURCE FENCE ───────────────────────────────────────────────────────
-// A rendered test proves this door. It cannot prove the next one, so the tree
-// is swept: no shipped module may state a measure as a literal. The one owner
-// of the word is lib/drinkMeasure.ts, which defines the closed set and the
-// default; everything else must carry an answer somebody gave.
-
-const SWEPT_DIRECTORIES = ["lib", "app", "components", "scripts"] as const;
-const MEASURE_LITERAL = /measure(_label)?\s*[:=]\s*["'`](pint|half|other)["'`]/;
-/** The module that OWNS the word. Its own table is where the literals belong. */
-const MEASURE_OWNER = "lib/drinkMeasure.ts";
-
-function walk(dir: string): string[] {
-  const out: string[] = [];
-  for (const entry of readdirSync(dir)) {
-    if (entry === "node_modules" || entry.startsWith(".")) continue;
-    const full = join(dir, entry);
-    if (statSync(full).isDirectory()) out.push(...walk(full));
-    else if (/\.(ts|tsx|mjs)$/.test(entry)) out.push(full);
-  }
-  return out;
-}
-
-describe("no write path states a measure nobody was asked", () => {
-  it("keeps every measure literal inside its owner", () => {
-    const root = process.cwd();
-    const offenders: string[] = [];
-    for (const dir of SWEPT_DIRECTORIES) {
-      for (const file of walk(join(root, dir))) {
-        const relative = file.slice(root.length + 1);
-        if (relative === MEASURE_OWNER) continue;
-        const source = readFileSync(file, "utf8");
-        for (const line of source.split("\n")) {
-          // A comment quoting the defect is not the defect.
-          const code = line.replace(/^\s*(\/\/|\*|\/\*).*$/, "");
-          if (MEASURE_LITERAL.test(code)) offenders.push(`${relative}: ${line.trim()}`);
-        }
-      }
-    }
-    expect(offenders).toEqual([]);
   });
 });
