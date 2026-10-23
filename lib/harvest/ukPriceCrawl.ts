@@ -284,10 +284,15 @@ function isHalfMeasure(before: string): boolean {
 
 const PRICE_PATTERN = /£\s?(\d{1,2}(?:\.\d{1,2})?)(?![\da-z]|\.\d)/gi;
 
+// Item punctuation is a boundary after a known price or measure. Commas inside
+// a drink name remain part of that name. Hyphens need padding to avoid splitting names.
+export const PRICE_ITEM_SEPARATOR = /(?:[,.;:•·|!?]|\s+-\s+)/;
+const LEADING_PRICE_ITEM_SEPARATORS = new RegExp(`^\\s*(?:${PRICE_ITEM_SEPARATOR.source}\\s*)+`);
+
 const FRACTIONAL_BEER_MEASURE = /(?:\b[12]\s*\/\s*3\b|[⅓⅔]|\b(?:one[\s-]third|two[\s-]thirds)\b)/i;
 // Printed item separators also close a suffix, so it cannot become the next drink's prefix.
 const LEADING_FRACTIONAL_BEER_MEASURE = new RegExp(
-  `^\\s*(?:\\(\\s*(?:${FRACTIONAL_BEER_MEASURE.source})(?:\\s+(?:of\\s+a\\s+)?pints?)?\\s*\\)|(?:${FRACTIONAL_BEER_MEASURE.source})(?:\\s+(?:of\\s+a\\s+)?pints?)?)(?=[\\s,.;]|$)`, "i",
+  `^\\s*(?:\\(\\s*(?:${FRACTIONAL_BEER_MEASURE.source})(?:\\s+(?:of\\s+a\\s+)?pints?)?\\s*\\)|(?:${FRACTIONAL_BEER_MEASURE.source})(?:\\s+(?:of\\s+a\\s+)?pints?)?)(?=\\s|${PRICE_ITEM_SEPARATOR.source}|$)`, "i",
 );
 
 /** Null means no fraction follows. An empty suffix belongs to the next drink. */
@@ -460,8 +465,8 @@ export function drinkLabelFromPriceContext(
   const raw = context
     .slice(start, priceAt)
     .replace(/\s+/g, " ")
-    .trim()
-    .replace(/^[,;:•·]+\s*/, "");
+    .replace(LEADING_PRICE_ITEM_SEPARATORS, "")
+    .trim();
   if (!raw) return null;
   return normalizeHarvestDrinkLabel(raw);
 }
