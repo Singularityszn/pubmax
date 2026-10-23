@@ -6,20 +6,14 @@ import type { PoiCategory } from "@/lib/pois";
 import type { ThingsToDoOpportunity } from "@/lib/citymcp/client";
 import { londonVenueIdFromFeature } from "@/lib/londonVenueShards";
 import { ukBasePubFromFeature, type UkBasePub } from "@/lib/ukBasePubs";
+import { CLUSTER_RIM_LAYERS, LANDMARK_INTERACTION_LAYERS, PUB_FIRST_LAYERS } from "./clickHitPriority";
 import { opportunityForFeature } from "./filters";
+import { pubHitOf } from "./pubHitPriority";
+import { recordPubHitClick } from "./pubHitTrace";
 import type { HoveredVenue } from "./types";
 
 type ActivePoi = { name: string; category: PoiCategory };
 
-const LANDMARK_INTERACTION_LAYERS = [
-  "landmarks-icon",
-  "landmarks-label",
-] as const;
-
-// The disc's casing and the count on its rim stand on the `clusters` circle's
-// own edge and overhang it, so a tap on the outer part of either is a tap on the
-// cluster. All three carry the same `cluster_id`.
-const CLUSTER_RIM_LAYERS = ["cluster-count-badge", "clusters-casing"] as const;
 function clusterHitOf<T>(byLayer: ReadonlyMap<string, T>): T | undefined {
   for (const layer of ["clusters", ...CLUSTER_RIM_LAYERS] as const) {
     const hit = byLayer.get(layer);
@@ -28,43 +22,7 @@ function clusterHitOf<T>(byLayer: ReadonlyMap<string, T>): T | undefined {
   return undefined;
 }
 
-// Pub-first hit testing: a single map click queries pubs/route stops before
-// landmarks/POIs so dense central London taps open a pub sheet, not a
-// landmark card that happened to sit under the same finger.
-// `uk-base-point` sits AFTER the curated pub layers and before the ambient
-// ones: an unverified pub is still a pub (so it beats a landmark or a station
-// under the same thumb), but where a curated pin and a base pin overlap the
-// curated one wins — the same precedence the paint order states. A London
-// restaurant comes after the base pubs for the same reason: it is drawn under
-// them.
-export const PUB_FIRST_LAYERS = [
-  "pubs-point-selected",
-  "pubs-price-pill",
-  "pubs-point",
-  "route-stops",
-  "tonight-point",
-  "clusters",
-  ...CLUSTER_RIM_LAYERS,
-  "coffee-pilot-point",
-  "uk-base-point",
-  "uk-base-unnamed-point",
-  "london-restaurant-point",
-  ...LANDMARK_INTERACTION_LAYERS,
-  "pois-dot",
-  "pois-transport-major",
-  "pois-transport-minor",
-] as const;
-
-// A pill and the glass under it are the same pub, and the ordinary layers beat
-// the selected one (see the comment where this is called).
-const PUB_HIT_LAYERS = ["pubs-price-pill", "pubs-point", "pubs-point-selected"] as const;
-function pubHitOf<T>(byLayer: ReadonlyMap<string, T>): T | undefined {
-  for (const layer of PUB_HIT_LAYERS) {
-    const hit = byLayer.get(layer);
-    if (hit) return hit;
-  }
-  return undefined;
-}
+export { PUB_FIRST_LAYERS };
 
 type ClickDeps = {
   selectLandmark: (landmark: Landmark | null) => void;
@@ -110,6 +68,7 @@ export function wireClickRouting(map: maplibregl.Map, deps: ClickDeps) {
     // overlaps another visible pin, use the ordinary layer's hit first so a
     // tap resolves to the pin under its point rather than the prior selection.
     const pubHit = pubHitOf(byLayer);
+    recordPubHitClick(event.point, features, pubHit);
     if (pubHit) {
       const id = pubHit.properties?.id;
       if (typeof id !== "string") return;
