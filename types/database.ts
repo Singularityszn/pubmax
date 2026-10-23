@@ -8242,7 +8242,6 @@ export type Database = {
       refund_rate_limit_hit: {
         Args: {
           p_key: string | null;
-          p_expected_hits: string[] | null;
         };
         Returns: boolean;
       };

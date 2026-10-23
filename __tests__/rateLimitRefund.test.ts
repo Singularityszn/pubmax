@@ -48,18 +48,15 @@ beforeEach(() => {
         }
         beforeWrite?.();
         beforeWrite = undefined;
-        const body = JSON.parse(String(init.body)) as { p_key: string; p_expected_hits: string[] };
+        const body = JSON.parse(String(init.body)) as { p_key: string };
         expect(body.p_key).toBe(KEY);
-        const matches = JSON.stringify(body.p_expected_hits) === JSON.stringify(hits);
-        if (!matches || refuseWrites) return Response.json(false);
+        if (refuseWrites) return Response.json(false);
         hits = hits.slice(0, -1);
         if (throwWriteReply) throw new TypeError("connection lost");
         if (loseWriteReply) return Response.json({ message: "reply unavailable" }, { status: 500 });
         return Response.json(true);
       }
-      expect(url.pathname).toBe("/rest/v1/rate_limits");
-      expect(url.searchParams.get("key")).toBe(`eq.${KEY}`);
-      return Response.json([{ hits: [...hits] }]);
+      throw new Error(`Unexpected refund request: ${init?.method} ${url.pathname}`);
     } },
   });
 });
@@ -70,11 +67,11 @@ it("returns one unit through the real Supabase HTTP client", async () => {
   expect(writes).toBe(1);
 });
 
-it("retains a concurrent charge when its first comparison misses", async () => {
+it("retains a concurrent charge when the refund runs", async () => {
   beforeWrite = () => { hits.push(THIRD); };
   expect(await refundRateLimitHit(KEY)).toBe(true);
   expect(hits).toEqual([FIRST, SECOND]);
-  expect(writes).toBe(2);
+  expect(writes).toBe(1);
 });
 
 it("returns exactly two units for two concurrent refunds", async () => {
@@ -90,10 +87,10 @@ it("does not retry a write whose success is unknown", async () => {
   expect(hits).toEqual([FIRST]);
 });
 
-it("bounds definite comparison retries without replacing another writer", async () => {
+it("does not retry a refused refund or replace another writer", async () => {
   refuseWrites = true;
   expect(await refundRateLimitHit(KEY)).toBe(false);
-  expect(writes).toBe(3);
+  expect(writes).toBe(1);
   expect(new Set(signals).size).toBe(1);
   expect(hits).toEqual([FIRST, SECOND]);
 });
@@ -105,10 +102,10 @@ it("refunds a 2,000-entry bucket through a bounded URL", async () => {
   expect(writes).toBe(1);
 });
 
-it("does not write for an empty bucket", async () => {
+it("accepts an empty bucket without charging it", async () => {
   hits = [];
   expect(await refundRateLimitHit(KEY)).toBe(true);
-  expect(writes).toBe(0);
+  expect(writes).toBe(1);
 });
 
 it("does not repeat a committed write after a network rejection", async () => {
