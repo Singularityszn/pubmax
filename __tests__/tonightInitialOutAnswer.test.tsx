@@ -9,6 +9,7 @@ import { useWhatsOnTonight } from "@/components/map/useWhatsOnTonight";
 import TonightClient from "@/app/tonight/TonightClient";
 import { initialTonightOutAnswer } from "@/app/tonight/initialOutAnswer";
 import TonightPage from "@/app/tonight/page";
+import { AREA_PHOTOS } from "@/lib/landingImagery";
 import type { OutResponse } from "@/lib/out/types";
 import { loadTodayOutAnswer, loadTodayWhatsOnAnswer } from "@/lib/todayListings.server";
 import type { TonightOutAnswer } from "@/lib/tonightOutListings";
@@ -131,6 +132,34 @@ beforeEach(() => {
   vi.mocked(useWhatsOnTonight).mockReturnValue({
     rows: [], summary: new Map(), status: "idle", asOf: null,
     sourceObservedAt: null, sourceFreshnessKind: "unknown", kindObservedAt: {}, retry: vi.fn(),
+  });
+});
+
+describe("Tonight's server photo composition", () => {
+  it("passes founder and licensed area photos plus the London fallback to the client", async () => {
+    vi.mocked(loadTodayOutAnswer).mockResolvedValue(answer);
+    vi.mocked(loadTodayWhatsOnAnswer).mockResolvedValue(whatsOn);
+
+    const page = await TonightPage();
+    const { areaPhotos, londonPhoto, pubPhotos } = page.props.photos;
+
+    expect(areaPhotos["canary-wharf"]).toMatchObject({
+      key: "collage:canary-wharf-night",
+      place: "Canary Wharf",
+      scope: "area",
+      namesPlace: true,
+      credit: { kind: "founder" },
+    });
+    for (const [slug, photoId] of Object.entries(AREA_PHOTOS)) {
+      expect(areaPhotos[slug]).toMatchObject({
+        key: `landing:${photoId}`,
+        scope: "area",
+        credit: { kind: "licensed" },
+      });
+    }
+    expect(areaPhotos.clapham).toBeUndefined();
+    expect(londonPhoto).toMatchObject({ key: "landing:city-of-london", scope: "london" });
+    expect(pubPhotos).toEqual({});
   });
 });
 
