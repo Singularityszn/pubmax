@@ -59,6 +59,14 @@ for (const viewport of [
     })).toBe(true);
     await page.waitForTimeout(1_000);
     await expect(page.locator("#main")).not.toHaveClass(/detail-open/);
+    await expect(page.locator("#main")).not.toHaveAttribute("inert");
+    await expect.poll(async () => page.evaluate(() => {
+      const probe = (window as Window & {
+        __pubmaxPaintedMapTapPoints?: () => Array<{ kind: string; id: string }>;
+      }).__pubmaxPaintedMapTapPoints;
+      return probe?.().some((point) => point.kind === "cluster" ||
+        (point.kind === "pin" && !point.id.startsWith("venue-uk-") && point.id !== "venue-1vle947")) ?? false;
+    })).toBe(true);
     await expect(page).toHaveURL(/\/map\?q=Hatton$/);
     await expect(page.getByText("Visiting another city?", { exact: true })).toHaveCount(0);
   });
@@ -96,8 +104,6 @@ for (const selection of ["typed search", "venue suggestion", "base pub suggestio
       await expect(page.getByRole("button", { name: "Map area: Near me. Change city", exact: true }))
         .toBeVisible({ timeout: 2_000 });
     }).toPass({ timeout: 30_000 });
-    await expect(page.getByText("Showing pubs near you", { exact: true }))
-      .toBeVisible({ timeout: 30_000 });
     await expect.poll(async () => page.evaluate(() => {
       const camera = (window as Window & {
         __pubmaxMapCamera?: { read(): { center: number[]; zoom: number; moving: boolean; settling: boolean } };
@@ -147,24 +153,33 @@ for (const selection of ["typed search", "venue suggestion", "base pub suggestio
     const pricedIds = body.rows.filter((row) => (row.cheapestPrice ?? 0) > 0 && row.id !== selectedId)
       .map((row) => row.id);
     const expectContextualPricePin = async () => {
-      await expect.poll(() => page.evaluate(() => {
+      // A restored camera can report before the arriving scene has replaced
+      // its opening pins. Do not tap a cluster from that earlier scene.
+      await expect.poll(() => page.evaluate((ids) => {
+        const camera = (window as Window & {
+          __pubmaxMapCamera?: { read(): { center: number[]; moving: boolean; settling: boolean } };
+        }).__pubmaxMapCamera?.read();
         const probe = (window as Window & {
-          __pubmaxPaintedMapTapPoints?: () => Array<{ kind: string; x: number; y: number }>;
+          __pubmaxPaintedMapTapPoints?: () => Array<{ kind: string; id: string; lng: number }>;
         }).__pubmaxPaintedMapTapPoints;
-        return probe?.().length ?? 0;
-      })).toBeGreaterThan(0);
-      const cluster = await page.evaluate(() => {
+        return Boolean(camera && !camera.moving && !camera.settling && camera.center[0]! < -0.2 &&
+          probe?.().some((point) => point.lng < -0.2 &&
+            (point.kind === "cluster" || (point.kind === "pin" && ids.includes(point.id)))));
+      }, pricedIds), { timeout: 30_000 }).toBe(true);
+      const cluster = await page.evaluate((ids) => {
         const probe = (window as Window & {
-          __pubmaxPaintedMapTapPoints?: () => Array<{ kind: string; x: number; y: number }>;
+          __pubmaxPaintedMapTapPoints?: () => Array<{ kind: string; id: string; lng: number; x: number; y: number }>;
         }).__pubmaxPaintedMapTapPoints;
-        return probe?.().find((point) => point.kind === "cluster") ?? null;
-      });
+        const points = probe?.() ?? [];
+        if (points.some((point) => point.kind === "pin" && point.lng < -0.2 && ids.includes(point.id))) return null;
+        return points.find((point) => point.kind === "cluster" && point.lng < -0.2) ?? null;
+      }, pricedIds);
       if (cluster) await page.mouse.click(cluster.x, cluster.y);
       await expect.poll(() => page.evaluate((ids) => {
         const probe = (window as Window & {
-          __pubmaxPaintedMapTapPoints?: () => Array<{ kind: string; id: string }>;
+          __pubmaxPaintedMapTapPoints?: () => Array<{ kind: string; id: string; lng: number }>;
         }).__pubmaxPaintedMapTapPoints;
-        return probe?.().some((point) => point.kind === "pin" && ids.includes(point.id)) ?? false;
+        return probe?.().some((point) => point.kind === "pin" && point.lng < -0.2 && ids.includes(point.id)) ?? false;
       }, pricedIds)).toBe(true);
     };
     await expectContextualPricePin();

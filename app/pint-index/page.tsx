@@ -5,6 +5,10 @@ import Link from "next/link";
 import SiteNav from "@/components/nav/SiteNav";
 import JsonLd from "@/components/seo/JsonLd";
 import NationalPintBenchmarks from "@/components/pintindex/NationalPintBenchmarks";
+import ListedDrinkCoverage from "@/components/pintindex/ListedDrinkCoverage";
+import { listedDrinkCoverage } from "@/lib/listedDrinkCoverage";
+import { ukPriceBundleRowsByVenue } from "@/lib/ukPriceBundle.server";
+import { readAllDrinkPriceUpdates } from "@/lib/priceUpdates.server";
 import BoroughCoverageStatus from "@/components/pintindex/BoroughCoverageStatus";
 import PintIndexArrival from "@/components/pintindex/PintIndexArrival";
 import PintIndexEditions from "@/components/pintindex/PintIndexEditions";
@@ -93,11 +97,13 @@ function datasetJsonLd(snapshot: PintIndexSnapshot, boroughCount: number, pubCou
 }
 
 export default async function PintIndexPage() {
-  const [snapshot, zoneIndex, editions, venues] = await Promise.all([
+  const [snapshot, zoneIndex, editions, venues, drinkUpdates, priceBundle] = await Promise.all([
     loadPublicPintIndexSnapshotOrThrow(),
     loadZonePintIndex(),
     loadPintIndexArchive(),
     loadGroupedVenues(),
+    readAllDrinkPriceUpdates(),
+    ukPriceBundleRowsByVenue(),
   ]);
   const seedBoroughCoverage = await loadSeedBoroughCoverage(venues);
   const rows = buildLeagueTable(snapshot);
@@ -146,6 +152,8 @@ export default async function PintIndexPage() {
             <div className="pintIndexStat"><dt>Eligible pubs</dt><dd>{summary.pubCount}<small>across {summary.boroughCount} boroughs</small></dd></div>
           </dl>
         ) : null}
+
+        <ListedDrinkCoverage coverage={listedDrinkCoverage(venues, drinkUpdates ?? [], priceBundle.byVenue)} status={venues.length === 0 ? "degraded" : (drinkUpdates === null || priceBundle.status === "unavailable") ? "partial" : "ready"} />
 
         <section className="pintIndexSection" aria-labelledby="zoneHeading">
           <h2 id="zoneHeading" className="listingSectionTitle">By fare zone</h2>

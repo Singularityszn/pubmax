@@ -40,15 +40,28 @@ export default function TodayTubeCard({ slot }: { slot: DaySlot }) {
     const centre = rememberedAreaCentre(readRememberedArea());
     const { lat, lng } = coarsenViewerPoint(centre);
     const controller = new AbortController();
-    void loadSurfaceJson<DisruptionResponse>(
-      `/api/tfl-disruption?lat=${lat}&lng=${lng}`,
-      {
-        signal: controller.signal,
-        validate: (body) => Boolean(body && "disruption" in body),
-      },
-      (body) => setDisruption(body.disruption ?? null),
-    );
-    return () => controller.abort();
+    const refresh = async () => {
+      if (document.visibilityState === "hidden" || controller.signal.aborted) return;
+      const result = await loadSurfaceJson<DisruptionResponse>(
+        `/api/tfl-disruption?lat=${lat}&lng=${lng}`,
+        {
+          signal: controller.signal,
+          maxAgeMs: 5 * 60_000,
+          validate: (body) => Boolean(body && "disruption" in body),
+        },
+        (body) => setDisruption(body.disruption ?? null),
+      );
+      if (result === "failed" && !controller.signal.aborted) setDisruption(null);
+    };
+    void refresh();
+    const timer = window.setInterval(() => void refresh(), 5 * 60_000);
+    const onVisible = () => void refresh();
+    document.addEventListener("visibilitychange", onVisible);
+    return () => {
+      controller.abort();
+      window.clearInterval(timer);
+      document.removeEventListener("visibilitychange", onVisible);
+    };
   }, []);
 
   if (!disruption) return null;

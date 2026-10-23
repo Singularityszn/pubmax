@@ -1,4 +1,5 @@
 import { X } from "lucide-react";
+import { useState } from "react";
 
 import {
   formatLogNearbyDistance,
@@ -25,6 +26,7 @@ export function LogIntentFallback({
   onPrefetchVenue,
   onFocusSearch,
   onResetFilters,
+  onLocation,
   onDismiss,
 }: {
   candidates: LogNearbyCandidate[];
@@ -35,9 +37,26 @@ export function LogIntentFallback({
   onPrefetchVenue: (id: string) => void;
   onFocusSearch: () => void;
   onResetFilters: () => void;
+  onLocation: (location: { lat: number; lng: number }) => void;
   /** D4 — the desktop panel's own way out. The phone sheet already has one. */
   onDismiss?: () => void;
 }) {
+  const [locationStatus, setLocationStatus] = useState<"idle" | "requesting" | "unavailable">("idle");
+  const requestLocation = () => {
+    if (!navigator.geolocation) {
+      setLocationStatus("unavailable");
+      return;
+    }
+    setLocationStatus("requesting");
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        onLocation({ lat: position.coords.latitude, lng: position.coords.longitude });
+        setLocationStatus("idle");
+      },
+      () => setLocationStatus("unavailable"),
+      { enableHighAccuracy: false, timeout: 5000, maximumAge: 60_000 },
+    );
+  };
   const listed = candidates.length > 0 && origin !== null;
   const destination = categoryPriceIntent ? "price form" : "Pint Drop composer";
   return (
@@ -99,7 +118,13 @@ export function LogIntentFallback({
           })}
         </ul>
       ) : null}
+      {locationStatus === "unavailable" ? (
+        <p className="description">We couldn’t get your location. Search for your pub instead.</p>
+      ) : null}
       <div className="logIntentActions">
+        <button type="button" className="addStopBtn" onClick={requestLocation} disabled={locationStatus === "requesting"}>
+          {locationStatus === "requesting" ? "Finding you…" : "Near me"}
+        </button>
         <button type="button" className="addStopBtn" onClick={onFocusSearch}>
           Search pubs
         </button>
