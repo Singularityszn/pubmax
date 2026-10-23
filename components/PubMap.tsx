@@ -2984,7 +2984,7 @@ export default function PubMap({
         setPriceUpdates(parsePriceUpdates(raw));
       })
       .catch(() => {
-        // No update file (or bad JSON) — baseline + community prices stand.
+        // A hydrated venue can still supply its scoped public source observation.
       });
     return () => {
       cancelled = true;
@@ -3022,6 +3022,7 @@ export default function PubMap({
         mergeVenueDrops(baseVenues, dropsByVenueId),
         cityId === "london" ? priceUpdates : [],
         venueUpdateKey,
+        cityId === "london",
       ),
     [baseVenues, dropsByVenueId, priceUpdates, cityId],
   );

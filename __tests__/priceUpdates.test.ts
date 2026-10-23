@@ -196,4 +196,44 @@ describe("mergePriceUpdates precedence", () => {
     expect(defined(merged).cheapestPrice).toBe(5.5);
     expect(defined(merged).sourcedPrice?.provenance).toBe("sourced");
   });
+
+  it("uses the newest observation across the global file and scoped venue detail", () => {
+    const venue = { ...baseVenue(), pintPriceRefresh: { status: "ready", update: makeUpdate({ price: 4.8 }) } };
+    const scopedWins = defined(mergePriceUpdates([venue], [makeUpdate({ observedAt: "2026-06-01T00:00:00Z" })], keyFor)[0]);
+    expect(scopedWins.cheapestPrice).toBe(4.8);
+    expect(scopedWins.sourcedPrice?.observedAt).toBe("2026-07-01T00:00:00.000Z");
+    const globalWins = defined(mergePriceUpdates([venue], [makeUpdate({ price: 6, observedAt: "2026-07-02T00:00:00Z" })], keyFor)[0]);
+    expect(globalWins.cheapestPrice).toBe(6);
+    expect(globalWins.sourcedPrice?.observedAt).toBe("2026-07-02T00:00:00Z");
+  });
+
+  it.each([
+    { status: "unavailable", update: makeUpdate() },
+    { status: "ready", update: makeUpdate({ venueKey: "another-pub" }) },
+    { status: "ready", update: makeUpdate({ observedAt: "2099-07-01T00:00:00Z" }) },
+    { status: "ready", update: makeUpdate({ source: { label: "Pub", url: "javascript:alert(1)" } }) },
+    { status: "ready", update: null },
+  ])("rejects unusable scoped evidence: %j", (pintPriceRefresh) => {
+    const venue = { ...baseVenue(), pintPriceRefresh };
+    const result = defined(mergePriceUpdates([venue], [], keyFor)[0]);
+    expect(result.cheapestPrice).toBe(7);
+    expect(result.sourcedPrice).toBeNull();
+  });
+
+  it("keeps a fresher community price ahead of scoped public evidence", () => {
+    const venue = {
+      ...baseVenue(), cheapestPrice: 4.2, latestContributorPrice: 4.2, latestContributorAt: "2026-07-05T00:00:00Z",
+      pintPriceRefresh: { status: "ready", update: makeUpdate() },
+    };
+    const result = defined(mergePriceUpdates([venue], [], keyFor)[0]);
+    expect(result.cheapestPrice).toBe(4.2);
+    expect(result.sourcedPrice).toBeNull();
+  });
+
+  it("does not use London scoped refresh evidence when that layer is disabled", () => {
+    const venue = { ...baseVenue(), pintPriceRefresh: { status: "ready", update: makeUpdate() } };
+    const result = defined(mergePriceUpdates([venue], [], keyFor, false)[0]);
+    expect(result.cheapestPrice).toBe(7);
+    expect(result.sourcedPrice).toBeNull();
+  });
 });
