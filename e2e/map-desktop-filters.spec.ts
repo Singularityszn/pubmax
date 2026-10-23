@@ -1,5 +1,22 @@
 import { test, expect, type Page } from "@playwright/test";
 import { expectMobileMapShellReady, mobileMapShellControl } from "./helpers/mobileMapShell";
+import { installDeterministicMapBasemap } from "./helpers/mapNetworkFixtures";
+
+test.use({ serviceWorkers: "block" });
+
+test.beforeEach(async ({ page }) => {
+  await installDeterministicMapBasemap(page);
+  await page.route("**/api/citymcp/status**", (route) =>
+    route.fulfill({
+      json: { asOf: null, weather: null, tubeLines: [], signals: [] },
+    }),
+  );
+  await page.route("**/api/citymcp/things-to-do**", (route) =>
+    route.fulfill({
+      json: { opportunities: [] },
+    }),
+  );
+});
 
 /**
  * PlanAstra item 9, over the map's chrome overload at 768 and 1440.
@@ -130,7 +147,9 @@ for (const viewport of DESKTOP) {
       // enabled. Clubs show with `Bars`: `curatedVenueKind` in
       // lib/venueKindFilters.ts files a club under the bars.
       await expect(async () => {
-        await filters.click();
+        if ((await filters.getAttribute("aria-expanded")) === "false") {
+          await filters.click();
+        }
         await expect(
           page.locator(".mapVenueKindFilterPanel .tonightArcChip"),
         ).toHaveCount(4, { timeout: 2_000 });
@@ -147,7 +166,9 @@ for (const viewport of DESKTOP) {
       await openMap(page);
       const filters = page.locator(".mapToolbar .mapVenueKindFilterBtn");
       await expect(async () => {
-        await filters.click();
+        if ((await filters.getAttribute("aria-expanded")) === "false") {
+          await filters.click();
+        }
         await expect(
           page.getByRole("button", { name: "Bars", exact: true }),
         ).toBeVisible({ timeout: 2_000 });
@@ -197,7 +218,9 @@ for (const viewport of DESKTOP) {
       await openMap(page);
       const filters = page.locator(".mapToolbar .mapVenueKindFilterBtn");
       await expect(async () => {
-        await filters.click();
+        if ((await filters.getAttribute("aria-expanded")) === "false") {
+          await filters.click();
+        }
         await expect(
           page.locator(".mapVenueKindFilterPanel"),
         ).toBeVisible({ timeout: 2_000 });
@@ -217,31 +240,61 @@ for (const viewport of DESKTOP) {
 test.describe("390x844", () => {
   test.describe.configure({ timeout: 120_000 });
 
-  test("leaves the phone exactly as it was: chips in the Filters sheet", async ({
-    page,
-  }) => {
-    await seedDismissedChrome(page);
-    await page.setViewportSize({ width: 390, height: 844 });
-    await openMap(page, true);
+  for (const chunkDelayMs of [0, 3_000]) {
+    test(`leaves the phone exactly as it was: chips in the Filters sheet (${chunkDelayMs}ms download)`, async ({
+      page,
+    }) => {
+      await seedDismissedChrome(page);
+      await page.setViewportSize({ width: 390, height: 844 });
+      await openMap(page, true);
 
-    // The desktop control never reaches a phone.
-    await expect(page.locator(".mapVenueKindFilterBtn")).toHaveCount(0);
-    await expect(page.getByRole("group", { name: "Venue types" })).toHaveCount(0);
-
-    const filters = await mobileMapShellControl(page, "filters");
-    await expect(async () => {
-      await filters.click();
+      // The desktop control never reaches a phone.
+      await expect(page.locator(".mapVenueKindFilterBtn")).toHaveCount(0);
       await expect(
-        page
-          .locator('.mobileSheetPortal[data-sheet-kind="filters"]')
-          .getByRole("group", { name: "Venue types" }),
-      ).toBeVisible({ timeout: 2_000 });
-    }).toPass({ timeout: 45_000 });
+        page.getByRole("group", { name: "Venue types" }),
+      ).toHaveCount(0);
 
-    const sheet = page.locator('.mobileSheetPortal[data-sheet-kind="filters"]');
-    // Four at both widths: `TonightArcChips` is one component read by the phone
-    // sheet and the desktop popover alike, and `Clubs` is gone from both.
-    await expect(sheet.locator(".tonightArcChip")).toHaveCount(4);
-    await expect(sheet.locator(".tonightArcChipsSheet")).toBeVisible();
-  });
+      const filters = await mobileMapShellControl(page, "filters");
+      const expandedStates = await filters.evaluateHandle((button) => {
+        const states: (string | null)[] = [];
+        new MutationObserver(() =>
+          states.push(button.getAttribute("aria-expanded")),
+        ).observe(button, {
+          attributes: true,
+          attributeFilter: ["aria-expanded"],
+        });
+        return states;
+      });
+      let delayedChunks = 0;
+      if (chunkDelayMs) {
+        // Delay only downloads requested after the shell is ready.
+        await page.route("**/_next/static/chunks/*.js*", async (route) => {
+          delayedChunks += 1;
+          await new Promise((resolve) => setTimeout(resolve, chunkDelayMs));
+          await route.continue();
+        });
+      }
+      // Retry a dropped hydration tap without closing a pending lazy sheet.
+      await expect(async () => {
+        if ((await filters.getAttribute("aria-expanded")) === "false") {
+          await filters.click();
+        }
+        await expect(
+          page
+            .locator('.mobileSheetPortal[data-sheet-kind="filters"]')
+            .getByRole("group", { name: "Venue types" }),
+        ).toBeVisible({ timeout: 2_000 });
+      }).toPass({ timeout: 45_000 });
+
+      const sheet = page.locator(
+        '.mobileSheetPortal[data-sheet-kind="filters"]',
+      );
+      // Four at both widths: `TonightArcChips` is one component read by the phone
+      // sheet and the desktop popover alike, and `Clubs` is gone from both.
+      await expect(sheet.locator(".tonightArcChip")).toHaveCount(4);
+      await expect(sheet.locator(".tonightArcChipsSheet")).toBeVisible();
+      if (chunkDelayMs) expect(delayedChunks).toBeGreaterThan(0);
+      expect(await expandedStates.jsonValue()).toEqual(["true"]);
+    });
+  }
 });
