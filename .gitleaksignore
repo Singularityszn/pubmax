@@ -60,3 +60,7 @@ c7354856c41b28f43636502474a1092bad3717ed:__tests__/rateLimitRefusalsUnchargedMig
 # ending in void 0, not an API key. Both chunks have the same non-credential.
 9f895647b247688ed56ee6485998ea18a927e9a3:.plan-entry-auth-combined-v15-retry1/server/chunks/node_modules_@vercel_otel_dist_node_index_0vtszs5ox-hp_.js:generic-api-key:1
 9f895647b247688ed56ee6485998ea18a927e9a3:.plan-entry-auth-combined-v15-retry1/server/chunks/node_modules_@vercel_otel_dist_node_index_1hdweb9y7-qp3.js:generic-api-key:1
+
+# Per-build Next.js server-action key from a QA build. Production sets no
+# NEXT_SERVER_ACTIONS_ENCRYPTION_KEY, so this key never protected a live deploy.
+9f895647b247688ed56ee6485998ea18a927e9a3:.plan-entry-auth-combined-v15-retry1/server/server-reference-manifest.json:generic-api-key:267
