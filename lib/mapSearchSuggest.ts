@@ -42,7 +42,7 @@ import {
 import type { UkBasePub } from "@/lib/ukBasePubs";
 import { kebabSlug, normalizeSearchText } from "@/lib/textSlug";
 import { venueSearchNames } from "@/lib/venueSearchNames.mjs";
-import { mapSearchPintRank, mapSearchVenueScore, type MapSearchIndexResult } from "@/lib/mapSearchIndex";
+import { mapSearchNameTier, mapSearchPintRank, mapSearchVenueScore, type MapSearchIndexResult } from "@/lib/mapSearchIndex";
 
 export type { UkBasePubSuggestion };
 export { UK_BASE_SEARCH_GROUP_LABEL } from "@/lib/ukBasePubSearch";
@@ -150,13 +150,10 @@ export function mergeMapSearchVenueSuggestions(input: {
       id: row.item.id, name: row.item.name, sourceName: venue?.sourceName,
       area: row.item.boroughLabel,
     };
-    const nameTier = matchTier(venueSearchNames(record), normalizeSearchText(input.query));
-    const score = row.type === "indexedVenue"
-      ? mapSearchVenueScore(record, input.query) ?? Number.MAX_SAFE_INTEGER
-      : nameTier === 0 ? 10 : nameTier === 1 ? 20 : nameTier === 2 ? 40 : Number.MAX_SAFE_INTEGER;
+    const nameTier = mapSearchNameTier(venueSearchNames(record), input.query);
     return {
       score: preferPints
-        ? score
+        ? mapSearchVenueScore(record, input.query) ?? Number.MAX_SAFE_INTEGER
         : nameTier === 0 ? 0 : 1,
       pint: row.type === "indexedVenue"
         ? mapSearchPintRank(row.item.venueKind, row.item.pintPrice)
@@ -631,7 +628,7 @@ export function buildMapSearchSuggestions(input: MapSearchSuggestInput): MapSear
     const seen = new Set<string>();
     for (const venue of venues) {
       if (!venue.name || seen.has(venue.id)) continue;
-      const tier = matchTier(venueSearchNames(venue), query);
+      const tier = mapSearchNameTier(venueSearchNames(venue), query);
       if (tier === null) continue;
       seen.add(venue.id);
       pubMatches.push({

@@ -86,35 +86,46 @@ function hasOneMissingCharacter(query: string, value: string): boolean {
   return queryIndex === query.length;
 }
 
-/** Lower score wins. */
-function matchScore(query: string, name: string, area = ""): number | null {
-  const normalisedName = normalise(name);
-  const normalisedArea = normalise(area);
-  if (!normalisedName && !normalisedArea) return null;
+export function mapSearchNameTier(labels: readonly string[], rawQuery: string): 0 | 1 | 2 | null {
+  const query = normalise(rawQuery);
+  if (!query) return null;
+  let tier: 1 | 2 | null = null;
+  for (const label of labels) {
+    const name = normalise(label);
+    if (!name) continue;
+    if (name === query) return 0;
+    if (name.startsWith(query) || words(name).some((word) => word.startsWith(query))) {
+      tier = 1;
+    } else if (query.length >= 2 && name.includes(query)) {
+      tier ??= 2;
+    }
+  }
+  return tier;
+}
 
-  const nameWords = words(normalisedName);
-  const areaWords = words(normalisedArea);
-  if (normalisedName === query) return 10;
-  if (normalisedName.startsWith(query)) return 20;
-  if (nameWords.some((word) => word.startsWith(query))) return 20;
-  if (normalisedArea === query) return 30;
-  if (normalisedArea.startsWith(query)) return 32;
-  if (areaWords.some((word) => word.startsWith(query))) return 34;
-  if (normalisedName.includes(query)) return 40;
-  if (normalisedArea.includes(query)) return 42;
+/** Lower score wins. */
+function matchScore(query: string, names: readonly string[], area = ""): number | null {
+  const nameTier = mapSearchNameTier(names, query);
+  if (nameTier !== null) return nameTier;
+
+  const normalisedArea = normalise(area);
+  if (normalisedArea) {
+    if (normalisedArea === query) return 3;
+    if (normalisedArea.startsWith(query)) return 4;
+    if (words(normalisedArea).some((word) => word.startsWith(query))) return 5;
+    if (normalisedArea.includes(query)) return 6;
+  }
+  const normalisedNames = names.map(normalise).filter(Boolean);
   const compactQuery = query.replaceAll(" ", "");
-  if (normalisedName.replaceAll(" ", "") === compactQuery) return 50;
-  if (nameWords.some((word) => hasOneMissingCharacter(query, word))) return 60;
+  if (normalisedNames.some((name) => name.replaceAll(" ", "") === compactQuery)) return 7;
+  if (normalisedNames.some((name) => words(name).some((word) => hasOneMissingCharacter(query, word)))) return 8;
   return null;
 }
 
 export function mapSearchVenueScore(venue: MapSearchVenue, rawQuery: string): number | null {
   const query = normalise(rawQuery);
   if (!query) return null;
-  const scores = venueSearchNames(venue)
-    .map((name) => matchScore(query, name, venue.area))
-    .filter((score): score is number => score !== null);
-  return scores.length > 0 ? Math.min(...scores) : null;
+  return matchScore(query, venueSearchNames(venue), venue.area);
 }
 
 export function mapSearchPintRank(kind: VenueKind | undefined, price: number | null | undefined): number {
@@ -162,7 +173,7 @@ export function searchMapSearchIndex(
 
   const candidates: Array<{ result: MapSearchIndexResult; score: number }> = [];
   for (const city of index.cities) {
-    const score = matchScore(query, city.name);
+    const score = matchScore(query, [city.name]);
     if (score !== null) {
       candidates.push({ result: { kind: "city", ...city }, score });
     }

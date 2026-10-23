@@ -66,6 +66,91 @@ function londonVenue(): Venue {
 
 describe("Map search current-city priority", () => {
   it.each([
+    { drinkCategory: "beer", loadedId: "priced", expected: ["priced", "unpriced", "area-only"] },
+    { drinkCategory: "beer", loadedId: "unpriced", expected: ["priced", "unpriced", "area-only"] },
+    { drinkCategory: "wine", loadedId: "priced", expected: ["priced", "unpriced", "area-only"] },
+    { drinkCategory: "wine", loadedId: "unpriced", expected: ["unpriced", "priced", "area-only"] },
+  ])("keeps Riverside name matches ahead of Side discovery: $drinkCategory / $loadedId", async ({ drinkCategory, loadedId, expected }) => {
+    const venues: Venue[] = [
+      { ...londonVenue(), id: "priced", name: "The Riverside Arms", latitude: 51.52, cheapestPrice: 5.2 },
+      { ...londonVenue(), id: "unpriced", name: "East Riverside Inn", latitude: 51.5, locality: "Side", cheapestPrice: null },
+    ];
+    const index: MapSearchIndex = {
+      cities: [],
+      venues: [
+        { id: "priced", name: "The Riverside Arms", cityId: "london", area: "Westminster", venueKind: "pub", pintPrice: 5.2 },
+        { id: "unpriced", name: "East Riverside Inn", cityId: "london", area: "Side", venueKind: "pub" },
+        { id: "area-only", name: "A Tavern", cityId: "london", area: "Side", venueKind: "pub", pintPrice: 4 },
+      ],
+    };
+    vi.mocked(loadMapSearchIndex).mockResolvedValueOnce(index);
+    const onSelectVenue = vi.fn();
+    container = document.createElement("div");
+    document.body.append(container);
+    const props = {
+      id: "map-search", mode: "overlay" as const, cityId: "london" as const, query: "side", drinkCategory,
+      onQueryChange: vi.fn(), localities: [], userLocation: null, mapCenter: [-0.1042, 51.5] as [number, number],
+      placeholder: "Search the map", onSelectVenue, onFlyToArea: vi.fn(),
+    };
+    await act(async () => {
+      root = createRoot(container);
+      root.render(createElement(MapSearchSuggest, { ...props, venues: venues.filter((venue) => venue.id === loadedId) }));
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+    const options = [...container.querySelectorAll<HTMLElement>('[role="group"][aria-label="Venues"] [data-venue-id]')];
+    expect(options.map((option) => option.dataset.venueId)).toEqual(expected);
+    const input = container.querySelector<HTMLInputElement>('[role="combobox"]')!;
+    for (const option of options) {
+      act(() => input.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowDown", bubbles: true })));
+      expect(input.getAttribute("aria-activedescendant")).toBe(option.id);
+      act(() => input.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true })));
+    }
+    expect(onSelectVenue.mock.calls).toEqual(expected.map((id) => id === loadedId ? [id] : [id, "london"]));
+
+    await act(async () => root!.render(createElement(MapSearchSuggest, { ...props, venues })));
+    const loadedOrder = drinkCategory === "beer" ? ["priced", "unpriced", "area-only"] : ["unpriced", "priced", "area-only"];
+    expect([...container.querySelectorAll<HTMLElement>('[role="group"][aria-label="Venues"] [data-venue-id]')]
+      .map((option) => option.dataset.venueId)).toEqual(loadedOrder);
+  });
+
+  it.each([
+    { drinkCategory: "beer", expected: ["exact", "label-prefix", "word-prefix", "substring", "area-only"] },
+    { drinkCategory: "wine", expected: ["exact", "substring", "label-prefix", "word-prefix", "area-only"] },
+  ])("shares name tiers across rendered and keyboard order in $drinkCategory", async ({ drinkCategory, expected }) => {
+    vi.mocked(loadMapSearchIndex).mockResolvedValueOnce({ cities: [], venues: [
+      { id: "area-only", name: "A Tavern", cityId: "london", area: "Side", venueKind: "pub", pintPrice: 4 },
+      { id: "substring", name: "Riverside", cityId: "london", area: "Side", venueKind: "pub", pintPrice: 5 },
+      { id: "word-prefix", name: "The Side Arms", cityId: "london", area: "Westminster", venueKind: "pub", pintPrice: 5 },
+      { id: "label-prefix", name: "Side House", cityId: "london", area: "Westminster", venueKind: "pub", pintPrice: 5 },
+      { id: "exact", name: "Side", cityId: "london", area: "Westminster", venueKind: "pub", pintPrice: 5 },
+    ] });
+    const onSelectVenue = vi.fn();
+    container = document.createElement("div");
+    document.body.append(container);
+    await act(async () => {
+      root = createRoot(container);
+      root.render(createElement(MapSearchSuggest, {
+        id: "map-search", mode: "overlay", cityId: "london", query: "side", drinkCategory,
+        venues: [{ ...londonVenue(), id: "substring", name: "Riverside", locality: "Side", cheapestPrice: 5 }],
+        onQueryChange: vi.fn(), localities: [], userLocation: null, mapCenter: [-0.1042, 51.5],
+        placeholder: "Search the map", onSelectVenue, onFlyToArea: vi.fn(),
+      }));
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+    const options = [...container.querySelectorAll<HTMLElement>('[role="group"][aria-label="Venues"] [data-venue-id]')];
+    expect(options.map((option) => option.dataset.venueId)).toEqual(expected);
+    const input = container.querySelector<HTMLInputElement>('[role="combobox"]')!;
+    for (const option of options) {
+      act(() => input.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowDown", bubbles: true })));
+      expect(input.getAttribute("aria-activedescendant")).toBe(option.id);
+      act(() => input.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true })));
+    }
+    expect(onSelectVenue.mock.calls).toEqual(expected.map((id) => id === "substring" ? [id] : [id, "london"]));
+  });
+
+  it.each([
     { query: "The Blackfriar", indexedName: "The Blackfriar", drinkCategory: "", expected: "indexed" },
     { query: "The Blackfriar", indexedName: "The Blackfriar", drinkCategory: "wine", expected: "indexed" },
     { query: "The Blackfriar", indexedName: "The Blackfriar Inn", drinkCategory: "", expected: "indexed" },
