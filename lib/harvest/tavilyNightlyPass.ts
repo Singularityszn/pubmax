@@ -810,7 +810,7 @@ function recordPriceLine(
   if (!line.includes("£")) return;
   for (const raw of findUkPriceCandidates(line)) {
     const own = ownPrice(line, raw.verbatim, raw.at);
-    if (!SERVING_SIZE.test(own.text) && !fractionalMeasureAtPrice(line, raw.at, raw.verbatim).suffix) continue;
+    if (!SERVING_SIZE.test(own.text) && !fractionalMeasureAtPrice(line, raw.at, raw.verbatim).fractional) continue;
     const outcome = decideKeylessUkPriceCandidate(own.text, { ...raw, at: own.at });
     const row = outcome.kept
       ? listedDrink(

@@ -246,8 +246,7 @@ export const MIN_PRICED_LINES_FOR_LIST = 4;
 function isBottledMeasure(before: string): boolean {
   // 568ml is a UK pint, not a bottle. The generic ml pattern would otherwise
   // drop every drinks list that writes the measure in millilitres.
-  if (/\b568\s*ml\b/i.test(before)) return false;
-  return /(\d{2,3}\s?ml|\bbottle[ds]?\b|\bcans?\b)/i.test(before);
+  return /(\b(?!568\s*ml\b)\d{2,3}\s?ml|\bbottle[ds]?\b|\bcans?\b)/i.test(before);
 }
 
 /**
@@ -921,7 +920,7 @@ function inBottledSection(text: string, at: number): boolean {
     const heading = line.replace(/[\u200b-\u200d\ufeff]/g, "").trim();
     if (!heading || heading.includes("£")) continue;
     const section = /^(?:[A-Z][A-Z \d().%&-]*)(?:\([^)]*\))?$/.test(heading)
-      || /^(?:draught|draft|keg|cask|beers?|wines?|cocktails?|soft drinks?|bottled beers?|cans?)$/i.test(heading);
+      || /^(?:(?:draught|draft|keg|cask)(?:\s+(?:beers?|ales?|lagers?|stouts?))?|beers?|wines?|cocktails?|soft drinks?|bottled beers?|cans?)$/i.test(heading);
     if (heading.length <= 80 && section) {
       return isBottledMeasure(heading);
     }
@@ -940,7 +939,8 @@ function beerMeasureDrop(
   if (fractionalMeasureAtPrice(text, at, verbatim).fractional) {
     return "fractional-measure-not-a-pint";
   }
-  return isBottledMeasure(before) || inBottledSection(text, at) ? "bottled-measure-not-a-pint" : null;
+  const explicitPint = /\b(?:pints?|568\s*ml)\b/i.test(before);
+  return isBottledMeasure(before) || (!explicitPint && inBottledSection(text, at)) ? "bottled-measure-not-a-pint" : null;
 }
 
 /**

@@ -13,12 +13,12 @@ This work is preview-only. No production writes, merges, promotions, setting cha
 | F16 | Known area roots redirect to their canonical map area. Unknown or ambiguous roots stay 404. | Route tests and local HTTP checks. |
 | F12 | Shared garden, outdoor-seating, and Open now controls show loaded-result counts. Slim records retain sourced feature facts. | Source tests and desktop/phone browser checks. |
 | F13 | Map counts loaded pubs. Pint Index counts its defined London pub cohort across base and published menu sources. | Counting, source-eligibility, partial-read, rendering, and trace tests. |
-| F11 | One permitted Small Beer menu read produced 19 supported prices. Social now shows the existing area review dates. | Captured source, parser tests, generated bundle, local browser check. |
+| F11 | The Small Beer menu read produced 19 supported prices. The reviewed Grafton Arms PDF adds one generic £6.50 pint minimum. Social shows existing area review dates. | Small Beer source and local browser checks. Grafton generated publication and source receipt. |
 
 ## Limits that remain
 
 - The project still cancels Git builds through its unchanged Ignored Build Step. See [build-path.md](build-path.md).
-- The broad pint snapshot remains dated 2 October. One refreshed pub does not meet the seven-day snapshot target.
+- The broad pint snapshot remains dated 2 October. Two refreshed pubs do not meet the seven-day snapshot target.
 - Route readiness remains 3 of 47 areas. No new readiness claim was invented.
 - Older menu rows remain in history. A successful extraction cannot prove that absent items were removed from a menu.
 - The `/updates` page remains limited to verified released changes. This task adds no unreleased notes.
@@ -42,6 +42,10 @@ Those receipts do not establish final-revision or signed-in persistence acceptan
 
 ## Follow-up repairs
 
+- The reviewed Grafton Arms publication retains observation time `2026-10-23T20:17:12.394Z` for curated venue `venue-jwxx09`.
+- Its [first-party PDF](https://www.graftonarms.co.uk/_files/ugd/c20749_93fbe653f9c2439490f09e744b00e58f.pdf) supports a generic full-pint minimum of £6.50. The row states no beer name.
+- The PDF publication date remains unknown. Its 6 October creation metadata is separate from the observation time.
+- The 37-host source pass excluded 18 non-beer candidates. The CLI category option filters new rows before both outputs and preserves older rows.
 - Ledger now selects the supported Small Beer menu price, including its matching source and observation date.
 - A controlled source fixture also proves that Ledger and the sheet agree when the browser's separate refresh request fails.
 - Fractional measures remain attached to their own drink. Partial servings cannot become full-pint candidates.

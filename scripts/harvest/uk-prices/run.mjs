@@ -10,6 +10,7 @@
 //   npm run harvest:uk-prices -- --london                      # Greater London pubs only
 //   npm run harvest:uk-prices -- --menu-enrichment none      # skip venue_menu_enrichment seeds
 //   npm run harvest:uk-prices -- --recheck robots-unreadable   # ask one finding again
+//   npm run harvest:uk-prices -- --publish-categories beer   # publish only selected new facts
 //   npm run harvest:uk-prices -- --judged                      # require TYPESAFE_API_KEY
 //
 // With TYPESAFE_API_KEY set, each £ candidate is judged via TypeSafe (see
@@ -59,6 +60,7 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync, appendFileSync } fr
 import path from "node:path";
 import process from "node:process";
 
+import { isDrinkCategory } from "../../../lib/drinks.ts";
 import { pdfIsWorthReading, readPdfText } from "../../../lib/harvest/pdfText.ts";
 import { createRobotsChecker } from "../../../lib/harvest/robots.ts";
 import {
@@ -147,6 +149,23 @@ function option(name, fallback) {
   if (at === -1) return fallback;
   const value = process.argv[at + 1];
   return value && !value.startsWith("--") ? value : fallback;
+}
+
+function publicationCategories() {
+  const name = "--publish-categories";
+  const at = process.argv.indexOf(name);
+  if (process.argv.some((arg) => arg.startsWith(`${name}=`))) {
+    throw new Error(`${name} requires a separate comma-separated value`);
+  }
+  if (at < 0) return null;
+  if (process.argv.includes("--reset")) throw new Error(`${name} cannot combine with --reset; historical rows must be preserved`);
+  const value = process.argv[at + 1];
+  if (!value || value.startsWith("--") || at !== process.argv.lastIndexOf(name)) {
+    throw new Error(`${name} requires one comma-separated category list`);
+  }
+  const categories = value.split(",").map((category) => category.trim());
+  if (!categories.every(isDrinkCategory)) throw new Error(`${name} contains an invalid drink category`);
+  return [...new Set(categories)];
 }
 
 const RESET = flag("--reset");
@@ -679,6 +698,7 @@ function appendPriceRows(entry, rows) {
     mkdirSync(path.dirname(PUBLISHED_ROWS), { recursive: true });
     appendFileSync(PUBLISHED_ROWS, `${jsonl}\n`);
   }
+  return lines.length;
 }
 
 /**
@@ -745,6 +765,15 @@ function joinExaSiteHosts(hosts) {
 }
 
 async function main() {
+  let categories;
+  try {
+    categories = publicationCategories();
+  } catch (error) {
+    console.error(String(error));
+    process.exitCode = 1;
+    return;
+  }
+  const publication = { categories, candidateRows: 0, selectedRows: 0, excludedRows: 0, writtenRows: 0 };
   if (!existsSync(OSM_PUBS)) {
     console.error(`missing ${path.relative(ROOT, OSM_PUBS)}; run npm run fetch:uk-pubs first`);
     process.exitCode = 1;
@@ -896,8 +925,14 @@ async function main() {
           {},
         ),
       };
-      if (result.rows.length > 0 && !DRY_RUN) {
-        appendPriceRows(entry, result.rows);
+      const selectedRows = categories === null
+        ? result.rows
+        : result.rows.filter((row) => categories.includes(row.category));
+      publication.candidateRows += result.rows.length;
+      publication.selectedRows += selectedRows.length;
+      publication.excludedRows += result.rows.length - selectedRows.length;
+      if (selectedRows.length > 0 && !DRY_RUN) {
+        publication.writtenRows += appendPriceRows(entry, selectedRows);
       }
       done += 1;
       if (done % 25 === 0) {
@@ -945,6 +980,7 @@ async function main() {
     // carrying no text layer we could take words from.
     pdfs: { seen: pdfsSeen, read: pdfsRead, unreadable: pdfsUnread },
     pageBudget: PAGE_BUDGET,
+    publication,
     outcomes,
     // What each host served at /robots.txt, counted apart from the outcome, so
     // the hosts admitted on an ordinary HTML page are a figure in the report.
@@ -969,6 +1005,7 @@ async function main() {
   console.log(`uk price harvest: ${done} host(s) crawled, ${spent} page(s) read`);
   for (const [name, count] of Object.entries(outcomes)) console.log(`  ${name}: ${count}`);
   console.log(`  pubs on priced hosts: ${pubsOnPricedHosts}`);
+  console.log(`  publication: ${publication.selectedRows} selected, ${publication.excludedRows} excluded, ${publication.writtenRows} written`);
   for (const source of report.sourcesRefusedByPolicy) {
     console.log(`  SKIP ${source.id}: ${source.reason} (checked ${source.checkedOn})`);
   }

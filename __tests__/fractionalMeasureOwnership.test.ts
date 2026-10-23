@@ -19,6 +19,23 @@ const separators = [
 const context = ["Madri pint £6.40", "Neck Oil pint £6.80", "House red wine 175ml £7.50"];
 
 describe("fraction ownership at printed item boundaries", () => {
+  it.each(measures)("retains bare and parenthesized %s curator measures", (measure, sizeDetail) => {
+    for (const serving of [measure, `(${measure})`]) {
+      for (const item of [`${serving} Kernel stout £6.00`, `Kernel stout ${serving} £6.00`, `Kernel stout £6.00 ${serving}`]) {
+        for (const prefix of ["", ...separators.map((separator) => `Guinness pint £6.20${separator} `)]) {
+          const line = `${prefix}${item}`;
+          const drinks = factsFromPage([line, ...context].join("\n"), fact).drinks;
+          expect(drinks.filter(({ drink }) => drink === "Kernel stout"), line).toEqual([
+            { drink: "Kernel stout", size: "unstated", sizeDetail, priceGbp: 6, standing: "listed", ...fact },
+          ]);
+          const reading = readVenueDrinkPrices([line, ...context].join("\n"), "text");
+          expect(reading.kept.some(({ drinkLabel }) => drinkLabel?.includes("Kernel")), line).toBe(false);
+          expect(reading.drops, line).toContain("fractional-measure-not-a-pint");
+        }
+      }
+    }
+  });
+
   it.each(measures)("keeps %s suffixes with the preceding price", (measure, sizeDetail) => {
     for (const separator of separators) {
       for (const amount of ["£6", "£6.0", "£6.00"]) {

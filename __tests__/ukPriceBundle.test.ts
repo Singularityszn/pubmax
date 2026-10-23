@@ -347,3 +347,15 @@ it("preserves older differently named prices when a later menu extract omits the
     category: "beer", priceGbp: 5, drinkLabel: "Session IPA , 4.0%, Two by Two (Newcastle)",
   }));
 });
+
+it("projects the reviewed Grafton minimum without inventing a drink name", () => {
+  const bundle = parseUkPriceBundleRows(JSON.parse(readFileSync("public/data/uk_prices/rows.json", "utf8")));
+  const rows = bundleRowsByVenue(bundle).get("venue-jwxx09") ?? [];
+  const sourceUrl = "https://www.graftonarms.co.uk/_files/ugd/c20749_93fbe653f9c2439490f09e744b00e58f.pdf";
+  const observedAt = "2026-10-23T20:17:12.394Z";
+  const newRows = rows.filter((row) => row.sourceUrl === sourceUrl && row.observedAt === observedAt);
+  expect(newRows).toHaveLength(1);
+  expect(newRows[0]).toMatchObject({ category: "beer", priceGbp: 6.5, standing: "listed", lane: "site-harvest" });
+  expect(newRows[0]?.drinkLabel).toBeUndefined();
+  expect(bundlePricesForCategory(rows, "beer").listed).toEqual({ priceGbp: 6.5, sourceUrl, observedAt });
+});

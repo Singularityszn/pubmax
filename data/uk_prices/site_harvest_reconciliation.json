@@ -10309,6 +10309,22 @@
         "rowCount": 7984,
         "siteHarvestRows": 3869
       }
+    },
+    {
+      "sourceEvidencePath": "data/uk_prices/later_publications/2026-10-23-graftonarms-co-uk-files-ugd-c20749-93fbe653f9c2439490f09e744b00e58f-pdf.json",
+      "sourceEvidenceSha256": "7a98d73776386d67a91533057d5c55737c0a859e39d256bf42fec93e619f693c",
+      "sourceUrl": "https://www.graftonarms.co.uk/_files/ugd/c20749_93fbe653f9c2439490f09e744b00e58f.pdf",
+      "sourceObservedAt": "2026-10-23T20:17:12.394Z",
+      "addedRows": 1,
+      "currentLedger": {
+        "sha256": "ddbf9400ea4074c02f49932927be14188166b6f80187b700b9a75341c22705fe",
+        "rowCount": 4032,
+        "rowIdentitySetSha256": "7cb8b1a2d3f5754e06c462d15ae9d22643b33d2b880ec6768dce4f21928fd46c"
+      },
+      "currentBundle": {
+        "rowCount": 7985,
+        "siteHarvestRows": 3870
+      }
     }
   ]
 }

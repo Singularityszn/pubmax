@@ -975,7 +975,10 @@ describe("a price stays in the lane the reader gave it", () => {
           { drink: "House wine", size: "unstated", sizeDetail: "250ml", priceGbp: 8 },
         ],
       },
-      { text: "Peroni 2/3 £5.20", drinks: [] },
+      {
+        text: "Peroni 2/3 £5.20",
+        drinks: [{ drink: "Peroni", size: "unstated", sizeDetail: "two-thirds", priceGbp: 5.2 }],
+      },
       { text: "Peroni ½ £3.55", drinks: [] },
       { text: "Peroni 1/2 £3.55", drinks: [] },
       {

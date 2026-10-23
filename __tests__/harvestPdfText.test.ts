@@ -40,6 +40,22 @@ function pdfStating(lines: readonly string[]): Uint8Array {
 }
 
 describe("reading the words a PDF menu states", () => {
+  it("ends the bottled section at a draught beer heading", async () => {
+    const text = await readPdfText(pdfStating([
+      "Bottled beers", "Peroni 330ml £5.20", "Draught beer", "Guinness pint £6.20",
+      "Madri pint £6.40", "Neck Oil pint £6.80", "House red wine 175ml £7.50",
+    ]));
+    const reading = readVenueDrinkPrices(text ?? "", "text");
+    expect(reading.kept.map(({ drinkLabel, category, priceGbp }) => ({ drinkLabel, category, priceGbp }))).toEqual([
+      { drinkLabel: "Guinness pint", category: "beer", priceGbp: 6.2 },
+      { drinkLabel: "Madri pint", category: "beer", priceGbp: 6.4 },
+      { drinkLabel: "Neck Oil pint", category: "beer", priceGbp: 6.8 },
+      { drinkLabel: "House red wine", category: "wine", priceGbp: 7.5 },
+    ]);
+    expect(reading.drops).toEqual(["bottled-measure-not-a-pint"]);
+    expect(pageStatesADrinksList(reading)).toBe(true);
+  });
+
   it("reads a drinks list out of a PDF", async () => {
     const text = await readPdfText(
       pdfStating([
