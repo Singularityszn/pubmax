@@ -7,7 +7,7 @@ import LandingLondonCollage from "@/components/landing/LandingLondonCollage";
 import {
   buildLondonCollageAreaPrices,
   LONDON_COLLAGE_CREDIT,
-  LONDON_COLLAGE_PHOTOS,
+  LONDON_JOURNAL_PHOTOS,
   londonCollageSrc,
   londonCollageSrcSet,
 } from "@/lib/landingLondonCollage";
@@ -16,9 +16,12 @@ describe("the founder London collage on the landing", () => {
   const html = renderToStaticMarkup(createElement(LandingLondonCollage));
 
   it("renders every tile and caption but defers the photographs to the client", () => {
-    expect(html).toContain("Streets the map sits on.");
+    expect(html).toContain("Around London");
     expect(html).toContain(LONDON_COLLAGE_CREDIT);
-    for (const photo of LONDON_COLLAGE_PHOTOS) {
+    expect(html).toContain('href="/map?sel=venue-13sug69"');
+    expect(html).toContain('href="/map?q=Southwark"');
+    expect(html.match(/data-collage-id=/g)).toHaveLength(4);
+    for (const photo of LONDON_JOURNAL_PHOTOS) {
       expect(html).toContain(`data-collage-id="${photo.id}"`);
       expect(html).toContain(photo.caption);
       expect(html).not.toContain(`alt="${photo.alt}"`);
@@ -30,7 +33,7 @@ describe("the founder London collage on the landing", () => {
   it("paints every frame with its own blurred preview from the first HTML, never an empty box", () => {
     // The 16 Oct 2026 removal named grey frames as the fault: each frame now
     // carries its preview in the server markup, before any picture mounts.
-    for (const photo of LONDON_COLLAGE_PHOTOS) {
+    for (const photo of LONDON_JOURNAL_PHOTOS) {
       expect(html).toContain(`background-image:url(${photo.blurDataUrl})`);
     }
   });
@@ -44,17 +47,17 @@ describe("the founder London collage on the landing", () => {
         },
       }),
     );
-    expect(priced.match(/Pints from/g)).toHaveLength(2);
+    expect(priced.match(/Listed pints from/g)).toHaveLength(2);
     expect(priced).toContain('<data value="4.13">£4.13</data>');
     expect(priced).toContain('<data value="2.99">£2.99</data>');
-    const firstCanaryTile = LONDON_COLLAGE_PHOTOS.find((photo) => photo.area === "canary-wharf");
+    const firstCanaryTile = LONDON_JOURNAL_PHOTOS.find((photo) => photo.area === "canary-wharf");
     const tile = priced.split(`data-collage-id="${firstCanaryTile?.id}"`)[1]?.split("</li>")[0] ?? "";
     expect(tile).toContain("£4.13");
-    expect(html).not.toContain("Pints from");
+    expect(html).not.toContain("Listed pints from");
   });
 
   it("reads the cheapest priced pub inside half a mile of the area's first photo", () => {
-    const southwark = LONDON_COLLAGE_PHOTOS.find((photo) => photo.area === "southwark");
+    const southwark = LONDON_JOURNAL_PHOTOS.find((photo) => photo.area === "southwark");
     const [lat, lng] = southwark?.spot ?? [0, 0];
     const prices = buildLondonCollageAreaPrices([
       { name: "Near and dear", latitude: lat + 0.001, longitude: lng, cheapestPrice: 6.2 },
@@ -67,7 +70,7 @@ describe("the founder London collage on the landing", () => {
   });
 
   it("advertises each photograph's real encoded width as its widest candidate", () => {
-    for (const photo of LONDON_COLLAGE_PHOTOS) {
+    for (const photo of LONDON_JOURNAL_PHOTOS) {
       expect(londonCollageSrcSet(photo, "avif")).toBe(
         `${londonCollageSrc(photo, 640, "avif")} 640w, ${londonCollageSrc(photo, 1280, "avif")} ${photo.width}w`,
       );

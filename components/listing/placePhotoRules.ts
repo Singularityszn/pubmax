@@ -121,6 +121,10 @@ function fromCollage(photo: LondonCollagePhoto): PlacePhoto {
 
 /** The photograph OF this pub, or none (rule 1). */
 export function pubPlacePhoto(venueId: string | null | undefined): PlacePhoto | null {
+  if (venueId === "venue-13sug69") {
+    const founder = LONDON_COLLAGE_PHOTOS.find((photo) => photo.id === "crown-tavern");
+    if (founder) return { ...fromCollage(founder), scope: "pub", namesPlace: false };
+  }
   const id = venueId ? PUB_PHOTOS[venueId] : undefined;
   const photo = id ? LANDING_PHOTOS[id] : undefined;
   return photo ? fromLanding(photo, "pub") : null;
@@ -128,6 +132,10 @@ export function pubPlacePhoto(venueId: string | null | undefined): PlacePhoto | 
 
 /** The photograph that stands for this borough, captioned with its place, or none (rule 2). */
 export function boroughPlacePhoto(borough: string | null | undefined): PlacePhoto | null {
+  if (borough && slugifyBorough(borough) === "southwark") {
+    const founder = LONDON_COLLAGE_PHOTOS.find((photo) => photo.id === "southwark-shard");
+    if (founder) return { ...fromCollage(founder), scope: "borough" };
+  }
   const id = borough ? BOROUGH_PHOTOS[slugifyBorough(borough)] : undefined;
   const photo = id ? LANDING_PHOTOS[id] : undefined;
   return photo ? fromLanding(photo, "borough") : null;
@@ -139,6 +147,10 @@ export function boroughPlacePhoto(borough: string | null | undefined): PlacePhot
  * ABOUT that area, never a row or a route.
  */
 export function areaPlacePhoto(areaSlug: string | null | undefined): PlacePhoto | null {
+  if (areaSlug === "canary-wharf") {
+    const founder = LONDON_COLLAGE_PHOTOS.find((photo) => photo.id === "canary-wharf-night");
+    if (founder) return fromCollage(founder);
+  }
   const id = areaSlug ? AREA_PHOTOS[areaSlug] : undefined;
   const photo = id ? LANDING_PHOTOS[id] : undefined;
   return photo ? fromLanding(photo, "area") : null;
