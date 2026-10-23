@@ -780,6 +780,24 @@ describe("a price stays in the lane the reader gave it", () => {
         text: "Peroni 330ml £4.50",
         drinks: [{ drink: "Peroni", size: "unstated", sizeDetail: "330ml", priceGbp: 4.5 }],
       },
+      ...["2/3 pint", "⅔ pint", "two-thirds pint"].map((measure) => ({
+        text: `Peroni £5.20 (${measure})`,
+        drinks: [{ drink: "Peroni", size: "unstated", sizeDetail: "two-thirds", priceGbp: 5.2 }],
+      })),
+      {
+        text: "Guinness pint £6.20 2/3 pint Kernel stout £6.00",
+        drinks: [
+          { drink: "Guinness", size: "pint", sizeDetail: "pint", priceGbp: 6.2 },
+          { drink: "Kernel stout", size: "unstated", sizeDetail: "two-thirds", priceGbp: 6 },
+        ],
+      },
+      {
+        text: "Kernel stout £6.00 (2/3 pint) Guinness pint £6.20",
+        drinks: [
+          { drink: "Kernel stout", size: "unstated", sizeDetail: "two-thirds", priceGbp: 6 },
+          { drink: "Guinness", size: "pint", sizeDetail: "pint", priceGbp: 6.2 },
+        ],
+      },
       {
         text: "Peroni two-thirds pint £5.20",
         drinks: [{ drink: "Peroni", size: "unstated", sizeDetail: "two-thirds", priceGbp: 5.2 }],

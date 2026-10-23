@@ -284,6 +284,53 @@ function isHalfMeasure(before: string): boolean {
 
 const PRICE_PATTERN = /£\s?(\d{1,2}(?:\.\d{1,2})?)(?![\da-z]|\.\d)/gi;
 
+const FRACTIONAL_BEER_MEASURE = /(?:\b[12]\s*\/\s*3\b|[⅓⅔]|\b(?:one[\s-]third|two[\s-]thirds)\b)/i;
+const LEADING_FRACTIONAL_BEER_MEASURE = new RegExp(
+  `^\\s*(?:\\(\\s*(?:${FRACTIONAL_BEER_MEASURE.source})(?:\\s+(?:of\\s+a\\s+)?pints?)?\\s*\\)|(?:${FRACTIONAL_BEER_MEASURE.source})(?:\\s+(?:of\\s+a\\s+)?pints?)?)(?=\\s|$)`, "i",
+);
+
+/** Null means no fraction follows. An empty suffix belongs to the next drink. */
+function fractionalSuffix(gap: string, previousLabel: string): string | null {
+  const marker = LEADING_FRACTIONAL_BEER_MEASURE.exec(gap)?.[0];
+  if (!marker) return null;
+  const followingLabel = gap.slice(marker.length).trim();
+  if (!followingLabel || marker.includes("(")) return marker;
+  // An explicitly full pint cannot borrow the next drink's prefix measure.
+  if (/\b(?:pints?|568\s*ml)\b/i.test(previousLabel) && !FRACTIONAL_BEER_MEASURE.test(previousLabel)) return "";
+  if (/\b(?:pints?|568\s*ml)\b/i.test(followingLabel)) return marker;
+  return "";
+}
+
+/** Bind a fractional measure to its own price before either reader normalizes it. */
+export function fractionalMeasureAtPrice(text: string, at: number, verbatim: string): {
+  fractional: boolean; suffix: string | null; previousSuffixEnd: number | null;
+} {
+  const lineStart = text.lastIndexOf("\n", at - 1) + 1;
+  const lineEnd = text.indexOf("\n", at);
+  let cursor = lineStart;
+  let previousLabel = "";
+  for (const price of text.slice(lineStart, at).matchAll(PRICE_PATTERN)) {
+    const priceAt = lineStart + (price.index ?? 0);
+    const gap = text.slice(cursor, priceAt);
+    const previousSuffix = cursor > lineStart ? fractionalSuffix(gap, previousLabel) : null;
+    previousLabel = gap.slice(previousSuffix?.length ?? 0).trim();
+    cursor = priceAt + price[0].length;
+  }
+  const before = text.slice(cursor, at);
+  const previousSuffix = cursor > lineStart ? fractionalSuffix(before, previousLabel) : null;
+  const ownLabel = before.slice(previousSuffix?.length ?? 0);
+  const afterStart = at + verbatim.length;
+  const remainder = text.slice(afterStart, lineEnd < 0 ? text.length : lineEnd);
+  const nextPrice = new RegExp(PRICE_PATTERN.source, "i").exec(remainder);
+  const after = remainder.slice(0, nextPrice?.index ?? remainder.length);
+  const suffix = fractionalSuffix(after, ownLabel);
+  return {
+    fractional: FRACTIONAL_BEER_MEASURE.test(ownLabel) || Boolean(suffix),
+    suffix,
+    previousSuffixEnd: previousSuffix ? cursor + previousSuffix.length : null,
+  };
+}
+
 // A zero-strength claim in the printed item name beats spirit or cocktail
 // words in its description. Keep the marker close to the name so a 0.0%
 // ingredient later in a long description cannot relabel the whole drink.
@@ -407,6 +454,8 @@ export function drinkLabelFromPriceContext(
 
   // A price list printed inline ("Cans (Coke £3.30, Coke Zero £3, ...)") leaves
   // the list's own separator in front of every item after the first.
+  const previousSuffixEnd = fractionalMeasureAtPrice(context, priceAt, verbatim).previousSuffixEnd;
+  if (previousSuffixEnd !== null) start = Math.max(start, previousSuffixEnd);
   const raw = context
     .slice(start, priceAt)
     .replace(/\s+/g, " ")
@@ -875,13 +924,7 @@ function beerMeasureDrop(
   if (isHalfMeasure(before) || isFirstOfAMeasurePair(after) || isHalfOfABarePair(after, priceGbp)) {
     return "half-measure-not-a-pint";
   }
-  const lineStart = text.lastIndexOf("\n", at - 1) + 1;
-  const previousPrices = [...text.slice(lineStart, at).matchAll(PRICE_PATTERN)];
-  const ownBefore = previousPrices.length > 0
-    ? before.replace(/^\s*\(?\s*(?:[12]\s*\/\s*3\b|[⅓⅔])\s*\)?\s*/, "")
-    : before;
-  if (/(?:\b[12]\s*\/\s*3\b|[⅓⅔])/.test(ownBefore)
-    || /^\s*\(?\s*(?:[12]\s*\/\s*3\b|[⅓⅔])/.test(after.split("\n", 1)[0] ?? "")) {
+  if (fractionalMeasureAtPrice(text, at, verbatim).fractional) {
     return "fractional-measure-not-a-pint";
   }
   return isBottledMeasure(before) || inBottledSection(text, at) ? "bottled-measure-not-a-pint" : null;
