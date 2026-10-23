@@ -1,0 +1,5 @@
+/* Both navigation layouts and the Pub Pal door share one stylesheet. */
+@import "./palNav.css";
+@import "./mobileNav.css";
+@import "./siteNav.css";
+@import "./siteNavMoment.css";

@@ -548,6 +548,7 @@ export default function SignInButton({
       >
         <div className="authCompact">
           <Link
+            prefetch={false}
             href={signInHref}
             className="authCompactTrigger"
             aria-label="Sign in"
@@ -609,6 +610,7 @@ export default function SignInButton({
                   />
                 ) : null}
                 <Link
+                  prefetch={false}
                   href={signInHref}
                   className="authMagicLinkCancel"
                   onClick={() => setMenuOpen(false)}
