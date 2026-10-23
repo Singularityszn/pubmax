@@ -1,5 +1,6 @@
 import {
   filterTonightPubSurfaceRows,
+  tonightOutSourceEvidence,
   type TonightOutAnswer,
 } from "@/lib/tonightOutListings";
 
@@ -16,6 +17,7 @@ export function initialTonightOutAnswer(
   if (unmatched) kept.add(unmatched);
   return {
     ...answer,
+    sourceEvidence: tonightOutSourceEvidence(answer),
     body: { ...body, events: body.events.filter((row) => kept.has(row)) },
   };
 }

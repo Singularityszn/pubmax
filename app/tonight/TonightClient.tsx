@@ -359,7 +359,9 @@ export default function TonightClient({
   const { renderedAt, clearInitial } = initialAnswer;
   const { retry } = liveWhatsOn;
   const { retry: retryOut } = liveOut;
-  const { body: outBody, failed: outFailed, pending: outPending } = initialAnswer.out;
+  const {
+    body: outBody, failed: outFailed, pending: outPending, sourceEvidence: outSourceEvidence,
+  }: TonightOutAnswer = initialAnswer.out;
   const selectableVenueIds = useMemo(
     () => {
       if (mapSelectableVenueIds === undefined) return undefined;
@@ -369,8 +371,8 @@ export default function TonightClient({
     [mapSelectableVenueIds],
   );
   const outAnswer = useMemo(
-    () => ({ body: outBody, failed: outFailed, pending: outPending }),
-    [outBody, outFailed, outPending],
+    () => ({ body: outBody, failed: outFailed, pending: outPending, sourceEvidence: outSourceEvidence }),
+    [outBody, outFailed, outPending, outSourceEvidence],
   );
   // One instant answers both questions. Reading the clock twice lets the merge
   // drop the night's last row while the status still calls the page ready, and
@@ -529,8 +531,8 @@ export default function TonightClient({
   // Null when the source cannot be dated; the header then prints the plain
   // sentence instead of a dated chain segment.
   // The day the What's-On rows on screen were observed, off the live read's own
-  // per-kind map. Undated when a kind cannot be dated and undated on a night
-  // carrying no What's-On rows, because a snapshot on disk is not a check.
+  // per-kind map. A missing kind date leaves the credit undated. An empty
+  // surface may use the live read's date, as tonightWhatsOnObservedAt defines.
   const whatsOnObservedAt = useMemo(
     () =>
       tonightWhatsOnObservedAt({
@@ -555,12 +557,12 @@ export default function TonightClient({
     () =>
       tonightProvenanceCredits({
         renderedGroups: creditedGroups,
-        outEvents: outBody?.events ?? [],
+        out: outAnswer,
+        whatsOnRows: rows,
         whatsOnChecked: checked,
-        outObservedAt: outBody?.observedAt,
         pubSuggestionCount,
       }),
-    [creditedGroups, outBody, checked, pubSuggestionCount],
+    [creditedGroups, outAnswer, rows, checked, pubSuggestionCount],
   );
   // A lane that could not answer is named beside the cards, not only in place
   // of them: a degraded Out answer still carrying Ticketmaster rows makes the

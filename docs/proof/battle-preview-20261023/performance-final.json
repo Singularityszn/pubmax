@@ -1,0 +1,209 @@
+{
+  "method": "Local production builds. Desktop 1280x800. Fresh context per run. One excluded warmup. Five measured runs per route and commit. Alternating order. Third-party requests blocked equally. No Vercel toolbar.",
+  "samples": [
+    {
+      "commit": "live",
+      "path": "/",
+      "run": 1,
+      "fcp": 104,
+      "lcp": 104,
+      "load": 103.29999995231628
+    },
+    {
+      "commit": "candidate",
+      "path": "/",
+      "run": 1,
+      "fcp": 104,
+      "lcp": 104,
+      "load": 107.19999980926514
+    },
+    {
+      "commit": "candidate",
+      "path": "/",
+      "run": 2,
+      "fcp": 100,
+      "lcp": 100,
+      "load": 98.59999990463257
+    },
+    {
+      "commit": "live",
+      "path": "/",
+      "run": 2,
+      "fcp": 104,
+      "lcp": 104,
+      "load": 103.29999995231628
+    },
+    {
+      "commit": "live",
+      "path": "/",
+      "run": 3,
+      "fcp": 108,
+      "lcp": 108,
+      "load": 104.5
+    },
+    {
+      "commit": "candidate",
+      "path": "/",
+      "run": 3,
+      "fcp": 120,
+      "lcp": 120,
+      "load": 119.70000004768372
+    },
+    {
+      "commit": "candidate",
+      "path": "/",
+      "run": 4,
+      "fcp": 100,
+      "lcp": 100,
+      "load": 98.29999995231628
+    },
+    {
+      "commit": "live",
+      "path": "/",
+      "run": 4,
+      "fcp": 104,
+      "lcp": 104,
+      "load": 103.70000004768372
+    },
+    {
+      "commit": "live",
+      "path": "/",
+      "run": 5,
+      "fcp": 116,
+      "lcp": 116,
+      "load": 114.10000014305115
+    },
+    {
+      "commit": "candidate",
+      "path": "/",
+      "run": 5,
+      "fcp": 100,
+      "lcp": 100,
+      "load": 100.89999985694885
+    },
+    {
+      "commit": "live",
+      "path": "/map",
+      "run": 1,
+      "fcp": 64,
+      "lcp": 396,
+      "load": 70.60000014305115
+    },
+    {
+      "commit": "candidate",
+      "path": "/map",
+      "run": 1,
+      "fcp": 68,
+      "lcp": 396,
+      "load": 82.20000004768372
+    },
+    {
+      "commit": "candidate",
+      "path": "/map",
+      "run": 2,
+      "fcp": 64,
+      "lcp": 400,
+      "load": 73.20000004768372
+    },
+    {
+      "commit": "live",
+      "path": "/map",
+      "run": 2,
+      "fcp": 68,
+      "lcp": 392,
+      "load": 75.90000009536743
+    },
+    {
+      "commit": "live",
+      "path": "/map",
+      "run": 3,
+      "fcp": 64,
+      "lcp": 396,
+      "load": 72.5
+    },
+    {
+      "commit": "candidate",
+      "path": "/map",
+      "run": 3,
+      "fcp": 64,
+      "lcp": 400,
+      "load": 71.20000004768372
+    },
+    {
+      "commit": "candidate",
+      "path": "/map",
+      "run": 4,
+      "fcp": 60,
+      "lcp": 400,
+      "load": 67.29999995231628
+    },
+    {
+      "commit": "live",
+      "path": "/map",
+      "run": 4,
+      "fcp": 76,
+      "lcp": 408,
+      "load": 91.70000004768372
+    },
+    {
+      "commit": "live",
+      "path": "/map",
+      "run": 5,
+      "fcp": 64,
+      "lcp": 400,
+      "load": 70.5
+    },
+    {
+      "commit": "candidate",
+      "path": "/map",
+      "run": 5,
+      "fcp": 68,
+      "lcp": 396,
+      "load": 84
+    }
+  ],
+  "medians": [
+    {
+      "path": "/",
+      "metric": "fcp",
+      "live": 104,
+      "candidate": 100,
+      "changePercent": -3.8461538461538436
+    },
+    {
+      "path": "/",
+      "metric": "lcp",
+      "live": 104,
+      "candidate": 100,
+      "changePercent": -3.8461538461538436
+    },
+    {
+      "path": "/",
+      "metric": "load",
+      "live": 103.70000004768372,
+      "candidate": 100.89999985694885,
+      "changePercent": -2.700096614703329
+    },
+    {
+      "path": "/map",
+      "metric": "fcp",
+      "live": 64,
+      "candidate": 64,
+      "changePercent": 0
+    },
+    {
+      "path": "/map",
+      "metric": "lcp",
+      "live": 396,
+      "candidate": 400,
+      "changePercent": 1.0101010101010166
+    },
+    {
+      "path": "/map",
+      "metric": "load",
+      "live": 72.5,
+      "candidate": 73.20000004768372,
+      "changePercent": 0.9655173071499545
+    }
+  ]
+}

@@ -1,5 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
-import { expectMobileMapShellReady } from "./helpers/mobileMapShell";
+import { expectMapLoadingFrameReleased, expectMobileMapShellReady } from "./helpers/mobileMapShell";
 
 const VIEWPORTS = [
   { width: 320, height: 568 },
@@ -60,13 +60,11 @@ for (const viewport of VIEWPORTS) {
     const response = await page.goto("/map");
     expect(response?.status()).toBe(200);
 
-    await expectMobileMapShellReady(page, 45_000);
+    await expectMapLoadingFrameReleased(page);
+    await expectMobileMapShellReady(page);
     const arrival = page.locator(".mapArrivalCard");
-    await expect(arrival).toBeVisible({ timeout: 45_000 });
-    await expect(page.locator(".maplibregl-canvas")).toBeVisible({
-      timeout: 45_000,
-    });
-    await expect(page.locator(".mapLoading")).toBeHidden({ timeout: 45_000 });
+    await expect(arrival).toBeVisible();
+    await expect(page.locator(".maplibregl-canvas")).toBeVisible();
     await expect(page.locator(".mobileMapTopbar")).toHaveCount(1);
     await expect(page.locator(".mapCameraControls")).toBeHidden();
     await expect(page.locator(".maplibregl-ctrl-top-right")).toBeHidden();

@@ -73,6 +73,10 @@ export function tonightListingLede(
 }
 
 export type TonightOutAnswer = {
+  sourceEvidence?: {
+    hasPubMatches: boolean;
+    sources: ReturnType<typeof outLaneObservedAt>;
+  };
   body:
     | (Pick<OutResponse, "status" | "events" | "reason"> &
         Partial<
@@ -85,6 +89,18 @@ export type TonightOutAnswer = {
   failed: boolean;
   pending: boolean;
 };
+
+/**
+ * Preserve source matches and checks before display filtering removes rows.
+ * Initial document and browser reads use this boundary for absence claims.
+ * A stale or hidden match still prevents a claim of zero source matches.
+ */
+export function tonightOutSourceEvidence(out: TonightOutAnswer) {
+  return out.sourceEvidence ?? {
+    hasPubMatches: (out.body?.events ?? []).some((row) => tonightRowHasListedPub(row)),
+    sources: outLaneObservedAt(out.body?.events ?? [], out.body?.observedAt ?? {}),
+  };
+}
 
 /** Whether a row carries a canonical venue identity; map availability is separate. */
 export function tonightRowHasListedPub(
@@ -320,9 +336,8 @@ export function tonightListingLanes(
  * dated by a snapshot file on disk rather than by anything anybody checked.
  *
  * This asks `kindObservedAt` instead - the per-kind map the live read returns
- * and nothing else writes - and takes the covering rule already stated in
- * CLAUDE.md: one line covering several kinds takes the OLDEST of them and goes
- * undated entirely when it cannot date one.
+ * and nothing else writes. The source-date contract lives in
+ * docs/rules/lib-venues-areas-listings-and-nights.md under "Checked" stamps.
  *
  * A QUIET NIGHT WAS CHECKED, AND THE CHIP NOW SAYS WHEN. With no What's-On row
  * on screen the first cut answered null, so the phone printed "Quiet night · No
@@ -635,9 +650,9 @@ export const TONIGHT_WHATS_ON_CREDIT = "via what’s-on";
 const TONIGHT_QUIET_NIGHT_LABEL = "Quiet night";
 
 export type TonightProvenanceCredits = {
-  /** The What's-On segment of the coverage line, or null when it carried none. */
+  /** Null when only Out contributes displayed groups. */
   whatsOn: string | null;
-  /** Its own line: the Out lane's count, its sources and its own date. */
+  /** The Out credit for displayed groups or a successful read with no pub matches. */
   out: string | null;
   /** False when What's-On could not be dated. */
   whatsOnDated: boolean;
@@ -652,32 +667,46 @@ export type TonightProvenanceCredits = {
  * different times from different sources, so one shared stamp would date a
  * Ticketmaster row to a bundled artifact nobody asked about it. The Out line
  * covers several sources at once, so it takes the OLDEST of the sources it
- * names and goes undated entirely when it cannot date one of them - the
- * covering rule in CLAUDE.md, applied to sources rather than kinds.
+ * names and stays undated when any participating row lacks source evidence.
+ * See outLaneObservedAt for the shared Out credit and music-date calculation.
  */
 export function tonightProvenanceCredits(input: {
   /** The grouped cards on screen, in render order. */
   renderedGroups: TonightGroupedRow[];
-  /** Everything the Out read returned, merged or not. */
-  outEvents: WhatsOnRow[];
+  out: TonightOutAnswer;
+  whatsOnRows: readonly WhatsOnRow[];
   whatsOnChecked: string | null;
-  outObservedAt?: Record<string, string> | undefined;
   pubSuggestionCount?: number;
 }): TonightProvenanceCredits {
   const lanes = tonightListingLanes(
     input.renderedGroups.map((group) => group.row),
-    input.outEvents,
+    input.out.body?.events ?? [],
   );
   // With nothing from Out, the coverage count is What's-On's claim, empty night
   // included: the quiet answer came from that read and is credited to it.
   const creditsWhatsOn = lanes.whatsOnCount > 0 || lanes.outRows.length === 0;
-  const whatsOnLabel = lanes.whatsOnCount === 0 && (input.pubSuggestionCount ?? 0) > 0
-    ? "No events listed"
-    : whatsOnLaneLabel(lanes.whatsOnCount);
+  const whatsOnHasMatches = input.whatsOnRows.some((row) => tonightRowHasListedPub(row));
+  const whatsOnLabel = lanes.whatsOnCount > 0
+    ? whatsOnLaneLabel(lanes.whatsOnCount)
+    : whatsOnHasMatches
+      ? "Pub-matched listings"
+      : (input.pubSuggestionCount ?? 0) > 0
+        ? "No pub-matched events"
+        : whatsOnLaneLabel(0);
   const whatsOn = creditsWhatsOn
     ? `${whatsOnLabel}${input.whatsOnChecked ? ` · ${input.whatsOnChecked}` : ""} · ${TONIGHT_WHATS_ON_CREDIT}`
     : null;
-  const out = outLaneCredit(lanes.outRows, input.outObservedAt ?? {});
+  const sourceEvidence = tonightOutSourceEvidence(input.out);
+  const emptyOutRead = lanes.outRows.length === 0 && !input.out.failed && !input.out.pending &&
+    outListingsStatus(input.out).status === "ready" && input.out.body?.venueMatch === "ready" &&
+    !sourceEvidence.hasPubMatches;
+  const out = outLaneCredit(
+    lanes.outRows.length,
+    emptyOutRead
+      ? sourceEvidence.sources
+      : outLaneObservedAt(lanes.outRows, input.out.body?.observedAt ?? {}),
+    emptyOutRead,
+  );
   const whatsOnDated = creditsWhatsOn ? input.whatsOnChecked !== null : true;
   return {
     whatsOn,
@@ -688,30 +717,43 @@ export function tonightProvenanceCredits(input: {
 }
 
 function outLaneCredit(
-  rows: WhatsOnRow[],
-  observedAt: Record<string, string>,
+  count: number,
+  sources: ReturnType<typeof outLaneObservedAt>,
+  emptyPubResult = false,
 ): { text: string | null; dated: boolean } {
-  if (rows.length === 0) return { text: null, dated: true };
-  const { labels, oldest, dated } = outLaneObservedAt(rows, observedAt);
-  const noun = rows.length === 1 ? "listing" : "listings";
+  if (count === 0 && !emptyPubResult) return { text: null, dated: true };
+  const { labels, oldest, dated } = sources;
+  const noun = count === 1 ? "listing" : "listings";
   const via = labels.length === 0 ? "" : ` via ${joinLabels(labels)}`;
   const stamp = dated ? ` · ${checkedLabel(oldest)}` : "";
-  return { text: `${rows.length} ${noun}${via}${stamp}`, dated };
+  const label = emptyPubResult ? "No pub-matched events" : `${count} ${noun}`;
+  return { text: `${label}${via}${stamp}`, dated };
 }
 
 /**
  * The day a set of Out rows was checked: the OLDEST of each publisher's
- * freshest check, and undated when any publisher, or an unlabelled row, has
- * none. The same answer dates the Out credit line and the live-music lane.
+ * freshest check. Any row without a publisher or valid row check leaves the
+ * date unknown, even when its publisher has an aggregate check date.
+ * The same answer dates the Out credit line and the live-music lane.
  */
 function outLaneObservedAt(
   rows: readonly WhatsOnRow[],
   observedAt: Record<string, string>,
 ): { labels: string[]; oldest: string | null; dated: boolean } {
   const freshestByLabel = new Map<string, string | null>();
+  let everyRowDated = true;
+  if (rows.length === 0) {
+    for (const [label, observed] of Object.entries(observedAt)) {
+      freshestByLabel.set(outSourceDisplayLabel(label), canonicalIso(observed));
+    }
+  }
   for (const row of rows) {
     const raw = row.source?.label?.trim() ?? "";
-    if (!raw) continue;
+    if (!raw) {
+      freshestByLabel.set("an unrecorded source", null);
+      everyRowDated = false;
+      continue;
+    }
     // Spelled the one way every Out surface spells a publisher, so the credit
     // beside a card and the credit over the list cannot read differently. The
     // per-source map is keyed by the label the lane WROTE, so the lookup keeps
@@ -719,7 +761,11 @@ function outLaneObservedAt(
     const label = outSourceDisplayLabel(raw);
     // The response's per-source map is the lane's own answer; a row's stated
     // observation is the fall-back, because the row itself is the evidence.
-    const next = canonicalIso(observedAt[raw.toLowerCase()] ?? row.observedAt ?? null);
+    const rowCheck = canonicalIso(row.observedAt ?? null);
+    const next = canonicalIso(observedAt[raw.toLowerCase()] ?? rowCheck);
+    // The publisher map is an aggregate of its freshest row, not evidence
+    // that every row from that publisher was checked.
+    if (!rowCheck || !next) everyRowDated = false;
     const held = freshestByLabel.get(label);
     if (held === undefined) {
       freshestByLabel.set(label, next);
@@ -732,7 +778,7 @@ function outLaneObservedAt(
   const labels = [...freshestByLabel.keys()];
   const unlabelled = labels.length === 0;
   let oldest: string | null = null;
-  let everyLabelDated = !unlabelled;
+  let everyLabelDated = !unlabelled && everyRowDated;
   for (const observed of freshestByLabel.values()) {
     if (!observed) {
       everyLabelDated = false;

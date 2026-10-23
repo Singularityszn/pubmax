@@ -12,10 +12,10 @@ describe("the public updates page", () => {
     document.body.innerHTML = renderToStaticMarkup(createElement(UpdatesPage));
 
     expect(document.querySelector("main h1")?.textContent).toBe("What's changed");
-    expect(document.querySelector("time")?.dateTime).toBe("2026-10-19");
-    expect(document.querySelector("time")?.textContent).toBe("19 October 2026");
-    expect(document.querySelector("article h2")?.textContent).toBe("More London menu prices, steadier pub pages");
-    expect(document.querySelectorAll("article li")).toHaveLength(2);
+    expect(document.querySelector("time")?.dateTime).toBe("2026-10-22");
+    expect(document.querySelector("time")?.textContent).toBe("22 October 2026");
+    expect(document.querySelector("article h2")?.textContent).toBe("Updated London menu details");
+    expect(document.querySelectorAll("article li")).toHaveLength(4);
     expect(document.querySelector<HTMLAnchorElement>('main a[href="/map"]')?.textContent).toBe("Open the map");
     expect(document.querySelector("form, input")).toBeNull();
   });
@@ -33,7 +33,7 @@ describe("the public updates page", () => {
       return {
         PUBLIC_UPDATES: [
           ...actual.PUBLIC_UPDATES,
-          { id: "appended-release", date: "2026-10-21", title: "A newer release", changes: ["A verified change."] },
+          { id: "appended-release", date: "2026-10-24", title: "A newer release", changes: ["A verified change."] },
         ],
       };
     });
@@ -42,7 +42,7 @@ describe("the public updates page", () => {
       document.body.innerHTML = renderToStaticMarkup(createElement(AppendedUpdatesPage));
 
       expect(Array.from(document.querySelectorAll("time"), (time) => time.dateTime))
-        .toEqual(["2026-10-21", "2026-10-19"]);
+        .toEqual(["2026-10-24", "2026-10-22", "2026-10-19"]);
       expect(document.querySelector("article h2")?.textContent).toBe("A newer release");
     } finally {
       vi.doUnmock("@/lib/publicUpdates");

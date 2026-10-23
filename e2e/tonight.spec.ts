@@ -287,7 +287,7 @@ test("a failed listings request can be retried", async ({ page }) => {
   );
   await expectNoEventsWithPubSuggestions(page);
   await expect(page.locator('[data-tonight-provenance="whats-on"]')).toHaveText(
-    /^No events listed · /,
+    /^No pub-matched events · /,
   );
   expect(requests).toBe(2);
 });

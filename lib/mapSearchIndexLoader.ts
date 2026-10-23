@@ -3,6 +3,7 @@
 import { listEnabledCities, type CityId } from "@/lib/cities";
 import {
   buildMapSearchIndex,
+  mapSearchPintRank,
   type MapSearchIndex,
   type MapSearchPack,
 } from "@/lib/mapSearchIndex";
@@ -22,7 +23,8 @@ import { venueAreaLabel } from "@/lib/venueDisplay";
 // v4: a v3 snapshot could hold the current city as only the shards the map had
 // loaded around the opening viewport, so it is not trusted.
 // v5: preserve venue kinds so an indexed bar or restaurant names itself.
-const SEARCH_INDEX_CACHE_KEY = "map-search-index:v5";
+// v6 carries pint evidence so unloaded pubs use the same ranking as map shards.
+const SEARCH_INDEX_CACHE_KEY = "map-search-index:v6";
 const SEARCH_INDEX_MAX_AGE_MS = 24 * 60 * 60 * 1000;
 
 let cachedIndex: MapSearchIndex | null = null;
@@ -67,7 +69,11 @@ function isCompactIndex(
         typeof (venue as { id?: unknown }).id === "string" &&
         typeof (venue as { name?: unknown }).name === "string" &&
         typeof (venue as { area?: unknown }).area === "string" &&
-        typeof (venue as { cityId?: unknown }).cityId === "string",
+        typeof (venue as { cityId?: unknown }).cityId === "string" &&
+        ((venue as { pintPrice?: unknown }).pintPrice === undefined ||
+          (typeof (venue as { pintPrice?: unknown }).pintPrice === "number" &&
+            Number.isFinite((venue as { pintPrice: number }).pintPrice) &&
+            (venue as { pintPrice: number }).pintPrice > 0)),
     )
   );
 }
@@ -81,6 +87,8 @@ function packFromSlim(cityId: CityId, venues: readonly SlimVenue[]): MapSearchPa
       ...(venue.sourceName ? { sourceName: venue.sourceName } : {}),
       area: venueAreaLabel({ locality: venue.locality, primaryBorough: venue.borough }),
       ...(venue.kind !== undefined ? { venueKind: venue.kind } : {}),
+      ...(mapSearchPintRank(venue.kind, venue.cheapestPrice) === 0
+        ? { pintPrice: venue.cheapestPrice! } : {}),
     })),
   };
 }
@@ -92,7 +100,8 @@ function packFromSlim(cityId: CityId, venues: readonly SlimVenue[]): MapSearchPa
  */
 function packWithCurrentVenues(
   pack: MapSearchPack,
-  venues: readonly Pick<Venue, "id" | "name" | "sourceName" | "primaryBorough" | "locality" | "kind">[],
+  venues: readonly (Pick<Venue, "id" | "name" | "sourceName" | "primaryBorough" | "locality" | "kind"> &
+    Partial<Pick<Venue, "cheapestPrice" | "latestContributorPrice">>)[],
 ): MapSearchPack {
   const packIds = new Set(pack.venues.map((venue) => venue.id));
   return {
@@ -107,6 +116,8 @@ function packWithCurrentVenues(
           ...(venue.sourceName ? { sourceName: venue.sourceName } : {}),
           area: venueAreaLabel(venue),
           ...(venue.kind !== undefined ? { venueKind: venue.kind } : {}),
+          ...(mapSearchPintRank(venue.kind, venue.latestContributorPrice ?? venue.cheapestPrice) === 0
+            ? { pintPrice: (venue.latestContributorPrice ?? venue.cheapestPrice)! } : {}),
         })),
     ],
   };
@@ -121,7 +132,8 @@ function loadCityPack(cityId: CityId): Promise<SlimVenueLoadResult> {
 
 export type MapSearchIndexLoadOptions = {
   currentCityId?: CityId;
-  currentVenues?: readonly Pick<Venue, "id" | "name" | "sourceName" | "primaryBorough" | "locality" | "kind">[];
+  currentVenues?: readonly (Pick<Venue, "id" | "name" | "sourceName" | "primaryBorough" | "locality" | "kind"> &
+    Partial<Pick<Venue, "cheapestPrice" | "latestContributorPrice">>)[];
 };
 
 /** Whether the index answers for every city, so a caller need not ask again. */

@@ -1,0 +1,114 @@
+{
+  "environment": "isolated local Supabase",
+  "databaseOrigin": "http://127.0.0.1:54321",
+  "appOrigin": "http://127.0.0.1:3220",
+  "signedOutStatus": 403,
+  "duplicateStatus": 409,
+  "persisted": [
+    {
+      "id": "70d40c8a-c550-4a48-b771-57964a0880cc",
+      "handle": "battle_b",
+      "price_gbp": 4.7,
+      "created_at": "2026-10-23T12:48:29.019+00:00",
+      "confirmation_id": "6894b338-0355-48f7-a64f-566a824f68e4",
+      "confirmed_at": "2026-10-23T12:48:29.099+00:00"
+    },
+    {
+      "id": "aa9c1730-71e0-4195-9665-1a762139ab6c",
+      "handle": "battle_a",
+      "price_gbp": 4.7,
+      "created_at": "2026-10-23T12:48:20.236+00:00",
+      "confirmation_id": "6894b338-0355-48f7-a64f-566a824f68e4",
+      "confirmed_at": "2026-10-23T12:48:29.099+00:00"
+    }
+  ],
+  "requests": [
+    {
+      "method": "POST",
+      "origin": "http://127.0.0.1:3220",
+      "path": "/api/auth/session"
+    },
+    {
+      "method": "POST",
+      "origin": "http://127.0.0.1:3220",
+      "path": "/api/auth/session"
+    },
+    {
+      "method": "POST",
+      "origin": "http://127.0.0.1:3220",
+      "path": "/api/pint-drops"
+    },
+    {
+      "method": "POST",
+      "origin": "http://127.0.0.1:3220",
+      "path": "/api/cheap-pint-ping"
+    }
+  ],
+  "seed": {},
+  "write": {
+    "drop": {
+      "id": "70d40c8a-c550-4a48-b771-57964a0880cc",
+      "priceGbp": 4.7,
+      "createdAt": "2026-10-23T12:48:29.019Z",
+      "confirmation": {
+        "confirmationId": "6894b338-0355-48f7-a64f-566a824f68e4",
+        "confirmedAt": "2026-10-23T12:48:29.099Z",
+        "basis": "second_reporter",
+        "confirmingDropId": "aa9c1730-71e0-4195-9665-1a762139ab6c"
+      }
+    },
+    "confirmationOutcome": {
+      "status": "confirmed",
+      "confirmation": {
+        "confirmationId": "6894b338-0355-48f7-a64f-566a824f68e4",
+        "confirmedAt": "2026-10-23T12:48:29.099Z",
+        "basis": "second_reporter",
+        "confirmingDropId": "aa9c1730-71e0-4195-9665-1a762139ab6c"
+      },
+      "dropIds": [
+        "70d40c8a-c550-4a48-b771-57964a0880cc",
+        "aa9c1730-71e0-4195-9665-1a762139ab6c"
+      ]
+    }
+  },
+  "refreshed": [
+    {
+      "id": "70d40c8a-c550-4a48-b771-57964a0880cc",
+      "priceGbp": 4.7,
+      "createdAt": "2026-10-23T12:48:29.019+00:00",
+      "confirmation": {
+        "confirmationId": "6894b338-0355-48f7-a64f-566a824f68e4",
+        "confirmedAt": "2026-10-23T12:48:29.099Z",
+        "basis": "second_reporter",
+        "confirmingDropId": "aa9c1730-71e0-4195-9665-1a762139ab6c"
+      }
+    },
+    {
+      "id": "aa9c1730-71e0-4195-9665-1a762139ab6c",
+      "priceGbp": 4.7,
+      "createdAt": "2026-10-23T12:48:20.236+00:00",
+      "confirmation": {
+        "confirmationId": "6894b338-0355-48f7-a64f-566a824f68e4",
+        "confirmedAt": "2026-10-23T12:48:29.099Z",
+        "basis": "second_reporter",
+        "confirmingDropId": "aa9c1730-71e0-4195-9665-1a762139ab6c"
+      }
+    }
+  ],
+  "loopbackCheck": {
+    "repeatedAfterForwardingCorrection": true,
+    "automaticColimaPortForwarder": "none",
+    "appListener": "127.0.0.1:3220",
+    "apiListener": "127.0.0.1:54321",
+    "databaseListener": "127.0.0.1:54322",
+    "method": "Explicit local SSH forwarding, checked with lsof after disabling automatic VM port forwarding.",
+    "initialAttemptLimit": "The first VM configuration forwarded Supabase on all host interfaces. That VM was stopped. The confirmation flow was repeated after correcting the listeners."
+  },
+  "refreshedApiCapture": {
+    "capturedAt": "2026-10-23T12:57:14.386Z",
+    "origin": "http://127.0.0.1:3220",
+    "path": "/api/pint-drops?venueId=venue-1vle947",
+    "method": "GET",
+    "note": "A new read of the repeated loopback run. The first sanitised repeat receipt omitted these rows. The original UI runner also asserted the API match before exiting successfully."
+  }
+}

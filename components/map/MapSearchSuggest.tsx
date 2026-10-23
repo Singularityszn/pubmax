@@ -13,6 +13,7 @@ import {
   loadMapSearchIndex,
 } from "@/lib/mapSearchIndexLoader";
 import {
+  mapSearchPintRank,
   searchMapSearchIndex,
   type MapSearchIndex,
   type MapSearchIndexResult,
@@ -20,6 +21,8 @@ import {
 import {
   buildMapSearchSuggestions,
   mapSearchVenuesLeadAreas,
+  mapSearchVerifiedPrice,
+  mergeMapSearchVenueSuggestions,
   type AreaSuggestion,
   type MapSearchAreaOption,
   type PlaceSuggestion,
@@ -67,6 +70,7 @@ export type MapSearchSuggestProps = {
   query: string;
   onQueryChange: (query: string) => void;
   venues: Venue[];
+  drinkCategory?: string;
   /** Greater London locality gazetteer; [] for other cities / before it loads. */
   localities: Locality[];
   /**
@@ -117,6 +121,7 @@ export default function MapSearchSuggest({
   query,
   onQueryChange,
   venues,
+  drinkCategory,
   localities,
   places = [],
   includeLocalResults = true,
@@ -190,6 +195,7 @@ export default function MapSearchSuggest({
         cityId,
         query: deferredQuery,
         venues,
+        drinkCategory,
         localities,
         places,
         includeLocalResults,
@@ -201,6 +207,7 @@ export default function MapSearchSuggest({
       cityId,
       deferredQuery,
       venues,
+      drinkCategory,
       localities,
       places,
       includeLocalResults,
@@ -209,6 +216,10 @@ export default function MapSearchSuggest({
       mapCenter,
     ],
   );
+
+  const knownPintRanks = useMemo(() => new Map(venues.map((venue) => [
+    venue.id, mapSearchPintRank(venue.kind, mapSearchVerifiedPrice(venue)),
+  ])), [venues]);
 
   const indexedResults = useMemo(
     () => {
@@ -221,21 +232,24 @@ export default function MapSearchSuggest({
       } satisfies MapSearchIndex;
       const cityResults = searchMapSearchIndex(cityOnlyIndex, deferredQuery);
       const venueResults = searchIndex
-        ? searchMapSearchIndex(searchIndex, deferredQuery).filter(
+        ? searchMapSearchIndex(searchIndex, deferredQuery, undefined, {
+            preferPints: !drinkCategory || drinkCategory === "beer",
+            pintRankByVenueId: knownPintRanks,
+          }).filter(
             (result) => result.kind === "venue",
           )
         : [];
       return [...cityResults, ...venueResults];
     },
-    [deferredQuery, searchIndex],
+    [deferredQuery, drinkCategory, knownPintRanks, searchIndex],
   );
   const indexedCities = useMemo(
     () => indexedResults.filter((result): result is Extract<MapSearchIndexResult, { kind: "city" }> => result.kind === "city"),
     [indexedResults],
   );
   // The map holds only the shards around its viewport, so a pub of this city
-  // the reader has not panned to comes from the index. It still belongs in the
-  // Venues group, after the held pubs; other cities keep their own lane.
+  // the reader has not panned to comes from the index. It shares the Venues
+  // group's ranking with held pubs; other cities keep their own lane.
   const { currentCityIndexedVenues, indexedVenues } = useMemo(() => {
     const localVenueIds = new Set(suggestions.pubs.map((pub) => pub.id));
     const venueResults = indexedResults.filter(
@@ -256,6 +270,13 @@ export default function MapSearchSuggest({
     () => indexedVenues.slice(currentCityIndexedVenues.length),
     [currentCityIndexedVenues.length, indexedVenues],
   );
+  const currentCityVenueItems = useMemo(() => mergeMapSearchVenueSuggestions({
+    query: deferredQuery,
+    drinkCategory,
+    venues,
+    pubs: suggestions.pubs,
+    indexedVenues: currentCityIndexedVenues,
+  }), [currentCityIndexedVenues, deferredQuery, drinkCategory, suggestions.pubs, venues]);
 
   const mergedUkBasePubs = useMemo(() => {
     return suggestions.ukBasePubs.slice(0, 12);
@@ -264,11 +285,10 @@ export default function MapSearchSuggest({
   const items = useMemo<FlatItem[]>(() => {
     const cities = indexedCities.map((item) => ({ type: "city" as const, item }));
     const areas = suggestions.areas.map((item) => ({ type: "area" as const, item }));
-    const indexed = indexedVenues.map((item) => ({
+    const indexed = crossCityIndexedVenues.map((item) => ({
       type: "indexedVenue" as const,
       item,
     }));
-    const pubs = suggestions.pubs.map((item) => ({ type: "pub" as const, item }));
     const places = suggestions.places.map((item) => ({ type: "place" as const, item }));
     const ukBase = mergedUkBasePubs.map((item) => ({ type: "ukBase" as const, item }));
     // Venue name matches lead when the reader typed a query: an area that shares
@@ -280,10 +300,10 @@ export default function MapSearchSuggest({
         indexedVenueCount: indexedVenues.length,
       })
     ) {
-      return [...cities, ...pubs, ...indexed, ...areas, ...places, ...ukBase];
+      return [...cities, ...currentCityVenueItems, ...indexed, ...areas, ...places, ...ukBase];
     }
-    return [...cities, ...areas, ...pubs, ...indexed, ...places, ...ukBase];
-  }, [deferredQuery, indexedCities, indexedVenues, mergedUkBasePubs, suggestions]);
+    return [...cities, ...areas, ...currentCityVenueItems, ...indexed, ...places, ...ukBase];
+  }, [crossCityIndexedVenues, currentCityVenueItems, deferredQuery, indexedCities, indexedVenues.length, mergedUkBasePubs, suggestions]);
 
   const [activeIndex, setActiveIndex] = useState(-1);
   // Keyboard events can arrive before React commits the previous highlight.
@@ -461,18 +481,18 @@ export default function MapSearchSuggest({
   let pubStartIndex: number;
   if (venuesLead) {
     pubStartIndex = cursor;
-    cursor += suggestions.pubs.length;
+    cursor += currentCityVenueItems.length;
     indexedVenueStartIndex = cursor;
-    cursor += indexedVenues.length;
+    cursor += crossCityIndexedVenues.length;
     areaStartIndex = cursor;
     cursor += suggestions.areas.length;
   } else {
     areaStartIndex = cursor;
     cursor += suggestions.areas.length;
     pubStartIndex = cursor;
-    cursor += suggestions.pubs.length;
+    cursor += currentCityVenueItems.length;
     indexedVenueStartIndex = cursor;
-    cursor += indexedVenues.length;
+    cursor += crossCityIndexedVenues.length;
   }
   const placeStartIndex = cursor;
   cursor += suggestions.places.length;
@@ -519,8 +539,10 @@ export default function MapSearchSuggest({
       <p className="mapSearchSuggestGroupHead">
         <span>Venues</span>
       </p>
-      {suggestions.pubs.map((pub, offset) => {
+      {currentCityVenueItems.map((entry, offset) => {
         const index = pubStartIndex + offset;
+        if (entry.type === "indexedVenue") return renderIndexedVenue(entry.item, index);
+        const pub = entry.item;
         return (
           <div
             key={pub.id}
@@ -556,9 +578,6 @@ export default function MapSearchSuggest({
           </div>
         );
       })}
-      {currentCityIndexedVenues.map((venue, offset) =>
-        renderIndexedVenue(venue, indexedVenueStartIndex + offset),
-      )}
     </div>
   ) : null;
   const indexedVenueGroup = crossCityIndexedVenues.length > 0 ? (
@@ -569,7 +588,7 @@ export default function MapSearchSuggest({
       {crossCityIndexedVenues.map((venue, offset) =>
         renderIndexedVenue(
           venue,
-          indexedVenueStartIndex + currentCityIndexedVenues.length + offset,
+          indexedVenueStartIndex + offset,
         ),
       )}
     </div>

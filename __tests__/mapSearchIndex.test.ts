@@ -25,6 +25,62 @@ const packs: MapSearchPack[] = [
 ];
 
 describe("map search index", () => {
+  it.each([
+    { preferPints: true, expected: ["priced", "unpriced", "area-only"] },
+    { preferPints: false, expected: ["unpriced", "priced", "area-only"] },
+  ])("keeps name substrings ahead of area discovery before limiting: $preferPints", ({ preferPints, expected }) => {
+    const index = buildMapSearchIndex(cities, [{ cityId: "london", venues: [
+      { id: "unpriced", name: "East Riverside Inn", area: "Side", venueKind: "pub" },
+      { id: "priced", name: "The Riverside Arms", area: "Westminster", venueKind: "pub", pintPrice: 5.2 },
+      { id: "area-only", name: "A Tavern", area: "Side", venueKind: "pub", pintPrice: 4 },
+    ] }]);
+    for (const limit of [1, 2, 3]) {
+      expect(searchMapSearchIndex(index, "side", limit, { preferPints }).map((row) => row.id))
+        .toEqual(expected.slice(0, limit));
+    }
+  });
+
+  it("uses all name aliases before area discovery and preserves every name tier", () => {
+    const index = buildMapSearchIndex(cities, [{ cityId: "london", venues: [
+      { id: "area-only", name: "A Tavern", area: "Side" },
+      { id: "substring", name: "Riverside", area: "Side" },
+      { id: "alias-substring", name: "Z Tavern", sourceName: "Riverside", area: "Side" },
+      { id: "word-prefix", name: "The Side Arms", area: "Elsewhere" },
+      { id: "label-prefix", name: "Side House", area: "Elsewhere" },
+      { id: "exact", name: "Side", area: "Elsewhere" },
+    ] }]);
+    const expected = ["exact", "label-prefix", "word-prefix", "substring", "alias-substring", "area-only"];
+    for (const limit of [1, 2, 3, 4, 5, 6]) {
+      expect(searchMapSearchIndex(index, "side", limit).map((row) => row.id)).toEqual(expected.slice(0, limit));
+    }
+  });
+
+  it.each([
+    { preferPints: true, expected: ["george-iv", "george-dragon"] },
+    { preferPints: false, expected: ["george-dragon", "george-iv"] },
+  ])("ranks label and word prefixes in the same tier before limiting: $preferPints", ({ preferPints, expected }) => {
+    const index = buildMapSearchIndex(cities, [{ cityId: "london", venues: [
+      { id: "george-dragon", name: "George and Dragon, Fitzrovia", area: "Westminster", venueKind: "pub" },
+      { id: "george-iv", name: "The George IV", area: "Westminster", venueKind: "pub", pintPrice: 6.5 },
+    ] }]);
+    expect(searchMapSearchIndex(index, "geor", 2, { preferPints }).map((row) => row.id)).toEqual(expected);
+    expect(searchMapSearchIndex(index, "geor", 1, { preferPints }).map((row) => row.id)).toEqual(expected.slice(0, 1));
+
+    index.venues = [...index.venues, { id: "exact", name: "Geor", area: "Westminster", cityId: "london", venueKind: "bar" }];
+    expect(searchMapSearchIndex(index, "geor", 1, { preferPints }).map((row) => row.id)).toEqual(["exact"]);
+  });
+
+  it("ranks supported pint pubs before the result limit without changing other modes", () => {
+    const index = buildMapSearchIndex(cities, [{ cityId: "london", venues: [
+      { id: "restaurant", name: "Soho A Kitchen", area: "Soho", venueKind: "restaurant", pintPrice: 12 },
+      { id: "unpriced", name: "Soho B Arms", area: "Soho", venueKind: "pub" },
+      { id: "priced", name: "Soho C Arms", area: "Soho", venueKind: "pub", pintPrice: 4.7 },
+    ] }]);
+    expect(searchMapSearchIndex(index, "Soho", 1, { preferPints: true })[0]?.id).toBe("priced");
+    expect(searchMapSearchIndex(index, "Soho", 1, { preferPints: false })[0]?.id).toBe("restaurant");
+    expect(searchMapSearchIndex(index, "Soho A Kitchen", 1, { preferPints: true })[0]?.id).toBe("restaurant");
+  });
+
   it("shows literal Hatton matches without unrelated fuzzy venue results", () => {
     const index = buildMapSearchIndex(cities, [{
       cityId: "london",
