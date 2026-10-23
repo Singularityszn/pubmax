@@ -117,6 +117,22 @@ describe("searchUkPlaces", () => {
     ]);
   });
 
+  it("matches place word prefixes without moving Hatton to Long Whatton", () => {
+    const places = [
+      place({ name: "Long Whatton", lat: 52.8, lng: -1.29, kind: "village", context: "LE" }),
+      place({ name: "Hatton", lat: 51.46, lng: -0.41, kind: "village", context: "TW" }),
+      place({ name: "Hatton Cross", lat: 51.46, lng: -0.42, kind: "suburb", context: "TW" }),
+      place({ name: "New Hatton", lat: 52.7, lng: -1.2, kind: "village", context: "LE" }),
+    ];
+
+    expect(searchUkPlaces("Hatton", places).map((place) => place.name)).toEqual([
+      "Hatton",
+      "Hatton Cross",
+      "New Hatton",
+    ]);
+    expect(searchUkPlaces("Whatton", places).map((place) => place.name)).toEqual(["Long Whatton"]);
+  });
+
   it("removes place rows owned by matching curated city cards", () => {
     expect(searchUkPlaces("bath", PLACES, ["Bath"])).toEqual([PLACES[2]]);
     expect(

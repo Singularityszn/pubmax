@@ -13,6 +13,16 @@ export type RoutedToolCall = {
   args: Record<string, unknown>;
 };
 
+export function isVenueHoursQuestion(query: string): boolean {
+  const subjectQuery = stripTrailingPunctuation(query).replace(
+    /\b(?:a|an|the)\s+(?:(?!(?:pub|bar|venue|place)\b)[^\s,.!?;]+\s+)*(?:pub|bar|venue|place)\s+(?:called|named)\s+/gi, "",
+  );
+  return /\b(?:opening|closing)\s+(?:hours|times)\b/i.test(query)
+    && !PLAN_RE.test(query) && !isVenueDiscoveryAsk(subjectQuery)
+    && requestedVenueCount(subjectQuery) === null
+    && !/(?:^|\b(?:find|show|recommend|suggest)(?:\s+me)?\s+|\b(?:opening|closing)\s+(?:hours|times)\s+(?:of|at|for)\s+)(?:a|an|any|some)\s+(?:[^\s,.!?;]+\s+)*?(?:pub|bar|venue|place)\b/i.test(subjectQuery);
+}
+
 const CITY_STATUS_RE =
   /\b(tube|transit|delay|delays|weather|city status|how'?s london|right now in london)\b/i;
 const TRANSIT_INTERROGATIVE_PREFIX = String.raw`(?:is|are)\s+(?:there\s+)?(?:(?:any|the)\s+)?(?:tube|transit)\s+(?:(?:services?|lines?|trains?)\s+)?(?:running|operating|working|open|closed|delays?|delayed|disruptions?|disrupted|suspended)\b`;
@@ -97,7 +107,7 @@ function namedDrinkVenue(query: string): string | null {
     .trim() || null;
 }
 
-function askRequestClauses(query: string): string[] {
+export function askRequestClauses(query: string): string[] {
   const pricePrefix = String.raw`(?:${NON_PINT_DRINK_RE.source}|pints?|beer|drinks?)\s+${ITEM_PRICE_RE.source}`;
   return query.split(new RegExp(String.raw`(?:\s+and\s+|,\s*)(?=(?:any\s+)?(?:${TRANSIT_INTERROGATIVE_PREFIX}|${pricePrefix}|${ITEM_PRICE_RE.source}|how\b|what\b|where\b|find\b|show\b|plan\b|directions to\b|route to\b|get (?:me )?to\b|tube delays?\b|transit delays?\b|weather\b|city status\b|cheap(?:est)?\b|best value\b|lowest price\b|most affordable\b))`, "i"));
 }
@@ -508,10 +518,10 @@ function conciergeClaim(
   );
 }
 
-function requestedVenueCount(query: string): number {
+function requestedVenueCount(query: string): number | null {
   const count = query.match(/\b(1|2|3|4|5|6|one|two|three|four|five|six)\s+(?:(?:good|quiet|lively|cosy|cozy|cheap|historic|local|nearby|listed|great|best)\s+)*(?:pubs?|bars?|venues?|places?)\b/i)?.[1]?.toLowerCase();
   const words: Record<string, number> = { one: 1, two: 2, three: 3, four: 4, five: 5, six: 6 };
-  return count ? words[count] ?? Number(count) : 4;
+  return count ? words[count] ?? Number(count) : null;
 }
 
 /**
@@ -539,6 +549,10 @@ export function routeAskDeterministically(query: string): RoutedToolCall[] {
   if (journey) push("journey", { from: "London Bridge", ...journey });
 
   if (priceIntent.kind === "unsupported") return calls;
+  if (isVenueHoursQuestion(text)) {
+    push("search_venues", { query: text });
+    return calls;
+  }
   if (priceIntent.kind === "menu") {
     push("venue_drinks", { venueName: priceIntent.venueName });
     return calls;
@@ -555,7 +569,7 @@ export function routeAskDeterministically(query: string): RoutedToolCall[] {
   }
 
   if (priceIntent.kind === "drink-venues") {
-    push("search_venues", { query: text, limit: requestedVenueCount(text) });
+    push("search_venues", { query: text, limit: requestedVenueCount(text) ?? 4 });
     return calls;
   }
 
@@ -587,7 +601,7 @@ export function routeAskDeterministically(query: string): RoutedToolCall[] {
   }
 
   if (calls.length === 0) {
-    push("search_venues", { query: text, limit: requestedVenueCount(text) });
+    push("search_venues", { query: text, limit: requestedVenueCount(text) ?? 4 });
   }
 
   return calls;
