@@ -12,13 +12,6 @@ import type { AskResponseBody } from "@/lib/ask/types";
 import { getVenueDetail } from "@/lib/venueDetailIndex";
 import { planOpeningSchedulesForVenues } from "@/lib/planRouteEvidence.server";
 
-// This evaluator exercises missing hours and website evidence. Keep later
-// Google Places enrichment from changing those fixed source conditions.
-vi.mock("@/lib/placesEnrichment.server", async (importOriginal) => ({
-  ...await importOriginal<typeof import("@/lib/placesEnrichment.server")>(),
-  placesRecordForVenue: async () => null,
-}));
-
 const index = loadPalEvalVenueIndex();
 const reference = { hoursAnswer: { venueId: "venue-1ibpzru", value: null } } as const;
 const now = Date.parse(dataset.now);
@@ -216,7 +209,7 @@ describe("Pal fail-closed hours eval", () => {
     expect(gradePalCase(body, { hoursAnswer: { venueId: "venue-1ibpzru", value: [line], source: source.label } }, index).pass).toBe(true);
   });
 
-  it("pins ten unknown schedules and two website schedules without Google Places enrichment", async () => {
+  it("pins ten unknown schedules and two sourced schedules from prepared venue evidence", async () => {
     expect(Number.isFinite(now)).toBe(true);
     expect(new Set(dataset.cases.map((entry) => entry.id)).size).toBe(12);
     expect(new Set(dataset.cases.map((entry) => entry.venueId)).size).toBe(12);
