@@ -181,17 +181,6 @@ jobs:
           echo "scope=$scope" >> "$GITHUB_OUTPUT"
           echo "Change scope: $scope"
 
-      # LAYOUT SCOPE (docs/CI_RUNBOOK.md, "What a pull request runs"). The
-      # layout pins measure rendered screens, so a pull request runs them only
-      # when it changes what a screen is built from or what the pins run with:
-      # app/, components/, any stylesheet, a lib/ .tsx file, public/ outside
-      # public/data/, a layout-pin spec (read from the step that runs them
-      # below), e2e/helpers/, e2e/fixtures/, the lib/ and scripts/ modules the
-      # pins and playwright.config.ts import, the build and server config,
-      # and the dependency files. Docs, data, unit tests, other browser specs
-      # and other lib/ logic read "none"; main runs every pin on each push.
-      # An empty diff, an unreadable spec list and every event other than a
-      # pull request read "ui" (__tests__/ciChangeScope.test.ts).
       - name: Classify the layout change
         id: layout
         env:
@@ -200,22 +189,25 @@ jobs:
           set -euo pipefail
           layout=ui
           if [ "$EVENT_NAME" = pull_request ]; then
-            specs="$(awk '
-              /^ *- name: Run layout-pinning journeys$/ { on = 1 }
-              on && /--project=/ { exit }
-              on && $1 ~ /^e2e\/.+\.spec\.ts$/ { print $1 }' .github/workflows/e2e.yml)"
-            layout="$(git diff --no-renames --name-only HEAD^1 HEAD | LAYOUT_SPECS="$specs" awk '
-              BEGIN { n = split(ENVIRON["LAYOUT_SPECS"], list, "\n"); for (i = 1; i <= n; i++) spec[list[i]] = 1 }
+            layout="$(git diff --no-renames --name-only HEAD^1 HEAD | awk '
               NF == 0 { next }
               { files++ }
               /^docs\// || /\.md$/ || /^public\/data\// { next }
+              /^scripts\// || /^app\/api\// || /^app\/(.*\/)?route\.[cm]?[jt]sx?$/ { next }
               /^(app|components)\// || /\.css$/ || /^lib\/.+\.tsx$/ || /^public\// { ui++; next }
-              ($0 in spec) || /^e2e\/(helpers|fixtures)\// || $0 == "e2e/conditional-skips.allowlist.json" { ui++; next }
-              /^lib\/(cities|cityStoryBands|contentSecurityPolicy|deviceAccountSessions|e2eReviewAuth|landingHero|lateFood|mapCanvasAvailability|performanceBudgets|playwrightDistDir|priceBand|priceChipLadder|profileCovers|siteContact|staticAssetPrefixes|surfaceDataCache|ukBasePubSearch|webVitalsBaseline)\.(ts|mjs)$/ { ui++; next }
-              /^scripts\/(assert-playwright-gate|run-with-restored-next-env|copy_maplibre_worker|copy_elevenlabs_worklets|ci\/install-script-allowlist|lib\/uiUxBattleTestBrowser|lib\/committedBundledDataPaths)\.mjs$/ { ui++; next }
+              /^e2e\/(aperture-splash|avatar-wp3-mobile|consent-after-first-answer|core-route-smoke|crews-and-people|dark-primary-surfaces|design-review-followups|design-taste-wave-1)\.spec\.ts$/ { ui++; next }
+              /^e2e\/(desktop-map-chrome-fit|desktop-map-rail|desktop-sheet-chrome-fit|feedback|first-run-chrome-share|first-run-tour-placement|launch-phone-controls|map-arrival-card-pins)\.spec\.ts$/ { ui++; next }
+              /^e2e\/(map-arrival|map-blocked-fallback|map-body-clearance|map-consent-bottom-controls|map-desktop-arrival-chrome|map-desktop-filters|map-fallback|map-search-no-results)\.spec\.ts$/ { ui++; next }
+              /^e2e\/(map-search-typing|map-selection-history|map-tile-retry|mobile-bottom-nav|mobile-button-system|mobile-city-chooser|mobile-feed-actions|mobile-first-run-tour)\.spec\.ts$/ { ui++; next }
+              /^e2e\/(mobile-landing-entry|mobile-map-chrome-fit|mobile-map-controls|mobile-map-first-visit|mobile-map-search|mobile-map-shell-matrix|mobile-pal-layout|mobile-profile)\.spec\.ts$/ { ui++; next }
+              /^e2e\/(mobile-venue-sheet-tabs|night-mode-chrome|pal-chat-composer|passport-and-activity|phone-tap-targets|plan-crawl-stops|plan-invite|plan-join-reveal)\.spec\.ts$/ { ui++; next }
+              /^e2e\/(price-caption-integrity|price-pulse-create-action|price-source-create-action|profile-avatar|profile-hero-desktop|public-updates|quality-floor|social-composer)\.spec\.ts$/ { ui++; next }
+              /^e2e\/(tonight-vibe-chips|tonight|ui-consistency-layout|ui-empty-states-fit|ux-consent-chrome|venue-sheet-tablet-command-bar|venue-tabs-fit|wordmark-chrome)\.spec\.ts$/ { ui++; next }
+              /^e2e\/(helpers|fixtures)\// || $0 == "e2e/conditional-skips.allowlist.json" { ui++; next }
+              /^lib\/(cities|cityStoryBands|contentSecurityPolicy|deviceAccountSessions|landingHero|lateFood|mapCanvasAvailability|priceBand|profileCovers|siteContact|surfaceDataCache|ukBasePubSearch)\.(ts|mjs)$/ { ui++; next }
               /^\.github\/workflows\/e2e\.yml$/ || /^\.github\/actions\/pubmax-playwright-port\// { ui++; next }
-              /^(package\.json|package-lock\.json|\.npmrc|next\.config\.mjs|postcss\.config\.mjs|tsconfig\.json|playwright\.config\.ts|proxy\.ts|instrumentation\.ts|instrumentation\.node\.ts|instrumentation-client\.ts)$/ { ui++; next }
-              END { if (ui || !files || !n) print "ui"; else print "none" }')"
+              /^(package\.json|package-lock\.json|npm-shrinkwrap\.json|yarn\.lock|pnpm-lock\.yaml|bun\.lockb?|\.npmrc|next\.config\.(js|mjs|ts)|postcss\.config\.mjs|tsconfig\.json|playwright\.config\.ts|proxy\.ts|instrumentation\.ts|instrumentation\.node\.ts|instrumentation-client\.ts)$/ { ui++; next }
+              END { if (ui || !files) print "ui"; else print "none" }')"
           fi
           echo "layout=$layout" >> "$GITHUB_OUTPUT"
           echo "Layout scope: $layout"

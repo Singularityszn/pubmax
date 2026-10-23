@@ -169,7 +169,7 @@ describe("browser CI policy", () => {
     const { jobs } = parse(readFileSync(workflowPath, "utf8")) as Workflow;
     for (const id of LAYOUT_PIN_JOBS) {
       for (const step of defined(jobs[id]).steps) {
-        expect(JSON.stringify(step), `${id} / ${step.name}`).not.toContain("head_ref");
+        expect(step.if, `${id} / ${step.name}`).toBeUndefined();
       }
     }
   });

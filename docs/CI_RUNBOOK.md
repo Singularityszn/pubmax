@@ -158,14 +158,19 @@ The job still starts and reports. Only its steps are skipped, so it shows green 
 
 The macOS layout pins are the one exception (owner decision, 17 Oct 2026). A job that starts only to skip its steps still holds a runner, and the free plan has only 5 macOS runners. Three layout shards per pull request filled that queue, and docs-only pull requests waited up to 53 minutes for a job that then ran for 1 minute. So in `e2e.yml` one Linux job, `Change scope`, runs the classifier, and `Browser layout pins (1/3)`, `(2/3)` and `(3/3)` are three named jobs that need it. They are skipped whole, and start no macOS runner, when `Change scope` succeeds and its second step, `Classify the layout change`, says `none`. If `Change scope` fails, they run: a skipped check counts as passed, so a broken classifier must not skip them (fail closed). A skipped named job reports under its own name, and branch protection counts a skipped check as passed. The three jobs share one step list through a YAML anchor and differ only in `LAYOUT_SHARD`.
 
-The layout scope is narrower than code (captain, 23 Oct 2026). A pull request reads `ui`, and runs the layout pins, when it changes what a screen is built from or what the pins run with:
+The layout scope is narrower than code (captain, 23 Oct 2026). A pull request reads `ui` when it changes a listed screen file or test dependency. The layout jobs run for these paths:
 
-- `app/`, `components/`, any `.css` file, a `lib/` `.tsx` file, and `public/` outside `public/data/`.
-- A spec named in the `Run layout-pinning journeys` step, `e2e/helpers/`, `e2e/fixtures/` and `e2e/conditional-skips.allowlist.json`. The classifier reads the spec list from that step, so it cannot drift.
-- The `lib/` and `scripts/` modules that the layout specs, their helpers and `playwright.config.ts` import, and the two `lib/` modules that set the page headers (`contentSecurityPolicy.mjs`, `staticAssetPrefixes.mjs`).
-- `e2e.yml`, the Playwright port action, `playwright.config.ts`, `next.config.mjs`, `postcss.config.mjs`, `tsconfig.json`, `proxy.ts`, the three `instrumentation` files, `package.json`, `package-lock.json` and `.npmrc`.
+- `app/` except API handlers, `components/`, any `.css` file, a `lib/` `.tsx` file, and `public/` outside `public/data/`.
+  The classifier excludes `app/api/**` and `app/**/route.*` before it checks screen paths.
+- The layout-pin specs, `e2e/helpers/`, `e2e/fixtures/`, and `e2e/conditional-skips.allowlist.json`.
+  The workflow classifier names the specs in a static path list.
+- The listed screen dependencies under `lib/`: `cities`, `cityStoryBands`, `contentSecurityPolicy`, `deviceAccountSessions`, `landingHero`, and `lateFood`.
+  The list also includes `mapCanvasAvailability`, `priceBand`, `profileCovers`, `siteContact`, `surfaceDataCache`, and `ukBasePubSearch`.
+  These modules reach screens through direct or transitive imports. The classifier excludes libraries used only by tests or configuration.
+- `e2e.yml`, the Playwright port action, `playwright.config.ts`, `next.config.*`, `postcss.config.mjs`, `tsconfig.json`, `proxy.ts`, and the three `instrumentation` files.
+- `package.json`, `.npmrc`, and root dependency lockfiles for npm, Yarn, pnpm, and Bun.
 
-Anything else reads `none`: unit tests, other browser specs, data, docs and other `lib/` logic. An empty diff, an unreadable spec list and every event that is not a pull request read `ui`, so a push to `main` runs every layout pin. A layout break from a `none` change shows on that `main` run. `__tests__/ciChangeScope.test.ts` runs the classifier, and it fails when a layout spec, helper or the Playwright config imports a module that does not read `ui`.
+Anything else reads `none`: unit tests, other browser specs, API handlers, scripts, data, docs, and other `lib/` logic. No layout spec directly runs a repository script. An empty diff and every event other than a pull request read `ui`. A push to `main` therefore runs every layout pin. `__tests__/ciChangeScope.test.ts` executes the classifier on sample diffs and on each spec selected by the layout job.
 
 | Check | docs only | data only | code |
 | --- | --- | --- | --- |
