@@ -1,3 +1,4 @@
+import type { Route } from "next";
 import { createElement, type ReactElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 
@@ -17,10 +18,6 @@ vi.mock("next/og", () => ({
 
 vi.mock("@/lib/siteUrlConfig.mjs", () => ({
   PRODUCTION_SITE_ORIGIN: "https://example.test",
-}));
-
-vi.mock("next/headers", () => ({
-  headers: async () => new Headers({ "x-nonce": "test-nonce" }),
 }));
 
 vi.mock("next/navigation", async (importOriginal) => {
@@ -58,6 +55,7 @@ import {
   type DrinkBrandLanding,
 } from "@/lib/drinkBrandLanding";
 import * as drinkBrandLandingPageModule from "@/app/drink/[slug]/page";
+import { defined } from "@/__tests__/helpers/defined";
 
 describe("governed drink brand landing page", () => {
   it("prebuilds exactly the published beer brand slugs, in catalogue order", async () => {
@@ -76,11 +74,12 @@ describe("governed drink brand landing page", () => {
     );
   });
 
-  it("gates on published slugs and declares no revalidate window it cannot keep", () => {
+  it("gates on published slugs and is a prerendered CDN document", () => {
     expect(dynamicParams).toBe(false);
-    // The page reads the per-request nonce, so the document is dynamic and a
-    // `revalidate` export would bound nothing.
-    expect("revalidate" in drinkBrandLandingPageModule).toBe(false);
+    // task vercel-f2-seo-cdn: the page reads no nonce, so it prerenders and the
+    // CDN holds it for the ISR window.
+    expect(drinkBrandLandingPageModule.dynamic).toBe("force-static");
+    expect(drinkBrandLandingPageModule.revalidate).toBe(3600);
   });
 
   it("renders the immediate answer, both destinations, date, and twenty ranked rows", async () => {
@@ -104,7 +103,7 @@ describe("governed drink brand landing page", () => {
     // resolves what its eager shard carries: the cheapest Guinness pint in
     // London sits in a lazy borough shard, so rank 1 is not that pub.
     const selectable = await loadMapSelectableVenueIds();
-    expect(selectable?.has(decodeURIComponent(logHref![1]))).toBe(true);
+    expect(selectable?.has(decodeURIComponent(defined(logHref![1])))).toBe(true);
     expect(html).not.toContain("drink=beer");
     // Derived from the bundle's own collection stamp, so a re-collection moves
     // one value rather than every page test that prints the date.
@@ -124,7 +123,10 @@ describe("governed drink brand landing page", () => {
     // name on a bare span is prohibited so an aria-label there is dropped.
     expect(html).not.toContain('aria-label="Rank');
     expect(html).toMatch(/class="drinkBrandDirectory__rank" aria-hidden="true"/);
-    expect(html).toContain("J.J. Moon's - JD Wetherspoon");
+    // The pub reads by its own name; the operator suffix the dataset files is
+    // dropped (lib/venueDisplay.ts#displayVenueName).
+    expect(html).toContain('"name":"J.J. Moon\'s"');
+    expect(html).not.toContain("J.J. Moon's - JD Wetherspoon");
     expect(html).toContain("Pint Prices");
     expect(html).toContain("href=\"https://www.pint-prices.com/pub/");
     expect(html.match(/href="\/ledger\//g)).toHaveLength(20);
@@ -360,8 +362,8 @@ describe("governed drink brand landing page", () => {
         landing: model,
         mapSelectableVenueIds: new Set(["venue-1"]),
         areaPages: [
-          { href: "/area/clapham/drink/guinness", label: "Clapham" },
-          { href: "/area/victoria/drink/guinness", label: "Victoria" },
+          { href: "/area/clapham/drink/guinness" as Route, label: "Clapham" },
+          { href: "/area/victoria/drink/guinness" as Route, label: "Victoria" },
         ],
       }),
     );
@@ -380,17 +382,17 @@ describe("governed drink brand landing page", () => {
     ).resolves.toMatchObject({
       title: "Cheapest Guinness pints in London",
       description:
-        "347 London pubs with listed Guinness pints from £3.09. Publisher: Pint Prices.",
+        "345 London pubs with listed Guinness pints from £3.09. Publisher: Pint Prices.",
       alternates: { canonical: "/drink/guinness" },
       openGraph: {
         type: "website",
         url: "/drink/guinness",
         description:
-          "347 London pubs with listed Guinness pints from £3.09. Publisher: Pint Prices.",
+          "345 London pubs with listed Guinness pints from £3.09. Publisher: Pint Prices.",
       },
       twitter: {
         description:
-          "347 London pubs with listed Guinness pints from £3.09. Publisher: Pint Prices.",
+          "345 London pubs with listed Guinness pints from £3.09. Publisher: Pint Prices.",
       },
     });
 

@@ -1,10 +1,17 @@
 "use client";
 
+import type { Route } from "next";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, ArrowRight, Check, MapPinned, ShieldCheck } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { ArrowLeft, ArrowRight, Check, LocateFixed, MapPinned, ShieldCheck } from "lucide-react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
+import {
+  BudgetPanel,
+  LocationPanel,
+  ResultPanel,
+  type LocateState,
+} from "@/components/onboarding/OnboardingPanels";
 import PalPortrait from "@/components/pal/PalPortrait";
 import { trackEvent } from "@/lib/analytics";
 import { writePreferredCity } from "@/lib/cityPreference";
@@ -17,26 +24,161 @@ import {
   writeFirstRunCompanion,
   type FirstRunCompanion,
 } from "@/lib/firstRunTour";
+import { formatGbp } from "@/lib/formatGbp";
+import {
+  WIDENED_RADIUS_KM,
+  pricedWithinWalk,
+  rankNearMe,
+  type NearMeCard,
+} from "@/lib/nearMeAnswer";
+import { getNightAreasForCity, tryGetNightArea } from "@/lib/nightAreas";
+import { venueAreaClaim } from "@/lib/venueTruth";
+import { NIGHT_PATCHES } from "@/lib/nightPatches";
+import {
+  markNativeFirstRunRouted,
+  readNativeFirstRunPatch,
+  readNativeFirstRunStep,
+  rememberNativeFirstRunPatch,
+  rememberNativeFirstRunStep,
+} from "@/lib/nativeFirstRun";
+import { isNativeApp } from "@/lib/nativePlatform";
+import {
+  BUDGET_CHOICES,
+  ONBOARDING_STEPS,
+  nextOnboardingStep,
+  onboardingResult,
+  onboardingPlanHref,
+  onboardingStepNumber,
+  previousOnboardingStep,
+  readBudgetChoice,
+  readOnboardingPatch,
+  clearPlannerHandoff,
+  writeBudgetChoice,
+  writeOnboardingPatch,
+  writePlannerHandoff,
+  type BudgetChoiceId,
+  type OnboardingOrigin,
+  type OnboardingStep,
+  type PlannerHandoff,
+} from "@/lib/onboardingFlow";
 import { DEFAULT_PAL_DRAFT } from "@/lib/pubPal";
+import { readHistoryStep, useStepHistory } from "@/lib/useStepHistory";
+import { loadSlimVenuesForCityResult, type SlimVenueLoadResult } from "@/lib/venuesSlim";
+
+// A phone draws the photo as a short, darkened full-width band, so its slot is
+// held to 400px and a 3x phone picks the 1200px candidate rather than 1920px.
+// Wider phone layouts and the desktop column keep their real width at any DPR.
+const ONBOARDING_PHOTO_SIZES =
+  "(max-width: 440px) min(100vw, 400px), (max-width: 760px) 100vw, min(51.5vw, calc(100vw - 420px))";
 
 type ReviewedArea = {
   name: string;
   transportAnchor: string;
 };
 
+type Answer =
+  | { status: "loading" }
+  | { status: "empty" }
+  | { status: "unavailable" }
+  | { status: "ready"; cards: NearMeCard[]; widened: boolean; walkPrices: number[] };
+
+// The same read /near makes: a coarse fix, a short wait, a recent one is fine.
+const GEO_OPTIONS: PositionOptions = {
+  enableHighAccuracy: false,
+  timeout: 7000,
+  maximumAge: 60_000,
+};
+
+/**
+ * The shared planner generates from this handoff instead of displaying the
+ * map's unrelated default crawl. A document load carries its query on mount.
+ * The current choice supplies the link when session storage refuses a write.
+ */
+function openPlannerDocument(handoff: PlannerHandoff): void {
+  const href = onboardingPlanHref(handoff);
+  clearPlannerHandoff();
+  window.location.assign(new URL(href, window.location.origin).href);
+}
+
+function patchOrigin(id: string | null): OnboardingOrigin | null {
+  const patch = NIGHT_PATCHES.find((candidate) => candidate.id === id);
+  if (patch) return { kind: "patch", ...patch };
+  const area = id?.startsWith("area:") ? tryGetNightArea(id.slice(5)) : null;
+  return area ? { kind: "location", ...area.centre } : null;
+}
+
+/** The pinned action bar's one primary, named for the step it advances. */
+function primaryActionLabel(
+  step: OnboardingStep,
+  locateState: LocateState,
+  answer: Answer,
+  hasBest: boolean,
+): string {
+  if (step === "london") return "Use London";
+  if (step === "budget") return "Continue";
+  if (step === "location") return locateState === "requesting" ? "Finding your location…" : "Use my location";
+  if (step === "companion") return "Plan my night";
+  if (answer.status === "loading") return "Checking prices…";
+  if (answer.status === "unavailable") return "Try again";
+  if (answer.status === "empty" || !hasBest) return "Pick a patch";
+  return "That looks right";
+}
+
+function primaryActionDisabled(
+  step: OnboardingStep,
+  locateState: LocateState,
+  answer: Answer,
+  hasBudget: boolean,
+  hasCompanion: boolean,
+): boolean {
+  return (step === "budget" && !hasBudget)
+    || (step === "location" && locateState === "requesting")
+    || (step === "companion" && !hasCompanion)
+    || (step === "result" && answer.status === "loading");
+}
+
 export default function FirstRunOnboarding({
   reviewedAreas,
+  skipHref,
+  openPlanner = openPlannerDocument,
 }: {
   reviewedAreas: ReviewedArea[];
+  /** Where Skip lands: where the reader was going before the journey. */
+  skipHref: Route;
+  /** How "Plan my night" reaches the planner. Tests replace the page load. */
+  openPlanner?: (handoff: PlannerHandoff) => void;
 }) {
   const router = useRouter();
-  const [stage, setStage] = useState<"london" | "companion">("london");
+  // A reload lands on the step the reader was on. The answer screen is rebuilt
+  // from a read that is gone, so a reload there goes back to the question.
+  const [step, setStep] = useState<OnboardingStep>(() => {
+    const pending = isNativeApp() ? readNativeFirstRunStep() : null;
+    const recorded = readHistoryStep(ONBOARDING_STEPS)
+      ?? ONBOARDING_STEPS.find((candidate) => candidate === pending);
+    return recorded === "result" ? "location" : (recorded ?? "london");
+  });
   const [companion, setCompanion] = useState<FirstRunCompanion>("robin");
+  const [budget, setBudget] = useState<BudgetChoiceId | null>(null);
+  const [locateState, setLocateState] = useState<LocateState>("idle");
+  const [showPatches, setShowPatches] = useState(false);
+  // A reload or a native relaunch keeps the patch the reader chose, so the
+  // planner still opens on it.
+  const [origin, setOrigin] = useState<OnboardingOrigin | null>(() => {
+    if (readHistoryStep(ONBOARDING_STEPS)) return patchOrigin(readOnboardingPatch());
+    return isNativeApp() ? patchOrigin(readNativeFirstRunPatch()) : null;
+  });
+  const [answer, setAnswer] = useState<Answer>({ status: "loading" });
+  // A reader who taps a patch twice, picks a patch while the location prompt is
+  // open, or backs out mid-read, must not see the older answer land over the
+  // newer one.
+  const answerGeneration = useRef(0);
 
   useEffect(() => {
     claimTourPromptBudget();
     const remembered = readFirstRunCompanion();
     if (remembered) void Promise.resolve().then(() => setCompanion(remembered));
+    const rememberedBudget = readBudgetChoice();
+    if (rememberedBudget) void Promise.resolve().then(() => setBudget(rememberedBudget));
     const releaseBudget = () => releaseTourPromptBudget();
     window.addEventListener("pagehide", releaseBudget);
     return () => {
@@ -44,6 +186,13 @@ export default function FirstRunOnboarding({
       releaseBudget();
     };
   }, []);
+
+  // Each step is a new screen, so it opens at the top. Otherwise a short phone
+  // carries the last step's scroll and the progress bar and Skip start hidden.
+  useEffect(() => {
+    window.scrollTo(0, 0);
+    rememberNativeFirstRunStep(step);
+  }, [step]);
 
   const selectedCompanion = useMemo(
     () => FIRST_RUN_COMPANIONS.find((choice) => choice.id === companion) ?? null,
@@ -56,10 +205,27 @@ export default function FirstRunOnboarding({
     }),
     [companion],
   );
+  const budgetChoice = BUDGET_CHOICES.find((choice) => choice.id === budget) ?? null;
+  const result = useMemo(
+    () =>
+      answer.status === "ready"
+        ? onboardingResult(answer.cards, budget, answer.widened, answer.walkPrices)
+        : null,
+    [answer, budget],
+  );
+
+  const goTo = useCallback((next: OnboardingStep | null) => {
+    if (next) setStep(next);
+  }, []);
 
   function confirmLondon() {
     writePreferredCity("london");
-    setStage("companion");
+    goTo(nextOnboardingStep("london"));
+  }
+
+  function chooseBudget(choice: BudgetChoiceId) {
+    setBudget(choice);
+    writeBudgetChoice(choice);
   }
 
   function chooseCompanion(choice: FirstRunCompanion) {
@@ -67,26 +233,176 @@ export default function FirstRunOnboarding({
     writeFirstRunCompanion(choice);
   }
 
+  // Any newer answer, or a step away from the location screen, makes a pending
+  // fix or venue read stale, and a prompt left open no longer holds the button.
+  const beginAnswer = useCallback(() => {
+    setLocateState((state) => (state === "requesting" ? "idle" : state));
+    return ++answerGeneration.current;
+  }, []);
+
+  // Rank the priced pubs around `from` and move to the result. A read we could
+  // not run is not an empty area: it is its own answer, with a retry.
+  const readAnswer = useCallback(async (from: OnboardingOrigin) => {
+    const generation = beginAnswer();
+    const locatedArea = from.kind === "location"
+      ? venueAreaClaim({ latitude: from.lat, longitude: from.lng }, getNightAreasForCity("london")).area
+      : null;
+    setOrigin(from);
+    const areaId = from.kind === "patch" ? from.id : locatedArea ? `area:${locatedArea.slug}` : null;
+    writeOnboardingPatch(areaId);
+    rememberNativeFirstRunPatch(areaId);
+    setAnswer({ status: "loading" });
+    setStep("result");
+    let read: SlimVenueLoadResult;
+    try {
+      read = await loadSlimVenuesForCityResult("london");
+    } catch {
+      read = { rows: [], status: "unavailable" };
+    }
+    if (generation !== answerGeneration.current) return;
+    if (read.status === "unavailable") {
+      setAnswer({ status: "unavailable" });
+      return;
+    }
+    const { rows } = read;
+    const ranked = rankNearMe(from.lat, from.lng, rows);
+    // The ranker falls back to the nearest priced pubs however far they are,
+    // so a fix in Manchester would be answered with London. Past the widened
+    // ring nothing is near the reader.
+    const inReach = ranked.cards.some(
+      (card) => card.distanceKm !== undefined && card.distanceKm <= WIDENED_RADIUS_KM,
+    );
+    if (!inReach) {
+      if (from.kind === "location") {
+        // Located fine, nothing priced in range: say so and offer the patches.
+        setLocateState("outside");
+        setShowPatches(true);
+        setStep("location");
+        return;
+      }
+      setAnswer({ status: "empty" });
+      return;
+    }
+    setAnswer({
+      status: "ready",
+      cards: ranked.cards,
+      widened: ranked.scope === "widened",
+      walkPrices: pricedWithinWalk(from.lat, from.lng, rows),
+    });
+  }, [beginAnswer]);
+
+  // Coming back to the result shows the answer this visit holds. With none
+  // (a reload, or a read dropped on the way back) the reader is asked again.
+  const resultStep: OnboardingStep = answer.status === "loading" ? "location" : "result";
+
+  // Browser Back and Forward walk the steps the reader has seen. Leaving a
+  // step drops any read still in flight.
+  const stepHistory = useStepHistory(
+    step,
+    (next) => {
+      beginAnswer();
+      setStep(next === "result" ? resultStep : next);
+    },
+    { steps: ONBOARDING_STEPS, first: "london" },
+  );
+
+  function locate() {
+    if (typeof navigator === "undefined" || !navigator.geolocation) {
+      setLocateState("unavailable");
+      setShowPatches(true);
+      return;
+    }
+    const generation = beginAnswer();
+    setLocateState("requesting");
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        if (generation !== answerGeneration.current) return;
+        setLocateState("idle");
+        void readAnswer({
+          kind: "location",
+          lat: position.coords.latitude,
+          lng: position.coords.longitude,
+        });
+      },
+      (error) => {
+        if (generation !== answerGeneration.current) return;
+        setLocateState(error.code === error.PERMISSION_DENIED ? "denied" : "unavailable");
+        setShowPatches(true);
+      },
+      GEO_OPTIONS,
+    );
+  }
+
+  function pickPatch(id: string) {
+    const patch = patchOrigin(id);
+    if (patch) void readAnswer(patch);
+  }
+
   function skipOnboarding() {
+    if (isNativeApp()) markNativeFirstRunRouted();
     markTourSeen();
     trackEvent("tour_complete", { completed: false });
     releaseTourPromptBudget();
-    router.replace("/tonight");
+    stepHistory.leave(() => router.replace(skipHref));
   }
 
   function startPlan() {
     if (!companion) return;
+    const locatedArea = origin?.kind === "location" ? tryGetNightArea(venueAreaClaim(
+      { latitude: origin.lat, longitude: origin.lng }, getNightAreasForCity("london"),
+    ).area?.slug)?.slug : undefined;
+    if (origin?.kind === "location" && !locatedArea) {
+      setLocateState("idle");
+      setShowPatches(true);
+      setStep("location");
+      return;
+    }
     writePreferredCity("london");
     writeFirstRunCompanion(companion);
+    if (isNativeApp()) markNativeFirstRunRouted();
     markTourSeen();
     trackEvent("tour_complete", { completed: true });
     // Onboarding and push never overlap. The route generator is the first
     // action allowed to arm the native permission explainer.
     releaseTourPromptBudget();
-    router.push("/map?plan=1");
+    // The planner opens on the patch and budget the reader just gave.
+    const handoff: PlannerHandoff = {
+      patch: origin?.kind === "patch" ? { lat: origin.lat, lng: origin.lng } : null,
+      budget,
+      ...(origin?.kind === "location" ? {
+        nightArea: locatedArea,
+      } : {}),
+    };
+    writePlannerHandoff(handoff);
+    stepHistory.leave(() => openPlanner(handoff));
   }
 
-  const isCompanionStage = stage === "companion";
+  const stepNumber = onboardingStepNumber(step);
+  const previous = previousOnboardingStep(step);
+  const areaLabel =
+    origin?.kind === "patch" ? `around ${origin.label}` : "near you";
+
+  function changeArea() {
+    beginAnswer();
+    setShowPatches(true);
+    setStep("location");
+  }
+
+  function advance() {
+    if (step === "london") confirmLondon();
+    else if (step === "budget") goTo(nextOnboardingStep("budget"));
+    else if (step === "location") locate();
+    else if (step === "companion") startPlan();
+    else if (answer.status === "unavailable") {
+      if (origin) void readAnswer(origin);
+      else changeArea();
+    } else if (answer.status === "empty" || !result?.best) changeArea();
+    else goTo(nextOnboardingStep("result"));
+  }
+
+  const primaryLabel = primaryActionLabel(step, locateState, answer, Boolean(result?.best));
+  const primaryDisabled = primaryActionDisabled(step, locateState, answer, budget !== null, Boolean(companion));
+  const hasBack = step !== "london" && step !== "result";
 
   return (
     <main
@@ -95,32 +411,39 @@ export default function FirstRunOnboarding({
       // than parking a round + over the reviewed-area list
       // (components/nav/createFab.css).
       className="firstRunOnboarding pageHidesCreateFab"
-      data-stage={stage}
+      data-stage={step}
     >
       <header className="firstRunTopbar">
-        <div className="firstRunBrand" aria-label="PUBMAXXING">
+        <div className="firstRunBrand" aria-label="PUBMAXX">
           <Image src="/brand/icon.svg" alt="" width={30} height={30} priority />
-          <span>PUBMAXXING</span>
+          <span>PUBMAXX</span>
         </div>
         <div
           className="firstRunProgress"
           role="progressbar"
           aria-label="Onboarding progress"
           aria-valuemin={1}
-          aria-valuemax={2}
-          aria-valuenow={isCompanionStage ? 2 : 1}
+          aria-valuemax={ONBOARDING_STEPS.length}
+          aria-valuenow={stepNumber}
+          style={{ "--first-run-steps": ONBOARDING_STEPS.length } as React.CSSProperties}
         >
-          <span className={isCompanionStage ? "isComplete" : "isCurrent"} />
-          <span className={isCompanionStage ? "isCurrent" : ""} />
+          {ONBOARDING_STEPS.map((id, index) => (
+            <span
+              key={id}
+              className={
+                index + 1 < stepNumber ? "isComplete" : index + 1 === stepNumber ? "isCurrent" : ""
+              }
+            />
+          ))}
         </div>
         <button type="button" className="firstRunSkip pressable" onClick={skipOnboarding}>
           Skip
         </button>
       </header>
 
-      <div className="firstRunStage" key={stage}>
-        <section className="firstRunVisual" aria-label={isCompanionStage ? "Companion preview" : "London preview"}>
-          {isCompanionStage ? (
+      <div className="firstRunStage" key={step}>
+        <section className="firstRunVisual" aria-label={visualLabel(step)}>
+          {step === "companion" ? (
             <div className="firstRunCompanionHero">
               <PalPortrait
                 appearance={appearance}
@@ -133,6 +456,20 @@ export default function FirstRunOnboarding({
                   : "Pick the Pal you want in your corner for the first night."}
               </p>
             </div>
+          ) : step === "budget" ? (
+            <div className="firstRunFigureHero">
+              <p className="firstRunFigure" aria-hidden="true">
+                {budgetChoice ? (budgetChoice.ceiling ? `£${budgetChoice.ceiling}` : "Any") : "£?"}
+              </p>
+              <p>{budgetChoice ? `A pint at ${budgetChoice.label.toLowerCase()}.` : "Your pint, your number."}</p>
+            </div>
+          ) : step === "result" && result?.best ? (
+            <div className="firstRunFigureHero">
+              <p className="firstRunFigure" aria-hidden="true">
+                {formatGbp(result.best.cheapestPrice)}
+              </p>
+              <p>{result.best.name}</p>
+            </div>
           ) : (
             <figure className="firstRunLondonPhoto">
               <Image
@@ -140,16 +477,74 @@ export default function FirstRunOnboarding({
                 alt="London and the Thames viewed from above"
                 fill
                 priority
-                sizes="(max-width: 760px) 100vw, 52vw"
+                sizes={ONBOARDING_PHOTO_SIZES}
               />
-              <figcaption>London, with the route home kept in view.</figcaption>
+              <figcaption>
+                {step === "location"
+                  ? "Every pint near you, cheapest first."
+                  : "London, and your way home from it."}
+              </figcaption>
             </figure>
           )}
         </section>
 
         <section className="firstRunPanel" aria-live="polite">
           <div className="firstRunPanelInner">
-            {isCompanionStage ? (
+            {step === "london" ? (
+              <>
+                <p className="firstRunEyebrow">Your city</p>
+                <h1>London is ready.</h1>
+                <p className="firstRunLead">
+                  Start in an area we&rsquo;ve checked, with listed pint prices and a way home.
+                </p>
+
+                <div className="firstRunAreaList" aria-label="Reviewed London route areas">
+                  {reviewedAreas.map((area) => (
+                    <article key={area.name}>
+                      <MapPinned size={20} aria-hidden="true" />
+                      {/* The stamp rides INSIDE the text block, so a short
+                          phone can fold it onto the way-home line
+                          (app/onboarding/onboarding.css, the short phone). */}
+                      <div>
+                        <strong>{area.name}</strong>
+                        <span>Home via {area.transportAnchor}</span>
+                        <small>PUBMAXX reviewed</small>
+                      </div>
+                    </article>
+                  ))}
+                </div>
+
+              </>
+            ) : null}
+
+            {step === "budget" ? (
+              <BudgetPanel
+                budget={budget}
+                onChoose={chooseBudget}
+              />
+            ) : null}
+
+            {step === "location" ? (
+              <LocationPanel
+                state={locateState}
+                showPatches={showPatches}
+                onShowPatches={() => setShowPatches(true)}
+                onPickPatch={pickPatch}
+              />
+            ) : null}
+
+            {step === "result" ? (
+              <ResultPanel
+                status={answer.status}
+                result={result}
+                areaLabel={areaLabel}
+                budgetLabel={budgetChoice?.ceiling ? budgetChoice.label : null}
+                onChangeBudget={() => setStep("budget")}
+                onChangeArea={changeArea}
+              />
+            ) : null}
+
+            {step === "companion" ? (
               <>
                 <p className="firstRunEyebrow">Your companion</p>
                 <h1>Pick your Pub Pal.</h1>
@@ -170,7 +565,7 @@ export default function FirstRunOnboarding({
                       >
                         <span>{choice.label}</span>
                         <small>{choice.note}</small>
-                        {selected ? <Check size={18} aria-hidden="true" /> : null}
+                        {selected ? <Check size={16} aria-hidden="true" /> : null}
                       </button>
                     );
                   })}
@@ -181,57 +576,46 @@ export default function FirstRunOnboarding({
                   You can name, tweak, or skip your Pal later.
                 </p>
 
-                <div className="firstRunActions">
-                  <button type="button" className="firstRunBack pressable" onClick={() => setStage("london")}>
-                    <ArrowLeft size={18} aria-hidden="true" /> Back
-                  </button>
-                  <button
-                    type="button"
-                    className="firstRunPrimary pressable"
-                    disabled={!companion}
-                    onClick={startPlan}
-                  >
-                    Plan my night <ArrowRight size={18} aria-hidden="true" />
-                  </button>
-                </div>
                 <p className="firstRunPermissionNote">
                   We won&rsquo;t ask about notifications until your first night&rsquo;s sorted.
                 </p>
               </>
-            ) : (
-              <>
-                <p className="firstRunEyebrow">Your city</p>
-                <h1>London is ready.</h1>
-                <p className="firstRunLead">
-                  Start with checked routes, listed pint prices, and a clear way home.
-                </p>
-
-                <div className="firstRunAreaList" aria-label="Reviewed London route areas">
-                  {reviewedAreas.map((area) => (
-                    <article key={area.name}>
-                      <MapPinned size={19} aria-hidden="true" />
-                      {/* The stamp rides INSIDE the text block, so a short
-                          phone can fold it onto the way-home line
-                          (app/onboarding/onboarding.css, the short phone). */}
-                      <div>
-                        <strong>{area.name}</strong>
-                        <span>Home via {area.transportAnchor}</span>
-                        <small>PUBMAXX reviewed</small>
-                      </div>
-                    </article>
-                  ))}
-                </div>
-
-                <div className="firstRunActions firstRunActionsSingle">
-                  <button type="button" className="firstRunPrimary pressable" onClick={confirmLondon}>
-                    Use London <ArrowRight size={18} aria-hidden="true" />
-                  </button>
-                </div>
-              </>
-            )}
+            ) : null}
           </div>
         </section>
       </div>
+      <footer className="firstRunActions" aria-label="Onboarding actions">
+        <div className={`firstRunActionsInner${hasBack ? "" : " firstRunActionsSingle"}`}>
+          {hasBack ? (
+            <button type="button" className="firstRunBack pressable" onClick={() => {
+              beginAnswer();
+              goTo(step === "companion" ? resultStep : previous);
+            }}>
+              <ArrowLeft size={16} aria-hidden="true" /> Back
+            </button>
+          ) : null}
+          <button type="button" className="firstRunPrimary pressable" disabled={primaryDisabled} onClick={advance}>
+            {step === "location" ? <LocateFixed size={16} aria-hidden="true" /> : null}
+            {primaryLabel}
+            {step !== "location" ? <ArrowRight size={16} aria-hidden="true" /> : null}
+          </button>
+        </div>
+      </footer>
     </main>
   );
+}
+
+function visualLabel(step: OnboardingStep): string {
+  switch (step) {
+    case "companion":
+      return "Companion preview";
+    case "budget":
+      return "Your pint budget";
+    case "result":
+      return "Your cheapest pint";
+    case "location":
+      return "London preview";
+    default:
+      return "London preview";
+  }
 }

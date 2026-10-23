@@ -1,0 +1,774 @@
+{
+  "status": 200,
+  "body": {
+    "grounded": true,
+    "groundingProof": "eyJ2IjoxLCJ2ZW51ZUlkcyI6WyJ2ZW51ZS0xMWlvbGtkIiwidmVudWUtMTIyY3V1MSIsInZlbnVlLTE5aDNyMXAiLCJ2ZW51ZS1sdWtlYXYiLCJ2ZW51ZS1waHFhem8iLCJ2ZW51ZS1xejZwY3kiLCJ2ZW51ZS14bTB5YTMiXSwib3BlcmF0aW9uRGlnZXN0IjoiOTUzODhhYThkYTIyOGM2MWIzODk5NDFmYzVjNmJhNTRmNzMwNjg3ZDM5NzUxZTU2NjcyNzFiZmNhMzU0M2E4NSIsImlzc3VlZEF0IjoxNzkyMTAwNjg5MjUzLCJleHBpcmVzQXQiOjE3OTIxMDc4ODkyNTN9.ny6Z2s3LmhdTfbMRF_pi6UCPX7E-if90yOZAnRHDr6w",
+    "operationKey": "create-c06dc720-08e3-46f6-900b-6358535d1af6",
+    "inferredContext": {
+      "nightArea": "piccadilly-soho",
+      "daypart": "evening",
+      "partyType": "friends",
+      "groupSize": null,
+      "stopCount": 3,
+      "budget": "standard",
+      "budgetLimitPence": 1800,
+      "zeroProof": false,
+      "drinkCategory": "beer",
+      "wetherspoonsPreferred": false,
+      "atmosphere": [],
+      "foodNeeds": [],
+      "accessibility": [],
+      "transportConstraints": []
+    },
+    "contextFieldSources": {
+      "nightArea": "query",
+      "daypart": "default",
+      "partyType": "default",
+      "groupSize": "default",
+      "stopCount": "default",
+      "budget": "default",
+      "budgetLimitPence": "query",
+      "zeroProof": "default",
+      "drinkCategory": "query",
+      "wetherspoonsPreferred": "default",
+      "atmosphere": "default",
+      "foodNeeds": "default",
+      "accessibility": "default",
+      "transportConstraints": "default"
+    },
+    "confidence": 0.86,
+    "planningConfidence": {
+      "level": "medium",
+      "score": 0.86,
+      "routeReady": true,
+      "missingEvidence": [
+        "current_opening_hours"
+      ],
+      "warnings": [
+        "Check current opening hours before relying on this route."
+      ],
+      "provenance": [
+        {
+          "kind": "venue_dataset",
+          "label": "PUBMAXX Venue Dataset"
+        },
+        {
+          "kind": "night_area_review",
+          "label": "Piccadilly & Soho route review",
+          "asOf": "2026-07-13T00:00:00.000Z"
+        }
+      ]
+    },
+    "budgetSummary": {
+      "currency": "GBP",
+      "limitPence": 1800,
+      "estimatedPerPersonPence": 1665,
+      "estimatedCrewPence": 1665,
+      "withinLimit": true,
+      "basis": "one-recorded-pint-per-stop"
+    },
+    "routeTotals": {
+      "stopCount": 3,
+      "straightLineWalkingKm": 0.94,
+      "estimatedWalkingMinutes": 12,
+      "distanceBasis": "straight-line"
+    },
+    "routeTiming": {
+      "walkingSpeedKmh": 4.8,
+      "walkingMinutes": 12,
+      "transferUncertaintyMinutes": 10,
+      "scheduledRouteMinutes": 172,
+      "basis": "straight-line walking estimate; add five minutes uncertainty per transfer"
+    },
+    "endingRecommendations": [
+      {
+        "kind": "food",
+        "label": "Find food",
+        "reason": "No late food worth pointing you to round here yet.",
+        "preselected": false,
+        "requiresConfirmation": true,
+        "confidence": "low",
+        "warnings": [
+          "No late food worth pointing you to round here yet."
+        ],
+        "options": []
+      },
+      {
+        "kind": "get_home",
+        "label": "Get home",
+        "reason": "Keep Piccadilly Circus visible as the route's transport anchor.",
+        "preselected": true,
+        "requiresConfirmation": true,
+        "confidence": "medium",
+        "warnings": [
+          "Live status, destination routing, and last-service times load during the night."
+        ],
+        "options": [
+          {
+            "id": "transport:piccadilly-circus",
+            "label": "Piccadilly Circus",
+            "detail": "Open TfL only after you confirm.",
+            "href": "https://tfl.gov.uk/plan-a-journey/",
+            "provenance": [
+              {
+                "kind": "night_area_review",
+                "label": "Piccadilly Circus transport anchor"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "kind": "keep_going",
+        "label": "Keep going",
+        "reason": "2 more pubs close by. Check prices and hours before you go.",
+        "preselected": false,
+        "requiresConfirmation": true,
+        "confidence": "low",
+        "warnings": [
+          "Closing times are not checked. We show extra spend only when a price is recorded."
+        ],
+        "options": [
+          {
+            "id": "venue-lukeav",
+            "label": "Bradley’s Spanish Bar",
+            "detail": "0.7 km straight-line · about £6.00 for one recorded pint · closing time not checked",
+            "priceImpactPence": 600,
+            "closingConfidence": "unknown",
+            "provenance": [
+              {
+                "kind": "venue_dataset",
+                "label": "PUBMAXX venue record for Bradley’s Spanish Bar"
+              }
+            ]
+          },
+          {
+            "id": "venue-xm0ya3",
+            "label": "Masons Arms (Mayfair)",
+            "detail": "0.5 km straight-line · about £6.00 for one recorded pint · closing time not checked",
+            "priceImpactPence": 600,
+            "closingConfidence": "unknown",
+            "provenance": [
+              {
+                "kind": "venue_dataset",
+                "label": "PUBMAXX venue record for Masons Arms (Mayfair)"
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "weatherEvidence": null,
+    "nightArea": {
+      "id": "piccadilly-soho",
+      "slug": "piccadilly-soho",
+      "coverageStatus": "route_ready",
+      "coverageScore": 88,
+      "routeReadyReasons": [
+        "venue_density",
+        "identity_conflict",
+        "price_coverage",
+        "amenity_coverage",
+        "opening_hours",
+        "transport_anchor",
+        "route_feasibility",
+        "terminal_get_home",
+        "terminal_food",
+        "unreviewed_source"
+      ],
+      "missingEvidence": [],
+      "gate": {
+        "version": 1,
+        "passed": true,
+        "checks": [
+          {
+            "code": "venue_density",
+            "required": true,
+            "passed": true,
+            "observed": "reviewed",
+            "evidenceRefs": [
+              "fixture:venue_density:v1"
+            ]
+          },
+          {
+            "code": "identity_conflict",
+            "required": true,
+            "passed": true,
+            "observed": "reviewed",
+            "evidenceRefs": [
+              "fixture:identity_conflict:v1"
+            ]
+          },
+          {
+            "code": "price_coverage",
+            "required": true,
+            "passed": true,
+            "observed": "reviewed",
+            "evidenceRefs": [
+              "fixture:price_coverage:v1"
+            ]
+          },
+          {
+            "code": "amenity_coverage",
+            "required": true,
+            "passed": true,
+            "observed": "reviewed",
+            "evidenceRefs": [
+              "fixture:amenity_coverage:v1"
+            ]
+          },
+          {
+            "code": "opening_hours",
+            "required": true,
+            "passed": true,
+            "observed": "reviewed",
+            "evidenceRefs": [
+              "fixture:opening_hours:v1"
+            ]
+          },
+          {
+            "code": "transport_anchor",
+            "required": true,
+            "passed": true,
+            "observed": "reviewed",
+            "evidenceRefs": [
+              "fixture:transport_anchor:v1"
+            ]
+          },
+          {
+            "code": "route_feasibility",
+            "required": true,
+            "passed": true,
+            "observed": "reviewed",
+            "evidenceRefs": [
+              "fixture:route_feasibility:v1"
+            ]
+          },
+          {
+            "code": "terminal_get_home",
+            "required": true,
+            "passed": true,
+            "observed": "reviewed",
+            "evidenceRefs": [
+              "fixture:terminal_get_home:v1"
+            ]
+          },
+          {
+            "code": "terminal_food",
+            "required": true,
+            "passed": true,
+            "observed": "unavailable_after_review",
+            "evidenceRefs": [
+              "fixture:terminal_food:v1"
+            ]
+          },
+          {
+            "code": "unreviewed_source",
+            "required": true,
+            "passed": true,
+            "observed": "reviewed",
+            "evidenceRefs": [
+              "fixture:unreviewed_source:v1"
+            ]
+          }
+        ]
+      },
+      "lastReviewedAt": "2026-07-13T00:00:00.000Z",
+      "reviewExpiresAt": "2027-01-01T00:00:00.000Z",
+      "routeReady": true
+    },
+    "constraintReport": {
+      "version": 1,
+      "source": "plan-intake-v1",
+      "hardConstraints": [
+        {
+          "code": "safety",
+          "status": "satisfied",
+          "message": "Stops with an active reviewed avoid signal were excluded."
+        },
+        {
+          "code": "exclusions",
+          "status": "satisfied",
+          "message": "Excluded and promoted venues were not eligible."
+        },
+        {
+          "code": "transport_feasibility",
+          "status": "satisfied",
+          "message": "Travel time uses 4.8 km/h direct-distance walking plus 5 minutes uncertainty per leg; pavement routing is not claimed."
+        },
+        {
+          "code": "budget_ceiling",
+          "status": "satisfied",
+          "message": "The attributable, non-stale recorded one-pint-per-stop total is within the per-person ceiling."
+        }
+      ],
+      "softRelaxations": []
+    },
+    "district": {
+      "id": "piccadilly-soho",
+      "slug": "piccadilly-soho",
+      "coverageStatus": "route_ready",
+      "coverageScore": 88,
+      "routeReadyReasons": [
+        "venue_density",
+        "identity_conflict",
+        "price_coverage",
+        "amenity_coverage",
+        "opening_hours",
+        "transport_anchor",
+        "route_feasibility",
+        "terminal_get_home",
+        "terminal_food",
+        "unreviewed_source"
+      ],
+      "missingEvidence": [],
+      "gate": {
+        "version": 1,
+        "passed": true,
+        "checks": [
+          {
+            "code": "venue_density",
+            "required": true,
+            "passed": true,
+            "observed": "reviewed",
+            "evidenceRefs": [
+              "fixture:venue_density:v1"
+            ]
+          },
+          {
+            "code": "identity_conflict",
+            "required": true,
+            "passed": true,
+            "observed": "reviewed",
+            "evidenceRefs": [
+              "fixture:identity_conflict:v1"
+            ]
+          },
+          {
+            "code": "price_coverage",
+            "required": true,
+            "passed": true,
+            "observed": "reviewed",
+            "evidenceRefs": [
+              "fixture:price_coverage:v1"
+            ]
+          },
+          {
+            "code": "amenity_coverage",
+            "required": true,
+            "passed": true,
+            "observed": "reviewed",
+            "evidenceRefs": [
+              "fixture:amenity_coverage:v1"
+            ]
+          },
+          {
+            "code": "opening_hours",
+            "required": true,
+            "passed": true,
+            "observed": "reviewed",
+            "evidenceRefs": [
+              "fixture:opening_hours:v1"
+            ]
+          },
+          {
+            "code": "transport_anchor",
+            "required": true,
+            "passed": true,
+            "observed": "reviewed",
+            "evidenceRefs": [
+              "fixture:transport_anchor:v1"
+            ]
+          },
+          {
+            "code": "route_feasibility",
+            "required": true,
+            "passed": true,
+            "observed": "reviewed",
+            "evidenceRefs": [
+              "fixture:route_feasibility:v1"
+            ]
+          },
+          {
+            "code": "terminal_get_home",
+            "required": true,
+            "passed": true,
+            "observed": "reviewed",
+            "evidenceRefs": [
+              "fixture:terminal_get_home:v1"
+            ]
+          },
+          {
+            "code": "terminal_food",
+            "required": true,
+            "passed": true,
+            "observed": "unavailable_after_review",
+            "evidenceRefs": [
+              "fixture:terminal_food:v1"
+            ]
+          },
+          {
+            "code": "unreviewed_source",
+            "required": true,
+            "passed": true,
+            "observed": "reviewed",
+            "evidenceRefs": [
+              "fixture:unreviewed_source:v1"
+            ]
+          }
+        ]
+      },
+      "lastReviewedAt": "2026-07-13T00:00:00.000Z",
+      "reviewExpiresAt": "2027-01-01T00:00:00.000Z",
+      "routeReady": true
+    },
+    "explanations": [
+      {
+        "field": "nightArea",
+        "evidence": "Piccadilly & Soho",
+        "explanation": "Matched the requested area."
+      },
+      {
+        "field": "budgetLimitPence",
+        "evidence": "£18.00",
+        "explanation": "Matched the explicit per-person route budget."
+      },
+      {
+        "field": "drinkCategory",
+        "evidence": "beer",
+        "explanation": "Matched the requested drink category."
+      }
+    ],
+    "stops": [
+      {
+        "venueId": "venue-11iolkd",
+        "venueName": "The Lemon Tree",
+        "position": 0,
+        "walkingMinutesFromPrevious": null,
+        "distanceKm": 0.59,
+        "estimatedPintPricePence": 575,
+        "priceEvidence": {
+          "pence": 575,
+          "source": {
+            "label": "Pint Prices",
+            "url": "https://www.pint-prices.com/pub/4%20Bedfordbury,%20London%20WC2N%204BP/The%20Lemon%20Tree",
+            "observedAt": "2026-10-02T11:48:33.000Z"
+          },
+          "confidenceState": "fresh"
+        },
+        "priceCategory": "beer",
+        "priceServing": "pint",
+        "selectedDrinkPriceEvidence": null,
+        "accessEvidence": {},
+        "evidence": [],
+        "constraintFlags": [],
+        "operationalEvidence": {
+          "openingAtVisit": "unknown",
+          "openingSource": null,
+          "visitWindow": null,
+          "transportBasis": "direct-distance at 4.8 km/h plus 5 minutes uncertainty per leg"
+        },
+        "provenance": [
+          {
+            "kind": "venue_dataset",
+            "label": "PUBMAXX venue record for The Lemon Tree"
+          },
+          {
+            "kind": "night_area_review",
+            "label": "Piccadilly & Soho route review",
+            "asOf": "2026-07-13T00:00:00.000Z"
+          }
+        ],
+        "reason": "0.6 km from the area centre.",
+        "alternatives": [
+          {
+            "venueId": "venue-qz6pcy",
+            "venueName": "The Princess of Wales",
+            "distanceKm": 0.24,
+            "estimatedPintPricePence": 585,
+            "priceEvidence": {
+              "pence": 585,
+              "source": {
+                "label": "Pint Prices",
+                "url": "https://www.pint-prices.com/pub/27%20Villiers%20St,%20London%20WC2N%206ND/The%20Princess%20of%20Wales",
+                "observedAt": "2026-10-02T11:48:33.000Z"
+              },
+              "confidenceState": "fresh"
+            },
+            "priceCategory": "beer",
+            "priceServing": "pint",
+            "selectedDrinkPriceEvidence": null,
+            "accessEvidence": {},
+            "constraintFlags": [],
+            "operationalEvidence": {
+              "openingAtVisit": "unknown",
+              "openingSource": null,
+              "visitWindow": null,
+              "transportBasis": "direct-distance at 4.8 km/h plus 5 minutes uncertainty per leg"
+            },
+            "provenance": [
+              {
+                "kind": "venue_dataset",
+                "label": "PUBMAXX venue record for The Princess of Wales"
+              }
+            ]
+          },
+          {
+            "venueId": "venue-19h3r1p",
+            "venueName": "The Coach & Horses",
+            "distanceKm": 0.44,
+            "estimatedPintPricePence": 580,
+            "priceEvidence": {
+              "pence": 580,
+              "source": {
+                "label": "Pint Prices",
+                "url": "https://www.pint-prices.com/pub/42%20Wellington%20St,%20London%20WC2E%207BD/The%20Coach%20%26%20Horses",
+                "observedAt": "2026-10-02T11:48:33.000Z"
+              },
+              "confidenceState": "fresh"
+            },
+            "priceCategory": "beer",
+            "priceServing": "pint",
+            "selectedDrinkPriceEvidence": null,
+            "accessEvidence": {},
+            "constraintFlags": [],
+            "operationalEvidence": {
+              "openingAtVisit": "unknown",
+              "openingSource": null,
+              "visitWindow": null,
+              "transportBasis": "direct-distance at 4.8 km/h plus 5 minutes uncertainty per leg"
+            },
+            "provenance": [
+              {
+                "kind": "venue_dataset",
+                "label": "PUBMAXX venue record for The Coach & Horses"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "venueId": "venue-phqazo",
+        "venueName": "The Coach & Horses",
+        "position": 1,
+        "walkingMinutesFromPrevious": 6,
+        "distanceKm": 0.37,
+        "estimatedPintPricePence": 570,
+        "priceEvidence": {
+          "pence": 570,
+          "source": {
+            "label": "Pint Prices",
+            "url": "https://www.pint-prices.com/pub/29%20Greek%20St,%20London%20W1D%205DH/The%20Coach%20%26%20Horses",
+            "observedAt": "2026-10-02T11:48:33.000Z"
+          },
+          "confidenceState": "fresh"
+        },
+        "priceCategory": "beer",
+        "priceServing": "pint",
+        "selectedDrinkPriceEvidence": null,
+        "accessEvidence": {},
+        "evidence": [],
+        "constraintFlags": [],
+        "operationalEvidence": {
+          "openingAtVisit": "unknown",
+          "openingSource": null,
+          "visitWindow": null,
+          "transportBasis": "direct-distance at 4.8 km/h plus 5 minutes uncertainty per leg"
+        },
+        "provenance": [
+          {
+            "kind": "venue_dataset",
+            "label": "PUBMAXX venue record for The Coach & Horses"
+          },
+          {
+            "kind": "night_area_review",
+            "label": "Piccadilly & Soho route review",
+            "asOf": "2026-07-13T00:00:00.000Z"
+          }
+        ],
+        "reason": "Close to the heart of the area.",
+        "alternatives": [
+          {
+            "venueId": "venue-lukeav",
+            "venueName": "Bradley’s Spanish Bar",
+            "distanceKm": 0.4,
+            "estimatedPintPricePence": 600,
+            "priceEvidence": {
+              "pence": 600,
+              "source": {
+                "label": "Pint Prices",
+                "url": "https://www.pint-prices.com/pub/42-44%20Hanway%20St,%20London%20W1T%201UT/Bradley%E2%80%99s%20Spanish%20Bar",
+                "observedAt": "2026-10-02T11:48:33.000Z"
+              },
+              "confidenceState": "fresh"
+            },
+            "priceCategory": "beer",
+            "priceServing": "pint",
+            "selectedDrinkPriceEvidence": null,
+            "accessEvidence": {},
+            "constraintFlags": [],
+            "operationalEvidence": {
+              "openingAtVisit": "unknown",
+              "openingSource": null,
+              "visitWindow": null,
+              "transportBasis": "direct-distance at 4.8 km/h plus 5 minutes uncertainty per leg"
+            },
+            "provenance": [
+              {
+                "kind": "venue_dataset",
+                "label": "PUBMAXX venue record for Bradley’s Spanish Bar"
+              }
+            ]
+          },
+          {
+            "venueId": "venue-19h3r1p",
+            "venueName": "The Coach & Horses",
+            "distanceKm": 0.64,
+            "estimatedPintPricePence": 580,
+            "priceEvidence": {
+              "pence": 580,
+              "source": {
+                "label": "Pint Prices",
+                "url": "https://www.pint-prices.com/pub/42%20Wellington%20St,%20London%20WC2E%207BD/The%20Coach%20%26%20Horses",
+                "observedAt": "2026-10-02T11:48:33.000Z"
+              },
+              "confidenceState": "fresh"
+            },
+            "priceCategory": "beer",
+            "priceServing": "pint",
+            "selectedDrinkPriceEvidence": null,
+            "accessEvidence": {},
+            "constraintFlags": [],
+            "operationalEvidence": {
+              "openingAtVisit": "unknown",
+              "openingSource": null,
+              "visitWindow": null,
+              "transportBasis": "direct-distance at 4.8 km/h plus 5 minutes uncertainty per leg"
+            },
+            "provenance": [
+              {
+                "kind": "venue_dataset",
+                "label": "PUBMAXX venue record for The Coach & Horses"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "venueId": "venue-122cuu1",
+        "venueName": "The Queen’s Head",
+        "position": 2,
+        "walkingMinutesFromPrevious": 6,
+        "distanceKm": 0.1,
+        "estimatedPintPricePence": 520,
+        "priceEvidence": {
+          "pence": 520,
+          "source": {
+            "label": "Pint Prices",
+            "url": "https://www.pint-prices.com/pub/15%20Denman%20St,%20London%20W1D%207HN/The%20Queen%E2%80%99s%20Head",
+            "observedAt": "2026-10-02T11:48:33.000Z"
+          },
+          "confidenceState": "fresh"
+        },
+        "priceCategory": "beer",
+        "priceServing": "pint",
+        "selectedDrinkPriceEvidence": null,
+        "accessEvidence": {},
+        "evidence": [],
+        "constraintFlags": [],
+        "operationalEvidence": {
+          "openingAtVisit": "unknown",
+          "openingSource": null,
+          "visitWindow": null,
+          "transportBasis": "direct-distance at 4.8 km/h plus 5 minutes uncertainty per leg"
+        },
+        "provenance": [
+          {
+            "kind": "venue_dataset",
+            "label": "PUBMAXX venue record for The Queen’s Head"
+          },
+          {
+            "kind": "night_area_review",
+            "label": "Piccadilly & Soho route review",
+            "asOf": "2026-07-13T00:00:00.000Z"
+          }
+        ],
+        "reason": "Close to the heart of the area.",
+        "alternatives": [
+          {
+            "venueId": "venue-xm0ya3",
+            "venueName": "Masons Arms (Mayfair)",
+            "distanceKm": 0.54,
+            "estimatedPintPricePence": 600,
+            "priceEvidence": {
+              "pence": 600,
+              "source": {
+                "label": "Pint Prices",
+                "url": "https://www.pint-prices.com/pub/Maddox%20Street,%20W1S%201PY/Masons%20Arms%20(Mayfair)",
+                "observedAt": "2026-10-02T11:48:33.000Z"
+              },
+              "confidenceState": "fresh"
+            },
+            "priceCategory": "beer",
+            "priceServing": "pint",
+            "selectedDrinkPriceEvidence": null,
+            "accessEvidence": {},
+            "constraintFlags": [],
+            "operationalEvidence": {
+              "openingAtVisit": "unknown",
+              "openingSource": null,
+              "visitWindow": null,
+              "transportBasis": "direct-distance at 4.8 km/h plus 5 minutes uncertainty per leg"
+            },
+            "provenance": [
+              {
+                "kind": "venue_dataset",
+                "label": "PUBMAXX venue record for Masons Arms (Mayfair)"
+              }
+            ]
+          },
+          {
+            "venueId": "venue-lukeav",
+            "venueName": "Bradley’s Spanish Bar",
+            "distanceKm": 0.66,
+            "estimatedPintPricePence": 600,
+            "priceEvidence": {
+              "pence": 600,
+              "source": {
+                "label": "Pint Prices",
+                "url": "https://www.pint-prices.com/pub/42-44%20Hanway%20St,%20London%20W1T%201UT/Bradley%E2%80%99s%20Spanish%20Bar",
+                "observedAt": "2026-10-02T11:48:33.000Z"
+              },
+              "confidenceState": "fresh"
+            },
+            "priceCategory": "beer",
+            "priceServing": "pint",
+            "selectedDrinkPriceEvidence": null,
+            "accessEvidence": {},
+            "constraintFlags": [],
+            "operationalEvidence": {
+              "openingAtVisit": "unknown",
+              "openingSource": null,
+              "visitWindow": null,
+              "transportBasis": "direct-distance at 4.8 km/h plus 5 minutes uncertainty per leg"
+            },
+            "provenance": [
+              {
+                "kind": "venue_dataset",
+                "label": "PUBMAXX venue record for Bradley’s Spanish Bar"
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "contextEffects": [
+      "budget",
+      "daypart",
+      "budgetLimitPence"
+    ],
+    "missingContextEvidence": [],
+    "relevantSignals": [],
+    "nightSignalClaims": []
+  }
+}

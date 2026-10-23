@@ -17,7 +17,7 @@ const PHONE = { width: 390, height: 844 };
 const SHOTS = "docs/proof/pubpal-v01";
 
 async function askOnPhone(page: import("@playwright/test").Page, ask: string) {
-  await page.getByRole("textbox", { name: /Describe the outing/i }).fill(ask);
+  await page.getByRole("textbox", { name: /Where, how many, what budget/i }).fill(ask);
   await page.getByRole("button", { name: "Ask" }).click();
   await expect(page.locator(".palChatBubble--pending")).toHaveCount(0, {
     timeout: 20_000,
@@ -35,7 +35,7 @@ test.describe("Pub Pal concierge at 390px", () => {
   }) => {
     await page.goto("/pal/chat");
     await expect(page.getByRole("navigation", { name: "Primary" })).toBeVisible();
-    await expect(page.locator(".mobileTabBar")).toBeVisible();
+    await expect(page.locator(".mobileTabBar").filter({ visible: true })).toBeVisible();
     await askOnPhone(page, "Quiet-ish near Bank, not pricey");
 
     const answer = page.locator(".palChatRow--pal").last();

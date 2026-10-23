@@ -10,6 +10,7 @@
 // the card, state writes are deferred with Promise.resolve().then, and an
 // AbortController cancels in-flight requests on unmount.
 
+import type { Route } from "next";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { ArrowUpRight, MapPin, Sun } from "lucide-react";
@@ -20,7 +21,9 @@ import {
   isGardenWeather,
   type GardenWeatherInput,
 } from "@/lib/gardenWeather";
-import { loadSurfaceJson } from "@/lib/surfaceDataCache";
+import { loadSurfaceJson, SURFACE_JUST_READ_MS } from "@/lib/surfaceDataCache";
+import { daylightForPoint } from "@/lib/weatherDaylight";
+import { formatLondonDateTime } from "@/lib/weatherObservationCopy";
 
 import "./gardenTonightCard.css";
 
@@ -61,7 +64,7 @@ function isGardenPub(row: PlaceRow): boolean {
   return row.types.some((t) => GARDEN_TYPES.has(t));
 }
 
-function mapHref(row: PlaceRow): string | null {
+function mapHref(row: PlaceRow): Route | null {
   const loc = row.location;
   if (!loc || typeof loc.lat !== "number" || typeof loc.lng !== "number") {
     return null;
@@ -75,9 +78,24 @@ function mapHref(row: PlaceRow): string | null {
   return cityAwareMapPath(LONDON_CITY_ID, params);
 }
 
+// A place with its calculated sunset. The sunset is solar arithmetic for the
+// row's own map point on the load-time date. It says nothing about a garden,
+// its direction, shade, opening hours or a free seat.
+type GardenPub = PlaceRow & { sunsetAt: string | null; sunsetLabel: string | null };
+
+function withSunset(row: PlaceRow, now: Date): GardenPub {
+  const daylight = row.location ? daylightForPoint(row.location.lat, row.location.lng, now) : null;
+  const label = daylight ? formatLondonDateTime(daylight.sunsetAt) : null;
+  return {
+    ...row,
+    sunsetAt: daylight && label ? daylight.sunsetAt.toISOString() : null,
+    sunsetLabel: label,
+  };
+}
+
 export default function GardenTonightCard() {
   const [headline, setHeadline] = useState<string | null>(null);
-  const [pubs, setPubs] = useState<PlaceRow[]>([]);
+  const [pubs, setPubs] = useState<GardenPub[]>([]);
   const [status, setStatus] = useState<"idle" | "ready" | "hidden">("idle");
 
   useEffect(() => {
@@ -95,6 +113,7 @@ export default function GardenTonightCard() {
           signal: controller.signal,
           init: { headers: { accept: "application/json" } },
           validate: (body) => Boolean(body && "weather" in body),
+          freshForMs: SURFACE_JUST_READ_MS,
         },
         (body) => {
           statusBox.value = body;
@@ -158,7 +177,9 @@ export default function GardenTonightCard() {
       void Promise.resolve().then(() => {
         if (controller.signal.aborted) return;
         setHeadline(line);
-        setPubs(picked);
+        // One real load-time date for every sunset on this card.
+        const now = new Date();
+        setPubs(picked.map((pub) => withSunset(pub, now)));
         setStatus("ready");
       });
     })();
@@ -176,14 +197,14 @@ export default function GardenTonightCard() {
     >
       <div className="gardenTonightCard">
         <p className="gardenTonightKicker">
-          <Sun size={13} aria-hidden="true" />
+          <Sun size={14} aria-hidden="true" />
           <span>Garden weather</span>
         </p>
         <h2 id="gardenTonight-title" className="gardenTonightHeadline">
           {headline}
         </h2>
         <p className="gardenTonightDek">
-          Open beer-garden pubs in London right now, via CityMCP London.
+          Places to check for an outdoor stop in London.
         </p>
         <ul className="gardenTonightList">
           {pubs.map((pub) => {
@@ -195,7 +216,7 @@ export default function GardenTonightCard() {
                   <span className="gardenTonightPubMeta">
                     {pub.area ? (
                       <span className="gardenTonightPubArea">
-                        <MapPin size={11} aria-hidden="true" />
+                        <MapPin size={14} aria-hidden="true" />
                         {pub.area}
                       </span>
                     ) : null}
@@ -209,6 +230,13 @@ export default function GardenTonightCard() {
                         {pub.priceBand}
                       </span>
                     ) : null}
+                    {pub.sunsetAt && pub.sunsetLabel ? (
+                      <span className="gardenTonightPubSunset">
+                        Calculated sunset{" "}
+                        <time dateTime={pub.sunsetAt}>{pub.sunsetLabel}</time>
+                        {" "}London time.
+                      </span>
+                    ) : null}
                   </span>
                 </div>
                 {href ? (
@@ -218,13 +246,17 @@ export default function GardenTonightCard() {
                     prefetch={false}
                   >
                     Map
-                    <ArrowUpRight size={13} aria-hidden="true" />
+                    <ArrowUpRight size={14} aria-hidden="true" />
                   </Link>
                 ) : null}
               </li>
             );
           })}
         </ul>
+        <p className="gardenTonightDek gardenTonightNote">
+          {pubs.some((pub) => pub.sunsetAt) ? "Sunset is calculated for each place's map point on the date shown. " : ""}
+          The rain chance is a forecast. A garden, its direction, shade, opening hours and free seats are not verified. Weather and places via CityMCP London.
+        </p>
       </div>
     </section>
   );

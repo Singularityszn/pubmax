@@ -1,0 +1,40 @@
+npm notice run pubmaxxing@0.1.0 npx
+npm notice run 'playwright' test -c artifacts/ios-lane-c/regression.config.ts --grep native first run hands one useful Plan
+
+Running 1 test using 1 worker
+
+(node:46410) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✘  1 [lane-c-regressions] › e2e/mobile-first-run-onboarding.spec.ts:173:5 › native first run hands one useful Plan to the contextual push ask (12.7s)
+Testing stopped early after 1 maximum allowed failures.
+
+
+  1) [lane-c-regressions] › e2e/mobile-first-run-onboarding.spec.ts:173:5 › native first run hands one useful Plan to the contextual push ask 
+
+    Error: expect(locator).toBeVisible() failed
+
+    Locator: getByRole('dialog', { name: 'Know when tonight changes' })
+    Expected: visible
+    Timeout: 10000ms
+    Error: element(s) not found
+
+    Call log:
+      - Expect "toBeVisible" getByRole('dialog', { name: 'Know when tonight changes' }) with timeout 10000ms
+      - waiting for getByRole('dialog', { name: 'Know when tonight changes' })
+
+
+      55 |   await page.getByRole("navigation", { name: "Primary" }).getByRole("link", { name: "Tonight" }).click();
+      56 |   await expect(page).toHaveURL(/\/tonight$/);
+    > 57 |   await expect(ask).toBeVisible();
+         |                     ^
+      58 |   await expect(page.getByText(NATIVE_PUSH_PROMPT_COPY.body)).toBeVisible();
+      59 | }
+      60 |
+        at expectPushAskOnNextRoute (/Users/karanmanoharan/.treehouse/pubmaxx-bde241/11/pubmaxx/e2e/mobile-first-run-onboarding.spec.ts:57:21)
+        at /Users/karanmanoharan/.treehouse/pubmaxx-bde241/11/pubmaxx/e2e/mobile-first-run-onboarding.spec.ts:212:3
+
+    Error Context: artifacts/ios-lane-c/browser-output/mobile-first-run-onboardin-75d0f--to-the-contextual-push-ask-lane-c-regressions/error-context.md
+
+  1 failed
+    [lane-c-regressions] › e2e/mobile-first-run-onboarding.spec.ts:173:5 › native first run hands one useful Plan to the contextual push ask 
+  1 error was not a part of any test, see above for details

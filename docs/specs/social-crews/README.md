@@ -176,7 +176,7 @@ slice. Rollback and catalog proof change in the same commit as each SQL change.
   the owner account and host Plan member, revokes pending legacy invites,
   rotates every legacy member capability to an unreachable random hash, and
   makes Social APIs the only access path. Creation accepts the host capability
-  in the `Authorization` header and never stores or returns it.
+  in the `x-plan-host-capability` header and never stores or returns it.
 - A Crew-bound Plan is absent from every legacy Plan read and write seam.
   Central legacy Plan lookup returns `not_found`; a separate server-only Crew
   lookup reads the bound Plan after current Social authority succeeds. Plan

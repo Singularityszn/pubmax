@@ -1,3 +1,4 @@
+import type { Route } from "next";
 import { momentHref } from "@/components/nav/navigationModel";
 import { preferredCityMapHref } from "@/lib/cityPreference";
 import { withPriceContributionIntent } from "@/lib/priceContributionIntent";
@@ -15,7 +16,7 @@ export type CreateFabAction = {
   label: string;
   /** `returnTo` is the live route WITH its query, so composing from
    *  /map?sel=venue-123 comes back to that pub rather than to a bare map. */
-  hrefFor: (returnTo: string) => string;
+  hrefFor: (returnTo: string) => Route;
 };
 
 /**
@@ -34,7 +35,7 @@ export function returnToFromLocation(
   return `${pathname}${location?.search ?? ""}`;
 }
 
-function categoryPriceHref(returnTo: string): string {
+function categoryPriceHref(returnTo: string): Route {
   const url = new URL(
     /^\/map(?:\/[^/?#]+)?(?:[?#]|$)/.test(returnTo)
       ? returnTo
@@ -43,7 +44,8 @@ function categoryPriceHref(returnTo: string): string {
   );
   url.searchParams.delete("log");
   url.searchParams.delete("price");
-  return withPriceContributionIntent(url.href);
+  // The base is always a /map path, and the intent param keeps it one.
+  return withPriceContributionIntent(url.href) as Route;
 }
 
 export const CREATE_FAB_ACTIONS: readonly CreateFabAction[] = [
@@ -53,19 +55,38 @@ export const CREATE_FAB_ACTIONS: readonly CreateFabAction[] = [
 ] as const;
 
 /**
+ * What the closed control offers, read off the rows it opens, for its title:
+ * "Post a moment, log a price or start a plan". The disc's accessible name
+ * stays "Create"; this is the longer answer to "create what?".
+ */
+export function createFabTitle(actions: readonly Pick<CreateFabAction, "label">[]): string {
+  const [first = "", ...rest] = actions.map((item) => item.label);
+  const tail = rest.map((label) => label.charAt(0).toLowerCase() + label.slice(1));
+  const last = tail.pop();
+  return last === undefined ? first : `${[first, ...tail].join(", ")} or ${last}`;
+}
+
+/**
  * Routes with no use for a compose control.
  *
  * The tab-bar chrome rides EVERY route (`shouldShowMobileTabBar`), and that
  * law is untouched: this is the narrower question of whether the floating
  * create action belongs beside the content. On the Pub Pal intro it does not -
  * the page is one coral call to action, and a second coral circle beside it
- * offers three unrelated compositions. `/pal/chat` keeps it.
+ * offers three unrelated compositions.
  *
- * The 404 is the other page that hides it, and it cannot be named here: it
- * renders under whatever address was mistyped, so it carries the
- * `pageHidesCreateFab` marker class instead (createFab.css).
+ * The sign-in, sign-up and add-account surfaces share `/login`, where the
+ * floating control overlaps the form's terms link.
+ *
+ * `/moment` and `/plan` are compose screens already, so a create control there
+ * only offers to start the thing the page is composing.
+ *
+ * Pages that cannot be named by path carry the `pageHidesCreateFab` marker
+ * class instead (createFab.css): the 404 renders under whatever address was
+ * mistyped, and `/pal/chat`, threads and `/plan/[id]` hide it from their own
+ * markup.
  */
-const CREATE_FAB_HIDDEN_PATHS: readonly string[] = ["/pal"];
+const CREATE_FAB_HIDDEN_PATHS: readonly string[] = ["/pal", "/login", "/moment", "/plan"];
 
 export function createFabVisible(pathname: string): boolean {
   return !CREATE_FAB_HIDDEN_PATHS.includes(pathname);

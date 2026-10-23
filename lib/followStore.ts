@@ -1,12 +1,12 @@
 // Directed follow graph over profiles. ONE interface, TWO implementations
 // (process-memory + Supabase public.follows), same seam pattern as the other
-// stores. A follow edge is keyed by the two self-asserted handles; each is
-// resolved to a profile row (created lazily via ProfileStore.ensure) so the edge
-// always references real profile ids, matching the follows FKs in migration 0006.
+// stores. Each handle supplied by the caller resolves to a profile row, created
+// lazily via ProfileStore.ensure. Edges reference profile ids, matching the
+// follows FKs in migration 0006.
 //
-// No auth: the "follower" is whoever the client says they are (the localStorage
-// handle). That is the same demo trust boundary as pint drops — extended here,
-// not weakened.
+// The store does not authorise callers. Each write caller must verify the
+// follower's account identity before using the store. See followWrite.server.ts
+// for the caller boundaries.
 
 import { normalizeHandle } from "@/lib/profiles";
 import {
@@ -21,6 +21,11 @@ export type FollowCounts = { followers: number; following: number };
 export type FollowStore = {
   /** Follow followee as follower (idempotent). Returns true when now following. */
   follow(followerHandle: string, followeeHandle: string): Promise<boolean>;
+  /**
+   * Atomically return "created" for a new edge, "already" for an existing edge,
+   * or "self" for a refused self-follow. Other storage failures throw.
+   */
+  followIfNew(followerHandle: string, followeeHandle: string): Promise<"created" | "already" | "self">;
   /** Remove the edge (idempotent). Returns true when no longer following. */
   unfollow(followerHandle: string, followeeHandle: string): Promise<boolean>;
   /** Does follower currently follow followee? */
@@ -35,8 +40,8 @@ export type FollowStore = {
   listFollowing(handle: string): Promise<string[]>;
   /**
    * The HANDLES that follow this handle (its followers). The mirror of
-   * listFollowing. Returns [] for an unknown handle. Server-only — no follower
-   * list is ever surfaced publicly; this feeds the mutual-follow computation.
+   * listFollowing. Returns [] for an unknown handle. Used by the public
+   * /api/profiles/[handle]/followers route and the mutual-follow computation.
    */
   listFollowers(handle: string): Promise<string[]>;
   /**
@@ -45,7 +50,24 @@ export type FollowStore = {
    * This — not a one-way follow — is the Social Loop's definition of a friend.
    */
   listMutuals(handle: string): Promise<string[]>;
+  /**
+   * The follow edges between this handle and ONLY the given handles: which of
+   * them it follows, and which of them follow it. Bounded by `others`, so a
+   * caller labelling a few rows never reads the whole graph. Empty sets for an
+   * unknown handle.
+   */
+  edgesWith(handle: string, others: readonly string[]): Promise<FollowEdges>;
 };
+
+export type FollowEdges = { following: Set<string>; followers: Set<string> };
+
+function emptyEdges(): FollowEdges {
+  return { following: new Set(), followers: new Set() };
+}
+
+function uniqueHandles(handles: readonly string[]): string[] {
+  return [...new Set(handles.map((h) => normalizeHandle(h)).filter(Boolean))];
+}
 
 // The mutual set is the intersection of who a handle follows and who follows it.
 // Shared by both backends so "your lot" means the same thing everywhere.
@@ -76,7 +98,11 @@ export function isSelfFollow(a: string, b: string): boolean {
 // ── Supabase implementation ──────────────────────────────────────────────────
 const supabaseFollowStore: FollowStore = {
   async follow(followerHandle, followeeHandle) {
-    if (isSelfFollow(followerHandle, followeeHandle)) return false;
+    return (await this.followIfNew(followerHandle, followeeHandle)) !== "self";
+  },
+
+  async followIfNew(followerHandle, followeeHandle) {
+    if (isSelfFollow(followerHandle, followeeHandle)) return "self";
     const follower = await supabaseProfileStore.ensure(followerHandle);
     const followee = await supabaseProfileStore.ensure(followeeHandle);
     const { error } = await admin()
@@ -85,7 +111,7 @@ const supabaseFollowStore: FollowStore = {
     // A duplicate edge means "already following" — an idempotent success, not an
     // error. Every other insert error is real.
     if (error && !isUniqueViolation(error)) throw new Error(error.message);
-    return true;
+    return error ? "already" : "created";
   },
 
   async unfollow(followerHandle, followeeHandle) {
@@ -176,6 +202,39 @@ const supabaseFollowStore: FollowStore = {
     ]);
     return intersectHandles(following, followers);
   },
+
+  async edgesWith(handle, others) {
+    const wanted = uniqueHandles(others);
+    if (wanted.length === 0) return emptyEdges();
+    const profile = await supabaseProfileStore.getByHandle(handle);
+    if (!profile) return emptyEdges();
+    // Two bounded reads: the inner join filters each edge by the other side's
+    // handle, so only edges to the named handles ever come back.
+    const [out, back] = await Promise.all([
+      admin()
+        .from(TABLE)
+        .select("followee:followee_id!inner ( handle )")
+        .eq("follower_id", profile.id)
+        .in("followee.handle", wanted),
+      admin()
+        .from(TABLE)
+        .select("follower:follower_id!inner ( handle )")
+        .eq("followee_id", profile.id)
+        .in("follower.handle", wanted),
+    ]);
+    if (out.error) throw new Error(out.error.message);
+    if (back.error) throw new Error(back.error.message);
+    const edges = emptyEdges();
+    for (const row of (out.data ?? []) as { followee?: { handle?: unknown } | null }[]) {
+      const h = normalizeHandle(String(row.followee?.handle ?? ""));
+      if (h) edges.following.add(h);
+    }
+    for (const row of (back.data ?? []) as { follower?: { handle?: unknown } | null }[]) {
+      const h = normalizeHandle(String(row.follower?.handle ?? ""));
+      if (h) edges.followers.add(h);
+    }
+    return edges;
+  },
 };
 
 // ── In-memory implementation ─────────────────────────────────────────────────
@@ -195,14 +254,19 @@ function edgeKey(followerId: string, followeeId: string): string {
 function makeMemoryFollowStore(profiles: ProfileStore): FollowStore {
   return {
     async follow(followerHandle, followeeHandle) {
-      if (isSelfFollow(followerHandle, followeeHandle)) return false;
+      return (await this.followIfNew(followerHandle, followeeHandle)) !== "self";
+    },
+    async followIfNew(followerHandle, followeeHandle) {
+      if (isSelfFollow(followerHandle, followeeHandle)) return "self";
       const follower = await profiles.ensure(followerHandle);
       const followee = await profiles.ensure(followeeHandle);
-      memoryEdges.add(edgeKey(follower.id, followee.id));
+      const key = edgeKey(follower.id, followee.id);
+      if (memoryEdges.has(key)) return "already";
+      memoryEdges.add(key);
       // Record both ids' handles so listFollowing can map a followee id → handle.
       memoryHandleById.set(follower.id, normalizeHandle(follower.handle));
       memoryHandleById.set(followee.id, normalizeHandle(followee.handle));
-      return true;
+      return "created";
     },
     async unfollow(followerHandle, followeeHandle) {
       const follower = await profiles.getByHandle(followerHandle);
@@ -236,7 +300,7 @@ function makeMemoryFollowStore(profiles: ProfileStore): FollowStore {
       const handles: string[] = [];
       for (const key of memoryEdges) {
         const [from, to] = key.split(">");
-        if (from !== profile.id) continue;
+        if (from !== profile.id || to === undefined) continue;
         const h = memoryHandleById.get(to);
         if (h) handles.push(h);
       }
@@ -249,7 +313,7 @@ function makeMemoryFollowStore(profiles: ProfileStore): FollowStore {
       const handles: string[] = [];
       for (const key of memoryEdges) {
         const [from, to] = key.split(">");
-        if (to !== profile.id) continue;
+        if (to !== profile.id || from === undefined) continue;
         const h = memoryHandleById.get(from);
         if (h) handles.push(h);
       }
@@ -261,6 +325,18 @@ function makeMemoryFollowStore(profiles: ProfileStore): FollowStore {
         this.listFollowers(handle),
       ]);
       return intersectHandles(following, followers);
+    },
+    async edgesWith(handle, others) {
+      const edges = emptyEdges();
+      const profile = await profiles.getByHandle(handle);
+      if (!profile) return edges;
+      for (const other of uniqueHandles(others)) {
+        const target = await profiles.getByHandle(other);
+        if (!target) continue;
+        if (memoryEdges.has(edgeKey(profile.id, target.id))) edges.following.add(other);
+        if (memoryEdges.has(edgeKey(target.id, profile.id))) edges.followers.add(other);
+      }
+      return edges;
     },
   };
 }

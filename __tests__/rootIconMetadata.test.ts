@@ -3,14 +3,22 @@ import { resolve } from "node:path";
 import { describe, expect, it, vi } from "vitest";
 
 vi.mock("server-only", () => ({}));
+// The root layout reads each Google face's generated fallback from
+// style.fontFamily, so the stub keeps next/font's "primary, fallback" shape.
 vi.mock("next/font/google", () => {
-  const face = () => ({ className: "font-mock", variable: "--font-mock" });
+  const face = () => ({
+    className: "font-mock",
+    variable: "--font-mock",
+    style: { fontFamily: "'Mock', 'Mock Fallback'" },
+  });
   return {
     Space_Grotesk: face,
     Inter: face,
-    JetBrains_Mono: face,
   };
 });
+vi.mock("next/font/local", () => ({
+  default: () => ({ className: "font-mock", variable: "--font-mock" }),
+}));
 
 import { metadata } from "@/app/layout";
 

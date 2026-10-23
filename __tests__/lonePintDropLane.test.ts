@@ -13,14 +13,12 @@
 // These cases run the pipeline in the order PubMap runs it: drops fold into the
 // signal through `provisionalPriceDrop`, and the overview tab renders the lane.
 
-import { readFileSync } from "node:fs";
-import { join } from "node:path";
-
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import VenueOverviewTab from "@/components/map/inspector/VenueOverviewTab";
+import VenuePeekPintPrice from "@/components/map/VenuePeekPintPrice";
 import type { CommunityPricesState } from "@/components/map/useCommunityPrices";
 import { firstDropNudgeCopy } from "@/lib/firstDropNudge";
 import {
@@ -51,6 +49,7 @@ import {
   type Venue,
 } from "@/lib/venues";
 import { pintTrustFor } from "@/lib/pintTrust";
+import { defined } from "@/__tests__/helpers/defined";
 
 vi.mock("@/components/visits/VisitReportPanel", () => ({
   default: () => createElement("div", { "data-testid": "visit-report-peek" }),
@@ -162,7 +161,7 @@ function renderSelectedVenue(
   const aged = agedPriceDrop(drops, NOW);
   return renderToStaticMarkup(
     createElement(VenueOverviewTab, {
-      venue: merged,
+      venue: defined(merged),
       tab: "overview",
       cityId: "london",
       mode: "suggest",
@@ -290,7 +289,7 @@ describe("a lone public Pint Drop on the venue Overview", () => {
       }),
     ];
     const html = renderSelectedVenue(drops);
-    expect(html).toContain("Latest Pint Drop price");
+    expect(html).toContain("Latest price from a drinker");
     expect(html).toContain("£4.50");
     expect(html).not.toContain(PROVISIONAL_PRICE_LINE);
   });
@@ -312,8 +311,8 @@ describe("a lone public Pint Drop on the venue Overview", () => {
 
   it("never moves the map: the projection and the corroboration gate are untouched", () => {
     const [merged] = mergeVenueDrops([venue()], new Map([[VENUE_ID, [drop()]]]), NOW);
-    expect(merged.cheapestPrice).toBeNull();
-    expect(merged.latestContributorPrice).toBeNull();
+    expect(defined(merged).cheapestPrice).toBeNull();
+    expect(defined(merged).latestContributorPrice).toBeNull();
     expect(corroboratedPriceDrop([drop()], NOW)).toBeNull();
   });
 });
@@ -384,12 +383,12 @@ function peekChipFor(drops: SummaryDrop[], base: Venue = venue()) {
   const [merged] = mergeVenueDrops([base], new Map([[VENUE_ID, drops]]), NOW);
   const provisional = provisionalPriceDrop(drops, NOW);
   const aged = agedPriceDrop(drops, NOW);
-  const bundle = venueBundlePrices(merged);
+  const bundle = venueBundlePrices(defined(merged));
   return peekPriceChip(
     venuePriceLane(
-      merged,
+      defined(merged),
       corroboratedPriceDrop(drops, NOW)?.priceGbp ?? null,
-      venueSourcedPrice(merged),
+      venueSourcedPrice(defined(merged)),
       bundle,
       provisional
         ? {
@@ -497,18 +496,32 @@ describe("the phone peek chip over a lone Pint Drop", () => {
     expect(html).not.toContain("Baseline on record");
   });
 
-  it("is the ONLY thing the peek words as an absence", () => {
-    const source = readFileSync(
-      join(process.cwd(), "components/PubMap.tsx"),
-      "utf8",
-    );
-    // The chip decides first, and the "No price yet" button is reachable only
-    // where it answered null.
-    expect(source).toContain(
-      "const peekPrice = peekPriceChip(peekLane, peekBundle, peekDropSignal?.pintTrust ?? null);",
-    );
-    expect(source).toMatch(
-      /\) : peekPrice \? \([\s\S]*?\) : selectedVenueIsPub \? \([\s\S]*?No price yet\./,
-    );
-  });
+  it.each(["ready", "idle", "unavailable"] as const)(
+    "keeps a lone logged price in the peek during a %s read",
+    (dropReadStatus) => {
+      const base = venue();
+      const provisional = provisionalPriceDrop([drop()], NOW);
+      if (!provisional) throw new Error("The fixture must contain one provisional price.");
+      const html = renderToStaticMarkup(createElement(VenuePeekPintPrice, {
+        venueId: base.id,
+        isPub: true,
+        lane: venuePriceLane(base, null, null, {}, {
+          priceGbp: provisional.priceGbp as number,
+          observedAt: provisional.createdAt,
+        }),
+        bundle: {},
+        pintTrust: "logged-once",
+        detailLoading: false,
+        priceReadStatus: "ready",
+        dropReadStatus,
+        onLog: noop,
+      }));
+      expect(html).toContain("£4.50");
+      expect(html).toContain(PROVISIONAL_PRICE_LINE);
+      expect(html).not.toContain("No price yet");
+      expect(html).not.toContain("Be the first");
+      expect(html).not.toContain("Checking prices");
+      expect(html).not.toContain("could not read");
+    },
+  );
 });

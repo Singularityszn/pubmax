@@ -410,7 +410,7 @@ export async function DELETE(
           await purgeProfileImageObjects(slot, prior.id, supabaseProfileImageStorage, known);
         } catch (err) {
           console.error(
-            `[${slot}] profile soft-delete for @${handle}: FAILED to purge ${slot} objects`,
+            `[${slot}] profile soft-delete: FAILED to purge ${slot} objects`,
             err,
           );
         }
@@ -433,12 +433,12 @@ export async function DELETE(
         const marked = await markContributorsDepartedByProfileId(ownerUserId);
         if (marked > 0) {
           console.info(
-            `[redaction] account deletion for @${handle}: marked ${marked} Story contribution(s) departed`,
+            `[redaction] account deletion: marked ${marked} Story contribution(s) departed`,
           );
         }
       } catch (err) {
         console.error(
-          `[redaction] account deletion for @${handle}: FAILED to mark Story contributions departed: reconcile manually`,
+          `[redaction] account deletion: FAILED to mark Story contributions departed: reconcile manually`,
           err,
         );
       }

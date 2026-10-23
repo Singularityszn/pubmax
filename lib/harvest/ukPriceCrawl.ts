@@ -134,6 +134,14 @@ const ZERO_ALCOHOL_MARKER = /(?<![\w.,])0(?:\.0+)?\s*%(?![\d.])/i;
 const SOFT_DRINK_WEARING_A_BEER_WORD = /\b(ginger\s+(ale|beer)|bitter\s+lemon|root\s+beer|dandelion\s*(and|&)\s*burdock)\b/i;
 
 /**
+ * The words that file a line as coffee. `matcha` is here because a matcha latte
+ * is sold beside the coffees. `latte` after `chai` or `tea` is a tea line, so
+ * "Chai latte" never files as coffee.
+ */
+const COFFEE_HARVEST_WORD_PATTERN =
+  /\b(coffee|espresso|americano|cappuccino|(?<!\b(?:chai|tea)\s)latte|flat white|mocha|matcha)\b/i;
+
+/**
  * The vocabulary that names a category, strongest signal first. The order is
  * the order these are TESTED in, so a phrase that belongs to two lanes lands in
  * the narrower one: "alcohol-free lager" is alcohol-free before it is beer, and
@@ -259,15 +267,29 @@ function isFirstOfAMeasurePair(after: string): boolean {
   return /^\s*[|/]\s*£/.test(after);
 }
 
-function isHalfMeasure(before: string): boolean {
-  const at = before.toLowerCase().lastIndexOf("half");
-  if (at < 0) return false;
-  const between = before.slice(at + 4);
-  if (/[½]|\b1\/2\b/.test(before.slice(-14))) return true;
-  return !between.includes("£");
+/**
+ * A draught table that heads its columns "Half" and "Pint" once prints each line
+ * as a bare pair: "Carling 4.0% £3.60 £7.20". No measure word sits beside either
+ * figure, so the pair is read by its shape: a figure followed at once by a second
+ * figure about twice its size is the half.
+ */
+function isHalfOfABarePair(after: string, priceGbp: number): boolean {
+  const next = /^\s*£\s?(\d{1,2}(?:\.\d{1,2})?)(?!\d)/.exec(after);
+  if (!next) return false;
+  const ratio = Number(next[1]) / priceGbp;
+  return ratio >= 1.7 && ratio <= 2.3;
 }
 
-const PRICE_PATTERN = /£\s?(\d{1,2}(?:\.\d{2})?)\b/g;
+function isHalfMeasure(before: string): boolean {
+  // "½ pint" or "1/2 Pint" right before the figure is the half on its own,
+  // with or without the word half anywhere on the line.
+  if (/[½]|\b1\/2\b/.test(before.slice(-14))) return true;
+  const at = before.toLowerCase().lastIndexOf("half");
+  if (at < 0) return false;
+  return !before.slice(at + 4).includes("£");
+}
+
+const PRICE_PATTERN = /£\s?(\d{1,2}(?:\.\d{1,2})?)(?![\da-z]|\.\d)/gi;
 
 // A zero-strength claim in the printed item name beats spirit or cocktail
 // words in its description. Keep the marker close to the name so a 0.0%
@@ -321,6 +343,7 @@ function titleCategory(name: string): DrinkCategory | null {
 
 function itemNameStatesZeroAlcohol(itemName: string): boolean {
   const marker = ZERO_ALCOHOL_MARKER.exec(itemName)
+    ?? /\b0\.0\s+AF\b/i.exec(itemName)
     ?? /\b(?:alcohol[- ]free|non[- ]alcoholic)\b/i.exec(itemName);
   if (!marker || marker.index > ZERO_ALCOHOL_TITLE_MAX_OFFSET) return false;
   const firstComma = itemName.indexOf(",");
@@ -379,9 +402,9 @@ export function drinkLabelFromPriceContext(
 
   const before = context.slice(0, priceAt);
   let start = 0;
-  const priorPrices = [...before.matchAll(/£\s?\d{1,2}(?:\.\d{2})?\b/g)];
-  if (priorPrices.length > 0) {
-    const last = priorPrices[priorPrices.length - 1];
+  const priorPrices = [...before.matchAll(PRICE_PATTERN)];
+  const last = priorPrices.at(-1);
+  if (last) {
     start = (last.index ?? 0) + last[0].length;
   }
   for (const sep of [". ", "; ", " | ", "| ", " - ", " - "]) {
@@ -389,7 +412,13 @@ export function drinkLabelFromPriceContext(
     if (at >= start) start = at + sep.length;
   }
 
-  const raw = context.slice(start, priceAt).replace(/\s+/g, " ").trim();
+  // A price list printed inline ("Cans (Coke £3.30, Coke Zero £3, ...)") leaves
+  // the list's own separator in front of every item after the first.
+  const raw = context
+    .slice(start, priceAt)
+    .replace(/\s+/g, " ")
+    .trim()
+    .replace(/^[,;:•·]+\s*/, "");
   if (!raw) return null;
   return normalizeHarvestDrinkLabel(raw);
 }
@@ -436,13 +465,13 @@ export function statedWineIdentity(
   for (let i = 0; i < 3; i += 1) {
     const price = i === 0
       ? verbatim
-      : context.slice(candidateAt).match(/^£\s?\d{1,2}(?:\.\d{2})?\b/)?.[0];
+      : context.slice(candidateAt).match(new RegExp(`^(?:${PRICE_PATTERN.source})`, "i"))?.[0];
     if (!price) return null;
     const label = drinkLabelFromPriceContext(context, price, candidateAt);
     const match = label?.match(/^(.*?)(?:\s+)?(\d{2,3}\s*ml)$/i);
     if (!match) return null;
-    currentMeasure ??= match[2].replace(/\s+/g, "").toLowerCase();
-    const name = match[1].replace(/^[/|\s\u2013\u2014-]+$/, "").trim();
+    currentMeasure ??= (match[2] ?? "").replace(/\s+/g, "").toLowerCase();
+    const name = (match[1] ?? "").replace(/^[/|\s\u2013\u2014-]+$/, "").trim();
     if (name) return { drinkLabel: name, servingSize: currentMeasure };
     const prior = [...context.slice(0, candidateAt).matchAll(PRICE_PATTERN)].at(-1);
     if (!prior) return null;
@@ -484,8 +513,10 @@ function normalizeHtmlTextWhitespace(source: string): string {
     const children = htmlChildren(node);
     const ownsHtmlText = insideElement || isHtmlElement(node);
     for (const [index, child] of children.entries()) {
-      const betweenElements = index > 0 && index < children.length - 1 &&
-        isHtmlElement(children[index - 1]) && isHtmlElement(children[index + 1]);
+      const before = children[index - 1];
+      const after = children[index + 1];
+      const betweenElements = before !== undefined && after !== undefined &&
+        isHtmlElement(before) && isHtmlElement(after);
       if (child.nodeName === "#text" && "value" in child && child.sourceCodeLocation &&
         (ownsHtmlText || (betweenElements && /^\s+$/.test(child.value)))) {
         ranges.push({ start: child.sourceCodeLocation.startOffset, end: child.sourceCodeLocation.endOffset });
@@ -508,6 +539,25 @@ function normalizeHtmlTextWhitespace(source: string): string {
 export type UkPriceSourceFormat = "html" | "text";
 
 /**
+ * MARKDOWN IS LAYOUT, NOT WORDS. A rendered page and an extract reach this
+ * reader as Markdown, and its syntax used to survive into drink names: a
+ * heading's `####` made "#### Coke / Diet Coke" a different drink from the
+ * same line served as HTML, and a link's target URL sat beside the price it
+ * wrapped. An image is not text a drinker reads, a link reads as its own
+ * words, and heading, emphasis and escape marks are dropped. Runs before
+ * whitespace is collapsed, while line starts still exist.
+ */
+function markdownAsText(source: string): string {
+  return source
+    .replace(/!\[[^\]]*\]\([^)]*\)/g, " ")
+    .replace(/\[([^\]]*)\]\([^)]*\)/g, "$1")
+    .replace(/^[ \t]*#{1,6}[ \t]+/gm, "")
+    .replace(/[ \t]+#+[ \t]*$/gm, "")
+    .replace(/(\*\*|__)(?=\S)([\s\S]*?\S)\1/g, "$2")
+    .replace(/\\([!-/:-@[-`{-~])/g, "$1");
+}
+
+/**
  * Strip a page to the text a reader sees. Scripts and styles go first, because
  * a price inside a JSON blob or a CSS rule is not something the page states.
  */
@@ -516,10 +566,11 @@ export function pageText(
   preserveItemBoundaries = false,
   sourceFormat: UkPriceSourceFormat = "text",
 ): string {
-  const visibleSource = html
+  const tagged = html
     .replace(/<script\b[\s\S]*?<\/script>/gi, " ")
     .replace(/<style\b[\s\S]*?<\/style>/gi, " ")
     .replace(/<!--[\s\S]*?-->/g, " ");
+  const visibleSource = sourceFormat === "text" ? markdownAsText(tagged) : tagged;
   const source = sourceFormat === "html"
     ? visibleSource.replace(/\s+/g, " ")
     : preserveItemBoundaries ? normalizeHtmlTextWhitespace(visibleSource) : visibleSource;
@@ -739,9 +790,13 @@ function categoryDecisionFromLabel(
     })) return "item-name-ambiguous";
   }
   const decision = categoryDecisionFor(drinkLabel, drinkLabel.length);
-  // A named soda with no alcoholic word is not evidence that a neighbouring
-  // item's beer, wine or spirit word belongs to this price.
-  if (!decision) return /\bsoda\b/i.test(drinkLabel) ? "no-category-word-nearby" : null;
+  // A named soda, tea or chai with no category word is not evidence that a
+  // neighbouring item's beer, wine, spirit or coffee word belongs to this price.
+  if (!decision) {
+    return /\b(?:soda|tea|chai)\b/i.test(drinkLabel) && !/\biced\s+tea\b/i.test(drinkLabel)
+      ? "no-category-word-nearby"
+      : null;
+  }
   // "Vodka Cranberry Juice" is a spirit-and-mixer serve like the `with` lines
   // above: two drinks, one figure, and never the price of a soft drink.
   if (decision.category === "soft-drink") {
@@ -751,6 +806,29 @@ function categoryDecisionFromLabel(
     }
   }
   return decision;
+}
+
+function priceItemIdentity(
+  text: string,
+  at: number,
+  context: string,
+  verbatim: string,
+  priceAtInContext: number,
+): { drinkLabel?: string; decision: ReturnType<typeof categoryDecisionFromLabel> } {
+  const itemName = printedItemName(text, at);
+  if (itemName && /^[*_]+$/.test(itemName.own)) return { decision: "item-name-ambiguous" };
+  const markdownPrice = itemName !== undefined && /[*_]+$/.test(itemName.own);
+  const printedTitle = normalizeHarvestDrinkLabel(
+    itemName?.own.replace(/^[*_]+|[.*_\s]+$/g, "") ?? "",
+  );
+  const drinkLabel = printedTitle && (markdownPrice || titleCategory(printedTitle))
+    ? printedTitle
+    : drinkLabelFromPriceContext(context, verbatim, priceAtInContext) ?? undefined;
+  const decision = categoryDecisionFromLabel(drinkLabel, itemName);
+  return {
+    drinkLabel,
+    decision: markdownPrice && !decision ? "no-category-word-nearby" : decision,
+  };
 }
 
 function keylessPriceDropReason(
@@ -793,9 +871,9 @@ function decideKeylessUkPriceAt(
   if (OFFER_WORDS.test(context)) {
     return { drop: "offer-not-a-menu-price" };
   }
-  const drinkLabel =
-    drinkLabelFromPriceContext(context, verbatim, priceAtInContext) ?? undefined;
-  const decisionFromLabel = categoryDecisionFromLabel(drinkLabel, printedItemName(text, at));
+  const { drinkLabel, decision: decisionFromLabel } = priceItemIdentity(
+    text, at, context, verbatim, priceAtInContext,
+  );
   if (typeof decisionFromLabel === "string") return { drop: decisionFromLabel };
   const statedIdentity = statedWineIdentity(context, verbatim, priceAtInContext);
   const wineIdentity = statedIdentity && (inWineSection || categoryDecisionFor(
@@ -827,8 +905,11 @@ function decideKeylessUkPriceAt(
   // A preceding item's printed measure cannot turn this item's pint into a
   // bottle. A paired price has no second label, so it keeps the nearby context.
   const before = drinkLabel ?? text.slice(Math.max(0, at - 30), at);
-  const after = text.slice(at + verbatim.length, at + verbatim.length + 6);
-  if (category === "beer" && (isHalfMeasure(before) || isFirstOfAMeasurePair(after))) {
+  const after = text.slice(at + verbatim.length, at + verbatim.length + 12);
+  if (
+    category === "beer" &&
+    (isHalfMeasure(before) || isFirstOfAMeasurePair(after) || isHalfOfABarePair(after, priceGbp))
+  ) {
     return { drop: "half-measure-not-a-pint" };
   }
   if (category === "beer" && isBottledMeasure(before)) {
@@ -1038,7 +1119,7 @@ export function menuLinkCandidates(html: string, siteOrigin: string, max = 8): s
   const seen = new Set<string>();
   const out: string[] = [];
   for (const match of html.matchAll(/<a\b[^>]*\shref\s*=\s*["']([^"']+)["']/gi)) {
-    const raw = match[1].trim();
+    const raw = (match[1] ?? "").trim();
     if (raw.startsWith("#") || raw.startsWith("mailto:") || raw.startsWith("tel:")) continue;
     if (!isLikelyMenuUrl(raw, siteOrigin)) continue;
     let resolved: string;
@@ -1058,7 +1139,7 @@ export function menuLinkCandidates(html: string, siteOrigin: string, max = 8): s
 
 /** Every `<loc>` a sitemap or sitemap index states. */
 export function sitemapLocations(xml: string): string[] {
-  return [...xml.matchAll(/<loc>\s*([^<\s]+)\s*<\/loc>/g)].map((match) => match[1].trim());
+  return [...xml.matchAll(/<loc>\s*([^<\s]+)\s*<\/loc>/g)].map((match) => (match[1] ?? "").trim());
 }
 
 /**

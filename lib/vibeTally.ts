@@ -37,7 +37,7 @@ export function tallyVibeVotes(votes: readonly { vibe: VibeChipId }[]): VibeTall
   const counts = rankEntries([...byVibe.entries()].map(([vibe, count]) => ({ vibe, count })));
   const total = votes.length;
   const leaders = counts.filter((entry) => entry.count === counts[0]?.count);
-  return { total, counts, top: counts.length > 0 && leaders.length === 1 ? counts[0].vibe : null };
+  return { total, counts, top: leaders.length === 1 ? (counts[0]?.vibe ?? null) : null };
 }
 
 /** Highest count first; chip-declaration order is the deterministic tiebreak. */
@@ -59,9 +59,10 @@ function labelOf(vibe: VibeChipId): string {
  */
 export function vibeTallyLine(tally: VibeTally): string | null {
   const ranked = rankEntries(tally.counts);
-  if (ranked.length === 0) return null;
+  const top = ranked[0];
+  if (!top) return null;
 
-  const topCount = ranked[0].count;
+  const topCount = top.count;
   const leaders = ranked.filter((entry) => entry.count === topCount);
   if (leaders.length > 1) {
     // No top vibe — state the split honestly, no jab (humour must not misfire).
@@ -69,11 +70,11 @@ export function vibeTallyLine(tally: VibeTally): string | null {
     return `The lot's split: ${split}`;
   }
 
-  const top = ranked[0];
   const line = `${top.count} of the lot voted ${labelOf(top.vibe)}`;
   const dissent = ranked.slice(1);
   const dissentTotal = dissent.reduce((sum, entry) => sum + entry.count, 0);
   // Exactly one dissenting vote (a single member out of step) earns the jab.
-  if (dissentTotal === 1) return `${line}, 1 person voted ${labelOf(dissent[0].vibe)}`;
+  const [dissenter] = dissent;
+  if (dissentTotal === 1 && dissenter) return `${line}, 1 person voted ${labelOf(dissenter.vibe)}`;
   return line;
 }

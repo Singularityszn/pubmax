@@ -1,14 +1,19 @@
 "use client";
 
-import { useEffect, useState, useSyncExternalStore } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 
 import { useAuth } from "@/components/auth/AuthProvider";
 import { useViewerSession } from "@/components/auth/useViewerSession";
-import { detectA2hsPlatform } from "@/lib/a2hsPrompt";
+import ContributionGateDoor from "@/components/identity/ContributionGateDoor";
+import { webPushNeedsHomeScreenInstall } from "@/lib/a2hsPrompt";
 import { authedActionFetch } from "@/lib/authedFetch";
 import { errorMessageFrom, offlineOrMessage } from "@/lib/apiErrorMessage";
+import {
+  readContributionDoor,
+  type ContributionDoorStatus,
+} from "@/lib/contributionGateStatus";
 import { isNativeApp } from "@/lib/nativePlatform";
-import { registerWebPush, unregisterWebPush } from "@/lib/webPush";
+import { registerWebPush, unregisterWebPush, webPushSupport } from "@/lib/webPush";
 import { Button } from "@/components/ui/button";
 
 type PrefState = {
@@ -18,9 +23,15 @@ type PrefState = {
   maxPerWeek: number;
 };
 
-function isStandaloneInstall(): boolean {
+/**
+ * Web push needs the Home Screen install on an iPhone or iPad and nowhere else.
+ * This used to read "not a standalone install", which is true in every desktop
+ * and Android browser tab too, so Step Out could not be turned on in any
+ * browser: it answered with an iPhone instruction to a person on a laptop.
+ */
+function needsHomeScreenInstall(): boolean {
   if (typeof window === "undefined") return false;
-  const platform = detectA2hsPlatform({
+  return webPushNeedsHomeScreenInstall({
     userAgent: navigator.userAgent,
     isNativeApp: isNativeApp(),
     displayModeStandalone: window.matchMedia("(display-mode: standalone)").matches,
@@ -29,7 +40,6 @@ function isStandaloneInstall(): boolean {
     ),
     maxTouchPoints: navigator.maxTouchPoints,
   });
-  return platform === "standalone";
 }
 
 function subscribeNoop(): () => void {
@@ -46,12 +56,28 @@ export default function StepOutNudgePref(): React.JSX.Element | null {
   const [pref, setPref] = useState<PrefState | null>(null);
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState("");
+  // The age or handle gate, answered as data by the read and by a refused write.
+  // It stands where the on switch would be until the one tap is recorded.
+  const [gate, setGate] = useState<ContributionDoorStatus | null>(null);
+  const registrationAbortRef = useRef<AbortController | null>(null);
   // Client-only install check via external store so SSR stays stable.
   const needsInstall = useSyncExternalStore(
     subscribeNoop,
-    () => !isStandaloneInstall(),
+    needsHomeScreenInstall,
     () => false,
   );
+  // The native shell has no web push, and Step Out has no native push yet.
+  const inNativeApp = useSyncExternalStore(subscribeNoop, isNativeApp, () => false);
+  // The door belongs to the account that was asked. A sign-out and another
+  // sign-in leaves this component mounted, so it starts clean for a new account
+  // (adjust-state-during-render, the repo idiom) rather than showing the last
+  // person's gate.
+  const [gateOwnerId, setGateOwnerId] = useState(user?.id ?? null);
+  if (gateOwnerId !== (user?.id ?? null)) {
+    setGateOwnerId(user?.id ?? null);
+    setGate(null);
+    setPref(null);
+  }
 
   useEffect(() => {
     if (!user) return;
@@ -60,10 +86,18 @@ export default function StepOutNudgePref(): React.JSX.Element | null {
       .then(async (response) => {
         if (controller.signal.aborted) return;
         const body = (await response.json().catch(() => ({}))) as Record<string, unknown>;
+        const door = response.ok ? readContributionDoor(body) : undefined;
+        if (door) {
+          setGate(door);
+          setPref({ enabled: false, lastSentAt: null, canSend: false, maxPerWeek: 1 });
+          return;
+        }
         if (!response.ok) {
           setPref({ enabled: false, lastSentAt: null, canSend: false, maxPerWeek: 1 });
           return;
         }
+        // An answer with no gate in it replaces a stale one.
+        setGate(null);
         setPref({
           enabled: body.enabled === true,
           lastSentAt: typeof body.lastSentAt === "string" ? body.lastSentAt : null,
@@ -79,8 +113,26 @@ export default function StepOutNudgePref(): React.JSX.Element | null {
     return () => controller.abort();
   }, [user]);
 
+  useEffect(() => () => {
+    registrationAbortRef.current?.abort();
+  }, []);
+
+  // Which account an in-flight switch belongs to. A registration or a save that
+  // was started for one account must not turn Step Out on for the next one, so
+  // an account change aborts the registration and every continuation compares.
+  const activeUserId = useRef(user?.id ?? null);
+  useEffect(() => {
+    activeUserId.current = user?.id ?? null;
+    return () => {
+      registrationAbortRef.current?.abort();
+      registrationAbortRef.current = null;
+    };
+  }, [user?.id]);
+
   async function enable() {
     if (!user || busy) return;
+    const startedFor = user.id;
+    const stillThem = () => activeUserId.current === startedFor;
     setBusy(true);
     setNotice("");
     try {
@@ -90,7 +142,26 @@ export default function StepOutNudgePref(): React.JSX.Element | null {
         );
         return;
       }
-      const token = await registerWebPush();
+      // Say WHY before asking, so a browser that cannot do web push and a
+      // browser the person already blocked are not both "could not turn on".
+      const support = webPushSupport();
+      if (support === "unsupported") {
+        setNotice("This browser cannot receive web push. Try Chrome, Edge or Firefox.");
+        return;
+      }
+      if (support === "blocked") {
+        setNotice(
+          "Notifications are blocked for this site. Allow them in your browser's site settings, then try again.",
+        );
+        return;
+      }
+      const controller = new AbortController();
+      registrationAbortRef.current = controller;
+      const token = await registerWebPush(controller.signal);
+      if (registrationAbortRef.current === controller) {
+        registrationAbortRef.current = null;
+      }
+      if (controller.signal.aborted || !stillThem()) return;
       if (!token) {
         setNotice("Could not turn on web push. Check notification permission and try again.");
         return;
@@ -100,7 +171,14 @@ export default function StepOutNudgePref(): React.JSX.Element | null {
         body: JSON.stringify({ enabled: true, token }),
       }, { requiresIdentity: true });
       const body = (await response.json().catch(() => ({}))) as Record<string, unknown>;
+      if (!stillThem()) return;
       if (!response.ok) {
+        // A refused write that names a gate is a door, not a failure.
+        const door = readContributionDoor(body);
+        if (door) {
+          setGate(door);
+          return;
+        }
         setNotice(
           offlineOrMessage(errorMessageFrom(body, "Could not save the preference. Try again."))
         );
@@ -112,10 +190,10 @@ export default function StepOutNudgePref(): React.JSX.Element | null {
         canSend: body.canSend === true,
         maxPerWeek: 1,
       });
-      setNotice("Step Out is on. At most one place-bound push a week.");
+      setNotice("Weekly nudge is on. At most one push a week.");
     } catch {
       setNotice(
-        offlineOrMessage("Could not turn Step Out on. Try again.")
+        offlineOrMessage("Could not turn the weekly nudge on. Try again.")
       );
     } finally {
       setBusy(false);
@@ -131,7 +209,7 @@ export default function StepOutNudgePref(): React.JSX.Element | null {
       const body = (await response.json().catch(() => ({}))) as Record<string, unknown>;
       if (!response.ok) {
         setNotice(
-          offlineOrMessage(errorMessageFrom(body, "Could not turn Step Out off. Try again."))
+          offlineOrMessage(errorMessageFrom(body, "Could not turn the weekly nudge off. Try again."))
         );
         return;
       }
@@ -142,10 +220,10 @@ export default function StepOutNudgePref(): React.JSX.Element | null {
         canSend: false,
         maxPerWeek: 1,
       });
-      setNotice("Step Out is off. No weekly nudge will be sent.");
+      setNotice("Weekly nudge is off. Nothing will be sent.");
     } catch {
       setNotice(
-        offlineOrMessage("Could not turn Step Out off. Try again.")
+        offlineOrMessage("Could not turn the weekly nudge off. Try again.")
       );
     } finally {
       setBusy(false);
@@ -160,9 +238,8 @@ export default function StepOutNudgePref(): React.JSX.Element | null {
       <div id="notifications-settings" data-testid="step-out-nudge-pref">
         <h3>Notifications</h3>
         <p>
-          Step Out is a weekly, opt-in nudge for a Wanted pub near your patch, an
-          open Soft Plan, or a sourced deal. Sign in to turn it on. Off by default.
-          At most one push a week.
+          One push a week at most, about a pub on your list near you, a plan
+          for tonight, or a deal ending soon. Off until you sign in and turn it on.
         </p>
       </div>
     );
@@ -174,10 +251,10 @@ export default function StepOutNudgePref(): React.JSX.Element | null {
     <div id="notifications-settings" data-testid="step-out-nudge-pref">
       <h3>Notifications</h3>
       <p>
-        Step Out sends at most one place-bound push a week when something is
-        owed to you: a Wanted pub near your patch, an open Soft Plan for tonight,
-        or a sourced deal ending soon. Off by default. Never streak language or
-        drink-more pressure.
+        At most one push a week, and only when there is something real to say:
+        a pub on your list near you, a plan for tonight that is still open, or
+        a sourced deal ending soon. Off by default. No streaks, and no pressure
+        to drink more.
       </p>
       {needsInstall ? (
         <p className="accountHubNightProfile" data-testid="step-out-ios-install-note">
@@ -185,21 +262,35 @@ export default function StepOutNudgePref(): React.JSX.Element | null {
           to Home Screen, then open PUBMAXX from the icon before turning this on.
         </p>
       ) : null}
-      <div className="accountHubActions">
-        {enabled ? (
-          <Button variant="secondary" type="button" onClick={() => void withdraw()} disabled={busy}>
-            {busy ? "Updating…" : "Turn Step Out off"}
-          </Button>
-        ) : (
-          <Button variant="secondary" type="button" onClick={() => void enable()} disabled={busy}>
-            {busy ? "Updating…" : "Turn Step Out on"}
-          </Button>
-        )}
-      </div>
+      {inNativeApp && !enabled ? (
+        <p className="accountHubNightProfile" data-testid="step-out-native-note">
+          Weekly nudges are not available in the app yet; they work on the web
+          in Chrome, Edge or Firefox on a computer or an Android phone, or from
+          the Home Screen on an iPhone.
+        </p>
+      ) : gate ? (
+        <ContributionGateDoor
+          status={gate}
+          subject="turn the weekly nudge on"
+          onAsserted={() => setGate(null)}
+        />
+      ) : (
+        <div className="accountHubActions">
+          {enabled ? (
+            <Button variant="secondary" type="button" onClick={() => void withdraw()} disabled={busy}>
+              {busy ? "Updating…" : "Turn weekly nudge off"}
+            </Button>
+          ) : (
+            <Button variant="secondary" type="button" onClick={() => void enable()} disabled={busy}>
+              {busy ? "Updating…" : "Turn weekly nudge on"}
+            </Button>
+          )}
+        </div>
+      )}
       <p className="accountHubConsentStatus" role="status">
         {enabled
-          ? "Step Out on · one push a week maximum."
-          : "Step Out off."}
+          ? "Weekly nudge on · one push a week maximum."
+          : "Weekly nudge off."}
       </p>
       {notice ? (
         <small className="accountHubReferralNotice" role="status">

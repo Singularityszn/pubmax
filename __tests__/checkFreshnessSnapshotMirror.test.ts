@@ -17,6 +17,7 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import { evaluateFreshness } from "@/scripts/check_freshness.mjs";
 import { evaluateDataset, type FreshnessDataset } from "@/lib/freshness";
+import { defined } from "@/__tests__/helpers/defined";
 
 const NOW = new Date("2026-09-05T12:00:00Z");
 const OBSERVED_AT = "2026-08-21T15:44:29.901Z";
@@ -67,11 +68,11 @@ describe("the CLI mirror and the spine agree about a closed snapshot lane", () =
     });
     const spine = evaluateDataset(dataset, OBSERVED_AT, NOW);
 
-    expect(results[0].status).toBe("snapshot");
+    expect(defined(results[0]).status).toBe("snapshot");
     expect(spine.status).toBe("snapshot");
-    expect(results[0].observedAt).toBe(OBSERVED_AT);
-    expect(results[0].ageHours).toBe(spine.ageHours);
-    expect(results[0].detail).toBe(spine.detail);
+    expect(defined(results[0]).observedAt).toBe(OBSERVED_AT);
+    expect(defined(results[0]).ageHours).toBe(spine.ageHours);
+    expect(defined(results[0]).detail).toBe(spine.detail);
     expect(breached).toBe(false);
   });
 
@@ -85,7 +86,7 @@ describe("the CLI mirror and the spine agree about a closed snapshot lane", () =
       registry: { version: 1, datasets: [{ ...dataset }] },
     });
 
-    expect(results[0].status).toBe("stale");
+    expect(defined(results[0]).status).toBe("stale");
     expect(evaluateDataset(dataset, OBSERVED_AT, NOW).status).toBe("stale");
     expect(breached).toBe(true);
   });

@@ -23,19 +23,16 @@ Terciles were chosen over a median plus a margin because they need no
 invented margin. "Average" is honestly the middle third of what we hold, and
 each band holds the same number of pubs.
 
-## London today
+## Current thresholds
 
-Cut from 950 priced pubs in `public/data/venues_slim.json` by
-`npm run build:price-bands`, written to `public/data/price_bands/thresholds.json`.
+`npm run build:price-bands` derives the thresholds from enabled city packs.
+The generated [threshold table](../public/data/price_bands/thresholds.json)
+owns current thresholds and sample sizes. `__tests__/priceBand.test.ts`
+recomputes that table from the committed packs to detect drift.
 
-| Band | Colour | London |
-| --- | --- | --- |
-| cheap | green | £5.20 or less |
-| average | yellow | over £5.20, up to £6.15 |
-| expensive | red | over £6.15 |
-
-So a £6.50 pint reads expensive, which is the figure the captain saw painted
-yellow on the landing card. The London median is £5.80.
+Only pub-kind rows contribute to the sample. Recorded legacy bars keep their
+pint display meaning under the [venue price contract](rules/lib-venues-areas-listings-and-nights.md#a-venue-kind-is-a-closed-list-with-one-owner-and-a-non-pub-kind-is-present-but-n),
+but do not contribute to pub thresholds.
 
 ## The area is the city, not the borough
 

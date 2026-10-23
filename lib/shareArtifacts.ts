@@ -54,7 +54,7 @@ export type PlanInviteSpendBand = {
   maxGbp: number;
 };
 
-/** Listed stop prices in GBP. Returns null unless every stop carries a price. */
+/** Listed pint-price range in GBP, never a per-person total. Missing stop prices return null. */
 export function planInviteSpendBandFromListedPrices(
   pricesGbp: readonly (number | null | undefined)[],
 ): PlanInviteSpendBand | null {
@@ -67,14 +67,14 @@ export function planInviteSpendBandFromListedPrices(
   return { minGbp: Math.min(...resolved), maxGbp: Math.max(...resolved) };
 }
 
-/** "£4.50–£6.00 per person", collapsing when min and max match. */
+/** Listed pint price range, collapsing when min and max match. */
 export function formatPlanInviteSpendBand(band: PlanInviteSpendBand): string {
   const label = formatGbp;
   const range =
     band.minGbp === band.maxGbp
       ? label(band.minGbp)
       : `${label(band.minGbp)}–${label(band.maxGbp)}`;
-  return `${range} per person`;
+  return `${range} per pint`;
 }
 
 export type PlanInviteShareInput = {
@@ -89,7 +89,9 @@ export type PlanInviteShareInput = {
 
 export function buildPlanInviteShareText(input: PlanInviteShareInput): string {
   const { title, stopCount, startClock, spendBand } = input;
-  const parts = [title, countNoun(stopCount, "stop")];
+  // A message opens with a capital: the plan page passes "a night out in Soho".
+  const opener = title.charAt(0).toUpperCase() + title.slice(1);
+  const parts = [opener, countNoun(stopCount, "stop")];
   if (startClock) parts.push(`starts ${startClock}`);
   if (spendBand) parts.push(formatPlanInviteSpendBand(spendBand));
   return `${parts.join(" · ")}. Open the link and tap I'm in.`;
@@ -160,12 +162,12 @@ export function buildVenueShareText(input: VenueShareInput): string {
   // People-logged wins when it carries both a figure and a day: that is the
   // honesty the share owes. Curated "Pints from" stays the fallback tone.
   if (logged && day) {
-    return `${input.name}. ${logged} a pint, logged ${day}. On the PUBMAXXING map.`;
+    return `${input.name}. ${logged} a pint, logged ${day}. On the PUBMAXX map.`;
   }
   const price = gbp(input.cheapestPintGbp);
   return price
-    ? `${input.name}. Pints from ${price}. On the PUBMAXXING map.`
-    : `${input.name}, on the PUBMAXXING map.`;
+    ? `${input.name}. Pints from ${price}. On the PUBMAXX map.`
+    : `${input.name}, on the PUBMAXX map.`;
 }
 
 // ── Bar tab (venue recap page) ───────────────────────────────────────────────
@@ -184,19 +186,21 @@ export type PassportShareInput = {
   displayName: string;
   pubs: number;
   boroughs: number;
+  /** The borough count includes the City of London when true. */
+  cityVisited?: boolean;
   pints: number;
   isEmpty: boolean;
 };
 
 export function buildPassportShareText(input: PassportShareInput): string {
   if (input.isEmpty) {
-    return "Start a Pint Passport on PUBMAXXING. Every pint stamps a page.";
+    return "Start a Pint Passport on PUBMAXX. Every pint stamps a page.";
   }
   const { displayName, pubs, boroughs, pints } = input;
-  return `${displayName} · ${countNoun(pubs, "pub")} · ${countNoun(
-    boroughs,
-    "borough",
-  )} · ${countNoun(pints, "pint")} on PUBMAXXING`;
+  const areas = input.cityVisited
+    ? `${boroughs > 1 ? `${countNoun(boroughs - 1, "borough")} + ` : ""}the City of London`
+    : countNoun(boroughs, "borough");
+  return `${displayName} · ${countNoun(pubs, "pub")} · ${areas} · ${countNoun(pints, "pint")} on PUBMAXX`;
 }
 
 // ── Saved list ───────────────────────────────────────────────────────────────
@@ -210,7 +214,7 @@ export type SavedListShareInput = {
 export function buildSavedListShareText(input: SavedListShareInput): string {
   return `${input.owner}'s ${input.listType} list. ${formatSavedVenueCount(
     input.venueCount,
-  )} on PUBMAXXING.`;
+  )} on PUBMAXX.`;
 }
 
 // ── Historic pub ─────────────────────────────────────────────────────────────

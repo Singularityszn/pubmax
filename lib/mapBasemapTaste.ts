@@ -67,9 +67,9 @@ type TastePalette = {
 };
 
 export function withAlpha(hex: string, alpha: number): string {
-  const match = /^#([0-9a-f]{6})$/i.exec(hex.trim());
-  if (!match) return hex;
-  const n = parseInt(match[1], 16);
+  const digits = /^#([0-9a-f]{6})$/i.exec(hex.trim())?.[1];
+  if (!digits) return hex;
+  const n = parseInt(digits, 16);
   return `rgba(${(n >> 16) & 255}, ${(n >> 8) & 255}, ${n & 255}, ${alpha})`;
 }
 
@@ -78,11 +78,11 @@ export function withAlpha(hex: string, alpha: number): string {
  *  road hierarchy. Falls back to `hexA` unchanged if either input isn't a
  *  plain `#rrggbb`. */
 export function mixHex(hexA: string, hexB: string, t: number): string {
-  const a = /^#([0-9a-f]{6})$/i.exec(hexA.trim());
-  const b = /^#([0-9a-f]{6})$/i.exec(hexB.trim());
+  const a = /^#([0-9a-f]{6})$/i.exec(hexA.trim())?.[1];
+  const b = /^#([0-9a-f]{6})$/i.exec(hexB.trim())?.[1];
   if (!a || !b) return hexA;
-  const na = parseInt(a[1], 16);
-  const nb = parseInt(b[1], 16);
+  const na = parseInt(a, 16);
+  const nb = parseInt(b, 16);
   const clampedT = clamp(t, 0, 1);
   const mix = (shift: number) => {
     const ca = (na >> shift) & 255;
@@ -136,7 +136,7 @@ function isNeighbourhoodPlaceLabel(id: string): boolean {
 
 /** Drink-category tokens that make a basemap POI layer a PUB layer. Plural and
  *  compound spellings are listed because basemaps disagree (`poi_pub_label`,
- *  `pois-pubs-label`, `poi_breweries_name`), and token matching is whole-word so
+ *  `pois_pubs_label`, `poi_breweries_name`), and token matching is whole-word so
  *  `poi_barber_label` never reads as `bar`. */
 const PUB_POI_LABEL_TOKENS = new Set([
   "pub",
@@ -154,7 +154,7 @@ const PUB_POI_LABEL_TOKENS = new Set([
 
 /** A drink-category token is REQUIRED, never inferred from the layer's shape.
  *  CARTO and OpenFreeMap both ship ONE generic POI layer (`poi_label`,
- *  `poi_name`, `pois-label`) carrying every category at once, so the old
+ *  `poi_name`, `pois_label`) carrying every category at once, so the old
  *  `pois?[-_](label|name)` fallback handed barbers, bus stops and cash machines
  *  the pub opacity and pub text sizing reserved for drinking venues. Once this
  *  drink-token gate exists, that fallback is unreachable and is deleted. Same
@@ -528,6 +528,9 @@ function paintDiscoveredLayers(
   for (const layer of map.getStyle().layers ?? []) {
     if (KNOWN_LAYER_IDS.has(layer.id)) continue;
     const id = layer.id.toLowerCase();
+    // The scene's own layers carry their own paint. The deferred taste pass
+    // runs after they are added, and `pubs-point` alone reads as `poi`.
+    if (isAppLayer(id)) continue;
     if (layer.type === "fill") {
       paintDiscoveredFill(map, layer.id, id, palette, dark);
     } else if (layer.type === "line") {
@@ -587,8 +590,9 @@ export function muteOpacityExpr(original: unknown, opacity: number): unknown {
   return ["min", original ?? 1, opacity];
 }
 
-// Our own scene layers carry these prefixes; the basemap classifier skips them
-// so it only ever matches genuinely baked (stock-style) symbol layers.
+// Our own scene layers carry these prefixes; the basemap taste and the
+// selection-mute classifier skip them so they only ever touch genuinely baked
+// (stock-style) layers.
 const APP_LAYER_PREFIXES = [
   "pubs-",
   "pois-",
@@ -600,6 +604,10 @@ const APP_LAYER_PREFIXES = [
   "buildings-",
   "band-",
 ];
+
+function isAppLayer(lowerId: string): boolean {
+  return APP_LAYER_PREFIXES.some((p) => lowerId.startsWith(p));
+}
 
 // Baked symbol layers whose text/icons are transit roundels, POI labels, or
 // street-name labels/shields — the exact furniture the owner rule wants gone on
@@ -614,7 +622,7 @@ const BASEMAP_MUTE_ID_RE =
 export function isBasemapSelectionMuteLayer(id: string, type?: string): boolean {
   if (type !== "symbol") return false;
   const s = id.toLowerCase();
-  if (APP_LAYER_PREFIXES.some((p) => s.startsWith(p))) return false;
+  if (isAppLayer(s)) return false;
   return BASEMAP_MUTE_ID_RE.test(s);
 }
 
@@ -688,57 +696,3 @@ export function applySelectionMute(
   store.clear();
 }
 
-type ClusterPriceTokens = Pick<
-  BasemapTasteTokens,
-  "pint" | "amber" | "muted"
-> & {
-  brick: string;
-};
-
-/**
- * Fallback cluster fill by the most common KNOWN price band inside it.
- *
- * Desktop normally replaces this circle with a segmented donut. Phones and
- * large cluster sets keep the GL circle, so its fill must answer the same
- * price question rather than changing meaning to venue density. Unknown pubs
- * do not outvote known prices; grey means the cluster has no known price.
- */
-export function clusterCircleColorExpr(
-  tokens: ClusterPriceTokens,
-  dark: boolean,
-): unknown {
-  const count = (key: string) => ["coalesce", ["get", key], 0];
-  // THE DISC COUNTS WHAT ITS OWN PINS ARE PAINTED BY. s0..s3 accumulate the
-  // Spoons value lens's band (buildScene's clusterProperties) and are all zero
-  // while the lens is off, because the feature property they read is absent
-  // then. Under the lens every curated pin carries one, so a non-zero s-total
-  // is the cluster saying which question its colours answer - the same rule
-  // `readCounts` (donutClusters.ts) applies to the donut that replaces this
-  // disc on a desktop.
-  const spoonsTotal = [
-    "+",
-    count("s0"),
-    count("s1"),
-    count("s2"),
-    count("s3"),
-  ];
-  const band = (spoonsKey: string, priceKey: string) => [
-    "case",
-    [">", spoonsTotal, 0],
-    count(spoonsKey),
-    count(priceKey),
-  ];
-  const cheap = band("s0", "b0");
-  const middle = band("s1", "b1");
-  const dear = band("s2", "b2");
-  return [
-    "case",
-    ["all", [">", cheap, 0], [">=", cheap, middle], [">=", cheap, dear]],
-    withAlpha(tokens.pint, dark ? 0.96 : 0.9),
-    ["all", [">", middle, 0], [">", middle, cheap], [">=", middle, dear]],
-    withAlpha(tokens.amber, dark ? 0.96 : 0.92),
-    ["all", [">", dear, 0], [">", dear, cheap], [">", dear, middle]],
-    withAlpha(tokens.brick, dark ? 0.94 : 0.88),
-    withAlpha(tokens.muted, dark ? 0.78 : 0.84),
-  ];
-}

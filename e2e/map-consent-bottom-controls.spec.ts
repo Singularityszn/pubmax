@@ -1,5 +1,6 @@
 import { expect, test, type Locator, type Page } from "@playwright/test";
 import { installDeterministicMapBasemap } from "./helpers/mapNetworkFixtures";
+import { expectMobileMapShellReady, mobileMapShellControl } from "./helpers/mobileMapShell";
 
 // The production service worker registers on /places and then answers basemap
 // requests itself, past page.route(), so the refused raster tiles never fail.
@@ -21,7 +22,8 @@ async function prepareMap(page: Page, width: number, consent: boolean) {
   }, consent);
 
   await page.goto("/places");
-  await expect(page.locator(".placesCityLink").first()).toBeVisible();
+  // Places has painted its one city door (the list view since 18 Oct 2026).
+  await expect(page.locator("main [data-primary-action] a").first()).toBeVisible();
   await page.goto("/map/manchester");
   await expect(page.locator(".mapStage")).toBeVisible();
   await expect(page.locator(".mapLoading")).toBeHidden({ timeout: 45_000 });
@@ -50,7 +52,11 @@ for (const width of [390, 768, 1440]) {
     await installDeterministicMapBasemap(page);
     await retry.click();
     await expect(retry).toBeHidden({ timeout: 45_000 });
-    await expect(page.locator(width === 390 ? ".mobileMapTopbar" : ".mapToolbar")).toBeVisible();
+    if (width === 390) {
+      await expectMobileMapShellReady(page);
+    } else {
+      await expect(page.locator(".mapToolbar")).toBeVisible();
+    }
     await expect(page.getByLabel("Anonymous analytics choice")).toBeVisible();
     await page.screenshot({ path: testInfo.outputPath(`retry-recovered-${width}.png`) });
   });
@@ -131,12 +137,13 @@ for (const width of [390, 768, 1440]) {
       await expect(page.locator(".maplibregl-ctrl-attrib-inner")).toBeVisible();
       await page.locator(".maplibregl-ctrl-attrib-button").click();
       if (width === 390) {
-        const more = page.getByRole("button", { name: "More map controls" });
+        const more = await mobileMapShellControl(page, "more");
         await expectClearControl(page, more, consentTop);
         await expect(async () => {
           await more.click();
           await expect(page.locator('.mobileSheetPortal[data-sheet-kind="layers"]')).toBeVisible({ timeout: 1_000 });
         }).toPass({ timeout: 20_000 });
+        await expect(page.locator(".mobileMapCredits")).toContainText("OpenStreetMap contributors (ODbL)");
         await page.getByRole("tab", { name: "Layers", exact: true }).click();
         await expect(page.getByRole("tab", { name: "Layers", exact: true })).toHaveAttribute("aria-selected", "true");
       } else {

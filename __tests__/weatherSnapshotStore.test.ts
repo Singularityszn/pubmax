@@ -11,6 +11,7 @@ import {
   supabaseWeatherSnapshotStore,
 } from "@/lib/weatherSnapshotStore";
 import type { NightAreaWeatherObservation } from "@/lib/weatherSnapshots";
+import { defined } from "@/__tests__/helpers/defined";
 
 type Row = Record<string, unknown> & { night_area: string };
 
@@ -88,7 +89,7 @@ describe("memoryWeatherSnapshotStore", () => {
     await memoryWeatherSnapshotStore.writeSnapshot([obs("clapham", { feelsLikeC: 25 })], GENERATED);
     const snap = await memoryWeatherSnapshotStore.readSnapshot();
     expect(snap?.observations).toHaveLength(1);
-    expect(snap?.observations[0].feelsLikeC).toBe(25);
+    expect(defined(snap?.observations[0]).feelsLikeC).toBe(25);
   });
 
   it("reads null when empty", async () => {

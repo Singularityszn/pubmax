@@ -17,9 +17,6 @@ const PORTAL = '.mobileSheetPortal[data-sheet-kind="venue"]';
 
 async function preparePage(page: Page): Promise<void> {
   await page.emulateMedia({ reducedMotion: "reduce" });
-  await page.route("**/_vercel/insights/script.js", (route) =>
-    route.fulfill({ status: 200, contentType: "application/javascript", body: "" }),
-  );
   await page.addInitScript(() => {
     window.localStorage.setItem("pubmax-tour-v1-done", "1");
     window.localStorage.setItem("pubmax_onboarding_dismissed", "1");

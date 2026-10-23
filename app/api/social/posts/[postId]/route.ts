@@ -34,6 +34,7 @@ function storeError(error: unknown): Response {
     const status = error.code === "FORBIDDEN" ? 403
       : error.code === "NOT_FOUND" ? 404
         : error.code === "EDIT_CONFLICT" || error.code === "IDEMPOTENCY_CONFLICT" ? 409
+          : error.code === "HIDDEN_NAME_UNAVAILABLE" ? 503
           : 400;
     return publicApiError(error.message, error.code, status, { headers: { "Cache-Control": "private, no-store" } });
   }

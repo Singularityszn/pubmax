@@ -1,8 +1,12 @@
+import { PLAN_PRICE_AMOUNT, planPriceLimits } from "@/lib/planPriceLimits";
 import { formatGbp } from "@/lib/formatGbp";
 import { isDrinkCategory, type DrinkCategory } from "@/lib/drinks";
 import { londonHour } from "@/lib/londonHour";
-import { NIGHT_AREAS, NIGHT_AREA_SLUGS, type NightAreaSlug } from "@/lib/nightAreas";
+import { NIGHT_AREAS, type NightAreaSlug } from "@/lib/nightAreas";
+import { isNightAreaSlug } from "@/lib/nightAreaSlugs";
 import { planRequestedDrinkCategory } from "@/lib/planDrinkRequest";
+import { tubeIsARouteRule } from "@/lib/planGetHome";
+import { drinkKeywordSpans } from "@/lib/drinkCategoryFromText";
 import { cleanText } from "@/lib/textClean";
 import {
   DEFAULT_PLAN_STOP_COUNT,
@@ -68,12 +72,28 @@ const NUMBER_WORDS: Record<string, number> = { one: 1, two: 2, three: 3, four: 4
 const WETHERSPOONS_QUERY_PATTERN = /\bwetherspoons?\b|\bspoons\b/i;
 
 function requestedDrinkCategory(query: string, zeroProof: boolean, reasons: ContextReason[]): DrinkCategory | null {
-  if (zeroProof) return null;
   const category = planRequestedDrinkCategory(query);
+  // Zero-proof intent hides alcoholic lanes, but an explicit Soft drinks request stays a specific choice.
+  if (zeroProof && category !== "soft-drink") return null;
   if (category) {
     reasons.push({ field: "drinkCategory", evidence: category, explanation: "Matched the requested drink category." });
   }
   return category;
+}
+
+function hasZeroAlcoholStrength(query: string): boolean {
+  const text = query.replace(new RegExp(PLAN_PRICE_AMOUNT, "gi"), " ");
+  const strengths = [...text.matchAll(/(?:^|[^a-z0-9£.,])0\.0(?![a-z0-9.,])/g)];
+  if (!strengths.length) return false;
+  const drinks = drinkKeywordSpans(text);
+  return strengths.some((match) => {
+    const end = match.index + match[0].length;
+    const start = end - 3;
+    return /^\s*(?:%|abv\b)/.test(text.slice(end)) || drinks.some((drink) =>
+      (drink.start <= start && drink.end >= end && /[a-z]/.test(text.slice(drink.start, drink.end)))
+      || (drink.start >= end && /^\s*$/.test(text.slice(end, drink.start)))
+      || (drink.end <= start && /^\s*$/.test(text.slice(drink.end, start))));
+  });
 }
 
 export function inferNightContext(rawQuery: unknown, now = new Date()): InferredNightContext {
@@ -128,10 +148,7 @@ export function inferNightContext(rawQuery: unknown, now = new Date()): Inferred
     : /special|splash out|treat/.test(lower)
       ? "treat"
       : "standard";
-  const budgetLimitMatch = lower.match(/(?:under|up to|max(?:imum)?|budget(?: of)?)\s*£\s*(\d{1,3})(?:[.,](\d{1,2}))?(?:\s*(?:each|per person))?/);
-  const budgetLimitPence = budgetLimitMatch
-    ? Number(budgetLimitMatch[1]) * 100 + Number((budgetLimitMatch[2] ?? "").padEnd(2, "0") || 0)
-    : null;
+  const budgetLimitPence = planPriceLimits(query).routeBudgetPence;
   if (budgetLimitPence) reasons.push({ field: "budgetLimitPence", evidence: formatGbp(budgetLimitPence / 100), explanation: "Matched the explicit per-person route budget." });
   const atmosphere = ["quiet", "lively", "historic", "cosy", "sports", "music", "garden"].filter((value) => lower.includes(value));
   // Chill is the everyday synonym for quiet on describe-first chips; ranking
@@ -142,8 +159,18 @@ export function inferNightContext(rawQuery: unknown, now = new Date()): Inferred
   // not a cuisine filter (lateFood drops this non-specific tag).
   if (/\bfood\b/.test(lower) && !foodNeeds.includes("food")) foodNeeds.push("food");
   const accessibility = /wheelchair|step[- ]free|accessible/.test(lower) ? ["step-free"] : [];
-  const transportConstraints = /tube/.test(lower) ? ["tube"] : /walk/.test(lower) ? ["walking"] : [];
-  const zeroProof = /zero[ -]?proof|alcohol[ -]?free|soft[ -]?drinks?|not drinking|sober|0\.0/.test(lower);
+  // Each word the reader names, not the first one that matches: a tube used to
+  // win a ternary and take the walk rule out of the record with it, so "walk
+  // between stops, then home by tube" routed while the same sentence without
+  // the tube failed closed. A whole word on the tube arm, because "YouTube" is
+  // no transport at all, and only a tube named as the WAY HOME is dropped from
+  // the route rules, which lib/planGetHome.ts decides.
+  const transportConstraints = [
+    ...(tubeIsARouteRule(lower) ? ["tube"] : []),
+    ...(/walk/.test(lower) ? ["walking"] : []),
+  ];
+  const zeroProof = /zero[ -]?proof|alcohol[ -]?free|\bno[ -]alcohol\b|soft[ -]?drinks?|not drinking|sober/.test(lower)
+    || hasZeroAlcoholStrength(lower);
   const drinkCategory = requestedDrinkCategory(query, zeroProof, reasons);
   const wetherspoonsPreferred = spoonsMentioned;
   if (wetherspoonsPreferred) {
@@ -176,9 +203,9 @@ export function inferNightContext(rawQuery: unknown, now = new Date()): Inferred
   };
 }
 
-export function isNightAreaSlug(value: unknown): value is NightAreaSlug {
-  return typeof value === "string" && (NIGHT_AREA_SLUGS as readonly string[]).includes(value);
-}
+// Owned by the slug leaf so a caller that only validates a slug skips this
+// module's graph; re-exported so the planner's callers keep one door.
+export { isNightAreaSlug };
 
 export function isDaypart(value: unknown): value is Daypart {
   return typeof value === "string" && (DAYPARTS as readonly string[]).includes(value);

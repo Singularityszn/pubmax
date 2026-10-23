@@ -51,6 +51,21 @@ describe("formatConditionDate", () => {
   });
 });
 
+describe("London calendar boundaries", () => {
+  it.each([
+    ["2026-10-15T22:59:59Z", "Thursday 15 Oct"],
+    ["2026-10-15T23:00:00Z", "Friday 16 Oct"],
+    ["2026-12-31T23:59:59Z", "Thursday 31 Dec"],
+    ["2027-01-01T00:00:00Z", "Friday 1 Jan"],
+    ["2026-03-29T00:59:59Z", "Sunday 29 Mar"],
+    ["2026-03-29T01:00:00Z", "Sunday 29 Mar"],
+    ["2026-10-25T00:59:59Z", "Sunday 25 Oct"],
+    ["2026-10-25T01:00:00Z", "Sunday 25 Oct"],
+  ])("dates %s on the London calendar", (instant, label) => {
+    expect(formatConditionDate(new Date(instant))).toBe(label);
+  });
+});
+
 describe("londonMonth", () => {
   it("returns 1-12 for the London wall-clock month", () => {
     expect(londonMonth(new Date("2026-07-18T12:00:00.000Z"))).toBe(7);
@@ -165,7 +180,7 @@ describe("summariseTonightConditions", () => {
     });
     expect(summary).toEqual({
       dateLabel: "Saturday 18 Jul",
-      factsLine: expect.stringMatching(/^22°C feels like, clear, 10% chance of rain, sunset \d{2}:\d{2}, daylight\.$/),
+      factsLine: expect.stringMatching(/^Feels like 22°C, clear, 10% chance of rain, sunset \d{2}:\d{2}, daylight\.$/),
       stale: false,
       checkedLabel: "Checked 15 minutes ago",
       drinkLine: "Beer garden weather. Lager or cider.",
@@ -197,7 +212,7 @@ describe("summariseTonightConditions", () => {
       drinkSuggestion: "",
       venueClaim: null,
     });
-    expect(summary.factsLine).toMatch(/^15°C feels like, drizzle, 45% chance of rain, /);
+    expect(summary.factsLine).toMatch(/^Feels like 15°C, drizzle, 45% chance of rain, /);
   });
 
   it("names the clock's part of the day, for every surface that reads it", () => {

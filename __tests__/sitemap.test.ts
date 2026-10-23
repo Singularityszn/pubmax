@@ -28,10 +28,12 @@ import type { MetadataRoute } from "next";
 // is gated (the fixed list in app/sitemap.ts minus /social). Kept here so a
 // change to that list is a conscious test edit. Includes /about (founder story
 // + press kit hub), /founders (the numbered public wall of the first hundred
-// claimed handles), the two legal content pages (/privacy, /terms) linked from
-// the site footer, and /account/delete, the public account-deletion page Play
-// Console holds in its Data safety form and expects to be able to open, and
-// /spoons-value, the national Wetherspoon units-per-tenner ranking.
+// claimed handles), the two legal content pages (/privacy, /terms), the data
+// credits page (/credits) linked from the site footer, /account/delete, the
+// public account-deletion page Play Console holds in its Data safety form and
+// expects to be able to open, /spoons-value, the national Wetherspoon units-per-tenner ranking, and
+// /price-pulse, the weekly Price Pulse and its "Where your £6 goes" explainer.
+// The public /feedback and /updates pages also belong in this list.
 //
 // /pint-index is NOT here. Captain decision D10 holds its row until a month
 // carries the admission floor of priced pubs in at least one borough, and the
@@ -39,7 +41,7 @@ import type { MetadataRoute } from "next";
 // row returning is a conscious test edit, the same as a change to the list
 // above; the gate itself is proved in both directions by the fixture-driven
 // describe at the foot of this file. The ROUTE is unaffected either way.
-const STATIC_HUB_COUNT = 15;
+const STATIC_HUB_COUNT = 19;
 
 // Wave S1.2 — sitemap sanity. Runs the real generator against the bundled
 // dataset (process.cwd() is the repo root in tests, so public/data/*.json is
@@ -171,14 +173,41 @@ describe("sitemap()", () => {
       "/crawls",
       "/about",
       "/spoons-value",
+      "/price-pulse",
     ]) {
       expect(urls).toContain(`${SITE}${hub}`);
     }
   });
 
   it("lists the brand-relevant discovery routes a stranger can be sent to", () => {
-    for (const hub of ["/", "/map", "/tonight", "/about", "/how-we-estimate"]) {
+    for (const hub of ["/", "/map", "/tonight", "/about", "/how-we-estimate", "/feedback", "/updates"]) {
       expect(urls).toContain(`${SITE}${hub}`);
+    }
+  });
+
+  it("dates the updates page from its latest released note", () => {
+    const update = entries.find((entry) => entry.url === `${SITE}/updates`);
+    expect(new Date(update!.lastModified!).toISOString()).toBe("2026-10-19T00:00:00.000Z");
+  });
+
+  it("uses an appended newer release to date the updates page", async () => {
+    vi.resetModules();
+    vi.doMock("@/lib/publicUpdates", async (importOriginal) => {
+      const actual = await importOriginal<typeof import("@/lib/publicUpdates")>();
+      return {
+        PUBLIC_UPDATES: [
+          ...actual.PUBLIC_UPDATES,
+          { id: "appended-release", date: "2026-10-21", title: "A newer release", changes: ["A verified change."] },
+        ],
+      };
+    });
+    try {
+      const { default: appendedSitemap } = await import("@/app/sitemap");
+      const update = (await appendedSitemap()).find((entry) => entry.url === `${SITE}/updates`);
+      expect(new Date(update!.lastModified!).toISOString()).toBe("2026-10-21T00:00:00.000Z");
+    } finally {
+      vi.doUnmock("@/lib/publicUpdates");
+      vi.resetModules();
     }
   });
 
@@ -285,8 +314,13 @@ describe("sitemap()", () => {
 
   it("advertises no token / UGC / auth surface", () => {
     for (const url of urls) {
+      const pathname = new URL(url).pathname;
       for (const bad of FORBIDDEN_SUBSTRINGS) {
-        expect(url.includes(bad), `${url} must not contain ${bad}`).toBe(false);
+        // The private /feed family does not include the public /feedback page.
+        const forbidden = bad === "/feed"
+          ? pathname === bad || pathname.startsWith(`${bad}/`)
+          : url.includes(bad);
+        expect(forbidden, `${url} must not advertise ${bad}`).toBe(false);
       }
     }
   });

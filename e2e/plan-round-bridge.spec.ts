@@ -116,7 +116,7 @@ test("an active Plan starts a Round with its ordered stops", async ({ page }) =>
   );
   await page.getByRole("button", { name: "Discard draft" }).click();
 
-  const startRound = page.getByRole("button", { name: "Start Round", exact: true });
+  const startRound = page.getByRole("button", { name: "Start the round", exact: true });
   await expect(startRound).toBeEnabled();
   for (const viewport of MOBILE_VIEWPORTS) {
     await page.setViewportSize(viewport);
@@ -177,6 +177,8 @@ test("an active Plan starts a Round with its ordered stops", async ({ page }) =>
   const roundRoute = page.getByRole("region", { name: "The Round's route" });
   await expect(roundRoute).toBeVisible();
   await expect(roundRoute.locator(".roundStopBody > strong")).toHaveText(
-    stops.map((stop) => stop.venueName),
+    stops.map((stop, index) => stop.venueName + (index === stops.length - 1 ? "Now" : "")),
   );
+  await expect(roundRoute.locator(".roundStopNowTag")).toHaveText("Now");
+  await expect(roundRoute.locator(".roundStop").last()).toHaveClass(/roundStopNow/);
 });

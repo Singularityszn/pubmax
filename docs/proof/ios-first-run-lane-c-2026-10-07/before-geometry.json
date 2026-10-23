@@ -1,0 +1,326 @@
+[
+  {
+    "name": "se-light-london",
+    "stage": "london",
+    "viewport": {
+      "width": 375,
+      "height": 667
+    },
+    "actions": {
+      "top": 725.078125,
+      "bottom": 775.078125,
+      "height": 50,
+      "width": 339
+    },
+    "primary": {
+      "top": 725.078125,
+      "bottom": 775.078125,
+      "height": 50,
+      "width": 155.125
+    },
+    "photo": {
+      "top": 62,
+      "bottom": 268.765625,
+      "height": 206.765625,
+      "width": 375
+    },
+    "overflow": 0
+  },
+  {
+    "name": "se-light-budget",
+    "stage": "budget",
+    "viewport": {
+      "width": 375,
+      "height": 667
+    },
+    "actions": {
+      "top": 637.796875,
+      "bottom": 687.796875,
+      "height": 50,
+      "width": 339
+    },
+    "primary": {
+      "top": 637.796875,
+      "bottom": 687.796875,
+      "height": 50,
+      "width": 132.09375
+    },
+    "photo": {
+      "top": 62,
+      "bottom": 268.765625,
+      "height": 206.765625,
+      "width": 375
+    },
+    "overflow": 0
+  },
+  {
+    "name": "se-light-location",
+    "stage": "location",
+    "viewport": {
+      "width": 375,
+      "height": 667
+    },
+    "actions": {
+      "top": 517.421875,
+      "bottom": 567.421875,
+      "height": 50,
+      "width": 339
+    },
+    "primary": {
+      "top": 517.421875,
+      "bottom": 567.421875,
+      "height": 50,
+      "width": 185.359375
+    },
+    "photo": {
+      "top": 62,
+      "bottom": 268.765625,
+      "height": 206.765625,
+      "width": 375
+    },
+    "overflow": 0
+  },
+  {
+    "name": "se-dark-london",
+    "stage": "london",
+    "viewport": {
+      "width": 375,
+      "height": 667
+    },
+    "actions": {
+      "top": 725.078125,
+      "bottom": 775.078125,
+      "height": 50,
+      "width": 339
+    },
+    "primary": {
+      "top": 725.078125,
+      "bottom": 775.078125,
+      "height": 50,
+      "width": 155.125
+    },
+    "photo": {
+      "top": 62,
+      "bottom": 268.765625,
+      "height": 206.765625,
+      "width": 375
+    },
+    "overflow": 0
+  },
+  {
+    "name": "se-dark-budget",
+    "stage": "budget",
+    "viewport": {
+      "width": 375,
+      "height": 667
+    },
+    "actions": {
+      "top": 637.796875,
+      "bottom": 687.796875,
+      "height": 50,
+      "width": 339
+    },
+    "primary": {
+      "top": 637.796875,
+      "bottom": 687.796875,
+      "height": 50,
+      "width": 132.09375
+    },
+    "photo": {
+      "top": 62,
+      "bottom": 268.765625,
+      "height": 206.765625,
+      "width": 375
+    },
+    "overflow": 0
+  },
+  {
+    "name": "se-dark-location",
+    "stage": "location",
+    "viewport": {
+      "width": 375,
+      "height": 667
+    },
+    "actions": {
+      "top": 517.421875,
+      "bottom": 567.421875,
+      "height": 50,
+      "width": 339
+    },
+    "primary": {
+      "top": 517.421875,
+      "bottom": 567.421875,
+      "height": 50,
+      "width": 185.359375
+    },
+    "photo": {
+      "top": 62,
+      "bottom": 268.765625,
+      "height": 206.765625,
+      "width": 375
+    },
+    "overflow": 0
+  },
+  {
+    "name": "17pro-light-london",
+    "stage": "london",
+    "viewport": {
+      "width": 402,
+      "height": 874
+    },
+    "actions": {
+      "top": 779.6875,
+      "bottom": 829.6875,
+      "height": 50,
+      "width": 366
+    },
+    "primary": {
+      "top": 779.6875,
+      "bottom": 829.6875,
+      "height": 50,
+      "width": 155.125
+    },
+    "photo": {
+      "top": 62,
+      "bottom": 332.9375,
+      "height": 270.9375,
+      "width": 402
+    },
+    "overflow": 0
+  },
+  {
+    "name": "17pro-light-budget",
+    "stage": "budget",
+    "viewport": {
+      "width": 402,
+      "height": 874
+    },
+    "actions": {
+      "top": 706.5,
+      "bottom": 756.5,
+      "height": 50,
+      "width": 366
+    },
+    "primary": {
+      "top": 706.5,
+      "bottom": 756.5,
+      "height": 50,
+      "width": 132.09375
+    },
+    "photo": {
+      "top": 62,
+      "bottom": 332.9375,
+      "height": 270.9375,
+      "width": 402
+    },
+    "overflow": 0
+  },
+  {
+    "name": "17pro-light-location",
+    "stage": "location",
+    "viewport": {
+      "width": 402,
+      "height": 874
+    },
+    "actions": {
+      "top": 586.125,
+      "bottom": 636.125,
+      "height": 50,
+      "width": 366
+    },
+    "primary": {
+      "top": 586.125,
+      "bottom": 636.125,
+      "height": 50,
+      "width": 185.359375
+    },
+    "photo": {
+      "top": 62,
+      "bottom": 332.9375,
+      "height": 270.9375,
+      "width": 402
+    },
+    "overflow": 0
+  },
+  {
+    "name": "17pro-dark-london",
+    "stage": "london",
+    "viewport": {
+      "width": 402,
+      "height": 874
+    },
+    "actions": {
+      "top": 779.6875,
+      "bottom": 829.6875,
+      "height": 50,
+      "width": 366
+    },
+    "primary": {
+      "top": 779.6875,
+      "bottom": 829.6875,
+      "height": 50,
+      "width": 155.125
+    },
+    "photo": {
+      "top": 62,
+      "bottom": 332.9375,
+      "height": 270.9375,
+      "width": 402
+    },
+    "overflow": 0
+  },
+  {
+    "name": "17pro-dark-budget",
+    "stage": "budget",
+    "viewport": {
+      "width": 402,
+      "height": 874
+    },
+    "actions": {
+      "top": 706.5,
+      "bottom": 756.5,
+      "height": 50,
+      "width": 366
+    },
+    "primary": {
+      "top": 706.5,
+      "bottom": 756.5,
+      "height": 50,
+      "width": 132.09375
+    },
+    "photo": {
+      "top": 62,
+      "bottom": 332.9375,
+      "height": 270.9375,
+      "width": 402
+    },
+    "overflow": 0
+  },
+  {
+    "name": "17pro-dark-location",
+    "stage": "location",
+    "viewport": {
+      "width": 402,
+      "height": 874
+    },
+    "actions": {
+      "top": 586.125,
+      "bottom": 636.125,
+      "height": 50,
+      "width": 366
+    },
+    "primary": {
+      "top": 586.125,
+      "bottom": 636.125,
+      "height": 50,
+      "width": 185.359375
+    },
+    "photo": {
+      "top": 62,
+      "bottom": 332.9375,
+      "height": 270.9375,
+      "width": 402
+    },
+    "overflow": 0
+  }
+]

@@ -1,3 +1,4 @@
+import type { Route } from "next";
 import {
   initialFilters,
   NO_PINT_PRICE_CAP,
@@ -161,7 +162,7 @@ export function encodeCrawl(state: CrawlUrlState): string {
 // `/map?mode=build&pubs=<ordered ids>` (defaults are omitted, so nothing else
 // clutters the link). Returns null for fewer than two stops — a single stop has
 // no walk to show.
-export function buildCrawlMapHref(venueIds: string[]): string | null {
+export function buildCrawlMapHref(venueIds: string[]): Route | null {
   const ids = venueIds.filter(Boolean);
   if (ids.length < 2) return null;
   return `/map?${encodeCrawl({

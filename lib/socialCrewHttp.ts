@@ -4,6 +4,7 @@ import { publicApiError } from "@/lib/apiError";
 import { boundedJson } from "@/lib/boundedRequest.server";
 import { isLimited } from "@/lib/pintDrops";
 import { requireVerifiedSocialActor } from "@/lib/socialAccessServer";
+import { SOCIAL_CREW_HOST_CAPABILITY_HEADER } from "@/lib/socialCrew";
 import { SocialCrewStoreError } from "@/lib/socialCrewStore";
 import type { SocialPostActor } from "@/lib/socialPostStore";
 import { hashActor } from "@/lib/supabase";
@@ -149,11 +150,8 @@ export function socialCrewIdempotencyKey(request: Request): string | null {
 }
 
 export function socialCrewHostCapability(request: Request): string | null {
-  const authorization = request.headers.get("authorization")?.trim();
-  if (!authorization) return null;
-  const match = /^Bearer\s+([^\s]+)$/i.exec(authorization);
-  const capability = match?.[1];
-  return capability && capability.length <= 512 ? capability : null;
+  const capability = request.headers.get(SOCIAL_CREW_HOST_CAPABILITY_HEADER)?.trim();
+  return capability && capability.length <= 512 && !/\s/.test(capability) ? capability : null;
 }
 
 export function isSocialCrewId(value: unknown): value is string {

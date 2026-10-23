@@ -1,3 +1,4 @@
+import type { Route } from "next";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { ExternalLink } from "lucide-react";
@@ -5,7 +6,7 @@ import { notFound } from "next/navigation";
 
 import SiteNav from "@/components/nav/SiteNav";
 import LandmarkHeroPhoto from "@/components/LandmarkHeroPhoto";
-import { metadataSiteName } from "@/lib/brandNaming";
+import { appPageTitle, metadataSiteName } from "@/lib/brandNaming";
 import { landmarkById, nearestStoryPubs } from "@/lib/landmarks";
 import {
   STORY_PUBS_DISTANCE_CAVEAT,
@@ -17,6 +18,17 @@ import { groupVenuePrices, type Venue, type VenuePrice } from "@/lib/venues";
 import "./landmark.css";
 
 type PageProps = { params: Promise<{ id: string }> };
+
+// THIS DOCUMENT IS PRERENDERED (task vercel-f2-seo-cdn, recorded in proxy.ts
+// beside CDN_CACHED_DOCUMENT_ROUTES): it drops the per-request CSP nonce so the
+// Vercel CDN can hold it. It renders only bundled data and reads no cookie, no
+// header and no search param. `__tests__/cdnCachedDocuments.test.ts` holds
+// both rules.
+export const dynamic = "force-static";
+// The data changes only on a deploy, so an hour is the same quiet ceiling
+// `/map` takes: it bounds how long a stale copy can outlive a change nobody
+// redeployed for.
+export const revalidate = 3600;
 
 let cachedVenues: Venue[] | null = null;
 
@@ -36,7 +48,7 @@ async function getVenues(): Promise<Venue[]> {
   }
 }
 
-function startCrawlHref(pubIds: string[]): string {
+function startCrawlHref(pubIds: string[]): Route {
   const params = new URLSearchParams();
   params.set("mode", "build");
   params.set("pubs", pubIds.join(","));
@@ -47,9 +59,12 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   const { id } = await params;
   const landmark = landmarkById(id);
   if (!landmark) {
-    return { title: "Landmark chapter · PUBMAXXING", robots: { index: false, follow: false } };
+    return { title: "Landmark chapter", robots: { index: false, follow: false } };
   }
-  const title = `${landmark.name}: London story chapter · PUBMAXXING`;
+  // The layout's template adds the brand to the document title; the share
+  // card is not templated, so it carries the brand itself.
+  const title = `${landmark.name}: London story chapter`;
+  const cardTitle = appPageTitle(title);
   const description = landmark.history.slice(0, 155);
   const canonical = `/landmark/${landmark.id}`;
   return {
@@ -61,14 +76,14 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
     // restated here or they'd be dropped on landmark shares. (This route has no
     // file-convention OG image of its own.)
     openGraph: {
-      title,
+      title: cardTitle,
       description,
       type: "article",
       url: canonical,
       siteName: metadataSiteName(),
       images: ["/og.png"],
     },
-    twitter: { card: "summary", title, description },
+    twitter: { card: "summary", title: cardTitle, description },
   };
 }
 
@@ -80,7 +95,7 @@ export default async function LandmarkChapterPage({ params }: PageProps) {
   const venues = await getVenues();
   const nearby = nearestStoryPubs(landmark, venues, 5);
   const crawlIds = nearby.map((row) => row.venue.id).slice(0, 3);
-  const mapHref = `/map?landmark=${encodeURIComponent(landmark.id)}`;
+  const mapHref: Route = `/map?landmark=${encodeURIComponent(landmark.id)}`;
 
   return (
     <main id="main" className="landmarkChapterPage">
@@ -89,9 +104,9 @@ export default async function LandmarkChapterPage({ params }: PageProps) {
         {/* Deep-link to THIS landmark on the map (?landmark= is the existing
             shareable-URL param PubMap seeds from) — a bare /map dead-ends with
             nothing selected. */}
-        <Link prefetch={false} className="landmarkChapterEyebrow" href={mapHref}>
-          PUBMAXXING · London stories
-        </Link>
+        <a className="landmarkChapterEyebrow" href={mapHref}>
+          PUBMAXX · London stories
+        </a>
         <h1 className="landmarkChapterTitle">{landmark.name}</h1>
       </header>
 
@@ -113,17 +128,17 @@ export default async function LandmarkChapterPage({ params }: PageProps) {
         rel="noreferrer"
       >
         Source: {landmark.source.label}
-        <ExternalLink size={13} aria-hidden="true" />
+        <ExternalLink size={14} aria-hidden="true" />
       </a>
 
       <div className="landmarkChapterActions">
-        <Link prefetch={false} className="landmarkChapterBtn" href={mapHref}>
+        <a className="landmarkChapterBtn" href={mapHref}>
           Open on the map
-        </Link>
+        </a>
         {crawlIds.length > 0 ? (
-          <Link className="landmarkChapterBtn landmarkChapterBtnPrimary" href={startCrawlHref(crawlIds)}>
+          <a className="landmarkChapterBtn landmarkChapterBtnPrimary" href={startCrawlHref(crawlIds)}>
             Start a crawl here
-          </Link>
+          </a>
         ) : null}
       </div>
 
@@ -136,10 +151,10 @@ export default async function LandmarkChapterPage({ params }: PageProps) {
           <ul className="landmarkChapterPubList">
             {nearby.map(({ venue, km }) => (
               <li key={venue.id}>
-                <Link prefetch={false} href={`/map?sel=${encodeURIComponent(venue.id)}`}>
+                <a href={`/map?sel=${encodeURIComponent(venue.id)}`}>
                   <span>{venue.name}</span>
                   <span className="landmarkChapterPubDist">{formatLogNearbyDistance(km)}</span>
-                </Link>
+                </a>
               </li>
             ))}
           </ul>

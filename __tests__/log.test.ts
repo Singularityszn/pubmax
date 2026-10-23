@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { log, redact } from "@/lib/log";
+import { defined } from "@/__tests__/helpers/defined";
 
 // Spy on both console sinks so we can assert the exact single-line JSON payload
 // AND which sink an event routes to. Restore after each test so the spies never
@@ -22,7 +23,7 @@ describe("log", () => {
     log("info", "pint_drops.created", { route: "POST /api/pint-drops", status: 201 }, 123);
 
     expect(logSpy).toHaveBeenCalledTimes(1);
-    const line = logSpy.mock.calls[0][0] as string;
+    const line = defined(logSpy.mock.calls[0])[0] as string;
     // One line — no embedded newlines that would break a log aggregator.
     expect(line).not.toContain("\n");
     const parsed = JSON.parse(line);
@@ -41,7 +42,7 @@ describe("log", () => {
 
     expect(errorSpy).toHaveBeenCalledTimes(1);
     expect(logSpy).not.toHaveBeenCalled();
-    const parsed = JSON.parse(errorSpy.mock.calls[0][0] as string);
+    const parsed = JSON.parse(defined(errorSpy.mock.calls[0])[0] as string);
     expect(parsed).toEqual({ level: "error", event: "pint_drops.create_failed", error: "boom", ts: 1 });
   });
 
@@ -51,14 +52,14 @@ describe("log", () => {
 
     expect(logSpy).toHaveBeenCalledTimes(1);
     expect(errorSpy).not.toHaveBeenCalled();
-    expect(JSON.parse(logSpy.mock.calls[0][0] as string).level).toBe("warn");
+    expect(JSON.parse(defined(logSpy.mock.calls[0])[0] as string).level).toBe("warn");
   });
 
   it("works with no context (still emits level, event, ts)", () => {
     const { logSpy } = spyConsole();
     log("info", "pint_drops.ping", undefined, 7);
 
-    expect(JSON.parse(logSpy.mock.calls[0][0] as string)).toEqual({
+    expect(JSON.parse(defined(logSpy.mock.calls[0])[0] as string)).toEqual({
       level: "info",
       event: "pint_drops.ping",
       ts: 7,
@@ -71,7 +72,7 @@ describe("log", () => {
     log("info", "pint_drops.ping");
     const after = Date.now();
 
-    const parsed = JSON.parse(logSpy.mock.calls[0][0] as string);
+    const parsed = JSON.parse(defined(logSpy.mock.calls[0])[0] as string);
     expect(typeof parsed.ts).toBe("number");
     expect(parsed.ts).toBeGreaterThanOrEqual(before);
     expect(parsed.ts).toBeLessThanOrEqual(after);
@@ -82,13 +83,13 @@ describe("log", () => {
     // A caller passes a bogus `ts` field in context; the injected/real ts wins.
     log("info", "pint_drops.ping", { ts: 999999 } as Record<string, unknown>, 42);
 
-    expect(JSON.parse(logSpy.mock.calls[0][0] as string).ts).toBe(42);
+    expect(JSON.parse(defined(logSpy.mock.calls[0])[0] as string).ts).toBe(42);
   });
 
   it("scrubs named production secret env values embedded in error strings", () => {
     const { errorSpy } = spyConsole();
     log("error", "test.scrub", { error: "ADMIN_TOKEN=hunter2 CRON_SECRET=xyz" });
-    const line = errorSpy.mock.calls[0][0] as string;
+    const line = defined(errorSpy.mock.calls[0])[0] as string;
     expect(line).not.toContain("hunter2");
     expect(line).not.toContain("xyz");
     expect(line).toContain("ADMIN_TOKEN=[redacted]");
@@ -102,7 +103,7 @@ describe("log", () => {
       { token: "super-secret", serviceRoleKey: "srk_live_abc", error: "boom" },
       1,
     );
-    const line = errorSpy.mock.calls[0][0] as string;
+    const line = defined(errorSpy.mock.calls[0])[0] as string;
     // The raw secret values must not appear anywhere in the serialized line.
     expect(line).not.toContain("super-secret");
     expect(line).not.toContain("srk_live_abc");

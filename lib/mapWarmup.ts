@@ -1,5 +1,7 @@
+import type { Route } from "next";
 import { getCity, parseCityId } from "@/lib/cities";
 import { takeEarlyWarmJson } from "@/lib/mapEarlyWarm";
+import { MAP_DATA_REVISION } from "@/lib/mapDataRevision";
 
 type MapWarmConnection = {
   saveData?: boolean;
@@ -40,6 +42,14 @@ export const MAP_INTENT_WARM_PATHS = [
 const BLOCKED_EFFECTIVE_TYPES = new Set(["slow-2g", "2g"]);
 const sessionSeen = new Set<string>();
 
+// The foreground venue loaders read the London manifest/core and city monoliths
+// under a `?v=<revision>` key, so a warm must use the same URL to be reused.
+// Local builds and overlay paths keep their bare keys.
+function venueWarmRequestPath(path: string): string {
+  if (MAP_DATA_REVISION === "local" || !/\/venues_slim(?:\.core|\.manifest)?\.json$/.test(path)) return path;
+  return `${path}?v=${encodeURIComponent(MAP_DATA_REVISION)}`;
+}
+
 /**
  * Split by what the paths are FOR: the venue index is what makes pins exist on
  * the first frame; POIs and transit lines are overlays the canvas deliberately
@@ -68,7 +78,7 @@ function mapWarmPathsFor(href: string): { venueIndex: string[]; overlays: string
 /** Slim (+ optional POI/transit) paths to warm for a map href. */
 export function warmPathsForMapHref(href: string): readonly string[] {
   const { venueIndex, overlays } = mapWarmPathsFor(href);
-  return [...venueIndex, ...overlays];
+  return [...venueIndex.map(venueWarmRequestPath), ...overlays];
 }
 
 export function shouldWarmMapIntent(nav: unknown): boolean {
@@ -93,9 +103,10 @@ export function warmMapIntentData({
 }: MapWarmDeps): void {
   if (!shouldWarmMapIntent(nav)) return;
 
-  for (const path of paths) {
+  for (const assetPath of paths) {
+    const path = venueWarmRequestPath(assetPath);
     if (seen?.has(path)) continue;
-    if (takeEarlyWarmJson(path) !== undefined) {
+    if (takeEarlyWarmJson(assetPath.split("?")[0] ?? assetPath) !== undefined) {
       seen?.add(path);
       continue;
     }
@@ -148,7 +159,10 @@ export function scheduleMapCanvasWarmup({
   }
 }
 
-/** Session-deduped route prefetch + slim-data warm (landing CTAs + tab bar). */
+/** Bounded route prefetch history for landing CTAs and the tab bar. */
+// Keep the last 128 successful destinations, including their queries.
+// IntentLink and the tab bar pass their own sets through this same limit.
+export const MAX_WARMED_ROUTES = 128;
 const warmedRoutes = new Set<string>();
 const mapCanvasWarmState: MapCanvasWarmState = { status: "idle" };
 
@@ -171,17 +185,19 @@ function warmMapCanvasModule(): void {
 }
 
 export type MapRoutePrefetcher = {
-  prefetch: (href: string) => void;
+  prefetch: (href: Route) => void;
 };
 
 /**
- * Prefetch any App Router href once per session. Map destinations also warm
+ * Prefetch each retained App Router href once. Map destinations also warm
  * the slim venue (+ POI/transit) payloads the canvas will request next.
+ * The exact current path and query are skipped, so intent on the active link
+ * schedules no canvas warm, data warm or warmed-route entry.
  * Best-effort only — navigation never depends on success.
  */
-export function warmNavRoute(
+export function warmNavRoute<T extends string>(
   router: MapRoutePrefetcher,
-  href: string,
+  href: Route<T>,
   seen: Set<string> = warmedRoutes,
 ): void {
   // A fragment never reaches the server, so it is no part of what to warm.
@@ -189,15 +205,29 @@ export function warmNavRoute(
   // address the click then had to reconcile, and the landed URL lost its
   // fragment: the price receipt's "See your impact" link stopped scrolling to
   // the contribution card it names.
-  const prefetchHref = href.split("#")[0]?.split("?")[0] || href;
-  const isMapRoute = prefetchHref === "/map" || prefetchHref.startsWith("/map/");
+  // The query stays: it names a different destination. The path part of a
+  // Route is itself a Route.
+  const prefetchHref = href.split("#")[0] as Route | undefined;
+  if (!prefetchHref) return;
+  if (
+    typeof window !== "undefined" &&
+    window.location &&
+    prefetchHref === `${window.location.pathname}${window.location.search}`
+  ) return;
+  const pathname = prefetchHref.split("?")[0] ?? prefetchHref;
+  const isMapRoute = pathname === "/map" || pathname.startsWith("/map/");
   if (isMapRoute) warmMapCanvasModule();
-  if (!prefetchHref || seen.has(prefetchHref)) return;
+  if (seen.has(prefetchHref)) return;
   try {
     router.prefetch(prefetchHref);
     // Only mark warmed AFTER a successful prefetch call — a throw here (dev
     // HMR, router-not-mounted, transient) must let the next intent retry
     // rather than get silently deduped forever.
+    while (seen.size >= MAX_WARMED_ROUTES) {
+      const oldest = seen.values().next().value;
+      if (oldest === undefined) break;
+      seen.delete(oldest);
+    }
     seen.add(prefetchHref);
   } catch {
     // Best-effort — navigation must never depend on prefetch. Leave `seen`
@@ -212,7 +242,7 @@ export function warmNavRoute(
           ? fetch(url, init)
           : Promise.reject(new Error("fetch unavailable")),
       navigator: typeof navigator !== "undefined" ? navigator : undefined,
-      paths: warmPathsForMapHref(prefetchHref),
+      paths: warmPathsForMapHref(pathname),
       seen: sessionSeen,
     });
   }
@@ -221,11 +251,11 @@ export function warmNavRoute(
 /**
  * Wave K2 — warm map navigation on intent.
  * Prefetches the Next.js route chunk and the city slim (+ POI/transit) payloads
- * once per session. Does not prefetch full venue detail.
+ * with bounded route history. Does not prefetch full venue detail.
  */
-export function warmMapRoute(
+export function warmMapRoute<T extends string>(
   router: MapRoutePrefetcher,
-  href = "/map",
+  href: Route<T> = "/map",
   seen: Set<string> = warmedRoutes,
 ): void {
   warmNavRoute(router, href, seen);

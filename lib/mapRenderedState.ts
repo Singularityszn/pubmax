@@ -1,3 +1,5 @@
+import { hasPintPriceSemantics } from "@/lib/venues";
+
 export type MapRenderedPriceBucket = 0 | 1 | 2 | 3;
 export type MapRenderedPriceMeaning = "pint" | "type-relative" | "spoons";
 export type MapRenderedPriceBand = Readonly<{
@@ -8,11 +10,18 @@ export type MapRenderedPriceBand = Readonly<{
 export type MapRenderedState = Readonly<{
   priceBands: readonly MapRenderedPriceBand[];
   storyColour: string | null;
+  /**
+   * Whether any pin in the scene carries a figure a cluster disc can print
+   * (`clusterPrice`). A coloured band does not imply one: a demo seed or a
+   * type-relative band paints a pin without giving its disc a price.
+   */
+  clusterPrices: boolean;
 }>;
 
 export const EMPTY_MAP_RENDERED_STATE: MapRenderedState = {
   priceBands: [],
   storyColour: null,
+  clusterPrices: false,
 };
 
 function isMapRenderedPriceBucket(
@@ -22,10 +31,17 @@ function isMapRenderedPriceBucket(
 }
 
 function priceMeaning(
-  kind: unknown,
+  properties: GeoJSON.GeoJsonProperties,
 ): MapRenderedPriceMeaning | null {
-  if (kind === "pub") return "pint";
-  if (kind === "bar" || kind === "food" || kind === "restaurant") {
+  if (!properties || properties.kind === undefined) return null;
+  if (hasPintPriceSemantics(properties)) return "pint";
+  const kind = properties.kind;
+  if (
+    kind === "bar" ||
+    kind === "club" ||
+    kind === "food" ||
+    kind === "restaurant"
+  ) {
     return "type-relative";
   }
   return null;
@@ -46,7 +62,7 @@ export function deriveMapRenderedState<Tokens extends { brass: string }>(
       // type-relative answers below are untouched.
       const spoonsBucket = feature.properties?.spoonsBucket;
       if (isMapRenderedPriceBucket(spoonsBucket)) return [`spoons:${spoonsBucket}`];
-      const meaning = priceMeaning(feature.properties?.kind);
+      const meaning = priceMeaning(feature.properties);
       const bucket = feature.properties?.bucket;
       return meaning !== null && isMapRenderedPriceBucket(bucket)
         ? [`${meaning}:${bucket}`]
@@ -73,6 +89,9 @@ export function deriveMapRenderedState<Tokens extends { brass: string }>(
         : typeof tokenValue === "string" && tokenValue.trim()
           ? tokenValue
           : tokens.brass,
+    clusterPrices: pubsData.features.some(
+      (feature) => typeof feature.properties?.clusterPrice === "number",
+    ),
   };
 }
 
@@ -82,6 +101,7 @@ export function sameMapRenderedState(
 ): boolean {
   return (
     left.storyColour === right.storyColour &&
+    left.clusterPrices === right.clusterPrices &&
     left.priceBands.length === right.priceBands.length &&
     left.priceBands.every(
       (band, index) =>

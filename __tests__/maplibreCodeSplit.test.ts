@@ -72,7 +72,7 @@ describe("maplibre cold-open code split", () => {
     // ignore-scripts skips predev/prebuild, so both steps live in the commands
     // npm actually runs. The fresh check stays ahead of next dev.
     expect(packageJson.scripts.dev).toBe(
-      "node scripts/check_node_modules_fresh.mjs && npm run prepare:maplibre-worker && next dev --webpack",
+      "node scripts/check_node_modules_fresh.mjs && npm run prepare:maplibre-worker && npm run build:places-enrichment && next dev --webpack",
     );
     expect(packageJson.scripts.build).toMatch(/^npm run prepare:maplibre-worker && /);
     expect(workerCopy).toContain('"maplibre-gl-worker.mjs"');

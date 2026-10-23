@@ -1,21 +1,15 @@
-/* Activity feed (story 34) — a quiet, readable list of social events. Reuses the
-   app's tokens; nothing bespoke beyond layout + the unread accent. */
+/* Activity feed (story 34): a quiet, readable list of social events, rows on
+   hairlines. Taste pass, 18 Oct 2026: the rows were bordered cards, an unread
+   row wore a coral left stripe, and the handle and the View link were coral
+   words. Now an unread row reads in weight, the links read in ink, and the
+   page takes the Screen primitive's own width and gutter
+   (components/ui/screen.css), so its left edge is every other route's. */
 
-/* Full-width shell: the nav renders here at natural width (never inside the
-   640px column, which wrapped its link row into overlapping lines); the shell
-   owns the page gutters + bottom clearance so the column stays flush with it. */
+/* Full-width shell: the nav renders here at natural width. The Screen inside
+   pays the gutters; the shell pays only the bottom clearance. */
 .activityShell {
   margin: 0 auto;
-  padding: 20px 16px 96px;
-}
-
-/* The head is the shared Screen primitive (components/ui/screen.css). The
-   shell above already pays the page gutters, so the column drops its own. */
-.activity {
-  width: 100%;
-  max-width: 640px;
-  margin: 0 auto;
-  padding-inline: 0;
+  padding-bottom: calc(var(--space-12) * 2 + env(safe-area-inset-bottom, 0px));
 }
 
 /* Loading skeleton — reuses the ready-state grid classes (.activityGrid /
@@ -34,8 +28,8 @@
 .activitySkelChip {
   width: 64px;
   height: 36px;
-  border-radius: 999px;
-  background: var(--line-soft, var(--line));
+  border-radius: var(--radius-pill);
+  background: var(--line-soft);
 }
 .activitySkelChip:first-child {
   width: 48px;
@@ -43,18 +37,14 @@
 
 .activitySkelSummary {
   display: grid;
-  gap: 10px;
-  padding: 14px;
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
-  background: var(--panel);
+  gap: var(--space-3);
 }
 
 .activitySkelLine {
   display: block;
   height: 12px;
-  border-radius: 6px;
-  background: var(--line-soft, var(--line));
+  border-radius: var(--radius-sm);
+  background: var(--line-soft);
 }
 .activitySkelLine.activitySkelLineShort {
   width: 45%;
@@ -65,9 +55,9 @@
   .activitySkelLine {
     background: linear-gradient(
       100deg,
-      var(--line-soft, var(--line)) 30%,
+      var(--line-soft) 30%,
       color-mix(in srgb, var(--line) 55%, var(--panel-raised) 45%) 50%,
-      var(--line-soft, var(--line)) 70%
+      var(--line-soft) 70%
     );
     background-size: 220% 100%;
     animation: activityShimmer 1.9s linear infinite;
@@ -87,36 +77,41 @@
   list-style: none;
   margin: 0;
   padding: 0;
-  display: grid;
-  gap: 8px;
+  max-width: 46rem;
 }
 
 .activityItem {
-  padding: 12px 14px;
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
-  background: var(--panel);
-  font-size: 14px;
-  line-height: 1.5;
-  color: var(--ink);
+  padding: var(--space-2) 0;
+  border-bottom: 1px solid var(--line-soft);
+  font-size: var(--text-sm);
+  line-height: var(--leading-normal);
+  color: var(--ink-soft);
 }
-/* Unread rows carry a brass left-edge accent so what's new reads at a glance. */
-.activityItem.isUnread {
-  border-left: 3px solid var(--brass);
-  background: var(--panel-raised);
+
+.activityItem:last-child {
+  border-bottom: 0;
+}
+
+/* What is new reads in weight, the way an inbox does: no stripe, no dot. */
+.activityItem.isUnread .activityActor,
+.activityItem.isUnread .activityVerb {
+  font-weight: 700;
 }
 
 .activityActor {
   display: inline-flex;
   align-items: center;
   min-height: 44px;
+  min-width: 44px;
   padding: 0 2px;
-  color: var(--brass);
-  font-weight: 700;
+  color: var(--ink);
+  font-weight: 600;
   text-decoration: none;
 }
-.activityActor:hover {
-  text-decoration: underline;
+@media (hover: hover) and (pointer: fine) {
+  .activityActor:hover {
+    text-decoration: underline;
+  }
 }
 
 .activityVerb {
@@ -126,8 +121,8 @@
   color: var(--ink-soft);
 }
 .activityTime {
-  color: var(--ink-soft);
-  font-size: 13px;
+  color: var(--color-text-muted);
+  font-size: var(--text-xs);
 }
 
 .activityLink {
@@ -136,22 +131,25 @@
   justify-content: center;
   min-height: 44px;
   min-width: 44px;
-  margin-left: 8px;
-  padding: 0 8px;
-  color: var(--brass);
-  font-size: 13px;
-  text-decoration: none;
+  margin-left: var(--space-2);
+  padding: 0 var(--space-2);
+  color: var(--ink);
+  font-size: var(--text-xs);
   font-weight: 600;
-}
-.activityLink:hover {
   text-decoration: underline;
+  text-decoration-color: var(--hairline-strong);
+  text-underline-offset: 0.2em;
+}
+@media (hover: hover) and (pointer: fine) {
+  .activityLink:hover {
+    text-decoration-color: currentColor;
+  }
 }
 
 /* ── Desktop density (≥1024) ──────────────────────────────────────────────
    Below this the page is the phone-density single column above, byte-for-byte.
    At desktop the list gains an intentional two-region layout: a sticky rail
-   with kind filters + a quick tally, and a denser two-up timeline so a wide
-   monitor stops rendering a lone 640px column in a void. The grid wrapper and
+   with kind filters and a quick tally beside the one reading column of rows. The grid wrapper and
    rail collapse (display: contents / none) under the breakpoint, so the filter
    state — which always defaults to "all" — never changes the mobile render. */
 .activityGrid {
@@ -162,28 +160,19 @@
 }
 
 @media (min-width: 1024px) {
-  .activity {
-    max-width: 1080px;
-  }
-
   .activityGrid {
     display: grid;
-    grid-template-columns: 220px minmax(0, 1fr);
+    grid-template-columns: 220px minmax(0, 46rem);
     align-items: start;
-    gap: 28px;
+    gap: var(--space-8);
   }
 
   .activityRail {
     display: flex;
     flex-direction: column;
-    gap: 16px;
+    gap: var(--space-4);
     position: sticky;
     top: 96px; /* clears the floating SiteNav pill, same offset as feed/tonight */
-  }
-
-  .activityList {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    align-content: start;
   }
 }
 
@@ -206,12 +195,8 @@
 
 .activitySummary {
   display: grid;
-  gap: 4px;
+  gap: var(--space-1);
   margin: 0;
-  padding: 14px;
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
-  background: var(--panel);
 }
 .activitySummaryRow {
   display: flex;
@@ -221,11 +206,12 @@
 }
 .activitySummaryRow dt {
   color: var(--ink-soft);
-  font-size: 13px;
+  font-size: var(--text-sm);
 }
 .activitySummaryRow dd {
   margin: 0;
   color: var(--ink);
-  font-weight: 700;
+  font-family: var(--font-data);
+  font-weight: 600;
   font-variant-numeric: tabular-nums;
 }

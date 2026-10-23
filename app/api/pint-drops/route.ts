@@ -15,10 +15,13 @@ import { qualifyCheapPintForAccountId } from "@/lib/cheapPintPingQualify.server"
 import { publicApiError, publicApiErrorFromStatus } from "@/lib/apiError";
 import { jsonNoStore } from "@/lib/apiResponses";
 import { enrichItemsWithAvatarUrls } from "@/lib/avatarResolve";
+import { boundedFormData, boundedJson } from "@/lib/boundedRequest.server";
 import { parseCityId } from "@/lib/cities";
+import { cityIdFromVenueId } from "@/lib/cityVenueIds";
 import { RECEIPT_REQUIRED_LINE, priceNeedsReceipt } from "@/lib/pintDropReceipt";
 import { resolveViewerContextFromRequest } from "@/lib/pintDropViewer";
 import { log } from "@/lib/log";
+import { LONDON_BOROUGH_NAMES } from "@/lib/londonBoroughNames.mjs";
 import type { PintDropConfirmation } from "@/lib/pintDropConfirmationRecord";
 import type { PintDropConfirmationOutcome } from "@/lib/pintDropSecondDrinker";
 import { resolveMessageHandle } from "@/lib/messageAuth";
@@ -47,9 +50,10 @@ import { signalPintDropLanded } from "@/lib/pintDropsBroadcast.server";
 import { assertServerEnv } from "@/lib/serverEnv";
 import { clientIp, hashIp, requiresSupabaseStore, isSupabaseConfigured } from "@/lib/supabase";
 import { readString } from "@/lib/textClean";
-import { loadVenueAliasResolver } from "@/lib/venueAliases";
+import { FUNCTION_REQUEST_BODY_LIMIT_BYTES } from "@/lib/uploadBodyLimit";
+import { loadVenueAliasResolver, lookupCanonicalVenueId } from "@/lib/venueAliases";
 import { storedVenueName, storedVenueRef } from "@/lib/storedVenueRef";
-import { getVenueIndex, lookupCanonicalVenue, venueMapUrl } from "@/lib/venueIndex";
+import { getVenueIndex, getVenueIndexSnapshot, lookupCanonicalVenue, venueMapUrl } from "@/lib/venueIndex";
 import { isPubVenueKind } from "@/lib/venueKindFilters";
 
 // Fail fast at module load: a misconfigured production deploy (no Supabase)
@@ -73,23 +77,25 @@ const DAILY_PRICE_CAP_REFUSAL =
 // PRD §9: enrich each public drop with a human `venueName` + a "/map?sel=…"
 // `venueMapUrl`, resolved server-side from the bundled venue index, so no public
 // feed/profile/permalink card ever surfaces the raw content-hashed `venue-…` id.
-// Batched over the whole page against the one memoized index (a single Map read
-// per drop). A drop stored under a merged or superseded venue id is answered
+// The page shares one memoized index. A drop stored under a merged or
+// superseded venue id is answered
 // under the id that venue carries now, so its name, its map link and every
 // client join on `venueId` find the pub. Never throws: an unreadable index
 // yields the friendly fallback for every id, and the drops still render.
 async function withVenueNames<T extends { venueId: string }>(
   drops: T[],
-): Promise<(T & { venueName: string; venueMapUrl: string })[]> {
+): Promise<(T & { venueName: string; venueMapUrl: string; borough?: string })[]> {
   const [index, aliases] = await Promise.all([getVenueIndex(), loadVenueAliasResolver()]);
   return drops.map((drop) => {
     const venueId = aliases.canonical(drop.venueId);
     const venue = storedVenueRef(index, aliases, venueId);
+    const borough = index.get(venueId)?.borough;
     return {
       ...drop,
       venueId,
       venueName: venue ? storedVenueName(venue) : VENUE_FALLBACK_LABEL,
       venueMapUrl: venueMapUrl(venueId),
+      ...(borough && LONDON_BOROUGH_NAMES.includes(borough) ? { borough } : {}),
     };
   });
 }
@@ -141,13 +147,16 @@ function forbidden(): Response {
 // Parse either a JSON body or a multipart form. For multipart we pull the text
 // fields into a plain object (validatePintDrop cleans them) and keep the photo
 // Files aside. JSON bodies carry no photos. Returns null on a malformed body.
+// Both reads are BOUNDED: nothing is buffered past the platform's own body
+// ceiling (three photos never fit under it anyway), so an oversized body costs
+// one capped read rather than the function's memory.
 async function parseBody(
   request: Request,
 ): Promise<{ fields: Record<string, unknown>; photos: PintDropPhotos } | null> {
   const type = request.headers.get("content-type") ?? "";
   if (type.includes("multipart/form-data")) {
     try {
-      const form = await request.formData();
+      const form = await boundedFormData(request, FUNCTION_REQUEST_BODY_LIMIT_BYTES);
       const fields: Record<string, unknown> = {};
       const photos: PintDropPhotos = { pint: null, venue: null, receipt: null };
       // Vibe tags arrive as a form field: either repeated `vibe_tags` entries or
@@ -176,7 +185,7 @@ async function parseBody(
   }
   try {
     return {
-      fields: (await request.json()) as Record<string, unknown>,
+      fields: (await boundedJson(request)) as Record<string, unknown>,
       photos: { pint: null, venue: null, receipt: null },
     };
   } catch (err) {
@@ -278,7 +287,7 @@ async function handleModeratorConfirmAction(
       return jsonNoStore({ ok: true, confirmation }, { status: 200 });
     }
     return publicApiError(
-      "Nothing to confirm: this Pint Drop is unknown or already confirmed.",
+      "Nothing to confirm. We don't know this Pint Drop, or it's already confirmed.",
       "CONFLICT",
       409,
     );
@@ -426,7 +435,7 @@ export async function POST(request: Request): Promise<Response> {
   if (!actorHandle) {
     return verifiedUserId
       ? publicApiError(
-          "Choose a PUBMAXX Handle before posting.",
+          "Choose a PUBMAXX handle before posting.",
           "ONBOARDING_REQUIRED",
           409,
           { compatibilityFields: { status: "onboarding_required" } },
@@ -593,6 +602,8 @@ export async function GET(request: Request): Promise<Response> {
   // Public read: visible drops only, newest-first, hard-capped (MAX_PUBLIC_DROPS),
   // with per-drop VISIBILITY applied server-side (issue #29). The viewer is
   // resolved from a verified JWT when present; ?viewer= is ignored in production.
+  // Author reads also return passportAreas from the complete permitted attributed history.
+  // Required venue or alias data failures and incomplete history reads return storageUnavailable (503).
   const unavailable = productionStorageUnavailable();
   if (unavailable) return unavailable;
   try {
@@ -605,14 +616,34 @@ export async function GET(request: Request): Promise<Response> {
     // to London when omitted or unrecognised.
     const author = params.get("author") ?? undefined;
     const cityId = parseCityId(params.get("city")) ?? undefined;
-    const drops = await pintDropsStore().listVisible(
-      params.get("venueId") ?? undefined,
+    const venueId = params.get("venueId") ?? undefined;
+    if (author) {
+      const [snapshot, canonical] = await Promise.all([
+        getVenueIndexSnapshot(), lookupCanonicalVenueId(venueId ?? ""),
+      ]);
+      if (canonical.status === "unavailable") return storageUnavailable();
+      const geographyCity = venueId ? cityIdFromVenueId(canonical.venueId) ?? "london" : cityId ?? "london";
+      if (!snapshot.loadedCities.has(geographyCity)) return storageUnavailable();
+    }
+    const store = pintDropsStore();
+    const drops = await store.listVisible(
+      venueId,
       viewer,
       author,
       cityId,
     );
     const enriched = await enrichItemsWithAvatarUrls(await withVenueNames(drops));
-    return jsonNoStore({ drops: enriched }, { status: 200 });
+    // Geography uses the complete attributed history, independently of the feed cap.
+    // A failed page fails this response rather than publishing a partial lifetime count.
+    let passportAreas: string[] | undefined;
+    if (author) {
+      const venueIds = await store.listVisibleAuthorVenueIds(
+        author, viewer, cityId, venueId,
+      );
+      const venues = await withVenueNames(venueIds.map((venueId) => ({ venueId })));
+      passportAreas = [...new Set(venues.flatMap((venue) => venue.borough ? [venue.borough] : []))].sort();
+    }
+    return jsonNoStore({ drops: enriched, ...(passportAreas ? { passportAreas } : {}) }, { status: 200 });
   } catch (err) {
     log("error", "pint_drops.list_visible_failed", {
       route: "GET /api/pint-drops",

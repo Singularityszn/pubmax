@@ -198,7 +198,7 @@ function hasConflictingLaterLocality(after: string, locality: string): boolean {
   const knownUkQualifier = suffix.match(UK_LOCALITY_QUALIFIER_RE);
   const knownUkQualifierText = knownUkQualifier?.[1]?.trim().toLowerCase();
   return (
-    laterLocality[1].trim().toLowerCase() !== locality ||
+    (laterLocality[1] ?? "").trim().toLowerCase() !== locality ||
     isIncompatibleUkQualifier(knownUkQualifierText, locality) ||
     (LOCALITY_QUALIFIER_RE.test(suffix) && !knownUkQualifier) ||
     Boolean(
@@ -252,11 +252,12 @@ function containsExactLocality(haystack: string, locality: string): boolean {
   for (const match of haystack.matchAll(localityRe)) {
     const after = haystack.slice((match.index ?? 0) + match[0].length);
     if (!hasCompatibleLocalityContinuation(after, locality)) continue;
-    const localityStart = (match.index ?? 0) + match[0].length - match[1].length;
+    const localityText = match[1] ?? "";
+    const localityStart = (match.index ?? 0) + match[0].length - localityText.length;
     const before = haystack.slice(0, match.index ?? 0).match(/[a-z0-9]+\s*$/i)?.[0]
       ?.trim()
       .toLowerCase();
-    const localitySeparator = match[0].slice(0, -match[1].length).trim();
+    const localitySeparator = match[0].slice(0, -localityText.length).trim();
     const hasExplicitLocalitySeparator =
       /^[,()\-–—]+$/.test(localitySeparator) ||
       /[,()\-–—]\s*$/.test(haystack.slice(Math.max(0, localityStart - 32), localityStart)) ||
@@ -434,14 +435,16 @@ export function canonicalOsmId(value: string): string | null {
   if (!raw) return null;
   const typed = raw.match(/^(node|way|relation)\/(\d+)$/i);
   if (typed) {
-    const id = typed[2].replace(/^0+(?=\d)/, "");
+    const [, kind = "", digits = ""] = typed;
+    const id = digits.replace(/^0+(?=\d)/, "");
     if (id === "0") return null;
-    return `${typed[1].toLowerCase()}/${id}`;
+    return `${kind.toLowerCase()}/${id}`;
   }
   const venue = raw.match(/^(?:venue-uk-|venue-osm-)?([nwr])(\d+)$/i);
   if (venue) {
-    const kind = venue[1].toLowerCase();
-    const id = venue[2].replace(/^0+(?=\d)/, "");
+    const [, letter = "", digits = ""] = venue;
+    const kind = letter.toLowerCase();
+    const id = digits.replace(/^0+(?=\d)/, "");
     if (id === "0") return null;
     if (kind === "n") return `node/${id}`;
     if (kind === "w") return `way/${id}`;
@@ -590,8 +593,8 @@ export function parseOverlayJsonl(text: string): HarvestOverlayRow[] {
   const rows: HarvestOverlayRow[] = [];
   const seenOsmIds = new Set<string>();
   const lines = text.split(/\r?\n/);
-  for (let i = 0; i < lines.length; i += 1) {
-    const line = lines[i].trim();
+  for (const [i, rawLine] of lines.entries()) {
+    const line = rawLine.trim();
     if (!line) continue;
     let parsed: unknown;
     try {

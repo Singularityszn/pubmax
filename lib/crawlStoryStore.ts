@@ -207,7 +207,10 @@ type StoredStory = {
   createdAt: string;
 };
 
-const memoryStories = new Map<string, StoredStory>();
+const memoryGlobal = globalThis as typeof globalThis & {
+  __pubmaxCrawlStories?: Map<string, StoredStory>;
+};
+const memoryStories = memoryGlobal.__pubmaxCrawlStories ??= new Map<string, StoredStory>();
 
 // Test-only: reset process state between cases.
 export function __resetCrawlStories(): void {

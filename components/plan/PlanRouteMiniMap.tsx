@@ -1,8 +1,11 @@
 "use client";
 
+import type { Route } from "next";
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useEffect, useId, useMemo, useRef, useState } from "react";
+
+import type { WalkLegDistance } from "@/lib/walkRoute";
 
 import {
   lineCoordsFromFeatureCollection,
@@ -15,6 +18,7 @@ import {
   type ResolvedPlanCrawlRoute,
 } from "@/lib/planCrawlRouteMap";
 import { discardBody } from "@/lib/responseBody";
+import { venueAreaLabel } from "@/lib/venueDisplay";
 import { probeWebGl2 } from "@/components/map/canvas/webgl";
 
 const PlanCrawlRouteMapCanvas = dynamic(
@@ -41,7 +45,7 @@ async function fetchStopCoords(
         if (!res.ok) return null;
         const body = (await res.json()) as { venue?: unknown };
         const venue = body.venue as
-          | { latitude?: unknown; longitude?: unknown; primaryBorough?: unknown }
+          | { latitude?: unknown; longitude?: unknown; locality?: unknown; primaryBorough?: unknown }
           | undefined;
         const lat = venue?.latitude;
         const lng = venue?.longitude;
@@ -51,7 +55,12 @@ async function fetchStopCoords(
           coord: [lng, lat] as LngLat,
           name: stop.venueName,
           venueId: stop.venueId,
-          area: typeof venue?.primaryBorough === "string" ? venue.primaryBorough : "",
+          area: typeof venue?.locality === "string" || typeof venue?.primaryBorough === "string"
+            ? venueAreaLabel({
+                locality: typeof venue.locality === "string" ? venue.locality : undefined,
+                primaryBorough: typeof venue.primaryBorough === "string" ? venue.primaryBorough : undefined,
+              })
+            : "",
         };
       } catch {
         return null;
@@ -71,14 +80,49 @@ async function fetchStopCoords(
 
 type DrawnRoute = { line: LngLat[]; source: RouteSource };
 
+/**
+ * The same located pubs in a new order, so a reorder redraws the map it has
+ * rather than locating every stop again. Null when any stop is not one of them.
+ */
+function reorderedRoute(
+  resolved: ResolvedPlanCrawlRoute | null,
+  stops: readonly PlanCrawlRouteStop[],
+): ResolvedPlanCrawlRoute | null {
+  if (!resolved || stops.length !== resolved.venueIds.length) return null;
+  const from = stops.map((stop) => resolved.venueIds.indexOf(stop.venueId));
+  const same = from.every((index, position) => (
+    index >= 0 && from.indexOf(index) === position && resolved.names[index] === stops[position]!.venueName
+  ));
+  if (!same) return null;
+  return {
+    coords: from.map((index) => resolved.coords[index]!),
+    names: from.map((index) => resolved.names[index]!),
+    venueIds: from.map((index) => resolved.venueIds[index]!),
+    area: resolved.area,
+  };
+}
+
 export default function PlanRouteMiniMap({
   stops,
   mapHref,
+  variant = "card",
+  drawKey,
+  onLegs,
 }: {
   stops: PlanCrawlRouteStop[];
-  mapHref?: string | null;
+  mapHref?: Route | null;
+  /** `strip` is the Plan result's frameless route under its header. */
+  variant?: "card" | "strip";
+  /** A route that has just arrived, so its line draws itself once. */
+  drawKey?: string;
+  /** The measured walk between stops, once the walking route answers. */
+  onLegs?: (venueIds: readonly string[], legs: readonly WalkLegDistance[]) => void;
 }) {
   const attributionSlotRef = useRef<HTMLDivElement | null>(null);
+  const onLegsRef = useRef(onLegs);
+  useEffect(() => {
+    onLegsRef.current = onLegs;
+  }, [onLegs]);
   const [resolved, setResolved] = useState<ResolvedPlanCrawlRoute | null>(null);
   const [resolvedKey, setResolvedKey] = useState<string | null>(null);
   const [drawn, setDrawn] = useState<DrawnRoute | null>(null);
@@ -90,8 +134,25 @@ export default function PlanRouteMiniMap({
   const titleId = useId();
   const descId = useId();
 
+  const [noWebGl, setNoWebGl] = useState(false);
   useEffect(() => {
-    if (!probeWebGl2().hasContext) return;
+    if (!probeWebGl2().hasContext) {
+      // Deferred out of the effect body (react-hooks/set-state-in-effect).
+      void Promise.resolve().then(() => setNoWebGl(true));
+      return;
+    }
+    const local = reorderedRoute(resolved, stops);
+    if (local) {
+      let current = true;
+      void Promise.resolve().then(() => {
+        if (!current) return;
+        setResolved(local);
+        setResolvedKey(stopsKey);
+        setDrawn({ line: local.coords, source: "straight" });
+        setDrawnKey(stopsKey);
+      });
+      return () => { current = false; };
+    }
     const controller = new AbortController();
     void fetchStopCoords(stops, controller.signal).then((next) => {
       if (controller.signal.aborted) return;
@@ -124,7 +185,10 @@ export default function PlanRouteMiniMap({
           discardBody(res);
           return;
         }
-        const body = (await res.json()) as { line?: unknown; source?: unknown };
+        const body = (await res.json()) as { line?: unknown; source?: unknown; legs?: unknown };
+        if (Array.isArray(body.legs) && !controller.signal.aborted) {
+          onLegsRef.current?.(resolved.venueIds, body.legs as WalkLegDistance[]);
+        }
         const routed = lineCoordsFromFeatureCollection(body.line);
         if (controller.signal.aborted || routed.length < 2) return;
         setDrawn({
@@ -139,15 +203,35 @@ export default function PlanRouteMiniMap({
     return () => controller.abort();
   }, [resolved, resolvedKey, stopsKey]);
 
-  const activeResolved = resolvedKey === stopsKey ? resolved : null;
-  const activeDrawn = drawnKey === stopsKey ? drawn : null;
+  const reordered = useMemo(
+    () => (resolvedKey === stopsKey ? null : reorderedRoute(resolved, stops)),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [resolved, resolvedKey, stopsKey],
+  );
+  const reorderedLine = useMemo<DrawnRoute | null>(
+    () => (reordered ? { line: reordered.coords, source: "straight" } : null),
+    [reordered],
+  );
+  const activeResolved = resolvedKey === stopsKey ? resolved : reordered;
+  const activeDrawn = drawnKey === stopsKey ? drawn : reorderedLine;
 
   const geo = useMemo(() => {
     if (!activeResolved || !activeDrawn) return null;
     return planCrawlRouteGeoJSON(activeResolved, activeDrawn.line, activeDrawn.source);
   }, [activeResolved, activeDrawn]);
 
-  if (!activeResolved || !activeDrawn || !geo) return null;
+  if (!activeResolved || !activeDrawn || !geo) {
+    // The strip holds its height while the stops are located, so the cards
+    // under it do not jump when the map arrives. It gives the space back only
+    // once there is nothing to draw (no WebGL, or fewer than two located stops).
+    const settled = noWebGl || resolvedKey === stopsKey;
+    if (variant !== "strip" || settled) return null;
+    return (
+      <div className="planRouteMiniMap planRouteMiniMap--strip" aria-hidden="true" data-testid="plan-route-strip-pending">
+        <div className="planRouteMiniMap__canvas planRouteMiniMap__canvas--loading" />
+      </div>
+    );
+  }
 
   const count = activeResolved.coords.length;
   const title = activeResolved.area
@@ -165,6 +249,7 @@ export default function PlanRouteMiniMap({
         {description}
       </p>
       <PlanCrawlRouteMapCanvas
+        drawKey={drawKey}
         stopCoords={activeResolved.coords}
         routeLine={geo.routeLine}
         routeStops={geo.routeStops}
@@ -175,7 +260,11 @@ export default function PlanRouteMiniMap({
   );
 
   return (
-    <div className="planRouteMiniMap planRouteMiniMap--in" data-source={activeDrawn.source}>
+    <div
+      className={`planRouteMiniMap planRouteMiniMap--in${variant === "strip" ? " planRouteMiniMap--strip" : ""}`}
+      data-source={activeDrawn.source}
+      data-testid={variant === "strip" ? "plan-route-strip" : undefined}
+    >
       {mapHref ? (
         <Link className="planRouteMiniMap--clickable" href={mapHref} prefetch={false} aria-labelledby={labelledBy}>
           {preview}

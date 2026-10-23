@@ -99,7 +99,7 @@ Controls:
 - Apply visibility after loading current ownership, mutual friendship, blocks, suspension, and moderation state on every read path.
 - Scope cursors to viewer and lane. Sign or validate cursor state and bound page sizes.
 - Mark protected responses private and prevent shared-cache reuse.
-- Issue short-lived, viewer-authorised media grants. Visibility reductions revoke future grants.
+- Serve viewer media as private, no-store bytes after a current authorisation check on each request, never as a reusable signed redirect. Visibility reductions take effect on the next read.
 - Re-check the source object before rendering reposts, quote posts, notifications, and signed media.
 - Return indistinguishable not-found results for protected objects where existence itself is sensitive.
 - Keep safe preview free of stable protected object identifiers and sensitive counts.

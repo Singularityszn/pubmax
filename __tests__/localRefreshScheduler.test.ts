@@ -22,6 +22,7 @@ import {
   summariseRefresh,
   validatePreparedData,
 } from "../scripts/local-refresh/scheduler.mjs";
+import { defined } from "@/__tests__/helpers/defined";
 
 const temporaryDirectories: string[] = [];
 
@@ -161,8 +162,8 @@ describe("local refresh key loading", () => {
       ["scripts/whatson/commonRefresh.mjs"],
     ]);
     expect(keyless.skipped).toHaveLength(1);
-    expect(keyless.skipped[0].reason).toContain("scripts/whatson/eventsRefresh.mjs");
-    expect(keyless.skipped[0].reason).toContain("TICKETMASTER_API_KEY");
+    expect(defined(keyless.skipped[0]).reason).toContain("scripts/whatson/eventsRefresh.mjs");
+    expect(defined(keyless.skipped[0]).reason).toContain("TICKETMASTER_API_KEY");
 
     const keyed = laneReadiness("events", { TICKETMASTER_API_KEY: "present" });
     expect(keyed.runnable.map((command) => command.args)).toEqual([
@@ -626,12 +627,12 @@ describe("local refresh launchd agents", () => {
       "com.pubmax.refresh-events",
     ]);
 
-    const prices = agents[0].xml;
+    const prices = defined(agents[0]).xml;
     expect(prices).toContain("<key>Weekday</key>\n      <integer>1</integer>");
     expect(prices).toContain("<key>Hour</key>\n      <integer>7</integer>");
     expect(prices).toContain("<key>Minute</key>\n      <integer>30</integer>");
 
-    const events = agents[1].xml;
+    const events = defined(agents[1]).xml;
     expect(events).not.toContain("<key>Weekday</key>");
     expect(events).toContain("<key>Hour</key>\n      <integer>15</integer>");
     expect(events).toContain("<key>Minute</key>\n      <integer>45</integer>");

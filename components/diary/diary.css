@@ -1,0 +1,178 @@
+/* The Diary: the composer's rating row and the profile list. The card, date,
+   note and submit furniture is visitReports.css, so a diary entry and a visit
+   report share one look. Tokens only. */
+
+.diaryLogPanel {
+  gap: 0.75rem;
+}
+
+.diaryRatingField {
+  display: grid;
+  min-width: 0;
+  gap: 0.35rem;
+}
+
+.diaryRatingLabel {
+  color: var(--color-text);
+  font-size: var(--text-xs);
+  font-weight: 650;
+}
+
+.diaryRatingRow {
+  display: flex;
+  min-width: 0;
+  min-height: 44px;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.diaryRatingRow .starRatingGlyphs {
+  font-size: var(--text-xl);
+}
+
+.diaryRatingValue {
+  color: var(--color-text-muted);
+  font-size: var(--text-sm);
+}
+
+.diaryRatingClear {
+  min-height: 44px;
+  border: 0;
+  padding: 0 0.5rem;
+  background: transparent;
+  color: var(--color-text-muted);
+  font: inherit;
+  font-size: var(--text-xs);
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.diaryRatingClear:focus-visible {
+  outline: 3px solid var(--color-focus, var(--river, #2f6e8e));
+  outline-offset: 2px;
+}
+
+/* Profile list */
+.diaryPanel {
+  margin: 1.25rem 0 1.75rem;
+}
+
+.diaryPanel__title {
+  margin: 0 0 0.35rem;
+  font-size: var(--text-md);
+  font-weight: 700;
+  color: var(--ink);
+}
+
+.diaryPanel__lede,
+.diaryPanel__empty {
+  margin: 0 0 0.85rem;
+  font-size: var(--text-sm);
+  line-height: 1.4;
+  color: var(--color-text-muted);
+}
+
+.diaryList {
+  display: grid;
+  min-width: 0;
+  gap: 0.65rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.diaryRow {
+  display: grid;
+  min-width: 0;
+  gap: 0.4rem;
+  padding: 0.75rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface-raised);
+}
+
+.diaryRow__head {
+  display: flex;
+  min-width: 0;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.25rem 0.75rem;
+}
+
+.diaryRow__venue {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  color: var(--color-text);
+  font-size: var(--text-base);
+  font-weight: 700;
+}
+
+.diaryRow__date {
+  color: var(--color-text-muted);
+  font-size: var(--text-xs);
+}
+
+.diaryRow__review {
+  margin: 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  color: var(--color-text);
+  font-size: var(--text-sm);
+  line-height: 1.45;
+}
+
+/* The owner's controls on a logged entry, and the inline editor. Plain text
+   buttons on the control tokens, so they read as the row's own and not as a
+   second call to action. */
+.diaryRow__actions {
+  display: flex;
+  min-width: 0;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 0.15rem;
+}
+
+.diaryRow__action {
+  min-height: var(--control-height);
+  min-width: 44px;
+  padding: 0 var(--control-pad-x);
+  border: 1px solid var(--color-border);
+  border-radius: var(--control-radius);
+  background: transparent;
+  color: var(--color-text);
+  font: inherit;
+  font-size: var(--control-font-size);
+  font-weight: var(--control-font-weight);
+  line-height: 1.15;
+  cursor: pointer;
+}
+
+.diaryRow__action--primary {
+  border-color: var(--brass);
+  background: var(--brass);
+  color: var(--color-on-accent);
+}
+
+.diaryRow__action:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
+.diaryRow__action:focus-visible {
+  outline: 3px solid var(--color-focus, var(--river, #2f6e8e));
+  outline-offset: 2px;
+}
+
+.diaryRow__edit {
+  display: grid;
+  min-width: 0;
+  gap: 0.75rem;
+}
+
+.diaryRow__error {
+  margin: 0;
+  color: var(--brick);
+  font-size: var(--text-sm);
+}

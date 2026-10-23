@@ -43,6 +43,7 @@ import { encodeWebPushSubscription } from "@/lib/webPushSubscription";
 // unconfigured in tests) — reset its bucket state between cases so a version
 // key never leaks across tests.
 import { __resetPintDrops } from "@/lib/pintDrops";
+import { defined } from "@/__tests__/helpers/defined";
 
 async function seed(...tokens: string[]): Promise<void> {
   for (const token of tokens) await memoryPushTokenStore.save({ token, platform: "ios" });
@@ -130,7 +131,7 @@ describe("broadcastNightSignalLive", () => {
     await seed("tok-a", "tok-b", "tok-c");
     const summary = await broadcastNightSignalLive([HIGHLIGHT]);
     expect(sendMock).toHaveBeenCalledTimes(1);
-    const [tokens, payload] = sendMock.mock.calls[0];
+    const [tokens, payload] = defined(sendMock.mock.calls[0]);
     expect(tokens).toEqual(["tok-a", "tok-b", "tok-c"]);
     expect(payload.data).toMatchObject({ kind: "night_signal_live", entityId: "venue-anchor" });
     expect(summary).toMatchObject({ targeted: 3, sent: 3, skipped: 0, pruned: 0, errors: 0 });
@@ -165,7 +166,7 @@ describe("broadcastNightSignalLive", () => {
   it("builds a multi-signal title/body summary", async () => {
     await seed("tok-a");
     await broadcastNightSignalLive([HIGHLIGHT, { ...HIGHLIGHT, id: "sig-2" }]);
-    const [, payload] = sendMock.mock.calls[0];
+    const [, payload] = defined(sendMock.mock.calls[0]);
     expect(payload.title).toBe("2 updates for tonight");
     expect(payload.body).toContain("+ 1 more");
   });

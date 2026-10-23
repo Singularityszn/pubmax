@@ -2,6 +2,7 @@ import { readdirSync } from "node:fs";
 import { join } from "node:path";
 
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
+import { defined } from "@/__tests__/helpers/defined";
 
 vi.mock("server-only", () => ({}));
 vi.mock("@/lib/pintDrops", async (importOriginal) => {
@@ -160,7 +161,7 @@ afterAll(async () => {
 describe("legacy Plan HTTP routes against production-order migrations", () => {
   it("runs invite, constraint, proposal, vote, and join lifecycles through PostgREST", async () => {
     const planContext = context({ id: PLAN_ID });
-    const firstInviteResponse = await handlers.createInvite(
+    const firstInviteResponse = await defined(handlers.createInvite)(
       request(`/api/plans/${PLAN_ID}/invites`, {
         token: HOST_TOKEN,
         key: "route-invite-revoke",
@@ -170,7 +171,7 @@ describe("legacy Plan HTTP routes against production-order migrations", () => {
     );
     expect(firstInviteResponse.status).toBe(201);
     const firstInvite = await firstInviteResponse.json() as { invite: { id: string } };
-    const revoked = await handlers.revokeInvite(
+    const revoked = await defined(handlers.revokeInvite)(
       request(`/api/plans/${PLAN_ID}/invites/${firstInvite.invite.id}`, {
         method: "DELETE",
         token: HOST_TOKEN,
@@ -181,7 +182,7 @@ describe("legacy Plan HTTP routes against production-order migrations", () => {
     );
     expect(revoked.status).toBe(200);
 
-    const secondInviteResponse = await handlers.createInvite(
+    const secondInviteResponse = await defined(handlers.createInvite)(
       request(`/api/plans/${PLAN_ID}/invites`, {
         token: HOST_TOKEN,
         key: "route-invite-redeem",
@@ -191,7 +192,7 @@ describe("legacy Plan HTTP routes against production-order migrations", () => {
     );
     expect(secondInviteResponse.status).toBe(201);
     const secondInvite = await secondInviteResponse.json() as { token: string };
-    const invitedJoin = await handlers.join(
+    const invitedJoin = await defined(handlers.join)(
       request(`/api/plans/${PLAN_ID}/join`, {
         key: "route-invited-join",
         body: { name: "Guest", inviteToken: secondInvite.token },
@@ -202,7 +203,7 @@ describe("legacy Plan HTTP routes against production-order migrations", () => {
     expect(invitedJoin.status, JSON.stringify(guest)).toBe(200);
     expect(guest.collaborationAuthorized).toBe(true);
 
-    const constraintResponse = await handlers.addConstraint(
+    const constraintResponse = await defined(handlers.addConstraint)(
       request(`/api/plans/${PLAN_ID}/constraints`, {
         token: guest.memberToken,
         key: "route-constraint-create",
@@ -213,7 +214,7 @@ describe("legacy Plan HTTP routes against production-order migrations", () => {
     expect(constraintResponse.status).toBe(201);
     const constraint = await constraintResponse.json() as { constraint: { id: string } };
 
-    const proposalResponse = await handlers.createProposal(
+    const proposalResponse = await defined(handlers.createProposal)(
       request(`/api/plans/${PLAN_ID}/proposals`, {
         token: guest.memberToken,
         key: "route-proposal-create",
@@ -229,7 +230,7 @@ describe("legacy Plan HTTP routes against production-order migrations", () => {
     expect(proposalResponse.status).toBe(201);
     const proposal = await proposalResponse.json() as { proposal: { id: string } };
 
-    const voted = await handlers.vote(
+    const voted = await defined(handlers.vote)(
       request(`/api/plans/${PLAN_ID}/proposals/${proposal.proposal.id}/votes`, {
         token: guest.memberToken,
         key: "route-proposal-vote",
@@ -239,7 +240,7 @@ describe("legacy Plan HTTP routes against production-order migrations", () => {
     );
     expect(voted.status).toBe(201);
 
-    const resolved = await handlers.resolveConstraint(
+    const resolved = await defined(handlers.resolveConstraint)(
       request(`/api/plans/${PLAN_ID}/constraints/${constraint.constraint.id}/resolve`, {
         token: HOST_TOKEN,
         key: "route-constraint-resolve",
@@ -261,7 +262,7 @@ describe("legacy Plan HTTP routes against production-order migrations", () => {
     );
     expect(resolved.status).toBe(200);
 
-    const decided = await handlers.decide(
+    const decided = await defined(handlers.decide)(
       request(`/api/plans/${PLAN_ID}/proposals/${proposal.proposal.id}/decision`, {
         token: HOST_TOKEN,
         key: "route-proposal-decision",
@@ -271,7 +272,7 @@ describe("legacy Plan HTTP routes against production-order migrations", () => {
     );
     expect(decided.status).toBe(200);
 
-    const openJoin = await handlers.join(
+    const openJoin = await defined(handlers.join)(
       request(`/api/plans/${PLAN_ID}/join`, {
         key: "route-open-join",
         body: { name: "Reader" },
@@ -281,7 +282,7 @@ describe("legacy Plan HTTP routes against production-order migrations", () => {
     expect(openJoin.status).toBe(403);
     await expect(openJoin.json()).resolves.toMatchObject({ code: "PLAN_INVITE_REQUIRED" });
 
-    const browserRead = await handlers.readPlan(
+    const browserRead = await defined(handlers.readPlan)(
       request(`/api/plans/${PLAN_ID}`, { method: "GET", token: HOST_TOKEN }),
       planContext,
     );

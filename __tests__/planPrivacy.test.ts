@@ -7,8 +7,9 @@ import {
   memberProjection,
   planRouteReady,
 } from "@/lib/planPrivacy";
+import { defined } from "@/__tests__/helpers/defined";
 
-const AREA = NIGHT_AREAS[0];
+const AREA = defined(NIGHT_AREAS[0]);
 
 function planState(overrides: Partial<PlanState> = {}): PlanState {
   return {

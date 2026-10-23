@@ -7,6 +7,8 @@ import { normalizeHandle } from "@/lib/profiles";
 
 import PeopleListClient, { type PeopleRelation } from "./PeopleListClient";
 
+import "../../profile.css";
+
 const RELATIONS: readonly PeopleRelation[] = ["followers", "following"];
 
 function isRelation(value: string): value is PeopleRelation {
@@ -37,14 +39,14 @@ export default async function ProfilePeoplePage({
   if (!clean || !isRelation(relation)) notFound();
 
   return (
-    <>
-      <SiteNav />
-      <main className="container profileMain" id="main-content">
-        <Link className="peopleDir__handle" href={`/u/${encodeURIComponent(clean)}`}>
+    <div className="lp profilePage">
+      <SiteNav active="profile" />
+      <main className="container profileMain profilePeopleMain" id="main-content">
+        <Link className="profileBackLink" href={`/u/${encodeURIComponent(clean)}`}>
           Back to the profile
         </Link>
         <PeopleListClient handle={clean} relation={relation} />
       </main>
-    </>
+    </div>
   );
 }

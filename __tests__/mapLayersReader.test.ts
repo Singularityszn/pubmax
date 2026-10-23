@@ -29,6 +29,7 @@ const legend = mapPriceLegend({
       { meaning: "pint", bucket: 3 },
     ] as const,
     storyColour: null,
+    clusterPrices: false,
   },
 });
 

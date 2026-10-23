@@ -22,9 +22,10 @@ import {
   LONDON_PHOTO_ID,
   PUB_PHOTOS,
 } from "@/lib/landingImagery";
-import { LANDING_PUB_PREFERENCE } from "@/lib/landingPubCard";
+import { getPricedVenues } from "@/lib/venuePriceIndex";
 import { LONDON_BOROUGH_NAMES } from "@/lib/londonBoroughNames.mjs";
 import { LONDON_NIGHT_AREA_SLUGS } from "@/lib/nightAreas";
+import { defined } from "@/__tests__/helpers/defined";
 
 // The landing photographs of London (captain 6 Sep 2026). What this holds:
 // every picture is a licensed file we ship, every slot answers, and every line
@@ -44,7 +45,7 @@ describe("the landing photographs are files we hold", () => {
     for (const id of ids) {
       for (const width of LANDING_PHOTO_WIDTHS) {
         for (const format of ["avif", "webp"] as const) {
-          const src = landingPhotoSrc(LANDING_PHOTOS[id], width, format);
+          const src = landingPhotoSrc(defined(LANDING_PHOTOS[id]), width, format);
           const file = join(root, "public", src.replace(/^\//, ""));
           expect(existsSync(file), `${src} is on disk`).toBe(true);
           expect(statSync(file).size).toBeGreaterThan(1_000);
@@ -60,7 +61,7 @@ describe("the landing photographs are files we hold", () => {
       const file = join(
         root,
         "public",
-        landingPhotoSrc(LANDING_PHOTOS[id], LANDING_PHOTO_WIDTHS[0], "avif").replace(/^\//, ""),
+        landingPhotoSrc(defined(LANDING_PHOTOS[id]), LANDING_PHOTO_WIDTHS[0], "avif").replace(/^\//, ""),
       );
       expect(statSync(file).size, `${id} narrow AVIF`).toBeLessThan(60_000);
     }
@@ -68,7 +69,7 @@ describe("the landing photographs are files we hold", () => {
 
   it("records a photographer, a licence and both links for every photograph", () => {
     for (const id of ids) {
-      const { credit, place, alt, blurDataUrl } = LANDING_PHOTOS[id];
+      const { credit, place, alt, blurDataUrl } = defined(LANDING_PHOTOS[id]);
       expect(credit.author.length, `${id} author`).toBeGreaterThan(2);
       expect(credit.licence, `${id} licence`).toMatch(ALLOWED_LICENCE);
       expect(credit.licenceUrl, `${id} licence url`).toMatch(/^https:\/\//);
@@ -87,7 +88,7 @@ describe("the landing photographs are files we hold", () => {
     const attribution = read("public/landing/london/ATTRIBUTION.md");
     for (const id of ids) {
       expect(attribution, `${id} in ATTRIBUTION.md`).toContain(`\`${id}\``);
-      expect(attribution).toContain(LANDING_PHOTOS[id].credit.author);
+      expect(attribution).toContain(defined(LANDING_PHOTOS[id]).credit.author);
     }
   });
 });
@@ -116,8 +117,8 @@ describe("a landing photograph is never a third-party URL", () => {
   it("serves every photograph from our own /landing/london directory", () => {
     for (const id of ids) {
       for (const format of ["avif", "webp"] as const) {
-        expect(landingPhotoSrcSet(LANDING_PHOTOS[id], format)).not.toMatch(/https?:/);
-        expect(landingPhotoSrc(LANDING_PHOTOS[id], 640, format)).toMatch(
+        expect(landingPhotoSrcSet(defined(LANDING_PHOTOS[id]), format)).not.toMatch(/https?:/);
+        expect(landingPhotoSrc(defined(LANDING_PHOTOS[id]), 640, format)).toMatch(
           /^\/landing\/london\//,
         );
       }
@@ -130,7 +131,7 @@ describe("a slot always answers", () => {
     const pubId = Object.keys(PUB_PHOTOS)[0];
     expect(
       landingPhotoFor({ venueId: pubId, areaSlug: "camden", boroughSlug: "camden" }),
-    ).toMatchObject({ scope: "pub", photo: { id: PUB_PHOTOS[pubId] } });
+    ).toMatchObject({ scope: "pub", photo: { id: PUB_PHOTOS[defined(pubId)] } });
     expect(landingPhotoFor({ areaSlug: "camden", boroughSlug: "southwark" })).toMatchObject({
       scope: "area",
       photo: { id: AREA_PHOTOS.camden },
@@ -172,9 +173,12 @@ describe("a slot always answers", () => {
 });
 
 describe("every key in the routing tables names a real place", () => {
-  it("keys the pub table on a pub the landing can actually anchor on", () => {
+  it("keys the pub table on a priced pub the card can actually show", async () => {
+    // The card follows the answer (the cheapest anchor, or a near-you swap),
+    // so a pub photograph is keyed on any pub the priced index holds.
+    const priced = new Set((await getPricedVenues()).map((venue) => venue.id));
     for (const venueId of Object.keys(PUB_PHOTOS)) {
-      expect(LANDING_PUB_PREFERENCE, `${venueId} is a landing anchor`).toContain(venueId);
+      expect(priced.has(venueId), `${venueId} is a priced pub`).toBe(true);
     }
   });
 

@@ -7,6 +7,7 @@ import {
   redactStoryView,
   type DepartedContributor,
 } from "@/lib/storyRedaction";
+import { defined } from "@/__tests__/helpers/defined";
 
 function moment(overrides: Partial<NightMoment> & Pick<NightMoment, "id" | "ownerId">): NightMoment {
   return {
@@ -63,8 +64,8 @@ describe("storyRedaction — pure emission-time redaction", () => {
       moment({ id: "m2", ownerId: "host", caption: "Jordan bought the last round" }),
     ];
     const result = redactStoryView({ story: story(), moments, departed: [jordan] });
-    expect(result.moments[0].caption).toBe(`Great night with ${NEUTRAL_ATTRIBUTION_TOKEN} and the crew`);
-    expect(result.moments[1].caption).toBe(`${NEUTRAL_ATTRIBUTION_TOKEN} bought the last round`);
+    expect(defined(result.moments[0]).caption).toBe(`Great night with ${NEUTRAL_ATTRIBUTION_TOKEN} and the crew`);
+    expect(defined(result.moments[1]).caption).toBe(`${NEUTRAL_ATTRIBUTION_TOKEN} bought the last round`);
     expect(result.moments.map((m) => m.caption).join(" ")).not.toMatch(/jordan/i);
   });
 
@@ -81,7 +82,7 @@ describe("storyRedaction — pure emission-time redaction", () => {
     const moments = [moment({ id: "m1", ownerId: "host", caption: "Johnson's pub, not Jordan" })];
     const departed: DepartedContributor[] = [{ profileId: "friend", handle: "jon", displayName: "Jordan" }];
     const result = redactStoryView({ story: story(), moments, departed });
-    expect(result.moments[0].caption).toBe(`Johnson's pub, not ${NEUTRAL_ATTRIBUTION_TOKEN}`);
+    expect(defined(result.moments[0]).caption).toBe(`Johnson's pub, not ${NEUTRAL_ATTRIBUTION_TOKEN}`);
   });
 
   it("is a no-op when nobody has departed", () => {

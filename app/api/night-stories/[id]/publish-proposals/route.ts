@@ -8,7 +8,7 @@ import { socialFreezeResponse } from "@/lib/opsFreeze";
 
 /** Value-first, photo-naming message when publication is blocked on alt text. */
 function altTextBlockMessage(label: string): string {
-  return `“${label}” still needs a one-line photo description so someone using a screen reader can picture it. Add it, then publish. It stays private until you do.`;
+  return `"${label}" still needs a one-line photo description so someone using a screen reader can picture it. Add it, then publish. It stays private until you do.`;
 }
 
 type Context = { params: Promise<{ id: string }> };

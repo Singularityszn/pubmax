@@ -48,7 +48,7 @@ const STEP_COPY: Record<PlanIntakeStep, { short: string; eyebrow: string; title:
     short: "Group",
     eyebrow: "Make room",
     title: "How many people?",
-    note: "This helps shape space, pace and getting-in guidance.",
+    note: "We use it to judge room, pace and how easy it is to get in.",
   },
   budget: {
     short: "Budget",
@@ -191,13 +191,13 @@ export default function PlanIntake({
   if (draft.completed) {
     return (
       <section className="planIntake planIntake--complete" aria-labelledby="plan-intake-summary-title">
-        <div className="planIntake__completeMark" aria-hidden="true"><Check size={18} /></div>
+        <div className="planIntake__completeMark" aria-hidden="true"><Check size={20} /></div>
         <div className="planIntake__summaryBody">
           <p className="planIntake__eyebrow">Your night so far</p>
           <h2 id="plan-intake-summary-title">{summary.length ? summary.join(" · ") : "Start in your own words"}</h2>
           <p>{summary.length
             ? "Saved for later on this device. Lock it in below when you want a share link for the crew."
-            : "No choices needed. Describe what matters and we will work from that."}</p>
+            : "No choices needed. Describe what matters and we'll work from that."}</p>
           {summary.length ? (
             <div className="planIntake__summaryChips" aria-label="Saved planning details">
               {PLAN_INTAKE_STEPS.filter((step) => draft.settledSteps.includes(step) && !draft.skippedSteps.includes(step)).map((step) => (
@@ -281,7 +281,7 @@ export default function PlanIntake({
               onClick={useCurrentLocation}
               disabled={locationState.kind === "locating"}
             >
-              <LocateFixed size={17} aria-hidden="true" />
+              <LocateFixed size={16} aria-hidden="true" />
               {locationState.kind === "locating" ? "Finding your area…" : "Use my location"}
             </button>
             {locationState.kind !== "idle" ? (
@@ -434,7 +434,7 @@ export default function PlanIntake({
                 aria-pressed={draft.answers.accessibilityNeeds.includes(option.id)}
                 onClick={() => onChange(updateAccessibility(draft, option.id))}
               >
-                <span aria-hidden="true">{draft.answers.accessibilityNeeds.includes(option.id) ? <Check size={15} /> : null}</span>
+                <span aria-hidden="true">{draft.answers.accessibilityNeeds.includes(option.id) ? <Check size={16} /> : null}</span>
                 {option.label}
               </button>
             ))}

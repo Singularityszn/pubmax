@@ -1,22 +1,23 @@
 // The decisions that have to land BEFORE FIRST PAINT, in the order they matter:
 // the native shell's entry route, then the theme and view flags, then the
-// landing-only aperture splash. Served as a static file (covered by CSP
-// `script-src 'self'`) instead of an inline <script>, so it needs no per-build
-// hash, and loads render-blocking from the layout's head on every route.
+// landing-only aperture splash. These bytes are canonical source: the root
+// layout inlines them and carries its request nonce when present, while the
+// static /app-entry document loads this file directly under CSP `script-src 'self'`.
 //
 // Everything here is a no-flash guarantee of some kind: the page never shows
 // the wrong theme, and the shell never shows a route it is about to leave. One
-// file because one request: a second pre-paint script cost every web route a
-// fetch for a decision only the shell uses (see the entry block below).
+// canonical file keeps these decisions together: a second pre-paint script
+// cost every web route a fetch for a decision only the shell uses (see the
+// entry block below).
 //
 // Keep the theme half in sync with the ThemeToggle storage key ("pubmax-theme").
 // ---------------------------------------------------------------------------
 // THE SHELL'S ENTRY DECISION, FIRST, BEFORE ANY OF THE THEME WORK BELOW.
 //
-// capacitor.config.ts is a remote-URL wrap, so every native launch opens the
-// site ROOT. lib/entryDecision.ts then rewrites that to /tonight or /onboarding
-// from a React effect, which only runs after the landing page has been
-// rendered, hydrated and painted. Two costs, both paid on every launch:
+// New binaries open the static /app-entry document, which runs this script
+// without the React layout or landing assets. Older binaries open the root.
+// The script also stays in the root head to decide those launches before
+// hydration. The earlier React-only rewrite paid two costs on every launch:
 //
 //   1. The first screen of the app is a page the reader never asked for, and
 //      then loses. Its hero photograph, its price card and its rails are all
@@ -34,30 +35,39 @@
 // public/map-first-paint-init.js is the house answer to a script only one
 // surface needs, loaded by that surface's own page, but this decision has to
 // land before the browser does any work on the document and a page-level script
-// is already too late. This file is the one that is already render-blocking in
-// the layout's head on every route, so the decision rides it and costs nothing.
+// is already too late. The root layout inlines these bytes, so every web route
+// keeps one render-blocking decision without another script request.
 //
 // WHAT IT DECIDES, AND WHAT IT DELIBERATELY DOES NOT. Both routing branches of
 // lib/entryDecision.ts's `decideEntry` are decidable from storage alone:
 //
 //   - rule 4, `shell-cold-start`: the first-run mark is present, so this is an
-//     ordinary later launch and it lands on /tonight.
-//   - rule 2, `native-first-run`: NEITHER the first-run mark NOR a stored city
-//     value exists. `shouldRouteNativeFirstRun` needs `readPreferredCity()` to
-//     answer null, and with no stored value at all that answer is null under
-//     every possible enabled-city table in lib/cities.ts. So this reads the
-//     ABSENCE of the key and never its contents, and forks no table.
+//     ordinary later launch and it lands on /tonight. The mark is the done mark,
+//     or an earlier release's routed mark beside a tour mark.
+//   - rule 2, `native-first-run`: the first-run mark is absent, and EITHER an
+//     unfinished step is stored, an earlier release's routed mark stands alone,
+//     OR no city value is stored. An unfinished
+//     journey resumes whatever city it stored. With no stored city value at
+//     all, `readPreferredCity()` answers null under every possible
+//     enabled-city table in lib/cities.ts. So this reads the ABSENCE of the
+//     city key and never its contents, and forks no table.
 //
-// The ONE case left to the client is a stored city value with the first-run
-// mark absent. Whether that value counts depends on whether lib/cities.ts still
-// has that city enabled, and a second copy of the city list here would be a
-// second place for it to be wrong. AppEntryRoute decides that one exactly as
-// before, one paint later.
+// The ONE case left to the client at the root is a stored city value with
+// neither the first-run mark nor an unfinished step. Whether that value counts
+// depends on whether lib/cities.ts still has that city enabled, and a second
+// copy of the city list here would be a second place for it to be wrong.
+// AppEntryRoute decides that one exactly as before, one paint later. The static
+// /app-entry document has no React, so there that case takes rule 4 and opens
+// /tonight. Tonight reads the value through readPreferredCity(), so a disabled
+// or unparseable city falls back to London. It never stamps the first-run mark,
+// so a person who later clears the city still sees onboarding.
 //
 // __tests__/nativeShellEntry.test.ts runs THIS FILE against a window of its
 // own, which is why every reference below goes through `window`.
 // ---------------------------------------------------------------------------
 (function () {
+  var appEntry = window.location.pathname === "/app-entry";
+  var routed = false;
   try {
     var capacitor = window.Capacitor;
     if (
@@ -68,8 +78,16 @@
       return;
     }
     // Rule 1 of decideEntry: a deep link is an explicit destination and is
-    // never rewritten.
-    if (window.location.pathname !== "/") return;
+    // never rewritten. /app-entry is a launch document, not a deep link.
+    if (window.location.pathname !== "/" && !appEntry) return;
+
+    // Keep callback inputs for AuthProvider. Match readAuthCallbackAttempt at root.
+    var callbackHash = new URLSearchParams((window.location.hash || "").slice(1));
+    var callbackQuery = new URLSearchParams(window.location.search || "");
+    if (
+      callbackQuery.get("_authCallback") === "1" ||
+      (callbackHash.get("access_token") && callbackHash.get("refresh_token"))
+    ) return;
 
     var session = window.sessionStorage;
     var local = window.localStorage;
@@ -77,30 +95,47 @@
 
     // Rule 3: the cold-start decision has already run this session, so this is
     // an in-app tap on the wordmark and it stays on the landing page.
-    if (session.getItem("pubmax:entryDecision:consumed:v1") === "1") return;
+    if (!appEntry && session.getItem("pubmax:entryDecision:consumed:v1") === "1") return;
 
-    if (local.getItem("pubmax:nativeFirstRun:routed:v1") !== "1") {
-      // A stored city is the one thing this file may not judge (see above).
-      if (local.getItem("pubmax:preferredCity:v1") !== null) return;
-      // Rule 2. The onboarding route is guarded by a session handoff, so the
-      // same eligibility AppEntryRoute would have issued is issued here. Both
-      // marks are stamped BEFORE navigating, exactly as that component does, so
-      // a slow transition can never leave a flag unset and fire twice.
-      session.setItem("pubmax:nativeFirstRun:handoff:v1", String(Date.now()));
-      local.setItem("pubmax:nativeFirstRun:routed:v1", "1");
-      session.setItem("pubmax:entryDecision:consumed:v1", "1");
-      window.location.replace("/onboarding");
-      return;
+    // Earlier releases stamped the routed mark when routing STARTED. It means
+    // finished only beside the tour mark those releases wrote on Skip or Plan my
+    // night. Alone it is a journey that started at the first step and resumes.
+    var legacyRouted = local.getItem("pubmax:nativeFirstRun:routed:v1") === "1";
+    var tourSeen =
+      local.getItem("pubmax-tour-v2-done") === "1" ||
+      local.getItem("pubmax-tour-v1-done") === "1";
+    if (local.getItem("pubmax:nativeFirstRun:done:v2") !== "1" && !(legacyRouted && tourSeen)) {
+      var unfinishedStep = local.getItem("pubmax:nativeFirstRun:step:v1");
+      if (unfinishedStep !== null || legacyRouted || local.getItem("pubmax:preferredCity:v1") === null) {
+        // Rule 2. The onboarding route is guarded by a session handoff, so the
+        // same eligibility AppEntryRoute would have issued is issued here. The
+        // unfinished step is durable before navigating. Only an explicit
+        // Skip or Plan my night marks the journey complete.
+        session.setItem("pubmax:nativeFirstRun:handoff:v1", String(Date.now()));
+        if (unfinishedStep === null) local.setItem("pubmax:nativeFirstRun:step:v1", "london");
+        session.setItem("pubmax:entryDecision:consumed:v1", "1");
+        routed = true;
+        window.location.replace("/onboarding");
+        return;
+      }
+      // At the root, a stored city is left to AppEntryRoute (see above). The
+      // static entry document has no React to defer to, so it takes rule 4.
+      if (!appEntry) return;
     }
 
     // Rule 4. Stamp before navigating, exactly as AppEntryRoute does, so a slow
     // transition cannot leave the flag unset and bounce the next arrival.
     session.setItem("pubmax:entryDecision:consumed:v1", "1");
+    routed = true;
     window.location.replace("/tonight");
   } catch {
     // No bridge, no storage, or a WebView that refuses one of them. The React
     // path in components/native/AppEntryRoute.tsx is still mounted and still
     // takes the same decision, one paint later.
+  } finally {
+    // A static document has no React fallback. Let the root decide any launch
+    // this script could not.
+    if (appEntry && !routed) window.location.replace("/");
   }
 })();
 
@@ -159,5 +194,30 @@
     if (window.sessionStorage.getItem("pubmax-splash-seen")) return;
     window.sessionStorage.setItem("pubmax-splash-seen", "1");
     document.documentElement.dataset.splash = "on";
+  } catch {}
+})();
+
+// The opening prices on /map (lib/mapOpeningPreview.ts). The prerendered map
+// document carries the discs its first frame will draw, and they may only show
+// where that first frame is the one they were drawn for: a COLD FIRST VISIT
+// (no first-pins mark, the same flag that keeps the map on its eager cell),
+// at /map with no query (a query names another view), with no remembered
+// opening location (which would move the camera). Decided here, before paint,
+// so the preview never flashes on a visit it does not belong to. Keep the keys
+// in sync with lib/performanceMarks.ts (FIRST_PINS_SEEN_KEY) and
+// lib/mapOpeningLocation.ts (its STORAGE_KEY).
+(function () {
+  try {
+    if (window.location.pathname !== "/map" || window.location.search) return;
+    if (localStorage.getItem("pubmax:first-pins-seen:v1") === "1") return;
+    if (localStorage.getItem("pubmax:map-opening-location:v1")) return;
+    document.documentElement.dataset.mapPreview = "on";
+    // The picture of the opening streets under those prices covers a screen
+    // up to 440 x 960 CSS px (lib/mapOpeningSnapshot.ts,
+    // MAP_OPENING_SNAPSHOT_MAX_VIEWPORT). Decided here rather than in a media
+    // query, because the screen is only cut at named breakpoints.
+    if (window.innerWidth <= 440 && window.innerHeight <= 960) {
+      document.documentElement.dataset.mapGround = "on";
+    }
   } catch {}
 })();

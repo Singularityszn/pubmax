@@ -20,7 +20,7 @@
   margin-top: 20px;
 }
 
-@media (min-width: 900px) {
+@media (min-width: 901px) {
   .softDrinksWater__layout {
     grid-template-columns: minmax(0, 1fr) minmax(280px, 360px);
     align-items: start;
@@ -37,7 +37,7 @@
 .softDrinksWater__chip {
   min-height: 44px;
   padding: 10px 14px;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   border: 1px solid var(--line);
   background: var(--paper);
   color: var(--ink);
@@ -46,9 +46,19 @@
   cursor: pointer;
 }
 
+/* A chosen drink is a selection, not an action: it reads in ink, never the
+   category hue or a coral tint (docs/DESIGN_SYSTEM.md "Coral is spent twice"),
+   and the weight step means colour is never the only cue (WCAG 1.4.1). */
 .softDrinksWater__chip.isOn {
-  border-color: var(--cat-soft-drink, var(--accent));
-  background: color-mix(in srgb, var(--cat-soft-drink, var(--accent)) 12%, var(--paper));
+  border-color: var(--state-selected-border);
+  background: var(--state-selected-surface);
+  color: var(--state-selected-ink);
+  font-weight: 750;
+}
+
+/* The global focus rule squares a control off; a pill restates its radius. */
+.softDrinksWater__chip:focus-visible {
+  border-radius: var(--radius-pill);
 }
 
 .softDrinksWater__list {
@@ -65,7 +75,7 @@
   grid-template-columns: minmax(0, 1fr) auto;
   gap: 12px;
   padding: 14px 16px;
-  border-radius: 12px;
+  border-radius: var(--radius);
   border: 1px solid var(--line);
   background: var(--card, var(--paper));
 }
@@ -76,8 +86,10 @@
   text-decoration: none;
 }
 
-.softDrinksWater__venue:hover {
-  text-decoration: underline;
+@media (hover: hover) and (pointer: fine) {
+  .softDrinksWater__venue:hover {
+    text-decoration: underline;
+  }
 }
 
 .softDrinksWater__borough {
@@ -103,17 +115,14 @@
   color: var(--accent-price-ink);
 }
 
+/* Placement only: the face is the one price look (components/PriceBadge.tsx). */
 .softDrinksWater__price {
   align-self: start;
-  font-family: var(--font-data);
-  font-weight: 800;
-  font-variant-numeric: tabular-nums;
-  color: var(--accent-price-ink);
 }
 
 .softDrinksWater__mapFrame {
   display: block;
-  border-radius: 16px;
+  border-radius: var(--radius-lg);
   border: 1px solid var(--line);
   overflow: hidden;
   text-decoration: none;
@@ -125,7 +134,7 @@
 }
 
 .softDrinksWater__mapDot {
-  fill: var(--cat-soft-drink, var(--accent));
+  fill: var(--cat-soft-drink);
 }
 
 .softDrinksWater__mapCaption {
@@ -135,4 +144,29 @@
   font-weight: 700;
   text-align: center;
   background: var(--paper);
+}
+
+/* London McDonald's under the Lucia lens (LuciaMcDonaldsSection.tsx). */
+.softDrinksWater__mcdonalds {
+  margin-top: 32px;
+}
+
+.softDrinksWater__sectionTitle {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: var(--text-lg);
+  font-weight: 700;
+  color: var(--ink);
+}
+
+.softDrinksWater__sectionLede,
+.softDrinksWater__sectionNote {
+  margin: 6px 0 14px;
+  color: var(--ink-soft);
+  font-size: var(--text-sm);
+  line-height: 1.45;
+}
+
+.softDrinksWater__sectionNote {
+  font-weight: 650;
 }

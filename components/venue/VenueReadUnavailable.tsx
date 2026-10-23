@@ -34,8 +34,8 @@ export default function VenueReadUnavailable({
       <p className={classNames.eyebrow}>{eyebrow}</p>
       <h1 className={classNames.title}>We could not load this pub</h1>
       <p className={classNames.body}>
-        Our end could not answer just now, so nothing here is a reading of this
-        pub. Whether it is here is a thing this page could not find out.
+        Our end did not answer just now, so nothing on this page describes this
+        pub. We could not check whether it is still here.
       </p>
       <a className={classNames.action} href={href}>
         Try again

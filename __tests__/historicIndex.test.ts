@@ -21,6 +21,7 @@ import {
   VENUE_ID_BY_CACHE_KEY,
   // @ts-expect-error -- untyped .mjs module (resolves fine at runtime under vitest)
 } from "../scripts/build_historic_index.mjs";
+import { defined } from "@/__tests__/helpers/defined";
 
 // A tiny, self-contained fixture — deliberately NOT the committed dataset, so
 // these assertions can never drift with the real data.
@@ -241,6 +242,35 @@ describe("generate — deterministic + idempotent over a /tmp fixture", () => {
 
 
 describe("venue joins survive a renamed or merged dataset row", () => {
+  it("keeps the Black Friar heritage page joined to the canonical Blackfriar", () => {
+    const records: HistoricPub[] = buildHistoricIndex({
+      heritageCache: {
+        "the black friar, blackfriars": [
+          { source: "wikidata", fact: "pub in London, UK" },
+        ],
+      },
+      dataset: [{
+        pub_name: "The Blackfriar",
+        address: "174 Queen Victoria St, Greater, London EC4V 4EG, UK",
+        latitude: 51.5121,
+        longitude: -0.103677,
+        primary_borough: "City of London",
+      }],
+    });
+
+    expect(records).toHaveLength(1);
+    expect(records[0]).toMatchObject({
+      venueId: "venue-eltcmh",
+      name: "The Black Friar, Blackfriars",
+      slug: "the-black-friar-blackfriars",
+      borough: "City of London",
+      lat: 51.5121,
+      lng: -0.103677,
+      hook: "pub in London, UK",
+      facts: [{ source: "wikidata", fact: "pub in London, UK" }],
+    });
+  });
+
   // The dataset spells this pub differently from the heritage key, and its
   // earlier identity was merged into the row below, so neither the name index
   // nor the raw id reaches it. Both hops have to be followed.
@@ -253,9 +283,9 @@ describe("venue joins survive a renamed or merged dataset row", () => {
       primary_borough: "Southwark",
     },
   ];
-  const canonicalId: string = [
+  const canonicalId: string = defined([
     ...(buildVenueIdIndex(RENAMED_DATASET) as Map<string, { venueId: string }>).keys(),
-  ][0];
+  ][0]);
   const MERGED_ID = "venue-gone";
   const CACHE = {
     "the george inn": [

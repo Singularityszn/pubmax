@@ -2,7 +2,7 @@ import { test, expect, type Page } from "@playwright/test";
 import { randomUUID } from "node:crypto";
 
 import { describeFirstQuery, describeFirstSubmit } from "./helpers/planDescribeFirst";
-import { setFirstPintIn } from "./helpers/planFirstPint";
+import { pinLondonEvening, setFirstPintIn } from "./helpers/planFirstPint";
 
 // Task: plan-invite-page. Proves the whole public invite feature end to end on
 // the production build: a real Plan's member-only invite token (exposed via
@@ -46,6 +46,12 @@ test("public invite page renders a Plan and accepts a handle-free RSVP", async (
   await expect(page.locator(".invite__title")).toHaveText(PLAN_TITLE);
   await expect(page.locator(".invite__eyebrow")).toContainText(HOST_NAME);
   await expect(page.locator(".invite__stop")).toHaveCount(3);
+  // The route preview is a labelled diagram, not a bare grey box: each pin
+  // carries its stop number and a caption says it is straight lines.
+  await expect(page.locator(".invite__thumb text")).toHaveText(["1", "2", "3"]);
+  await expect(page.locator(".invite__thumbNote")).toHaveText(
+    "Straight lines between stops, not a walking route.",
+  );
   for (const venue of venues) {
     await expect(page.locator(".invite__stop", { hasText: venue.name })).toBeVisible();
   }
@@ -125,10 +131,12 @@ test("Copy invite link shows for the host's own session and never for an anonymo
     // the cooldown gate shut, the same way it would for a returning visitor.
     window.localStorage.setItem("pubmax:identityNudge:dismissedAt:v1", String(Date.now()));
   });
+  await pinLondonEvening(page);
   await openHydratedPlanComposer(page);
   await describeFirstQuery(page).fill("Quiet in Clapham for 4, not pricey");
   await describeFirstSubmit(page).click();
-  await expect(page.getByRole("combobox", { name: /Area/i })).toHaveValue("clapham");
+  // The route names the area it understood (the area picker itself is behind Tune details).
+  await expect(page.getByRole("heading", { name: /^(Tonight|Today|Tomorrow night) in Clapham$/ })).toBeVisible();
   await expect(page.getByText("Route refreshed. Review the preview")).toBeVisible();
   await page.getByLabel("Your name").fill("Karan");
   // Evening defaults can land in the past after ~19:00 London; a past First
@@ -197,10 +205,12 @@ test("invite loop: guest RSVP, host Remove via cookie path, guest map handoff", 
     window.sessionStorage.setItem("pubmax_onboarding_dismissed", "1");
     window.localStorage.setItem("pubmax:identityNudge:dismissedAt:v1", String(Date.now()));
   });
+  await pinLondonEvening(page);
   await openHydratedPlanComposer(page);
   await describeFirstQuery(page).fill("Quiet in Clapham for 4, not pricey");
   await describeFirstSubmit(page).click();
-  await expect(page.getByRole("combobox", { name: /Area/i })).toHaveValue("clapham");
+  // The route names the area it understood (the area picker itself is behind Tune details).
+  await expect(page.getByRole("heading", { name: /^(Tonight|Today|Tomorrow night) in Clapham$/ })).toBeVisible();
   await expect(page.getByText("Route refreshed. Review the preview")).toBeVisible();
   await page.getByLabel("Your name").fill("Karan");
   await setFirstPintIn(page, 3 * 60);
@@ -310,5 +320,75 @@ test("invite loop: guest RSVP, host Remove via cookie path, guest map handoff", 
     return response.json() as Promise<{ active?: boolean; role?: string }>;
   }, planId);
   expect(rejoinedAfterRemoval).toMatchObject({ active: true, role: "guest" });
+  await guest.close();
+});
+
+// The private one-use invite a host makes in the collaboration panel is 64
+// lowercase hex characters, and the join route redeems it. The crew panel
+// used to accept only the 32-hex classic link, so a fresh guest got "This
+// invite link isn't valid" and no form. This drives the host's own control and
+// a guest in a fresh browser through the real join.
+test("a fresh guest opens the host's private one-use invite and joins the crew", async ({ page, browser }) => {
+  const quietFirstRun = () => {
+    window.localStorage.setItem("pubmax-tour-v1-done", "1");
+    window.localStorage.setItem("pubmax_onboarding_dismissed", "1");
+    window.sessionStorage.setItem("pubmax_onboarding_dismissed", "1");
+    window.localStorage.setItem("pubmaxx:analytics-consent:v1", "denied");
+    window.localStorage.setItem("pubmax:identityNudge:dismissedAt:v1", String(Date.now()));
+  };
+  await page.context().grantPermissions(["clipboard-read", "clipboard-write"]);
+  await page.addInitScript(quietFirstRun);
+
+  const venues = ((await (await page.request.get("/data/venues_slim.json")).json() as { rows: Array<{
+    id: string;
+    name: string;
+  }> }).rows).slice(0, 3);
+  expect(venues.length).toBe(3);
+  // The browser context's own request keeps the host's member session cookie.
+  const created = await page.request.post("/api/plans", {
+    headers: { "idempotency-key": randomUUID() },
+    data: {
+      title: "Private invite spec crawl",
+      startTime: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString(),
+      creatorName: HOST_NAME,
+      stops: venues.map((v) => ({ venueId: v.id, venueName: v.name })),
+    },
+  });
+  expect(created.ok()).toBe(true);
+  const planId: string = (await created.json()).plan.plan.id;
+  await page.goto(`/plan/${planId}`);
+
+  const createInvite = page.getByRole("button", { name: "Create private invite" });
+  const inviteLink = page.locator('output[aria-label="Private invite link"]');
+  await expect(createInvite).toBeVisible({ timeout: 30_000 });
+  await expect(async () => {
+    await createInvite.click();
+    await expect(inviteLink).toBeVisible({ timeout: 2_000 });
+  }).toPass({ timeout: 20_000 });
+  const inviteUrl = ((await inviteLink.textContent()) ?? "").trim();
+  const inviteToken = decodeURIComponent(new URL(inviteUrl).hash.replace(/^#invite=/, ""));
+  expect(inviteToken).toMatch(/^[0-9a-f]{64}$/);
+
+  const guest = await browser.newContext();
+  await guest.addInitScript(quietFirstRun);
+  const guestPage = await guest.newPage();
+  await guestPage.goto(inviteUrl);
+  const nameField = guestPage.getByLabel("Your name is enough.");
+  await expect(nameField).toBeVisible({ timeout: 30_000 });
+  await expect(guestPage.getByText("This invite link isn't valid. Ask the host for a fresh one.")).toHaveCount(0);
+
+  await nameField.fill("Priya");
+  const [joined] = await Promise.all([
+    guestPage.waitForResponse((response) =>
+      response.request().method() === "POST"
+      && new URL(response.url()).pathname === `/api/plans/${planId}/join`,
+    ),
+    guestPage.getByRole("button", { name: "I’m in" }).click(),
+  ]);
+  // The same unchanged token, accepted by the unchanged join route.
+  expect(JSON.parse(joined.request().postData() ?? "{}")).toMatchObject({ inviteToken });
+  expect(joined.status()).toBe(200);
+  await expect(guestPage.getByRole("group", { name: "Update your status" })).toBeVisible();
+  expect(new URL(guestPage.url()).hash).toBe("");
   await guest.close();
 });

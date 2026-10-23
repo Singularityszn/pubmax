@@ -1,5 +1,6 @@
 // The city-wide Drink Wall: validation and reader copy on top of venuePhotos.
 
+import type { Route } from "next";
 import {
   cleanDrinkWallPlaceLabel,
   cleanVenuePhotoCaption,
@@ -102,14 +103,14 @@ export function drinkWallPlaceLine(photo: { venueName: string | null; placeLabel
 /** The author's delete removes the one row every wall reads, so the confirm names each wall it leaves. */
 export function drinkWallRemoveConfirmLine(photo: { venueId: string | null }): string {
   return photo.venueId
-    ? "Delete this photo for good? It comes off the Drink Wall and its pub wall."
-    : "Delete this photo for good? It comes off the Drink Wall.";
+    ? "Delete this photo for good? It comes off the photo wall and the pub's page."
+    : "Delete this photo for good? It comes off the photo wall.";
 }
 
 export const DRINK_WALL_SIGN_IN_LINE =
-  "Sign in and pick a handle to add a photo to the Drink Wall.";
+  "Sign in and pick a handle to add a photo.";
 
-export function drinkWallSignInHref(from?: string | null): string {
+export function drinkWallSignInHref(from?: string | null): Route {
   const back = from && from.startsWith("/") ? from : "/wall";
   return `/login?from=${encodeURIComponent(back)}`;
 }
@@ -120,7 +121,7 @@ export function drinkWallCapLine(): string {
 
 export function drinkWallCaptionHint(category: DrinkWallCategory): string {
   if (category === "london") {
-    return "Describe what we are looking at (skyline, street, landmark) for anyone who cannot see the photo.";
+    return "Describe what we're looking at (skyline, street, landmark) for anyone who can't see the photo.";
   }
   if (category === "pub") {
     return "Say whether this is inside or outside, or what caught your eye.";

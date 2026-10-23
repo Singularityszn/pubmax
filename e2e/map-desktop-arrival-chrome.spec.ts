@@ -1,6 +1,8 @@
 import { expect, test, type Page } from "@playwright/test";
 
 import { paintedAmbientSurfaces } from "./helpers/ambientMapSurfaces";
+import { expectSoleDesktopDrawer, desktopVenueDrawer } from "./helpers/mapSurfaceDrawers";
+import { expectMapToolbarReady, selectFirstToolbarVenue } from "./helpers/mapToolbar";
 
 // What a desktop reader meets before they have touched anything.
 //
@@ -121,6 +123,37 @@ test.describe("the desktop map's arrival chrome", () => {
     expect(
       await page.locator(".mapArrivalCard button").count(),
     ).toBe(FIRST_VISIT_STRIP_CONTROLS);
+  });
+});
+
+// At 1440 an open venue drawer cut the right half of the ask and its "Use my
+// location" button. The ask now centres on the lane the drawer leaves.
+test.describe("the desktop arrival ask beside an open venue drawer", () => {
+  test.beforeEach(async ({ page }) => {
+    await page.addInitScript(() => {
+      window.localStorage.removeItem("pubmax:map-first-visit-arrival:v1");
+    });
+  });
+
+  test("stays whole on the map lane left of the drawer", async ({ page }) => {
+    await page.goto("/map");
+    const card = page.locator(".mapArrivalCard");
+    await expect(card).toBeVisible({ timeout: ARRIVAL_TIMEOUT_MS });
+    await expectMapToolbarReady(page, ARRIVAL_TIMEOUT_MS);
+    await selectFirstToolbarVenue(page, "Lamb", ARRIVAL_TIMEOUT_MS);
+    await expectSoleDesktopDrawer(page, "venue", ARRIVAL_TIMEOUT_MS);
+    await expect(card).toBeVisible();
+
+    await expect
+      .poll(
+        async () => {
+          const drawerBox = (await desktopVenueDrawer(page).boundingBox())!;
+          const cardBox = (await card.boundingBox())!;
+          return cardBox.x >= 0 && cardBox.x + cardBox.width <= drawerBox.x + 1;
+        },
+        { timeout: 10_000 },
+      )
+      .toBe(true);
   });
 });
 

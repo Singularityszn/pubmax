@@ -10,6 +10,8 @@ import {
   freshnessArtifactIncludes,
 } from "./lib/freshnessTracing.mjs";
 import { PAL_MASCOT_SIZES, PAL_MASCOT_SLUGS } from "./lib/palMascotAssets.mjs";
+import { cdnEdgeHeaderRules } from "./lib/cdnDocumentEdge.mjs";
+import { cdnDocumentContentSecurityPolicy } from "./lib/contentSecurityPolicy.mjs";
 import { staticAssetHeaderSources } from "./lib/staticAssetPrefixes.mjs";
 import { runtimeDataPackRouteIncludes } from "./lib/venueIndexTracing.mjs";
 
@@ -92,7 +94,7 @@ const feedDataFiles = withRuntimeDataPacks(
 // runtime of a `vercel deploy` from a CLI, so reading it at request time made
 // /api/version answer null on exactly the deploys a verifier most needs to
 // identify. Ask git for the working tree instead, ONCE, here: the source is
-// uploaded with its .git directory on a CLI deploy, and a build with no
+// uploaded without its .git directory on a CLI deploy, and a build with no
 // repository around it still answers honestly (null) rather than guessing.
 // lib/buildInfo.mjs owns the rule; app/api/version reads the values back.
 const workingTreeCommitSha = readWorkingTreeCommitSha(projectRoot);
@@ -129,8 +131,9 @@ const deploymentId = process.env.DEPLOYMENT_VERSION ??
 // (HSTS, nosniff, XFO, Permissions-Policy, COOP, Referrer) stay here on
 // `/:path*`; only the CSP moved. Trade-off: the per-request nonce forces
 // dynamic rendering (no static generation / ISR / PPR) on every route except
-// the two public documents named in proxy.ts's CDN_CACHED_DOCUMENT_PATHS, which
-// take `script-src 'unsafe-inline'` in exchange for a CDN copy.
+// the public documents named in proxy.ts's CDN_CACHED_DOCUMENT_PATHS and
+// CDN_CACHED_DOCUMENT_ROUTES, which take `script-src 'unsafe-inline'` in
+// exchange for a CDN copy.
 
 // Baseline security headers on every response.
 const securityHeaders = [
@@ -194,10 +197,12 @@ const nextConfig = {
   typescript: {
     tsconfigPath: "./tsconfig.build.json",
   },
+  // Checks next/link hrefs and router.push/replace/prefetch against the App
+  // Router. A string built at runtime is typed `Route` where it is built, never
+  // at the link. `npm run typecheck` runs `next typegen` so tsc sees the types.
+  typedRoutes: true,
   // Don't advertise the framework/version on dynamic responses.
   poweredByHeader: false,
-  // Browser source maps for PostHog error deobfuscation (no third-party upload).
-  productionBrowserSourceMaps: true,
   distDir: process.env.NEXT_DIST_DIR ?? ".next",
   images: {
     qualities: [75, 78],
@@ -210,6 +215,8 @@ const nextConfig = {
   },
   outputFileTracingIncludes: {
     ...runtimeDataPackIncludes,
+    // Every root-layout document executes the canonical pre-paint script.
+    "/*": ["./public/theme-init.js"],
     // Both freshness readers need every registered artifact (see above).
     "/api/freshness": withRuntimeDataPacks("/api/freshness", freshnessArtifacts),
     "/api/cron/freshness-audit": withRuntimeDataPacks(
@@ -226,7 +233,7 @@ const nextConfig = {
     root: projectRoot,
   },
   experimental: {
-    // Next's route-aware compiler API uses the supported TypeScript 6 alias.
+    // Next's route-aware compiler API uses the TypeScript 6 `typescript` package.
     // npm run typecheck separately calls TypeScript 7's native CLI explicitly.
     useTypeScriptCli: false,
     // How long the CLIENT router may reuse a route it already holds.
@@ -292,25 +299,13 @@ const nextConfig = {
     // Social owns posts and public pub discovery. Retired route families go
     // straight to their canonical Social surface with no redirect chain.
     return [
-      // Host canonicalisation (SEO split-brain fix, docs/SEO_CANONICAL_RUNBOOK
-      // _2026-07-21.md). www.pubmaxxing.com was serving a full 200 MIRROR of the
-      // app instead of redirecting to the apex, so Google indexed it as a second
-      // site and pinned a stale crawl (old title/favicon) under the www host.
-      // Every page already emits an apex `rel=canonical` (metadataBase +
-      // per-route alternates.canonical), but a canonical is only a HINT — a URL
-      // that answers 200 with no redirect keeps getting indexed. This permanent
-      // (308) host redirect is the DIRECTIVE that collapses www into the apex,
-      // and it lives in-repo so the consolidation holds regardless of the Vercel
-      // dashboard domain config (which should ALSO be set to redirect www→apex;
-      // see the runbook). `has` host match fires only for the www host, so the
-      // apex is never self-redirected. :path* preserves the full path + carries
-      // "/" through to the apex root. __tests__/wwwHostRedirect.test.ts pins it.
-      {
-        source: "/:path*",
-        has: [{ type: "host", value: "www.pubmaxxing.com" }],
-        destination: "https://pubmaxxing.com/:path*",
-        permanent: true,
-      },
+      { source: "/map/uk", destination: "/map?uk=1", permanent: true },
+      { source: "/map/uk/1", destination: "/map?uk=1", permanent: true },
+      // The www -> apex host redirect lives in vercel.json, not here. `next
+      // typegen` turns every source in this list into a typedRoutes route and
+      // ignores `has`, so a host-conditioned "/:path*" became a root catch-all
+      // that let a link to any missing page pass the typecheck.
+      // __tests__/wwwHostRedirect.test.ts pins both halves.
       { source: "/feed", destination: "/social", permanent: true },
       { source: "/feed/:path*", destination: "/social", permanent: true },
       { source: "/stories", destination: "/social", permanent: true },
@@ -327,11 +322,33 @@ const nextConfig = {
       // Landing still says "Our story"; keep the old paths as aliases.
       { source: "/our-story", destination: "/about", permanent: true },
       { source: "/story", destination: "/about", permanent: true },
+      // The product calls it Pub Pal, so people type the long form. The page
+      // lives at /pal; without these the vanity link 404'd (site review,
+      // 18 Oct 2026).
+      { source: "/pub-pal", destination: "/pal", permanent: true },
+      { source: "/pub-pal/:path*", destination: "/pal/:path*", permanent: true },
+      { source: "/pubpal", destination: "/pal", permanent: true },
     ];
   },
   async headers() {
     return [
       { source: "/:path*", headers: securityHeaders },
+      // The CDN documents answer with no function in front on the canonical
+      // host (lib/cdnDocumentEdge.mjs), so their Content-Security-Policy ships
+      // here: the same builder proxy.ts calls (lib/contentSecurityPolicy.mjs),
+      // with 'unsafe-inline' in the nonce slot exactly as the proxy sent it, and
+      // read from the build's env, which on Vercel is the runtime's env. Each
+      // rule is held off the queries the proxy still answers, so a request takes
+      // its policy from exactly one place. `__tests__/cdnDocumentEdge.test.ts`
+      // holds this header equal to securityProxy's answer for the same path.
+      ...cdnEdgeHeaderRules(cdnDocumentContentSecurityPolicy(process.env)),
+      // Next's response writer retains configured headers before route headers.
+      // Override the baseline only for the two fixed native callback modes.
+      {
+        source: "/auth/callback",
+        has: [{ type: "query", key: "native", value: "ios-(email-)?pkce" }],
+        headers: [{ key: "Referrer-Policy", value: "no-referrer" }],
+      },
       // Preview and development deploys must never be indexed, and the static
       // asset prefixes no longer pass through proxy.ts, which is where
       // applyNonProductionRobotsTag used to stamp them. Keep the header by a
@@ -418,6 +435,11 @@ const nextConfig = {
       cacheRule("/manifest.webmanifest", UNHASHED_PUBLIC_ASSET_CACHE_CONTROL),
       cacheRule("/fonts/:path*", UNHASHED_PUBLIC_ASSET_CACHE_CONTROL),
       cacheRule("/night-signals/:path*", UNHASHED_PUBLIC_ASSET_CACHE_CONTROL),
+      cacheRule("/sounds/:path*", UNHASHED_PUBLIC_ASSET_CACHE_CONTROL),
+      // The map's pre-drawn icon atlases. npm run build:map-icon-sprites writes
+      // them at fixed URLs, and the canvas asks with a ?v= of the PNG's own
+      // hash, so a redrawn atlas is a new URL to every browser.
+      cacheRule("/map-icons/:path*", UNHASHED_PUBLIC_ASSET_CACHE_CONTROL),
       cacheRule(
         "/pal/:asset(" + palMascotAssetPattern + ")",
         UNHASHED_PUBLIC_ASSET_CACHE_CONTROL,

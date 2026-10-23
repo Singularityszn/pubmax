@@ -28,18 +28,11 @@ test.describe("borough page", () => {
 
     await expect(page.locator("h1.screenTitle")).toContainText("Pubs in");
 
-    const pubs = page.locator(".boroughTable .boroughPub");
-    const empty = page.locator(".boroughEmpty");
-    await expect
-      .poll(async () => (await pubs.count()) + (await empty.count()))
-      .toBeGreaterThan(0);
-
-    if ((await pubs.count()) > 0) {
-      // Real ranked rows, each linking onto the map with the pub selected.
-      await expect(pubs.first()).toHaveAttribute("href", /^\/map\?sel=/);
-    } else {
-      await expect(empty).toBeVisible();
-    }
+    const pubs = page.getByRole("list", { name: "Pubs in Westminster, cheapest pint first", exact: true });
+    await expect(pubs).toBeVisible();
+    const destinations = await pubs.locator(".rowListTitleLink").evaluateAll((links) => links.map((link) => link.getAttribute("href")));
+    expect(destinations.length).toBeGreaterThan(0);
+    for (const href of destinations) expect(href).toMatch(/^\/map\?sel=venue-/);
 
     expect(errors).toEqual([]);
   });
@@ -130,10 +123,21 @@ test.describe("security headers", () => {
     for (const path of CDN_CACHED_DOCUMENTS) {
       const response = await page.goto(path);
       expect(response?.status(), path).toBe(200);
-      const html = (await response?.text()) ?? "";
+      // An object rendered as text arrives entity-escaped (&quot;), and a
+      // query string in an attribute arrives with &amp;, so the document is
+      // read with those decoded before any pattern looks at it.
+      const html = ((await response?.text()) ?? "")
+        .replace(/&quot;|&#0*34;|&#x0*22;/gi, '"')
+        .replace(/&#0*39;|&#x0*27;|&apos;/gi, "'")
+        .replace(/&amp;/gi, "&");
       expect(html, path).not.toMatch(/pubmax_handle/);
       expect(html, path).not.toMatch(/"handle":\s*"[^"]+"/);
-      expect(html, path).not.toMatch(/access_token|refresh_token/);
+      // A token VALUE is the leak. The names alone ride in the inline auth
+      // callback check (callbackHash.get("access_token")), which reads the
+      // reader's own URL in the browser and carries nothing.
+      expect(html, path).not.toMatch(/\\?"(?:access|refresh)_token\\?"\s*:\s*\\?"[^"\\]+/);
+      expect(html, path).not.toMatch(/(?:access|refresh)_token=[A-Za-z0-9._-]{8,}/);
+      expect(html, path).not.toMatch(/eyJ[A-Za-z0-9_-]{10,}\.eyJ[A-Za-z0-9_-]{10,}\./);
     }
   });
 

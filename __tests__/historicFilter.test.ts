@@ -13,6 +13,7 @@ import {
   venueStatusBadge,
   type HistoricFilters,
 } from "@/lib/historicFilter";
+import { defined } from "@/__tests__/helpers/defined";
 
 // Minimal factory — only the fields the filter/sort core reads.
 function pub(over: Partial<HistoricPub>): HistoricPub {
@@ -155,7 +156,7 @@ describe("filterAndSortHistoric — sort", () => {
       "Southwark",
       null, // Unknown Inn — no borough → last
     ]);
-    expect(out[out.length - 1].slug).toBe("unknown-inn");
+    expect(defined(out[out.length - 1]).slug).toBe("unknown-inn");
   });
 });
 

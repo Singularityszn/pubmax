@@ -14,6 +14,7 @@
 // nothing near the route, the honest answer is that we found nothing, never a
 // nearest-anything substituted for the thing that was asked for.
 
+import { lngLatOf } from "@/lib/geo";
 import { haversineKm } from "@/lib/haversine";
 import { POI_CATEGORIES, POI_CATEGORY_META, type Poi, type PoiCategory } from "@/lib/pois";
 
@@ -109,10 +110,10 @@ export const CULTURE_CRAWL_CHIPS: ReadonlyArray<{
   query: string;
 }> = [
   { id: "gallery-pint", label: "Gallery then a pint", query: "gallery then a pint in Soho for 2" },
-  { id: "market-kebab", label: "Market wander + kebab", query: "market wander then a kebab in Camden for 3" },
+  { id: "market-kebab", label: "Market wander then a kebab", query: "market wander then a kebab in Camden for 3" },
   {
     id: "river-historic",
-    label: "River walk + historic pub",
+    label: "River walk then a historic pub",
     query: "riverside then a historic pub in Bermondsey for 2",
   },
   { id: "sights-quiet", label: "Sights then a quiet one", query: "sights then a quiet one in Victoria for 2" },
@@ -123,7 +124,7 @@ export const CULTURE_CRAWL_MISSION = "Out of the house. Something to see first, 
 
 /** Said when a lane has nothing near the route. Scarcity, not a dead end. */
 export const CULTURE_WAYPOINT_NONE_NOTE =
-  "Nothing near this route we can point you to yet. The pubs below still stand.";
+  "Nothing near this route we can point you to yet. You can still walk the pubs below.";
 
 /**
  * Said beside every waypoint we DO find. The POI layer holds a name, a category
@@ -160,11 +161,45 @@ export type CultureWaypointDTO = {
   coordinates: [number, number];
 };
 
+/**
+ * Outing costs a culture plan cannot price from this app's data, in display
+ * order. The POI layer holds no admission field and the planner holds no food
+ * or fare prices, so admission, food and transport are unknown for every
+ * waypoint category. Drinks join them when any stop lacks a usable price.
+ */
+const CULTURE_UNKNOWN_COSTS = ["admission", "drinks", "food", "transport"] as const;
+export type CultureUnknownCost = (typeof CULTURE_UNKNOWN_COSTS)[number];
+
+const ALWAYS_UNKNOWN_COSTS: readonly CultureUnknownCost[] = ["admission", "food", "transport"];
+
+type CultureCostSource = { label: string; url: string; observedAt: string };
+
+/** One recorded pint at a chosen stop, with the source and date it was read. */
+type CultureKnownCost = {
+  venueId: string;
+  venueName: string;
+  pence: number;
+  source: CultureCostSource;
+};
+
+/**
+ * The pub costs beside a waypoint. `knownSubtotalPence` sums `knownItems` only
+ * and is always partial, because `unknownItems` is never empty.
+ */
+export type CultureOutingCostsDTO = {
+  limitPence: number | null;
+  knownSubtotalPence: number | null;
+  knownItems: CultureKnownCost[];
+  unknownItems: CultureUnknownCost[];
+};
+
 export type CultureOpenerDTO = {
   /** Lanes the query asked for, in priority order. */
   requested: CultureWaypointKind[];
   waypoint: CultureWaypointDTO | null;
   note: string;
+  /** Pub-side costs only. Absent when none were built or they were malformed. */
+  costs?: CultureOutingCostsDTO;
 };
 
 export function isCultureCrawlChipId(value: unknown): value is CultureCrawlChipId {
@@ -230,6 +265,91 @@ function isWaypointKind(value: unknown): value is CultureWaypointKind {
   return typeof value === "string" && (CULTURE_WAYPOINT_KINDS as readonly string[]).includes(value);
 }
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return Boolean(value) && typeof value === "object" && !Array.isArray(value);
+}
+
+function isFilledString(value: unknown): value is string {
+  return typeof value === "string" && value.trim().length > 0;
+}
+
+function isPence(value: unknown): value is number {
+  return typeof value === "number" && Number.isSafeInteger(value) && value > 0;
+}
+
+function isUnknownCost(value: unknown): value is CultureUnknownCost {
+  return typeof value === "string" && (CULTURE_UNKNOWN_COSTS as readonly string[]).includes(value);
+}
+
+function cleanCostSource(value: unknown): CultureCostSource | null {
+  if (!isRecord(value)) return null;
+  const { label, url, observedAt } = value;
+  if (!isFilledString(label) || typeof url !== "string" || !/^https?:\/\//.test(url)) return null;
+  if (typeof observedAt !== "string" || !Number.isFinite(Date.parse(observedAt))) return null;
+  return { label, url, observedAt };
+}
+
+/** A known cost needs a whole-pence price and a dated, linked source. */
+function cleanKnownCost(value: unknown): CultureKnownCost | null {
+  if (!isRecord(value)) return null;
+  const source = cleanCostSource(value.source);
+  if (!source || !isPence(value.pence)) return null;
+  if (!isFilledString(value.venueId) || !isFilledString(value.venueName)) return null;
+  return { venueId: value.venueId, venueName: value.venueName, pence: value.pence, source };
+}
+
+function sumPence(items: readonly CultureKnownCost[]): number | null {
+  return items.length ? items.reduce((total, item) => total + item.pence, 0) : null;
+}
+
+/**
+ * Build the pub costs for one generated route. `price` is a stop's usable
+ * recorded pint, or null when the stop has none, and an unpriced stop leaves
+ * drinks unknown rather than counting as nothing.
+ */
+export function cultureOutingCosts(input: {
+  limitPence: number | null;
+  stops: readonly { venueId: string; venueName: string; price: { pence: unknown; source: unknown } | null }[];
+}): CultureOutingCostsDTO {
+  const knownItems = input.stops.flatMap((stop) => {
+    const item = stop.price ? cleanKnownCost({ ...stop.price, venueId: stop.venueId, venueName: stop.venueName }) : null;
+    return item ? [item] : [];
+  });
+  const drinksKnown = input.stops.length > 0 && knownItems.length === input.stops.length;
+  return {
+    limitPence: input.limitPence,
+    knownSubtotalPence: sumPence(knownItems),
+    knownItems,
+    unknownItems: CULTURE_UNKNOWN_COSTS.filter((cost) => cost !== "drinks" || !drinksKnown),
+  };
+}
+
+/**
+ * Read costs back off a response. Anything malformed, a subtotal that is not
+ * the sum of its items, or an unknown list that drops admission, food or
+ * transport reads as no costs at all, never as a known total.
+ */
+function cleanCultureOutingCosts(value: unknown): CultureOutingCostsDTO | null {
+  if (!isRecord(value) || !Array.isArray(value.knownItems) || !Array.isArray(value.unknownItems)) return null;
+  const limitPence = value.limitPence === null ? null : isPence(value.limitPence) ? value.limitPence : undefined;
+  if (limitPence === undefined) return null;
+  const items = value.knownItems.map(cleanKnownCost);
+  if (items.some((item) => item === null)) return null;
+  const knownItems = items as CultureKnownCost[];
+  const knownSubtotalPence = sumPence(knownItems);
+  if (value.knownSubtotalPence !== knownSubtotalPence) return null;
+  const unknownList: unknown[] = value.unknownItems;
+  if (!unknownList.every(isUnknownCost) || new Set(unknownList).size !== unknownList.length) return null;
+  if (!ALWAYS_UNKNOWN_COSTS.every((cost) => unknownList.includes(cost))) return null;
+  if (knownItems.length === 0 && !unknownList.includes("drinks")) return null;
+  return { limitPence, knownSubtotalPence, knownItems, unknownItems: CULTURE_UNKNOWN_COSTS.filter((cost) => unknownList.includes(cost)) };
+}
+
+function withCleanCosts(opener: CultureOpenerDTO, raw: unknown): CultureOpenerDTO {
+  const costs = cleanCultureOutingCosts(raw);
+  return costs ? { ...opener, costs } : opener;
+}
+
 /**
  * Read an opener back off a generation response. A malformed or half-built
  * waypoint reads as no waypoint, never as a partly rendered place, because a
@@ -243,7 +363,7 @@ export function cleanCultureOpener(value: unknown): CultureOpenerDTO | null {
   if (requested.length === 0) return null;
   const raw = row.waypoint;
   if (!raw || typeof raw !== "object" || Array.isArray(raw)) {
-    return { requested, waypoint: null, note: row.note };
+    return withCleanCosts({ requested, waypoint: null, note: row.note }, row.costs);
   }
   const point = raw as Record<string, unknown>;
   const coordinates = point.coordinates;
@@ -256,8 +376,9 @@ export function cleanCultureOpener(value: unknown): CultureOpenerDTO | null {
     && Array.isArray(coordinates) && coordinates.length === 2
     && coordinates.every((part) => typeof part === "number" && Number.isFinite(part))
     && (POI_CATEGORIES as readonly unknown[]).includes(point.category);
-  if (!ok) return { requested, waypoint: null, note: CULTURE_WAYPOINT_NONE_NOTE };
-  return {
+  const lngLat = ok ? lngLatOf(coordinates as number[]) : null;
+  if (!lngLat) return withCleanCosts({ requested, waypoint: null, note: CULTURE_WAYPOINT_NONE_NOTE }, row.costs);
+  return withCleanCosts({
     requested,
     waypoint: {
       poiId: point.poiId as string,
@@ -266,10 +387,10 @@ export function cleanCultureOpener(value: unknown): CultureOpenerDTO | null {
       categoryLabel: point.categoryLabel as string,
       kind: point.kind as CultureWaypointKind,
       distanceKm: point.distanceKm as number,
-      coordinates: [(coordinates as number[])[0], (coordinates as number[])[1]],
+      coordinates: lngLat,
     },
     note: row.note,
-  };
+  }, row.costs);
 }
 
 /**

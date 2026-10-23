@@ -1,0 +1,106 @@
+{
+  "mode": "before",
+  "sourceHead": "78e165a059a839a826add8edb844410658d15bd3",
+  "cases": [
+    {
+      "name": "checkbox expanded corner -21,-21",
+      "checked": false,
+      "passed": false
+    },
+    {
+      "name": "checkbox expanded corner 21,-21",
+      "checked": false,
+      "passed": false
+    },
+    {
+      "name": "checkbox expanded corner -21,21",
+      "checked": false,
+      "passed": false
+    },
+    {
+      "name": "checkbox expanded corner 21,21",
+      "checked": false,
+      "passed": false
+    },
+    {
+      "name": "checkbox centre",
+      "checked": false,
+      "passed": false
+    },
+    {
+      "name": "checkbox keyboard",
+      "checked": true,
+      "passed": true
+    },
+    {
+      "name": "audio then final",
+      "code": 0,
+      "signal": null,
+      "stdout": "",
+      "stderr": "",
+      "output": "hello",
+      "expectedSuccess": true,
+      "passed": true
+    },
+    {
+      "name": "audio on final frame",
+      "code": 0,
+      "signal": null,
+      "stdout": "",
+      "stderr": "",
+      "output": "hello",
+      "expectedSuccess": true,
+      "passed": true
+    },
+    {
+      "name": "API error",
+      "code": 0,
+      "signal": null,
+      "stdout": "",
+      "stderr": "{ error: 'generation_failed', message: 'fixture rejection' }\n",
+      "output": "",
+      "expectedSuccess": false,
+      "passed": false
+    },
+    {
+      "name": "API error after partial audio",
+      "code": 0,
+      "signal": null,
+      "stdout": "",
+      "stderr": "{ error: 'generation_failed' }\n",
+      "output": "hello",
+      "expectedSuccess": false,
+      "passed": false
+    },
+    {
+      "name": "close without final",
+      "code": 0,
+      "signal": null,
+      "stdout": "",
+      "stderr": "",
+      "output": "",
+      "expectedSuccess": false,
+      "passed": false
+    },
+    {
+      "name": "partial audio without final",
+      "code": 0,
+      "signal": null,
+      "stdout": "",
+      "stderr": "",
+      "output": "hello",
+      "expectedSuccess": false,
+      "passed": false
+    },
+    {
+      "name": "transport failure",
+      "code": 0,
+      "signal": null,
+      "stdout": "",
+      "stderr": "",
+      "output": "",
+      "expectedSuccess": false,
+      "passed": false
+    }
+  ]
+}

@@ -77,7 +77,7 @@ function wholePhraseInText(text: string, phrase: string): boolean {
 }
 
 /** Area phrase the regex path already extracts. Shared so candidates match it. */
-export function extractAreaPhrase(text: string): string | undefined {
+function extractAreaPhrase(text: string): string | undefined {
   const areaMatch = text.match(
     /\b(?:near|around|in)\s+([\p{L}][\p{L}' .-]*?)(?=\s+(?:for|with|under|below|max|not)\b|\s*,|[.!?]|$)/iu,
   );
@@ -85,14 +85,113 @@ export function extractAreaPhrase(text: string): string | undefined {
   return area || undefined;
 }
 
+/**
+ * A cap word before a figure: "under", "below", "max", "up to". Alone it says
+ * nothing about money: "under 10 minutes", "max 4 pubs" and "up to 8 of us"
+ * all carry one, so every budget pattern below also needs a currency word.
+ */
+const BUDGET_CAP = String.raw`\b(?:under|below|max(?:imum)?|up to)`;
+const BUDGET_FIGURE = String.raw`(\d+(?:\.\d{1,2})?)`;
+/** A unit after the figure that makes it a count, a time or a distance. */
+const NOT_MONEY_UNIT = String.raw`(?!\.?\d|\s*(?:min|mins|minutes?|hours?|hrs?|km|kms|miles?|stops?|pubs?|bars?|people|mates|pax|of us)\b)`;
+/** A currency word after the figure: "7 quid", "6 pounds", "6 a pint". */
+const MONEY_AFTER = String.raw`\s*(?:quid|pounds?|gbp|(?:a|per)\s+pint)\b`;
+
+const BUDGET_PATTERNS: readonly RegExp[] = [
+  // "under £7", "max £5", "up to £6.50"
+  new RegExp(`${BUDGET_CAP}\\s*£\\s*${BUDGET_FIGURE}${NOT_MONEY_UNIT}`, "i"),
+  // "under 7 quid", "below 6 pounds", "max 6 a pint"
+  new RegExp(`${BUDGET_CAP}\\s*${BUDGET_FIGURE}${MONEY_AFTER}`, "i"),
+  // "£6 or less", "£6 max"
+  new RegExp(`£\\s*${BUDGET_FIGURE}\\s*(?:or less|max)\\b`, "i"),
+  // "6 quid or less", "6 quid max"
+  new RegExp(`${BUDGET_FIGURE}\\s*(?:quid|pounds?)\\s*(?:or less|max)\\b`, "i"),
+];
+
 export function extractExplicitBudget(text: string): number | undefined {
-  const explicitBudget =
-    text.match(/(?:under|below|max(?:imum)?|up to)\s*£?\s*(\d+(?:\.\d{1,2})?)/i)?.[1]
-    ?? text.match(/£\s*(\d+(?:\.\d{1,2})?)\s*(?:or less|max)/i)?.[1];
+  let explicitBudget: string | undefined;
+  for (const pattern of BUDGET_PATTERNS) {
+    explicitBudget = text.match(pattern)?.[1];
+    if (explicitBudget) break;
+  }
   if (!explicitBudget) return undefined;
   const n = Number(explicitBudget);
   if (!Number.isFinite(n)) return undefined;
   return Math.min(15, Math.max(3, n));
+}
+
+/** A preposition directly before an area: "in Shoreditch", "near Soho". */
+const AREA_PREPOSITION_BEFORE = /\b(?:in|near|around|at)\s+$/iu;
+
+/**
+ * Nouns a bare area names a night out with: "a Shoreditch crawl", "Soho pubs",
+ * "a Shoreditch pub-crawl". A singular "pub" or "bar" is left out, because
+ * "the Angel pub" names a venue, not the area.
+ */
+const AREA_NIGHT_NOUNS = /^\s+(?:pub[\s-]+crawls?|crawls?|pubs|bars|drinks|pints?)\b/iu;
+
+/**
+ * Longer London place names that start with a known area's word but are not
+ * that area: "in Victoria Park" is not Victoria.
+ */
+const PLACES_THAT_ARE_NOT_KNOWN_AREAS = [
+  "Victoria Park",
+  "Camden Passage",
+  "Richmond Park",
+  "Greenwich Park",
+  "Clapham Common Road",
+  "Angel Islington",
+] as const;
+
+/**
+ * The area a keyless parse plans in. A known area named after "in", "near",
+ * "around" or "at" wins, so "in Shoreditch tonight" is Shoreditch. So does a
+ * request that is only the area's name, and a known area directly before a
+ * night-out noun, so "a Shoreditch crawl" is Shoreditch. At each position the
+ * longest label named there is read, in any case, so "in Camden Town" is
+ * Camden Town and "in victoria park" is the place, not Victoria. The first
+ * area named wins. A known area named anywhere else is not read as the area:
+ * "a crawl along the Victoria line" plans across London.
+ */
+export function deterministicAreaInText(
+  text: string,
+  knownAreas: readonly string[],
+): string | undefined {
+  return firstKnownAreaNamedIn(text, knownAreas) ?? extractAreaPhrase(text);
+}
+
+function firstKnownAreaNamedIn(
+  text: string,
+  knownAreas: readonly string[],
+): string | undefined {
+  const longestAt = new Map<number, { label: string; known: boolean }>();
+  const labels = [
+    ...knownAreas.map((label) => ({ label: label.trim(), known: true })),
+    ...PLACES_THAT_ARE_NOT_KNOWN_AREAS.map((label) => ({ label, known: false })),
+  ];
+  for (const { label, known } of labels) {
+    if (!label) continue;
+    const pattern = new RegExp(`\\b${escapeRegExp(label)}\\b`, "giu");
+    for (const match of text.matchAll(pattern)) {
+      const current = longestAt.get(match.index);
+      if (!current || label.length > current.label.length) {
+        longestAt.set(match.index, { label, known });
+      }
+    }
+  }
+  const whole = text.trim().replace(/[.!?]+$/u, "").trim().toLocaleLowerCase("en-GB");
+  for (const [index, { label, known }] of [...longestAt].sort(([a], [b]) => a - b)) {
+    if (!known) continue;
+    const after = text.slice(index + label.length);
+    if (
+      whole === label.toLocaleLowerCase("en-GB")
+      || AREA_NIGHT_NOUNS.test(after)
+      || AREA_PREPOSITION_BEFORE.test(text.slice(0, index))
+    ) {
+      return label;
+    }
+  }
+  return undefined;
 }
 
 /**

@@ -1,6 +1,3 @@
-import { readFileSync } from "node:fs";
-import { resolve } from "node:path";
-
 import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
 
 // The route talks to the PintDropStore interface only. Keep the real module
@@ -92,16 +89,22 @@ vi.mock("@/lib/serverEnv", () => ({ assertServerEnv: () => {} }));
 const signalPintDropLanded = vi.hoisted(() => vi.fn());
 vi.mock("@/lib/pintDropsBroadcast.server", () => ({ signalPintDropLanded }));
 vi.mock("@/lib/venueAliases", () => {
-  const aliases: Record<string, string> = { "legacy-pub": "canonical-pub", "legacy-bar": "bar-test" };
+  const aliases: Record<string, string> = {
+    "legacy-pub": "canonical-pub",
+    "legacy-bar": "bar-test",
+    "venue-1sw9ofl": "venue-eltcmh",
+  };
   const canonical = (id: string) => aliases[id] ?? id;
+  const storedIds = (id: string) => [
+    canonical(id),
+    ...Object.keys(aliases).filter((from) => aliases[from] === canonical(id)),
+  ];
   return {
     resolveCanonicalVenueId: async (id: string) => canonical(id),
+    storedVenueIds: async (id: string) => storedIds(id),
     loadVenueAliasResolver: async () => ({
       canonical,
-      storedIds: (id: string) => [
-        canonical(id),
-        ...Object.keys(aliases).filter((from) => aliases[from] === canonical(id)),
-      ],
+      storedIds,
       retired: () => null,
     }),
   };
@@ -121,7 +124,8 @@ vi.mock("@/lib/venueIndex", async (importOriginal) => {
       : {
           id,
           name: id === "venue-oxf-16404bl" ? "Turf Tavern" : "The Crown",
-          borough: id === "venue-oxf-16404bl" ? "Oxford" : "London",
+          borough: id === "venue-oxf-16404bl" ? "Oxford"
+            : id === "venue-eltcmh" ? "City of London" : "London",
           lat: 51.5,
           lng: -0.12,
         };
@@ -191,6 +195,8 @@ import {
 } from "@/lib/pintDropsStore";
 import { RECEIPT_REQUIRED_LINE, priceNeedsReceipt } from "@/lib/pintDropReceipt";
 import { memoryProfileStore } from "@/lib/profileStore";
+import { memoryPrivateIdentityStore } from "@/lib/privateIdentityStore";
+import { defined } from "@/__tests__/helpers/defined";
 
 const URL_BASE = "http://localhost/api/pint-drops";
 
@@ -276,12 +282,12 @@ function modGet(status: string, token?: string): Promise<Response> {
   );
 }
 
-function modAction(action: string, id: string, token?: string): Promise<Response> {
+function modAction(action: string, id: string, token?: string, note?: string): Promise<Response> {
   return POST(
     new Request(URL_BASE, {
       method: "POST",
       headers: token ? { "x-admin-token": token } : undefined,
-      body: JSON.stringify({ action, id }),
+      body: JSON.stringify({ action, id, ...(note ? { note } : {}) }),
     }),
   );
 }
@@ -383,14 +389,16 @@ describe("POST /api/pint-drops (create)", () => {
     );
   });
 
-  it("posts a priced drop for an account whose age answer is the one tap", async () => {
+  it("posts and lists a priced drop with an adult assertion and no birth date", async () => {
     // ONE RULE (captain, 5 Sep 2026). This route asks for a linked handle and
     // a verified actor and NEVER for a date of birth, so an account that
     // answered the age question with the recorded tap posts its price here the
     // same way it now does through /api/price-submit.
     reportAuth.userId = "account-tapped";
     await memoryProfileStore.createOwned("tapped_drinker", reportAuth.userId);
-    await memoryAdultSelfAssertionStore.record(reportAuth.userId);
+    const assertedAt = await memoryAdultSelfAssertionStore.record(reportAuth.userId);
+    expect(await memoryAdultSelfAssertionStore.read(reportAuth.userId)).toBe(assertedAt);
+    expect(await memoryPrivateIdentityStore.read(reportAuth.userId)).toBeNull();
 
     const created = await post({
       venueId: VENUE,
@@ -400,20 +408,28 @@ describe("POST /api/pint-drops (create)", () => {
     });
 
     expect(created.status).toBe(201);
-    expect((await created.json()).drop).toMatchObject({
+    const { drop } = await created.json();
+    expect(drop).toMatchObject({
+      venueId: VENUE,
       handle: "tapped_drinker",
       priceGbp: 4.6,
       provenance: "contributor",
+      status: "visible",
     });
-  });
-
-  it("asks the Pint Drop write path for no birth date", () => {
-    // A source fence, because no request can prove the ABSENCE of a question.
-    const route = readFileSync(
-      resolve(process.cwd(), "app/api/pint-drops/route.ts"),
-      "utf8",
+    const listed = await get(VENUE);
+    expect(listed.status).toBe(200);
+    expect((await listed.json()).drops).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          id: drop.id,
+          venueId: VENUE,
+          handle: "tapped_drinker",
+          priceGbp: 4.6,
+          status: "visible",
+        }),
+      ]),
     );
-    expect(route).not.toMatch(/dateOfBirth|date_of_birth/);
+    expect(await memoryPrivateIdentityStore.read(reportAuth.userId)).toBeNull();
   });
 
   it("requires account onboarding instead of claiming a body handle", async () => {
@@ -521,9 +537,9 @@ describe("POST /api/pint-drops (create)", () => {
     // The row itself carries the key, which is what lets this price
     // corroborate: the confirmation producer reads it server-side.
     const [stored] = await memoryPintDropStore.listConfirmationCandidates(VENUE);
-    expect(stored.id).toBe(drop.id);
-    expect(stored.authorityKey).toMatch(/^[a-f0-9]{64}$/);
-    expect(stored.authorityKey).not.toContain("account-anon");
+    expect(defined(stored).id).toBe(drop.id);
+    expect(defined(stored).authorityKey).toMatch(/^[a-f0-9]{64}$/);
+    expect(defined(stored).authorityKey).not.toContain("account-anon");
   });
 
   it("refuses a priced drop with no photo of the bill", async () => {
@@ -1077,6 +1093,24 @@ describe("GET + moderation", () => {
     });
   });
 
+  it("enriches a kept City pint through its canonical venue and legacy alias", async () => {
+    const created = await post({ venueId: "venue-1sw9ofl", handle: "city_local", priceGbp: 6.5 });
+    expect(created.status).toBe(201);
+    const response = await get("venue-eltcmh");
+    const { drops } = await response.json();
+    expect(drops.filter((drop: { handle: string }) => drop.handle === "city_local"))
+      .toMatchObject([{ venueId: "venue-eltcmh", borough: "City of London", priceGbp: 6.5 }]);
+  });
+
+  it("does not count a broad fallback or a non-London locality as a borough", async () => {
+    await post({ venueId: VENUE, handle: "local", priceGbp: 4.2 });
+    const response = await get(VENUE);
+    expect((await response.json()).drops[0]).not.toHaveProperty("borough");
+    await post({ venueId: "venue-oxf-16404bl", handle: "oxale", priceGbp: 4.2 });
+    const oxford = await GET(new Request(`${URL_BASE}?city=oxford`));
+    expect((await oxford.json()).drops[0]).not.toHaveProperty("borough");
+  });
+
   it("refuses the in-memory store in production when Supabase is absent", async () => {
     // Flip the durable-store guard directly (the prod condition), leaving
     // isSupabaseConfigured false — this is the requiresSupabaseStore() &&
@@ -1247,7 +1281,7 @@ describe("verified-account Pint Drop report counting", () => {
         reportCount?: number;
       }>;
       expect(listed).toHaveLength(1);
-      expect(listed[0].reportCount).toBe(1);
+      expect(defined(listed[0]).reportCount).toBe(1);
     } finally {
       vi.useRealTimers();
     }
@@ -1284,7 +1318,7 @@ describe("durable per-actor report uniqueness", () => {
         reportCount?: number;
       }>;
       expect(listed).toHaveLength(1);
-      expect(listed[0].reportCount).toBe(1);
+      expect(defined(listed[0]).reportCount).toBe(1);
 
       // A DISTINCT actor's report is the second real one → threshold → hidden.
       vi.advanceTimersByTime(61_000);
@@ -1310,7 +1344,7 @@ describe("durable per-actor report uniqueness", () => {
     // One counted report → still visible with reportCount 1.
     const listed = (await (await get(VENUE)).json()).drops as Array<{ reportCount?: number }>;
     expect(listed).toHaveLength(1);
-    expect(listed[0].reportCount).toBe(1);
+    expect(defined(listed[0]).reportCount).toBe(1);
 
     // A different actorHash is the second real report → hidden.
     expect(
@@ -1320,6 +1354,63 @@ describe("durable per-actor report uniqueness", () => {
       }),
     ).toBe(true);
     expect((await (await get(VENUE)).json()).drops).toHaveLength(0);
+  });
+});
+
+// docs/HIDE_PINT_DROP_RUNBOOK.md: an operator hides one live drop that
+// nobody has reported. That is the moderator `keep_hidden` action on a VISIBLE
+// row, which the queue tests above only reach after reports.
+describe("operator hide of an unreported Pint Drop (runbook)", () => {
+  async function publicIds(venueId?: string): Promise<string[]> {
+    const res = await get(venueId);
+    expect(res.status).toBe(200);
+    return ((await res.json()).drops as Array<{ id: string }>).map((drop) => drop.id);
+  }
+
+  it("takes a visible drop off every public read and keeps it for review", async () => {
+    const created = await post({ venueId: VENUE, handle: "tester", drink: "Hatton Lager", priceGbp: 4.5 });
+    expect(created.status).toBe(201);
+    const { drop } = await created.json();
+    expect(await publicIds(VENUE)).toContain(drop.id);
+    expect(await publicIds()).toContain(drop.id);
+
+    // The runbook's curl: the admin token rides in the header, and the gate
+    // checks it once ADMIN_TOKEN is set.
+    process.env.ADMIN_TOKEN = "runbook-token";
+    expect((await modAction("keep_hidden", drop.id, "wrong-token", "owner request: test drop")).status).toBe(403);
+    expect(await publicIds(VENUE)).toContain(drop.id);
+    expect((await modAction("keep_hidden", drop.id, "runbook-token", "owner request: test drop")).status).toBe(200);
+
+    expect(await publicIds(VENUE)).not.toContain(drop.id);
+    expect(await publicIds()).not.toContain(drop.id);
+    const queue = (await (await modGet("hidden", "runbook-token")).json()).drops as Array<{
+      id: string;
+      moderatorNote?: string;
+    }>;
+    expect(queue.find((row) => row.id === drop.id)?.moderatorNote).toBe("owner request: test drop");
+
+    // Reversible: restore puts the same row back.
+    expect((await modAction("restore", drop.id, "runbook-token")).status).toBe(200);
+    expect(await publicIds(VENUE)).toContain(drop.id);
+  });
+
+  // The API write has no status guard; the runbook's SQL adds one, which is
+  // why the runbook checks the status in step 1 before using either.
+  it("writes status, moderated_at and the note for one id on the durable store", async () => {
+    const select = vi.fn().mockResolvedValue({ data: [{ id: "drop-1" }], error: null });
+    const eq = vi.fn(() => ({ select }));
+    const update = vi.fn(() => ({ eq }));
+    const from = vi.fn(() => ({ update }));
+    adminRef.client = { from };
+
+    expect(await supabasePintDropStore.moderate("drop-1", "hidden", "owner request")).toBe(true);
+    expect(from).toHaveBeenCalledWith("pint_drops");
+    expect(update).toHaveBeenCalledWith({
+      status: "hidden",
+      moderated_at: expect.any(String),
+      moderator_note: "owner request",
+    });
+    expect(eq).toHaveBeenCalledWith("id", "drop-1");
   });
 });
 
@@ -1412,7 +1503,7 @@ describe("durable rate limiting (Supabase configured)", () => {
     );
     expect(res.status).toBe(201);
     expect(checkRateLimitDurableDetailed).toHaveBeenCalledTimes(1);
-    const key = checkRateLimitDurableDetailed.mock.calls[0][0];
+    const key = defined(checkRateLimitDurableDetailed.mock.calls[0])[0];
     expect(key).toContain("ale"); // handle (lowercased) is in the key
     expect(key).toMatch(/[0-9a-f]{64}$/); // ...plus the sha256 IP hash
     expect(key).not.toContain("203.0.113.7"); // raw IP never appears

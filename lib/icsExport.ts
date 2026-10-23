@@ -159,7 +159,7 @@ export function buildCrawlIcs(crawl: IcsCrawl, options: IcsOptions = {}): string
     );
     descriptionParts.push(lines.join("\n"));
   }
-  descriptionParts.push("Planned on PUBMAXXING.");
+  descriptionParts.push("Planned on PUBMAXX.");
   const description = descriptionParts.join("\n");
 
   const uid = `crawl-${crawl.id}-${formatIcsUtc(start)}@pubmaxxing`;

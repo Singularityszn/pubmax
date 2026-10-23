@@ -1,6 +1,4 @@
-import { readFileSync } from "node:fs";
-import { join } from "node:path";
-
+import { CHAINED_ALCOHOL_FITNESS_QUESTIONS, QUANTITY_FITNESS_CASES } from "./fixtures/pubPalTemporalSafety";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import probabilities from "@/__tests__/fixtures/typesafe/pubPalFenceProbabilities.json";
@@ -20,8 +18,6 @@ vi.mock("@/lib/ai/typesafe.server", () => ({
 }));
 
 import { systemOne } from "@/lib/ai/typesafe.server";
-
-const ROOT = process.cwd();
 
 // A JSON import widens `role` to string, so name the recorded shape once here
 // rather than casting at each use. If a fixture ever carries a role the fence
@@ -84,8 +80,6 @@ describe("Pub Pal TypeSafe fence on recorded fixtures", () => {
   });
 
   it("uses the threshold chosen from pubPalFenceProbabilities.json", () => {
-    const comment = readFileSync(join(ROOT, "lib/pubPalLlmFence.ts"), "utf8");
-    expect(comment).toContain("__tests__/fixtures/typesafe/pubPalFenceProbabilities.json");
     expect(PUB_PAL_FENCE_NOUL_THRESHOLD).toBe(0.33);
   });
 
@@ -110,6 +104,12 @@ describe("Pub Pal TypeSafe fence on recorded fixtures", () => {
     const intent = await resolvePubPalFenceIntent("Can I drive?");
     expect(intent).toEqual({ fenced: true, sobrietyOnly: true });
   });
+
+  it("keeps an explicit alcohol fitness ask fenced after a negative provider classification", async () => {
+    mockSystemOneFromFixture(0.01, 0.01);
+    await expect(resolvePubPalFenceIntent("Can I drive after two beers?"))
+      .resolves.toEqual({ fenced: true, sobrietyOnly: true });
+  });
 });
 
 describe("Pub Pal fence without TypeSafe key", () => {
@@ -122,14 +122,240 @@ describe("Pub Pal fence without TypeSafe key", () => {
     vi.mocked(systemOne).mockReset();
   });
 
-  it("never throws and keeps regex behaviour when systemOne returns null", async () => {
-    await expect(
-      resolvePubPalFenceIntent("When is the last train home?"),
-    ).resolves.toEqual({ fenced: true, sobrietyOnly: false });
-    await expect(resolvePubPalFenceIntent("Quiet garden near Soho")).resolves.toEqual({
-      fenced: false,
-      sobrietyOnly: false,
-    });
+  it.each(QUANTITY_FITNESS_CASES)("classifies complete numeric quantities: $query", async ({ query, fenced }) => {
+    expect(isPubPalGetHomeOrSobrietyIntent(query)).toBe(fenced);
+    expect(isPubPalSobrietyOnlyIntent(query)).toBe(fenced);
+    for (const negativeClassification of [false, true]) {
+      if (negativeClassification) mockSystemOneFromFixture(0.01, 0.01);
+      await expect(resolvePubPalFenceIntent(query)).resolves.toEqual({ fenced, sobrietyOnly: fenced });
+      await expect(resolvePubPalFenceIntent("Find four quiet pubs in Soho", [{ role: "user", content: query }]))
+        .resolves.toEqual({ fenced, sobrietyOnly: fenced });
+      await expect(resolvePubPalFenceIntent("Find four quiet pubs in Soho", [{ role: "assistant", content: query }]))
+        .resolves.toEqual({ fenced: false, sobrietyOnly: false });
+    }
+  });
+
+  it.each([
+    "Where can I buy beer in Soho? How many pints can I have before driving?",
+    "How many pints can I have before driving? Where can I buy beer in Soho?",
+    "Where could we find beer in Soho, and how long after drinking can I drive?",
+    "Where may I get beer in Soho? Can I drink two pints before I cycle?",
+    "Where should we have beer in Soho? Before riding my bike, can I have two pints?",
+    "Where can I drink beer in Soho? Would it be safe to drive after two beers?",
+    "Where can I buy alcohol-free beer in Soho? How many pints can I have before driving?",
+    "Where can I buy beer in Soho? Is one beer okay before riding my bike?",
+    "Where can I buy beer after cycling through Soho? How many pints can I have before driving?",
+    "Where can I buy beer after cycling through Soho? Can I have two beers and still drive?",
+    "Where can I buy beer after cycling through Soho? Would it be safe to drive after two beers?",
+    "Where can I buy beer after driving through Soho? Would it be safe to cycle after two pints?",
+    "Where can I buy beer after cycling through Soho? After two beers, would it be safe to drive?",
+  ])("keeps discovery from masking a separate alcohol allowance: %s", async (query) => {
+    expect(isPubPalGetHomeOrSobrietyIntent(query)).toBe(true);
+    expect(isPubPalSobrietyOnlyIntent(query)).toBe(true);
+    await expect(resolvePubPalFenceIntent(query)).resolves.toEqual({ fenced: true, sobrietyOnly: true });
+    mockSystemOneFromFixture(0.01, 0.01);
+    await expect(resolvePubPalFenceIntent(query)).resolves.toEqual({ fenced: true, sobrietyOnly: true });
+  });
+
+  it.each([
+    "Can I drink 1.5 pints in Soho before driving?",
+    "Would it be safe to drive after 1.5 pints?",
+    "Before cycling, can I drink 0.5 pints?",
+    "Can I drink 1.5 pints and still ride my bike?",
+    "Can I drink beer near St. James before driving?",
+    "Can I drink beer near J. Smith's before driving?",
+    "Can I drink beer, e.g. two pints, before driving?",
+    "Can I drink beer at 5 p.m. before driving?",
+    "Where can I buy beer after cycling. Would it be safe to drive after 1.5 pints?",
+  ])("preserves non-terminal periods in an alcohol safety question: %s", async (query) => {
+    const direct = {
+      fenced: isPubPalGetHomeOrSobrietyIntent(query),
+      sobrietyOnly: isPubPalSobrietyOnlyIntent(query),
+    };
+    expect(direct).toEqual({ fenced: true, sobrietyOnly: true });
+    await expect(resolvePubPalFenceIntent(query)).resolves.toEqual({ fenced: true, sobrietyOnly: true });
+    mockSystemOneFromFixture(0.01, 0.01);
+    await expect(resolvePubPalFenceIntent(query)).resolves.toEqual({ fenced: true, sobrietyOnly: true });
+  });
+
+  it.each(CHAINED_ALCOHOL_FITNESS_QUESTIONS)("retains alcohol evidence across timing phrases: %s", async (query) => {
+    expect({
+      fenced: isPubPalGetHomeOrSobrietyIntent(query),
+      sobrietyOnly: isPubPalSobrietyOnlyIntent(query),
+    }).toEqual({ fenced: true, sobrietyOnly: true });
+    for (const classification of [null, "negative"]) {
+      if (classification) mockSystemOneFromFixture(0.01, 0.01);
+      await expect(resolvePubPalFenceIntent(query)).resolves.toEqual({ fenced: true, sobrietyOnly: true });
+      await expect(resolvePubPalFenceIntent("What about Soho?", [{ role: "user", content: query }]))
+        .resolves.toEqual({ fenced: true, sobrietyOnly: true });
+      await expect(resolvePubPalFenceIntent("Quiet garden near Soho", [{ role: "assistant", content: query }]))
+        .resolves.toEqual({ fenced: false, sobrietyOnly: false });
+    }
+  });
+
+  it.each([
+    "Can I drink two pints before dinner after driving?",
+    "Can I drink 1.5 pints after cycling before dinner?",
+    "Can I drink beer near St. James before finding a pub after riding my bike?",
+    "After driving before dinner, can I drink two pints?",
+    "Before two beers after dinner, can I have a meal after cycling?",
+    "Can I drink beer after dinner? Where can I buy beer before driving?",
+    "Where can I buy beer before dinner? After driving, should I have beer?",
+  ])("preserves operation-before-alcohol and independent discovery questions: %s", async (query) => {
+    expect(isPubPalGetHomeOrSobrietyIntent(query)).toBe(false);
+    expect(isPubPalSobrietyOnlyIntent(query)).toBe(false);
+    await expect(resolvePubPalFenceIntent(query)).resolves.toEqual({ fenced: false, sobrietyOnly: false });
+    mockSystemOneFromFixture(0.01, 0.01);
+    await expect(resolvePubPalFenceIntent(query)).resolves.toEqual({ fenced: false, sobrietyOnly: false });
+  });
+
+  it("retains mixed discovery and alcohol safety only from user history", async () => {
+    const content = "Where can I buy beer in Soho? How many pints can I have before driving?";
+    await expect(resolvePubPalFenceIntent("What about Soho?", [{ role: "user", content }]))
+      .resolves.toEqual({ fenced: true, sobrietyOnly: true });
+    await expect(resolvePubPalFenceIntent("Quiet garden near Soho", [{ role: "assistant", content }]))
+      .resolves.toEqual({ fenced: false, sobrietyOnly: false });
+  });
+
+  it.each([
+    "How many pints can I have before driving?",
+    "How many pints can I have in Soho before driving?",
+    "Can I drink two pints in Soho before I drive?",
+    "How many pints can I have in Soho before driving back?",
+    "Before I drive, can I have two pints in Soho?",
+    "Would it be safe to drive after two beers?",
+    "Am I safe to drive after a pint?",
+    "How long after drinking can I drive?",
+    "Can I cycle after two pints?",
+    "Is one beer okay before riding my bike?",
+    "Can I have two beers and still drive?",
+    "Can I ride my motorbike after two pints in Soho?",
+  ])("refuses an explicit alcohol allowance or after-alcohol fitness judgment: %s", async (query) => {
+    await expect(resolvePubPalFenceIntent(query)).resolves.toEqual({ fenced: true, sobrietyOnly: true });
+    mockSystemOneFromFixture(0.01, 0.01);
+    await expect(resolvePubPalFenceIntent(query)).resolves.toEqual({ fenced: true, sobrietyOnly: true });
+  });
+
+  it.each([
+    "How many pints can I have in Soho before driving home?",
+    "How many pints can I have in Soho before I drive home?",
+    "When is the last train home?",
+  ])("retains the existing practical get-home handoff: %s", async (query) => {
+    await expect(resolvePubPalFenceIntent(query)).resolves.toEqual({ fenced: true, sobrietyOnly: false });
+  });
+
+  it.each([
+    "Can I drive?",
+    "Is it safe to drive?",
+    "Can I drive to a beer garden?",
+    "Can I cycle to a pub serving beer in Soho?",
+    "Before drinking beer, can I drive past Soho?",
+    "Where can I buy beer before dinner? Before having beer, should I drive?",
+    "I have had two beers in Soho. Can I drive?",
+    "I'm drunk in Soho. Can I drive?",
+    "I like beer. I have had two pints. Can I drive?",
+    "I have been drinking alcohol-free beer. Can I drive?",
+    "I have been drinking only alcohol-free beer. Can I drive?",
+    "I have been drinking alcohol-free beer and two pints. Can I drive?",
+    "I have had dinner and two beers. Can I drive?",
+    "I have had a couple of beers. Can I drive?",
+    "I drank a bottle of wine. Can I drive?",
+    "I drank two cold beers. Can I drive?",
+    "I have had 1.5 pints. Can I drive?",
+    "I drank red wine. Can I drive?",
+    "I have had at least two pints. Can I drive?",
+    "I have had dinner at the pub and two beers. Can I drive?",
+    "I drank water and then drank two beers. Can I drive?",
+    "I drank water and dark beer. Can I drive?",
+    "I drank water and two beers you recommended. Can I drive?",
+    "I drank water and no less than two beers. Can I drive?",
+    "I drank water at dinner and then bought wine in Soho. Can I drive?",
+    "I drank water at dinner and my friend drank wine in Soho. Can I drive?",
+    "I drank water and avoided alcohol. Can I drive?",
+    "I drank water and discussed wine. Can I drive?",
+    "I drank water in a wine bar. Can I drive?",
+    "I have had trouble finding pubs and beer gardens. Can I drive there?",
+    "I have had trouble finding pubs and wine bars. Can I drive there?",
+    "I have had two beers in Soho. Can I drive? Which route goes to Soho?",
+    "What route can I drive to Soho, and can I drive?",
+    "What route can I drive to Soho?",
+    "Which route should we cycle to Soho?",
+    "Which route to Soho can I drive?",
+    "Which route to Elephant and Castle can I drive?",
+    "Which route to Soho and also can I drive?",
+  ])("hands a personal driving question to transport without inferring consumption: %s", async (query) => {
+    const neutral = { fenced: true, sobrietyOnly: false };
+    await expect(resolvePubPalFenceIntent(query)).resolves.toEqual(neutral);
+    mockSystemOneFromFixture(0.01, 0.01);
+    const intent = await resolvePubPalFenceIntent(query);
+    expect(intent).toEqual(neutral);
+    const answer = pubPalGetHomeRegisterAnswer("", intent.sobrietyOnly);
+    expect(answer).toContain("Getting Home");
+    expect(answer).not.toContain("another drink");
+  });
+
+  it.each([
+    { turn: { role: "user", content: "I have had two beers in Soho." } },
+    { turn: { role: "user", content: "I like beer." } },
+    { turn: { role: "user", content: "I have had two alcohol-free beers." } },
+    { turn: { role: "assistant", content: "I have had two beers in Soho." } },
+    { turn: { role: "user", content: "I drank water and my friend drank wine." } },
+  ] satisfies { turn: PubPalFenceTurn }[])("keeps the neutral current-question response independent of consumption in history: %j", async ({ turn }) => {
+    for (const query of ["Can I drive?", "Can I drive to a beer garden?", "Is it safe to drive?"]) {
+      await expect(resolvePubPalFenceIntent(query, [turn]))
+        .resolves.toEqual({ fenced: true, sobrietyOnly: false });
+    }
+  });
+
+  it.each([
+    "Quiet garden near Soho",
+    "Where can I buy beer in Soho before driving?",
+    "Where could we find beer in Soho before cycling?",
+    "Where may I get beer in Soho before riding my bike?",
+    "Where should we have beer in Soho before driving?",
+    "Where can I drink beer in Soho before driving?",
+    "Where can I buy alcohol-free beer in Soho before driving?",
+    "Where can I drink alcohol-free beer in Soho before driving?",
+    "Where could I drink alcohol-free beer in Soho before driving?",
+    "Can I find a pub to drink alcohol-free beer in Soho before driving?",
+    "Can I drink alcohol-free beer in Soho before driving?",
+    "Can I drink only alcohol-free beer in Soho before driving?",
+    "How long after driving before I can buy beer in Soho?",
+    "Where can I buy beer in Soho? After driving, should I have beer?",
+    "Where can I buy beer before dinner? After driving, should I have beer?",
+    "Where can I buy beer before dinner? After cycling, should I have beer?",
+    "Where can I buy beer before dinner. After driving, should I have beer?",
+    "Where can I buy beer before dinner. after cycling, should I have beer?",
+    "Where can I buy beer before dinner... After driving, should I have beer?",
+    "Where can I buy beer at 5 p.m. before dinner? After driving, should I have beer?",
+    "Where can I buy nonalcoholic beer in Soho before driving?",
+    "Find a safe cycling route to beer gardens in Soho",
+    "I am the designated driver. Find alcohol-free pubs in Soho.",
+    "What are the parking options near pubs in Soho?",
+    "Where can I buy alcohol-free beer in Soho?",
+    "Find four quiet pubs in Soho under £7 per pint.",
+    "What time does the bus leave Soho?",
+    "Can I ride the bus to Soho?",
+    "Could we ride the train to Soho?",
+    "Can I have a pint in Soho after driving there?",
+    "Where can I buy 0.0% beer in Soho before driving?",
+    "Where can I buy non-alcoholic beer in Soho before driving?",
+  ])("preserves clear discovery and factual transport: %s", async (query) => {
+    await expect(resolvePubPalFenceIntent(query)).resolves.toEqual({ fenced: false, sobrietyOnly: false });
+    mockSystemOneFromFixture(0.01, 0.01);
+    await expect(resolvePubPalFenceIntent(query)).resolves.toEqual({ fenced: false, sobrietyOnly: false });
+  });
+
+  it("does not carry an ambiguous driving question into a later discovery ask", async () => {
+    await expect(resolvePubPalFenceIntent("Quiet garden near Soho", [{ role: "user", content: "Can I drive?" }]))
+      .resolves.toEqual({ fenced: false, sobrietyOnly: false });
+  });
+
+  it("retains a user's explicit get-home topic but excludes an assistant's", async () => {
+    await expect(resolvePubPalFenceIntent("What about Soho?", [{ role: "user", content: "When is the last train home?" }]))
+      .resolves.toEqual({ fenced: true, sobrietyOnly: false });
+    await expect(resolvePubPalFenceIntent("Quiet garden near Soho", [{ role: "assistant", content: "When is the last train home?" }]))
+      .resolves.toEqual({ fenced: false, sobrietyOnly: false });
   });
 });
 

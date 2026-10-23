@@ -1,0 +1,147 @@
+/* PalPostcard.tsx: the person's Pal at the last stop of the night it walked.
+   Every colour is a theme token, so the card and the saved image (which reads
+   the card's computed colours) follow the theme the person sees. It is drawn
+   in ink, like a printed postcard: coral is spent on the one primary action
+   and the create disc alone (docs/DESIGN_SYSTEM.md "Coral is spent twice"),
+   and green is the cheap-price colour, which a postcard has nothing to say
+   about. */
+.palPostcardSection {
+  margin-top: 28px;
+}
+.palPostcardHeading {
+  margin: 0 0 12px;
+}
+.palPostcard {
+  position: relative;
+  margin: 0;
+  padding: 16px 16px 18px;
+  border: 1px solid var(--hairline-strong);
+  border-radius: var(--radius-lg);
+  background: var(--panel-raised);
+  color: var(--ink);
+  font-family: var(--font-display);
+  overflow: hidden;
+}
+.palPostcardStamp {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  width: 30px;
+  height: 30px;
+  padding: 3px;
+  border: 1px dashed var(--hairline-strong);
+  border-radius: var(--radius-sm);
+}
+.palPostcardStamp .palPrint {
+  display: block;
+  width: 100%;
+  height: 100%;
+  fill: var(--ink-soft);
+}
+/* The route and the Pal share this box, so the Pal's per cent position is a
+   per cent of the route itself. */
+.palPostcardMap {
+  position: relative;
+}
+.palPostcardRoute {
+  display: block;
+  width: 100%;
+  height: auto;
+  overflow: visible;
+}
+.palPostcardWalk {
+  fill: none;
+  stroke: var(--ink-soft);
+  stroke-width: 3;
+  stroke-linecap: round;
+  stroke-dasharray: 1 9;
+}
+.palPostcardDot {
+  fill: var(--ink);
+}
+/* Its size is the SVG's own attribute, in route units, so it scales with the
+   card like the dots it sits in. */
+.palPostcardNumber {
+  fill: var(--panel-raised);
+  font-family: var(--font-data);
+  font-weight: 700;
+}
+/* The Pal stands just above its last stop, centred on it. */
+.palPostcardPal {
+  position: absolute;
+  width: 52px;
+  height: 52px;
+  margin: -68px 0 0 -26px;
+  border: 3px solid var(--ink);
+  border-radius: 50%;
+  background: var(--panel-raised);
+  overflow: hidden;
+  pointer-events: none;
+}
+.palPostcardPal picture,
+.palPostcardPal img {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+.palPostcardPal img {
+  object-fit: cover;
+  /* The Pal genome holds the avatar here as it does on /pal. */
+  transform-origin: 50% 55%;
+  transform: translate(var(--genome-x, 0%), var(--genome-y, 0%)) scale(var(--genome-zoom, 1)) scaleX(var(--genome-flip, 1));
+  rotate: var(--genome-tilt, 0deg);
+}
+.palPostcardCaption {
+  margin-top: 10px;
+}
+.palPostcardLine {
+  margin: 0;
+  font-size: var(--text-md);
+  font-weight: 700;
+}
+.palPostcardTitle {
+  margin: 4px 0 0;
+  font-size: var(--text-sm);
+}
+.palPostcardDate {
+  margin: 2px 0 0;
+  color: var(--muted);
+}
+.palPostcardActions {
+  margin-top: 12px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+.palPostcardSave {
+  min-height: 44px;
+  padding: 10px 18px;
+  border: 1px solid var(--hairline-strong);
+  border-radius: var(--radius-pill);
+  background: transparent;
+  color: var(--ink);
+  font-family: var(--font-display);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  cursor: pointer;
+}
+.palPostcardSave:disabled {
+  cursor: progress;
+  opacity: 0.7;
+}
+.palPostcardNote {
+  margin: 0;
+  color: var(--muted);
+}
+@media (prefers-reduced-motion: no-preference) {
+  .palPostcardPal {
+    animation: palPostcardArrive 520ms cubic-bezier(0.2, 0.9, 0.3, 1.25) 300ms both;
+  }
+}
+@keyframes palPostcardArrive {
+  from {
+    opacity: 0;
+    transform: translateY(14px) scale(0.85);
+  }
+}

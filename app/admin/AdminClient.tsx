@@ -2,6 +2,7 @@
 
 import Image from "next/image";
 
+import SocialVideoModeration from "./SocialVideoModeration";
 import VenuePhotoModeration, {
   type ModeratorVenuePhoto,
 } from "./VenuePhotoModeration";
@@ -34,7 +35,9 @@ import {
   isCommunityVenueSignalKey,
 } from "@/lib/communityVenueSignals";
 import SiteNav from "@/components/nav/SiteNav";
+import { moveTablistFocus } from "@/components/ui/tabs";
 import AdminSessionEntry from "./AdminSessionEntry";
+import VenueSubmissionModeration, { type AdminRequest } from "./VenueSubmissionModeration";
 
 import "./admin.css";
 
@@ -181,7 +184,35 @@ export function profileCoverFromAvatar(avatar: ModeratorProfileAvatar): Moderato
   };
 }
 
-type AdminTab = "moderation" | "import" | "operators";
+type AdminTab = "moderation" | "import" | "operators" | "pubs";
+
+const ADMIN_TABS: ReadonlyArray<{ key: AdminTab; label: string }> = [
+  { key: "moderation", label: "Moderation" },
+  { key: "import", label: "Import note" },
+  { key: "operators", label: "Operators" },
+  { key: "pubs", label: "Added pubs" },
+];
+
+function AdminTabs({ tab, onSelect }: { tab: AdminTab; onSelect: (next: AdminTab) => void }) {
+  return (
+    <div className="admin-tabs" role="tablist" aria-label="Admin sections">
+      {ADMIN_TABS.map(({ key, label }) => (
+        <button
+          key={key}
+          type="button"
+          role="tab"
+          className={tab === key ? "admin-tab active" : "admin-tab"}
+          aria-selected={tab === key}
+          tabIndex={tab === key ? 0 : -1}
+          onKeyDown={(event) => moveTablistFocus(event)}
+          onClick={() => onSelect(key)}
+        >
+          {label}
+        </button>
+      ))}
+    </div>
+  );
+}
 
 // Operator rail (Wayfinder 3.5) review DTOs, as returned by the moderator GETs.
 type OperatorClaimRow = {
@@ -611,6 +642,7 @@ export default function AdminClient() {
   const [socialPostsReason, setSocialPostsReason] =
     useState<AdminQueueUnavailableReason | null>(null);
   const socialPostsRequestGeneration = useRef(0);
+  const fullLoadInFlight = useRef(false);
   const socialPostsHeadingRef = useRef<HTMLHeadingElement>(null);
   const [socialPostAction, setSocialPostAction] = useState<SocialPostAction | null>(null);
   const [message, setMessage] = useState<AdminNotice | null>(null);
@@ -673,6 +705,15 @@ export default function AdminClient() {
     }
     return { kind: "response", response: await request() };
   }, [ensureAdminSession]);
+
+  // The added-pubs lane asks through the same session door as every queue here;
+  // null is a session that could not be reopened.
+  const adminRequest = useCallback<AdminRequest>(async (path, init) => {
+    const session = await ensureAdminSession();
+    if (session.status !== "open") return null;
+    const result = await retryWithFreshSession(() => fetch(path, { ...SESSION_FETCH, ...init }));
+    return result.kind === "response" ? result.response : null;
+  }, [ensureAdminSession, retryWithFreshSession]);
 
   const loadImportNotes = useCallback(async (opts?: { includeDismissed?: boolean }) => {
     setImportLoading(true);
@@ -850,7 +891,16 @@ export default function AdminClient() {
     }
   }, [venueNames.size]);
 
+  // One full load at a time (#1313). Every lane below writes its state after
+  // an await and only the Social lane carries the generation guard, so a
+  // second load started while this one runs would let whichever answered last
+  // win the Pint Drop, comment, visit-report, photo, avatar and message state.
+  // The controls are disabled while loading, but React has not committed that
+  // when a second event lands in the same task, so the gate is here: a second
+  // request while a load runs is that load's request.
   const load = useCallback(async (forceSession = false) => {
+    if (fullLoadInFlight.current) return;
+    fullLoadInFlight.current = true;
     const requestGeneration = ++socialPostsRequestGeneration.current;
     const isLatestLoad = () => requestGeneration === socialPostsRequestGeneration.current;
     setLoading(true);
@@ -983,7 +1033,10 @@ export default function AdminClient() {
       setDrops([]);
       setMessage(adminAlert("Could not reach the server."));
     } finally {
-      if (isLatestLoad()) setLoading(false);
+      // This is the only load that can hold the flag, so it always lets go,
+      // even when a Social resume has moved the generation on underneath it.
+      fullLoadInFlight.current = false;
+      setLoading(false);
     }
   }, [
     ensureAdminSession,
@@ -1637,41 +1690,14 @@ export default function AdminClient() {
         Back to the map
       </Link>
 
-      <div className="admin-tabs" role="tablist" aria-label="Admin sections">
-        <button
-          type="button"
-          role="tab"
-          className={tab === "moderation" ? "admin-tab active" : "admin-tab"}
-          aria-selected={tab === "moderation"}
-          onClick={() => setTab("moderation")}
-        >
-          Moderation
-        </button>
-        <button
-          type="button"
-          role="tab"
-          className={tab === "import" ? "admin-tab active" : "admin-tab"}
-          aria-selected={tab === "import"}
-          onClick={() => {
-            setTab("import");
-            void loadImportNotes();
-          }}
-        >
-          Import note
-        </button>
-        <button
-          type="button"
-          role="tab"
-          className={tab === "operators" ? "admin-tab active" : "admin-tab"}
-          aria-selected={tab === "operators"}
-          onClick={() => {
-            setTab("operators");
-            void loadOperators();
-          }}
-        >
-          Operators
-        </button>
-      </div>
+      <AdminTabs
+        tab={tab}
+        onSelect={(next) => {
+          setTab(next);
+          if (next === "import") void loadImportNotes();
+          if (next === "operators") void loadOperators();
+        }}
+      />
 
       {tab === "moderation" ? (
         <div className="admin-bar">
@@ -2034,6 +2060,9 @@ export default function AdminClient() {
               ))}
             </div>
           )}
+
+          {/* ── Social videos held for a person to watch (0183) ───────────── */}
+          <SocialVideoModeration />
 
           {/* ── Pub photo wall queues ─────────────────────────────────────── */}
           <VenuePhotoModeration
@@ -2411,6 +2440,8 @@ export default function AdminClient() {
             )}
           </div>
         </>
+      ) : tab === "pubs" ? (
+        <VenueSubmissionModeration request={adminRequest} />
       ) : (
         <>
           <h2 className="admin-section" style={{ marginTop: 0, borderTop: "none", paddingTop: 0 }}>
@@ -2442,7 +2473,7 @@ export default function AdminClient() {
           {operatorClaims.length === 0 ? (
             <div className="admin-empty">
               <strong>No pending claims</strong>
-              <span>Check claims outside PUBMAXX by checking the email domain, ringing the bar or reading the document.</span>
+              <span>Confirm a claim outside PUBMAXX. Check the email domain, ring the bar or read the document.</span>
             </div>
           ) : (
             <div className="admin-list">

@@ -3,14 +3,19 @@ import "server-only";
 import { createHash } from "node:crypto";
 
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
+
 import { resolveClientIp } from "@/lib/clientIpTrust";
 import { isDeployedProduction, isProductionBuildPhase } from "@/lib/deploymentEnv";
 import { resolveSupabaseConfig, type SupabaseConfig } from "@/lib/supabaseConfig";
+import type { Database } from "@/types/database";
+
+/** Admin client checked against the generated public catalog. */
+export type TypedSupabaseClient = SupabaseClient<Database>;
 
 // Server-only Supabase admin client. Returns null when env is absent so every
 // caller degrades to the in-memory store / static cache instead of crashing.
 // No client-side client — all writes route through server handlers.
-let cached: SupabaseClient | null | undefined;
+let cached: TypedSupabaseClient | null | undefined;
 
 function resolveServerSupabaseConfig() {
   const isVercelProduction = process.env.VERCEL_ENV === "production";
@@ -34,11 +39,11 @@ export function supabaseServerConfig(): SupabaseConfig | null {
   return resolveServerSupabaseConfig();
 }
 
-export function getSupabaseAdmin(): SupabaseClient | null {
+export function getSupabaseAdmin(): TypedSupabaseClient | null {
   if (cached) return cached;
   const config = resolveServerSupabaseConfig();
   if (!config) return null;
-  cached = createClient(config.url, config.key, { auth: { persistSession: false } });
+  cached = createClient<Database>(config.url, config.key, { auth: { persistSession: false } });
   return cached;
 }
 
@@ -47,10 +52,23 @@ export function getSupabaseAdmin(): SupabaseClient | null {
  * configured so a mis-selected durable backend fails loudly instead of NPE-ing
  * on a null client. Prefer this over each store's private `admin()` helper.
  */
-export function requireSupabaseAdmin(): SupabaseClient {
+export function requireSupabaseAdmin(): TypedSupabaseClient {
   const client = getSupabaseAdmin();
   if (!client) throw new Error("Supabase not configured.");
   return client;
+}
+
+/**
+ * The admin client with the catalog generic erased.
+ *
+ * Two dispatchers take a function name and a record the SQL function itself
+ * checks (`lib/socialCrewStore.ts`, `lib/socialPostConsentStore.ts`). A
+ * catalog-typed `.rpc` cannot accept that record. Every other caller uses
+ * `requireSupabaseAdmin`, and each dispatcher holds its name union to
+ * `keyof Database["public"]["Functions"]`.
+ */
+export function requireDynamicSupabaseAdmin(): SupabaseClient {
+  return requireSupabaseAdmin();
 }
 
 export function isSupabaseConfigured(): boolean {
@@ -199,6 +217,27 @@ export async function checkRateLimitDurable(
 ): Promise<boolean | null> {
   const { verdict } = await checkRateLimitDurableDetailed(key, limit, windowMs);
   return verdict;
+}
+
+/** Read admitted requests from the existing durable rolling window. Null means unknown. */
+export async function readRateLimitDurableUsage(
+  key: string,
+  windowMs: number,
+  signal: AbortSignal,
+): Promise<number | null> {
+  try {
+    const admin = getSupabaseAdmin();
+    if (!admin) return null;
+    const { data, error } = await admin.from("rate_limits")
+      .select("hits").eq("key", key).abortSignal(signal).maybeSingle();
+    if (error || !data) return null;
+    const cutoff = Date.now() - windowMs;
+    const timestamps = data.hits.map((hit) => Date.parse(hit));
+    if (timestamps.some((hit) => !Number.isFinite(hit))) return null;
+    return timestamps.filter((hit) => hit > cutoff).length;
+  } catch {
+    return null;
+  }
 }
 
 /**

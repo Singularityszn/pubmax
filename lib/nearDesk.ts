@@ -110,20 +110,19 @@ export type RankDeskOptions = {
   maxAnswers?: number;
 };
 
-const DAY_TOKEN = /^(Mo|Tu|We|Th|Fr|Sa|Su)$/;
-const DAY_INDEX: Record<string, number> = {
-  Su: 0,
-  Mo: 1,
-  Tu: 2,
-  We: 3,
-  Th: 4,
-  Fr: 5,
-  Sa: 6,
-};
-
 export function parseNearModeParam(raw: string | null | undefined): NearMode | null {
   if (raw === "pint" || raw === "desk") return raw;
   return null;
+}
+
+/**
+ * Whether the URL itself names what the page shows: a patch, a locate request
+ * or a poster scan. Such a link is shared, so it has to read the same for every
+ * visitor. The remembered mode is a convenience for the bare `/near` only; it
+ * may not turn `/near?patch=soho` into Desk for one person and Pint for another.
+ */
+export function nearUrlNamesContent(params: Pick<URLSearchParams, "get">): boolean {
+  return ["patch", "locate", "src"].some((key) => params.get(key) !== null);
 }
 
 export function resolveNearMode(
@@ -344,11 +343,11 @@ export function deskCollapsedChainsAttributes(
 }
 
 export function deskEmptyLine(): string {
-  return "No desks logged near here yet. Add a spot.";
+  return "No work spots logged near here yet. Add one.";
 }
 
 export function deskLoadFailedLine(): string {
-  return "Could not check desks near here.";
+  return "Could not check work spots near here.";
 }
 
 /** Why a desk answer is about an area rather than about the reader. */
@@ -390,146 +389,12 @@ export function deskAnswerHeadline(input: {
   const place = input.patchLabel ?? null;
   if (place) return `Somewhere to sit around ${place}`;
   return input.scope === "widened"
-    ? "Nearest desks a bit further out"
+    ? "Nearest work spots, a bit further out"
     : "Somewhere to sit near you";
 }
 
 function deskKindLabel(kind: VenueKind): string {
   return kind === "pub" ? "Pub with wifi" : venueKindLabel(kind);
-}
-
-function expandDayToken(token: string): number[] {
-  const range = token.split("-");
-  if (range.length === 2 && DAY_TOKEN.test(range[0]) && DAY_TOKEN.test(range[1])) {
-    const start = DAY_INDEX[range[0]];
-    const end = DAY_INDEX[range[1]];
-    if (start === undefined || end === undefined) return [];
-    const days: number[] = [];
-    let day = start;
-    for (let i = 0; i < 7; i += 1) {
-      days.push(day);
-      if (day === end) break;
-      day = (day + 1) % 7;
-    }
-    return days;
-  }
-  if (DAY_TOKEN.test(token)) {
-    const day = DAY_INDEX[token];
-    return day === undefined ? [] : [day];
-  }
-  return [];
-}
-
-function parseDayList(raw: string): number[] {
-  const days = new Set<number>();
-  for (const token of raw.split(/\s*,\s*/)) {
-    for (const day of expandDayToken(token.trim())) days.add(day);
-  }
-  return [...days];
-}
-
-function parseTimeWindows(raw: string): { opens: string; closes: string }[] {
-  const windows: { opens: string; closes: string }[] = [];
-  for (const part of raw.split(/\s*,\s*/)) {
-    const match = /^(\d{1,2}:\d{2})\s*-\s*(\d{1,2}:\d{2}|24:00)$/.exec(part.trim());
-    if (!match) return [];
-    windows.push({
-      opens: match[1].padStart(5, "0"),
-      closes: match[2] === "24:00" ? "24:00" : match[2].padStart(5, "0"),
-    });
-  }
-  return windows;
-}
-
-function splitHourRules(input: string): string[] {
-  const rules: string[] = [];
-  for (const semi of input.split(/\s*;\s*/)) {
-    const chunk = semi.trim();
-    if (!chunk) continue;
-    let buffer = "";
-    for (const piece of chunk.split(/\s*,\s*/)) {
-      if (!buffer) {
-        buffer = piece;
-        continue;
-      }
-      const bufferHasTime = /\d{1,2}:\d{2}/.test(buffer);
-      const pieceHasDay = /^(Mo|Tu|We|Th|Fr|Sa|Su|PH|24\/7)\b/.test(piece);
-      if (bufferHasTime && pieceHasDay) {
-        rules.push(buffer);
-        buffer = piece;
-      } else {
-        buffer += `, ${piece}`;
-      }
-    }
-    if (buffer) rules.push(buffer);
-  }
-  return rules;
-}
-
-function applyWindows(
-  hours: WeeklyOpeningHours,
-  days: number[],
-  windows: { opens: string; closes: string }[],
-): void {
-  for (const day of days) {
-    hours[day] = [...windows];
-  }
-}
-
-/**
- * A conservative OSM opening_hours reader. Common day ranges and clock
- * windows become weekly hours. Anything else stays unknown rather than a
- * guessed door.
- *
- * Later rules OVERRIDE earlier ones for the same day. OSM writes
- * `Mo-Su 08:00-22:00; Su 10:00-18:00` to narrow Sunday, not to union both
- * windows. A day no rule mentions is CLOSED, not unknown.
- */
-export function parseOsmOpeningHours(
-  raw: string | null | undefined,
-): WeeklyOpeningHours | null {
-  if (typeof raw !== "string") return null;
-  const source = raw.trim();
-  if (!source) return null;
-  if (/^24\/7$/i.test(source)) {
-    const hours: WeeklyOpeningHours = {};
-    for (let day = 0; day < 7; day += 1) {
-      hours[day] = [{ opens: "00:00", closes: "24:00" }];
-    }
-    return hours;
-  }
-
-  const hours: WeeklyOpeningHours = {};
-  let parsed = false;
-  for (const rule of splitHourRules(source)) {
-    if (/^24\/7$/i.test(rule)) {
-      for (let day = 0; day < 7; day += 1) {
-        hours[day] = [{ opens: "00:00", closes: "24:00" }];
-      }
-      parsed = true;
-      continue;
-    }
-    const off = /^(.*?)\s+off$/i.exec(rule);
-    if (off) {
-      const days = parseDayList(off[1]);
-      if (days.length === 0) return null;
-      for (const day of days) hours[day] = [];
-      parsed = true;
-      continue;
-    }
-    const match = /^(.*?)\s+(\d{1,2}:\d{2}\s*-\s*(?:\d{1,2}:\d{2}|24:00)(?:\s*,\s*\d{1,2}:\d{2}\s*-\s*(?:\d{1,2}:\d{2}|24:00))*)$/.exec(rule);
-    if (!match) return null;
-    const days = parseDayList(match[1]);
-    const windows = parseTimeWindows(match[2]);
-    if (days.length === 0 || windows.length === 0) return null;
-    applyWindows(hours, days, windows);
-    parsed = true;
-  }
-  if (!parsed) return null;
-  for (let day = 0; day < 7; day += 1) {
-    if (!hours[day]) hours[day] = [];
-  }
-  return hours;
 }
 
 function amenityScore(wifi: WifiState, laptop: LaptopState): number {

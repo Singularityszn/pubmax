@@ -103,6 +103,7 @@ import {
 } from "@/lib/crawlStoryStore";
 import { __resetPintDrops } from "@/lib/pintDrops";
 import { __resetMemoryProfiles, memoryProfileStore } from "@/lib/profileStore";
+import { defined } from "@/__tests__/helpers/defined";
 
 const URL_BASE = "http://localhost/api/crawls";
 
@@ -134,7 +135,7 @@ describe("listAuthoredCrawlPage rows", () => {
     });
     const listed = (await listAuthoredCrawlPage("ken")).crawls;
     expect(listed.length).toBe(1);
-    expect(listed[0].stops).toBe(3);
+    expect(defined(listed[0]).stops).toBe(3);
   });
 });
 

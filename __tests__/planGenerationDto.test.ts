@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest";
 
-import { buildPlanGenerationStops, planBudgetSummary } from "@/lib/planGenerationDto";
+import { buildPlanGenerationStops, planBudgetSummary, planRouteTimingDisclosure } from "@/lib/planGenerationDto";
+import { STREET_WALK_TRANSPORT_BASIS } from "@/lib/routeLegs";
 import { inferNightContext } from "@/lib/nightPlanning";
+import { defined } from "@/__tests__/helpers/defined";
 
 const AREA = {
   name: "Test Area",
@@ -88,8 +90,8 @@ describe("plan generation response projection", () => {
       priceContext: { drinkCategory: "wine", zeroProof: false },
     });
 
-    expect(stops[0].selectedDrinkPriceEvidence).toBeNull();
-    expect(stops[0].alternatives[0]).toMatchObject({
+    expect(defined(stops[0]).selectedDrinkPriceEvidence).toBeNull();
+    expect(defined(stops[0]).alternatives[0]).toMatchObject({
       estimatedPintPricePence: null,
       priceEvidence: null,
       selectedDrinkPriceEvidence: {
@@ -126,7 +128,7 @@ describe("plan generation response projection", () => {
         priceEvidence: null,
         reason: `Close to the heart of the area, corroborated community ${drinkCategory} price £8.00.`,
       });
-      expect(stops[0].alternatives[0]).toMatchObject({
+      expect(defined(stops[0]).alternatives[0]).toMatchObject({
         estimatedPintPricePence: null,
         priceEvidence: null,
       });
@@ -219,9 +221,9 @@ describe("plan generation response projection", () => {
         },
       }],
     });
-    expect(stops[0].alternatives.map((alternative) => alternative.venueId))
+    expect(defined(stops[0]).alternatives.map((alternative) => alternative.venueId))
       .not.toContain("unused-fallback");
-    expect(stops[0].provenance).toEqual([
+    expect(defined(stops[0]).provenance).toEqual([
       { kind: "venue_dataset", label: "PUBMAXX venue record for Venue selected" },
       { kind: "night_area_review", label: "Test Area route review", asOf: AREA.lastReviewedAt },
       { kind: "night_signal", label: "Venue calendar: Thursday quiz", asOf: "2026-08-21T12:00:00.000Z" },
@@ -265,10 +267,10 @@ describe("plan generation response projection", () => {
       },
       reason: "Close to the heart of the area.",
     });
-    expect(stops[0].alternatives.map((alternative) => alternative.venueId))
+    expect(defined(stops[0]).alternatives.map((alternative) => alternative.venueId))
       .toEqual(["nearest", "middle"]);
-    expect(stops[0].alternatives).toHaveLength(2);
-    expect(stops[0].alternatives.map((alternative) => alternative.venueId))
+    expect(defined(stops[0]).alternatives).toHaveLength(2);
+    expect(defined(stops[0]).alternatives.map((alternative) => alternative.venueId))
       .not.toContain("other-chosen");
   });
 
@@ -295,5 +297,39 @@ describe("plan generation response projection", () => {
       "openrouteservice foot-walking route duration",
     ]);
     expect(stops.map((stop) => stop.walkingMinutesFromPrevious)).toEqual([null, 4]);
+  });
+});
+
+describe("plan generation street-walk disclosure", () => {
+  const timing = { straightLineWalkingKm: 1, walkingMinutes: 20, transferUncertaintyMinutes: 10, scheduledRouteMinutes: 170 };
+
+  it("names the basis the walking minutes were measured on", () => {
+    expect(planRouteTimingDisclosure({ ...timing, walkingBasis: "street" })?.basis).toBe(
+      "street walking estimate; add five minutes uncertainty per transfer",
+    );
+    expect(planRouteTimingDisclosure({ ...timing, walkingBasis: "mixed" })?.basis).toMatch(/^street walking estimate where mapped, straight-line elsewhere/);
+    expect(planRouteTimingDisclosure(timing)?.basis).toBe(
+      "straight-line walking estimate; add five minutes uncertainty per transfer",
+    );
+  });
+
+  it("marks a stop reached by a street leg with the street transport basis", () => {
+    const first = candidate("first", -0.1);
+    const second = candidate("second", -0.099);
+    const stops = buildPlanGenerationStops({
+      chosen: [first, second],
+      candidates: [first, second],
+      groundedStops: null,
+      groundedAlternatives: null,
+      walkingEstimate: {
+        legs: [{ toIndex: 1, source: "street" }],
+        walkingMinutesFromPrevious: [null, 3],
+      },
+      area: AREA,
+      planningWeather: null,
+      priceContext: { drinkCategory: null, zeroProof: false },
+    });
+    expect(defined(stops[1]).operationalEvidence.transportBasis).toBe(STREET_WALK_TRANSPORT_BASIS);
+    expect(defined(stops[0]).operationalEvidence.transportBasis).toBe("compact-straight-line");
   });
 });

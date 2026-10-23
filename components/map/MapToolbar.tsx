@@ -2,8 +2,6 @@
 
 import { GlassWater, Route } from "lucide-react";
 import {
-  lazy,
-  Suspense,
   useEffect,
   useLayoutEffect,
   useRef,
@@ -20,7 +18,11 @@ import FavoritePintPicker from "@/components/map/FavoritePintPicker";
 import PersonaLensPicker from "@/components/map/PersonaLensPicker";
 import type { CityId } from "@/lib/cities";
 import { DEFAULT_CITY_ID } from "@/lib/cities";
-import { activeDrinkLane, drinkLaneLabel } from "@/lib/drinkLanes";
+import {
+  activeDrinkLane,
+  DEFAULT_DRINK_LANE,
+  drinkLaneLabel,
+} from "@/lib/drinkLanes";
 import type { SpoonsValueLensState } from "@/lib/spoonsValue";
 import type { DrinkCategory } from "@/lib/drinks";
 import type { PersonaDrink } from "@/lib/personaDrinks";
@@ -30,11 +32,17 @@ import type {
   CategoryPriceIndexStatus,
   MapExperienceLens,
 } from "@/lib/mapExperienceLens";
+import { FOCUS_TRAP_EXEMPT_ATTRIBUTE } from "@/lib/useFocusTrap";
+import { useDismissOnEscape } from "@/lib/useDismissOnEscape";
 import { useSpringValue } from "@/lib/useSpringValue";
 import type { ZonePintIndex } from "@/lib/zones";
+import { lazyPanel } from "@/components/map/lazyPanel";
 import type { MapSearchSuggestProps } from "@/components/map/MapSearchSuggest";
 
-const MapSearchSuggest = lazy(() => import("@/components/map/MapSearchSuggest"));
+const MapSearchSuggest = lazyPanel(
+  () => import("@/components/map/MapSearchSuggest"),
+  "Search did not open. Check your signal.",
+);
 
 
 /**
@@ -43,6 +51,10 @@ const MapSearchSuggest = lazy(() => import("@/components/map/MapSearchSuggest"))
  * A closed panel may not hide which prices the pins are showing, so the button
  * carries the lane the same way the "Show me" control carries the view.
  */
+function drawerLaneAttribute(active: boolean, surfaces: number): "" | undefined {
+  return active && surfaces !== 0 ? "" : undefined;
+}
+
 function DrinkLaneButton({
   laneLabel,
   laneSelected,
@@ -66,7 +78,7 @@ function DrinkLaneButton({
       aria-expanded={open}
       onClick={onToggle}
     >
-      <GlassWater size={15} aria-hidden="true" />
+      <GlassWater size={16} aria-hidden="true" />
       <span>{`Drink: ${laneLabel}`}</span>
     </button>
   );
@@ -122,6 +134,30 @@ function searchFoundNothing(input: {
     input.trimmedQuery !== "" &&
     input.filteredVenueCount === 0
   );
+}
+
+/**
+ * The resting pint lane writes no drinkCategory, so a Pints press in the tray
+ * is the tray's own to remember, and it shows the pint refinements for it.
+ */
+function trayChipFilters(filters: Filters, pintsPicked: boolean): Filters {
+  return pintsPicked && !filters.drinkCategory
+    ? { ...filters, drinkCategory: DEFAULT_DRINK_LANE }
+    : filters;
+}
+
+/**
+ * The pint category trayChipFilters lends the chips is not the reader's own:
+ * once no refinement rides on it, the Pints lane writes its empty category.
+ */
+function trayChipChange(next: Filters, pintsPicked: boolean): Filters {
+  return pintsPicked &&
+    next.drinkCategory === DEFAULT_DRINK_LANE &&
+    !next.drinkSubtype &&
+    !next.topShelfOnly &&
+    !next.drinkBrand
+    ? { ...next, drinkCategory: "" }
+    : next;
 }
 
 // Compact map chrome: search + Plan on the first row; drink lens / chips stay
@@ -251,7 +287,38 @@ export default function MapToolbar({
   // Same contract for the drink lane: closed at rest, and its control names the
   // lane so a map showing cocktail prices never looks like the pint map.
   const [laneOpen, setLaneOpen] = useState(false);
+  // The tray never rides a surface that has just opened. A pub drawer or the
+  // planner is the reader's next question, and the tray sat open over the
+  // mapped route until they closed it by hand. Adjusted while rendering, on the
+  // edge only, so a reader who reopens the tray beside an open drawer keeps it.
+  const openSurfaces =
+    (detailOpen ? 1 : 0) | (planningOpen ? 2 : 0) | (storyOpen ? 4 : 0);
+  const [surfacesWereOpen, setSurfacesWereOpen] = useState(openSurfaces);
+  if (openSurfaces !== surfacesWereOpen) {
+    setSurfacesWereOpen(openSurfaces);
+    if (openSurfaces & ~surfacesWereOpen) setLaneOpen(false);
+  }
+  // Reopening the tray starts at rest again (trayChipFilters).
+  const [pintsPicked, setPintsPicked] = useState(false);
   const toolbarRef = useRef<HTMLDivElement | null>(null);
+  const drinkChoicesRef = useRef<HTMLDivElement | null>(null);
+  const closeDrinkChoices = () => {
+    setLaneOpen(false);
+    toolbarRef.current?.querySelector<HTMLButtonElement>(".mapToolbarDrinkLaneBtn")?.focus();
+  };
+  useDismissOnEscape(laneOpen, closeDrinkChoices, drinkChoicesRef);
+  useEffect(() => {
+    if (!laneOpen) return;
+    const outside = (event: PointerEvent) => {
+      const toggle = toolbarRef.current?.querySelector(".mapToolbarDrinkLaneBtn");
+      if (event.target instanceof Node && !drinkChoicesRef.current?.contains(event.target) && !toggle?.contains(event.target)) {
+        setLaneOpen(false);
+      }
+    };
+    document.addEventListener("pointerdown", outside);
+    return () => document.removeEventListener("pointerdown", outside);
+  }, [laneOpen]);
+
   const {
     value: laneOffset,
     animateTo: animateLaneOffset,
@@ -357,10 +424,18 @@ export default function MapToolbar({
     <div
       ref={toolbarRef}
       className="mapToolbar"
+      data-drawer-lane={drawerLaneAttribute(desktopLaneActive, openSurfaces)}
+      // Beside the desktop drawer the bar sits in the lane the drawer leaves,
+      // drawn at full strength, so it takes clicks and Tab like it looks. It is
+      // an exempt surface of the drawer's focus trap (lib/useFocusTrap.ts).
+      // Below 1024px the drawer has no free lane for it and the trap keeps it.
+      {...(desktopLaneActive ? { [FOCUS_TRAP_EXEMPT_ATTRIBUTE]: "" } : null)}
       style={
-        desktopLaneActive && laneOffset !== 0
+        desktopLaneActive
           ? {
               transform: `translateX(calc(-50% + ${laneOffset}px))`,
+              width: `min(var(--desktop-map-surface-width), calc(100vw - 32px - ${Math.abs(laneOffset) * 2}px))`,
+              maxWidth: "none",
               transition: "none",
             }
           : undefined
@@ -373,9 +448,7 @@ export default function MapToolbar({
         {searchProps || searchContent ? (
           <div className="mapToolbarSearch">
             {searchProps ? (
-              <Suspense fallback={null}>
-                <MapSearchSuggest {...searchProps} />
-              </Suspense>
+              <MapSearchSuggest {...searchProps} />
             ) : searchContent}
           </div>
         ) : null}
@@ -403,7 +476,10 @@ export default function MapToolbar({
             laneLabel={laneLabel}
             laneSelected={activeLane !== "beer"}
             open={laneOpen}
-            onToggle={() => setLaneOpen((open) => !open)}
+            onToggle={() => {
+              setLaneOpen((open) => !open);
+              setPintsPicked(false);
+            }}
           />
         ) : null}
 
@@ -414,7 +490,7 @@ export default function MapToolbar({
           aria-pressed={planningOpen}
           aria-label={planningOpen ? "Close plan" : "Plan an outing"}
         >
-          <Route size={15} aria-hidden="true" />
+          <Route size={16} aria-hidden="true" />
           {/* One label only — the old CSS-hidden sibling span still leaked into
               textContent/AT trees as the "Plan an outingPlan" dual label. */}
           <span className={isMobile === true ? "planBtnShort" : "planBtnFull"}>
@@ -443,11 +519,15 @@ export default function MapToolbar({
           one, plus the pint-brand slot, so a reader met three controls for one
           subject before touching a pin (walk finding B9). */}
       {laneOpen && laneAvailable ? (
-        <>
+        <div ref={drinkChoicesRef} className="mapToolbarDrinkChoices" role="region" aria-label="Drink choices">
           <DrinkLanePicker
             lane={activeLane}
             status={drinkLaneStatus}
-            onChange={onDrinkLaneChange}
+            onClose={closeDrinkChoices}
+            onChange={(lane) => {
+              setPintsPicked(lane === DEFAULT_DRINK_LANE);
+              onDrinkLaneChange(lane);
+            }}
           />
           <SpoonsValueLensControl
             on={spoonsValueOn}
@@ -463,7 +543,13 @@ export default function MapToolbar({
               onDrinkBrandChange={onDrinkBrandChange}
               className="mapToolbarDrinksLens"
             />
-            <DrinkShapeChips filters={filters} onFiltersChange={onFiltersChange} />
+            <DrinkShapeChips
+              filters={trayChipFilters(filters, pintsPicked)}
+              onFiltersChange={(next) =>
+                onFiltersChange(trayChipChange(next, pintsPicked))
+              }
+              categories={false}
+            />
             <div className="mapToolbarDrinksLens">
               <PersonaLensPicker
                 personaId={personaId}
@@ -472,7 +558,7 @@ export default function MapToolbar({
               />
             </div>
           </div>
-        </>
+        </div>
       ) : null}
 
       {showNoSearchMatches ? (
@@ -483,12 +569,12 @@ export default function MapToolbar({
           aria-atomic="true"
         >
           <span className="mapToolbarSearchStatusCopy">
-            <span>No venues match ‘</span>
+            <span>No venues match &apos;</span>
             <span className="mapToolbarSearchQuery" title={trimmedQuery}>
               {trimmedQuery}
             </span>
             <span className="mapToolbarSearchQualifier">
-              ’ with your current filters.
+              &apos; with your current filters.
             </span>
           </span>
           <button

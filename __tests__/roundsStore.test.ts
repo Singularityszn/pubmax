@@ -18,6 +18,7 @@ import {
   memoryRoundsStore,
   roundsStore,
 } from "@/lib/roundsStore";
+import { defined } from "@/__tests__/helpers/defined";
 
 const store = memoryRoundsStore;
 
@@ -132,7 +133,7 @@ describe("addStop", () => {
       dropRef: "drop-42",
     });
     expect(res.ok).toBe(true);
-    if (res.ok) expect(res.state.stops[0].dropRef).toBe("drop-42");
+    if (res.ok) expect(defined(res.state.stops[0]).dropRef).toBe("drop-42");
   });
 
   it("is idempotent on venue — the same pub is not a second stop", async () => {
@@ -209,7 +210,7 @@ describe("recordSpend", () => {
         totalPence: 2680,
         items: [],
       });
-      expect(Number.isNaN(Date.parse(res.state.spends[0].recordedAt))).toBe(false);
+      expect(Number.isNaN(Date.parse(defined(res.state.spends[0]).recordedAt))).toBe(false);
     }
   });
 
@@ -224,8 +225,8 @@ describe("recordSpend", () => {
     });
     expect(res.ok).toBe(true);
     if (res.ok) {
-      expect(res.state.spends[0].totalPence).toBe(860);
-      expect(res.state.spends[0].items).toEqual([
+      expect(defined(res.state.spends[0]).totalPence).toBe(860);
+      expect(defined(res.state.spends[0]).items).toEqual([
         {
           drinkName: "Guinness",
           drinkCategory: "beer",
@@ -275,7 +276,7 @@ describe("recordSpend", () => {
       recordedByHandle: "ken",
     });
     expect(res.ok).toBe(true);
-    if (res.ok) expect(res.state.spends[0].payerHandle).toBe("ale");
+    if (res.ok) expect(defined(res.state.spends[0]).payerHandle).toBe("ale");
   });
 
   it("rejects a recorder or payer who is not in the Round", async () => {
@@ -306,7 +307,7 @@ describe("recordSpend", () => {
     expect(res.ok).toBe(true);
     if (res.ok) {
       expect(res.state.spends).toHaveLength(1);
-      expect(res.state.spends[0].totalPence).toBe(2680);
+      expect(defined(res.state.spends[0]).totalPence).toBe(2680);
     }
   });
 

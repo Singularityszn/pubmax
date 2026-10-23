@@ -21,7 +21,12 @@
 //
 // 1. THE HOST LIST IS DERIVED, NOT TYPED. Candidates are the `website` tags the
 //    committed UK OSM pub snapshot already carries, plus the allowed
-//    `chain-menu-prices` sources in lib/harvest/sourcePolicy.ts. There is no
+//    `chain-menu-prices` sources in lib/harvest/sourcePolicy.ts. With --london,
+//    the `website` a curated London venue states in
+//    public/data/pint_prices_app_dataset.json joins them where the snapshot
+//    carries no such host, attached to that curated venue's id, name and
+//    position (an aggregator, a social page, a source-table estate host and a
+//    URL sourcePolicy refuses never do). There is no
 //    --url flag that takes an arbitrary host: a pub's own site is first-party by
 //    definition, and everything else has to be argued for in the source table.
 //
@@ -57,6 +62,7 @@ import process from "node:process";
 import { pdfIsWorthReading, readPdfText } from "../../../lib/harvest/pdfText.ts";
 import { createRobotsChecker } from "../../../lib/harvest/robots.ts";
 import {
+  HARVEST_SOURCES,
   allowedHarvestSources,
   harvestSourcesOfKind,
   isHarvestSourceAllowed,
@@ -81,15 +87,27 @@ import {
 } from "../../../lib/harvest/ukPriceCrawl.ts";
 import { readVenueDrinkPricesForHarvest, typesafeKeyConfigured } from "./readPrices.mjs";
 import { inGreaterLondon } from "../../fetch_uk_osm_venues.mjs";
-import { applyMenuEnrichmentSeeds, venueCoordsFromSlim } from "./londonScope.mjs";
+import {
+  addCuratedLondonWebsiteHosts,
+  applyMenuEnrichmentSeeds,
+  venueCoordsFromSlim,
+} from "./londonScope.mjs";
+import { THIRD_PARTY_SITE_HOSTS } from "./pubSites.mjs";
+import { addExaSiteHosts, contactLinkCandidates, pageBindsPub } from "./exaSites.mjs";
 
 const ROOT = process.cwd();
 const OSM_PUBS = path.join(ROOT, "data/osm/uk/uk_osm_pubs.json");
+const CURATED_DATASET = path.join(ROOT, "public/data/pint_prices_app_dataset.json");
 const OUT_DIR = path.join(ROOT, "data-harvest/uk_prices");
 const LEDGER_PATH = path.join(OUT_DIR, "hosts.json");
 const ROWS_PATH = path.join(OUT_DIR, "rows.jsonl");
 const REVIEW_PATH = path.join(OUT_DIR, "judgment_review.jsonl");
-const REPORT_PATH = path.join(ROOT, "data/uk_prices/harvest_report.json");
+// An Exa-only run reads a few hundred hosts, so it writes its own report and
+// never replaces the national one, whose counts describe the whole ledger.
+const REPORT_PATH = path.join(
+  ROOT,
+  process.argv.includes("--exa-sites-only") ? "data/uk_prices/exa_sites_report.json" : "data/uk_prices/harvest_report.json",
+);
 const PUBLISHED_ROWS = path.join(ROOT, "data/uk_prices/site_harvest.jsonl");
 
 const USER_AGENT = "PUBMAXXHarvest/1.0 (+https://pubmaxxing.com; hello@pubmaxxing.com)";
@@ -118,6 +136,9 @@ const HOST_OUTCOMES = [
   // names the pub the price would have to belong to. The price is real and the
   // attribution is not, so nothing is written and the finding is counted.
   "estate-page-names-no-pub",
+  // A host only Exa named for this pub, and no page read on it states the pub's
+  // postcode or street address. It may be a namesake's site, so nothing is kept.
+  "exa-site-unbound",
 ];
 
 const flag = (name) => process.argv.includes(name);
@@ -153,6 +174,13 @@ const MENU_ENRICHMENT_INPUT = option("--menu-enrichment", "public/data/venue_men
  * reading the snapshot's own websites alone.
  */
 const MENU_URL_INPUT = option("--menu-urls", OVERLAY_MENU_URL_INPUT_PATH);
+/**
+ * Exa-found pub websites, cut by scripts/harvest/uk-prices/exa-sites.mjs. Off
+ * unless named. `--exa-sites-only` crawls the new hosts that input adds and
+ * nothing else, so a run on a fresh ledger does not re-read every snapshot host.
+ */
+const EXA_SITES_INPUT = option("--exa-sites", "none");
+const EXA_SITES_ONLY = flag("--exa-sites-only");
 const RECHECK = (option("--recheck", "") || "")
   .split(",")
   .map((name) => name.trim())
@@ -260,11 +288,8 @@ function candidateHosts({ londonOnly = false } = {}) {
     }
     const host = hostOf(normalised);
     if (!host) continue;
-    // A social page is not a pub's own site: it is a third party with its own
-    // permission question this crawl has not asked.
-    if (/(facebook|instagram|twitter|x\.com|tripadvisor|yelp|google|linktr\.ee|wixsite|whatpub)/i.test(host)) {
-      continue;
-    }
+    // A social page is not a pub's own site (THIRD_PARTY_SITE_HOSTS).
+    if (THIRD_PARTY_SITE_HOSTS.test(host)) continue;
     const entry = byHost.get(host) ?? { host, origin: null, pubs: [] };
     if (!entry.origin) {
       try {
@@ -341,6 +366,36 @@ async function discoverPages(entry, statedSitemaps, spend) {
   return pages;
 }
 
+/** The address check for a host only Exa named; every other host starts bound. */
+function exaSiteBinder(entry) {
+  const binding = entry.exaSite ? (entry.pubs[0]?.binding ?? null) : null;
+  let bound = binding === null;
+  return {
+    get bound() {
+      return bound;
+    },
+    wanted: binding ? (binding.postcode ?? binding.streetAddress) : null,
+    see(body) {
+      if (!bound && pageBindsPub(body, binding)) bound = true;
+    },
+  };
+}
+
+/** Ask up to two same-origin contact pages for the address. Answers the pages read. */
+async function bindOnContactPages(binder, homeBody, origin, { robots, spend, delayMs }) {
+  let pagesRead = 0;
+  if (binder.bound) return pagesRead;
+  for (const url of contactLinkCandidates(homeBody, origin, 2)) {
+    if (!(await robots(url)).allowed || !spend()) continue;
+    await sleep(delayMs);
+    const page = await fetchText(url);
+    pagesRead += 1;
+    if (page.ok && !page.pdf) binder.see(page.body);
+    if (binder.bound) break;
+  }
+  return pagesRead;
+}
+
 async function crawlHost(entry, robots, spend, delayMs) {
   const decision = await robots(entry.origin);
   if (!decision.allowed) {
@@ -378,6 +433,13 @@ async function crawlHost(entry, robots, spend, delayMs) {
       rows: [],
     };
   }
+
+  // THE ADDRESS CHECK. A host only Exa named is this pub's site only when one
+  // of its pages states the pub's postcode or street address. The home page is
+  // asked first, then up to two contact pages, then every page the crawl reads.
+  const binder = exaSiteBinder(entry);
+  binder.see(home.body);
+  pagesRead += await bindOnContactPages(binder, home.body, entry.origin, { robots, spend, delayMs });
 
   const discovered = await discoverPages(entry, decision.sitemaps ?? [], spend);
   const fromHome = menuLinkCandidates(home.body, entry.origin, DEFAULT_PAGES_PER_HOST);
@@ -419,12 +481,29 @@ async function crawlHost(entry, robots, spend, delayMs) {
         continue;
       }
       pdfRead += 1;
+      binder.see(text);
       // The PDF's words are fed in as TEXT, so the HTML stripper is not asked to
       // strip markup that was never there.
       readings.push({ url, reading: await readPage(url, text, "text") });
       continue;
     }
+    binder.see(page.body);
     readings.push({ url, reading: await readPage(url, page.body) });
+  }
+
+  if (!binder.bound) {
+    return {
+      robots: robotsFile,
+      outcome: "exa-site-unbound",
+      evidence: `${readings.length} page(s) read, none states ${binder.wanted}`,
+      pagesRead,
+      pdfSeen,
+      pdfRead,
+      pdfUnread,
+      drops: [],
+      rows: [],
+      reviewRows,
+    };
   }
 
   const rows = [];
@@ -600,6 +679,69 @@ function appendPriceRows(entry, rows) {
   }
 }
 
+/**
+ * Empty the ledger rows on --reset. Otherwise, in a fresh checkout with no ledger
+ * rows, start them from the published rows: the bundle prefers the ledger's rows
+ * to the published copy and rewrites the published copy from them, so a run that
+ * appended to an empty ledger would publish this run alone.
+ */
+function prepareLedgerRows() {
+  if (RESET) {
+    if (existsSync(ROWS_PATH)) writeFileSync(ROWS_PATH, "");
+    return;
+  }
+  if (!existsSync(ROWS_PATH) && existsSync(PUBLISHED_ROWS)) {
+    writeFileSync(ROWS_PATH, readFileSync(PUBLISHED_ROWS, "utf8"));
+  }
+}
+
+/**
+ * Join the Exa input named by --exa-sites to the host list. Answers the counts
+ * for the report, or null when a named input is missing.
+ */
+function joinExaSiteHosts(hosts) {
+  if (EXA_SITES_INPUT === "none") return { inputRead: false };
+  const exaPath = path.isAbsolute(EXA_SITES_INPUT) ? EXA_SITES_INPUT : path.join(ROOT, EXA_SITES_INPUT);
+  if (!existsSync(exaPath)) {
+    console.error(`missing ${path.relative(ROOT, exaPath)}; run npm run harvest:uk-exa-sites first`);
+    return null;
+  }
+  const exaInput = JSON.parse(readFileSync(exaPath, "utf8"));
+  // The file is committed and can be older than the source table, so the
+  // permission gate is asked again on the way out.
+  const crawlable = (exaInput.candidates ?? []).filter(
+    (candidate) =>
+      typeof candidate?.siteUrl === "string" &&
+      isHarvestableOperatorUrl(candidate.siteUrl) &&
+      (!LONDON_ONLY || inGreaterLondon(candidate)),
+  );
+  const publishedHosts = new Set();
+  if (existsSync(PUBLISHED_ROWS)) {
+    for (const line of readFileSync(PUBLISHED_ROWS, "utf8").split("\n")) {
+      if (!line.trim()) continue;
+      try {
+        const host = JSON.parse(line).host;
+        if (typeof host === "string") publishedHosts.add(host);
+      } catch {
+        // A malformed published line is validate-data's finding, not this lane's.
+      }
+    }
+  }
+  const counts = {
+    inputRead: true,
+    held: exaInput.candidates?.length ?? 0,
+    crawlable: crawlable.length,
+    ...addExaSiteHosts(hosts, crawlable, {
+      publishedHosts,
+      sourceTableHosts: HARVEST_SOURCES.map((source) => hostOf(source.url)).filter(Boolean),
+    }),
+  };
+  console.log(
+    `  exa sites: ${counts.crawlable} candidate(s), ${counts.hostsAdded} new host(s), ${counts.seededOnKnownHost} seeded on a known host, ${counts.sharedHost} on a shared host, ${counts.estateHost} on an estate host, ${counts.alreadyPublished} already published`,
+  );
+  return counts;
+}
+
 async function main() {
   if (!existsSync(OSM_PUBS)) {
     console.error(`missing ${path.relative(ROOT, OSM_PUBS)}; run npm run fetch:uk-pubs first`);
@@ -632,6 +774,20 @@ async function main() {
     }
   }
 
+  let curatedWebsites = null;
+  if (LONDON_ONLY) {
+    // Rule 1, curated layer: a London venue's own stated website is a candidate
+    // the snapshot happened not to carry, never a typed host.
+    curatedWebsites = addCuratedLondonWebsiteHosts(hosts, {
+      datasetRows: JSON.parse(readFileSync(CURATED_DATASET, "utf8")),
+      isHarvestableOperatorUrl,
+      sourceTableHosts: HARVEST_SOURCES.map((source) => hostOf(source.url)).filter(Boolean),
+    });
+    console.log(
+      `  curated websites: ${curatedWebsites.added} London venue(s) on ${curatedWebsites.hostsAdded} new host(s) (${curatedWebsites.alreadyCandidate} already a candidate host, ${curatedWebsites.refused} refused)`,
+    );
+  }
+
   let menuEnrichment = { seeded: 0, venuesConsidered: 0, onUnknownHost: 0, refused: 0 };
   if (LONDON_ONLY && MENU_ENRICHMENT_INPUT !== "none") {
     menuEnrichment = applyMenuEnrichmentSeeds(hosts, {
@@ -661,6 +817,14 @@ async function main() {
       : `  overlay menu urls: no input at ${path.relative(ROOT, MENU_URL_INPUT)}; run npm run harvest:uk-menu-urls`,
   );
 
+  // EXA'S WEBSITES. Read only when named. A website on a host the list already
+  // holds seeds that host; a new host joins with one pub and its address check.
+  const exaSites = joinExaSiteHosts(hosts);
+  if (exaSites === null) {
+    process.exitCode = 1;
+    return;
+  }
+
   if (RECHECK.length > 0) {
     let dropped = 0;
     for (const [host, entry] of Object.entries(ledger.hosts)) {
@@ -677,6 +841,7 @@ async function main() {
 
   const pending = hosts
     .filter((entry) => (ONLY ? entry.host.includes(ONLY) : true))
+    .filter((entry) => (EXA_SITES_ONLY ? entry.exaSite === true : true))
     .filter((entry) => !ledger.hosts[entry.host])
     .sort((a, b) => b.pubs.length - a.pubs.length)
     .slice(0, Number.isFinite(HOST_LIMIT) ? HOST_LIMIT : hosts.length);
@@ -689,7 +854,7 @@ async function main() {
   const spend = () => (spent < PAGE_BUDGET ? ((spent += 1), true) : false);
 
   if (!DRY_RUN) mkdirSync(OUT_DIR, { recursive: true });
-  if (RESET && existsSync(ROWS_PATH) && !DRY_RUN) writeFileSync(ROWS_PATH, "");
+  if (!DRY_RUN) prepareLedgerRows();
 
   let index = 0;
   let done = 0;
@@ -756,6 +921,7 @@ async function main() {
       ? {
           enabled: true,
           pubsOutsideBboxSkipped: outsideLondon,
+          curatedWebsites,
           menuEnrichment,
           chainMenuSourcesOmitted: true,
         }
@@ -768,6 +934,7 @@ async function main() {
       seeded: overlaySeeded,
       onHostWithNoSnapshotPub: overlayOnUnknownHost,
     },
+    exaSites,
     hostsCrawledThisRun: done,
     hostsInLedger: Object.keys(ledger.hosts).length,
     pagesRead: spent,

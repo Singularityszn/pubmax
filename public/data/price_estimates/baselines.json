@@ -1,7 +1,7 @@
 {
   "version": 1,
-  "computedAt": "2026-09-03T21:36:27.404Z",
-  "method": "Chain rows are the median published pint price per permitted first-party chain menu. London region rows are the median of the bundled dataset's own per-borough average, classified point-in-polygon. A basis under three prices is dropped rather than used.",
+  "computedAt": "2026-10-05T23:53:08.357Z",
+  "method": "Chain rows are the median published pint price per permitted first-party chain menu. London region rows are the median of the bundled dataset's own per-borough average, classified point-in-polygon. Wine and cocktail rows are London borough medians over pubs, each pub counted once at the median of its own in-band menu lines, from permitted first-party menus, and a borough whose pubs are run by fewer than three operators gets no row. A basis under three prices is dropped rather than used.",
   "chains": [],
   "regions": [
     {
@@ -233,8 +233,22 @@
       "code": "westminster",
       "label": "Westminster",
       "medianGbp": 6.63,
-      "sampleSize": 343,
+      "sampleSize": 342,
       "provenance": "Borough averages published by the bundled London pint dataset. Competitor-derived, quarantined from the Pint Index, and used here only to model an estimate."
     }
-  ]
+  ],
+  "drinks": {
+    "wine": {
+      "minGbp": 3,
+      "maxGbp": 12,
+      "servingNote": "One glass. The source menus state no serving size, so lines outside this band are treated as bottles and dropped.",
+      "regions": []
+    },
+    "cocktail": {
+      "minGbp": 4,
+      "maxGbp": 15,
+      "servingNote": "One cocktail. The source menus state no serving size, so lines outside this band are treated as jugs or sharers and dropped.",
+      "regions": []
+    }
+  }
 }

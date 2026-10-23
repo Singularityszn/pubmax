@@ -38,7 +38,9 @@ proof, not a second policy. The closed list is:
 and `night_signal_claims` (SELECT re-opened with an explicit approved-claim
 predicate). `pub_presence` is service-mediated for writes; browser SELECT, when
 granted, is the single non-expired read rule from 0159. Catalogue tables
-`drinks`, `pub_heritage`, and `crawl_stories` are not on this list.
+`drinks` and `pub_heritage` are not on this list. `crawl_stories` is not on it
+either: since 0178 browser roles hold no grant on it, and its read policy
+admits `public` rows only, so an unlisted crawl's slug never lists.
 
 **Three rules every denied cell is held to.** A refusal answers the honest
 status. It discloses no protected value, asserted over the whole serialized
@@ -81,6 +83,8 @@ the honest refusal for that route (401, 403, 400 or 409) and no change.
 | The seat token column (`plan_crew_members.token_hash`) | denied | denied | denied | denied |
 | Edit A's Plan (`PATCH` stops, invite rotate, presence) | denied | denied | denied with a bare bearer | host token only; a guest may not rotate |
 | Plan writes at the table | denied | denied | denied | denied |
+| Read A's crew Pals (`GET /api/plans/[id]/pals`, "Crew Pals") | preview only | preview only | preview only with a bare account bearer | host or guest member token: the Pals of the OTHER members whose owners set `pub_pals.crew_visible` and did not hide them, by Pal name and look only, never an account id, seat id or handle |
+| Another member's Pal at the table (`pub_pals`, including `crew_visible`) | denied | no rows | own row only | n/a |
 | Invite acceptance (`POST /api/plans/[id]/join`) | invite required | one seat per account, spent invite refused | n/a | invite token as a bearer: preview and no edit |
 | Removed member | n/a | preview at the route and no rows at the table, immediately | n/a | revoked token: preview, presence refused |
 | Unfurler (`/api/plan-card`) | PNG from the preview only | same | same | same |
@@ -128,6 +132,12 @@ no side effect, as above.
 | A reported message's attachment | gone from the thread and from the serving door, for its own participants |||||||
 | Photo tag inbox (`GET /api/social/tags`) | 401 | own lane only | own lane only | n/a | n/a | n/a | own lane only |
 | Read a Wanted (`GET /api/wanted`) | 401 | own list only | own list only | n/a | n/a | n/a | own list only |
+| Read, log, correct or remove a Diary entry (`GET`, `POST /api/diary` with `action: "update"` or `"delete"`) | 401 | own entries only; a body owner is ignored | own entries only | n/a | n/a | n/a | own entries only |
+| `diary_entries` at the table | denied | no rows | no rows | n/a | n/a | n/a | own rows, SELECT only; a write is refused at the grant (0174) |
+| Add a pub, or read the pubs you added (`POST`, `GET /api/venue-submissions`) | 401 | own submissions only; a body owner is ignored | own submissions only | n/a | n/a | n/a | own submissions only |
+| Attach a menu file (`POST /api/venue-submissions`, multipart) | 401 | 404 on another account's submission | 404 on another account's submission | n/a | n/a | n/a | own pending submission, up to three files |
+| `venue_submissions`, `venue_submission_files` at the table | denied | denied | denied | n/a | n/a | n/a | denied: no browser grant, service role only (0189) |
+| Decide a submission, read the queue (`/api/admin/venue-submissions`) | 403 | 403 | 403 | 403 | 403 | 403 | 403; `ADMIN_TOKEN` only |
 | Read a saved-pub list (`GET /api/saved-pubs`) | public by design |||||||
 | Write a saved-pub list (`POST /api/saved-pubs`) | 403 on a claimed handle, 404 on a handle with no profile row (no row is minted) | writes to their OWN list, never the named one ||||| allowed |
 | `saved_pubs` at the table | denied | no rows, and a write is refused at the grant (0172) ||||| own rows, SELECT only; a write is refused at the grant |
@@ -145,6 +155,9 @@ no side effect, as above.
    the check into the helper the policies read and drops the stray copy, which
    was also an exposed RPC in the public schema (the live isolated project
    answered `POST /rest/v1/rpc/rls_is_plan_participant` to the anon key).
+   The `0124` rollback used to recreate that public copy as SECURITY DEFINER,
+   although no copy existed before `0124`; it now drops it and leaves the
+   `pubmax_private` helper (0075's body, with its legacy-only guard) untouched.
 2. **Refusals for a foreign Plan write read as 400** rather than 403 on the
    `PATCH` and presence routes, because validation and the capability lookup
    share one store result. Denied is denied; the matrix asserts 400 or 403.
@@ -216,6 +229,9 @@ from the follow-handle graph the seam reads, and it does not hide a PUBLIC
 profile card from a blocked account either, so this wave neither opens that door
 nor closes it. Folding the block into the seam is its own slice with its own
 cells; asserting Carol's current answer here would write the gap down as intent.
+A Social mute (`social_mutes`, migration `0188`) is narrower still: it moves only
+the muter's own post lanes, and no browser role holds the table or its two
+functions (`__tests__/socialMutesMigrationEffective.test.ts`).
 
 ## The URL allow-list
 

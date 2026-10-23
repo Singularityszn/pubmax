@@ -263,7 +263,7 @@ unanchored selection path. The anchored lane answers `200` with an `outcome`:
 `anchor-conflict` is a `200` with no Stops, so a caller must branch on
 `outcome` before it treats an empty `stops` array as no match.
 
-Merge rule (`mergeContext`): a complete `cleanNightContext` wins; else a `cleanNightContextPatch` is layered over the inferred context; else the inferred context is used. `context.nightArea` must resolve — a `null` area is a `422`.
+[`reconcilePlanContext`](../lib/planGenerationContext.ts) applies query inference, explicit context corrections, then completed intake fields in that order. Recognised price limits can tighten the resulting budget as described below. `context.nightArea` must resolve. A `null` area returns `422`.
 
 ### Response `200`
 
@@ -290,11 +290,15 @@ type GeneratePlanResponse = {
 
 Generation reports ranking inputs in `contextEffects`, per-stop grounding in `reason`, and inferred context in `explanations`. `missingContextEvidence` names constraints the engine could not ground.
 
-The response excerpt above omits price fields. [`buildPlanGenerationStops`](../lib/planGenerationDto.ts) owns their projection on ordinary stops and alternatives. For a non-beer value request without zero-proof, [`scoreVenueForPlan`](../lib/planGenerationRanking.ts) uses corroborated community prices for that category. Its price reason names the category and amount. Non-beer responses contain no pint estimate or pint evidence. Zero-proof requests also suppress pint output. Partial or degraded selected-category reads add a coverage warning.
+The response excerpt above omits price fields. [`buildPlanGenerationStops`](../lib/planGenerationDto.ts) owns their projection on ordinary stops and alternatives. [`planScoringDrinkCategory`](../lib/planGenerationRanking.ts) decides which selected category [`scoreVenueForPlan`](../lib/planGenerationRanking.ts) may rank on: any non-beer category without zero-proof, and only `soft-drink` with zero-proof. A non-beer value request uses corroborated community prices for that category. Its price reason names the category and amount. An explicit Soft drinks zero-proof request ranks only matching corroborated Soft drinks reports under every budget, with one price reason per stop. Other zero-proof requests keep the generic alcohol-free report and Venue Dataset amenity signals, and an alcoholic category gains no category ranking. `contextEffects` names `drinkCategory` when either category path applies. Ranking on a category price does not create selected-drink evidence or a budget total. Non-beer responses contain no pint estimate or pint evidence. Zero-proof requests also suppress pint output. Partial or degraded selected-category reads add a coverage warning.
 
 [`planBudgetSummary`](../lib/planGenerationDto.ts) returns unknown per-person and crew totals and `withinLimit: null` for non-beer and zero-proof contexts, with basis `selected-drink-price-unavailable`. Individual community reports do not establish comparable servings for a budget total. No selected category, or explicit beer without zero-proof, retains the pint path. Keep-going extensions likewise omit pint figures for other drinks. Persistence follows the [selected-drink evidence contract](#selected-drink-price-evidence).
 
 Unanchored generation with a per-person ceiling requires usable budget evidence. Non-beer and zero-proof contexts cannot satisfy it with pint prices, so they return `422 GROUNDED_CONSTRAINTS_UNSATISFIED` with `details.rejected.budgetEvidence` rather than an estimated route within the ceiling. [`selectPlanGenerationCandidates`](../lib/planGenerationSelection.server.ts) owns the selection boundary.
+
+The route planner has no menu-item or nutrition evidence. [`preparePlanGeneration`](../lib/planGeneration.server.ts) checks the query and reconciled `foodNeeds` before route selection. Detected meal-price, dietary, or calorie constraints return `422 MEAL_CONSTRAINTS_UNSUPPORTED` with an explicit limitation. A food-serving venue preference alone remains supported.
+
+Drink-owned prices in the query and each `foodNeeds` field share one recognition boundary in [`planPriceAmounts`](../lib/planPriceLimits.ts). Pint, beer, and unspecified drink limits constrain recorded beer pint prices. Both price directions retain the strictest pint ceiling separately from route totals. The strictest recognised route budget also tightens any reconciled context ceiling. Candidates and alternatives require attributable, non-stale canonical evidence at or below the pint ceiling. When a pint ceiling applies, each returned stop and alternative retains that canonical `priceEvidence`, including its amount, source, and observation date. The response also identifies `priceCategory: "beer"` and `priceServing: "pint"`, even without a route-total budget. Explicit other servings, quantities, non-beer selections, and zero-proof selections return `422 DRINK_PRICE_CONSTRAINTS_UNSUPPORTED` when they request these drink limits. The planner does not convert bottle, cocktail, or half-pint prices into pints.
 
 ### Errors
 
@@ -303,6 +307,8 @@ Unanchored generation with a per-person ceiling requires usable budget evidence.
 | `400` | malformed JSON | `MALFORMED_REQUEST` |
 | `400` | neither `query` nor `context` | `NIGHT_CONTEXT_REQUIRED` |
 | `400` | invalid `cityId` | `CITY_INVALID` |
+| `422` | detected meal-price, dietary, or calorie constraint | `MEAL_CONSTRAINTS_UNSUPPORTED` |
+| `422` | drink price limit requires an unsupported drink or serving | `DRINK_PRICE_CONSTRAINTS_UNSUPPORTED` |
 | `422` | no `nightArea` resolved | `NIGHT_AREA_REQUIRED` |
 | `422` | area not in requested city | `NIGHT_AREA_CITY_MISMATCH` |
 | `422` | fewer grounded venues than the requested stop count | `GROUNDED_VENUES_INSUFFICIENT` |
@@ -506,7 +512,7 @@ export function publicApiError(error, code, status, options?): Response;
 
 Registry: `lib/analyticsEvents.ts` (`ANALYTICS_EVENTS`), first-party, low-cardinality, no free-text/handles/coords (dropped by `sanitizeEvent`). BASELINE framework; new events IMPLEMENTED LOCALLY.
 
-**Codex added (branch reality):** `night_description_submitted {area,daypart}`, `planned_night_status_changed {status}`, `planned_night_action {type}`, `planned_night_completed {ending}`, `pub_pal_adopted {pal}`, `pub_pal_summoned {surface}`, `pub_pal_memory_changed {action,category}`, `discovery_viewed {surface,daypart}`, `plan_invite_sent {channel}`, `plan_invite_opened {source}`, `crew_committed {source,participants}`, `account_claimed {source}`, `social_account_connected {provider,connectionType}`, `night_moment_saved {kind,visibility}`, `night_story_published {contributors,moments}`, `next_night_committed {windowDays,source}`, `draft_recovered {kind,surface}`, `web_vital {metric,value,rating}`, `guest_plan_participated {action}`, plus district events `district_catalogue_viewed`, `district_viewed`, `district_route_blocked`, `district_route_ready_selected`, `route_ready_gate_failed`.
+**Codex added (branch reality):** `night_description_submitted {area,daypart}`, `planned_night_status_changed {status}`, `planned_night_action {type}`, `planned_night_completed {ending}`, `pub_pal_adopted {pal}`, `pub_pal_summoned {surface}`, `pub_pal_memory_changed {action,category}`, `discovery_viewed {surface,daypart}`, `plan_invite_sent {channel}`, `plan_invite_opened {source}`, `crew_committed {source,participants}`, `account_claimed {source}`, `social_account_connected {provider,connectionType}`, `night_moment_saved {kind,visibility}`, `night_story_published {contributors,moments}`, `next_night_committed {windowDays,source}`, `draft_recovered {kind,surface}`, `guest_plan_participated {action}`, plus district events `district_catalogue_viewed`, `district_viewed`, `district_route_blocked`, `district_route_ready_selected`, `route_ready_gate_failed`.
 
 **RESOLVED (§12.3): the shipped vocabulary wins, and #252's registry is amended to it.** An event that already emits keeps its shipped name; renaming one buys nothing and breaks every query built on it. This is the mapping, and it is the record rather than a proposal:
 

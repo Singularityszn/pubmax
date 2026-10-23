@@ -1,14 +1,19 @@
 "use client";
 
+import type { Route } from "next";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { CirclePlus } from "lucide-react";
-import { useSyncExternalStore } from "react";
+import { useMemo, useSyncExternalStore } from "react";
 
-import ThemeToggle from "@/components/ThemeToggle";
+import IntentLink from "@/components/nav/IntentLink";
 import MessagesLink from "@/components/nav/MessagesLink";
+import { PalSiteNavButton } from "@/components/nav/PalNavButton";
 import NotificationBell from "@/components/nav/NotificationBell";
-import SiteNavMore, { siteNavMoreItems } from "@/components/nav/SiteNavMore";
+import SiteNavMore, {
+  siteNavMoreItems,
+  type SiteNavMoreItem,
+} from "@/components/nav/SiteNavMore";
 import SignInButton from "@/components/auth/SignInButton";
 import PubmaxxWordmark from "@/components/brand/PubmaxxWordmark";
 import { useCommandPalette } from "@/components/command/CommandPaletteProvider";
@@ -16,8 +21,15 @@ import {
   PRIMARY_NAV_ITEMS,
   momentHref,
   navPathMatches,
+  primaryNavLabel,
 } from "@/components/nav/navigationModel";
 import { useSocialSurfaceName } from "@/lib/useSocialFriendsLaunch";
+import { FOCUS_TRAP_EXEMPT_ATTRIBUTE } from "@/lib/useFocusTrap";
+import {
+  themeSwitchLabel,
+  toggleThemeChoice,
+  useThemeChoice,
+} from "@/lib/useThemeChoice";
 import {
   preferredCityMapHref,
   readPreferredCity,
@@ -29,15 +41,17 @@ import "./siteNavMoment.css";
 
 // Shared app-wide top navigation. One bar, used on every APP page (map, feed,
 // discover, crawls, profile, borough, admin) so navigation never duplicates or
-// drifts page-to-page.
+// drifts page-to-page. The landing header renders the same action cluster
+// (SiteNavActions below), so the front door and the app offer one set of
+// controls.
 //
 // The mobile fix: at ≤640px the app already renders a fixed bottom tab bar
-// (MobileTabBar: Tonight/Map/Places/Out/Plan/You). Repeating the full link list up
-// top there caused the old `.appNav` pill to overflow the viewport (Admin +
-// theme toggle clipped off-screen) on /map. So on mobile this renders a COMPACT
-// bar — just the wordmark + theme toggle + sign-in — and hides the full link
-// list (see siteNav.css @media ≤640px). On desktop the full links + active
-// state show. Nothing may horizontally overflow at 390px.
+// (MobileTabBar: Map/Tonight/Plan/Social/You). Repeating the full link list up top
+// there caused the old `.appNav` pill to overflow the viewport on /map. So on
+// mobile this renders a COMPACT bar — just the wordmark + the signed-in
+// bell/messages + sign-in — and hides the full link list (see siteNav.css
+// @media ≤640px). On desktop the full links + active state show. Nothing may
+// horizontally overflow at 390px.
 //
 // No effects: usePathname() marks the active link, which keeps this clear of
 // react-hooks/set-state-in-effect. `active` can also be passed explicitly by the
@@ -52,6 +66,7 @@ type NavKey =
   | "pubs"
   | "drop"
   | "out"
+  | "plan"
   | "tonight"
   | "historic"
   | "feed"
@@ -63,7 +78,7 @@ type NavKey =
 
 type NavLink = {
   key: NavKey;
-  href: string;
+  href: Route;
   label: string;
   /** Path prefixes that should mark this link active (defaults to href). */
   match: string[];
@@ -82,18 +97,105 @@ function matchesPath(pathname: string, link: NavLink): boolean {
 }
 
 function primaryKeyForLegacyActive(active?: NavKey): NavKey | undefined {
-  // Social and its aliases are not in the primary row (they live under More),
-  // so a Social page lights no primary link.
-  if (active === "social" || active === "feed" || active === "discover" || active === "crawls") {
-    return undefined;
+  // Social is a primary tab, and its aliases light it too.
+  if (active === "social" || active === "feed" || active === "discover") {
+    return "social";
   }
-  if (active === "today" || active === "tonight") return "now";
+  // The crawl routes are walks to plan, never Social (PLAN_NAV_MATCH).
+  if (active === "crawls") return "plan";
+  // Out folded into Tonight, so the retired Out page lights Tonight.
+  if (active === "tonight" || active === "out") return "now";
+  // The city picker is a setting reached from the map's chip, not a door.
+  if (active === "places") return undefined;
   // Borough pages are data/discovery, not Social. There is no primary tab for
   // them, so they light nothing on the desktop nav rather than wrongly lighting
   // Social (the mobile tab bar already excludes /borough from its match set).
   if (active === "borough" || active === "home") return undefined;
   if (active === "pubs" || active === "historic") return undefined;
   return active;
+}
+
+/**
+ * The theme row the desktop More menu carries. The theme left the primary
+ * header (Oct 2026 UX audit) because it is a setting, not a destination; on a
+ * phone it lives on the You page's Appearance block.
+ */
+function siteNavThemeItem(theme: "light" | "dark"): SiteNavMoreItem {
+  return {
+    id: "theme",
+    label: theme === "dark" ? "Light theme" : "Dark theme",
+    description: themeSwitchLabel(theme),
+    onSelect: toggleThemeChoice,
+  };
+}
+
+/**
+ * The right-hand action island, ONE component for the app bar and the landing
+ * header: More (desktop), compose, the ⌘K hint, the signed-in bell and
+ * messages (each renders nothing for a signed-out visitor, who has nothing
+ * behind them), and sign-in.
+ */
+export function SiteNavActions({ className = "siteNavActions" }: { className?: string }) {
+  const pathname = usePathname() ?? "";
+  // Imperative handle onto the global ⌘K palette (feature N1) — the button below
+  // opens it for pointer users who won't reach for the shortcut.
+  const { open: openCommandPalette } = useCommandPalette();
+  const theme = useThemeChoice();
+  const moreItems = useMemo(
+    () => [...siteNavMoreItems(), siteNavThemeItem(theme)],
+    [theme],
+  );
+
+  return (
+    <div className={className}>
+      {/* D2.2: secondary destinations (Drink Wall/Near/Historic/Pal) and the
+          theme row. Social is a primary tab, so it is not repeated here. Desktop
+          only — siteNav.css hides .siteNavMore at ≤640 so mobile is
+          unchanged. */}
+      {/* The Pub Pal's own door (PalNavButton.tsx): the person's Pal and its
+          name, first among the actions. Hidden <=640px, where it rises out of
+          the phone dock instead. */}
+      <PalSiteNavButton pathname={pathname} />
+      <SiteNavMore items={moreItems} />
+      {/* Moment compose (desktop). On phones the floating create action owns
+          this; the top bar has no such affordance, so desktop users reach
+          /moment here. Carries the same returnTo the mobile action uses
+          (momentHref) so composing returns to the current page. Hidden ≤640px
+          in siteNavMoment.css. */}
+      <Link prefetch={false}
+        href={momentHref(pathname)}
+        className="siteNavMoment"
+        aria-label="Share a Moment"
+        title="Share a Moment"
+      >
+        <CirclePlus size={20} aria-hidden="true" />
+      </Link>
+      {/* ⌘K command-palette affordance (feature N1). Unobtrusive hint button;
+          hidden on phones (the bottom tab bar owns nav and there's no keyboard
+          shortcut there). Label stays "⌘K" — Windows/Linux users still get the
+          same palette via Ctrl+K. */}
+      <button
+        type="button"
+        className="siteNavCmdk"
+        onClick={openCommandPalette}
+        aria-label="Open command palette"
+        title="Search & jump to a page (⌘K / Ctrl+K)"
+      >
+        <kbd className="siteNavCmdkKbd" aria-hidden="true">
+          ⌘K
+        </kbd>
+      </button>
+      {/* Notification bell (story 34) and the 1:1 messaging inbox (E4). Both
+          are signed-in only: a stranger has no activity and no inbox, so the
+          components render nothing until a session exists. */}
+      <NotificationBell />
+      <MessagesLink />
+      {/* Compact host: a single "Sign in" disclosure below the width where
+          the two full provider buttons genuinely fit (auth.css ≥1680px), so
+          they can never crowd the link row into clipped fragments. */}
+      <SignInButton compact />
+    </div>
+  );
 }
 
 export default function SiteNav({
@@ -103,9 +205,6 @@ export default function SiteNav({
 }): React.JSX.Element {
   const pathname = usePathname() ?? "";
   const primaryActive = primaryKeyForLegacyActive(active);
-  // Imperative handle onto the global ⌘K palette (feature N1) — the button below
-  // opens it for pointer users who won't reach for the shortcut.
-  const { open: openCommandPalette } = useCommandPalette();
   const socialSurfaceLabel = useSocialSurfaceName();
   const preferredCity = useSyncExternalStore(
     subscribePreferredCity,
@@ -130,6 +229,7 @@ export default function SiteNav({
 
   return (
     <nav
+      {...(isMap ? { [FOCUS_TRAP_EXEMPT_ATTRIBUTE]: "" } : {})}
       className={isMap ? "siteNavBar siteNavBarFloating" : "siteNavBar"}
       role="navigation"
       aria-label="Site navigation"
@@ -143,67 +243,24 @@ export default function SiteNav({
       <ul className="siteNavLinks">
         {links.map((link) => {
           const isActive = link.key === activeKey;
+          const label = primaryNavLabel(link, socialSurfaceLabel);
           return (
             <li key={link.key} className="siteNavItem">
-              <Link prefetch={false}
+              <IntentLink
                 href={link.key === "map" ? mapHref : link.href}
                 className={isActive ? "siteNavLink isActive" : "siteNavLink"}
                 aria-current={isActive ? "page" : undefined}
-                aria-label={link.label}
-                title={link.label}
+                aria-label={label}
+                title={label}
               >
-                {link.label}
-              </Link>
+                {label}
+              </IntentLink>
             </li>
           );
         })}
       </ul>
 
-      <div className="siteNavActions">
-        {/* D2.2: secondary destinations (Near/Historic/Pal/Social), with Social
-            named for the launch state. Desktop only — siteNav.css hides
-            .siteNavMore at ≤640 so mobile is unchanged. */}
-        <SiteNavMore items={siteNavMoreItems(socialSurfaceLabel)} />
-        {/* Moment compose (desktop). On phones the bottom tab bar's raised
-            centre FAB owns this; the top bar has no such affordance, so desktop
-            users reach /moment here. Carries the same returnTo the mobile FAB
-            uses (momentHref) so composing returns to the current page. Hidden
-            ≤640px in siteNavMoment.css — the FAB covers mobile. */}
-        <Link prefetch={false}
-          href={momentHref(pathname)}
-          className="siteNavMoment"
-          aria-label="Share a Moment"
-          title="Share a Moment"
-        >
-          <CirclePlus size={18} aria-hidden="true" />
-        </Link>
-        {/* ⌘K command-palette affordance (feature N1). Unobtrusive hint button;
-            hidden on phones (the bottom tab bar owns nav and there's no keyboard
-            shortcut there). Label stays "⌘K" — Windows/Linux users still get the
-            same palette via Ctrl+K. */}
-        <button
-          type="button"
-          className="siteNavCmdk"
-          onClick={openCommandPalette}
-          aria-label="Open command palette"
-          title="Search & jump to a page (⌘K / Ctrl+K)"
-        >
-          <kbd className="siteNavCmdkKbd" aria-hidden="true">
-            ⌘K
-          </kbd>
-        </button>
-        {/* Notification bell (story 34) — unread-count badge + link to /activity.
-            Shows on mobile too (the compact bar keeps the bell + toggle + sign-in). */}
-        <NotificationBell />
-        {/* E4: 1:1 messaging inbox link — unread-count badge + link to /messages.
-            Same ambient island shape as the bell; shows on mobile too. */}
-        <MessagesLink />
-        <ThemeToggle />
-        {/* Compact host: a single "Sign in" disclosure below the width where
-            the two full provider buttons genuinely fit (auth.css ≥1680px), so
-            they can never crowd the link row into clipped fragments. */}
-        <SignInButton compact />
-      </div>
+      <SiteNavActions />
     </nav>
   );
 }

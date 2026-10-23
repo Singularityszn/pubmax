@@ -5,8 +5,10 @@ import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import MapLoading from "@/app/map/loading";
 import MapLoadingFrame from "@/components/map/MapLoadingFrame";
 import MapLoadingSkeleton from "@/components/map/MapLoadingSkeleton";
+import { MapPricesReadContext } from "@/components/map/mapPricesReadContext";
 import { useMapPinsRevealed } from "@/components/map/useMapPinsRevealed";
 import { MAP_PIN_REVEAL_EVENT } from "@/lib/mapPinRevealEvent";
 import { MAP_LOADING_SLOW_AFTER_MS } from "@/lib/mapLoadingCopy";
@@ -110,7 +112,7 @@ describe("the map's held loading frame", () => {
   // THE REGRESSION: the pill is a flex ROW, so the slow line shipped as a
   // third sibling of the eyebrow and the primary line and grew the pill a
   // third COLUMN at 390px instead of dropping under them. Every line the
-  // frame prints has to live in the one stack the pill holds beside its dot.
+  // frame prints has to live in the one stack the pill holds beside its glass.
   it("stacks every printed line inside one child of the pill", () => {
     vi.useFakeTimers();
     act(() => {
@@ -123,11 +125,28 @@ describe("the map's held loading frame", () => {
     });
 
     const pill = host.querySelector<HTMLElement>(".mapLoadingCopy");
+    const glass = host.querySelector<HTMLElement>(".pintLoader");
     const stack = host.querySelector<HTMLElement>(".mapLoadingLines");
-    expect(Array.from(pill?.children ?? [])).toEqual([stack]);
+    expect(Array.from(pill?.children ?? [])).toEqual([glass, stack]);
+    expect(glass?.textContent).toBe("");
     expect(
       Array.from(stack?.children ?? []).map((line) => line.textContent),
-    ).toEqual(["London pub map", "Loading London pubs…", "Still loading pubs…"]);
+    ).toEqual(["Loading London pubs…", "Still loading pubs…"]);
+  });
+
+  // The taste pass of 18 Oct 2026: the frame is a plain field with the glass
+  // and its one line. The fake map (streets, a river, pins drawn in spans) and
+  // the eyebrow over the line are gone, not hidden.
+  it("draws no fake map and no eyebrow, only the glass and its line", () => {
+    act(() => {
+      root.render(
+        createElement(MapLoadingFrame, { mapDisplayName: "London", progress: 12 }),
+      );
+    });
+
+    expect(host.querySelector(".mapLoadingScene")).toBeNull();
+    expect(host.querySelector(".mapLoadingEyebrow")).toBeNull();
+    expect(frame().textContent).not.toContain("pub map");
   });
 
   it("draws the progress bar without announcing a second time", () => {
@@ -173,6 +192,29 @@ describe("the map's held skeleton", () => {
 
     expect(copy()).toContain("Loading pubs…");
     expect(copy()).not.toContain("London");
+  });
+
+  // On a document load React streams the map page, with PubMap's held <main>,
+  // into a hidden segment beside the route's own loading frame, so a <main>
+  // there made two in one document until the swap.
+  it("is a named region at route level, so the map page owns the one <main>", () => {
+    act(() => {
+      root.render(createElement(MapLoading));
+    });
+
+    expect(host.querySelector("main")).toBeNull();
+    const region = host.querySelector<HTMLElement>("section.mapSkeleton");
+    expect(region?.getAttribute("aria-label")).toBe("Loading map");
+    expect(region?.getAttribute("aria-busy")).toBe("true");
+    expect(region?.id).toBe("main");
+  });
+
+  it("is the page's <main> while it holds PubMap's place", () => {
+    act(() => {
+      root.render(createElement(MapLoadingSkeleton));
+    });
+
+    expect(host.querySelectorAll("main.mapSkeleton")).toHaveLength(1);
   });
 });
 
@@ -228,5 +270,44 @@ describe("useMapPinsRevealed", () => {
       window.dispatchEvent(new CustomEvent(MAP_PIN_REVEAL_EVENT));
     });
     expect(revealed()).toBe("true");
+  });
+});
+
+// Site review, 18 Oct 2026: "the map opens on a 'Loading pubs' shell". Both
+// loading screens now date the bundled London pint snapshot, from a line
+// the page builds on the server, and say nothing where none was handed in.
+describe("the map's loading screens date the London pint snapshot", () => {
+  const line = "London pint prices. Snapshot from 2 October 2026.";
+
+  it("prints the line the shell hands the held frame, and nothing without one", () => {
+    act(() => {
+      root.render(
+        createElement(
+          MapPricesReadContext.Provider,
+          { value: line },
+          createElement(MapLoadingFrame, { mapDisplayName: "London", progress: 35 }),
+        ),
+      );
+    });
+    expect(frame().querySelector(".mapLoadingReads")?.textContent).toBe(line);
+
+    act(() => {
+      root.render(createElement(MapLoadingFrame, { mapDisplayName: "Manchester", progress: 35 }));
+    });
+    expect(frame().querySelector(".mapLoadingReads")).toBeNull();
+  });
+
+  it("prints the same line on the first skeleton, and nothing without one", () => {
+    act(() => {
+      root.render(
+        createElement(MapLoadingSkeleton, { cityDisplayName: "London", pricesReadLine: line }),
+      );
+    });
+    expect(host.querySelector(".mapSkeletonReads")?.textContent).toBe(line);
+
+    act(() => {
+      root.render(createElement(MapLoadingSkeleton, { cityDisplayName: "Manchester" }));
+    });
+    expect(host.querySelector(".mapSkeletonReads")).toBeNull();
   });
 });

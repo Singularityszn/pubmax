@@ -1,4 +1,6 @@
 import type { CityId } from "@/lib/cities";
+import { isVerifiedClosedCuratedVenue } from "@/lib/verifiedClosedPubs";
+import { venueSearchNames } from "@/lib/venueSearchNames.mjs";
 
 type MapSearchCity = {
   id: CityId;
@@ -13,6 +15,8 @@ export type MapSearchCityInput = {
 type MapSearchVenue = {
   id: string;
   name: string;
+  /** The dataset's own name when it carries an operator suffix; matched, never shown. */
+  sourceName?: string;
   area: string;
 };
 
@@ -101,10 +105,11 @@ export function buildMapSearchIndex(
   for (const pack of packs) {
     if (!knownCities.has(pack.cityId)) continue;
     for (const venue of pack.venues) {
-      if (!venue.id || !venue.name) continue;
+      if (!venue.id || !venue.name || isVerifiedClosedCuratedVenue(venue.id)) continue;
       venues.push({
         id: venue.id,
         name: venue.name,
+        ...(venue.sourceName ? { sourceName: venue.sourceName } : {}),
         area: venue.area ?? "",
         cityId: pack.cityId,
       });
@@ -133,8 +138,11 @@ export function searchMapSearchIndex(
     }
   }
   for (const venue of index.venues) {
-    const score = matchScore(query, venue.name, venue.area);
-    if (score !== null) {
+    const scores = venueSearchNames(venue)
+      .map((name) => matchScore(query, name, venue.area))
+      .filter((score): score is number => score !== null);
+    if (scores.length > 0) {
+      const score = Math.min(...scores);
       candidates.push({ result: { kind: "venue", ...venue }, score });
     }
   }

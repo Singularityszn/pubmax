@@ -1,7 +1,8 @@
-import { expect, test as base, type Page } from "@playwright/test";
+import { expect, test as base, type Locator, type Page } from "@playwright/test";
 import { mkdir } from "node:fs/promises";
 
 import { COMMUNITY_SHEET_FIXTURE_VENUE_ID } from "./helpers/communitySheetFixture";
+import { expectLayoutSettled } from "./helpers/layoutSettled";
 
 /**
  * F08/J33 - a blocked map still gets the reader to the venue.
@@ -96,6 +97,23 @@ async function blockMapLibrary(page: Page, chunk: string): Promise<() => number>
 }
 
 const fallback = (page: Page) => page.locator(".mapFallback");
+
+/**
+ * The class of whatever owns a control's centre point, read in ONE layout.
+ * Reading the box first and hit-testing in a later call measures two layouts:
+ * a city strip or venue rows landing in between move the control, and the
+ * stale point then lands on the card behind it. Callers wait for the control
+ * to rest first and then read once, so a real overlap is never polled away.
+ */
+const centreOwner = (control: Locator) =>
+  control.evaluate((element) => {
+    const box = element.getBoundingClientRect();
+    const owner = document.elementFromPoint(
+      box.x + box.width / 2,
+      box.y + box.height / 2,
+    );
+    return String(owner?.className ?? "none");
+  });
 const spilled = (page: Page) => page.getByText("Spilled.", { exact: true });
 
 /**
@@ -119,7 +137,7 @@ test.describe("a blocked map library keeps the pubs reachable", () => {
     test(`/map falls back to the venue view at ${label}`, async ({
       page,
       mapLibraryChunk,
-    }) => {
+    }, testInfo) => {
       test.setTimeout(120_000);
       await page.setViewportSize(viewport);
       await page.emulateMedia({ reducedMotion: "reduce" });
@@ -130,6 +148,9 @@ test.describe("a blocked map library keeps the pubs reachable", () => {
 
       await expect(fallback(page)).toBeVisible({ timeout: 45_000 });
       expect(aborted(), "the map chunk was never actually blocked").toBeGreaterThan(0);
+      // Opening prices must leave when the map cannot load, so the fallback
+      // pub names and directory link stay readable.
+      await expect(page.locator(".mapOpeningPreview")).toBeHidden();
       // The whole-app error page is the defect this replaces.
       await expect(spilled(page)).toHaveCount(0);
       await expect(fallback(page)).toContainText("Map couldn't load");
@@ -139,16 +160,6 @@ test.describe("a blocked map library keeps the pubs reachable", () => {
         .poll(() => page.locator(".mapFallbackVenue").count(), { timeout: 60_000 })
         .toBeGreaterThan(0);
       await expect(page.locator(".mapFallbackBrowse")).toBeVisible();
-      // One retry control, and it is tappable rather than under other chrome.
-      const retry = page.locator(".mapFallbackRetry");
-      await expect(retry).toBeVisible();
-      const box = await retry.boundingBox();
-      expect(box).not.toBeNull();
-      const owner = await page.evaluate(
-        ([x, y]) => document.elementFromPoint(x, y)?.className ?? "none",
-        [box!.x + box!.width / 2, box!.y + box!.height / 2] as [number, number],
-      );
-      expect(String(owner)).toContain("mapFallbackRetry");
       // The heading and its one sentence are READ from below the phone chrome.
       // They used to sit behind the top bar: .mapFallback's phone padding-top
       // named a token nothing defines, so the whole calc() was dropped.
@@ -168,6 +179,26 @@ test.describe("a blocked map library keeps the pubs reachable", () => {
           expect(box!.y).toBeGreaterThanOrEqual(chromeBottom);
         }
       }
+      // The card scrolls when its pub rows outgrow the space above the dock.
+      // Read the opening heading first, then bring the complete Retry target
+      // above the bottom card before checking that it owns the tap.
+      const retry = page.locator(".mapFallbackRetry");
+      await expect(retry).toBeVisible();
+      if (viewport.width <= 640) {
+        await page.screenshot({ path: testInfo.outputPath("fallback-before-scroll.png") });
+        await fallback(page).locator("strong").hover();
+        await page.mouse.wheel(0, viewport.height);
+      }
+      await expectLayoutSettled(retry);
+      const retryBox = (await retry.boundingBox())!;
+      expect(retryBox.width).toBeGreaterThanOrEqual(44);
+      expect(retryBox.height).toBeGreaterThanOrEqual(44);
+      if (viewport.width <= 640) {
+        const peekBox = (await page.locator(".mapPeek").boundingBox())!;
+        expect(retryBox.y + retryBox.height).toBeLessThanOrEqual(peekBox.y);
+        await page.screenshot({ path: testInfo.outputPath("fallback-retry-clear.png") });
+      }
+      expect(await centreOwner(retry)).toContain("mapFallbackRetry");
       // The card owns the surface, so no ambient banner lands on its rows: at
       // 390 the UK place arrival note, at 1440 the city-conditions banner.
       await expect(page.locator(".ukPlaceArrival")).toHaveCount(0);
@@ -270,13 +301,16 @@ test.describe("a blocked map library keeps the pubs reachable", () => {
     const blockedRequests = requests;
 
     blocking = false;
-    await page.locator(".mapFallbackRetry").click();
 
     // React caches a rejected lazy for ever, so a retry that reused it would
     // never touch the network again and the reader would be stuck on the card.
-    await expect
-      .poll(() => requests, { timeout: 45_000 })
-      .toBeGreaterThan(blockedRequests);
+    // The tap is retried rather than the wait lengthened: a card painted on the
+    // server is tappable before React attaches, and that tap is dropped without
+    // a trace (e2e/AGENTS.md, "a lone click is not a wait for hydration").
+    await expect(async () => {
+      await page.locator(".mapFallbackRetry").click();
+      await expect.poll(() => requests, { timeout: 5_000 }).toBeGreaterThan(blockedRequests);
+    }).toPass({ timeout: 45_000 });
     await expect(page.locator(".maplibreMap")).toBeVisible({ timeout: 45_000 });
     await expect(fallback(page)).toHaveCount(0);
   });
@@ -300,15 +334,10 @@ test.describe("a tile outage leaves a retry a thumb can reach", () => {
     const notice = page.locator(".mapSoftRetry");
     await expect(notice).toBeVisible({ timeout: 60_000 });
     const retry = notice.getByRole("button", { name: "Retry" });
-    const box = await retry.boundingBox();
-    expect(box).not.toBeNull();
     // Measured before the fix: BUTTON.mobilePlanActivation, the "Describe the
     // outing" bar, owned this point and swallowed the tap.
-    const owner = await page.evaluate(
-      ([x, y]) => document.elementFromPoint(x, y)?.className ?? "none",
-      [box!.x + box!.width / 2, box!.y + box!.height / 2] as [number, number],
-    );
-    expect(String(owner)).toContain("mapSoftRetryBtn");
+    await expectLayoutSettled(retry);
+    expect(await centreOwner(retry)).toContain("mapSoftRetryBtn");
     await shot(page, "after-tiles-blocked-390");
   });
 });

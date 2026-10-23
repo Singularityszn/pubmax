@@ -84,10 +84,10 @@ export const styleLabels: Record<CrawlStyle, string> = {
   noAlcoholFirst: "Alcohol-free first",
   cheapest: "Cheapest",
   heritage: "Historic",
-  writerTrail: "Writer Trail",
-  beerGarden: "Beer Garden",
-  sports: "Live Sports",
-  dateNight: "Date Night",
+  writerTrail: "Writer trail",
+  beerGarden: "Beer garden",
+  sports: "Live sports",
+  dateNight: "Date night",
 };
 
 type ControlRailProps = {
@@ -173,7 +173,7 @@ export default function ControlRail({
     <aside className="controlRail">
       <div className="brandBlock">
         <div className="brandMark">
-          <Beer size={22} />
+          <Beer size={20} />
         </div>
         <div>
           <p className="eyebrow">PUBMAXX</p>
@@ -187,14 +187,14 @@ export default function ControlRail({
           aria-pressed={mode === "suggest"}
           onClick={() => onModeChange("suggest")}
         >
-          <Sparkles size={15} /> Suggest a crawl
+          <Sparkles size={16} /> Suggest a crawl
         </button>
         <button
           className={mode === "build" ? "selected" : ""}
           aria-pressed={mode === "build"}
           onClick={() => onModeChange("build")}
         >
-          <Hand size={15} /> Build your own
+          <Hand size={16} /> Build your own
         </button>
       </div>
 
@@ -205,7 +205,7 @@ export default function ControlRail({
         onClick={onNearbyCrawl}
         disabled={nearbyLoading}
       >
-        <LocateFixed size={15} />
+        <LocateFixed size={16} />
         {nearbyLoading ? "Finding your location…" : "Pubs near me"}
       </button>
       {nearbyError ? (
@@ -220,16 +220,17 @@ export default function ControlRail({
           {builtCount} stop{builtCount === 1 ? "" : "s"} picked.
           {builtCount > 0 ? (
             <button className="clearBtn" onClick={onClearBuilt}>
-              <Trash2 size={13} /> Clear
+              <Trash2 size={14} /> Clear
             </button>
           ) : null}
         </p>
       ) : null}
 
       <label className="searchBox">
-        <Search size={18} />
+        <Search size={16} />
         <input
           id="railSearchInput"
+          aria-label="Search pubs and areas"
           value={filters.query}
           onChange={(event) => onFiltersChange({ ...filters, query: event.target.value })}
           placeholder={searchPlaceholder}
@@ -248,7 +249,7 @@ export default function ControlRail({
               key={crawl.id}
               className="featuredCrawl"
               data-crawl-style={crawl.crawlStyle}
-              aria-label={`Map the ${crawl.name} crawl with ${crawl.venueIds.length} stops`}
+              aria-label={`Map ${crawl.name} with ${crawl.venueIds.length} ${crawl.venueIds.length === 1 ? "stop" : "stops"}`}
               onClick={() => onLoadCrawl(crawl)}
             >
               <span className="featuredCrawlHead">
@@ -259,7 +260,7 @@ export default function ControlRail({
               </span>
               <span className="featuredBlurb">{crawl.blurb}</span>
               <span className="featuredMapCta">
-                <MapPinned size={13} aria-hidden="true" />
+                <MapPinned size={14} aria-hidden="true" />
                 Map route
               </span>
             </button>
@@ -271,7 +272,7 @@ export default function ControlRail({
         <section className="panelSection">
           <div className="sectionTitle">
             <SlidersHorizontal size={16} />
-            <span>Crawl Style</span>
+            <span>Crawl style</span>
           </div>
           <div className="segmented" role="group" aria-label="Crawl style">
             {(Object.keys(styleLabels) as CrawlStyle[]).map((style) => (
@@ -290,7 +291,7 @@ export default function ControlRail({
 
       <section className="panelSection">
         <div className="rangeLine">
-          <span>Max Pint</span>
+          <span>Max pint</span>
           {/* The slider's top end is the OFF value, so it reads as no cap
               rather than as a figure it never applies. */}
           <strong>
@@ -345,16 +346,16 @@ export default function ControlRail({
       <section className="panelSection toggles">
         <div className="sectionTitle">
           <Landmark size={16} />
-          <span>Story Filters</span>
+          <span>Story filters</span>
           {filtersDirty ? (
             <button className="resetBtn" style={{ marginLeft: "auto" }} onClick={resetFilters}>
-              <Trash2 size={12} /> Reset
+              <Trash2 size={14} /> Reset
             </button>
           ) : null}
         </div>
         <label
           aria-label={SAVED_ONLY_ARIA_LABEL}
-          style={{ minHeight: 44 }}
+          style={{ minHeight: "var(--control-height, 44px)" }}
         >
           <input
             type="checkbox"
@@ -450,7 +451,7 @@ export default function ControlRail({
           Verified listings only
         </label>
         <p className="accessibilityHint" style={{ marginTop: 4 }}>
-          Off by default so scraped Young&apos;s / Nicholson&apos;s / guide pins stay on the map.
+          Off by default, so pins from Young&apos;s, Nicholson&apos;s and pub guides stay on the map.
         </p>
         <label>
           <input
@@ -475,8 +476,8 @@ export default function ControlRail({
           <span>Accessible venues</span>
         </div>
         <p className="accessibilityHint">
-          Only pubs with access we can <strong>confirm</strong> from a public source. Unknown
-          pubs are hidden here rather than guessed. Help by spilling what you know.
+          Only pubs with access we can <strong>confirm</strong> from a public source. We hide
+          the rest here rather than guess. Help by spilling what you know.
         </p>
         <label>
           <input
@@ -549,7 +550,7 @@ export default function ControlRail({
       {showWriterCard ? (
         <section className="writerCard">
           <div className="writerHeader">
-            <Camera size={18} />
+            <Camera size={16} />
             <div>
               <p className="eyebrow">{writerProfile.handle}</p>
               <h2>{writerProfile.name}</h2>
@@ -558,11 +559,11 @@ export default function ControlRail({
           <p>{writerProfile.summary}</p>
           <div className="writerFacts">
             <span>
-              <BookOpen size={15} />
+              <BookOpen size={16} />
               {writerProfile.bookTitle}
             </span>
             <span>
-              <Anchor size={15} />
+              <Anchor size={16} />
               Narrowboat London
             </span>
           </div>
@@ -575,7 +576,7 @@ export default function ControlRail({
             {pubSources.map((source) => (
               <a key={source.url} href={source.url} target="_blank" rel="noreferrer">
                 {source.title}
-                <ExternalLink size={13} />
+                <ExternalLink size={14} />
               </a>
             ))}
           </div>

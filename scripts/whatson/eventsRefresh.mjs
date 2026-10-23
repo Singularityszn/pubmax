@@ -51,6 +51,7 @@ import {
   SKIDDLE_SOURCE,
   TICKETMASTER_SOURCE,
   cityGeo,
+  currentOwnSiteRows,
   dedupeEventRowsBySourceId,
   emptyEventDrops,
   mergeEventDrops,
@@ -339,6 +340,21 @@ export function readExistingCommonRows(filePath) {
   return readExistingRowsForLabels(filePath, ["common"]);
 }
 
+/**
+ * The own-site rows the held file carries. Their writer is
+ * scripts/whatson/contextDevHarvest.mjs and each row names its pub's own site,
+ * so no label list can select them. A row past its effective end does not carry.
+ */
+export function readExistingOwnSiteRows(filePath, nowMs) {
+  if (!existsSync(filePath)) return [];
+  try {
+    const raw = JSON.parse(readFileSync(filePath, "utf8"));
+    return currentOwnSiteRows(Array.isArray(raw?.rows) ? raw.rows : [], nowMs);
+  } catch {
+    return [];
+  }
+}
+
 export function parseEventsCityArg(argv = process.argv) {
   const flagged = argv.find((arg) => arg.startsWith("--city="));
   const city = flagged ? flagged.slice("--city=".length).trim().toLowerCase() : "london";
@@ -553,6 +569,8 @@ async function runProviderLane({
 
   const commonRows = city === "london" ? readExistingCommonRows(outPath) : [];
   allRows.push(...commonRows);
+  const ownSiteRows = city === "london" ? readExistingOwnSiteRows(outPath, nowMs) : [];
+  allRows.push(...ownSiteRows);
 
   const deduped = dedupeEventRowsBySourceId(allRows);
   // A Common row states a DATE and no clock time, so it sorts on that instead.
@@ -608,7 +626,7 @@ async function runProviderLane({
   log(
     `eventsRefresh: wrote ${deduped.length} event rows -> ${outPath} ` +
       `(${providersRun.map((p) => `${p.provider}:${p.rows}`).join(", ") || "none"}; ` +
-      `common kept ${commonRows.length}; carried ${carriedFailedRows.length} from failed lane(s); ` +
+      `common kept ${commonRows.length}; own-site kept ${ownSiteRows.length}; carried ${carriedFailedRows.length} from failed lane(s); ` +
       `${summariseEventDrops(dropped)})`,
   );
   const report = { status: "wrote", wrote: true, rows: deduped.length };

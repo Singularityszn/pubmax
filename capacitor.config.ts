@@ -1,7 +1,7 @@
 // Capacitor iOS wrap (remote-URL mode). The Next.js app is SERVER-RENDERED —
 // there is no static export, so the native shell loads the production origin
 // directly rather than a bundled webDir. `webDir` must still point at a real
-// directory for the CLI's copy step; a two-file stub keeps cap sync from
+// directory for the CLI's copy step; a tiny stub keeps cap sync from
 // baking public/'s ~6 MB of datasets into the binary as dead weight — the
 // placeholder index is not served in healthy remote-URL mode, while
 // offline.html is served only through server.errorPath after a main-frame
@@ -24,13 +24,15 @@ export const PRODUCTION_SERVER_URL = "https://pubmaxxing.com/";
  * absent on every CI and store build, and `__tests__/nativeWrap.test.ts` holds
  * the unset case to production. `cleartext` follows the scheme rather than
  * being a second switch, because an http origin with it off is a blank
- * WebView on Android and nothing on screen says why.
+ * WebView on Android and nothing on screen says why. The origin always ends
+ * in "/" because Android appends `appStartPath` to it as a plain string.
  */
 export function nativeServerUrl(
   env: Record<string, string | undefined> = process.env,
 ): string {
   const local = env.PUBMAX_NATIVE_SERVER_URL?.trim();
-  return local ? local : PRODUCTION_SERVER_URL;
+  if (!local) return PRODUCTION_SERVER_URL;
+  return local.endsWith("/") ? local : `${local}/`;
 }
 
 const serverUrl = nativeServerUrl();
@@ -41,6 +43,10 @@ const config: CapacitorConfig = {
   webDir: "native/web-stub",
   server: {
     url: serverUrl,
+    // iOS checks sibling navigation against server.url as a URL prefix.
+    // Keep that prefix at the origin and append only the initial launch path,
+    // or the entry redirect opens onboarding in Safari instead of the shell.
+    appStartPath: "app-entry",
     ...(serverUrl.startsWith("http://") ? { cleartext: true } : {}),
     // Remote-URL mode cannot rely on the site's service worker before the
     // first successful load. Capacitor serves this bundled page when the main

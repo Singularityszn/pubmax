@@ -29,6 +29,7 @@ import {
 } from "@/lib/tonightCheapPints";
 import { getPricedVenues, resetVenuePriceIndexForTests } from "@/lib/venuePriceIndex";
 import { matchedWetherspoonsVenueIds } from "@/lib/wetherspoonsMatch.server";
+import { defined } from "@/__tests__/helpers/defined";
 
 const KENTISH_DROVERS = { name: "The Kentish Drovers", postcode: "SE15 5RS" } as const;
 
@@ -65,7 +66,7 @@ async function tonightInputs() {
       compactPostcode(row.postcode) === compactPostcode(KENTISH_DROVERS.postcode),
   );
   expect(kentishPackRows).toHaveLength(1);
-  const kentish = venues.find((venue) => venue.id === kentishPackRows[0].venueId);
+  const kentish = venues.find((venue) => venue.id === defined(kentishPackRows[0]).venueId);
   expect(kentish?.name).toBe(KENTISH_DROVERS.name);
   if (!kentish) throw new Error("The Kentish Drovers is not in the priced index");
   // Only the listing rows that do not name the operator, and no website.

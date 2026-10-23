@@ -101,7 +101,7 @@ export function buildPlanEndingRecommendations({
       kind: "keep_going",
       label: "Keep going",
       reason: extensionOptions.length > 0
-        ? `${extensionOptions.length} grounded nearby extension${extensionOptions.length === 1 ? "" : "s"}; prices and hours remain review points.`
+        ? `${extensionOptions.length} more pub${extensionOptions.length === 1 ? "" : "s"} close by. Check prices and hours before you go.`
         : "This route has no extra pub to suggest.",
       preselected: false,
       requiresConfirmation: true,

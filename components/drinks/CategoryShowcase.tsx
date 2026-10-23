@@ -1,5 +1,6 @@
 "use client";
 
+import type { Route } from "next";
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { LiHTMLAttributes, ReactElement } from "react";
@@ -46,7 +47,7 @@ export interface CategoryShowcaseProps {
    * (parent shows brand chips + the category-only map link). Only called for
    * categories the map can actually lens.
    */
-  hrefFor?: (category: DrinkCategory) => string;
+  hrefFor?: (category: DrinkCategory) => Route;
   /** Optional sub-label under each category (explore mode), e.g. "Find a pub". */
   cardHint?: string;
   /** Optional extra <li> cards rendered in the same grid, e.g. Low/No alcohol. */

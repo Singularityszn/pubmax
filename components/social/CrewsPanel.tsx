@@ -3,9 +3,10 @@
 // Your crews on /social: the nights you are in, and one way to start another.
 //
 // A crew is a night (lib/socialCrewsUi.ts owns why), so starting one is a plan
-// create followed by a crew create. Both routes already exist and neither
-// changes here: `/api/plans` returns the host capability in its reply body, and
-// `/api/social/crews` takes it straight back as the Bearer it hashes. The two
+// create followed by a crew create. `/api/plans` returns the host capability in
+// its reply body, and `/api/social/crews` takes it back in
+// `x-plan-host-capability`. Authorization stays the account's own access token,
+// which `authedActionFetch` sets, so the two never share a header. The two
 // calls are chained in the browser because the host token is memory-only by
 // design (lib/planSessionCapability.ts) and the plan member cookie is scoped to
 // `/api/plans/<id>`, so no server seam can reach it from here.
@@ -21,6 +22,7 @@ import { useAuth } from "@/components/auth/AuthProvider";
 import { authedActionFetch } from "@/lib/authedFetch";
 import { errorMessageFrom } from "@/lib/apiErrorMessage";
 import {
+  SOCIAL_CREW_HOST_CAPABILITY_HEADER,
   SOCIAL_CREW_VISIBILITIES,
   type SocialCrewListItemDTO,
   type SocialCrewVisibility,
@@ -55,6 +57,23 @@ type ListState = "loading" | "ready" | "error";
 type StartState = "idle" | "naming" | "working";
 
 type VenueMatch = { id: string; name: string; borough?: string };
+
+// The plan's own capability travels in the request body, and a plain `fetch`
+// sends no Authorization header, so the plan route cannot mistake an account
+// token for it.
+async function abandonUnusedPlan(planId: string, memberToken: string): Promise<void> {
+  try {
+    const response = await fetch(`/api/plans/${encodeURIComponent(planId)}`, {
+      method: "PATCH",
+      credentials: "same-origin",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ status: "abandoned", memberToken }),
+    });
+    discardBody(response);
+  } catch {
+    // Best effort: the refusal the person reads matters more than the cleanup.
+  }
+}
 
 function defaultStartTime(now: Date = new Date()): string {
   // Tonight at 19:00 in the reader's own clock, or tomorrow once that has gone.
@@ -228,7 +247,7 @@ export default function CrewsPanel({
         headers: {
           "content-type": "application/json",
           "idempotency-key": crewIdempotencyKey("crew-create"),
-          authorization: `Bearer ${memberToken}`,
+          [SOCIAL_CREW_HOST_CAPABILITY_HEADER]: memberToken,
         },
         body: JSON.stringify({ planId, visibility }),
       }, { requiresIdentity: true });
@@ -237,6 +256,13 @@ export default function CrewsPanel({
         | null;
       const outcome = parseCrewMutation(crewBody);
       if (!crewResponse.ok || !outcome?.crewId) {
+        // A refusal (4xx) or a success that names no crew is definite, so the
+        // night made a moment ago is retired rather than left behind. Known
+        // limit: a 5xx or a dropped call may have committed the crew, so that
+        // plan stays, and a retry mints fresh keys and may leave it unused.
+        if (crewResponse.status < 500) {
+          await abandonUnusedPlan(planId, memberToken);
+        }
         throw new Error(errorMessageFrom(crewBody, "Could not start the crew."));
       }
 

@@ -1,7 +1,10 @@
 import { expect, test, type Page } from "@playwright/test";
 
-async function installPwaPushRuntime(page: Page): Promise<void> {
-  await page.addInitScript(() => {
+async function installPwaPushRuntime(
+  page: Page,
+  options: { readyNeverSettles?: boolean } = {},
+): Promise<void> {
+  await page.addInitScript(({ readyNeverSettles }) => {
     const originalMatchMedia = window.matchMedia.bind(window);
     Object.defineProperty(window, "matchMedia", {
       configurable: true,
@@ -51,7 +54,9 @@ async function installPwaPushRuntime(page: Page): Promise<void> {
     Object.defineProperty(navigator, "serviceWorker", {
       configurable: true,
       value: {
-        ready: Promise.resolve(registration),
+        ready: readyNeverSettles
+          ? new Promise<ServiceWorkerRegistration>(() => undefined)
+          : Promise.resolve(registration),
         register: async () => registration,
       },
     });
@@ -59,7 +64,7 @@ async function installPwaPushRuntime(page: Page): Promise<void> {
       configurable: true,
       get: () => permissionRequests,
     });
-  });
+  }, options);
 }
 
 async function installSuccessfulPlanRoute(page: Page): Promise<void> {
@@ -134,9 +139,83 @@ test("installed PWA asks for the honest London brief only after a useful plan ac
   await installPwaPushRuntime(page);
   await installSuccessfulPlanRoute(page);
 
-  let registrationBody: unknown = null;
+  await page.goto("/about");
+  await page.evaluate(() => {
+    window.localStorage.setItem("pubmax-tour-v1-done", "1");
+    window.localStorage.setItem("pubmax:e2e-defer-shell:v1", "now");
+    window.localStorage.removeItem("pubmax:webPush:enabled:v1");
+    window.localStorage.removeItem("pubmax:webPush:dismissedSeq:v1");
+    window.localStorage.removeItem("pubmax:webPush:actionSeq:v1");
+    window.sessionStorage.clear();
+  });
+
+  await page.goto("/map?plan=1");
+  const webPrompt = page.getByRole("dialog", { name: "Get the London brief" });
+  await expect(page.getByRole("heading", { name: "Plan a pub crawl" })).toBeVisible({ timeout: 30_000 });
+  await expect(webPrompt).toHaveCount(0);
+  await expect(page.getByRole("dialog", { name: "Stay in the loop" })).toHaveCount(0);
+
+  await page.getByRole("button", { name: "Make a plan" }).click();
+  await expect(webPrompt).toBeVisible();
+  await expect(page.getByText("The weather verdict and one sourced pick for tonight. No crew or personal alerts yet.")).toBeVisible();
+  await expect(page.getByText("Get pinged when your crew votes or the get-in closes.")).toHaveCount(0);
+
+  await expect(page.getByRole("heading", { name: "Hand-built plan", exact: true })).toBeVisible();
+  await page.keyboard.press("Control+k");
+  const palette = page.getByRole("dialog", { name: "Command palette", exact: true });
+  await expect(palette).toBeVisible();
+  await expect(webPrompt).toHaveCount(0);
+  const search = palette.getByRole("combobox", { name: "Search commands", exact: true });
+  await expect(search).toBeFocused();
+  await search.fill("Map");
+  await expect(search).toHaveValue("Map");
+  await page.keyboard.press("Escape");
+  await expect(palette).toHaveCount(0);
+  await expect(webPrompt).toBeVisible();
+  expect(await page.evaluate(() => (window as unknown as { __webPushPermissionRequests: number }).__webPushPermissionRequests)).toBe(0);
+
+  for (const name of ["Later", "Turn on"]) {
+    await expect.poll(() => webPrompt.getByRole("button", { name, exact: true }).evaluate((button) => {
+      const box = button.getBoundingClientRect();
+      const hit = document.elementFromPoint(box.left + box.width / 2, box.top + box.height / 2);
+      return hit === button || button.contains(hit);
+    })).toBe(true);
+  }
+  const enable = webPrompt.getByRole("button", { name: "Turn on", exact: true });
+  let reached = false;
+  for (let index = 0; index < 80; index += 1) {
+    if (await enable.evaluate((button) => button === document.activeElement)) {
+      reached = true;
+      break;
+    }
+    await page.keyboard.press("Tab");
+  }
+  expect(reached).toBe(true);
+
+  const registration = page.waitForRequest(
+    (request) => request.method() === "POST" && new URL(request.url()).pathname === "/api/push-tokens",
+  );
+  await webPrompt.getByRole("button", { name: "Turn on" }).click();
+  await expect(webPrompt).toHaveCount(0);
+  expect(await page.evaluate(() => (window as unknown as { __webPushPermissionRequests: number }).__webPushPermissionRequests)).toBe(1);
+  const registrationRequest = await registration;
+  expect(registrationRequest.postDataJSON()).toMatchObject({ platform: "web", token: expect.stringMatching(/^webpush:/) });
+  expect((await registrationRequest.response())?.status()).toBe(200);
+
+  await page.reload();
+  await expect(page.getByRole("navigation", { name: "Primary" })).toBeVisible({ timeout: 30_000 });
+  await expect(webPrompt).toHaveCount(0);
+});
+
+test("installed PWA recovers when service-worker readiness never settles", async ({ page }) => {
+  test.setTimeout(90_000);
+  await page.setViewportSize({ width: 390, height: 844 });
+  await installPwaPushRuntime(page, { readyNeverSettles: true });
+  await installSuccessfulPlanRoute(page);
+
+  let registrationRequests = 0;
   await page.route("**/api/push-tokens", async (route) => {
-    registrationBody = route.request().postDataJSON();
+    registrationRequests += 1;
     await route.fulfill({ status: 200, contentType: "application/json", body: "{\"ok\":true}" });
   });
 
@@ -152,21 +231,15 @@ test("installed PWA asks for the honest London brief only after a useful plan ac
 
   await page.goto("/map?plan=1");
   const webPrompt = page.getByRole("dialog", { name: "Get the London brief" });
-  await expect(page.getByRole("heading", { name: "Describe the outing" })).toBeVisible({ timeout: 30_000 });
-  await expect(webPrompt).toHaveCount(0);
-  await expect(page.getByRole("dialog", { name: "Stay in the loop" })).toHaveCount(0);
-
+  await expect(page.getByRole("heading", { name: "Plan a pub crawl" })).toBeVisible({ timeout: 30_000 });
   await page.getByRole("button", { name: "Make a plan" }).click();
   await expect(webPrompt).toBeVisible();
-  await expect(page.getByText("Weather verdict and one sourced pick for tonight. No crew or personal alerts yet.")).toBeVisible();
-  await expect(page.getByText("Get pinged when your crew votes or the get-in closes.")).toHaveCount(0);
 
-  await webPrompt.getByRole("button", { name: "Enable" }).click();
-  await expect(webPrompt).toHaveCount(0);
-  expect(await page.evaluate(() => (window as unknown as { __webPushPermissionRequests: number }).__webPushPermissionRequests)).toBe(1);
-  expect(registrationBody).toMatchObject({ platform: "web", token: expect.stringMatching(/^webpush:/) });
-
-  await page.reload();
-  await expect(page.getByRole("navigation", { name: "Primary" })).toBeVisible({ timeout: 30_000 });
-  await expect(webPrompt).toHaveCount(0);
+  await webPrompt.getByRole("button", { name: "Turn on" }).click();
+  await expect(webPrompt.getByRole("button", { name: "Turning on…" })).toBeDisabled();
+  await expect(webPrompt.getByText("Couldn't turn on alerts. Try again.")).toBeVisible({
+    timeout: 15_000,
+  });
+  await expect(webPrompt.getByRole("button", { name: "Turn on" })).toBeEnabled();
+  expect(registrationRequests).toBe(0);
 });

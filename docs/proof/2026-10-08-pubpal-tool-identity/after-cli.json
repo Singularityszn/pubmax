@@ -1,0 +1,65 @@
+{
+  "checked": {
+    "status": 0,
+    "output": "Checked agent agent_check against this repo's config (read-only).\n\u2713 The live agent matches.\n",
+    "writes": ""
+  },
+  "updated": {
+    "status": 0,
+    "output": "\u2713 Updated agent agent_check\n  LLM: gemini-2.5-flash-lite\n  Webhook tools: 16\n\n  No default voice id set (ELEVENLABS_VOICE_FOX, _ROBIN or _EMBER). The agent keeps its ElevenLabs default.\n",
+    "patchedIds": [
+      "tool_6301m3j5x1w2e4vsx1cy3xbj25q4",
+      "tool_7501m3j5x31pe1xv2h0snck3qx2c",
+      "tool_3201m3j5x49pe3wvgbvr9qs4yrg8",
+      "tool_0401m3j5x5f4e5bv2smx6a1n6tr5",
+      "tool_7601m3j5x5vpe2c9fvcw1hs2bzjb",
+      "tool_5601m3j5x71ees7rd7z9sn2k4y8v",
+      "tool_4801m3j5x86nevcsrd6rkm26cevr",
+      "tool_6201m3j5x9d0frfvr8dc6z88dmna",
+      "tool_2701m3j5x9r0ewnskx16cc8hkr6t",
+      "tool_2201m3j5xa34f73853eb63d42x64",
+      "tool_3301m3j5xb8zfenr4dxqhcejp0k4",
+      "tool_2501m3j5xbkqekgtnt6fww31pxhb",
+      "tool_0301m3j5xbzmfm1rtbb4ww2rhpvr",
+      "tool_0001m3j5xcabf0xb3g7q0z8j3g8x",
+      "tool_8601m4akqveqf0xvmdnhxvfzhsrc",
+      "tool_4001m4akqwmsfynvnxsnc50jx5n1"
+    ],
+    "plannedIds": [
+      "tool_6301m3j5x1w2e4vsx1cy3xbj25q4",
+      "tool_7501m3j5x31pe1xv2h0snck3qx2c",
+      "tool_3201m3j5x49pe3wvgbvr9qs4yrg8",
+      "tool_0401m3j5x5f4e5bv2smx6a1n6tr5",
+      "tool_7601m3j5x5vpe2c9fvcw1hs2bzjb",
+      "tool_5601m3j5x71ees7rd7z9sn2k4y8v",
+      "tool_4801m3j5x86nevcsrd6rkm26cevr",
+      "tool_6201m3j5x9d0frfvr8dc6z88dmna",
+      "tool_2701m3j5x9r0ewnskx16cc8hkr6t",
+      "tool_2201m3j5xa34f73853eb63d42x64",
+      "tool_3301m3j5xb8zfenr4dxqhcejp0k4",
+      "tool_2501m3j5xbkqekgtnt6fww31pxhb",
+      "tool_0301m3j5xbzmfm1rtbb4ww2rhpvr",
+      "tool_0001m3j5xcabf0xb3g7q0z8j3g8x",
+      "tool_8601m4akqveqf0xvmdnhxvfzhsrc",
+      "tool_4001m4akqwmsfynvnxsnc50jx5n1"
+    ]
+  },
+  "attachedIds": [
+    "tool_6301m3j5x1w2e4vsx1cy3xbj25q4",
+    "tool_7501m3j5x31pe1xv2h0snck3qx2c",
+    "tool_3201m3j5x49pe3wvgbvr9qs4yrg8",
+    "tool_0401m3j5x5f4e5bv2smx6a1n6tr5",
+    "tool_7601m3j5x5vpe2c9fvcw1hs2bzjb",
+    "tool_5601m3j5x71ees7rd7z9sn2k4y8v",
+    "tool_4801m3j5x86nevcsrd6rkm26cevr",
+    "tool_6201m3j5x9d0frfvr8dc6z88dmna",
+    "tool_2701m3j5x9r0ewnskx16cc8hkr6t",
+    "tool_2201m3j5xa34f73853eb63d42x64",
+    "tool_3301m3j5xb8zfenr4dxqhcejp0k4",
+    "tool_2501m3j5xbkqekgtnt6fww31pxhb",
+    "tool_0301m3j5xbzmfm1rtbb4ww2rhpvr",
+    "tool_0001m3j5xcabf0xb3g7q0z8j3g8x",
+    "tool_8601m4akqveqf0xvmdnhxvfzhsrc",
+    "tool_4001m4akqwmsfynvnxsnc50jx5n1"
+  ]
+}

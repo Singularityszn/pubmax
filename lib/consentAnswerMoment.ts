@@ -191,8 +191,8 @@ export function noteConsentRouteVisited(
 /**
  * Undo the wait that the SHELL'S OWN entry rewrite started.
  *
- * The Capacitor wrap opens the site root and lib/entryDecision.ts rewrites it
- * to /tonight or /onboarding. Two routes went past this module in one arrival,
+ * Older Capacitor binaries open the site root and lib/entryDecision.ts rewrites
+ * it to /tonight or /onboarding. Two routes went past this module in one arrival,
  * so `second-route` fired and the card met a new reader on the FIRST screen of
  * the app — before the product had answered anything, which is the one thing
  * this module exists to prevent. Measured in the iPhone 17 Pro simulator and

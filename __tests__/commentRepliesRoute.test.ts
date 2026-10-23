@@ -6,10 +6,15 @@ import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
 // 400 (honest client-error shape, not a 503), and the public DTO still exposes
 // only { id, handle, body, createdAt, parentId }.
 
+vi.mock("@/lib/supabase", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/supabase")>();
+  return { ...actual, isSupabaseConfigured: () => false };
+});
 vi.mock("@/lib/serverEnv", () => ({ assertServerEnv: () => {} }));
 
 import { POST } from "@/app/api/pint-drops/comments/route";
 import { __resetMemoryComments } from "@/lib/commentsStore";
+import { __resetPintDrops } from "@/lib/pintDrops";
 
 const URL_BASE = "http://localhost/api/pint-drops/comments";
 
@@ -22,6 +27,7 @@ beforeEach(() => {
   delete process.env.SUPABASE_URL;
   delete process.env.SUPABASE_SERVICE_ROLE_KEY;
   __resetMemoryComments();
+  __resetPintDrops();
 });
 
 afterAll(() => {

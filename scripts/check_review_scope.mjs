@@ -3,7 +3,9 @@
 // Review-scope report for pull requests. This script is deliberately
 // dependency-free so CI can run it before installing the application.
 //
-// It FAILS on one thing: generated or skill-pack output in a human review.
+// It FAILS on two things: generated or skill-pack output in a human review,
+// and a no-mistakes CI-step fix commit that touches committed bundled data or
+// a known-flake spec another lane owns.
 // The file count and the runtime-domain count are warnings, because a wide
 // review is a judgement and a machine-written file in one is not. The single
 // exception is a REGENERATED LANE, declared below: output the same diff can be
@@ -13,11 +15,17 @@ import { execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { resolve } from "node:path";
 
+import { isBundledDataFile } from "./lib/committedBundledDataPaths.mjs";
+
 export const REVIEW_SCOPE_HINTS = {
   generated:
     "Generated output in this diff has no declared lane. If its generator inputs are in the diff, add a lane to REGENERATED_LANES (scripts/check_review_scope.mjs); rule: docs/rules/scripts-ci-gates-and-audits.md#a-generated-lane-may-ride-the-review-that-produced-it-and-nothing-else-may",
   "skill-pack":
     "A skill pack in this diff sits outside the project skill root. Move it under .agents/skills/; rule: docs/rules/scripts-ci-gates-and-audits.md#a-generated-lane-may-ride-the-review-that-produced-it-and-nothing-else-may",
+  "ci-data":
+    "A no-mistakes(ci) commit in this branch changed committed bundled data. Builder churn is never part of a CI repair: rewrite the branch without those paths; rule: docs/rules/scripts-ci-gates-and-audits.md#the-no-mistakes-test-step-runs-npm-run-verify-as-its-own-command",
+  "ci-flake":
+    "A no-mistakes(ci) commit in this branch edited a known-flake spec in KNOWN_FLAKE_SPECS (scripts/check_review_scope.mjs). Re-run the check instead, and rewrite the branch without that edit; rule: docs/rules/scripts-ci-gates-and-audits.md#the-no-mistakes-test-step-runs-npm-run-verify-as-its-own-command",
 };
 
 export const MAX_REVIEW_FILES = 150;
@@ -38,11 +46,14 @@ const CATEGORY_ORDER = [
 
 const SKILL_PACK_PATH = /(?:^|\/)skills(?:\/|$)/;
 const PROJECT_SKILL_ROOT = /^(?:\.agents\/skills)(?:\/|$)/;
+// The one symlink that points Claude Code at the project skill root. Only the
+// link itself matches; a real tree under .claude/skills/ is still a leak.
+const PROJECT_SKILL_LINK = /^\.claude\/skills$/;
 const GENERATED_PATHS = [
   /^(?:data|public\/data)\/generated(?:\/|$)/,
   /^public\/data\/venues_slim[^/]*\.json$/,
   /^public\/data\/cities\/[^/]+\/venues_slim[^/]*\.json$/,
-  /^public\/data\/(?:uk_base|london_venues|london_desks)\/(?!README\.md$).+/,
+  /^public\/data\/(?:uk_base|london_venues|london_desks|london_restaurants)\/(?!README\.md$).+/,
   /^public\/data\/pubmaxxing_seed_snapshot\.json$/,
   /^public\/data\/(?:heritage_listings|historic_pubs)\.json$/,
   /^data\/persona_drinks\.json$/,
@@ -51,7 +62,7 @@ const GENERATED_PATHS = [
   /^(?:generated|__generated__)(?:\/|$)/,
   /(?:^|\/)__generated__(?:\/|$)/,
   /(?:^|\/)[^/]+\.generated\.[^/]+$/,
-  /^next-env\.d\.ts$/,
+  /^types\/database\.ts$/,
 ];
 /**
  * A GENERATED LANE MAY RIDE THE REVIEW THAT PRODUCED IT.
@@ -68,8 +79,8 @@ const GENERATED_PATHS = [
  * input it is cut from, which is exactly the case where a reviewer can check
  * the output against something. A lane's permission covers that lane alone.
  * Output nobody in the diff produced stays forbidden. An added or modified
- * skill path outside `.agents/skills/` stays forbidden too; deleting one
- * does not. The human-review count leaves permitted output out because a
+ * skill path outside `.agents/skills/` stays forbidden too, bar the one
+ * `.claude/skills` symlink to that root; deleting one does not. The human-review count leaves permitted output out because a
  * reviewer reads the generator, never 600 machine-written cells.
  *
  * A lane is declared here or it does not exist. Adding one means naming the
@@ -85,6 +96,14 @@ export const REGENERATED_LANES = [
       /^scripts\/build_uk_pub_search_index\.mjs$/,
       /^scripts\/lib\/ukBaseGrid\.mjs$/,
       /^data\/osm\/uk\/.+/,
+      /^public\/data\/venues_slim\.json$/,
+      /^public\/data\/cities\/[^/]+\/venues_slim\.json$/,
+      /^data\/osm\/outer_london_osm_pubs\.json$/,
+      /^data\/cities\/[^/]+\/osm_pubs\.json$/,
+      /^lib\/outerLondonOwnership\.mjs$/,
+      /^lib\/cityVenueId\.mjs$/,
+      /^scripts\/build_city_slim_index\.mjs$/,
+      /^scripts\/fetch_city_osm_pubs\.mjs$/,
     ],
   },
   {
@@ -94,6 +113,8 @@ export const REGENERATED_LANES = [
       /^scripts\/build_slim_index\.mjs$/,
       /^scripts\/lib\/slimShards\.mjs$/,
       /^public\/data\/pint_prices_app_dataset\.json$/,
+      // The builder reads the UK price bundle for each venue's soft-drink hints.
+      /^public\/data\/uk_prices\/rows\.json$/,
       /^public\/data\/venue_menu_enrichment\.json$/,
       /^data\/famous_venues\/[^/]+\.json$/,
     ],
@@ -105,8 +126,41 @@ export const REGENERATED_LANES = [
       /^scripts\/build_city_slim_index\.mjs$/,
       /^scripts\/fetch_city_osm_pubs\.mjs$/,
       /^scripts\/lib\/slimShards\.mjs$/,
+      /^scripts\/lib\/parallelVenueDiscovery\.mjs$/,
       /^lib\/cityVenueId\.mjs$/,
       /^data\/cities\/[^/]+\/osm_pubs\.json$/,
+      /^data\/cities\/[^/]+\/parallel_venues\.json$/,
+    ],
+  },
+  {
+    id: "london_venues",
+    output: /^public\/data\/london_venues\/(?!README\.md$).+/,
+    inputs: [
+      /^scripts\/build_london_venue_shards\.mjs$/,
+      /^scripts\/lib\/ukBaseGrid\.mjs$/,
+      /^scripts\/lib\/londonRestaurantDrinks\.mjs$/,
+      /^data\/osm\/uk\/uk_osm_venues_[a-z]+\.json$/,
+      /^data\/london_restaurant_drinks\/(?:evidence|exclusions)\.json$/,
+    ],
+  },
+  {
+    id: "london_desks",
+    output: /^public\/data\/london_desks\/(?!README\.md$).+/,
+    inputs: [
+      /^scripts\/build_london_desk_index\.mjs$/,
+      /^scripts\/build_london_venue_shards\.mjs$/,
+      /^data\/osm\/uk\/uk_osm_venues_[a-z]+\.json$/,
+    ],
+  },
+  {
+    id: "london_restaurants",
+    output: /^public\/data\/london_restaurants\/(?!README\.md$).+/,
+    inputs: [
+      /^scripts\/build_london_restaurant_pack\.mjs$/,
+      /^scripts\/lib\/boroughFromPoint\.mjs$/,
+      /^lib\/londonBoroughPoint\.mjs$/,
+      /^data\/london_boroughs_simplified\.json$/,
+      /^public\/data\/london_venues\/(?!README\.md$).+/,
     ],
   },
   {
@@ -115,6 +169,45 @@ export const REGENERATED_LANES = [
     inputs: [
       /^scripts\/build_uk_pub_search_index\.mjs$/,
       /^data\/osm\/uk\/uk_osm_pubs\.json$/,
+    ],
+  },
+  {
+    id: "historic_pubs",
+    output: /^public\/data\/historic_pubs\.json$/,
+    inputs: [
+      /^scripts\/build_historic_index\.mjs$/,
+      /^public\/data\/heritage_cache\.json$/,
+      /^public\/data\/pint_prices_app_dataset\.json$/,
+      /^public\/data\/venue_id_aliases\.json$/,
+      /^lib\/heritageLanguageGate\.mjs$/,
+      /^lib\/heritagePlaceConflict\.mjs$/,
+      /^lib\/londonBoroughNames\.mjs$/,
+      /^lib\/heritageDate\.mjs$/,
+    ],
+  },
+  {
+    id: "heritage_listings",
+    output: /^public\/data\/heritage_listings\.json$/,
+    inputs: [
+      /^scripts\/build_heritage_listings\.mjs$/,
+      /^data\/heritage\/nhle_london_points\.json$/,
+      /^scripts\/lib\/heritageMatch\.mjs$/,
+      /^scripts\/lib\/heritageBaseVenues\.mjs$/,
+      /^public\/data\/pint_prices_app_dataset\.json$/,
+      /^data\/osm\/uk\/uk_osm_pubs\.json$/,
+      /^public\/data\/venue_id_aliases\.json$/,
+      /^public\/data\/uk_base\/(?!README\.md$).+/,
+    ],
+  },
+  {
+    id: "database_types",
+    output: /^types\/database\.ts$/,
+    inputs: [
+      /^scripts\/db\/generate-database-types\.mjs$/,
+      /^scripts\/db\/renderDatabaseTypes\.mjs$/,
+      /^scripts\/db\/introspect-public-schema\.sql$/,
+      /^scripts\/rls\/session-fixture\.sql$/,
+      /^supabase\/migrations\/.+\.sql$/,
     ],
   },
 ];
@@ -147,7 +240,7 @@ function runtimeDomain(path, category) {
 }
 
 function isSkillPackLeak(path, status = "") {
-  if (PROJECT_SKILL_ROOT.test(path)) return false;
+  if (PROJECT_SKILL_ROOT.test(path) || PROJECT_SKILL_LINK.test(path)) return false;
   if (!SKILL_PACK_PATH.test(path)) return false;
   return !String(status).toUpperCase().startsWith("D");
 }
@@ -301,14 +394,65 @@ function parseNameStatus(line) {
   return [{ path, status: code }];
 }
 
+/**
+ * A CI REPAIR NEVER COMMITS BUNDLED DATA OR ANOTHER LANE'S FLAKE.
+ *
+ * The no-mistakes CI step runs no repository command, so a CI repair that
+ * runs a builder itself is outside the restore wrappers. On PR 1862 one such
+ * repair committed 111 stamped public/data files, and CI repairs rewrote
+ * e2e/map-surface-history.spec.ts on PRs 1862, 1870, 1880, 1909 and 1950. A
+ * later revert hides a commit from the net diff, so this check reads every
+ * CI-step commit, not the diff. Review and Document fixes on a data branch
+ * may commit regenerated shards; only a CI repair may not. It runs only under
+ * --ci-commits, which ci.yml passes for a pull request: a merged commit on
+ * main cannot be rewritten, so a push there never reads the commit log.
+ */
+export const CI_FIX_COMMIT_SUBJECT = /^no-mistakes\(ci\):/;
+
+/** Specs another lane owns that fail intermittently. A CI repair re-runs them, never edits them. */
+export const KNOWN_FLAKE_SPECS = ["e2e/map-surface-history.spec.ts"];
+
+/**
+ * Bundled-data and known-flake paths that CI-step fix commits touched.
+ * @param {{ sha: string, subject: string, paths: string[] }[]} commits
+ */
+export function ciFixChurn(commits) {
+  return commits
+    .filter((commit) => CI_FIX_COMMIT_SUBJECT.test(commit.subject))
+    .flatMap((commit) =>
+      commit.paths.map(normalizeReviewPath).flatMap((path) => {
+        if (isBundledDataFile(path)) return [{ sha: commit.sha, path, category: "ci-data" }];
+        if (KNOWN_FLAKE_SPECS.includes(path)) return [{ sha: commit.sha, path, category: "ci-flake" }];
+        return [];
+      }),
+    );
+}
+
+export function commitsFromGit(base, head, cwd) {
+  const output = execFileSync(
+    "git",
+    ["log", "--no-renames", "--format=%x1e%H%x1f%s", "--name-only", `${base}..${head}`],
+    { cwd, encoding: "utf8", maxBuffer: 64 * 1024 * 1024 },
+  );
+  return output.split("\x1e").filter(Boolean).map((record) => {
+    const [header, ...lines] = record.split("\n");
+    const [sha, subject = ""] = header.split("\x1f");
+    return { sha, subject, paths: lines.filter(Boolean) };
+  });
+}
+
 function usage() {
-  return "Usage: node scripts/check_review_scope.mjs --base <sha> --head <sha> [--repo <path>]";
+  return "Usage: node scripts/check_review_scope.mjs --base <sha> --head <sha> [--repo <path>] [--ci-commits]";
 }
 
 function parseArgs(argv) {
-  const values = {};
+  const values = { ciCommits: false };
   for (let index = 0; index < argv.length; index += 1) {
     const flag = argv[index];
+    if (flag === "--ci-commits") {
+      values.ciCommits = true;
+      continue;
+    }
     if (flag !== "--base" && flag !== "--head" && flag !== "--repo") {
       throw new Error(`unknown option: ${flag}\n${usage()}`);
     }
@@ -326,7 +470,9 @@ function parseArgs(argv) {
 export function runReviewScopeCli(argv = process.argv.slice(2), cwd = process.cwd()) {
   const args = parseArgs(argv);
   const files = changedFilesFromGit(args.base, args.head, args.repo ?? cwd);
-  const report = summarizeReviewScope(files);
+  const scope = summarizeReviewScope(files);
+  const ciChurn = args.ciCommits ? ciFixChurn(commitsFromGit(args.base, args.head, args.repo ?? cwd)) : [];
+  const report = { ...scope, ciChurn, ok: scope.ok && ciChurn.length === 0 };
   console.log(JSON.stringify({ base: args.base, head: args.head, ...report }, null, 2));
   return report;
 }
@@ -336,7 +482,9 @@ if (process.argv[1] && fileURLToPath(import.meta.url) === resolve(process.argv[1
     const report = runReviewScopeCli();
     if (!report.ok) {
       for (const [category, hint] of Object.entries(REVIEW_SCOPE_HINTS)) {
-        if (report.forbidden.some((item) => item.category === category)) console.error(hint);
+        if ([...report.forbidden, ...report.ciChurn].some((item) => item.category === category)) {
+          console.error(hint);
+        }
       }
       process.exitCode = 1;
     }

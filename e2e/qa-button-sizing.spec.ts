@@ -12,11 +12,14 @@ async function seedChrome(page: Page): Promise<void> {
 
 async function expectTapTarget(locator: Locator, label: string): Promise<void> {
   await expect(locator, `${label} should be visible`).toBeVisible();
-  const box = await locator.boundingBox();
-  expect(box, `${label} should have a layout box`).not.toBeNull();
-  if (!box) return;
-  expect(box.width, `${label} width`).toBeGreaterThanOrEqual(44);
-  expect(box.height, `${label} height`).toBeGreaterThanOrEqual(44);
+  // A popover opens with a scale-in, so a box read in its first frames is a
+  // few percent short (42.9px for a 44px floor). Read until it settles.
+  await expect
+    .poll(async () => (await locator.boundingBox())?.width ?? 0, { message: `${label} width` })
+    .toBeGreaterThanOrEqual(44);
+  await expect
+    .poll(async () => (await locator.boundingBox())?.height ?? 0, { message: `${label} height` })
+    .toBeGreaterThanOrEqual(44);
 }
 
 // A tap that lands before React attaches is dropped, so the tap is retried

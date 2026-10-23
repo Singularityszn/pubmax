@@ -66,8 +66,8 @@ describe("hydration-gated static copy is in the server HTML", () => {
     expect(html).toContain('class="wantedPanel__lede"');
     expect(html).toContain(WANTED_LEDE);
     expect(html).toContain("profileIdentityLoadingSurface");
-    expect(html).not.toContain("Make the night yours.");
-    expect(html).not.toContain("Sign in to keep a Wanted list");
+    expect(html).not.toContain("With a handle you can:");
+    expect(html).not.toContain("Sign in to keep a list of pubs to try");
   });
 
   it("keeps the Wanted body off /u/you's identity-loading JS", () => {
@@ -85,7 +85,10 @@ describe("hydration-gated static copy is in the server HTML", () => {
     expect(wantedList).toMatch(/ssr:\s*false/);
     expect(wantedList).not.toMatch(/import WantedCapture from/);
     expect(wantedList).not.toMatch(/from ["']@\/lib\/wanted["']/);
-    expect(profilePage).toContain('body={surface === "you-invitation" && documentComplete}');
+    // The identity-loading panel never mounts the body; a signed-out reader
+    // gets the invitation and no Wanted panel at all.
+    expect(profilePage).toContain('<WantedList key="you-wanted-panel" body={false} />');
+    expect(profilePage).not.toContain('surface === "you-invitation" && documentComplete}\n          />');
     expect(profilePage).toMatch(
       /const PubmaxxAccountHub = dynamic\(\s*\(\) => import\(["']@\/components\/profile\/PubmaxxAccountHub["']\)/,
     );
@@ -97,7 +100,7 @@ describe("hydration-gated static copy is in the server HTML", () => {
     expect(html).toContain('id="pal-meeting-title"');
     expect(html).toContain(PAL_TITLE);
     expect(html).toContain("Your Pub Pal");
-    expect(html).toContain("Choose its form, voice and boundaries.");
+    expect(html).toContain("Pick its look and voice");
     expect(html).not.toContain("Waking your Pub Pal");
   });
 });

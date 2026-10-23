@@ -1,0 +1,128 @@
+[
+  {
+    "route": "/map",
+    "renderedPath": "/map",
+    "scale": 1,
+    "native": "android",
+    "platform": "android",
+    "width": 412,
+    "scrollWidth": 412,
+    "beforeBelow11px": [
+      {
+        "element": "SPAN.mobileMapTonightChipCount",
+        "font": 9.92,
+        "exampleText": "95",
+        "count": 1
+      },
+      {
+        "element": "SPAN.mobileMapCornerBadge",
+        "font": 10.24,
+        "exampleText": "4",
+        "count": 1
+      }
+    ],
+    "afterBelow11px": []
+  },
+  {
+    "route": "/pubs",
+    "renderedPath": "/pubs",
+    "scale": 1,
+    "native": "android",
+    "platform": "android",
+    "width": 412,
+    "scrollWidth": 412,
+    "beforeBelow11px": [
+      {
+        "element": "SPAN.venueImage__provenance",
+        "font": 9.92,
+        "exampleText": "Photo: pub website",
+        "count": 8
+      },
+      {
+        "element": "SPAN.pubsCardArtLabel",
+        "font": 10.88,
+        "exampleText": "Vodka",
+        "count": 8
+      }
+    ],
+    "afterBelow11px": []
+  },
+  {
+    "route": "/discover",
+    "renderedPath": "/social",
+    "scale": 1,
+    "native": "android",
+    "platform": "android",
+    "width": 412,
+    "scrollWidth": 412,
+    "beforeBelow11px": [
+      {
+        "element": "SPAN.nightAreaCoverage__badge nightAreaCoverage__badge--ready",
+        "font": 10,
+        "exampleText": "Route-ready",
+        "count": 5
+      },
+      {
+        "element": "SPAN.nightAreaCoverage__badge nightAreaCoverage__badge--captured",
+        "font": 10,
+        "exampleText": "Some checks done",
+        "count": 7
+      },
+      {
+        "element": "SPAN.nightAreaCoverage__badge nightAreaCoverage__badge--reviewed",
+        "font": 10,
+        "exampleText": "Reviewed",
+        "count": 3
+      },
+      {
+        "element": "SPAN.nightAreaCoverage__badge nightAreaCoverage__badge--discovered",
+        "font": 10,
+        "exampleText": "Not checked",
+        "count": 35
+      },
+      {
+        "element": "SPAN.nightAreaCoverage__badge nightAreaCoverage__badge--paused",
+        "font": 10,
+        "exampleText": "Paused",
+        "count": 2
+      },
+      {
+        "element": "SPAN.whatsOnUrgencyBadge",
+        "font": 10.88,
+        "exampleText": "11:30 am",
+        "count": 8
+      },
+      {
+        "element": "SPAN.dealsTonightSource",
+        "font": 10.88,
+        "exampleText": "J D Wetherspoon - Food & drink \u00b7 sourced",
+        "count": 8
+      },
+      {
+        "element": "SPAN.tvnPriceLabel",
+        "font": 10,
+        "exampleText": "Then",
+        "count": 16
+      }
+    ],
+    "afterBelow11px": []
+  },
+  {
+    "route": "/pint-index",
+    "renderedPath": "/pint-index",
+    "scale": 1,
+    "native": "android",
+    "platform": "android",
+    "width": 412,
+    "scrollWidth": 412,
+    "beforeBelow11px": [
+      {
+        "element": "SPAN.zonePintCellZone",
+        "font": 10.56,
+        "exampleText": "Zone 1",
+        "count": 6
+      }
+    ],
+    "afterBelow11px": []
+  }
+]

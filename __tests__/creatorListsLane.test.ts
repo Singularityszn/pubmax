@@ -1,3 +1,4 @@
+import type { Route } from "next";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
@@ -13,7 +14,7 @@ const LIST: CreatorListDiscoveryItem = {
   ownerHandle: "alice",
   ownerDisplayName: "Alice",
   listType: "Sunday roasts",
-  listUrl: "/u/alice/lists/Sunday%20roasts",
+  listUrl: "/u/alice/lists/Sunday%20roasts" as Route,
   mapUrl: "/map?mode=build&pubs=venue-1%2Cvenue-2&sel=venue-1",
   planUrl: "/plan?query=Plan+Sunday+roasts+by+%40alice",
   savedCount: 2,
@@ -82,7 +83,7 @@ describe("CreatorListsContent", () => {
 
     expect(empty).toContain("No creators have shared a list yet.");
     expect(empty).toContain('href="/map"');
-    expect(empty).toContain("Find venues on Map");
+    expect(empty).toContain("Find venues on the map");
     expect(unavailable).toContain("We could not reach creator lists.");
     expect(unavailable).toContain("Try again");
     expect(unavailable).not.toContain("No creator lists yet.");

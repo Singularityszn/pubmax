@@ -1,5 +1,8 @@
+import { lastOf } from "@/lib/tuple";
+import { isWithinMaxAge } from "@/lib/communityPrice";
 import type { Provenance } from "@/lib/curation";
-import type { Venue } from "@/lib/venues";
+import { AGED_PRICE_LINE } from "@/lib/venuePriceLane";
+import { formatFreshness, type Venue } from "@/lib/venues";
 
 // "Then vs Now" — connect a venue's baseline dataset price ("then") to the most
 // recent community-reported Pint Drop price ("now"). Pure/testable: no fetch, no
@@ -119,7 +122,8 @@ export function computeThenVsNow(
 // the app, kept as a compact anchor table so the math stays deterministic and
 // unit-testable offline (no live index fetch). We linearly interpolate BETWEEN
 // anchors and clamp OUTSIDE the covered range, so a stray year never throws.
-const CPI_ANCHORS: ReadonlyArray<readonly [year: number, index: number]> = [
+type CpiAnchor = readonly [year: number, index: number];
+const CPI_ANCHORS: readonly [CpiAnchor, ...CpiAnchor[]] = [
   [1950, 6.6],
   [1960, 8.1],
   [1970, 11.0],
@@ -135,7 +139,7 @@ const CPI_ANCHORS: ReadonlyArray<readonly [year: number, index: number]> = [
 // The "today" the CPI table revalues into — the newest anchor year. Kept as a
 // named constant so both the math and the copy ("in today's money") agree on
 // which year "today" means without a wall-clock dependency (deterministic).
-export const INFLATION_TODAY_YEAR = CPI_ANCHORS[CPI_ANCHORS.length - 1][0];
+export const INFLATION_TODAY_YEAR = lastOf(CPI_ANCHORS)[0];
 
 // The CPI index for a year, linearly interpolated between the nearest anchors
 // and clamped to the endpoint index outside the covered range. Returns null
@@ -143,12 +147,13 @@ export const INFLATION_TODAY_YEAR = CPI_ANCHORS[CPI_ANCHORS.length - 1][0];
 export function cpiIndexForYear(year: number): number | null {
   if (!isFiniteNumber(year)) return null;
   const first = CPI_ANCHORS[0];
-  const last = CPI_ANCHORS[CPI_ANCHORS.length - 1];
+  const last = lastOf(CPI_ANCHORS);
   if (year <= first[0]) return first[1];
   if (year >= last[0]) return last[1];
-  for (let i = 1; i < CPI_ANCHORS.length; i += 1) {
-    const [loYear, loIdx] = CPI_ANCHORS[i - 1];
-    const [hiYear, hiIdx] = CPI_ANCHORS[i];
+  for (const [i, [hiYear, hiIdx]] of CPI_ANCHORS.entries()) {
+    const previous = CPI_ANCHORS[i - 1];
+    if (!previous) continue;
+    const [loYear, loIdx] = previous;
     if (year <= hiYear) {
       const t = (year - loYear) / (hiYear - loYear);
       return loIdx + t * (hiIdx - loIdx);
@@ -198,9 +203,10 @@ export function parseEraYear(era: string | null | undefined): number | null {
 export type VenuePriceStamp = {
   gbp: number;
   provenance: Provenance;
+  isFresh?: boolean;
   // A human label for the moment this price is FROM: an era string for a
   // historical drop, "Baseline on record" for the dataset price, "Community
-  // tonight" for the newest priced drop.
+  // tonight" for a fresh drop, or its age and standing when it is stale.
   label: string;
 };
 
@@ -220,7 +226,8 @@ export type VenuePriceStory = {
   venueName: string;
   // The dataset baseline "price on record" (sourced/editorial), when present.
   baseline: VenuePriceStamp | null;
-  // The freshest priced community drop ("now"), when present.
+  // The newest priced community drop, when present. Its label says whether it
+  // is still fresh enough to describe as tonight's price.
   now: VenuePriceStamp | null;
   // now.gbp - baseline.gbp, and its percent, when BOTH are present. Mirrors
   // computeThenVsNow so the venue surface can reuse the same delta framing.
@@ -279,14 +286,16 @@ function bestInflationAnchor(drops: VenuePriceStoryDrop[]): VenueInflationAnchor
 }
 
 // Build the whole per-venue price story in one pass. Pure: hand it the selected
-// venue and that venue's drops. Each of the three surfaces (baseline / now /
-// inflation) is resolved independently, so a venue can show any subset — and
-// when it has none, `isEmpty` is true for an honest empty state. Provenance is
+// venue and that venue's drops. Each of the three surfaces (baseline /
+// community / inflation) is resolved independently, so a venue can show any
+// subset. When it has none, `isEmpty` is true for an honest empty state.
+// Provenance is
 // NEVER flattened: the dataset baseline is "sourced", `now` and the inflation
 // anchor carry their drop's own provenance.
 export function computeVenuePriceStory(
   venue: Venue,
   drops: VenuePriceStoryDrop[],
+  now: number = Date.now(),
 ): VenuePriceStory {
   const baselineGbp = venue.cheapestPrice;
   const baseline: VenuePriceStamp | null = isFiniteNumber(baselineGbp)
@@ -299,20 +308,26 @@ export function computeVenuePriceStory(
       }
     : null;
 
-  const nowDrop = mostRecentPricedDrop(drops);
-  const now: VenuePriceStamp | null =
-    nowDrop && isFiniteNumber(nowDrop.priceGbp)
-      ? {
-          gbp: nowDrop.priceGbp,
-          provenance: (nowDrop as VenuePriceStoryDrop).provenance,
-          label: "Community tonight",
-        }
-      : null;
+  const nowDrop = mostRecentPricedDrop(drops) as VenuePriceStoryDrop | null;
+  const nowStamp: VenuePriceStamp | null = (() => {
+    if (!nowDrop || !isFiniteNumber(nowDrop.priceGbp)) return null;
+    const submittedAt = Date.parse(nowDrop.createdAt);
+    const isFresh = isWithinMaxAge({ submittedAt }, now);
+    const freshness = formatFreshness(nowDrop.createdAt, new Date(now));
+    return {
+      gbp: nowDrop.priceGbp,
+      provenance: nowDrop.provenance,
+      isFresh,
+      label: isFresh
+        ? "Community tonight"
+        : [freshness, AGED_PRICE_LINE].filter(Boolean).join(" · "),
+    };
+  })();
 
   let deltaGbp: number | null = null;
   let pct: number | null = null;
-  if (baseline && now) {
-    deltaGbp = now.gbp - baseline.gbp;
+  if (baseline && nowStamp) {
+    deltaGbp = nowStamp.gbp - baseline.gbp;
     pct = baseline.gbp !== 0 ? (deltaGbp / baseline.gbp) * 100 : 0;
   }
 
@@ -322,10 +337,10 @@ export function computeVenuePriceStory(
     venueId: venue.id,
     venueName: venue.name,
     baseline,
-    now,
+    now: nowStamp,
     deltaGbp,
     pct,
     inflation,
-    isEmpty: !baseline && !now && !inflation,
+    isEmpty: !baseline && !nowStamp && !inflation,
   };
 }

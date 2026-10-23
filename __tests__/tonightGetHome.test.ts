@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { summariseGetHome } from "@/lib/tonightGetHome";
+import { latestLastTrain, summariseGetHome } from "@/lib/tonightGetHome";
 import type { LastTrainResult } from "@/lib/tfl";
 
 const BASE: LastTrainResult = {
@@ -117,5 +117,25 @@ describe("summariseGetHome", () => {
       new Date("2026-07-17T20:00:00.000Z"),
     );
     expect(summary?.statusLine).toBe("Victoria line good service.");
+  });
+});
+
+describe("latestLastTrain", () => {
+  it("ranks in the service-day frame, so 00:40 beats 00:15 and 23:50", () => {
+    const trains = [
+      { lineId: "a", lineName: "A", colour: "#000", clock: "00:15", pastMidnight: true, serviceHour: 24 },
+      { lineId: "b", lineName: "B", colour: "#000", clock: "23:50", pastMidnight: false, serviceHour: 23 },
+      { lineId: "c", lineName: "C", colour: "#000", clock: "00:40", pastMidnight: true, serviceHour: 24 },
+    ];
+    expect(latestLastTrain(trains)?.clock).toBe("00:40");
+  });
+
+  it("uses the original 25:xx service hour over a 24:xx one", () => {
+    const trains = [
+      { lineId: "a", lineName: "A", colour: "#000", clock: "01:05", pastMidnight: true, serviceHour: 25 },
+      { lineId: "b", lineName: "B", colour: "#000", clock: "00:50", pastMidnight: true, serviceHour: 24 },
+    ];
+    expect(latestLastTrain(trains)?.lineId).toBe("a");
+    expect(latestLastTrain([])).toBeNull();
   });
 });

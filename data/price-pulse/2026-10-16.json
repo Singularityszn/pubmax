@@ -1,0 +1,104 @@
+{
+  "schemaVersion": 1,
+  "edition": "2026-10-16",
+  "title": "Pints near £9, and where the £6 goes",
+  "summary": "London drinkers reported pints close to £9 this month and asked for prices on the tap. The trade asked the Budget for a duty cut, and two chains announced cheaper pints.",
+  "windowStart": "2026-09-12",
+  "windowEnd": "2026-10-15",
+  "approved": false,
+  "approvedAt": null,
+  "items": [
+    {
+      "id": "carnaby-street-record",
+      "kind": "drinkers",
+      "said": "A drinker in r/london said a pint of Jubel cost £9 at O'Neills on Carnaby Street, a new record for them.",
+      "quote": {
+        "text": "They should start having to put the price of a pint on the tap.",
+        "attribution": "A reply in the same thread"
+      },
+      "source": {
+        "label": "r/london",
+        "url": "https://www.reddit.com/r/london/comments/1wvskbt/price_of_a_pint_new_record_for_me/",
+        "publishedOn": "2026-10-02"
+      }
+    },
+    {
+      "id": "liverpool-street-and-upper-street",
+      "kind": "drinkers",
+      "said": "Replies in the same thread reported £8.90 for a lager near Liverpool Street, and \"nearly £9\" on Upper Street in Islington.",
+      "source": {
+        "label": "r/london",
+        "url": "https://www.reddit.com/r/london/comments/1wvskbt/price_of_a_pint_new_record_for_me/",
+        "publishedOn": "2026-10-02"
+      }
+    },
+    {
+      "id": "where-does-6-go",
+      "kind": "drinkers",
+      "said": "A thread in r/ukpolitics on a Times piece about pub costs asked where £6 for a pint goes. The top reply said most of it goes to the pub company that rents out the pub and supplies its beer.",
+      "quote": {
+        "text": "Classic rent extraction.",
+        "attribution": "Another reply"
+      },
+      "source": {
+        "label": "r/ukpolitics",
+        "url": "https://www.reddit.com/r/ukpolitics/comments/1wy533t/where_does_6_for_a_pint_go_the_harsh_reality_of/",
+        "publishedOn": "2026-10-05"
+      }
+    },
+    {
+      "id": "championship-pint-table",
+      "kind": "drinkers",
+      "said": "A post in r/Championship ranked the league by average pint price, using data from pintprice.com. Readers checked the source and found most of its reviews were from 2013.",
+      "quote": {
+        "text": "most of the user comments are from 2013",
+        "attribution": "A reply in the thread"
+      },
+      "source": {
+        "label": "r/Championship",
+        "url": "https://www.reddit.com/r/Championship/comments/1wmeh0s/the_championship_table_but_ranked_by_the_avg/",
+        "publishedOn": "2026-09-21"
+      }
+    },
+    {
+      "id": "drop-the-pint-day",
+      "kind": "trade",
+      "said": "On 9 October, SIBA's Drop the Pint Day had 65 venues pour one beer at German duty levels. SIBA puts the headline duty on a pint at 55p in the UK and 5p in Germany.",
+      "source": {
+        "label": "SIBA",
+        "url": "https://siba.co.uk/2026/10/08/drop-the-pint-day-will-see-venues-across-the-uk-offer-pints-at-lower-german-tax-rates",
+        "publishedOn": "2026-10-08"
+      }
+    },
+    {
+      "id": "pub-closures",
+      "kind": "trade",
+      "said": "The BBPA says 295 UK pubs shut for good by the end of September, and it forecasts around 360 by the end of the year.",
+      "source": {
+        "label": "BBPA",
+        "url": "https://www.beerandpub.com/news-insights-research/news/britain-set-to-lose-one-pub-a-day-in-2026-at-the-expense-of-over-5000-jobs-as-government-urged-to-deliver-on-promises-for-sector/",
+        "publishedOn": "2026-10-12"
+      }
+    },
+    {
+      "id": "wetherspoon-autumn-festival",
+      "kind": "press",
+      "said": "Wetherspoon said pints at its autumn beer festival, 7 to 18 October, would average around £2.40. Prices vary between pubs.",
+      "source": {
+        "label": "GB News",
+        "url": "https://www.gbnews.com/money/wetherspoon-cheap-pint-beer-october",
+        "publishedOn": "2026-09-12"
+      }
+    },
+    {
+      "id": "amber-taverns-bromley",
+      "kind": "press",
+      "said": "Amber Taverns plans pints at £2.50 to £3.50 at the Saving Grace on Bromley High Street, Metro reports. Metro puts the average London pint at £6.50.",
+      "source": {
+        "label": "Metro",
+        "url": "https://metro.co.uk/2026/09/28/northern-pub-chain-amber-taverns-bringing-3-pints-back-london-29660900",
+        "publishedOn": "2026-09-28"
+      }
+    }
+  ]
+}

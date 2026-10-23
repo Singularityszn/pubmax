@@ -1,5 +1,6 @@
 "use client";
 
+import { PintPriceBadge } from "@/components/PriceBadge";
 import { offlineOrMessage } from "@/lib/apiErrorMessage";
 
 // "Last Pint" card — the signature utility (PRD user stories 19-24). Given a
@@ -31,6 +32,7 @@ import {
   readLastTrainDestination,
   writeLastTrainDestination,
 } from "@/lib/lastTrainDestination";
+import { openExternalTab } from "@/lib/openExternalTab";
 import { safeSessionStorage } from "@/lib/safeStorage";
 import { nearestStaticStation } from "@/lib/staticStations";
 import {
@@ -44,6 +46,7 @@ import {
   type LastTrainResult,
 } from "@/lib/tfl";
 import { lineDisplayLabel } from "@/lib/tflDisruption";
+import { latestLastTrain } from "@/lib/tonightGetHome";
 import type { VenueKind } from "@/lib/venues";
 import { isPubVenueKind } from "@/lib/venueKindFilters";
 
@@ -110,7 +113,7 @@ function toState(
 }
 
 // Pub-voice copy for each decision state (user story 21) — this is the whole
-// point: it should read like PUBMAXXING, not a transit dashboard.
+// point: it should read like PUBMAXX, not a transit dashboard.
 export function lastRideLabelForVenue(
   rideLabel: string,
   venueKind: VenueKind | undefined,
@@ -150,11 +153,11 @@ export function lastRideDecisionCopy(
   }
 }
 
-// A colour cue per state (brass/warm for relaxed, ink for urgent) using the
+// A colour cue per state (amber for relaxed, ink for urgent) using the
 // same CSS custom properties the rest of the map panel reads from.
 const DECISION_COLOUR: Record<LastPintDecisionKind, string> = {
   order_one_more: "var(--accent-good, #2f7a3d)",
-  half_pint_only: "var(--brass, #ff5a5f)",
+  half_pint_only: "var(--amber)",
   settle_up_now: "var(--accent-warn, #b5651d)",
   train_risk: "var(--accent-risk, #b3261e)",
   live_data_unavailable: "var(--ink-soft, #6b726a)",
@@ -166,7 +169,7 @@ export function provenanceCopyForDepartures(
   const hasLiveDepartures = (departures ?? []).some((d) => d.live);
   return hasLiveDepartures
     ? "Live departures from TfL; last train uses the timetable."
-    : "Scheduled times from TfL - not a live feed.";
+    : "Scheduled times from TfL, not a live feed.";
 }
 
 export function provenanceCopyForResult(
@@ -177,6 +180,20 @@ export function provenanceCopyForResult(
     return ride.provenance;
   }
   return provenanceCopyForDepartures(ride.departures);
+}
+
+// What the station line says about getting there. A street-walk answer
+// (lib/stationWalkAccess) prints the minutes the leave-by clock was built
+// from, because that is what the reader is budgeting. Anything else keeps the
+// distance TfL reported, which is a straight line, so it stays approximate.
+export function stationWalkCopy(
+  result: Pick<LastTrainResult, "station" | "decision" | "walkBasis">,
+): string | null {
+  const minutes = result.decision?.walkMinutesEstimate;
+  if (result.walkBasis === "street" && typeof minutes === "number" && minutes > 0) {
+    return `${minutes} min walk`;
+  }
+  return result.station.distanceM > 0 ? `~${result.station.distanceM} m away` : null;
 }
 
 function modeWord(data: Partial<LastRideResult> | undefined, cityId: CityId): string {
@@ -217,8 +234,7 @@ async function dispatchCrewShare(shareText: string): Promise<CrewShareOutcome> {
     }
   }
   if (typeof window === "undefined") return "error";
-  const opened = window.open(lastPintShareHref(shareText), "_blank", "noopener,noreferrer");
-  return opened ? "shared" : "error";
+  return openExternalTab(lastPintShareHref(shareText)) ? "shared" : "error";
 }
 
 function readSessionDestination(): string {
@@ -446,7 +462,9 @@ export default function LastTrainCard({
       decision: decision.decision,
       stationName: readyData?.station.name ?? decision.stationName,
       leaveByClock: leaveBy,
-      lastServiceClock: readyData?.trains?.[0]?.clock ?? null,
+      // Name the train the leave-by decision was computed from: the LATEST
+      // across lines, never trains[0], which is the earliest.
+      lastServiceClock: latestLastTrain(readyData?.trains)?.clock ?? null,
       modeWord: mode,
       destinationLabel,
     });
@@ -455,6 +473,7 @@ export default function LastTrainCard({
   // Provenance honesty (H5): prefer provider-supplied copy (Metrolink static);
   // London still scopes the live claim to departures only.
   const provenance = readyData ? provenanceCopyForResult(readyData) : null;
+  const walkCopy = readyData ? stationWalkCopy(readyData) : null;
 
   return (
     <section aria-label={rideLabel} style={styles.card}>
@@ -463,9 +482,7 @@ export default function LastTrainCard({
         {readyData ? (
           <span style={styles.station}>
             {readyData.station.name}
-            {readyData.station.distanceM > 0 ? (
-              <span style={styles.distance}> · ~{readyData.station.distanceM} m away</span>
-            ) : null}
+            {walkCopy ? <span style={styles.distance}> · {walkCopy}</span> : null}
           </span>
         ) : null}
       </div>
@@ -613,7 +630,7 @@ export default function LastTrainCard({
                   >
                     <span style={styles.pubName}>{pub.name}</span>
                     {typeof pub.price === "number" ? (
-                      <span style={styles.pubPrice}>£{pub.price.toFixed(2)}</span>
+                      <PintPriceBadge priceGbp={pub.price} venueId={pub.id} />
                     ) : null}
                   </button>
                 </li>
@@ -621,7 +638,7 @@ export default function LastTrainCard({
                 <li key={pub.id} style={styles.pubPlain}>
                   <span style={styles.pubName}>{pub.name}</span>
                   {typeof pub.price === "number" ? (
-                    <span style={styles.pubPrice}>£{pub.price.toFixed(2)}</span>
+                    <PintPriceBadge priceGbp={pub.price} venueId={pub.id} />
                   ) : null}
                 </li>
               ),
@@ -793,12 +810,6 @@ const styles: Record<string, React.CSSProperties> = {
     flex: 1,
     minWidth: 0,
   },
-  pubPrice: {
-    fontVariantNumeric: "tabular-nums",
-    fontWeight: 600,
-    whiteSpace: "nowrap",
-    color: "var(--ink-soft, #6b726a)",
-  },
   provenance: {
     margin: "8px 0 0",
     fontSize: 11,
@@ -819,7 +830,7 @@ const styles: Record<string, React.CSSProperties> = {
     padding: 0,
     border: "none",
     background: "none",
-    color: "var(--brass, #ff5a5f)",
+    color: "var(--ink)",
     font: "inherit",
     fontSize: 12,
     cursor: "pointer",
@@ -857,8 +868,8 @@ const styles: Record<string, React.CSSProperties> = {
     minHeight: 44,
     padding: "6px 10px",
     borderRadius: "var(--radius-sm, 6px)",
-    border: "1px solid var(--line, #d9d4c7)",
-    background: "var(--brass, #ff5a5f)",
+    border: "1px solid var(--control-secondary-border)",
+    background: "var(--control-secondary-surface)",
     color: "var(--paper, #fff)",
     font: "inherit",
     fontSize: 12,

@@ -4,16 +4,19 @@ import LandingPage from "@/components/landing/LandingPage";
 import LandingSkylinePreload from "@/components/landing/LandingSkylinePreload";
 import AppEntryRoute from "@/components/native/AppEntryRoute";
 import { loadLandingAnswers } from "@/lib/landingAnswers.server";
+import { HISTORIC_PUB_COUNT } from "@/components/landing/londonMapGeometry";
+import { landingPhotoFor } from "@/lib/landingImagery";
 import { loadLandingHeroData } from "@/lib/landingPubCard.server";
 import { readTrustedHandoffFlag } from "@/lib/trustedHandoffFlags.server";
 
 // The words a forwarded link shows beside the card. They say the same thing the
 // page itself says, because a referral link (/r/<code>) lands on /#referral=…
-// and so previews THIS head: the description is the landing hero's lede, the
-// same line lib/homeOgCard.tsx prints on the share card.
-const HOME_TITLE = "PUBMAXXING: what a pint costs, pub by pub";
-const HOME_DESCRIPTION =
-  "London on one map, with 298 historic pubs marked and a listed price wherever we hold one. Who listed it, and the day they did.";
+// and so previews THIS head: the description is the landing hero's map line,
+// the same line lib/homeOgCard.tsx prints on the share card. The hero's lede is
+// the measured saving when the dataset backs one, but a static head and card
+// may hold no figure of their own, so they keep the map line.
+const HOME_TITLE = "PUBMAXX: what a pint costs, pub by pub";
+const HOME_DESCRIPTION = `London on one map, with ${HISTORIC_PUB_COUNT} historic pubs cited and a listed price wherever we hold one. Who listed it, and the day they did.`;
 
 // Self-canonical for the homepage (Wave S1.4). Title/description inherit the
 // root layout defaults; this pins the canonical URL and the homepage's own
@@ -41,7 +44,7 @@ export const metadata: Metadata = {
         height: 630,
         // No count here: this string is static metadata, so a figure typed in
         // would rot while the card's own figures are derived per render.
-        alt: "PUBMAXXING. Listed pint prices on one map, across London and more UK cities",
+        alt: "PUBMAXX. Listed pint prices on one map, across London and more UK cities",
       },
     ],
   },
@@ -85,7 +88,7 @@ export default async function Home() {
   // price archive. A null card renders no card and the plain receipt door,
   // never an invented pub. Passed as plain serialisable props into the client
   // LandingPage.
-  const [{ card, archive, rail, averages }, answers] = await Promise.all([
+  const [{ card, archive, rail, averages, priceReadLine, collagePrices }, answers] = await Promise.all([
     loadLandingHeroData(),
     // What is on today and what is on tonight, read at prerender from the same
     // lanes /today and /tonight read. Both fail soft to an honest line, so a
@@ -96,13 +99,18 @@ export default async function Home() {
   // APIs use so Memory CTAs never promise "Open Social" while /social still
   // answers "not open yet."
   const socialFriendsLaunchEnabled = readTrustedHandoffFlag("socialFriendsLaunch");
+  // A phone's largest paint is the pub card's photograph only when the card
+  // stands on its pub's own one. A text card leaves the skyline the largest
+  // paint on every width, so its preload is not gated to desktop.
+  const cardHasOwnPhoto =
+    card !== null && landingPhotoFor({ venueId: card.id }).scope === "pub";
 
   return (
     <>
-      <LandingSkylinePreload />
+      <LandingSkylinePreload phoneAnswerOwnsLcp={cardHasOwnPhoto} />
       {/* The only route the entry decision may rewrite (issue #439): shell
           opens (Capacitor wrap, installed PWA) land on /tonight, a genuine
-          native first-run opens the one-time onboarding, browser visits
+          native first-run opens onboarding until Skip or Plan my night, browser visits
           stay here. Deep links never mount this. No-op on web/SSR. */}
       <AppEntryRoute />
       <LandingPage
@@ -110,6 +118,8 @@ export default async function Home() {
         archive={archive}
         rail={rail}
         averages={averages}
+        priceReadLine={priceReadLine}
+        collagePrices={collagePrices}
         answers={answers}
         socialFriendsLaunchEnabled={socialFriendsLaunchEnabled}
       />

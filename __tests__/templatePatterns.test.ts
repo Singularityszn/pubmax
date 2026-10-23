@@ -36,7 +36,11 @@ import { describe, expect, it } from "vitest";
 // ─────────────────────────────────────────────────────────────────────────────
 
 const ROOT = process.cwd();
-const SCOPE = join(ROOT, "components");
+// components/ AND app/: the routes carry their own stylesheets and copy, and a
+// fence that read only components/ let a dot grid and a graph-paper fake map
+// live on in app/globals.css as the first frame of /map (taste pass, 18 Oct
+// 2026).
+const SCOPES = [join(ROOT, "components"), join(ROOT, "app")];
 
 type Pattern =
   | "orbit-or-scanline"
@@ -70,8 +74,14 @@ const FUNCTIONAL_TRANSLUCENCY = [
   "components/identity/accountOnboarding.css", // dialog backdrop
   "components/identity/contributionGate.css", // dialog backdrop
   "components/pal/palChat.css", // floating composer bar
+  "components/plan/planTuneSheet.css", // the Plan result's settings sheet: the sheet material
   "components/pubpal/pubPal.css", // the Pal summon control floating over the map
   "components/pubs/pubsGallery.css", // lightbox chrome over a photo
+  // The map shell's floating chrome lives in the global sheet, and every blur
+  // in it was inspected on 18 Oct 2026: the band onboarding chip, the map
+  // drawer (the sheet material), the onboarding scrim, the band picker and the
+  // soft-retry bar, each a control or a sheet floating over the map canvas.
+  "app/globals.css",
 ];
 
 /**
@@ -117,6 +127,8 @@ const HEDGE_PHRASES = [
  * that takes it out. Delete the row in that PR.
  */
 const PENDING_REMOVAL: ReadonlyArray<{ file: string; pattern: Pattern; owner: string }> = [
+  // Empty since the taste pass (18 Oct 2026) cleared every row it found when
+  // the fence widened to app/. A new row needs an owner and a removal PR.
 ];
 
 function walk(dir: string, out: string[]): void {
@@ -147,6 +159,11 @@ export function cssFindings(rel: string, raw: string): Finding[] {
     hit("glass-blur", /backdrop-filter\s*:\s*[^;]*blur\(/i);
   }
   hit("dot-grid", /radial-gradient\(\s*circle\s+at\s+[\d.]+px\s+[\d.]+px/i);
+  // The other two spellings the old map frame used: a dot that is a 1px or
+  // 2px radial stop fading to transparent at once, and graph paper drawn as a
+  // 1px line in a straight linear gradient.
+  hit("dot-grid", /radial-gradient\([^;{}]*?\s[0-2](?:\.\d+)?px\s*,\s*transparent\s+[0-2](?:\.\d+)?px\s*\)/i);
+  hit("dot-grid", /linear-gradient\(\s*(?:0|90)deg\s*,[^;{}]*?\s1px\s*,\s*transparent\s+1px\s*\)/i);
   if (!THREE_COLUMN_CONTROLS.includes(rel)) {
     hit(
       "three-column-grid",
@@ -306,7 +323,7 @@ export function sourceFindings(rel: string, raw: string): Finding[] {
 
 function collectFindings(): Finding[] {
   const files: string[] = [];
-  walk(SCOPE, files);
+  for (const scope of SCOPES) walk(scope, files);
   const findings: Finding[] = [];
   for (const file of files.sort()) {
     const rel = relative(ROOT, file);
@@ -383,5 +400,17 @@ describe("template-pattern ban (docs/VOICE.md)", () => {
     expect(cssFindings("components/probe.css", css).map((f) => f.pattern).sort()).toEqual(
       ["dot-grid", "glass-blur", "orbit-or-scanline", "three-column-grid"].sort(),
     );
+  });
+
+  // The map's old first frame spelt its dot grid without "circle at", and its
+  // fake map's graph paper as straight 1px gradients. Both read as dot-grid.
+  it("catches the dot and the graph paper the old map frame used", () => {
+    const dots = ".f { background: radial-gradient(color-mix(in srgb, var(--brass) 12%, transparent) 1px, transparent 1px), var(--paper); background-size: 22px 22px; }";
+    expect(cssFindings("app/probe.css", dots).map((f) => f.pattern)).toEqual(["dot-grid"]);
+    const paper = ".m { background: linear-gradient(90deg, color-mix(in srgb, var(--paper) 88%, var(--river) 12%) 1px, transparent 1px); background-size: 42px 42px; }";
+    expect(cssFindings("app/probe.css", paper).map((f) => f.pattern)).toEqual(["dot-grid"]);
+    // A soft glow and a wash are not a grid.
+    const glow = ".g { background: radial-gradient(120% 70% at 8% -12%, var(--paper) 0%, transparent 58%), linear-gradient(90deg, var(--river), transparent 30% 70%); }";
+    expect(cssFindings("app/probe.css", glow)).toEqual([]);
   });
 });

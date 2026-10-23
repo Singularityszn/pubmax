@@ -18,6 +18,7 @@ import {
   type ReactionKey,
   type ReactionSummary,
 } from "@/lib/reactionsStore";
+import { defined } from "@/__tests__/helpers/defined";
 
 const DROP = "drop-1";
 const ACTOR = "actor-hash-abc";
@@ -74,10 +75,10 @@ describe("summary counts — per reaction type", () => {
     await memoryReactionsStore.toggle(DROP, ACTOR, "bargain");
 
     const summary = await memoryReactionsStore.summarize([DROP], ACTOR);
-    expect(summary[DROP].counts.cheers).toBe(2);
-    expect(summary[DROP].counts.bargain).toBe(1);
+    expect(defined(summary[DROP]).counts.cheers).toBe(2);
+    expect(defined(summary[DROP]).counts.bargain).toBe(1);
     // Reactions nobody used never appear as a 0 — the map is partial.
-    expect(summary[DROP].counts).not.toHaveProperty("chaos");
+    expect(defined(summary[DROP]).counts).not.toHaveProperty("chaos");
   });
 
   it("one device can't double-inflate a count (unique per (drop,actor,reaction))", async () => {
@@ -94,19 +95,19 @@ describe("per-actor `mine` isolation", () => {
     await memoryReactionsStore.toggle(DROP, ACTOR, "cheers");
     await memoryReactionsStore.toggle(DROP, OTHER, "chaos");
 
-    const mineForActor = (await memoryReactionsStore.summarize([DROP], ACTOR))[DROP];
+    const mineForActor = defined((await memoryReactionsStore.summarize([DROP], ACTOR))[DROP]);
     expect(mineForActor.mine).toEqual(["cheers"]);
     // Counts are shared, but the "on" set is not.
     expect(mineForActor.counts.cheers).toBe(1);
     expect(mineForActor.counts.chaos).toBe(1);
 
-    const mineForOther = (await memoryReactionsStore.summarize([DROP], OTHER))[DROP];
+    const mineForOther = defined((await memoryReactionsStore.summarize([DROP], OTHER))[DROP]);
     expect(mineForOther.mine).toEqual(["chaos"]);
   });
 
   it("`mine` is empty for an actor who has reacted to nothing on the drop", async () => {
     await memoryReactionsStore.toggle(DROP, OTHER, "cheers");
-    const summary = (await memoryReactionsStore.summarize([DROP], "ghost-actor"))[DROP];
+    const summary = defined((await memoryReactionsStore.summarize([DROP], "ghost-actor"))[DROP]);
     expect(summary.mine).toEqual([]);
     expect(summary.counts.cheers).toBe(1); // count still visible to everyone
   });
@@ -118,10 +119,10 @@ describe("summarize — multi-drop batch read", () => {
     await memoryReactionsStore.toggle("drop-b", ACTOR, "bargain");
 
     const out = await memoryReactionsStore.summarize(["drop-a", "drop-b"], ACTOR);
-    expect(out["drop-a"].counts.cheers).toBe(1);
-    expect(out["drop-a"].counts).not.toHaveProperty("bargain");
-    expect(out["drop-b"].counts.bargain).toBe(1);
-    expect(out["drop-b"].counts).not.toHaveProperty("cheers");
+    expect(defined(out["drop-a"]).counts.cheers).toBe(1);
+    expect(defined(out["drop-a"]).counts).not.toHaveProperty("bargain");
+    expect(defined(out["drop-b"]).counts.bargain).toBe(1);
+    expect(defined(out["drop-b"]).counts).not.toHaveProperty("cheers");
   });
 
   it("returns an empty, zero-count summary for a drop with no reactions", async () => {
@@ -139,7 +140,7 @@ describe("public summary shape — never leaks actor_hash", () => {
   it("a summary carries ONLY { counts, mine } and no raw actor hashes", async () => {
     await memoryReactionsStore.toggle(DROP, ACTOR, "cheers");
     await memoryReactionsStore.toggle(DROP, OTHER, "cheers");
-    const summary: ReactionSummary = (await memoryReactionsStore.summarize([DROP], ACTOR))[DROP];
+    const summary: ReactionSummary = defined((await memoryReactionsStore.summarize([DROP], ACTOR))[DROP]);
 
     expect(Object.keys(summary).sort()).toEqual(["counts", "mine"]);
     expect(summary).not.toHaveProperty("actor_hash");

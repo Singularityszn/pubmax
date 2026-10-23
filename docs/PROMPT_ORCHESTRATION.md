@@ -10,11 +10,11 @@ Interruptive prompt surfaces mount globally or on `/map`:
 
 | Surface | PR | Branch | Where it can fire |
 | --- | --- | --- | --- |
-| Analytics consent | analytics-actually-works | `fm/analytics-actually-works` | first visit on every route |
+| Analytics consent | analytics-actually-works | `fm/analytics-actually-works` | [Answer timing and route ownership](rules/components-design-system-and-launch-primitives.md#the-product-answers-first-and-the-consent-card-arrives-after-the-answer-docked) |
 | First-run tour | #296 | `main` (merged) | `/map` load, first visit |
 | Identity nudge | #312 | `feat/identity-nudges` | first plan create/join, first moment draft |
 | Native push prompt | #299 | `feat/native-first-run` | plan join / activation / collab confirm (native only) |
-| A2HS install | #313 | `feat/a2hs-flow` | after proven value (2nd distinct day or completed crawl) |
+| A2HS install | #313 | `feat/a2hs-flow` | after proven value (2nd distinct day or completed crawl) AND a price answer this session, off a phone map or plan foot ([rule](rules/components-design-system-and-launch-primitives.md#the-install-ask-waits-for-a-price-answer-and-asks-at-most-once-a-fortnight)) |
 
 The review proved two independent defects:
 
@@ -44,8 +44,8 @@ The review proved two independent defects:
      asks for location itself, so a consent card over it would put two first
      questions on one screen. It is one tap and one time per device, so the
      surface behind it is not starved.
-   - Native push and create password stand down on a phone-width map route,
-     where the map owns the foot of the screen (`routeOwnsScreenFoot`,
+   - Native push and create password stand down on a phone-width map or plan-composer route,
+     where the outing controls own the foot of the screen (`routeOwnsScreenFoot`,
      `lib/promptBudget.ts`). They do not claim there and come back on the next
      route. The analytics card is the exception: on the phone map it takes the
      outing pill's slot (`components/mobile/mobileMapShell.css`).
@@ -146,34 +146,25 @@ satisfy rules-of-hooks):
 +  if (!canShow) return null;
 ```
 
-### #299 `feat/native-first-run` — NativePushPrompt adopts the budget
+### Native push budget subscription
 
-`components/native/NativePushPrompt.tsx`. Same shape:
+[NativePushPrompt](../components/native/NativePushPrompt.tsx) subscribes to both
+action eligibility and the shared budget through `useSyncExternalStore`.
+Its budget snapshot combines `routeOwnsScreenFoot` with `hasPromptBudgetFor`.
+`subscribePromptBudget` notifies it when location controls, map arrival visibility,
+consent storage, or the session claim change.
+The next route can render before the previous map arrival card releases its gate.
+The subscription lets an eligible ask appear after that release without another
+Plan action or a document reload.
 
-```diff
--import { useSyncExternalStore } from "react";
-+import { useEffect, useSyncExternalStore } from "react";
- ...
-+import { claimPromptBudget, hasPromptBudgetFor } from "@/lib/promptBudget";
-+
-+const PUSH_SURFACE = "native-push";
- ...
-   const visible = useSyncExternalStore(
-     subscribePushPrompt,
-     getPushPromptVisibleSnapshot,
-     getPushPromptServerSnapshot,
-   );
-
--  if (!visible) return null;
-+  const canShow = visible && hasPromptBudgetFor(PUSH_SURFACE);
-+
-+  // Claim the shared one-prompt-per-session budget at the moment it shows.
-+  useEffect(() => {
-+    if (canShow) claimPromptBudget(PUSH_SURFACE);
-+  }, [canShow]);
-+
-+  if (!canShow) return null;
-```
+The component claims `"native-push"` only when the ask can show.
+Undecided consent and another surface's session claim still block it.
+Dismissal waits for another qualifying action, and a fresh document never revives
+a stored action sequence.
+[The render regression](../__tests__/nativePushPromptRender.test.tsx) covers gate
+release, consent priority, and dismissal.
+[The browser regression](../e2e/native-push-ask-lifecycle.spec.ts) covers the
+Map-to-Tonight transition after both onboarding finish choices and a fresh boot.
 
 ### #299 × #312 — the `PlanCrew.tsx` merge conflict IS the ordering fix
 

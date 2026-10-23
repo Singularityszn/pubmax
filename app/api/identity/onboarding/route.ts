@@ -2,12 +2,18 @@ import { publicApiError } from "@/lib/apiError";
 import { jsonNoStore } from "@/lib/apiResponses";
 import { callerUserId } from "@/lib/authServer";
 import { isHandleClaimLimited } from "@/lib/identityHandleClaimRateLimit";
+import { isLimited } from "@/lib/pintDrops";
 import { readOptionalDateOfBirth } from "@/lib/privateIdentity";
 import { privateIdentityStore } from "@/lib/privateIdentityStore";
 import { profileStore } from "@/lib/profileStore";
 import { assertServerEnv } from "@/lib/serverEnv";
+import { clientIp, hashIp } from "@/lib/supabase";
 
 assertServerEnv();
+
+/** A details save is a few taps on a settings form; a loop of them is not. */
+const DETAILS_LIMIT = 20;
+const DETAILS_WINDOW_MS = 60_000;
 
 // Owner-only payload: this route requires the caller's verified JWT, so the
 // private fields (date of birth, gender, sex, full name) may appear here and
@@ -114,6 +120,10 @@ export async function PATCH(request: Request): Promise<Response> {
   const userId = await callerUserId(request);
   if (!userId) {
     return publicApiError("Sign in to update your account details.", "UNAUTHENTICATED", 401);
+  }
+  const detailsKey = `identity-details:${userId}:${hashIp(clientIp(request))}`;
+  if (await isLimited(detailsKey, detailsKey, DETAILS_LIMIT, DETAILS_WINDOW_MS)) {
+    return publicApiError("Too many changes. Try again shortly.", "RATE_LIMITED", 429, { retryable: true });
   }
   let body: Record<string, unknown>;
   try {

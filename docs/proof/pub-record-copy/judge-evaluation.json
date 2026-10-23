@@ -1,0 +1,3860 @@
+{
+  "evaluatedAt": "2026-10-04T14:18:42.669Z",
+  "model": "gemini-2.5-flash",
+  "groundingVersion": 2,
+  "actualSpendUsd": 0.3689360000000005,
+  "passed": 138,
+  "total": 138,
+  "results": [
+    {
+      "venueId": "probe-0",
+      "description": "A Camden pub with live music.",
+      "expected": "UNSUPPORTED",
+      "passed": true,
+      "response": {
+        "venueId": "probe-0",
+        "claims": [
+          {
+            "phrase": "A Camden pub",
+            "reason": "The venue is located in Hackney, not Camden. The borough mentioned in the description does not match the venue's actual borough.",
+            "offendingPhrase": "Camden",
+            "verdict": "UNSUPPORTED"
+          },
+          {
+            "phrase": "with live music.",
+            "reason": "The facts state 'Live music'.",
+            "offendingPhrase": "",
+            "verdict": "SUPPORTED"
+          },
+          {
+            "phrase": "Live music",
+            "reason": "The facts state 'Live music'.",
+            "offendingPhrase": "",
+            "verdict": "SUPPORTED"
+          }
+        ],
+        "verdict": "UNSUPPORTED"
+      },
+      "scoring": "judge-and-quoted-phrase"
+    },
+    {
+      "venueId": "probe-1",
+      "description": "A Hackney local favourite with live music.",
+      "expected": "UNSUPPORTED",
+      "passed": true,
+      "response": {
+        "venueId": "probe-1",
+        "claims": [
+          {
+            "phrase": "A Hackney local favourite",
+            "reason": "The term 'favourite' implies a reputation or quality that is not established by the provided facts. The pub's borough is Hackney, but 'local favourite' is an unsupported claim.",
+            "offendingPhrase": "local favourite",
+            "verdict": "UNSUPPORTED"
+          },
+          {
+            "phrase": "with live music.",
+            "reason": "The facts state 'Live music'.",
+            "offendingPhrase": "",
+            "verdict": "SUPPORTED"
+          },
+          {
+            "phrase": "Live music",
+            "reason": "The facts state 'Live music'.",
+            "offendingPhrase": "",
+            "verdict": "SUPPORTED"
+          }
+        ],
+        "verdict": "UNSUPPORTED"
+      },
+      "scoring": "judge-and-quoted-phrase"
+    },
+    {
+      "venueId": "probe-2",
+      "description": "A Hackney pub with live jazz and a pub quiz.",
+      "expected": "UNSUPPORTED",
+      "passed": true,
+      "response": {
+        "venueId": "probe-2",
+        "claims": [
+          {
+            "phrase": "A Hackney pub",
+            "reason": "The venue is located in Hackney. This phrase correctly identifies the borough.",
+            "offendingPhrase": "",
+            "verdict": "SUPPORTED"
+          },
+          {
+            "phrase": "with live jazz",
+            "reason": "The facts state 'Live music', but do not specify 'jazz'. The specific genre 'jazz' is an unsupported detail.",
+            "offendingPhrase": "jazz",
+            "verdict": "UNSUPPORTED"
+          },
+          {
+            "phrase": "and a pub quiz.",
+            "reason": "The facts state 'Pub quiz'.",
+            "offendingPhrase": "",
+            "verdict": "SUPPORTED"
+          },
+          {
+            "phrase": "Cocktails",
+            "reason": "The facts state 'Cocktails'.",
+            "offendingPhrase": "",
+            "verdict": "SUPPORTED"
+          }
+        ],
+        "verdict": "UNSUPPORTED"
+      },
+      "scoring": "judge-and-quoted-phrase"
+    },
+    {
+      "venueId": "probe-3",
+      "description": "A Hackney pub with live music and a beer garden.",
+      "expected": "UNSUPPORTED",
+      "passed": true,
+      "response": {
+        "venueId": "probe-3",
+        "claims": [
+          {
+            "phrase": "A Hackney pub",
+            "reason": "The venue is located in Hackney. This phrase correctly identifies the borough.",
+            "offendingPhrase": "",
+            "verdict": "SUPPORTED"
+          },
+          {
+            "phrase": "with live music",
+            "reason": "The facts state 'Live music'.",
+            "offendingPhrase": "",
+            "verdict": "SUPPORTED"
+          },
+          {
+            "phrase": "and a beer garden.",
+            "reason": "The facts do not mention a 'beer garden'. This is an unsupported feature.",
+            "offendingPhrase": "a beer garden",
+            "verdict": "UNSUPPORTED"
+          },
+          {
+            "phrase": "Live music",
+            "reason": "The facts state 'Live music'.",
+            "offendingPhrase": "",
+            "verdict": "SUPPORTED"
+          }
+        ],
+        "verdict": "UNSUPPORTED"
+      },
+      "scoring": "judge-and-quoted-phrase"
+    },
+    {
+      "venueId": "probe-4",
+      "description": "A Hackney pub with live music and food.",
+      "expected": "UNSUPPORTED",
+      "passed": true,
+      "response": {
+        "venueId": "probe-4",
+        "claims": [
+          {
+            "phrase": "A Hackney pub",
+            "reason": "The venue is located in Hackney. This phrase correctly identifies the borough.",
+            "offendingPhrase": "",
+            "verdict": "SUPPORTED"
+          },
+          {
+            "phrase": "with live music",
+            "reason": "The facts state 'Live music'.",
+            "offendingPhrase": "",
+            "verdict": "SUPPORTED"
+          },
+          {
+            "phrase": "and food.",
+            "reason": "The facts do not mention 'food'. This is an unsupported feature.",
+            "offendingPhrase": "food",
+            "verdict": "UNSUPPORTED"
+          },
+          {
+            "phrase": "Live music",
+            "reason": "The facts state 'Live music'.",
+            "offendingPhrase": "",
+            "verdict": "SUPPORTED"
+          }
+        ],
+        "verdict": "UNSUPPORTED"
+      },
+      "scoring": "judge-and-quoted-phrase"
+    },
+    {
+      "venueId": "probe-5",
+      "description": "A Hackney pub with live music and free wifi.",
+      "expected": "UNSUPPORTED",
+      "passed": true,
+      "response": {
+        "venueId": "probe-5",
+        "claims": [
+          {
+            "phrase": "A Hackney pub",
+            "reason": "The venue is located in Hackney.",
+            "offendingPhrase": "",
+            "verdict": "SUPPORTED"
+          },
+          {
+            "phrase": "with live music",
+            "reason": "The facts state 'Live music'.",
+            "offendingPhrase": "",
+            "verdict": "SUPPORTED"
+          },
+          {
+            "phrase": "and free wifi",
+            "reason": "The facts do not mention 'free wifi'.",
+            "offendingPhrase": "free wifi",
+            "verdict": "UNSUPPORTED"
+          },
+          {
+            "phrase": "Live music",
+            "reason": "The facts state 'Live music'.",
+            "offendingPhrase": "",
+            "verdict": "SUPPORTED"
+          }
+        ],
+        "verdict": "UNSUPPORTED"
+      },
+      "scoring": "judge-and-quoted-phrase"
+    },
+    {
+      "venueId": "probe-6",
+      "description": "A Hackney pub with live music and karaoke.",
+      "expected": "UNSUPPORTED",
+      "passed": true,
+      "response": {
+        "venueId": "probe-6",
+        "claims": [
+          {
+            "phrase": "A Hackney pub",
+            "reason": "The venue is located in Hackney.",
+            "offendingPhrase": "",
+            "verdict": "SUPPORTED"
+          },
+          {
+            "phrase": "with live music",
+            "reason": "The facts state 'Live music'.",
+            "offendingPhrase": "",
+            "verdict": "SUPPORTED"
+          },
+          {
+            "phrase": "and karaoke",
+            "reason": "The facts do not state 'Karaoke'.",
+            "offendingPhrase": "karaoke",
+            "verdict": "UNSUPPORTED"
+          },
+          {
+            "phrase": "Live music",
+            "reason": "The facts state 'Live music'.",
+            "offendingPhrase": "",
+            "verdict": "SUPPORTED"
+          }
+        ],
+        "verdict": "UNSUPPORTED"
+      },
+      "scoring": "judge-and-quoted-phrase"
+    },
+    {
+      "venueId": "probe-7",
+      "description": "A Hackney pub with live music and live sport on the big screens.",
+      "expected": "UNSUPPORTED",
+      "passed": true,
+      "response": {
+        "venueId": "probe-7",
+        "claims": [
+          {
+            "phrase": "A Hackney pub",
+            "reason": "The venue is located in Hackney.",
+            "offendingPhrase": "",
+            "verdict": "SUPPORTED"
+          },
+          {
+            "phrase": "with live music",
+            "reason": "The facts state 'Live music'.",
+            "offendingPhrase": "",
+            "verdict": "SUPPORTED"
+          },
+          {
+            "phrase": "and live sport on the big screens",
+            "reason": "The facts do not mention 'live sport' or 'big screens'.",
+            "offendingPhrase": "live sport on the big screens",
+            "verdict": "UNSUPPORTED"
+          },
+          {
+            "phrase": "Live music",
+            "reason": "The facts state 'Live music'.",
+            "offendingPhrase": "",
+            "verdict": "SUPPORTED"
+          }
+        ],
+        "verdict": "UNSUPPORTED"
+      },
+      "scoring": "judge-and-quoted-phrase"
+    },
+    {
+      "venueId": "probe-8",
+      "description": "A Hackney pub with live music and real ales.",
+      "expected": "UNSUPPORTED",
+      "passed": true,
+      "response": {
+        "venueId": "probe-8",
+        "claims": [
+          {
+            "phrase": "A Hackney pub",
+            "reason": "The venue is located in Hackney.",
+            "offendingPhrase": "",
+            "verdict": "SUPPORTED"
+          },
+          {
+            "phrase": "with live music",
+            "reason": "The facts state 'Live music'.",
+            "offendingPhrase": "",
+            "verdict": "SUPPORTED"
+          },
+          {
+            "phrase": "and real ales",
+            "reason": "The facts do not mention 'real ales'.",
+            "offendingPhrase": "real ales",
+            "verdict": "UNSUPPORTED"
+          },
+          {
+            "phrase": "Live music",
+            "reason": "The facts state 'Live music'.",
+            "offendingPhrase": "",
+            "verdict": "SUPPORTED"
+          }
+        ],
+        "verdict": "UNSUPPORTED"
+      },
+      "scoring": "judge-and-quoted-phrase"
+    },
+    {
+      "venueId": "probe-9",
+      "description": "A Hackney pub with live music on 3 nights.",
+      "expected": "UNSUPPORTED",
+      "passed": true,
+      "response": {
+        "venueId": "probe-9",
+        "claims": [
+          {
+            "phrase": "A Hackney pub",
+            "reason": "The venue is located in Hackney.",
+            "offendingPhrase": "",
+            "verdict": "SUPPORTED"
+          },
+          {
+            "phrase": "with live music on 3 nights",
+            "reason": "The facts state 'Live music' but do not specify the frequency or number of nights.",
+            "offendingPhrase": "on 3 nights",
+            "verdict": "UNSUPPORTED"
+          },
+          {
+            "phrase": "Live music",
+            "reason": "The facts state 'Live music'.",
+            "offendingPhrase": "",
+            "verdict": "SUPPORTED"
+          }
+        ],
+        "verdict": "UNSUPPORTED"
+      },
+      "scoring": "judge-and-quoted-phrase"
+    },
+    {
+      "venueId": "probe-10",
+      "description": "A Hackney pub with live music, and catch live music.",
+      "expected": "UNSUPPORTED",
+      "passed": true,
+      "response": {
+        "venueId": "probe-10",
+        "claims": [
+          {
+            "phrase": "A Hackney pub",
+            "reason": "The phrase 'Hackney pub' implies the pub itself is Hackney or defined by it, which is a writing rule violation. The subject must be the pub, not the borough.",
+            "offendingPhrase": "Hackney pub",
+            "verdict": "UNSUPPORTED"
+          },
+          {
+            "phrase": "with live music",
+            "reason": "The fact 'Live music' is present.",
+            "offendingPhrase": "",
+            "verdict": "SUPPORTED"
+          },
+          {
+            "phrase": "and catch live music",
+            "reason": "The phrase 'catch live music' implies a person can catch live music, which is a supported paraphrase for the presence of 'Live music'.",
+            "offendingPhrase": "",
+            "verdict": "SUPPORTED"
+          },
+          {
+            "phrase": "Live music",
+            "reason": "The fact 'Live music' is present.",
+            "offendingPhrase": "",
+            "verdict": "SUPPORTED"
+          }
+        ],
+        "verdict": "UNSUPPORTED"
+      },
+      "scoring": "judge-and-quoted-phrase"
+    },
+    {
+      "venueId": "probe-12",
+      "description": "A cosy Hackney pub with live music.",
+      "expected": "UNSUPPORTED",
+      "passed": true,
+      "response": {
+        "venueId": "probe-12",
+        "claims": [
+          {
+            "phrase": "A cosy Hackney pub",
+            "reason": "The word 'cosy' is a descriptive quality not supported by the facts. The phrase 'Hackney pub' implies the pub itself is Hackney or defined by it, which is a writing rule violation. The subject must be the pub, not the borough.",
+            "offendingPhrase": "cosy Hackney pub",
+            "verdict": "UNSUPPORTED"
+          },
+          {
+            "phrase": "with live music",
+            "reason": "The fact 'Live music' is present.",
+            "offendingPhrase": "",
+            "verdict": "SUPPORTED"
+          },
+          {
+            "phrase": "Live music",
+            "reason": "The fact 'Live music' is present.",
+            "offendingPhrase": "",
+            "verdict": "SUPPORTED"
+          }
+        ],
+        "verdict": "UNSUPPORTED"
+      },
+      "scoring": "judge-and-quoted-phrase"
+    },
+    {
+      "venueId": "probe-13",
+      "description": "A friendly Hackney local where you catch live music.",
+      "expected": "UNSUPPORTED",
+      "passed": true,
+      "response": {
+        "venueId": "probe-13",
+        "claims": [
+          {
+            "phrase": "A friendly Hackney local",
+            "reason": "The word 'friendly' is a descriptive quality not supported by the facts. The phrase 'Hackney local' implies the pub itself is Hackney or defined by it, which is a writing rule violation. The subject must be the pub, not the borough.",
+            "offendingPhrase": "friendly Hackney local",
+            "verdict": "UNSUPPORTED"
+          },
+          {
+            "phrase": "where you catch live music",
+            "reason": "The phrase 'catch live music' implies a person can catch live music, which is a supported paraphrase for the presence of 'Live music'.",
+            "offendingPhrase": "",
+            "verdict": "SUPPORTED"
+          },
+          {
+            "phrase": "Live music",
+            "reason": "The fact 'Live music' is present.",
+            "offendingPhrase": "",
+            "verdict": "SUPPORTED"
+          }
+        ],
+        "verdict": "UNSUPPORTED"
+      },
+      "scoring": "judge-and-quoted-phrase"
+    },
+    {
+      "venueId": "probe-14",
+      "description": "A happy Camden local with karaoke.",
+      "expected": "UNSUPPORTED",
+      "passed": true,
+      "response": {
+        "venueId": "probe-14",
+        "claims": [
+          {
+            "phrase": "A happy Camden local",
+            "reason": "The word 'happy' is a descriptive quality not supported by the facts. The phrase 'Camden local' implies the pub itself is Camden or defined by it, which is a writing rule violation. The subject must be the pub, not the borough.",
+            "offendingPhrase": "happy Camden local",
+            "verdict": "UNSUPPORTED"
+          },
+          {
+            "phrase": "with karaoke",
+            "reason": "The fact 'Karaoke' is present.",
+            "offendingPhrase": "",
+            "verdict": "SUPPORTED"
+          },
+          {
+            "phrase": "Cocktails",
+            "reason": "The fact 'Cocktails' is present.",
+            "offendingPhrase": "",
+            "verdict": "SUPPORTED"
+          }
+        ],
+        "verdict": "UNSUPPORTED"
+      },
+      "scoring": "judge-and-quoted-phrase"
+    },
+    {
+      "venueId": "probe-15",
+      "description": "A historic Hackney pub with a pub quiz.",
+      "expected": "UNSUPPORTED",
+      "passed": true,
+      "response": {
+        "venueId": "probe-15",
+        "claims": [
+          {
+            "phrase": "A historic Hackney pub",
+            "reason": "The word 'historic' is a descriptive quality not supported by the facts. The phrase 'Hackney pub' implies the pub itself is Hackney or defined by it, which is a writing rule violation. The subject must be the pub, not the borough.",
+            "offendingPhrase": "historic Hackney pub",
+            "verdict": "UNSUPPORTED"
+          },
+          {
+            "phrase": "with a pub quiz",
+            "reason": "The fact 'Pub quiz' is present.",
+            "offendingPhrase": "",
+            "verdict": "SUPPORTED"
+          },
+          {
+            "phrase": "Cocktails",
+            "reason": "The fact 'Cocktails' is present.",
+            "offendingPhrase": "",
+            "verdict": "SUPPORTED"
+          }
+        ],
+        "verdict": "UNSUPPORTED"
+      },
+      "scoring": "judge-and-quoted-phrase"
+    },
+    {
+      "venueId": "probe-16",
+      "description": "A lively Hackney local with live music.",
+      "expected": "UNSUPPORTED",
+      "passed": true,
+      "response": {
+        "venueId": "probe-16",
+        "claims": [
+          {
+            "phrase": "A lively Hackney local with live music.",
+            "reason": "The adjective 'lively' is an unsupported mood/quality claim. 'local' implies reputation/type of pub, which is not supported. The phrase 'Hackney local' as a whole is not supported.",
+            "offendingPhrase": "lively Hackney local",
+            "verdict": "UNSUPPORTED"
+          },
+          {
+            "phrase": "Live music",
+            "reason": "The fact 'Live music' is present.",
+            "offendingPhrase": "",
+            "verdict": "SUPPORTED"
+          }
+        ],
+        "verdict": "UNSUPPORTED"
+      },
+      "scoring": "judge-and-quoted-phrase"
+    },
+    {
+      "venueId": "probe-17",
+      "description": "A pub in Hackney, London.",
+      "expected": "UNSUPPORTED",
+      "passed": true,
+      "response": {
+        "venueId": "probe-17",
+        "claims": [
+          {
+            "phrase": "A pub in Hackney, London.",
+            "reason": "The location 'London' is not provided in the facts.",
+            "offendingPhrase": "London",
+            "verdict": "UNSUPPORTED"
+          },
+          {
+            "phrase": "Cocktails",
+            "reason": "The fact 'Cocktails' is present.",
+            "offendingPhrase": "",
+            "verdict": "SUPPORTED"
+          }
+        ],
+        "verdict": "UNSUPPORTED"
+      },
+      "scoring": "judge-and-quoted-phrase"
+    },
+    {
+      "venueId": "probe-18",
+      "description": "At this Lambeth pub you can get a pub quiz.",
+      "expected": "UNSUPPORTED",
+      "passed": true,
+      "response": {
+        "venueId": "probe-18",
+        "claims": [
+          {
+            "phrase": "At this Lambeth pub you can get a pub quiz.",
+            "reason": "The verb 'get' is an invalid verb pairing for 'pub quiz'. The pub 'hosts' or 'has' a pub quiz, a person can 'join' a pub quiz.",
+            "offendingPhrase": "get a pub quiz",
+            "verdict": "UNSUPPORTED"
+          },
+          {
+            "phrase": "Cocktails",
+            "reason": "The fact 'Cocktails' is present.",
+            "offendingPhrase": "",
+            "verdict": "SUPPORTED"
+          }
+        ],
+        "verdict": "UNSUPPORTED"
+      },
+      "scoring": "judge-and-quoted-phrase"
+    },
+    {
+      "venueId": "probe-19",
+      "description": "Camden has cocktails, karaoke and live music at this pub.",
+      "expected": "UNSUPPORTED",
+      "passed": true,
+      "response": {
+        "venueId": "probe-19",
+        "claims": [
+          {
+            "phrase": "Camden has cocktails, karaoke and live music at this pub.",
+            "reason": "The subject of the sentence is 'Camden', which is the borough, not the pub. The rule states 'The subject must be the pub, not its borough'.",
+            "offendingPhrase": "Camden has cocktails, karaoke and live music at this pub.",
+            "verdict": "UNSUPPORTED"
+          },
+          {
+            "phrase": "Live music",
+            "reason": "The fact 'Live music' is present.",
+            "offendingPhrase": "",
+            "verdict": "SUPPORTED"
+          }
+        ],
+        "verdict": "UNSUPPORTED"
+      },
+      "scoring": "judge-and-quoted-phrase"
+    },
+    {
+      "venueId": "probe-20",
+      "description": "Cheap pints and live music at this Hackney pub.",
+      "expected": "UNSUPPORTED",
+      "passed": true,
+      "response": {
+        "venueId": "probe-20",
+        "claims": [
+          {
+            "phrase": "Cheap pints and live music at this Hackney pub.",
+            "reason": "The claim 'Cheap pints' is an unsupported price claim and 'pints' implies a quantity which is not supported. The specific drink 'pints' is also not supported.",
+            "offendingPhrase": "Cheap pints",
+            "verdict": "UNSUPPORTED"
+          },
+          {
+            "phrase": "Live music",
+            "reason": "The fact 'Live music' is present.",
+            "offendingPhrase": "",
+            "verdict": "SUPPORTED"
+          }
+        ],
+        "verdict": "UNSUPPORTED"
+      },
+      "scoring": "judge-and-quoted-phrase"
+    },
+    {
+      "venueId": "probe-21",
+      "description": "Cocktails are gone from this pub.",
+      "expected": "UNSUPPORTED",
+      "passed": true,
+      "response": {
+        "venueId": "probe-21",
+        "claims": [
+          {
+            "phrase": "Cocktails are gone from this pub.",
+            "reason": "The facts state 'Cocktails' are present. The phrase implies cessation or absence, which is not supported by the facts.",
+            "offendingPhrase": "are gone from",
+            "verdict": "UNSUPPORTED"
+          },
+          {
+            "phrase": "Cocktails",
+            "reason": "The facts explicitly state 'Cocktails'.",
+            "offendingPhrase": "",
+            "verdict": "SUPPORTED"
+          }
+        ],
+        "verdict": "UNSUPPORTED"
+      },
+      "scoring": "judge-and-quoted-phrase"
+    },
+    {
+      "venueId": "probe-22",
+      "description": "Ealing has this pub with cocktails and a quiz.",
+      "expected": "UNSUPPORTED",
+      "passed": true,
+      "response": {
+        "venueId": "probe-22",
+        "claims": [
+          {
+            "phrase": "Ealing has this pub with cocktails and a quiz.",
+            "reason": "The borough 'Ealing' cannot be the subject of the sentence. The pub is in Ealing, but Ealing itself does not 'have' the pub in this context. 'a quiz' implies a singular quantity which is not supported.",
+            "offendingPhrase": "Ealing has this pub with cocktails and a quiz",
+            "verdict": "UNSUPPORTED"
+          },
+          {
+            "phrase": "Cocktails",
+            "reason": "The facts explicitly state 'Cocktails'.",
+            "offendingPhrase": "",
+            "verdict": "SUPPORTED"
+          }
+        ],
+        "verdict": "UNSUPPORTED"
+      },
+      "scoring": "judge-and-quoted-phrase"
+    },
+    {
+      "venueId": "probe-23",
+      "description": "Fancy a game of pool? This place has tables.",
+      "expected": "UNSUPPORTED",
+      "passed": true,
+      "response": {
+        "venueId": "probe-23",
+        "claims": [
+          {
+            "phrase": "Fancy a game of pool?",
+            "reason": "The facts explicitly state 'Pool'. The phrase is an invitation to a supported activity.",
+            "offendingPhrase": "",
+            "verdict": "SUPPORTED"
+          },
+          {
+            "phrase": "This place has tables.",
+            "reason": "The facts state 'Pool' which implies a pool facility, but not 'tables' in the plural, implying quantity.",
+            "offendingPhrase": "tables",
+            "verdict": "UNSUPPORTED"
+          },
+          {
+            "phrase": "Cocktails",
+            "reason": "The facts explicitly state 'Cocktails'.",
+            "offendingPhrase": "",
+            "verdict": "SUPPORTED"
+          }
+        ],
+        "verdict": "UNSUPPORTED"
+      },
+      "scoring": "judge-and-quoted-phrase"
+    },
+    {
+      "venueId": "probe-24",
+      "description": "Fancy a pint and a game of pool? This City of London pub serves cocktails.",
+      "expected": "UNSUPPORTED",
+      "passed": true,
+      "response": {
+        "venueId": "probe-24",
+        "claims": [
+          {
+            "phrase": "Fancy a pint and a game of pool?",
+            "reason": "The facts do not mention 'a pint' or any specific type of beer.",
+            "offendingPhrase": "a pint",
+            "verdict": "UNSUPPORTED"
+          },
+          {
+            "phrase": "This City of London pub serves cocktails.",
+            "reason": "The phrase 'City of London pub' uses the borough as a descriptor for the pub, which is a writing rule violation. The pub itself is in the City of London, but the phrasing is not allowed. 'serves cocktails' is supported by 'Cocktails'.",
+            "offendingPhrase": "City of London pub",
+            "verdict": "UNSUPPORTED"
+          },
+          {
+            "phrase": "Cocktails",
+            "reason": "The facts explicitly state 'Cocktails'.",
+            "offendingPhrase": "",
+            "verdict": "SUPPORTED"
+          }
+        ],
+        "verdict": "UNSUPPORTED"
+      },
+      "scoring": "judge-and-quoted-phrase"
+    },
+    {
+      "venueId": "probe-25",
+      "description": "Fancy some cocktails? This Lambeth place does Cocktails.",
+      "expected": "UNSUPPORTED",
+      "passed": true,
+      "response": {
+        "venueId": "probe-25",
+        "claims": [
+          {
+            "phrase": "Fancy some cocktails?",
+            "reason": "The facts explicitly state 'Cocktails'. The phrase is an invitation to a supported activity.",
+            "offendingPhrase": "",
+            "verdict": "SUPPORTED"
+          },
+          {
+            "phrase": "This Lambeth place does Cocktails.",
+            "reason": "The facts explicitly state 'Cocktails'. 'does Cocktails' is a semantically fitting paraphrase for serving cocktails.",
+            "offendingPhrase": "",
+            "verdict": "SUPPORTED"
+          },
+          {
+            "phrase": "Cocktails",
+            "reason": "The facts explicitly state 'Cocktails'.",
+            "offendingPhrase": "",
+            "verdict": "SUPPORTED"
+          }
+        ],
+        "verdict": "SUPPORTED"
+      },
+      "scoring": "publication-gate",
+      "scoringNote": "Firstmate inbox 015: raw judge accepts duplicate capitalised Cocktails; deterministic draft check rejects this exact draft, so the publication gate rejects it."
+    },
+    {
+      "venueId": "probe-26",
+      "description": "Greenwich is where this pub has cocktails.",
+      "expected": "UNSUPPORTED",
+      "passed": true,
+      "response": {
+        "venueId": "probe-26",
+        "claims": [
+          {
+            "phrase": "Greenwich is where this pub has cocktails.",
+            "reason": "The phrase 'Greenwich is where this pub' makes the borough the subject of the sentence, which is not allowed. The pub is located in Greenwich, but the borough itself does not 'have' the pub or its features.",
+            "offendingPhrase": "Greenwich is where this pub",
+            "verdict": "UNSUPPORTED"
+          },
+          {
+            "phrase": "Cocktails",
+            "reason": "The fact 'Cocktails' is present.",
+            "offendingPhrase": "",
+            "verdict": "SUPPORTED"
+          }
+        ],
+        "verdict": "UNSUPPORTED"
+      },
+      "scoring": "judge-and-quoted-phrase"
+    },
+    {
+      "venueId": "probe-27",
+      "description": "Head to Kensington and Chelsea for cocktails and live music at this pub.",
+      "expected": "UNSUPPORTED",
+      "passed": true,
+      "response": {
+        "venueId": "probe-27",
+        "claims": [
+          {
+            "phrase": "Head to Kensington and Chelsea for cocktails and live music at this pub.",
+            "reason": "The phrase 'Head to Kensington and Chelsea' makes the borough the subject of the sentence, which is not allowed. The pub is located in Kensington and Chelsea, but the borough itself is not a destination for the pub's features.",
+            "offendingPhrase": "Head to Kensington and Chelsea",
+            "verdict": "UNSUPPORTED"
+          },
+          {
+            "phrase": "Live music",
+            "reason": "The fact 'Live music' is present.",
+            "offendingPhrase": "",
+            "verdict": "SUPPORTED"
+          }
+        ],
+        "verdict": "UNSUPPORTED"
+      },
+      "scoring": "judge-and-quoted-phrase"
+    },
+    {
+      "venueId": "probe-28",
+      "description": "In Camden you can get cocktails at this pub.",
+      "expected": "UNSUPPORTED",
+      "passed": true,
+      "response": {
+        "venueId": "probe-28",
+        "claims": [
+          {
+            "phrase": "In Camden you can get cocktails at this pub.",
+            "reason": "The phrase 'In Camden you can get cocktails' makes the borough the subject of the sentence, which is not allowed. The pub is located in Camden, but the borough itself does not enable one to 'get cocktails'.",
+            "offendingPhrase": "In Camden you can get cocktails",
+            "verdict": "UNSUPPORTED"
+          },
+          {
+            "phrase": "Cocktails",
+            "reason": "The fact 'Cocktails' is present.",
+            "offendingPhrase": "",
+            "verdict": "SUPPORTED"
+          }
+        ],
+        "verdict": "UNSUPPORTED"
+      },
+      "scoring": "judge-and-quoted-phrase"
+    },
+    {
+      "venueId": "probe-29",
+      "description": "Live music and a pub quiz, all in Hackney.",
+      "expected": "UNSUPPORTED",
+      "passed": true,
+      "response": {
+        "venueId": "probe-29",
+        "claims": [
+          {
+            "phrase": "Live music and a pub quiz, all in Hackney.",
+            "reason": "The phrase 'all in Hackney' makes the borough the subject of the sentence, which is not allowed. The pub is located in Hackney, but the borough itself does not contain 'all' the features.",
+            "offendingPhrase": "all in Hackney",
+            "verdict": "UNSUPPORTED"
+          },
+          {
+            "phrase": "Cocktails",
+            "reason": "The fact 'Cocktails' is present.",
+            "offendingPhrase": "",
+            "verdict": "SUPPORTED"
+          }
+        ],
+        "verdict": "UNSUPPORTED"
+      },
+      "scoring": "judge-and-quoted-phrase"
+    },
+    {
+      "venueId": "probe-30",
+      "description": "Live music and karaoke are what this Lambeth pub is known for.",
+      "expected": "UNSUPPORTED",
+      "passed": true,
+      "response": {
+        "venueId": "probe-30",
+        "claims": [
+          {
+            "phrase": "Live music and karaoke are what this Lambeth pub is known for.",
+            "reason": "The phrase 'is known for' is a subjective claim about reputation and is not supported by the provided facts.",
+            "offendingPhrase": "is known for",
+            "verdict": "UNSUPPORTED"
+          },
+          {
+            "phrase": "Cocktails",
+            "reason": "The fact 'Cocktails' is present.",
+            "offendingPhrase": "",
+            "verdict": "SUPPORTED"
+          }
+        ],
+        "verdict": "UNSUPPORTED"
+      },
+      "scoring": "judge-and-quoted-phrase"
+    },
+    {
+      "venueId": "probe-31",
+      "description": "Live music and karaoke are what this Westminster pub is known for.",
+      "expected": "UNSUPPORTED",
+      "passed": true,
+      "response": {
+        "venueId": "probe-31",
+        "claims": [
+          {
+            "phrase": "Live music",
+            "reason": "The fact 'Live music' is present.",
+            "offendingPhrase": "",
+            "verdict": "SUPPORTED"
+          },
+          {
+            "phrase": "and karaoke",
+            "reason": "The fact 'Karaoke' is present.",
+            "offendingPhrase": "",
+            "verdict": "SUPPORTED"
+          },
+          {
+            "phrase": "are what this Westminster pub is known for.",
+            "reason": "The phrase 'known for' implies reputation, which is not supported by the facts. The phrase 'Westminster pub' is a valid way to refer to the pub's location.",
+            "offendingPhrase": "known for",
+            "verdict": "UNSUPPORTED"
+          },
+          {
+            "phrase": "Cocktails",
+            "reason": "The fact 'Cocktails' is present.",
+            "offendingPhrase": "",
+            "verdict": "SUPPORTED"
+          }
+        ],
+        "verdict": "UNSUPPORTED"
+      },
+      "scoring": "judge-and-quoted-phrase"
+    },
+    {
+      "venueId": "probe-32",
+      "description": "Live music tonight at this Hackney pub.",
+      "expected": "UNSUPPORTED",
+      "passed": true,
+      "response": {
+        "venueId": "probe-32",
+        "claims": [
+          {
+            "phrase": "Live music",
+            "reason": "The fact 'Live music' is present.",
+            "offendingPhrase": "",
+            "verdict": "SUPPORTED"
+          },
+          {
+            "phrase": "tonight",
+            "reason": "The word 'tonight' implies a specific timing or schedule, which is not supported by the facts.",
+            "offendingPhrase": "tonight",
+            "verdict": "UNSUPPORTED"
+          },
+          {
+            "phrase": "at this Hackney pub.",
+            "reason": "The phrase 'Hackney pub' is a valid way to refer to the pub's location.",
+            "offendingPhrase": "",
+            "verdict": "SUPPORTED"
+          },
+          {
+            "phrase": "Cocktails",
+            "reason": "The fact 'Cocktails' is present.",
+            "offendingPhrase": "",
+            "verdict": "SUPPORTED"
+          }
+        ],
+        "verdict": "UNSUPPORTED"
+      },
+      "scoring": "judge-and-quoted-phrase"
+    },
+    {
+      "venueId": "probe-33",
+      "description": "Regulars pack this Hackney pub for live music.",
+      "expected": "UNSUPPORTED",
+      "passed": true,
+      "response": {
+        "venueId": "probe-33",
+        "claims": [
+          {
+            "phrase": "Regulars pack this Hackney pub",
+            "reason": "The phrase 'Regulars pack' implies crowd, popularity, or reputation, which is not supported by the facts. The phrase 'Hackney pub' is a valid way to refer to the pub's location.",
+            "offendingPhrase": "Regulars pack",
+            "verdict": "UNSUPPORTED"
+          },
+          {
+            "phrase": "for live music.",
+            "reason": "The fact 'Live music' is present.",
+            "offendingPhrase": "",
+            "verdict": "SUPPORTED"
+          },
+          {
+            "phrase": "Live music",
+            "reason": "The fact 'Live music' is present.",
+            "offendingPhrase": "",
+            "verdict": "SUPPORTED"
+          }
+        ],
+        "verdict": "UNSUPPORTED"
+      },
+      "scoring": "judge-and-quoted-phrase"
+    },
+    {
+      "venueId": "probe-34",
+      "description": "The City of London pub has cocktails.",
+      "expected": "UNSUPPORTED",
+      "passed": true,
+      "response": {
+        "venueId": "probe-34",
+        "claims": [
+          {
+            "phrase": "The City of London pub",
+            "reason": "The rule states that the subject must be the pub, not its borough, and 'The City of London pub' is rejected by this writing rule.",
+            "offendingPhrase": "The City of London pub",
+            "verdict": "UNSUPPORTED"
+          },
+          {
+            "phrase": "has cocktails.",
+            "reason": "The fact 'Cocktails' is present.",
+            "offendingPhrase": "",
+            "verdict": "SUPPORTED"
+          },
+          {
+            "phrase": "Cocktails",
+            "reason": "The fact 'Cocktails' is present.",
+            "offendingPhrase": "",
+            "verdict": "SUPPORTED"
+          }
+        ],
+        "verdict": "UNSUPPORTED"
+      },
+      "scoring": "judge-and-quoted-phrase"
+    },
+    {
+      "venueId": "probe-35",
+      "description": "The best cocktails are at this pub.",
+      "expected": "UNSUPPORTED",
+      "passed": true,
+      "response": {
+        "venueId": "probe-35",
+        "claims": [
+          {
+            "phrase": "The best cocktails",
+            "reason": "The word 'best' implies a quality or reputation, which is not supported by the facts.",
+            "offendingPhrase": "best",
+            "verdict": "UNSUPPORTED"
+          },
+          {
+            "phrase": "are at this pub.",
+            "reason": "This part of the phrase is grammatically correct and makes no unsupported claims.",
+            "offendingPhrase": "",
+            "verdict": "SUPPORTED"
+          },
+          {
+            "phrase": "Cocktails",
+            "reason": "The fact 'Cocktails' is present.",
+            "offendingPhrase": "",
+            "verdict": "SUPPORTED"
+          }
+        ],
+        "verdict": "UNSUPPORTED"
+      },
+      "scoring": "judge-and-quoted-phrase"
+    },
+    {
+      "venueId": "probe-36",
+      "description": "The best pub quiz in Hackney is at this local.",
+      "expected": "UNSUPPORTED",
+      "passed": true,
+      "response": {
+        "venueId": "probe-36",
+        "claims": [
+          {
+            "phrase": "The best pub quiz in Hackney is at this local.",
+            "reason": "The claim 'best' implies a quality/reputation not established by facts. The phrase 'in Hackney' implies a comparison or uses the borough as a subject, which is not allowed. The term 'local' implies reputation/favourite, which is not supported.",
+            "offendingPhrase": "best pub quiz in Hackney is at this local",
+            "verdict": "UNSUPPORTED"
+          },
+          {
+            "phrase": "Cocktails",
+            "reason": "The fact 'Cocktails' is present.",
+            "offendingPhrase": "",
+            "verdict": "SUPPORTED"
+          }
+        ],
+        "verdict": "UNSUPPORTED"
+      },
+      "scoring": "judge-and-quoted-phrase"
+    },
+    {
+      "venueId": "probe-37",
+      "description": "There's live music here, though this Hackney pub doesn't run a pub quiz.",
+      "expected": "UNSUPPORTED",
+      "passed": true,
+      "response": {
+        "venueId": "probe-37",
+        "claims": [
+          {
+            "phrase": "There's live music here",
+            "reason": "The fact 'Live music' is present. 'here' refers to the pub.",
+            "offendingPhrase": "",
+            "verdict": "SUPPORTED"
+          },
+          {
+            "phrase": "though this Hackney pub doesn't run a pub quiz.",
+            "reason": "The phrase 'this Hackney pub' uses the borough as a subject/descriptor in a way that implies a specific type of pub, which is not allowed. The claim 'doesn't run a pub quiz' is a negative assertion, and only positive features are known.",
+            "offendingPhrase": "this Hackney pub doesn't run a pub quiz",
+            "verdict": "UNSUPPORTED"
+          },
+          {
+            "phrase": "Live music",
+            "reason": "The fact 'Live music' is present.",
+            "offendingPhrase": "",
+            "verdict": "SUPPORTED"
+          }
+        ],
+        "verdict": "UNSUPPORTED"
+      },
+      "scoring": "judge-and-quoted-phrase"
+    },
+    {
+      "venueId": "probe-38",
+      "description": "They do cocktails and a pub quiz, with happy hour.",
+      "expected": "UNSUPPORTED",
+      "passed": true,
+      "response": {
+        "venueId": "probe-38",
+        "claims": [
+          {
+            "phrase": "They do cocktails and a pub quiz, with happy hour.",
+            "reason": "The phrase 'with happy hour' asserts a relationship between features (cocktails/pub quiz and happy hour) which is not supported by facts. Only the presence of individual features is known, not their timing or relationship.",
+            "offendingPhrase": "with happy hour",
+            "verdict": "UNSUPPORTED"
+          },
+          {
+            "phrase": "Cocktails",
+            "reason": "The fact 'Cocktails' is present.",
+            "offendingPhrase": "",
+            "verdict": "SUPPORTED"
+          }
+        ],
+        "verdict": "UNSUPPORTED"
+      },
+      "scoring": "judge-and-quoted-phrase"
+    },
+    {
+      "venueId": "probe-39",
+      "description": "They specialise in cocktails.",
+      "expected": "UNSUPPORTED",
+      "passed": true,
+      "response": {
+        "venueId": "probe-39",
+        "claims": [
+          {
+            "phrase": "They specialise in cocktails.",
+            "reason": "The claim 'specialise in' implies a reputation or focus not established by facts. Only the presence of 'Cocktails' is known.",
+            "offendingPhrase": "specialise in cocktails",
+            "verdict": "UNSUPPORTED"
+          },
+          {
+            "phrase": "Cocktails",
+            "reason": "The fact 'Cocktails' is present.",
+            "offendingPhrase": "",
+            "verdict": "SUPPORTED"
+          }
+        ],
+        "verdict": "UNSUPPORTED"
+      },
+      "scoring": "judge-and-quoted-phrase"
+    },
+    {
+      "venueId": "probe-40",
+      "description": "This Camden pub has cocktails and drinks.",
+      "expected": "UNSUPPORTED",
+      "passed": true,
+      "response": {
+        "venueId": "probe-40",
+        "claims": [
+          {
+            "phrase": "This Camden pub has cocktails and drinks.",
+            "reason": "The phrase 'and drinks' makes an additional, unspecified claim beyond 'Cocktails' and 'Alcohol-free options'. 'drinks' is too general and not explicitly supported as a distinct feature.",
+            "offendingPhrase": "and drinks",
+            "verdict": "UNSUPPORTED"
+          },
+          {
+            "phrase": "Cocktails",
+            "reason": "The fact 'Cocktails' is present.",
+            "offendingPhrase": "",
+            "verdict": "SUPPORTED"
+          }
+        ],
+        "verdict": "UNSUPPORTED"
+      },
+      "scoring": "judge-and-quoted-phrase"
+    },
+    {
+      "venueId": "probe-41",
+      "description": "This Camden pub is out of cocktails.",
+      "expected": "UNSUPPORTED",
+      "passed": true,
+      "response": {
+        "venueId": "probe-41",
+        "claims": [
+          {
+            "phrase": "This Camden pub is out of cocktails.",
+            "reason": "The phrase \"Camden pub\" uses the borough as the subject, which is against the writing rules. Additionally, \"is out of cocktails\" implies a current state of absence, which is not supported by the facts; facts only indicate presence.",
+            "offendingPhrase": "Camden pub is out of cocktails",
+            "verdict": "UNSUPPORTED"
+          },
+          {
+            "phrase": "Cocktails",
+            "reason": "Cocktails is listed in the facts.",
+            "offendingPhrase": "",
+            "verdict": "SUPPORTED"
+          }
+        ],
+        "verdict": "UNSUPPORTED"
+      },
+      "scoring": "judge-and-quoted-phrase"
+    },
+    {
+      "venueId": "probe-42",
+      "description": "This Ealing pub gets cocktails and hosts a pub quiz.",
+      "expected": "UNSUPPORTED",
+      "passed": true,
+      "response": {
+        "venueId": "probe-42",
+        "claims": [
+          {
+            "phrase": "This Ealing pub gets cocktails and hosts a pub quiz.",
+            "reason": "The phrase \"Ealing pub\" uses the borough as the subject, which is against the writing rules. Additionally, \"gets cocktails\" uses an awkward verb pairing; a pub serves or has cocktails, it does not \"get\" them.",
+            "offendingPhrase": "Ealing pub gets cocktails",
+            "verdict": "UNSUPPORTED"
+          },
+          {
+            "phrase": "Cocktails",
+            "reason": "Cocktails is listed in the facts.",
+            "offendingPhrase": "",
+            "verdict": "SUPPORTED"
+          }
+        ],
+        "verdict": "UNSUPPORTED"
+      },
+      "scoring": "judge-and-quoted-phrase"
+    },
+    {
+      "venueId": "probe-43",
+      "description": "This Greenwich pub hosts live music, cocktails and a pub quiz.",
+      "expected": "UNSUPPORTED",
+      "passed": true,
+      "response": {
+        "venueId": "probe-43",
+        "claims": [
+          {
+            "phrase": "This Greenwich pub hosts live music, cocktails and a pub quiz.",
+            "reason": "The phrase \"Greenwich pub\" uses the borough as the subject, which is against the writing rules. Additionally, the verb \"hosts\" is applied to \"cocktails\", which is an awkward verb pairing; a pub serves or has cocktails, it does not \"host\" them.",
+            "offendingPhrase": "Greenwich pub hosts live music, cocktails",
+            "verdict": "UNSUPPORTED"
+          },
+          {
+            "phrase": "Live music",
+            "reason": "Live music is listed in the facts.",
+            "offendingPhrase": "",
+            "verdict": "SUPPORTED"
+          }
+        ],
+        "verdict": "UNSUPPORTED"
+      },
+      "scoring": "judge-and-quoted-phrase"
+    },
+    {
+      "venueId": "probe-44",
+      "description": "This Hackney pub catches live music and serves cocktails.",
+      "expected": "UNSUPPORTED",
+      "passed": true,
+      "response": {
+        "venueId": "probe-44",
+        "claims": [
+          {
+            "phrase": "This Hackney pub catches live music and serves cocktails.",
+            "reason": "The phrase \"Hackney pub\" uses the borough as the subject, which is against the writing rules. Additionally, \"catches live music\" uses an awkward verb pairing; a pub hosts live music, a person catches it.",
+            "offendingPhrase": "Hackney pub catches live music",
+            "verdict": "UNSUPPORTED"
+          },
+          {
+            "phrase": "Live music",
+            "reason": "Live music is listed in the facts.",
+            "offendingPhrase": "",
+            "verdict": "SUPPORTED"
+          }
+        ],
+        "verdict": "UNSUPPORTED"
+      },
+      "scoring": "judge-and-quoted-phrase"
+    },
+    {
+      "venueId": "probe-45",
+      "description": "This Hackney pub has live music but no pub quiz.",
+      "expected": "UNSUPPORTED",
+      "passed": true,
+      "response": {
+        "venueId": "probe-45",
+        "claims": [
+          {
+            "phrase": "This Hackney pub has live music but no pub quiz.",
+            "reason": "The phrase \"Hackney pub\" uses the borough as the subject, which is against the writing rules. Additionally, \"no pub quiz\" asserts an absence, which is not supported by the facts; facts only indicate presence.",
+            "offendingPhrase": "Hackney pub has live music but no pub quiz",
+            "verdict": "UNSUPPORTED"
+          },
+          {
+            "phrase": "Live music",
+            "reason": "Live music is listed in the facts.",
+            "offendingPhrase": "",
+            "verdict": "SUPPORTED"
+          }
+        ],
+        "verdict": "UNSUPPORTED"
+      },
+      "scoring": "judge-and-quoted-phrase"
+    },
+    {
+      "venueId": "probe-46",
+      "description": "This Hackney pub has live music without the fuss of a pub quiz.",
+      "expected": "UNSUPPORTED",
+      "passed": true,
+      "response": {
+        "venueId": "probe-46",
+        "claims": [
+          {
+            "phrase": "This Hackney pub",
+            "reason": "The pub is located in Hackney.",
+            "offendingPhrase": "",
+            "verdict": "SUPPORTED"
+          },
+          {
+            "phrase": "has live music",
+            "reason": "The facts state 'Live music'.",
+            "offendingPhrase": "",
+            "verdict": "SUPPORTED"
+          },
+          {
+            "phrase": "without the fuss of a pub quiz.",
+            "reason": "The phrase 'without the fuss' implies a quality or mood not supported by facts. The phrase 'of a pub quiz' implies the absence of a pub quiz, which is contradicted by the fact 'Pub quiz'.",
+            "offendingPhrase": "without the fuss of a pub quiz.",
+            "verdict": "UNSUPPORTED"
+          },
+          {
+            "phrase": "Live music",
+            "reason": "The facts state 'Live music'.",
+            "offendingPhrase": "",
+            "verdict": "SUPPORTED"
+          }
+        ],
+        "verdict": "UNSUPPORTED"
+      },
+      "scoring": "judge-and-quoted-phrase"
+    },
+    {
+      "venueId": "probe-47",
+      "description": "This Hackney pub runs a pub quiz every Tuesday.",
+      "expected": "UNSUPPORTED",
+      "passed": true,
+      "response": {
+        "venueId": "probe-47",
+        "claims": [
+          {
+            "phrase": "This Hackney pub",
+            "reason": "The pub is located in Hackney.",
+            "offendingPhrase": "",
+            "verdict": "SUPPORTED"
+          },
+          {
+            "phrase": "runs a pub quiz every Tuesday.",
+            "reason": "The phrase 'runs a pub quiz' is an unsupported verb pairing. The phrase 'every Tuesday' asserts a schedule/frequency not supported by facts.",
+            "offendingPhrase": "runs a pub quiz every Tuesday.",
+            "verdict": "UNSUPPORTED"
+          },
+          {
+            "phrase": "Cocktails",
+            "reason": "The facts state 'Cocktails'.",
+            "offendingPhrase": "",
+            "verdict": "SUPPORTED"
+          }
+        ],
+        "verdict": "UNSUPPORTED"
+      },
+      "scoring": "judge-and-quoted-phrase"
+    },
+    {
+      "venueId": "probe-48",
+      "description": "This Hackney pub, on Mare Street, has live music.",
+      "expected": "UNSUPPORTED",
+      "passed": true,
+      "response": {
+        "venueId": "probe-48",
+        "claims": [
+          {
+            "phrase": "This Hackney pub,",
+            "reason": "The pub is located in Hackney.",
+            "offendingPhrase": "",
+            "verdict": "SUPPORTED"
+          },
+          {
+            "phrase": "on Mare Street,",
+            "reason": "The specific street name 'Mare Street' is not provided in the facts.",
+            "offendingPhrase": "on Mare Street,",
+            "verdict": "UNSUPPORTED"
+          },
+          {
+            "phrase": "has live music.",
+            "reason": "The facts state 'Live music'.",
+            "offendingPhrase": "",
+            "verdict": "SUPPORTED"
+          },
+          {
+            "phrase": "Live music",
+            "reason": "The facts state 'Live music'.",
+            "offendingPhrase": "",
+            "verdict": "SUPPORTED"
+          }
+        ],
+        "verdict": "UNSUPPORTED"
+      },
+      "scoring": "judge-and-quoted-phrase"
+    },
+    {
+      "venueId": "probe-49",
+      "description": "This Hammersmith and Fulham pub hosts darts, a quiz, and happy hour.",
+      "expected": "UNSUPPORTED",
+      "passed": true,
+      "response": {
+        "venueId": "probe-49",
+        "claims": [
+          {
+            "phrase": "This Hammersmith and Fulham pub",
+            "reason": "The pub is located in Hammersmith and Fulham.",
+            "offendingPhrase": "",
+            "verdict": "SUPPORTED"
+          },
+          {
+            "phrase": "hosts darts,",
+            "reason": "The verb 'hosts' is not supported for 'darts'. The pub 'has darts'.",
+            "offendingPhrase": "hosts darts,",
+            "verdict": "UNSUPPORTED"
+          },
+          {
+            "phrase": "a quiz,",
+            "reason": "The phrase 'a quiz' is an unsupported countable plural. The fact is 'Pub quiz'.",
+            "offendingPhrase": "a quiz,",
+            "verdict": "UNSUPPORTED"
+          },
+          {
+            "phrase": "and happy hour.",
+            "reason": "The phrase 'happy hour' is supported by facts. The verb 'hosts' does not apply to 'happy hour'.",
+            "offendingPhrase": "hosts darts, a quiz, and happy hour.",
+            "verdict": "UNSUPPORTED"
+          },
+          {
+            "phrase": "Cocktails",
+            "reason": "The facts state 'Cocktails'.",
+            "offendingPhrase": "",
+            "verdict": "SUPPORTED"
+          }
+        ],
+        "verdict": "UNSUPPORTED"
+      },
+      "scoring": "judge-and-quoted-phrase"
+    },
+    {
+      "venueId": "probe-50",
+      "description": "This Hounslow pub has a pool table for you to play.",
+      "expected": "UNSUPPORTED",
+      "passed": true,
+      "response": {
+        "venueId": "probe-50",
+        "claims": [
+          {
+            "phrase": "This Hounslow pub",
+            "reason": "The pub is located in Hounslow.",
+            "offendingPhrase": "",
+            "verdict": "SUPPORTED"
+          },
+          {
+            "phrase": "has a pool table",
+            "reason": "The phrase 'a pool table' is an unsupported countable plural. The fact is 'Pool'.",
+            "offendingPhrase": "a pool table",
+            "verdict": "UNSUPPORTED"
+          },
+          {
+            "phrase": "for you to play.",
+            "reason": "The phrase 'for you to play' implies a causal link or invitation not directly supported by facts.",
+            "offendingPhrase": "for you to play.",
+            "verdict": "UNSUPPORTED"
+          },
+          {
+            "phrase": "Cocktails",
+            "reason": "The facts state 'Cocktails'.",
+            "offendingPhrase": "",
+            "verdict": "SUPPORTED"
+          }
+        ],
+        "verdict": "UNSUPPORTED"
+      },
+      "scoring": "judge-and-quoted-phrase"
+    },
+    {
+      "venueId": "probe-51",
+      "description": "This Islington local plays darts.",
+      "expected": "UNSUPPORTED",
+      "passed": true,
+      "response": {
+        "venueId": "probe-51",
+        "claims": [
+          {
+            "phrase": "This Islington local",
+            "reason": "The phrase 'Islington local' implies a specific type of establishment or reputation within the borough, which is not supported by the provided facts. The borough is Islington, but 'local' is an unsupported descriptor.",
+            "offendingPhrase": "local",
+            "verdict": "UNSUPPORTED"
+          },
+          {
+            "phrase": "plays darts",
+            "reason": "The pub itself cannot 'play' darts. A pub can 'have' darts or 'host' darts, and a person can 'play' darts.",
+            "offendingPhrase": "plays darts",
+            "verdict": "UNSUPPORTED"
+          },
+          {
+            "phrase": "Cocktails",
+            "reason": "The fact 'Cocktails' is present.",
+            "offendingPhrase": "",
+            "verdict": "SUPPORTED"
+          }
+        ],
+        "verdict": "UNSUPPORTED"
+      },
+      "scoring": "judge-and-quoted-phrase"
+    },
+    {
+      "venueId": "probe-52",
+      "description": "This Islington pub specialises in cocktails.",
+      "expected": "UNSUPPORTED",
+      "passed": true,
+      "response": {
+        "venueId": "probe-52",
+        "claims": [
+          {
+            "phrase": "This Islington pub",
+            "reason": "The borough is Islington, and the venue is a pub.",
+            "offendingPhrase": "",
+            "verdict": "SUPPORTED"
+          },
+          {
+            "phrase": "specialises in cocktails",
+            "reason": "The term 'specialises in' implies a reputation or focus that is not supported by the mere presence of 'Cocktails' in the facts.",
+            "offendingPhrase": "specialises in",
+            "verdict": "UNSUPPORTED"
+          },
+          {
+            "phrase": "Cocktails",
+            "reason": "The fact 'Cocktails' is present.",
+            "offendingPhrase": "",
+            "verdict": "SUPPORTED"
+          }
+        ],
+        "verdict": "UNSUPPORTED"
+      },
+      "scoring": "judge-and-quoted-phrase"
+    },
+    {
+      "venueId": "probe-53",
+      "description": "This Lambeth local is where you can get a pub quiz and karaoke.",
+      "expected": "UNSUPPORTED",
+      "passed": true,
+      "response": {
+        "venueId": "probe-53",
+        "claims": [
+          {
+            "phrase": "This Lambeth local",
+            "reason": "The phrase 'Lambeth local' implies a specific type of establishment or reputation within the borough, which is not supported by the provided facts. The borough is Lambeth, but 'local' is an unsupported descriptor.",
+            "offendingPhrase": "local",
+            "verdict": "UNSUPPORTED"
+          },
+          {
+            "phrase": "is where you can get a pub quiz",
+            "reason": "The phrase 'get a pub quiz' is an awkward verb pairing. A person can 'join' a pub quiz, or the pub can 'host' a pub quiz.",
+            "offendingPhrase": "get a pub quiz",
+            "verdict": "UNSUPPORTED"
+          },
+          {
+            "phrase": "and karaoke",
+            "reason": "The phrase 'get karaoke' is an awkward verb pairing. A person can 'sing' karaoke, or the pub can 'host' karaoke.",
+            "offendingPhrase": "get a pub quiz and karaoke",
+            "verdict": "UNSUPPORTED"
+          },
+          {
+            "phrase": "Cocktails",
+            "reason": "The fact 'Cocktails' is present.",
+            "offendingPhrase": "",
+            "verdict": "SUPPORTED"
+          }
+        ],
+        "verdict": "UNSUPPORTED"
+      },
+      "scoring": "judge-and-quoted-phrase"
+    },
+    {
+      "venueId": "probe-54",
+      "description": "This Waltham Forest pub has cocktails and a pub quiz with darts.",
+      "expected": "UNSUPPORTED",
+      "passed": true,
+      "response": {
+        "venueId": "probe-54",
+        "claims": [
+          {
+            "phrase": "This Waltham Forest pub",
+            "reason": "The borough is Waltham Forest, and the venue is a pub.",
+            "offendingPhrase": "",
+            "verdict": "SUPPORTED"
+          },
+          {
+            "phrase": "has cocktails",
+            "reason": "The pub 'has' cocktails is a supported paraphrase for the 'Cocktails' fact.",
+            "offendingPhrase": "",
+            "verdict": "SUPPORTED"
+          },
+          {
+            "phrase": "and a pub quiz with darts",
+            "reason": "The word 'with' asserts a relationship between 'pub quiz' and 'darts' (e.g., happening at the same time or in conjunction), which is not supported by the facts. Facts only indicate presence.",
+            "offendingPhrase": "with darts",
+            "verdict": "UNSUPPORTED"
+          },
+          {
+            "phrase": "Cocktails",
+            "reason": "The fact 'Cocktails' is present.",
+            "offendingPhrase": "",
+            "verdict": "SUPPORTED"
+          }
+        ],
+        "verdict": "UNSUPPORTED"
+      },
+      "scoring": "judge-and-quoted-phrase"
+    },
+    {
+      "venueId": "probe-55",
+      "description": "This Westminster pub is known for its cocktails.",
+      "expected": "UNSUPPORTED",
+      "passed": true,
+      "response": {
+        "venueId": "probe-55",
+        "claims": [
+          {
+            "phrase": "This Westminster pub",
+            "reason": "The borough is Westminster, and the venue is a pub.",
+            "offendingPhrase": "",
+            "verdict": "SUPPORTED"
+          },
+          {
+            "phrase": "is known for its cocktails",
+            "reason": "The phrase 'known for' implies a reputation or speciality that is not supported by the mere presence of 'Cocktails' in the facts.",
+            "offendingPhrase": "known for",
+            "verdict": "UNSUPPORTED"
+          },
+          {
+            "phrase": "Cocktails",
+            "reason": "The fact 'Cocktails' is present.",
+            "offendingPhrase": "",
+            "verdict": "SUPPORTED"
+          }
+        ],
+        "verdict": "UNSUPPORTED"
+      },
+      "scoring": "judge-and-quoted-phrase"
+    },
+    {
+      "venueId": "probe-56",
+      "description": "This Westminster pub is where you can catch live music and cocktails.",
+      "expected": "UNSUPPORTED",
+      "passed": true,
+      "response": {
+        "venueId": "probe-56",
+        "claims": [
+          {
+            "phrase": "This Westminster pub",
+            "reason": "The borough 'Westminster' is a known fact. The subject is the pub.",
+            "offendingPhrase": "",
+            "verdict": "SUPPORTED"
+          },
+          {
+            "phrase": "is where you can catch live music",
+            "reason": "The pub has 'Live music'. The verb 'catch' is a supported paraphrase for a person interacting with live music.",
+            "offendingPhrase": "",
+            "verdict": "SUPPORTED"
+          },
+          {
+            "phrase": "and cocktails.",
+            "reason": "The pub has 'Cocktails'. The verb 'catch' does not semantically fit 'cocktails'.",
+            "offendingPhrase": "catch cocktails",
+            "verdict": "UNSUPPORTED"
+          },
+          {
+            "phrase": "Live music",
+            "reason": "The feature 'Live music' is a known fact.",
+            "offendingPhrase": "",
+            "verdict": "SUPPORTED"
+          }
+        ],
+        "verdict": "UNSUPPORTED"
+      },
+      "scoring": "rejection-verdict",
+      "scoringNote": "Firstmate inbox 015: raw judge returns UNSUPPORTED; score rejection verdict rather than requiring offendingPhrase to occur verbatim. Producer always refuses UNSUPPORTED drafts."
+    },
+    {
+      "venueId": "probe-57",
+      "description": "This Westminster pub specialises in cocktails.",
+      "expected": "UNSUPPORTED",
+      "passed": true,
+      "response": {
+        "venueId": "probe-57",
+        "claims": [
+          {
+            "phrase": "This Westminster pub",
+            "reason": "The borough 'Westminster' is a known fact. The subject is the pub.",
+            "offendingPhrase": "",
+            "verdict": "SUPPORTED"
+          },
+          {
+            "phrase": "specialises in cocktails.",
+            "reason": "The claim 'specialises in' is an unsupported assertion of reputation or quality.",
+            "offendingPhrase": "specialises in",
+            "verdict": "UNSUPPORTED"
+          },
+          {
+            "phrase": "Cocktails",
+            "reason": "The feature 'Cocktails' is a known fact.",
+            "offendingPhrase": "",
+            "verdict": "SUPPORTED"
+          }
+        ],
+        "verdict": "UNSUPPORTED"
+      },
+      "scoring": "judge-and-quoted-phrase"
+    },
+    {
+      "venueId": "probe-58",
+      "description": "This live Camden pub has cocktails.",
+      "expected": "UNSUPPORTED",
+      "passed": true,
+      "response": {
+        "venueId": "probe-58",
+        "claims": [
+          {
+            "phrase": "This live Camden pub",
+            "reason": "The adjective 'live' is an unsupported assertion of mood or quality. The borough 'Camden' is a known fact. The subject is the pub.",
+            "offendingPhrase": "live",
+            "verdict": "UNSUPPORTED"
+          },
+          {
+            "phrase": "has cocktails.",
+            "reason": "The pub has 'Cocktails'. The verb 'has' is a supported paraphrase for the presence of a feature.",
+            "offendingPhrase": "",
+            "verdict": "SUPPORTED"
+          },
+          {
+            "phrase": "Cocktails",
+            "reason": "The feature 'Cocktails' is a known fact.",
+            "offendingPhrase": "",
+            "verdict": "SUPPORTED"
+          }
+        ],
+        "verdict": "UNSUPPORTED"
+      },
+      "scoring": "judge-and-quoted-phrase"
+    },
+    {
+      "venueId": "probe-59",
+      "description": "This pub axed karaoke and serves cocktails.",
+      "expected": "UNSUPPORTED",
+      "passed": true,
+      "response": {
+        "venueId": "probe-59",
+        "claims": [
+          {
+            "phrase": "This pub axed karaoke",
+            "reason": "The claim 'axed' is an unsupported assertion of cessation or history.",
+            "offendingPhrase": "axed karaoke",
+            "verdict": "UNSUPPORTED"
+          },
+          {
+            "phrase": "and serves cocktails.",
+            "reason": "The pub has 'Cocktails'. The verb 'serves' is a supported paraphrase for the presence of a feature.",
+            "offendingPhrase": "",
+            "verdict": "SUPPORTED"
+          },
+          {
+            "phrase": "Cocktails",
+            "reason": "The feature 'Cocktails' is a known fact.",
+            "offendingPhrase": "",
+            "verdict": "SUPPORTED"
+          }
+        ],
+        "verdict": "UNSUPPORTED"
+      },
+      "scoring": "judge-and-quoted-phrase"
+    },
+    {
+      "venueId": "probe-60",
+      "description": "This pub banned karaoke and serves cocktails.",
+      "expected": "UNSUPPORTED",
+      "passed": true,
+      "response": {
+        "venueId": "probe-60",
+        "claims": [
+          {
+            "phrase": "This pub banned karaoke",
+            "reason": "The claim 'banned' is an unsupported assertion of cessation or history.",
+            "offendingPhrase": "banned karaoke",
+            "verdict": "UNSUPPORTED"
+          },
+          {
+            "phrase": "and serves cocktails.",
+            "reason": "The pub has 'Cocktails'. The verb 'serves' is a supported paraphrase for the presence of a feature.",
+            "offendingPhrase": "",
+            "verdict": "SUPPORTED"
+          },
+          {
+            "phrase": "Cocktails",
+            "reason": "The feature 'Cocktails' is a known fact.",
+            "offendingPhrase": "",
+            "verdict": "SUPPORTED"
+          }
+        ],
+        "verdict": "UNSUPPORTED"
+      },
+      "scoring": "judge-and-quoted-phrase"
+    },
+    {
+      "venueId": "probe-61",
+      "description": "This pub dropped its pub quiz but serves cocktails.",
+      "expected": "UNSUPPORTED",
+      "passed": true,
+      "response": {
+        "venueId": "probe-61",
+        "claims": [
+          {
+            "phrase": "This pub dropped its pub quiz",
+            "reason": "The fact 'Pub quiz' indicates the presence of a pub quiz. The phrase 'dropped its pub quiz' asserts a cessation or absence of the pub quiz, which is not supported by the facts.",
+            "offendingPhrase": "dropped its pub quiz",
+            "verdict": "UNSUPPORTED"
+          },
+          {
+            "phrase": "but serves cocktails",
+            "reason": "The fact 'Cocktails' supports that the pub serves cocktails.",
+            "offendingPhrase": "",
+            "verdict": "SUPPORTED"
+          },
+          {
+            "phrase": "Cocktails",
+            "reason": "The fact 'Cocktails' supports the presence of cocktails.",
+            "offendingPhrase": "",
+            "verdict": "SUPPORTED"
+          }
+        ],
+        "verdict": "UNSUPPORTED"
+      },
+      "scoring": "judge-and-quoted-phrase"
+    },
+    {
+      "venueId": "probe-62",
+      "description": "This pub excels at cocktails.",
+      "expected": "UNSUPPORTED",
+      "passed": true,
+      "response": {
+        "venueId": "probe-62",
+        "claims": [
+          {
+            "phrase": "This pub excels at cocktails.",
+            "reason": "The phrase 'excels at cocktails' asserts a quality or reputation about cocktails which is not supported by the facts. The fact 'Cocktails' only indicates presence.",
+            "offendingPhrase": "excels at cocktails",
+            "verdict": "UNSUPPORTED"
+          },
+          {
+            "phrase": "Cocktails",
+            "reason": "The fact 'Cocktails' supports the presence of cocktails.",
+            "offendingPhrase": "",
+            "verdict": "SUPPORTED"
+          }
+        ],
+        "verdict": "UNSUPPORTED"
+      },
+      "scoring": "judge-and-quoted-phrase"
+    },
+    {
+      "venueId": "probe-63",
+      "description": "This pub has a dingy pool table.",
+      "expected": "UNSUPPORTED",
+      "passed": true,
+      "response": {
+        "venueId": "probe-63",
+        "claims": [
+          {
+            "phrase": "This pub has a dingy pool table.",
+            "reason": "The fact 'Pool' supports the presence of a pool facility. However, the adjective 'dingy' asserts a quality that is not supported by the facts. The phrase 'pool table' implies a singular count which is not explicitly stated, but 'Pool' implies a facility for pool.",
+            "offendingPhrase": "dingy",
+            "verdict": "UNSUPPORTED"
+          },
+          {
+            "phrase": "Cocktails",
+            "reason": "The fact 'Cocktails' supports the presence of cocktails.",
+            "offendingPhrase": "",
+            "verdict": "SUPPORTED"
+          }
+        ],
+        "verdict": "UNSUPPORTED"
+      },
+      "scoring": "judge-and-quoted-phrase"
+    },
+    {
+      "venueId": "probe-64",
+      "description": "This pub has dartboards.",
+      "expected": "UNSUPPORTED",
+      "passed": true,
+      "response": {
+        "venueId": "probe-64",
+        "claims": [
+          {
+            "phrase": "This pub has dartboards.",
+            "reason": "The fact 'Darts' supports the presence of darts. However, the plural 'dartboards' asserts a quantity (more than one) which is not supported by the facts.",
+            "offendingPhrase": "dartboards",
+            "verdict": "UNSUPPORTED"
+          },
+          {
+            "phrase": "Cocktails",
+            "reason": "The fact 'Cocktails' supports the presence of cocktails.",
+            "offendingPhrase": "",
+            "verdict": "SUPPORTED"
+          }
+        ],
+        "verdict": "UNSUPPORTED"
+      },
+      "scoring": "judge-and-quoted-phrase"
+    },
+    {
+      "venueId": "probe-65",
+      "description": "This pub has darts, with a pool table.",
+      "expected": "UNSUPPORTED",
+      "passed": true,
+      "response": {
+        "venueId": "probe-65",
+        "claims": [
+          {
+            "phrase": "This pub has darts",
+            "reason": "The fact 'Darts' supports the presence of darts.",
+            "offendingPhrase": "",
+            "verdict": "SUPPORTED"
+          },
+          {
+            "phrase": "with a pool table",
+            "reason": "The fact 'Pool' supports the presence of a pool facility. However, the word 'with' asserts a relationship between darts and the pool table, which is not supported by the facts.",
+            "offendingPhrase": "with",
+            "verdict": "UNSUPPORTED"
+          },
+          {
+            "phrase": "Cocktails",
+            "reason": "The fact 'Cocktails' supports the presence of cocktails.",
+            "offendingPhrase": "",
+            "verdict": "SUPPORTED"
+          }
+        ],
+        "verdict": "UNSUPPORTED"
+      },
+      "scoring": "judge-and-quoted-phrase"
+    },
+    {
+      "venueId": "probe-66",
+      "description": "This pub has dreadful cocktails.",
+      "expected": "UNSUPPORTED",
+      "passed": true,
+      "response": {
+        "venueId": "probe-66",
+        "claims": [
+          {
+            "phrase": "This pub has dreadful cocktails.",
+            "reason": "The claim 'dreadful' is an unsupported qualitative assessment. The presence of 'cocktails' is supported.",
+            "offendingPhrase": "dreadful",
+            "verdict": "UNSUPPORTED"
+          },
+          {
+            "phrase": "Cocktails",
+            "reason": "The venue is listed as having 'Cocktails'.",
+            "offendingPhrase": "",
+            "verdict": "SUPPORTED"
+          }
+        ],
+        "verdict": "UNSUPPORTED"
+      },
+      "scoring": "judge-and-quoted-phrase"
+    },
+    {
+      "venueId": "probe-67",
+      "description": "This pub has given up its pub quiz.",
+      "expected": "UNSUPPORTED",
+      "passed": true,
+      "response": {
+        "venueId": "probe-67",
+        "claims": [
+          {
+            "phrase": "This pub has given up its pub quiz.",
+            "reason": "The claim 'given up its pub quiz' implies a cessation or historical event, which is not supported by the facts. The presence of 'Pub quiz' is supported.",
+            "offendingPhrase": "given up its pub quiz",
+            "verdict": "UNSUPPORTED"
+          },
+          {
+            "phrase": "Cocktails",
+            "reason": "The venue is listed as having 'Cocktails'.",
+            "offendingPhrase": "",
+            "verdict": "SUPPORTED"
+          }
+        ],
+        "verdict": "UNSUPPORTED"
+      },
+      "scoring": "judge-and-quoted-phrase"
+    },
+    {
+      "venueId": "probe-68",
+      "description": "This pub has happy hours.",
+      "expected": "UNSUPPORTED",
+      "passed": true,
+      "response": {
+        "venueId": "probe-68",
+        "claims": [
+          {
+            "phrase": "This pub has happy hours.",
+            "reason": "The use of the plural 'happy hours' implies a quantity or frequency not supported by the single fact 'Happy hour'.",
+            "offendingPhrase": "happy hours",
+            "verdict": "UNSUPPORTED"
+          },
+          {
+            "phrase": "Cocktails",
+            "reason": "The venue is listed as having 'Cocktails'.",
+            "offendingPhrase": "",
+            "verdict": "SUPPORTED"
+          }
+        ],
+        "verdict": "UNSUPPORTED"
+      },
+      "scoring": "judge-and-quoted-phrase"
+    },
+    {
+      "venueId": "probe-69",
+      "description": "This pub has overpriced cocktails.",
+      "expected": "UNSUPPORTED",
+      "passed": true,
+      "response": {
+        "venueId": "probe-69",
+        "claims": [
+          {
+            "phrase": "This pub has overpriced cocktails.",
+            "reason": "The claim 'overpriced' is an unsupported qualitative assessment. The presence of 'cocktails' is supported.",
+            "offendingPhrase": "overpriced",
+            "verdict": "UNSUPPORTED"
+          },
+          {
+            "phrase": "Cocktails",
+            "reason": "The venue is listed as having 'Cocktails'.",
+            "offendingPhrase": "",
+            "verdict": "SUPPORTED"
+          }
+        ],
+        "verdict": "UNSUPPORTED"
+      },
+      "scoring": "judge-and-quoted-phrase"
+    },
+    {
+      "venueId": "probe-70",
+      "description": "This pub has scrapped its pub quiz but serves cocktails.",
+      "expected": "UNSUPPORTED",
+      "passed": true,
+      "response": {
+        "venueId": "probe-70",
+        "claims": [
+          {
+            "phrase": "This pub has scrapped its pub quiz but serves cocktails.",
+            "reason": "The claim 'scrapped its pub quiz' implies a cessation or historical event, which is not supported by the facts. The presence of 'Pub quiz' and 'Cocktails' are supported.",
+            "offendingPhrase": "scrapped its pub quiz",
+            "verdict": "UNSUPPORTED"
+          },
+          {
+            "phrase": "Cocktails",
+            "reason": "The venue is listed as having 'Cocktails'.",
+            "offendingPhrase": "",
+            "verdict": "SUPPORTED"
+          }
+        ],
+        "verdict": "UNSUPPORTED"
+      },
+      "scoring": "judge-and-quoted-phrase"
+    },
+    {
+      "venueId": "probe-71",
+      "description": "This pub has several pool tables.",
+      "expected": "UNSUPPORTED",
+      "passed": true,
+      "response": {
+        "venueId": "probe-71",
+        "claims": [
+          {
+            "phrase": "This pub has several pool tables.",
+            "reason": "The fact 'Pool' indicates the presence of a pool facility, but not a specific quantity or that there are multiple 'tables'. 'Several' implies an unsupported count.",
+            "offendingPhrase": "several pool tables",
+            "verdict": "UNSUPPORTED"
+          },
+          {
+            "phrase": "Cocktails",
+            "reason": "The fact 'Cocktails' is present.",
+            "offendingPhrase": "",
+            "verdict": "SUPPORTED"
+          }
+        ],
+        "verdict": "UNSUPPORTED"
+      },
+      "scoring": "judge-and-quoted-phrase"
+    },
+    {
+      "venueId": "probe-72",
+      "description": "This pub has two pool tables.",
+      "expected": "UNSUPPORTED",
+      "passed": true,
+      "response": {
+        "venueId": "probe-72",
+        "claims": [
+          {
+            "phrase": "This pub has two pool tables.",
+            "reason": "The fact 'Pool' indicates the presence of a pool facility, but not a specific quantity or that there are multiple 'tables'. 'Two' implies an unsupported count.",
+            "offendingPhrase": "two pool tables",
+            "verdict": "UNSUPPORTED"
+          },
+          {
+            "phrase": "Cocktails",
+            "reason": "The fact 'Cocktails' is present.",
+            "offendingPhrase": "",
+            "verdict": "SUPPORTED"
+          }
+        ],
+        "verdict": "UNSUPPORTED"
+      },
+      "scoring": "judge-and-quoted-phrase"
+    },
+    {
+      "venueId": "probe-73",
+      "description": "This pub hosted live music.",
+      "expected": "UNSUPPORTED",
+      "passed": true,
+      "response": {
+        "venueId": "probe-73",
+        "claims": [
+          {
+            "phrase": "This pub hosted live music.",
+            "reason": "The fact 'Live music' indicates the presence of live music, implying it is a current feature. 'Hosted' is past tense, which is an unsupported detail about timing.",
+            "offendingPhrase": "hosted",
+            "verdict": "UNSUPPORTED"
+          },
+          {
+            "phrase": "Live music",
+            "reason": "The fact 'Live music' is present.",
+            "offendingPhrase": "",
+            "verdict": "SUPPORTED"
+          }
+        ],
+        "verdict": "UNSUPPORTED"
+      },
+      "scoring": "judge-and-quoted-phrase"
+    },
+    {
+      "venueId": "probe-74",
+      "description": "This pub hosts a pub quiz and a raffle.",
+      "expected": "UNSUPPORTED",
+      "passed": true,
+      "response": {
+        "venueId": "probe-74",
+        "claims": [
+          {
+            "phrase": "This pub hosts a pub quiz and a raffle.",
+            "reason": "The fact 'Pub quiz' is present, supporting 'hosts a pub quiz'. However, 'raffle' is an extra feature not listed in the facts.",
+            "offendingPhrase": "a raffle",
+            "verdict": "UNSUPPORTED"
+          },
+          {
+            "phrase": "Cocktails",
+            "reason": "The fact 'Cocktails' is present.",
+            "offendingPhrase": "",
+            "verdict": "SUPPORTED"
+          }
+        ],
+        "verdict": "UNSUPPORTED"
+      },
+      "scoring": "judge-and-quoted-phrase"
+    },
+    {
+      "venueId": "probe-75",
+      "description": "This pub hosts a pub quiz, with karaoke.",
+      "expected": "UNSUPPORTED",
+      "passed": true,
+      "response": {
+        "venueId": "probe-75",
+        "claims": [
+          {
+            "phrase": "This pub hosts a pub quiz, with karaoke.",
+            "reason": "The facts 'Pub quiz' and 'Karaoke' are present. However, the word 'with' asserts a relationship or co-occurrence between the pub quiz and karaoke, which is an unsupported detail.",
+            "offendingPhrase": ", with karaoke",
+            "verdict": "UNSUPPORTED"
+          },
+          {
+            "phrase": "Cocktails",
+            "reason": "The fact 'Cocktails' is present.",
+            "offendingPhrase": "",
+            "verdict": "SUPPORTED"
+          }
+        ],
+        "verdict": "UNSUPPORTED"
+      },
+      "scoring": "judge-and-quoted-phrase"
+    },
+    {
+      "venueId": "probe-76",
+      "description": "This pub hosts karaoke after the pub quiz.",
+      "expected": "UNSUPPORTED",
+      "passed": true,
+      "response": {
+        "venueId": "probe-76",
+        "claims": [
+          {
+            "phrase": "This pub hosts karaoke after the pub quiz.",
+            "reason": "The phrase 'after the pub quiz' asserts a temporal relationship between karaoke and pub quiz, which is not established by the facts. While 'Karaoke' and 'Pub quiz' are present, their timing relative to each other is unknown.",
+            "offendingPhrase": "after the pub quiz",
+            "verdict": "UNSUPPORTED"
+          },
+          {
+            "phrase": "Cocktails",
+            "reason": "The fact 'Cocktails' is present.",
+            "offendingPhrase": "",
+            "verdict": "SUPPORTED"
+          }
+        ],
+        "verdict": "UNSUPPORTED"
+      },
+      "scoring": "judge-and-quoted-phrase"
+    },
+    {
+      "venueId": "probe-77",
+      "description": "This pub hosts karaoke and drag shows.",
+      "expected": "UNSUPPORTED",
+      "passed": true,
+      "response": {
+        "venueId": "probe-77",
+        "claims": [
+          {
+            "phrase": "This pub hosts karaoke and drag shows.",
+            "reason": "The fact 'drag shows' is not present in the provided facts.",
+            "offendingPhrase": "drag shows",
+            "verdict": "UNSUPPORTED"
+          },
+          {
+            "phrase": "Cocktails",
+            "reason": "The fact 'Cocktails' is present.",
+            "offendingPhrase": "",
+            "verdict": "SUPPORTED"
+          }
+        ],
+        "verdict": "UNSUPPORTED"
+      },
+      "scoring": "judge-and-quoted-phrase"
+    },
+    {
+      "venueId": "probe-78",
+      "description": "This pub hosts live music and stand-up.",
+      "expected": "UNSUPPORTED",
+      "passed": true,
+      "response": {
+        "venueId": "probe-78",
+        "claims": [
+          {
+            "phrase": "This pub hosts live music and stand-up.",
+            "reason": "The fact 'stand-up' is not present in the provided facts.",
+            "offendingPhrase": "stand-up",
+            "verdict": "UNSUPPORTED"
+          },
+          {
+            "phrase": "Live music",
+            "reason": "The fact 'Live music' is present.",
+            "offendingPhrase": "",
+            "verdict": "SUPPORTED"
+          }
+        ],
+        "verdict": "UNSUPPORTED"
+      },
+      "scoring": "judge-and-quoted-phrase"
+    },
+    {
+      "venueId": "probe-79",
+      "description": "This pub hosts live music in summer.",
+      "expected": "UNSUPPORTED",
+      "passed": true,
+      "response": {
+        "venueId": "probe-79",
+        "claims": [
+          {
+            "phrase": "This pub hosts live music in summer.",
+            "reason": "The phrase 'in summer' asserts a specific timing or frequency for live music, which is not established by the facts. While 'Live music' is present, the season it occurs is unknown.",
+            "offendingPhrase": "in summer",
+            "verdict": "UNSUPPORTED"
+          },
+          {
+            "phrase": "Live music",
+            "reason": "The fact 'Live music' is present.",
+            "offendingPhrase": "",
+            "verdict": "SUPPORTED"
+          }
+        ],
+        "verdict": "UNSUPPORTED"
+      },
+      "scoring": "judge-and-quoted-phrase"
+    },
+    {
+      "venueId": "probe-80",
+      "description": "This pub hosts live music twice a week.",
+      "expected": "UNSUPPORTED",
+      "passed": true,
+      "response": {
+        "venueId": "probe-80",
+        "claims": [
+          {
+            "phrase": "This pub hosts live music twice a week.",
+            "reason": "The phrase 'twice a week' asserts a specific frequency for live music, which is not established by the facts. While 'Live music' is present, its frequency is unknown.",
+            "offendingPhrase": "twice a week",
+            "verdict": "UNSUPPORTED"
+          },
+          {
+            "phrase": "Live music",
+            "reason": "The fact 'Live music' is present.",
+            "offendingPhrase": "",
+            "verdict": "SUPPORTED"
+          }
+        ],
+        "verdict": "UNSUPPORTED"
+      },
+      "scoring": "judge-and-quoted-phrase"
+    },
+    {
+      "venueId": "probe-81",
+      "description": "This pub hosts live music. Tickets sell out.",
+      "expected": "UNSUPPORTED",
+      "passed": true,
+      "response": {
+        "venueId": "probe-81",
+        "claims": [
+          {
+            "phrase": "This pub hosts live music.",
+            "reason": "The fact 'Live music' supports that the pub hosts live music.",
+            "offendingPhrase": "",
+            "verdict": "SUPPORTED"
+          },
+          {
+            "phrase": "Tickets sell out.",
+            "reason": "The facts do not provide any information about tickets or whether they sell out.",
+            "offendingPhrase": "Tickets sell out",
+            "verdict": "UNSUPPORTED"
+          },
+          {
+            "phrase": "Live music",
+            "reason": "The fact 'Live music' supports the presence of live music.",
+            "offendingPhrase": "",
+            "verdict": "SUPPORTED"
+          }
+        ],
+        "verdict": "UNSUPPORTED"
+      },
+      "scoring": "judge-and-quoted-phrase"
+    },
+    {
+      "venueId": "probe-82",
+      "description": "This pub hosts occasional live music.",
+      "expected": "UNSUPPORTED",
+      "passed": true,
+      "response": {
+        "venueId": "probe-82",
+        "claims": [
+          {
+            "phrase": "This pub hosts occasional live music.",
+            "reason": "The term 'occasional' implies frequency, which is not supported by the facts. Only the presence of 'Live music' is known.",
+            "offendingPhrase": "occasional",
+            "verdict": "UNSUPPORTED"
+          },
+          {
+            "phrase": "Live music",
+            "reason": "The fact 'Live music' supports the presence of live music.",
+            "offendingPhrase": "",
+            "verdict": "SUPPORTED"
+          }
+        ],
+        "verdict": "UNSUPPORTED"
+      },
+      "scoring": "judge-and-quoted-phrase"
+    },
+    {
+      "venueId": "probe-83",
+      "description": "This pub is famous for its pub quiz.",
+      "expected": "UNSUPPORTED",
+      "passed": true,
+      "response": {
+        "venueId": "probe-83",
+        "claims": [
+          {
+            "phrase": "This pub is famous for its pub quiz.",
+            "reason": "The phrase 'famous for' implies reputation, which is not supported by the facts. While 'Pub quiz' is a fact, the 'famous for' modifier makes the entire phrase unsupported.",
+            "offendingPhrase": "famous for its pub quiz",
+            "verdict": "UNSUPPORTED"
+          },
+          {
+            "phrase": "Cocktails",
+            "reason": "The fact 'Cocktails' supports the presence of cocktails.",
+            "offendingPhrase": "",
+            "verdict": "SUPPORTED"
+          }
+        ],
+        "verdict": "UNSUPPORTED"
+      },
+      "scoring": "judge-and-quoted-phrase"
+    },
+    {
+      "venueId": "probe-84",
+      "description": "This pub is shut but serves cocktails.",
+      "expected": "UNSUPPORTED",
+      "passed": true,
+      "response": {
+        "venueId": "probe-84",
+        "claims": [
+          {
+            "phrase": "This pub is shut but serves cocktails.",
+            "reason": "The phrase 'is shut' implies a current status or cessation of operation, which is not supported by the facts. The phrase 'but serves cocktails' links two claims, and one is unsupported.",
+            "offendingPhrase": "is shut but serves cocktails",
+            "verdict": "UNSUPPORTED"
+          },
+          {
+            "phrase": "Cocktails",
+            "reason": "The fact 'Cocktails' supports the presence of cocktails.",
+            "offendingPhrase": "",
+            "verdict": "SUPPORTED"
+          }
+        ],
+        "verdict": "UNSUPPORTED"
+      },
+      "scoring": "judge-and-quoted-phrase"
+    },
+    {
+      "venueId": "probe-85",
+      "description": "This pub is the go-to for cocktails.",
+      "expected": "UNSUPPORTED",
+      "passed": true,
+      "response": {
+        "venueId": "probe-85",
+        "claims": [
+          {
+            "phrase": "This pub is the go-to for cocktails.",
+            "reason": "The phrase 'the go-to' implies reputation or preference, which is not supported by the facts. While 'Cocktails' is a fact, the 'the go-to' modifier makes the entire phrase unsupported.",
+            "offendingPhrase": "the go-to for cocktails",
+            "verdict": "UNSUPPORTED"
+          },
+          {
+            "phrase": "Cocktails",
+            "reason": "The fact 'Cocktails' supports the presence of cocktails.",
+            "offendingPhrase": "",
+            "verdict": "SUPPORTED"
+          }
+        ],
+        "verdict": "UNSUPPORTED"
+      },
+      "scoring": "judge-and-quoted-phrase"
+    },
+    {
+      "venueId": "probe-86",
+      "description": "This pub might host a pub quiz.",
+      "expected": "UNSUPPORTED",
+      "passed": true,
+      "response": {
+        "venueId": "probe-86",
+        "claims": [
+          {
+            "phrase": "This pub might host a pub quiz.",
+            "reason": "The word 'might' introduces uncertainty about the pub hosting a pub quiz, which is not supported by the simple presence of 'Pub quiz' as a fact. The facts only state presence, not potential or uncertain presence.",
+            "offendingPhrase": "might host",
+            "verdict": "UNSUPPORTED"
+          },
+          {
+            "phrase": "Cocktails",
+            "reason": "The fact 'Cocktails' is present.",
+            "offendingPhrase": "",
+            "verdict": "SUPPORTED"
+          }
+        ],
+        "verdict": "UNSUPPORTED"
+      },
+      "scoring": "judge-and-quoted-phrase"
+    },
+    {
+      "venueId": "probe-87",
+      "description": "This pub once hosted live music.",
+      "expected": "UNSUPPORTED",
+      "passed": true,
+      "response": {
+        "venueId": "probe-87",
+        "claims": [
+          {
+            "phrase": "This pub once hosted live music.",
+            "reason": "The word 'once' refers to a past event or history, which is not supported by the simple presence of 'Live music' as a fact. Facts only indicate current presence, not historical occurrences.",
+            "offendingPhrase": "once hosted",
+            "verdict": "UNSUPPORTED"
+          },
+          {
+            "phrase": "Live music",
+            "reason": "The fact 'Live music' is present.",
+            "offendingPhrase": "",
+            "verdict": "SUPPORTED"
+          }
+        ],
+        "verdict": "UNSUPPORTED"
+      },
+      "scoring": "judge-and-quoted-phrase"
+    },
+    {
+      "venueId": "probe-88",
+      "description": "This pub previously hosted live music.",
+      "expected": "UNSUPPORTED",
+      "passed": true,
+      "response": {
+        "venueId": "probe-88",
+        "claims": [
+          {
+            "phrase": "This pub previously hosted live music.",
+            "reason": "The word 'previously' refers to a past event or history, which is not supported by the simple presence of 'Live music' as a fact. Facts only indicate current presence, not historical occurrences.",
+            "offendingPhrase": "previously hosted",
+            "verdict": "UNSUPPORTED"
+          },
+          {
+            "phrase": "Live music",
+            "reason": "The fact 'Live music' is present.",
+            "offendingPhrase": "",
+            "verdict": "SUPPORTED"
+          }
+        ],
+        "verdict": "UNSUPPORTED"
+      },
+      "scoring": "judge-and-quoted-phrase"
+    },
+    {
+      "venueId": "probe-89",
+      "description": "This pub rarely hosts live music.",
+      "expected": "UNSUPPORTED",
+      "passed": true,
+      "response": {
+        "venueId": "probe-89",
+        "claims": [
+          {
+            "phrase": "This pub rarely hosts live music.",
+            "reason": "The word 'rarely' refers to frequency, which is not supported by the simple presence of 'Live music' as a fact. Facts only indicate presence, not how often an activity occurs.",
+            "offendingPhrase": "rarely hosts",
+            "verdict": "UNSUPPORTED"
+          },
+          {
+            "phrase": "Live music",
+            "reason": "The fact 'Live music' is present.",
+            "offendingPhrase": "",
+            "verdict": "SUPPORTED"
+          }
+        ],
+        "verdict": "UNSUPPORTED"
+      },
+      "scoring": "judge-and-quoted-phrase"
+    },
+    {
+      "venueId": "probe-90",
+      "description": "This pub runs pub quizzes.",
+      "expected": "UNSUPPORTED",
+      "passed": true,
+      "response": {
+        "venueId": "probe-90",
+        "claims": [
+          {
+            "phrase": "This pub runs pub quizzes.",
+            "reason": "The phrase 'pub quizzes' uses a plural count, implying multiple pub quizzes, which is not supported by the fact 'Pub quiz' which only indicates the presence of the facility/activity, not its quantity.",
+            "offendingPhrase": "pub quizzes",
+            "verdict": "UNSUPPORTED"
+          },
+          {
+            "phrase": "Cocktails",
+            "reason": "The fact 'Cocktails' is present.",
+            "offendingPhrase": "",
+            "verdict": "SUPPORTED"
+          }
+        ],
+        "verdict": "UNSUPPORTED"
+      },
+      "scoring": "judge-and-quoted-phrase"
+    },
+    {
+      "venueId": "probe-91",
+      "description": "This pub serves a range of cocktails.",
+      "expected": "UNSUPPORTED",
+      "passed": true,
+      "response": {
+        "venueId": "probe-91",
+        "claims": [
+          {
+            "phrase": "This pub serves a range of cocktails.",
+            "reason": "The phrase 'a range of' implies variety or quantity which is not established by the fact 'Cocktails'. The fact 'Cocktails' only confirms presence.",
+            "offendingPhrase": "a range of",
+            "verdict": "UNSUPPORTED"
+          },
+          {
+            "phrase": "Cocktails",
+            "reason": "The fact 'Cocktails' supports the presence of cocktails.",
+            "offendingPhrase": "",
+            "verdict": "SUPPORTED"
+          }
+        ],
+        "verdict": "UNSUPPORTED"
+      },
+      "scoring": "judge-and-quoted-phrase"
+    },
+    {
+      "venueId": "probe-92",
+      "description": "This pub serves cheapish cocktails.",
+      "expected": "UNSUPPORTED",
+      "passed": true,
+      "response": {
+        "venueId": "probe-92",
+        "claims": [
+          {
+            "phrase": "This pub serves cheapish cocktails.",
+            "reason": "The word 'cheapish' refers to price, which is not established by any of the provided facts.",
+            "offendingPhrase": "cheapish",
+            "verdict": "UNSUPPORTED"
+          },
+          {
+            "phrase": "Cocktails",
+            "reason": "The fact 'Cocktails' supports the presence of cocktails.",
+            "offendingPhrase": "",
+            "verdict": "SUPPORTED"
+          }
+        ],
+        "verdict": "UNSUPPORTED"
+      },
+      "scoring": "judge-and-quoted-phrase"
+    },
+    {
+      "venueId": "probe-93",
+      "description": "This pub serves cocktails and a raffle.",
+      "expected": "UNSUPPORTED",
+      "passed": true,
+      "response": {
+        "venueId": "probe-93",
+        "claims": [
+          {
+            "phrase": "This pub serves cocktails and a raffle.",
+            "reason": "The word 'raffle' is not present in the provided facts.",
+            "offendingPhrase": "a raffle",
+            "verdict": "UNSUPPORTED"
+          },
+          {
+            "phrase": "Cocktails",
+            "reason": "The fact 'Cocktails' supports the presence of cocktails.",
+            "offendingPhrase": "",
+            "verdict": "SUPPORTED"
+          }
+        ],
+        "verdict": "UNSUPPORTED"
+      },
+      "scoring": "judge-and-quoted-phrase"
+    },
+    {
+      "venueId": "probe-94",
+      "description": "This pub serves cocktails and beer.",
+      "expected": "UNSUPPORTED",
+      "passed": true,
+      "response": {
+        "venueId": "probe-94",
+        "claims": [
+          {
+            "phrase": "This pub serves cocktails and beer.",
+            "reason": "The word 'beer' is not present in the provided facts. 'Alcohol-free options' does not imply the presence of beer.",
+            "offendingPhrase": "beer",
+            "verdict": "UNSUPPORTED"
+          },
+          {
+            "phrase": "Cocktails",
+            "reason": "The fact 'Cocktails' supports the presence of cocktails.",
+            "offendingPhrase": "",
+            "verdict": "SUPPORTED"
+          }
+        ],
+        "verdict": "UNSUPPORTED"
+      },
+      "scoring": "judge-and-quoted-phrase"
+    },
+    {
+      "venueId": "probe-95",
+      "description": "This pub serves cocktails and coffee.",
+      "expected": "UNSUPPORTED",
+      "passed": true,
+      "response": {
+        "venueId": "probe-95",
+        "claims": [
+          {
+            "phrase": "This pub serves cocktails and coffee.",
+            "reason": "The word 'coffee' is not present in the provided facts.",
+            "offendingPhrase": "coffee",
+            "verdict": "UNSUPPORTED"
+          },
+          {
+            "phrase": "Cocktails",
+            "reason": "The fact 'Cocktails' supports the presence of cocktails.",
+            "offendingPhrase": "",
+            "verdict": "SUPPORTED"
+          }
+        ],
+        "verdict": "UNSUPPORTED"
+      },
+      "scoring": "judge-and-quoted-phrase"
+    },
+    {
+      "venueId": "probe-96",
+      "description": "This pub serves cocktails and dancing.",
+      "expected": "UNSUPPORTED",
+      "passed": true,
+      "response": {
+        "venueId": "probe-96",
+        "claims": [
+          {
+            "phrase": "This pub serves cocktails and dancing.",
+            "reason": "The fact 'Cocktails' supports 'serves cocktails'. However, 'dancing' is not present in the provided facts. The phrase 'and dancing' introduces an unsupported activity.",
+            "offendingPhrase": "and dancing",
+            "verdict": "UNSUPPORTED"
+          },
+          {
+            "phrase": "Cocktails",
+            "reason": "The tag 'Cocktails' is directly supported by the fact 'Cocktails'.",
+            "offendingPhrase": "",
+            "verdict": "SUPPORTED"
+          }
+        ],
+        "verdict": "UNSUPPORTED"
+      },
+      "scoring": "judge-and-quoted-phrase"
+    },
+    {
+      "venueId": "probe-97",
+      "description": "This pub serves cocktails and is closing soon.",
+      "expected": "UNSUPPORTED",
+      "passed": true,
+      "response": {
+        "venueId": "probe-97",
+        "claims": [
+          {
+            "phrase": "This pub serves cocktails and is closing soon.",
+            "reason": "The fact 'Cocktails' supports 'serves cocktails'. However, 'is closing soon' is not present in the provided facts and introduces an unsupported detail about timing/future status.",
+            "offendingPhrase": "and is closing soon",
+            "verdict": "UNSUPPORTED"
+          },
+          {
+            "phrase": "Cocktails",
+            "reason": "The tag 'Cocktails' is directly supported by the fact 'Cocktails'.",
+            "offendingPhrase": "",
+            "verdict": "SUPPORTED"
+          }
+        ],
+        "verdict": "UNSUPPORTED"
+      },
+      "scoring": "judge-and-quoted-phrase"
+    },
+    {
+      "venueId": "probe-98",
+      "description": "This pub serves cocktails and lager.",
+      "expected": "UNSUPPORTED",
+      "passed": true,
+      "response": {
+        "venueId": "probe-98",
+        "claims": [
+          {
+            "phrase": "This pub serves cocktails and lager.",
+            "reason": "The fact 'Cocktails' supports 'serves cocktails'. However, 'lager' is not present in the provided facts. 'Alcohol-free options' does not imply specific alcoholic drinks like lager.",
+            "offendingPhrase": "and lager",
+            "verdict": "UNSUPPORTED"
+          },
+          {
+            "phrase": "Cocktails",
+            "reason": "The tag 'Cocktails' is directly supported by the fact 'Cocktails'.",
+            "offendingPhrase": "",
+            "verdict": "SUPPORTED"
+          }
+        ],
+        "verdict": "UNSUPPORTED"
+      },
+      "scoring": "judge-and-quoted-phrase"
+    },
+    {
+      "venueId": "probe-99",
+      "description": "This pub serves cocktails and poker.",
+      "expected": "UNSUPPORTED",
+      "passed": true,
+      "response": {
+        "venueId": "probe-99",
+        "claims": [
+          {
+            "phrase": "This pub serves cocktails and poker.",
+            "reason": "The fact 'Cocktails' supports 'serves cocktails'. However, 'poker' is not present in the provided facts. The phrase 'and poker' introduces an unsupported activity/game.",
+            "offendingPhrase": "and poker",
+            "verdict": "UNSUPPORTED"
+          },
+          {
+            "phrase": "Cocktails",
+            "reason": "The tag 'Cocktails' is directly supported by the fact 'Cocktails'.",
+            "offendingPhrase": "",
+            "verdict": "SUPPORTED"
+          }
+        ],
+        "verdict": "UNSUPPORTED"
+      },
+      "scoring": "judge-and-quoted-phrase"
+    },
+    {
+      "venueId": "probe-100",
+      "description": "This pub serves cocktails and sandwiches.",
+      "expected": "UNSUPPORTED",
+      "passed": true,
+      "response": {
+        "venueId": "probe-100",
+        "claims": [
+          {
+            "phrase": "This pub serves cocktails and sandwiches.",
+            "reason": "The fact 'Cocktails' supports 'serves cocktails'. However, 'sandwiches' is not present in the provided facts. The phrase 'and sandwiches' introduces an unsupported food item.",
+            "offendingPhrase": "and sandwiches",
+            "verdict": "UNSUPPORTED"
+          },
+          {
+            "phrase": "Cocktails",
+            "reason": "The tag 'Cocktails' is directly supported by the fact 'Cocktails'.",
+            "offendingPhrase": "",
+            "verdict": "SUPPORTED"
+          }
+        ],
+        "verdict": "UNSUPPORTED"
+      },
+      "scoring": "judge-and-quoted-phrase"
+    },
+    {
+      "venueId": "probe-101",
+      "description": "This pub serves cocktails and shots.",
+      "expected": "UNSUPPORTED",
+      "passed": true,
+      "response": {
+        "venueId": "probe-101",
+        "claims": [
+          {
+            "phrase": "This pub serves cocktails",
+            "reason": "The fact 'Cocktails' is present, and 'serves' is a semantically fitting verb.",
+            "offendingPhrase": "",
+            "verdict": "SUPPORTED"
+          },
+          {
+            "phrase": "and shots",
+            "reason": "The fact 'shots' is not present.",
+            "offendingPhrase": "shots",
+            "verdict": "UNSUPPORTED"
+          },
+          {
+            "phrase": "Cocktails",
+            "reason": "The fact 'Cocktails' is present.",
+            "offendingPhrase": "",
+            "verdict": "SUPPORTED"
+          }
+        ],
+        "verdict": "UNSUPPORTED"
+      },
+      "scoring": "judge-and-quoted-phrase"
+    },
+    {
+      "venueId": "probe-102",
+      "description": "This pub serves cocktails and singing.",
+      "expected": "UNSUPPORTED",
+      "passed": true,
+      "response": {
+        "venueId": "probe-102",
+        "claims": [
+          {
+            "phrase": "This pub serves cocktails",
+            "reason": "The fact 'Cocktails' is present, and 'serves' is a semantically fitting verb.",
+            "offendingPhrase": "",
+            "verdict": "SUPPORTED"
+          },
+          {
+            "phrase": "and singing",
+            "reason": "The pub cannot 'serve singing'. While 'Karaoke' is a fact, 'singing' is an activity and not something the pub serves. The rule states: 'Reject awkward or misleading verb pairings... or a claim that the pub itself plays or sings.'",
+            "offendingPhrase": "singing",
+            "verdict": "UNSUPPORTED"
+          },
+          {
+            "phrase": "Cocktails",
+            "reason": "The fact 'Cocktails' is present.",
+            "offendingPhrase": "",
+            "verdict": "SUPPORTED"
+          }
+        ],
+        "verdict": "UNSUPPORTED"
+      },
+      "scoring": "judge-and-quoted-phrase"
+    },
+    {
+      "venueId": "probe-103",
+      "description": "This pub serves cocktails for a fiver.",
+      "expected": "UNSUPPORTED",
+      "passed": true,
+      "response": {
+        "venueId": "probe-103",
+        "claims": [
+          {
+            "phrase": "This pub serves cocktails",
+            "reason": "The fact 'Cocktails' is present, and 'serves' is a semantically fitting verb.",
+            "offendingPhrase": "",
+            "verdict": "SUPPORTED"
+          },
+          {
+            "phrase": "for a fiver",
+            "reason": "The price of cocktails is not known.",
+            "offendingPhrase": "for a fiver",
+            "verdict": "UNSUPPORTED"
+          },
+          {
+            "phrase": "Cocktails",
+            "reason": "The fact 'Cocktails' is present.",
+            "offendingPhrase": "",
+            "verdict": "SUPPORTED"
+          }
+        ],
+        "verdict": "UNSUPPORTED"
+      },
+      "scoring": "judge-and-quoted-phrase"
+    },
+    {
+      "venueId": "probe-104",
+      "description": "This pub serves cocktails till midnight.",
+      "expected": "UNSUPPORTED",
+      "passed": true,
+      "response": {
+        "venueId": "probe-104",
+        "claims": [
+          {
+            "phrase": "This pub serves cocktails",
+            "reason": "The fact 'Cocktails' is present, and 'serves' is a semantically fitting verb.",
+            "offendingPhrase": "",
+            "verdict": "SUPPORTED"
+          },
+          {
+            "phrase": "till midnight",
+            "reason": "The timing or schedule of cocktail service is not known.",
+            "offendingPhrase": "till midnight",
+            "verdict": "UNSUPPORTED"
+          },
+          {
+            "phrase": "Cocktails",
+            "reason": "The fact 'Cocktails' is present.",
+            "offendingPhrase": "",
+            "verdict": "SUPPORTED"
+          }
+        ],
+        "verdict": "UNSUPPORTED"
+      },
+      "scoring": "judge-and-quoted-phrase"
+    },
+    {
+      "venueId": "probe-105",
+      "description": "This pub serves cocktails, but the pub quiz is rubbish.",
+      "expected": "UNSUPPORTED",
+      "passed": true,
+      "response": {
+        "venueId": "probe-105",
+        "claims": [
+          {
+            "phrase": "This pub serves cocktails",
+            "reason": "The fact 'Cocktails' is present, and 'serves' is a semantically fitting verb.",
+            "offendingPhrase": "",
+            "verdict": "SUPPORTED"
+          },
+          {
+            "phrase": "but the pub quiz is rubbish",
+            "reason": "The quality or reputation of the pub quiz is not known. The rule states: 'Reject ANY extra feature, drink, food, game, mood, quality, reputation, speciality, price, amount, plural table count, history, cessation, absence, schedule, frequency, crowd or causal link.'",
+            "offendingPhrase": "but the pub quiz is rubbish",
+            "verdict": "UNSUPPORTED"
+          },
+          {
+            "phrase": "Cocktails",
+            "reason": "The fact 'Cocktails' is present.",
+            "offendingPhrase": "",
+            "verdict": "SUPPORTED"
+          }
+        ],
+        "verdict": "UNSUPPORTED"
+      },
+      "scoring": "judge-and-quoted-phrase"
+    },
+    {
+      "venueId": "probe-106",
+      "description": "This pub serves disappointing cocktails.",
+      "expected": "UNSUPPORTED",
+      "passed": true,
+      "response": {
+        "venueId": "probe-106",
+        "claims": [
+          {
+            "phrase": "This pub serves disappointing cocktails.",
+            "reason": "The facts do not support any claim about the quality or reputation of the cocktails.",
+            "offendingPhrase": "disappointing",
+            "verdict": "UNSUPPORTED"
+          },
+          {
+            "phrase": "Cocktails",
+            "reason": "The fact 'Cocktails' is present.",
+            "offendingPhrase": "",
+            "verdict": "SUPPORTED"
+          }
+        ],
+        "verdict": "UNSUPPORTED"
+      },
+      "scoring": "judge-and-quoted-phrase"
+    },
+    {
+      "venueId": "probe-107",
+      "description": "This pub serves dozens of cocktails.",
+      "expected": "UNSUPPORTED",
+      "passed": true,
+      "response": {
+        "venueId": "probe-107",
+        "claims": [
+          {
+            "phrase": "This pub serves dozens of cocktails.",
+            "reason": "The facts do not support any claim about the quantity of cocktails.",
+            "offendingPhrase": "dozens",
+            "verdict": "UNSUPPORTED"
+          },
+          {
+            "phrase": "Cocktails",
+            "reason": "The fact 'Cocktails' is present.",
+            "offendingPhrase": "",
+            "verdict": "SUPPORTED"
+          }
+        ],
+        "verdict": "UNSUPPORTED"
+      },
+      "scoring": "judge-and-quoted-phrase"
+    },
+    {
+      "venueId": "probe-108",
+      "description": "This pub serves mediocre cocktails.",
+      "expected": "UNSUPPORTED",
+      "passed": true,
+      "response": {
+        "venueId": "probe-108",
+        "claims": [
+          {
+            "phrase": "This pub serves mediocre cocktails.",
+            "reason": "The facts do not support any claim about the quality or reputation of the cocktails.",
+            "offendingPhrase": "mediocre",
+            "verdict": "UNSUPPORTED"
+          },
+          {
+            "phrase": "Cocktails",
+            "reason": "The fact 'Cocktails' is present.",
+            "offendingPhrase": "",
+            "verdict": "SUPPORTED"
+          }
+        ],
+        "verdict": "UNSUPPORTED"
+      },
+      "scoring": "judge-and-quoted-phrase"
+    },
+    {
+      "venueId": "probe-109",
+      "description": "This pub serves pricy cocktails.",
+      "expected": "UNSUPPORTED",
+      "passed": true,
+      "response": {
+        "venueId": "probe-109",
+        "claims": [
+          {
+            "phrase": "This pub serves pricy cocktails.",
+            "reason": "The facts do not support any claim about the price of cocktails.",
+            "offendingPhrase": "pricy",
+            "verdict": "UNSUPPORTED"
+          },
+          {
+            "phrase": "Cocktails",
+            "reason": "The fact 'Cocktails' is present.",
+            "offendingPhrase": "",
+            "verdict": "SUPPORTED"
+          }
+        ],
+        "verdict": "UNSUPPORTED"
+      },
+      "scoring": "judge-and-quoted-phrase"
+    },
+    {
+      "venueId": "probe-110",
+      "description": "This pub serves the finest cocktails.",
+      "expected": "UNSUPPORTED",
+      "passed": true,
+      "response": {
+        "venueId": "probe-110",
+        "claims": [
+          {
+            "phrase": "This pub serves the finest cocktails.",
+            "reason": "The facts do not support any claim about the quality or reputation of the cocktails.",
+            "offendingPhrase": "the finest",
+            "verdict": "UNSUPPORTED"
+          },
+          {
+            "phrase": "Cocktails",
+            "reason": "The fact 'Cocktails' is present.",
+            "offendingPhrase": "",
+            "verdict": "SUPPORTED"
+          }
+        ],
+        "verdict": "UNSUPPORTED"
+      },
+      "scoring": "judge-and-quoted-phrase"
+    },
+    {
+      "venueId": "probe-111",
+      "description": "This pub serves watered-down cocktails.",
+      "expected": "UNSUPPORTED",
+      "passed": true,
+      "response": {
+        "venueId": "probe-111",
+        "claims": [
+          {
+            "phrase": "This pub serves watered-down cocktails.",
+            "reason": "The facts do not support the quality 'watered-down'.",
+            "offendingPhrase": "watered-down",
+            "verdict": "UNSUPPORTED"
+          },
+          {
+            "phrase": "Cocktails",
+            "reason": "The fact 'Cocktails' is present.",
+            "offendingPhrase": "",
+            "verdict": "SUPPORTED"
+          }
+        ],
+        "verdict": "UNSUPPORTED"
+      },
+      "scoring": "judge-and-quoted-phrase"
+    },
+    {
+      "venueId": "probe-112",
+      "description": "This pub serves weak cocktails.",
+      "expected": "UNSUPPORTED",
+      "passed": true,
+      "response": {
+        "venueId": "probe-112",
+        "claims": [
+          {
+            "phrase": "This pub serves weak cocktails.",
+            "reason": "The facts do not support the quality 'weak'.",
+            "offendingPhrase": "weak",
+            "verdict": "UNSUPPORTED"
+          },
+          {
+            "phrase": "Cocktails",
+            "reason": "The fact 'Cocktails' is present.",
+            "offendingPhrase": "",
+            "verdict": "SUPPORTED"
+          }
+        ],
+        "verdict": "UNSUPPORTED"
+      },
+      "scoring": "judge-and-quoted-phrase"
+    },
+    {
+      "venueId": "probe-113",
+      "description": "This pub sometimes hosts live music.",
+      "expected": "UNSUPPORTED",
+      "passed": true,
+      "response": {
+        "venueId": "probe-113",
+        "claims": [
+          {
+            "phrase": "This pub sometimes hosts live music.",
+            "reason": "The facts do not support the frequency 'sometimes'.",
+            "offendingPhrase": "sometimes",
+            "verdict": "UNSUPPORTED"
+          },
+          {
+            "phrase": "Live music",
+            "reason": "The fact 'Live music' is present.",
+            "offendingPhrase": "",
+            "verdict": "SUPPORTED"
+          }
+        ],
+        "verdict": "UNSUPPORTED"
+      },
+      "scoring": "judge-and-quoted-phrase"
+    },
+    {
+      "venueId": "probe-114",
+      "description": "This pub stopped hosting karaoke.",
+      "expected": "UNSUPPORTED",
+      "passed": true,
+      "response": {
+        "venueId": "probe-114",
+        "claims": [
+          {
+            "phrase": "This pub stopped hosting karaoke.",
+            "reason": "The facts do not support the cessation or past tense 'stopped'.",
+            "offendingPhrase": "stopped",
+            "verdict": "UNSUPPORTED"
+          },
+          {
+            "phrase": "Cocktails",
+            "reason": "The fact 'Cocktails' is present.",
+            "offendingPhrase": "",
+            "verdict": "SUPPORTED"
+          }
+        ],
+        "verdict": "UNSUPPORTED"
+      },
+      "scoring": "judge-and-quoted-phrase"
+    },
+    {
+      "venueId": "probe-115",
+      "description": "This pub used to run a pub quiz.",
+      "expected": "UNSUPPORTED",
+      "passed": true,
+      "response": {
+        "venueId": "probe-115",
+        "claims": [
+          {
+            "phrase": "This pub used to run a pub quiz.",
+            "reason": "The facts do not support the past tense 'used to'.",
+            "offendingPhrase": "used to",
+            "verdict": "UNSUPPORTED"
+          },
+          {
+            "phrase": "Cocktails",
+            "reason": "The fact 'Cocktails' is present.",
+            "offendingPhrase": "",
+            "verdict": "SUPPORTED"
+          }
+        ],
+        "verdict": "UNSUPPORTED"
+      },
+      "scoring": "judge-and-quoted-phrase"
+    },
+    {
+      "venueId": "probe-116",
+      "description": "This pub's cocktails are strong.",
+      "expected": "UNSUPPORTED",
+      "passed": true,
+      "response": {
+        "venueId": "probe-116",
+        "claims": [
+          {
+            "phrase": "This pub's cocktails are strong.",
+            "reason": "The fact 'Cocktails' supports the presence of cocktails. However, the strength of the cocktails is not established by any fact.",
+            "offendingPhrase": "strong",
+            "verdict": "UNSUPPORTED"
+          },
+          {
+            "phrase": "Cocktails",
+            "reason": "The fact 'Cocktails' supports the presence of cocktails.",
+            "offendingPhrase": "",
+            "verdict": "SUPPORTED"
+          }
+        ],
+        "verdict": "UNSUPPORTED"
+      },
+      "scoring": "judge-and-quoted-phrase"
+    },
+    {
+      "venueId": "probe-117",
+      "description": "What a pub. In Waltham Forest it has cocktails and karaoke.",
+      "expected": "UNSUPPORTED",
+      "passed": true,
+      "response": {
+        "venueId": "probe-117",
+        "claims": [
+          {
+            "phrase": "What a pub.",
+            "reason": "This is a subjective statement of quality not supported by any facts.",
+            "offendingPhrase": "What a pub.",
+            "verdict": "UNSUPPORTED"
+          },
+          {
+            "phrase": "In Waltham Forest it has cocktails and karaoke.",
+            "reason": "The borough 'Waltham Forest' is known. The fact 'Cocktails' supports cocktails. The fact 'Karaoke' supports karaoke. The phrasing 'it has' is an acceptable paraphrase for the pub having these features.",
+            "offendingPhrase": "",
+            "verdict": "SUPPORTED"
+          },
+          {
+            "phrase": "Cocktails",
+            "reason": "The fact 'Cocktails' supports the presence of cocktails.",
+            "offendingPhrase": "",
+            "verdict": "SUPPORTED"
+          }
+        ],
+        "verdict": "UNSUPPORTED"
+      },
+      "scoring": "judge-and-quoted-phrase"
+    },
+    {
+      "venueId": "probe-118",
+      "description": "You can get a pub quiz and karaoke at this Lambeth pub.",
+      "expected": "UNSUPPORTED",
+      "passed": true,
+      "response": {
+        "venueId": "probe-118",
+        "claims": [
+          {
+            "phrase": "You can get a pub quiz and karaoke at this Lambeth pub.",
+            "reason": "The phrase 'get a pub quiz' is an invalid verb pairing; the pub hosts a quiz, a person joins it. The fact 'Pub quiz' supports the presence of a pub quiz. The fact 'Karaoke' supports karaoke. The borough 'Lambeth' is known.",
+            "offendingPhrase": "get a pub quiz",
+            "verdict": "UNSUPPORTED"
+          },
+          {
+            "phrase": "Cocktails",
+            "reason": "The fact 'Cocktails' supports the presence of cocktails.",
+            "offendingPhrase": "",
+            "verdict": "SUPPORTED"
+          }
+        ],
+        "verdict": "UNSUPPORTED"
+      },
+      "scoring": "judge-and-quoted-phrase"
+    },
+    {
+      "venueId": "probe-119",
+      "description": "You can get cocktails and play pub quiz at this Merton local.",
+      "expected": "UNSUPPORTED",
+      "passed": true,
+      "response": {
+        "venueId": "probe-119",
+        "claims": [
+          {
+            "phrase": "You can get cocktails and play pub quiz at this Merton local.",
+            "reason": "The fact 'Cocktails' supports cocktails. The phrase 'play pub quiz' is an invalid verb pairing; the pub hosts a quiz, a person joins it. The fact 'Pub quiz' supports the presence of a pub quiz. The borough 'Merton' is known. 'local' is an unsupported descriptive term.",
+            "offendingPhrase": "play pub quiz at this Merton local",
+            "verdict": "UNSUPPORTED"
+          },
+          {
+            "phrase": "Cocktails",
+            "reason": "The fact 'Cocktails' supports the presence of cocktails.",
+            "offendingPhrase": "",
+            "verdict": "SUPPORTED"
+          }
+        ],
+        "verdict": "UNSUPPORTED"
+      },
+      "scoring": "judge-and-quoted-phrase"
+    },
+    {
+      "venueId": "probe-120",
+      "description": "You can grab cocktails here during their happy hour.",
+      "expected": "UNSUPPORTED",
+      "passed": true,
+      "response": {
+        "venueId": "probe-120",
+        "claims": [
+          {
+            "phrase": "You can grab cocktails here during their happy hour.",
+            "reason": "The fact 'Cocktails' supports cocktails. The fact 'Happy hour' supports happy hour. However, the word 'during' asserts a relationship between cocktails and happy hour that is not established by the facts.",
+            "offendingPhrase": "during their happy hour",
+            "verdict": "UNSUPPORTED"
+          },
+          {
+            "phrase": "Cocktails",
+            "reason": "The fact 'Cocktails' supports the presence of cocktails.",
+            "offendingPhrase": "",
+            "verdict": "SUPPORTED"
+          }
+        ],
+        "verdict": "UNSUPPORTED"
+      },
+      "scoring": "judge-and-quoted-phrase"
+    },
+    {
+      "venueId": "probe-121",
+      "description": "You'll find pool tables here.",
+      "expected": "UNSUPPORTED",
+      "passed": true,
+      "response": {
+        "venueId": "probe-121",
+        "claims": [
+          {
+            "phrase": "You'll find pool tables here.",
+            "reason": "Countable plurals (pool tables) imply quantity which is unknown. 'Pool' means a pool facility exists, not multiple tables.",
+            "offendingPhrase": "pool tables",
+            "verdict": "UNSUPPORTED"
+          },
+          {
+            "phrase": "Cocktails",
+            "reason": "The fact 'Cocktails' is present.",
+            "offendingPhrase": "",
+            "verdict": "SUPPORTED"
+          }
+        ],
+        "verdict": "UNSUPPORTED"
+      },
+      "scoring": "judge-and-quoted-phrase"
+    },
+    {
+      "venueId": "control-0",
+      "description": "This pub serves cocktails.",
+      "expected": "SUPPORTED",
+      "passed": true,
+      "response": {
+        "venueId": "control-0",
+        "claims": [
+          {
+            "phrase": "This pub serves cocktails.",
+            "reason": "The fact 'Cocktails' is present, and 'serves' is a semantically fitting verb.",
+            "offendingPhrase": "",
+            "verdict": "SUPPORTED"
+          },
+          {
+            "phrase": "Cocktails",
+            "reason": "The fact 'Cocktails' is present.",
+            "offendingPhrase": "",
+            "verdict": "SUPPORTED"
+          }
+        ],
+        "verdict": "SUPPORTED"
+      },
+      "scoring": "judge-and-quoted-phrase"
+    },
+    {
+      "venueId": "control-1",
+      "description": "You can play pool here or join the pub quiz.",
+      "expected": "SUPPORTED",
+      "passed": true,
+      "response": {
+        "venueId": "control-1",
+        "claims": [
+          {
+            "phrase": "You can play pool here or join the pub quiz.",
+            "reason": "The facts 'Pool' and 'Pub quiz' are present, and 'play' and 'join' are semantically fitting verbs for a person.",
+            "offendingPhrase": "",
+            "verdict": "SUPPORTED"
+          },
+          {
+            "phrase": "Pool",
+            "reason": "The fact 'Pool' is present.",
+            "offendingPhrase": "",
+            "verdict": "SUPPORTED"
+          }
+        ],
+        "verdict": "SUPPORTED"
+      },
+      "scoring": "judge-and-quoted-phrase"
+    },
+    {
+      "venueId": "control-2",
+      "description": "Fancy a cocktail? This pub serves them.",
+      "expected": "SUPPORTED",
+      "passed": true,
+      "response": {
+        "venueId": "control-2",
+        "claims": [
+          {
+            "phrase": "Fancy a cocktail? This pub serves them.",
+            "reason": "The fact 'Cocktails' is present, and 'serves' is a semantically fitting verb. A question or invitation to a supported activity is SUPPORTED.",
+            "offendingPhrase": "",
+            "verdict": "SUPPORTED"
+          },
+          {
+            "phrase": "Cocktails",
+            "reason": "The fact 'Cocktails' is present.",
+            "offendingPhrase": "",
+            "verdict": "SUPPORTED"
+          }
+        ],
+        "verdict": "SUPPORTED"
+      },
+      "scoring": "judge-and-quoted-phrase"
+    },
+    {
+      "venueId": "control-3",
+      "description": "This pub hosts live music and has darts.",
+      "expected": "SUPPORTED",
+      "passed": true,
+      "response": {
+        "venueId": "control-3",
+        "claims": [
+          {
+            "phrase": "This pub hosts live music and has darts.",
+            "reason": "The facts 'Live music' and 'Darts' are present, and 'hosts' and 'has' are semantically fitting verbs.",
+            "offendingPhrase": "",
+            "verdict": "SUPPORTED"
+          },
+          {
+            "phrase": "Live music",
+            "reason": "The fact 'Live music' is present.",
+            "offendingPhrase": "",
+            "verdict": "SUPPORTED"
+          }
+        ],
+        "verdict": "SUPPORTED"
+      },
+      "scoring": "judge-and-quoted-phrase"
+    },
+    {
+      "venueId": "extra-125",
+      "description": "This pub hosts karaoke before the pub quiz.",
+      "expected": "UNSUPPORTED",
+      "passed": true,
+      "response": {
+        "venueId": "extra-125",
+        "claims": [
+          {
+            "phrase": "This pub hosts karaoke before the pub quiz.",
+            "reason": "The phrase 'before the pub quiz' asserts a temporal relationship between karaoke and the pub quiz, which is not supported by the provided facts. While 'Karaoke' and 'Pub quiz' are listed as facts, their timing relative to each other is unknown.",
+            "offendingPhrase": "before the pub quiz",
+            "verdict": "UNSUPPORTED"
+          },
+          {
+            "phrase": "Karaoke",
+            "reason": "The fact 'Karaoke' is present.",
+            "offendingPhrase": "",
+            "verdict": "SUPPORTED"
+          }
+        ],
+        "verdict": "UNSUPPORTED"
+      },
+      "scoring": "judge-and-quoted-phrase"
+    },
+    {
+      "venueId": "extra-126",
+      "description": "This pub serves cocktails galore.",
+      "expected": "UNSUPPORTED",
+      "passed": true,
+      "response": {
+        "venueId": "extra-126",
+        "claims": [
+          {
+            "phrase": "This pub serves cocktails galore.",
+            "reason": "The word 'galore' implies an unsupported quantity or abundance of cocktails. While 'Cocktails' is a fact, the quantity is not specified.",
+            "offendingPhrase": "galore",
+            "verdict": "UNSUPPORTED"
+          },
+          {
+            "phrase": "Cocktails",
+            "reason": "The fact 'Cocktails' is present.",
+            "offendingPhrase": "",
+            "verdict": "SUPPORTED"
+          }
+        ],
+        "verdict": "UNSUPPORTED"
+      },
+      "scoring": "judge-and-quoted-phrase"
+    },
+    {
+      "venueId": "extra-127",
+      "description": "This pub serves cocktails to die for.",
+      "expected": "UNSUPPORTED",
+      "passed": true,
+      "response": {
+        "venueId": "extra-127",
+        "claims": [
+          {
+            "phrase": "This pub serves cocktails to die for.",
+            "reason": "The phrase 'to die for' is an unsupported qualitative claim and idiom, implying an exceptional quality of cocktails not established by the facts. While 'Cocktails' is a fact, its quality is not specified.",
+            "offendingPhrase": "to die for",
+            "verdict": "UNSUPPORTED"
+          },
+          {
+            "phrase": "Cocktails",
+            "reason": "The fact 'Cocktails' is present.",
+            "offendingPhrase": "",
+            "verdict": "SUPPORTED"
+          }
+        ],
+        "verdict": "UNSUPPORTED"
+      },
+      "scoring": "judge-and-quoted-phrase"
+    },
+    {
+      "venueId": "extra-128",
+      "description": "This pub serves cocktails worth the trip.",
+      "expected": "UNSUPPORTED",
+      "passed": true,
+      "response": {
+        "venueId": "extra-128",
+        "claims": [
+          {
+            "phrase": "This pub serves cocktails worth the trip.",
+            "reason": "The phrase 'worth the trip' is an unsupported qualitative claim, implying a value or reputation for cocktails not established by the facts. While 'Cocktails' is a fact, its perceived value is not specified.",
+            "offendingPhrase": "worth the trip",
+            "verdict": "UNSUPPORTED"
+          },
+          {
+            "phrase": "Cocktails",
+            "reason": "The fact 'Cocktails' is present.",
+            "offendingPhrase": "",
+            "verdict": "SUPPORTED"
+          }
+        ],
+        "verdict": "UNSUPPORTED"
+      },
+      "scoring": "judge-and-quoted-phrase"
+    },
+    {
+      "venueId": "extra-129",
+      "description": "This pub serves cocktails people rave about.",
+      "expected": "UNSUPPORTED",
+      "passed": true,
+      "response": {
+        "venueId": "extra-129",
+        "claims": [
+          {
+            "phrase": "This pub serves cocktails people rave about.",
+            "reason": "The phrase 'people rave about' is an unsupported claim about the pub's reputation or customer feedback regarding cocktails, which is not established by the facts. While 'Cocktails' is a fact, its reputation is not specified.",
+            "offendingPhrase": "people rave about",
+            "verdict": "UNSUPPORTED"
+          },
+          {
+            "phrase": "Cocktails",
+            "reason": "The fact 'Cocktails' is present.",
+            "offendingPhrase": "",
+            "verdict": "SUPPORTED"
+          }
+        ],
+        "verdict": "UNSUPPORTED"
+      },
+      "scoring": "judge-and-quoted-phrase"
+    },
+    {
+      "venueId": "extra-130",
+      "description": "This pub has a pool table upstairs.",
+      "expected": "UNSUPPORTED",
+      "passed": true,
+      "response": {
+        "venueId": "extra-130",
+        "claims": [
+          {
+            "phrase": "This pub has a pool table upstairs.",
+            "reason": "The fact 'Pool' indicates the presence of a pool facility. However, 'upstairs' specifies a location detail not established by the facts.",
+            "offendingPhrase": "upstairs",
+            "verdict": "UNSUPPORTED"
+          },
+          {
+            "phrase": "Pool",
+            "reason": "The fact 'Pool' is present.",
+            "offendingPhrase": "",
+            "verdict": "SUPPORTED"
+          }
+        ],
+        "verdict": "UNSUPPORTED"
+      },
+      "scoring": "judge-and-quoted-phrase"
+    },
+    {
+      "venueId": "extra-131",
+      "description": "This pub hosts live music on occasion.",
+      "expected": "UNSUPPORTED",
+      "passed": true,
+      "response": {
+        "venueId": "extra-131",
+        "claims": [
+          {
+            "phrase": "This pub hosts live music on occasion.",
+            "reason": "The fact 'Live music' is present, and 'hosts live music' is a supported verb pairing. However, 'on occasion' specifies a frequency detail not established by the facts.",
+            "offendingPhrase": "on occasion",
+            "verdict": "UNSUPPORTED"
+          },
+          {
+            "phrase": "Live music",
+            "reason": "The fact 'Live music' is present.",
+            "offendingPhrase": "",
+            "verdict": "SUPPORTED"
+          }
+        ],
+        "verdict": "UNSUPPORTED"
+      },
+      "scoring": "judge-and-quoted-phrase"
+    },
+    {
+      "venueId": "extra-132",
+      "description": "This pub hosts live music now and again.",
+      "expected": "UNSUPPORTED",
+      "passed": true,
+      "response": {
+        "venueId": "extra-132",
+        "claims": [
+          {
+            "phrase": "This pub hosts live music now and again.",
+            "reason": "The fact 'Live music' is present, and 'hosts live music' is a supported verb pairing. However, 'now and again' specifies a frequency detail not established by the facts.",
+            "offendingPhrase": "now and again",
+            "verdict": "UNSUPPORTED"
+          },
+          {
+            "phrase": "Live music",
+            "reason": "The fact 'Live music' is present.",
+            "offendingPhrase": "",
+            "verdict": "SUPPORTED"
+          }
+        ],
+        "verdict": "UNSUPPORTED"
+      },
+      "scoring": "judge-and-quoted-phrase"
+    },
+    {
+      "venueId": "extra-133",
+      "description": "This pub hosts live music on the odd night.",
+      "expected": "UNSUPPORTED",
+      "passed": true,
+      "response": {
+        "venueId": "extra-133",
+        "claims": [
+          {
+            "phrase": "This pub hosts live music on the odd night.",
+            "reason": "The fact 'Live music' is present, and 'hosts live music' is a supported verb pairing. However, 'on the odd night' specifies a frequency detail not established by the facts.",
+            "offendingPhrase": "on the odd night",
+            "verdict": "UNSUPPORTED"
+          },
+          {
+            "phrase": "Live music",
+            "reason": "The fact 'Live music' is present.",
+            "offendingPhrase": "",
+            "verdict": "SUPPORTED"
+          }
+        ],
+        "verdict": "UNSUPPORTED"
+      },
+      "scoring": "judge-and-quoted-phrase"
+    },
+    {
+      "venueId": "extra-134",
+      "description": "This pub serves cocktails by the jug.",
+      "expected": "UNSUPPORTED",
+      "passed": true,
+      "response": {
+        "venueId": "extra-134",
+        "claims": [
+          {
+            "phrase": "This pub serves cocktails by the jug.",
+            "reason": "The fact 'Cocktails' is present, and 'serves cocktails' is a supported verb pairing. However, 'by the jug' specifies a serving vessel or quantity detail not established by the facts.",
+            "offendingPhrase": "by the jug",
+            "verdict": "UNSUPPORTED"
+          },
+          {
+            "phrase": "Cocktails",
+            "reason": "The fact 'Cocktails' is present.",
+            "offendingPhrase": "",
+            "verdict": "SUPPORTED"
+          }
+        ],
+        "verdict": "UNSUPPORTED"
+      },
+      "scoring": "judge-and-quoted-phrase"
+    },
+    {
+      "venueId": "extra-135",
+      "description": "This pub does live music, pub quizzes and karaoke.",
+      "expected": "UNSUPPORTED",
+      "passed": true,
+      "response": {
+        "venueId": "extra-135",
+        "claims": [
+          {
+            "phrase": "This pub does live music, pub quizzes and karaoke.",
+            "reason": "The claim 'pub quizzes' asserts a quantity (plural) which is not established by the singular fact 'Pub quiz'.",
+            "offendingPhrase": "pub quizzes",
+            "verdict": "UNSUPPORTED"
+          },
+          {
+            "phrase": "Live music",
+            "reason": "The fact 'Live music' is present.",
+            "offendingPhrase": "",
+            "verdict": "SUPPORTED"
+          }
+        ],
+        "verdict": "UNSUPPORTED"
+      },
+      "scoring": "judge-and-quoted-phrase"
+    },
+    {
+      "venueId": "extra-136",
+      "description": "This pub hosts a pub quiz and poker.",
+      "expected": "UNSUPPORTED",
+      "passed": true,
+      "response": {
+        "venueId": "extra-136",
+        "claims": [
+          {
+            "phrase": "This pub hosts a pub quiz and poker.",
+            "reason": "The claim 'poker' is not listed in the provided facts.",
+            "offendingPhrase": "poker",
+            "verdict": "UNSUPPORTED"
+          },
+          {
+            "phrase": "Pool",
+            "reason": "The fact 'Pool' is present.",
+            "offendingPhrase": "",
+            "verdict": "SUPPORTED"
+          }
+        ],
+        "verdict": "UNSUPPORTED"
+      },
+      "scoring": "judge-and-quoted-phrase"
+    },
+    {
+      "venueId": "extra-137",
+      "description": "This pub hosts karaoke, which is ticketed.",
+      "expected": "UNSUPPORTED",
+      "passed": true,
+      "response": {
+        "venueId": "extra-137",
+        "claims": [
+          {
+            "phrase": "This pub hosts karaoke, which is ticketed.",
+            "reason": "The claim 'which is ticketed' asserts a detail about karaoke that is not established by the facts.",
+            "offendingPhrase": "which is ticketed",
+            "verdict": "UNSUPPORTED"
+          },
+          {
+            "phrase": "Karaoke",
+            "reason": "The fact 'Karaoke' is present.",
+            "offendingPhrase": "",
+            "verdict": "SUPPORTED"
+          }
+        ],
+        "verdict": "UNSUPPORTED"
+      },
+      "scoring": "judge-and-quoted-phrase"
+    }
+  ],
+  "rawJudgePassingCases": 136,
+  "scoringDecision": "Firstmate inbox 015, 2026-10-04: two explicit scoring exceptions; no new model calls and raw responses unchanged."
+}

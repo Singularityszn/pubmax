@@ -27,6 +27,7 @@ import { loadGroupedVenues } from "@/lib/venueDataset";
 import { getPricedVenues, resetVenuePriceIndexForTests } from "@/lib/venuePriceIndex";
 import { groupVenuePrices, type VenuePrice } from "@/lib/venues";
 import { matchedWetherspoonsVenueIds } from "@/lib/wetherspoonsMatch.server";
+import { defined } from "@/__tests__/helpers/defined";
 
 const ROOT = process.cwd();
 
@@ -134,10 +135,10 @@ describe("no reader treats a superseded row as a price", () => {
     const [venue] = groupVenuePrices([
       row({ pint_name: "Bud Light", price_gbp: 1.99, price_superseded: OPERATOR_LEFT }),
     ]);
-    expect(venue.cheapestPrice).toBeNull();
-    expect(venue.averagePrice).toBeNull();
-    expect(venue.cheapestPint).toBe("");
-    expect(venue.prices).toEqual([]);
+    expect(defined(venue).cheapestPrice).toBeNull();
+    expect(defined(venue).averagePrice).toBeNull();
+    expect(defined(venue).cheapestPint).toBe("");
+    expect(defined(venue).prices).toEqual([]);
   });
 
   it("prices a pub from its live rows alone", () => {
@@ -145,14 +146,14 @@ describe("no reader treats a superseded row as a price", () => {
       row({ app_price_id: "old", pint_name: "Bud Light", price_gbp: 1.99, price_superseded: OPERATOR_LEFT }),
       row({ app_price_id: "new", pint_name: "Guinness", price_gbp: 6.2 }),
     ]);
-    expect(venue.cheapestPrice).toBe(6.2);
-    expect(venue.cheapestPint).toBe("Guinness");
-    expect(venue.prices.map((price) => price.app_price_id)).toEqual(["new"]);
+    expect(defined(venue).cheapestPrice).toBe(6.2);
+    expect(defined(venue).cheapestPint).toBe("Guinness");
+    expect(defined(venue).prices.map((price) => price.app_price_id)).toEqual(["new"]);
   });
 
   it("keeps the pub's id, so a link to it still resolves", () => {
-    const live = groupVenuePrices([row({ price_gbp: 1.99 })])[0];
-    const retired = groupVenuePrices([row({ price_gbp: 1.99, price_superseded: OPERATOR_LEFT })])[0];
+    const live = defined(groupVenuePrices([row({ price_gbp: 1.99 })])[0]);
+    const retired = defined(groupVenuePrices([row({ price_gbp: 1.99, price_superseded: OPERATOR_LEFT })])[0]);
     expect(retired.id).toBe(live.id);
   });
 
@@ -182,7 +183,7 @@ describe("no reader treats a superseded row as a price", () => {
         price_superseded: OPERATOR_LEFT,
       }),
     ]);
-    expect(tonightCheapPintChain(venue, new Set())).toBeNull();
+    expect(tonightCheapPintChain(defined(venue), new Set())).toBeNull();
   });
 
   it("leaves a superseded price out of /about's numbers", () => {

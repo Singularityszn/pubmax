@@ -9,7 +9,7 @@
 
 .arrivalWelcome {
   position: fixed;
-  z-index: calc(var(--z-modal, 1200) - 1);
+  z-index: calc(var(--z-modal) - 1);
   /* BELOW the top bar, never over it. The greeting must not cover the wordmark,
      the nav links or the theme control: a line that hides the way out is a gate
      wearing a toast's clothes. --topbar-h is the app-shell bar height
@@ -27,7 +27,7 @@
   gap: 0.5rem;
   padding: 0.5rem 0.5rem 0.5rem 0.9rem;
   border: 1px solid color-mix(in srgb, var(--brass) 38%, var(--line));
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   /* Near-solid, not frosted-thin. This pill floats over arbitrary page copy,
      and a light translucent surface over light content loses its own text: the
      heading underneath read straight through the first version. The blur stays
@@ -35,9 +35,7 @@
   background: color-mix(in srgb, var(--panel-raised) 97%, transparent);
   backdrop-filter: blur(18px) saturate(160%);
   -webkit-backdrop-filter: blur(18px) saturate(160%);
-  box-shadow:
-    inset 0 1px 0 color-mix(in srgb, var(--paper) 55%, transparent),
-    0 18px 46px color-mix(in srgb, var(--ink-deep) 30%, transparent);
+  box-shadow: var(--shadow);
   pointer-events: none;
 
   /* Enter: down from where the page came from, fast out of the gate. Never
@@ -51,15 +49,15 @@
 }
 
 .arrivalWelcomeLine {
+  min-width: 0;
   margin: 0;
   color: var(--ink);
-  font-size: 0.92rem;
+  font-size: var(--text-sm);
   font-weight: 700;
   line-height: 1.3;
   letter-spacing: -0.005em;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  white-space: normal;
+  overflow-wrap: anywhere;
 }
 
 /* Carrying the founders' door, the strip stops being a one-line pill: it grows
@@ -120,11 +118,11 @@
   margin: -8px;
   padding: 0;
   border: 0;
-  border-radius: 999px;
+  border-radius: 50%;
   background: transparent;
   color: var(--ink-soft);
   font: inherit;
-  font-size: 1rem;
+  font-size: var(--text-base);
   line-height: 1;
   cursor: pointer;
   pointer-events: auto;
@@ -138,12 +136,14 @@
   place-items: center;
   width: 28px;
   height: 28px;
-  border-radius: 999px;
+  border-radius: 50%;
   background: color-mix(in srgb, var(--ink) 8%, transparent);
 }
 
-.arrivalWelcomeDismiss:hover {
-  color: var(--ink);
+@media (hover: hover) and (pointer: fine) {
+  .arrivalWelcomeDismiss:hover {
+    color: var(--ink);
+  }
 }
 
 @keyframes arrivalWelcomeIn {

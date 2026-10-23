@@ -5,6 +5,7 @@ import {
   type GroundedPlanRouteCandidate,
   type GroundedPlanRouteConstraints,
 } from "@/lib/planRouteOptimizer";
+import { defined } from "@/__tests__/helpers/defined";
 
 const NOW = Date.parse("2026-07-20T12:00:00.000Z");
 
@@ -58,7 +59,7 @@ describe("selectAnchoredGroundedPlanRoute", () => {
     expect(result.ok && result.outcome).toBe("route");
     if (result.ok && result.outcome === "route") {
       expect(ids(result.stops)).toEqual(["a", "b", "c"]);
-      expect(result.stops[0].position).toBe(0);
+      expect(defined(result.stops[0]).position).toBe(0);
     }
   });
 
@@ -68,7 +69,7 @@ describe("selectAnchoredGroundedPlanRoute", () => {
       constraints(),
       "a",
     );
-    expect(result.ok && result.outcome === "route" && result.stops[0].venueId).toBe("a");
+    expect(result.ok && result.outcome === "route" && defined(result.stops[0]).venueId).toBe("a");
     if (result.ok && result.outcome === "route") {
       // Highest-scoring companions fill Stops 2 and 3; the anchor never moves.
       expect(ids(result.stops)).toEqual(["a", "b", "c"]);
@@ -83,7 +84,7 @@ describe("selectAnchoredGroundedPlanRoute", () => {
     );
     if (result.ok && result.outcome === "route") {
       expect(result.alternatives[0]).toEqual([]);
-      const swaps = [...result.alternatives[1], ...result.alternatives[2]].map((stop) => stop.venueId);
+      const swaps = [...defined(result.alternatives[1]), ...defined(result.alternatives[2])].map((stop) => stop.venueId);
       expect(swaps).toContain("d");
       expect(swaps).not.toContain("a");
     }

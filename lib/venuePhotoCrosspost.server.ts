@@ -98,6 +98,8 @@ export async function crosspostVenuePhotoToFeed(
       area: null,
       venueId: input.venueId,
       hashtags: [],
+      // A wall photo names its pub, so it is never a hidden-name post.
+      nameHidden: false,
       commentPolicy: "friends",
       photo: { mediaId, altText: body },
     };

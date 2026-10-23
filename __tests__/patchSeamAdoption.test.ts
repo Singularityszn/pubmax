@@ -52,7 +52,7 @@ describe("loadWhatsOnTonight near param", () => {
   const okResponse = {
     ok: true,
     status: 200,
-    json: async () => ({ rows: [], asOf: null }),
+    json: async () => ({ rows: [], asOf: null, servedAt: new Date(Date.now()).toISOString() }),
   } as unknown as Response;
 
   it("coarsens a viewer point before appending near=lat,lng", async () => {

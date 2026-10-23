@@ -25,3 +25,16 @@ const NEXT_PRODUCTION_BUILD_PHASE = "phase-production-build";
 export function isProductionBuildPhase(): boolean {
   return process.env.NEXT_PHASE === NEXT_PRODUCTION_BUILD_PHASE;
 }
+
+/**
+ * The id of the running deployment, or null when nothing set one. `/api/version`
+ * and `/api/health` answer it, and every alert names it. Each name is a STATIC
+ * member expression because that is the form Next inlines at build time.
+ */
+export function currentDeploymentId(): string | null {
+  const deploymentId =
+    process.env.NEXT_DEPLOYMENT_ID ??
+    process.env.VERCEL_DEPLOYMENT_ID ??
+    process.env.NEXT_PUBLIC_SW_VERSION;
+  return typeof deploymentId === "string" && deploymentId ? deploymentId : null;
+}

@@ -1,9 +1,12 @@
-// Auth callback landing. Supabase Auth (Google / Apple / Microsoft / email magic link)
-// redirects here after the user approves, carrying the implicit-flow session
+// Auth callback landing. Web and Android sign-in, plus signed-in iPhone Add
+// account, redirect here carrying the canonical implicit-flow session
 // tokens in the URL FRAGMENT. The fragment never reaches this server; the
 // browser carries it across our redirect below, and AuthProvider establishes
 // the session from it on the landing page (see lib/authClient.ts and
 // components/auth/AuthProvider.tsx).
+//
+// Separate signed-out iPhone returns use the fixed PKCE relays documented in
+// docs/rules/ios-native-auth-return.md and docs/rules/ios-native-email-return.md.
 //
 // Why implicit rather than PKCE: the PKCE code-verifier lives in the
 // REQUESTING browser's localStorage, so an email magic link opened in a
@@ -14,13 +17,15 @@
 // on @supabase/supabase-js (no @supabase/ssr cookie adapter), so a server-side
 // exchange is not available either.
 //
-// Because the tokens are invisible here, this route cannot tell success from
-// failure. It forwards every valid attempt to the safe target with the
+// For implicit callbacks, the tokens are invisible here. The route cannot
+// determine success or failure. It forwards every valid attempt to the safe target with the
 // callback marker; the client decides. Only a query-visible provider error or
 // a missing attempt id earns the authError flag, so the app can explain the
 // failure without blocking browsing.
 
 import { NextResponse } from "next/server";
+import { IOS_EMAIL_AUTH_MODE } from "@/lib/nativeEmailPkce";
+import { IOS_AUTH_MODE, nativeAuthCallbackLocation } from "@/lib/nativeAuthCallback";
 import {
   AUTH_ATTEMPT_PARAM,
   AUTH_CALLBACK_MARKER,
@@ -30,8 +35,50 @@ import {
 } from "@/lib/authRedirect";
 import { verifyReferralSignupProof } from "@/lib/referralSignupProof.server";
 
+// A browser that names itself and is not an iPhone, iPad or iPod cannot be the
+// app that holds the email verifier. iPadOS Safari can report a desktop
+// browser, so the page still offers the app link.
+function opensOnAnotherDevice(request: Request): boolean {
+  const agent = request.headers.get("user-agent");
+  return agent !== null && agent.trim() !== "" && !/\b(?:iPhone|iPad|iPod)\b/.test(agent);
+}
+
+function escapeHtml(value: string): string {
+  return value.replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+}
+
+// Plain HTML with no script or style, so the page needs nothing from the CSP.
+function anotherDevicePage(appLocation: string, headers: Record<string, string>): Response {
+  return new Response(`<!doctype html>
+<html lang="en"><head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Open this link on your iPhone</title>
+</head><body>
+<main>
+<h1>Open this link on your iPhone</h1>
+<p>You asked for this sign-in link in the PUBMAXXING iPhone app. It works only on that iPhone.</p>
+<p>Open the email on that iPhone and tap the link there.</p>
+<p><a href="${escapeHtml(appLocation)}">Open in the PUBMAXXING app</a></p>
+<p><a href="/login">Sign in on this device instead</a></p>
+</main>
+</body></html>`, {
+    status: 200,
+    headers: { ...headers, "content-type": "text/html; charset=utf-8", "x-robots-tag": "noindex, nofollow" },
+  });
+}
+
 export async function GET(request: Request): Promise<Response> {
   const url = new URL(request.url);
+  const nativeMode = url.searchParams.getAll("native").length === 1 ? url.searchParams.get("native") : null;
+  if (nativeMode === IOS_AUTH_MODE || nativeMode === IOS_EMAIL_AUTH_MODE) {
+    const location = nativeAuthCallbackLocation(url);
+    const headers = { "cache-control": "no-store", "referrer-policy": "no-referrer" };
+    // The provider return never leaves the iPhone sheet; an email link can.
+    if (nativeMode === IOS_EMAIL_AUTH_MODE && opensOnAnotherDevice(request)) return anotherDevicePage(location, headers);
+    return new Response(null, { status: 307, headers: { location, ...headers } });
+  }
   const oauthError = url.searchParams.get("error");
   const next = safeAuthNext(url.searchParams.get("next"), url.origin);
   const rawAttemptId = url.searchParams.get(AUTH_ATTEMPT_PARAM);

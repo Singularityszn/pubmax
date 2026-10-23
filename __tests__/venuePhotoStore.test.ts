@@ -20,6 +20,7 @@ import {
   venuePhotoStore,
 } from "@/lib/venuePhotoStore";
 import { venuePhotoServingKey, type VenuePhotoFields } from "@/lib/venuePhotos";
+import { defined } from "@/__tests__/helpers/defined";
 
 const VENUE = "venue-abc";
 const OTHER_VENUE = "venue-xyz";
@@ -146,7 +147,7 @@ describe("a wall page", () => {
     await store.create(fields(alice, { venueId: OTHER_VENUE }));
     const page = await store.listForVenue(VENUE);
     expect(page.photos).toHaveLength(1);
-    expect(page.photos[0].venueId).toBe(VENUE);
+    expect(defined(page.photos[0]).venueId).toBe(VENUE);
   });
 
   it("says whose tile it is only to the account that posted it", async () => {
@@ -155,9 +156,9 @@ describe("a wall page", () => {
     const mine = await store.listForVenue(VENUE, { viewerProfileId: alice });
     const theirs = await store.listForVenue(VENUE, { viewerProfileId: bob });
     const anonymous = await store.listForVenue(VENUE);
-    expect(mine.photos[0].ownedByViewer).toBe(true);
-    expect(theirs.photos[0].ownedByViewer).toBe(false);
-    expect(anonymous.photos[0].ownedByViewer).toBe(false);
+    expect(defined(mine.photos[0]).ownedByViewer).toBe(true);
+    expect(defined(theirs.photos[0]).ownedByViewer).toBe(false);
+    expect(defined(anonymous.photos[0]).ownedByViewer).toBe(false);
   });
 });
 
@@ -177,16 +178,16 @@ describe("the author a wall prints", () => {
     await store.create(fields(alice));
     const page = await store.listForVenue(VENUE);
 
-    expect(page.photos[0].author.handle).toBe("alice");
-    expect(page.photos[0].author.avatarUrl).toBe(`/api/avatar/${alice}/gen-1`);
-    expect(page.photos[0].author.foundingMemberNumber).toBe(7);
+    expect(defined(page.photos[0]).author.handle).toBe("alice");
+    expect(defined(page.photos[0]).author.avatarUrl).toBe(`/api/avatar/${alice}/gen-1`);
+    expect(defined(page.photos[0]).author.foundingMemberNumber).toBe(7);
   });
 
   it("says nothing private about them", async () => {
     const store = venuePhotoStore();
     await store.create(fields(alice));
     const page = await store.listForVenue(VENUE);
-    const author = page.photos[0].author as Record<string, unknown>;
+    const author = defined(page.photos[0]).author as Record<string, unknown>;
     // The private set stays behind the owner-authenticated onboarding read.
     for (const field of ["email", "dateOfBirth", "gender", "fullName", "userId", "id"]) {
       expect(author, field).not.toHaveProperty(field);

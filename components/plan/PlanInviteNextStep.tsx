@@ -22,6 +22,7 @@ import PlanHostInviteLink, {
 } from "@/components/plan/PlanHostInviteLink";
 import { PlanInviteShareBar } from "@/components/plan/PlanVibe";
 import { trackEvent } from "@/lib/analytics";
+import { openExternalTab } from "@/lib/openExternalTab";
 import { planCrewSharePath } from "@/lib/planCrewInviteUrl";
 import {
   clearPlanInviteToken,
@@ -136,11 +137,7 @@ export default function PlanInviteNextStep({
     setShareError("");
     const absolute = toAbsoluteUrl(relativeUrl);
     try {
-      const opened = window.open(
-        whatsappShareHref(text, absolute),
-        "_blank",
-        "noopener,noreferrer",
-      );
+      const opened = openExternalTab(whatsappShareHref(text, absolute));
       if (!opened) {
         setShareError(
           offlineOrMessage("Could not open WhatsApp. Try again.")
@@ -163,7 +160,7 @@ export default function PlanInviteNextStep({
     return (
       <div className="planInviteNext" id="share">
         <p className="planInviteNext__whatsapp planInviteNext__whatsapp--pending" role="status">
-          Invite tools need a crew session. Join the plan, then try again.
+          You&apos;re a guest on this plan. Join the crew to use the invite tools.
         </p>
       </div>
     );

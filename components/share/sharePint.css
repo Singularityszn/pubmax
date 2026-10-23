@@ -1,0 +1,26 @@
+/* "Share this pint" (components/share/SharePintButton.tsx). The button is the
+   ghost text button from components/ui/button.css and keeps that row of
+   tokens; this sheet only seats it and its one status line. Quiet on purpose:
+   it sits beside a price and is never the screen's painted primary. */
+
+.sharePint {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-1) var(--space-2);
+}
+
+.sharePintStatus {
+  color: var(--muted);
+  font-size: var(--text-xs);
+  line-height: 1.4;
+}
+
+.sharePintStatus--error {
+  color: var(--color-text);
+}
+
+/* In a pub sheet's price block it takes its own line under the source note. */
+.contributorPrice .sharePint {
+  flex: 1 1 100%;
+}

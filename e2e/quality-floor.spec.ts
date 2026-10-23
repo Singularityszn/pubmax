@@ -1,5 +1,10 @@
 import { test, expect } from "@playwright/test";
 
+import { desktopPlannerDrawer, expectSoleDesktopDrawer } from "./helpers/mapSurfaceDrawers";
+import { expectMapToolbarReady } from "./helpers/mapToolbar";
+import { mobileMapShellControl } from "./helpers/mobileMapShell";
+
+
 // Quality-floor + security-seam E2E (PRD "Testing Decisions" — public pages under
 // CSP; owner-only profile edit rejected for non-owners; POI + non-alcoholic
 // filters flip visible UI state). Two shapes live here:
@@ -21,6 +26,15 @@ import { test, expect } from "@playwright/test";
 // A raw internal venue id ("venue-16pnwmm"): the PRD's honesty guard forbids it
 // leaking as visible text. Re-pinned here on the map surface we exercise.
 const RAW_VENUE_ID = /venue-[a-z0-9]+/;
+
+// The budget for a journey that opens /map. Its own waits do not fit the 30s
+// default: the map's loading frame, which a canvas that never answers holds for
+// the shell's readiness ceiling (helpers/mobileMapShell.ts), then hydration, the
+// planner or sheet, and the flips. On a slow macOS runner (13 Oct 2026, #2092)
+// /map took most of 30s to come up, so the non-alcoholic test ran out of time
+// mid-toggle and the POI test passed at 28.2s; the toggles themselves settle in
+// under half a second.
+const MAP_JOURNEY_TIMEOUT_MS = 90_000;
 
 // ---------------------------------------------------------------------------
 // Owner-only profile edit — request-level (PRD user story 31).
@@ -157,6 +171,7 @@ for (const path of ["/", "/map", "/feed", "/discover"]) {
 test("quality floor: the non-alcoholic filter checkbox flips its checked state", async ({
   page,
 }) => {
+  test.setTimeout(MAP_JOURNEY_TIMEOUT_MS);
   await page.setViewportSize({ width: 1280, height: 900 });
   await page.emulateMedia({ reducedMotion: "reduce" });
   await page.addInitScript(() => {
@@ -168,15 +183,25 @@ test("quality floor: the non-alcoholic filter checkbox flips its checked state",
   const response = await page.goto("/map");
   expect(response?.status()).toBe(200);
 
-  // PubMap is a client component — wait for the map region to mount (proof it
-  // hydrated) before driving the toolbar. WebGL-agnostic: canvas OR fallback.
-  await expect(page.locator(".mapCanvasWrap")).toBeVisible({ timeout: 20_000 });
-  await expect(page.locator(".maplibreMap, .mapFallback").first()).toBeVisible();
+  // PubMap is a client component, and `.mapCanvasWrap` is already on the
+  // loading skeleton, so it proves nothing. A live (editable) toolbar search is
+  // the desktop's own hydration signal. WebGL-agnostic: never reads the canvas.
+  await expectMapToolbarReady(page);
 
-  // Open the desktop planner so the control rail's filter toggles become visible.
-  const planBtn = page.getByRole("button", { name: "Plan an outing" });
-  await expect(planBtn).toBeVisible();
-  await planBtn.click();
+  // Open the desktop planner so the control rail's filter toggles become
+  // visible. Plan an outing relabels itself once the planner opens, so a retry
+  // taps it only while the planner is still closed (e2e/AGENTS.md: a lone click
+  // is not a wait for hydration).
+  const planBtn = page.locator(".mapToolbar").getByRole("button", { name: "Plan an outing" });
+  await expect(async () => {
+    if ((await desktopPlannerDrawer(page).getAttribute("aria-hidden")) !== "false") {
+      await planBtn.click();
+    }
+    await expect(desktopPlannerDrawer(page)).toHaveAttribute("aria-hidden", "false", {
+      timeout: 2_000,
+    });
+  }).toPass({ timeout: 30_000 });
+  await expectSoleDesktopDrawer(page, "planner", 30_000);
   const rail = page.locator(".controlRail");
   await expect(rail).toHaveCount(1);
 
@@ -205,6 +230,7 @@ test("quality floor: the non-alcoholic filter checkbox flips its checked state",
 test("quality floor: a POI category toggle flips in the coordinated Layers sheet", async ({
   page,
 }) => {
+  test.setTimeout(MAP_JOURNEY_TIMEOUT_MS);
   await page.setViewportSize({ width: 390, height: 844 });
   await page.emulateMedia({ reducedMotion: "reduce" });
   await page.addInitScript(() => {
@@ -217,7 +243,13 @@ test("quality floor: a POI category toggle flips in the coordinated Layers sheet
   expect(response?.status()).toBe(200);
   await expect(page.locator(".mapCanvasWrap")).toBeVisible({ timeout: 20_000 });
 
-  const layersFab = page.getByRole("button", { name: "More map controls" });
+  // The phone shell, and this control with it, is held back until the map's
+  // loading frame lets go (`mobileShellReady` in components/PubMap.tsx), and
+  // `.mapCanvasWrap` above is already visible on the loading skeleton. That
+  // release waits on the canvas's first painted pins, bounded by the shell's
+  // own readiness ceiling, so the default 10s expect timeout raced a slow
+  // runner's first frame rather than testing the toggle.
+  const layersFab = await mobileMapShellControl(page, "more");
   await expect(layersFab).toBeVisible();
   await layersFab.click();
 

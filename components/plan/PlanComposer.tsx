@@ -2,6 +2,7 @@
 
 import {
   FormEvent,
+  useCallback,
   useEffect,
   useLayoutEffect,
   useMemo,
@@ -17,6 +18,15 @@ import { useViewerHandle } from "@/components/auth/useViewerHandle";
 import PlanIntake from "@/components/plan/PlanIntake";
 import PlanDescribeFirst from "@/components/plan/PlanDescribeFirst";
 import PlanCultureOpener from "@/components/plan/PlanCultureOpener";
+import dynamic from "next/dynamic";
+import { SlidersHorizontal } from "lucide-react";
+import { buildCrawlMapHref } from "@/lib/crawlUrl";
+import { haptic } from "@/lib/nativeHaptics";
+import { PLAN_FIELD_LABEL, PLAN_RESUBMIT_LABEL } from "@/lib/planCopy";
+import { moveItem } from "@/lib/planStopReorder";
+import { measuredLegMinutes, routeHeading, routeStartLabel, routeSummaryLine, type MeasuredLegMinutes } from "@/lib/planRouteView";
+import { ROUTED_WALK_TRANSPORT_BASIS } from "@/lib/routeLegs";
+import type { WalkLegDistance } from "@/lib/walkRoute";
 import { discardBody } from "@/lib/responseBody";
 import { laneSourceFromSearch, trackEvent, trackMeaningfulCoreAction } from "@/lib/analytics";
 import { errorShownKindFromStatus, trackErrorShown } from "@/lib/analyticsErrorShown";
@@ -28,10 +38,12 @@ import {
 } from "@/lib/planOccasion";
 import { recordPlanNudgeTrigger } from "@/lib/identityNudge";
 import { CREW_NAME_MAX, creatorNameFromAccount } from "@/lib/crew";
+import { readRememberedPlanHostName, rememberPlanHostName } from "@/lib/planHostName";
 import { cleanCultureOpener, type CultureOpenerDTO } from "@/lib/cultureCrawl";
 import { readLastCrew, subscribeLastCrew } from "@/lib/lastCrew";
 import { getNightArea, isNightAreaRouteReady, NIGHT_AREAS, type NightArea } from "@/lib/nightAreas";
 import { nearestNightPatch } from "@/lib/nearestNightPatch";
+import { venueAreaClaim } from "@/lib/venueTruth";
 import {
   readRememberedArea,
   resolveNightPatch,
@@ -42,10 +54,10 @@ import {
   planVenueOptions,
   type PlanVenueOption,
 } from "@/lib/planVenueOptions";
-import { cleanNightContext, type NightContext } from "@/lib/nightPlanning";
+import { cleanNightContext, cleanNightContextPatch, type NightContext } from "@/lib/nightPlanning";
 import { planUsesPintPrices } from "@/lib/planGenerationDto";
 import { categoryLabel, DRINK_CATEGORIES, type DrinkCategory } from "@/lib/drinks";
-import { cleanSelectedDrinkPriceEvidence, selectedDrinkPriceDescription, type SelectedDrinkPriceEvidence } from "@/lib/planSelectedDrinkPriceEvidence";
+import { cleanSelectedDrinkPriceEvidence, type SelectedDrinkPriceEvidence } from "@/lib/planSelectedDrinkPriceEvidence";
 export { selectedDrinkPriceDescription } from "@/lib/planSelectedDrinkPriceEvidence";
 import { CITIES, DEFAULT_CITY_ID, type CityId } from "@/lib/cities";
 import {
@@ -74,6 +86,7 @@ import {
   releaseAcceptedPlanContext,
   resolveComposerHydration,
   seedProvisionalStop1,
+  UNRESOLVED_ACCEPTED_STOP_LABEL,
   UNRESOLVED_ACCEPTED_VENUE_LABEL,
   UNRESOLVED_ACCEPTED_VENUE_NAME,
   type ComposerHydration,
@@ -88,6 +101,7 @@ import {
 } from "@/lib/planComposerChipFill";
 import { writePlanCapability } from "@/lib/planSessionCapability";
 import { markPalRouteActivation } from "@/lib/pubPal";
+import { recordPlanHighIntentAction } from "@/lib/nativePushPrompt";
 import { clearPersistentPlanMutationKey, persistentPlanMutationKey } from "@/lib/planMutationKey";
 import { writeDeviceNightContext } from "@/lib/nightProfileClient";
 import { errorMessageFrom, readApiJson } from "@/lib/apiErrorMessage";
@@ -97,8 +111,10 @@ import {
   clearPlanIntakeDraft,
   canSeedPlanIntakeArea,
   createPlanIntakeDraft,
+  defaultLondonStartInput,
   londonDateTimeInputFromIso,
   londonDateTimeInputToIso,
+  londonNightsAhead,
   nightAreaForPlanIntakePatch,
   planIntakeHandoff,
   planIntakeNightContextPatch,
@@ -108,18 +124,47 @@ import {
   resolveFutureLondonStartIso,
   resolvePlanIntakeAreaSeed,
   skipRemainingPlanIntake,
+  tonightLondonStartInput,
   writePlanIntakeDraft,
   type PlanIntakeDraft,
 } from "@/lib/planIntake";
 
+// These parts load when the composer renders them. The describe-first arrival
+// does not need them and must meet the JS ceiling in perf/route-budgets.json.
+// The stop-list and provenance styles live in app/plan/plan.css, so their
+// layout is ready before their chunks arrive. Tune details loads its own CSS.
+const PlanStopList = dynamic(() => import("@/components/plan/PlanStopList"), {
+  ssr: false,
+  loading: () => <div className="planStops__placeholder" aria-hidden="true" />,
+});
+const PlanResultProvenance = dynamic(() => import("@/components/plan/PlanResultProvenance"), {
+  ssr: false,
+  // It sits inside the fine-print line, held in place so the strip under it does not move.
+  loading: () => <span aria-hidden="true">&nbsp;</span>,
+});
+const PlanTuneSheet = dynamic(() => import("@/components/plan/PlanTuneSheet"), { ssr: false });
+const PlanRouteMiniMap = dynamic(() => import("@/components/plan/PlanRouteMiniMap"), { ssr: false });
+
 type RouteRevision = string | number;
-type RouteAlternative = { venueId: string; venueName: string; selectedDrinkPriceEvidence?: SelectedDrinkPriceEvidence };
+type RouteAlternative = {
+  venueId: string;
+  venueName: string;
+  selectedDrinkPriceEvidence?: SelectedDrinkPriceEvidence;
+  /** The generator prices alternatives too, so a swap keeps the night's total honest. */
+  estimatedPintPricePence?: number;
+  priceKind?: "listed" | "estimated";
+};
 export type DraftStop = {
   key: number;
   venueId: string;
   venueName: string;
   reason?: string;
   selectedDrinkPriceEvidence?: SelectedDrinkPriceEvidence;
+  /** What the generator timed and priced, kept so the route can be read as a route. */
+  walkingMinutesFromPrevious?: number | null;
+  walkFromVenueId?: string;
+  estimatedPintPricePence?: number | null;
+  priceKind?: "listed" | "estimated";
   alternatives: RouteAlternative[];
 };
 
@@ -140,12 +185,51 @@ export function composerRouteMutation(input: {
   createOperationKey: string | null;
   planAnchor: GeneratedPlanAnchor | null;
   routeStale: boolean;
+  /** The same venues in a new order. See the proof rule below. */
+  reorder?: boolean;
+  /** One stop swapped to an alternative the generator offered for it. See the proof rule below. */
+  swapToAlternative?: boolean;
 }): ComposerRouteMutation {
   const heldVenueId = input.heldVenueId ?? null;
   if (heldVenueId && input.nextStops[0]?.venueId !== heldVenueId) {
     return {
       accepted: false,
       stops: input.currentStops,
+      groundingProof: input.groundingProof,
+      createOperationKey: input.createOperationKey,
+      planAnchor: input.planAnchor,
+      routeStale: input.routeStale,
+    };
+  }
+  // A legacy (V1) grounding proof commits to the SET of venues the route may
+  // use, so the same venues in a new order are still covered by it. An anchored
+  // route carries a V2 proof that binds the exact order (lib/planGrounding.server.ts),
+  // so for that route a reorder is an identity change like any other.
+  const sameVenueSet = input.currentStops.length === input.nextStops.length
+    && new Set(input.currentStops.map((stop) => stop.venueId)).size === input.currentStops.length
+    && input.currentStops.every((stop) => input.nextStops.some((next) => next.venueId === stop.venueId));
+  if (input.reorder && sameVenueSet && !input.planAnchor) {
+    return {
+      accepted: true,
+      stops: input.nextStops,
+      groundingProof: input.groundingProof,
+      createOperationKey: input.createOperationKey,
+      planAnchor: input.planAnchor,
+      routeStale: input.routeStale,
+    };
+  }
+  // The same V1 proof covers every alternative the generator attached to a stop
+  // (app/api/plans/generate/route.ts grounds it over the stops plus those
+  // alternatives), so swapping to one is still a route the server proved and
+  // the night stays lockable without a refresh. The server re-checks the proof
+  // at Lock and marks the plan ungrounded if it does not cover a stop, so this
+  // can never claim a check that did not happen. An anchored V2 proof binds the
+  // exact route, so for that route a swap is an identity change like any other.
+  if (input.swapToAlternative && input.groundingProof && !input.planAnchor
+    && input.currentStops.length === input.nextStops.length) {
+    return {
+      accepted: true,
+      stops: input.nextStops,
       groundingProof: input.groundingProof,
       createOperationKey: input.createOperationKey,
       planAnchor: input.planAnchor,
@@ -164,35 +248,41 @@ export function composerRouteMutation(input: {
   };
 }
 
-export function editedPlanStop(input: {
-  stop: DraftStop;
-  venueName: string;
-  venues: readonly PlanVenueOption[];
-  heldVenueId?: string | null;
-}): { stop: DraftStop; preservesAcceptedAuthority: boolean } {
-  const match = input.venues.find((venue) => venue.name.toLocaleLowerCase() === input.venueName.trim().toLocaleLowerCase());
-  const accepted = input.stop.key === 1
-    && Boolean(input.heldVenueId)
-    && input.stop.venueId === input.heldVenueId;
-  const preservesAcceptedAuthority = accepted && (!match || match.id === input.heldVenueId);
+/** A venue that changed no longer owns the walk and the price the old one was given. */
+const NO_TIMING_OR_PRICE = {
+  walkingMinutesFromPrevious: undefined,
+  walkFromVenueId: undefined,
+  estimatedPintPricePence: undefined,
+  priceKind: undefined,
+} satisfies Partial<DraftStop>;
+
+function venueNightArea(venue: PlanVenueOption | undefined, cityId: CityId): NightContext["nightArea"] {
+  if (venue?.lat === undefined || venue.lng === undefined) return null;
+  const areas = NIGHT_AREAS.filter((area) => area.cityId === cityId);
+  const claim = venueAreaClaim({ latitude: venue.lat, longitude: venue.lng }, areas);
+  return areas.find((area) => area.slug === claim.area?.slug)?.slug ?? null;
+}
+
+/** The stop a chosen pub makes: a venue record, with nothing of the last one left on it. */
+export function pickedPlanStop(stop: DraftStop, venue: PlanVenueOption): DraftStop {
   return {
-    stop: {
-      ...input.stop,
-      venueName: input.venueName,
-      venueId: preservesAcceptedAuthority ? input.stop.venueId : match?.id ?? "",
-      reason: preservesAcceptedAuthority || match?.id === input.stop.venueId ? input.stop.reason : undefined,
-      selectedDrinkPriceEvidence: preservesAcceptedAuthority || match?.id === input.stop.venueId
-        ? input.stop.selectedDrinkPriceEvidence : undefined,
-      alternatives: [],
-    },
-    preservesAcceptedAuthority,
+    key: stop.key,
+    venueId: venue.id,
+    venueName: venue.name,
+    ...NO_TIMING_OR_PRICE,
+    alternatives: [],
   };
 }
+
 const PLAN_ROUTE_DRAFT_KEY = "pubmaxx:plan-route-draft:v1";
+
+/** The area and daypart a route was sorted for, which a later edit to the night does not move. */
+type RouteNight = Pick<Partial<NightContext>, "nightArea" | "daypart">;
 
 export type StoredRouteDraft = {
   stops: DraftStop[];
   nightContext: NightContext | null;
+  routeNight: RouteNight | null;
   routeRevision: RouteRevision | null;
   routeStale: boolean;
   groundingProof: string | null;
@@ -258,6 +348,15 @@ export function planAcceptanceTelemetry(value: unknown, stops: number): { stops:
   const attribution = serverPlanCreationAttribution(value);
   if (!attribution || !Number.isInteger(stops) || stops < 1 || stops > 50) return null;
   return { stops, grounded: attribution.grounded };
+}
+
+/**
+ * The unsigned lock count. It needs the server's attribution and nothing else,
+ * and stays inside the one-to-ten band the sanitizer accepts.
+ */
+export function crawlLockedTelemetry(value: unknown, stops: number): { stops: number } | null {
+  if (!serverPlanCreationAttribution(value) || !Number.isInteger(stops) || stops < 1 || stops > 10) return null;
+  return { stops };
 }
 
 /** Rebuild the signed one-Stop save event from server attribution and the submitted anchor. */
@@ -381,14 +480,27 @@ function routeRevisionFromState(value: unknown): RouteRevision | null {
 
 function cleanRouteAlternative(value: unknown): RouteAlternative | null {
   if (!value || typeof value !== "object") return null;
-  const row = value as { venueId?: unknown; venueName?: unknown; name?: unknown; selectedDrinkPriceEvidence?: unknown };
+  const row = value as {
+    venueId?: unknown;
+    venueName?: unknown;
+    name?: unknown;
+    selectedDrinkPriceEvidence?: unknown;
+    estimatedPintPricePence?: unknown;
+    priceEvidence?: unknown;
+    priceKind?: unknown;
+  };
   const venueId = typeof row.venueId === "string" ? row.venueId.trim() : "";
   const venueName = typeof row.venueName === "string"
     ? row.venueName.trim()
     : typeof row.name === "string" ? row.name.trim() : "";
   if (!venueId || !venueName) return null;
   const selectedDrinkPriceEvidence = cleanSelectedDrinkPriceEvidence(row.selectedDrinkPriceEvidence);
-  return { venueId, venueName, ...(selectedDrinkPriceEvidence ? { selectedDrinkPriceEvidence } : {}) };
+  return {
+    venueId,
+    venueName,
+    ...(selectedDrinkPriceEvidence ? { selectedDrinkPriceEvidence } : {}),
+    ...generatedStopPrice(row),
+  };
 }
 
 function routeAlternatives(value: unknown): RouteAlternative[] {
@@ -397,6 +509,58 @@ function routeAlternatives(value: unknown): RouteAlternative[] {
     const cleaned = cleanRouteAlternative(candidate);
     return cleaned ? [cleaned] : [];
   });
+}
+
+/**
+ * What the generator timed and priced for one stop, read defensively off the
+ * wire or a stored draft. A walk is kept only when it was routed on foot: the
+ * wire says so in its transport basis, and a stored draft only ever saved one
+ * (with the stop it was walked from). A straight-line estimate is not a walk.
+ */
+function generatedStopTiming(
+  row: {
+    walkingMinutesFromPrevious?: unknown;
+    walkFromVenueId?: unknown;
+    estimatedPintPricePence?: unknown;
+    priceEvidence?: unknown;
+    priceKind?: unknown;
+    operationalEvidence?: unknown;
+  },
+  previousCandidate: unknown,
+  index: number,
+): Pick<DraftStop, "walkingMinutesFromPrevious" | "walkFromVenueId" | "estimatedPintPricePence" | "priceKind"> {
+  const previous = previousCandidate as { venueId?: unknown } | undefined;
+  const stored = typeof row.walkFromVenueId === "string" && row.walkFromVenueId.trim()
+    ? row.walkFromVenueId.trim() : undefined;
+  const routed = Boolean(stored) || (
+    Boolean(row.operationalEvidence) && typeof row.operationalEvidence === "object"
+    && (row.operationalEvidence as { transportBasis?: unknown }).transportBasis === ROUTED_WALK_TRANSPORT_BASIS
+  );
+  const walkFromVenueId = stored
+    ?? (typeof previous?.venueId === "string" && previous.venueId.trim() ? previous.venueId.trim() : undefined);
+  const minutes = row.walkingMinutesFromPrevious;
+  const walkMinutes = routed && typeof minutes === "number" && Number.isFinite(minutes) && minutes >= 0 && minutes <= 600
+    ? Math.round(minutes) : null;
+  return {
+    ...(index > 0 && walkMinutes !== null && walkFromVenueId
+      ? { walkingMinutesFromPrevious: walkMinutes, walkFromVenueId } : {}),
+    ...generatedStopPrice(row),
+  };
+}
+
+/** The pint price the generator gave a stop or an alternative, read defensively. */
+function generatedStopPrice(row: {
+  estimatedPintPricePence?: unknown;
+  priceEvidence?: unknown;
+  priceKind?: unknown;
+}): { estimatedPintPricePence?: number; priceKind?: "listed" | "estimated" } {
+  const pence = row.estimatedPintPricePence;
+  if (typeof pence !== "number" || !Number.isSafeInteger(pence) || pence <= 0 || pence > 100_000) return {};
+  const recorded = Boolean(row.priceEvidence && typeof row.priceEvidence === "object"
+    && (row.priceEvidence as { source?: unknown }).source);
+  const priceKind = row.priceKind === "listed" || row.priceKind === "estimated" ? row.priceKind
+    : recorded ? "listed" : "estimated";
+  return { estimatedPintPricePence: pence, priceKind };
 }
 
 /** Keep the generator's alternatives attached to their stop for preview swaps. */
@@ -420,6 +584,12 @@ export function routeStopsFromGenerated(value: unknown, alternativePool?: unknow
       name?: unknown;
       reason?: unknown;
       selectedDrinkPriceEvidence?: unknown;
+      walkingMinutesFromPrevious?: unknown;
+      walkFromVenueId?: unknown;
+      estimatedPintPricePence?: unknown;
+      priceEvidence?: unknown;
+      priceKind?: unknown;
+      operationalEvidence?: unknown;
       alternatives?: unknown;
       options?: unknown;
     };
@@ -434,12 +604,14 @@ export function routeStopsFromGenerated(value: unknown, alternativePool?: unknow
       && all.findIndex((candidate) => candidate.venueId === alternative.venueId) === alternativeIndex
     ));
     const selectedDrinkPriceEvidence = cleanSelectedDrinkPriceEvidence(row.selectedDrinkPriceEvidence);
+    const timing = generatedStopTiming(row, candidates[index - 1], index);
     return [{
       key: index + 1,
       venueId,
       venueName,
       ...(typeof row.reason === "string" && row.reason.trim() ? { reason: row.reason.trim() } : {}),
       ...(selectedDrinkPriceEvidence ? { selectedDrinkPriceEvidence } : {}),
+      ...timing,
       alternatives,
     }];
   });
@@ -458,10 +630,20 @@ export function swapDraftStop(stop: DraftStop, excludedVenueIds: ReadonlySet<str
     venueName: next.venueName,
     reason: undefined,
     selectedDrinkPriceEvidence: next.selectedDrinkPriceEvidence,
+    // The walk to and from this stop was measured for the old pub, so it goes;
+    // the price was the generator's for this pub, so it comes with it.
+    ...NO_TIMING_OR_PRICE,
+    ...(next.estimatedPintPricePence !== undefined
+      ? { estimatedPintPricePence: next.estimatedPintPricePence, priceKind: next.priceKind } : {}),
     alternatives: [
       ...remaining,
-      { venueId: stop.venueId, venueName: stop.venueName, ...(stop.selectedDrinkPriceEvidence
-        ? { selectedDrinkPriceEvidence: stop.selectedDrinkPriceEvidence } : {}) },
+      {
+        venueId: stop.venueId,
+        venueName: stop.venueName,
+        ...(stop.selectedDrinkPriceEvidence ? { selectedDrinkPriceEvidence: stop.selectedDrinkPriceEvidence } : {}),
+        ...(typeof stop.estimatedPintPricePence === "number"
+          ? { estimatedPintPricePence: stop.estimatedPintPricePence, priceKind: stop.priceKind } : {}),
+      },
     ],
   };
 }
@@ -503,17 +685,30 @@ export function applyPlanStopCount(
   };
 }
 
+function routeNightOf(context: Partial<NightContext> | null): RouteNight | null {
+  if (!context?.nightArea && !context?.daypart) return null;
+  return {
+    ...(context.nightArea ? { nightArea: context.nightArea } : {}),
+    ...(context.daypart ? { daypart: context.daypart } : {}),
+  };
+}
+
 export function parsePlanRouteDraft(raw: string | null): StoredRouteDraft | null {
   if (!raw || raw.length > 30_000) return null;
   try {
     const value = JSON.parse(raw) as Partial<StoredRouteDraft>;
     const stops = routeStopsFromGenerated(value.stops);
     if (!stops.length) return null;
+    const nightContext = cleanNightContext(value.nightContext) ?? null;
+    const routeStale = value.routeStale === true;
     return {
       stops,
-      nightContext: cleanNightContext(value.nightContext) ?? null,
+      nightContext,
+      routeNight: value.routeNight === undefined && !routeStale
+        ? routeNightOf(nightContext)
+        : routeNightOf(cleanNightContextPatch(value.routeNight)),
       routeRevision: cleanRouteRevision(value.routeRevision),
-      routeStale: value.routeStale === true,
+      routeStale,
       groundingProof: typeof value.groundingProof === "string" && value.groundingProof.length <= 8_000
         ? value.groundingProof
         : null,
@@ -549,19 +744,19 @@ export function nightAreaSelectorGroups(now = new Date()): NightAreaSelectorGrou
 }
 
 export function nightAreaOptionLabel(area: NightArea, disabled: boolean): string {
-  return disabled || !isNightAreaRouteReady(area) ? `${area.name} - not crawl-ready yet` : area.name;
+  return disabled || !isNightAreaRouteReady(area) ? `${area.name}, not crawl-ready yet` : area.name;
 }
 
-export function nightAreaMapHref(area: NightArea): string {
+export function nightAreaMapHref(area: NightArea): import("next").Route {
   return `/map?q=${encodeURIComponent(area.name)}`;
 }
 
 export const PLAN_INTAKE_CONFLICT_SERVER =
   "Plan intake skipped steps conflict with supplied answers.";
 export const PLAN_INTAKE_CONFLICT_READER =
-  "The earlier route is still here - start again or keep it";
+  "The earlier route is still here. Start again or keep it.";
 export const PLAN_INTAKE_CONFLICT_NO_ROUTE =
-  "That answer clashed with an earlier step - start again from the first question";
+  "That answer clashed with an earlier step. Start again from the first question.";
 export function releasedAcceptanceStatus(input: {
   venueName: string | null;
   routeStale: boolean;
@@ -605,6 +800,8 @@ export function errorMessageFromBody(body: unknown, fallback: string): string {
   const raw = errorMessageFrom(body, fallback);
   return raw === PLAN_INTAKE_CONFLICT_SERVER ? PLAN_INTAKE_CONFLICT_READER : raw;
 }
+
+const NO_VENUES_MATCHED = "No venues matched that ask. Try a nearby area or a broader mood.";
 
 /**
  * An anchor conflict answers HTTP 200 with no Stops, so the empty-route branch
@@ -680,24 +877,25 @@ export function planRouteRevealBehavior(reducedMotion: boolean): ScrollBehavior 
 }
 
 /**
- * Take the reader to the route they asked for. On a phone a generated route
- * lands below the fold (the context editor sits between the ask and the
- * preview), so a chip tap looked like nothing happened. Scrolls the route
- * status to the top of the viewport and moves focus onto it, so the preview
- * is seen and announced without a manual scroll.
+ * Feedback can land below the fold after generation or Tune dismissal.
+ * Reveal and focus the error first so a failed request cannot appear silent.
+ * Errors move immediately, even when ordinary route feedback uses smooth scrolling.
  */
 export function revealPlanRouteStatus(
   root: ParentNode | Document = document,
   reducedMotion?: boolean,
 ): void {
-  const status = root.querySelector("#plan-route-status");
-  if (!(status instanceof HTMLElement)) return;
+  const status = root.querySelector("#plan-composer-error") ?? root.querySelector("#plan-route-status");
+  if (!(status instanceof HTMLElement) || !status.textContent?.trim()) return;
   const reduce =
     reducedMotion ??
     (typeof window !== "undefined" &&
       typeof window.matchMedia === "function" &&
       window.matchMedia("(prefers-reduced-motion: reduce)").matches);
-  status.scrollIntoView?.({ behavior: planRouteRevealBehavior(reduce), block: "start" });
+  status.scrollIntoView?.({
+    behavior: status.id === "plan-composer-error" ? "instant" : planRouteRevealBehavior(reduce),
+    block: "start",
+  });
   status.tabIndex = -1;
   status.focus({ preventScroll: true });
 }
@@ -761,6 +959,49 @@ export function composerCreatePayload(input: {
 
 export function planComposerVenueIndexPath(cityId?: CityId | null): string {
   return CITIES[cityId ?? DEFAULT_CITY_ID].slimVenuesPath;
+}
+
+export const PLAN_START_TIME_HINT = "Choose a valid future start time.";
+
+/**
+ * The line under "Lock it in" while the button cannot be used yet. The button
+ * stays tappable (aria-disabled) so the tap itself explains and moves focus;
+ * this line says the same thing before the tap. Null once nothing is missing,
+ * and while a request is in flight the button's own label carries the state.
+ */
+export function planLockHint({
+  validation,
+  busy,
+  distinctStops,
+  stopCountError,
+  routeStale,
+  startTimeIsValid,
+}: {
+  validation: { message: string; focus: "name" | null } | null;
+  busy: boolean;
+  distinctStops: boolean;
+  stopCountError: string | null;
+  routeStale: boolean;
+  startTimeIsValid: boolean;
+}): string | null {
+  if (busy) return null;
+  if (validation) return validation.message;
+  if (!distinctStops) return PLAN_DISTINCT_STOPS_ERROR;
+  if (stopCountError) return stopCountError;
+  if (routeStale) return "Refresh the route before locking it in.";
+  if (!startTimeIsValid) return PLAN_START_TIME_HINT;
+  return null;
+}
+
+export const PLAN_DISTINCT_STOPS_ERROR = "Choose distinct venues for every stop.";
+
+/** A generated plan locks only with the stop count it was generated for. */
+export function planStopCountLockError(
+  requiredStopCount: unknown,
+  completeStopCount: number,
+): string | null {
+  if (completeStopCount === normalizePlanStopCount(requiredStopCount)) return null;
+  return `A generated ${planOutingNoun(requiredStopCount)} needs exactly ${planStopCountPhrase(requiredStopCount)} we can stand behind before you lock it in.`;
 }
 
 export function planLockValidationError({
@@ -847,7 +1088,7 @@ export function nightAreaCoverageSummary(
   if (isNightAreaRouteReady(area, now)) {
     return {
       label: "Route-ready",
-      detail: "Crawls can be planned here now.",
+      detail: "You can plan a crawl here now.",
       tone: "ready",
     };
   }
@@ -898,11 +1139,21 @@ export function nightAreaCoverageMeta(area: NightArea, now = new Date()): string
 }
 
 function nextEvening(): string {
-  const date = new Date();
-  date.setMinutes(Math.ceil((date.getMinutes() + 15) / 15) * 15, 0, 0);
-  if (date.getHours() < 17) date.setHours(18, 0, 0, 0);
-  const local = new Date(date.getTime() - date.getTimezoneOffset() * 60_000);
-  return local.toISOString().slice(0, 16);
+  return defaultLondonStartInput();
+}
+
+/**
+ * The name of the night the late default stepped over, for the one-tap choice
+ * beside the field: null whenever `tonightLondonStartInput` has no slot left
+ * to offer. Read on every render, and the slot itself read again on the tap,
+ * never latched - a quarter-hour held from mount is a moment that has passed
+ * by the time a reader has described a night and sorted it, and the lock
+ * refuses a start in the past. The tap writes that fresh slot or nothing: a
+ * control may not write a night its own label does not name.
+ */
+function tonightChoiceLabel(): string | null {
+  const value = tonightLondonStartInput();
+  return value === null ? null : routeStartLabel(value);
 }
 
 function unsupportedPatchForCurrentGenerator(
@@ -928,9 +1179,9 @@ function conciergeStatusText(
   unsupportedPatch: NightPatch | null,
   note: string,
 ): string {
-  if (sorting) return "Planning your outing, checking confidence and picking stops we can back up.";
+  if (sorting) return "Planning your outing and picking stops we can back up.";
   if (unsupportedPatch) {
-    return `${unsupportedPatch.label} is saved. Exact Plan generation is not available for this patch yet. Pick another area to build the route now.`;
+    return `${unsupportedPatch.label} is saved. We can't build an exact route for this patch yet. Pick another area to build the route now.`;
   }
   return note;
 }
@@ -1007,7 +1258,7 @@ export function AcceptedContextPanel({
  * `message`; this is the exact element the form renders it in.
  */
 export function PlanComposerErrorNotice({ message }: { message: string }) {
-  return <p className="planComposer__error" role="alert">{message}</p>;
+  return <p id="plan-composer-error" className="planComposer__error" role="alert" tabIndex={-1}>{message}</p>;
 }
 
 type ComposerDraftFields = {
@@ -1056,6 +1307,7 @@ function initialComposerStops(
 
 type ComposerRouteDraftFields = {
   nightContext: NightContext | null;
+  routeNight: RouteNight | null;
   routeRevision: RouteRevision | null;
   routeStale: boolean;
   groundingProof: string | null;
@@ -1069,6 +1321,7 @@ function initialComposerRouteDraft(
 ): ComposerRouteDraftFields {
   return {
     nightContext: recoveredRouteDraft?.nightContext ?? null,
+    routeNight: recoveredRouteDraft?.routeNight ?? null,
     routeRevision: recoveredRouteDraft?.routeRevision ?? null,
     routeStale: recoveredRouteDraft?.routeStale ?? false,
     groundingProof: recoveredRouteDraft?.groundingProof ?? null,
@@ -1146,6 +1399,10 @@ function PlanComposerForm({
   const [acceptanceReleased, setAcceptanceReleased] = useState(false);
   const handoff = acceptanceReleased ? null : hydratedHandoff;
   const heldVenueId = handoff?.heldVenueId ?? null;
+  const liveHeldVenueId = useRef(heldVenueId);
+  useEffect(() => {
+    liveHeldVenueId.current = heldVenueId;
+  }, [heldVenueId]);
   const draftFields = initialComposerDraftFields(handoff, recoveredDraft);
   const [title, setTitle] = useState(draftFields.title);
   const [creatorName, setCreatorName] = useState(draftFields.creatorName);
@@ -1154,6 +1411,8 @@ function PlanComposerForm({
     initialComposerStops(recoveredRouteDraft, recoveredDraft, handoff),
   );
   const [venues, setVenues] = useState<PlanVenueOption[]>([]);
+  const [venueIndexRead, setVenueIndexRead] = useState(0);
+  const [venueIndexStatus, setVenueIndexStatus] = useState<"reading" | "read" | "failed">("reading");
   const pathname = usePathname();
   const [urlPrefill] = useState(() =>
     canPersist ? describeAskFromLocation() : NO_URL_PREFILL,
@@ -1260,10 +1519,23 @@ function PlanComposerForm({
   // chip tap the route status element only mounts with the same commit that
   // carries the new stops.
   const [routeRevealTick, setRouteRevealTick] = useState(0);
+  // The route as it arrived, by its pubs in order: the strip draws it once.
+  const [routeDrawKey, setRouteDrawKey] = useState<string | null>(null);
+  const [tuneOpen, setTuneOpen] = useState(false);
+  const revealedTick = useRef(0);
   useEffect(() => {
-    if (routeRevealTick === 0) return;
-    revealPlanRouteStatus();
-  }, [routeRevealTick]);
+    if (routeRevealTick === revealedTick.current) return;
+    // The sheet was how this route was asked for; the route is the answer.
+    if (tuneOpen) {
+      void Promise.resolve().then(() => setTuneOpen(false));
+      return;
+    }
+    revealedTick.current = routeRevealTick;
+    // The closing sheet's focus trap lifts inert and hands focus back to Tune
+    // details in a microtask queued by its cleanup, which ran before this
+    // effect. Queued after it, the reveal is the focus that stays.
+    queueMicrotask(() => revealPlanRouteStatus());
+  }, [routeRevealTick, tuneOpen]);
 
   // The host name is public (the plan, the share card, the unfurler), so it
   // waits for the live session rather than taking whatever is to hand: until
@@ -1279,6 +1551,17 @@ function PlanComposerForm({
       return seeded || current;
     });
   }, [identityResolved, user, viewerHandle]);
+  // The name typed for an earlier plan on this device, so it is asked for once.
+  // It waits for identity too: an account change clears it
+  // (DEVICE_IDENTITY_LOCAL_KEYS), and reading before that would offer the
+  // previous person's name. Declared after the account seed, so an account
+  // name wins and this fills only what that left empty.
+  const deviceCreatorNameSeededRef = useRef(false);
+  useEffect(() => {
+    if (!identityResolved || deviceCreatorNameSeededRef.current) return;
+    deviceCreatorNameSeededRef.current = true;
+    setCreatorName((current) => current.trim() ? current : readRememberedPlanHostName(safeLocalStorage()) || current);
+  }, [identityResolved]);
   useEffect(() => {
     if (!canPersist) return;
     if (palHandoffAutoGenerateStartedRef.current) return;
@@ -1308,6 +1591,7 @@ function PlanComposerForm({
   const [nightContext, setNightContext] = useState<NightContext | null>(routeDraftFields.nightContext);
   const [explicitNightContext, setExplicitNightContext] = useState<Partial<NightContext>>({});
   const [routeRevision, setRouteRevision] = useState<RouteRevision | null>(routeDraftFields.routeRevision);
+  const [routeNight, setRouteNight] = useState<RouteNight | null>(routeDraftFields.routeNight);
   const [routeStale, setRouteStale] = useState(routeDraftFields.routeStale);
   // WHETHER THE GENERATOR HAS ANSWERED, which is the moment the page's one
   // painted primary becomes `Lock it in` and the concierge control above steps
@@ -1321,6 +1605,12 @@ function PlanComposerForm({
   const [planAnchor, setPlanAnchor] = useState(routeDraftFields.planAnchor);
   const [sorting, setSorting] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  // Walk minutes the browser measured between stops, merged over the route's
+  // life so a reorder re-times a leg the generator never walked.
+  const [measured, setMeasured] = useState<MeasuredLegMinutes>(() => new Map());
+  const onMeasuredLegs = useCallback((venueIds: readonly string[], legs: readonly WalkLegDistance[]) => {
+    setMeasured((current) => new Map([...current, ...measuredLegMinutes(venueIds, legs)]));
+  }, []);
   const [error, setError] = useState("");
   const [routeStatus, setRouteStatus] = useState(routeDraftFields.routeStatus);
   // Culture Crawl opener for the CURRENT generated route only. It is never
@@ -1360,6 +1650,26 @@ function PlanComposerForm({
     planIntake.completed
     || stops.length > 0
     || Boolean(recoveredDraft || recoveredRouteDraft || heldVenueId);
+  // The route comes before the request controls in result mode. "Tune details"
+  // holds the description, context and templates. Name and start-time fields
+  // stay below the cards for locking the plan.
+  const resultMode = composerVisible && routeSorted && stops.length > 0;
+  // A result with no host name seats "Your name" in the pinned Lock bar, so the
+  // one thing Lock still needs sits beside it rather than screens below. The
+  // seat is chosen when the result appears and kept, so the field never jumps
+  // away from a caret mid-word.
+  const [nameInLockBar, setNameInLockBar] = useState(() => resultMode && !creatorName.trim());
+  const [nameSeatResultMode, setNameSeatResultMode] = useState(resultMode);
+  if (resultMode !== nameSeatResultMode) {
+    setNameSeatResultMode(resultMode);
+    setNameInLockBar(resultMode && !creatorName.trim());
+  }
+  const nameField = (
+    <div className="planComposer__field">
+      <label htmlFor="plan-name">Your name</label>
+      <input id="plan-name" type="text" ref={nameInputRef} autoComplete="name" maxLength={CREW_NAME_MAX} required value={creatorName} onChange={(event) => setCreatorName(event.target.value)} placeholder="Shown on the invite" />
+    </div>
+  );
   // An unresolved Stop 1 carries an empty name on purpose, and an empty string
   // is not nullish, so it must be dropped here or the summary prints a blank
   // row instead of falling through to the neutral label.
@@ -1397,6 +1707,10 @@ function PlanComposerForm({
     singleStopVenueId: completeStops.length === 1 ? completeStops[0]?.venueId : null,
     planAnchor,
   });
+  const distinctStops = new Set(completeStopIds).size === completeStopIds.length;
+  const stopCountError = nightContext && !matchingAnchorOnlyPlan
+    ? planStopCountLockError(nightContext.stopCount, completeStops.length)
+    : null;
   const canLockPlan =
     composerVisible &&
     !submitting &&
@@ -1404,16 +1718,25 @@ function PlanComposerForm({
     !routeStale &&
     lockValidation === null &&
     startTimeIsValid &&
-    new Set(completeStopIds).size === completeStopIds.length &&
-    (
-      !nightContext
-      || matchingAnchorOnlyPlan
-      || completeStops.length === normalizePlanStopCount(nightContext.stopCount)
-    );
+    distinctStops &&
+    stopCountError === null;
 
-  // The venue index behind the Stop name field's datalist. It is only ever read
-  // by the composer's own stop rows (the datalist, the typed-name match in
-  // editedPlanStop, and the held pub's name), so it is asked for only once the
+  const lockHint = planLockHint({
+    validation: lockValidation,
+    busy: submitting || sorting,
+    distinctStops,
+    stopCountError,
+    routeStale,
+    startTimeIsValid,
+  });
+  // A button that is only waiting on the form stays tappable: the tap runs
+  // submit(), which names what is missing and moves focus to it. Only a request
+  // in flight really disables it.
+  const lockBusy = submitting || sorting;
+
+  // The venue index behind the pub finder's datalist. It is only ever read
+  // by the composer's own stop rows (the datalist, the pub finder's match, and
+  // the held pub's name), so it is asked for only once the
   // composer is on screen. `/plan` opens on describe-first at every width, and
   // measured on the audit's phone rig that arrival spent 1821 KB on two reads
   // of a 911 KB index for a control it had not drawn: 1821 KB of the route's
@@ -1422,12 +1745,16 @@ function PlanComposerForm({
     if (!composerVisible) return;
     let active = true;
     fetch(planComposerVenueIndexPath(acceptedCityId))
-      .then((response) => response.json())
+      .then((response) => {
+        if (!response.ok) throw new Error(`Venue index read failed with ${response.status}`);
+        return response.json();
+      })
       .then((rows: unknown) => {
         if (!active) return;
         const nextVenues = planVenueOptions(rows);
         setVenues(nextVenues);
-        const acceptedVenueId = hydratedHandoff?.heldVenueId;
+        setVenueIndexStatus("read");
+        const acceptedVenueId = liveHeldVenueId.current;
         if (!acceptedVenueId) return;
         const accepted = nextVenues.find((venue) => venue.id === acceptedVenueId);
         if (!accepted) return;
@@ -1439,9 +1766,11 @@ function PlanComposerForm({
             : stop
         )));
       })
-      .catch(() => undefined);
+      .catch(() => {
+        if (active) setVenueIndexStatus("failed");
+      });
     return () => { active = false; };
-  }, [composerVisible, acceptedCityId, hydratedHandoff?.heldVenueId]);
+  }, [composerVisible, acceptedCityId, venueIndexRead]);
 
   useEffect(() => {
     if (recoveredDraft) trackEvent("draft_recovered", { kind: "plan", surface: "plan" });
@@ -1471,6 +1800,7 @@ function PlanComposerForm({
       safeLocalStorage()?.setItem(PLAN_ROUTE_DRAFT_KEY, JSON.stringify({
         stops,
         nightContext,
+        routeNight,
         routeRevision,
         routeStale,
         groundingProof,
@@ -1480,7 +1810,7 @@ function PlanComposerForm({
     } catch {
       // A blocked localStorage should not make the route editor unusable.
     }
-  }, [canPersist, createOperationKey, groundingProof, nightContext, planAnchor, routeRevision, routeStale, stops]);
+  }, [canPersist, createOperationKey, groundingProof, nightContext, planAnchor, routeNight, routeRevision, routeStale, stops]);
 
   useEffect(() => {
     if (planIntake === initialPlanIntakeRef.current) return;
@@ -1625,19 +1955,45 @@ function PlanComposerForm({
     }
   }
 
-  function applyStopIdentityMutation(nextStops: DraftStop[], status: string): boolean {
+  function applyStopIdentityMutation(
+    nextStops: DraftStop[],
+    status: string,
+    options: { reorder?: boolean; swapToAlternative?: boolean; settledStatus?: string; release?: boolean } = {},
+  ): boolean {
+    const release = Boolean(options.release && heldVenueId);
     const mutation = composerRouteMutation({
       currentStops: stops,
       nextStops,
-      heldVenueId,
+      heldVenueId: release ? null : heldVenueId,
       groundingProof,
       createOperationKey,
       planAnchor,
       routeStale,
+      reorder: options.reorder,
+      swapToAlternative: options.swapToAlternative,
     });
     if (!mutation.accepted) {
       setRouteStatus("The accepted pub stays as Stop 1. Refresh the route to change the other stops.");
       return false;
+    }
+    const stopIdentitiesChanged = stops.length !== mutation.stops.length
+      || stops.some((stop, index) => stop.venueId !== mutation.stops[index]?.venueId);
+    if (stopIdentitiesChanged) {
+      // A valid route proof can survive a swap, but the earlier cost list cannot.
+      setCultureOpener((current) => {
+        if (!current?.costs) return current;
+        return {
+          ...current,
+          costs: {
+            ...current.costs,
+            knownItems: [],
+            knownSubtotalPence: null,
+            unknownItems: current.costs.unknownItems.includes("drinks")
+              ? current.costs.unknownItems
+              : [...current.costs.unknownItems, "drinks"],
+          },
+        };
+      });
     }
     setStops(mutation.stops);
     setGroundingProof(mutation.groundingProof);
@@ -1654,11 +2010,12 @@ function PlanComposerForm({
       setNightContext(reconciled.context);
     }
     if (mutation.routeStale) setRouteStatus(status);
+    else if (options.settledStatus) setRouteStatus(options.settledStatus);
+    if (release) dropAcceptance();
     return true;
   }
 
-  function releaseAcceptance() {
-    focusPlanRouteStatus();
+  function dropAcceptance() {
     releaseAcceptedPlanContext({
       planDraft: canPersist ? safeSessionStorage() : null,
       routeDraft: canPersist ? safeLocalStorage() : null,
@@ -1666,6 +2023,32 @@ function PlanComposerForm({
     setPlanAnchor(null);
     setGroundingProof(null);
     setAcceptanceReleased(true);
+  }
+
+  function isUnnamedHeldStop(stop: DraftStop, index: number): boolean {
+    return venueIndexStatus !== "reading" && index === 0 && Boolean(heldVenueId) && stop.venueId === heldVenueId && !stop.venueName.trim();
+  }
+
+  function isLockedHeldStop(stop: DraftStop, index: number): boolean {
+    return index === 0 && Boolean(heldVenueId) && stop.venueId === heldVenueId && !isUnnamedHeldStop(stop, index);
+  }
+
+  function clearUnnamedHeldStop(key: number, index: number) {
+    applyStopIdentityMutation(
+      stops.map((stop) => stop.key === key ? { key, venueId: "", venueName: "", alternatives: [] } : stop),
+      `Find a pub for stop ${index + 1}. Refresh the route before locking.`,
+      { release: true },
+    );
+  }
+
+  function releaseAcceptance() {
+    focusPlanRouteStatus();
+    const first = stops[0];
+    if (first && isUnnamedHeldStop(first, 0)) {
+      clearUnnamedHeldStop(first.key, 0);
+      return;
+    }
+    dropAcceptance();
     setRouteStatus(releasedAcceptanceStatus({
       venueName: acceptedVenueName,
       routeStale,
@@ -1673,13 +2056,41 @@ function PlanComposerForm({
     }));
   }
 
-  function chooseVenue(key: number, venueName: string) {
+  /** A pub chosen for a stop that had none: the stop becomes a card. */
+  function pickVenue(key: number, venue: PlanVenueOption) {
     const selected = stops.find((stop) => stop.key === key);
     if (!selected) return;
-    const edited = editedPlanStop({ stop: selected, venueName, venues, heldVenueId });
     applyStopIdentityMutation(
-      stops.map((stop) => stop.key === key ? edited.stop : stop),
-      "Stop edited in the route preview. Refresh the route before locking.",
+      stops.map((stop) => stop.key === key ? pickedPlanStop(stop, venue) : stop),
+      "Stop chosen. Refresh the route before locking.",
+    );
+  }
+
+  function removeStop(key: number) {
+    const index = stops.findIndex((stop) => stop.key === key);
+    if (index < 0) return;
+    const removed = applyStopIdentityMutation(
+      stops.filter((stop) => stop.key !== key),
+      `Stop ${index + 1} removed. Refresh the route before locking.`,
+      { release: isUnnamedHeldStop(stops[index]!, index) },
+    );
+    if (removed) haptic("selection-released");
+  }
+
+  function addStop() {
+    if (stops.length >= MAX_PLAN_STOP_COUNT) return;
+    applyStopIdentityMutation(
+      [...stops, { key: Math.max(0, ...stops.map((stop) => stop.key)) + 1, venueId: "", venueName: "", alternatives: [] }],
+      "Stop added. Refresh the route before locking.",
+    );
+  }
+
+  /** One card moved to a new place. The haptic is the gesture's: a kept drop. */
+  function reorderStops(from: number, to: number) {
+    applyStopIdentityMutation(
+      moveItem(stops, from, to),
+      `Stop ${from + 1} moved to ${to + 1}. Refresh the route before locking.`,
+      { reorder: true, settledStatus: `Stop ${from + 1} moved to place ${to + 1}.` },
     );
   }
 
@@ -1700,7 +2111,12 @@ function PlanComposerForm({
   }
 
   function swapStop(key: number) {
-    const current = stops.find((stop) => stop.key === key);
+    const index = stops.findIndex((stop) => stop.key === key);
+    const current = stops[index];
+    if (current && isUnnamedHeldStop(current, index)) {
+      clearUnnamedHeldStop(key, index);
+      return;
+    }
     if (!current?.alternatives.length) return;
     const usedByOtherStops = new Set(stops.filter((stop) => stop.key !== key).map((stop) => stop.venueId));
     const next = swapDraftStop(current, usedByOtherStops);
@@ -1708,9 +2124,11 @@ function PlanComposerForm({
       setRouteStatus("No other pub we can vouch for near that stop yet.");
       return;
     }
+    const position = stops.findIndex((stop) => stop.key === key) + 1;
     applyStopIdentityMutation(
       stops.map((stop) => stop.key === key ? next : stop),
-      `Stop ${stops.findIndex((stop) => stop.key === key) + 1} swapped to ${next.venueName}. Refresh the route before locking.`,
+      `Stop ${position} swapped to ${next.venueName}. Refresh the route before locking.`,
+      { swapToAlternative: true, settledStatus: `Stop ${position} swapped to ${next.venueName}.` },
     );
   }
 
@@ -1762,9 +2180,13 @@ function PlanComposerForm({
       intakeContextForSort,
       queryArea,
     );
+    if (!submittedContext.nightArea && queryArea.kind === "none") {
+      const area = venueNightArea(venues.find((venue) => venue.id === heldVenueId), acceptedCityId);
+      if (area) submittedContext.nightArea = area;
+    }
     setSorting(true);
     setError("");
-    setRouteStatus("Refreshing the route, rechecking every stop against your updated night.");
+    setRouteStatus("Refreshing the route and rechecking every stop for your updated night.");
     let responseStatus: number | null = null;
     try {
       const response = await fetch("/api/plans/generate", {
@@ -1800,53 +2222,59 @@ function PlanComposerForm({
         // Answered 200 with no Stops on purpose: the kept pub is what is in the
         // way, and only the server knows which check refused it.
         setConciergeNote(anchorConflict);
+        setRouteStatus(anchorConflict);
         return;
       }
       const suggested = routeStopsFromGenerated(body.stops, body.alternatives);
       if (!suggested.length) {
         // Zero matches is guidance, not failure (friction sweep follow-up 9):
         // the polite status slot, never the red error banner.
-        setConciergeNote("No venues matched that ask. Try a nearby area or a broader mood.");
+        setConciergeNote(NO_VENUES_MATCHED);
+        setRouteStatus(NO_VENUES_MATCHED);
         return;
       }
       setStops(suggested);
       setRouteSorted(true);
       setCultureOpener(cleanCultureOpener(body.cultureOpener));
       const grounded = isGroundedGeneratedRoute(body, suggested);
-      if (body.inferredContext) {
-        const inferredContext = body.inferredContext as NightContext;
-        const reconciled = reconcileGeneratedNightContext(
-          inferredContext,
-          submittedContext,
-          suggested.length,
-        );
+      const reconciled = body.inferredContext
+        ? reconcileGeneratedNightContext(body.inferredContext as NightContext, submittedContext, suggested.length)
+        : null;
+      if (reconciled) {
         setNightContext(reconciled);
         if (!user) writeDeviceNightContext(reconciled);
       }
+      setRouteNight(routeNightOf(reconciled ?? submittedContext));
       setRouteRevision(routeRevisionFromState(body));
       setRouteStale(false);
       setGroundingProof(typeof body.groundingProof === "string" ? body.groundingProof : null);
       setCreateOperationKey(typeof body.operationKey === "string" ? body.operationKey : null);
       setPlanAnchor(generatedPlanAnchorFromResponse(body));
       markPalRouteActivation();
+      if (new URLSearchParams(window.location.search).get("from") === "onboarding") {
+        recordPlanHighIntentAction();
+      }
       trackEvent("plan_started");
       trackEvent("plan_generated", { stops: suggested.length, grounded });
-      setConciergeNote(`${planStopCountPhrase(suggested.length)} we can stand behind, shaped by the outing you set below.`);
+      setConciergeNote(`${planStopCountPhrase(suggested.length)} we can stand behind, shaped by the outing you set.`);
       setRouteStatus("Route refreshed. Review the preview, then lock it in when it feels right.");
       setRouteRevealTick((tick) => tick + 1);
+      setRouteDrawKey(suggested.map((stop) => stop.venueId).join(">"));
       if (body.inferredContext) {
         trackEvent("night_description_submitted", { area: body.inferredContext.nightArea ?? "", daypart: body.inferredContext.daypart });
       }
     } catch (caught) {
-      const message = caught instanceof Error ? caught.message : "The concierge could not sort this one.";
+      const message = caught instanceof Error ? caught.message : "PUBMAXX could not sort this one.";
       // planGenerationFailureStatus is the ONE owner of this sentence, so the
       // error notice cannot tell a reader with no route on screen that "the
-      // earlier route is still here".
-      const failureStatus = planGenerationFailureStatus(message, stops.length > 0);
+      // earlier route is still here". A held Stop 1 alone is not a route: only
+      // a sorted one can be "still here" or need a refresh.
+      const failureStatus = planGenerationFailureStatus(message, routeSorted);
       trackErrorShown("plan", errorShownKindFromStatus(responseStatus));
       setError(failureStatus);
-      setRouteStale(true);
+      if (routeSorted) setRouteStale(true);
       setRouteStatus(failureStatus);
+      setRouteRevealTick((tick) => tick + 1);
     } finally {
       setSorting(false);
     }
@@ -1869,16 +2297,12 @@ function PlanComposerForm({
       if (validationError.focus === "name") nameInputRef.current?.focus();
       return;
     }
-    if (new Set(completeStops.map((stop) => stop.venueId)).size !== completeStops.length) {
-      setError("Choose distinct venues for every stop.");
+    if (!distinctStops) {
+      setError(PLAN_DISTINCT_STOPS_ERROR);
       return;
     }
-    if (
-      nightContext
-      && !matchingAnchorOnlyPlan
-      && completeStops.length !== normalizePlanStopCount(nightContext.stopCount)
-    ) {
-      setError(`A generated ${planOutingNoun(nightContext.stopCount)} needs exactly ${planStopCountPhrase(nightContext.stopCount)} we can stand behind before you lock it in.`);
+    if (stopCountError) {
+      setError(stopCountError);
       return;
     }
     if (routeStale) {
@@ -1931,8 +2355,12 @@ function PlanComposerForm({
       if (draftSavedTelemetry && draftSavedToken) {
         trackEvent("plan_draft_saved", draftSavedTelemetry, { deliveryToken: draftSavedToken });
       }
+      // The lock is counted for every plan the server attributed, not only the
+      // ones that carry signed acceptance tokens: those fail closed for a plan
+      // without an anchor, which left the funnel's lock step at zero.
+      const lockTelemetry = crawlLockedTelemetry(body, completeStops.length);
+      if (lockTelemetry) trackEvent("crawl_locked", lockTelemetry);
       if (acceptanceTelemetry && acceptedToken && meaningfulToken) {
-        trackEvent("crawl_locked", { stops: completeStops.length });
         trackEvent("plan_accepted", acceptanceTelemetry, { deliveryToken: acceptedToken });
         trackMeaningfulCoreAction("plan_accepted", meaningfulToken);
       }
@@ -1970,9 +2398,11 @@ function PlanComposerForm({
       }
       trackEvent("plan_saved", { stops: completeStops.length, grounded });
       trackMeaningfulCoreAction("plan_saved");
+      rememberPlanHostName(safeLocalStorage(), creatorName);
       clearPersistedPlanDrafts({ planDraft: safeSessionStorage(), routeDraft: safeLocalStorage() });
       clearPlanIntakeDraft();
       clearPersistentPlanMutationKey("create", operationKey);
+      haptic("plan-locked");
       router.push(`/plan/${planId}#share`);
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "The plan could not be created.");
@@ -1981,8 +2411,349 @@ function PlanComposerForm({
     }
   }
 
+  const routeStaleNotice = routeStale ? (
+    <div className="planComposer__routeStale" role="group" aria-labelledby="plan-route-stale-title">
+      <div>
+        <strong id="plan-route-stale-title">This route needs a refresh</strong>
+        <span>You&rsquo;ve changed the night since we sorted it, so this preview may not fit any more.</span>
+      </div>
+      <button
+        type="button"
+        className="planComposer__regenerate"
+        onClick={() => sortWithConcierge()}
+        disabled={sorting || !canSortWithCurrentGenerator}
+        aria-busy={sorting}
+      >
+        {sorting ? "Refreshing…" : "Regenerate route"}
+      </button>
+    </div>
+  ) : null;
+  const routeStatusLine = (
+    <p id="plan-route-status" className={resultMode ? "planResult__status" : "planComposer__routeStatus"} role="status" aria-live="polite" tabIndex={-1}>
+      {error && routeStatus === error
+        ? null
+        : routeStatus || (routeStale ? "The route needs refreshing before it can be locked." : "Review the route preview. It stays private until you lock it in.")}
+    </p>
+  );
+  const renderConcierge = (inSheet: boolean) => (
+    <section className="planComposer__concierge" {...(inSheet ? { "aria-label": "Describe your outing" } : { "aria-labelledby": "plan-concierge-title" })} aria-busy={sorting}>
+      {inSheet ? null : (
+        <div>
+          <span className="planPage__eyebrow">Describe your outing</span>
+          <h2 id="plan-concierge-title">Say what you need. Get a route you can stand behind.</h2>
+        </div>
+      )}
+      <div className="planComposer__conciergeInput">
+        <label className="planComposer__srOnly" htmlFor="plan-concierge-query">{PLAN_FIELD_LABEL}</label>
+        <input id="plan-concierge-query" type="text" aria-describedby="plan-concierge-status" value={conciergeQuery} onChange={(event) => setConciergeQuery(event.target.value)} onKeyDown={inSheet ? (event) => { if (event.key === "Enter") { event.preventDefault(); if (!sorting && canSortWithCurrentGenerator) sortWithConcierge(); } } : undefined} placeholder="Add a mood, occasion or anything we missed" maxLength={500} />
+        {/* ONE PAINTED PRIMARY PER SCREEN. Once a route is on the page,
+            `Lock it in` is the thing to do next, and two coral fills on one
+            screen is the reader choosing between them. This control keeps
+            its place and its words change to what it now does; it is
+            demoted rather than removed, because editing the description
+            above it has to stay answerable. While it is busy it is only
+            aria-disabled: a disabled button loses focus, and inside Tune
+            details that drops the reader to the page body behind the sheet. */}
+        <button
+          type="button"
+          className={routeSorted ? "planComposer__resort" : undefined}
+          onClick={() => { if (!sorting) sortWithConcierge(); }}
+          disabled={!canSortWithCurrentGenerator}
+          aria-disabled={sorting || undefined}
+          aria-busy={sorting}
+        >
+          {sorting ? "Planning…" : routeSorted ? PLAN_RESUBMIT_LABEL : "Make a plan"}
+        </button>
+      </div>
+      <p id="plan-concierge-status" className="planComposer__conciergeStatus" role="status" aria-live="polite">
+        {conciergeStatus}
+      </p>
+      {inSheet ? null : routeStaleNotice}
+      {nightContext ? (
+        <fieldset className="planComposer__context">
+          <legend>What PUBMAXX understood. Edit anything.</legend>
+          <p id="plan-context-note" className="planComposer__contextNote">We only call an area crawl-ready when its prices are fresh and checked. An area that is not ready yet may not give a route.</p>
+          <label htmlFor="plan-context-area">Area<select id="plan-context-area" aria-describedby="plan-context-note plan-route-status" value={nightContext.nightArea ?? ""} onChange={(event) => updateNightContext({ nightArea: event.target.value as NightContext["nightArea"] })}>
+            {areaGroups.map((group) => (
+              <optgroup key={group.label} label={group.label}>
+                {group.areas.map((area) => (
+                  <option key={area.slug} value={area.slug}>
+                    {nightAreaOptionLabel(area, group.disabled)}
+                  </option>
+                ))}
+              </optgroup>
+            ))}
+          </select></label>
+          <label htmlFor="plan-context-time">Time<select id="plan-context-time" aria-describedby="plan-route-status" value={nightContext.daypart} onChange={(event) => updateNightContext({ daypart: event.target.value as NightContext["daypart"] })}>
+            <option value="daytime">Daytime</option><option value="after_work">After work</option><option value="evening">Evening</option><option value="late_night">Late night</option><option value="get_home">Get home</option>
+          </select></label>
+          <label htmlFor="plan-context-group">Group<select id="plan-context-group" aria-describedby="plan-route-status" value={nightContext.partyType} onChange={(event) => updateNightContext({ partyType: event.target.value as NightContext["partyType"] })}>
+            <option value="solo">Solo</option><option value="friends">Friends</option><option value="work">Work</option>
+          </select></label>
+          <label htmlFor="plan-context-people">People<input id="plan-context-people" aria-describedby="plan-route-status" type="number" min="1" max="30" value={nightContext.groupSize ?? ""} onChange={(event) => updateNightContext({ groupSize: event.target.value ? Number(event.target.value) : null })} /></label>
+          <label htmlFor="plan-context-stops">Stops<select id="plan-context-stops" aria-describedby="plan-route-status" value={normalizePlanStopCount(nightContext.stopCount)} onChange={(event) => updateNightContext({ stopCount: normalizePlanStopCount(Number(event.target.value)) })}>{PLAN_STOP_COUNTS.map((count) => <option key={count} value={count}>{count}</option>)}</select></label>
+          <label htmlFor="plan-context-budget">Budget<select id="plan-context-budget" aria-describedby="plan-route-status" value={nightContext.budget} onChange={(event) => updateNightContext({ budget: event.target.value as NightContext["budget"] })}>
+            <option value="value">Value</option><option value="standard">Standard</option><option value="treat">Treat</option>
+          </select></label>
+          <label htmlFor="plan-context-budget-limit">Max per person<input id="plan-context-budget-limit" aria-describedby="plan-route-status" type="number" inputMode="decimal" min="5" max="500" step="1" value={nightContext.budgetLimitPence === null ? "" : nightContext.budgetLimitPence / 100} onChange={(event) => updateNightContext({ budgetLimitPence: event.target.value ? Math.round(Number(event.target.value) * 100) : null })} /></label>
+          <label htmlFor="plan-context-zero-proof">Drinks<select id="plan-context-zero-proof" aria-describedby="plan-route-status" value={nightContext.zeroProof ? "zero-proof" : nightContext.drinkCategory ?? "any"} onChange={(event) => {
+            const choice = event.target.value;
+            updateNightContext({
+              zeroProof: choice === "zero-proof",
+              drinkCategory: choice === "any" || choice === "zero-proof" ? null : choice as DrinkCategory,
+            });
+          }}>
+            {/* "0.0 options" read as broken number formatting, not as a drink.
+                The option names the drink the way the rest of the app does. */}
+            <option value="any">Any drinks</option><option value="zero-proof">Alcohol-free</option>
+            {DRINK_CATEGORIES.filter((category) =>
+              category !== "alcohol-free" && category !== "soft-drink" && category !== "coffee" && category !== "other"
+            ).map((category) => <option key={category} value={category}>{categoryLabel(category)}</option>)}
+          </select></label>
+        </fieldset>
+      ) : null}
+    </section>
+  );
+  const templatesBlock = (
+    <section className="planComposer__templates" aria-labelledby="plan-templates-title">
+      <h2 id="plan-templates-title">Need a starting point?</h2>
+      <p className="planComposer__templatesLead">
+        Pick a prompt to fill in the description. You can still edit it.
+      </p>
+      {usualLot ? (
+        <div className="planComposer__usualLot" data-testid="plan-usual-lot">
+          <p>
+            Usual lot: <strong>{usualLot.names.join(", ")}</strong>
+          </p>
+          <button
+            type="button"
+            className="planComposer__template"
+            onClick={() => {
+              setTitle("Usual lot · tonight");
+              setConciergeNote(`Re-invite ${usualLot.names.join(", ")} after you lock it in.`);
+            }}
+          >
+            Plan with the usual lot
+          </button>
+        </div>
+      ) : null}
+      <div className="planComposer__templateRow">
+        {PLAN_TEMPLATES.map((template: PlanTemplate) => (
+          <button
+            key={template.id}
+            type="button"
+            className="planComposer__template"
+            title={template.blurb}
+            onClick={() => {
+              const merged = mergePlanTemplateFields({
+                title,
+                conciergeQuery,
+                conciergeNote,
+                template,
+                hasAcceptedGeography: Boolean(
+                  handoff?.answeredArea
+                  || planIntake.answers.area
+                  || nightContext?.nightArea
+                  || explicitNightContext.nightArea,
+                ),
+              });
+              setTitle(merged.title);
+              setConciergeQuery(merged.conciergeQuery);
+              setConciergeNote(merged.conciergeNote);
+            }}
+          >
+            {template.label}
+          </button>
+        ))}
+      </div>
+    </section>
+  );
+  const coverageBlock = (
+    <section className="planComposer__coverage" aria-labelledby="plan-coverage-title">
+      <details>
+        <summary>
+          <span id="plan-coverage-title">Area coverage</span>
+          <span className="planComposer__coverageMeta">
+            {readyAreas.length} of {readyAreas.length + areasInProgress.length} crawl-ready
+          </span>
+        </summary>
+        <p className="planComposer__coverageIntro">
+          We only call an area crawl-ready when its prices are fresh and checked. The rest are yours to browse.
+        </p>
+        <div className="planComposer__coverageGroups">
+          <section aria-labelledby="plan-coverage-ready">
+            <h3 id="plan-coverage-ready">Crawl-ready</h3>
+            <ul>
+              {readyAreas.map((area) => {
+                const summary = nightAreaCoverageSummary(area);
+                return (
+                  <li key={area.slug} data-tone={summary.tone} data-coverage-status={area.coverageStatus}>
+                    <div>
+                      <strong>{area.name}</strong>
+                      <small>{summary.detail}</small>
+                      <small className="planComposer__coverageMetaLine">{nightAreaCoverageMeta(area)}</small>
+                    </div>
+                    <div className="planComposer__coverageActions">
+                      <span>{summary.label}</span>
+                      <Link className="planComposer__coverageMapLink" href={nightAreaMapHref(area)} aria-label={`Explore ${area.name} pubs on the map`}>Explore map</Link>
+                    </div>
+                  </li>
+                );
+              })}
+            </ul>
+          </section>
+          <section aria-labelledby="plan-coverage-progress">
+            <h3 id="plan-coverage-progress">Not crawl-ready yet</h3>
+            <ul>
+              {areasInProgress.map((area) => {
+                const summary = nightAreaCoverageSummary(area);
+                return (
+                  <li key={area.slug} data-tone={summary.tone} data-coverage-status={area.coverageStatus}>
+                    <div>
+                      <strong>{area.name}</strong>
+                      <small>{summary.detail}</small>
+                      <small className="planComposer__coverageMetaLine">{nightAreaCoverageMeta(area)}</small>
+                    </div>
+                    <div className="planComposer__coverageActions">
+                      <span>{summary.label}</span>
+                      <Link className="planComposer__coverageMapLink" href={nightAreaMapHref(area)} aria-label={`Explore ${area.name} pubs on the map`}>Explore map</Link>
+                    </div>
+                  </li>
+                );
+              })}
+            </ul>
+          </section>
+        </div>
+      </details>
+    </section>
+  );
+  // Whether the field is anything OTHER than a start still to come on the
+  // night running now: a later night, a start that has already passed, or a
+  // time that is not a London one. A passed start is the state that needs the
+  // door most - the lock has already refused it - and reading the night alone
+  // withheld it there.
+  const fieldNight = londonNightsAhead(startTime);
+  const fieldWantsTonight = !fieldNight || fieldNight.nights !== 0 || fieldNight.past;
+  const tonightLabel = tonightChoiceLabel();
+  const fieldsBlock = (
+    <>
+      <div className="planComposer__field planComposer__field--wide">
+        <label htmlFor="plan-title">Name the night</label>
+        <input id="plan-title" type="text" maxLength={80} value={title} onChange={(event) => setTitle(event.target.value)} />
+      </div>
+      {nameInLockBar ? null : nameField}
+      <div className="planComposer__field">
+        <label htmlFor="plan-time">{nightContext && !planUsesPintPrices(nightContext) ? "First stop" : "First pint"}</label>
+        <input id="plan-time" type="datetime-local" required aria-invalid={lockHint === PLAN_START_TIME_HINT ? true : undefined} aria-describedby={lockHint === PLAN_START_TIME_HINT ? "plan-lock-hint" : undefined} value={startTime} onChange={(event) => updatePlanStartTime(event.target.value)} />
+        {/* Late in the evening the default is tomorrow at 19:00, so the night
+            the reader is standing in needs a door of its own. It carries the
+            date because an early-hours slot reads as tomorrow on a calendar
+            and as tonight on a night out. */}
+        {tonightLabel && fieldWantsTonight ? (
+          <button
+            type="button"
+            className="planComposer__tonight"
+            data-testid="plan-tonight-choice"
+            onClick={() => {
+              const slot = tonightLondonStartInput();
+              if (slot) updatePlanStartTime(slot);
+            }}
+          >
+            Tonight, {tonightLabel}
+          </button>
+        ) : null}
+      </div>
+
+    </>
+  );
+
+  const areaName = routeNight?.nightArea ? getNightArea(routeNight.nightArea)?.name ?? null : null;
+  const viewStops = completeStops;
+  const summaryLine = routeSummaryLine(viewStops, measured, startTime);
+  const stripStops = viewStops.map((stop, position) => ({ venueId: stop.venueId, venueName: stop.venueName, position }));
+  const stopsBlock = (
+    <fieldset className="planComposer__stops">
+      <legend className={resultMode ? "planComposer__srOnly" : undefined}>The {planOutingNoun(stops.length)} <span className="planComposer__previewLabel">{routeRevision === null ? "Preview" : `Preview · revision ${routeRevision}`}</span></legend>
+      {resultMode ? null : routeStatusLine}
+      <PlanCultureOpener opener={cultureOpener} />
+      {venueIndexStatus === "failed" ? (
+        <p className="planComposer__error planStops__indexError" role="alert">
+          The pub list did not load.
+          <button
+            type="button"
+            onClick={() => {
+              setVenueIndexStatus("reading");
+              setVenueIndexRead((read) => read + 1);
+            }}
+          >Try again</button>
+        </p>
+      ) : null}
+      <PlanStopList
+        stops={stops}
+        areaName={areaName}
+        heldVenueId={heldVenueId}
+        measured={measured}
+        venues={venues}
+        canAdd={stops.length < MAX_PLAN_STOP_COUNT}
+        refreshKey={routeRevealTick}
+        removable={stops.length > 1}
+        swapLabel={(stop, index) => isLockedHeldStop(stop, index)
+          ? acceptedStop1SwapLabel(stop.venueName.trim() || UNRESOLVED_ACCEPTED_STOP_LABEL)
+          : isUnnamedHeldStop(stop, index)
+            ? `Swap stop ${index + 1}, currently ${UNRESOLVED_ACCEPTED_STOP_LABEL.toLocaleLowerCase()}`
+            : stop.alternatives.length > 0
+              ? `Swap stop ${index + 1}, currently ${stop.venueName}`
+              : `No alternatives for stop ${index + 1}`}
+        swapDisabled={(stop, index) => isLockedHeldStop(stop, index)
+          || (!isUnnamedHeldStop(stop, index) && stop.alternatives.length === 0)}
+        removeLabel={(stop, index) => isLockedHeldStop(stop, index)
+          ? acceptedStop1RemoveLabel(stop.venueName.trim() || UNRESOLVED_ACCEPTED_STOP_LABEL)
+          : `Remove stop ${index + 1}`}
+        removeDisabled={isLockedHeldStop}
+        onSwap={swapStop}
+        onRemove={removeStop}
+        onPick={pickVenue}
+        onReorder={reorderStops}
+        onAdd={addStop}
+      />
+    </fieldset>
+  );
+  const resultStrip = stripStops.length >= 2 ? (
+      <PlanRouteMiniMap
+        stops={stripStops}
+        mapHref={buildCrawlMapHref(stripStops.map((stop) => stop.venueId))}
+        variant="strip"
+        drawKey={routeDrawKey ?? undefined}
+        onLegs={onMeasuredLegs}
+      />
+  ) : null;
+  const resultHeader = (
+    <section className="planResult" aria-labelledby="plan-result-title">
+      <div className="planResult__top">
+        <h1 id="plan-result-title" className="planResult__title">{routeHeading({ daypart: routeNight?.daypart, areaName, startInput: startTime })}</h1>
+        <button type="button" className="planResult__tune" aria-haspopup="dialog" onClick={() => setTuneOpen(true)}>
+          <SlidersHorizontal size={16} aria-hidden="true" /> <span className="planResult__tuneLabel">Tune details</span>
+        </button>
+      </div>
+      <p className="planResult__summary" data-testid="plan-route-summary">{summaryLine}</p>
+      {routeStatusLine}
+      {routeStaleNotice}
+    </section>
+  );
+  // THE STOPS COME FIRST. The fine print and the map strip used to sit between
+  // the summary and the pubs, so on a phone the first stop started below the
+  // fold. They now follow the stops, and the two caveats read as one line.
+  const resultFinePrint = (
+    <p className="planResult__provenance">
+      {viewStops.some((stop) => typeof stop.estimatedPintPricePence === "number" && stop.estimatedPintPricePence > 0) && (
+        <><span>One pint per person at each stop. Meal prices are not verified.</span>{" "}</>
+      )}
+      <PlanResultProvenance />
+    </p>
+  );
+
   return (
-    <form id="plan-composer" className="planComposer" onSubmit={submit} noValidate>
+    <form id="plan-composer" className="planComposer" data-result={resultMode ? "true" : undefined} onSubmit={submit} noValidate>
       {handoff && (
         <AcceptedContextPanel
           handoff={handoff}
@@ -1996,13 +2767,14 @@ function PlanComposerForm({
         entryMode,
       }) ? (
         <PlanDescribeFirst
+          ready={canPersist}
           initialQuery={askDraftQuery}
           onSubmit={submitFromEntry}
           onQueryChange={setConciergeQuery}
           onPrefillQueryChange={adoptDescribePrefillQuery}
           onGuideMeInstead={() => setEntryMode("wizard")}
         />
-      ) : planComposerShowsIntake({
+      ) : !(resultMode && planIntake.completed) && planComposerShowsIntake({
         heldVenueId,
         completed: planIntake.completed,
         entryMode,
@@ -2014,284 +2786,31 @@ function PlanComposerForm({
       ) : null}
       {composerVisible ? (
         <>
-      <section className="planComposer__concierge" aria-labelledby="plan-concierge-title" aria-busy={sorting}>
-        <div>
-          <span className="planPage__eyebrow">Describe your outing</span>
-          <h2 id="plan-concierge-title">Say what you need. Get a route you can stand behind.</h2>
-        </div>
-        <div className="planComposer__conciergeInput">
-          <label className="planComposer__srOnly" htmlFor="plan-concierge-query">Describe the outing</label>
-          <input id="plan-concierge-query" type="text" aria-describedby="plan-concierge-status" value={conciergeQuery} onChange={(event) => setConciergeQuery(event.target.value)} placeholder="Add a mood, occasion or anything we missed" maxLength={500} />
-          {/* ONE PAINTED PRIMARY PER SCREEN. Once a route is on the page,
-              `Lock it in` is the thing to do next, and two coral fills on one
-              screen is the reader choosing between them. This control keeps
-              its place and its words change to what it now does; it is
-              demoted rather than removed, because editing the description
-              above it has to stay answerable. */}
-          <button
-            type="button"
-            className={routeSorted ? "planComposer__resort" : undefined}
-            onClick={() => sortWithConcierge()}
-            disabled={sorting || !canSortWithCurrentGenerator}
-            aria-busy={sorting}
-          >
-            {sorting ? "Planning…" : routeSorted ? "Sort it again" : "Make a plan"}
-          </button>
-        </div>
-        <p id="plan-concierge-status" className="planComposer__conciergeStatus" role="status" aria-live="polite">
-          {conciergeStatus}
-        </p>
-        {routeStale ? (
-          <div className="planComposer__routeStale" role="group" aria-labelledby="plan-route-stale-title">
-            <div>
-              <strong id="plan-route-stale-title">This route needs a refresh</strong>
-              <span>You&rsquo;ve changed the night since we sorted it, so this preview may not fit any more.</span>
-            </div>
-            <button
-              type="button"
-              className="planComposer__regenerate"
-              onClick={() => sortWithConcierge()}
-              disabled={sorting || !canSortWithCurrentGenerator}
-              aria-busy={sorting}
-            >
-              {sorting ? "Refreshing…" : "Regenerate route"}
-            </button>
-          </div>
-        ) : null}
-        {nightContext ? (
-          <fieldset className="planComposer__context">
-            <legend>What PUBMAXX understood. Edit anything.</legend>
-            <p id="plan-context-note" className="planComposer__contextNote">We only call an area crawl-ready when its prices are fresh and checked. An area that is not ready yet may not give a route.</p>
-            <label htmlFor="plan-context-area">Area<select id="plan-context-area" aria-describedby="plan-context-note plan-route-status" value={nightContext.nightArea ?? ""} onChange={(event) => updateNightContext({ nightArea: event.target.value as NightContext["nightArea"] })}>
-              {areaGroups.map((group) => (
-                <optgroup key={group.label} label={group.label}>
-                  {group.areas.map((area) => (
-                    <option key={area.slug} value={area.slug}>
-                      {nightAreaOptionLabel(area, group.disabled)}
-                    </option>
-                  ))}
-                </optgroup>
-              ))}
-            </select></label>
-            <label htmlFor="plan-context-time">Time<select id="plan-context-time" aria-describedby="plan-route-status" value={nightContext.daypart} onChange={(event) => updateNightContext({ daypart: event.target.value as NightContext["daypart"] })}>
-              <option value="daytime">Daytime</option><option value="after_work">After work</option><option value="evening">Evening</option><option value="late_night">Late night</option><option value="get_home">Get home</option>
-            </select></label>
-            <label htmlFor="plan-context-group">Group<select id="plan-context-group" aria-describedby="plan-route-status" value={nightContext.partyType} onChange={(event) => updateNightContext({ partyType: event.target.value as NightContext["partyType"] })}>
-              <option value="solo">Solo</option><option value="friends">Friends</option><option value="work">Work</option>
-            </select></label>
-            <label htmlFor="plan-context-people">People<input id="plan-context-people" aria-describedby="plan-route-status" type="number" min="1" max="30" value={nightContext.groupSize ?? ""} onChange={(event) => updateNightContext({ groupSize: event.target.value ? Number(event.target.value) : null })} /></label>
-            <label htmlFor="plan-context-stops">Stops<select id="plan-context-stops" aria-describedby="plan-route-status" value={normalizePlanStopCount(nightContext.stopCount)} onChange={(event) => updateNightContext({ stopCount: normalizePlanStopCount(Number(event.target.value)) })}>{PLAN_STOP_COUNTS.map((count) => <option key={count} value={count}>{count}</option>)}</select></label>
-            <label htmlFor="plan-context-budget">Budget<select id="plan-context-budget" aria-describedby="plan-route-status" value={nightContext.budget} onChange={(event) => updateNightContext({ budget: event.target.value as NightContext["budget"] })}>
-              <option value="value">Value</option><option value="standard">Standard</option><option value="treat">Treat</option>
-            </select></label>
-            <label htmlFor="plan-context-budget-limit">Max per person<input id="plan-context-budget-limit" aria-describedby="plan-route-status" type="number" inputMode="decimal" min="5" max="500" step="1" value={nightContext.budgetLimitPence === null ? "" : nightContext.budgetLimitPence / 100} onChange={(event) => updateNightContext({ budgetLimitPence: event.target.value ? Math.round(Number(event.target.value) * 100) : null })} /></label>
-            <label htmlFor="plan-context-zero-proof">Drinks<select id="plan-context-zero-proof" aria-describedby="plan-route-status" value={nightContext.zeroProof ? "zero-proof" : nightContext.drinkCategory ?? "any"} onChange={(event) => {
-              const choice = event.target.value;
-              updateNightContext({
-                zeroProof: choice === "zero-proof",
-                drinkCategory: choice === "any" || choice === "zero-proof" ? null : choice as DrinkCategory,
-              });
-            }}>
-              {/* "0.0 options" read as broken number formatting, not as a drink.
-                  The option names the drink the way the rest of the app does. */}
-              <option value="any">Any drinks</option><option value="zero-proof">Alcohol-free</option>
-              {DRINK_CATEGORIES.filter((category) =>
-                category !== "alcohol-free" && category !== "soft-drink" && category !== "coffee" && category !== "other"
-              ).map((category) => <option key={category} value={category}>{categoryLabel(category)}</option>)}
-            </select></label>
-          </fieldset>
-        ) : null}
-      </section>
-      <section className="planComposer__templates" aria-labelledby="plan-templates-title">
-        <h2 id="plan-templates-title">Need a starting point?</h2>
-        <p className="planComposer__templatesLead">
-          Optional occasion prompts fill the description. Still editable.
-        </p>
-        {usualLot ? (
-          <div className="planComposer__usualLot" data-testid="plan-usual-lot">
-            <p>
-              Usual lot: <strong>{usualLot.names.join(", ")}</strong>
-            </p>
-            <button
-              type="button"
-              className="planComposer__template"
-              onClick={() => {
-                setTitle("Usual lot · tonight");
-                setConciergeNote(`Re-invite ${usualLot.names.join(", ")} after you lock it in.`);
-              }}
-            >
-              Plan with the usual lot
-            </button>
-          </div>
-        ) : null}
-        <div className="planComposer__templateRow">
-          {PLAN_TEMPLATES.map((template: PlanTemplate) => (
-            <button
-              key={template.id}
-              type="button"
-              className="planComposer__template"
-              title={template.blurb}
-              onClick={() => {
-                const merged = mergePlanTemplateFields({
-                  title,
-                  conciergeQuery,
-                  conciergeNote,
-                  template,
-                  hasAcceptedGeography: Boolean(
-                    handoff?.answeredArea
-                    || planIntake.answers.area
-                    || nightContext?.nightArea
-                    || explicitNightContext.nightArea,
-                  ),
-                });
-                setTitle(merged.title);
-                setConciergeQuery(merged.conciergeQuery);
-                setConciergeNote(merged.conciergeNote);
-              }}
-            >
-              {template.label}
-            </button>
-          ))}
-        </div>
-      </section>
-      <section className="planComposer__coverage" aria-labelledby="plan-coverage-title">
-        <details>
-          <summary>
-            <span id="plan-coverage-title">Area coverage</span>
-            <span className="planComposer__coverageMeta">
-              {readyAreas.length} of {readyAreas.length + areasInProgress.length} crawl-ready
-            </span>
-          </summary>
-          <p className="planComposer__coverageIntro">
-            We only call an area crawl-ready when its prices are fresh and checked. The rest are yours to browse.
-          </p>
-          <div className="planComposer__coverageGroups">
-            <section aria-labelledby="plan-coverage-ready">
-              <h3 id="plan-coverage-ready">Crawl-ready</h3>
-              <ul>
-                {readyAreas.map((area) => {
-                  const summary = nightAreaCoverageSummary(area);
-                  return (
-                    <li key={area.slug} data-tone={summary.tone} data-coverage-status={area.coverageStatus}>
-                      <div>
-                        <strong>{area.name}</strong>
-                        <small>{summary.detail}</small>
-                        <small className="planComposer__coverageMetaLine">{nightAreaCoverageMeta(area)}</small>
-                      </div>
-                      <div className="planComposer__coverageActions">
-                        <span>{summary.label}</span>
-                        <Link className="planComposer__coverageMapLink" href={nightAreaMapHref(area)} aria-label={`Explore ${area.name} pubs on the map`}>Explore map</Link>
-                      </div>
-                    </li>
-                  );
-                })}
-              </ul>
-            </section>
-            <section aria-labelledby="plan-coverage-progress">
-              <h3 id="plan-coverage-progress">Not crawl-ready yet</h3>
-              <ul>
-                {areasInProgress.map((area) => {
-                  const summary = nightAreaCoverageSummary(area);
-                  return (
-                    <li key={area.slug} data-tone={summary.tone} data-coverage-status={area.coverageStatus}>
-                      <div>
-                        <strong>{area.name}</strong>
-                        <small>{summary.detail}</small>
-                        <small className="planComposer__coverageMetaLine">{nightAreaCoverageMeta(area)}</small>
-                      </div>
-                      <div className="planComposer__coverageActions">
-                        <span>{summary.label}</span>
-                        <Link className="planComposer__coverageMapLink" href={nightAreaMapHref(area)} aria-label={`Explore ${area.name} pubs on the map`}>Explore map</Link>
-                      </div>
-                    </li>
-                  );
-                })}
-              </ul>
-            </section>
-          </div>
-        </details>
-      </section>
-      <div className="planComposer__field planComposer__field--wide">
-        <label htmlFor="plan-title">Name the night</label>
-        <input id="plan-title" type="text" maxLength={80} value={title} onChange={(event) => setTitle(event.target.value)} />
-      </div>
-      <div className="planComposer__field">
-        <label htmlFor="plan-name">Your name</label>
-        <input id="plan-name" type="text" ref={nameInputRef} autoComplete="name" maxLength={CREW_NAME_MAX} required value={creatorName} onChange={(event) => setCreatorName(event.target.value)} placeholder="Karan" />
-      </div>
-      <div className="planComposer__field">
-        <label htmlFor="plan-time">{nightContext && !planUsesPintPrices(nightContext) ? "First stop" : "First pint"}</label>
-        <input id="plan-time" type="datetime-local" required value={startTime} onChange={(event) => updatePlanStartTime(event.target.value)} />
-      </div>
-
-      <fieldset className="planComposer__stops">
-        <legend>The {planOutingNoun(stops.length)} <span className="planComposer__previewLabel">{routeRevision === null ? "Preview" : `Preview · revision ${routeRevision}`}</span></legend>
-        <p id="plan-route-status" className="planComposer__routeStatus" role="status" aria-live="polite" tabIndex={-1}>
-          {routeStatus || (routeStale ? "The route needs refreshing before it can be locked." : "Review the route preview. It stays private until you lock it in.")}
-        </p>
-        <PlanCultureOpener opener={cultureOpener} />
-        {stops.map((stop, index) => (
-          <div className="planComposer__stop" key={stop.key}>
-            <span className="planComposer__number" aria-hidden="true">{index + 1}</span>
-            <div>
-              <label htmlFor={`venue-name-${stop.key}`}>Venue name</label>
-              <input id={`venue-name-${stop.key}`} type="text" list="plan-venue-options" value={stop.venueName} onChange={(event) => chooseVenue(stop.key, event.target.value)} placeholder="Start typing a pub" />
-              {stop.reason ? <small className="planComposer__stopReason">{stop.reason}</small> : null}
-              {selectedDrinkPriceDescription(stop.selectedDrinkPriceEvidence) ? (
-                <small className="planComposer__stopReason">{selectedDrinkPriceDescription(stop.selectedDrinkPriceEvidence)}</small>
-              ) : null}
-            </div>
-            <div className="planComposer__stopActions">
-              <button
-                className="planComposer__swap"
-                type="button"
-                onClick={() => swapStop(stop.key)}
-                disabled={Boolean(
-                  (index === 0 && heldVenueId === stop.venueId)
-                  || stop.alternatives.length === 0
-                )}
-                aria-label={index === 0 && heldVenueId === stop.venueId
-                  ? acceptedStop1SwapLabel(stop.venueName)
-                  : stop.alternatives.length > 0
-                    ? `Swap stop ${index + 1}, currently ${stop.venueName}`
-                    : `No alternatives for stop ${index + 1}`}
-              >
-                Swap{stop.alternatives.length > 0 ? ` · ${stop.alternatives.length}` : ""}
-              </button>
-              {stops.length > 1 ? (
-                <button
-                  className="planComposer__remove"
-                  type="button"
-                  onClick={() => applyStopIdentityMutation(
-                    stops.filter((item) => item.key !== stop.key),
-                    `Stop ${index + 1} removed. Refresh the route before locking.`,
-                  )}
-                  disabled={index === 0 && heldVenueId === stop.venueId}
-                  aria-label={index === 0 && heldVenueId === stop.venueId
-                    ? acceptedStop1RemoveLabel(stop.venueName)
-                    : `Remove stop ${index + 1}`}
-                >Remove</button>
-              ) : null}
-            </div>
-          </div>
-        ))}
-        <datalist id="plan-venue-options">
-          {venues.map((venue) => <option key={venue.id} value={venue.name}>{venue.address}</option>)}
-        </datalist>
-        <button
-          className="planComposer__add"
-          type="button"
-          disabled={stops.length >= MAX_PLAN_STOP_COUNT}
-          onClick={() => {
-            if (stops.length >= MAX_PLAN_STOP_COUNT) return;
-            applyStopIdentityMutation(
-              [...stops, { key: Math.max(0, ...stops.map((stop) => stop.key)) + 1, venueId: "", venueName: "", alternatives: [] }],
-              "Stop added. Refresh the route before locking.",
-            );
-          }}
-        >Add another stop</button>
-      </fieldset>
-
+          {resultMode ? (
+            <>
+              {resultHeader}
+              {stopsBlock}
+              {resultFinePrint}
+              {resultStrip}
+              {fieldsBlock}
+              {coverageBlock}
+              {tuneOpen ? null : (
+                <p id="plan-concierge-status" className="planComposer__srOnly" role="status" aria-live="polite">{conciergeStatus}</p>
+              )}
+              <PlanTuneSheet open={tuneOpen} title="Tune details" onClose={() => setTuneOpen(false)}>
+                {renderConcierge(true)}
+                {templatesBlock}
+              </PlanTuneSheet>
+            </>
+          ) : (
+            <>
+              {renderConcierge(false)}
+              {templatesBlock}
+              {coverageBlock}
+              {fieldsBlock}
+              {stopsBlock}
+            </>
+          )}
       {error ? <PlanComposerErrorNotice message={error} /> : null}
       {/* THE ANSWER IS PINNED. On a phone this action sat at the natural end of
           a page several screens long, which is under the tab bar and under the
@@ -2300,8 +2819,16 @@ function PlanComposerForm({
           line that qualifies it, so the two can never separate. The create
           action stands down while it is up, on the same terms as the consent
           card (components/nav/createFab.css). */}
-      <div className="planComposer__lock">
-        <button className="planComposer__submit" type="submit" disabled={!canLockPlan}>{submitting ? "Locking it in…" : "Lock it in"}</button>
+      <div className="planComposer__lock" data-name-seat={nameInLockBar ? "true" : undefined}>
+        {nameInLockBar ? nameField : null}
+        <button
+          className="planComposer__submit"
+          type="submit"
+          disabled={lockBusy}
+          aria-disabled={!lockBusy && !canLockPlan ? true : undefined}
+          aria-describedby={lockHint ? "plan-lock-hint" : undefined}
+        >{submitting ? "Locking it in…" : "Lock it in"}</button>
+        {lockHint ? <p id="plan-lock-hint" className="planComposer__lockHint">{lockHint}</p> : null}
         <p className="planComposer__trust">Anyone with the link can see the plan. Joining only asks for a name.</p>
       </div>
         </>
@@ -2349,9 +2876,35 @@ export default function PlanComposer() {
       hasDurableDraft: Boolean(durableDraft),
     };
   }, [hydrated]);
+  // The form is MOUNTED AGAIN once hydrated when there is something to recover,
+  // so its state initialisers read the recovered drafts and the URL's ask.
+  // Whatever the server-painted form held is thrown away with it, so that form
+  // takes no input (`canPersist` reaches the describe-first field as `ready`).
+  // On a slow load the browser suite typed a query into it, lost it at the
+  // remount, and tapped Sort it on an empty field (5 Oct 2026).
+  //
+  // With nothing to recover the remount would rebuild the same form the server
+  // painted, and a fresh paint of every node in it is scored by the browser as
+  // a new largest paint: /plan's LCP was the server's own culture line,
+  // repainted at the remount, 2.2 to 2.5 s on a throttled phone against a
+  // first paint of 0.6 s. So the server form is kept and simply goes live: its
+  // state is already what a remount would compute, and every effect that waits
+  // on `canPersist` lists it, so each runs the moment it flips.
+  const remount = useMemo(() => {
+    if (!hydrated) return false;
+    const fromUrl = describeAskFromLocation();
+    return Boolean(
+      handoff ||
+        recoveredDraft ||
+        recoveredRouteDraft ||
+        recoveredIntake.hasDurableDraft ||
+        fromUrl.ask ||
+        fromUrl.handoffAsk,
+    );
+  }, [hydrated, handoff, recoveredDraft, recoveredRouteDraft, recoveredIntake]);
   return (
     <PlanComposerForm
-      key={hydrated ? "hydrated" : "server"}
+      key={remount ? "hydrated" : "server"}
       recoveredDraft={recoveredDraft}
       recoveredRouteDraft={recoveredRouteDraft}
       recoveredIntake={recoveredIntake.draft}

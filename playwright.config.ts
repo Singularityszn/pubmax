@@ -1,4 +1,5 @@
 import { randomBytes } from "node:crypto";
+import { isAbsolute, resolve } from "node:path";
 import { loadEnvConfig } from "@next/env";
 import { defineConfig, devices } from "@playwright/test";
 
@@ -53,6 +54,7 @@ const AUTH_BASE_URL = `http://localhost:${AUTH_PORT}`;
 const AUTH_NEXT_DIST_DIR =
   process.env.PW_AUTH_NEXT_DIST_DIR ?? `${NEXT_DIST_DIR}-auth`;
 const E2E_NODE_OPTIONS = process.env.NODE_OPTIONS ?? "--max-old-space-size=4096";
+const JOURNEY_FIXTURE_NODE_OPTIONS = `${E2E_NODE_OPTIONS} --require ${JSON.stringify(resolve("e2e/fixtures/cityMcpJourney.cjs"))}`;
 const E2E_TRACKED_OUTPUTS_ALLOWLIST =
   process.env.PUBMAX_TRACKED_OUTPUTS ?? (process.env.CI ? "public/data" : "");
 // Production-style browser tests retain the keyless in-memory stores, but
@@ -100,6 +102,68 @@ if (
     "PUBMAX_E2E_LOGIN=1 requires real Supabase URL, publishable key, and service-role key in the local environment.",
   );
 }
+
+const PUBLIC_EVIDENCE_PHASE = process.env.PUBMAX_PUBLIC_EVIDENCE_PHASE;
+const PUBLIC_EVIDENCE_ROOT = process.env.PUBMAX_PUBLIC_EVIDENCE_ROOT;
+if (PUBLIC_EVIDENCE_PHASE && (
+  !["before", "after"].includes(PUBLIC_EVIDENCE_PHASE) ||
+  !PUBLIC_EVIDENCE_ROOT || !isAbsolute(PUBLIC_EVIDENCE_ROOT) ||
+  !process.env.CI || E2E_LOGIN || REAL_AUTH_CONFIGURED || DISPOSABLE_PLAN_DB ||
+  SKIP_WEBSERVER || !SKIP_KEYLESS_WEBSERVER || SCREENSHOT_RUN
+)) {
+  throw new Error("Public evidence needs a separate absolute checkout and one keyless CI server");
+}
+
+export const E2E_SERVER_ENV = {
+  NODE_OPTIONS: E2E_NODE_OPTIONS,
+  NEXT_DIST_DIR,
+  // E2E builds run from a checkout whose generated data is stamped
+  // `local`. Keep GitHub's GITHUB_SHA from rewriting those tracked
+  // fixtures and tripping the restored-build guard.
+  NEXT_PUBLIC_SW_VERSION: "local",
+  NEXT_PUBLIC_POSTHOG_E2E_ALLOW_BOT: "1",
+  NEXT_PUBLIC_VAPID_PUBLIC_KEY: E2E_VAPID_PUBLIC_KEY,
+  NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN: E2E_POSTHOG_PROJECT_TOKEN,
+  // Browser auth stays provider-shaped in keyless E2E. Identity specs
+  // seed a Supabase session and intercept this non-routable boundary;
+  // server stores remain keyless and in memory.
+  NEXT_PUBLIC_SUPABASE_URL: DISPOSABLE_PLAN_DB ? DISPOSABLE_SUPABASE_URL! : E2E_SUPABASE_URL,
+  NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY:
+    E2E_SUPABASE_PUBLISHABLE_KEY,
+  SUPABASE_URL: DISPOSABLE_PLAN_DB ? DISPOSABLE_SUPABASE_URL! : "",
+  SUPABASE_SERVICE_ROLE_KEY: DISPOSABLE_PLAN_DB ? DISPOSABLE_SERVICE_ROLE_KEY! : "",
+  OPENROUTER_API_KEY: DISPOSABLE_PLAN_DB ? "" : process.env.OPENROUTER_API_KEY ?? "",
+  VERCEL_ENV: DISPOSABLE_PLAN_DB ? "development" : process.env.VERCEL_ENV ?? "",
+  NEXT_PUBLIC_DISCORD_INVITE_URL: E2E_DISCORD_INVITE_URL,
+  PLAN_IDEMPOTENCY_SECRET: E2E_PLAN_SIGNING_SECRET,
+  ADMIN_TOKEN: E2E_ADMIN_TOKEN,
+  RATE_LIMIT_SALT: E2E_RATE_LIMIT_SALT,
+  PUBMAX_E2E_RATE_LIMIT_MAX: E2E_RATE_LIMIT_MAX,
+  PUBMAX_E2E_LOGIN: "0",
+  PUBMAX_E2E_KEYLESS: DISPOSABLE_PLAN_DB ? "0" : "1",
+  // Auth regressions may opt into the real public Supabase project.
+  // Keep these as pass-throughs: browser tests must not fake auth over
+  // the wire, and ordinary keyless runs remain network-independent.
+  ...(process.env.NEXT_PUBLIC_SUPABASE_URL && !E2E_LOGIN && !DISPOSABLE_PLAN_DB
+    ? {
+        NEXT_PUBLIC_SUPABASE_URL:
+          process.env.NEXT_PUBLIC_SUPABASE_URL,
+      }
+    : {}),
+  ...(process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY && !E2E_LOGIN && !DISPOSABLE_PLAN_DB
+    ? {
+        NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY:
+          process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY,
+      }
+    : {}),
+  // The one remaining rollout flag: the Social launch rollback switch.
+  ...(process.env.PUBMAX_SOCIAL_FRIENDS_LAUNCH
+    ? { PUBMAX_SOCIAL_FRIENDS_LAUNCH: process.env.PUBMAX_SOCIAL_FRIENDS_LAUNCH }
+    : {}),
+  ...(E2E_TRACKED_OUTPUTS_ALLOWLIST
+    ? { PUBMAX_TRACKED_OUTPUTS: E2E_TRACKED_OUTPUTS_ALLOWLIST }
+    : {}),
+};
 
 export default defineConfig({
   testDir: "./e2e",
@@ -154,6 +218,9 @@ export default defineConfig({
       // WebGL-agnostic (smoke.spec asserts canvas-OR-fallback), so running them
       // here would false-fail. Screenshots are design-QA artifacts, excluded too.
       testIgnore: [
+        // The production smoke suite drives a deployed site, never this
+        // build. playwright.prod-smoke.config.ts owns it.
+        "**/prod-smoke/**",
         "**/screenshots.spec.ts",
         ...(DISPOSABLE_PLAN_DB ? [] : ["**/plan-selected-drink-disposable.spec.ts"]),
         "**/price-contribution-auth.spec.ts",
@@ -169,6 +236,8 @@ export default defineConfig({
         // plain Chromium project avoids running the same spec without SwiftShader
         // (and without its blocked service worker) before the GL project runs it.
         "**/map-console-health.spec.ts",
+        "**/map-credits.spec.ts",
+        "**/map-opening-preview.spec.ts",
         "**/map-arrival-turn.spec.ts",
         "**/map-you-are-here.spec.ts",
         "**/map-arrival-card-pins.spec.ts",
@@ -178,7 +247,9 @@ export default defineConfig({
         "**/map-fallback.spec.ts",
         "**/map-service-worker.spec.ts",
         "**/map-uk-base-layer.spec.ts",
+        "**/map-london-restaurants.spec.ts",
         "**/map-live-qa-0924.spec.ts",
+        "**/plan-route-strip.spec.ts",
         "**/ui-ux-battle-test.spec.ts",
         "**/signed-in-review.spec.ts",
         // The Core Web Vitals sweep owns its own project: it needs a real GL
@@ -291,6 +362,9 @@ export default defineConfig({
         "**/map-gl.spec.ts",
         // Two-finger rotate and tilt against a real MapLibre canvas.
         "**/map-gestures.spec.ts",
+        // The document's opening prices held to the engine's own first frame:
+        // a real camera and a real painted-pin probe to compare against.
+        "**/map-opening-preview.spec.ts",
         // The opening turn and the first-visit card's grip on the pins: both
         // read a real camera and a real painted-pin probe.
         "**/map-arrival-turn.spec.ts",
@@ -304,15 +378,20 @@ export default defineConfig({
         // rendered edge: both need a real MapLibre camera to project from.
         "**/map-deep-link-pin.spec.ts",
         "**/map-console-health.spec.ts",
+        "**/map-credits.spec.ts",
         // Silent basemap-source retry: needs a real error path off a real scene.
         "**/map-tile-retry.spec.ts",
         // Synthetic webglcontextlost recovery — needs a real GL canvas.
         "**/map-webgl-recovery.spec.ts",
         // UK base layer: asserts the zoom gate + a real tap on a painted pin.
         "**/map-uk-base-layer.spec.ts",
+        // London restaurants: one pack read + a real tap on a painted restaurant.
+        "**/map-london-restaurants.spec.ts",
         // /map/list opening List view, and a cold /map opening on London: both
         // need rendered venue rows and a real camera probe.
         "**/map-live-qa-0924.spec.ts",
+        // The Plan result's route strip: a real MapLibre canvas above the cards.
+        "**/plan-route-strip.spec.ts",
         "**/ui-ux-battle-test.spec.ts",
       ],
       use: {
@@ -392,60 +471,15 @@ export default defineConfig({
     ? undefined
     : [
       {
+        cwd: PUBLIC_EVIDENCE_PHASE ? PUBLIC_EVIDENCE_ROOT : undefined,
         command: SCREENSHOT_RUN
           ? `npm run start -- --port ${PORT}`
           : `node scripts/run-with-restored-next-env.mjs npm run build && npm run start -- --port ${PORT}${DISPOSABLE_PLAN_DB ? " --hostname 127.0.0.1" : ""}`,
         // Trusted Plan claims never touch the keyless escape hatch: give each run a
         // fresh process-only signing key via env so it stays out of the command argv.
         env: {
-          NODE_OPTIONS: E2E_NODE_OPTIONS,
-          NEXT_DIST_DIR,
-          // E2E builds run from a checkout whose generated data is stamped
-          // `local`. Keep GitHub's GITHUB_SHA from rewriting those tracked
-          // fixtures and tripping the restored-build guard.
-          NEXT_PUBLIC_SW_VERSION: "local",
-          NEXT_PUBLIC_POSTHOG_E2E_ALLOW_BOT: "1",
-          NEXT_PUBLIC_VAPID_PUBLIC_KEY: E2E_VAPID_PUBLIC_KEY,
-          NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN: E2E_POSTHOG_PROJECT_TOKEN,
-          // Browser auth stays provider-shaped in keyless E2E. Identity specs
-          // seed a Supabase session and intercept this non-routable boundary;
-          // server stores remain keyless and in memory.
-          NEXT_PUBLIC_SUPABASE_URL: DISPOSABLE_PLAN_DB ? DISPOSABLE_SUPABASE_URL! : E2E_SUPABASE_URL,
-          NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY:
-            E2E_SUPABASE_PUBLISHABLE_KEY,
-          SUPABASE_URL: DISPOSABLE_PLAN_DB ? DISPOSABLE_SUPABASE_URL! : "",
-          SUPABASE_SERVICE_ROLE_KEY: DISPOSABLE_PLAN_DB ? DISPOSABLE_SERVICE_ROLE_KEY! : "",
-          OPENROUTER_API_KEY: DISPOSABLE_PLAN_DB ? "" : process.env.OPENROUTER_API_KEY ?? "",
-          VERCEL_ENV: DISPOSABLE_PLAN_DB ? "development" : process.env.VERCEL_ENV ?? "",
-          NEXT_PUBLIC_DISCORD_INVITE_URL: E2E_DISCORD_INVITE_URL,
-          PLAN_IDEMPOTENCY_SECRET: E2E_PLAN_SIGNING_SECRET,
-          ADMIN_TOKEN: E2E_ADMIN_TOKEN,
-          RATE_LIMIT_SALT: E2E_RATE_LIMIT_SALT,
-          PUBMAX_E2E_RATE_LIMIT_MAX: E2E_RATE_LIMIT_MAX,
-          PUBMAX_E2E_LOGIN: "0",
-          PUBMAX_E2E_KEYLESS: DISPOSABLE_PLAN_DB ? "0" : "1",
-          // Auth regressions may opt into the real public Supabase project.
-          // Keep these as pass-throughs: browser tests must not fake auth over
-          // the wire, and ordinary keyless runs remain network-independent.
-          ...(process.env.NEXT_PUBLIC_SUPABASE_URL && !E2E_LOGIN && !DISPOSABLE_PLAN_DB
-            ? {
-                NEXT_PUBLIC_SUPABASE_URL:
-                  process.env.NEXT_PUBLIC_SUPABASE_URL,
-              }
-            : {}),
-          ...(process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY && !E2E_LOGIN && !DISPOSABLE_PLAN_DB
-            ? {
-                NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY:
-                  process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY,
-              }
-            : {}),
-          // The one remaining rollout flag: the Social launch rollback switch.
-          ...(process.env.PUBMAX_SOCIAL_FRIENDS_LAUNCH
-            ? { PUBMAX_SOCIAL_FRIENDS_LAUNCH: process.env.PUBMAX_SOCIAL_FRIENDS_LAUNCH }
-            : {}),
-          ...(E2E_TRACKED_OUTPUTS_ALLOWLIST
-            ? { PUBMAX_TRACKED_OUTPUTS: E2E_TRACKED_OUTPUTS_ALLOWLIST }
-            : {}),
+          ...E2E_SERVER_ENV,
+          NODE_OPTIONS: DISPOSABLE_PLAN_DB ? E2E_NODE_OPTIONS : JOURNEY_FIXTURE_NODE_OPTIONS,
         },
         url: BASE_URL,
         reuseExistingServer: !DISPOSABLE_PLAN_DB && !process.env.CI && !SCREENSHOT_RUN,

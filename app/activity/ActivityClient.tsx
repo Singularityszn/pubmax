@@ -1,5 +1,6 @@
 "use client";
 
+import type { Route } from "next";
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 
@@ -11,6 +12,7 @@ import { useViewerSession } from "@/components/auth/useViewerSession";
 import SignInButton from "@/components/auth/SignInButton";
 import SiteNav from "@/components/nav/SiteNav";
 import NextBadgeChips from "@/components/profile/NextBadgeChips";
+import { profilePath } from "@/lib/appLink";
 import { authedActionFetch } from "@/lib/authedFetch";
 import type { NotificationDTO, NotificationKind } from "@/lib/notifications";
 import { discardBody } from "@/lib/responseBody";
@@ -52,15 +54,15 @@ function verb(kind: NotificationKind): string {
 // The subject link for a notification, or null when there's nothing to link to.
 // follow → the actor's profile; reaction/comment → the drop on the map; crawl_save
 // → the crawl story permalink.
-function subjectHref(n: NotificationDTO): string | null {
+function subjectHref(n: NotificationDTO): Route | null {
   switch (n.kind) {
     case "follow":
-      return `/u/${encodeURIComponent(n.actorHandle)}`;
+      return profilePath(n.actorHandle);
     case "reaction":
     case "comment":
       return n.subjectRef ? `/map?drop=${encodeURIComponent(n.subjectRef)}` : null;
     case "crawl_save":
-      return n.subjectRef ? `/crawls/${encodeURIComponent(n.subjectRef)}` : null;
+      return n.subjectRef ? (`/crawls/${encodeURIComponent(n.subjectRef)}` as Route) : null;
     default:
       return null;
   }
@@ -209,7 +211,7 @@ export default function ActivityClient(): React.JSX.Element {
         as="main"
         id="main"
         className="activity"
-        kicker="Activity"
+        kicker="Your people"
         title="Activity"
         titleId="activity-title"
         lede="Who followed you, cheered a pint, left a comment, or saved your crawl."
@@ -267,7 +269,9 @@ export default function ActivityClient(): React.JSX.Element {
             />
           </div>
         ) : items.length === 0 ? (
-          <EmptyState title="Nothing's landed yet." action={<Link href="/social">Open Social</Link>}>
+          // No way onward of its own: the head's quiet "Find your lot" already
+          // goes to /social, and a second door to the same place is noise.
+          <EmptyState title="Nothing's landed yet.">
             When someone follows you, cheers a Pint Drop, leaves a comment or
             saves one of your crawls, it turns up here. Go give them a reason
             to.

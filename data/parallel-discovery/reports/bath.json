@@ -1,0 +1,225 @@
+{
+  "city": "bath",
+  "districts": 2,
+  "slices": 8,
+  "slicesComplete": 8,
+  "incompleteSlices": [],
+  "skippedSources": [
+    {
+      "district": "BA1",
+      "category": "pub",
+      "url": "https://www.fairfieldarmsbath.co.uk",
+      "host": "www.fairfieldarmsbath.co.uk",
+      "kind": "robots",
+      "reason": "robots unreachable",
+      "attempts": 3,
+      "evidence": [
+        {
+          "at": "2026-10-05T09:34:11.163Z",
+          "reason": "robots-unreachable",
+          "evidence": "https://www.fairfieldarmsbath.co.uk/robots.txt could not be fetched (fetch failed)."
+        },
+        {
+          "at": "2026-10-05T09:34:17.028Z",
+          "reason": "robots-unreachable",
+          "evidence": "https://www.fairfieldarmsbath.co.uk/robots.txt could not be fetched (fetch failed)."
+        },
+        {
+          "at": "2026-10-05T09:34:22.938Z",
+          "reason": "robots-unreachable",
+          "evidence": "https://www.fairfieldarmsbath.co.uk/robots.txt could not be fetched (fetch failed)."
+        }
+      ],
+      "checkedAt": "2026-10-05T09:34:22.938Z"
+    }
+  ],
+  "filteredSources": [
+    {
+      "district": "BA1",
+      "category": "bar",
+      "url": "https://www.bathnes.gov.uk/property/4445-milsom-street-bath-somerset-ba1-1dn",
+      "host": "www.bathnes.gov.uk",
+      "reason": "public body or academic site"
+    },
+    {
+      "district": "BA1",
+      "category": "bar",
+      "url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC8734375",
+      "host": "pmc.ncbi.nlm.nih.gov",
+      "reason": "public body or academic site"
+    },
+    {
+      "district": "BA1",
+      "category": "bar",
+      "url": "https://www.streetcheck.co.uk/postcode/ba12te",
+      "host": "www.streetcheck.co.uk",
+      "reason": "postcode or property lookup"
+    },
+    {
+      "district": "BA2",
+      "category": "bar",
+      "url": "https://www.bath.ac.uk/locations/the-plug-and-the-tub",
+      "host": "www.bath.ac.uk",
+      "reason": "public body or academic site"
+    },
+    {
+      "district": "BA2",
+      "category": "cocktail-bar",
+      "url": "https://www.bath.ac.uk/locations/the-plug-and-the-tub",
+      "host": "www.bath.ac.uk",
+      "reason": "public body or academic site"
+    }
+  ],
+  "taskRuns": 0,
+  "webSearches": 18,
+  "pagesRead": 104,
+  "researched": 12,
+  "added": 0,
+  "retained": [
+    {
+      "name": "Wolf Wine",
+      "id": "venue-bat-1kit5a0"
+    },
+    {
+      "name": "Hudson Bar & Grill",
+      "id": "venue-bat-1ftmwfc"
+    }
+  ],
+  "totalAccepted": 2,
+  "repeats": 0,
+  "duplicates": [
+    {
+      "name": "Curfew",
+      "id": null,
+      "matchedName": "The Curfew",
+      "matchedId": "way/1015286255"
+    },
+    {
+      "name": "Walcot House",
+      "id": null,
+      "matchedName": "The Walcot",
+      "matchedId": "node/4838106409"
+    },
+    {
+      "name": "Bell",
+      "id": null,
+      "matchedName": "The Bell",
+      "matchedId": "way/74536030"
+    },
+    {
+      "name": "Sickle",
+      "id": null,
+      "matchedName": "The Sickle",
+      "matchedId": "way/662692582"
+    },
+    {
+      "name": "Star Inn",
+      "id": null,
+      "matchedName": "The Star Inn",
+      "matchedId": "way/74530685"
+    },
+    {
+      "name": "Bath Cider House",
+      "id": null,
+      "matchedName": "Bath Cider House",
+      "matchedId": "way/594364538"
+    },
+    {
+      "name": "Ale House",
+      "id": null,
+      "matchedName": "The Ale House",
+      "matchedId": "way/89868028"
+    },
+    {
+      "name": "Saracens Head",
+      "id": null,
+      "matchedName": "Saracen's Head Tavern",
+      "matchedId": "way/92228107"
+    },
+    {
+      "name": "Pulteney Arms",
+      "id": null,
+      "matchedName": "The Pulteney Arms",
+      "matchedId": "way/182152732"
+    },
+    {
+      "name": "Boater",
+      "id": null,
+      "matchedName": "The Boater",
+      "matchedId": "way/398959637"
+    }
+  ],
+  "withdrawn": [],
+  "permissionRejected": 0,
+  "rejected": [
+    {
+      "name": "https://www.cntraveller.com/article/best-pubs-in-bath",
+      "reason": "unreadable: robots refused (robots-disallowed)"
+    },
+    {
+      "name": "https://mapcarta.com/W97228692",
+      "reason": "unreadable: robots refused (robots-unreadable)"
+    },
+    {
+      "name": "https://www.welcometobath.co.uk/where-to-watch-the-world-cup-in-bath-the-ultimate-city-centre-guide",
+      "reason": "unreadable: robots refused (robots-unreadable)"
+    },
+    {
+      "name": "https://www.cntraveller.com/article/best-bars-in-bath",
+      "reason": "unreadable: robots refused (robots-disallowed)"
+    },
+    {
+      "name": "https://www.yelp.com/search?cflt=restaurants&find_loc=8+York+St%2C+Bath+BA1+1NG%2C+United+Kingdom",
+      "reason": "unreadable: robots refused (robots-disallowed)"
+    },
+    {
+      "name": "https://crystalroof.co.uk/report/postcode/BA15QT/overview",
+      "reason": "unreadable: source refused HTTP 403"
+    },
+    {
+      "name": "https://se7enbath.com",
+      "reason": "unreadable: robots refused (robots-unreadable)"
+    },
+    {
+      "name": "https://www.cntraveller.com/article/best-bars-in-bath",
+      "reason": "unreadable: robots refused (robots-disallowed)"
+    },
+    {
+      "name": "https://se7enbath.com",
+      "reason": "unreadable: robots refused (robots-unreadable)"
+    },
+    {
+      "name": "https://www.folkandhoney.co.uk/bristol-and-bath/venues?strana=2",
+      "reason": "unreadable: robots refused (robots-unreadable)"
+    },
+    {
+      "name": "https://www.cntraveller.com/article/best-bars-in-bath",
+      "reason": "unreadable: robots refused (robots-disallowed)"
+    },
+    {
+      "name": "https://se7enbath.com",
+      "reason": "unreadable: robots refused (robots-unreadable)"
+    },
+    {
+      "name": "https://www.cntraveller.com/article/best-bars-in-bath",
+      "reason": "unreadable: robots refused (robots-disallowed)"
+    },
+    {
+      "name": "https://www.fullers.co.uk/pubs/pub-finder/cask-ale-pubs/somerset",
+      "reason": "unreadable: source refused HTTP 403"
+    },
+    {
+      "name": "https://crystalroof.co.uk/report/postcode/BA26PW/overview",
+      "reason": "unreadable: source refused HTTP 403"
+    },
+    {
+      "name": "https://www.cntraveller.com/article/best-bars-in-bath",
+      "reason": "unreadable: robots refused (robots-disallowed)"
+    },
+    {
+      "name": "https://www.yelp.com/search?cflt=bars&find_loc=Bath+BA2+9BN",
+      "reason": "unreadable: robots refused (robots-disallowed)"
+    }
+  ],
+  "outputPath": "data/cities/bath/parallel_venues.json"
+}

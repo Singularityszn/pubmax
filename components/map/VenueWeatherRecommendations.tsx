@@ -1,6 +1,7 @@
 "use client";
 
 import { Check, CloudSun } from "lucide-react";
+import { useStaggeredRead } from "@/lib/useStaggeredRead";
 import Link from "next/link";
 import { useCallback, useEffect, useState, type FormEvent } from "react";
 
@@ -297,14 +298,16 @@ export default function VenueWeatherRecommendations({
     [venueId],
   );
 
+  const ready = useStaggeredRead(3, venueId);
   useEffect(() => {
+    if (!ready) return;
     const controller = new AbortController();
     async function begin() {
       await loadRecommendations(controller.signal);
     }
     void begin();
     return () => controller.abort();
-  }, [loadRecommendations]);
+  }, [ready, loadRecommendations]);
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -400,7 +403,7 @@ export default function VenueWeatherRecommendations({
       aria-labelledby={`weatherRecTitle-${venueId}`}
     >
       <div className="weatherRecHead">
-        <CloudSun size={17} aria-hidden="true" />
+        <CloudSun size={16} aria-hidden="true" />
         <h3 id={`weatherRecTitle-${venueId}`}>Recommend it for the weather</h3>
       </div>
 
@@ -514,7 +517,7 @@ export default function VenueWeatherRecommendations({
 
           {saved ? (
             <p className="weatherRecSaved" role="status">
-              <Check size={15} aria-hidden="true" />
+              <Check size={16} aria-hidden="true" />
               Saved under @{saved.contributorHandle} for{" "}
               {weatherRecommendationConditionLabel(
                 saved.condition,

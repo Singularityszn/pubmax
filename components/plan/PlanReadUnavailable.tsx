@@ -42,9 +42,8 @@ export default function PlanReadUnavailable({
       </header>
 
       <EmptyState title={title} action={<a href={href}>Try again</a>}>
-        Our end could not answer just now, so nothing here is a reading of your
-        night. Whether the plan is still there is a thing this page could not
-        find out.
+        Our server could not answer just now, so this page can&apos;t show your
+        night. We couldn&apos;t check whether the plan still exists either.
       </EmptyState>
     </main>
   );

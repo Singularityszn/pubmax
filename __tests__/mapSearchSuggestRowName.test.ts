@@ -4,6 +4,7 @@ import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 
 import { buildMapSearchSuggestions } from "@/lib/mapSearchSuggest";
+import { defined } from "@/__tests__/helpers/defined";
 
 /**
  * Taste gate 2026-08-02, finding M6 - the suggestion row cut the name.
@@ -31,7 +32,7 @@ function rule(selector: string): string {
     new RegExp(`^${selector.replace(".", "\\.")}\\s*\\{([^}]*)\\}`, "m"),
   );
   expect(match, `the ${selector} rule`).not.toBeNull();
-  return match![1];
+  return defined(match?.[1]);
 }
 
 describe("finding M6 - the name owns the suggestion row", () => {

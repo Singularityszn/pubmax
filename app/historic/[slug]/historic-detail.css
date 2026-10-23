@@ -1,195 +1,208 @@
 /* Per-pub heritage DETAIL page (/historic/[slug]).
-   The canonical, shareable, SEO-first surface for one notable pub. Shares the
-   app's printed-guidebook language with the /historic index — light type, brass
-   accents, raised panels, river-blue links — but as a single-column reading
-   page rather than a card grid. Tokens only (paper, panel-raised, ink,
-   ink-soft, muted, line, brass, river, radius, shadow scales from globals.css
-   + theme.css); no hardcoded hex. Mobile-first (390px), 44px tap targets, both
-   themes, reduced-motion safe. Bottom padding clears the mobile tab bar. */
+   The canonical, shareable, SEO-first surface for one notable pub: a single
+   reading column. Under the head come the price (the answer), then ONE
+   section of evidence under ONE heading, then the ways to share it (taste
+   plan, 18 Oct 2026). Tokens only, both themes track, no coral: coral is the
+   Screen primary's alone, and a citation is a sentence, not a box. The shell
+   and the section heading are the listing pages' own
+   (components/listing/listing.css). */
 
-/* The head (kicker, the pub's own name, the one primary action) is the Screen
-   primitive (components/ui/screen.tsx), which owns the page gutter, so the page
-   itself carries none and the back link above the head pays the same gutter. */
 .hdPage {
-  max-width: 720px;
-  margin: 0 auto;
-  padding: 16px 0 calc(96px + env(safe-area-inset-bottom, 0px));
-  color: var(--ink);
+  padding-block: var(--space-2) calc(var(--space-12) + env(safe-area-inset-bottom, 0px));
+}
+
+/* Everything under the head reads in the reading column. */
+.hdScreen > :not(.screenHead) {
+  max-width: var(--content-max);
 }
 
 .hdBack {
-  margin: 8px 0 0;
-  padding-inline: var(--page-gutter);
+  margin: var(--space-2) auto 0;
 }
 
 .hdBackLink {
   display: inline-flex;
   align-items: center;
   min-height: 44px;
-  font-size: 0.82rem;
-  font-weight: 700;
-  color: var(--river);
+  color: var(--color-text-muted);
+  font-size: var(--text-sm);
+  font-weight: 600;
   text-decoration: none;
 }
 
-.hdBackLink:hover {
-  text-decoration: underline;
+@media (hover: hover) and (pointer: fine) {
+  .hdBackLink:hover {
+    color: var(--color-text);
+    text-decoration: underline;
+    text-underline-offset: 3px;
+  }
 }
 
 .hdBackLink:focus-visible {
-  outline: 2px solid var(--river);
+  outline: 2px solid var(--color-text);
   outline-offset: 2px;
-  border-radius: 3px;
+  border-radius: var(--radius-sm);
 }
 
-/* The facts strip under the head: era, grade, status, borough. */
-.hdMeta {
+/* A photograph of the pub itself, only where we hold one (The Black Friar).
+   It follows the price, which is the answer, and leads the evidence. */
+.hdPhoto {
+  margin: 0 0 var(--space-8);
+}
+
+/* The listed pint: the first thing under the head, in the landing answer
+   card's shape (the banded figure, the drink, then who listed it and when). */
+.hdPrice {
+  display: grid;
+  gap: var(--space-1);
+  margin: 0 0 var(--space-8);
+}
+
+.hdPriceFigure {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 6px 10px;
-  margin: 0 0 22px;
+  gap: var(--space-2) var(--space-3);
+  margin: 0;
 }
 
-.hdEra {
-  display: inline-flex;
-  align-items: center;
-  padding: 3px 11px;
-  border-radius: var(--radius-pill, 999px);
-  background: color-mix(in srgb, var(--brass) 14%, var(--panel-raised));
-  border: 1px solid color-mix(in srgb, var(--brass) 30%, transparent);
-  font-size: 0.74rem;
-  font-weight: 700;
-  color: var(--tint-ink-accent);
-}
-
-.hdGrade {
-  display: inline-flex;
-  align-items: center;
-  padding: 3px 11px;
-  border-radius: var(--radius-pill, 999px);
-  background: color-mix(in srgb, var(--river) 14%, var(--panel-raised));
-  border: 1px solid color-mix(in srgb, var(--river) 32%, transparent);
-  font-size: 0.72rem;
-  font-weight: 700;
-  letter-spacing: 0.01em;
-  color: var(--tint-ink-info);
-}
-
-.hdBorough {
-  font-size: 0.85rem;
+.hdPricePint {
+  color: var(--color-text);
+  font-size: var(--text-base);
   font-weight: 600;
-  color: var(--muted);
 }
 
-.hdBoroughLink {
-  color: var(--river);
-  text-decoration: none;
+.hdPriceSource,
+.hdPriceNone {
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: var(--text-sm);
+  line-height: var(--leading-normal);
 }
 
-.hdBoroughLink:hover {
+.hdPriceSource a,
+.hdPriceLog,
+.hdBoroughLink,
+.hdCite {
+  color: var(--color-text);
+  font-weight: 600;
   text-decoration: underline;
+  text-decoration-color: var(--hairline-strong);
+  text-underline-offset: 3px;
 }
 
-.hdBoroughLink:focus-visible {
-  outline: 2px solid var(--river);
+.hdPriceLog {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .hdPriceSource a:hover,
+  .hdPriceLog:hover,
+  .hdBoroughLink:hover,
+  .hdCite:hover {
+    text-decoration-color: currentColor;
+  }
+}
+
+.hdPriceSource a:focus-visible,
+.hdPriceLog:focus-visible,
+.hdBoroughLink:focus-visible,
+.hdCite:focus-visible {
+  outline: 2px solid var(--color-text);
   outline-offset: 2px;
-  border-radius: 3px;
+  border-radius: var(--radius-sm);
 }
 
-/* The cited story */
+/* --- the evidence ------------------------------------------------------- */
+
 .hdStory {
-  margin: 0 0 26px;
+  margin: 0 0 var(--space-8);
 }
 
-.hdStoryHeading {
-  margin: 0 0 12px;
-  font-size: 0.72rem;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--brass);
+/* Date, listing, status, borough: a term and its value to a line, a hairline
+   above each. */
+.hdMeta {
+  display: grid;
+  margin: var(--space-3) 0 var(--space-4);
+}
+
+.hdMeta > div {
+  display: grid;
+  grid-template-columns: 5.5rem minmax(0, 1fr);
+  gap: var(--space-3);
+  align-items: baseline;
+  padding-block: var(--space-2);
+  border-top: 1px solid var(--line-soft);
+}
+
+.hdMeta dt {
+  color: var(--color-text-muted);
+  font-size: var(--text-sm);
+}
+
+.hdMeta dd {
+  margin: 0;
+  color: var(--color-text);
+  font-size: var(--text-sm);
+  font-weight: 600;
+}
+
+.hdIntroSource {
+  margin: 0 0 var(--space-4);
+  color: var(--color-text-muted);
+  font-size: var(--text-sm);
+  line-height: var(--leading-normal);
+}
+
+.hdCite {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
 }
 
 .hdFacts {
   list-style: none;
   margin: 0;
   padding: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
 }
 
+/* A fact and its source, as a paragraph and a line under it. No box. */
 .hdFact {
-  padding: 16px;
-  border: 1px solid var(--line);
-  border-radius: var(--radius-lg, 18px);
-  background: var(--panel-raised);
-  box-shadow: var(--shadow-sm);
+  padding-block: var(--space-4);
+  border-top: 1px solid var(--line-soft);
 }
 
 .hdFactText {
-  margin: 0 0 10px;
-  font-size: 0.95rem;
-  line-height: 1.55;
-  color: var(--ink);
+  margin: 0 0 var(--space-1);
+  color: var(--color-text);
+  font-size: var(--text-base);
+  line-height: var(--leading-normal);
   text-wrap: pretty;
 }
 
 .hdFactProvenance {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 8px 12px;
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: var(--text-sm);
 }
 
-.hdSource {
-  display: inline-flex;
-  align-items: center;
-  padding: 2px 9px;
-  border-radius: var(--radius-pill, 999px);
-  border: 1px solid var(--line);
-  background: color-mix(in srgb, var(--ink) 4%, var(--panel-raised));
-  font-size: 0.7rem;
-  font-weight: 700;
-  letter-spacing: 0.02em;
-  color: var(--muted);
-}
+/* --- actions + share ---------------------------------------------------- */
 
-.hdCite {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  font-size: 0.78rem;
-  font-weight: 700;
-  color: var(--river);
-  text-decoration: none;
-}
-
-.hdCite:hover {
-  text-decoration: underline;
-}
-
-.hdCite:focus-visible {
-  outline: 2px solid var(--river);
-  outline-offset: 2px;
-  border-radius: 3px;
-}
-
-/* Actions + share */
 .hdActions {
   display: flex;
   flex-direction: column;
-  gap: 16px;
-  margin: 0 0 24px;
-  padding-top: 20px;
-  border-top: 1px solid var(--line);
+  gap: var(--space-4);
+  margin: 0 0 var(--space-6);
+  padding-top: var(--space-5);
+  border-top: 1px solid var(--line-soft);
 }
 
 .hdActionRow {
   display: flex;
   flex-wrap: wrap;
-  gap: 10px;
+  gap: var(--space-2);
 }
 
 .hdAction picture {
@@ -202,62 +215,57 @@
   border-radius: 50%;
 }
 
+/* A neutral secondary: an outline on --hairline-strong, ink words. */
 .hdAction {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: var(--space-2);
   min-height: 44px;
-  padding: 0 18px;
-  border: 1px solid var(--line);
-  border-radius: var(--radius-pill, 999px);
-  background: var(--panel-raised);
-  color: var(--ink);
-  font-size: 0.86rem;
-  font-weight: 700;
+  padding: 0 var(--space-4);
+  border: 1px solid var(--hairline-strong);
+  border-radius: var(--control-radius);
+  color: var(--color-text);
+  font-size: var(--text-sm);
+  font-weight: 600;
   text-decoration: none;
-  transition: border-color 0.16s ease, background 0.16s ease;
 }
 
 @media (hover: hover) and (pointer: fine) {
   .hdAction:hover {
-    border-color: color-mix(in srgb, var(--brass) 45%, var(--line));
+    border-color: var(--state-selected-border);
+    background: var(--state-selected-surface);
   }
 }
 
 .hdAction:focus-visible {
-  outline: 2px solid var(--brass);
+  outline: 2px solid var(--color-text);
   outline-offset: 2px;
 }
 
 /* Provenance footer */
 .hdProvenance {
   margin: 0;
-  font-size: 0.78rem;
-  font-weight: 600;
-  color: var(--muted);
+  color: var(--color-text-muted);
+  font-size: var(--text-xs);
 }
 
-/* Entrance — a quiet settle, suppressed under reduced-motion. */
-@media (prefers-reduced-motion: no-preference) {
-  .hdStory,
-  .hdActions {
-    animation: hdFadeIn var(--duration-base, 0.24s) var(--ease-out, ease) both;
+/* The price's source and date opt in to the compose action's lane, as a price
+   column does (lib/createFabScrollTuck.ts): running prose relies on the
+   control tucking away, but a price's provenance may not sit under it. */
+@media (max-width: 640px) {
+  body:has(.createFabRoot):not(:has(.pageHidesCreateFab)) .hdPriceSource {
+    padding-right: max(0px, calc(var(--create-fab-lane) - var(--page-gutter)));
   }
-  .hdStory {
-    animation-delay: 40ms;
-  }
-  .hdActions {
-    animation-delay: 80ms;
-  }
+}
 
-  @keyframes hdFadeIn {
-    from {
-      opacity: 0;
-      transform: translateY(8px);
-    }
-    to {
-      opacity: 1;
-      transform: none;
-    }
-  }
+/* The credits link sits inside a sentence. It stays inline so the line keeps
+   its height, and its padding gives the thumb the 44px the phone tap-target
+   pin measures (e2e/phone-tap-targets.spec.ts). */
+.historicCreditsLink {
+  display: inline-block;
+  padding-block: var(--space-3);
+  margin-block: calc(-1 * var(--space-3));
+  color: inherit;
+  text-decoration: underline;
+  text-underline-offset: 2px;
 }

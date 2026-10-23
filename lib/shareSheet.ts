@@ -1,4 +1,5 @@
 import { shareViaNativeSheet, type NativeShareOutcome } from "@/lib/nativeShare";
+import { openExternalTab } from "@/lib/openExternalTab";
 import { whatsappShareHref } from "@/lib/shareArtifacts";
 import { isUserCancelledShare } from "@/lib/venueShare";
 
@@ -39,8 +40,8 @@ export type ShareNightObjectInput = {
 };
 
 // Injectable seams so the flow is unit-testable without a browser: `nav`
-// defaults to the real navigator, `openWindow` to window.open (which returns
-// null when a popup blocker eats the tab — surfaced as "failed").
+// defaults to the real navigator, `openWindow` to openExternalTab (false only
+// when a popup blocker really ate the tab, surfaced as "failed").
 export type ShareSheetDeps = {
   nav?: { share?: (data: { title: string; text: string; url: string }) => Promise<void> };
   openWindow?: (href: string) => unknown;
@@ -55,8 +56,7 @@ export async function shareNightObject(
   const nav = deps.nav ?? (typeof navigator === "undefined" ? undefined : navigator);
   const openWindow =
     deps.openWindow ??
-    ((href: string) =>
-      typeof window === "undefined" ? null : window.open(href, "_blank", "noopener,noreferrer"));
+    ((href: string) => openExternalTab(href));
 
   const shareNatively = deps.shareNatively ?? ((value: ShareNightObjectInput) => shareViaNativeSheet(value));
   const native = await shareNatively(input);

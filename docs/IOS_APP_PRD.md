@@ -8,9 +8,10 @@
 > **Historical implementation snapshot.** This PRD records the 18 July review
 > state and is not the current build ledger. Since then, F1-F3 have landed,
 > the prompt-orchestration contract and implementation have landed, A2HS is
-> suppressed inside the native shell, and Android is also scaffolded. A genuine
-> first native launch opens guarded `/onboarding`; later cold starts open
-> `/tonight`, while a later in-session Home visit may reach `/`. F4 (real Team
+> suppressed inside the native shell, and Android is also scaffolded. A first
+> native launch opens guarded `/onboarding`, and a relaunch resumes it until
+> Skip or Plan my night; later cold starts open `/tonight`, while a later
+> in-session Home visit may reach `/`. F4 (real Team
 > ID + Associated Domains) remains owner-blocked. APNs and FCM delivery still
 > need owner credentials, signed builds, and physical-device proof.
 > Use `docs/CAPACITOR_WRAP.md`, `docs/STORE_READINESS.md`, and
@@ -36,7 +37,7 @@ The three native superpowers the shell adds on top of the site:
 
 1. **Real camera** — moment capture goes through `@capacitor/camera` instead of the WKWebView file-input (`lib/nativeCamera.ts`, wired into `components/moment/MomentCapture.tsx`). The web `capture="environment"` attribute is unreliable inside WKWebView; the native path returns a `File` shaped exactly like a file-input selection, so the rest of the moment pipeline is unchanged.
 2. **Push** — device-token registration today (`lib/nativePush.ts` → `POST /api/push-tokens`), server-side delivery behind an APNs-ready seam (`lib/pushProvider.ts`, `lib/pushSender.ts`). The launch payload is the **night-signal "went live" broadcast** (`broadcastNightSignalLive()`), the only push that can send pre-identity (see §2).
-3. **Home-screen presence** - a real App Store icon and one entry policy. A genuine first native launch opens the guarded `/onboarding` route. Later cold starts open `/tonight`; a later in-session Home visit can reach the landing page. `lib/entryDecision.ts`, `lib/nativeFirstRun.ts`, and `components/native/AppEntryRoute.tsx` own this behavior.
+3. **Home-screen presence** - a real App Store icon and one entry policy. A first native launch opens the guarded `/onboarding` route, and a relaunch resumes it until Skip or Plan my night. Later cold starts open `/tonight`; a later in-session Home visit can reach the landing page. `lib/entryDecision.ts`, `lib/nativeFirstRun.ts`, and `components/native/AppEntryRoute.tsx` own this behavior.
 
 **What v1 deliberately is NOT:**
 - **No offline app rebuild.** The shell loads `https://pubmaxxing.com` live (remote-URL mode). There is no bundled copy of the product. `native/web-stub/offline.html`, wired through `server.errorPath`, gives an honest retry surface when the first production load fails.

@@ -67,7 +67,7 @@ async function prepare(page: Page): Promise<void> {
     route.fulfill({
       status: 200,
       contentType: "application/json",
-      body: JSON.stringify({ status: "ready", rows: [], observedAt: {} }),
+      body: JSON.stringify({ status: "ready", rows: [], servedAt: new Date().toISOString(), observedAt: {} }),
     }),
   );
   await page.route(isOutListingsRequest, (route) =>
@@ -82,28 +82,86 @@ async function prepare(page: Page): Promise<void> {
 type Undersized = { label: string; width: number; height: number };
 
 /**
- * Every visible anchor and button in the page's main content, with a box
- * smaller than a thumb in either direction. A control inside a closed
- * disclosure paints nothing, so it is not measured until it opens.
+ * Every visible anchor and button under `scope`, with a hit box smaller than a
+ * thumb in either direction. A control inside a closed disclosure paints
+ * nothing, so it is not measured until it opens.
+ *
+ * The hit box is the element's own border box, with ONE exception: a STRETCHED
+ * LINK. The shared list row (components/ui/row-list.tsx) makes the whole row
+ * one tap target through its title link's `::after`, positioned absolutely at
+ * inset 0, so a tap anywhere on the row lands on the link while the <a> box
+ * itself is one line of text. For that link alone the measure reads the box
+ * the pseudo-element actually covers: the padding box of its containing block
+ * (the nearest ancestor that contains an absolute box). Anything short of
+ * that exact shape (an inset other than 0 on any side, a pseudo-element that
+ * takes no pointer events, paints no content or is not absolute) is measured
+ * by its own box as before, and a stretched link inside a small row is still
+ * held to the full 44 px (proved by the fixture test at the foot of this file).
  */
-async function undersizedTargets(page: Page): Promise<Undersized[]> {
-  return page.locator("main").evaluate((main, min) => {
-    const found: Undersized[] = [];
-    for (const element of main.querySelectorAll<HTMLElement>("a[href], button")) {
-      if (element.closest("details:not([open])") && !element.matches("summary *")) continue;
-      const style = getComputedStyle(element);
-      if (style.visibility === "hidden" || style.display === "none") continue;
-      const box = element.getBoundingClientRect();
-      if (box.width === 0 || box.height === 0) continue;
-      if (box.width >= min && box.height >= min) continue;
-      const text = (element.textContent ?? "").trim().replace(/\s+/g, " ").slice(0, 40);
-      const label = `${element.tagName.toLowerCase()}.${[...element.classList].join(".")} "${
-        element.getAttribute("aria-label") ?? text
-      }"`;
-      found.push({ label, width: Math.round(box.width), height: Math.round(box.height) });
-    }
-    return found;
-  }, MIN_HIT);
+function measureUndersized({ scopeSelector, min }: { scopeSelector: string; min: number }): Undersized[] {
+  const scope = document.querySelector(scopeSelector);
+  if (!scope) throw new Error(`no ${scopeSelector} to measure`);
+
+  const establishesAbsoluteContainingBlock = (element: Element): boolean => {
+    const style = getComputedStyle(element);
+    return (
+      style.position !== "static" ||
+      style.transform !== "none" ||
+      style.perspective !== "none" ||
+      style.filter !== "none" ||
+      style.containerType !== "normal" ||
+      /\b(layout|paint|strict|content)\b/.test(style.contain) ||
+      /\b(transform|perspective|filter)\b/.test(style.willChange)
+    );
+  };
+
+  /** The rectangle a tap lands on the element in. */
+  const hitBox = (element: HTMLElement): { width: number; height: number } => {
+    const own = element.getBoundingClientRect();
+    if (element.tagName !== "A") return own;
+    const after = getComputedStyle(element, "::after");
+    const stretched =
+      after.content !== "none" &&
+      after.content !== "normal" &&
+      after.display !== "none" &&
+      after.position === "absolute" &&
+      after.pointerEvents !== "none" &&
+      after.visibility !== "hidden" &&
+      [after.top, after.right, after.bottom, after.left].every((side) => side === "0px");
+    if (!stretched) return own;
+    // The pseudo-element's own parent is the <a>, so the walk starts there: a
+    // positioned link contains its own ::after and gains nothing.
+    let block: Element | null = element;
+    while (block && !establishesAbsoluteContainingBlock(block)) block = block.parentElement;
+    if (!block) return { width: window.innerWidth, height: window.innerHeight };
+    const rect = block.getBoundingClientRect();
+    const style = getComputedStyle(block);
+    return {
+      width: rect.width - parseFloat(style.borderLeftWidth) - parseFloat(style.borderRightWidth),
+      height: rect.height - parseFloat(style.borderTopWidth) - parseFloat(style.borderBottomWidth),
+    };
+  };
+
+  const found: Undersized[] = [];
+  for (const element of scope.querySelectorAll<HTMLElement>("a[href], button")) {
+    if (element.closest("details:not([open])") && !element.matches("summary *")) continue;
+    const style = getComputedStyle(element);
+    if (style.visibility === "hidden" || style.display === "none") continue;
+    const own = element.getBoundingClientRect();
+    if (own.width === 0 || own.height === 0) continue;
+    const box = hitBox(element);
+    if (box.width >= min && box.height >= min) continue;
+    const text = (element.textContent ?? "").trim().replace(/\s+/g, " ").slice(0, 40);
+    const label = `${element.tagName.toLowerCase()}.${[...element.classList].join(".")} "${
+      element.getAttribute("aria-label") ?? text
+    }"`;
+    found.push({ label, width: Math.round(box.width), height: Math.round(box.height) });
+  }
+  return found;
+}
+
+async function undersizedTargets(page: Page, scopeSelector = "main"): Promise<Undersized[]> {
+  return page.evaluate(measureUndersized, { scopeSelector, min: MIN_HIT });
 }
 
 const ROUTES = [
@@ -113,7 +171,12 @@ const ROUTES = [
     ready: (page: Page) => page.getByTestId("tonight-hyped-row").first(),
   },
   {
-    path: "/out",
+    // /out folded into /tonight (16 Oct 2026): its credits now sit under
+    // Tonight's Tomorrow switch, so the test taps it before measuring.
+    path: "/tonight",
+    name: "/tonight later listings",
+    open: (page: Page) =>
+      page.getByTestId("tonight-later").getByRole("button", { name: "Tomorrow", exact: true }).click(),
     family: ".outSourceCredit",
     ready: (page: Page) => page.getByRole("heading", { name: "A Night at the Playhouse" }),
   },
@@ -127,7 +190,13 @@ const ROUTES = [
     family: ".screenSecondary > a",
     ready: (page: Page) => page.getByRole("heading", { name: "Keep this one." }),
   },
-] as const;
+] as const satisfies readonly {
+  path: string;
+  name?: string;
+  open?: (page: Page) => Promise<void>;
+  family: string;
+  ready: (page: Page) => ReturnType<Page["locator"]>;
+}[];
 
 // A cold production server paints /historic's 342 cited pubs slowly, and axe
 // then walks every node of that page. The default 30 s ceiling timed out the
@@ -136,11 +205,12 @@ const ROUTES = [
 test.describe("phone tap targets @390", () => {
   test.describe.configure({ timeout: 90_000 });
   for (const route of ROUTES) {
-    test(`${route.path}: every anchor and button in main is at least 44 px each way`, async ({
+    test(`${"name" in route ? route.name : route.path}: every anchor and button in main is at least 44 px each way`, async ({
       page,
     }) => {
       await prepare(page);
       await page.goto(route.path);
+      if ("open" in route) await route.open(page);
       await expect(route.ready(page)).toBeVisible({ timeout: 20_000 });
       // The family the audit named has to be ON the page, or an empty page
       // would pass by measuring nothing.
@@ -158,9 +228,10 @@ test.describe("phone tap targets @390", () => {
 test.describe("coral words in light @390", () => {
   test.describe.configure({ timeout: 90_000 });
   for (const route of ROUTES.filter((candidate) => candidate.path !== "/moment")) {
-    test(`${route.path} has no text below AA contrast`, async ({ page }, testInfo) => {
+    test(`${"name" in route ? route.name : route.path} has no text below AA contrast`, async ({ page }, testInfo) => {
       await prepare(page);
       await page.goto(route.path);
+      if ("open" in route) await route.open(page);
       await expect(route.ready(page)).toBeVisible({ timeout: 20_000 });
       await expect(page.locator("html")).not.toHaveAttribute("data-theme", "dark");
 
@@ -174,5 +245,48 @@ test.describe("coral words in light @390", () => {
       );
       expect(offenders).toEqual([]);
     });
+  }
+});
+
+// The measure above reads a stretched link at the box its ::after covers. That
+// is an exception to a strict rule, so it is proved strict on a fixture: a
+// stretched link counts its row only when the row is a thumb tall, and every
+// near miss of the stretched shape is still measured by the link's own box.
+test("the tap-target measure credits a stretched link with its row, and nothing smaller", async ({ page }) => {
+  await page.setViewportSize(PHONE);
+  await page.setContent(`
+    <style>
+      body { margin: 0; font: 16px/1.3 sans-serif; }
+      li { list-style: none; }
+      .row { position: relative; width: 300px; padding: 12px 8px; }
+      .row--tall { min-height: 56px; box-sizing: border-box; }
+      .row--short { height: 30px; box-sizing: border-box; padding: 4px 8px; }
+      .stretch::after { content: ""; position: absolute; inset: 0; }
+      .inset::after { content: ""; position: absolute; inset: 0 0 0 4px; }
+      .inert::after { content: ""; position: absolute; inset: 0; pointer-events: none; }
+      .self { position: relative; }
+    </style>
+    <main>
+      <ul>
+        <li class="row row--tall"><a class="stretch" href="#tall">Tall row</a></li>
+        <li class="row row--short"><a class="stretch" href="#short">Short row</a></li>
+        <li class="row row--tall"><a class="stretch self" href="#self">Positioned link</a></li>
+        <li class="row row--tall"><a class="inset" href="#inset">Inset row</a></li>
+        <li class="row row--tall"><a class="inert" href="#inert">Inert row</a></li>
+        <li class="row row--tall"><a href="#plain">Plain link</a></li>
+      </ul>
+    </main>
+  `);
+
+  const labels = (await undersizedTargets(page)).map((target) => target.label);
+  // The tall stretched row is a thumb's target: its link is not reported.
+  expect(labels.some((label) => label.includes("Tall row"))).toBe(false);
+  // A stretched link whose row is 30 px tall still fails, at the row's height.
+  const short = (await undersizedTargets(page)).find((target) => target.label.includes("Short row"));
+  expect(short, "a stretched link in a 30 px row is undersized").toBeDefined();
+  expect(short!.height).toBe(30);
+  // Near misses of the stretched shape are measured by the link's own box.
+  for (const name of ["Positioned link", "Inset row", "Inert row", "Plain link"]) {
+    expect(labels.some((label) => label.includes(name)), `${name} is measured by its own box`).toBe(true);
   }
 });

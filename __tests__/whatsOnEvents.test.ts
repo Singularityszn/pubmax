@@ -17,6 +17,7 @@ import {
 } from "@/lib/whatson/eventNormalise.mjs";
 import { buildVenueResolverIndex, resolveVenueId } from "../scripts/whatson/resolveVenueId.mjs";
 import { isValidWhatsOnRow } from "@/lib/whatsOn";
+import { defined } from "@/__tests__/helpers/defined";
 
 const observedAt = "2026-07-18T09:00:00.000Z";
 const now = Date.parse(observedAt);
@@ -194,8 +195,8 @@ describe("mapSkiddleEvent", () => {
       { observedAt, venueIndex, resolveVenue: resolveVenueId },
     );
     expect(rows).toHaveLength(2);
-    expect(rows[0].source).toEqual({ ...SKIDDLE_SOURCE, url: "https://www.skiddle.com/whats-on/e/900" });
-    expect(rows[1].kind).toBe("event");
+    expect(defined(rows[0]).source).toEqual({ ...SKIDDLE_SOURCE, url: "https://www.skiddle.com/whats-on/e/900" });
+    expect(defined(rows[1]).kind).toBe("event");
   });
 
   it("returns empty rows for absent/malformed payloads", () => {

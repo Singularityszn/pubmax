@@ -3,6 +3,7 @@
 // W3 - Deals vertical UI. Consumes /api/whats-on?kind=deal so
 // Discover surfaces the 384-row deals spine instead of leaving it invisible.
 
+import type { Route } from "next";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { PoundSterling } from "lucide-react";
@@ -113,7 +114,7 @@ export default function DealsTonightLane({
     <section className="dealsTonight" aria-labelledby="deals-tonight-title">
       <div className="dealsTonightHead">
         <h2 id="deals-tonight-title">
-          <PoundSterling size={18} aria-hidden="true" />
+          <PoundSterling size={16} aria-hidden="true" />
           <span>Deals tonight</span>
         </h2>
         <span className="dealsTonightChecked">
@@ -126,7 +127,7 @@ export default function DealsTonightLane({
       </p>
       <ul className="dealsTonightList">
         {rows.map((row) => {
-          const mapHref = row.venueId
+          const mapHref: Route = row.venueId
             ? `/map?sel=${encodeURIComponent(row.venueId)}`
             : preferredCityMapHref();
           const ends = dealEndsCaption(row, now);

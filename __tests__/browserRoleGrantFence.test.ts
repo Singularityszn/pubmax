@@ -37,7 +37,7 @@ const TABLE_SELECT: Readonly<Record<string, readonly BrowserRole[]>> = {
   check_ins: SIGNED_IN,
   conversation_members: SIGNED_IN,
   conversations: SIGNED_IN,
-  crawl_stories: EVERYONE,
+  diary_entries: SIGNED_IN,
   drinks: EVERYONE,
   follows: SIGNED_IN,
   message_poll_votes: SIGNED_IN,

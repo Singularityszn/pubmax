@@ -6,7 +6,7 @@
 // Owner amendment (2026-07-21, amends #439): the old absolute "the shell never
 // sees the landing page" is relaxed to "the shell never COLD-STARTS on the
 // landing page". A cold start is unchanged — the shell still lands on /tonight.
-// But a deliberate in-app navigation to "/" (e.g. tapping the PUBMAXXING
+// But a deliberate in-app navigation to "/" (e.g. tapping the PUBMAXX
 // wordmark, SiteNav.tsx href="/") must now REACH the landing page — the Home
 // Screen that shows how the app works. So the entry decision only fires on the
 // session's FIRST arrival at "/" (the cold start); every later arrival stays.
@@ -20,7 +20,8 @@
 //
 // "App shell" here means either signal, probed through existing seams only:
 //   - the Capacitor native wrap (lib/nativePlatform.ts isNativeApp(); the
-//     remote-URL wrap in capacitor.config.ts always loads the site root), or
+//     older remote-URL binaries load the site root; newer ones start at the
+//     static "/app-entry" document, decided by public/theme-init.js alone), or
 //   - an installed PWA running standalone (display-mode media query or the
 //     iOS navigator.standalone flag, same signals lib/a2hsPrompt.ts reads).
 //
@@ -28,8 +29,8 @@
 //   1. Deep link — any path other than "/" is an explicit destination (share
 //      link, push click-through, universal link) and bypasses the decision
 //      untouched, shell or not. The decision NEVER rewrites a deep link.
-//   2. Native first-run at the root — a genuine native first-run opens the
-//      dedicated onboarding (lib/nativeFirstRun.ts gate, native shell only).
+//   2. Native first-run at the root — a new or unfinished native first run
+//      opens the dedicated onboarding (lib/nativeFirstRun.ts gate, native shell only).
 //      Precedence UNCHANGED by the 2026-07-21 amendment.
 //   3. Session revisit — the cold-start decision already ran this session, so a
 //      later arrival at "/" (in-app home tap) stays on the landing page, shell
@@ -42,6 +43,7 @@
 // tests in the node vitest env; the thin live probes at the bottom are the
 // only globals readers, mirroring the lib/a2hsPrompt.ts snapshot idiom.
 
+import type { Route } from "next";
 import { readPreferredCity } from "@/lib/cityPreference";
 import { ONBOARDING_PATH } from "@/lib/firstRunRoute";
 import {
@@ -52,7 +54,7 @@ import { isNativeApp } from "@/lib/nativePlatform";
 
 /** Where every post-first-run shell open lands (owner-locked, issue #439). */
 export const SHELL_START_PATH = "/tonight";
-/** The native shell's one-time first-run surface (owner-locked, issue #441).
+/** The native shell's first-run surface, resumed until Skip or Plan my night (owner-locked, issue #441).
  *  Held in a leaf so proxy.ts can read the path without this module's imports. */
 export { ONBOARDING_PATH };
 
@@ -64,8 +66,9 @@ export type EntryContext = {
   /** Installed-PWA standalone launch (display-mode / navigator.standalone). */
   isStandaloneDisplay: boolean;
   /**
-   * Genuine native first-run per the lib/nativeFirstRun.ts gate (native
-   * shell, never routed before, no persisted city preference). Always false
+   * Native first-run per the lib/nativeFirstRun.ts gate (native shell, not
+   * finished or skipped, and either an unfinished journey or no persisted
+   * city preference). Always false
    * outside the native shell — the gate enforces it, and decideEntry guards
    * it again so a spurious flag can never send a PWA to onboarding.
    */
@@ -83,7 +86,7 @@ export type EntryContext = {
 
 export type EntryDecision =
   | { kind: "stay"; reason: "deep-link" | "web-default" | "session-revisit" }
-  | { kind: "route"; href: string; reason: "native-first-run" | "shell-cold-start" };
+  | { kind: "route"; href: Route; reason: "native-first-run" | "shell-cold-start" };
 
 /** Either app-shell signal — the surfaces that must never see the landing page. */
 export function isAppShell(ctx: Pick<EntryContext, "isNativeShell" | "isStandaloneDisplay">): boolean {
@@ -94,7 +97,7 @@ export function isAppShell(ctx: Pick<EntryContext, "isNativeShell" | "isStandalo
  * The single entry decision. Pure and total. `firstRunHref` stays injectable
  * for contract tests, while production always uses ONBOARDING_PATH.
  */
-export function decideEntry(ctx: EntryContext, firstRunHref: string = ONBOARDING_PATH): EntryDecision {
+export function decideEntry(ctx: EntryContext, firstRunHref: Route = ONBOARDING_PATH): EntryDecision {
   if (ctx.path !== "/") return { kind: "stay", reason: "deep-link" };
   if (ctx.isNativeShell && ctx.isNativeFirstRun) {
     return { kind: "route", href: firstRunHref, reason: "native-first-run" };
@@ -216,6 +219,6 @@ export function readEntryContext(path: string): EntryContext {
 }
 
 /** Live first-run target — the dedicated native onboarding route. */
-export function entryFirstRunHref(): string {
+export function entryFirstRunHref(): Route {
   return ONBOARDING_PATH;
 }

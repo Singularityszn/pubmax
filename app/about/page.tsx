@@ -1,15 +1,18 @@
 import type { Metadata } from "next";
 import { headers } from "next/headers";
 import Link from "next/link";
+import DataCreditsLink from "@/components/legal/DataCreditsLink";
 
+import PriceBadge from "@/components/PriceBadge";
 import JsonLd from "@/components/seo/JsonLd";
 import SiteNav from "@/components/nav/SiteNav";
 import Screen from "@/components/ui/screen";
 import { appPageTitle, metadataSiteName } from "@/lib/brandNaming";
-import { loadAboutStats, type AboutStats } from "@/lib/aboutStats";
+import { loadAboutStats } from "@/lib/aboutStats";
 import { buildLeagueTable, indexSummary } from "@/lib/pintIndex";
+import { priceBand } from "@/lib/priceBand";
 import { loadPublicPintIndexSnapshot } from "@/lib/publicPintIndexSnapshot.server";
-import { CONTACT_EMAIL } from "@/lib/siteContact";
+import { HELLO_EMAIL, HELLO_MAILTO } from "@/lib/siteContact";
 
 import "./about.css";
 
@@ -27,7 +30,7 @@ import "./about.css";
 
 const PAGE_TITLE = "About PUBMAXX";
 const PAGE_DESCRIPTION =
-  "A pint in London can cost eight quid. PubMaxxing puts listed prices on one map for nights out, coffee, food, and sober hangs. We name and link publishers when recorded, and say when none is recorded. Free, and nobody pays to rank.";
+  "A pint in London can cost eight quid. PUBMAXX puts listed prices on one map for nights out, coffee, food, and sober hangs. We name and link publishers when recorded, and say when none is recorded. Free, and nobody pays to rank.";
 
 export const metadata: Metadata = {
   title: PAGE_TITLE,
@@ -44,7 +47,7 @@ export const metadata: Metadata = {
         url: "/og.png",
         width: 1200,
         height: 630,
-        alt: "PUBMAXXING: every pint has a story",
+        alt: "PUBMAXX: every pint has a story",
       },
     ],
   },
@@ -73,31 +76,14 @@ function fmtGbp(n: number | null): string {
   }).format(n);
 }
 
-type Stat = { value: string; label: string; note: string };
+/** A figure inside a sentence: the data face, in ink, with no tile around it. */
+function Figure({ children }: { children: string }) {
+  return <span className="aboutFigure">{children}</span>;
+}
 
-function tractionStats(s: AboutStats): Stat[] {
-  return [
-    {
-      value: fmtInt(s.pubsTracked),
-      label: "pubs tracked",
-      note: "each one carrying a price on record",
-    },
-    {
-      value: fmtInt(s.pintPricesObserved),
-      label: "pint prices logged",
-      note: "readings with their source status shown",
-    },
-    {
-      value: fmtInt(s.historicPubsCited),
-      label: "historic pubs cited",
-      note: "one sourced fact each",
-    },
-    {
-      value: fmtInt(s.citiesCovered),
-      label: "UK cities live",
-      note: "London first, more to browse",
-    },
-  ];
+/** A pint price in a sentence wears its band, like every pint price. */
+function Pint({ gbp }: { gbp: number | null }) {
+  return <PriceBadge band={priceBand(gbp)}>{fmtGbp(gbp)}</PriceBadge>;
 }
 
 export default async function AboutPage() {
@@ -124,7 +110,7 @@ export default async function AboutPage() {
     url: "https://pubmaxxing.com/about",
     isPartOf: {
       "@type": "WebSite",
-      name: "PUBMAXXING",
+      name: "PUBMAXX",
       url: "https://pubmaxxing.com",
     },
     about: {
@@ -135,7 +121,7 @@ export default async function AboutPage() {
       logo: "https://pubmaxxing.com/icon-512.png",
       description:
         "Listed prices with explicit source status for UK pubs, mapped for nights out, daytime hangs, food, coffee, and alcohol-free rounds. A free outing planner that never lets anyone pay to rank.",
-      email: CONTACT_EMAIL,
+      email: HELLO_EMAIL,
       founder: {
         "@type": "Person",
         name: "Karan Manoharan",
@@ -144,10 +130,6 @@ export default async function AboutPage() {
       sameAs: ["https://x.com/karansznx"],
     },
   };
-
-  const cheapest = fmtGbp(stats.cheapestPint);
-  const average = fmtGbp(stats.averagePint);
-  const dearest = fmtGbp(stats.dearestPint);
 
   return (
     <main id="main" className="aboutPage">
@@ -175,17 +157,11 @@ export default async function AboutPage() {
         titleId="about-title"
         lede={
           <>
-            You finish work, you want somewhere nearby that will not mug you:
-            a good pint, a coffee and a seat, food before the last train, or a
-            quiet room with mates who are not drinking. So you open Google Maps,
-            then another map, then reviews, then you&rsquo;re asking ChatGPT, and
-            an hour later you&rsquo;re back at the same place as last time. We
-            built PUBMAXX so you don&rsquo;t have to do that. One map. Real
-            prices with honest source status. The outing in one place.
+            Find a pub, check its listed prices and send your mates a plan.
           </>
         }
         primary={<Link prefetch={false} href="/map">Open the map</Link>}
-        secondary={<a href={`mailto:${CONTACT_EMAIL}`}>Contact</a>}
+        secondary={<a href={HELLO_MAILTO}>Contact</a>}
       >
 
       <section className="aboutSection" aria-labelledby="map">
@@ -197,68 +173,62 @@ export default async function AboutPage() {
           seen. Tap a pub and you see what a drink costs before you walk in.
         </p>
         <p className="aboutBody">
-          A first report can mark a pin straight away. Pin colour, list rows,
-          and cheapest buckets wait for a second independent drinker. Speed is
-          nice. A figure that survives a challenge is the product.
+          A first report can mark a pub straight away. Its price only changes
+          the pin colour and cheapest-price lists after a second independent
+          drinker confirms it.
         </p>
         <p className="aboutBody">
-          We kept the stories too. Most of these pubs have been pouring for a
-          century or two, and the good ones earned their walk. So we cite the
-          heritage, and we never make it up.
+          Pub histories come with references, so you can read where each story
+          came from.
         </p>
         <p className="aboutBody">
-          And we made it one link for the crew. You plan the outing, you send
-          it, everyone lands in the same place walking the same route. No
-          group-chat archaeology at half six.
+          Send your crew one plan link with the stops and walking route.
         </p>
         <p className="aboutBody">
-          One concrete night: after work you pick a cheap pint, or coffee and a
-          laptop at a Spoons, or food then a soft drink, or an alcohol-free
-          hang. Soft drink and alcohol-free prices share the same trust rules as
-          beer. Coffee joins that honesty once someone logs it. Food anchors
-          stay honest about their source and never masquerade as a pint on the
-          pin. A drinker pays for nothing.
+          Choose a cheap pint, coffee and a laptop at a Spoons, food then a
+          soft drink, or an alcohol-free hang. Soft drink and alcohol-free prices
+          share the same trust rules as beer. Coffee prices follow those rules
+          once someone logs one. Food listings name their source and stay
+          separate from pint prices. A drinker pays for nothing.
         </p>
         <p className="aboutBody">
-          Nobody pays to rank. Not ever. There&rsquo;s a wall in the code
-          between anyone&rsquo;s money and the prices you see. A sponsored thing
-          says so and sits in its own slot. The order of pubs on your map is
-          never for sale.
+          Nobody pays to rank. There are no sponsored listings today. If one
+          ever comes, it will be labelled and kept out of the price order.
         </p>
       </section>
 
       <section className="aboutSection" aria-labelledby="fights">
-        <h2 id="fights" className="aboutH2">What we refused to ship</h2>
+        <h2 id="fights" className="aboutH2">How we handle prices</h2>
         <ul className="aboutEthos">
           <li>
-            <strong>Every report as map truth.</strong> An uncorroborated price
-            can show on the pub&rsquo;s own sheet. It does not paint the pin
-            until a second independent drinker agrees inside the age window.
+            <strong>A price needs confirmation.</strong> A single report can
+            show on the pub&rsquo;s own page. It only sets the pin colour after
+            a second independent drinker agrees while the report is recent
+            enough.
           </li>
           <li>
-            <strong>Fake Wetherspoons prices.</strong> Their public web menus do
-            not yield per-pub drink prices today, so we refuse to invent them.
-            Identity and honest gaps beat a made-up board.
+            <strong>Wetherspoons prices.</strong> Their public web menus don&rsquo;t
+            give per-pub drink prices today. Where we have no price, we say
+            so.
           </li>
           <li>
-            <strong>UK spray before London depth.</strong> We ship London first
-            with priced pubs you can plan around. A separate OpenStreetMap layer
-            shows more pubs across the country without pretending they carry the
-            same price truth.
+            <strong>Coverage varies by city.</strong> We started with listed
+            prices in London. OpenStreetMap adds pubs across the country, but
+            a pub on the map doesn&rsquo;t mean we hold its drink prices.
           </li>
           <li>
-            <strong>Paid placement in the price order.</strong> Sponsored slots
-            stay labelled and separate. Rank is not a product we sell.
+            <strong>The price order is not for sale.</strong> No slot is
+            sponsored today, and one never will be without a label.
           </li>
           <li>
-            <strong>Guessing a publisher.</strong> Listed prices name and link
+            <strong>You can check the source.</strong> Listed prices name and link
             their publisher when recorded, and say when none is recorded. Cited
             pub stories link to their references.
           </li>
           <li>
-            <strong>Counting how much you drink.</strong> Rewards and rankings
-            do not. Your nights stay yours unless you choose to share them, and
-            you can browse without an account.
+            <strong>You choose what to share.</strong> Rewards and rankings
+            never depend on how much you drink. Your nights stay yours unless
+            you choose to share them, and you can browse without an account.
           </li>
         </ul>
       </section>
@@ -275,9 +245,7 @@ export default async function AboutPage() {
           >
             Karan Manoharan
           </a>
-          . We argue about corroboration versus speed, London depth versus a
-          thinner national map, and what a price is allowed to claim. Those
-          fights land in the product, not in a brand deck.
+          .
         </p>
         <figure className="aboutFounderNote">
           <blockquote className="aboutFounderQuote">
@@ -294,41 +262,41 @@ export default async function AboutPage() {
         </figure>
       </section>
 
-      {/* ── Traction / numbers (real, computed at build) ───────── */}
-      <section className="aboutSection aboutTraction" aria-labelledby="traction">
+      {/* ── Traction / numbers (real, computed at request time). One
+          sentence of figures, not a grid of KPI tiles. ──────────── */}
+      <section className="aboutSection" aria-labelledby="traction">
         <h2 id="traction" className="aboutH2">By the numbers</h2>
-        <p className="aboutBody aboutTractionIntro">
-          Every number here is counted from the same public data the app runs
-          on.
+        <p className="aboutBody">
+          PUBMAXX holds a price for <Figure>{fmtInt(stats.pubsTracked)}</Figure>{" "}
+          pubs from <Figure>{fmtInt(stats.pintPricesObserved)}</Figure> pint
+          prices on record, each with its source status shown.{" "}
+          <Figure>{fmtInt(stats.historicPubsCited)}</Figure> historic pubs carry
+          a cited fact, and <Figure>{fmtInt(stats.citiesCovered)}</Figure> UK
+          cities are live, London first. Every figure here is counted from the
+          same public data the app runs on.
         </p>
-        <dl className="aboutStatGrid">
-          {tractionStats(stats).map((stat) => (
-            <div key={stat.label} className="aboutStat">
-              <dt className="aboutStatValue">{stat.value}</dt>
-              <dd className="aboutStatBody">
-                <span className="aboutStatLabel">{stat.label}</span>
-                <span className="aboutStatNote">{stat.note}</span>
-              </dd>
-            </div>
-          ))}
-        </dl>
         <p className="aboutPriceLine">
-          Across <strong>{fmtInt(stats.boroughsCovered)}</strong> London
-          boroughs and neighbourhoods, the cheapest pint we&rsquo;ve logged is{" "}
-          <span className="aboutPriceStamp">{cheapest}</span>. The dearest is{" "}
-          <span className="aboutPriceStamp">{dearest}</span>, and someone is
-          paying it. The average sits at{" "}
-          <span className="aboutPriceStamp">{average}</span>.
+          Across <Figure>{fmtInt(stats.boroughsCovered)}</Figure> London
+          boroughs and neighbourhoods, the cheapest listed pint we hold is{" "}
+          <Pint gbp={stats.cheapestPint} />. The dearest is{" "}
+          <Pint gbp={stats.dearestPint} />. The average listed pint across{" "}
+          <Figure>{fmtInt(stats.pubsTracked)}</Figure> London pubs is{" "}
+          <Pint gbp={stats.averagePint} />, the same figure the homepage gives,
+          taken from each pub&rsquo;s cheapest pint.
         </p>
       </section>
 
       {/* ── Press appendix (kit + journalist hooks) ─────────────── */}
-      <section className="aboutSection aboutPress" aria-labelledby="press">
+      <section className="aboutSection" aria-labelledby="press">
         <h2 id="press" className="aboutH2">Press appendix</h2>
         <dl className="aboutPressGrid">
           <div className="aboutPressRow">
             <dt>Name</dt>
-            <dd>PUBMAXX. The app is PUBMAXXING.</dd>
+            <dd>
+              PUBMAXX, always with two Xs. The web address is pubmaxxing.com,
+              because pubmaxxing is what you do with it. Print PUBMAXX for the
+              app and keep the address for links.
+            </dd>
           </div>
           <div className="aboutPressRow">
             <dt>One line</dt>
@@ -349,8 +317,8 @@ export default async function AboutPage() {
           <div className="aboutPressRow">
             <dt>Contact</dt>
             <dd>
-              <a href={`mailto:${CONTACT_EMAIL}`} className="aboutLink">
-                {CONTACT_EMAIL}
+              <a href={HELLO_MAILTO} className="aboutLink">
+                {HELLO_EMAIL}
               </a>
             </dd>
           </div>
@@ -450,7 +418,7 @@ export default async function AboutPage() {
             Open the map
           </Link>
           {" · "}
-          <a href={`mailto:${CONTACT_EMAIL}`} className="aboutLink">
+          <a href={HELLO_MAILTO} className="aboutLink">
             Get in touch
           </a>
         </p>
@@ -467,13 +435,17 @@ export default async function AboutPage() {
               href="https://www.nationalarchives.gov.uk/doc/open-government-licence/version/3/"
               target="_blank"
               rel="noopener noreferrer"
+              className="aboutLink"
             >
               Open Government Licence v3.0
             </a>
             . Each listed fact links to its official list entry.
           </li>
-          <li>Heritage narrative is cited from Wikipedia and Wikidata.</li>
+          <li>Pub histories cite Wikipedia and Wikidata.</li>
           <li>Mapping data is &copy; OpenStreetMap contributors.</li>
+          <li>
+            <DataCreditsLink className="aboutLink">Every source and its licence</DataCreditsLink>
+          </li>
         </ul>
       </section>
       </Screen>

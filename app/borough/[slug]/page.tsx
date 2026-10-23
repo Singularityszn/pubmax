@@ -1,6 +1,7 @@
+import type { Route } from "next";
 import type { Metadata } from "next";
+import { appPageTitle } from "@/lib/brandNaming";
 import { priceBand, priceBandAreaForVenue } from "@/lib/priceBand";
-import { headers } from "next/headers";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
@@ -28,7 +29,8 @@ import { loadBoroughHeritage, NOTABLE_CAP } from "@/lib/boroughHeritage";
 import { curatedCrawlMapHref, curatedCrawls, type CuratedCrawl } from "@/lib/curatedCrawls";
 import SiteNav from "@/components/nav/SiteNav";
 import EmptyState from "@/components/ui/empty-state";
-import { ProseDisclosure } from "@/components/Disclosure";
+import { RowList, RowListItem } from "@/components/ui/row-list";
+import { displayDrinkName, plainDashes } from "@/components/listing/displayCase";
 import BoroughScreen from "../BoroughScreen";
 import BoroughPassportSlice from "@/components/borough/BoroughPassportSlice";
 import BoroughPintPriceCard from "@/components/borough/BoroughPintPriceCard";
@@ -36,6 +38,7 @@ import AreaNewsList from "@/components/areanews/AreaNewsList";
 import { entriesForBorough, freshAreaNews, NEW_ROUND_HERE_CAP } from "@/lib/areaNews";
 import { loadAreaNews } from "@/lib/areaNews.server";
 
+import "@/components/listing/listing.css";
 import "./borough.css";
 import "@/components/seo/factLayer.css";
 
@@ -52,6 +55,18 @@ import "@/components/seo/factLayer.css";
 // Next 16 dynamic route params are async — `params` is a Promise we await.
 
 type PageProps = { params: Promise<{ slug: string }> };
+
+// THIS DOCUMENT IS PRERENDERED (task vercel-f2-seo-cdn, recorded in proxy.ts
+// beside CDN_CACHED_DOCUMENT_ROUTES): it drops the per-request CSP nonce so the
+// Vercel CDN can hold it. It renders only bundled data and reads no cookie, no
+// header and no search param. `__tests__/cdnCachedDocuments.test.ts` holds
+// both rules.
+export const dynamic = "force-static";
+// The price data changes only on a deploy and area news is dated by the day,
+// so an hour is the same quiet ceiling
+// `/map` takes: it bounds how long a stale copy can outlive a change nobody
+// redeployed for.
+export const revalidate = 3600;
 
 // A curated/themed crawl "touches" a borough when at least one of its stops'
 // primary/visible borough slugs matches the page's borough slug. Pure, reads
@@ -77,29 +92,19 @@ function crawlsTouchingBorough(
   );
 }
 
-// Cap the crawl deep-link to a shareable number of stops — a large borough's
-// full pub list would make an unwieldy URL.
-const MAP_LINK_STOP_CAP = 12;
+// The story pubs are a subset of the list above, so the section names a
+// handful and counts the rest: Westminster printed 100 chips, a wall the
+// reader had already scrolled past once (taste plan, 18 Oct 2026).
+const STORY_CHIP_CAP = 12;
 
 /** Borough floor for Outer London honesty banner (Wave H4 / PRD P1). */
 const BOROUGH_COVERAGE_FLOOR = 15;
 
 // Browse the borough on the clean map via search (`?q=`), so outer areas like
 // Barnet open without resurrecting a hand-built crawl into the planner.
-function boroughBrowseMapUrl(name: string): string {
+function boroughBrowseMapUrl(name: string): Route {
   const params = new URLSearchParams();
   params.set("q", name);
-  return `/map?${params.toString()}`;
-}
-
-// Optional crawl deep-link: pre-build the same share-URL shape a hand-built
-// crawl uses (mode=build&pubs=id1,id2). Honest: "here's where they are", not
-// a routed transit itinerary.
-function boroughMapUrl(pubs: Venue[]): string {
-  if (pubs.length === 0) return "/map";
-  const params = new URLSearchParams();
-  params.set("mode", "build");
-  params.set("pubs", pubs.slice(0, MAP_LINK_STOP_CAP).map((pub) => pub.id).join(","));
   return `/map?${params.toString()}`;
 }
 
@@ -119,20 +124,23 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 
   if (!name) {
     return {
-      title: "Borough · PUBMAXXING",
+      title: "Borough",
       robots: { index: false, follow: false },
     };
   }
 
-  const title = `The cheapest pints and best pubs in ${name} · PUBMAXXING`;
+  // The layout's template adds the brand to the document title; the share
+  // card is not templated, so it carries the brand itself.
+  const title = `The cheapest pints and best pubs in ${name}`;
+  const cardTitle = appPageTitle(title);
   const pubs = pubsInBorough(venues, slug);
   const cheapest = pubs.find((pub) => typeof pub.cheapestPrice === "number")?.cheapestPrice;
   const description =
     typeof cheapest === "number"
       ? `${pubs.length} pubs in ${name}, ranked cheapest-first. Pints from ${formatPrice(
           cheapest,
-        )}. Plan a crawl through the area on PUBMAXXING.`
-      : `${pubs.length} pubs in ${name} on the map. Plan a crawl through the area on PUBMAXXING.`;
+        )}. Plan a crawl through the area on PUBMAXX.`
+      : `${pubs.length} pubs in ${name} on the map. Plan a crawl through the area on PUBMAXX.`;
 
   return {
     title,
@@ -141,8 +149,13 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
     // opengraph-image.tsx sits beside this route, so Next auto-attaches the
     // dynamic borough card to both OG and Twitter. summary_large_image makes X
     // render it as the full 1200×630 card rather than a thumbnail.
-    openGraph: { title, description, type: "website", url: `/borough/${slugifyBorough(name)}` },
-    twitter: { card: "summary_large_image", title, description },
+    openGraph: {
+      title: cardTitle,
+      description,
+      type: "website",
+      url: `/borough/${slugifyBorough(name)}`,
+    },
+    twitter: { card: "summary_large_image", title: cardTitle, description },
   };
 }
 
@@ -167,7 +180,7 @@ function BoroughPubPrice({ pub }: { pub: Venue }) {
     venueSourcedPrice(pub),
     venueBundlePrices(pub),
   );
-  if (lane === null) return <span className="boroughNoPrice">No price</span>;
+  if (lane === null) return <span className="listingNoFigure">No price</span>;
   // The figure comes off the lane that won, never off `cheapestPrice` again:
   // a lane whose figure lives somewhere else would otherwise print a blank
   // badge here the day it starts answering on this page.
@@ -262,13 +275,9 @@ export default async function BoroughPage({ params }: PageProps) {
     ...(faqLd ? [faqLd] : []),
   ];
 
-
-  // Per-request CSP nonce (proxy.ts) for the JSON-LD block below.
-  const nonce = (await headers()).get("x-nonce") ?? undefined;
-
   return (
-    <main id="main" className="boroughPage">
-      <JsonLd data={jsonLdGraph} nonce={nonce} />
+    <main id="main" className="boroughPage listingShell">
+      <JsonLd data={jsonLdGraph} />
       <SiteNav active="borough" />
 
       <BoroughScreen
@@ -294,20 +303,18 @@ export default async function BoroughPage({ params }: PageProps) {
             pub. We just haven&rsquo;t covered every street yet.
           </p>
         ) : null}
-        {pubs.length > 0 ? (
-          <div className="boroughMapLinks">
-            <Link prefetch={false} className="boroughCrawlLink boroughCrawlLinkSecondary" href={boroughMapUrl(pubs)}>
-              Start a crawl from cheapest pubs →
-            </Link>
-          </div>
-        ) : null}
 
-        <AreaNewsList
-          areaLabel={name}
-          entries={areaNews}
-          status={areaNewsRead.status}
-          headingId="boroughAreaNewsHeading"
-        />
+        {/* A section with no rows renders nothing (taste plan, 18 Oct 2026):
+            "No current updates here" under a heading was a card of nothing
+            above the pubs the reader came for. */}
+        {areaNewsRead.status === "ready" && areaNews.length > 0 ? (
+          <AreaNewsList
+            areaLabel={name}
+            entries={areaNews}
+            status={areaNewsRead.status}
+            headingId="boroughAreaNewsHeading"
+          />
+        ) : null}
 
         {pubs.length === 0 ? (
           <EmptyState
@@ -319,65 +326,52 @@ export default async function BoroughPage({ params }: PageProps) {
             been walked yet.
           </EmptyState>
         ) : (
-          // A price table is wide content, so it scrolls inside its own box
-          // rather than making the page scroll sideways: at 320 the pub column
-          // alone put the document 25px past the viewport.
-          <div className="boroughTableScroll">
-            <table className="boroughTable">
-              <caption className="srOnly">
-                Pubs in {name}, ordered by cheapest pint price
-              </caption>
-              <thead>
-                <tr>
-                  <th scope="col" className="boroughRankHead">
-                    #
-                  </th>
-                  <th scope="col" className="boroughNameHead">
-                    Pub
-                  </th>
-                  <th scope="col" className="boroughPriceHead createFabLane">
-                    Cheapest pint
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {pubs.map((pub, index) => (
-                  <tr key={pub.id}>
-                    <th scope="row" className="boroughRank">
-                      <span className="boroughRankNum">{index + 1}</span>
-                    </th>
-                    <td className="boroughName">
-                      <Link prefetch={false} href={venueMapUrl(pub.id)} className="boroughPub">
-                        {pub.name}
-                      </Link>
-                      {pub.cheapestPint ? (
-                        <span className="boroughPint">{pub.cheapestPint}</span>
-                      ) : null}
-                      <Link href={`/ledger/${pub.id}`} className="boroughLedgerLink">
-                        Price history →
-                      </Link>
-                    </td>
-                    <td className="boroughPriceCell createFabLane">
+          // One row per pub, cheapest first: rank, name and the pint it is
+          // priced on, then the price at the row's end. The pub opens on the
+          // map; its price opens its price history (/ledger), so the history
+          // link is the figure it is the history of, said once above the list
+          // rather than a "Price history" line repeated under every pub.
+          <section className="boroughPubs" aria-labelledby="boroughPubsHeading">
+            <h2 id="boroughPubsHeading" className="srOnly">
+              Pubs in {name}, ordered by cheapest pint price
+            </h2>
+            <p className="boroughPubsNote">Tap a price for its history.</p>
+            <RowList label={`Pubs in ${name}, cheapest pint first`} className="boroughRows boroughPubRows listingRead">
+              {pubs.map((pub, index) => (
+                <RowListItem
+                  key={pub.id}
+                  className="createFabLane"
+                  href={venueMapUrl(pub.id)}
+                  lead={<span className="boroughRank">{index + 1}</span>}
+                  title={pub.name}
+                  meta={pub.cheapestPint ? displayDrinkName(pub.cheapestPint) : undefined}
+                  trailing={
+                    <Link
+                      prefetch={false}
+                      href={`/ledger/${pub.id}`}
+                      className="boroughLedgerLink"
+                      aria-label={`${pub.name}: price history`}
+                    >
                       <BoroughPubPrice pub={pub} />
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                    </Link>
+                  }
+                />
+              ))}
+            </RowList>
+          </section>
         )}
 
         {storyPubs.length > 0 ? (
           <section className="boroughSection" aria-labelledby="boroughStoryHeading">
-            <h2 id="boroughStoryHeading" className="boroughSectionTitle">
+            <h2 id="boroughStoryHeading" className="listingSectionTitle">
               Story pubs in {name}
             </h2>
-            <p className="boroughSectionDek">
-              {storyPubs.length} {storyPubs.length === 1 ? "pub" : "pubs"} here carry a heritage
-              note or a passed-down story. Each offers a reason to detour beyond price.
+            <p className="listingSectionDek">
+              {storyPubs.length} {storyPubs.length === 1 ? "pub here has" : "pubs here have"} a heritage
+              note or a passed-down story. Each is worth a detour for more than the price.
             </p>
             <ul className="boroughChipList" aria-label={`Story pubs in ${name}`}>
-              {storyPubs.map((pub) => (
+              {storyPubs.slice(0, STORY_CHIP_CAP).map((pub) => (
                 <li key={pub.id}>
                   <Link prefetch={false} href={venueMapUrl(pub.id)} className="boroughChip">
                     {pub.name}
@@ -385,34 +379,32 @@ export default async function BoroughPage({ params }: PageProps) {
                 </li>
               ))}
             </ul>
+            {storyPubs.length > STORY_CHIP_CAP ? (
+              <p className="boroughChipMore">
+                And {storyPubs.length - STORY_CHIP_CAP} more in the list above.
+              </p>
+            ) : null}
           </section>
         ) : null}
 
         {touchingCrawls.length > 0 ? (
           <section className="boroughSection" aria-labelledby="boroughCrawlsHeading">
-            <h2 id="boroughCrawlsHeading" className="boroughSectionTitle">
+            <h2 id="boroughCrawlsHeading" className="listingSectionTitle">
               Crawls through {name}
             </h2>
-            <p className="boroughSectionDek">
-              A listed route with at least one stop here. Plan it from its first stop to its last.
+            <p className="listingSectionDek">
+              Listed routes with at least one stop here. Each opens on the map, first stop to last.
             </p>
-            <ul className="boroughCrawlList" aria-label={`Crawls through ${name}`}>
+            <RowList label={`Crawls through ${name}`} className="boroughRows listingRead">
               {touchingCrawls.map((crawl) => (
-                <li key={crawl.id} className="boroughCrawlCard">
-                  <div>
-                    <strong>{crawl.name}</strong>
-                    <p>{crawl.blurb}</p>
-                  </div>
-                  <Link prefetch={false}
-                    href={curatedCrawlMapHref(crawl)}
-                    className="boroughCrawlPlanLink"
-                    aria-label={`Plan the ${crawl.name} crawl on the map`}
-                  >
-                    Plan this crawl →
-                  </Link>
-                </li>
+                <RowListItem
+                  key={crawl.id}
+                  href={curatedCrawlMapHref(crawl)}
+                  title={crawl.name}
+                  meta={plainDashes(crawl.blurb)}
+                />
               ))}
-            </ul>
+            </RowList>
           </section>
         ) : null}
 
@@ -420,10 +412,10 @@ export default async function BoroughPage({ params }: PageProps) {
 
         {heritage ? (
           <section className="boroughSection" aria-labelledby="boroughHeritageHeading">
-            <h2 id="boroughHeritageHeading" className="boroughSectionTitle">
+            <h2 id="boroughHeritageHeading" className="listingSectionTitle">
               Historic pubs in {name}
             </h2>
-            <p className="boroughSectionDek">
+            <p className="listingSectionDek">
               {heritage.count} notable {heritage.count === 1 ? "pub" : "pubs"} on record
               {heritage.oldest ? (
                 <>
@@ -436,42 +428,23 @@ export default async function BoroughPage({ params }: PageProps) {
               ) : null}
               {heritage.listedCount > 0 ? <> &middot; {heritage.listedCount} listed</> : null}.
             </p>
+            <RowList label={`Historic pubs in ${name}`} className="boroughRows listingRead">
+              {heritage.notable.slice(0, NOTABLE_CAP).map((pub) => {
+                const date = pub.dateLabel ?? pub.era;
+                const facts = [date, pub.listed ? `Grade ${pub.listed}` : null].filter(Boolean).join(", ");
+                return (
+                  <RowListItem
+                    key={pub.slug}
+                    href={`/historic/${pub.slug}` as Route}
+                    title={pub.name}
+                    meta={facts || undefined}
+                  />
+                );
+              })}
+            </RowList>
             <p className="boroughHeritageProvenance">Cited from Wikipedia.</p>
-            <ul className="boroughHeritageList" aria-label={`Historic pubs in ${name}`}>
-              {heritage.notable.slice(0, NOTABLE_CAP).map((pub) => (
-                <li key={pub.slug} className="boroughHeritageCard">
-                  {pub.dateLabel || pub.era || pub.listed ? (
-                    <div className="boroughHeritageMeta">
-                      {(pub.dateLabel ?? pub.era) ? (
-                        <span className="boroughHeritageEra">
-                          {pub.dateLabel ?? pub.era}
-                        </span>
-                      ) : null}
-                      {pub.listed ? (
-                        <span className="boroughHeritageGrade">Grade {pub.listed}</span>
-                      ) : null}
-                    </div>
-                  ) : null}
-                  <h3 className="boroughHeritageName">{pub.name}</h3>
-                  {pub.hook ? (
-                    <div className="boroughHeritageHook">
-                      <ProseDisclosure text={pub.hook} />
-                    </div>
-                  ) : null}
-                  {pub.venueId ? (
-                    <Link prefetch={false}
-                      className="boroughHeritageMapLink"
-                      href={`/map?sel=${pub.venueId}`}
-                      aria-label={`See ${pub.name} on the map`}
-                    >
-                      See on map &rarr;
-                    </Link>
-                  ) : null}
-                </li>
-              ))}
-            </ul>
             <p className="boroughHeritageFoot">
-              <Link href="/historic">See all historic pubs &rarr;</Link>
+              <Link href="/historic" className="listingLink">See all historic pubs</Link>
             </p>
           </section>
         ) : null}
@@ -514,10 +487,6 @@ export default async function BoroughPage({ params }: PageProps) {
             </li>
           </ul>
         </nav>
-
-        <p className="boroughFootnote">
-          Pubs, prices and stories by area. <Link href="/borough">See every borough →</Link>
-        </p>
       </BoroughScreen>
     </main>
   );

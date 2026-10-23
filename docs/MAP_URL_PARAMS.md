@@ -25,6 +25,8 @@ The map builds its state from the URL in layers:
 
 The city that loads is selected by the Next.js route segment (`/map/[city]`).
 The `/map` route loads London. Crawl-state rewrites preserve the pathname.
+Legacy `/map/uk` and `/map/uk/1` routes redirect permanently to `/map?uk=1`
+through `next.config.mjs`.
 
 ## History and filter synchronisation
 
@@ -42,7 +44,10 @@ the same length.
 
 Separate route visits and earlier root entries keep their own URLs. A clean
 arrival restored from a saved session stays clean until the reader changes
-the crawl state. Regression cases live in
+the crawl state. Saved session filters, viewport and area can return, but a
+saved venue selection does not reopen its sheet. Initial selection comes from
+the URL or a resume seed (`restoredSessionFrame` in `lib/pubMap.ts`).
+Regression cases live in
 [`mapCrawlUrlSync.test.tsx`](../__tests__/mapCrawlUrlSync.test.tsx).
 
 ## Fail-soft for an unknown `?sel=`
@@ -54,12 +59,23 @@ When the lookup itself fails, it shows `"We could not check that pub right
 now."` (`MAP_SELECTION_LOOKUP_FAILED_NOTE`). Either way, the map stays open
 and the reader can dismiss the notice.
 
+If a curated venue is absent from the loaded index and its full-record lookup
+fails, the loading sheet closes instead of waiting indefinitely.
+The failed lookup keeps `sel`, so a later allowed lookup can recover the selection.
+
+A UK base pub id (`venue-uk-*`) needs no `at` hint to open. Without one, the
+cold restore asks `/api/uk-base/[id]` for the record. An id that the pack does
+not hold and that no venue alias owns shows the unknown notice and drops
+`sel`. A lookup that fails keeps `sel` with the sheet shut and shows the
+could-not-check notice, so a reload asks again (`ukBaseRestoreFor` and
+`ukBaseRestoreFailureNotice` in `lib/pubMap.ts`).
+
 ## First-visit arrival card
 
 After the pins reveal, a first visit to the map shows one arrival card
-(`components/map/MapArrivalCard.tsx`). It is shown once per device, and the
-dismissal is kept in `localStorage` under
-`pubmax:map-first-visit-arrival:v1`.
+(`components/map/MapArrivalCard.tsx`). The
+[arrival card policy](rules/components-sheets-chrome-and-navigation.md#the-phone-map-rests-on-three-layers-and-the-bottom-card-is-the-answer)
+owns its dismissal window and storage compatibility.
 
 `searchSuppressesMapFirstVisitArrival` (`lib/mapFirstVisitArrival.ts`) holds
 the card back for an arrival that already has its own question. It is
@@ -86,7 +102,7 @@ While the card is on screen, the analytics consent prompt stands down. See
 | `cocktails` | `1` | `lib/crawlUrl.ts` | Requires a cocktail option at each stop. Also set implicitly when `drink=cocktail` or a matched cocktail brand is present. | Only `1` turns the filter on. | Yes, same debounced sync. Omitted when off. |
 | `food` | `1` | `lib/crawlUrl.ts` | Requires a food option at each stop. | Only `1` turns the filter on. | Yes, same debounced sync. Omitted when off. |
 | `q` | Free text | `lib/crawlUrl.ts` | Free-text search query. | Trimmed and cut to 80 characters. Omitted when empty after trim. | Yes, same debounced sync. |
-| `drink` | A drink category id, or `low-no` / `non-alcoholic` | `lib/crawlUrl.ts` | Sets the drink-category lens. `low-no` and `non-alcoholic` also turn on the non-alcoholic filter and imply the mocktail alt style. | Parsed by `parseDrinkCategoryParam` (`lib/drinkBrands.ts`). An unmatched value leaves no category set. | Yes, same debounced sync. Only encodes a category allowed on the map (`isMapLensDrinkCategory`, `lib/drinks.ts`, excludes `other`). |
+| `drink` | A drink category id, or `low-no` / `non-alcoholic` | `lib/crawlUrl.ts` | Sets the drink-category lens. `low-no` and `non-alcoholic` also turn on the non-alcoholic filter and imply the mocktail alt style. | Parsed by `parseDrinkCategoryParam` (`lib/drinkBrands.ts`). An unmatched value leaves no category set. | Yes, same debounced sync. Only encodes a category allowed on the map (`isMapLensDrinkCategory`, `lib/drinks.ts`, excludes `other`). The default Beer lane is omitted. A valid completed unrefined Beer share (not a drink-shape arrival under `isDrinkShapeArrival`, `lib/mapArrival.ts`) reopens mapped and keeps explicit `drink=beer` through initial curated catalogue resolution. A later plan change releases it. The Food and No-alcohol views stand the drink filters down, so the synced URL drops `drink`, `sub`, `brand` and `topshelf`. The route header Copy link puts back the drink held when the reader left All (`linkWithMapPlanDrinkSelection`, `lib/mapPlanDrinkPresentation.ts`). |
 | `brand` | A drink brand id | `lib/crawlUrl.ts` | Sets a drink-brand filter. A matched brand can also imply its category and cocktail flag when `drink=` is absent or does not match. | Normalised and matched by `normalizeBrandQuery` and `findBrand` (`lib/drinkBrands.ts`). `findBrand` reads the map lens catalogue first, then the canonical draught pints in `lib/beers.ts`, so a beer outside the lens (`pravha`) also resolves and keeps the `beer` category. An unmatched value leaves no brand set. | Yes, same debounced sync. |
 | `sub` | A drink subtype id | `lib/crawlUrl.ts` | Sets a drink-subtype filter under the resolved category. | Parsed by `parseDrinkSubtypeParam` (`lib/drinkSubtypes.ts`). Only kept when it agrees with the resolved category. | Yes, same debounced sync. |
 | `topshelf` | `1` | `lib/crawlUrl.ts` | Restricts the drink category to top-shelf options only. | Only decoded when a drink category is also resolved. | Yes, same debounced sync. Only encoded when both the flag and the category are set. |

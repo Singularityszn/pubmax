@@ -6,7 +6,7 @@ reviewed surface—even when a POST is semantically read-only. The regression te
 Adding a mutating route or removing its authority/abuse boundary fails
 CI until this certification is deliberately updated.
 
-> **Inventory: 152 mutating handlers across 120 route files.** Each exported
+> **Inventory: 162 mutating handlers across 129 route files.** Each exported
 > `POST`, `PUT`, `PATCH`, or `DELETE` is one reviewed surface. A file with two
 > mutation methods contributes two entries. Read-only handlers do not enter this
 > inventory. Both counts are merge-conflict coordination points.
@@ -44,6 +44,7 @@ Protection in a sibling method cannot certify another method.
 - `DELETE app/api/social/crews/[crewId]/join-requests`
 - `DELETE app/api/social/crews/[crewId]/members/[memberId]`
 - `DELETE app/api/social/interactions`
+- `DELETE app/api/social/rankings`
 - `PATCH app/api/admin/import-notes`
 - `PATCH app/api/crawls/[slug]`
 - `PATCH app/api/profiles/[handle]/covers/[coverId]`
@@ -69,6 +70,8 @@ Protection in a sibling method cannot certify another method.
 - `POST app/api/admin/profile-avatars`
 - `POST app/api/admin/session`
 - `POST app/api/admin/social-posts`
+- `POST app/api/admin/social-videos`
+- `POST app/api/admin/venue-submissions`
 - `POST app/api/area-demand`
 - `POST app/api/auth/session`
 - `POST app/api/auth/change-password/verify`
@@ -79,6 +82,7 @@ Protection in a sibling method cannot certify another method.
 - `POST app/api/check-ins`
 - `POST app/api/citymcp/journey`
 - `POST app/api/crawls`
+- `POST app/api/diary`
 - `POST app/api/drink-wall`
 - `POST app/api/events`
 - `POST app/api/heritage`
@@ -122,6 +126,7 @@ Protection in a sibling method cannot certify another method.
 - `POST app/api/plans/[id]/recap`
 - `POST app/api/plans/[id]/session`
 - `POST app/api/plans/[id]/vibe-votes`
+- `POST app/api/mcp`
 - `POST app/api/plans/generate`
 - `POST app/api/presence`
 - `POST app/api/price-submit`
@@ -156,10 +161,14 @@ Protection in a sibling method cannot certify another method.
 - `POST app/api/social/crews/[crewId]/leave`
 - `POST app/api/social/interactions`
 - `POST app/api/social/posts`
+- `POST app/api/social/posts/[postId]/photos`
+- `POST app/api/social/rankings`
 - `POST app/api/social/tags`
+- `POST app/api/social/videos/uploads`
 - `POST app/api/starter-packs/[slug]/follow`
 - `POST app/api/venue-operators/claim`
 - `POST app/api/venue-photos`
+- `POST app/api/venue-submissions`
 - `POST app/api/venues/[id]/occupancy`
 - `POST app/api/visit-reports`
 - `POST app/api/wanted`
@@ -170,6 +179,7 @@ Protection in a sibling method cannot certify another method.
 - `PUT app/api/plans/[id]/session`
 - `PUT app/api/profiles/[handle]`
 - `PUT app/api/social/interactions`
+- `PUT app/api/social/videos/uploads/[uploadId]`
 <!-- mutation-handler-inventory:end -->
 
 ## `app/api/[[...unmatched]]`: the API tree's 404, a refusal and no boundary
@@ -386,9 +396,9 @@ bodies.
 - **Moderation:** the queue reads only visible held posts and exposes no
   post-author identity. Approval or hide binds the current post and private media, keeps
   provenance, and appends the named staff action. The preview RPC returns an
-  object key only for media attached to a held post; the route exchanges it for
-  a short-lived signed URL. Neither action deletes the post, media audit, or tag
-  consent history.
+  object key only for media attached to a held post. The route returns private,
+  no-store image bytes after each permission check, without a signed redirect.
+  Neither action deletes the post, media audit, or tag consent history.
 - **Failure:** malformed requests return 400, stale held rows return 409, and
   missing migration, named staff authority, or storage failures return 503.
   Responses are private and no-store. No partial moderation result is
@@ -410,7 +420,8 @@ membership, current reciprocal follows, blocks, role, state, and revision.
 #### `app/api/social/crews` (route 81)
 
 `POST` binds one existing Planned Night. Creation alone reads the one-time
-legacy host capability from the `Authorization` bearer header. Body accepts
+legacy host capability from the `x-plan-host-capability` header, while
+`Authorization` carries the account access token. Body accepts
 only Plan ID and Crew visibility. Capability is never returned or stored.
 
 #### `app/api/social/crews/[crewId]` (route 82)
@@ -467,14 +478,15 @@ loss or a block; owner leave remains a durable conflict until ownership moves.
 ### `app/api/push-tokens` — native/web push registration (route 61)
 
 - **Route / method:** `POST app/api/push-tokens/route.ts` (Capacitor shell via
-  `lib/nativePush.ts`; installed web app via the explicitly-invoked
-  `lib/webPush.ts`, never on boot).
+  `lib/nativePush.ts`; supported web browser via the explicitly-invoked
+  `lib/webPush.ts`, never on boot). Browser requirements live in
+  [the web push runbook](WEB_PUSH.md#step-out-weekly-nudge).
 - **Validation:** `validatePushToken` (`lib/pushTokenStore.ts`) — trimmed
   non-empty `token` ≤ 2048 chars, `platform` ∈ {`ios`, `android`, `web`}; web
   values must decode to a PushSubscription with bounded browser-generated
-  `p256dh`/`auth` keys. Its network destination must match the maintained exact
-  Google FCM, Mozilla Autopush, or Apple Web Push HTTPS host/path allowlist on
-  the default TLS port; IP literals, localhost, arbitrary/lookalike hosts, and
+  `p256dh`/`auth` keys. Its network destination must match the maintained
+  HTTPS host/path allowlist in `docs/WEB_PUSH.md` on the default TLS port; IP
+  literals, localhost, arbitrary/lookalike hosts, and
   custom ports are rejected again at provider send time. Native platforms
   cannot smuggle a web subscription; malformed or
   invalid payloads 400 in the flat public envelope before the limiter or store
@@ -620,6 +632,89 @@ loss or a block; owner leave remains a durable conflict until ownership moves.
   consequence-free: delete/503 the route and the preview's capture button fails
   soft to a quiet retry line while the alternative (nearest patch) still renders.
 
+### `app/api/diary` — the private Diary (Phase 1)
+
+- **Route / method:** `POST app/api/diary/route.ts` logs one visit: a pub, a
+  London calendar day, an optional half-star rating and an optional review of
+  at most 280 characters. The same `POST` carries two owner-only actions on an
+  entry the account already wrote: `action: "update"` corrects its day, stars or
+  review (`validateDiaryEntryEdit`, the same bounds as logging it) and
+  `action: "delete"` removes it. Both find the row by its id AND the session's
+  account, so another account's entry answers 404 exactly as a missing one
+  does, and a correction that lands on a pub and day already logged answers 409
+  `DIARY_ENTRY_EXISTS`. The route also exports an owner-only `GET` list, which
+  is not a mutating verb, and which answers an unmet age or handle gate as
+  `{ status, error }` at 200 rather than a 409. Entries are PRIVATE: the only
+  visibility is `private`, and no route reads another account's entries.
+- **Validation:** `validateDiaryEntryCreate` (`lib/diary.ts`). The venue name
+  is the canonical name the server resolves for the id, never a typed one. The
+  day is a bare `YYYY-MM-DD` that must be a real day, not in the future and
+  not before 2000. The rating is a half star from 1 to 5. A review is the
+  owner's private words: C0 and C1 control characters are stripped (tab and
+  newline stay) and the ends are trimmed, and nothing else changes. No copy filter
+  runs, and angle brackets and inner spacing are kept. Length is counted in
+  code points (`diaryReviewLength`), the same count the composer and the
+  CHECK's `length(review)` use, so an emoji is one character. A review over 280
+  characters answers 400, never a silent cut. An outage of the venue index
+  answers a retryable 503 `STORE_UNAVAILABLE`, never a 400 that reads as a bad
+  pub. The migration's CHECK
+  constraints (0174) hold the rating, review-length and earliest-day bounds.
+  The future-day bound is checked only by the route.
+- **Rate limit (boundary):** durable per-profile + hashed-IP `isLimited` with
+  key `diary:${owner.actor}:${ipHash}` - 429 `RATE_LIMITED` on exceed. Logging,
+  correcting and removing an entry share this one budget.
+- **Auth stance:** `resolveContributionIdentity` derives the owner from the
+  session, and the owner is the account's auth user id. A body owner or handle
+  is ignored. The row keys to `auth.users` with ON DELETE CASCADE, so deleting
+  the account deletes its diary. A second log of the same pub on
+  the same day answers 409 `DIARY_ENTRY_EXISTS`. A hard store failure answers
+  503, never a fake success.
+
+### `app/api/venue-submissions` and `app/api/admin/venue-submissions` - Add a pub (Phase 1)
+
+- **Route / method:** `POST app/api/venue-submissions/route.ts` takes two
+  shapes. JSON proposes one pub the map does not have: a name, a street
+  address, an optional postcode and map position, an optional website and menu
+  link, opening hours and a note as free text, and up to 20 prices the drinker
+  saw. Multipart `{ submission, file }` attaches ONE menu photo to the
+  account's own pending submission, up to three. The route also exports an
+  owner-only `GET` list, which is not a mutating verb and answers an unmet age
+  or handle gate as `{ status, error }` at 200. `POST
+  app/api/admin/venue-submissions/route.ts` is the moderator verdict:
+  `accept`, `decline` or `duplicate` (naming the existing venue id) on a
+  pending submission, once; its `GET` is the review queue with five-minute
+  signed file links and no submitter.
+- **What it never writes:** a venue, a pin, a search row or a price lane. A
+  submission is a proposal; an accepted one reaches the packs through the
+  offline rebuild. The website and menu link are provenance and are never
+  fetched by the app.
+- **Validation:** `validateVenueSubmission` (`lib/venueSubmissions.ts`), shared
+  with the form. Free text is `cleanText`-capped; a postcode must parse as a UK
+  postcode; a position must sit inside Great Britain, both halves or neither; a
+  link must be https with no credentials; a price must be a drink in the closed
+  vocabulary inside the community price envelope. Before storing, the route
+  asks the curated and UK base indexes for the same name and answers 409
+  `POSSIBLE_MATCH` with the candidates until the drinker sends `confirmNew`.
+  A file is a JPEG, PNG or WebP photo, at most 4 MB. `prepareUploadedImage`
+  checks its magic bytes, strips its metadata and re-encodes it as JPEG. It is
+  keyed under `venue-submissions/<owner>/<submission>/`, which migration 0189's
+  CHECK holds. A PDF is refused with 400 `INVALID_TYPE` and nothing is stored,
+  until a PDF sanitiser exists (owner decision, 18 Oct 2026). The 0189 kind
+  CHECK names `image` alone, so taking PDFs back is a migration. A row
+  refused after its bytes landed takes the bytes back out.
+- **Rate limit (boundary):** durable `isLimited` per profile + hashed IP
+  (`venue-submission:${actor}:${ipHash}`) on every write, then six proposals
+  (`venue-submission-create:${actor}`) and twenty files
+  (`venue-submission-file:${actor}`) per hour. An account holds at most ten
+  pending proposals. The moderator verdict is metered at 60 a minute per
+  hashed IP.
+- **Auth stance:** `resolveContributionIdentity` derives the owner from the
+  session; a body owner is ignored. Both 0189 tables key to `auth.users` with
+  ON DELETE CASCADE and no browser grant, and account deletion walks the
+  owner's menu folder (`lib/accountOwnedObjects.ts`). The verdict route is
+  `isModerator`-gated on both verbs. A hard store failure answers 503, never a
+  fake success.
+
 ### `app/api/visit-reports` — structured Visit Reports (route 66)
 
 - **Route / method:** `POST app/api/visit-reports/route.ts` (Wayfinder 3.4,
@@ -671,7 +766,12 @@ loss or a block; owner leave remains a durable conflict until ownership moves.
   (`lib/visitReportsStore.ts`) — capture keeps working and becomes durable the
   moment the table lands, no code change (the same soft degradation area demand
   ships with). A hard durable-store write failure answers 503
-  `STORE_UNAVAILABLE` rather than a fake success. Disabling is consequence-free:
+  `STORE_UNAVAILABLE` rather than a fake success. The public `report` action is
+  the exception to the soft fallback: with a durable store configured it appends
+  its actor only through the service-role RPC `append_visit_report_report_actor`
+  (migration 0175). An RPC error, a missing RPC or a malformed result answers
+  retryable 503 `STORE_UNAVAILABLE` and never writes to process-memory. The
+  keyless in-memory store is unchanged. Disabling is consequence-free:
   delete/503 the route and the venue-sheet panel says it could not check rather
   than claiming no visits exist.
 - **V1 moderation gap:** the queue is manual and reactive. It has no automated
@@ -1140,7 +1240,10 @@ commit.
   owner-bound `updateUser` call.
 - **Boundaries:** same-origin only, verified bearer required, and eight
   attempts per hashed IP per 15 minutes with fail-closed durable limiting.
-  Missing, short, or wrong current passwords share one 401 response.
+  A current password GoTrue itself refuses (`invalid_credentials`) answers
+  401 `CURRENT_PASSWORD_WRONG`, so the signed-in owner is told which field is
+  wrong. A missing or short password, no session, a ban and any upstream
+  failure share one generic 401 `INVALID_CREDENTIALS` response.
 - **Rollback / kill:** remove the route and make the password form use the
   create flow only. Existing password creation remains signed-in and
   owner-bound.
@@ -1296,7 +1399,11 @@ npx vitest run __tests__/writeSurfaceCertification.test.ts __tests__/rateLimit.t
   human queue and never hides; `hide` and `restore` require `isModerator`.
   Hiding is reversible, keeps the row, its bytes and its report provenance, and
   removes the photo from the wall, the pages and the author's cap count
-  together. A flag after a keep re-opens a still-visible row.
+  together. A flag after a keep re-opens a still-visible row. With a durable
+  store configured, `report` appends its actor only through the service-role
+  RPC `append_venue_photo_report_actor` (migration 0175). An RPC error, a
+  missing RPC or a malformed result answers retryable 503 `STORE_UNAVAILABLE`
+  and never writes to process-memory. The keyless in-memory store is unchanged.
 - **Crosspost honesty:** "Also share to your feed" is a request, never a
   guarantee. The feed write goes through the existing Social post machinery
   behind `requireVerifiedSocialActor`, so the wall never buys a lane around
@@ -1456,6 +1563,75 @@ npx vitest run __tests__/writeSurfaceCertification.test.ts __tests__/rateLimit.t
   future authenticated browser lane; shared doubles live in
   `e2e/helpers/authDoubles.ts`.
 
+### `app/api/social/videos/uploads` - Social video upload intents (route 96)
+
+- **Route / method:** `POST app/api/social/videos/uploads/route.ts` opens one
+  intent; `PUT app/api/social/videos/uploads/[uploadId]/route.ts` is the
+  keyless stand-in for the Storage upload URL and answers 404 whenever
+  Storage is configured.
+- **Authority:** `requireVerifiedSocialActor` derives the verified Social actor.
+  The stable profile ID owns the intent; the account ID never enters a row.
+- **Abuse control:** ten intents an hour per salted profile digest, at most
+  five open intents per profile (enforced in `create_social_video_upload`),
+  and the Social freeze runs first. The keyless PUT shares the intent's owner
+  check and size ceiling.
+- **Validation:** a listed type (MP4, MOV, WebM) and a size from 1 byte to
+  100 MB. The object key is made by the database, never by the caller. Before
+  a post may bind the intent, `POST app/api/social/posts` reads the stored
+  object's real size and leading bytes and refuses anything that is not the
+  declared container.
+- **Moderation:** a bound video starts held. Its author sees it; nobody else
+  does until named staff approve it through `app/api/admin/social-videos`.
+
+### `app/api/admin/social-videos` - held Social video review (route 97)
+
+- **Route / method:** `GET` and `POST app/api/admin/social-videos/route.ts`.
+- **Authority:** `isModerator` accepts the admin header or session cookie,
+  as `app/api/admin/social-posts` does.
+- **Abuse control:** an IP-digest limiter of 60 decisions per window before
+  the moderator check.
+- **Validation:** a post UUID and a decision of `approved` or `rejected`,
+  nothing else. `review_social_post_video` refuses any other word.
+
+### `app/api/social/posts/[postId]/photos` - Social photos 2 to 4 (route 98)
+
+- **Route / method:** `POST app/api/social/posts/[postId]/photos/route.ts`,
+  multipart `photo`, `altText` and `slot`, one photo a request.
+- **Authority:** `requireVerifiedSocialActor`; the route reads the post through
+  the owner's own outbox read and refuses a post that is not the caller's or
+  has no first photo, and `attach_social_post_extra_photo` refuses the same.
+- **Abuse control:** forty photos an hour per salted profile digest, after the
+  Social freeze.
+- **Validation:** the same `prepareSocialPhoto` pipeline as the first photo
+  (type from bytes, size and pixel ceilings, re-encoded to a 1200px JPEG with
+  metadata dropped), a description of 1 to 300 characters, and a slot of 2, 3
+  or 4 that is not already taken.
+- **Moderation:** each photo starts pending and is shown only to its author
+  until its own model check approves it, drained by the Social post cron.
+
+### `app/api/social/rankings` - your pubs in your own order (route 99)
+
+- **Route / method:** `POST` and `DELETE app/api/social/rankings/route.ts`
+  (plus a `GET` read).
+- **Authority:** `requireVerifiedSocialActor`; every row is keyed to the
+  stable profile ID, and no call reads or writes another account's list.
+- **Abuse control:** sixty changes an hour per salted profile digest, after the
+  Social freeze.
+- **Validation:** a pub the venue index resolves, one of three bands, and the
+  two neighbours the comparisons landed between. `place_social_pub_ranking`
+  refuses neighbours that are no longer adjacent in that band (409, the
+  browser asks again), so two tabs cannot interleave a wrong order.
+- **Effect:** the person's own order only; no venue rating, price, map layer or
+  feed reads it (ADR 0017).
+
 The structural scan, live atomic-limiter check, and deployment configuration must
 all remain green. A future route added without a reviewed boundary fails the closed
 inventory count and boundary assertions in CI.
+
+### `app/api/mcp` - anonymous ChatGPT planning tools
+
+POST is a stateless MCP transport. It accepts no account credentials or plan writes.
+Each request passes origin checks, a 32 KiB body limit and the hashed-address rate limit.
+Generation delegates to the existing plan route and retains its paid-spend ceiling.
+Tool errors use the MCP result contract. HTTP errors use the public API envelope.
+The anonymous paid-route probe proves that a spent generation ceiling makes no paid provider call.

@@ -16,6 +16,8 @@ import {
   createFailSoftGuard,
   onMissingDurableWrite,
 } from "@/lib/storeBackend";
+import { log } from "@/lib/log";
+import { loadVenueAliasResolver, storedVenueIds } from "@/lib/venueAliases";
 
 const EVENTS_TABLE = "price_trust_events";
 const CREDITS_TABLE = "price_trust_credits";
@@ -48,6 +50,18 @@ export type PriceTrustReconciliationTask = {
   enqueuedAt: string;
 };
 
+/**
+ * What one failed worker run did to its queue row (migration 0193).
+ * `legacy` means the attempts column or its function is absent, so the caller
+ * keeps the 0126 behaviour and puts the pair back on the queue.
+ */
+type PriceTrustReconciliationFailure =
+  | { status: "retrying"; attempts: number }
+  | { status: "dead-lettered"; attempts: number }
+  | { status: "superseded" }
+  | { status: "legacy" }
+  | { status: "failed" };
+
 type RecordUnlockInput = {
   fingerprint: string;
   venueId: string;
@@ -63,6 +77,15 @@ type RecordUnlockResult = {
   created: boolean;
   failed?: true;
 };
+
+/** Events under the id each venue carries now, so a former id pairs with its venue's reads. */
+async function eventsUnderCurrentIds(events: PriceTrustEvent[]): Promise<PriceTrustEvent[]> {
+  const aliases = await loadVenueAliasResolver();
+  return events.map((event) => {
+    const venueId = aliases.canonical(event.venueId);
+    return venueId === event.venueId ? event : { ...event, venueId };
+  });
+}
 
 type VisibleImpact = {
   lifetimeTrustUnlocks: number;
@@ -89,6 +112,16 @@ export type PriceTrustEventStore = {
   ackReconciliation(
     task: PriceTrustReconciliationTask,
   ): Promise<{ acknowledged: boolean; failed?: true }>;
+  /**
+   * Count one failed worker run against the exact version the worker read.
+   * At `maxAttempts` the row is dead-lettered and no longer listed. A newer
+   * version (a new price write) is never charged for an older failure.
+   */
+  recordReconciliationFailure(
+    task: PriceTrustReconciliationTask,
+    maxAttempts: number,
+    now?: number,
+  ): Promise<PriceTrustReconciliationFailure>;
   liveEventsFor(
     venueId: string,
     category: DrinkCategory,
@@ -129,10 +162,15 @@ function cleanIds(values: readonly unknown[]): string[] {
   return ids.sort();
 }
 
+type MemoryQueueRow = PriceTrustReconciliationTask & {
+  attempts: number;
+  deadLetteredAt: string | null;
+};
+
 type MemoryState = {
   events: PriceTrustEvent[];
   credits: PriceTrustCredit[];
-  reconciliationQueue: Map<string, PriceTrustReconciliationTask>;
+  reconciliationQueue: Map<string, MemoryQueueRow>;
   nextReconciliationVersion: number;
 };
 
@@ -145,6 +183,21 @@ const memory: MemoryState = {
 
 function reconciliationKey(venueId: string, category: DrinkCategory): string {
   return `${venueId}\0${category}`;
+}
+
+function queueTaskOf(row: MemoryQueueRow): PriceTrustReconciliationTask {
+  return {
+    venueId: row.venueId,
+    category: row.category,
+    version: row.version,
+    enqueuedAt: row.enqueuedAt,
+  };
+}
+
+function attemptCap(value: number): number | null {
+  if (!Number.isFinite(value)) return null;
+  const cap = Math.floor(value);
+  return cap >= 1 ? cap : null;
 }
 
 function reconciliationLimit(value: number | undefined): number {
@@ -218,15 +271,16 @@ function terminalReversalForRoot(
         candidate.evidenceFingerprint === restoredFingerprint,
     );
     if (restored.length > 1) return { event: null, degraded: true };
-    if (restored.length === 0) return { event: reversal, degraded: false };
+    const [next] = restored;
+    if (!next) return { event: reversal, degraded: false };
     if (
-      restored[0].venueId !== root.venueId ||
-      restored[0].category !== root.category ||
-      seen.has(restored[0].id)
+      next.venueId !== root.venueId ||
+      next.category !== root.category ||
+      seen.has(next.id)
     ) {
       return { event: null, degraded: true };
     }
-    current = restored[0];
+    current = next;
     seen.add(current.id);
   }
   return { event: null, degraded: true };
@@ -292,12 +346,19 @@ export const memoryPriceTrustEventStore: PriceTrustEventStore = {
       version: (memory.nextReconciliationVersion += 1),
       enqueuedAt: new Date(now).toISOString(),
     };
-    memory.reconciliationQueue.set(queueKey, task);
+    // A new write is new evidence, so it starts a fresh attempt budget (0193).
+    memory.reconciliationQueue.set(queueKey, {
+      ...task,
+      attempts: 0,
+      deadLetteredAt: null,
+    });
     return { task };
   },
 
   async listPendingReconciliations(limit) {
     const tasks = [...memory.reconciliationQueue.values()]
+      .filter((row) => row.deadLetteredAt === null)
+      .map(queueTaskOf)
       .sort(
         (left, right) =>
           left.enqueuedAt.localeCompare(right.enqueuedAt) ||
@@ -319,11 +380,34 @@ export const memoryPriceTrustEventStore: PriceTrustEventStore = {
     return { acknowledged: true };
   },
 
+  async recordReconciliationFailure(rawTask, maxAttempts, now = Date.now()) {
+    const task = cleanReconciliationTask(rawTask);
+    const cap = attemptCap(maxAttempts);
+    if (!task || cap === null) return { status: "failed" };
+    const key = reconciliationKey(task.venueId, task.category);
+    const held = memory.reconciliationQueue.get(key);
+    if (!held || held.version !== task.version || held.deadLetteredAt !== null) {
+      return { status: "superseded" };
+    }
+    const attempts = held.attempts + 1;
+    const at = new Date(now).toISOString();
+    const deadLettered = attempts >= cap;
+    memory.reconciliationQueue.set(key, {
+      ...held,
+      attempts,
+      enqueuedAt: at,
+      deadLetteredAt: deadLettered ? at : null,
+    });
+    return deadLettered
+      ? { status: "dead-lettered", attempts }
+      : { status: "retrying", attempts };
+  },
+
   async liveEventsFor(venueId, category) {
-    const key = cleanText(venueId, 64);
+    const keys = await storedVenueIds(cleanText(venueId, 64));
     const events = memory.events.filter(
       (event) =>
-        event.venueId === key &&
+        keys.includes(event.venueId) &&
         event.category === category &&
         event.reversalOf === null &&
         !isReversed(event.id, memory.events),
@@ -382,7 +466,7 @@ export const memoryPriceTrustEventStore: PriceTrustEventStore = {
     return {
       lifetimeTrustUnlocks: unique.length,
       eventIds: unique,
-      events,
+      events: await eventsUnderCurrentIds(events),
       degraded: false,
     };
   },
@@ -460,6 +544,48 @@ function fromReconciliationRow(
     return null;
   }
   return { venueId, category, version, enqueuedAt };
+}
+
+const QUEUE_ATTEMPT_COLUMNS = ["attempts", "dead_lettered_at"] as const;
+const QUEUE_FAILURE_FUNCTION = "record_price_trust_reconciliation_failure";
+
+type PostgrestErrorLike = { code?: string; message?: string } | null | undefined;
+
+/**
+ * True only for a missing 0193 column (42703 undefined_column, or PostgREST's
+ * PGRST204 schema-cache miss) that names one of the new columns. Any other
+ * error still fails the read.
+ */
+function isMissingQueueAttemptsColumn(error: PostgrestErrorLike): boolean {
+  const code = error?.code ?? "";
+  const message = error?.message ?? "";
+  return (
+    (code === "42703" || code === "PGRST204") &&
+    QUEUE_ATTEMPT_COLUMNS.some((column) => message.includes(column))
+  );
+}
+
+/** True only for the absent 0193 function (PGRST202, or 42883 from Postgres). */
+function isMissingQueueFailureFunction(error: PostgrestErrorLike): boolean {
+  const code = error?.code ?? "";
+  const message = error?.message ?? "";
+  return (
+    (code === "PGRST202" || code === "42883") &&
+    message.includes(QUEUE_FAILURE_FUNCTION)
+  );
+}
+
+/** The live queue read. Before 0193 there is no dead letter to filter on. */
+function selectPendingReconciliationRows(limit: number, withDeadLetter: boolean) {
+  const query = admin()
+    .from(QUEUE_TABLE)
+    .select("venue_id, category, version, enqueued_at");
+  const live = withDeadLetter ? query.is("dead_lettered_at", null) : query;
+  return live
+    .order("enqueued_at", { ascending: true })
+    .order("venue_id", { ascending: true })
+    .order("category", { ascending: true })
+    .limit(limit);
 }
 
 async function selectEventByFingerprint(
@@ -550,20 +676,29 @@ export const supabasePriceTrustEventStore: PriceTrustEventStore = {
       message: "trust reconciliation list failed",
       onError: () => ({ tasks: [], degraded: true }),
       run: async () => {
-        const { data, error } = await admin()
-          .from(QUEUE_TABLE)
-          .select("venue_id, category, version, enqueued_at")
-          .order("enqueued_at", { ascending: true })
-          .order("venue_id", { ascending: true })
-          .order("category", { ascending: true })
-          .limit(bounded);
-        if (error) throw new Error(error.message);
-        const tasks = (data ?? [])
-          .map((row) => fromReconciliationRow(row as ReconciliationRow))
-          .filter((task): task is PriceTrustReconciliationTask => task !== null);
-        return tasks.length === (data?.length ?? 0)
-          ? { tasks, degraded: false }
-          : { tasks: [], degraded: true };
+        let read = await selectPendingReconciliationRows(bounded, true);
+        // A deploy ahead of 0193: the dead letter column is absent, so read
+        // the queue as 0126 did.
+        if (read.error && isMissingQueueAttemptsColumn(read.error)) {
+          read = await selectPendingReconciliationRows(bounded, false);
+        }
+        if (read.error) throw new Error(read.error.message);
+        // One row the worker cannot read is skipped and logged. It must not
+        // stop the rest of the batch: only a failed read is degraded.
+        const tasks: PriceTrustReconciliationTask[] = [];
+        for (const raw of read.data ?? []) {
+          const row = raw as ReconciliationRow;
+          const task = fromReconciliationRow(row);
+          if (task) {
+            tasks.push(task);
+            continue;
+          }
+          log("warn", "price_trust.queue_row_unparseable", {
+            venueId: cleanText(row.venue_id, 64) || null,
+            category: typeof row.category === "string" ? cleanText(row.category, 32) : null,
+          });
+        }
+        return { tasks, degraded: false };
       },
     });
   },
@@ -600,6 +735,41 @@ export const supabasePriceTrustEventStore: PriceTrustEventStore = {
           .maybeSingle();
         if (current.error) throw new Error(current.error.message);
         return { acknowledged: current.data == null };
+      },
+    });
+  },
+
+  async recordReconciliationFailure(rawTask, maxAttempts) {
+    const task = cleanReconciliationTask(rawTask);
+    const cap = attemptCap(maxAttempts);
+    if (!task || cap === null) return { status: "failed" };
+    return queueGuard.guard<PriceTrustReconciliationFailure>({
+      context: "recordReconciliationFailure",
+      // The queue table or the 0193 function is absent: keep 0126 behaviour.
+      onSchemaMiss: async () => ({ status: "legacy" }),
+      message: "trust reconciliation failure count failed",
+      onError: () => ({ status: "failed" }),
+      run: async () => {
+        const { data, error } = await admin().rpc(QUEUE_FAILURE_FUNCTION, {
+          p_venue_id: task.venueId,
+          p_category: task.category,
+          p_version: task.version,
+          p_max_attempts: cap,
+        });
+        if (error) {
+          if (isMissingQueueFailureFunction(error)) return { status: "legacy" };
+          throw new Error(error.message);
+        }
+        const [row] = Array.isArray(data) ? data : [];
+        if (!row) return { status: "superseded" };
+        const counted = row as { attempts?: unknown; dead_lettered?: unknown };
+        const attempts = Number(counted.attempts);
+        if (!Number.isSafeInteger(attempts) || attempts < 1) {
+          throw new Error("trust reconciliation failure count returned no attempts");
+        }
+        return counted.dead_lettered === true
+          ? { status: "dead-lettered", attempts }
+          : { status: "retrying", attempts };
       },
     });
   },
@@ -830,7 +1000,7 @@ export const supabasePriceTrustEventStore: PriceTrustEventStore = {
           .select(
             "id, evidence_fingerprint, venue_id, category, observation_ids, created_at, reversal_of",
           )
-          .eq("venue_id", key)
+          .in("venue_id", await storedVenueIds(key))
           .eq("category", category)
           .is("reversal_of", null);
         if (error) throw new Error(error.message);
@@ -952,7 +1122,7 @@ export const supabasePriceTrustEventStore: PriceTrustEventStore = {
         return {
           lifetimeTrustUnlocks: live.length,
           eventIds: live.map((event) => event.id),
-          events: live,
+          events: await eventsUnderCurrentIds(live),
           degraded: false,
         };
       },

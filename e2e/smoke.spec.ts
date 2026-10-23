@@ -1,4 +1,5 @@
 import { test, expect, type Page } from "@playwright/test";
+import { expectMobileMapShellReady, mobileMapShellControl } from "./helpers/mobileMapShell";
 
 // P3.11 smoke suite. High-signal, non-flaky, WebGL-agnostic: nothing here asserts
 // that the MapLibre canvas actually paints (headless boxes have no GPU), only
@@ -181,6 +182,10 @@ test("nav does not overflow at 390px — sign-in button never clips (GH #18)", a
   const response = await page.goto("/feed");
   expect(response?.status()).toBe(200);
 
+  // The route's loading skeleton carries its own SiteNav, and React swaps the
+  // real page in over it after load. Measure the page's nav, not the
+  // skeleton's, or the box can be read mid-swap and come back null.
+  await expect(page.locator(".routeLoadingShell")).toHaveCount(0);
   const nav = page.locator(".siteNavBar").first();
   await expect(nav).toBeVisible();
 
@@ -215,7 +220,7 @@ test("mobile map shell controls stay inside the coordinated chrome at 390px", as
   const response = await page.goto("/map");
   expect(response?.status()).toBe(200);
 
-  await expect(page.locator(".mobileMapTopbar")).toBeVisible({ timeout: 20_000 });
+  await expectMobileMapShellReady(page, 20_000);
   // The phone map chrome is ONE bar (design judgement 2026-08-01, finding 2.3).
   await expect(page.locator(".mobileMapRail")).toHaveCount(0);
 
@@ -233,9 +238,7 @@ test("mobile map shell controls stay inside the coordinated chrome at 390px", as
   }
 
   // B1 consolidated separate Drinks/Price controls into one Filters sheet.
-  const filters = page
-    .locator(".mobileMapTopbar")
-    .getByRole("button", { name: /^Filters/ });
+  const filters = await mobileMapShellControl(page, "filters");
   await expect(filters).toBeVisible();
   await filters.click();
   const sheet = page.locator('.mobileSheetPortal[data-sheet-kind="filters"]:visible');
@@ -306,13 +309,14 @@ test("mobile venue sheet (GH #17): opens at the peek snap with the grab handle v
   const tabs = page.getByRole("tab");
   await expect(tabs.first()).toBeVisible();
 
-  const mobileNav = page.locator(".mobileTabBar");
+  const mobileNav = page.locator(".mobileTabBar").filter({ visible: true });
   const tablist = page.getByRole("tablist", { name: "Venue detail sections" });
   const goldenThreadPrice = page.locator(".vpsPriceValue").first();
   await expect(mobileNav).toBeVisible();
   await expect(tablist).toBeVisible();
   await expect(goldenThreadPrice).toHaveText("£5.50");
 
+  await closeButton.click({ trial: true });
   const [navBox, closeBox, tabsBox, horizontalOverflow, goldenThreadPriceStyle] = await Promise.all([
     mobileNav.boundingBox(),
     closeButton.boundingBox(),
@@ -432,7 +436,7 @@ test("theme toggle flips html[data-theme], persists to localStorage, survives re
   await page.setViewportSize({ width: 390, height: 844 });
   await dismissMapFirstRunTour(page);
   await page.goto("/map");
-  await page.getByRole("button", { name: "More map controls" }).click();
+  await (await mobileMapShellControl(page, "more")).click();
   // PR #677 (3740a132, accessible context-aware map key) added the "Key" tab
   // and made it the default, pushing the ThemeToggle behind the "Layers" tab
   // (components/PubMap.tsx, mobileLayersTab).

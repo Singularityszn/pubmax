@@ -1,6 +1,7 @@
-// Wanted Wave A — private list + create / delete / fulfil.
+// Wanted Wave A — private list + create / note / delete / fulfil.
 //
-//   GET                           → 200 { status, wanteds } (owner only)
+//   GET                           → 200 { status, wanteds } (owner only);
+//                                   200 { status, error } while an age or handle gate stands in front of it
 //   GET ?open=1                   → 200 { status, wanteds } open only
 //   POST { venueId, venueName, venueKind?, sourceUrl?, note?, rawPaste? }
 //                                 → 201 { wanted }
@@ -8,6 +9,8 @@
 //                                 → 201 { wanted } (unresolvable paste)
 //   POST { action: "fulfil", venueId }
 //                                 → 200 { fulfilled: WantedDTO[] }
+//   POST { action: "note", id, note? }
+//                                 → 200 { wanted } (the owner's own row, note changed)
 //   POST { action: "delete", id } → 200 { ok: true }
 //
 // Auth-gated via resolveContributionIdentity. Rate-limited. publicApiError
@@ -15,6 +18,7 @@
 
 import { jsonNoStore } from "@/lib/apiResponses";
 import { publicApiError } from "@/lib/apiError";
+import { contributionReadRefusalResponse } from "@/lib/contributionReadRefusal.server";
 import { resolveContributionIdentity } from "@/lib/contributionIdentity.server";
 import { log } from "@/lib/log";
 import { isLimited } from "@/lib/pintDrops";
@@ -49,10 +53,17 @@ async function parseJson(request: Request): Promise<Record<string, unknown> | nu
   }
 }
 
-async function requireOwner(request: Request) {
+/** `read` is a GET of the owner's own list: a gate (age, handle) is answered as
+ * data at 200 rather than a 409, see `contributionReadRefusalResponse`. */
+async function requireOwner(request: Request, options: { read?: boolean } = {}) {
   const contributor = await resolveContributionIdentity(request);
   if (!contributor.ok) {
-    return { ok: false as const, response: jsonNoStore(contributor.body, { status: contributor.httpStatus }) };
+    return {
+      ok: false as const,
+      response: options.read
+        ? contributionReadRefusalResponse(contributor)
+        : jsonNoStore(contributor.body, { status: contributor.httpStatus }),
+    };
   }
   return { ok: true as const, contributor };
 }
@@ -63,11 +74,11 @@ async function handlePromotion(
 ): Promise<Response> {
   const id = readString(body.id);
   const listType = cleanListType(body.listType);
-  if (!id) return publicApiError("Wanted place not found.", "NOT_FOUND", 404);
+  if (!id) return publicApiError("That pub isn't on your list.", "NOT_FOUND", 404);
   if (!listType) return publicApiError("Add a list name.", "INVALID_REQUEST", 400);
 
   const wanted = await wantedStore().getById(owner.actor, id);
-  if (!wanted) return publicApiError("Wanted place not found.", "NOT_FOUND", 404);
+  if (!wanted) return publicApiError("That pub isn't on your list.", "NOT_FOUND", 404);
   if (wanted.status !== "open" || wanted.venueKind !== "curated" || !wanted.venueId) {
     return publicApiError(
       "Only an open matched pub can join a public list.",
@@ -77,7 +88,7 @@ async function handlePromotion(
   }
   if (wanted.promotedListType && wanted.promotedListType !== listType) {
     return publicApiError(
-      "This Wanted place is already on a public list.",
+      "This pub is already on a public list.",
       "WANTED_ALREADY_PROMOTED",
       409,
     );
@@ -86,7 +97,7 @@ async function handlePromotion(
   const venue = await resolveVenue(wanted.venueId);
   if (!venue || !isPubVenueKind(venue.kind)) {
     return publicApiError(
-      "Match this Wanted place to a current pub first.",
+      "Match this to a current pub first.",
       "WANTED_NOT_PROMOTABLE",
       409,
     );
@@ -113,7 +124,7 @@ async function handlePromotion(
     listType,
   });
   if (result.status === "not_found") {
-    return publicApiError("Wanted place not found.", "NOT_FOUND", 404);
+    return publicApiError("That pub isn't on your list.", "NOT_FOUND", 404);
   }
   if (result.status === "not_promotable") {
     return publicApiError(
@@ -124,7 +135,7 @@ async function handlePromotion(
   }
   if (result.status === "already_promoted") {
     return publicApiError(
-      "This Wanted place is already on a public list.",
+      "This pub is already on a public list.",
       "WANTED_ALREADY_PROMOTED",
       409,
     );
@@ -156,7 +167,7 @@ async function handlePromotion(
 }
 
 export async function GET(request: Request): Promise<Response> {
-  const owner = await requireOwner(request);
+  const owner = await requireOwner(request, { read: true });
   if (!owner.ok) return owner.response;
 
   const openOnly = new URL(request.url).searchParams.get("open") === "1";
@@ -211,15 +222,36 @@ export async function POST(request: Request): Promise<Response> {
   if (action === "delete") {
     const id = readString(body.id);
     if (!id) {
-      return publicApiError("Wanted place not found.", "NOT_FOUND", 404);
+      return publicApiError("That pub isn't on your list.", "NOT_FOUND", 404);
     }
     try {
       const done = await wantedStore().delete(owner.contributor.actor, id);
       return done
         ? jsonNoStore({ ok: true }, { status: 200 })
-        : publicApiError("Wanted place not found.", "NOT_FOUND", 404);
+        : publicApiError("That pub isn't on your list.", "NOT_FOUND", 404);
     } catch (err) {
       log("error", "wanteds.delete_failed", {
+        route: "POST /api/wanted",
+        error: err instanceof Error ? err.message : String(err),
+      });
+      return publicApiError("Storage is unavailable.", "STORE_UNAVAILABLE", 503, {
+        retryable: true,
+      });
+    }
+  }
+
+  if (action === "note") {
+    const id = readString(body.id);
+    if (!id) {
+      return publicApiError("That pub isn't on your list.", "NOT_FOUND", 404);
+    }
+    try {
+      const wanted = await wantedStore().updateNote(owner.contributor.actor, id, readString(body.note) ?? "");
+      return wanted
+        ? jsonNoStore({ wanted }, { status: 200 })
+        : publicApiError("That pub isn't on your list.", "NOT_FOUND", 404);
+    } catch (err) {
+      log("error", "wanteds.note_failed", {
         route: "POST /api/wanted",
         error: err instanceof Error ? err.message : String(err),
       });

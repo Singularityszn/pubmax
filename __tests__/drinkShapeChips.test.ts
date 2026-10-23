@@ -1,9 +1,11 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
+import { createElement } from "react";
+import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 
-import {
+import DrinkShapeChips, {
   CHIP_CATEGORIES,
   nextDrinkShapeFilters,
   nextDrinkSubtypeFilters,
@@ -227,8 +229,7 @@ describe("CHIP_CATEGORIES outing lenses", () => {
 
 // The mobile filter sheet renders DrinkShapeChips without MapToolbar (a
 // desktop-only dynamic chunk), so the chip styles only reach a 390px viewport
-// if the component imports its stylesheet itself. Locked from source, the same
-// idiom as mapBannerStagingCss.test.ts.
+// if the component imports its stylesheet itself. Locked from source.
 describe("drink chip styling ships with the component", () => {
   const component = readFileSync(
     join(process.cwd(), "components/map/DrinkShapeChips.tsx"),
@@ -260,8 +261,10 @@ describe("drink chip styling ships with the component", () => {
     const background = /background:\s*([^;]+);/.exec(selected)?.[1] ?? "";
     expect(background).toBe("var(--panel-raised)");
     expect(selected).toMatch(/color:\s*var\(--ink\)/);
-    // Brass may cue selection (underline / inset), never own the fill.
-    expect(selected).toMatch(/var\(--brass\)/);
+    // The inset underline cues selection in ink, never coral: a selection is
+    // not an action (docs/DESIGN_SYSTEM.md "Coral is spent twice").
+    expect(selected).toMatch(/var\(--state-selected-border\)/);
+    expect(selected).not.toMatch(/var\(--brass/);
     expect(background).not.toMatch(/--brass/);
   });
 
@@ -293,5 +296,27 @@ describe("drink chip styling ships with the component", () => {
     expect(css).toMatch(
       /html\[data-theme="dark"\]\s+\.drinkShapeChip\s*\{[^}]*color:\s*var\(--ink-soft\)/,
     );
+  });
+});
+
+// QA journeys F24. The desktop tray sits under the drink-lane picker, which
+// offers the same drinks as text tabs, so it asks for the refinements only.
+describe("DrinkShapeChips without the category strip", () => {
+  const draw = (overrides: Partial<Filters>, categories: boolean) =>
+    renderToStaticMarkup(
+      createElement(DrinkShapeChips, {
+        filters: filters(overrides),
+        onFiltersChange: () => undefined,
+        categories,
+      }),
+    );
+
+  it("draws the category strip by default and on a phone sheet", () => {
+    expect(draw({}, true)).toContain("Filter by drink shape");
+  });
+
+  it("draws nothing at rest, where the lane picker already offers every drink", () => {
+    expect(draw({}, false)).toBe("");
+    expect(draw({ drinkCategory: "wine" }, false)).toBe("");
   });
 });

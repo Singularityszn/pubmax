@@ -55,10 +55,12 @@ export async function resolveAuthEmailForHandle(handle: string): Promise<string 
  * TRI-STATE, for the reason every identity read here is: `null` means we could
  * not tell. `auth.users.encrypted_password` is not reachable over PostgREST, so
  * the answer comes from `public.account_has_password` (migration 0099), which
- * returns a BOOLEAN and never the hash it looked at. Until the captain applies
- * that migration the RPC is missing and this answers
- * `null`, and a surface that has not been told may never say "you have no
- * password yet" - it says nothing about which.
+ * returns a BOOLEAN and never the hash it looked at. Since 0173 it answers true
+ * only for a password the owner set: an email-link sign-up after 0173 carries a
+ * random hash GoTrue wrote, and that one does not count. Until the captain
+ * applies 0099 the RPC is missing and this answers `null`, and a surface that
+ * has not been told may never say "you have no password yet" - it says nothing
+ * about which.
  */
 export async function accountHasPassword(
   userId: string,
@@ -83,29 +85,39 @@ export async function accountHasPassword(
  * GoTrue reports `user_banned` BEFORE it checks the password. The route must
  * answer that the same way it answers a wrong password. Returning the ban here
  * would tell anybody who can name the handle that the account is banned.
+ * `invalid_credentials` is GoTrue's own answer to a wrong password, so it is the
+ * only refusal that proves the password was wrong.
  */
-async function refusalIsBan(response: Response): Promise<boolean> {
+async function refusalKind(response: Response): Promise<"banned" | "invalid" | null> {
   try {
     const body = (await response.json()) as Record<string, unknown>;
-    return isGoTrueUserBannedError({
-      code: body.error_code,
-      message: body.msg ?? body.message ?? body.error_description,
-      status: response.status,
-    });
+    if (
+      isGoTrueUserBannedError({
+        code: body.error_code,
+        message: body.msg ?? body.message ?? body.error_description,
+        status: response.status,
+      })
+    ) {
+      return "banned";
+    }
+    return body.error_code === "invalid_credentials" || body.error === "invalid_grant"
+      ? "invalid"
+      : null;
   } catch {
-    return false;
+    return null;
   }
 }
 
 /**
  * Server-side password grant. Returns `"banned"` when GoTrue refuses the
- * account before checking the password, and null on any other failure. The
- * route maps both to the same invalid-credentials answer.
+ * account before checking the password, `"invalid"` when GoTrue refuses the
+ * password itself, and null on any other failure: no config, a timeout, an
+ * upstream error.
  */
 export async function signInWithEmailPassword(
   email: string,
   password: string,
-): Promise<HandlePasswordSession | "banned" | null> {
+): Promise<HandlePasswordSession | "banned" | "invalid" | null> {
   const config = supabaseAuthConfig();
   if (!config) return null;
   if (!password || password.length < MIN_PASSWORD_LENGTH) return null;
@@ -130,7 +142,7 @@ export async function signInWithEmailPassword(
   }
 
   if (!response.ok) {
-    return (await refusalIsBan(response)) ? "banned" : null;
+    return refusalKind(response);
   }
 
   let body: Record<string, unknown>;

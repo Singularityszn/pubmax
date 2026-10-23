@@ -11,6 +11,13 @@ import type { OutOpenPlanMeetingPoint } from "@/lib/out";
 const SOCIAL_CREW_ROLES = ["owner", "cohost", "member"] as const;
 export type SocialCrewRole = (typeof SOCIAL_CREW_ROLES)[number];
 
+/**
+ * The header that carries the Plan host capability when a crew is started.
+ * `Authorization` belongs to the signed-in account (the Supabase access token,
+ * which is a few hundred characters long), so the Plan capability cannot share it.
+ */
+export const SOCIAL_CREW_HOST_CAPABILITY_HEADER = "x-plan-host-capability";
+
 export const SOCIAL_CREW_VISIBILITIES = ["private", "friends", "open"] as const;
 export type SocialCrewVisibility = (typeof SOCIAL_CREW_VISIBILITIES)[number];
 

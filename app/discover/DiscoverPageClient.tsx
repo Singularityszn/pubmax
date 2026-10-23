@@ -1,5 +1,6 @@
 "use client";
 
+import type { Route } from "next";
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
 
@@ -55,7 +56,7 @@ import "./discover.css";
 import "@/components/night/nightAreaCoverage.css";
 
 /** Discover Hungry chips → map with food filter + cuisine hint in the query. */
-function hungryCuisineHref(tag: string, cityId: CityId): string {
+function hungryCuisineHref(tag: string, cityId: CityId): Route {
   const params = new URLSearchParams({ food: "1", q: tag });
   return cityAwareMapPath(cityId, params);
 }
@@ -102,18 +103,18 @@ function exploreHref(
   category: DrinkCategory,
   cityId: CityId,
   brandId?: string,
-): string {
+): Route {
   const params = new URLSearchParams({ drink: category });
   if (category === "cocktail") params.set("cocktails", "1");
   if (brandId) params.set("brand", brandId);
   return cityAwareMapPath(cityId, params);
 }
 
-function hungryHref(cityId: CityId): string {
+function hungryHref(cityId: CityId): Route {
   return cityAwareMapPath(cityId, new URLSearchParams({ food: "1" }));
 }
 
-function lowNoHref(cityId: CityId): string {
+function lowNoHref(cityId: CityId): Route {
   return cityAwareMapPath(
     cityId,
     new URLSearchParams({ drink: "low-no", low: "1", alt: "mocktail" }),
@@ -121,7 +122,7 @@ function lowNoHref(cityId: CityId): string {
 }
 
 /** Map-first crawl href, or city map if the curated id is missing. */
-function crawlMapHref(crawlId: string, cityId: CityId): string {
+function crawlMapHref(crawlId: string, cityId: CityId): Route {
   const crawl = curatedCrawlById(crawlId);
   return crawl
     ? curatedCrawlMapHref(crawl, cityId)
@@ -129,7 +130,7 @@ function crawlMapHref(crawlId: string, cityId: CityId): string {
 }
 
 /** Map-first pack lead crawl, or city map if the pack is empty. */
-function packMapHref(packId: string, cityId: CityId): string {
+function packMapHref(packId: string, cityId: CityId): Route {
   const pack = getRoutePack(packId);
   if (!pack) return cityAwareMapPath(cityId);
   const primary = routePackPrimaryCrawl(pack);
@@ -251,7 +252,7 @@ export function DiscoverBody({
   );
   const [entries, setEntries] = useState<DiscoverBoardRow[]>([]);
   const [status, setStatus] = useState<"idle" | "loading" | "ready" | "error">(
-    "idle",
+    embedded ? "loading" : "idle",
   );
   // "Then vs Now" is best-effort and independent of the leaderboard: it needs
   // BOTH the dataset (for baseline prices + names) and the community drops. If
@@ -440,6 +441,7 @@ export function DiscoverBody({
     <Root
       id={embedded ? undefined : "main"}
       className={embedded ? "discoverPage discoverPageEmbedded" : "discoverPage"}
+      data-embed-load={embedded ? status : undefined}
       ref={setRevealRoot}
     >
       {!embedded ? <SiteNav active="discover" /> : null}
@@ -584,7 +586,7 @@ export function DiscoverBody({
         aria-labelledby="rivalry-title"
       >
         <h2 id="rivalry-title" className="discoverSectionTitle">
-          UK city energy
+          UK cities, ranked
         </h2>
         <p className="discoverSectionDek">
           Cities ranked on Pint Drops, crawl packs, and how much ground we
@@ -657,7 +659,7 @@ export function DiscoverBody({
       {status === "error" || status === "idle" || status === "loading" || entries.length > 0 ? (
         <section className="discoverSection" aria-labelledby="cheap-title">
           <h2 id="cheap-title" className="discoverSectionTitle">
-            Cheap Pint Leaderboard
+            Cheap pint leaderboard
           </h2>
           <p className="discoverSectionDek">
             Lowest listed pint prices, separate from the recently logged
@@ -686,7 +688,7 @@ export function DiscoverBody({
       {status === "error" || status === "idle" || status === "loading" || thenVsNow.length > 0 ? (
         <section className="discoverSection" aria-labelledby="thenVsNow-title">
           <h2 id="thenVsNow-title" className="discoverSectionTitle">
-            Then vs Now
+            Then vs now
           </h2>
           <p className="discoverSectionDek">
             Latest community-reported pint against the earlier price on

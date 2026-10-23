@@ -33,7 +33,7 @@ describe("PubmaxxAccountHub provider gating", () => {
     expect(html).toContain("Max per person");
     expect(html).toContain("Voice");
     expect(html).toContain("Briefings");
-    expect(html).toContain("Precise location and voice transcripts are never saved here.");
+    expect(html).toContain("We never save your precise location or voice transcripts here.");
     expect(html).toContain("Saved on this device");
   });
 

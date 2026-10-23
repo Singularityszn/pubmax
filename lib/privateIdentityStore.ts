@@ -12,6 +12,7 @@ import {
 } from "@/lib/privateIdentity";
 import { assessPubmaxxHandle } from "@/lib/pubmaxxIdentity";
 import { profileStore } from "@/lib/profileStore";
+import type { Database } from "@/types/database";
 import { requireSupabaseAdmin } from "@/lib/supabase";
 import { selectStore } from "@/lib/storeBackend";
 import { cleanText } from "@/lib/textClean";
@@ -305,7 +306,7 @@ export const supabasePrivateIdentityStore: PrivateIdentityStore = {
     // absence. `date_of_birth` is NOT NULL, so a first save must carry one.
     const dateOfBirth = details.dateOfBirth || current?.dateOfBirth || "";
     if (!dateOfBirth) return null;
-    const row: Record<string, unknown> = {
+    const row: Database["public"]["Tables"]["private_account_identities"]["Insert"] = {
       user_id: key,
       date_of_birth: dateOfBirth,
       updated_at: new Date().toISOString(),

@@ -35,8 +35,8 @@ failure plus cache miss still returns an error response.
 
 The target worker marks its cache-write policy in the registration URL. It
 activates immediately only when the active worker lacks that marker or carries
-the explicitly known cache-write-coupled marker. First installation, existing
-write-safe workers, and future write-safe policy versions keep the normal
+a retired policy marker. `PRE_FIX_CACHE_POLICIES` in `public/sw.js` owns that
+list. First installation and workers with a current policy keep the normal
 waiting-worker handoff.
 
 During activation, old OpenFreeMap entries are purged so a poisoned response

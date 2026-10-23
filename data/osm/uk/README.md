@@ -22,8 +22,14 @@ data/osm/uk/
   raw/chunk_lat<south>_lon<west>.json   # raw Overpass response, one per grid cell
   chunks.json                           # grid definition + per-chunk element counts
   uk_osm_pubs.json                      # normalized pack (the thing to consume)
+  uk_osm_unnamed_pubs.json              # amenity=pub elements with a position and no name tag
   dedupe_report.json                    # overlap vs curated London + city packs
 ```
+
+`uk_osm_unnamed_pubs.json` holds the pubs `uk_osm_pubs.json` drops for want of a
+`name` tag: OSM id, position and address, and no name key at all. It is a
+separate file so no reader of the named pack ever meets a nameless pub. Only the
+UK base layer reads it, and draws each as a bare "Pub" pin at street zoom.
 
 `raw/` and `uk_osm_pubs.json` are compact because indentation would multiply
 repository size without making machine-generated dumps easier to review.
@@ -112,7 +118,8 @@ without recomputing the join.
 ## Consuming these packs
 
 `scripts/build_uk_base_shards.mjs` is the pack's consumer: it turns
-`uk_osm_pubs.json` into the map's UK **base layer** under `public/data/uk_base/`
+`uk_osm_pubs.json` and `uk_osm_unnamed_pubs.json` into the map's UK **base
+layer** under `public/data/uk_base/`
 (see that directory's README). It records the actual curated owner when one
 exists, salts base ids to `venue-uk-…`, and never invents a price. Runtime
 rendering suppresses a base row only when that owner is loaded and drawable.

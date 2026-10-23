@@ -108,6 +108,11 @@ single value, actively wrong (it would canonicalize every page to the homepage).
    permanent redirect to the apex even if the Vercel dashboard step below is
    never applied.
 
+   Update 2026-10-05: the same rule now lives in `vercel.json` `redirects`.
+   With `typedRoutes` on, `next typegen` turns every next.config redirect
+   source into a route and ignores `has`, so this rule made a root catch-all
+   that let a link to any missing page pass the typecheck.
+
 2. `__tests__/wwwHostRedirect.test.ts` — new test pinning the redirect rule
    (host condition, apex HTTPS destination, `permanent: true`, and that only the
    www host is matched so the apex is not self-redirected).

@@ -1,3 +1,4 @@
+import { legacyOsmVenueKind } from "../lib/legacyOsmVenueKind.mjs";
 // Build-time data validation for the bundled datasets shipped in public/data.
 //
 // The app is deliberately keyless/offline and reads these JSON files directly,
@@ -14,6 +15,11 @@ import { isDeepStrictEqual } from "node:util";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 import { validateLateFoodEvidence } from "./lib/validateLateFoodEvidence.mjs";
+import {
+  COFFEE_PILOT_FILE,
+  coffeePilotProblems,
+  shoreditchCafeNames,
+} from "./lib/coffeePilotRows.mjs";
 import { canonicalObservationsPayload } from "../lib/pintIndexCanonical.mjs";
 import { whatsOnRowProblems } from "../lib/whatsOnRowShape.mjs";
 import {
@@ -43,10 +49,8 @@ import {
   findExcludedPricedRows,
   isValidExclusionEntry,
 } from "./lib/pricedIndexExclusions.mjs";
-import {
-  isCurrentNightOutPlace,
-  nightOutPlaceRowValidationErrors,
-} from "../lib/nightOutPlaceContract.mjs";
+import { nightOutPlaceRowValidationErrors } from "../lib/nightOutPlaceContract.mjs";
+import { isCurrentFamousVenue } from "./lib/currentFamousVenue.mjs";
 import { CITY_VENUE_PACKS } from "../lib/cityVenuePacks.mjs";
 import { isLivePriceRow, priceSupersededErrors } from "../lib/priceRowEligibility.mjs";
 import { CITY_BOUNDS } from "../lib/cityBounds.mjs";
@@ -165,6 +169,7 @@ const ARTIFACT_CLASSIFICATION = [
   { id: "late_food_evidence", required: true, reason: "not yet reviewed for softening; keep as a hard gate" },
   { id: "editorial_overlay", required: true, reason: "the validator itself SKIPs cleanly (ok: true) when the file is absent; a file that IS present with a body or extra keys is a genuine defect and stays a hard gate" },
   { id: "historic_pubs", required: true, reason: "the validator itself SKIPs cleanly (ok: true) when the artifact is absent; a record that IS present carrying a note we wrote to ourselves, a description of a pub in another borough, or an event year ordering the pub by age, is published to strangers as a fact about this pub, and stays a hard gate" },
+  { id: "coffee_pilot", required: true, reason: "the validator itself SKIPs cleanly (ok: true) when the file is absent; a row that IS present without a named drink, a page, and a day, or that carries an estimate or a cheapestPrice, is a price nobody can check, and stays a hard gate" },
 ];
 
 function classificationFor(id) {
@@ -494,7 +499,7 @@ function slimPayloadClock(payload) {
 }
 
 function currentFamousVenues(rows, builtAt) {
-  return rows.filter((row) => isCurrentNightOutPlace(row, builtAt));
+  return rows.filter((row) => isCurrentFamousVenue(row, builtAt));
 }
 
 function isReplacedByFamousVenue(first, famousRows) {
@@ -1327,13 +1332,15 @@ function validateSlimVenues() {
       .filter(isLivePriceRow)
       .map((p) => p.price_gbp)
       .filter((p) => typeof p === "number" && Number.isFinite(p));
+    const kind = legacyOsmVenueKind(prices);
     expected.set(stableVenueIdFromKey(key), {
       name: String(first.pub_name),
       lat: Number(first.latitude),
       lng: Number(first.longitude),
       cheapestPrice: numericPrices.length ? Math.min(...numericPrices) : null,
       borough: String(first.primary_borough || ""),
-      kind: undefined,
+      kind,
+      legacyOsmBar: kind === "bar" ? true : undefined,
       priceBand: undefined,
     });
   }
@@ -1459,6 +1466,9 @@ function validateSlimVenues() {
       errs.add(
         `${where} (${id}): kind ${row.kind} does not match expected ${exp.kind}`,
       );
+    }
+    if (row.legacyOsmBar !== exp.legacyOsmBar) {
+      errs.add(`${where} (${id}): legacyOsmBar does not match recorded OSM lineage`);
     }
     if (row.priceBand !== exp.priceBand) {
       errs.add(
@@ -1625,99 +1635,69 @@ function validateCityVenuePacks() {
   return { ok, count: venues };
 }
 
-// venues_slim shards - the map's first-paint payload is split into a manifest
-// plus geographic cells, with the central cell also exposed as the compatibility
-// core. This validator recomputes the expected split from the canonical
-// venues_slim.json using the same shared module the build script uses, so the
-// shipped manifest and cell files can never silently drift from the complete
-// index. It also enforces eager and total-across-shard budgets.
-function validateSlimShards() {
-  const name = "public/data/venues_slim shards";
-  const errs = makeCollector();
-  let full;
-  try {
-    full = loadJson("venues_slim.json");
-  } catch (e) {
-    console.log(
-      `FAIL ${name}: could not read/parse venues_slim.json (${e.message})`,
-    );
-    return { ok: false, count: 0 };
+function validateSlimShardRows(rows, exp, expectedRowsByShard, allIds, errs) {
+  const expectedRows = expectedRowsByShard.get(exp.id) ?? [];
+  const expectedIds = new Set(expectedRows.map((row) => row?.id));
+  const expectedById = new Map(expectedRows.map((row) => [row?.id, row]));
+  const shardIds = new Set();
+  for (const r of rows) {
+    if (!r || typeof r !== "object") {
+      errs.add(`shard "${exp.id}": a row is not an object`);
+      continue;
+    }
+    if (typeof r.id !== "string" || r.id.length === 0) {
+      errs.add(`shard "${exp.id}": a row is missing an id`);
+      continue;
+    }
+    if (typeof r.name !== "string" || r.name.length === 0) {
+      errs.add(`shard "${exp.id}": row "${r.id}" is missing a name`);
+    }
+    if (!isFiniteNumber(r.lat) || !isFiniteNumber(r.lng)) {
+      errs.add(`shard "${exp.id}": row "${r.id}" has invalid coordinates`);
+    }
+    if (typeof r.borough !== "string") {
+      errs.add(`shard "${exp.id}": row "${r.id}" has invalid borough`);
+    }
+    if (
+      r.cheapestPrice !== null &&
+      (!isFiniteNumber(r.cheapestPrice) || r.cheapestPrice < 0)
+    ) {
+      errs.add(`shard "${exp.id}": row "${r.id}" has invalid cheapestPrice`);
+    }
+    if (
+      r.zone !== undefined &&
+      (!Number.isInteger(r.zone) || r.zone < 1 || r.zone > 9)
+    ) {
+      errs.add(`shard "${exp.id}": row "${r.id}" has invalid zone`);
+    }
+    if (!expectedIds.has(r.id)) {
+      errs.add(`shard "${exp.id}": row "${r.id}" belongs to another cell`);
+    }
+    const expectedRow = expectedById.get(r.id);
+    if (expectedRow && !isDeepStrictEqual(r, expectedRow)) {
+      errs.add(`shard "${exp.id}": row "${r.id}" differs from monolith`);
+    }
+    shardIds.add(r.id);
+    if (allIds.has(r.id))
+      errs.add(`shard "${exp.id}": duplicate id "${r.id}" across shards`);
+    allIds.add(r.id);
   }
-  if (
-    !full ||
-    Array.isArray(full) ||
-    typeof full.revision !== "string" ||
-    full.revision.trim().length === 0 ||
-    !Array.isArray(full.rows)
-  ) {
-    console.log(`FAIL ${name}: venues_slim.json is not a revisioned rows payload`);
-    return { ok: false, count: 0 };
+  for (const id of expectedIds) {
+    if (!shardIds.has(id)) {
+      errs.add(`shard "${exp.id}": expected row "${id}" is missing`);
+    }
   }
-  const fullRevision = full.revision;
-  full = full.rows;
+}
 
-  const readRaw = (fileName) => readFileSync(join(DATA_DIR, fileName), "utf8");
-  const fileFromUrl = (url) => url.replace(/^\/data\//, "");
-
-  let manifest;
-  let coreRows;
-  try {
-    manifest = JSON.parse(readRaw(MANIFEST_FILE));
-    const corePayload = JSON.parse(readRaw(CORE_FILE));
-    coreRows = Array.isArray(corePayload) ? corePayload : corePayload?.rows;
-    if (!Array.isArray(coreRows)) coreRows = [];
-  } catch (e) {
-    console.log(
-      `FAIL ${name}: missing/broken manifest or core shard (${e.message})`,
-    );
-    return { ok: false, count: 0 };
-  }
-
-  // Rebuild the expected plan from the monolith and compare structurally.
-  // Version 2 is location-first: every row is in a geographic cell, with one
-  // central compatibility core file. Version 1 remains accepted for city and
-  // older fixtures that still use borough shards.
-  let expectedCore;
-  let expectedManifest;
-  const expectedRowsByShard = new Map();
-  if (manifest?.grid) {
-    const grid = manifest.grid;
-    const cells = classifySpatialShards(full, grid);
-    const londonCentre = spatialCellIndex(51.5074, -0.1278, grid);
-    const coreId = spatialCellId(londonCentre.lat, londonCentre.lon, grid);
-    expectedCore = cells.get(coreId)?.venues ?? [];
-    expectedManifest = buildSpatialShardManifest(cells, grid, coreId);
-    for (const [id, cell] of cells) expectedRowsByShard.set(id, cell.venues);
-  } else {
-    const { core, outer } = classifySlimShards(full);
-    expectedCore = core;
-    expectedManifest = buildShardManifest({ core, outer });
-    expectedRowsByShard.set("core", core);
-    for (const [id, shard] of outer) expectedRowsByShard.set(id, shard.venues);
-  }
-
-  if (!manifest?.grid || manifest.version !== SPATIAL_SHARD_VERSION) {
-    errs.add("manifest must use the spatial shard schema");
-  }
-  if (typeof manifest?.revision !== "string" || manifest.revision.trim().length === 0) {
-    errs.add("manifest must carry a non-empty revision");
-  }
-  if (manifest?.revision !== fullRevision) {
-    errs.add(`manifest revision ${manifest?.revision} !== monolith revision ${fullRevision}`);
-  }
-
-  if (manifest.version !== expectedManifest.version) {
-    errs.add(
-      `manifest version ${manifest.version} !== expected ${expectedManifest.version}`,
-    );
-  }
-  const shipShards = Array.isArray(manifest.shards) ? manifest.shards : [];
-  if (shipShards.length !== expectedManifest.shards.length) {
-    errs.add(
-      `manifest lists ${shipShards.length} shard(s), expected ${expectedManifest.shards.length}`,
-    );
-  }
-  const shipById = new Map(shipShards.map((s) => [s.id, s]));
+function validateSlimShardBodies(
+  expectedManifest,
+  shipById,
+  manifest,
+  expectedRowsByShard,
+  readRaw,
+  fileFromUrl,
+  errs,
+) {
   const allIds = new Set();
   const shardRawById = new Map();
   let eagerBytes = Buffer.byteLength(readRaw(MANIFEST_FILE));
@@ -1779,58 +1759,122 @@ function validateSlimShards() {
       );
       continue;
     }
-    const expectedRows = expectedRowsByShard.get(exp.id) ?? [];
-    const expectedIds = new Set(expectedRows.map((row) => row?.id));
-    const expectedById = new Map(expectedRows.map((row) => [row?.id, row]));
-    const shardIds = new Set();
-    for (const r of rows) {
-      if (!r || typeof r !== "object") {
-        errs.add(`shard "${exp.id}": a row is not an object`);
-        continue;
-      }
-      if (typeof r.id !== "string" || r.id.length === 0) {
-        errs.add(`shard "${exp.id}": a row is missing an id`);
-        continue;
-      }
-      if (typeof r.name !== "string" || r.name.length === 0) {
-        errs.add(`shard "${exp.id}": row "${r.id}" is missing a name`);
-      }
-      if (!isFiniteNumber(r.lat) || !isFiniteNumber(r.lng)) {
-        errs.add(`shard "${exp.id}": row "${r.id}" has invalid coordinates`);
-      }
-      if (typeof r.borough !== "string") {
-        errs.add(`shard "${exp.id}": row "${r.id}" has invalid borough`);
-      }
-      if (
-        r.cheapestPrice !== null &&
-        (!isFiniteNumber(r.cheapestPrice) || r.cheapestPrice < 0)
-      ) {
-        errs.add(`shard "${exp.id}": row "${r.id}" has invalid cheapestPrice`);
-      }
-      if (
-        r.zone !== undefined &&
-        (!Number.isInteger(r.zone) || r.zone < 1 || r.zone > 9)
-      ) {
-        errs.add(`shard "${exp.id}": row "${r.id}" has invalid zone`);
-      }
-      if (!expectedIds.has(r.id)) {
-        errs.add(`shard "${exp.id}": row "${r.id}" belongs to another cell`);
-      }
-      const expectedRow = expectedById.get(r.id);
-      if (expectedRow && !isDeepStrictEqual(r, expectedRow)) {
-        errs.add(`shard "${exp.id}": row "${r.id}" differs from monolith`);
-      }
-      shardIds.add(r.id);
-      if (allIds.has(r.id))
-        errs.add(`shard "${exp.id}": duplicate id "${r.id}" across shards`);
-      allIds.add(r.id);
-    }
-    for (const id of expectedIds) {
-      if (!shardIds.has(id)) {
-        errs.add(`shard "${exp.id}": expected row "${id}" is missing`);
-      }
-    }
+    validateSlimShardRows(rows, exp, expectedRowsByShard, allIds, errs);
   }
+  return { allIds, shardRawById, eagerBytes, totalBytes };
+}
+
+function expectedSlimShardPlan(full, manifest) {
+  // Rebuild the expected plan from the monolith and compare structurally.
+  // Version 2 is location-first: every row is in a geographic cell, with one
+  // central compatibility core file. Version 1 remains accepted for city and
+  // older fixtures that still use borough shards.
+  let expectedCore;
+  let expectedManifest;
+  const expectedRowsByShard = new Map();
+  if (manifest?.grid) {
+    const grid = manifest.grid;
+    const cells = classifySpatialShards(full, grid);
+    const londonCentre = spatialCellIndex(51.5074, -0.1278, grid);
+    const coreId = spatialCellId(londonCentre.lat, londonCentre.lon, grid);
+    expectedCore = cells.get(coreId)?.venues ?? [];
+    expectedManifest = buildSpatialShardManifest(cells, grid, coreId);
+    for (const [id, cell] of cells) expectedRowsByShard.set(id, cell.venues);
+  } else {
+    const { core, outer } = classifySlimShards(full);
+    expectedCore = core;
+    expectedManifest = buildShardManifest({ core, outer });
+    expectedRowsByShard.set("core", core);
+    for (const [id, shard] of outer) expectedRowsByShard.set(id, shard.venues);
+  }
+
+  return { expectedCore, expectedManifest, expectedRowsByShard };
+}
+
+// venues_slim shards - the map's first-paint payload is split into a manifest
+// plus geographic cells, with the central cell also exposed as the compatibility
+// core. This validator recomputes the expected split from the canonical
+// venues_slim.json using the same shared module the build script uses, so the
+// shipped manifest and cell files can never silently drift from the complete
+// index. It also enforces eager and total-across-shard budgets.
+function validateSlimShards() {
+  const name = "public/data/venues_slim shards";
+  const errs = makeCollector();
+  let full;
+  try {
+    full = loadJson("venues_slim.json");
+  } catch (e) {
+    console.log(
+      `FAIL ${name}: could not read/parse venues_slim.json (${e.message})`,
+    );
+    return { ok: false, count: 0 };
+  }
+  if (
+    !full ||
+    Array.isArray(full) ||
+    typeof full.revision !== "string" ||
+    full.revision.trim().length === 0 ||
+    !Array.isArray(full.rows)
+  ) {
+    console.log(`FAIL ${name}: venues_slim.json is not a revisioned rows payload`);
+    return { ok: false, count: 0 };
+  }
+  const fullRevision = full.revision;
+  full = full.rows;
+
+  const readRaw = (fileName) => readFileSync(join(DATA_DIR, fileName), "utf8");
+  const fileFromUrl = (url) => url.replace(/^\/data\//, "");
+
+  let manifest;
+  let coreRows;
+  try {
+    manifest = JSON.parse(readRaw(MANIFEST_FILE));
+    const corePayload = JSON.parse(readRaw(CORE_FILE));
+    coreRows = Array.isArray(corePayload) ? corePayload : corePayload?.rows;
+    if (!Array.isArray(coreRows)) coreRows = [];
+  } catch (e) {
+    console.log(
+      `FAIL ${name}: missing/broken manifest or core shard (${e.message})`,
+    );
+    return { ok: false, count: 0 };
+  }
+
+  const { expectedCore, expectedManifest, expectedRowsByShard } = expectedSlimShardPlan(
+    full,
+    manifest,
+  );
+
+  if (!manifest?.grid || manifest.version !== SPATIAL_SHARD_VERSION) {
+    errs.add("manifest must use the spatial shard schema");
+  }
+  if (typeof manifest?.revision !== "string" || manifest.revision.trim().length === 0) {
+    errs.add("manifest must carry a non-empty revision");
+  }
+  if (manifest?.revision !== fullRevision) {
+    errs.add(`manifest revision ${manifest?.revision} !== monolith revision ${fullRevision}`);
+  }
+
+  if (manifest.version !== expectedManifest.version) {
+    errs.add(
+      `manifest version ${manifest.version} !== expected ${expectedManifest.version}`,
+    );
+  }
+  const shipShards = Array.isArray(manifest.shards) ? manifest.shards : [];
+  if (shipShards.length !== expectedManifest.shards.length) {
+    errs.add(
+      `manifest lists ${shipShards.length} shard(s), expected ${expectedManifest.shards.length}`,
+    );
+  }
+  const shipById = new Map(shipShards.map((s) => [s.id, s]));
+  const { allIds, shardRawById, eagerBytes, totalBytes } = validateSlimShardBodies(
+    expectedManifest,
+    shipById,
+    manifest,
+    expectedRowsByShard,
+    readRaw,
+    fileFromUrl,
+    errs,
+  );
 
   // The union of all shards must be exactly the monolith — no venue lost or
   // duplicated by the split.
@@ -1901,8 +1945,10 @@ function isUkBaseRow(row) {
     (row.length === 6 || (row.length === 7 && row[6] === "bar")) &&
     typeof row[0] === "string" &&
     row[0].length > 0 &&
+    // "" is an unnamed pub (lib/ukBasePubs.ts draws it as a bare "Pub" pin).
+    // A bar always carries the name OSM gave it.
     typeof row[1] === "string" &&
-    row[1].length > 0 &&
+    (row[1].length > 0 || row.length === 6) &&
     typeof row[2] === "string" &&
     Number.isFinite(row[3]) &&
     Number.isFinite(row[4]) &&
@@ -2695,6 +2741,42 @@ function validateDrinkPriceUpdates() {
   return { ok, count };
 }
 
+function validateUkPriceBundleDrinkFields(row, where, errs) {
+  if (row.drinkLabel !== undefined) {
+    if (typeof row.drinkLabel !== "string" || !row.drinkLabel.trim()) {
+      errs.add(`${where}: drinkLabel must be a non-empty string when present`);
+    } else if (row.drinkLabel.length > UK_PRICE_BUNDLE_DRINK_LABEL_MAX) {
+      errs.add(
+        `${where}: drinkLabel length ${row.drinkLabel.length} exceeds ${UK_PRICE_BUNDLE_DRINK_LABEL_MAX}`,
+      );
+    }
+  }
+  if (row.drinkSubtype !== undefined) {
+    if (typeof row.drinkSubtype !== "string" || !row.drinkSubtype.trim()) {
+      errs.add(`${where}: drinkSubtype must be a non-empty string when present`);
+    } else if (!row.drinkSubtype.startsWith(`${row.category}-`)) {
+      errs.add(`${where}: drinkSubtype ${JSON.stringify(row.drinkSubtype)} does not match category`);
+    }
+    if (typeof row.drinkLabel !== "string" || !row.drinkLabel.trim()) {
+      errs.add(`${where}: drinkSubtype requires drinkLabel on the same row`);
+    }
+  }
+  // A LONDON BASE PLACE: all three or none, on a listed venue-uk- subtype row.
+  if (row.lat !== undefined || row.lng !== undefined || row.londonBorough !== undefined) {
+    if (!isFiniteNumber(row.lat) || !isFiniteNumber(row.lng)) {
+      errs.add(`${where}: lat and lng must both be numbers when a London place is stated`);
+    } else if (row.lat < 51.25 || row.lat > 51.75 || row.lng < -0.55 || row.lng > 0.35) {
+      errs.add(`${where}: a London place outside London`);
+    }
+    if (typeof row.londonBorough !== "string" || !row.londonBorough.trim()) {
+      errs.add(`${where}: a London place must name its borough`);
+    }
+    if (row.standing !== "listed" || !String(row.venueId).startsWith("venue-uk-") || row.drinkSubtype === undefined) {
+      errs.add(`${where}: only a listed venue-uk- subtype row carries a London place`);
+    }
+  }
+}
+
 // uk_prices/{manifest,rows}.json — every UK price we hold, in one file, each
 // row saying what it is worth (scripts/build_uk_price_bundle.mjs).
 //
@@ -2780,26 +2862,16 @@ function validateUkPriceBundle() {
       if (!Number.isInteger(row.sampleSize) || row.sampleSize < ESTIMATE_MIN_SAMPLE) {
         errs.add(`${where}: an estimate needs a sample of at least ${ESTIMATE_MIN_SAMPLE}`);
       }
-    }
-    if (row.drinkLabel !== undefined) {
-      if (typeof row.drinkLabel !== "string" || !row.drinkLabel.trim()) {
-        errs.add(`${where}: drinkLabel must be a non-empty string when present`);
-      } else if (row.drinkLabel.length > UK_PRICE_BUNDLE_DRINK_LABEL_MAX) {
-        errs.add(
-          `${where}: drinkLabel length ${row.drinkLabel.length} exceeds ${UK_PRICE_BUNDLE_DRINK_LABEL_MAX}`,
-        );
+      if (
+        ESTIMATE_DRINK_CATEGORIES.has(row.category) &&
+        (!Number.isInteger(row.operatorCount) || row.operatorCount < ESTIMATE_MIN_OPERATORS)
+      ) {
+        errs.add(`${where}: a ${row.category} estimate must rest on at least ${ESTIMATE_MIN_OPERATORS} operators`);
       }
+    } else if (row.operatorCount !== undefined) {
+      errs.add(`${where}: only an estimate carries an operatorCount`);
     }
-    if (row.drinkSubtype !== undefined) {
-      if (typeof row.drinkSubtype !== "string" || !row.drinkSubtype.trim()) {
-        errs.add(`${where}: drinkSubtype must be a non-empty string when present`);
-      } else if (!row.drinkSubtype.startsWith(`${row.category}-`)) {
-        errs.add(`${where}: drinkSubtype ${JSON.stringify(row.drinkSubtype)} does not match category`);
-      }
-      if (typeof row.drinkLabel !== "string" || !row.drinkLabel.trim()) {
-        errs.add(`${where}: drinkSubtype requires drinkLabel on the same row`);
-      }
-    }
+    validateUkPriceBundleDrinkFields(row, where, errs);
   });
 
   const ok = errs.count === 0;
@@ -2827,9 +2899,67 @@ function validateUkPriceBundle() {
 // The file is optional. It has not been built in a fresh clone, and an absent
 // basis is an honest "no estimates" rather than a defect.
 const ESTIMATE_MIN_SAMPLE = 3;
+const ESTIMATE_MIN_OPERATORS = 3;
 const ESTIMATE_MIN_GBP = 2;
 const ESTIMATE_MAX_GBP = 12;
 const ESTIMATE_REGION_KINDS = new Set(["london_borough", "postcode_area"]);
+const ESTIMATE_DRINK_CATEGORIES = new Set(["wine", "cocktail"]);
+
+// The non-beer drinks. Each carries its own single-serving band and is London
+// boroughs only: a chain or a postcode area here would put the first modelled
+// wine or cocktail outside London on one chain's menu. Every region names the
+// pages it was read from, because no beer-style dataset average stands behind
+// these, and rests on at least ESTIMATE_MIN_OPERATORS operators, because one
+// chain's menus are not a borough's price. Returns how many region rows it
+// checked.
+function validateEstimateDrinks(drinks, errs) {
+  if (drinks === undefined) return 0;
+  if (typeof drinks !== "object" || drinks === null || Array.isArray(drinks)) {
+    errs.add("drinks must be an object keyed by drink category");
+    return 0;
+  }
+  let checked = 0;
+  for (const [category, drink] of Object.entries(drinks)) {
+    const dWhere = `drinks.${category}`;
+    if (!ESTIMATE_DRINK_CATEGORIES.has(category)) errs.add(`${dWhere}: not a modelled drink category`);
+    if (typeof drink !== "object" || drink === null) { errs.add(`${dWhere}: not an object`); continue; }
+    if (!isFiniteNumber(drink.minGbp) || !isFiniteNumber(drink.maxGbp) || drink.minGbp >= drink.maxGbp) {
+      errs.add(`${dWhere}: minGbp and maxGbp must be a serving band`);
+    }
+    if (typeof drink.servingNote !== "string" || !drink.servingNote.trim()) {
+      errs.add(`${dWhere}: must say what one serving means`);
+    }
+    if (!Array.isArray(drink.regions)) { errs.add(`${dWhere}: regions must be an array`); continue; }
+    drink.regions.forEach((region, i) => validateEstimateDrinkRegion(region, `${dWhere} region ${i}`, drink, errs));
+    checked += drink.regions.length;
+  }
+  return checked;
+}
+
+function validateEstimateDrinkRegion(region, where, drink, errs) {
+  if (typeof region !== "object" || region === null) { errs.add(`${where}: not an object`); return; }
+  if (region.kind !== "london_borough") errs.add(`${where}: kind "${region.kind}" must be london_borough`);
+  if (typeof region.code !== "string" || !region.code.trim()) errs.add(`${where}: missing code`);
+  if (!isFiniteNumber(region.medianGbp) || region.medianGbp < drink.minGbp || region.medianGbp > drink.maxGbp) {
+    errs.add(`${where}: medianGbp ${JSON.stringify(region.medianGbp)} is outside the serving band`);
+  }
+  if (!Number.isInteger(region.sampleSize) || region.sampleSize < ESTIMATE_MIN_SAMPLE) {
+    errs.add(`${where}: sampleSize must be an integer of at least ${ESTIMATE_MIN_SAMPLE}`);
+  }
+  if (!Number.isInteger(region.operatorCount) || region.operatorCount < ESTIMATE_MIN_OPERATORS) {
+    errs.add(`${where}: operatorCount must be an integer of at least ${ESTIMATE_MIN_OPERATORS}`);
+  }
+  if (typeof region.provenance !== "string" || region.provenance.trim().length === 0) {
+    errs.add(`${where}: an estimate basis must name its provenance`);
+  }
+  if (!Array.isArray(region.sourceUrls) || region.sourceUrls.length === 0) {
+    errs.add(`${where}: an estimate basis must name the pages it was read from`);
+    return;
+  }
+  region.sourceUrls.forEach((url, j) => {
+    if (!isHttpUrlLocal(url)) errs.add(`${where}: sourceUrls[${j}] "${url}" is not an absolute http(s) URL`);
+  });
+}
 
 function validatePriceEstimateBaselines() {
   const name = "public/data/price_estimates/baselines.json";
@@ -2904,7 +3034,9 @@ function validatePriceEstimateBaselines() {
     }
   });
 
-  const count = (chains?.length ?? 0) + (regions?.length ?? 0);
+  const drinkRegionCount = validateEstimateDrinks(data.drinks, errs);
+
+  const count = (chains?.length ?? 0) + (regions?.length ?? 0) + drinkRegionCount;
   const ok = errs.count === 0;
   console.log(`${ok ? "PASS" : "FAIL"} ${name}: ${count} basis row(s), ${errs.count} error(s)`);
   if (!ok) errs.report();
@@ -3947,6 +4079,44 @@ function validateHistoricPubs() {
   return { ok: true, count: rows.length };
 }
 
+// data/coffee_pilot/shoreditch.json — hand-checked flat white, latte and
+// matcha latte prices. The map does not read this file. A row owes a
+// venue-osm- cafe in the box, one of the three drink names, a price, the page
+// that stated it, and a day. Standing is listed. An empty rows array is valid:
+// a drink the page did not state stays absent.
+function validateCoffeePilot() {
+  const name = COFFEE_PILOT_FILE;
+  const filePath = join(ROOT_DIR, name);
+  if (!existsSync(filePath)) {
+    console.log(`SKIP ${name}: file does not exist`);
+    return { ok: true, count: 0 };
+  }
+  let file;
+  try {
+    file = JSON.parse(readFileSync(filePath, "utf8"));
+  } catch (error) {
+    console.log(`FAIL ${name}: not valid JSON (${error.message})`);
+    return { ok: false, count: 0 };
+  }
+  let venueNames;
+  try {
+    venueNames = shoreditchCafeNames(ROOT_DIR);
+  } catch (error) {
+    console.log(`FAIL ${name}: could not read the London cafe pack (${error.message})`);
+    return { ok: false, count: 0 };
+  }
+  const problems = coffeePilotProblems(file, new Set(venueNames.keys()), Date.now(), venueNames);
+  const count = Array.isArray(file?.rows) ? file.rows.length : 0;
+  if (problems.length > 0) {
+    console.log(`FAIL ${name}: ${problems.length} problem(s)`);
+    for (const problem of problems.slice(0, 20)) console.log(`  - ${problem}`);
+    if (problems.length > 20) console.log(`  … and ${problems.length - 20} more`);
+    return { ok: false, count };
+  }
+  console.log(`PASS ${name}: ${count} listed rows`);
+  return { ok: true, count };
+}
+
 // matching entry in ARTIFACT_CLASSIFICATION: that is what decides whether a
 // failing run below fails the build or degrades to a WARN.
 const DATASET_RUNS = [
@@ -3971,6 +4141,7 @@ const DATASET_RUNS = [
   { id: "pubmaxxing_seed", run: validatePubmaxxingSeed },
   { id: "editorial_overlay", run: validateEditorialOverlay },
   { id: "historic_pubs", run: validateHistoricPubs },
+  { id: "coffee_pilot", run: validateCoffeePilot },
 ];
 
 async function main() {

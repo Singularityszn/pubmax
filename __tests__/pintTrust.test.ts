@@ -52,6 +52,7 @@ import {
   type SummaryDrop,
   type Venue,
 } from "@/lib/venues";
+import { defined } from "@/__tests__/helpers/defined";
 
 vi.mock("@/components/visits/VisitReportPanel", () => ({
   default: () => createElement("div", { "data-testid": "visit-report-peek" }),
@@ -200,7 +201,7 @@ function renderOverview(drops: SummaryDrop[], base: Venue = venue()): string {
   const signal = pintTrustSignalFields(pintTrustFor(drops, NOW));
   return renderToStaticMarkup(
     createElement(VenueOverviewTab, {
-      venue: merged,
+      venue: defined(merged),
       tab: "overview",
       cityId: "london",
       mode: "suggest",
@@ -235,12 +236,12 @@ function renderOverview(drops: SummaryDrop[], base: Venue = venue()): string {
 function peekChip(drops: SummaryDrop[], base: Venue = venue()) {
   const [merged] = mergeVenueDrops([base], new Map([[VENUE_ID, drops]]), NOW);
   const signal = pintTrustSignalFields(pintTrustFor(drops, NOW));
-  const bundle = venueBundlePrices(merged);
+  const bundle = venueBundlePrices(defined(merged));
   return peekPriceChip(
     venuePriceLane(
-      merged,
+      defined(merged),
       signal.latestContributorPrice,
-      venueSourcedPrice(merged),
+      venueSourcedPrice(defined(merged)),
       bundle,
       dropLaneInput(signal.provisionalContributorPrice, signal.provisionalContributorAt),
       dropLaneInput(signal.agedContributorPrice, signal.agedContributorAt),
@@ -256,7 +257,7 @@ function pin(drops: SummaryDrop[], base: Venue = venue()) {
   const [merged] = mergeVenueDrops([base], new Map([[VENUE_ID, drops]]), NOW);
   const signal: VenueSignal = { hasPintDrops: drops.length > 0, ...pintTrustSignalFields(pintTrustFor(drops, NOW)) };
   const marks = provisionalPintDropVenueIds(new Map([[VENUE_ID, drops]]), NOW);
-  return pubsToGeoJSON([merged], new Map([[VENUE_ID, signal]]), null, null, null, marks).features[0]!
+  return pubsToGeoJSON([defined(merged)], new Map([[VENUE_ID, signal]]), null, null, null, marks).features[0]!
     .properties as Record<string, unknown>;
 }
 
@@ -395,11 +396,11 @@ describe("what each state paints on the pin", () => {
       new Map([[VENUE_ID, confirmedPair()]]),
       NOW,
     );
-    expect(merged.cheapestPrice).toBe(4.5);
-    expect(merged.latestContributorPrice).toBe(4.5);
+    expect(defined(merged).cheapestPrice).toBe(4.5);
+    expect(defined(merged).latestContributorPrice).toBe(4.5);
     const [lone] = mergeVenueDrops([venue({ cheapestPrice: 6.2 })], new Map([[VENUE_ID, [drop()]]]), NOW);
-    expect(lone.cheapestPrice).toBe(6.2);
-    expect(lone.latestContributorPrice).toBeNull();
+    expect(defined(lone).cheapestPrice).toBe(6.2);
+    expect(defined(lone).latestContributorPrice).toBeNull();
   });
 });
 
@@ -441,7 +442,7 @@ describe("the Overview chip", () => {
     expect(PINT_TRUST_LINE["aged-out"]).toBe(AGED_PRICE_LINE);
     expect(renderOverview([drop()])).toContain(PROVISIONAL_PRICE_LINE);
     expect(renderOverview([drop({ createdAt: daysAgo(90) })])).toContain(AGED_PRICE_LINE);
-    expect(renderOverview(corroboratedPair())).toContain("Latest Pint Drop price");
+    expect(renderOverview(corroboratedPair())).toContain("Latest price from a drinker");
   });
 
   it("words the absence only when there is no public drop at all", () => {
@@ -521,6 +522,47 @@ describe("the regression fence in source", () => {
     expect(read("components/map/inspector/VenueOverviewTab.tsx")).toContain("trustChipStateFor(lane, priceStanding.standing)");
     expect(read("lib/pubMap.ts")).toContain("trustChipStateFor(lane,");
     expect(read("components/map/canvas/geojson.ts")).toContain("pintTrustPinStanding(signals?.pintTrust)");
-    expect(read("components/PubMap.tsx")).toContain("data-pint-trust={peekPrice.trust ?? undefined}");
+    expect(read("components/PubMap.tsx")).toMatch(/<VenuePeekPintPrice[\s\S]*?pintTrust=\{peekDropSignal\?\.pintTrust \?\? null\}/);
+    expect(read("components/map/VenuePeekPintPrice.tsx")).toContain("data-pint-trust={price.trust ?? undefined}");
+  });
+});
+
+// Owner decision 16 Oct 2026: an aging price must look aging on the sheet as
+// on the pin, never fresh. The price on record ages on the listing window, so
+// a read over a year ago, or no read at all, breaks the plaque's edge and says
+// why in words; a recent read gets neither. Colour stays the band's.
+describe("an aging price on record looks aging", () => {
+  const onRecord = (scrapedAt: string) =>
+    venue({
+      cheapestPrice: 4.5,
+      prices: [
+        {
+          pub_name: "The Sir Christopher Hatton",
+          beer_name: "Lager",
+          price_gbp: 4.5,
+          pub_url: "https://example.com/hatton",
+          scraped_at_values: scrapedAt,
+        },
+      ] as unknown as Venue["prices"],
+    });
+
+  it("leaves a price read this month clean", () => {
+    const html = renderOverview([], onRecord(daysAgo(10)));
+    expect(html).toContain("£4.50");
+    expect(html).not.toContain("priceBadge--aging");
+    expect(html).not.toContain('data-price-age="aging"');
+  });
+
+  it("breaks the plaque's edge and says why when the read is over a year old", () => {
+    const html = renderOverview([], onRecord(daysAgo(400)));
+    expect(html).toContain("£4.50");
+    expect(html).toMatch(/class="[^"]*priceBadge--aging[^"]*"/);
+    expect(html).toContain("Read over a year ago, so this price may have changed.");
+  });
+
+  it("never lets a price with no read date look fresh", () => {
+    const html = renderOverview([], onRecord(""));
+    expect(html).toMatch(/class="[^"]*priceBadge--aging[^"]*"/);
+    expect(html).toContain("No read date on record, so this price may have changed.");
   });
 });

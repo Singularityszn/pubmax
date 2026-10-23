@@ -16,6 +16,7 @@
 // only through the link its host sends (crewId + invitationId), the same way a
 // plan invite already travels in lib/planCrewInviteUrl.ts.
 
+import type { Route } from "next";
 import type {
   SocialCrewListItemDTO,
   SocialCrewListPageDTO,
@@ -83,7 +84,7 @@ export const CREW_PHASE_LABEL: Record<SocialCrewPhase, string> = {
 export const CREW_ROLE_LABEL: Record<SocialCrewRole, string> = {
   owner: "You host",
   cohost: "You co-host",
-  member: "You are in",
+  member: "You're in",
 };
 
 export const CREW_VISIBILITY_LABEL: Record<SocialCrewVisibility, string> = {
@@ -106,7 +107,7 @@ export function canLeaveCrew(role: SocialCrewRole): boolean {
 }
 
 export const CREW_OWNER_LEAVE_NOTE =
-  "A host cannot leave their own night. Hand the crew to somebody else first.";
+  "A host can't leave their own night. Hand the crew to somebody else first.";
 
 /** What a crew is, in one line, on the surface that offers to start one. */
 export const CREW_WHAT_IT_IS =
@@ -124,7 +125,7 @@ export const CREW_EMPTY_COPY =
   "No crews yet. Start one and your lot can join the night.";
 
 export const CREW_LIST_UNAVAILABLE_COPY =
-  "Could not load your crews. That is us, not you.";
+  "Couldn't load your crews. That's us, not you.";
 
 /**
  * The link a host sends. It carries the invitation id because there is no read
@@ -132,8 +133,8 @@ export const CREW_LIST_UNAVAILABLE_COPY =
  * still refuses anybody who is not the named target, so the link is a pointer,
  * never authority.
  */
-export function crewInvitePath(crewId: string, invitationId: string): string {
-  return `/social/crews/${encodeURIComponent(crewId)}?invitation=${encodeURIComponent(invitationId)}`;
+export function crewInvitePath(crewId: string, invitationId: string): Route {
+  return `/social/crews/${encodeURIComponent(crewId)}?invitation=${encodeURIComponent(invitationId)}` as Route;
 }
 
 export function crewInviteUrl(
@@ -145,8 +146,8 @@ export function crewInviteUrl(
   return origin ? `${origin.replace(/\/$/, "")}${path}` : path;
 }
 
-export function crewPath(crewId: string): string {
-  return `/social/crews/${encodeURIComponent(crewId)}`;
+export function crewPath(crewId: string): Route {
+  return `/social/crews/${encodeURIComponent(crewId)}` as Route;
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

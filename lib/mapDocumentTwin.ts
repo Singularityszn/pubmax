@@ -12,7 +12,8 @@
 // the camera or the selection AFTER load, so they take the shell and cost
 // nothing; `?place=` names a town in the title and needs the server-side place
 // index; `?uk=1` retitles the page for national browse; `?band=`, `?crawl=` and
-// `?pubs=` draw a curated share card. A key added here takes its requests off
+// `?pubs=` draw a curated share card; `?card=pint` draws one pub's listed
+// pint for a "Share this pint" link (lib/pintShare.ts). A key added here takes its requests off
 // the CDN, so add one only when the document itself differs.
 //
 // `__tests__/mapDocumentTwin.test.ts` pins the split.
@@ -30,6 +31,7 @@ export const MAP_DOCUMENT_QUERY_KEYS = [
   "band",
   "crawl",
   "pubs",
+  "card",
 ] as const;
 
 /** True when this `/map` query cannot be answered by the prerendered shell. */

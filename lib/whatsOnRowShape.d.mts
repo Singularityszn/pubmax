@@ -4,6 +4,8 @@
 export declare const WHATS_ON_KINDS: readonly string[];
 export declare const WHATS_ON_CONFIDENCES: readonly string[];
 export declare const WHATS_ON_LISTED_WINDOWS: readonly string[];
+export declare const POINT_ROW_GRACE_MS: Readonly<Record<"sport" | "quiz" | "deal" | "music" | "event", number>>;
+export declare function timedRowEffectiveEnd(row: { startsAt?: string; endsAt?: string; kind: string }): number;
 
 export declare function isWhatsOnKind(value: unknown): boolean;
 export declare function isWhatsOnConfidence(value: unknown): boolean;

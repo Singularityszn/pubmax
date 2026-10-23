@@ -28,7 +28,7 @@ describe("palVoiceAvailabilityFrom", () => {
 describe("the voice-off card", () => {
   it("explains itself in house voice and offers the door that works", () => {
     const markup = renderToStaticMarkup(createElement(PalVoiceOffline));
-    expect(markup).toContain(PAL_VOICE_UNAVAILABLE_LINE);
+    expect(markup).toContain(PAL_VOICE_UNAVAILABLE_LINE.replaceAll("'", "&#x27;"));
     expect(markup).toContain('href="/pal/chat"');
     expect(markup).toContain("Ask in writing");
   });

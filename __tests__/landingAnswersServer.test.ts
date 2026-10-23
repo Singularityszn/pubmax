@@ -61,7 +61,7 @@ describe("loadLandingAnswers weather tile", () => {
     snapshotBox.value = snapshot("2026-07-26T06:00:00.000Z");
     const { today } = await loadLandingAnswers(NOW);
     expect(today).toMatchObject({
-      line: "22°C feels like, clear, 5% chance of rain, 9 km/h wind.",
+      line: "Feels like 22°C, clear, 5% chance of rain, 9 km/h wind.",
       measured: true,
     });
   });
@@ -70,7 +70,7 @@ describe("loadLandingAnswers weather tile", () => {
     snapshotBox.value = snapshot("2026-07-25T18:00:00.000Z");
     const { today } = await loadLandingAnswers(NOW);
     expect(today).toMatchObject({
-      line: "Last read of the sky: 22°C feels like, clear, 5% chance of rain, 9 km/h wind.",
+      line: "Last reading: feels like 22°C, clear, 5% chance of rain, 9 km/h wind.",
       measured: false,
     });
   });
@@ -78,7 +78,7 @@ describe("loadLandingAnswers weather tile", () => {
   it("says plainly when there is no reading at all", async () => {
     const { today } = await loadLandingAnswers(NOW);
     expect(today).toMatchObject({
-      line: "We could not read today's London weather just now.",
+      line: "We couldn't read today's London weather just now.",
       measured: false,
     });
   });

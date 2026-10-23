@@ -176,7 +176,7 @@ describe("start a crew", () => {
         "https://x.test/api/social/crews",
         "POST",
         { planId: PLAN_ID, visibility: "private" },
-        { authorization: "Bearer plan-host-token" },
+        { "x-plan-host-capability": "plan-host-token" },
       ),
     );
     expect(response.status).toBe(201);

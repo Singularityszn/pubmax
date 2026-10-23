@@ -5,6 +5,7 @@ const nextServer = vi.hoisted(() => ({ after: vi.fn() }));
 vi.mock("next/server", () => ({ after: nextServer.after }));
 
 import { capturePosthogServerEvent } from "@/lib/posthogServer";
+import { defined } from "@/__tests__/helpers/defined";
 
 describe("server-side PostHog capture", () => {
   afterEach(() => {
@@ -23,7 +24,7 @@ describe("server-side PostHog capture", () => {
 
     expect(fetchMock).toHaveBeenCalledOnce();
     expect(nextServer.after).toHaveBeenCalledOnce();
-    const held = nextServer.after.mock.calls[0][0] as Promise<unknown>;
+    const held = defined(nextServer.after.mock.calls[0])[0] as Promise<unknown>;
     let settled = false;
     void held.then(() => { settled = true; });
     await Promise.resolve();
@@ -47,6 +48,17 @@ describe("server-side PostHog capture", () => {
       properties: {},
     })).not.toThrow();
     expect(fetchMock).toHaveBeenCalledOnce();
+  });
+
+  it("names its sender so no server event lands without $lib", () => {
+    process.env.NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN = "phc_test";
+    const fetchMock = vi.fn().mockResolvedValue({ ok: true });
+    vi.stubGlobal("fetch", fetchMock);
+
+    capturePosthogServerEvent({ event: "$exception", distinctId: "server", properties: {} });
+
+    const init = defined(fetchMock.mock.calls[0])[1] as RequestInit;
+    expect(JSON.parse(String(init.body)).properties.$lib).toBe("pubmaxx-server");
   });
 
   it("sends nothing without a project token", () => {

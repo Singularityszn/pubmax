@@ -1,0 +1,43 @@
+{
+  "url": "http://localhost:3491/map",
+  "worker": "http://localhost:3491/sw.js?v=local-ios-lane-a&cache-policy=plan-preview-safe-v2",
+  "marker": "f04-consistent-second",
+  "errors": [
+    {
+      "kind": "error"
+    },
+    {
+      "kind": "error"
+    },
+    {
+      "kind": "console",
+      "message": "@http://localhost:3491/_next/static/chunks/1hfr-hmp617s7.js:2:352147"
+    },
+    {
+      "kind": "console",
+      "message": "@http://localhost:3491/_next/static/chunks/1hfr-hmp617s7.js:2:352147"
+    },
+    {
+      "kind": "console",
+      "message": "@http://localhost:3491/_next/static/chunks/1hfr-hmp617s7.js:2:352147"
+    }
+  ],
+  "text": "Skip to main contentPub data \u00a9 OpenStreetMap contributors (ODbL) | \u00a9 CARTO, \u00a9 OpenStreetMap contributorsMap background couldn't load. Try again.RetryPUBMAXXPUBMAXXLondonLONPints?Describe the outingTonightMapPlacesOutPlanYourequestAnimationFrame(function(){$RT=performance.now()});$RB=[];$RV=function(",
+  "localResources": [
+    "http://localhost:3491/data/venues_slim.cell.51.450_-0.075.json?v=local-ios-lane-a",
+    "http://localhost:3491/data/venues_slim.cell.51.450_-0.225.json?v=local-ios-lane-a",
+    "http://localhost:3491/data/venues_slim.cell.51.475_-0.075.json?v=local-ios-lane-a",
+    "http://localhost:3491/data/venues_slim.cell.51.475_-0.225.json?v=local-ios-lane-a",
+    "http://localhost:3491/data/venues_slim.cell.51.500_-0.075.json?v=local-ios-lane-a",
+    "http://localhost:3491/data/venues_slim.cell.51.500_-0.225.json?v=local-ios-lane-a",
+    "http://localhost:3491/data/venues_slim.cell.51.525_-0.075.json?v=local-ios-lane-a",
+    "http://localhost:3491/data/venues_slim.cell.51.525_-0.225.json?v=local-ios-lane-a",
+    "http://localhost:3491/data/venues_slim.cell.51.550_-0.075.json?v=local-ios-lane-a",
+    "http://localhost:3491/data/venues_slim.cell.51.550_-0.225.json?v=local-ios-lane-a",
+    "http://localhost:3491/data/venues_slim.cell.51.575_-0.075.json?v=local-ios-lane-a",
+    "http://localhost:3491/data/venues_slim.cell.51.600_-0.075.json?v=local-ios-lane-a",
+    "http://localhost:3491/data/venues_slim.cell.51.625_-0.075.json?v=local-ios-lane-a",
+    "http://localhost:3491/data/venues_slim.cell.51.625_-0.200.json?v=local-ios-lane-a",
+    "http://localhost:3491/data/venues_slim.cell.51.625_-0.225.json?v=local-ios-lane-a"
+  ]
+}

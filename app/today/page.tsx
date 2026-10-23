@@ -7,6 +7,10 @@ import {
   toTonightPickDto,
   type WeatherBrief,
 } from "@/lib/todayBrief";
+import { venueCheapestPintObservedAt } from "@/lib/drinks";
+import { hypedPubPriceIndex, hypedPubsForPage } from "@/lib/hypedPubs";
+import { loadHypedPubs } from "@/lib/hypedPubs.server";
+import { loadMapSelectableVenueIds } from "@/lib/mapEagerVenueIndex.server";
 import { loadHistoricPubs } from "@/lib/historic";
 import { LONDON_NIGHT_AREA_SLUGS, type NightAreaSlug } from "@/lib/nightAreas";
 import { pickPubOfTheDay } from "@/lib/pubOfTheDay";
@@ -39,7 +43,7 @@ import { buildTodayPintsIndex, type TodayPintsIndex } from "./todayPints";
 // location or remembered area and live TfL, so they own their own fetches.
 
 export const metadata: Metadata = {
-  title: "Today in London · PUBMAXXING",
+  title: "Today in London",
   description:
     "Your morning brief: is it a pint-in-the-garden day, tonight's top picks, how you'll get home, and one sourced pub fact.",
   alternates: { canonical: "/today" },
@@ -107,12 +111,8 @@ function pricedVenuePriceById(venues: Venue[]): Map<string, number> {
 export default async function TodayPage() {
   const now = new Date();
 
-  // The four server reads below are independent — none consumes another's
-  // result — so they run concurrently. Serialising them stacked a live
-  // Open-Meteo weather top-up behind the listings, price, and heritage reads for
-  // no reason; Promise.all collapses the brief's server render to the slowest
-  // single read. Each retains its own fail-soft path.
-  const [weatherSnapshot, whatsOn, out, pricedVenues, historicPubs] = await Promise.all([
+  // These server reads run in parallel. Each read keeps its fail-soft result.
+  const [weatherSnapshot, whatsOn, out, pricedVenues, historicPubs, hyped, mapSelectableVenueIds] = await Promise.all([
     // Store-first read-through: the freshest durable/cached reading when it is
     // recent, else a live Open-Meteo top-up (reusing the cron's fetcher), else
     // the committed snapshot with its honest staleness banner. Never needlessly
@@ -126,6 +126,8 @@ export default async function TodayPage() {
     // of its own and no request-time work.
     getPricedVenues(),
     loadHistoricPubs(),
+    loadHypedPubs(),
+    loadMapSelectableVenueIds(),
   ]);
 
   const weather = buildWeatherBrief(weatherSnapshot, now);
@@ -208,12 +210,23 @@ export default async function TodayPage() {
     now,
   });
 
-  // The personal line at the top. Composed here from the server's `now` (the
-  // route is dynamic per request, so it is genuinely current) and handed down
-  // whole, so the first paint already carries the right time of day and the
-  // right sky. The client rebuilds it only when personalization swaps the
-  // viewer's area weather in, reusing this same instant so the time-of-day band
-  // can never drift away from what was server rendered.
+  // The same fresh, priced rows /tonight leads with (lib/hypedPubs.ts).
+  const suggestedPubs = hypedPubsForPage(hyped.rows, {
+    now,
+    prices: hypedPubPriceIndex(
+      pricedVenues.map((venue) => ({
+        id: venue.id,
+        cheapestPrice: venue.cheapestPrice,
+        observedAt: venueCheapestPintObservedAt(venue),
+      })),
+    ),
+  });
+  const suggestedPubMapIds = mapSelectableVenueIds
+    ? suggestedPubs.flatMap((pub) => pub.venueId && mapSelectableVenueIds.has(pub.venueId) ? [pub.venueId] : [])
+    : null;
+
+  // The greeting uses the server render's clock. Area personalisation reuses
+  // that instant, so its time-of-day band agrees with the initial greeting.
   const dateLabel = formatConditionDate(now);
   const greeting = buildDayGreeting({ now, weather, dateLabel });
 
@@ -225,6 +238,8 @@ export default async function TodayPage() {
       weather={weather}
       weatherByArea={weatherByArea}
       picks={picks}
+      hypedPubs={suggestedPubs}
+      mapSelectableVenueIds={suggestedPubMapIds}
       picksStatus={picksStatus}
       // The day the rows on screen were OBSERVED, never the instant this
       // request was served. Null when the read carries no source time, and the

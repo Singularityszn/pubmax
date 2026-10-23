@@ -19,11 +19,14 @@ const SHOTS_DIR = path.join(process.cwd(), "e2e-shots", "tonight-trusted-ui");
 // silently removes the very control these tests are about. The place names
 // stay invented, because they come from the mocked row alone.
 const TEST_TONIGHT_START = Date.now() + 60 * 60 * 1000;
+// A row's own check must fall within the day for Tonight to show it
+// (isTonightCheckedRow in lib/tonightOutListings.ts).
+const TEST_ROW_OBSERVED_AT = new Date(Date.now() - 60_000).toISOString();
 const ROWS = [
-  { id: "d1", venueId: "venue-xjf3n0", placeName: "The Deal Arms A", kind: "deal", startsAt: new Date(TEST_TONIGHT_START).toISOString(), title: "Curry Club", source: { label: "Chain Co", url: "https://chain.example/deal" }, observedAt: "2026-07-20T12:00:00.000Z", confidence: "listed" },
-  { id: "d2", venueId: "venue-1f5ygjb", placeName: "The Deal Arms B", kind: "deal", startsAt: new Date(TEST_TONIGHT_START).toISOString(), title: "Curry Club", source: { label: "Chain Co", url: "https://chain.example/deal" }, observedAt: "2026-07-20T12:00:00.000Z", confidence: "listed" },
-  { id: "m1", venueId: "venue-3h52h", placeName: "The Blue Note", kind: "music", startsAt: new Date(TEST_TONIGHT_START + 60 * 60 * 1000).toISOString(), title: "Live Jazz", source: { label: "Listings", url: "https://listings.example/jazz" }, observedAt: "2026-07-20T12:00:00.000Z", confidence: "listed" },
-  { id: "q1", venueId: "venue-lrz4u2", placeName: "The Sharp Wit", kind: "quiz", startsAt: new Date(TEST_TONIGHT_START - 30 * 60 * 1000).toISOString(), title: "Pub Quiz", source: { label: "Listings", url: "https://listings.example/quiz" }, observedAt: "2026-07-20T12:00:00.000Z", confidence: "listed" },
+  { id: "d1", venueId: "venue-xjf3n0", placeName: "The Deal Arms A", kind: "deal", startsAt: new Date(TEST_TONIGHT_START).toISOString(), title: "Curry Club", source: { label: "Chain Co", url: "https://chain.example/deal" }, observedAt: TEST_ROW_OBSERVED_AT, confidence: "listed" },
+  { id: "d2", venueId: "venue-1f5ygjb", placeName: "The Deal Arms B", kind: "deal", startsAt: new Date(TEST_TONIGHT_START).toISOString(), title: "Curry Club", source: { label: "Chain Co", url: "https://chain.example/deal" }, observedAt: TEST_ROW_OBSERVED_AT, confidence: "listed" },
+  { id: "m1", venueId: "venue-3h52h", placeName: "The Blue Note", kind: "music", startsAt: new Date(TEST_TONIGHT_START + 60 * 60 * 1000).toISOString(), title: "Live Jazz", source: { label: "Listings", url: "https://listings.example/jazz" }, observedAt: TEST_ROW_OBSERVED_AT, confidence: "listed" },
+  { id: "q1", venueId: "venue-lrz4u2", placeName: "The Sharp Wit", kind: "quiz", startsAt: new Date(TEST_TONIGHT_START - 30 * 60 * 1000).toISOString(), title: "Pub Quiz", source: { label: "Listings", url: "https://listings.example/quiz" }, observedAt: TEST_ROW_OBSERVED_AT, confidence: "listed" },
 ];
 
 type WhatsOnBody = {
@@ -53,7 +56,7 @@ async function mockWhatsOn(page: Page, body: WhatsOnBody = {}) {
       contentType: "application/json",
       body: JSON.stringify({
         rows: body.rows ?? ROWS,
-        servedAt: "2026-07-24T22:00:00.000Z",
+        servedAt: new Date().toISOString(),
         sourceObservedAt: body.sourceObservedAt ?? "2026-07-20T12:00:00.000Z",
         sourceFreshnessKind: body.sourceFreshnessKind ?? "provider-observed",
         localityBasis: "london-default",

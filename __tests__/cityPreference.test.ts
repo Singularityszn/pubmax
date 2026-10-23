@@ -161,3 +161,46 @@ describe("the browser refuses site data", () => {
     expect(readPreferredCity()).toBeNull();
   });
 });
+
+// A native launch with ANY stored city value opens Tonight from /app-entry
+// (public/theme-init.js reads only the key's presence). Tonight's city-aware
+// chrome reads it back through readPreferredCity(), so a city lib/cities.ts
+// has since disabled, or a value that never parsed, must read as no
+// preference and send the Map tab to London rather than a dead city.
+describe("a stored city Tonight cannot use", () => {
+  afterEach(() => {
+    vi.doUnmock("@/lib/cities");
+    vi.resetModules();
+  });
+
+  it("reads an unparseable stored value as no preference", () => {
+    const storage = makeMemoryStorage();
+    installWindow(storage);
+    for (const stored of ["atlantis", "{not json", ""]) {
+      storage.setItem(STORAGE_KEY, stored);
+      expect(readPreferredCity()).toBeNull();
+      expect(preferredCityMapHref()).toBe("/map");
+    }
+  });
+
+  it("reads a city disabled after it was stored as no preference", async () => {
+    vi.resetModules();
+    vi.doMock("@/lib/cities", async (importOriginal) => {
+      const actual = await importOriginal<typeof import("@/lib/cities")>();
+      return {
+        ...actual,
+        getCity: (id: string | null | undefined) => {
+          const city = actual.getCity(id);
+          return city.id === "oxford" ? { ...city, enabled: false } : city;
+        },
+      };
+    });
+    const preference = await import("@/lib/cityPreference");
+    const storage = makeMemoryStorage();
+    storage.setItem(STORAGE_KEY, "oxford");
+    installWindow(storage);
+
+    expect(preference.readPreferredCity()).toBeNull();
+    expect(preference.preferredCityMapHref()).toBe("/map");
+  });
+});

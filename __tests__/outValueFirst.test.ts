@@ -38,8 +38,10 @@ import {
 import type { WhatsOnRow } from "@/lib/whatsOn";
 
 const REPO_ROOT = join(__dirname, "..");
-const outClient = readFileSync(join(REPO_ROOT, "app/out/OutClient.tsx"), "utf8");
-const outCss = readFileSync(join(REPO_ROOT, "app/out/out.css"), "utf8");
+// /out folded into /tonight on 16 Oct 2026. Its listing surface lives on as
+// Tonight's Tomorrow and Weekend section, and the law below rides with it.
+const outClient = readFileSync(join(REPO_ROOT, "app/tonight/TonightLaterListings.tsx"), "utf8");
+const outCss = readFileSync(join(REPO_ROOT, "app/tonight/tonightLater.css"), "utf8");
 
 const matchedRow: WhatsOnRow = {
   id: "mark-render",
@@ -78,10 +80,7 @@ describe("the listings come before the lines about them", () => {
   });
 
   it("keeps the footnotes inside the listings section they are about", () => {
-    const section = outClient.slice(
-      outClient.indexOf('className="outListings"'),
-      outClient.indexOf("<EditorialRail />"),
-    );
+    const section = outClient.slice(outClient.indexOf('className="outListings"'));
     expect(section).toContain('data-testid="out-venue-match-notice"');
     expect(section).toContain('data-testid="out-listing-credit"');
   });
@@ -98,13 +97,22 @@ describe("no count stands in place of the listings it counts", () => {
 
   it("renders the pub answer on every row, at a weight under the page's own copy", () => {
     expect(outClient).toContain("<OutListingPubPair row={row} />");
-    const status = outCss.match(/\.outStatus \{[^}]*font-size:\s*([\d.]+)rem/);
-    const footnote = outCss.match(
-      /\.outListingUnmatchedLine \{[^}]*font-size:\s*([\d.]+)rem/,
-    );
+    // A size is a rem literal or a --text-* step, read from app/globals.css.
+    const globals = readFileSync(join(REPO_ROOT, "app/globals.css"), "utf8");
+    const remOf = (selector: string): number | null => {
+      const value = outCss.match(new RegExp(`\\.${selector} \\{[^}]*font-size:\\s*([^;]+);`))?.[1]?.trim();
+      if (!value) return null;
+      const literal = /^([\d.]+)rem$/.exec(value);
+      if (literal) return Number(literal[1]);
+      const step = /^var\((--text-[\w-]+)\)$/.exec(value)?.[1];
+      const declared = step ? new RegExp(`${step}:\\s*([\\d.]+)rem`).exec(globals)?.[1] : undefined;
+      return declared ? Number(declared) : null;
+    };
+    const status = remOf("outStatus");
+    const footnote = remOf("outListingUnmatchedLine");
     expect(status).not.toBeNull();
     expect(footnote).not.toBeNull();
-    expect(Number(footnote?.[1])).toBeLessThan(Number(status?.[1]));
+    expect(footnote!).toBeLessThan(status!);
   });
 });
 

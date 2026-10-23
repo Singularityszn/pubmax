@@ -10,6 +10,9 @@
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+const platform = vi.hoisted(() => ({ android: false }));
+vi.mock("@/lib/nativePlatform", () => ({ nativePlatform: () => platform.android ? "android" : null }));
+
 import {
   readSoftKeyboardOpen,
   subscribeSoftKeyboard,
@@ -54,6 +57,7 @@ function setViewportHeight(height: number): void {
 }
 
 beforeEach(() => {
+  platform.android = false;
   vi.useFakeTimers();
   documentHandlers = new Map();
   viewportHandlers = new Map();
@@ -65,6 +69,7 @@ beforeEach(() => {
     },
   });
   vi.stubGlobal("window", {
+    innerWidth: 390,
     innerHeight: LAYOUT_HEIGHT,
     visualViewport: { height: LAYOUT_HEIGHT, ...fakeListeners(viewportHandlers) },
   });
@@ -85,6 +90,151 @@ function subscribe(): [{ count: number }, () => void] {
 }
 
 describe("what the keyboard store listens to", () => {
+  it("still hides chrome for a keyboard opened while the page is pinch-zoomed", () => {
+    const [, off] = subscribe();
+    Object.assign(window.visualViewport as object, { scale: 1.5 });
+    activeElement = textInput();
+    fire(documentHandlers, "focusin");
+    vi.runAllTimers();
+    setViewportHeight(WITH_KEYBOARD / 1.5);
+    fire(viewportHandlers, "resize");
+    expect(readSoftKeyboardOpen()).toBe(true);
+    off();
+  });
+
+  it("hides chrome when Android resizes both viewports for the software keyboard", () => {
+    platform.android = true;
+    const [, off] = subscribe();
+    activeElement = textInput();
+    fire(documentHandlers, "focusin");
+    vi.runAllTimers();
+    window.innerHeight = WITH_KEYBOARD;
+    setViewportHeight(WITH_KEYBOARD);
+    fire(viewportHandlers, "resize");
+    try {
+      expect(readSoftKeyboardOpen()).toBe(true);
+    } finally {
+      off();
+    }
+    window.innerHeight = LAYOUT_HEIGHT;
+    setViewportHeight(LAYOUT_HEIGHT);
+    const [, offAgain] = subscribe();
+    fire(viewportHandlers, "resize");
+    expect(readSoftKeyboardOpen()).toBe(false);
+    offAgain();
+  });
+
+  it("re-bases the Android height after a rotation so a focused field alone keeps the chrome", () => {
+    platform.android = true;
+    const [, off] = subscribe();
+    activeElement = textInput();
+    fire(documentHandlers, "focusin");
+    vi.runAllTimers();
+    Object.assign(window, { innerWidth: LAYOUT_HEIGHT, innerHeight: 360 });
+    setViewportHeight(360);
+    fire(viewportHandlers, "resize");
+    expect(readSoftKeyboardOpen()).toBe(false);
+    window.innerHeight = 200;
+    setViewportHeight(200);
+    fire(viewportHandlers, "resize");
+    expect(readSoftKeyboardOpen()).toBe(true);
+    window.innerHeight = 360;
+    setViewportHeight(360);
+    fire(viewportHandlers, "resize");
+    expect(readSoftKeyboardOpen()).toBe(false);
+    off();
+  });
+
+  it("keeps the Android baseline through a rotation with the keyboard up, then re-bases once it closes", () => {
+    platform.android = true;
+    const [, off] = subscribe();
+    activeElement = textInput();
+    fire(documentHandlers, "focusin");
+    vi.runAllTimers();
+    window.innerHeight = WITH_KEYBOARD;
+    setViewportHeight(WITH_KEYBOARD);
+    fire(viewportHandlers, "resize");
+    expect(readSoftKeyboardOpen()).toBe(true);
+    Object.assign(window, { innerWidth: LAYOUT_HEIGHT, innerHeight: 200 });
+    setViewportHeight(200);
+    fire(viewportHandlers, "resize");
+    expect(readSoftKeyboardOpen()).toBe(true);
+    window.innerHeight = 360;
+    setViewportHeight(360);
+    fire(viewportHandlers, "resize");
+    expect(readSoftKeyboardOpen()).toBe(false);
+    window.innerHeight = 200;
+    setViewportHeight(200);
+    fire(viewportHandlers, "resize");
+    expect(readSoftKeyboardOpen()).toBe(true);
+    off();
+  });
+
+  it("holds the keyboard through rotations both ways until it closes or the field blurs", () => {
+    platform.android = true;
+    Object.assign(window, { innerWidth: LAYOUT_HEIGHT, innerHeight: 360 });
+    setViewportHeight(360);
+    const [, off] = subscribe();
+    activeElement = textInput();
+    fire(documentHandlers, "focusin");
+    vi.runAllTimers();
+    const resize = (width: number, height: number) => {
+      Object.assign(window, { innerWidth: width, innerHeight: height });
+      setViewportHeight(height);
+      fire(viewportHandlers, "resize");
+    };
+    resize(LAYOUT_HEIGHT, 200);
+    expect(readSoftKeyboardOpen()).toBe(true);
+    resize(390, WITH_KEYBOARD);
+    expect(readSoftKeyboardOpen()).toBe(true);
+    resize(390, WITH_KEYBOARD + 40);
+    expect(readSoftKeyboardOpen()).toBe(true);
+    resize(390, LAYOUT_HEIGHT);
+    expect(readSoftKeyboardOpen()).toBe(false);
+    resize(390, WITH_KEYBOARD);
+    expect(readSoftKeyboardOpen()).toBe(true);
+    resize(LAYOUT_HEIGHT, 200);
+    expect(readSoftKeyboardOpen()).toBe(true);
+    resize(LAYOUT_HEIGHT, 240);
+    expect(readSoftKeyboardOpen()).toBe(true);
+    resize(LAYOUT_HEIGHT, 360);
+    expect(readSoftKeyboardOpen()).toBe(false);
+    resize(LAYOUT_HEIGHT, 200);
+    expect(readSoftKeyboardOpen()).toBe(true);
+    resize(390, WITH_KEYBOARD);
+    expect(readSoftKeyboardOpen()).toBe(true);
+    activeElement = { tagName: "BODY" };
+    fire(documentHandlers, "focusout");
+    vi.runAllTimers();
+    expect(readSoftKeyboardOpen()).toBe(false);
+    off();
+  });
+
+  it("takes the Android baseline from the unfocused window, not the tallest one seen", () => {
+    platform.android = true;
+    const [, off] = subscribe();
+    window.innerHeight = 600;
+    setViewportHeight(600);
+    fire(viewportHandlers, "resize");
+    activeElement = textInput();
+    fire(documentHandlers, "focusin");
+    vi.runAllTimers();
+    expect(readSoftKeyboardOpen()).toBe(false);
+    off();
+  });
+
+  it("does not treat a resized desktop window with a focused field as a keyboard", () => {
+    const [, off] = subscribe();
+    activeElement = textInput();
+    fire(documentHandlers, "focusin");
+    vi.runAllTimers();
+    window.innerHeight = WITH_KEYBOARD;
+    setViewportHeight(WITH_KEYBOARD);
+    fire(viewportHandlers, "resize");
+    expect(readSoftKeyboardOpen()).toBe(false);
+    off();
+  });
+
   it("takes the caret from the document and the height from the visual viewport", () => {
     const [, off] = subscribe();
     expect([...documentHandlers.keys()].sort()).toEqual(["focusin", "focusout"]);

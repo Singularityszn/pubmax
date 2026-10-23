@@ -6,11 +6,14 @@ import {
   useMemo,
   useRef,
   useState,
+  type ReactNode,
   type RefObject,
 } from "react";
 import { createPortal } from "react-dom";
 
-import { useAuth } from "@/components/auth/AuthProvider";
+import AccountDeviceControls from "@/components/auth/AccountDeviceControls";
+import { useAuth, type SignOutScope } from "@/components/auth/AuthProvider";
+import { useDeviceAccounts } from "@/components/auth/useDeviceAccounts";
 import { errorMessageFrom, offlineOrMessage } from "@/lib/apiErrorMessage";
 import {
   accountBoundFetch,
@@ -52,6 +55,7 @@ type AccountOnboardingFormProps = {
   availability: Availability;
   busy: boolean;
   error: string | null;
+  accountActions?: ReactNode;
   onHandleChange: (value: string) => void;
   onDateOfBirthChange: (value: string) => void;
   onFullNameChange: (value: string) => void;
@@ -98,6 +102,7 @@ export function AccountOnboardingForm({
   availability,
   busy,
   error,
+  accountActions,
   onHandleChange,
   onDateOfBirthChange,
   onFullNameChange,
@@ -199,8 +204,9 @@ export function AccountOnboardingForm({
             disabled={!canSubmit}
             onClick={onSubmit}
           >
-            {busy ? "Claiming…" : availability === "checking" ? "Checking…" : "Claim handle"}
+            {busy ? "One moment…" : availability === "checking" ? "Checking…" : "Claim handle"}
           </button>
+          {accountActions}
         </div>
       </section>
     </div>
@@ -256,6 +262,8 @@ function AccountOnboardingForUser({
   auth: AccountAuthSnapshot;
   identityResolved: boolean;
 }): React.JSX.Element | null {
+  const { user, signOut, switchAccount } = useAuth();
+  const deviceAccounts = useDeviceAccounts();
   const [status, setStatus] = useState<
     "loading" | "needed" | "complete" | "unavailable"
   >("loading");
@@ -273,6 +281,19 @@ function AccountOnboardingForUser({
   const [error, setError] = useState<string | null>(null);
   const active = useRef(true);
   const dialogRef = useRef<HTMLElement>(null);
+
+  const leaveAccount = useCallback(async (scope: SignOutScope) => {
+    if (busy) return;
+    setBusy(true);
+    setError(null);
+    try {
+      await signOut(scope);
+    } catch {
+      if (active.current) setError(offlineOrMessage("Could not sign out. Try again."));
+    } finally {
+      if (active.current) setBusy(false);
+    }
+  }, [busy, signOut]);
 
   const retryStatus = useCallback(() => {
     setStatus("loading");
@@ -537,6 +558,28 @@ function AccountOnboardingForUser({
       availability={availability}
       busy={busy}
       error={error}
+      accountActions={
+        <div className="accountOnboardingAccount">
+          {user?.email ? <p className="accountOnboardingPrivacy">Signed in as {user.email}</p> : null}
+          <AccountDeviceControls
+            handle={null}
+            activeUserId={auth.userId}
+            deviceAccounts={deviceAccounts}
+            onSwitchAccount={async (userId) => {
+              setBusy(true);
+              try {
+                return await switchAccount(userId);
+              } finally {
+                if (active.current) setBusy(false);
+              }
+            }}
+            addAccountHref="/login?add=1"
+            onSignOut={(scope) => void leaveAccount(scope)}
+            signOutDisabled={busy}
+            onNavigate={() => void leaveAccount("account")}
+          />
+        </div>
+      }
       onHandleChange={changeHandle}
       onDateOfBirthChange={setDateOfBirth}
       onFullNameChange={setFullName}

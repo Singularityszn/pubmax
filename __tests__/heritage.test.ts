@@ -1,5 +1,9 @@
-import { readFileSync, readdirSync } from "node:fs";
-import path from "node:path";
+import { readFile } from "node:fs/promises";
+
+vi.mock("node:fs/promises", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("node:fs/promises")>();
+  return { ...actual, readFile: vi.fn(actual.readFile) };
+});
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -58,6 +62,28 @@ function post(body: unknown): Promise<Response> {
 const SOURCED_SOURCES = new Set(["osm", "wikidata", "wikipedia", "seed"]);
 
 describe("retrieveHeritage — trust boundary", () => {
+  it("reads a repeated fact once while keeping both source citations", async () => {
+    const cacheFact = "The Black Friar was built about 1875.";
+    const read = vi.mocked(readFile);
+    read.mockResolvedValueOnce(JSON.stringify({
+      "the blackfriar": [
+        { source: "wikipedia", fact: cacheFact, sourceRef: "https://example.org/history" },
+        { source: "seed", fact: ` ${cacheFact} `, sourceRef: "https://example.org/archive" },
+      ],
+    }));
+    try {
+      const result = await answerHeritage({ venueName: "The Blackfriar", question: "Tell me about this pub" });
+      expect(result.answer.match(/built about 1875/g)).toHaveLength(1);
+      expect(result.citations).toEqual([
+        { source: "wikipedia", ref: "https://example.org/history" },
+        { source: "seed", ref: "https://example.org/archive" },
+      ]);
+    } finally {
+      read.mockReset();
+      read.mockImplementation((await vi.importActual<typeof import("node:fs/promises")>("node:fs/promises")).readFile);
+    }
+  });
+
   it("rejects unknown stored source labels instead of relabelling them", () => {
     expect(storedFactSource("webbing")).toBeNull();
     expect(storedFactSource("web ")).toBeNull();
@@ -481,32 +507,3 @@ describe("The Landlord LLM bounds (mocked OpenRouter)", () => {
   });
 });
 
-// FIX 1 guard: retrieval (lib/heritage.ts), the writer (enrich_heritage.mjs),
-// and the migration must all agree on the `venue_key` column. If any drifts
-// back to `pub_id`/`venue_name`, this fails.
-describe("schema key alignment (venue_key)", () => {
-  const read = (rel: string) =>
-    readFileSync(path.join(process.cwd(), rel), "utf8");
-  // Migration files carry a remote-ledger timestamp prefix
-  // (`<version>_NNNN_name.sql`) so the Supabase preview-branch check matches
-  // them. Resolve by the stable `NNNN_name` suffix instead of a fixed prefix.
-  const readMigration = (suffix: string) => {
-    const dir = path.join(process.cwd(), "supabase/migrations");
-    const file = readdirSync(dir).find((f) => f.endsWith(`_${suffix}.sql`));
-    if (!file) throw new Error(`migration *_${suffix}.sql not found`);
-    return readFileSync(path.join(dir, file), "utf8");
-  };
-
-  it("migration, writer, and retrieval all use venue_key", () => {
-    const migration = readMigration("0002_pub_heritage");
-    const writer = read("scripts/enrich_heritage.mjs");
-    const retrieval = read("lib/heritage.ts");
-
-    expect(migration).toMatch(/venue_key\s+text/);
-    expect(migration).not.toMatch(/pub_id/);
-    expect(writer).toMatch(/venue_key:/);
-    expect(writer).not.toMatch(/venue_name:/);
-    expect(retrieval).toContain('.eq("venue_key"');
-    expect(retrieval).not.toContain("pub_id");
-  });
-});

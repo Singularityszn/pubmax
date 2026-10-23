@@ -54,7 +54,7 @@ export default function MapExperienceLens({
               aria-pressed={selected}
               onClick={() => onChange(id)}
             >
-              <Icon size={17} aria-hidden="true" />
+              <Icon size={16} aria-hidden="true" />
               <span>{label}</span>
             </button>
           );

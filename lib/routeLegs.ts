@@ -29,6 +29,12 @@ import type { Venue } from "@/lib/venues";
 // label it "straight-line" rather than pretend otherwise).
 export const WALK_KMH = 4.8;
 
+/** The transport basis a generated stop carries when its walk in was routed on foot. */
+export const ROUTED_WALK_TRANSPORT_BASIS = "openrouteservice foot-walking route duration";
+
+/** The transport basis a generated stop carries when its walk in came from the street-walk table. */
+export const STREET_WALK_TRANSPORT_BASIS = `street walk at ${WALK_KMH} km/h along mapped streets plus 5 minutes uncertainty per leg`;
+
 // Cheap "runner" toggle (story 25 nicety): a steady easy-run pace. One extra
 // constant, no new distance math — the same leg distances, a different pace.
 export const RUN_KMH = 9;
@@ -103,6 +109,7 @@ export function buildRouteLegs(route: Venue[], pace: RoutePace = "walk"): RouteL
   for (let i = 0; i < route.length - 1; i += 1) {
     const from = route[i];
     const to = route[i + 1];
+    if (!from || !to) continue;
     const distanceKm = haversineKm([from.longitude, from.latitude], [to.longitude, to.latitude]);
     legs.push({
       fromIndex: i,

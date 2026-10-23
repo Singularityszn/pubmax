@@ -61,7 +61,7 @@ describe("Moment photo editor output", () => {
       edited(new Blob([new Uint8Array(MOMENT_MAX_PHOTO_BYTES + 1)], { type: "image/jpeg" })),
     );
     expect(oversized.media).toBe(original);
-    expect(oversized.error).toMatch(/4 MB/);
+    expect(oversized.error).toMatch(/4\u00a0MB/);
   });
 
   it("accepts edited photos through the wire upload boundary, and no looser", () => {
@@ -78,7 +78,7 @@ describe("Moment photo editor output", () => {
     expect(acceptedResult.error).toBeNull();
     expect(acceptedResult.media.size).toBe(MOMENT_MAX_PHOTO_BYTES);
     expect(rejectedResult.media).toBe(original);
-    expect(rejectedResult.error).toMatch(/4 MB/);
+    expect(rejectedResult.error).toMatch(/4\u00a0MB/);
     expect(validatePhoto(accepted.type, accepted.size, MOMENT_MAX_PHOTO_BYTES)).toBeNull();
     // ONE SPELLING OF THE FIGURE. The store's refusal printed "4MB" while the
     // boundary above it printed "4 MB" for the same number; both now read

@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 import {
   GROUP_PREF_ATMOSPHERE_CHIPS,
@@ -11,13 +11,17 @@ import {
   type MatePreference,
 } from "@/lib/groupPrefs";
 import { errorMessageFrom } from "@/lib/apiErrorMessage";
+import type { PlanStopDTO } from "@/lib/plan";
 import { discardBody } from "@/lib/responseBody";
+import FairMeetingOrigins from "@/components/plan/FairMeetingOrigins";
 
 type Props = {
   planId: string;
   memberId: string;
   memberToken: string;
   isHost: boolean;
+  /** The plan's candidate pubs, for the private fair meeting comparison. */
+  candidateStops?: readonly PlanStopDTO[];
 };
 
 type DraftPref = {
@@ -48,19 +52,39 @@ const EMPTY_OVERLAP: GroupPrefsOverlap = {
   mustHaveLabels: [],
 };
 
-export default function MatchGroupPrefs({ planId, memberId, memberToken, isHost }: Props) {
+const NO_STOPS: readonly PlanStopDTO[] = [];
+
+export default function MatchGroupPrefs({ planId, memberId, memberToken, isHost, candidateStops = NO_STOPS }: Props) {
   const [draft, setDraft] = useState<DraftPref>({});
   const [prefs, setPrefs] = useState<MatePreference[]>([]);
   const [overlap, setOverlap] = useState<GroupPrefsOverlap>(EMPTY_OVERLAP);
   const [status, setStatus] = useState("");
   const [pending, setPending] = useState(false);
   const [shared, setShared] = useState(false);
+  // Only the newest read may paint: a poll that left before a save and lands
+  // after it carries the old picks, and the next save would build on them.
+  const refreshRequestRef = useRef<{ generation: number; controller: AbortController } | null>(null);
+  // A write in flight owns the picks: a poll that starts or lands while it is
+  // out would paint the picks from before it.
+  const writingRef = useRef(false);
+
+  // Abort the read in flight and retire its generation, so it can never paint.
+  const supersedeRefresh = useCallback(() => {
+    const generation = (refreshRequestRef.current?.generation ?? 0) + 1;
+    refreshRequestRef.current?.controller.abort();
+    refreshRequestRef.current = { generation, controller: new AbortController() };
+  }, []);
 
   const refresh = useCallback(async () => {
-    if (!memberToken) return;
+    if (!memberToken || writingRef.current) return;
+    const generation = (refreshRequestRef.current?.generation ?? 0) + 1;
+    refreshRequestRef.current?.controller.abort();
+    const controller = new AbortController();
+    refreshRequestRef.current = { generation, controller };
     try {
       const response = await fetch(`/api/plans/${planId}/group-prefs`, {
         cache: "no-store",
+        signal: controller.signal,
         headers: { authorization: `Bearer ${memberToken}` },
       });
       if (!response.ok) {
@@ -68,6 +92,7 @@ export default function MatchGroupPrefs({ planId, memberId, memberToken, isHost 
         return;
       }
       const body = await response.json() as { prefs?: MatePreference[]; overlap?: GroupPrefsOverlap };
+      if (controller.signal.aborted || refreshRequestRef.current?.generation !== generation) return;
       setPrefs(Array.isArray(body.prefs) ? body.prefs : []);
       setOverlap(body.overlap && typeof body.overlap === "object" ? body.overlap : EMPTY_OVERLAP);
       const mine = Array.isArray(body.prefs) ? body.prefs.find((pref) => pref.mateId === memberId) : null;
@@ -85,6 +110,7 @@ export default function MatchGroupPrefs({ planId, memberId, memberToken, isHost 
     return () => {
       window.clearTimeout(timer);
       window.clearInterval(interval);
+      refreshRequestRef.current?.controller.abort();
     };
   }, [refresh]);
 
@@ -114,6 +140,8 @@ export default function MatchGroupPrefs({ planId, memberId, memberToken, isHost 
     }
     setPending(true);
     setStatus("");
+    writingRef.current = true;
+    supersedeRefresh();
     try {
       const response = await fetch(`/api/plans/${planId}/group-prefs`, {
         method: "POST",
@@ -140,13 +168,17 @@ export default function MatchGroupPrefs({ planId, memberId, memberToken, isHost 
         return;
       }
       if (body.overlap) setOverlap(body.overlap);
+      const saved = body.pref;
+      if (saved) setPrefs((current) => [...current.filter((pref) => pref.mateId !== saved.mateId), saved]);
       setShared(true);
       setDraft({});
       setStatus("Saved and shared with this plan.");
+      writingRef.current = false;
       await refresh();
     } catch {
       setStatus("Could not share these picks yet.");
     } finally {
+      writingRef.current = false;
       setPending(false);
     }
   }
@@ -154,6 +186,8 @@ export default function MatchGroupPrefs({ planId, memberId, memberToken, isHost 
   async function clearPrefs() {
     setPending(true);
     setStatus("");
+    writingRef.current = true;
+    supersedeRefresh();
     try {
       const response = await fetch(`/api/plans/${planId}/group-prefs`, {
         method: "DELETE",
@@ -165,13 +199,16 @@ export default function MatchGroupPrefs({ planId, memberId, memberToken, isHost 
         return;
       }
       if (body.overlap) setOverlap(body.overlap);
+      setPrefs((current) => current.filter((pref) => pref.mateId !== memberId));
       setShared(false);
       setDraft({});
       setStatus("Shared picks cleared.");
+      writingRef.current = false;
       await refresh();
     } catch {
       setStatus("Could not clear shared picks.");
     } finally {
+      writingRef.current = false;
       setPending(false);
     }
   }
@@ -188,13 +225,12 @@ export default function MatchGroupPrefs({ planId, memberId, memberToken, isHost 
     <section className="matchGroupPrefs" aria-labelledby="match-group-prefs-title">
       <div className="matchGroupPrefs__heading">
         <div>
-          <p className="matchGroupPrefs__eyebrow">Sort My Night P1</p>
           <h4 id="match-group-prefs-title">Match the group</h4>
         </div>
         <span>{shared ? "Shared with this plan" : "Not shared yet"}</span>
       </div>
       <p className="matchGroupPrefs__intro">
-        Pick a budget, a vibe and optional needs. Saved picks are shared with everyone on this plan.
+        Pick a budget, a vibe and optional needs. Everyone on this plan sees the picks you save.
       </p>
 
       <div className="matchGroupPrefs__field">
@@ -241,7 +277,7 @@ export default function MatchGroupPrefs({ planId, memberId, memberToken, isHost 
           disabled={pending}
           onClick={() => void save({ zeroProof: !zeroProof })}
         >
-          Zero-proof needed
+          Alcohol-free needed
         </button>
         <button
           type="button"
@@ -276,6 +312,8 @@ export default function MatchGroupPrefs({ planId, memberId, memberToken, isHost 
         Crew overlap: {summary || "waiting on mate picks"}. {meta}
       </output>
       {status ? <p className="matchGroupPrefs__status" role="status">{status}</p> : null}
+      {/* Keyed on the plan and member, so a change of either drops every chosen area. */}
+      <FairMeetingOrigins key={`${planId}:${memberId}`} stops={candidateStops} />
     </section>
   );
 }

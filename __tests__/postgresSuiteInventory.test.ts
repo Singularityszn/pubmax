@@ -14,6 +14,9 @@ import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 
 import { POSTGRES_BACKED_SUITES, POSTGRES_SUITE_RUNS } from "../scripts/rls/postgresSuites.mjs";
+import { WITHOUT_POSTGRES, coverageRuns } from "../scripts/run-coverage.mjs";
+import { unitShards } from "@/__tests__/helpers/ciWorkflow";
+import { defined } from "@/__tests__/helpers/defined";
 
 const ROOT = process.cwd();
 const TESTS_DIR = join(ROOT, "__tests__");
@@ -61,12 +64,22 @@ describe("the Postgres proof inventory", () => {
     expect(new Set(scheduled).size).toBe(scheduled.length);
   });
 
-  it("is the list the clusterless CI jobs exclude", () => {
-    const workflow = readFileSync(join(ROOT, ".github/workflows/ci.yml"), "utf8");
-    for (const suite of POSTGRES_BACKED_SUITES) {
-      // Once for `unit-tests`, once for `coverage`: neither installs Postgres.
-      const occurrences = workflow.split(`--exclude '${suite}'`).length - 1;
-      expect(occurrences, `${suite} must be excluded by both clusterless jobs`).toBe(2);
+  it("is the list the clusterless CI unit shards exclude", () => {
+    // The unit shards install no Postgres. They exclude the closed list
+    // through `--without-postgres`, never a hand-copied `--exclude` that can
+    // drift from it.
+    const shards = unitShards();
+    expect(shards.length).toBeGreaterThan(0);
+    for (const { shard, words } of shards) {
+      expect(words.slice(0, 4), `shard ${shard}`).toEqual(["npm", "run", "coverage", "--"]);
+      const forwarded = words.slice(4);
+      expect(forwarded, `shard ${shard}`).toContain(WITHOUT_POSTGRES);
+      expect(forwarded, `shard ${shard}`).not.toContain("--exclude");
+
+      const [unit] = coverageRuns(forwarded);
+      const args = defined(unit).args;
+      const excluded = args.filter((_, index) => index > 0 && args[index - 1] === "--exclude");
+      expect([...excluded].sort(), `shard ${shard}`).toEqual([...POSTGRES_BACKED_SUITES].sort());
     }
   });
 

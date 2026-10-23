@@ -7,7 +7,7 @@ export function WantedPanelIntro(): React.JSX.Element {
   return (
     <>
       <h2 id="wanted-heading" className="wantedPanel__title">
-        Wanted
+        Pubs to try
       </h2>
       <p className="wantedPanel__lede">
         Paste a pub name or a link you saved elsewhere. It becomes a place you can plan

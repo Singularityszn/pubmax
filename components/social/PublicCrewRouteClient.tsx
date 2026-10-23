@@ -285,7 +285,7 @@ export default function PublicCrewRouteClient({
         }, { requiresIdentity: true },
       );
       const body = (await response.json().catch(() => null)) as Record<string, unknown> | null;
-      if (!response.ok) throw new Error(errorMessageFrom(body, "That did not go through."));
+      if (!response.ok) throw new Error(errorMessageFrom(body, "That didn't go through."));
       if (
         scopeRef.current !== operationScope ||
         scopeGeneration.current !== operationGeneration
@@ -301,7 +301,7 @@ export default function PublicCrewRouteClient({
       ) {
         return;
       }
-      setProblem(error instanceof Error ? error.message : "That did not go through.");
+      setProblem(error instanceof Error ? error.message : "That didn't go through.");
       setProblemScope(operationScope);
     } finally {
       if (
@@ -380,7 +380,7 @@ export default function PublicCrewRouteClient({
     return (
       <Shell>
         <section className="crews__notice" role="status">
-          <h1>This crew is not open to you.</h1>
+          <h1>This crew isn&apos;t open to you.</h1>
           <Link className="crews__button" href="/social">
             Back to Social
           </Link>

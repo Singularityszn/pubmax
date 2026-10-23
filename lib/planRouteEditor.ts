@@ -111,7 +111,7 @@ export function seedRouteDraft(
  */
 export type RouteEditorNotice = { tone: "status" | "error"; text: string } | null;
 
-export const ROUTE_SAVED_LINE = "Route saved. The new order is now canonical.";
+export const ROUTE_SAVED_LINE = "Route saved. The new order is the plan's route now.";
 export const ROUTE_CONFLICT_RESEEDED_LINE = "This route changed in another tab. Nothing was saved. The latest route is shown below.";
 export const ROUTE_CONFLICT_UNREAD_LINE = "This route changed in another tab. Nothing was saved. Refresh the plan before trying again.";
 

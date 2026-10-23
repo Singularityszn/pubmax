@@ -18,6 +18,9 @@
   pointer-events: none;
 }
 
+/* Permission choices remain above an active map sheet. */
+.nativePushPrompt--permission { z-index: var(--z-context-prompt); }
+
 .nativePushPrompt__card {
   pointer-events: auto;
   width: min(100%, 26rem);
@@ -28,6 +31,28 @@
   color: var(--ink);
   box-shadow: var(--shadow);
   animation: nativePushPromptFadeIn var(--duration-slow) var(--ease-out-strong) both;
+}
+
+/* On a phone the tab bar is fixed at the foot of the screen and paints above
+   this layer (--z-tabbar is higher than --z-overlay-top), so a card parked on
+   bottom: 0 sat UNDER the bar and its buttons could not be tapped. Where a bar
+   is mounted the card rests on the bar's own top edge instead, the lane the
+   analytics consent card already uses (app/globals.css). The bar's
+   home-indicator inset moves into the lift, so the card keeps its plain gap. */
+@media (max-width: 640px) {
+  body:has(.mobileTabBar) .nativePushPrompt {
+    bottom: calc(var(--tabbar-h, 64px) + env(safe-area-inset-bottom, 0px));
+    padding-bottom: var(--space-3);
+  }
+
+  /* The bar stays up beside an open sheet, so the card keeps resting on it.
+     It slides away only while the keyboard or night mode owns the foot, and
+     the card follows it down rather than hovering over an empty lane. */
+  body:has(.mobileTabBar.isKeyboardHidden) .nativePushPrompt,
+  body:has(.nightCrawl) .nativePushPrompt {
+    bottom: 0;
+    padding-bottom: max(var(--space-4), env(safe-area-inset-bottom));
+  }
 }
 
 @media (prefers-reduced-motion: no-preference) {
@@ -48,22 +73,22 @@
 
 .nativePushPrompt__title {
   margin: 0 0 var(--space-2);
-  font-family: var(--font-display, var(--serif));
+  font-family: var(--font-display);
   font-weight: 600;
-  font-size: 1.0625rem;
+  font-size: var(--text-base);
 }
 
 .nativePushPrompt__body {
   margin: 0 0 var(--space-4);
-  color: var(--ink-soft, var(--ink));
-  font-size: 0.9375rem;
+  color: var(--ink-soft);
+  font-size: var(--text-base);
   line-height: 1.4;
 }
 
 .nativePushPrompt__error {
   margin: calc(var(--space-2) * -1) 0 var(--space-3);
   color: var(--accent-risk, #b3261e);
-  font-size: 0.875rem;
+  font-size: var(--text-sm);
   line-height: 1.4;
 }
 
@@ -78,10 +103,10 @@
   min-width: 64px;
   min-height: 44px;
   border: none;
-  border-radius: var(--radius-md, 0.75rem);
+  border-radius: var(--radius);
   padding: var(--space-2) var(--space-4);
   font-weight: 600;
-  font-size: 0.9375rem;
+  font-size: var(--text-base);
   cursor: pointer;
 }
 
@@ -92,7 +117,7 @@
 
 .nativePushPrompt__enable {
   background: var(--brass);
-  color: var(--ink-deep, #16122a);
+  color: var(--ink-deep);
 }
 
 /* An action may be a LINK rather than a button: the create-password ask hands

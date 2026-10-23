@@ -1,0 +1,303 @@
+{
+  "city": "durham",
+  "source": "Parallel Task API; Tavily Search and Extract",
+  "observationMeaning": "Each row's observedAt is the date its Parallel research result, Tavily search page text or page read was retrieved; provider names the lane. Cached reruns retain that date. Not a claim that the venue is open tonight.",
+  "populationPriority": 522100,
+  "populationSources": [
+    "https://www.ons.gov.uk/peoplepopulationandcommunity/populationandmigration/populationestimates/bulletins/populationandhouseholdestimatesenglandandwales/census2021",
+    "https://www.scotlandscensus.gov.uk/2022-reports/scotlands-census-2022-rounded-population-estimates/"
+  ],
+  "venues": [
+    {
+      "name": "Whitechurch",
+      "kind": "pub",
+      "address": "29 Church Street, Durham, DH1 3DN",
+      "postcode": "DH1 3DN",
+      "locality": "Durham",
+      "website": "https://whitechurchdurham.com/",
+      "lat": 54.769402,
+      "lng": -1.573254,
+      "coordinatePrecision": "postcode-centroid",
+      "sourceUrls": [
+        "https://camra.org.uk/pubs/whitechurch-durham-187152",
+        "https://camra.org.uk/pubs/place/durham-5528"
+      ],
+      "evidence": [
+        {
+          "url": "https://camra.org.uk/pubs/whitechurch-durham-187152",
+          "excerpt": "Whitechurch, Durham"
+        },
+        {
+          "url": "https://camra.org.uk/pubs/whitechurch-durham-187152",
+          "excerpt": "29 Church Street, Durham, DH1 3DN"
+        },
+        {
+          "url": "https://camra.org.uk/pubs/place/durham-5528",
+          "excerpt": "Whitechurch Pub , in Durham"
+        }
+      ],
+      "observedAt": "2026-10-04T11:17:47.719Z",
+      "geocode": {
+        "url": "https://api.postcodes.io/postcodes/DH1%203DN",
+        "observedAt": "2026-10-04T11:17:47.773Z",
+        "postcode": "DH1 3DN",
+        "quality": 1
+      },
+      "runId": "trun_ce5fd53e0016415f8e7e90856351dec6",
+      "id": "venue-dur-n53aox",
+      "provider": "parallel"
+    },
+    {
+      "name": "John's Bar",
+      "kind": "bar",
+      "address": "St John's College, 3 South Bailey, Durham, DH1 3RJ",
+      "postcode": "DH1 3RJ",
+      "locality": "Durham",
+      "website": null,
+      "lat": 54.772097,
+      "lng": -1.575324,
+      "coordinatePrecision": "postcode-centroid",
+      "sourceUrls": [
+        "https://camra.org.uk/pubs/johns-bar-durham-187410"
+      ],
+      "evidence": [
+        {
+          "url": "https://camra.org.uk/pubs/johns-bar-durham-187410",
+          "excerpt": "John's Bar, Durham (St John's College Bar; Cellar Bar)"
+        },
+        {
+          "url": "https://camra.org.uk/pubs/johns-bar-durham-187410",
+          "excerpt": "St John's College, 3 South Bailey, Durham, DH1 3RJ"
+        }
+      ],
+      "observedAt": "2026-10-04T11:17:47.719Z",
+      "geocode": {
+        "url": "https://api.postcodes.io/postcodes/DH1%203RJ",
+        "observedAt": "2026-10-04T11:17:47.808Z",
+        "postcode": "DH1 3RJ",
+        "quality": 1
+      },
+      "runId": "trun_ce5fd53e0016415f8e7e90856351dec6",
+      "id": "venue-dur-8ti4sg",
+      "provider": "parallel"
+    },
+    {
+      "name": "Cuth's Bar",
+      "kind": "bar",
+      "address": "12 South Bailey, Durham, DH1 3EE",
+      "postcode": "DH1 3EE",
+      "locality": "Durham",
+      "website": null,
+      "lat": 54.771302,
+      "lng": -1.576872,
+      "coordinatePrecision": "postcode-centroid",
+      "sourceUrls": [
+        "https://camra.org.uk/pubs/place/durham-5528"
+      ],
+      "evidence": [
+        {
+          "url": "https://camra.org.uk/pubs/place/durham-5528",
+          "excerpt": "Cuth's Bar Club , in Durham"
+        },
+        {
+          "url": "https://camra.org.uk/pubs/place/durham-5528",
+          "excerpt": "12 South Bailey, Durham, DH1 3EE"
+        },
+        {
+          "url": "https://camra.org.uk/pubs/place/durham-5528",
+          "excerpt": "2 Changing Beers Cask Ale"
+        }
+      ],
+      "observedAt": "2026-10-04T11:17:47.719Z",
+      "geocode": {
+        "url": "https://api.postcodes.io/postcodes/DH1%203EE",
+        "observedAt": "2026-10-04T11:17:47.843Z",
+        "postcode": "DH1 3EE",
+        "quality": 1
+      },
+      "runId": "trun_ce5fd53e0016415f8e7e90856351dec6",
+      "id": "venue-dur-1q8gqaa",
+      "provider": "parallel"
+    },
+    {
+      "name": "Dunelm Club",
+      "kind": "club",
+      "address": "55 Old Elvet, Durham, DH1 3HN",
+      "postcode": "DH1 3HN",
+      "locality": "Durham",
+      "website": "https://dunelmclub.co.uk/",
+      "lat": 54.775129,
+      "lng": -1.568888,
+      "coordinatePrecision": "postcode-centroid",
+      "sourceUrls": [
+        "https://camra.org.uk/pubs/place/durham-5528",
+        "https://dunelmclub.co.uk/about-dunelm-club/"
+      ],
+      "evidence": [
+        {
+          "url": "https://camra.org.uk/pubs/place/durham-5528",
+          "excerpt": "Dunelm Club Club , in Durham"
+        },
+        {
+          "url": "https://camra.org.uk/pubs/place/durham-5528",
+          "excerpt": "55 Old Elvet, Durham, DH1 3HN"
+        },
+        {
+          "url": "https://dunelmclub.co.uk/about-dunelm-club/",
+          "excerpt": "a bar, dining room, snooker tables, library and private car park."
+        }
+      ],
+      "observedAt": "2026-10-04T11:17:47.719Z",
+      "geocode": {
+        "url": "https://api.postcodes.io/postcodes/DH1%203HN",
+        "observedAt": "2026-10-04T11:17:47.868Z",
+        "postcode": "DH1 3HN",
+        "quality": 1
+      },
+      "runId": "trun_ce5fd53e0016415f8e7e90856351dec6",
+      "id": "venue-dur-ftudml",
+      "provider": "parallel"
+    },
+    {
+      "name": "Cosy Club Durham",
+      "kind": "restaurant",
+      "address": "Unit R9, The Riverwalk, Durham, DH1 4SL",
+      "postcode": "DH1 4SL",
+      "locality": "Durham",
+      "website": "https://cosyclub.co.uk/location/durham/",
+      "lat": 54.776808,
+      "lng": -1.578695,
+      "coordinatePrecision": "postcode-centroid",
+      "sourceUrls": [
+        "https://cosyclub.co.uk/location/durham/"
+      ],
+      "evidence": [
+        {
+          "url": "https://cosyclub.co.uk/location/durham/",
+          "excerpt": "Cosy Club Durham is a riverside restaurant and bar serving breakfast, brunch, lunch, dinner and cocktails."
+        },
+        {
+          "url": "https://cosyclub.co.uk/location/durham/",
+          "excerpt": "Durham Unit R9 The Riverwalk, Durham, DH1 4SL"
+        }
+      ],
+      "observedAt": "2026-10-04T11:17:41.649Z",
+      "geocode": {
+        "url": "https://api.postcodes.io/postcodes/DH1%204SL",
+        "observedAt": "2026-10-04T11:17:41.735Z",
+        "postcode": "DH1 4SL",
+        "quality": 1
+      },
+      "runId": "trun_ce5fd53e0016415fb8242d40cc9c2cb4",
+      "id": "venue-dur-n4gbj0",
+      "provider": "parallel"
+    },
+    {
+      "name": "Turkish Kitchen Meze & Grill",
+      "kind": "restaurant",
+      "address": "66 Saddler Street, Durham DH1 3NP",
+      "postcode": "DH1 3NP",
+      "locality": "Durham",
+      "website": "https://turkishkitchendurham.co.uk/",
+      "lat": 54.776419,
+      "lng": -1.575233,
+      "coordinatePrecision": "postcode-centroid",
+      "sourceUrls": [
+        "https://www.turkishkitchendurham.co.uk/about"
+      ],
+      "evidence": [
+        {
+          "url": "https://www.turkishkitchendurham.co.uk/about",
+          "excerpt": "Turkish Kitchen Meze & Grill"
+        },
+        {
+          "url": "https://www.turkishkitchendurham.co.uk/about",
+          "excerpt": "66 Saddler Street, DurhamDH1 3NP"
+        },
+        {
+          "url": "https://www.turkishkitchendurham.co.uk/about",
+          "excerpt": "Drinks & Cocktails"
+        }
+      ],
+      "observedAt": "2026-10-04T11:18:41.240Z",
+      "geocode": {
+        "url": "https://api.postcodes.io/postcodes/DH1%203NP",
+        "observedAt": "2026-10-04T11:18:41.307Z",
+        "postcode": "DH1 3NP",
+        "quality": 1
+      },
+      "runId": "trun_ce5fd53e0016415fbedffbe4ceba9ead",
+      "id": "venue-dur-v0muyx",
+      "provider": "parallel"
+    },
+    {
+      "name": "Hotel Indigo Rotunda Bar",
+      "kind": "bar",
+      "address": "Hotel Indigo, 9 Old Elvet, Durham, County Durham, DH1 3HL",
+      "postcode": "DH1 3HL",
+      "locality": "Durham",
+      "website": "https://durham.hotelindigo.com/rotunda-bar",
+      "lat": 54.775057,
+      "lng": -1.571205,
+      "coordinatePrecision": "postcode-centroid",
+      "sourceUrls": [
+        "https://www.thisisdurham.com/food-and-drink/hotel-indigo-rotunda-bar-p940391",
+        "https://durham.hotelindigo.com/rotunda-bar"
+      ],
+      "evidence": [
+        {
+          "url": "https://www.thisisdurham.com/food-and-drink/hotel-indigo-rotunda-bar-p940391",
+          "excerpt": "Hotel Indigo Rotunda Bar\nHotel Indigo 9 Old Elvet DURHAM County Durham DH1 3HL"
+        },
+        {
+          "url": "https://durham.hotelindigo.com/rotunda-bar",
+          "excerpt": "expertly mixed cocktails, locally brewed ales"
+        }
+      ],
+      "observedAt": "2026-10-04T11:17:41.649Z",
+      "geocode": {
+        "url": "https://api.postcodes.io/postcodes/DH1%203HL",
+        "observedAt": "2026-10-04T12:21:02.811Z",
+        "postcode": "DH1 3HL",
+        "quality": 1
+      },
+      "provider": "parallel",
+      "runId": "trun_ce5fd53e0016415fb8242d40cc9c2cb4",
+      "id": "venue-dur-1yx09tz"
+    },
+    {
+      "name": "Cast Iron Bar",
+      "kind": "bar",
+      "address": "Delta Hotels by Marriott Durham Royal County, Old Elvet, Durham DH1 3JN",
+      "postcode": "DH1 3JN",
+      "locality": "Durham",
+      "website": "https://www.marriott.com/en-us/hotels/ncldd-delta-hotels-durham-royal-county/dining/",
+      "lat": 54.775705,
+      "lng": -1.571556,
+      "coordinatePrecision": "postcode-centroid",
+      "sourceUrls": [
+        "https://www.thisisdurham.com/food-and-drink/cast-iron-bar-grill-and-terrace-p978131"
+      ],
+      "evidence": [
+        {
+          "url": "https://www.thisisdurham.com/food-and-drink/cast-iron-bar-grill-and-terrace-p978131",
+          "excerpt": "Delta Hotels by Marriott Durham Royal County Old Elvet Durham City County Durham DH1 3JN"
+        },
+        {
+          "url": "https://www.thisisdurham.com/food-and-drink/cast-iron-bar-grill-and-terrace-p978131",
+          "excerpt": "Expect craft beer on tap, creative cocktails, a carefully curated wine list and local spirits, including Durham Gin, in our vibrant Cast Iron Bar."
+        }
+      ],
+      "observedAt": "2026-10-04T11:19:33.350Z",
+      "geocode": {
+        "url": "https://api.postcodes.io/postcodes/DH1%203JN",
+        "observedAt": "2026-10-04T12:21:02.998Z",
+        "postcode": "DH1 3JN",
+        "quality": 1
+      },
+      "provider": "parallel",
+      "runId": "trun_ce5fd53e0016415f92fab25c0a2858e0",
+      "id": "venue-dur-ocx10"
+    }
+  ]
+}

@@ -285,7 +285,7 @@ function routeWithReplayState(
   let routeStale = route.value.routeStale;
   if (routeStale) conflicts.push({
     code: "route-proof-stale",
-    message: "The saved Route proof expired or could not be read. Review a refreshed Route before locking it in.",
+    message: "This saved route has gone stale. Draft it again before you lock it in.",
     recoveryAction: "regenerate-route",
   });
   if (
@@ -295,7 +295,7 @@ function routeWithReplayState(
     routeStale = true;
     conflicts.push({
       code: "operation-replay",
-      message: "This Route operation was already applied in another tab.",
+      message: "You already saved this route in another tab.",
       recoveryAction: "regenerate-route",
     });
   }

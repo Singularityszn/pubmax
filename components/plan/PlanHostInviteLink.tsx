@@ -95,7 +95,7 @@ export default function PlanHostInviteLink({ planId }: { planId: string }) {
       <div className="planHostInviteLink" aria-busy={!sessionChecked}>
         <p className="planHostInviteLink__status" role="status">
           {sessionChecked
-            ? "Invite tools need a crew session. Join the plan, then try again."
+            ? "You're a guest on this plan. Join the crew to use the invite tools."
             : "Restoring your invite tools…"}
         </p>
       </div>

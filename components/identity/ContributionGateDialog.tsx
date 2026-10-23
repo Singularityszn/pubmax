@@ -4,6 +4,7 @@ import Link from "next/link";
 import { createPortal } from "react-dom";
 import {
   useCallback,
+  useEffect,
   useReducer,
   useRef,
   useState,
@@ -17,6 +18,7 @@ import { authedActionFetch } from "@/lib/authedFetch";
 import { HANDLE_CLAIM_NEXT } from "@/lib/authRedirect";
 import { errorMessageFrom } from "@/lib/apiErrorMessage";
 import {
+  ADULT_ASSERTED_EVENT,
   CONTRIBUTION_ADULT_REFUSAL,
   CONTRIBUTION_HANDLE_REFUSAL,
   CONTRIBUTION_UNDER_18_REFUSAL,
@@ -25,6 +27,7 @@ import {
 import { discardBody } from "@/lib/responseBody";
 import { ADULT_SELF_ASSERTION_ACTION } from "@/lib/adultGate";
 import { useDismissOnEscape } from "@/lib/useDismissOnEscape";
+import { useFocusTrap } from "@/lib/useFocusTrap";
 import { trackEvent } from "@/lib/analytics";
 
 import "./contributionGate.css";
@@ -41,21 +44,22 @@ type ContributionGateDialogProps = {
 };
 
 /**
- * The one tap, in the price path's own frame. Social records the same
- * assertion through the same route (`/api/identity/adult-assertion`); this is
- * that door where a drinker already asked to log a price, so the age question
- * is answered where it was raised rather than on another surface.
+ * The one tap, as a hook, so the dialog and the inline door (the same question
+ * asked where a list would be) record it through ONE route and one error line.
+ * Social records the same assertion through the same route
+ * (`/api/identity/adult-assertion`); the age question is answered where it was
+ * raised rather than on another surface.
  */
-function AdultCheck({
-  onAsserted,
-}: {
-  onAsserted?: () => void;
-}): React.JSX.Element {
+export function useAdultTap(onAsserted?: () => void): {
+  assert: () => void;
+  busy: boolean;
+  error: string | null;
+} {
   const [busy, setBusy] = useState(false);
-  const [assertError, setAssertError] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
   const assert = useCallback(() => {
     setBusy(true);
-    setAssertError(null);
+    setError(null);
     authedActionFetch(
       "/api/identity/adult-assertion",
       { method: "POST", cache: "no-store", credentials: "same-origin" },
@@ -64,13 +68,24 @@ function AdultCheck({
       .then((response) => {
         discardBody(response);
         if (!response.ok) throw new Error("Adult assertion refused");
+        // Tell every other door on the page, then resume what asked.
+        window.dispatchEvent(new Event(ADULT_ASSERTED_EVENT));
         onAsserted?.();
       })
       .catch(() => {
-        setAssertError("We could not save that just now. Try again.");
+        setError("We could not save that just now. Try again.");
       })
       .finally(() => setBusy(false));
   }, [onAsserted]);
+  return { assert, busy, error };
+}
+
+function AdultCheck({
+  onAsserted,
+}: {
+  onAsserted?: () => void;
+}): React.JSX.Element {
+  const { assert, busy, error } = useAdultTap(onAsserted);
   return (
     <>
       <button
@@ -81,9 +96,9 @@ function AdultCheck({
       >
         {ADULT_SELF_ASSERTION_ACTION}
       </button>
-      {assertError ? (
+      {error ? (
         <p className="contributionGateError" role="alert">
-          {assertError}
+          {error}
         </p>
       ) : null}
     </>
@@ -100,13 +115,24 @@ export function ContributionGateDialog({
   // nothing else, so a reader who reached it with the keyboard had to tab to
   // the end of the dialog to leave.
   useDismissOnEscape(true, onClose);
+  // It declares itself modal, so it has to BE one (review finding CMP-5): the
+  // page behind goes inert, Tab cycles inside, focus lands in the dialog
+  // rather than staying on the control that opened it, and goes back there
+  // when it closes (the trap restores it).
+  const dialogRef = useRef<HTMLElement | null>(null);
+  useFocusTrap(true, dialogRef, "strict-modal");
+  useEffect(() => {
+    dialogRef.current?.focus({ preventScroll: true });
+  }, []);
   const dialog = (
     <div className="contributionGateBackdrop" role="presentation">
       <section
+        ref={dialogRef}
         className="contributionGate"
         role="dialog"
         aria-modal="true"
         aria-labelledby="contribution-gate-title"
+        tabIndex={-1}
       >
         {mode === "sign_in_required" ? (
           <>
@@ -124,8 +150,7 @@ export function ContributionGateDialog({
             <p className="contributionGateEyebrow">Age check</p>
             <h2 id="contribution-gate-title">Confirm your age</h2>
             <p>
-              Logging a drink price is for over-18s. One tap records it, and we
-              ask once.
+              This is for over-18s. One tap records it, and we ask once.
             </p>
             <AdultCheck onAsserted={onAsserted} />
           </>
@@ -144,8 +169,7 @@ export function ContributionGateDialog({
             <p className="contributionGateEyebrow">Handle needed</p>
             <h2 id="contribution-gate-title">Choose your handle</h2>
             <p>
-              Contributions carry your public handle, so pick one before you
-              log a price.
+              Pick a handle before you log a price.
             </p>
             <Link
               className="contributionGatePrimary"

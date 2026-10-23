@@ -2,11 +2,13 @@ import { describe, expect, it, vi } from "vitest";
 
 import {
   buildAreaNewsEntry,
+  classifyExtractedFact,
   fetchKeenable,
   KNOWN_AREA_SLUGS,
   parseExtractedFact,
   searchKeenable,
 } from "../scripts/lib/keenableAreaNews.mjs";
+import { defined } from "@/__tests__/helpers/defined";
 
 function jsonResponse(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {
@@ -42,7 +44,7 @@ describe("Keenable area-news client", () => {
         }),
       }),
     );
-    expect(JSON.parse(fetchImpl.mock.calls[0][1].body)).toMatchObject({
+    expect(JSON.parse(defined(fetchImpl.mock.calls[0])[1].body)).toMatchObject({
       query: "pubs",
       max_results: 4,
     });
@@ -89,7 +91,7 @@ describe("Keenable area-news client", () => {
     await expect(
       fetchKeenable("https://example.com/article", { env: {}, fetchImpl }),
     ).resolves.toMatchObject({ content: "# Article\n\nA real page." });
-    expect(fetchImpl.mock.calls[0][0]).toContain("/v1/fetch/public?url=");
+    expect(defined(fetchImpl.mock.calls[0])[0]).toContain("/v1/fetch/public?url=");
 
     const emptyFetch = vi.fn().mockResolvedValue(jsonResponse({ content: "" }));
     await expect(fetchKeenable("https://example.com/article", { env: {}, fetchImpl: emptyFetch })).rejects.toThrow(
@@ -251,6 +253,27 @@ describe("Keenable area-news extraction", () => {
       ...FACT,
       detail: "Golden Lion (Soho) pub opens in Soho on 29 August 2026.",
     }) }, options)).toBeNull();
+  });
+
+  it("distinguishes a valid expired fact from an invalid date while keeping the parser current-only", () => {
+    const options = { knownAreas: new Set(["soho"]), currentYear: 2026, now: NOW };
+    const expired = {
+      ...FACT,
+      detail: "Golden Lion (Soho) pub opened in Soho on 6 August 2026.",
+    };
+    const future = {
+      ...FACT,
+      detail: "Golden Lion (Soho) pub opens in Soho on 29 August 2026.",
+    };
+    const noExactDate = {
+      ...FACT,
+      detail: "Golden Lion (Soho) pub opened in Soho in August 2026.",
+    };
+
+    expect(classifyExtractedFact({ content: JSON.stringify(expired) }, options)).toEqual({ status: "expired" });
+    expect(parseExtractedFact({ content: JSON.stringify(expired) }, options)).toBeNull();
+    expect(classifyExtractedFact({ content: JSON.stringify(future) }, options)).toEqual({ status: "invalid" });
+    expect(classifyExtractedFact({ content: JSON.stringify(noExactDate) }, options)).toEqual({ status: "invalid" });
   });
 
   it("rejects a known venue when its dataset borough does not match the fact area", () => {

@@ -11,12 +11,10 @@
 // honest and PII-free even as new events are added.
 
 import { CONTRIBUTION_GATE_STATUSES } from "@/lib/contributionGateStatus";
-import { NIGHT_AREA_SLUGS } from "@/lib/nightAreas";
+import { NIGHT_AREA_SLUGS } from "@/lib/nightAreaSlugs";
 import { boroughCode, LONDON_BOROUGH_NAMES } from "@/lib/pintIndex";
 import { RSVP_STATUSES } from "@/lib/planInvite";
 import { REACTION_KEYS } from "@/lib/reactions";
-import { ROUTE_PATTERNS, ROUTE_PATTERN_OTHER } from "@/lib/routePattern";
-import { VITAL_METRICS, VITAL_RATINGS, sanitizeVitalTarget } from "@/lib/webVitals";
 import type { DrinkCategory } from "@/lib/drinks";
 
 /**
@@ -77,6 +75,7 @@ export const ANALYTICS_EVENTS = {
   user_signed_in: [],
   user_signed_out: [],
   plan_started: [],
+  plan_one_tap: ["outcome"],
   stop_added: ["surface"],
   crawl_locked: ["stops"],
   route_opened: ["surface"],
@@ -99,11 +98,9 @@ export const ANALYTICS_EVENTS = {
   recap_share_gate_opened: ["planId"],
   next_night_committed: ["windowDays", "source"],
   draft_recovered: ["kind", "surface"],
-  web_vital: ["metric", "value", "rating", "route", "target"],
   // Wave A
   tonight_screen_view: [],
   tonight_filter_select: ["kind"],
-  out_screen_view: [],
   out_filter_select: ["kind"],
   create_fab_action: ["action"],
   // Vibe layer (docs/VIBE_LAYER_SPEC_2026-07-19.md): which mood chip was
@@ -426,10 +423,16 @@ export type VenueSheetLayer = (typeof VENUE_SHEET_LAYERS)[number];
 
 export const STOP_ADDED_SURFACES = ["map", "plan", "round"] as const;
 export const ROUTE_OPENED_SURFACES = ["map", "plan"] as const;
+/**
+ * What the one tap on /plan's empty page did: planned the area this device
+ * last chose, planned the crawl-ready area the reader is standing in, or could
+ * not, because there was no fix or no crawl-ready area near it.
+ */
+const PLAN_ONE_TAP_OUTCOMES = ["remembered", "located", "no-location", "out-of-range"] as const;
 export const VOICE_END_REASONS = ["user", "disconnect", "cap", "error"] as const;
 export type VoiceEndReason = (typeof VOICE_END_REASONS)[number];
 export const CONTENT_SHARE_CHANNELS = ["copy", "native", "whatsapp", "x", "sms", "instagram", "tiktok"] as const;
-export const CONTENT_SHARE_SURFACES = ["plan", "recap", "poster", "tonight", "other"] as const;
+export const CONTENT_SHARE_SURFACES = ["plan", "recap", "poster", "tonight", "pint", "other"] as const;
 export type ContentShareSurface = (typeof CONTENT_SHARE_SURFACES)[number];
 export const ERROR_SHOWN_SURFACES = [
   "landing", "home", "map", "tonight", "plan", "you", "pal", "recap", "near", "other",
@@ -593,6 +596,7 @@ const SAFE_STRING_VALUES = new Set([
   // Journey events: the closed surfaces, reasons, channels and error kinds.
   ...STOP_ADDED_SURFACES,
   ...ROUTE_OPENED_SURFACES,
+  ...PLAN_ONE_TAP_OUTCOMES,
   ...VOICE_END_REASONS,
   ...CONTENT_SHARE_CHANNELS,
   ...CONTENT_SHARE_SURFACES,
@@ -631,9 +635,6 @@ const TRUSTED_HANDOFF_REQUIRED_KEYS = {
   // in a funnel whose whole value is the ratio between its steps.
   pint_index_viewed: ["surface", "visit"],
   pint_index_area_opened: ["surface", "area"],
-  // Field RUM: a vital is meaningless without which metric, its value, rating,
-  // and the route it happened on. `target` (attribution selector) is optional.
-  web_vital: ["metric", "value", "rating", "route"],
   // Invite loop: a page view with no RSVP context, an RSVP with no status, or
   // a reaction toggle with no reaction/direction is an uncountable step in a
   // funnel whose whole value is the ratio between its steps - fail closed.
@@ -663,6 +664,7 @@ const TRUSTED_HANDOFF_REQUIRED_KEYS = {
   voice_ended: ["reason"],
   content_shared: ["channel", "surface"],
   error_shown: ["surface", "kind"],
+  plan_one_tap: ["outcome"],
 } as const satisfies Partial<Record<AnalyticsEventName, readonly string[]>>;
 
 function includesValue(values: readonly string[], value: string | number | boolean): boolean {
@@ -767,36 +769,13 @@ function isUuidLike(value: unknown): value is string {
   return typeof value === "string" && UUID_PATTERN.test(value);
 }
 
-// A vital's `route` may only be one of the app's known route templates (or the
-// "/other" fallback) — never a raw path, so a venue id/slug/handle can never
-// ride in. `target` must survive the same selector sanitiser the beacon applied.
-const KNOWN_ROUTE_PATTERNS = new Set<string>([...ROUTE_PATTERNS, ROUTE_PATTERN_OTHER]);
-
-function isKnownRoutePattern(value: unknown): value is string {
-  return typeof value === "string" && KNOWN_ROUTE_PATTERNS.has(value);
-}
-
-function isSafeVitalTarget(value: unknown): value is string {
-  return typeof value === "string" && sanitizeVitalTarget(value) === value;
-}
 
 /** Per-prop-key validators that replace the generic enum check for that key. */
 const CUSTOM_PROP_VALIDATORS: Partial<Record<string, (value: unknown) => value is string | number | boolean>> = {
   inviteId: isUuidLike,
-  route: isKnownRoutePattern,
-  // `target` is shared by web_vital (selector) and landing_cta_clicked (CTA enum).
-  // Those checks live in isAllowedVitalProp / isAllowedLandingCtaProp below.
+  // `target` is landing_cta_clicked's closed CTA enum; isAllowedLandingCtaProp
+  // below owns that check.
 };
-
-/** web_vital metric/rating/value/target strictness (route uses CUSTOM_PROP_VALIDATORS). */
-function isAllowedVitalProp(name: AnalyticsEventName, key: string, value: string | number | boolean): boolean {
-  if (name !== "web_vital") return true;
-  if (key === "metric") return includesValue(VITAL_METRICS, value);
-  if (key === "rating") return includesValue(VITAL_RATINGS, value);
-  if (key === "value") return typeof value === "number" && Number.isFinite(value) && value >= 0;
-  if (key === "target") return isSafeVitalTarget(value);
-  return true;
-}
 
 function isAllowedLandingCtaProp(
   name: AnalyticsEventName,
@@ -925,7 +904,7 @@ function isAllowedMessageAttachProp(
 function isSignInProvider(value: unknown): boolean {
   return typeof value === "string"
     && (value === "google" || value === "apple" || value === "microsoft" || value === "email"
-      || value === "email_resume" || value === "handle_password");
+      || value === "email_resume" || value === "handle_password" || value === "phone");
 }
 
 function isAllowedJourneyProp(
@@ -941,6 +920,9 @@ function isAllowedJourneyProp(
   }
   if (name === "route_opened" && key === "surface") {
     return includesValue(ROUTE_OPENED_SURFACES, value);
+  }
+  if (name === "plan_one_tap" && key === "outcome") {
+    return includesValue(PLAN_ONE_TAP_OUTCOMES, value);
   }
   if (name === "pub_viewed" && key === "layer") {
     return includesValue(VENUE_SHEET_LAYERS, value);
@@ -1025,25 +1007,18 @@ export function sanitizeEvent(
       const value = (props as Record<string, unknown>)[key];
       if (value === undefined) continue;
       const customValidator = CUSTOM_PROP_VALIDATORS[key];
-      // `target` is shared by web_vital (a sanitized selector, never a fixed
-      // enum member) and landing_cta_clicked (a closed enum). Its real
-      // strictness is fully delegated to isAllowedVitalProp /
-      // isAllowedLandingCtaProp below, so it must bypass the generic
-      // isSafeValue enum gate the same way a CUSTOM_PROP_VALIDATORS entry
-      // would - otherwise a legitimate selector like "main>img.hero" never
-      // reaches those checks at all.
+      // landing_cta_clicked's `target` is a closed enum whose strictness is
+      // delegated to isAllowedLandingCtaProp below.
       const valid = (name === "sign_in_initiated" || name === "user_signed_up") && key === "provider"
         ? isSignInProvider(value)
-        : key === "target" && (name === "web_vital" || name === "landing_cta_clicked")
+        : key === "target" && name === "landing_cta_clicked"
           ? typeof value === "string"
-            && isAllowedVitalProp(name, key, value)
             && isAllowedLandingCtaProp(name, key, value)
           : customValidator
             ? customValidator(value)
             : isSafeValue(value)
               && isAllowedLoopEventProp(name, key, value)
               && isAllowedTrustedHandoffEventProp(name, key, value)
-              && isAllowedVitalProp(name, key, value)
               && isAllowedPriceFunnelProp(name, key, value)
               && isAllowedSoftDrinksWaterProp(name, key, value)
               && isAllowedMissionProp(name, key, value)

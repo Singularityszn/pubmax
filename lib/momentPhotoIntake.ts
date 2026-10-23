@@ -31,7 +31,7 @@
 import { detectImageKind } from "@/lib/imageSafety";
 import { MOMENT_PHOTO_TYPES } from "@/lib/momentPhotoEditor";
 import { isLikelyHeic } from "@/lib/profileImagePicker";
-import { UPLOAD_PHOTO_MAX_BYTES, UPLOAD_PHOTO_MAX_LABEL } from "@/lib/uploadBodyLimit";
+import { UPLOAD_PHOTO_MAX_BYTES, UPLOAD_PHOTO_MAX_LABEL, uploadPhotoSizeLabel } from "@/lib/uploadBodyLimit";
 
 /** The most the composer will try to open. Above this a phone is not the source. */
 export const MOMENT_PICK_MAX_BYTES = 30 * 1024 * 1024;
@@ -115,9 +115,9 @@ const MOMENT_PICKER_RESIZE_LINE = `Photos over ${UPLOAD_PHOTO_MAX_LABEL} are res
 
 /**
  * What the composer says under the picker, at each width: one sentence per
- * line, so a figure is never split from its unit at a wrap and the last line
- * is never an orphaned clause. The phone names the sheet; the desk names the
- * types and the other way in.
+ * line, so the last line is never an orphaned clause. The size label keeps
+ * its figure on its unit at a wrap. The phone names the sheet; the desk names
+ * the types and the other way in.
  */
 export function momentPickerHint(isPhone: boolean): readonly string[] {
   return isPhone
@@ -126,7 +126,7 @@ export function momentPickerHint(isPhone: boolean): readonly string[] {
 }
 
 export function momentPhotoTooLargeLine(): string {
-  return `That photo is over ${Math.round(MOMENT_PICK_MAX_BYTES / (1024 * 1024))} MB. Choose a smaller one.`;
+  return `That photo is over ${uploadPhotoSizeLabel(MOMENT_PICK_MAX_BYTES)}. Choose a smaller one.`;
 }
 
 export const MOMENT_PHOTO_FIT_FAILED_LINE =

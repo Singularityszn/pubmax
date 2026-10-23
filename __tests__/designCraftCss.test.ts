@@ -2,6 +2,7 @@ import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 
 import { describe, expect, it } from "vitest";
+import { defined } from "@/__tests__/helpers/defined";
 
 const read = (file: string): string => readFileSync(join(process.cwd(), file), "utf8");
 
@@ -151,7 +152,7 @@ describe("pointer-down feedback", () => {
     ]) {
       const source = read(relativePath);
       for (const match of source.matchAll(/([^{}]+)\{([^{}]*)\}/g)) {
-        const selector = match[1];
+        const selector = defined(match[1]);
         const declarations = match[2];
         const ownsActiveState = selector
           .split(",")
@@ -167,8 +168,8 @@ describe("pointer-down feedback", () => {
           });
         if (
           ownsActiveState &&
-          /transform\s*:[^;]*\bscale(?:X|Y|3d)?\(/.test(declarations) &&
-          !/--shared-press-scale\s*:\s*1/.test(declarations)
+          /transform\s*:[^;]*\bscale(?:X|Y|3d)?\(/.test(defined(declarations)) &&
+          !/--shared-press-scale\s*:\s*1/.test(defined(declarations))
         ) {
           offenders.push(`${relativePath}: ${selector.trim()}`);
         }
@@ -207,7 +208,7 @@ describe("price signature and map policy evidence", () => {
     // A price takes the button's corner RATIO, never its raw number: the
     // control token on a 28px box renders a stadium, and the stadium is the
     // pill this system reserves for icon controls and tab segments.
-    expect(plaque).toContain("border-radius: var(--radius, 8px);");
+    expect(plaque).toContain("border-radius: var(--radius);");
     expect(plaque).not.toContain("border-radius: var(--control-radius");
   });
 

@@ -1,0 +1,10 @@
+ℹ duration_ms 421.865
+npm notice run pubmaxxing@0.1.0 deadcode
+npm notice run node scripts/deadcode-gate.mjs
+knip: 6 unused in the tree (full knip gate)
+  unused file  ios/App/App/public/cordova.js
+  unused file  ios/App/App/public/cordova_plugins.js
+  unused file  .ios-lane-a/production-release-build/Build/Products/Release-iphonesimulator/Capacitor.framework/native-bridge.js
+  unused file  .ios-lane-a/production-release-build/Build/Products/Release-iphonesimulator/App.app/public/cordova.js
+  unused file  .ios-lane-a/production-release-build/Build/Products/Release-iphonesimulator/App.app/public/cordova_plugins.js
+  unused file  .ios-lane-a/production-release-build/Build/Products/Release-iphonesimulator/App.app/Frameworks/Capacitor.framework/native-bridge.js

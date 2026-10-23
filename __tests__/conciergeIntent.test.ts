@@ -17,6 +17,7 @@ import {
   areaCandidatesInText,
   areaVerbatimInText,
   defaultKnownAreas,
+  extractExplicitBudget,
   groupSizeCandidatesInText,
   intentFromJudgment,
   isConciergeProbability,
@@ -129,6 +130,77 @@ describe("parseConciergeIntent keyless fallback", () => {
       intent: { mood: ["sports"], groupSize: 8, area: "Waterloo" },
       source: "deterministic",
     });
+  });
+
+  it("stops the area at a time word, so a crawl tonight still has an area", async () => {
+    const parsed = await parseConciergeIntent("Plan me a 3 pub crawl in Shoreditch tonight");
+
+    expect(parsed.intent.area).toBe("Shoreditch");
+  });
+
+  it("reads a known area after at, or a request that is only the area", async () => {
+    await expect(parseConciergeIntent("Can you plan a crawl at Shoreditch?")).resolves.toMatchObject({
+      intent: { area: "Shoreditch" },
+    });
+    await expect(parseConciergeIntent("shoreditch")).resolves.toMatchObject({
+      intent: { area: "Shoreditch" },
+    });
+  });
+
+  it.each([
+    "Can you plan a Shoreditch crawl?",
+    "plan me a shoreditch pub crawl tonight",
+    "Best Shoreditch pubs for 4",
+    "Plan a Shoreditch pub-crawl",
+    "Start at the Angel pub, then a crawl in Shoreditch",
+  ])("reads a known area named just before a night out in %j", async (text) => {
+    const parsed = await parseConciergeIntent(text);
+
+    expect(parsed.intent.area).toBe("Shoreditch");
+  });
+
+  it.each([
+    "Plan a crawl for Victoria's birthday",
+    "a crawl along the Victoria line",
+  ])("does not read an area named without a preposition in %j", async (text) => {
+    const parsed = await parseConciergeIntent(text);
+
+    expect(parsed.intent.area).toBeUndefined();
+  });
+
+  it.each([
+    ["Plan a crawl in Victoria Park", "Victoria Park"],
+    ["pubs in Camden Passage", "Camden Passage"],
+  ])("keeps a longer place name that starts with a known area in %j", async (text, area) => {
+    const parsed = await parseConciergeIntent(text);
+
+    expect(parsed.intent.area).toBe(area);
+  });
+
+  it.each([
+    ["crawl in victoria park tonight", "Victoria"],
+    ["Plan a crawl in Victoria Park tonight", "Victoria"],
+    ["pubs in camden passage", "Camden"],
+    ["pubs in Camden Passage", "Camden"],
+  ])("does not read %j as the known area it starts with", async (text, knownArea) => {
+    const parsed = await parseConciergeIntent(text);
+
+    expect(parsed.intent.area).not.toBe(knownArea);
+  });
+
+  it.each([
+    ["Plan a pub crawl in Shoreditch London tonight", "Shoreditch"],
+    ["Plan a crawl in Soho I want cheap pints", "Soho"],
+  ])("reads a known area followed by a capitalised word in %j", async (text, area) => {
+    const parsed = await parseConciergeIntent(text);
+
+    expect(parsed.intent.area).toBe(area);
+  });
+
+  it("reads the first known area named, not the longest", async () => {
+    const parsed = await parseConciergeIntent("Crawl in Camden, finishing near King's Cross");
+
+    expect(parsed.intent.area).toBe("Camden");
   });
 
   it("falls back to regex when systemOne throws and never spends without a key", async () => {
@@ -432,5 +504,42 @@ describe("recorded concierge intent fixtures", () => {
     const quietDinner = recorded.cases.find((row) => row.id === "quiet-food-chiswick");
     expect(cheapBrixton?.moods.balanced).toBeLessThan(CONCIERGE_MOOD_NOUL_THRESHOLD);
     expect(quietDinner?.moods.quiet).toBeGreaterThanOrEqual(CONCIERGE_MOOD_NOUL_THRESHOLD);
+  });
+});
+
+describe("extractExplicitBudget needs money, not just a cap word (LIB-D4)", () => {
+  it.each([
+    "pubs under 10 minutes walk",
+    "crawl up to 8 of us",
+    "max 4 pubs in Camden",
+    "for 6 people, max 3 hours",
+    "below 2 stops",
+    "under 2 km from Bank",
+    "max 5 mates",
+    "under £10 mins away",
+  ])("reads no budget from %j", (text) => {
+    expect(extractExplicitBudget(text)).toBeUndefined();
+  });
+
+  it.each([
+    ["Quiet near Bank under £7", 7],
+    ["Lively garden in Soho, max £5", 5],
+    ["Pints in Soho up to £6.50", 6.5],
+    ["Garden in Soho for 6 under £7", 7],
+    ["somewhere under 7 quid", 7],
+    ["below 6 pounds a pint", 6],
+    ["max 6 a pint in Camden", 6],
+    ["up to 6.50 per pint", 6.5],
+    ["£6 or less please", 6],
+    ["£6 max", 6],
+    ["6 quid max", 6],
+    ["4 of us, under £7, max 3 pubs", 7],
+  ])("reads the budget in %j", (text, expected) => {
+    expect(extractExplicitBudget(text)).toBe(expected);
+  });
+
+  it("keeps a group of eight out of the pint budget in the parsed intent", async () => {
+    const parsed = await parseConciergeIntent("Crawl in Camden up to 8 of us", { skipModel: true });
+    expect(parsed.intent.maxPintPrice).toBeUndefined();
   });
 });

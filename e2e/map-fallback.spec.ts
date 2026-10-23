@@ -1,5 +1,9 @@
+import AxeBuilder from "@axe-core/playwright";
+
 import { test, expect } from "@playwright/test";
 import { mkdir } from "node:fs/promises";
+
+import { expectFallbackTextClearOfChrome } from "./helpers/mapFallbackClearance";
 
 // No-WebGL contract. Runs only under the `chromium-no-gl` project, which launches
 // Chromium with `--disable-webgl --disable-webgl2` so the MapLibre constructor
@@ -32,6 +36,7 @@ test("/map surfaces an honest fallback with a detail line when WebGL is disabled
 
   // Honest copy: a confirmed-no-WebGL probe is the only case allowed to claim it.
   await expect(fallback).toContainText(/WebGL/i);
+  await expectFallbackTextClearOfChrome(page);
 
   // The technical diagnostic is present but collapsed by default — calm,
   // honest copy up front, the raw diagnostic only a tap away for a bug report.
@@ -56,9 +61,146 @@ test("/map surfaces an honest fallback with a detail line when WebGL is disabled
     .poll(async () => page.locator(".mapFallbackVenue").count(), { timeout: 15000 })
     .toBeGreaterThan(0);
   await expect(page.locator(".mapFallbackVenueName").first()).not.toBeEmpty();
+  for (const control of await fallback.locator("button, a").all()) {
+    const box = (await control.boundingBox())!;
+    expect.soft(box.width, await control.innerText()).toBeGreaterThanOrEqual(44);
+    expect.soft(box.height, await control.innerText()).toBeGreaterThanOrEqual(44);
+  }
+  const contrast = await new AxeBuilder({ page }).include(".mapFallback")
+    .withRules(["color-contrast"]).analyze();
+  expect(contrast.violations).toEqual([]);
+
+  // The bottom card lifts Create after the fallback appears. Check the settled
+  // price text itself, since the row centre can remain tappable under an overlap.
+  await expect(page.locator(".mobileMapChrome")).toBeVisible();
+  await expect(page.locator(".mapPeek")).toBeVisible();
+  await expect(page.getByTestId("create-fab")).toBeVisible();
+  await page.evaluate(() => document.fonts.ready);
+  for (const row of await page.locator(".mapFallbackVenue").all()) {
+    await row.scrollIntoViewIfNeeded();
+    const coveredPrices = await row.evaluate((button) => {
+      const meta = button.querySelector(".mapFallbackVenueMeta");
+      const text = Array.from(meta?.childNodes ?? []).find((node) =>
+        node.textContent?.includes("£"),
+      );
+      const priceStart = text?.textContent?.indexOf("£") ?? -1;
+      if (!text || priceStart < 0) return ["missing listed price"];
+      const range = document.createRange();
+      range.setStart(text, priceStart);
+      range.setEnd(text, text.textContent!.length);
+      const rects = Array.from(range.getClientRects());
+      if (rects.length === 0) return ["price not painted"];
+      return rects.flatMap((rect) => {
+        const points = [rect.left + 1, (rect.left + rect.right) / 2, rect.right - 1];
+        return points.flatMap((x) => {
+          const hit = document.elementFromPoint(x, (rect.top + rect.bottom) / 2);
+          return hit && button.contains(hit) ? [] : [hit?.getAttribute("aria-label") ?? hit?.className ?? "offscreen"];
+        });
+      });
+    });
+    expect(coveredPrices, await row.innerText()).toEqual([]);
+  }
   if (process.env.PUBMAX_GATE_Z_SHOTS) {
     const directory = "docs/screenshots/the-local-gate-z";
     await mkdir(directory, { recursive: true });
     await page.screenshot({ path: `${directory}/webgl-fallback-390x844-light.png` });
   }
+  await page.locator(".mapFallbackBrowse").click();
+  await expect(page).toHaveURL(/\/pubs$/);
+});
+
+test("no-WebGL List offers the pub directory instead of endless loading", async ({ page }, testInfo) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.addInitScript(() => {
+    localStorage.setItem("pubmax-tour-v1-done", "1");
+    localStorage.setItem("pubmax_onboarding_dismissed", "1");
+    sessionStorage.setItem("pubmax_onboarding_dismissed", "1");
+  });
+  await page.goto("/map");
+  await expect(page.locator(".mapFallback")).toBeVisible({ timeout: 20_000 });
+  await expect(page.locator(".mapFallbackVenue").first()).toBeVisible({ timeout: 15_000 });
+  await expect(page.locator(".mapPeek")).toContainText("Map unavailable");
+  await expect(page.locator(".mapPeek")).not.toContainText("Counting them up…");
+  await expect(page.locator(".mapPeek")).not.toContainText("Cheapest in this view");
+  await page.screenshot({ path: testInfo.outputPath("fallback-settled.png") });
+  await page.locator(".mapPeekList").click();
+  const list = page.locator(".mapVenueList");
+  await expect(list).toBeVisible();
+  await expect(list).not.toContainText("Counting them up…");
+  await expect(list.getByRole("heading", { name: "Map unavailable" })).toBeVisible();
+  const browse = list.getByRole("link", { name: "Browse all pubs" });
+  await expect(browse).toBeVisible();
+  await expect(list.locator(".mapVenueListPanel")).toHaveCSS("opacity", "1");
+  await expect(browse).toBeInViewport();
+  expect((await browse.boundingBox())!.height).toBeGreaterThanOrEqual(44);
+  await page.screenshot({ path: testInfo.outputPath("fallback-list-directory.png") });
+  await browse.click();
+  await expect(page).toHaveURL(/\/pubs$/);
+  await expect(page.locator(".pubsCard").first()).toBeVisible();
+});
+
+// The desktop half of the same card. The search toolbar and the city chip float
+// over the map at every desktop width, and a centred card read its heading and
+// first lines from behind them. Wait for the chip, because it arrives after
+// the card and the card has to clear it once it does.
+for (const viewport of [
+  { width: 1024, height: 768 },
+  { width: 1280, height: 720 },
+  { width: 1440, height: 900 },
+]) {
+  test(`/map fallback heading and message clear the toolbar and city chip at ${viewport.width}x${viewport.height}`, async ({
+    page,
+  }) => {
+    await page.setViewportSize(viewport);
+    await page.addInitScript(() => {
+      window.localStorage.setItem("pubmax-tour-v1-done", "1");
+      window.localStorage.setItem("pubmax_onboarding_dismissed", "1");
+      window.sessionStorage.setItem("pubmax_onboarding_dismissed", "1");
+    });
+    await page.goto("/map");
+
+    await expect(page.locator(".mapFallback")).toContainText("Map unavailable", {
+      timeout: 20_000,
+    });
+    await expect(page.locator(".mapToolbar")).toBeVisible();
+    await expect(page.locator(".citySuggestBanner")).toBeVisible({ timeout: 15_000 });
+    await expectFallbackTextClearOfChrome(page);
+  });
+}
+
+// Once the reader dismisses the chip, the London status strip takes the slot
+// under the toolbar, and the card has to clear the strip's pill as well.
+test("/map fallback heading and message clear the London status strip at 1440x900", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.addInitScript(() => {
+    window.localStorage.setItem("pubmax-tour-v1-done", "1");
+    window.localStorage.setItem("pubmax_onboarding_dismissed", "1");
+    window.sessionStorage.setItem("pubmax_onboarding_dismissed", "1");
+  });
+  await page.route("**/api/citymcp/status**", (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        asOf: "2026-08-03T08:00:00.000Z",
+        weather: null,
+        tubeLines: [{ line: "Central", status: "Severe delays" }],
+        signals: [],
+      }),
+    }),
+  );
+  await page.goto("/map");
+
+  await expect(page.locator(".mapFallback")).toContainText("Map unavailable", {
+    timeout: 20_000,
+  });
+  await page
+    .getByRole("button", { name: "Dismiss city suggestion" })
+    .first()
+    .click({ timeout: 15_000 });
+  await expect(page.locator(".citySuggestBanner")).toHaveCount(0);
+  await expect(page.locator(".cityStatusStack")).toBeVisible({ timeout: 20_000 });
+  await expectFallbackTextClearOfChrome(page);
 });

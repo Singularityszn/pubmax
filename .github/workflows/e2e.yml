@@ -12,45 +12,93 @@ permissions:
   contents: read
 
 concurrency:
-  # One group per workflow, event and ref (repo-wide group blocked other branches).
-  # A newer pull request head supersedes older runs on the shared runner; main,
-  # nightly and dispatch runs finish. Rerun the latest run for the current head.
-  group: ${{ github.workflow }}-pubmax-mac-${{ github.event_name }}-${{ github.ref }}
+  # One group per pull request: a newer head cancels that pull request's
+  # older run. Main pushes share one group (captain, 19 Oct 2026): the run
+  # in progress finishes, and only the newest push waits behind it, because
+  # GitHub keeps one waiting run per group and cancels the older one. Each
+  # push holds 3 of the free plan's 5 macOS runners, and on 19 Oct 22 merges
+  # queued 66 macOS jobs that held pull requests up to 72 minutes. The
+  # newest main commit holds every older one, so main is still tested.
+  # The schedule and a dispatch each get a group of their own, so GitHub
+  # never drops one while it waits.
+  group: ${{ github.workflow }}-${{ github.event_name == 'pull_request' && format('pr-{0}', github.event.pull_request.number) || github.event_name == 'push' && 'main-push' || format('run-{0}', github.run_id) }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 
 jobs:
   law-pins:
     name: Browser law pins
-    runs-on: [self-hosted, pubmax-mac]
+    # ubuntu-latest: the free plan runs about 20 Linux jobs at once but only
+    # 5 macOS jobs, and the macOS queue held every pull request's browser run.
+    # These journeys passed on Linux (16 Oct 2026). The one law pin that
+    # measures phone chrome geometry, e2e/mobile-map-chrome-fit.spec.ts, lost
+    # 7px at 320px to Linux glyph widths, so it runs with the layout pins.
+    runs-on: ubuntu-latest
     timeout-minutes: 46
+    # Each hosted runner is its own machine, so browser jobs are not queued
+    # behind one another. One worker stays: four killed the single production
+    # server, and that cap is what the law pins were proved with.
     steps:
       - name: Checkout
-        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+          # Two commits: the merge and its base, for the change scope below.
+          fetch-depth: 2
 
-      - name: Refuse the console user
-        run: bash scripts/ci/assert-runner-identity.sh
+      # CHANGE SCOPE (docs/CI_RUNBOOK.md, "What a pull request runs"). A pull
+      # request is checked out as its merge commit, whose first parent is the
+      # base, so one diff names every file the merge would change. Only every
+      # changed file being docs (docs/**, *.md) or data (data/**/*.json,
+      # public/data/**) makes it "docs" or "data"; anything else, an empty diff
+      # and every event other than a pull request is "code" and runs in full.
+      # The job always runs and reports, so a required check never waits on a
+      # job that was skipped. Every copy of this step is identical
+      # (__tests__/ciChangeScope.test.ts).
+      - name: Classify the change
+        id: scope
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+        run: |
+          set -euo pipefail
+          scope=code
+          if [ "$EVENT_NAME" = pull_request ]; then
+            scope="$(git diff --no-renames --name-only HEAD^1 HEAD | awk '
+              NF == 0 { next }
+              /^docs\// || /\.md$/ { docs++; next }
+              /^data\/.*\.json$/ || /^public\/data\// { data++; next }
+              { code++ }
+              END { if (code || !(docs + data)) print "code"; else if (data) print "data"; else print "docs" }')"
+          fi
+          echo "scope=$scope" >> "$GITHUB_OUTPUT"
+          echo "Change scope: $scope"
 
       - name: Setup Node
+        if: steps.scope.outputs.scope == 'code'
         timeout-minutes: 5
-        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: 22
+          cache: npm
 
       - name: Install dependencies
+        if: steps.scope.outputs.scope == 'code'
         run: |
           npm ci
           npm run deps:install-scripts
 
       - name: Install Chromium
-        uses: ./.github/actions/pubmax-mac-playwright
+        if: steps.scope.outputs.scope == 'code'
+        run: npx playwright install --with-deps chromium
 
       - name: Choose Playwright port
+        if: steps.scope.outputs.scope == 'code'
         uses: ./.github/actions/pubmax-playwright-port
 
+      # One worker. Four killed the single production server on this rig, and
+      # on 3-4 Oct 2026 this cap is what passed once the machine was quiet.
       - name: Run law-pinning journeys
+        if: steps.scope.outputs.scope == 'code'
         env:
           PUBMAX_TRACKED_OUTPUTS: public/data
           NODE_OPTIONS: "--max-old-space-size=6144"
@@ -68,7 +116,6 @@ jobs:
           e2e/plan-held-acceptance.spec.ts
           e2e/map-surface-history.spec.ts
           e2e/surface-back-and-home.spec.ts
-          e2e/mobile-map-chrome-fit.spec.ts
           e2e/visit-reports.spec.ts
           e2e/landing-find-my-pint.spec.ts
           e2e/out-tab.spec.ts
@@ -83,34 +130,85 @@ jobs:
       # service-role key in the keyless server, #1300) and took its signed-out
       # proof down with it.
       - name: Gate the law-pinning run
+        if: steps.scope.outputs.scope == 'code'
         run: >-
           node scripts/assert-playwright-gate.mjs playwright-law-pins.json
           --require-zero-skipped
           --skips-argued e2e/conditional-skips.allowlist.json
 
-  full-suite:
-    name: Full browser suite (${{ matrix.shard }}/2)
-    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
-    runs-on: [self-hosted, pubmax-mac]
-    timeout-minutes: 45
-    strategy:
-      fail-fast: false
-      matrix:
-        shard: [1, 2]
+  change-scope:
+    name: Change scope
+    # Decides once, on Linux, whether this change needs the macOS layout
+    # pins. The free plan runs only 5 macOS jobs at once and every pull
+    # request held 3 of them, even a docs-only one whose steps were all
+    # skipped. The layout-pin jobs below read this output and are skipped
+    # whole when it is not "code", so a docs or data pull request starts no
+    # macOS runner. They are three named jobs, not a matrix: a skipped
+    # matrix job reports under its unexpanded name, but a skipped named job
+    # reports under its own name and counts as passed for branch protection.
+    # The layout jobs fail closed: if this job fails, they run anyway, so a
+    # broken classifier can never turn a code change into a skipped (passed)
+    # layout check.
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      scope: ${{ steps.scope.outputs.scope }}
     steps:
       - name: Checkout
-        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          # Two commits: the merge and its base, for the change scope below.
+          fetch-depth: 2
+
+      - name: Classify the change
+        id: scope
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+        run: |
+          set -euo pipefail
+          scope=code
+          if [ "$EVENT_NAME" = pull_request ]; then
+            scope="$(git diff --no-renames --name-only HEAD^1 HEAD | awk '
+              NF == 0 { next }
+              /^docs\// || /\.md$/ { docs++; next }
+              /^data\/.*\.json$/ || /^public\/data\// { data++; next }
+              { code++ }
+              END { if (code || !(docs + data)) print "code"; else if (data) print "data"; else print "docs" }')"
+          fi
+          echo "scope=$scope" >> "$GITHUB_OUTPUT"
+          echo "Change scope: $scope"
+
+  layout-pins-1:
+    name: Browser layout pins (1/3)
+    # The browser specs that hold layout and chrome once held by source-text
+    # unit tests (the CSS and JSX regex pins removed in the test-suite prune).
+    # A regex over a stylesheet no longer guards these surfaces, so the specs
+    # that measure them run on every pull request that changes code. They are
+    # cut into three shards on separate runners, one worker each, so the law
+    # pins above keep their own clock. The three jobs share one step list
+    # (the YAML anchor below) and differ only in LAYOUT_SHARD.
+    # They stay on macos-latest. The specs were proved on macOS glyph widths,
+    # and on ubuntu-latest (16 Oct 2026) four of them failed on a measured
+    # edge, for example 7px short at 320px.
+    needs: [change-scope]
+    if: ${{ !cancelled() && (needs.change-scope.result != 'success' || needs.change-scope.outputs.scope == 'code') }}
+    runs-on: macos-latest
+    timeout-minutes: 40
+    env:
+      LAYOUT_SHARD: 1
+    steps: &layout-pin-steps
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
 
-      - name: Refuse the console user
-        run: bash scripts/ci/assert-runner-identity.sh
-
       - name: Setup Node
         timeout-minutes: 5
-        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: 22
+          cache: npm
 
       - name: Install dependencies
         run: |
@@ -118,7 +216,220 @@ jobs:
           npm run deps:install-scripts
 
       - name: Install Chromium
-        uses: ./.github/actions/pubmax-mac-playwright
+        run: npx playwright install --with-deps chromium
+
+      - name: Choose Playwright port
+        uses: ./.github/actions/pubmax-playwright-port
+
+      - name: Run layout-pinning journeys
+        env:
+          PUBMAX_TRACKED_OUTPUTS: public/data
+          NODE_OPTIONS: "--max-old-space-size=6144"
+          PUBMAX_E2E_KEYLESS: "1"
+          PW_SKIP_KEYLESS_WEBSERVER: "1"
+          PLAYWRIGHT_JSON_OUTPUT_NAME: "playwright-layout-pins-${{ env.LAYOUT_SHARD }}.json"
+        run: >-
+          npx playwright test
+          --reporter=list,json
+          e2e/aperture-splash.spec.ts
+          e2e/avatar-wp3-mobile.spec.ts
+          e2e/consent-after-first-answer.spec.ts
+          e2e/core-route-smoke.spec.ts
+          e2e/crews-and-people.spec.ts
+          e2e/dark-primary-surfaces.spec.ts
+          e2e/design-review-followups.spec.ts
+          e2e/design-taste-wave-1.spec.ts
+          e2e/desktop-map-chrome-fit.spec.ts
+          e2e/desktop-map-rail.spec.ts
+          e2e/desktop-sheet-chrome-fit.spec.ts
+          e2e/feedback.spec.ts
+          e2e/first-run-chrome-share.spec.ts
+          e2e/first-run-tour-placement.spec.ts
+          e2e/launch-phone-controls.spec.ts
+          e2e/map-arrival-card-pins.spec.ts
+          e2e/map-arrival.spec.ts
+          e2e/map-blocked-fallback.spec.ts
+          e2e/map-body-clearance.spec.ts
+          e2e/map-consent-bottom-controls.spec.ts
+          e2e/map-desktop-arrival-chrome.spec.ts
+          e2e/map-desktop-filters.spec.ts
+          e2e/map-fallback.spec.ts
+          e2e/map-search-no-results.spec.ts
+          e2e/map-search-typing.spec.ts
+          e2e/map-selection-history.spec.ts
+          e2e/map-tile-retry.spec.ts
+          e2e/mobile-bottom-nav.spec.ts
+          e2e/mobile-button-system.spec.ts
+          e2e/mobile-city-chooser.spec.ts
+          e2e/mobile-feed-actions.spec.ts
+          e2e/mobile-first-run-tour.spec.ts
+          e2e/mobile-landing-entry.spec.ts
+          e2e/mobile-map-chrome-fit.spec.ts
+          e2e/mobile-map-controls.spec.ts
+          e2e/mobile-map-first-visit.spec.ts
+          e2e/mobile-map-search.spec.ts
+          e2e/mobile-map-shell-matrix.spec.ts
+          e2e/mobile-pal-layout.spec.ts
+          e2e/mobile-profile.spec.ts
+          e2e/mobile-venue-sheet-tabs.spec.ts
+          e2e/night-mode-chrome.spec.ts
+          e2e/pal-chat-composer.spec.ts
+          e2e/passport-and-activity.spec.ts
+          e2e/phone-tap-targets.spec.ts
+          e2e/plan-crawl-stops.spec.ts
+          e2e/plan-invite.spec.ts
+          e2e/plan-join-reveal.spec.ts
+          e2e/price-caption-integrity.spec.ts
+          e2e/price-pulse-create-action.spec.ts
+          e2e/price-source-create-action.spec.ts
+          e2e/profile-avatar.spec.ts
+          e2e/profile-hero-desktop.spec.ts
+          e2e/public-updates.spec.ts
+          e2e/quality-floor.spec.ts
+          e2e/social-composer.spec.ts
+          e2e/tonight-vibe-chips.spec.ts
+          e2e/tonight.spec.ts
+          e2e/ui-consistency-layout.spec.ts
+          e2e/ui-empty-states-fit.spec.ts
+          e2e/ux-consent-chrome.spec.ts
+          e2e/venue-sheet-tablet-command-bar.spec.ts
+          e2e/venue-tabs-fit.spec.ts
+          e2e/wordmark-chrome.spec.ts
+          --project=chromium
+          --project=chromium-gl
+          --project=chromium-no-gl
+          --workers=1
+          --shard=${{ env.LAYOUT_SHARD }}/3
+
+      - name: Gate the layout-pinning shard
+        run: >-
+          node scripts/assert-playwright-gate.mjs playwright-layout-pins-${{ env.LAYOUT_SHARD }}.json
+          --require-zero-skipped
+          --skips-argued e2e/conditional-skips.allowlist.json
+
+      # Preserve the ordinary layout run above. Each of two existing shards
+      # then serves one clean immutable revision for public before/after proof.
+      - name: Checkout public evidence source
+        if: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository && (github.head_ref == 'codex/pubmaxx-food-evidence-1022' || github.head_ref == 'codex/ops-feedback-1022' || github.head_ref == 'codex/ops-updates-1022') && (env.LAYOUT_SHARD == '1' || env.LAYOUT_SHARD == '2') }}
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ env.LAYOUT_SHARD == '1' && github.event.pull_request.head.sha || (github.head_ref == 'codex/pubmaxx-food-evidence-1022' && '325122c23eb9d8bc809c4388448c0e5459146152' || github.event.pull_request.base.sha) }}
+          path: .public-proof-source
+          persist-credentials: false
+
+      - name: Install public evidence source dependencies
+        if: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository && (github.head_ref == 'codex/pubmaxx-food-evidence-1022' || github.head_ref == 'codex/ops-feedback-1022' || github.head_ref == 'codex/ops-updates-1022') && (env.LAYOUT_SHARD == '1' || env.LAYOUT_SHARD == '2') }}
+        working-directory: .public-proof-source
+        run: |
+          npm ci
+          npm run deps:install-scripts
+
+      - name: Capture signed-out public evidence
+        if: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository && (github.head_ref == 'codex/pubmaxx-food-evidence-1022' || github.head_ref == 'codex/ops-feedback-1022' || github.head_ref == 'codex/ops-updates-1022') && (env.LAYOUT_SHARD == '1' || env.LAYOUT_SHARD == '2') }}
+        env:
+          PUBMAX_TRACKED_OUTPUTS: public/data
+          NODE_OPTIONS: "--max-old-space-size=6144"
+          PUBMAX_E2E_KEYLESS: "1"
+          PW_SKIP_KEYLESS_WEBSERVER: "1"
+          PUBMAX_PUBLIC_EVIDENCE_PHASE: ${{ env.LAYOUT_SHARD == '1' && 'after' || 'before' }}
+          PUBMAX_PUBLIC_EVIDENCE_ROOT: ${{ github.workspace }}/.public-proof-source
+          PUBMAX_PUBLIC_EVIDENCE_SHA: ${{ env.LAYOUT_SHARD == '1' && github.event.pull_request.head.sha || (github.head_ref == 'codex/pubmaxx-food-evidence-1022' && '325122c23eb9d8bc809c4388448c0e5459146152' || github.event.pull_request.base.sha) }}
+          PUBMAX_PUBLIC_EVIDENCE_HEAD: ${{ github.event.pull_request.head.sha }}
+          PUBMAX_PUBLIC_EVIDENCE_BASE: ${{ github.head_ref == 'codex/pubmaxx-food-evidence-1022' && '325122c23eb9d8bc809c4388448c0e5459146152' || github.event.pull_request.base.sha }}
+          PUBMAX_PUBLIC_EVIDENCE_OUTPUT: ${{ runner.temp }}/pubmax-public-evidence
+          PUBLIC_EVIDENCE_SPEC: ${{ github.head_ref == 'codex/pubmaxx-food-evidence-1022' && 'e2e/food-menu-discovery.spec.ts' || github.head_ref == 'codex/ops-feedback-1022' && 'e2e/feedback.spec.ts' || 'e2e/public-updates.spec.ts' }}
+        run: >-
+          npx playwright test "$PUBLIC_EVIDENCE_SPEC"
+          --grep="public screenshot evidence"
+          --project=chromium
+          --workers=1
+          --reporter=line
+
+      - name: Upload Food public evidence
+        if: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository && github.head_ref == 'codex/pubmaxx-food-evidence-1022' && (env.LAYOUT_SHARD == '1' || env.LAYOUT_SHARD == '2') }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: public-ui-pr${{ github.event.pull_request.number }}-${{ env.LAYOUT_SHARD == '1' && 'after' || 'before' }}-${{ github.event.pull_request.head.sha }}
+          path: |
+            ${{ runner.temp }}/pubmax-public-evidence/page-390.png
+            ${{ runner.temp }}/pubmax-public-evidence/page-768.png
+            ${{ runner.temp }}/pubmax-public-evidence/page-1440.png
+            ${{ runner.temp }}/pubmax-public-evidence/identity.json
+          if-no-files-found: error
+          retention-days: 7
+          compression-level: 0
+
+      - name: Upload Ops public evidence
+        if: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository && (github.head_ref == 'codex/ops-feedback-1022' || github.head_ref == 'codex/ops-updates-1022') && (env.LAYOUT_SHARD == '1' || env.LAYOUT_SHARD == '2') }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: public-ui-pr${{ github.event.pull_request.number }}-${{ env.LAYOUT_SHARD == '1' && 'after' || 'before' }}-${{ github.event.pull_request.head.sha }}
+          path: |
+            ${{ runner.temp }}/pubmax-public-evidence/account-390.png
+            ${{ runner.temp }}/pubmax-public-evidence/account-768.png
+            ${{ runner.temp }}/pubmax-public-evidence/account-1440.png
+            ${{ runner.temp }}/pubmax-public-evidence/page-390.png
+            ${{ runner.temp }}/pubmax-public-evidence/page-768.png
+            ${{ runner.temp }}/pubmax-public-evidence/page-1440.png
+            ${{ runner.temp }}/pubmax-public-evidence/identity.json
+          if-no-files-found: error
+          retention-days: 7
+          compression-level: 0
+
+  layout-pins-2:
+    name: Browser layout pins (2/3)
+    needs: [change-scope]
+    if: ${{ !cancelled() && (needs.change-scope.result != 'success' || needs.change-scope.outputs.scope == 'code') }}
+    runs-on: macos-latest
+    timeout-minutes: 40
+    env:
+      LAYOUT_SHARD: 2
+    steps: *layout-pin-steps
+
+  layout-pins-3:
+    name: Browser layout pins (3/3)
+    needs: [change-scope]
+    if: ${{ !cancelled() && (needs.change-scope.result != 'success' || needs.change-scope.outputs.scope == 'code') }}
+    runs-on: macos-latest
+    timeout-minutes: 40
+    env:
+      LAYOUT_SHARD: 3
+    steps: *layout-pin-steps
+
+  full-suite:
+    name: Full browser suite (${{ matrix.shard }}/4)
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    runs-on: macos-latest
+    timeout-minutes: 45
+    # A hosted macOS runner gives Playwright one worker. Two shards of about
+    # 645 tests each did not finish inside the 45-minute ceiling (4 Oct 2026
+    # nightly and dispatch), so the suite is cut into four instead. It stays
+    # on macOS: on ubuntu-latest (16 Oct 2026) it failed 19 more tests than
+    # the macOS nightly, most of them layout measures.
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3, 4]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Setup Node
+        timeout-minutes: 5
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: |
+          npm ci
+          npm run deps:install-scripts
+
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
 
       - name: Choose Playwright port
         uses: ./.github/actions/pubmax-playwright-port
@@ -137,7 +448,7 @@ jobs:
           --project=chromium-gl
           --project=chromium-sw-gl
           --project=chromium-no-gl
-          --shard=${{ matrix.shard }}/2
+          --shard=${{ matrix.shard }}/4
 
       - name: Gate the full browser shard
         run: node scripts/assert-playwright-gate.mjs playwright-default-${{ matrix.shard }}.json

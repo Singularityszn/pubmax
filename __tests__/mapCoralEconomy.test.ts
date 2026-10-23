@@ -2,10 +2,13 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
 import { describe, expect, it } from "vitest";
+import { defined } from "@/__tests__/helpers/defined";
 
 // The coral economy (design judgement 2026-08-01, findings 2.1 / 2.2 / 2.9).
 // On the map, coral (--brass) may survive in exactly three places: the primary
-// CTA, the selected pin ring, and the active tab glyph. Every other former
+// CTA, the floating create disc and the selected pin ring. The active tab
+// glyph was the fourth until P2-A moved every selection to ink
+// (docs/DESIGN_SYSTEM.md "Coral is spent twice"). Every other former
 // coral surface is pinned neutral here, and every changed text pair must
 // measure at least 4.5:1 in both themes. The values are read from the shipped
 // stylesheets, never restated, so a token retune re-runs the arithmetic.
@@ -57,10 +60,10 @@ function ratio(hexA: string, hexB: string): number {
       const v = parseInt(hex.slice(i, i + 2), 16) / 255;
       return v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4;
     });
-    return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+    return 0.2126 * defined(r) + 0.7152 * defined(g) + 0.0722 * defined(b);
   };
   const [hi, lo] = [lum(hexA), lum(hexB)].sort((a, b) => b - a);
-  return (hi + 0.05) / (lo + 0.05);
+  return (defined(hi) + 0.05) / (defined(lo) + 0.05);
 }
 
 describe("finding 2.2 — labels on coral fills measure AA in both themes", () => {
@@ -92,7 +95,7 @@ describe("finding 2.1 — map chrome holds no coral fills", () => {
       `${selector.replace(/[.[\]()*+?^$\\]/g, "\\$&")}[^{]*\\{([^}]*)\\}`,
       "g",
     );
-    for (const m of css.matchAll(re)) out.push(m[1]);
+    for (const m of css.matchAll(re)) out.push(defined(m[1]));
     expect(out.length, `${selector} must have rules`).toBeGreaterThan(0);
     return out;
   }
@@ -122,21 +125,23 @@ describe("finding 2.1 — map chrome holds no coral fills", () => {
     }
   });
 
-  it("the active tab keeps a coral glyph but an ink label", () => {
+  it("the active tab is an ink glyph and an ink label", () => {
     const tab = /\.mobileTab\.isActive\s*\{([^}]*)\}/.exec(navCss)?.[1] ?? "";
     expect(tab).toMatch(/color:\s*var\(--ink\)/);
     expect(tab).not.toMatch(/--brass/);
-    // The glyph is the one surviving coral mark in the tab bar.
+    // The glyph was the last coral mark in the tab bar. An active tab is a
+    // selection, and coral is spent on the one primary and the create disc
+    // (docs/DESIGN_SYSTEM.md "Coral is spent twice").
     expect(navCss).toMatch(
-      /\.mobileTab\.isActive \.mobileTabIcon\s*\{[^}]*color:\s*var\(--brass\)/,
+      /\.mobileTab\.isActive \.mobileTabIcon\s*\{[^}]*color:\s*var\(--state-selected-ink\)/,
     );
   });
 
-  it("the active glyph is the tab bar's ONLY coral mark", () => {
-    // The Moment circle and its glow used to be the second one. Compose left
-    // the row entirely for the floating create action, so the budget is now a
-    // count rather than a per-selector exemption: any new coral in this
-    // stylesheet is a second mark in the same eight-degree band.
+  it("the tab bar holds NO resting coral mark", () => {
+    // The Moment circle and its glow used to be one, the active glyph the
+    // last. Compose left the row for the floating create action and the glyph
+    // went to ink, so the budget is a count of zero: any coral in this
+    // stylesheet is a mark the bar may not wear.
     const coralRules: string[] = [];
     for (const match of navCss.matchAll(/([^{}]+)\{([^{}]*)\}/g)) {
       const selector = match[1]!.trim();
@@ -145,7 +150,7 @@ describe("finding 2.1 — map chrome holds no coral fills", () => {
       if (selector.includes(":focus-visible")) continue;
       if (accentPattern.test(match[2]!)) coralRules.push(selector);
     }
-    expect(coralRules).toEqual([".mobileTab.isActive .mobileTabIcon"]);
+    expect(coralRules).toEqual([]);
   });
 });
 
@@ -174,6 +179,16 @@ describe("findings 2.1 / 2.9 — map canvas coral economy", () => {
   it("a story band without its own colour falls back to river, not coral", () => {
     const fallback = /storyColour \?\? tokens\.(\w+)/.exec(canvasSrc)?.[1];
     expect(fallback).toBe("riverBright");
+  });
+
+  // A planned route's stop names are labels, like every other name on the
+  // map. They were drawn in --brass and --brass-bright, a coral word on the
+  // canvas beside the coral selection ring.
+  it("a route's stop names read in ink, never coral", () => {
+    const layer = /id: "route-stops-name"[\s\S]*?paint: \{[\s\S]*?\},/.exec(buildSceneSrc)?.[0] ?? "";
+    expect(layer.length).toBeGreaterThan(0);
+    expect(layer).toMatch(/"text-color": tokens\.ink,/);
+    expect(layer).not.toMatch(/tokens\.brass/);
   });
 
   it("the selected-pin rings stay coral — selection owns the accent", () => {

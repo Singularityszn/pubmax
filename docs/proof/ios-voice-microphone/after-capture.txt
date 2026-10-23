@@ -1,0 +1,10 @@
+Checked at 2026-10-07T07:17:23.270398+00:00
+Built microphone explanation: Pub Pal uses your microphone when you start a voice chat.
+[voice-mic-probe] native permission=true
+Running simulator app: 17771	0	UIKitApplication:com.pubmaxx.app[a3c0][rb-legacy]
+2026-10-07 08:15:52.679 Df App[17771:1c5c5ced] [com.apple.WebKit:WebRTC] UserMediaPermissionRequestManagerProxy::grantRequest(4D03641E4A0F8460) 242, video: , audio: Mock audio device 1
+2026-10-07 08:15:52.721 Df App[17771:1c5c715f] [com.apple.WebKit:Media] WebContent[21126]: MediaSessionManagerCocoa::updateSessionState: AudioCapture(1), AudioTrack(0), Video(0), Audio(0), VideoAudio(0), WebAudio(0), DOMMediaSession(0)
+2026-10-07 08:15:52.914 Df App[17771:1c5c715f] [com.apple.WebKit:Media] WebContent[21126] MediaSessionManageriOS::updateSessionState(0) setting category = PlayAndRecord, mode = VideoChat, policy = Default, previous category = None
+2026-10-07 08:15:52.974 Df App[17771:1c5c715f] [com.apple.WebKit:Media] WebContent[21126] MediaSessionManageriOS::maybeActivateAudioSession(0) successfully activated AudioSession
+2026-10-07 08:15:52.974 Df App[17771:1c5c715f] [com.apple.WebKit:Media] WebContent[21126]: MediaSessionManagerCocoa::updateSessionState: AudioCapture(1), AudioTrack(0), Video(0), Audio(0), VideoAudio(0), WebAudio(0), DOMMediaSession(0)
+2026-10-07 08:15:52.974 Df App[17771:1c5c715f] [com.apple.WebKit:Media] WebContent[21126] MediaSessionManageriOS::updateSessionState(0) setting category = PlayAndRecord, mode = VideoChat, policy = Default, previous category = PlayAndRecord

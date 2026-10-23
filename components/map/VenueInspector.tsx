@@ -56,6 +56,7 @@ import VenueStickyBar from "./inspector/VenueStickyBar";
 
 import "./venueSheet.css";
 import "./accessibilityFilters.css";
+import { scrollMotionBehavior } from "@/lib/scrollMotion";
 
 // TabKey is imported by other modules from this file — keep it re-exported here.
 export type { TabKey };
@@ -145,7 +146,7 @@ function focusPriceDestination(id: string): void {
     window.requestAnimationFrame(() => {
       const destination = document.getElementById(id);
       destination?.focus({ preventScroll: true });
-      destination?.scrollIntoView({ block: "start", behavior: "smooth" });
+      destination?.scrollIntoView({ block: "start", behavior: scrollMotionBehavior() });
     });
   }, 120);
 }
@@ -475,7 +476,7 @@ export default function VenueInspector({
         disputedPrice={disputedPrice}
         // Where this pub's own drop read got to, so the price area can tell a
         // pub nobody has logged from one we could not look at (F-8).
-        dropReadStatus={pintDrops.venueDropStatus.get(venue.id)}
+        dropReadStatus={pintDrops.venueDropStatus.get(venue.id) ?? "idle"}
         communityPrices={communityPrices}
         experienceLens={experienceLens}
         drinkLensCategory={drinkLensCategory}

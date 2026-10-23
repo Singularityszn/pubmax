@@ -49,7 +49,7 @@ export async function POST(request: Request): Promise<Response> {
 
   const cityId = resolveAskCityId(record.cityId);
   const unavailable = () =>
-    publicApiError("That conversation is not available.", "NOT_FOUND", 404);
+    publicApiError("That conversation isn't available.", "NOT_FOUND", 404);
 
   const threadTurn = record.threadTurn;
   if (threadTurn && typeof threadTurn === "object" && !Array.isArray(threadTurn)) {

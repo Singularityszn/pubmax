@@ -1,5 +1,7 @@
 import { expect, test, type Locator, type Page } from "@playwright/test";
 import { mkdir, writeFile } from "node:fs/promises";
+import { expectMobileMapShellReady, mobileMapShellControl, routeTubeStatus } from "./helpers/mobileMapShell";
+
 
 const VIEWPORTS = [
   { width: 320, height: 568 },
@@ -85,28 +87,33 @@ for (const viewport of VIEWPORTS) {
               window.sessionStorage.setItem("pubmax-e2e-geo-calls", String(calls));
               success({ coords: { latitude: 51.515, longitude: -0.09, accuracy: 10 } } as GeolocationPosition);
             },
+            watchPosition() { return 1; },
+            clearWatch() {},
           },
         });
       }, theme);
+      // A routine night: TfL rests in More map controls, not on the edge.
+      await routeTubeStatus(page, "routine");
 
       const response = await page.goto("/map");
       expect(response?.status()).toBe(200);
-      await expect(page.locator(".mobileMapTopbar")).toBeVisible({ timeout: 30_000 });
+      await expectMobileMapShellReady(page, 30_000);
       // ONE bar (design judgement 2026-08-01, finding 2.3): no control rail.
       await expect(page.locator(".mobileMapRail")).toHaveCount(0);
-      await expect(page.locator(".mobileMapLocateFab")).toBeVisible();
+      const nearMe = await mobileMapShellControl(page, "nearMe");
+      await expect(nearMe).toBeVisible();
       await expect(page.getByRole("navigation", { name: "Primary" })).toBeVisible();
       await expect(page.locator("html")).toHaveAttribute("data-theme", theme);
       await expect(page.locator(".mapLoading")).toBeHidden({ timeout: 30_000 });
       await waitForMapPaint(page);
 
       expect(await page.evaluate(() => window.sessionStorage.getItem("pubmax-e2e-geo-calls"))).toBe("0");
-      await expect(page.getByRole("button", { name: "Near me" })).toBeVisible();
+      await expect(nearMe).toHaveAccessibleName("Near me");
       const viewportBeforeNearby = await page.evaluate(() => {
         const raw = JSON.parse(window.localStorage.getItem("pubmaxx.mobile-map-session.v1") ?? "null") as { viewport?: unknown } | null;
         return JSON.stringify(raw?.viewport ?? null);
       });
-      await page.getByRole("button", { name: "Near me" }).click();
+      await nearMe.click();
       await expect.poll(() => page.evaluate(() => window.sessionStorage.getItem("pubmax-e2e-geo-calls"))).toBe("1");
       const nearbyChip = page.getByRole("button", { name: "Nearby" });
       await expect(nearbyChip).toBeVisible();
@@ -127,17 +134,19 @@ for (const viewport of VIEWPORTS) {
       const chromeRows = page.locator(".mobileMapChrome > :visible");
       await expect(chromeRows).toHaveCount(2);
       const navLinks = page.getByRole("navigation", { name: "Primary" }).getByRole("link");
+      // Five destinations, and the Pub Pal's own door between Tonight and Plan.
       await expect(navLinks).toHaveCount(6);
-      await expect(navLinks).toHaveText(["Tonight", "Map", "Places", "Out", "Plan", "You"]);
+      await expect(navLinks).toHaveText(["Map", "Tonight", "Pal", "Plan", "Social", "You"]);
       await expect(navLinks.filter({ hasText: "Map" })).toHaveAttribute("aria-current", "page");
 
       const utilityCorner = page.locator(".mobileMapUtilityCorner");
       await expect(utilityCorner).toBeVisible();
-      // The map edge holds TfL at the top and the Near me FAB at the thumb
+      // The map edge holds the Near me FAB at the thumb, and nothing else on a
+      // routine night: TfL comes to the edge only for a badly disrupted line
       // (components/mobile/MobileMapShell.tsx MapEdgeControls).
-      await expect(utilityCorner.getByRole("button")).toHaveCount(2);
-      await expect(utilityCorner.getByRole("button", { name: /TfL live/ })).toBeVisible();
-      await expect(utilityCorner.locator(".mobileMapLocateFab")).toHaveAttribute("aria-pressed", "true");
+      await expect(utilityCorner.getByRole("button")).toHaveCount(1);
+      await expect(await mobileMapShellControl(page, "tfl")).toHaveCount(0);
+      await expect(nearMe).toHaveAttribute("aria-pressed", "true");
       await expect(utilityCorner.getByRole("button", { name: "List view of venues on the map" })).toHaveCount(0);
 
       for (const selector of [
@@ -155,7 +164,8 @@ for (const viewport of VIEWPORTS) {
       await expectNoHorizontalOverflow(page);
       await saveShot(page, `map-${viewport.width}x${viewport.height}-${theme}`);
 
-      await page.getByRole("button", { name: "More map controls" }).click();
+      const more = await mobileMapShellControl(page, "more");
+      await more.click();
       await expect(page.locator(".mobileSheetPortal:visible")).toHaveCount(1);
       await expect(
         page.getByRole("tablist", { name: "Map control sections" }),
@@ -165,9 +175,19 @@ for (const viewport of VIEWPORTS) {
       // on the Layers tab it lives in, after the entrance has finished.
       const layerTabs = page.getByRole("tablist", { name: "Map control sections" });
       const layersTab = layerTabs.getByRole("tab", { name: "Layers" });
-      await layersTab.click();
       const toggle = page.getByRole("button", { name: `Switch to ${theme === "light" ? "dark" : "light"} theme` });
-      await expect(toggle).toBeVisible();
+      await expect(async () => {
+        await layersTab.click();
+        await expect(layersTab).toHaveAttribute("aria-selected", "true", { timeout: 1_000 });
+        await expect(toggle).toBeVisible({ timeout: 1_000 });
+      }).toPass({ timeout: 20_000 });
+      // The map layers group is a dynamic chunk (components/PubMap.tsx) fetched
+      // when this tab first renders, and its Place stories chips grow the sheet
+      // to its cap when they land. Two equal reads before then are not a
+      // settled sheet, so wait for the chips.
+      await expect(
+        page.getByRole("group", { name: "Place stories" }).getByRole("button").first(),
+      ).toBeVisible();
       await expect(page.locator(".mobileSharedSheet")).not.toHaveClass(/sheet-entering/);
       const sheetBefore = await settledBox(page.locator(".mobileSharedSheet"));
       expect(sheetBefore?.x).toBe(0);
@@ -202,9 +222,9 @@ for (const viewport of VIEWPORTS) {
       await page.getByRole("button", { name: "Close and return to the London map" }).click();
       await expect(page.locator(".mapVenueListPanel")).toHaveCount(0);
 
-      await page.getByRole("button", { name: "More map controls" }).click();
+      await more.click();
       await page.getByRole("button", { name: "Close Map controls" }).click();
-      await page.getByRole("button", { name: /Filters/ }).click();
+      await (await mobileMapShellControl(page, "filters")).click();
       const filtersSheet = page.locator('.mobileSheetPortal[data-sheet-kind="filters"]:visible');
       await expect(filtersSheet).toHaveCount(1);
       await expect(filtersSheet.getByRole("heading", { name: "Prices and places" })).toBeVisible();
@@ -229,7 +249,40 @@ test("venue selection opens exactly one coordinated sheet", async ({ page }) => 
   await expect(page.locator(".mobileSharedSheet")).toHaveClass(/sheet-full/);
 });
 
-test("TfL status is fresh in the rail before its grouped sheet opens", async ({ page }) => {
+test("TfL badges a badly disrupted line, and only that", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.addInitScript(() => {
+    window.localStorage.setItem("pubmax-tour-v1-done", "1");
+    window.sessionStorage.setItem("pubmax_onboarding_dismissed", "1");
+  });
+  await page.route("**/api/citymcp/status**", (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        asOf: "2026-07-15T21:05:00.000Z",
+        signals: [],
+        tubeLines: [
+          { line: "Central", status: "Minor delays" },
+          { line: "Victoria", status: "Severe delays", disruption: "Signal failure" },
+          { line: "Jubilee", status: "Planned closure" },
+        ],
+      }),
+    }),
+  );
+  await page.goto("/map");
+  // The chip is phone shell chrome, held until the map's loading frame lets go
+  // (`mobileShellReady` in components/PubMap.tsx), so it is owed the shell's
+  // readiness ceiling rather than the default expect timeout.
+  const tflChip = await mobileMapShellControl(page, "tfl");
+  await expect(tflChip.locator(".mobileMapCornerBadge")).toHaveText("1");
+  await expect(tflChip).toHaveAttribute(
+    "aria-label",
+    "TfL live: 1 line badly disrupted, 3 updates",
+  );
+});
+
+test("TfL status is fresh in More map controls before its Transit tab opens", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.addInitScript(() => {
     window.localStorage.setItem("pubmax-tour-v1-done", "1");
@@ -253,14 +306,23 @@ test("TfL status is fresh in the rail before its grouped sheet opens", async ({ 
   });
 
   await page.goto("/map");
-  const tflChip = page.getByRole("button", { name: /TfL/ });
-  await expect(tflChip).toContainText("3");
-  expect(statusRequests).toBe(1);
+  const tflChip = await mobileMapShellControl(page, "tfl");
+  // Three routine updates put nothing on the resting map: a TfL control there
+  // says something is urgent. The feed is read once all the same, so the
+  // Transit tab opens on fresh status rather than a second request.
+  await expect.poll(() => statusRequests).toBe(1);
+  await expect(await mobileMapShellControl(page, "nearMe")).toBeVisible();
+  await expect(tflChip).toHaveCount(0);
   await expect(page.locator('.mobileSheetPortal[data-sheet-kind="tfl"]')).toHaveCount(0);
 
-  await tflChip.click();
-  const sheet = page.locator('.mobileSheetPortal[data-sheet-kind="tfl"]');
+  await (await mobileMapShellControl(page, "more")).click();
+  const sheet = page.locator('.mobileSheetPortal[data-sheet-kind="layers"]');
   await expect(sheet).toBeVisible();
+  await sheet
+    .getByRole("tablist", { name: "Map control sections" })
+    .getByRole("tab", { name: "Transit" })
+    .click();
+  expect(statusRequests).toBe(1);
   await expect(sheet.getByText(/Updated/)).toBeVisible();
   await expect(sheet.getByRole("heading", { name: "Alerts" })).toBeVisible();
   await expect(sheet.getByRole("heading", { name: "Transport" })).toBeVisible();
@@ -295,7 +357,7 @@ for (const theme of THEMES) {
       window.sessionStorage.setItem("pubmax_onboarding_dismissed", "1");
     }, theme);
     await page.goto("/map");
-    await expect(page.locator(".mobileMapTopbar")).toBeVisible({ timeout: 45_000 });
+    await expectMobileMapShellReady(page, 45_000);
     await expect(page.locator(".maplibregl-canvas")).toBeVisible({ timeout: 45_000 });
     await expect(page.locator(".mapLoading")).toBeHidden({ timeout: 45_000 });
     await expect.poll(() => page.evaluate(() =>
@@ -303,6 +365,11 @@ for (const theme of THEMES) {
     )).not.toBeNull();
 
     for (const [zoom, pitch] of [[10, 0], [12, 22], [14, 40], [16, 50]] as const) {
+      // Leave the map before writing its camera. A live map keeps writing both
+      // stores: the session on every camera change, the resume cache in idle
+      // time after one. Its opening turn or a late resume write landing between this
+      // write and the reopen put the map back at its own camera, not this one.
+      await page.goto("/offline.html");
       await page.evaluate(({ nextZoom, nextPitch }) => {
         const key = "pubmaxx.mobile-map-session.v1";
         const raw = JSON.parse(window.localStorage.getItem(key) ?? "null") as Record<string, unknown> | null;
@@ -314,15 +381,15 @@ for (const theme of THEMES) {
         window.localStorage.setItem(key, JSON.stringify(raw));
         // The map writes the same camera to its resume cache (lib/mapResume.ts),
         // and that cache wins on reopen, so both stores carry the camera.
-        const resumeKey = "map-resume:v1:london";
+        const resumeKey = "map-resume:v2:london:view";
         const resume = JSON.parse(window.localStorage.getItem(resumeKey) ?? "null") as Record<string, unknown> | null;
         if (resume) {
           resume.viewport = viewport;
           window.localStorage.setItem(resumeKey, JSON.stringify(resume));
         }
       }, { nextZoom: zoom, nextPitch: pitch });
-      await page.reload();
-      await expect(page.locator(".mobileMapTopbar")).toBeVisible({ timeout: 45_000 });
+      await page.goto("/map");
+      await expectMobileMapShellReady(page, 45_000);
       await waitForMapPaint(page);
       await expect(page.locator("html")).toHaveAttribute("data-theme", theme);
       await expect.poll(() => page.evaluate(() => {

@@ -336,8 +336,8 @@ function unspacedPostcode(compact: string): string | null {
 function postcodeHits(text: string): Array<{ compact: string; index: number }> {
   const hits: Array<{ compact: string; index: number }> = [];
   for (const match of text.matchAll(/\b([A-Z]{1,2}\d[A-Z\d]?)\s+(\d[A-Z]{2})\b/gi)) {
-    const outward = match[1].toUpperCase();
-    const inward = match[2].toUpperCase();
+    const outward = (match[1] ?? "").toUpperCase();
+    const inward = (match[2] ?? "").toUpperCase();
     if (!/^[A-Z]{1,2}\d[A-Z\d]?$/.test(outward) || !/^\d[A-Z]{2}$/.test(inward)) continue;
     hits.push({ compact: outward + inward, index: match.index ?? 0 });
   }
@@ -383,7 +383,7 @@ function sentenceChunks(text: string): string[] {
 
 function statesStreet(text: string, street: string): boolean {
   const words = phraseWords(street);
-  if (words.length < 2 || !/^\d/.test(words[0]) || !hasRoadName(words)) return false;
+  if (words.length < 2 || !/^\d/.test(words[0] ?? "") || !hasRoadName(words)) return false;
   const body = words.map((word) => word.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("\\s+");
   const pattern = new RegExp(`(?:^|\\s)${body}(?:\\s|$)`);
   return sentenceChunks(text).some((sentence) => {
@@ -409,10 +409,10 @@ function streetFromSearchText(name: string, searchText: string): string {
   const at = postcodeHits(rest)[0]?.index ?? -1;
   const beforePostcode = (at >= 0 ? rest.slice(0, at) : rest).replace(/[,\s]+$/g, "");
   const fields = beforePostcode.split(",").map((field) => phraseWords(field).join(" ")).filter(Boolean);
-  for (let index = 0; index < fields.length; index += 1) {
-    const words = fields[index].split(" ");
+  for (const [index, field] of fields.entries()) {
+    const words = field.split(" ");
     if (!/^\d/.test(words[0] ?? "")) continue;
-    let line = fields[index];
+    let line = field;
     if (!hasRoadName(words)) {
       const next = fields[index + 1] ?? "";
       if (!hasRoadName(phraseWords(next))) continue;
@@ -464,8 +464,7 @@ export function chooseOperatorUrl(
 ): string | null {
   const eligible = results.filter((result) => isOperatorHost(result.url) && isHarvestableOperatorUrl(result.url));
   const narrowed = eligible.filter((result) => resultStatesVenue(result, venue));
-  if (narrowed.length === 0) return null;
-  return pickOperatorUrl(narrowed, venue.name) ?? narrowed[0].url;
+  return pickOperatorUrl(narrowed, venue.name) ?? narrowed[0]?.url ?? null;
 }
 
 function sameListedUrl(left: string, right: string): boolean {
@@ -537,7 +536,7 @@ export function acceptedExtractUrls(urls: readonly string[], siteOrigin: string)
 
 function cleanName(label: string): string | null {
   const poured = label.replace(/^[/|\s]+/, "").trim().match(POUR_OF);
-  const source = poured ? poured[1].trim() : label;
+  const source = poured?.[1]?.trim() ?? label;
   const cleaned = source
     .replace(/\bschooners?\b(?:\s*\([^)]*\))?/gi, " ")
     .replace(/\btwo[\s-]thirds\b(?:\s+of\s+a)?(?:\s+pints?\b)?/gi, " ")
@@ -759,7 +758,7 @@ function pairedMeasureLines(line: string): string[] | null {
     const sizes = [...match[0].matchAll(/\d{2,4}/g)].map((token) => `${token[0]}ml`);
     const priceMatch = JOINED_PRICE_LIST.exec(line.slice(match.index + match[0].length));
     const prices = priceMatch
-      ? [...priceMatch[1].matchAll(/£\s?\d{1,2}(?:\.\d{2})?/g)].map((token) => token[0].replace(/\s+/g, ""))
+      ? [...(priceMatch[1] ?? "").matchAll(/£\s?\d{1,2}(?:\.\d{2})?/g)].map((token) => token[0].replace(/\s+/g, ""))
       : [];
     if (!priceMatch || prices.length !== sizes.length) {
       const before = line.slice(cursor, match.index).trim();

@@ -1,0 +1,127 @@
+{
+  "action": "Deleted the ten Context.dev page monitors this harvest created. No other account monitor was touched.",
+  "performedAt": "2026-10-07T23:33:15.267Z",
+  "recordedMonitors": 10,
+  "confirmedAbsent": 10,
+  "accountMonitorsBefore": 10,
+  "accountMonitorsAfter": 0,
+  "otherMonitorsBefore": 0,
+  "otherMonitorsAfter": 0,
+  "balanceBefore": {
+    "creditsRemaining": 50,
+    "nextRefill": {
+      "at": "2026-10-17T07:01:00.000Z",
+      "credits": 1000
+    }
+  },
+  "balanceAfter": {
+    "creditsRemaining": 50,
+    "nextRefill": {
+      "at": "2026-10-17T07:01:00.000Z",
+      "credits": 1000
+    }
+  },
+  "deletions": [
+    {
+      "id": "mon_1d35b68d61fe4d839a4b689df79b6e86",
+      "pub": "The Globe",
+      "url": "https://www.greeneking.co.uk/pubs/greater-london/globe/sports/fixtures",
+      "createdAt": "2026-10-07T22:55:45.445Z",
+      "deletedAt": "2026-10-07T23:33:08.270Z",
+      "deleted": true,
+      "requestId": "640510cf-96b4-4be9-b3e5-8c44daf398c8",
+      "stillPresent": false
+    },
+    {
+      "id": "mon_67bd91ab00fa4cd6bb8dcf717f0b4138",
+      "pub": "The Golden Fleece",
+      "url": "https://www.greeneking.co.uk/pubs/greater-london/golden-fleece/sports/fixtures",
+      "createdAt": "2026-10-07T22:55:53.755Z",
+      "deletedAt": "2026-10-07T23:33:08.995Z",
+      "deleted": true,
+      "requestId": "d9dcddf2-07d1-46a0-aff1-d7e9b26d423f",
+      "stillPresent": false
+    },
+    {
+      "id": "mon_2878c87829084adb8844d310775c05ec",
+      "pub": "Dickens Tavern",
+      "url": "https://www.greeneking.co.uk/pubs/greater-london/dickens-tavern/sports/fixtures",
+      "createdAt": "2026-10-07T22:56:02.017Z",
+      "deletedAt": "2026-10-07T23:33:09.745Z",
+      "deleted": true,
+      "requestId": "c6e922d8-156a-4609-ae27-58f60df84baa",
+      "stillPresent": false
+    },
+    {
+      "id": "mon_f4540f694d884e689b00bbaec64c1bef",
+      "pub": "Allsop Arms",
+      "url": "https://www.greeneking.co.uk/pubs/greater-london/allsop-arms/sports/fixtures",
+      "createdAt": "2026-10-07T22:56:19.757Z",
+      "deletedAt": "2026-10-07T23:33:10.263Z",
+      "deleted": true,
+      "requestId": "c8c68bac-2e36-4bf0-bf57-a18bdcefd537",
+      "stillPresent": false
+    },
+    {
+      "id": "mon_e21092c461bd4d68a0c1fedc61adc2ae",
+      "pub": "Fox Under The Hill",
+      "url": "https://www.greeneking.co.uk/pubs/greater-london/fox-under-the-hill/sports/fixtures",
+      "createdAt": "2026-10-07T22:56:28.805Z",
+      "deletedAt": "2026-10-07T23:33:11.204Z",
+      "deleted": true,
+      "requestId": "bf45e8fc-6a5b-44f2-ae75-a44766ccf17b",
+      "stillPresent": false
+    },
+    {
+      "id": "mon_5ab09eb93a0042f8bb91093ee6f494d8",
+      "pub": "The County Arms",
+      "url": "https://www.greeneking.co.uk/pubs/greater-london/county-arms/sports/fixtures",
+      "createdAt": "2026-10-07T22:56:36.788Z",
+      "deletedAt": "2026-10-07T23:33:11.751Z",
+      "deleted": true,
+      "requestId": "e2883535-412f-42b2-ab8f-cfe4d98c3e55",
+      "stillPresent": false
+    },
+    {
+      "id": "mon_9ae453b3f11943c38445abb1e93b97b6",
+      "pub": "Grafton Arms",
+      "url": "https://www.greeneking.co.uk/pubs/greater-london/grafton-arms/sports/fixtures",
+      "createdAt": "2026-10-07T22:56:45.008Z",
+      "deletedAt": "2026-10-07T23:33:12.535Z",
+      "deleted": true,
+      "requestId": "17d11fd9-2780-439c-83d2-8ecf2d28742f",
+      "stillPresent": false
+    },
+    {
+      "id": "mon_cea6d1484d8a4b28b257c3e33fb56a6a",
+      "pub": "Travellers Tavern",
+      "url": "https://www.greeneking.co.uk/pubs/greater-london/travellers-tavern/sports/fixtures",
+      "createdAt": "2026-10-07T22:56:52.945Z",
+      "deletedAt": "2026-10-07T23:33:13.020Z",
+      "deleted": true,
+      "requestId": "847989c9-336f-4ab4-8552-1702d70d5a39",
+      "stillPresent": false
+    },
+    {
+      "id": "mon_7f62334df538466ca740325e514b6798",
+      "pub": "Kings Head",
+      "url": "https://www.greeneking.co.uk/pubs/greater-london/kings-head/sports/fixtures",
+      "createdAt": "2026-10-07T22:57:01.105Z",
+      "deletedAt": "2026-10-07T23:33:13.748Z",
+      "deleted": true,
+      "requestId": "a7ab29a4-ac07-46ca-8332-4ff8da199fa4",
+      "stillPresent": false
+    },
+    {
+      "id": "mon_5bf9814abcb545eca4c3abeb46eca4d2",
+      "pub": "Phoenix",
+      "url": "https://www.greeneking.co.uk/pubs/greater-london/phoenix/sports/fixtures",
+      "createdAt": "2026-10-07T22:57:09.126Z",
+      "deletedAt": "2026-10-07T23:33:14.581Z",
+      "deleted": true,
+      "requestId": "b3863c38-4e3f-4297-b766-7b88334c1943",
+      "stillPresent": false
+    }
+  ],
+  "noSecretStored": true
+}

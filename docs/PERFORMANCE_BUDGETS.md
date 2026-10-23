@@ -4,7 +4,7 @@ Speed is the promise this product makes. A promise nobody counts is a wish, so
 every budgeted route has a number, the number is tracked in the repository, and
 CI refuses a change that goes past it.
 
-- The ceilings: [`perf/route-budgets.json`](../perf/route-budgets.json). Every route the site serves a stranger, all 46 rows
+- The ceilings: [`perf/route-budgets.json`](../perf/route-budgets.json). Every route the site serves a stranger, all 47 rows
 - The pawl on the ratchet: [`scripts/check-budget-ratchet.mjs`](../scripts/check-budget-ratchet.mjs), which refuses a ceiling taken up against the base branch without a record
 - The rules and the failure table: [`lib/performanceBudgets.ts`](../lib/performanceBudgets.ts)
 - The measuring: [`e2e/performance-budget.spec.ts`](../e2e/performance-budget.spec.ts)
@@ -98,10 +98,11 @@ sweep has actually produced, plus a quarter. Every route has at least 25% headro
 against its own worst observation, except `/pal`, which simply keeps its existing
 1500 ms - tighter than the rule would give it, and not raised to suit it.
 
-Production RUM corroborates the lab figure independently: `onLCP` already
-reports through `lib/webVitals.ts` and the consent-gated `web_vital` event
-(`components/PerformanceVitals.tsx`), rounded and route-patterned, carrying no
-identifier.
+Production RUM corroborates the lab figure independently: the consent-gated
+PostHog browser SDK sends one `$web_vitals` event per page (CLS, FCP, INP, LCP)
+on the coarse `$pathname` surface, through `/ingest` and `before_send`
+(`lib/posthogClient.ts`). It is the one field-vitals pipeline; the separate
+`web_vital` product event was removed because it double-counted every load.
 
 ## The regression the rig caught on its first sweep
 
@@ -182,9 +183,20 @@ deployment. A session, a caller's identity, a store read that can change
 between two requests, or a URL that can carry the viewer's own coordinates all
 disqualify it.
 
+One named exception stands, by the captain's ruling of 2026-10-03:
+`/api/auth/providers`. Its body is a store read, the Supabase Auth provider
+flags, so it fails the bar as written. It is allowed because the answer is the
+same for every caller and changes only when someone edits the Supabase
+dashboard. The shared copy is fresh for five minutes (`s-maxage=300`, plus a
+60-second `stale-while-revalidate`), so a dashboard toggle can take that long
+to show or hide a button. Before OAuth starts, the client rechecks with
+`?fresh=1`, which is never cached. The exception covers this route alone. It
+does not loosen the bar for any other remote read.
+
 | class | contract | verdict |
 | --- | --- | --- |
 | Night Areas (list and slug) | Bundled config; changes only on deploy | Cached (`jsonCached`) |
+| Social sign-in providers (`/api/auth/providers`) | Supabase dashboard flags, the same for every caller; `?fresh=1` is the pre-OAuth recheck | Cached five minutes; `?fresh=1` no-store |
 | Tonight conditions | Public and read-only, but its URL carries `lat`/`lng` | No-store, deliberately |
 | What's-On | Bundled rows plus a live layer, and it accepts `near=lat,lng` | No-store, escalated |
 | Everything actor-gated | Answer differs per caller | No-store, by law |
@@ -864,7 +876,7 @@ an unmeasured route reads as a pass and never fails again.
 
 Every route the site serves a stranger. That is two lists.
 
-**The 35 with no dynamic segment**, which is every such `page.tsx` less two:
+**The 36 with no dynamic segment**, which is every such `page.tsx` less two:
 
 - `/admin`, which answers 401 to an anonymous request and renders a token form
   rather than a route.
@@ -903,6 +915,14 @@ runner, so their ceilings are set in FAMILY with `/about` and `/pubs` the way
 `/webmcp`'s were, not at the measured figure: a request count taken on one box
 is not comparable to CI's. CI's sweep is the oracle. Take them DOWN at the next
 sweep, never up.
+
+**And `/credits`**, added on 16 October 2026 with the page itself. It is on the
+legal shell, so it takes the same ceilings as `/how-we-estimate`, and it was
+measured before its row was written: on a production build of its branch, five
+samples beside `/privacy`, `/terms` and `/how-we-estimate`, it rendered in
+16 ms, decoded 835 KB of JS over 31 requests and painted its LCP at a median of
+372 ms (worst 412). Like the ten above, those figures came from a laptop under
+the tracked throttle, so CI's sweep is the oracle. Take them down, never up.
 
 ## The pin-ready record on /map
 
@@ -984,7 +1004,8 @@ pubs source, ask for the glyph range and place a symbol.
 
 **Until the pins have painted, the wire belongs to the pins.**
 `lib/mapFirstPinStreams.ts` owns it and names the closed set of held lanes: the
-slim shard rings, the UK base layer and the ambient POI overlay. Nothing is
+slim shard rings, the UK base layer, the ambient POI overlay and (added after
+this measurement) the London restaurant pack. Nothing is
 dropped and nothing new is fetched; the sides fill in the moment the map has
 something a thumb can hit. A hold is never a cage - a painted pin, the shell
 deciding there is no canvas at all, or the hold's own ceiling each end it, and
@@ -1075,11 +1096,11 @@ The seams:
 - **`experimental.staleTimes` in `next.config.mjs`** is the window. See the
   [Router Cache policy](rules/app-proxy-csp-caching-and-file-tracing.md#a-tab-you-have-already-opened-is-not-a-page-you-have-to-fetch-again)
   for its safety conditions, the `/admin` document guard, and test coverage.
-- **`lib/surfaceDataCache.ts`** is the data half: one browser-only
-  stale-while-revalidate store, so a return paints its last answer and refreshes
-  behind it. It refuses auth and identity keys outright and empties at an
-  account boundary. On the same lap set, Tonight's LISTINGS - not just its shell
-  - reached the screen on a return in 197 ms p50 / 344 ms p95, from 417 / 660.
+- **`lib/surfaceDataCache.ts`** is the data half. The
+  [browser cache policy](rules/app-proxy-csp-caching-and-file-tracing.md#a-tab-you-have-already-opened-is-not-a-page-you-have-to-fetch-again)
+  owns reuse, revalidation, service-night validity, and account boundaries.
+  On the same lap set, Tonight's listings reached the screen on a return in
+  197 ms p50 / 344 ms p95, from 417 / 660.
 - **`components/nav/IntentLink.tsx`** warms a dynamic destination on intent
   instead of prefetching it on sight. A Tonight arrival used to fire about twenty
   `/plan?occasion=…` and `/pal/chat?ask=…` server renders in front of the

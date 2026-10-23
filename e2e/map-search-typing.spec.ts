@@ -1,4 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
+import { mobileMapShellControl } from "./helpers/mobileMapShell";
 
 // Typed map search used to destroy its own input. On the phone, after about
 // two characters the debounce fired: one match flew to that pub through
@@ -59,7 +60,7 @@ test("typing a whole pub name keeps the field and leaves the camera still", asyn
   });
   await page.locator(".mapLoading").waitFor({ state: "hidden", timeout: 45_000 }).catch(() => {});
 
-  await page.getByRole("button", { name: "Search the map" }).click();
+  await (await mobileMapShellControl(page, "search")).click();
   const field = page.locator("#mobileMapSearchInput");
   await expect(field).toBeFocused();
 
@@ -67,6 +68,9 @@ test("typing a whole pub name keeps the field and leaves the camera still", asyn
   await expect.poll(() => readCamera(page), { timeout: 20_000 }).not.toBeNull();
   const before = await readCamera(page);
   expect(before).not.toBeNull();
+  const canvas = page.locator(".mapCanvasWrap");
+  const pinCountBefore = Number(await canvas.getAttribute("data-venue-count"));
+  expect(pinCountBefore).toBeGreaterThan(0);
 
   for (const character of PUB_NAME) {
     await field.press(character === " " ? "Space" : character, { delay: 20 });
@@ -74,6 +78,8 @@ test("typing a whole pub name keeps the field and leaves the camera still", asyn
     // The field survives every keystroke, caret included.
     await expect(field).toBeVisible();
     await expect(field).toBeFocused();
+    expect(Number(await canvas.getAttribute("data-venue-count")))
+      .toBeGreaterThanOrEqual(pinCountBefore);
   }
 
   // Every character the reader typed is still in the field.

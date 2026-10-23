@@ -4,7 +4,9 @@ import { expect, test, type Locator, type Page } from "@playwright/test";
 import { storyBandsForCity } from "@/lib/cityStoryBands";
 import { listEnabledCities } from "@/lib/cities";
 
+import { answerFirstRunQuestions } from "./helpers/firstRunJourney";
 import { installNativeShell } from "./helpers/nativeShell";
+import { mobileMapShellControl } from "./helpers/mobileMapShell";
 
 const VIEWPORTS = [
   { width: 360, height: 800 },
@@ -243,31 +245,6 @@ async function expectUnclippedCaption(locator: Locator, expected: string): Promi
   expect(state.clientHeight).toBe(state.scrollHeight);
 }
 
-async function expectBoundedProse(
-  locator: Locator,
-  expected: string | undefined,
-  lineClamp: number,
-): Promise<void> {
-  if (expected !== undefined) {
-    await expect(locator).toHaveText(expected);
-  }
-  const state = await locator.evaluate((element) => {
-    const style = getComputedStyle(element);
-    return {
-      overflow: style.overflow,
-      lineClamp: style.getPropertyValue("-webkit-line-clamp"),
-      clientHeight: element.clientHeight,
-      lineHeight: Number.parseFloat(style.lineHeight),
-    };
-  });
-
-  expect(state.overflow).toBe("hidden");
-  expect(state.lineClamp).toBe(String(lineClamp));
-  expect(state.clientHeight).toBeLessThanOrEqual(
-    Math.ceil(state.lineHeight * lineClamp) + 1,
-  );
-}
-
 for (const viewport of VIEWPORTS) {
   for (const captionCase of FIXTURE_ONLY_CAPTION_CASES) {
     test(`fixture-only CSS contract: ${captionCase.name} at ${viewport.width}px`, async ({ page }) => {
@@ -337,34 +314,31 @@ for (const viewport of VIEWPORTS) {
 }
 
 for (const viewport of VIEWPORTS.filter(({ width }) => width >= 390)) {
-  test(`historic disclosures retain the full 1583 text at ${viewport.width}px`, async ({
+  // The register prints every cited hook whole (taste plan, 18 Oct 2026): no
+  // two-line clamp and no "Show more" to open, so the 1583 sentence is on the
+  // page as it stands, with its date and its source under it.
+  test(`historic entries print the full 1583 text at ${viewport.width}px`, async ({
     page,
   }) => {
     await page.setViewportSize(viewport);
     const response = await page.goto("/historic");
     expect(response?.status()).toBe(200);
 
-    const card = page
-      .locator(".historicCard")
+    const entry = page
+      .locator(".historicEntry")
       .filter({ hasText: "The Grapes" });
-    await expect(card).toBeVisible();
-    const disclosure = card.locator(".proseDisclosure");
-    await expect(disclosure).not.toHaveAttribute("open", "");
-    const hook = disclosure.locator(".proseDisclosureText");
+    await expect(entry).toBeVisible();
+    await expect(entry.locator(".proseDisclosure")).toHaveCount(0);
+    const hook = entry.locator(".historicHook");
     await expect(hook).toHaveText(THE_GRAPES_HOOK);
-    await expectBoundedProse(hook, THE_GRAPES_HOOK, 2);
-    await expect(disclosure.getByText("Show more", { exact: true })).toBeVisible();
-    await disclosure.locator("summary").click();
-    await expect(disclosure).toHaveAttribute("open", "");
     await expectUnclippedCaption(hook, THE_GRAPES_HOOK);
-    await expect(disclosure.getByText("Show less", { exact: true })).toBeVisible();
     await expect(hook).toContainText("since 1583");
-    const provenance = card.locator(".historicProvenance");
+    const provenance = entry.locator(".historicProvenance");
     await expect(provenance).toBeVisible();
-    await expect(card.locator(".historicEra")).toHaveText(THE_GRAPES_DATE_LABEL);
-    await expect(card.locator(".historicCite")).toBeVisible();
+    await expect(entry.locator(".historicDate")).toHaveText(THE_GRAPES_DATE_LABEL);
+    await expect(entry.locator(".historicCite")).toBeVisible();
     const [hookBox, provenanceBox] = await Promise.all([
-      disclosure.boundingBox(),
+      hook.boundingBox(),
       provenance.boundingBox(),
     ]);
     expect(hookBox).not.toBeNull();
@@ -373,34 +347,19 @@ for (const viewport of VIEWPORTS.filter(({ width }) => width >= 390)) {
       hookBox!.y + hookBox!.height,
     );
 
+    // The borough chapter lists its historic pubs as rows: the name, then the
+    // date and grade as meta, and the row opens the pub's own story page.
     const boroughResponse = await page.goto("/borough/tower-hamlets");
     expect(boroughResponse?.status()).toBe(200);
 
-    const boroughCard = page
-      .locator(".boroughHeritageCard")
-      .filter({ hasText: "The Grapes" });
-    await expect(boroughCard).toBeVisible();
-    const boroughDisclosure = boroughCard.locator(".proseDisclosure");
-    const boroughHook = boroughDisclosure.locator(".proseDisclosureText");
-    await expect(boroughHook).toHaveText(THE_GRAPES_HOOK);
-    await expectBoundedProse(boroughHook, THE_GRAPES_HOOK, 2);
-    await boroughDisclosure.locator("summary").click();
-    await expect(boroughDisclosure).toHaveAttribute("open", "");
-    await expectUnclippedCaption(boroughHook, THE_GRAPES_HOOK);
-    await expect(boroughHook).toContainText("since 1583");
-    const boroughLink = boroughCard.locator(".boroughHeritageMapLink");
-    await expect(boroughLink).toBeVisible();
-    await expect(boroughCard.locator(".boroughHeritageEra")).toHaveText(
-      THE_GRAPES_DATE_LABEL,
-    );
-    const [boroughHookBox, boroughLinkBox] = await Promise.all([
-      boroughDisclosure.boundingBox(),
-      boroughLink.boundingBox(),
-    ]);
-    expect(boroughHookBox).not.toBeNull();
-    expect(boroughLinkBox).not.toBeNull();
-    expect(boroughLinkBox!.y).toBeGreaterThanOrEqual(
-      boroughHookBox!.y + boroughHookBox!.height,
+    const boroughRow = page
+      .locator(".boroughRows .rowListItem")
+      .filter({ hasText: "The Grapes" })
+      .filter({ hasText: THE_GRAPES_DATE_LABEL });
+    await expect(boroughRow).toBeVisible();
+    await expect(boroughRow.locator(".rowListTitleLink")).toHaveAttribute(
+      "href",
+      /^\/historic\/[a-z0-9-]+$/,
     );
     await expect(page.locator(".boroughHeritageProvenance")).toBeVisible();
   });
@@ -429,6 +388,7 @@ for (const viewport of VIEWPORTS.filter(({ width }) => width >= 390)) {
     await expect(
       chip.getByRole("button", { name: "Dismiss Place story intro" }),
     ).toBeVisible();
+    await expect(page.locator(".mapPeek")).toHaveAttribute("data-covered", "true");
     await expect(page.locator(".mobilePlanActivation")).toHaveCount(0);
 
     const geometry = await page.evaluate(() => {
@@ -480,9 +440,11 @@ for (const viewport of VIEWPORTS.filter(({ width }) => width >= 390)) {
       await centreHit(chip.getByRole("button", { name: "Dismiss Place story intro" })),
       "Dismiss Place story intro takes its own tap",
     ).toMatchObject({ own: true, nearMe: false });
+    // The credit is a control on the phone map, under the chip and clear of the
+    // tab bar, and the same pub-data line is also under the Key below.
     const attributionInner = attribution.locator(".maplibregl-ctrl-attrib-inner");
     if (!(await attributionInner.isVisible())) {
-      await attribution.locator(".maplibregl-ctrl-attrib-button").click();
+      await attributionToggle.click();
     }
     await expect(attributionInner).toBeVisible();
     await expect(attributionInner).toContainText(OSM_PUB_ATTRIBUTION);
@@ -505,11 +467,14 @@ for (const viewport of VIEWPORTS.filter(({ width }) => width >= 390)) {
     expect(attributionState.top).toBeGreaterThanOrEqual(geometry!.chip.bottom);
     expect(attributionState.bottom).toBeLessThanOrEqual(geometry!.tab.y);
 
-    await page.getByRole("button", { name: "More map controls" }).click();
+    await (await mobileMapShellControl(page, "more")).click();
     const layersSheet = page.locator(
       '.mobileSheetPortal[data-sheet-kind="layers"]:visible',
     );
     await expect(layersSheet).toBeVisible();
+    const credits = layersSheet.locator(".mobileMapCredits");
+    await expect(credits).toBeVisible();
+    await expect(credits).toContainText(OSM_PUB_ATTRIBUTION);
     await layersSheet.getByRole("tab", { name: "Layers" }).click();
     const listShortcut = layersSheet.getByRole("button", {
       name: "List view of venues on the map",
@@ -545,7 +510,7 @@ for (const viewport of VIEWPORTS.filter(({ width }) => width >= 390)) {
       await expect(reviewedSources.nth(index)).toBeVisible();
     }
 
-    await page.getByRole("button", { name: "Use London" }).click();
+    await answerFirstRunQuestions(page);
     for (const note of FIRST_RUN_COMPANION_NOTES) {
       const qualifier = page.getByText(note, { exact: true });
       await expect(qualifier).toBeVisible();

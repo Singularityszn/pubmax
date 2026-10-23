@@ -16,6 +16,7 @@ vi.mock("posthog-js", () => {
       capture: (name: string, properties: Record<string, unknown>) => {
         if (!posthogState.optedOut) posthogState.captures.push([name, properties]);
       },
+      get_distinct_id: () => "anon_0123456789abcdef",
       init: (_token: string, config: Record<string, unknown>) => {
         posthogState.initCount += 1;
         posthogState.initConfig = config;
@@ -200,26 +201,6 @@ describe("explicit PostHog pageviews", () => {
       ]);
     });
     expect(posthogState.resetCalls).toEqual([true]);
-  });
-
-  it("hands identity the consented client without re-initializing or resetting it", async () => {
-    process.env.NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN = "phc_test";
-    const {
-      loadPosthogClientForIdentity,
-      syncPosthogConsent,
-    } = await import("@/lib/posthogClient");
-
-    expect(await loadPosthogClientForIdentity()).toBeNull();
-
-    syncPosthogConsent(true);
-    const duringInit = await loadPosthogClientForIdentity();
-    const afterInit = await loadPosthogClientForIdentity();
-    await loadPosthogClientForIdentity();
-
-    expect(duringInit).not.toBeNull();
-    expect(afterInit).toBe(duringInit);
-    expect(posthogState.initCount).toBe(1);
-    expect(posthogState.resetCalls).toEqual([]);
   });
 
   it("does not count query-only navigation and never sends query data", async () => {

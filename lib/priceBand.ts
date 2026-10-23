@@ -14,7 +14,7 @@
 // median-plus-margin rule because they need no invented margin: "average" is
 // honestly the middle third of what we hold, and the thresholds are two prices
 // somebody actually pays. London today: cheap up to £5.20, average up to £6.15,
-// expensive above (950 priced pubs), so a £6.50 pint reads expensive.
+// expensive above (949 priced pubs), so a £6.50 pint reads expensive.
 //
 // THE AREA IS THE CITY, NOT THE BOROUGH. A per-borough rule was measured and
 // rejected: City of London's and Westminster's upper terciles both sit at
@@ -110,9 +110,12 @@ export function priceBandThresholdsFrom(
     .sort((a, b) => a - b);
   if (sorted.length < Math.max(1, minSample)) return null;
   const last = sorted.length - 1;
+  const cheapMaxGbp = sorted[Math.floor(last / 3)];
+  const averageMaxGbp = sorted[Math.floor((2 * last) / 3)];
+  if (cheapMaxGbp === undefined || averageMaxGbp === undefined) return null;
   return {
-    cheapMaxGbp: sorted[Math.floor(last / 3)],
-    averageMaxGbp: sorted[Math.floor((2 * last) / 3)],
+    cheapMaxGbp,
+    averageMaxGbp,
     sampleSize: sorted.length,
   };
 }

@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import { useStaggeredRead } from "@/lib/useStaggeredRead";
 
 import { discardBody } from "@/lib/responseBody";
 import {
@@ -55,9 +56,11 @@ export default function VenueSpoonsValueRow({
     setHeld(null);
   }
 
+  const ready = useStaggeredRead(2, venueId);
+
   useEffect(() => {
     // Nothing on screen asks the question, so nothing asks the server either.
-    if (!visible) return;
+    if (!visible || !ready) return;
     const controller = new AbortController();
     (async () => {
       try {
@@ -79,7 +82,7 @@ export default function VenueSpoonsValueRow({
       }
     })();
     return () => controller.abort();
-  }, [venueId, visible]);
+  }, [ready, venueId, visible]);
 
   if (!visible || !held) return null;
 

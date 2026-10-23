@@ -60,6 +60,35 @@ beforeEach(() => {
 });
 
 describe("GET/POST/DELETE /api/step-out-nudge", () => {
+  it("answers the age gate on a read as data at 200, and a write as 409", async () => {
+    // A read of your own settings on every profile load must not log a console
+    // error for an account that has not tapped "I'm 18 or over" yet. The write
+    // is still refused.
+    vi.mocked(resolveContributionIdentity).mockResolvedValue({
+      ok: false,
+      accountId: "user-gated",
+      body: {
+        status: "adult_check_required",
+        error: "Confirm you are 18 or over before contributing.",
+      },
+      httpStatus: 409,
+    });
+    const read = await GET(new Request("http://localhost/api/step-out-nudge"));
+    expect(read.status).toBe(200);
+    await expect(read.json()).resolves.toEqual({
+      status: "adult_check_required",
+      error: "Confirm you are 18 or over before contributing.",
+    });
+
+    const write = await POST(
+      new Request("http://localhost/api/step-out-nudge", {
+        method: "POST",
+        body: JSON.stringify({ enabled: true, token: TOKEN }),
+      }),
+    );
+    expect(write.status).toBe(409);
+  });
+
   it("returns default-off for a signed-in owner", async () => {
     const response = await GET(new Request("http://localhost/api/step-out-nudge"));
     expect(response.status).toBe(200);

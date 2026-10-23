@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { defined } from "@/__tests__/helpers/defined";
 import {
   bboxContainsPoint,
   bboxIntersects,
@@ -8,6 +9,7 @@ import {
   shardsForBounds,
   shardForPoint,
   type MapBounds,
+  type ShardEntry,
   type ShardManifest,
 } from "@/lib/slimShards";
 import { offlineCache } from "@/lib/offlineCache";
@@ -99,6 +101,118 @@ describe("slimShards pure geometry", () => {
   });
 });
 
+describe("foreground viewport reads under shard contention", () => {
+  const realFetch = globalThis.fetch;
+  const revision = "foreground-regression";
+
+  beforeEach(() => {
+    vi.stubEnv("NODE_ENV", "production");
+    vi.stubEnv("NEXT_PUBLIC_SW_VERSION", revision);
+    vi.resetModules();
+  });
+
+  afterEach(() => {
+    globalThis.fetch = realFetch;
+    vi.unstubAllEnvs();
+    vi.resetModules();
+  });
+
+  it.each([
+    { title: "serves a new viewport before queued neighbours", source: "neighbours", queued: false },
+    { title: "promotes a queued neighbour when it becomes visible", source: "neighbours", queued: true },
+    { title: "promotes a visible target ahead of queued all() reads", source: "all", queued: true },
+  ])("$title", async ({ source, queued }) => {
+    const { createSlimShardLoader } = await import("@/lib/slimShards");
+    const neighbours = [-1, 0, 1].flatMap((column) =>
+      [-1, 0, 1].map((row): ShardEntry => ({
+        id: `pan-neighbour-${column}-${row}`,
+        core: column === 0 && row === 0,
+        partition: "grid",
+        url: `/data/pan-neighbour-${column}-${row}.json`,
+        count: 1,
+        bbox: [column, 51 + row, column + 1, 52 + row],
+      })),
+    );
+    const target: ShardEntry = queued
+      ? defined(neighbours[8], "queued viewport target")
+      : {
+          id: "new-pan-target", core: false, partition: "grid",
+          url: "/data/new-pan-target.json", count: 1, bbox: [5, 51, 6, 52],
+        };
+    const shards = queued ? neighbours : [...neighbours, target];
+    const requestKey = (shard: ShardEntry) => `${shard.url}?v=${revision}`;
+    const rowFor = (shard: ShardEntry) =>
+      slimRow(shard.id, shard.bbox[1] + 0.5, shard.bbox[0] + 0.5);
+    const byKey = new Map(shards.map((shard) => [requestKey(shard), shard]));
+    const held = new Map<string, () => void>();
+    const requests: string[] = [];
+    let active = 0;
+    let peak = 0;
+    globalThis.fetch = (input: RequestInfo | URL) => {
+      const key = String(input);
+      if (key === `/data/venues_slim.manifest.json?v=${revision}`) {
+        return Promise.resolve(Response.json({ ...MANIFEST, revision, shards }));
+      }
+      requests.push(key);
+      const shard = defined(byKey.get(key), `shard for request ${key}`);
+      if (held.has(key)) throw new Error(`duplicate pending request ${key}`);
+      active += 1;
+      peak = Math.max(peak, active);
+      return new Promise<Response>((resolve) => {
+        held.set(key, () => {
+          held.delete(key);
+          active -= 1;
+          resolve(Response.json({ revision, rows: [rowFor(shard)] }));
+        });
+      });
+    };
+    const answer = (key: string) => defined(held.get(key), `pending request ${key}`)();
+    const loader = createSlimShardLoader("london", { bypassInFlight: true });
+    const background = source === "all"
+      ? loader.all()
+      : loader.inBounds({ west: 0.1, south: 51.1, east: 0.9, north: 51.9 }, 1);
+    const viewportReads: Array<ReturnType<typeof loader.inBounds>> = [];
+    const targetKey = requestKey(target);
+    const bounds = {
+      west: target.bbox[0] + 0.1, south: target.bbox[1] + 0.1,
+      east: target.bbox[2] - 0.1, north: target.bbox[3] - 0.1,
+    };
+    try {
+      await vi.waitFor(() => expect(requests).toHaveLength(4));
+      expect(active).toBe(4);
+      expect(requests).not.toContain(targetKey);
+      expect(loader.coverageComplete(bounds)).toBe(false);
+      viewportReads.push(loader.inBounds(bounds), loader.inBounds(bounds));
+      // The settled manifest resumes both viewport calls before a slot opens.
+      await Promise.resolve();
+      expect(requests).toHaveLength(4);
+      answer(defined(requests[0], "first active request"));
+      await vi.waitFor(() => expect(requests).toHaveLength(5));
+      expect(requests[4]).toBe(targetKey);
+      answer(targetKey);
+      for (const viewport of viewportReads) {
+        await expect(viewport).resolves.toEqual([rowFor(target)]);
+      }
+      expect(loader.coverageComplete(bounds)).toBe(true);
+    } finally {
+      // Drain every held response even when the dispatch-order assertion fails.
+      await vi.waitFor(() => {
+        for (const release of [...held.values()]) release();
+        expect(requests).toHaveLength(shards.length);
+        expect(active).toBe(0);
+      });
+      await Promise.all([background, ...viewportReads]);
+    }
+    expect((await background).map((row) => row.id).sort()).toEqual(
+      neighbours.map((shard) => shard.id).sort(),
+    );
+    expect([...requests].sort()).toEqual(shards.map(requestKey).sort());
+    expect(peak).toBe(4);
+    expect(active).toBe(0);
+    expect(held.size).toBe(0);
+  });
+});
+
 describe("parseShardManifest", () => {
   it("accepts a well-formed manifest and rejects malformed ones", () => {
     expect(parseShardManifest(MANIFEST)?.shards.length).toBe(3);
@@ -177,6 +291,93 @@ describe("createSlimShardLoader (London)", () => {
   afterEach(() => {
     globalThis.fetch = realFetch;
     vi.restoreAllMocks();
+  });
+
+  it("bounds overlapping viewport and all reads without losing or duplicating shards", async () => {
+    const shards = Array.from({ length: 9 }, (_, index) => ({
+      id: `bounded-${index}`, core: index === 0,
+      url: `/data/bounded-${index}.json`, count: 1,
+      bbox: [-0.2, 51.45, 0.1, 51.55] as [number, number, number, number],
+    }));
+    const manifest = { ...MANIFEST, shards };
+    const held = new Map<string, (response: Response) => void>();
+    const requests: string[] = [];
+    let active = 0;
+    let peak = 0;
+    globalThis.fetch = vi.fn((input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url === "/data/venues_slim.manifest.json") {
+        return Promise.resolve({ ok: true, json: async () => manifest } as Response);
+      }
+      requests.push(url);
+      active += 1;
+      peak = Math.max(peak, active);
+      return new Promise<Response>((resolve) => held.set(url, (response) => {
+        active -= 1;
+        resolve(response);
+      }));
+    }) as typeof fetch;
+    const loader = createSlimShardLoader("london");
+    const bounds = { west: -0.2, south: 51.45, east: 0.1, north: 51.55 };
+    const initial = loader.initialResult(bounds);
+    const all = loader.all();
+    await vi.waitFor(() => expect(held.size).toBeGreaterThanOrEqual(4));
+    const initiallyDispatched = requests.length;
+    expect(loader.coverageComplete(bounds)).toBe(false);
+    for (const shard of shards) {
+      await vi.waitFor(() => expect(held.has(shard.url)).toBe(true));
+      held.get(shard.url)!({ ok: true, json: async () => [slimRow(shard.id, 51.5, -0.1)] } as Response);
+    }
+    const [first, complete] = await Promise.all([initial, all]);
+    expect(first.status).toBe("ready");
+    expect(first.rows.map((row) => row.id)).toEqual(shards.map((shard) => shard.id));
+    expect(complete.map((row) => row.id)).toEqual(shards.map((shard) => shard.id));
+    expect(new Set(requests).size).toBe(9);
+    expect(requests).toHaveLength(9);
+    expect(initiallyDispatched).toBe(4);
+    expect(peak).toBe(4);
+    expect(active).toBe(0);
+    expect(loader.coverageComplete(bounds)).toBe(true);
+  });
+
+  it("releases a failed shard slot and retries that shard without losing queued rows", async () => {
+    const shards = Array.from({ length: 5 }, (_, index) => ({
+      id: `retry-${index}`, core: index === 0,
+      url: `/data/bounded-retry-${index}.json`, count: 1,
+      bbox: [-0.2, 51.45, 0.1, 51.55] as [number, number, number, number],
+    }));
+    vi.spyOn(offlineCache, "get").mockResolvedValue(null);
+    const held = new Map<string, { resolve: (response: Response) => void; reject: (error: Error) => void }>();
+    const counts = new Map<string, number>();
+    globalThis.fetch = vi.fn((input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url === "/data/venues_slim.manifest.json") {
+        return Promise.resolve({ ok: true, json: async () => ({ ...MANIFEST, shards }) } as Response);
+      }
+      counts.set(url, (counts.get(url) ?? 0) + 1);
+      return new Promise<Response>((resolve, reject) => held.set(url, { resolve, reject }));
+    }) as typeof fetch;
+    const loader = createSlimShardLoader("london");
+    const bounds = { west: -0.2, south: 51.45, east: 0.1, north: 51.55 };
+    const initial = loader.initialResult(bounds);
+    await vi.waitFor(() => expect(held.size).toBeGreaterThanOrEqual(4));
+    const initiallyDispatched = held.size;
+    held.get(shards[0]!.url)!.reject(new Error("cellar signal"));
+    await vi.waitFor(() => expect(held.has(shards[4]!.url)).toBe(true));
+    for (const shard of shards.slice(1)) {
+      held.get(shard.url)!.resolve({ ok: true, json: async () => [slimRow(shard.id, 51.5, -0.1)] } as Response);
+    }
+    const first = await initial;
+    expect(first.status).toBe("unavailable");
+    expect(first.rows.map((row) => row.id)).toEqual(shards.slice(1).map((shard) => shard.id));
+    expect(loader.coverageComplete(bounds)).toBe(false);
+    const retry = loader.initialResult(bounds);
+    await vi.waitFor(() => expect(counts.get(shards[0]!.url)).toBe(2));
+    held.get(shards[0]!.url)!.resolve({ ok: true, json: async () => [slimRow(shards[0]!.id, 51.5, -0.1)] } as Response);
+    await expect(retry).resolves.toEqual({ rows: [slimRow(shards[0]!.id, 51.5, -0.1)], status: "ready" });
+    expect(loader.coverageComplete(bounds)).toBe(true);
+    for (const shard of shards.slice(1)) expect(counts.get(shard.url)).toBe(1);
+    expect(initiallyDispatched).toBe(4);
   });
 
   it("core() loads only the manifest + core shard (first-paint stays lean)", async () => {

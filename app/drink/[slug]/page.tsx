@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import { headers } from "next/headers";
 import { notFound } from "next/navigation";
 
 import DrinkBrandLandingContent from "@/components/drinks/DrinkBrandLandingContent";
@@ -22,9 +21,17 @@ import "@/components/drinks/drinkBrandDirectory.css";
 
 type PageProps = { params: Promise<{ slug: string }> };
 
-// Every page here reads the per-request CSP nonce, so the document is dynamic
-// and a `revalidate` window would bound nothing. `dynamicParams` is the real
-// gate: only a slug the loader publishes renders at all.
+// THIS DOCUMENT IS PRERENDERED (task vercel-f2-seo-cdn, recorded in proxy.ts
+// beside CDN_CACHED_DOCUMENT_ROUTES): it drops the per-request CSP nonce so the
+// Vercel CDN can hold it. It renders only bundled data and reads no cookie, no
+// header and no search param. `__tests__/cdnCachedDocuments.test.ts` holds
+// both rules.
+export const dynamic = "force-static";
+// The data changes only on a deploy, so an hour is the same quiet ceiling
+// `/map` takes: it bounds how long a stale copy can outlive a change nobody
+// redeployed for.
+export const revalidate = 3600;
+// Only a slug the loader publishes renders at all.
 export const dynamicParams = false;
 
 export async function generateStaticParams(): Promise<Array<{ slug: string }>> {
@@ -73,15 +80,14 @@ export default async function DrinkBrandLandingPage({ params }: PageProps) {
   const landing = await loadDrinkBrandLanding(slug);
   if (!landing) notFound();
 
-  const [nonce, mapSelectableVenueIds, areaLandings] = await Promise.all([
-    headers().then((store) => store.get("x-nonce") ?? undefined),
+  const [mapSelectableVenueIds, areaLandings] = await Promise.all([
     loadMapSelectableVenueIds(),
     loadDrinkBrandAreaLandingsForBrand(landing.slug),
   ]);
 
   return (
     <main id="main" className="drinkBrandLanding">
-      <JsonLd data={drinkBrandLandingJsonLd(landing)} nonce={nonce} />
+      <JsonLd data={drinkBrandLandingJsonLd(landing)} />
       <SiteNav />
       <DrinkBrandLandingContent
         landing={landing}

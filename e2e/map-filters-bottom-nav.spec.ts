@@ -1,4 +1,5 @@
 import { test, expect, type Page } from "@playwright/test";
+import { mobileMapShellControl } from "./helpers/mobileMapShell";
 
 test.beforeEach(async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
@@ -17,7 +18,7 @@ test.describe("map filters sheet and bottom navigation", () => {
   test("primary tabs stay tappable above an open filters sheet", async ({ page }) => {
     await page.goto("/map");
 
-    await page.getByRole("button", { name: /Filters/i }).click();
+    await (await mobileMapShellControl(page, "filters")).click();
     const sheet = page.locator('.mobileSheetPortal[data-sheet-kind="filters"]');
     await expect(sheet).toBeVisible();
 
@@ -46,7 +47,7 @@ test.describe("map filters sheet and bottom navigation", () => {
     await expect(pill).toHaveCount(1, { timeout: 30_000 });
     await expect(pill).toBeHidden();
 
-    await page.getByRole("button", { name: /Filters/i }).click();
+    await (await mobileMapShellControl(page, "filters")).click();
     await expect(page.locator('.mobileSheetPortal[data-sheet-kind="filters"]')).toBeVisible();
 
     await expect(consent).toBeHidden();

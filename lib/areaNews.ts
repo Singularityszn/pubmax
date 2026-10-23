@@ -15,7 +15,8 @@
 // The dataset loader lives in areaNews.server.ts. This module is imported by
 // client components, so it must remain free of Node built-ins.
 
-import { LONDON_BOROUGHS, slugifyBorough } from "@/lib/boroughs";
+import { LONDON_BOROUGH_NAMES } from "@/lib/londonBoroughNames.mjs";
+import { slugifyVenueName as slugifyBorough } from "@/lib/venuePermalinkSlug";
 import { NIGHT_AREA_SLUGS, type NightAreaSlug } from "@/lib/nightAreas";
 
 export const AREA_NEWS_KINDS = [
@@ -52,6 +53,8 @@ export type AreaNewsEntry = {
 export type AreaNewsDataset = {
   version: number;
   generatedAt: string;
+  /** The newest entry observedAt: what the freshness registry dates this lane by. */
+  latestObservedAt?: string;
   entries: AreaNewsEntry[];
 };
 
@@ -60,7 +63,7 @@ export type AreaNewsDataset = {
 export const NEW_ROUND_HERE_CAP = 3;
 
 /** A dated fact may only support the "New round here" claim for 21 days. */
-const AREA_NEWS_MAX_AGE_DAYS = 21;
+export const AREA_NEWS_MAX_AGE_DAYS = 21;
 
 // Short, dry labels for each kind. No exclamation, no hype — the fact carries
 // the weight.
@@ -91,7 +94,7 @@ export function formatAreaNewsDate(iso: string): string {
 // Real Greater London borough slugs, mapped to their display names. A dataset
 // entry whose `area` is one of these needs no further lookup — it IS a borough.
 const BOROUGH_SLUG_TO_NAME = new Map<string, string>(
-  LONDON_BOROUGHS.map((name) => [slugifyBorough(name), name]),
+  LONDON_BOROUGH_NAMES.map((name) => [slugifyBorough(name), name]),
 );
 
 type AreaMeta = {

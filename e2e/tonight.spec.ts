@@ -32,6 +32,12 @@ async function mockReadyEmptyOut(page: Page) {
   );
 }
 
+async function expectNoEventsWithPubSuggestions(page: Page) {
+  await expect(page.getByTestId("tonight-hyped-row").first()).toBeVisible();
+  await expect(page.locator(".tonightStatus").filter({ hasText: "No confirmed events listed tonight." })).toBeVisible();
+  await expect(page.getByText(/having a quiet one tonight/i)).toHaveCount(0);
+}
+
 test.beforeEach(async ({ page }) => {
   await page.addInitScript(() => {
     window.localStorage.setItem("pubmax-tour-v1-done", "1");
@@ -77,7 +83,7 @@ test("unknown source freshness never displays request time as checked", async ({
       status: 200,
       contentType: "application/json",
       body: JSON.stringify({
-        servedAt: "2026-07-15T21:59:59.000Z",
+        servedAt: new Date().toISOString(),
         sourceObservedAt: null,
         sourceFreshnessKind: "unknown",
         localityBasis: "london-default",
@@ -91,7 +97,7 @@ test("unknown source freshness never displays request time as checked", async ({
             startsAt: futureListingStart(),
             title: "Quiz night",
             source: { label: "Pub listing", url: "https://example.com/quiz" },
-            observedAt: "2026-07-15T21:59:59.000Z",
+            observedAt: new Date(Date.now() - 60_000).toISOString(),
             confidence: "listed",
           },
         ],
@@ -185,6 +191,7 @@ test("location is opt-in, removable, and only used for local walk times", async 
       status: 200,
       contentType: "application/json",
       body: JSON.stringify({
+        servedAt: new Date().toISOString(),
         asOf: "2026-07-15T18:00:00.000Z",
         rows: [
           {
@@ -195,7 +202,7 @@ test("location is opt-in, removable, and only used for local walk times", async 
             startsAt: futureListingStart(),
             title: "Quiz night",
             source: { label: "Pub listing", url: "https://example.com/quiz" },
-            observedAt: "2026-07-14T18:00:00.000Z",
+            observedAt: new Date(Date.now() - 60_000).toISOString(),
             confidence: "listed",
             lat: 51.51,
             lng: -0.13,
@@ -266,31 +273,31 @@ test("a failed listings request can be retried", async ({ page }) => {
     await route.fulfill({
       status: 200,
       contentType: "application/json",
-      body: JSON.stringify({ rows: [], asOf: "2026-07-15T18:00:00.000Z" }),
+      body: JSON.stringify({ rows: [], servedAt: new Date().toISOString(), asOf: "2026-07-15T18:00:00.000Z" }),
     });
   });
 
   await page.goto("/tonight");
   await page.getByRole("button", { name: "Retry listings" }).click();
   // The retry succeeded and returned no rows, so both lanes answered with
-  // nothing: an empty night, not an error, and said in the empty state's own
-  // sentence rather than left as a silent room.
+  // no events. Sourced pub suggestions still prevent a quiet-city claim.
   await expect(page.getByTestId("tonight-screen")).toHaveAttribute(
     "data-listings-status",
     "empty",
   );
-  await expect(page.getByText(/having a quiet one tonight/i)).toBeVisible();
+  await expectNoEventsWithPubSuggestions(page);
   await expect(page.locator('[data-tonight-provenance="whats-on"]')).toHaveText(
-    /^Quiet night · /,
+    /^No events listed · /,
   );
   expect(requests).toBe(2);
 });
 
-// First-run chrome leads with the loop (find, plan, go), never with Social or
-// Moment. A stranger on the phone home screen meets this dock first, and every
-// tab in it must answer without asking them to sign in: Social did not
-// ("Sign in to use Social."), which is why it left the dock for More.
-test("the first-run dock leads with the loop and no tab asks a stranger to sign in", async ({
+// First-run chrome leads with the loop (find, plan, go), never with Moment. A
+// stranger on the phone home screen meets this dock first. Social is a main tab
+// by the captain's call (16 Oct 2026) and is the one tab that may ask a
+// stranger to sign in ("Sign in to use Social."); every other tab answers
+// without asking.
+test("the first-run dock leads with the loop and only Social may ask a stranger to sign in", async ({
   page,
 }) => {
   await page.setViewportSize({ width: 390, height: 844 });
@@ -298,14 +305,15 @@ test("the first-run dock leads with the loop and no tab asks a stranger to sign 
 
   const dock = page.getByRole("navigation", { name: "Primary" });
   const tabs = dock.getByRole("link");
-  await expect(tabs).toHaveText(["Tonight", "Map", "Places", "Out", "Plan", "You"]);
-  await expect(dock.locator('a[href^="/social"], a[href^="/moment"]')).toHaveCount(0);
+  // Five destinations, and the Pub Pal's own door between Tonight and Plan.
+  await expect(tabs).toHaveText(["Map", "Tonight", "Pal", "Plan", "Social", "You"]);
+  await expect(dock.locator('a[href^="/moment"]')).toHaveCount(0);
 
   const hrefs = await tabs.evaluateAll((links) =>
     links.map((link) => link.getAttribute("href") ?? ""),
   );
   expect(hrefs).toHaveLength(6);
-  for (const href of hrefs) {
+  for (const href of hrefs.filter((candidate) => !candidate.startsWith("/social"))) {
     const response = await page.goto(href, { waitUntil: "domcontentloaded" });
     expect(response?.status(), `${href} answers`).toBeLessThan(400);
     await expect(page.getByRole("navigation", { name: "Primary" })).toBeVisible();
@@ -392,7 +400,7 @@ function ticketmasterOnlyRows(now = Date.now()) {
   ];
 }
 
-test("leads with the quiet-night sentence when the whole feed is Ticketmaster", async ({
+test("scopes the empty answer to events when the whole feed is Ticketmaster", async ({
   page,
 }) => {
   const rows = ticketmasterOnlyRows();
@@ -401,6 +409,7 @@ test("leads with the quiet-night sentence when the whole feed is Ticketmaster", 
       status: 200,
       contentType: "application/json",
       body: JSON.stringify({
+        servedAt: new Date().toISOString(),
         rows,
         asOf: "2026-09-05T12:00:00.000Z",
         sourceObservedAt: "2026-09-05T12:00:00.000Z",
@@ -434,9 +443,9 @@ test("leads with the quiet-night sentence when the whole feed is Ticketmaster", 
     "data-listings-status",
     "empty",
   );
-  await expect(page.getByText(/having a quiet one tonight/i)).toBeVisible();
+  await expectNoEventsWithPubSuggestions(page);
   await expect(page.locator('[data-tonight-provenance="whats-on"]')).toHaveText(
-    /^Quiet night · /,
+    /^No events listed · /,
   );
 
   // No Ticketmaster title reaches the first screen, whatever kind it arrived as.
@@ -456,6 +465,7 @@ test("does not promote Out theatre rows when What's-On answered empty", async ({
       status: 200,
       contentType: "application/json",
       body: JSON.stringify({
+        servedAt: new Date().toISOString(),
         rows: [],
         asOf: "2026-08-16T12:00:00.000Z",
         sourceObservedAt: "2026-08-16T12:00:00.000Z",
@@ -484,7 +494,7 @@ test("does not promote Out theatre rows when What's-On answered empty", async ({
     page.getByRole("heading", { name: "A Night at the Playhouse" }),
   ).toHaveCount(0);
   await expect(page.getByTestId("tonight-screen")).toHaveAttribute("data-listings-status", "empty");
-  await expect(page.getByText(/having a quiet one tonight/i)).toBeVisible();
+  await expectNoEventsWithPubSuggestions(page);
 });
 
 test("a degraded Out lane still names itself beside the cards it did return", async ({
@@ -496,6 +506,7 @@ test("a degraded Out lane still names itself beside the cards it did return", as
       status: 200,
       contentType: "application/json",
       body: JSON.stringify({
+        servedAt: new Date().toISOString(),
         rows: [
           {
             id: "quiz-primary",
@@ -554,6 +565,7 @@ test("a hung Out read settles instead of pinning the loading skeleton", async ({
       status: 200,
       contentType: "application/json",
       body: JSON.stringify({
+        servedAt: new Date().toISOString(),
         rows: [],
         asOf: "2026-08-16T12:00:00.000Z",
         sourceObservedAt: "2026-08-16T12:00:00.000Z",
@@ -618,6 +630,7 @@ async function mockTonightSpine(page: Page, rows: unknown[]) {
       status: 200,
       contentType: "application/json",
       body: JSON.stringify({
+        servedAt: new Date().toISOString(),
         rows,
         asOf: "2026-08-16T12:00:00.000Z",
         sourceObservedAt: "2026-08-16T12:00:00.000Z",
@@ -669,7 +682,7 @@ test("the first screen leads with the pub, not a JDW deal or a Ticketmaster even
   );
 });
 
-test("a night of only excluded rows reads as the honest quiet night", async ({ page }) => {
+test("a night of only excluded rows keeps pub suggestions and an event-scoped empty answer", async ({ page }) => {
   const now = Date.now();
   await mockTonightSpine(page, [jdwCurryClub(now)]);
   await page.route("**/api/out?**", (route) =>
@@ -693,7 +706,7 @@ test("a night of only excluded rows reads as the honest quiet night", async ({ p
     "data-listings-status",
     "empty",
   );
-  await expect(page.getByText(/having a quiet one tonight/i)).toBeVisible();
+  await expectNoEventsWithPubSuggestions(page);
   // Scoped to the lede region on purpose (#1627, app/AGENTS.md). The
   // Wetherspoon block below it still carries the JDW row under the chain's own
   // name, and taking it off the page would drop a real deal; what the contract

@@ -11,11 +11,13 @@ export interface UkVenueTaxonomyRow {
   note: string;
 }
 
+export const ALCOHOLIC_DRINK_KEYS: string[];
 export const UK_VENUE_TAXONOMY: UkVenueTaxonomyRow[];
 export const UK_VENUE_GROUPS: string[];
 export const UK_VENUE_QUERY_SCOPES: string[];
 export const UK_VENUE_KINDS: string[];
 
+export function statesAlcohol(tags: Record<string, string>): boolean;
 export function taxonomyForScope(scope: string): UkVenueTaxonomyRow[];
 export function classifyVenueTags(
   tags: Record<string, string> | undefined,

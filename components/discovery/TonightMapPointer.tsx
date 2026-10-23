@@ -16,13 +16,13 @@ export default function TonightMapPointer() {
     <section className="dealsTonight" aria-labelledby="tonight-map-pointer-title">
       <div className="dealsTonightHead">
         <h2 id="tonight-map-pointer-title">
-          <Sparkles size={18} aria-hidden="true" />
+          <Sparkles size={16} aria-hidden="true" />
           <span>On tonight</span>
         </h2>
       </div>
       <p className="dealsTonightLead">
-        Quiz, screens, deals, and live music live on the map Tonight lane, the
-        same `/api/whats-on` spine, with pin badges and kind filters.
+        Quizzes, screenings, deals and live music are in the map&rsquo;s Tonight
+        lane, with badges on the pins and filters by kind.
       </p>
       <Link prefetch={false}
         className="dealsTonightMap"

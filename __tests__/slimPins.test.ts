@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 
-import { slimVenueToPin, slimVenuesToPins } from "@/lib/slimPins";
+import { pinsToSlimVenues, slimVenueToPin, slimVenuesToPins } from "@/lib/slimPins";
 import type { SlimVenue } from "@/lib/venuesSlim";
 
 const slim: SlimVenue = {
@@ -10,6 +10,7 @@ const slim: SlimVenue = {
   lng: -0.0498,
   cheapestPrice: 5.2,
   borough: "Tower Hamlets",
+  locality: "Wapping",
   filterHints: {
     searchText: "prospect of whitby wine",
     amenities: {
@@ -28,6 +29,15 @@ const slim: SlimVenue = {
 };
 
 describe("slimVenueToPin", () => {
+  it("carries documented London accessibility before detail hydrates", () => {
+    expect(slimVenueToPin({ ...slim, name: "The Ice Wharf - JD Wetherspoon", borough: "Camden" }).accessibility?.stepFree).toBe(true);
+    expect(slimVenueToPin({ ...slim, name: "The Crosse Keys" }).accessibility).toMatchObject({ stepFree: false, accessibleToilet: true });
+  });
+
+  it.each(["venue-mcr-abc123", "venue-xyz-abc123", "venue-uk-n123"])("does not give London access facts to %s", (id) => {
+    expect(slimVenueToPin({ ...slim, id, name: "The Ice Wharf - JD Wetherspoon", borough: "Camden" }).accessibility).toBeUndefined();
+  });
+
   it("maps the pin-critical fields straight through", () => {
     const pin = slimVenueToPin(slim);
     expect(pin.id).toBe("venue-abc123");
@@ -36,6 +46,23 @@ describe("slimVenueToPin", () => {
     expect(pin.longitude).toBe(-0.0498);
     expect(pin.cheapestPrice).toBe(5.2);
     expect(pin.primaryBorough).toBe("Tower Hamlets");
+    expect(pin.locality).toBe("Wapping");
+  });
+
+  it("recovers slim addresses from the compact search contract", () => {
+    const pin = slimVenueToPin({
+      ...slim,
+      name: "The Sir Christopher Hatton",
+      borough: "Camden",
+      locality: "Hatton Garden",
+      filterHints: {
+        ...slim.filterHints!,
+        searchText:
+          "the sir christopher hatton 4 leather lane, holborn, ec1n 7ra, london camden",
+      },
+    });
+
+    expect(pin.address).toBe("4 leather lane, holborn, ec1n 7ra, london");
   });
 
   it("preserves a null cheapestPrice (bucketed as no-price by the canvas)", () => {
@@ -117,5 +144,14 @@ describe("slimVenuesToPins", () => {
 
   it("returns [] for an empty input", () => {
     expect(slimVenuesToPins([])).toEqual([]);
+  });
+});
+
+describe("pinsToSlimVenues", () => {
+  it("keeps the published price's read day in the resume snapshot, so a restored pin is not aged", () => {
+    const pin = slimVenueToPin({ ...slim, priceObservedAt: "2026-10-01" });
+    const compacted = pinsToSlimVenues([pin])[0]!;
+    expect(compacted.priceObservedAt).toBe("2026-10-01");
+    expect(slimVenueToPin(compacted).priceObservedAt).toBe("2026-10-01");
   });
 });

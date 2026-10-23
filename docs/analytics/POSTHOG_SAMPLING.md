@@ -1,23 +1,24 @@
-# PostHog sampling (free tier)
+# PostHog browser SDK features
 
 Project: PostHog EU (pubmaxxing.com).
 
-## Session replay
+## Off: replay, heatmaps, surveys, identify and flags
 
-- **Sample rate:** `0.1` (10% of consented sessions), defined in `lib/posthog/posthogSampling.ts` as `POSTHOG_SESSION_RECORDING_SAMPLE_RATE`.
-- Replay only starts after analytics consent; the browser SDK uses the first-party `/ingest` proxy.
-- At ~60 monthly visitors this stays well inside PostHog's free replay allowance; raise the rate only after checking the PostHog usage dashboard.
+- Session replay, heatmaps, surveys and feature flags are off in `posthogBrowserConfig` (`lib/posthogClient.ts`). The privacy page promises all of them are off.
+- The browser SDK never calls `identify`. Every browser event carries the consented `anon_` device id only. A browser that a past release identified is reset to a fresh anonymous person when the SDK boots.
+- `before_send` (`sanitizePosthogEvent`) keeps only `$pageview`, `$web_vitals`, `$exception` and the closed `map_load_timing` shape (`lib/mapLoadTimingEvent.ts`). It cannot see the `/flags` request, so flags stay off at the config level. It keeps `$lib_custom_api_host`, which PostHog's reverse-proxy health check reads.
+- `$web_vitals` is the one field-vitals pipeline. There is no `web_vital` product event.
+- `$pageleave` is off: it carries time on page and scroll depth, which the privacy page does not list. Turning it on needs a privacy page change in the same PR.
+- Capture is batched (`request_batching: true`), so one `/ingest` request carries a page's pageview, vitals and any exception.
+- Turning any of these on needs text masking, blocked message, admin and account surfaces, and a privacy page change in the same PR.
+- Fence: `__tests__/posthogSdkBoundary.test.ts` drives the real SDK with a stubbed fetch and a server config that switches every feature on.
 
 ## Product events
 
 - Named journeys use `trackEvent` → `/api/events` (closed registry in `lib/analyticsEvents.ts`).
+- The relay stamps `$lib: "pubmaxx-events-relay"`, the browser SDK's `$session_id` (sent by the browser, UUIDv7-checked by the route) and a `$current_url` / `$pathname` built from the same coarse surface path, so a named event joins its session. It still carries no `$host`; `environment` is the filter. A session id minted on a clock up to 5 minutes ahead moves the event's timestamp up to the session start (PostHog drops an event dated before its session); further ahead, the session id is dropped. Server-originated events carry `$lib: "pubmaxx-server"`.
 - Event names for dashboards: `docs/analytics/POSTHOG_EVENT_NAMES.md`.
 
-## Heatmaps
+## Source maps
 
-- Enabled via `capture_heatmaps` on the browser SDK (not full DOM autocapture).
-
-## Feature flags
-
-- Flags load with the browser SDK after consent (`advanced_disable_flags: false` in `lib/posthogClient.ts`). No product behaviour reads a flag yet.
-- To read a flag, use `useFeatureFlagEnabled` from `posthog-js/react` inside a `PostHogProvider` that receives the consented client. It returns `undefined` until consent is granted and flags load, so treat `undefined` as off.
+- Production builds ship no browser source maps. Browser exceptions carry only a safe error type and a redacted value, so a map would deobfuscate nothing.

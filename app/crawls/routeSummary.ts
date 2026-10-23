@@ -7,7 +7,9 @@
 // invented ones. Mirrors lib/routeLegs semantics ("straight-line", ceil to a
 // whole minute, never "0 min") without importing the Venue-typed leg builder.
 
+import { curatedCrawls, type CuratedCrawl } from "@/lib/curatedCrawls";
 import { formatGbp } from "@/lib/formatGbp";
+import { getRoutePack } from "@/lib/routePacks";
 import { haversineKm } from "@/lib/haversine";
 import { WALK_KMH } from "@/lib/routeLegs";
 import type { SlimVenue } from "@/lib/venuesSlim";
@@ -38,16 +40,13 @@ export function buildCrawlRouteSummary(
   }
   if (points.length < 2) return undefined;
   let totalKm = 0;
-  for (let i = 0; i < points.length - 1; i += 1) {
-    totalKm += haversineKm(points[i], points[i + 1]);
+  for (let i = 1; i < points.length; i += 1) {
+    const from = points[i - 1];
+    const to = points[i];
+    if (from && to) totalKm += haversineKm(from, to);
   }
   const totalMinutes = Math.max(1, Math.ceil((totalKm / WALK_KMH) * 60));
   return { totalKm, totalMinutes, points };
-}
-
-/** "24 min walk · 1.8 km, straight-line" — same framing as lib/routeLegs. */
-export function formatCrawlRouteSummary(summary: CrawlRouteSummary): string {
-  return `${summary.totalMinutes} min walk · ${summary.totalKm.toFixed(1)} km, straight-line`;
 }
 
 export type CrawlPriceRange = { minGbp: number; maxGbp: number };
@@ -70,9 +69,23 @@ export function crawlPriceRange(
   return { minGbp: Math.min(...prices), maxGbp: Math.max(...prices) };
 }
 
-/** "£4.20–£6.50", collapsing to "£4.20" when min === max. */
+/** "£4.20-£6.50", collapsing to "£4.20" when min === max. A hyphen, never an
+ * en dash (docs/VOICE.md, "The em-dash law"). */
 export function formatPriceRange(range: CrawlPriceRange): string {
   return range.minGbp === range.maxGbp
     ? formatGbp(range.minGbp)
-    : `${formatGbp(range.minGbp)}–${formatGbp(range.maxGbp)}`;
+    : `${formatGbp(range.minGbp)}-${formatGbp(range.maxGbp)}`;
+}
+
+/**
+ * The curated crawls a /crawls view lists, in order: every one, or a route
+ * pack's own (?pack=id). The first is the featured crawl. One function, so the
+ * server page that picks the featured crawl's photograph and the client page
+ * that renders it cannot disagree about which crawl that is.
+ */
+export function visibleCuratedCrawls(packId: string | undefined): CuratedCrawl[] {
+  const pack = packId ? getRoutePack(packId) : undefined;
+  if (!pack) return curatedCrawls;
+  const ids = new Set(pack.crawlIds);
+  return curatedCrawls.filter((crawl) => ids.has(crawl.id));
 }

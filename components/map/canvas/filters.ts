@@ -1,9 +1,14 @@
 import type * as maplibregl from "maplibre-gl";
+import { DONUT_CAPTION_SCALE } from "@/lib/donutClusterGeometry";
 import { iconId } from "@/lib/mapIcons";
 import { offsetIndexForLine } from "@/lib/tubeOffsets";
 import { TRANSPORT_CATEGORIES, type PoiCategory } from "@/lib/pois";
 import type { ThingsToDoOpportunity } from "@/lib/citymcp/client";
 import {
+  AMBIENT_MOTION_EASE_MS,
+  AMBIENT_MOTION_WINDOW_MS,
+  GLOW_BASE_STROKE_OPACITY,
+  GLOW_SELECTED_STROKE_WIDTH,
   SELECTION_DIM_OPACITY,
   GLOW_PULSE_PERIOD_MS,
   GLOW_PULSE_MIN_OPACITY,
@@ -238,6 +243,183 @@ export const SELECTED_PIN_PRICE_LABEL_EXPR: maplibregl.ExpressionSpecification =
 ];
 
 /**
+ * What a cluster's `minPrice` reads when none of its pubs says a price. The
+ * reduce in buildScene's clusterProperties is a `min`, which has no "nothing"
+ * to start from, so a silent pub contributes this instead and a cluster still
+ * at this figure prints its count.
+ */
+export const CLUSTER_PRICE_NONE = 9999;
+
+/**
+ * A cluster disc's figure: the CHEAPEST price any pub inside it says, written
+ * the way a pin writes one (`formatPinPriceLabel` in ./geojson - whole pounds
+ * drop the pence, anything else keeps both decimals), or the count where no pub
+ * in it says a price. The twin of that function, because a cluster label is a
+ * claim exactly as a pin tag is and the two must never disagree on a figure.
+ */
+export const CLUSTER_FIGURE_EXPR: maplibregl.ExpressionSpecification = (() => {
+  const minPrice: maplibregl.ExpressionSpecification = [
+    "coalesce",
+    ["get", "minPrice"],
+    CLUSTER_PRICE_NONE,
+  ];
+  const pence: maplibregl.ExpressionSpecification = ["round", ["*", minPrice, 100]];
+  const pounds: maplibregl.ExpressionSpecification = ["/", pence, 100];
+  return [
+    "case",
+    ["<", minPrice, CLUSTER_PRICE_NONE],
+    [
+      "case",
+      ["==", ["%", pence, 100], 0],
+      ["concat", "£", ["to-string", pounds]],
+      [
+        "concat",
+        "£",
+        ["number-format", pounds, { locale: "en-GB", "min-fraction-digits": 2, "max-fraction-digits": 2 }],
+      ],
+    ],
+    ["to-string", ["get", "point_count_abbreviated"]],
+  ];
+})();
+
+/**
+ * What a cluster's `minPriceKey` reads when none of its pubs says a price: past
+ * every real key, and 9 in its last digit, which is no band.
+ */
+export const CLUSTER_PRICE_KEY_NONE = 99_999_999;
+
+/**
+ * The cheapest sayable price inside a cluster AND the band of the pub that says
+ * it, in one number a supercluster `min` can carry: pence × 10 + band. The min
+ * of these is the cheapest figure (a tie goes to the cheaper band), and its
+ * last digit is that pub's band, so the figure can wear its OWN band's ink
+ * rather than the colour of whatever band is commonest round it (owner
+ * decision 16 Oct 2026). A pub with no figure contributes the "none" key.
+ */
+export const CLUSTER_PRICE_KEY_PROPERTY: maplibregl.ExpressionSpecification = [
+  "min",
+  [
+    "case",
+    ["has", "clusterPrice"],
+    [
+      "+",
+      ["*", ["round", ["*", ["get", "clusterPrice"], 100]], 10],
+      ["min", ["coalesce", ["get", "bucket"], 3], 3],
+    ],
+    CLUSTER_PRICE_KEY_NONE,
+  ],
+];
+
+/** The band (0..2) of the cluster's cheapest figure, or 3 and up for none. */
+export const CLUSTER_FIGURE_BAND_EXPR: maplibregl.ExpressionSpecification = [
+  "%",
+  ["coalesce", ["get", "minPriceKey"], CLUSTER_PRICE_KEY_NONE],
+  10,
+];
+
+const clusterHasFigure: maplibregl.ExpressionSpecification = [
+  "<",
+  ["coalesce", ["get", "minPrice"], CLUSTER_PRICE_NONE],
+  CLUSTER_PRICE_NONE,
+];
+
+/**
+ * A cluster disc's words (owner decision 16 Oct 2026): "from" over the
+ * cheapest figure, the figure in its OWN band's ink, on a neutral disc. Where
+ * no pub inside says a price the disc prints its count, in ink. The count of a
+ * priced disc rides under it on `cluster-count-badge`, so the whole reads
+ * "from £4.85 · 12 pubs" the way the desktop donut's label says it
+ * (`clusterLabelText`, lib/donutClusterGeometry.ts).
+ */
+export function clusterLabelExpr(
+  ink: string,
+  bandInk: readonly [string, string, string],
+): maplibregl.ExpressionSpecification {
+  return [
+    "case",
+    clusterHasFigure,
+    [
+      "format",
+      "from",
+      { "font-scale": DONUT_CAPTION_SCALE, "text-color": ink },
+      "\n",
+      {},
+      CLUSTER_FIGURE_EXPR,
+      {
+        "text-color": [
+          "match",
+          CLUSTER_FIGURE_BAND_EXPR,
+          0,
+          bandInk[0],
+          1,
+          bandInk[1],
+          2,
+          bandInk[2],
+          ink,
+        ],
+      },
+    ],
+    ["format", ["to-string", ["get", "point_count_abbreviated"]], { "text-color": ink }],
+  ] as unknown as maplibregl.ExpressionSpecification;
+}
+
+/** The words under a priced disc: its pub count. */
+export const CLUSTER_COUNT_CAPTION_EXPR: maplibregl.ExpressionSpecification = [
+  "concat",
+  ["to-string", ["get", "point_count_abbreviated"]],
+  " pubs",
+];
+
+/**
+ * The count that rides UNDER a disc once the disc is wearing a price, so the
+ * figure stays the claim and the count never takes its place.
+ */
+export const CLUSTER_COUNT_BADGE_FILTER: maplibregl.FilterSpecification = [
+  "all",
+  ["has", "point_count"],
+  clusterHasFigure,
+];
+
+/**
+ * Filter for the price pill layer (`pubs-price-pill`): every unclustered pub
+ * with a sayable price that has nothing riding on its glass, and not the
+ * selected one.
+ *
+ * - Absent `priceLabel` is the same "this pub says nothing" the tag reads, so an
+ *   unpriced pub never gets a pill.
+ * - The selected pub keeps its enlarged glass, its glow and its own tag on
+ *   `pubs-point-selected`.
+ * - A pub whose printed price is aging is NOT a pill: its glass wears the
+ *   broken rim that says so (`pinPriceAging`, ./geojson).
+ * - A pub wearing a mark is NOT a pill. The Pint Drops ring, the what's-on
+ *   ring, the story-band halo and the provisional and confirmed dots are all
+ *   drawn round or on a 28px glass, and a 48px pill would bury every one of
+ *   them (or, for the two dots, sit them over the figure). Those pubs keep the
+ *   glass and the tag exactly as they were, so no signal is lost to a shape.
+ */
+export function pricePillFilter(
+  selectedId: string,
+  bandMemberIds: readonly string[] = [],
+): maplibregl.FilterSpecification {
+  const conditions: maplibregl.ExpressionSpecification[] = [
+    ["!", ["has", "point_count"]],
+    ["has", "priceLabel"],
+    ["!", ["coalesce", ["get", "drops"], false]],
+    ["!", ["coalesce", ["get", "provisional"], false]],
+    ["!=", ["coalesce", ["get", "standing"], ""], "confirmed"],
+    ["!", ["has", "whatsOn"]],
+    // An aging figure keeps its glass, whose broken rim is what says so; a pill
+    // would print the price on a clean edge and read as fresh.
+    ["!", ["coalesce", ["get", "aging"], false]],
+  ];
+  if (bandMemberIds.length > 0) {
+    conditions.push(["!", ["in", ["get", "id"], ["literal", [...bandMemberIds]]]]);
+  }
+  if (selectedId) conditions.push(["!=", ["get", "id"], selectedId]);
+  return ["all", ...conditions];
+}
+
+/**
  * Filter for the dedicated selected-pin layer (`pubs-point-selected`): exactly
  * the selected unclustered pub, or nothing while no venue is selected. The
  * style spec makes `icon-allow-overlap` data-constant (no feature-data
@@ -310,6 +492,49 @@ export function glowPulsePaint(now: number): { opacity: number; width: number } 
     opacity: GLOW_PULSE_MIN_OPACITY + (GLOW_PULSE_MAX_OPACITY - GLOW_PULSE_MIN_OPACITY) * wave,
     width: GLOW_PULSE_MIN_WIDTH + (GLOW_PULSE_MAX_WIDTH - GLOW_PULSE_MIN_WIDTH) * wave,
   };
+}
+
+// How far ambient motion (the selected-pin pulse, the route's marching ants)
+// is from rest at `now`: 0 is the static frame, 1 is full motion. It moves
+// toward 1 after a wake and back to 0 by the end of AMBIENT_MOTION_WINDOW_MS,
+// at most `dt` / AMBIENT_MOTION_EASE_MS per frame, so a wake mid-ease turns
+// it round where it stands. Pure, so the RAF loop's rest is unit-testable.
+export function ambientMotionLevel(
+  level: number,
+  dt: number,
+  now: number,
+  wokeAt: number | null,
+): number {
+  const target =
+    wokeAt !== null && now - wokeAt < AMBIENT_MOTION_WINDOW_MS - AMBIENT_MOTION_EASE_MS ? 1 : 0;
+  const step = Math.max(0, dt) / AMBIENT_MOTION_EASE_MS;
+  return target > level ? Math.min(1, level + step) : Math.max(0, level - step);
+}
+
+// Whether ambient motion may rest: the level has eased to 0 and the route's
+// marching ants (`dashStep`, 0 when no dash is painted) have marched forward
+// round to DASH_SEQ[0], the static frame, so resting never snaps the dash back.
+export function ambientMotionResting(level: number, dashStep: number): boolean {
+  return level === 0 && dashStep === 0;
+}
+
+// The selected ring at motion `level`: the static selected ring at 0, the
+// breathing pulse at 1, and a smoothstep blend between, so the pulse settles
+// onto the static ring instead of stopping at whatever phase the window ends.
+export function selectedGlowPaint(now: number, level: number): { opacity: number; width: number } {
+  const pulse = glowPulsePaint(now);
+  const eased = level * level * (3 - 2 * level);
+  return {
+    opacity: GLOW_BASE_STROKE_OPACITY + (pulse.opacity - GLOW_BASE_STROKE_OPACITY) * eased,
+    width: GLOW_SELECTED_STROKE_WIDTH + (pulse.width - GLOW_SELECTED_STROKE_WIDTH) * eased,
+  };
+}
+
+// The `route-line-dash` layer paints only the straight fallback (buildScene.ts
+// buildRoute); a routed line or no route leaves it invisible, and animating an
+// invisible dash still redraws the whole map.
+export function routeLineShowsDash(routeLine: GeoJSON.FeatureCollection): boolean {
+  return routeLine.features.some((feature) => feature.properties?.source === "straight");
 }
 
 // M7 pin entrance — deterministic FNV-1a-style hash of a pub id into

@@ -21,6 +21,16 @@
  * Aggregators (pubquizzers.com, londonquizmap, …) are cross-check only and
  * are never fetched or ingested by this script.
  *
+ * PERMISSION (2026-10-16; this used to fail open on any robots error):
+ *   A live run fetches a supplier only when lib/harvest/sourcePolicy.ts holds an
+ *   ALLOWED row for it (QUESTION_ONE_SOURCE_ID, SPEEDQUIZZING_SOURCE_ID). Neither
+ *   row exists today, so a live run REFUSES before any request, writes nothing
+ *   and exits non-zero; adding a row is the captain's call. With a row, every
+ *   request goes through scripts/lib/permittedHarvestFetch.mjs: the URL must be
+ *   on the row's own host, robots.txt is read by lib/harvest/robots.ts (a 401,
+ *   403, challenge page, 5xx or unreachable host refuses; a 404 permits), and
+ *   the archive's rel=next is followed only on the same host.
+ *
  * Usage:
  *   node scripts/whatson/quizRefresh.mjs                  # live fetch
  *   node scripts/whatson/quizRefresh.mjs --from-dir DIR   # offline (tests):
@@ -32,7 +42,7 @@
  */
 
 import { mkdirSync, writeFileSync, readFileSync, readdirSync, existsSync } from "node:fs";
-import { dirname, join } from "node:path";
+import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import {
@@ -45,6 +55,13 @@ import {
 } from "./quizParsers.mjs";
 import { loadCanonicalVenueIndex } from "./resolveVenueId.mjs";
 import { CONTACT_EMAIL } from "../../lib/siteContact.mjs";
+import { createRobotsChecker } from "../../lib/harvest/robots.ts";
+import {
+  HarvestRefusal,
+  createPermittedFetch,
+  isOnPermittedSourceHost,
+  permittedHarvestSource,
+} from "../lib/permittedHarvestFetch.mjs";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..", "..");
 const OUT_PATH = join(ROOT, "public", "data", "whats_on", "quiz_london.json");
@@ -56,49 +73,53 @@ const USER_AGENT =
 const FETCH_DELAY_MS = 1500;
 const MAX_ARCHIVE_PAGES = 30;
 
-const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+/** The lib/harvest/sourcePolicy.ts rows a live run needs. Neither exists today. */
+export const QUESTION_ONE_SOURCE_ID = "questionone-quiz-venues";
+export const SPEEDQUIZZING_SOURCE_ID = "speedquizzing-quiz-finder";
 
-async function politeFetch(url) {
-  const res = await fetch(url, { headers: { "user-agent": USER_AGENT } });
-  if (!res.ok) throw new Error(`GET ${url} -> ${res.status}`);
-  const text = await res.text();
-  await sleep(FETCH_DELAY_MS);
-  return text;
+const defaultSleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+/**
+ * A text GET bound to one allowed policy row. Throws HarvestRefusal (fence or
+ * robots) before any page request, and an Error on a non-2xx page.
+ */
+function politeReader(source, { fetchImpl = fetch, robots, sleep = defaultSleep } = {}) {
+  const permittedFetch = createPermittedFetch({
+    source,
+    fetchImpl,
+    robots: robots ?? createRobotsChecker({ fetchImpl }),
+  });
+  async function read(url) {
+    const res = await permittedFetch(url, { headers: { "user-agent": USER_AGENT } });
+    if (!res.ok) throw new Error(`GET ${url} -> ${res.status}`);
+    const text = await res.text();
+    await sleep(FETCH_DELAY_MS);
+    return text;
+  }
+  read.assertPermitted = permittedFetch.assertPermitted;
+  return read;
 }
 
-// robots.txt gate for the paths we touch: refuse to run if a Disallow rule
-// for User-agent: * covers the path (first-party or not, we stay polite).
-async function assertRobotsAllows(origin, path) {
-  let body = "";
-  try {
-    body = await politeFetch(`${origin}/robots.txt`);
-  } catch {
-    return; // no robots.txt -> allowed
-  }
-  let applies = false;
-  for (const rawLine of body.split(/\r?\n/)) {
-    const line = rawLine.replace(/#.*$/, "").trim();
-    const m = /^(user-agent|disallow)\s*:\s*(.*)$/i.exec(line);
-    if (!m) continue;
-    if (m[1].toLowerCase() === "user-agent") applies = m[2].trim() === "*";
-    else if (applies && m[2] && path.startsWith(m[2]))
-      throw new Error(`${origin}/robots.txt disallows ${path} — refusing to fetch`);
-  }
-}
-
-async function loadQuestionOne(fromDir) {
+export async function loadQuestionOne(fromDir, network = {}) {
   const pages = [];
+  let read = null;
+  let source = null;
   if (fromDir) {
     for (const f of readdirSync(fromDir).filter((f) => /^qo_venues_p\d+\.html$/.test(f)).sort())
       pages.push(readFileSync(join(fromDir, f), "utf8"));
   } else {
-    await assertRobotsAllows("https://questionone.com", "/venues/");
-    let url = QO_VENUES_URL;
+    const permission = permittedHarvestSource(QUESTION_ONE_SOURCE_ID);
+    if (!permission.allowed) throw new HarvestRefusal(permission.message);
+    source = permission.source;
+    read = politeReader(source, network);
+    // The walk starts at the ROW's url, never at a constant of this script.
+    let url = source.url;
+    await read.assertPermitted(url);
     for (let i = 0; url && i < MAX_ARCHIVE_PAGES; i += 1) {
       console.log(`fetch ${url}`);
-      const html = await politeFetch(url);
+      const html = await read(url);
       pages.push(html);
-      url = parseQuestionOneNextPage(html);
+      url = parseQuestionOneNextPage(html, url);
     }
   }
 
@@ -120,9 +141,13 @@ async function loadQuestionOne(fromDir) {
       if (existsSync(p))
         detailsByUrl.set(card.url, parseQuestionOneVenueDetail(readFileSync(p, "utf8")));
     } else {
+      if (!isOnPermittedSourceHost(source, card.url)) {
+        console.warn(`  ${card.url} is not on ${source.id}'s own host; detail not fetched`);
+        continue;
+      }
       console.log(`fetch ${card.url}`);
       try {
-        detailsByUrl.set(card.url, parseQuestionOneVenueDetail(await politeFetch(card.url)));
+        detailsByUrl.set(card.url, parseQuestionOneVenueDetail(await read(card.url)));
       } catch (err) {
         console.warn(`  detail fetch failed (${err.message}); card-only data used`);
       }
@@ -131,16 +156,28 @@ async function loadQuestionOne(fromDir) {
   return { cards, detailsByUrl };
 }
 
-async function loadSpeedQuizzingCoverage(fromDir) {
+export async function loadSpeedQuizzingCoverage(fromDir, network = {}) {
   let html;
   if (fromDir) {
     const p = join(fromDir, "sq_find.html");
     if (!existsSync(p)) return { totalEvents: 0, londonEvents: 0 };
     html = readFileSync(p, "utf8");
   } else {
-    await assertRobotsAllows("https://www.speedquizzing.com", "/find/");
-    console.log(`fetch ${SQ_FIND_URL}`);
-    html = await politeFetch(SQ_FIND_URL);
+    // Coverage counts only, so a refusal here is recorded rather than fatal.
+    const permission = permittedHarvestSource(SPEEDQUIZZING_SOURCE_ID);
+    if (!permission.allowed) {
+      console.warn(permission.message);
+      return { totalEvents: 0, londonEvents: 0, refused: permission.message };
+    }
+    const read = politeReader(permission.source, network);
+    try {
+      console.log(`fetch ${permission.source.url}`);
+      html = await read(permission.source.url);
+    } catch (error) {
+      if (!(error instanceof HarvestRefusal)) throw error;
+      console.warn(error.message);
+      return { totalEvents: 0, londonEvents: 0, refused: error.message };
+    }
   }
   const events = parseSpeedQuizzingFindEvents(html);
   return {
@@ -211,7 +248,9 @@ async function main() {
   console.log(`dropped: ${JSON.stringify(dropped)}; speedquizzing coverage: ${JSON.stringify(sq)}`);
 }
 
-main().catch((err) => {
-  console.error(err);
-  process.exit(1);
-});
+if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+  main().catch((err) => {
+    console.error(err instanceof HarvestRefusal ? err.message : err);
+    process.exit(1);
+  });
+}

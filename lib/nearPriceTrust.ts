@@ -40,8 +40,11 @@ export const NEAR_PRICE_TRUST_COLLECTED_DATE =
  * The list caption. It dates the pub list, never a price: each card prints its
  * own row's read, because a re-collection does not re-read every row.
  */
+export const PUB_LIST_REFRESHED_CAPTION =
+  `Pub list refreshed ${formatTrustDay(PINT_DATASET_OBSERVED_AT.getTime())} ${PINT_DATASET_OBSERVED_AT.getUTCFullYear()}.`;
+
 export const NEAR_PRICE_TRUST_CAPTION =
-  `Pub list refreshed ${formatTrustDay(PINT_DATASET_OBSERVED_AT.getTime())} ${PINT_DATASET_OBSERVED_AT.getUTCFullYear()}. Each price shows when it was last read.`;
+  `${PUB_LIST_REFRESHED_CAPTION} Each price shows when it was last read.`;
 
 /** Same exact-price and first-row authority used by the Venue sheet. */
 export function resolveNearPriceTrust(

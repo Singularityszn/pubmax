@@ -15,9 +15,8 @@ with explicit source and observation evidence.
 - [Historic pubs](https://pubmaxxing.com/historic): cited heritage records with
   source links. Individual records are at /historic/{slug}.
 - [London Pint Index](https://pubmaxxing.com/pint-index): public release status,
-  methodology, provenance rules, and CSV. It is currently an honest empty
-  snapshot while eligible observations are collected; it contains no legacy
-  competitor-derived prices.
+  methodology, provenance rules, and CSV. It is empty until we collect
+  eligible observations, and it contains no legacy competitor-derived prices.
 
 ## Product surfaces
 
@@ -34,8 +33,8 @@ with explicit source and observation evidence.
   brewery source, or an explicitly licensed open dataset, plus an observed-at date.
 - Open data also requires a licence.
 - File modification and build timestamps are never observation dates.
-- A coordinate outside every canonical London borough polygon remains
-  unclassified; nearest-boundary guessing is not used.
+- A coordinate outside every canonical London borough polygon stays
+  unclassified. We don't assign it to the nearest borough.
 - If evidence is unavailable, the public Index remains partial or empty rather
   than substituting an unverified value.
 
@@ -43,9 +42,9 @@ with explicit source and observation evidence.
 
 - Listed-building status (grade, list entry) comes from Historic England's
   National Heritage List for England (NHLE), © Historic England, licensed under
-  the Open Government Licence v3.0. Facts are matched conservatively to pubs by
-  name and location; each is shown with a link to its official list entry.
-- Heritage narrative facts are cited from Wikipedia and Wikidata.
+  the Open Government Licence v3.0. We match facts to pubs by name and
+  location, conservatively, and link each one to its official list entry.
+- Heritage narrative facts cite Wikipedia and Wikidata.
 - Mapping data is © OpenStreetMap contributors.
 
 ## Contact

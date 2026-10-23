@@ -29,6 +29,7 @@ import { sanitizeEvent } from "@/lib/analyticsEvents";
 import { analyticsReferrerFromUrl } from "@/lib/analyticsPath";
 import { analyticsSurfaceFromPath } from "@/lib/analyticsSurface";
 import { isAnonymousAnalyticsId } from "@/lib/analyticsIdentity";
+import { boundedText } from "@/lib/boundedRequest.server";
 import { isEventsRateLimited } from "@/lib/eventsRateLimit";
 import { capturePosthogEvent, isPosthogConfigured } from "@/lib/posthogServer";
 import { clientIp } from "@/lib/supabase";
@@ -79,6 +80,13 @@ function safeReferrer(value: unknown, currentUrl: string): string | undefined {
   return analyticsReferrerFromUrl(value, currentUrl) ?? undefined;
 }
 
+// posthog-js session ids are UUIDv7; anything else is not one of ours.
+const POSTHOG_SESSION_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+function safeSessionId(value: unknown): string | undefined {
+  return typeof value === "string" && POSTHOG_SESSION_ID.test(value) ? value : undefined;
+}
+
 function safeClientIp(request: Request): string | undefined {
   const value = clientIp(request);
   return isIP(value) ? value : undefined;
@@ -99,8 +107,14 @@ export async function POST(req: Request): Promise<Response> {
     // to read a status code.
     if (await isEventsRateLimited(req)) return noContent();
 
-    const raw = await req.text();
-    if (raw.length > MAX_BODY_BYTES) return noContent();
+    // A bounded read: the cap is checked while the body streams in, so an
+    // oversized POST is dropped after 6 KB rather than buffered whole.
+    let raw: string;
+    try {
+      raw = await boundedText(req, MAX_BODY_BYTES);
+    } catch {
+      return noContent();
+    }
 
     let body: unknown;
     try {
@@ -184,6 +198,8 @@ export async function POST(req: Request): Promise<Response> {
       path: safePath,
       anonymousId,
       analyticsConsent,
+      origin: new URL(req.url).origin,
+      sessionId: safeSessionId(browserContext.sessionId),
       clientIp: safeClientIp(req),
       userAgent: safeUserAgent(req.headers.get("user-agent")),
       referrer: safeReferrer(browserContext.referrer, req.url),

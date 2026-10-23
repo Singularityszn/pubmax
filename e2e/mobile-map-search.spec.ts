@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { mobileMapShellControl } from "./helpers/mobileMapShell";
 
 const MOBILE = { width: 390, height: 844 };
 
@@ -11,7 +12,7 @@ test.beforeEach(async ({ page }) => {
   await page.setViewportSize(MOBILE);
 });
 
-test("mobile top-bar search filters the map and clears only the query", async ({
+test("mobile top-bar search filters suggestions, keeps pins, and clears only the query", async ({
   page,
 }) => {
   test.setTimeout(90_000);
@@ -31,16 +32,26 @@ test("mobile top-bar search filters the map and clears only the query", async ({
   expect(response?.status()).toBe(200);
   await expect(page.locator(".mapLoading")).toBeHidden({ timeout: 45_000 });
 
-  await page.getByRole("button", { name: "Search the map" }).click();
+  await (await mobileMapShellControl(page, "search")).click();
   // The field suggests pubs as it is typed in, so it is a combobox, not a
   // bare searchbox (components/map/MapSearchSuggest.tsx).
   const search = page.getByRole("combobox", { name: "Search pubs" });
   await expect(search).toBeVisible({ timeout: 20_000 });
+  const canvas = page.locator(".mapCanvasWrap");
+  await expect.poll(async () => Number(await canvas.getAttribute("data-venue-count")))
+    .toBeGreaterThan(0);
+  const pinCount = Number(await canvas.getAttribute("data-venue-count"));
+  expect(pinCount).toBeGreaterThan(0);
   await search.fill("Definitely no such London pub 987654");
 
   await expect(page.locator(".mapCanvasWrap")).toBeVisible();
   await expect(page).toHaveURL(/q=Definitely\+no\+such\+London\+pub\+987654/);
-  await expect(page.locator(".mapCanvasWrap")).toHaveAttribute("data-venue-count", "0");
+  await expect.poll(async () => Number(await canvas.getAttribute("data-venue-count")))
+    .toBeGreaterThanOrEqual(pinCount);
+  const suggestions = page.getByRole("listbox", { name: "Search suggestions" });
+  await expect(suggestions).toBeVisible();
+  await expect(suggestions.getByRole("option")).toHaveCount(0);
+  await expect(page.getByTestId("map-search-no-results")).toBeVisible();
 
   await expect(page.locator(".citySuggestBanner, .mapToolbarSearchStatus")).toHaveCount(0);
   await expect(page.locator(".mobileMapChrome > :visible")).toHaveCount(2);
@@ -63,10 +74,10 @@ test("mobile top-bar search filters the map and clears only the query", async ({
     })
     .toEqual({ food: "1", query: null });
 
-  // The query clears and the food filter stays, so the pub has to serve food:
-  // German Gymnasium does in the slim pack, and no other row's search text
-  // carries its name.
+  // Suggestions follow the query while map pins keep the food-filtered set.
   await search.fill("German Gymnasium");
   await expect(page).toHaveURL(/q=German\+Gymnasium/);
-  await expect(page.locator(".mapCanvasWrap")).not.toHaveAttribute("data-venue-count", "0");
+  await expect(suggestions.getByRole("option", { name: /German Gymnasium/ }).first()).toBeVisible();
+  await expect.poll(async () => Number(await canvas.getAttribute("data-venue-count")))
+    .toBeGreaterThanOrEqual(pinCount);
 });

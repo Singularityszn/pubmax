@@ -9,7 +9,7 @@
    it. "Choose an area" is the city switcher's own path on a phone. */
 .mapArrivalCard {
   position: fixed;
-  z-index: calc(var(--z-tabbar, 30) + 2);
+  z-index: calc(var(--z-tabbar) + 2);
   bottom: calc(var(--float-stack-top-map-corner) + var(--float-stack-gap));
   right: max(12px, env(safe-area-inset-right));
   left: max(12px, env(safe-area-inset-left));
@@ -19,7 +19,7 @@
   align-items: center;
   gap: 0 6px;
   padding: 5px 3px 7px 14px;
-  border: 1px solid var(--hairline, var(--line));
+  border: 1px solid var(--hairline);
   border-radius: 26px;
   background: color-mix(in srgb, var(--panel-raised) 96%, transparent);
   color: var(--ink);
@@ -43,13 +43,13 @@
 
 .mapArrivalCardTitle {
   margin: 0;
-  font-size: 0.86rem;
+  font-size: var(--text-sm);
   line-height: 1.2;
 }
 
 .mapArrivalCardLead {
   margin: 0;
-  font-size: 0.76rem;
+  font-size: var(--text-xs);
   line-height: 1.3;
   color: var(--muted);
 }
@@ -77,55 +77,87 @@
   align-items: center;
   justify-content: center;
   border: 0;
-  border-radius: 999px;
+  border-radius: 50%;
   background: transparent;
   color: var(--muted);
 }
 
 @media (max-width: 640px) {
-  /* The location sentence is the visible half of a pair with the iOS
-     purpose string (docs/proof/mobile-app-design/STORE_READINESS.md), so it
-     stays on screen as the pill's second line, under the question and both
-     controls. */
+  /* ONE ROW OF TWO ANSWERS, then the location sentence. The phone ask is the
+     two ways in side by side, "Use my location" as the one filled button and
+     "Choose an area" beside it as the quiet one, so a reader who would rather
+     not share a fix has an equal, visible way on without opening a menu first.
+     The question the strip used to print ("Cheapest pints near you?") is the
+     strip's heading for a screen reader and no longer a second line of copy:
+     the two buttons already say what is being asked.
+     The location sentence is the visible half of a pair with the iOS purpose
+     string (docs/proof/mobile-app-design/STORE_READINESS.md), so it stays on
+     screen as the second line. */
+  .mapArrivalCard {
+    grid-template-columns: minmax(0, 1fr) auto;
+    padding: 6px 3px 8px 8px;
+  }
+
+  /* An open sheet owns the foot of the map. The ask is withheld behind it
+     rather than painted through its scrim, and is back when the sheet closes. */
+  body:has(.mobileSheetPortal) .mapArrivalCard {
+    visibility: hidden;
+  }
+
   .mapArrivalCardSay {
     display: contents;
   }
 
-  .mapArrivalCardTitle,
   .mapArrivalCardActions,
   .mapArrivalCardClose {
     grid-row: 1;
   }
 
+  .mapArrivalCardActions {
+    grid-column: 1;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+  }
+
+  .mapArrivalCardActions button {
+    width: 100%;
+    justify-content: center;
+    padding-inline: var(--space-3);
+  }
+
+  .mapArrivalCardActions button svg {
+    display: none;
+  }
+
+  /* A heading a screen reader lands on and a sighted reader does not need. */
   .mapArrivalCardTitle {
-    text-wrap: balance;
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
   }
 
   .mapArrivalCardLead {
     grid-column: 1 / -1;
     grid-row: 2;
-    font-size: 0.72rem;
+    padding-left: 6px;
+    font-size: var(--text-xs);
     line-height: 1.25;
-  }
-
-  .mapArrivalCardChooseArea,
-  .mapArrivalCardActions button svg {
-    display: none;
-  }
-
-  .mapArrivalCardActions button {
-    padding-inline: var(--space-3, 12px);
   }
 }
 
-/* The narrowest phones keep the question to two lines beside the action. */
-@media (max-width: 359px) {
-  .mapArrivalCardTitle {
-    font-size: 0.78rem;
+/* The narrowest phones keep both answers on one row by tightening the label
+   padding, never by dropping one. */
+@media (max-width: 360px) {
+  .mapArrivalCardActions {
+    gap: 6px;
   }
 
   .mapArrivalCardActions button {
-    padding-inline: 10px;
+    padding-inline: 8px;
   }
 }
 
@@ -140,7 +172,7 @@
     --map-arrival-strip-max-h: 76px;
     /* Under the toolbar's own lane: a panel the reader OPENS from the toolbar
        must paint over the ask, never under it. */
-    z-index: calc(var(--z-map-panel, 500) - 1);
+    z-index: calc(var(--z-map-panel) - 1);
     /* The same anchor the ambient banners take, so the one thing docked under
        the toolbar is docked where they are (components/map/citySuggestBanner.css). */
     position: absolute;
@@ -157,12 +189,12 @@
     max-height: var(--map-arrival-strip-max-h);
     gap: 6px 10px;
     padding: 10px 44px 10px 12px;
-    border-radius: var(--radius-md);
+    border-radius: var(--radius);
     transform: translateX(-50%);
   }
 
   .mapArrivalCardTitle {
-    font-size: 0.98rem;
+    font-size: var(--text-base);
   }
 
   /* The close sits in the strip's own top-right padding lane, so it never
@@ -176,7 +208,7 @@
 
 @media (prefers-reduced-motion: no-preference) {
   .mapArrivalCard {
-    animation: map-arrival-card-arrive 160ms var(--ease-out, ease-out);
+    animation: map-arrival-card-arrive 160ms var(--ease-out);
   }
 }
 
@@ -226,7 +258,7 @@ body:has(.mapToolbar [aria-expanded="true"]) .mapArrivalCard {
    first screen. The Plan control keeps its place and its accessible name; it
    just stops competing for the eye until the ask is answered. */
 body:has(.mapArrivalCard) .mapToolbar .planBtn:not(.active) {
-  border: 1px solid var(--hairline, var(--line));
+  border: 1px solid var(--hairline);
   background: var(--panel-raised);
   color: var(--ink);
 }

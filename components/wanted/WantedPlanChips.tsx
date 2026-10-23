@@ -12,8 +12,10 @@ import "./wanted.css";
 /** Open Wanteds as plan describe-first chips so saved places become tonight options. */
 export default function WantedPlanChips({
   onPick,
+  ready = true,
 }: {
   onPick: (query: string) => void;
+  ready?: boolean;
 }): React.JSX.Element | null {
   const { identityResolved, user } = useAuth();
   const userId = identityResolved ? user?.id ?? null : null;
@@ -54,8 +56,8 @@ export default function WantedPlanChips({
   if (open.length === 0) return null;
 
   return (
-    <div className="wantedPlanChips" role="group" aria-label="Your Wanted list">
-      <p className="wantedPlanChips__label">Your Wanted list</p>
+    <div className="wantedPlanChips" role="group" aria-label="Your pubs to try">
+      <p className="wantedPlanChips__label">Your pubs to try</p>
       {open.slice(0, 6).map((wanted) => {
         const chip = `a night at ${wanted.venueName}`;
         return (
@@ -63,6 +65,7 @@ export default function WantedPlanChips({
             key={wanted.id}
             type="button"
             className="wantedPlanChip"
+            aria-disabled={ready ? undefined : true}
             onClick={() => onPick(chip)}
           >
             {wanted.venueName}

@@ -9,6 +9,8 @@ import { createRoot, hydrateRoot, type Root } from "react-dom/client";
 import { renderToString } from "react-dom/server";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { PLAN_HOST_NAME_KEY } from "@/lib/planHostName";
+
 // What the describe prefill owes is a VALUE IN A FIELD, not a line order, so
 // this file mounts the composer and reads the input. The rule it pins has three
 // halves that a source read cannot see: the URL beats a held ask draft, the
@@ -181,6 +183,22 @@ async function settleComposerEffects(): Promise<void> {
   });
 }
 
+/**
+ * A route on the page puts every setting behind "Tune details": open it before
+ * reading one. The sheet is a lazy chunk, so wait for its field to mount.
+ */
+async function openTuneDetails(): Promise<void> {
+  if (document.querySelector("#plan-concierge-query")) return;
+  const tune = Array.from(document.querySelectorAll("button")).find((button) =>
+    button.textContent?.includes("Tune details"),
+  );
+  if (!tune) return;
+  await act(async () => { tune.click(); });
+  await vi.waitFor(() => {
+    if (!document.querySelector("#plan-concierge-query")) throw new Error("Tune details has not mounted");
+  }, { timeout: 4000 });
+}
+
 function describeFieldValue(): string {
   const field = document.querySelector<HTMLInputElement>("#plan-describe-first-query");
   if (!field) throw new Error("describe-first field did not render");
@@ -188,15 +206,17 @@ function describeFieldValue(): string {
 }
 
 /** A Pub Pal `?query=` handoff may prefill describe-first or land in concierge after auto-generate. */
-function landedUrlAskValue(): string {
+async function landedUrlAskValue(): Promise<string> {
   const describe = document.querySelector<HTMLInputElement>("#plan-describe-first-query");
   if (describe) return describe.value;
+  await openTuneDetails();
   const concierge = document.querySelector<HTMLInputElement>("#plan-concierge-query");
   if (concierge) return concierge.value;
   throw new Error("URL ask did not land in describe-first or concierge field");
 }
 
-function conciergeFieldValue(): string {
+async function conciergeFieldValue(): Promise<string> {
+  await openTuneDetails();
   const field = document.querySelector<HTMLInputElement>("#plan-concierge-query");
   if (!field) throw new Error("concierge field did not render");
   return field.value;
@@ -261,10 +281,13 @@ describe("PlanComposer describe prefill", () => {
 
     await act(async () => {
       typeInto("#plan-describe-first-query", "cheap wine in Soho for 2");
-      clickButton("Sort it");
+      clickButton("Plan it");
       await Promise.resolve();
     });
+    // The route arriving closes the sheet it was asked from: let it land first.
+    await settleComposerEffects();
 
+    await openTuneDetails();
     const drinks = document.querySelector<HTMLSelectElement>("#plan-context-zero-proof");
     expect(drinks?.value).toBe("wine");
     expect(document.querySelector('label[for="plan-time"]')?.textContent).toBe("First stop");
@@ -280,8 +303,9 @@ describe("PlanComposer describe prefill", () => {
     expect(document.querySelector('label[for="plan-time"]')?.textContent).toBe("First stop");
     expect(document.querySelector("#plan-route-status")?.textContent).toContain("Route needs refreshing");
 
+    await openTuneDetails();
     await act(async () => {
-      clickButton("Sort it again");
+      clickButton("Plan it again");
       await Promise.resolve();
     });
     const generateCalls = vi.mocked(fetch).mock.calls.filter(([input]) =>
@@ -292,13 +316,16 @@ describe("PlanComposer describe prefill", () => {
     };
     expect(refreshed.context).toMatchObject({ drinkCategory: "cocktail", zeroProof: false });
 
+    await settleComposerEffects();
+    await openTuneDetails();
+    const anyDrinks = document.querySelector<HTMLSelectElement>("#plan-context-zero-proof");
     await act(async () => {
-      drinks!.value = "any";
-      drinks!.dispatchEvent(new Event("change", { bubbles: true }));
+      anyDrinks!.value = "any";
+      anyDrinks!.dispatchEvent(new Event("change", { bubbles: true }));
     });
-    expect(drinks?.value).toBe("any");
+    expect(anyDrinks?.value).toBe("any");
     await act(async () => {
-      clickButton("Sort it again");
+      clickButton("Plan it again");
       await Promise.resolve();
     });
     const clearedCalls = vi.mocked(fetch).mock.calls.filter(([input]) =>
@@ -310,13 +337,16 @@ describe("PlanComposer describe prefill", () => {
     expect(cleared.context).toMatchObject({ drinkCategory: null, zeroProof: false });
     expect(document.querySelector('label[for="plan-time"]')?.textContent).toBe("First pint");
 
+    await settleComposerEffects();
+    await openTuneDetails();
+    const zeroDrinks = document.querySelector<HTMLSelectElement>("#plan-context-zero-proof");
     await act(async () => {
-      drinks!.value = "zero-proof";
-      drinks!.dispatchEvent(new Event("change", { bubbles: true }));
+      zeroDrinks!.value = "zero-proof";
+      zeroDrinks!.dispatchEvent(new Event("change", { bubbles: true }));
     });
-    expect(drinks?.value).toBe("zero-proof");
+    expect(zeroDrinks?.value).toBe("zero-proof");
     await act(async () => {
-      clickButton("Sort it again");
+      clickButton("Plan it again");
       await Promise.resolve();
     });
     const zeroProofCalls = vi.mocked(fetch).mock.calls.filter(([input]) =>
@@ -338,7 +368,7 @@ describe("PlanComposer describe prefill", () => {
 
     await mountComposer();
 
-    expect(landedUrlAskValue()).toBe(URL_ASK);
+    expect(await landedUrlAskValue()).toBe(URL_ASK);
     // One-shot: the next /plan visit must not reopen on this ask.
     expect(sessionStorage.getItem(ASK_PLAN_DRAFT_STORAGE_KEY)).toBeNull();
   });
@@ -380,7 +410,7 @@ describe("PlanComposer describe prefill", () => {
     await settleComposerEffects();
 
     expect(describeFieldValue()).toBe("session-only ask");
-    expect(conciergeFieldValue()).toBe(DRAFT_ASK);
+    expect(await conciergeFieldValue()).toBe(DRAFT_ASK);
   });
 
   it("still lands the URL ask when the browser refuses site data", async () => {
@@ -395,7 +425,7 @@ describe("PlanComposer describe prefill", () => {
     // composer alone - the page's own AuthProvider is mocked out here, and the
     // nudge it renders on every page carries its own blocked-storage coverage
     // in __tests__/identityNudge.test.ts.
-    expect(landedUrlAskValue()).toBe(URL_ASK);
+    expect(await landedUrlAskValue()).toBe(URL_ASK);
   });
 
   it("leaves the field empty when there is neither an ask nor a draft", async () => {
@@ -409,7 +439,7 @@ describe("PlanComposer describe prefill", () => {
 
     await act(async () => {
       typeInto("#plan-describe-first-query", "Hackney crawl tonight");
-      clickButton("Sort it");
+      clickButton("Plan it");
       await Promise.resolve();
       await Promise.resolve();
     });
@@ -433,7 +463,7 @@ describe("PlanComposer never drops a URL ask", () => {
     await mountComposer();
     await act(async () => {
       typeInto("#plan-describe-first-query", "Camden");
-      clickButton("Guide me instead");
+      clickButton("Step by step");
     });
 
     await act(async () => {
@@ -466,7 +496,7 @@ describe("PlanComposer never drops a URL ask", () => {
       typeInto("#plan-describe-first-query", "Camden crawl");
     });
 
-    expect(conciergeFieldValue()).toBe("Camden crawl");
+    expect(await conciergeFieldValue()).toBe("Camden crawl");
   });
 
   it("uses submitted concierge text as area authority for the main composer button", async () => {
@@ -489,6 +519,7 @@ describe("PlanComposer never drops a URL ask", () => {
 
     await mountComposer();
 
+    await openTuneDetails();
     const concierge = document.querySelector<HTMLInputElement>("#plan-concierge-query");
     if (!concierge) throw new Error("concierge query did not render");
     const button = concierge.parentElement?.querySelector<HTMLButtonElement>("button");
@@ -516,7 +547,7 @@ describe("PlanComposer never drops a URL ask", () => {
 
     await mountComposer();
 
-    expect(landedUrlAskValue()).toBe(URL_ASK);
+    expect(await landedUrlAskValue()).toBe(URL_ASK);
   });
 
   it("leaves an unfinished wizard draft alone for a chip link", async () => {
@@ -568,7 +599,7 @@ describe("PlanComposer never drops a URL ask", () => {
     await mountComposer();
 
     expect(document.querySelector("#plan-describe-first-query")).toBeNull();
-    expect(conciergeFieldValue()).toBe(URL_ASK);
+    expect(await conciergeFieldValue()).toBe(URL_ASK);
   });
 
   it("wins over a concierge line the recovered draft was holding", async () => {
@@ -597,7 +628,7 @@ describe("PlanComposer never drops a URL ask", () => {
 
     // The drinker chose this ask a moment ago; the draft line is what they
     // left behind on an earlier visit.
-    expect(conciergeFieldValue()).toBe(URL_ASK);
+    expect(await conciergeFieldValue()).toBe(URL_ASK);
   });
 
   it("keeps the recovered concierge line when no ask rides the URL", async () => {
@@ -623,7 +654,7 @@ describe("PlanComposer never drops a URL ask", () => {
 
     await mountComposer();
 
-    expect(conciergeFieldValue()).toBe(DRAFT_ASK);
+    expect(await conciergeFieldValue()).toBe(DRAFT_ASK);
   });
 
   it("beats a held draft on a client navigation, where the mount render saw the old route", async () => {
@@ -674,13 +705,13 @@ describe("PlanComposer never drops a URL ask", () => {
     setSearch(`?query=${encodeURIComponent(URL_ASK)}`);
 
     await mountComposer();
-    expect(conciergeFieldValue()).toBe(URL_ASK);
+    expect(await conciergeFieldValue()).toBe(URL_ASK);
 
     const typed = "Something else entirely, in Peckham";
     await act(async () => { typeInto("#plan-concierge-query", typed); });
     await act(async () => { clickButton("Release this pub"); });
 
-    expect(conciergeFieldValue()).toBe(typed);
+    expect(await conciergeFieldValue()).toBe(typed);
   });
 });
 
@@ -726,7 +757,7 @@ describe("PlanComposer hydration", () => {
     ).toEqual([]);
     await settleComposerEffects();
     // The ask still lands, on the remount that follows hydration (or concierge after auto-generate).
-    expect(landedUrlAskValue()).toBe(SIZED_ASK);
+    expect(await landedUrlAskValue()).toBe(SIZED_ASK);
   });
 });
 
@@ -792,5 +823,29 @@ describe("Pal handoff auto-generates once on /plan?query=", () => {
     });
     expect(generateCall).toBeTruthy();
     expect(document.body.textContent).toContain("Route refreshed");
+  });
+});
+
+describe("Your name is asked for once, beside Lock", () => {
+  async function generateRoute(): Promise<void> {
+    setSearch(`?query=${encodeURIComponent(URL_ASK)}`);
+    await mountComposer();
+    await settleComposerEffects();
+    expect(document.body.textContent).toContain("Route refreshed");
+  }
+
+  it("seats an empty Your name in the pinned Lock bar", async () => {
+    await generateRoute();
+    const field = document.querySelector<HTMLInputElement>("#plan-name");
+    expect(field?.closest(".planComposer__lock")).not.toBeNull();
+    expect(field?.value).toBe("");
+  });
+
+  it("fills Your name from the last plan on this device and leaves it with the details", async () => {
+    localStorage.setItem(PLAN_HOST_NAME_KEY, "Karan");
+    await generateRoute();
+    const field = document.querySelector<HTMLInputElement>("#plan-name");
+    expect(field?.value).toBe("Karan");
+    expect(field?.closest(".planComposer__lock")).toBeNull();
   });
 });

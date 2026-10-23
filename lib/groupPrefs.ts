@@ -1,7 +1,7 @@
 export const GROUP_PREF_MAX_ATMOSPHERE_CHIPS = 1;
 
 export const GROUP_PREF_BUDGET_BANDS = [
-  { id: "under6", label: "Under GBP 6", summary: "under GBP 6 pints", rank: 0 },
+  { id: "under6", label: "Under £6", summary: "under £6 pints", rank: 0 },
   { id: "standard", label: "Standard", summary: "standard-price pints", rank: 1 },
   { id: "flexible", label: "Flexible", summary: "flexible budget", rank: 2 },
 ] as const;
@@ -143,7 +143,7 @@ function scoreLabel(mateCount: number, score: number): GroupPrefsOverlap["scoreL
 function mustHaveLabelsFor(hard: GroupPrefsHardConstraints): string[] {
   return [
     hard.budgetLabel ? `Budget: ${hard.budgetLabel}` : null,
-    hard.zeroProofRequired ? "Zero-proof options needed" : null,
+    hard.zeroProofRequired ? "Alcohol-free options needed" : null,
     hard.accessibilityRequired ? "Step-free access needed" : null,
     hard.weatherShelterRequired ? "Covered shelter needed" : null,
   ].filter((label): label is string => Boolean(label));

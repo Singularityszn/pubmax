@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 
-import { describeFirstQuery, describeFirstSubmit } from "./helpers/planDescribeFirst";
+import { sortDescribeFirst } from "./helpers/planDescribeFirst";
 
 for (const journey of [
   { category: "wine", query: "Quiet wine in Clapham for 2, not pricey", name: "Wine Browser" },
@@ -21,11 +21,7 @@ for (const journey of [
     });
 
     expect((await page.goto("/plan"))?.status()).toBe(200);
-    await describeFirstQuery(page).fill(journey.query);
-    const generation = page.waitForResponse((response) => response.request().method() === "POST"
-      && new URL(response.url()).pathname === "/api/plans/generate");
-    await describeFirstSubmit(page).click();
-    const generatedResponse = await generation;
+    const generatedResponse = await sortDescribeFirst(page, journey.query);
     expect(generatedResponse.status()).toBe(200);
     const generated = await generatedResponse.json() as {
       inferredContext?: { drinkCategory?: string; zeroProof?: boolean };
@@ -34,7 +30,10 @@ for (const journey of [
     expect(generated.inferredContext).toMatchObject({ drinkCategory: journey.category, zeroProof: false });
     expect(generated.stops?.length).toBeGreaterThan(0);
     expect(generated.stops?.every((stop) => !stop.selectedDrinkPriceEvidence)).toBe(true);
+    // The settings sit behind Tune details now, and close again before the lock.
+    await page.getByRole("button", { name: "Tune details" }).click();
     await expect(page.getByLabel("Drinks")).toHaveValue(journey.category);
+    await page.keyboard.press("Escape");
     await expect(page.locator(".planComposer__stop")).toHaveCount(generated.stops!.length);
     await expect(page.locator(".planComposer__stopReason").filter({ hasText: "community report" })).toHaveCount(0);
     await page.locator(".planComposer__stop").first().scrollIntoViewIfNeeded();

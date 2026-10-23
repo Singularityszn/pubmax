@@ -6,13 +6,14 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { NIGHT_AREAS } from "@/lib/nightAreas";
 import type { PlanState } from "@/lib/plan";
 import type { PlanReadResult } from "@/lib/planStore";
+import { defined } from "@/__tests__/helpers/defined";
 
 // Astra F09 (6 Sep 2026): /plan carried no metadata of its own beyond a title,
 // so every share of the planner unfurled as the homepage (og:url
 // https://pubmaxxing.com, the site-wide title and description), and the blank
 // composer was indexable.
 
-const AREA = NIGHT_AREAS[0];
+const AREA = defined(NIGHT_AREAS[0]);
 const PLAN_ID = "11111111-1111-4111-8111-111111111111";
 
 const planRead = vi.fn<(id: string) => Promise<PlanReadResult>>();
@@ -65,12 +66,12 @@ describe("/plan, the blank composer", () => {
   it("says what the planner is, and never borrows the homepage card", async () => {
     const { metadata } = await import("@/app/plan/page");
     expect(metadata.openGraph?.url).toBe("/plan");
-    expect(String(metadata.openGraph?.title)).toContain("Sort the outing");
+    expect(String(metadata.openGraph?.title)).toContain("Plan a pub crawl");
     expect(String(metadata.openGraph?.title)).not.toContain("listed pint prices");
     expect(String(metadata.openGraph?.description)).toContain(
       "send one link to the crew",
     );
-    expect(String(metadata.twitter?.title)).toContain("Sort the outing");
+    expect(String(metadata.twitter?.title)).toContain("Plan a pub crawl");
     // A route that declares its own openGraph inherits no image from the root
     // layout, so a shared planner link would unfurl bare without this.
     expect(JSON.stringify(metadata.openGraph?.images)).toContain("/og.png");

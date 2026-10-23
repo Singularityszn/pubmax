@@ -25,7 +25,7 @@
 
 import { accountIsDeleted } from "@/lib/accountDeletion";
 import { deleteOwnAccount } from "@/lib/accountDeletion.server";
-import { publicApiError, publicApiErrorFromStatus } from "@/lib/apiError";
+import { authUnavailableError, publicApiError, publicApiErrorFromStatus } from "@/lib/apiError";
 import { jsonNoStore } from "@/lib/apiResponses";
 import { verifyCallerAuth } from "@/lib/authServer";
 import { resolveMessageHandle } from "@/lib/messageAuth";
@@ -67,12 +67,7 @@ export async function DELETE(request: Request): Promise<Response> {
   // answers 503 rather than telling somebody who is signed in that they are not.
   const verification = await verifyCallerAuth(request, { localOnly: true });
   if (verification.status === "unavailable") {
-    return publicApiError(
-      "We could not check your sign-in. Try again.",
-      "AUTH_UNAVAILABLE",
-      503,
-      { retryable: true },
-    );
+    return authUnavailableError();
   }
   if (verification.status !== "verified") {
     return publicApiError("Sign in to delete your account.", "UNAUTHENTICATED", 401);

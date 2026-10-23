@@ -17,7 +17,7 @@ async function returningVisitor(page: Page, consent = false): Promise<void> {
 }
 
 for (const width of [390, 768, 1440]) {
-  test(`Manchester map fills ${width}x900 without a blank document tail`, async ({ page }, testInfo) => {
+  test(`Manchester map fills ${width}x900 without a blank document tail`, async ({ page }) => {
     await page.setViewportSize({ width, height: 900 });
     await returningVisitor(page);
     await page.goto("/map/manchester");
@@ -30,7 +30,6 @@ for (const width of [390, 768, 1440]) {
       bodyPadding: Number.parseFloat(getComputedStyle(document.body).paddingBottom),
       stageBottom: document.querySelector(".mapStage")?.getBoundingClientRect().bottom,
     }));
-    await page.screenshot({ path: testInfo.outputPath(`manchester-map-${width}.png`) });
 
     expect(dimensions.stageBottom).toBeCloseTo(dimensions.viewport, 0);
     expect(dimensions.bodyPadding).toBe(0);
@@ -40,15 +39,20 @@ for (const width of [390, 768, 1440]) {
 
 for (const width of [390, 768, 1440]) {
   for (const consent of [true, false]) {
-    test(`Places final city stays clear at ${width}px with consent ${consent ? "present" : "absent"}`, async ({ page }, testInfo) => {
+    test(`Places final city stays clear at ${width}px with consent ${consent ? "present" : "absent"}`, async ({ page }) => {
       await page.setViewportSize({ width, height: 900 });
       await returningVisitor(page, consent);
       await page.goto("/places");
       const prompt = page.getByLabel("Anonymous analytics choice");
       await expect(prompt).toHaveCount(consent ? 1 : 0);
       if (consent) await expect(prompt).toBeVisible();
-      const lastCity = page.locator(".placesCityLink").last();
-      await expect(lastCity).toBeVisible();
+      // The list view names one city and paints one door to it (taste plan,
+      // 18 Oct 2026), so the rows at the foot of the page are the town
+      // lookup's answers now. A short query answers with several towns, and
+      // the last of them is the row that has to clear the card and Create.
+      await page.getByLabel("Find a town").fill("man");
+      const lastCity = page.getByRole("list", { name: "Places" }).locator(".placesCityLink").last();
+      await expect(lastCity).toBeVisible({ timeout: 20_000 });
       const obstruction = consent ? prompt : page.locator(".createFabRoot");
       if (consent || width === 390) await expect(obstruction).toBeVisible();
       await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
@@ -63,7 +67,6 @@ for (const width of [390, 768, 1440]) {
         const rect = element.getBoundingClientRect();
         return element.contains(document.elementFromPoint(rect.left + rect.width / 2, rect.top + rect.height / 2));
       })).toBe(true);
-      await page.screenshot({ path: testInfo.outputPath(`places-bottom-clearance-${width}-${consent}.png`) });
       const destination = await lastCity.getAttribute("href");
       expect(destination).not.toBeNull();
       await lastCity.click();

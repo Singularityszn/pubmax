@@ -12,12 +12,12 @@ import type { MapLensPrice } from "@/lib/mapExperienceLens";
 import { spoonsValuePinFor, type SpoonsValuePinLane } from "@/lib/spoonsValue";
 import { bandAnchors } from "@/lib/storyBandGeometry";
 import type { StoryBand } from "@/lib/storyBands";
-import type { Venue } from "@/lib/venues";
-import { isPubVenueKind } from "@/lib/venueKindFilters";
+import { hasPintPriceSemantics, type Venue } from "@/lib/venues";
 import { truncateStopName } from "@/lib/routeStopLabel";
 import type { VenueWhatsOnSummary } from "@/lib/whatsOnBadges";
 import { pintTrustPinStanding } from "@/lib/pintTrust";
 import {
+  priceAgeFor,
   priceStandingFigure,
   type PriceStanding,
   type PriceStandingDecision,
@@ -97,11 +97,11 @@ function pinPriceTag(
  * "£5.40" over a pub is a claim about that pub, and we have no observation
  * behind it. So the seed lane stops here, deliberately.
  *
- * The sayable lane is also PUB-ONLY (isPubVenueKind): the map's figure idiom
- * is the pint price, and a famous bar/food venue's cheapestPrice is its anchor
- * price - a £25 house cocktail, a £15 doner - which printed bare would read as
- * a pint. Anchors stay labelled and dated on the venue sheet; the band (which
- * is type-relative for those kinds anyway) still paints.
+ * The sayable lane follows hasPintPriceSemantics, which preserves recorded
+ * legacy bar pints. A curated venue's item anchor would read as a pint if
+ * printed bare. Anchors stay labelled and dated on the venue sheet, while
+ * their type-relative band still paints. The shared price contract lives in
+ * docs/rules/lib-venues-areas-listings-and-nights.md.
  *
  * A PROVISIONAL report cannot reach either read: an uncorroborated community
  * submission never becomes `latestContributorPrice` (the gate is
@@ -126,7 +126,7 @@ function pinPriceStack(
     signals?.latestContributorPrice ?? venue.cheapestPrice ?? null;
   return {
     price: bandPrice ?? signals?.latestDemoPrice ?? null,
-    sourcedPrice: isPubVenueKind(venue.kind) ? bandPrice : null,
+    sourcedPrice: hasPintPriceSemantics(venue) ? bandPrice : null,
   };
 }
 
@@ -151,7 +151,7 @@ function pinPriceStack(
  * Only REAL recorded drink categories drive the resting (lens-off) glyph. When
  * a venue has none (filterHints.drinkCategories absent or empty), the honest
  * default for a pub is a pint glass, never the synthetic per-venue accent hash
- * (drinkAccentForVenue stays decorative card art), which otherwise painted
+ * (the retired /pubs card hash was decoration, never a fact), which otherwise painted
  * ale-led heritage pubs like The Black Friar with a hash-random martini glyph
  * (owner audit). #372 fixed the amenity path; this closes the accent path. The
  * cocktails amenity alone likewise never promotes a hintless pub to a martini
@@ -168,7 +168,7 @@ function pinDrinkKind(
     Boolean(venue.amenities.cocktails) ||
     Boolean(venue.filterHints?.amenities.cocktails);
   const hintCategories = venue.filterHints?.drinkCategories;
-  return venue.kind === "bar"
+  return venue.kind === "bar" || venue.kind === "club"
     ? "coupe"
     : venue.kind === "food"
       ? "skewer"
@@ -181,6 +181,51 @@ function pinDrinkKind(
             : hintCategories && hintCategories.length > 0
               ? drinkPinKindFromCategories(hintCategories, cocktailsAmenity)
               : "pint";
+}
+
+/**
+ * The price a cluster may count this pub's toward "cheapest here", or null.
+ *
+ * It is the pin tag's own base figure (`sourcedPrice`) while no lens owns the
+ * map, and nothing else, so a cluster can never say a number that none of its
+ * pins would print. The figure is kept as given: formatting (pounds, pence) is
+ * the label expression's job, in `CLUSTER_FIGURE_EXPR` (./filters).
+ */
+function clusterPriceFor(
+  sourcedPrice: number | null,
+  lensActive: boolean,
+  spoonsValue: SpoonsValuePinLane | null,
+): number | null {
+  if (lensActive || spoonsValue) return null;
+  return formatPinPriceLabel(sourcedPrice) === null ? null : sourcedPrice;
+}
+
+/**
+ * Whether the figure this pin PRINTS is past the window its standing claims
+ * (owner decision 16 Oct 2026: an aging price must look aging, never fresh).
+ *
+ * Only the pin's own base figure is judged: a lens figure, a Spoons round and
+ * a favourite-pint figure each carry their own contract and are not this
+ * pub's printed pint. The figure's lane is the stack's own: a drinker's log
+ * (`latestContributorPrice`) ages on the confirmation clock, the index's
+ * published price on the listing clock, with its read day from the slim index
+ * (`priceObservedAt`). Null when the pin prints no base figure, so the property
+ * is absent rather than "fresh" on a silent pin.
+ */
+export function pinPriceAging(args: {
+  venue: Pick<Venue, "priceObservedAt">;
+  signals: Pick<VenueSignal, "latestContributorPrice" | "latestContributorAt"> | undefined;
+  sourcedPrice: number | null;
+  ownsFigure: boolean;
+  now?: number;
+}): boolean | null {
+  if (!args.ownsFigure || formatPinPriceLabel(args.sourcedPrice) === null) return null;
+  const now = args.now ?? Date.now();
+  const age =
+    typeof args.signals?.latestContributorPrice === "number"
+      ? priceAgeFor("drinker", args.signals.latestContributorAt, now)
+      : priceAgeFor("published", args.venue.priceObservedAt, now);
+  return age === "aging";
 }
 
 function pinBucketAndTag(args: {
@@ -273,6 +318,8 @@ export function pubsToGeoJSON(
   // things, and stamps no standing: a pub's round is not a claim about its
   // pint. Absent lane = today's behaviour, unchanged.
   spoonsValue: SpoonsValuePinLane | null = null,
+  // The clock price ages are read against. Injected so a test can hold a day.
+  now: number = Date.now(),
 ): GeoJSON.FeatureCollection {
   return {
     type: "FeatureCollection",
@@ -302,6 +349,14 @@ export function pubsToGeoJSON(
         spoonsValue,
       });
       const drinkKind = pinDrinkKind(venue, drinkCategory, lensPrice);
+      const clusterPrice = clusterPriceFor(sourcedPrice, lensActive, spoonsValue);
+      const aging = pinPriceAging({
+        venue,
+        signals,
+        sourcedPrice,
+        ownsFigure: !lensActive && !spoonsValue && !favoritePint,
+        now,
+      });
       const scraped = Boolean(
         venue.filterHints?.scraped ||
         venue.sourceDatasets?.some((source) =>
@@ -314,6 +369,7 @@ export function pubsToGeoJSON(
           id: venue.id,
           name: venue.name,
           kind: venue.kind ?? "pub",
+          ...(venue.legacyOsmBar === true ? { legacyOsmBar: true } : {}),
           bucket,
           story: venue.hasStory,
           drops:
@@ -332,7 +388,7 @@ export function pubsToGeoJSON(
           // this is still the price bucket and never moves.
           icon: iconId(
             "drink",
-            venuePinIconKey(drinkKind, spoonsBucket ?? bucket),
+            venuePinIconKey(drinkKind, spoonsBucket ?? bucket, aging === true),
           ),
           // M7 pin entrance — a stable per-pub stagger bucket (hash of id, not
           // insertion order/coordinates) so the entrance cascade reads as a
@@ -353,6 +409,13 @@ export function pubsToGeoJSON(
           // Non-pint figures always carry their drink name in the same string.
           // A bare whisky or soft-drink number would masquerade as a pint.
           ...(tag.label ? { priceLabel: tag.label } : {}),
+          // The figure a CLUSTER may call its cheapest (`minPrice` in
+          // buildScene's clusterProperties). The same sayable price the pin's
+          // own tag prints and nothing wider: no lens figure (a category price
+          // is not a pint), no Spoons round, no modelled estimate and no demo
+          // seed. ABSENT, never 0 or null, so the reduce reads it as "this pub
+          // says nothing" and a cluster of silent pubs shows its count instead.
+          ...(clusterPrice === null ? {} : { clusterPrice }),
           // The standing this pub's price holds. ABSENT rather than "none" when
           // nothing was passed, so ["has","standing"] separates "we were not
           // asked" from "we looked and there is nothing", the way `whatsOn`
@@ -363,6 +426,10 @@ export function pubsToGeoJSON(
           // cluster donut and the rendered state read to know the map is under
           // the lens, and it is never a price.
           ...(spoonsBucket === null ? {} : { spoonsBucket }),
+          // The printed figure is past its standing's window (`pinPriceAging`).
+          // ABSENT on a fresh or silent pin, so ["get","aging"] reads cleanly.
+          // It changes the pin's SHAPE (a dashed ring) and never its colour.
+          ...(aging ? { aging: true } : {}),
         },
         geometry: {
           type: "Point" as const,

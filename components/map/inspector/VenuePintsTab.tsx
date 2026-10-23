@@ -34,12 +34,12 @@ export default function VenuePintsTab({
       className="venueTabPanel"
       hidden={tab !== "pints"}
     >
-      {/* Desktop docked panel (N3): Golden Thread / composer sits beside the
+      {/* Desktop docked panel (N3): Golden Thread sits beside the
           Pint Drops list in a two-column layout instead of stacking. This
           wrapper is a no-op on mobile (venueSheet.css only grids it ≥1024px);
           on mobile the two children still stack in document order exactly as
-          before. */}
-      <div className="venuePintsCols">
+          before. An open composer stacks at every width (--composing). */}
+      <div className={composerOpen ? "venuePintsCols venuePintsCols--composing" : "venuePintsCols"}>
         {composerOpen ? (
           <PintDropComposer
             venueId={venue.id}
@@ -60,13 +60,13 @@ export default function VenuePintsTab({
         <section className="pintDrops">
           <div className="inspectorTitle">
             <Quote size={16} />
-            <span>Pint Drops</span>
+            <span>Recent prices</span>
           </div>
           {hasDemoDrops ? (
             <div className="demoDataNote">
               <span>Demo data</span>
-              Example Pint Drops are seeded for the walkthrough. Live contributions use the same
-              flow.
+              These are example Pint Drops for the walkthrough. Real ones work the same
+              way.
             </div>
           ) : null}
           {composerOpen ? null : (
@@ -79,7 +79,7 @@ export default function VenuePintsTab({
                 }}
                 aria-label={`Log a Pint Drop at ${venue.name}`}
               >
-                <PlusCircle size={17} /> Log a Pint Drop
+                <PlusCircle size={16} /> Log a Pint Drop
               </button>
               {dropMsg ? (
                 <span

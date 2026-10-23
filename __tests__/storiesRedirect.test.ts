@@ -20,6 +20,18 @@ async function loadRedirects(): Promise<RedirectRule[]> {
 }
 
 describe("next.config redirects", () => {
+  it.each(["/map/uk", "/map/uk/1"])(
+    "sends %s to the national map permanently",
+    async (source) => {
+      const rule = (await loadRedirects()).find((entry) => entry.source === source);
+      expect(rule).toMatchObject({
+        source,
+        destination: "/map?uk=1",
+        permanent: true,
+      });
+    },
+  );
+
   it.each([
     ["/feed", "/social"],
     ["/feed/:path*", "/social"],
@@ -50,6 +62,15 @@ describe("next.config redirects", () => {
       destination: "/about",
       permanent: true,
     });
+  });
+
+  it.each([
+    ["/pub-pal", "/pal"],
+    ["/pub-pal/:path*", "/pal/:path*"],
+    ["/pubpal", "/pal"],
+  ])("sends the Pub Pal vanity path %s to %s permanently", async (source, destination) => {
+    const rule = (await loadRedirects()).find((entry) => entry.source === source);
+    expect(rule).toMatchObject({ source, destination, permanent: true });
   });
 
   it("sends /story to /about permanently", async () => {

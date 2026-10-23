@@ -1,11 +1,19 @@
 import type { Metadata } from "next";
 
+import {
+  areaPlacePhoto,
+  londonPlacePhoto,
+  pubPlacePhoto,
+  type PlacePhoto,
+} from "@/components/listing/placePhotoRules";
 import { venueCheapestPintObservedAt } from "@/lib/drinks";
+import { AREA_PHOTOS } from "@/lib/landingImagery";
 import { loadHistoricPubs } from "@/lib/historic";
-import { hypedPubsForPage } from "@/lib/hypedPubs";
+import { hypedPubPriceIndex, hypedPubsForPage } from "@/lib/hypedPubs";
 import { loadHypedPubs } from "@/lib/hypedPubs.server";
 import { loadMapSelectableVenueIds } from "@/lib/mapEagerVenueIndex.server";
 import { buildQuietPint, isQuietPintWindow } from "@/lib/quietPint";
+import { loadTodayOutAnswer, loadTodayWhatsOnAnswer } from "@/lib/todayListings.server";
 import { readSpoonsValue } from "@/lib/spoonsValue.server";
 import {
   tonightCheapPintChain,
@@ -16,14 +24,12 @@ import { getPricedVenues } from "@/lib/venuePriceIndex";
 import { matchedWetherspoonsVenueIds } from "@/lib/wetherspoonsMatch.server";
 import TonightClient from "./TonightClient";
 
-// First-class "Tonight" screen. The client owns the PRIMARY What's-On spine
-// (/api/whats-on — same as the map Tonight lane) and all interactivity. This
-// server shell carries route metadata plus the quiet-pint module when the
-// typical-pattern hour allows it (same buildQuietPint seam as /today).
+// The server composes the public listing answer through the same readers as
+// Today. The browser revalidates it through the shared map and Out API readers.
 export const metadata: Metadata = {
-  title: "Tonight in London · PUBMAXXING",
+  title: "Tonight in London",
   description:
-    "Check sourced London pub listings for tonight on PubMaxxing, with map links when available.",
+    "Check sourced London pub listings for tonight on PUBMAXX, with map links when available.",
   alternates: { canonical: "/tonight" },
 };
 
@@ -40,13 +46,37 @@ export const runtime = "nodejs";
 //      into dynamic rendering. The remembered area and every query parameter
 //      are read by the client after load.
 //   2. Nothing personal may reach this document. One prerendered copy is handed
-//      to every stranger, and the What's-On spine is fetched by the client.
+//      to every stranger. The browser revalidates the public listings.
 export const dynamic = "force-static";
 // The one input that moves between deploys is the London clock: the quiet-pint
 // window and the soft-plans window both read the hour. Five minutes bounds how
 // far a held copy can lag a window boundary, and the CDN regenerates in the
 // background so no reader waits for it.
 export const revalidate = 300;
+
+// The photographs this page may show, resolved here so neither photograph
+// table reaches the browser (components/listing/placePhotoRules.ts). A pub's own
+// photograph is kept only for a pub this page recommends, matched by venue id.
+// The area photographs are every Night Area we hold one of, because the area
+// the reader is in is only known after load; London's stands for the page
+// when no area is known.
+function tonightPhotos(hypedVenueIds: readonly (string | null)[]): {
+  pubPhotos: Record<string, PlacePhoto>;
+  areaPhotos: Record<string, PlacePhoto>;
+  londonPhoto: PlacePhoto | null;
+} {
+  const pubPhotos: Record<string, PlacePhoto> = {};
+  for (const venueId of hypedVenueIds) {
+    const photo = venueId ? pubPlacePhoto(venueId) : null;
+    if (venueId && photo) pubPhotos[venueId] = photo;
+  }
+  const areaPhotos: Record<string, PlacePhoto> = {};
+  for (const slug of Object.keys(AREA_PHOTOS)) {
+    const photo = areaPlacePhoto(slug);
+    if (photo) areaPhotos[slug] = photo;
+  }
+  return { pubPhotos, areaPhotos, londonPhoto: londonPlacePhoto() };
+}
 
 export default async function TonightPage() {
   const now = new Date();
@@ -55,18 +85,20 @@ export default async function TonightPage() {
   // Same fail-soft compose as /today: heritage-cited candidates joined to
   // verified pint prices. buildQuietPint returns null outside a quiet window
   // or when cited candidates are too few; the card then renders nothing.
-  const [pricedVenues, historicPubs, mapSelectableVenueIds, hyped, spoonsValue] =
+  const [pricedVenues, historicPubs, mapSelectableVenueIds, hyped, spoonsValue, whatsOn, out] =
     await Promise.all([
       getPricedVenues(),
       loadHistoricPubs(),
       loadMapSelectableVenueIds(),
-      // The pubs people are talking about. Read here rather than in the browser:
+      // The pubs Londoners keep recommending. Read here rather than in the browser:
       // this document is prerendered, so the rows cost the reader no request and
       // the route's byte ceiling is untouched.
       loadHypedPubs(),
       // Read on the server for the chain cap alone; no row of it reaches the
       // document.
       readSpoonsValue(),
+      loadTodayWhatsOnAnswer(now.getTime(), { pubOnly: true, limit: 60 }),
+      loadTodayOutAnswer(now.getTime()),
     ]);
   // One row per chain in the cheapest list. The first-party Wetherspoon
   // directory join and the SpoonMe pack name a Wetherspoon the price listing
@@ -107,14 +139,29 @@ export default async function TonightPage() {
     now,
   });
 
+  // Fresh rows only, measured on this render's clock, each carrying the
+  // cheapest pint we list there off the same dataset as the cheap pints.
+  const hypedPubs = hypedPubsForPage(hyped.rows, {
+    now,
+    prices: hypedPubPriceIndex(
+      pricedVenues.map((venue) => ({
+        id: venue.id,
+        cheapestPrice: venue.cheapestPrice,
+        observedAt: venueCheapestPintObservedAt(venue),
+      })),
+    ),
+  });
+
   return (
     <TonightClient
+      initialListings={{ whatsOn, out, renderedAt: now.getTime() }}
       quietPint={quietPint}
       softPlansWindow={softPlansWindow}
       mapSelectableVenueIds={
         mapSelectableVenueIds ? [...mapSelectableVenueIds] : null
       }
-      hypedPubs={hypedPubsForPage(hyped.rows)}
+      hypedPubs={hypedPubs}
+      photos={tonightPhotos(hypedPubs.map((row) => row.venueId))}
       // What a quiet night answers with: real pubs at a listed price, composed
       // from the dataset this page already read for the quiet-pint module.
       cheapPints={tonightCheapPints(

@@ -1,5 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
 import { attachBill } from "./helpers/priceBill";
+import { mobileMapShellControl } from "./helpers/mobileMapShell";
 
 // The UK base layer's two load-bearing promises, asserted in a real browser
 // with a real MapLibre canvas (this spec runs in the `chromium-gl` project):
@@ -224,7 +225,10 @@ test("normal London entry paints UK base pubs and takes a price", async ({
         const pin = ukPins[firstPinAttempt % ukPins.length];
         firstPinAttempt += 1;
         await page.mouse.click(pin.x, pin.y);
-        await page.waitForTimeout(400);
+        // The base pub sheet opens at peek and keeps the map live, so a retry
+        // that taps the next pin before this one's sheet lands only switches
+        // pubs again. Give the tapped pub its own time to open.
+        await sheet.waitFor({ state: "visible", timeout: 5_000 }).catch(() => {});
         if ((await sheet.count()) === 0) return null;
         const name = await sheetName();
         if (!name) return null;
@@ -252,12 +256,19 @@ test("normal London entry paints UK base pubs and takes a price", async ({
       )
       .first();
     if (!(await listButton.isVisible().catch(() => false))) {
-      const more = page.getByRole("button", { name: "More map controls" });
-      await expect(more).toBeVisible({ timeout: 10_000 });
-      await more.click();
-      const listToggle = page.getByRole("button", { name: "List view" });
-      await expect(listToggle).toBeVisible({ timeout: 10_000 });
-      await listToggle.click();
+      // On a phone the list sits behind the Layers tab of the Map controls
+      // sheet, which opens on its Key tab. A sheet left open on the Key tab
+      // covers the map, so every later painted-pin read comes back empty.
+      await (await mobileMapShellControl(page, "more")).click();
+      const layersSheet = page.locator('.mobileSheetPortal[data-sheet-kind="layers"]:visible');
+      await expect(layersSheet).toBeVisible({ timeout: 10_000 });
+      await layersSheet.getByRole("tab", { name: "Layers" }).click();
+      const listShortcut = layersSheet.getByRole("button", {
+        name: "List view of venues on the map",
+      });
+      await expect(listShortcut).toBeVisible({ timeout: 10_000 });
+      await listShortcut.click();
+      await expect(page.locator(".mapVenueListPanel")).toBeVisible({ timeout: 10_000 });
       await expect(listButton).toBeVisible({ timeout: 15_000 });
     }
     await listButton.click();
@@ -339,6 +350,22 @@ test("normal London entry paints UK base pubs and takes a price", async ({
   await expect(restoredSheet).toBeVisible({ timeout: 45_000 });
   await expect(restoredSheet.locator(".unverifiedPubName")).toHaveText(pubName);
 });
+
+// The desktop drawer names a base pub's sheet for its own OSM kind. It used to
+// read the curated selection, which a base pub never has, so a search that
+// opened the base twin of a curated pub landed in a sheet called "Venue detail".
+for (const pub of [
+  { id: "venue-uk-n352930271", at: "51.5003,-0.0842", name: "The Leather Exchange", label: "Pub detail" },
+  { id: "venue-uk-n4470162948", at: "51.5002,-0.0765", name: "The Doodle Bar", label: "Bar detail" },
+]) {
+  test(`a base pub's desktop sheet is named ${pub.label}`, async ({ page }) => {
+    test.setTimeout(120_000);
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await page.goto(`/map?sel=${pub.id}&at=${pub.at}`);
+    const sheet = page.getByRole("dialog", { name: pub.label, exact: true });
+    await expect(sheet.locator(".unverifiedPubName")).toHaveText(pub.name, { timeout: 45_000 });
+  });
+}
 
 test("a fresh national overview stays below the UK base gate and fetches no data", async ({
   page,

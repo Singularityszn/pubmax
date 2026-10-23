@@ -78,9 +78,12 @@ for (const { width, city, drink } of [
     expect(new URL(page.url()).searchParams.get("drink")).toBe(drink);
     const nearby = page.locator(".logIntentNearbyBtn").first();
     await expect(nearby).toBeVisible();
-    await nearby.click();
-    await expect(page.getByRole("textbox", { name: new RegExp(`Price of a ${drink} at`) }))
-      .toBeVisible({ timeout: 30_000 });
+    // A picker re-sort between press and release drops the tap, so only a
+    // dropped tap is retried (e2e/design-review-followups.spec.ts).
+    await expect(async () => {
+      if (await nearby.isVisible()) await nearby.click({ timeout: 2_000 });
+      await expect(page.getByRole("textbox", { name: new RegExp(`Price of a ${drink} at`) })).toBeVisible({ timeout: 2_000 });
+    }).toPass({ timeout: 30_000 });
     expect(new URL(page.url()).pathname).toBe(`/map/${city}`);
     await expect(page.getByTestId("spill-price-step")).toHaveCount(0);
   });
@@ -119,9 +122,12 @@ for (const [drink, noun] of [["wine", "wine"], ["cocktail", "cocktail"]] as cons
     await expect(picker).toBeVisible({ timeout: 45_000 });
     const nearby = page.locator(".logIntentNearbyBtn").first();
     await expect(nearby).toBeVisible();
-    await nearby.click();
-    await expect(page.getByRole("textbox", { name: new RegExp(`Price of a ${noun} at`) }))
-      .toBeVisible({ timeout: 30_000 });
+    // A picker re-sort between press and release drops the tap, so only a
+    // dropped tap is retried (e2e/design-review-followups.spec.ts).
+    await expect(async () => {
+      if (await nearby.isVisible()) await nearby.click({ timeout: 2_000 });
+      await expect(page.getByRole("textbox", { name: new RegExp(`Price of a ${noun} at`) })).toBeVisible({ timeout: 2_000 });
+    }).toPass({ timeout: 30_000 });
     await expect(page.getByTestId("spill-price-step")).toHaveCount(0);
     await expect(page).toHaveURL(new RegExp(`drink=${drink}.*sel=[^&]+`));
   });

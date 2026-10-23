@@ -2,7 +2,7 @@
   position: relative;
   margin: 0;
   overflow: hidden;
-  border-radius: 12px;
+  border-radius: var(--radius);
   background: color-mix(in srgb, var(--panel-raised) 80%, var(--ink-deep) 8%);
 }
 
@@ -19,14 +19,14 @@
   min-height: 120px;
   padding: 1rem;
   color: var(--muted);
-  font-size: 0.78rem;
+  font-size: var(--text-xs);
   font-weight: 600;
   letter-spacing: 0.02em;
   /* Honest placeholder for photo-less pubs, never a stock photo. A flat
      surface with a hairline: the earlier warm gradient band read as an image
      that had failed to load rather than as a pub with no photo yet. */
-  border: 1px solid var(--line-soft, var(--line));
-  background: var(--panel, var(--paper));
+  border: 1px solid var(--line-soft);
+  background: var(--panel);
 }
 
 .venueImage--empty > span {
@@ -39,7 +39,7 @@
   margin: 0;
   padding: 0.35rem 0.55rem 0.45rem;
   color: var(--ink-soft);
-  font-size: 0.68rem;
+  font-size: var(--text-2xs);
   font-weight: 600;
 }
 
@@ -48,10 +48,10 @@
   left: 0.5rem;
   bottom: 0.5rem;
   padding: 0.15rem 0.5rem;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: color-mix(in srgb, var(--ink-deep) 70%, transparent);
   color: #fff;
-  font-size: 0.62rem;
+  font-size: var(--text-2xs);
   font-weight: 700;
   letter-spacing: 0.02em;
   pointer-events: none;
@@ -84,7 +84,7 @@
      header photo is a framed picture inside that column rather than an
      edge-to-edge band, and its corners follow. */
   .venueInspector .venueImage--header {
-    border-radius: 12px;
+    border-radius: var(--radius);
     margin: 0 0 0.75rem;
   }
 

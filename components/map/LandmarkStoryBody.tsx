@@ -41,7 +41,7 @@ export function LandmarkStoryHead({
   return (
     <div className={`landmarkStoryHead${className ? ` ${className}` : ""}`}>
       <span className="landmarkStoryGlyph" aria-hidden="true">
-        <LandmarkIcon size={18} strokeWidth={1.75} />
+        <LandmarkIcon size={20} />
       </span>
       <h2 className="landmarkStoryTitle">{landmark.name}</h2>
       <Link className="landmarkStoryChapter" href={`/landmark/${encodeURIComponent(landmark.id)}`}>
@@ -71,6 +71,7 @@ export default function LandmarkStoryBody({
   onAskPubmaxxer?: (venueId: string) => void;
 }) {
   const nearbyIds = nearby.map((row) => row.venue.id);
+  const firstNearbyId = nearbyIds[0];
   return (
     <div className="landmarkStory">
       <LandmarkHeroPhoto
@@ -82,7 +83,7 @@ export default function LandmarkStoryBody({
       {areaLine || showChapterLink ? (
         <div className="landmarkStoryWhere">
           {areaLine ? (
-            <Kicker tone="muted" as="span">
+            <Kicker as="span">
               {areaLine}
             </Kicker>
           ) : (
@@ -106,7 +107,7 @@ export default function LandmarkStoryBody({
         rel="noreferrer"
       >
         Source: {landmark.source.label}
-        <ExternalLink size={13} aria-hidden="true" />
+        <ExternalLink size={14} aria-hidden="true" />
       </a>
       {nearby.length > 0 && (onStartCrawl || onAskPubmaxxer) ? (
         <div className="landmarkStoryActions">
@@ -120,11 +121,11 @@ export default function LandmarkStoryBody({
               Start a crawl here
             </Button>
           ) : null}
-          {onAskPubmaxxer ? (
+          {onAskPubmaxxer && firstNearbyId ? (
             <Button
               type="button"
               variant="secondary"
-              onClick={() => onAskPubmaxxer(nearbyIds[0])}
+              onClick={() => onAskPubmaxxer(firstNearbyId)}
             >
               Ask the PUBMAXXER
             </Button>

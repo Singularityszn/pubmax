@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  offeredVenueKinds,
   toggleVenueKind,
   type CuratedVenueKind,
   type VenueKindVisibility,
@@ -11,10 +12,9 @@ import "./tonightArcChips.css";
 
 // The kinds the map's own filter offers, and no more. A "Clubs" chip stood
 // here permanently disabled, explained by a `title` attribute no phone shows
-// (docs/proof/astra-live-walk/report.md B9). It could never be enabled:
-// `curatedVenueKind` in lib/venueKindFilters.ts answers null for a club, so
-// `filterVenuesByKind` leaves clubs off the map entirely. Giving those kinds
-// their own surface is a separate wave, and the chip comes back with it.
+// (docs/proof/astra-live-walk/report.md B9). It could never be enabled, so it
+// went: `curatedVenueKind` in lib/venueKindFilters.ts files a club under the
+// bars, and the Bars chip shows and hides clubs with them.
 const CHIPS: ReadonlyArray<{
   kind: CuratedVenueKind;
   label: string;
@@ -46,12 +46,8 @@ export default function TonightArcChips({
   variant?: "popover" | "sheet";
   onChange: (next: VenueKindVisibility) => void;
 }) {
-  const chips =
-    experienceLens === "food"
-      ? CHIPS.filter(
-          (chip) => chip.kind === "food" || chip.kind === "restaurant",
-        )
-      : CHIPS;
+  const offeredKinds = offeredVenueKinds(experienceLens);
+  const chips = CHIPS.filter((chip) => offeredKinds.includes(chip.kind));
   return (
     <div
       className={
@@ -88,7 +84,7 @@ export default function TonightArcChips({
                 </span>
               ) : null}
               <span className="tonightArcChipLabel">
-                {experienceLens === "no-alcohol" && chip.kind === "pub"
+                {experienceLens !== "all" && chip.kind === "pub"
                   ? "Pubs"
                   : chip.label}
               </span>

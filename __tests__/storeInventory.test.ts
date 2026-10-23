@@ -2,6 +2,7 @@ import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 
 import { describe, expect, it } from "vitest";
+import { defined } from "@/__tests__/helpers/defined";
 
 // THE STORE INVENTORY (#727, section 1). One row per `lib/*Store*.ts` module,
 // naming how it chooses between process-memory and Supabase and which class it
@@ -74,6 +75,7 @@ const STORE_INVENTORY: Record<string, StoreRow> = {
     inlineBranches: 6,
     reason: "Per-operation branching over two tables with fail-soft reads; no single interface to select.",
   },
+  "lib/diaryStore.ts": { class: "policy-heavy", selector: "selectStore" },
   "lib/feedFreshnessStore.ts": { class: "policy-heavy", selector: "selectStore" },
   "lib/followStore.ts": { class: "plain-dual-backend", selector: "selectStore" },
   "lib/freshnessStoreOverlay.ts": {
@@ -147,8 +149,8 @@ const STORE_INVENTORY: Record<string, StoreRow> = {
   "lib/pubPalStore.ts": {
     class: "legacy-exception",
     selector: "inline",
-    inlineBranches: 8,
-    reason: "Result-typed operations branch inline over two maps; no interface pair to select.",
+    inlineBranches: 9,
+    reason: "Result-typed operations branch inline over two maps; no interface pair to select. The crew list (listCrewVisiblePalsResult) is one more read of the same two maps.",
   },
   "lib/pubPalToolTurnStore.ts": { class: "plain-dual-backend", selector: "selectStore" },
   "lib/pushTokenStore.ts": { class: "plain-dual-backend", selector: "selectStore" },
@@ -169,10 +171,15 @@ const STORE_INVENTORY: Record<string, StoreRow> = {
     selector: "none",
     reason: "RPC-only durable store; no memory implementation.",
   },
+  "lib/socialPostExtraPhotoStore.ts": { class: "policy-heavy", selector: "selectStore" },
+  "lib/socialPostReviewStore.ts": { class: "policy-heavy", selector: "selectStore" },
   "lib/socialPostStore.ts": { class: "policy-heavy", selector: "selectStore" },
+  "lib/socialPostVideoStore.ts": { class: "policy-heavy", selector: "selectStore" },
+  "lib/socialPubRankingStore.ts": { class: "policy-heavy", selector: "selectStore" },
   "lib/stepOutNudgeStore.ts": { class: "policy-heavy", selector: "selectStore" },
   "lib/venueOperatorsStore.ts": { class: "policy-heavy", selector: "selectStore" },
   "lib/venuePhotoStore.ts": { class: "policy-heavy", selector: "selectStore" },
+  "lib/venueSubmissionStore.ts": { class: "policy-heavy", selector: "selectStore" },
   "lib/visitReportsStore.ts": { class: "policy-heavy", selector: "selectStore" },
   "lib/walkRouteStore.ts": { class: "cache-backed", selector: "selectStore" },
   "lib/wantedStore.ts": { class: "policy-heavy", selector: "selectStore" },
@@ -231,7 +238,7 @@ describe("store inventory (#727)", () => {
   });
 
   it.each(modules)("%s matches its inventory row", (path) => {
-    const row = STORE_INVENTORY[path];
+    const row = defined(STORE_INVENTORY[path]);
     const src = source(path);
     const usesSeam = SEAM_SELECTORS.some((needle) => src.includes(needle));
     const inline = count(src, "isSupabaseConfigured()");

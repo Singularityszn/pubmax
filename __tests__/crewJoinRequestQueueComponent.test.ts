@@ -72,6 +72,7 @@ vi.mock("@/components/nav/SiteNav", () => ({
 }));
 
 vi.mock("@/lib/authedFetch", () => ({
+  authedFetch: vi.fn((input: RequestInfo | URL, init?: RequestInit) => fetch(input, init)),
   authedActionFetch: vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
     const url = String(input);
     if (url === `/api/social/crews/${CREW_ID}`) {

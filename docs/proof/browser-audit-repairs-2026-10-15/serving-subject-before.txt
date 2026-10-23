@@ -1,0 +1,76 @@
+
+ RUN  v5.0.3 /Users/karanmanoharan/.no-mistakes/worktrees/0a94b5a8763e/01M4ZQRV5QZPYFNNC4P95AMFCP
+
+--------------------------------------------xxxx----------------xx----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 6 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > refuses complete serving qualifiers before paid consumption: {"query":"3 pubs in Clapham, 330 ml of beer under£5"}
+AssertionError: expected 200 to be 422 // Object.is equality
+
+- Expected
++ Received
+
+- 422
++ 200
+
+ ❯ __tests__/planGenerateRoute.test.ts:220:29
+    218|       method: "POST", body: JSON.stringify(input),
+    219|     }));
+    220|     expect(response.status).toBe(422);
+       |                             ^
+    221|     expect(await response.json()).toMatchObject({ code: "DRINK_PRICE_C…
+    222|     expect("response" in prepared ? prepared.response.status : 200).to…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/6]⎯
+
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > refuses complete serving qualifiers before paid consumption: {"query":"3 pubs in Clapham","context":{"foodNeeds":["pizza","330 ml of beer under£5"]}}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > refuses complete serving qualifiers before paid consumption: {"query":"3 pubs in Clapham, £5 for 330 ml of beer"}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > refuses complete serving qualifiers before paid consumption: {"query":"3 pubs in Clapham, two pints of beer under£5"}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > refuses complete serving qualifiers before paid consumption: {"query":"3 pubs in Clapham","context":{"foodNeeds":["pizza","two pints of beer under£5"]}}
+AssertionError: expected 200 to be 422 // Object.is equality
+
+- Expected
++ Received
+
+- 422
++ 200
+
+ ❯ __tests__/planGenerateRoute.test.ts:220:29
+    218|       method: "POST", body: JSON.stringify(input),
+    219|     }));
+    220|     expect(response.status).toBe(422);
+       |                             ^
+    221|     expect(await response.json()).toMatchObject({ code: "DRINK_PRICE_C…
+    222|     expect("response" in prepared ? prepared.response.status : 200).to…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/6]⎯
+
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > refuses complete serving qualifiers before paid consumption: {"query":"3 pubs in Clapham","context":{"foodNeeds":["pizza","£5 for 330 ml of beer"]}}
+AssertionError: expected { …(3) } to match object { Object (code) }
+(2 matching properties omitted from actual)
+
+- Expected
++ Received
+
+  {
+-   "code": "DRINK_PRICE_CONSTRAINTS_UNSUPPORTED",
++   "code": "MEAL_CONSTRAINTS_UNSUPPORTED",
+  }
+
+ ❯ __tests__/planGenerateRoute.test.ts:221:35
+    219|     }));
+    220|     expect(response.status).toBe(422);
+    221|     expect(await response.json()).toMatchObject({ code: "DRINK_PRICE_C…
+       |                                   ^
+    222|     expect("response" in prepared ? prepared.response.status : 200).to…
+    223|     if (!("response" in prepared)) throw new Error("Expected unsupport…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/6]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  6 failed | 1360 skipped (1366)
+   Start at  14:40:44
+   Duration  713ms (transform 63%, import 21%, tests 15%, setup 1%)
+

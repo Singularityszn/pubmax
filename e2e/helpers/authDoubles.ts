@@ -1,4 +1,7 @@
 import { type Page } from "@playwright/test";
+import type { DeviceAccountRecord } from "../../lib/deviceAccountSessions";
+
+type RememberedAccount = Pick<DeviceAccountRecord, "userId" | "refreshToken" | "handle">;
 
 export const ACCOUNTS = {
   A: {
@@ -61,6 +64,10 @@ export function accessJwt(account: Account): string {
         email: account.email,
         exp: JWT_EXPIRY_SECONDS,
         role: "authenticated",
+        // An emailed-link session: the only kind an unowned callback accepts.
+        // `magiclink`, not `otp`: an `otp` session also needs a confirmed
+        // email, and one spec answers for an account whose email is not.
+        amr: [{ method: "magiclink", timestamp: JWT_EXPIRY_SECONDS - 3_600 }],
       }),
     ),
     base64url("e2e-signature"),
@@ -105,9 +112,27 @@ function accountForBearer(header: string | undefined): Account | null {
   return null;
 }
 
+/**
+ * Answer the same-origin provider read (`/api/auth/providers`, #1942). The
+ * server reads Supabase's settings for the browser now, and the keyless e2e
+ * server's Supabase host is not routable, so unanswered the route is a 503 and
+ * every signed-out page logs a console error. Routing the Supabase host in the
+ * page no longer reaches that read; this is the boundary to stub instead. Every
+ * provider is off, which is what the old `{}` settings double said.
+ */
+export async function stubSocialAuthProviders(page: Page): Promise<void> {
+  await page.route("**/api/auth/providers**", (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({ google: false, apple: false, microsoft: false }),
+    }),
+  );
+}
+
 export async function installAuthDoubles(
   page: Page,
-  options: { realResumeCookie?: boolean } = {},
+  options: { realResumeCookie?: boolean; analyticsConsent?: "denied" | "pending" } = {},
 ): Promise<Stub> {
   let current: Account | null = ACCOUNTS.A;
   /** undefined: derive the handle from the caller. Otherwise force this answer. */
@@ -140,8 +165,12 @@ export async function installAuthDoubles(
   }
 
   await page.addInitScript(
-    ({ accounts, authStorageKey, whichKey }) => {
-      window.localStorage.setItem("pubmaxx:analytics-consent:v1", "denied");
+    ({ accounts, authStorageKey, whichKey, analyticsConsent }) => {
+      if (analyticsConsent === "pending") {
+        window.localStorage.removeItem("pubmaxx:analytics-consent:v1");
+      } else {
+        window.localStorage.setItem("pubmaxx:analytics-consent:v1", "denied");
+      }
       const which = window.localStorage.getItem(whichKey);
       const account = which ? accounts[which as "A" | "B"] : null;
       if (!account) {
@@ -172,8 +201,11 @@ export async function installAuthDoubles(
       accounts: ACCOUNTS,
       authStorageKey: AUTH_STORAGE_KEY,
       whichKey: WHICH_ACCOUNT_KEY,
+      analyticsConsent: options.analyticsConsent ?? "denied",
     },
   );
+
+  await stubSocialAuthProviders(page);
 
   // GoTrue double.
   //
@@ -289,17 +321,15 @@ export async function seedSignedIn(page: Page, key: AccountKey): Promise<void> {
 /** The accounts this device remembers, as the switcher's own lane holds them. */
 export async function readDeviceAccounts(
   page: Page,
-): Promise<Array<{ userId: string; refreshToken: string | null; handle: string | null }>> {
+): Promise<RememberedAccount[]> {
   return page.evaluate((key) => {
     try {
       const raw = window.localStorage.getItem(key);
-      return raw ? (JSON.parse(raw) as Array<Record<string, never>>) : [];
+      return raw ? (JSON.parse(raw) as RememberedAccount[]) : [];
     } catch {
       return [];
     }
-  }, DEVICE_ACCOUNTS_KEY) as Promise<
-    Array<{ userId: string; refreshToken: string | null; handle: string | null }>
-  >;
+  }, DEVICE_ACCOUNTS_KEY);
 }
 
 export async function readDeviceIdentity(page: Page): Promise<Record<string, string | null>> {

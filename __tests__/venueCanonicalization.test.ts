@@ -10,6 +10,7 @@ import {
   postcodeOutward,
   significantNameTokens,
   stableVenueIdFromKey,
+  VERIFIED_BORROWED_WEBSITES,
   venueGroupingKey,
 } from "@/scripts/lib/venueCanonicalization.mjs";
 import {
@@ -18,6 +19,7 @@ import {
   venueGroupingKey as tsVenueGroupingKey,
   type VenuePrice,
 } from "@/lib/venues";
+import { defined } from "@/__tests__/helpers/defined";
 
 // A row factory mirroring __tests__/venues.test.ts so canonicalized rows can be
 // fed straight into groupVenuePrices for the regression assertion.
@@ -76,7 +78,7 @@ const ROCHESTER_SEED = makeRow({
   app_price_id: "app_price_001091",
   pub_name: "The Rochester Castle",
   pint_name: "BUD LIGHT",
-  price_gbp: 1.99,
+  price_gbp: 2.09, // the source row says £1.99, which is out of the pint band; this test is about the merge
   address: "143-145 Stoke Newington High Street, , Stoke Newington, England",
   latitude: 51.561,
   longitude: -0.073976,
@@ -155,7 +157,7 @@ describe("canonicalizeDataset — Rochester Castle merge", () => {
     expect(rows.every((r) => r.latitude === 51.561 && r.longitude === -0.073976)).toBe(true);
     // ...but each keeps its own price + provenance (no averaging, no invention).
     const prices = rows.map((r) => r.price_gbp).sort((a, b) => (a ?? 0) - (b ?? 0));
-    expect(prices).toEqual([1.99, 2.43]);
+    expect(prices).toEqual([2.09, 2.43]);
     const spoonsRow = rows.find((r) => r.app_price_id === "app_price_001099")!;
     expect(spoonsRow.source_datasets).toContain("individual_pub_page");
     expect(spoonsRow.price_gbp).toBe(2.43);
@@ -168,13 +170,247 @@ describe("canonicalizeDataset — Rochester Castle merge", () => {
     expect(venues).toHaveLength(1);
     const ids = venues.map((v) => v.id);
     expect(new Set(ids).size).toBe(ids.length); // no two entries share a canonical id
-    expect(venues[0].name).toBe("The Rochester Castle");
-    expect(venues[0].cheapestPrice).toBe(1.99); // cheapest across the union
-    expect(venues[0].prices).toHaveLength(2); // both price rows preserved
+    expect(defined(venues[0]).name).toBe("The Rochester Castle");
+    expect(defined(venues[0]).cheapestPrice).toBe(2.09); // cheapest across the union
+    expect(defined(venues[0]).prices).toHaveLength(2); // both price rows preserved
   });
 });
 
 describe("canonicalizeDataset — safety guards", () => {
+  it("keeps the verified Blackfriar identity when a third duplicate has more price rows", () => {
+    const canonical = makeRow({
+      pub_name: "The Blackfriar",
+      address: "174 Queen Victoria St, Greater, London EC4V 4EG, UK",
+      latitude: 51.5121, longitude: -0.103677, price_gbp: 6.5,
+    });
+    const duplicate = makeRow({
+      pub_name: "The Black Friar, Blackfriars",
+      address: "City of London, Greater London",
+      latitude: 51.5121, longitude: -0.103751, price_gbp: null,
+    });
+    const richerDuplicate = makeRow({
+      ...canonical,
+      address: "174 Queen Victoria Street, London EC4V 4EG",
+      longitude: -0.10369,
+    });
+    const extraPrice = { ...richerDuplicate, price_gbp: 7 };
+    const result = canonicalizeDataset([canonical, duplicate, richerDuplicate, extraPrice]);
+
+    expect(result.aliases).toEqual({
+      "venue-1sw9ofl": "venue-eltcmh",
+      "venue-119kvwe": "venue-eltcmh",
+    });
+    const venues = groupVenuePrices(result.rows);
+    expect(venues).toHaveLength(1);
+    expect(defined(venues[0]).id).toBe("venue-eltcmh");
+    expect(result.rows.map((price) => price.price_gbp)).toEqual([6.5, null, 6.5, 7]);
+  });
+  it("keeps the priced Blackfriar identity and aliases its unpriced Wikipedia spelling", () => {
+    const canonical = makeRow({
+      pub_name: "The Blackfriar",
+      address: "174 Queen Victoria St, Greater, London EC4V 4EG, UK",
+      latitude: 51.5121, longitude: -0.103677, price_gbp: 6.5,
+      source_datasets: "canonical_borough_leaderboard_enriched|borough_embedded_map_data_raw|individual_pub_page",
+    });
+    const duplicate = makeRow({
+      pub_name: "The Black Friar, Blackfriars",
+      address: "City of London, Greater London",
+      latitude: 51.5121, longitude: -0.103751, price_gbp: null,
+      source_datasets: "wikipedia_london_list",
+    });
+    expect(stableVenueIdFromKey(venueGroupingKey(canonical))).toBe("venue-eltcmh");
+    expect(stableVenueIdFromKey(venueGroupingKey(duplicate))).toBe("venue-1sw9ofl");
+    const result = canonicalizeDataset([canonical, duplicate]);
+    expect(result.aliases).toEqual({ "venue-1sw9ofl": "venue-eltcmh" });
+    expect(result.stats.venueIdentitiesAfter).toBe(1);
+    expect(result.rows[0]).toEqual(canonical);
+    expect(result.rows[1]).toEqual({
+      ...duplicate,
+      pub_name: canonical.pub_name, address: canonical.address,
+      latitude: canonical.latitude, longitude: canonical.longitude,
+    });
+    expect(canonicalizeDataset(result.rows).aliases).toEqual({});
+  });
+  it("merges the verified Moon on the Square pair 177 m apart into its OSM pin", () => {
+    const spoons = makeRow({
+      pub_name: "The Moon on the Square - JD Wetherspoon",
+      address: "Unit 30, The Centre, Feltham, TW13 4AU",
+      latitude: 51.4452, longitude: -0.411801, price_gbp: 2.43,
+      source_datasets: "borough_embedded_map_data_raw|individual_pub_page",
+    });
+    const osm = makeRow({
+      pub_name: "The Moon on the Square",
+      address: "30, High Street, Feltham, TW13 4AU",
+      latitude: 51.4464358, longitude: -0.4101685, price_gbp: null,
+      source_datasets: "outer_london_osm",
+    });
+    expect(stableVenueIdFromKey(venueGroupingKey(spoons))).toBe("venue-g9jxzs");
+    expect(stableVenueIdFromKey(venueGroupingKey(osm))).toBe("venue-86sj0g");
+    const result = canonicalizeDataset([spoons, { ...spoons, price_gbp: 3.73 }, osm]);
+    expect(result.aliases).toEqual({ "venue-g9jxzs": "venue-86sj0g" });
+    const venues = groupVenuePrices(result.rows);
+    expect(venues).toHaveLength(1);
+    expect(defined(venues[0]).id).toBe("venue-86sj0g");
+    expect(result.rows.map((price) => price.price_gbp)).toEqual([2.43, 3.73, null]);
+    expect(canonicalizeDataset(result.rows).aliases).toEqual({});
+  });
+  it("does not merge an unverified Moon on the Square record 177 m away", () => {
+    const spoons = makeRow({
+      pub_name: "The Moon on the Square - JD Wetherspoon",
+      address: "Unit 31, The Centre, Feltham, TW13 4AU",
+      latitude: 51.4452, longitude: -0.411801,
+    });
+    const osm = makeRow({
+      pub_name: "The Moon on the Square",
+      address: "30, High Street, Feltham, TW13 4AU",
+      latitude: 51.4464358, longitude: -0.4101685, price_gbp: null,
+    });
+    expect(canonicalizeDataset([spoons, osm]).aliases).toEqual({});
+  });
+
+  it("joins the Young's 'Guardhouse' seed to the OSM 'Guard House' it duplicates", () => {
+    // Both rows as committed in public/data/pint_prices_app_dataset.json.
+    const osm = makeRow({
+      pub_name: "The Guard House",
+      address: "No 1 Street, London, SE18 6GH",
+      latitude: 51.4918809, longitude: 0.0691701, price_gbp: null,
+      source_datasets: "outer_london_osm",
+    });
+    const seed = makeRow({
+      pub_name: "The Guardhouse",
+      address: "No 1 Street, Plumstead, SE18 6GH, London",
+      latitude: 51.49188, longitude: 0.06917, price_gbp: null,
+      source_datasets: "london_chain_gazetteer_seed",
+    });
+    expect(stableVenueIdFromKey(venueGroupingKey(osm))).toBe("venue-9e93hd");
+    expect(stableVenueIdFromKey(venueGroupingKey(seed))).toBe("venue-kkpnq8");
+    const result = canonicalizeDataset([seed, osm]);
+    expect(result.aliases).toEqual({ "venue-kkpnq8": "venue-9e93hd" });
+    expect(groupVenuePrices(result.rows).map((venue) => venue.id)).toEqual(["venue-9e93hd"]);
+    // The alias is for that pair only: the same spelling gap elsewhere stays two pubs.
+    const elsewhere = canonicalizeDataset([
+      { ...seed, address: "1 Other Road, London E1 1AA", latitude: 51.52, longitude: -0.07 },
+      { ...osm, address: "1 Other Road, London E1 1AA", latitude: 51.52, longitude: -0.07 },
+    ]);
+    expect(elsewhere.aliases).toEqual({});
+  });
+
+  it("joins a verified pair past the fuzzy radius, and only that pair", () => {
+    // Both rows as committed: 52.6 m apart, beyond the 45 m fuzzy radius.
+    const kept = makeRow({
+      pub_name: "The Trafalgar",
+      address: "Park Row, London SE10 9NW",
+      latitude: 51.4841, longitude: -0.0041379, price_gbp: 8.4,
+    });
+    const wikipedia = makeRow({
+      pub_name: "Trafalgar Tavern",
+      address: "Greenwich, Greater London",
+      latitude: 51.484565, longitude: -0.004274, price_gbp: null,
+    });
+    expect(stableVenueIdFromKey(venueGroupingKey(kept))).toBe("venue-1lj3hj4");
+    expect(stableVenueIdFromKey(venueGroupingKey(wikipedia))).toBe("venue-1clnw4x");
+    expect(canonicalizeDataset([wikipedia, kept]).aliases).toEqual({ "venue-1clnw4x": "venue-1lj3hj4" });
+    // The same two names at the same distance are not joined for anyone else.
+    const elsewhere = canonicalizeDataset([
+      { ...kept, address: "1 Other Road, London E1 1AA" },
+      { ...wikipedia, address: "1 Other Road, London E1 1AA" },
+    ]);
+    expect(elsewhere.aliases).toEqual({});
+  });
+
+  describe("a verified misplaced record", () => {
+    const pub = makeRow({
+      pub_name: "The Marquis of Cornwallis",
+      address: "304 Bethnal Green Rd, Bethnal Green, London E2 0AG",
+      latitude: 51.5264, longitude: -0.0644607, price_gbp: 4.55,
+      source_datasets: "canonical_borough_leaderboard_enriched|borough_embedded_map_data_raw|individual_pub_page",
+    });
+    const misplaced = makeRow({
+      pub_name: "Maruquis of Cornwallis",
+      address: "Bethnal Green Road",
+      latitude: 51.5242, longitude: -0.0732748, price_gbp: 4.1,
+      source_datasets: "canonical_borough_leaderboard_enriched|borough_embedded_map_data_raw",
+    });
+
+    it("folds the misspelt, misplaced Cornwallis into the pub at 304 Bethnal Green Road", () => {
+      expect(stableVenueIdFromKey(venueGroupingKey(pub))).toBe("venue-1eyb3zz");
+      expect(stableVenueIdFromKey(venueGroupingKey(misplaced))).toBe("venue-j71x23");
+      const result = canonicalizeDataset([misplaced, pub]);
+      expect(result.aliases).toEqual({ "venue-j71x23": "venue-1eyb3zz" });
+      expect(result.rows[0]).toEqual({
+        ...misplaced,
+        pub_name: pub.pub_name, address: pub.address,
+        latitude: pub.latitude, longitude: pub.longitude,
+      });
+      // The price the record carried stays its own.
+      expect(result.rows[0]?.price_gbp).toBe(4.1);
+      const venues = groupVenuePrices(result.rows);
+      expect(venues.map((venue) => venue.id)).toEqual(["venue-1eyb3zz"]);
+      expect(canonicalizeDataset(result.rows).aliases).toEqual({});
+    });
+
+    it("stops merging once either record is edited, because its id moves", () => {
+      const withPostcode = { ...misplaced, address: "Bethnal Green Road, London E1 6LA" };
+      expect(canonicalizeDataset([withPostcode, pub]).aliases).toEqual({});
+      const movedPub = { ...pub, latitude: 51.5265 };
+      expect(canonicalizeDataset([misplaced, movedPub]).aliases).toEqual({});
+    });
+  });
+
+  // The CSV the export reads still carries both links, so the pass that runs
+  // straight after every export has to take them off again (Codex on #2187).
+  describe("a verified borrowed website", () => {
+    const owner = makeRow({
+      app_price_id: "app_price_000346",
+      pub_name: "The Marquis Cornwallis",
+      address: "31 Marchmont St, Greater, London WC1N 1AP",
+      latitude: 51.5246, longitude: -0.1247,
+      website: "https://www.themarquiscornwalliswc1.co.uk/",
+    });
+    const namesake = makeRow({
+      app_price_id: "app_price_000780",
+      pub_name: "The Marquis of Cornwallis",
+      address: "304 Bethnal Green Rd, Bethnal Green, London E2 0AG",
+      latitude: 51.5264, longitude: -0.0644607,
+      website: "https://www.themarquiscornwalliswc1.co.uk/#/",
+    });
+
+    it("comes off the namesake and stays on the pub it belongs to", () => {
+      const result = canonicalizeDataset([owner, namesake]);
+      expect(result.rows[0]?.website).toBe(owner.website);
+      expect(result.rows[1]?.website).toBe("");
+      expect(result.stats.borrowedWebsitesCleared).toBe(1);
+      // Every other field of the namesake is its own.
+      expect(result.rows[1]).toEqual({ ...namesake, website: "" });
+    });
+
+    it("clears the Goat Tavern page from Mayfair and keeps it in Kensington", () => {
+      const site = "https://www.greeneking.co.uk/pubs/greater-london/goat-tavern";
+      const kensington = makeRow({ pub_name: "Goat Tavern", address: "3a Kensington High Street, W8 5NP", latitude: 51.5017, longitude: -0.1849, website: site });
+      const mayfair = makeRow({ pub_name: "The Goat Tavern", address: "3 Stafford St, London W1S 4RP", latitude: 51.5079, longitude: -0.1415, website: site });
+      const result = canonicalizeDataset([kensington, mayfair]);
+      expect(result.rows.map((row) => row.website)).toEqual([site, ""]);
+    });
+
+    it("leaves a different site, a near-miss URL and an empty website alone", () => {
+      const ownSite = { ...namesake, website: "https://www.craftunionpubs.com/marquis-of-cornwallis-bethnal-green" };
+      const mayfairOwn = makeRow({ pub_name: "The Goat Tavern", address: "3 Stafford St, London W1S 4RP", website: "https://www.greeneking-pubs.co.uk/pubs/greater-london/goat-tavern-mayfair/" });
+      const none = { ...namesake, website: "" };
+      const result = canonicalizeDataset([ownSite, mayfairOwn, none]);
+      expect(result.rows).toEqual([ownSite, mayfairOwn, none]);
+      expect(result.stats.borrowedWebsitesCleared).toBe(0);
+    });
+
+    it("names each site once, with the one postcode it belongs to", () => {
+      const sites = VERIFIED_BORROWED_WEBSITES.map((entry) => entry.site);
+      expect(new Set(sites).size).toBe(sites.length);
+      for (const entry of VERIFIED_BORROWED_WEBSITES) {
+        expect(entry.site).not.toMatch(/^https?:|^www\.|\/$/);
+        expect(postcodeOutward(entry.ownerPostcode)).not.toBeNull();
+      }
+    });
+  });
+
   it("does NOT merge same-named pubs with conflicting postcodes (bad coords)", () => {
     // Two "Coach & Horses" mis-geocoded within 100 m but in different postcode
     // areas (Soho W1D vs Rickmansworth WD3) — genuinely distinct pubs.

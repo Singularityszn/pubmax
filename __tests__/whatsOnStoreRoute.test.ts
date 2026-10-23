@@ -9,6 +9,9 @@ import {
   mergeWhatsOn,
 } from "@/lib/whatsOnStore";
 import type { WhatsOnRow } from "@/lib/whatsOn";
+import { defined } from "@/__tests__/helpers/defined";
+import bundledDeals from "../public/data/whats_on/deals_london.json";
+import bundledSport from "../public/data/whats_on/sport_fixtures.json";
 
 // The route now rate-limits per IP (S2) before anything else. Vercel's vitest
 // run sets NODE_ENV=production with real Supabase env vars, which would send
@@ -70,7 +73,9 @@ describe("loadBaselineWhatsOn", () => {
 
   it("loads + validates the bundled deals_london.json baseline", () => {
     const rows = loadBaselineWhatsOn();
-    const dealRows = rows.filter((r) => r.kind === "deal");
+    const dealIds = new Set(bundledDeals.rows.map((row) => row.id));
+    const dealRows = rows.filter((r) => dealIds.has(r.id));
+    expect(dealRows).toHaveLength(bundledDeals.rows.length);
     expect(dealRows.length).toBeGreaterThan(0);
     for (const r of dealRows) {
       expect(r.confidence).toBe("listed");
@@ -82,7 +87,9 @@ describe("loadBaselineWhatsOn", () => {
 
   it("loads + validates the bundled sport_fixtures.json derived rows", () => {
     const rows = loadBaselineWhatsOn();
-    const sportRows = rows.filter((r) => r.kind === "sport");
+    const sportIds = new Set(bundledSport.rows.map((row) => row.id));
+    const sportRows = rows.filter((r) => sportIds.has(r.id));
+    expect(sportRows).toHaveLength(bundledSport.rows.length);
     expect(sportRows.length).toBeGreaterThan(0);
     for (const r of sportRows) {
       expect(r.confidence).toBe("derived");
@@ -103,7 +110,7 @@ describe("mergeWhatsOn precedence", () => {
     });
     const merged = mergeWhatsOn([base], [live]);
     expect(merged).toHaveLength(1);
-    expect(merged[0].title).toBe("confirmed");
+    expect(defined(merged[0]).title).toBe("confirmed");
   });
 
   it("with equal confidence the freshest observedAt wins", () => {
@@ -111,7 +118,7 @@ describe("mergeWhatsOn precedence", () => {
     const live = makeRow({ id: "live", observedAt: "2026-07-11T18:00:00.000Z", title: "fresh" });
     const merged = mergeWhatsOn([base], [live]);
     expect(merged).toHaveLength(1);
-    expect(merged[0].title).toBe("fresh");
+    expect(defined(merged[0]).title).toBe("fresh");
   });
 
   it("unions non-colliding rows", () => {
@@ -135,8 +142,8 @@ describe("mergeWhatsOn precedence", () => {
       title: "listed",
       observedAt: "2026-07-11T10:00:00.000Z",
     });
-    expect(mergeWhatsOn([listedOlder], [derivedNewer])[0].title).toBe("listed");
-    expect(mergeWhatsOn([derivedNewer], [listedOlder])[0].title).toBe("listed");
+    expect(defined(mergeWhatsOn([listedOlder], [derivedNewer])[0]).title).toBe("listed");
+    expect(defined(mergeWhatsOn([derivedNewer], [listedOlder])[0]).title).toBe("listed");
 
     const confirmedOlder = makeRow({
       id: "confirmed",
@@ -144,7 +151,7 @@ describe("mergeWhatsOn precedence", () => {
       title: "confirmed",
       observedAt: "2026-07-11T10:00:00.000Z",
     });
-    expect(mergeWhatsOn([confirmedOlder], [derivedNewer])[0].title).toBe("confirmed");
+    expect(defined(mergeWhatsOn([confirmedOlder], [derivedNewer])[0]).title).toBe("confirmed");
   });
 });
 
@@ -239,7 +246,7 @@ describe("loadWhatsOn orchestration", () => {
       },
     );
     expect(nearSorted.rows).toHaveLength(1);
-    expect(nearSorted.rows[0].id).toBe("near");
+    expect(defined(nearSorted.rows[0]).id).toBe("near");
   });
 
   it("filters pub-surface rows before applying the card limit", async () => {
@@ -925,8 +932,8 @@ describe("GET /api/whats-on (handleWhatsOnRequest)", () => {
     }
 
     expect(responses.slice(0, 60).every((res) => res.status !== 429)).toBe(true);
-    expect(responses[60].status).toBe(429);
-    expect(await responses[60].json()).toEqual({
+    expect(defined(responses[60]).status).toBe(429);
+    expect(await defined(responses[60]).json()).toEqual({
       rows: [],
       error: "Too many requests, slow down.",
       code: "RATE_LIMITED",

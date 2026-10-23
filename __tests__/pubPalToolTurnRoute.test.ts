@@ -2,7 +2,13 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const authState = vi.hoisted(() => ({
   userId: "11111111-1111-4111-8111-111111111111" as string | null,
+  limited: false,
 }));
+
+vi.mock("@/lib/pintDrops", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/pintDrops")>();
+  return { ...actual, isLimited: vi.fn(async () => authState.limited) };
+});
 
 vi.mock("@/lib/authServer", () => ({
   callerUserId: async () => authState.userId,
@@ -23,6 +29,7 @@ import { POST } from "@/app/api/pub-pal/tool-turn/route";
 import {
   __resetPubPalToolTurnStore,
   bindPubPalToolTurn,
+  readOwnedPubPalToolTurn,
 } from "@/lib/pubPalToolTurnStore";
 
 const OWNER_ID = "11111111-1111-4111-8111-111111111111";
@@ -43,6 +50,7 @@ function post(body: unknown): Promise<Response> {
 describe("POST /api/pub-pal/tool-turn", () => {
   beforeEach(async () => {
     authState.userId = OWNER_ID;
+    authState.limited = false;
     __resetPubPalToolTurnStore();
     await bindPubPalToolTurn(CONVERSATION_ID, OWNER_ID, "london");
   });
@@ -51,6 +59,17 @@ describe("POST /api/pub-pal/tool-turn", () => {
     authState.userId = null;
     const response = await post({ conversationId: UNKNOWN_ID });
     expect(response.status).toBe(401);
+  });
+
+  it("answers 429 and stores nothing once the caller is rate limited", async () => {
+    authState.limited = true;
+    const response = await post({
+      conversationId: CONVERSATION_ID,
+      threadTurn: { role: "user", content: "cheap pints in Soho" },
+    });
+    expect(response.status).toBe(429);
+    const turn = await readOwnedPubPalToolTurn(CONVERSATION_ID, OWNER_ID);
+    expect(JSON.stringify(turn)).not.toContain("cheap pints in Soho");
   });
 
   it("gives another account the same answer as an unknown conversation", async () => {

@@ -8,7 +8,8 @@ The packs beside this file are generated. This file is hand-written and
 survives a rebuild.
 
 ```
-uk_osm_venues_drink.json   # pubs, bars, beer gardens, restaurants with a bar,
+uk_osm_venues_drink.json   # pubs, bars, beer gardens, clubs, music venues,
+                           # restaurants, social clubs and casinos with a bar,
                            # hotel bars, off-licences
 uk_osm_venues_food.json    # cafes, coffee shops, late fast food
 uk_osm_venues_work.json    # coworking, libraries, community centres with wifi
@@ -27,6 +28,9 @@ packs, `venue_counts.json` and the extract report untouched. Rerun without
 
 ## What earns a row
 
+Each pack's own `taxonomy` array records the table it was built with. The
+latest run and its counts are in `docs/data/uk-osm-extract-2026-10-04.md`.
+
 `scripts/lib/ukOsmVenueSeed.mjs` is the taxonomy and the only place it is
 written down. THE RULE is that a row exists because OSM **states** the thing:
 
@@ -35,8 +39,12 @@ written down. THE RULE is that a row exists because OSM **states** the thing:
 | `pub` | `pub` | `amenity=pub` |
 | `bar` | `bar` | `amenity=bar` |
 | `biergarten` | `bar` | `amenity=biergarten` |
-| `restaurant_bar` | `restaurant` | `amenity=restaurant` **and** a stated `bar`, `microbrewery` or `real_ale` |
+| `nightclub` | `club` | `amenity=nightclub` |
+| `music_venue` | `club` | `amenity=music_venue` |
+| `restaurant_bar` | `restaurant` | `amenity=restaurant` **and** stated alcohol (below) |
 | `hotel_bar` | `hotel_lounge` | `tourism=hotel` **and** a stated `bar` |
+| `social_club` | `club` | any `club=*` (social, members', sports) **and** stated alcohol (below) |
+| `casino_bar` | `other` | `amenity=casino` **and** stated alcohol (below) |
 | `off_licence` | `other` | `shop=alcohol` or `shop=off_licence` |
 | `cafe` | `cafe` | `amenity=cafe` |
 | `coffee_shop` | `cafe` | `shop=coffee` |
@@ -44,6 +52,14 @@ written down. THE RULE is that a row exists because OSM **states** the thing:
 | `coworking` | `coworking` | `amenity=coworking_space` or `office=coworking` |
 | `library` | `library` | `amenity=library` |
 | `community_centre_wifi` | `other` | `amenity=community_centre` **and** stated `internet_access` |
+
+Stated alcohol is a stated `bar`, `microbrewery`, `real_ale`, `alcohol=yes` or
+`alcohol=served`, `drink` set to an alcoholic name, or an alcoholic `drink:*`
+key (`yes`, `served`, `draught` or `bottled`, including when that value is one
+token in a semicolon-separated list such as `served;bottled`). The alcoholic `drink:*` keys are
+the Alcoholic list on OSM wiki
+[Key:drink:*](https://wiki.openstreetmap.org/wiki/Key:drink:*). Coffee, tea and
+the other non-alcoholic keys on that page do not qualify.
 
 A plain restaurant is not a drinking venue and a plain fast-food counter is not
 a night venue, so both are taken only where a tag says otherwise. Nothing is

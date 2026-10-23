@@ -1,85 +1,104 @@
-/* Shared styling for the two legal content pages (/privacy, /terms).
-   Same shape and rhythm as /about (app/about/about.css): one narrow reading
-   column, display-face headings, panel-backed lists, tokens only (paper, ink,
-   ink-soft, muted, line, brass, panel, radius + shadow scales) so both themes
-   track automatically. These are content pages, not a wall of boilerplate:
-   short sections, scannable lists, plain sentences.
-   Mobile-first (390px), 44px tap targets, bottom padding clears the mobile tab
-   bar + safe area. */
+/* Shared styling for the small-print pages (/privacy, /terms, /credits,
+   /how-we-estimate) and /price-pulse, which borrows the shell.
+
+   One shell for every content page in the taste pass (18 Oct 2026): the same
+   width and gutter as the Screen primitive (components/ui/screen.css), so the
+   heading starts on the same left edge as /about, /activity, /contributors and
+   every Screen route, under the shared SiteNav. Inside it, one reading column.
+   No boxes: a section is a heading and its prose, a list is rows with a
+   hairline between them, and coral is not spent on any of it (docs/
+   DESIGN_SYSTEM.md, "Edges" and "Coral is spent twice"). Launch tokens only,
+   so both themes track automatically. Bottom padding clears the mobile tab
+   bar and the safe area. */
 
 .legalPage {
-  max-width: 760px;
+  width: min(var(--content-max-wide), 100%);
   margin: 0 auto;
-  padding: 20px var(--page-gutter) calc(96px + env(safe-area-inset-bottom, 0px));
+  padding: 0 var(--page-gutter) calc(var(--space-12) * 2 + env(safe-area-inset-bottom, 0px));
   color: var(--ink);
+}
+
+/* The reading column. A line of legal prose stops at about 70 characters. */
+.legalHead,
+.legalSection {
+  max-width: 46rem;
 }
 
 /* ── Header ─────────────────────────────────────────────────── */
 .legalHead {
-  margin: 8px 0 28px;
+  display: grid;
+  gap: var(--space-3);
+  padding-block: var(--space-6) var(--space-4);
+  margin-bottom: var(--space-4);
 }
 
+/* Sentence-case label above the heading: the Kicker's own treatment, for the
+   pages that print it as a plain paragraph. */
 .legalEyebrow {
-  margin: 0 0 8px;
-  font-size: 0.72rem;
-  font-weight: 700;
-  letter-spacing: 0.01em;
-  color: var(--ink-soft);
+  margin: 0;
+  font-family: var(--font-body);
+  font-size: var(--text-xs);
+  font-weight: 600;
+  color: var(--color-text-muted);
 }
 
 .legalTitle {
-  margin: 0 0 14px;
-  font-family: var(--font-display, var(--serif));
-  font-size: clamp(1.9rem, 7vw, 2.8rem);
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: clamp(var(--text-xl), 4.5vw, var(--text-3xl));
   font-weight: 700;
-  line-height: 1.08;
-  letter-spacing: -0.01em;
+  line-height: var(--leading-tight);
+  letter-spacing: var(--tracking-tight);
   color: var(--ink);
   text-wrap: balance;
 }
 
 .legalLede {
-  margin: 0 0 12px;
+  margin: 0;
   max-width: 56ch;
-  font-size: 1.05rem;
-  line-height: 1.55;
+  font-size: var(--text-base);
+  line-height: var(--leading-normal);
   color: var(--ink-soft);
   text-wrap: pretty;
 }
 
+/* A date in the data face: it is a figure, the one thing mono is for. */
 .legalUpdated {
   margin: 0;
   color: var(--muted);
-  font: 550 12px/1.4 var(--font-data);
+  font-family: var(--font-data);
+  font-size: var(--text-xs);
+  font-weight: 400;
+  font-variant-numeric: tabular-nums;
 }
 
 /* ── Sections ───────────────────────────────────────────────── */
 .legalSection {
-  margin: 28px 0;
+  margin: var(--space-8) 0;
 }
 
 .legalH2 {
-  margin: 0 0 12px;
-  font-family: var(--font-display, var(--serif));
-  font-size: clamp(1.3rem, 4.5vw, 1.65rem);
+  margin: 0 0 var(--space-3);
+  font-family: var(--font-display);
+  font-size: clamp(var(--text-md), 4.5vw, var(--text-lg));
   font-weight: 600;
-  line-height: 1.15;
+  line-height: var(--leading-tight);
   color: var(--ink);
 }
 
 .legalH3 {
-  margin: 18px 0 8px;
-  font-size: 1rem;
+  margin: var(--space-5) 0 var(--space-2);
+  font-size: var(--text-base);
   font-weight: 700;
-  line-height: 1.3;
+  line-height: var(--leading-snug);
   color: var(--ink);
 }
 
 .legalBody {
-  margin: 0 0 12px;
+  margin: 0 0 var(--space-3);
   max-width: 62ch;
-  font-size: 1rem;
-  line-height: 1.62;
+  font-size: var(--text-base);
+  line-height: var(--leading-normal);
   color: var(--ink-soft);
   text-wrap: pretty;
 }
@@ -95,13 +114,13 @@
 
 /* ── Plain bullet list ──────────────────────────────────────── */
 .legalList {
-  margin: 0 0 12px;
-  padding-left: 20px;
+  margin: 0 0 var(--space-3);
+  padding-left: var(--space-5);
   max-width: 62ch;
   display: grid;
-  gap: 8px;
-  font-size: 1rem;
-  line-height: 1.55;
+  gap: var(--space-2);
+  font-size: var(--text-base);
+  line-height: var(--leading-normal);
   color: var(--ink-soft);
 }
 
@@ -110,103 +129,128 @@
   font-weight: 600;
 }
 
-/* ── Panel list — the "cards" rhythm from /about's ethos list ─ */
+/* ── Point list: a bold lead-in, then the body, rows on hairlines ─
+   The same shape as /about's "How we handle prices". It used to be a stack of
+   panel cards with a coral left stripe on every one, which is a template tell
+   and, on /how-we-estimate, put one coral stripe on four labels that each
+   wear a different pill. */
 .legalPanelList {
   list-style: none;
-  margin: 0;
+  margin: 0 0 var(--space-3);
   padding: 0;
-  display: grid;
-  gap: 12px;
+  max-width: 62ch;
 }
 
 .legalPanelList li {
-  padding: 14px 16px 14px 18px;
-  border: 1px solid var(--line);
-  border-left: 3px solid var(--brass);
-  border-radius: var(--radius, 10px);
-  background: var(--panel);
-  font-size: 0.97rem;
-  line-height: 1.55;
+  padding: var(--space-3) 0;
+  border-bottom: 1px solid var(--line-soft);
+  font-size: var(--text-base);
+  line-height: var(--leading-normal);
   color: var(--ink-soft);
 }
 
+.legalPanelList li:first-child {
+  padding-top: 0;
+}
+
+.legalPanelList li:last-child {
+  border-bottom: 0;
+}
+
 .legalPanelList li strong {
-  display: block;
-  margin-bottom: 4px;
   color: var(--ink);
   font-weight: 600;
 }
 
-/* ── Definition rows (third parties, rights) ────────────────── */
+/* A definition row that shows the thing it defines (the trust pill on
+   /how-we-estimate): the pill on its own line, the words under it. */
+.legalPanelList .legalTerm {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  margin-bottom: var(--space-1);
+}
+
+/* ── Definition rows (third parties, rights, sources) ───────── */
 .legalRows {
   margin: 0;
   display: grid;
-  gap: 0;
-  border: 1px solid var(--line);
-  border-radius: var(--radius-lg, 18px);
-  background: var(--panel-raised);
-  box-shadow: var(--shadow-sm);
-  overflow: hidden;
 }
 
 .legalRow {
   display: grid;
   grid-template-columns: 1fr;
-  gap: 4px;
-  padding: 14px 16px;
-  border-top: 1px solid var(--line);
+  gap: var(--space-1);
+  padding: var(--space-4) 0;
+  border-top: 1px solid var(--line-soft);
 }
 
 .legalRow:first-child {
   border-top: 0;
+  padding-top: 0;
 }
 
+/* A plain label, so sentence case and the UI sans (caps are stamps). */
 .legalRow dt {
-  font: 650 12px/1.3 var(--font-data);
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  color: var(--muted);
+  font-family: var(--font-body);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  line-height: var(--leading-snug);
+  color: var(--ink);
 }
 
 .legalRow dd {
   margin: 0;
-  font-size: 0.97rem;
-  line-height: 1.55;
+  font-size: var(--text-base);
+  line-height: var(--leading-normal);
   color: var(--ink-soft);
 }
 
-@media (min-width: 640px) {
+@media (min-width: 641px) {
   .legalRow {
-    grid-template-columns: 180px 1fr;
-    gap: 16px;
+    grid-template-columns: 12rem 1fr;
+    gap: var(--space-4);
     align-items: baseline;
   }
 }
 
-/* ── Links + contact block ──────────────────────────────────── */
+/* ── Links + contact ────────────────────────────────────────── */
+/* A link in prose is ink with an underline, never a coral word. */
 .legalLink {
-  color: var(--brass);
-  font-weight: 600;
-  text-decoration: none;
-  border-bottom: 1px solid color-mix(in srgb, var(--brass) 40%, transparent);
-}
-
-.legalLink:hover {
   color: var(--ink);
-  border-bottom-color: var(--ink);
+  font-weight: 600;
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 0.2em;
+  text-decoration-color: var(--hairline-strong);
 }
 
+.legalLink:focus-visible {
+  text-decoration-thickness: 2px;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .legalLink:hover {
+    text-decoration-color: currentColor;
+  }
+}
+
+/* The last section. A heading and an address are already a section, so no
+   card: a hairline above says the page is closing. */
 .legalContact {
-  padding: 18px;
-  border: 1px solid var(--line);
-  border-radius: var(--radius-lg, 18px);
-  background: var(--panel-raised);
-  box-shadow: var(--shadow-sm);
+  padding-top: var(--space-6);
+  border-top: 1px solid var(--line-soft);
 }
 
 .legalContactEmail {
   display: inline-flex;
   align-items: center;
   min-height: 44px;
-  font: 650 1rem/1 var(--font-data);
+}
+
+/* On /how-we-estimate the estimated pill would point at the page it is on.
+   The link is the pill's own way onward everywhere else; here it is a loop. */
+.legalTerm .trustPillMethodLink {
+  display: none;
 }

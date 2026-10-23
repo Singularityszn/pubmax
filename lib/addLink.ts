@@ -12,6 +12,9 @@
 // ConfirmFollow.tsx) renders it and the follow route (app/api/profiles/
 // [handle]/follow) writes it - neither owns a rule.
 
+import type { Route } from "next";
+import { profilePath } from "@/lib/appLink";
+import type { FollowRelation } from "@/lib/followRelation";
 import { arrivalDestination, type ArrivalIntent } from "@/lib/arrivalWelcome";
 import { displayHandle } from "@/lib/handleDisplay";
 import { safeInviteReturnTo } from "@/lib/inviteReturnTo";
@@ -41,16 +44,16 @@ export function addLinkReturnTo(handle: string): string | null {
 }
 
 /** Where the two doors point. `mode` is the login page's own door parameter. */
-function loginHref(mode: "signup" | "signin", returnTo: string): string {
+function loginHref(mode: "signup" | "signin", returnTo: string): Route {
   const params = new URLSearchParams({ mode, from: returnTo });
   return `/login?${params.toString()}`;
 }
 
 export type AddLinkDoors = {
   /** Make an account, then land back and add them. */
-  createHref: string;
+  createHref: Route;
   /** Already has an account. Same landing. */
-  signInHref: string;
+  signInHref: Route;
 };
 
 /** Both doors for one target, or null when the handle is not a handle. */
@@ -250,6 +253,11 @@ export const ADD_LINK_COPY = {
    */
   lotMeans:
     "There is no feed of everybody's nights here yet. Being someone's lot is what opens a profile they have set to private.",
+  /** The line for a signed-in drinker whose friend has already added them. */
+  addedYou:
+    "They already added you. Add them back and you are each other's lot.",
+  /** The line under the receipt once both sides have added each other. */
+  mates: "You added each other. You are each other's lot.",
   /** While the add runs on arrival. */
   adding: "Adding them to your lot.",
   /** The session has not answered yet, so nobody is offered a door. */
@@ -286,7 +294,24 @@ export function addLinkReceiptTitle(handle: string, name?: string | null): strin
 export const ADD_LINK_RECEIPT_BODY =
   "When they add you back, you are each other's lot.";
 
-export type AddLinkNextStep = { href: string; label: string };
+/**
+ * Whether the add is on the books, and which kind. A tap that just landed it
+ * (`done`) makes the pair mates when they had already added the viewer, and the
+ * receipt has to say so rather than promise it. With no tap, the two may simply
+ * already stand that way when the link opens. Null means the add is still on
+ * offer.
+ */
+export function addLinkLanded(
+  tapDone: boolean,
+  relation: FollowRelation | null,
+): Extract<FollowRelation, "following" | "mates"> | null {
+  if (tapDone) {
+    return relation === "follows_you" || relation === "mates" ? "mates" : "following";
+  }
+  return relation === "following" || relation === "mates" ? relation : null;
+}
+
+export type AddLinkNextStep = { href: Route; label: string };
 
 /**
  * Where a receipt sends somebody next. Three doors on purpose: the map is the
@@ -301,7 +326,7 @@ export function addLinkNextSteps(handle: string): AddLinkNextStep[] {
     { href: "/map", label: "Open the map" },
     { href: "/near", label: "Find a pint" },
     ...(target
-      ? [{ href: `/u/${target}`, label: "Send them a message" }]
+      ? [{ href: profilePath(target), label: "Send them a message" }]
       : []),
   ];
 }

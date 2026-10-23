@@ -6,7 +6,7 @@ Authoritative registry and sanitization: `lib/analyticsEvents.ts`. This file is 
 
 | Event | Properties |
 | --- | --- |
-| `sign_in_initiated` | `provider` (`google`, `apple`, `microsoft`, `email`, `email_resume`, `handle_password`) |
+| `sign_in_initiated` | `provider` (`google`, `apple`, `microsoft`, `email`, `email_resume`, `handle_password`, `phone`) |
 | `user_signed_up` | _(none)_ |
 | `user_signed_in` | _(none)_ |
 | `user_signed_out` | _(none)_ |
@@ -16,6 +16,7 @@ Authoritative registry and sanitization: `lib/analyticsEvents.ts`. This file is 
 | Event | Properties |
 | --- | --- |
 | `plan_started` | _(none)_ |
+| `plan_one_tap` | `outcome` (`remembered`, `located`, `no-location`, `out-of-range`) |
 | `stop_added` | `surface` (`map`, `plan`, `round`) |
 | `crawl_locked` | `stops` (integer 1–10) |
 | `route_opened` | `surface` (`map`, `plan`) |
@@ -32,7 +33,7 @@ Authoritative registry and sanitization: `lib/analyticsEvents.ts`. This file is 
 
 | Event | Properties |
 | --- | --- |
-| `content_shared` | `channel` (`copy`, `native`, `whatsapp`, `x`, `sms`, `instagram`, `tiktok`), `surface` (`plan`, `recap`, `poster`, `tonight`, `other`) |
+| `content_shared` | `channel` (`copy`, `native`, `whatsapp`, `x`, `sms`, `instagram`, `tiktok`), `surface` (`plan`, `recap`, `poster`, `tonight`, `pint`, `other`) |
 | `error_shown` | `surface` (closed page surface enum), `kind` (`network`, `auth`, `validation`, `server`, `unknown`) |
 
 ## System (browser SDK via `/ingest`)
@@ -42,6 +43,7 @@ Authoritative registry and sanitization: `lib/analyticsEvents.ts`. This file is 
 | `$pageview` | Coarse route templates only |
 | `$web_vitals` | CLS, FCP, INP, LCP |
 | `$exception` | Redacted messages, no stacks |
+| `map_load_timing` | One per map visit: time-to-pins milestones, outcome (`painted`, `timeout`, `abandoned`), cold/warm and device class. Shape and saved p99 query: `docs/analytics/MAP_LOAD_TIMING.md` |
 
 ## Server capture (no reader behind it)
 
@@ -52,5 +54,5 @@ Authoritative registry and sanitization: `lib/analyticsEvents.ts`. This file is 
 
 ## Identity
 
-- Signed-in users: PostHog `identify` with Supabase `user.id` only (no email or handle).
-- Sign-out: `reset` then resume anonymous device id when consent remains granted.
+- The browser SDK never calls `identify`. Every browser event carries the consented `anon_` device id only, signed in or not.
+- Sign-in and sign-out do not touch the PostHog person. A later opt-in after an opt-out calls `reset` and resumes the new anonymous device id.

@@ -9,6 +9,7 @@ import {
   parseUkBaseManifest,
   ukBaseIdFor,
 } from "@/lib/ukBasePubs";
+import { defined } from "@/__tests__/helpers/defined";
 
 // The server-side membership index for `venue-uk-…` ids — the thing that lets
 // /api/price-submit accept a real base pub without accepting a fabricated id
@@ -28,11 +29,11 @@ async function committedManifest() {
 async function firstCommittedOsmRef(): Promise<string> {
   const manifest = await committedManifest();
   const shardRaw = await fs.readFile(
-    path.join(process.cwd(), "public", manifest.shards[0].url.replace(/^\//, "")),
+    path.join(process.cwd(), "public", defined(manifest.shards[0]).url.replace(/^\//, "")),
     "utf8",
   );
   const shard = JSON.parse(shardRaw) as { pubs: Array<[string, ...unknown[]]> };
-  return shard.pubs[0][0];
+  return defined(shard.pubs[0])[0];
 }
 
 async function withMutatedFirstShard(
@@ -52,7 +53,7 @@ async function withMutatedFirstShard(
   const shardPath = path.join(
     process.cwd(),
     "public",
-    manifest.shards[0].url.replace(/^\//, ""),
+    defined(manifest.shards[0]).url.replace(/^\//, ""),
   );
   const realReadFile = fs.readFile.bind(fs);
   const readSpy = vi.spyOn(fs, "readFile").mockImplementation(
@@ -126,7 +127,7 @@ describe("getUkBaseIdIndex", () => {
     const failedPath = path.join(
       process.cwd(),
       "public",
-      manifest.shards[0].url.replace(/^\//, ""),
+      defined(manifest.shards[0]).url.replace(/^\//, ""),
     );
     const realReadFile = fs.readFile.bind(fs);
     const readSpy = vi.spyOn(fs, "readFile").mockImplementation(
@@ -191,6 +192,13 @@ describe("lookupUkBasePub", () => {
 
   it("fails closed for a well-formed id the pack does not carry", async () => {
     expect(await lookupUkBasePub(`${UK_BASE_ID_PREFIX}n0000000000`)).toEqual({
+      status: "missing",
+    });
+  });
+
+  it("treats a pub verified permanently closed as missing", async () => {
+    const osmRef = await firstCommittedOsmRef();
+    expect(await lookupUkBasePub(ukBaseIdFor(osmRef), new Set([osmRef]))).toEqual({
       status: "missing",
     });
   });

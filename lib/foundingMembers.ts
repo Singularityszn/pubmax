@@ -75,7 +75,7 @@ export function foundingMemberMarkDetail(value: unknown): string | null {
 export const FOUNDERS_WALL_TITLE = "The first hundred";
 
 export const FOUNDERS_WALL_LEDE =
-  "The first hundred people to claim a handle here. There are no perks and nothing is gated behind it. Just their number, kept on the record.";
+  "The first hundred people to claim a handle here, listed by number. There are no perks and nothing is gated behind it.";
 
 /** What the wall says before anybody has claimed a handle. */
 export const FOUNDERS_WALL_EMPTY =
@@ -99,7 +99,7 @@ export const FOUNDERS_WALL_HREF = "/founders";
 export const FOUNDERS_WALL_LINK_LABEL = "Founding members";
 
 /** The one door, and the only place a founding member is invited anywhere. */
-export const FOUNDERS_DISCORD_CTA = "Join the founders’ Discord";
+export const FOUNDERS_DISCORD_CTA = "Join the founders' Discord";
 
 /**
  * How long the arrival greeting stays when it carries the founders' door. It is

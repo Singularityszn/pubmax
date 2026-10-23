@@ -1,10 +1,11 @@
 "use client";
 
-import { useEffect, useState, useSyncExternalStore } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 
 import { useAuth } from "@/components/auth/AuthProvider";
 import { claimPromptBudget, hasPromptBudgetFor } from "@/lib/promptBudget";
 import { authedActionFetch } from "@/lib/authedFetch";
+import { readContributionDoor } from "@/lib/contributionGateStatus";
 import { errorMessageFrom, offlineOrMessage } from "@/lib/apiErrorMessage";
 import {
   CHEAP_PINT_PING_PROMPT_SURFACE,
@@ -28,10 +29,15 @@ export default function CheapPintPingPrompt(): React.JSX.Element | null {
     getCheapPintPingPromptServerSnapshot,
   );
   const canShow = visible && hasPromptBudgetFor(CHEAP_PINT_PING_PROMPT_SURFACE);
+  const registrationAbortRef = useRef<AbortController | null>(null);
 
   useEffect(() => {
     if (canShow) claimPromptBudget(CHEAP_PINT_PING_PROMPT_SURFACE);
   }, [canShow]);
+
+  useEffect(() => () => {
+    registrationAbortRef.current?.abort();
+  }, []);
 
   useEffect(() => {
     if (!user) return;
@@ -40,7 +46,10 @@ export default function CheapPintPingPrompt(): React.JSX.Element | null {
       .then(async (response) => {
         if (controller.signal.aborted) return;
         const body = (await response.json().catch(() => ({}))) as Record<string, unknown>;
-        if (!response.ok) return;
+        // A gate in front of the read (the account has not tapped "I'm 18 or
+        // over") answers at 200 with a status and no preference, and syncing
+        // that as "not enabled, not declined" would erase what this device knows.
+        if (!response.ok || readContributionDoor(body)) return;
         syncCheapPintPingPromptFromServer({
           canPrompt: body.canPrompt === true,
           declined: body.declined === true,
@@ -55,12 +64,18 @@ export default function CheapPintPingPrompt(): React.JSX.Element | null {
 
   async function handleEnable() {
     if (pending) return;
+    const controller = new AbortController();
+    registrationAbortRef.current = controller;
     setPending(true);
     setError("");
-    const token = await registerWebPush();
+    const token = await registerWebPush(controller.signal);
+    if (registrationAbortRef.current === controller) {
+      registrationAbortRef.current = null;
+    }
+    if (controller.signal.aborted) return;
     if (!token) {
       setError(
-        offlineOrMessage("Could not enable alerts. Try again.")
+        offlineOrMessage("Couldn't turn on alerts. Try again.")
       );
       setPending(false);
       return;
@@ -71,7 +86,7 @@ export default function CheapPintPingPrompt(): React.JSX.Element | null {
     }, { requiresIdentity: true });
     const body = (await response.json().catch(() => ({}))) as Record<string, unknown>;
     if (!response.ok) {
-      setError(errorMessageFrom(body, "Could not save that choice. Try again."));
+      setError(errorMessageFrom(body, "Couldn't save that choice. Try again."));
       setPending(false);
       return;
     }
@@ -89,7 +104,7 @@ export default function CheapPintPingPrompt(): React.JSX.Element | null {
     }, { requiresIdentity: true });
     if (!response.ok) {
       const body = (await response.json().catch(() => ({}))) as Record<string, unknown>;
-      setError(errorMessageFrom(body, "Could not save that choice. Try again."));
+      setError(errorMessageFrom(body, "Couldn't save that choice. Try again."));
       setPending(false);
       return;
     }
@@ -110,7 +125,7 @@ export default function CheapPintPingPrompt(): React.JSX.Element | null {
           Weekday cheap-pint ping?
         </p>
         <p id="cheap-pint-ping-body" className="nativePushPrompt__body">
-          One push at 5pm on a weekday with a listed cheap pint near where your night starts. Ask once. No follow-ups.
+          One push at 5pm on a weekday with a listed cheap pint near where your night starts. We&rsquo;ll only ask once.
         </p>
         {error ? (
           <p className="nativePushPrompt__error" role="status">
@@ -132,7 +147,7 @@ export default function CheapPintPingPrompt(): React.JSX.Element | null {
             onClick={() => void handleEnable()}
             disabled={pending}
           >
-            {pending ? "Saving..." : "Yes, ping me"}
+            {pending ? "Saving…" : "Yes, ping me"}
           </button>
         </div>
       </div>

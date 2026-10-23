@@ -1,10 +1,14 @@
-import { readFileSync, readdirSync } from "node:fs";
-import { join } from "node:path";
+// @vitest-environment jsdom
 
+import { copyFileSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, symlinkSync } from "node:fs";
+import { basename, dirname, join } from "node:path";
+
+import { execFileSync } from "node:child_process";
 import sharp from "sharp";
 import { describe, expect, it } from "vitest";
 
 import { BRAND_COLORS } from "@/lib/brandMark.mjs";
+import { defined } from "@/__tests__/helpers/defined";
 
 // THE SPLASH IS THE FIRST FRAME OF THE APP, AND IN LIGHT MODE IT WAS THE WRONG ONE.
 //
@@ -69,7 +73,7 @@ async function samples(file: string) {
   const { data, info } = await sharp(file).raw().toBuffer({ resolveWithObject: true });
   const at = (x: number, y: number): Rgb => {
     const i = (y * info.width + x) * info.channels;
-    return [data[i], data[i + 1], data[i + 2]];
+    return [defined(data[i]), defined(data[i + 1]), defined(data[i + 2])];
   };
   return {
     width: info.width,
@@ -133,7 +137,6 @@ describe("no native splash launches on the retired coral field", () => {
       const got = await samples(file);
       // The field. This is the whole defect: a coral corner here is the retired
       // full-bleed splash, and it reached every reader in light mode.
-      expect(`${name} field`).toBe(`${name} field`);
       expect(got.corner).toEqual(master.corner);
       expect(got.corner).not.toEqual(CORAL);
       // The mark. The old native art drew it in coralBright, so a field-only
@@ -146,13 +149,18 @@ describe("no native splash launches on the retired coral field", () => {
 
 describe("the iOS launch screen is the same master, wired the way iOS 26 draws it", () => {
   it("names the colour set and the imageset from Info.plist, and no storyboard", () => {
-    const plist = readFileSync(IOS_INFO_PLIST, "utf8");
-    expect(plist).toContain("<key>UILaunchScreen</key>");
-    expect(plist).toContain("<key>UIColorName</key>\n\t\t<string>LaunchBackground</string>");
-    expect(plist).toContain("<key>UIImageName</key>\n\t\t<string>LaunchMark</string>");
-    // The storyboard is what drew black. Naming it again would win over the
-    // dictionary and put the defect back with every asset still in place.
-    expect(plist).not.toContain("UILaunchStoryboardName");
+    const plist = new DOMParser().parseFromString(readFileSync(IOS_INFO_PLIST, "utf8"), "application/xml");
+    expect(plist.getElementsByTagName("parsererror")).toHaveLength(0);
+    const entries = (dict: Element) => new Map(Array.from(dict.children)
+      .filter((node) => node.tagName === "key")
+      .map((key) => [key.textContent, key.nextElementSibling]));
+    const root = entries(defined(plist.querySelector("plist > dict") ?? undefined));
+    expect(root.has("UILaunchStoryboardName")).toBe(false);
+    const launch = defined(root.get("UILaunchScreen") ?? undefined);
+    expect(launch.tagName).toBe("dict");
+    const screen = entries(launch);
+    expect(screen.get("UIColorName")?.textContent).toBe("LaunchBackground");
+    expect(screen.get("UIImageName")?.textContent).toBe("LaunchMark");
   });
 
   it("paints the field from the one ink token, once, for both appearances", () => {
@@ -160,9 +168,9 @@ describe("the iOS launch screen is the same master, wired the way iOS 26 draws i
       colors: Array<{ appearances?: unknown; color: { components: Record<string, string> } }>;
     };
     expect(colorset.colors).toHaveLength(1);
-    expect(colorset.colors[0].appearances).toBeUndefined();
-    const { red, green, blue } = colorset.colors[0].color.components;
-    expect([red, green, blue].map((c) => Number.parseInt(c, 16))).toEqual(INK);
+    expect(defined(colorset.colors[0]).appearances).toBeUndefined();
+    const { red, green, blue } = defined(colorset.colors[0]).color.components;
+    expect([red, green, blue].map((c) => Number.parseInt(defined(c), 16))).toEqual(INK);
   });
 
   it("ships the mark at every iPhone scale, cut from the master's own centre", async () => {
@@ -183,47 +191,49 @@ describe("light and dark are the same splash, on purpose", () => {
     // drawable-port-night-xhdpi is the night twin of drawable-port-xhdpi. The
     // pair existing at all is Capacitor's doing; them being IDENTICAL is the
     // #523 decision, and it is the half that broke.
-    const nights = androidFiles.filter((file) => file.includes("-night"));
+    const nights = androidFiles.filter((file) => basename(dirname(file)).includes("-night"));
     expect(nights.length).toBeGreaterThan(0);
     for (const night of nights) {
-      const day = night.replace("-night", "");
+      const day = join(dirname(dirname(night)), basename(dirname(night)).replace("-night", ""), basename(night));
       const [a, b] = await Promise.all([samples(night), samples(day)]);
-      expect(`${night.slice(ROOT.length + 1)} matches its day twin`).toBe(
-        `${night.slice(ROOT.length + 1)} matches its day twin`,
-      );
       expect([a.corner, a.centre]).toEqual([b.corner, b.centre]);
     }
   });
 
   it("hands iOS the same bytes for the light slot and the dark one", () => {
-    const dark = iosFiles.filter((file) => file.includes("-dark"));
+    const dark = iosFiles.filter((file) => basename(file).includes("-dark"));
     expect(dark.length).toBeGreaterThanOrEqual(3);
     for (const file of dark) {
-      const light = file.replace("-dark", "");
+      const light = join(dirname(file), basename(file).replace("-dark", ""));
       expect(readFileSync(file).equals(readFileSync(light))).toBe(true);
     }
   });
 });
 
 describe("the generator cannot hold a second opinion about the splash", () => {
-  const generator = readFileSync(join(ROOT, "scripts/gen-native-app-icons.mjs"), "utf8");
-
-  it("cuts both native splash sources from the one master file", () => {
-    // The rot was a generator that restated the treatment in its own markup and
-    // got it wrong. Reading public/store-assets/splash.svg is what stops a
-    // second splash treatment existing to be wrong.
-    expect(generator).toContain('join(ROOT, "public", "store-assets", "splash.svg")');
-    expect(generator).toContain('["splash.png", 2732, SPLASH_MASTER]');
-    expect(generator).toContain('["splash-dark.png", 2732, SPLASH_MASTER]');
-  });
-
-  it("never paints a splash field of its own", () => {
-    // A `fill="${C.coral}"` on a 64x64 rect is the retired splash, and it is
-    // also how the icon tiles are drawn, so the check is scoped to the lines
-    // that mention a splash.
-    const splashLines = generator
-      .split("\n")
-      .filter((line) => line.includes("splash") && line.includes("svg("));
-    expect(splashLines).toEqual([]);
+  it("generates both splash sources and iOS launch art from the master", async () => {
+    const staging = mkdtempSync(join(ROOT, ".test-native-splash-"));
+    try {
+      for (const name of ["scripts", "lib", "public/store-assets", "android/app/src/main/res/drawable"]) {
+        mkdirSync(join(staging, name), { recursive: true });
+      }
+      for (const name of ["scripts/gen-native-app-icons.mjs", "lib/brandMark.mjs", "lib/brandIconAssets.mjs", "public/store-assets/splash.svg"]) {
+        copyFileSync(join(ROOT, name), join(staging, name));
+      }
+      symlinkSync(join(ROOT, "node_modules"), join(staging, "node_modules"), "dir");
+      execFileSync(process.execPath, [join(staging, "scripts/gen-native-app-icons.mjs")], { cwd: staging, timeout: 60_000 });
+      const expected = await sharp(join(ROOT, "public/store-assets/splash.svg")).resize(2732, 2732).raw().toBuffer();
+      for (const name of ["splash.png", "splash-dark.png"]) {
+        const file = join(staging, "assets", name);
+        expect(await samples(file)).toMatchObject({ width: 2732, height: 2732, corner: INK, centre: CORAL });
+        expect((await sharp(file).raw().toBuffer()).equals(expected)).toBe(true);
+      }
+      for (const scale of [1, 2, 3]) {
+        expect(await samples(join(staging, "ios/App/App/Assets.xcassets/LaunchMark.imageset", `LaunchMark@${scale}x.png`)))
+          .toMatchObject({ width: 300 * scale, height: 300 * scale, corner: INK, centre: CORAL });
+      }
+    } finally {
+      rmSync(staging, { recursive: true, force: true });
+    }
   });
 });

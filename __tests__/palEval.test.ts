@@ -3,6 +3,11 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { resolveFullAnswerKeyEntry } from "@/evals/pal/answerKeyResolver";
 import { loadPalEvalSuite } from "@/evals/pal/loadSuite";
 import { runPalEvalSuite } from "@/evals/pal/runSuite";
+import { defined } from "@/__tests__/helpers/defined";
+import { runAsk } from "@/lib/ask/runAsk";
+import { gradePalCase } from "@/evals/pal/grade";
+import { loadPalEvalVenueIndex } from "@/evals/pal/venueIndex";
+import { offlineFetch } from "@/evals/pal/offlineFetch";
 
 beforeEach(() => {
   delete process.env.OPENROUTER_API_KEY;
@@ -15,6 +20,15 @@ afterEach(() => {
 });
 
 describe("Pal eval suite (deterministic)", () => {
+  it("grades the people-logged wine absence through the committed answer key", async () => {
+    const { cases, answerKey, now } = loadPalEvalSuite();
+    const caseDef = defined(cases.find((entry) => entry.id === "wine-lamb-honest"));
+    const body = await runAsk({ query: caseDef.query, cityId: "london", now, skipModel: true, fetchImpl: offlineFetch });
+    expect(body.answer).toContain("No people-logged wine prices recorded");
+    const grade = gradePalCase(body, defined(answerKey[caseDef.id]), loadPalEvalVenueIndex(process.cwd()));
+    expect(grade.checks.filter((check) => !check.pass)).toEqual([]);
+  });
+
   it("passes every committed case against the hidden answer key without touching the network", async () => {
     const networkCalls: string[] = [];
     vi.stubGlobal("fetch", async (input: Parameters<typeof fetch>[0]) => {
@@ -61,7 +75,7 @@ describe("Pal eval suite (deterministic)", () => {
     const handAuthored = ["answerIncludes", "anyTools", "priceTolerance"] as const;
 
     for (const caseDef of cases) {
-      const committed = answerKey[caseDef.id];
+      const committed = defined(answerKey[caseDef.id]);
       const resolved = await resolveFullAnswerKeyEntry(caseDef, {
         now,
         cityId: caseDef.cityId ?? "london",
@@ -69,7 +83,7 @@ describe("Pal eval suite (deterministic)", () => {
       const kept = Object.fromEntries(
         handAuthored.filter((key) => committed[key] !== undefined).map((key) => [key, committed[key]]),
       );
-      expect({ ...resolved, ...kept }, caseDef.id).toEqual(committed);
+      expect({ ...kept, ...resolved }, caseDef.id).toEqual(committed);
     }
   });
 });

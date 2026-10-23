@@ -1,0 +1,27 @@
+[WebServer] (node:15866) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+[WebServer] ▲ Next.js 16.4.0
+[WebServer] - Local:         http://localhost:37821
+[WebServer] - Network:       http://192.168.0.41:37821
+[WebServer] ✓ Ready in 0ms
+[WebServer] ✓ Running next.config.mjs took 398ms
+
+Running 10 tests using 1 worker
+
+(node:16018) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓   1 [installed-chrome] › e2e/web-first-run-journey.spec.ts:94:7 › the web journey asks why, answers from a patch and lands on the plan at phone-390x844 (2.4s)
+  ✓   2 [installed-chrome] › e2e/web-first-run-journey.spec.ts:94:7 › the web journey asks why, answers from a patch and lands on the plan at desktop-1440x900 (1.8s)
+(node:19186) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✓ Running next.config.mjs took 151ms
+  ✓   3 [installed-chrome] › e2e/web-first-run-journey.spec.ts:157:3 › with location allowed › carries a located Soho area and bounded budget into the planner (2.3s)
+  ✓   4 [installed-chrome] › e2e/web-first-run-journey.spec.ts:190:7 › with location allowed › answers from where the reader stands (1.3s)
+  ✓   5 [installed-chrome] › e2e/web-first-run-journey.spec.ts:207:7 › with location refused › says so in plain words and offers the patches (1.5s)
+  ✓   6 [installed-chrome] › e2e/web-first-run-journey.spec.ts:229:5 › on a short phone each step opens at the top with the progress bar and Skip in view (1.3s)
+  ✓   7 [installed-chrome] › e2e/web-first-run-journey.spec.ts:250:5 › a typed visit is still turned away, and the start mark alone does not let a stranger in (321ms)
+  ✓   8 [installed-chrome] › e2e/web-first-run-journey.spec.ts:256:5 › a web visit without the start mark returns home and writes nothing (439ms)
+  ✓   9 [installed-chrome] › e2e/web-first-run-journey.spec.ts:265:5 › Skip records the mark and lands where the hero was going, which a returning visitor then takes (870ms)
+  ✓  10 [installed-chrome] › e2e/web-first-run-journey.spec.ts:288:5 › a first-time visitor's deep link goes straight to its target (331ms)
+
+  10 passed (14.8s)

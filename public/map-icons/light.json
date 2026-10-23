@@ -1,0 +1,627 @@
+{
+  "lm:clock-tower": {
+    "x": 0,
+    "y": 0,
+    "width": 60,
+    "height": 60,
+    "pixelRatio": 2
+  },
+  "lm:dome": {
+    "x": 62,
+    "y": 0,
+    "width": 60,
+    "height": 60,
+    "pixelRatio": 2
+  },
+  "lm:twin-towers": {
+    "x": 124,
+    "y": 0,
+    "width": 60,
+    "height": 60,
+    "pixelRatio": 2
+  },
+  "lm:shard": {
+    "x": 186,
+    "y": 0,
+    "width": 60,
+    "height": 60,
+    "pixelRatio": 2
+  },
+  "lm:wheel": {
+    "x": 248,
+    "y": 0,
+    "width": 60,
+    "height": 60,
+    "pixelRatio": 2
+  },
+  "lm:gherkin": {
+    "x": 310,
+    "y": 0,
+    "width": 60,
+    "height": 60,
+    "pixelRatio": 2
+  },
+  "lm:column": {
+    "x": 372,
+    "y": 0,
+    "width": 60,
+    "height": 60,
+    "pixelRatio": 2
+  },
+  "lm:civic": {
+    "x": 434,
+    "y": 0,
+    "width": 60,
+    "height": 60,
+    "pixelRatio": 2
+  },
+  "lm:keep": {
+    "x": 496,
+    "y": 0,
+    "width": 60,
+    "height": 60,
+    "pixelRatio": 2
+  },
+  "lm:market": {
+    "x": 558,
+    "y": 0,
+    "width": 60,
+    "height": 60,
+    "pixelRatio": 2
+  },
+  "lm:canal": {
+    "x": 0,
+    "y": 62,
+    "width": 60,
+    "height": 60,
+    "pixelRatio": 2
+  },
+  "lm:ship": {
+    "x": 62,
+    "y": 62,
+    "width": 60,
+    "height": 60,
+    "pixelRatio": 2
+  },
+  "lm:chimneys": {
+    "x": 124,
+    "y": 62,
+    "width": 60,
+    "height": 60,
+    "pixelRatio": 2
+  },
+  "tfl:underground": {
+    "x": 186,
+    "y": 62,
+    "width": 60,
+    "height": 60,
+    "pixelRatio": 2
+  },
+  "tfl:rail": {
+    "x": 248,
+    "y": 62,
+    "width": 60,
+    "height": 60,
+    "pixelRatio": 2
+  },
+  "tfl:bus": {
+    "x": 310,
+    "y": 62,
+    "width": 60,
+    "height": 60,
+    "pixelRatio": 2
+  },
+  "tfl:river": {
+    "x": 372,
+    "y": 62,
+    "width": 60,
+    "height": 60,
+    "pixelRatio": 2
+  },
+  "drink:pint-0": {
+    "x": 434,
+    "y": 62,
+    "width": 60,
+    "height": 60,
+    "pixelRatio": 2
+  },
+  "drink:pint-1": {
+    "x": 496,
+    "y": 62,
+    "width": 60,
+    "height": 60,
+    "pixelRatio": 2
+  },
+  "drink:pint-2": {
+    "x": 558,
+    "y": 62,
+    "width": 60,
+    "height": 60,
+    "pixelRatio": 2
+  },
+  "drink:pint-3": {
+    "x": 0,
+    "y": 124,
+    "width": 60,
+    "height": 60,
+    "pixelRatio": 2
+  },
+  "drink:wine-0": {
+    "x": 62,
+    "y": 124,
+    "width": 60,
+    "height": 60,
+    "pixelRatio": 2
+  },
+  "drink:wine-1": {
+    "x": 124,
+    "y": 124,
+    "width": 60,
+    "height": 60,
+    "pixelRatio": 2
+  },
+  "drink:wine-2": {
+    "x": 186,
+    "y": 124,
+    "width": 60,
+    "height": 60,
+    "pixelRatio": 2
+  },
+  "drink:wine-3": {
+    "x": 248,
+    "y": 124,
+    "width": 60,
+    "height": 60,
+    "pixelRatio": 2
+  },
+  "drink:cocktail-0": {
+    "x": 310,
+    "y": 124,
+    "width": 60,
+    "height": 60,
+    "pixelRatio": 2
+  },
+  "drink:cocktail-1": {
+    "x": 372,
+    "y": 124,
+    "width": 60,
+    "height": 60,
+    "pixelRatio": 2
+  },
+  "drink:cocktail-2": {
+    "x": 434,
+    "y": 124,
+    "width": 60,
+    "height": 60,
+    "pixelRatio": 2
+  },
+  "drink:cocktail-3": {
+    "x": 496,
+    "y": 124,
+    "width": 60,
+    "height": 60,
+    "pixelRatio": 2
+  },
+  "drink:spirits-0": {
+    "x": 558,
+    "y": 124,
+    "width": 60,
+    "height": 60,
+    "pixelRatio": 2
+  },
+  "drink:spirits-1": {
+    "x": 0,
+    "y": 186,
+    "width": 60,
+    "height": 60,
+    "pixelRatio": 2
+  },
+  "drink:spirits-2": {
+    "x": 62,
+    "y": 186,
+    "width": 60,
+    "height": 60,
+    "pixelRatio": 2
+  },
+  "drink:spirits-3": {
+    "x": 124,
+    "y": 186,
+    "width": 60,
+    "height": 60,
+    "pixelRatio": 2
+  },
+  "drink:coupe-0": {
+    "x": 186,
+    "y": 186,
+    "width": 60,
+    "height": 60,
+    "pixelRatio": 2
+  },
+  "drink:coupe-1": {
+    "x": 248,
+    "y": 186,
+    "width": 60,
+    "height": 60,
+    "pixelRatio": 2
+  },
+  "drink:coupe-2": {
+    "x": 310,
+    "y": 186,
+    "width": 60,
+    "height": 60,
+    "pixelRatio": 2
+  },
+  "drink:coupe-3": {
+    "x": 372,
+    "y": 186,
+    "width": 60,
+    "height": 60,
+    "pixelRatio": 2
+  },
+  "drink:skewer-0": {
+    "x": 434,
+    "y": 186,
+    "width": 60,
+    "height": 60,
+    "pixelRatio": 2
+  },
+  "drink:skewer-1": {
+    "x": 496,
+    "y": 186,
+    "width": 60,
+    "height": 60,
+    "pixelRatio": 2
+  },
+  "drink:skewer-2": {
+    "x": 558,
+    "y": 186,
+    "width": 60,
+    "height": 60,
+    "pixelRatio": 2
+  },
+  "drink:skewer-3": {
+    "x": 0,
+    "y": 248,
+    "width": 60,
+    "height": 60,
+    "pixelRatio": 2
+  },
+  "drink:fork-0": {
+    "x": 62,
+    "y": 248,
+    "width": 60,
+    "height": 60,
+    "pixelRatio": 2
+  },
+  "drink:fork-1": {
+    "x": 124,
+    "y": 248,
+    "width": 60,
+    "height": 60,
+    "pixelRatio": 2
+  },
+  "drink:fork-2": {
+    "x": 186,
+    "y": 248,
+    "width": 60,
+    "height": 60,
+    "pixelRatio": 2
+  },
+  "drink:fork-3": {
+    "x": 248,
+    "y": 248,
+    "width": 60,
+    "height": 60,
+    "pixelRatio": 2
+  },
+  "drink:pint-0-aging": {
+    "x": 310,
+    "y": 248,
+    "width": 60,
+    "height": 60,
+    "pixelRatio": 2
+  },
+  "drink:pint-1-aging": {
+    "x": 372,
+    "y": 248,
+    "width": 60,
+    "height": 60,
+    "pixelRatio": 2
+  },
+  "drink:pint-2-aging": {
+    "x": 434,
+    "y": 248,
+    "width": 60,
+    "height": 60,
+    "pixelRatio": 2
+  },
+  "drink:pint-3-aging": {
+    "x": 496,
+    "y": 248,
+    "width": 60,
+    "height": 60,
+    "pixelRatio": 2
+  },
+  "drink:wine-0-aging": {
+    "x": 558,
+    "y": 248,
+    "width": 60,
+    "height": 60,
+    "pixelRatio": 2
+  },
+  "drink:wine-1-aging": {
+    "x": 0,
+    "y": 310,
+    "width": 60,
+    "height": 60,
+    "pixelRatio": 2
+  },
+  "drink:wine-2-aging": {
+    "x": 62,
+    "y": 310,
+    "width": 60,
+    "height": 60,
+    "pixelRatio": 2
+  },
+  "drink:wine-3-aging": {
+    "x": 124,
+    "y": 310,
+    "width": 60,
+    "height": 60,
+    "pixelRatio": 2
+  },
+  "drink:cocktail-0-aging": {
+    "x": 186,
+    "y": 310,
+    "width": 60,
+    "height": 60,
+    "pixelRatio": 2
+  },
+  "drink:cocktail-1-aging": {
+    "x": 248,
+    "y": 310,
+    "width": 60,
+    "height": 60,
+    "pixelRatio": 2
+  },
+  "drink:cocktail-2-aging": {
+    "x": 310,
+    "y": 310,
+    "width": 60,
+    "height": 60,
+    "pixelRatio": 2
+  },
+  "drink:cocktail-3-aging": {
+    "x": 372,
+    "y": 310,
+    "width": 60,
+    "height": 60,
+    "pixelRatio": 2
+  },
+  "drink:spirits-0-aging": {
+    "x": 434,
+    "y": 310,
+    "width": 60,
+    "height": 60,
+    "pixelRatio": 2
+  },
+  "drink:spirits-1-aging": {
+    "x": 496,
+    "y": 310,
+    "width": 60,
+    "height": 60,
+    "pixelRatio": 2
+  },
+  "drink:spirits-2-aging": {
+    "x": 558,
+    "y": 310,
+    "width": 60,
+    "height": 60,
+    "pixelRatio": 2
+  },
+  "drink:spirits-3-aging": {
+    "x": 0,
+    "y": 372,
+    "width": 60,
+    "height": 60,
+    "pixelRatio": 2
+  },
+  "drink:coupe-0-aging": {
+    "x": 62,
+    "y": 372,
+    "width": 60,
+    "height": 60,
+    "pixelRatio": 2
+  },
+  "drink:coupe-1-aging": {
+    "x": 124,
+    "y": 372,
+    "width": 60,
+    "height": 60,
+    "pixelRatio": 2
+  },
+  "drink:coupe-2-aging": {
+    "x": 186,
+    "y": 372,
+    "width": 60,
+    "height": 60,
+    "pixelRatio": 2
+  },
+  "drink:coupe-3-aging": {
+    "x": 248,
+    "y": 372,
+    "width": 60,
+    "height": 60,
+    "pixelRatio": 2
+  },
+  "drink:skewer-0-aging": {
+    "x": 310,
+    "y": 372,
+    "width": 60,
+    "height": 60,
+    "pixelRatio": 2
+  },
+  "drink:skewer-1-aging": {
+    "x": 372,
+    "y": 372,
+    "width": 60,
+    "height": 60,
+    "pixelRatio": 2
+  },
+  "drink:skewer-2-aging": {
+    "x": 434,
+    "y": 372,
+    "width": 60,
+    "height": 60,
+    "pixelRatio": 2
+  },
+  "drink:skewer-3-aging": {
+    "x": 496,
+    "y": 372,
+    "width": 60,
+    "height": 60,
+    "pixelRatio": 2
+  },
+  "drink:fork-0-aging": {
+    "x": 558,
+    "y": 372,
+    "width": 60,
+    "height": 60,
+    "pixelRatio": 2
+  },
+  "drink:fork-1-aging": {
+    "x": 0,
+    "y": 434,
+    "width": 60,
+    "height": 60,
+    "pixelRatio": 2
+  },
+  "drink:fork-2-aging": {
+    "x": 62,
+    "y": 434,
+    "width": 60,
+    "height": 60,
+    "pixelRatio": 2
+  },
+  "drink:fork-3-aging": {
+    "x": 124,
+    "y": 434,
+    "width": 60,
+    "height": 60,
+    "pixelRatio": 2
+  },
+  "pill:bucket-0": {
+    "x": 186,
+    "y": 434,
+    "width": 80,
+    "height": 52,
+    "pixelRatio": 2,
+    "stretchX": [
+      [
+        20,
+        60
+      ]
+    ],
+    "stretchY": [
+      [
+        20,
+        32
+      ]
+    ],
+    "content": [
+      16,
+      10,
+      64,
+      42
+    ]
+  },
+  "pill:bucket-1": {
+    "x": 268,
+    "y": 434,
+    "width": 80,
+    "height": 52,
+    "pixelRatio": 2,
+    "stretchX": [
+      [
+        20,
+        60
+      ]
+    ],
+    "stretchY": [
+      [
+        20,
+        32
+      ]
+    ],
+    "content": [
+      16,
+      10,
+      64,
+      42
+    ]
+  },
+  "pill:bucket-2": {
+    "x": 350,
+    "y": 434,
+    "width": 80,
+    "height": 52,
+    "pixelRatio": 2,
+    "stretchX": [
+      [
+        20,
+        60
+      ]
+    ],
+    "stretchY": [
+      [
+        20,
+        32
+      ]
+    ],
+    "content": [
+      16,
+      10,
+      64,
+      42
+    ]
+  },
+  "pill:bucket-3": {
+    "x": 432,
+    "y": 434,
+    "width": 80,
+    "height": 52,
+    "pixelRatio": 2,
+    "stretchX": [
+      [
+        20,
+        60
+      ]
+    ],
+    "stretchY": [
+      [
+        20,
+        32
+      ]
+    ],
+    "content": [
+      16,
+      10,
+      64,
+      42
+    ]
+  },
+  "base:pub": {
+    "x": 514,
+    "y": 434,
+    "width": 60,
+    "height": 60,
+    "pixelRatio": 2
+  },
+  "base:coffee": {
+    "x": 576,
+    "y": 434,
+    "width": 60,
+    "height": 60,
+    "pixelRatio": 2
+  }
+}

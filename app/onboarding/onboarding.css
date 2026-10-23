@@ -1,6 +1,9 @@
 .firstRunOnboarding {
-  min-height: 100dvh;
-  overflow-x: clip;
+  height: 100dvh;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
   background: var(--paper);
   color: var(--ink);
 }
@@ -9,24 +12,7 @@
   min-height: 100dvh;
 }
 
-/* THE CONSENT LANE.
-   ---------------------------------------------------------------------------
-   The analytics choice outranks every other prompt (analyticsChoiceHasPriority,
-   lib/promptBudget.ts), so on a first launch its card is on screen over this
-   surface. That priority is right and is not what changes here. The geometry
-   was wrong: .firstRunStage is sized to the viewport, so its last rows sit
-   exactly where a fixed bottom card lands, and the foot padding globals.css
-   reserves on an ordinary page cannot lift a block that is explicitly
-   viewport-height. On the iPhone 17 Pro simulator that put the card across the
-   reviewed-area rows and the "Use London" button.
-
-   The fix is containment, not a nudge: while the card is mounted this surface
-   becomes its own scroller, ending where the card's lane begins. Nothing can
-   pass under the card at any scroll position, which a nudge alone cannot
-   promise. The lane is the length globals.css publishes plus the same bottom
-   berth the card itself takes, so the two cannot drift; nothing here restates
-   either number. Take the card away and every declaration below stops
-   matching, so the surface is byte-identical to before. */
+/* Reserve the consent card lane. The stage scrolls above the shared action bar. */
 :root {
   --first-run-consent-lane: calc(
     var(--analytics-consent-clearance) + max(12px, env(safe-area-inset-bottom, 0px))
@@ -36,14 +22,6 @@
 body:has(.analyticsConsentPrompt) .firstRunOnboarding {
   height: calc(100dvh - var(--first-run-consent-lane));
   min-height: 0;
-  overflow-y: auto;
-  overscroll-behavior: contain;
-}
-
-body:has(.analyticsConsentPrompt) .firstRunStage {
-  min-height: calc(
-    100dvh - 68px - env(safe-area-inset-top, 0px) - var(--first-run-consent-lane)
-  );
 }
 
 .firstRunOnboarding,
@@ -64,6 +42,7 @@ body:has(.analyticsConsentPrompt) .firstRunStage {
 }
 
 .firstRunTopbar {
+  flex: 0 0 auto;
   min-height: calc(68px + env(safe-area-inset-top, 0px));
   padding: env(safe-area-inset-top, 0px) clamp(18px, 3vw, 40px) 0;
   display: grid;
@@ -83,18 +62,18 @@ body:has(.analyticsConsentPrompt) .firstRunStage {
 }
 
 .firstRunBrand img {
-  border-radius: 9px;
+  border-radius: var(--radius);
 }
 
 .firstRunProgress {
   display: grid;
-  grid-template-columns: repeat(2, 34px);
+  grid-template-columns: repeat(var(--first-run-steps, 2), 34px);
   gap: 7px;
 }
 
 .firstRunProgress span {
   height: 3px;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: color-mix(in srgb, var(--ink-soft) 24%, transparent);
 }
 
@@ -113,16 +92,19 @@ body:has(.analyticsConsentPrompt) .firstRunStage {
   min-height: 44px;
   padding: 0 14px;
   border: 1px solid transparent;
-  border-radius: 14px;
+  border-radius: var(--radius-lg);
   background: transparent;
   color: var(--ink-soft);
-  font-size: 0.86rem;
+  font-size: var(--text-sm);
   font-weight: 700;
   cursor: pointer;
 }
 
 .firstRunStage {
-  min-height: calc(100dvh - 68px - env(safe-area-inset-top, 0px));
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
   display: grid;
   grid-template-columns: minmax(0, 1.03fr) minmax(420px, 0.97fr);
 }
@@ -174,7 +156,6 @@ body:has(.analyticsConsentPrompt) .firstRunStage {
   align-content: center;
   padding: clamp(20px, 4vw, 48px);
   background:
-    radial-gradient(circle at 50% 42%, color-mix(in srgb, var(--brass) 18%, transparent), transparent 38%),
     radial-gradient(circle at 18% 86%, color-mix(in srgb, var(--river) 18%, transparent), transparent 34%),
     var(--ink-deep);
   color: #f8f3eb;
@@ -194,7 +175,7 @@ body:has(.analyticsConsentPrompt) .firstRunStage {
   max-width: 28ch;
   margin: -3rem auto 0;
   color: color-mix(in srgb, #f8f3eb 76%, transparent);
-  font-size: 0.92rem;
+  font-size: var(--text-sm);
   line-height: 1.5;
   text-align: center;
 }
@@ -205,7 +186,6 @@ body:has(.analyticsConsentPrompt) .firstRunStage {
   min-width: 0;
   padding: clamp(34px, 5vw, 72px);
   background:
-    radial-gradient(circle at 100% 0, color-mix(in srgb, var(--brass) 8%, transparent), transparent 36%),
     var(--paper);
 }
 
@@ -217,7 +197,7 @@ body:has(.analyticsConsentPrompt) .firstRunStage {
 .firstRunEyebrow {
   margin: 0 0 14px;
   color: var(--state-active-ink);
-  font: 700 0.68rem/1 var(--font-data);
+  font: 700 var(--text-2xs)/1 var(--font-body);
   letter-spacing: 0.01em;
 }
 
@@ -251,7 +231,7 @@ body:has(.analyticsConsentPrompt) .firstRunStage {
   align-items: center;
   gap: 10px;
   border: 1px solid var(--line);
-  border-radius: 16px;
+  border-radius: var(--radius-lg);
   background: var(--panel-raised);
 }
 
@@ -275,13 +255,13 @@ body:has(.analyticsConsentPrompt) .firstRunStage {
 }
 
 .firstRunAreaList strong {
-  font-size: 0.92rem;
+  font-size: var(--text-sm);
 }
 
 .firstRunAreaList span,
 .firstRunAreaList small {
   color: var(--ink-soft);
-  font-size: 0.72rem;
+  font-size: var(--text-xs);
   line-height: 1.35;
 }
 
@@ -304,7 +284,7 @@ body:has(.analyticsConsentPrompt) .firstRunStage {
   align-content: center;
   gap: 4px;
   border: 1px solid var(--line);
-  border-radius: 16px;
+  border-radius: var(--radius-lg);
   background: var(--panel-raised);
   color: var(--ink);
   text-align: left;
@@ -312,13 +292,13 @@ body:has(.analyticsConsentPrompt) .firstRunStage {
 }
 
 .firstRunCompanionChoice span {
-  font-size: 0.88rem;
+  font-size: var(--text-sm);
   font-weight: 750;
 }
 
 .firstRunCompanionChoice small {
   color: var(--ink-soft);
-  font-size: 0.7rem;
+  font-size: var(--text-2xs);
   line-height: 1.3;
 }
 
@@ -332,13 +312,13 @@ body:has(.analyticsConsentPrompt) .firstRunStage {
 
 .firstRunCompanionChoice.isSelected {
   border-color: var(--state-active-ink);
-  background: color-mix(in srgb, var(--brass) 11%, var(--panel-raised));
+  background: var(--state-selected-surface);
 }
 
 .firstRunPrivacy,
 .firstRunPermissionNote {
   color: var(--ink-soft);
-  font-size: 0.76rem;
+  font-size: var(--text-xs);
   line-height: 1.45;
 }
 
@@ -355,7 +335,24 @@ body:has(.analyticsConsentPrompt) .firstRunStage {
 }
 
 .firstRunActions {
-  margin-top: 24px;
+  flex: 0 0 auto;
+  position: sticky;
+  bottom: 0;
+  z-index: 1;
+  padding: 12px clamp(34px, 5vw, 72px) calc(12px + env(safe-area-inset-bottom, 0px));
+  padding-left: calc(51.5% + clamp(34px, 5vw, 72px));
+  border-top: 1px solid var(--line);
+  background: var(--paper);
+}
+
+/* The consent lane already clears the home indicator. */
+body:has(.analyticsConsentPrompt) .firstRunActions {
+  padding-bottom: 12px;
+}
+
+.firstRunActionsInner {
+  width: min(100%, 35rem);
+  margin-inline: auto;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -370,12 +367,12 @@ body:has(.analyticsConsentPrompt) .firstRunStage {
 .firstRunPrimary {
   min-height: 50px;
   padding: 0 18px;
-  border-radius: 14px;
+  border-radius: var(--radius-lg);
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 8px;
-  font-size: 0.9rem;
+  font-size: var(--text-sm);
   font-weight: 750;
   white-space: nowrap;
   cursor: pointer;
@@ -391,7 +388,6 @@ body:has(.analyticsConsentPrompt) .firstRunStage {
   border: 1px solid color-mix(in srgb, var(--brass) 82%, var(--ink));
   background: var(--brass);
   color: var(--color-on-accent-strong);
-  box-shadow: 0 12px 28px color-mix(in srgb, var(--brass) 22%, transparent);
 }
 
 .firstRunPrimary:disabled {
@@ -410,6 +406,210 @@ body:has(.analyticsConsentPrompt) .firstRunStage {
 .firstRunOnboarding .pressable:active {
   transform: scale(0.98);
   --shared-press-scale: 1;
+}
+
+/* THE QUESTIONS.
+   Every question after the London confirm is one sentence, the reason for it
+   and the choices. The hero h1 above is sized for two words, so a question
+   gets its own measure (lib/onboardingFlow.ts holds the copy). */
+.firstRunPanel h1.firstRunQuestion {
+  max-width: 17ch;
+  font-size: clamp(2rem, 3.4vw, 3.1rem);
+  line-height: 1;
+  letter-spacing: -0.045em;
+}
+
+.firstRunChoiceGrid {
+  margin-top: 24px;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 9px;
+}
+
+.firstRunChoice {
+  position: relative;
+  min-height: 56px;
+  padding: 10px 40px 10px 14px;
+  display: grid;
+  align-content: center;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  background: var(--panel-raised);
+  color: var(--ink);
+  font-size: var(--text-sm);
+  font-weight: 750;
+  text-align: left;
+  cursor: pointer;
+}
+
+.firstRunChoice svg {
+  position: absolute;
+  top: 50%;
+  right: 14px;
+  color: var(--state-active-ink);
+  transform: translateY(-50%);
+}
+
+.firstRunChoice.isSelected {
+  border-color: var(--state-active-ink);
+  background: var(--state-selected-surface);
+}
+
+.firstRunPatchPicker {
+  margin-top: 16px;
+}
+
+.firstRunPatchLabel {
+  margin: 0;
+  color: var(--ink-soft);
+  font-size: var(--text-xs);
+  font-weight: 700;
+}
+
+.firstRunPatchPicker .firstRunChoiceGrid {
+  margin-top: 10px;
+}
+
+.firstRunPatchGrid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.firstRunPatchGrid .firstRunChoice {
+  min-height: 48px;
+}
+
+.firstRunNote {
+  margin: 16px 0 0;
+  padding: 10px 13px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  background: var(--panel-raised);
+  color: var(--ink);
+  font-size: var(--text-sm);
+  line-height: 1.45;
+}
+
+.firstRunQuiet {
+  min-height: 44px;
+  padding: 0 14px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-lg);
+  background: transparent;
+  color: var(--state-active-ink);
+  font-size: var(--text-sm);
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.firstRunQuietRow {
+  margin-top: 6px;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 4px;
+}
+
+.firstRunFigureHero {
+  min-height: 100%;
+  display: grid;
+  place-items: center;
+  align-content: center;
+  gap: 8px;
+  padding: clamp(20px, 4vw, 48px);
+  background:
+    var(--ink-deep);
+  color: #f8f3eb;
+  text-align: center;
+}
+
+.firstRunFigure {
+  margin: 0;
+  font: 720 clamp(4rem, 12vw, 9rem)/0.9 var(--font-display);
+  letter-spacing: -0.06em;
+}
+
+.firstRunFigureHero > p:last-child {
+  max-width: 24ch;
+  margin: 0;
+  color: color-mix(in srgb, #f8f3eb 76%, transparent);
+  font-size: var(--text-sm);
+  line-height: 1.4;
+}
+
+.firstRunPintList {
+  margin: 22px 0 0;
+  padding: 0;
+  display: grid;
+  gap: 8px;
+  list-style: none;
+}
+
+.firstRunPintList li {
+  min-height: 54px;
+  padding: 9px 13px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  column-gap: 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  background: var(--panel-raised);
+}
+
+.firstRunPintList strong {
+  font-size: var(--text-sm);
+}
+
+.firstRunPintList span {
+  grid-column: 1;
+  color: var(--ink-soft);
+  font-size: var(--text-xs);
+}
+
+.firstRunPintList b {
+  grid-column: 2;
+  grid-row: 1 / span 2;
+  font: 700 1rem/1 var(--font-data);
+}
+
+.firstRunTrustNote {
+  margin-top: 12px;
+  text-align: left;
+}
+
+@media (max-width: 900px) {
+  .firstRunPanel h1.firstRunQuestion {
+    font-size: clamp(1.85rem, 8.4vw, 2.5rem);
+  }
+
+  .firstRunFigure {
+    font-size: clamp(3.4rem, 18vw, 5.2rem);
+  }
+
+  .firstRunChoiceGrid {
+    margin-top: 18px;
+    gap: 8px;
+  }
+}
+
+@media (max-width: 360px) {
+  .firstRunChoiceGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .firstRunPatchGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .firstRunChoice:hover {
+    border-color: var(--hairline-strong);
+  }
+
+  .firstRunQuiet:hover {
+    background: color-mix(in srgb, var(--ink) 6%, transparent);
+  }
 }
 
 @media (prefers-reduced-motion: no-preference) {
@@ -433,11 +633,11 @@ body:has(.analyticsConsentPrompt) .firstRunStage {
   .firstRunSkip:hover,
   .firstRunBack:hover {
     color: var(--ink);
-    background: color-mix(in srgb, var(--brass) 7%, transparent);
+    background: color-mix(in srgb, var(--ink) 6%, transparent);
   }
 
   .firstRunCompanionChoice:hover {
-    border-color: color-mix(in srgb, var(--brass) 62%, var(--line));
+    border-color: var(--hairline-strong);
   }
 
   .firstRunPrimary:not(:disabled):hover {
@@ -446,21 +646,17 @@ body:has(.analyticsConsentPrompt) .firstRunStage {
   }
 }
 
-@media (max-width: 760px) {
+@media (max-width: 900px) {
+  /* The surface is exactly the viewport and scrolls its own stage, so the foot
+     padding the tab bar and consent lanes add to the body would be dead window
+     scroll that pushes the top bar off screen. Those lane rules stack up to
+     three pseudo-classes, so this wins outright rather than by specificity. */
   body:has(.firstRunOnboarding) {
-    padding-bottom: 0;
+    padding-bottom: 0 !important;
   }
 
   body:has(.firstRunOnboarding) .mobileTabBar {
     display: none;
-  }
-
-  /* The surface is its own scroller now, so the foot padding globals.css adds
-     for the card would be dead space below a page that no longer scrolls. It
-     needs the second :has() to outrank that rule, which carries one of its
-     own. */
-  body:has(.firstRunOnboarding):has(.analyticsConsentPrompt) {
-    padding-bottom: 0;
   }
 
   /* The card is taller on a phone, where the sentence wraps and the two
@@ -473,22 +669,7 @@ body:has(.analyticsConsentPrompt) .firstRunStage {
     );
   }
 
-  body:has(.analyticsConsentPrompt) .firstRunStage {
-    min-height: calc(
-      100dvh - 62px - env(safe-area-inset-top, 0px) - var(--first-run-consent-lane)
-    );
-  }
-
-  /* THE PHOTOGRAPH IS WHAT YIELDS.
-     Containment alone only promises that nothing passes UNDER the card. It
-     does not promise the reader can still SEE the rows and the one action,
-     and on a 390pt phone it did not: the surface ended at 704px with the
-     "Use London" button laid out at 768px, inside a scroller a phone draws no
-     bar for. So the stage stops giving the picture a share of the viewport
-     and gives it the space the panel does not need, floored at nothing. The
-     panel keeps its own height at every width, which is what puts the
-     reviewed areas and the primary action back on screen at rest. Take the
-     card away and this stops matching, so the designed 31dvh band returns. */
+  /* With consent visible, the photograph yields before the question and actions. */
   body:has(.analyticsConsentPrompt) .firstRunStage,
   body:has(.analyticsConsentPrompt)
     .firstRunOnboarding[data-stage="companion"] .firstRunStage {
@@ -513,10 +694,6 @@ body:has(.analyticsConsentPrompt) .firstRunStage {
     margin-top: 14px;
   }
 
-  body:has(.analyticsConsentPrompt) .firstRunActions {
-    margin-top: 14px;
-  }
-
   .firstRunTopbar {
     min-height: calc(62px + env(safe-area-inset-top, 0px));
     padding-inline: 16px;
@@ -527,11 +704,11 @@ body:has(.analyticsConsentPrompt) .firstRunStage {
   }
 
   .firstRunProgress {
-    grid-template-columns: repeat(2, 28px);
+    grid-template-columns: repeat(var(--first-run-steps, 2), 24px);
+    gap: 5px;
   }
 
   .firstRunStage {
-    min-height: calc(100dvh - 62px - env(safe-area-inset-top, 0px));
     grid-template-columns: 1fr;
     grid-template-rows: minmax(186px, 31dvh) auto;
   }
@@ -542,7 +719,7 @@ body:has(.analyticsConsentPrompt) .firstRunStage {
 
   .firstRunPanel {
     align-items: start;
-    padding: 28px max(18px, env(safe-area-inset-left, 0px)) max(28px, env(safe-area-inset-bottom, 0px));
+    padding: 28px max(18px, env(safe-area-inset-left, 0px)) 28px;
   }
 
   .firstRunPanel h1 {
@@ -551,13 +728,13 @@ body:has(.analyticsConsentPrompt) .firstRunStage {
 
   .firstRunLead {
     margin-top: 14px;
-    font-size: 0.94rem;
+    font-size: var(--text-base);
   }
 
   .firstRunLondonPhoto figcaption {
     left: 18px;
     bottom: 16px;
-    font-size: 0.92rem;
+    font-size: var(--text-sm);
   }
 
   .firstRunCompanionHero {
@@ -597,37 +774,20 @@ body:has(.analyticsConsentPrompt) .firstRunStage {
   }
 
   .firstRunActions {
-    margin-top: 20px;
-  }
-
-  /* THE PAL STEP KEEPS ITS ONE ACTION ON SCREEN.
-     Seven Pals stand the grid taller than a phone: at 390x844 "Plan my night"
-     sat half under the fold with nothing saying the page scrolled. The action
-     row sticks to the foot, as the short-phone rule below does for the London
-     step, and the grid scrolls up behind it. */
-  .firstRunOnboarding[data-stage="companion"] .firstRunActions {
-    position: sticky;
-    bottom: 0;
-    z-index: 1;
-    margin-inline: -4px;
-    padding: 10px 4px max(12px, env(safe-area-inset-bottom, 0px));
-    background: var(--paper);
+    padding-inline: max(18px, env(safe-area-inset-left, 0px)) max(18px, env(safe-area-inset-right, 0px));
   }
 }
 
-/* THE SHORT PHONE.
-   Containment and a yielding photograph put the rows and the one action back
-   on screen at 844 tall. At 568 and 640 tall (verify-preview-4 check 7: the
-   first-generation SE height, and the 360x640 tier) the lane-reduced surface
-   is 428 and 500px tall against a panel laid out at 553px, so "Use London"
-   sat past the surface's end, at y 545 under a card at y 440 to 556, inside
-   a scroller a phone draws no bar for. Two things change while the card is
-   up on a short phone, and only then. The panel's rhythm compresses: one-line
-   heading, tighter lead and list, two-line rows. And the action row is STICKY
-   to the surface's foot, so the one primary action is on screen at every
-   scroll position and the rows scroll up behind it, never under the card.
-   Answer the card and every rule here stops matching. */
-@media (max-width: 760px) and (max-height: 700px) {
+/* Short screens give the photograph less space and keep every question scrollable. */
+@media (max-width: 900px) and (max-height: 700px) {
+  .firstRunStage {
+    grid-template-rows: minmax(100px, 18dvh) auto;
+  }
+
+  .firstRunPanel {
+    padding-block: 18px;
+  }
+
   body:has(.analyticsConsentPrompt) .firstRunPanel {
     padding-top: 8px;
     padding-bottom: 0;
@@ -644,7 +804,7 @@ body:has(.analyticsConsentPrompt) .firstRunStage {
 
   body:has(.analyticsConsentPrompt) .firstRunLead {
     margin-top: 4px;
-    font-size: 0.84rem;
+    font-size: var(--text-sm);
     line-height: 1.35;
   }
 
@@ -668,28 +828,19 @@ body:has(.analyticsConsentPrompt) .firstRunStage {
 
   body:has(.analyticsConsentPrompt) .firstRunAreaList strong {
     display: block;
-    font-size: 0.86rem;
+    font-size: var(--text-sm);
     line-height: 1.2;
   }
 
   body:has(.analyticsConsentPrompt) .firstRunAreaList span,
   body:has(.analyticsConsentPrompt) .firstRunAreaList small {
     display: inline;
-    font-size: 0.7rem;
+    font-size: var(--text-2xs);
     line-height: 1.3;
   }
 
   body:has(.analyticsConsentPrompt) .firstRunAreaList small::before {
     content: "\00A0\00B7\00A0";
-  }
-
-  body:has(.analyticsConsentPrompt) .firstRunActions {
-    position: sticky;
-    bottom: 0;
-    z-index: 1;
-    margin-top: 6px;
-    padding: 6px 0 max(8px, env(safe-area-inset-bottom, 0px));
-    background: var(--paper);
   }
 
   body:has(.analyticsConsentPrompt) .firstRunPrimary {
@@ -712,7 +863,7 @@ body:has(.analyticsConsentPrompt) .firstRunStage {
     grid-template-columns: 1fr;
   }
 
-  .firstRunActions {
+  .firstRunActionsInner {
     align-items: stretch;
   }
 

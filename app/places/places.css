@@ -1,6 +1,8 @@
-/* Places tab. Launch tokens only (docs/DESIGN_SYSTEM.md "Launch tokens").
+/* Places. Launch tokens only (docs/DESIGN_SYSTEM.md "Launch tokens").
    The head, the one painted action and the kickers come from the primitives in
-   components/ui; this file styles what sits under them. No em dashes.
+   components/ui, and the shell (one left edge, one gutter) is the listing
+   pages' own (components/listing/listing.css); this file styles what sits
+   under them. No em dashes, and no coral: coral is the Screen primary's alone.
    De-box rule: a heading with a line under it is already a section, so the
    sections here take a hairline and space rather than a card each. */
 
@@ -11,15 +13,11 @@
 }
 
 .placesBody {
-  padding-bottom: calc(
-    var(--tabbar-h, 64px) + env(safe-area-inset-bottom, 0px) + var(--space-6)
-  );
+  padding-bottom: var(--space-6);
 }
 
 .placesBack {
-  width: min(var(--content-max-wide), 100%);
-  margin: 0 auto;
-  padding-inline: var(--page-gutter);
+  margin-block: 0;
   padding-top: var(--space-4);
 }
 
@@ -34,12 +32,14 @@
   text-decoration: none;
 }
 
-.placesBackLink:hover {
-  color: var(--color-text);
+@media (hover: hover) and (pointer: fine) {
+  .placesBackLink:hover {
+    color: var(--color-text);
+  }
 }
 
 .placesBackLink:focus-visible {
-  outline: 2px solid var(--color-accent);
+  outline: 2px solid var(--color-text);
   outline-offset: 2px;
   border-radius: var(--radius-sm);
 }
@@ -48,6 +48,7 @@
 
 .placesSearch {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: var(--space-2);
   max-width: var(--content-max);
   margin-bottom: var(--space-5);
@@ -72,12 +73,15 @@
 }
 
 .placesSearchField:focus-within {
-  outline: 2px solid var(--color-accent);
+  outline: 2px solid var(--color-text);
   outline-offset: 2px;
 }
 
 .placesSearchInput {
   flex: 1 1 auto;
+  /* The field is 48px tall, but the input inside it was 26px, so a tap on the
+     padding above or below the text focused nothing. It fills the field. */
+  align-self: stretch;
   min-width: 0;
   border: 0;
   background: transparent;
@@ -122,12 +126,15 @@
   text-decoration: none;
 }
 
-.placesCityLink:hover .placesCityName {
-  color: var(--color-accent);
+@media (hover: hover) and (pointer: fine) {
+  .placesCityLink:hover .placesCityName {
+    text-decoration: underline;
+    text-underline-offset: 3px;
+  }
 }
 
 .placesCityLink:focus-visible {
-  outline: 2px solid var(--color-accent);
+  outline: 2px solid var(--color-text);
   outline-offset: 2px;
   border-radius: var(--radius-sm);
 }
@@ -195,7 +202,7 @@
    place rather than as part of its name. */
 .placesCityContext {
   color: var(--color-text-muted);
-  font-family: var(--font-data);
+  font-family: var(--font-body);
   font-size: var(--text-2xs);
   font-weight: 700;
   letter-spacing: 0.04em;
@@ -215,16 +222,16 @@
   border-radius: var(--radius-pill);
   background: var(--badge-surface);
   color: var(--badge-ink);
-  font-family: var(--font-data);
+  font-family: var(--font-body);
   font-size: var(--text-2xs);
   font-weight: 700;
   white-space: nowrap;
 }
 
 .placesPill[data-tone="yours"] {
-  border-color: var(--state-active-border);
-  background: var(--state-active-surface);
-  color: var(--state-active-ink);
+  border-color: var(--state-selected-border);
+  background: var(--state-selected-surface);
+  color: var(--state-selected-ink);
 }
 
 /* ── The city panel ───────────────────────────────────────────────────────── */
@@ -274,6 +281,36 @@
   color: var(--color-text-soft);
   font-size: var(--text-sm);
   line-height: var(--leading-normal);
+}
+
+/* The UK map, a quiet ink link inside the section's line. Its 44px box rides
+   padding the line gives back, so the sentence keeps one line height. */
+.placesUkLink {
+  display: inline-block;
+  padding-block: var(--space-3);
+  margin-block: calc(-1 * var(--space-3));
+  color: var(--color-text);
+  font-weight: 600;
+  text-decoration: underline;
+  text-decoration-color: var(--hairline-strong);
+  text-underline-offset: 3px;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .placesUkLink:hover {
+    text-decoration-color: currentColor;
+  }
+}
+
+.placesUkLink:focus-visible {
+  outline: 2px solid var(--color-text);
+  outline-offset: 2px;
+  border-radius: var(--radius-sm);
+}
+
+/* The town lookup sits under the section's line. */
+.placesUk .placesSearch {
+  margin: var(--space-4) 0 var(--space-3);
 }
 
 .placesAreaList {

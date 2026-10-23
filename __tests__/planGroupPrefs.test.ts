@@ -75,8 +75,8 @@ describe("plan group prefs store", () => {
           weatherShelterRequired: false,
         },
         mustHaveLabels: expect.arrayContaining([
-          "Budget: under GBP 6 pints",
-          "Zero-proof options needed",
+          "Budget: under £6 pints",
+          "Alcohol-free options needed",
           "Step-free access needed",
         ]),
       },
@@ -99,15 +99,15 @@ describe("plan group prefs store", () => {
     expect(guest.overlap.mateCount).toBe(2);
     expect(guest.overlap.hardConstraints).toEqual({
       budgetBand: "under6",
-      budgetLabel: "under GBP 6 pints",
+      budgetLabel: "under £6 pints",
       zeroProofRequired: true,
       accessibilityRequired: true,
       weatherShelterRequired: true,
       sharedAtmosphereChips: ["cosy"],
     });
     expect(guest.overlap.mustHaveLabels).toEqual([
-      "Budget: under GBP 6 pints",
-      "Zero-proof options needed",
+      "Budget: under £6 pints",
+      "Alcohol-free options needed",
       "Step-free access needed",
       "Covered shelter needed",
     ]);
@@ -348,6 +348,36 @@ describe("plan group prefs HTTP route", () => {
     );
     expect(cleanB.status).toBe(200);
     expect(await cleanB.json()).toMatchObject({ prefs: [] });
+  });
+
+  it("never stores or returns a broad origin sent beside the shared picks", async () => {
+    const { id, tokens } = await crew(2);
+    const save = await SAVE(
+      new Request(`http://localhost/api/plans/${id}/group-prefs`, {
+        method: "POST",
+        headers: {
+          authorization: `Bearer ${tokens[0]}`,
+          "content-type": "application/json",
+          "idempotency-key": "http-origin-key-1",
+        },
+        body: JSON.stringify({ ...sample, originArea: "camden", origin: { lat: 51.539, lng: -0.143 } }),
+      }),
+      ctx(id),
+    );
+    expect(save.status).toBe(201);
+    const leaked = /camden|51\.539|-0\.143|origin/i;
+    expect(JSON.stringify(await save.json())).not.toMatch(leaked);
+
+    const guestRead = await LIST(
+      new Request(`http://localhost/api/plans/${id}/group-prefs`, {
+        headers: { authorization: `Bearer ${tokens[1]}` },
+      }),
+      ctx(id),
+    );
+    expect(guestRead.status).toBe(200);
+    const guestBody = await guestRead.json();
+    expect(guestBody.prefs).toHaveLength(1);
+    expect(JSON.stringify(guestBody)).not.toMatch(leaked);
   });
 });
 

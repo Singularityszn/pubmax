@@ -151,8 +151,11 @@ export function moveCoverPosition(
   const at = next.indexOf(id);
   if (at < 0) return next;
   const to = direction === "up" ? at - 1 : at + 1;
-  if (to < 0 || to >= next.length) return next;
-  [next[at], next[to]] = [next[to], next[at]];
+  const moving = next[at];
+  const displaced = next[to];
+  if (moving === undefined || displaced === undefined) return next;
+  next[at] = displaced;
+  next[to] = moving;
   return next;
 }
 

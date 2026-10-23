@@ -10,9 +10,17 @@ import {
   createDualBackendStore,
   createFailSoftGuard,
   onMissingDurableWrite,
+  whereVenueIdIn,
 } from "@/lib/storeBackend";
-import type { Wanted, WantedDTO, WantedFields, WantedStatus } from "@/lib/wanted";
+import {
+  cleanWantedNote,
+  type Wanted,
+  type WantedDTO,
+  type WantedFields,
+  type WantedStatus,
+} from "@/lib/wanted";
 import { cleanText } from "@/lib/textClean";
+import { storedVenueIds } from "@/lib/venueAliases";
 
 const TABLE = "wanteds";
 const MIGRATION_HINT = "apply migration 0093";
@@ -28,6 +36,8 @@ export type WantedStore = {
     now?: number,
   ): Promise<WantedDTO[]>;
   delete(ownerActor: string, id: string): Promise<boolean>;
+  /** The owner's own note on a row, changed in place. Null when it is not theirs. */
+  updateNote(ownerActor: string, id: string, note: string): Promise<WantedDTO | null>;
   getById(ownerActor: string, id: string): Promise<WantedDTO | null>;
   recordPromotion(
     ownerActor: string,
@@ -81,11 +91,12 @@ export const memoryWantedStore: WantedStore = {
   async fulfilForVenue(ownerActor, venueId, now = Date.now()) {
     if (!venueId) return [];
     const stamp = new Date(now).toISOString();
+    const venueIds = await storedVenueIds(venueId);
     const fulfilled: WantedDTO[] = [];
     for (const row of byId.values()) {
       if (row.ownerActor !== ownerActor) continue;
       if (row.status !== "open") continue;
-      if (row.venueId !== venueId) continue;
+      if (!venueIds.includes(row.venueId)) continue;
       row.status = "fulfilled";
       row.fulfilledAt = stamp;
       fulfilled.push(toDTO(row));
@@ -98,6 +109,13 @@ export const memoryWantedStore: WantedStore = {
     if (!hit || hit.ownerActor !== ownerActor) return false;
     byId.delete(id);
     return true;
+  },
+
+  async updateNote(ownerActor, id, note) {
+    const hit = byId.get(id);
+    if (!hit || hit.ownerActor !== ownerActor) return null;
+    hit.note = cleanWantedNote(note);
+    return toDTO(hit);
   },
 
   async getById(ownerActor, id) {
@@ -256,11 +274,10 @@ const supabaseWantedStore: WantedStore = {
           fallback: () => memoryWantedStore.fulfilForVenue(ownerActor, venueId, now),
         }),
       run: async () => {
-        const { data, error } = await admin()
-          .from(TABLE)
-          .update({ status: "fulfilled", fulfilled_at: stamp })
-          .eq("owner_actor", ownerActor)
-          .eq("venue_id", venueId)
+        const { data, error } = await whereVenueIdIn(
+          admin().from(TABLE).update({ status: "fulfilled", fulfilled_at: stamp }).eq("owner_actor", ownerActor),
+          await storedVenueIds(venueId),
+        )
           .eq("status", "open")
           .select("*");
         if (error) throw new Error(error.message);
@@ -290,6 +307,32 @@ const supabaseWantedStore: WantedStore = {
           .select("id");
         if (error) throw new Error(error.message);
         return (data ?? []).length > 0;
+      },
+    });
+  },
+
+  async updateNote(ownerActor, id, note) {
+    const cleaned = cleanWantedNote(note);
+    return guard({
+      context: "update_note",
+      onSchemaMiss: () =>
+        onMissingDurableWrite({
+          storeTag: "wanteds",
+          migrationHint: MIGRATION_HINT,
+          fallback: () => memoryWantedStore.updateNote(ownerActor, id, note),
+        }),
+      run: async () => {
+        const { data, error } = await admin()
+          .from(TABLE)
+          .update({ note: cleaned })
+          .eq("id", id)
+          .eq("owner_actor", ownerActor)
+          .select("*")
+          .maybeSingle();
+        if (error) throw new Error(error.message);
+        if (!data) return null;
+        const row = fromRow(data as Record<string, unknown>);
+        return row ? toDTO(row) : null;
       },
     });
   },

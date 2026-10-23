@@ -224,14 +224,14 @@ test("mobile consent never covers Plan primary action while visible", async ({ p
   const prompt = page.getByLabel("Anonymous analytics choice");
   await expect(prompt).toBeVisible({ timeout: 30_000 });
 
-  // /plan opens on describe-first, whose ONE painted action is "Sort it".
+  // /plan opens on describe-first, whose ONE painted action is "Plan it".
   // The rule this test owns is about the ROUTE's primary action, so it is read
   // off the Screen's own [data-primary-action] marker rather than named copy
   // alone: the marker is what makes exactly one control the primary, and a
   // later rename of the label cannot quietly leave the rule untested.
   const planPrimary = page
     .locator("[data-primary-action]")
-    .getByRole("button", { name: "Sort it", exact: true });
+    .getByRole("button", { name: "Plan it", exact: true });
   await expect(planPrimary).toBeVisible();
   await planPrimary.scrollIntoViewIfNeeded();
 
@@ -264,11 +264,43 @@ test("mobile consent never covers /pubs Book a table while visible", async ({ pa
 test("mobile consent never covers a control keyboard focus lands on in /social", async ({ page }) => {
   test.setTimeout(90_000);
   await prepareUndecidedConsent(page);
+  let settleIdentity!: () => void;
+  const identityPending = new Promise<void>((resolve) => { settleIdentity = resolve; });
+  await page.route("**/api/auth/session", async (route) => {
+    if (route.request().method() !== "GET") return route.fallback();
+    await identityPending;
+    await route.fulfill({ json: { hint: null } });
+  });
   await page.goto("/social", { waitUntil: "domcontentloaded" });
 
   const prompt = page.getByLabel("Anonymous analytics choice");
   await expect(prompt).toBeVisible({ timeout: 30_000 });
-  await expect(page.locator(".socialPage")).toBeVisible({ timeout: 30_000 });
+  // A document load streams the page into a hidden segment before React swaps
+  // it in, so for that window the document holds two `.socialPage` mains. The
+  // painted one is the page a reader can Tab through.
+  const socialPage = page.locator(".socialPage:visible");
+  await expect(socialPage).toBeVisible({ timeout: 30_000 });
+  await expect(socialPage.locator('.socialDoorSlot[aria-busy="true"]')).toBeVisible();
+  const handle = socialPage.getByRole("searchbox", { name: "Search handles", exact: true });
+  await expect(handle).toBeEnabled();
+  for (let press = 0; press < 60 && !(await handle.evaluate((el) => el === document.activeElement)); press += 1) {
+    await page.keyboard.press("Tab");
+  }
+  await expect(handle).toBeFocused();
+  await expect(socialPage.locator('.socialDoorSlot[aria-busy="true"]')).toBeVisible();
+  await page.screenshot({ path: test.info().outputPath("social-focused-pending.png") });
+  settleIdentity();
+  await expect(socialPage.locator('[aria-busy="true"]')).toHaveCount(0, { timeout: 30_000 });
+  await expect(handle).toBeFocused();
+  await expect.poll(async () => {
+    const box = await handle.boundingBox();
+    const lane = await prompt.boundingBox();
+    return Boolean(box && lane && box.y >= 0 && box.y + box.height <= lane.y);
+  }).toBe(true);
+  const focusedBox = await handle.boundingBox();
+  expect(focusedBox).not.toBeNull();
+  expect(await pointOwner(page, focusedBox!, "input")).toBe("control");
+  await page.screenshot({ path: test.info().outputPath("social-focused-settled.png") });
 
   const covered: string[] = [];
   for (let press = 0; press < 60; press += 1) {
@@ -506,6 +538,53 @@ for (const viewport of ONBOARDING_VIEWPORTS) {
       await primary.scrollIntoViewIfNeeded();
       await expect(primary).toBeInViewport({ ratio: 0.99, timeout: 1_000 });
     }).toPass({ timeout: 20_000 });
+  });
+}
+
+// THE QUESTIONS AFTER THE LONDON CONFIRM LIVE UNDER THE SAME CARD. The budget,
+// the location ask, the patch picker and the result each paint one primary, and
+// the card outranks every other prompt on a first launch, so every one of those
+// screens owes what the London screen owes above: the primary is on screen at
+// rest, clear of the card, and a tap at its centre reaches it. The patch picker
+// is the tall one, which is why it is walked at the short phones too.
+for (const viewport of ONBOARDING_VIEWPORTS) {
+  test(`consent never covers the first-run questions @${viewport.width}x${viewport.height}`, async ({ page }) => {
+    test.setTimeout(90_000);
+    await prepareFirstRunOnboarding(page, viewport);
+    await page.goto("/onboarding", { waitUntil: "domcontentloaded" });
+
+    const prompt = page.getByLabel("Anonymous analytics choice");
+    await expect(prompt).toBeVisible({ timeout: 30_000 });
+    await page.getByRole("button", { name: "Use London" }).click();
+
+    async function expectPrimaryClearOfCard(name: string) {
+      const primary = page.getByRole("button", { name });
+      await expect(primary).toBeVisible();
+      await expect(primary).toBeInViewport({ ratio: 1 });
+      const promptBox = await prompt.boundingBox();
+      const primaryBox = await primary.boundingBox();
+      expect(promptBox).not.toBeNull();
+      expect(primaryBox).not.toBeNull();
+      expect(boxesOverlap(promptBox!, primaryBox!)).toBe(false);
+      expect(await pointOwner(page, primaryBox!, ".firstRunPrimary")).toBe("control");
+    }
+
+    // Budget.
+    await expect(page.getByRole("heading", { name: "What's a fair pint to you?" })).toBeVisible();
+    await expectPrimaryClearOfCard("Continue");
+    await page.getByRole("button", { name: "£6 or less" }).click();
+    await page.getByRole("button", { name: "Continue" }).click();
+
+    // Location ask, then the picker it opens.
+    await expect(page.getByRole("heading", { name: "Find the cheapest pint near you." })).toBeVisible();
+    await expectPrimaryClearOfCard("Use my location");
+    await page.getByRole("button", { name: "Pick a London patch instead" }).click();
+    await expectPrimaryClearOfCard("Use my location");
+    await page.getByRole("button", { name: "Soho" }).click();
+
+    // Result.
+    await expect(page.getByRole("button", { name: "That looks right" })).toBeVisible({ timeout: 45_000 });
+    await expectPrimaryClearOfCard("That looks right");
   });
 }
 

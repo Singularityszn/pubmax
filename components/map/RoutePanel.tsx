@@ -25,6 +25,8 @@ import {
 } from "@/lib/cityCuratedCrawls";
 import { cityAwareMapPath, crawlShareMapHref } from "@/lib/curatedCrawls";
 import { downloadIcs } from "@/lib/routePanelIcs";
+import { mapPlanDrinkPresentation, type MapPlanDrinkSelection } from "@/lib/mapPlanDrinkPresentation";
+import { drinkLensCoverageNote, type CategoryPriceIndexStatus, type MapLensPrice } from "@/lib/mapExperienceLens";
 import RouteHeader from "@/components/map/route/RouteHeader";
 import RouteMetrics from "@/components/map/route/RouteMetrics";
 import RouteActions from "@/components/map/route/RouteActions";
@@ -48,6 +50,11 @@ type RoutePanelProps = {
   altStyle: AltCrawlStyle;
   onAltStyleChange: (style: AltCrawlStyle) => void;
   route: Venue[];
+  drinkSelection?: MapPlanDrinkSelection;
+  /** The drink a map view is holding down, which the route still plans with. */
+  heldDrinkSelection?: MapPlanDrinkSelection | null;
+  drinkPrices?: ReadonlyMap<string, MapLensPrice> | null;
+  drinkPriceStatus?: CategoryPriceIndexStatus;
   filteredVenues: Venue[];
   builtIds: string[];
   activeVenueId: string | undefined;
@@ -91,6 +98,10 @@ export default function RoutePanel({
   altStyle,
   onAltStyleChange,
   route,
+  drinkSelection,
+  heldDrinkSelection,
+  drinkPrices,
+  drinkPriceStatus = "idle",
   filteredVenues,
   builtIds,
   activeVenueId,
@@ -117,6 +128,11 @@ export default function RoutePanel({
   journeyTotalMinutes = null,
 }: RoutePanelProps) {
   const summary = useMemo(() => crawlSummary(route), [route]);
+  const drinkPresentation = mapPlanDrinkPresentation(drinkSelection);
+  const pricedStopCount = route.filter((venue) => typeof venue.cheapestPrice === "number").length;
+  const drinkCoverageNote = drinkPresentation && !drinkPresentation.refined
+    ? drinkLensCoverageNote(drinkPresentation.priceNoun, drinkPriceStatus)
+    : null;
   const routeWaterCount = route.filter((venue) => venue.curation.nearWater).length;
   const routeHeritageCount = route.filter((venue) => venue.hasStory).length;
   const routeWriterCount = route.filter((venue) => venue.curation.writerPick).length;
@@ -136,9 +152,10 @@ export default function RoutePanel({
   // Alt-style copy: a "coffee stop" / "food stop" / "mocktail stop" instead of
   // the default "pint stop". A single source (lib/crawlUrl) keeps label + noun
   // in sync with the URL round-trip.
-  const stopNoun = altStyleStopNoun[altStyle];
-  const crawlTitle =
-    mode === "build" ? crawlName || "My hand-built crawl" : `${styleLabels[crawlStyle]} crawl`;
+  const stopNoun = drinkPresentation?.stopNoun ?? altStyleStopNoun[altStyle];
+  const crawlTitle = drinkPresentation
+    ? crawlName || `${drinkPresentation.label} plan`
+    : mode === "build" ? crawlName || "My hand-built crawl" : `${styleLabels[crawlStyle]} crawl`;
 
   // Loop 2 crawl-completion stickiness — localStorage only. Key off crawlId when
   // present, else a stable title slug so hand-built routes still track.
@@ -171,6 +188,7 @@ export default function RoutePanel({
     crawlId,
     cityId,
     crawls: curatedCrawlsForCity(cityId),
+    drinkSelection,
   });
 
   function addToCalendar() {
@@ -187,6 +205,9 @@ export default function RoutePanel({
   const stopsList = (
     <RouteList
       route={route}
+      drinkPresentation={drinkPresentation}
+      drinkPrices={drinkPrices}
+      drinkPriceStatus={drinkPriceStatus}
       activeVenueId={activeVenueId}
       venueSignals={venueSignals}
       legSummary={legSummary}
@@ -205,18 +226,23 @@ export default function RoutePanel({
         crawlBlurb={crawlBlurb}
         altStyle={altStyle}
         onAltStyleChange={onAltStyleChange}
+        drinkLabel={drinkPresentation?.label}
+        linkDrinkSelection={drinkPresentation ? heldDrinkSelection : null}
       />
+
+      {drinkCoverageNote ? <p className="description muted" role="status">{drinkCoverageNote}</p> : null}
 
       {stopsFirst ? stopsList : null}
 
       <RouteMetrics
-        summaryTotal={summary.total}
+        summaryTotal={drinkPresentation || pricedStopCount === 0 ? null : summary.total}
         summaryDistance={summary.distance}
         legSummary={legSummary}
         pace={pace}
         journeyTotalMinutes={journeyTotalMinutes}
         journeyLoading={journeyLoading}
         routeLength={route.length}
+        pricedStopCount={pricedStopCount}
         stopNoun={stopNoun}
         routeHeritageCount={routeHeritageCount}
         routeWaterCount={routeWaterCount}
@@ -256,20 +282,14 @@ export default function RoutePanel({
         />
       ) : null}
 
-      {route.length >= 2 ? (
+      {route.length >= 2 && !drinkPresentation ? (
         <SaveCrawlStory
           stops={route.map((venue) => ({
             venueId: venue.id,
             name: venue.name,
-            // The route's representative per-stop price (same signal the metrics
-            // total uses) — the cheapest listed pint at that venue.
             priceGbp: venue.cheapestPrice,
           }))}
-          defaultTitle={
-            mode === "build"
-              ? crawlName || "My hand-built crawl"
-              : `${styleLabels[crawlStyle]} crawl`
-          }
+          defaultTitle={crawlTitle}
         />
       ) : null}
 
@@ -278,6 +298,9 @@ export default function RoutePanel({
       {mode === "build" ? (
         <VenuePicker
           filteredVenues={filteredVenues}
+          drinkPresentation={drinkPresentation}
+          drinkPrices={drinkPrices}
+          drinkPriceStatus={drinkPriceStatus}
           builtIds={builtIds}
           onSelectVenue={onSelectVenue}
           onToggleStop={onToggleStop}

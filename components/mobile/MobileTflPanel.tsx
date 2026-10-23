@@ -3,14 +3,16 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { AlertTriangle, CalendarClock, Info, TrainFront } from "lucide-react";
 
-import { loadSurfaceJson } from "@/lib/surfaceDataCache";
+import { isUrgentTubeStatus } from "@/lib/mapChromeTiers";
+import { CITY_STATUS_UNSOURCED_LABEL, cityStatusSignalSource } from "@/lib/cityStatusSignalSource";
+import { loadSurfaceJson, SURFACE_JUST_READ_MS } from "@/lib/surfaceDataCache";
 import { useReconnectRecovery } from "@/lib/useReconnectRecovery";
 import type { CityId } from "@/lib/cities";
 
-type Signal = { headline?: string; detail?: string; kind?: string; severity?: string; timeWindow?: string; areas?: string[] };
+type Signal = { headline?: string; detail?: string; kind?: string; severity?: string; timeWindow?: string; areas?: string[]; sourceUrl?: string };
 type TubeLine = { line?: string; status?: string; disruption?: string };
 type TflPayload = { asOf?: string | null; signals?: Signal[]; tubeLines?: TubeLine[]; error?: string };
-export type MobileTflStatus = { payload: TflPayload | null; failed: boolean; issueCount: number };
+export type MobileTflStatus = { payload: TflPayload | null; failed: boolean; issueCount: number; urgentCount: number };
 
 const GROUPS = ["Alerts", "Transport", "Events", "Other"] as const;
 const TFL_STATUS_SURFACE_KEY = "/api/citymcp/status";
@@ -41,6 +43,7 @@ export function useMobileTflStatus(cityId: CityId): MobileTflStatus {
         init: { headers: { accept: "application/json" } },
         maxAgeMs: TFL_STATUS_MAX_AGE_MS,
         validate: (value) => Boolean(value && typeof value === "object"),
+        freshForMs: SURFACE_JUST_READ_MS,
       },
       (value) => {
         setPayload(value);
@@ -63,7 +66,13 @@ export function useMobileTflStatus(cityId: CityId): MobileTflStatus {
     () => (payload?.signals?.length ?? 0) + (payload?.tubeLines?.filter((line) => line.status?.toLowerCase() !== "good service").length ?? 0),
     [payload],
   );
-  return isLondon ? { payload, failed, issueCount } : { payload: null, failed: false, issueCount: 0 };
+  const urgentCount = useMemo(
+    () => payload?.tubeLines?.filter((line) => isUrgentTubeStatus(line.status)).length ?? 0,
+    [payload],
+  );
+  return isLondon
+    ? { payload, failed, issueCount, urgentCount }
+    : { payload: null, failed: false, issueCount: 0, urgentCount: 0 };
 }
 
 function freshness(asOf?: string | null): React.ReactNode {
@@ -71,6 +80,15 @@ function freshness(asOf?: string | null): React.ReactNode {
   const parsed = new Date(asOf);
   if (Number.isNaN(parsed.getTime())) return null;
   return <small className="mobileTflFreshness">Updated {parsed.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</small>;
+}
+
+function SignalSource({ sourceUrl }: { sourceUrl?: string }) {
+  const source = cityStatusSignalSource(sourceUrl);
+  return source ? (
+    <a className="mobileTflSource" href={source.href} target="_blank" rel="noreferrer noopener">{source.label}</a>
+  ) : (
+    <span>{CITY_STATUS_UNSOURCED_LABEL}</span>
+  );
 }
 
 export default function MobileTflPanel({ status }: { status: MobileTflStatus }) {
@@ -89,8 +107,8 @@ export default function MobileTflPanel({ status }: { status: MobileTflStatus }) 
   return (
     <div className="mobileTflGroups">
       {freshness(payload.asOf)}
-      {disrupted.length ? <section><h3><TrainFront size={18} />Transport</h3><ul>{disrupted.map((line) => <li key={`${line.line}-${line.status}`}><strong>{line.line}</strong><span>{line.status}</span>{line.disruption ? <p>{line.disruption}</p> : null}</li>)}</ul></section> : null}
-      {grouped.map((group) => <section key={group.label}><h3>{group.label === "Events" ? <CalendarClock size={18} /> : <AlertTriangle size={18} />}{group.label}</h3><ul>{group.rows.map((signal, index) => <li key={`${signal.headline}-${index}`}><strong>{signal.headline}</strong>{signal.detail ? <p>{signal.detail}</p> : null}<span>{[signal.timeWindow, signal.areas?.join(", ")].filter(Boolean).join(" · ")}</span></li>)}</ul></section>)}
+      {disrupted.length ? <section><h3><TrainFront size={16} />Transport</h3><ul>{disrupted.map((line) => <li key={`${line.line}-${line.status}`}><strong>{line.line}</strong><span>{line.status}</span>{line.disruption ? <p>{line.disruption}</p> : null}</li>)}</ul></section> : null}
+      {grouped.map((group) => <section key={group.label}><h3>{group.label === "Events" ? <CalendarClock size={16} /> : <AlertTriangle size={16} />}{group.label}</h3><ul>{group.rows.map((signal, index) => <li key={`${signal.headline}-${index}`}><strong>{signal.headline}</strong>{signal.detail ? <p>{signal.detail}</p> : null}<span>{[signal.timeWindow, signal.areas?.join(", ")].filter(Boolean).join(" · ")}</span><SignalSource sourceUrl={signal.sourceUrl} /></li>)}</ul></section>)}
     </div>
   );
 }

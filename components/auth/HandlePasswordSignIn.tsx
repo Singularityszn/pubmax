@@ -1,9 +1,10 @@
 "use client";
 
-import { FormEvent, useState } from "react";
+import { FormEvent, useState, useSyncExternalStore } from "react";
 
 import AuthAccountBannedNotice from "@/components/auth/AuthAccountBannedNotice";
 import { useAuth } from "@/components/auth/AuthProvider";
+import { Button } from "@/components/ui/button";
 import { safeAuthNext } from "@/lib/authRedirect";
 import { ensureSupabaseBrowser } from "@/lib/authClient";
 import { errorMessageFrom, offlineOrMessage } from "@/lib/apiErrorMessage";
@@ -13,6 +14,17 @@ import {
   MIN_PASSWORD_LENGTH,
 } from "@/lib/passwordPolicy";
 import { trackEvent } from "@/lib/analytics";
+
+const subscribeNever = () => () => {};
+
+/**
+ * False on the server and through hydration, true once React owns the page.
+ * The toggle is painted on the server, so without this a tap that lands before
+ * hydration opens nothing and is silently lost.
+ */
+function useHydrated(): boolean {
+  return useSyncExternalStore(subscribeNever, () => true, () => false);
+}
 
 type HandlePasswordSignInProps = {
   disabled?: boolean;
@@ -62,6 +74,7 @@ export default function HandlePasswordSignIn({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [banned, setBanned] = useState(false);
+  const hydrated = useHydrated();
 
   if (!configured) return <></>;
 
@@ -147,7 +160,7 @@ export default function HandlePasswordSignIn({
         type="button"
         className="loginPageQuietLink loginPageHandlePasswordToggle"
         data-testid="e2e-login-toggle"
-        disabled={disabled || busy}
+        disabled={!hydrated || disabled || busy}
         onClick={() => setOpen(true)}
       >
         Sign in with handle and password
@@ -196,14 +209,14 @@ export default function HandlePasswordSignIn({
         />
       </label>
       <div className="loginPageHandlePasswordActions">
-        <button
+        <Button
           type="submit"
-          className="loginPagePrimary"
+          variant="secondary"
           data-testid="e2e-login-submit"
           disabled={busy || disabled}
         >
           {busy ? "Signing in…" : "Sign in"}
-        </button>
+        </Button>
         <button
           type="button"
           className="loginPageQuietLink"

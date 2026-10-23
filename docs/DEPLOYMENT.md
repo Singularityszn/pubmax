@@ -34,6 +34,13 @@ Set these in the Vercel project (Settings → Environment Variables).
 | `SOCIAL_MODERATOR_STAFF_ROLE_ID` | Server-only UUID of the active `private_social_staff_roles` moderator bound to the existing admin token/session. Social moderation SQL validates that the role is active and not revoked before reads or writes. |
 | `RATE_LIMIT_SALT` | At least 32 random bytes for `sha256(salt:ip)` IP hashing (raw IPs never reach the DB or logs) and the fallback trusted Plan-signing key. Defaults are allowed only for non-trusted local helpers. **Required in production:** `assertServerEnv()` refuses to start if this is unset, short, or still the dev default. |
 
+Moderator cookies contain a versioned issuance time signed with `ADMIN_TOKEN`.
+The server refuses a cookie at 24 hours, even if a caller sends it after browser expiry.
+It also refuses future timestamps and changed signatures.
+Changing `ADMIN_TOKEN` invalidates existing sessions.
+The signed format replaces the old static token digest, so existing moderators must sign in again after this update.
+The `x-admin-token` header remains available for scripts.
+
 ### Optional — The Landlord (heritage Q&A)
 
 | Var | Purpose |
@@ -51,6 +58,12 @@ Map Ask on `/api/ask` and `/pal/chat` typed asks stay keyless without ElevenLabs
 | `ELEVENLABS_PUB_PAL_AGENT_ID` | Agent id from `npm run pubpal:agent -- --base-url https://your-deployment`. |
 | `ELEVENLABS_LLM_SHARED_SECRET` | **Server-only** secret for webhook tools at `/api/pub-pal/tools/{name}`. |
 | `ELEVENLABS_VOICE_*` | Per-species and onboarding voice ids (`lib/palElevenLabsVoice.ts`). See `docs/PUB_PAL_SETUP.md`. |
+
+**Deploy checklist for a change to Pub Pal.** The ElevenLabs agent is not part of the deploy, so check it beside the deploy:
+
+1. Run `npm run pubpal:agent -- --check --base-url https://pubmaxxing.com` with the ElevenLabs key set. It only reads the live agent and tools, prints every difference from the config in this repo, and exits 1 on any drift.
+2. If it reports drift, the captain re-runs `npm run pubpal:agent -- --base-url https://pubmaxxing.com`. Typed chat and voice start work with the agent either before or after the deploy, so the order does not matter.
+3. Run the check again and expect exit 0. After a re-run that turns authentication on, an unsigned WebSocket to the agent is refused.
 
 ### Optional — other integrations
 
@@ -146,18 +159,21 @@ Buckets are not SQL objects, so create it **out of band** (Supabase dashboard �
 
 ### 3. Browser sign-in (email magic link + Google + Apple + Microsoft)
 
-The app calls Supabase Auth with `signInWithOtp` for passwordless email and `signInWithOAuth` for Google, Apple, or Microsoft (Supabase provider id `azure`). All four methods request the canonical site's `/auth/callback`, then return to the path where sign-in started. The browser client uses the implicit flow, with tokens in the URL fragment. `AuthProvider` captures and scrubs them before asynchronous verification or session installation. The callback rejects absolute, protocol-relative, and backslash redirect targets; never add a client-controlled redirect that bypasses that seam.
+The web and Android paths call Supabase Auth with `signInWithOtp` for passwordless email and `signInWithOAuth` for Google, Apple, or Microsoft (Supabase provider id `azure`). All four methods request the canonical site's `/auth/callback`, then return to the path where sign-in started. The canonical browser client uses the implicit flow, with tokens in the URL fragment. `AuthProvider` captures and scrubs them before asynchronous verification or session installation. The callback rejects absolute, protocol-relative, and backslash redirect targets; never add a client-controlled redirect that bypasses that seam. The separate iPhone paths follow the [provider-return contract](rules/ios-native-auth-return.md) and [email-return contract](rules/ios-native-email-return.md).
 
 App fragments are never copied into Supabase's `redirectTo`: the browser holds them in a TTL-limited record keyed by a cryptographically random attempt ID. It restores them only for a claimed local attempt and matching return path, because Plan invite fragments contain one-use capabilities. The Web Locks API coordinates one live attempt across tabs, and the initiating tab records its attempt in `sessionStorage` to allow an explicit retry. Starting an attempt requires persistent browser storage and Web Locks; an incoming token callback without a local claim follows the confirmation path below. Secrets stay in the Supabase dashboard. The Next.js app only needs the public URL and publishable key above.
 
-An unowned callback, including an email link opened in another browser, shows **Sign in as [verified email]?** before installing a session. The prompt names an email only when the provider reports it confirmed, because the sender of a crafted token link can choose an unverified one; otherwise it reads **Sign in to this account?**. Choose **Continue** to install that account's verified, rotated tokens, or **Cancel** to keep the previous stored session. A callback claimed by this browser's local attempt completes automatically.
+An unowned callback, including an email link opened in another browser, shows **Sign in as [verified email]?** before installing a session. The prompt names an email only when the provider reports it confirmed, because the sender of a crafted token link can choose an unverified one; otherwise it reads **Sign in to this account?**. Choose **Continue** to install that account's verified, rotated tokens, or **Cancel** to keep the previous stored session. An unowned callback is offered only when the provider's `amr` claim names an emailed link: `magiclink` or `email/signup`, or `otp` when the account has a confirmed email and no confirmed phone. GoTrue records `otp` for SMS codes too, and this app has no phone sign-in, so an `otp` session on an account with a confirmed phone is refused. OAuth and password sign-ins always return to the browser that started them, so an unowned one is refused as a handed-over session. A callback claimed by this browser's local attempt completes automatically.
 
 [`lib/authCallbackClient.ts`](../lib/authCallbackClient.ts) owns callback verification. It reads identity directly from the provider without letting lookup errors mutate the live browser session. It verifies the refreshed identity and rejects mismatched access and refresh identities. The expired-access exception requires the provider's specific expiry response and a parsed subject matching the freshly verified identity; browser time does not decide expiry. Other verification failures reject the callback. `AuthProvider` finishes session restoration and publishes its result before offering confirmation, and reuses pending work across StrictMode effect replay. Regression coverage lives in `__tests__/authCallbackClient.test.ts`, `__tests__/authCallbackConfirmation.test.tsx`, and `e2e/auth-callback-confirmation.spec.ts`.
 
 Google, Apple, and Microsoft buttons follow the live public provider flags from
 Supabase Auth's `/auth/v1/settings` endpoint (`google`, `apple`, and `azure`
-respectively). Disabled or unreadable providers stay hidden, and each provider
-is checked again before OAuth starts. Email magic-link sign-in remains the
+respectively). The server reads them and the browser asks the same-origin
+`GET /api/auth/providers`, which the edge caches for five minutes, so a
+dashboard toggle can take that long to show or hide a button. Disabled or
+unreadable providers stay hidden, and each provider is checked again with an
+uncached `?fresh=1` read before OAuth starts. Email magic-link sign-in remains the
 complete primary path when no social provider is enabled.
 
 As of 29 July 2026, neither Google nor Apple is enabled in production. Their
@@ -257,14 +273,16 @@ team members while keeping Preview deployments reviewable.
 
 The UI deliberately gives the same success message for every address and replaces provider failures with normalized retry/rate-limit copy. This prevents the client from becoming an account-enumeration oracle. Supabase remains the enforcement point for actual email sending and rate limits.
 
-**Wrapped shell / deep links:** the current Capacitor app is a remote-URL shell and the magic link is HTTPS. A link opened outside the shell follows the [browser sign-in callback contract](#3-browser-sign-in-email-magic-link--google--apple--microsoft). Browser completion does not establish a session inside the shell. Native return-to-app auth remains an owner/configuration item: verified Associated Domains/Android App Links plus an auth-specific handoff must be designed and device-tested before claiming in-shell magic-link completion. Do not change the dashboard redirect to a custom scheme; the web callback and existing universal-link seam are the safe starting point.
+**Wrapped shell / deep links:** the [iPhone email-return contract](rules/ios-native-email-return.md) owns return-to-app authentication and its device acceptance requirements. Android and browser email keep the [browser sign-in callback contract](#3-browser-sign-in-email-magic-link--google--apple--microsoft). Browser completion does not establish a session inside the shell. Supabase still redirects to the canonical HTTPS callback. Do not change the dashboard redirect to a custom scheme.
 
 Vercel must attach both `pubmaxxing.com` and `www.pubmaxxing.com` to the same production project, with `www.pubmaxxing.com` permanently redirecting to the canonical apex. After an explicitly authorised deployment, verify that the apex returns the release, the `www` redirect preserves the path and query string, and both TLS certificates are valid:
 
 ```sh
-curl -sSIL https://pubmaxxing.com/map
-curl -sSIL 'https://www.pubmaxxing.com/map?sel=venue-xjf3n0'
+curl -sS -o /dev/null -w '%{http_code}\n' https://pubmaxxing.com/map
+curl -sS -o /dev/null -w '%{http_code} %{redirect_url}\n' 'https://www.pubmaxxing.com/map?sel=venue-xjf3n0'
 ```
+
+The apex prints `200`. The `www` host prints `308 https://pubmaxxing.com/map?sel=venue-xjf3n0`. Neither command follows the redirect, so the second reads the first response's `Location`, not the page it leads to. Both requests complete a TLS handshake, which checks each certificate.
 
 #### Google
 
@@ -341,20 +359,50 @@ account allocation before calling the release gate green.
 
 ### Manual deploy and promote
 
-This project does not auto-assign the production domain to every deploy. After a Vercel deploy, promote it explicitly:
+There is no manual production path. Production ships through the [one release command](#one-release-command), `npm run release:prod`, and nothing else.
 
-```sh
-npm run deploy:preview
-vercel promote <deployment-url>
-```
+Never promote a Preview build. `npm run deploy:preview` followed by `vercel promote <deployment-url>` puts a Preview-built artifact in front of production, and [promotion does not rebuild it](https://vercel.com/docs/rest-api/projects/point-production-traffic-to-a-given-deployment): it keeps `VERCEL_ENV=preview` and every Preview environment value. The release command stages with `scripts/deploy-vercel.mjs --prod --skip-domain` instead, so the artifact it promotes was built with Production values.
 
-`npm run deploy:preview` is `vercel deploy` plus the commit of the tree it is
-uploading. An authenticated `GET /api/version` names that commit (see below).
-An unauthenticated request returns `ok` and `deploymentId`, and never the commit. The command forwards every argument.
+`npm run deploy:preview` is for review deployments. It is `vercel deploy` plus the commit of the tree it is
+uploading. The [build identity reference](#which-commit-is-this-deploy-serving) owns the response fields and authentication requirements.
+The command forwards every argument.
 
 Deploying from a Mac is fine because the build runs in Vercel's cloud. Never pass `--prebuilt` from a Mac: the locally built sharp binary is darwin-arm64 and crashes the linux runtime. `npm run deploy:preview:prod-env` refuses that flag for you.
 
-`docs/SOFT_LAUNCH_RUNBOOK.md` section 1.2 is the operator source for this command pair and the promotion mechanics behind it.
+`docs/SOFT_LAUNCH_RUNBOOK.md` section 1.2 owns the launch-day checks after a release.
+
+### One release command
+
+```sh
+npm run release:prod
+```
+
+This is the way to ship to production. It runs these steps in order and stops at the first failure:
+
+1. It refuses a dirty tree, and a `HEAD` that is not the tip of `origin/main`. The smoke run is dispatched on `main`, so the released commit has to be that tip.
+2. It runs `npm run check:migration-ledger` and refuses when production lacks a migration the repo ships.
+3. It stages a Production-target build with `scripts/deploy-vercel.mjs --prod --skip-domain`, so the build stamps the commit and reads Production environment values, and no domain moves yet.
+4. It reads `/api/version` on the new deployment, then runs `vercel promote`.
+5. It waits until `https://pubmaxxing.com/api/version` names the new deployment.
+6. It dispatches `.github/workflows/prod-smoke.yml` with `gh workflow run`, finds the run on the released commit, and waits with `gh run watch --exit-status`.
+
+A CLI deploy reports nothing to GitHub, so Vercel never starts the smoke suite for it. Before this command, nothing tested a release made from a Mac. A failed smoke run exits non-zero. The new deploy is already live at that point, so read the run, then fix forward or roll back with `vercel rollback`.
+
+`npm run check:migration-ledger` is read-only. It reads `supabase_migrations.schema_migrations` through the Supabase Management API read-only query endpoint and compares by migration NAME, never by version, because the live versions differ from the file timestamps. A repo file counts as applied when the ledger holds its full name (`0161_plan_selected_drink_evidence`) or its bare slug. Names only the ledger holds are listed and are not a failure. It needs `SUPABASE_ACCESS_TOKEN`, a personal access token from the captain's Supabase account, in the environment. `SUPABASE_PROJECT_REF` overrides the production project.
+
+The command needs `gh` signed in with permission to run workflows in `Singularityszn/pubmax`, and a Vercel CLI session (`PUBMAX_VERCEL_BIN` names an installed one; otherwise npx runs the exact version pinned in `scripts/lib/vercelCli.mjs`, never `latest`). The ordered steps are `scripts/lib/releaseProduction.mjs`. Pin: `__tests__/releaseProduction.test.ts`.
+
+### Uptime monitor
+
+Point a free external monitor at `https://pubmaxxing.com/api/health`, every 1 to 5 minutes, and alert on any status that is not 200. UptimeRobot, Better Stack and Cronitor all have a free tier for this. A 503 means the deployment is up and its database is not answering. `/api/version` stays a memory-only check and cannot tell you that, so monitor both if the monitor allows two checks.
+
+The body is `{ "ok": true, "deploymentId": "dpl_...", "database": "ok" }`. The route reads one row of `rate_limits` and holds the answer for 15 seconds per instance, so a one-minute monitor costs the database little. Pin: `__tests__/healthRoute.test.ts`.
+
+### Alert webhook
+
+Set `PUBMAX_ALERT_WEBHOOK_URL` to an https Discord or Slack incoming-webhook URL, in the Vercel Production environment and as a GitHub repository secret of the same name. Treat it as a credential. With it unset, nothing is sent and nothing is logged about the missing value.
+
+The app posts every error-level `log()` event, `paid_spend.budget_spent`, `rate_limit.fail_open`, the freshness audit's findings, the Social moderation backlog and the city enrichment queue alerts. A `log()` post carries the event name, level, time and deployment id only. Its fields and error text stay in the runtime log, so no account id, handle or object key reaches the webhook. Each source posts at most once per 15 minutes per instance, and at most 30 an hour. `.github/workflows/alert-on-failure.yml` watches every scheduled workflow, and every workflow a production `deployment_status` starts (Production smoke, API performance), and posts the run link when one fails. A new scheduled or `deployment_status` workflow must be added to its `workflows` list. Pin: `__tests__/alertSink.test.ts`.
 
 ### A preview built with production values, in one command
 
@@ -373,15 +421,13 @@ What the command does, in order:
 3. Runs `npm run deploy:preview` with each carried value as `--build-env` and
    `--env`, so a `NEXT_PUBLIC_*` value reaches the client bundle and the running
    function alike, and the commit stamp rides along as before.
-4. Prints the names it carried and the names it could not. Verify the running
-   commit with the authenticated build marker below, using an existing credential
-   configured on the target deployment. A public health response contains no commit.
+4. Prints the names it carried and the names it could not.
+   Verify the running commit with the [build identity procedure](#which-commit-is-this-deploy-serving).
 
 **What it establishes.** A successful deploy produces a preview built with the
 production values Vercel returns, on its Linux runtime. Establish its running
-commit separately: the authenticated marker must match local `git rev-parse HEAD`.
-Secret values returned as `[SENSITIVE]` are dropped, so do not assume the preview
-received `CRON_SECRET` or can answer an authenticated marker request.
+commit separately with the build identity procedure above.
+Secret values returned as `[SENSITIVE]` are dropped, so do not assume the preview received `CRON_SECRET`.
 
 **What it does not prove.** Two gaps, and the command names both on the way out.
 
@@ -401,9 +447,11 @@ Platform-owned names (`VERCEL_*`, `TURBO_*`, `NX_*`) are never carried either.
 `VERCEL_ENV` is the reason: `proxy.ts` and `app/robots.ts` both key indexability
 on it, so a preview that called itself production would be indexable.
 
-**Never `--prod`, never `--prebuilt`.** The command refuses both. `--prod`
-promotes; `--prebuilt` uploads a macOS build, whose sharp binaries are
-darwin-only and answer 500 on every route that imports them.
+**Never `--prod`, never `--target`, never `--prebuilt`.** The command refuses
+all three. `--prod` promotes, and `--target production` (or `--target=…`, or
+`-t`) is the same production deploy by another name, one that would skip every
+check `npm run release:prod` runs; `--prebuilt` uploads a macOS build, whose
+sharp binaries are darwin-only and answer 500 on every route that imports them.
 
 Four failures in the earlier three-command recipe are fixed at their sources,
 so this command works from a clean worktree:
@@ -480,25 +528,24 @@ it back to a deployment.
 
 ### Which commit is this deploy serving
 
-`GET /api/version` returns `{ "ok": true, "deploymentId": "dpl_..." }` without valid cron authentication.
-`deploymentId` is the public marker a stale tab compares. The commit, its source and the build time require an existing `CRON_SECRET`
-configured on the target deployment. Keep that credential in the process
-environment; never put its value in an argument, log or file.
+`GET /api/version` publicly returns `ok`, `deploymentId` and `gitCommitSha`.
+The commit names the code used for the build. It is `null` when the build cannot name its commit.
+In production, `gitCommitShaSource` and `builtAt` require a valid `Authorization: Bearer` header with the target's existing `CRON_SECRET`.
+Missing or invalid credentials still receive the public fields.
+If `CRON_SECRET` is unset, development and test requests also receive the operational fields without authentication.
+Never put that credential in an argument, log or file.
 
-With an authorised credential already available, run this from the clean checkout
-that produced the deployment. Set `DEPLOYMENT_URL` to its HTTPS URL. The request
-fails if authentication omits the commit or the running commit differs from HEAD.
+Run this from the clean checkout that produced the deployment.
+Set `DEPLOYMENT_URL` to its HTTPS URL.
+The request fails if the running commit differs from HEAD or is absent.
 
 ```sh
 node --input-type=module <<'NODE'
 import { execFileSync } from 'node:child_process';
-const secret = process.env.CRON_SECRET;
 const target = process.env.DEPLOYMENT_URL;
-if (!secret || !target) throw new Error('Existing credential and deployment URL required');
+if (!target) throw new Error('Deployment URL required');
 const expected = execFileSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8' }).trim();
-const response = await fetch(new URL('/api/version', target), {
-  headers: { Authorization: `Bearer ${secret}` },
-});
+const response = await fetch(new URL('/api/version', target));
 if (!response.ok) throw new Error('Build marker request failed');
 const marker = await response.json();
 if (!marker.gitCommitSha || marker.gitCommitSha !== expected) {
@@ -508,9 +555,11 @@ console.log(JSON.stringify(marker));
 NODE
 ```
 
-If the authorised credential is unavailable or absent from the target preview,
-keep source verification pending. Do not weaken route authentication to obtain it.
-Build metadata is uncached and inlined during the build; the route runs no git.
+Older deployments can hide the commit behind cron authentication.
+Keep their public commit verification pending until a new build includes this route change.
+Both response forms use `no-store` headers for browsers and CDNs.
+The build inlines the metadata. The route runs no git.
+The authenticated response also includes the source and build time.
 
 ```json
 {

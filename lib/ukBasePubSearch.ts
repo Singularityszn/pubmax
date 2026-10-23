@@ -107,9 +107,13 @@ export function searchUkBasePubsByName(
   const matches: { tier: number; suggestion: UkBasePubSuggestion }[] = [];
   const seen = new Set<string>();
   for (const pub of input.pubs) {
-    if (!pub.name || seen.has(pub.id)) continue;
-    const tier = matchTier(pub.name, query);
-    if (tier === null) continue;
+    // An unnamed pub's "Pub" is a label, not a name a drinker can search for.
+    if (!pub.name || pub.unnamed || seen.has(pub.id)) continue;
+    const tiers = [pub.name, pub.sourceName]
+      .map((name) => (name ? matchTier(name, query) : null))
+      .filter((value): value is number => value !== null);
+    if (tiers.length === 0) continue;
+    const tier = Math.min(...tiers);
     seen.add(pub.id);
     const distanceKm = distanceKmFrom(originPoint, [pub.lng, pub.lat]);
     matches.push({

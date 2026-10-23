@@ -33,8 +33,13 @@ const tonightCss = read("app/tonight/tonight.css");
 // GAP 19 (mobile store-readiness audit, 2026-09-04, 390x844): the control also
 // owns a HORIZONTAL lane, and on /near it stood on the right-hand price of the
 // row under it. The price is the product, so the list reserves that lane the
-// way the map chrome reserves --mobile-map-corner-lane. Rendered proof at 320,
-// 390 and 430 is e2e/mobile-map-chrome-fit.spec.ts.
+// way the map chrome reserves --mobile-map-corner-lane.
+//
+// WHICH elements take the lane is measured in a browser, at 320, 390 and 430,
+// by e2e/mobile-map-chrome-fit.spec.ts: the price column, the caption, the
+// collected line, the prose and the footer actions on /near, the Tonight
+// status line and the landing prose. What is held here is that the lane is
+// DERIVED from the control's own published berth rather than typed out again.
 describe("the list reserves the control's horizontal lane", () => {
   it("publishes the control's own right inset and lane beside its berth", () => {
     expect(mobileNavCss).toContain(
@@ -60,12 +65,6 @@ describe("the list reserves the control's horizontal lane", () => {
     expect(rule).not.toMatch(/\d+px/);
   });
 
-  it("gives the caption and the collected line the same lane, so the column moves as one", () => {
-    expect(nearMeNowCss).toContain(
-      ":is(.nmnListCaption, .nmnCard, .nmnPriceCollected)",
-    );
-  });
-
   it("keeps the reservation to the phone, where the control is", () => {
     const block = nearMeNowCss.slice(nearMeNowCss.indexOf(".nmnPriceCollected {"));
     const media = block.slice(block.indexOf("@media"));
@@ -80,6 +79,11 @@ describe("the pages with nothing to compose", () => {
     expect(createFabVisible("/")).toBe(true);
     expect(createFabVisible("/founders")).toBe(true);
     expect(createFabVisible("/today")).toBe(true);
+  });
+
+  it("hides the control on the shared sign-in, sign-up, and add-account route", () => {
+    // usePathname omits query modes, so all three auth surfaces share /login.
+    expect(createFabVisible("/login")).toBe(false);
   });
 
   it("leaves the tab-bar chrome on every route, which is a separate law", () => {

@@ -1,12 +1,15 @@
 "use client";
 
-import { MapPin } from "lucide-react";
+import { MapPin, X } from "lucide-react";
+import Link from "next/link";
 import { useCallback, useDeferredValue, useEffect, useId, useMemo, useRef, useState } from "react";
 
+import { IconButton } from "@/components/ui/icon-button";
 import { SearchField } from "@/components/ui/search-field";
 import { trackEvent } from "@/lib/analytics";
 import { listEnabledCities, type CityId } from "@/lib/cities";
 import {
+  isCompleteMapSearchIndex,
   loadMapSearchIndex,
 } from "@/lib/mapSearchIndexLoader";
 import {
@@ -26,9 +29,11 @@ import {
   UK_PLACE_SEARCH_GROUP_LABEL,
 } from "@/lib/mapSearchSuggest";
 import type { Locality } from "@/lib/localities";
+import { addPubHref } from "@/lib/venueSubmissions";
 import type { UkBasePub } from "@/lib/ukBasePubs";
 import type { UkPlace } from "@/lib/ukPlaceSearch";
 import type { Venue } from "@/lib/venues";
+import { useDismissOnEscape } from "@/lib/useDismissOnEscape";
 import CompactVenuePrice from "@/components/map/CompactVenuePrice";
 
 import "./mapSearchSuggest.css";
@@ -129,6 +134,7 @@ export default function MapSearchSuggest({
 }: MapSearchSuggestProps) {
 
   const listboxId = useId();
+  const rootRef = useRef<HTMLDivElement>(null);
   const emptyStateId = useId();
   const optionId = useCallback((index: number) => `${listboxId}-opt-${index}`, [listboxId]);
   const [toolbarFocused, setToolbarFocused] = useState(false);
@@ -150,14 +156,18 @@ export default function MapSearchSuggest({
   const [searchIndex, setSearchIndex] = useState<MapSearchIndex | null>(null);
   const [searchIndexLoading, setSearchIndexLoading] = useState(false);
   const searchIndexPromiseRef = useRef<Promise<MapSearchIndex | null> | null>(null);
+  // An index missing a city pack is shown, and asked for again on the next
+  // focus or keystroke rather than kept until the page reloads.
+  const searchIndexCompleteRef = useRef(false);
   const ensureSearchIndex = useCallback(() => {
-    if (searchIndex || searchIndexPromiseRef.current) return;
+    if (searchIndexCompleteRef.current || searchIndexPromiseRef.current) return;
     setSearchIndexLoading(true);
     const pending = loadMapSearchIndex({
       currentCityId: cityId,
       currentVenues: venues,
     })
       .then((index) => {
+        searchIndexCompleteRef.current = isCompleteMapSearchIndex(index);
         setSearchIndex(index);
         return index;
       })
@@ -167,11 +177,11 @@ export default function MapSearchSuggest({
         setSearchIndexLoading(false);
       });
     searchIndexPromiseRef.current = pending;
-  }, [cityId, searchIndex, venues]);
+  }, [cityId, venues]);
 
   useEffect(() => {
-    if (mode === "overlay") ensureSearchIndex();
-  }, [cityId, ensureSearchIndex, mode]);
+    if (mode === "overlay" && !searchIndex) ensureSearchIndex();
+  }, [cityId, ensureSearchIndex, mode, searchIndex]);
 
   const suggestions = useMemo(
     () =>
@@ -222,14 +232,29 @@ export default function MapSearchSuggest({
     () => indexedResults.filter((result): result is Extract<MapSearchIndexResult, { kind: "city" }> => result.kind === "city"),
     [indexedResults],
   );
-  const indexedVenues = useMemo(() => {
+  // The map holds only the shards around its viewport, so a pub of this city
+  // the reader has not panned to comes from the index. It still belongs in the
+  // Venues group, after the held pubs; other cities keep their own lane.
+  const { currentCityIndexedVenues, indexedVenues } = useMemo(() => {
     const localVenueIds = new Set(suggestions.pubs.map((pub) => pub.id));
-    return indexedResults.filter(
+    const venueResults = indexedResults.filter(
       (result): result is Extract<MapSearchIndexResult, { kind: "venue" }> =>
         result.kind === "venue" &&
         (result.cityId !== cityId || !localVenueIds.has(result.id)),
     );
+    const currentCity = venueResults.filter((result) => result.cityId === cityId);
+    return {
+      currentCityIndexedVenues: currentCity,
+      indexedVenues: [
+        ...currentCity,
+        ...venueResults.filter((result) => result.cityId !== cityId),
+      ],
+    };
   }, [cityId, indexedResults, suggestions.pubs]);
+  const crossCityIndexedVenues = useMemo(
+    () => indexedVenues.slice(currentCityIndexedVenues.length),
+    [currentCityIndexedVenues.length, indexedVenues],
+  );
 
   const mergedUkBasePubs = useMemo(() => {
     return suggestions.ukBasePubs.slice(0, 12);
@@ -278,7 +303,7 @@ export default function MapSearchSuggest({
     (next: string) => {
       ensureSearchIndex();
       chooseActiveIndex(-1);
-      if (mode === "toolbar") setToolbarFocused(true);
+      if (mode === "toolbar") setToolbarFocused(next.length > 0);
       onQueryChange(next);
     },
     [chooseActiveIndex, ensureSearchIndex, mode, onQueryChange],
@@ -292,6 +317,12 @@ export default function MapSearchSuggest({
   // leaves the search surface; overlay search remains open until Escape/X.
   const panelEnabled = mode === "overlay" || toolbarFocused;
   const showPanel = panelEnabled && (trimmed.length > 0 || items.length > 0);
+  const dismissToolbarResults = useCallback(() => {
+    chooseActiveIndex(-1);
+    setToolbarFocused(false);
+    document.getElementById(id)?.focus();
+  }, [chooseActiveIndex, id]);
+  useDismissOnEscape(mode === "toolbar" && showPanel, dismissToolbarResults, rootRef);
   const hasResults =
     suggestions.hasResults ||
     indexedCities.length > 0 ||
@@ -372,6 +403,9 @@ export default function MapSearchSuggest({
         activeIndexRef.current >= 0 && activeIndexRef.current < items.length
           ? activeIndexRef.current
           : -1;
+      if ((event.key === "ArrowDown" || event.key === "ArrowUp") && mode === "toolbar") {
+        setToolbarFocused(true);
+      }
       if (event.key === "ArrowDown" && items.length > 0) {
         event.preventDefault();
         chooseActiveIndex((eventActive + 1) % items.length);
@@ -398,10 +432,8 @@ export default function MapSearchSuggest({
         // which would re-fire changeQuery, re-open the toolbar panel, and flash
         // the empty-query "nearby areas" prompt instead of a clean dismiss.
         event.preventDefault();
-        if (eventActive >= 0) {
-          chooseActiveIndex(-1);
-          return;
-        }
+        event.stopPropagation();
+        chooseActiveIndex(-1);
         if (mode === "toolbar") {
           setToolbarFocused(false);
           return;
@@ -449,7 +481,36 @@ export default function MapSearchSuggest({
   const liveAnnouncement =
     showEmptyLine && announcedQuery === deferredTrimmed.toLocaleLowerCase() ? NO_RESULTS_MESSAGE : "";
 
-  const pubGroup = suggestions.pubs.length > 0 ? (
+  const renderIndexedVenue = (
+    venue: Extract<MapSearchIndexResult, { kind: "venue" }>,
+    index: number,
+  ) => {
+    const cityName = searchIndex?.cities.find((city) => city.id === venue.cityId)?.name;
+    const locationLabel = venue.cityId === cityId
+      ? venue.area
+      : venue.area && venue.area !== cityName
+        ? `${venue.area} · ${cityName ?? ""}`.trim()
+        : venue.area || cityName;
+    return (
+      <div
+        key={`${venue.cityId}:${venue.id}`}
+        id={optionId(index)}
+        role="option"
+        data-venue-id={venue.id}
+        aria-selected={safeActive === index}
+        className={`mapSearchSuggestRow${safeActive === index ? " isActive" : ""}`}
+        onMouseDown={(event) => event.preventDefault()}
+        onClick={() => activate({ type: "indexedVenue", item: venue })}
+        onPointerEnter={() => chooseActiveIndex(index)}
+      >
+        <span className="mapSearchSuggestRowMain">
+          <span className="mapSearchSuggestRowName">{venue.name}</span>
+          {locationLabel ? <span className="mapSearchSuggestBorough">{locationLabel}</span> : null}
+        </span>
+      </div>
+    );
+  };
+  const pubGroup = suggestions.pubs.length > 0 || currentCityIndexedVenues.length > 0 ? (
     <div role="group" aria-label="Venues" className="mapSearchSuggestGroup">
       <p className="mapSearchSuggestGroupHead">
         <span>Venues</span>
@@ -491,38 +552,22 @@ export default function MapSearchSuggest({
           </div>
         );
       })}
+      {currentCityIndexedVenues.map((venue, offset) =>
+        renderIndexedVenue(venue, indexedVenueStartIndex + offset),
+      )}
     </div>
   ) : null;
-  const indexedVenueGroup = indexedVenues.length > 0 ? (
+  const indexedVenueGroup = crossCityIndexedVenues.length > 0 ? (
     <div role="group" aria-label="Venues across city maps" className="mapSearchSuggestGroup">
       <p className="mapSearchSuggestGroupHead">
         <span>Venues across city maps</span>
       </p>
-      {indexedVenues.map((venue, offset) => {
-        const index = indexedVenueStartIndex + offset;
-        const cityName = searchIndex?.cities.find((city) => city.id === venue.cityId)?.name;
-        const locationLabel = venue.area && venue.area !== cityName
-          ? `${venue.area} · ${cityName ?? ""}`.trim()
-          : venue.area || cityName;
-        return (
-          <div
-            key={`${venue.cityId}:${venue.id}`}
-            id={optionId(index)}
-            role="option"
-            data-venue-id={venue.id}
-            aria-selected={safeActive === index}
-            className={`mapSearchSuggestRow${safeActive === index ? " isActive" : ""}`}
-            onMouseDown={(event) => event.preventDefault()}
-            onClick={() => activate({ type: "indexedVenue", item: venue })}
-            onPointerEnter={() => chooseActiveIndex(index)}
-          >
-            <span className="mapSearchSuggestRowMain">
-              <span className="mapSearchSuggestRowName">{venue.name}</span>
-              {locationLabel ? <span className="mapSearchSuggestBorough">{locationLabel}</span> : null}
-            </span>
-          </div>
-        );
-      })}
+      {crossCityIndexedVenues.map((venue, offset) =>
+        renderIndexedVenue(
+          venue,
+          indexedVenueStartIndex + currentCityIndexedVenues.length + offset,
+        ),
+      )}
     </div>
   ) : null;
   const areaGroup = suggestions.areas.length > 0 ? (
@@ -543,7 +588,7 @@ export default function MapSearchSuggest({
           onPointerEnter={() => chooseActiveIndex(areaStartIndex + index)}
         >
           <span className="mapSearchSuggestRowMain">
-            <MapPin size={15} aria-hidden="true" className="mapSearchSuggestRowIcon" />
+            <MapPin size={16} aria-hidden="true" className="mapSearchSuggestRowIcon" />
             <span className="mapSearchSuggestRowName">{area.name}</span>
             {area.contextLabel ? (
               <span className="mapSearchSuggestBorough">{area.contextLabel}</span>
@@ -564,7 +609,15 @@ export default function MapSearchSuggest({
   ) : null;
 
   return (
-    <div className={`mapSearchSuggest mapSearchSuggest--${mode}`}>
+    <div
+      className={`mapSearchSuggest mapSearchSuggest--${mode}`}
+      ref={rootRef}
+      onBlur={(event) => {
+        if (mode === "toolbar" && !event.currentTarget.contains(event.relatedTarget)) {
+          setToolbarFocused(false);
+        }
+      }}
+    >
       <SearchField
         id={id}
         role="combobox"
@@ -575,13 +628,11 @@ export default function MapSearchSuggest({
         aria-activedescendant={safeActive >= 0 ? optionId(safeActive) : undefined}
         value={query}
         onChange={changeQuery}
-        onFocus={() => {
-          setToolbarFocused(true);
-          ensureSearchIndex();
-        }}
-        onBlur={() => {
-          if (mode === "toolbar") setToolbarFocused(false);
-        }}
+        // Focus alone never opens the toolbar list. Closing a pub drawer hands
+        // focus back to this field, and the stale suggestions used to reopen
+        // over the map with it. Typing, a click or an arrow key opens it.
+        onFocus={ensureSearchIndex}
+        onClick={() => setToolbarFocused(true)}
         onKeyDown={handleKeyDown}
         placeholder={placeholder}
         aria-busy={!querySettled || searchIndexLoading}
@@ -590,6 +641,19 @@ export default function MapSearchSuggest({
 
       {showPanel ? (
         <div className="mapSearchSuggestPanel">
+          {mode === "toolbar" ? (
+            <div className="mapSearchSuggestPanelHead">
+              <span>Search results</span>
+              <IconButton
+                variant="ghost"
+                aria-label="Close search results"
+                onMouseDown={(event) => event.preventDefault()}
+                onClick={dismissToolbarResults}
+              >
+                <X size={16} aria-hidden="true" />
+              </IconButton>
+            </div>
+          ) : null}
           <div id={listboxId} role="listbox" aria-label="Search suggestions" className="mapSearchSuggestScroll">
             {indexedCities.length > 0 ? (
               <div role="group" aria-label="Cities" className="mapSearchSuggestGroup">
@@ -610,7 +674,7 @@ export default function MapSearchSuggest({
                       onPointerEnter={() => chooseActiveIndex(index)}
                     >
                       <span className="mapSearchSuggestRowMain">
-                        <MapPin size={15} aria-hidden="true" className="mapSearchSuggestRowIcon" />
+                        <MapPin size={16} aria-hidden="true" className="mapSearchSuggestRowIcon" />
                         <span className="mapSearchSuggestRowName">{city.name}</span>
                         <span className="mapSearchSuggestBorough">City map</span>
                       </span>
@@ -649,7 +713,7 @@ export default function MapSearchSuggest({
                       onPointerEnter={() => chooseActiveIndex(index)}
                     >
                       <span className="mapSearchSuggestRowMain">
-                        <MapPin size={15} aria-hidden="true" className="mapSearchSuggestRowIcon" />
+                        <MapPin size={16} aria-hidden="true" className="mapSearchSuggestRowIcon" />
                         <span className="mapSearchSuggestRowName">{place.name}</span>
                         {place.contextLabel ? (
                           <span className="mapSearchSuggestBorough">{place.contextLabel}</span>
@@ -722,6 +786,14 @@ export default function MapSearchSuggest({
                 <p className="mapSearchSuggestEmptyHint">
                   Try Soho, Willesden, or The Crown. Clear search to see every venue.
                 </p>
+                <Link
+                  href={addPubHref(trimmed)}
+                  prefetch={false}
+                  className="mapSearchSuggestEmptyAdd"
+                  data-testid="map-search-add-pub"
+                >
+                  Know a pub we&apos;re missing? Add it
+                </Link>
               </div>
             ) : null}
           </div>

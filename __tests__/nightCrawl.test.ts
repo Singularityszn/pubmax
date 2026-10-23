@@ -230,7 +230,11 @@ describe("classifyActionOutcome + optimistic reconciliation", () => {
         cursor: 0,
         optimistic: {},
         note: {
-          text: "That did not save. Try again when you have signal.",
+          text: outcome === "forbidden"
+            ? "You do not have permission to update this plan. Ask the host to check in or skip the stop."
+            : outcome === "rejected"
+              ? "That update was rejected. Open the full plan to check the route."
+              : "That did not save. Try again when you have signal.",
           tone: outcome,
         },
       });
@@ -267,17 +271,17 @@ describe("nightCrawlActionNote (value-first, no apology-first, plain British)", 
     }
   });
 
-  it("all failed writes use the same honest retry copy and never promise a sync", () => {
-    for (const outcome of ["offline", "rejected", "forbidden"] as const) {
-      const note = nightCrawlActionNote("arrived", "X", outcome);
-      expect(note).toBe("That did not save. Try again when you have signal.");
-      expect(note).not.toMatch(/will sync/i);
-    }
+  it.each([
+    ["offline", "That did not save. Try again when you have signal."],
+    ["forbidden", "You do not have permission to update this plan. Ask the host to check in or skip the stop."],
+    ["rejected", "That update was rejected. Open the full plan to check the route."],
+  ] as const)("gives feasible recovery for %s", (outcome, expected) => {
+    expect(nightCrawlActionNote("arrived", "X", outcome)).toBe(expected);
   });
 
   it("queued offline holds use local-hold copy without promising a sync", () => {
     const note = nightCrawlActionNote("arrived", "X", "offline", { queued: true });
-    expect(note).toBe("Held on this phone. We will try again when you have signal.");
+    expect(note).toBe("Held on this phone. We'll try again when you've got signal.");
     expect(note).not.toMatch(/will sync/i);
   });
 
@@ -300,7 +304,7 @@ describe("nightCrawlActionNote (value-first, no apology-first, plain British)", 
 
   it("does not imply an action succeeded when the venue name is blank", () => {
     expect(nightCrawlActionNote("arrived", "  ", "rejected")).toBe(
-      "That did not save. Try again when you have signal.",
+      "That update was rejected. Open the full plan to check the route.",
     );
   });
 });

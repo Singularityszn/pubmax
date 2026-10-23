@@ -7,6 +7,7 @@ import {
   QUIET_PINT_MIN,
   type QuietPintCandidate,
 } from "@/lib/quietPint";
+import { defined } from "@/__tests__/helpers/defined";
 
 // A Tuesday 10:00 London (BST) — a genuinely quiet typical-pattern window, so
 // the module renders. 09:00Z + 1h BST = 10:00 London, weekday Tuesday.
@@ -122,7 +123,7 @@ describe("buildQuietPint", () => {
 
   it("surfaces the cited heritage line, the Sourced chip, the source, and the map link", () => {
     const mod = buildQuietPint({ candidates: CANDIDATES, priceById: PRICES, now: QUIET_TUESDAY });
-    const top = mod!.rows[0];
+    const top = defined(mod!.rows[0]);
     expect(top.heritageLine).toBe("venue-a hook");
     expect(top.provenanceLabel).toBe("Sourced");
     expect(top.sourceLabel).toBe("Wikipedia");

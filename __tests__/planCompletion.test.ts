@@ -35,7 +35,7 @@ async function createPlan() {
     method: "POST",
     headers: { "idempotency-key": "plan-completion-create" },
     body: JSON.stringify({
-      startTime: "2026-07-15T18:00:00.000Z",
+      startTime: "2026-10-16T18:00:00.000Z",
       creatorName: "Terra",
       stops: [
         { venueId: "venue-7tarkc" },
@@ -68,7 +68,7 @@ async function createPlan() {
 
 beforeEach(() => {
   __resetMemoryPlans();
-  vi.spyOn(Date, "now").mockReturnValue(Date.parse("2026-07-16T23:00:00.000Z"));
+  vi.spyOn(Date, "now").mockReturnValue(Date.parse("2026-10-17T23:00:00.000Z"));
 });
 afterEach(() => {
   vi.restoreAllMocks();
@@ -161,9 +161,17 @@ describe("Plan Completion", () => {
     expect(retry.status).toBe(200);
     expect(await retry.json()).toMatchObject({ created: false, completion: firstBody.completion, eventTokens: firstBody.eventTokens });
 
-    const get = await GET_COMPLETION(new Request(`http://localhost/api/plans/${id}/complete`), ctx(id));
+    const get = await GET_COMPLETION(new Request(`http://localhost/api/plans/${id}/complete`, { headers: { authorization: `Bearer ${created.memberToken}` } }), ctx(id));
     expect(get.status).toBe(200);
     expect(await get.json()).toEqual({ completion: firstBody.completion });
+
+    // §4.10: the plan id is public in share links, so a reader without a
+    // member capability learns only that the night ended, never its route.
+    const anonymous = await GET_COMPLETION(new Request(`http://localhost/api/plans/${id}/complete`), ctx(id));
+    expect(anonymous.status).toBe(200);
+    const anonymousBody = await anonymous.json();
+    expect(anonymousBody).toEqual({ visibility: "preview", completed: true });
+    expect(JSON.stringify(anonymousBody)).not.toContain("venue-7tarkc");
   });
 
   it("fails before completion and succeeds cleanly after event-token signing recovers", async () => {
@@ -194,7 +202,7 @@ describe("Plan Completion", () => {
     expect(unavailable.status).toBe(503);
     expect(unavailable.headers.get("retry-after")).toBe("60");
     expect(await unavailable.json()).toMatchObject({ code: "PLAN_SIGNING_UNAVAILABLE", retryable: true });
-    const beforeRetry = await GET_COMPLETION(new Request(`http://localhost/api/plans/${id}/complete`), ctx(id));
+    const beforeRetry = await GET_COMPLETION(new Request(`http://localhost/api/plans/${id}/complete`, { headers: { authorization: `Bearer ${created.memberToken}` } }), ctx(id));
     expect(await beforeRetry.json()).toEqual({ completion: null });
 
     process.env.PLAN_IDEMPOTENCY_SECRET = VITEST_PLAN_SIGNING_SECRET!;
@@ -225,7 +233,7 @@ describe("Plan Completion", () => {
     }), ctx(id));
     expect(response.status).toBe(400);
     expect(await response.json()).toMatchObject({ error: expect.any(String) });
-    const completion = await GET_COMPLETION(new Request(`http://localhost/api/plans/${id}/complete`), ctx(id));
+    const completion = await GET_COMPLETION(new Request(`http://localhost/api/plans/${id}/complete`, { headers: { authorization: `Bearer ${created.memberToken}` } }), ctx(id));
     expect(await completion.json()).toEqual({ completion: null });
   });
 
@@ -239,7 +247,7 @@ describe("Plan Completion", () => {
     }), ctx(id));
     expect(response.status).toBe(400);
     expect(await response.json()).toMatchObject({ code: "PLAN_ENDING_SELECTION_INVALID" });
-    const completion = await GET_COMPLETION(new Request(`http://localhost/api/plans/${id}/complete`), ctx(id));
+    const completion = await GET_COMPLETION(new Request(`http://localhost/api/plans/${id}/complete`, { headers: { authorization: `Bearer ${created.memberToken}` } }), ctx(id));
     expect(await completion.json()).toEqual({ completion: null });
   });
 
@@ -261,7 +269,7 @@ describe("Plan Completion", () => {
     }), ctx(id));
     expect(response.status).toBe(409);
 
-    const completion = await GET_COMPLETION(new Request(`http://localhost/api/plans/${id}/complete`), ctx(id));
+    const completion = await GET_COMPLETION(new Request(`http://localhost/api/plans/${id}/complete`, { headers: { authorization: `Bearer ${created.memberToken}` } }), ctx(id));
     expect(await completion.json()).toEqual({ completion: null });
     // The privacy boundary redacts an anonymous GET, so read the underlying
     // state as the plan member to assert no partial write.

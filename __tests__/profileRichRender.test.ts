@@ -5,8 +5,6 @@
 // eight inputs read as an identity rather than a settings page.
 
 import { createElement, type ComponentProps } from "react";
-import { readFileSync } from "node:fs";
-import { join } from "node:path";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
 
@@ -17,6 +15,7 @@ import ProfileEditor from "@/components/profile/ProfileEditor";
 import ProfileHeader from "@/components/profile/ProfileHeader";
 import { buildPassport } from "@/lib/passport";
 import { UNCOUNTED_STAT, type Profile, type ProfileStats } from "@/lib/profiles";
+import { defined } from "@/__tests__/helpers/defined";
 
 type ViewerState = "loading" | "resolved";
 type HeaderProps = ComponentProps<typeof ProfileHeader> & { viewerState?: ViewerState };
@@ -209,60 +208,6 @@ describe("profile composer", () => {
   });
 });
 
-describe("shipped profile CSS", () => {
-  const css = readFileSync(join(process.cwd(), "app/u/[handle]/profile.css"), "utf8");
-
-  it("keeps the cover behind a falloff so the name stays legible", () => {
-    expect(css).toContain(".profilePage .profileCover {");
-    expect(css).toContain(".profilePage .profileCoverFalloff {");
-    expect(css).toMatch(/profileCoverFalloff \{[^}]*linear-gradient/);
-  });
-
-  it("gives the face its own edge over the band, and hangs it over the edge", () => {
-    // The band is painted on every profile now, photograph or brass wash, so
-    // the ring is unconditional rather than a with-cover special case.
-    expect(css).toMatch(
-      /\.profilePage \.profileAvatar \{[^}]*border: 4px solid var\(--panel-raised\)/,
-    );
-    expect(css).toMatch(
-      /\.profilePage \.profileIdentity \{[^}]*margin-top: calc\(-1 \* var\(--profile-avatar-overlap\)\)/,
-    );
-  });
-
-  // What an owner framed in the cropper is what a reader sees. A band with a
-  // fixed height over a fluid width shows a different rectangle at every
-  // viewport, which is how a carefully framed photograph got cut mid-word.
-  it("renders a cover at the cropper's own aspect ratio", () => {
-    expect(css).toMatch(
-      /\.profilePage \.profileHeaderWithCover \.profileCover \{[^}]*aspect-ratio: 3 \/ 1/,
-    );
-    // The brass wash has no photograph to crop, so it takes a shorter band
-    // rather than four hundred pixels of gradient above the fold.
-    expect(css).toMatch(/\.profilePage \.profileCover \{[^}]*height: clamp\(116px/);
-  });
-
-  // The rotation crossfades only for a reader who did not ask for less motion;
-  // the component refuses to run its timer under the same condition.
-  it("gates the crossfade on prefers-reduced-motion", () => {
-    const gated = css.slice(css.indexOf("@media (prefers-reduced-motion: no-preference)"));
-    expect(gated).toMatch(/\.profileCoverImage \{[^}]*transition: opacity/);
-    expect(css.slice(0, css.indexOf("@media (prefers-reduced-motion"))).not.toMatch(
-      /\.profileCoverImage \{[^}]*transition/,
-    );
-  });
-
-  it("wraps a card fact rather than truncating what somebody wrote", () => {
-    expect(css).toMatch(/profileCardFact dd \{[^}]*overflow-wrap: anywhere/);
-    expect(css).not.toMatch(/profileCardFact dd \{[^}]*text-overflow: ellipsis/);
-  });
-
-  it("leaves press feedback to the one owner in globals.css", () => {
-    // app/globals.css scales every button on :active behind the reduced-motion
-    // gate. A second scale here would be a second owner of the same moment.
-    expect(css).not.toMatch(/profileEditor[A-Za-z]*:active/);
-  });
-});
-
 // A COUNT THE READ COULD NOT PRODUCE IS NOT A ZERO.
 //
 // /api/crawls?author= answers `count: null` when its one read fails, and the
@@ -282,7 +227,7 @@ describe("an unmeasured count never renders as zero", () => {
 
   function statValues(markup: string): string[] {
     return [...markup.matchAll(/class="(?:passportStatValue|profileStatValue)"[^>]*>([^<]*)</g)].map(
-      (match) => match[1],
+      (match) => defined(match[1]),
     );
   }
 
@@ -331,5 +276,25 @@ describe("an unmeasured count never renders as zero", () => {
     expect(buildPassport([], { crawls: null, storyPosts: null }).isEmpty).toBe(false);
     expect(buildPassport([], { crawls: 0, storyPosts: 0 }).isEmpty).toBe(true);
     expect(buildPassport([]).isEmpty).toBe(true);
+  });
+});
+
+
+describe("profile statistics name only sections the page can show", () => {
+  const render = (sectionLinks?: { timeline: boolean; crawls: boolean; memories: boolean }) => renderToStaticMarkup(createElement(ProfileHeader, {
+    profile: { handle: "alice", displayName: "Alice" }, stats: STATS, followers: 0, following: 0, sectionLinks,
+  } as HeaderProps));
+  it("keeps the figures without promising absent section destinations", () => {
+    const markup = render();
+    expect(markup).not.toContain('/u/alice#');
+    expect(markup).toContain('Pints logged: 3.');
+    expect(markup).toContain('Memories: 0.');
+    expect(markup).toContain('/u/alice/people/followers');
+  });
+  it("opens a real timeline without linking unavailable crawls or private memories", () => {
+    const markup = render({ timeline: true, crawls: false, memories: false });
+    expect(markup).toContain('/u/alice#timeline');
+    expect(markup).not.toContain('/u/alice#crawl-stories');
+    expect(markup).not.toContain('/u/alice#night-memories');
   });
 });

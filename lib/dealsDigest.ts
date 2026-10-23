@@ -153,17 +153,19 @@ export function groupIdenticalDeals(
       return a.index - b.index;
     });
     const memberRows = ordered.map((m) => m.row);
-    const display = memberRows[0];
+    const [first] = ordered;
+    if (!first) continue;
+    const display = first.row;
     const venues = new Set(memberRows.map(venueIdentity));
     const topConfidence = memberRows.reduce<WhatsOnConfidence>(
       (best, r) => (CONFIDENCE_RANK[r.confidence] > CONFIDENCE_RANK[best] ? r.confidence : best),
-      memberRows[0].confidence,
+      display.confidence,
     );
     const soonestStartMs = memberRows.reduce(
       (min, r) => Math.min(min, startMs(r)),
       Number.POSITIVE_INFINITY,
     );
-    const firstIndex = ordered.reduce((min, m) => Math.min(min, m.index), ordered[0].index);
+    const firstIndex = ordered.reduce((min, m) => Math.min(min, m.index), first.index);
     digests.push({
       key,
       members: memberRows,

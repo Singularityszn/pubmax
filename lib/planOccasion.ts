@@ -1,3 +1,4 @@
+import type { Route } from "next";
 import {
   CULTURE_CRAWL_CHIP_QUERIES,
   cultureCrawlChipQuery,
@@ -148,7 +149,7 @@ export function shouldAutoGeneratePalHandoffPlan(handoffAsk: string | null): boo
 }
 
 /** After a Pub Pal three-stop route answer, open Plan with the same ask prefilled. */
-export function planPalRouteHandoffHref(query: string): string {
+export function planPalRouteHandoffHref(query: string): Route {
   const trimmed = cleanText(query, 500);
   if (!trimmed) return "/plan";
   const params = new URLSearchParams();
@@ -160,7 +161,7 @@ export function planPalRouteHandoffHref(query: string): string {
 export function planOccasionHref(
   target: SoftPlanOccasionId | CultureCrawlChipId | (typeof DESCRIBE_FIRST_CHIPS)[number],
   options?: { src?: string },
-): string {
+): Route {
   const params = new URLSearchParams();
   if (isSoftPlanOccasionId(target) || isCultureCrawlChipId(target)) {
     params.set(PLAN_OCCASION_PARAM, target);

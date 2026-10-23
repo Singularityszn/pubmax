@@ -8,6 +8,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { authedActionFetch } from "@/lib/authedFetch";
 import type { ConversationDTO } from "@/lib/messages";
+import { subscribeMessagesRead } from "@/lib/messagesUnreadSignal";
 import { discardBody } from "@/lib/responseBody";
 import { normalizeHandle } from "@/lib/profiles";
 import { safeLocalStorage } from "@/lib/safeStorage";
@@ -19,7 +20,7 @@ function readHandle(): string {
   return normalizeHandle(safeLocalStorage()?.getItem(HANDLE_KEY) ?? "");
 }
 
-export default function MessagesLink(): React.JSX.Element {
+export default function MessagesLink(): React.JSX.Element | null {
   const router = useRouter();
   const { user, handle: authHandle } = useAuth();
   const [handle, setHandle] = useState("");
@@ -73,13 +74,20 @@ export default function MessagesLink(): React.JSX.Element {
     void Promise.resolve().then(() => refresh());
     const onFocus = () => void refresh();
     window.addEventListener("focus", onFocus);
+    // A thread that was just read says so, so the badge drops at once.
+    const unsubscribeRead = subscribeMessagesRead(onFocus);
     const interval = window.setInterval(() => void refresh(), POLL_MS);
     return () => {
       window.removeEventListener("focus", onFocus);
+      unsubscribeRead();
       window.clearInterval(interval);
       abortRef.current?.abort();
     };
   }, [handle, refresh, user]);
+
+  // A signed-out visitor has no inbox, so the link is not drawn for them at all
+  // (Oct 2026 UX audit). It appears once a session exists.
+  if (!user) return null;
 
   const label = unread > 0 ? `Messages, ${unread} unread` : "Messages";
 
@@ -102,7 +110,7 @@ export default function MessagesLink(): React.JSX.Element {
         }
       }}
     >
-      <MessageSquare size={18} aria-hidden="true" />
+      <MessageSquare size={20} aria-hidden="true" />
       {unread > 0 ? (
         // key={unread} remounts the badge whenever the count changes, so the
         // CSS pop-in (siteNav.css .siteNavBellBadge) replays as a bump —

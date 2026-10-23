@@ -7,7 +7,8 @@ import Screen from "@/components/ui/screen";
 // (docs/design/LAUNCH_SCREENS.md): the map is the one primary action and the
 // CSV is the quiet way onward. The two pages differ only in the heading, the
 // stamp under it and which CSV they hand over, so that rides as props and the
-// action hierarchy is written once.
+// action hierarchy is written once. A page with no rows to publish passes no
+// `csvHref`: a download that holds only the header row reads as a broken export.
 export default function PintIndexScreen({
   title,
   lede,
@@ -16,7 +17,7 @@ export default function PintIndexScreen({
 }: {
   title: ReactNode;
   lede?: ReactNode;
-  csvHref: string;
+  csvHref?: string;
   children?: ReactNode;
 }) {
   return (
@@ -29,9 +30,11 @@ export default function PintIndexScreen({
       lede={lede}
       primary={<Link prefetch={false} href="/map">Open the map</Link>}
       secondary={
-        <a href={csvHref} download>
-          Download the CSV
-        </a>
+        csvHref ? (
+          <a href={csvHref} download>
+            Download the CSV
+          </a>
+        ) : undefined
       }
     >
       {children}

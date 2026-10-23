@@ -43,7 +43,7 @@ describe("Social viewer identity presentation", () => {
     expect(html).toContain(message);
     expect(html).not.toContain("Tags to review are unavailable right now.");
     expect(html).not.toContain("Posts are unavailable right now.");
-    expect(html).not.toContain("Could not load your crews. That is us, not you.");
+    expect(html).not.toContain("load your crews.");
     expect(html).not.toContain("Retry");
   });
 

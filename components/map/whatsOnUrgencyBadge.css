@@ -3,8 +3,8 @@
   align-items: center;
   min-height: 22px;
   padding: 0.1rem 0.45rem;
-  border-radius: 999px;
-  font-size: 0.68rem;
+  border-radius: var(--radius-pill);
+  font-size: var(--text-2xs);
   font-weight: 800;
   letter-spacing: 0.01em;
   line-height: 1.2;
@@ -13,8 +13,8 @@
 
 .whatsOnUrgencyBadge[data-tier="live"] {
   color: var(--ink);
-  background: color-mix(in srgb, var(--brass) 22%, var(--panel-raised));
-  border: 1px solid color-mix(in srgb, var(--brass) 45%, var(--line));
+  background: var(--panel-raised);
+  border: 1px solid var(--line);
 }
 
 .whatsOnUrgencyBadge[data-tier="soon"] {
@@ -26,5 +26,5 @@
 .whatsOnUrgencyBadge[data-tier="later"] {
   color: var(--ink-soft);
   background: var(--panel-raised);
-  border: 1px solid color-mix(in srgb, var(--line) 90%, var(--brass) 10%);
+  border: 1px solid var(--line);
 }

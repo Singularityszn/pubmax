@@ -1,0 +1,351 @@
+/* /price-pulse. The listing shell and the Screen head, like its siblings
+   (components/listing/listing.css); everything under the head reads in the
+   reading column. Tokens only, so both themes track. Nothing is coral: coral
+   is the Screen primary's alone, and this page paints none. Phone first: one
+   column at 390px, the two explainer views sit side by side from 641px. */
+
+.pricePulsePage {
+  padding-block: var(--space-2) calc(var(--space-12) + env(safe-area-inset-bottom, 0px));
+}
+
+.pricePulseScreen > :not(.screenHead) {
+  max-width: var(--content-max);
+}
+
+.pulseSection {
+  margin: var(--space-8) 0 0;
+}
+
+.pulseBody {
+  margin: 0 0 var(--space-3);
+  max-width: 65ch;
+  color: var(--color-text-soft);
+  font-size: var(--text-base);
+  line-height: var(--leading-normal);
+  text-wrap: pretty;
+}
+
+.pulseH3 {
+  margin: var(--space-4) 0 var(--space-2);
+  color: var(--color-text);
+  font-size: var(--text-base);
+  font-weight: 700;
+  line-height: var(--leading-snug);
+}
+
+/* A source is a quiet ink link, underlined, with a 44px box on a phone: it
+   is the row's tap target. */
+.pulseSourceLink {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  color: var(--color-text);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  text-decoration: underline;
+  text-decoration-color: var(--hairline-strong);
+  text-underline-offset: 3px;
+  overflow-wrap: anywhere;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .pulseSourceLink:hover {
+    text-decoration-color: currentColor;
+  }
+}
+
+.pulseSourceLink:focus-visible {
+  outline: 2px solid var(--color-text);
+  outline-offset: 2px;
+  border-radius: var(--radius-sm);
+}
+
+/* ── An edition ─────────────────────────────────────────────── */
+.pulseEdition {
+  margin: var(--space-6) 0 0;
+}
+
+.pulseEditionDates {
+  margin: 0 0 var(--space-2);
+  color: var(--color-text-muted);
+  font-size: var(--text-xs);
+}
+
+/* What was said, as rows with a hairline between them: no card per line. */
+.pulseItems {
+  list-style: none;
+  margin: var(--space-4) 0 0;
+  padding: 0;
+}
+
+.pulseItem {
+  padding-block: var(--space-4);
+  border-top: 1px solid var(--line-soft);
+  color: var(--color-text-soft);
+}
+
+.pulseItemKind {
+  margin: 0 0 var(--space-1);
+  color: var(--color-text-muted);
+  font-size: var(--text-xs);
+  font-weight: 600;
+}
+
+.pulseItemSaid {
+  margin: 0;
+  color: var(--color-text);
+  font-size: var(--text-base);
+  line-height: var(--leading-normal);
+  text-wrap: pretty;
+}
+
+.pulseQuote {
+  margin: var(--space-3) 0 0;
+  padding-left: var(--space-3);
+  border-left: 2px solid var(--hairline-strong);
+}
+
+.pulseQuote blockquote {
+  margin: 0;
+}
+
+.pulseQuote blockquote p {
+  margin: 0;
+  color: var(--color-text-soft);
+  font-style: italic;
+  line-height: var(--leading-normal);
+}
+
+.pulseQuote figcaption {
+  margin-top: var(--space-1);
+  color: var(--color-text-muted);
+  font-size: var(--text-sm);
+}
+
+.pulseItemFoot {
+  margin: var(--space-2) 0 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0 var(--space-4);
+}
+
+/* Words, so the body face. */
+.pulseNotChecked {
+  color: var(--color-text-muted);
+  font-size: var(--text-xs);
+  font-weight: 600;
+}
+
+.pulseConfirmed {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  color: var(--color-text-soft);
+  font-size: var(--text-xs);
+  font-weight: 600;
+}
+
+/* ── Where your £6 goes ─────────────────────────────────────── */
+
+/* Three ink steps of one hue, darkest for the two taxes. Each is its own
+   token here so the bar and the rule beside each term below cannot drift. */
+.pulseExplainer {
+  --pulse-vat: var(--color-text);
+  --pulse-duty: color-mix(in srgb, var(--color-text) 58%, var(--paper));
+  --pulse-rest: color-mix(in srgb, var(--color-text) 28%, var(--paper));
+}
+
+.pulseSplitChart {
+  margin: var(--space-5) 0 var(--space-4);
+}
+
+/* The labels over the bar, in the same proportions: the taxes together over
+   their share, everything else over the rest. */
+.pulseSplitLabels {
+  display: grid;
+  gap: 2px;
+  margin-bottom: var(--space-2);
+}
+
+.pulseSplitLabel {
+  min-width: max-content;
+  color: var(--color-text-soft);
+  font-size: var(--text-sm);
+  white-space: nowrap;
+}
+
+.pulseSplitLabelFigure {
+  margin-left: var(--space-1);
+  color: var(--color-text);
+  font-family: var(--font-data);
+  font-variant-numeric: tabular-nums;
+}
+
+/* No track: the gaps between the segments are the page itself. */
+.pulseSplitBar {
+  display: flex;
+  gap: 2px;
+  height: 16px;
+}
+
+.pulseSplitSegment {
+  flex-basis: 0;
+  min-width: 4px;
+}
+
+.pulseSplitSegment:first-child {
+  border-radius: var(--radius-sm) 0 0 var(--radius-sm);
+}
+
+.pulseSplitSegment:last-child {
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+}
+
+.pulseSplitSegment--vat {
+  background: var(--pulse-vat);
+}
+
+.pulseSplitSegment--duty {
+  background: var(--pulse-duty);
+}
+
+.pulseSplitSegment--rest {
+  background: var(--pulse-rest);
+}
+
+/* The three parts, each with a short rule in its segment's shade at its
+   start: the key sits beside the figure it names. */
+.pulseSplit {
+  margin: 0 0 var(--space-6);
+}
+
+.pulseSplitRow {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: var(--space-1) var(--space-3);
+  padding: var(--space-3) 0 var(--space-3) var(--space-4);
+  border-top: 1px solid var(--line-soft);
+  position: relative;
+}
+
+.pulseSplitRow::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: var(--space-3);
+  width: 4px;
+  height: 1.25em;
+  border-radius: var(--radius-sm);
+  background: var(--pulse-rest);
+}
+
+.pulseSplitRow[data-part="vat"]::before {
+  background: var(--pulse-vat);
+}
+
+.pulseSplitRow[data-part="duty"]::before {
+  background: var(--pulse-duty);
+}
+
+.pulseSplitRow dt {
+  color: var(--color-text);
+  font-weight: 600;
+}
+
+.pulseSplitFigure {
+  margin: 0;
+  color: var(--color-text);
+  font-family: var(--font-data);
+  font-size: var(--text-md);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.pulseSplitNote {
+  grid-column: 1 / -1;
+  margin: 0;
+  color: var(--color-text-soft);
+  font-size: var(--text-sm);
+  line-height: var(--leading-normal);
+}
+
+.pulseViews {
+  display: grid;
+  gap: var(--space-5);
+  margin: 0 0 var(--space-4);
+}
+
+@media (min-width: 641px) {
+  .pulseViews {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+.pulseView .pulseH3 {
+  margin-top: 0;
+}
+
+.pulseViewPoints {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: var(--space-3);
+  color: var(--color-text-soft);
+  font-size: var(--text-sm);
+  line-height: var(--leading-normal);
+}
+
+.pulseViewPoints p {
+  margin: 0;
+}
+
+/* ── Archive ────────────────────────────────────────────────── */
+.pulseArchiveEntry {
+  padding: var(--space-1) 0;
+  border-top: 1px solid var(--line-soft);
+}
+
+.pulseArchiveEntry summary {
+  display: flex;
+  align-items: center;
+  min-height: 44px;
+  color: var(--color-text);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.pulseArchiveEntry .pulseEdition {
+  margin-top: var(--space-2);
+}
+
+.pulseFoot {
+  margin: var(--space-8) 0 0;
+  color: var(--color-text-muted);
+  font-size: var(--text-sm);
+  line-height: var(--leading-normal);
+}
+
+/* ── The floating create action ─────────────────────────────── */
+/* On a phone the + sits over the reading column's bottom-right corner, and
+   at rest it covered the duty row's GOV.UK source line and its date. The
+   split rows and the edition lines are the lists here, so they reserve the
+   control's lane less the page gutter, the shape /tonight's rows take, and
+   hold it whenever the control is in the document. */
+@media (max-width: 640px) {
+  body:has(.createFabRoot):not(:has(.pageHidesCreateFab)) .pulseSplitRow {
+    padding-right: max(var(--space-3), calc(var(--create-fab-lane) - var(--page-gutter)));
+  }
+
+  body:has(.createFabRoot):not(:has(.pageHidesCreateFab)) .pulseItem {
+    padding-right: max(var(--space-4), calc(var(--create-fab-lane) - var(--page-gutter)));
+  }
+}
+
+/* The link under the foot line takes its own line, so its 44px box never
+   opens a gap inside the sentence above it. */
+.pulseFoot .listingLink {
+  display: flex;
+  width: fit-content;
+}

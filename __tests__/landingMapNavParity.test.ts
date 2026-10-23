@@ -46,15 +46,20 @@ vi.mock("@/lib/softKeyboard", () => ({
   serverSoftKeyboardOpen: () => false,
   subscribeSoftKeyboard: () => () => {},
 }));
-vi.mock("@/lib/useFocusTrap", () => ({
+vi.mock("@/lib/useFocusTrap", async (importOriginal) => ({
+  ...await importOriginal<typeof import("@/lib/useFocusTrap")>(),
   readStrictModalFocusTrap: () => false,
   serverStrictModalFocusTrap: () => false,
   subscribeStrictModalFocusTrap: () => () => {},
 }));
-vi.mock("@/lib/useSocialFriendsLaunch", () => ({ useSocialFriendsLaunch: () => true }));
+vi.mock("@/lib/useSocialFriendsLaunch", () => ({
+  useSocialFriendsLaunch: () => true,
+  useSocialSurfaceName: () => "Social",
+}));
 
 import LandingPage from "@/components/landing/LandingPage";
 import MobileTabBar from "@/components/nav/MobileTabBar";
+import { defined } from "@/__tests__/helpers/defined";
 
 (globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT?: boolean })
   .IS_REACT_ACT_ENVIRONMENT = true;
@@ -170,6 +175,6 @@ describe("landing and mobile Map navigation", () => {
 
     const chooser = linksContaining("Pick your city");
     expect(chooser).toHaveLength(1);
-    expect(chooser[0].getAttribute("href")).toBe("/places");
+    expect(defined(chooser[0]).getAttribute("href")).toBe("/places");
   });
 });

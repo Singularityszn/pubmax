@@ -1,6 +1,12 @@
 import { describe, expect, it } from "vitest";
 
-import { filterMapVenues, withForcedVenue } from "@/lib/filterMapVenues";
+import {
+  createMemberStabilizer,
+  filterMapVenues,
+  mapFiltersSuspendUkBasePubs,
+  withForcedVenue,
+} from "@/lib/filterMapVenues";
+import { ukBasePubsForDrawableVenues, type UkBasePub } from "@/lib/ukBasePubs";
 import { initialFilters } from "@/components/map/ControlRail";
 import type { Venue } from "@/lib/venues";
 import { buildDrinkHints } from "@/scripts/build_slim_index.mjs";
@@ -65,6 +71,62 @@ describe("filterMapVenues", () => {
     const result = filterMapVenues([slimPin()], filters, () => false);
     expect(result).toHaveLength(1);
     expect(result[0]?.id).toBe("venue-scraped");
+  });
+
+  it.each([
+    ["requireStepFree", "stepFree"],
+    ["requireAccessibleToilet", "accessibleToilet"],
+    ["requireSeatedService", "seatedService"],
+  ] as const)("%s includes only confirmed slim pins", (filter, facet) => {
+    const confirmed = slimPin({ id: "confirmed", accessibility: { [facet]: true } });
+    const negative = slimPin({ id: "negative", accessibility: { [facet]: false } });
+    const unknown = slimPin({ id: "unknown" });
+    expect(
+      filterMapVenues(
+        [confirmed, negative, unknown],
+        { ...initialFilters, [filter]: true },
+        () => false,
+      ),
+    ).toEqual([confirmed]);
+  });
+
+  describe("London step-free with the UK base layer", () => {
+    const confirmed = slimPin({ id: "venue-confirmed", accessibility: { stepFree: true } });
+    const unconfirmed = slimPin({ id: "venue-unconfirmed" });
+    const basePub = (id: string, curatedVenueId: string): UkBasePub => ({
+      id,
+      name: id,
+      address: "",
+      lat: 51.5,
+      lng: -0.1,
+      curatedVenueId,
+      kind: "pub",
+    });
+    const basePubs = [
+      basePub("venue-uk-n1", confirmed.id),
+      basePub("venue-uk-n2", unconfirmed.id),
+      basePub("venue-uk-n3", ""),
+    ];
+    const drawnBasePubIds = (filters: typeof initialFilters) => {
+      const venues = filterMapVenues([confirmed, unconfirmed], filters, () => false);
+      if (mapFiltersSuspendUkBasePubs(filters)) return [];
+      return ukBasePubsForDrawableVenues(
+        basePubs,
+        new Set(venues.map((venue) => venue.id)),
+      ).map((pub) => pub.id);
+    };
+
+    it.each(["requireStepFree", "requireAccessibleToilet", "requireSeatedService"] as const)(
+      "%s draws no base pub, because none has confirmed access",
+      (filter) => {
+        expect(drawnBasePubIds({ ...initialFilters, [filter]: true })).toEqual([]);
+      },
+    );
+
+    it("draws the base layer unchanged with no accessibility filter", () => {
+      expect(mapFiltersSuspendUkBasePubs(initialFilters)).toBe(false);
+      expect(drawnBasePubIds(initialFilters)).toEqual(["venue-uk-n3"]);
+    });
   });
 
   it("still respects price query on slim pins", () => {
@@ -211,5 +273,73 @@ describe("withForcedVenue", () => {
     const byId = new Map([[venue.id, venue]]);
     const out = withForcedVenue([venue], byId, venue.id);
     expect(out).toHaveLength(1);
+  });
+
+  // The canvas rebuilds every pin and re-sends the whole source in a layout
+  // effect keyed on this array, so a copy per selection put that rebuild inside
+  // the tap's frame: 1040 ms INP on a lab phone (map-p99-vitals-tail).
+  it("hands back the SAME array when a selection adds nothing to the canvas", () => {
+    const venue = slimPin();
+    const other = slimPin({ id: "venue-other" });
+    const byId = new Map([
+      [venue.id, venue],
+      [other.id, other],
+    ]);
+    const filtered = [venue, other];
+    expect(withForcedVenue(filtered, byId, venue.id)).toBe(filtered);
+    expect(withForcedVenue(filtered, byId, other.id)).toBe(filtered);
+    expect(withForcedVenue(filtered, byId, null)).toBe(filtered);
+    expect(withForcedVenue(filtered, byId, "  ")).toBe(filtered);
+    expect(withForcedVenue(filtered, byId, "venue-unknown")).toBe(filtered);
+  });
+
+  it("copies rather than mutates when it does append a forced venue", () => {
+    const visible = slimPin();
+    const forced = slimPin({ id: "venue-force" });
+    const byId = new Map([[forced.id, forced]]);
+    const filtered = [visible];
+    const out = withForcedVenue(filtered, byId, forced.id);
+    expect(out).not.toBe(filtered);
+    expect(filtered).toHaveLength(1);
+    expect(out.map((v) => v.id)).toEqual([visible.id, forced.id]);
+  });
+});
+
+// A sheet's own reads rebuild the venue signals, the pipeline re-runs, and it
+// almost always lets through the same pins: the suggested crawl and the canvas
+// pin rebuild must not re-run for that (map-selection-inp).
+describe("createMemberStabilizer", () => {
+  it("hands back the held list while the members and their order are the same", () => {
+    const stable = createMemberStabilizer<Venue>();
+    const a = slimPin({ id: "venue-a" });
+    const b = slimPin({ id: "venue-b" });
+    const first = stable([a, b]);
+    expect(stable([a, b])).toBe(first);
+    expect(stable([...first])).toBe(first);
+  });
+
+  it("takes the new list when a member, the order or the length changes", () => {
+    const stable = createMemberStabilizer<Venue>();
+    const a = slimPin({ id: "venue-a" });
+    const b = slimPin({ id: "venue-b" });
+    stable([a, b]);
+    const reordered = [b, a];
+    expect(stable(reordered)).toBe(reordered);
+    const shorter = [b];
+    expect(stable(shorter)).toBe(shorter);
+    // Same id, richer object: a hydrated venue is news, so identity is by reference.
+    const hydrated = [{ ...b, cheapestPrice: 4.5 }];
+    expect(stable(hydrated)).toBe(hydrated);
+    expect(stable([hydrated[0]!])).toBe(hydrated);
+  });
+
+  it("keeps each list's own history", () => {
+    const one = createMemberStabilizer<Venue>();
+    const two = createMemberStabilizer<Venue>();
+    const a = slimPin({ id: "venue-a" });
+    const held = one([a]);
+    const other = [a];
+    expect(two(other)).toBe(other);
+    expect(one([a])).toBe(held);
   });
 });

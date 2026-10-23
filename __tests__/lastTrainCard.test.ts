@@ -7,6 +7,7 @@ import {
   lastTrainRequestKey,
   provenanceCopyForDepartures,
   provenanceCopyForResult,
+  stationWalkCopy,
   type LastTrainCardState,
 } from "@/components/map/LastTrainCard";
 import type { LastTrainResult, NextDepartures } from "@/lib/tfl";
@@ -54,7 +55,7 @@ function lastTrainResult(stationName: string): LastTrainResult {
 describe("LastTrainCard provenance copy", () => {
   it("does not describe the Last Pint decision as live when only timetable data is rendered", () => {
     expect(provenanceCopyForDepartures([departure({ live: false })])).toBe(
-      "Scheduled times from TfL - not a live feed.",
+      "Scheduled times from TfL, not a live feed.",
     );
   });
 
@@ -168,5 +169,29 @@ describe("LastTrainCard venue switching", () => {
       data: lastTrainResult("Oxford Circus"),
     };
     expect(currentLastTrainState(readyState, again)).toBe(readyState);
+  });
+});
+
+describe("LastTrainCard station walk copy", () => {
+  it("prints the street-walk minutes the leave-by clock was built from", () => {
+    expect(stationWalkCopy({ ...lastTrainResult("Charing Cross"), walkBasis: "street" })).toBe("3 min walk");
+  });
+
+  it("keeps TfL's straight-line distance, marked approximate, when the walk is not a street walk", () => {
+    expect(stationWalkCopy({ ...lastTrainResult("Brixton"), walkBasis: "straight" })).toBe("~120 m away");
+    // Other cities' providers send no walkBasis at all.
+    expect(stationWalkCopy(lastTrainResult("Brixton"))).toBe("~120 m away");
+  });
+
+  it("never prints a zero-minute walk or a zero distance", () => {
+    const base = lastTrainResult("Bank");
+    expect(
+      stationWalkCopy({
+        ...base,
+        walkBasis: "street",
+        station: { ...base.station, distanceM: 0 },
+        decision: { ...base.decision!, walkMinutesEstimate: 0 },
+      }),
+    ).toBeNull();
   });
 });

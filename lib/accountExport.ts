@@ -26,6 +26,7 @@
 // list, the linked socials and the Night Profile out of it.
 
 import type { DrinkCategory } from "@/lib/drinks";
+import type { OccupancyLevel } from "@/lib/occupancy";
 import type { ConversationKind } from "@/lib/messageGroupThread";
 import type { CheckIn } from "@/lib/checkIn";
 import type { NightMemory, NightMoment } from "@/lib/nightMemory";
@@ -34,6 +35,8 @@ import type { SavedPubDTO } from "@/lib/savedPubs";
 import type { DrinkWallCategory } from "@/lib/venuePhotos";
 import type { PublicSocialConnection } from "@/lib/socialConnections";
 import type { VisitReportDTO } from "@/lib/visitReports";
+import type { DiaryEntryDTO } from "@/lib/diary";
+import type { VenueSubmissionFileKind, VenueSubmissionPublicFields } from "@/lib/venueSubmissions";
 import type { WantedDTO } from "@/lib/wanted";
 
 /** The export document's version, bumped when a field changes meaning. */
@@ -47,7 +50,7 @@ export const ACCOUNT_EXPORT_TITLE = "Download your data";
 
 /** One line under the heading. */
 export const ACCOUNT_EXPORT_LEDE =
-  "A JSON file of everything this account holds: your private details, your Memories and Moments, your prices, Pint Drops, visit reports and photos, your saved pubs and the messages you sent.";
+  "A JSON file of everything this account holds: your profile and private details, your Memories and Moments, your prices, Pint Drops, visit reports, crowd reports, posts and photos, your saved pubs and the messages you sent.";
 
 /** The control that prepares the file. */
 export const ACCOUNT_EXPORT_LABEL = "Download JSON";
@@ -85,6 +88,67 @@ export type AccountExportIdentity = {
   genderSelfDescribed: string | null;
   createdAt: string | null;
   updatedAt: string | null;
+};
+
+/**
+ * The profile fields an account chose to fill in: the bio, the home city and
+ * the three card lines. The handle and the display name are in the export's
+ * `account` block already. The founding member number is the account's own and
+ * the deletion copy promises it stays theirs, so it is in the file too.
+ */
+export type AccountExportProfile = {
+  bio: string | null;
+  homeCity: string | null;
+  favouriteDrink: string | null;
+  interests: string | null;
+  workplace: string | null;
+  foundingMemberNumber: number | null;
+  /** The account's own public/private choice. */
+  visibility: string | null;
+  createdAt: string | null;
+  updatedAt: string | null;
+};
+
+/** One Social post this account wrote, with the words it wrote. A photo is named by its media id, never its bytes. */
+export type AccountExportSocialPost = {
+  id: string;
+  kind: string;
+  visibility: string;
+  body: string;
+  areaSlug: string | null;
+  venueId: string | null;
+  hashtags: string[];
+  commentPolicy: string;
+  photo: { mediaId: string; altText: string } | null;
+  /** The account's own score for the pub the post names (ADR 0017), or null. */
+  review: { rating: number } | null;
+  /** Photos 2 to 4, named by id, description and check state, never by bytes. */
+  extraPhotos: Array<{ mediaId: string; slot: number; altText: string; moderationState: string }>;
+  /** The post's video, named by its state rather than its bytes, or null. */
+  video: { contentType: string; durationSeconds: number | null; reviewState: string } | null;
+  /** `pending`, `approved` or `needs_review`: where the moderation lane last left it. */
+  moderationState: string;
+  createdAt: string;
+  editedAt: string | null;
+};
+
+/** One pub in the account's own compared order (migration 0186). */
+export type AccountExportPubRanking = {
+  venueId: string;
+  band: string;
+  place: number;
+  score: number;
+};
+
+/** One crowd reading this account gave for a pub. */
+export type AccountExportCrowdReport = {
+  id: string;
+  venueId: string;
+  level: OccupancyLevel;
+  /** ISO 8601, server clock. */
+  reportedAt: string;
+  /** Hidden by a moderator; still the caller's own observation. */
+  hidden: boolean;
 };
 
 /** One photo in this account's own cover rotation, named by its key. */
@@ -184,6 +248,11 @@ export type AccountExportConversation = {
   messages: AccountExportMessage[];
 };
 
+/** A pub the account added. The owner and the stored file keys stay out: the file is the account's, the key is ours. */
+export type AccountExportVenueSubmission = VenueSubmissionPublicFields & {
+  files: { kind: VenueSubmissionFileKind; byteSize: number; createdAt: string }[];
+};
+
 export type AccountExportLane<T> = {
   status: AccountExportLaneStatus;
   /** True when the lane cap bit, so `items` is a window rather than the whole. */
@@ -200,12 +269,16 @@ export type AccountExport = {
     handle: string | null;
     displayName: string | null;
   };
+  /** At most one row, because an account has at most one profile. */
+  profile: AccountExportLane<AccountExportProfile>;
   /** At most one row, because an account has at most one private card. */
   identity: AccountExportLane<AccountExportIdentity>;
   memories: AccountExportLane<AccountExportMemory>;
   prices: AccountExportLane<AccountExportPrice>;
   pintDrops: AccountExportLane<AccountExportPintDrop>;
   visitReports: AccountExportLane<VisitReportDTO>;
+  crowdReports: AccountExportLane<AccountExportCrowdReport>;
+  socialPosts: AccountExportLane<AccountExportSocialPost>;
   wallPhotos: AccountExportLane<AccountExportWallPhoto>;
   coverPhotos: AccountExportLane<AccountExportCoverPhoto>;
   checkIns: AccountExportLane<CheckIn>;
@@ -213,6 +286,12 @@ export type AccountExport = {
   follows: AccountExportLane<string>;
   savedPubs: AccountExportLane<SavedPubDTO>;
   wanted: AccountExportLane<WantedDTO>;
+  /** The account's own diary: private visits, each with its day and optional half-star rating. */
+  diary: AccountExportLane<DiaryEntryDTO>;
+  /** The account's own pub order, built by comparing pubs: band, place and the 0-10 it derives. */
+  pubRankings: AccountExportLane<AccountExportPubRanking>;
+  /** Pubs the account added, with their prices and what each menu file was. */
+  venueSubmissions: AccountExportLane<AccountExportVenueSubmission>;
   socialLinks: AccountExportLane<PublicSocialConnection>;
   /** At most one row, the same way `identity` is. */
   nightProfile: AccountExportLane<NightProfile>;
@@ -221,17 +300,23 @@ export type AccountExport = {
 
 /** The lanes an export carries, so a refusal can name the one that could not answer. */
 export const ACCOUNT_EXPORT_LANES = [
+  "profile",
   "identity",
   "memories",
   "prices",
   "pintDrops",
   "visitReports",
+  "crowdReports",
+  "socialPosts",
   "wallPhotos",
   "coverPhotos",
   "checkIns",
   "follows",
   "savedPubs",
   "wanted",
+  "diary",
+  "pubRankings",
+  "venueSubmissions",
   "socialLinks",
   "nightProfile",
   "messages",

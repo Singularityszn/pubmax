@@ -18,23 +18,13 @@
 // tonight", a link to /tonight, promised a new tab it never opened.
 
 import Link from "next/link";
-import {
-  ArrowRight,
-  Beer,
-  CalendarClock,
-  CloudSun,
-  ExternalLink,
-  Flame,
-  Landmark,
-  MapPin,
-  Sun,
-  Waves,
-} from "lucide-react";
+import { ArrowRight, ExternalLink, MapPin } from "lucide-react";
 
 import { useEffect, useState } from "react";
 
 import NowSegment from "@/components/nav/NowSegment";
 import SiteNav from "@/components/nav/SiteNav";
+import PriceBadge from "@/components/PriceBadge";
 import Screen from "@/components/ui/screen";
 import {
   buildDayGreeting,
@@ -79,6 +69,9 @@ import TodayTubeCard from "./TodayTubeCard";
 import { TODAY_TEXT_BUTTON_CLASS } from "./todayTextButton";
 import type { TodayPintsIndex } from "./todayPints";
 import type { QuietPintModule } from "@/lib/quietPint";
+import TonightHypedPubs from "../tonight/TonightHypedPubs";
+import type { HypedPub } from "@/lib/hypedPubs";
+import "../tonight/tonightLede.css";
 import "./today.css";
 
 type Props = {
@@ -90,6 +83,8 @@ type Props = {
   weather: WeatherBrief | null;
   weatherByArea: Partial<Record<NightAreaSlug, WeatherBrief | null>>;
   picks: TonightPickDto[];
+  hypedPubs?: readonly HypedPub[];
+  mapSelectableVenueIds?: readonly string[] | null;
   picksStatus: PicksListReadStatus;
   /** When the rows behind the picks were OBSERVED, not when this page was served. */
   picksCheckedAt?: string | null;
@@ -109,73 +104,42 @@ type Props = {
   quietPint: QuietPintModule | null;
 };
 
-// The card's glyph follows the verdict's own venue lens, so the icon is saying
-// the same thing as the words beside it rather than showing a generic sky. No
-// lens (no snapshot) falls back to the neutral cloud-and-sun.
-const LENS_ICON = {
-  "beer-garden": Sun,
-  fireplace: Flame,
-  riverside: Waves,
-  any: CloudSun,
-} as const;
-
+// The drink weather, as ONE line of the page: the verdict is the section's
+// heading and the reading's own facts are the line under it. The headline
+// above no longer restates the sky (taste plan, 18 Oct 2026: the H1 said
+// "Cold out. Fireplace weather." over a card that said "Stout weather."), so
+// this is the one place on the page the weather is said. No reading, no
+// section: an empty weather box is a section that opens with an empty state.
 function WeatherCard({ weather }: { weather: WeatherBrief | null }) {
-  const LensIcon = weather ? LENS_ICON[weather.venueLens] : CloudSun;
+  if (!weather) return null;
+  const title =
+    weather.verdictLine || (weather.stale ? "Last weather reading on file." : "The weather tonight.");
   return (
-    <section className="todayCard" aria-labelledby="today-weather-title" data-testid="today-weather">
-      <div className="todayCardHead">
-        <span className="todayCardIcon" aria-hidden="true">
-          <LensIcon size={18} />
-        </span>
-        <div>
-          <p className="todayCardEyebrow">Drink weather</p>
-          <h2 className="todayCardTitle" id="today-weather-title">
-            {weather?.verdictLine || (weather?.stale ? "Last sky read on file." : "No weather verdict right now.")}
-          </h2>
-        </div>
-      </div>
-
-      {/* Deliberately no body line. The greeting above carries the observation's
-          facts line ("24°C feels like, clear, 0% chance of rain, daylight.") and
-          the verdict already names the drink,
-          so a "Reach for a cold lager or cider." sentence here would be the
-          third telling of the same two facts. Each said once, on the surface
-          that owns it. */}
-      {weather ? (
-        <>
-          {weather.stale ? (
-            <p className="todayStale" role="status">
-              {weather.checkedLabel}. It may have moved on.
-            </p>
-          ) : null}
-          {/* The day is printed ONCE: the stale line above already carries it,
-              so a stale card's foot keeps the credit alone. Fresh, the foot
-              is the one place the day and the publisher are said. */}
-          <div className="todayCardFootRow">
-            <span className="todayProvenance">
-              {weather.stale ? null : (
-                <>
-                  {weather.checkedLabel}
-                  <span aria-hidden="true"> · </span>
-                </>
-              )}
-              via{" "}
-              <a
-                className="todayProvenanceLink"
-                href={weather.source.url}
-                target="_blank"
-                rel="noreferrer noopener"
-              >
-                {weather.source.publisher}
-              </a>
-            </span>
-          </div>
-        </>
-      ) : (
-        <p className="todayCardEmpty">
-          No fresh read on the sky just now. Have a look out the window for this one.
+    <section className="todayCard createFabLane" aria-labelledby="today-weather-title" data-testid="today-weather">
+      <h2 className="todayCardTitle" id="today-weather-title">
+        {title}
+      </h2>
+      {weather.stale ? (
+        <p className="todayStale" role="status">
+          {weather.checkedLabel}. It may have moved on.
         </p>
-      )}
+      ) : null}
+      {/* The facts and their source in one line. The day is printed ONCE: a
+          stale card already says it above, so its line keeps the credit. */}
+      <p className="todayCardLine">
+        {weather.factsLine ? `${weather.factsLine} ` : null}
+        {weather.stale ? null : `${weather.checkedLabel}, `}
+        via{" "}
+        <a
+          className="todayProvenanceLink"
+          href={weather.source.url}
+          target="_blank"
+          rel="noreferrer noopener"
+        >
+          {weather.source.publisher}
+        </a>
+        .
+      </p>
     </section>
   );
 }
@@ -194,6 +158,8 @@ function PicksCard({
   picksReason,
   picksRetryable,
   context,
+  hypedPubs,
+  selectableVenueIds,
 }: {
   picks: TonightPickDto[];
   filteredPickCount: number;
@@ -203,6 +169,8 @@ function PicksCard({
   picksReason: string | null;
   picksRetryable: boolean;
   context: PicksContext;
+  hypedPubs: readonly HypedPub[];
+  selectableVenueIds: ReadonlySet<string> | null;
 }) {
   // ONE state, the same four words /tonight reads (lib/picksState.ts). Today's
   // picks are composed on the SERVER and never re-read from the browser, so
@@ -223,6 +191,30 @@ function PicksCard({
     checkedAt: picksCheckedAt,
   });
   const checked = picksCheckedLabel(state.checkedAt);
+  if (picks.length === 0 && filteredPickCount === 0 && hypedPubs.length > 0) {
+    return (
+      <section
+        className="todayPicksFallback"
+        aria-labelledby="today-picks-title"
+        data-testid="today-picks"
+        data-picks-state={state.kind}
+      >
+        <h2 className="todayCardTitle" id="today-picks-title">
+          Top picks for tonight.
+        </h2>
+        <TonightHypedPubs rows={hypedPubs} selectableVenueIds={selectableVenueIds} nested />
+        <p className="todayCardEmpty">
+          {state.reason ?? (picksStatus === "degraded" ? picksListLine(picksStatus, slot) : "No confirmed events listed tonight.")}
+        </p>
+        <p className="todayCardFootRow">
+          <Link prefetch={false} href="/tonight" className="todayInkLink">
+            See everything on tonight
+            <ArrowRight size={14} aria-hidden="true" />
+          </Link>
+        </p>
+      </section>
+    );
+  }
   return (
     <section
       className="todayCard"
@@ -231,17 +223,9 @@ function PicksCard({
       data-picks-status={picksCardStatus(picksStatus, picks.length, filteredPickCount)}
       data-picks-state={state.kind}
     >
-      <div className="todayCardHead">
-        <span className="todayCardIcon" aria-hidden="true">
-          <CalendarClock size={18} />
-        </span>
-        <div>
-          <p className="todayCardEyebrow">Tonight</p>
-          <h2 className="todayCardTitle" id="today-picks-title">
-            Top picks for tonight.
-          </h2>
-        </div>
-      </div>
+      <h2 className="todayCardTitle" id="today-picks-title">
+        Top picks for tonight.
+      </h2>
 
       {picksStateShowsRows(state, picks.length) ? (
         <>
@@ -253,13 +237,15 @@ function PicksCard({
                     <span className="todayPickKind" data-kind={pick.kind}>
                       {pick.kindLabel}
                     </span>
+                    {/* A deal's figure, not a pint's, so the badge stays
+                        neutral: a band is a claim about a pint alone. */}
                     {pick.priceGbp !== null ? (
-                      <span className="todayPickPrice">£{pick.priceGbp.toFixed(2)}</span>
+                      <PriceBadge className="todayPickPrice">£{pick.priceGbp.toFixed(2)}</PriceBadge>
                     ) : null}
                   </div>
                   <h3 className="todayPickTitle">{pick.title}</h3>
                   <p className="todayPickPlace">
-                    <MapPin size={13} aria-hidden="true" />
+                    <MapPin size={14} aria-hidden="true" />
                     <span>{pick.placeName}</span>
                   </p>
                   {pick.venueNote ? (
@@ -279,7 +265,7 @@ function PicksCard({
                         rel="noreferrer noopener"
                       >
                         {inner}
-                        <ExternalLink size={13} aria-hidden="true" className="todayPickArrow" />
+                        <ExternalLink size={14} aria-hidden="true" className="todayPickArrow" />
                       </a>
                     ) : (
                       <Link prefetch={false} className="todayPickLink pressable" href={pick.href}>
@@ -295,7 +281,7 @@ function PicksCard({
             })}
           </ul>
           <p className="todayCardFootRow">
-            <Link prefetch={false} href="/tonight" className="todayCardFootLink">
+            <Link prefetch={false} href="/tonight" className="todayInkLink">
               See everything on tonight
               <ArrowRight size={14} aria-hidden="true" />
             </Link>
@@ -320,7 +306,7 @@ function PicksCard({
               and this row's arrow lands in it, so the row takes the control's
               own lane (createFab.css). */}
           <p className="todayCardFootRow createFabLane">
-            <Link prefetch={false} href="/map" className="todayCardFootLink">
+            <Link prefetch={false} href="/map" className="todayInkLink">
               Meanwhile, the map knows the cheap pints
               <ArrowRight size={14} aria-hidden="true" />
             </Link>
@@ -346,60 +332,48 @@ function readPlanIntakeDraftReadonly() {
   }
 }
 
-// The daily editorial card. What may fill it is lib/pubOfTheDay's decision,
-// never this component's: a card with no card is the honest empty state, and
-// the ONE action is internal, because a pub of the day a reader cannot open is
-// a magazine page (Astra F08).
+// The daily editorial section. What may fill it is lib/pubOfTheDay's decision,
+// never this component's. No card, no section: a heading over "still in the
+// archive" is a section that opens with an empty state, so a day without a
+// card simply goes without. The ONE action is internal, because a pub of the
+// day a reader cannot open is a magazine page (Astra F08), and it is a
+// secondary on the neutral control surface: the page's coral is its primary.
 function FactCard({ fact }: { fact: PubOfTheDayCard | null }) {
+  if (!fact) return null;
   return (
     <section className="todayCard" aria-labelledby="today-fact-title" data-testid="today-fact">
-      <div className="todayCardHead">
-        <span className="todayCardIcon" aria-hidden="true">
-          <Landmark size={18} />
+      <h2 className="todayCardTitle" id="today-fact-title">
+        Pub of the day: {fact.pubName}
+      </h2>
+      <p className="todayCardBody">{fact.reason}</p>
+      <Link className="todayButton" href={fact.mapHref} prefetch={false}>
+        <MapPin size={16} aria-hidden="true" />
+        Open it on the map
+      </Link>
+      <div className="todayCardFootRow">
+        <span className="todayProvChip" data-provenance={fact.provenance}>
+          {fact.provenanceLabel}
         </span>
-        <div>
-          <p className="todayCardEyebrow">Pub of the day</p>
-          <h2 className="todayCardTitle" id="today-fact-title">
-            {fact ? fact.pubName : "Still in the archive"}
-          </h2>
-        </div>
+        {fact.sourceRef ? (
+          <a
+            className={TODAY_TEXT_BUTTON_CLASS}
+            href={fact.sourceRef}
+            target="_blank"
+            rel="noreferrer noopener"
+          >
+            via {fact.sourceLabel}
+            <ExternalLink size={14} aria-hidden="true" />
+          </a>
+        ) : (
+          <span className="todayProvenance">via {fact.sourceLabel}</span>
+        )}
       </div>
-
-      {fact ? (
-        <>
-          <p className="todayCardBody">{fact.reason}</p>
-          <Link className="todayButton" href={fact.mapHref} prefetch={false}>
-            <MapPin size={15} aria-hidden="true" />
-            Open {fact.pubName} on the map
-          </Link>
-          <div className="todayCardFootRow">
-            <span className="todayProvChip" data-provenance={fact.provenance}>
-              {fact.provenanceLabel}
-            </span>
-            {fact.sourceRef ? (
-              <a
-                className={TODAY_TEXT_BUTTON_CLASS}
-                href={fact.sourceRef}
-                target="_blank"
-                rel="noreferrer noopener"
-              >
-                via {fact.sourceLabel}
-                <ExternalLink size={13} aria-hidden="true" />
-              </a>
-            ) : (
-              <span className="todayProvenance">via {fact.sourceLabel}</span>
-            )}
-          </div>
-        </>
-      ) : (
-        <p className="todayCardEmpty">
-          Every pub of the day comes with receipts, and today&apos;s are still in
-          the archive. Back tomorrow.
-        </p>
-      )}
     </section>
   );
 }
+
+/** The /today heading, from docs/design/LAUNCH_SCREENS.md. */
+const TODAY_HEADING = "What’s on across London today.";
 
 /** What the morning brief turned out to be for this reader. */
 type BriefShape = { personalized: boolean; muted: boolean };
@@ -412,6 +386,8 @@ export default function TodayClient({
   weatherByArea,
   picks,
   picksStatus,
+  hypedPubs = [],
+  mapSelectableVenueIds = null,
   picksCheckedAt = null,
   picksReason = null,
   picksRetryable = true,
@@ -517,20 +493,27 @@ export default function TodayClient({
       <SiteNav active="today" />
       <NowSegment current="day" />
 
-      {/* The head is the Screen primitive (docs/design/LAUNCH_SCREENS.md). The
-          kicker names the surface; the headline keeps its weather-aware
-          verdict, and the personal line (the salutation, the date, the sky) is
-          the one line under it. Find my pint is the one primary and the map
-          the quieter way onward. */}
+      {/* The head is the Screen primitive (docs/design/LAUNCH_SCREENS.md):
+          the kicker names the surface and the heading is the table's own,
+          "What's on across London today." It used to be a generated weather
+          verdict ("Cold out. Fireplace weather.") over a card that said
+          "Stout weather.", two weather lines that read as written by a
+          machine (taste plan, 18 Oct 2026). The sky is said once now, in the
+          weather section; the personal line under the heading is the
+          salutation and the date. Find my pint is the one primary and the
+          map the quieter way onward, said once on the page. */}
       <Screen
         as="div"
         className="todayScreen"
         kicker="Today in London"
-        title={shownGreeting.headline}
+        title={TODAY_HEADING}
         titleId="today-title"
         lede={
+          // One string, so the server HTML carries one text node: three JSX
+          // children put React's separators round the period, and a reader of
+          // the stripped document saw "Good morning ." with no name.
           <span data-testid="today-greeting">
-            {shownGreeting.salutation}. {shownGreeting.support}
+            {`${shownGreeting.salutation}. ${dateLabel}.`}
           </span>
         }
         primary={
@@ -557,6 +540,8 @@ export default function TodayClient({
             filteredPickCount={brief.filteredPickCount}
             slot={shownGreeting.slot}
             picksStatus={picksStatus}
+            hypedPubs={hypedPubs}
+            selectableVenueIds={mapSelectableVenueIds ? new Set(mapSelectableVenueIds) : null}
           />
           <TodayGetThereStrip />
         </div>
@@ -567,18 +552,13 @@ export default function TodayClient({
         </div>
       </div>
 
+      {/* One way onward once the brief is read. Tonight is the Day/Tonight
+          pair at the top and the map is the head's own secondary, so the foot
+          no longer repeats either. */}
       <p className="todayFoot">
-        <Link prefetch={false} href="/tonight" className="todayCardFootLink">
-          Jump to tonight
-          <ArrowRight size={14} aria-hidden="true" />
-        </Link>
-        <Link prefetch={false} href="/plan" className="todayCardFootLink">
+        <Link prefetch={false} href="/plan" className="todayInkLink">
           Plan an outing
           <ArrowRight size={14} aria-hidden="true" />
-        </Link>
-        <Link prefetch={false} href="/map" className="todayCardFootLink">
-          <Beer size={14} aria-hidden="true" />
-          Open the map
         </Link>
       </p>
       </Screen>

@@ -27,32 +27,46 @@ async function expectTapTarget(locator: Locator, label: string): Promise<void> {
   expect(Math.round(box.height), `${label} height`).toBeGreaterThanOrEqual(44);
 }
 
-test("mobile Rounds index explains link-based joining and routes to the map", async ({
+test("mobile Rounds index starts a round and explains link-based joining", async ({
   page,
 }) => {
   test.setTimeout(90_000);
   const response = await page.goto("/rounds");
   expect(response?.status()).toBe(200);
 
-  // EmptyState (components/ui/empty-state.tsx) titles with a paragraph, not a
-  // heading: the Screen owns the page's one heading.
-  await expect(page.locator(".emptyStateTitle", { hasText: "Join with a link" })).toBeVisible();
-  await expect(page.getByText(/A round opens from the link/i)).toBeVisible();
+  // The quiet secondary from the launch table, in plain words.
+  const openCode = page.getByText("Open a round code", { exact: true });
+  await expect(openCode).toBeVisible();
 
-  const startOnMap = page.getByRole("link", { name: "Start a round", exact: true });
-  await expect(startOnMap).toHaveAttribute("href", "/map");
-  await expectTapTarget(startOnMap, "start round map link");
+  // F18: "Start a round" is a real flow on this page, not a link to a bare map.
+  // The starter's submit is the screen's one primary and it needs no account.
+  const start = page.getByRole("button", { name: "Start a round", exact: true });
+  await expect(start).toHaveAttribute("data-primary-action", "");
+  await expectTapTarget(start, "start round button");
+  const handle = page.getByRole("textbox", { name: "Your handle" });
+  await expectTapTarget(handle, "handle field");
   await expectNoHorizontalOverflow(page);
 
-  await startOnMap.click();
-  await expect(page).toHaveURL(/\/map$/);
-  await expect(page.locator(".mobileMapTopbar")).toBeVisible({ timeout: 45_000 });
-  await expect(page.locator(".mobileMapLocateFab")).toBeVisible();
-  await expect(page.getByRole("button", { name: "Describe the outing" })).toBeVisible();
+  // A code read out loud opens the Round without editing a URL; a short one
+  // answers in place.
+  await openCode.click();
+  const code = page.getByRole("textbox", { name: "Round code" });
+  const openRound = page.getByRole("button", { name: "Open", exact: true });
+  await expectTapTarget(code, "round code field");
+  await expectTapTarget(openRound, "open round button");
+  await code.fill("ab1");
+  await openRound.click();
+  await expect(page.locator("#round-code-join-error")).toHaveText("A Round code is 6 letters and numbers.");
+  await expect(page).toHaveURL(/\/rounds$/);
 
-  await page.getByRole("button", { name: "Search the map" }).click();
-  // The map search field suggests pubs, so it is a combobox, not a bare
-  // searchbox (components/map/MapSearchSuggest.tsx).
-  await expect(page.getByRole("combobox", { name: "Search pubs" })).toBeVisible();
+  // An empty handle answers in place instead of doing nothing.
+  await handle.fill("");
+  await start.click();
+  await expect(page.locator(".roundStarterError")).toHaveText("Pick a handle to start a Round.");
+  await expect(page).toHaveURL(/\/rounds$/);
+
+  await handle.fill("round-starter-e2e");
+  await start.click();
+  await expect(page).toHaveURL(/\/rounds\/[A-Za-z0-9-]+$/, { timeout: 30_000 });
   await expectNoHorizontalOverflow(page);
 });

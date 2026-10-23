@@ -4,9 +4,11 @@
 // root (like FirstRunTour) so any plan success path can trigger it via
 // recordPlanHighIntentAction() (lib/nativePushPrompt.ts) without needing its
 // own copy of this UI. Renders nothing on the server, on the web, or once the
-// user has already enabled push / dismissed this occurrence — the gate lives
-// in lib/nativePushPrompt.ts (shouldOfferPushPrompt), this component is pure
-// presentation + the two button actions.
+// user has already enabled push or dismissed this occurrence. Action eligibility
+// lives in lib/nativePushPrompt.ts (shouldOfferPushPrompt). This component also
+// applies the route and shared-budget gates before it presents the two actions.
+
+import { FOCUS_TRAP_EXEMPT_ATTRIBUTE, readStrictModalFocusTrap, serverStrictModalFocusTrap, subscribeStrictModalFocusTrap } from "@/lib/useFocusTrap";
 
 import { usePathname } from "next/navigation";
 import { useEffect, useState, useSyncExternalStore } from "react";
@@ -25,6 +27,7 @@ import {
   claimPromptBudget,
   hasPromptBudgetFor,
   routeOwnsScreenFoot,
+  subscribePromptBudget,
 } from "@/lib/promptBudget";
 
 const PUSH_SURFACE = "native-push";
@@ -39,9 +42,19 @@ export default function NativePushPrompt(): React.JSX.Element | null {
     getPushPromptServerSnapshot,
   );
 
-  const canShow = visible
-    && !routeOwnsScreenFoot(pathname, window.innerWidth)
-    && hasPromptBudgetFor(PUSH_SURFACE);
+  // A route can render before the previous map card releases its prompt gate.
+  const hasBudget = useSyncExternalStore(
+    subscribePromptBudget,
+    () => !routeOwnsScreenFoot(pathname, window.innerWidth)
+      && hasPromptBudgetFor(PUSH_SURFACE),
+    getPushPromptServerSnapshot,
+  );
+  const strictModalOpen = useSyncExternalStore(
+    subscribeStrictModalFocusTrap,
+    readStrictModalFocusTrap,
+    serverStrictModalFocusTrap,
+  );
+  const canShow = visible && hasBudget && !strictModalOpen;
 
   // Claim the shared one-prompt-per-session budget at the moment it shows
   // (docs/PROMPT_ORCHESTRATION.md).
@@ -67,7 +80,7 @@ export default function NativePushPrompt(): React.JSX.Element | null {
   }
 
   return (
-    <div className="nativePushPrompt">
+    <div className="nativePushPrompt nativePushPrompt--permission" {...{ [FOCUS_TRAP_EXEMPT_ATTRIBUTE]: "" }}>
       <div
         className="nativePushPrompt__card"
         role="dialog"

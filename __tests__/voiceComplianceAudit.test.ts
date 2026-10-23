@@ -7,6 +7,7 @@ import {
   nightAreaOptionLabel,
   nightAreaSelectorGroups,
 } from "@/components/plan/PlanComposer";
+import { defined } from "@/__tests__/helpers/defined";
 
 function read(path: string): string {
   return readFileSync(join(process.cwd(), path), "utf8");
@@ -16,7 +17,7 @@ function notInspectedFiles(evidence: string): Set<string> {
   const sections = evidence.split("Not inspected:").slice(1);
   return new Set(sections.flatMap((section) => {
     const inventory = section.split(/\n##/u, 1)[0] ?? "";
-    return [...inventory.matchAll(/^- `([^`]+)`$/gmu)].map((match) => match[1]);
+    return [...inventory.matchAll(/^- `([^`]+)`$/gmu)].map((match) => defined(match[1]));
   }));
 }
 
@@ -82,10 +83,10 @@ describe("VOICE.md compliance audit", () => {
     // ONE RULE (5 Sep 2026): the handle door asks for a handle, the age door
     // asks for the one tap, and neither asks for a birth date.
     expect(contributionGate).toMatch(
-      /Contributions carry your public handle, so pick one before you\s+log a price\./,
+      /Pick a handle before you log a price\./,
     );
     expect(contributionGate).toMatch(
-      /Logging a drink price is for over-18s\./,
+      /This is for over-18s\. One tap records it, and we ask\s+once\./,
     );
     expect(contributionGate).not.toMatch(/date of birth/i);
     expect(contributionGate).not.toContain("account-owned");
@@ -170,7 +171,7 @@ describe("VOICE.md compliance audit", () => {
     expect(tonight).not.toContain("same spine as the map");
     expect(tonightPage).not.toContain("Same spine as the map");
     expect(tonightPage).toContain(
-      "Check sourced London pub listings for tonight on PubMaxxing, with map links when available.",
+      "Check sourced London pub listings for tonight on PUBMAXX, with map links when available.",
     );
     expect(planTemplates).not.toContain("What's-On spine");
     expect(planTemplates).toContain("Quiz listings with start times.");
@@ -488,7 +489,7 @@ describe("VOICE.md rule 2 — plumbing words stay off reader surfaces", () => {
     ]);
     const notReady = groups[1]?.areas.find((area) => area.slug === "barnes");
     expect(notReady).toBeDefined();
-    expect(nightAreaOptionLabel(notReady!, false)).toBe("Barnes - not crawl-ready yet");
+    expect(nightAreaOptionLabel(notReady!, false)).toBe("Barnes, not crawl-ready yet");
   });
 
   it("keeps the Plan result and Pub Pal free of product-speak", () => {
@@ -523,7 +524,8 @@ describe("DESIGN_SYSTEM.md caps policy — eyebrows are sentence case", () => {
     ["app/pal/pal.css", [".palEyebrow", ".palMemoryList__meta span"]],
     // Pub Pal chat's kicker is the shared Kicker primitive inside its Screen head.
     ["components/pal/palChat.css", [".palGlanceLabel"]],
-    ["app/messages/messages.css", [".messagesThreadEyebrow"]],
+    // The messages thread-pane eyebrow is gone (taste plan, 18 Oct 2026): the
+    // signed-out page is one empty state with no second "Messages" kicker.
     // The landing's labels are the shared Kicker primitive (components/ui/kicker.css).
     ["components/ui/kicker.css", [".kicker"]],
     ["components/plan/nightCrawl.css", [

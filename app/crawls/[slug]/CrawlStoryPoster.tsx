@@ -1,7 +1,10 @@
+import type { Route } from "next";
 import Link from "next/link";
 
 import CrawlStoryCopyButton from "@/components/crawl/CrawlStoryCopyButton";
 import CrawlStoryOwnerControls from "@/components/crawl/CrawlStoryOwnerControls";
+import PlacePhoto from "@/components/listing/PlacePhoto";
+import type { PlacePhoto as PlacePhotoData } from "@/components/listing/placePhotoRules";
 import ShareBar from "@/components/share/ShareBar";
 import Screen from "@/components/ui/screen";
 import { computeChaosScore } from "@/lib/chaosScore";
@@ -20,7 +23,7 @@ import { buildCrawlShareText } from "@/lib/shareArtifacts";
 // Plan the crawl back onto the map from its stop venue ids, the same share-URL
 // shape seedCrawlState reads (mode=build&pubs=id1,id2). Stops missing a venue
 // id just are not planned back.
-function crawlMapHref(story: DurableStory): string {
+function crawlMapHref(story: DurableStory): Route {
   const ids = story.stops.map((stop) => stop.venueId).filter(Boolean);
   if (ids.length === 0) return "/map";
   const params = new URLSearchParams();
@@ -46,7 +49,7 @@ function chaosScoreFor(story: DurableStory) {
 // Build a /api/chaos-card URL carrying the already-computed score, grade and
 // line so the OG image never has to recompute (and can never drift from what
 // is shown on the page).
-function chaosCardHref(story: DurableStory, chaos: ReturnType<typeof computeChaosScore>): string {
+function chaosCardHref(story: DurableStory, chaos: ReturnType<typeof computeChaosScore>): Route {
   const params = new URLSearchParams();
   params.set("title", story.title);
   params.set("score", String(chaos.score));
@@ -55,7 +58,20 @@ function chaosCardHref(story: DurableStory, chaos: ReturnType<typeof computeChao
   return `/api/chaos-card?${params.toString()}`;
 }
 
-export default function CrawlStoryPoster({ story, slug }: { story: DurableStory; slug: string }) {
+export default function CrawlStoryPoster({
+  story,
+  slug,
+  photo = null,
+}: {
+  story: DurableStory;
+  slug: string;
+  /**
+   * The patch the whole route sits in, when a photograph we hold is honestly
+   * of it (page.tsx resolves it). It leads the poster under the head,
+   * captioned with the place it shows; null shows none.
+   */
+  photo?: PlacePhotoData | null;
+}) {
   const total = story.totalGbp;
   const pricedStops = story.stops.filter((stop) => typeof stop.priceGbp === "number").length;
   const stopCount = story.stops.length;
@@ -64,7 +80,7 @@ export default function CrawlStoryPoster({ story, slug }: { story: DurableStory;
   const shareText = buildCrawlShareText({
     title: story.title,
     stopCount,
-    totalGbp: total,
+    totalGbp: pricedStops === stopCount ? total : null,
   });
 
   // Chaos Score + meme export (issue #30): computed once here so the on-page
@@ -106,6 +122,14 @@ export default function CrawlStoryPoster({ story, slug }: { story: DurableStory;
           </Link>
         }
       >
+        {photo ? (
+          <PlacePhoto
+            className="storyPhoto"
+            photo={photo}
+            sizes="(min-width: 720px) 40rem, calc(100vw - 2.75rem)"
+          />
+        ) : null}
+
         {story.vibeTags.length ? (
           <ul className="storyTags" aria-label="Crawl vibe tags">
             {story.vibeTags.map((tag) => (
@@ -137,12 +161,12 @@ export default function CrawlStoryPoster({ story, slug }: { story: DurableStory;
 
         <div className="storyReceipt" role="group" aria-label="Crawl total">
           <span>
-            Round total
+            {pricedStops === stopCount ? "Round total" : "Recorded subtotal"}
             <small>
               {pricedStops} of {stopCount} stop{stopCount === 1 ? "" : "s"} priced
             </small>
           </span>
-          <strong>{formatGbp(total)}</strong>
+          <strong>{pricedStops > 0 ? formatGbp(total) : "Prices unknown"}</strong>
         </div>
 
         {/* Chaos Score (issue #30): optional and playful; a crawl with zero

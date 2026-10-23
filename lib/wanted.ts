@@ -9,7 +9,7 @@ import { presentableDescription } from "@/lib/slopFilter";
 import { cleanText } from "@/lib/textClean";
 import { UK_BASE_ID_PREFIX } from "@/lib/ukBasePubs";
 
-const MAX_WANTED_NOTE = 140;
+export const MAX_WANTED_NOTE = 140;
 export const MAX_WANTED_RAW_PASTE = 500;
 const MAX_WANTED_SOURCE_URL = 2_000;
 const MAX_WANTED_VENUE_ID = 64;
@@ -187,7 +187,7 @@ export function validateWantedCreate(input: {
       ? input.ownerActor
       : "";
   if (!ownerActor) {
-    return { ok: false, error: "Sign in to save a Wanted place." };
+    return { ok: false, error: "Sign in to save a pub to try." };
   }
 
   const venueId = cleanText(input.venueId, MAX_WANTED_VENUE_ID);
@@ -268,11 +268,37 @@ export function validateWantedCreate(input: {
 /** Quiet fulfilment line for the UI — one honest sentence, no theatre. */
 export function wantedFulfilledLine(venueName: string): string {
   const name = cleanText(venueName, MAX_WANTED_VENUE_NAME) || "that pub";
-  return `Wanted, done: you made it to ${name}.`;
+  return `Ticked off: you made it to ${name}.`;
 }
 
 /** Honest label for a pending (unresolved) Wanted. */
 export function wantedPendingLabel(rawPaste: string): string {
   const paste = cleanText(rawPaste, 80) || "a place you pasted";
   return `Still matching: ${paste}`;
+}
+
+/**
+ * The link a Wanted row may be opened from, or null. A saved link is the
+ * owner's own provenance, written by the owner, so the list can open it. It
+ * still opens only when it is a plain http or https address with no embedded
+ * credentials, the same bar it passed at save, because a row read back from a
+ * store is not trusted to hold what was validated. Pure.
+ */
+export function wantedLinkHref(sourceUrl: unknown): string | null {
+  if (typeof sourceUrl !== "string" || !sourceUrl.trim()) return null;
+  try {
+    const parsed = new URL(sourceUrl.trim());
+    if (parsed.protocol !== "http:" && parsed.protocol !== "https:") return null;
+    if (parsed.username || parsed.password) return null;
+    return parsed.toString();
+  } catch {
+    return null;
+  }
+}
+
+/** The host a saved link lives on, for its label: "instagram.com", never the path. */
+export function wantedLinkHost(sourceUrl: unknown): string {
+  const href = wantedLinkHref(sourceUrl);
+  if (!href) return "";
+  return new URL(href).hostname.replace(/^www\./, "");
 }

@@ -7,12 +7,18 @@
 // Captain, after this file changes, re-run once. Do not do this from an agent:
 //   npm run pubpal:agent -- --base-url https://pubmaxxing.com
 //
-// So this script sets four things and nothing else:
+// This script sets six things:
 //
-//   1. the webhook tools plus the shared secret they present,
-//   2. no voice recording, and zero retention on the provider side,
+//   1. the webhook tools, the shared secret they present, and the speech
+//      around each call (a short checking line before the tool runs),
+//   2. no voice recording, and zero retention on the provider side, plus the
+//      client events voice and typed chat read,
 //   3. a default voice, when one is set, plus greeting and voice-id overrides,
-//   4. the house first message and the propose-then-confirm rule (ADR 0006).
+//   4. the house first message and the propose-then-confirm rule (ADR 0006),
+//   5. signed-URL authentication, so a conversation starts only with a URL the
+//      sign-in, the voice cap and the spend budget handed out,
+//   6. how the agent hears a person in a pub: patient turn-taking, speech kept
+//      during a proposal, and London pub words for the recogniser.
 //
 // Idempotent: with ELEVENLABS_PUB_PAL_AGENT_ID set it PATCHes that agent;
 // without one it looks for an agent of the same name before creating a new
@@ -21,6 +27,10 @@
 // Usage:
 //   node scripts/pubpal/create-elevenlabs-agent.mjs --base-url https://pubmaxxing.com
 //   node scripts/pubpal/create-elevenlabs-agent.mjs --dry-run
+//   node scripts/pubpal/create-elevenlabs-agent.mjs --check --base-url https://pubmaxxing.com
+//
+// --check only reads: it GETs the live agent and tools, compares them with what
+// a real run would write, and exits 1 on any drift. Safe from any session.
 //
 // Reads .env.local / .env if present, so a local run needs no exported shell
 // variables. See docs/PUB_PAL_SETUP.md.
@@ -30,8 +40,12 @@ import path from "node:path";
 import process from "node:process";
 import { fileURLToPath } from "node:url";
 
+import { PUB_PAL_MEMORY_KINDS } from "../../lib/palMemoryKinds.mjs";
 import { PAL_VOICE_MAX_SESSION_SECONDS } from "../../lib/palVoiceCap.mjs";
 import { pubPalAgentSystemPrompt } from "../../lib/palVoicePrompt.mjs";
+import { agentDrift, formatDrift } from "./agent-drift.mjs";
+import { resolveExistingTools } from "./existing-tools.mjs";
+import { privacyDeleteOnly } from "./privacy-delete-only.mjs";
 
 const SCRIPT_DIR = path.dirname(fileURLToPath(import.meta.url));
 const AGENT_CONFIG = JSON.parse(
@@ -45,10 +59,10 @@ const LLM_SECRET_NAME = "PUBMAXX_PUB_PAL_LLM_SECRET";
 const AGENT_NAME = "PUBMAXX Pub Pal";
 const MAX_SESSION_SECONDS = PAL_VOICE_MAX_SESSION_SECONDS;
 
-/** Short descriptions aligned with lib/ask/tools.ts allowlist. */
+/** Short descriptions aligned with lib/ask/tools.ts allowlist, plus the Pal-only memory tools. */
 const TOOL_DESCRIPTIONS = {
   search_venues:
-    "Rank listed pubs by mood, area, group size, and budget. Never invents venues.",
+    "Find one to six listed pubs by mood, area, group size, and budget. Pass the requested result count as limit. Never invent venues.",
   whats_on:
     "Look up sourced What's On listings (quiz, sport, deals) for tonight or a weekday.",
   venue_heritage:
@@ -65,13 +79,17 @@ const TOOL_DESCRIPTIONS = {
   cheapest_pint_near:
     "Cheapest listed pints around a named pub or London area. Never uses the reader's GPS.",
   tonight_now:
-    "Sourced listings running now versus later tonight. Never claims live crowd levels.",
+    "Use only for explicit questions about sourced events or listings running now, tonight, or later, or how busy a pub or area is. Do not use for greetings or message labels. For crowd questions, explain that no live crowd reading exists. Never claim live crowd levels.",
   venue_drinks:
     "Every drink logged at one listed pub with provenance. Never invents figures.",
   find_desk:
     "Places to sit and work from cafe, co-working and library rows only.",
   report_occupancy:
     "Propose a crowd report for a pub. Writes nothing until the reader confirms.",
+  recall_memories:
+    "On the first substantive request, read confirmed preferences and past-night reports before a factual tool unless the message already supplies them. Do not use for greetings or thanks alone. Read-only. Never facts about a pub.",
+  propose_memory:
+    "Propose one lasting preference or explicitly reported past-night outcome for the Pal to remember in typed or voice chat. Saves nothing until the person confirms the card in the app.",
 };
 
 function loadDotEnv() {
@@ -130,6 +148,22 @@ const TOOL_WEBHOOK_BODY_PROPERTIES = {
   search_venues: {
     conversation_id: conversationIdProperty(),
     query: { type: "string", description: "The venue search ask." },
+    limit: { type: "number", description: "Number of pub recommendations requested, from 1 to 6. This is not the number of people. Use 4 when no result count is requested." },
+  },
+  recall_memories: {
+    conversation_id: conversationIdProperty(),
+  },
+  propose_memory: {
+    conversation_id: conversationIdProperty(),
+    kind: {
+      type: "string",
+      enum: [...PUB_PAL_MEMORY_KINDS],
+      description: "The preference kind, or night_outcome for an explicit past-night report.",
+    },
+    value: {
+      type: "string",
+      description: "The preference or past-night report in the person's own words, one short line. Preserve any stated pub, date and spend. Never infer expenditure from a price observation.",
+    },
   },
 };
 
@@ -141,6 +175,109 @@ const DEFAULT_WEBHOOK_BODY_PROPERTIES = {
   },
 };
 
+// Events the agent sends to a client. The voice session needs the first
+// seven. Typed chat needs the tool events and agent_response_complete to tell
+// a checking line from the answer. A PATCH replaces the whole list, so an
+// update keeps whatever the agent already sends.
+const CLIENT_EVENTS = [
+  "conversation_initiation_metadata",
+  "ping",
+  "audio",
+  "interruption",
+  "user_transcript",
+  // The voice panel prints the words as they are heard (lib/palVoiceTranscript.ts).
+  "tentative_user_transcript",
+  "agent_response",
+  "agent_response_correction",
+  "agent_tool_request",
+  "agent_tool_response",
+  "agent_tool_response_full_payload",
+  "agent_response_complete",
+];
+
+// How the agent hears a person. The provider's defaults are tuned for a quick
+// phone line; a pub is loud and people pause mid-sentence ("somewhere in...
+// Soho"). Left at the defaults, the agent took the turn at that pause, so the
+// rest of the sentence arrived as a talk-over and the answer was to half of it.
+//
+// - `turn_eagerness: "patient"` waits longer at a pause before it answers.
+// - `transcribe_on_disabled_interruptions: true` keeps what the person says
+//   while a confirm proposal plays. The four confirm tools disable talk-over
+//   for their whole turn (ADR 0006), and without this flag every word spoken
+//   in that turn was dropped, not carried into the next one.
+// - `keywords` bias the recogniser to the names a London night uses. Only
+//   words that are hard to hear and common in asks go here, not a gazetteer.
+// - `quality` and `user_input_audio_format` restate the provider's defaults,
+//   so `--check` reports a dashboard change that would make the Pal hear worse.
+const PAL_TURN_CONFIG = {
+  turn_eagerness: "patient",
+  transcribe_on_disabled_interruptions: true,
+};
+
+const PAL_ASR_KEYWORDS = [
+  "PUBMAXX",
+  "Pub Pal",
+  "pint",
+  "Guinness",
+  "Spoons",
+  "Wetherspoons",
+  "Sam Smith's",
+  "Fuller's",
+  "Young's",
+  "Greene King",
+  "real ale",
+  "cask",
+  "pub crawl",
+  "last train",
+  "night bus",
+  "Soho",
+  "Camden",
+  "Shoreditch",
+  "Clerkenwell",
+  "Fitzrovia",
+  "Covent Garden",
+  "Borough",
+  "Bermondsey",
+  "Peckham",
+  "Brixton",
+  "Hackney",
+  "Dalston",
+  "Islington",
+  "Marylebone",
+];
+
+const PAL_ASR_CONFIG = {
+  quality: "high",
+  user_input_audio_format: "pcm_16000",
+  keywords: PAL_ASR_KEYWORDS,
+};
+
+function clientEvents(existing) {
+  return [...new Set([...(Array.isArray(existing) ? existing : []), ...CLIENT_EVENTS])];
+}
+
+// Tools that end in a confirm proposal. The person may not talk over the
+// proposal, or they miss what they are asked to confirm (ADR 0006).
+const CONFIRM_PROPOSAL_TOOLS = new Set([
+  "propose_plan",
+  "propose_map_action",
+  "report_occupancy",
+  "propose_memory",
+]);
+
+// Speech around a tool call. "force" makes the agent say its one short
+// checking sentence before every tool runs, so the first audio does not wait
+// for the tool. "auto" only speaks once the provider has seen a slow tool, so
+// the first slow answer of a call was silent. "immediate" runs the tool while
+// that sentence plays.
+function toolSpeechConfig(name) {
+  return {
+    pre_tool_speech: "force",
+    execution_mode: "immediate",
+    interruption_mode: CONFIRM_PROPOSAL_TOOLS.has(name) ? "disable_during_tool_and_turn" : "allow",
+  };
+}
+
 function webhookToolConfig(name, baseUrl, secretId) {
   const description = TOOL_DESCRIPTIONS[name] ?? "PUBMAXX grounded tool.";
   return {
@@ -148,6 +285,7 @@ function webhookToolConfig(name, baseUrl, secretId) {
     name,
     description,
     response_timeout_secs: 28,
+    ...toolSpeechConfig(name),
     api_schema: {
       url: `${baseUrl}/api/pub-pal/tools/${name}`,
       method: "POST",
@@ -166,19 +304,21 @@ function webhookToolConfig(name, baseUrl, secretId) {
 
 async function listWorkspaceTools(apiKey) {
   const listed = await call("GET", `${TOOLS_API}?page_size=100`, apiKey);
+  if (listed.has_more) fail("Workspace tool list is incomplete. Refusing tool resolution before any update.");
   return Array.isArray(listed.tools) ? listed.tools : [];
 }
 
-async function ensureWebhookTools(apiKey, baseUrl, secretId, dryRun) {
-  const names = AGENT_CONFIG.toolNames ?? [];
-  if (dryRun) {
-    return names.map((name) => `dry-run-tool:${name}`);
-  }
-  const existing = await listWorkspaceTools(apiKey);
+function wantedWebhookTools(baseUrl, secretId) {
+  return Object.fromEntries(
+    (AGENT_CONFIG.toolNames ?? []).map((name) => [name, webhookToolConfig(name, baseUrl, secretId)]),
+  );
+}
+
+async function ensureWebhookTools(apiKey, wantedTools, resolvedTools) {
   const ids = [];
-  for (const name of names) {
-    const hit = existing.find((row) => row?.tool_config?.name === name);
-    const payload = { tool_config: webhookToolConfig(name, baseUrl, secretId) };
+  for (const [name, tool_config] of Object.entries(wantedTools)) {
+    const hit = resolvedTools[name];
+    const payload = { tool_config };
     if (hit?.id) {
       await call("PATCH", `${TOOLS_API}/${hit.id}`, apiKey, payload);
       ids.push(hit.id);
@@ -204,6 +344,7 @@ function agentBody(toolIds) {
         prompt: {
           prompt: systemPrompt(),
           llm: AGENT_CONFIG.llm,
+          reasoning_effort: AGENT_CONFIG.reasoning_effort,
           tool_ids: toolIds,
         },
         first_message: "Hello, I'm your Pub Pal. What kind of night are you planning?",
@@ -211,10 +352,18 @@ function agentBody(toolIds) {
       },
       conversation: {
         max_duration_seconds: MAX_SESSION_SECONDS,
+        client_events: clientEvents(),
       },
+      asr: structuredClone(PAL_ASR_CONFIG),
+      turn: { ...PAL_TURN_CONFIG },
       ...(defaultVoice ? { tts: { voice_id: defaultVoice } } : {}),
     },
     platform_settings: {
+      // Without this the agent id alone starts a conversation, and the agent id
+      // is a query parameter in every signed URL the app hands out.
+      // ElevenLabs treats signed URLs and an allowlist as exclusive methods, so
+      // the empty allowlist replaces any hostname list the agent kept.
+      auth: { enable_auth: true, allowlist: [] },
       overrides: {
         conversation_config_override: {
           agent: {
@@ -222,6 +371,8 @@ function agentBody(toolIds) {
             first_message: true,
           },
           tts: { voice_id: true },
+          // Typed chat starts the same agent in text-only mode.
+          conversation: { text_only: true },
         },
       },
       privacy: {
@@ -324,6 +475,7 @@ function mergeAgentPatch(existingAgent, body) {
     platform_settings: {
       ...existingAgent.platform_settings,
       ...body.platform_settings,
+      auth: { ...existingAgent.platform_settings?.auth, ...body.platform_settings.auth },
       overrides: {
         ...existingAgent.platform_settings?.overrides,
         ...body.platform_settings.overrides,
@@ -336,6 +488,38 @@ function mergeAgentPatch(existingAgent, body) {
   };
 }
 
+/** The PATCH a run sends to an existing agent: the live agent with this repo's fields laid over it. */
+function agentPatch(currentAgent, toolIds) {
+  const { body } = agentBody(toolIds);
+  const conversationConfig = structuredClone(currentAgent.conversation_config ?? {});
+  conversationConfig.agent = {
+    ...(conversationConfig.agent ?? {}),
+    prompt: {
+      ...(conversationConfig.agent?.prompt ?? {}),
+      ...body.conversation_config.agent.prompt,
+      custom_llm: null,
+    },
+    first_message:
+      conversationConfig.agent?.first_message ??
+      "Hello, I'm your Pub Pal. What kind of night are you planning?",
+    language: conversationConfig.agent?.language ?? "en",
+  };
+  delete conversationConfig.agent.prompt.custom_llm;
+  delete conversationConfig.agent.prompt.tools;
+  conversationConfig.conversation = {
+    ...(conversationConfig.conversation ?? {}),
+    max_duration_seconds: MAX_SESSION_SECONDS,
+    client_events: clientEvents(conversationConfig.conversation?.client_events),
+  };
+  // Laid over the live sections, so a dashboard-only setting there is kept.
+  conversationConfig.asr = { ...(conversationConfig.asr ?? {}), ...structuredClone(PAL_ASR_CONFIG) };
+  conversationConfig.turn = { ...(conversationConfig.turn ?? {}), ...PAL_TURN_CONFIG };
+  return mergeAgentPatch(currentAgent, {
+    ...body,
+    conversation_config: conversationConfig,
+  });
+}
+
 async function findAgentByName(apiKey) {
   const listed = await call("GET", `${API}/agents?page_size=100`, apiKey);
   const rows = Array.isArray(listed.agents) ? listed.agents : [];
@@ -343,28 +527,76 @@ async function findAgentByName(apiKey) {
   return hit?.agent_id ?? null;
 }
 
+/** Read-only: GETs only, so it cannot change the live agent. Exits 1 on drift. */
+async function checkAgent(apiKey, baseUrl) {
+  const agentId = process.env.ELEVENLABS_PUB_PAL_AGENT_ID?.trim() || (await findAgentByName(apiKey));
+  if (!agentId) fail(`No agent named ${AGENT_NAME} and ELEVENLABS_PUB_PAL_AGENT_ID is not set.`);
+  const liveAgent = await call("GET", `${API}/agents/${agentId}`, apiKey);
+  const liveTools = await listWorkspaceTools(apiKey);
+  const secrets = await call("GET", SECRETS_API, apiKey);
+  const secretId =
+    (Array.isArray(secrets.secrets) ? secrets.secrets : []).find((row) => row?.name === LLM_SECRET_NAME)
+      ?.secret_id ?? null;
+  const wantedTools = wantedWebhookTools(baseUrl, "unused");
+  const resolvedTools = resolveExistingTools(liveTools, liveAgent.conversation_config?.agent?.prompt?.tool_ids, wantedTools);
+  const liveToolIds = Object.values(resolvedTools)
+    .map((row) => row?.id)
+    .filter(Boolean);
+  const drifts = agentDrift({
+    liveAgent,
+    liveTools,
+    wantedAgent: agentPatch(liveAgent, liveToolIds),
+    wantedTools,
+    secret: { name: LLM_SECRET_NAME, id: secretId },
+  });
+  console.log(`Checked agent ${agentId} against this repo's config (read-only).`);
+  if (drifts.length === 0) {
+    console.log("✓ The live agent matches.");
+    return;
+  }
+  for (const drift of drifts) console.log(formatDrift(drift));
+  console.log(
+    `\n✗ ${drifts.length} difference${drifts.length === 1 ? "" : "s"}. The captain re-runs: npm run pubpal:agent -- --base-url ${baseUrl}`,
+  );
+  process.exit(1);
+}
+
 async function main() {
+  if (process.argv.includes("--privacy-delete-only")) {
+    if (process.argv.includes("--check") || process.argv.includes("--dry-run")) {
+      fail("--privacy-delete-only cannot be combined with --check or --dry-run.");
+    }
+    await privacyDeleteOnly({
+      agentId: arg("agent-id"),
+      branchId: arg("branch-id"),
+      attestationFile: arg("privacy-attestation"),
+      apiKey: process.env.ELEVENLABS_API_KEY?.trim(),
+    });
+    return;
+  }
   loadDotEnv();
 
   const dryRun = process.argv.includes("--dry-run");
+  const check = process.argv.includes("--check");
   const apiKey = process.env.ELEVENLABS_API_KEY?.trim();
   const secret = process.env.ELEVENLABS_LLM_SHARED_SECRET?.trim();
   const baseUrl = (arg("base-url", process.env.PUBMAX_BASE_URL ?? "")).trim().replace(/\/+$/, "");
 
   if (!dryRun && !apiKey) fail("ELEVENLABS_API_KEY is not set. See docs/PUB_PAL_SETUP.md.");
-  if (!secret) fail("ELEVENLABS_LLM_SHARED_SECRET is not set. Generate one: openssl rand -hex 32");
+  if (!secret && !check) fail("ELEVENLABS_LLM_SHARED_SECRET is not set. Generate one: openssl rand -hex 32");
   if (!baseUrl) fail("Pass --base-url https://your-deployment (or set PUBMAX_BASE_URL).");
   if (!/^https:\/\//.test(baseUrl) && !/^http:\/\/localhost/.test(baseUrl)) {
     fail(`--base-url must be https (or http://localhost for a tunnel test). Got: ${baseUrl}`);
   }
 
-  const secretId = dryRun
-    ? "dry-run-secret-locator"
-    : await ensureWorkspaceLlmSecret(apiKey, secret);
-  const toolIds = await ensureWebhookTools(apiKey, baseUrl, secretId, dryRun);
-  const { body, defaultVoice } = agentBody(toolIds);
+  if (check) {
+    await checkAgent(apiKey, baseUrl);
+    return;
+  }
 
   if (dryRun) {
+    const toolIds = (AGENT_CONFIG.toolNames ?? []).map((name) => `dry-run-tool:${name}`);
+    const { body, defaultVoice } = agentBody(toolIds);
     console.log(
       "Dry run. This is the agent that would be written (secrets and tool ids held back):\n",
     );
@@ -375,35 +607,16 @@ async function main() {
   }
 
   const existing = process.env.ELEVENLABS_PUB_PAL_AGENT_ID?.trim() || (await findAgentByName(apiKey));
+  const currentAgent = existing ? await call("GET", `${API}/agents/${existing}`, apiKey) : null;
+  const liveTools = await listWorkspaceTools(apiKey);
+  // Resolve every identity before the first secret, tool or agent write.
+  const resolvedTools = resolveExistingTools(liveTools, currentAgent?.conversation_config?.agent?.prompt?.tool_ids, wantedWebhookTools(baseUrl, "unused"));
+  const secretId = await ensureWorkspaceLlmSecret(apiKey, secret);
+  const toolIds = await ensureWebhookTools(apiKey, wantedWebhookTools(baseUrl, secretId), resolvedTools);
+  const { body, defaultVoice } = agentBody(toolIds);
 
   if (existing) {
-    const currentAgent = await call("GET", `${API}/agents/${existing}`, apiKey);
-    const conversationConfig = structuredClone(currentAgent.conversation_config ?? {});
-    conversationConfig.agent = {
-      ...(conversationConfig.agent ?? {}),
-      prompt: {
-        ...(conversationConfig.agent?.prompt ?? {}),
-        prompt: systemPrompt(),
-        llm: AGENT_CONFIG.llm,
-        custom_llm: null,
-        tool_ids: toolIds,
-      },
-      first_message:
-        conversationConfig.agent?.first_message ??
-        "Hello, I'm your Pub Pal. What kind of night are you planning?",
-      language: conversationConfig.agent?.language ?? "en",
-    };
-    delete conversationConfig.agent.prompt.custom_llm;
-    delete conversationConfig.agent.prompt.tools;
-    conversationConfig.conversation = {
-      ...(conversationConfig.conversation ?? {}),
-      max_duration_seconds: MAX_SESSION_SECONDS,
-    };
-    const patchBody = mergeAgentPatch(currentAgent, {
-      ...body,
-      conversation_config: conversationConfig,
-    });
-    await call("PATCH", `${API}/agents/${existing}`, apiKey, patchBody);
+    await call("PATCH", `${API}/agents/${existing}`, apiKey, agentPatch(currentAgent, toolIds));
     console.log(`✓ Updated agent ${existing}`);
     console.log(`  LLM: ${AGENT_CONFIG.llm}`);
     console.log(`  Webhook tools: ${toolIds.length}`);

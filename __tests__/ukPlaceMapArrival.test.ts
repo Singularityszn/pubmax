@@ -5,7 +5,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 
 import UkPlaceArrivalBanner from "@/components/map/UkPlaceArrivalBanner";
-import { UK_BASE_MIN_ZOOM } from "@/components/map/canvas/buildScene";
+import { PIN_MIN_ZOOM as UK_BASE_MIN_ZOOM } from "@/components/map/canvas/buildScene";
 import { mergeCrawlUrlSearch } from "@/components/map/useCrawlUrl";
 import { CITIES } from "@/lib/cities";
 import {

@@ -49,11 +49,9 @@ function collectSamePubCandidatePairs(
 ): Array<[VenueGroup, VenueGroup]> {
   const pairs: Array<[VenueGroup, VenueGroup]> = [];
   const seen = new Set<string>();
-  for (let i = 0; i < groupList.length; i += 1) {
-    const a = groupList[i];
+  for (const [i, a] of groupList.entries()) {
     if (!Number.isFinite(a.lat) || !Number.isFinite(a.lng)) continue;
-    for (let j = i + 1; j < groupList.length; j += 1) {
-      const b = groupList[j];
+    for (const b of groupList.slice(i + 1)) {
       if (
         !cheapSamePubCandidate(
           { lat: a.lat, lng: a.lng, address: a.address, normName: a.normName },

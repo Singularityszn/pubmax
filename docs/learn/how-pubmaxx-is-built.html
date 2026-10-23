@@ -458,16 +458,16 @@ The brief referenced an "<b>eager-KB</b> CI gate," "<b>Lighthouse</b> as a CI ga
 <h3>One strategy per asset class</h3>
 <table>
   <tr><th>Asset class</th><th>Strategy</th><th>Why</th></tr>
-  <tr><td>Static <code>/data/*.json</code> (pin index, dataset, POIs)</td><td><b>Cache-first + background revalidate</b></td><td>Effectively static between deploys; instant on repeat, quietly refreshed</td></tr>
-  <tr><td><code>/data/price_updates/*.json</code></td><td><b>Network-first</b> (fall back to cache)</td><td>A price refresh must not be trapped behind a stale SW cache</td></tr>
-  <tr><td>Map tiles + <code>/_next/static/*</code></td><td><b>Stale-while-revalidate</b>, FIFO-capped at 200 entries</td><td>Hashed/immutable-ish; unbounded growth over a long session must be trimmed</td></tr>
-  <tr><td>Navigations (HTML)</td><td><b>Network-first</b> → cached page → cached <code>/</code> → <code>/offline.html</code></td><td>Never serve stale HTML; degrade gracefully when the signal dies (pub cellars!)</td></tr>
+  <tr><td>Static <code>/data/*.json</code> (pin index, dataset, POIs)</td><td><b>Stale-while-revalidate</b></td><td>Repeat visits reuse cached data while the worker requests a fresh copy</td></tr>
+  <tr><td>Price-update JSON under <code>/data/</code></td><td><b>Network-first</b> (fall back to cache)</td><td>A price refresh must not be trapped behind a stale SW cache</td></tr>
+  <tr><td>Map tiles + <code>/_next/static/*</code></td><td><b>Stale-while-revalidate</b>. <a href="../../public/sw.js">The worker owns the limits for each asset class</a>.</td><td>Unbounded growth over a long session must be trimmed</td></tr>
+  <tr><td>Navigations (HTML)</td><td><b>Network-first</b>. <a href="../../public/sw.js">The worker owns fallback eligibility</a>.</td><td>A cached fallback must preserve Plan privacy when the signal fails</td></tr>
   <tr><td><code>/api/*</code> (GET or non-GET)</td><td><b>Never intercepted</b> (network-only)</td><td>Live-or-absent is the honesty rule; a stale train time is a lie</td></tr>
 </table>
-<p>Study why <em>price_updates</em> is the one <code>/data</code> exception: everything else under <code>/data</code> is cache-first because it changes only on deploy, but a price refresh can land <em>between</em> deploys, so it gets network-first. That single carve-out is the whole discipline in miniature — <b>the policy follows the data's actual change frequency, not the directory it happens to live in.</b></p>
+<p>Price-update JSON uses the network first because a price refresh can arrive between deploys. The worker's fetch handler owns the affected paths. <b>The policy follows how often the data changes.</b></p>
 
 <h4>Cache versioning: how a deploy preserves a returning user's offline state</h4>
-<p>The service worker's caches are namespaced by a <b>per-build version</b>. Activation preserves usable offline entries and retires a superseded cache only when its contents are safely covered. Cache maintenance is best-effort and never shares the promise that delivers a successful network response. Normal write-safe updates still wait for existing tabs; immediate takeover is reserved for replacing the known cache-write-coupled policy. <a href="../../public/sw.js"><span class="path">public/sw.js</span></a> owns the exact migration rules, while <a href="../evidence/map-blank-basemap/README.md"><span class="path">docs/evidence/map-blank-basemap/README.md</span></a> records the storage-pressure reproduction and verification.</p>
+<p>The service worker's caches are namespaced by a <b>per-build version</b>. <a href="../../public/sw.js"><span class="path">public/sw.js</span></a> owns activation, cache migration and update takeover. The header in <a href="../../public/sw-plan-cache.js"><span class="path">public/sw-plan-cache.js</span></a> documents Plan preview eligibility and cache retirement. Cache maintenance is best-effort and never shares the promise that delivers a successful network response. <a href="../evidence/map-blank-basemap/README.md"><span class="path">docs/evidence/map-blank-basemap/README.md</span></a> records the storage-pressure reproduction and verification.</p>
 
 <h3>CDN &amp; HTTP headers: the year-long edge, the modest browser</h3>
 <p>The static dataset is ~6&nbsp;MB and lives at fixed, unhashed URLs, so it <em>can't</em> carry an <code>immutable</code> cache-buster. The header in <span class="path">next.config.mjs</span> threads that needle precisely:</p>

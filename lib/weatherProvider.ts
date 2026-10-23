@@ -41,8 +41,15 @@ export type WeatherFetch = (url: string) => Promise<{
   json: () => Promise<unknown>;
 }>;
 
+// One hung area must not hold the whole batch past the cron's time limit, so
+// each area's read gives up on its own and `Promise.allSettled` moves on.
+export const WEATHER_FETCH_TIMEOUT_MS = 8_000;
+
 const defaultFetch: WeatherFetch = (url) =>
-  fetch(url, { headers: { accept: "application/json", "user-agent": "PUBMAXX-weather-cron/1" } });
+  fetch(url, {
+    headers: { accept: "application/json", "user-agent": "PUBMAXX-weather-cron/1" },
+    signal: AbortSignal.timeout(WEATHER_FETCH_TIMEOUT_MS),
+  });
 
 function openMeteoUrl(lat: number, lng: number): string {
   const url = new URL("https://api.open-meteo.com/v1/forecast");
@@ -113,8 +120,9 @@ export async function fetchNightAreaObservations(
   );
   const observations: NightAreaWeatherObservation[] = [];
   const skipped: LondonNightAreaSlug[] = [];
-  settled.forEach((outcome, index) => {
-    const slug = LONDON_NIGHT_AREA_SLUGS[index];
+  LONDON_NIGHT_AREA_SLUGS.forEach((slug, index) => {
+    const outcome = settled[index];
+    if (!outcome) return;
     if (outcome.status === "fulfilled" && outcome.value) {
       observations.push(outcome.value);
     } else {

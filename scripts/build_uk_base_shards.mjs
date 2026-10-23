@@ -3,6 +3,13 @@
 // `amenity=bar` (the `bar` kind of data/osm/uk/uk_osm_venues_drink.json,
 // see data/osm/uk/VENUES.md for what earns a row in each).
 //
+// An UNNAMED pub (an `amenity=pub` OSM maps with a position and no name tag,
+// data/osm/uk/uk_osm_unnamed_pubs.json) is a six-element row whose name is "".
+// The client draws it as a bare "Pub" pin at street zoom only and keeps it out
+// of search, lists and plans (lib/ukBasePubs.ts). Its id is still
+// `venue-uk-<osm ref>`, so a save or a price attaches to it like to any other
+// base pub.
+//
 // A bar row carries "bar" as a seventh tuple element. A pub row carries six
 // elements exactly as before, so folding bars in leaves every pub row's bytes
 // untouched and no reader has to be taught a new shape to keep working.
@@ -19,13 +26,25 @@
 // DEDUPE. A matched pub stays in its shard with the owning curated venue id.
 // The client suppresses it only while that exact curated venue is drawable.
 //
-// Ownership is answered twice, in this order. First the `curatedRef` the UK
-// seed pack carries, which is the only key that can reconcile datasets with no
-// OSM ids at all (curated London) or two OSM objects for one pub. Then, for a
-// city pack PROMOTED out of this same base layer, the pub's own OSM id — an
+// Ownership is answered three times, in this order. First the `curatedRef` the
+// UK seed pack carries, which is the only key that can reconcile datasets with
+// no OSM ids at all (curated London) or two OSM objects for one pub. Then, for
+// a city pack PROMOTED out of this same base layer, the pub's own OSM id — an
 // exact identity, and the one that lets a new area ship without refetching the
-// country to re-annotate it. Nothing is removed from the base layer either
-// way, so a `venue-uk-…` id stays resolvable.
+// country to re-annotate it. Last, a curated London venue within 45 m whose
+// name is the pub's spelt another way ("&" for "and", "Public House", "The",
+// an apostrophe), which the seed's exact-name `curatedRef` misses
+// (`nearNameOwnerIndex` in lib/outerLondonOwnership.mjs). Nothing is removed
+// from the base layer either way, so a `venue-uk-…` id stays resolvable.
+//
+// REMOVAL. A refresh that drops an OSM object drops its `venue-uk-…` id. Each
+// build compares the rows it publishes with the rows already published and
+// records every dropped id in public/data/uk_base_venue_id_aliases.json: the
+// same pub's new id, the still-listed curated venue that owned the row, or a
+// retired record (scripts/lib/ukBaseVenueIdAliases.mjs). The record is planned
+// before anything is published, so a dropped id left resolving to nothing, or
+// an alias file that cannot be read, fails the build with the previous shards
+// still in place.
 //
 // PRICES. None. OSM is not a price source (data/osm/uk/README.md). A base pub
 // has no price by construction; it is the canvas the community prices in.
@@ -44,14 +63,21 @@ import {
   cellKey,
   cellBbox,
 } from "./lib/ukBaseGrid.mjs";
-import { outerLondonOwnerForPub } from "../lib/outerLondonOwnership.mjs";
+import { readPromotionLedger } from "./lib/londonOsmPromotion.mjs";
+import { nearNameOwnerIndex, outerLondonOwnerForPub } from "../lib/outerLondonOwnership.mjs";
+import { stableVenueIdFromKey, venueGroupingKey } from "./lib/venueCanonicalization.mjs";
 import { publishStagedDirectory } from "./lib/atomicDirectoryPublish.mjs";
+import {
+  planUkBaseVenueIdAliases,
+  publishUkBaseWithAliases,
+} from "./lib/ukBaseVenueIdAliases.mjs";
 import { cityVenueIdForPub } from "./build_city_slim_index.mjs";
 import { CITIES } from "./fetch_city_osm_pubs.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, "..");
 const PACK_PATH = path.join(ROOT, "data", "osm", "uk", "uk_osm_pubs.json");
+const UNNAMED_PACK_PATH = path.join(ROOT, "data", "osm", "uk", "uk_osm_unnamed_pubs.json");
 const DRINK_PACK_PATH = path.join(
   ROOT,
   "data",
@@ -61,7 +87,10 @@ const DRINK_PACK_PATH = path.join(
 );
 const OUT_DIR = path.join(ROOT, "public", "data", SHARD_DIR_NAME);
 const LONDON_SLIM_PATH = path.join(ROOT, "public", "data", "venues_slim.json");
+const LONDON_VENUE_ALIASES_PATH = path.join(ROOT, "public", "data", "venue_id_aliases.json");
+const LONDON_DATASET_PATH = path.join(ROOT, "public", "data", "pint_prices_app_dataset.json");
 const OUTER_LONDON_PATH = path.join(ROOT, "data", "osm", "outer_london_osm_pubs.json");
+const LONDON_PROMOTION_LEDGER_PATH = path.join(ROOT, "data", "london_osm_promotion", "ledger.json");
 
 // Per-shard ceiling. A cell is one viewport-triggered fetch, so a fat cell is
 // felt directly as a stall while panning. The densest cell today (central
@@ -96,14 +125,24 @@ function round5(value) {
   return Math.round(value * 1e5) / 1e5;
 }
 
-function isRenderablePub(pub) {
+function hasPosition(pub) {
   return (
-    typeof pub?.name === "string" &&
-    pub.name.trim().length > 0 &&
     Number.isFinite(pub?.lat) &&
     Number.isFinite(pub?.lng) &&
     compactOsmRef(pub?.osmId) !== ""
   );
+}
+
+function isRenderablePub(pub) {
+  return (
+    typeof pub?.name === "string" && pub.name.trim().length > 0 && hasPosition(pub)
+  );
+}
+
+/** An unnamed pub is renderable on position alone; it must carry no name. */
+function isRenderableUnnamedPub(pub) {
+  const named = typeof pub?.name === "string" && pub.name.trim().length > 0;
+  return !named && hasPosition(pub);
 }
 
 /**
@@ -113,7 +152,7 @@ function isRenderablePub(pub) {
 function toRow(pub, curatedVenueId, kind = "pub") {
   const row = [
     compactOsmRef(pub.osmId),
-    pub.name.trim(),
+    typeof pub.name === "string" ? pub.name.trim() : "",
     typeof pub.address === "string" ? pub.address.trim() : "",
     round5(pub.lat),
     round5(pub.lng),
@@ -146,14 +185,46 @@ async function loadCuratedVenueOwners() {
   for (const venue of londonVenues) {
     owners.set(ownerKey("curated-london-slim", venue.id), venue.id);
   }
+  // canonicalize:venues merges duplicate curated records and keeps the old id
+  // as an alias. A pub annotated with the merged-away id is owned by the venue
+  // that kept it, or it would draw a second pin beside that venue.
+  const venueAliases =
+    JSON.parse(await readFile(LONDON_VENUE_ALIASES_PATH, "utf8")).aliases ?? {};
+  const drawable = new Set(londonVenues.map((venue) => venue.id));
+  for (const [from, to] of Object.entries(venueAliases)) {
+    if (drawable.has(to)) owners.set(ownerKey("curated-london-slim", from), to);
+  }
   curatedVenues.push(...londonVenues);
 
   const outerPack = JSON.parse(await readFile(OUTER_LONDON_PATH, "utf8"));
   for (const pub of Array.isArray(outerPack?.pubs) ? outerPack.pubs : []) {
-    const venueId = outerLondonOwnerForPub(pub, londonVenues) ?? "";
+    const venueId = outerLondonOwnerForPub(pub, londonVenues, venueAliases) ?? "";
     if (venueId) {
       owners.set(ownerKey("outer-london-osm-seed", pub.osmId), venueId);
     }
+  }
+
+  // Pubs promoted out of this same base layer into the London index
+  // (scripts/promote_london_osm_pubs.mjs) are owned by their own OSM id, the
+  // exact identity, so the seed pack never has to be re-annotated or refetched
+  // to stop a promoted pub drawing twice. The curated row is found by the same
+  // name-and-distance rule the outer-London seed uses, after the dataset row
+  // the promotion wrote (`appPriceId`): canonicalize:venues may since have
+  // merged that row into a venue with another name, and the row follows it.
+  const venueIdByAppPriceId = new Map(
+    JSON.parse(await readFile(LONDON_DATASET_PATH, "utf8")).map((row) => [
+      row.app_price_id,
+      stableVenueIdFromKey(venueGroupingKey(row)),
+    ]),
+  );
+  const ledger = await readPromotionLedger(LONDON_PROMOTION_LEDGER_PATH);
+  for (const entry of Array.isArray(ledger?.promotions) ? ledger.promotions : []) {
+    const rowVenueId = venueIdByAppPriceId.get(entry.appPriceId);
+    const venueId =
+      (rowVenueId && drawable.has(rowVenueId) ? rowVenueId : null) ??
+      outerLondonOwnerForPub(entry, londonVenues, venueAliases) ??
+      "";
+    if (venueId) ownersByOsmId.set(String(entry.osmId), venueId);
   }
 
   for (const [cityId, city] of Object.entries(CITIES)) {
@@ -187,7 +258,7 @@ async function loadCuratedVenueOwners() {
     }
   }
 
-  return { owners, ownersByOsmId, curatedVenues };
+  return { owners, ownersByOsmId, curatedVenues, londonVenues };
 }
 
 /**
@@ -231,6 +302,26 @@ function splitCell(cell) {
   return [...parts.values()];
 }
 
+/**
+ * Every row of the generation already published, or null when none is (a
+ * fresh checkout before the first build).
+ */
+async function readPublishedRows() {
+  let manifest;
+  try {
+    manifest = JSON.parse(await readFile(path.join(OUT_DIR, "manifest.json"), "utf8"));
+  } catch (error) {
+    if (error?.code === "ENOENT") return null;
+    throw error;
+  }
+  const rows = [];
+  for (const shard of manifest.shards) {
+    const file = path.join(ROOT, "public", `${manifest.urlPrefix}${shard.id}.json`);
+    rows.push(...JSON.parse(await readFile(file, "utf8")).pubs);
+  }
+  return rows;
+}
+
 function formatBytes(bytes) {
   return `${(bytes / 1024).toFixed(1)} KB`;
 }
@@ -256,12 +347,28 @@ async function main() {
     );
   }
 
-  const { owners: curatedVenueOwners, ownersByOsmId, curatedVenues } =
+  const { owners: curatedVenueOwners, ownersByOsmId, curatedVenues, londonVenues } =
     await loadCuratedVenueOwners();
+  const nearNameLondonOwner = nearNameOwnerIndex(londonVenues);
   const renderable = pubs.filter(isRenderablePub);
+  // A pub OSM maps with no name, from its own pack. The pack is required: a
+  // missing one would quietly drop every unnamed pin from the next publish.
+  const unnamedPack = JSON.parse(await readFile(UNNAMED_PACK_PATH, "utf8"));
+  const unnamedPubs = Array.isArray(unnamedPack?.pubs) ? unnamedPack.pubs : [];
+  if (unnamedPubs.length === 0) {
+    throw new Error(
+      `${UNNAMED_PACK_PATH} has no pubs — refresh it with npm run fetch:uk-pubs`,
+    );
+  }
+  const renderableUnnamed = unnamedPubs.filter(
+    (pub) => isRenderableUnnamedPub(pub) && !pubOsmIds.has(String(pub.osmId)),
+  );
   const renderableBars = bars.filter(isRenderablePub);
   const skipped =
-    pubs.length - renderable.length + (bars.length - renderableBars.length);
+    pubs.length -
+    renderable.length +
+    (unnamedPubs.length - renderableUnnamed.length) +
+    (bars.length - renderableBars.length);
   let matchedOwners = 0;
 
   /** @type {Map<string, {latIndex: number, lonIndex: number, rows: unknown[][]}>} */
@@ -285,7 +392,16 @@ async function main() {
         ? curatedVenueOwners.get(ownerKey(source, id))
         : undefined) ??
       ownersByOsmId.get(String(pub.osmId)) ??
+      nearNameLondonOwner(pub) ??
       "";
+    if (curatedVenueId) matchedOwners += 1;
+    addRow(pub, toRow(pub, curatedVenueId));
+  }
+
+  // An unnamed pub has no name to match a curated venue on and no `curatedRef`,
+  // so it is its own pin with no owner. A promoted one is owned by its OSM id.
+  for (const pub of renderableUnnamed) {
+    const curatedVenueId = ownersByOsmId.get(String(pub.osmId)) ?? "";
     if (curatedVenueId) matchedOwners += 1;
     addRow(pub, toRow(pub, curatedVenueId));
   }
@@ -298,6 +414,17 @@ async function main() {
     if (curatedVenueId) matchedOwners += 1;
     addRow(bar, toRow(bar, curatedVenueId, "bar"));
   }
+
+  const previousRows = await readPublishedRows();
+  const nextRows = [...cells.values()].flatMap((cell) => cell.rows);
+  const aliasPlan = previousRows
+    ? await planUkBaseVenueIdAliases(
+        ROOT,
+        previousRows,
+        nextRows,
+        new Set(curatedVenues.map((venue) => venue.id)),
+      )
+    : { superseded: [], retired: [], doc: null };
 
   await mkdir(path.dirname(OUT_DIR), { recursive: true });
   const stagedDir = await mkdtemp(
@@ -364,34 +491,41 @@ async function main() {
       generatedFrom: {
         fetchedAt: pack.fetchedAt ?? null,
         barsFetchedAt: drinkPack.fetchedAt ?? null,
-        count: renderable.length + renderableBars.length,
+        count: renderable.length + renderableUnnamed.length + renderableBars.length,
         pubs: renderable.length,
+        unnamed: renderableUnnamed.length,
         bars: renderableBars.length,
       },
       shards,
     });
     await writeFile(path.join(stagedDir, "manifest.json"), manifestBody);
 
-    const publication = await publishStagedDirectory({
-      stagedDir,
-      targetDir: OUT_DIR,
-      requiredFiles: ["manifest.json"],
-      manifestBudgetBytes: MANIFEST_BUDGET_BYTES,
-      totalBudgetBytes: TOTAL_BUDGET_BYTES,
+    const publication = await publishUkBaseWithAliases({
+      root: ROOT,
+      doc: aliasPlan.doc,
+      publishShards: () =>
+        publishStagedDirectory({
+          stagedDir,
+          targetDir: OUT_DIR,
+          requiredFiles: ["manifest.json"],
+          manifestBudgetBytes: MANIFEST_BUDGET_BYTES,
+          totalBudgetBytes: TOTAL_BUDGET_BYTES,
+        }),
     });
 
     console.log(
       [
         `UK base venues → ${shards.length} shards in public/data/${SHARD_DIR_NAME}/`,
-        `  packs ............... ${pubs.length} pubs, ${bars.length} bars`,
+        `  packs ............... ${pubs.length} pubs, ${unnamedPubs.length} unnamed pubs, ${bars.length} bars`,
         `  curated owners ...... ${matchedOwners}`,
         `  unusable (dropped) .. ${skipped}`,
-        `  shipped ............. ${renderable.length} pubs, ${renderableBars.length} bars`,
+        `  shipped ............. ${renderable.length} pubs, ${renderableUnnamed.length} unnamed pubs, ${renderableBars.length} bars`,
         `  cells split ......... ${splitCells}`,
         `  manifest ............ ${formatBytes(publication.manifestBytes)} (deferred until the zoom gate)`,
         `  shards total ........ ${formatBytes(totalBytes)}`,
         `  fattest shard ....... ${fattest.id} - ${formatBytes(fattest.bytes)} (${fattest.count} venues)`,
         `  median shard ........ ${formatBytes(median(shardBytes))}`,
+        `  dropped ids ......... ${aliasPlan.superseded.length} re-mapped, ${aliasPlan.retired.length} retired`,
       ].join("\n"),
     );
   } finally {

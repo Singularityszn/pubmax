@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import { whatsappShareHref } from "@/lib/shareArtifacts";
 import { shareNightObject } from "@/lib/shareSheet";
+import { defined } from "@/__tests__/helpers/defined";
 
 // The one native-sheet-first / wa.me-fallback flow every night-object share
 // goes through. Deps are injected, so no browser globals are touched.
@@ -54,7 +55,7 @@ describe("shareNightObject", () => {
     const outcome = await shareNightObject(input, { nav: {}, openWindow });
 
     expect(outcome).toBe("whatsapp");
-    const href = openWindow.mock.calls[0][0] as string;
+    const href = defined(openWindow.mock.calls[0])[0] as string;
     expect(href.startsWith("https://wa.me/?text=")).toBe(true);
     expect(decodeURIComponent(href)).toContain(input.url);
     expect(decodeURIComponent(href)).toContain("£4.80 a pint");

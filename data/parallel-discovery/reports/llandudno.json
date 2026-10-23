@@ -1,0 +1,84 @@
+{
+  "city": "llandudno",
+  "districts": 5,
+  "slices": 20,
+  "slicesComplete": 20,
+  "incompleteSlices": [],
+  "skippedSources": [],
+  "filteredSources": [
+    {
+      "district": "LL28",
+      "category": "cocktail-bar",
+      "url": "https://uk.indeed.com/q-pub-staff-l-prestatyn-jobs.html",
+      "host": "uk.indeed.com",
+      "reason": "job board"
+    },
+    {
+      "district": "LL28",
+      "category": "cocktail-bar",
+      "url": "https://uk.indeed.com/m/jobs?q=Corner+Shop",
+      "host": "uk.indeed.com",
+      "reason": "job board"
+    },
+    {
+      "district": "LL28",
+      "category": "cocktail-bar",
+      "url": "https://www.gllm.ac.uk/courses/professional-cookery-and-food-and-beverage-service-level-2",
+      "host": "www.gllm.ac.uk",
+      "reason": "public body or academic site"
+    },
+    {
+      "district": "LL32",
+      "category": "cocktail-bar",
+      "url": "https://uk.hotels.com/go/wales/things-to-do-llandudno",
+      "host": "uk.hotels.com",
+      "reason": "travel aggregator"
+    }
+  ],
+  "taskRuns": 0,
+  "webSearches": 27,
+  "pagesRead": 43,
+  "researched": 0,
+  "added": 0,
+  "retained": [],
+  "totalAccepted": 0,
+  "repeats": 0,
+  "duplicates": [],
+  "withdrawn": [],
+  "permissionRejected": 0,
+  "rejected": [
+    {
+      "name": "https://www.yelp.com/search?cflt=nightlife&find_loc=Llandudno",
+      "reason": "unreadable: robots refused (robots-disallowed)"
+    },
+    {
+      "name": "https://tapps-micropub.wheree.com",
+      "reason": "unreadable: source refused HTTP 403"
+    },
+    {
+      "name": "https://www.opentable.com/r/the-green-room-jazz-cafe",
+      "reason": "unreadable: robots refused (robots-disallowed)"
+    },
+    {
+      "name": "https://llandudno.cylex-uk.co.uk/cocktail%20bar.html",
+      "reason": "unreadable: robots refused (robots-unreadable)"
+    },
+    {
+      "name": "https://guide.michelin.com/us/en/conwy-region/colwyn-bay/restaurant/bryn-williams-at-porth-eirias",
+      "reason": "unreadable: robots refused (robots-disallowed)"
+    },
+    {
+      "name": "https://llandudno.cylex-uk.co.uk/beer%20retail.html",
+      "reason": "unreadable: robots refused (robots-unreadable)"
+    },
+    {
+      "name": "https://tapps-conwy.wheree.com",
+      "reason": "unreadable: source refused HTTP 403"
+    },
+    {
+      "name": "https://guide.michelin.com/us/en/conwy-region/conwy/restaurant/the-jackdaw",
+      "reason": "unreadable: robots refused (robots-disallowed)"
+    }
+  ],
+  "outputPath": "data/cities/llandudno/parallel_venues.json"
+}

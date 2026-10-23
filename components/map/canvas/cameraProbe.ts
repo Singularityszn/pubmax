@@ -20,6 +20,15 @@ type MapCameraReading = {
   center: [number, number];
   /** True while MapLibre is running a gesture or an animation. */
   moving: boolean;
+  /**
+   * True while the app still owes the camera a move of its own: the opening
+   * turn has not been decided yet, a scheduled move is waiting for its frame
+   * or for the bottom sheet, the opening-location answer has not moved the
+   * camera yet, or a granted location has not been framed yet. `moving` can
+   * be false while `settling` is true. Camera rest requires both to be false
+   * (lib/mapArrivalBearing.ts).
+   */
+  settling: boolean;
 };
 
 /**
@@ -39,7 +48,10 @@ type CameraProbeWindow = Window & {
   [MAP_CAMERA_PROBE_KEY]?: CameraProbe;
 };
 
-function readMapCamera(map: maplibregl.Map): MapCameraReading {
+function readMapCamera(
+  map: maplibregl.Map,
+  settling: () => boolean,
+): MapCameraReading {
   const center = map.getCenter();
   return {
     bearing: map.getBearing(),
@@ -47,6 +59,7 @@ function readMapCamera(map: maplibregl.Map): MapCameraReading {
     zoom: map.getZoom(),
     center: [center.lng, center.lat],
     moving: map.isMoving(),
+    settling: settling(),
   };
 }
 
@@ -59,11 +72,44 @@ function projectOnMap(
   return { x: rect.left + point.x, y: rect.top + point.y };
 }
 
-/** Publishes the camera reading for the browser suite. Returns its own removal. */
-export function installMapCameraProbe(map: maplibregl.Map): () => void {
+/** The moves the app may still owe the camera, as the canvas reads them. */
+type MapCameraOwedMoves = {
+  arrivalTurnSpent: boolean;
+  cameraLanePending: boolean;
+  openingCameraSettled: boolean;
+  focusMoves: boolean;
+  nearMePending: boolean;
+  nearbyFramingOwed: boolean;
+};
+
+/**
+ * The probe's `settling`: a move is still owed while the opening turn is
+ * undecided, while a scheduled move waits for its frame, while the
+ * opening-location answer has yet to move the camera (the same reading the
+ * turn's own wait takes), or while a Near me answer or its framing is owed.
+ */
+export function mapCameraSettling(owed: MapCameraOwedMoves): boolean {
+  return (
+    !owed.arrivalTurnSpent ||
+    owed.cameraLanePending ||
+    !owed.openingCameraSettled ||
+    owed.focusMoves ||
+    owed.nearMePending ||
+    owed.nearbyFramingOwed
+  );
+}
+
+/**
+ * Publishes the camera reading for the browser suite. Returns its own removal.
+ * `settling` answers whether the app still owes the camera a move.
+ */
+export function installMapCameraProbe(
+  map: maplibregl.Map,
+  settling: () => boolean,
+): () => void {
   const probeWindow = window as CameraProbeWindow;
   probeWindow[MAP_CAMERA_PROBE_KEY] = {
-    read: () => readMapCamera(map),
+    read: () => readMapCamera(map, settling),
     project: (lngLat) => projectOnMap(map, lngLat),
   };
   return () => {

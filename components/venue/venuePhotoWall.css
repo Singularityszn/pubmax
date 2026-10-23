@@ -27,14 +27,14 @@
 }
 
 .venuePhotoWallTitle {
-  font-size: 1rem;
+  font-size: var(--text-base);
   font-weight: 650;
   margin: 0;
 }
 
 .venuePhotoWallCount {
-  color: var(--ink-soft, #6b6257);
-  font-size: 0.8125rem;
+  color: var(--ink-soft);
+  font-size: var(--text-sm);
 }
 
 .venuePhotoGrid {
@@ -43,7 +43,7 @@
   gap: 8px;
 }
 
-@media (min-width: 700px) {
+@media (min-width: 641px) {
   .venuePhotoGrid {
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
@@ -53,7 +53,7 @@
   position: relative;
   display: block;
   margin: 0;
-  border-radius: 12px;
+  border-radius: var(--radius);
   overflow: hidden;
   background: var(--paper-sunk, rgba(0, 0, 0, 0.06));
   aspect-ratio: 4 / 5;
@@ -78,7 +78,7 @@
   padding: 20px 8px 6px;
   background: linear-gradient(to top, rgba(0, 0, 0, 0.72), rgba(0, 0, 0, 0));
   color: #fff;
-  font-size: 0.75rem;
+  font-size: var(--text-xs);
   line-height: 1.2;
 }
 
@@ -101,8 +101,31 @@
 .venuePhotoBylineFounding {
   flex: 0 0 auto;
   font-variant-numeric: tabular-nums;
-  color: var(--brass, #c8a24a);
+  color: var(--color-text-muted);
   font-weight: 650;
+}
+
+/* The owner's control, top right so it never fights the byline scrim or the
+   drink tag on the left. 44px is the touch floor. */
+.venuePhotoRemove {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  min-height: 44px;
+  min-width: 44px;
+  padding: 0 12px;
+  border: none;
+  border-radius: var(--radius-pill);
+  background: rgba(0, 0, 0, 0.62);
+  color: #fff;
+  font: inherit;
+  font-size: var(--text-xs);
+  cursor: pointer;
+}
+
+.venuePhotoRemove:disabled {
+  opacity: 0.6;
+  cursor: default;
 }
 
 .venuePhotoTag {
@@ -110,23 +133,23 @@
   top: 6px;
   left: 6px;
   padding: 2px 7px;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: rgba(0, 0, 0, 0.62);
   color: #fff;
-  font-size: 0.6875rem;
+  font-size: var(--text-2xs);
   line-height: 1.4;
 }
 
 .venuePhotoCaption {
   margin: 6px 2px 0;
-  font-size: 0.8125rem;
+  font-size: var(--text-sm);
   line-height: 1.35;
-  color: var(--ink, inherit);
+  color: var(--ink);
 }
 
 .venuePhotoWallEmpty {
-  color: var(--ink-soft, #6b6257);
-  font-size: 0.875rem;
+  color: var(--ink-soft);
+  font-size: var(--text-sm);
   margin: 0;
 }
 
@@ -140,13 +163,22 @@
 .venuePhotoWallButton {
   min-height: 44px;
   padding: 0 16px;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   border: 1px solid var(--rule, rgba(0, 0, 0, 0.16));
-  background: var(--paper, #fff);
+  background: var(--paper);
   color: inherit;
   font: inherit;
   font-weight: 600;
   cursor: pointer;
+}
+
+/* The one control that publishes. Filled, so it never reads as a sibling of
+   Cancel, and sitting last so a person working top to bottom reaches it after
+   the drink and the caption rather than before them. */
+.venuePhotoWallPrimary {
+  background: var(--ink);
+  border-color: var(--ink);
+  color: var(--paper);
 }
 
 .venuePhotoWallButton:disabled {
@@ -172,8 +204,8 @@
 }
 
 .venuePhotoWallStatus {
-  font-size: 0.8125rem;
-  color: var(--ink-soft, #6b6257);
+  font-size: var(--text-sm);
+  color: var(--ink-soft);
   margin: 0;
 }
 
@@ -189,7 +221,7 @@
   gap: 12px;
   padding: 12px;
   border: 1px solid var(--rule, rgba(0, 0, 0, 0.16));
-  border-radius: 14px;
+  border-radius: var(--radius-lg);
 }
 
 .venuePhotoComposerFile {
@@ -200,15 +232,41 @@
   pointer-events: none;
 }
 
+/* The accepted crop, at the shape it will be stored. */
+.venuePhotoComposerPreview {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 10px;
+  margin: 0;
+}
+
+/* A thumbnail, not the photo at drawer width: a 4:5 crop at the full width of a
+   desktop drawer is taller than the viewport and pushes the drink, the caption
+   and the Post button off screen, which is the order this step exists to fix. */
+.venuePhotoComposerPreview img {
+  display: block;
+  width: min(100%, 11rem);
+  height: auto;
+  border-radius: var(--radius);
+  background: var(--paper-sunk, rgba(0, 0, 0, 0.06));
+}
+
+/* The Drink group is a <fieldset>, and this app ships no preflight, so without
+   resetting it the browser drew its own square outline around the chips. */
 .venuePhotoComposerField {
   display: flex;
   flex-direction: column;
   gap: 6px;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
 }
 
 .venuePhotoComposerField label,
 .venuePhotoComposerLegend {
-  font-size: 0.8125rem;
+  font-size: var(--text-sm);
   font-weight: 600;
 }
 
@@ -224,27 +282,29 @@
 .venuePhotoComposerTag {
   min-height: 36px;
   padding: 0 12px;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   border: 1px solid var(--rule, rgba(0, 0, 0, 0.16));
   background: transparent;
   color: inherit;
   font: inherit;
-  font-size: 0.8125rem;
+  font-size: var(--text-sm);
   cursor: pointer;
 }
 
+/* Selected is the launch accent wash, as on the map's chips, not a black pill. */
 .venuePhotoComposerTag[aria-pressed="true"] {
-  background: var(--ink, #241f1a);
-  color: var(--paper, #fff);
-  border-color: var(--ink, #241f1a);
+  background: var(--state-selected-surface);
+  color: var(--state-selected-ink);
+  border-color: var(--state-selected-border);
+  font-weight: 700;
 }
 
 .venuePhotoComposerCaption {
   min-height: 44px;
   padding: 10px 12px;
-  border-radius: 10px;
+  border-radius: var(--radius);
   border: 1px solid var(--rule, rgba(0, 0, 0, 0.16));
-  background: var(--paper, #fff);
+  background: var(--paper);
   color: inherit;
   font: inherit;
   resize: vertical;
@@ -254,13 +314,24 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  font-size: 0.875rem;
+  font-size: var(--text-sm);
   min-height: 44px;
 }
 
 .venuePhotoComposerShare input {
   width: 20px;
   height: 20px;
+  /* The native checkbox is browser blue otherwise. */
+  accent-color: var(--state-selected-ink);
+}
+
+/* The Drink Wall note was styled by nothing, so it read as body text at the
+   size of the buttons beside it. It is a caption under the share box. */
+.venuePhotoComposerHint {
+  margin: 0;
+  color: var(--ink-soft);
+  font-size: var(--text-sm);
+  line-height: 1.4;
 }
 
 .venuePhotoComposerActions {

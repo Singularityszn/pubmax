@@ -6,6 +6,9 @@
 
 import { choice } from "@typesafe-ai/sdk";
 
+import { PLACE_PHRASES, wordsOnly } from "@/lib/ask/placePhrases";
+import { venueSearchNames } from "@/lib/venueSearchNames.mjs";
+
 import {
   normalizeVenueIdentityName,
   significantNameTokens,
@@ -57,18 +60,92 @@ export function toVenueResolutionCandidate(
   };
 }
 
+/** Words any pub may carry: a name made only of these names no pub in particular. */
+const GENERIC_PUB_WORDS = new Set([
+  "the", "and", "ye", "olde", "old", "new", "bar", "pub", "tap", "room", "rooms",
+  "sports", "brewery", "arms", "inn", "tavern", "house", "hotel", "lounge",
+]);
+
+/** Every index where `phrase` starts as whole words inside `words`. */
+function startsOf(words: readonly string[], phrase: readonly string[]): number[] {
+  const starts: number[] = [];
+  for (let at = 0; at + phrase.length <= words.length; at++) {
+    if (phrase.every((word, offset) => words[at + offset] === word)) starts.push(at);
+  }
+  return starts;
+}
+
+/**
+ * The pub a whole sentence names ("How much is a pint at The Blackfriar?").
+ * The keyless name matcher below asks whether the pub name contains the query,
+ * which a sentence never satisfies. It is NOT folded into that matcher: a bare
+ * name that is not listed ("The Crown & Sceptre") must not land on a shorter
+ * listed pub ("The Crown"). matchVenueByName runs it only for a caller that
+ * holds the user's whole question, and only when no model judged the query.
+ * The pub name must appear in the query as two or more whole words, with or
+ * without its leading "The": one word is a place word as often as a pub, so
+ * The Bridge is never found in "near London Bridge". Nor may the name's words
+ * past "The" share a word with a place name in the query at least as long:
+ * The Kings is not in "near the Kings Cross station", nor The Hill in "Harrow
+ * on the Hill", nor the Elephant and Castle pub in "near the Elephant and
+ * Castle". A name made only of words any pub may carry (Sports Bar, Tap
+ * Room, The Old Brewery) is never found: "a sports bar near Soho" asks for a
+ * kind of pub, not the one so named. Unsure is no answer. The longest name
+ * wins, and two different pubs sharing that longest name are no answer at all.
+ */
+export function matchVenueNameWithinQuery<T extends VenueNameMatchInput>(
+  venues: readonly T[],
+  query: string,
+): T | null {
+  const words = wordsOnly(query).split(" ");
+  const places = PLACE_PHRASES.flatMap((place) =>
+    startsOf(words, place).map((start) => [start, start + place.length] as const),
+  );
+  const namedOutsidePlace = (name: readonly string[]) =>
+    startsOf(words, name).some((start) => {
+      const from = name[0] === "the" ? start + 1 : start;
+      const to = start + name.length;
+      return !places.some(
+        ([placeFrom, placeTo]) => placeFrom < to && from < placeTo && placeTo - placeFrom >= to - from,
+      );
+    });
+  let best: T | null = null;
+  let bestLength = 0;
+  let tied = false;
+  for (const venue of venues) {
+    const names = venueSearchNames(venue).flatMap((label) => {
+      const full = wordsOnly(label).split(" ");
+      if (full.every((word) => GENERIC_PUB_WORDS.has(word))) return [];
+      return full[0] === "the" ? [full, full.slice(1)] : [full];
+    });
+    for (const name of names) {
+      if (name.length < 2) continue;
+      if (!namedOutsidePlace(name)) continue;
+      const length = name.join(" ").length;
+      if (length > bestLength) {
+        best = venue;
+        bestLength = length;
+        tied = false;
+      } else if (length === bestLength && best && best.id !== venue.id) {
+        tied = true;
+      }
+    }
+  }
+  return tied ? null : best;
+}
+
 /** Keyless fallback: exact, then startsWith, then includes. Array order breaks ties. */
 export function matchVenueByNameKeyless<T extends VenueNameMatchInput>(
   venues: readonly T[],
   name: string,
 ): T | null {
-  const needle = name.trim().toLowerCase();
+  const needle = wordsOnly(name);
   if (!needle) return null;
-  const exact = venues.find((v) => v.name.toLowerCase() === needle);
+  const exact = venues.find((v) => venueSearchNames(v).some((label) => wordsOnly(label) === needle));
   if (exact) return exact;
-  const starts = venues.find((v) => v.name.toLowerCase().startsWith(needle));
+  const starts = venues.find((v) => venueSearchNames(v).some((label) => wordsOnly(label).startsWith(needle)));
   if (starts) return starts;
-  return venues.find((v) => v.name.toLowerCase().includes(needle)) ?? null;
+  return venues.find((v) => venueSearchNames(v).some((label) => wordsOnly(label).includes(needle))) ?? null;
 }
 
 function queryTokens(query: string): string[] {
@@ -76,8 +153,12 @@ function queryTokens(query: string): string[] {
 }
 
 function venueTokens(venue: VenueNameMatchInput): string[] {
+  const primary = significantNameTokens(normalizeVenueIdentityName(venue.name));
+  const additional = new Set(venueSearchNames(venue).slice(1).flatMap((label) =>
+    significantNameTokens(normalizeVenueIdentityName(label))));
   return [
-    ...significantNameTokens(normalizeVenueIdentityName(venue.name)),
+    ...primary,
+    ...[...additional].filter((token) => !primary.includes(token)),
     ...significantNameTokens(normalizeVenueIdentityName(venue.area)),
   ];
 }
@@ -101,11 +182,11 @@ export function collectVenueNameCandidates<T extends VenueNameMatchInput>(
   for (const venue of venues) {
     const shared = venueTokens(venue).filter((token) => qSet.has(token)).length;
     if (shared === 0) continue;
-    const lower = venue.name.toLowerCase();
+    const labels = venueSearchNames(venue).map((label) => label.toLowerCase());
     let rank = shared * 10;
-    if (lower === needle) rank += 400;
-    else if (lower.startsWith(needle)) rank += 300;
-    else if (lower.includes(needle)) rank += 200;
+    if (labels.includes(needle)) rank += 400;
+    else if (labels.some((label) => label.startsWith(needle))) rank += 300;
+    else if (labels.some((label) => label.includes(needle))) rank += 200;
     scored.push({ venue, rank });
   }
   scored.sort((a, b) => b.rank - a.rank);
@@ -116,10 +197,10 @@ export function uniqueExactVenueNameMatch<T extends VenueNameMatchInput>(
   venues: readonly T[],
   name: string,
 ): T | null {
-  const needle = name.trim().toLowerCase();
+  const needle = wordsOnly(name);
   if (!needle) return null;
-  const hits = venues.filter((v) => v.name.toLowerCase() === needle);
-  return hits.length === 1 ? hits[0] : null;
+  const hits = venues.filter((v) => venueSearchNames(v).some((label) => wordsOnly(label) === needle));
+  return hits.length === 1 ? (hits[0] ?? null) : null;
 }
 
 /**
@@ -174,8 +255,7 @@ export function intendedVenueQuestions(candidates: VenueResolutionCandidate[]) {
       ],
     },
   };
-  for (let index = 0; index < candidates.length; index += 1) {
-    const candidate = candidates[index];
+  for (const [index, candidate] of candidates.entries()) {
     criteria[candidateOptionKey(index)] = {
       what: `${candidate.name} in ${candidate.area}, ${candidate.address}`,
       not_for: "A different pub that only shares a word of the name",

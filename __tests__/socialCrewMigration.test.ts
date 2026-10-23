@@ -38,6 +38,26 @@ function authenticatedSql(
 }
 
 /**
+ * Each statement of a race runs in its own psql process, so a fixed sleep
+ * cannot order them on a loaded host. The first session takes an advisory
+ * lock after its first call; the second waits for that lock, or for the first
+ * session's committed effect, before it makes its own call.
+ */
+function afterFirstCall(key: number, committed: string): string {
+  return `do $first_call$
+       begin
+         while not exists (
+           select 1 from pg_catalog.pg_locks
+           where locktype = 'advisory' and classid = 0 and objid = ${key}
+             and objsubid = 1 and granted and pid <> pg_catalog.pg_backend_pid()
+         ) and not exists (${committed}) loop
+           perform pg_catalog.pg_sleep(0.01);
+         end loop;
+       end
+       $first_call$;`;
+}
+
+/**
  * The barrier probe this proof needs and no other does: it holds a mutation
  * open on its own connection and reads the snapshot RPC while the write is
  * still uncommitted. The writer loops in `pg_sleep` until the reader publishes
@@ -884,23 +904,6 @@ describe.skipIf(skipReason !== null)("Social Crew migration foundation", () => {
         ('${metadataFirstHost}','${metadataFirstPlan}','Host','${metadataFirstToken}','in',now(),now(),true)
     `);
 
-    // Each statement runs in its own psql process, so a fixed sleep cannot
-    // order them on a loaded host. The first session takes an advisory lock
-    // after its first call; the second waits for that lock, or for the first
-    // session's committed effect, before it makes its own call.
-    const afterFirstCall = (key: number, committed: string): string =>
-      `do $first_call$
-       begin
-         while not exists (
-           select 1 from pg_catalog.pg_locks
-           where locktype = 'advisory' and classid = 0 and objid = ${key}
-             and objsubid = 1 and granted and pid <> pg_catalog.pg_backend_pid()
-         ) and not exists (${committed}) loop
-           perform pg_catalog.pg_sleep(0.01);
-         end loop;
-       end
-       $first_call$;`;
-
     const conversionFirst = await db.concurrentResults([
       `begin;
        set local deadlock_timeout='50ms'; set local statement_timeout='10s';
@@ -1078,10 +1081,12 @@ describe.skipIf(skipReason !== null)("Social Crew migration foundation", () => {
     const results = await db.concurrentResults([
       `begin;
        select public.create_social_crew_atomic('${ALICE_ACCOUNT}','${plan}','${token}','private','trigger-race-key-01','${DIGEST_A}');
+       select pg_catalog.pg_advisory_xact_lock(7531103::bigint);
        select pg_sleep(0.5);
        commit;`,
       `begin;
-       select pg_sleep(0.2);
+       set local statement_timeout='10s';
+       ${afterFirstCall(7531103, `select 1 from public.plans where id='${plan}' and social_owner_account_id is not null`)}
        select public.create_plan_invite_atomic(
          '${plan}',gen_random_uuid(),'${host}','${"7".repeat(64)}','racing-invite',now(),now()+interval '1 hour'
        );
@@ -1112,12 +1117,13 @@ describe.skipIf(skipReason !== null)("Social Crew migration foundation", () => {
        set local deadlock_timeout='50ms';
        set local statement_timeout='10s';
        select public.revoke_plan_invite_atomic('${plan}','${invite}',now());
+       select pg_catalog.pg_advisory_xact_lock(7531104::bigint);
        select pg_sleep(0.5);
        commit;`,
       `begin;
        set local deadlock_timeout='50ms';
        set local statement_timeout='10s';
-       select pg_sleep(0.2);
+       ${afterFirstCall(7531104, `select 1 from public.plan_invites where id='${invite}' and revoked_at is not null`)}
        select public.create_social_crew_atomic('${ALICE_ACCOUNT}','${plan}','${token}','private','rpc-race-key-0001','${DIGEST_A}');
        commit;`,
     ]);
@@ -2010,10 +2016,12 @@ describe.skipIf(skipReason !== null)("Social Crew migration foundation", () => {
     const results = await db.concurrentResults([
       `begin;
        select public.create_social_crew_atomic('${ALICE_ACCOUNT}','${plan}','${hostHash}','private','race-create-key-01','${DIGEST_A}');
+       select pg_catalog.pg_advisory_xact_lock(7531105::bigint);
        select pg_sleep(0.5);
        commit;`,
       `begin;
-       select pg_sleep(0.2);
+       set local statement_timeout='10s';
+       ${afterFirstCall(7531105, `select 1 from public.plans where id='${plan}' and social_owner_account_id is not null`)}
        select public.redeem_plan_invite_idempotent_atomic(
          '${plan}','${inviteHash}',gen_random_uuid(),'Mallory','${"e".repeat(64)}',now(),'${"f".repeat(64)}','${"0".repeat(64)}'
        );

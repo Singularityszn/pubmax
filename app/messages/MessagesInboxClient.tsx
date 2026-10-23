@@ -20,8 +20,14 @@ import MessageAvatar from "@/components/messages/MessageAvatar";
 import MessagesNewGroup from "@/components/messages/MessagesNewGroup";
 import { authedActionFetch } from "@/lib/authedFetch";
 import { MOBILE_MEDIA_QUERY } from "@/lib/breakpoints";
-import { conversationRowName, type ConversationDTO } from "@/lib/messages";
+import {
+  conversationRowHandle,
+  conversationRowMatches,
+  conversationRowName,
+  type ConversationDTO,
+} from "@/lib/messages";
 import { subscribeToInbox } from "@/lib/messagesRealtime";
+import { subscribeMessagesRead } from "@/lib/messagesUnreadSignal";
 import { inboxTimeLabel } from "@/lib/messageTimeline";
 import { discardBody } from "@/lib/responseBody";
 import { normalizeHandle } from "@/lib/profiles";
@@ -77,15 +83,10 @@ export function MessagesThreadEmptyCopy(): React.JSX.Element | null {
 
   if (viewerSession.unresolved) return null;
 
-  if (viewerSession.signedOut) {
-    return (
-      <div>
-        <p className="messagesThreadEyebrow">Messages</p>
-        <h2>Your conversations show here.</h2>
-        <p>One thread for each person you go out with, kept to the two of you.</p>
-      </div>
-    );
-  }
+  // Somebody with no account has no thread to choose, so the pane says nothing:
+  // the inbox column carries the page's one empty state and one door, and the
+  // two-pane frame folds away around it (app/messages/messages.css).
+  if (viewerSession.signedOut) return null;
 
   return (
     <div>
@@ -298,20 +299,38 @@ export default function MessagesInboxClient({
     return subscribeToInbox(handle, () => void refresh(), { poll: () => void refresh() });
   }, [refresh, handle, paneHidden, handleNotOwned]);
 
+  // The open thread announces when it marks its messages read, and the nav
+  // badge drops at once. Its row here drops its pill on the same signal, so the
+  // two never disagree on one screen while the next inbox read is still away.
+  // A read already in flight may have been answered before the mark-read, so
+  // the signal also starts a fresh read that supersedes it: the stale answer is
+  // dropped instead of putting the pill back.
+  useEffect(() => {
+    if (!activeConversationId) return;
+    return subscribeMessagesRead(() => {
+      setConversations((rows) =>
+        rows.some((c) => c.id === activeConversationId && (c.unread ?? 0) > 0)
+          ? rows.map((c) => (c.id === activeConversationId ? { ...c, unread: 0 } : c))
+          : rows,
+      );
+      void refresh(undefined, true);
+    });
+  }, [activeConversationId, refresh]);
+
   const accountDataReady = loadedRevision === accountRevision;
   // One clock for the whole list per render, so every row's time is measured
   // from the same instant.
   const now = new Date();
   const searchQuery = inboxSearch.revision === accountRevision ? inboxSearch.query : "";
   const filteredConversations = conversations.filter((conversation) =>
-    conversationRowName(conversation, handle).toLowerCase().includes(searchQuery.trim().toLowerCase()),
+    conversationRowMatches(conversation, handle, searchQuery),
   );
   const openCompose = () => setComposeRevision(accountRevision);
 
   return (
     <Screen
       as="section"
-      className="messagesScreen"
+      className={viewerSession.signedOut ? "messagesScreen messagesScreen--signedOut" : "messagesScreen"}
       title="Messages"
       titleId="messages-title"
       primary={
@@ -319,23 +338,15 @@ export default function MessagesInboxClient({
           <Link href="/login?mode=signin&from=%2Fmessages">Sign in</Link>
         ) : (
           <button type="button" onClick={openCompose} aria-label="New message" disabled={!user || !handle || handleNotOwned}>
-            <SquarePen size={25} aria-hidden="true" />
+            <SquarePen size={24} aria-hidden="true" />
           </button>
         )
       }
     >
-      {/* The one line about what messaging needs. Shown to somebody who is
-          not signed in; a signed-in inbox is a list of people, not a notice. */}
-      {viewerSession.signedOut ? (
-        <p className="messagesCourtesyNote">
-          Messages need a signed-in account. Keep it low-key, and report anything off.
-        </p>
-      ) : null}
-
       {!viewerSession.signedOut && user ? (
         <>
           <label className="messagesInboxSearch">
-            <Search size={18} aria-hidden="true" />
+            <Search size={16} aria-hidden="true" />
             <input
               type="search"
               aria-label="Search conversations"
@@ -362,23 +373,28 @@ export default function MessagesInboxClient({
         </>
       ) : null}
 
-      {!accountDataReady ? (
+      {viewerSession.signedOut && (needsSignIn || !user) ? (
+        // The head's primary is the sign-in door, so the empty state carries
+        // no second copy of it. A session that has answered "nobody" is the
+        // whole answer: there is no inbox to read, so this does not wait on the
+        // read the way a signed-in list does. It used to sit behind "With you
+        // in a sec." until auth bootstrap re-keyed the read, about a second
+        // after the courtesy note above had already said the same thing.
+        // It says what this place is and how it fills, once; the head's door
+        // is the only sign-in on the page (taste plan, 18 Oct 2026).
+        <EmptyState title="Your conversations show here.">
+          One thread for each person you go out with, kept to the two of you.
+        </EmptyState>
+      ) : !accountDataReady ? (
         <p className="conversationPreview">With you in a sec.</p>
       ) : viewerSession.unresolved ? (
         <p className="conversationPreview">With you in a sec.</p>
-      ) : viewerSession.signedOut && (needsSignIn || !user) ? (
-        // The head's primary is the sign-in door, so the empty state carries
-        // no second copy of it.
-        <EmptyState title="Sign in to message">
-          Private messages need a signed-in account, so each message is tied to
-          the right handle.
-        </EmptyState>
       ) : handleNotOwned ? (
         <EmptyState
           title={`@${handle} isn\u2019t linked to your account.`}
           action={<Link href="/u/you#account-settings">Claim a handle</Link>}
         >
-          Messages open for the handle your account claims.
+          Messages open once your account claims this handle.
         </EmptyState>
       ) : failed && conversations.length === 0 ? (
         <div role="alert">
@@ -421,13 +437,23 @@ export default function MessagesInboxClient({
                     className="conversationLink"
                     aria-current={active ? "page" : undefined}
                   >
-                    <MessageAvatar handle={c.otherHandle} avatarUrl={c.otherAvatarUrl} size={56} />
+                    <MessageAvatar
+                      handle={c.otherHandle}
+                      avatarUrl={c.otherAvatarUrl}
+                      label={c.otherDisplayName}
+                      size={56}
+                    />
                     <div className="conversationBody">
                       {/* ONE naming rule for every kind (`conversationRowName`):
                           a DM is the other person, a group is its title or its
                           people, so the inbox and the thread head cannot each
                           invent a different name for one thread. */}
-                      <div className="conversationHandle">{conversationRowName(c, handle)}</div>
+                      <div className="conversationHandle">
+                        {conversationRowName(c, handle)}
+                        {conversationRowHandle(c) ? (
+                          <span className="conversationHandleSub">{conversationRowHandle(c)}</span>
+                        ) : null}
+                      </div>
                       <div className="conversationPreview">
                         {c.lastBody
                           ? `${c.lastFromMe ? "You: " : ""}${c.lastBody}`

@@ -4,7 +4,7 @@
 import {
   ADMIN_SESSION_COOKIE,
   ADMIN_SESSION_MAX_AGE_SEC,
-  hashAdminSession,
+  mintAdminSession,
   isModerator,
   verifyAdminToken,
 } from "@/lib/adminAuth";
@@ -32,7 +32,7 @@ function setSessionCookie(token: string): Headers {
   const secure = process.env.NODE_ENV === "production";
   headers.append(
     "Set-Cookie",
-    `${ADMIN_SESSION_COOKIE}=${encodeURIComponent(hashAdminSession(token))}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${ADMIN_SESSION_MAX_AGE_SEC}${secure ? "; Secure" : ""}`,
+    `${ADMIN_SESSION_COOKIE}=${encodeURIComponent(mintAdminSession(token))}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${ADMIN_SESSION_MAX_AGE_SEC}${secure ? "; Secure" : ""}`,
   );
   return headers;
 }

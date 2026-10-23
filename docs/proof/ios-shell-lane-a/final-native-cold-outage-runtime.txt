@@ -1,0 +1,1 @@
+2026-10-08 12:25:18.393 App[27309:50837404] [lane-final-outage] {"url":"capacitor://localhost/offline.html","title":"PUBMAXXING is offline","text":"No connection\n\nNothing to show yet.\n\nPUBMAXXING needs a connection for live prices, opening times and travel. Nothing stale is being shown.\n\nTry again","serviceWorkerApi":"undefined","externalStyles":0} error=(null)

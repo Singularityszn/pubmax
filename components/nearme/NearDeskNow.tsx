@@ -5,6 +5,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { LocateFixed, RotateCw } from "lucide-react";
 
 import Screen from "@/components/ui/screen";
+import { samePathWithQuery } from "@/lib/appLink";
 import { trackEvent } from "@/lib/analytics";
 import {
   deskAnswerHeadline,
@@ -84,7 +85,7 @@ function DeskCardList({ cards }: { cards: DeskCard[] }) {
   const rest = cards.slice(1);
   if (rest.length === 0) return null;
   return (
-    <ol className="nmnList" aria-label="More desks nearby">
+    <ol className="nmnList" aria-label="More work spots nearby">
       {rest.map((card) => (
         <li key={card.id}>
           <article className="ndnCard">
@@ -121,6 +122,16 @@ export default function NearDeskNow({
   const packRef = useRef<DeskVenueLoad | null>(null);
   const loadingRef = useRef<Promise<DeskVenueLoad> | null>(null);
   const answerGenerationRef = useRef(0);
+  const mountedRef = useRef(false);
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => { mountedRef.current = false; };
+  }, []);
+  const ownsAnswer = useCallback((generation: number) => (
+    mountedRef.current &&
+    generation === answerGenerationRef.current &&
+    window.location.pathname === pathname
+  ), [pathname]);
   const autoLocateStartedRef = useRef(false);
   const lastTrackedAnswerRef = useRef(0);
 
@@ -144,7 +155,7 @@ export default function NearDeskNow({
     nextPatch: NightPatch | null,
     reason: PatchReason,
   ) => {
-    if (generation !== answerGenerationRef.current) return;
+    if (!ownsAnswer(generation)) return;
     setPackStatus(loaded.status);
     setAnswer(next);
     setPatch(nextPatch);
@@ -156,7 +167,7 @@ export default function NearDeskNow({
         outcome: next.cards.length > 0 ? "answer" : "thin",
       });
     }
-  }, []);
+  }, [ownsAnswer]);
 
   const pickPatch = useCallback((
     next: NightPatch,
@@ -166,7 +177,7 @@ export default function NearDeskNow({
     setState("requesting");
     setPatch(next);
     void loadPack().then((loaded) => {
-      if (generation !== answerGenerationRef.current) return;
+      if (!ownsAnswer(generation)) return;
       if (loaded.status === "failed") {
         applyAnswer(generation, loaded, {
           hero: null,
@@ -183,19 +194,19 @@ export default function NearDeskNow({
       });
       applyAnswer(generation, loaded, ranked, next, reason);
       writeRememberedArea({ kind: "patch", id: next.id });
-      if (syncPatchToUrl && pathname) {
+      if (syncPatchToUrl && pathname && ownsAnswer(generation)) {
         try {
           const query = deskPatchQuery(
             typeof window !== "undefined" ? window.location.search : "",
             next.id,
           );
-          router.replace(query ? `${pathname}?${query}` : pathname, { scroll: false });
+          router.replace(samePathWithQuery(pathname, query), { scroll: false });
         } catch {
           // URL sync is best-effort.
         }
       }
     });
-  }, [applyAnswer, beginAnswer, loadPack, pathname, router, syncPatchToUrl]);
+  }, [applyAnswer, beginAnswer, loadPack, ownsAnswer, pathname, router, syncPatchToUrl]);
 
   const answerWithoutFix = useCallback((reason: Exclude<PatchReason, null>) => {
     const remembered = readRememberedArea();
@@ -213,8 +224,9 @@ export default function NearDeskNow({
     setState("requesting");
     navigator.geolocation.getCurrentPosition(
       (position) => {
+        if (!ownsAnswer(generation)) return;
         void loadPack().then((loaded) => {
-          if (generation !== answerGenerationRef.current) return;
+          if (!ownsAnswer(generation)) return;
           if (loaded.status === "failed") {
             applyAnswer(generation, loaded, {
               hero: null,
@@ -235,13 +247,13 @@ export default function NearDeskNow({
         });
       },
       (error) => {
-        if (generation !== answerGenerationRef.current) return;
+        if (!ownsAnswer(generation)) return;
         const reason = error.code === error.PERMISSION_DENIED ? "denied" : "unavailable";
         answerWithoutFix(reason);
       },
       GEO_OPTS,
     );
-  }, [answerWithoutFix, applyAnswer, beginAnswer, loadPack]);
+  }, [answerWithoutFix, applyAnswer, beginAnswer, loadPack, ownsAnswer]);
 
   useEffect(() => {
     const startAutoLocate = shouldStartNearAutoLocate({
@@ -273,12 +285,12 @@ export default function NearDeskNow({
   return (
     <section
       className="nmn"
-      aria-label="Find a desk nearby"
+      aria-label="Find a work spot nearby"
       {...deskCollapsedChainsAttributes(answer?.collapsedChains)}
     >
       {state === "idle" ? (
         /* The /near head in Desk mode: the same Screen primitive as Pint
-           (docs/design/LAUNCH_SCREENS.md), with Find a desk as its one primary. */
+           (docs/design/LAUNCH_SCREENS.md), with Find a work spot as its one primary. */
         <Screen
           as="div"
           className="nmnScreen"
@@ -287,11 +299,11 @@ export default function NearDeskNow({
           titleId="near-title"
           primary={
             <button type="button" onClick={locate}>
-              <LocateFixed size={18} aria-hidden="true" /> Find a desk
+              <LocateFixed size={16} aria-hidden="true" /> Find a work spot
             </button>
           }
         >
-          <p className="nmnHint">We only use your location to rank desks nearby. Nothing is stored.</p>
+          <p className="nmnHint">We only use your location to rank work spots nearby. Nothing is stored.</p>
           <div className="nmnQuickPatches">
             <p className="nmnQuickPatchesLabel">Or pick a patch</p>
             <ul className="nmnAreaChips" aria-label="Pick an area">
@@ -315,8 +327,8 @@ export default function NearDeskNow({
         <div className="nmnStatus" role="status">
           <span className="nmnSpinner" aria-hidden="true" />
           {patch
-            ? `Checking desks around ${patch.label}…`
-            : "Checking desks near you…"}
+            ? `Checking work spots around ${patch.label}…`
+            : "Checking work spots near you…"}
         </div>
       ) : null}
 
@@ -353,7 +365,7 @@ export default function NearDeskNow({
             <h2>{headline}</h2>
             {patchMessage ? <p className="nmnSub">{patchMessage}</p> : null}
             {answer.scope === "widened" ? (
-              <p className="nmnWiden">Not many desks on your doorstep. These are a bit further out.</p>
+              <p className="nmnWiden">Not many work spots on your doorstep. These are a bit further out.</p>
             ) : (
               <p className="nmnSub">Within about a 12-minute walk.</p>
             )}
@@ -363,7 +375,7 @@ export default function NearDeskNow({
           <DeskDataCredit />
           <footer className="nmnFoot">
             <button type="button" className="nmnRetry nmnRetryGhost" onClick={locate}>
-              <RotateCw size={15} aria-hidden="true" /> Update location
+              <RotateCw size={16} aria-hidden="true" /> Update location
             </button>
           </footer>
         </>

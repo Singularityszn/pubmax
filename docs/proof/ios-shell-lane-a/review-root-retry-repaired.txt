@@ -1,0 +1,102 @@
+Test Suite 'All tests' started at 2026-10-08 14:22:36.667.
+Test Suite 'Rig.xctest' started at 2026-10-08 14:22:36.668.
+Test Suite 'RootRetryUITests' started at 2026-10-08 14:22:36.668.
+Test Case '-[Rig.RootRetryUITests testProductionRootBack]' started.
+    t =     0.01s Start Test at 2026-10-08 14:22:36.673
+    t =     0.02s Set Up
+    t =     0.03s Open com.pubmaxx.app
+    t =     0.03s     Launch com.pubmaxx.app
+    t =     0.04s         Setting up automation session
+objc[63707]: Class UIAccessibilityLoaderWebShared is implemented in both /private/var/run/com.apple.security.cryptexd/mnt/com.apple.iPhoneOS.SimulatorRuntime-v24.1.434.0.tF0MWb/Library/Developer/CoreSimulator/Profiles/Runtimes/iOS 27.0.simruntime/Contents/Resources/RuntimeRoot/System/Library/AccessibilityBundles/WebKit.axbundle/WebKit (0x1061b8398) and /private/var/run/com.apple.security.cryptexd/mnt/com.apple.iPhoneOS.SimulatorRuntime-v24.1.434.0.tF0MWb/Library/Developer/CoreSimulator/Profiles/Runtimes/iOS 27.0.simruntime/Contents/Resources/RuntimeRoot/System/Library/AccessibilityBundles/WebCore.axbundle/WebCore (0x109ee8310). This may cause spurious casting failures and mysterious crashes. One of the duplicates must be removed or renamed.
+    t =     1.75s         Wait for com.pubmaxx.app to idle
+    t =     3.51s Waiting 20.0s for "Healthy production homepage" StaticText to exist
+    t =     4.58s     Checking `Expect predicate `existsNoRetry == 1` for object "Healthy production homepage" StaticText`
+    t =     4.58s         Checking existence of `"Healthy production homepage" StaticText`
+    t =     4.65s         Capturing element debug description
+    t =     5.52s     Checking `Expect predicate `existsNoRetry == 1` for object "Healthy production homepage" StaticText`
+    t =     5.52s         Checking existence of `"Healthy production homepage" StaticText`
+    t =     5.53s         Capturing element debug description
+    t =     6.60s     Checking `Expect predicate `existsNoRetry == 1` for object "Healthy production homepage" StaticText`
+    t =     6.60s         Checking existence of `"Healthy production homepage" StaticText`
+    t =     6.63s Tap "Fail root reload" Button
+    t =     6.63s     Wait for com.pubmaxx.app to idle
+    t =     6.64s     Find the "Fail root reload" Button
+    t =     6.64s     Check for interrupting elements affecting "Fail root reload" Button
+    t =     6.66s     Synthesize event
+    t =     6.96s     Wait for com.pubmaxx.app to idle
+    t =     6.97s Waiting 10.0s for "Try again" Button to exist
+    t =     8.04s     Checking `Expect predicate `existsNoRetry == 1` for object "Try again" Button`
+    t =     8.04s         Checking existence of `"Try again" Button`
+    t =     8.06s Press WebView (First Match)[0.01, 0.45] for 0.1 seconds, then drag to WebView (First Match)[0.85, 0.45] with velocity of 500.00 pixels per second, and then hold for 0.0 seconds 
+    t =     8.06s     Wait for com.pubmaxx.app to idle
+    t =     8.07s     Find the WebView (First Match)
+    t =     8.07s     Check for interrupting elements affecting WebView
+    t =     8.09s     Synthesize event
+    t =     8.09s         Find the WebView at {{0.0, 0.0}, {402.0, 874.0}}
+    t =     8.09s         Find the WebView at {{0.0, 0.0}, {402.0, 874.0}}
+    t =     8.10s         Find the WebView at {{0.0, 0.0}, {402.0, 874.0}}
+    t =     8.11s         Find the WebView at {{0.0, 0.0}, {402.0, 874.0}}
+    t =     8.12s         Find the WebView at {{0.0, 0.0}, {402.0, 874.0}}
+    t =     9.14s     Wait for com.pubmaxx.app to idle
+    t =     9.14s Waiting 5.0s for "Healthy production homepage" StaticText to exist
+    t =    10.23s     Checking `Expect predicate `existsNoRetry == 1` for object "Healthy production homepage" StaticText`
+    t =    10.23s         Checking existence of `"Healthy production homepage" StaticText`
+    t =    10.24s Find the Application 'com.pubmaxx.app'
+    t =    10.30s Added attachment named 'production-root-destination'
+    t =    10.30s Tear Down
+Test Case '-[Rig.RootRetryUITests testProductionRootBack]' passed (10.518 seconds).
+Test Case '-[Rig.RootRetryUITests testProductionRootRetry]' started.
+    t =     0.00s Start Test at 2026-10-08 14:22:47.193
+    t =     0.02s Set Up
+    t =     0.02s Open com.pubmaxx.app
+    t =     0.02s     Launch com.pubmaxx.app
+    t =     0.02s         Terminate com.pubmaxx.app:65105
+    t =     1.13s         Setting up automation session
+    t =     2.80s         Wait for com.pubmaxx.app to idle
+    t =     4.50s Waiting 20.0s for "Healthy production homepage" StaticText to exist
+    t =     5.57s     Checking `Expect predicate `existsNoRetry == 1` for object "Healthy production homepage" StaticText`
+    t =     5.58s         Checking existence of `"Healthy production homepage" StaticText`
+    t =     5.64s         Capturing element debug description
+    t =     6.51s     Checking `Expect predicate `existsNoRetry == 1` for object "Healthy production homepage" StaticText`
+    t =     6.51s         Checking existence of `"Healthy production homepage" StaticText`
+    t =     6.52s         Capturing element debug description
+    t =     7.59s     Checking `Expect predicate `existsNoRetry == 1` for object "Healthy production homepage" StaticText`
+    t =     7.59s         Checking existence of `"Healthy production homepage" StaticText`
+    t =     7.62s Tap "Fail root reload" Button
+    t =     7.62s     Wait for com.pubmaxx.app to idle
+    t =     7.62s     Find the "Fail root reload" Button
+    t =     7.63s     Check for interrupting elements affecting "Fail root reload" Button
+    t =     7.64s     Synthesize event
+    t =     7.94s     Wait for com.pubmaxx.app to idle
+    t =     7.94s Waiting 10.0s for "Try again" Button to exist
+    t =     9.02s     Checking `Expect predicate `existsNoRetry == 1` for object "Try again" Button`
+    t =     9.02s         Checking existence of `"Try again" Button`
+    t =     9.06s Tap "Try again" Button
+    t =     9.06s     Wait for com.pubmaxx.app to idle
+    t =     9.06s     Find the "Try again" Button
+    t =     9.08s     Check for interrupting elements affecting "Try again" Button
+    t =     9.10s     Synthesize event
+    t =     9.39s     Wait for com.pubmaxx.app to idle
+    t =     9.40s Waiting 5.0s for "Healthy production homepage" StaticText to exist
+    t =    10.48s     Checking `Expect predicate `existsNoRetry == 1` for object "Healthy production homepage" StaticText`
+    t =    10.48s         Checking existence of `"Healthy production homepage" StaticText`
+    t =    10.49s Find the Application 'com.pubmaxx.app'
+    t =    10.55s Added attachment named 'production-root-destination'
+    t =    10.55s Tear Down
+Test Case '-[Rig.RootRetryUITests testProductionRootRetry]' passed (10.788 seconds).
+Test Suite 'RootRetryUITests' passed at 2026-10-08 14:22:57.981.
+	 Executed 2 tests, with 0 failures (0 unexpected) in 21.306 (21.313) seconds
+Test Suite 'Rig.xctest' passed at 2026-10-08 14:22:57.981.
+	 Executed 2 tests, with 0 failures (0 unexpected) in 21.306 (21.314) seconds
+Test Suite 'All tests' passed at 2026-10-08 14:22:57.982.
+	 Executed 2 tests, with 0 failures (0 unexpected) in 21.306 (21.315) seconds
+2026-10-08 14:22:58.371 xcodebuild[62709:60298341] [MT] IDETestOperationsObserverDebug: 25.143 elapsed -- Testing started completed.
+2026-10-08 14:22:58.371 xcodebuild[62709:60298341] [MT] IDETestOperationsObserverDebug: 0.000 sec, +0.000 sec -- start
+2026-10-08 14:22:58.371 xcodebuild[62709:60298341] [MT] IDETestOperationsObserverDebug: 25.143 sec, +25.143 sec -- end
+
+Test session results, code coverage, and logs:
+	/Users/karanmanoharan/.no-mistakes/worktrees/0a94b5a8763e/01M4DPQ7VDX0VCH2M4H1WTC2TX/ios/build/root-retry-review/repaired.xcresult
+
+** TEST SUCCEEDED **
+
+Testing started

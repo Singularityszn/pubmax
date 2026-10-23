@@ -11,7 +11,7 @@ import { readTrustedHandoffFlag } from "@/lib/trustedHandoffFlags.server";
 import SocialPageClient from "./SocialPageClient";
 
 const SOCIAL_DESCRIPTION =
-  "Chronological pub-night posts and public pub discovery.";
+  "Pub-night posts in the order they went up, plus public posts about pubs.";
 
 type SearchParams = Record<string, string | string[] | undefined>;
 

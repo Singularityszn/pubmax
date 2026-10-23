@@ -14,11 +14,11 @@
   flex: 1 1 auto;
   min-width: 64px;
   padding: 6px 10px;
-  font-size: 0.78rem;
+  font-size: var(--text-xs);
   font-weight: 600;
   letter-spacing: 0.01em;
-  border-radius: 999px;
-  border: 1px solid var(--hairline, rgba(255, 255, 255, 0.18));
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--hairline);
   background: transparent;
   color: inherit;
   cursor: pointer;
@@ -28,8 +28,10 @@
     color 0.15s ease;
 }
 
-.altStyleBtn:hover {
-  border-color: var(--accent, #e0b34a);
+@media (hover: hover) and (pointer: fine) {
+  .altStyleBtn:hover {
+    border-color: var(--accent, #e0b34a);
+  }
 }
 
 .altStyleBtn.active {
@@ -60,21 +62,27 @@
   display: flex;
   flex-direction: column;
   gap: 8px;
-  margin: 0 0 12px;
+  /* The row follows the "Check last train" button, which has no bottom margin
+     of its own, so a 12px top margin gives the progress line its own space
+     instead of printing flush against that button. */
+  margin: 12px 0;
 }
 
 .crawlProgressStatus,
 .crawlProgressDone {
   margin: 0;
-  font-size: 0.82rem;
+  font-size: var(--text-sm);
   font-weight: 600;
-  color: var(--accent, #e0b34a);
+  /* --accent is not a token the app defines, so this fell back to a pale gold
+     that read at about 1.9:1 on the light sheet. --brass-ink is the accent as TEXT,
+     readable on both themes. */
+  color: var(--color-text-muted);
 }
 
 .crawlProgressDone {
   padding: 8px 10px;
-  border: 1px solid color-mix(in srgb, var(--accent, #e0b34a) 40%, transparent);
-  border-radius: 8px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
 }
 
 /* Wave G2: one-shot crawl-complete memory prompt — brass/field-guide, not a modal. */
@@ -83,24 +91,24 @@
   flex-direction: column;
   gap: 8px;
   padding: 10px 12px;
-  border: 1px solid color-mix(in srgb, var(--brass, #9a6a24) 35%, var(--line, rgba(0, 0, 0, 0.12)));
-  border-radius: 8px;
-  background: color-mix(in srgb, var(--brass, #9a6a24) 8%, var(--panel-raised, transparent));
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--panel-raised);
 }
 
 .crawlCelebrationTitle {
   margin: 0;
-  font-size: 0.92rem;
+  font-size: var(--text-sm);
   font-weight: 700;
-  color: var(--brass, #9a6a24);
+  color: var(--ink);
   letter-spacing: 0.01em;
 }
 
 .crawlCelebrationCopy {
   margin: 0;
-  font-size: 0.8rem;
+  font-size: var(--text-xs);
   line-height: 1.35;
-  color: var(--ink-soft, inherit);
+  color: var(--ink-soft);
 }
 
 .crawlCelebrationActions {
@@ -114,12 +122,12 @@
   align-items: center;
   min-height: 44px;
   padding: 5px 10px;
-  font-size: 0.78rem;
+  font-size: var(--text-xs);
   font-weight: 600;
   text-decoration: none;
-  border-radius: 999px;
-  border: 1px solid var(--brass, #9a6a24);
-  color: var(--brass, #9a6a24);
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--hairline-strong);
+  color: var(--ink);
   background: transparent;
 }
 
@@ -129,8 +137,10 @@ button.crawlCelebrationCopyBtn {
   appearance: none;
 }
 
-.crawlCelebrationLink:hover {
-  background: color-mix(in srgb, var(--brass, #9a6a24) 14%, transparent);
+@media (hover: hover) and (pointer: fine) {
+  .crawlCelebrationLink:hover {
+    background: color-mix(in srgb, var(--ink) 6%, transparent);
+  }
 }
 
 .crawlCelebrationDismiss {
@@ -142,9 +152,9 @@ button.crawlCelebrationCopyBtn {
   align-items: center;
   border: none;
   background: none;
-  font-size: 0.75rem;
+  font-size: var(--text-xs);
   font-weight: 600;
-  color: var(--ink-muted, inherit);
+  color: inherit;
   cursor: pointer;
   text-decoration: underline;
   text-underline-offset: 2px;

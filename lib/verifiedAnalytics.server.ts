@@ -33,13 +33,15 @@ function canonicalEvent(event: AnalyticsEvent): AnalyticsEvent | null {
   // event is now rejected by sanitizeEvent, so this token can never be ingested;
   // retaining deterministic minting keeps direct/manual Plan creation working
   // until L09 replaces this legacy response contract.
+  const { grounded, stops } = event.props;
   if (event.name === "plan_accepted"
     && Object.keys(event.props).length === 2
-    && Number.isInteger(event.props.stops)
-    && typeof event.props.grounded === "boolean") {
+    && typeof stops === "number"
+    && Number.isInteger(stops)
+    && typeof grounded === "boolean") {
     return {
       name: event.name,
-      props: { grounded: event.props.grounded, stops: event.props.stops },
+      props: { grounded, stops },
     };
   }
   return null;

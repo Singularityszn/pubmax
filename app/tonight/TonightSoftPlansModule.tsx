@@ -1,31 +1,17 @@
+import type { Route } from "next";
 import Link from "next/link";
-import { ArrowRight, Camera, Coffee, Landmark, Leaf, Moon, Store, Waves } from "lucide-react";
 
 import IntentLink from "@/components/nav/IntentLink";
+import { RowList } from "@/components/ui/row-list";
 
 import {
   CULTURE_CRAWL_CHIPS,
   CULTURE_CRAWL_MISSION,
-  type CultureCrawlChipId,
 } from "@/lib/cultureCrawl";
 import {
   planOccasionHref,
   TONIGHT_SOFT_PLAN_CHIPS,
-  type SoftPlanOccasionId,
 } from "@/lib/planOccasion";
-
-const CHIP_ICONS: Record<Exclude<SoftPlanOccasionId, "quiet">, typeof Coffee> = {
-  coffee: Coffee,
-  af: Leaf,
-  chill: Moon,
-};
-
-const CULTURE_ICONS: Record<CultureCrawlChipId, typeof Coffee> = {
-  "gallery-pint": Landmark,
-  "market-kebab": Store,
-  "river-historic": Waves,
-  "sights-quiet": Camera,
-};
 
 type Props = {
   /** Heritage quiet-pint module is on the page below — link scrolls to it. */
@@ -35,69 +21,65 @@ type Props = {
 /**
  * Compact soft-plan handoff on /tonight during a quiet typical-pattern hour.
  * Plan links only; no invented listings.
+ *
+ * Two short lists in the shared RowList shape (components/ui/row-list.tsx),
+ * not a stack of boxed rows each wearing an icon disc and a chevron (taste
+ * plan, 18 Oct 2026). Each row is one link and the whole row is its target.
+ * The rows are written out rather than through `RowListItem` because a plan
+ * door is an IntentLink: warmed on intent, never prefetched on sight.
  */
 export default function TonightSoftPlansModule({ hasQuietPint = false }: Props) {
   return (
     <section
-      className="tonightSoftPlans"
-      aria-label="Soft plans tonight"
+      className="tonightSoftPlans tonightSection"
+      aria-labelledby="tonight-soft-plans-title"
       data-testid="tonight-soft-plans"
     >
-      {/* Each row's way-onward arrow sits in the lane the compose action floats
-          in on a phone, so the row takes that lane (createFab.css). */}
-      <p className="tonightSoftPlansEyebrow">Soft plans tonight</p>
-      <ul className="tonightSoftPlansList">
-        {TONIGHT_SOFT_PLAN_CHIPS.map((chip) => {
-          const Icon = CHIP_ICONS[chip.id];
-          return (
-            <li key={chip.id} className="tonightSoftPlansRow">
-              <IntentLink
-                href={planOccasionHref(chip.id, { src: "tonight-soft" })}
-                className="tonightSoftPlansLink createFabLane pressable"
-              >
-                <span className="tonightSoftPlansIcon" aria-hidden="true">
-                  <Icon size={17} />
-                </span>
-                <span className="tonightSoftPlansLabel">{chip.label}</span>
-                <ArrowRight size={15} aria-hidden="true" className="tonightSoftPlansArrow" />
-              </IntentLink>
-            </li>
-          );
-        })}
+      <h2 className="tonightSoftPlansEyebrow tonightSectionTitle" id="tonight-soft-plans-title">
+        Ideas for tonight
+      </h2>
+      <RowList className="tonightSoftPlansList">
+        {TONIGHT_SOFT_PLAN_CHIPS.map((chip) => (
+          <PlanRow
+            key={chip.id}
+            href={planOccasionHref(chip.id, { src: "tonight-soft" })}
+            label={chip.label}
+          />
+        ))}
         {hasQuietPint ? (
-          <li className="tonightSoftPlansRow">
-            <Link href="#tonight-quiet-pint" className="tonightSoftPlansLink createFabLane pressable">
-              <span className="tonightSoftPlansIcon" aria-hidden="true">
-                <Moon size={17} />
-              </span>
-              <span className="tonightSoftPlansLabel">A quiet pint</span>
-              <ArrowRight size={15} aria-hidden="true" className="tonightSoftPlansArrow" />
-            </Link>
+          <li className="rowListItem rowListItem--link tonightSoftPlansRow createFabLane">
+            <span className="rowListBody">
+              <Link href="#tonight-quiet-pint" className="rowListTitle rowListTitleLink">
+                A quiet pint
+              </Link>
+            </span>
           </li>
         ) : null}
-      </ul>
-      <p className="tonightSoftPlansEyebrow tonightSoftPlansCultureEyebrow">
+      </RowList>
+      <p className="tonightSoftPlansCultureEyebrow tonightSectionLine">
         {CULTURE_CRAWL_MISSION}
       </p>
-      <ul className="tonightSoftPlansList">
-        {CULTURE_CRAWL_CHIPS.map((chip) => {
-          const Icon = CULTURE_ICONS[chip.id];
-          return (
-            <li key={chip.id} className="tonightSoftPlansRow">
-              <IntentLink
-                href={planOccasionHref(chip.id, { src: "tonight-culture" })}
-                className="tonightSoftPlansLink createFabLane pressable"
-              >
-                <span className="tonightSoftPlansIcon" aria-hidden="true">
-                  <Icon size={17} />
-                </span>
-                <span className="tonightSoftPlansLabel">{chip.label}</span>
-                <ArrowRight size={15} aria-hidden="true" className="tonightSoftPlansArrow" />
-              </IntentLink>
-            </li>
-          );
-        })}
-      </ul>
+      <RowList className="tonightSoftPlansList">
+        {CULTURE_CRAWL_CHIPS.map((chip) => (
+          <PlanRow
+            key={chip.id}
+            href={planOccasionHref(chip.id, { src: "tonight-culture" })}
+            label={chip.label}
+          />
+        ))}
+      </RowList>
     </section>
+  );
+}
+
+function PlanRow({ href, label }: { href: Route; label: string }) {
+  return (
+    <li className="rowListItem rowListItem--link tonightSoftPlansRow createFabLane">
+      <span className="rowListBody">
+        <IntentLink href={href} className="rowListTitle rowListTitleLink">
+          {label}
+        </IntentLink>
+      </span>
+    </li>
   );
 }

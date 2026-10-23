@@ -298,7 +298,7 @@ for (const layout of KEYBOARD_LAYOUTS) {
       window.visualViewport!.dispatchEvent(new Event("resize"));
     }, layout.height - layout.inset);
     if (layout.width <= 640) {
-      const tabBar = page.locator(".mobileTabBar");
+      const tabBar = page.locator(".mobileTabBar").filter({ visible: true });
       await expect(tabBar).toHaveAttribute("aria-hidden", "true");
       await expect(tabBar).toHaveAttribute("inert", "");
       const layering = await page.evaluate(() => {

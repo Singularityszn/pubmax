@@ -1,4 +1,5 @@
-// First-visit map arrival card — show once per device after pins reveal.
+// First-visit map arrival policy. See the quiet window and storage
+// compatibility rules below.
 // Pure policy: eligibility, planner-param suppression, dismiss storage, and
 // the consent gate the analytics prompt must wait behind.
 
@@ -8,23 +9,30 @@ import {
   PLAN_QUERY_PARAM,
 } from "@/lib/planOccasion";
 import { searchHasExplicitMapIntent } from "@/lib/explicitMapIntent";
+import { notifyMapFirstVisitArrivalChange } from "@/lib/mapFirstVisitArrivalGate";
 import { safeLocalStorage } from "@/lib/safeStorage";
 
+// The consent gate lives in its own import-free leaf so the root shell can read
+// it without this module's graph. Re-exported so map callers keep one door.
+export {
+  mapFirstVisitArrivalBlocksConsent,
+  setMapFirstVisitArrivalCardVisible,
+  subscribeMapFirstVisitArrival,
+} from "@/lib/mapFirstVisitArrivalGate";
+
 export const MAP_FIRST_VISIT_ARRIVAL_KEY = "pubmax:map-first-visit-arrival:v1";
-const CHANGE_EVENT = "pubmax:map-first-visit-arrival";
+/**
+ * How long an answer to the ask holds. Any answer counts: a tap on either
+ * button, the close, or the reader's own first move on the map. After this the
+ * ask may be made once more, because a location question a reader waved away in
+ * their first minute is worth putting to them again when they come back.
+ */
+const MAP_FIRST_VISIT_ARRIVAL_QUIET_MS = 30 * 24 * 60 * 60 * 1000;
+const DISMISSED_PREFIX = "dismissed:";
 
 function resolveStorage(storage?: Storage | null): Storage | null {
   if (storage !== undefined) return storage;
   return safeLocalStorage();
-}
-
-function notifyChange(): void {
-  if (typeof window === "undefined") return;
-  try {
-    window.dispatchEvent(new Event(CHANGE_EVENT));
-  } catch {
-    // Older environments without Event ctor still keep the storage write.
-  }
 }
 
 /** Planner handoff params must not meet a first-visit card over the map. */
@@ -44,13 +52,27 @@ export function searchSuppressesMapFirstVisitArrival(search: string): boolean {
   );
 }
 
+/**
+ * Whether the ask has been answered inside its quiet window.
+ *
+ * The stored value is `dismissed:<epoch ms>`. A bare `dismissed` is the value
+ * every earlier build wrote: it carries no date, so it never expires, rather
+ * than putting the ask back in front of every existing reader on one deploy.
+ * An unreadable date is treated as answered, never as a reason to ask again.
+ */
 export function hasDismissedMapFirstVisitArrival(
   storage?: Storage | null,
+  now: number = Date.now(),
 ): boolean {
   const store = resolveStorage(storage);
   if (!store) return true;
   try {
-    return store.getItem(MAP_FIRST_VISIT_ARRIVAL_KEY) === "dismissed";
+    const raw = store.getItem(MAP_FIRST_VISIT_ARRIVAL_KEY);
+    if (raw === null) return false;
+    if (!raw.startsWith(DISMISSED_PREFIX)) return raw === "dismissed";
+    const answeredAt = Number(raw.slice(DISMISSED_PREFIX.length));
+    if (!Number.isFinite(answeredAt)) return true;
+    return now - answeredAt < MAP_FIRST_VISIT_ARRIVAL_QUIET_MS;
   } catch {
     return true;
   }
@@ -75,12 +97,15 @@ export function dismissMapFirstVisitArrivalOnMapUse(): void {
   dismissMapFirstVisitArrival();
 }
 
-export function dismissMapFirstVisitArrival(storage?: Storage | null): void {
+export function dismissMapFirstVisitArrival(
+  storage?: Storage | null,
+  now: number = Date.now(),
+): void {
   const store = resolveStorage(storage);
   if (!store) return;
   try {
-    store.setItem(MAP_FIRST_VISIT_ARRIVAL_KEY, "dismissed");
-    notifyChange();
+    store.setItem(MAP_FIRST_VISIT_ARRIVAL_KEY, `${DISMISSED_PREFIX}${now}`);
+    notifyMapFirstVisitArrivalChange();
   } catch {
     // Storage full / private mode — degrade silently.
   }
@@ -104,30 +129,4 @@ export function shouldShowMapFirstVisitArrival(params: {
   if (hasDismissedMapFirstVisitArrival(params.storage)) return false;
   if (searchSuppressesMapFirstVisitArrival(params.search)) return false;
   return true;
-}
-
-let arrivalCardVisible = false;
-
-/** The mounted card reports visibility so consent can wait behind it. */
-export function setMapFirstVisitArrivalCardVisible(visible: boolean): void {
-  if (arrivalCardVisible === visible) return;
-  arrivalCardVisible = visible;
-  notifyChange();
-}
-
-export function mapFirstVisitArrivalBlocksConsent(): boolean {
-  return arrivalCardVisible;
-}
-
-export function subscribeMapFirstVisitArrival(
-  onChange: () => void,
-): () => void {
-  if (typeof window === "undefined") return () => {};
-  const handler = () => onChange();
-  window.addEventListener(CHANGE_EVENT, handler);
-  window.addEventListener("storage", handler);
-  return () => {
-    window.removeEventListener(CHANGE_EVENT, handler);
-    window.removeEventListener("storage", handler);
-  };
 }

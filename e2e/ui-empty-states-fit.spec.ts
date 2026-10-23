@@ -4,9 +4,6 @@ import { randomUUID } from "node:crypto";
 test.describe("UI empty states and layout fit", () => {
   test.beforeEach(async ({ page }) => {
     await page.emulateMedia({ colorScheme: "light", reducedMotion: "reduce" });
-    await page.route("**/_vercel/insights/script.js", (route) =>
-      route.fulfill({ status: 200, contentType: "application/javascript", body: "" }),
-    );
     await page.addInitScript(() => {
       localStorage.setItem("pubmax-theme", "light");
       localStorage.setItem("pubmax-tour-v1-done", "1");
@@ -18,15 +15,15 @@ test.describe("UI empty states and layout fit", () => {
     });
   });
 
-  test("signed-out Social Posts rail is worded at 390", async ({ page }) => {
+  test("signed-out Social Posts door is worded at 390", async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 });
     await page.goto("/social");
     await expect(page.getByRole("link", { name: "Posts", exact: true })).toHaveAttribute(
       "aria-current",
       "page",
     );
-    await expect(page.getByText("No posts to read yet.")).toBeVisible();
-    await expect(page.locator(".socialRailEmpty")).toBeVisible();
+    await expect(page.getByText("Sign in to use Social.")).toBeVisible();
+    await expect(page.locator(".socialDoorSlot")).toBeVisible();
   });
 
   test("night crawl actions sit below the stop name without a dead band", async ({

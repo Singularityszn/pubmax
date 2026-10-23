@@ -1,5 +1,6 @@
 "use client";
 
+import type { Route } from "next";
 import { MapPin } from "lucide-react";
 import Link from "next/link";
 import { type ReactNode } from "react";
@@ -8,6 +9,7 @@ import FoundingMemberMark from "@/components/founding/FoundingMemberMark";
 import ProfileCoverCarousel from "@/components/profile/ProfileCoverCarousel";
 import HandleAvatar from "@/components/profile/HandleAvatar";
 import ProfileSocialLinks from "@/components/profile/ProfileSocialLinks";
+import { profilePath } from "@/lib/appLink";
 import { displayHandle } from "@/lib/handleDisplay";
 import { profileCoverUrls } from "@/lib/profileCovers";
 import {
@@ -34,6 +36,7 @@ type ProfileHeaderProps = {
   following?: number;
   drops?: readonly ProfileDrop[];
   actions?: ReactNode;
+  sectionLinks?: { timeline: boolean; crawls: boolean; memories: boolean };
 };
 
 const PROFILE_STAT_LABELS = [
@@ -59,22 +62,17 @@ function ProfileStatTile({
 }: {
   label: string;
   value: number | string;
-  href: string;
+  href?: Route;
   hint: string;
 }) {
+  const content = <><span className="profileStatLabel">{label}</span><strong className="profileStatValue">{value}</strong></>;
   return (
     <div className="profileStat" role="listitem">
-      {/* data-pressable is how an anchor joins the ONE shared press-scale owner
-          in globals.css; a local transform here would compound with it. */}
-      <Link
-        className="profileStatLink"
-        data-pressable
-        href={href}
-        aria-label={`${label}: ${value}. ${hint}.`}
-      >
-        <span className="profileStatLabel">{label}</span>
-        <strong className="profileStatValue">{value}</strong>
-      </Link>
+      {href ? (
+        <Link className="profileStatLink" data-pressable href={href} aria-label={`${label}: ${value}. ${hint}.`}>
+          {content}
+        </Link>
+      ) : <div className="profileStatLink" aria-label={`${label}: ${value}.`}>{content}</div>}
     </div>
   );
 }
@@ -143,6 +141,7 @@ export default function ProfileHeader({
   following,
   drops,
   actions,
+  sectionLinks,
 }: ProfileHeaderProps) {
   const { handle, displayName, homeCity, bio, avatarUrl, foundingMemberNumber } = profile;
   if (viewerState === "loading") return <ProfileHeaderLoading />;
@@ -154,7 +153,9 @@ export default function ProfileHeader({
   const facts = cardFacts(profile);
   // Tiles link within this profile, so /u/you keeps its own sentinel route
   // rather than bouncing a signed-in reader to a handle they have not claimed.
-  const profileBase = `/u/${encodeURIComponent(handle)}`;
+  const profileBase = profilePath(handle);
+  // Sub-pages and anchors of /u/[handle], a dynamic route.
+  const profileHref = (suffix: string): Route => `${profileBase}${suffix}` as Route;
 
   const crawlsPosted =
     crawls === null
@@ -198,7 +199,7 @@ export default function ProfileHeader({
             <p className="profileHandle">{displayHandle(handle)}</p>
             {homeCity ? (
               <p className="profileHomeCity">
-                <MapPin size={14} strokeWidth={1.75} aria-hidden="true" />{" "}
+                <MapPin size={14} aria-hidden="true" />{" "}
                 {homeCity}
               </p>
             ) : null}
@@ -243,33 +244,26 @@ export default function ProfileHeader({
         ) : null}
       </div>
 
-      {/* Every tile is a way in. A statistic that counts something the page can
-          show, and does not link to it, is a dead end wearing a number: the
-          reader has been told they have 14 followers and given no way to see
-          one. The destinations are real surfaces, so a tile never navigates to
-          a promise.
-
-          The row sits BELOW the hero and spans the whole card, because six
-          figures squeezed into a narrow column is how they came to read as a
-          receipt rather than as six doors. */}
+      {/* A statistic opens only a section this page can render. Private or
+          absent sections keep their figures without a destination. */}
       <div className="profileStats" role="list" aria-label="Profile statistics">
         <ProfileStatTile
           label="Pints logged"
           value={stats.pintsLogged}
-          href={`${profileBase}#timeline`}
+          href={sectionLinks?.timeline ? profileHref("#timeline") : undefined}
           hint="Open the pint timeline"
         />
         <ProfileStatTile
           label="Cheapest pint"
           value={formatCheapestPint(stats.cheapestPintGbp)}
-          href={`${profileBase}#timeline`}
+          href={sectionLinks?.timeline ? profileHref("#timeline") : undefined}
           hint="Open the pint timeline"
         />
         {typeof followers === "number" ? (
           <ProfileStatTile
             label="Followers"
             value={followers}
-            href={`${profileBase}/people/followers`}
+            href={profileHref("/people/followers")}
             hint="See who follows this handle"
           />
         ) : null}
@@ -277,20 +271,20 @@ export default function ProfileHeader({
           <ProfileStatTile
             label="Following"
             value={following}
-            href={`${profileBase}/people/following`}
+            href={profileHref("/people/following")}
             hint="See who this handle follows"
           />
         ) : null}
         <ProfileStatTile
           label="Crawls"
           value={formatStatCount(crawlsPosted)}
-          href={`${profileBase}#crawl-stories`}
+          href={sectionLinks?.crawls ? profileHref("#crawl-stories") : undefined}
           hint="Open the published crawls"
         />
         <ProfileStatTile
           label="Memories"
           value={memoriesPosted}
-          href={`${profileBase}#night-memories`}
+          href={sectionLinks?.memories ? profileHref("#night-memories") : undefined}
           hint="Open night memories"
         />
       </div>

@@ -52,11 +52,9 @@ describe("the Tonight tab's href", () => {
     expect(tab.label).toBe("Tonight");
   });
 
-  it("still lights the tab on the daytime page it no longer points at", () => {
-    // /today keeps its place in the match set: a reader on the day board is
-    // still inside this destination, so the tab may not go dark there.
-    expect(primaryNavKeyForPath("/today")).toBe("now");
-    expect(primaryNavKeyForPath("/today/highlights")).toBe("now");
+  it("does not light the tab on the daytime page", () => {
+    expect(primaryNavKeyForPath("/today")).toBeUndefined();
+    expect(primaryNavKeyForPath("/today/highlights")).toBeUndefined();
   });
 
   it("leaves no clock in the nav model or in the bars that draw it", () => {

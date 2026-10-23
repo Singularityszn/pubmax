@@ -2,23 +2,27 @@ import { jsonNoStore } from "@/lib/apiResponses";
 import { publicApiError } from "@/lib/apiError";
 import { DEFAULT_CITY_ID, parseCityId } from "@/lib/cities";
 import { loadConciergeVenues } from "@/lib/concierge/venues.server";
+import { cultureOutingCosts, type CultureOpenerDTO } from "@/lib/cultureCrawl";
 import { planCultureOpenerFields } from "@/lib/cultureCrawl.server";
-import type { PlanningConfidence, PlanRouteTotals } from "@/lib/planIntelligence";
+import type { PlanBudgetSummary, PlanningConfidence, PlanRouteTotals } from "@/lib/planIntelligence";
 import { estimatePlanWalking, estimateStraightLinePlanWalking } from "@/lib/walkRouteLegs";
+import { pubStreetWalkKm } from "@/lib/pubWalkPairs.server";
 import { planGenerationEndings } from "@/lib/planGenerationEndings.server";
 import {
 	buildPlanGenerationStops,
 	planBudgetSummary,
 	planRouteTimingDisclosure,
 	planUsesPintPrices,
+	type GroundedRouteTimingSummary,
 } from "@/lib/planGenerationDto";
 import {
 	loadPlanGenerationBaselineWhatsOn,
 	preparePlanGeneration,
 	runAnchoredGeneration,
 } from "@/lib/planGeneration.server";
-import { planEvidenceWarning, planGenerationEvidenceGaps } from "@/lib/planGenerationRanking";
+import { planEvidenceWarning, planGenerationEvidenceGaps, planScoringDrinkCategory } from "@/lib/planGenerationRanking";
 import { selectPlanGenerationCandidates } from "@/lib/planGenerationSelection.server";
+import { priceEvidenceUsableForCeiling, type PlanPriceEvidence } from "@/lib/planRouteEvidence";
 import type { PlanConstraintReport, SelectedGroundedPlanStop } from "@/lib/planRouteOptimizer";
 import type { PlanningIntentSource } from "@/lib/planningIntent";
 import { mintPlanGroundingProof, mintPlanGroundingProofV2 } from "@/lib/planGrounding.server";
@@ -48,6 +52,33 @@ export async function GET(request: Request): Promise<Response> {
   });
 }
 
+/**
+ * The Culture Crawl cost sibling. A culture outing always has costs nobody has
+ * priced: the POI layer holds no admission, and the planner holds no food or
+ * fares. Its pint subtotal is therefore partial, and the whole night never
+ * reads as within budget. An ordinary outing passes through unchanged.
+ */
+function cultureOutingFields(
+	cultureOpener: CultureOpenerDTO | undefined,
+	stops: readonly { venueId: string; venueName: string; priceEvidence: PlanPriceEvidence | null }[],
+	limitPence: number | null,
+	budgetSummary: PlanBudgetSummary,
+) {
+	if (!cultureOpener) return { cultureFields: {}, budgetSummary };
+	const costs = cultureOutingCosts({
+		limitPence,
+		stops: stops.map((stop) => ({
+			venueId: stop.venueId,
+			venueName: stop.venueName,
+			price: stop.priceEvidence && priceEvidenceUsableForCeiling(stop.priceEvidence) ? stop.priceEvidence : null,
+		})),
+	});
+	return {
+		cultureFields: { cultureOpener: { ...cultureOpener, costs } },
+		budgetSummary: { ...budgetSummary, withinLimit: null },
+	};
+}
+
 export async function POST(request: Request): Promise<Response> {
   try {
 	const preparation = await preparePlanGeneration(request);
@@ -74,7 +105,7 @@ export async function POST(request: Request): Promise<Response> {
 	let groundedStops: readonly SelectedGroundedPlanStop<Candidate>[] | null = null;
 	let groundedAlternatives: readonly (readonly SelectedGroundedPlanStop<Candidate>[])[] | null = null;
 	let constraintReport: PlanConstraintReport | null = null;
-	let groundedTiming: { straightLineWalkingKm: number; walkingMinutes: number; transferUncertaintyMinutes: number; scheduledRouteMinutes: number } | null = null;
+	let groundedTiming: GroundedRouteTimingSummary | null = null;
 	let accessibilityEnforced = false;
 	let anchorContext: { anchorVenueId: string; anchorSource: PlanningIntentSource } | null = null;
 	let chosen: Candidate[];
@@ -113,9 +144,11 @@ export async function POST(request: Request): Promise<Response> {
 	}
 	const requestedStopCount = normalizePlanStopCount(context.stopCount);
 	if (chosen.length < requestedStopCount) return publicApiError(`Not enough listed pubs in ${area.name} to build a ${requestedStopCount}-stop route yet.`, "GROUNDED_VENUES_INSUFFICIENT", 422, { details: { nightArea: area.slug, availableVenueCount: chosen.length, requestedStopCount } });
-	const pricePence = chosen.map(({ venue }, position) => groundedStops
-		? groundedStops[position].price.pence
-		: venue.cheapestPrice === null ? null : Math.round(venue.cheapestPrice * 100));
+	const pricePence = chosen.map(({ venue }, position) => {
+		const grounded = groundedStops?.[position];
+		if (grounded) return grounded.price.pence;
+		return venue.cheapestPrice === null ? null : Math.round(venue.cheapestPrice * 100);
+	});
 	const hasCompletePriceEvidence = planUsesPintPrices(context)
 		&& pricePence.every((price): price is number => price !== null);
 	const { contextEvidenceGaps, operationalEvidenceGaps } = planGenerationEvidenceGaps({
@@ -159,10 +192,12 @@ export async function POST(request: Request): Promise<Response> {
 	// line estimate; a routing failure never blocks generation. When the ORS key
 	// is present AND the global daily budget allows the call (lib/walkRouteLegs
 	// routes every provider call through consumeOrsBudget), routed leg durations
-	// upgrade the totals to a "routed" basis.
-	const chosenWalkingStops = chosen.map(({ venue }) => ({ lat: venue.lat, lng: venue.lng }));
-	const walkingEstimate = await estimatePlanWalking(chosenWalkingStops).catch(() =>
-		estimateStraightLinePlanWalking(chosenWalkingStops),
+	// upgrade the totals to a "routed" basis. A leg ORS does not route keeps the
+	// street walk the optimiser chose it on (lib/pubWalkPairs) where the table
+	// holds the pair, so the totals and the visit windows agree.
+	const chosenWalkingStops = chosen.map(({ venue }) => ({ lat: venue.lat, lng: venue.lng, venueId: venue.id }));
+	const walkingEstimate = await estimatePlanWalking(chosenWalkingStops, pubStreetWalkKm).catch(() =>
+		estimateStraightLinePlanWalking(chosenWalkingStops, pubStreetWalkKm),
 	);
 	const routeTotals: PlanRouteTotals = {
 		stopCount: chosen.length,
@@ -200,6 +235,12 @@ export async function POST(request: Request): Promise<Response> {
 		planningWeather,
 		priceContext: context,
 	});
+	const { cultureFields, budgetSummary: routeBudgetSummary } = cultureOutingFields(
+		cultureOpenerFields.cultureOpener,
+		stops,
+		context.budgetLimitPence,
+		budgetSummary,
+	);
 	// Ground the proof over exactly the venues this response commits to: the
 	// three chosen stops plus every alternative id we actually emit above.
 	const groundingCandidateIds = [
@@ -252,11 +293,11 @@ export async function POST(request: Request): Promise<Response> {
 		contextFieldSources: reconciled.fieldSources,
     confidence: reconciled.confidence,
 		planningConfidence,
-		budgetSummary,
+		budgetSummary: routeBudgetSummary,
 		routeTotals,
 		routeTiming: planRouteTimingDisclosure(groundedTiming),
 		endingRecommendations,
-		...cultureOpenerFields,
+		...cultureFields,
 		weatherEvidence: planningWeather,
 		nightArea,
 		...(constraintReport ? { constraintReport } : {}),
@@ -273,7 +314,7 @@ export async function POST(request: Request): Promise<Response> {
 	      ...(context.foodNeeds.length ? ["foodNeeds"] : []),
 			...(context.budgetLimitPence ? ["budgetLimitPence"] : []),
 			...(context.zeroProof ? ["zeroProof"] : []),
-			...(context.budget === "value" && !context.zeroProof && !planUsesPintPrices(context) ? ["drinkCategory"] : []),
+			...(planScoringDrinkCategory(context) && (context.budget === "value" || context.zeroProof) ? ["drinkCategory"] : []),
 			...(context.wetherspoonsPreferred ? ["wetherspoonsPreferred"] : []),
 			...(planningWeather ? ["weather"] : []),
 	    ],

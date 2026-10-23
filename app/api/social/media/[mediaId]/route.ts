@@ -1,6 +1,7 @@
 import { publicApiError } from "@/lib/apiError";
+import { withAuthResumeCookie } from "@/lib/authSessionResume";
 import { requireVerifiedSocialActor } from "@/lib/socialAccessServer";
-import { signSocialPhotoObject } from "@/lib/socialPostMedia.server";
+import { downloadUploadedImageObject } from "@/lib/uploadedImage.server";
 import { socialPostConsentStore } from "@/lib/socialPostConsentStore";
 import { isLimited } from "@/lib/pintDrops";
 import { hashActor } from "@/lib/supabase";
@@ -14,6 +15,15 @@ function missing(): Response {
 
 export async function GET(request: Request, context: Context): Promise<Response> {
   const access = await requireVerifiedSocialActor(request);
+  // An <img> carries no bearer, so this is the resume-cookie lane's main door:
+  // every answer hands back the token it rotated, refusals included.
+  return withAuthResumeCookie(await serve(access, context), access.resumeCookie);
+}
+
+async function serve(
+  access: Awaited<ReturnType<typeof requireVerifiedSocialActor>>,
+  context: Context,
+): Promise<Response> {
   if (!access.ok) return missing();
   const limitKey = `social-media-sign:${hashActor(access.actor.profileId)}`;
   if (await isLimited(limitKey, limitKey, 120, 60_000)) return missing();
@@ -22,8 +32,18 @@ export async function GET(request: Request, context: Context): Promise<Response>
   try {
     const objectKey = await socialPostConsentStore.mediaObjectKey(access.actor, mediaId);
     if (!objectKey) return missing();
-    const signedUrl = await signSocialPhotoObject(objectKey);
-    if (!signedUrl) return missing();
-    return new Response(null, { status: 302, headers: { Location: signedUrl, "Cache-Control": "private, no-store" } });
+    // A copied Storage grant would bypass later audience or consent changes.
+    // Keep delivery behind the current permission check on every request.
+    const image = await downloadUploadedImageObject(objectKey);
+    if (!image) return missing();
+    return new Response(new Uint8Array(image.bytes), {
+      status: 200,
+      headers: {
+        "Content-Type": image.contentType,
+        "Content-Length": String(image.bytes.byteLength),
+        "Cache-Control": "private, no-store",
+        "X-Content-Type-Options": "nosniff",
+      },
+    });
   } catch { return missing(); }
 }

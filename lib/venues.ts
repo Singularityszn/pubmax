@@ -1,8 +1,13 @@
+import { legacyOsmVenueKind } from "@/lib/legacyOsmVenueKind.mjs";
+import { legacyCheapestPriceEvidence } from "@/lib/legacyPriceEvidence.mjs";
+import { cheapestPriceReadDay } from "@/lib/priceReadDay.mjs";
 import {
   COMMUNITY_PRICE_CORROBORATION_THRESHOLD,
   isWithinMaxAge,
 } from "@/lib/communityPrice";
 import { getVenueCuration, type Provenance, type VenueCuration } from "@/lib/curation";
+import { displayVenueAddress, displayVenueName, venueSourceNameField } from "@/lib/venueDisplay";
+import { venueSearchNames } from "@/lib/venueSearchNames.mjs";
 import {
   drinksMayBeOne,
   pintDropsAgree,
@@ -32,7 +37,11 @@ import {
   type PintDropConfirmation,
 } from "@/lib/pintDropConfirmationRecord";
 import { hasNonAlcoholic } from "@/lib/nonAlcoholicDrinks";
-import { isLivePriceRow, type PriceSuperseded } from "@/lib/priceRowEligibility.mjs";
+import {
+  isCurrentVenueRow,
+  isLivePriceRow,
+  type PriceSuperseded,
+} from "@/lib/priceRowEligibility.mjs";
 import { getVenueAccessibility } from "@/lib/venueAccessibilitySeeds";
 import {
   matchesAccessibilityFilters,
@@ -50,6 +59,7 @@ import {
 } from "@/lib/venueTruth";
 import { parseZoneParam, venueMatchesZone } from "@/lib/zones";
 import type { MapLensPrice } from "@/lib/mapExperienceLens";
+import type { VenueRecordCopy } from "@/lib/venueRecordCopy";
 
 export type CrawlStyle =
   | "balanced"
@@ -70,6 +80,7 @@ export type VenuePrice = {
   price_gbp: number | null;
   price_text: string;
   address: string;
+  locality?: string;
   latitude: number;
   longitude: number;
   boroughs_visible: string;
@@ -98,6 +109,11 @@ export type VenuePrice = {
   pool: string;
   happy_hour: string;
   karaoke: string;
+  /**
+   * Alcohol-free drinks the pub's own site stated, with the quote kept beside
+   * the row in the website-amenity evidence file. Absent is unknown.
+   */
+  non_alcoholic?: string;
   cool: string;
   source_datasets: string;
   source_row_count: number;
@@ -150,13 +166,34 @@ export function isVenueKind(value: unknown): value is VenueKind {
   return typeof value === "string" && (VENUE_KINDS as readonly string[]).includes(value);
 }
 
+export function hasPintPriceSemantics(
+  venue: { kind?: VenueKind; legacyOsmBar?: unknown },
+): boolean {
+  return isPubVenueKind(venue.kind) ||
+    (venue.kind === "bar" && venue.legacyOsmBar === true);
+}
+
 export type Venue = {
+  placesContent?: import("@/lib/placesEnrichment").PlacesEnrichmentRecord;
+  /** Dog policy and opening hours the pub's own website states (lib/venueSiteFacts.ts). Absent is unknown. */
+  siteFacts?: import("@/lib/venueSiteFacts").VenueSiteFacts;
+  /** What OpenStreetMap states about the pub, from its own ODbL pack (lib/osmPubFacts.ts). Absent is unknown. */
+  osmFacts?: import("@/lib/osmPubFacts").OsmPubFacts;
+  openingHours?: import("@/lib/busyness").WeeklyOpeningHours;
   id: string;
+  /** The reader-facing name, operator suffix dropped (lib/venueDisplay.ts#displayVenueName). */
   name: string;
+  /**
+   * The name as the dataset files it, present only when it differs from `name`
+   * ("The George - JD Wetherspoon"). Identity joins and search read it; it is
+   * never rendered.
+   */
+  sourceName?: string;
   address: string;
   latitude: number;
   longitude: number;
   primaryBorough: string;
+  locality?: string;
   visibleBoroughs: string[];
   prices: VenuePrice[];
   cheapestPrice: number | null;
@@ -218,6 +255,8 @@ export type Venue = {
   imageUrl: string;
   description: string;
   dataQualityNotes: string[];
+  /** Gemini-written copy, validated against this pub's stored structured fields. */
+  recordCopy?: VenueRecordCopy;
   sourceDatasets: string[];
   curation: VenueCuration;
   // Nearest-station TfL fare zone (1–6, occasionally 7–9 at the London edge).
@@ -228,10 +267,17 @@ export type Venue = {
   // Compact facts carried by the slim map index so URL/query filters can work
   // before the heavy venue detail rows are hydrated.
   filterHints?: VenueFilterHints;
-  /** Famous-venue taxonomy. Absent is a pub for legacy/cache compatibility. */
+  /** Venue taxonomy. Absent is a pub for legacy/cache compatibility. */
   kind?: VenueKind;
+  legacyOsmBar?: true;
+  priceSource?: string;
   /** Type-relative price band computed at build time (cheap/mid/dear). */
   priceBand?: 0 | 1 | 2;
+  /**
+   * `YYYY-MM-DD` the slim index's cheapest figure was last read at its source.
+   * Absent when unknown; the map reads that as an aging price, never a fresh one.
+   */
+  priceObservedAt?: string;
   /** Provenance for non-pub anchor prices and editorial stories. */
   anchorLabel?: string;
   anchorCourse?: FoodCategory;
@@ -393,7 +439,8 @@ export const initialFilters: Filters = {
 
 /**
  * The source column each amenity is read from. `nonAlcoholic` is deliberately
- * absent: it is derived from the pub's listed drink names, not a column, and
+ * absent: it is derived from the pub's listed drink names or the
+ * `non_alcoholic` column stamped from the pub's own site, and
  * `venueAmenityStatus` reads it through `derivedAmenityStatus`.
  */
 const AMENITY_SOURCE_COLUMNS = {
@@ -553,8 +600,6 @@ export function formatPrice(value: number | null): string {
   return typeof value === "number" ? formatGbp(value) : "No price";
 }
 
-export { formatGbp };
-
 function normaliseVenueKeyPart(value: string): string {
   return value.trim().toLowerCase().replace(/\s+/g, " ");
 }
@@ -588,10 +633,11 @@ export function stableVenueIdFromKey(key: string): string {
 }
 
 export function groupVenuePrices(rows: VenuePrice[]): Venue[] {
-  const grouped = new Map<string, VenuePrice[]>();
+  const grouped = new Map<string, [VenuePrice, ...VenuePrice[]]>();
   for (const row of rows) {
     const key = venueGroupingKey(row);
-    grouped.set(key, [...(grouped.get(key) ?? []), row]);
+    const existing = grouped.get(key);
+    grouped.set(key, existing ? [...existing, row] : [row]);
   }
 
   return Array.from(grouped.entries()).map(([key, groupRows]) => {
@@ -601,10 +647,11 @@ export function groupVenuePrices(rows: VenuePrice[]): Venue[] {
       return left - right;
     });
     // A superseded row is dated history: it keeps the pub, its id and its story,
-    // and gives nothing the pub served or charged (lib/priceRowEligibility.mjs).
-    const prices = groupRows.filter(isLivePriceRow);
+    // and gives nothing the pub served or charged. An out-of-band row gives no
+    // price but still tells the story (lib/priceRowEligibility.mjs).
+    const prices = groupRows.filter(isCurrentVenueRow);
     const sortedPrices = sortedRows.filter(isLivePriceRow);
-    const first = sortedPrices[0] ?? sortedRows[0];
+    const first = sortedPrices[0] ?? sortedRows[0] ?? groupRows[0];
     const numericPrices = sortedPrices
       .map((price) => price.price_gbp)
       .filter((price): price is number => typeof price === "number");
@@ -620,17 +667,32 @@ export function groupVenuePrices(rows: VenuePrice[]): Venue[] {
     // other venue gets undefined (honestly unknown). Keyed by pub name +
     // borough so a common name doesn't cross-contaminate the wrong pub.
     const accessibility = getVenueAccessibility(first.pub_name, first.primary_borough);
+    const locality = sortedRows
+      .map((price) => String(price.locality ?? "").trim())
+      .find(Boolean);
 
+    const kind = legacyOsmVenueKind(groupRows);
+    const cheapestPrice = numericPrices.length ? Math.min(...numericPrices) : null;
+    const { priceSource } = kind ? legacyCheapestPriceEvidence(sortedPrices, cheapestPrice) : {};
+    const priceObservedAt = kind ? cheapestPriceReadDay(sortedPrices, cheapestPrice) : null;
     return {
       id: stableVenueIdFromKey(key),
-      name: first.pub_name,
-      address: first.address,
+      ...(kind ? {
+        kind,
+        legacyOsmBar: true as const,
+        ...(priceSource ? { priceSource } : {}),
+        ...(priceObservedAt ? { priceObservedAt } : {}),
+      } : {}),
+      name: displayVenueName(first.pub_name),
+      ...venueSourceNameField(first.pub_name),
+      address: displayVenueAddress(first.address),
       latitude: first.latitude,
       longitude: first.longitude,
       primaryBorough: first.primary_borough,
+      ...(locality ? { locality } : {}),
       visibleBoroughs: splitList(first.boroughs_visible),
       prices: sortedPrices,
-      cheapestPrice: numericPrices.length ? Math.min(...numericPrices) : null,
+      cheapestPrice,
       cheapestPint: sortedPrices[0]?.pint_name ?? "",
       averagePrice: numericPrices.length
         ? numericPrices.reduce((sum, price) => sum + price, 0) / numericPrices.length
@@ -650,7 +712,9 @@ export function groupVenuePrices(rows: VenuePrice[]): Venue[] {
         pool: prices.some((price) => truthyFlag(price.pool)),
         happyHour: prices.some((price) => truthyFlag(price.happy_hour)),
         karaoke: prices.some((price) => truthyFlag(price.karaoke)),
-        nonAlcoholic: hasNonAlcoholic(prices.map((price) => price.pint_name)),
+        nonAlcoholic:
+          hasNonAlcoholic(prices.map((price) => price.pint_name)) ||
+          prices.some((price) => truthyFlag(price.non_alcoholic ?? "")),
       },
       website: prices.find((price) => price.website)?.website ?? "",
       bookingLink: firstHttp(...prices.map((price) => price.booking_link)),
@@ -1033,15 +1097,19 @@ export function mergeVenueDrops<D extends SummaryDrop>(
 
     const latestPriceDrop = authoritativePriceDrop(organic, now);
     const contributorPrice = latestPriceDrop?.priceGbp ?? null;
-    const cheapestPrice =
-      contributorPrice === null
-        ? venue.cheapestPrice
-        : Math.min(venue.cheapestPrice ?? Number.POSITIVE_INFINITY, contributorPrice);
+    // Keep the drink label paired with the price row it names. A pricier
+    // corroborated drop remains visible through latestContributorPrice but does
+    // not relabel the lower venue baseline.
+    const contributorIsCheapest =
+      contributorPrice !== null &&
+      contributorPrice <= (venue.cheapestPrice ?? Number.POSITIVE_INFINITY);
+    const cheapestPrice = contributorIsCheapest ? contributorPrice : venue.cheapestPrice;
 
     return {
       ...venue,
       cheapestPrice,
-      cheapestPint: latestPriceDrop?.drink || venue.cheapestPint,
+      cheapestPint:
+        contributorIsCheapest && latestPriceDrop ? latestPriceDrop.drink : venue.cheapestPint,
       // Carry the live community price + its logged-at timestamp so the UI can
       // both show the override AND how fresh it is (formatFreshness).
       latestContributorPrice: contributorPrice,
@@ -1062,7 +1130,7 @@ function hasSlimFlag(venue: Venue, pick: (hints: VenueFilterHints) => boolean): 
 function matchesVenueQuery(venue: Venue, query: string): boolean {
   if (!query) return true;
   const searchableFields = [
-    venue.name,
+    ...venueSearchNames(venue),
     venue.address,
     venue.cheapestPint,
     venue.primaryBorough,
@@ -1231,7 +1299,7 @@ export function filterVenues(
     // anchors use their own type-relative bands and must not be compared with
     // a pub pint's absolute price cap.
     const matchesPrice =
-      (venue.kind !== undefined && venue.kind !== "pub") ||
+      !hasPintPriceSemantics(venue) ||
       venue.cheapestPrice === null ||
       venue.cheapestPrice <= filters.maxPrice;
 
@@ -1360,7 +1428,7 @@ export function buildCrawlRoute(
     const route: Venue[] = [seed];
 
     while (route.length < filters.stopCount) {
-      const last = route[route.length - 1];
+      const last = route.at(-1) ?? seed;
       const localCandidates = sorted
         .filter((venue) => !route.some((selected) => selected.id === venue.id))
         .map((venue) => {

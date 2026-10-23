@@ -1,3 +1,4 @@
+import type { Route } from "next";
 import {
   DEFAULT_CITY_ID,
   parseCityId,
@@ -7,6 +8,7 @@ import { cityAwareMapPath } from "@/lib/cityMapHref";
 import { cityIdFromVenueId } from "@/lib/cityVenueIds";
 import type { AltCrawlStyle } from "@/lib/crawlUrl";
 import type { CrawlStyle } from "@/lib/venues";
+import { appendMapPlanDrinkSelection, type MapPlanDrinkSelection } from "@/lib/mapPlanDrinkPresentation";
 
 // Named "generational" curated crawls — hand-picked routes through pubs that
 // genuinely cluster in a themed patch of London, so an older drinker's pub
@@ -258,7 +260,7 @@ export const curatedCrawls: CuratedCrawl[] = [
       "venue-68ns7y", // Ye Old Mitre — Holborn
       "venue-1wgjxs6", // The Albion — Barnsbury
       "venue-1snxfi3", // The Spaniards Inn — Hampstead
-      "venue-806vol", // The Ship Soho — West End
+      "venue-mz6byd", // The Ship, Wardour Street — West End
       "venue-1ha28jc", // The Grenadier — Belgravia
     ],
   },
@@ -340,7 +342,7 @@ export function placeStoryMapHref(
   crawlId?: string,
   cityId?: CityId | string | null,
   crawls: readonly CuratedCrawl[] = curatedCrawls,
-): string {
+): Route {
   const crawl = crawlId
     ? crawls.find((c) => c.id === crawlId) ??
       (cityId ? undefined : curatedCrawlById(crawlId))
@@ -364,7 +366,7 @@ export function placeStoryMapHref(
 export function curatedCrawlMapHref(
   crawl: CuratedCrawl,
   cityId?: CityId | string | null,
-): string {
+): Route {
   const params = new URLSearchParams();
   params.set("mode", "build");
   params.set("pubs", crawl.venueIds.join(","));
@@ -383,24 +385,25 @@ const SHARE_MAP_STOP_CAP = 12;
 
 export function crawlShareMapHref(input: {
   venueIds: readonly string[];
+  drinkSelection?: MapPlanDrinkSelection;
   placeStoryBandId?: string | null;
   crawlId?: string | null;
   cityId?: CityId | string | null;
   /** Optional city crawl pack for band lookup when crawlId is set. */
   crawls?: readonly CuratedCrawl[];
-}): string {
+}): Route {
   const ids = input.venueIds
     .map((id) => id.trim())
     .filter(Boolean)
     .slice(0, SHARE_MAP_STOP_CAP);
   const city = resolveHrefCity(input.cityId, ids);
+  const params = new URLSearchParams();
+  appendMapPlanDrinkSelection(params, input.drinkSelection);
   if (ids.length === 0) {
     const band = input.placeStoryBandId?.trim();
-    return band
-      ? cityAwareMapPath(city, new URLSearchParams({ band }))
-      : cityAwareMapPath(city);
+    if (band) params.set("band", band);
+    return cityAwareMapPath(city, params);
   }
-  const params = new URLSearchParams();
   params.set("mode", "build");
   params.set("pubs", ids.join(","));
   const crawlId = input.crawlId?.trim();

@@ -1,3 +1,4 @@
+import type { Route } from "next";
 import type { Metadata } from "next";
 
 import SiteNav from "@/components/nav/SiteNav";
@@ -39,7 +40,7 @@ type SavedListDisplayCounts = {
   savedPubs: number;
 };
 
-function listCardHref(ownerHandle: string, listType: string, counts: SavedListDisplayCounts): string {
+function listCardHref(ownerHandle: string, listType: string, counts: SavedListDisplayCounts): Route {
   const params = new URLSearchParams();
   params.set("owner", ownerHandle);
   params.set("list", listType);
@@ -74,7 +75,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
     savedPubs: venues.length,
   };
   const title = `@${ownerHandle}'s ${listType}`;
-  const description = `@${ownerHandle}'s ${listType} saved list on PUBMAXXING. ${formatSavedVenueCount(
+  const description = `@${ownerHandle}'s ${listType} saved list on PUBMAXX. ${formatSavedVenueCount(
     counts.savedPubs,
   )}${counts.followers === null ? "." : `, ${plural(counts.followers, "follower")}.`}`;
   const cardUrl = listCardHref(ownerHandle, listType, counts);

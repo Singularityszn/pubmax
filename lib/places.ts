@@ -1,5 +1,6 @@
 // Places policy: which cities a reader may pick, what each one may CLAIM about
-// itself, and every sentence the Places tab prints.
+// itself, and every sentence the city picker at /places prints. It is no
+// longer a tab (Oct 2026): the map's city chip and the footer reach it.
 //
 // Pure by design, so the tab, its tests and any later surface read one answer.
 // Nothing here derives a figure, a date or a coverage claim: prices come from
@@ -10,12 +11,14 @@
 // no listed prices is not a city with no areas, and a reader who is told one
 // while the other is true has been misled about which half is missing.
 
+import type { Route } from "next";
 import {
   buildCityChooserSearchResults,
   TOWN_SEARCH_UNAVAILABLE_LEAD,
   type CityChooserSearchResult,
 } from "@/lib/cityChooserSearch";
 import { PLACES_PATH } from "@/lib/cityPickerRoute";
+import { HELLO_MAILTO } from "@/lib/siteContact";
 import {
   getCity,
   listEnabledCities,
@@ -39,8 +42,21 @@ const PLACES_CITY_PARAM = "city";
 
 /** Kicker above the heading, per the shell's kicker-then-heading rhythm. */
 export const PLACES_KICKER = "Places";
-export const PLACES_TITLE = "Pick a city.";
-export const PLACES_LEDE = "Set one and the map, Out and Near all open there.";
+export const PLACES_TITLE = "London only, for now.";
+export const PLACES_LEDE =
+  "London is the one city with listed pint prices. More cities come when their prices are in.";
+
+/**
+ * The city request, the list screen's quiet way onward.
+ *
+ * Product owner, Oct 2026 UX audit: the list shows only the cities with listed
+ * pint prices (London today), because eleven rows marked "Prices coming" read
+ * as eleven promises. Taste plan, 18 Oct 2026: with one such city the screen
+ * says so in its heading, so the request sits beside the one door rather than
+ * under a heading of its own.
+ */
+export const PLACES_WAITLIST_LABEL = "Want your city next? Tell us.";
+export const PLACES_WAITLIST_HREF = `${HELLO_MAILTO}?subject=City%20request`;
 
 /**
  * The list screen's one painted action, and its one quiet way onward.
@@ -52,11 +68,16 @@ export const PLACES_LEDE = "Set one and the map, Out and Near all open there.";
 export const PLACES_LIST_PRIMARY_LABEL = "Open London";
 export const PLACES_LIST_SECONDARY_LABEL = UK_NATIONAL_ENTRY_LABEL;
 
-/** The one way back to the full list while a query stands. */
-export const PLACES_SHOW_ALL_LABEL = "Show every city";
+/** The one way back to an empty field while a query stands. */
+export const PLACES_SHOW_ALL_LABEL = "Clear the search";
 
-export const PLACES_SEARCH_LABEL = "Find a city";
-export const PLACES_SEARCH_PLACEHOLDER = "Search a city";
+export const PLACES_SEARCH_LABEL = "Find a town";
+export const PLACES_SEARCH_PLACEHOLDER = "Search a town";
+
+/** The section under the head: the UK map, which shows pubs without prices. */
+export const PLACES_UK_TITLE = "Pubs elsewhere in the UK";
+export const PLACES_UK_LINE =
+  "Outside London the map shows the pubs, without prices yet. Find a town to open it there.";
 
 /** The one primary action a city panel offers. */
 export const PLACES_SET_CITY_LABEL = "Set as my city";
@@ -104,6 +125,17 @@ export function placesCityRows(): PlacesCityRow[] {
       areaCount: getNightAreasForCity(city.id).length,
     };
   });
+}
+
+/**
+ * The rows the list screen shows: only cities whose prices are listed.
+ *
+ * Every other enabled city keeps its panel (`/places?city=`), its map
+ * (`/map/{city}`) and its search answer; it is just not listed as a choice
+ * until there are prices behind it.
+ */
+export function placesLiveCityRows(): PlacesCityRow[] {
+  return placesCityRows().filter((row) => row.pricesListed);
 }
 
 /** The pill one row wears. */
@@ -193,21 +225,21 @@ export function placesTownLookupPending(
  * What the picker says when the place index will not answer.
  *
  * The chooser's own line ends "The five city maps are below", which is true
- * THERE: its full city list always renders under the search panel. Here the
- * list is filtered out while a query stands, so a reader told the maps are
- * below would be looking at a screen holding none. The lead is shared and this
- * surface finishes it by naming the button that brings its list back.
+ * THERE: its full city list always renders under the search panel. Here there
+ * is no list under the field, so the lead is shared and this surface finishes
+ * it by naming the button that is still on screen and the UK map link beside
+ * the heading.
  */
 export function placesTownSearchUnavailableLine(): string {
-  return `${TOWN_SEARCH_UNAVAILABLE_LEAD} ${PLACES_SHOW_ALL_LABEL} to pick one.`;
+  return `${TOWN_SEARCH_UNAVAILABLE_LEAD} ${PLACES_SHOW_ALL_LABEL}, or browse the UK map.`;
 }
 
 /** The one line a search that matched nothing prints. */
 export function placesSearchEmptyLine(query: string): string {
   const typed = query.trim();
   return typed
-    ? `No city here called ${typed}. Try another name.`
-    : "No cities to show.";
+    ? `No town here called ${typed}. Try another name.`
+    : "No towns to show.";
 }
 
 /** `?city=` is a closed id or nothing. An unknown value is the city list. */
@@ -217,7 +249,7 @@ export function parsePlacesCityParam(
   return parseCityId(raw);
 }
 
-export function placesCityHref(cityId: CityId): string {
+export function placesCityHref(cityId: CityId): Route {
   return `${PLACES_PATH}?${PLACES_CITY_PARAM}=${encodeURIComponent(cityId)}`;
 }
 
@@ -248,31 +280,31 @@ export function placesAreasEmptyLine(cityId: CityId): string {
 
 /** What the panel confirms once this city is the reader's. */
 export function placesCurrentCityLine(cityId: CityId): string {
-  return `The map, Out and Near now open on ${getCity(cityId).displayName}.`;
+  return `The map and Near now open on ${getCity(cityId).displayName}.`;
 }
 
 export const PLACES_LIST_SECONDARY_HREF = UK_NATIONAL_MAP_HREF;
 
-export type PlacesWay = { href: string; label: string };
+export type PlacesWay = { href: Route; label: string };
 
 /**
  * The two actions a city panel offers, in Screen order: the painted one first.
  *
  * A city that is NOT yet the reader's owes them the choice, so the painted
  * action sets it and the quiet one opens the map anyway. A city that already IS
- * theirs owes them the way in instead, and Out follows the same stored city, so
- * it is the quiet second.
+ * theirs owes them the way in instead, and Tonight (which carries what the Out
+ * tab listed, /out 308s there) is the quiet second.
  *
  * There is deliberately no third row of ways below. It printed "Open the map"
  * and "What's on" a second and third time under the head that already carried
  * them, and a screen that offers the same door twice reads as two doors.
  */
 export function placesCityActions(
-  mapHref: string,
+  mapHref: Route,
   isYours: boolean,
 ): { primary: PlacesWay | null; secondary: PlacesWay } {
   const map: PlacesWay = { href: mapHref, label: "Open the map" };
-  const whatsOn: PlacesWay = { href: "/out", label: "What's on" };
+  const whatsOn: PlacesWay = { href: "/tonight", label: "What's on" };
   return isYours
     ? { primary: map, secondary: whatsOn }
     : { primary: null, secondary: map };

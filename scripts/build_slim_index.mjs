@@ -1,9 +1,9 @@
 // Build the SLIM venue index the map needs to render pins + labels + price
-// colour, WITHOUT shipping the ~6 MB raw price dataset to every visitor.
+// colour + neighbourhood, WITHOUT shipping the ~6 MB raw price dataset to every visitor.
 //
 // The map only needs, per venue: a stable id (to deep-link + fetch heavy detail
 // on open), name, lat/lng, the cheapest numeric price (for the label + colour),
-// and a borough. This script groups the raw rows the SAME way
+// and a borough plus any existing locality. This script groups the raw rows the SAME way
 // lib/venues.ts#groupVenuePrices does — same FNV-1a stable id, same grouping
 // key — so every slim id is byte-identical to the "venue-…" id the rest of the
 // app links by. The heavy detail (all prices, amenities, curation) is fetched
@@ -32,11 +32,12 @@ import {
   spatialShardFile,
 } from "./lib/slimShards.mjs";
 import { loadStationZones, nearestStationZone } from "./lib/stationZones.mjs";
-import {
-  isCurrentNightOutPlace,
-  nightOutPlaceRowValidationErrors,
-} from "../lib/nightOutPlaceContract.mjs";
-import { isLivePriceRow } from "../lib/priceRowEligibility.mjs";
+import { isCurrentFamousVenue } from "./lib/currentFamousVenue.mjs";
+import { nightOutPlaceRowValidationErrors } from "../lib/nightOutPlaceContract.mjs";
+import { legacyCheapestPriceEvidence } from "../lib/legacyPriceEvidence.mjs";
+import { isCurrentVenueRow, isLivePriceRow } from "../lib/priceRowEligibility.mjs";
+import { legacyOsmVenueKind } from "../lib/legacyOsmVenueKind.mjs";
+import { cheapestPriceReadDay } from "../lib/priceReadDay.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, "..");
@@ -140,8 +141,9 @@ function famousVenueFilterHints(row) {
 }
 
 // A malformed seed row fails the build. A well-formed row whose verification
-// window has lapsed (isCurrentNightOutPlace) is not current. famousRowsForRebuild
-// refuses to write when that would drop a venue the last slim index shipped.
+// window has lapsed, or that has no price anchor (isCurrentFamousVenue), is not
+// current. famousRowsForRebuild refuses to write when that would drop a venue
+// the last slim index shipped.
 function assertCurrentFamousVenueRows(rows, now) {
   const malformed = rows.filter(
     (row) => nightOutPlaceRowValidationErrors(row).length > 0,
@@ -156,12 +158,12 @@ function assertCurrentFamousVenueRows(rows, now) {
   const current = [];
   const withheld = [];
   for (const row of rows) {
-    if (isCurrentNightOutPlace(row, now)) current.push(row);
+    if (isCurrentFamousVenue(row, now)) current.push(row);
     else withheld.push(row);
   }
   if (withheld.length > 0) {
     console.log(
-      `withholding ${withheld.length} famous venue(s) with lapsed or missing verification: ${withheld.map((row) => row.id).join(", ")}`,
+      `withholding ${withheld.length} famous venue(s) with lapsed or missing verification or no anchor: ${withheld.map((row) => row.id).join(", ")}`,
     );
   }
   return current;
@@ -173,7 +175,7 @@ const FAMOUS_SLIM_KINDS = new Set(["bar", "food", "restaurant"]);
 function shippedFamousVenueIds(payload) {
   const rows = Array.isArray(payload?.rows) ? payload.rows : [];
   return rows
-    .filter((row) => row && FAMOUS_SLIM_KINDS.has(row.kind))
+    .filter((row) => row && FAMOUS_SLIM_KINDS.has(row.kind) && (row.anchorLabel || !row.id?.startsWith("venue-")))
     .map((row) => row.id);
 }
 
@@ -183,6 +185,7 @@ function shippedFamousVenueIds(payload) {
  * only an explicit refresh moves the clock. A non-empty seed that is entirely
  * lapsed, or any shipped id missing from the current set and not named in
  * data/famous_venues/removed.json, fails before a shorter index is written.
+ * A shipped seed row whose anchor was removed is withheld, not a failure.
  */
 function famousRowsForRebuild(seedRows, { lastSlim, removedIds, refreshAt }) {
   let at = refreshAt;
@@ -208,14 +211,17 @@ function famousRowsForRebuild(seedRows, { lastSlim, removedIds, refreshAt }) {
   }
   const kept = assertCurrentFamousVenueRows(seedRows, builtAt);
   const keptIds = new Set(kept.map((row) => row.id));
-  const seedIds = new Set(seedRows.map((row) => row.id));
+  const seedById = new Map(seedRows.map((row) => [row.id, row]));
   const allowedRemovals = new Set(removedIds);
   const lapsed = [];
   const removed = [];
   for (const id of shippedFamousVenueIds(lastSlim)) {
     if (keptIds.has(id)) continue;
-    if (seedIds.has(id)) lapsed.push(id);
-    else if (!allowedRemovals.has(id)) removed.push(id);
+    const seedRow = seedById.get(id);
+    // A curator who removes a row's anchor withholds it on purpose.
+    if (seedRow) {
+      if (seedRow.anchor) lapsed.push(id);
+    } else if (!allowedRemovals.has(id)) removed.push(id);
   }
   if (lapsed.length > 0 || removed.length > 0) {
     const parts = [];
@@ -682,11 +688,12 @@ function buildCurationHints(prices) {
   };
 }
 
-function buildFilterHints(rows, venueId, scrapedIds) {
+function buildFilterHints(rows, venueId, scrapedIds, drinkSubtypes) {
   // Mirrors groupVenuePrices: a superseded row gives the pub its identity and
-  // its story, and nothing it served or charged (lib/priceRowEligibility.mjs).
+  // its story, and nothing it served or charged. An out-of-band row keeps the
+  // story; the pin price below reads isLivePriceRow (lib/priceRowEligibility.mjs).
   const first = rows[0];
-  const prices = rows.filter(isLivePriceRow);
+  const prices = rows.filter(isCurrentVenueRow);
   const searchParts = new Set(
     [
       first.pub_name,
@@ -742,9 +749,9 @@ function buildFilterHints(rows, venueId, scrapedIds) {
       cocktails: prices.some((price) => truthyFlag(price.cocktails)),
       beerGarden: prices.some((price) => truthyFlag(price.beer_garden)),
       liveSports: prices.some((price) => truthyFlag(price.live_sports)),
-      nonAlcoholic: prices.some((price) =>
-        isNonAlcoholicDrinkName(price.pint_name),
-      ),
+      nonAlcoholic:
+        prices.some((price) => isNonAlcoholicDrinkName(price.pint_name)) ||
+        prices.some((price) => truthyFlag(price.non_alcoholic)),
     },
     curation,
     canonical: prices.some(
@@ -755,6 +762,9 @@ function buildFilterHints(rows, venueId, scrapedIds) {
     ...(drinkHints.drinkBrands.length
       ? { drinkBrands: drinkHints.drinkBrands }
       : {}),
+    ...(drinkSubtypes?.size
+      ? { drinkSubtypes: Array.from(drinkSubtypes).sort() }
+      : {}),
     ...(drinkHints.drinkText ? { drinkText: drinkHints.drinkText } : {}),
     ...(cuisineTags.length ? { cuisineTags } : {}),
   };
@@ -762,15 +772,9 @@ function buildFilterHints(rows, venueId, scrapedIds) {
 
 // --- build -------------------------------------------------------------------
 
-async function main() {
-  const rawText = await readFile(RAW_PATH, "utf8");
-  const rows = JSON.parse(rawText);
-  if (!Array.isArray(rows)) {
-    throw new Error(`Expected an array in ${RAW_PATH}, got ${typeof rows}`);
-  }
-
-  // Enrichment venue ids (Young's / Nicholson's / Greene King) — stamp scraped
-  // + drink accents even when the underlying pint row is already canonical.
+// Enrichment venue ids (Young's / Nicholson's / Greene King) — stamp scraped
+// + drink accents even when the underlying pint row is already canonical.
+async function readScrapedIds() {
   const scrapedIds = new Set();
   try {
     const enrichmentPath = path.join(
@@ -784,7 +788,41 @@ async function main() {
   } catch {
     // Missing enrichment is fine — gazetteer source_datasets still stamps scraped.
   }
+  return scrapedIds;
+}
 
+// The soft-drink subtypes a venue's own menu prices, from the UK price bundle's
+// listed site-harvest rows: the same rows /soft-drinks-and-water lists. Without
+// them the map's soft-drink lens finds none of the pubs that page names, because
+// a Coke Zero on a menu never reaches pint_name or drinkText. A missing or
+// unreadable bundle hints nothing, so the lens is no wider than its evidence.
+async function readBundleSoftDrinkSubtypes() {
+  const byVenue = new Map();
+  try {
+    const bundle = JSON.parse(
+      await readFile(path.join(DATA_DIR, "uk_prices", "rows.json"), "utf8"),
+    );
+    for (const row of Array.isArray(bundle) ? bundle : (bundle?.rows ?? [])) {
+      if (
+        row?.lane !== "site-harvest" ||
+        row.standing !== "listed" ||
+        row.category !== "soft-drink" ||
+        typeof row.venueId !== "string" ||
+        typeof row.drinkSubtype !== "string"
+      ) {
+        continue;
+      }
+      const held = byVenue.get(row.venueId) ?? new Set();
+      held.add(row.drinkSubtype);
+      byVenue.set(row.venueId, held);
+    }
+  } catch {
+    // No bundle, no subtype hints.
+  }
+  return byVenue;
+}
+
+function groupLondonRows(rows) {
   // Group rows by the canonical key. Preserve first-seen order so the first row
   // of a group supplies name/lat/lng/borough — matching groupVenuePrices, whose
   // Map preserves insertion order and reads name/coords/borough off `first`
@@ -803,6 +841,20 @@ async function main() {
     if (bucket) bucket.push(row);
     else grouped.set(key, [row]);
   }
+  return { grouped, droppedOob };
+}
+
+async function main() {
+  const rawText = await readFile(RAW_PATH, "utf8");
+  const rows = JSON.parse(rawText);
+  if (!Array.isArray(rows)) {
+    throw new Error(`Expected an array in ${RAW_PATH}, got ${typeof rows}`);
+  }
+
+  const scrapedIds = await readScrapedIds();
+  const bundleSoftDrinkSubtypes = await readBundleSoftDrinkSubtypes();
+
+  const { grouped, droppedOob } = groupLondonRows(rows);
   if (droppedOob > 0) {
     console.log(`dropped ${droppedOob} row(s) outside Greater London bounds`);
   }
@@ -874,7 +926,15 @@ async function main() {
     const cheapestPrice = numericPrices.length
       ? Math.min(...numericPrices)
       : null;
+    // The day that figure was last read at its source, so the pin can show an
+    // aging price as aging (lib/priceTier.ts `priceAgeFor`). Absent when no row
+    // carrying the figure records a read: such a price cannot claim to be fresh.
+    const priceObservedAt = cheapestPriceReadDay(prices, cheapestPrice);
+    const { priceSource } = legacyCheapestPriceEvidence(prices, cheapestPrice);
     const id = stableVenueIdFromKey(key);
+    const locality = groupRows
+      .map((row) => String(row.locality ?? "").trim())
+      .find(Boolean);
 
     const lat = Number(first.latitude);
     const lng = Number(first.longitude);
@@ -883,17 +943,28 @@ async function main() {
     if (zone === null) zoneUnknown += 1;
     else zoneCounts[zone] = (zoneCounts[zone] ?? 0) + 1;
 
+    const kind = legacyOsmVenueKind(groupRows);
     slim.push({
       id,
+      kind,
+      ...(kind === "bar" ? { legacyOsmBar: true } : {}),
       name: String(first.pub_name),
       lat,
       lng,
       cheapestPrice,
+      ...(priceSource ? { priceSource } : {}),
+      ...(priceObservedAt ? { priceObservedAt } : {}),
       borough: String(first.primary_borough || ""),
+      locality: locality ?? "",
       // Nearest-station fare zone (1–6, occasionally 7–9 at the London edge).
       // null when no station is comparable — kept honest, never bucketed.
       ...(zone !== null ? { zone } : {}),
-      filterHints: buildFilterHints(groupRows, id, scrapedIds),
+      filterHints: buildFilterHints(
+        groupRows,
+        id,
+        scrapedIds,
+        bundleSoftDrinkSubtypes.get(id),
+      ),
     });
 
     // The detail artifact keeps every row: the server groups it through
@@ -910,6 +981,7 @@ async function main() {
       lng: row.lng,
       cheapestPrice: row.anchor.price,
       borough: row.borough,
+      locality: "",
       ...(nearest ? { zone: nearest.zone } : {}),
       kind: row.kind,
       priceBand: famousPriceBands.get(row.id),
@@ -941,9 +1013,16 @@ async function main() {
   // consumers (crawls, rounds) read — they need ALL venues by id, not a
   // viewport. The sharded files below are the CLIENT MAP first-paint
   // optimization derived from the same rows.
-  await writeFile(SLIM_PATH, slimText);
   await writeFile(DETAIL_ROWS_PATH, detailText);
   await writeFile(DETAIL_INDEX_PATH, detailIndexText);
+  // --details-only writes just the two gitignored detail files, so CI can
+  // validate the committed packs without a rebuild writing over them.
+  if (process.argv.includes("--details-only")) {
+    console.log(`wrote: ${path.relative(ROOT, DETAIL_ROWS_PATH)}`);
+    console.log(`wrote: ${path.relative(ROOT, DETAIL_INDEX_PATH)}`);
+    return;
+  }
+  await writeFile(SLIM_PATH, slimText);
 
   // --- spatially shard the slim index for the map's first paint --------------
   const cells = classifySpatialShards(slim, SPATIAL_GRID);

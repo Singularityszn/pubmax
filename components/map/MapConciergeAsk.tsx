@@ -9,6 +9,7 @@ import { useRouter } from "next/navigation";
 import { MapPin, X } from "lucide-react";
 
 import { PubPalMascot } from "@/components/pal/PubPalMascot";
+import { PintPriceBadge } from "@/components/PriceBadge";
 
 import { useAuth } from "@/components/auth/AuthProvider";
 import { captureAccountAuth } from "@/lib/accountBoundFetch";
@@ -19,6 +20,7 @@ import {
   type AskCard,
 } from "@/lib/conciergeAskClient";
 import type { AskProposal } from "@/lib/ask/types";
+import { PLAN_FIELD_LABEL } from "@/lib/planCopy";
 import { confirmOccupancyProposal } from "@/components/map/useVenueOccupancy";
 import { useDismissOnEscape } from "@/lib/useDismissOnEscape";
 
@@ -61,6 +63,7 @@ export default function MapConciergeAsk({
   const [state, setState] = useState<AskState>({ status: "idle" });
   const [proposalError, setProposalError] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement | null>(null);
+  const panelRef = useRef<HTMLDivElement | null>(null);
 
   const expand = useCallback(() => {
     setOpen(true);
@@ -71,7 +74,7 @@ export default function MapConciergeAsk({
     setOpen(false);
   }, []);
 
-  useDismissOnEscape(open, collapse);
+  useDismissOnEscape(open, collapse, panelRef);
 
   const sessionRef = useRef<ReturnType<typeof createAskSession> | null>(null);
 
@@ -168,7 +171,7 @@ export default function MapConciergeAsk({
 
   if (!open) {
     return (
-      <div className="mapConciergeAsk mapConciergeAsk--collapsed">
+      <div ref={panelRef} className="mapConciergeAsk mapConciergeAsk--collapsed">
         <button
           type="button"
           className="mapConciergeAskPill pressable"
@@ -183,7 +186,7 @@ export default function MapConciergeAsk({
   }
 
   return (
-    <div className="mapConciergeAsk mapConciergeAsk--open">
+    <div ref={panelRef} className="mapConciergeAsk mapConciergeAsk--open">
       <section
         className="mapConciergeAskPanel"
         role="dialog"
@@ -206,7 +209,7 @@ export default function MapConciergeAsk({
 
         <form className="mapConciergeAskForm" onSubmit={onSubmit}>
           <label className="mapConciergeAskSr" htmlFor="map-concierge-query">
-            Describe the outing
+            {PLAN_FIELD_LABEL}
           </label>
           <input
             id="map-concierge-query"
@@ -295,14 +298,16 @@ export default function MapConciergeAsk({
                       <div className="mapConciergeAskCardTop">
                         <p className="mapConciergeAskCardTitle">{card.title}</p>
                         {typeof card.price === "number" ? (
-                          <span className="mapConciergeAskCardPrice">
-                            £{card.price.toFixed(2)}
-                          </span>
+                          <PintPriceBadge
+                            className="mapConciergeAskCardPrice"
+                            priceGbp={card.price}
+                            venueId={card.venueId || null}
+                          />
                         ) : null}
                       </div>
                       {card.place ? (
                         <p className="mapConciergeAskCardPlace">
-                          <MapPin size={12} aria-hidden="true" />
+                          <MapPin size={14} aria-hidden="true" />
                           <span>{card.place}</span>
                         </p>
                       ) : null}

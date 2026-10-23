@@ -3,7 +3,7 @@
 // U5 of docs/plans/SITE_SPEED_2026-09-01.md. Three families load through
 // next/font: Space Grotesk and Inter as VARIABLE faces, which carry their whole
 // axis in one file and so have no unused weight to drop, and JetBrains Mono as
-// a static list.
+// a list of declared faces on its vendored file.
 //
 // That list carried 500, and CSS cannot reach it. The font-matching algorithm
 // searches UPWARD first for any target above 500, so every stamped rule in the
@@ -17,10 +17,60 @@
 import { readdirSync, readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
 
-import { describe, expect, it } from "vitest";
+import postcss from "postcss";
+import { Children, createElement, type ReactElement } from "react";
+import { describe, expect, it, vi } from "vitest";
+
+const localFontCalls = vi.hoisted(
+  () => [] as Array<{
+    variable?: string;
+    src: Array<{ weight?: string }>;
+    declarations?: Array<{ prop: string; value: string }>;
+  }>,
+);
+
+type GoogleFontOptions = {
+  variable: string;
+  weight?: string | string[];
+  adjustFontFallback?: boolean;
+};
+
+const googleFontCalls = vi.hoisted(() => [] as GoogleFontOptions[]);
+
+const fontFamilies = vi.hoisted(() => ({
+  display: "'Space Grotesk', 'Space Grotesk Fallback'",
+  body: "'Inter', 'Inter Fallback', system-ui",
+}));
+
+vi.mock("server-only", () => ({}));
+vi.mock("next/headers", () => ({ headers: async () => ({ get: () => "font-test-nonce" }) }));
+vi.mock("next/font/google", () => {
+  const face = (fontFamily: string) => ({
+    className: "font-mock",
+    variable: "--font-mock",
+    style: { fontFamily },
+  });
+  return {
+    Space_Grotesk: (options: GoogleFontOptions) => {
+      googleFontCalls.push(options);
+      return face(fontFamilies.display);
+    },
+    Inter: (options: GoogleFontOptions) => {
+      googleFontCalls.push(options);
+      return face(fontFamilies.body);
+    },
+  };
+});
+vi.mock("next/font/local", () => ({
+  default: vi.fn((options: (typeof localFontCalls)[number]) => {
+    localFontCalls.push(options);
+    return { className: "font-mock", variable: "--font-mock" };
+  }),
+}));
+
+import RootLayout from "@/app/layout";
 
 const REPO_ROOT = join(__dirname, "..");
-const layout = readFileSync(join(REPO_ROOT, "app/layout.tsx"), "utf8");
 
 function stylesheets(dir: string): string[] {
   const found: string[] = [];
@@ -39,34 +89,84 @@ function stylesheets(dir: string): string[] {
   return found;
 }
 
-/** Every weight a rule asks for while naming the mono face. */
-function monoWeightTargets(): number[] {
+function monoTargetsFromCss(css: string): number[] {
   const targets: number[] = [];
-  for (const dir of ["app", "components"]) {
-    for (const file of stylesheets(dir)) {
-      const css = readFileSync(file, "utf8");
-      // `font: <weight> <size>/<lh> var(--font-data)`
-      for (const match of css.matchAll(
-        /font:\s*(\d{3})[^;]*var\(--font-data\)/g,
-      )) {
-        targets.push(Number(match[1]));
+  postcss.parse(css).walkRules((rule) => {
+    const font = new Map<string, { value: string; important: boolean }>();
+    const set = (prop: string, value: string, important: boolean) => {
+      if (!font.get(prop)?.important || important) font.set(prop, { value, important });
+    };
+    rule.each((node) => {
+      if (node.type !== "decl") return;
+      if (node.prop === "font") {
+        const parts = postcss.list.space(node.value);
+        const sizeIndex = parts.findIndex((part) =>
+          part.includes("/") || /^(?:var|calc|clamp|min|max)\(/.test(part)
+          || /(?:px|rem|em|vh|vw|pt|%)$/.test(part),
+        );
+        const weight = parts.slice(0, sizeIndex).find((part) =>
+          Number.isFinite(Number(part)) || part === "bold",
+        ) ?? "normal";
+        set("font-family", parts.slice(sizeIndex + 1).join(" "), node.important);
+        set("font-weight", weight, node.important);
+      } else if (node.prop === "font-family" || node.prop === "font-weight") {
+        set(node.prop, node.value, node.important);
       }
-      // A `font-family: var(--font-data)` rule with its own font-weight, in
-      // either order inside the same declaration block.
-      for (const block of css.matchAll(/\{[^{}]*\}/g)) {
-        const body = block[0];
-        if (!body.includes("var(--font-data)")) continue;
-        const weight = /font-weight:\s*(\d{3})/.exec(body);
-        if (weight) targets.push(Number(weight[1]));
-      }
-    }
-  }
+    });
+    const families = postcss.list.comma(font.get("font-family")?.value ?? "");
+    if (!families.includes("var(--font-data)")) return;
+    const value = font.get("font-weight")?.value;
+    if (value === undefined) return;
+    const weight = value === "normal" ? 400 : value === "bold" ? 700 : Number(value);
+    expect(Number.isFinite(weight), `unresolved mono font weight: ${value}`).toBe(true);
+    targets.push(weight);
+  });
   return targets;
+}
+
+function monoWeightTargets(): number[] {
+  return ["app", "components"].flatMap((dir) => stylesheets(dir).flatMap((file) =>
+    monoTargetsFromCss(readFileSync(file, "utf8")),
+  ));
+}
+
+function expectVariableGoogleFonts(options: GoogleFontOptions[]) {
+  expect(options.find((font) => font.variable === "--font-display")?.weight).toBe("variable");
+  const body = options.find((font) => font.variable === "--font-body");
+  expect(body).toBeDefined();
+  expect(body).not.toHaveProperty("weight");
+}
+
+function expectMatchedGoogleFallbacks(options: GoogleFontOptions[]) {
+  for (const variable of ["--font-display", "--font-body"]) {
+    const font = options.find((options) => options.variable === variable);
+    expect(font).toBeDefined();
+    expect(font?.adjustFontFallback ?? true).toBe(true);
+  }
 }
 
 describe("the mono face carries only weights something asks for", () => {
   it("declares 400 and 700 and nothing between", () => {
-    expect(layout).toContain('weight: ["400", "700"]');
+    const mono = localFontCalls.find((options) => options.variable === "--font-data");
+    expect(mono?.src.map((face) => face.weight)).toEqual(["400", "700"]);
+  });
+
+  it("names its faces the family the --font-data token asks for", () => {
+    // next/font/local names a face after its const unless told otherwise, and
+    // the :root token wins the cascade over next/font's variable class. A name
+    // the token does not ask for leaves every numeral in the system monospace.
+    const root = postcss.parse(readFileSync(join(REPO_ROOT, "app/globals.css"), "utf8"));
+    let token = "";
+    root.walkRules(":root", (rule) => {
+      rule.walkDecls("--font-data", (decl) => {
+        token = decl.value;
+      });
+    });
+    const requested = (token.split(",")[0] ?? "").trim().replace(/^["']|["']$/g, "");
+    const mono = localFontCalls.find((options) => options.variable === "--font-data");
+    const family = mono?.declarations?.find((decl) => decl.prop === "font-family")?.value;
+    expect(requested).not.toBe("");
+    expect(family).toBe(requested);
   });
 
   it("has no shipped rule that could resolve to 500", () => {
@@ -81,13 +181,70 @@ describe("the mono face carries only weights something asks for", () => {
   });
 
   it("keeps the two variable families variable, so they drop no weight", () => {
-    expect(layout).toContain('weight: "variable"');
-    // Inter declares no weight at all, which is next/font's variable default.
-    const inter = layout.slice(layout.indexOf("const bodySans = Inter("));
-    expect(inter.slice(0, inter.indexOf("});"))).not.toContain("weight:");
+    expectVariableGoogleFonts(googleFontCalls);
   });
 
   it("keeps the metric-matched fallback, so no swap reflows", () => {
-    expect(layout).toContain("adjustFontFallback: true");
+    expectMatchedGoogleFallbacks(googleFontCalls);
+  });
+
+  it.each(["--font-display", "--font-body"])("rejects incorrect live options for %s", (variable) => {
+    const options = googleFontCalls.map((font) => ({ ...font }));
+    const font = options.find((font) => font.variable === variable)!;
+    font.weight = "400";
+    expect(() => expectVariableGoogleFonts(options)).toThrow();
+    font.adjustFontFallback = false;
+    expect(() => expectMatchedGoogleFallbacks(options)).toThrow();
+  });
+
+  it("ignores commented mono declarations and normalizes declaration order and overrides", () => {
+    expect(monoTargetsFromCss(`
+      /* .retired { font: 500 12px var(--font-data); } */
+      .shorthand { font: normal 550 12px/1 var(--font-data); }
+      .family-first { font-family: var(--font-data); font-weight: 640; }
+      .weight-first { font-weight: 650; font-family: var(--font-data); }
+      .overridden { font: 500 12px var(--font-data); font-weight: 700; }
+      .important { font-weight: 700 !important; font: 500 12px var(--font-data); }
+      .other-family { --note: var(--font-data); font-family: sans-serif; font-weight: 500; }
+      .replaced-family { font: 500 12px var(--font-data); font-family: sans-serif; }
+      .reset-weight { font-weight: 500; font: 700 12px sans-serif; font-family: var(--font-data); }
+    `)).toEqual([550, 640, 650, 700, 700, 700]);
+    expect(monoTargetsFromCss(".live { font-family: var(--font-data); font-weight: 500; }")).toEqual([500]);
+  });
+});
+
+
+describe("root font loading", () => {
+  // The fonts used to be pinned to their fallbacks until hydration, and the
+  // release restyled the document late enough to set /today's LCP (17 Oct 2026).
+  // The root carries each complete chain from the server on, so the global
+  // tokens never win and hydration has nothing to change.
+  it("pins no face to its fallback and needs no no-script override", async () => {
+    const doc = await RootLayout({ children: createElement("main") });
+    expect(doc.props.style).toEqual({
+      "--font-display": fontFamilies.display,
+      "--font-body": fontFamilies.body,
+    });
+    const head = Children.toArray(doc.props.children).find(
+      (child) => typeof child === "object" && child !== null && "type" in child && child.type === "head",
+    ) as ReactElement<{ children: React.ReactNode }>;
+    const noscript = Children.toArray(head.props.children).find(
+      (child) => typeof child === "object" && child !== null && "type" in child && child.type === "noscript",
+    );
+    expect(noscript).toBeUndefined();
+  });
+
+  it("refuses a Google face that provides no matched fallback", async () => {
+    vi.resetModules();
+    const original = fontFamilies.display;
+    fontFamilies.display = "'Space Grotesk'";
+    try {
+      await expect(import("@/app/layout")).rejects.toThrow(
+        "The display and body fonts require their generated matched fallbacks.",
+      );
+    } finally {
+      fontFamilies.display = original;
+      vi.resetModules();
+    }
   });
 });

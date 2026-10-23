@@ -23,8 +23,11 @@ import {
   createFailSoftGuard,
   isUniqueViolation,
   onMissingDurableWrite,
+  rowUnderCurrentVenueId,
   selectStore,
+  whereVenueIdIn,
 } from "@/lib/storeBackend";
+import { storedVenueIds } from "@/lib/venueAliases";
 import {
   toOperatorClaimDTO,
   type OperatorClaim,
@@ -66,10 +69,17 @@ function pairKey(accountId: string, venueId: string): string {
 const byId = new Map<string, OperatorClaim>();
 const idByPair = new Map<string, string>();
 
-function memoryUpsert(fields: OperatorClaimFields, now: number): OperatorClaim {
+/** The claim this account holds on this venue under any id the venue was stored under. */
+async function memoryClaimIdForPair(accountId: string, venueId: string): Promise<string | undefined> {
+  return (await storedVenueIds(venueId))
+    .map((storedId) => idByPair.get(pairKey(accountId, storedId)))
+    .find((id) => id !== undefined);
+}
+
+async function memoryUpsert(fields: OperatorClaimFields, now: number): Promise<OperatorClaim> {
   const key = pairKey(fields.accountId, fields.venueId);
   const createdAt = new Date(now).toISOString();
-  const existingId = idByPair.get(key);
+  const existingId = await memoryClaimIdForPair(fields.accountId, fields.venueId);
   if (existingId) {
     const prev = byId.get(existingId)!;
     // Refresh the evidence and re-open for review; keep the id + createdAt.
@@ -100,16 +110,16 @@ function memoryUpsert(fields: OperatorClaimFields, now: number): OperatorClaim {
 
 export const memoryVenueOperatorStore: VenueOperatorStore = {
   async claim(fields, now = Date.now()) {
-    return toOperatorClaimDTO(memoryUpsert(fields, now));
+    return toOperatorClaimDTO(await memoryUpsert(fields, now));
   },
 
   async getForAccountVenue(accountId, venueId) {
-    const id = idByPair.get(pairKey(accountId, venueId));
+    const id = await memoryClaimIdForPair(accountId, venueId);
     return id ? byId.get(id) ?? null : null;
   },
 
   async isVerifiedOperator(accountId, venueId) {
-    const id = idByPair.get(pairKey(accountId, venueId));
+    const id = await memoryClaimIdForPair(accountId, venueId);
     const claim = id ? byId.get(id) : undefined;
     return claim?.verificationState === "verified";
   },
@@ -166,14 +176,14 @@ function fromRow(row: Record<string, unknown>): OperatorClaim {
 }
 
 async function selectByPair(accountId: string, venueId: string): Promise<OperatorClaim | null> {
-  const { data, error } = await admin()
-    .from(TABLE)
-    .select("*")
-    .eq("account_id", accountId)
-    .eq("venue_id", venueId)
-    .maybeSingle();
+  const venueIds = await storedVenueIds(venueId);
+  const { data, error } = await whereVenueIdIn(
+    admin().from(TABLE).select("*").eq("account_id", accountId),
+    venueIds,
+  );
   if (error) throw new Error(error.message);
-  return data ? fromRow(data as Record<string, unknown>) : null;
+  const row = rowUnderCurrentVenueId((data ?? []) as Record<string, unknown>[], venueIds);
+  return row ? fromRow(row) : null;
 }
 
 async function reopenExisting(id: string, fields: OperatorClaimFields): Promise<void> {

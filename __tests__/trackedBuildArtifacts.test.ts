@@ -1,5 +1,4 @@
-import { execFileSync } from "node:child_process";
-import { readFileSync } from "node:fs";
+import { execFileSync, spawnSync } from "node:child_process";
 import path from "node:path";
 
 import { describe, expect, it } from "vitest";
@@ -26,6 +25,10 @@ function trackedFiles(): string[] {
     .filter(Boolean);
 }
 
+function isIgnored(file: string): boolean {
+  return spawnSync("git", ["check-ignore", "-q", "--no-index", file], { cwd: ROOT }).status === 0;
+}
+
 describe("tracked build artifacts", () => {
   it("tracks no TypeScript incremental cache", () => {
     const tracked = trackedFiles().filter((file) => file.endsWith(".tsbuildinfo"));
@@ -33,8 +36,27 @@ describe("tracked build artifacts", () => {
   });
 
   it("ignores every TypeScript incremental cache, not just the default one", () => {
-    const ignore = readFileSync(path.join(ROOT, ".gitignore"), "utf8");
-    const lines = ignore.split("\n").map((line) => line.trim());
-    expect(lines).toContain("*.tsbuildinfo");
+    expect(isIgnored("tsconfig.build.tsbuildinfo")).toBe(true);
+  });
+
+  // Next.js writes next-env.d.ts on every dev, build and typegen run, pointing
+  // it at whichever dist dir ran last, so a tracked copy rode into reviews and
+  // turned Review scope red. `npm run typecheck` runs `next typegen` first.
+  it("never tracks next-env.d.ts and ignores it, which Next.js regenerates", () => {
+    expect(trackedFiles()).not.toContain("next-env.d.ts");
+    expect(isIgnored("next-env.d.ts")).toBe(true);
+  });
+
+  // Ops review OPS-11: a root `findings.json` and `review-results.json` (one
+  // agent review's output each) and twelve `.tmp-evidence/` debug scripts and
+  // screenshots were tracked although `.gitignore` already ignored the
+  // directory, so every clone and every CLI upload carried them.
+  it("tracks no review dump and no local evidence scratch", () => {
+    const tracked = trackedFiles();
+    for (const dump of ["findings.json", "review-results.json"]) {
+      expect(tracked).not.toContain(dump);
+      expect(isIgnored(dump)).toBe(true);
+    }
+    expect(tracked.filter((file) => file.startsWith(".tmp-evidence/"))).toEqual([]);
   });
 });

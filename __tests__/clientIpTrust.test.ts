@@ -16,6 +16,7 @@ import {
   PLATFORM_CLIENT_IP_HEADERS,
   UNKNOWN_CLIENT_IP,
   looksLikeClientIp,
+  rateLimitAddress,
   resolveClientIp,
   trailingForwardedForEntry,
 } from "@/lib/clientIpTrust";
@@ -136,6 +137,32 @@ describe("clientIp over a real Request", () => {
     const trusted = ipFor({ "x-forwarded-for": "198.51.100.7" });
     const spoofAttempt = ipFor({ "x-forwarded-for": "203.0.113.9, 198.51.100.7" });
     expect(spoofAttempt).toBe(trusted);
+  });
+});
+
+describe("rateLimitAddress", () => {
+  it("buckets an IPv6 caller by its /64, so rotating the host half mints no new bucket", () => {
+    const a = rateLimitAddress("2001:db8:85a3:12::1");
+    expect(a).toBe("2001:db8:85a3:12::/64");
+    expect(rateLimitAddress("2001:0db8:85a3:0012:ffff:ffff:ffff:fffe")).toBe(a);
+    expect(rateLimitAddress("[2001:db8:85a3:12:dead:beef::7]")).toBe(a);
+    expect(rateLimitAddress("2001:DB8:85A3:12::9%eth0")).toBe(a);
+    expect(rateLimitAddress("2001:db8:85a3:13::1")).not.toBe(a);
+    expect(rateLimitAddress("::1")).toBe("0:0:0:0::/64");
+  });
+
+  it("reads an IPv4-mapped address as the IPv4 address it carries", () => {
+    expect(rateLimitAddress("::ffff:203.0.113.7")).toBe("203.0.113.7");
+    expect(rateLimitAddress("::ffff:cb00:7107")).toBe("203.0.113.7");
+  });
+
+  it("leaves IPv4, composite keys and non-addresses unchanged", () => {
+    expect(rateLimitAddress("203.0.113.7")).toBe("203.0.113.7");
+    expect(rateLimitAddress(UNKNOWN_CLIENT_IP)).toBe(UNKNOWN_CLIENT_IP);
+    const composite = "2001:db8::1:11111111-1111-4111-8111-111111111111:plan";
+    expect(rateLimitAddress(composite)).toBe(composite);
+    expect(rateLimitAddress("1:2:3:4:5:6:7:8:9")).toBe("1:2:3:4:5:6:7:8:9");
+    expect(rateLimitAddress("1::2::3")).toBe("1::2::3");
   });
 });
 

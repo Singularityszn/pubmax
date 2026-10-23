@@ -1,3 +1,7 @@
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
+
+import postcss from "postcss";
 import { describe, expect, it } from "vitest";
 
 import {
@@ -148,5 +152,22 @@ describe("boroughCoverageSummary", () => {
     if (summary.kind !== "shared") return;
     expect(summary.line).toContain("Every borough here");
     expect(summary.line).not.toMatch(/every London borough|all boroughs/i);
+  });
+});
+
+describe("the borough coverage link", () => {
+  // Ink, not coral: coral is the screen's one primary (taste plan, 18 Oct 2026).
+  it("is coloured by the text ink token, not the browser's default link blue", () => {
+    const sheet = postcss.parse(
+      readFileSync(join(process.cwd(), "components/pintindex/boroughCoverageStatus.css"), "utf8"),
+    );
+    const colours: string[] = [];
+    sheet.walkRules((rule) => {
+      if (!rule.selectors.includes(".boroughCoverageLink")) return;
+      rule.walkDecls("color", (decl) => {
+        colours.push(decl.value.trim());
+      });
+    });
+    expect(colours).toEqual(["var(--color-text)"]);
   });
 });

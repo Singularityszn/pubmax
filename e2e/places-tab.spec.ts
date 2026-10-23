@@ -1,9 +1,14 @@
 import { expect, test, type Page } from "@playwright/test";
 
-// The Places tab: pick a city, set it, and prove the three surfaces that read
-// the stored city all open on it. The proof is the RENDERED app rather than the
-// store, because the preference is only useful in so far as Map, Out and Near
+// The city picker at /places: pick a city, set it, and prove the surfaces that
+// read the stored city open on it. The proof is the RENDERED app rather than
+// the store, because the preference is only useful in so far as Map and Near
 // actually follow it.
+//
+// Product owner, Oct 2026 UX audit: Places is a setting, not a tab. The primary
+// row is Map, Tonight, Plan, You; the picker is reached from the map's city
+// chip ("Search a UK town") and the footer's "Pick your city", and its list
+// names only the cities with listed prices plus one waitlist line.
 
 const PREFERRED_CITY_KEY = "pubmax:preferredCity:v1";
 
@@ -31,13 +36,9 @@ async function storedCity(page: Page): Promise<string | null> {
 }
 
 async function chooseManchester(page: Page) {
-  await page.goto("/places");
-  await page
-    .getByRole("list", { name: "Cities" })
-    .getByRole("link", { name: /Manchester/ })
-    .first()
-    .click();
-  await page.waitForURL(/\/places\?city=manchester$/);
+  // Manchester has no listed prices, so it is not a row on the list; its
+  // panel still answers at its own address.
+  await page.goto("/places?city=manchester");
   await expect(
     page.getByRole("heading", { level: 1, name: "Manchester", exact: true }),
   ).toBeVisible();
@@ -53,45 +54,41 @@ async function chooseManchester(page: Page) {
 test.describe("places tab @390", () => {
   test.use({ viewport: { width: 390, height: 844 } });
 
-  test("choosing Manchester sends Map, Out and Near to Manchester", async ({ page }, testInfo) => {
+  test("choosing Manchester sends Map and Near to Manchester", async ({ page }, testInfo) => {
     test.setTimeout(120_000);
 
     await page.goto("/places");
 
-    // The tab exists in the phone row and lights for its own route.
-    const placesTab = primaryNav(page).getByRole("link", { name: "Places", exact: true });
-    await expect(placesTab).toBeVisible();
-    await expect(placesTab).toHaveAttribute("aria-current", "page");
+    // Not a tab: the phone row has no Places door, and no door lights here.
+    await expect(primaryNav(page).getByRole("link", { name: "Places", exact: true })).toHaveCount(0);
+    await expect(primaryNav(page).locator('[aria-current="page"]')).toHaveCount(0);
 
     // Kicker above the heading, from the shared Screen primitive. Scoped to the
     // page: the desktop nav carries a "Places" link too, hidden at this width.
     const head = page.locator(".screenHead");
     await expect(head.locator(".kicker")).toHaveText("Places");
     await expect(
-      page.getByRole("heading", { level: 1, name: "Pick a city.", exact: true }),
+      page.getByRole("heading", { level: 1, name: "London only, for now.", exact: true }),
     ).toBeVisible();
     // Exactly one painted action on the screen.
     await expect(page.locator("[data-primary-action]")).toHaveCount(1);
 
-    // A city with no collected prices says so on its own row, and London does not.
-    const cities = page.getByRole("list", { name: "Cities" });
-    await expect(cities.getByRole("link", { name: /Manchester/ })).toContainText(
-      "Prices coming",
-    );
-    // One mark per row: the price claim is what a reader picks a city on, and
-    // "Areas coming" on nine of ten rows said the same thing nine times.
-    await expect(
-      cities.getByRole("link", { name: /Manchester/ }).getByText("Areas coming"),
-    ).toHaveCount(0);
-    await expect(cities.getByRole("link", { name: /London/ })).toContainText(
-      "Prices listed",
-    );
-
-    // Search narrows the list without hiding it by default.
-    await page.getByLabel("Find a city").fill("manch");
-    await expect(cities.getByRole("link")).toHaveCount(1);
-    await page.getByLabel("Find a city").fill("");
-    await expect(cities.getByRole("link").first()).toBeVisible();
+    await expect(page.getByRole("link", { name: "Open London", exact: true })).toHaveAttribute("href", "/places?city=london");
+    await expect(page.getByText("London is the one city with listed pint prices.", { exact: false })).toBeVisible();
+    await expect(page.getByText("Prices coming", { exact: true })).toHaveCount(0);
+    await expect(page.getByRole("link", { name: "Browse pubs across the UK", exact: true })).toHaveAttribute("href", /\/map/);
+    await expect(page.getByText(/Outside London the map shows the pubs, without prices yet/)).toBeVisible();
+    await expect(page.getByRole("link", { name: "Want your city next? Tell us.", exact: true }))
+      .toHaveAttribute("href", "mailto:hello@pubmaxxing.com?subject=City%20request");
+    const field = page.getByLabel("Find a town");
+    await field.fill("manch");
+    await expect(page.getByRole("list", { name: "Places" }).getByRole("link", { name: /Manchester/ }).first()).toBeVisible({ timeout: 20_000 });
+    await field.fill("zzzznotatown");
+    await expect(page.getByRole("list", { name: "Places" })).toHaveCount(0);
+    await expect(page.locator(".placesResults")).toContainText(/No .*zzzznotatown/);
+    await field.fill("");
+    await expect(page.getByRole("link", { name: "Open London", exact: true })).toBeVisible();
+    await expect(page.getByRole("list", { name: "Places" })).toHaveCount(0);
 
     await page.screenshot({ path: testInfo.outputPath("places-list-390.png"), fullPage: true });
 
@@ -106,19 +103,6 @@ test.describe("places tab @390", () => {
     await expect(
       primaryNav(page).getByRole("link", { name: "Map", exact: true }),
     ).toHaveAttribute("href", "/map/manchester");
-
-    // Out follows: its listings read names Manchester.
-    let outCity: string | null = null;
-    await page.route(
-      (url) => url.pathname === "/api/out",
-      async (route, request) => {
-        outCity = new URL(request.url()).searchParams.get("city");
-        await route.continue();
-      },
-    );
-    await page.goto("/out");
-    await expect(page.getByTestId("out-screen")).toBeVisible();
-    await expect.poll(() => outCity, { timeout: 20_000 }).toBe("manchester");
 
     // Near follows: it reads the same stored city for its ranked pint list.
     await page.goto("/near");
@@ -171,19 +155,22 @@ test.describe("places tab @390", () => {
 test.describe("places tab @320", () => {
   test.use({ viewport: { width: 320, height: 844 } });
 
-  test("six tabs fit, each keeps its tap floor, and nothing scrolls sideways", async ({
+  test("all six dock controls fit, each keeps its tap floor, and nothing scrolls sideways", async ({
     page,
   }) => {
     await page.goto("/places");
     const tabs = primaryNav(page).getByRole("link");
     await expect(tabs).toHaveCount(6);
+    for (const name of ["Map", "Tonight", "Pub Pal", "Plan", "Social", "You"]) {
+      await expect(primaryNav(page).getByRole("link", { name, exact: true })).toHaveCount(1);
+    }
     await expect(page.locator(".authCompactTrigger")).toBeVisible();
     await page.evaluate(() => document.fonts.ready);
     for (const tab of await tabs.all()) {
       const box = await tab.boundingBox();
       expect(box, "every tab has a box").not.toBeNull();
       expect(box!.height, "tab keeps the 44px tap floor").toBeGreaterThanOrEqual(44);
-      expect(box!.width, "tab keeps a thumb-sized column").toBeGreaterThanOrEqual(40);
+      expect(box!.width, "tab keeps a thumb-sized column").toBeGreaterThanOrEqual(44);
     }
     const overflow = await page.evaluate(
       () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
@@ -195,15 +182,13 @@ test.describe("places tab @320", () => {
 test.describe("places tab @1440", () => {
   test.use({ viewport: { width: 1440, height: 900 } });
 
-  test("desktop nav carries Places, and the city panel keeps one primary action", async ({
+  test("desktop nav carries no Places door, and the city panel keeps one primary action", async ({
     page,
   }, testInfo) => {
     await page.goto("/places");
     const siteNav = page.getByRole("navigation", { name: "Site navigation" });
-    await expect(siteNav.getByRole("link", { name: "Places", exact: true })).toHaveAttribute(
-      "aria-current",
-      "page",
-    );
+    await expect(siteNav.getByRole("link", { name: "Places", exact: true })).toHaveCount(0);
+    await expect(siteNav.locator('.siteNavLinks [aria-current="page"]')).toHaveCount(0);
 
     await page.screenshot({ path: testInfo.outputPath("places-list-1440.png"), fullPage: true });
 

@@ -16,6 +16,8 @@
 // Sending to ALL tokens for a plan-scoped event would be a privacy leak (crew A
 // gets crew B's Plan updates), so that path stays closed until identity exists.
 
+import { after } from "next/server";
+
 import { BRIEFING_PUSH_URL } from "@/lib/briefingArrival";
 import { DAY_MS } from "@/lib/dayMs";
 import { isLimited } from "@/lib/pintDrops";
@@ -153,9 +155,9 @@ async function dispatch(
 export async function broadcastNightSignalLive(
   highlights: readonly NightSignalHighlight[],
 ): Promise<PushDispatchSummary> {
-  if (highlights.length === 0) return { ...EMPTY_SUMMARY };
-  const targets = await pushTokenStore().list();
   const lead = highlights[0];
+  if (!lead) return { ...EMPTY_SUMMARY };
+  const targets = await pushTokenStore().list();
   const extra = highlights.length - 1;
   const payload: PushPayload = {
     title: highlights.length === 1 ? "New tonight" : `${highlights.length} updates for tonight`,
@@ -257,8 +259,11 @@ async function claimNightSignalBroadcast(version: string): Promise<boolean> {
   const key = `night-signal-broadcast:${version}`;
   // isLimited records the attempt atomically and returns false for the FIRST
   // unit (the winning claim), true once the budget of 1 is spent. Same key for
-  // the local + durable arg, exactly like the push-tokens route.
-  return !(await isLimited(key, key, 1, BROADCAST_CLAIM_WINDOW_MS));
+  // the local + durable arg, exactly like the push-tokens route. FAIL CLOSED:
+  // when the durable limiter cannot answer, the default falls back to a
+  // per-instance budget, and every warm instance would then win its own claim
+  // and broadcast. A dropped broadcast is acceptable; a duplicate is not.
+  return !(await isLimited(key, key, 1, BROADCAST_CLAIM_WINDOW_MS, { failClosed: true }));
 }
 
 /**
@@ -333,10 +338,13 @@ export async function notifyPlanUpdate(
 /**
  * Fire a push send without blocking the caller. Swallows every failure — a push
  * is best-effort (a dropped notification just means no notification). Use at
- * request handlers so the HTTP response never waits on delivery.
+ * request handlers so the HTTP response never waits on delivery. The send is
+ * handed to `after()` so Vercel keeps the function alive until it settles;
+ * without it the platform can freeze the instance once the response is sent
+ * and the push never leaves (the `lib/pintDropsBroadcast.server.ts` idiom).
  */
 export function fireAndForgetPush(run: () => Promise<unknown>): void {
-  void Promise.resolve()
+  const started = Promise.resolve()
     .then(run)
     .catch((err) => {
       console.error(
@@ -344,4 +352,9 @@ export function fireAndForgetPush(run: () => Promise<unknown>): void {
         err instanceof Error ? err.message : String(err),
       );
     });
+  try {
+    after(started);
+  } catch {
+    /* No request scope to hang it on; the promise above still runs. */
+  }
 }

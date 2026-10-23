@@ -19,7 +19,9 @@
    Chosen standard (measured all three first, best pick documented):
      · --topbar-h      52px. The app-shell / map-chrome height. Map + standard
                               bars already used it; landing tightened 58 to 52.
-     · --topbar-radius 14px. The map-chrome card radius. The map is the primary
+     · --topbar-radius --radius-lg (18px, 14px until the taste pass of
+                              18 Oct 2026 put every corner on the four-size
+                              scale). The map-chrome card radius. The map is the primary
                               (map-first) surface, where this bar twins the search
                               toolbar; adopting the rounded-card shape everywhere
                               on mobile keeps that twin AND unifies the standard +
@@ -29,16 +31,20 @@
      · --topbar-inset  env(safe-area-inset-top)+10px. The floating top offset
                               that clears the notch (the map's proven form). The
                               in-flow standard bar keeps its own safe-area margin;
-                              landing keeps its max() literal, locked by
-                              landingChromeCss.test, resolving to the same ~10px.
+                              landing keeps its max() literal, resolving to
+                              the same ~10px.
      · --topbar-shadow the tight map-overlay shadow. Landing drops its heavy
                               0 16px 36px glass shadow on mobile to match.
    Consumed with literal fallbacks at every use site so the landing route (which
    does not load this file's stylesheet) still resolves to the same values. */
 :root {
   --topbar-h: 52px;
-  --topbar-inset: calc(env(safe-area-inset-top, 0px) + 10px);
-  --topbar-radius: 14px;
+  /* The gap between the viewport top (below the system inset) and every top
+     bar. 10px on a phone; 12px from 641px, the floating map bar's desktop
+     offset, so moving between Map and a tab never makes the bar jump. */
+  --topbar-gap: 10px;
+  --topbar-inset: calc(env(safe-area-inset-top, 0px) + var(--topbar-gap));
+  --topbar-radius: var(--radius-lg);
   --topbar-pad-x: 10px;
   /* Shared MOBILE side inset — the viewport-relative left/right gap every top
      bar leaves on ≤640px. 10px is not a new invention: the landing bar already
@@ -69,18 +75,51 @@
   min-width: 0;
   box-sizing: border-box;
   padding: 9px 14px;
-  border: 1px solid color-mix(in srgb, var(--line) 82%, var(--brass) 18%);
-  border-radius: 999px;
-  background:
-    linear-gradient(135deg, color-mix(in srgb, var(--panel-raised) 96%, transparent), color-mix(in srgb, var(--surface-tint-river) 62%, transparent)),
-    color-mix(in srgb, var(--panel-raised) 90%, transparent);
-  box-shadow: 0 16px 36px rgba(44, 30, 62, 0.12), 0 5px 14px rgba(255, 90, 95, 0.05);
-  backdrop-filter: blur(14px) saturate(1.06);
-  -webkit-backdrop-filter: blur(14px) saturate(1.06);
+  /* Solid chrome (DESIGN.md "Flat-Chrome-On-Map"): one panel, one quiet edge,
+     the small paper lift. No gradient, no glow, no frost (taste plan, 18 Oct
+     2026). */
+  border: 1px solid var(--line-soft);
+  border-radius: var(--radius-pill);
+  background: var(--panel-raised);
+  box-shadow: var(--shadow-sm);
 }
 
+@media (min-width: 641px) {
+  :root {
+    --topbar-gap: 12px;
+  }
+}
+
+/* THE BAR OWNS ITS TOP OFFSET, safe area and gap alike. It used to pay only
+   the safe area and leave the gap to whichever shell hosted it, so the bar sat
+   0px down on /social and /u, 10px on /tonight, 12px on /pubs and 48px on a
+   desktop /plan, and jumped on every tab change. A shell whose first child is
+   the bar carries exactly this offset as its own padding instead, whatever
+   padding it declares (the :has rule below); the space under the bar is still
+   the page's own. */
 .siteNavBar:not(.siteNavBarFloating) {
-  margin-top: env(safe-area-inset-top, 0px);
+  margin-top: var(--topbar-inset, calc(env(safe-area-inset-top, 0px) + 10px));
+  /* THE BAR OWNS ITS POPOVERS. The bar is its own stacking context (the
+     backdrop-filter and the named view transition both make one), and as an
+     unpositioned box at z-index:auto it painted at the bottom of the root
+     context in tree order, so a positioned section further down a page (the
+     profile header) covered the Sign in popover that hangs below the bar and
+     left its email field and button unreachable. A positioned bar with a real
+     level puts the popover above page content, and below the modal layer. */
+  position: relative;
+  z-index: var(--z-float);
+}
+
+/* A shell that opens on the bar pays the same offset as padding instead, and
+   the bar drops its margin there: a margin on a first child collapses through
+   an unpadded parent, which left a 12px band of the body's colour above a page
+   that paints its own background (/plan). Padding cannot collapse. */
+:is(body, main, div, .routeLoadingShell):has(> .siteNavBar:not(.siteNavBarFloating):first-child) {
+  padding-top: var(--topbar-inset, calc(env(safe-area-inset-top, 0px) + 10px));
+}
+
+:is(body, main, div, .routeLoadingShell) > .siteNavBar:not(.siteNavBarFloating):first-child {
+  margin-top: 0;
 }
 
 /* Content pages embed the bar inside a narrow reading column (~880px), which
@@ -111,7 +150,7 @@
    so it matches the Search/Plan toolbar width and inset. */
 .siteNavBarFloating {
   position: fixed;
-  top: 12px;
+  top: var(--topbar-inset, 12px);
   left: 50%;
   z-index: var(--z-modal);
   width: var(--desktop-map-surface-width);
@@ -123,8 +162,8 @@
 /* ── Wordmark ──────────────────────────────────────────────────────────── */
 .siteNavBrand {
   flex: 0 0 auto;
-  font-family: var(--font-display, ui-sans-serif, system-ui, sans-serif);
-  font-size: 1.02rem;
+  font-family: var(--font-display);
+  font-size: var(--text-base);
   font-weight: 750;
   letter-spacing: -0.025em;
   color: var(--ink);
@@ -135,7 +174,7 @@
   align-items: center;
   min-height: 44px;
   padding: 0 2px;
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
 }
 
 @media (hover: hover) and (pointer: fine) {
@@ -190,9 +229,9 @@
   /* 44px target height. */
   min-height: 44px;
   padding: 0 12px;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   color: var(--ink-soft);
-  font-size: 0.84rem;
+  font-size: var(--text-sm);
   font-weight: 600;
   text-decoration: none;
   min-width: 44px;
@@ -209,7 +248,7 @@
 @media (hover: hover) and (pointer: fine) {
   .siteNavLink:hover {
     color: var(--ink);
-    background: color-mix(in srgb, var(--brass) 8%, var(--panel-raised));
+    background: color-mix(in srgb, var(--ink) 6%, transparent);
   }
 }
 
@@ -231,10 +270,14 @@
   }
 }
 
+/* Selection is a fill, and coral is not a selection colour
+   (docs/DESIGN_SYSTEM.md, the de-box rule): the active link takes the same
+   ink tint and ink label as the phone tab bar's active tab, so the page's one
+   painted coral control is never outshouted by "you are here". */
 .siteNavLink.isActive {
-  color: var(--color-on-accent);
-  background: linear-gradient(135deg, var(--brass), var(--brass-bright));
-  box-shadow: 0 8px 18px color-mix(in srgb, var(--brass) 22%, transparent);
+  color: var(--ink);
+  background: color-mix(in srgb, var(--ink) 9%, transparent);
+  box-shadow: none;
 }
 
 /* ── Right-side actions (theme toggle + sign-in) ───────────────────────── */
@@ -266,10 +309,10 @@
   min-height: 44px;
   padding: 0 12px;
   border: 1px solid var(--line);
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: color-mix(in srgb, var(--panel-raised) 88%, var(--line) 12%);
   color: var(--ink-soft);
-  font: 700 0.82rem/1 var(--font-body, system-ui, sans-serif);
+  font: 700 0.82rem/1 var(--font-body);
   cursor: pointer;
   transition:
     color var(--duration-base) var(--ease-out),
@@ -312,9 +355,9 @@
   max-width: calc(100vw - 16px);
   padding: 6px;
   border: 1px solid var(--line);
-  border-radius: 14px;
+  border-radius: var(--radius-lg);
   background: var(--panel-raised);
-  box-shadow: var(--shadow-sm, 0 7px 18px rgba(60, 30, 20, 0.09));
+  box-shadow: var(--shadow-sm);
 }
 
 /* Portaled menu (body): escapes .siteNavBar backdrop-filter + pill radius
@@ -324,7 +367,7 @@
   position: fixed;
   top: 0;
   right: 0;
-  z-index: var(--z-modal, 1200);
+  z-index: var(--z-modal);
   /* Never clipped by page columns (today/feed reading shells). */
   overflow-y: auto;
   overscroll-behavior: contain;
@@ -338,7 +381,7 @@
   gap: 2px;
   min-height: 52px;
   padding: 8px 12px;
-  border-radius: 10px;
+  border-radius: var(--radius);
   color: var(--ink);
   text-decoration: none;
 }
@@ -353,17 +396,17 @@ button.siteNavMoreItem {
 }
 
 .siteNavMoreLabel {
-  font: 700 0.9rem/1.2 var(--font-body, system-ui, sans-serif);
+  font: 700 0.9rem/1.2 var(--font-body);
 }
 
 .siteNavMoreDescription {
-  font: 500 0.75rem/1.35 var(--font-body, system-ui, sans-serif);
+  font: 500 0.75rem/1.35 var(--font-body);
   color: var(--ink-soft);
 }
 
 @media (hover: hover) and (pointer: fine) {
   .siteNavMoreItem:hover {
-    background: color-mix(in srgb, var(--brass) 10%, transparent);
+    background: color-mix(in srgb, var(--ink) 6%, transparent);
   }
 }
 
@@ -373,8 +416,8 @@ button.siteNavMoreItem {
 }
 
 .siteNavMoreItem.isActive {
-  color: var(--brass);
-  background: color-mix(in srgb, var(--brass) 12%, transparent);
+  color: var(--ink);
+  background: color-mix(in srgb, var(--ink) 9%, transparent);
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -397,7 +440,7 @@ button.siteNavMoreItem {
   min-height: 44px;
   padding: 0 8px;
   border: 1px solid var(--line);
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: color-mix(in srgb, var(--panel-raised) 88%, var(--line) 12%);
   color: var(--ink-soft);
   cursor: pointer;
@@ -421,8 +464,8 @@ button.siteNavMoreItem {
 }
 
 .siteNavCmdkKbd {
-  font-family: var(--font-data, monospace);
-  font-size: 0.72rem;
+  font-family: var(--font-body);
+  font-size: var(--text-xs);
   font-weight: 600;
   letter-spacing: 0.02em;
   line-height: 1;
@@ -444,7 +487,7 @@ button.siteNavMoreItem {
   width: 44px;
   height: 44px;
   flex: 0 0 auto;
-  border-radius: 999px;
+  border-radius: 50%;
   color: var(--ink-soft);
   text-decoration: none;
 }
@@ -469,10 +512,10 @@ button.siteNavMoreItem {
   min-width: 16px;
   height: 16px;
   padding: 0 4px;
-  border-radius: 999px;
-  background: linear-gradient(135deg, var(--brass), var(--pink, var(--brass)));
+  border-radius: var(--radius-pill);
+  background: linear-gradient(135deg, var(--brass), var(--pink));
   color: var(--panel-raised);
-  font-size: 11px;
+  font-size: var(--text-2xs);
   font-weight: 700;
   line-height: 16px;
   text-align: center;
@@ -514,7 +557,7 @@ button.siteNavMoreItem {
 /* Laptop/tablet density: keep navigation usable but avoid two-row pills that
    collide with map/search chrome. Primary route links stay visible; ambient
    utilities collapse away until phone bottom navigation takes over. */
-@media (max-width: 1180px) {
+@media (max-width: 1279px) {
   .siteNavBar {
     gap: 8px;
     padding: 8px 10px;
@@ -523,7 +566,7 @@ button.siteNavMoreItem {
   .siteNavLink {
     min-height: 44px;
     padding: 0 9px;
-    font-size: 0.78rem;
+    font-size: var(--text-xs);
   }
 
   .siteNavActions {
@@ -533,7 +576,7 @@ button.siteNavMoreItem {
 
 @media (max-width: 900px) {
   .siteNavBrand {
-    font-size: 0.94rem;
+    font-size: var(--text-base);
   }
 
   /* Densest band for the link row: the ⌘K hint is the most expendable item
@@ -554,7 +597,7 @@ button.siteNavMoreItem {
 
   .siteNavLink {
     padding: 0 6px;
-    font-size: 0.74rem;
+    font-size: var(--text-xs);
   }
 
   .siteNavBell {
@@ -627,7 +670,7 @@ button.siteNavMoreItem {
 @media (max-width: 640px) {
   .siteNavBar {
     gap: 6px;
-    /* Shared frame: 14px rounded-card radius (was the base 999px pill), 52px
+    /* Shared frame: --topbar-radius rounded-card corner (was the base 999px pill), 52px
        height, 10px horizontal padding, tight shadow. Identical to the map +
        landing bars so the bar never changes shape page-to-page.
        Vertical padding is 3px (was 4px): the bar's tallest child is a 44px
@@ -636,7 +679,7 @@ button.siteNavMoreItem {
        instead of overshooting it to 54px (the token is truth). */
     padding: 3px var(--topbar-pad-x, 10px);
     min-height: var(--topbar-h, 52px);
-    border-radius: var(--topbar-radius, 14px);
+    border-radius: var(--topbar-radius, var(--radius-lg));
     background: var(--panel-raised);
     box-shadow: var(--topbar-shadow, var(--map-overlay-shadow-tight, 0 6px 16px rgba(0, 0, 0, 0.12)));
     backdrop-filter: none;
@@ -693,7 +736,7 @@ button.siteNavMoreItem {
     width: auto;
     max-width: none;
     transform: none;
-    border-radius: var(--topbar-radius, 14px);
+    border-radius: var(--topbar-radius, var(--radius-lg));
   }
 
   /* Taste — header consistency: the wordmark is the plain PubmaxxWordmark on
@@ -710,10 +753,10 @@ button.siteNavMoreItem {
     justify-content: center;
     align-items: center;
     padding: 0 2px;
-    border-radius: 6px;
+    border-radius: var(--radius-sm);
     color: var(--ink);
-    font-size: 0.72rem;
-    font-family: var(--font-display, system-ui, sans-serif);
+    font-size: var(--text-xs);
+    font-family: var(--font-display);
     font-weight: 800;
     line-height: 1;
     overflow: hidden;
@@ -849,14 +892,7 @@ button.siteNavMoreItem {
    themes (ink text). Falls back to the brass active state if --nav-cat unset. */
 .siteNavLink.isActive[data-cat] {
   background: var(--nav-cat, var(--brass));
-  color: var(--cat-on-fill, var(--ink-deep));
-}
-
-/* Subtle polish on the brass active state: a faint inner lift so the active pill
-   reads as pressed-in rather than a flat block. Constant across themes. */
-.siteNavLink.isActive {
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.18),
-    0 1px 2px rgba(24, 34, 26, 0.16);
+  color: var(--cat-on-fill);
 }
 
 /* Motion respect: drop the link hover/active transitions for reduced-motion. */

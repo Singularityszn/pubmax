@@ -62,7 +62,14 @@ refuses, and add your assertion there rather than minting a second gate.
 | A chip reads that same row, and a number square is ONE family across the planner and /pubs | Launch tokens > Text buttons; `components/ui/chip.css` | `__tests__/chipPrimitive.test.tsx`, `e2e/design-review-followups.spec.ts` |
 | One painted primary per screen, a quiet row of at most two ways onward, and a form screen paints no head primary | `docs/design/LAUNCH_SCREENS.md` | `__tests__/coreUiAudit.test.ts`, `__tests__/launchPrimitives.test.tsx` |
 | The accent as a WORD takes `--brass-ink`; opacity is never a muted token | Colour, below | `__tests__/accentInkContrast.test.ts` |
+| Coral is spent twice (the one primary, the create disc); a selection reads in `--state-selected-*`, a kicker in muted ink, a link in ink with an underline | Launch tokens > Coral is spent twice | `__tests__/visualDiscipline.test.ts`, `__tests__/coralEconomy.test.ts` (a count of resting coral that only goes down) |
+| A pint price on a row or a card goes through `PriceBadge` / `PintPriceBadge` with its band; never a bare coloured number | Launch tokens > Status and price | `__tests__/onePriceLook.test.ts`, `__tests__/priceBandSurfaces.test.ts` |
+| Monospace is for figures alone, never a label, nav or prose | Launch tokens > Monospace is for figures | `__tests__/visualDiscipline.test.ts` |
+| A tab row is one tab stop: a roving `tabIndex`, the arrows, Home and End, and the selected tab in `--state-selected-*` ink | Spacing, radius, shadow > Tabs | `__tests__/tablistKeyboard.test.tsx`, `__tests__/visualDiscipline.test.ts` |
 | A hue is never text on a tint of itself: the tint inks | Colour > A hue on a tint of itself | `__tests__/accentInkContrast.test.ts` |
+| An icon draws at one of four sizes and at Lucide's own stroke | Spacing, radius, shadow > Icons; `lib/iconScale.ts` | `__tests__/iconScale.test.ts` |
+| A media query cuts the screen at a named breakpoint, or at a measured figure in the allowlist | Spacing, radius, shadow > Breakpoints; `lib/breakpoints.ts` | `__tests__/breakpoints.test.ts` |
+| The browser bar matches the page under it, in each theme | Day/night coherence; `lib/browserBarColor.ts` | `__tests__/browserBarColor.test.ts` |
 | The map retry notice uses semantic ink for readable text in both themes | `.mapSoftRetry` in `app/globals.css` | `__tests__/mapSoftRetryContrast.test.ts` |
 | A price wears its band and no other colour | `docs/PRICE_BANDS.md` | `__tests__/priceBand.test.ts`, `__tests__/priceBandSurfaces.test.ts` |
 | The template-pattern ban list | `docs/VOICE.md` > Template patterns | `__tests__/templatePatterns.test.ts` |
@@ -71,6 +78,17 @@ refuses, and add your assertion there rather than minting a second gate.
 Open design debt and raised design decisions live in
 [`docs/design/BACKLOG.md`](./design/BACKLOG.md), never in a `docs/proof/`
 directory: a proof records one finished measurement and nobody re-reads one.
+
+### Tools for checking a page
+
+Two outside references help a person check a page against this system. Both
+are optional, and neither is a dependency of the app: nothing here installs,
+loads or bundles them.
+
+| Tool | Use it for |
+|---|---|
+| [Squints](https://squints.app) | A free Chrome extension for a live page: rulers, the gap between two elements, the colour and the font that actually rendered, a column grid and slow motion. Use it to check a change against the tokens below: a spacing step, a radius from the corner scale, a colour that is a token and not a literal, and an animation at its real pace. |
+| [The Iconography Encyclopedia](https://encyclopedia.iconography.co) | A glossary of icon design terms (stroke weight, corner smoothing, boolean operations, naming). Use its words when you describe or review an icon. Icons still come from Lucide alone, at the scale under [Icons](#icons). |
 
 ## Launch tokens
 
@@ -108,6 +126,27 @@ coral, because `--brass` already reads 5.3:1 to 6.5:1 there. A coral FILL is
 unchanged and still carries `--color-on-accent`. `__tests__/accentInkContrast.test.ts`
 holds the ratios and sweeps for a coral put back on a light word.
 
+**Coral is spent twice.** A coral FILL (`--accent-action`, `--brass`) is the
+ONE primary action per screen (the filled button) and the floating create
+disc, and nothing else. A selection is not an action: an active tab, a
+pressed chip, a chosen segment and the page you are on read in ink through
+`--state-selected-surface`, `--state-selected-border` and
+`--state-selected-ink`, never a coral fill or a coral tint. A suggestion chip
+(the `/plan` describe chips, the tonight vibe chips) is a neutral outline on
+`--hairline-strong`. A kicker or eyebrow is a label and takes
+`--color-text-muted`, never coral. A text link is an ink word with an
+underline (`--color-text`), never coral; `--brass-ink` stays only for the
+rare coral word a primary's own label needs. `--state-active-*` stays the
+"you are here" place marker, which is not a selection.
+`__tests__/coralEconomy.test.ts` counts every resting coral declaration in
+`app/` and `components/` outside a commented allowlist of primaries, the
+create disc, focus rings and the map key, and the count may only go down.
+
+**Monospace is for figures.** `--font-data` sets prices, dates and times,
+counts and codes, and nothing else. A label, a kicker, a footer heading or
+link, the legal line, a nav row, a loader caption and a word chip such as
+"Prices listed" are set in `--font-body`.
+
 **Status and price.** `--pint` (`--color-positive`), `--amber`
 (`--color-caution`), `--brick` (`--color-negative`), `--river` (`--color-info`).
 A PRICE wears its band and nothing else (captain's law 2026-09-05,
@@ -126,6 +165,8 @@ colour a standing. `--accent-price` and `--accent-price-ink` remain the brass
 plaque for non-price metal (the zone strip's frame, a history row) and are not
 a price colour. Counts and metadata take the neutral badge trio. "You are here"
 is `--state-active-surface`, `--state-active-border`, `--state-active-ink`.
+"This one is chosen" is `--state-selected-surface`, `--state-selected-border`,
+`--state-selected-ink`.
 
 **Type.** Three faces: `--font-display`, `--font-body`, `--font-data`. Nine
 sizes: `--text-2xs`, `--text-xs`, `--text-sm`, `--text-base`, `--text-md`,
@@ -167,9 +208,10 @@ press. Every animation sits behind the reduced-motion contract.
 
 The four primitives: `Kicker` is the sentence-case line above a heading;
 `TrustPill` is a pure renderer over the one standing `lib/priceTier.ts`
-decided: green for a price confirmed inside 30 days, amber for one the pub or
-its chain published, blue for a modelled figure, which prints `est. £X` and
-offers its method, and grey for none;
+decided, and it says that standing in WORDS: confirmed (with its day), listed,
+estimated (which prints `est. £X` and offers its method) and no price yet. Its
+only colour is the price band of the figure it prints (`lib/priceBand.ts`,
+captain's law 2026-09-05), so a pill with no figure is neutral;
 `EmptyState` is a title, one line and at most one quiet way onward; `Screen` is
 kicker, heading, one painted primary and at most one secondary, in that order at
 every width. The screen table is `docs/design/LAUNCH_SCREENS.md`.
@@ -321,14 +363,18 @@ token, and `__tests__/loginPage.test.ts` holds both states to 4.5:1.
 
 | Role | Typeface | Variable | Why |
 |---|---|---|---|
-| Display | **Space Grotesk** (variable weight, 300–700) | `--font-display` (aliased by `--serif`) | A modern geometric grotesque with a **very large x-height**, chosen for a Gen-Z-native voice. The big x-height keeps capitals and lowercase close in size, so there is little caps-contrast and headlines read confident and current rather than shouty. Its quirky terminals give it character without tipping into gimmick. This **supersedes the earlier Fraunces "field-guide serif"** thesis — the brand is now a display sans, not hand-set serif. Open-licence, self-hosted via `next/font/google` (no external request, no layout shift). |
+| Display | **Space Grotesk** (variable weight, 300–700) | `--font-display` (aliased by `--serif`) | A modern geometric grotesque with a **very large x-height**, chosen for a Gen-Z-native voice. The big x-height keeps capitals and lowercase close in size, so there is little caps-contrast and headlines read confident and current rather than shouty. Its quirky terminals give it character without tipping into gimmick. This **supersedes the earlier Fraunces "field-guide serif"** thesis — the brand is now a display sans, not hand-set serif. Open-licence, self-hosted via `next/font/google` without a browser request to Google. |
 | Body | **Inter** | `--font-body` | Already the app's body face — kept deliberately. Inter is neutral and extremely legible at small UI sizes (panel copy, chip labels), which is exactly what a body face should be: carry the display face's personality without competing for it. |
-| Data | **JetBrains Mono** | `--font-data` | Prices, stats, route metrics. A monospace gives numerals a "stamped ticket / till receipt" character that Inter's tabular figures don't — it's a deliberate second texture, not just a bolder body font. Paired with `font-variant-numeric: tabular-nums` so columns of numbers align. |
+| Data | **JetBrains Mono** | `--font-data` | Figures only: prices, dates and times, counts, codes. Never a label, nav or prose (Launch tokens > Monospace is for figures). A monospace gives numerals a "stamped ticket / till receipt" character that Inter's tabular figures don't — it's a deliberate second texture, not just a bolder body font. Paired with `font-variant-numeric: tabular-nums` so columns of numbers align. |
 
-All three are loaded once in `app/layout.tsx` via `next/font/google` and
-exposed as CSS variables on `<html>`, so `globals.css`/`theme.css` and any
-component reading `var(--serif)`, `var(--font-body)`, or `var(--font-data)`
-picks them up automatically — no per-component font imports.
+All three are loaded once in `app/layout.tsx` and exposed as CSS variables
+on `<html>`: Space Grotesk and Inter via `next/font/google`, and JetBrains Mono
+via `next/font/local` from its vendored file in `app/_fonts/`.
+The display and body variables also receive their generated `style.fontFamily`
+chains inline on `<html>`, preserving their metric-matched fallbacks against theme overrides.
+Components read the shared variables without per-component font imports.
+Cascade coverage is in `__tests__/rootFontCascade.test.tsx` and
+`e2e/root-font-cascade.spec.ts`.
 
 `--serif` is kept as a permanent alias for `--font-display`: every existing
 `h1`/`h2`/`h3`/`.eyebrow`/card-title that already reads `var(--serif)` now
@@ -352,7 +398,9 @@ a deliberate ink-stamp idiom:
 - provenance / era chips (`.provChip`, `.claimEra`, `.ledgerProvenance`)
 - honesty + demo badges (`.exampleTag`, `.demoDataNote span`, `.feedFilterDemo`)
 - pill kicker/badge chips (`.curatedBadge`, `.goldenKicker`, feed status chips)
-- the passport-stamp kicker (`.passportKicker`, set in the mono data face)
+- the passport seal (`.passportSeal`, the bordered PUBMAXX stamp); the
+  `.passportKicker` beside it is a plain label, so it is sentence case
+  (taste plan, 18 Oct 2026)
 
 If a label is plain text with letter-spacing (an eyebrow, a section title, a
 stat `dt`), it is sentence case. If it's a chip with a border/fill that reads
@@ -361,7 +409,7 @@ as a stamp, it may keep caps.
 ### Type scale
 
 ```
---text-2xs   0.68rem     eyebrows, micro-labels
+--text-2xs   0.68rem     eyebrows, micro-labels (0.75rem in the native shells)
 --text-xs    0.76rem     chip/tag text
 --text-sm    0.85rem     secondary body copy
 --text-base  1rem        default body
@@ -371,6 +419,11 @@ as a stamp, it may keep caps.
 --text-2xl   2.13rem     page-level display
 --text-3xl   2.6rem      landing hero only
 ```
+
+Inside the iOS and Android shells, `html[data-native-shell]` raises `--text-2xs`
+to 0.75rem, which is 12px at the default text size. There it sits close to
+`--text-xs` on purpose: on a phone a micro-label must stay legible, and that
+wins over the step between the two sizes. The web keeps the stepped scale.
 
 ```
 --leading-tight   1.12   display headlines
@@ -408,10 +461,33 @@ adding the class is optional, additive polish.
 --radius        8px      default corner (cards, inputs)
 --radius-sm     6px      tight corner (descriptive chips and pills)
                          A TEXT BUTTON OR CONTROL CHIP TAKES --control-radius
-                         (14px), never this - see Launch tokens > Text buttons.
+                         (the role token, = --radius 8px), never this - see
+                         Launch tokens > Text buttons. Four sizes, no 14px.
 --radius-lg    18px      sheets / bottom-drawer corners
 --radius-pill 999px      pills, avatar-style chips
 ```
+
+### Breakpoints
+
+The screen is cut at five named widths and nowhere else. `lib/breakpoints.ts`
+(`BREAKPOINTS`) owns the figures. This build has no `@custom-media`, so a
+stylesheet writes the figure by hand, and `__tests__/breakpoints.test.ts`
+fails a `@media` width in `app/` or `components/` that is not in this table
+or in the test's commented allowlist. Each boundary is one line: the narrow
+side reads `max-width`, the wide side `min-width` one pixel up.
+
+| Name | Narrow side | Wide side | What changes there |
+|---|---|---|---|
+| `phoneSmall` | `max-width: 360px` | `min-width: 361px` | The smallest phones squeeze a row; nothing is redesigned. |
+| `phone` | `max-width: 640px` | `min-width: 641px` | The tab-bar boundary: at or under 640 the bottom tab bar owns navigation. `MOBILE_MEDIA_QUERY` reads it. |
+| `tablet` | `max-width: 900px` | `min-width: 901px` | Single-column page layouts end; side columns start. |
+| `desktop` | `max-width: 1023px` | `min-width: 1024px` | The sticky desktop rail, the map's docked venue drawer and the two-column Tonight, Crawls and Historic layouts. |
+| `wide` | `max-width: 1279px` | `min-width: 1280px` | Extra columns and the roomier hero; the full site-nav row. |
+
+A rule for "a narrow phone" takes `phone`, not a figure between 360 and 640.
+A width kept outside the set (the map's 768 sheet band, the site nav's 767
+row, the landing hero's 960 and the map's 1371 zoom lane) is measured, and
+its reason is written beside it in the allowlist. The allowlist only shrinks.
 
 ### Shadow: night bloom (dark) vs paper-lift (light)
 
@@ -450,8 +526,8 @@ way, and the choice is made in this order:
 4. **Nothing.** Most containers are in this row.
 
 Coral (`--brass`) is not a selection colour. It belongs to the primary CTA,
-the selected pin ring, and at most a 2px underline on an active tab. See
-DESIGN.md, The One Accent Rule.
+the floating create disc and the selected pin ring; an active tab reads in
+`--state-selected-*` ink. See Launch tokens > Coral is spent twice.
 
 Two traps this repo has hit:
 
@@ -468,6 +544,46 @@ Two traps this repo has hit:
 `__tests__/deBoxSegmentedControl.test.ts` pins the segmented-control half of
 this. Origin: design judgement 2026-08-01, findings 2.4, 2.5, 2.13 and 2.16.
 
+### Tabs
+
+A tab row is a selection, so it follows the two laws above: the selected tab
+reads in ink and the group wears at most one edge. Seven rows ship today: the
+venue sheet's sections, the `Tabs` primitive (`components/ui/tabs.tsx`), the
+sign-in doors, the Social feed axis, the soft-drink chips, the admin sections,
+and the phone tab bar, which is navigation (links with `aria-current`) rather
+than a tablist.
+
+- **Selected.** `--state-selected-surface`, `--state-selected-border` and
+  `--state-selected-ink`, or the raised segment fill every segmented control
+  shares, plus a weight step so colour is never the only cue. Never a coral
+  fill, a coral tint or a category hue.
+- **Keyboard.** The row is ONE tab stop. The selected tab carries
+  `tabIndex={0}` and the rest `-1`; Left and Right move and wrap, Home and End
+  jump to the ends. A hand-rolled row calls `moveTablistFocus` from
+  `components/ui/tabs.tsx` rather than restating the arithmetic. A row whose
+  every choice is a route push or a fetch passes `{ activate: false }`, so the
+  arrows move focus and Enter or Space chooses. With nothing selected, the
+  first tab holds the stop.
+- **Focus.** The accent outline stays (a focus ring is an affordance, not a
+  resting mark), drawn at `outline-offset: -2px` inside a bordered group, and
+  a pill restates its own radius under `:focus-visible`.
+
+**The phone tab bar is the pressed rail.** The dock is a raised mat with one
+hairline and one soft drop, and the page you are on is a WELL pressed into it,
+which glides between tabs: `--state-selected-surface` with a shadow under its
+top lip and a lit lower lip, the glyph sitting one pixel down. At night the
+well is a darker recess (`app/theme.css`), because pressed ink reads as shadow
+on a near-black rail. It is the bar-mat tactility spent on structure, never a
+second stamp: no tilt, no coral at rest. The well's radius is the rail's minus
+`--tab-inset`, so the two curves stay concentric at every width; glyphs are
+20px in a 22px box over the 11px label floor, idle words at 600 and the
+current page at 750. The rail is 54px inside the 64px `--tabbar-h` lane.
+Before and after: `docs/proof/tab-bar-pressed-rail/`.
+
+`__tests__/tablistKeyboard.test.tsx` sweeps every `role="tab"` under `app/`
+and `components/` for the roving index and the key handler, and
+`__tests__/visualDiscipline.test.ts` names each row's selected rule.
+
 ### Sheet material
 
 Sheets and drawers use one translucent neutral material over the map, with
@@ -476,6 +592,19 @@ contrast, or missing backdrop-filter support. `app/globals.css` and
 `app/theme.css` own the material roles; map and mobile sheet styles only consume
 them. This is a functional depth cue for movable overlays, not permission to
 add decorative glass elsewhere.
+
+### Icons
+
+One icon set (Lucide) at one scale, written down in `lib/iconScale.ts`:
+14 beside small text (meta lines, chips, captions), 16 beside body text and
+inside a labelled button, field or heading, 20 for an icon alone in a control
+(close, overflow, header and tab bar icons) and 24 for the few large controls
+(the create disc, full-screen viewer chrome). Every icon keeps Lucide's own
+stroke of 2 and passes no `strokeWidth`: at 14 and 16px it draws the same stem
+as the Inter beside it, where 1.75 drew thinner than the words. A selected tab
+reads by its ink, its label weight and the gliding well, not by a heavier
+stroke. The only icons off the scale are the named display marks in that file,
+glyphs that stand in for a picture or open an empty state.
 
 ## Motion
 
@@ -499,11 +628,13 @@ Never write a literal `z-index` in app/component CSS — use the semantic ladder
 defined in `:root` in `app/globals.css` (`--z-float` 50 → `--z-overlay-top`
 1300, with the map's internal ladder `--z-map-base` 450 … `--z-map-toolbar`
 560 in between; see the token block for the full list with per-token comments).
+Contextual push cards use `--z-context-prompt` (1320), above map sheets (1300)
+and below the primary dock (1350). They stand down while a strict modal owns focus.
 Each token's value equals the literal it replaced, so adopting one is never a
 stacking-order change. If two overlays must NOT tie, they get separate tokens
-(e.g. `--z-map-route-chip` 540 sits under `--z-map-chip` 541; `--z-map-suggest`
-512 under `--z-map-banner` 515). Component-internal stacking (0–20, local
-stacking contexts) stays as literals.
+(e.g. `--z-map-route-chip` sits under `--z-map-chip`). Map status news uses
+`--z-map-hover`, below route stop panels and modal scrims. Component-internal
+stacking (0–20, local stacking contexts) stays as literals.
 
 **Rule:** CSS animation belongs behind the reduced-motion media contract in
 `app/globals.css`; JavaScript animation must read the same preference and jump
@@ -535,8 +666,8 @@ candle-lit map is the second memory hook (see `components/map/canvas/`), but it 
 stamp for the "one signature" slot.
 
 Do not add a second tilted/stamped element elsewhere in the UI. If a new
-surface needs emphasis, reach for the brass border/accent colour, not a
-second signature gesture.
+surface needs emphasis, reach for weight, size or ink, not coral and not a
+second signature gesture (see "Coral is spent twice").
 
 ## Day/night coherence
 
@@ -556,6 +687,13 @@ that would have gone bright and jarring against the dark theme's charcoal
 surfaces — both now resolve via `--surface-tint-river` /
 `--surface-tint-brass`, `color-mix()`-derived from `--panel-raised` so they
 stay in the current theme's tonal range automatically.
+
+The browser bar follows the same rule. `<meta name="theme-color">` paints the
+light page floor (`#f8f2ec`) under a light OS appearance and the dark page
+floor (`#0a0a0b`) under a dark one. The root layout's viewport reads them from
+`lib/browserBarColor.ts`, and `public/manifest.webmanifest` repeats the light
+one, held to it by the fence. It used to
+paint near-black in both, so a light page sat under a black strip.
 
 One legend swatch (`.mapLegend span`) keeps a fixed light-mode ink colour by
 design — the legend chip's background is intentionally always a light,

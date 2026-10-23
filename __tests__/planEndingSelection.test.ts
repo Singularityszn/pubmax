@@ -27,7 +27,7 @@ describe("canonical ending selections", () => {
       externalPlaceId: "late-food-evidence-piccadilly-soho-balans-no-60",
       evidenceSnapshot: { label: "Forged name", confidence: "high", source: "Forged" },
     };
-    const canonical = await canonicalEndingSelection(plan, raw, "venue-s2ppfm", Date.parse("2026-07-16T23:00:00.000Z"));
+    const canonical = await canonicalEndingSelection(plan, raw, "venue-s2ppfm", Date.parse("2026-10-17T23:00:00.000Z"));
     expect(canonical).toMatchObject({
       kind: "food",
       evidenceSnapshot: { label: "Balans No.60", source: expect.stringContaining("balans.co.uk") },

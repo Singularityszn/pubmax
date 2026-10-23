@@ -112,7 +112,7 @@ function requestedCategories(clause: string): Set<DrinkCategory> {
 }
 
 function singleCategory(categories: Set<DrinkCategory>): DrinkCategory | null {
-  return categories.size === 1 ? [...categories][0] : null;
+  return categories.size === 1 ? ([...categories][0] ?? null) : null;
 }
 
 /** The single drink lane a Plan query requests, or null when it names none or several. */

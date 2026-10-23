@@ -1,11 +1,11 @@
 import type { Metadata, Viewport } from "next";
-import { Suspense } from "react";
+import { Suspense, type CSSProperties } from "react";
 import { headers } from "next/headers";
-import { Space_Grotesk, Inter, JetBrains_Mono } from "next/font/google";
+import { Space_Grotesk, Inter } from "next/font/google";
+import localFont from "next/font/local";
 import ConsentAwareVercelAnalytics from "@/components/ConsentAwareVercelAnalytics";
 import ConsentAwareVercelSpeedInsights from "@/components/ConsentAwareVercelSpeedInsights";
-import "./globals.css";
-import "./theme.css";
+import "./root-shell.css";
 import CreateFab from "@/components/nav/CreateFab";
 import MobileTabBar, {
   MobileTabBarClearanceFallback,
@@ -22,11 +22,11 @@ import {
 import CommandPaletteProvider from "@/components/command/CommandPaletteProvider";
 import { PRODUCTION_SITE_ORIGIN } from "@/lib/siteUrlConfig.mjs";
 import { siteJsonLd } from "@/lib/siteJsonLd";
-import PerformanceVitals from "@/components/PerformanceVitals";
 import JsonLd from "@/components/seo/JsonLd";
 import { serializeInlineScriptJson } from "@/lib/inlineScriptJson";
 import DailyActivityPulse from "@/components/DailyActivityPulse";
 import EntryBootStamp from "@/components/native/EntryBootStamp";
+import ThemeAttribute from "@/components/ThemeAttribute";
 import A2HSTracking from "@/components/A2HSTracking";
 import AnalyticsConsentPrompt from "@/components/AnalyticsConsentPrompt";
 import PosthogPageviews from "@/components/PosthogPageviews";
@@ -36,6 +36,10 @@ import DeploymentSkewRecovery from "@/components/DeploymentSkewRecovery";
 import { readTrustedHandoffFlag } from "@/lib/trustedHandoffFlags.server";
 import { SocialFriendsLaunchProvider } from "@/lib/useSocialFriendsLaunch";
 import OptionalClerkProvider from "@/components/auth/OptionalClerkProvider";
+import { BROWSER_BAR_THEME_COLORS } from "@/lib/browserBarColor";
+import { readThemeInitSource } from "@/lib/themeInit.server";
+
+const themeInitSource = readThemeInitSource();
 
 // Clerk is optional. Keep its provider, revision bridge, and client auth graph
 // out of every keyless route, which is the normal map build, by loading one
@@ -65,7 +69,7 @@ const SPECULATION_RULES = {
   ],
 };
 
-// Type trio for the PUBMAXXING identity (see docs/DESIGN_SYSTEM.md):
+// Type trio for the PUBMAXX identity (see docs/DESIGN_SYSTEM.md):
 //  - display: Space Grotesk — a Gen-Z-native geometric grotesque with a very
 //    large x-height, so capitals and lowercase sit close in size (little
 //    caps-contrast) and headlines read confident, current, and calm rather
@@ -83,6 +87,10 @@ const displayFace = Space_Grotesk({
   subsets: ["latin"],
   variable: "--font-display",
   display: "swap",
+  // Not preloaded: no route's largest paint is a heading on its own, so this
+  // face is fetched when the first heading asks for it, and swap paints the
+  // metric-matched fallback until it lands.
+  preload: false,
   // Variable weight axis (300–700). Weight is set per-rule in CSS (headings
   // 500–700 per the display-weight discipline); the variable face carries the
   // full range, so no reflow between weights.
@@ -97,13 +105,36 @@ const bodySans = Inter({
   subsets: ["latin"],
   variable: "--font-body",
   display: "swap",
+  // Preloaded, unlike the display and data faces (product decision 17 Oct
+  // 2026). Body text is the largest paint on most routes, and the browser only
+  // scores it once its own face is in: /today's greeting painted at about
+  // 260 ms in the matched fallback and was scored at about 2.3 s, when an
+  // Inter requested only after hydration finally arrived. One latin file, and
+  // swap keeps the metric-matched fallback on screen until it lands.
+  preload: true,
 });
 
-const dataMono = JetBrains_Mono({
-  subsets: ["latin"],
+// Vendored, not fetched. next/font/google rewrites each face's file URL into a
+// query that Turbopack must parse as exactly one entry, and on 4 Oct 2026 this
+// face failed that parse on hosted CI builds ("next/font/google queries have
+// exactly one entry"), so a build could die on Google's answer. The file is the
+// latin one Google served for both weights (v24), so the bytes do not change.
+const dataMono = localFont({
+  // Google served one variable file for 400 and for 700 and declared two
+  // faces on it. Two faces again, not one 400-700 range: a range would draw
+  // the 550 shorthands at 550, while a 700 face clamps them to 700 as before.
+  src: [
+    { path: "./_fonts/JetBrainsMono-latin-wght-400-700.woff2", weight: "400", style: "normal" },
+    { path: "./_fonts/JetBrainsMono-latin-wght-400-700.woff2", weight: "700", style: "normal" },
+  ],
+  // next/font/local names its faces after this const ("dataMono") unless told
+  // otherwise, but the :root token in app/globals.css asks for "JetBrains Mono",
+  // the family next/font/google declared. Unnamed, no face matched and every
+  // numeral painted in the system monospace.
+  declarations: [{ prop: "font-family", value: "JetBrains Mono" }],
   variable: "--font-data",
   display: "swap",
-  // NOT preloaded, unlike the display and body faces. next/font preloads every
+  // NOT preloaded, like the display and body faces. next/font preloads every
   // declared face from the document head, so this one cost a request and its
   // bytes on the critical path of all 35 budgeted routes while no route paints
   // its largest element in it: it is the price stamp and the numerals, and the
@@ -113,6 +144,12 @@ const dataMono = JetBrains_Mono({
   // the moment something uses it, and display: swap plus the metric-matched
   // fallback above keep the swap from moving the page.
   preload: false,
+  // The metric-matched fallback is the exact face next/font/google generated
+  // for this family (app/globals.css, "JetBrains Mono Fallback"). Recomputing
+  // it from the vendored file moved size-adjust from 134.59% to 131.49%, which
+  // would shift every numeral that paints before the swap.
+  adjustFontFallback: false,
+  fallback: ["JetBrains Mono Fallback"],
   // 400 for un-weighted var(--font-data) consumers (globals.css .font-data, the
   // venue price story), which would otherwise render a synthesised
   // faux-bold-adjacent fallback, and 700 for the stamped and emphasis numerals.
@@ -124,8 +161,35 @@ const dataMono = JetBrains_Mono({
   // on 700 already. Only an exact 500, or a target in (400, 500], could have
   // used it, and no shipped rule asks for either. __tests__/fontWeights.test.ts
   // is what keeps that true.
-  weight: ["400", "700"],
 });
+
+// These two fixed Google calls expose the primary family first, followed by
+// Next's generated metric-matched fallback, which is what keeps a swap from
+// moving the page. A face without one is refused rather than shipped.
+//
+// No face is held on its fallback until hydration any more (product decision
+// 17 Oct 2026). The document used to pin both to their fallbacks and
+// ThemeAttribute released the pin once React ran, and that release restyled
+// the whole document at hydration: Chrome scored /today's greeting, on screen
+// from about 300 ms, at about 2.3 s on a 4x-throttled phone. Without the pin
+// it is scored at first paint, and an interleaved A/B moved neither hydration
+// nor the requests a page starts before load.
+for (const face of [displayFace, bodySans]) {
+  if (!face.style.fontFamily.split(",").slice(1).join(",").trim()) {
+    throw new Error("The display and body fonts require their generated matched fallbacks.");
+  }
+}
+
+// The complete generated chains, primary face then its matched fallback, set
+// on <html> from the first byte. The global :root tokens in globals.css name
+// the families without the generated fallbacks and would otherwise win the
+// cascade, so a swap would land from ui-sans-serif rather than from the
+// metric-matched face. Set once in the document, they never change after it,
+// so nothing restyles the page at hydration.
+const rootFontFamilies = {
+  "--font-display": displayFace.style.fontFamily,
+  "--font-body": bodySans.style.fontFamily,
+};
 
 // No party accent (Bungee) webfont is loaded on any route: the vibe chips were
 // its last consumer and left the face on 2026-08-18, so the party-accent token
@@ -156,7 +220,7 @@ export const metadata: Metadata = {
     template: "%s | PUBMAXX",
   },
   description:
-    "PubMaxxing is a price-aware London pub map: listed pint prices, what's on tonight, and crawl plans.",
+    "PUBMAXX is a price-aware London pub map: listed pint prices, what's on tonight, and crawl plans.",
   manifest: "/manifest.webmanifest",
   appleWebApp: {
     capable: true,
@@ -164,7 +228,7 @@ export const metadata: Metadata = {
     // Home Screen icon, so it must read the same as the installed name Android
     // takes from public/manifest.webmanifest. The document TITLES below are a
     // separate question and stay as they are.
-    title: "PUBMAXXING",
+    title: "PUBMAXX",
     statusBarStyle: "black-translucent",
   },
   openGraph: {
@@ -227,13 +291,11 @@ export const metadata: Metadata = {
   },
 };
 
-// theme_color matches --ink-deep (light tokens); viewport-fit=cover for
+// The browser bar matches the page under it: the light page floor by day and
+// the dark one by night (lib/browserBarColor.ts). viewport-fit=cover for
 // standalone PWA / notched phones.
 export const viewport: Viewport = {
-  themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "#0b0b0d" },
-    { media: "(prefers-color-scheme: dark)", color: "#060607" },
-  ],
+  themeColor: BROWSER_BAR_THEME_COLORS,
   width: "device-width",
   initialScale: 1,
   viewportFit: "cover",
@@ -257,6 +319,7 @@ export default async function RootLayout({
       lang="en"
       suppressHydrationWarning
       className={`${displayFace.variable} ${bodySans.variable} ${dataMono.variable}`}
+      style={rootFontFamilies as CSSProperties}
     >
       <head>
         {/* Perf (mobile map budget): the WebGL basemap streams its vector tiles,
@@ -276,21 +339,14 @@ export default async function RootLayout({
           crossOrigin="anonymous"
         />
         <link rel="dns-prefetch" href="https://tiles.openfreemap.org" />
-        {/* The pre-paint decisions, in one render-blocking file: the native
-            shell's entry route first, then the theme and landing splash, so
-            neither the shell nor the page paints something it is about to
-            replace. One file
-            because one request - a second pre-paint script cost every web
-            route a fetch for a decision only the shell uses. Served
-            as a static file (public/theme-init.js) rather than inline so it is
-            covered by CSP `script-src 'self'` with no per-build hash. It is a
-            render-blocking classic script in <head> (NO async/defer on purpose)
-            so it runs before first paint, preserving the no-flash guarantee.
-            That synchronous load is the whole point here, so the no-sync-scripts
-            lint (which exists to prevent render-blocking body scripts) is opted
-            out for this one intentional case. */}
-        {/* eslint-disable-next-line @next/next/no-sync-scripts */}
-        <script src="/theme-init.js?v=splash-1" />
+        {/* Execute the canonical native-entry, theme, view and splash decisions
+            before paint, without another parser-blocking network request.
+            Dynamic documents carry the request nonce. The CDN-cached static
+            documents (proxy.ts) retain their inline-script CSP allowance. */}
+        <script
+          nonce={nonce}
+          dangerouslySetInnerHTML={{ __html: themeInitSource }}
+        />
         {/* IDEAS B5 — Speculation Rules: declaratively prerender the LIKELY next
             page while the user browses the explore-London loop, so tapping
             through borough/Social surfaces is instant. Conservative by design:
@@ -375,7 +431,6 @@ export default async function RootLayout({
                     production-only, registers after load. */}
                 <OfflineReady />
                 <ClientErrorReporter />
-                <PerformanceVitals />
                 {/* Metrics funnel (Wave M) — consent-gated, render-nothing
                     signals: daily return-rate pulse and the A2HS install funnel. */}
                 <DailyActivityPulse />
@@ -385,6 +440,7 @@ export default async function RootLayout({
                     on the manifest start_url /tonight) can reach the landing page on
                     a wordmark tap instead of bouncing back to /tonight. */}
                 <EntryBootStamp />
+                <ThemeAttribute />
               </CommandPaletteProvider>
           </OptionalClerkProvider>
         ) : (
@@ -398,10 +454,10 @@ export default async function RootLayout({
               <DeferredShellExtras />
               <OfflineReady />
               <ClientErrorReporter />
-              <PerformanceVitals />
               <DailyActivityPulse />
               <A2HSTracking />
               <EntryBootStamp />
+              <ThemeAttribute />
             </CommandPaletteProvider>
           </AuthProvider>
         )}

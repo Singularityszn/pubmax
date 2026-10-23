@@ -10,6 +10,11 @@ import {
   deviceAccountOwner,
   emitDeviceIdentityChanged,
 } from "@/lib/deviceAccountIdentity";
+import {
+  CURRENT_IDENTITY_PATH,
+  keepCurrentIdentityReadDuring,
+  readCurrentIdentity,
+} from "@/lib/currentIdentityRead";
 import { discardBody } from "@/lib/responseBody";
 import { normalizeHandle } from "@/lib/profiles";
 import { clearClaimedRoundAnonymousHandle } from "@/lib/roundRequest";
@@ -100,32 +105,45 @@ function readStoredDeviceHandle(
   }
 }
 
+async function readUnshared(
+  auth: NonNullable<ReturnType<typeof captureAccountAuth>>,
+  request: AccountBoundRequest,
+) {
+  const response = await accountBoundFetch(auth, CURRENT_IDENTITY_PATH, {}, request);
+  if (!response.ok) {
+    discardBody(response);
+    return { ok: false as const, body: null };
+  }
+  const body = (await response.json().catch(() => null)) as Record<string, unknown> | null;
+  return { ok: true as const, body };
+}
+
 export async function resolveCanonicalIdentity(
   expectedUserId: string,
   session: Pick<Session, "access_token" | "user"> | null,
   storage: Pick<Storage, "getItem" | "removeItem" | "setItem"> | null,
-  request: AccountBoundRequest = fetch,
+  request?: AccountBoundRequest,
+  current: () => boolean = () => true,
 ): Promise<CanonicalIdentityResolution> {
+  if (!current()) return { ok: false };
   const auth = captureAccountAuth(expectedUserId, session);
   if (!auth) return { ok: false };
-  const response = await accountBoundFetch(
-    auth,
-    "/api/identity/handle/current",
-    {},
-    request,
-  );
-  if (!response.ok) {
-    discardBody(response);
-    return { ok: false };
-  }
-  const body = await response.json().catch(() => null) as {
-    handle?: unknown;
-  } | null;
+  // The page's own read is shared with every other surface that asks who this
+  // is (lib/currentIdentityRead.ts). A caller that injects its own transport is
+  // asking about THAT transport, so it is never joined to the shared read.
+  const answer = request
+    ? await readUnshared(auth, request)
+    : await readCurrentIdentity(auth.userId, () =>
+        accountBoundFetch(auth, CURRENT_IDENTITY_PATH, {}, fetch),
+      );
+  // A captured account can lose ownership while its remote identity read waits.
+  if (!answer.ok || !current()) return { ok: false };
+  const body = answer.body as { handle?: unknown } | null;
   const handle =
     typeof body?.handle === "string" ? normalizeHandle(body.handle) : "";
   if (!handle) return { ok: true, identity: null };
   clearClaimedRoundAnonymousHandle(handle, storage);
-  syncDeviceHandle(storage, handle);
+  keepCurrentIdentityReadDuring(() => syncDeviceHandle(storage, handle));
   return {
     ok: true,
     identity: { ownerId: auth.userId, handle },
@@ -153,7 +171,9 @@ export async function handleClaimRouteAfterSignIn(
   landedUrl: string,
   storage: Pick<Storage, "getItem" | "removeItem" | "setItem"> | null,
   request: AccountBoundRequest = fetch,
+  current: () => boolean = () => true,
 ): Promise<string | null> {
+  if (!current()) return null;
   const userId = session?.user?.id;
   if (!userId) return null;
   try {
@@ -179,7 +199,8 @@ export async function handleClaimRouteAfterSignIn(
     session,
     storage,
     request,
+    current,
   ).catch(() => null);
-  if (!resolution?.ok || resolution.identity) return null;
+  if (!current() || !resolution?.ok || resolution.identity) return null;
   return HANDLE_CLAIM_NEXT;
 }

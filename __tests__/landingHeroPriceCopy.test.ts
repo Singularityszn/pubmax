@@ -1,3 +1,4 @@
+import type { Route } from "next";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 
@@ -6,7 +7,7 @@ import { describe, expect, it, vi } from "vitest";
 vi.mock("@/lib/analytics", () => ({ trackEvent: vi.fn() }));
 
 import LandingHero from "@/components/landing/LandingHero";
-import type { LandingArchiveIndex } from "@/lib/landingHero";
+import type { LandingArchiveIndex, LandingArchiveThen } from "@/lib/landingHero";
 import type { LandingPubCardData } from "@/lib/landingPubCard";
 
 // The one real pub above the fold prints facts with their sources beside
@@ -20,9 +21,10 @@ const card: LandingPubCardData = {
   id: "venue-test",
   name: "The Blackfriar",
   area: "City of London",
+  primaryBorough: "City of London",
   priceGbp: 6.5,
   pintName: "a pint of Pravha",
-  drinkHref: "/drink/pravha",
+  drinkHref: "/drink/pravha" as Route,
   publisher: { label: "pint-prices.com", url: "https://www.pint-prices.com/pub/x" },
   observedOn: "2026-07-03",
   standing: "listed",
@@ -35,16 +37,18 @@ const card: LandingPubCardData = {
   mapHref: "/map?sel=venue-test",
 };
 
-const archive: LandingArchiveIndex = {
-  "venue-test": {
-    priceGbp: 3.6,
-    observedOn: "2013-07-14",
-    observedMonth: "July 2013",
-    observedDay: "14 July 2013",
-    years: 13,
-    source: { label: "beerintheevening.com", url: "https://www.beerintheevening.com/pubs/x" },
-  },
+const then: LandingArchiveThen = {
+  priceGbp: 3.6,
+  observedOn: "2013-07-14",
+  observedMonth: "July 2013",
+  observedDay: "14 July 2013",
+  years: 13,
+  source: { label: "beerintheevening.com", url: "https://www.beerintheevening.com/pubs/x" },
+  // The archive row states no item, so the build decided no movement.
+  movement: null,
 };
+
+const archive: LandingArchiveIndex = { "venue-test": then };
 
 function render(overrides: Partial<LandingPubCardData> = {}, index: LandingArchiveIndex = archive): string {
   return renderToStaticMarkup(
@@ -79,9 +83,22 @@ describe("landing answer card copy", () => {
     expect(cheap).toMatch(/priceBand-cheap[^"]*"[^>]*>£4\.20</);
   });
 
-  it("prints the archive line with its month and its source day", () => {
-    expect(html).toMatch(/<strong>£3\.60<\/strong> in July 2013\. Up £2\.90 in 13 years\./);
+  it("prints the archive line with its month and its source day, and no movement it was not given", () => {
+    expect(html).toMatch(
+      /<strong>£3\.60<\/strong> in July 2013\. We can&#x27;t tell it was the same pint, so we don&#x27;t call it a change\./,
+    );
+    expect(html).not.toMatch(/\b(?:Up|Down) £\d|\bSame price\b/);
     expect(html).toMatch(/<a href="https:\/\/www\.beerintheevening\.com\/pubs\/x"[^>]*>beerintheevening\.com<\/a>, 14 July 2013/);
+  });
+
+  it("prints a decided movement only beside the figure it was decided for", () => {
+    const decided: LandingArchiveIndex = {
+      "venue-test": { ...then, movement: { nowGbp: 6.5, line: "Up £2.90 in 13 years." } },
+    };
+    expect(render({}, decided)).toMatch(/<strong>£3\.60<\/strong> in July 2013\. Up £2\.90 in 13 years\./);
+    const other = render({ priceGbp: 4.2 }, decided);
+    expect(other).not.toContain("Up £2.90");
+    expect(other).toContain("<strong>£3.60</strong> in July 2013.");
   });
 
   it("prints no then line when the archive index holds none for the pub", () => {
@@ -109,10 +126,11 @@ describe("landing answer card copy", () => {
     expect(unread).toContain("collected 21 August 2026.");
   });
 
-  it("asks Still £X? of the pub on the card, as the first QUIET door", () => {
+  it("opens the card pub's composer holding its figure, as the first QUIET door", () => {
     // The receipt door stopped being the primary on 7 Sep 2026: it ends in a
-    // sign-in ask, and /near answers a stranger with no wall at all.
-    expect(html).toMatch(/class="screenSecondary"><a[^>]*href="\/map\?sel=venue-test&amp;log=1&amp;price=6\.50"[^>]*>Still £6\.50\?<\/a>/);
+    // sign-in ask, and /near answers a stranger with no wall at all. Its label
+    // says what the tap does (UX audit 16 Oct 2026).
+    expect(html).toMatch(/class="screenSecondary"><a[^>]*href="\/map\?sel=venue-test&amp;log=1&amp;price=6\.50"[^>]*>Log what you paid<\/a>/);
     expect(html).toMatch(/data-primary-action=""><a[^>]*href="\/near\?locate=1"[^>]*>Cheapest pints near me<\/a>/);
   });
 });

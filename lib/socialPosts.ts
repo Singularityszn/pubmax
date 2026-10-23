@@ -2,6 +2,10 @@ import { NIGHT_AREA_SLUGS, type NightAreaSlug } from "@/lib/nightAreas";
 import { dropWithdrawnAuthors } from "@/lib/accountPublicAccess.server";
 import { resolveAvatarUrlsForHandles } from "@/lib/avatarResolve";
 import { normalizeHandle } from "@/lib/profiles";
+import { hiddenNamePostRefusal } from "@/lib/socialHiddenName";
+import type { SocialPostReview } from "@/lib/socialPostReviews";
+import type { SocialPostVideo } from "@/lib/socialPostVideos";
+import type { SocialPostExtraPhoto } from "@/lib/socialPostPhotos";
 
 const SOCIAL_POST_KINDS = ["standard", "feature_request"] as const;
 const SOCIAL_POST_VISIBILITIES = ["public", "friends", "private"] as const;
@@ -28,6 +32,14 @@ export type SocialPostFields = {
   hashtags: string[];
   commentPolicy: SocialPostCommentPolicy;
   photo: SocialPostPhoto | null;
+  /**
+   * The author chose, when posting, that readers see "a PUBMAXXER" instead of
+   * their handle. Set once at creation and never edited. PUBMAXX still knows
+   * the author: moderation, reports, blocks and the author's own reads all
+   * keep the real account. A hidden-name post is public and names no exact pub
+   * (`hiddenNamePostRefusal` in `lib/socialHiddenName.ts`).
+   */
+  nameHidden: boolean;
 };
 
 type SocialPostFeatureRequest = {
@@ -54,10 +66,21 @@ export type SocialPostDTO = Omit<
   SocialPost,
   "authorProfileId" | "authorHandle" | "status" | "moderatedAt"
 > & {
-  author: { handle: string; avatarUrl?: string };
+  /**
+   * The author as this viewer may see them. `handle` is null on a hidden-name
+   * post read by anybody but its author, and nothing else about the author
+   * (avatar, profile link) is sent in its place.
+   */
+  author: { handle: string | null; avatarUrl?: string };
   ownedByViewer: boolean;
   venueName: string | null;
   venueProjected: boolean;
+  /** The author's own score for the pub, shown only beside a projected venue. */
+  review?: SocialPostReview | null;
+  /** One video, held for review: its author sees it at once, others once approved. */
+  video?: SocialPostVideo | null;
+  /** Photos 2 to 4, each screened on its own (0185). */
+  extraPhotos?: SocialPostExtraPhoto[];
 };
 
 type ValidationErrorCode =
@@ -80,7 +103,7 @@ export type SocialPostEditValidationResult =
 
 const CREATE_KEYS = new Set([
   "kind", "visibility", "body", "area", "venueId", "hashtags",
-  "commentPolicy",
+  "commentPolicy", "nameHidden",
 ]);
 const EDIT_KEYS = new Set([
   "kind", "visibility", "body", "area", "venueId", "hashtags",
@@ -156,6 +179,10 @@ export function validateSocialPostCreate(
   const visibility = oneOf(raw.visibility, SOCIAL_POST_VISIBILITIES);
   const commentPolicy = oneOf(raw.commentPolicy, SOCIAL_POST_COMMENT_POLICIES);
   if (!kind || !visibility || !commentPolicy) return invalid("Post details are not valid.");
+  if (raw.nameHidden !== undefined && typeof raw.nameHidden !== "boolean") {
+    return invalid("Post details are not valid.");
+  }
+  const nameHidden = raw.nameHidden === true;
 
   const body = cleanText(raw.body, 2_000);
   const area = parseArea(raw.area);
@@ -169,9 +196,11 @@ export function validateSocialPostCreate(
     return invalid("Add words to a feature request.", "FEATURE_REQUEST_BODY_REQUIRED");
   }
   if (!body && !photo) return invalid("Add some words or a photo.");
+  const hiddenNameRefusal = hiddenNamePostRefusal({ nameHidden, visibility, venueId });
+  if (hiddenNameRefusal) return invalid(hiddenNameRefusal);
   return {
     ok: true,
-    value: { kind, visibility, body, area, venueId, hashtags, commentPolicy, photo },
+    value: { kind, visibility, body, area, venueId, hashtags, commentPolicy, photo, nameHidden },
   };
 }
 
@@ -234,6 +263,7 @@ export function socialPostDTO(
   } = { exactVenue: false },
 ): SocialPostDTO {
   const exactVenue = Boolean(post.venueId && projection.exactVenue);
+  const ownedByViewer = post.authorProfileId === projection.viewerProfileId;
   return {
     id: post.id,
     kind: post.kind,
@@ -255,8 +285,11 @@ export function socialPostDTO(
     editedAt: post.editedAt,
     createdAt: post.createdAt,
     updatedAt: post.updatedAt,
-    author: { handle: post.authorHandle },
-    ownedByViewer: post.authorProfileId === projection.viewerProfileId,
+    nameHidden: post.nameHidden,
+    // The ONE place a hidden name is taken off. Every read of a post a viewer
+    // receives is built here, so no route has to remember to do it.
+    author: { handle: post.nameHidden && !ownedByViewer ? null : post.authorHandle },
+    ownedByViewer,
   };
 }
 
@@ -269,13 +302,21 @@ export function socialPostModerationClaim(
   return sections.filter(Boolean).join("\n\n");
 }
 
+/**
+ * Drop posts by a withdrawn author and add avatars. A hidden-name post that
+ * reaches here with no handle was already checked for a withdrawn author by
+ * the store, which still knows the account (`dropWithdrawnHiddenNamePosts`),
+ * and it gets no avatar, because a face is a name.
+ */
 export async function enrichSocialPostAuthors(
   posts: readonly SocialPostDTO[],
 ): Promise<SocialPostDTO[]> {
   const visible = await dropWithdrawnAuthors(posts, (post) => post.author.handle);
   if (visible.length === 0) return [];
-  const urls = await resolveAvatarUrlsForHandles(visible.map((post) => post.author.handle));
+  const named = visible.flatMap((post) => post.author.handle ? [post.author.handle] : []);
+  const urls = named.length > 0 ? await resolveAvatarUrlsForHandles(named) : new Map<string, string>();
   return visible.map((post) => {
+    if (!post.author.handle) return post;
     const avatarUrl = urls.get(normalizeHandle(post.author.handle));
     return avatarUrl
       ? { ...post, author: { ...post.author, avatarUrl } }

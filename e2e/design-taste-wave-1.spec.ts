@@ -45,7 +45,7 @@ async function mockTonightMusic(page: Page): Promise<void> {
             confidence: "listed",
           },
         ],
-        servedAt: observedAt,
+        servedAt: new Date().toISOString(),
         sourceObservedAt: observedAt,
         sourceFreshnessKind: "provider-observed",
         localityBasis: "london-default",
@@ -102,7 +102,11 @@ test.describe("desktop taste wave 1", () => {
       await mockTonightMusic(page);
       await page.goto("/today");
 
-      await expectSentenceCase(page.locator(".todayCardEyebrow").first());
+      // The small eyebrow over every /today card went in the taste pass (18 Oct
+      // 2026, "no eyebrow label above every card"): the page's one kicker and
+      // each section's own title are its labels now, and both stay sentence case.
+      await expectSentenceCase(page.locator("main .kicker").first());
+      await expectSentenceCase(page.locator(".todayCardTitle").first());
       // A price wears its band and no other colour (#1499, lib/priceBand.ts):
       // the figure's band is worked out here from its own pounds and its pub,
       // and the ink it paints must be that band's token, read off a probe.
@@ -159,9 +163,14 @@ test.describe("desktop taste wave 1", () => {
       // primary (the Sign in door, in the Screen head). The boundary under
       // it prints its line alone: no second link to the same page. Coral fill
       // is the composer, not a retired feed empty.
+      //
+      // Count the PAINTED primaries. /social streams its body behind
+      // loading.tsx, and when the auth answer reaches that still-pending
+      // boundary React renders it on the client. The server's copy (its
+      // pre-auth "Post") then lands late as a hidden orphan nobody sees.
       await page.goto("/social");
       await expect(page).toHaveURL(/\/social\/?$/);
-      const storiesPrimary = page.locator("[data-primary-action]");
+      const storiesPrimary = page.locator("[data-primary-action]").filter({ visible: true });
       await expect(storiesPrimary).toHaveCount(1);
       await expect(storiesPrimary.getByRole("link", { name: "Sign in" })).toBeVisible();
       await expect(page.getByRole("status").getByText("Sign in to use Social.")).toBeVisible();

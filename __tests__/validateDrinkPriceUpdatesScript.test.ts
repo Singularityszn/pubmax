@@ -20,6 +20,7 @@ import {
 import { tmpdir } from "node:os";
 import { fileURLToPath } from "node:url";
 import { dirname, join, resolve } from "node:path";
+import { defined } from "@/__tests__/helpers/defined";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(__dirname, "..");
@@ -68,6 +69,14 @@ function buildBaseScratch(): string {
   cpSync(
     join(ROOT, "scripts", "lib", "validateLateFoodEvidence.mjs"),
     join(scratchScripts, "lib", "validateLateFoodEvidence.mjs"),
+  );
+  cpSync(
+    join(ROOT, "scripts", "lib", "coffeePilotRows.mjs"),
+    join(scratchScripts, "lib", "coffeePilotRows.mjs"),
+  );
+  cpSync(
+    join(ROOT, "scripts", "lib", "coffeePilotArea.mjs"),
+    join(scratchScripts, "lib", "coffeePilotArea.mjs"),
   );
   cpSync(
     join(ROOT, "scripts", "lib", "slimShards.mjs"),
@@ -123,6 +132,7 @@ function buildBaseScratch(): string {
     join(scratchLib, "whatsOnRowShape.mjs"),
   );
   cpSync(join(ROOT, "lib", "httpUrl.mjs"), join(scratchLib, "httpUrl.mjs"));
+  cpSync(join(ROOT, "lib", "legacyOsmVenueKind.mjs"), join(scratchLib, "legacyOsmVenueKind.mjs"));
   // The UK place index is checked against the same name rule the chooser and
   // the builder share, which the script imports rather than restates.
   cpSync(
@@ -168,6 +178,10 @@ function buildBaseScratch(): string {
   cpSync(
     join(ROOT, "scripts", "lib", "pricedIndexExclusions.mjs"),
     join(scratchScripts, "lib", "pricedIndexExclusions.mjs"),
+  );
+  cpSync(
+    join(ROOT, "scripts", "lib", "currentFamousVenue.mjs"),
+    join(scratchScripts, "lib", "currentFamousVenue.mjs"),
   );
   cpSync(
     join(ROOT, "data", "priced_index_excluded_venues.json"),
@@ -612,6 +626,27 @@ describe("validate-data.mjs drink-price-update extension", () => {
 });
 
 describe("validate-data.mjs slim venue index validation", () => {
+  it("accepts an OSM bar kind and rejects changing that arena bar into a pub", () => {
+    const scriptsDir = setupScratch({});
+    const slimPath = join(scriptsDir, "..", "public", "data", "venues_slim.json");
+    const payload = JSON.parse(readFileSync(slimPath, "utf8"));
+    const arena = payload.rows.find((row: { id: string }) => row.id === "venue-16cduf6");
+    expect(arena.kind).toBe("bar");
+    expect(runValidate(scriptsDir).code).toBe(0);
+    expect(arena.legacyOsmBar).toBe(true);
+    delete arena.legacyOsmBar;
+    writeScratchFile(slimPath, JSON.stringify(payload), "utf8");
+    const missingLineage = runValidate(scriptsDir);
+    expect(missingLineage.code).toBe(1);
+    expect(missingLineage.stdout).toContain("legacyOsmBar does not match recorded OSM lineage");
+    arena.legacyOsmBar = true;
+    arena.kind = "pub";
+    writeScratchFile(slimPath, JSON.stringify(payload), "utf8");
+    const result = runValidate(scriptsDir);
+    expect(result.code).toBe(1);
+    expect(result.stdout).toContain("kind pub does not match expected bar");
+  });
+
   it("validates the shipped slim venue artifact against the full pint dataset", () => {
     const scriptsDir = setupScratch({});
     const { code, stdout } = runValidate(scriptsDir);
@@ -673,8 +708,8 @@ describe("validate-data.mjs slim venue index validation", () => {
     }
     const pair = [...groups.values()].find((group) => group.length >= 2);
     if (!pair) throw new Error("fixture has no same-count spatial shard pair");
-    const firstPath = join(scriptsDir, "..", "public", "data", pair[0].url.replace(/^\/data\//, ""));
-    const secondPath = join(scriptsDir, "..", "public", "data", pair[1].url.replace(/^\/data\//, ""));
+    const firstPath = join(scriptsDir, "..", "public", "data", defined(pair[0]).url.replace(/^\/data\//, ""));
+    const secondPath = join(scriptsDir, "..", "public", "data", defined(pair[1]).url.replace(/^\/data\//, ""));
     const first = readFileSync(firstPath, "utf8");
     const second = readFileSync(secondPath, "utf8");
     writeScratchFile(firstPath, second, "utf8");

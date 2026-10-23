@@ -17,6 +17,7 @@ import {
   spoonsValueMapHref,
   type SpoonsValueTableRow,
 } from "@/lib/spoonsValue";
+import { defined } from "@/__tests__/helpers/defined";
 
 const ROOT = process.cwd();
 
@@ -126,7 +127,6 @@ describe("the ranking table", () => {
       createElement(SpoonsValueTable, {
         rows,
         cuts: spoonsValueCuts(rows),
-        modalMilliunits: 12_785,
       }),
     );
     expect(html).toContain('href="/map?sel=venue-uk-n1&amp;lens=spoons"');
@@ -138,11 +138,11 @@ describe("the ranking table", () => {
   // on the ordinary pint map. The page is entirely about the units lens and
   // nothing on it could switch the lens on.
   it("carries the units lens through every door onto the map", () => {
-    expect(spoonsValueMapHref(rows[0])).toBe("/map?sel=venue-uk-n1&lens=spoons");
-    expect(spoonsValueMapHref(rows[1])).toBeNull();
+    expect(spoonsValueMapHref(defined(rows[0]))).toBe("/map?sel=venue-uk-n1&lens=spoons");
+    expect(spoonsValueMapHref(defined(rows[1]))).toBeNull();
     expect(SPOONS_VALUE_MAP_HREF).toBe("/map?lens=spoons");
 
-    for (const href of [SPOONS_VALUE_MAP_HREF, spoonsValueMapHref(rows[0]) ?? ""]) {
+    for (const href of [SPOONS_VALUE_MAP_HREF, spoonsValueMapHref(defined(rows[0])) ?? ""]) {
       expect(spoonsValueLensRequested(new URL(href, "https://x").search)).toBe(true);
     }
   });
@@ -166,10 +166,12 @@ describe("the ranking table", () => {
       createElement(SpoonsValueTable, {
         rows,
         cuts: spoonsValueCuts(rows),
-        modalMilliunits: 12_785,
       }),
     );
     expect(html).toContain("15.7 units");
+    // Units are not a price, so the figure wears no price band (taste plan,
+    // 18 Oct 2026): a green "15.7 units" read as a cheap pint.
+    expect(html).not.toContain("priceBand-");
     expect(html).toContain("£9.96");
     expect(html).toContain("3 pints of Sandford Orchards The General");
   });
@@ -179,7 +181,6 @@ describe("the ranking table", () => {
       createElement(SpoonsValueTable, {
         rows,
         cuts: spoonsValueCuts(rows),
-        modalMilliunits: 12_785,
       }),
     );
     expect(html).toContain("Rank is national");
@@ -274,13 +275,7 @@ describe("the lens costs a cold map nothing", () => {
         "<VenueSpoonsValueRow",
       );
     }
-    const row = readFileSync(
-      join(ROOT, "components", "map", "inspector", "VenueSpoonsValueRow.tsx"),
-      "utf8",
-    );
-    expect(row).toContain("/api/spoons-value?venueId=");
-    // Nothing on screen asks, so nothing asks the server.
-    expect(row).toMatch(/if \(!visible\) return;/);
+    // What the row asks, and when, is held by venueSheetStaggeredPanels.test.tsx.
   });
 
   it("reads the slim lane and never the whole edition in a browser", () => {

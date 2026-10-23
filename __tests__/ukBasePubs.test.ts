@@ -20,6 +20,7 @@ import {
   ukBasePubFromFeature,
   ukBasePubsToGeoJSON,
 } from "@/lib/ukBasePubs";
+import { defined } from "@/__tests__/helpers/defined";
 
 // A synthetic three-cell grid. The cells are disjoint so "which cells does this
 // viewport need" is exact, and one of them is deliberately far away so an
@@ -99,7 +100,7 @@ describe("parseUkBaseShard", () => {
     const pubs = parseUkBaseShard({
       pubs: [
         ["n1", "Good", "", 51.4, -0.1, ""],
-        ["n2", "", "", 51.4, -0.1, ""], // no name
+        ["n2", "", "", 51.4, -0.1, "", "bar"], // a bar with no name
         ["n3", "Bad coords", "", "51.4", -0.1, ""],
         ["n4", "Too short", 51.4],
         ["n5", "Bad owner", "", 51.4, -0.1, 42],
@@ -146,7 +147,7 @@ describe("ukBasePubsToGeoJSON", () => {
 
   it("carries the whole record and NOTHING the price system could read", () => {
     const [feature] = ukBasePubsToGeoJSON(pubs).features;
-    expect(feature.properties).toEqual({
+    expect(defined(feature).properties).toEqual({
       id: "venue-uk-n1",
       name: "The Anchor",
       address: "1 Dock Road",
@@ -154,9 +155,9 @@ describe("ukBasePubsToGeoJSON", () => {
       provisional: false,
     });
     // No bucket / price / story: the price-colour system must find nothing here.
-    expect(feature.properties).not.toHaveProperty("bucket");
-    expect(feature.properties).not.toHaveProperty("cheapestPrice");
-    expect(feature.geometry).toEqual({ type: "Point", coordinates: [-0.18, 51.42] });
+    expect(defined(feature).properties).not.toHaveProperty("bucket");
+    expect(defined(feature).properties).not.toHaveProperty("cheapestPrice");
+    expect(defined(feature).geometry).toEqual({ type: "Point", coordinates: [-0.18, 51.42] });
   });
 
   it("gives an unpriced base pub outside the ranking nothing a pin could paint with", () => {
@@ -170,10 +171,10 @@ describe("ukBasePubsToGeoJSON", () => {
       modalMilliunits: 12_785,
     }).features;
 
-    expect(feature.properties).not.toHaveProperty("spoonsBucket");
-    expect(feature.properties).not.toHaveProperty("spoonsLabel");
-    expect(feature.properties).not.toHaveProperty("bucket");
-    expect(feature.properties).not.toHaveProperty("priceLabel");
+    expect(defined(feature).properties).not.toHaveProperty("spoonsBucket");
+    expect(defined(feature).properties).not.toHaveProperty("spoonsLabel");
+    expect(defined(feature).properties).not.toHaveProperty("bucket");
+    expect(defined(feature).properties).not.toHaveProperty("priceLabel");
   });
 
   it("binds a provisional mark by stable salted base id without adding price authority", () => {
@@ -217,7 +218,7 @@ describe("ukBasePubsToGeoJSON", () => {
 
   it("round-trips back to the pub a tap needs", () => {
     const [feature] = ukBasePubsToGeoJSON(pubs).features;
-    expect(ukBasePubFromFeature(feature)).toEqual(pubs[0]);
+    expect(ukBasePubFromFeature(defined(feature))).toEqual(pubs[0]);
   });
 
   it("refuses a feature that is not a base pin", () => {
@@ -317,7 +318,7 @@ describe("createUkBaseLoader", () => {
         cell: "a",
         pubs: [
           ["n1", "The Anchor", "1 Dock Road", 51.42, -0.18, "venue-owner"],
-          ["w2", "", "", 51.44, -0.12, ""],
+          ["w2", "", "", 51.44, -0.12, "", "bar"],
         ],
       },
     ],
@@ -369,6 +370,19 @@ describe("createUkBaseLoader", () => {
         north: 41,
       }),
     ).toEqual({ status: "ready", pubs: [] });
+  });
+
+  it("omits a verified-closed pub from the drawable set and leaves the shard row in place", async () => {
+    const loader = createUkBaseLoader({ closedOsmRefs: new Set(["n1"]) });
+    const { pubs } = await loader.pubsForBounds({
+      west: -0.19,
+      south: 51.42,
+      east: -0.17,
+      north: 51.44,
+    });
+    expect(pubs.map((pub) => pub.name)).toEqual(["The Bell"]);
+    expect(parseUkBaseShard(BODIES["/data/uk_base/a.json"])).toHaveLength(2);
+    expect(loader.find("venue-uk-n1")).toBeNull();
   });
 
   it("find() resolves a resident pub by id and nothing else", async () => {

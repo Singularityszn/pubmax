@@ -1,0 +1,592 @@
+{
+  "city": "liverpool",
+  "source": "Parallel Task API; Tavily Search and Extract",
+  "observationMeaning": "Each row's observedAt is the date its Parallel research result, Tavily search page text or page read was retrieved; provider names the lane. Cached reruns retain that date. Not a claim that the venue is open tonight.",
+  "populationPriority": 486100,
+  "populationSources": [
+    "https://www.ons.gov.uk/peoplepopulationandcommunity/populationandmigration/populationestimates/bulletins/populationandhouseholdestimatesenglandandwales/census2021",
+    "https://www.scotlandscensus.gov.uk/2022-reports/scotlands-census-2022-rounded-population-estimates/"
+  ],
+  "venues": [
+    {
+      "name": "Belmont",
+      "kind": "pub",
+      "address": "303 West Derby Road, Anfield, Liverpool L6 5EG",
+      "postcode": "L6 5EG",
+      "locality": "Liverpool",
+      "website": null,
+      "lat": 53.421269,
+      "lng": -2.948311,
+      "coordinatePrecision": "postcode-centroid",
+      "sourceUrls": [
+        "https://camra.org.uk/pubs/postcode/l6-2as-941764?hide_closed=true&serves%5B0%5D=RealAle&sort=nearest"
+      ],
+      "evidence": [
+        {
+          "url": "https://camra.org.uk/pubs/postcode/l6-2as-941764?hide_closed=true&serves%5B0%5D=RealAle&sort=nearest",
+          "excerpt": "[### Belmont\n\nPub, in Liverpool]\n\n**Cask Ale not available**\n\n**0.6** miles from you\n\n303 West Derby Road, Anfield, Liverpool, L6 5EG"
+        }
+      ],
+      "observedAt": "2026-10-04T12:51:14.091Z",
+      "geocode": {
+        "url": "https://api.postcodes.io/postcodes/L6%205EG",
+        "observedAt": "2026-10-04T13:04:28.900Z",
+        "postcode": "L6 5EG",
+        "quality": 1
+      },
+      "provider": "tavily",
+      "id": "venue-liv-1clij4z"
+    },
+    {
+      "name": "Toby Carvery",
+      "kind": "pub",
+      "address": "502 Queens Drive, Stoneycroft, Liverpool L13 0AS",
+      "postcode": "L13 0AS",
+      "locality": "Liverpool",
+      "website": null,
+      "lat": 53.421467,
+      "lng": -2.912396,
+      "coordinatePrecision": "postcode-centroid",
+      "sourceUrls": [
+        "https://camra.org.uk/pubs/place/deysbrook-5115"
+      ],
+      "evidence": [
+        {
+          "url": "https://camra.org.uk/pubs/place/deysbrook-5115",
+          "excerpt": "### Toby Carvery\n\nToby Carvery (Mitchells & Butlers) Pub, in Liverpool]\n\n**Cask Ale not available**\n\n**1.5** miles from you\n\n502 Queens Drive, Stoneycroft, Liverpool, L13 0AS"
+        }
+      ],
+      "observedAt": "2026-10-04T12:51:26.996Z",
+      "geocode": {
+        "url": "https://api.postcodes.io/postcodes/L13%200AS",
+        "observedAt": "2026-10-04T13:04:49.317Z",
+        "postcode": "L13 0AS",
+        "quality": 1
+      },
+      "provider": "tavily",
+      "id": "venue-liv-l4lrnm"
+    },
+    {
+      "name": "Cask",
+      "kind": "pub",
+      "address": "438 Queens Drive West Derby, Stoneycroft, Liverpool L13 0AR",
+      "postcode": "L13 0AR",
+      "locality": "Liverpool",
+      "website": null,
+      "lat": 53.422499,
+      "lng": -2.915052,
+      "coordinatePrecision": "postcode-centroid",
+      "sourceUrls": [
+        "https://camra.org.uk/pubs/place/deysbrook-5115"
+      ],
+      "evidence": [
+        {
+          "url": "https://camra.org.uk/pubs/place/deysbrook-5115",
+          "excerpt": "### Cask\n\nIndependent Pub, in Liverpool]\n\n5 Changing Beers\n\n   \n\n**1.5** miles from you\n\n438 Queens Drive West Derby, Stoneycroft, Liverpool, L13 0AR"
+        }
+      ],
+      "observedAt": "2026-10-04T12:51:26.996Z",
+      "geocode": {
+        "url": "https://api.postcodes.io/postcodes/L13%200AR",
+        "observedAt": "2026-10-04T13:04:49.382Z",
+        "postcode": "L13 0AR",
+        "quality": 1
+      },
+      "provider": "tavily",
+      "id": "venue-liv-1lv3t2p"
+    },
+    {
+      "name": "Stag & Rainbow",
+      "kind": "pub",
+      "address": "Queens Drive, West Derby, Liverpool L13 0DL",
+      "postcode": "L13 0DL",
+      "locality": "Liverpool",
+      "website": null,
+      "lat": 53.425974,
+      "lng": -2.91782,
+      "coordinatePrecision": "postcode-centroid",
+      "sourceUrls": [
+        "https://camra.org.uk/pubs/place/deysbrook-5115"
+      ],
+      "evidence": [
+        {
+          "url": "https://camra.org.uk/pubs/place/deysbrook-5115",
+          "excerpt": "### Stag & Rainbow\n\nBeefeater (Whitbread) Pub, in Liverpool]\n\n1 Regular, 1 Changing Beers\n\n \n\n**1.5** miles from you\n\nQueens Drive, West Derby, Liverpool, L13 0DL"
+        }
+      ],
+      "observedAt": "2026-10-04T12:51:26.996Z",
+      "geocode": {
+        "url": "https://api.postcodes.io/postcodes/L13%200DL",
+        "observedAt": "2026-10-04T13:04:49.457Z",
+        "postcode": "L13 0DL",
+        "quality": 1
+      },
+      "provider": "tavily",
+      "id": "venue-liv-162jgwp"
+    },
+    {
+      "name": "Maranto's Balcony Bar",
+      "kind": "pub",
+      "address": "57-63 Lark Lane, Aigburth, Liverpool L17 8UP",
+      "postcode": "L17 8UP",
+      "locality": "Liverpool",
+      "website": null,
+      "lat": 53.381314,
+      "lng": -2.945875,
+      "coordinatePrecision": "postcode-centroid",
+      "sourceUrls": [
+        "https://camra.org.uk/pubs/postcode/l17-9rb-955699"
+      ],
+      "evidence": [
+        {
+          "url": "https://camra.org.uk/pubs/postcode/l17-9rb-955699",
+          "excerpt": "### Maranto's Balcony Bar\n\nIndependent Pub, in Liverpool]\n\n**Cask Ale not available**\n\n**0.4** miles from you\n\n57-63 Lark Lane, Aigburth, Liverpool, L17 8UP"
+        }
+      ],
+      "observedAt": "2026-10-04T13:24:53.372Z",
+      "geocode": {
+        "url": "https://api.postcodes.io/postcodes/L17%208UP",
+        "observedAt": "2026-10-04T13:24:53.614Z",
+        "postcode": "L17 8UP",
+        "quality": 1
+      },
+      "provider": "tavily",
+      "id": "venue-liv-1eiw6ak"
+    },
+    {
+      "name": "Milo Lounge",
+      "kind": "pub",
+      "address": "88-92 Lark Lane, Aigburth, Liverpool L17 8UU",
+      "postcode": "L17 8UU",
+      "locality": "Liverpool",
+      "website": null,
+      "lat": 53.381854,
+      "lng": -2.944654,
+      "coordinatePrecision": "postcode-centroid",
+      "sourceUrls": [
+        "https://camra.org.uk/pubs/postcode/l17-9rb-955699"
+      ],
+      "evidence": [
+        {
+          "url": "https://camra.org.uk/pubs/postcode/l17-9rb-955699",
+          "excerpt": "### Milo Lounge\n\nLoungers Pub, in Liverpool]\n\n**Cask Ale not available**\n\n**0.5** miles from you\n\n88-92 Lark Lane, Aigburth, Liverpool, L17 8UU"
+        }
+      ],
+      "observedAt": "2026-10-04T13:24:53.372Z",
+      "geocode": {
+        "url": "https://api.postcodes.io/postcodes/L17%208UU",
+        "observedAt": "2026-10-04T13:24:53.589Z",
+        "postcode": "L17 8UU",
+        "quality": 1
+      },
+      "provider": "tavily",
+      "id": "venue-liv-95pitm"
+    },
+    {
+      "name": "Blackburne Eatery",
+      "kind": "pub",
+      "address": "133-135 Allerton Road, Allerton, Liverpool L18 2DD",
+      "postcode": "L18 2DD",
+      "locality": "Liverpool",
+      "website": null,
+      "lat": 53.385415,
+      "lng": -2.90737,
+      "coordinatePrecision": "postcode-centroid",
+      "sourceUrls": [
+        "https://camra.org.uk/pubs/postcode/955326?serves%5B0%5D=RealAle&hide_closed=1"
+      ],
+      "evidence": [
+        {
+          "url": "https://camra.org.uk/pubs/postcode/955326?serves%5B0%5D=RealAle&hide_closed=1",
+          "excerpt": "### Blackburne Eatery\n\nIndependent Pub, in Liverpool]\n\n3 Changing Beers\n\n \n\n**0.4** miles from you\n\n133-135 Allerton Road, Allerton, Liverpool, L18 2DD"
+        }
+      ],
+      "observedAt": "2026-10-04T12:51:43.434Z",
+      "geocode": {
+        "url": "https://api.postcodes.io/postcodes/L18%202DD",
+        "observedAt": "2026-10-04T13:05:14.146Z",
+        "postcode": "L18 2DD",
+        "quality": 1
+      },
+      "provider": "tavily",
+      "id": "venue-liv-rfeuk9"
+    },
+    {
+      "name": "Four Ashes",
+      "kind": "pub",
+      "address": "23 Crosby Road North, Waterloo, Liverpool L22 0LD",
+      "postcode": "L22 0LD",
+      "locality": "Liverpool",
+      "website": null,
+      "lat": 53.47762,
+      "lng": -3.023338,
+      "coordinatePrecision": "postcode-centroid",
+      "sourceUrls": [
+        "https://camra.org.uk/pubs/postcode/l22-4rd-952539"
+      ],
+      "evidence": [
+        {
+          "url": "https://camra.org.uk/pubs/postcode/l22-4rd-952539",
+          "excerpt": "### Four Ashes\n\nIndependent Pub, in Liverpool]\n\n5 Changing Beers\n\n   \n\n**0.3** miles from you\n\n23 Crosby Road North, Waterloo, Liverpool, L22 0LD"
+        }
+      ],
+      "observedAt": "2026-10-04T12:51:53.313Z",
+      "geocode": {
+        "url": "https://api.postcodes.io/postcodes/L22%200LD",
+        "observedAt": "2026-10-04T13:05:25.405Z",
+        "postcode": "L22 0LD",
+        "quality": 1
+      },
+      "provider": "tavily",
+      "id": "venue-liv-1wpcfei"
+    },
+    {
+      "name": "Always Sometimes",
+      "kind": "pub",
+      "address": "1-3 Cremona Corner, Crosby Road North, Waterloo, Liverpool L22 0LH",
+      "postcode": "L22 0LH",
+      "locality": "Liverpool",
+      "website": null,
+      "lat": 53.475996,
+      "lng": -3.022968,
+      "coordinatePrecision": "postcode-centroid",
+      "sourceUrls": [
+        "https://camra.org.uk/pubs/postcode/l22-4rd-952539"
+      ],
+      "evidence": [
+        {
+          "url": "https://camra.org.uk/pubs/postcode/l22-4rd-952539",
+          "excerpt": "### Always Sometimes\n\nPub, in Liverpool]\n\n2 Changing Beers\n\n \n\n**0.3** miles from you\n\n1-3 Cremona Corner, Crosby Road North, Waterloo, Liverpool, L22 0LH"
+        }
+      ],
+      "observedAt": "2026-10-04T12:51:53.313Z",
+      "geocode": {
+        "url": "https://api.postcodes.io/postcodes/L22%200LH",
+        "observedAt": "2026-10-04T13:05:25.464Z",
+        "postcode": "L22 0LH",
+        "quality": 1
+      },
+      "provider": "tavily",
+      "id": "venue-liv-176vhkq"
+    },
+    {
+      "name": "Jam Bar",
+      "kind": "pub",
+      "address": "99 South Road, Waterloo, Liverpool L22 0LR",
+      "postcode": "L22 0LR",
+      "locality": "Liverpool",
+      "website": null,
+      "lat": 53.475374,
+      "lng": -3.025318,
+      "coordinatePrecision": "postcode-centroid",
+      "sourceUrls": [
+        "https://camra.org.uk/pubs/postcode/l22-4rd-952539"
+      ],
+      "evidence": [
+        {
+          "url": "https://camra.org.uk/pubs/postcode/l22-4rd-952539",
+          "excerpt": "### Jam Bar\n\nPub, in Liverpool]\n\n4 Changing Beers\n\n   \n\n**0.4** miles from you\n\n99 South Road, Waterloo, Liverpool, L22 0LR"
+        }
+      ],
+      "observedAt": "2026-10-04T12:51:53.313Z",
+      "geocode": {
+        "url": "https://api.postcodes.io/postcodes/L22%200LR",
+        "observedAt": "2026-10-04T13:05:25.491Z",
+        "postcode": "L22 0LR",
+        "quality": 1
+      },
+      "provider": "tavily",
+      "id": "venue-liv-s4fkii"
+    },
+    {
+      "name": "Marine",
+      "kind": "pub",
+      "address": "3-5 South Road, Waterloo, Liverpool L22 5PE",
+      "postcode": "L22 5PE",
+      "locality": "Liverpool",
+      "website": null,
+      "lat": 53.474256,
+      "lng": -3.027792,
+      "coordinatePrecision": "postcode-centroid",
+      "sourceUrls": [
+        "https://camra.org.uk/pubs/postcode/l22-4rd-952539"
+      ],
+      "evidence": [
+        {
+          "url": "https://camra.org.uk/pubs/postcode/l22-4rd-952539",
+          "excerpt": "### Marine\n\nPub, in Liverpool]\n\n**Cask Ale not available**\n\n**0.6** miles from you\n\n3-5 South Road, Waterloo, Liverpool, L22 5PE"
+        }
+      ],
+      "observedAt": "2026-10-04T12:51:53.313Z",
+      "geocode": {
+        "url": "https://api.postcodes.io/postcodes/L22%205PE",
+        "observedAt": "2026-10-04T13:05:25.519Z",
+        "postcode": "L22 5PE",
+        "quality": 1
+      },
+      "provider": "tavily",
+      "id": "venue-liv-1qvu5us"
+    },
+    {
+      "name": "Oxford Bar",
+      "kind": "pub",
+      "address": "89 Oxford Road, Waterloo, Liverpool L22 7RE",
+      "postcode": "L22 7RE",
+      "locality": "Liverpool",
+      "website": null,
+      "lat": 53.479403,
+      "lng": -3.035541,
+      "coordinatePrecision": "postcode-centroid",
+      "sourceUrls": [
+        "https://camra.org.uk/pubs/postcode/l22-4rd-952539"
+      ],
+      "evidence": [
+        {
+          "url": "https://camra.org.uk/pubs/postcode/l22-4rd-952539",
+          "excerpt": "### Oxford Bar\n\nPub, in Liverpool]\n\n2 Changing Beers\n\n \n\n**0.7** miles from you\n\n89 Oxford Road, Waterloo, Liverpool, L22 7RE"
+        }
+      ],
+      "observedAt": "2026-10-04T12:51:53.313Z",
+      "geocode": {
+        "url": "https://api.postcodes.io/postcodes/L22%207RE",
+        "observedAt": "2026-10-04T13:05:25.664Z",
+        "postcode": "L22 7RE",
+        "quality": 1
+      },
+      "provider": "tavily",
+      "id": "venue-liv-1n6r4m3"
+    },
+    {
+      "name": "Quarry",
+      "kind": "pub",
+      "address": "47A Allerton Road, Woolton, Liverpool L25 7RE",
+      "postcode": "L25 7RE",
+      "locality": "Liverpool",
+      "website": null,
+      "lat": 53.374231,
+      "lng": -2.868968,
+      "coordinatePrecision": "postcode-centroid",
+      "sourceUrls": [
+        "https://camra.org.uk/pubs/place/woolton-19330"
+      ],
+      "evidence": [
+        {
+          "url": "https://camra.org.uk/pubs/place/woolton-19330",
+          "excerpt": "### Quarry\n\nPub, in Liverpool]\n\n**Cask Ale not available**\n\n**0.5** miles from you\n\n47A Allerton Road, Woolton, Liverpool, L25 7RE"
+        }
+      ],
+      "observedAt": "2026-10-04T12:52:11.391Z",
+      "geocode": {
+        "url": "https://api.postcodes.io/postcodes/L25%207RE",
+        "observedAt": "2026-10-04T13:05:47.803Z",
+        "postcode": "L25 7RE",
+        "quality": 1
+      },
+      "provider": "tavily",
+      "id": "venue-liv-1v1fmrp"
+    },
+    {
+      "name": "Loft",
+      "kind": "pub",
+      "address": "49A Allerton Road, Woolton, Woolton, Liverpool L25 7RE",
+      "postcode": "L25 7RE",
+      "locality": "Liverpool",
+      "website": null,
+      "lat": 53.374231,
+      "lng": -2.868968,
+      "coordinatePrecision": "postcode-centroid",
+      "sourceUrls": [
+        "https://camra.org.uk/pubs/place/woolton-19330"
+      ],
+      "evidence": [
+        {
+          "url": "https://camra.org.uk/pubs/place/woolton-19330",
+          "excerpt": "[### Loft\n\nWoolton Royal British Legion Club Pub, in Liverpool]\n\n**Cask Ale not available**\n\n**0.5** miles from you\n\n49A Allerton Road, Woolton, Woolton, Liverpool, L25 7RE"
+        }
+      ],
+      "observedAt": "2026-10-04T12:52:11.391Z",
+      "geocode": {
+        "url": "https://api.postcodes.io/postcodes/L25%207RE",
+        "observedAt": "2026-10-04T13:05:47.803Z",
+        "postcode": "L25 7RE",
+        "quality": 1
+      },
+      "provider": "tavily",
+      "id": "venue-liv-112dxc"
+    },
+    {
+      "name": "Village Cat",
+      "kind": "pub",
+      "address": "7-5 Allerton Rd., Woolton, Liverpool L25 7RA",
+      "postcode": "L25 7RA",
+      "locality": "Liverpool",
+      "website": null,
+      "lat": 53.374684,
+      "lng": -2.867219,
+      "coordinatePrecision": "postcode-centroid",
+      "sourceUrls": [
+        "https://camra.org.uk/pubs/place/woolton-19330"
+      ],
+      "evidence": [
+        {
+          "url": "https://camra.org.uk/pubs/place/woolton-19330",
+          "excerpt": "[### Village Cat\n\nPub, in Liverpool]\n\n1 Regular, 3 Changing Beers\n\n \n\n**0.6** miles from you\n\n7-5 Allerton Rd., Woolton, Liverpool, L25 7RA"
+        }
+      ],
+      "observedAt": "2026-10-04T12:52:11.391Z",
+      "geocode": {
+        "url": "https://api.postcodes.io/postcodes/L25%207RA",
+        "observedAt": "2026-10-04T13:05:47.877Z",
+        "postcode": "L25 7RA",
+        "quality": 1
+      },
+      "provider": "tavily",
+      "id": "venue-liv-9p9dt6"
+    },
+    {
+      "name": "Elephant Pub & Bakehouse",
+      "kind": "pub",
+      "address": "1 Woolton Street, Woolton, Liverpool L25 5NH",
+      "postcode": "L25 5NH",
+      "locality": "Liverpool",
+      "website": null,
+      "lat": 53.375049,
+      "lng": -2.86643,
+      "coordinatePrecision": "postcode-centroid",
+      "sourceUrls": [
+        "https://camra.org.uk/pubs/place/woolton-19330"
+      ],
+      "evidence": [
+        {
+          "url": "https://camra.org.uk/pubs/place/woolton-19330",
+          "excerpt": "### Elephant Pub & Bakehouse\n\nPub, in Liverpool]\n\n1 Regular, 2 Changing Beers\n\n \n\n**0.6** miles from you\n\n1 Woolton Street, Woolton, Liverpool, L25 5NH"
+        }
+      ],
+      "observedAt": "2026-10-04T12:52:11.391Z",
+      "geocode": {
+        "url": "https://api.postcodes.io/postcodes/L25%205NH",
+        "observedAt": "2026-10-04T13:05:47.906Z",
+        "postcode": "L25 5NH",
+        "quality": 1
+      },
+      "provider": "tavily",
+      "id": "venue-liv-f12ln4"
+    },
+    {
+      "name": "Cobden",
+      "kind": "pub",
+      "address": "89 Quarry Street, Woolton, Liverpool L25 6HA",
+      "postcode": "L25 6HA",
+      "locality": "Liverpool",
+      "website": null,
+      "lat": 53.375664,
+      "lng": -2.874649,
+      "coordinatePrecision": "postcode-centroid",
+      "sourceUrls": [
+        "https://camra.org.uk/pubs/place/woolton-19330"
+      ],
+      "evidence": [
+        {
+          "url": "https://camra.org.uk/pubs/place/woolton-19330",
+          "excerpt": "### Cobden\n\nIndependent Pub, in Liverpool]\n\n3 Regular, 1 Changing Beers\n\n \n\n**0.7** miles from you\n\n89 Quarry Street, Woolton, Liverpool, L25 6HA"
+        }
+      ],
+      "observedAt": "2026-10-04T12:52:11.391Z",
+      "geocode": {
+        "url": "https://api.postcodes.io/postcodes/L25%206HA",
+        "observedAt": "2026-10-04T13:05:48.013Z",
+        "postcode": "L25 6HA",
+        "quality": 1
+      },
+      "provider": "tavily",
+      "id": "venue-liv-1jj197y"
+    },
+    {
+      "name": "Johnny Todd",
+      "kind": "pub",
+      "address": "38 Whitefield Drive, Kirkby, Liverpool L32 5TR",
+      "postcode": "L32 5TR",
+      "locality": "Liverpool",
+      "website": null,
+      "lat": 53.476762,
+      "lng": -2.897414,
+      "coordinatePrecision": "postcode-centroid",
+      "sourceUrls": [
+        "https://camra.org.uk/pubs/place/kirkby-9733"
+      ],
+      "evidence": [
+        {
+          "url": "https://camra.org.uk/pubs/place/kirkby-9733",
+          "excerpt": "[### Johnny Todd\n\nPub, in Liverpool]\n\n**Cask Ale not available**\n\n**0.5** miles from you\n\n38 Whitefield Drive, Kirkby, Liverpool, L32 5TR"
+        }
+      ],
+      "observedAt": "2026-10-04T12:51:59.505Z",
+      "geocode": {
+        "url": "https://api.postcodes.io/postcodes/L32%205TR",
+        "observedAt": "2026-10-04T13:05:31.992Z",
+        "postcode": "L32 5TR",
+        "quality": 1
+      },
+      "provider": "tavily",
+      "id": "venue-liv-fd95d2"
+    },
+    {
+      "name": "Falcon Hotel",
+      "kind": "pub",
+      "address": "Bewley Drive, Kirkby, Liverpool L32 9PF",
+      "postcode": "L32 9PF",
+      "locality": "Liverpool",
+      "website": null,
+      "lat": 53.475712,
+      "lng": -2.887584,
+      "coordinatePrecision": "postcode-centroid",
+      "sourceUrls": [
+        "https://camra.org.uk/pubs/place/kirkby-9733"
+      ],
+      "evidence": [
+        {
+          "url": "https://camra.org.uk/pubs/place/kirkby-9733",
+          "excerpt": "[### Falcon Hotel\n\nPub, in Liverpool]\n\n**Cask Ale not available**\n\n**0.7** miles from you\n\nBewley Drive, Kirkby, Liverpool, L32 9PF"
+        }
+      ],
+      "observedAt": "2026-10-04T12:51:59.505Z",
+      "geocode": {
+        "url": "https://api.postcodes.io/postcodes/L32%209PF",
+        "observedAt": "2026-10-04T13:05:32.078Z",
+        "postcode": "L32 9PF",
+        "quality": 1
+      },
+      "provider": "tavily",
+      "id": "venue-liv-74pwgr"
+    },
+    {
+      "name": "Park Brow",
+      "kind": "pub",
+      "address": "22 Park Brow Drive, Kirkby, Liverpool L32 6QP",
+      "postcode": "L32 6QP",
+      "locality": "Liverpool",
+      "website": null,
+      "lat": 53.474527,
+      "lng": -2.876485,
+      "coordinatePrecision": "postcode-centroid",
+      "sourceUrls": [
+        "https://camra.org.uk/pubs/place/kirkby-9733"
+      ],
+      "evidence": [
+        {
+          "url": "https://camra.org.uk/pubs/place/kirkby-9733",
+          "excerpt": "[### Park Brow\n\nPub, in Liverpool]\n\n**Cask Ale not available**\n\n**1.1** miles from you\n\n22 Park Brow Drive, Kirkby, Liverpool, L32 6QP"
+        }
+      ],
+      "observedAt": "2026-10-04T12:51:59.505Z",
+      "geocode": {
+        "url": "https://api.postcodes.io/postcodes/L32%206QP",
+        "observedAt": "2026-10-04T13:05:32.145Z",
+        "postcode": "L32 6QP",
+        "quality": 1
+      },
+      "provider": "tavily",
+      "id": "venue-liv-wyxmb7"
+    }
+  ]
+}

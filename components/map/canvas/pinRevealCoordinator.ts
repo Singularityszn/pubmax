@@ -100,6 +100,23 @@ export function venueRetrySettleNotice(outcome: VenueDataOutcome) {
 }
 
 /**
+ * A national overview below the pub zoom gate owes no curated index. Base
+ * pubs are absent until the reader zooms in, so a pending venue read is the
+ * camera, not a failed list.
+ */
+export function overviewSkipsVenueWait(input: {
+  nationalBrowse: boolean;
+  zoom: number;
+  minPubZoom: number;
+}): boolean {
+  return (
+    input.nationalBrowse &&
+    Number.isFinite(input.zoom) &&
+    input.zoom < input.minPubZoom
+  );
+}
+
+/**
  * The notice a readiness-ceiling reveal owes the reader, named after the signal
  * that actually missed. Blaming the background for a basemap that painted sends
  * the reader at a Retry that tears down a map already drawing, so a ceiling over
@@ -119,10 +136,13 @@ export function revealTimeoutNotice(
     venueData: VenueDataOutcome;
     filteredVenueCount: number;
     pinsPaintable: boolean;
+    /** Painted overview. Pending venue data is not a failed pub list. */
+    pubsDeferredUntilZoom?: boolean;
   },
 ): RevealTimeoutNotice | null {
   if (reason !== "timeout" || currentOwner === "errors") return null;
   if (!signals.basemapPainted) return BASEMAP_RETRY_NOTICE;
+  if (signals.pubsDeferredUntilZoom) return null;
   if (signals.venueData !== "ready") return VENUE_DATA_RETRY_NOTICE;
   // An empty filtered collection is a valid answer, not a paint failure.
   if (signals.filteredVenueCount === 0) return null;
@@ -152,6 +172,50 @@ export function pinRetryPendingNotice(kind: PinRevealNoticeKind) {
     : PIN_PAINT_RETRY_PENDING_NOTICE;
 }
 
+/**
+ * Whether a basemap tile the CURRENT style has already painted counts toward
+ * the pin reveal that style's scene build arms. Owner decision 15 Oct 2026: the
+ * price pins arrive DURING the opening arrival flight, not after it. Measured
+ * on a location-granted /map open: the scene armed the reveal after the first
+ * basemap tiles had painted, the arm forgot them, and the flight that followed
+ * zoomed 12 to 16, where MapLibre cancels pending tile requests until the zoom
+ * stops. No fresh tile could load mid-flight, so the pins waited for the
+ * flight to land and for its tiles to arrive.
+ *
+ * Only a paint from the style generation being armed carries: a tile from the
+ * style a theme swap replaced, or from before a context loss, proves nothing
+ * about this one, and a silent tile retry has already cleared the live latch.
+ * Reduced motion keeps the gate it had, because its camera jumps rather than
+ * flies and there is no flight to overlap.
+ */
+export function basemapPaintCarriesIntoReveal(input: {
+  basemapPainted: boolean;
+  paintedStyleGeneration: number | null;
+  armedStyleGeneration: number;
+  reducedMotion: boolean;
+}): boolean {
+  return (
+    input.basemapPainted &&
+    input.paintedStyleGeneration === input.armedStyleGeneration &&
+    !input.reducedMotion
+  );
+}
+
+/**
+ * MapLibre's `cancelPendingTileRequestsWhileZooming` for a newly built map,
+ * held until that map first goes idle. The default (true) drops every basemap
+ * tile still in flight the moment a camera zooms past it, and the opening
+ * arrival flight starts zooming as soon as the scene is built, which on a cold
+ * open is before the hold view's tiles have answered. With them cancelled the
+ * basemap has no frame until the flight lands, and the pins rightly wait for
+ * the basemap. Keeping them lets the hold view paint (scaled) mid-flight, so
+ * the pins can arrive with it. Reduced motion keeps the default: its camera
+ * jumps, there is no flight to overlap, and its reveal stays as it was.
+ */
+export function openingCancelsPendingTiles(reducedMotion: boolean): boolean {
+  return reducedMotion;
+}
+
 type PinRevealCoordinatorOptions = {
   /**
    * Un-gates the local GeoJSON pins if the basemap never reports painted tiles,
@@ -176,8 +240,14 @@ type PinRevealCoordinatorOptions = {
    * those layers were still hidden.
    */
   confirmVisibleFrameBeforeReveal?: boolean;
-  /** Optional compositor guard after the confirmed visible render. */
-  visibleFrameHoldMs?: number;
+  /**
+   * Animation frames to wait after the render that includes those visible
+   * pins. MapLibre's render event can lead the phone compositor by a few
+   * frames; two frames confirm the paint. 0 reveals on that render.
+   */
+  compositeConfirmFrames?: number;
+  scheduleFrame: (callback: () => void) => number;
+  cancelFrame: (handle: number) => void;
   setPinsVisible: (visible: boolean) => void;
   subscribeRender: (listener: () => void) => () => void;
   subscribeIdle: (listener: () => void) => () => void;
@@ -211,7 +281,9 @@ export function createPinRevealCoordinator({
   hasPinsPaintable,
   requiresBasemapPaint = true,
   confirmVisibleFrameBeforeReveal = false,
-  visibleFrameHoldMs = 0,
+  compositeConfirmFrames = 0,
+  scheduleFrame,
+  cancelFrame,
   setPinsVisible,
   subscribeRender,
   subscribeIdle,
@@ -230,7 +302,7 @@ export function createPinRevealCoordinator({
     | "cancelled" = "idle";
   let pinTimer: number | null = null;
   let ceilingTimer: number | null = null;
-  let visibleTimer: number | null = null;
+  let frameHandle: number | null = null;
   let unsubscribeRender: (() => void) | null = null;
   let unsubscribeIdle: (() => void) | null = null;
 
@@ -239,8 +311,8 @@ export function createPinRevealCoordinator({
     pinTimer = null;
     if (ceilingTimer !== null) clearTimer(ceilingTimer);
     ceilingTimer = null;
-    if (visibleTimer !== null) clearTimer(visibleTimer);
-    visibleTimer = null;
+    if (frameHandle !== null) cancelFrame(frameHandle);
+    frameHandle = null;
     unsubscribeRender?.();
     unsubscribeRender = null;
     unsubscribeIdle?.();
@@ -315,14 +387,23 @@ export function createPinRevealCoordinator({
       unsubscribeRender = subscribeRender(() => {
         unsubscribeRender?.();
         unsubscribeRender = null;
-        if (visibleFrameHoldMs <= 0) {
-          finishReveal(reason);
-          return;
-        }
-        visibleTimer = setTimer(
-          () => finishReveal(reason),
-          visibleFrameHoldMs,
-        );
+        const awaitFrames = (remaining: number) => {
+          if (
+            generation !== armedGeneration ||
+            state !== "awaiting-visible-frame"
+          ) {
+            return;
+          }
+          if (remaining <= 0) {
+            finishReveal(reason);
+            return;
+          }
+          frameHandle = scheduleFrame(() => {
+            frameHandle = null;
+            awaitFrames(remaining - 1);
+          });
+        };
+        awaitFrames(compositeConfirmFrames);
       });
     };
     const revealPainted = (reason: Exclude<PinRevealReason, "timeout">) => {

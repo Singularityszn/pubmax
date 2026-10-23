@@ -1,10 +1,7 @@
 #!/usr/bin/env node
 // `npm run harvest:run` - the London harvest's durable pass.
 //
-// This is the half of the harvest that WRITES. The scheduled route runs the same
-// fetchers and parsers and can only report, because a Vercel function's file
-// system is read-only; here the output is committed files a human reviews in a
-// diff, which is the pattern /api/cron/enrich-city-pubs already set.
+// Scheduled lane coverage and durable publication live in docs/LONDON_HARVEST.md.
 //
 // Three lanes, each independently switchable:
 //   --deals   chain offers pages -> public/data/whats_on/deals_london.json
@@ -38,7 +35,12 @@ import {
   harvestShortfallLines,
   summariseHarvestRun,
 } from "../../lib/harvest/runReport.ts";
-import { HARVEST_SOURCES, harvestSourcesOfKind, isHarvestableOperatorUrl } from "../../lib/harvest/sourcePolicy.ts";
+import {
+  HARVEST_SOURCES,
+  harvestRedirectLanding,
+  harvestSourcesOfKind,
+  isHarvestableOperatorUrl,
+} from "../../lib/harvest/sourcePolicy.ts";
 import { createRobotsChecker } from "../../lib/harvest/robots.ts";
 import { buildPubFacts, pickOperatorUrl } from "../../lib/harvest/pubFacts.ts";
 import { findEventsPageUrl, parseVenueEventListings } from "../../lib/harvest/venueEvents.ts";
@@ -47,6 +49,7 @@ import {
   filterGreaterLondonWetherspoons,
   londonWallClockToIso,
 } from "../whatson/dealsRefresh.mjs";
+import { readExistingOwnSiteRows } from "../whatson/eventsRefresh.mjs";
 import { nextWeeklyOccurrence } from "../whatson/quizParsers.mjs";
 import { loadCanonicalVenueIndex, resolveVenueId } from "../whatson/resolveVenueId.mjs";
 
@@ -128,6 +131,26 @@ function write(path, body, dryRun) {
   mkdirSync(dirname(path), { recursive: true });
   writeFileSync(path, body);
   console.log(`  wrote ${path}`);
+}
+
+/**
+ * Where a Firecrawl scrape actually LANDED, and whether we may use what it read.
+ *
+ * The renderer follows redirects, so the host picks the last hop and the page
+ * we asked robots about is not necessarily the page whose words came back.
+ * `harvestRedirectLanding(url, page.landedUrl)` is the one owner of that rule:
+ * a landing on a refused estate or on our own network is `refused` and the page
+ * is dropped. A landing anywhere else is asked of robots in its own right,
+ * because a permitted path on one host says nothing about another.
+ */
+export async function scrapeLanding(url, page, robots) {
+  const landing = harvestRedirectLanding(url, page.landedUrl);
+  if (landing.outcome === "refused") return { ok: false, reason: "redirect-refused" };
+  if (landing.outcome === "redirected" && robots) {
+    const permitted = await robots(landing.url);
+    if (!permitted.allowed) return { ok: false, reason: "redirect-robots-refused" };
+  }
+  return { ok: true, url: landing.url };
 }
 
 /** Pick the soonest occurrence among the days a deal states. */
@@ -216,6 +239,26 @@ async function harvestDeals({ client, reporter, observedAt, venueIndex, dryRun, 
                 ...(outcome.failure.status !== undefined ? { status: outcome.failure.status } : {}),
               },
             }),
+      });
+      continue;
+    }
+
+    const dealLanding = await scrapeLanding(source.url, outcome.page, null);
+    if (!dealLanding.ok) {
+      reporter.record({
+        sourceId: source.id,
+        label: source.label,
+        url: source.url,
+        kind: source.kind,
+        firstParty: source.firstParty,
+        status: "failed",
+        statedItems: 0,
+        rowsEmitted: 0,
+        drops: [],
+        failure: {
+          reason: dealLanding.reason,
+          detail: `${source.url} redirected to ${outcome.page.landedUrl}, which this harvest may not read.`,
+        },
       });
       continue;
     }
@@ -366,7 +409,19 @@ function londonVenuesWithWebsites(limit) {
     .slice(0, limit);
 }
 
-async function harvestEvents({ client, reporter, robots, observedAt, nowMs, venueIndex, dryRun, venueLimit, fresh }) {
+export async function harvestEvents({
+  client,
+  reporter,
+  robots,
+  observedAt,
+  nowMs,
+  venueIndex,
+  dryRun,
+  venueLimit,
+  fresh,
+  venues: givenVenues,
+  samePauseMs = SAME_HOST_PAUSE_MS,
+}) {
   // Every refused aggregator still goes in the report, so "no events" reads as
   // a set of recorded decisions rather than as coverage nobody looked for.
   for (const source of harvestSourcesOfKind("venue-events")) {
@@ -387,7 +442,7 @@ async function harvestEvents({ client, reporter, robots, observedAt, nowMs, venu
   }
   if (!client) return { rows: 0 };
 
-  const venues = londonVenuesWithWebsites(venueLimit);
+  const venues = givenVenues ?? londonVenuesWithWebsites(venueLimit);
   const rows = [];
   const drops = [];
   let venuesRead = 0;
@@ -415,8 +470,15 @@ async function harvestEvents({ client, reporter, robots, observedAt, nowMs, venu
       drops.push("venue-site-unreadable");
       continue;
     }
+    const homeLanding = await scrapeLanding(venue.website, home.page, robots);
+    if (!homeLanding.ok) {
+      drops.push(homeLanding.reason);
+      continue;
+    }
     venuesRead += 1;
-    const eventsUrl = findEventsPageUrl(home.page.markdown, venue.website);
+    // Links are resolved, and pinned to one host, against the page we LANDED
+    // on, since that is the document whose links these are.
+    const eventsUrl = findEventsPageUrl(home.page.markdown, homeLanding.url);
     if (!eventsUrl) {
       drops.push("no-whats-on-page-published");
       continue;
@@ -429,11 +491,16 @@ async function harvestEvents({ client, reporter, robots, observedAt, nowMs, venu
     }
     // The only place this harvest sends a SECOND request to the same host in one
     // run. Pause between them so a small pub's site is never hit back to back.
-    await new Promise((resolve) => setTimeout(resolve, SAME_HOST_PAUSE_MS));
+    await new Promise((resolve) => setTimeout(resolve, samePauseMs));
     const page = await client.scrape(eventsUrl, { maxAgeMs: fresh ? 0 : undefined });
     if (!page.ok) {
       if (page.failure.reason === "budget-exhausted") break;
       drops.push("whats-on-page-unreadable");
+      continue;
+    }
+    const eventsLanding = await scrapeLanding(eventsUrl, page.page, robots);
+    if (!eventsLanding.ok) {
+      drops.push(eventsLanding.reason);
       continue;
     }
     venuesWithPage += 1;
@@ -451,7 +518,7 @@ async function harvestEvents({ client, reporter, robots, observedAt, nowMs, venu
         kind: event.kind,
         startsAt,
         title: event.title,
-        source: { label: `${venue.name} - official site`, url: eventsUrl },
+        source: { label: `${venue.name} - official site`, url: eventsLanding.url },
         observedAt,
         confidence: "listed",
       };
@@ -491,7 +558,7 @@ async function harvestEvents({ client, reporter, robots, observedAt, nowMs, venu
     return { rows: 0 };
   }
 
-  rows.sort((a, b) => a.startsAt.localeCompare(b.startsAt) || a.id.localeCompare(b.id));
+  const ownSiteRows = readExistingOwnSiteRows(EVENTS_OUT, nowMs);
   const existing = readJson(EVENTS_OUT, { sources: [] });
   write(
     EVENTS_OUT,
@@ -511,7 +578,7 @@ async function harvestEvents({ client, reporter, robots, observedAt, nowMs, venu
             "A listing becomes a row only when it states a kind we already have, a resolvable date and a start time; anything else is dropped and counted in data/harvest/last_run.json.",
         },
       ],
-      rows,
+      rows: [...rows, ...ownSiteRows].sort((a, b) => a.startsAt.localeCompare(b.startsAt) || a.id.localeCompare(b.id)),
     }),
     dryRun,
   );
@@ -555,7 +622,18 @@ function londonVenuesMissingWebsite(limit) {
   return [...seen.values()].slice(0, limit);
 }
 
-async function harvestFacts({ client, reporter, robots, observedAt, venueIndex, dryRun, venueLimit, fresh }) {
+export async function harvestFacts({
+  client,
+  reporter,
+  robots,
+  observedAt,
+  venueIndex,
+  dryRun,
+  venueLimit,
+  fresh,
+  venues: givenVenues,
+  venuePaceMs = FACTS_VENUE_PACE_MS,
+}) {
   if (!client) {
     reporter.record({
       sourceId: "operator-pages",
@@ -573,13 +651,13 @@ async function harvestFacts({ client, reporter, robots, observedAt, venueIndex, 
     return { rows: 0 };
   }
 
-  const venues = londonVenuesMissingWebsite(venueLimit);
+  const venues = givenVenues ?? londonVenuesMissingWebsite(venueLimit);
   const facts = [];
   const drops = [];
   let searched = 0;
 
   for (const venue of venues) {
-    if (searched > 0) await new Promise((resolve) => setTimeout(resolve, FACTS_VENUE_PACE_MS));
+    if (searched > 0) await new Promise((resolve) => setTimeout(resolve, venuePaceMs));
     const found = await client.search(`${venue.name} ${venue.address} official website`, { limit: 5 });
     if (!found.ok) {
       if (found.failure.reason === "budget-exhausted") break;
@@ -616,6 +694,11 @@ async function harvestFacts({ client, reporter, robots, observedAt, venueIndex, 
       drops.push("operator-page-unreadable");
       continue;
     }
+    const operatorLanding = await scrapeLanding(operatorUrl, page.page, robots);
+    if (!operatorLanding.ok) {
+      drops.push(operatorLanding.reason);
+      continue;
+    }
 
     const venueId = venueIndex
       ? resolveVenueId(
@@ -633,7 +716,7 @@ async function harvestFacts({ client, reporter, robots, observedAt, venueIndex, 
     const record = buildPubFacts({
       venueId,
       placeName: venue.name,
-      operatorUrl,
+      operatorUrl: operatorLanding.url,
       markdown: page.page.markdown,
       hadWebsite: false,
       observedAt,

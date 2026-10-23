@@ -12,9 +12,16 @@ import {
   resetVenueOsmIndexForTests,
 } from "@/lib/venueIndexOsm";
 import { slimVenueToPin } from "@/lib/slimPins";
+import { isVerifiedClosedCuratedVenue } from "@/lib/verifiedClosedPubs";
 import { applyHarvestWebsiteMenu } from "@/lib/harvestFold";
 import { harvestOverlayStore } from "@/lib/harvestOverlayStore";
 import { enrichVenueForDetail } from "@/lib/venueMenuEnrichment";
+import { applyPlacesEnrichment } from "@/lib/venuePlacesEnrichment";
+import { applyVenueSiteFacts } from "@/lib/venueSiteFacts";
+import { siteFactsForVenue } from "@/lib/venueSiteFacts.server";
+import { osmFactsForOsmIds } from "@/lib/osmPubFacts.server";
+import { placesRecordForVenue } from "@/lib/placesEnrichment.server";
+import { enrichVenueWithRecordCopy } from "@/lib/venueRecordCopy.server";
 import { groupVenuePrices, type Venue, type VenuePrice } from "@/lib/venues";
 import type { SlimVenue } from "@/lib/venuesSlim";
 
@@ -238,19 +245,21 @@ async function getFallbackIndex(): Promise<Map<string, Venue>> {
           path.join(process.cwd(), "data", "famous_venues", file),
           "utf8",
         ),
-      ) as FamousVenueSeed[];
+      ) as Array<Omit<FamousVenueSeed, "anchor"> & { anchor?: FamousVenueSeed["anchor"] }>;
       for (const seed of seeds) {
+        const { anchor } = seed;
+        if (!anchor) continue;
         const slim: SlimVenue = {
           id: seed.id,
           name: seed.name,
           lat: seed.lat,
           lng: seed.lng,
-          cheapestPrice: seed.anchor.price,
+          cheapestPrice: anchor.price,
           borough: seed.borough,
           kind: seed.kind,
         };
         const venue = venueFromDetailArtifact(
-          { id: seed.id, famous: { seed, slim } },
+          { id: seed.id, famous: { seed: { ...seed, anchor }, slim } },
           seed.id,
         );
         if (venue) index.set(seed.id, venue);
@@ -263,11 +272,14 @@ async function getFallbackIndex(): Promise<Map<string, Venue>> {
   return fallbackIndex;
 }
 
-export async function lookupVenueDetail(requestedId: string): Promise<VenueDetailLookupResult> {
-  if (!isVenueDetailId(requestedId)) return { status: "missing" };
+async function lookupVenueDetailBase(requestedId: string): Promise<VenueDetailLookupResult> {
+  if (!isVenueDetailId(requestedId) || isVerifiedClosedCuratedVenue(requestedId)) {
+    return { status: "missing" };
+  }
   const aliasResult = await lookupCanonicalVenueId(requestedId);
   if (aliasResult.status === "unavailable") return aliasResult;
   const id = aliasResult.venueId;
+  if (isVerifiedClosedCuratedVenue(id)) return { status: "missing" };
   const cached = cachedDetails.get(id);
   if (cached) {
     try {
@@ -319,6 +331,8 @@ export async function lookupVenueDetail(requestedId: string): Promise<VenueDetai
   }
   if (!venue) return { status: "unavailable" };
 
+  venue = await enrichVenueWithRecordCopy(venue);
+
   try {
     const enriched = await enrichVenueForDetail(venue);
     let overlayVenueIds: string[] | undefined;
@@ -345,6 +359,20 @@ export async function lookupVenueDetail(requestedId: string): Promise<VenueDetai
   } catch {
     return { status: "found", venue };
   }
+}
+
+export async function lookupVenueDetail(requestedId: string): Promise<VenueDetailLookupResult> {
+  const result = await lookupVenueDetailBase(requestedId);
+  if (result.status !== "found") return result;
+  const osmIds = cachedDetails.get(result.venue.id)?.overlayVenueIds ?? [];
+  const [record, siteFacts, osmFacts] = await Promise.all([
+    placesRecordForVenue(result.venue.id, osmIds),
+    siteFactsForVenue(result.venue.id),
+    osmFactsForOsmIds(osmIds),
+  ]);
+  const venue = applyPlacesEnrichment(applyVenueSiteFacts(result.venue, siteFacts), record);
+  // OSM facts ride beside the other sources and decide no open state.
+  return { ...result, venue: osmFacts ? { ...venue, osmFacts } : venue };
 }
 
 export async function getVenueDetail(requestedId: string): Promise<Venue | null> {

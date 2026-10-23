@@ -223,7 +223,7 @@ a live style throws `"Layer with id X already exists"` inside MapLibre's event
 dispatch, aborting the scene and half-building the map. `addLayerOnce` checks
 `getLayer` first; sources get `if (!map.getSource(...))` guards.
 
-**Why animation checks `isStyleLoaded()`.** During a theme `setStyle({diff:false})` the style is *transiently null*, and calling `getLayer` on a null style throws (the classic "#418 / getLayer-on-null"). The loop checks `!map.isStyleLoaded()` first because it is null-safe and returns `false` mid-swap. It also skips work under `prefers-reduced-motion` and when `document.hidden`.
+**Why animation checks `isStyleLoaded()`.** During a theme `setStyle({diff:false})` the style is *transiently null*, and calling `getLayer` on a null style throws (the classic "#418 / getLayer-on-null"). The loop checks `!map.isStyleLoaded()` first because it is null-safe and returns `false` mid-swap. It also skips work under `prefers-reduced-motion` and when `document.hidden`. The route dash and the selected-pin pulse move only for `AMBIENT_MOTION_WINDOW_MS` (`components/map/canvas/tokens.ts`) after a route, selection or camera change, then rest on their static frame.
 
 **Theme flip.** A `MutationObserver` on `html[data-theme]` (`:696`) calls `setStyle(MAP_STYLES[next], { diff: false })`. `diff: false` is deliberate: it forces a full swap so `style.load` re-fires and scene assembly re-reads the (already-flipped) tokens. A diff'd swap would keep stale-themed layers.
 
@@ -276,7 +276,7 @@ The backend is deliberately small and seam-first: **one write path** for Pint Dr
 
 **Moderation.** Reports are unauthenticated. One report **never hides content** — a drop leaves public reads only at `REPORT_HIDE_THRESHOLD = 2`, and the increment-stamp-hide happens in **one atomic RPC** (`report_pint_drop`, 0004) so concurrent reports can't lose a count. Hidden drops surface in `/admin` for restore / keep-hidden.
 
-**The Landlord.** Retrieves facts **only from server-side stores** keyed by `venue_key` (= `normaliseVenueName`): `heritage_cache.json` + the `pub_heritage` table. With an OpenRouter key, the LLM answers grounded strictly in those numbered facts; otherwise (or on any failure) it reads the facts back verbatim or emits the honest line *"…I won't make one up."* (`NO_STORY_LINE`).
+**The Landlord.** [`answerHeritage`](../lib/heritage.ts) uses only server-retrieved facts from the shipped cache, `pub_heritage`, listed-building records, and cited harvest lore. It removes repeated answer facts before either narration or the structured fallback. Matching ignores Unicode composition, case, extra whitespace, and trailing sentence punctuation. Citation collection uses all retrieved rows, so removing repeated text preserves distinct source references. With an OpenRouter key, the model answers from the remaining numbered facts. Without a key or after a model failure, the structured answer returns those facts or `NO_STORY_LINE`.
 
 ### Security posture
 

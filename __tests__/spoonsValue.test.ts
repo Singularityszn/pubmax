@@ -34,6 +34,7 @@ import {
   type SpoonsValuePack,
   type SpoonsValueRow,
 } from "@/lib/spoonsValue";
+import { defined } from "@/__tests__/helpers/defined";
 
 const ROOT = process.cwd();
 
@@ -303,12 +304,12 @@ describe("the words", () => {
   } satisfies SpoonsValueRow;
 
   it("names the round the way somebody ordering it would", () => {
-    expect(formatRoundLine(row.lines[0])).toBe("5 pints of Stowford Press Apple cider");
+    expect(formatRoundLine(defined(row.lines[0]))).toBe("5 pints of Stowford Press Apple cider");
     expect(
-      formatRoundLine({ ...row.lines[0], quantity: 1, servingLabel: "Half pint" }),
+      formatRoundLine(({ ...defined(row.lines[0]), quantity: 1, servingLabel: "Half pint" })),
     ).toBe("1 half pint of Stowford Press Apple cider");
     expect(
-      formatRoundLine({ ...row.lines[0], quantity: 2, servingLabel: "Standard" }),
+      formatRoundLine(({ ...defined(row.lines[0]), quantity: 2, servingLabel: "Standard" })),
     ).toBe("2 x Stowford Press Apple cider");
   });
 
@@ -516,8 +517,9 @@ describe("this is not a price lane, and the tree is held to it", () => {
     for (const row of on.rows) {
       expect(row.label).not.toMatch(/£|pint/i);
     }
-    expect(on.clusterNote).toContain("value bands");
-    expect(on.clusterNote).not.toContain("price band");
+    // The disc is neutral under the lens too; the value band is on the pins.
+    expect(on.cluster?.note).toContain("value band");
+    expect(on.cluster?.note).not.toContain("price band");
     // The cap chips filter on pint price, so the key stops offering them.
     expect(on.priceCapFilter).toBe(false);
   });

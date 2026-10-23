@@ -161,9 +161,43 @@ describe("inferNightContext", () => {
     expect(inferNightContext("Clapham tonight, standard budget").context.budgetLimitPence).toBeNull();
   });
 
+  it.each(["£0.01", "£10.00", "£20.00", "10.00 pounds", "20.00 quid", "version 0.0", "0.01", "10.00", "20.00"])("does not infer alcohol-free intent from %s", (value) => {
+    expect(inferNightContext(`3 pubs in Clapham, ${value}, maximum £5 per pint`, EVENING).context.zeroProof).toBe(false);
+  });
+
+  it.each(["0.0 beer", "beer 0.0", "0.0 lager", "lager 0.0", "0.0 Guinness", "Guinness 0.0", "Heineken 0.0", "0.0 wine", "0.0% ABV beer", "alcohol-free beer", "no alcohol"])("preserves explicit alcohol-free intent from %s", (value) => {
+    expect(inferNightContext(`3 pubs in Clapham, ${value}`, EVENING).context.zeroProof).toBe(true);
+  });
+
   it("maps soft-drink language onto the zero-proof preference generate already ranks on", () => {
     expect(inferNightContext("soft drinks in Camden for 3", EVENING).context.zeroProof).toBe(true);
     expect(inferNightContext("a soft drink in Shoreditch", EVENING).context.zeroProof).toBe(true);
+  });
+
+  it("keeps an explicit Soft drinks request as its own category for query-only callers", () => {
+    const soft = inferNightContext("soft drinks in Camden for 3", EVENING);
+    expect(soft.context).toMatchObject({ zeroProof: true, drinkCategory: "soft-drink" });
+    expect(soft.reasons.some((reason) => reason.field === "drinkCategory")).toBe(true);
+    expect(inferNightContext("alcohol free in Camden for 3", EVENING).context.drinkCategory).toBeNull();
+    expect(inferNightContext("no alcohol, a beer in Camden", EVENING).context.drinkCategory).toBeNull();
+  });
+
+  it.each([
+    "No alcohol tonight",
+    "no-alcohol in Soho",
+    "NO ALCOHOL tonight, near the Wine Bar",
+  ])("keeps the explicit alcohol-free request in %s", (query) => {
+    expect(inferNightContext(query, EVENING).context).toMatchObject({
+      zeroProof: true,
+      drinkCategory: null,
+    });
+  });
+
+  it.each([
+    "Piano alcohol tasting in Soho",
+    "No alcoholometers needed for wine in Soho",
+  ])("requires complete no-alcohol tokens in %s", (query) => {
+    expect(inferNightContext(query, EVENING).context.zeroProof).toBe(false);
   });
 
   it("maps coffee and catch-up language to daytime even against an evening clock", () => {

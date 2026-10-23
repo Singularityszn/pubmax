@@ -10,6 +10,8 @@ type HandleAvatarProps = {
   handle: string;
   avatarUrl?: string | null;
   displayName?: string;
+  /** Fallback letters a surface already shows beside this avatar, kept identical. */
+  initials?: string;
   className?: string;
   imageClassName?: string;
   size?: number;
@@ -22,12 +24,13 @@ export default function HandleAvatar({
   handle,
   avatarUrl,
   displayName,
+  initials,
   className,
   imageClassName,
   size = 40,
 }: HandleAvatarProps) {
   const [failedUrl, setFailedUrl] = useState<string | null>(null);
-  const initial = avatarInitialFromHandle(handle, displayName);
+  const initial = initials ?? avatarInitialFromHandle(handle, displayName);
   const showImage = Boolean(avatarUrl) && failedUrl !== avatarUrl;
 
   useReconnectRecovery(

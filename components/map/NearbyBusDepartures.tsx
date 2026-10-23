@@ -33,7 +33,7 @@ function directedDestination(
   destinationName: string,
 ): string {
   if (!direction) return `To ${destinationName}`;
-  return `${direction[0].toUpperCase()}${direction.slice(1)} to ${destinationName}`;
+  return `${direction.charAt(0).toUpperCase()}${direction.slice(1)} to ${destinationName}`;
 }
 
 function dueLabel(minutes: number | null): string {

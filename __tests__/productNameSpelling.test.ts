@@ -1,7 +1,8 @@
-import { readFileSync, readdirSync, statSync } from "node:fs";
+import { lstatSync, readFileSync, readdirSync, type Stats } from "node:fs";
 import { extname, join } from "node:path";
 
 import { describe, expect, it } from "vitest";
+import { defined } from "@/__tests__/helpers/defined";
 
 const ROOT = process.cwd();
 
@@ -43,12 +44,63 @@ const TEXT_EXTENSIONS = new Set([
   ".sh",
 ]);
 
+/**
+ * Build output and the scratch trees other tests write while this one runs.
+ * `test-results/` holds copies of `lib/` (pubWebsiteAmenitiesRunner) that are
+ * deleted mid-walk, so scanning it is both wrong and a race.
+ */
 const SKIP_DIR_NAMES = new Set([
   "node_modules",
   ".next",
   ".next-prod",
   ".git",
+  ".e2e",
+  "artifacts",
 ]);
+
+/**
+ * Scratch trees that exist only at the repo root. A generic name like
+ * `coverage` also names a tracked source directory (`components/coverage/`),
+ * so these are skipped at depth 0 only and everything nested stays scanned.
+ */
+const SKIP_ROOT_DIR_NAMES = new Set([
+  "blob-reports",
+  "coverage",
+  "playwright-report",
+  "test-results",
+]);
+
+/**
+ * Other tests create and remove scratch entries under the scanned trees while
+ * this walk runs (scriptGeo's `scripts/.locality-symlink-*`), so an entry listed
+ * a moment ago can be gone by the time it is read. An entry that vanished
+ * mid-walk is not product prose, so it is skipped. Symlinks are not followed:
+ * the tree has none of its own, and a scratch link can be removed between
+ * collecting it and reading it.
+ */
+function statIfPresent(abs: string): Stats | undefined {
+  try {
+    return lstatSync(abs);
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === "ENOENT") return undefined;
+    throw error;
+  }
+}
+
+function listIfPresent(absoluteDir: string): string[] {
+  try {
+    return readdirSync(absoluteDir);
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === "ENOENT") return [];
+    throw error;
+  }
+}
+
+function skipsDirectory(relativeDir: string, entry: string): boolean {
+  return (
+    SKIP_DIR_NAMES.has(entry) || (relativeDir === "" && SKIP_ROOT_DIR_NAMES.has(entry))
+  );
+}
 
 /** Lines that intentionally retain one-x spellings (not product prose). */
 function lineIsExplicitlyAllowed(relativePath: string, line: string): boolean {
@@ -76,27 +128,29 @@ function lineIsExplicitlyAllowed(relativePath: string, line: string): boolean {
 
 function collectAgentsAndReadmes(relativeDir: string, out: Set<string>): void {
   const absoluteDir = relativeDir ? join(ROOT, relativeDir) : ROOT;
-  for (const entry of readdirSync(absoluteDir)) {
-    if (SKIP_DIR_NAMES.has(entry)) continue;
+  for (const entry of listIfPresent(absoluteDir)) {
+    if (skipsDirectory(relativeDir, entry)) continue;
     const rel = relativeDir ? `${relativeDir}/${entry}` : entry;
     const abs = join(absoluteDir, entry);
-    const stat = statSync(abs);
+    const stat = statIfPresent(abs);
+    if (!stat) continue;
     if (stat.isDirectory()) {
       collectAgentsAndReadmes(rel, out);
       continue;
     }
-    if (entry === "AGENTS.md" || entry === "README.md") {
+    if (stat.isFile() && (entry === "AGENTS.md" || entry === "README.md")) {
       out.add(rel);
     }
   }
 }
 
 function walkFiles(absoluteDir: string, relativeDir: string, out: string[]): void {
-  for (const entry of readdirSync(absoluteDir)) {
-    if (SKIP_DIR_NAMES.has(entry)) continue;
+  for (const entry of listIfPresent(absoluteDir)) {
+    if (skipsDirectory(relativeDir, entry)) continue;
     const abs = join(absoluteDir, entry);
     const rel = relativeDir ? `${relativeDir}/${entry}` : entry;
-    const stat = statSync(abs);
+    const stat = statIfPresent(abs);
+    if (!stat) continue;
     if (stat.isDirectory()) {
       walkFiles(abs, rel, out);
       continue;
@@ -130,8 +184,8 @@ function findMisspellings(relativePath: string): string[] {
   const lines = text.split("\n");
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
-    if (lineIsExplicitlyAllowed(relativePath, line)) continue;
-    if (MISSPELLING.test(line)) {
+    if (lineIsExplicitlyAllowed(relativePath, defined(line))) continue;
+    if (MISSPELLING.test(defined(line))) {
       hits.push(`${relativePath}:${i + 1}`);
     }
   }
@@ -162,5 +216,11 @@ describe("product name spelling (PubMaxxing in prose)", () => {
     expect(targets.has("lib/siteJsonLd.ts")).toBe(true);
     expect(targets.has("docs/growth/SEARCH_CONSOLE.md")).toBe(true);
     expect(targets.has("scripts/lib/overpassClient.mjs")).toBe(true);
+  });
+
+  it("keeps a tracked source directory named like a scratch tree in the scan", () => {
+    // `coverage` is a root-level scratch tree, and also the name of the tracked
+    // directory components/coverage/. A skip at every depth hid its copy.
+    expect(collectScanTargets()).toContain("components/coverage/UnsupportedAreaPreview.tsx");
   });
 });

@@ -17,6 +17,7 @@ import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 
 import EmptyState from "@/components/ui/empty-state";
+import { defined } from "@/__tests__/helpers/defined";
 
 // ── 1. Feed error/empty semantic distinction ───────────────────────────────
 
@@ -198,28 +199,17 @@ const tonightCss = readFileSync(join(process.cwd(), "app/tonight/tonight.css"), 
 const vibeChipsCss = readFileSync(join(process.cwd(), "components/vibe/vibeChips.css"), "utf8");
 
 describe("Tonight filter chip active state", () => {
-  // Extract the .tonightChip[data-active="true"] block to assert on its values.
-  it('.tonightChip[data-active="true"] uses at least 75% brass in its border', () => {
-    // The active-chip block must contain a brass mix >= 75% (was 60%) so the
-    // selected chip reads as clearly selected on mobile screens.
+  // A chosen chip is a SELECTION, so it reads in ink through the neutral
+  // selected row rather than a coral tint (docs/DESIGN_SYSTEM.md "Coral is
+  // spent twice"). The selected border is ink-heavy, so a chosen chip still
+  // reads as chosen on a phone without borrowing the primary's colour.
+  it('.tonightChip[data-active="true"] reads in the neutral selected row', () => {
     const match = tonightCss.match(/\.tonightChip\[data-active="true"\]\s*\{([^}]+)\}/);
     expect(match).not.toBeNull();
-    const block = match![1];
-    // Extract the brass percentage from border-color color-mix.
-    const pctMatch = block.match(/border-color:\s*color-mix\(in srgb,\s*var\(--brass\)\s*(\d+)%/);
-    expect(pctMatch).not.toBeNull();
-    const pct = Number(pctMatch![1]);
-    expect(pct).toBeGreaterThanOrEqual(75);
-  });
-
-  it('.tonightChip[data-active="true"] uses at least 18% brass fill', () => {
-    const match = tonightCss.match(/\.tonightChip\[data-active="true"\]\s*\{([^}]+)\}/);
-    expect(match).not.toBeNull();
-    const block = match![1];
-    const bgMatch = block.match(/background:\s*color-mix\(in srgb,\s*var\(--brass\)\s*(\d+)%/);
-    expect(bgMatch).not.toBeNull();
-    const pct = Number(bgMatch![1]);
-    expect(pct).toBeGreaterThanOrEqual(18);
+    const block = defined(match![1]);
+    expect(block).toMatch(/border-color:\s*var\(--state-selected-border\)/);
+    expect(block).toMatch(/background:\s*var\(--state-selected-surface\)/);
+    expect(block).not.toMatch(/--brass|--color-accent|--accent-action/);
   });
 
   it("active chip count badge inherits full ink color (opacity 1)", () => {
@@ -233,13 +223,13 @@ describe("Tonight filter chip active state", () => {
     expect(block).toMatch(/opacity:\s*1/);
   });
 
-  it('.vibeChip[data-active="true"] uses at least 80% brass in its border', () => {
+  it('.vibeChip[data-active="true"] reads in the neutral selected row', () => {
     const match = vibeChipsCss.match(/\.vibeChip\[data-active="true"\]\s*\{([^}]+)\}/);
     expect(match).not.toBeNull();
-    const block = match![1];
-    const pctMatch = block.match(/border-color:\s*color-mix\(in srgb,\s*var\(--brass\)\s*(\d+)%/);
-    expect(pctMatch).not.toBeNull();
-    expect(Number(pctMatch![1])).toBeGreaterThanOrEqual(80);
+    const block = defined(match![1]);
+    expect(block).toMatch(/border-color:\s*var\(--state-selected-border\)/);
+    expect(block).toMatch(/background:\s*var\(--state-selected-surface\)/);
+    expect(block).not.toMatch(/--brass|--color-accent|--accent-action/);
   });
 });
 

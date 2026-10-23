@@ -8,8 +8,15 @@
 commands:
   # A run worktree holds tracked files only, so node_modules must be installed.
   prepare: "npm ci --prefer-offline"
-  # The pre-push merge bar, which runs the unit suite through `npm run coverage`.
+  # Change-scoped checks against the merge-base with origin/main: ESLint on the
+  # changed files, a scoped typecheck and `vitest related` on two workers
+  # (scripts/verify-changed.mjs). The full unit suite runs once, in the CI unit
+  # shards; a change to a shared foundation runs the full `npm run verify` here.
   # The Playwright suite stays in .github/workflows/e2e.yml.
   # The Push step commits what a step leaves behind. In a git checkout the slim
   # shard builders stamp HEAD over the committed "local" marker, so pin it.
-  test: "npm run verify:no-mistakes"
+  test: "npm run verify:no-mistakes:changed"
+
+# CI failures require a source-fix decision before any repair can change a spec.
+auto_fix:
+  ci: 0

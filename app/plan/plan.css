@@ -30,7 +30,7 @@
 
 .planPage__eyebrow {
   margin: 0 0 10px;
-  color: var(--plan-accent-strong);
+  color: var(--color-text-muted);
   font-size: var(--text-2xs);
   font-weight: 800;
   letter-spacing: 0.01em;
@@ -83,9 +83,9 @@
   align-items: start;
 }
 
-.planPage__side { display: grid; gap: 20px; }
+.planPage__side { display: grid; gap: var(--space-8); }
 
-@media (min-width: 761px) {
+@media (min-width: 901px) {
   .planPage__hero {
     margin: clamp(36px, 4vw, 56px) auto clamp(28px, 3vw, 40px);
   }
@@ -98,19 +98,24 @@
   }
 }
 
+/* A saved plan reads as one page of sections, not a stack of cards
+   (docs/DESIGN_SYSTEM.md > Edges: the de-box rule). The route, the invite,
+   the crew and the vibe each open on a hairline with room above it; none of
+   them is lifted, filled or rounded. */
 .planSummary,
 .planCrew,
 .planVibe,
 .planShare {
   position: relative;
-  border: 1px solid var(--line);
-  border-radius: clamp(18px, 3vw, 28px);
-  background: color-mix(in srgb, var(--panel-raised) 94%, transparent);
-  box-shadow: var(--shadow-sm);
+  padding-top: var(--space-6);
+  border-top: 1px solid var(--hairline);
 }
 
-.planSummary { min-height: 500px; padding: clamp(26px, 5vw, 52px); overflow: hidden; }
+.planSummary { padding-bottom: var(--space-6); }
 .planSummary__heading { margin-left: 72px; }
+/* The teaser has no route rail to clear, so its heading lines up with the card's
+   own copy instead of sitting 72px (57px at 390) in. */
+.planSummary__heading.planSummary__heading--teaser { margin-left: 0; }
 .planSummary__headingRow { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
 .planSummary__edit,
 .planSummary__swap,
@@ -118,18 +123,23 @@
 .planSummary__cancel {
   min-height: 44px;
   border: 1px solid var(--line);
-  border-radius: var(--control-radius, 14px);
+  border-radius: var(--control-radius);
   padding: 8px 14px;
   background: var(--panel);
   color: var(--ink);
   font: inherit;
-  font-size: 0.76rem;
+  font-size: var(--text-xs);
   font-weight: 800;
   cursor: pointer;
 }
-.planSummary__edit:hover,
-.planSummary__swap:hover,
-.planSummary__cancel:hover { border-color: var(--plan-accent); color: var(--plan-accent-strong); }
+@media (hover: hover) and (pointer: fine) {
+  .planSummary__edit:hover,
+  .planSummary__swap:hover,
+  .planSummary__cancel:hover {
+    border-color: var(--hairline-strong);
+    color: var(--ink);
+  }
+}
 .planSummary__edit:disabled,
 .planSummary__swap:disabled,
 .planSummary__save:disabled,
@@ -142,105 +152,124 @@
   gap: 10px;
   margin: 30px 0 0 72px;
   padding: 16px;
-  border: 1px solid color-mix(in srgb, var(--plan-accent) 34%, var(--line));
-  border-radius: 16px;
-  background: color-mix(in srgb, var(--plan-accent) 6%, var(--panel));
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  background: var(--panel);
 }
-.planSummary__editor h3 { margin: 0; font-size: 1.05rem; }
+.planSummary__editor h3 { margin: 0; font-size: var(--text-base); }
 .planSummary__editor > p,
-.planSummary__editorNote { margin: 0; color: var(--muted); font-size: 0.8rem; line-height: 1.45; }
+.planSummary__editorNote { margin: 0; color: var(--muted); font-size: var(--text-xs); line-height: 1.45; }
 .planSummary__editStops { display: grid; gap: 7px; margin: 0; padding: 0; list-style: none; }
 .planSummary__editStops li { display: grid; grid-template-columns: 32px minmax(0, 1fr) auto; gap: 9px; align-items: center; min-height: 56px; }
 .planSummary__editStops li > span:nth-child(2) { min-width: 0; display: grid; gap: 2px; }
 .planSummary__editStops strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.planSummary__editStops small { color: var(--muted); font-size: 0.7rem; }
-.planSummary__editMarker { width: 30px; height: 30px; display: grid; place-items: center; border-radius: 50%; background: var(--plan-accent); color: var(--color-on-accent); font-size: 0.75rem; font-weight: 850; }
+.planSummary__editStops small { color: var(--muted); font-size: var(--text-2xs); }
+.planSummary__editMarker { width: 30px; height: 30px; display: grid; place-items: center; border: 1px solid var(--badge-border); border-radius: 50%; background: var(--badge-surface); color: var(--ink); font-size: var(--text-xs); font-weight: 850; }
 .planSummary__editorActions { display: flex; flex-wrap: wrap; gap: 8px; }
 /* Primary action fill — mobile CTA recipe: --accent-action (#ff5a5f / --brass).
    Not --plan-accent (dark remaps that to night-amber for rails/chips only). */
-.planSummary__save { border-color: var(--accent-action); background: var(--accent-action); color: var(--color-on-accent); }
-.planSummary__save:hover:not(:disabled) { border-color: var(--accent-action-strong); background: var(--accent-action-strong); }
-.planSummary__status { margin: 18px 0 0 72px; color: var(--ink-soft); font-size: 0.8rem; line-height: 1.4; }
-.planSummary__status--error { color: var(--color-negative, #a52c24); font-weight: 700; }
+.planSummary__save { border-color: var(--control-secondary-border); background: var(--control-secondary-surface); color: var(--ink); }
+@media (hover: hover) and (pointer: fine) {
+  .planSummary__save:hover:not(:disabled) {
+    border-color: var(--hairline-strong);
+    background: color-mix(in srgb, var(--ink) 6%, var(--control-secondary-surface));
+  }
+}
+.planSummary__status { margin: 18px 0 0 72px; color: var(--ink-soft); font-size: var(--text-xs); line-height: 1.4; }
+.planSummary__status--error { color: var(--color-negative); font-weight: 700; }
 .planCollab {
   display: grid;
   gap: 16px;
-  margin: 30px 0 0 72px;
-  padding: 18px;
-  border: 1px solid var(--line);
-  border-radius: 18px;
-  background: color-mix(in srgb, var(--panel) 92%, transparent);
+  margin: var(--space-6) 0 0 72px;
+  padding: var(--space-6) 0 0;
+  border-top: 1px solid var(--hairline);
 }
+/* The Round form under the route is a section of the route, not a card in it:
+   the same hairline and space as the crew decisions below it. */
+.planSummary > .roundStarter {
+  max-width: none;
+  margin: var(--space-6) 0 0;
+  padding: var(--space-6) 0 0;
+  border: 0;
+  border-top: 1px solid var(--hairline);
+  border-radius: 0;
+  background: transparent;
+}
+/* A grid row does not shrink below its content by default, so one wide select
+   or badge pushed the preferences panel 20px past this card at 768. Each row
+   may shrink to the card's own width instead. */
+.planCollab > * { min-width: 0; }
 .planCollab__heading { display: flex; align-items: start; justify-content: space-between; gap: 12px; }
-.planCollab__heading h3 { margin: 0; font-family: var(--display, var(--serif)); font-size: 1.35rem; }
-.planCollab__heading > span { padding: 6px 10px; border-radius: 999px; background: color-mix(in srgb, var(--plan-accent) 12%, var(--panel)); color: var(--plan-stamp-ink); font-size: 0.7rem; font-weight: 850; text-transform: uppercase; }
+.planCollab__heading h3 { margin: 0; font-family: var(--display, var(--serif)); font-size: var(--text-lg); }
+.planCollab__heading > span { padding: 6px 10px; border-radius: var(--radius-pill); background: var(--panel); color: var(--color-text-muted); font-size: var(--text-2xs); font-weight: 850; text-transform: uppercase; }
 .planCollab button,
 .planCollab input,
 .planCollab select,
-.planCollab textarea { min-height: 44px; border: 1px solid var(--line); border-radius: 12px; background: var(--panel-raised); color: var(--ink); font: inherit; }
+.planCollab textarea { min-height: 44px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--panel-raised); color: var(--ink); font: inherit; }
 /* White on --plan-accent read 3.41:1 in light and 2.15:1 over the dark theme's
    amber. A coral or amber FILL carries dark ink here, as it does on the landing
    hero and the invite preview. */
-.planCollab button { padding: 9px 13px; border-color: var(--plan-accent); background: var(--plan-accent); color: var(--color-on-accent); font-size: 0.76rem; font-weight: 850; cursor: pointer; }
+.planCollab button { padding: 9px 13px; border-color: var(--control-secondary-border); background: var(--control-secondary-surface); color: var(--ink); font-size: var(--text-xs); font-weight: 850; cursor: pointer; }
 .planCollab button:disabled { opacity: 0.55; cursor: wait; }
 .planCollab .planCollab__quiet { border-color: var(--line); background: var(--panel-raised); color: var(--ink-soft); }
 .planCollab__invite { display: flex; flex-wrap: wrap; gap: 8px; }
-.planCollab__invite output { flex-basis: 100%; overflow-wrap: anywhere; color: var(--muted); font-size: 0.7rem; line-height: 1.4; }
+.planCollab__invite output { flex-basis: 100%; overflow-wrap: anywhere; color: var(--muted); font-size: var(--text-2xs); line-height: 1.4; }
 .planCollab__activeInvite { flex-basis: 100%; min-height: 44px; display: flex; align-items: center; justify-content: space-between; gap: 10px; }
-.planCollab__activeInvite small { color: var(--muted); font-size: 0.7rem; }
-.matchGroupPrefs { display: grid; gap: 12px; padding: 14px; border: 1px solid var(--line-soft); border-radius: 16px; background: color-mix(in srgb, var(--plan-accent) 7%, var(--panel)); }
-.matchGroupPrefs__heading { display: flex; align-items: start; justify-content: space-between; gap: 10px; }
-.matchGroupPrefs__heading h4 { margin: 0; font-size: 1rem; }
-.matchGroupPrefs__heading > span { padding: 5px 8px; border-radius: 999px; background: var(--panel-raised); color: var(--muted); font-size: 0.62rem; font-weight: 850; text-transform: uppercase; white-space: nowrap; }
+.planCollab__activeInvite small { color: var(--muted); font-size: var(--text-2xs); }
+.matchGroupPrefs { display: grid; gap: 12px; padding: 14px; border: 1px solid var(--line-soft); border-radius: var(--radius-lg); background: var(--panel); }
+.matchGroupPrefs > * { min-width: 0; }
+.matchGroupPrefs__heading { display: flex; flex-wrap: wrap; align-items: start; justify-content: space-between; gap: 10px; }
+.matchGroupPrefs__heading h4 { margin: 0; font-size: var(--text-base); }
+.matchGroupPrefs__heading > span { padding: 5px 8px; border-radius: var(--radius-pill); background: var(--panel-raised); color: var(--muted); font-size: var(--text-2xs); font-weight: 850; text-transform: uppercase; white-space: nowrap; }
 /* This panel's ground is TINTED (7 per cent of the accent over --panel), which
    lifts it past the surface --muted was tuned against: the tertiary ink read
    4.32:1 there. Body copy on it takes the secondary ink, and the eyebrow takes
    the same stamp ink the crew panel's own stamp does. */
 .matchGroupPrefs__eyebrow,
 .matchGroupPrefs__intro,
-.matchGroupPrefs__status { margin: 0; color: var(--color-text-soft); font-size: 0.72rem; line-height: 1.45; }
+.matchGroupPrefs__status { margin: 0; color: var(--color-text-soft); font-size: var(--text-xs); line-height: 1.45; }
 .matchGroupPrefs__eyebrow { color: var(--plan-stamp-ink); font-weight: 850; letter-spacing: 0.01em; }
 .matchGroupPrefs__field { display: grid; gap: 7px; }
-.matchGroupPrefs__field > strong { font-size: 0.78rem; }
+.matchGroupPrefs__field > strong { font-size: var(--text-xs); }
 .matchGroupPrefs__chips,
 .matchGroupPrefs__actions { display: flex; flex-wrap: wrap; gap: 7px; }
-.planCollab .matchGroupPrefs__chip { min-height: 36px; padding: 7px 10px; border-color: var(--line); background: var(--panel-raised); color: var(--ink-soft); font-size: 0.72rem; }
-.planCollab .matchGroupPrefs__chip[aria-pressed="true"] { border-color: var(--plan-accent); background: var(--plan-accent); color: var(--color-on-accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--plan-accent) 22%, transparent); }
+.planCollab .matchGroupPrefs__chip { min-height: 36px; padding: 7px 10px; border-color: var(--line); background: var(--panel-raised); color: var(--ink-soft); font-size: var(--text-xs); }
+.planCollab .matchGroupPrefs__chip[aria-pressed="true"] { border-color: var(--state-selected-border); background: var(--state-selected-surface); color: var(--color-on-accent); }
 .matchGroupPrefs__summary,
-.matchGroupPrefs__mustHaves { padding: 10px; border-radius: 12px; background: var(--panel-raised); color: var(--ink-soft); font-size: 0.74rem; line-height: 1.45; }
-.matchGroupPrefs__mustHaves { border: 1px solid color-mix(in srgb, var(--plan-accent) 35%, var(--line)); }
+.matchGroupPrefs__mustHaves { padding: 10px; border-radius: var(--radius); background: var(--panel-raised); color: var(--ink-soft); font-size: var(--text-xs); line-height: 1.45; }
+.matchGroupPrefs__mustHaves { border: 1px solid var(--line); }
 .planCollab__form { display: grid; gap: 9px; padding-top: 14px; border-top: 1px solid var(--line-soft); }
 .planCollab__form > strong,
-.planCollab__proposals > strong { font-size: 0.82rem; }
-.planCollab__fields { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.planCollab__proposals > strong { font-size: var(--text-sm); }
+.planCollab__fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
 .planCollab input,
 .planCollab select,
-.planCollab textarea { width: 100%; padding: 9px 11px; font-size: 0.8rem; }
+.planCollab textarea { width: 100%; min-width: 0; padding: 9px 11px; font-size: var(--text-xs); }
 .planCollab textarea { min-height: 78px; resize: vertical; }
 .planCollab__inputRow { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; }
-.planCollab fieldset { display: grid; gap: 7px; margin: 0; padding: 10px; border: 1px solid var(--line); border-radius: 12px; }
-.planCollab legend { padding: 0 5px; color: var(--muted); font-size: 0.72rem; }
-.planCollab fieldset label { display: flex; align-items: center; gap: 8px; color: var(--ink-soft); font-size: 0.75rem; }
+.planCollab fieldset { display: grid; gap: 7px; margin: 0; padding: 10px; border: 1px solid var(--line); border-radius: var(--radius); }
+.planCollab legend { padding: 0 5px; color: var(--muted); font-size: var(--text-xs); }
+.planCollab fieldset label { display: flex; align-items: center; gap: 8px; color: var(--ink-soft); font-size: var(--text-xs); }
 .planCollab fieldset input { width: 20px; min-height: 20px; }
 .planCollab__constraints { display: grid; gap: 6px; margin: 0; padding: 0; list-style: none; }
-.planCollab__constraints li { display: flex; justify-content: space-between; gap: 12px; padding: 8px 0; border-bottom: 1px solid var(--line-soft); font-size: 0.78rem; }
+.planCollab__constraints li { display: flex; justify-content: space-between; gap: 12px; padding: 8px 0; border-bottom: 1px solid var(--line-soft); font-size: var(--text-xs); }
 .planCollab__constraints small { color: var(--muted); text-align: right; }
 .planCollab__provenance { display: grid; gap: 3px; margin-top: 5px; }
-.planCollab__provenance a { color: var(--plan-accent-strong); font-size: 0.68rem; text-underline-offset: 2px; }
-.planCollab__source { display: grid; gap: 6px; padding: 10px; border: 1px solid var(--line-soft); border-radius: 12px; }
-.planCollab__source > strong { font-size: 0.75rem; }
+.planCollab__provenance a { color: var(--ink); font-size: var(--text-2xs); text-underline-offset: 2px; }
+.planCollab__source { display: grid; gap: 6px; padding: 10px; border: 1px solid var(--line-soft); border-radius: var(--radius); }
+.planCollab__source > strong { font-size: var(--text-xs); }
 .planCollab__proposals { display: grid; gap: 10px; }
-.planCollab__proposals article { display: grid; gap: 9px; padding: 13px; border: 1px solid var(--line); border-radius: 14px; }
+.planCollab__proposals article { display: grid; gap: 9px; padding: 13px; border: 1px solid var(--line); border-radius: var(--radius-lg); }
 .planCollab__proposals p,
 .planCollab__proposals ol { margin: 0; }
-.planCollab__proposals ol { padding-left: 18px; color: var(--ink-soft); font-size: 0.75rem; }
+.planCollab__proposals ol { padding-left: 18px; color: var(--ink-soft); font-size: var(--text-xs); }
 .planCollab__proposals small,
-.planCollab__status { color: var(--muted); font-size: 0.72rem; line-height: 1.4; }
-.planCollab__evidenceNote { margin: 0; color: var(--color-caution); font-size: 0.74rem; line-height: 1.45; }
-.planCollab__blocked { padding: 9px 10px; border-radius: var(--radius); background: color-mix(in srgb, var(--color-caution) 10%, transparent); color: var(--ink-soft); font-size: 0.74rem; }
+.planCollab__status { color: var(--muted); font-size: var(--text-xs); line-height: 1.4; }
+.planCollab__evidenceNote { margin: 0; color: var(--color-caution); font-size: var(--text-xs); line-height: 1.45; }
+.planCollab__blocked { padding: 9px 10px; border-radius: var(--radius); background: color-mix(in srgb, var(--color-caution) 10%, transparent); color: var(--ink-soft); font-size: var(--text-xs); }
 .planCollab__blocked ul { margin: 5px 0 0; padding-left: 18px; }
 .planCollab__actions { display: flex; flex-wrap: wrap; gap: 7px; }
-.planCollab__actions button[aria-pressed="true"] { box-shadow: 0 0 0 3px color-mix(in srgb, var(--plan-accent) 28%, transparent); }
+.planCollab__actions button[aria-pressed="true"] { }
 .planSummary__heading h2,
 .planCrew h2,
 .planVibe h2,
@@ -258,8 +287,8 @@
   top: 0;
   bottom: 0;
   width: 3px;
-  border-radius: 2px;
-  background: var(--plan-accent);
+  border-radius: var(--radius-sm);
+  background: var(--hairline-strong);
 }
 
 
@@ -272,16 +301,21 @@
   height: 48px;
   display: grid;
   place-items: center;
+  border: 1px solid var(--badge-border);
   border-radius: 50%;
-  background: var(--plan-accent);
-  color: var(--color-on-accent);
-  font-size: 1rem;
+  background: var(--badge-surface);
+  color: var(--ink);
+  font-size: var(--text-base);
   font-weight: 850;
   box-shadow: 0 0 0 7px var(--panel-raised);
 }
 .planSummary__stops strong { display: block; font-family: var(--display, var(--serif)); font-size: clamp(1.35rem, 3vw, 2.15rem); letter-spacing: -0.035em; }
-.planSummary__stops a { display: inline-flex; min-height: 44px; align-items: center; color: var(--muted); font-size: 0.86rem; text-underline-offset: 3px; }
-.planSummary__stops a:hover { color: var(--plan-accent-strong); }
+.planSummary__stops a { display: inline-flex; min-height: 44px; align-items: center; color: var(--muted); font-size: var(--text-sm); text-underline-offset: 3px; }
+@media (hover: hover) and (pointer: fine) {
+  .planSummary__stops a:hover {
+    color: var(--ink);
+  }
+}
 
 /* ── Get-in signal ─────────────────────────────────────────────────────────
    A per-stop, honest entry estimate layered onto the server-rendered route.
@@ -291,11 +325,11 @@
   margin: 30px 0 -8px;
   padding-left: 72px;
   color: var(--muted);
-  font-size: 0.8rem;
+  font-size: var(--text-xs);
   letter-spacing: 0.01em;
 }
 .planRoute__body { display: grid; gap: 6px; min-width: 0; }
-.planRoute__selectedDrinkPrice { color: var(--ink-soft); font-size: 0.82rem; line-height: 1.4; }
+.planRoute__selectedDrinkPrice { color: var(--ink-soft); font-size: var(--text-sm); line-height: 1.4; }
 
 /* "See the walking route" — deep links the whole ordered crawl to the map,
    where the route follows real walking roads. Sits above the stop list, aligned
@@ -304,10 +338,13 @@
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  margin: 22px 0 -4px 72px;
-  color: var(--plan-accent-strong);
+  /* 44px tap target that does not move the layout: 14px of padding each side,
+     taken back out of the margins. It measured 141x16. */
+  padding-block: 14px;
+  margin: 8px 0 -18px 72px;
+  color: var(--color-text-muted);
   font-weight: 700;
-  font-size: 0.82rem;
+  font-size: var(--text-sm);
   letter-spacing: 0.01em;
   text-underline-offset: 3px;
 }
@@ -324,29 +361,35 @@
   gap: 4px;
   width: fit-content;
   padding: 3px 8px;
-  border: 1px solid color-mix(in srgb, var(--brass) 40%, var(--line));
-  border-radius: 999px;
-  background: color-mix(in srgb, var(--brass) 12%, var(--panel-raised));
+  border: 1px solid var(--line);
+  border-radius: var(--radius-pill);
+  background: var(--panel-raised);
   color: var(--ink);
-  font-size: 0.72rem;
+  font-size: var(--text-xs);
   font-weight: 700;
   letter-spacing: 0.01em;
   line-height: 1;
   cursor: default;
 }
-.planRoute__event svg { color: var(--brass); flex-shrink: 0; }
+.planRoute__event svg { color: var(--color-text-muted); flex-shrink: 0; }
 .planRoute__eventSource {
   margin-left: 2px;
   padding-left: 6px;
-  border-left: 1px solid color-mix(in srgb, var(--brass) 35%, var(--line));
+  border-left: 1px solid var(--line);
   color: var(--muted);
   font-weight: 650;
-  font-size: 0.68rem;
+  font-size: var(--text-2xs);
   text-decoration: none;
   text-underline-offset: 2px;
 }
-.planRoute__eventSource:hover,
-.planRoute__eventSource:focus-visible { color: var(--plan-accent-strong); text-decoration: underline; }
+.planRoute__eventSource:focus-visible { color: var(--ink); text-decoration: underline; }
+
+@media (hover: hover) and (pointer: fine) {
+  .planRoute__eventSource:hover {
+    color: var(--ink);
+    text-decoration: underline;
+  }
+}
 .planRoute__signal {
   --fit-accent: var(--muted);
   display: flex;
@@ -354,7 +397,7 @@
   align-items: center;
   gap: 7px 12px;
   margin-top: 3px;
-  font-size: 0.8rem;
+  font-size: var(--text-xs);
 }
 .planRoute__signal[data-fit="likely"] { --fit-accent: var(--fit-likely); }
 .planRoute__signal[data-fit="uncertain"] { --fit-accent: var(--fit-uncertain); }
@@ -379,7 +422,7 @@
   align-items: center;
   min-height: 26px;
   padding: 3px 11px;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   border: 1px solid color-mix(in srgb, var(--fit-accent) 42%, transparent);
   background: color-mix(in srgb, var(--fit-accent) 12%, transparent);
   color: var(--fit-ink);
@@ -391,9 +434,9 @@
   display: inline-flex;
   align-items: center;
   min-height: 26px;
-  color: var(--plan-accent-strong);
+  color: var(--color-text-muted);
   font-weight: 700;
-  font-size: 0.8rem;
+  font-size: var(--text-xs);
   text-underline-offset: 3px;
 }
 
@@ -414,52 +457,66 @@
   background-position: 140% 0;
 }
 
-.planCrew,
-.planVibe,
-.planShare { padding: 26px; }
+.planCrew h2,
+.planVibe h2,
+.planShare h2 { font-size: var(--text-xl); line-height: var(--leading-tight); }
 .planCrew__heading { display: flex; align-items: start; justify-content: space-between; gap: 16px; }
-.planCrew__heading > span { min-width: 44px; height: 44px; display: grid; place-items: center; border-radius: 50%; background: var(--ink); color: var(--paper); font-weight: 800; }
+/* The head count is a figure beside the heading, not a filled disc. */
+.planCrew__heading > span { min-width: 44px; height: 44px; display: grid; place-items: center; color: var(--color-text-muted); font-family: var(--font-data); font-size: var(--text-md); font-weight: 700; font-variant-numeric: tabular-nums; }
 .planCrew__list { list-style: none; margin: 22px 0; padding: 0; display: grid; gap: 8px; }
 .planCrew__list li { min-height: 48px; padding: 10px 12px; display: flex; justify-content: space-between; gap: 12px; align-items: center; border-bottom: 1px solid var(--line-soft); }
-.planCrew__list small { color: var(--plan-accent-strong); font-weight: 750; }
+.planCrew__list small { color: var(--color-text-muted); font-weight: 750; }
 .planCrew__empty { color: var(--muted); }
 .planCrew__join { margin-top: 22px; }
-.planCrew__join label { display: block; margin-bottom: 8px; font-size: 0.85rem; color: var(--ink-soft); }
+.planCrew__join label { display: block; margin-bottom: 8px; font-size: var(--text-sm); color: var(--ink-soft); }
 .planCrew__join > div { display: grid; grid-template-columns: 1fr auto; gap: 8px; }
 .planCrew input,
-.planComposer input { min-width: 0; min-height: 48px; border: 1px solid var(--line); border-radius: 11px; padding: 10px 13px; background: var(--panel); color: var(--ink); font: inherit; }
+.planComposer input { min-width: 0; min-height: 48px; border: 1px solid var(--line); border-radius: var(--radius); padding: 10px 13px; background: var(--panel); color: var(--ink); font: inherit; }
 .planCrew input:focus-visible,
 .planComposer input:focus-visible,
 .planPage button:focus-visible { outline: 3px solid color-mix(in srgb, var(--plan-accent) 55%, transparent); outline-offset: 2px; }
 .planCrew__join button,
-.planComposer__submit { min-height: 48px; border: 0; border-radius: 11px; padding: 0 20px; font: inherit; font-weight: 800; cursor: pointer; }
-/* Join stays secondary (plan-accent → amber in dark). Lock it in = mobile primary. */
-.planCrew__join button { background: var(--plan-accent); color: var(--color-on-accent); }
+.planComposer__submit { min-height: 48px; border: 0; border-radius: var(--radius); padding: 0 20px; font: inherit; font-weight: 800; cursor: pointer; }
+/* Join stays secondary: ink on the secondary surface. Lock it in = mobile primary. */
+.planCrew__join button { border: 1px solid var(--control-secondary-border); background: var(--control-secondary-surface); color: var(--ink); }
 .planComposer__submit { background: var(--accent-action); color: var(--color-on-accent); }
-.planComposer__submit:hover:not(:disabled) { background: var(--accent-action-strong); }
+@media (hover: hover) and (pointer: fine) {
+  .planComposer__submit:hover:not(:disabled):not([aria-disabled="true"]) {
+    background: var(--accent-action-strong);
+  }
+}
 .planCrew__join button:disabled { opacity: 0.58; cursor: wait; }
-/* M3: disabled primary CTAs stay coral (accent-action) at ~0.58 opacity —
-   never a muddy brick hue that reads "broken" next to vivid enabled coral. */
+/* M3: a disabled primary CTA is a neutral raised surface, and coral arrives
+   only when it can act. Coral at reduced opacity read as a muddy brick on the
+   dark canvas, an error button rather than one still waiting on a field. */
 .planComposer__submit:disabled,
-.planComposer__conciergeInput button:disabled {
-  background: var(--accent-action);
-  color: var(--color-on-accent);
-  opacity: 0.58;
+.planComposer__submit[aria-disabled="true"],
+.planComposer__conciergeInput button:disabled,
+.planComposer__conciergeInput button[aria-disabled="true"] {
+  background: var(--panel-raised);
+  box-shadow: inset 0 0 0 1px var(--line);
+  color: var(--ink-soft);
   cursor: wait;
   filter: none;
 }
+.planComposer__submit[aria-disabled="true"] { cursor: pointer; }
 .planCrew__presence { margin-top: 20px; display: flex; flex-wrap: wrap; gap: 8px; }
 .planCrew__presence button,
 .planComposer__add,
-.planComposer__remove { min-height: 44px; border: 1px solid var(--line); border-radius: var(--control-radius, 14px); padding: 8px 13px; background: var(--panel); color: var(--ink); font: inherit; font-size: 0.8rem; font-weight: 750; cursor: pointer; }
-.planCrew__presence button:hover,
-.planComposer__add:hover { border-color: var(--plan-accent); color: var(--plan-accent-strong); }
+.planComposer__remove { min-height: 44px; border: 1px solid var(--line); border-radius: var(--control-radius); padding: 8px 13px; background: var(--panel); color: var(--ink); font: inherit; font-size: var(--text-xs); font-weight: 750; cursor: pointer; }
+@media (hover: hover) and (pointer: fine) {
+  .planCrew__presence button:hover,
+  .planComposer__add:hover {
+    border-color: var(--hairline-strong);
+    color: var(--ink);
+  }
+}
 /* Your current status reads back instantly (set optimistically on tap). Without
    this, the presence buttons gave no sign which one you chose. */
 .planCrew__presence button[data-active] {
-  border-color: var(--plan-accent);
-  background: color-mix(in srgb, var(--plan-accent) 15%, var(--panel));
-  color: var(--plan-accent-strong);
+  border-color: var(--state-selected-border);
+  background: var(--state-selected-surface);
+  color: var(--state-selected-ink);
   font-weight: 850;
 }
 
@@ -478,30 +535,38 @@
   justify-content: center;
   min-height: 44px;
   padding: 0 18px;
-  border-radius: 11px;
-  border: 1px solid color-mix(in srgb, var(--plan-accent, var(--amber)) 55%, var(--line));
-  background: color-mix(in srgb, var(--plan-accent, var(--amber)) 22%, var(--panel-raised));
+  border-radius: var(--radius);
+  border: 1px solid var(--line);
+  background: var(--panel-raised);
   color: var(--ink);
   font-weight: 750;
   text-decoration: none;
 }
-.planInviteNext__whatsapp:hover {
-  background: color-mix(in srgb, var(--plan-accent, var(--amber)) 32%, var(--panel-raised));
+@media (hover: hover) and (pointer: fine) {
+  .planInviteNext__whatsapp:hover {
+    background: color-mix(in srgb, var(--ink) 6%, var(--panel-raised));
+  }
 }
 .planInviteNext__whatsapp--pending {
-  border-style: dashed;
+  justify-content: flex-start;
+  min-height: 0;
+  padding: 0;
+  border: 0;
   background: transparent;
-  color: var(--muted);
-  font-weight: 650;
+  color: var(--color-text-muted);
+  font-size: var(--text-sm);
+  font-weight: 500;
   cursor: default;
 }
-.planInviteNext__whatsapp--pending:hover {
-  background: transparent;
+@media (hover: hover) and (pointer: fine) {
+  .planInviteNext__whatsapp--pending:hover {
+    background: transparent;
+  }
 }
 .planInviteNext__error {
   margin: 0;
   color: #a52c24;
-  font-size: 0.9rem;
+  font-size: var(--text-sm);
   font-weight: 650;
 }
 .planInviteNext .planHostInviteLink {
@@ -519,7 +584,7 @@
   background: transparent;
   color: var(--muted);
   font-weight: 650;
-  font-size: 0.9rem;
+  font-size: var(--text-sm);
   cursor: pointer;
   text-decoration: underline;
   text-underline-offset: 0.18em;
@@ -530,7 +595,7 @@
    density these labels sit far below the 20px+ floor the party accent demands,
    so the plan surface leaves the Bungee quarantine budget untouched and the
    register rides the words alone. */
-.planVibe__lede { margin: 12px 0 0; color: var(--ink-soft); line-height: 1.5; font-size: 0.85rem; }
+.planVibe__lede { margin: 12px 0 0; color: var(--ink-soft); line-height: 1.5; font-size: var(--text-sm); }
 .planVibe__row { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px; }
 .planVibe__chip {
   display: inline-flex;
@@ -539,26 +604,31 @@
   min-height: 44px;
   padding: 8px 14px;
   border: 1px solid var(--line);
-  border-radius: var(--control-radius, 14px);
+  border-radius: var(--control-radius);
   background: var(--panel);
   color: var(--ink);
   font: inherit;
-  font-size: 0.78rem;
+  font-size: var(--text-xs);
   font-weight: 750;
   cursor: pointer;
 }
-.planVibe__chip:hover { border-color: var(--plan-accent); color: var(--plan-accent-strong); }
+@media (hover: hover) and (pointer: fine) {
+  .planVibe__chip:hover {
+    border-color: var(--hairline-strong);
+    color: var(--ink);
+  }
+}
 .planVibe__chip:disabled { opacity: 0.58; cursor: wait; }
 .planVibe__chip[data-active="true"] {
-  border-color: var(--plan-accent);
-  background: color-mix(in srgb, var(--plan-accent) 15%, var(--panel));
-  color: var(--plan-accent-strong);
+  border-color: var(--state-selected-border);
+  background: var(--state-selected-surface);
+  color: var(--state-selected-ink);
   font-weight: 850;
 }
 /* The tally is the same line the share card prints (lib/vibeTally), so it
    reads as a caption of the stamp, not another data row. */
 .planVibe__tally { margin: 16px 0 0; color: var(--ink-soft); font-style: italic; line-height: 1.5; }
-.planVibe__note { margin: 10px 0 0; color: var(--muted); font-size: 0.8rem; line-height: 1.5; }
+.planVibe__note { margin: 10px 0 0; color: var(--muted); font-size: var(--text-xs); line-height: 1.5; }
 
 /* The composer is the page, not a card on it. De-box rule: the page's own
    head with a form under it is already the surface, and a bordered panel
@@ -570,9 +640,9 @@
   grid-column: 1 / -1;
   min-width: 0;
   padding: clamp(16px, 3vw, 24px);
-  border: 1px solid color-mix(in srgb, var(--plan-accent) 42%, var(--line));
-  border-radius: 18px;
-  background: color-mix(in srgb, var(--plan-accent) 8%, var(--panel));
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  background: var(--panel);
 }
 .planComposer__acceptedList {
   margin: 14px 0 0;
@@ -581,9 +651,9 @@
   gap: 12px;
 }
 .planComposer__acceptedList > div { min-width: 0; display: grid; gap: 4px; }
-.planComposer__acceptedList dt { color: var(--muted); font-size: 0.68rem; font-weight: 800; text-transform: uppercase; }
+.planComposer__acceptedList dt { color: var(--muted); font-size: var(--text-2xs); font-weight: 800; text-transform: uppercase; }
 .planComposer__acceptedList dd { min-width: 0; margin: 0; color: var(--ink); font-weight: 800; overflow-wrap: anywhere; }
-.planComposer__acceptedNote { margin: 14px 0 0; color: var(--ink-soft); font-size: 0.8rem; }
+.planComposer__acceptedNote { margin: 14px 0 0; color: var(--ink-soft); font-size: var(--text-xs); }
 /* The way out of a held acceptance. Quiet by weight, full 44px by touch: it is
    never the thing to do next, but it must be reachable with a thumb. */
 .planComposer__acceptedRelease {
@@ -591,25 +661,30 @@
   margin: 8px 0 0;
   padding: 8px 13px;
   border: 1px solid var(--line);
-  border-radius: var(--control-radius, 14px);
+  border-radius: var(--control-radius);
   background: var(--panel);
   color: var(--ink-soft);
   font: inherit;
-  font-size: 0.78rem;
+  font-size: var(--text-xs);
   font-weight: 750;
   cursor: pointer;
 }
-.planComposer__acceptedRelease:hover { border-color: var(--plan-accent); color: var(--plan-accent-strong); }
+@media (hover: hover) and (pointer: fine) {
+  .planComposer__acceptedRelease:hover {
+    border-color: var(--hairline-strong);
+    color: var(--ink);
+  }
+}
 .planComposer__conflicts {
   grid-column: 1 / -1;
   min-width: 0;
   margin: 0;
   padding: 14px 16px 14px 34px;
   border: 1px solid color-mix(in srgb, var(--color-caution) 52%, var(--line));
-  border-radius: 14px;
+  border-radius: var(--radius-lg);
   background: color-mix(in srgb, var(--color-caution) 9%, var(--panel));
   color: var(--ink-soft);
-  font-size: 0.82rem;
+  font-size: var(--text-sm);
   line-height: 1.45;
 }
 
@@ -642,11 +717,13 @@
 .planDescribeFirst > .planStopCount { order: -1; }
 .planDescribeFirst > .screenHead > .screenActions { margin-top: var(--space-1); }
 .planDescribeFirst__form { display: grid; max-width: 34rem; }
-.planDescribeFirst__form input { min-height: 48px; border: 1px solid var(--line); border-radius: 11px; padding: 0 16px; font: inherit; background: var(--panel-raised); color: var(--ink); }
+.planDescribeFirst__empty { margin: 8px 0 0; color: var(--color-negative); font-size: var(--text-sm); font-weight: 700; }
+.planDescribeFirst__form input[aria-invalid="true"] { border-color: var(--color-negative); }
+.planDescribeFirst__form input { min-height: 48px; border: 1px solid var(--line); border-radius: var(--radius); padding: 0 16px; font: inherit; background: var(--panel-raised); color: var(--ink); }
 /* Six 44px targets plus the label do not fit one 390px line, so the row wraps
    rather than shrinking a tap target or scrolling sideways. */
 .planStopCount { margin: var(--space-2) 0 0; display: flex; align-items: center; flex-wrap: wrap; gap: 8px 10px; }
-.planStopCount__label { color: var(--muted); font-size: 0.78rem; font-weight: 800; }
+.planStopCount__label { color: var(--muted); font-size: var(--text-xs); font-weight: 800; }
 /* Layout only. Each count is the shared number square, painted by
    components/ui/chip.css from the --control-* row, so the planner and the
    /pubs fare-zone picker are one family rather than a 10px square beside a
@@ -655,34 +732,37 @@
 .planDescribeFirst__chips { margin: var(--space-2) 0 0; display: flex; flex-wrap: wrap; gap: 8px; }
 .planDescribeFirst__chip {
   min-height: 44px;
-  border: 1px solid var(--line);
-  border-radius: var(--control-radius, 14px);
+  border: 1px solid var(--hairline-strong);
+  border-radius: var(--control-radius);
   padding: 8px 14px;
-  background: var(--panel);
+  background: transparent;
   color: var(--ink);
   font: inherit;
-  font-size: 0.82rem;
+  font-size: var(--text-sm);
   font-weight: 750;
   cursor: pointer;
 }
-.planDescribeFirst__chip:hover,
-.planDescribeFirst__chip:focus-visible { border-color: var(--plan-accent); color: var(--plan-accent-strong); outline: none; }
-/* Culture Crawl lane. It reads as its own offer above the plain examples, so
-   the group carries a lead line and a warmer chip edge without becoming a
-   second primary action. */
-.planDescribeFirst__culture { margin: var(--space-3) 0 0; }
-.planDescribeFirst__cultureLead {
-  margin: 0 0 10px;
-  color: var(--muted);
-  font-size: 0.82rem;
-  font-weight: 700;
-  line-height: 1.45;
+.planDescribeFirst__chip::first-letter { text-transform: uppercase; }
+.planDescribeFirst__chip:focus-visible { border-color: var(--state-selected-border); color: var(--state-selected-ink); outline: none; }
+
+@media (hover: hover) and (pointer: fine) {
+  .planDescribeFirst__chip:hover {
+    border-color: var(--state-selected-border);
+    color: var(--state-selected-ink);
+    outline: none;
+  }
 }
-.planDescribeFirst__cultureChips { display: flex; flex-wrap: wrap; gap: 8px; }
-.planDescribeFirst__chip--culture {
-  border-color: color-mix(in srgb, var(--plan-accent) 40%, var(--line));
-  background: color-mix(in srgb, var(--plan-accent) 7%, var(--panel));
-}
+/* One tap to a route sits straight under the actions, the way on for a reader
+   who will not type. It is a chip, not a second primary: coral stays on the
+   one submit (docs/DESIGN_SYSTEM.md "Coral is spent twice"). */
+.planDescribeFirst__oneTap { margin: var(--space-2) 0 0; display: grid; justify-items: start; gap: 6px; }
+.planDescribeFirst__chip--oneTap { display: inline-flex; align-items: center; gap: 8px; }
+.planDescribeFirst__chip[aria-busy="true"] { cursor: progress; color: var(--muted); }
+.planDescribeFirst__oneTapNote { margin: 0; max-width: 34rem; color: var(--muted); font-size: var(--text-sm); font-weight: 700; }
+/* The Culture Crawl example sits in the same row as the pub nights, in the same
+   neutral outline, because a suggestion is never a second primary action and
+   coral is spent on the one primary (docs/DESIGN_SYSTEM.md "Coral is spent
+   twice"). `--culture` is a hook for tests and analytics, not a style. */
 
 /* Progressive Plan intake. This is inline, resumable planning context rather
    than an interruptive prompt, so it never competes for the shared prompt
@@ -694,16 +774,20 @@
   padding: var(--space-4) 0 0;
 }
 .planIntake__header { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
-.planIntake__palEntry { margin: 10px 0 0; color: var(--muted); font-size: 0.78rem; line-height: 1.45; }
-.planIntake__palEntry a { color: var(--plan-accent-strong); font-weight: 750; text-underline-offset: 3px; }
-.planIntake__palEntry a:hover { color: var(--ink); }
+.planIntake__palEntry { margin: 10px 0 0; color: var(--muted); font-size: var(--text-xs); line-height: 1.45; }
+.planIntake__palEntry a { display: inline-flex; align-items: center; min-height: 44px; color: var(--ink); font-weight: 600; text-decoration-thickness: 1px; text-underline-offset: 3px; }
+@media (hover: hover) {
+  .planIntake__palEntry a:hover { color: var(--ink); }
+}
 .planIntake__header > div { min-width: 0; display: flex; flex-wrap: wrap; align-items: baseline; gap: 8px 14px; }
 .planIntake__kicker,
 .planIntake__count,
 .planIntake__eyebrow { margin: 0; }
+/* A kicker is a label, so it takes muted ink, never coral (docs/DESIGN_SYSTEM.md
+   "Coral is spent twice"). Continue is the step's one coral. */
 .planIntake__kicker,
-.planIntake__eyebrow { color: var(--plan-accent-strong); font-size: var(--text-2xs); font-weight: 850; letter-spacing: 0.01em; }
-.planIntake__count { color: var(--muted); font-size: 0.74rem; font-weight: 720; }
+.planIntake__eyebrow { color: var(--color-text-muted); font-size: var(--text-2xs); font-weight: 850; letter-spacing: 0.01em; }
+.planIntake__count { color: var(--muted); font-size: var(--text-xs); font-weight: 720; }
 .planIntake__describe,
 .planIntake__back,
 .planIntake__skip,
@@ -711,10 +795,10 @@
 .planIntake__tune,
 .planIntake__summaryChips button {
   min-height: 44px;
-  border-radius: var(--control-radius, 14px);
+  border-radius: var(--control-radius);
   padding: 8px 14px;
   font: inherit;
-  font-size: 0.78rem;
+  font-size: var(--text-xs);
   font-weight: 800;
   cursor: pointer;
 }
@@ -724,7 +808,12 @@
 .planIntake__tune,
 .planIntake__summaryChips button { border: 1px solid var(--line); background: var(--panel-raised); color: var(--ink-soft); }
 .planIntake__continue { border: 1px solid var(--accent-action); background: var(--accent-action); color: var(--color-on-accent); padding-inline: 20px; }
-.planIntake__continue:hover:not(:disabled) { border-color: var(--accent-action-strong); background: var(--accent-action-strong); }
+@media (hover: hover) and (pointer: fine) {
+  .planIntake__continue:hover:not(:disabled) {
+    border-color: var(--accent-action-strong);
+    background: var(--accent-action-strong);
+  }
+}
 /* The floating create action owns a lane at the right edge, and Continue sits
    in it: MEASURED at 390px, the button spanned x 199-368 while the control
    held x 322-378, so its right 46px was not tappable. The row reserves that
@@ -732,18 +821,19 @@
    reading the control's OWN published berth rather than a second copy of it. */
 @media (max-width: 640px) {
   body:has(.createFabRoot):not(:has(.pageHidesCreateFab)) .planIntake > footer {
-    padding-right: max(0px, calc(var(--create-fab-lane) - var(--page-gutter, 0px)));
+    padding-right: max(0px, calc(var(--create-fab-lane) - var(--page-gutter)));
   }
 }
 
 /* Quiet secondary intake buttons when disabled. */
 .planIntake button:disabled { opacity: 0.5; cursor: not-allowed; }
-/* M3: Continue primary — coral fill @ 0.58 (beats `button:disabled` specificity). */
+/* A Continue that cannot act yet is the neutral surface, as the composer's
+   submit is (M3 above): pale coral read as a broken primary (taste pass). */
 .planIntake button.planIntake__continue:disabled {
-  border-color: var(--accent-action);
-  background: var(--accent-action);
-  color: var(--color-on-accent);
-  opacity: 0.58;
+  border-color: var(--line);
+  background: var(--panel-raised);
+  color: var(--color-text-muted);
+  opacity: 1;
   cursor: not-allowed;
   filter: none;
 }
@@ -755,7 +845,7 @@
 .planIntake > .planStopCount {
   margin: 12px 0 0;
   padding: 0 0 14px;
-  border-bottom: 1px solid var(--line-soft, var(--line));
+  border-bottom: 1px solid var(--line-soft);
 }
 .planIntake__progress { margin: 20px 0 0; }
 
@@ -770,11 +860,14 @@
   letter-spacing: -0.035em;
 }
 .planIntake__stage h2:focus {
-  outline: 3px solid color-mix(in srgb, var(--plan-accent) 60%, transparent);
-  outline-offset: 6px;
-  border-radius: 4px;
+  outline: none;
 }
-.planIntake__note { max-width: 610px; margin: 12px 0 0; color: var(--ink-soft); font-size: 0.88rem; line-height: 1.5; }
+.planIntake__stage h2:focus-visible {
+  outline: 2px solid var(--state-selected-border);
+  outline-offset: 6px;
+  border-radius: var(--radius-sm);
+}
+.planIntake__note { max-width: 610px; margin: 12px 0 0; color: var(--ink-soft); font-size: var(--text-sm); line-height: 1.5; }
 .planIntake__choices { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 22px; }
 .planIntake__areaPicker { display: grid; justify-items: start; gap: 10px; margin-top: 22px; }
 .planIntake__locate {
@@ -783,54 +876,61 @@
   align-items: center;
   justify-content: center;
   gap: 7px;
-  border: 1px solid var(--accent-action);
-  border-radius: var(--control-radius, 14px);
+  border: 1px solid var(--control-secondary-border);
+  border-radius: var(--control-radius);
   padding: 8px 15px;
-  background: var(--accent-action);
-  color: var(--color-on-accent);
+  background: var(--control-secondary-surface);
+  color: var(--ink);
   font: inherit;
-  font-size: 0.8rem;
+  font-size: var(--text-xs);
   font-weight: 820;
   cursor: pointer;
 }
-.planIntake__locate:hover:not(:disabled) {
-  border-color: var(--accent-action-strong);
-  background: var(--accent-action-strong);
+/* "Use my location" is one way to answer the area question, beside the area
+   chips, not the step's action: Continue is, and it holds the one coral fill.
+   Painted coral, the step had two filled buttons, the locate one first. */
+@media (hover: hover) {
+  .planIntake__locate:hover:not(:disabled) {
+    border-color: var(--state-selected-border);
+    background: color-mix(in srgb, var(--ink) 5%, var(--control-secondary-surface));
+  }
 }
-.planIntake__locationStatus { max-width: 610px; margin: 0; color: var(--ink-soft); font-size: 0.78rem; line-height: 1.45; }
-.planIntake__locationStatus--error { color: var(--color-negative, #a52c24); font-weight: 700; }
+.planIntake__locationStatus { max-width: 610px; margin: 0; color: var(--ink-soft); font-size: var(--text-xs); line-height: 1.45; }
+.planIntake__locationStatus--error { color: var(--color-negative); font-weight: 700; }
 .planIntake__areaPicker .planIntake__choices { margin-top: 2px; }
 .planIntake__choices button,
 .planIntake__numberChoices button {
   min-height: 48px;
   border: 1px solid var(--line);
-  border-radius: 14px;
+  border-radius: var(--radius-lg);
   padding: 9px 14px;
   background: var(--panel-raised);
   color: var(--ink);
   font: inherit;
-  font-size: 0.82rem;
+  font-size: var(--text-sm);
   font-weight: 760;
   cursor: pointer;
 }
 .planIntake__choices button[aria-pressed="true"],
-.planIntake__numberChoices button[aria-pressed="true"] { border-color: var(--plan-accent); background: color-mix(in srgb, var(--plan-accent) 13%, var(--panel)); color: var(--plan-accent-strong); }
-.planIntake__choices--areas button { display: inline-flex; align-items: center; gap: 7px; border-radius: var(--control-radius, 14px); }
-.planIntake__choices--cards { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); }
-.planIntake__choices--cards button { min-height: 74px; display: grid; align-content: center; gap: 3px; text-align: left; }
-.planIntake__choices--cards small { color: var(--muted); font-size: 0.69rem; font-weight: 650; line-height: 1.35; }
-.planIntake__exactTime { grid-column: 1 / -1; display: grid; gap: 7px; margin-top: 6px; color: var(--ink-soft); font-size: 0.78rem; }
+.planIntake__numberChoices button[aria-pressed="true"] { border-color: var(--state-selected-border); background: var(--state-selected-surface); color: var(--state-selected-ink); }
+.planIntake__choices--areas button { display: inline-flex; align-items: center; gap: 7px; border-radius: var(--control-radius); }
+/* One choice of three, read down the step: the label, then its note on the
+   same line. Three cards side by side was the template tell (taste pass). */
+.planIntake__choices--cards { display: grid; grid-template-columns: minmax(0, 1fr); }
+.planIntake__choices--cards button { min-height: 52px; display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); text-align: left; }
+.planIntake__choices--cards small { color: var(--color-text-muted); font-size: var(--text-sm); font-weight: 500; line-height: 1.35; }
+.planIntake__exactTime { grid-column: 1 / -1; display: grid; gap: 7px; margin-top: 6px; color: var(--ink-soft); font-size: var(--text-xs); }
 .planIntake__exactTime input { width: min(100%, 270px); }
 .planIntake__choices--access button { display: grid; grid-template-columns: 22px 1fr; align-items: center; gap: 7px; text-align: left; }
-.planIntake__choices--access button > span { width: 20px; height: 20px; display: grid; place-items: center; border: 1px solid var(--line); border-radius: 6px; }
+.planIntake__choices--access button > span { width: 20px; height: 20px; display: grid; place-items: center; border: 1px solid var(--line); border-radius: var(--radius-sm); }
 .planIntake__group,
 .planIntake__budget { display: grid; gap: 14px; margin-top: 22px; }
 .planIntake__group label,
-.planIntake__budget > label { color: var(--muted); font-size: 0.74rem; }
+.planIntake__budget > label { color: var(--muted); font-size: var(--text-xs); }
 .planIntake__group > input { width: min(100%, 190px); }
 .planIntake__numberChoices { display: flex; flex-wrap: wrap; gap: 8px; }
 .planIntake__numberChoices button { width: 48px; padding: 0; border-radius: 50%; }
-.planIntake__moneyInput { width: min(100%, 190px); display: grid; grid-template-columns: 38px 1fr; align-items: center; border: 1px solid var(--line); border-radius: 11px; background: var(--panel); }
+.planIntake__moneyInput { width: min(100%, 190px); display: grid; grid-template-columns: 38px 1fr; align-items: center; border: 1px solid var(--line); border-radius: var(--radius); background: var(--panel); }
 .planIntake__moneyInput > span { display: grid; place-items: center; color: var(--muted); }
 .planIntake__moneyInput input { width: 100%; border: 0; background: transparent; }
 .planIntake__actions { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding-top: 18px; border-top: 1px solid var(--line-soft); }
@@ -840,9 +940,9 @@
 .planIntake__completeMark { width: 44px; height: 44px; display: grid; place-items: center; border-radius: 50%; background: color-mix(in srgb, var(--color-positive) 15%, var(--panel)); color: var(--tint-ink-positive); }
 .planIntake__summaryBody { min-width: 0; }
 .planIntake__summaryBody h2 { font-size: clamp(1.3rem, 3vw, 2rem); line-height: 1.05; overflow-wrap: anywhere; }
-.planIntake__summaryBody > p:last-of-type { margin: 8px 0 0; color: var(--muted); font-size: 0.78rem; line-height: 1.4; }
+.planIntake__summaryBody > p:last-of-type { margin: 8px 0 0; color: var(--muted); font-size: var(--text-xs); line-height: 1.4; }
 .planIntake__summaryChips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 12px; }
-.planIntake__summaryChips button { min-height: 44px; padding-inline: 12px; color: var(--plan-accent-strong); }
+.planIntake__summaryChips button { min-height: 44px; padding-inline: 12px; color: var(--color-text-muted); }
 .planIntake__tune { display: inline-flex; align-items: center; justify-content: center; gap: 6px; white-space: nowrap; }
 
 .planComposer__templates {
@@ -854,7 +954,7 @@
 
 .planComposer__templates h2 {
   margin: 0;
-  font-size: 1.05rem;
+  font-size: var(--text-base);
   letter-spacing: -0.01em;
 }
 
@@ -863,13 +963,13 @@
   gap: 0.45rem;
   margin: 0 0 0.75rem;
   padding: 0.7rem 0.8rem;
-  border: 1px solid color-mix(in srgb, var(--plan-accent, var(--amber)) 35%, var(--line));
-  border-radius: 12px;
-  background: color-mix(in srgb, var(--plan-accent, var(--amber)) 10%, var(--panel-raised));
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--panel-raised);
 }
 .planComposer__usualLot p {
   margin: 0;
-  font-size: 0.84rem;
+  font-size: var(--text-sm);
   color: var(--ink-soft);
   line-height: 1.35;
 }
@@ -877,7 +977,7 @@
 .planComposer__templatesLead {
   margin: 0;
   color: var(--ink-soft);
-  font-size: 0.88rem;
+  font-size: var(--text-sm);
 }
 
 .planComposer__templateRow {
@@ -889,56 +989,74 @@
 .planComposer__template {
   min-height: 44px;
   border: 1px solid var(--line);
-  border-radius: var(--control-radius, 14px);
+  border-radius: var(--control-radius);
   padding: 8px 14px;
   background: var(--panel);
   color: var(--ink);
   font: inherit;
-  font-size: 0.82rem;
+  font-size: var(--text-sm);
   font-weight: 750;
   cursor: pointer;
 }
 
-.planComposer__template:hover,
 .planComposer__template:focus-visible {
   border-color: var(--plan-accent);
-  color: var(--plan-accent-strong);
+  color: var(--ink);
   outline: none;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .planComposer__template:hover {
+    border-color: var(--hairline-strong);
+    color: var(--ink);
+    outline: none;
+  }
 }
 
 .planComposer__concierge { grid-column: 1 / -1; padding: 0 0 28px; border-bottom: 1px solid var(--line); }
 .planComposer__concierge h2 { margin: 0; max-width: 600px; font-size: clamp(1.6rem, 4vw, 2.7rem); line-height: 1; }
 .planComposer__conciergeInput { margin-top: 20px; display: grid; grid-template-columns: 1fr auto; gap: 8px; }
 /* Plan my night — same --accent-action fill as mobile Find my pint / Claim handle. */
-.planComposer__conciergeInput button { min-height: 48px; border: 0; border-radius: 11px; padding: 0 20px; background: var(--accent-action); color: var(--color-on-accent); font: inherit; font-weight: 800; cursor: pointer; }
-.planComposer__conciergeInput button:hover:not(:disabled) { background: var(--accent-action-strong); }
+.planComposer__conciergeInput button { min-height: 48px; border: 1px solid var(--control-secondary-border); border-radius: var(--radius); padding: 0 20px; background: var(--control-secondary-surface); color: var(--ink); font: inherit; font-weight: 800; cursor: pointer; }
+@media (hover: hover) and (pointer: fine) {
+  .planComposer__conciergeInput button:hover:not(:disabled):not([aria-disabled="true"]) {
+    background: color-mix(in srgb, var(--ink) 6%, var(--control-secondary-surface));
+  }
+}
 /* ONE PAINTED PRIMARY PER SCREEN. With a route on the page `Lock it in` is the
    thing to do next, so this control drops its fill and keeps everything else:
    same box, same height, same place, so a reader who wants another route still
    finds it exactly where it was. */
-.planComposer__conciergeInput button.planComposer__resort,
-.planComposer__conciergeInput button.planComposer__resort:hover:not(:disabled) {
+.planComposer__conciergeInput button.planComposer__resort {
   border: 1px solid var(--line);
   background: transparent;
   color: var(--ink);
 }
-.planComposer__conciergeInput button.planComposer__resort:hover:not(:disabled) {
-  border-color: var(--accent-action);
-  color: var(--accent-action-strong);
+
+@media (hover: hover) and (pointer: fine) {
+  .planComposer__conciergeInput button.planComposer__resort:hover:not(:disabled):not([aria-disabled="true"]) {
+    border: 1px solid var(--line);
+    background: transparent;
+    color: var(--ink);
+  }
+  .planComposer__conciergeInput button.planComposer__resort:hover:not(:disabled):not([aria-disabled="true"]) {
+    border-color: var(--hairline-strong);
+    color: var(--ink);
+  }
 }
 /* disabled styles shared with .planComposer__submit:disabled (M3) above */
-.planComposer__concierge > p { margin: 12px 0 0; color: var(--ink-soft); font-size: 0.9rem; }
+.planComposer__concierge > p { margin: 12px 0 0; color: var(--ink-soft); font-size: var(--text-sm); }
 .planComposer__conciergeStatus:empty { display: none; }
 .planComposer__conciergeStatus { min-height: 1.4em; }
-.planComposer__routeStale { display: flex; align-items: center; justify-content: space-between; gap: 14px; margin-top: 16px; padding: 12px; border: 1px solid color-mix(in srgb, var(--color-caution) 50%, var(--line)); border-radius: 14px; background: color-mix(in srgb, var(--color-caution) 10%, var(--panel)); }
+.planComposer__routeStale { display: flex; align-items: center; justify-content: space-between; gap: 14px; margin-top: 16px; padding: 12px; border: 1px solid color-mix(in srgb, var(--color-caution) 50%, var(--line)); border-radius: var(--radius-lg); background: color-mix(in srgb, var(--color-caution) 10%, var(--panel)); }
 .planComposer__routeStale > div { display: grid; gap: 2px; min-width: 0; }
-.planComposer__routeStale strong { font-size: 0.84rem; }
-.planComposer__routeStale span { color: var(--ink-soft); font-size: 0.78rem; line-height: 1.35; }
-.planComposer__regenerate { flex: 0 0 auto; min-height: 44px; border: 0; border-radius: var(--control-radius, 14px); padding: 8px 14px; background: var(--plan-accent); color: var(--color-on-accent); font: inherit; font-size: 0.78rem; font-weight: 800; cursor: pointer; }
+.planComposer__routeStale strong { font-size: var(--text-sm); }
+.planComposer__routeStale span { color: var(--ink-soft); font-size: var(--text-xs); line-height: 1.35; }
+.planComposer__regenerate { flex: 0 0 auto; min-height: 44px; border: 1px solid var(--control-secondary-border); border-radius: var(--control-radius); padding: 8px 14px; background: var(--control-secondary-surface); color: var(--ink); font: inherit; font-size: var(--text-xs); font-weight: 800; cursor: pointer; }
 .planComposer__regenerate:disabled { opacity: 0.58; cursor: wait; }
 .planComposer__context { margin: 18px 0 0; padding: 0; border: 0; display: flex; flex-wrap: wrap; gap: 8px; }
 .planComposer__context legend { width: 100%; margin-bottom: 2px; }
-.planComposer__contextNote { width: 100%; margin: 0 0 2px; color: var(--muted); font-size: 0.78rem; line-height: 1.4; }
+.planComposer__contextNote { width: 100%; margin: 0 0 2px; color: var(--muted); font-size: var(--text-xs); line-height: 1.4; }
 .planComposer__context label {
   display: flex;
   align-items: center;
@@ -947,7 +1065,7 @@
   min-height: 44px;
   padding: 0 10px;
   border: 1px solid var(--line);
-  border-radius: var(--control-radius, 14px);
+  border-radius: var(--control-radius);
   background: var(--panel);
 }
 .planComposer__context label:has(> input) {
@@ -970,7 +1088,7 @@
 }
 .planComposer__context select {
   flex: 1 1 0;
-  padding-right: calc(var(--control-pad-x, 14px) + 14px);
+  padding-right: calc(var(--control-pad-x) + 14px);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -984,36 +1102,36 @@
 .planComposer__context input { width: 54px; }
 .planComposer__srOnly { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
 .planComposer__coverage { grid-column: 1 / -1; margin: -4px 0 2px; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
-.planComposer__coverage summary { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 52px; color: var(--ink); font-size: 0.92rem; font-weight: 800; cursor: pointer; list-style: none; }
+.planComposer__coverage summary { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 52px; color: var(--ink); font-size: var(--text-sm); font-weight: 800; cursor: pointer; list-style: none; }
 .planComposer__coverage summary::-webkit-details-marker { display: none; }
-.planComposer__coverage summary::after { content: "+"; display: grid; place-items: center; width: 24px; height: 24px; border: 1px solid var(--line); border-radius: 50%; color: var(--plan-accent-strong); font-size: 1.05rem; line-height: 1; }
+.planComposer__coverage summary::after { content: "+"; display: grid; place-items: center; width: 24px; height: 24px; border: 1px solid var(--line); border-radius: 50%; color: var(--color-text-muted); font-size: var(--text-base); line-height: 1; }
 .planComposer__coverage details[open] summary::after { content: "−"; }
-.planComposer__coverage summary:focus-visible { outline: 3px solid color-mix(in srgb, var(--plan-accent) 55%, transparent); outline-offset: 3px; border-radius: 6px; }
-.planComposer__coverageMeta { color: var(--muted); font-size: 0.76rem; font-weight: 700; text-align: right; }
-.planComposer__coverageIntro { max-width: 680px; margin: 0 0 16px; color: var(--muted); font-size: 0.82rem; line-height: 1.45; }
+.planComposer__coverage summary:focus-visible { outline: 3px solid color-mix(in srgb, var(--plan-accent) 55%, transparent); outline-offset: 3px; border-radius: var(--radius-sm); }
+.planComposer__coverageMeta { color: var(--muted); font-size: var(--text-xs); font-weight: 700; text-align: right; }
+.planComposer__coverageIntro { max-width: 680px; margin: 0 0 16px; color: var(--muted); font-size: var(--text-sm); line-height: 1.45; }
 .planComposer__coverageGroups { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; padding-bottom: 18px; }
-.planComposer__coverageGroups section { min-width: 0; padding: 14px; border: 1px solid var(--line-soft); border-radius: 14px; background: color-mix(in srgb, var(--panel) 68%, transparent); }
+.planComposer__coverageGroups section { min-width: 0; padding: 14px; border: 1px solid var(--line-soft); border-radius: var(--radius-lg); background: color-mix(in srgb, var(--panel) 68%, transparent); }
 .planComposer__coverageGroups h3 { margin: 0 0 10px; color: var(--ink-soft); font-size: var(--text-2xs); letter-spacing: 0.01em; }
 .planComposer__coverageGroups ul { display: grid; gap: 7px; margin: 0; padding: 0; list-style: none; }
-.planComposer__coverageGroups li { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: start; gap: 10px; padding: 8px 0; border-bottom: 1px solid var(--line-soft); font-size: 0.8rem; }
+.planComposer__coverageGroups li { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: start; gap: 10px; padding: 8px 0; border-bottom: 1px solid var(--line-soft); font-size: var(--text-xs); }
 .planComposer__coverageGroups li:last-child { border-bottom: 0; padding-bottom: 0; }
 .planComposer__coverageGroups li > div { min-width: 0; display: grid; gap: 2px; }
-.planComposer__coverageGroups li strong { color: var(--ink); font-size: 0.82rem; }
+.planComposer__coverageGroups li strong { color: var(--ink); font-size: var(--text-sm); }
 .planComposer__coverageGroups li small { color: var(--muted); line-height: 1.35; }
-.planComposer__coverageGroups li .planComposer__coverageMetaLine { color: var(--ink-soft); font-size: 0.7rem; }
+.planComposer__coverageGroups li .planComposer__coverageMetaLine { color: var(--ink-soft); font-size: var(--text-2xs); }
 .planComposer__coverageActions { justify-items: end; align-content: start; gap: 2px !important; }
-.planComposer__coverageActions > span { color: var(--muted); font-size: 0.68rem; font-weight: 800; text-align: right; }
+.planComposer__coverageActions > span { color: var(--muted); font-size: var(--text-2xs); font-weight: 800; text-align: right; }
 .planComposer__coverageGroups li[data-tone="ready"] .planComposer__coverageActions > span { color: var(--color-positive); }
 .planComposer__coverageGroups li[data-tone="paused"] .planComposer__coverageActions > span { color: var(--color-negative); }
-.planComposer__coverageMapLink { display: inline-flex; min-height: 44px; align-items: center; color: var(--plan-accent-strong); font-size: 0.72rem; font-weight: 800; text-underline-offset: 3px; white-space: nowrap; }
-.planComposer__coverageMapLink:focus-visible { outline: 3px solid color-mix(in srgb, var(--plan-accent) 55%, transparent); outline-offset: 2px; border-radius: 5px; }
+.planComposer__coverageMapLink { display: inline-flex; min-height: 44px; align-items: center; color: var(--ink); font-size: var(--text-xs); font-weight: 800; text-underline-offset: 3px; white-space: nowrap; }
+.planComposer__coverageMapLink:focus-visible { outline: 3px solid color-mix(in srgb, var(--plan-accent) 55%, transparent); outline-offset: 2px; border-radius: var(--radius-sm); }
 .planComposer__field { display: grid; gap: 8px; }
 .planComposer__field--wide { grid-column: 1 / -1; }
 .planComposer label,
-.planComposer legend { color: var(--ink-soft); font-size: 0.82rem; font-weight: 760; letter-spacing: 0.02em; }
-.planComposer__field--wide input { font-family: var(--display, var(--serif)); font-size: 1.45rem; font-weight: 700; }
+.planComposer legend { color: var(--ink-soft); font-size: var(--text-sm); font-weight: 760; letter-spacing: 0.02em; }
+.planComposer__field--wide input { font-family: var(--display, var(--serif)); font-size: var(--text-lg); font-weight: 700; }
 .planComposer__stops { grid-column: 1 / -1; min-width: 0; margin: 8px 0 0; padding: 24px 0 0; border: 0; border-top: 1px solid var(--line); }
-.planComposer__stops legend { padding: 0 10px 0 0; color: var(--plan-accent-strong); letter-spacing: 0.01em; }
+.planComposer__stops legend { padding: 0 10px 0 0; color: var(--color-text-muted); letter-spacing: 0.01em; }
 .planComposer__stop { display: grid; grid-template-columns: 44px minmax(0, 1fr) auto; gap: 12px; align-items: end; margin-bottom: 14px; }
 .planComposer__stop > div { display: grid; gap: 6px; }
 .planComposer__stopActions { display: flex; flex-wrap: wrap; align-items: center; justify-content: end; gap: 6px; }
@@ -1021,42 +1139,43 @@
    (amber-toward-ink / ink-soft), both themes. Structure unchanged. */
 .planComposer__swap {
   min-height: 44px;
-  border: 1px solid color-mix(in srgb, var(--plan-accent) 45%, var(--line));
-  border-radius: var(--control-radius, 14px);
+  border: 1px solid var(--line);
+  border-radius: var(--control-radius);
   padding: 8px 12px;
-  background: color-mix(in srgb, var(--plan-accent) 8%, var(--panel));
-  color: color-mix(in srgb, var(--plan-accent-strong) 42%, var(--ink));
+  background: var(--panel);
+  color: var(--color-text-muted);
   font: inherit;
-  font-size: 0.76rem;
+  font-size: var(--text-xs);
   font-weight: 800;
   cursor: pointer;
 }
 .planComposer__swap:disabled { opacity: 0.48; cursor: not-allowed; }
-.planComposer__previewLabel { margin-left: 8px; color: var(--muted); font-size: 0.68rem; font-weight: 700; letter-spacing: 0.03em; text-transform: none; }
-.planComposer__routeStatus { min-height: 1.35em; margin: 0 0 18px 56px; color: var(--muted); font-size: 0.78rem; line-height: 1.4; }
-.planComposer__stopReason { display: block; color: var(--muted); font-size: 0.72rem; line-height: 1.35; }
+.planComposer__previewLabel { margin-left: 8px; color: var(--muted); font-size: var(--text-2xs); font-weight: 700; letter-spacing: 0.03em; text-transform: none; }
+.planComposer__routeStatus { min-height: 1.35em; margin: 0 0 18px 56px; color: var(--muted); font-size: var(--text-xs); line-height: 1.4; }
+.planComposer__stopReason { display: block; color: var(--muted); font-size: var(--text-xs); line-height: 1.35; }
 /* Culture Crawl opener. It sits above stop 1 and is deliberately unnumbered:
    a number would read as a fourth Stop, and this is a thing to see, not a pub
    we priced. It carries no swap and no remove for the same reason. */
 .planComposer__opener {
   margin: 0 0 16px;
   padding: 12px 14px;
-  border: 1px dashed color-mix(in srgb, var(--plan-accent) 40%, var(--line));
-  border-radius: 14px;
-  background: color-mix(in srgb, var(--plan-accent) 5%, var(--panel));
+  border: 1px dashed var(--line);
+  border-radius: var(--radius-lg);
+  background: var(--panel);
 }
-.planComposer__openerEyebrow { display: block; color: var(--plan-accent-strong); font-size: 0.68rem; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase; }
+.planComposer__openerEyebrow { display: block; color: var(--color-text-muted); font-size: var(--text-2xs); font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase; }
 .planComposer__openerPlace { margin: 6px 0 0; display: grid; gap: 2px; }
-.planComposer__openerPlace strong { font-size: 0.95rem; font-weight: 800; }
-.planComposer__openerPlace span { color: var(--muted); font-size: 0.76rem; line-height: 1.4; }
-.planComposer__openerNote { margin: 6px 0 0; color: var(--muted); font-size: 0.72rem; line-height: 1.4; }
-.planComposer__number { align-self: center; width: 36px; height: 36px; display: grid; place-items: center; border-radius: 50%; background: color-mix(in srgb, var(--plan-accent) 15%, var(--panel)); color: var(--plan-accent-strong); font-weight: 850; }
+.planComposer__openerPlace strong { font-size: var(--text-base); font-weight: 800; }
+.planComposer__openerPlace span { color: var(--muted); font-size: var(--text-xs); line-height: 1.4; }
+.planComposer__openerNote { margin: 6px 0 0; color: var(--muted); font-size: var(--text-xs); line-height: 1.4; }
+.planComposer__number { align-self: center; width: 36px; height: 36px; display: grid; place-items: center; border-radius: 50%; background: var(--panel); color: var(--color-text-muted); font-weight: 850; }
 .planComposer__remove { color: var(--ink-soft); }
 .planComposer__add { margin-top: 6px; }
 .planComposer__lock { grid-column: 1 / -1; display: grid; gap: 8px; }
-.planComposer__submit { min-height: 56px; font-size: 1rem; }
-.planComposer__trust { margin: 0; text-align: center; color: var(--muted); font-size: 0.78rem; }
-.planComposer__error { grid-column: 1 / -1; margin: 0; color: #a52c24; font-weight: 700; }
+.planComposer__submit { min-height: 56px; font-size: var(--text-base); }
+.planComposer__lockHint { margin: 0; text-align: center; color: var(--ink); font-size: var(--text-sm); font-weight: 700; }
+.planComposer__trust { margin: 0; text-align: center; color: var(--muted); font-size: var(--text-xs); }
+.planComposer__error { grid-column: 1 / -1; margin: 0; color: var(--color-negative); font-weight: 700; }
 
 html[data-theme="dark"] .planPage {
   --plan-accent: var(--night-amber);
@@ -1067,22 +1186,11 @@ html[data-theme="dark"] .planPage {
   --plan-stamp-ink: color-mix(in srgb, var(--plan-accent-strong) 85%, var(--ink));
   background: var(--paper);
 }
-html[data-theme="dark"] .planSummary,
-html[data-theme="dark"] .planCrew,
-html[data-theme="dark"] .planVibe,
-html[data-theme="dark"] .planShare { border-radius: 12px; }
 /* Dark ink on amber fills only — primary CTAs use coral + --color-on-accent. */
 html[data-theme="dark"] .planSummary__marker,
 html[data-theme="dark"] .planCrew__join button { color: #090d0b; }
 
-@media (max-width: 760px) {
-  .planPage {
-    /* A FLAT top: SiteNav is this page's first child and the bar already adds
-       env(safe-area-inset-top) itself (components/nav/siteNav.css), so the
-       inset here was paid twice inside the native shells and the installed
-       PWA. __tests__/pageShellSafeAreaTop.test.ts holds every such shell. */
-    padding-top: 10px;
-  }
+@media (max-width: 900px) {
   .planPage__grid { grid-template-columns: 1fr; }
   .planPage__side { order: -1; }
   .planPage__hero { margin-top: 50px; }
@@ -1096,6 +1204,8 @@ html[data-theme="dark"] .planCrew__join button { color: #090d0b; }
   .planIntake__actions { align-items: stretch; flex-direction: column-reverse; }
   .planIntake__actions > div { display: grid; grid-template-columns: 1fr 1fr; }
   .planIntake__back { align-self: flex-start; }
+  /* Under the stacked actions a disabled Back is a whole dead row on step 1. */
+  .planIntake__back:disabled { display: none; }
   .planIntake--complete { grid-template-columns: 44px minmax(0, 1fr); align-items: start; }
   .planIntake__tune { grid-column: 1 / -1; width: 100%; }
   .planComposer__concierge { grid-column: 1; }
@@ -1104,7 +1214,7 @@ html[data-theme="dark"] .planCrew__join button { color: #090d0b; }
   .planComposer__context legend,
   .planComposer__contextNote,
   .planComposer__context label:first-of-type { grid-column: 1 / -1; }
-  .planComposer__context label { border-radius: 12px; padding: 0 8px; }
+  .planComposer__context label { border-radius: var(--radius); padding: 0 8px; }
   .planComposer__coverage summary { align-items: flex-start; padding: 10px 0; }
   .planComposer__coverageMeta { max-width: 10.5rem; }
   .planComposer__coverageGroups { grid-template-columns: 1fr; gap: 10px; }
@@ -1119,9 +1229,9 @@ html[data-theme="dark"] .planCrew__join button { color: #090d0b; }
   .planComposer__stops,
   .planComposer__lock,
   .planComposer__error { grid-column: 1; }
-  .planSummary { padding: 26px 20px; }
   .planSummary__rail { left: 43px; top: 105px; }
   .planSummary__heading { margin-left: 57px; }
+  .planSummary__heading.planSummary__heading--teaser { margin-left: 0; }
   .planSummary__headingRow { align-items: flex-start; }
   .planSummary > .roundStarter { width: calc(100% - 44px); margin-left: 44px; }
   .planSummary__editor { margin-left: 0; }
@@ -1129,7 +1239,7 @@ html[data-theme="dark"] .planCrew__join button { color: #090d0b; }
   .planSummary__editorActions { display: grid; grid-template-columns: 1fr; }
   /* The line sits with the heading text, to the right of the rail. */
   .planSummary__status { margin-left: 57px; }
-  .planCollab { margin-left: 0; padding: 15px; }
+  .planCollab { margin-left: 0; }
   .planCollab__fields { grid-template-columns: 1fr; }
   .planSummary__stops li { grid-template-columns: 48px 1fr; gap: 14px; }
   .planSummary__marker { width: 42px; height: 42px; box-shadow: 0 0 0 5px var(--panel-raised); }
@@ -1164,13 +1274,17 @@ html[data-theme="dark"] .planCrew__join button { color: #090d0b; }
   align-items: center;
   min-height: 48px;
   padding: 0 22px;
-  border-radius: 11px;
+  border-radius: var(--radius);
   background: var(--ink);
   color: var(--paper);
   font-weight: 800;
   text-decoration: none;
 }
-.planPage__cta:hover { background: color-mix(in srgb, var(--ink) 88%, var(--plan-accent)); }
+@media (hover: hover) and (pointer: fine) {
+  .planPage__cta:hover {
+    background: color-mix(in srgb, var(--ink) 88%, var(--plan-accent));
+  }
+}
 .planPage__cta:focus-visible { outline: 3px solid color-mix(in srgb, var(--plan-accent) 55%, transparent); outline-offset: 2px; }
 
 /* Sort My Night P1 — usual-lot re-invite on the plan share panel. */
@@ -1183,7 +1297,7 @@ html[data-theme="dark"] .planCrew__join button { color: #090d0b; }
 }
 .lastCrewInvite__lede {
   margin: 0;
-  font-size: 0.86rem;
+  font-size: var(--text-sm);
   color: var(--ink-soft);
   line-height: 1.35;
 }
@@ -1193,16 +1307,16 @@ html[data-theme="dark"] .planCrew__join button { color: #090d0b; }
   justify-content: center;
   min-height: 44px;
   padding: 0 16px;
-  border: 1px solid color-mix(in srgb, var(--plan-accent, var(--amber)) 45%, var(--line));
-  border-radius: 11px;
-  background: color-mix(in srgb, var(--plan-accent, var(--amber)) 14%, var(--panel-raised));
+  border: 1px solid var(--control-secondary-border);
+  border-radius: var(--radius);
+  background: var(--control-secondary-surface);
   color: var(--ink);
   font-weight: 750;
   cursor: pointer;
 }
 .lastCrewInvite__status {
   margin: 0;
-  font-size: 0.78rem;
+  font-size: var(--text-xs);
   font-weight: 650;
   color: var(--muted);
 }
@@ -1226,9 +1340,9 @@ html[data-theme="dark"] .planCrew__join button { color: #090d0b; }
   justify-content: center;
   min-height: 44px;
   padding: 0 16px;
-  border: 1px solid color-mix(in srgb, var(--plan-accent, var(--amber)) 45%, var(--line));
-  border-radius: 11px;
-  background: color-mix(in srgb, var(--plan-accent, var(--amber)) 14%, var(--panel-raised));
+  border: 1px solid var(--control-secondary-border);
+  border-radius: var(--radius);
+  background: var(--control-secondary-surface);
   color: var(--ink);
   font-weight: 750;
   cursor: pointer;
@@ -1240,11 +1354,11 @@ html[data-theme="dark"] .planCrew__join button { color: #090d0b; }
   min-height: 44px;
   padding: 0 14px;
   border: 1px solid var(--line);
-  border-radius: 11px;
+  border-radius: var(--radius);
   background: var(--panel-raised);
   color: var(--muted);
   font-weight: 650;
-  font-size: 0.85rem;
+  font-size: var(--text-sm);
   cursor: pointer;
 }
 .planHostInviteLink__rotate:disabled {
@@ -1253,7 +1367,7 @@ html[data-theme="dark"] .planCrew__join button { color: #090d0b; }
 }
 .planHostInviteLink__status {
   margin: 0;
-  font-size: 0.78rem;
+  font-size: var(--text-xs);
   font-weight: 650;
   color: var(--muted);
 }
@@ -1274,7 +1388,7 @@ html[data-theme="dark"] .planCrew__join button { color: #090d0b; }
   margin: 22px 0 4px;
   padding: 12px;
   border: 1px solid var(--line);
-  border-radius: var(--radius-lg, 18px);
+  border-radius: var(--radius-lg);
   background:
     radial-gradient(120% 120% at 0% 0%, color-mix(in srgb, var(--route-line) 6%, transparent), transparent 60%),
     var(--panel-raised);
@@ -1287,7 +1401,7 @@ html[data-theme="dark"] .planCrew__join button { color: #090d0b; }
   cursor: pointer;
   color: inherit;
   text-decoration: none;
-  border-radius: var(--radius-lg, 18px);
+  border-radius: var(--radius-lg);
 }
 .planRouteMiniMap--clickable:focus-visible {
   outline: 2px solid var(--plan-accent-strong);
@@ -1295,7 +1409,7 @@ html[data-theme="dark"] .planCrew__join button { color: #090d0b; }
 }
 .planRouteMiniMap__title {
   margin: 0 0 8px;
-  font-size: 0.9rem;
+  font-size: var(--text-sm);
   font-weight: 700;
   color: var(--ink);
 }
@@ -1314,7 +1428,7 @@ html[data-theme="dark"] .planCrew__join button { color: #090d0b; }
   display: block;
   width: 100%;
   height: clamp(168px, 42vw, 240px);
-  border-radius: calc(var(--radius-lg, 18px) - 8px);
+  border-radius: calc(var(--radius-lg) - 8px);
   overflow: hidden;
 }
 .planRouteMiniMap__canvas--loading {
@@ -1351,12 +1465,12 @@ html[data-theme="dark"] .planCrew__join button { color: #090d0b; }
    Reveals only: host name, broad area, time, stop count, vibe, accessibility.
    No venue ids or names appear in the rendered output. */
 .invitePreview {
-  padding: clamp(22px, 4vw, 44px) 0 clamp(22px, 4vw, 44px) 72px;
+  padding: var(--space-5) 0 0;
 }
 .invitePreview h2 {
-  margin: 8px 0 28px;
+  margin: var(--space-2) 0 var(--space-6);
   font-family: var(--display, var(--serif));
-  font-size: clamp(1.5rem, 3.5vw, 2.6rem);
+  font-size: var(--text-xl);
   letter-spacing: -0.04em;
   line-height: 1.05;
   text-wrap: balance;
@@ -1381,36 +1495,33 @@ html[data-theme="dark"] .planCrew__join button { color: #090d0b; }
 .invitePreview__detail dd {
   margin: 0;
   color: var(--ink);
-  font-size: 1rem;
+  font-size: var(--text-base);
   font-weight: 700;
 }
 .invitePreview__hint {
   margin: 0 0 22px;
   color: var(--ink-soft);
-  font-size: 0.85rem;
+  font-size: var(--text-sm);
   line-height: 1.45;
 }
-/* A coral fill carries DARK ink here, the way the landing hero CTA and the
-   map's sanctioned coral marks do. White on --plan-accent read 3.41:1 in
-   light and 2.15:1 over the dark theme's amber; --color-on-accent reads
-   5.33:1 and 8.45:1. --brass-accessible stays the login primary alone. */
+/* One primary per route (docs/design/LAUNCH_SCREENS.md): the head's "Send
+   to the crew" is this page's coral. The invitee's way to the crew form is a
+   quiet ink link with an underline, a 44px row to tap, never a second fill. */
 .invitePreview__join {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  padding: 12px 22px;
-  border-radius: 999px;
-  background: var(--plan-accent);
-  color: var(--color-on-accent);
-  font-size: 0.9rem;
-  font-weight: 800;
-  letter-spacing: 0.01em;
-  text-decoration: none;
-  transition: background 140ms ease;
+  min-height: 44px;
+  color: var(--ink);
+  font-size: var(--text-base);
+  font-weight: 700;
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 0.2em;
 }
-.invitePreview__join:hover { background: var(--plan-accent-strong); }
-@media (max-width: 600px) {
-  .invitePreview { padding-left: 0; }
+@media (hover: hover) and (pointer: fine) {
+  .invitePreview__join:hover {
+    text-decoration-thickness: 2px;
+  }
 }
 
 /* THE ANSWER IS PINNED, AND THE CHROME THAT COVERED IT STANDS DOWN.
@@ -1452,18 +1563,42 @@ html[data-theme="dark"] .planCrew__join button { color: #090d0b; }
     align-items: start;
   }
 
-  .planDescribeFirst > .screenHead > .kicker,
-  .planDescribeFirst > .screenHead > .screenTitle,
-  .planDescribeFirst > .screenHead > .screenActions {
+  /* The heading holds the left column; the field, the stop count and the
+     actions that submit them stack in the right one, in that order. Auto
+     placement used to seat the field top right and "Sort it" bottom left, so
+     the submit sat a column away from the field it submits. */
+  .planDescribeFirst > .screenHead > .kicker {
     grid-column: 1;
+    grid-row: 1;
   }
 
-  .planDescribeFirst__form,
+  .planDescribeFirst > .screenHead > .screenTitle {
+    grid-column: 1;
+    grid-row: 2 / span 3;
+  }
+
+  .planDescribeFirst__form {
+    grid-column: 2;
+    grid-row: 2;
+  }
+
   .planDescribeFirst > .planStopCount {
     grid-column: 2;
+    grid-row: 3;
+    margin-top: 0;
   }
 
-  .planDescribeFirst__culture,
+  .planDescribeFirst > .screenHead > .screenActions {
+    grid-column: 2;
+    grid-row: 4;
+    margin-top: 0;
+  }
+
+  .planDescribeFirst__oneTap {
+    grid-column: 2;
+    grid-row: 5;
+  }
+
   .planDescribeFirst__chips {
     grid-column: 1 / -1;
   }
@@ -1482,4 +1617,547 @@ html[data-theme="dark"] .planCrew__join button { color: #090d0b; }
       color var(--duration-base) var(--ease-out),
       background var(--duration-base) var(--ease-out);
   }
+}
+
+/* ── Plan result: the route first ────────────────────────────────────────────
+   Once a route is on the page the page IS the route: a heading and one summary
+   line, one card per Stop with the walk between them, then the map strip. Every
+   setting lives behind "Tune details". Built from the launch tokens only; the
+   route line is the map's own `--route-line`, so the strip and the full map
+   read as one route system.
+
+   Numbers: the name is 17/22 (title), the walk and meta lines 13/18, the label
+   floor 12. The summary and every price are mono and tabular. */
+
+.planComposer .planResult,
+.planComposer[data-result="true"] .planComposer__stops {
+  grid-column: 1 / -1;
+}
+.planResult {
+  min-width: 0;
+  display: grid;
+  gap: var(--space-2);
+  margin-top: var(--space-3);
+}
+.planComposer > .planRouteMiniMap,
+.planComposer > [data-testid="plan-route-strip-pending"],
+.planComposer > .planResult__provenance {
+  grid-column: 1 / -1;
+}
+
+.planResult__top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+.planPage .planResult__title {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: var(--text-xl);
+  font-weight: 700;
+  line-height: 1.15;
+  letter-spacing: var(--tracking-tight);
+  color: var(--ink);
+  text-wrap: balance;
+}
+/* Prose with figures in it ("3 stops", "each for pints"), so the UI sans with
+   tabular figures: monospace is for figures alone (docs/DESIGN_SYSTEM.md). */
+.planResult__summary {
+  min-width: 0;
+  margin: 0;
+  font-family: var(--font-body);
+  font-size: var(--text-base);
+  font-weight: 700;
+  line-height: 1.35;
+  font-variant-numeric: tabular-nums;
+  color: var(--ink);
+}
+.planResult__tune {
+  flex: none;
+  min-height: var(--control-height);
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 0 var(--space-3);
+  border: 1px solid var(--line);
+  border-radius: var(--control-radius);
+  background: var(--panel);
+  color: var(--ink);
+  font: inherit;
+  font-size: var(--text-sm);
+  font-weight: 750;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+@media (max-width: 640px) {
+  /* The heading and the way to the settings share a row, so the button is the
+     icon alone; its name is still "Tune details". */
+  .planResult__tune {
+    width: var(--control-height);
+    padding: 0;
+    justify-content: center;
+  }
+  .planResult__tuneLabel {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+  }
+}
+.planResult__status {
+  margin: 0;
+  min-height: 1.35em;
+  color: var(--muted);
+  font-size: var(--text-sm);
+  line-height: 1.4;
+  /* A new route scrolls its status to the top; keep the heading and the
+     summary above it in view, under the floating top bar. */
+  scroll-margin-top: calc(var(--space-12) * 2 + var(--space-5));
+}
+.planResult__provenance {
+  margin: 0;
+  color: var(--muted);
+  font-size: var(--text-xs);
+  line-height: 1.4;
+}
+
+/* The strip: the existing route mini-map without its card frame. */
+.planRouteMiniMap.planRouteMiniMap--strip {
+  margin: var(--space-2) 0 0;
+  padding: 0;
+  border: 1px solid var(--line);
+  background: var(--panel-raised);
+}
+.planRouteMiniMap.planRouteMiniMap--strip .planRouteMiniMap__canvas {
+  height: 200px;
+  border-radius: 0;
+}
+.planRouteMiniMap--strip .planRouteMiniMap__title {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+}
+.planRouteMiniMap--strip .planRouteMiniMap__attrib {
+  right: var(--space-2);
+  bottom: var(--space-2);
+}
+
+/* ── Stop cards ─────────────────────────────────────────────────────────── */
+
+.planComposer[data-result="true"] .planComposer__stops {
+  margin: 0;
+  padding: 0;
+  border-top: 0;
+}
+.planStops {
+  min-width: 0;
+  display: grid;
+  /* One track the list's width, so a Find a pub field cannot widen it. */
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--space-3);
+  /* Remove sits beside a card only when the list itself has room for it. */
+  container-type: inline-size;
+  container-name: plan-stops;
+}
+/* Holds the cards' room while their chunk loads, so nothing under them jumps. */
+.planStops__placeholder {
+  min-height: 320px;
+}
+.planStops__list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+/* The old row was a three-column grid; a card owns its own layout. */
+.planStops .planStop {
+  --stop-tray: 96px;
+  position: relative;
+  display: block;
+  margin: 0;
+  grid-template-columns: none;
+  align-items: stretch;
+}
+.planStops .planStop > div {
+  display: block;
+  gap: 0;
+}
+.planStops .planStop[data-drag-role] > .planStop__walk {
+  visibility: hidden;
+}
+.planStops .planStop[data-drag-role="neighbour"] {
+  transition: transform 200ms var(--ease-out-strong);
+}
+.planStops .planStop[data-drag-role="lifted"] {
+  transition: none;
+}
+
+.planStops .planStop > .planStop__walk {
+  position: relative;
+  display: flex;
+  align-items: center;
+  min-height: 32px;
+  margin: 0;
+}
+.planStop__walkLine {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 25px;
+  border-left: 2px dashed color-mix(in srgb, var(--route-line) 55%, var(--line));
+}
+.planStop__walkLabel {
+  margin-left: 52px;
+  color: var(--muted);
+  font-size: var(--text-sm);
+  line-height: 1.35;
+  font-variant-numeric: tabular-nums;
+}
+
+.planStops .planStop__card {
+  position: relative;
+  display: block;
+}
+.planStop__surface {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-height: 72px;
+  padding: var(--space-3) var(--space-2) var(--space-3) var(--space-3);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  background: var(--panel-raised);
+  color: var(--ink);
+  /* The browser keeps vertical panning; the card owns the horizontal swipe and
+     the long-press lift (mobile-native: touch-action names what the BROWSER
+     may still do). */
+  touch-action: pan-y;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+}
+.planStop[data-lifted="true"] .planStop__surface {
+  transform: scale(1.02);
+  box-shadow: var(--shadow);
+  transition:
+    transform var(--duration-press) var(--ease-out-strong),
+    box-shadow var(--duration-press) var(--ease-out-strong);
+}
+.planStop__badge {
+  flex: none;
+  width: 28px;
+  height: 28px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--panel);
+  color: var(--color-text-muted);
+  font-family: var(--font-data);
+  font-size: var(--text-xs);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+.planStop__body {
+  min-width: 0;
+  flex: 1;
+  display: grid;
+  gap: 2px;
+}
+.planStop__open {
+  display: block;
+  min-width: 0;
+  /* The name is the card's one link and a 22px line of type. The padding
+     makes it a 44px target and the margin hands the space straight back, so
+     nothing in the card moves. */
+  margin-block: -11px;
+  padding-block: 11px;
+  /* Positioned, so the strip of target over the meta line is the link's. */
+  position: relative;
+  color: inherit;
+  text-decoration: none;
+  -webkit-tap-highlight-color: transparent;
+}
+.planStop__open:focus-visible {
+  outline: 3px solid color-mix(in srgb, var(--plan-accent) 55%, transparent);
+  outline-offset: 3px;
+  border-radius: var(--radius-sm);
+}
+.planStop__name {
+  display: block;
+  font-family: var(--font-display);
+  font-size: var(--text-base);
+  font-weight: 600;
+  line-height: 1.3;
+  overflow-wrap: anywhere;
+}
+.planStop__meta {
+  color: var(--muted);
+  font-size: var(--text-sm);
+  line-height: 1.35;
+}
+.planStop__price {
+  flex: none;
+  font-family: var(--font-data);
+  font-size: var(--text-base);
+  font-weight: 700;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+.planStops .planStop__swap,
+.planStops .planStop__more {
+  flex: none;
+  width: var(--control-height);
+  height: var(--control-height);
+  min-height: var(--control-height);
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: var(--control-radius);
+  background: transparent;
+  color: var(--ink-soft);
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+/* Only a mouse in a narrow list needs More (see the pointer rules below). */
+.planStops .planStop__more {
+  display: none;
+}
+
+/* Remove sits behind the card and shows when the card slides over. */
+.planStops .planStop__remove {
+  position: absolute;
+  z-index: 0;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: var(--stop-tray);
+  min-height: 0;
+  padding: 0;
+  display: grid;
+  place-items: center;
+  border: 0;
+  border-radius: var(--radius-lg);
+  background: color-mix(in srgb, var(--color-negative) 14%, var(--panel));
+  color: var(--tint-ink-negative);
+  font: inherit;
+  font-size: var(--text-sm);
+  font-weight: 750;
+  cursor: pointer;
+  touch-action: manipulation;
+  opacity: 0;
+}
+.planStops .planStop[data-swipe="true"] .planStop__remove,
+.planStops .planStop[data-revealed="true"] .planStop__remove,
+.planStops .planStop__remove:focus-visible {
+  opacity: 1;
+}
+.planStops .planStop[data-revealed="true"] .planStop__surface,
+.planStops .planStop:has(.planStop__remove:focus-visible) .planStop__surface {
+  transform: translate3d(calc(var(--stop-tray) * -1), 0, 0);
+}
+
+/* A mouse has no swipe. In a list wide enough that the card keeps its full
+   name, Remove is a plain button beside the card. In a narrower list it stays
+   behind the card, and the card's More button slides the card over to show it. */
+@media (hover: hover) and (pointer: fine) {
+  .planStops .planStop__more {
+    display: grid;
+  }
+  @container plan-stops (min-width: 520px) {
+    .planStops .planStop > .planStop__card {
+      display: flex;
+      align-items: stretch;
+      gap: var(--space-2);
+    }
+    .planStop__surface {
+      flex: 1;
+      min-width: 0;
+    }
+    .planStops .planStop__more {
+      display: none;
+    }
+    .planStops .planStop__remove {
+      position: static;
+      width: auto;
+      padding: 0 var(--space-3);
+      border: 1px solid var(--line);
+      background: transparent;
+      color: var(--ink-soft);
+      opacity: 1;
+      align-self: center;
+      min-height: var(--control-height);
+      border-radius: var(--control-radius);
+    }
+    /* Remove is already in view here, so the card never slides off to show it. */
+    .planStops .planStop[data-revealed="true"] .planStop__surface,
+    .planStops .planStop:has(.planStop__remove:focus-visible) .planStop__surface {
+      transform: none;
+    }
+    .planStops .planStop__remove:hover:not(:disabled) {
+      color: var(--color-negative);
+      border-color: color-mix(in srgb, var(--color-negative) 45%, var(--line));
+    }
+    /* A held pub's Remove is in view but refused, so it reads like its Swap. */
+    .planStops .planStop__remove:disabled {
+      opacity: 0.48;
+      cursor: not-allowed;
+    }
+  }
+  .planStop__surface {
+    cursor: grab;
+  }
+  .planStop[data-lifted="true"] .planStop__surface {
+    cursor: grabbing;
+  }
+}
+
+/* A stop with no pub yet: a finder in the card's place. */
+.planStop__card--empty .planStop__surface {
+  touch-action: auto;
+  user-select: auto;
+  -webkit-user-select: auto;
+  cursor: auto;
+}
+.planStops .planStop__find {
+  flex: 1;
+  min-width: 0;
+  min-height: 48px;
+  /* 16px: iOS zooms the page into anything smaller (mobile-native, input zoom). */
+  font-size: var(--text-base);
+}
+.planStops .planStop__drop {
+  position: static;
+  width: auto;
+  min-height: var(--control-height);
+  padding: 0 var(--space-3);
+  display: block;
+  visibility: visible;
+  border: 1px solid var(--line);
+  background: transparent;
+  color: var(--ink-soft);
+}
+.planStops__add {
+  width: 100%;
+  margin: 0;
+}
+.planStops__indexError {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+}
+.planStops__indexError button {
+  min-height: 44px;
+  padding: 8px 13px;
+  border: 1px solid var(--line);
+  border-radius: var(--control-radius);
+  background: var(--panel);
+  color: var(--ink);
+  font: inherit;
+  cursor: pointer;
+}
+
+/* Press feedback (scale 0.97 on pointer-down, 130ms strong ease-out) is the
+   global button rule in app/globals.css; nothing here restates it. */
+/* ── Footer: Lock it in ─────────────────────────────────────────────────── */
+
+/* The pinned bar is one button and two short lines, not a third of the screen. */
+.planComposer[data-result="true"] .planComposer__lock {
+  gap: var(--space-1);
+}
+.planComposer[data-result="true"] .planComposer__lockHint {
+  font-size: var(--text-sm);
+  line-height: 1.3;
+}
+.planComposer[data-result="true"] .planComposer__trust {
+  font-size: var(--text-xs);
+  line-height: 1.3;
+}
+/* While the hint names what is missing, it is the line that matters. */
+.planComposer[data-result="true"] .planComposer__lockHint + .planComposer__trust {
+  display: none;
+}
+@media (max-width: 640px) {
+  .planComposer[data-result="true"] .planComposer__lock {
+    padding-block: var(--space-2) var(--space-2);
+  }
+}
+.planComposer[data-result="true"] .planComposer__submit {
+  min-height: 52px;
+  touch-action: manipulation;
+}
+/* "Your name" seated in the bar: label and field on one row, so the bar grows
+   by one line, not a stacked form. */
+.planComposer__lock[data-name-seat="true"] .planComposer__field {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: var(--space-2);
+}
+
+/* A new route cross-fades in (opacity only). Reduced motion keeps the fade,
+   shorter, and drops everything that travels. */
+.planStops__list[data-fresh="true"] {
+  animation: planStopsFade 180ms var(--ease-out-strong) both;
+}
+@keyframes planStopsFade {
+  from { opacity: 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .planStops__list[data-fresh="true"] {
+    animation-duration: 120ms;
+  }
+  .planStops .planStop[data-drag-role="neighbour"] {
+    transition: none;
+  }
+}
+
+/* Wide screens: the route reads left to right. Heading and cards on the left,
+   the map beside them. The map takes the row the heading lands on, whatever
+   full-width notes come first. It is not sticky: a sticky grid item is held
+   by the whole composer, so it slid down over the lock fields below. */
+@media (min-width: 1024px) {
+  .planComposer[data-result="true"] > .planResult,
+  .planComposer[data-result="true"] > .planComposer__stops {
+    grid-column: 1;
+  }
+  .planComposer[data-result="true"] > .planRouteMiniMap,
+  .planComposer[data-result="true"] > [data-testid="plan-route-strip-pending"] {
+    grid-column: 2;
+    grid-row: span 2;
+    align-self: start;
+    margin-top: var(--space-3);
+  }
+  .planRouteMiniMap.planRouteMiniMap--strip .planRouteMiniMap__canvas {
+    height: min(60dvh, 520px);
+  }
+}
+
+/* The night the late default stepped over. A text-button on the documented
+   --control-* row (docs/DESIGN_SYSTEM.md, "Text buttons"), the same family as
+   the other secondary controls, so it reads as a choice rather than a second
+   primary beside the field it corrects. */
+.planComposer__tonight {
+  justify-self: start;
+  min-height: var(--control-height);
+  padding: 0 var(--control-pad-x);
+  border: 1px solid var(--control-secondary-border);
+  border-radius: var(--control-radius);
+  background: var(--control-secondary-surface);
+  color: var(--ink);
+  font: inherit;
+  font-size: var(--control-font-size);
+  font-weight: var(--control-font-weight);
+  cursor: pointer;
 }

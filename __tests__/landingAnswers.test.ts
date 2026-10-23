@@ -27,7 +27,7 @@ describe("the front door's two answers", () => {
       stale: false,
     });
     expect(todayAnswer(facts, STAMP)).toEqual({
-      line: "19°C feels like, cloudy, 0% chance of rain, 11 km/h wind.",
+      line: "Feels like 19°C, cloudy, 0% chance of rain, 11 km/h wind.",
       stamp: STAMP,
       measured: true,
     });
@@ -35,7 +35,7 @@ describe("the front door's two answers", () => {
 
   it("says plainly when there is no reading at all", () => {
     expect(todayAnswer(null, STAMP)).toEqual({
-      line: "We could not read today's London weather just now.",
+      line: "We couldn't read today's London weather just now.",
       stamp: STAMP,
       measured: false,
     });
@@ -49,7 +49,7 @@ describe("the front door's two answers", () => {
       stale: true,
     });
     expect(todayAnswer(facts, STAMP)).toEqual({
-      line: "Last read of the sky: 19°C feels like, cloudy, 0% chance of rain, 11 km/h wind.",
+      line: "Last reading: feels like 19°C, cloudy, 0% chance of rain, 11 km/h wind.",
       stamp: STAMP,
       measured: false,
     });
@@ -73,18 +73,18 @@ describe("the front door's two answers", () => {
     });
     const unread = tonightAnswer({ unread: true, count: 0 }, STAMP);
     expect(unread).toEqual({
-      line: "We could not reach tonight's listings just now.",
+      line: "We couldn't reach tonight's listings just now.",
       stamp: STAMP,
       measured: false,
     });
   });
 
-  it("counts hyped pubs the /tonight route will show when listings are empty", () => {
+  it("leads with the /tonight recommendations when listings are empty, names them as recommendations, and says nothing is confirmed", () => {
     expect(tonightAnswer({ unread: false, count: 0, hypedCount: 4 }, STAMP).line).toBe(
-      "4 pubs people are talking about tonight.",
+      "4 pubs Londoners keep recommending. Nothing’s confirmed on tonight yet.",
     );
     expect(tonightAnswer({ unread: false, count: 0, hypedCount: 1 }, STAMP).line).toBe(
-      "1 pub people are talking about tonight.",
+      "A pub Londoners keep recommending. Nothing’s confirmed on tonight yet.",
     );
     // Listings still win when both lanes have rows.
     expect(tonightAnswer({ unread: false, count: 3, hypedCount: 4 }, STAMP).line).toBe(

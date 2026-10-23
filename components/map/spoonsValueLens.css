@@ -29,11 +29,11 @@
   min-height: 44px;
   padding: 7px 12px;
   border: 1px solid var(--line-soft);
-  border-radius: var(--control-radius, 12px);
+  border-radius: var(--control-radius);
   background: transparent;
   color: var(--muted);
   font: inherit;
-  font-size: 0.76rem;
+  font-size: var(--text-xs);
   font-weight: 700;
   cursor: pointer;
   touch-action: manipulation;
@@ -42,9 +42,14 @@
     color var(--duration-base) var(--ease-out);
 }
 
-.spoonsValueLensToggle:hover,
 .spoonsValueLensToggle:focus-visible {
   color: var(--ink);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .spoonsValueLensToggle:hover {
+    color: var(--ink);
+  }
 }
 
 .spoonsValueLensToggle:focus-visible {
@@ -60,10 +65,15 @@
   box-shadow: var(--shadow-sm);
 }
 
+/* The link is a line of text, but its box is the row's 44px: it was 14px
+   tall, under WCAG 2.2's 24px target floor even for a mouse. */
 .spoonsValueLensLink {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
   min-width: 0;
-  color: var(--brass-ink, var(--brass));
-  font-size: 0.72rem;
+  color: var(--ink);
+  font-size: var(--text-xs);
   font-weight: 700;
   text-decoration: underline;
   text-underline-offset: 2px;
@@ -83,13 +93,13 @@
   align-items: center;
   gap: 8px;
   min-width: 0;
-  font-size: 0.72rem;
+  font-size: var(--text-xs);
 }
 
 .spoonsValueLensSwatch {
   width: 10px;
   height: 10px;
-  border-radius: 3px;
+  border-radius: var(--radius-sm);
   background: var(--price-band-hue, var(--muted));
 }
 
@@ -107,7 +117,7 @@
   margin: 0;
   min-width: 0;
   color: var(--ink-soft);
-  font-size: 0.72rem;
+  font-size: var(--text-xs);
   line-height: 1.4;
   /* A units caption carries the claim the whole lens rests on. It wraps; it
      never truncates (the phone-chrome rule for price captions). */
@@ -116,7 +126,7 @@
 
 .spoonsValueLens--sheet .spoonsValueLensToggle {
   padding: 7px 14px;
-  font-size: 0.82rem;
+  font-size: var(--text-sm);
 }
 
 @media (prefers-reduced-motion: reduce) {

@@ -4,7 +4,11 @@ import "server-only";
 // the per-subscription frequency window. Counts only — never logs tokens.
 
 import { sendStepOutNudge } from "@/lib/pushSender";
-import { canSendStepOutNudge, type StepOutNudgePayload } from "@/lib/stepOutNudge";
+import {
+  canSendStepOutNudge,
+  STEP_OUT_NUDGE_WEEK_MS,
+  type StepOutNudgePayload,
+} from "@/lib/stepOutNudge";
 import {
   accountIdForOwnerActor,
   selectOwedStepOutNudge,
@@ -36,10 +40,13 @@ export type StepOutNudgeDispatchDeps = {
     token: string,
     payload: StepOutNudgePayload,
   ) => Promise<{ sent: number; pruned: number; errors: number }>;
-  markSent: (ownerActor: string, sentAt: string) => Promise<void>;
+  /** Stamp the row before the send while it is still due. False means another run took it. */
+  claim: (ownerActor: string, sentAt: string, resendBefore: string) => Promise<boolean>;
+  /** Put the prior stamp back after a send that reported no delivery. */
+  release: (ownerActor: string, claimedAt: string, priorSentAt: string | null) => Promise<void>;
 };
 
-function defaultStepOutNudgeDispatchDeps(): StepOutNudgeDispatchDeps {
+export function defaultStepOutNudgeDispatchDeps(): StepOutNudgeDispatchDeps {
   return {
     listEnabled: () => stepOutNudgeStore().listEnabled(),
     resolveAccountId: accountIdForOwnerActor,
@@ -52,7 +59,10 @@ function defaultStepOutNudgeDispatchDeps(): StepOutNudgeDispatchDeps {
         errors: result.errors,
       };
     },
-    markSent: (ownerActor, sentAt) => stepOutNudgeStore().markSent(ownerActor, sentAt),
+    claim: (ownerActor, sentAt, resendBefore) =>
+      stepOutNudgeStore().claimSend(ownerActor, sentAt, resendBefore),
+    release: (ownerActor, claimedAt, priorSentAt) =>
+      stepOutNudgeStore().releaseSendClaim(ownerActor, claimedAt, priorSentAt),
   };
 }
 
@@ -99,16 +109,40 @@ export async function dispatchStepOutNudges(
         summary.skippedNothingOwed += 1;
         continue;
       }
+      // Claim before the send. A cron event can arrive twice and two runs can list
+      // the same row, so only the run that wins the stamp sends.
+      const claimedAt = now.toISOString();
+      const resendBefore = new Date(now.getTime() - STEP_OUT_NUDGE_WEEK_MS).toISOString();
+      let won: boolean;
       try {
-        const result = await deps.send(pref.subscriptionToken, payload);
-        summary.sent += result.sent;
-        summary.pruned += result.pruned;
-        summary.errors += result.errors;
-        if (result.sent > 0) {
-          await deps.markSent(pref.ownerActor, now.toISOString());
-        }
+        won = await deps.claim(pref.ownerActor, claimedAt, resendBefore);
       } catch {
         summary.errors += 1;
+        continue;
+      }
+      if (!won) {
+        summary.skippedFrequency += 1;
+        continue;
+      }
+      let result: { sent: number; pruned: number; errors: number };
+      try {
+        result = await deps.send(pref.subscriptionToken, payload);
+      } catch {
+        // The push may have gone out, so keep the claim: a missed nudge beats a second one.
+        summary.errors += 1;
+        continue;
+      }
+      summary.sent += result.sent;
+      summary.pruned += result.pruned;
+      summary.errors += result.errors;
+      if (result.sent === 0) {
+        // Nothing was delivered, so put the prior stamp back and retry next run as before.
+        // If the release fails the claim stays and the nudge is missed, not doubled.
+        try {
+          await deps.release(pref.ownerActor, claimedAt, pref.lastSentAt);
+        } catch {
+          summary.errors += 1;
+        }
       }
     }
   }

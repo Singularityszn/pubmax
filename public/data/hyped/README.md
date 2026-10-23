@@ -1,4 +1,4 @@
-# Pubs people are talking about
+# Pubs Londoners keep recommending
 
 The rows `/tonight` leads with. One file per city, published by
 `npm run ingest:hyped-pubs` (`scripts/hyped-pubs-ingest.mjs`) from a research
@@ -7,8 +7,11 @@ in [data/AGENTS.md](../../../data/AGENTS.md).
 
 ## What earns a row
 
-A pub people are actually talking about somewhere public, right now. Reddit
-threads, a paper, a listings site, a local newsletter. Every row states:
+A pub people recommended somewhere public, recently. Reddit
+threads, a paper, a listings site, a local newsletter. A row whose freshest
+source is older than `HYPED_PUB_FRESH_DAYS` (120 days, `lib/hypedPubs.ts`) is
+left off every page, so a pack is re-researched before it ages out. Every row
+states:
 
 | Field | What it is |
 | --- | --- |
@@ -30,8 +33,10 @@ than quietly shorter.
 
 The ingest FILLS IN a `venueId` when the name matches exactly one curated
 venue, using the area to tell two pubs of one name apart. An ambiguous name is
-left unmatched on purpose: the row still shows, and says it is not on our map
-yet, because the wrong pin under the right name is the worst answer available.
+left unmatched on purpose: the row stays in the pack, and says it is not on our
+map yet, because the wrong pin under the right name is the worst answer
+available. The page fills its places with pinned rows first, so an unmatched
+row shows only when the pinned rows leave a place empty.
 
 ## Rules a reader should know
 

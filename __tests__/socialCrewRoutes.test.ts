@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("server-only", () => ({}));
 
-import type { SocialCrewPageDTO } from "@/lib/socialCrew";
+import { SOCIAL_CREW_HOST_CAPABILITY_HEADER, type SocialCrewPageDTO } from "@/lib/socialCrew";
 import type { SocialPostActor } from "@/lib/socialPostStore";
 
 const ALICE_ACCOUNT_ID = "10000000-0000-4000-8000-000000000001";
@@ -328,7 +328,7 @@ describe("Social Crew route authority and HTTP policy", () => {
     const malformed = await createCrew(new Request("http://localhost/api/social/crews", {
       method: "POST",
       headers: {
-        authorization: `Bearer ${HOST_CAPABILITY}`,
+        [SOCIAL_CREW_HOST_CAPABILITY_HEADER]: HOST_CAPABILITY,
         "idempotency-key": IDEMPOTENCY_KEY,
       },
       body: "{not-json",
@@ -340,7 +340,7 @@ describe("Social Crew route authority and HTTP policy", () => {
       "http://localhost/api/social/crews",
       "POST",
       { planId: PLAN_ID, visibility: "private" },
-      { authorization: `Bearer ${HOST_CAPABILITY}` },
+      { [SOCIAL_CREW_HOST_CAPABILITY_HEADER]: HOST_CAPABILITY },
     ));
     expect(missingKey.status).toBe(422);
 
@@ -348,7 +348,7 @@ describe("Social Crew route authority and HTTP policy", () => {
       "http://localhost/api/social/crews",
       "POST",
       { planId: PLAN_ID, visibility: "private", idempotencyKey: IDEMPOTENCY_KEY },
-      { authorization: `Bearer ${HOST_CAPABILITY}` },
+      { [SOCIAL_CREW_HOST_CAPABILITY_HEADER]: HOST_CAPABILITY },
     ));
     expect(bodyFallback.status).toBe(422);
     expect(store.create).not.toHaveBeenCalled();
@@ -358,7 +358,7 @@ describe("Social Crew route authority and HTTP policy", () => {
     const response = await createCrew(new Request("http://localhost/api/social/crews", {
       method: "POST",
       headers: {
-        authorization: `Bearer ${HOST_CAPABILITY}`,
+        [SOCIAL_CREW_HOST_CAPABILITY_HEADER]: HOST_CAPABILITY,
         "content-length": "9000",
         "content-type": "application/json",
         "idempotency-key": IDEMPOTENCY_KEY,
@@ -396,13 +396,51 @@ describe("Social Crew route authority and HTTP policy", () => {
 });
 
 describe("Social Crew membership routes", () => {
-  it("creates one Crew with verified ownership and header-only legacy host capability", async () => {
+  it("keeps the host capability apart from a real-length account token", async () => {
+    // A Supabase access token is far longer than the 512 characters a Plan
+    // capability may take, and the client sends it as Authorization.
+    const accessToken = `${"a".repeat(36)}.${"b".repeat(700)}.${"c".repeat(43)}`;
+    expect(accessToken.length).toBeGreaterThan(512);
+    const response = await createCrew(request(
+      "http://localhost/api/social/crews",
+      "POST",
+      { planId: PLAN_ID, visibility: "private" },
+      {
+        authorization: `Bearer ${accessToken}`,
+        [SOCIAL_CREW_HOST_CAPABILITY_HEADER]: HOST_CAPABILITY,
+        "idempotency-key": IDEMPOTENCY_KEY,
+      },
+    ));
+
+    expect(response.status).toBe(201);
+    expect(store.create).toHaveBeenCalledWith(
+      actor,
+      expect.objectContaining({ hostCapability: HOST_CAPABILITY }),
+    );
+  });
+
+  it("does not read the host capability out of Authorization", async () => {
     const response = await createCrew(request(
       "http://localhost/api/social/crews",
       "POST",
       { planId: PLAN_ID, visibility: "private" },
       {
         authorization: `Bearer ${HOST_CAPABILITY}`,
+        "idempotency-key": IDEMPOTENCY_KEY,
+      },
+    ));
+
+    expect(response.status).toBe(422);
+    expect(store.create).not.toHaveBeenCalled();
+  });
+
+  it("creates one Crew with verified ownership and the host capability in its own header", async () => {
+    const response = await createCrew(request(
+      "http://localhost/api/social/crews",
+      "POST",
+      { planId: PLAN_ID, visibility: "private" },
+      {
+        [SOCIAL_CREW_HOST_CAPABILITY_HEADER]: HOST_CAPABILITY,
         "idempotency-key": IDEMPOTENCY_KEY,
       },
     ));
@@ -434,7 +472,7 @@ describe("Social Crew membership routes", () => {
       "POST",
       body,
       {
-        authorization: `Bearer ${HOST_CAPABILITY}`,
+        [SOCIAL_CREW_HOST_CAPABILITY_HEADER]: HOST_CAPABILITY,
         "idempotency-key": IDEMPOTENCY_KEY,
       },
     ));

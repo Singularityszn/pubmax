@@ -3,6 +3,7 @@
 // only the production origin or the `pubmaxx://` fallback scheme, and only
 // explicitly supported route families.
 
+import { IOS_EMAIL_AUTH_MODE } from "@/lib/nativeEmailPkce";
 import { isNativeApp } from "@/lib/nativePlatform";
 import { navigateNativeBrowser } from "@/lib/nativeNavigation";
 import { closeSystemBrowser, isOAuthCallbackPath } from "@/lib/nativeOAuth";
@@ -68,9 +69,10 @@ export const NATIVE_DEEP_LINK_EXACT_PATHS: readonly string[] = ALLOWED_EXACT_PAT
  * opens on any build, so it is the fallback a rig can open today.
  *
  * It opens the same families as the verified links, written only as
- * `pubmaxx://map?sel=<id>`, the family in the host. It NEVER carries the
- * sign-in return: any app on a phone can register a custom scheme, so an OAuth
- * code sent over one could be read by an app that is not this one.
+ * `pubmaxx://map?sel=<id>`, the family in the host. This navigation router
+ * rejects authentication. The separate native email consumer accepts only
+ * verifier-bound PKCE returns. Other apps can register the same scheme,
+ * but an intercepted code cannot be exchanged without the app's verifier.
  */
 export const NATIVE_URL_SCHEME = "pubmaxx";
 const SCHEME_REFUSED_PATHS: readonly string[] = ["/auth/callback"];
@@ -98,10 +100,36 @@ export function nativeDeepLinkPath(rawUrl: string): string | null {
     const url = new URL(rawUrl);
     if (url.protocol === `${NATIVE_URL_SCHEME}:`) return schemeLinkPath(url);
     if (url.origin !== APP_ORIGIN) return null;
+    // The separate email auth consumer owns this mode, including direct universal-link delivery.
+    if (url.pathname === "/auth/callback" && url.searchParams.getAll("native").includes(IOS_EMAIL_AUTH_MODE)) return null;
     if (!isAllowedPath(url.pathname)) return null;
     return `${url.pathname}${url.search}${url.hash}`;
   } catch {
     return null;
+  }
+}
+
+// Capacitor keeps the launch intent for the life of the process. A full
+// document load resets this module, but keeps the WebView's session storage.
+// Store only a marker, because the launch URL can contain callback credentials.
+const LAUNCH_CONSUMED_KEY = "pubmax_native_launch_consumed_v1";
+let launchConsumedInDocument = false;
+
+function launchUrlConsumed(): boolean {
+  if (launchConsumedInDocument) return true;
+  try {
+    return window.sessionStorage.getItem(LAUNCH_CONSUMED_KEY) === "1";
+  } catch {
+    return false;
+  }
+}
+
+function consumeLaunchUrl(): void {
+  launchConsumedInDocument = true;
+  try {
+    window.sessionStorage.setItem(LAUNCH_CONSUMED_KEY, "1");
+  } catch {
+    // Storage can be unavailable. Keep the guard for this document's mounts.
   }
 }
 
@@ -123,15 +151,25 @@ export async function activateNativeDeepLinks(
       // The provider's redirect is the moment the system browser is done
       // (lib/nativeOAuth.ts): close it before the WebView takes the callback,
       // or iOS leaves the sign-in page presented over the signed-in app.
-      if (isOAuthCallbackPath(path)) void closeSystemBrowser();
-      navigate(path);
+      if (isOAuthCallbackPath(path)) {
+        // Replacing the document first can discard the asynchronous plugin close.
+        void closeSystemBrowser().then(() => navigate(path));
+      } else {
+        navigate(path);
+      }
     };
 
     const listener = await App.addListener("appUrlOpen", ({ url }) => route(url));
     removeListener = () => listener.remove();
 
-    const launch = await App.getLaunchUrl();
-    if (launch?.url) route(launch.url);
+    if (!launchUrlConsumed()) {
+      const launch = await App.getLaunchUrl();
+      // Two activations may await the same native reply. Claim it before routing.
+      if (!launchUrlConsumed()) {
+        consumeLaunchUrl();
+        if (launch?.url) route(launch.url);
+      }
+    }
 
     return () => {
       void removeListener?.();

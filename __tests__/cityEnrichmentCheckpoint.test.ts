@@ -35,6 +35,7 @@ import {
   runLevelFailure,
   venueRetryDue,
 } from "@/lib/cityEnrichmentCheckpoint";
+import { defined } from "@/__tests__/helpers/defined";
 
 const NOW = Date.parse("2026-09-05T03:15:13.000Z");
 
@@ -107,8 +108,8 @@ describe("bounded retries", () => {
   it("holds a deferred venue back until its backoff has passed", () => {
     const deferred = recordVenueFailure(fresh(), { osmId: "node/1", error: "503", now: NOW })
       .checkpoint;
-    expect(venueRetryDue(deferred.deferred[0], NOW)).toBe(false);
-    expect(venueRetryDue(deferred.deferred[0], NOW + VENUE_RETRY_BACKOFF_MS[0] + 1)).toBe(true);
+    expect(venueRetryDue(defined(deferred.deferred[0]), NOW)).toBe(false);
+    expect(venueRetryDue(defined(deferred.deferred[0]), NOW + VENUE_RETRY_BACKOFF_MS[0] + 1)).toBe(true);
 
     const soon = planCityEnrichment(deferred, { now: NOW, queryBudget: 10 });
     expect(soon.retryOsmIds).toEqual([]);
@@ -228,9 +229,9 @@ describe("the retry path a refusal is recorded with", () => {
     const moved = requeueTerminalVenues(checkpoint, { now: NOW });
     expect(moved.requeued).toEqual(["node/1"]);
     expect(moved.checkpoint.terminal).toEqual([]);
-    expect(venueRetryDue(moved.checkpoint.deferred[0], NOW)).toBe(true);
+    expect(venueRetryDue(defined(moved.checkpoint.deferred[0]), NOW)).toBe(true);
     // Its attempts start again, so the requeue is a real second chance.
-    expect(moved.checkpoint.deferred[0].attempts).toBe(0);
+    expect(defined(moved.checkpoint.deferred[0]).attempts).toBe(0);
   });
 
   it("moves only the venues it was asked for", () => {
@@ -352,7 +353,7 @@ describe("the queue age", () => {
     const health = cityEnrichmentHealth(deferred, past);
     expect(health.queueAgeAlert).toBe(true);
     // The stamp it measured from, so an operator can go and look at the row.
-    expect(health.oldestDeferredFirstFailedAt).toBe(deferred.deferred[0].firstFailedAt);
+    expect(health.oldestDeferredFirstFailedAt).toBe(defined(deferred.deferred[0]).firstFailedAt);
   });
 
   it("ignores a stamp it cannot read rather than reporting an age it invented", () => {

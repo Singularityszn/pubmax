@@ -4,6 +4,7 @@ import { GET } from "@/app/api/tonight-conditions/route";
 import { resolveTonightConditions } from "@/lib/tonightConditionsRoute";
 import type { ConciergeVenue } from "@/lib/concierge/rank";
 import type { WeatherSnapshot } from "@/lib/weatherSnapshots";
+import { defined } from "@/__tests__/helpers/defined";
 
 // Hermetic weather fixtures. These tests must NOT read the shipped
 // public/data/weather/latest.json — the live refresh workflow rewrites it (0 or
@@ -39,13 +40,24 @@ const WARM_DRY = snapshot([
 
 const EMPTY = snapshot([]);
 
-// The same reading, two days old: long past its 12h expiry at NOW.
+// The same reading, 20 hours old: past its 12h expiry at NOW, inside the 30h
+// cut-off (WEATHER_READING_MAX_AGE_MS), as an evening between refreshes is.
 const STALE = snapshot([
   {
-    ...WARM_DRY.observations[0],
+    ...defined(WARM_DRY.observations[0]),
+    observedAt: "2026-07-17T23:00:00.000Z",
+    expiresAt: "2026-07-18T11:00:00.000Z",
+    source: { ...defined(WARM_DRY.observations[0]).source, publishedAt: "2026-07-17T23:00:00.000Z" },
+  },
+]);
+
+// The same reading, two days old: past the cut-off, so it is no reading.
+const TOO_OLD = snapshot([
+  {
+    ...defined(WARM_DRY.observations[0]),
     observedAt: "2026-07-16T18:45:00.000Z",
     expiresAt: "2026-07-17T06:45:00.000Z",
-    source: { ...WARM_DRY.observations[0].source, publishedAt: "2026-07-16T18:45:00.000Z" },
+    source: { ...defined(WARM_DRY.observations[0]).source, publishedAt: "2026-07-16T18:45:00.000Z" },
   },
 ]);
 
@@ -111,13 +123,18 @@ describe("resolveTonightConditions (hermetic weather seam)", () => {
     expect(loaded).toBe(false);
     expect(summary).toMatchObject({
       stale: true,
-      checkedLabel: "Last checked 2 days ago",
+      checkedLabel: "Last checked 20 hours ago",
       drinkLine: "",
       drinkSuggestion: "",
       venueClaim: null,
     });
-    expect(summary?.factsLine).toBe("Last read of the sky: 22°C feels like, clear, 0% chance of rain, 12 km/h wind.");
+    expect(summary?.factsLine).toBe("Last reading: feels like 22°C, clear, 0% chance of rain, 12 km/h wind.");
     expect(summary?.factsLine).not.toMatch(/garden/i);
+  });
+
+  it("a reading older than the cut-off is no reading at all", async () => {
+    const summary = await resolveTonightConditions({ point: CENTRE, now: NOW, snapshot: TOO_OLD });
+    expect(summary).toBeNull();
   });
 
   it("does not load venues when there is no location, even with a populated fixture", async () => {

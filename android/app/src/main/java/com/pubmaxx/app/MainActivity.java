@@ -1,6 +1,7 @@
 package com.pubmaxx.app;
 
 import android.os.Bundle;
+import android.webkit.CookieManager;
 import android.webkit.WebView;
 import com.getcapacitor.BridgeActivity;
 import com.getcapacitor.JSObject;
@@ -21,11 +22,17 @@ public class MainActivity extends BridgeActivity {
      * SplashScreen.hide() reaches nothing. iOS gives the page the bridge.
      *
      * So once the error page has loaded, the shell releases the splash itself.
+     *
+     * The same page's "Try again" goes to the site root, which would drop the
+     * reader's destination. OfflineRetryWebViewClient remembers the one failed
+     * main-frame URL and sends the retry back to it.
      */
     @Override
     protected void onCreate(Bundle savedInstanceState) {
+        registerPlugin(PageSystemBars.class);
         super.onCreate(savedInstanceState);
         if (bridge == null) return;
+        bridge.setWebViewClient(new OfflineRetryWebViewClient(bridge));
         OfflineSplashRelease release = new OfflineSplashRelease(
             bridge::getErrorUrl,
             () -> bridge.callPluginMethod("SplashScreen", "hide", new ShellCall("SplashScreen", "hide"))
@@ -38,6 +45,21 @@ public class MainActivity extends BridgeActivity {
                 }
             }
         );
+    }
+
+    /**
+     * THE PLAN MEMBER COOKIE REACHES DISK BEFORE THE PROCESS CAN DIE (#1540).
+     *
+     * The WebView writes cookies to disk on a timer of about 30 seconds, so a
+     * host who made a Plan and then swiped the app away inside that window lost
+     * the persistent member cookie with the process, and a cold start on the
+     * Plan's link showed its host the invitee teaser. Going to the background
+     * is the last moment the shell is sure to run, so it flushes there.
+     */
+    @Override
+    public void onPause() {
+        super.onPause();
+        CookieManager.getInstance().flush();
     }
 
     /**

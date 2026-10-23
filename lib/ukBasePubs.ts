@@ -33,10 +33,13 @@ import {
   type ShardManifest,
   parseShardManifest,
 } from "@/lib/slimShards";
+import { lngLatOf } from "@/lib/geo";
+import { displayVenueName, venueSourceNameField } from "@/lib/venueDisplay";
 import { UK_BASE_ID_PREFIX } from "@/lib/cityVenueIds";
 import { spoonsValuePinFor, type SpoonsValuePinLane } from "@/lib/spoonsValue";
 import { discardBody } from "@/lib/responseBody";
 import { offlineCache } from "@/lib/offlineCache";
+import { omitVerifiedClosedPubs } from "@/lib/verifiedClosedPubs";
 
 export const UK_BASE_MANIFEST_PATH = "/data/uk_base/manifest.json";
 export const UK_BASE_SHARD_VERSION = 1;
@@ -64,11 +67,26 @@ export const MAX_PROVISIONAL_BASE_VENUE_IDS = 64;
  */
 type UkBaseVenueKind = "pub" | "bar";
 
+/**
+ * What a pub OSM maps with no `name` tag is called on the map. It is a label,
+ * not a name: the sheet says the name is not known yet, and nothing that lists
+ * or searches pubs by name may ever read it as one.
+ */
+export const UNNAMED_PUB_LABEL = "Pub";
+
 /** A pub on the base layer. No price field exists: OSM is not a price source. */
 export type UkBasePub = {
   /** `venue-uk-<osm ref>`, e.g. `venue-uk-n251829660`. Stable across refreshes. */
   id: string;
+  /** The OSM name (operator suffix dropped, lib/venueDisplay.ts), or UNNAMED_PUB_LABEL when `unnamed` is set. */
   name: string;
+  /** The OSM name as mapped, present only when it carried an operator suffix; search only. */
+  sourceName?: string;
+  /**
+   * Set only when OSM states a pub with no name. Absent on every named pub, so
+   * a named pub's record and its map feature are byte-for-byte what they were.
+   */
+  unnamed?: true;
   /** OSM address, or "" when the pack had none. Never invented. */
   address: string;
   lat: number;
@@ -103,8 +121,9 @@ function isShardRow(value: unknown): value is ShardRow {
     (value.length === 6 || (value.length === 7 && value[6] === "bar")) &&
     typeof value[0] === "string" &&
     value[0].length > 0 &&
+    // "" is an unnamed pub (see parseUkBaseShard); a bar always has its name.
     typeof value[1] === "string" &&
-    value[1].length > 0 &&
+    (value[1].length > 0 || value.length === 6) &&
     typeof value[2] === "string" &&
     typeof value[3] === "number" &&
     Number.isFinite(value[3]) &&
@@ -125,9 +144,11 @@ export function parseUkBaseShard(value: unknown): UkBasePub[] {
   const pubs: UkBasePub[] = [];
   for (const row of rows) {
     if (!isShardRow(row)) continue;
+    const unnamed = row[1].length === 0;
     pubs.push({
       id: ukBaseIdFor(row[0]),
-      name: row[1],
+      name: unnamed ? UNNAMED_PUB_LABEL : displayVenueName(row[1]),
+      ...(unnamed ? { unnamed: true as const } : venueSourceNameField(row[1])),
       address: row[2],
       lat: row[3],
       lng: row[4],
@@ -360,7 +381,10 @@ const MANIFEST_OFFLINE_KEY = "uk_base_manifest:v1";
  * serves `/data/*.json` stale-while-revalidate, and duplicating the whole shard pack into
  * IndexedDB to re-paint a layer that carries no prices is not worth the quota.
  */
-export function createUkBaseLoader(): UkBaseLoader {
+export function createUkBaseLoader(options?: {
+  /** Test seam. Production reads the committed closed-pub refs. */
+  closedOsmRefs?: ReadonlySet<string>;
+}): UkBaseLoader {
   let manifestPromise: Promise<ShardManifest | null> | null = null;
   // Insertion-ordered LRU: re-reading a shard moves it to the back.
   const resident = new Map<string, UkBasePub[]>();
@@ -432,8 +456,11 @@ export function createUkBaseLoader(): UkBaseLoader {
         if (!response.ok) throw new Error(`HTTP ${response.status}`);
         const pubs = parseUkBaseShardForEntry(await response.json(), entry);
         if (!pubs) throw new Error("Invalid UK base shard");
-        touch(entry.url, pubs);
-        return { status: "ready" as const, pubs };
+        // Shard rows stay on disk. A pub verified permanently closed is
+        // omitted from the drawable set the map already reads.
+        const visible = omitVerifiedClosedPubs(pubs, options?.closedOsmRefs);
+        touch(entry.url, visible);
+        return { status: "ready" as const, pubs: visible };
       })
       .catch(() => ({ status: "unavailable" as const, pubs: [] }))
       .finally(() => {
@@ -557,6 +584,9 @@ export function ukBasePubsToGeoJSON(
           // `kind` at all, so the pin layers and every existing reader are
           // untouched by bars joining the source.
           ...(pub.kind === "bar" ? { kind: "bar" } : {}),
+          // Additive for the same reason: only a pub with no name carries it,
+          // and the layers read it to hold that pin back to street zoom.
+          ...(pub.unnamed ? { unnamed: true } : {}),
           ...(spoons && spoons.label
             ? { spoonsBucket: spoons.bucket, spoonsLabel: spoons.label }
             : {}),
@@ -585,14 +615,16 @@ export function ukBasePubFromFeature(feature: {
   const props = feature.properties;
   const geometry = feature.geometry;
   if (!props || geometry?.type !== "Point") return null;
-  const { id, name, address, curatedVenueId, kind } = props;
+  const { id, name, address, curatedVenueId, kind, unnamed } = props;
   if (typeof id !== "string" || !isUkBaseId(id)) return null;
   if (typeof name !== "string" || name.length === 0) return null;
-  const [lng, lat] = geometry.coordinates;
-  if (!Number.isFinite(lng) || !Number.isFinite(lat)) return null;
+  const lngLat = lngLatOf(geometry.coordinates);
+  if (!lngLat || !lngLat.every(Number.isFinite)) return null;
+  const [lng, lat] = lngLat;
   return {
     id,
     name,
+    ...(unnamed === true ? { unnamed: true as const } : {}),
     address: typeof address === "string" ? address : "",
     lat,
     lng,

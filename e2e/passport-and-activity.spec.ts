@@ -35,7 +35,7 @@ test.describe("/u/you — signed-out identity invitation (fresh context, no loca
 
     const invite = page.locator(".youIdentityIntro");
     await expect(invite).toBeVisible();
-    await expect(invite.getByRole("heading", { name: "Make the night yours." })).toBeVisible();
+    await expect(invite.getByRole("heading", { name: "Claim your @handle." })).toBeVisible();
 
     // One primary CTA (start identity) + one quiet secondary — no more. The
     // primary is a real door to /login: as an in-page anchor it scrolled the
@@ -124,15 +124,17 @@ test.describe("/u/you — signed-out identity invitation (fresh context, no loca
 // ---------------------------------------------------------------------------
 // Notifications bell (nav) + /activity (story 34).
 test.describe("notifications — bell + activity feed", () => {
-  test("the notification bell renders in the site nav", async ({ page }) => {
+  test("the site nav draws no bell for a signed-out visitor", async ({ page }) => {
+    // Oct 2026 UX audit: a stranger has no activity, so an icon with nothing
+    // behind it is not drawn. The signed-in bell is held by
+    // __tests__/notificationBellSignedOut.test.tsx.
     const errors = watchPageErrors(page);
 
     const response = await page.goto("/feed", { waitUntil: "domcontentloaded" });
     expect(response?.status()).toBe(200);
 
-    const bell = page.locator(".siteNavBell").first();
-    await expect(bell).toBeVisible();
-    await expect(bell).toHaveAttribute("href", "/activity");
+    await expect(page.locator(".siteNavBar").first()).toBeVisible();
+    await expect(page.locator('.siteNavBar a[href="/activity"]')).toHaveCount(0);
 
     expect(errors).toEqual([]);
   });
@@ -176,7 +178,9 @@ test.describe("notifications — bell + activity feed", () => {
     expect(response?.status()).toBe(200);
 
     const emptyNothingYet = page.locator(".emptyState");
-    const list = page.locator(".activityList");
+    // The loading skeleton paints an aria-hidden `.activityList` of its own, so
+    // only the settled feed counts as the populated outcome.
+    const list = page.locator(".activityList:not([aria-hidden='true'])");
     await expect
       .poll(async () => (await emptyNothingYet.count()) + (await list.count()))
       .toBeGreaterThan(0);

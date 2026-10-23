@@ -2,6 +2,7 @@ import { expect, test, type Page } from "@playwright/test";
 
 import {
   ACCOUNTS,
+  accessJwt,
   DEVICE_ACCOUNTS_KEY,
   decodeResumeCookie,
   installAuthDoubles,
@@ -12,6 +13,7 @@ import {
   type Stub,
 } from "./helpers/authDoubles";
 import { runnerShotDir } from "./helpers/runnerShotDir";
+import { expectStreamedPageSettled } from "./helpers/streamedPage";
 
 // The signed-in account is the ONLY identity authority.
 //
@@ -27,18 +29,62 @@ import { runnerShotDir } from "./helpers/runnerShotDir";
 
 const SHOTS = runnerShotDir("pubmax-account-switch");
 
+for (const width of [390, 1440]) {
+  for (const exit of ["switch", "sign-out"] as const) {
+    test(`unclaimed onboarding can ${exit} to the owned account at ${width}px`, async ({ page }, testInfo) => {
+      await page.setViewportSize({ width, height: 900 });
+      const stub = await installAuthDoubles(page);
+      await seedSignedIn(page, "A");
+      await page.goto("/today");
+      await expect.poll(async () => (await readDeviceIdentity(page)).handle).toBe(ACCOUNTS.A.handle);
+      await stub.signedInAs("B");
+      stub.setServerHandle(null);
+      await page.route("**/api/identity/{handle/current,onboarding}", async (route) => {
+        const bearer = route.request().headers().authorization;
+        const owned = bearer === `Bearer ${accessJwt(ACCOUNTS.A)}` || bearer === "Bearer pubmaxx-e2e-access-token-A";
+        await route.fulfill({ json: { complete: false, handle: owned ? ACCOUNTS.A.handle : null } });
+      });
+      const claims: string[] = [];
+      page.on("request", (request) => {
+        if (request.method() === "POST" && /\/api\/identity\/(?:onboarding|handle\/claim)$/.test(new URL(request.url()).pathname)) claims.push(request.url());
+      });
+      await page.goto("/u/you");
+      const dialog = page.getByRole("dialog", { name: "Let's get you in", exact: true });
+      await expect(dialog).toBeVisible();
+      await expect(dialog.getByText(`Signed in as ${ACCOUNTS.B.email}`, { exact: true })).toBeVisible();
+      await expect(dialog.getByRole("button", { name: "Claim handle", exact: true })).toBeDisabled();
+      await page.keyboard.press("Escape");
+      await expect(dialog).toBeVisible();
+      if (exit === "switch") {
+        await dialog.getByRole("button", { name: "Switch account", exact: true }).click();
+        await dialog.locator(".authSwitcherRow").filter({ hasText: `@${ACCOUNTS.A.handle}` }).click();
+      } else {
+        await dialog.getByRole("button", { name: "Sign out of this account", exact: true }).click();
+      }
+      await expect(dialog).toHaveCount(0);
+      await expect.poll(async () => (await readDeviceIdentity(page)).handle).toBe(ACCOUNTS.A.handle);
+      const accounts = await readDeviceAccounts(page);
+      expect(accounts.find((account) => account.userId === ACCOUNTS.A.id)?.handle).toBe(ACCOUNTS.A.handle);
+      expect(claims).toEqual([]);
+      await page.screenshot({ path: testInfo.outputPath(`onboarding-${exit}-${width}.png`) });
+    });
+  }
+}
+
 
 
 /** Put both accounts in the lane by signing each of them in, in turn. */
 async function seedBothAccounts(page: Page, stub: Stub, landing: string): Promise<void> {
   await seedSignedIn(page, "A");
   await page.goto(landing);
+  await expectStreamedPageSettled(page);
   await expect
     .poll(async () => (await readDeviceIdentity(page)).handle, { timeout: 10_000 })
     .toBe(ACCOUNTS.A.handle);
 
   await stub.signedInAs("B");
   await page.goto(landing);
+  await expectStreamedPageSettled(page);
   await expect
     .poll(async () => (await readDeviceIdentity(page)).handle, { timeout: 10_000 })
     .toBe(ACCOUNTS.B.handle);
@@ -96,6 +142,7 @@ test.describe("account switch on one device", () => {
     await seedSignedIn(page, "A");
 
     await page.goto("/today");
+    await expectStreamedPageSettled(page);
     await expect
       .poll(async () => (await readDeviceIdentity(page)).handle, { timeout: 10_000 })
       .toBe(ACCOUNTS.A.handle);
@@ -113,6 +160,7 @@ test.describe("account switch on one device", () => {
     await stub.signedInAs("B");
     await page.goto("/today");
     await page.waitForLoadState("domcontentloaded");
+    await expectStreamedPageSettled(page);
 
     await expect
       .poll(async () => (await readDeviceIdentity(page)).handle, { timeout: 10_000 })
@@ -124,6 +172,7 @@ test.describe("account switch on one device", () => {
     // The Today greeting read the device handle straight from storage and kept
     // saying "Good afternoon, karan" over the second account's whole visit.
     await page.goto("/today");
+    await expectStreamedPageSettled(page);
     // `.first()`: the outgoing tree can still be mounted for a beat after a
     // navigation, and this assertion is about the WORDS in the greeting.
     await expect(page.getByTestId("today-greeting").first()).toBeVisible();
@@ -149,6 +198,7 @@ test.describe("account switch on one device", () => {
     const stub = await installAuthDoubles(page);
     await seedSignedIn(page, "A");
     await page.goto("/today");
+    await expectStreamedPageSettled(page);
     await expect
       .poll(async () => (await readDeviceIdentity(page)).handle, { timeout: 10_000 })
       .toBe(ACCOUNTS.A.handle);
@@ -160,6 +210,7 @@ test.describe("account switch on one device", () => {
     stub.setServerHandle(null);
     await page.goto("/today");
     await page.waitForLoadState("domcontentloaded");
+    await expectStreamedPageSettled(page);
 
     await expect
       .poll(async () => (await readDeviceIdentity(page)).handle, { timeout: 10_000 })
@@ -183,6 +234,7 @@ test.describe("account switch on a desktop viewport", () => {
     // it is not the identity contract this spec is about.
     await page.goto("/social");
     await page.waitForLoadState("domcontentloaded");
+    await expectStreamedPageSettled(page);
     // The canonical read lands and owns the device handle.
     await expect
       .poll(async () => (await readDeviceIdentity(page)).handle, { timeout: 10_000 })
@@ -217,6 +269,7 @@ test.describe("account switch on a desktop viewport", () => {
     const stub = await installAuthDoubles(page);
     await seedSignedIn(page, "A");
     await page.goto("/today");
+    await expectStreamedPageSettled(page);
     await expect
       .poll(async () => (await readDeviceIdentity(page)).handle, { timeout: 10_000 })
       .toBe(ACCOUNTS.A.handle);
@@ -224,6 +277,7 @@ test.describe("account switch on a desktop viewport", () => {
     await stub.signedInAs("B");
     await page.goto("/today");
     await page.waitForLoadState("domcontentloaded");
+    await expectStreamedPageSettled(page);
 
     await expect
       .poll(async () => (await readDeviceIdentity(page)).handle, { timeout: 10_000 })
@@ -348,6 +402,7 @@ test.describe("switching between two accounts on one device", () => {
     await stub.signedInAs("A");
     await page.goto("/social");
     await page.waitForLoadState("domcontentloaded");
+    await expectStreamedPageSettled(page);
     await expect
       .poll(async () => (await readDeviceIdentity(page)).handle, { timeout: 15_000 })
       .toBe(ACCOUNTS.A.handle);
@@ -387,6 +442,7 @@ test.describe("switching between two accounts on one device", () => {
       { key: DEVICE_ACCOUNTS_KEY, userId: ACCOUNTS.A.id },
     );
     await page.reload();
+    await expectStreamedPageSettled(page);
 
     await openAccountMenu(page);
     await openSwitcher(page);

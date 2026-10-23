@@ -4,8 +4,8 @@
 // The user asks in natural language; the tool registry answers from
 // listed pubs, What's On, CityMCP, heritage, and prices. Cards keep provenance.
 // Proposals need an explicit Confirm (ADR 0006). In-thread turns may refine an
-// ask; durable Pal memory stays confirm-gated elsewhere. Web grounding stays
-// OFF (lib/palChat PAL_WEB_GROUNDING).
+// ask; durable Pal memory is written only by the person's own Confirm on a
+// memory card. Web grounding stays OFF (lib/palChat PAL_WEB_GROUNDING).
 
 import {
   useCallback,
@@ -17,11 +17,16 @@ import {
   useSyncExternalStore,
 } from "react";
 import Link from "next/link";
+import type { Route } from "next";
+
+import PalCardPrice from "@/components/pal/PalCardPrice";
 import { useRouter } from "next/navigation";
 import { ArrowUp, MapPin, Sparkles } from "lucide-react";
 
 import { PubPalMascot } from "@/components/pal/PubPalMascot";
+import PalRecommendationMap from "@/components/pal/PalRecommendationMap";
 import Screen from "@/components/ui/screen";
+import { Button } from "@/components/ui/button";
 
 import { useAuth } from "@/components/auth/AuthProvider";
 import { useViewerSession } from "@/components/auth/useViewerSession";
@@ -29,8 +34,9 @@ import IntentLink from "@/components/nav/IntentLink";
 import SiteNav from "@/components/nav/SiteNav";
 import { captureAccountAuth } from "@/lib/accountBoundFetch";
 import { trackEvent } from "@/lib/analytics";
-import type { AskProposal } from "@/lib/ask/types";
+import type { AskProposal, AskTurn } from "@/lib/ask/types";
 import { occupancyReceiptLine } from "@/lib/occupancy";
+import { confirmPalMemoryProposal } from "@/lib/palMemoryConfirmClient";
 import { confirmOccupancyProposal } from "@/components/map/useVenueOccupancy";
 import { DEFAULT_CITY_ID } from "@/lib/cities";
 import { writeAskPlanDraft } from "@/lib/conciergeAskClient";
@@ -44,22 +50,40 @@ import {
 import { rankNearMe } from "@/lib/nearMeAnswer";
 import { CENTRAL_PATCH, readRememberedArea, resolveNightPatch } from "@/lib/nightPatches";
 import {
+  palFlyToHref,
   palKnownVenueIds,
   resolvePalVenueOpenTarget,
 } from "@/lib/palOpenVenue";
-import { formatPalWhen, type PalAnswer, type PalCard } from "@/lib/palChat";
-import { venueAcceptUrl } from "@/lib/venueMapUrl";
-import { palRecall, type PalRecall } from "@/lib/palRecall";
+import { isPlanActiveNow, readActivePlan } from "@/lib/activePlan";
+import { readPlanMemberProjection } from "@/components/plan/usePlanMemberRead";
+import {
+  palNextStop,
+  palNightStopsFrom,
+  palAsksForMap,
+  palVoiceMapIntent,
+} from "@/lib/palVoiceTranscript";
+import { palMapAskTarget, palPubAskVenue, type PalMapAskVenue } from "@/lib/palMapAsk";
+import { formatPalWhen, type PalCard } from "@/lib/palChat";
+import { venueAcceptUrl, venueMapUrl } from "@/lib/venueMapUrl";
+import { palRecall } from "@/lib/palRecall";
 import { palLocalityLine, resolvePalLocality, type PalLocality } from "@/lib/palLocality";
+import { PLAN_FIELD_LABEL } from "@/lib/planCopy";
 import { planPalRouteHandoffHref } from "@/lib/planOccasion";
 import { writePlanningIntent } from "@/lib/planningIntent";
+import { authedActionFetch } from "@/lib/authedFetch";
+import { palChatResultFromBody } from "@/lib/palChatClient";
+import { palOpeningMessage } from "@/lib/palOpening";
 import { createPalChatSession } from "@/lib/palChatClient";
+import { refineRoutedAskQuery } from "@/lib/ask/router";
+import { clearPalChatThread, palChatMapAnswer, readPalChatThread, savePalChatThread, type PalChatEntry as Entry, type PalChatThread } from "@/lib/palChatThread";
 import {
   cheapestGlanceLine,
+  cheapestGlanceReceipt,
   countTonightKinds,
   GLANCE_QUIET_EXIT,
   GLANCE_QUIET_LINE,
   tonightGlanceLine,
+  tonightGlanceReceipt,
   type CheapestGlanceCard,
 } from "@/lib/palGlance";
 import { formatPrice } from "@/lib/venues";
@@ -73,18 +97,44 @@ import { useWhatsOnTonight } from "@/components/map/useWhatsOnTonight";
 
 import "./palChat.css";
 
-type Entry =
-  | { kind: "user"; id: string; text: string }
-  | {
-      kind: "answer";
-      id: string;
-      answer: PalAnswer;
-      locality: PalLocality | null;
-      proposals: AskProposal[];
-      /** In-thread recall only (lib/palRecall). Never a durable memory. */
-      recall: PalRecall | null;
+/**
+ * What "take me there" points at in the written chat: the newest Pal answer
+ * only, never an older one. Its first pub proposal, else its first pub card;
+ * with neither, its words are read for a listed pub (lib/palMapAsk.ts).
+ */
+function palLastAnswerVenue(entries: readonly Entry[]): {
+  venue: PalMapAskVenue | null;
+  palLines: string[];
+} {
+  for (let index = entries.length - 1; index >= 0; index -= 1) {
+    const entry = entries[index]!;
+    if (entry.kind !== "answer") continue;
+    const { cards, message } = entry.answer;
+    const cardName = (venueId: string): string | undefined => {
+      const card = cards.find((row) => row.venueId === venueId);
+      // A journey card is titled "Journey 1" and names the pub as its place.
+      return card ? (/^Journey \d/.test(card.title) ? card.place : card.title) || undefined : undefined;
+    };
+    for (const proposal of entry.proposals) {
+      if (proposal.kind === "open_venue") {
+        return {
+          venue: { id: proposal.venueId, name: cardName(proposal.venueId) ?? proposal.label.replace(/^Open\s+/, "") },
+          palLines: [],
+        };
+      }
+      if (proposal.kind === "fly_to" && proposal.venueId) {
+        return {
+          venue: { id: proposal.venueId, name: cardName(proposal.venueId) ?? proposal.place ?? proposal.label },
+          palLines: [],
+        };
+      }
     }
-  | { kind: "error"; id: string; message: string; needsSignIn?: boolean };
+    const card = cards.find((row) => row.venueId);
+    if (card) return { venue: { id: card.venueId, name: cardName(card.venueId) ?? card.title }, palLines: [] };
+    return { venue: null, palLines: [message] };
+  }
+  return { venue: null, palLines: [] };
+}
 
 function VenueLink({
   card,
@@ -150,7 +200,7 @@ function ProvChip({ card }: { card: PalCard }) {
   return <span className="palChatProv">{label}</span>;
 }
 
-// Explicit Pub Pal acceptance (§4.8: Pal owns its own "Use this Venue", distinct
+// Explicit Pub Pal acceptance (§4.8: Pal owns its own "Use this pub", distinct
 // from browsing). Writes a source-"pal" PlanningIntent then hands off to the Map
 // acceptance URL. Storage failure is swallowed by writePlanningIntent; the href
 // still carries accept=1&src=pal so the handoff never depends on client storage.
@@ -187,13 +237,11 @@ export function AnswerCard({
         <VenueLink card={card} onOpen={onOpen} knownVenueIds={knownVenueIds}>
           <div className="palChatCardTop">
             <p className="palChatCardTitle">{card.title}</p>
-            {typeof card.price === "number" ? (
-              <span className="palChatCardPrice">£{card.price.toFixed(2)}</span>
-            ) : null}
+            <PalCardPrice card={card} className="palChatCardPrice" />
           </div>
           {card.place ? (
             <p className="palChatCardPlace">
-              <MapPin size={12} aria-hidden="true" />
+              <MapPin size={14} aria-hidden="true" />
               <span>{card.place}</span>
             </p>
           ) : null}
@@ -207,6 +255,11 @@ export function AnswerCard({
         </VenueLink>
         <div className="palChatCardMeta">
           <ProvChip card={card} />
+          {[card.menuEvidence?.caloriesProvenance, card.menuEvidence?.dietaryProvenance].map((field, index) => field && field.sourceUrl !== card.provenance.url ? (
+            <a key={index} className="palChatProv palChatProv--link" href={field.sourceUrl} target="_blank" rel="noreferrer noopener">
+              {index === 0 ? "Calorie source" : "Dietary source"}: {field.source}
+            </a>
+          ) : null)}
           {card.confidence ? (
             <span className="palChatConfidence">{card.confidence}</span>
           ) : null}
@@ -219,7 +272,7 @@ export function AnswerCard({
           href={venueAcceptUrl(card.venueId, "pal")}
           onClick={() => acceptPalVenue(card, locality)}
         >
-          Use this Venue
+          Use this pub
         </Link>
       ) : null}
     </li>
@@ -227,16 +280,28 @@ export function AnswerCard({
 }
 
 export default function PalChat() {
+  const { user } = useAuth();
+  const viewer = useViewerSession();
+  const owner = user?.id ?? (viewer.signedOut ? "anonymous" : null);
+  return <PalChatBody key={user?.id ?? "anonymous"} owner={owner} />;
+}
+
+function PalChatBody({ owner }: { owner: string | null }) {
   const router = useRouter();
-  const { user, session } = useAuth();
+  const { user, session, providerAuthState } = useAuth();
   const viewerSession = useViewerSession();
   const auth = captureAccountAuth(user?.id ?? null, session);
   const [entries, setEntries] = useState<Entry[]>([]);
   const [query, setQuery] = useState("");
+  const browserReady = useSyncExternalStore(() => () => {}, () => true, () => false);
+  const inputReady = browserReady && owner !== null;
   const [pending, setPending] = useState(false);
+  // The answer text so far while the Pal is still writing it, "" until it starts.
+  const [streamText, setStreamText] = useState("");
   const [knownVenueIds, setKnownVenueIds] = useState<ReadonlySet<string> | null>(null);
   const inputId = useId();
   const scrollRef = useRef<HTMLDivElement | null>(null);
+  const newestAnswerRef = useRef<HTMLDivElement | null>(null);
   // The composer is pinned over the foot of the page and rides up by the
   // keyboard's own inset; when the keyboard is up the tab bar has stepped
   // aside, so the bar's lane is not reserved under it.
@@ -247,15 +312,75 @@ export default function PalChat() {
     serverSoftKeyboardOpen,
   );
   const composerInput = useRef<HTMLInputElement | null>(null);
+  const openingReadRef = useRef(0);
   const sessionRef = useRef<ReturnType<typeof createPalChatSession> | null>(null);
   const counterRef = useRef(0);
   // Every ask this thread has carried, oldest first. In-thread only.
   const priorAsksRef = useRef<string[]>([]);
+  const conversationRef = useRef({ id: "", at: 0 });
+  const turnsRef = useRef<AskTurn[]>([]);
+  const savedEntriesRef = useRef<Entry[] | null>(null);
+  const createSession = useCallback((initial?: Pick<PalChatThread, "turns" | "conversationId">) => createPalChatSession({
+    initialTurns: initial?.turns,
+    initialConversationId: initial?.conversationId,
+    onConversationId(id) { conversationRef.current = { id, at: Date.now() }; },
+    onTurns(turns) { turnsRef.current = turns; },
+  }), []);
+
+  useEffect(() => {
+    if (!owner || sessionRef.current || priorAsksRef.current.length) return;
+    const saved = readPalChatThread(owner);
+    if (!saved?.entries.length) return;
+    let active = true;
+    queueMicrotask(() => {
+      if (!active) return;
+      sessionRef.current = createSession(saved);
+      conversationRef.current = { id: saved.conversationId, at: saved.conversationAt };
+      counterRef.current = saved.entries.length;
+      priorAsksRef.current = saved.priorAsks;
+      turnsRef.current = saved.turns;
+      savedEntriesRef.current = saved.entries;
+      setEntries(saved.entries);
+    });
+    return () => { active = false; };
+  }, [owner, createSession]);
+
+  useEffect(() => {
+    if (!owner || pending || !entries.length || entries === savedEntriesRef.current) return;
+    savePalChatThread(owner, entries, conversationRef.current.id, conversationRef.current.at, turnsRef.current);
+    savedEntriesRef.current = entries;
+  }, [entries, pending, owner]);
 
   const nextId = useCallback(() => {
     counterRef.current += 1;
     return `t-${counterRef.current}`;
   }, []);
+
+  useEffect(() => {
+    if (!owner || owner === "anonymous" || entries.length || sessionRef.current || readPalChatThread(owner)?.entries.length) return;
+    const request = ++openingReadRef.current;
+    let active = true;
+    void (async () => {
+      let answer = palOpeningMessage("", { memories: null, taste: null });
+      let conversationId = "";
+      try {
+        const response = await authedActionFetch("/api/pub-pal/chat", { method: "GET" }, { requiresIdentity: true });
+        const body = await response.json();
+        const result = palChatResultFromBody(body);
+        if (response.ok && result.status !== "error") {
+          answer = result.message;
+          conversationId = typeof body.conversationId === "string" ? body.conversationId : "";
+        }
+      } catch { /* Keep an honest unavailable opening. */ }
+      if (!active || request !== openingReadRef.current || sessionRef.current || priorAsksRef.current.length) return;
+      const turns: AskTurn[] = [{ role: "assistant", content: answer }];
+      sessionRef.current = createSession({ turns, conversationId });
+      turnsRef.current = turns;
+      conversationRef.current = { id: conversationId, at: Date.now() };
+      setEntries([{ kind: "answer", id: nextId(), answer: { status: "empty", message: answer, cards: [] }, locality: null, proposals: [], recall: null }]);
+    })();
+    return () => { active = false; };
+  }, [owner, entries.length, createSession, nextId]);
 
   useEffect(() => {
     let alive = true;
@@ -289,29 +414,113 @@ export default function PalChat() {
   // composer is pinned over its foot; the region's own scrollTop is set too
   // for the one case where it is the scroller (a bounded host).
   useEffect(() => {
+    if (document.activeElement?.matches(".palChatMap")) return;
+    const last = entries.at(-1);
+    if (!pending && last?.kind === "answer" && last.answer.cards.length > 0 && newestAnswerRef.current?.scrollIntoView) {
+      newestAnswerRef.current.scrollIntoView({ block: "start" });
+      return;
+    }
     const node = scrollRef.current;
     if (node) node.scrollTop = node.scrollHeight;
     if (entries.length === 0 && !pending) return;
     const page = document.documentElement;
     if (page.scrollHeight <= window.innerHeight) return;
     window.scrollTo({ top: page.scrollHeight });
-  }, [entries, pending, keyboardInset]);
+  }, [entries, pending, streamText, keyboardInset]);
+
+  // "Show me the map", or "next stop" while a planned night is on, is the
+  // person asking to GO to the map, so it goes there (the same decision the
+  // voice panel makes, palVoiceMapIntent) instead of reaching the Pal, which
+  // can only answer it in words. Any later ask retires a next-stop read.
+  // "Take me there" and "where is The Lamb?" open that one pub when the chat
+  // can name it, and otherwise reach the Pal, unless they ask for the map too.
+  const mapAskRef = useRef(0);
+  const entriesRef = useRef<Entry[]>([]);
+  useEffect(() => {
+    entriesRef.current = entries;
+  }, [entries]);
+  const openMapFromAsk = useCallback(
+    async (text: string): Promise<boolean> => {
+      const request = ++mapAskRef.current;
+      const plan = readActivePlan();
+      const intent = palVoiceMapIntent(text, isPlanActiveNow(plan, Date.now()));
+      if (!intent) return false;
+      if (intent === "map") {
+        const current = palChatMapAnswer(entriesRef.current);
+        const map = scrollRef.current?.querySelector<HTMLElement>(".palChatMap");
+        if (current && current.answer.cards.some((card) => card.venueId) && map) {
+          setEntries((prev) => [...prev, { kind: "user", id: nextId(), text }]);
+          setQuery((value) => value.trim() === text ? "" : value);
+          map.focus({ preventScroll: true });
+          map.scrollIntoView({ block: "center" });
+          return true;
+        }
+      }
+      let href: string = "/map";
+      let line = "Opening the map";
+      if (intent === "pub") {
+        const last = palLastAnswerVenue(entriesRef.current);
+        const venue = await palPubAskVenue(text, {
+          lastVenue: last.venue,
+          palLines: last.palLines,
+          loadVenues: () => loadSlimVenuesForCity(DEFAULT_CITY_ID),
+        });
+        if (request !== mapAskRef.current) return true;
+        if (venue) {
+          href = resolvePalVenueOpenTarget(venue.id, knownVenueIds).href;
+          line = `Opening ${venue.name}`;
+        } else if (palMapAskTarget(text)?.kind !== "last" || !palAsksForMap(text)) {
+          return false;
+        }
+      }
+      setEntries((prev) => [...prev, { kind: "user", id: nextId(), text }]);
+      setQuery((current) => current.trim() === text ? "" : current);
+      if (intent === "next-stop" && plan) {
+        const body = await readPlanMemberProjection(plan.id);
+        if (request !== mapAskRef.current) return true;
+        const next = palNextStop(palNightStopsFrom(body), plan.stopIndex);
+        if (next) {
+          href = next.href;
+          line = `Opening ${next.venueName}, your next stop`;
+        }
+      }
+      setEntries((prev) => [
+        ...prev,
+        {
+          kind: "answer",
+          id: nextId(),
+          answer: { status: "answered", message: line, cards: [] },
+          locality: null,
+          proposals: [],
+          recall: null,
+        },
+      ]);
+      router.push(href as Route);
+      return true;
+    },
+    [knownVenueIds, nextId, router],
+  );
 
   const ask = useCallback(
-    async (raw: string) => {
+    async (raw: string, options: { preserveDraft?: boolean } = {}) => {
       const text = raw.trim();
-      if (!text || pending) return;
-      sessionRef.current ??= createPalChatSession();
+      if (!text || pending || !owner) return;
+      openingReadRef.current += 1;
+      if (await openMapFromAsk(text)) return;
+      sessionRef.current ??= createSession();
       // Read the recall BEFORE this ask joins the transcript, so the Pal never
       // recalls the question it is answering.
       const recall = palRecall(priorAsksRef.current, text);
       priorAsksRef.current = [...priorAsksRef.current, text].slice(-12);
       setEntries((prev) => [...prev, { kind: "user", id: nextId(), text }]);
-      setQuery("");
+      if (!options.preserveDraft) {
+        setQuery((current) => current.trim() === text ? "" : current);
+      }
       setPending(true);
       trackEvent("concierge_ask");
-      const result = await sessionRef.current(text, DEFAULT_CITY_ID);
+      const result = await sessionRef.current(text, DEFAULT_CITY_ID, setStreamText);
       setPending(false);
+      setStreamText("");
       if (result === null) return; // superseded by a newer ask — do nothing
       if (result.status === "error") {
         setEntries((prev) => [
@@ -321,12 +530,14 @@ export default function PalChat() {
             id: nextId(),
             message: result.message,
             needsSignIn: result.needsSignIn,
+            retryQuery: text,
           },
         ]);
         return;
       }
       // Ground WHERE this answer applies from the query and remembered area.
-      const locality = resolvePalLocality(text, readRememberedArea());
+      const priorUsers = turnsRef.current.filter((turn) => turn.role === "user").map((turn) => turn.content).slice(0, -1);
+      const locality = resolvePalLocality(refineRoutedAskQuery(text, priorUsers.at(-1), priorUsers), readRememberedArea());
       const proposals =
         result.status === "answered" || result.status === "empty"
           ? result.proposals ?? []
@@ -341,7 +552,7 @@ export default function PalChat() {
         { kind: "answer", id: nextId(), answer: result, locality, proposals, recall },
       ]);
     },
-    [nextId, pending],
+    [nextId, openMapFromAsk, pending, createSession, owner],
   );
 
   const dismissProposal = useCallback((entryId: string, proposalId: string) => {
@@ -363,12 +574,7 @@ export default function PalChat() {
     }
     trackEvent("concierge_result_tap");
     if (proposal.kind === "fly_to") {
-      const params = new URLSearchParams({
-        lat: String(proposal.lat),
-        lng: String(proposal.lng),
-      });
-      if (proposal.place) params.set("place", proposal.place);
-      router.push(`/map?${params.toString()}`);
+      router.push(palFlyToHref(proposal, knownVenueIds));
       return;
     }
     if (proposal.kind === "report_occupancy") {
@@ -408,8 +614,57 @@ export default function PalChat() {
         ]);
         if (entryId) dismissProposal(entryId, proposal.id);
       })();
+      return;
     }
-  }, [auth, dismissProposal, nextId, openVenue, router]);
+    if (proposal.kind === "remember_memory") {
+      void (async () => {
+        const result = await confirmPalMemoryProposal(
+          {
+            id: proposal.id,
+            memoryKind: proposal.memoryKind,
+            value: proposal.value,
+            relation: proposal.relation,
+            supersedesMemoryId: proposal.supersedesMemoryId,
+            supersedesValue: proposal.supersedesValue,
+          },
+          auth,
+        );
+        if (!result) return;
+        if (!result.ok && result.needsSignIn) {
+          router.push("/login?mode=signin&from=/pal/chat");
+          return;
+        }
+        if (!result.ok) {
+          setEntries((prev) => [
+            ...prev,
+            { kind: "error", id: nextId(), message: result.error },
+          ]);
+          return;
+        }
+        setEntries((prev) => [
+          ...prev,
+          {
+            kind: "answer",
+            id: nextId(),
+            answer: {
+              status: "answered",
+              message:
+                proposal.relation === "delete"
+                  ? `Forgotten: ${proposal.value}`
+                  : proposal.relation === "update"
+                    ? `Updated. I'll remember: ${proposal.value}`
+                    : `Saved. I'll remember: ${proposal.value}`,
+              cards: [],
+            },
+            locality: null,
+            proposals: [],
+            recall: null,
+          },
+        ]);
+        if (entryId) dismissProposal(entryId, proposal.id);
+      })();
+    }
+  }, [auth, dismissProposal, knownVenueIds, nextId, openVenue, router]);
 
   const onSubmit = useCallback(
     (event: React.FormEvent<HTMLFormElement>) => {
@@ -426,19 +681,23 @@ export default function PalChat() {
   // fire under StrictMode re-mounts.
   const autoAskedRef = useRef(false);
   useEffect(() => {
-    if (autoAskedRef.current) return;
+    if (!owner || autoAskedRef.current) return;
     autoAskedRef.current = true;
     const preset = new URLSearchParams(window.location.search).get("ask");
     const text = preset?.trim() ?? "";
     if (!text || text.length > 500) return;
     // Defer out of the effect body (React 19 idiom, as TonightClient's
     // settle()): ask() sets state, which must not run synchronously here.
-    const timer = setTimeout(() => void ask(text), 0);
+    const timer = setTimeout(() => {
+      if (priorAsksRef.current.at(-1) !== text) void ask(text);
+    }, 0);
     return () => clearTimeout(timer);
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- fire once on mount
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- fire once after owner settlement
+  }, [owner]);
 
   const empty = entries.length === 0 && !pending;
+  const mappedAnswer = palChatMapAnswer(entries);
+  const mappedAnswerId = mappedAnswer?.answer.cards.some((card) => card.venueId) ? mappedAnswer.id : undefined;
   // Tonight-at-a-glance data: the same /api/whats-on spine the map fetches,
   // enabled only while the transcript is empty (one light fetch; the glance
   // leaves the moment the conversation starts).
@@ -470,12 +729,20 @@ export default function PalChat() {
         const answer = rankNearMe(patch.lat, patch.lng, slim);
         const card = answer.cards[0];
         if (!card) return;
+        const listed = slim.find((row) => row.id === card.id);
         setCheapest({
           areaLabel: patch.label,
           card: {
+            id: card.id,
+            scope: answer.scope,
+            priceSource: listed?.priceSource,
+            priceObservedAt: listed?.priceObservedAt,
             name: card.name,
             cheapestPrice: card.cheapestPrice,
-            walkMinutes: card.walkMinutes ?? null,
+            // The ranker measured from the middle of the area, not from the
+            // reader, and nobody has shared where they are. "About 11 min on
+            // foot" would read as their walk, so the line names no minutes.
+            walkMinutes: null,
           },
         });
       })
@@ -510,12 +777,32 @@ export default function PalChat() {
         }
         title={"What's the night?"}
         titleId="pal-chat-title"
-        lede="Straight answers from what we have actually seen. Every card keeps its source. No made-up venues, prices, or events."
+        lede="Straight answers from what we've actually seen. Every card shows its source. No made-up venues, prices or events."
         secondary={<Link prefetch={false} href="/pal">Back to your Pub Pal</Link>}
       >
 
+      {!empty ? <button type="button" className="palChatReset" disabled={pending} onClick={() => {
+        openingReadRef.current += 1;
+        if (owner) clearPalChatThread(owner);
+        mapAskRef.current += 1;
+        sessionRef.current = null;
+        priorAsksRef.current = [];
+        conversationRef.current = { id: "", at: 0 };
+        turnsRef.current = [];
+        savedEntriesRef.current = null;
+        counterRef.current = 0;
+        setEntries([]);
+        setQuery("");
+        composerInput.current?.focus();
+      }}>New conversation</button> : null}
+
       <div className="palChatScroll" ref={scrollRef}>
         <div className="palChatTranscript" aria-live="polite">
+          {empty ? (
+            <div className="palChatRow palChatRow--pal">
+              <p className="palChatBubble">Hi. What kind of night are you planning?</p>
+            </div>
+          ) : null}
           {entries.map((entry) => {
             if (entry.kind === "user") {
               return (
@@ -547,12 +834,25 @@ export default function PalChat() {
                       </>
                     ) : null}
                   </p>
+                  {entry.retryQuery && !entry.needsSignIn ? (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      disabled={!inputReady || pending}
+                      aria-label={`Ask again: ${entry.retryQuery}`}
+                      onClick={() => { if (entry.retryQuery) void ask(entry.retryQuery, { preserveDraft: true }); }}
+                    >
+                      Ask again
+                    </Button>
+                  ) : null}
                 </div>
               );
             }
             const { answer, locality, proposals, recall } = entry;
+            const actions = proposals.filter((proposal) => proposal.kind !== "open_venue"
+              || !answer.cards.some((card) => card.venueId === proposal.venueId));
             return (
-              <div key={entry.id} className="palChatRow palChatRow--pal">
+              <div key={entry.id} className="palChatRow palChatRow--pal" ref={entry.id === entries.at(-1)?.id ? newestAnswerRef : undefined}>
                 <p
                   className={`palChatBubble${
                     answer.status === "empty" ? " palChatBubble--empty" : ""
@@ -565,14 +865,21 @@ export default function PalChat() {
                     {recall.line}
                   </p>
                 ) : null}
-                {locality ? (
+                {/* The line scopes the cards or a place the reader named. A reply
+                    with neither, such as a greeting, has nothing to scope. */}
+                {locality &&
+                (answer.cards.length > 0 ||
+                  locality.scope === "query" ||
+                  locality.unplaced ||
+                  locality.askedLondon) ? (
                   <p className="palChatLocality" role="note">
                     {palLocalityLine(locality)}
                   </p>
                 ) : null}
-                {proposals.length > 0 ? (
+                {entry.id === mappedAnswerId ? <PalRecommendationMap cards={answer.cards} /> : null}
+                {actions.length > 0 ? (
                   <ul className="palChatProposals" aria-label="Suggested actions">
-                    {proposals.map((proposal) => (
+                    {actions.map((proposal) => (
                       <li key={proposal.id} className="palChatProposal">
                         {proposal.kind === "draft_plan" ? (
                           <IntentLink
@@ -597,6 +904,9 @@ export default function PalChat() {
                             onClick={() => confirmProposal(proposal, entry.id)}
                           >
                             {proposal.label}
+                            {proposal.kind === "remember_memory" && proposal.relation === "update" && proposal.supersedesValue ? (
+                              <span className="palChatProposalReplaces">Replaces: {proposal.supersedesValue}</span>
+                            ) : null}
                           </button>
                         )}
                         <button
@@ -609,6 +919,11 @@ export default function PalChat() {
                       </li>
                     ))}
                   </ul>
+                ) : null}
+                {proposals.some((proposal) => proposal.kind === "remember_memory") ? (
+                  <p className="palChatProposalNote">
+                    A saved memory goes with each Pub Pal chat to ElevenLabs, which answers it. You can delete it on your Pal page.
+                  </p>
                 ) : null}
                 {answer.cards.length > 0 ? (
                   <ul className="palChatCards">
@@ -627,7 +942,16 @@ export default function PalChat() {
             );
           })}
 
-          {pending ? (
+          {pending && streamText ? (
+            // The answer as the Pal writes it. The cards and any proposal arrive
+            // with the finished answer, which replaces this bubble in place.
+            // It is not announced word by word: the finished answer is.
+            <div className="palChatRow palChatRow--pal">
+              <p className="palChatBubble" aria-live="off" aria-busy="true" data-testid="pal-streaming-answer">
+                {streamText}
+              </p>
+            </div>
+          ) : pending ? (
             <div className="palChatRow palChatRow--pal">
               <p className="palChatBubble palChatBubble--pending">
                 <span className="palChatDots" aria-hidden="true">
@@ -635,7 +959,7 @@ export default function PalChat() {
                   <i />
                   <i />
                 </span>
-                <span className="palChatSr">Checking what is on record</span>
+                <span className="palChatSr">Checking what&apos;s on record</span>
               </p>
             </div>
           ) : null}
@@ -649,6 +973,7 @@ export default function PalChat() {
             {VIBE_CHIPS.map((chip) => (
               <VibeChipButton
                 key={chip.id}
+                disabled={!inputReady || pending}
                 onClick={() => {
                   trackEvent("tonight_vibe_select", { vibe: chip.id });
                   void ask(chip.ask);
@@ -667,20 +992,32 @@ export default function PalChat() {
         {empty && glance.status === "ready" && glanceLine ? (
           <div className="palGlance" role="note" aria-label="Tonight at a glance">
             <span className="palGlanceLabel">
-              <Sparkles size={13} aria-hidden="true" /> Tonight
+              <Sparkles size={14} aria-hidden="true" /> Tonight
             </span>
             <p className="palGlanceLine">{glanceLine}</p>
+            <p className="palGlanceReceipt">
+              {tonightGlanceReceipt(glance.rows)}{" "}
+              <Link prefetch={false} className="palGlanceExit" href="/tonight">
+                See listings and sources.
+              </Link>
+            </p>
           </div>
         ) : null}
         {empty && glance.status === "empty" ? (
           <div className="palGlance" role="note" aria-label="Tonight at a glance">
             <span className="palGlanceLabel">
-              <Sparkles size={13} aria-hidden="true" /> Tonight
+              <Sparkles size={14} aria-hidden="true" /> Tonight
             </span>
             <p className="palGlanceLine">
               {GLANCE_QUIET_LINE}{" "}
               <Link prefetch={false} className="palGlanceExit" href={`/map/${DEFAULT_CITY_ID}`}>
                 {GLANCE_QUIET_EXIT}
+              </Link>
+            </p>
+            <p className="palGlanceReceipt">
+              No listing sources returned.{" "}
+              <Link prefetch={false} className="palGlanceExit" href="/tonight">
+                See listings and sources.
               </Link>
             </p>
           </div>
@@ -689,9 +1026,9 @@ export default function PalChat() {
         {/* Cheapest-pint row (judge-w2 polish item 1): same rankNearMe answer
             Near me serves, from the remembered patch. Absent = renders nothing. */}
         {empty && cheapestLine ? (
-          <div className="palGlance" role="note" aria-label="Cheapest pint nearby">
+          <div className="palGlance" role="note" aria-label="Listed price nearby">
             <span className="palGlanceLabel">
-              <MapPin size={13} aria-hidden="true" /> Cheapest
+              <MapPin size={14} aria-hidden="true" /> Listed price
             </span>
             <p className="palGlanceLine">
               {cheapestLine}{" "}
@@ -699,10 +1036,25 @@ export default function PalChat() {
                 See the list.
               </Link>
             </p>
+            {cheapest ? (
+              <p className="palGlanceReceipt">
+                {cheapestGlanceReceipt(cheapest.card)}{" "}
+                Listed in the pint dataset. Serving size, offer and entry terms are not recorded.{" "}
+                {cheapest.card.id ? (
+                  <Link prefetch={false} className="palGlanceExit" href={venueMapUrl(cheapest.card.id)}>
+                    Price source and venue details.
+                  </Link>
+                ) : null}
+              </p>
+            ) : null}
           </div>
         ) : null}
       </div>
 
+      {!owner ? <p role="status">
+        {providerAuthState !== "unavailable" ? "Checking your account before you type." : "Your account could not be checked. Try again before you type."}
+        {providerAuthState === "unavailable" ? <Button type="button" variant="ghost" onClick={() => window.location.reload()}>Try account check again</Button> : null}
+      </p> : null}
       <form
         className="palChatComposer"
         onSubmit={onSubmit}
@@ -710,13 +1062,14 @@ export default function PalChat() {
         style={{ "--keyboard-inset": `${keyboardInset}px` } as React.CSSProperties}
       >
         <label className="palChatSr" htmlFor={inputId}>
-          Describe the outing
+          {PLAN_FIELD_LABEL}
         </label>
         <input
           id={inputId}
           ref={composerInput}
           className="palChatInput"
           value={query}
+          disabled={!inputReady}
           onChange={(event) => setQuery(event.target.value)}
           placeholder="Quiet-ish near Bank, not pricey"
           maxLength={500}
@@ -727,10 +1080,10 @@ export default function PalChat() {
           type="submit"
           className="palChatSend pressable"
           data-primary-action=""
-          disabled={pending || !query.trim()}
+          disabled={!inputReady || pending || !query.trim()}
           aria-label="Ask"
         >
-          <ArrowUp size={18} aria-hidden="true" />
+          <ArrowUp size={20} aria-hidden="true" />
         </button>
       </form>
       </Screen>

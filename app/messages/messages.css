@@ -16,7 +16,9 @@
 .messagesPage {
   --messages-surface: var(--color-on-photo);
   --messages-soft-surface: color-mix(in srgb, var(--ink) 5%, var(--color-on-photo));
-  --messages-accent: var(--grape);
+  /* The launch accent, not violet: a sent message is the same brand colour as
+     every other primary on the page. */
+  --messages-accent: var(--brass);
   min-height: 100dvh;
   background: var(--messages-surface, var(--paper));
 }
@@ -24,7 +26,7 @@
 html[data-theme="dark"] .messagesPage {
   --messages-surface: var(--paper);
   --messages-soft-surface: var(--panel-raised);
-  --messages-accent: color-mix(in srgb, var(--grape) 70%, var(--ink-deep));
+  --messages-accent: var(--brass);
 }
 
 .messagesMain {
@@ -82,16 +84,6 @@ html[data-theme="dark"] .messagesPage {
   line-height: 1.5;
 }
 
-/* The eyebrow is a WORD in the accent, so on the light ground it takes the
-   accent's ink: the raw --brass measured 2.9:1 here at 1440. */
-.messagesThreadEyebrow {
-  color: var(--color-accent-ink);
-  /* Type token: :root --text-2xs is 0.68rem; html[data-legacy="1"] may bump it.
-     Fallback matches the :root value so the eyebrow never inherits a stray rem. */
-  font-size: var(--text-2xs, 0.68rem);
-  font-weight: 700;
-  letter-spacing: 0.01em;
-}
 
 /* The inbox head is the shared Screen primitive (components/ui/screen.css).
    .messagesMain already pays the page gutters, so the head drops its own. */
@@ -111,7 +103,7 @@ html[data-theme="dark"] .messagesPage {
 
 .messagesScreen .screenTitle {
   font-family: var(--font-body);
-  font-size: 1.5rem;
+  font-size: var(--text-lg);
   font-weight: 700;
 }
 
@@ -130,9 +122,20 @@ html[data-theme="dark"] .messagesPage {
   color: var(--ink);
 }
 
-.messagesScreen .screenPrimary > button:hover {
-  background: var(--messages-soft-surface);
-  color: var(--ink);
+/* Signed out, the primary is the Sign in link. It shares the head's row with
+   the title, so it takes its own width rather than the Screen's 14rem floor,
+   which pushed a 360px phone 18px sideways. */
+.messagesScreen .screenPrimary > a {
+  min-width: 0;
+  width: auto;
+  white-space: nowrap;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .messagesScreen .screenPrimary > button:hover {
+    background: var(--messages-soft-surface);
+    color: var(--ink);
+  }
 }
 
 .messagesInboxSearch {
@@ -142,7 +145,7 @@ html[data-theme="dark"] .messagesPage {
   min-height: 44px;
   margin-bottom: 1rem;
   padding-inline: 0.9rem;
-  border-radius: 8px;
+  border-radius: var(--radius);
   background: var(--messages-soft-surface);
   color: var(--muted);
 }
@@ -178,13 +181,43 @@ html[data-theme="dark"] .messagesPage {
   color: var(--ink);
 }
 
-/* The one line about what messaging needs, shown to a reader who is not
-   signed in. A signed-in inbox does not restate it above every row. */
-.messagesCourtesyNote {
-  font-size: 0.85rem;
-  color: var(--muted);
-  margin: 0 0 1rem;
-  line-height: 1.5;
+/* SIGNED OUT, THE PAGE IS ONE EMPTY STATE AND ONE DOOR (taste plan,
+   18 Oct 2026). There is no inbox and no thread to frame, so the two-pane
+   panel folds away and the head reads like every other launch screen: the
+   title, the Sign in primary under it, then the one line on what this place
+   holds. On the thread route the same column shows, at every width, instead
+   of a pane that only said "sign in" again. */
+.messagesSplit:has(.messagesScreen--signedOut) .messagesThreadPane {
+  display: none;
+}
+
+.messagesSplit:has(.messagesScreen--signedOut) .messagesInboxPane {
+  display: block;
+}
+
+.messagesScreen--signedOut .screenHead {
+  display: grid;
+  justify-content: stretch;
+  gap: var(--space-3);
+  padding-block: var(--space-6) var(--space-2);
+}
+
+.messagesScreen--signedOut .screenTitle {
+  font-family: var(--font-display);
+  font-size: clamp(var(--text-xl), 4.5vw, var(--text-3xl));
+}
+
+.messagesScreen--signedOut .screenActions {
+  margin-top: var(--space-2);
+}
+
+.messagesScreen--signedOut .screenPrimary > a {
+  min-width: 14rem;
+  max-width: 100%;
+}
+
+.messagesScreen--signedOut .emptyState {
+  text-align: start;
 }
 
 /* A refresh that failed over a list already on screen: it sits ABOVE the list
@@ -195,7 +228,7 @@ html[data-theme="dark"] .messagesPage {
   flex-wrap: wrap;
   align-items: center;
   gap: 0 0.9rem;
-  font-size: 0.85rem;
+  font-size: var(--text-sm);
   color: var(--muted);
   margin: 0 0 0.75rem;
 }
@@ -219,7 +252,7 @@ html[data-theme="dark"] .messagesPage {
   border-radius: 50%;
   background: var(--messages-soft-surface, var(--panel));
   color: var(--ink);
-  font-family: var(--font-display, var(--serif));
+  font-family: var(--font-display);
   font-size: calc(var(--message-avatar-size) * 0.42);
   font-weight: 700;
   line-height: 1;
@@ -263,8 +296,10 @@ html[data-theme="dark"] .messagesPage {
   transition: background-color var(--duration-fast) var(--ease-out);
 }
 
-.conversationLink:hover {
-  background: var(--messages-soft-surface);
+@media (hover: hover) and (pointer: fine) {
+  .conversationLink:hover {
+    background: var(--messages-soft-surface);
+  }
 }
 
 .conversationLink:focus-visible {
@@ -291,8 +326,17 @@ html[data-theme="dark"] .messagesPage {
   white-space: nowrap;
 }
 
+/* The handle beside a display name. Quiet and on the same line, so the row stays
+   one name tall and still truncates as a unit. */
+.conversationHandleSub {
+  margin-left: 0.4em;
+  font-size: var(--text-sm);
+  font-weight: 400;
+  color: var(--muted);
+}
+
 .conversationPreview {
-  font-size: 0.85rem;
+  font-size: var(--text-sm);
   color: var(--muted);
   overflow: hidden;
   text-overflow: ellipsis;
@@ -314,7 +358,7 @@ html[data-theme="dark"] .messagesPage {
 }
 
 .conversationTime {
-  font-size: 0.72rem;
+  font-size: var(--text-xs);
   color: var(--muted);
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
@@ -330,10 +374,10 @@ html[data-theme="dark"] .messagesPage {
   min-width: 1.25rem;
   height: 1.25rem;
   padding: 0 0.4rem;
-  border-radius: 999px;
-  background: var(--messages-accent, var(--grape));
-  color: var(--color-on-photo);
-  font-size: 0.72rem;
+  border-radius: var(--radius-pill);
+  background: var(--ink);
+  color: var(--paper);
+  font-size: var(--text-xs);
   font-weight: 700;
   line-height: 1;
   display: inline-flex;
@@ -387,8 +431,10 @@ html[data-theme="dark"] .messagesPage {
   text-decoration: none;
 }
 
-.threadBackLink:hover {
-  background: var(--panel);
+@media (hover: hover) and (pointer: fine) {
+  .threadBackLink:hover {
+    background: var(--panel);
+  }
 }
 
 .threadWith {
@@ -398,13 +444,15 @@ html[data-theme="dark"] .messagesPage {
   min-width: 0;
   min-height: 44px;
   padding: 0 0.5rem 0 0.25rem;
-  border-radius: var(--radius-pill, 999px);
+  border-radius: var(--radius-pill);
   color: var(--ink);
   text-decoration: none;
 }
 
-a.threadWith:hover {
-  background: var(--panel);
+@media (hover: hover) and (pointer: fine) {
+  a.threadWith:hover {
+    background: var(--panel);
+  }
 }
 
 .threadWithHandle {
@@ -412,7 +460,7 @@ a.threadWith:hover {
   text-overflow: ellipsis;
   white-space: nowrap;
   font-weight: 600;
-  font-size: 1rem;
+  font-size: var(--text-base);
 }
 
 .threadMessages {
@@ -443,7 +491,7 @@ a.threadWith:hover {
   display: flex;
   justify-content: center;
   margin: 0.9rem 0 0.4rem;
-  font-size: 0.72rem;
+  font-size: var(--text-xs);
   font-weight: 600;
   color: var(--muted);
   letter-spacing: 0.01em;
@@ -464,15 +512,15 @@ a.threadWith:hover {
 
 .threadEmptyTitle {
   margin: 0.5rem 0 0;
-  font-family: var(--font-display, var(--serif));
-  font-size: 1.2rem;
+  font-family: var(--font-display);
+  font-size: var(--text-md);
   font-weight: 700;
   color: var(--ink);
 }
 
 .threadEmptyLine {
   margin: 0;
-  font-size: 0.9rem;
+  font-size: var(--text-sm);
   color: var(--muted);
 }
 
@@ -517,17 +565,17 @@ a.threadWith:hover {
   max-width: 100%;
   padding: 0.55rem 0.85rem;
   border-radius: 20px;
-  font-size: 0.95rem;
+  font-size: var(--text-base);
   line-height: 1.38;
   word-wrap: break-word;
   overflow-wrap: anywhere;
   cursor: default;
 }
 
-/* Own messages use violet; received messages use the neutral surface. */
+/* Own messages use the launch accent; received messages use the neutral surface. */
 .messageBubbleMine {
-  background: var(--messages-accent, var(--grape));
-  color: var(--color-on-photo);
+  background: var(--messages-accent);
+  color: var(--color-on-accent);
 }
 
 /* theirs: left, a panel fill and no edge */
@@ -570,9 +618,10 @@ html[data-theme="dark"] .messageBubblePhoto {
 }
 
 .messageMention {
-  color: var(--brass);
+  color: inherit;
   font-weight: 600;
-  text-decoration: none;
+  text-decoration: underline;
+  text-underline-offset: 0.18em;
 }
 
 .messageBubbleMine .messageMention {
@@ -581,8 +630,10 @@ html[data-theme="dark"] .messageBubblePhoto {
   text-underline-offset: 2px;
 }
 
-.messageMention:hover {
-  text-decoration: underline;
+@media (hover: hover) and (pointer: fine) {
+  .messageMention:hover {
+    text-decoration: underline;
+  }
 }
 
 /* The time and the Report control live under the bubble and stay folded
@@ -596,24 +647,24 @@ html[data-theme="dark"] .messageBubblePhoto {
   overflow: hidden;
   opacity: 0;
   padding: 0 0.3rem;
-  font-size: 0.7rem;
+  font-size: var(--text-2xs);
   color: var(--muted);
   transition:
-    max-height var(--duration-base, 0.18s) var(--ease-out),
-    opacity var(--duration-base, 0.18s) var(--ease-out),
-    margin-top var(--duration-base, 0.18s) var(--ease-out);
+    max-height var(--duration-base) var(--ease-out),
+    opacity var(--duration-base) var(--ease-out),
+    margin-top var(--duration-base) var(--ease-out);
 }
 
 .messageRow[data-revealed] .messageMeta,
 .messageLine:focus-within .messageMeta {
-  max-height: 2.5rem;
+  max-height: max(2.75rem, 44px);
   opacity: 1;
   margin-top: 0.2rem;
 }
 
 @media (hover: hover) {
   .messageLine:hover .messageMeta {
-    max-height: 2.5rem;
+    max-height: max(2.75rem, 44px);
     opacity: 1;
     margin-top: 0.2rem;
   }
@@ -633,31 +684,37 @@ html[data-theme="dark"] .messageBubblePhoto {
 .messageReadState {
   margin-top: 0.15rem;
   padding: 0 0.3rem;
-  font-size: 0.7rem;
+  font-size: var(--text-2xs);
   color: var(--muted);
 }
 
 .messageReportBtn {
   display: inline-flex;
   align-items: center;
-  min-height: 32px;
+  /* The 44px floor sits in the meta line's own box, so a tap on the next bubble
+     never lands on this one's Report. */
+  min-height: 44px;
+  min-width: 44px;
+  justify-content: center;
   padding: 0 0.15rem;
   background: none;
   border: none;
   color: var(--muted);
   font: inherit;
-  font-size: 0.7rem;
+  font-size: var(--text-2xs);
   cursor: pointer;
   text-decoration: underline;
   text-underline-offset: 2px;
 }
 
-.messageReportBtn:hover {
-  color: var(--ink);
+@media (hover: hover) and (pointer: fine) {
+  .messageReportBtn:hover {
+    color: var(--ink);
+  }
 }
 
 .messageFlagged {
-  font-size: 0.7rem;
+  font-size: var(--text-2xs);
   color: var(--muted);
   font-style: italic;
 }
@@ -711,7 +768,7 @@ html[data-theme="dark"] .messageBubblePhoto {
   width: 100%;
   height: auto;
   aspect-ratio: var(--message-photo-aspect, 0.8);
-  border-radius: 0.6rem;
+  border-radius: var(--radius);
   /* `contain`, never `cover`: if a stored dimension ever disagreed with the
      bytes, a photograph letterboxes rather than being silently cut. */
   object-fit: contain;
@@ -724,9 +781,9 @@ html[data-theme="dark"] .messageBubblePhoto {
   justify-content: center;
   width: 100%;
   aspect-ratio: var(--message-photo-aspect, 0.8);
-  border-radius: 0.6rem;
+  border-radius: var(--radius);
   background: color-mix(in srgb, var(--ink) 6%, transparent);
-  font-size: 0.8rem;
+  font-size: var(--text-xs);
   color: var(--muted);
 }
 
@@ -736,7 +793,7 @@ html[data-theme="dark"] .messageBubblePhoto {
   display: block;
   max-width: 100%;
   max-height: min(40dvh, 240px);
-  border-radius: 0.6rem;
+  border-radius: var(--radius);
   object-fit: contain;
 }
 
@@ -744,7 +801,7 @@ html[data-theme="dark"] .messageBubblePhoto {
   display: flex;
   align-items: center;
   min-height: 44px;
-  font-size: 0.8rem;
+  font-size: var(--text-xs);
   color: var(--muted);
 }
 
@@ -761,7 +818,7 @@ html[data-theme="dark"] .messageBubblePhoto {
   margin: auto;
   padding: 0;
   border: none;
-  border-radius: 0.8rem;
+  border-radius: var(--radius);
   background: var(--panel);
   color: var(--ink);
   overflow: hidden;
@@ -808,7 +865,7 @@ html[data-theme="dark"] .messageBubblePhoto {
   margin: 0.25rem 0.25rem 0.25rem auto;
   padding: 0 0.9rem;
   border: 1px solid var(--line);
-  border-radius: 0.6rem;
+  border-radius: var(--radius);
   background: var(--panel-raised);
   color: var(--ink);
   font: inherit;
@@ -819,7 +876,7 @@ html[data-theme="dark"] .messageBubblePhoto {
 .messageVenueCard {
   display: block;
   padding: 0.5rem 0.6rem;
-  border-radius: 0.6rem;
+  border-radius: var(--radius);
   background: color-mix(in srgb, var(--ink-deep) 12%, transparent);
   color: inherit;
   text-decoration: none;
@@ -839,7 +896,7 @@ html[data-theme="dark"] .messageBubblePhoto {
 .messageVenueCardPrice,
 .messageVenueCardUnresolved {
   display: block;
-  font-size: 0.8rem;
+  font-size: var(--text-xs);
   color: inherit;
   opacity: 0.85;
 }
@@ -850,7 +907,7 @@ html[data-theme="dark"] .messageBubblePhoto {
 }
 
 .messageBubbleTheirs .messageVenueCardPrice {
-  color: var(--brass);
+  color: var(--color-text-muted);
 }
 
 /* ── composer ─────────────────────────────────────────────────────────────── */
@@ -950,14 +1007,16 @@ html[data-theme="dark"] .messageBubblePhoto {
     color var(--duration-fast) var(--ease-out);
 }
 
-.composerAttach:hover:not(:disabled) {
-  background: var(--panel);
-  color: var(--ink);
+@media (hover: hover) and (pointer: fine) {
+  .composerAttach:hover:not(:disabled) {
+    background: var(--panel);
+    color: var(--ink);
+  }
 }
 
 .composerAttach[aria-pressed="true"] {
-  background: color-mix(in srgb, var(--brass) 16%, var(--panel));
-  color: var(--tint-ink-accent);
+  background: var(--state-selected-surface);
+  color: var(--state-selected-ink);
 }
 
 .composerAttach:disabled {
@@ -983,7 +1042,7 @@ html[data-theme="dark"] .messageBubblePhoto {
   left: 50%;
   width: 44px;
   height: 5px;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: color-mix(in srgb, var(--color-on-inverse) 55%, transparent);
   transform: translateX(-50%);
 }
@@ -1005,8 +1064,10 @@ html[data-theme="dark"] .messageBubblePhoto {
   touch-action: manipulation;
 }
 
-.messageAttachSheetClose:hover {
-  background: color-mix(in srgb, var(--color-on-inverse) 12%, transparent);
+@media (hover: hover) and (pointer: fine) {
+  .messageAttachSheetClose:hover {
+    background: color-mix(in srgb, var(--color-on-inverse) 12%, transparent);
+  }
 }
 
 .messageAttachSheetClose:focus-visible,
@@ -1019,49 +1080,45 @@ html[data-theme="dark"] .messageBubblePhoto {
   padding-top: 12px;
 }
 
+/* The things a message can carry, read down the sheet as one list: a hairline
+   between rows, the glyph in the label's ink, and no coral disc. Coral is the
+   send button's, and a disc on every row was the attach grid's template tell
+   (taste pass, 18 Oct 2026). */
 .messageAttachGrid {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 12px;
-  padding: 6px 0 8px;
+  padding: 0 0 var(--space-2);
 }
 
 .messageAttachTarget {
   display: flex;
-  min-width: 56px;
   min-height: 56px;
   align-items: center;
-  justify-content: flex-start;
-  gap: 8px;
-  padding: 0;
+  gap: var(--space-3);
+  padding: var(--space-2) var(--space-1);
   border: 0;
+  border-radius: var(--radius-sm);
   background: transparent;
   color: var(--color-on-inverse);
   font: inherit;
-  flex-direction: column;
+  text-align: left;
   cursor: pointer;
   touch-action: manipulation;
   user-select: none;
   -webkit-user-select: none;
 }
 
-.messageAttachIcon {
-  display: inline-flex;
-  width: 72px;
-  height: 72px;
-  align-items: center;
-  justify-content: center;
-  border-radius: 50%;
-  background: var(--brass);
-  color: var(--ink-deep);
-  box-shadow: 0 8px 18px color-mix(in srgb, var(--ink-deep) 46%, transparent);
-  transition:
-    transform var(--duration-press) var(--ease-out-strong),
-    background-color var(--duration-base) var(--ease-out);
+.messageAttachTarget + .messageAttachTarget {
+  border-top: 1px solid color-mix(in srgb, var(--color-on-inverse) 14%, transparent);
 }
 
-.messageAttachTarget:active .messageAttachIcon {
-  transform: scale(0.94);
+.messageAttachIcon {
+  display: inline-flex;
+  flex: none;
+  opacity: 0.8;
+}
+
+.messageAttachTarget:active {
+  background: color-mix(in srgb, var(--color-on-inverse) 8%, transparent);
 }
 
 .messageAttachTarget:disabled {
@@ -1070,9 +1127,9 @@ html[data-theme="dark"] .messageBubblePhoto {
 }
 
 .messageAttachLabel {
-  font-size: var(--text-sm, 0.875rem);
-  font-weight: 700;
-  line-height: 1;
+  font-size: var(--text-base);
+  font-weight: 600;
+  line-height: 1.3;
 }
 
 /* The one 1px box the OS file sheet needs to open from. `display: none` is what
@@ -1089,7 +1146,7 @@ html[data-theme="dark"] .messageBubblePhoto {
 .composerCount {
   align-self: flex-end;
   padding-right: 0.5rem;
-  font-size: 0.72rem;
+  font-size: var(--text-xs);
   color: var(--muted);
   font-variant-numeric: tabular-nums;
 }
@@ -1111,8 +1168,8 @@ html[data-theme="dark"] .messageBubblePhoto {
   padding: 0;
   border: none;
   border-radius: 50%;
-  background: var(--messages-accent, var(--grape));
-  color: var(--color-on-photo);
+  background: var(--messages-accent, var(--brass));
+  color: var(--color-on-accent);
   cursor: pointer;
   transition:
     background-color var(--duration-fast) var(--ease-out),
@@ -1120,8 +1177,10 @@ html[data-theme="dark"] .messageBubblePhoto {
     transform var(--duration-fast) var(--ease-out);
 }
 
-.composerSend:hover:not(:disabled) {
-  background: color-mix(in srgb, var(--messages-accent, var(--grape)) 85%, var(--ink-deep));
+@media (hover: hover) and (pointer: fine) {
+  .composerSend:hover:not(:disabled) {
+    background: color-mix(in srgb, var(--ink) 6%, var(--ink-deep));
+  }
 }
 
 /* Press feedback owned here, so the shared press layer in app/globals.css
@@ -1149,15 +1208,15 @@ html[data-theme="dark"] .messageBubblePhoto {
   align-items: center;
   gap: 0.6rem;
   padding: 0.4rem 0.4rem 0.4rem 0.7rem;
-  border-radius: var(--radius, 8px);
+  border-radius: var(--radius);
   background: var(--panel);
-  font-size: 0.85rem;
+  font-size: var(--text-sm);
   color: var(--ink);
 }
 
 .composerPendingIcon {
   flex-shrink: 0;
-  color: var(--brass);
+  color: var(--color-text-muted);
 }
 
 .composerPendingLabel {
@@ -1169,7 +1228,7 @@ html[data-theme="dark"] .messageBubblePhoto {
 .composerPendingThumb {
   width: 40px;
   height: 50px;
-  border-radius: 0.35rem;
+  border-radius: var(--radius-sm);
   object-fit: cover;
 }
 
@@ -1210,13 +1269,13 @@ html[data-theme="dark"] .messageBubblePhoto {
   overflow: auto;
   padding: 0.75rem;
   border: 1px solid var(--line);
-  border-radius: 0.8rem;
+  border-radius: var(--radius);
   background: var(--panel);
-  box-shadow: 0 12px 40px rgb(0 0 0 / 22%);
+  box-shadow: var(--shadow);
 }
 
 .threadError {
-  font-size: 0.85rem;
+  font-size: var(--text-sm);
   color: #b3261e;
   margin: 0;
   padding: 0 0.25rem;
@@ -1230,7 +1289,7 @@ html[data-theme="dark"] .messageBubblePhoto {
   align-items: center;
   gap: 0.5rem 0.9rem;
   padding-top: 1rem;
-  font-size: 0.85rem;
+  font-size: var(--text-sm);
   color: var(--muted);
 }
 
@@ -1282,18 +1341,20 @@ html[data-theme="dark"] .messageBubblePhoto {
   min-height: 44px;
   min-width: 44px;
   padding: 0 0.95rem;
-  border: 1px solid var(--brass);
-  border-radius: 0.6rem;
+  border: 1px solid var(--hairline-strong);
+  border-radius: var(--radius);
   background: transparent;
-  color: var(--brass);
+  color: var(--color-text-muted);
   font-weight: 600;
-  font-size: 0.9rem;
+  font-size: var(--text-sm);
   text-decoration: none;
   cursor: pointer;
 }
 
-.profileMessageBtn:hover {
-  background: color-mix(in srgb, var(--brass) 10%, transparent);
+@media (hover: hover) and (pointer: fine) {
+  .profileMessageBtn:hover {
+    background: color-mix(in srgb, var(--ink) 6%, transparent);
+  }
 }
 
 .profileMessageBtn:focus-visible {
@@ -1308,8 +1369,8 @@ html[data-theme="dark"] .messageBubblePhoto {
 
 .profileMessageError {
   margin: 0.25rem 0;
-  color: #b3261e;
-  font-size: 0.85rem;
+  color: var(--color-negative);
+  font-size: var(--text-sm);
 }
 
 /* ── the desktop split ────────────────────────────────────────────────────── */
@@ -1334,7 +1395,9 @@ html[data-theme="dark"] .messageBubblePhoto {
     min-height: 32rem;
     overflow: hidden;
     border: 1px solid var(--line);
-    border-radius: 0;
+    /* Round like every other panel in the launch system; square corners made the
+       one surface that held the whole thread look unfinished. */
+    border-radius: var(--radius-lg);
     background: var(--messages-surface);
     box-shadow: none;
   }
@@ -1346,7 +1409,7 @@ html[data-theme="dark"] .messageBubblePhoto {
   body:has(.analyticsConsentPrompt) .messagesSplit {
     height: calc(
       100dvh - 9rem
-        - var(--analytics-consent-clearance, 72px)
+        - var(--analytics-consent-clearance)
         - max(12px, env(safe-area-inset-bottom, 0px))
     );
   }
@@ -1388,8 +1451,8 @@ html[data-theme="dark"] .messageBubblePhoto {
     background: var(--messages-surface, var(--paper));
   }
 
-  .messagesThreadEmpty {
-    display: grid !important;
+  .messagesMainInbox .messagesThreadEmpty {
+    display: grid;
     place-items: center;
     padding: 1.5rem;
   }
@@ -1427,6 +1490,30 @@ html[data-theme="dark"] .messageBubblePhoto {
   .messagesThreadPane > .threadFailure,
   .messagesThreadPane > .messagesSignInPrompt {
     padding: 1.5rem;
+  }
+
+  /* Signed out: no panel, no pane edge, one column at the reading width. */
+  .messagesSplit:has(.messagesScreen--signedOut) {
+    display: block;
+    height: auto;
+    min-height: 0;
+    max-width: var(--content-max);
+    margin-inline: auto;
+    overflow: visible;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+  }
+
+  .messagesSplit:has(.messagesScreen--signedOut) .messagesInboxPane {
+    overflow: visible;
+    padding: 0;
+    border-right: 0;
+    background: transparent;
+  }
+
+  .messagesSplit:has(.messagesScreen--signedOut) .messagesInboxPane .screenHead {
+    padding-inline: 0;
   }
 }
 
@@ -1507,15 +1594,17 @@ html[data-theme="dark"] .messageBubblePhoto {
 /* ── group threads ────────────────────────────────────────────────────────── */
 /* A group's head carries its name and how many people are in it, stacked, so a
    long list of handles never pushes the count off the row. */
-.threadWithGroup {
+.threadWithGroup,
+.threadWithNames {
   display: flex;
   flex-direction: column;
   min-width: 0;
   line-height: 1.2;
 }
 
-.threadWithMembers {
-  font-size: 0.75rem;
+.threadWithMembers,
+.threadWithSub {
+  font-size: var(--text-xs);
   color: var(--muted);
   white-space: nowrap;
 }
@@ -1527,17 +1616,19 @@ html[data-theme="dark"] .messageBubblePhoto {
   min-height: 44px;
   padding: 0 0.75rem;
   border: none;
-  border-radius: var(--radius-pill, 999px);
+  border-radius: var(--radius-pill);
   background: transparent;
   color: var(--muted);
   font: inherit;
-  font-size: 0.8rem;
+  font-size: var(--text-xs);
   cursor: pointer;
 }
 
-.threadLeaveBtn:hover {
-  background: var(--panel);
-  color: var(--ink);
+@media (hover: hover) and (pointer: fine) {
+  .threadLeaveBtn:hover {
+    background: var(--panel);
+    color: var(--ink);
+  }
 }
 
 /* Recipient picker uses explicit public matches, never guessed handles. */
@@ -1571,7 +1662,7 @@ html[data-theme="dark"] .messageBubblePhoto {
   max-height: min(700px, calc(100dvh - var(--message-picker-keyboard-inset, 0px) - 40px));
   overflow-y: auto;
   padding: 1rem;
-  border-radius: 14px;
+  border-radius: var(--radius-lg);
   background: var(--messages-surface, var(--panel-raised));
   color: var(--ink);
 }
@@ -1588,7 +1679,7 @@ html[data-theme="dark"] .messageBubblePhoto {
 .messagesNewGroupHeading {
   margin: 0;
   font-family: var(--font-body);
-  font-size: 1rem;
+  font-size: var(--text-base);
   font-weight: 700;
 }
 
@@ -1607,7 +1698,7 @@ html[data-theme="dark"] .messageBubblePhoto {
 }
 
 .messagesNewGroupLabel {
-  font-size: 0.85rem;
+  font-size: var(--text-sm);
   font-weight: 600;
 }
 
@@ -1616,7 +1707,7 @@ html[data-theme="dark"] .messageBubblePhoto {
   min-height: 44px;
   padding: 0.6rem 0.9rem;
   border: 1px solid var(--line);
-  border-radius: 8px;
+  border-radius: var(--radius);
   background: var(--messages-surface, var(--panel-raised));
   color: var(--ink);
   font: inherit;
@@ -1635,11 +1726,11 @@ html[data-theme="dark"] .messageBubblePhoto {
   align-items: center;
   max-width: 100%;
   padding-left: 0.75rem;
-  border-radius: 8px;
+  border-radius: var(--radius);
   background: var(--messages-soft-surface, var(--panel));
   color: var(--ink);
   overflow-wrap: anywhere;
-  font-size: 0.85rem;
+  font-size: var(--text-sm);
 }
 
 .messagesNewGroupResults {
@@ -1660,7 +1751,7 @@ html[data-theme="dark"] .messageBubblePhoto {
   min-height: 72px;
   padding: 0.6rem 0.25rem;
   border: none;
-  border-radius: 8px;
+  border-radius: var(--radius);
   background: transparent;
   color: var(--ink);
   font: inherit;
@@ -1668,9 +1759,14 @@ html[data-theme="dark"] .messageBubblePhoto {
   cursor: pointer;
 }
 
-.messagesNewGroupResult:hover,
 .messagesNewGroupResult[aria-pressed="true"] {
   background: var(--messages-soft-surface, var(--panel));
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .messagesNewGroupResult:hover {
+    background: var(--messages-soft-surface, var(--panel));
+  }
 }
 
 .messagesNewGroupResultText {
@@ -1686,12 +1782,12 @@ html[data-theme="dark"] .messageBubblePhoto {
   height: 22px;
   border: 1px solid var(--line);
   border-radius: 50%;
-  color: var(--color-on-photo);
+  color: var(--color-on-accent);
 }
 
 .messagesNewGroupResult[aria-pressed="true"] .messagesNewGroupResultCheck {
   border-color: transparent;
-  background: var(--messages-accent, var(--grape));
+  background: var(--state-selected-surface);
 }
 
 .messagesNewGroupResultName,
@@ -1708,13 +1804,13 @@ html[data-theme="dark"] .messageBubblePhoto {
 .messagesNewGroupHint,
 .messagesNewGroupStatus {
   margin: 0;
-  font-size: 0.8rem;
+  font-size: var(--text-xs);
   color: var(--muted);
 }
 
 .messagesNewGroupError {
   margin: 0;
-  font-size: 0.85rem;
+  font-size: var(--text-sm);
   color: var(--brick);
 }
 
@@ -1747,9 +1843,9 @@ html[data-theme="dark"] .messageBubblePhoto {
   min-height: 44px;
   padding: 0 1rem;
   border: none;
-  border-radius: 8px;
-  background: var(--messages-accent, var(--grape));
-  color: var(--color-on-photo);
+  border-radius: var(--radius);
+  background: var(--messages-accent, var(--brass));
+  color: var(--color-on-accent);
   font: inherit;
   font-weight: 600;
   cursor: pointer;
@@ -1790,7 +1886,7 @@ html[data-theme="dark"] .messageBubblePhoto {
   align-items: center;
   gap: 0.5rem;
   padding: 0.5rem 0.6rem;
-  border-radius: 0.6rem;
+  border-radius: var(--radius);
   background: color-mix(in srgb, var(--paper) 55%, transparent);
   color: inherit;
   text-decoration: none;
@@ -1799,7 +1895,7 @@ html[data-theme="dark"] .messageBubblePhoto {
 .messageEventCard {
   display: block;
   padding: 0.5rem 0.6rem;
-  border-radius: 0.6rem;
+  border-radius: var(--radius);
   background: color-mix(in srgb, var(--paper) 55%, transparent);
   color: inherit;
   text-decoration: none;
@@ -1823,7 +1919,7 @@ html[data-theme="dark"] .messageBubblePhoto {
 }
 
 .messageContactCardHandle {
-  font-size: 0.8rem;
+  font-size: var(--text-xs);
   color: inherit;
   opacity: 0.85;
 }
@@ -1838,7 +1934,7 @@ html[data-theme="dark"] .messageBubblePhoto {
 .messageEventCardStops,
 .messageEventCardPrivacy {
   display: block;
-  font-size: 0.8rem;
+  font-size: var(--text-xs);
   color: inherit;
   opacity: 0.85;
 }
@@ -1878,7 +1974,7 @@ html[data-theme="dark"] .messageBubblePhoto {
   min-height: 44px;
   padding: 0.4rem 0.6rem;
   border: 1px solid var(--line-soft);
-  border-radius: 0.6rem;
+  border-radius: var(--radius);
   background: transparent;
   color: inherit;
   font: inherit;
@@ -1915,7 +2011,7 @@ html[data-theme="dark"] .messageBubblePhoto {
 .messagePollTotal,
 .messagePollError {
   margin: 0;
-  font-size: 0.8rem;
+  font-size: var(--text-xs);
   opacity: 0.8;
 }
 
@@ -1943,6 +2039,6 @@ html[data-theme="dark"] .messageBubblePhoto {
 }
 
 .messagesNewGroupOpened {
-  font-size: 0.85rem;
-  color: var(--color-accent-ink, var(--brass));
+  font-size: var(--text-sm);
+  color: var(--color-text-muted);
 }

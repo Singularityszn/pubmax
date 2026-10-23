@@ -27,7 +27,28 @@ export type FamousVenueRow = {
   lng?: number;
   sourceUrl: string;
   placesNameAliases?: string[];
+  fameGates?: ReadonlyArray<{ sourceUrl: string }>;
+  story?: { sourceUrl: string };
+  anchor?: { sourceUrl: string };
 };
+
+export type AnchorSourceHead = (url: string) => Promise<{
+  status: number;
+  location: string | null;
+}>;
+
+export const headAnchorSource: AnchorSourceHead;
+
+export function anchorRenewalBlock(
+  row: FamousVenueRow,
+  headSource: AnchorSourceHead,
+): Promise<
+  | "anchor_missing"
+  | "anchor_source_not_row_source"
+  | "anchor_source_unreachable"
+  | "anchor_source_redirected"
+  | null
+>;
 
 export type PlacesVenueCheck = FamousVenueCheck & {
   method: "places_text_search";
@@ -46,6 +67,7 @@ export function verifyRowWithPlaces(
     httpStatus?: number;
     body?: unknown;
   }>,
+  headSource: AnchorSourceHead,
 ): Promise<PlacesVenueCheck>;
 
 export function toCommittedPlacesCheck(check: PlacesVenueCheck): {
@@ -59,3 +81,19 @@ export function toCommittedPlacesCheck(check: PlacesVenueCheck): {
   matchReason: string | null;
   checkedAt: string | null;
 };
+
+export function parseVerificationLimit(argv: readonly string[]): number | null;
+
+export function remainingBatchSize(limit: number, alreadyVerifiedToday: number): number;
+
+export function idsCoveredByPartialVerifications(
+  artifacts: ReadonlyArray<{ verifiedAt?: string; checks?: ReadonlyArray<{ id?: unknown }> }>,
+  seedIds: Iterable<string>,
+): string[];
+
+export function selectVerificationBatch<
+  Entry extends { row: { id: string; observedAt?: string } },
+>(
+  entries: readonly Entry[],
+  options?: { limit?: number | null; skipIds?: Iterable<string> },
+): Entry[];

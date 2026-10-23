@@ -14,6 +14,7 @@ import {
   trimCityPlace,
   trimSignals,
 } from "@/lib/citymcp/client";
+import { defined } from "@/__tests__/helpers/defined";
 
 function sseFrame(payload: unknown): string {
   return `event: message\ndata: ${JSON.stringify(payload)}\n\n`;
@@ -468,7 +469,7 @@ describe("fetchThingsToDo", () => {
     });
     expect(first.opportunities).toHaveLength(2);
     expect(first.opportunities.map((o) => o.title)).toEqual(["Show 1", "Show 2"]);
-    expect(first.opportunities[0].startsAt).toBe("2026-07-29T20:00:00+01:00");
+    expect(defined(first.opportunities[0]).startsAt).toBe("2026-07-29T20:00:00+01:00");
 
     // Cache hit — no new upstream call.
     const second = await fetchThingsToDo({
@@ -511,6 +512,14 @@ describe("callCityMcpTool transient retry", () => {
     const res = await callCityMcpTool("city_status", {}, { fetchImpl });
     expect(fetchImpl).toHaveBeenCalledTimes(2);
     expect(res).toBeDefined();
+  });
+
+  it("does NOT retry a 429, because an instant retry ignores the upstream's limit", async () => {
+    const fetchImpl = vi.fn(async () => new Response("slow down", { status: 429 }));
+    await expect(
+      callCityMcpTool("city_status", {}, { fetchImpl }),
+    ).rejects.toMatchObject({ kind: "http", httpStatus: 429 });
+    expect(fetchImpl).toHaveBeenCalledTimes(1);
   });
 
   it("does NOT retry a deterministic rpc error", async () => {

@@ -9,6 +9,10 @@ import { pintIndexMeetsAdmissionFloor } from "@/lib/pintIndexArchive";
 import { loadPintIndexArchive, loadPublicPintIndexSnapshotOrThrow } from "@/lib/pintIndexSnapshot.server";
 import { loadDrinkBrandLandings } from "@/lib/drinkBrandLanding.server";
 import { readSpoonsValue } from "@/lib/spoonsValue.server";
+import { pricePulseLastModified, publishedEditions } from "@/lib/pricePulse";
+import { PRICE_PULSE_EDITION_FILES } from "@/lib/pricePulseEditions";
+import { EXPLAINER_REVIEWED_ON } from "@/lib/pricePulseExplainer";
+import { PUBLIC_UPDATES } from "@/lib/publicUpdates";
 import {
   drinkBrandAreaLandingRoute,
   loadDrinkBrandAreaLandings,
@@ -167,6 +171,17 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       changeFrequency: "yearly",
       lastModified: spoonsValueModified,
     },
+    // Price Pulse changes when the owner approves an edition, so its own
+    // approvals date it, and the explainer's review day before the first.
+    {
+      path: "/price-pulse",
+      priority: 0.6,
+      changeFrequency: "weekly",
+      lastModified: pricePulseLastModified(
+        publishedEditions(PRICE_PULSE_EDITION_FILES),
+        EXPLAINER_REVIEWED_ON,
+      ),
+    },
     { path: "/pubs", priority: 0.7, changeFrequency: "weekly", lastModified: pricesModified },
     { path: "/tonight", priority: 0.6, changeFrequency: "daily", lastModified: now },
     {
@@ -187,6 +202,16 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     // carry no UGC, so they belong in the sitemap like /about.
     { path: "/privacy", priority: 0.3, changeFrequency: "yearly", lastModified: now },
     { path: "/terms", priority: 0.3, changeFrequency: "yearly", lastModified: now },
+    { path: "/credits", priority: 0.3, changeFrequency: "monthly", lastModified: now },
+    { path: "/feedback", priority: 0.3, changeFrequency: "yearly", lastModified: now },
+    {
+      path: "/updates",
+      priority: 0.4,
+      changeFrequency: "weekly",
+      lastModified: new Date(Math.max(
+        ...PUBLIC_UPDATES.map((update) => Date.parse(`${update.date}T00:00:00Z`)),
+      )),
+    },
     // The public account-deletion page. Play Console holds this URL in its Data
     // safety form and expects to be able to open it, so it is listed like the
     // other token-free content pages rather than living only behind a link.

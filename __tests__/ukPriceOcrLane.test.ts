@@ -15,6 +15,7 @@ import {
   hostsWithUnreadablePdfs,
   rowsFromReadings,
 } from "../scripts/harvest/uk-prices/ocr.mjs";
+import { defined } from "@/__tests__/helpers/defined";
 
 /** One host's ledger entry, in the shape the crawler writes it. */
 const entryWith = (evidence: string) => ({
@@ -168,7 +169,7 @@ describe("what an OCR reading is allowed to become", () => {
     );
 
     expect(rows).toEqual([]);
-    expect(documents[0].outcome).toBe("states-no-price");
+    expect(defined(documents[0]).outcome).toBe("states-no-price");
   });
 
   it("refuses an estate scan that names none of its own pubs", () => {

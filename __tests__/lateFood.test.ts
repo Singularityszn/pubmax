@@ -13,7 +13,11 @@ import {
   type LateFoodApiSuccessResponse,
 } from "@/lib/lateFood";
 
-const SNAPSHOT_NOW = Date.parse("2026-07-16T23:00:00.000Z");
+// Inside the 2026-10-17 review window. 2026-10-23T00:00Z is 01:00 on a Friday in
+// London, inside Balans No.60's Thursday service; 05:00Z is 06:00, after it.
+const SNAPSHOT_NOW = Date.parse("2026-10-17T15:00:00.000Z");
+const THURSDAY_LATE = "2026-10-23T00:00:00.000Z";
+const FRIDAY_MORNING = "2026-10-23T05:00:00.000Z";
 
 describe("rankFoodHandoff", () => {
   it("orders by walking time and leaves an unmeasured detour last", () => {
@@ -58,15 +62,18 @@ describe("rankFoodHandoff", () => {
 });
 
 describe("late-food evidence catalogue", () => {
-  it("represents all 20 Night Areas with at least one grounded option", () => {
+  it("represents all 20 Night Areas and serves only an option whose review is current", () => {
     expect(LATE_FOOD_AREAS).toHaveLength(20);
     expect(normalizeLateFoodArea("shoreditch")).toBe("shoreditch");
     expect(
-      getLateFoodForArea("shoreditch", [], { now: SNAPSHOT_NOW }),
+      getLateFoodForArea("victoria", [], { now: SNAPSHOT_NOW }),
     ).toHaveLength(1);
     expect(
-      getLateFoodForArea("clapham", [], { now: SNAPSHOT_NOW }),
+      getLateFoodForArea("islington", [], { now: SNAPSHOT_NOW }),
     ).toHaveLength(1);
+    expect(
+      getLateFoodForArea("shoreditch", [], { now: SNAPSHOT_NOW }),
+    ).toEqual([]);
   });
 
   it("exposes only the official-source option that passed the evidence gate", () => {
@@ -94,7 +101,7 @@ describe("late-food evidence catalogue", () => {
         observedAt: expect.any(String),
       },
     });
-    expect(LATE_FOOD_TERMINALS).toHaveLength(20);
+    expect(LATE_FOOD_TERMINALS).toHaveLength(8);
     expect(terminals[0]).not.toHaveProperty("prices");
   });
 
@@ -102,10 +109,10 @@ describe("late-food evidence catalogue", () => {
     const terminal = getLateFoodForArea("piccadilly-soho", [], {
       now: SNAPSHOT_NOW,
     })[0]!;
-    expect(isLateFoodOpenAt(terminal.hours, "2026-07-17T00:00:00.000Z")).toBe(
+    expect(isLateFoodOpenAt(terminal.hours, THURSDAY_LATE)).toBe(
       true,
     );
-    expect(isLateFoodOpenAt(terminal.hours, "2026-07-17T05:00:00.000Z")).toBe(
+    expect(isLateFoodOpenAt(terminal.hours, FRIDAY_MORNING)).toBe(
       false,
     );
     expect(
@@ -114,11 +121,12 @@ describe("late-food evidence catalogue", () => {
   });
 
   it("treats a bare food need as food-requested, not a cuisine name filter", () => {
-    const unfiltered = getLateFoodForArea("shoreditch", [], { now: SNAPSHOT_NOW });
-    expect(getLateFoodForArea("shoreditch", ["food"], { now: SNAPSHOT_NOW })).toEqual(
+    const unfiltered = getLateFoodForArea("victoria", [], { now: SNAPSHOT_NOW });
+    expect(unfiltered).toHaveLength(1);
+    expect(getLateFoodForArea("victoria", ["food"], { now: SNAPSHOT_NOW })).toEqual(
       unfiltered,
     );
-    expect(getLateFoodForArea("shoreditch", ["meal", "eat"], { now: SNAPSHOT_NOW })).toEqual(
+    expect(getLateFoodForArea("victoria", ["meal", "eat"], { now: SNAPSHOT_NOW })).toEqual(
       unfiltered,
     );
   });
@@ -127,13 +135,13 @@ describe("late-food evidence catalogue", () => {
     expect(
       getLateFoodForArea("piccadilly-soho", [], {
         now: SNAPSHOT_NOW,
-        at: "2026-07-17T00:00:00.000Z",
+        at: THURSDAY_LATE,
       }),
     ).toHaveLength(1);
     expect(
       getLateFoodForArea("piccadilly-soho", [], {
         now: SNAPSHOT_NOW,
-        at: "2026-07-17T05:00:00.000Z",
+        at: FRIDAY_MORNING,
       }),
     ).toEqual([]);
   });
@@ -150,7 +158,7 @@ describe("GET /api/late-food", () => {
   it("uses requested time and the actual final-stop origin", async () => {
     const response = await GET(
       new Request(
-        "http://localhost/api/late-food?near=soho&at=2026-07-17T00%3A00%3A00.000Z&fromLat=51.5105&fromLng=-0.134&limit=1",
+        `http://localhost/api/late-food?near=soho&at=${encodeURIComponent(THURSDAY_LATE)}&fromLat=51.5105&fromLng=-0.134&limit=1`,
       ),
     );
     const body: LateFoodApiSuccessResponse = await response.json();
@@ -161,7 +169,7 @@ describe("GET /api/late-food", () => {
     expect(response.headers.get("Cache-Control")).toContain(
       "stale-while-revalidate",
     );
-    expect(body.requestedAt).toBe("2026-07-17T00:00:00.000Z");
+    expect(body.requestedAt).toBe(THURSDAY_LATE);
     expect(body.terminals).toEqual([
       expect.objectContaining({
         area: "piccadilly-soho",
@@ -182,12 +190,12 @@ describe("GET /api/late-food", () => {
   it("returns honest empty coverage when the grounded option is closed", async () => {
     const response = await GET(
       new Request(
-        "http://localhost/api/late-food?near=shoreditch&at=2026-07-17T03%3A00%3A00.000Z",
+        "http://localhost/api/late-food?near=victoria&at=2026-10-23T03%3A00%3A00.000Z",
       ),
     );
     const body: LateFoodApiSuccessResponse = await response.json();
     expect(response.status).toBe(200);
-    expect(body.area).toBe("shoreditch");
+    expect(body.area).toBe("victoria");
     expect(body.terminals).toEqual([]);
     expect(body.missingEvidence).toContain("eligible_late_food_options");
   });

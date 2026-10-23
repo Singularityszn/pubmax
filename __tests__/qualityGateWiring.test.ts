@@ -37,6 +37,8 @@ describe("the quality gates", () => {
     for (const step of [
       "npm run validate-data",
       "npm run lint",
+      // Regenerates types/database.ts from the harness cluster and fails on drift.
+      "npm run db:types:check",
       "npm run typecheck",
       // Dead code knip cannot see from the compiler. On a branch the wrapper
       // fails only findings the branch introduced; on main it is full-tree knip.

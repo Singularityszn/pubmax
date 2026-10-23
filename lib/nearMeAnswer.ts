@@ -1,6 +1,6 @@
 import { haversineKm } from "@/lib/haversine";
 import { WALK_KMH } from "@/lib/routeLegs";
-import { isPubVenueKind } from "@/lib/venueKindFilters";
+import { isPublicRankablePub } from "@/lib/venueKindFilters";
 import type { VenueKind } from "@/lib/venues";
 import { walkMinutesFromKm } from "@/lib/walkMinutes";
 
@@ -143,7 +143,7 @@ export type RankNearMeOptions = {
 
 function qualifies(point: PricedPoint): boolean {
   return (
-    isPubVenueKind(point.kind) &&
+    isPublicRankablePub(point) &&
     typeof point.cheapestPrice === "number" &&
     Number.isFinite(point.cheapestPrice) &&
     point.cheapestPrice > 0 &&
@@ -222,6 +222,23 @@ export function rankNearMe(
     radiusKm: radiusKm > 0 ? radiusKm : wideRadius,
     qualifyingWithinWalk: walkable.length,
   };
+}
+
+/**
+ * The listed prices of every priced pub inside the walkable ring, in no
+ * particular order. `rankNearMe` keeps only the few cheapest cards, so a count
+ * of "pubs under my budget" cannot be read off them: it needs the whole ring.
+ */
+export function pricedWithinWalk(
+  lat: number,
+  lng: number,
+  venues: PricedPoint[],
+  walkableRadiusKm: number = WALKABLE_RADIUS_KM,
+): number[] {
+  return venues
+    .filter(qualifies)
+    .filter((point) => haversineKm([lng, lat], [point.lng, point.lat]) <= walkableRadiusKm)
+    .map((point) => point.cheapestPrice as number);
 }
 
 /**

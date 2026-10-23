@@ -14,6 +14,7 @@ import {
   isWithinRecapGrace,
   markActivePlan,
   markNightModeActiveFired,
+  msUntilActivePlanEdge,
   parseActivePlan,
   readActivePlan,
   restoreNightMode,
@@ -114,6 +115,23 @@ describe("isPlanActiveNow", () => {
     expect(isPlanActiveNow(ref, start + ACTIVE_PLAN_POST_MS - 1)).toBe(true);
     expect(isPlanActiveNow(ref, start - ACTIVE_PLAN_PRE_MS - 1)).toBe(false);
     expect(isPlanActiveNow(ref, start + ACTIVE_PLAN_POST_MS + 1)).toBe(false);
+  });
+});
+
+describe("msUntilActivePlanEdge", () => {
+  const start = Date.parse(START);
+  const ref = { id: PLAN_ID, startTime: START, stopIndex: 0 };
+
+  it("counts to the window opening, then to its close, then stops", () => {
+    expect(msUntilActivePlanEdge(ref, start - ACTIVE_PLAN_PRE_MS - 60_000)).toBe(60_000);
+    expect(msUntilActivePlanEdge(ref, start)).toBe(ACTIVE_PLAN_POST_MS);
+    expect(msUntilActivePlanEdge(ref, start + ACTIVE_PLAN_POST_MS)).toBe(0);
+    expect(msUntilActivePlanEdge(ref, start + ACTIVE_PLAN_POST_MS + 1)).toBeNull();
+  });
+
+  it("has no edge with no ref or an unparseable start", () => {
+    expect(msUntilActivePlanEdge(null, start)).toBeNull();
+    expect(msUntilActivePlanEdge({ id: PLAN_ID, startTime: "bad", stopIndex: 0 }, start)).toBeNull();
   });
 });
 

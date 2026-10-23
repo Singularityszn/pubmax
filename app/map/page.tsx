@@ -1,6 +1,10 @@
+import MapOpeningPreview from "@/components/map/MapOpeningPreview";
 import PintIndexMapArrival from "@/components/pintindex/PintIndexMapArrival";
 import PubMaxingShell from "@/components/PubMaxingShell";
 import { londonMapMetadata } from "@/lib/londonMapMetadata";
+import { loadMapOpeningGround, loadMapOpeningPreview } from "@/lib/mapOpeningPreview.server";
+import { mapPricesReadLineFor } from "@/lib/mapPricesReadLine.server";
+import { loadZonePintIndex } from "@/lib/zonePintIndex.server";
 
 // /map stays London for back-compat bookmarks. Other cities live at /map/[city].
 //
@@ -31,7 +35,16 @@ export const revalidate = 3600;
 export const metadata = londonMapMetadata();
 const mapWarmVersion = process.env.NEXT_PUBLIC_SW_VERSION?.trim() || "local";
 
-export default function MapPage() {
+export default async function MapPage() {
+  // A build-time read of the same slim index /pint-index rolls up, so the map's
+  // zone medians are the published ones, not whatever has loaded so far.
+  const zonePintIndex = await loadZonePintIndex();
+  // The prices a cold first visit's first frame will draw, drawn by this
+  // document so they show before the map engine is ready (lib/mapOpeningPreview.ts).
+  const openingDiscs = await loadMapOpeningPreview();
+  // The opening basemap as a picture, laid under those discs on a phone
+  // (lib/mapOpeningSnapshot.ts), or null when it was drawn for another camera.
+  const openingGround = loadMapOpeningGround();
   return (
     <>
       {/* defer, not a sync script. On a cold first visit - the one the
@@ -44,7 +57,12 @@ export default function MapPage() {
           event it waits for, and document.currentScript is set for a deferred
           classic script, so the ?v= revision read is unchanged. */}
       <script defer src={`/map-first-paint-init.js?v=${encodeURIComponent(mapWarmVersion)}`} />
-      <PubMaxingShell cityId="london" />
+      <MapOpeningPreview discs={openingDiscs} ground={openingGround} />
+      <PubMaxingShell
+        cityId="london"
+        zonePintIndex={zonePintIndex}
+        pricesReadLine={mapPricesReadLineFor("london")}
+      />
       {/* Records that a Pint Index arrival reached the map. Renders nothing and
           owns no map state; it only reads its own arrival marker off the URL. */}
       <PintIndexMapArrival />

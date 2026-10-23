@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 
 import { landmarks, landmarkById, nearestStoryPubs, type Landmark } from "@/lib/landmarks";
 import type { Venue } from "@/lib/venues";
+import { defined } from "@/__tests__/helpers/defined";
 
 // nearestStoryPubs only reads latitude/longitude/hasStory/kind; a partial cast
 // keeps the fixture honest without dragging in the full 30-field Venue shape.
@@ -43,7 +44,7 @@ describe("nearestStoryPubs", () => {
     ];
     const result = nearestStoryPubs(towerBridge, venues, 3);
     expect(result.map((r) => r.venue.id)).toEqual(["near-story", "mid-story", "mid-story-2"]);
-    expect(result[0].km).toBeLessThan(0.1);
+    expect(defined(result[0]).km).toBeLessThan(0.1);
     expect(result.every((r) => r.venue.hasStory)).toBe(true);
   });
 

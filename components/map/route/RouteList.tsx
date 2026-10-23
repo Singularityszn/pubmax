@@ -7,6 +7,9 @@ import { formatLeg, type OnTheWayPoi, type RouteLegsSummary } from "@/lib/routeL
 import { journeyAddsTransit } from "@/lib/formatJourney";
 import { routeStopPlaceLabels } from "@/lib/routeStops";
 import type { CrawlJourneyLegSummary } from "@/components/map/useCrawlJourneys";
+import { mapPlanDrinkPriceDescription, type MapPlanDrinkPresentation } from "@/lib/mapPlanDrinkPresentation";
+import type { MapLensPrice } from "@/lib/mapExperienceLens";
+import type { CategoryPriceIndexStatus } from "@/lib/mapExperienceLens";
 
 type VenueSignals = Map<
   string,
@@ -15,6 +18,9 @@ type VenueSignals = Map<
 
 type RouteListProps = {
   route: Venue[];
+  drinkPresentation?: MapPlanDrinkPresentation | null;
+  drinkPrices?: ReadonlyMap<string, MapLensPrice> | null;
+  drinkPriceStatus?: CategoryPriceIndexStatus;
   activeVenueId: string | undefined;
   venueSignals: VenueSignals;
   legSummary: RouteLegsSummary;
@@ -25,6 +31,9 @@ type RouteListProps = {
 
 export default function RouteList({
   route,
+  drinkPresentation,
+  drinkPrices,
+  drinkPriceStatus,
   activeVenueId,
   venueSignals,
   legSummary,
@@ -39,6 +48,7 @@ export default function RouteList({
       name: venue.name,
       address: venue.address,
       storyTag: venue.curation.storyTag,
+      locality: venue.locality,
       primaryBorough: venue.primaryBorough,
       visibleBoroughs: venue.visibleBoroughs,
     })),
@@ -78,14 +88,15 @@ export default function RouteList({
                     style={{ marginLeft: "6px", verticalAlign: "middle" }}
                     title={`${dropCount} Pint Drop${dropCount === 1 ? "" : "s"} logged here`}
                   >
-                    <Beer size={11} aria-hidden="true" />
+                    <Beer size={14} aria-hidden="true" />
                     {dropCount}
                   </span>
                 ) : null}
               </strong>
               <p>
-                {formatPrice(signal?.latestContributorPrice ?? venue.cheapestPrice)}{" "}
-                · {venue.cheapestPint}
+                {drinkPresentation
+                  ? mapPlanDrinkPriceDescription(drinkPresentation, venue.id, drinkPrices, drinkPriceStatus)
+                  : stopPriceLine(signal?.latestContributorPrice ?? venue.cheapestPrice, venue)}
               </p>
               <small>{placeLabels[index]}</small>
             </div>
@@ -96,12 +107,12 @@ export default function RouteList({
             target="_blank"
             rel="noopener noreferrer"
           >
-            <Navigation size={12} aria-hidden="true" />
+            <Navigation size={14} aria-hidden="true" />
             <span>Directions</span>
           </a>
           {leg ? (
             <div className="routeLeg" aria-label={`Leg to ${leg.to.name}`}>
-              <Footprints size={13} aria-hidden="true" />
+              <Footprints size={14} aria-hidden="true" />
               <span>{formatLeg(leg)}</span>
               {onTheWay.length > 0 ? (
                 <p className="routeLegOnWay">
@@ -110,7 +121,7 @@ export default function RouteList({
               ) : null}
               {transitJourney ? (
                 <p className="routeLegTransit" aria-label="TfL leg">
-                  <TrainFront size={12} aria-hidden="true" />
+                  <TrainFront size={14} aria-hidden="true" />
                   <span>{transitJourney.summary}</span>
                 </p>
               ) : null}
@@ -121,4 +132,9 @@ export default function RouteList({
       })}
     </ol>
   );
+}
+
+function stopPriceLine(price: number | null, venue: Venue): string {
+  const pint = price === venue.cheapestPrice ? venue.cheapestPint : "";
+  return pint ? `${formatPrice(price)} · ${pint}` : formatPrice(price);
 }

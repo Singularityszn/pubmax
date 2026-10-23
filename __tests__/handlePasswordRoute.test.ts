@@ -12,9 +12,9 @@ vi.mock("@/lib/serverEnv", () => ({ assertServerEnv: () => {} }));
 // the file failed for its own SETUP, never for the route. Nothing here needs
 // the durable store: `isLimited` is replaced outright, so the reset it was
 // resetting could not affect a single assertion.
-const limitState = vi.hoisted(() => ({ limited: false }));
+const limitState = vi.hoisted(() => ({ limited: false, limitedKey: null as string | null }));
 vi.mock("@/lib/pintDrops", () => ({
-  isLimited: async () => limitState.limited,
+  isLimited: async (key: string) => limitState.limited || key === limitState.limitedKey,
 }));
 
 const resolveEmail = vi.hoisted(() => vi.fn());
@@ -38,6 +38,7 @@ vi.mock("@/lib/supabase", async (importOriginal) => {
 // hoisted above this import, so the route still sees every mock above; nothing
 // in it reads the environment until a request arrives.
 import { POST } from "@/app/api/auth/handle-password/route";
+import { defined } from "@/__tests__/helpers/defined";
 
 const SUPABASE_URL = "https://mock-project.supabase.co";
 
@@ -58,6 +59,7 @@ beforeEach(() => {
   vi.stubEnv("NEXT_PUBLIC_SUPABASE_URL", SUPABASE_URL);
   vi.stubEnv("NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY", "sb_publishable_test");
   limitState.limited = false;
+  limitState.limitedKey = null;
   resolveEmail.mockReset();
   passwordGrant.mockReset();
 });
@@ -75,10 +77,16 @@ describe("POST /api/auth/handle-password", () => {
     expect((await unknown.json()).error).toBe(HANDLE_PASSWORD_GENERIC_ERROR);
 
     resolveEmail.mockResolvedValueOnce("owner@example.com");
-    passwordGrant.mockResolvedValueOnce(null);
+    passwordGrant.mockResolvedValueOnce("invalid");
     const wrong = await POST(post({ handle: "karan", password: "secretpass" }));
     expect(wrong.status).toBe(401);
     expect((await wrong.json()).error).toBe(HANDLE_PASSWORD_GENERIC_ERROR);
+
+    resolveEmail.mockResolvedValueOnce("owner@example.com");
+    passwordGrant.mockResolvedValueOnce(null);
+    const failed = await POST(post({ handle: "karan", password: "secretpass" }));
+    expect(failed.status).toBe(401);
+    expect((await failed.json()).error).toBe(HANDLE_PASSWORD_GENERIC_ERROR);
   });
 
   it("answers a banned account with the same invalid-credentials body as an unknown handle", async () => {
@@ -93,8 +101,8 @@ describe("POST /api/auth/handle-password", () => {
       [unknown, banned].map(async (res) => ({ status: res.status, body: await res.json() })),
     );
     expect(bodies[0]).toEqual(bodies[1]);
-    expect(bodies[0].status).toBe(401);
-    expect(bodies[0].body).toMatchObject({
+    expect(defined(bodies[0]).status).toBe(401);
+    expect(defined(bodies[0]).body).toMatchObject({
       code: "INVALID_CREDENTIALS",
       error: HANDLE_PASSWORD_GENERIC_ERROR,
     });
@@ -120,8 +128,8 @@ describe("POST /api/auth/handle-password", () => {
     );
     expect(bodies[0]).toEqual(bodies[1]);
     expect(bodies[1]).toEqual(bodies[2]);
-    expect(bodies[0].status).toBe(401);
-    expect(bodies[0].body.error).toBe(HANDLE_PASSWORD_GENERIC_ERROR);
+    expect(defined(bodies[0]).status).toBe(401);
+    expect(defined(bodies[0]).body.error).toBe(HANDLE_PASSWORD_GENERIC_ERROR);
   });
 
   it("hands the typed handle on for normalizing, whatever its case", async () => {
@@ -176,6 +184,21 @@ describe("POST /api/auth/handle-password", () => {
     const res = await POST(post({ handle: "karan", password: "secretpass" }));
     expect(res.status).toBe(429);
     expect(resolveEmail).not.toHaveBeenCalled();
+  });
+
+  it("caps attempts at one handle across IPs without saying whether it exists", async () => {
+    limitState.limitedKey = "auth-handle-password:handle:karan";
+    // Any case the handle is typed in is the same budget.
+    const sprayed = await POST(post({ handle: "Karan", password: "secretpass" }));
+    expect(sprayed.status).toBe(429);
+    expect(await sprayed.json()).toMatchObject({ code: "RATE_LIMITED" });
+    expect(resolveEmail).not.toHaveBeenCalled();
+    expect(passwordGrant).not.toHaveBeenCalled();
+
+    // Another handle keeps its own budget.
+    resolveEmail.mockResolvedValueOnce(null);
+    const other = await POST(post({ handle: "ghost", password: "secretpass" }));
+    expect(other.status).toBe(401);
   });
 
   it("rejects cross-site posts", async () => {

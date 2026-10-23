@@ -42,12 +42,12 @@ describe("buildPlanInviteShareText", () => {
         spendBand: { minGbp: 4.5, maxGbp: 6 },
       }),
     ).toBe(
-      "Friday in Soho · 3 stops · starts 19:00 · £4.50–£6.00 per person. Open the link and tap I'm in.",
+      "Friday in Soho · 3 stops · starts 19:00 · £4.50–£6.00 per pint. Open the link and tap I'm in.",
     );
   });
 
   it("collapses a single-price band to one figure", () => {
-    expect(formatPlanInviteSpendBand({ minGbp: 4.5, maxGbp: 4.5 })).toBe("£4.50 per person");
+    expect(formatPlanInviteSpendBand({ minGbp: 4.5, maxGbp: 4.5 })).toBe("£4.50 per pint");
   });
 
   it("omits the spend band when any stop price is missing", () => {
@@ -103,7 +103,7 @@ describe("buildCrawlShareText", () => {
 describe("buildVenueShareText", () => {
   it("leads with the curated cheapest pint when no logged price", () => {
     expect(buildVenueShareText({ name: "The Red Lion", cheapestPintGbp: 4.2 })).toBe(
-      "The Red Lion. Pints from £4.20. On the PUBMAXXING map.",
+      "The Red Lion. Pints from £4.20. On the PUBMAXX map.",
     );
   });
 
@@ -115,7 +115,7 @@ describe("buildVenueShareText", () => {
         loggedPintGbp: 4.2,
         loggedDay: "today",
       }),
-    ).toBe("The Red Lion. £4.20 a pint, logged today. On the PUBMAXXING map.");
+    ).toBe("The Red Lion. £4.20 a pint, logged today. On the PUBMAXX map.");
   });
 
   it("dates a logged pint on a calendar day when not today", () => {
@@ -125,7 +125,7 @@ describe("buildVenueShareText", () => {
         loggedPintGbp: 5.1,
         loggedDay: "3 Jul",
       }),
-    ).toBe("The Crown. £5.10 a pint, logged 3 Jul. On the PUBMAXXING map.");
+    ).toBe("The Crown. £5.10 a pint, logged 3 Jul. On the PUBMAXX map.");
   });
 
   it("falls back to curated when a logged figure arrives without a day", () => {
@@ -136,7 +136,7 @@ describe("buildVenueShareText", () => {
         loggedPintGbp: 3.9,
         loggedDay: "",
       }),
-    ).toBe("The Red Lion. Pints from £4.20. On the PUBMAXXING map.");
+    ).toBe("The Red Lion. Pints from £4.20. On the PUBMAXX map.");
   });
 
   it("falls back to curated when only the day is present", () => {
@@ -146,12 +146,12 @@ describe("buildVenueShareText", () => {
         cheapestPintGbp: 4.2,
         loggedDay: "yesterday",
       }),
-    ).toBe("The Red Lion. Pints from £4.20. On the PUBMAXXING map.");
+    ).toBe("The Red Lion. Pints from £4.20. On the PUBMAXX map.");
   });
 
   it("stays honest with no price", () => {
     expect(buildVenueShareText({ name: "The Red Lion" })).toBe(
-      "The Red Lion, on the PUBMAXXING map.",
+      "The Red Lion, on the PUBMAXX map.",
     );
   });
 });
@@ -165,29 +165,37 @@ describe("buildBarTabShareText", () => {
 });
 
 describe("buildPassportShareText", () => {
+  it("shares the City without calling it a borough", () => {
+    expect(buildPassportShareText({
+      displayName: "Local", pubs: 1, boroughs: 1, cityVisited: true, pints: 1, isEmpty: false,
+    })).toBe("Local · 1 pub · the City of London · 1 pint on PUBMAXX");
+    expect(buildPassportShareText({
+      displayName: "Local", pubs: 2, boroughs: 2, cityVisited: true, pints: 2, isEmpty: false,
+    })).toBe("Local · 2 pubs · 1 borough + the City of London · 2 pints on PUBMAXX");
+  });
   it("summarises a stamped passport", () => {
     expect(
       buildPassportShareText({ displayName: "Old Ken", pubs: 12, boroughs: 3, pints: 40, isEmpty: false }),
-    ).toBe("Old Ken · 12 pubs · 3 boroughs · 40 pints on PUBMAXXING");
+    ).toBe("Old Ken · 12 pubs · 3 boroughs · 40 pints on PUBMAXX");
   });
 
   it("singularises a one-of-each passport", () => {
     expect(
       buildPassportShareText({ displayName: "Old Ken", pubs: 1, boroughs: 1, pints: 1, isEmpty: false }),
-    ).toBe("Old Ken · 1 pub · 1 borough · 1 pint on PUBMAXXING");
+    ).toBe("Old Ken · 1 pub · 1 borough · 1 pint on PUBMAXX");
   });
 
   it("invites rather than boasts when the passport is empty", () => {
     expect(
       buildPassportShareText({ displayName: "Old Ken", pubs: 0, boroughs: 0, pints: 0, isEmpty: true }),
-    ).toBe("Start a Pint Passport on PUBMAXXING. Every pint stamps a page.");
+    ).toBe("Start a Pint Passport on PUBMAXX. Every pint stamps a page.");
   });
 });
 
 describe("buildSavedListShareText", () => {
   it("carries owner, list type and neutral venue count", () => {
     expect(buildSavedListShareText({ owner: "old_ken", listType: "favourites", venueCount: 5 })).toBe(
-      "old_ken's favourites list. 5 venues on PUBMAXXING.",
+      "old_ken's favourites list. 5 venues on PUBMAXX.",
     );
   });
 });
@@ -217,5 +225,12 @@ describe("whatsappShareHref", () => {
     expect(whatsappShareHref("Last train home: 23:42.")).toBe(
       `https://wa.me/?text=${encodeURIComponent("Last train home: 23:42.")}`,
     );
+  });
+});
+
+describe("buildPlanInviteShareText opener", () => {
+  it("starts with a capital even when handed a lower-case title", () => {
+    const text = buildPlanInviteShareText({ title: "a night out in Soho", stopCount: 3, startClock: null });
+    expect(text.startsWith("A night out in Soho")).toBe(true);
   });
 });

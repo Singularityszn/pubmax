@@ -1,0 +1,928 @@
+{
+  "verifiedAt": "2026-10-21",
+  "checkedAt": "2026-10-21T21:27:08.212Z",
+  "quota": {
+    "checkedAt": "2026-10-21T21:27:06.646Z",
+    "attempts": 139,
+    "dailyLimit": 140,
+    "taskAttemptsBefore": 19,
+    "taskMaximum": 39,
+    "headroom": 1
+  },
+  "newPlacesLiveApiCalls": 1,
+  "sourceArtifacts": [
+    {
+      "path": "/tmp/pubmaxx-current-menu-pdfs.json",
+      "sha256": "8284d3834ceb56e8785c0d30cb6e47129a0bbd346edfbee77a1e3607f2ca16d6"
+    },
+    {
+      "path": "/tmp/pubmaxx-current-menus.json",
+      "sha256": "4a965346cfc8423039a934b9985644073e054ab7c412e803e14bd669d6a45f60"
+    },
+    {
+      "path": "/tmp/pubmaxx-firecrawl-cahoots-pdf.json",
+      "sha256": "605d5f014efd506eed09740d40cc56dc00136209336dda90f1e00498a27fd00e"
+    }
+  ],
+  "repairs": [
+    {
+      "id": "bar-swift-soho",
+      "original": {
+        "id": "bar-swift-soho",
+        "name": "Swift Soho",
+        "address": "12 Old Compton Street, London W1D 4TQ",
+        "borough": "Westminster",
+        "lat": 51.51338,
+        "lng": -0.13184,
+        "kind": "bar",
+        "hasStory": true,
+        "fameGates": [
+          {
+            "kind": "recognition",
+            "sourceUrl": "https://www.theworlds50best.com/discovery/Establishments/UK/London/Swift.html"
+          },
+          {
+            "kind": "distinct_experience",
+            "sourceUrl": "https://www.barswift.com/soho"
+          }
+        ],
+        "sourceUrl": "https://www.barswift.com/soho",
+        "observedAt": "2026-10-05",
+        "anchor": {
+          "kind": "house_cocktail",
+          "label": "Swift seasonal cocktail",
+          "price": 14,
+          "observedAt": "2026-07-26",
+          "sourceUrl": "https://www.barswift.com/soho"
+        },
+        "story": {
+          "text": "A bright aperitivo bar upstairs gives way to a dark whisky-and-live-music basement below.",
+          "sourceUrl": "https://www.barswift.com/soho"
+        },
+        "category": "bar",
+        "job": "late_night_bar",
+        "description": "A bright aperitivo bar upstairs gives way to a dark whisky-and-live-music basement below.",
+        "area": "Westminster",
+        "location": {
+          "lat": 51.51338,
+          "lng": -0.13184
+        },
+        "sourceName": "barswift.com",
+        "expiresAt": "2026-11-04",
+        "discoveredVia": "manual",
+        "extractedVia": "manual"
+      },
+      "candidate": {
+        "id": "bar-swift-soho",
+        "name": "Swift Soho",
+        "address": "12 Old Compton Street, London W1D 4TQ",
+        "borough": "Westminster",
+        "lat": 51.51338,
+        "lng": -0.13184,
+        "kind": "bar",
+        "hasStory": true,
+        "fameGates": [
+          {
+            "kind": "recognition",
+            "sourceUrl": "https://www.theworlds50best.com/discovery/Establishments/UK/London/Swift.html"
+          },
+          {
+            "kind": "distinct_experience",
+            "sourceUrl": "https://www.barswift.com/soho"
+          }
+        ],
+        "sourceUrl": "https://static1.squarespace.com/static/6408946af82c2a0b73bbf390/t/6941495342573d28a491583d/1765886291972/Swift+Soho+Upstairs+Menu.pdf",
+        "observedAt": "2026-10-05",
+        "anchor": {
+          "kind": "house_cocktail",
+          "label": "Droplet",
+          "price": 13,
+          "observedAt": "2026-10-21",
+          "sourceUrl": "https://static1.squarespace.com/static/6408946af82c2a0b73bbf390/t/6941495342573d28a491583d/1765886291972/Swift+Soho+Upstairs+Menu.pdf"
+        },
+        "story": {
+          "text": "A bright aperitivo bar upstairs gives way to a dark whisky-and-live-music basement below.",
+          "sourceUrl": "https://www.barswift.com/soho"
+        },
+        "category": "bar",
+        "job": "late_night_bar",
+        "description": "A bright aperitivo bar upstairs gives way to a dark whisky-and-live-music basement below.",
+        "area": "Westminster",
+        "location": {
+          "lat": 51.51338,
+          "lng": -0.13184
+        },
+        "sourceName": "static1.squarespace.com",
+        "expiresAt": "2026-11-04",
+        "discoveredVia": "manual",
+        "extractedVia": "manual"
+      },
+      "priceEvidence": {
+        "sourceUrl": "https://static1.squarespace.com/static/6408946af82c2a0b73bbf390/t/6941495342573d28a491583d/1765886291972/Swift+Soho+Upstairs+Menu.pdf",
+        "pageUrl": "https://www.barswift.com/soho-menu",
+        "checkedAt": "2026-10-21T21:15:00.553Z",
+        "label": "Droplet",
+        "price": 13,
+        "currency": "GBP",
+        "unit": "one menu item",
+        "excerpt": "DROPLET 13"
+      }
+    },
+    {
+      "id": "bar-swift-borough",
+      "original": {
+        "id": "bar-swift-borough",
+        "name": "Swift Borough",
+        "address": "66 Borough High Street, London SE1 1XF",
+        "borough": "Southwark",
+        "lat": 51.50501,
+        "lng": -0.08985,
+        "kind": "bar",
+        "hasStory": true,
+        "fameGates": [
+          {
+            "kind": "recognition",
+            "sourceUrl": "https://www.timeout.com/london/bars-and-pubs/swift-borough"
+          },
+          {
+            "kind": "distinct_experience",
+            "sourceUrl": "https://www.barswift.com/borough"
+          }
+        ],
+        "sourceUrl": "https://www.barswift.com/borough",
+        "observedAt": "2026-10-05",
+        "anchor": {
+          "kind": "house_cocktail",
+          "label": "Swift seasonal cocktail",
+          "price": 14,
+          "observedAt": "2026-07-26",
+          "sourceUrl": "https://www.barswift.com/borough"
+        },
+        "story": {
+          "text": "Swift's south-London room carries the group's award-winning fast cocktail service into Borough's old market streets.",
+          "sourceUrl": "https://www.barswift.com/borough"
+        },
+        "category": "bar",
+        "job": "late_night_bar",
+        "description": "Swift's south-London room carries the group's award-winning fast cocktail service into Borough's old market streets.",
+        "area": "Southwark",
+        "location": {
+          "lat": 51.50501,
+          "lng": -0.08985
+        },
+        "sourceName": "barswift.com",
+        "expiresAt": "2026-11-04",
+        "discoveredVia": "manual",
+        "extractedVia": "manual"
+      },
+      "candidate": {
+        "id": "bar-swift-borough",
+        "name": "Swift Borough",
+        "address": "66 Borough High Street, London SE1 1XF",
+        "borough": "Southwark",
+        "lat": 51.50501,
+        "lng": -0.08985,
+        "kind": "bar",
+        "hasStory": true,
+        "fameGates": [
+          {
+            "kind": "recognition",
+            "sourceUrl": "https://www.timeout.com/london/bars-and-pubs/swift-borough"
+          },
+          {
+            "kind": "distinct_experience",
+            "sourceUrl": "https://www.barswift.com/borough"
+          }
+        ],
+        "sourceUrl": "https://static1.squarespace.com/static/6408946af82c2a0b73bbf390/t/6925e788ae9ae924287b8790/1764091784799/SWift+Borough+Upstairs+Menu_compressed.pdf",
+        "observedAt": "2026-10-05",
+        "anchor": {
+          "kind": "house_cocktail",
+          "label": "Mountain Spring",
+          "price": 16,
+          "observedAt": "2026-10-21",
+          "sourceUrl": "https://static1.squarespace.com/static/6408946af82c2a0b73bbf390/t/6925e788ae9ae924287b8790/1764091784799/SWift+Borough+Upstairs+Menu_compressed.pdf"
+        },
+        "story": {
+          "text": "Swift's south-London room carries the group's award-winning fast cocktail service into Borough's old market streets.",
+          "sourceUrl": "https://www.barswift.com/borough"
+        },
+        "category": "bar",
+        "job": "late_night_bar",
+        "description": "Swift's south-London room carries the group's award-winning fast cocktail service into Borough's old market streets.",
+        "area": "Southwark",
+        "location": {
+          "lat": 51.50501,
+          "lng": -0.08985
+        },
+        "sourceName": "static1.squarespace.com",
+        "expiresAt": "2026-11-04",
+        "discoveredVia": "manual",
+        "extractedVia": "manual"
+      },
+      "priceEvidence": {
+        "sourceUrl": "https://static1.squarespace.com/static/6408946af82c2a0b73bbf390/t/6925e788ae9ae924287b8790/1764091784799/SWift+Borough+Upstairs+Menu_compressed.pdf",
+        "pageUrl": "https://www.barswift.com/borough-menu",
+        "checkedAt": "2026-10-21T21:15:00.656Z",
+        "label": "Mountain Spring",
+        "price": 16,
+        "currency": "GBP",
+        "unit": "one menu item",
+        "excerpt": "MOUNTAIN SPRING 16"
+      }
+    },
+    {
+      "id": "bar-bar-termini",
+      "original": {
+        "id": "bar-bar-termini",
+        "name": "Bar Termini",
+        "address": "7 Old Compton Street, London W1D 5JE",
+        "borough": "Westminster",
+        "lat": 51.51364,
+        "lng": -0.13054,
+        "kind": "bar",
+        "hasStory": true,
+        "fameGates": [
+          {
+            "kind": "recognition",
+            "sourceUrl": "https://www.theworlds50best.com/discovery/Establishments/UK/London/Bar-Termini.html"
+          },
+          {
+            "kind": "distinct_experience",
+            "sourceUrl": "https://www.bar-termini.com/"
+          }
+        ],
+        "sourceUrl": "https://www.bar-termini.com/",
+        "observedAt": "2026-10-05",
+        "anchor": {
+          "kind": "house_cocktail",
+          "label": "House Negroni",
+          "price": 13,
+          "observedAt": "2026-07-26",
+          "sourceUrl": "https://www.bar-termini.com/"
+        },
+        "story": {
+          "text": "Tony Conigliaro compressed an Italian station bar into twenty seats, tiny coffees and bottled house Negronis.",
+          "sourceUrl": "https://www.bar-termini.com/"
+        },
+        "category": "bar",
+        "job": "late_night_bar",
+        "description": "Tony Conigliaro compressed an Italian station bar into twenty seats, tiny coffees and bottled house Negronis.",
+        "area": "Westminster",
+        "location": {
+          "lat": 51.51364,
+          "lng": -0.13054
+        },
+        "sourceName": "bar-termini.com",
+        "expiresAt": "2026-11-04",
+        "discoveredVia": "manual",
+        "extractedVia": "manual"
+      },
+      "candidate": {
+        "id": "bar-bar-termini",
+        "name": "Bar Termini",
+        "address": "7 Old Compton Street, London W1D 5JE",
+        "borough": "Westminster",
+        "lat": 51.51364,
+        "lng": -0.13054,
+        "kind": "bar",
+        "hasStory": true,
+        "fameGates": [
+          {
+            "kind": "recognition",
+            "sourceUrl": "https://www.theworlds50best.com/discovery/Establishments/UK/London/Bar-Termini.html"
+          },
+          {
+            "kind": "distinct_experience",
+            "sourceUrl": "https://www.bar-termini.com/"
+          }
+        ],
+        "sourceUrl": "https://bar-termini-soho.com/menu",
+        "observedAt": "2026-10-05",
+        "anchor": {
+          "kind": "house_cocktail",
+          "label": "House Negroni",
+          "price": 9.5,
+          "observedAt": "2026-10-21",
+          "sourceUrl": "https://bar-termini-soho.com/menu"
+        },
+        "story": {
+          "text": "Tony Conigliaro compressed an Italian station bar into twenty seats, tiny coffees and bottled house Negronis.",
+          "sourceUrl": "https://www.bar-termini.com/"
+        },
+        "category": "bar",
+        "job": "late_night_bar",
+        "description": "Tony Conigliaro compressed an Italian station bar into twenty seats, tiny coffees and bottled house Negronis.",
+        "area": "Westminster",
+        "location": {
+          "lat": 51.51364,
+          "lng": -0.13054
+        },
+        "sourceName": "bar-termini-soho.com",
+        "expiresAt": "2026-11-04",
+        "discoveredVia": "manual",
+        "extractedVia": "manual"
+      },
+      "priceEvidence": {
+        "sourceUrl": "https://bar-termini-soho.com/menu",
+        "pageUrl": "https://bar-termini-soho.com/",
+        "checkedAt": "2026-10-21T21:14:23.005Z",
+        "label": "House Negroni",
+        "price": 9.5,
+        "currency": "GBP",
+        "unit": "one menu item",
+        "excerpt": "HOUSE NEGRONI Classico - Superiore - Rosato - Robusto 9.5"
+      }
+    },
+    {
+      "id": "food-vq-chelsea",
+      "original": {
+        "id": "food-vq-chelsea",
+        "name": "VQ Chelsea",
+        "address": "325 Fulham Road, London SW10 9QL",
+        "borough": "Kensington and Chelsea",
+        "lat": 51.48664,
+        "lng": -0.18156,
+        "kind": "food",
+        "hasStory": true,
+        "fameGates": [
+          {
+            "kind": "longevity",
+            "sourceUrl": "https://www.theinfatuation.com/london/reviews/vingt-quatre"
+          },
+          {
+            "kind": "distinct_experience",
+            "sourceUrl": "https://www.vqrestaurants.com/locations/chelsea"
+          }
+        ],
+        "sourceUrl": "https://www.vqrestaurants.com/locations/chelsea",
+        "observedAt": "2026-10-05",
+        "anchor": {
+          "kind": "signature_item",
+          "label": "Full English breakfast",
+          "price": 17.95,
+          "observedAt": "2026-07-26",
+          "sourceUrl": "https://www.vqrestaurants.com/locations/chelsea"
+        },
+        "story": {
+          "text": "VQ began as Chelsea's Vingt-Quatre in 1995, making a proper sit-down meal available to west London around the clock.",
+          "sourceUrl": "https://www.vqrestaurants.com/locations/chelsea"
+        },
+        "category": "late_food",
+        "job": "crawl_ending_food",
+        "description": "VQ began as Chelsea's Vingt-Quatre in 1995, making a proper sit-down meal available to west London around the clock.",
+        "area": "Kensington and Chelsea",
+        "location": {
+          "lat": 51.48664,
+          "lng": -0.18156
+        },
+        "sourceName": "vqrestaurants.com",
+        "expiresAt": "2026-11-04",
+        "discoveredVia": "manual",
+        "extractedVia": "manual"
+      },
+      "candidate": {
+        "id": "food-vq-chelsea",
+        "name": "VQ Chelsea",
+        "address": "325 Fulham Road, London SW10 9QL",
+        "borough": "Kensington and Chelsea",
+        "lat": 51.48664,
+        "lng": -0.18156,
+        "kind": "food",
+        "hasStory": true,
+        "fameGates": [
+          {
+            "kind": "longevity",
+            "sourceUrl": "https://www.theinfatuation.com/london/reviews/vingt-quatre"
+          },
+          {
+            "kind": "distinct_experience",
+            "sourceUrl": "https://www.vqrestaurants.com/locations/chelsea"
+          }
+        ],
+        "sourceUrl": "https://vqrestaurants.com/wp-content/uploads/2026/02/VQ-Chelsea-Menu.pdf",
+        "observedAt": "2026-10-05",
+        "anchor": {
+          "kind": "signature_item",
+          "label": "Breakfast Burger",
+          "price": 12.95,
+          "observedAt": "2026-10-21",
+          "sourceUrl": "https://vqrestaurants.com/wp-content/uploads/2026/02/VQ-Chelsea-Menu.pdf"
+        },
+        "story": {
+          "text": "VQ began as Chelsea's Vingt-Quatre in 1995, making a proper sit-down meal available to west London around the clock.",
+          "sourceUrl": "https://www.vqrestaurants.com/locations/chelsea"
+        },
+        "category": "late_food",
+        "job": "crawl_ending_food",
+        "description": "VQ began as Chelsea's Vingt-Quatre in 1995, making a proper sit-down meal available to west London around the clock.",
+        "area": "Kensington and Chelsea",
+        "location": {
+          "lat": 51.48664,
+          "lng": -0.18156
+        },
+        "sourceName": "vqrestaurants.com",
+        "expiresAt": "2026-11-04",
+        "discoveredVia": "manual",
+        "extractedVia": "manual"
+      },
+      "priceEvidence": {
+        "sourceUrl": "https://vqrestaurants.com/wp-content/uploads/2026/02/VQ-Chelsea-Menu.pdf",
+        "pageUrl": "https://vqrestaurants.com/chelsea/",
+        "checkedAt": "2026-10-21T21:15:02.181Z",
+        "label": "Breakfast Burger",
+        "price": 12.95,
+        "currency": "GBP",
+        "unit": "one menu item",
+        "excerpt": "Breakfast Burger 12.95"
+      }
+    },
+    {
+      "id": "restaurant-wiltons",
+      "original": {
+        "id": "restaurant-wiltons",
+        "name": "Wiltons",
+        "address": "55 Jermyn Street, London SW1Y 6LX",
+        "borough": "Westminster",
+        "lat": 51.5076994,
+        "lng": -0.1392041,
+        "kind": "restaurant",
+        "hasStory": true,
+        "fameGates": [
+          {
+            "kind": "longevity",
+            "sourceUrl": "https://wiltons.co.uk/history"
+          },
+          {
+            "kind": "recognition",
+            "sourceUrl": "https://guide.michelin.com/gb/en/greater-london/london/restaurant/wiltons"
+          }
+        ],
+        "sourceUrl": "https://wiltons.co.uk/s/010726-Copy.pdf",
+        "observedAt": "2026-10-05",
+        "anchor": {
+          "kind": "signature_dish",
+          "label": "Potted Shrimps",
+          "course": "starters",
+          "price": 28,
+          "observedAt": "2026-07-27",
+          "sourceUrl": "https://wiltons.co.uk/s/010726-Copy.pdf"
+        },
+        "story": {
+          "text": "Wiltons grew from an 1742 oyster stall into a Jermyn Street dining room.",
+          "sourceUrl": "https://wiltons.co.uk/history"
+        },
+        "category": "restaurant",
+        "job": "near_pub_food",
+        "description": "Wiltons grew from an 1742 oyster stall into a Jermyn Street dining room.",
+        "area": "St James's",
+        "location": {
+          "lat": 51.5076994,
+          "lng": -0.1392041
+        },
+        "sourceName": "wiltons.co.uk",
+        "expiresAt": "2026-11-04",
+        "discoveredVia": "manual",
+        "extractedVia": "manual",
+        "placesNameAliases": [
+          "wiltons restaurant"
+        ]
+      },
+      "candidate": {
+        "id": "restaurant-wiltons",
+        "name": "Wiltons",
+        "address": "55 Jermyn Street, London SW1Y 6LX",
+        "borough": "Westminster",
+        "lat": 51.5076994,
+        "lng": -0.1392041,
+        "kind": "restaurant",
+        "hasStory": true,
+        "fameGates": [
+          {
+            "kind": "longevity",
+            "sourceUrl": "https://wiltons.co.uk/history"
+          },
+          {
+            "kind": "recognition",
+            "sourceUrl": "https://guide.michelin.com/gb/en/greater-london/london/restaurant/wiltons"
+          }
+        ],
+        "sourceUrl": "https://static1.squarespace.com/static/64b9649cfce925753d4eb423/t/6a45568c1944cd1697dbcc03/1782929036665/01.07.26+-+Copy.pdf",
+        "observedAt": "2026-10-05",
+        "anchor": {
+          "kind": "signature_dish",
+          "label": "Potted Shrimps, warm or cold",
+          "course": "starters",
+          "price": 28,
+          "observedAt": "2026-10-21",
+          "sourceUrl": "https://static1.squarespace.com/static/64b9649cfce925753d4eb423/t/6a45568c1944cd1697dbcc03/1782929036665/01.07.26+-+Copy.pdf"
+        },
+        "story": {
+          "text": "Wiltons grew from an 1742 oyster stall into a Jermyn Street dining room.",
+          "sourceUrl": "https://wiltons.co.uk/history"
+        },
+        "category": "restaurant",
+        "job": "near_pub_food",
+        "description": "Wiltons grew from an 1742 oyster stall into a Jermyn Street dining room.",
+        "area": "St James's",
+        "location": {
+          "lat": 51.5076994,
+          "lng": -0.1392041
+        },
+        "sourceName": "static1.squarespace.com",
+        "expiresAt": "2026-11-04",
+        "discoveredVia": "manual",
+        "extractedVia": "manual",
+        "placesNameAliases": [
+          "wiltons restaurant"
+        ]
+      },
+      "priceEvidence": {
+        "sourceUrl": "https://static1.squarespace.com/static/64b9649cfce925753d4eb423/t/6a45568c1944cd1697dbcc03/1782929036665/01.07.26+-+Copy.pdf",
+        "pageUrl": "https://wiltons.co.uk/s/010726-Copy.pdf",
+        "checkedAt": "2026-10-21T21:15:02.331Z",
+        "label": "Potted Shrimps, warm or cold",
+        "price": 28,
+        "currency": "GBP",
+        "unit": "one menu item",
+        "excerpt": "Potted Shrimps warm or cold 28.00"
+      }
+    },
+    {
+      "id": "bar-cahoots",
+      "original": {
+        "id": "bar-cahoots",
+        "name": "Cahoots Underground",
+        "address": "13 Kingly Court, London W1B 5PW",
+        "borough": "Westminster",
+        "lat": 51.51304,
+        "lng": -0.13914,
+        "kind": "bar",
+        "hasStory": true,
+        "fameGates": [
+          {
+            "kind": "recognition",
+            "sourceUrl": "https://www.timeout.com/london/bars-and-pubs/cahoots"
+          },
+          {
+            "kind": "distinct_experience",
+            "sourceUrl": "https://www.cahoots-london.com/"
+          }
+        ],
+        "sourceUrl": "https://www.cahoots-london.com/",
+        "observedAt": "2026-10-05",
+        "anchor": {
+          "kind": "house_cocktail",
+          "label": "Cahoots cocktail",
+          "price": 16.5,
+          "observedAt": "2026-07-26",
+          "sourceUrl": "https://www.cahoots-london.com/"
+        },
+        "story": {
+          "text": "A decommissioned Underground carriage and wartime station set make the journey part of the drink.",
+          "sourceUrl": "https://www.cahoots-london.com/"
+        },
+        "category": "bar",
+        "job": "late_night_bar",
+        "description": "A decommissioned Underground carriage and wartime station set make the journey part of the drink.",
+        "area": "Westminster",
+        "location": {
+          "lat": 51.51304,
+          "lng": -0.13914
+        },
+        "sourceName": "cahoots-london.com",
+        "expiresAt": "2026-11-04",
+        "discoveredVia": "manual",
+        "extractedVia": "manual"
+      },
+      "candidate": {
+        "id": "bar-cahoots",
+        "name": "Cahoots Underground",
+        "address": "13 Kingly Court, London W1B 5PW",
+        "borough": "Westminster",
+        "lat": 51.51304,
+        "lng": -0.13914,
+        "kind": "bar",
+        "hasStory": true,
+        "fameGates": [
+          {
+            "kind": "recognition",
+            "sourceUrl": "https://www.timeout.com/london/bars-and-pubs/cahoots"
+          },
+          {
+            "kind": "distinct_experience",
+            "sourceUrl": "https://www.cahoots-london.com/"
+          }
+        ],
+        "sourceUrl": "https://www.cahoots.co.uk/propeller/uploads/sites/7/2020/09/26_08-Cahoots-UG-Newspaper-PRINT.pdf",
+        "observedAt": "2026-10-05",
+        "anchor": {
+          "kind": "house_cocktail",
+          "label": "Elizabeth",
+          "price": 16.5,
+          "observedAt": "2026-10-21",
+          "sourceUrl": "https://www.cahoots.co.uk/propeller/uploads/sites/7/2020/09/26_08-Cahoots-UG-Newspaper-PRINT.pdf"
+        },
+        "story": {
+          "text": "A decommissioned Underground carriage and wartime station set make the journey part of the drink.",
+          "sourceUrl": "https://www.cahoots-london.com/"
+        },
+        "category": "bar",
+        "job": "late_night_bar",
+        "description": "A decommissioned Underground carriage and wartime station set make the journey part of the drink.",
+        "area": "Westminster",
+        "location": {
+          "lat": 51.51304,
+          "lng": -0.13914
+        },
+        "sourceName": "cahoots.co.uk",
+        "expiresAt": "2026-11-04",
+        "discoveredVia": "manual",
+        "extractedVia": "manual"
+      },
+      "priceEvidence": {
+        "sourceUrl": "https://www.cahoots.co.uk/propeller/uploads/sites/7/2020/09/26_08-Cahoots-UG-Newspaper-PRINT.pdf",
+        "pageUrl": "https://www.cahoots.co.uk/menus/",
+        "checkedAt": "2026-10-21T21:25:41.196Z",
+        "label": "Elizabeth",
+        "price": 16.5,
+        "currency": "GBP",
+        "unit": "one menu item",
+        "excerpt": "ELIZABETH TROPICAL / CREAMY £16.5"
+      }
+    },
+    {
+      "id": "food-super-kebab",
+      "original": {
+        "id": "food-super-kebab",
+        "name": "Super Kebab",
+        "address": "54 Stoke Newington Road, London N16 7XB",
+        "borough": "Hackney",
+        "lat": 51.55398,
+        "lng": -0.07505,
+        "kind": "food",
+        "hasStory": true,
+        "fameGates": [
+          {
+            "kind": "recognition",
+            "sourceUrl": "https://www.timeout.com/london/blog/a-meat-slicing-robot-has-appeared-in-a-stoke-newington-kebab-shop-082015"
+          },
+          {
+            "kind": "distinct_experience",
+            "sourceUrl": "https://www.superkebab.net/"
+          }
+        ],
+        "sourceUrl": "https://www.superkebab.net/",
+        "observedAt": "2026-10-05",
+        "anchor": {
+          "kind": "large_doner",
+          "label": "Large lamb doner",
+          "price": 13,
+          "observedAt": "2026-07-26",
+          "sourceUrl": "https://www.superkebab.net/"
+        },
+        "story": {
+          "text": "Super Kebab hand-makes its lamb doner and uses a rotating mechanical slicer to keep every shaving crisp at the edge.",
+          "sourceUrl": "https://www.superkebab.net/"
+        },
+        "category": "late_food",
+        "job": "crawl_ending_food",
+        "description": "Super Kebab hand-makes its lamb doner and uses a rotating mechanical slicer to keep every shaving crisp at the edge.",
+        "area": "Hackney",
+        "location": {
+          "lat": 51.55398,
+          "lng": -0.07505
+        },
+        "sourceName": "superkebab.net",
+        "expiresAt": "2026-11-04",
+        "discoveredVia": "manual",
+        "extractedVia": "manual"
+      },
+      "candidate": {
+        "id": "food-super-kebab",
+        "name": "Super Kebab",
+        "address": "54 Stoke Newington Road, London N16 7XB",
+        "borough": "Hackney",
+        "lat": 51.55398,
+        "lng": -0.07505,
+        "kind": "food",
+        "hasStory": true,
+        "fameGates": [
+          {
+            "kind": "recognition",
+            "sourceUrl": "https://www.timeout.com/london/blog/a-meat-slicing-robot-has-appeared-in-a-stoke-newington-kebab-shop-082015"
+          },
+          {
+            "kind": "distinct_experience",
+            "sourceUrl": "https://www.superkebab.net/"
+          }
+        ],
+        "sourceUrl": "https://www.superkebab.net/Menu",
+        "observedAt": "2026-10-05",
+        "anchor": {
+          "kind": "large_doner",
+          "label": "Lamb Doner L",
+          "price": 14,
+          "observedAt": "2026-10-21",
+          "sourceUrl": "https://www.superkebab.net/Menu"
+        },
+        "story": {
+          "text": "Super Kebab hand-makes its lamb doner and uses a rotating mechanical slicer to keep every shaving crisp at the edge.",
+          "sourceUrl": "https://www.superkebab.net/"
+        },
+        "category": "late_food",
+        "job": "crawl_ending_food",
+        "description": "Super Kebab hand-makes its lamb doner and uses a rotating mechanical slicer to keep every shaving crisp at the edge.",
+        "area": "Hackney",
+        "location": {
+          "lat": 51.55398,
+          "lng": -0.07505
+        },
+        "sourceName": "superkebab.net",
+        "expiresAt": "2026-11-04",
+        "discoveredVia": "manual",
+        "extractedVia": "manual"
+      },
+      "priceEvidence": {
+        "sourceUrl": "https://www.superkebab.net/Menu",
+        "pageUrl": "https://www.superkebab.net/",
+        "checkedAt": "2026-10-21T21:26:59.252Z",
+        "label": "Lamb Doner L",
+        "price": 14,
+        "currency": "GBP",
+        "unit": "one menu item",
+        "excerpt": "Lamb Doner L £ 14.00"
+      }
+    }
+  ],
+  "inspections": [
+    {
+      "url": "https://www.superkebab.net/Menu",
+      "checkedAt": "2026-10-21T21:26:59.252Z",
+      "permission": {
+        "allowed": true,
+        "reason": "no-rules-published",
+        "robots": "absent",
+        "evidence": "https://www.superkebab.net/robots.txt returns 404, which publishes no restriction."
+      },
+      "method": "GET",
+      "status": 200,
+      "location": null
+    },
+    {
+      "url": "https://static1.squarespace.com/static/6408946af82c2a0b73bbf390/t/6941495342573d28a491583d/1765886291972/Swift+Soho+Upstairs+Menu.pdf",
+      "checkedAt": "2026-10-21T21:27:01.497Z",
+      "permission": {
+        "allowed": true,
+        "reason": "no-rules-published",
+        "robots": "absent",
+        "evidence": "https://static1.squarespace.com/robots.txt returns 404, which publishes no restriction."
+      },
+      "method": "HEAD",
+      "status": 200,
+      "location": null
+    },
+    {
+      "url": "https://static1.squarespace.com/static/6408946af82c2a0b73bbf390/t/6925e788ae9ae924287b8790/1764091784799/SWift+Borough+Upstairs+Menu_compressed.pdf",
+      "checkedAt": "2026-10-21T21:27:01.518Z",
+      "permission": {
+        "allowed": true,
+        "reason": "no-rules-published",
+        "robots": "absent",
+        "evidence": "https://static1.squarespace.com/robots.txt returns 404, which publishes no restriction."
+      },
+      "method": "HEAD",
+      "status": 200,
+      "location": null
+    },
+    {
+      "url": "https://bar-termini-soho.com/menu",
+      "checkedAt": "2026-10-21T21:27:01.614Z",
+      "permission": {
+        "allowed": true,
+        "reason": "allowed",
+        "robots": "rules-file",
+        "evidence": "https://bar-termini-soho.com/robots.txt permits /menu.",
+        "sitemaps": [
+          "http://bar-termini-soho.com/sitemap.xml"
+        ]
+      },
+      "method": "HEAD",
+      "status": 200,
+      "location": null
+    },
+    {
+      "url": "https://vqrestaurants.com/wp-content/uploads/2026/02/VQ-Chelsea-Menu.pdf",
+      "checkedAt": "2026-10-21T21:27:02.322Z",
+      "permission": {
+        "allowed": true,
+        "reason": "allowed",
+        "robots": "rules-file",
+        "evidence": "https://vqrestaurants.com/robots.txt permits /wp-content/uploads/2026/02/VQ-Chelsea-Menu.pdf.",
+        "sitemaps": [
+          "https://vqrestaurants.com/sitemap_index.xml"
+        ]
+      },
+      "method": "HEAD",
+      "status": 200,
+      "location": null
+    },
+    {
+      "url": "https://static1.squarespace.com/static/64b9649cfce925753d4eb423/t/6a45568c1944cd1697dbcc03/1782929036665/01.07.26+-+Copy.pdf",
+      "checkedAt": "2026-10-21T21:27:02.543Z",
+      "permission": {
+        "allowed": true,
+        "reason": "no-rules-published",
+        "robots": "absent",
+        "evidence": "https://static1.squarespace.com/robots.txt returns 404, which publishes no restriction."
+      },
+      "method": "HEAD",
+      "status": 200,
+      "location": null
+    },
+    {
+      "url": "https://www.cahoots.co.uk/propeller/uploads/sites/7/2020/09/26_08-Cahoots-UG-Newspaper-PRINT.pdf",
+      "checkedAt": "2026-10-21T21:27:02.633Z",
+      "permission": {
+        "allowed": true,
+        "reason": "allowed",
+        "robots": "rules-file",
+        "evidence": "https://www.cahoots.co.uk/robots.txt permits /propeller/uploads/sites/7/2020/09/26_08-Cahoots-UG-Newspaper-PRINT.pdf.",
+        "sitemaps": [
+          "https://www.cahoots.co.uk/sitemap_index.xml"
+        ]
+      },
+      "method": "HEAD",
+      "status": 200,
+      "location": null
+    },
+    {
+      "url": "https://www.superkebab.net/Menu",
+      "checkedAt": "2026-10-21T21:27:02.709Z",
+      "permission": {
+        "allowed": true,
+        "reason": "no-rules-published",
+        "robots": "absent",
+        "evidence": "https://www.superkebab.net/robots.txt returns 404, which publishes no restriction."
+      },
+      "method": "GET",
+      "status": 200,
+      "location": null
+    }
+  ],
+  "checks": [
+    {
+      "id": "food-vq-chelsea",
+      "method": "places_text_search",
+      "sourceUrl": "https://vqrestaurants.com/wp-content/uploads/2026/02/VQ-Chelsea-Menu.pdf",
+      "outcome": "confirmed",
+      "result": "places_operational",
+      "textQuery": "VQ Chelsea SW10 9QL London",
+      "placeId": "ChIJSe29W2QFdkgRqu5f7VwN-S0",
+      "matchReason": "exact_normalized_name;postcode_SW10 9QL",
+      "checkedAt": "2026-10-21T07:18:51.498Z",
+      "receipt": "data/famous_venues/receipts/verification_2026-10-21_pubpal-complete-1019.json",
+      "anchorCheckedAt": "2026-10-21T21:27:02.322Z",
+      "priorReceipt": "data/famous_venues/verification_2026-10-21.json"
+    },
+    {
+      "id": "restaurant-wiltons",
+      "method": "places_text_search",
+      "sourceUrl": "https://static1.squarespace.com/static/64b9649cfce925753d4eb423/t/6a45568c1944cd1697dbcc03/1782929036665/01.07.26+-+Copy.pdf",
+      "outcome": "confirmed",
+      "result": "places_operational",
+      "textQuery": "Wiltons SW1Y 6LX London",
+      "placeId": "ChIJbemuSNYEdkgRGcSDvjPdl9s",
+      "matchReason": "places_name_alias;postcode_SW1Y 6LX",
+      "checkedAt": "2026-10-21T07:19:06.386Z",
+      "receipt": "data/famous_venues/receipts/verification_2026-10-21_pubpal-complete-1019.json",
+      "anchorCheckedAt": "2026-10-21T21:27:02.543Z",
+      "priorReceipt": "data/famous_venues/verification_2026-10-21.json"
+    },
+    {
+      "id": "food-super-kebab",
+      "method": "places_text_search",
+      "sourceUrl": "https://www.superkebab.net/Menu",
+      "outcome": "confirmed",
+      "result": "places_operational",
+      "textQuery": "Super Kebab N16 7XB London",
+      "placeId": "ChIJsRTvjIscdkgRTgsnKbstWu4",
+      "matchReason": "exact_normalized_name;postcode_N16 7XB",
+      "checkedAt": "2026-10-21T07:18:28.418Z",
+      "receipt": "data/famous_venues/receipts/verification_2026-10-21_pubpal-complete-1019.json",
+      "anchorCheckedAt": "2026-10-21T21:27:02.709Z",
+      "priorReceipt": "data/famous_venues/verification_2026-10-21.json"
+    },
+    {
+      "id": "bar-cahoots",
+      "method": "places_text_search",
+      "sourceUrl": "https://www.cahoots.co.uk/propeller/uploads/sites/7/2020/09/26_08-Cahoots-UG-Newspaper-PRINT.pdf",
+      "outcome": "confirmed",
+      "result": "places_operational",
+      "textQuery": "Cahoots Underground W1B 5PW London",
+      "placeId": "ChIJ-2mrB9UEdkgReKgh9HDC-7s",
+      "matchReason": "exact_normalized_name;postcode_W1B 5PW",
+      "checkedAt": "2026-10-21T21:27:08.165Z"
+    }
+  ]
+}

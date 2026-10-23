@@ -41,6 +41,7 @@ import { CITY_VENUE_PACKS } from "@/lib/cityVenuePacks.mjs";
 import { MAP_EAGER_VENUE_INDEX_TRACING_INCLUDE } from "@/lib/mapEagerVenueIndexFile.mjs";
 import { VENUE_IMAGE_HOST_TRACING_INCLUDES } from "@/lib/venueImageHostFiles.mjs";
 import { rowsFromSlimPayload } from "@/lib/slimPayload";
+import { defined } from "@/__tests__/helpers/defined";
 
 const root = join(__dirname, "..");
 const temporaryRoots: string[] = [];
@@ -107,7 +108,7 @@ describe("runtime data-pack tracing", () => {
     writeFixture("app/cyclic/page.tsx", 'export * from "./b";\n');
     writeFixture("app/unrelated/page.tsx", "export default function Page() { return null; }\n");
 
-    expect(discoverRuntimeReaderRouteGlobs(temporaryRoots[0], "lib/venueIndex.ts")).toEqual([
+    expect(discoverRuntimeReaderRouteGlobs(defined(temporaryRoots[0]), "lib/venueIndex.ts")).toEqual([
       "/api/direct",
       "/bar/\\[id\\]/opengraph-image",
       "/cyclic",
@@ -123,10 +124,10 @@ describe("runtime data-pack tracing", () => {
       (pack) => pack.id === "venue-detail-index",
     );
     if (!venueIndexPack || !venueDetailPack) throw new Error("venue tracing packs missing");
-    const venueIndexModule = venueIndexPack.modules[0];
-    const venueDetailModule = venueDetailPack.modules[0];
-    writeFixture(venueIndexModule, "export async function getVenueIndex() {}");
-    writeFixture(venueDetailModule, "export async function getVenueDetail() {}");
+    const venueIndexModule = defined(venueIndexPack.modules[0]);
+    const venueDetailModule = defined(venueDetailPack.modules[0]);
+    writeFixture(defined(venueIndexModule), "export async function getVenueIndex() {}");
+    writeFixture(defined(venueDetailModule), "export async function getVenueDetail() {}");
     writeFixture(
       "app/api/packs/route.ts",
       `import "@/${venueIndexModule.replace(/\.ts$/, "")}";\n` +
@@ -138,7 +139,7 @@ describe("runtime data-pack tracing", () => {
         "export default function Page() { return null; }\n",
     );
 
-    const includes = runtimeDataPackRouteIncludes(temporaryRoots[0]);
+    const includes = runtimeDataPackRouteIncludes(defined(temporaryRoots[0]));
 
     expect(new Set(Object.keys(includes))).toEqual(new Set(["/api/packs", "/detail"]));
     const expectedFiles = new Set([...venueIndexPack.files, ...venueDetailPack.files]);
@@ -146,6 +147,8 @@ describe("runtime data-pack tracing", () => {
     expect(new Set(includes["/detail"])).toEqual(expectedFiles);
   });
 
+  // Evaluates next.config and walks every pack reader. On a busy runner
+  // that work exceeds the 60s default.
   it("declares every pack file for every discovered runtime reader of that pack", () => {
     const includes = tracingIncludes();
 
@@ -165,7 +168,7 @@ describe("runtime data-pack tracing", () => {
         }
       }
     }
-  });
+  }, 240_000);
 
   it("keeps OSM packs off base-only venue routes", () => {
     const includes = tracingIncludes();
@@ -341,7 +344,7 @@ describe("runtime data-pack tracing", () => {
         "export default function Page() { return null; }\n",
     );
 
-    expect(discoverRuntimePathModules(temporaryRoots[0])).toEqual([
+    expect(discoverRuntimePathModules(defined(temporaryRoots[0]))).toEqual([
       "lib/assembled.ts",
       "lib/resolved.ts",
       "lib/templated.ts",

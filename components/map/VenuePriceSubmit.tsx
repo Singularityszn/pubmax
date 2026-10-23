@@ -57,6 +57,9 @@ import {
   type MissionReceipt,
   type PriceEvidenceMissionReason,
 } from "@/lib/priceEvidenceMissions";
+import { scrollMotionBehavior } from "@/lib/scrollMotion";
+import PalCheer from "@/components/pal/PalCheer";
+import { announcePalMoment } from "@/lib/palMoments";
 
 export type VenuePriceSubmitMission = {
   reason: PriceEvidenceMissionReason;
@@ -317,7 +320,7 @@ export default function VenuePriceSubmit({
       focusFrame = window.requestAnimationFrame(() => {
         priceInputRef.current?.scrollIntoView({
           block: "center",
-          behavior: "smooth",
+          behavior: scrollMotionBehavior(),
         });
         priceInputRef.current?.focus();
       });
@@ -481,6 +484,8 @@ export default function VenuePriceSubmit({
         // gets the one two-beat tap in the vocabulary. Fire-and-forget: the
         // receipt below never waits on a vibrator (lib/nativeHaptics.ts).
         haptic("contribution-kept");
+        // Every Pal on screen thanks the person (lib/palMoments.ts).
+        announcePalMoment({ kind: "price-added" });
         // A price the drinker kept is the first kept action for most people, and
         // until now only a plan could offer notifications. The explainer still
         // decides whether to show (lib/nativePushPrompt.ts); this only says an
@@ -583,6 +588,7 @@ export default function VenuePriceSubmit({
           <p className="vpsubStampHint">{logged.outcomeLine}</p>
         ) : null}
         <PriceContributionImpact attribution={logged.attribution} />
+        <PalCheer moment="price-added" />
         {/* Close the loop in-session: the mark the map just gained, named and
             coloured exactly as the map draws it, so the submitter can look up
             and find their own dot rather than take our word for it. */}
@@ -592,7 +598,7 @@ export default function VenuePriceSubmit({
         {!logged.missionReceipt && !logged.nonPint && markedProvisionally ? (
           <p className="vpsubStampHint">
             <i className="vpsubStampDot" aria-hidden="true" />
-            Its pin now carries this dot.{" "}
+            Its pin now shows this dot.{" "}
             {mapReach === "paint"
               ? "A second independent drinker reporting a similar price can set the pin’s colour."
               : "A second independent drinker reporting a similar price can confirm the figure here."}
@@ -656,7 +662,7 @@ export default function VenuePriceSubmit({
       aria-labelledby={titleId}
     >
       <div className="vpsubHead">
-        <Tag size={15} aria-hidden="true" />
+        <Tag size={16} aria-hidden="true" />
         <h3 id={titleId} className="vpsubTitle">
           What&rsquo;s it tonight?
         </h3>
@@ -764,7 +770,7 @@ export default function VenuePriceSubmit({
           onClick={() => void chooseReceiptPhoto()}
           disabled={submitting || missionPending}
         >
-          <Camera size={15} aria-hidden="true" />
+          <Camera size={16} aria-hidden="true" />
           {receiptPhoto ? "Change the bill" : RECEIPT_PHOTO_ACTION}
         </button>
         {receiptPhoto ? (
@@ -803,7 +809,7 @@ export default function VenuePriceSubmit({
               onClick={() => void choosePintPhoto()}
               disabled={submitting || missionPending}
             >
-              <Camera size={15} aria-hidden="true" />
+              <Camera size={16} aria-hidden="true" />
               {pintPhoto ? "Change the pint" : PINT_PHOTO_ACTION}
             </button>
             {pintPhoto ? (

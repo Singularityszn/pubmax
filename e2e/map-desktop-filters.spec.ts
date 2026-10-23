@@ -1,4 +1,5 @@
 import { test, expect, type Page } from "@playwright/test";
+import { expectMobileMapShellReady, mobileMapShellControl } from "./helpers/mobileMapShell";
 
 /**
  * PlanAstra item 9, over the map's chrome overload at 768 and 1440.
@@ -30,9 +31,11 @@ function seedDismissedChrome(page: Page): Promise<void> {
 async function openMap(page: Page, phone = false): Promise<void> {
   const response = await page.goto("/map", { waitUntil: "domcontentloaded" });
   expect(response?.status()).toBe(200);
-  await expect(
-    page.locator(phone ? ".mobileMapTopbar" : ".mapToolbar"),
-  ).toBeVisible({ timeout: 60_000 });
+  if (phone) {
+    await expectMobileMapShellReady(page, 60_000);
+  } else {
+    await expect(page.locator(".mapToolbar")).toBeVisible({ timeout: 60_000 });
+  }
 }
 
 for (const viewport of DESKTOP) {
@@ -123,9 +126,9 @@ for (const viewport of DESKTOP) {
       expect(boxes!.inputWidth).toBeGreaterThan(120);
 
       // A tap opens the panel with the same four chips in it. Four, not five:
-      // `Clubs` is deleted (walk finding B9), because `curatedVenueKind` in
-      // lib/venueKindFilters.ts answers null for a club, so it could never have
-      // been enabled.
+      // `Clubs` is deleted (walk finding B9), because it could never have been
+      // enabled. Clubs show with `Bars`: `curatedVenueKind` in
+      // lib/venueKindFilters.ts files a club under the bars.
       await expect(async () => {
         await filters.click();
         await expect(
@@ -225,11 +228,9 @@ test.describe("390x844", () => {
     await expect(page.locator(".mapVenueKindFilterBtn")).toHaveCount(0);
     await expect(page.getByRole("group", { name: "Venue types" })).toHaveCount(0);
 
+    const filters = await mobileMapShellControl(page, "filters");
     await expect(async () => {
-      await page
-        .locator(".mobileMapTopbar")
-        .getByRole("button", { name: /^Filters/ })
-        .click();
+      await filters.click();
       await expect(
         page
           .locator('.mobileSheetPortal[data-sheet-kind="filters"]')

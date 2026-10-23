@@ -1,7 +1,7 @@
 .nearModeSwitch {
   display: block;
   width: 100%;
-  margin: 0 0 var(--space-5, 20px);
+  margin: 0 0 var(--space-5);
 }
 
 .nearModeSwitchList.nearModeSwitchList {
@@ -22,26 +22,37 @@
   align-items: center;
   justify-content: center;
   min-height: 44px;
-  padding: 0 var(--space-4, 16px);
+  padding: 0 var(--space-4);
   border: 0;
   border-radius: var(--radius-pill);
   background: transparent;
   color: var(--ink-soft);
   font-family: var(--font-display);
-  font-size: 1rem;
+  font-size: var(--text-base);
   font-weight: 700;
   cursor: pointer;
 }
 
+/* The chosen mode is a selection, not an action, so it reads in ink
+   (docs/DESIGN_SYSTEM.md "Coral is spent twice"). Painted coral it was a second
+   filled button above Find my pint, the page's one primary.
+
+   Selection is the FILL, and the group wears the ONE edge: an inset ring on
+   the chosen segment drew a second border inside the group's own (taste plan,
+   18 Oct 2026; docs/DESIGN_SYSTEM.md "Edges", __tests__/deBoxSegmentedControl.test.ts).
+   The weight step keeps colour from being the only cue. */
 .nearModeSwitchTab[aria-checked="true"] {
-  background: var(--brass);
-  color: var(--color-on-accent);
-  box-shadow: none;
+  background: var(--state-selected-surface);
+  color: var(--state-selected-ink);
+  font-weight: 800;
 }
 
+/* Inside a bordered group the ring marks the segment, never a second shape
+   around it, and the pill restates its own radius on focus. */
 .nearModeSwitchTab:focus-visible {
   outline: 2px solid var(--brass);
-  outline-offset: 2px;
+  outline-offset: -2px;
+  border-radius: var(--radius-pill);
 }
 
 @media (prefers-reduced-motion: reduce) {

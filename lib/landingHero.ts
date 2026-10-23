@@ -16,13 +16,13 @@
 // taps the one quiet control that asks. The landing never asks on arrival:
 // `?locate=1` is the geolocation ask and it rides a deliberate tap alone.
 
+import type { Route } from "next";
 import {
   legacyPintPriceObservedAt,
   legacyPintPriceObservedOn,
   namedLegacyPintPriceSource,
   type LegacyPintPrice,
 } from "@/lib/drinks";
-import { formatGbp } from "@/lib/formatGbp";
 import { priceStandingFor, type PriceStanding } from "@/lib/priceTier";
 import { venueMapUrl } from "@/lib/venueMapUrl";
 
@@ -41,6 +41,11 @@ export type LandingArchiveThen = {
   /** Whole years from the then row to the build, the same count the card prints. */
   years: number;
   source: { label: string; url: string };
+  /**
+   * The movement lib/priceHistory.ts allowed against ONE listed figure, decided
+   * at build, or null when the two figures cannot be shown to be the same pint.
+   */
+  movement: { nowGbp: number; line: string } | null;
 };
 
 /**
@@ -51,11 +56,22 @@ export type LandingArchiveThen = {
  */
 export type LandingArchiveIndex = Record<string, LandingArchiveThen>;
 
+/**
+ * The movement a then line may print beside `priceGbp`, or null. A near-you
+ * answer can print a figure from another read, and a movement decided against
+ * one figure says nothing about a different one.
+ */
+export function archiveMovementLine(then: LandingArchiveThen, priceGbp: number): string | null {
+  const movement = then.movement;
+  return movement && Math.abs(movement.nowGbp - priceGbp) < 0.005 ? movement.line : null;
+}
+
 /** One next-cheapest row under the answer. */
 export type LandingRailRow = {
   id: string;
   name: string;
   area: string;
+  primaryBorough: string;
   priceGbp: number;
   /** Walking minutes from the reader, present only under a location fix. */
   walkMinutes?: number;
@@ -72,11 +88,6 @@ export type LandingAnswerScope =
   /** Too few priced pubs in the walk, so the nearest priced ones. */
   | "widened";
 
-/** The one filled action on the hero when the card is present. */
-export function stillPriceLabel(priceGbp: number): string {
-  return `Still ${formatGbp(priceGbp)}?`;
-}
-
 /**
  * THE ONE PRIMARY ON THE FRONT DOOR (captain 7 Sep 2026).
  *
@@ -86,30 +97,43 @@ export function stillPriceLabel(priceGbp: number): string {
  * `/near` answers instead: it geolocates on this tap alone, and a reader who
  * says no is answered from a London patch rather than a wall
  * (components/nearme/NearMeNow.tsx). One tap, an answer, no account.
+ *
+ * It is the same door for EVERY visitor (owner decision 16 Oct 2026). It used
+ * to send a first-time visitor through the five-step first-run journey first,
+ * which made the answer wait behind a gate. The journey is offered on `/near`
+ * as a chip instead (components/nearme/NearOnboardingChip.tsx), never in front.
  */
 export const LANDING_PRIMARY_HREF = "/near?locate=1";
 export const LANDING_PRIMARY_LABEL = "Cheapest pints near me";
 
+/**
+ * The receipt door's one label, with or without a card behind it (UX audit
+ * 16 Oct 2026). It used to read "Still £6.50?", which asked a stranger a
+ * riddle about a pub they had never seen; the label now says what the tap
+ * does. With a card the door opens that pub's composer holding the printed
+ * figure; without one it is the plain price door below.
+ */
+export const LANDING_RECEIPT_LABEL = "Log what you paid";
 /** The receipt door when no card can back one: the plain price door. */
 export const LANDING_FALLBACK_RECEIPT_HREF = "/near";
-export const LANDING_FALLBACK_RECEIPT_LABEL = "Log what you paid";
 
 /**
  * The Pint Drop door for one pub: the map opens on that pub with the composer
  * open (`log=1` is the owned log intent `components/PubMap.tsx` honours).
  *
- * #1462 — the figure rides with the intent. A tap that says "Still £6.50?" and
- * lands on an empty field is asking the reader to type back the number it just
- * showed them, so the door carries the price the card printed and the composer
- * opens holding it. It is a SEED and not a submission: `lib/mapLogIntent.ts`
+ * #1462 — the figure rides with the intent. A tap from a card that printed
+ * £6.50 landing on an empty field asks the reader to type back the number it
+ * just showed them, so the door carries the price the card printed and the
+ * composer opens holding it. It is a SEED and not a submission: `lib/mapLogIntent.ts`
  * ignores anything that is not a positive GBP figure, the field stays editable,
  * and nothing is written until the drinker presses Log it.
  */
-export function pintDropDoorHref(venueId: string, priceGbp?: number): string {
+export function pintDropDoorHref(venueId: string, priceGbp?: number): Route {
   const door = `${venueMapUrl(venueId)}&log=1`;
-  return typeof priceGbp === "number" && Number.isFinite(priceGbp) && priceGbp > 0
+  // `door` is a venueMapUrl() Route with its query open, so appending keeps it one.
+  return (typeof priceGbp === "number" && Number.isFinite(priceGbp) && priceGbp > 0
     ? `${door}&price=${priceGbp.toFixed(2)}`
-    : door;
+    : door) as Route;
 }
 
 /** The line above the answer card. */
@@ -144,10 +168,11 @@ export function railHeading(scope: LandingAnswerScope, area: string): string {
  * holds the rest of the row.
  */
 const TONIGHT_DOOR_HREF = "/tonight";
-const TONIGHT_DOOR_LABEL = "Tonight";
+// "Tonight" alone read as a heading, not a door (UX audit 16 Oct 2026).
+const TONIGHT_DOOR_LABEL = "What's on tonight";
 
 export type LandingQuietDoor = {
-  href: string;
+  href: Route;
   label: string;
   /** The `landing_cta_clicked` target this door reports. */
   cta: "tonight";
@@ -171,9 +196,6 @@ export const LANDING_QUIET_DOORS: readonly LandingQuietDoor[] = [
   },
 ];
 
-/** The one quiet control that asks for a location. */
-export const NEAR_ME_CONTROL_LABEL = "Near me";
-export const NEAR_ME_CONTROL_BUSY_LABEL = "Finding you…";
 /** The one line said after a location the browser would not give. */
 export const NEAR_ME_FAILED_LINE = "Location is off, so this is our pick.";
 /** Said when the fix landed nowhere the index prices. */

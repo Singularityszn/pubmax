@@ -19,6 +19,7 @@ import {
   notificationsStore,
 } from "@/lib/notificationsStore";
 import { __resetPintDrops, addPintDrop, type PintDrop } from "@/lib/pintDrops";
+import { defined } from "@/__tests__/helpers/defined";
 
 beforeEach(() => {
   delete process.env.SUPABASE_URL;
@@ -102,7 +103,7 @@ describe("emit per kind → list + unread count", () => {
     expect(inbox.notifications).toHaveLength(4);
     expect(inbox.unread).toBe(4);
     // Newest-first: the crawl_save (last emitted) leads.
-    expect(inbox.notifications[0].kind).toBe("crawl_save");
+    expect(defined(inbox.notifications[0]).kind).toBe("crawl_save");
     // Every kind is represented.
     expect(new Set(inbox.notifications.map((n) => n.kind))).toEqual(
       new Set(["follow", "reaction", "comment", "crawl_save"]),
@@ -132,7 +133,7 @@ describe("markRead — one and all", () => {
     const before = await store.list("ken");
     expect(before.unread).toBe(2);
 
-    const target = before.notifications[0].id;
+    const target = defined(before.notifications[0]).id;
     const after = await store.markRead("ken", target);
     expect(after.unread).toBe(1);
     expect(after.notifications.find((n) => n.id === target)!.read).toBe(true);

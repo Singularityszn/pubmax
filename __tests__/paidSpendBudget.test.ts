@@ -38,6 +38,7 @@ const LANE_OWNERS: Record<PaidSpendLane, string> = {
   ask: "app/api/ask/route.ts",
   heritage: "app/api/heritage/route.ts",
   "pub-pal-chat": "app/api/pub-pal/chat/route.ts",
+  "pub-pal-voice": "app/api/pub-pal/voice-token/route.ts",
   "plan-generate": "lib/planGeneration.server.ts",
   typesafe: "lib/ai/typesafe.server.ts",
 };

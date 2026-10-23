@@ -2,13 +2,15 @@
 // `run` receives a CommandContext (navigate / close / toggleTheme) so this file
 // never imports a router or touches the DOM. The navigation hrefs + labels are
 // kept in lock-step with components/nav/SiteNav.tsx (the canonical app nav) so
-// the palette can never drift to a dead route.
+// the palette can never drift to a dead route, and __tests__/commandPalette.test.ts
+// fails when a destination the nav or the More menu names has no command here.
 
 import type { Command } from "./types";
 
 /**
- * Ordered registry. `Navigate` entries mirror SiteNav's LINKS (plus the two
- * utility destinations the nav exposes as icons — Messages + Activity); the
+ * Ordered registry. `Navigate` entries mirror SiteNav's primary row and its More
+ * menu (plus the two utility destinations the nav exposes as icons — Messages +
+ * Activity, and the Pint Index, which the nav does not link); the
  * `Actions` entries are the handful of first-class things you'd want to trigger
  * from anywhere. Every href resolves to a real App-Router route.
  */
@@ -21,6 +23,80 @@ export const commands: Command[] = [
     keywords: ["explore", "pubs near me", "pints", "london"],
     group: "Navigate",
     run: (ctx) => ctx.navigate("/map"),
+  },
+  {
+    id: "nav-tonight",
+    label: "Tonight",
+    hint: "/tonight",
+    // /out folded into /tonight (16 Oct 2026), so its words find Tonight.
+    keywords: [
+      "tonight",
+      "today",
+      "what's on",
+      "now",
+      "open now",
+      "events",
+      "live music",
+      "quiz",
+      "gigs",
+      "going out",
+      "tomorrow",
+      "weekend",
+    ],
+    group: "Navigate",
+    run: (ctx) => ctx.navigate("/tonight"),
+  },
+  // Places is not a tab any more (the map's city chip and the footer reach
+  // it), but a reader who types "city" still deserves the picker.
+  {
+    id: "nav-places",
+    label: "Pick your city",
+    hint: "/places",
+    keywords: ["places", "cities", "city", "choose city", "areas", "where"],
+    group: "Navigate",
+    run: (ctx) => ctx.navigate("/places"),
+  },
+  // Out folded into Tonight (/out 308s there), so the old word still finds
+  // the listings, at their new address.
+  {
+    id: "nav-near",
+    label: "Near",
+    hint: "/near",
+    keywords: ["nearby", "near me", "close", "cheap pint", "pints near me"],
+    group: "Navigate",
+    run: (ctx) => ctx.navigate("/near"),
+  },
+  {
+    id: "nav-historic",
+    label: "Historic",
+    hint: "/historic",
+    keywords: ["history", "old pubs", "heritage", "oldest", "lore", "stories"],
+    group: "Navigate",
+    run: (ctx) => ctx.navigate("/historic"),
+  },
+  {
+    id: "nav-wall",
+    label: "Photos",
+    hint: "/wall",
+    keywords: ["photos from drinkers", "pictures", "pub fronts", "gallery", "wall", "drink wall"],
+    group: "Navigate",
+    run: (ctx) => ctx.navigate("/wall"),
+  },
+  {
+    id: "nav-pal",
+    label: "Pal",
+    hint: "/pal",
+    keywords: ["pub pal", "assistant", "concierge", "ask", "recommend", "ai"],
+    group: "Navigate",
+    run: (ctx) => ctx.navigate("/pal"),
+  },
+  {
+    id: "nav-pint-index",
+    label: "Pint Index",
+    hint: "/pint-index",
+    keywords: ["prices", "data", "london pint index", "average", "median", "ranking"],
+    group: "Navigate",
+    run: (ctx) => ctx.navigate("/pint-index"),
   },
   {
     id: "nav-pubs",

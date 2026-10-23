@@ -97,6 +97,10 @@ export async function applyNativeTextScale(
     deps.root ?? (typeof document === "undefined" ? null : document.documentElement);
   const publish = (scale: number) => {
     if (!root) return;
+    // iOS enlarges glyphs without changing rem geometry. Layout lengths need
+    // its applied scale once. Android already enlarges the root font.
+    if (platform === "ios") root.style.setProperty("--native-text-layout-scale", String(scale));
+    else root.style.removeProperty("--native-text-layout-scale");
     const bucket = textScaleBucket(scale);
     if (bucket) root.setAttribute(TEXT_SCALE_ATTRIBUTE, bucket);
     else root.removeAttribute(TEXT_SCALE_ATTRIBUTE);

@@ -9,6 +9,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { supabaseOccupancyStore, __resetMemoryOccupancyReports } from "@/lib/occupancyStore";
+import { defined } from "@/__tests__/helpers/defined";
 
 type Row = Record<string, unknown>;
 
@@ -54,7 +55,7 @@ function builder(source: Row[]) {
     if (selected !== null && !moderationApplied) {
       const missing = unknownColumns(selected);
       if (missing.length > 0) {
-        return { data: null, error: undefinedColumn(missing[0]) };
+        return { data: null, error: undefinedColumn(defined(missing[0])) };
       }
     }
     let data = source.filter((row) => filters.every((keep) => keep(row)));
@@ -110,7 +111,7 @@ const admin = {
         rows.push({ ...row, hidden_at: null, report_count: 0, report_reason: null });
         return {
           select(columns: string) {
-            return builder([rows[rows.length - 1]]).select(columns);
+            return builder([defined(rows[rows.length - 1])]).select(columns);
           },
         };
       },
@@ -227,7 +228,7 @@ describe("occupancy on a database that has 0107 but not 0109", () => {
 
     expect(second.id).toBe(first.id);
     expect(rows).toHaveLength(1);
-    expect(rows[0].level).toBe("full");
+    expect(defined(rows[0]).level).toBe("full");
   });
 });
 

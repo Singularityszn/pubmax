@@ -10,6 +10,7 @@ import type {
   NightContext,
   NightAreaSlug,
 } from "@/lib/nightPlanning";
+import { lastOf } from "@/lib/tuple";
 import type { CityId } from "@/lib/cities";
 import type { PlanGenerationAnchor as PlanGenerationWireAnchor } from "@/lib/planGenerationRequest";
 import {
@@ -26,6 +27,7 @@ export const PLAN_INTAKE_STORAGE_KEY = "pubmax:plan-intake:v1";
 export const PLAN_INTAKE_DRAFT_TTL_MS = DAY_MS;
 export const PLAN_INTAKE_MAX_RAW_BYTES = 12 * 1024;
 const LONDON_TIME_ZONE = "Europe/London";
+const LATE_DEFAULT_START_CUTOFF_MINUTES = 22 * 60 + 30;
 
 export const PLAN_INTAKE_STEPS = [
   "area",
@@ -195,7 +197,8 @@ function londonParts(date: Date): LondonDateTimeParts & { second: number } {
   };
 }
 
-function parseLondonInput(value: string): LondonDateTimeParts | null {
+/** The one reader of a London datetime-local value: its wall-clock fields, or null. */
+export function parseLondonInput(value: string): LondonDateTimeParts | null {
   const match = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})$/.exec(value);
   if (!match) return null;
   const parts = {
@@ -279,6 +282,35 @@ export function londonDateTimeInputFromIso(value: string): string | null {
   return londonInput(londonParts(new Date(timestamp)));
 }
 
+/** A night out in London runs until this hour, so an early-hours time belongs to the evening before. */
+const LONDON_NIGHT_ENDS_HOUR = 5;
+
+function londonNightOf(parts: LondonDateTimeParts): number {
+  return Date.UTC(parts.year, parts.month - 1, parts.day) - (parts.hour < LONDON_NIGHT_ENDS_HOUR ? DAY_MS : 0);
+}
+
+/**
+ * Where a London datetime-local value falls against the night out running now:
+ * how many nights ahead it is, the calendar day of its night (a UTC midnight),
+ * and whether the time has already passed. Past is the lock's own reading of
+ * the time (`londonDateTimeInputToIso` after now), so a repeated hour when the
+ * clocks go back is past only when the lock would refuse it. Null when it is
+ * not a real London time.
+ */
+export function londonNightsAhead(
+  value: string,
+  now = new Date(),
+): { nights: number; night: Date; past: boolean } | null {
+  const parts = parseLondonInput(value);
+  if (!parts || !londonDateTimeInputToIso(value)) return null;
+  const night = londonNightOf(parts);
+  return {
+    nights: Math.round((night - londonNightOf(londonParts(now))) / DAY_MS),
+    night: new Date(night),
+    past: londonDateTimeInputToIso(value, now) === null,
+  };
+}
+
 /** Resolve the displayed London wall time without letting a stale exact handoff bypass the future check. */
 export function resolveFutureLondonStartIso(
   value: string,
@@ -292,6 +324,77 @@ export function resolveFutureLondonStartIso(
     && londonDateTimeInputFromIso(exactStartIso) === value
     ? new Date(timestamp).toISOString()
     : null;
+}
+
+function londonWallParts(wall: Date): LondonDateTimeParts {
+  return {
+    year: wall.getUTCFullYear(),
+    month: wall.getUTCMonth() + 1,
+    day: wall.getUTCDate(),
+    hour: wall.getUTCHours(),
+    minute: wall.getUTCMinutes(),
+  };
+}
+
+/** The next quarter of an hour at least fifteen minutes out, in London wall time. */
+function nextLondonQuarter(now: Date): LondonDateTimeParts {
+  const london = londonParts(now);
+  // Wall-clock arithmetic in a zone-free Date: only the fields matter here.
+  const wall = new Date(Date.UTC(london.year, london.month - 1, london.day, london.hour, 0));
+  wall.setUTCMinutes(Math.ceil((london.minute + 15) / 15) * 15);
+  return londonWallParts(wall);
+}
+
+/**
+ * Late in the night out, which is not the same as late in the calendar day: a
+ * night runs to `LONDON_NIGHT_ENDS_HOUR`, so 01:00 is the back end of the
+ * night before and not the start of a new one. The default start and the
+ * one-tap Tonight choice read this one window, so they always agree about
+ * which night the reader is standing in.
+ */
+function inLondonLateWindow(now: Date): boolean {
+  const london = londonParts(now);
+  return london.hour * 60 + london.minute >= LATE_DEFAULT_START_CUTOFF_MINUTES
+    || london.hour < LONDON_NIGHT_ENDS_HOUR;
+}
+
+/**
+ * The composer's default First pint, as a London datetime-local value: at
+ * least a quarter of an hour out, on a quarter, and 18:00 when that lands
+ * before 17:00. Inside the late window it is 19:00 on the evening that follows
+ * the night running now, because a first pint near midnight is not a night
+ * out - and at 01:00 that evening is the same calendar day, not the next one.
+ * It is built from London wall time, not the device clock, because the lock
+ * check (`resolveFutureLondonStartIso`) reads the field as London time.
+ *
+ * Stepping over tonight is never silent: `tonightLondonStartInput` is the
+ * one-tap way back into the night the reader is standing in, and the composer
+ * shows it beside the field with its date (captain, 16 Oct 2026).
+ */
+export function defaultLondonStartInput(now = new Date()): string {
+  if (inLondonLateWindow(now)) {
+    const nextNight = new Date(londonNightOf(londonParts(now)) + DAY_MS);
+    return londonInput({ ...londonWallParts(nextNight), hour: 19, minute: 0 });
+  }
+  const quarter = nextLondonQuarter(now);
+  return londonInput(quarter.hour < 17 ? { ...quarter, hour: 18, minute: 0 } : quarter);
+}
+
+/**
+ * Tonight's next sensible slot, for the reader the late default stepped over:
+ * the same quarter-hour rounding the default uses outside the late window.
+ * Null whenever there is no such slot - outside the window, where the default
+ * already IS tonight; past 04:30, where the rounding has walked off the end of
+ * this night onto the next; and in the spring-forward gap, where the slot is a
+ * London time the lock would refuse. `londonNightsAhead` answers all three,
+ * because it reads the night AND the lock, so the words on the door and the
+ * start it writes can never disagree with the rest of the plan.
+ */
+export function tonightLondonStartInput(now = new Date()): string | null {
+  if (!inLondonLateWindow(now)) return null;
+  const value = londonInput(nextLondonQuarter(now));
+  const ahead = londonNightsAhead(value, now);
+  return ahead && ahead.nights === 0 && !ahead.past ? value : null;
 }
 
 /** Next future occurrence of a preset's London wall time, including DST rollover. */
@@ -474,7 +577,7 @@ export function parsePlanIntakeDraftWithMetadata(
       expiresAt: envelope.expiresAt,
       draft: {
         version: PLAN_INTAKE_VERSION,
-        currentStep: firstUnsettled ?? PLAN_INTAKE_STEPS[PLAN_INTAKE_STEPS.length - 1],
+        currentStep: firstUnsettled ?? lastOf(PLAN_INTAKE_STEPS),
         settledSteps,
         skippedSteps,
         completed: terminal,
@@ -697,16 +800,20 @@ export function buildPlanGenerationIntakeBody(
   anchor?: PlanGenerationAnchorInput | null,
 ): PlanGenerationIntakeBody {
   const cleanQuery = query.trim();
+  // A sort before the wizard is finished (a held pub seeds only the area)
+  // sends what the describe-first entry sends: every step nobody answered is
+  // skipped, never left both empty and unskipped, which the API refuses.
+  const sent = skipRemainingPlanIntake(draft);
   const context = {
     ...stripPlanIntakeOwnedContext(currentContext),
     ...explicitContext,
-    ...planIntakeNightContextPatch(draft),
+    ...planIntakeNightContextPatch(sent),
   };
   return {
     ...(cleanQuery ? { query: cleanQuery } : {}),
     ...(Object.keys(context).length > 0 ? { context } : {}),
     ...(anchor?.cityId ? { cityId: anchor.cityId } : {}),
-    intake: planIntakeHandoff(draft),
+    intake: planIntakeHandoff(sent),
     ...(anchor ? {
       anchor: {
         venueId: anchor.venueId,

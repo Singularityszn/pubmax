@@ -1,17 +1,20 @@
-/* Shared RoundStarter — full card on /crawls; denser when .compact (Plan drawer). */
+/* Shared RoundStarter: a framed card where it is embedded, an edge-less
+   section on /crawls (app/crawls/crawls.css), the bare body of /rounds, and
+   denser when .compact (Plan drawer). Focus rings are ink, never coral: coral
+   is the one primary's alone (docs/DESIGN_SYSTEM.md, "Coral is spent twice"). */
 
 .roundStarter {
   width: 100%;
   max-width: 760px;
-  margin: 8px auto 0;
-  padding: 24px;
+  margin: var(--space-2) auto 0;
+  padding: var(--space-6);
   text-align: left;
   border: 1px solid var(--line);
-  border-radius: 16px;
-  background: var(--color-surface, var(--panel, var(--paper)));
+  border-radius: var(--radius-lg);
+  background: var(--color-surface);
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: var(--space-3);
   box-sizing: border-box;
 }
 
@@ -20,72 +23,125 @@
   align-items: center;
   gap: 6px;
   align-self: flex-start;
-  font-size: 12px;
+  font-size: var(--text-xs);
   letter-spacing: 0.01em;
-  color: var(--state-active-ink);
+  /* A kicker is a label: muted ink, never the "you are here" marker. */
+  color: var(--color-text-muted);
   font-weight: 700;
 }
 
 .roundStarterTitle {
   margin: 0;
-  font-size: 22px;
+  font-size: var(--text-lg);
+  line-height: var(--leading-tight);
 }
 
 .roundStarterBlurb {
   margin: 0;
-  color: var(--muted, var(--ink-soft));
-  font-size: 14px;
-  line-height: 1.5;
+  max-width: 34rem;
+  color: var(--color-text-soft);
+  font-size: var(--text-sm);
+  line-height: var(--leading-normal);
+  text-wrap: pretty;
+}
+
+/* The label sits above its field (never a placeholder standing in for one). */
+.roundStarterLabel {
+  margin-top: var(--space-2);
+  color: var(--ink);
+  font-size: var(--text-sm);
+  font-weight: 700;
+}
+
+.roundStarterLabel--hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
 }
 
 .roundStarterRow {
   display: flex;
   flex-wrap: wrap;
-  gap: 10px;
-  margin-top: 4px;
+  gap: var(--space-2);
 }
 
+/* One radius for the field and the button beside it: a pill input next to a
+   square button read as two different systems. */
 .roundStarterRow input {
   flex: 1 1 160px;
   min-width: 0;
-  padding: 12px 14px;
+  min-height: 44px;
+  padding: var(--space-2) var(--space-3);
   border: 1px solid var(--line);
-  border-radius: var(--radius-pill, 999px);
-  background: var(--paper, var(--panel-raised));
+  border-radius: var(--radius);
+  background: var(--color-surface-raised);
   color: var(--ink);
-  font-size: 15px;
+  font: inherit;
+  font-size: var(--text-base);
 }
 
 .roundStarterRow input:focus-visible {
-  outline: 2px solid var(--brass);
+  outline: 2px solid var(--color-text);
   outline-offset: 1px;
 }
 
-.roundStarterError {
+.roundStarterError,
+.roundCodeJoinError {
   margin: 0;
-  color: #a4331f;
-  font-size: 13px;
+  color: var(--color-negative);
+  font-size: var(--text-sm);
 }
 
-/* Primary CTA inside RoundStarter (works on map without importing crawls.css). */
+/* The start form as the body of /rounds: no card, no edge, no fill. The
+   Screen head above it is the title. */
+.roundStarter.roundStarter--bare {
+  max-width: none;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+}
+
+/* RoundStarter's buttons (works on map without importing crawls.css). The
+   component is embedded beside pages that already own a primary (/crawls,
+   the plan summary, the map planner), so its buttons are secondaries there.
+   Only the route that IS the start door marks its submit
+   [data-primary-action] (RoundStarter's primaryAction prop, /rounds), and only
+   that one takes the coral fill. Painted coral everywhere, /crawls showed two
+   filled buttons, "Start a crawl" and "Start a Round". */
 .roundStarter .crawlPrimaryBtn {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--space-2);
   min-height: 44px;
-  padding: 11px 18px;
+  padding: 0 var(--space-5);
   border-radius: var(--radius);
-  font-size: 15px;
+  font-size: var(--text-sm);
   font-weight: 600;
   cursor: pointer;
   text-decoration: none;
-  background: var(--brass);
-  color: var(--color-on-accent);
-  border: 1px solid var(--brass);
+  background: var(--control-secondary-surface);
+  color: var(--ink);
+  border: 1px solid var(--control-secondary-border);
 }
 
-.roundStarter .crawlPrimaryBtn:hover {
-  filter: brightness(1.05);
+.roundStarter .crawlPrimaryBtn[data-primary-action] {
+  background: var(--brass);
+  color: var(--color-on-accent);
+  border-color: var(--brass);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .roundStarter .crawlPrimaryBtn:hover {
+    filter: brightness(1.05);
+  }
 }
 
 .roundStarter .crawlPrimaryBtn:disabled {
@@ -94,15 +150,15 @@
 }
 
 .roundStarter .crawlPrimaryBtn:focus-visible {
-  outline: 2px solid var(--brass);
+  outline: 2px solid var(--color-text);
   outline-offset: 2px;
 }
 
 .roundStarterHelper {
   margin: 0 0 8px;
-  font-size: 0.78rem;
+  font-size: var(--text-xs);
   line-height: 1.4;
-  color: var(--muted, var(--ink-soft));
+  color: var(--muted);
 }
 
 /* Compact — Plan drawer */
@@ -111,20 +167,20 @@
   margin: 0 0 12px;
   padding: 12px 14px;
   gap: 6px;
-  border-radius: 12px;
+  border-radius: var(--radius);
 }
 
 .roundStarter.compact .roundStarterBadge {
-  font-size: 11px;
+  font-size: var(--text-2xs);
 }
 
 .roundStarter.compact .roundStarterTitle {
-  font-size: 1rem;
+  font-size: var(--text-base);
   line-height: 1.25;
 }
 
 .roundStarter.compact .roundStarterBlurb {
-  font-size: 0.78rem;
+  font-size: var(--text-xs);
   line-height: 1.4;
 }
 
@@ -135,17 +191,17 @@
 
 .roundStarter.compact .roundStarterRow input {
   padding: 8px 12px;
-  font-size: 0.85rem;
+  font-size: var(--text-sm);
 }
 
 .roundStarter.compact .roundStarterRow .crawlPrimaryBtn {
   padding: 8px 12px;
-  font-size: 0.82rem;
+  font-size: var(--text-sm);
   min-height: 36px;
 }
 
 .roundStarter.compact .roundStarterError {
-  font-size: 0.75rem;
+  font-size: var(--text-xs);
 }
 
 /* Stay-on-map success (Plan drawer after Start Round) */
@@ -153,18 +209,20 @@
   gap: 8px;
 }
 
+/* The code is a figure, so it takes the data face, in ink: coral is the one
+   primary on the page, never a number (docs/DESIGN_SYSTEM.md). */
 .roundStarterCode {
   margin: 0;
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-  font-size: 1.55rem;
+  font-family: var(--font-data);
+  font-size: var(--text-xl);
   font-weight: 800;
   letter-spacing: 0.14em;
-  color: var(--brass);
-  line-height: 1.2;
+  color: var(--ink);
+  line-height: var(--leading-tight);
 }
 
 .roundStarter.compact .roundStarterCode {
-  font-size: 1.25rem;
+  font-size: var(--text-md);
   letter-spacing: 0.12em;
 }
 
@@ -175,8 +233,78 @@
   border-color: var(--line) !important;
 }
 
-.roundStarterBoardLink:hover {
-  border-color: var(--brass) !important;
-  color: var(--brass) !important;
-  filter: none;
+@media (hover: hover) and (pointer: fine) {
+  .roundStarterBoardLink:hover {
+    border-color: var(--hairline-strong) !important;
+    color: var(--ink) !important;
+    filter: none;
+  }
+}
+
+/* Join by code on /rounds: the launch table's quiet secondary, "Open a round
+   code", folded under the start form. It opens in place, so a reader who has
+   a code a mate read out is one tap from the field. The code is a figure, so
+   the field sets it in the data face. */
+.roundCodeJoin {
+  margin-top: var(--space-6);
+}
+
+.roundCodeJoinSummary {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  color: var(--color-text);
+  font-size: var(--text-sm);
+  font-weight: 700;
+  text-decoration: underline;
+  text-underline-offset: 4px;
+  cursor: pointer;
+  list-style: none;
+}
+
+.roundCodeJoinSummary::-webkit-details-marker {
+  display: none;
+}
+
+.roundCodeJoinForm {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  width: 100%;
+  margin-top: var(--space-2);
+}
+
+.roundCodeJoin .roundCodeJoinInput {
+  flex: 1 1 140px;
+  min-height: 44px;
+  font-family: var(--font-data);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.roundCodeJoin .roundCodeJoinInput::placeholder {
+  font-family: var(--font-body);
+  letter-spacing: normal;
+  text-transform: none;
+}
+
+.roundCodeJoinBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  padding: 0 var(--space-5);
+  border: 1px solid var(--control-secondary-border);
+  border-radius: var(--radius);
+  background: var(--control-secondary-surface);
+  color: var(--ink);
+  font: inherit;
+  font-size: var(--text-sm);
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.roundCodeJoinBtn:focus-visible {
+  outline: 2px solid var(--color-text);
+  outline-offset: 2px;
 }

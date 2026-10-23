@@ -8,6 +8,7 @@
 
 import { useEffect, useState } from "react";
 import { Award } from "lucide-react";
+import { useStaggeredRead } from "@/lib/useStaggeredRead";
 
 import { formatAreaNewsDate, type AreaNewsEntry } from "@/lib/areaNews";
 import "./venueAwardBadge.css";
@@ -20,8 +21,10 @@ export default function VenueAwardBadge({
   const [award, setAward] = useState<AreaNewsEntry | null>(null);
   const [forId, setForId] = useState<string | null>(null);
 
+  const ready = useStaggeredRead(2, venueId);
+
   useEffect(() => {
-    if (!venueId) return;
+    if (!ready || !venueId) return;
     const controller = new AbortController();
     fetch(`/api/area-news?venueId=${encodeURIComponent(venueId)}`, { signal: controller.signal })
       .then((res) => (res.ok ? res.json() : null))
@@ -33,7 +36,7 @@ export default function VenueAwardBadge({
         // Fail silent — no plaque rather than a broken one.
       });
     return () => controller.abort();
-  }, [venueId]);
+  }, [ready, venueId]);
 
   if (!award || forId !== venueId) return null;
 

@@ -22,6 +22,48 @@ export function isPubVenue(venue: Venue): boolean {
   return isPubVenueKind(venue.kind);
 }
 
+// THE CHEAPEST-PINT RANKINGS ARE FOR BARS A STRANGER CAN WALK INTO. The listing
+// we import holds real prices at bars a member of the public cannot use: a
+// students' union bar (The Three Tuns, LSE SU, topped Westminster at £2.95), a
+// working men's club, a services or social club. The price is real and the row
+// stays in the dataset and on the map, but a "cheapest listed pints" answer that
+// sends a reader to a door they will be turned away from is a wrong answer. The
+// dataset has no access field, so the name is the only evidence we hold, and
+// these are the words that say the bar is for members, students or staff.
+const NON_PUBLIC_VENUE_NAME = new RegExp(
+  [
+    String.raw`\bstudents?['’]?\s*(?:['’]s\s*)?union\b`,
+    String.raw`\bstudents?['’]?\s+bar\b`,
+    String.raw`\bstaff\s+(?:bar|club)\b`,
+    String.raw`\bmembers['’]?\s*(?:only|club|bar)\b`,
+    String.raw`\bworking\s*men['’]?s['’]?\s+club\b`,
+    String.raw`\bsocial\s+club\b`,
+    String.raw`\bsports\s+(?:and|&)\s+social\b`,
+    String.raw`\b(?:constitutional|conservative|labour|liberal|services|railway|supporters['’]?)\s+club\b`,
+    String.raw`\bex[-\s]?servicemen\b`,
+    String.raw`\b(?:royal\s+)?british\s+legion\b`,
+    String.raw`\b(?:officers|sergeants)['’]?\s+mess\b`,
+  ].join("|"),
+  "i",
+);
+
+// "SU" alone is a students' union only in capitals, so it is matched with case.
+const STUDENTS_UNION_INITIALS = /(?:^|[\s(\-–,])SU(?:$|[\s)\-–,])/;
+
+/** True when the venue's own name says it is not open to the public. */
+export function isNonPublicVenueName(name: string): boolean {
+  return NON_PUBLIC_VENUE_NAME.test(name) || STUDENTS_UNION_INITIALS.test(name);
+}
+
+/**
+ * THE ONE ELIGIBILITY RULE for every public cheapest-pint ranking (Tonight's
+ * cheapest listed pints, the landing rail, Near me, the borough and discover
+ * boards): a pub kind, and a bar the public can walk into.
+ */
+export function isPublicRankablePub(venue: { kind?: VenueKind; name: string }): boolean {
+  return isPubVenueKind(venue.kind) && !isNonPublicVenueName(venue.name);
+}
+
 export function hasSavedPubVenue(
   venues: readonly Venue[],
   savedIds: ReadonlySet<string>,
@@ -73,15 +115,18 @@ export function venueKindNoun(kind: VenueKind | undefined): string {
 }
 
 /**
- * The map's kind filter offers the CURATED kinds only. A kind that arrived with
- * the UK-wide OSM venue pack answers null, so `filterVenuesByKind` leaves it out
- * of a curated map view rather than showing it under a toggle nobody can reach.
- * Giving those kinds their own surface is a separate wave.
+ * The map's kind filter offers the CURATED kinds only. A club keeps its own
+ * label but shows and hides with the bars, because it is somewhere to drink and
+ * has no chip of its own. A kind that arrived with the UK-wide OSM venue pack
+ * answers null, so `filterVenuesByKind` leaves it out of a curated map view
+ * rather than showing it under a toggle nobody can reach. Giving those kinds
+ * their own surface is a separate wave.
  */
 function curatedVenueKind(
   kind: VenueKind | undefined,
 ): CuratedVenueKind | null {
   if (kind === "bar" || kind === "food" || kind === "restaurant") return kind;
+  if (kind === "club") return "bar";
   if (kind === undefined || kind === "pub") return "pub";
   return null;
 }
@@ -102,8 +147,8 @@ export function filterVenuesByKind(
  * The desktop chips live behind one Filters control, so the badge on the closed
  * control and the chips inside it must count the SAME set: a badge that counted
  * a kind the open panel never offers would say a filter is on over a control
- * nobody can reach. `MAP_EXPERIENCE_LENS` narrows the offer, so the rule takes
- * the lens rather than assuming all four.
+ * nobody can reach. Every view offers all four curated kinds. The experience
+ * lens decides which venues qualify within those kinds.
  */
 const CURATED_VENUE_KIND_ORDER: readonly CuratedVenueKind[] = [
   "pub",
@@ -115,9 +160,9 @@ const CURATED_VENUE_KIND_ORDER: readonly CuratedVenueKind[] = [
 export function offeredVenueKinds(
   experienceLens: string,
 ): readonly CuratedVenueKind[] {
-  return experienceLens === "food"
-    ? (["food", "restaurant"] as const)
-    : CURATED_VENUE_KIND_ORDER;
+  // Keep the shared count/reset call contract while every lens offers this set.
+  void experienceLens;
+  return CURATED_VENUE_KIND_ORDER;
 }
 
 /** How many of the offered kinds the reader has switched off. */

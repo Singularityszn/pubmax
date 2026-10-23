@@ -7,6 +7,7 @@
 // inside 90 minutes may answer "now", and the age is printed. Older rows stay
 // for the forecast (R-012) and never paint a now surface.
 
+import type { Route } from "next";
 import {
   BUSYNESS_VALUES,
   type Busyness,
@@ -147,7 +148,7 @@ export function occupancyWriteReceiptLine(
 }
 
 /** Sign-in from the occupancy row lands back on this pub's map sheet. */
-export function occupancySignInHref(venueId: string): string {
+export function occupancySignInHref(venueId: string): Route {
   return `/login?mode=signin&from=${encodeURIComponent(`/map?sel=${venueId}`)}`;
 }
 

@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { decodeCrawlStory, encodeCrawlStory, type CrawlStory } from "@/lib/crawlStory";
 import {
@@ -8,6 +8,7 @@ import {
   getCrawlStoryBySlug,
   slugify,
 } from "@/lib/crawlStoryStore";
+import { defined } from "@/__tests__/helpers/defined";
 
 // These tests exercise the in-memory backend: createCrawlStory /
 // getCrawlStoryBySlug check isSupabaseConfigured() per call, so we clear the
@@ -71,6 +72,14 @@ describe("cleanVisibility", () => {
 });
 
 describe("createCrawlStory + getCrawlStoryBySlug (in-memory)", () => {
+  it("keeps a keyless story visible across independently loaded route modules", async () => {
+    const created = await createCrawlStory({ title: "Local route handoff", visibility: "unlisted", stops: [{ venueId: "venue-a1" }] });
+    expect(created).not.toBeNull();
+    vi.resetModules();
+    const reader = await import("@/lib/crawlStoryStore");
+    expect(await reader.getCrawlStoryBySlug(created!.slug)).toMatchObject({ title: "Local route handoff" });
+  });
+
   it("round-trips a story with ordered, enriched stops", async () => {
     const created = await createCrawlStory({
       title: "Last train from Soho",
@@ -95,10 +104,10 @@ describe("createCrawlStory + getCrawlStoryBySlug (in-memory)", () => {
     // Stops stay in insertion order, numbered by position.
     expect(story!.stops.map((s) => s.venueId)).toEqual(["venue-a1", "venue-b2", "venue-c3"]);
     expect(story!.stops.map((s) => s.position)).toEqual([0, 1, 2]);
-    expect(story!.stops[0].note).toBe("start here");
+    expect(defined(story!.stops[0]).note).toBe("start here");
     // Every stop gets a resolved name (fallback when the id is unknown) + a map link.
-    expect(story!.stops[0].venueName).toBeTruthy();
-    expect(story!.stops[0].venueMapUrl).toContain("venue-a1");
+    expect(defined(story!.stops[0]).venueName).toBeTruthy();
+    expect(defined(story!.stops[0]).venueMapUrl).toContain("venue-a1");
   });
 
   it("returns null for an unknown slug", async () => {

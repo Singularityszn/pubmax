@@ -1,5 +1,6 @@
 "use client";
 
+import type { Route } from "next";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, type ComponentProps } from "react";
@@ -16,18 +17,18 @@ import { warmNavRoute } from "@/lib/mapWarmup";
 // answers this shape (components/nav/MobileTabBar.tsx): turn the automatic
 // prefetch off, and warm the ONE destination a pointer or a focus says is next.
 //
-// The seen-set is shared across every intent link in the session, so hovering a
-// chip twice costs one prefetch.
+// Intent links share a bounded history. Repeated intent costs one prefetch
+// while the destination remains in that history (lib/mapWarmup.ts).
 
 const warmed = new Set<string>();
 
 export type IntentLinkProps = Omit<ComponentProps<typeof Link>, "prefetch">;
 
 /** The intent warm on its own, for a link that needs its own element. */
-function useIntentWarm(): (href: string) => void {
+function useIntentWarm(): (href: Route) => void {
   const router = useRouter();
   return useCallback(
-    (href: string) => {
+    (href: Route) => {
       warmNavRoute(router, href, warmed);
     },
     [router],

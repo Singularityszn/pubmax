@@ -18,6 +18,7 @@ import { SUBMITTABLE_DRINK_CATEGORIES } from "@/lib/communityPrice";
 import { CATEGORY_META, MAP_LENS_DRINK_CATEGORIES, type DrinkCategory } from "@/lib/drinks";
 import type { CategoryPriceIndexStatus } from "@/lib/mapExperienceLens";
 import type { Filters } from "@/lib/venues";
+import { defined } from "@/__tests__/helpers/defined";
 
 function filters(overrides: Partial<Filters> = {}): Filters {
   return {
@@ -133,6 +134,23 @@ describe("applyDrinkLane", () => {
     expect(applyDrinkLane(wine, "wine")).toBe(wine);
   });
 
+  it("resets same-lane refinements only when a generated plan explicitly requests it", () => {
+    const held = filters({ drinkCategory: "gin", drinkBrand: "sipsmith", drinkSubtype: "gin-london-dry", topShelfOnly: true, query: "Soho", requireStepFree: true });
+    const next = applyDrinkLane(held, "gin", { clearRefinements: true });
+    expect(next).not.toBe(held);
+    expect(next).toMatchObject({ drinkCategory: "gin", drinkBrand: "", drinkSubtype: "", topShelfOnly: false, requireCocktails: false, query: "Soho", requireStepFree: true });
+  });
+
+  it("normalises an explicit same-lane Beer generation to resting pint filters", () => {
+    expect(applyDrinkLane(filters({ drinkCategory: "beer", drinkBrand: "guinness", requireCocktails: true }), "beer", { clearRefinements: true }))
+      .toMatchObject({ drinkCategory: "", drinkBrand: "", requireCocktails: false });
+  });
+
+  it("reapplies Cocktail policy when generation retains the current category", () => {
+    expect(applyDrinkLane(filters({ drinkCategory: "cocktail", requireCocktails: false, drinkSubtype: "cocktail-classic" }), "cocktail", { clearRefinements: true }))
+      .toMatchObject({ drinkCategory: "cocktail", requireCocktails: true, drinkSubtype: "" });
+  });
+
   it("leaves every filter that is not about the drink alone", () => {
     expect(
       applyDrinkLane(filters({ query: "Camden", maxPrice: 6, requireStepFree: true }), "wine"),
@@ -147,7 +165,7 @@ describe("orderVenueDrinkPrices", () => {
       "cocktail",
     );
     expect(rows.map((row) => row.category)).toEqual(["cocktail", "beer", "wine"]);
-    expect(rows[0].inActiveLane).toBe(true);
+    expect(defined(rows[0]).inActiveLane).toBe(true);
     expect(rows.slice(1).every((row) => row.inActiveLane === false)).toBe(true);
   });
 
@@ -172,7 +190,7 @@ describe("orderVenueDrinkPrices", () => {
       "beer",
     );
     expect(rows).toHaveLength(1);
-    expect(rows[0].price.priceGbp).toBe(6);
+    expect(defined(rows[0]).price.priceGbp).toBe(6);
   });
 
   it("answers nothing for a pub with no community prices", () => {

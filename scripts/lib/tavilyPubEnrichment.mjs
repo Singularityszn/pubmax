@@ -1,9 +1,20 @@
+import { runLevelFailure } from "../../lib/cityEnrichmentCheckpoint.ts";
+import { isHarvestableOperatorUrl } from "../../lib/harvest/sourcePolicy.ts";
 import { extractPintPrices } from "../../lib/harvest/tavilyPintPrices.ts";
 
-export { extractPintPrices };
+import { classifyChainPub, hostMatches, hostnameOf, isChainHost } from "./chainPubClassifier.mjs";
+
+export { classifyChainPub, extractPintPrices };
 
 const TAVILY_SEARCH_URL = "https://api.tavily.com/search";
 const MAX_TAVILY_CALLS_PER_RUN = 200;
+// The money ceiling, held in code beside the query ceiling. An advanced search
+// costs 2 Tavily credits, so 200 queries is 400 credits; at the $0.008 pay as
+// you go price that is $3.20 a run. If the provider ever bills a search at more
+// than 2 credits the credit ceiling stops the run before the query ceiling
+// does, so the spend can never grow by a pricing change alone.
+export const TAVILY_CREDITS_PER_SEARCH = 2;
+export const MAX_TAVILY_CREDITS_PER_RUN = MAX_TAVILY_CALLS_PER_RUN * TAVILY_CREDITS_PER_SEARCH;
 
 export const CITY_DEFINITIONS = Object.freeze({
   // London is the city the product is about and was the one city the rotation
@@ -47,39 +58,6 @@ export const CITY_DEFINITIONS = Object.freeze({
   },
 });
 
-const CHAIN_DOMAINS = [
-  {
-    chain: "wetherspoons",
-    harvester: "scripts/fetch_wetherspoons_pubs.mjs",
-    domains: ["jdwetherspoon.com"],
-    operator: /\b(?:j\s*d\s*wetherspoon|wetherspoons?)\b/i,
-  },
-  {
-    chain: "greene-king",
-    harvester: "scripts/firecrawl_greene_king_prices.mjs",
-    domains: ["greeneking.co.uk"],
-    operator: /\bgreene king\b/i,
-  },
-  {
-    chain: "mitchells-and-butlers",
-    harvester: "scripts/firecrawl_mbplc_prices.mjs",
-    domains: [
-      "allbarone.co.uk",
-      "browns-restaurants.co.uk",
-      "emberinns.co.uk",
-      "harvester.co.uk",
-      "mbplc.com",
-      "millerandcarter.co.uk",
-      "nicholsonspubs.co.uk",
-      "oaksmiths.co.uk",
-      "sizzlingpubs.co.uk",
-      "stonehouserestaurants.co.uk",
-      "vintageinn.co.uk",
-    ],
-    operator: /\b(?:mitchells?\s*(?:&|and)\s*butlers|m&b)\b/i,
-  },
-];
-
 const FORBIDDEN_DISCOVERY_DOMAINS = [
   "beerintheevening.com",
   "camra.org.uk",
@@ -103,15 +81,6 @@ const FORBIDDEN_DISCOVERY_DOMAINS = [
 export const OFFICIAL_SITE_SOURCE_LICENCE =
   "All rights reserved - first-party publisher of its own pub menu; read-only, attributed price fact.";
 
-function hostnameOf(value) {
-  if (!value) return null;
-  try {
-    return new URL(value).hostname.toLowerCase().replace(/^www\./, "");
-  } catch {
-    return null;
-  }
-}
-
 function pathnameOf(value) {
   if (!value) return null;
   try {
@@ -119,10 +88,6 @@ function pathnameOf(value) {
   } catch {
     return null;
   }
-}
-
-function hostMatches(host, domain) {
-  return host === domain || host.endsWith(`.${domain}`);
 }
 
 function normaliseVenueKeyPart(value) {
@@ -136,20 +101,6 @@ export function venueKeyForOsmPub(pub) {
     Number(pub.lat).toFixed(5),
     Number(pub.lng).toFixed(5),
   ].join("|");
-}
-
-export function classifyChainPub(pub) {
-  const websiteHost = hostnameOf(pub?.website);
-  const ownership = `${pub?.operator ?? ""} ${pub?.brewery ?? ""} ${pub?.name ?? ""}`;
-  for (const definition of CHAIN_DOMAINS) {
-    if (
-      (websiteHost && definition.domains.some((domain) => hostMatches(websiteHost, domain))) ||
-      definition.operator.test(ownership)
-    ) {
-      return { chain: definition.chain, harvester: definition.harvester };
-    }
-  }
-  return null;
 }
 
 export function selectCityPubs(cityId, allPubs) {
@@ -193,9 +144,7 @@ function isForbiddenHost(host) {
 export function isOfficialResult(pub, result) {
   const resultHost = hostnameOf(result?.url);
   if (!resultHost || isForbiddenHost(resultHost)) return false;
-  if (CHAIN_DOMAINS.some((chain) => chain.domains.some((domain) => hostMatches(resultHost, domain)))) {
-    return false;
-  }
+  if (isChainHost(resultHost)) return false;
 
   const declaredHost = hostnameOf(pub?.website);
   return Boolean(
@@ -324,6 +273,7 @@ function acceptedOfficialResults(pub, payload, hostCounts, observedAt) {
   return (Array.isArray(payload?.results) ? payload.results : []).filter(
     (result) =>
       isOfficialResult(pub, result) &&
+      isHarvestableOperatorUrl(result?.url) &&
       !isExplicitlyStaleResult(result, observedAt) &&
       ((hostCounts.get(declaredHost) ?? 0) <= 1 || resultMatchesDeclaredVenuePage(pub, result)),
   );
@@ -368,6 +318,12 @@ function unsearchableVenue(pub, index) {
   }
   if (!hostnameOf(pub.website)) {
     return { chain: null, outcome: { index, osmId: pub.osmId, status: "no-website" } };
+  }
+  // The source-policy fence stands in front of every harvested URL. A website
+  // the policy refuses (a refused estate, our own network, credentials in the
+  // URL) is never sent to the provider as a search domain, and no query is spent.
+  if (!isHarvestableOperatorUrl(pub.website)) {
+    return { chain: null, outcome: { index, osmId: pub.osmId, status: "refused-source" } };
   }
   return null;
 }
@@ -485,6 +441,8 @@ export async function runCityEnrichment({
   apiKey,
   searchProvider,
   maxQueries = 200,
+  // Can only lower the credit ceiling, never raise it.
+  maxCredits = MAX_TAVILY_CREDITS_PER_RUN,
   startIndex = 0,
   indices,
   observedAt = new Date().toISOString(),
@@ -506,6 +464,10 @@ export async function runCityEnrichment({
     MAX_TAVILY_CALLS_PER_RUN,
     Math.max(0, Math.floor(Number(maxQueries) || 0)),
   );
+  const creditCap = Math.min(
+    MAX_TAVILY_CREDITS_PER_RUN,
+    Math.max(0, Math.floor(Number(maxCredits) || 0)),
+  );
   const prices = [];
   const pages = [];
   const delegatedChains = [];
@@ -513,6 +475,11 @@ export async function runCityEnrichment({
   const hostCounts = countPubsByHost(pubs);
   let queriesSpent = 0;
   let creditsSpent = 0;
+  // The dearest search billed so far. Admission reserves this much, never less
+  // than the documented price, so a provider that bills more per search than
+  // TAVILY_CREDITS_PER_SEARCH cannot carry the run across the ceiling: the next
+  // search is only admitted when one more like the dearest still fits.
+  let dearestSearch = TAVILY_CREDITS_PER_SEARCH;
   const sequence = venueIndexSequence(pubs, startIndex, indices);
   let index = Math.max(0, Math.floor(Number(startIndex) || 0));
   let resolvedIndex = index;
@@ -542,6 +509,8 @@ export async function runCityEnrichment({
       continue;
     }
     if (queriesSpent >= queryCap) break;
+    // Ask before spending: the next search may bill as much as the dearest so far.
+    if (creditsSpent + dearestSearch > creditCap) break;
 
     queriesSpent += 1;
     let payload;
@@ -564,6 +533,7 @@ export async function runCityEnrichment({
       // A query was spent asking about THIS pub and no answer came back. That
       // outcome is recorded whatever the caller then decides about the run, or
       // the venue that ends a run is a venue nobody ever hears about again.
+      if (!runLevelFailure(error)) creditsSpent += dearestSearch;
       outcomes.push({
         index,
         osmId: pub.osmId,
@@ -580,7 +550,9 @@ export async function runCityEnrichment({
     }
     await report();
     throwIfAborted(signal);
-    creditsSpent += Number(payload?.creditsSpent ?? payload?.usage?.credits) || 0;
+    const searchCredits = Number(payload?.creditsSpent ?? payload?.usage?.credits) || 0;
+    creditsSpent += searchCredits;
+    dearestSearch = Math.max(dearestSearch, searchCredits);
     const officialResults = acceptedOfficialResults(pub, payload, hostCounts, observedAt);
     const matchedPage = await selectBestOfficialPage(officialResults, pub);
 

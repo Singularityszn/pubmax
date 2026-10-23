@@ -17,6 +17,7 @@ import {
   sourceDomain,
   type ResolveSightingVenue,
 } from "@/lib/feedSightings";
+import { defined } from "@/__tests__/helpers/defined";
 
 // The recency window is answered against a stated "now" rather than the wall
 // clock the suite happens to run at.
@@ -83,7 +84,7 @@ describe("buildSightings mapping", () => {
       sourceDomain: "jdwetherspoon.com",
       observedAt: "2026-07-15T00:00:00.000Z",
     });
-    expect(s.id).toBe("sighting-venue-thechurchillarms");
+    expect(defined(s).id).toBe("sighting-venue-thechurchillarms");
   });
 
   it("keeps ONE sighting per venue — the freshest observation", () => {
@@ -95,7 +96,7 @@ describe("buildSightings mapping", () => {
       echoResolve,
     );
     expect(out).toHaveLength(1);
-    expect(out[0].drink).toBe("Fresh");
+    expect(defined(out[0]).drink).toBe("Fresh");
   });
 
   it("breaks an identical-timestamp tie by the cheaper price", () => {
@@ -107,7 +108,7 @@ describe("buildSightings mapping", () => {
       echoResolve,
     );
     expect(out).toHaveLength(1);
-    expect(out[0].drink).toBe("Cheap");
+    expect(defined(out[0]).drink).toBe("Cheap");
   });
 
   it("drops rows with no positive price or no attributable source", () => {
@@ -121,7 +122,7 @@ describe("buildSightings mapping", () => {
       echoResolve,
     );
     expect(out).toHaveLength(1);
-    expect(out[0].venueName).toBe("good");
+    expect(defined(out[0]).venueName).toBe("good");
   });
 
   it("orders newest observation first, venue name breaking ties", () => {
@@ -169,7 +170,7 @@ describe("buildSightings mapping", () => {
       (key) => (key.startsWith("known") ? echoResolve(key) : null),
     );
     expect(out).toHaveLength(1);
-    expect(out[0].venueName).toBe("known");
+    expect(defined(out[0]).venueName).toBe("known");
   });
 
   it("returns [] for no updates", () => {
@@ -179,7 +180,7 @@ describe("buildSightings mapping", () => {
 
 describe("freshSightings", () => {
   const sightingAt = (venueKey: string, observedAt: string) =>
-    buildSightings([update({ venueKey, observedAt })], echoResolve)[0];
+    defined(buildSightings([update({ venueKey, observedAt })], echoResolve)[0]);
 
   it("keeps an observation inside the window and drops one just outside it", () => {
     const inside = sightingAt(
@@ -191,7 +192,7 @@ describe("freshSightings", () => {
       new Date(NOW - SIGHTING_MAX_AGE_HOURS * 3_600_000 - 3_600_000).toISOString(),
     );
 
-    expect(freshSightings([inside, outside], { now: NOW }).map((s) => s.venueName)).toEqual([
+    expect(freshSightings([defined(inside), defined(outside)], { now: NOW }).map((s) => s.venueName)).toEqual([
       "justinside",
     ]);
   });

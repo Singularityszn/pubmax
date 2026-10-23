@@ -4,6 +4,7 @@ import Link from "next/link";
 import Kicker from "@/components/ui/kicker";
 import { CONTACT_EMAIL, CONTACT_MAILTO } from "@/lib/siteContact";
 import { appPageTitle, metadataSiteName } from "@/lib/brandNaming";
+import SiteNav from "@/components/nav/SiteNav";
 
 import "../legal.css";
 
@@ -17,7 +18,7 @@ import "../legal.css";
 const PAGE_TITLE = "Terms of use";
 const PAGE_DESCRIPTION =
   "Plain-language terms covering what PUBMAXX is, what you can post, what map prices mean, and where our responsibility ends.";
-const LAST_UPDATED = "6 August 2026";
+const LAST_UPDATED = "18 October 2026";
 
 export const metadata: Metadata = {
   title: PAGE_TITLE,
@@ -34,6 +35,8 @@ export const metadata: Metadata = {
 
 export default function TermsPage() {
   return (
+    <>
+    <SiteNav />
     <main id="main" className="legalPage">
       {/* A legal page has no primary action (docs/design/LAUNCH_SCREENS.md),
           so the head is a kicker and the heading, never a Screen. */}
@@ -100,15 +103,16 @@ export default function TermsPage() {
       <section className="legalSection" aria-labelledby="account">
         <h2 id="account" className="legalH2">Your account</h2>
         <p className="legalBody">
-          Browsing doesn&rsquo;t need an account or analytics. First visit asks
-          you to tap Allow or No thanks for optional usage analytics. You
+          Browsing doesn&rsquo;t need an account or analytics. On your first
+          visit we ask you to tap Allow or No thanks for optional usage
+          analytics. You
           get the same app either way. If you allow them, we use a persistent
           device identifier and collect browser, operating system and device type,
           screen size, referrer and campaign details, plus app performance and
           the closed product events described in our privacy notice. PostHog
           deletes analytics events 12 months after collection and pseudonymous
-          person and device records 12 months after their last activity. Handle
-          is needed to finish signup. Date of birth is optional.
+          person and device records 12 months after their last activity. You need
+          a handle to finish signup. Date of birth is optional.
           Full name, gender and sex are optional. We collect and store date
           of birth, full name, gender and sex as private details for existing
           account tools.
@@ -129,6 +133,9 @@ export default function TermsPage() {
           separate hosted age check. Your date of birth,
           documents and verification status aren&rsquo;t public profile fields or
           badges.
+          You can hide your name on a public Social post. Other people won&rsquo;t
+          see your handle, but we still know the post is yours, and the house
+          rules, reports and moderation apply exactly as they do to any post.
           Keep your sign-in to yourself, use a handle that isn&rsquo;t someone
           else&rsquo;s identity, and don&rsquo;t hand the account to anyone
           else. You can stop using it whenever you like, and ask us to delete
@@ -174,12 +181,13 @@ export default function TermsPage() {
           Social post text goes to OpenAI for omni moderation after we store
           it. The post stays held from feeds and direct reads until OpenAI
           returns a decision. If that check is unavailable or gives no usable
-          decision, the post remains held. Social photos are resized, stripped
-          of embedded metadata, kept private, and sent with the post text to
-          OpenAI for moderation. Profile pictures use the same OpenAI omni
-          moderation on owned storage bytes before they are publicly
-          addressable; if that check fails, the upload is refused and your
-          previous picture stays. Readers may report a profile picture; only a
+          decision, the post remains held. We resize Social photos, strip their
+          embedded metadata, keep them private, and send them with the post
+          text to OpenAI for moderation. Profile pictures use an advisory OpenAI omni
+          moderation check on stored image bytes. If the check refuses a
+          picture, we refuse the upload and keep your previous picture. If the
+          check cannot run or gives no usable decision, the upload can proceed
+          without scan approval. Readers may report a profile picture; only a
           named staff member may hide or restore it, and hiding never deletes
           the stored file. Photo tags need the tagged person&rsquo;s approval
           and can be withdrawn. Signed photo delivery links are short lived.
@@ -354,5 +362,6 @@ export default function TermsPage() {
         </p>
       </section>
     </main>
+    </>
   );
 }

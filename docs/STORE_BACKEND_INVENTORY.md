@@ -6,9 +6,9 @@ The inventory is descriptive, not a runtime registry.
 
 ## Current snapshot
 
-- The repository has 52 `lib/*Store.ts` modules.
-- 32 modules call `selectStore` directly.
-- 7 modules use `createDualBackendStore`.
+- The repository has 54 `lib/*Store.ts` modules.
+- 36 modules call `selectStore` directly.
+- 10 modules use `createDualBackendStore`.
 - 6 modules keep memory state on `globalThis` so it survives a development
   server reload. That state pattern is separate from backend selection.
 - The remaining modules use an explicit backend, a file or static data path,
@@ -42,7 +42,7 @@ silently stale.
 
 | Store | Classification | Notes |
 |---|---|---|
-| adultSelfAssertionStore | factory-ready | Account assertion read and record; adult policy lives in `socialLaunch`. |
+| adultSelfAssertionStore | factory-ready | Account assertion read and record; see [the adult policy](rules/lib-identity-accounts-and-sessions.md#everybody-who-joins-is-taken-to-be-an-adult-on-one-recorded-tap). |
 | analyticsReceiptStore | legacy-exception | Inline Supabase configuration checks; needs one selector seam. |
 | areaDemandStore | factory-ready | Demand signal with shared backend selection. |
 | checkInStore | factory-ready | Check-in rows with shared backend selection. |
@@ -50,6 +50,7 @@ silently stale.
 | communityPriceStore | factory-eligible, policy-heavy | Moderation, corroboration, venue signals, and Round source ownership. |
 | contributorLeaderboardStore | legacy-exception | Inline Supabase configuration check; durable aggregate read. |
 | crawlStoryStore | legacy-exception | Multiple inline Supabase configuration checks. |
+| diaryStore | factory-ready | Owner-scoped private Diary entries with shared backend selection. |
 | feedFreshnessStore | factory-ready | Pilot store; durable or memory freshness stamp. |
 | followStore | factory-ready | Directed follow graph with shared backend selection. |
 | harvestOverlayStore | factory-ready | Fold-written UK harvest overlays; one shared selector, with a `requireDurable` guard for the non-dry fold CLI. |
@@ -84,10 +85,15 @@ silently stale.
 | socialCrewStore | not dual-backend | Supabase-only RPC store. |
 | socialInteractionStore | factory-eligible, policy-heavy | Social relationship, block, and interaction policy. |
 | socialPostConsentStore | not dual-backend | Supabase-only RPC store. |
+| socialPostExtraPhotoStore | factory-eligible, policy-heavy | Photos 2 to 4: owner and first-photo checks, per-photo moderation. |
+| socialPostReviewStore | factory-eligible, policy-heavy | Own-post, named-venue and half-step score policy. |
 | socialPostStore | factory-eligible, policy-heavy | Moderation, visibility, consent, and relationship policy. |
+| socialPostVideoStore | factory-eligible, policy-heavy | Upload intents, held-until-watched review and signed playback. |
+| socialPubRankingStore | factory-eligible, policy-heavy | Adjacent-neighbour placement and stale-list refusal (0186). |
 | stepOutNudgeStore | factory-ready | Nudge preference and send-stamp rows with shared backend selection. |
 | venueOperatorsStore | factory-eligible, policy-heavy | Venue claim ownership and operator moderation policy. |
 | venuePhotoStore | factory-eligible, policy-heavy | Photo cap, author projection, reports, and moderation policy. |
+| venueSubmissionStore | factory-ready | Pubs a drinker proposes, with their menu files; pending cap and moderator verdicts. |
 | visitReportsStore | factory-eligible, policy-heavy | Dated Visit Reports, flags, and moderator lanes. |
 | walkRouteStore | factory-ready | Routed-leg cache; TTL calculation stays in the store. |
 | wantedStore | factory-ready | Owner-scoped Wanted rows with shared backend selection. |
@@ -111,8 +117,11 @@ The following stores intentionally stay outside the factory-ready path:
 - **policy-heavy:** `commentsStore`, `communityPriceStore`,
   `identityHandleStore`, `messagesStore`, `occupancyStore`,
   `priceTrustEventStore`, `profileCoverPhotoStore`, `referralStore`,
-  `roundsStore`, `socialInteractionStore`, `socialPostStore`,
-  `venueOperatorsStore`, `venuePhotoStore`, `visitReportsStore`, and
+  `roundsStore`, `socialInteractionStore`, `socialPostExtraPhotoStore`,
+  `socialPostReviewStore`,
+  `socialPostStore`, `socialPostVideoStore`, `socialPubRankingStore`,
+  `venueOperatorsStore`,
+  `venuePhotoStore`, `visitReportsStore`, and
   `weatherRecommendationStore`. Their explicit policy is the reason to defer
   migration, not a claim that the selector is impossible to simplify later.
 
@@ -148,7 +157,7 @@ Every production file with an inline `selectStore` or `isSupabaseConfigured` bra
     "app/api/starter-packs/route.ts",
     "app/bar-tab/[id]/opengraph-image.tsx",
     "app/bar-tab/[id]/page.tsx",
-    "app/ledger/[id]/page.tsx",
+    "lib/accountExport.server.ts",
     "lib/accountPublicAccess.server.ts",
     "lib/analyticsReceiptStore.ts",
     "lib/areaDemandStore.ts",
@@ -168,6 +177,7 @@ Every production file with an inline `selectStore` or `isSupabaseConfigured` bra
     "lib/harvestOverlayStore.ts",
     "lib/heritage.ts",
     "lib/identityHandleStore.ts",
+    "lib/ledgerLog.server.ts",
     "lib/mapSearchEvents.server.ts",
     "lib/messageAuth.ts",
     "lib/messagePhotoMedia.server.ts",
@@ -208,8 +218,12 @@ Every production file with an inline `selectStore` or `isSupabaseConfigured` bra
     "lib/socialInteractionStore.ts",
     "lib/socialOAuth.ts",
     "lib/socialPostCreateRequest.server.ts",
+    "lib/socialPostExtraPhotoStore.ts",
     "lib/socialPostMedia.server.ts",
+    "lib/socialPostReviewStore.ts",
     "lib/socialPostStore.ts",
+    "lib/socialPostVideoStore.ts",
+    "lib/socialPubRankingStore.ts",
     "lib/stepOutNudgeSelect.server.ts",
     "lib/storeBackend.ts",
     "lib/supabase.ts",
@@ -219,6 +233,7 @@ Every production file with an inline `selectStore` or `isSupabaseConfigured` bra
     "lib/venuePhotoMedia.server.ts",
     "lib/venuePhotoServe.server.ts",
     "lib/venuePhotoStore.ts",
+    "lib/venueSubmissionMedia.server.ts",
     "lib/visitReportsStore.ts",
     "lib/wantedPromotion.server.ts",
     "lib/weatherRecommendationStore.ts",
@@ -239,9 +254,10 @@ zero-argument selector before and after the factory wrapper, and its memory
 and Supabase implementations keep their existing fail-soft behavior.
 
 The current branch also has `createDualBackendStore` in
-`adultSelfAssertionStore`, `feedFreshnessStore`, `occupancyStore`,
-`priceTrustEventStore`, `stepOutNudgeStore`, `walkRouteStore`, and
-`wantedStore`. This inventory records that current state; it does not require
+`adultSelfAssertionStore`, `diaryStore`, `feedFreshnessStore`,
+`harvestOverlayStore`, `occupancyStore`, `priceTrustEventStore`,
+`pubPalToolTurnStore`, `stepOutNudgeStore`, `venueSubmissionStore`,
+`walkRouteStore` and `wantedStore`. This inventory records that current state; it does not require
 other stores to migrate.
 
 ## Review-scope guard
@@ -249,7 +265,8 @@ other stores to migrate.
 `scripts/check_review_scope.mjs` reports changed source, migration, generated,
 evidence, test, configuration, documentation, skill-pack, and other paths.
 It warns when a review crosses more than two runtime domains or more
-than 150 files. It fails only when generated or skill-pack paths are present.
+than 150 files. Its failing checks are owned by
+`docs/rules/scripts-ci-gates-and-audits.md`.
 Migration files remain in their own category and do not add a runtime domain.
 CI passes the pull request base and head SHAs to the script, so the report
 matches the reviewed diff rather than the checkout's default range.

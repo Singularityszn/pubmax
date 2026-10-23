@@ -15,8 +15,8 @@ import "server-only";
 // ─────────────────────────────────────────────────────────────────────────────
 //
 // The WRITE path (send) surfaces real failures to the route (a dropped message
-// must not silently vanish). The READ path (list/messages) is fail-soft: an
-// outage renders as an empty inbox / empty thread, never a 500.
+// must not silently vanish). Failed thread reads raise MessageReadUnavailableError;
+// healthy empty threads return []. Inbox failures carry a degraded status.
 
 import {
   isMessageAttachmentKind,
@@ -52,7 +52,14 @@ import {
   type MessageDTO,
 } from "@/lib/messages";
 import { normalizeHandle } from "@/lib/profiles";
-import { admin, errorMessage, missingTables, selectStore } from "@/lib/storeBackend";
+import {
+  admin,
+  errorMessage,
+  missingTables,
+  onMissingDurableWrite,
+  selectStore,
+} from "@/lib/storeBackend";
+import { requiresSupabaseStore } from "@/lib/supabase";
 
 // Hard caps so one busy handle can't return an unbounded payload.
 const MAX_CONVERSATIONS = 100;
@@ -120,6 +127,13 @@ export type InboxRead = Readonly<{
   conversations: ConversationDTO[];
   status: InboxReadStatus;
 }>;
+
+export class MessageReadUnavailableError extends Error {
+  constructor() {
+    super("Messages are unavailable right now.");
+    this.name = "MessageReadUnavailableError";
+  }
+}
 
 export type MessagesStore = {
   /** Find-or-create the DIRECT conversation for an unordered pair. Returns the
@@ -194,8 +208,8 @@ export type MessagesStore = {
    *  that into a 404 so a thread never leaks. A READ and nothing else: marking
    *  what the viewer received as read is `markRead`, asked by the thread route
    *  alone, so a photo send or a report (which read the thread to prove
-   *  participation) cannot mark anything read. Never throws on a valid
-   *  participant read. */
+   *  participation) cannot mark anything read. Failed durable reads throw
+   *  MessageReadUnavailableError; a healthy empty thread returns []. */
   listMessages(conversationId: string, handle: string): Promise<MessageDTO[] | null>;
   /** Mark the viewer's RECEIVED unread messages read. Returns how many rows
    *  changed, so the route can tell the sender's thread only when something did.
@@ -484,6 +498,28 @@ function warnMemoryFallback(context: string, err: unknown): void {
   );
 }
 
+/**
+ * A WRITE that met a missing table answers from process memory only off
+ * production. In production it is refused through the store's own failure
+ * value: a message or a report held in one instance's memory is lost on the
+ * next cold start while the sender was told it was saved.
+ */
+function memoryWriteOffProduction<T>(
+  context: string,
+  refused: T,
+  fallback: () => Promise<T>,
+): Promise<T> {
+  return onMissingDurableWrite({
+    storeTag: "messages",
+    migrationHint: `apply the messages migrations before ${context}`,
+    fallback,
+    onProduction: async (error) => {
+      console.error(error.message);
+      return refused;
+    },
+  });
+}
+
 // A client message id is the browser's own uuid for one send attempt. It is
 // matched as a UUID SHAPE, never trusted as text: the column is `uuid`, so a
 // value that is not one would be a 22P02 on the write path of a real message.
@@ -662,7 +698,11 @@ export const supabaseMessagesStore: MessagesStore = {
     } catch (err) {
       if (isMissingMessagesSchema(err)) {
         warnMemoryFallback("openConversation", err);
-        return memoryMessagesStore.openConversation(a, b);
+        // A memory id would also send every later write down the memory fast
+        // path in `send`, past that method's own guard, so this door refuses too.
+        return memoryWriteOffProduction("openConversation", null, () =>
+          memoryMessagesStore.openConversation(a, b),
+        );
       }
       console.error(
         "[messages] openConversation failed:",
@@ -711,7 +751,11 @@ export const supabaseMessagesStore: MessagesStore = {
     } catch (err) {
       if (isMissingMessagesSchema(err) || isMissingGroupSchema(err)) {
         warnMemoryFallback("openGroupConversation", err);
-        return memoryMessagesStore.openGroupConversation(owner, handles, title);
+        return memoryWriteOffProduction<GroupOpenOutcome>(
+          "openGroupConversation",
+          { status: "unavailable" },
+          () => memoryMessagesStore.openGroupConversation(owner, handles, title),
+        );
       }
       console.error(
         "[messages] openGroupConversation failed:",
@@ -747,7 +791,9 @@ export const supabaseMessagesStore: MessagesStore = {
     } catch (err) {
       if (isMissingMessagesSchema(err) || isMissingGroupSchema(err)) {
         warnMemoryFallback("leaveGroupConversation", err);
-        return memoryMessagesStore.leaveGroupConversation(conversationId, me);
+        return memoryWriteOffProduction<GroupLeaveOutcome>("leaveGroupConversation", "unavailable", () =>
+          memoryMessagesStore.leaveGroupConversation(conversationId, me),
+        );
       }
       console.error(
         "[messages] leaveGroupConversation failed:",
@@ -829,7 +875,9 @@ export const supabaseMessagesStore: MessagesStore = {
     } catch (err) {
       if (isMissingMessagesSchema(err)) {
         warnMemoryFallback("send", err);
-        return memoryMessagesStore.send(conversationId, senderHandle, clean, attachment, options);
+        return memoryWriteOffProduction("send", null, () =>
+          memoryMessagesStore.send(conversationId, senderHandle, clean, attachment, options),
+        );
       }
       console.error("[messages] send failed:", err instanceof Error ? err.message : err);
       return null;
@@ -897,7 +945,9 @@ export const supabaseMessagesStore: MessagesStore = {
     } catch (err) {
       if (isMissingMessagesSchema(err) || isMissingPollSchema(err)) {
         warnMemoryFallback("votePoll", err);
-        return memoryMessagesStore.votePoll(conversationId, messageId, me, optionIndex);
+        return memoryWriteOffProduction("votePoll", null, () =>
+          memoryMessagesStore.votePoll(conversationId, messageId, me, optionIndex),
+        );
       }
       console.error("[messages] votePoll failed:", err instanceof Error ? err.message : err);
       return null;
@@ -1047,7 +1097,7 @@ export const supabaseMessagesStore: MessagesStore = {
       const polls: PollReadContext = { viewer: me, votesByMessage };
       return rows.map((r) => rowToMessageDTO(r, polls));
     } catch (err) {
-      if (isMissingMessagesSchema(err)) {
+      if (isMissingMessagesSchema(err) && !requiresSupabaseStore()) {
         warnMemoryFallback("listMessages", err);
         return memoryMessagesStore.listMessages(conversationId, me);
       }
@@ -1055,9 +1105,7 @@ export const supabaseMessagesStore: MessagesStore = {
         "[messages] listMessages failed:",
         err instanceof Error ? err.message : err,
       );
-      // A participant we already verified hitting a transient read error gets an
-      // empty thread, not a leak and not a 500.
-      return [];
+      throw new MessageReadUnavailableError();
     }
   },
 
@@ -1082,7 +1130,9 @@ export const supabaseMessagesStore: MessagesStore = {
     } catch (err) {
       if (isMissingMessagesSchema(err)) {
         warnMemoryFallback("markRead", err);
-        return memoryMessagesStore.markRead(conversationId, me);
+        return memoryWriteOffProduction("markRead", 0, () =>
+          memoryMessagesStore.markRead(conversationId, me),
+        );
       }
       console.error("[messages] markRead failed:", err instanceof Error ? err.message : err);
       return 0;
@@ -1128,7 +1178,9 @@ export const supabaseMessagesStore: MessagesStore = {
     } catch (err) {
       if (isMissingMessagesSchema(err)) {
         warnMemoryFallback("report", err);
-        return memoryMessagesStore.report(conversationId, messageId, reporter);
+        return memoryWriteOffProduction("report", false, () =>
+          memoryMessagesStore.report(conversationId, messageId, reporter),
+        );
       }
       console.error("[messages] report failed:", err instanceof Error ? err.message : err);
       return false;

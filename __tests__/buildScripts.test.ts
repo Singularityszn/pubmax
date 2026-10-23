@@ -100,7 +100,7 @@ describe("build scripts", () => {
     // `.npmrc` sets ignore-scripts, which skips pre/post hooks, so the build
     // names its own first steps rather than relying on a `prebuild` hook.
     expect(packageJson.scripts?.build).toBe(
-      "npm run prepare:maplibre-worker && npm run build:slim && npm run build:city-slim && npm run build:pubmaxxing-seed && npm run build:uk-base && npm run build:discover-board && next build",
+      "npm run prepare:maplibre-worker && npm run build:places-enrichment && npm run build:slim && npm run build:city-slim && npm run build:pubmaxxing-seed && npm run build:uk-base && npm run build:discover-board && next build",
     );
   });
 

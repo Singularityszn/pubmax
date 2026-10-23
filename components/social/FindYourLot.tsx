@@ -16,12 +16,18 @@ import {
   INVITE_LINK_FALLBACK_MESSAGE,
   offlineOrMessage,
 } from "@/lib/apiErrorMessage";
+import {
+  followActionLabel,
+  followPendingLabel,
+  followRelationHint,
+  isFollowRelation,
+  type FollowRelation,
+} from "@/lib/followRelation";
 import { discardBody } from "@/lib/responseBody";
 import { displayHandle } from "@/lib/handleDisplay";
 import { normalizeHandle } from "@/lib/profiles";
 import { useSocialFriendsLaunch } from "@/lib/useSocialFriendsLaunch";
 import { useViewerHandle } from "@/components/auth/useViewerHandle";
-import Kicker from "@/components/ui/kicker";
 
 import "./findYourLot.css";
 
@@ -30,6 +36,8 @@ type SearchMatch = {
   handle: string;
   displayName?: string;
   avatarUrl?: string;
+  /** What the signed-in viewer already is to this person. */
+  relation?: FollowRelation;
 };
 
 type FollowState = "idle" | "working" | "done" | "error";
@@ -100,13 +108,24 @@ export default function FindYourLot({
       };
     }
     void Promise.resolve().then(() => setStatus("loading"));
+    // One controller per effect run: a new query, a switch of account or the
+    // session resolving cancels the request in flight, so a late answer for the
+    // previous viewer can never overwrite the current viewer's relations.
+    const controller = new AbortController();
     debounceRef.current = setTimeout(() => {
       void (async () => {
         try {
+          // Naming the viewer lets the answer say who they already follow, so a
+          // mate is never offered a Follow they have already pressed.
+          const viewerQuery = viewer ? `&viewer=${encodeURIComponent(viewer)}` : "";
           const response = await fetch(
-            `/api/profiles/search?q=${encodeURIComponent(q)}`,
-            { cache: "no-store" },
+            `/api/profiles/search?q=${encodeURIComponent(q)}${viewerQuery}`,
+            { cache: "no-store", signal: controller.signal },
           );
+          if (controller.signal.aborted) {
+            discardBody(response);
+            return;
+          }
           if (!response.ok) {
             discardBody(response);
             setStatus("error");
@@ -114,18 +133,28 @@ export default function FindYourLot({
             return;
           }
           const body = (await response.json()) as { matches?: SearchMatch[] };
-          setMatches(Array.isArray(body.matches) ? body.matches : []);
+          if (controller.signal.aborted) return;
+          setMatches(
+            Array.isArray(body.matches)
+              ? body.matches.map((match) => ({
+                  ...match,
+                  relation: isFollowRelation(match.relation) ? match.relation : undefined,
+                }))
+              : [],
+          );
           setStatus("ready");
         } catch {
+          if (controller.signal.aborted) return;
           setStatus("error");
           setMatches([]);
         }
       })();
     }, 220);
     return () => {
+      controller.abort();
       if (debounceRef.current) clearTimeout(debounceRef.current);
     };
-  }, [query, socialFriendsLaunchEnabled]);
+  }, [query, socialFriendsLaunchEnabled, viewer]);
 
   async function follow(handle: string) {
     if (!socialFriendsLaunchEnabled || !viewer) {
@@ -229,13 +258,12 @@ export default function FindYourLot({
       className={compact ? "findLot findLot--compact" : "findLot"}
       aria-labelledby="find-lot-title"
     >
-      <Kicker tone="muted">Your lot</Kicker>
       <h2 id="find-lot-title" className="findLot__title">
         Find your lot
       </h2>
       <p className="findLot__body">
-        Search a mate&rsquo;s handle, or send an invite link. A lot is mutual:
-        they follow back, and you share nights.
+        Search a mate&rsquo;s handle, or send an invite link. A lot is mutual.
+        They follow you back, and you share nights.
       </p>
 
       <label className="findLot__field">
@@ -273,6 +301,16 @@ export default function FindYourLot({
           {matches.map((match) => {
             const followState = visibleFollowByHandle[match.handle] ?? "idle";
             const isSelf = viewer && match.handle === viewer;
+            // The edge the page was told about, moved on by a tap made since.
+            const startingRelation = match.relation ?? "none";
+            const relation: FollowRelation =
+              followState === "done"
+                ? startingRelation === "follows_you" || startingRelation === "mates"
+                  ? "mates"
+                  : "following"
+                : startingRelation;
+            const hint = followRelationHint(relation);
+            const alreadyFollowing = relation === "following" || relation === "mates";
             return (
               <li key={match.id} className="findLot__row">
                 <Link
@@ -294,33 +332,32 @@ export default function FindYourLot({
                     {match.displayName ? (
                       <span className="findLot__display">{match.displayName}</span>
                     ) : null}
+                    {hint && !isSelf ? (
+                      <span className="findLot__hint">{hint}</span>
+                    ) : null}
                   </span>
                 </Link>
                 {isSelf ? (
                   <span className="findLot__self">You</span>
                 ) : !viewer ? (
-                  viewerSession.unresolved ? null : (
-                    <Link
-                      className="findLot__ghost"
-                      href={viewerSession.signedIn ? "/u/you" : "/login"}
-                    >
-                      {viewerSession.signedIn
-                        ? "Claim a handle to follow"
-                        : "Sign in to follow"}
+                  // A stranger is not offered a sign-in door on every row: the
+                  // page they are on already carries the one door. A signed-in
+                  // drinker with no handle yet is told the one thing missing.
+                  viewerSession.signedIn ? (
+                    <Link className="findLot__ghost" href="/u/you">
+                      Claim a handle to follow
                     </Link>
-                  )
+                  ) : null
                 ) : (
                   <button
                     type="button"
                     className="findLot__follow"
-                    disabled={followState === "working" || followState === "done"}
+                    disabled={followState === "working" || alreadyFollowing}
                     onClick={() => void follow(match.handle)}
                   >
-                    {followState === "done"
-                      ? "Following"
-                      : followState === "working"
-                        ? "Adding…"
-                        : "Follow"}
+                    {followState === "working"
+                      ? followPendingLabel(relation)
+                      : followActionLabel(relation)}
                   </button>
                 )}
               </li>
@@ -346,16 +383,11 @@ export default function FindYourLot({
           >
             {inviteBusy ? "Minting…" : "Get invite link"}
           </button>
-        ) : viewerSession.unresolved ? null : (
-          <Link
-            className="findLot__follow"
-            href={viewerSession.signedIn ? "/u/you" : "/login"}
-          >
-            {viewerSession.signedIn
-              ? "Claim a handle to invite"
-              : "Sign in to invite"}
+        ) : viewerSession.signedIn ? (
+          <Link className="findLot__follow" href="/u/you">
+            Claim a handle to invite
           </Link>
-        )}
+        ) : null}
         {shareSelf ? (
           <Link className="findLot__ghost" href={`/add/${encodeURIComponent(viewer)}`}>
             Share your add link

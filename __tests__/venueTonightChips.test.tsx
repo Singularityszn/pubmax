@@ -9,6 +9,7 @@ vi.mock("@/lib/analytics", () => ({
 }));
 
 vi.mock("@/lib/surfaceDataCache", () => ({
+  SURFACE_JUST_READ_MS: 5_000,
   loadSurfaceJson: (
     _url: string,
     _options: unknown,

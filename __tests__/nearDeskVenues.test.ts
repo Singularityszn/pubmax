@@ -47,6 +47,17 @@ function pack(venues: unknown[], extras: Partial<DeskPackJson> = {}): unknown {
 }
 
 describe("parseDeskPack", () => {
+  it("drops a pub Google verified as permanently closed", () => {
+    const parsed = parseDeskPack(
+      pack([
+        row({ ref: "n1", name: "Gone Arms", kind: "pub", wifi: "yes" }),
+        row({ ref: "n2", name: "Open Arms", kind: "pub", wifi: "yes" }),
+      ]),
+      new Set(["n1"]),
+    );
+    expect(parsed.venues.map((venue) => venue.name)).toEqual(["Open Arms"]);
+  });
+
   it("maps a well-formed row onto a desk point with honest amenities", () => {
     const parsed = parseDeskPack(pack([
       row({ wifi: "wlan", laptop: "yes", hours: "Mo-Fr 08:00-17:00" }),

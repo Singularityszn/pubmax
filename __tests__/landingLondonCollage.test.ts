@@ -9,6 +9,7 @@ import {
   LONDON_COLLAGE_WIDTHS,
   londonCollageSrc,
 } from "@/lib/landingLondonCollage";
+import { defined } from "@/__tests__/helpers/defined";
 
 const root = process.cwd();
 
@@ -43,7 +44,7 @@ describe("founder collage assets are stripped and within budget", () => {
     const widest = LONDON_COLLAGE_WIDTHS[LONDON_COLLAGE_WIDTHS.length - 1];
     for (const photo of LONDON_COLLAGE_PHOTOS) {
       for (const format of ["avif", "webp"] as const) {
-        const file = join(root, "public", londonCollageSrc(photo, widest, format).replace(/^\//, ""));
+        const file = join(root, "public", londonCollageSrc(photo, defined(widest), format).replace(/^\//, ""));
         const meta = await sharp(file).metadata();
         expect({ width: meta.width, height: meta.height }, `${photo.id} ${format}`).toEqual({
           width: photo.width,

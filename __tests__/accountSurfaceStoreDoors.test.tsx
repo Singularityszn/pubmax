@@ -21,6 +21,7 @@ vi.mock("@/components/wanted/WantedList", () => ({
   default: () => createElement("div", null, "wanted list"),
 }));
 vi.mock("next/navigation", () => ({
+  useSearchParams: () => new URLSearchParams(window.location.search),
   useRouter: () => ({ replace: () => undefined, push: () => undefined }),
 }));
 
@@ -58,6 +59,7 @@ import {
   ACCOUNT_DELETION_OPEN_LABEL,
   ACCOUNT_DELETION_STAYS,
 } from "@/lib/accountDeletion";
+import { ANON_HANDLE_LABEL } from "@/lib/pintDropShared";
 import { CONTACT_EMAIL } from "@/lib/siteContact";
 
 beforeEach(() => {
@@ -170,5 +172,14 @@ describe("what the deletion copy promises", () => {
     // Migration 0078 leaves the profile row in place, so a promise that the
     // handle frees up would be a promise the database does not keep.
     expect(ACCOUNT_DELETION_STAYS.join(" ")).toContain("reserved");
+  });
+
+  it("says the name comes off the prices that stay, as migration 0150 does", () => {
+    // `lib/retiredContributor.ts` swaps the handle for ANON_HANDLE_LABEL on
+    // every public read, so a promise of attribution would be false.
+    const stays = ACCOUNT_DELETION_STAYS.join(" ");
+    expect(stays).not.toMatch(/attributed/i);
+    expect(stays).toContain("comes off");
+    expect(stays).toContain(ANON_HANDLE_LABEL);
   });
 });

@@ -24,6 +24,7 @@ import TodayClient from "@/app/today/TodayClient";
 import TonightListingsNotice from "@/app/tonight/TonightListingsNotice";
 import { SocialAccessBoundary } from "@/app/social/SocialPageClient";
 import { tonightEmptyLead } from "@/lib/tonightOutListings";
+import { defined } from "@/__tests__/helpers/defined";
 
 // Friction-state voice fence (2026-07-19 taste sweep). Empty, denied, and
 // error states are where love is won or lost (voice spec rule 5); they must
@@ -111,7 +112,7 @@ function tsxFilesIn(dir: string, found: string[] = []): string[] {
 function controlTextLabels(source: string): string[] {
   const labels: string[] = [];
   for (const match of source.matchAll(CONTROL_TEXT)) {
-    const text = match[1].trim();
+    const text = defined(match[1]).trim();
     if (text) labels.push(text);
   }
   return labels;
@@ -291,7 +292,7 @@ describe("friction-state voice fence", () => {
       '<Chip aria-pressed={zeroProof} onClick={toggle}>0.0 options</Chip>',
     );
     expect(shipped).toEqual(["0.0 options"]);
-    expect(BARE_DECIMAL.test(shipped[0])).toBe(true);
+    expect(BARE_DECIMAL.test(defined(shipped[0]))).toBe(true);
     // A price is a figure with a unit, so it stays allowed.
     expect(BARE_DECIMAL.test("£6.00")).toBe(false);
     expect(NUMERAL_ONLY.test("Build 3-stop route")).toBe(false);
@@ -302,7 +303,7 @@ describe("friction-state voice fence", () => {
       '<option value="zero-proof">0.0 options</option>',
     );
     expect(shipped).toEqual(["0.0 options"]);
-    expect(BARE_DECIMAL.test(shipped[0])).toBe(true);
+    expect(BARE_DECIMAL.test(defined(shipped[0]))).toBe(true);
   });
 
   // The drinks control asks one question on two surfaces. The phone asks it with
@@ -418,7 +419,7 @@ function renderedText(markup: string): string {
 function renderedLinkTexts(markup: string, href: string): string[] {
   return [...markup.matchAll(/<a\b[^>]*href="([^"]+)"[^>]*>([\s\S]*?)<\/a>/gu)]
     .filter((match) => match[1] === href)
-    .map((match) => renderedText(match[2]));
+    .map((match) => renderedText(defined(match[2])));
 }
 
 function beggingPhrasesIn(text: string): string[] {

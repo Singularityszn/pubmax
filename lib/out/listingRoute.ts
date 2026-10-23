@@ -12,6 +12,8 @@
 // Ticketmaster theatre show ("Burlesque") on a night where the match had placed
 // none of 25 listings at a pub we list. A listing opens from its own card.
 
+import type { Route } from "next";
+import type { AppOrExternalLink } from "@/lib/appLink";
 import { firstHttp } from "@/lib/httpUrl";
 import { outRowSourceCredit } from "@/lib/out/attribution";
 import { canonicalOutVenueId } from "@/lib/out/venueId";
@@ -19,11 +21,8 @@ import type { OutVenueMatchStatus } from "@/lib/out/venueMatch";
 import { outWindowNoun, type OutDayWindow } from "@/lib/outListings";
 import type { WhatsOnRow } from "@/lib/whatsOn";
 
-export type OutListingRoute = {
-  href: string;
-  /** True when the route leaves PUBMAXX for the publisher's own page. */
-  external: boolean;
-};
+/** `external` is true when the route leaves PUBMAXX for the publisher's own page. */
+export type OutListingRoute = AppOrExternalLink;
 
 /** The route one listing opens, or null when the sources published none. */
 export function outListingRoute(row: WhatsOnRow): OutListingRoute | null {
@@ -34,7 +33,10 @@ export function outListingRoute(row: WhatsOnRow): OutListingRoute | null {
   const sourceUrl = credit.href ? firstHttp(credit.href) : null;
   if (sourceUrl) return { href: sourceUrl, external: true };
   const venueId = canonicalOutVenueId(row.venueId);
-  if (venueId) return { href: `/map?sel=${encodeURIComponent(venueId)}`, external: false };
+  if (venueId) {
+    const href: Route = `/map?sel=${encodeURIComponent(venueId)}`;
+    return { href, external: false };
+  }
   return null;
 }
 

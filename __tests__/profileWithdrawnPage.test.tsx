@@ -17,6 +17,7 @@ vi.mock("@/components/wanted/WantedList", () => ({
 vi.mock("@/components/nav/SiteNav", () => ({ default: () => null }));
 vi.mock("@/components/nav/SiteNavMore", () => ({ default: () => null }));
 vi.mock("next/navigation", () => ({
+  useSearchParams: () => new URLSearchParams(window.location.search),
   useRouter: () => ({ replace: () => undefined, push: () => undefined, prefetch: () => undefined }),
   usePathname: () => "/u/test",
   notFound: () => {
@@ -71,6 +72,7 @@ vi.mock("@/lib/authClient", () => ({
 
 import ProfilePageClient from "@/app/u/[handle]/ProfilePageClient";
 import { clearSurfaceCache } from "@/lib/surfaceDataCache";
+import { defined } from "@/__tests__/helpers/defined";
 
 const json = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), {
@@ -135,7 +137,7 @@ beforeEach(() => {
     vi.fn(async (input: RequestInfo | URL) => {
       const url = new URL(String(input), "http://localhost");
       const profileMatch = /^\/api\/profiles\/([^/]+)$/.exec(url.pathname);
-      if (profileMatch) return profileAnswer(decodeURIComponent(profileMatch[1]));
+      if (profileMatch) return profileAnswer(decodeURIComponent(defined(profileMatch[1])));
       if (url.pathname === "/api/identity/handle/resolve") {
         return json({ error: { code: "NOT_FOUND", message: "Profile not found." } }, 404);
       }

@@ -12,6 +12,7 @@ import {
   decisionFromJudgment,
   type UkPriceJudgmentProbabilities,
 } from "@/lib/harvest/ukPriceJudgmentPolicy";
+import { defined } from "@/__tests__/helpers/defined";
 
 const ROOT = process.cwd();
 const cases = JSON.parse(
@@ -48,10 +49,10 @@ describe("pint price judgment thresholds", () => {
     // fixtures refuse to publish and the lowest they do.
     const published = cases
       .filter((row) => row.expectPublish && row.expectCategory === "beer")
-      .map((row) => recorded.cases[row.id].whatIsPriced.draught_pint);
+      .map((row) => defined(recorded.cases[row.id]).whatIsPriced.draught_pint);
     const refused = cases
       .filter((row) => !row.expectPublish)
-      .map((row) => recorded.cases[row.id].whatIsPriced.draught_pint);
+      .map((row) => defined(recorded.cases[row.id]).whatIsPriced.draught_pint);
 
     expect(Math.min(...published)).toBeGreaterThanOrEqual(DRAUGHT_PINT_PUBLISH_THRESHOLD);
     expect(Math.max(...refused)).toBeLessThan(DRAUGHT_PINT_PUBLISH_THRESHOLD);
@@ -113,7 +114,7 @@ describe("pint price judgment thresholds", () => {
     for (const row of cases) {
       const probs = recorded.cases[row.id];
       expect(probs, row.id).toBeDefined();
-      const decision = decisionFromJudgment(probs, row.priceGbp);
+      const decision = decisionFromJudgment(defined(probs), row.priceGbp);
       if (row.expectPublish) {
         expect(decision.outcome, row.id).toBe("publish");
         if (row.expectCategory) expect(decision.category, row.id).toBe(row.expectCategory);

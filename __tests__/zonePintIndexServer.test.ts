@@ -12,7 +12,12 @@ const readFile = vi.hoisted(() => vi.fn());
 vi.mock("node:fs/promises", () => ({ readFile, default: { readFile } }));
 
 import { MIN_PRICED_VENUES } from "@/lib/zones";
-import { loadZonePintIndex } from "@/lib/zonePintIndex.server";
+
+/** A fresh server process: the loader keeps a good read for the life of one. */
+async function freshLoader() {
+  vi.resetModules();
+  return (await import("@/lib/zonePintIndex.server")).loadZonePintIndex;
+}
 
 function rows(kind: unknown, count: number, price: number) {
   return Array.from({ length: count }, () => ({ zone: 1, cheapestPrice: price, kind }));
@@ -20,8 +25,8 @@ function rows(kind: unknown, count: number, price: number) {
 
 async function zoneOne(slim: unknown[]) {
   readFile.mockResolvedValue(JSON.stringify(slim));
-  const index = await loadZonePintIndex();
-  return index.rows.find((row) => row.zone === 1)!;
+  const index = await (await freshLoader())();
+  return index!.rows.find((row) => row.zone === 1)!;
 }
 
 describe("loadZonePintIndex", () => {
@@ -54,9 +59,25 @@ describe("loadZonePintIndex", () => {
     expect(mixed.medianGbp).toBe(5);
   });
 
-  it("reads an unusable slim index as an index nobody has priced yet", async () => {
-    readFile.mockRejectedValue(new Error("ENOENT"));
+  it("answers null for a slim index it could not read, and reads again next time", async () => {
+    const loadZonePintIndex = await freshLoader();
+    readFile.mockRejectedValueOnce(new Error("ENOENT"));
+    expect(await loadZonePintIndex()).toBeNull();
+
+    readFile.mockResolvedValueOnce(JSON.stringify(rows("pub", MIN_PRICED_VENUES, 5)));
     const index = await loadZonePintIndex();
-    expect(index.rows.every((row) => row.enough === false)).toBe(true);
+    expect(index?.rows.find((row) => row.zone === 1)?.enough).toBe(true);
+    expect(readFile).toHaveBeenCalledTimes(2);
+  });
+
+  it("reads and rolls up the slim index once per server process", async () => {
+    const loadZonePintIndex = await freshLoader();
+    readFile.mockResolvedValue(JSON.stringify(rows("pub", MIN_PRICED_VENUES, 5)));
+    const [first, second] = await Promise.all([loadZonePintIndex(), loadZonePintIndex()]);
+    const third = await loadZonePintIndex();
+    expect(first).not.toBeNull();
+    expect(second).toBe(first);
+    expect(third).toBe(first);
+    expect(readFile).toHaveBeenCalledTimes(1);
   });
 });

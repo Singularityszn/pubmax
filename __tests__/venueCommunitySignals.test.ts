@@ -53,7 +53,7 @@ describe("VenueCommunitySignals", () => {
       expect(html).toContain(`>${label}<`);
     }
     expect(html).not.toContain("signalCard");
-    expect(html).toContain("Neither character answer is a score.");
+    expect(html).toContain("Neither answer is a score.");
   });
 
   it("gives na-friendly the same reader row and typographic weight as the rest", () => {
@@ -135,9 +135,9 @@ describe("VenueCommunitySignals", () => {
 
   it("does not flatten a failed read into unknown access", () => {
     const failed = render([], "degraded");
-    expect(failed).toContain("Access unread");
+    expect(failed).toContain("Could not load access");
     expect(failed).not.toContain("Access unknown");
-    expect(failed).toContain("Unread just now.");
+    expect(failed).toContain("Could not load just now.");
     expect(failed).toContain("We could not read what drinkers have logged.");
     expect(failed).not.toContain("Nobody has confirmed step-free entrance access.");
     expect(failed).not.toContain("Not reported yet.");
@@ -320,7 +320,10 @@ describe("VenueOverviewTab community signals", () => {
     );
   }
 
-  it("mounts a read-first signals block above the price story", () => {
+  // THE PRICE COMES FIRST AFTER THE NAME (product owner, UX audit, 16 Oct
+  // 2026): the price story leads the Overview and the read-first signals block
+  // follows it, still read-only.
+  it("mounts a read-only signals block after the price story", () => {
     const html = renderOverview("ready");
     const signalsAt = html.indexOf("What drinkers noticed");
     const priceStoryAt = html.indexOf("contributorPrice");
@@ -330,13 +333,14 @@ describe("VenueOverviewTab community signals", () => {
     expect(priceStoryAt, "Overview must still render a price story").toBeGreaterThan(
       -1,
     );
-    expect(signalsAt).toBeLessThan(priceStoryAt);
+    expect(priceStoryAt).toBeLessThan(signalsAt);
+    expect(priceStoryAt).toBeLessThan(html.indexOf('class="venueAddress"'));
     expect(html).toContain("One drinker saw people eating.");
     // Price-entry path keeps the authoring surface; Overview's own mount is
-    // read-only, so the first block never offers the composer.
-    const firstBlock = html.slice(signalsAt, priceStoryAt);
-    expect(firstBlock).not.toContain("Add what you noticed");
-    expect(firstBlock).not.toContain("Sign in to add what you noticed.");
+    // read-only, so the signals block never offers the composer.
+    const signalsBlock = html.slice(signalsAt);
+    expect(signalsBlock).not.toContain("Add what you noticed");
+    expect(signalsBlock).not.toContain("Sign in to add what you noticed.");
     expect(
       html.match(/class=\"venueCommunitySignals\"/g) ?? [],
       "Overview must not double-mount VenueCommunitySignals",
@@ -349,8 +353,8 @@ describe("VenueOverviewTab community signals", () => {
 
   it("keeps a degraded Overview read from looking like no signals", () => {
     const html = renderOverview("degraded");
-    expect(html).toContain("Access unread");
-    expect(html).toContain("Unread just now.");
+    expect(html).toContain("Could not load access");
+    expect(html).toContain("Could not load just now.");
     expect(html).toContain("We could not read what drinkers have logged.");
     expect(html).not.toContain("Access unknown");
     expect(html).not.toContain("Not reported yet.");

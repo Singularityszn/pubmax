@@ -12,8 +12,8 @@ const state = vi.hoisted(() => ({
   }>,
 }));
 
-vi.mock("@/lib/supabase", () => ({
-  requireSupabaseAdmin: () => ({
+vi.mock("@/lib/supabase", () => {
+  const admin = () => ({
     rpc: async (name: string, input: Record<string, unknown>) => {
       state.calls.push({ name, input });
       return { data: state.rows.get(name) ?? [], error: null };
@@ -28,8 +28,9 @@ vi.mock("@/lib/supabase", () => ({
         }),
       }),
     }),
-  }),
-}));
+  });
+  return { requireSupabaseAdmin: admin, requireDynamicSupabaseAdmin: admin };
+});
 
 import { createSocialPostConsentStore } from "@/lib/socialPostConsentStore";
 

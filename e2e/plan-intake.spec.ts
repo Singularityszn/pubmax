@@ -2,7 +2,7 @@ import { expect, test, type Page } from "@playwright/test";
 
 // #1402 seated /plan's opening question on the Screen primitive, which
 // renders the head this asserts. The old "What’s the plan?" h2 went with it.
-const DESCRIBE_FIRST_HEADING = "Describe the outing. We’ll put it in order.";
+const DESCRIBE_FIRST_HEADING = "Plan a pub crawl";
 
 async function continueIntake(page: Page): Promise<void> {
   const continueButton = page.getByRole("button", { name: "Continue" });
@@ -11,7 +11,7 @@ async function continueIntake(page: Page): Promise<void> {
 }
 
 async function openWizard(page: Page): Promise<void> {
-  await page.getByRole("button", { name: "Guide me instead" }).click();
+  await page.getByRole("button", { name: "Step by step" }).click();
 }
 
 async function chooseClaphamAndContinue(page: Page): Promise<void> {
@@ -37,7 +37,7 @@ test.beforeEach(async ({ page }) => {
   });
 });
 
-test("blank Plan opens on describe-first, with the wizard reachable behind Guide me instead", async ({
+test("blank Plan opens on describe-first, with the wizard reachable behind Step by step", async ({
   page,
 }) => {
   await page.goto("/plan");
@@ -46,7 +46,7 @@ test("blank Plan opens on describe-first, with the wizard reachable behind Guide
   await expect(
     page.getByRole("heading", { name: "Where should the night happen?" }),
   ).toHaveCount(0);
-  await expect(page.getByLabel("Venue name")).toHaveCount(0);
+  await expect(page.locator(".planStops input")).toHaveCount(0);
   await expect(page.getByRole("button", { name: "Lock it in" })).toHaveCount(0);
 
   await page.waitForLoadState("networkidle");
@@ -56,7 +56,7 @@ test("blank Plan opens on describe-first, with the wizard reachable behind Guide
     page.getByRole("heading", { name: "Where should the night happen?" }),
   ).toBeVisible();
   await expect(page.getByRole("heading", { name: DESCRIBE_FIRST_HEADING })).toHaveCount(0);
-  await expect(page.getByLabel("Venue name")).toHaveCount(0);
+  await expect(page.locator(".planStops input")).toHaveCount(0);
   await expect(page.getByRole("button", { name: "Lock it in" })).toHaveCount(0);
 });
 
@@ -68,7 +68,7 @@ test("a suggestion chip generates a real priced route end to end, keyless", asyn
     .click();
 
   await expect(
-    page.getByText("3 stops we can stand behind, shaped by the outing you set below."),
+    page.getByText("3 stops we can stand behind, shaped by the outing you set."),
   ).toBeVisible({ timeout: 15_000 });
   await expect(page.getByText("This route needs a refresh")).toHaveCount(0);
   await expect(page.locator(".planComposer__error")).toHaveCount(0);
@@ -251,7 +251,7 @@ test("single-value intake fields advance with Enter without submitting the Plan"
   await expect.poll(async () => groupHeading.evaluate((element) => ({
     style: getComputedStyle(element).outlineStyle,
     width: getComputedStyle(element).outlineWidth,
-  }))).toEqual({ style: "solid", width: "3px" });
+  }))).toEqual({ style: "solid", width: "2px" });
 
   const groupSize = page.getByLabel("Or enter a group size");
   await groupSize.fill("7");
@@ -309,7 +309,7 @@ test("editing the exact start marks a generated preview stale", async ({ page })
   await continueIntake(page);
   await page.getByRole("button", { name: "Describe instead" }).click();
   await page.getByRole("button", { name: "Make a plan" }).click();
-  await expect(page.getByText("3 stops we can stand behind, shaped by the outing you set below.")).toBeVisible();
+  await expect(page.getByText("3 stops we can stand behind, shaped by the outing you set.")).toBeVisible();
 
   const firstPint = page.getByLabel("First pint");
   await firstPint.fill("2026-07-22T20:00");
@@ -362,7 +362,7 @@ test("submission revalidates that the exact start is still in the future", async
   await continueIntake(page);
   await page.getByRole("button", { name: "Describe instead" }).click();
   await page.getByRole("button", { name: "Make a plan" }).click();
-  await expect(page.getByText("3 stops we can stand behind, shaped by the outing you set below.")).toBeVisible();
+  await expect(page.getByText("3 stops we can stand behind, shaped by the outing you set.")).toBeVisible();
   await page.getByLabel("Your name").fill("Karan");
 
   await page.clock.setFixedTime(new Date("2026-07-20T18:00:00.000Z"));

@@ -10,6 +10,7 @@ import { CalendarClock, Music, Tag, Ticket, Tv, type LucideIcon } from "lucide-r
 import type { PlanGetInReportDTO, PlanGetInStopDTO } from "@/lib/planGetIn";
 import PlanRouteMiniMap from "@/components/plan/PlanRouteMiniMap";
 import { buildCrawlMapHref } from "@/lib/crawlUrl";
+import { venueMapUrl } from "@/lib/venueMapUrl";
 import { discardBody } from "@/lib/responseBody";
 import { isValidWhatsOnRow, type WhatsOnKind, type WhatsOnRow } from "@/lib/whatsOn";
 import { checkedLabel } from "@/lib/whatsOnBadges";
@@ -140,7 +141,7 @@ export default function PlanRoute({
                   <strong>{stop.venueName}</strong>
                   {priceLine ? <small className="planRoute__selectedDrinkPrice">{priceLine}</small> : null}
                   <StopEventBadge event={events.get(stop.venueId)} />
-                  <Link href={`/map?venue=${encodeURIComponent(stop.venueId)}`}>Open on the map</Link>
+                  <Link href={venueMapUrl(stop.venueId)}>Open on the map</Link>
                   <StopGetIn state={state} signal={signal} />
                 </div>
               </li>
@@ -158,7 +159,7 @@ function StopEventBadge({ event }: { event: StopEventChip | undefined }) {
   const provenance = `${CONFIDENCE_LABEL[event.confidence]} · ${event.sourceLabel} · ${checkedLabel(event.observedAt).toLowerCase()}`;
   return (
     <span className="planRoute__event" data-kind={event.kind} title={provenance}>
-      <Icon size={12} aria-hidden="true" />
+      <Icon size={14} aria-hidden="true" />
       {event.label}
       <a
         className="planRoute__eventSource"

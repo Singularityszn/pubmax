@@ -34,9 +34,11 @@ type PintPassportProps = {
 };
 
 function Stat({ label, value }: { label: string; value: string | number }) {
+  // "None yet" is a word, and monospace is for figures alone.
+  const word = typeof value === "string" && !/\d/.test(value);
   return (
     <div className="passportStat">
-      <span className="passportStatValue">{value}</span>
+      <span className="passportStatValue" data-word={word ? "" : undefined}>{value}</span>
       <span className="passportStatLabel">{label}</span>
     </div>
   );
@@ -63,11 +65,14 @@ export default function PintPassport({
   } = data;
 
   const shareUrl = `/u/${encodeURIComponent(handle)}`;
-  const shareTitle = `${displayName}'s Pint Passport. PUBMAXXING`;
+  const cityVisited = boroughs.includes("City of London");
+  const areaLabel = cityVisited ? "Boroughs + City" : "Boroughs";
+  const shareTitle = `${displayName}'s Pint Passport. PUBMAXX`;
   const shareText = buildPassportShareText({
     displayName,
     pubs,
     boroughs: boroughs.length,
+    cityVisited,
     pints,
     isEmpty,
   });
@@ -101,11 +106,15 @@ export default function PintPassport({
               ? "Your passport is blank, for now."
               : "This passport is blank, for now."}
           </p>
-          <p className="passportFirstRunCopy">
-            {isOwn
-              ? "In this city, a blank one takes discipline. Every pint you log stamps a page: pubs visited, boroughs crossed, beers tried, the cheapest pint you've found. Start collecting your nights."
-              : "No pints logged here yet. When they are, this page fills with pubs, boroughs, beers and badges."}
-          </p>
+          {/* A stranger's blank passport is its one line. The owner gets the
+              reason to fill it and the two ways to start. */}
+          {isOwn ? (
+            <p className="passportFirstRunCopy">
+              In this city, a blank one takes discipline. Every pint you log
+              stamps a page: pubs visited, boroughs crossed, beers tried, the
+              cheapest pint you&apos;ve found.
+            </p>
+          ) : null}
           {isOwn ? (
             <div className="passportFirstRunActions">
               <Link className="passportCta passportCtaPrimary" href="/map">
@@ -119,11 +128,13 @@ export default function PintPassport({
         </div>
       ) : null}
 
-      {/* The stat grid renders in BOTH states — zeros on first run make the
-          passport read as a real (empty) page to fill, not a broken one. */}
+      {/* A blank passport shows no figures: eight tiles of zero beside the
+          header's own zeros said the same nothing twice (taste plan, 18 Oct
+          2026). The grid arrives with the first pint. */}
+      {isEmpty ? null : (
       <div className="passportGrid" role="group" aria-label="Passport statistics">
         <Stat label="Pubs" value={pubs} />
-        <Stat label="Boroughs" value={boroughs.length} />
+        <Stat label={areaLabel} value={boroughs.length} />
         <Stat label="Beers" value={beers} />
         <Stat label="Crawls" value={formatStatCount(crawls)} />
         <Stat label="Pints" value={pints} />
@@ -131,10 +142,11 @@ export default function PintPassport({
         <Stat label="Story posts" value={formatStatCount(storyPosts)} />
         <Stat label="Badges" value={badges.length} />
       </div>
+      )}
 
       {boroughs.length ? (
         <p className="passportBoroughs">
-          <span className="passportBoroughsLabel">Boroughs crossed:</span>{" "}
+          <span className="passportBoroughsLabel">{areaLabel} crossed:</span>{" "}
           {boroughs.join(" · ")}
         </p>
       ) : null}

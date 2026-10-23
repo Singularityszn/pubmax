@@ -1,0 +1,68 @@
+[
+  {
+    "visit": 1,
+    "map": {
+      "heapBytes": 156422746,
+      "pins": 75
+    },
+    "tonight": {
+      "heapBytes": 146279748,
+      "canvasCount": 0
+    }
+  },
+  {
+    "visit": 2,
+    "map": {
+      "heapBytes": 187379502,
+      "pins": 75
+    },
+    "tonight": {
+      "heapBytes": 172495949,
+      "canvasCount": 0
+    }
+  },
+  {
+    "visit": 3,
+    "map": {
+      "heapBytes": 149673316,
+      "pins": 75
+    },
+    "tonight": {
+      "heapBytes": 163003365,
+      "canvasCount": 0
+    }
+  },
+  {
+    "visit": 4,
+    "map": {
+      "heapBytes": 178875487,
+      "pins": 75
+    },
+    "tonight": {
+      "heapBytes": 169837073,
+      "canvasCount": 0
+    }
+  },
+  {
+    "visit": 5,
+    "map": {
+      "heapBytes": 162463977,
+      "pins": 75
+    },
+    "tonight": {
+      "heapBytes": 154554092,
+      "canvasCount": 0
+    }
+  },
+  {
+    "visit": 6,
+    "map": {
+      "heapBytes": 169333500,
+      "pins": 75
+    },
+    "tonight": {
+      "heapBytes": 181811172,
+      "canvasCount": 0
+    }
+  }
+]

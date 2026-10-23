@@ -1,20 +1,25 @@
 /* A quiet, self-contained row link. Sized to the 44px tap floor the phone
-   chrome holds every control to (__tests__/mobileChromeFit.test.ts). */
+   chrome holds every control to. */
 .foundersWallLink {
   display: flex;
   align-items: center;
   min-height: 44px;
   padding: 0 14px;
   border: 1px solid var(--line);
-  border-radius: 12px;
+  border-radius: var(--radius);
   color: var(--ink);
   font-weight: 600;
-  font-size: 0.95rem;
+  font-size: var(--text-base);
   text-decoration: none;
   background: var(--panel);
 }
 
-.foundersWallLink:hover,
 .foundersWallLink:focus-visible {
   border-color: var(--brass);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .foundersWallLink:hover {
+    border-color: var(--brass);
+  }
 }

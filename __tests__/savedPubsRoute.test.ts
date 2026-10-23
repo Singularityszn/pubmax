@@ -16,9 +16,11 @@ vi.mock("@/lib/supabase", async (importOriginal) => {
 vi.mock("@/lib/serverEnv", () => ({ assertServerEnv: () => {} }));
 
 import { GET, POST } from "@/app/api/saved-pubs/route";
+import { __resetPintDrops } from "@/lib/pintDrops";
 import { __resetMemorySavedPubs } from "@/lib/savedPubsStore";
 import * as venueIndex from "@/lib/venueIndex";
 import { getVenueIndex, venueMapUrl } from "@/lib/venueIndex";
+import { defined } from "@/__tests__/helpers/defined";
 
 const URL_BASE = "http://localhost/api/saved-pubs";
 
@@ -47,7 +49,7 @@ beforeAll(async () => {
     return realResolveVenue(id);
   });
   const index = await getVenueIndex();
-  const [id, ref] = [...index.entries()][0];
+  const [id, ref] = defined([...index.entries()][0]);
   REAL_VENUE_ID = id;
   REAL_VENUE_NAME = ref.name;
 });
@@ -66,6 +68,7 @@ beforeEach(() => {
   delete process.env.SUPABASE_URL;
   delete process.env.SUPABASE_SERVICE_ROLE_KEY;
   __resetMemorySavedPubs();
+  __resetPintDrops();
 });
 
 describe("GET /api/saved-pubs", () => {
@@ -233,6 +236,23 @@ describe("POST /api/saved-pubs (toggle)", () => {
     }
     expect(last!.status).toBe(429);
     expect(await last!.json()).toEqual({ error: "Too many saves, slow down.", code: "RATE_LIMITED", retryable: true });
+  });
+
+  it("429s the 9th save from one device across handles", async () => {
+    const headers = { "x-forwarded-for": "192.0.2.55" };
+    let last: Response | undefined;
+    for (let i = 0; i < 9; i++) {
+      last = await post(
+        { handle: `device-${i}`, venueId: REAL_VENUE_ID, listType: "Historic" },
+        headers,
+      );
+    }
+    expect(last!.status).toBe(429);
+    expect(await last!.json()).toEqual({
+      error: "Too many saves, slow down.",
+      code: "RATE_LIMITED",
+      retryable: true,
+    });
   });
 
   it("never leaks actor_hash/status/moderation fields in the saved DTO", async () => {

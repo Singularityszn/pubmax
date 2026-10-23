@@ -99,6 +99,19 @@ describe("serving an approved wall photo", () => {
     expect(response.headers.get("Cache-Control")).toBe(VENUE_PHOTO_CACHE_CONTROL);
     expect(Buffer.from(await response.arrayBuffer())).toEqual(BYTES);
   });
+
+  it("lets a hidden or deleted photo leave the edge within a minute", () => {
+    // Nothing purges the CDN when a moderator hides a photo or its author
+    // deletes it, so the shared lifetime IS the takedown time. A day of
+    // s-maxage served a hidden photo for up to 24h after the hide. This is a
+    // ceiling: it may come down, never up.
+    expect(VENUE_PHOTO_CACHE_CONTROL).toBe("public, max-age=60, s-maxage=60");
+    const lifetimes = [...VENUE_PHOTO_CACHE_CONTROL.matchAll(/(?:s-maxage|max-age)=(\d+)/g)].map((m) =>
+      Number(m[1]),
+    );
+    expect(lifetimes.length).toBe(2);
+    for (const seconds of lifetimes) expect(seconds).toBeLessThanOrEqual(60);
+  });
 });
 
 describe("the four ways it says no", () => {

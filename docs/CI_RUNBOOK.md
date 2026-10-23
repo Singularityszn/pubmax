@@ -4,138 +4,74 @@ GitHub Actions workflows live under `.github/workflows/`. The merge bar for
 application code is still `npm run verify` locally; Actions is the PR status
 check layer.
 
-## Self-hosted runners
+## GitHub-hosted runners
 
-While GitHub-hosted minutes are billing-locked, every job runs on self-hosted
-repo runners on one Mac. There are two labels, and a job's label decides which
-macOS user runs it:
+Every job uses `ubuntu-latest`, including Browser law pins. Five Playwright
+jobs stay on `macos-latest`, each with a reason in `MACOS_JOBS` in
+`__tests__/ciRunnerIsolation.test.ts`:
 
-| Label | Runners | macOS user | Jobs |
-| --- | --- | --- | --- |
-| `pubmax-mac` | `karan-mac-pubmax`, `-2`, `-3` | `ghrunner` | Pull request, push, nightly and dispatch jobs that hold no write token and no secret |
-| `pubmax-mac-refresh` | `karan-mac-pubmax-refresh` | `ghrefresh` | The jobs with `contents: write` or a repo secret: `drink-price-refresh.yml`, `events-refresh.yml`, `weather-refresh.yml`, `weekly-digest.yml` |
+- The layout pins and the nightly full suite. Their specs were proved on
+  macOS glyph widths. Both use the same self-hosted webfonts, but Linux
+  Chromium draws some lines a few pixels wider. On 16 Oct 2026 four layout
+  specs failed on `ubuntu-latest` (for example 7px short at 320px), and the
+  full suite failed 19 more tests than the macOS nightly.
+- The two `performance.yml` jobs. Their route budgets were measured on macOS.
+- `prod-smoke.yml`. It runs once per production deploy.
+
+The repository is public, so both are GitHub's free hosted runners. The free
+plan runs about 20 Linux jobs at once but only 5 macOS jobs. A pull request
+that changes code takes 3 macOS jobs (the layout shards). A docs or data pull
+request takes none (see "What a pull request runs"). The performance
+sweep once failed to measure itself on a private repository's 2 vCPU
+runner; that is why it is not on the pull-request path. It is not a reason
+to run a public repository's CI on a personal machine.
 
 ```yaml
-runs-on: [self-hosted, pubmax-mac]          # everything else
-runs-on: [self-hosted, pubmax-mac-refresh]  # write token or secret
+# every job, including Browser law pins
+runs-on: ubuntu-latest
+# the MACOS_JOBS list only
+runs-on: macos-latest
 ```
 
-`__tests__/ciRunnerIsolation.test.ts` holds that split to the workflows: a job
-with a write permission or a secret other than `GITHUB_TOKEN` must use
-`pubmax-mac-refresh`, every other job must use `pubmax-mac`, and no workflow a
-pull request triggers may use `pubmax-mac-refresh`.
+`__tests__/ciRunnerIsolation.test.ts` holds those labels, and it holds the
+secret rule: a workflow that runs on `pull_request` does not reference
+`secrets`. Refresh workflows that open a review PR do not trigger on
+`pull_request`, so a fork never receives their job token or a repository
+secret.
 
-### Dedicated runner users
+### What a job installs
 
-Each runner job executes code the repository does not fully trust: an
-agent-written branch, or any of the roughly 900 packages in the lockfiles. The
-week security review (H1) found the three runners running as the Mac's login
-user, so that code could read `~/.ssh`, the `gh` token and every key file in
-the home directory, and could overwrite the Homebrew binaries later jobs reuse.
-The runners now run as two dedicated users instead:
+The hosted image does not carry the tools the Mac used to. Each job that
+needs them installs them:
 
-- **`ghrunner`** and **`ghrefresh`** are standard users: not admins, no
-  password (`*`), no login shell, hidden from the login window. Nobody signs in
-  as them, so they have no login keychain, and they hold no SSH or `gh` state.
-- Each user has its own group and a `700` home, and the console user's home is
-  `700` too, so no runner user can read the founder's files or the other
-  runner's.
-- Each runner is a fresh install of the checksum-pinned runner package,
-  registered from scratch and started by a LaunchDaemon in
-  `/Library/LaunchDaemons/` with `UserName` set. None is a copy of the old
-  install, whose binaries the old user could have changed.
-- Homebrew stays in `/opt/homebrew`, owned by the console user. The runner
-  users can run it and cannot write it.
+- **Node 22** via `actions/setup-node`, which matches `engines.node` in
+  `package.json`. Jobs that run `npm ci` set `cache: npm`. The old ban on
+  that cache was a self-hosted stall; it does not apply here.
+- **PostgreSQL 16 and PostgREST 14** in `rls-session.yml`. The harness starts
+  its own cluster with `initdb` (`scripts/rls/postgresHost.mjs` already looks
+  in `/usr/lib/postgresql/16/bin`), so the job installs the `postgresql-16`
+  apt package and the checksummed `postgrest-v14.16` static binary. It does
+  not use a service container.
+- **Playwright Chromium** with `npx playwright install --with-deps chromium`
+  in the browser and performance jobs.
+- **zizmor 1.30.1, osv-scanner 2.6.0 and Semgrep 1.179.0** in
+  `security-ci.yml`, each checksummed or version-pinned.
 
-**Every job's first step after checkout is `Refuse the console user`**
-(`scripts/ci/assert-runner-identity.sh`). It fails the job when the job user is
-the console user, is an admin, or can list the console user's home. A runner
-that drifts back to the login user therefore goes red on its first job.
+`PW_PORT` still comes from `.github/actions/pubmax-playwright-port`. Each
+hosted job has its own network namespace, so two jobs cannot collide. The
+action still gives one job a single port.
 
-#### Set up or repair the users
+### Retired Mac runners
 
-Run as the console (admin) user from a checkout of this repository, never with
-`sudo` in front. The script asks for `sudo` itself and uses your own `gh` login
-for runner tokens.
+The self-hosted runners (`karan-mac-pubmax`, `-2`, `-3` with label
+`pubmax-mac`, and `karan-mac-pubmax-refresh` with label `pubmax-mac-refresh`)
+are retired. Do not register them again. A public repository's pull request
+code must not run on a personal machine, and that shared Mac was the
+browser-test timeout of 3-4 Oct 2026.
 
-```sh
-scripts/ci/setup-dedicated-runner-user.sh           # dry run: prints every change
-scripts/ci/setup-dedicated-runner-user.sh --apply   # makes them
-```
-
-The script is idempotent; a second `--apply` reports each step as done. It
-refuses to start while a runner is busy (add `--force` to cancel those jobs).
-In order, it:
-
-1. creates `ghrunner` and `ghrefresh` with their groups and homes;
-2. runs `chmod 700` on the console user's home;
-3. stops each `~/actions-runner-pubmax*` LaunchAgent, unregisters the runner and
-   renames its directory with a `.retired-<date>` suffix;
-4. downloads `actions-runner-osx-arm64-2.337.0.tar.gz` to
-   `/var/tmp/pubmax-runner-2.337.0/` and checks its SHA-256;
-5. installs and registers `karan-mac-pubmax`, `-2` and `-3` as `ghrunner`
-   (label `pubmax-mac`, `PW_PORT` 3200, 3210 and 3220 unless the old runner set
-   one) and `karan-mac-pubmax-refresh` as `ghrefresh` (label
-   `pubmax-mac-refresh`);
-6. copies `bin/runsvc.sh` to the runner root (the package ships it only under
-   `bin/`; the LaunchDaemon runs the root copy), writes one LaunchDaemon per
-   runner, bootstraps it and kickstarts it so a service already loaded from an
-   earlier apply restarts;
-7. proves the result: the identity check passes as both users, neither can read
-   `~/.ssh`, `~/.config/gh` or `~/.gitconfig` or the other user's home, no
-   `Runner.Listener` runs as the console user, and GitHub shows all four
-   runners online within 60 seconds, or the script exits.
-
-Evidence shots used to land in fixed `/tmp` paths owned by the console user. A
-runner cannot write those, so delete the leftovers once, as the console user,
-before the first job. List them by name: `/tmp/pubmax-verify.lock` and
-`/tmp/pubmax-deploy` are live state and must stay.
-
-```sh
-rm -rf /tmp/pubmax-account-switch /tmp/pubmax-arrival /tmp/pubmax-avatar-wp3 \
-  /tmp/pubmax-founding-members /tmp/pubmax-photo-crop /tmp/pubmax-photo-wall \
-  /tmp/pubmax-ui-ux-battle-test /tmp/pubmax-account-menu-1440.png \
-  /tmp/pubmax-profile-socials-1440.png /tmp/pubmax-profile-socials-390.png \
-  /tmp/pubmax-social-editor-390.png /tmp/social-wp1-verified-feed-390.png
-```
-
-Then rerun the checks on any open pull request.
-
-#### Roll back
-
-1. `sudo launchctl bootout system /Library/LaunchDaemons/actions.runner.Singularityszn-pubmax.<name>.plist`
-   and delete the plist, for each of the four runners.
-2. Remove the four runners in GitHub (Settings, Actions, Runners) or with
-   `./config.sh remove --token <token>` as their user.
-3. Only if CI must run before the new users are fixed: register a fresh runner
-   as the console user with `./config.sh` and `./svc.sh install` in a retired
-   directory. That brings H1 back, and every job's identity check fails until
-   it is undone. The retired directories hold no valid credential after step 3
-   of the setup.
-4. The users can stay. `sudo dscl . -delete /Users/ghrunner` and
-   `sudo dseditgroup -o delete ghrunner` remove one.
-
-Delete the `.retired-*` directories once the new runners have run for a week.
-
-### Machine prerequisites (Homebrew)
-
-Install once on the runner Mac, as the console user:
-
-```sh
-brew install postgresql@16 postgrest node@22 zizmor osv-scanner semgrep # Node must satisfy engines.node in package.json
-npx playwright install chromium   # or let CI cache under ~/Library/Caches/ms-playwright
-```
-
-Each runner user downloads its own Playwright Chromium into its own
-`~/Library/Caches/ms-playwright` on first use.
-
-`security-ci.yml` invokes Homebrew `zizmor`, `osv-scanner`, and `semgrep` directly.
-Semgrep uses `/etc/ssl/cert.pem` on macOS when Homebrew certifi paths are missing.
-Accepted lockfile findings may be listed in `osv-scanner.toml` with reasons.
-
-PostgreSQL clusters for RLS proofs use the serial harness in
-`scripts/rls/postgresHost.mjs` (unique ports/data dirs per job, SysV slot
-budget on macOS). Do not use GitHub `services:` Postgres on this runner.
+There is no console-user guard and no shared browser queue: each hosted job
+is its own machine.
+`__tests__/browserJobConcurrency.test.ts` holds the browser jobs to that.
 
 ### Install scripts and credentials
 
@@ -163,72 +99,94 @@ budget on macOS). Do not use GitHub `services:` Postgres on this runner.
 recursively over every lockfile in the tree, and Semgrep, on every pull
 request, every push to `main` and every Monday. No branch protection requires
 these checks, so a red Security CI job blocks nothing by itself: read it before
-merging.
+merging. zizmor's `GH_TOKEN` is `github.token`, the job token, not a
+repository secret.
 
-### Parallel jobs on one Mac
+### Timeouts and job shape
 
-Each runner has its own `_work` directory, so three pull request jobs can run
-at once. Parallel jobs in one checkout once caused `validate-data` temp-dir
-collisions, flaky `venueRoute` reads, and Playwright's
-`run-with-restored-next-env` guard (`PUBMAX_TRACKED_OUTPUTS=public/data` for
-`NEXT_PUBLIC_SW_VERSION=local` pack stamps). CI, browser tests and RLS still
-use:
+Job `timeout-minutes` values in `ci.yml`, `e2e.yml`, `rls-session.yml`, and the Playwright jobs in `performance.yml` stay at the ceilings already set for those jobs (about 2× the p95 measured on the previous runners), with floors on the freshness gate (20 minutes) and Coverage (30 minutes). Do not raise one to hide a slow hosted run; see `perf/AGENTS.md`. `security-ci.yml` uses fixed ceilings (10, 15, and 45 minutes for zizmor, osv-scanner, and Semgrep).
 
-```yaml
-concurrency:
-  group: ${{ github.workflow }}-pubmax-mac-${{ github.event_name }}-${{ github.ref }}
-  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
-```
+Browser law pins, the three browser layout-pin shards and the two `performance.yml` jobs keep `--workers=1`. The layout pins run on every pull request as three shards, because they alone hold the layout that source-text unit tests once pinned. The nightly full suite runs as four shards. Each keeps Playwright's default worker count, which `playwright.config.ts` leaves unset when `CI` is set, and a hosted macOS runner resolves that to one worker.
 
-The group is **per git ref**, not repo-wide. A repo-wide group once queued ancient runs from other branches and blocked every pull request for hours.
+Each workflow has its own concurrency group. A newer pull request head supersedes that pull request's older runs of the same workflow, so rerun the latest workflow run for the current head. The nightly browser suite and manual dispatches never cancel: each one gets a group of its own (`run-<run_id>`). Main pushes of `ci.yml`, `rls-session.yml` and `security-ci.yml` also get a group of their own. GitHub keeps only one waiting run per group, so the old per-ref group dropped waiting main pushes. There is no repo-wide group and no shared browser queue.
 
-Each workflow has its own group so CI, Security CI, browser tests, and RLS do not cancel each other on the same push. A newer pull request head supersedes that pull request's older runs on the shared runner, so rerun the latest workflow run for the current head rather than an older one: a rerun of a superseded run can cancel the current run. Main pushes, the nightly browser suite and manual dispatches never cancel, and the event name in the group keeps the nightly run from queuing behind a main push. Within one CI run, `ci.yml` chains jobs so writers do not run in parallel.
+Main pushes of Browser tests (`e2e.yml`) share one group, `main-push` (owner decision, 19 Oct 2026). The run in progress always finishes. Only the newest push waits behind it, and GitHub cancels an older waiting push. Each main push holds 3 of the 5 macOS runners for the layout pins. On 19 Oct 2026, 22 merges queued 66 macOS jobs. The first layout shard of the 08:57 push started at 13:42, and a pull request's last layout shard waited 72 minutes for a runner. The newest main commit holds every older one, so main is still tested. When a main run fails, it can cover several merges: read the merges since the last green main run. The nightly full suite still runs on its own group.
 
-Job `timeout-minutes` values in `ci.yml`, `e2e.yml`, `rls-session.yml`, and the Playwright jobs in `performance.yml` are set to about **2× the p95** duration observed on the last ~50 self-hosted runs (measured with `gh run list` and `gh api …/jobs`), with floors on the freshness gate (20 minutes) and Coverage (30 minutes). Raise a ceiling only when measured p95 under shared-runner load justifies it; see `perf/AGENTS.md`. `security-ci.yml` uses fixed ceilings (10, 15, and 45 minutes for zizmor, osv-scanner, and Semgrep).
+`ci.yml` starts lint and the two unit shards at once. `production-build` runs
+after lint. The unit shards wait on nothing, because they build their own slim
+data, and they run in parallel. Each shard runs
+`npm run coverage -- --without-postgres` on its half of the suite with
+coverage thresholds off and writes a Vitest blob report. The Coverage job runs
+after both shards: it merges the two blobs with
+`npx vitest --merge-reports=blob-reports --coverage` and enforces the
+thresholds in `vitest.config.mts` over the whole suite. So CI runs the unit
+suite once, not once in the shards and again for coverage. The freshness job
+runs on its own: a calendar breach is that job's red mark and does not skip the
+build, the unit shards or coverage.
 
-Playwright jobs take `PW_PORT` from `.github/actions/pubmax-playwright-port`. The action uses `PW_PORT` from the runner's `.env` when set; otherwise it hashes `RUNNER_NAME` into one of 90 ports (3100-3990, step 10). Two runner names can still land on the same port, so set an explicit, distinct `PW_PORT` in each runner's `.env` on a shared Mac.
+Locally, `npm run verify` runs `npm run coverage -- --without-postgres` and
+then `npm run test:rls`, so each PostgreSQL suite runs once. The suites
+`--without-postgres` excludes are the closed list in
+`scripts/rls/postgresSuites.mjs`.
 
-Do **not** use `cache: npm` on `actions/setup-node` or `actions/cache` for `node_modules` on `pubmax-mac` jobs. Restoring those caches from GitHub's cache service can stall ~20 minutes and fail authentication on self-hosted runners; each runner user already keeps npm tarballs under its own `~/.npm`. Setup Node steps use `timeout-minutes: 5` so a stuck restore fails fast.
+The Data validation job also runs on its own. It runs `npm run validate-data`,
+the same data gate `npm run verify` starts with, with
+`PUBMAX_VERIFY_COMMITTED_DATA=1`. No builder rewrites a committed pack, so the
+job checks the packs as they ship. It first runs `npm run build:venue-details`,
+which writes only the gitignored venue detail files.
 
-`ci.yml` chains the code jobs (`production-build` after lint, unit shards
-`max-parallel: 1`, coverage after unit tests). The freshness job runs on its
-own: a calendar breach is that job's red mark and does not skip the build,
-the unit shards or coverage.
+The lint-and-types job and the merge bar `npm run verify` both run
+[`npm run typecheck`](../package.json). It runs `next typegen` first, so the
+`typedRoutes` link types exist, then the TypeScript 7 native `tsc`. The
+lint-and-types job then checks the same full tsconfig with the TypeScript 6
+bridge compiler, `node node_modules/typescript/bin/tsc --noEmit`. Next resolves
+that TypeScript 6 compiler API at build time; see
+[`next.config.mjs`](../next.config.mjs) for why both exist. `npx tsc` resolves
+to TypeScript 7, so call the TypeScript 6 compiler by its path.
 
-The lint-and-types job runs `npx tsc --noEmit`. Next resolves the TypeScript 6
-compiler API at build time. The merge bar `npm run verify` runs
-[`npm run typecheck`](../package.json) (TypeScript 7 native); see
-[`next.config.mjs`](../next.config.mjs) for why both exist.
+### What a pull request runs
 
-### Register a runner by hand
+A pull request that changes only docs or only data skips the heavy jobs (owner decision, 16 Oct 2026). Each heavy job's second step, `Classify the change`, diffs the pull request's merge commit against its first parent and names the scope:
 
-Prefer the setup script. To add one more runner of either kind by hand, as its
-user (`sudo -u ghrunner -H bash`), in a new directory under that user's home:
+- **docs**: every changed file is under `docs/` or ends in `.md`.
+- **data**: every changed file is docs or data, and at least one is data (`data/**/*.json` or anything under `public/data/`).
+- **code**: anything else. That includes an empty diff, any other file under `data/`, every `.github/` file that is not Markdown, and every event that is not a pull request. A push to `main` always runs in full.
 
-1. Get a token: `gh api -X POST repos/Singularityszn/pubmax/actions/runners/registration-token --jq .token`
-   (as the console user).
-2. Unpack the pinned runner package from `/var/tmp/pubmax-runner-2.337.0/`.
-3. `./config.sh --unattended --url https://github.com/Singularityszn/pubmax --token <token> --name <name> --labels pubmax-mac --work _work`
-   (`pubmax-mac-refresh` for a refresh runner).
-4. Write a LaunchDaemon with `UserName` set, like the ones the script writes.
-   Never use `./svc.sh install`: it installs a LaunchAgent for whoever runs it.
+The diff runs with `--no-renames`, so a file moved counts under both its old and its new path. A pull request that moves `lib/` code into `docs/` reads as code, not docs.
 
-Secrets and `pull_request_target` / fork triggers are unchanged: only this
-repo's branches run workflows.
+The job still starts and reports. Only its steps are skipped, so it shows green under its real name. A matrix job skipped at the job level reports one check under its unexpanded name, `Unit tests (${{ matrix.shard }}/2)`, and a required `Unit tests (1/2)` would then wait for ever. That is why no Linux job is skipped whole. The gated checkouts fetch two commits, the merge and its base. Every copy of the classifier is identical, and `__tests__/ciChangeScope.test.ts` holds them to that and runs them.
+
+The macOS layout pins are the one exception (owner decision, 17 Oct 2026). A job that starts only to skip its steps still holds a runner, and the free plan has only 5 macOS runners. Three layout shards per pull request filled that queue, and docs-only pull requests waited up to 53 minutes for a job that then ran for 1 minute. So in `e2e.yml` one Linux job, `Change scope`, runs the classifier, and `Browser layout pins (1/3)`, `(2/3)` and `(3/3)` are three named jobs that need it. They are skipped whole, and start no macOS runner, only when `Change scope` succeeds and says `docs` or `data`. If `Change scope` fails, they run: a skipped check counts as passed, so a broken classifier must not skip them (fail closed). A skipped named job reports under its own name, and branch protection counts a skipped check as passed. The three jobs share one step list through a YAML anchor and differ only in `LAYOUT_SHARD`.
+
+| Check | docs only | data only | code |
+| --- | --- | --- | --- |
+| CI / Review scope | runs | runs | runs |
+| CI / Lint and typecheck | green, steps skipped (ESLint reads no `.md`) | runs (a JSON pack can be imported by TypeScript) | runs |
+| CI / Production build | green, steps skipped | green, steps skipped | runs |
+| CI / Unit tests (1/2) | unit tests whose source names a changed file, PostgreSQL suites aside | same | whole half, with coverage |
+| CI / Unit tests (2/2) | green, steps skipped | green, steps skipped | whole half, with coverage |
+| CI / Coverage | green, steps skipped | green, steps skipped | merges and enforces thresholds |
+| CI / Freshness release gate | runs | runs | runs |
+| CI / Data validation | runs | runs | runs |
+| Browser tests / law pins | green, steps skipped | green, steps skipped | runs |
+| Browser tests / Change scope | runs (Linux, classifier only) | runs | runs |
+| Browser tests / layout pins (1-3/3) | skipped, no macOS runner | skipped, no macOS runner | runs |
+| Browser tests / full suite (1-4/4) | not run on pull requests (nightly and dispatch only) | same | same |
+| RLS session tests | green, steps skipped | green, steps skipped | runs |
+| Security CI (zizmor, osv-scanner, Semgrep) | runs | runs | runs |
+
+The named-test step covers fences that read the very file a pull request changed, such as an `AGENTS.md`, a pack or `data/freshness_registry.json`. It selects every `__tests__/*.test.ts(x)` file that names a changed file by path or by file name. A browser pin or a unit test that reads data without naming the file is not run until the merge reaches `main`, which runs everything. The local merge bar, `npm run verify`, is unchanged.
 
 ### Prove the runner
 
-`self-hosted-probe.yml` is `workflow_dispatch` only. It runs the identity check
-and `node --version` on a `pubmax-mac` runner:
+`self-hosted-probe.yml` is `workflow_dispatch` only. It checks out, installs
+Node 22 and prints `node --version` on `ubuntu-latest`. It does not check a
+Mac user.
 
 ```sh
 gh workflow run self-hosted-probe.yml
 gh run list --workflow self-hosted-probe.yml --limit 1
-gh api repos/Singularityszn/pubmax/actions/jobs/<job-id> --jq .runner_name
 ```
-
-Expect one of `karan-mac-pubmax`, `-2` or `-3`, and a passing `Refuse the
-console user` step.
 
 ## Scheduled work split
 
@@ -236,9 +194,10 @@ console user` step.
 | --- | --- |
 | What's-On bounded + official events refresh | Vercel `GET /api/cron/refresh-whats-on` (primary) |
 | What's-On GitHub recovery | `events-refresh.yml` (`workflow_dispatch` only; schedule disabled as duplicate) |
-| Weather cache PR | `weather-refresh.yml` on `pubmax-mac-refresh` |
-| Drink price PR | `drink-price-refresh.yml` on `pubmax-mac-refresh` |
-| Performance budgets | `performance.yml` on `pubmax-mac` |
-| Browser law pins + nightly suite | `e2e.yml` on `pubmax-mac` |
+| Weather cache PR | `weather-refresh.yml` |
+| Drink price PR | `drink-price-refresh.yml` |
+| London Tavily pass PR | `tavily-london-nightly.yml` (see `docs/TAVILY_LONDON_NIGHTLY.md`) |
+| Performance budgets | `performance.yml` |
+| Browser law pins, layout pins + nightly suite | `e2e.yml` |
 
 See also `docs/CRON_PLANE_RUNBOOK.md` and `docs/teach.md` (local pre-push hook).

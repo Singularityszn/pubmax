@@ -61,7 +61,8 @@
   text-align: center;
   gap: var(--space-2);
   min-height: 52px;
-  min-width: 14rem;
+  min-width: min(14rem, 100%);
+  max-width: 100%;
   padding: 0 var(--space-5);
   border: 1px solid transparent;
   border-radius: var(--control-radius);
@@ -71,14 +72,17 @@
   font-size: var(--text-base);
   font-weight: 700;
   text-decoration: none;
-  white-space: nowrap;
+  white-space: normal;
+  overflow-wrap: anywhere;
   cursor: pointer;
   transition: background-color var(--duration-fast) var(--ease-out);
 }
 
-.screenPrimary > :is(a, button):hover {
-  background: var(--accent-action-strong);
-  color: var(--color-on-accent-strong);
+@media (hover: hover) and (pointer: fine) {
+  .screenPrimary > :is(a, button):hover {
+    background: var(--accent-action-strong);
+    color: var(--color-on-accent-strong);
+  }
 }
 
 /* Press feedback owned here, so the shared press layer in app/globals.css is
@@ -119,8 +123,10 @@
   cursor: pointer;
 }
 
-.screenSecondary > :is(a, button):hover {
-  color: var(--color-accent);
+@media (hover: hover) and (pointer: fine) {
+  .screenSecondary > :is(a, button):hover {
+    color: var(--color-accent);
+  }
 }
 
 @media (max-width: 640px) {

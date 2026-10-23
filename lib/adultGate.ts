@@ -34,6 +34,7 @@ export function isAdultDateOfBirth(
   const birthDay = Number(match[3]);
   const today = londonCalendarDate(now);
   const [todayYear, todayMonth, todayDay] = today.split("-").map(Number);
+  if (todayYear === undefined || todayMonth === undefined || todayDay === undefined) return false;
   let age = todayYear - birthYear;
   if (todayMonth < birthMonth || (todayMonth === birthMonth && todayDay < birthDay)) {
     age -= 1;

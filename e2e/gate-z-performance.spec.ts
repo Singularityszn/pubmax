@@ -1,5 +1,6 @@
 import { expect, test } from "@playwright/test";
 import { mkdir, writeFile } from "node:fs/promises";
+import { expectMobileMapShellReady } from "./helpers/mobileMapShell";
 
 type GateZMetrics = {
   lcpMs: number;
@@ -55,7 +56,7 @@ test("Gate Z mobile lab budgets stay inside the release targets", async ({ page 
     }
 });
   await page.goto("/map");
-  await expect(page.locator(".mobileMapTopbar")).toBeVisible({ timeout: 45_000 });
+  await expectMobileMapShellReady(page, 45_000);
   await expect(page.locator(".mapLoading")).toBeHidden({ timeout: 45_000 });
 
   await page.getByRole("navigation", { name: "Primary" }).getByRole("link", { name: "Tonight", exact: true }).click();
@@ -88,12 +89,12 @@ test("Gate Z mobile lab budgets stay inside the release targets", async ({ page 
   });
   const paint = await page.evaluate(() => window.__pubmaxGateZ ?? { lcpMs: 0, cls: 0, maxInteractionMs: 0, interactions: [] });
 
-  await expect(page.getByRole("button", { name: "Describe the outing" })).toBeVisible({ timeout: 45_000 });
+  await expect(page.getByRole("button", { name: "Plan a pub crawl" })).toBeVisible({ timeout: 45_000 });
   const planningWarmup = page.waitForResponse((response) => response.request().method() === "GET" && response.url().includes("/api/plans/generate?cityId=") && response.status() === 204);
-  await page.getByRole("button", { name: "Describe the outing" }).click();
+  await page.getByRole("button", { name: "Plan a pub crawl" }).click();
   await planningWarmup;
   const planner = page.locator('.mobileSheetPortal[data-sheet-kind="planner"]');
-  await planner.getByLabel("Describe the outing").fill("Three quiet pubs in Barnes under £24");
+  await planner.getByLabel("Where, how many, what budget").fill("Three quiet pubs in Barnes under £24");
   const buildRoute = planner.getByRole("button", { name: "Make a plan" });
   await buildRoute.evaluate((button) => button.addEventListener("click", () => {
     window.__pubmaxRouteReadinessStart = performance.now();

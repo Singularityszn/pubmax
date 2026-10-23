@@ -3,7 +3,7 @@ import { expect, test, type Locator, type Page } from "@playwright/test";
 const VIEWPORT = { width: 390, height: 844 };
 const STORY_VENUE_ID = "venue-xiesdn"; // The Dog & Duck, Soho — has shipped heritage facts.
 
-const TAB_LABELS = ["Overview", "Photos", "Drinks", "Stories", "Lore"] as const;
+const TAB_LABELS = ["Overview", "Photos", "Menu", "Stories", "Lore"] as const;
 
 test.setTimeout(120_000);
 
@@ -71,6 +71,7 @@ test("mobile venue Lore and Ask surfaces stay reachable and thumb-safe keyless",
   const tablist = page.getByRole("tablist", { name: "Venue detail sections" });
   await expect(tablist).toBeVisible();
 
+  await expect(tablist.getByRole("tab")).toHaveCount(TAB_LABELS.length);
   for (const label of TAB_LABELS) {
     await expectTouchTarget(tablist.getByRole("tab", { name: label, exact: true }), `${label} tab`);
   }

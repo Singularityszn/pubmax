@@ -1,3 +1,6 @@
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
+
 import { describe, expect, it } from "vitest";
 
 import {
@@ -7,7 +10,9 @@ import {
   mapLoadingPrimaryLine,
   mapLoadingProgressPercent,
 } from "@/lib/mapLoadingCopy";
+import { formatPintDatasetSnapshot } from "@/lib/dataFreshness";
 import { resolveMapDisplayName } from "@/lib/mapDisplayName";
+import { mapPricesReadLineFor } from "@/lib/mapPricesReadLine.server";
 
 describe("mapLoadingCopy", () => {
   it("names the city in the primary loading line", () => {
@@ -108,6 +113,30 @@ describe("mapLoadingHeld", () => {
       mapLoadingHeld({ ...stage, pinsRevealed: true, slimPinCount: 40 }),
     ).toBe(false);
   });
+
+  // /map?uk=1. The country overview has no curated index to wait for. The
+  // frame leaves once the basemap reveal lands, and it stays down after that
+  // reveal even though the slim pin count is still zero.
+  it("lifts a national overview once the basemap reveal lands", () => {
+    expect(
+      mapLoadingHeld({ ...stage, pubsDeferredUntilZoom: true }),
+    ).toBe(true);
+    expect(
+      mapLoadingHeld({
+        ...stage,
+        canvasReady: true,
+        pubsDeferredUntilZoom: true,
+      }),
+    ).toBe(true);
+    expect(
+      mapLoadingHeld({
+        ...stage,
+        pinsRevealed: true,
+        canvasReady: true,
+        pubsDeferredUntilZoom: true,
+      }),
+    ).toBe(false);
+  });
 });
 
 describe("resolveMapDisplayName", () => {
@@ -137,5 +166,23 @@ describe("resolveMapDisplayName", () => {
     expect(
       resolveMapDisplayName({ cityDisplayName: "Bristol", placeName: "   " }),
     ).toBe("Bristol");
+  });
+});
+
+// Codex on #2276: /map printed the snapshot line and /map/london did not. Every
+// London map route now asks one helper, and only London gets a line.
+describe("mapPricesReadLineFor", () => {
+  it("gives London its snapshot line, in the snapshot owner's words, and every other city none", () => {
+    const line = mapPricesReadLineFor("london");
+    expect(line).toBe(`London pint prices. ${formatPintDatasetSnapshot()}.`);
+    expect(line).toMatch(/^London pint prices\. Snapshot from \d{1,2} \w+ \d{4}\.$/);
+    expect(line).not.toMatch(/newest|latest/i);
+    expect(mapPricesReadLineFor("manchester")).toBeNull();
+  });
+
+  it("is what every London map route hands the shell", () => {
+    for (const page of ["app/map/page.tsx", "app/map/[city]/page.tsx", "app/map/arrival/page.tsx"]) {
+      expect(readFileSync(join(process.cwd(), page), "utf8"), page).toContain("mapPricesReadLineFor(");
+    }
   });
 });

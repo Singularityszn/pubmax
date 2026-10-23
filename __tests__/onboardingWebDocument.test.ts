@@ -1,6 +1,7 @@
-// /onboarding is the native shell's one-time first-run surface, and the web has
-// no first-run surface at all: FirstRunOnboardingGate consumes a native-only,
-// session-scoped handoff, so a web visit has always failed closed to "/".
+// /onboarding is the native shell's one-time first-run surface, and the web
+// reaches it only by a client navigation from the landing hero's primary
+// (`?start=web`): FirstRunOnboardingGate consumes a native-only, session-scoped
+// handoff, so any other web visit has always failed closed to "/".
 //
 // It did that in the browser, after rendering and discarding a whole document.
 // Astra's live walk (7 Sep 2026, finding B6) measured the paint that followed
@@ -106,6 +107,12 @@ describe("a document navigation this origin started still reaches /onboarding", 
   it("lets an older WebView through on a same-origin Referer", () => {
     const response = ask(ONBOARDING_PATH, { referer: "https://pubmaxxing.com/" });
 
+    expect(response.status).toBe(200);
+    expect(response.headers.get("location")).toBeNull();
+  });
+
+  it("accepts the new static entry document as the same-origin referrer", () => {
+    const response = ask(ONBOARDING_PATH, { referer: "https://pubmaxxing.com/app-entry" });
     expect(response.status).toBe(200);
     expect(response.headers.get("location")).toBeNull();
   });

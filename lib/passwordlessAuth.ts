@@ -1,12 +1,13 @@
 export const MAGIC_LINK_SENT_MESSAGE =
-  "If that email can receive a sign-in link, it is on its way. Check your inbox and spam folder.";
+  "If that email can receive a link, it is on its way. Check your inbox and spam folder.";
 export const MAGIC_LINK_RATE_LIMIT_MESSAGE =
   "Too many sign-in attempts. Wait a few minutes, then try again.";
 export const MAGIC_LINK_ERROR_MESSAGE =
   "We could not send a sign-in link right now. Try again shortly.";
 
 export type MagicLinkResult = {
-  status: "sent" | "rate_limited" | "error";
+  /** "cancelled": a cancel or a newer action took the start over. Show nothing. */
+  status: "sent" | "rate_limited" | "error" | "cancelled";
   message: string;
 };
 

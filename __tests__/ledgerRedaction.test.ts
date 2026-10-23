@@ -14,6 +14,7 @@ import {
   resolveFamilyTableDisplay,
   type LedgerSourceDrop,
 } from "@/lib/ledger";
+import { defined } from "@/__tests__/helpers/defined";
 
 function isFullFamilyEntry(
   entry: ReturnType<typeof resolveFamilyTableDisplay>[number],
@@ -67,11 +68,11 @@ describe("redactFamilyTableEntries (public Family Table)", () => {
     const entries = buildFamilyTableEntries([makeDrop()]);
     const [redacted] = redactFamilyTableEntries(entries);
 
-    expect(redacted.handle).toBe("K. M.");
+    expect(defined(redacted).handle).toBe("K. M.");
     // Omitted at the object level, not just nulled — the keys must be gone so
     // no render site can reach the private fields.
-    expect("note" in redacted).toBe(false);
-    expect("priceLabel" in redacted).toBe(false);
+    expect("note" in defined(redacted)).toBe(false);
+    expect("priceLabel" in defined(redacted)).toBe(false);
     const blob = JSON.stringify(redacted);
     expect(blob).not.toContain("Grandad");
     expect(blob).not.toContain("6.1");
@@ -80,11 +81,11 @@ describe("redactFamilyTableEntries (public Family Table)", () => {
 
   it("keeps date, era, and provenance (venue-level colour survives)", () => {
     const [redacted] = redactFamilyTableEntries(buildFamilyTableEntries([makeDrop()]));
-    expect(redacted.id).toBe("drop-1");
-    expect(redacted.dateLabel).toBe("3 June 2024");
-    expect(redacted.createdAt).toBe("2024-06-03T12:00:00.000Z");
-    expect(redacted.era).toBe("1970s");
-    expect(redacted.provenance).toBe("anecdote");
+    expect(defined(redacted).id).toBe("drop-1");
+    expect(defined(redacted).dateLabel).toBe("3 June 2024");
+    expect(defined(redacted).createdAt).toBe("2024-06-03T12:00:00.000Z");
+    expect(defined(redacted).era).toBe("1970s");
+    expect(defined(redacted).provenance).toBe("anecdote");
   });
 
   it("preserves order and count (the table keeps its shape)", () => {
@@ -111,9 +112,9 @@ describe("redactFamilyTableEntries (public Family Table)", () => {
     // buildLedgerEntries feeds the public logbook lane (public/anonymous
     // drops), which legitimately shows handle, note, and price.
     const [entry] = buildLedgerEntries([makeDrop()]);
-    expect(entry.handle).toBe("@karan_m");
-    expect(entry.note).toContain("Grandad");
-    expect(entry.priceLabel).toBe("£6.10");
+    expect(defined(entry).handle).toBe("@karan_m");
+    expect(defined(entry).note).toContain("Grandad");
+    expect(defined(entry).priceLabel).toBe("£6.10");
   });
 });
 
@@ -130,16 +131,16 @@ describe("resolveFamilyTableDisplay (viewer-aware ledger privacy)", () => {
     for (const row of display) {
       expect("note" in row).toBe(false);
     }
-    expect(display[0].handle).toBe("K. M.");
+    expect(defined(display[0]).handle).toBe("K. M.");
   });
 
   it("shows the full entry to the drop author via ?viewer=", () => {
     const display = resolveFamilyTableDisplay(entries, sources, "karan_m");
-    const mine = display[0];
+    const mine = defined(display[0]);
     const theirs = display[1];
     expect(isFullFamilyEntry(mine)).toBe(true);
     if (isFullFamilyEntry(mine)) expect(mine.note).toContain("Grandad");
-    expect(isFullFamilyEntry(theirs)).toBe(false);
+    expect(isFullFamilyEntry(defined(theirs))).toBe(false);
   });
 
   it("isFamilyTableOwner matches normalised handles only", () => {

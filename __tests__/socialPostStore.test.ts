@@ -7,6 +7,7 @@ import {
   type SocialPostActor,
 } from "@/lib/socialPostStore";
 import { validateSocialPostCreate } from "@/lib/socialPosts";
+import { defined } from "@/__tests__/helpers/defined";
 
 const alice: SocialPostActor = { accountId: "account-a", profileId: "profile-a", handle: "alice" };
 const bob: SocialPostActor = { accountId: "account-b", profileId: "profile-b", handle: "bob" };
@@ -195,7 +196,7 @@ describe("Social post store visibility and feeds", () => {
     expect(discover.nextCursor).toEqual(expect.any(String));
     const cursorParts = discover.nextCursor!.split(".");
     expect(cursorParts).toHaveLength(2);
-    expect(JSON.parse(Buffer.from(cursorParts[0], "base64url").toString("utf8")))
+    expect(JSON.parse(Buffer.from(defined(cursorParts[0]), "base64url").toString("utf8")))
       .not.toHaveProperty("viewer");
     const page2 = await store.feed(bob, { lane: "discover", limit: 1, cursor: discover.nextCursor });
     expect(page2.posts.map((post) => post.body)).toEqual(["older public"]);
@@ -206,6 +207,33 @@ describe("Social post store visibility and feeds", () => {
       .map((post) => post.body)).toEqual(["older public"]);
     expect((await store.feed(bob, { lane: "following", limit: 20 })).posts
       .map((post) => post.body)).toEqual(["newer friends", "older public"]);
+  });
+
+  it("drops a muted author from the muter's three lanes and nowhere else", async () => {
+    let tick = Date.parse("2026-08-05T18:00:00.000Z");
+    const store = createMemorySocialPostStore({
+      now: () => new Date(tick += 1_000),
+      relationships: async (viewer) => viewer.profileId === bob.profileId
+        ? {
+            followingProfileIds: new Set([alice.profileId]),
+            mutualProfileIds: new Set([alice.profileId]),
+            mutedProfileIds: new Set([alice.profileId]),
+          }
+        : { followingProfileIds: new Set([bob.profileId]), mutualProfileIds: new Set([bob.profileId]) },
+    });
+    const muted = await store.create(alice, fields({ body: "alice public" }));
+    await store.create(carol, fields({ body: "carol public" }));
+    await store.create(bob, fields({ body: "bob public" }));
+    await store.processModerationQueue({ moderate: async () => ({ decision: "approved" }) });
+
+    const bodies = async (viewer: SocialPostActor, lane: "following" | "nearby" | "discover") =>
+      (await store.feed(viewer, lane === "nearby" ? { lane, area: "camden" } : { lane })).posts.map((post) => post.body);
+    expect(await bodies(bob, "following")).toEqual([]);
+    expect(await bodies(bob, "nearby")).toEqual(["bob public", "carol public"]);
+    expect(await bodies(bob, "discover")).toEqual(["bob public", "carol public"]);
+    // One-way: the muted author still reads the muter, and a direct read is not a lane.
+    expect(await bodies(alice, "following")).toEqual(["bob public"]);
+    await expect(store.read(muted.id, bob)).resolves.toMatchObject({ id: muted.id });
   });
 
   it("uses mutation_version compare-and-swap for every reader-visible edit and moderates only sensitive changes", async () => {
@@ -321,5 +349,35 @@ describe("Social post backend selection", () => {
       if (previousKey === undefined) delete process.env.SUPABASE_SERVICE_ROLE_KEY;
       else process.env.SUPABASE_SERVICE_ROLE_KEY = previousKey;
     }
+  });
+});
+
+describe("Social post owner list (the account export's read)", () => {
+  it("lists only the owner's own posts, newest first, whatever their visibility", async () => {
+    let tick = 0;
+    const store = createMemorySocialPostStore({ now: () => new Date(Date.UTC(2026, 8, 1, 12, tick++)) });
+    const first = await store.create(alice, fields({ body: "First", visibility: "private" }));
+    await store.create(bob, fields({ body: "Bob's" }));
+    const third = await store.create(alice, fields({ body: "Third", visibility: "friends" }));
+
+    const mine = await store.listOwned(alice, 10);
+    expect(mine.map((post) => post.id)).toEqual([third.id, first.id]);
+    expect(mine.map((post) => post.visibility)).toEqual(["friends", "private"]);
+    expect(await store.listOwned(carol, 10)).toEqual([]);
+  });
+
+  it("honours the limit and leaves out a post the author removed", async () => {
+    let tick = 0;
+    const store = createMemorySocialPostStore({ now: () => new Date(Date.UTC(2026, 8, 1, 12, tick++)) });
+    const first = await store.create(alice, fields({ body: "First" }));
+    const second = await store.create(alice, fields({ body: "Second" }));
+    await store.create(alice, fields({ body: "Third" }));
+
+    expect(await store.listOwned(alice, 2)).toHaveLength(2);
+    await store.remove(second.id, alice, 0, "remove-key-owner-list");
+    const rest = await store.listOwned(alice, 10);
+    expect(rest.map((post) => post.body)).toEqual(["Third", "First"]);
+    expect(rest.map((post) => post.id)).not.toContain(second.id);
+    expect(rest.map((post) => post.id)).toContain(first.id);
   });
 });

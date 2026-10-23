@@ -21,6 +21,7 @@ import { join } from "node:path";
 import {
   datasetOpensArtifact,
   packArtifactReason,
+  readRowExpiry,
   resolveStamp,
   stampNeedsArtifact,
   type ArtifactRead,
@@ -63,8 +64,9 @@ export function readFreshnessArtifact(rootDir: string, relPath: string | null): 
  */
 export function resolveDatasetStamp(
   rootDir: string,
-  dataset: Pick<FreshnessDataset, "stamp" | "artifact" | "pack">,
+  dataset: Pick<FreshnessDataset, "stamp" | "artifact" | "pack" | "rowExpiry">,
   read: (rootDir: string, relPath: string | null) => ArtifactRead = readFreshnessArtifact,
+  now: Date = new Date(),
 ): StampResolution {
   const artifactRead = datasetOpensArtifact(dataset)
     ? read(rootDir, dataset.artifact)
@@ -78,8 +80,33 @@ export function resolveDatasetStamp(
     const packReason = packArtifactReason(artifactRead);
     if (packReason) return { observedAt: null, reason: packReason };
   }
-  return resolveStamp(
+  const resolution = resolveStamp(
     dataset.stamp,
     stampNeedsArtifact(dataset.stamp) ? artifactRead : { kind: "absent" },
   );
+  // A declared row expiry is read off the same parse; an artifact that could
+  // not be read leaves it unset, and evaluateDataset reports that as unknown.
+  if (dataset.rowExpiry !== undefined && artifactRead.kind === "ok") {
+    return { ...resolution, rowExpiry: readRowExpiry(dataset.rowExpiry, artifactRead.json, now) };
+  }
+  return resolution;
+}
+
+/**
+ * The stamp both routes evaluate: a durable-store overlay, when there is one,
+ * replaces the file stamp, but never a declared row expiry. Rows expire inside
+ * the artifact whatever dates the file, so the artifact is still read for them.
+ * `now` is the instant the caller evaluates at, so the expired-row count and
+ * the verdict read the same clock.
+ */
+export function resolveDatasetStampWithOverlay(
+  rootDir: string,
+  dataset: Pick<FreshnessDataset, "stamp" | "artifact" | "pack" | "rowExpiry">,
+  stored: string | undefined,
+  now: Date = new Date(),
+): StampResolution {
+  const resolve = () => resolveDatasetStamp(rootDir, dataset, readFreshnessArtifact, now);
+  if (!stored) return resolve();
+  if (dataset.rowExpiry === undefined) return { observedAt: stored, reason: null };
+  return { ...resolve(), observedAt: stored, reason: null };
 }

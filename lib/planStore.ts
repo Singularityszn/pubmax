@@ -428,12 +428,13 @@ export const supabasePlanStore: PlanStore = {
     const admin = requireSupabaseAdmin();
     if (update.stops) {
       const stops = cleanReplacementStops(update.stops);
-      if (!stops || !Number.isInteger(update.expectedRouteRevision) || update.expectedRouteRevision! < 1 || update.status) return { ok: false, error: "invalid" };
+      const expectedRouteRevision = update.expectedRouteRevision;
+      if (!stops || typeof expectedRouteRevision !== "number" || !Number.isInteger(expectedRouteRevision) || expectedRouteRevision < 1 || update.status) return { ok: false, error: "invalid" };
       try {
         const { data, error } = await admin.rpc("replace_plan_route_atomic", {
           p_plan_id: id,
           p_token_hash: hashPlanMemberToken(rawToken),
-          p_expected_route_revision: update.expectedRouteRevision,
+          p_expected_route_revision: expectedRouteRevision,
           p_stops: stops.map(({ venueId, venueName, selectedDrinkPriceEvidence }) => ({
             venueId, venueName,
             ...(selectedDrinkPriceEvidence ? { selectedDrinkPriceEvidence } : {}),
@@ -776,7 +777,7 @@ export const memoryPlanStore: PlanStore = {
       // moves or gains an ordinary Swap. Replacing a one-Stop anchor-only draft
       // with three Stops is the atomic upgrade to a grounded route, and it is
       // only allowed once the caller has verified the grounding proof.
-      if (plan.plan.anchorVenueId && (!update.groundedUpgrade || stops[0].venueId !== plan.plan.anchorVenueId)) {
+      if (plan.plan.anchorVenueId && (!update.groundedUpgrade || stops[0]?.venueId !== plan.plan.anchorVenueId)) {
         return { ok: false, error: "forbidden" };
       }
       // One synchronous mutation keeps the demo store's route + revision
@@ -921,13 +922,15 @@ async function supabaseLegacyPlanMemberIdentityResult(id: string, rawToken: stri
       .is("membership_revoked_at", null)
       .order("joined_at").order("id");
     if (error) return { ok: false, error: "error" };
-    const index = (data ?? []).findIndex((member) => member.token_hash === hashPlanMemberToken(rawToken.trim()));
+    const rows = data ?? [];
+    const index = rows.findIndex((member) => member.token_hash === hashPlanMemberToken(rawToken.trim()));
+    const member = rows[index];
     return {
       ok: true,
-      identity: index < 0 ? null : {
-        memberId: String(data![index].id),
+      identity: !member ? null : {
+        memberId: String(member.id),
         role: index === 0 ? "host" : "guest",
-        collaborationAuthorized: index === 0 || data![index].can_collaborate === true,
+        collaborationAuthorized: index === 0 || member.can_collaborate === true,
       },
     };
   } catch {
@@ -1042,7 +1045,8 @@ export async function planMemberIdentity(id: string, rawToken: unknown): Promise
   const plan = memoryPlans.get(id);
   if (!plan) return null;
   const index = plan.crew.findIndex((member) => member.tokenHash === hash);
-  return index < 0 ? null : { memberId: plan.crew[index].id, role: index === 0 ? "host" : "guest", collaborationAuthorized: index === 0 || plan.crew[index].collaborationAuthorized };
+  const member = plan.crew[index];
+  return !member ? null : { memberId: member.id, role: index === 0 ? "host" : "guest", collaborationAuthorized: index === 0 || member.collaborationAuthorized };
 }
 
 export async function planMemberIdentityResult(id: string, rawToken: unknown): Promise<PlanMemberIdentityResult> {
@@ -1232,8 +1236,13 @@ export function __setMemoryPlanOwnerUserId(planId: string, userId: string): bool
   return true;
 }
 
-/** Test/dev seam: list stamped member user ids for friend-edge formation. */
-export function __listMemoryPlanMemberUserIds(
+/** Internal memory read of the host account, using the membership role order. */
+export function memoryPlanHostUserId(planId: string): string | null {
+  return memoryPlans.get(planId)?.crew[0]?.userId ?? null;
+}
+
+/** Internal memory read of every crew seat an account has claimed. */
+export function memoryPlanCrewUserIds(
   planId: string,
 ): Array<{ memberId: string; userId: string }> {
   const plan = memoryPlans.get(planId);
@@ -1241,6 +1250,12 @@ export function __listMemoryPlanMemberUserIds(
   return plan.crew
     .filter((member): member is MemoryMember & { userId: string } => Boolean(member.userId))
     .map((member) => ({ memberId: member.id, userId: member.userId }));
+}
+
+export function __listMemoryPlanMemberUserIds(
+  planId: string,
+): Array<{ memberId: string; userId: string }> {
+  return memoryPlanCrewUserIds(planId);
 }
 
 /** Rotate one account-owned memory membership without creating another seat. */

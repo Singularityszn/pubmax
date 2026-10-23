@@ -278,3 +278,29 @@ describe("occupancy read before the durable table exists", () => {
     });
   });
 });
+
+describe("occupancy owner list (the account export's read)", () => {
+  it("lists the reporter's own readings, newest first, hidden ones included", async () => {
+    const early = await memoryOccupancyStore.report({
+      venueId: "venue-1",
+      level: "some-seats",
+      reporterUserId: "user-a",
+      now: NOW - 3 * 60 * 60 * 1000,
+    });
+    await memoryOccupancyStore.report({
+      venueId: "venue-2",
+      level: "full",
+      reporterUserId: "user-a",
+      now: NOW - 60 * 60 * 1000,
+    });
+    await memoryOccupancyStore.report({ venueId: "venue-1", level: "empty", reporterUserId: "user-b", now: NOW });
+    await memoryOccupancyStore.moderate(early.id, true);
+
+    const answer = await occupancyStore().listForReporter("user-a", 10);
+    expect(answer.degraded).toBe(false);
+    expect(answer.reports.map((report) => report.venueId)).toEqual(["venue-2", "venue-1"]);
+    expect(answer.reports[1]?.hiddenAt).not.toBeNull();
+    expect((await occupancyStore().listForReporter("user-a", 1)).reports).toHaveLength(1);
+    expect((await occupancyStore().listForReporter("   ", 10)).reports).toEqual([]);
+  });
+});

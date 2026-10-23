@@ -25,9 +25,18 @@ function readInviteTokenFromHash(): string | null {
   return new URLSearchParams(window.location.hash.replace(/^#/, "")).get("invite");
 }
 
-/** The hash carries an invite that is not shaped like one (battle test L02). */
+/**
+ * The one-use invite a host creates in the collaboration panel: 32 random
+ * bytes in lowercase hex, the shape the join route redeems. Only the server
+ * decides whether a well-shaped token is real, unexpired and unused.
+ */
+const ONE_USE_PLAN_INVITE_TOKEN_PATTERN = /^[0-9a-f]{64}$/;
+
+/** The hash carries an invite shaped like neither kind (battle test L02). */
 function inviteHashIsMalformed(token: string | null): boolean {
-  return token !== null && !isClassicPlanInviteToken(token);
+  if (token === null) return false;
+  if (ONE_USE_PLAN_INVITE_TOKEN_PATTERN.test(token.trim())) return false;
+  return !isClassicPlanInviteToken(token);
 }
 
 const MALFORMED_INVITE_LINE =
@@ -235,7 +244,11 @@ export default function PlanCrew({ planId, hostName }: { planId: string; hostNam
 
   async function join(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!name.trim()) return;
+    if (!name.trim()) {
+      setError("Add your name to join.");
+      document.getElementById("join-name")?.focus();
+      return;
+    }
     const inviteToken = hashInviteToken ?? undefined;
     // Bare /plan/{id} must never POST join (invite-only after the IDOR close).
     if (!inviteToken) {
@@ -334,8 +347,8 @@ export default function PlanCrew({ planId, hostName }: { planId: string; hostNam
   return (
     <section className="planCrew" aria-labelledby="plan-crew-title">
       <div className="planCrew__heading">
-        <div><p className="planPage__eyebrow">The crew</p><h2 id="plan-crew-title">Who&rsquo;s in</h2></div>
-        <span>{crew.length || ""}</span>
+        <div><h2 id="plan-crew-title">Who&rsquo;s in</h2></div>
+        {crew.length > 0 ? <span>{crew.length}</span> : null}
       </div>
 
       {!sessionReady && !memberToken ? (
@@ -358,7 +371,7 @@ export default function PlanCrew({ planId, hostName }: { planId: string; hostNam
             If you&rsquo;re signed in with a claimed handle, joining connects you
             with the host in your lot.
           </p>
-          <div><input id="join-name" type="text" autoComplete="name" maxLength={CREW_NAME_MAX} value={name} onChange={(event) => setName(event.target.value)} placeholder="Your name" required /><button type="submit" disabled={pending}>I&rsquo;m in</button></div>
+          <div><input id="join-name" type="text" autoComplete="name" maxLength={CREW_NAME_MAX} value={name} onChange={(event) => setName(event.target.value)} placeholder="Your name" aria-describedby={error ? "join-error" : undefined} /><button type="submit" disabled={pending}>I&rsquo;m in</button></div>
         </form>
       ) : (
         <div className="planCrew__presence" role="group" aria-label="Update your status">
@@ -397,7 +410,7 @@ export default function PlanCrew({ planId, hostName }: { planId: string; hostNam
           </li>
         </ul>
       )}
-      {error ? <p className="planComposer__error" role="alert">{error}</p> : null}
+      {error ? <p id="join-error" className="planComposer__error" role="alert">{error}</p> : null}
     </section>
   );
 }

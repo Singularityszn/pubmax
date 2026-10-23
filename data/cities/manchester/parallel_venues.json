@@ -1,0 +1,969 @@
+{
+  "city": "manchester",
+  "source": "Parallel Task API; Tavily Search and Extract",
+  "observationMeaning": "Each row's observedAt is the date its Parallel research result, Tavily search page text or page read was retrieved; provider names the lane. Cached reruns retain that date. Not a claim that the venue is open tonight.",
+  "populationPriority": 552000,
+  "populationSources": [
+    "https://www.ons.gov.uk/peoplepopulationandcommunity/populationandmigration/populationestimates/bulletins/populationandhouseholdestimatesenglandandwales/census2021",
+    "https://www.scotlandscensus.gov.uk/2022-reports/scotlands-census-2022-rounded-population-estimates/"
+  ],
+  "venues": [
+    {
+      "name": "Vero Moderno",
+      "kind": "pub",
+      "address": "Unit 4 Vimto Gardens, Chapel Street, Salford M3 5JF",
+      "postcode": "M3 5JF",
+      "locality": "Manchester",
+      "website": null,
+      "lat": 53.483108,
+      "lng": -2.262795,
+      "coordinatePrecision": "postcode-centroid",
+      "sourceUrls": [
+        "https://camra.org.uk/pubs/postcode/m3-6jg-830549"
+      ],
+      "evidence": [
+        {
+          "url": "https://camra.org.uk/pubs/postcode/m3-6jg-830549",
+          "excerpt": "Vero Moderno\nPub, in Salford\nCask Ale not available\n0.4 miles from you\nUnit 4 Vimto Gardens, Chapel Street, Salford, M3 5JF"
+        }
+      ],
+      "observedAt": "2026-10-04T12:08:40.156Z",
+      "geocode": {
+        "url": "https://api.postcodes.io/postcodes/M3%205JF",
+        "observedAt": "2026-10-04T12:48:05.447Z",
+        "postcode": "M3 5JF",
+        "quality": 1
+      },
+      "provider": "tavily",
+      "id": "venue-mcr-18ruxxm"
+    },
+    {
+      "name": "Deli-Lama Cafe-Bar",
+      "kind": "pub",
+      "address": "220 Chapel Street, Salford M3 5LE",
+      "postcode": "M3 5LE",
+      "locality": "Manchester",
+      "website": null,
+      "lat": 53.48351,
+      "lng": -2.259814,
+      "coordinatePrecision": "postcode-centroid",
+      "sourceUrls": [
+        "https://camra.org.uk/pubs/postcode/m3-6jg-830549"
+      ],
+      "evidence": [
+        {
+          "url": "https://camra.org.uk/pubs/postcode/m3-6jg-830549",
+          "excerpt": "Deli-Lama Cafe-Bar\nPub, in Salford\nCask Ale not available\n0.4 miles from you\n220 Chapel Street, Salford, M3 5LE"
+        }
+      ],
+      "observedAt": "2026-10-04T12:08:40.156Z",
+      "geocode": {
+        "url": "https://api.postcodes.io/postcodes/M3%205LE",
+        "observedAt": "2026-10-04T12:48:05.503Z",
+        "postcode": "M3 5LE",
+        "quality": 1
+      },
+      "provider": "tavily",
+      "id": "venue-mcr-kcp7ci"
+    },
+    {
+      "name": "Tangerine",
+      "kind": "pub",
+      "address": "13-17 New bailey St, Salford M3 5FS",
+      "postcode": "M3 5FS",
+      "locality": "Manchester",
+      "website": null,
+      "lat": 53.48266,
+      "lng": -2.253721,
+      "coordinatePrecision": "postcode-centroid",
+      "sourceUrls": [
+        "https://camra.org.uk/pubs/postcode/m3-6jg-830549"
+      ],
+      "evidence": [
+        {
+          "url": "https://camra.org.uk/pubs/postcode/m3-6jg-830549",
+          "excerpt": "Tangerine\nPub, in Salford\nCask Ale not available\n0.6 miles from you\n13-17 New bailey St, Salford, M3 5FS"
+        }
+      ],
+      "observedAt": "2026-10-04T12:08:40.156Z",
+      "geocode": {
+        "url": "https://api.postcodes.io/postcodes/M3%205FS",
+        "observedAt": "2026-10-04T12:48:05.744Z",
+        "postcode": "M3 5FS",
+        "quality": 1
+      },
+      "provider": "tavily",
+      "id": "venue-mcr-1lrqa7h"
+    },
+    {
+      "name": "Old Fire Station",
+      "kind": "pub",
+      "address": "Albert Bentley Place, Salford M5 4WT",
+      "postcode": "M5 4WT",
+      "locality": "Manchester",
+      "website": null,
+      "lat": 53.483504,
+      "lng": -2.270649,
+      "coordinatePrecision": "postcode-centroid",
+      "sourceUrls": [
+        "https://camra.org.uk/pubs/postcode/m5-4ln-819604"
+      ],
+      "evidence": [
+        {
+          "url": "https://camra.org.uk/pubs/postcode/m5-4ln-819604",
+          "excerpt": "### Old Fire Station\n\nPub, in Salford]\n\n**Cask Ale not available**\n\n**0.3** miles from you\n\nAlbert Bentley Place, Salford, M5 4WT"
+        }
+      ],
+      "observedAt": "2026-10-04T13:01:56.116Z",
+      "geocode": {
+        "url": "https://api.postcodes.io/postcodes/M5%204WT",
+        "observedAt": "2026-10-04T13:01:56.166Z",
+        "postcode": "M5 4WT",
+        "quality": 1
+      },
+      "provider": "tavily",
+      "id": "venue-mcr-1f6d0d1"
+    },
+    {
+      "name": "Ukrainian Club",
+      "kind": "pub",
+      "address": "31 Smedley lane, Cheetham Hill, Manchester M8 8XB",
+      "postcode": "M8 8XB",
+      "locality": "Manchester",
+      "website": null,
+      "lat": 53.504267,
+      "lng": -2.232124,
+      "coordinatePrecision": "postcode-centroid",
+      "sourceUrls": [
+        "https://camra.org.uk/pubs/postcode/m8-9ed-816477"
+      ],
+      "evidence": [
+        {
+          "url": "https://camra.org.uk/pubs/postcode/m8-9ed-816477",
+          "excerpt": "[### Ukrainian Club\n\nPub, in Manchester]\n\n**Cask Ale not available**\n\n**0.6** miles from you\n\n31 Smedley lane, Cheetham Hill, Manchester, M8 8XB"
+        }
+      ],
+      "observedAt": "2026-10-04T13:01:58.981Z",
+      "geocode": {
+        "url": "https://api.postcodes.io/postcodes/M8%208XB",
+        "observedAt": "2026-10-04T13:01:59.017Z",
+        "postcode": "M8 8XB",
+        "quality": 1
+      },
+      "provider": "tavily",
+      "id": "venue-mcr-17sam8q"
+    },
+    {
+      "name": "Irish World Heritage Centre",
+      "kind": "pub",
+      "address": "1 Irish Town Way, Cheetham Hill, Manchester M8 0AE",
+      "postcode": "M8 0AE",
+      "locality": "Manchester",
+      "website": null,
+      "lat": 53.501017,
+      "lng": -2.230131,
+      "coordinatePrecision": "postcode-centroid",
+      "sourceUrls": [
+        "https://camra.org.uk/pubs/postcode/m8-9ed-816477"
+      ],
+      "evidence": [
+        {
+          "url": "https://camra.org.uk/pubs/postcode/m8-9ed-816477",
+          "excerpt": "[### Irish World Heritage Centre\n\nPub, in Manchester]\n\n**Cask Ale not available**\n\n**0.8** miles from you\n\n1 Irish Town Way, Cheetham Hill, Manchester, M8 0AE"
+        }
+      ],
+      "observedAt": "2026-10-04T13:01:58.981Z",
+      "geocode": {
+        "url": "https://api.postcodes.io/postcodes/M8%200AE",
+        "observedAt": "2026-10-04T13:01:59.050Z",
+        "postcode": "M8 0AE",
+        "quality": 1
+      },
+      "provider": "tavily",
+      "id": "venue-mcr-17wwbfk"
+    },
+    {
+      "name": "9inety 6ix",
+      "kind": "pub",
+      "address": "3 Jack Rosenthal Street, Manchester M15 4RA",
+      "postcode": "M15 4RA",
+      "locality": "Manchester",
+      "website": null,
+      "lat": 53.473193,
+      "lng": -2.245996,
+      "coordinatePrecision": "postcode-centroid",
+      "sourceUrls": [
+        "https://camra.org.uk/pubs/postcode/m15-4pn-843453"
+      ],
+      "evidence": [
+        {
+          "url": "https://camra.org.uk/pubs/postcode/m15-4pn-843453",
+          "excerpt": "### 9inety 6ix\n\nPub, in Manchester]\n\n**Cask Ale not available**\n\n**0.1** miles from you\n\n3 Jack Rosenthal Street, Manchester, M15 4RA"
+        }
+      ],
+      "observedAt": "2026-10-04T12:48:17.337Z",
+      "geocode": {
+        "url": "https://api.postcodes.io/postcodes/M15%204RA",
+        "observedAt": "2026-10-04T13:02:04.707Z",
+        "postcode": "M15 4RA",
+        "quality": 1
+      },
+      "provider": "tavily",
+      "id": "venue-mcr-1m6j34i"
+    },
+    {
+      "name": "Firbank Pub & Kitchen",
+      "kind": "pub",
+      "address": "Firbank Road, Newall Green M23 2YP",
+      "postcode": "M23 2YP",
+      "locality": "Manchester",
+      "website": null,
+      "lat": 53.38892,
+      "lng": -2.277132,
+      "coordinatePrecision": "postcode-centroid",
+      "sourceUrls": [
+        "https://camra.org.uk/pubs/postcode/m23-1wl-836961"
+      ],
+      "evidence": [
+        {
+          "url": "https://camra.org.uk/pubs/postcode/m23-1wl-836961",
+          "excerpt": "### Firbank Pub & Kitchen\n\nPub, in Newall Green]\n\n**Cask Ale not available**\n\n**0.6** miles from you\n\nFirbank Road, Newall Green, M23 2YP"
+        }
+      ],
+      "observedAt": "2026-10-04T12:48:43.032Z",
+      "geocode": {
+        "url": "https://api.postcodes.io/postcodes/M23%202YP",
+        "observedAt": "2026-10-04T13:02:31.426Z",
+        "postcode": "M23 2YP",
+        "quality": 1
+      },
+      "provider": "tavily",
+      "id": "venue-mcr-v1581g"
+    },
+    {
+      "name": "Edgar Wood",
+      "kind": "pub",
+      "address": "34 Middleton Gardens, Middleton M24 4DF",
+      "postcode": "M24 4DF",
+      "locality": "Manchester",
+      "website": null,
+      "lat": 53.549466,
+      "lng": -2.199319,
+      "coordinatePrecision": "postcode-centroid",
+      "sourceUrls": [
+        "https://camra.org.uk/pubs/place/middleton-manchester-11913"
+      ],
+      "evidence": [
+        {
+          "url": "https://camra.org.uk/pubs/place/middleton-manchester-11913",
+          "excerpt": "### Edgar Wood\n\nCraft Union Pub Co (Stonegate) Pub, in Middleton]\n\n**Cask Ale not available**\n\n**0.1** miles from you\n\n34 Middleton Gardens, Middleton, M24 4DF"
+        }
+      ],
+      "observedAt": "2026-10-04T12:48:43.986Z",
+      "geocode": {
+        "url": "https://api.postcodes.io/postcodes/M24%204DF",
+        "observedAt": "2026-10-04T13:02:25.609Z",
+        "postcode": "M24 4DF",
+        "quality": 1
+      },
+      "provider": "tavily",
+      "id": "venue-mcr-oqqavb"
+    },
+    {
+      "name": "Roebuck",
+      "kind": "pub",
+      "address": "18 Middleton Gardens, Middleton M24 4DF",
+      "postcode": "M24 4DF",
+      "locality": "Manchester",
+      "website": null,
+      "lat": 53.549466,
+      "lng": -2.199319,
+      "coordinatePrecision": "postcode-centroid",
+      "sourceUrls": [
+        "https://camra.org.uk/pubs/place/middleton-manchester-11913"
+      ],
+      "evidence": [
+        {
+          "url": "https://camra.org.uk/pubs/place/middleton-manchester-11913",
+          "excerpt": "### Roebuck\n\nPub, in Middleton]\n\n**Cask Ale not available**\n\n**0.1** miles from you\n\n18 Middleton Gardens, Middleton, M24 4DF"
+        }
+      ],
+      "observedAt": "2026-10-04T12:48:43.986Z",
+      "geocode": {
+        "url": "https://api.postcodes.io/postcodes/M24%204DF",
+        "observedAt": "2026-10-04T13:02:25.609Z",
+        "postcode": "M24 4DF",
+        "quality": 1
+      },
+      "provider": "tavily",
+      "id": "venue-mcr-1b4tmsc"
+    },
+    {
+      "name": "Joiners Arms",
+      "kind": "pub",
+      "address": "37 Cross Street, Middleton M24 4AJ",
+      "postcode": "M24 4AJ",
+      "locality": "Manchester",
+      "website": null,
+      "lat": 53.549593,
+      "lng": -2.203863,
+      "coordinatePrecision": "postcode-centroid",
+      "sourceUrls": [
+        "https://camra.org.uk/pubs/place/middleton-manchester-11913"
+      ],
+      "evidence": [
+        {
+          "url": "https://camra.org.uk/pubs/place/middleton-manchester-11913",
+          "excerpt": "### Joiners Arms\n\nQuality Taverns Pub, in Middleton]\n\n**Cask Ale not available**\n\n**0.2** miles from you\n\n37 Cross Street, Middleton, M24 4AJ"
+        }
+      ],
+      "observedAt": "2026-10-04T12:48:43.986Z",
+      "geocode": {
+        "url": "https://api.postcodes.io/postcodes/M24%204AJ",
+        "observedAt": "2026-10-04T13:02:25.706Z",
+        "postcode": "M24 4AJ",
+        "quality": 1
+      },
+      "provider": "tavily",
+      "id": "venue-mcr-j30rtl"
+    },
+    {
+      "name": "Monton Tap",
+      "kind": "pub",
+      "address": "165 Monton Road, Monton M30 9GS",
+      "postcode": "M30 9GS",
+      "locality": "Manchester",
+      "website": null,
+      "lat": 53.490156,
+      "lng": -2.349939,
+      "coordinatePrecision": "postcode-centroid",
+      "sourceUrls": [
+        "https://camra.org.uk/pubs/place/eccles-manchester-5825"
+      ],
+      "evidence": [
+        {
+          "url": "https://camra.org.uk/pubs/place/eccles-manchester-5825",
+          "excerpt": "### Monton Tap\n\nPub, in Monton]\n\n3 Changing Beers\n\n \n\n**0.8** miles from you\n\n165 Monton Road, Monton, M30 9GS"
+        }
+      ],
+      "observedAt": "2026-10-04T12:48:45.172Z",
+      "geocode": {
+        "url": "https://api.postcodes.io/postcodes/M30%209GS",
+        "observedAt": "2026-10-04T13:02:37.603Z",
+        "postcode": "M30 9GS",
+        "quality": 1
+      },
+      "provider": "tavily",
+      "id": "venue-mcr-1ouxp2m"
+    },
+    {
+      "name": "BrewChimp",
+      "kind": "pub",
+      "address": "166 Barton Road, Stretford M32 8DP",
+      "postcode": "M32 8DP",
+      "locality": "Manchester",
+      "website": null,
+      "lat": 53.446878,
+      "lng": -2.313811,
+      "coordinatePrecision": "postcode-centroid",
+      "sourceUrls": [
+        "https://camra.org.uk/pubs/place/stretford-manchester-16638"
+      ],
+      "evidence": [
+        {
+          "url": "https://camra.org.uk/pubs/place/stretford-manchester-16638",
+          "excerpt": "### BrewChimp\n\nPub, in Stretford]\n\n3 Changing Beers\n\n \n\n**0.2** miles from you\n\n166 Barton Road, Stretford, M32 8DP"
+        }
+      ],
+      "observedAt": "2026-10-04T12:48:47.087Z",
+      "geocode": {
+        "url": "https://api.postcodes.io/postcodes/M32%208DP",
+        "observedAt": "2026-10-04T13:02:43.231Z",
+        "postcode": "M32 8DP",
+        "quality": 1
+      },
+      "provider": "tavily",
+      "id": "venue-mcr-u28b53"
+    },
+    {
+      "name": "Percy's",
+      "kind": "pub",
+      "address": "49 Manchester Road, Denton M34 2AF",
+      "postcode": "M34 2AF",
+      "locality": "Manchester",
+      "website": null,
+      "lat": 53.45604,
+      "lng": -2.118494,
+      "coordinatePrecision": "postcode-centroid",
+      "sourceUrls": [
+        "https://camra.org.uk/pubs/postcode/m34-3ng-826811"
+      ],
+      "evidence": [
+        {
+          "url": "https://camra.org.uk/pubs/postcode/m34-3ng-826811",
+          "excerpt": "### Percy's\n\nIndependent Pub, in Denton]\n\n3 Changing Beers\n\n   \n\n**0.3** miles from you\n\n49 Manchester Road, Denton, M34 2AF"
+        }
+      ],
+      "observedAt": "2026-10-04T12:48:50.013Z",
+      "geocode": {
+        "url": "https://api.postcodes.io/postcodes/M34%202AF",
+        "observedAt": "2026-10-04T13:02:43.475Z",
+        "postcode": "M34 2AF",
+        "quality": 1
+      },
+      "provider": "tavily",
+      "id": "venue-mcr-ud796n"
+    },
+    {
+      "name": "Vault 2",
+      "kind": "pub",
+      "address": "2 Ashton Road, Denton M34 3AS",
+      "postcode": "M34 3AS",
+      "locality": "Manchester",
+      "website": null,
+      "lat": 53.456396,
+      "lng": -2.113691,
+      "coordinatePrecision": "postcode-centroid",
+      "sourceUrls": [
+        "https://camra.org.uk/pubs/postcode/m34-3ng-826811"
+      ],
+      "evidence": [
+        {
+          "url": "https://camra.org.uk/pubs/postcode/m34-3ng-826811",
+          "excerpt": "### Vault 2\n\nPub, in Denton]\n\n**Cask Ale not available**\n\n**0.4** miles from you\n\n2 Ashton Road, Denton, M34 3AS"
+        }
+      ],
+      "observedAt": "2026-10-04T12:48:50.013Z",
+      "geocode": {
+        "url": "https://api.postcodes.io/postcodes/M34%203AS",
+        "observedAt": "2026-10-04T12:48:50.099Z",
+        "postcode": "M34 3AS",
+        "quality": 1
+      },
+      "provider": "tavily",
+      "id": "venue-mcr-1b33plr"
+    },
+    {
+      "name": "Hatters Food & Drinks Hall",
+      "kind": "pub",
+      "address": "16 Market Street, Denton M34 2XW",
+      "postcode": "M34 2XW",
+      "locality": "Manchester",
+      "website": null,
+      "lat": 53.455424,
+      "lng": -2.114607,
+      "coordinatePrecision": "postcode-centroid",
+      "sourceUrls": [
+        "https://camra.org.uk/pubs/postcode/m34-3ng-826811"
+      ],
+      "evidence": [
+        {
+          "url": "https://camra.org.uk/pubs/postcode/m34-3ng-826811",
+          "excerpt": "### Hatters Food & Drinks Hall\n\nPub, in Denton]\n\n**Cask Ale not available**\n\n**0.4** miles from you\n\n16 Market Street, Denton, M34 2XW"
+        }
+      ],
+      "observedAt": "2026-10-04T12:48:50.013Z",
+      "geocode": {
+        "url": "https://api.postcodes.io/postcodes/M34%202XW",
+        "observedAt": "2026-10-04T13:02:43.517Z",
+        "postcode": "M34 2XW",
+        "quality": 1
+      },
+      "provider": "tavily",
+      "id": "venue-mcr-1rknt6h"
+    },
+    {
+      "name": "Queen Vic",
+      "kind": "pub",
+      "address": "17 Stockport Road, Denton M34 6DB",
+      "postcode": "M34 6DB",
+      "locality": "Manchester",
+      "website": null,
+      "lat": 53.455758,
+      "lng": -2.113343,
+      "coordinatePrecision": "postcode-centroid",
+      "sourceUrls": [
+        "https://camra.org.uk/pubs/postcode/m34-3ng-826811"
+      ],
+      "evidence": [
+        {
+          "url": "https://camra.org.uk/pubs/postcode/m34-3ng-826811",
+          "excerpt": "### Queen Vic\n\nPub, in Denton]\n\n**Cask Ale not available**\n\n**0.4** miles from you\n\n17 Stockport Road, Denton, M34 6DB"
+        }
+      ],
+      "observedAt": "2026-10-04T12:48:50.013Z",
+      "geocode": {
+        "url": "https://api.postcodes.io/postcodes/M34%206DB",
+        "observedAt": "2026-10-04T13:02:43.542Z",
+        "postcode": "M34 6DB",
+        "quality": 1
+      },
+      "provider": "tavily",
+      "id": "venue-mcr-1l60r8o"
+    },
+    {
+      "name": "Sun Inn",
+      "kind": "pub",
+      "address": "210 Guide Lane, Audenshaw M34 5BR",
+      "postcode": "M34 5BR",
+      "locality": "Manchester",
+      "website": null,
+      "lat": 53.471443,
+      "lng": -2.112497,
+      "coordinatePrecision": "postcode-centroid",
+      "sourceUrls": [
+        "https://camra.org.uk/pubs/postcode/m34-3ng-826811"
+      ],
+      "evidence": [
+        {
+          "url": "https://camra.org.uk/pubs/postcode/m34-3ng-826811",
+          "excerpt": "### Sun Inn\n\nIndependent Pub, in Audenshaw]\n\n**Cask Ale not available**\n\n**0.7** miles from you\n\n210 Guide Lane, Audenshaw, M34 5BR"
+        }
+      ],
+      "observedAt": "2026-10-04T12:48:50.013Z",
+      "geocode": {
+        "url": "https://api.postcodes.io/postcodes/M34%205BR",
+        "observedAt": "2026-10-04T13:02:43.755Z",
+        "postcode": "M34 5BR",
+        "quality": 1
+      },
+      "provider": "tavily",
+      "id": "venue-mcr-1n4thl8"
+    },
+    {
+      "name": "Queens Arms",
+      "kind": "pub",
+      "address": "72 Guide Lane, Audenshaw M34 5BR",
+      "postcode": "M34 5BR",
+      "locality": "Manchester",
+      "website": null,
+      "lat": 53.471443,
+      "lng": -2.112497,
+      "coordinatePrecision": "postcode-centroid",
+      "sourceUrls": [
+        "https://camra.org.uk/pubs/postcode/m34-3ng-826811"
+      ],
+      "evidence": [
+        {
+          "url": "https://camra.org.uk/pubs/postcode/m34-3ng-826811",
+          "excerpt": "### Queens Arms\n\nPub, in Audenshaw]\n\n**Cask Ale not available**\n\n**0.9** miles from you\n\n72 Guide Lane, Audenshaw, M34 5BR"
+        }
+      ],
+      "observedAt": "2026-10-04T12:48:50.013Z",
+      "geocode": {
+        "url": "https://api.postcodes.io/postcodes/M34%205BR",
+        "observedAt": "2026-10-04T13:02:43.755Z",
+        "postcode": "M34 5BR",
+        "quality": 1
+      },
+      "provider": "tavily",
+      "id": "venue-mcr-6ad5bf"
+    },
+    {
+      "name": "Whittles",
+      "kind": "pub",
+      "address": "57 Roscoe St, Oldham OL1 1EA",
+      "postcode": "OL1 1EA",
+      "locality": "Manchester",
+      "website": null,
+      "lat": 53.541073,
+      "lng": -2.105784,
+      "coordinatePrecision": "postcode-centroid",
+      "sourceUrls": [
+        "https://camra.org.uk/pubs/station/oldham-mumps-2389"
+      ],
+      "evidence": [
+        {
+          "url": "https://camra.org.uk/pubs/station/oldham-mumps-2389",
+          "excerpt": "### Whittles\n\nPub, in Oldham]\n\n**Cask Ale not available**\n\n**0.1** miles from you\n\n57 Roscoe St, Oldham, OL1 1EA"
+        }
+      ],
+      "observedAt": "2026-10-04T12:50:06.280Z",
+      "geocode": {
+        "url": "https://api.postcodes.io/postcodes/OL1%201EA",
+        "observedAt": "2026-10-04T13:03:00.178Z",
+        "postcode": "OL1 1EA",
+        "quality": 1
+      },
+      "provider": "tavily",
+      "id": "venue-mcr-hat1lc"
+    },
+    {
+      "name": "Club Faith",
+      "kind": "pub",
+      "address": "Kings Mill, Fairbottom Street, Oldham OL1 3SW",
+      "postcode": "OL1 3SW",
+      "locality": "Manchester",
+      "website": null,
+      "lat": 53.542743,
+      "lng": -2.108489,
+      "coordinatePrecision": "postcode-centroid",
+      "sourceUrls": [
+        "https://camra.org.uk/pubs/station/oldham-mumps-2389"
+      ],
+      "evidence": [
+        {
+          "url": "https://camra.org.uk/pubs/station/oldham-mumps-2389",
+          "excerpt": "[### Club Faith\n\nPub, in Oldham]\n\n**Cask Ale not available**\n\n**0.2** miles from you\n\nKings Mill, Fairbottom Street, Oldham, OL1 3SW"
+        }
+      ],
+      "observedAt": "2026-10-04T12:50:06.280Z",
+      "geocode": {
+        "url": "https://api.postcodes.io/postcodes/OL1%203SW",
+        "observedAt": "2026-10-04T13:03:00.199Z",
+        "postcode": "OL1 3SW",
+        "quality": 1
+      },
+      "provider": "tavily",
+      "id": "venue-mcr-pbewby"
+    },
+    {
+      "name": "Circus",
+      "kind": "pub",
+      "address": "26 Yorkshire Street, Oldham OL1 1SB",
+      "postcode": "OL1 1SB",
+      "locality": "Manchester",
+      "website": null,
+      "lat": 53.541951,
+      "lng": -2.109498,
+      "coordinatePrecision": "postcode-centroid",
+      "sourceUrls": [
+        "https://camra.org.uk/pubs/station/oldham-mumps-2389"
+      ],
+      "evidence": [
+        {
+          "url": "https://camra.org.uk/pubs/station/oldham-mumps-2389",
+          "excerpt": "[### Circus\n\nPub, in Oldham]\n\n**Cask Ale not available**\n\n**0.3** miles from you\n\n26 Yorkshire Street, Oldham, OL1 1SB"
+        }
+      ],
+      "observedAt": "2026-10-04T12:50:06.280Z",
+      "geocode": {
+        "url": "https://api.postcodes.io/postcodes/OL1%201SB",
+        "observedAt": "2026-10-04T13:03:00.259Z",
+        "postcode": "OL1 1SB",
+        "quality": 1
+      },
+      "provider": "tavily",
+      "id": "venue-mcr-1isw09m"
+    },
+    {
+      "name": "Billingtons",
+      "kind": "pub",
+      "address": "3 Ashcroft St, Oldham OL1 1HY",
+      "postcode": "OL1 1HY",
+      "locality": "Manchester",
+      "website": null,
+      "lat": 53.54087,
+      "lng": -2.112196,
+      "coordinatePrecision": "postcode-centroid",
+      "sourceUrls": [
+        "https://camra.org.uk/pubs/station/oldham-mumps-2389"
+      ],
+      "evidence": [
+        {
+          "url": "https://camra.org.uk/pubs/station/oldham-mumps-2389",
+          "excerpt": "### Billingtons\n\nPub, in Oldham]\n\n**Cask Ale not available**\n\n**0.4** miles from you\n\n3 Ashcroft St, Oldham, OL1 1HY"
+        }
+      ],
+      "observedAt": "2026-10-04T12:50:06.280Z",
+      "geocode": {
+        "url": "https://api.postcodes.io/postcodes/OL1%201HY",
+        "observedAt": "2026-10-04T13:03:00.375Z",
+        "postcode": "OL1 1HY",
+        "quality": 1
+      },
+      "provider": "tavily",
+      "id": "venue-mcr-5nsmbs"
+    },
+    {
+      "name": "James Watts",
+      "kind": "pub",
+      "address": "13 High Street, Cheadle SK8 1AX",
+      "postcode": "SK8 1AX",
+      "locality": "Manchester",
+      "website": null,
+      "lat": 53.39483,
+      "lng": -2.214101,
+      "coordinatePrecision": "postcode-centroid",
+      "sourceUrls": [
+        "https://camra.org.uk/pubs/place/cheadle-manchester-3560"
+      ],
+      "evidence": [
+        {
+          "url": "https://camra.org.uk/pubs/place/cheadle-manchester-3560",
+          "excerpt": "### James Watts\n\nHydes Pub, in Cheadle]\n\n4 Regular, 2 Changing Beers\n\n \n\n**0.0** miles from you\n\n13 High Street, Cheadle, SK8 1AX"
+        }
+      ],
+      "observedAt": "2026-10-04T12:50:21.478Z",
+      "geocode": {
+        "url": "https://api.postcodes.io/postcodes/SK8%201AX",
+        "observedAt": "2026-10-04T13:04:05.100Z",
+        "postcode": "SK8 1AX",
+        "quality": 1
+      },
+      "provider": "tavily",
+      "id": "venue-mcr-1kmj7d5"
+    },
+    {
+      "name": "Brezo Lounge",
+      "kind": "pub",
+      "address": "30 High Street, Cheadle SK8 1AL",
+      "postcode": "SK8 1AL",
+      "locality": "Manchester",
+      "website": null,
+      "lat": 53.395162,
+      "lng": -2.214208,
+      "coordinatePrecision": "postcode-centroid",
+      "sourceUrls": [
+        "https://camra.org.uk/pubs/place/cheadle-manchester-3560"
+      ],
+      "evidence": [
+        {
+          "url": "https://camra.org.uk/pubs/place/cheadle-manchester-3560",
+          "excerpt": "### Brezo Lounge\n\nLoungers Pub, in Cheadle]\n\n**Cask Ale not available**\n\n**0.0** miles from you\n\n30 High Street, Cheadle, SK8 1AL"
+        }
+      ],
+      "observedAt": "2026-10-04T12:50:21.478Z",
+      "geocode": {
+        "url": "https://api.postcodes.io/postcodes/SK8%201AL",
+        "observedAt": "2026-10-04T13:04:05.130Z",
+        "postcode": "SK8 1AL",
+        "quality": 1
+      },
+      "provider": "tavily",
+      "id": "venue-mcr-rp20x6"
+    },
+    {
+      "name": "Crown Inn",
+      "kind": "pub",
+      "address": "81 High Street, Cheadle SK8 1AA",
+      "postcode": "SK8 1AA",
+      "locality": "Manchester",
+      "website": null,
+      "lat": 53.393935,
+      "lng": -2.216788,
+      "coordinatePrecision": "postcode-centroid",
+      "sourceUrls": [
+        "https://camra.org.uk/pubs/place/cheadle-manchester-3560"
+      ],
+      "evidence": [
+        {
+          "url": "https://camra.org.uk/pubs/place/cheadle-manchester-3560",
+          "excerpt": "### Crown Inn\n\nHydes Pub, in Cheadle]\n\n4 Regular, 1 Changing Beers\n\n \n\n**0.1** miles from you\n\n81 High Street, Cheadle, SK8 1AA"
+        }
+      ],
+      "observedAt": "2026-10-04T12:50:21.478Z",
+      "geocode": {
+        "url": "https://api.postcodes.io/postcodes/SK8%201AA",
+        "observedAt": "2026-10-04T13:04:05.187Z",
+        "postcode": "SK8 1AA",
+        "quality": 1
+      },
+      "provider": "tavily",
+      "id": "venue-mcr-lamvfp"
+    },
+    {
+      "name": "Rectory",
+      "kind": "pub",
+      "address": "4 Old Rectory Gardens, Cheadle SK8 1BX",
+      "postcode": "SK8 1BX",
+      "locality": "Manchester",
+      "website": null,
+      "lat": 53.39273,
+      "lng": -2.217308,
+      "coordinatePrecision": "postcode-centroid",
+      "sourceUrls": [
+        "https://camra.org.uk/pubs/place/cheadle-manchester-3560"
+      ],
+      "evidence": [
+        {
+          "url": "https://camra.org.uk/pubs/place/cheadle-manchester-3560",
+          "excerpt": "### Rectory\n\nIndependent Pub, in Cheadle]\n\n**Cask Ale not available**\n\n**0.2** miles from you\n\n4 Old Rectory Gardens, Cheadle, SK8 1BX"
+        }
+      ],
+      "observedAt": "2026-10-04T12:50:21.478Z",
+      "geocode": {
+        "url": "https://api.postcodes.io/postcodes/SK8%201BX",
+        "observedAt": "2026-10-04T13:04:05.239Z",
+        "postcode": "SK8 1BX",
+        "quality": 1
+      },
+      "provider": "tavily",
+      "id": "venue-mcr-7xp7wq"
+    },
+    {
+      "name": "Wobbly Stamp",
+      "kind": "pub",
+      "address": "130 Stockport Road, Cheadle SK8 2DP",
+      "postcode": "SK8 2DP",
+      "locality": "Manchester",
+      "website": null,
+      "lat": 53.39553,
+      "lng": -2.204449,
+      "coordinatePrecision": "postcode-centroid",
+      "sourceUrls": [
+        "https://camra.org.uk/pubs/place/cheadle-manchester-3560"
+      ],
+      "evidence": [
+        {
+          "url": "https://camra.org.uk/pubs/place/cheadle-manchester-3560",
+          "excerpt": "### Wobbly Stamp\n\nIndependent Pub, in Cheadle]\n\n1 Regular, 3 Changing Beers\n\n \n\n**0.4** miles from you\n\n130 Stockport Road, Cheadle, SK8 2DP"
+        }
+      ],
+      "observedAt": "2026-10-04T12:50:21.478Z",
+      "geocode": {
+        "url": "https://api.postcodes.io/postcodes/SK8%202DP",
+        "observedAt": "2026-10-04T13:04:05.306Z",
+        "postcode": "SK8 2DP",
+        "quality": 1
+      },
+      "provider": "tavily",
+      "id": "venue-mcr-18qj833"
+    },
+    {
+      "name": "Village Pub",
+      "kind": "pub",
+      "address": "Cheadle Road, Cheadle SK8 1HW",
+      "postcode": "SK8 1HW",
+      "locality": "Manchester",
+      "website": null,
+      "lat": 53.38611,
+      "lng": -2.209817,
+      "coordinatePrecision": "postcode-centroid",
+      "sourceUrls": [
+        "https://camra.org.uk/pubs/place/cheadle-manchester-3560"
+      ],
+      "evidence": [
+        {
+          "url": "https://camra.org.uk/pubs/place/cheadle-manchester-3560",
+          "excerpt": "### Village Pub\n\nDe Vere Group Pub, in Cheadle]\n\n**Cask Ale not available**\n\n**0.6** miles from you\n\nCheadle Road, Cheadle, SK8 1HW"
+        }
+      ],
+      "observedAt": "2026-10-04T12:50:21.478Z",
+      "geocode": {
+        "url": "https://api.postcodes.io/postcodes/SK8%201HW",
+        "observedAt": "2026-10-04T13:04:05.332Z",
+        "postcode": "SK8 1HW",
+        "quality": 1
+      },
+      "provider": "tavily",
+      "id": "venue-mcr-157ruy1"
+    },
+    {
+      "name": "Astley Arms (Bottom)",
+      "kind": "pub",
+      "address": "293 Astley Street, Dukinfield SK16 4QF",
+      "postcode": "SK16 4QF",
+      "locality": "Manchester",
+      "website": null,
+      "lat": 53.476497,
+      "lng": -2.100261,
+      "coordinatePrecision": "postcode-centroid",
+      "sourceUrls": [
+        "https://camra.org.uk/pubs/place/dukinfield-5408"
+      ],
+      "evidence": [
+        {
+          "url": "https://camra.org.uk/pubs/place/dukinfield-5408",
+          "excerpt": "### Astley Arms (Bottom)\n\nPub, in Dukinfield]\n\n**Cask Ale not available**\n\n**0.5** miles from you\n\n293 Astley Street, Dukinfield, SK16 4QF"
+        }
+      ],
+      "observedAt": "2026-10-04T12:50:25.669Z",
+      "geocode": {
+        "url": "https://api.postcodes.io/postcodes/SK16%204QF",
+        "observedAt": "2026-10-04T13:03:24.935Z",
+        "postcode": "SK16 4QF",
+        "quality": 1
+      },
+      "provider": "tavily",
+      "id": "venue-mcr-18rfqdc"
+    },
+    {
+      "name": "Manchester Union Brewery Tap",
+      "kind": "pub",
+      "address": "96D North Western Street, Manchester M12 6JL",
+      "postcode": "M12 6JL",
+      "locality": "Manchester",
+      "website": null,
+      "lat": 53.474922,
+      "lng": -2.221403,
+      "coordinatePrecision": "postcode-centroid",
+      "sourceUrls": [
+        "https://camra.org.uk/pubs/postcode/m11-4tq-1790946"
+      ],
+      "evidence": [
+        {
+          "url": "https://camra.org.uk/pubs/postcode/m11-4tq-1790946",
+          "excerpt": "### Manchester Union Brewery Tap\nPub, in Manchester\nCask Ale not available\n1.2 miles from you\n96D North Western Street, Manchester, M12 6JL"
+        }
+      ],
+      "observedAt": "2026-10-04T13:57:20.915Z",
+      "geocode": {
+        "url": "https://api.postcodes.io/postcodes/M12%206JL",
+        "observedAt": "2026-10-04T13:57:33.105Z",
+        "postcode": "M12 6JL",
+        "quality": 1
+      },
+      "provider": "tavily",
+      "id": "venue-mcr-55die4"
+    },
+    {
+      "name": "Shack",
+      "kind": "pub",
+      "address": "69 High Street, City Centre, Manchester M4 1FS",
+      "postcode": "M4 1FS",
+      "locality": "Manchester",
+      "website": null,
+      "lat": 53.48421,
+      "lng": -2.238389,
+      "coordinatePrecision": "postcode-centroid",
+      "sourceUrls": [
+        "https://camra.org.uk/pubs/postcode/m4-1qb-825113"
+      ],
+      "evidence": [
+        {
+          "url": "https://camra.org.uk/pubs/postcode/m4-1qb-825113",
+          "excerpt": "### Shack\n\nPub, in Manchester]\n\n**Cask Ale not available**\n\n**0.1** miles from you\n\n69 High Street, City Centre, Manchester, M4 1FS"
+        }
+      ],
+      "observedAt": "2026-10-04T14:29:44.201Z",
+      "geocode": {
+        "url": "https://api.postcodes.io/postcodes/M4%201FS",
+        "observedAt": "2026-10-04T14:29:44.417Z",
+        "postcode": "M4 1FS",
+        "quality": 1
+      },
+      "provider": "tavily",
+      "id": "venue-mcr-8xcpdj"
+    },
+    {
+      "name": "Velopark Cafe",
+      "kind": "pub",
+      "address": "National Cycling Centre, Stuart Street, Clayton M11 4DQ",
+      "postcode": "M11 4DQ",
+      "locality": "Manchester",
+      "website": null,
+      "lat": 53.486398,
+      "lng": -2.196838,
+      "coordinatePrecision": "postcode-centroid",
+      "sourceUrls": [
+        "https://camra.org.uk/pubs/postcode/m11-4tq-1790946"
+      ],
+      "evidence": [
+        {
+          "url": "https://camra.org.uk/pubs/postcode/m11-4tq-1790946",
+          "excerpt": "Velopark Cafe\nPub, in Clayton\nCask Ale not available\n0.3 miles from you\nNational Cycling Centre, Stuart Street, Clayton, M11 4DQ"
+        }
+      ],
+      "observedAt": "2026-10-04T12:10:03.162Z",
+      "geocode": {
+        "url": "https://api.postcodes.io/postcodes/M11%204DQ",
+        "observedAt": "2026-10-04T12:48:11.553Z",
+        "postcode": "M11 4DQ",
+        "quality": 1
+      },
+      "provider": "tavily",
+      "id": "venue-mcr-2mlxmv"
+    }
+  ]
+}

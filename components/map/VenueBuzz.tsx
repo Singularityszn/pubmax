@@ -5,7 +5,7 @@
 //
 // PROVENANCE IS THE FEATURE: everything in this block is an AI summary of
 // third-party press & reviews relayed by CityMCP London. It must NEVER read
-// as PUBMAXXING editorial or community content — the eyebrow, source chip
+// as PUBMAXX editorial or community content — the eyebrow, source chip
 // and footnote below say exactly what it is, every render.
 //
 // Resolve flow (same confidence gate as CityPlaceStrip): search_places by
@@ -19,6 +19,7 @@
 // No animation — trivially reduced-motion compliant.
 
 import { useEffect, useRef, useState } from "react";
+import { useStaggeredRead } from "@/lib/useStaggeredRead";
 import type { ReactNode } from "react";
 import { ExternalLink, Newspaper } from "lucide-react";
 
@@ -122,12 +123,21 @@ export default function VenueBuzz({
 }: Props) {
   const isLondon = cityId === "london" || cityId === undefined;
   const [buzz, setBuzz] = useState<CityBuzz | null>(null);
+  // Which pub the held buzz is ABOUT. Adopted during render, so the wait
+  // before the next pub's read never shows the previous pub's buzz.
+  const [buzzFor, setBuzzFor] = useState(venueId);
+  if (buzzFor !== venueId) {
+    setBuzzFor(venueId);
+    setBuzz(null);
+  }
   // Generation token: writes from a superseded venue are dropped rather than
   // racing into the newly-selected sheet.
   const generationRef = useRef(0);
 
+  const ready = useStaggeredRead(3, venueId);
+
   useEffect(() => {
-    if (!isLondon) return;
+    if (!ready || !isLondon) return;
     if (!venueName || !Number.isFinite(latitude) || !Number.isFinite(longitude)) return;
     const generation = ++generationRef.current;
     // Reset immediately on venue change so the previous pub's buzz never
@@ -170,9 +180,13 @@ export default function VenueBuzz({
     })();
 
     return () => {
+      // The effect that ends here owned this generation. Retiring it now, not
+      // when the next pub's read starts after its phase delay, is what stops a
+      // write the old pub had already queued from landing under the new one.
+      generationRef.current += 1;
       controller.abort();
     };
-  }, [isLondon, venueId, venueName, latitude, longitude, primaryBorough]);
+  }, [ready, isLondon, venueId, venueName, latitude, longitude, primaryBorough]);
 
   if (!isLondon || !buzz) return null;
   const mentions = buzz.mentions.filter((m) => isHttps(m.url));
@@ -185,7 +199,7 @@ export default function VenueBuzz({
     >
       <div className="venueBuzzHead">
         <span className="venueBuzzEyebrow">
-          <Newspaper size={12} aria-hidden="true" />
+          <Newspaper size={14} aria-hidden="true" />
           Around the web: AI summary of press &amp; reviews
         </span>
         <span
@@ -205,7 +219,7 @@ export default function VenueBuzz({
           {mentions.map((m) => (
             <li key={m.url} className="venueBuzzMention">
               <a href={m.url} target="_blank" rel="noreferrer noopener">
-                <ExternalLink size={10} aria-hidden="true" />
+                <ExternalLink size={14} aria-hidden="true" />
                 {m.label}
               </a>
             </li>
@@ -214,7 +228,7 @@ export default function VenueBuzz({
       ) : null}
       <small className="venueBuzzNote">
         AI-synthesised from third-party press and reviews via CityMCP London.
-        Not community reports or PUBMAXXING editorial.
+        Not community reports or PUBMAXX editorial.
       </small>
     </section>
   );

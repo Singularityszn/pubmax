@@ -14,6 +14,7 @@ vi.mock("@/lib/serverEnv", () => ({ assertServerEnv: () => {} }));
 import { GET, POST } from "@/app/api/ratings/route";
 import { __resetMemoryRatings } from "@/lib/ratingsStore";
 import type { RatingSummary } from "@/lib/ratings";
+import { defined } from "@/__tests__/helpers/defined";
 
 const URL_BASE = "http://localhost/api/ratings";
 
@@ -107,6 +108,27 @@ describe("POST /api/ratings — writes", () => {
     }
     expect(last).toBe(429);
   });
+
+  it("429s one IP minting a fresh handle per vote", async () => {
+    // A new handle is a new per-handle budget, so only the per-IP one bounds
+    // this loop. Its own address keeps the other cases' budget untouched.
+    const statuses: number[] = [];
+    for (let i = 0; i < 45; i++) {
+      const res = await POST(
+        new Request(URL_BASE, {
+          method: "POST",
+          headers: { "x-forwarded-for": "203.0.113.77" },
+          body: JSON.stringify({ kind: "venue", ref: "v-stuffed", handle: freshHandle(), rating: 1 }),
+        }),
+      );
+      statuses.push(res.status);
+    }
+    expect(statuses.slice(0, 40).every((status) => status === 200)).toBe(true);
+    expect(statuses.slice(40).every((status) => status === 429)).toBe(true);
+    const summary = await get("kind=venue&refs=v-stuffed");
+    const body = (await summary.json()) as { summaries: Record<string, RatingSummary> };
+    expect(defined(body.summaries["v-stuffed"]).count).toBe(40);
+  });
 });
 
 describe("GET /api/ratings", () => {
@@ -119,9 +141,9 @@ describe("GET /api/ratings", () => {
     const res = await get("kind=venue&refs=v1,ghost");
     expect(res.status).toBe(200);
     const body = (await res.json()) as { summaries: Record<string, RatingSummary> };
-    expect(body.summaries.v1.count).toBe(1);
-    expect(body.summaries.ghost.count).toBe(0);
-    expect(body.summaries.ghost.average).toBe(null);
+    expect(defined(body.summaries.v1).count).toBe(1);
+    expect(defined(body.summaries.ghost).count).toBe(0);
+    expect(defined(body.summaries.ghost).average).toBe(null);
   });
 
   it("no refs → an empty (but valid) map, never an error", async () => {

@@ -19,7 +19,10 @@ import Link from "next/link";
 import { useMemo, useState } from "react";
 import { CalendarClock, MapPin, MoonStar, Tv, X } from "lucide-react";
 
+import PriceBadge from "@/components/PriceBadge";
+import { formatGbp } from "@/lib/formatGbp";
 import { trackEvent } from "@/lib/analytics";
+import { TONIGHT_LISTINGS_LABEL } from "@/lib/mapChromeTiers";
 import type { WhatsOnKind, WhatsOnRow } from "@/lib/whatsOn";
 import { WhatsOnUrgencyBadge } from "@/components/map/WhatsOnUrgencyBadge";
 import {
@@ -245,7 +248,7 @@ function TonightLaneCollapsed({
             onClick={onOpen}
           >
             <span className="tonightLaneCollapsedTitle">
-              On tonight <span aria-hidden="true">·</span> {rows.length}
+              {TONIGHT_LISTINGS_LABEL} <span aria-hidden="true">·</span> {rows.length}
             </span>
             <span className="tonightLaneCollapsedChecked">{checkedLabel(asOf)}</span>
           </button>
@@ -344,7 +347,7 @@ function TonightLaneOpen({
                 aria-label="Collapse on tonight"
                 onClick={onCollapse}
               >
-                <X size={17} aria-hidden="true" />
+                <X size={16} aria-hidden="true" />
               </button>
             ) : null}
           </div>
@@ -434,7 +437,7 @@ function TonightOverlayDismiss({ onDismiss }: { onDismiss: () => void }) {
       aria-label={TONIGHT_PINS_DISMISS_LABEL}
       onClick={onDismiss}
     >
-      <X size={15} aria-hidden="true" />
+      <X size={16} aria-hidden="true" />
     </button>
   );
 }
@@ -458,7 +461,7 @@ function TonightOverlayToggle({
       aria-pressed={active}
       onClick={onToggle}
     >
-      <MoonStar size={15} aria-hidden="true" />
+      <MoonStar size={16} aria-hidden="true" />
       <span>Pins</span>
       <span className="tonightLaneOverlayCount" aria-hidden="true">
         {count}
@@ -487,16 +490,16 @@ function TonightLaneCardBody({
     <>
       <div className="tonightLaneCardMeta">
         <span className="tonightLaneCardKind">
-          <KindIcon size={12} aria-hidden="true" />
+          <KindIcon size={14} aria-hidden="true" />
           {card.kindLabel}
         </span>
         {typeof card.priceGbp === "number" ? (
-          <span className="tonightLaneCardPrice">£{card.priceGbp.toFixed(2)}</span>
+          <PriceBadge className="tonightLaneCardPrice">{formatGbp(card.priceGbp)}</PriceBadge>
         ) : null}
       </div>
       <p className="tonightLaneCardTitle">{card.title}</p>
       <p className="tonightLaneCardPlace">
-        <MapPin size={12} aria-hidden="true" />
+        <MapPin size={14} aria-hidden="true" />
         <span>{card.placeName}</span>
         {card.walkLabel ? (
           <span className="tonightLaneCardWalk">{card.walkLabel}</span>

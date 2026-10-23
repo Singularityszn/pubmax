@@ -13,6 +13,7 @@ import {
   harvestSourcesOfKind,
   isHarvestableChainMenuUrl,
   isHarvestableOperatorUrl,
+  openDataSourceUrl,
 } from "@/lib/harvest/sourcePolicy";
 import { createHarvestReporter, countDrops, harvestShortfallLines, summariseHarvestRun } from "@/lib/harvest/runReport";
 import {
@@ -24,6 +25,7 @@ import {
   WETHERSPOON_DIRECTORY_SOURCE_ID,
   wetherspoonDirectoryEndpoint,
 } from "../scripts/fetch_wetherspoons_pubs.mjs";
+import { defined } from "@/__tests__/helpers/defined";
 
 describe("every source is a decision with evidence", () => {
   it("gives every source a unique id and an http(s) provenance url", () => {
@@ -102,6 +104,37 @@ describe("every source is a decision with evidence", () => {
     expect(harvestSourcesOfKind("chain-deals").length).toBeGreaterThan(0);
     expect(harvestSourcesOfKind("venue-events").length).toBeGreaterThan(0);
     expect(harvestSource("nope")).toBeUndefined();
+  });
+
+  it("registers the open-data APIs, and hands their builders only their own host", () => {
+    expect(harvestSourcesOfKind("open-data").map((source) => source.id).sort()).toEqual([
+      "fsa-fhrs-api",
+      "historic-england-nhle",
+      "wikidata-query-service",
+    ]);
+    for (const source of harvestSourcesOfKind("open-data")) {
+      // An open-data API states facts about businesses it does not own.
+      expect(source.firstParty, source.id).toBe(false);
+      expect(new URL(source.url).protocol, source.id).toBe("https:");
+      // Each row says the day its terms were read live, or what was not read
+      // live, so the first networked run knows to.
+      expect(source.access.evidence, source.id).toMatch(/NOT read live|Read live on \d{1,2} [A-Z][a-z]{2} \d{4}/);
+    }
+    expect(openDataSourceUrl("fsa-fhrs-api", "/Establishments/1").href).toBe(
+      "https://api.ratings.food.gov.uk/Establishments/1",
+    );
+    expect(openDataSourceUrl("wikidata-query-service", "?format=json&query=ASK%7B%7D").href).toBe(
+      "https://query.wikidata.org/sparql?format=json&query=ASK%7B%7D",
+    );
+    expect(() => openDataSourceUrl("fsa-fhrs-api", "//example.com/x")).toThrow(/is not fsa-fhrs-api/);
+    expect(() => openDataSourceUrl("fsa-fhrs-api", "http://api.ratings.food.gov.uk/x")).toThrow(/is not/);
+    expect(() => openDataSourceUrl("wikidata-query-service", "https://evil.example/sparql")).toThrow(/is not/);
+    expect(openDataSourceUrl("historic-england-nhle", "?f=json").href).toBe(
+      "https://services-eu1.arcgis.com/ZOdPfBS3aqqDYPUQ/ArcGIS/rest/services/National_Heritage_List_for_England_NHLE_v02_VIEW/FeatureServer/0/query?f=json",
+    );
+    expect(() => openDataSourceUrl("nope", "/")).toThrow(/no open-data source/);
+    // Only an open-data row hands out a URL, however permitted another row is.
+    expect(() => openDataSourceUrl("wetherspoon-food-drink", "/")).toThrow(/no open-data source/);
   });
 
   it("keeps Context.dev on FIRST-PARTY venue-events pages only", () => {
@@ -227,7 +260,7 @@ describe("the run report separates empty, skipped and failed", () => {
   });
 
   it("orders drop counts by how many there were", () => {
-    expect(report.sources[0].drops).toEqual([
+    expect(defined(report.sources[0]).drops).toEqual([
       { reason: "no-stated-window", count: 2 },
       { reason: "no-stated-day", count: 1 },
     ]);

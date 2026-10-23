@@ -3,6 +3,9 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
 
 vi.mock("@/components/nav/SiteNav", () => ({ default: () => null }));
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({ prefetch: () => {} }),
+}));
 
 import TodayClient from "@/app/today/TodayClient";
 import TodayGetThereStrip from "@/app/today/TodayGetThereStrip";

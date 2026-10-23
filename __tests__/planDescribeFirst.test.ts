@@ -4,6 +4,12 @@ import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 
 import { DESCRIBE_FIRST_CHIPS } from "@/components/plan/PlanDescribeFirst";
+import {
+  PLAN_FIELD_LABEL,
+  PLAN_HEADING,
+  PLAN_STEP_BY_STEP_LABEL,
+  PLAN_SUBMIT_LABEL,
+} from "@/lib/planCopy";
 
 // Chips are promises of a priced three-stop route. Shipping an example that
 // 422s is a lie. Occasion-field honesty for each label is pinned beside
@@ -52,9 +58,16 @@ describe("PlanDescribeFirst occasion chips", () => {
       expect(chip).not.toMatch(/\u2014|\u2013/);
       expect(chip).not.toMatch(/!/);
     }
-    expect(source).toContain("Describe the outing");
-    expect(source).toContain("Sort it");
-    expect(source).toContain("Describe the outing. We&rsquo;ll put it in order.");
+    // The words live in lib/planCopy.ts so the map's planner says the same.
+    expect(source).toContain("{PLAN_FIELD_LABEL}");
+    expect(source).toContain("{PLAN_SUBMIT_LABEL}");
+    expect(source).toContain("title={PLAN_HEADING}");
+    expect(PLAN_HEADING).toBe("Plan a pub crawl");
+    expect(PLAN_FIELD_LABEL).toBe("Where, how many, what budget");
+    expect(PLAN_SUBMIT_LABEL).toBe("Plan it");
+    for (const line of [PLAN_HEADING, PLAN_FIELD_LABEL, PLAN_SUBMIT_LABEL, PLAN_STEP_BY_STEP_LABEL]) {
+      expect(line).not.toMatch(/\u2014|\u2013|!/);
+    }
   });
 
   it("keeps the arrival action useful before the visitor types", () => {
@@ -63,11 +76,12 @@ describe("PlanDescribeFirst occasion chips", () => {
       "utf8",
     );
 
-    // Never disabled: with nothing typed, the one primary action puts the
-    // caret in the field, and the wizard stays one quiet link away.
+    // Never disabled: with nothing typed, the one primary action says what to
+    // type and puts the caret in the field (behaviour pinned in
+    // planSortAndLockHints.test.tsx), and the wizard stays one quiet link away.
     expect(source).not.toContain("disabled={!query.trim()}");
-    expect(source).toContain("query.trim() ? submit() : queryInput.current?.focus()");
     expect(source).toContain('secondary={');
-    expect(source).toContain("Guide me instead");
+    expect(source).toContain("{PLAN_STEP_BY_STEP_LABEL}");
+    expect(PLAN_STEP_BY_STEP_LABEL).toBe("Step by step");
   });
 });

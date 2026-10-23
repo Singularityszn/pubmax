@@ -4,7 +4,11 @@ import path from "node:path";
 import type * as maplibregl from "maplibre-gl";
 import { describe, expect, it } from "vitest";
 
-import { buildUkBase, type SceneCtx } from "@/components/map/canvas/buildScene";
+import {
+  buildLondonRestaurants,
+  buildUkBase,
+  type SceneCtx,
+} from "@/components/map/canvas/buildScene";
 import { OSM_ATTRIBUTION, type Tokens } from "@/components/map/canvas/tokens";
 
 // ODbL attribution for OUR pub data (F8). A large share of the venues we draw
@@ -40,7 +44,7 @@ describe("OpenStreetMap attribution", () => {
     );
   });
 
-  it("also credits the wholly-OSM UK base source on the source itself", () => {
+  it("also credits the wholly-OSM UK base and London restaurant sources on the source itself", () => {
     const sources = new Map<string, Record<string, unknown>>();
     const map = {
       getSource: (id: string) => sources.get(id),
@@ -50,7 +54,7 @@ describe("OpenStreetMap attribution", () => {
       setLayoutProperty: () => {},
     } as unknown as maplibregl.Map;
 
-    buildUkBase({
+    const ctx = {
       map,
       tokens: new Proxy({}, { get: () => "#000000" }) as unknown as Tokens,
       dark: false,
@@ -71,10 +75,15 @@ describe("OpenStreetMap attribution", () => {
       ukBaseData: { type: "FeatureCollection", features: [] },
       tonightData: { type: "FeatureCollection", features: [] },
       tonightVisible: false,
+      coffeePilotData: { type: "FeatureCollection", features: [] },
+      londonRestaurantData: { type: "FeatureCollection", features: [] },
       selectedId: "",
       selectionMuteStore: new Map<string, unknown>(),
-    } satisfies SceneCtx);
+    } satisfies SceneCtx;
+    buildUkBase(ctx);
+    buildLondonRestaurants(ctx);
 
     expect(sources.get("uk-base")?.attribution).toBe(OSM_ATTRIBUTION);
+    expect(sources.get("london-restaurants")?.attribution).toBe(OSM_ATTRIBUTION);
   });
 });

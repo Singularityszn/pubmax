@@ -25,7 +25,7 @@
  * of makes `startPostgres` throw, so a green run means the proofs really ran.
  */
 import { execFile, execFileSync, spawn } from "node:child_process";
-import { mkdtempSync, writeFileSync } from "node:fs";
+import { mkdtempSync, readdirSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { setTimeout as sleep } from "node:timers/promises";
@@ -144,7 +144,7 @@ export async function startPostgres(
     // socket path over 103 bytes, so the label is trimmed here rather than
     // spelled out: it names the slot and every error message instead.
     dataDir = mkdtempSync(join(tmpdir(), `pubmax-pg-${label.slice(0, 12)}-`));
-    const port = await pickPort();
+    let port = await pickPort();
     execFileSync(
       initdb,
       [
@@ -164,8 +164,9 @@ export async function startPostgres(
       ],
       { stdio: "pipe" },
     );
-    writeFileSync(
-      join(dataDir, "postgresql.auto.conf"),
+    const configPath = join(dataDir, "postgresql.auto.conf");
+    const writeConfig = (): void => writeFileSync(
+      configPath,
       [
         "listen_addresses = '127.0.0.1'",
         `port = ${port}`,
@@ -180,37 +181,61 @@ export async function startPostgres(
       ].join("\n") + "\n",
     );
 
-    const server = spawn(
-      postgres,
-      ["-D", dataDir, "-k", dataDir, "-p", String(port), "-h", "127.0.0.1"],
-      { stdio: ["ignore", "pipe", "pipe"], env: { ...process.env, LC_ALL: "C" } },
-    );
-    let log = "";
-    const keep = (chunk: Buffer | string): void => {
-      log = (log + String(chunk)).slice(-8_000);
-    };
-    server.stdout?.on("data", keep);
-    server.stderr?.on("data", keep);
+    // pickPort hands back a port the kernel had free a moment ago, and another
+    // worker's cluster can take it before this postmaster binds. A postmaster
+    // that lost that race exits naming the address, so it boots again on a
+    // fresh port; any other early exit is a real failure.
+    let ready = false;
+    for (let boot = 0; !ready; boot += 1) {
+      writeConfig();
+      const server = spawn(
+        postgres,
+        ["-D", dataDir, "-k", dataDir, "-p", String(port), "-h", "127.0.0.1"],
+        { stdio: ["ignore", "pipe", "pipe"], env: { ...process.env, LC_ALL: "C" } },
+      );
+      let log = "";
+      const keep = (chunk: Buffer | string): void => {
+        log = (log + String(chunk)).slice(-8_000);
+      };
+      server.stdout?.on("data", keep);
+      server.stderr?.on("data", keep);
+      // The exit code can land before the pipes hand over their last lines;
+      // "close" waits for both, so the log is whole before it is read.
+      const closed = new Promise<void>((resolve) => server.once("close", () => resolve()));
+
+      // The probe asks this cluster's own socket, so a port another cluster
+      // holds can never answer for it.
+      const probeArgs = ["-h", dataDir, "-p", String(port), "-U", "postgres"];
+      let lostPort = false;
+      for (let attempt = 0; attempt < 300; attempt += 1) {
+        if (server.exitCode !== null) {
+          await Promise.race([closed, sleep(2_000)]);
+          if (boot < 4 && /Address already in use/.test(log)) {
+            lostPort = true;
+            break;
+          }
+          throw new Error(
+            `PostgreSQL exited with code ${server.exitCode} before accepting connections.\n${log.trim()}`,
+          );
+        }
+        try {
+          execFileSync(psql, [...probeArgs, "-d", "postgres", "-c", "select 1"], {
+            stdio: "pipe",
+          });
+          ready = true;
+          break;
+        } catch {
+          await sleep(100);
+        }
+      }
+      if (lostPort) {
+        port = await pickPort();
+        continue;
+      }
+      if (!ready) throw new Error(`PostgreSQL failed to start:\n${log.trim()}`);
+    }
 
     const connectionArgs = ["-h", "127.0.0.1", "-p", String(port), "-U", "postgres"];
-    let ready = false;
-    for (let attempt = 0; attempt < 300; attempt += 1) {
-      if (server.exitCode !== null) {
-        throw new Error(
-          `PostgreSQL exited with code ${server.exitCode} before accepting connections.\n${log.trim()}`,
-        );
-      }
-      try {
-        execFileSync(psql, [...connectionArgs, "-d", "postgres", "-c", "select 1"], {
-          stdio: "pipe",
-        });
-        ready = true;
-        break;
-      } catch {
-        await sleep(100);
-      }
-    }
-    if (!ready) throw new Error(`PostgreSQL failed to start:\n${log.trim()}`);
 
     registerHarnessCluster(dataDir);
 
@@ -330,4 +355,61 @@ export async function startPostgres(
     releaseSlotHold();
     throw error;
   }
+}
+
+/* ------------------------------------------------------------------ */
+/* The migrated cluster                                                */
+/* ------------------------------------------------------------------ */
+
+const SESSION_FIXTURE = join(process.cwd(), "scripts/rls/session-fixture.sql");
+const MIGRATIONS = join(process.cwd(), "supabase/migrations");
+
+/**
+ * A cluster holding the Supabase stand-in (`scripts/rls/session-fixture.sql`)
+ * and EVERY forward migration in production order, so a proof reads the
+ * function bodies, grants and policies production holds today rather than a
+ * hand-built shape.
+ */
+export async function startMigratedPostgres(
+  options: StartPostgresOptions = {},
+): Promise<PostgresSession> {
+  const session = await startPostgres(options);
+  try {
+    session.applyFile(SESSION_FIXTURE);
+    for (const name of readdirSync(MIGRATIONS)
+      .filter((candidate) => candidate.endsWith(".sql"))
+      .sort()) {
+      session.applyFile(join(MIGRATIONS, name));
+    }
+    return session;
+  } catch (error) {
+    await session.stop();
+    throw error;
+  }
+}
+
+/**
+ * One statement as `service_role`, the role the app's server client holds.
+ * A proof's successful calls go through this rather than the harness
+ * superuser, so a lost `service_role` grant fails the proof instead of
+ * passing under a role production never uses.
+ */
+export function asServiceRole(statement: string): string {
+  return `set role service_role; ${statement}`;
+}
+
+export type BrowserRole = "anon" | "authenticated";
+
+/**
+ * One statement as a browser role, the way PostgREST runs a call: the JWT
+ * subject in `request.jwt.claim.sub` (null for anon) and the role switched
+ * before the statement. Hand the result to `attempt` or `expectRefusal`.
+ */
+export function asBrowserRole(
+  role: BrowserRole,
+  sub: string | null,
+  statement: string,
+): string {
+  const claim = (sub ?? "").replaceAll("'", "''");
+  return `set request.jwt.claim.sub = '${claim}'; set role ${role}; ${statement}`;
 }

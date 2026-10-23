@@ -1,0 +1,38 @@
+[
+  {
+    "query": "One serving under£10 in Soho",
+    "status": 422,
+    "code": "MEAL_CONSTRAINTS_UNSUPPORTED",
+    "pass": true
+  },
+  {
+    "query": "£10 for one serving in Soho",
+    "status": 422,
+    "code": "MEAL_CONSTRAINTS_UNSUPPORTED",
+    "pass": true
+  },
+  {
+    "query": "Two servings under£10 in Soho",
+    "status": 422,
+    "code": "MEAL_CONSTRAINTS_UNSUPPORTED",
+    "pass": true
+  },
+  {
+    "query": "£10 for two servings in Soho",
+    "status": 422,
+    "code": "MEAL_CONSTRAINTS_UNSUPPORTED",
+    "pass": true
+  },
+  {
+    "query": "3 pubs in Clapham, £10 pint and a serving",
+    "status": 422,
+    "code": "MEAL_CONSTRAINTS_UNSUPPORTED",
+    "pass": true
+  },
+  {
+    "query": "3 pubs in Clapham, £5 pint at pub serving pizza",
+    "status": 200,
+    "code": null,
+    "pass": true
+  }
+]

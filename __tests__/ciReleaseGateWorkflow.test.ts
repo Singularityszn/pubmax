@@ -5,6 +5,8 @@ import { describe, expect, it } from "vitest";
 import { parse } from "yaml";
 
 import { PERF_AB_JOB_WALL_MS } from "@/lib/performanceAbEvidence";
+import { ciJobs, jobStep, unitShards } from "@/__tests__/helpers/ciWorkflow";
+import { defined } from "@/__tests__/helpers/defined";
 
 const HEAP = "--max-old-space-size=6144";
 
@@ -36,7 +38,7 @@ function parseSteps(yaml: string): WorkflowStep[] {
 
     const jobHeader = /^ {2}([A-Za-z0-9_-]+):$/.exec(line);
     if (jobHeader) {
-      job = jobHeader[1];
+      job = defined(jobHeader[1]);
       step = null;
       inEnv = false;
       continue;
@@ -51,14 +53,14 @@ function parseSteps(yaml: string): WorkflowStep[] {
     const entry = /^\s*(?:- )?([A-Za-z0-9_-]+):\s?(.*)$/.exec(line);
     if (!entry) continue;
     const [, key, value] = entry;
-    if (inEnv && !["name", "run", "uses", "with", "if", "env", "id"].includes(key)) {
-      step.env[key] = value.replace(/^"|"$/g, "");
+    if (inEnv && !["name", "run", "uses", "with", "if", "env", "id"].includes(defined(key))) {
+      step.env[defined(key)] = defined(value).replace(/^"|"$/g, "");
       continue;
     }
     inEnv = key === "env";
-    if (key === "name") step.name = value;
+    if (key === "name") step.name = defined(value);
     if (key === "run") {
-      step.run = value === ">-" || value === "|" ? "" : value;
+      step.run = value === ">-" || value === "|" ? "" : defined(value);
       if (value === ">-" || value === "|") block = { key: "run", indent };
     }
   }
@@ -97,7 +99,7 @@ function parseJobWalls(yaml: string): Record<string, number> {
   for (const line of yaml.split("\n")) {
     const jobHeader = /^ {2}([A-Za-z0-9_-]+):$/.exec(line);
     if (jobHeader) {
-      job = jobHeader[1];
+      job = defined(jobHeader[1]);
       continue;
     }
     const wall = /^ {4}timeout-minutes: (\d+)$/.exec(line);
@@ -136,9 +138,9 @@ describe("clean-main CI release gate", () => {
     // them: it builds the merge base in a worktree.
     const needsHeap = steps.filter(
       (step) =>
-        /npm run build|next build|npx tsc --noEmit|playwright test|scripts\/perf-ab\.mjs/.test(
+        /npm run build(?!:)|next build|npm run typecheck|node_modules\/typescript\/bin\/tsc|playwright test|scripts\/perf-ab\.mjs/.test(
           step.run,
-        ) && !/npm run build:slim/.test(step.run),
+        ),
     );
 
     expect(needsHeap.length).toBeGreaterThan(0);
@@ -147,6 +149,7 @@ describe("clean-main CI release gate", () => {
     }
     expect(needsHeap.map((step) => step.name)).toContain("Tell a red route apart from a slow box");
     expect(needsHeap.map((step) => step.name)).toContain("Typecheck");
+    expect(needsHeap.map((step) => step.name)).toContain("Typecheck (TypeScript 6)");
   });
 
   it("holds the A/B's mirrored wall to the Performance budget job's own timeout", () => {
@@ -154,7 +157,7 @@ describe("clean-main CI release gate", () => {
     // runs. Three numbers that must move together are held together here rather
     // than by a comment asking the next person to remember: the job's timeout,
     // the figure handed to the script, and the module's own mirror.
-    const wallMinutes = parseJobWalls(performanceWorkflow)["performance-budget"];
+    const wallMinutes = defined(parseJobWalls(performanceWorkflow)["performance-budget"]);
     expect(wallMinutes).toBe(PERF_AB_JOB_WALL_MS / 60_000);
 
     const abStep = steps.find((step) => step.name === "Tell a red route apart from a slow box");
@@ -163,8 +166,8 @@ describe("clean-main CI release gate", () => {
 
   it("records the job's start before anything can spend the wall", () => {
     const [first] = steps.filter((step) => step.job === "performance-budget");
-    expect(first.run).toContain("PUBMAX_PERF_AB_JOB_STARTED_MS");
-    expect(first.run).toContain("GITHUB_ENV");
+    expect(defined(first).run).toContain("PUBMAX_PERF_AB_JOB_STARTED_MS");
+    expect(defined(first).run).toContain("GITHUB_ENV");
   });
 
   it("does not let the freshness calendar skip the build, unit shards or coverage", () => {
@@ -173,23 +176,62 @@ describe("clean-main CI release gate", () => {
       expect(jobAncestors(job, needs).has("freshness"), job).toBe(false);
     }
     expect(needs["production-build"]).toEqual(["lint-and-types"]);
-    expect(needs["unit-tests"]).toEqual(["production-build"]);
     expect(needs.coverage).toEqual(["unit-tests"]);
     expect(needs.freshness).toEqual([]);
+    expect(needs["validate-data"]).toEqual([]);
   });
 
-  it("gates coverage and freshness independently", () => {
-    expect(workflow).toMatch(/coverage:[\s\S]*name: Coverage[\s\S]*run: >-[\s\S]*npm run coverage/);
-    // The clusterless jobs exclude exactly the closed list in
-    // scripts/rls/postgresSuites.mjs, never a `*Migration*` glob: that glob
-    // both dropped source-text migration tests nobody needed to skip AND let
-    // three new `*MigrationEffective` proofs run in a job with no PostgreSQL,
-    // where they printed a skip banner and left the job green.
-    // __tests__/postgresSuiteInventory.test.ts holds the two lists together.
-    expect(workflow).toMatch(
-      /coverage:[\s\S]*PUBMAX_RLS_NO_PG: "1"[\s\S]*--exclude '__tests__\/permissionMatrixEffective\.test\.ts'/,
+  it("validates every bundled dataset in its own job", () => {
+    const validation = steps.filter((step) => step.job === "validate-data");
+    const runs = validation.map((step) => step.run);
+    const validate = validation.find((step) => step.run === "npm run validate-data");
+    expect(validate?.env.PUBMAX_VERIFY_COMMITTED_DATA).toBe("1");
+    expect(runs.indexOf("npm run build:venue-details")).toBeGreaterThan(-1);
+    expect(runs.indexOf("npm run build:venue-details")).toBeLessThan(
+      runs.indexOf("npm run validate-data"),
     );
-    expect(workflow).not.toMatch(/--exclude '__tests__\/\*\*\/\*Migration\.test\.ts'/);
+    const { jobs } = parse(workflow) as { jobs: Record<string, { name?: string }> };
+    expect(jobs["validate-data"]?.name).toBe("Data validation");
+  });
+
+  it("starts the unit shards at once and in parallel", () => {
+    // The shards build their own slim data and read nothing lint or the
+    // production build make, so waiting on them only lengthens the path.
+    expect(parseJobNeeds(workflow)["unit-tests"]).toEqual([]);
+    expect(ciJobs()["unit-tests"]?.strategy?.["max-parallel"]).toBeUndefined();
+  });
+
+  it("gates coverage on the merged shards and freshness independently", () => {
+    // Each shard collects coverage for its half and writes a blob. A half
+    // cannot meet the whole-suite thresholds, so a shard turns them off and
+    // the Coverage job enforces them over the merged blobs. The suite runs
+    // once per CI run, not once in the shards and again for coverage.
+    const shards = unitShards();
+    expect(shards.map(({ shard }) => shard)).toEqual([1, 2]);
+    for (const { shard, total, words, env } of shards) {
+      expect(words.slice(0, 4), `shard ${shard}`).toEqual(["npm", "run", "coverage", "--"]);
+      expect(words.slice(4), `shard ${shard}`).toEqual(
+        expect.arrayContaining([
+          `--shard=${shard}/${total}`,
+          "--coverage.thresholds.statements=0",
+          "--coverage.thresholds.branches=0",
+          "--coverage.thresholds.functions=0",
+          "--coverage.thresholds.lines=0",
+          "--reporter=blob",
+          `--outputFile.blob=blob-reports/blob-${shard}.json`,
+        ]),
+      );
+      expect(env.PUBMAX_RLS_NO_PG, `shard ${shard}`).toBe("1");
+    }
+
+    // The Coverage name is the required check branch protection reads.
+    const coverage = defined(ciJobs().coverage, "coverage job");
+    expect(coverage.name).toBe("Coverage");
+    expect(jobStep(coverage, "Download coverage blobs").with?.path).toBe("blob-reports");
+    const merge = defined(jobStep(coverage, "Enforce coverage").run, "merge run").trim().split(/\s+/);
+    expect(merge).toEqual(["npx", "vitest", "--merge-reports=blob-reports", "--coverage"]);
+    const coverageWords = (coverage.steps ?? []).flatMap((step) => step.run?.trim().split(/\s+/) ?? []);
+    expect(coverageWords.filter((word) => word.startsWith("--coverage.thresholds"))).toEqual([]);
     expect(workflow).toMatch(
       /freshness:[\s\S]*name: Freshness release gate[\s\S]*npm run check:freshness -- --artifacts-only[\s\S]*node scripts\/check-production-store-freshness\.mjs/,
     );

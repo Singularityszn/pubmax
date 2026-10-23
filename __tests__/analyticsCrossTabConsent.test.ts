@@ -12,6 +12,7 @@ vi.mock("posthog-js", () => {
   posthogState.moduleLoads += 1;
   return {
     default: {
+      get_distinct_id: () => "anon_0123456789abcdef",
       init: () => { posthogState.initCount += 1; },
       opt_in_capturing: () => { posthogState.optedIn = true; },
       opt_out_capturing: () => { posthogState.optedIn = false; },

@@ -65,14 +65,14 @@ export default function ClerkAccountControls({
         </div>
         <p className="clerkAccountNote">
           A Clerk session is separate. It does not create or replace your
-          PUBMAXX User ID or PUBMAXX Handle.
+          PUBMAXX User ID or PUBMAXX handle.
         </p>
       </Show>
       <Show when="signed-in">
         <div className="clerkAccountActions clerkAccountSignedIn">
           <UserButton />
           <span className="clerkAccountNote clerkAccountNoteInline">
-            Clerk session active. Your PUBMAXX User ID and PUBMAXX Handle stay
+            Clerk session active. Your PUBMAXX User ID and PUBMAXX handle stay
             separate.
           </span>
         </div>

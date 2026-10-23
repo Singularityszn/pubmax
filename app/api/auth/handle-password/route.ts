@@ -13,6 +13,7 @@ import {
   HANDLE_PASSWORD_GENERIC_ERROR,
   MIN_PASSWORD_LENGTH,
 } from "@/lib/passwordPolicy";
+import { normalizeHandle } from "@/lib/handleNormalize";
 import { isLimited } from "@/lib/pintDrops";
 import { assertServerEnv } from "@/lib/serverEnv";
 import { isCrossSiteRequest } from "@/lib/crossSiteRequest";
@@ -27,6 +28,14 @@ assertServerEnv();
 
 const RATE_LIMIT = 12;
 const RATE_WINDOW_MS = 15 * 60 * 1000;
+
+// Handles are public and the password grant leaves from our own servers, so
+// GoTrue's per-IP protection only ever sees our egress address. A spray across
+// many IPs at one handle is bounded here instead: every attempt at a handle
+// counts, whether or not the handle resolves, so the 429 says nothing about
+// which handles exist.
+const HANDLE_RATE_LIMIT = 20;
+const HANDLE_RATE_WINDOW_MS = 60 * 60 * 1000;
 
 function setResumeCookie(refreshToken: string, email: string | null): Headers {
   const headers = new Headers();
@@ -82,6 +91,17 @@ export async function POST(request: Request): Promise<Response> {
     return publicApiError(HANDLE_PASSWORD_GENERIC_ERROR, "INVALID_CREDENTIALS", 401);
   }
 
+  const handleKey = `auth-handle-password:handle:${normalizeHandle(handle)}`;
+  if (
+    await isLimited(handleKey, handleKey, HANDLE_RATE_LIMIT, HANDLE_RATE_WINDOW_MS, {
+      failClosed: true,
+    })
+  ) {
+    return publicApiError("Too many sign-in attempts. Try again shortly.", "RATE_LIMITED", 429, {
+      retryable: true,
+    });
+  }
+
   let email: string | null;
   try {
     email = await resolveAuthEmailForHandle(handle);
@@ -98,7 +118,7 @@ export async function POST(request: Request): Promise<Response> {
   const session = await signInWithEmailPassword(email, password);
   // GoTrue names a ban before it checks the password, so a ban is not proof
   // the password was right. Say the same thing we say for a wrong password.
-  if (session === "banned" || !session) {
+  if (session === "banned" || session === "invalid" || !session) {
     return publicApiError(HANDLE_PASSWORD_GENERIC_ERROR, "INVALID_CREDENTIALS", 401);
   }
 

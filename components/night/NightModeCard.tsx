@@ -54,6 +54,7 @@ import {
 } from "@/lib/analyticsEvents";
 import { authedActionFetch } from "@/lib/authedFetch";
 import { errorMessageFrom } from "@/lib/apiErrorMessage";
+import { venueMapUrl } from "@/lib/venueMapUrl";
 import { discardBody } from "@/lib/responseBody";
 import type { PlanGetInReportDTO, PlanGetInStopDTO } from "@/lib/planGetIn";
 import { isPlanPreviewProjection } from "@/lib/planPrivacy";
@@ -121,6 +122,8 @@ import {
   type VenueCoord,
 } from "@/components/night/nightModeSheetModel";
 import "./nightMode.css";
+import PalCheer from "@/components/pal/PalCheer";
+import { announcePalMoment } from "@/lib/palMoments";
 
 const SWIPE_DISMISS_PX = 72;
 
@@ -437,7 +440,7 @@ function NightModePill({
       autoFocus={restoreFocus}
       aria-label="Show tonight's plan"
     >
-      <MapPin size={15} aria-hidden="true" />
+      <MapPin size={16} aria-hidden="true" />
       Tonight
     </button>
   );
@@ -615,8 +618,13 @@ function NightModeSheet({
           setRecap(chosen);
           return;
         }
+        // The completion is member-only (§4.10), so the read carries the
+        // same capability the ending POST does.
+        const memberToken = readMemberToken(id);
+        if (!memberToken) return;
         const response = await fetch(`/api/plans/${id}/complete`, {
           cache: "no-store",
+          headers: { authorization: `Bearer ${memberToken}` },
           signal: controller.signal,
         });
         const body = response.ok
@@ -780,7 +788,7 @@ function NightModeSheet({
         }
         if (expectedRouteRevision === null) {
           setEndingError(
-            "This route has no active revision. Nothing was completed; refresh the plan and try again.",
+            "We could not read the current version of this route, so nothing was saved. Refresh the plan and try again.",
           );
           return;
         }
@@ -803,7 +811,7 @@ function NightModeSheet({
         if (!response.ok) {
           throw new Error(
             response.status === 409 || response.status === 412
-              ? "This route changed before the ending was saved. Nothing was completed; refresh the plan and try again."
+              ? "This route changed before we saved the ending. Refresh the plan and try again."
               : errorMessageFrom(body, "Could not save that ending."),
           );
         }
@@ -821,10 +829,12 @@ function NightModeSheet({
           (!canonical.ending && canonical.plan.status !== "completed")
         ) {
           throw new Error(
-            "The ending response was not canonical. Nothing was marked complete in this view.",
+            "We could not confirm the saved ending.",
           );
         }
         setPlan(canonical);
+        // The night really ended: every Pal on screen cheers (lib/palMoments.ts).
+        announcePalMoment({ kind: "night-finished", stops: canonical.stops.length });
         // The ending really saved, so the food half of the shortlist ratio is
         // countable. It rides the SAVED selection rather than the tap, because
         // a refused save leaves the night exactly where it was. Only the hours
@@ -1024,6 +1034,7 @@ function NightModeSheet({
         />
         {recap ? (
           <div className="nightCard__recapInvite">
+            <PalCheer moment="night-finished" stops={stops.length} />
             <p className="nightCard__recapLede">
               That&rsquo;s the night. Keep it as a private Memory. The
               route and any words you add, nothing posted.
@@ -1057,7 +1068,7 @@ function NightModeSheet({
                   setRecapOpen(false);
                 }}
               >
-                <Trash2 size={15} aria-hidden="true" /> Discard local
+                <Trash2 size={16} aria-hidden="true" /> Discard local
                 recap
               </button>
               {/* The crafted morning-after recap page — the full memory, laid out. */}
@@ -1192,7 +1203,7 @@ function NightModeSheet({
           onClick={onCollapse}
           aria-label="Hide tonight's plan"
         >
-          <X size={18} aria-hidden="true" />
+          <X size={20} aria-hidden="true" />
         </button>
       </div>
 
@@ -1204,7 +1215,7 @@ function NightModeSheet({
             <NightStopSignal signal={currentSignal} />
           </div>
           <Link
-            href={`/map?venue=${encodeURIComponent(currentStop.venueId)}`}
+            href={venueMapUrl(currentStop.venueId)}
             className="nightCard__logBtn"
           >
             <PlusCircle size={16} aria-hidden="true" />
@@ -1250,12 +1261,12 @@ function NightModeSheet({
           <strong className="nightCard__nextName">{nextStop.venueName}</strong>
           {nextStopWalkMinutes !== null ? (
             <span className="nightCard__nextWalk">
-              <Footprints size={18} aria-hidden="true" />
+              <Footprints size={16} aria-hidden="true" />
               {nextStopWalkDescription(nextStopWalkMinutes)}
             </span>
           ) : null}
           <span className="nightCard__nextAction">
-            Here now <ChevronRight size={18} aria-hidden="true" />
+            Here now <ChevronRight size={16} aria-hidden="true" />
           </span>
         </button>
       ) : currentStop ? (
@@ -1274,7 +1285,7 @@ function NightModeSheet({
             onClick={() => setKeepAwake((value) => !value)}
           >
             <span className="nightCard__awakeLabel">
-              <MonitorSmartphone size={15} aria-hidden="true" />
+              <MonitorSmartphone size={16} aria-hidden="true" />
               Keep screen awake
             </span>
             <span
@@ -1370,9 +1381,9 @@ function FoodEndingPicker({
               }}
               onClick={() => onChoose(terminal)}
               disabled={saving}
-              aria-label={`Choose food ending with ${terminal.name}`}
+              aria-label={`Confirm food ending with ${terminal.name}`}
             >
-              <span>{terminal.name}</span>
+              <span>Confirm food ending with {terminal.name}</span>
               <small>
                 {terminal.walkingDetour.minutes === null
                   ? "distance pending"
@@ -1451,7 +1462,7 @@ function GetHomeEndingConfirmation({
         disabled={saving}
         onClick={onConfirm}
       >
-        That&apos;s my way home
+        Confirm Get home ending
       </button>
       <a
         className="nightCard__endingLink"
@@ -1498,8 +1509,9 @@ export function KeepGoingPicker({
               className="nightCard__endingLink"
               disabled={saving}
               onClick={() => onChoose(extension)}
+              aria-label={`Confirm Keep going to ${extension.name}`}
             >
-              <span>{extension.name}</span>
+              <span>Confirm Keep going to {extension.name}</span>
               <small>
                 {keepGoingDistanceDescription(extension.distanceKm)} ·{" "}
                 {!usesPintPrices
@@ -1662,12 +1674,12 @@ function NightEndingResult({
         <p>
           {keepGoingExtension
             ? `${keepGoingExtension.name} is your next stop from ${currentStop.venueName}.`
-            : `Open the map around ${currentStop.venueName} and pick somewhere genuinely close.`}{" "}
+            : `Open the map around ${currentStop.venueName} and pick somewhere close.`}{" "}
           We won&apos;t push you to drink more. This is just what&apos;s nearby.
         </p>
         <Link
           className="nightCard__endingLink"
-          href={`/map?venue=${encodeURIComponent(keepGoingExtension?.id ?? currentStop.venueId)}`}
+          href={venueMapUrl(keepGoingExtension?.id ?? currentStop.venueId)}
         >
           {keepGoingExtension
             ? `Open ${keepGoingExtension.name} on the map`
@@ -1734,7 +1746,7 @@ function LastTrainLine({
   const urgent = minsLeft <= 20;
   return (
     <div className="nightCard__train" data-urgent={urgent ? "" : undefined}>
-      <TrainFront size={15} aria-hidden="true" />
+      <TrainFront size={16} aria-hidden="true" />
       <span>
         {minsLeft > 0 ? (
           <>

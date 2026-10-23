@@ -31,8 +31,10 @@ function toSlimKind(value: unknown): VenueKind | undefined {
   return isVenueKind(value) ? value : "other";
 }
 
-/** Load the slim index and roll it up into the per-zone pint index. */
-export async function loadZonePintIndex(): Promise<ZonePintIndex> {
+let cached: ZonePintIndex | null = null;
+let pending: Promise<ZonePintIndex | null> | null = null;
+
+async function load(): Promise<ZonePintIndex | null> {
   try {
     const file = path.join(process.cwd(), "public", "data", "venues_slim.json");
     const payload = JSON.parse(await readFile(file, "utf8")) as unknown;
@@ -41,16 +43,31 @@ export async function loadZonePintIndex(): Promise<ZonePintIndex> {
       : payload && typeof payload === "object" && Array.isArray((payload as { rows?: unknown }).rows)
         ? (payload as { rows: SlimRow[] }).rows
         : [];
-    return computeZonePintIndex(
+    cached = computeZonePintIndex(
       list.map((row) => ({
         zone: toFinite(row.zone),
         cheapestPrice: toFinite(row.cheapestPrice),
         kind: toSlimKind(row.kind),
       })),
     );
+    return cached;
   } catch {
-    // No slim index (fresh checkout before build) → an all-thin index that the
-    // strip renders honestly as "not enough pints logged yet".
-    return computeZonePintIndex([]);
+    // Deliberately NOT cached: a read we could not run says nothing about the
+    // index, and freezing it would turn one bad moment into a permanent one.
+    return null;
+  } finally {
+    pending = null;
   }
+}
+
+/**
+ * The slim index rolled up into the per-zone pint index, read once per server
+ * process because the file only changes on deploy. Null when the file could not
+ * be read, so a caller that holds another source can fall back to it rather
+ * than print every zone as thin.
+ */
+export async function loadZonePintIndex(): Promise<ZonePintIndex | null> {
+  if (cached) return cached;
+  pending ??= load();
+  return pending;
 }

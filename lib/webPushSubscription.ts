@@ -23,6 +23,18 @@ const SUPPORTED_WEB_PUSH_SERVICES = [
   { host: "web.push.apple.com", pathPrefixes: ["/"] },
 ] as const;
 
+/** Microsoft Edge subscribes through Windows Push Notification Services, whose
+ * regional hosts vary (wns2-par02p.notify.windows.com, db5p.notify.windows.com).
+ * Only one Microsoft-owned label under notify.windows.com is admitted, and the
+ * subscription lives in the `token` query of the fixed `/w/` path. */
+const WNS_WEB_PUSH_HOST = /^[a-z0-9]+(?:-[a-z0-9]+)*\.notify\.windows\.com$/;
+
+function isWnsWebPushEndpoint(hostname: string, endpoint: URL): boolean {
+  return WNS_WEB_PUSH_HOST.test(hostname)
+    && endpoint.pathname === "/w/"
+    && Boolean(endpoint.searchParams.get("token"));
+}
+
 function isIpLiteral(hostname: string): boolean {
   if (hostname.startsWith("[") && hostname.endsWith("]")) return true;
   const parts = hostname.split(".");
@@ -50,6 +62,7 @@ export function isSupportedWebPushEndpoint(value: unknown): boolean {
     || hostname === "localhost"
     || isIpLiteral(hostname)
   ) return false;
+  if (isWnsWebPushEndpoint(hostname, endpoint)) return true;
   const service = SUPPORTED_WEB_PUSH_SERVICES.find((candidate) => candidate.host === hostname);
   if (!service) return false;
   return service.pathPrefixes.some((prefix) =>

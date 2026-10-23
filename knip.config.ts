@@ -59,6 +59,8 @@ const config: KnipConfig = {
     "scripts/record_concierge_intent_probabilities.ts",
     // Standalone disposable Plan browser proof; traces its database helper too.
     "scripts/e2e/run-disposable-plan-browser.mjs",
+    // Forked by e2e/web-first-run-journey.spec.ts for real fixture-clock HTTP.
+    "scripts/e2e/canonical-price-server.ts",
   ],
   ignore: [
     ...AGENT_TOOLING_PATHS,
@@ -88,7 +90,7 @@ const config: KnipConfig = {
     // Manual evidence CLIs documented beside their proof output.
     "scripts/map-fix-shots.mjs",
     "scripts/report_borough_coverage.mjs",
-    // Named by docs/data/uk-osm-extract-2026-08-16.md as the ONE way to rewrite
+    // Named by docs/data/uk-osm-extract-2026-10-04.md as the ONE way to rewrite
     // that doc's figures ("Do not edit the figures by hand").
     "scripts/report_uk_venue_extract.mjs",
 
@@ -98,6 +100,17 @@ const config: KnipConfig = {
     "public/sw.js",
     "public/sw-plan-cache.js",
     "public/theme-init.js",
+
+    // `npx cap sync android` copies this generated WebView bundle. Capacitor
+    // loads its Cordova compatibility scripts outside the app import graph.
+    "android/app/src/main/assets/public/**",
+    // Gradle's Android tasks generate module build outputs. The WebView loads
+    // merged assets, and Gradle's HTML test report loads its CSS/JS directly.
+    "android/**/build/**",
+    // Capacitor generates these bundle assets; the native JSExport loader
+    // reads them outside the JavaScript import graph.
+    "ios/App/App/public/cordova.js",
+    "ios/App/App/public/cordova_plugins.js",
 
     // Read from disk by an e2e spec rather than imported.
     "e2e/fixtures/**",
@@ -118,6 +131,9 @@ const config: KnipConfig = {
 
     // The perf baseline harness, run by hand and cited by perf/ evidence.
     "scripts/perf-baseline.mjs",
+    // The /map canvas-chunk preload A/B, run by hand and cited by
+    // docs/proof/map-chunk-preload/.
+    "scripts/perf-map-chunk-preload-ab.mjs",
 
     // Run with execFileSync by scripts/perf-ab.mjs.
     "scripts/print-e2e-server-env.ts",
@@ -152,11 +168,9 @@ const config: KnipConfig = {
     "scripts/gen-pubpal-mascot.mjs",
     "scripts/gen-store-assets.mjs",
     "scripts/landing/build-landing-map.mjs",
-    "scripts/landing/build-landing-photos.mjs",
     "scripts/landing/build-london-collage.mjs",
+    "scripts/landing/build-landing-photos.mjs",
     "scripts/harvest/uk-pubs/start-bars-when-pubs-done.mjs",
-    "scripts/whatson/quizRefresh.mjs",
-    "scripts/whatson/scrape_greene_king_sport.mjs",
 
     // Audit CLIs whose source text or output shape a fence test reads.
     "scripts/ui-ux-axe-audit.mjs",
@@ -193,8 +207,12 @@ const config: KnipConfig = {
   // Arize tracing registers; this app never imports it directly.
   ignoreDependencies: ["postcss", "playwright", "openai"],
   // System SysV IPC and process tools the postgres harness shells out to
-  // (scripts/rls/postgresShm.mjs); they are not npm binaries.
-  ignoreBinaries: ["ipcs", "ipcrm", "ps"],
+  // (scripts/rls/postgresShm.mjs), the Google Cloud CLI, and pg_dump and
+  // pg_restore, which the off-platform backup shells out to
+  // (scripts/backup-offplatform.mjs). The pub-website amenity harvest mints its
+  // Vertex token with gcloud, and the Places verify jobs read an access token
+  // from it (scripts/lib/googlePlacesQuota.mjs). None of them is an npm binary.
+  ignoreBinaries: ["ipcs", "ipcrm", "ps", "gcloud", "pg_dump", "pg_restore"],
 };
 
 // This optional local MCP CLI has its own pinned package manifest and named

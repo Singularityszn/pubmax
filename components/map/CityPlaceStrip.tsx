@@ -19,6 +19,7 @@
 // rule by deferring all writes through Promise.resolve().then().
 
 import { useEffect, useRef, useState } from "react";
+import { useStaggeredRead } from "@/lib/useStaggeredRead";
 import {
   ExternalLink,
   Info,
@@ -153,12 +154,21 @@ export default function CityPlaceStrip({
 }: Props) {
   const isLondon = cityId === "london" || cityId === undefined;
   const [enrichment, setEnrichment] = useState<CityPlaceEnrichment | null>(null);
+  // Which pub the held strip is ABOUT. Adopted during render, so the wait
+  // before the next pub's read never shows the previous pub's strip.
+  const [enrichmentFor, setEnrichmentFor] = useState(venueId);
+  if (enrichmentFor !== venueId) {
+    setEnrichmentFor(venueId);
+    setEnrichment(null);
+  }
   // Generation token: any writes from a superseded venue are dropped rather
   // than racing into the newly-selected sheet.
   const generationRef = useRef(0);
 
+  const ready = useStaggeredRead(3, venueId);
+
   useEffect(() => {
-    if (!isLondon) return;
+    if (!ready || !isLondon) return;
     if (!venueName || !Number.isFinite(latitude) || !Number.isFinite(longitude)) return;
     const generation = ++generationRef.current;
     // Reset immediately on venue change so the previous strip never lingers
@@ -204,9 +214,13 @@ export default function CityPlaceStrip({
     })();
 
     return () => {
+      // The effect that ends here owned this generation. Retiring it now, not
+      // when the next pub's read starts after its phase delay, is what stops a
+      // write the old pub had already queued from landing under the new one.
+      generationRef.current += 1;
       controller.abort();
     };
-  }, [isLondon, venueId, venueName, latitude, longitude, primaryBorough]);
+  }, [ready, isLondon, venueId, venueName, latitude, longitude, primaryBorough]);
 
   if (!isLondon || !enrichment) return null;
 
@@ -239,7 +253,7 @@ export default function CityPlaceStrip({
       <div className="cityPlaceStripChips">
         {typeof rating === "number" ? (
           <span className="cityPlaceStripChip" data-kind="rating">
-            <Star size={12} aria-hidden="true" />
+            <Star size={14} aria-hidden="true" />
             <span>
               {rating.toFixed(1)}
               {typeof userRatingCount === "number" && userRatingCount > 0 ? (
@@ -254,13 +268,13 @@ export default function CityPlaceStrip({
             data-kind={openNow ? "open" : "closed"}
             aria-label={openNow ? "Open now" : "Closed now"}
           >
-            <Info size={12} aria-hidden="true" />
+            <Info size={14} aria-hidden="true" />
             <span>{openNow ? "Open now" : "Closed now"}</span>
           </span>
         ) : null}
         {hygiene ? (
           <span className="cityPlaceStripChip" data-kind="hygiene">
-            <UtensilsCrossed size={12} aria-hidden="true" />
+            <UtensilsCrossed size={14} aria-hidden="true" />
             {hygieneSourceHref ? (
               <a
                 href={hygieneSourceHref}
@@ -276,7 +290,7 @@ export default function CityPlaceStrip({
         ) : null}
         {transitLines.length > 0 ? (
           <span className="cityPlaceStripChip" data-kind="transit">
-            <TrainFront size={12} aria-hidden="true" />
+            <TrainFront size={14} aria-hidden="true" />
             <span title={transitSource ? `Source: ${transitSource}` : undefined}>
               {transitLines.join("  ·  ")}
             </span>
@@ -288,7 +302,7 @@ export default function CityPlaceStrip({
                 rel="noreferrer noopener"
                 aria-label="Transit source"
               >
-                <ExternalLink size={10} aria-hidden="true" />
+                <ExternalLink size={14} aria-hidden="true" />
               </a>
             ) : null}
           </span>

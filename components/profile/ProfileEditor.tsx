@@ -3,6 +3,7 @@
 import Image from "next/image";
 import { useRef, useState } from "react";
 
+import { announceProfileCardChanged } from "@/components/auth/publicProfileCard";
 import ProfileCoverPhotosEditor from "@/components/profile/ProfileCoverPhotosEditor";
 import ProfileImageCropper from "@/components/profile/ProfileImageCropper";
 import {
@@ -214,6 +215,7 @@ export default function ProfileEditor({
         // The card repaints and the editor stays open: a photo is one of the
         // things being edited, not the end of the edit.
         onProfileChanged(profile);
+        announceProfileCardChanged(handle);
         if (slot === "avatar") setAvatarPreview(profile.avatarUrl ?? "");
       }
       markImage(slot, "idle", null);
@@ -244,7 +246,10 @@ export default function ProfileEditor({
         return;
       }
       const profile = profileFrom(body);
-      if (profile) onProfileChanged(profile);
+      if (profile) {
+        onProfileChanged(profile);
+        announceProfileCardChanged(handle);
+      }
       if (slot === "avatar") setAvatarPreview("");
       markImage(slot, "idle", null);
     } catch (error) {
@@ -288,7 +293,10 @@ export default function ProfileEditor({
       }
 
       const profile = profileFrom(body);
-      if (profile) onSaved(profile);
+      if (profile) {
+        onSaved(profile);
+        announceProfileCardChanged(handle);
+      }
       setState("saved");
     } catch (error) {
       setState("error");

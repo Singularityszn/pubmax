@@ -49,7 +49,7 @@ export default function InvitePrivacyPreview({ preview }: { preview: InvitePriva
       </dl>
 
       <p className="invitePreview__hint">
-        The full route reveals once you join the crew. No account needed.
+        You&apos;ll see the full route once you join the crew. No account needed.
       </p>
 
       <a href="#plan-crew-title" className="invitePreview__join">

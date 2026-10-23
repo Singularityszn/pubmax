@@ -1,3 +1,4 @@
+import type { Route } from "next";
 import Link from "next/link";
 
 import {
@@ -17,7 +18,7 @@ type CoverageState = {
   detail: string;
   tone: CoverageTone;
   actionLabel: string;
-  href: string;
+  href: Route;
 };
 
 const STATUS_ORDER: Array<{ bucket: CoverageBucket; label: string }> = [
@@ -42,7 +43,7 @@ function stateForArea(area: NightArea, now: Date): CoverageState {
   }
 
   const gateDetail = nightAreaCoverageDetail(area, now);
-  const shared = {
+  const shared: { actionLabel: string; href: Route } = {
     actionLabel: "See the pubs",
     href: `/map?q=${encodeURIComponent(area.name)}`,
   };
@@ -184,7 +185,7 @@ export default function NightAreaCoverage() {
           <span className="nightAreaCoverage__detailsMeta">{areas.length} areas</span>
         </summary>
         <p className="nightAreaCoverage__detailsIntro">
-          “See the pubs” just opens the map for a browse. It won’t turn an area into a
+          &quot;See the pubs&quot; just opens the map for a browse. It won’t turn an area into a
           planned crawl until its prices are fresh.
         </p>
         <ul className="nightAreaCoverage__list" aria-label="All area coverage">

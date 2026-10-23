@@ -1,5 +1,9 @@
 .next/
 .next-*/
+# Next.js writes next-env.d.ts on every dev, build and typegen run, pointing it
+# at the active dist dir, so it is never committed. `npm run typecheck` runs
+# `next typegen` first to create it in a clean checkout.
+next-env.d.ts
 node_modules/
 # `out/` is the static-export build directory. It also matches every source
 # directory named `out`, so each one has to be un-ignored by hand or its files
@@ -18,6 +22,12 @@ dist/
 !.env.example
 *.env
 *.log
+!/docs/proof/skills-packages-2026-10-07/review-r5-r6/before-recipes.log
+!/docs/proof/skills-packages-2026-10-07/review-r5-r6/after-recipes.log
+!/docs/proof/skills-packages-2026-10-07/review-r5-r6/after-recipes-first-attempt.log
+!/docs/proof/skills-packages-2026-10-07/review-r5-r6/browser.log
+!/docs/proof/skills-packages-2026-10-07/review-r5-r6/browser-config-failure.log
+!/docs/proof/skills-packages-2026-10-07/review-r5-r6/browser-cwd-failure.log
 *.tsbuildinfo
 scripts/__pycache__/
 .vercel
@@ -27,9 +37,12 @@ scripts/__pycache__/
 test-results/
 playwright-report/
 evals/pal/scoreboard/
+evals/pal/memory/scoreboard/
 evals/askRouterModel/scoreboard/
 artifacts/
+.tmp-evidence/
 /coverage/
+/blob-reports/
 e2e/screenshots/
 .e2e/
 # public/vendor/ is BUILD-WRITTEN (lib/staticAssetPrefixes.mjs): `npm run dev`
@@ -42,8 +55,12 @@ data/generated/venue_detail_index.json
 data/generated/venue_details.jsonl
 public/data/wikidata_notable_pubs.json
 public/data/wikidata_notable_pubs.json.tmp
+public/data/.*.tmp
 data/editorial/poll-state.json
 data/osm/uk/**/.*.tmp
+data/places_verification/progress.json
+data/places_verification/uk_progress.json
+data/places_verification/*.tmp
 
 # macOS Finder metadata + local co-dev scratch probes — never part of the app.
 .DS_Store
@@ -58,7 +75,10 @@ scratch-*.mjs
 !.cursor/mcp.json
 # Project skills live only under .agents/skills/. The machine-wide set is
 # ~/.agents/skills. .cursor/skills/ is not a second project skill root.
-.claude/
+# .claude/skills is the one tracked entry under .claude/: a symlink to
+# ../.agents/skills so Claude Code loads the same skills, never a copy.
+.claude/*
+!.claude/skills
 .mcp.json
 .playwright-mcp/
 skills-lock.json
@@ -119,8 +139,30 @@ notes.md
 PR_TITLE_AND_BODY.json
 CHECK_SUMMARY.json
 EXIT.json
+/findings.json
+/review-results.json
 
 # Playwright screenshots written by the Tonight trusted-UI specs. The specs
 # create the directory themselves and overwrite every file on each run, so a
 # committed copy is stale the moment the page changes.
 e2e-shots/
+
+# Places enrichment resumable attempts and atomic writes. Published fields live in data/places_enrichment.json.
+data/places_verification/enrichment_progress.json
+data/places_verification/enrichment_progress.json.tmp
+data/places_enrichment.json.tmp
+data/places_enrichment_stamp.json.tmp
+
+# Generated from copied Places observations before dev/build; runtime reads only requested OSM files.
+data/generated/places_enrichment/
+data/places_verification/enrichment_uk_cities_progress.json*
+data/places_verification/enrichment_london_extras_progress.json*
+data/places_verification/enrichment_uk_cities_extras_progress.json*
+data/places_enrichment_uk_cities.json.tmp
+data/places_enrichment_london_extras.json.tmp
+data/places_enrichment_uk_cities_extras.json.tmp
+
+# A database dump is private data and the repository is public.
+*.dump
+*.dump.partial
+/pubmax-backups/

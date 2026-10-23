@@ -1,0 +1,32 @@
+total_count: 1
+jobs[1]:
+  - id: 114358011012
+    run_id: 38097088260
+    workflow_name: RLS session tests
+    head_branch: fm/pubmax-london-enrich-100
+    run_url: "https://api.github.com/repos/Singularityszn/pubmax/actions/runs/38097088260"
+    run_attempt: 2
+    node_id: CR_kwDOTNDTtM8AAAAaoETEhA
+    head_sha: e1f6a99f2e7d8854b3021c67428b171ff66f2aaf
+    url: "https://api.github.com/repos/Singularityszn/pubmax/actions/jobs/114358011012"
+    html_url: "https://github.com/Singularityszn/pubmax/actions/runs/38097088260/job/114358011012"
+    status: in_progress
+    conclusion: null
+    created_at: "2026-10-11T01:19:23Z"
+    started_at: "2026-10-11T01:19:26Z"
+    completed_at: null
+    name: Effective RLS (Postgres 16 + PostgREST 14)
+    steps[7]{name,status,conclusion,number,started_at,completed_at}:
+      Set up job,completed,success,1,"2026-10-11T01:19:27Z","2026-10-11T01:19:27Z"
+      Checkout,in_progress,null,2,"2026-10-11T01:19:27Z",null
+      Setup Node,pending,null,3,null,null
+      Install dependencies,pending,null,4,null,null
+      Install PostgreSQL 16 and PostgREST 14,pending,null,5,null,null
+      Run effective RLS session tests,pending,null,6,null,null
+      Post Checkout,pending,null,12,null,null
+    check_run_url: "https://api.github.com/repos/Singularityszn/pubmax/check-runs/114358011012"
+    labels[1]: ubuntu-latest
+    runner_id: 1000011876
+    runner_name: GitHub Actions 1000011876
+    runner_group_id: 0
+    runner_group_name: GitHub Actions

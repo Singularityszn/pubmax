@@ -18,6 +18,7 @@ import { useEffect, useState } from "react";
 // Console-only easter egg. Imported directly rather than lazily: it is a few
 // lines that render null, so its own chunk would cost more than it saves.
 import CellarNotice from "@/components/CellarNotice";
+import NativeBackGesture from "@/components/native/NativeBackGesture";
 import { isNativeApp } from "@/lib/nativePlatform";
 
 const DEFERRED_SHELL_FALLBACK_MS = 30_000;
@@ -88,7 +89,12 @@ export default function DeferredShellExtras() {
     return () => window.clearTimeout(fallback);
   }, []);
 
-  const outbox = <PlanMutationOutboxHost />;
+  const outbox = (
+    <>
+      <NativeBackGesture />
+      <PlanMutationOutboxHost />
+    </>
+  );
 
   if (!ready) {
     return (

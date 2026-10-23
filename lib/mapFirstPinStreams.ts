@@ -32,10 +32,9 @@ import { MAP_CANVAS_READINESS_CEILING_MS } from "@/lib/mapCanvasAvailability";
  */
 
 /**
- * The hold's own upper bound. DERIVED rather than typed: the shell stops
- * waiting for a canvas at `MAP_CANVAS_READINESS_CEILING_MS`, and a hold that
- * outlived the shell's own patience would be holding bytes for a map nobody is
- * still waiting for.
+ * The hold's own upper bound, derived from the shell's maximum construction wait.
+ * Construction stops the shell's clock but does not release this hold. The hold
+ * keeps its own deadline while the canvas prepares its pins.
  */
 export const MAP_SECONDARY_STREAM_HOLD_CEILING_MS = MAP_CANVAS_READINESS_CEILING_MS;
 
@@ -49,6 +48,7 @@ export const HELD_MAP_SECONDARY_STREAMS = [
   "slim-shard-rings",
   "uk-base-layer",
   "ambient-poi-overlay",
+  "london-restaurant-pack",
 ] as const;
 
 export type MapSecondaryStreamSignals = {

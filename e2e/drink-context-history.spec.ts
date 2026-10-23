@@ -88,8 +88,13 @@ test("1440px canonical Bristol contribution resets an empty query into a cocktai
   await page.screenshot({ path: testInfo.outputPath("desktop-picker.png") });
   await page.getByRole("button", { name: "Show all pubs", exact: true }).click();
   await expect(page.locator(".logIntentNearbyBtn").first()).toContainText("Cocktail price unknown");
-  await page.locator(".logIntentNearbyBtn").first().click();
-  await expect(page.getByRole("textbox", { name: /Price of a cocktail at/ })).toBeVisible();
+  const nearbyCocktail = page.locator(".logIntentNearbyBtn").first();
+  // A picker re-sort between press and release drops the tap, so only a
+  // dropped tap is retried (e2e/design-review-followups.spec.ts).
+  await expect(async () => {
+    if (await nearbyCocktail.isVisible()) await nearbyCocktail.click({ timeout: 2_000 });
+    await expect(page.getByRole("textbox", { name: /Price of a cocktail at/ })).toBeVisible({ timeout: 2_000 });
+  }).toPass({ timeout: 20_000 });
   expect(new URL(page.url()).pathname).toBe("/map/bristol");
   expect(new URL(page.url()).searchParams.get("drink")).toBe("cocktail");
   await page.screenshot({ path: testInfo.outputPath("desktop-cocktail-form.png") });
@@ -145,9 +150,13 @@ test("390px price venue survives repeated ForwardBack without adding history ent
   const nearby = page.locator(".logIntentNearbyBtn").first();
   await expect(nearby).toBeVisible({ timeout: 45_000 });
   await expect(nearby).toContainText("Wine price unknown");
-  await nearby.click();
   const price = page.getByRole("textbox", { name: /Price of a wine at/ });
-  await expect(price).toBeVisible();
+  // A picker re-sort between press and release drops the tap, so only a
+  // dropped tap is retried (e2e/design-review-followups.spec.ts).
+  await expect(async () => {
+    if (await nearby.isVisible()) await nearby.click({ timeout: 2_000 });
+    await expect(price).toBeVisible({ timeout: 2_000 });
+  }).toPass({ timeout: 20_000 });
   const venueId = new URL(page.url()).searchParams.get("sel");
   expect(venueId).toBeTruthy();
   const historyLength = await page.evaluate(() => history.length);

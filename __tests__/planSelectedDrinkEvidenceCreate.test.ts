@@ -28,6 +28,7 @@ import { PATCH } from "@/app/api/plans/[id]/route";
 import { inferNightContext } from "@/lib/nightPlanning";
 import { __resetMemoryPlans, memoryPlanStore } from "@/lib/planStore";
 import { buildPlanPrivacyPreview } from "@/lib/planPrivacy";
+import { defined } from "@/__tests__/helpers/defined";
 
 let sequence = 0;
 
@@ -230,7 +231,7 @@ describe("Plan create selected drink evidence", () => {
     expect(replay.body.created).toBe(false);
     expect(replay.body.plan.plan.id).toBe(first.body.plan.plan.id);
     expect(replay.body.plan.stops[0].selectedDrinkPriceEvidence).toEqual(evidence);
-    const changed = await submit({ ...body, stops: [{ ...body.stops[0], selectedDrinkPriceEvidence: { ...evidence, pence: 850 } }] });
+    const changed = await submit({ ...body, stops: [{ ...defined(body.stops[0]), selectedDrinkPriceEvidence: { ...evidence, pence: 850 } }] });
     expect(changed.status).toBe(409);
   });
 });

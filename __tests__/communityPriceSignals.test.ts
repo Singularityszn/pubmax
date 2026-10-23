@@ -16,6 +16,7 @@ import {
 import {
   COMMUNITY_PRICE_MAX_AGE_MS,
   communityTrustNote,
+  freshestPintByVenue,
   type CommunityPrice,
   type CommunityPriceMapCandidate,
 } from "@/lib/communityPrice";
@@ -597,5 +598,71 @@ describe("replacePrice", () => {
       serverBeer,
       wine,
     ]);
+  });
+});
+
+// Every first open of a pub writes its (often empty) price list, and a new map
+// here rebuilt every pin about a second after the tap - a 400-600 ms long task
+// sitting in front of the next one (map-p99-vitals-tail). Identity is what the
+// canvas keys on, so an unchanged answer must keep it.
+describe("freshestPintByVenue", () => {
+  const beer = price("venue-a", 5.2, NOW - MINUTE);
+  const older = price("venue-a", 4.8, NOW - DAY);
+  const wine = price("venue-b", 9, NOW - MINUTE, "wine");
+
+  it("is the freshest beer per venue, and nothing for a venue without one", () => {
+    const out = freshestPintByVenue(
+      new Map([
+        ["venue-a", [older, beer]],
+        ["venue-b", [wine]],
+        ["venue-c", []],
+      ]),
+    );
+    expect([...out]).toEqual([["venue-a", beer]]);
+  });
+
+  it("keeps the previous map when a venue's first, empty read lands", () => {
+    const before = freshestPintByVenue(new Map([["venue-a", [beer]]]));
+    const after = freshestPintByVenue(
+      new Map([
+        ["venue-a", [beer]],
+        ["venue-c", []],
+      ]),
+      before,
+    );
+    expect(after).toBe(before);
+  });
+
+  it("keeps the previous map when only a non-beer price arrives", () => {
+    const before = freshestPintByVenue(new Map([["venue-a", [beer]]]));
+    const after = freshestPintByVenue(
+      new Map([
+        ["venue-a", [beer]],
+        ["venue-b", [wine]],
+      ]),
+      before,
+    );
+    expect(after).toBe(before);
+  });
+
+  it("answers with a new map when a pin's pint really changes", () => {
+    const before = freshestPintByVenue(new Map([["venue-a", [older]]]));
+    const changed = freshestPintByVenue(new Map([["venue-a", [older, beer]]]), before);
+    expect(changed).not.toBe(before);
+    expect(changed.get("venue-a")).toBe(beer);
+
+    const added = freshestPintByVenue(
+      new Map([
+        ["venue-a", [older]],
+        ["venue-d", [price("venue-d", 4, NOW)]],
+      ]),
+      before,
+    );
+    expect(added).not.toBe(before);
+    expect(added.size).toBe(2);
+
+    const removed = freshestPintByVenue(new Map(), before);
+    expect(removed).not.toBe(before);
+    expect(removed.size).toBe(0);
   });
 });

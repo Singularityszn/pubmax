@@ -14,6 +14,7 @@ import {
   mapCanvasUnavailableLine,
   type MapCanvasReadinessState,
 } from "@/lib/mapCanvasAvailability";
+import { defined } from "@/__tests__/helpers/defined";
 
 const SILENT: MapCanvasReadinessState = {
   moduleFailed: false,
@@ -77,17 +78,29 @@ describe("map canvas availability", () => {
   });
 
   it("runs the ceiling from mount until the canvas answers, and no longer", () => {
+    const silent = {
+      moduleFailed: false,
+      canvasOwnsFailure: false,
+      canvasReady: false,
+      canvasWatching: false,
+    };
+    expect(mapCanvasCeilingArmed(silent)).toBe(true);
+    expect(mapCanvasCeilingArmed({ ...silent, canvasReady: true })).toBe(false);
+    expect(mapCanvasCeilingArmed({ ...silent, moduleFailed: true })).toBe(false);
+    expect(mapCanvasCeilingArmed({ ...silent, canvasOwnsFailure: true })).toBe(false);
+  });
+
+  it("stands down once the canvas has built its map and watches itself", () => {
+    // The canvas's own scene-ready guard is 18 s from construction, which is
+    // later than this ceiling's 18 s from mount. Left running, the shell won
+    // that race and unmounted a map whose scene was queued for its next frame.
     expect(
-      mapCanvasCeilingArmed({ moduleFailed: false, canvasOwnsFailure: false, canvasReady: false }),
-    ).toBe(true);
-    expect(
-      mapCanvasCeilingArmed({ moduleFailed: false, canvasOwnsFailure: false, canvasReady: true }),
-    ).toBe(false);
-    expect(
-      mapCanvasCeilingArmed({ moduleFailed: true, canvasOwnsFailure: false, canvasReady: false }),
-    ).toBe(false);
-    expect(
-      mapCanvasCeilingArmed({ moduleFailed: false, canvasOwnsFailure: true, canvasReady: false }),
+      mapCanvasCeilingArmed({
+        moduleFailed: false,
+        canvasOwnsFailure: false,
+        canvasReady: false,
+        canvasWatching: true,
+      }),
     ).toBe(false);
   });
 
@@ -156,7 +169,7 @@ describe("the readiness ceiling", () => {
       new RegExp(`const ${name} = ([0-9_]+);`),
     );
     expect(match, `${name} is no longer a literal in PubMapCanvas`).not.toBeNull();
-    return Number(match![1].replace(/_/g, ""));
+    return Number(defined(match![1]).replace(/_/g, ""));
   }
 
   it("sits above the canvas's own pin-ready ceiling", () => {

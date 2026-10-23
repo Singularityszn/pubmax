@@ -1,7 +1,8 @@
+import { readFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
-import { expect, test } from "@playwright/test";
+import { expect, test, type Page } from "@playwright/test";
 import AxeBuilder from "@axe-core/playwright";
 
 import {
@@ -271,46 +272,43 @@ test("frozen live map readiness requires reduced motion", async ({ page }) => {
   await navigateToAuditedRoute(page, "https://pubmaxxing.com", route, 500);
 });
 
-test("Tonight reserves loading space without holding settled content", async ({
+test("Tonight keeps its server answer during browser revalidation", async ({
   baseURL,
   page,
 }) => {
   await page.setViewportSize({ width: 390, height: 844 });
-  await page.route("**/api/whats-on?**", async (route) => {
-    await new Promise((resolve) => setTimeout(resolve, 250));
-    await route.fulfill({
-      status: 200,
-      contentType: "application/json",
-      body: JSON.stringify({ rows: [], asOf: "2026-08-14T18:00:00.000Z" }),
+  let releaseReads!: () => void;
+  const readsHeld = new Promise<void>((resolve) => { releaseReads = resolve; });
+  const requested: string[] = [];
+  for (const kind of ["whats-on", "out"]) {
+    await page.route(`**/api/${kind}?**`, async (route) => {
+      requested.push(kind);
+      await readsHeld;
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify(kind === "whats-on"
+          ? { servedAt: new Date().toISOString(), rows: [], asOf: "2026-08-14T18:00:00.000Z" }
+          : { status: "ready", events: [], openPlans: [], attribution: [], observedAt: {}, providers: [] }),
+      });
     });
-  });
-  await page.route("**/api/out?**", async (route) => {
-    await new Promise((resolve) => setTimeout(resolve, 250));
-    await route.fulfill({
-      status: 200,
-      contentType: "application/json",
-      body: JSON.stringify({
-        status: "ready",
-        events: [],
-        openPlans: [],
-        attribution: [],
-        observedAt: {},
-        providers: [],
-      }),
-    });
-  });
+  }
 
   const route = AUDITED_ROUTES.find(({ name }) => name === "tonight")!;
   const navigation = navigateToAuditedRoute(page, baseURL!, route);
-  await expect(page.getByTestId("listings-skeleton")).toBeVisible();
-  expect(await page.locator(".tonightPrimary").evaluate((element) =>
-    Number.parseFloat(getComputedStyle(element).minHeight),
-  )).toBeGreaterThan(0);
-  await expect(page.locator(".tonightAfterPrimary")).toHaveCSS("visibility", "hidden");
-
-  const result = await navigation;
+  try {
+    await expect.poll(() => requested.slice().sort()).toEqual(["out", "whats-on"]);
+    await expect(page.getByRole("heading", { name: "Pubs Londoners keep recommending", exact: true })).toBeVisible();
+    await expect(page.getByTestId("listings-skeleton")).toHaveCount(0);
+    await expect(page.locator(".tonightPrimary")).toHaveCSS("min-height", "0px");
+    await expect(page.locator(".tonightAfterPrimary")).not.toHaveCSS("display", "none");
+  } finally {
+    releaseReads();
+  }
+  await navigation;
+  const result = await waitForAuditedRouteSettlement(page, route);
   await expect(page.locator(".tonightPrimary")).toHaveCSS("min-height", "0px");
-  await expect(page.locator(".tonightAfterPrimary")).toHaveCSS("visibility", "visible");
+  await expect(page.locator(".tonightAfterPrimary")).not.toHaveCSS("display", "none");
   expect(result.cls).not.toBeNull();
   expect(result.cls!).toBeLessThan(UI_UX_CLS_BUDGET);
 });
@@ -349,9 +347,41 @@ test("Tonight error settles without holding loading space", async ({ baseURL, pa
   await waitForAuditedRouteSettlement(page, route, 500);
   await expect(page.locator(".tonightStatusError")).toBeVisible();
   await expect(page.locator(".tonightPrimary")).toHaveCSS("min-height", "0px");
-  await expect(page.locator(".tonightAfterPrimary")).toHaveCSS("visibility", "visible");
+  await expect(page.locator(".tonightAfterPrimary")).not.toHaveCSS("display", "none");
   expect(result.cls).not.toBeNull();
   expect(result.cls!).toBeLessThan(UI_UX_CLS_BUDGET);
+});
+
+test("Tonight keeps the conditions room when the conditions read fails", async ({
+  baseURL,
+  page,
+}) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.route("**/api/tonight-conditions**", async (route) => {
+    await new Promise((resolve) => setTimeout(resolve, 600));
+    await route.fulfill({
+      status: 503,
+      contentType: "application/json",
+      body: JSON.stringify({ error: "Conditions unavailable" }),
+    });
+  });
+
+  const route = AUDITED_ROUTES.find(({ name }) => name === "tonight")!;
+  const navigation = navigateToAuditedRoute(page, baseURL!, route);
+  const hold = page.locator(".tonightConditionsHold");
+  await expect(hold).toBeAttached();
+  const heldHeight = await hold.evaluate((element) => element.getBoundingClientRect().height);
+
+  await navigation;
+  const strip = page.getByTestId("tonight-conditions");
+  await expect(strip).toContainText("No weather reading");
+  await expect(hold).toHaveCount(0);
+  expect(await strip.evaluate((element) => element.getBoundingClientRect().height))
+    .toBeCloseTo(heldHeight, 0);
+  // Read the shift again once the failed read has settled the strip.
+  const result = await waitForAuditedRouteSettlement(page, route, 500);
+  expect(result.cls).not.toBeNull();
+  expect(result.cls!).toBeLessThan(UI_UX_CLS_BUDGET * 0.75);
 });
 
 test("shared audit navigation measures layout shift from navigation start", async ({
@@ -388,10 +418,11 @@ test("shared audit navigation measures layout shift from navigation start", asyn
 test("keyless readiness waits for client hydration", async ({ baseURL, page }) => {
   const near = AUDITED_ROUTES.find((route) => route.name === "near")!;
   await navigateToAuditedRoute(page, baseURL!, near);
-  const soho = page.getByRole("button", { name: "Soho", exact: true });
+  const soho = page.getByRole("button", { name: /^Soho(?:\s*→)?$/ });
   await expect(async () => {
-    await soho.click();
-    await expect(page.locator(".nmnHead")).toBeVisible({ timeout: 1_000 });
+    if (await soho.isVisible()) await soho.click();
+    await expect(page.getByRole("heading", { name: "Cheapest listed around Soho", exact: true }))
+      .toBeVisible({ timeout: 1_000 });
   }).toPass({ timeout: 20_000 });
 });
 
@@ -434,6 +465,36 @@ test("audited labels keep readable contrast in reachable states", async ({ baseU
   }
 });
 
+test("tap audit accepts only owned RowList overlays and includes summaries", async ({ page }) => {
+  await page.setContent(`
+    <style>
+      ${readFileSync("components/ui/rowList.css", "utf8")}
+      .rowList { width: 320px; }
+      .rowListTitleLink { display: inline-block; width: 40px; height: 20px; overflow: hidden; }
+      .missing::after { content: none; }
+      .disabled::after { pointer-events: none; }
+      .cover { position: absolute; inset: 0; z-index: 2; }
+      .partial { position: absolute; inset: 10px 0 auto; height: 10px; z-index: 2; }
+      .fold { width: 100px; height: 44px; }
+      summary { width: 30px; height: 20px; overflow: hidden; }
+    </style>
+    <ul class="rowList">
+      <li class="rowListItem rowListItem--link"><div class="rowListBody"><a class="rowListTitleLink" href="#valid">Valid</a></div></li>
+      <li class="rowListItem rowListItem--link"><div class="rowListBody"><a class="rowListTitleLink missing" href="#missing">Missing</a></div></li>
+      <li class="rowListItem rowListItem--link"><div class="rowListBody"><a class="rowListTitleLink disabled" href="#disabled">Disabled</a></div></li>
+      <li class="rowListItem rowListItem--link"><div class="rowListBody"><a class="rowListTitleLink" href="#covered">Covered</a></div><span class="cover"></span></li>
+    </ul>
+    <ul class="rowList">
+      <li class="rowListItem rowListItem--link"><div class="rowListBody"><a class="rowListTitleLink" href="#partial">Partial</a></div><span class="partial"></span></li>
+    </ul>
+    <details><summary>Tiny summary</summary></details>
+    <details><summary class="fold">Closed fold</summary><a href="#hidden">Hidden link</a></details>
+  `);
+  const result = await measureAuditedTapTargets(page);
+  expect(result.undersized.map(({ label }) => label).sort())
+    .toEqual(["Covered", "Disabled", "Missing", "Partial", "Tiny summary"]);
+});
+
 test.describe("UI UX battle-test guardrails", () => {
   test.use({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
 
@@ -470,58 +531,98 @@ test.describe("UI UX battle-test guardrails", () => {
     for (const route of AUDITED_ROUTES) {
       await navigateToAuditedRoute(page, baseURL!, route);
 
-      const result = await page.evaluate(() => {
-        const isClippedVisuallyHidden = (style: CSSStyleDeclaration) => {
-          if (style.overflow !== "hidden") return false;
-          const clipPath = style.clipPath;
-          if (clipPath === "inset(50%)" || clipPath.includes("inset(50%")) {
-            return true;
-          }
-          const clip = style.clip;
-          return clip.startsWith("rect(0") || clip === "rect(0px, 0px, 0px, 0px)";
-        };
-        const visible = (element: Element) => {
-          const style = getComputedStyle(element);
-          if (isClippedVisuallyHidden(style)) return false;
-          const rect = element.getBoundingClientRect();
-          return (
-            style.display !== "none" &&
-            style.visibility !== "hidden" &&
-            style.pointerEvents !== "none" &&
-            Number.parseFloat(style.opacity || "1") > 0 &&
-            rect.width > 0 &&
-            rect.height > 0
-          );
-        };
-        const undersized = [...document.querySelectorAll(
-          'button, a, input, select, textarea, [role="button"], [role="link"], [tabindex]:not([tabindex="-1"])',
-        )]
-          .filter(visible)
-          .map((element) => {
-            const rect = element.getBoundingClientRect();
-            return {
-              element: element.tagName.toLowerCase(),
-              label: (element.getAttribute("aria-label") || element.textContent || "")
-                .replace(/\s+/g, " ")
-                .trim()
-                .slice(0, 80),
-              width: Math.round(rect.width * 10) / 10,
-              height: Math.round(rect.height * 10) / 10,
-            };
-          })
-          .filter(({ width, height }) => width < 44 || height < 44);
-
-        return {
-          undersized,
-          overflow: Math.max(
-            document.documentElement.scrollWidth,
-            document.body?.scrollWidth ?? 0,
-          ) - document.documentElement.clientWidth,
-        };
-      });
+      const result = await measureAuditedTapTargets(page);
 
       expect(result.undersized, `${route.path} has undersized interactive controls`).toEqual([]);
       expect(result.overflow, `${route.path} has horizontal overflow`).toBeLessThanOrEqual(1);
+      const morePubs = page.locator(".tonightHypedMore > summary");
+      if (await morePubs.isVisible()) {
+        await morePubs.tap();
+        await expect(page.locator(".tonightHypedMore")).toHaveAttribute("open", "");
+        const expanded = await measureAuditedTapTargets(page);
+        expect(expanded.undersized, `${route.path} expanded pubs have undersized controls`).toEqual([]);
+        expect(expanded.overflow, `${route.path} expanded pubs overflow`).toBeLessThanOrEqual(1);
+      }
     }
   });
 });
+
+async function measureAuditedTapTargets(page: Page) {
+  return page.evaluate(() => {
+    const isClippedVisuallyHidden = (style: CSSStyleDeclaration) => {
+      if (style.overflow !== "hidden") return false;
+      const clipPath = style.clipPath;
+      if (clipPath === "inset(50%)" || clipPath.includes("inset(50%")) {
+        return true;
+      }
+      const clip = style.clip;
+      return clip.startsWith("rect(0") || clip === "rect(0px, 0px, 0px, 0px)";
+    };
+    const visible = (element: Element) => {
+      if (!element.checkVisibility()) return false;
+      const style = getComputedStyle(element);
+      if (isClippedVisuallyHidden(style)) return false;
+      const rect = element.getBoundingClientRect();
+      return (
+        style.display !== "none" &&
+        style.visibility !== "hidden" &&
+        style.pointerEvents !== "none" &&
+        Number.parseFloat(style.opacity || "1") > 0 &&
+        rect.width > 0 &&
+        rect.height > 0
+      );
+    };
+    const undersized = [...document.querySelectorAll(
+      'button, a, summary, input, select, textarea, [role="button"], [role="link"], [tabindex]:not([tabindex="-1"])',
+    )]
+      .filter(visible)
+      .map((element) => {
+        let rect = element.getBoundingClientRect();
+        // RowList extends its title link through an absolute pseudo-element.
+        // Require that exact contract and a 44px square owned by the link at every CSS pixel.
+        const row = element.closest(".rowListItem--link");
+        const overlay = getComputedStyle(element, "::after");
+        if (element.matches(".rowListTitleLink") && row instanceof HTMLElement &&
+            getComputedStyle(row).position === "relative" &&
+            getComputedStyle(element).position === "static" &&
+            element instanceof HTMLElement && element.offsetParent === row &&
+            overlay.content === '""' && overlay.position === "absolute" &&
+            overlay.inset === "0px" && overlay.pointerEvents !== "none" &&
+            overlay.transform === "none") {
+          row.scrollIntoView({ block: "center", inline: "nearest", behavior: "instant" });
+          const bounds = row.getBoundingClientRect();
+          const left = bounds.left + row.clientLeft;
+          const top = bounds.top + row.clientTop;
+          const width = row.clientWidth;
+          const height = row.clientHeight;
+          const startsX = [left + 2, left + (width - 44) / 2, left + width - 46];
+          const startsY = [top + 2, top + (height - 44) / 2, top + height - 46];
+          const offsets = Array.from({ length: 44 }, (_, pixel) => pixel + 0.5);
+          const clearTarget = width >= 48 && height >= 48 && startsX.some((x) =>
+            startsY.some((y) => offsets.every((dx) => offsets.every((dy) =>
+              document.elementFromPoint(x + dx, y + dy) === element,
+            ))),
+          );
+          if (clearTarget) rect = new DOMRect(left, top, 44, 44);
+        }
+        return {
+          element: element.tagName.toLowerCase(),
+          label: (element.getAttribute("aria-label") || element.textContent || "")
+            .replace(/\s+/g, " ")
+            .trim()
+            .slice(0, 80),
+          width: Math.round(rect.width * 10) / 10,
+          height: Math.round(rect.height * 10) / 10,
+        };
+      })
+      .filter(({ width, height }) => width < 44 || height < 44);
+
+    return {
+      undersized,
+      overflow: Math.max(
+        document.documentElement.scrollWidth,
+        document.body?.scrollWidth ?? 0,
+      ) - document.documentElement.clientWidth,
+    };
+  });
+}

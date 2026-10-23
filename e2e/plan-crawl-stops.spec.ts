@@ -1,6 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
 
-import { describeFirstSubmit } from "./helpers/planDescribeFirst";
+import { sortDescribeFirst } from "./helpers/planDescribeFirst";
 
 const SCENARIOS = [
   { stopCount: 5, width: 390, height: 844 },
@@ -36,22 +36,11 @@ for (const scenario of SCENARIOS) {
     const landing = await page.goto("/plan");
     expect(landing?.status()).toBe(200);
 
-    const input = page.locator("#plan-describe-first-query");
-    await expect(input).toBeVisible();
-    await input.fill(`a ${scenario.stopCount} pub crawl in Camden`);
-
-    const picker = page.getByRole("group", { name: "Number of pub stops" });
-    const selectedStopButton = picker.getByRole("button", { name: String(scenario.stopCount), exact: true });
-    if (await selectedStopButton.getAttribute("aria-pressed") !== "true") {
-      await selectedStopButton.click();
-    }
-
-    const generation = page.waitForResponse((response) => (
-      response.request().method() === "POST"
-      && response.url().endsWith("/api/plans/generate")
-    ));
-    await describeFirstSubmit(page).click();
-    const generatedResponse = await generation;
+    const generatedResponse = await sortDescribeFirst(
+      page,
+      `a ${scenario.stopCount} pub crawl in Camden`,
+      { stopCount: scenario.stopCount },
+    );
     expect(generatedResponse.status()).toBe(200);
     const generated = await generatedResponse.json() as {
       stops?: Array<{ venueId?: string }>;

@@ -6,10 +6,12 @@ import { describe, expect, it } from "vitest";
 import {
   dedupeSiteHarvestLedgerRows,
   loadCuratedUkBaseOwners,
+  normalizeSiteHarvestLedgerRow,
   parseSiteHarvestLedgerText,
   siteHarvestLedgerCollectKey,
   siteHarvestLedgerDuplicateKeys,
 } from "@/lib/siteHarvestLedgerCore";
+import { defined } from "@/__tests__/helpers/defined";
 
 describe("site harvest ledger", () => {
   const owners = loadCuratedUkBaseOwners();
@@ -26,7 +28,7 @@ describe("site harvest ledger", () => {
     const newer = { ...older, priceGbp: 6.2, observedAt: "2026-09-21T00:00:00.000Z" };
     const out = dedupeSiteHarvestLedgerRows([older, newer], owners);
     expect(out).toHaveLength(1);
-    expect(out[0].observedAt).toBe(newer.observedAt);
+    expect(defined(out[0]).observedAt).toBe(newer.observedAt);
   });
 
   it("preserves separate explicit servings and collapses only a repeated serving", () => {
@@ -77,6 +79,36 @@ describe("site harvest ledger", () => {
     ]);
     const bareMeasure = { ...legacy, drinkLabel: "175ml" };
     expect(dedupeSiteHarvestLedgerRows([bareMeasure], owners)).toEqual([bareMeasure]);
+  });
+
+  it("drops a rendered heading's marks from a name, so a re-read lands on the same key", () => {
+    const marked = {
+      venueId: "venue-uk-n566313869",
+      category: "cocktail",
+      drinkLabel: "## Margarita A bold blend of Altos Plata Tequila",
+      priceGbp: 12,
+      observedAt: "2026-09-21T00:00:00.000Z",
+      sourceUrl: "https://www.greeneking.co.uk/pubs/greater-london/punch-and-judy/menu",
+      host: "greeneking.co.uk",
+    };
+    const reread = {
+      ...marked,
+      drinkLabel: "Margarita A bold blend of Altos Plata Tequila",
+      observedAt: "2026-10-17T00:00:00.000Z",
+    };
+    expect(normalizeSiteHarvestLedgerRow(marked).drinkLabel).toBe(reread.drinkLabel);
+    expect(siteHarvestLedgerCollectKey(marked, owners)).toBe(siteHarvestLedgerCollectKey(reread, owners));
+    expect(dedupeSiteHarvestLedgerRows([marked, reread], owners)).toEqual([reread]);
+
+    // A marked wine name still has its printed measure split off after.
+    expect(normalizeSiteHarvestLedgerRow({ ...marked, category: "wine", drinkLabel: "#### Merlot 175ml" }))
+      .toEqual(expect.objectContaining({ drinkLabel: "Merlot", servingSize: "175ml" }));
+    // Only a leading heading is layout; a # inside a name, or a name of marks
+    // alone, is left as written.
+    const inside = { ...marked, drinkLabel: "Pint #2 lager" };
+    expect(normalizeSiteHarvestLedgerRow(inside)).toBe(inside);
+    const bare = { ...marked, drinkLabel: "####" };
+    expect(normalizeSiteHarvestLedgerRow(bare)).toBe(bare);
   });
 
   it("committed site_harvest.jsonl has no duplicate bundle collect keys", () => {

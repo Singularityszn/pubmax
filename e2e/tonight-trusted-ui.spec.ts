@@ -6,8 +6,6 @@ import { expect, test, type Locator, type Page, type Request } from "@playwright
 // Explicit Venue acceptance, the spine's single fetch and honest freshness.
 // The grouping half of this surface is e2e/tonight-trusted-ui-grouping.spec.ts.
 
-const SHOTS_DIR = path.join(process.cwd(), "e2e-shots", "tonight-trusted-ui");
-
 // Deterministic spine: a two-venue deal family (collapses to one card), plus a
 // music and a quiz row — enough to show grouping, the secondary lanes, and an
 // acceptable Venue, without depending on live upstream data.
@@ -17,11 +15,14 @@ const SHOTS_DIR = path.join(process.cwd(), "e2e-shots", "tonight-trusted-ui");
 // silently removes the very control these tests are about. The place names
 // stay invented, because they come from the mocked row alone.
 const TEST_TONIGHT_START = Date.now() + 60 * 60 * 1000;
+// A row's own check must fall within the day for Tonight to show it
+// (isTonightCheckedRow in lib/tonightOutListings.ts).
+const TEST_ROW_OBSERVED_AT = new Date(Date.now() - 60_000).toISOString();
 const ROWS = [
-  { id: "d1", venueId: "venue-xjf3n0", placeName: "The Deal Arms A", kind: "deal", startsAt: new Date(TEST_TONIGHT_START).toISOString(), title: "Curry Club", source: { label: "Chain Co", url: "https://chain.example/deal" }, observedAt: "2026-07-20T12:00:00.000Z", confidence: "listed" },
-  { id: "d2", venueId: "venue-1f5ygjb", placeName: "The Deal Arms B", kind: "deal", startsAt: new Date(TEST_TONIGHT_START).toISOString(), title: "Curry Club", source: { label: "Chain Co", url: "https://chain.example/deal" }, observedAt: "2026-07-20T12:00:00.000Z", confidence: "listed" },
-  { id: "m1", venueId: "venue-3h52h", placeName: "The Blue Note", kind: "music", startsAt: new Date(TEST_TONIGHT_START + 60 * 60 * 1000).toISOString(), title: "Live Jazz", source: { label: "Listings", url: "https://listings.example/jazz" }, observedAt: "2026-07-20T12:00:00.000Z", confidence: "listed" },
-  { id: "q1", venueId: "venue-lrz4u2", placeName: "The Sharp Wit", kind: "quiz", startsAt: new Date(TEST_TONIGHT_START - 30 * 60 * 1000).toISOString(), title: "Pub Quiz", source: { label: "Listings", url: "https://listings.example/quiz" }, observedAt: "2026-07-20T12:00:00.000Z", confidence: "listed" },
+  { id: "d1", venueId: "venue-xjf3n0", placeName: "The Deal Arms A", kind: "deal", startsAt: new Date(TEST_TONIGHT_START).toISOString(), title: "Curry Club", source: { label: "Chain Co", url: "https://chain.example/deal" }, observedAt: TEST_ROW_OBSERVED_AT, confidence: "listed" },
+  { id: "d2", venueId: "venue-1f5ygjb", placeName: "The Deal Arms B", kind: "deal", startsAt: new Date(TEST_TONIGHT_START).toISOString(), title: "Curry Club", source: { label: "Chain Co", url: "https://chain.example/deal" }, observedAt: TEST_ROW_OBSERVED_AT, confidence: "listed" },
+  { id: "m1", venueId: "venue-3h52h", placeName: "The Blue Note", kind: "music", startsAt: new Date(TEST_TONIGHT_START + 60 * 60 * 1000).toISOString(), title: "Live Jazz", source: { label: "Listings", url: "https://listings.example/jazz" }, observedAt: TEST_ROW_OBSERVED_AT, confidence: "listed" },
+  { id: "q1", venueId: "venue-lrz4u2", placeName: "The Sharp Wit", kind: "quiz", startsAt: new Date(TEST_TONIGHT_START - 30 * 60 * 1000).toISOString(), title: "Pub Quiz", source: { label: "Listings", url: "https://listings.example/quiz" }, observedAt: TEST_ROW_OBSERVED_AT, confidence: "listed" },
 ];
 
 type WhatsOnBody = { sourceFreshnessKind?: string; sourceObservedAt?: string | null };
@@ -47,7 +48,7 @@ async function mockWhatsOn(page: Page, body: WhatsOnBody = {}) {
       contentType: "application/json",
       body: JSON.stringify({
         rows: ROWS,
-        servedAt: "2026-07-24T22:00:00.000Z",
+        servedAt: new Date().toISOString(),
         sourceObservedAt: body.sourceObservedAt ?? "2026-07-20T12:00:00.000Z",
         sourceFreshnessKind: body.sourceFreshnessKind ?? "provider-observed",
         localityBasis: "london-default",
@@ -99,6 +100,7 @@ async function captureAnalytics(page: Page): Promise<unknown[]> {
 }
 
 async function shoot(page: Page, name: string) {
+  const SHOTS_DIR = test.info().outputPath("tonight-trusted-ui");
   fs.mkdirSync(SHOTS_DIR, { recursive: true });
   for (const scheme of ["light", "dark"] as const) {
     // The app's dark theme is driven by html[data-theme="dark"], NOT the OS media
@@ -135,7 +137,7 @@ test.describe("Tonight trusted UI", () => {
     expect(box?.height).toBeGreaterThanOrEqual(48);
     const appearance = await accept.evaluate((button) => {
       const probe = document.createElement("span");
-      probe.style.cssText = "position:fixed;background:var(--state-active-surface);border:1px solid var(--state-active-border);color:var(--state-active-ink)";
+      probe.style.cssText = "position:fixed;background:var(--control-secondary-surface);border:1px solid var(--control-secondary-border);color:var(--ink)";
       document.body.appendChild(probe);
       const actual = getComputedStyle(button);
       const expected = getComputedStyle(probe);
@@ -202,7 +204,7 @@ test.describe("Tonight trusted UI", () => {
     });
     expect(order).toBeTruthy(); // list FOLLOWS deals → list above
 
-    // The lede region is the answer (#1627): the pubs people are talking about
+    // The lede region is the answer (#1627): the pubs Londoners keep recommending
     // lead it and the listings follow them. What must clear the tab bar is the
     // answer's first entry, and the listings stay inside that region.
     const lede = page.getByTestId("tonight-lede");
@@ -211,7 +213,8 @@ test.describe("Tonight trusted UI", () => {
       .locator('[data-testid="tonight-hyped-row"], [data-testid="tonight-row"]')
       .first()
       .boundingBox();
-    const mobileTabBar = await page.locator(".mobileTabBar").boundingBox();
+    await expect(page.locator(".mobileTabBar").filter({ visible: true })).toBeVisible();
+    const mobileTabBar = await page.locator(".mobileTabBar").filter({ visible: true }).boundingBox();
     expect(firstAnswer).not.toBeNull();
     expect(mobileTabBar).not.toBeNull();
     expect(firstAnswer!.y).toBeLessThan(mobileTabBar!.y);
@@ -260,4 +263,41 @@ test.describe("Discover secondary lanes still self-fetch", () => {
     // On Discover the lanes have no host rows, so they self-fetch by kind.
     expect(urls.some((u) => u.includes("kind=deal"))).toBe(true);
   });
+});
+
+
+test("the phone create action leaves pub recommendation text readable", async ({ page }) => {
+  await page.addInitScript(() => {
+    localStorage.setItem("pubmaxx:analytics-consent:v1", "denied");
+    localStorage.setItem("pubmax_onboarding_dismissed", "1");
+    sessionStorage.setItem("pubmax_onboarding_dismissed", "1");
+  });
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await mockWhatsOn(page);
+  for (const width of [390, 320, 430]) {
+    await page.setViewportSize({ width, height: 626 });
+    await page.goto("/tonight");
+    await expect(page.getByTestId("tonight-hyped-row").first()).toBeVisible();
+    await expect(page.locator(".createFab")).toBeVisible();
+    const coveredText = await page.evaluate(() => {
+      const fab = document.querySelector(".createFab")!.getBoundingClientRect();
+      const covered: string[] = [];
+      for (const row of document.querySelectorAll(".tonightHypedRow")) {
+        const walker = document.createTreeWalker(row, NodeFilter.SHOW_TEXT);
+        while (walker.nextNode()) {
+          const node = walker.currentNode;
+          if (!node.textContent?.trim()) continue;
+          const range = document.createRange();
+          range.selectNodeContents(node);
+          if ([...range.getClientRects()].some((rect) =>
+            rect.left < fab.right && rect.right > fab.left &&
+            rect.top < fab.bottom && rect.bottom > fab.top,
+          )) covered.push(node.textContent.trim());
+        }
+      }
+      return covered;
+    });
+    expect(coveredText, `Pub text covered at ${width}px`).toEqual([]);
+    await page.screenshot({ path: test.info().outputPath(`tonight-create-clearance-${width}.png`), fullPage: true });
+  }
 });

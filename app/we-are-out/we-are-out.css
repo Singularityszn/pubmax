@@ -1,6 +1,6 @@
 /* "We're out" check-in composer (Social Loop v1). Mobile-first, role-tokened. */
 .weAreOut {
-  padding-bottom: var(--mobile-tab-clearance, 96px);
+  padding-bottom: var(--space-6);
 }
 
 /* Stack the OUT TONIGHT pill above the title. The shared feed eyebrow is
@@ -44,7 +44,7 @@
 
 .weAreOutLabel {
   font-weight: 700;
-  font-size: 0.85rem;
+  font-size: var(--text-sm);
   color: var(--ink);
 }
 
@@ -59,7 +59,7 @@
   min-height: 48px;
   padding: 12px 14px;
   border: 1px solid var(--feed-border);
-  border-radius: var(--radius, 8px);
+  border-radius: var(--radius);
   background: var(--panel-raised);
   color: var(--ink);
   font: inherit;
@@ -73,28 +73,49 @@
 
 .weAreOutPrivacy {
   margin: 0;
-  font-size: 0.8rem;
+  font-size: var(--text-xs);
   color: var(--muted);
 }
 
 .weAreOutError {
   margin: 0;
-  font-size: 0.85rem;
+  font-size: var(--text-sm);
   font-weight: 600;
-  color: var(--brick, #9c3d2e);
+  color: var(--brick);
 }
 
 .weAreOutSubmit {
   appearance: none;
   min-height: 52px;
   border: 0;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: var(--brass);
-  color: var(--color-on-accent, #fff);
+  color: var(--color-on-accent);
   font: inherit;
   font-weight: 800;
-  font-size: 1rem;
+  font-size: var(--text-base);
   cursor: pointer;
+}
+
+/* The page's head is centred below the desktop pair, so the door reads as one
+   with it there; the desktop card keeps the left edge the header leads on. */
+@media (max-width: 1023px) {
+  .weAreOutDoor {
+    text-align: center;
+  }
+
+  .weAreOutDoor .weAreOutDoneActions {
+    justify-content: center;
+  }
+}
+
+/* The door's action is a link wearing the submit control's look. */
+.weAreOutDoorAction {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 24px;
+  text-decoration: none;
 }
 
 .weAreOutSubmit:disabled {
@@ -110,12 +131,14 @@
 .weAreOutDoneTitle {
   margin: 0;
   font-weight: 800;
-  font-size: 1.1rem;
+  font-size: var(--text-md);
   color: var(--ink);
 }
 
 .weAreOutDoneActions {
   display: flex;
+  flex-wrap: wrap;
+  align-items: center;
   gap: 12px;
 }
 
@@ -139,7 +162,7 @@
     justify-content: center;
     gap: 56px;
     width: 100%;
-    max-width: var(--content-max-wide, 1240px);
+    max-width: var(--content-max-wide);
     margin: 0 auto;
     padding-top: 24px;
   }
@@ -166,7 +189,7 @@
     margin: 0;
     padding: 24px;
     border: 1px solid var(--line);
-    border-radius: 18px;
+    border-radius: var(--radius-lg);
     background: var(--panel-raised);
   }
 }

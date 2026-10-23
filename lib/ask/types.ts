@@ -1,17 +1,39 @@
 // Night OS Ask — shared request/response contracts (ADR 0014).
 // Browser-safe types only: no server imports.
 
+import type { PubPalMemoryKind } from "@/lib/palMemoryKinds.mjs";
+import type { FoodDietary } from "@/lib/food";
+
+export type AskMenuEvidence = {
+  kind: "published-menu";
+  itemId: string;
+  itemName: string;
+  menu: "food" | "drink";
+  category: string;
+  currency: "GBP";
+  serving: string | null;
+  caloriesKcal: number | null;
+  caloriesProvenance: { source: string; licence: string; observedAt: string; sourceUrl: string } | null;
+  dietary: FoodDietary[];
+  dietaryProvenance: { source: string; licence: string; observedAt: string; sourceUrl: string } | null;
+  observedAt: string | null;
+  source: string;
+  sourceUrl: string | null;
+  licence: string;
+  availability: "unknown";
+};
+
+const ASK_SOURCE_KINDS = ["directory", "whats-on", "heritage", "community-price", "published-menu", "citymcp", "plan"] as const;
+
 export type AskSource = {
   label: string;
   url?: string;
-  kind:
-    | "directory"
-    | "whats-on"
-    | "heritage"
-    | "community-price"
-    | "citymcp"
-    | "plan";
+  kind: typeof ASK_SOURCE_KINDS[number];
 };
+
+export function isAskSourceKind(value: unknown): value is AskSource["kind"] {
+  return typeof value === "string" && (ASK_SOURCE_KINDS as readonly string[]).includes(value);
+}
 
 export type AskCard = {
   key: string;
@@ -21,7 +43,19 @@ export type AskCard = {
   note: string;
   price: number | null;
   provenance?: AskSource;
+  menuEvidence?: AskMenuEvidence;
 };
+
+export function askCardSources(cards: readonly AskCard[]): AskSource[] {
+  return cards.flatMap((card) => {
+    const evidence = card.menuEvidence;
+    return [
+      ...(card.provenance ? [card.provenance] : []),
+      ...[evidence?.caloriesProvenance, evidence?.dietaryProvenance].flatMap((field): AskSource[] => field
+        ? [{ kind: "published-menu", label: field.source, url: field.sourceUrl }] : []),
+    ];
+  });
+}
 
 export type AskProposal =
   | {
@@ -45,6 +79,12 @@ export type AskProposal =
       lat: number;
       lng: number;
       place?: string;
+      /**
+       * The listed pub the point is, when there is one. A surface off the map
+       * opens this pub, because the map only takes `?lat=&lng=` outside a
+       * curated city (`parseUkPlaceMapArrival`).
+       */
+      venueId?: string;
     }
   | {
       id: string;
@@ -52,6 +92,22 @@ export type AskProposal =
       label: string;
       venueId: string;
       level: "empty" | "some-seats" | "full";
+    }
+  | {
+      /** A Pal memory the person may keep. Nothing is saved until they confirm it. */
+      id: string;
+      kind: "remember_memory";
+      label: string;
+      memoryKind: PubPalMemoryKind;
+      value: string;
+      /**
+       * Set when the fact replaces (`update`) or withdraws (`delete`) one of the
+       * person's confirmed memories (`lib/palMemoryRelation.ts`). The old memory
+       * changes only when they confirm this card. Absent is an ordinary add.
+       */
+      relation?: "update" | "delete";
+      supersedesMemoryId?: string;
+      supersedesValue?: string;
     };
 
 export type AskTurn = {

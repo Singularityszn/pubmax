@@ -4,7 +4,13 @@ import type { NextFetchEvent, NextRequest, ProxyConfig } from "next/server";
 
 import { CHOOSE_CITY_PATH, PLACES_PATH } from "@/lib/cityPickerRoute";
 import { MAP_LIST_PATH, MAP_LIST_SEARCH_PARAM } from "@/lib/mapListRoute";
+import { OUT_PATH, TONIGHT_PATH } from "@/lib/outRoute";
 import { clerkCspSources, isClerkMiddlewareConfigured } from "@/lib/clerkIdentity";
+import {
+  CDN_DOCUMENT_INLINE_SCRIPT_SOURCE,
+  buildContentSecurityPolicy,
+  devSupabaseConnectOrigin,
+} from "@/lib/contentSecurityPolicy.mjs";
 import { assertE2ELoginSafe } from "@/lib/e2eReviewAuth";
 import { serverEnvRefusalResponse } from "@/lib/serverEnv";
 import { supabaseCspOrigins } from "@/lib/supabaseCsp";
@@ -47,22 +53,89 @@ const CANONICAL_HOST = "pubmaxxing.com";
 // session in its document (`/u/you`, `/messages`, `/admin`) may never join
 // this list, whatever it would buy.
 //
+// WHAT "KEEPS THE NONCE" MEANS, HONESTLY: a CSP governs the DOCUMENT it
+// arrived with, and the browser never swaps it mid-session. So the strict
+// nonce policy holds when an identity or social route is loaded as a document
+// (a hard load: typed, bookmarked, refreshed, opened from another site). A
+// reader who lands on one of the CDN documents below and then moves by
+// client-side navigation stays under THAT landing document's policy, with
+// `'unsafe-inline'` in the script slot, for the rest of the session; the RSC
+// payloads of the routes they reach do not bring a policy of their own. This
+// is accepted, not fixed here: what keeps that session safe is that none of
+// these documents renders personal data or takes user input into markup (the
+// block further down that builds `inlineScriptSource` says the same).
+//
 // This list is a tracked constant so that adding a route to it is a deliberate
 // diff a reviewer sees, never a side effect of a refactor.
 // `__tests__/clerkProxyCsp.test.ts` pins both halves: these paths carry
 // 'unsafe-inline' and no nonce, and the identity/social/admin routes carry a
 // fresh nonce and no 'unsafe-inline'. `__tests__/cdnCachedDocuments.test.ts`
 // holds every listed path to a page file that declares `force-static`.
+//
+// Product decision 2026-10-17 widened it to `/plan` and `/pal`, on the same
+// terms: neither document reads the session, a cookie, a header or a search
+// param, and both fetch everything personal (drafts, the Pal, memories) in the
+// browser after load. `/plan/[id]` and `/pal/chat` are other paths and keep
+// the nonce.
 export const CDN_CACHED_DOCUMENT_PATHS: ReadonlySet<string> = new Set([
   "/",
   "/map",
   "/tonight",
   "/today",
   "/near",
+  "/plan",
+  "/pal",
 ]);
 
+// THE SAME TRADE FOR THE PUBLIC SEO DETAIL PAGES (task vercel-f2-seo-cdn,
+// 2026-10-15). 445 sitemap URLs sit on these five route shapes, and with
+// roughly a dozen human page views a day the crawlers that robots.txt invites
+// were paying a full server render on every fetch, uncached (`private,
+// no-store`, `x-vercel-cache: MISS`). Each page renders only bundled datasets
+// (cited heritage, the price dataset, curated landmarks, the governed drink
+// landings): no cookie, no header, no search param, no session and nothing
+// personal, so one copy may be handed to every visitor. Same terms as the
+// list above: `force-static`, an ISR window, and the inline slot is the ONLY
+// thing that differs. A `[segment]` matches exactly one non-empty path
+// segment, so `/historic` (it reads search params) and `/borough` stay on the
+// nonce, and so does every deeper path such as an `opengraph-image` route.
+//
+// `/ledger/[id]` joined on 2026-10-17 (option a, captain's call): 2,214
+// sitemap URLs. Its document used to resolve a viewer from the `Authorization`
+// header for the Family Table, and it read the Pint Drop store. Neither is in
+// the document any more: it carries only the pub's bundled facts and curated
+// story line, and the logbook, the drop-derived story lines and the Family
+// Table come from GET /api/ledger/[id] after load, per request and never
+// cached. So no drinker's words sit in a cached copy, and a hidden, withdrawn
+// or erased drop leaves the page as soon as the store stops returning it.
+//
+// `__tests__/cdnCachedDocuments.test.ts` holds each pattern to the page file
+// at the same path under app/, which must declare `force-static`.
+export const CDN_CACHED_DOCUMENT_ROUTES: ReadonlySet<string> = new Set([
+  "/historic/[slug]",
+  "/borough/[slug]",
+  "/landmark/[id]",
+  "/drink/[slug]",
+  "/area/[slug]/drink/[brand]",
+  "/ledger/[id]",
+]);
+
+/** True when `pathname` fills `pattern` segment for segment. */
+export function matchesDocumentRoute(pattern: string, pathname: string): boolean {
+  const want = pattern.split("/");
+  const got = pathname.split("/");
+  if (want.length !== got.length) return false;
+  return want.every((segment, index) =>
+    /^\[[a-z]+\]$/.test(segment) ? got[index] !== "" : segment === got[index],
+  );
+}
+
 function servesCdnCachedDocument(pathname: string): boolean {
-  return CDN_CACHED_DOCUMENT_PATHS.has(pathname);
+  if (CDN_CACHED_DOCUMENT_PATHS.has(pathname)) return true;
+  for (const pattern of CDN_CACHED_DOCUMENT_ROUTES) {
+    if (matchesDocumentRoute(pattern, pathname)) return true;
+  }
+  return false;
 }
 
 // Preview and development deploys must never be indexed. VERCEL_ENV is the
@@ -136,6 +209,11 @@ function servesApiCaller(pathname: string): boolean {
   return pathname === "/api" || pathname.startsWith("/api/");
 }
 
+/** The PostHog relay (`app/ingest/[...path]`): a caller, never a Clerk consumer. */
+function servesIngestRelay(pathname: string): boolean {
+  return pathname === "/ingest" || pathname.startsWith("/ingest/");
+}
+
 // AN API REQUEST IS A CALLER, NOT A READER, SO IT IS NEVER SENT ELSEWHERE.
 //
 // A 308 tells the client to ask again at another address, and a client that is
@@ -192,10 +270,19 @@ function shouldSkipContentSecurityPolicy(request: NextRequest): boolean {
     pathname === "/_next/hmr" ||
     pathname.startsWith("/_next/hmr/") ||
     pathname === "/favicon.ico";
-  const prefetch =
-    request.headers.has("next-router-prefetch") ||
-    request.headers.get("purpose") === "prefetch";
-  return excludedPath || prefetch;
+  // Only NEXT's router prefetch skips the CSP work: it is an RSC fetch, the
+  // payload carries no document for a policy to govern, and minting a nonce
+  // for it is wasted work on every link the router warms. `Purpose: prefetch`
+  // and `Sec-Purpose: prefetch;prerender` are deliberately NOT read here. They
+  // are the BROWSER's words for a DOCUMENT fetched ahead of a navigation (a
+  // <link rel=prefetch>, or a speculation-rules prerender from app/layout.tsx
+  // of `/social`, `/crawls` or `/borough/*`), and that document is the one the
+  // reader is then shown, so it keeps its CSP, Clerk and every redirect and
+  // gate above. A request that asks for HTML is a document whatever else it
+  // carries, so even the router header cannot strip the policy off one.
+  const routerPrefetch =
+    request.headers.has("next-router-prefetch") && !wantsDocument(request);
+  return excludedPath || routerPrefetch;
 }
 
 // Per-request Content-Security-Policy with a fresh nonce.
@@ -272,7 +359,7 @@ export function securityProxy(request: NextRequest) {
     response.headers.set("X-Robots-Tag", "noindex");
     return applyNonProductionRobotsTag(response);
   }
-  if (pathname === "/ingest" || pathname.startsWith("/ingest/")) {
+  if (servesIngestRelay(pathname)) {
     return applyNonProductionRobotsTag(NextResponse.next());
   }
   if (pathname.length > 1 && pathname.endsWith("/")) {
@@ -305,6 +392,15 @@ export function securityProxy(request: NextRequest) {
     target.pathname = PLACES_PATH;
     return applyNonProductionRobotsTag(NextResponse.redirect(target, 308));
   }
+  // Out is Tonight now (product owner, Oct 2026 UX audit): the primary row is
+  // Map, Tonight, Plan, Social, You, and Tonight carries what Out listed. /out keeps
+  // its address for every old link and bookmark by answering a permanent 308
+  // here, with the reader's own query riding along as on the 308s above.
+  if (pathname === OUT_PATH) {
+    const target = new URL(request.url);
+    target.pathname = TONIGHT_PATH;
+    return applyNonProductionRobotsTag(NextResponse.redirect(target, 308));
+  }
   // Hyphenated alias of /login. /signin stays the existing page redirect.
   if (pathname === "/sign-in") {
     const target = new URL(request.url);
@@ -325,18 +421,20 @@ export function securityProxy(request: NextRequest) {
       ),
     );
   }
-  // /onboarding is the native shell's one-time first-run surface and NOTHING
-  // else. `consumeNativeFirstRunHandoff` is native-only and session-scoped, so
-  // a web visit has always failed closed and replaced the URL with "/". It did
-  // that in the browser, after rendering and discarding a whole document: it
-  // was the worst LCP on the site at 4676 ms on Slow 4G, because the paint
+  // /onboarding is the native shell's first-run surface, and the web
+  // reaches it only by a client navigation from the first-run chip on /near
+  // (`?start=web`, lib/firstRunRoute.ts). `consumeNativeFirstRunHandoff` is
+  // native-only and session-scoped, so any other web visit has always failed
+  // closed and replaced the URL with "/". It did that in the browser, after
+  // rendering and discarding a whole document: it was the worst LCP on the site at 4676 ms on Slow 4G, because the paint
   // being measured was the homepage arriving after the bounce (Astra's live
   // walk, 7 Sep 2026, finding B6).
   //
   // The shell reaches this route two ways, and neither is turned away:
   //
   //   1. A fresh install decides its entry before first paint in
-  //      public/theme-init.js and calls `window.location.replace` from "/".
+  //      public/theme-init.js and calls `window.location.replace` from
+  //      "/app-entry" (or "/" in an older installed binary).
   //      That is a DOCUMENT request, but this origin's own page started it.
   //      Turning it away sent every fresh install to the landing page with the
   //      first-run mark already stamped, so onboarding never ran (14 Sep 2026).
@@ -400,123 +498,20 @@ export function securityProxy(request: NextRequest) {
   const nonce = Buffer.from(crypto.randomUUID()).toString("base64");
   const isDev = process.env.NODE_ENV === "development";
 
-  // script-src: NO 'unsafe-inline' (its removal is the entire point of this
-  //   file — and browsers ignore 'unsafe-inline' whenever a nonce is present
-  //   anyway). 'self' covers the external theme-init + the async /_next/static
-  //   chunk bundles; 'nonce-<value>' covers Next's inline RSC bootstrap +
-  //   hydration payload and our own nonce-stamped inline scripts. Local
-  //   `next dev` additionally gets 'unsafe-eval' because React's development
-  //   tooling uses eval for call-stack reconstruction; production never does.
-  //   NB: no 'strict-dynamic' — it would make the browser ignore the 'self'
-  //   source expression, blocking the parser-inserted external theme-init.js;
-  //   Next's chunk loading is happy under plain 'self' + a nonce'd bootstrap.
-  //   The external host is va.vercel-scripts.com for Vercel Analytics.
-  //   Vercel injects its tag itself, so it carries no nonce of ours; the script
-  //   is still consent-gated in the app (`beforeSend` cancels pre-consent
-  //   pageviews — docs/OBSERVABILITY_CERTIFICATION.md), so allowing that origin
-  //   does not widen what may be collected, only what may load.
-  //   Speed Insights loads same-origin `/_vercel/speed-insights/*` (script +
-  //   vitals beacon) under `'self'` in script-src and connect-src; it is also
-  //   consent-gated in the app (`beforeSend` cancels pre-consent vitals).
-  //   Clerk adds its instance Frontend API host (which serves clerk-js), the
-  //   Cloudflare Turnstile challenge host and Clerk's abuse-protection hosts.
-  //   Every one of them is an exact origin derived from the publishable key or
-  //   named in lib/clerkIdentity.ts; NONE of them is 'unsafe-inline', and
-  //   nothing here relaxes the nonce contract above. With no Clerk key set,
-  //   `clerk.script` is empty.
-  // Local development may point NEXT_PUBLIC_SUPABASE_URL at an auth stack on
-  // this machine (`supabase start`, or a stub GoTrue for keyless auth testing);
-  // the `*.supabase.co` allowance never covers that origin, so browser sign-in
-  // silently dies under the CSP. The extra origin joins connect-src only under
-  // `next dev` — production builds never widen.
-  const devSupabaseConnect = (() => {
-    if (!isDev) return "";
-    const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-    if (!url) return "";
-    try {
-      const origin = new URL(url).origin;
-      return origin.endsWith(".supabase.co") ? "" : ` ${origin}`;
-    } catch {
-      return "";
-    }
-  })();
-
-  const clerk = clerkCspSources();
-  const supabaseCsp = supabaseCspOrigins();
-  const supabaseImg = supabaseCsp ? ` ${supabaseCsp.https}` : "";
-  const supabaseConnect = supabaseCsp
-    ? ` ${supabaseCsp.https} ${supabaseCsp.wss}`
-    : "";
-  const clerkScript = clerk.script.map((origin) => ` ${origin}`).join("");
-  // On a prerendered document the nonce slot becomes 'unsafe-inline'. What that
-  // costs is exactly this: Next's own inline RSC bootstrap and our two inline
-  // blocks in app/layout.tsx (speculation rules, site JSON-LD) are admitted by
-  // being inline rather than by carrying a secret. Other source expressions
-  // remain unchanged. Both surfaces render no personal data and take no user
-  // input into markup.
-  const inlineScriptSource = cdnCachedDocument
-    ? "'unsafe-inline'"
-    : `'nonce-${nonce}'`;
-  // Voice AudioWorklets are same-origin files under /vendor/elevenlabs, copied
-  // by `npm run dev` and `npm run build` and passed as workletPaths when a session starts.
-  // script-src stays 'self' plus the nonce (or 'unsafe-inline' on the five
-  // prerendered documents). data: and blob: are not script sources: a data:
-  // URL would run without a nonce.
-  const scriptSrc = `script-src 'self' ${inlineScriptSource} https://va.vercel-scripts.com${clerkScript}${isDev ? " 'unsafe-eval'" : ""}`;
-
-  // frame-src did not exist before Clerk: framing fell through to `child-src
-  // blob:`, so blob: frames were the only ones allowed. Turnstile and Clerk's
-  // abuse protection both render in iframes, so the directive becomes explicit
-  // — and it KEEPS blob: so the fallback's existing permission is preserved
-  // rather than quietly revoked. It stays absent entirely when Clerk is off.
-  const clerkFrameSrc =
-    clerk.frame.length > 0 ? [`frame-src blob: ${clerk.frame.join(" ")}`] : [];
-
-  // The baseline non-script directives below follow the previous static CSP in
-  // next.config.mjs. See that file's history for the per-directive rationale.
-  const contentSecurityPolicy = [
-    "default-src 'self'",
-    scriptSrc,
-    "style-src 'self' 'unsafe-inline'",
-    // img-src is deliberately MINIMAL — a "proxy-or-nothing" guard (image
-    // rights audit U9, docs/IMAGE_RIGHTS_AUDIT_2026-07-21.md). Only origins the
-    // BROWSER loads directly are listed: Wikimedia (landmark stories on the map
-    // + /landmark/[id], via Special:FilePath, whose redirect chain ends on
-    // thumb.wikimedia.org for a sized file and upload.wikimedia.org for the
-    // original; MEASURED 2026-09-05, a width-sized request 302s to
-    // Special:Redirect/file, then 301s to thumb.wikimedia.org, and a host
-    // missing here drew every landmark hero as a broken-image glyph with the
-    // credit bar still under it), the Greene King Sitecore DAM (the 4 food-menu tiles
-    // MenuCategoryGrid renders raw), *.supabase.co (community Pint Drop photos +
-    // user avatars, our own bucket) and *.googleusercontent.com (Google IdP
-    // sign-in/profile avatars). Every OTHER venue photo — the ~439 open-ended
-    // pub-website hosts plus the brand/platform CDNs — is fetched server-side by
-    // /api/image-proxy and re-served same-origin, so it loads under 'self' and
-    // needs no entry here. The brand/platform origins that USED to be listed
-    // (jdwetherspoon, greeneking, staticflickr, tripadvisor, squarespace-cdn,
-    // inapub, wixstatic, whatpub S3, gstatic) were dead — never loaded directly —
-    // and were removed so a future direct hotlink of unlicensed imagery fails
-    // visibly instead of silently shipping. Do NOT re-add a third-party image
-    // host here: route it through /api/image-proxy (and license it) instead.
-    // Clerk adds https://img.clerk.com here, its own account-avatar CDN. It is
-    // a first-party ACCOUNT image, not a third-party venue photo, so the
-    // "proxy-or-nothing" rule above is untouched: no venue imagery may join it.
-    `img-src 'self' data: blob: https://commons.wikimedia.org https://upload.wikimedia.org https://thumb.wikimedia.org${supabaseImg} https://*.googleusercontent.com https://gkbr-p-001.sitecorecontenthub.cloud${clerk.img.map((origin) => ` ${origin}`).join("")}`,
-    "font-src 'self' data: https://tiles.openfreemap.org",
-    // Clerk adds its Frontend API host (session, sign-in and sign-up calls) and
-    // its abuse-protection hosts. Supabase's entries stay: both auth systems
-    // run side by side, and removing either would break the other's sign-in.
-    `connect-src 'self' https://tiles.openfreemap.org https://basemaps.cartocdn.com https://tiles.basemaps.cartocdn.com${supabaseConnect} wss://api.elevenlabs.io https://api.elevenlabs.io${devSupabaseConnect}${clerk.connect.map((origin) => ` ${origin}`).join("")}`,
-    // Clerk also requires worker-src 'self' blob: — already true for MapLibre's
-    // tile workers and the offline service worker, so it needs no change here.
-    "worker-src 'self' blob:",
-    "child-src blob:",
-    ...clerkFrameSrc,
-    "frame-ancestors 'none'",
-    "base-uri 'self'",
-    "form-action 'self'",
-    "object-src 'none'",
-  ].join("; ");
+  // The policy itself is built in lib/contentSecurityPolicy.mjs, which owns
+  // the per-directive reasoning, so next.config.mjs can ship the SAME policy
+  // for the CDN documents that no longer run this function on the canonical
+  // host (lib/cdnDocumentEdge.mjs). The nonce slot is the only input that
+  // differs: a prerendered document takes 'unsafe-inline' instead.
+  const contentSecurityPolicy = buildContentSecurityPolicy({
+    inlineScriptSource: cdnCachedDocument
+      ? CDN_DOCUMENT_INLINE_SCRIPT_SOURCE
+      : `'nonce-${nonce}'`,
+    isDev,
+    clerk: clerkCspSources(),
+    supabase: supabaseCspOrigins(),
+    devSupabaseConnect: devSupabaseConnectOrigin(process.env, isDev),
+  });
 
   // Forward the nonce to the render: `x-nonce` for our own components
   // (app/layout.tsx et al. read it via next/headers), and the CSP itself on the
@@ -552,9 +547,12 @@ export function securityProxy(request: NextRequest) {
 // `servesApiCaller` is the predicate. It sends every `/api` path, including a
 // document-shaped GET, straight to securityProxy, so a Clerk handshake cannot
 // answer before the trailing-slash redirect, the store refusal, or the route.
-// Documents, `/__clerk` and every other matched path (including `/ingest`,
-// which is not an API route and is not a Clerk consumer) still enter
-// clerkMiddleware. Revisit the predicate when a route first calls `auth()`.
+// `/ingest`, the PostHog relay, is not a Clerk consumer either, so
+// `servesIngestRelay` sends it to securityProxy the same way. The matcher keeps
+// it off the function entirely on the canonical host; this covers the
+// `*.vercel.app` rule, which still claims it. Documents, `/__clerk` and every
+// other matched path still enter clerkMiddleware. Revisit both predicates when
+// a route first calls `auth()`.
 //
 // WHY A NAMED `proxy` EXPORT AND NOT `export default`:
 // Next.js resolves the userland handler as `mod.proxy || mod.default`
@@ -576,7 +574,8 @@ const clerkSecurityProxy = isClerkMiddlewareConfigured()
 
 export const proxy = clerkSecurityProxy
   ? (request: NextRequest, event: NextFetchEvent) =>
-      servesApiCaller(request.nextUrl.pathname)
+      servesApiCaller(request.nextUrl.pathname) ||
+      servesIngestRelay(request.nextUrl.pathname)
         ? securityProxy(request)
         : clerkSecurityProxy(request, event)
   : securityProxy;
@@ -589,30 +588,54 @@ export const config = {
       source: "/:path*",
       has: [{ type: "host", value: ".+\\.vercel\\.app" }],
     },
-    { source: "/:path+/" },
+    // The trailing-slash 308. `/ingest` is left out: PostHog's browser client
+    // posts to `/ingest/e/` and `/ingest/flags/`, securityProxy hands every
+    // `/ingest` path on untouched, and claiming them put a second function
+    // invocation in front of every analytics event.
+    { source: "/((?!ingest/).+)/" },
     // Clerk's own frontend API routes. Clerk requires the matcher to cover this
     // prefix so its handshake and session requests reach the middleware; it is
     // listed ahead of the general rule below because that rule's `missing`
     // prefetch clause must never be able to exclude a Clerk request.
     { source: "/__clerk/:path*" },
+    // The CDN documents (`/`, `/map`, `/tonight`, `/today`, `/near`, `/plan`,
+    // `/pal`) are left out of the general rule below, and their policy ships
+    // from next.config.mjs `headers()`. These entries keep the proxy on the only requests for them it
+    // still acts on: the poster QR landing (`/?src=`) and a /map query that
+    // needs the per-request document twin. lib/cdnDocumentEdge.mjs owns the
+    // rule; `__tests__/cdnDocumentEdge.test.ts` derives these and fails on drift.
+    { source: "/", has: [{ type: "query", key: "src" }], missing: [{ type: "header", key: "next-router-prefetch" }] },
+    { source: "/map", has: [{ type: "query", key: "place" }], missing: [{ type: "header", key: "next-router-prefetch" }] },
+    { source: "/map", has: [{ type: "query", key: "uk" }], missing: [{ type: "header", key: "next-router-prefetch" }] },
+    { source: "/map", has: [{ type: "query", key: "band" }], missing: [{ type: "header", key: "next-router-prefetch" }] },
+    { source: "/map", has: [{ type: "query", key: "crawl" }], missing: [{ type: "header", key: "next-router-prefetch" }] },
+    { source: "/map", has: [{ type: "query", key: "pubs" }], missing: [{ type: "header", key: "next-router-prefetch" }] },
+    { source: "/map", has: [{ type: "query", key: "card" }], missing: [{ type: "header", key: "next-router-prefetch" }] },
     // The general rule, and the ONE place a request is kept out of this
     // function entirely. Beside the framework's own static prefixes it now
     // excludes every public asset directory: `/data`, the map's packs included,
     // plus brand, fonts, landing, night-signals, store-assets and vendor. Those
     // are pure bytes the CDN already holds, and running a Node function in
     // front of them bought nothing while putting a function failure in front of
-    // a healthy file. Next only reads a matcher it can analyse STATICALLY, so
+    // a healthy file. The last branch does the same for the files at the root
+    // of public/ and the /pal art, by extension, and ONLY there (a dynamic page
+    // such as /u/foo.png must keep its nonce): theme-init.js and
+    // map-first-paint-init.js load in <head>, so a cold start here delayed
+    // first paint. The final branches leave out the CDN documents (see
+    // the query entries above). Next only reads a matcher it can analyse STATICALLY, so
     // the alternation is written out here as a literal;
     // `__tests__/staticAssetPrefixes.test.ts` derives it from
     // lib/staticAssetPrefixes.mjs and fails when the two drift, and the same
     // fence refuses a prefix that collides with an app route.
     {
       source:
-        "/((?!api|ingest|_next/static|_next/image|_next/hmr|favicon.ico|data/|brand/|fonts/|landing/|night-signals/|store-assets/|vendor/).*)",
-      missing: [
-        { type: "header", key: "next-router-prefetch" },
-        { type: "header", key: "purpose", value: "prefetch" },
-      ],
+        "/((?!api|ingest|_next/static|_next/image|_next/hmr|favicon.ico|data/|brand/|fonts/|landing/|night-signals/|store-assets/|vendor/|(?:pal/)?[^/?]*\\.(?:js|json|geojson|webmanifest|png|jpg|jpeg|webp|avif|svg|ico|ttf|woff|woff2|txt)$|$|map$|tonight$|today$|near$|plan$|pal$).*)",
+      // Next's router prefetch (an RSC fetch) is kept out. The browser's own
+      // `Purpose: prefetch` is NOT: it marks a document prefetch or a
+      // speculation-rules prerender, which the reader is then shown, so it
+      // must run this function for its CSP, Clerk and redirects. See
+      // shouldSkipContentSecurityPolicy and `__tests__/clerkProxyCsp.test.ts`.
+      missing: [{ type: "header", key: "next-router-prefetch" }],
     },
   ],
 } satisfies ProxyConfig;

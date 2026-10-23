@@ -42,6 +42,67 @@ function dryRun() {
 }
 
 describe("pubpal:agent dry run", () => {
+  it("lets the agent request four sourced pubs and return their display data", () => {
+    const printed = dryRun().stdout.split("\nDefault voice resolved:")[0] ?? "";
+    const body = JSON.parse(printed.slice(printed.indexOf("{"), printed.lastIndexOf("}") + 1));
+    const search = body.webhook_tools.find((tool: { name: string }) => tool.name === "search_venues");
+    expect(search.api_schema.request_body_schema.properties.limit).toMatchObject({ type: "number" });
+    expect(body.conversation_config.conversation.client_events).toContain("agent_tool_response_full_payload");
+    expect(body.conversation_config.agent.prompt.prompt).toContain("A requested number of pubs is a result count");
+  });
+
+  it("keeps social turns separate from factual requests in the provisioned prompt and tools", () => {
+    const printed = dryRun().stdout.split("\nDefault voice resolved:")[0] ?? "";
+    const body = JSON.parse(printed.slice(printed.indexOf("{"), printed.lastIndexOf("}") + 1));
+    const prompt: string = body.conversation_config.agent.prompt.prompt;
+    expect(prompt).toContain(
+      "If the person only greets you, reply with one short line that moves forward: Hey. Where are you heading tonight?",
+    );
+    expect(prompt).toContain(
+      "Never repeat a question you have already asked in this conversation. If you already asked where they are heading, acknowledge briefly and wait for them to say more.",
+    );
+    // The voice opener already asks this question, so no greeting rule may make the agent ask it again.
+    expect(prompt).not.toContain("What kind of night are you planning?");
+    expect(prompt).toContain("Do not call any tool for a greeting alone. Do not infer a request for listings.");
+    expect(prompt).toContain("For thanks alone, reply briefly without a tool.");
+    expect(prompt).toContain("Use a factual tool only when the person asks for the information that tool provides.");
+    expect(prompt).toContain("A message label is context. It is not a request for tonight's listings.");
+    expect(prompt.indexOf("Do not call any tool for a greeting alone.")).toBeLessThan(
+      prompt.indexOf("Call the PUBMAXX webhook tools before any factual answer."),
+    );
+    expect(prompt).toContain("On the first substantive request, call recall_memories once before any factual tool.");
+    expect(prompt).not.toContain("At the start of a conversation, call recall_memories");
+    const tools = new Map<string, { description: string }>(
+      body.webhook_tools.map((tool: { name: string; description: string }) => [tool.name, tool]),
+    );
+    expect(tools.get("tonight_now")?.description).toBe(
+      "Use only for explicit questions about sourced events or listings running now, tonight, or later, or how busy a pub or area is. Do not use for greetings or message labels. For crowd questions, explain that no live crowd reading exists. Never claim live crowd levels.",
+    );
+    expect(tools.get("recall_memories")?.description).toContain("first substantive request");
+    expect(body.platform_settings.privacy.delete_transcript_and_pii).toBe(true);
+  });
+
+  it("provisions an agent that waits at a pause and keeps speech said during a proposal", () => {
+    const printed = dryRun().stdout.split("\nDefault voice resolved:")[0] ?? "";
+    const body = JSON.parse(printed.slice(printed.indexOf("{"), printed.lastIndexOf("}") + 1));
+    // The provider default ("normal") took the turn at a mid-sentence pause.
+    expect(body.conversation_config.turn).toEqual({
+      turn_eagerness: "patient",
+      transcribe_on_disabled_interruptions: true,
+    });
+    // The confirm tools disable talk-over for their whole turn, which is why
+    // speech in that turn must still be transcribed.
+    const confirmTools = body.webhook_tools.filter(
+      (tool: { interruption_mode?: string }) => tool.interruption_mode === "disable_during_tool_and_turn",
+    );
+    expect(confirmTools.length).toBeGreaterThan(0);
+    expect(body.conversation_config.asr).toMatchObject({ quality: "high", user_input_audio_format: "pcm_16000" });
+    const keywords: string[] = body.conversation_config.asr.keywords;
+    expect(keywords).toEqual(expect.arrayContaining(["PUBMAXX", "Wetherspoons", "Shoreditch", "pint"]));
+    expect(new Set(keywords.map((word) => word.toLowerCase())).size).toBe(keywords.length);
+    expect(keywords.length).toBeLessThanOrEqual(50);
+  });
+
   it("prints the agent it would write without printing the shared secret", () => {
     const result = dryRun();
     expect(result.status).toBe(0);
@@ -57,7 +118,7 @@ describe("pubpal:agent dry run", () => {
     const end = printed.lastIndexOf("}");
     const body = JSON.parse(printed.slice(start, end + 1)) as {
       conversation_config: {
-        agent: { prompt: { prompt: string; llm: string; tool_ids: string[] } };
+        agent: { prompt: { prompt: string; llm: string; reasoning_effort: null; tool_ids: string[] } };
       };
       webhook_tools: Array<{
         api_schema: {
@@ -70,17 +131,20 @@ describe("pubpal:agent dry run", () => {
       }>;
       llm: string;
       platform_settings: {
+        auth: { enable_auth: boolean; allowlist: unknown[] };
         privacy: { retention_days: number; zero_retention_mode: boolean };
         overrides: {
           conversation_config_override: {
             agent: { prompt: { prompt: boolean }; first_message: boolean };
             tts: { voice_id: boolean };
+            conversation: { text_only: boolean };
           };
         };
       };
     };
     expect(body.llm).toBe("gemini-2.5-flash-lite");
     expect(body.conversation_config.agent.prompt.llm).toBe("gemini-2.5-flash-lite");
+    expect(body.conversation_config.agent.prompt.reasoning_effort).toBeNull();
     expect(body.webhook_tools.map((tool) => tool.api_schema.url)).toContain(
       "https://pubmaxxing.com/api/pub-pal/tools/search_venues",
     );
@@ -95,11 +159,14 @@ describe("pubpal:agent dry run", () => {
       "Never invent a pub, a price, an opening hour, or an event.",
     );
     expect(body.conversation_config.agent.prompt.prompt).not.toContain("{{");
+    // A conversation may start only with a signed URL, never with the agent id alone.
+    expect(body.platform_settings.auth).toEqual({ enable_auth: true, allowlist: [] });
     expect(body.platform_settings.privacy.retention_days).toBe(-1);
     expect(body.platform_settings.privacy.zero_retention_mode).toBe(true);
     expect(body.platform_settings.overrides.conversation_config_override).toEqual({
       agent: { prompt: { prompt: false }, first_message: true },
       tts: { voice_id: true },
+      conversation: { text_only: true },
     });
   });
 
@@ -115,5 +182,61 @@ describe("pubpal:agent dry run", () => {
     expect(body.conversation_config.conversation.max_duration_seconds).toBe(
       PAL_VOICE_MAX_SESSION_SECONDS,
     );
+  });
+  it("sends the voice events and the events typed chat needs to find the end of a turn", () => {
+    const printed = dryRun().stdout.split("\nDefault voice resolved:")[0] ?? "";
+    const start = printed.indexOf("{");
+    const end = printed.lastIndexOf("}");
+    const body = JSON.parse(printed.slice(start, end + 1)) as {
+      conversation_config: { conversation: { client_events: string[] } };
+    };
+    expect(body.conversation_config.conversation.client_events).toEqual(
+      expect.arrayContaining([
+        "audio",
+        "interruption",
+        "user_transcript",
+        "agent_response",
+        "agent_tool_request",
+        "agent_tool_response",
+        "agent_response_complete",
+      ]),
+    );
+  });
+
+  it("speaks a checking line before every tool and keeps confirm proposals uninterrupted", () => {
+    const printed = dryRun().stdout.split("\nDefault voice resolved:")[0] ?? "";
+    const start = printed.indexOf("{");
+    const end = printed.lastIndexOf("}");
+    const body = JSON.parse(printed.slice(start, end + 1)) as {
+      webhook_tools: Array<{
+        name: string;
+        pre_tool_speech: string;
+        execution_mode: string;
+        interruption_mode: string;
+      }>;
+    };
+    const confirmTools = ["propose_plan", "propose_map_action", "report_occupancy", "propose_memory"];
+    expect(body.webhook_tools.length).toBe(16);
+    const byName = new Map(body.webhook_tools.map((tool) => [tool.name, tool]));
+    expect(byName.get("recall_memories")).toMatchObject({
+      pre_tool_speech: "force",
+      execution_mode: "immediate",
+      interruption_mode: "allow",
+    });
+    expect(byName.get("propose_memory")).toMatchObject({
+      pre_tool_speech: "force",
+      execution_mode: "immediate",
+      interruption_mode: "disable_during_tool_and_turn",
+    });
+    for (const tool of body.webhook_tools) {
+      expect(tool.pre_tool_speech).toBe("force");
+      expect(tool.execution_mode).toBe("immediate");
+      expect(tool.interruption_mode).toBe(
+        confirmTools.includes(tool.name) ? "disable_during_tool_and_turn" : "allow",
+      );
+    }
+    expect(
+      body.webhook_tools.filter((tool) => tool.interruption_mode !== "allow").map((tool) => tool.name),
+    ).toEqual(confirmTools);
   });
 });

@@ -15,7 +15,7 @@ export const dynamic = "force-dynamic";
 
 const FEED_TITLE = "Stories";
 const FEED_DESCRIPTION =
-  "Recent Pint Drops from across London: logged prices, mapped pubs, and the notes passed down with them.";
+  "Recent Pint Drops from across London. Each one has its logged price, its pub on the map and any note passed down with it.";
 
 export const metadata: Metadata = {
   title: FEED_TITLE,

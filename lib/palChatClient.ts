@@ -9,9 +9,15 @@ import {
   type PalAnswer,
   type PalCard,
 } from "@/lib/palChat";
-import type { AskProposal, AskTurn } from "@/lib/ask/types";
+import { isAskToolName, isAskSourceKind, type AskMenuEvidence, type AskProposal, type AskTurn } from "@/lib/ask/types";
 import { AuthActionSessionError, authedActionFetch } from "@/lib/authedFetch";
 import { answerFromBody } from "@/lib/conciergeAskClient";
+import {
+  isPalChatStreamResponse,
+  PAL_CHAT_STREAM_TYPE,
+  readPalChatStream,
+} from "@/lib/palChatStream";
+import { windowPalSessionTurns } from "@/lib/palSessionSummary";
 import { isPubPalConversationId } from "@/lib/pubPalConversationId";
 
 export type PalChatResult =
@@ -23,12 +29,23 @@ const PAL_CHAT_TIMEOUT_MS = 25_000;
 type SessionOptions = {
   timeoutMs?: number;
   fetchImpl?: typeof fetch;
+  initialTurns?: readonly AskTurn[];
+  initialConversationId?: string;
+  onConversationId?: (id: string) => void;
+  onTurns?: (turns: AskTurn[]) => void;
 };
 
 const signedInFetch: typeof fetch = (input, init) =>
   authedActionFetch(input, init ?? {}, { requiresIdentity: true });
 
-function askBodyToPal(body: unknown): PalChatResult {
+function cardTiming(item: Record<string, unknown>): Pick<PalCard, "when" | "confidence"> {
+  const timing: Pick<PalCard, "when" | "confidence"> = {};
+  if (typeof item.when === "string" && Number.isFinite(Date.parse(item.when))) timing.when = item.when;
+  if (typeof item.confidence === "string") timing.confidence = item.confidence;
+  return timing;
+}
+
+export function palChatResultFromBody(body: unknown): PalChatResult {
   // Prefer the Ask agent shape when present.
   const ask = answerFromBody(body);
   if (ask.status === "error") return ask;
@@ -53,8 +70,7 @@ function askBodyToPal(body: unknown): PalChatResult {
         typeof provenanceRaw?.label === "string" && provenanceRaw.label.trim()
           ? provenanceRaw.label.trim()
           : DIRECTORY_PROVENANCE_LABEL;
-      const kind =
-        provenanceRaw?.kind === "whats-on" ? "whats-on" : "directory";
+      const kind = isAskSourceKind(provenanceRaw?.kind) ? provenanceRaw.kind : "directory";
       cards.push({
         key:
           typeof item.key === "string" && item.key
@@ -64,6 +80,8 @@ function askBodyToPal(body: unknown): PalChatResult {
         title: typeof item.title === "string" ? item.title : "Result",
         place: typeof item.place === "string" ? item.place : "",
         note: typeof item.note === "string" ? item.note : "",
+        ...(item.menuEvidence && typeof item.menuEvidence === "object" ? { menuEvidence: item.menuEvidence as AskMenuEvidence } : {}),
+        ...cardTiming(item),
         price:
           typeof item.price === "number" && Number.isFinite(item.price)
             ? item.price
@@ -80,6 +98,7 @@ function askBodyToPal(body: unknown): PalChatResult {
     return {
       status: cards.length > 0 ? "answered" : "empty",
       message: ask.message,
+      ...(Array.isArray(record.toolsUsed) ? { toolsUsed: record.toolsUsed.filter((tool): tool is import("@/lib/ask/types").AskToolName => typeof tool === "string" && isAskToolName(tool)) } : {}),
       cards,
       proposals: ask.proposals,
     };
@@ -97,12 +116,18 @@ export function createPalChatSession(options: SessionOptions = {}) {
   const timeoutMs = options.timeoutMs ?? PAL_CHAT_TIMEOUT_MS;
   const fetchImpl = options.fetchImpl ?? signedInFetch;
   let currentId = 0;
-  const turns: AskTurn[] = [];
-  let threadId = "";
+  let turns: AskTurn[] = windowPalSessionTurns("", [...(options.initialTurns ?? [])]).turns;
+  let threadId = options.initialConversationId && isPubPalConversationId(options.initialConversationId) ? options.initialConversationId : "";
 
+  /**
+   * `onText`, when given, asks for the streamed answer and is called with all of
+   * the answer text so far as it arrives ("" clears a checking line). The result
+   * is the same either way, and a server that answers one JSON body still works.
+   */
   return async function ask(
     query: string,
     cityId: string,
+    onText?: (text: string) => void,
   ): Promise<PalChatResult | null> {
     const requestId = ++currentId;
     try {
@@ -110,10 +135,14 @@ export function createPalChatSession(options: SessionOptions = {}) {
       const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
       let response: Response;
       let body: unknown;
+      let streamError: string | null = null;
       try {
         response = await fetchImpl("/api/pub-pal/chat", {
           method: "POST",
-          headers: { "content-type": "application/json" },
+          headers: {
+            "content-type": "application/json",
+            ...(onText ? { accept: PAL_CHAT_STREAM_TYPE } : {}),
+          },
           body: JSON.stringify({
             query,
             cityId,
@@ -122,11 +151,28 @@ export function createPalChatSession(options: SessionOptions = {}) {
           }),
           signal: controller.signal,
         });
-        body = await response.json();
+        if (response.ok && response.body && isPalChatStreamResponse(response)) {
+          let text = "";
+          let final: unknown = null;
+          await readPalChatStream(response.body, (event) => {
+            if (event.type === "final") final = event.body;
+            else if (event.type === "error") streamError = event.error;
+            else {
+              text = event.type === "delta" ? text + event.text : "";
+              if (requestId === currentId) onText?.(text);
+            }
+          });
+          // A stream that ends without its final event was cut off.
+          body = final;
+          streamError ??= final === null ? PAL_ERROR_FALLBACK : null;
+        } else {
+          body = await response.json();
+        }
       } finally {
         clearTimeout(timeoutId);
       }
       if (requestId !== currentId) return null;
+      if (streamError !== null) return { status: "error", message: streamError };
       if (!response.ok) {
         const record =
           body && typeof body === "object" && !Array.isArray(body)
@@ -139,18 +185,22 @@ export function createPalChatSession(options: SessionOptions = {}) {
           ...(response.status === 401 ? { needsSignIn: true } : {}),
         };
       }
-      const result = askBodyToPal(body);
+      const result = palChatResultFromBody(body);
       const conversationId =
         body && typeof body === "object" && !Array.isArray(body)
           ? (body as Record<string, unknown>).conversationId
           : undefined;
-      if (typeof conversationId === "string" && isPubPalConversationId(conversationId)) {
+      if (typeof conversationId === "string" && (conversationId === "" || isPubPalConversationId(conversationId))) {
         threadId = conversationId;
+        options.onConversationId?.(threadId);
       }
       if (result.status !== "error") {
-        turns.push({ role: "user", content: query });
-        turns.push({ role: "assistant", content: result.message });
-        while (turns.length > 6) turns.shift();
+        turns = windowPalSessionTurns("", [
+          ...turns,
+          { role: "user", content: query },
+          { role: "assistant", content: result.message },
+        ]).turns;
+        options.onTurns?.(turns.map((turn) => ({ ...turn })));
       }
       return result;
     } catch (error) {

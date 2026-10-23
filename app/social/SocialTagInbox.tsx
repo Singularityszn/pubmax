@@ -154,7 +154,7 @@ export default function SocialTagInbox() {
           setError("Photo tag changed. Review it again.");
           await Promise.all([loadLane("proposed"), loadLane("approved")]);
         } else {
-          setError("Photo tag choice was not saved.");
+          setError("Couldn't save that photo tag choice.");
         }
         return;
       }
@@ -163,7 +163,7 @@ export default function SocialTagInbox() {
       setError(
         caught instanceof AuthActionSessionError
           ? caught.message
-          : "Photo tag choice was not saved.",
+          : "Couldn't save that photo tag choice.",
       );
     } finally {
       setBusyId(null);

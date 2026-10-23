@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 
 import { computeThenVsNow, type ThenVsNowDrop } from "@/lib/thenVsNow";
 import type { Venue } from "@/lib/venues";
+import { defined } from "@/__tests__/helpers/defined";
 
 // computeThenVsNow only reads id/name/cheapestPrice, so a partial cast keeps the
 // fixtures readable without spelling out every Venue field.
@@ -44,8 +45,8 @@ describe("computeThenVsNow", () => {
     ];
 
     const [item] = computeThenVsNow(venues, drops);
-    expect(item.nowGbp).toBe(8);
-    expect(item.deltaGbp).toBe(3);
+    expect(defined(item).nowGbp).toBe(8);
+    expect(defined(item).deltaGbp).toBe(3);
   });
 
   it("skips a newer un-priced drop and falls back to the newest PRICED one", () => {
@@ -56,7 +57,7 @@ describe("computeThenVsNow", () => {
     ];
 
     const [item] = computeThenVsNow(venues, drops);
-    expect(item.nowGbp).toBe(6);
+    expect(defined(item).nowGbp).toBe(6);
   });
 
   it("computes delta/pct sign correctly for both directions", () => {
@@ -117,9 +118,9 @@ describe("computeThenVsNow", () => {
     const drops = [drop({ venueId: "free", priceGbp: 3 })];
 
     const [item] = computeThenVsNow(venues, drops);
-    expect(item.deltaGbp).toBe(3);
-    expect(item.pct).toBe(0);
-    expect(Number.isFinite(item.pct)).toBe(true);
+    expect(defined(item).deltaGbp).toBe(3);
+    expect(defined(item).pct).toBe(0);
+    expect(Number.isFinite(defined(item).pct)).toBe(true);
   });
 
   it("returns an empty array when there are no community drops at all", () => {

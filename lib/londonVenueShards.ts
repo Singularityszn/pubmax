@@ -20,6 +20,7 @@
 
 import { parseShardManifest, type ShardEntry, type ShardManifest } from "@/lib/slimShards";
 import { isVenueKind, type VenueKind } from "@/lib/venues";
+import { displayVenueName } from "@/lib/venueDisplay";
 
 export const LONDON_VENUE_SHARD_VERSION = 1;
 
@@ -51,6 +52,14 @@ export function londonVenueIdFor(osmRef: string): string {
 
 export function isLondonVenueId(id: string): boolean {
   return id.startsWith(LONDON_VENUE_ID_PREFIX);
+}
+
+/** The `venue-osm-` id a tapped map feature carries, or null when it has none. */
+export function londonVenueIdFromFeature(feature: {
+  properties?: GeoJSON.GeoJsonProperties;
+}): string | null {
+  const id = feature.properties?.id;
+  return typeof id === "string" && isLondonVenueId(id) ? id : null;
 }
 
 /**
@@ -91,7 +100,7 @@ export function parseLondonVenueShard(value: unknown): LondonVenue[] {
     if (!isShardRow(row)) continue;
     venues.push({
       id: londonVenueIdFor(row[0]),
-      name: row[1],
+      name: displayVenueName(row[1]),
       address: row[2],
       lat: row[3],
       lng: row[4],

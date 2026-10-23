@@ -107,7 +107,7 @@
   bottom: 30px;
   left: 15px;
   width: 0;
-  border-left: 2px dashed var(--accent-action);
+  border-left: 2px dashed var(--hairline-strong);
   opacity: 0.5;
 }
 .recapRoute__stop {
@@ -129,13 +129,14 @@
   display: flex;
   align-items: center;
   justify-content: center;
+  border: 1px solid var(--badge-border);
   border-radius: 50%;
-  background: var(--accent-action);
-  color: var(--color-on-accent-strong);
+  background: var(--badge-surface);
+  color: var(--ink);
   font-family: var(--font-data);
   font-variant-numeric: tabular-nums;
   font-weight: 700;
-  font-size: 14px;
+  font-size: var(--text-sm);
 }
 .recapRoute__body {
   min-width: 0;
@@ -170,7 +171,7 @@
   padding: 14px 16px;
   background: var(--state-active-surface);
   border: 1px solid var(--state-active-border);
-  border-radius: var(--radius-md, 12px);
+  border-radius: var(--radius);
 }
 .recapPint__body {
   min-width: 0;
@@ -209,7 +210,7 @@
   width: 100%;
   aspect-ratio: 4 / 3;
   object-fit: cover;
-  border-radius: var(--radius-md, 12px);
+  border-radius: var(--radius);
   border: 1px solid var(--hairline);
   background: var(--state-active-surface);
 }
@@ -232,12 +233,12 @@
   margin: 0;
   font-family: var(--font-display);
   font-weight: 600;
-  font-size: var(--text-lg, 1.25rem);
+  font-size: var(--text-lg);
   color: var(--ink);
 }
 .recapGuardian {
   padding: 14px 16px;
-  border-radius: var(--radius-md, 12px);
+  border-radius: var(--radius);
   border: 1px solid var(--hairline-strong);
 }
 .recapGuardian--safe {
@@ -245,8 +246,8 @@
   border-color: var(--price-plaque-border);
 }
 .recapGuardian--risk {
-  background: color-mix(in srgb, var(--accent-action) 8%, var(--panel-raised));
-  border-color: color-mix(in srgb, var(--accent-action) 32%, var(--line));
+  background: var(--panel-raised);
+  border-color: var(--line);
 }
 .recapGuardian__line {
   margin: 0;
@@ -264,7 +265,7 @@
   margin: 0 0 20px;
   font-family: var(--serif);
   font-style: italic;
-  font-size: var(--text-lg, 1.2rem);
+  font-size: var(--text-lg);
   line-height: 1.4;
   color: var(--ink-soft);
 }
@@ -297,7 +298,7 @@
   display: inline-flex;
   align-items: center;
   padding: 11px 18px;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: var(--accent-action);
   color: var(--color-on-accent-strong);
   font-family: var(--font-display);
@@ -306,12 +307,14 @@
   text-decoration: none;
   transition: background 140ms ease;
 }
-.recapShare__cta:hover {
-  background: var(--accent-action-strong);
+@media (hover: hover) and (pointer: fine) {
+  .recapShare__cta:hover {
+    background: var(--accent-action-strong);
+  }
 }
 .recapShare__btn {
   padding: 10px 14px;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   border: 1px solid var(--hairline-strong);
   background: transparent;
   color: var(--ink);
@@ -357,7 +360,24 @@
 .recapEmpty__back {
   justify-self: start;
   font-size: var(--text-sm);
-  color: var(--accent-action);
+  color: var(--color-text-muted);
   text-decoration: underline;
   text-underline-offset: 3px;
+}
+
+/* The recap video (PUBMAX_RECAP_VIDEO). A portrait frame, capped so it never
+   fills a desktop screen, with the same footprint while the Player loads. */
+.recapVideo {
+  max-width: 360px;
+  margin: 0 auto;
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  border: 1px solid var(--line);
+  background: var(--paper);
+}
+
+.recapVideo__placeholder {
+  width: 100%;
+  aspect-ratio: 1080 / 1920;
+  background: var(--panel);
 }

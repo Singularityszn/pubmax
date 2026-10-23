@@ -123,10 +123,15 @@ export function drinkLaneNoun(category: DrinkCategory): string {
  * A lane is a drink, not a brand or a shape, so the refinements that only make
  * sense inside the lane you left (a pint brand, a subtype, top shelf) go with
  * it. Re-picking the lane you are already in changes nothing, so a reader who
- * taps "Pints" twice does not lose the pint they chose.
+ * taps "Pints" twice does not lose the pint they chose. A generated plan may
+ * explicitly clear refinements even when it keeps the same lane.
  */
-export function applyDrinkLane(filters: Filters, next: DrinkCategory): Filters {
-  if (activeDrinkLane(filters.drinkCategory) === next) return filters;
+export function applyDrinkLane(
+  filters: Filters,
+  next: DrinkCategory,
+  { clearRefinements = false }: { clearRefinements?: boolean } = {},
+): Filters {
+  if (!clearRefinements && activeDrinkLane(filters.drinkCategory) === next) return filters;
   const isDefault = next === DEFAULT_DRINK_LANE;
   return {
     ...filters,

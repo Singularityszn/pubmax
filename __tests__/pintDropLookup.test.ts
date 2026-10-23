@@ -14,11 +14,12 @@ import { beforeEach, describe, expect, it } from "vitest";
 import { getPintDropById } from "@/lib/pintDropLookup";
 import { demoPintDrops } from "@/lib/pintDropSeeds";
 import { getVenueIndex } from "@/lib/venueIndex";
+import { defined } from "@/__tests__/helpers/defined";
 
 // A real demo seed that always rides the in-memory read path. Its venueId
 // resolves to a curated heritage pub in the bundled dataset, so enrichment
 // produces a real venue NAME (not the friendly fallback).
-const SEED = demoPintDrops[0];
+const SEED = defined(demoPintDrops[0]);
 
 beforeEach(() => {
   delete process.env.SUPABASE_URL;

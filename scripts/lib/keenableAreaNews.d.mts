@@ -25,6 +25,11 @@ export type AreaNewsEntry = AreaNewsFact & {
   observedAt: string;
 };
 
+export type ExtractedFactClassification =
+  | { status: "current"; fact: AreaNewsFact }
+  | { status: "expired" }
+  | { status: "invalid" };
+
 export const KEENABLE_API_BASE: string;
 export const KEENABLE_TITLE: string;
 export const KNOWN_AREA_SLUGS: ReadonlySet<string>;
@@ -37,6 +42,10 @@ export function searchKeenable(
   options?: Record<string, unknown>,
 ): Promise<KeenableResult[]>;
 export function fetchKeenable(sourceUrl: string, options?: Record<string, unknown>): Promise<KeenablePage>;
+export function classifyExtractedFact(
+  payload: KeenablePage | null,
+  options?: { knownAreas?: ReadonlySet<string>; currentYear?: number; now?: number | string },
+): ExtractedFactClassification;
 export function parseExtractedFact(
   payload: KeenablePage | null,
   options?: { knownAreas?: ReadonlySet<string>; currentYear?: number; now?: number | string },

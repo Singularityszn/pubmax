@@ -1,5 +1,6 @@
 import { test, expect, type ConsoleMessage, type Page } from "@playwright/test";
 
+import { expectFallbackTextClearOfChrome } from "./helpers/mapFallbackClearance";
 import { installDeterministicMapBasemap } from "./helpers/mapNetworkFixtures";
 
 // A transient basemap outage is the reader's most common one and the one they
@@ -205,6 +206,10 @@ test("/map still says so when both style URLs refuse", async ({ page }) => {
     "The map couldn't load its tiles right now",
     { timeout: 45_000 },
   );
+  // The card's heading and message start below the floating search toolbar
+  // and the city chip, not behind them.
+  await expect(page.locator(".citySuggestBanner")).toBeVisible({ timeout: 15_000 });
+  await expectFallbackTextClearOfChrome(page);
 });
 
 test("/map still shows the banner when tiles never come back", async ({

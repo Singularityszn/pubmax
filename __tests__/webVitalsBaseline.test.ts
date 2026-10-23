@@ -26,6 +26,7 @@ import {
   type ProductTimingRecord,
   type VitalsRecord,
 } from "@/lib/webVitalsBaseline";
+import { defined } from "@/__tests__/helpers/defined";
 
 // The always-on half of the speed rating.
 //
@@ -240,7 +241,7 @@ describe("the merge a record run writes with", () => {
   it("keeps a still-breached row's own recorded reason rather than dropping it on the floor", () => {
     const before = [record({ lcpMs: 4000, debt: "the map streams shards" })];
     const merged = mergeVitalsRecords(before, [record({ lcpMs: 4100 })]);
-    expect(merged[0].debt).toBe("the map streams shards");
+    expect(defined(merged[0]).debt).toBe("the map streams shards");
     expect(carriedDebtKeys(before, merged)).toEqual([vitalsRecordKey("/", "mobile", "cold")]);
     expect(findUnownedDebt(merged)).toEqual([]);
   });
@@ -250,7 +251,7 @@ describe("the merge a record run writes with", () => {
       [record({ lcpMs: 4000, debt: "the map streams shards" })],
       [record({ lcpMs: 1800 })],
     );
-    expect(merged[0].debt).toBeUndefined();
+    expect(defined(merged[0]).debt).toBeUndefined();
   });
 
   it("gives a newly breached row no reason, so the unowned-debt fence still fires", () => {

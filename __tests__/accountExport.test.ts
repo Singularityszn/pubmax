@@ -22,6 +22,8 @@ import {
   unavailableLane,
   type AccountExportLaneName,
 } from "@/lib/accountExport";
+import { MessageReadUnavailableError } from "@/lib/messagesStore";
+
 import {
   buildAccountExport,
   type AccountExportDeps,
@@ -32,11 +34,14 @@ import type { CheckIn } from "@/lib/checkIn";
 import type { NightMemory, NightMoment } from "@/lib/nightMemory";
 import type { NightProfile } from "@/lib/nightProfile";
 import type { PintDropDTO } from "@/lib/pintDropsStore";
+import type { SocialPostDTO } from "@/lib/socialPosts";
 import type { ProfileCoverPhoto } from "@/lib/profileCovers";
 import type { SavedPubDTO } from "@/lib/savedPubs";
 import type { PublicSocialConnection } from "@/lib/socialConnections";
 import type { VenuePhoto } from "@/lib/venuePhotos";
 import type { VisitReportDTO } from "@/lib/visitReports";
+import type { DiaryEntryDTO } from "@/lib/diary";
+import type { VenueSubmission } from "@/lib/venueSubmissions";
 import type { WantedDTO } from "@/lib/wanted";
 
 const USER = "u0000000-0000-4000-8000-000000000001";
@@ -210,6 +215,49 @@ const wantedRow = {
   promotedAt: null,
 } as unknown as WantedDTO;
 
+const venueSubmissionRow = {
+  id: "submission-1",
+  ownerUserId: USER,
+  name: "The Missing Crown",
+  address: "1 Example Street, London",
+  postcode: "SE1 9AA",
+  latitude: null,
+  longitude: null,
+  website: "",
+  menuUrl: "",
+  openingHours: "",
+  note: "",
+  prices: [{ drinkCategory: "beer", drinkName: "", priceGbp: 5.2, measure: "pint" }],
+  status: "pending",
+  duplicateOfVenueId: null,
+  reviewerNote: null,
+  reviewedAt: null,
+  createdAt: "2026-10-17T12:00:00.000Z",
+  files: [{
+    id: "file-1",
+    submissionId: "submission-1",
+    ownerUserId: USER,
+    objectKey: `venue-submissions/${USER}/submission-1/file-1.jpg`,
+    kind: "image",
+    contentType: "image/jpeg",
+    byteSize: 2048,
+    sha256: "a".repeat(64),
+    createdAt: "2026-10-17T12:01:00.000Z",
+  }],
+} as unknown as VenueSubmission;
+
+const diaryRow = {
+  id: "diary-1",
+  ownerUserId: USER,
+  venueId: "venue-xjf3n0",
+  venueName: "The Blackfriar",
+  visitedOn: "2026-09-04",
+  rating: 4.5,
+  review: "Back room was calm.",
+  visibility: "private",
+  createdAt: "2026-09-04T21:00:00.000Z",
+} as unknown as DiaryEntryDTO;
+
 const socialLink = {
   provider: "instagram",
   mode: "manual",
@@ -227,25 +275,86 @@ const nightProfileRow = {
   updatedAt: "2026-08-10T10:00:00.000Z",
 } as unknown as NightProfile;
 
+const profileRow = {
+  id: PROFILE,
+  handle: "night_owl",
+  displayName: "Night Owl",
+  bio: "Cask ale, quiet snugs.",
+  homeCity: "London",
+  favouriteDrink: "Best bitter",
+  interests: "pub quizzes, folk sessions",
+  workplace: "A bakery in Peckham",
+  foundingMemberNumber: 42,
+  visibility: "public",
+  createdAt: "2026-08-01T10:00:00.000Z",
+  updatedAt: "2026-08-03T10:00:00.000Z",
+};
+
+const socialPost = {
+  id: "post-1",
+  kind: "standard",
+  visibility: "friends",
+  body: "Back room at the Blackfriar is calm tonight #snug",
+  area: "soho",
+  venueId: "venue-1f5ygjb",
+  venueName: "The Blackfriar",
+  venueProjected: true,
+  hashtags: ["snug"],
+  commentPolicy: "open",
+  photo: { mediaId: "media-1", altText: "A back room with a fire" },
+  moderationState: "approved",
+  featureRequest: null,
+  revision: 1,
+  mutationVersion: 2,
+  editedAt: "2026-09-04T22:00:00.000Z",
+  createdAt: "2026-09-04T21:00:00.000Z",
+  updatedAt: "2026-09-04T22:00:00.000Z",
+  author: { handle: "night_owl", avatarUrl: "https://example.com/not-for-the-file.jpg" },
+  ownedByViewer: true,
+} as unknown as SocialPostDTO;
+
+const crowdReport = {
+  id: "crowd-1",
+  venueId: "venue-1f5ygjb",
+  level: "some-seats",
+  reportedAt: "2026-09-05T19:00:00.000Z",
+  reporterUserId: USER,
+  source: "crowd",
+  hiddenAt: null,
+} as const;
+
 function fakeDeps(overrides: Partial<AccountExportDeps> = {}): AccountExportDeps {
   return {
-    profileForUser: async () => ({ id: PROFILE, handle: "night_owl", displayName: "Night Owl" }),
+    profileForUser: async () => profileRow,
     identity: async () => identity,
     memories: async () => [memory],
     moments: async () => [moment],
     visitReports: async () => ({ status: "ready" as const, reports: [visitReport] }),
+    socialPosts: async () => [socialPost],
+    crowdReports: async () => ({ degraded: false, reports: [crowdReport] }),
     wallPhotos: async () => ({ status: "ready" as const, photos: [wallPhoto] }),
     coverPhotos: async () => [coverPhoto],
     checkIns: async () => [checkIn],
     follows: async () => ["bobpm"],
     savedPubs: async () => ({ status: "ready" as const, rows: [savedPub] }),
     wanted: async () => ({ status: "ready" as const, wanteds: [wantedRow] }),
+    diary: async (userId) => ({ status: "ready" as const, entries: userId === USER ? [diaryRow] : [] }),
+    pubRankings: async () => [
+      { venueId: "venue-2", band: "fine" as const, rankKey: 1, updatedAt: "2026-09-05T21:00:00.000Z" },
+      { venueId: "venue-1f5ygjb", band: "loved" as const, rankKey: 1, updatedAt: "2026-09-05T21:00:00.000Z" },
+    ],
+    venueSubmissions: async (userId) => ({
+      status: "ready" as const,
+      submissions: userId === USER ? [venueSubmissionRow] : [],
+    }),
     socialLinks: async () => [socialLink],
     nightProfile: async () => nightProfileRow,
     prices: async () => ({ observations: [price], degraded: false }),
     pintDrops: async () => [drop],
     conversations: async () => ({ conversations: [conversation], status: "ready" as const }),
     messages: async () => thread,
+    handlesForProfile: async () => ["night_owl"],
+    ownMessageIds: async () => null,
     ...overrides,
   };
 }
@@ -320,8 +429,141 @@ describe("buildAccountExport", () => {
     expect(document.follows.items).toEqual(["bobpm"]);
     expect(document.savedPubs.items).toEqual([savedPub]);
     expect(document.wanted.items).toEqual([wantedRow]);
+    expect(document.diary.items).toEqual([diaryRow]);
+    expect(document.venueSubmissions.items).toEqual([
+      expect.objectContaining({
+        id: "submission-1",
+        name: "The Missing Crown",
+        files: [{ kind: "image", byteSize: 2048, createdAt: "2026-10-17T12:01:00.000Z" }],
+      }),
+    ]);
+    expect(JSON.stringify(document.venueSubmissions)).not.toContain("venue-submissions/");
+    expect(document.venueSubmissions.items[0]).not.toHaveProperty("ownerUserId");
     expect(document.socialLinks.items).toEqual([socialLink]);
     expect(document.nightProfile.items).toEqual([nightProfileRow]);
+  });
+
+  it("carries the profile fields, the posts and the crowd reports the file used to leave out (F15)", async () => {
+    // Public QA pass, Lane M: the file held identity, prices, drops, reports,
+    // photos, saves, Wanted, diary, Night Profile and messages, and omitted the
+    // bio, home city, favourite drink, interests and workplace, the account's
+    // own posts and its crowd readings.
+    const document = await buildAccountExport(USER, fakeDeps(), NOW);
+
+    expect(document.profile.items).toEqual([
+      {
+        bio: "Cask ale, quiet snugs.",
+        homeCity: "London",
+        favouriteDrink: "Best bitter",
+        interests: "pub quizzes, folk sessions",
+        workplace: "A bakery in Peckham",
+        foundingMemberNumber: 42,
+        visibility: "public",
+        createdAt: "2026-08-01T10:00:00.000Z",
+        updatedAt: "2026-08-03T10:00:00.000Z",
+      },
+    ]);
+    expect(document.socialPosts.items).toEqual([
+      {
+        id: "post-1",
+        kind: "standard",
+        visibility: "friends",
+        body: "Back room at the Blackfriar is calm tonight #snug",
+        areaSlug: "soho",
+        venueId: "venue-1f5ygjb",
+        hashtags: ["snug"],
+        commentPolicy: "open",
+        photo: { mediaId: "media-1", altText: "A back room with a fire" },
+        review: null,
+        extraPhotos: [],
+        video: null,
+        moderationState: "approved",
+        createdAt: "2026-09-04T21:00:00.000Z",
+        editedAt: "2026-09-04T22:00:00.000Z",
+      },
+    ]);
+    expect(document.crowdReports.items).toEqual([
+      {
+        id: "crowd-1",
+        venueId: "venue-1f5ygjb",
+        level: "some-seats",
+        reportedAt: "2026-09-05T19:00:00.000Z",
+        hidden: false,
+      },
+    ]);
+    // The viewer-shaped parts of a post DTO are not the account's data.
+    expect(JSON.stringify(document.socialPosts)).not.toContain("not-for-the-file");
+  });
+
+  it("carries the account's own compared pub order with the place and score it derives", async () => {
+    const document = await buildAccountExport(USER, fakeDeps(), NOW);
+    expect(document.pubRankings.items).toEqual([
+      { venueId: "venue-1f5ygjb", band: "loved", place: 1, score: 10 },
+      { venueId: "venue-2", band: "fine", place: 2, score: 6.7 },
+    ]);
+  });
+
+  it("marks a crowd report a moderator hid as hidden, and still exports it", async () => {
+    const document = await buildAccountExport(
+      USER,
+      fakeDeps({
+        crowdReports: async () => ({
+          degraded: false,
+          reports: [{ ...crowdReport, hiddenAt: "2026-09-05T20:00:00.000Z" }],
+        }),
+      }),
+      NOW,
+    );
+    expect(document.crowdReports.items[0]?.hidden).toBe(true);
+  });
+
+  it("gives an account with no profile an empty profile lane, and asks no post read", async () => {
+    const document = await buildAccountExport(
+      USER,
+      fakeDeps({
+        profileForUser: async () => null,
+        socialPosts: async () => {
+          throw new Error("must not be asked without a profile");
+        },
+      }),
+      NOW,
+    );
+    expect(document.profile).toEqual({ status: "complete", truncated: false, items: [] });
+    expect(document.socialPosts).toEqual({ status: "complete", truncated: false, items: [] });
+  });
+
+  it("marks every profile- and handle-keyed lane unavailable when the profile read failed", async () => {
+    const document = await buildAccountExport(
+      USER,
+      fakeDeps({
+        profileForUser: async () => {
+          throw new Error("profiles unreadable");
+        },
+      }),
+      NOW,
+    );
+
+    expect(document.account).toEqual({ userId: USER, handle: null, displayName: null });
+    expect(unavailableExportLanes(document).sort()).toEqual(
+      [
+        "profile",
+        "prices",
+        "pintDrops",
+        "messages",
+        "visitReports",
+        "wallPhotos",
+        "socialPosts",
+        "coverPhotos",
+        "checkIns",
+        "follows",
+        "savedPubs",
+        "wanted",
+        "pubRankings",
+      ].sort(),
+    );
+    for (const lane of ["identity", "memories", "crowdReports", "diary", "socialLinks", "nightProfile"] as const) {
+      expect(document[lane].status).toBe("complete");
+    }
   });
 
   it("carries a Drink Wall photo's category and the place its author typed", async () => {
@@ -366,11 +608,15 @@ describe("buildAccountExport", () => {
       wallPhotos: { wallPhotos: async () => ({ status: "degraded" as const, photos: [] }) },
       savedPubs: { savedPubs: async () => ({ status: "unavailable" as const }) },
       wanted: { wanted: async () => ({ status: "degraded" as const, wanteds: [] }) },
+      diary: { diary: async () => ({ status: "degraded" as const, entries: [] }) },
+      pubRankings: { pubRankings: async () => { throw new Error("rankings unreadable"); } },
       socialLinks: { socialLinks: async () => { throw new Error("connections unreadable"); } },
       nightProfile: { nightProfile: async () => { throw new Error("night profile unreadable"); } },
       coverPhotos: { coverPhotos: async () => { throw new Error("covers unreadable"); } },
       checkIns: { checkIns: async () => { throw new Error("check-ins unreadable"); } },
       follows: { follows: async () => { throw new Error("follow graph unreadable"); } },
+      socialPosts: { socialPosts: async () => { throw new Error("posts unreadable"); } },
+      crowdReports: { crowdReports: async () => ({ degraded: true, reports: [] }) },
     } satisfies Record<string, Partial<AccountExportDeps>>;
 
     for (const [lane, override] of Object.entries(lanesUnderTest)) {
@@ -517,6 +763,14 @@ describe("buildAccountExport", () => {
     expect(unavailableExportLanes(refused)).toEqual(["messages"]);
   });
 
+  it("marks messages unavailable when a durable thread read fails", async () => {
+    const document = await buildAccountExport(USER, fakeDeps({
+      messages: async () => { throw new MessageReadUnavailableError(); },
+    }), NOW);
+    expect(document.messages).toEqual(unavailableLane());
+    expect(unavailableExportLanes(document)).toEqual(["messages"]);
+  });
+
   it("says when the cap bit rather than presenting a window as the whole", async () => {
     const many = Array.from({ length: ACCOUNT_EXPORT_LANE_CAP + 1 }, (_, i) => ({
       ...price,
@@ -611,9 +865,7 @@ const STORE_EXPORT_COVERAGE: Record<string, ExportCoverage> = {
   "lib/notificationsStore.ts": {
     excluded: "Notifications we generated for the account out of other people's actions; nothing here was written by them.",
   },
-  "lib/occupancyStore.ts": {
-    gap: "A crowd report is the account's own observation and has no per-account read: `report`, `readNow`, `flag` and `moderate` are the whole interface.",
-  },
+  "lib/occupancyStore.ts": { lane: "crowdReports" },
   "lib/operatorProposalsStore.ts": { excluded: "Venue operator proposals, keyed on a venue and answered by a moderator." },
   "lib/pendingPlanRecapStore.ts": {
     excluded: "A queue of recaps waiting to be written; a published recap rides its Plan, and the queue row is ours.",
@@ -629,9 +881,7 @@ const STORE_EXPORT_COVERAGE: Record<string, ExportCoverage> = {
   },
   "lib/privateIdentityStore.ts": { lane: "identity" },
   "lib/profileCoverPhotoStore.ts": { lane: "coverPhotos" },
-  "lib/profileStore.ts": {
-    excluded: "The public profile is the export's own `account` block: the handle and the display name.",
-  },
+  "lib/profileStore.ts": { lane: "profile" },
   "lib/pubPalStore.ts": {
     excluded: "Pal memories have their own export door, `/api/pub-pal/memories/export`.",
   },
@@ -639,6 +889,7 @@ const STORE_EXPORT_COVERAGE: Record<string, ExportCoverage> = {
     excluded:
       "Ephemeral ElevenLabs tool-turn correlation rows, keyed on a provider conversation id with no account id and service-role access only.",
   },
+  "lib/diaryStore.ts": { lane: "diary" },
   "lib/pushTokenStore.ts": {
     excluded: "A live push endpoint for one device. It is a credential rather than content, and handing it back hands back a way to reach the device.",
   },
@@ -657,14 +908,17 @@ const STORE_EXPORT_COVERAGE: Record<string, ExportCoverage> = {
   "lib/socialPostConsentStore.ts": {
     excluded: "One consent stamp per post, read back through the post itself.",
   },
-  "lib/socialPostStore.ts": {
-    gap: "The account's own posts. `readOwned` answers one post by id and `feed` is a viewer read, so there is no owner-keyed list to export.",
-  },
+  "lib/socialPostExtraPhotoStore.ts": { lane: "socialPosts" },
+  "lib/socialPostReviewStore.ts": { lane: "socialPosts" },
+  "lib/socialPostStore.ts": { lane: "socialPosts" },
+  "lib/socialPostVideoStore.ts": { lane: "socialPosts" },
+  "lib/socialPubRankingStore.ts": { lane: "pubRankings" },
   "lib/stepOutNudgeStore.ts": {
     excluded: "Push preferences and the day each nudge was last sent: a delivery record we keep, changed from the account's own settings surface.",
   },
   "lib/venueOperatorsStore.ts": { excluded: "Venue operator claims, keyed on a venue rather than on a drinker's own account." },
   "lib/venuePhotoStore.ts": { lane: "wallPhotos" },
+  "lib/venueSubmissionStore.ts": { lane: "venueSubmissions" },
   "lib/visitReportsStore.ts": { lane: "visitReports" },
   "lib/walkRouteStore.ts": { excluded: "Cached walking routes between two points, shared by every reader who asks for them." },
   "lib/wantedStore.ts": { lane: "wanted" },
@@ -681,9 +935,7 @@ const STORE_EXPORT_COVERAGE: Record<string, ExportCoverage> = {
  * file. Shrink-only: closing one is deleting its line here.
  */
 const NAMED_GAPS = [
-  "lib/occupancyStore.ts",
   "lib/socialInteractionStore.ts",
-  "lib/socialPostStore.ts",
   "lib/weatherRecommendationStore.ts",
 ];
 
@@ -730,5 +982,168 @@ describe("every store is a lane or a named exclusion", () => {
       .map(([path]) => path)
       .sort();
     expect(gaps).toEqual([...NAMED_GAPS].sort());
+  });
+});
+
+describe("buildAccountExport reads every handle the account has held (LIB-S5)", () => {
+  // A handle is text stamped on a row when it is written, and a rename never
+  // rewrites an authored row. The export used to read every handle-keyed lane
+  // by the CURRENT handle alone and still label each one `complete`, so a
+  // person who had ever renamed was handed a subject-access file that silently
+  // left out everything they wrote before it.
+  const OLD = "old_owl";
+  const oldDrop = { ...drop, id: "drop-old", handle: OLD } as unknown as PintDropDTO;
+  const oldReport = { ...visitReport, id: "visit-old", handle: OLD } as unknown as VisitReportDTO;
+  const oldCheckIn = { ...checkIn, id: "checkin-old", handle: OLD } as unknown as CheckIn;
+  const oldSave = { ...savedPub, venueId: "venue-xjf3n0", venueName: "The Harp" } as unknown as SavedPubDTO;
+  const oldConversation: ConversationDTO = {
+    id: "conv-old",
+    otherHandle: "jen",
+    lastAt: "2026-08-01T12:05:00.000Z",
+    lastFromMe: true,
+    unread: 0,
+  };
+  const oldThread: MessageDTO[] = [
+    {
+      id: "msg-old-1",
+      conversationId: "conv-old",
+      senderHandle: OLD,
+      body: "written before the rename",
+      createdAt: "2026-08-01T12:00:00.000Z",
+      read: true,
+      flagged: false,
+    },
+    {
+      id: "msg-old-2",
+      conversationId: "conv-old",
+      senderHandle: "jen",
+      body: "jen's own words, not the caller's to export",
+      createdAt: "2026-08-01T12:05:00.000Z",
+      read: true,
+      flagged: false,
+    },
+  ];
+
+  const renamedDeps = (overrides: Partial<AccountExportDeps> = {}): AccountExportDeps =>
+    fakeDeps({
+      handlesForProfile: async (profileId) => (profileId === PROFILE ? ["night_owl", OLD] : []),
+      pintDrops: async (handle) => (handle === OLD ? [oldDrop] : handle === "night_owl" ? [drop] : []),
+      visitReports: async (handle) => ({
+        status: "ready" as const,
+        reports: handle === OLD ? [oldReport] : [visitReport],
+      }),
+      checkIns: async (handle) => (handle === OLD ? [oldCheckIn] : [checkIn]),
+      follows: async (handle) => (handle === OLD ? ["jen", "bobpm"] : ["bobpm"]),
+      savedPubs: async (handle) => ({
+        status: "ready" as const,
+        rows: handle === OLD ? [oldSave, savedPub] : [savedPub],
+      }),
+      conversations: async (handle) => ({
+        conversations: handle === OLD ? [oldConversation, conversation] : [conversation],
+        status: "ready" as const,
+      }),
+      messages: async (conversationId, handle) =>
+        conversationId === "conv-old" ? (handle === OLD ? oldThread : null) : thread,
+      ...overrides,
+    });
+
+  it("exports the rows written under an earlier handle in every handle-keyed lane", async () => {
+    const document = await buildAccountExport(USER, renamedDeps(), NOW);
+
+    expect(document.account.handle).toBe("night_owl");
+    expect(document.pintDrops.items.map((item) => item.id).sort()).toEqual(["drop-1", "drop-old"]);
+    expect(document.visitReports.items.map((item) => item.id).sort()).toEqual(["visit-1", "visit-old"]);
+    expect(document.checkIns.items.map((item) => item.id).sort()).toEqual(["checkin-1", "checkin-old"]);
+    // One follow held under both handles is one follow.
+    expect([...document.follows.items].sort()).toEqual(["bobpm", "jen"]);
+    expect(document.savedPubs.items.map((item) => item.venueId).sort()).toEqual([
+      "venue-1f5ygjb",
+      "venue-xjf3n0",
+    ]);
+    for (const lane of ACCOUNT_EXPORT_LANES) expect(document[lane].status).toBe("complete");
+  });
+
+  it("exports a conversation joined under an earlier handle, with the account's own words only", async () => {
+    const document = await buildAccountExport(USER, renamedDeps(), NOW);
+
+    // conv-1 is listed under both handles and exported once.
+    expect(document.messages.items.map((item) => item.id).sort()).toEqual(["conv-1", "conv-old"]);
+    const old = document.messages.items.find((item) => item.id === "conv-old");
+    expect(old?.messages.map((message) => message.body)).toEqual(["written before the rename"]);
+    expect(JSON.stringify(document)).not.toContain("jen's own words");
+  });
+
+  it("keeps a message the account sent by its profile id, whatever handle text it carries", async () => {
+    const stray: MessageDTO = {
+      id: "msg-stray",
+      conversationId: "conv-1",
+      senderHandle: "handle_nobody_recorded",
+      body: "sent by this account",
+      createdAt: "2026-09-05T12:07:00.000Z",
+      read: true,
+      flagged: false,
+    };
+    const document = await buildAccountExport(
+      USER,
+      renamedDeps({
+        messages: async (conversationId, handle) =>
+          conversationId === "conv-old" ? (handle === OLD ? oldThread : null) : [...thread, stray],
+        ownMessageIds: async (profileId, conversationIds) => {
+          expect(profileId).toBe(PROFILE);
+          expect([...conversationIds].sort()).toEqual(["conv-1", "conv-old"]);
+          return new Set(["msg-stray"]);
+        },
+      }),
+      NOW,
+    );
+    const current = document.messages.items.find((item) => item.id === "conv-1");
+    expect(current?.messages.map((message) => message.body)).toContain("sent by this account");
+    expect(JSON.stringify(document)).not.toContain("bob's own words");
+  });
+
+  it("refuses every handle-keyed lane when the handles it held cannot be read", async () => {
+    const document = await buildAccountExport(
+      USER,
+      renamedDeps({
+        handlesForProfile: async () => {
+          throw new Error("alias table unreadable");
+        },
+      }),
+      NOW,
+    );
+    expect([...unavailableExportLanes(document)].sort()).toEqual(
+      ["checkIns", "follows", "messages", "pintDrops", "savedPubs", "visitReports"].sort(),
+    );
+  });
+
+  it("refuses the messages lane when the sender read fails, rather than handing over a partial thread", async () => {
+    const document = await buildAccountExport(
+      USER,
+      renamedDeps({
+        ownMessageIds: async () => {
+          throw new Error("messages unreadable");
+        },
+      }),
+      NOW,
+    );
+    expect(unavailableExportLanes(document)).toEqual(["messages"]);
+  });
+
+  it("refuses the lane when any one handle's read is degraded", async () => {
+    const document = await buildAccountExport(
+      USER,
+      renamedDeps({
+        visitReports: async (handle) =>
+          handle === OLD
+            ? { status: "degraded" as const, reports: [] }
+            : { status: "ready" as const, reports: [visitReport] },
+        conversations: async (handle) =>
+          handle === OLD
+            ? { conversations: [], status: "degraded" as const }
+            : { conversations: [conversation], status: "ready" as const },
+      }),
+      NOW,
+    );
+    expect([...unavailableExportLanes(document)].sort()).toEqual(["messages", "visitReports"]);
   });
 });

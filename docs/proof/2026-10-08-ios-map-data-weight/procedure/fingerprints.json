@@ -1,0 +1,18 @@
+{
+  "supplied": {
+    "sample.js": "e653489165c34d02a76c62ffef82376880b27c6c7063927c7c5f243d762233b0",
+    "measure.mjs": "85fa6e2b2bb0951bb390315e0dc865469caae71bc6da4b95c8be5af2252c2415",
+    "summarize.mjs": "1d9eb28762fe7a8db246b2ed152c4efd68dbc082276bfe1d350e5443a08384ed"
+  },
+  "materialized": {
+    "sample.js": "32e81444602ae888467f5d574ffb8c58cfdcfde869e00f242c59079e0b61fa07",
+    "measure.mjs": "916cbffa3c2fcbc0f1b48b9e0c0bb8bbf59588bcdf36f6984ea9c328aaff7ea0",
+    "summarize.mjs": "b5bdd6911d08b6645db5801e2833e235595701d3a64ffc5c2ad58f9a0f8347bc"
+  },
+  "note": "Materialized from the supplied inline text. Only output paths changed in measure.mjs and summarize.mjs. The supplied fingerprint values do not match the materialized text, including after reversal of those path substitutions.",
+  "normalizedToSuppliedOutputPaths": {
+    "sample.js": "32e81444602ae888467f5d574ffb8c58cfdcfde869e00f242c59079e0b61fa07",
+    "measure.mjs": "ea756a8c8ffcfe48479db252a8938b29a70a176c85192b7d3cd02dda836a5d3d",
+    "summarize.mjs": "c1246d873eed586d591ff7ad95037a0198700d64968d0d9e3d0656aee84e0a25"
+  }
+}

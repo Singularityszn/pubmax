@@ -1,12 +1,14 @@
 // @vitest-environment jsdom
 
-import { readdirSync, readFileSync } from "node:fs";
-import { join } from "node:path";
+import { existsSync, readdirSync, readFileSync } from "node:fs";
+import { dirname, join, relative, sep } from "node:path";
 import { describe, expect, it } from "vitest";
 
 import capacitorConfig, { nativeServerUrl } from "../capacitor.config";
 import { APP_NAME } from "@/lib/brandNaming";
 import { BRAND_COLORS } from "@/lib/brandMark.mjs";
+import { plistRoot } from "@/__tests__/helpers/plist";
+import { pbxprojRoot, type PbxDict, type PbxValue } from "@/__tests__/helpers/pbxproj";
 import {
   NATIVE_DEEP_LINK_EXACT_PATHS,
   NATIVE_DEEP_LINK_PATH_PREFIXES,
@@ -15,42 +17,20 @@ import {
 
 const rootFile = (path: string) => readFileSync(join(process.cwd(), path), "utf8");
 
+const javaFilesUnder = (directory: string): string[] =>
+  readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
+    const path = join(directory, entry.name);
+    if (entry.isDirectory()) return javaFilesUnder(path);
+    return entry.isFile() && entry.name.endsWith(".java") ? [path] : [];
+  });
+
+const androidJavaTests = (sourceSet: "androidTest" | "test") => {
+  const sourceRoot = join(process.cwd(), "android/app/src", sourceSet, "java");
+  return javaFilesUnder(sourceRoot).map((testFile) => ({ sourceRoot, testFile }));
+};
+
 const xmlDocument = (path: string) =>
   new DOMParser().parseFromString(rootFile(path), "application/xml");
-
-type PlistValue = string | number | boolean | PlistValue[] | { [key: string]: PlistValue };
-
-/** One XML plist element as the value it declares. */
-function plistValue(element: Element): PlistValue {
-  const children = [...element.children];
-  switch (element.tagName) {
-    case "dict":
-      return Object.fromEntries(
-        children.flatMap((child, index) =>
-          child.tagName === "key" && children[index + 1]
-            ? [[child.textContent ?? "", plistValue(children[index + 1] as Element)]]
-            : [],
-        ),
-      );
-    case "array":
-      return children.map(plistValue);
-    case "integer":
-    case "real":
-      return Number(element.textContent);
-    case "true":
-      return true;
-    case "false":
-      return false;
-    default:
-      return element.textContent ?? "";
-  }
-}
-
-function plistRoot(path: string): Record<string, PlistValue> {
-  const dict = xmlDocument(path).querySelector("plist > dict");
-  if (!dict) throw new Error(`${path} has no root dict`);
-  return plistValue(dict) as Record<string, PlistValue>;
-}
 
 const ANDROID_RES = join(process.cwd(), "android/app/src/main/res");
 
@@ -64,6 +44,14 @@ function androidResourceXml(dir = ANDROID_RES, prefix = ""): string[] {
 }
 
 describe("Capacitor wrapped-build contract", () => {
+  it("starts at app-entry while keeping sibling routes inside the app origin", () => {
+    expect(capacitorConfig.server?.url).toBe("https://pubmaxxing.com/");
+    expect(capacitorConfig.server?.appStartPath).toBe("app-entry");
+    expect(capacitorConfig.server?.allowNavigation).toBeUndefined();
+    // iOS requires the start path in webDir even when it loads a remote URL.
+    expect(existsSync(join(process.cwd(), capacitorConfig.webDir!, capacitorConfig.server!.appStartPath!))).toBe(true);
+  });
+
   it("uses the canonical app name on both native install surfaces", () => {
     expect(capacitorConfig.appName).toBe(APP_NAME);
 
@@ -74,6 +62,34 @@ describe("Capacitor wrapped-build contract", () => {
 
     const strings = rootFile("android/app/src/main/res/values/strings.xml");
     expect(strings).toContain(`<string name="app_name">${APP_NAME}</string>`);
+  });
+
+  it("keeps Android test identities aligned with the application id", () => {
+    const build = rootFile("android/app/build.gradle");
+    const applicationId = build.match(/applicationId\s+"([^"]+)"/)?.[1];
+    expect(applicationId).toBe("com.pubmaxx.app");
+
+    for (const { sourceRoot, testFile } of [
+      ...androidJavaTests("androidTest"),
+      ...androidJavaTests("test"),
+    ]) {
+      const source = readFileSync(testFile, "utf8");
+      const packageName = source.match(/^package\s+([\w.]+);/m)?.[1];
+      const packagePath = relative(sourceRoot, dirname(testFile)).split(sep).join(".");
+
+      expect(
+        packageName === applicationId || packageName?.startsWith(`${applicationId}.`),
+        testFile,
+      ).toBe(true);
+      expect(packagePath, testFile).toBe(packageName);
+
+      if (source.includes("getTargetContext()")) {
+        const expectedContextPackage = source.match(
+          /assertEquals\("([^"]+)",\s*appContext\.getPackageName\(\)\)/,
+        )?.[1];
+        expect(expectedContextPackage, testFile).toBe(applicationId);
+      }
+    }
   });
 
   it("loads production remotely and has a bundled, truthful outage fallback", () => {
@@ -87,6 +103,11 @@ describe("Capacitor wrapped-build contract", () => {
     expect(offline).toContain("prefers-color-scheme: dark");
     expect(offline).toContain("env(safe-area-inset-top, 0px)");
     expect(offline).toContain("https://pubmaxxing.com");
+  });
+
+  it("withholds app-bound worker access while its offline dependencies are incomplete", () => {
+    expect(capacitorConfig.ios?.limitsNavigationsToAppBoundDomains).not.toBe(true);
+    expect(plistRoot("ios/App/App/Info.plist").WKAppBoundDomains ?? []).toEqual([]);
   });
 
   it("carries the launch field behind the WebView, so no white frame stands between them", () => {
@@ -126,7 +147,10 @@ describe("Capacitor wrapped-build contract", () => {
     expect(nativeServerUrl({})).toBe("https://pubmaxxing.com/");
     expect(nativeServerUrl({ PUBMAX_NATIVE_SERVER_URL: "   " })).toBe("https://pubmaxxing.com/");
     expect(nativeServerUrl({ PUBMAX_NATIVE_SERVER_URL: "http://10.0.2.2:3811" })).toBe(
-      "http://10.0.2.2:3811",
+      "http://10.0.2.2:3811/",
+    );
+    expect(nativeServerUrl({ PUBMAX_NATIVE_SERVER_URL: "http://localhost:3811/" })).toBe(
+      "http://localhost:3811/",
     );
     // The committed config must be the production one: the generated
     // capacitor.config.json files are untracked, so this is the only copy a
@@ -144,7 +168,7 @@ describe("Capacitor wrapped-build contract", () => {
     });
   });
 
-  it("preserves iOS camera permissions, APNs forwarding, and universal-link forwarding", () => {
+  it("preserves iOS camera permissions, APNs forwarding, and the App plugin", () => {
     const info = rootFile("ios/App/App/Info.plist");
     expect(info).toContain("NSCameraUsageDescription");
     expect(info).toContain("NSPhotoLibraryUsageDescription");
@@ -153,13 +177,77 @@ describe("Capacitor wrapped-build contract", () => {
     const delegate = rootFile("ios/App/App/AppDelegate.swift");
     expect(delegate).toContain("capacitorDidRegisterForRemoteNotifications");
     expect(delegate).toContain("capacitorDidFailToRegisterForRemoteNotifications");
-    expect(delegate).toContain("continue userActivity: NSUserActivity");
-    expect(delegate).toContain("ApplicationDelegateProxy.shared.application");
 
     expect(rootFile("ios/App/CapApp-SPM/Package.swift")).toContain("CapacitorApp");
     expect(rootFile("android/app/capacitor.build.gradle")).toContain(
       "implementation project(':capacitor-app')",
     );
+  });
+
+  it("adopts the UIScene lifecycle that iOS 27 requires", () => {
+    // iOS 27 refuses an app with no scene manifest: a free personal-team build
+    // on an iPhone 17 Pro Max (iOS 27.2) died at launch with EXC_BREAKPOINT in
+    // UIKitCore ___UIApplicationEvaluateRuntimeIssueForNoSceneLifecycleAdoption.
+    // The iOS 27.0 simulator crashes the same way, but CI launches no
+    // simulator, so this fence holds the manifest. The shape is Capacitor 8.5's own
+    // (`npx cap migrate`): one scene, built from Main.storyboard, whose delegate
+    // is the module's SceneDelegate.
+    const info = plistRoot("ios/App/App/Info.plist");
+    expect(info.UIApplicationSceneManifest).toEqual({
+      UIApplicationSupportsMultipleScenes: false,
+      UISceneConfigurations: {
+        UIWindowSceneSessionRoleApplication: [
+          {
+            UISceneConfigurationName: "Default Configuration",
+            UISceneDelegateClassName: "$(PRODUCT_MODULE_NAME).SceneDelegate",
+            UISceneStoryboardFile: "Main",
+          },
+        ],
+      },
+    });
+
+    // The storyboard the manifest names opens on the Capacitor bridge.
+    const storyboard = xmlDocument("ios/App/App/Base.lproj/Main.storyboard");
+    const initialId = storyboard.documentElement.getAttribute("initialViewController");
+    const initial = storyboard.querySelector(`[id="${initialId}"]`);
+    expect(initial?.getAttribute("customClass")).toBe("ShellBridgeViewController");
+    expect(initial?.getAttribute("customModule")).toBe("App");
+
+    // The SceneDelegate the manifest names is compiled into the App target.
+    const objects = pbxprojRoot("ios/App/App.xcodeproj/project.pbxproj").objects as PbxDict;
+    const object = (id: PbxValue | undefined) => objects[id as string] as PbxDict;
+    const app = Object.values(objects).find(
+      (entry) => (entry as PbxDict).isa === "PBXNativeTarget" && (entry as PbxDict).name === "App",
+    ) as PbxDict;
+    const sources = (app.buildPhases as PbxValue[])
+      .map(object)
+      .find((phase) => phase.isa === "PBXSourcesBuildPhase");
+    const compiled = (sources?.files as PbxValue[]).map(
+      (buildFile) => object(object(buildFile).fileRef).path,
+    );
+    expect(compiled).toContain("SceneDelegate.swift");
+    expect(compiled).toContain("ShellBridgeViewController.swift");
+    expect(compiled).toContain("OfflineNavigation.swift");
+  });
+
+  it("declares microphone access on both native platforms", () => {
+    const microphoneUsage = plistRoot("ios/App/App/Info.plist").NSMicrophoneUsageDescription;
+    expect(typeof microphoneUsage).toBe("string");
+    expect(String(microphoneUsage).trim()).not.toBe("");
+
+    const manifest = xmlDocument("android/app/src/main/AndroidManifest.xml");
+    const declared = (tag: string) => [...manifest.documentElement.getElementsByTagName(tag)];
+    const permissions = new Set(
+      declared("uses-permission").map((node) => node.getAttribute("android:name")),
+    );
+    expect(permissions).toContain("android.permission.RECORD_AUDIO");
+    expect(permissions).toContain("android.permission.MODIFY_AUDIO_SETTINGS");
+
+    const microphone = declared("uses-feature").find(
+      (node) => node.getAttribute("android:name") === "android.hardware.microphone",
+    );
+    expect(microphone, "AndroidManifest.xml declares no microphone feature").toBeDefined();
+    expect(microphone?.getAttribute("android:required")).toBe("false");
   });
 
   it("answers export compliance in the build, not by hand on every upload", () => {
@@ -270,15 +358,21 @@ describe("Capacitor wrapped-build contract", () => {
   });
 
   it("uses the canonical app name in iOS permission explanations", () => {
-    const info = rootFile("ios/App/App/Info.plist");
-    expect(info).toContain(
-      `<string>${APP_NAME} uses the camera so you can photograph a price board, a pub, or your own night.</string>`,
+    const info = plistRoot("ios/App/App/Info.plist");
+    expect(info.NSCameraUsageDescription).toBe(
+      `${APP_NAME} uses the camera so you can photograph a price board, a pub, or your own night.`,
     );
-    expect(info).toContain(
-      `<string>${APP_NAME} uses your location while the app is open to find nearby pubs and calculate walk times.</string>`,
+    expect(info.NSLocationWhenInUseUsageDescription).toBe(
+      `${APP_NAME} uses your location while the app is open to find nearby pubs and calculate walk times.`,
     );
-    expect(info).toContain(
-      `<string>${APP_NAME} opens your photo library so you can choose a photo you have already taken.</string>`,
+    expect(info.NSMicrophoneUsageDescription).toBe(
+      `${APP_NAME} uses your microphone only while you talk to Pub Pal or dictate a note or a plan.`,
+    );
+    expect(info.NSPhotoLibraryUsageDescription).toBe(
+      `${APP_NAME} opens your photo library so you can choose a photo you have already taken.`,
+    );
+    expect(info.NSSpeechRecognitionUsageDescription).toBe(
+      `${APP_NAME} uses speech recognition only while you dictate a note or a plan.`,
     );
   });
 

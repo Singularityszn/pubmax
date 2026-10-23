@@ -28,18 +28,36 @@ const SITE_HARVEST_LANE: UkPriceBundleLane = "site-harvest";
 
 const PRINTED_MEASURE_SUFFIX = /^(.*?)\s*(\d{2,3})\s*ml$/i;
 
+const MARKDOWN_HEADING_PREFIX = /^\s*#{1,6}\s+/;
+
+/**
+ * A row read from a rendered page before the reader treated Markdown as layout
+ * carries the heading's marks in its name ("## Margarita ..."): 284 Greene King
+ * rows from the 2026-09-21 rendered read. Drop them the way the reader now
+ * does, so the name reads as printed and a re-read lands on the same key. The
+ * ledger keeps the line as written, because its audit fingerprints cover it.
+ */
+function withoutHeadingMarks(row: SiteHarvestLedgerRow): SiteHarvestLedgerRow {
+  const field = row.drinkLabel !== undefined ? "drinkLabel" : "drinkName";
+  const label = row[field];
+  if (typeof label !== "string" || !MARKDOWN_HEADING_PREFIX.test(label)) return row;
+  const name = label.replace(MARKDOWN_HEADING_PREFIX, "").trim();
+  return name ? { ...row, [field]: name } : row;
+}
+
 /**
  * A wine row harvested before servings were read apart carries its glass
  * measure in its name ("Merlot 175ml"). Split it the way the harvester now
  * writes it ("Merlot", 175ml), so a re-read of the same page supersedes the old
  * row instead of standing beside it.
  */
-export function normalizeSiteHarvestLedgerRow(row: SiteHarvestLedgerRow): SiteHarvestLedgerRow {
+export function normalizeSiteHarvestLedgerRow(input: SiteHarvestLedgerRow): SiteHarvestLedgerRow {
+  const row = withoutHeadingMarks(input);
   if (row.category !== "wine" || row.servingSize !== undefined) return row;
   const label = row.drinkLabel ?? row.drinkName;
   if (typeof label !== "string") return row;
   const match = PRINTED_MEASURE_SUFFIX.exec(label.trim());
-  const name = match?.[1].replace(/^[/|\s\u2013\u2014-]+/, "").trim();
+  const name = match?.[1]?.replace(/^[/|\s\u2013\u2014-]+/, "").trim();
   if (!match || !name) return row;
   return {
     ...row,

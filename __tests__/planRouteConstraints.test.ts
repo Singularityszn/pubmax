@@ -48,6 +48,7 @@ import {
   type GroundedPlanRouteCandidate,
   type GroundedPlanRouteConstraints,
 } from "@/lib/planRouteOptimizer";
+import { defined } from "@/__tests__/helpers/defined";
 
 const NOW = new Date("2026-07-20T12:00:00.000Z");
 const SOURCE: EvidenceSource = {
@@ -206,6 +207,32 @@ describe("strict Plan generation request boundary", () => {
   });
 });
 
+it.each([
+  { id: "after-work", start: "17:30", end: "20:30", exactStartIso: "2026-07-20T16:30:00.000Z", endsAt: "2026-07-20T19:30:00.000Z" },
+  { id: "evening", start: "19:00", end: "23:00", exactStartIso: "2026-07-20T20:00:00.000Z", endsAt: "2026-07-20T22:00:00.000Z" },
+  { id: "late", start: "22:00", end: null, exactStartIso: "2026-07-20T22:00:00.000Z", endsAt: "2026-07-21T04:00:00.000Z" },
+] as const)("preserves the website $id preset deadline", ({ endsAt, ...timeWindow }) => {
+  expect(parsePlanGenerationIntake(intake({ timeWindow }), NOW)).toMatchObject({
+    ok: true, value: { handoff: { timeWindow }, routeWindow: { startsAt: timeWindow.exactStartIso, endsAt } },
+  });
+});
+
+it("schedules three stops at 21:00 with a supplied start and no preset finish", () => {
+  const window = { id: "evening", start: "19:00", end: null, exactStartIso: "2026-07-20T20:00:00.000Z" } as const;
+  const parsed = parsePlanGenerationIntake(intake({ timeWindow: window }), NOW);
+  expect(parsed.ok).toBe(true);
+  if (!parsed.ok) return;
+  const stops = ["a", "b", "c"].map((id) => candidate(id, {
+    openingSchedule: openSchedule([{ weekday: "Monday", startsAt: "18:00", endsAt: "04:00" }]),
+  }));
+  const route = selectGroundedPlanRoute(stops, constraints({ routeWindow: parsed.value.routeWindow }));
+  expect(route.ok).toBe(true);
+  if (route.ok) expect(route.stops[0]?.visitWindow?.startsAt).toBe("2026-07-20T20:00:00.000Z");
+  const bounded = parsePlanGenerationIntake(intake({ timeWindow: { ...window, end: "23:00" } }), NOW);
+  expect(bounded.ok).toBe(true);
+  if (bounded.ok) expect(selectGroundedPlanRoute(stops, constraints({ routeWindow: bounded.value.routeWindow })).ok).toBe(false);
+});
+
 describe("ordered grounded route optimization", () => {
   it("evaluates opening only after permutation and puts a time-limited venue first", () => {
     const firstOnly = openSchedule([{ weekday: "Monday", startsAt: "17:00", endsAt: "18:25" }]);
@@ -216,7 +243,7 @@ describe("ordered grounded route optimization", () => {
       candidate("c", { openingSchedule: allEvening }),
     ], constraints({ routeWindow: { startsAt: "2026-07-20T16:30:00.000Z", endsAt: "2026-07-20T19:30:00.000Z" } }));
     expect(selection.ok).toBe(true);
-    if (selection.ok) expect(selection.stops[0].venueId).toBe("a");
+    if (selection.ok) expect(defined(selection.stops[0]).venueId).toBe("a");
   });
 
   it("ties by score, then route distance, then lexicographic route key", () => {
@@ -241,7 +268,7 @@ describe("ordered grounded route optimization", () => {
     if (!selection.ok) return;
     expect(selection.timing.walkingMinutes).toBeGreaterThan(0);
     expect(selection.timing.transferUncertaintyMinutes).toBe(10);
-    expect(selection.stops[1].visitWindow!.startsAt).not.toBe("2026-07-20T17:30:00.000Z");
+    expect(defined(selection.stops[1]).visitWindow!.startsAt).not.toBe("2026-07-20T17:30:00.000Z");
     expect(selection.constraintReport.hardConstraints).toContainEqual(expect.objectContaining({
       code: "transport_feasibility",
       message: expect.stringContaining("4.8 km/h"),
@@ -412,7 +439,7 @@ describe("hard evidence fences", () => {
     expect(selection.stops.map((stop) => stop.venueId)).not.toContain("stale");
     expect(selection.alternatives.flat().every((stop) => stop.price.confidenceState !== "stale")).toBe(true);
     for (let position = 0; position < 3; position += 1) {
-      for (const alternative of selection.alternatives[position]) {
+      for (const alternative of defined(selection.alternatives[position])) {
         const total = selection.stops.reduce((sum, stop, index) =>
           sum + (index === position ? alternative.price.pence! : stop.price.pence!), 0);
         expect(total).toBeLessThanOrEqual(1_000);

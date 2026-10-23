@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { LOCAL_DATA_REVISION, requireDataRevision } from "@/lib/dataRevision.mjs";
+import { defined } from "@/__tests__/helpers/defined";
 
 // The revision next.config.mjs inlines as NEXT_PUBLIC_SW_VERSION is the one a
 // production map client holds every pack to; outside production it holds none.
@@ -49,9 +50,9 @@ async function loaderFor(
   vi.stubEnv("NODE_ENV", env.NODE_ENV);
   vi.stubEnv("NEXT_PUBLIC_SW_VERSION", requireDataRevision(env, { workingTreeSha: SHA }));
   vi.stubGlobal("fetch", (input: RequestInfo | URL) => {
-    const url = String(input).split("?")[0];
+    const url = defined(String(input).split("?")[0]);
     if (url in bodies) {
-      return Promise.resolve({ ok: true, json: () => Promise.resolve(bodies[url]) } as Response);
+      return Promise.resolve({ ok: true, json: () => Promise.resolve(bodies[defined(url)]) } as Response);
     }
     return Promise.resolve({ ok: false, status: 404 } as Response);
   });
@@ -113,15 +114,20 @@ describe("which packs the map accepts", () => {
     await expect(loadedIds(create)).resolves.toEqual(["b1", "c1", "g1"]);
   });
 
-  it("a production build still rejects every pack stamped with another revision", async () => {
+  it("a production build paints a consistent pack stamped with another revision", async () => {
+    // A build that skipped the restamp, or a deploy caught mid-flight: every
+    // pack agrees with itself and not with the baked revision. The manifest's
+    // own revision is adopted, so the pins paint rather than nothing at all.
     const create = await loaderFor({ NODE_ENV: "production" }, packs(STAMPS["committed local packs"]));
-    await expect(loadedIds(create)).resolves.toEqual([]);
-
-    const mixed = await loaderFor({ NODE_ENV: "production" }, packs(STAMPS["mixed within one pack"]));
-    await expect(loadedIds(mixed)).resolves.toEqual([]);
+    await expect(loadedIds(create)).resolves.toEqual(["b1", "c1", "g1"]);
 
     await expect(
       cityMonolithIds({ NODE_ENV: "production" }, packs(STAMPS["committed local packs"])),
-    ).resolves.toEqual([]);
+    ).resolves.toEqual(["b1"]);
+  });
+
+  it("a production build still refuses a shard that disagrees with its own manifest", async () => {
+    const mixed = await loaderFor({ NODE_ENV: "production" }, packs(STAMPS["mixed within one pack"]));
+    await expect(loadedIds(mixed)).resolves.toEqual([]);
   });
 });

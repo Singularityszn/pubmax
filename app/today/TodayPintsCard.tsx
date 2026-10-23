@@ -15,7 +15,7 @@ import Link from "next/link";
 import PriceBadge from "@/components/PriceBadge";
 import { priceBand, priceBandAreaForVenue } from "@/lib/priceBand";
 import { useEffect, useState } from "react";
-import { ArrowRight, Beer } from "lucide-react";
+import { ArrowRight } from "lucide-react";
 
 import { formatSnapshotFrom } from "@/lib/dataFreshness";
 import { oldestPintRead } from "@/lib/drinks";
@@ -46,13 +46,13 @@ function viewFor(
 ): TodayPintsView {
   const id = resolveTodayPintsPatchId(remembered, index);
   return {
-    pints: id ? index[id] : null,
+    pints: id ? (index[id] ?? null) : null,
     hasRememberedLocality:
       remembered?.kind === "patch" && id === remembered.id,
   };
 }
 
-function eyebrow(hasRememberedLocality: boolean, observedAt: string | null): string {
+function sectionLine(hasRememberedLocality: boolean, observedAt: string | null): string {
   const scope = hasRememberedLocality
     ? "Lowest listed prices near you"
     : "Lowest listed prices in central London";
@@ -83,23 +83,16 @@ export default function TodayPintsCard({ index }: Props) {
 
   return (
     <section className="todayCard" aria-labelledby="today-pints-title" data-testid="today-pints">
-      <div className="todayCardHead">
-        <span className="todayCardIcon" aria-hidden="true">
-          <Beer size={18} />
-        </span>
-        <div>
-          <p className="todayCardEyebrow">
-            {eyebrow(hasRememberedLocality, oldestPintRead(pints.rows.map((row) => row.observedAt)))}
-          </p>
-          <h2 className="todayCardTitle" id="today-pints-title">
-            {todayPintsHeading(pints)}
-          </h2>
-        </div>
-      </div>
+      <h2 className="todayCardTitle" id="today-pints-title">
+        {todayPintsHeading(pints)}
+      </h2>
+      <p className="todayCardLine">
+        {sectionLine(hasRememberedLocality, oldestPintRead(pints.rows.map((row) => row.observedAt)))}
+      </p>
 
       <ul className="todayPintList">
         {pints.rows.map((row) => (
-          <li key={row.id} className="todayPintRow">
+          <li key={row.id} className="todayPintRow createFabLane">
             <Link className="todayPintLink pressable" href={row.mapHref}>
               <span className="todayPintName">
                 {/* The name carries the hover underline on its own. Text
@@ -126,12 +119,16 @@ export default function TodayPintsCard({ index }: Props) {
       </ul>
 
       {/* ONE sentence about what these prices are, and it is the dated one in
-          the eyebrow above. The footer used to repeat it undated over a
+          the line above. The footer used to repeat it undated over a
           different geography, so a reader met the same claim twice and only
           one copy said which day it was collected. */}
       <p className="todayCardFootRow">
         <Link href="/map" className={TODAY_TEXT_BUTTON_CLASS}>
           Change area
+          <ArrowRight size={14} aria-hidden="true" />
+        </Link>
+        <Link prefetch={false} href="/price-pulse" className={TODAY_TEXT_BUTTON_CLASS}>
+          Price Pulse
           <ArrowRight size={14} aria-hidden="true" />
         </Link>
       </p>

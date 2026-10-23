@@ -48,6 +48,10 @@ export declare function readExistingRowsForLabels(
 export declare function readExistingCommonRows(
   filePath: string,
 ): import("../../lib/whatson/eventNormalise.d.mts").WhatsOnEventRow[];
+export declare function readExistingOwnSiteRows(
+  filePath: string,
+  nowMs: number,
+): import("../../lib/whatsOn.ts").WhatsOnRow[];
 export declare function parseEventsCityArg(argv?: string[]): string | null;
 export declare function eventsReviewBranchName(city?: string): string;
 export declare function isPullRequestPermissionError(error: unknown): boolean;

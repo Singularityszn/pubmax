@@ -19,23 +19,20 @@ The captain decides runner changes.
 
 Effective RLS stays in `.github/workflows/rls-session.yml` (Postgres 16 + PostgREST 14). Keep both workflows green on every pull request.
 
-### 1.2 Promote after deploy
+### 1.2 Release to production
 
-This project does not auto-assign the production domain to every deploy. After a Vercel deploy, promote it explicitly:
+Ship to production with `npm run release:prod` and nothing else. It stages a build with Production environment values, promotes that build, and waits for the production smoke run. The [release procedure](DEPLOYMENT.md#one-release-command) owns its steps. Its last line names the released commit and deployment id: record both.
 
-```sh
-vercel deploy
-vercel promote <deployment-url>
-```
+Never promote a Preview build with `vercel deploy` then `vercel promote`. Promotion does not rebuild, so a Preview-built artifact keeps its Preview environment values in production. [`docs/DEPLOYMENT.md`](DEPLOYMENT.md#manual-deploy-and-promote) explains why.
 
-Deploying from a Mac is fine because the build runs in Vercel's cloud. Never pass `--prebuilt` from a Mac: the locally built sharp binary is darwin-arm64 and crashes the linux runtime. `docs/DEPLOYMENT.md` documents why promotion is safe to use after a build: the promotion API points production traffic at an existing deployment and does not rebuild it. The exact `vercel deploy` / `vercel promote` command pair above is operator practice; it is not itself written down in `docs/DEPLOYMENT.md`, so treat this section as the source for it going forward.
-
-After promotion, confirm both hosts serve the release:
+After the release, confirm both hosts answer for it:
 
 ```sh
-curl -sSIL https://pubmaxxing.com/map
-curl -sSIL 'https://www.pubmaxxing.com/map?sel=venue-xjf3n0'
+curl -sS -o /dev/null -w '%{http_code}\n' https://pubmaxxing.com/map
+curl -sS -o /dev/null -w '%{http_code} %{redirect_url}\n' 'https://www.pubmaxxing.com/map?sel=venue-xjf3n0'
 ```
+
+The apex prints `200`. The `www` host prints `308 https://pubmaxxing.com/map?sel=venue-xjf3n0`. Neither command follows the redirect, so the second reads the first response's `Location` and proves the path and query survive it.
 
 ### 1.3 Migrations
 
@@ -194,7 +191,7 @@ Promote the previous known-good deployment:
 vercel promote <previous-deployment-url>
 ```
 
-Find the previous URL in the Vercel dashboard's Deployments list, or `vercel ls`. This does not rebuild anything; it repoints production traffic.
+Find the previous URL in the Vercel dashboard's Deployments list, or `vercel ls`. This does not rebuild anything; it repoints production traffic. So pick a deployment that `npm run release:prod` built for Production, never a Preview build, which keeps its Preview environment values after promotion.
 
 ### 3.2 Migrations are not rollback-safe by default
 

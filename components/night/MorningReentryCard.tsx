@@ -71,7 +71,7 @@ export default function MorningReentryCard() {
         onClick={() => setDismissed(true)}
         aria-label="Dismiss"
       >
-        <X size={18} aria-hidden="true" />
+        <X size={20} aria-hidden="true" />
       </button>
 
       <div className="morningCard__head">

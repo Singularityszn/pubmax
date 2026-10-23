@@ -22,7 +22,7 @@ for (const viewport of MOBILE_VIEWPORTS) {
 
     const response = await page.goto("/plan");
     expect(response?.status()).toBe(200);
-    await expect(page.locator(".mobileTabBar")).toBeVisible();
+    await expect(page.locator(".mobileTabBar").filter({ visible: true })).toBeVisible();
 
     if (viewport.width === 390) {
       // The head is the Screen primitive's since #1402, so it wears the launch
@@ -55,11 +55,11 @@ for (const viewport of MOBILE_VIEWPORTS) {
     }
 
     // /plan opens on the describe-first question; the wizard this test
-    // measures sits behind that entry surface's "Guide me instead" link.
+    // measures sits behind that entry surface's "Step by step" link.
     // Clicking it can scroll the link itself into view first; the wizard is
     // its own fresh opening screen, so reset to the top before measuring
     // its layout, the same as any other screen transition would start.
-    await page.getByRole("button", { name: "Guide me instead" }).click();
+    await page.getByRole("button", { name: "Step by step" }).click();
     await page.evaluate(() => window.scrollTo(0, 0));
 
     const heading = page.getByRole("heading", {

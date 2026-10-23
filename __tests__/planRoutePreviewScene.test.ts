@@ -63,7 +63,8 @@ function fakeMap(basemap: FakeLayer[]) {
     setLayerZoomRange: () => {},
     setFilter: () => {},
   };
-  return { map: map as unknown as maplibregl.Map, find, sources };
+  const order = () => layers.map((layer) => layer.id);
+  return { map: map as unknown as maplibregl.Map, find, sources, order };
 }
 
 function lineFC(coordinates: number[][]): GeoJSON.FeatureCollection {
@@ -90,6 +91,21 @@ const STOPS: GeoJSON.FeatureCollection = {
 };
 
 describe("syncPlanRoutePreviewScene", () => {
+  // QA journeys F23. buildRouteStops owns this for the full map and the card:
+  // the discs are a circle layer and take no part in collision, so the number
+  // claims its disc and is placed (top layer first) before the names.
+  it("seats the stop numbers before the names, each claiming its whole disc", () => {
+    const { map, find, order } = fakeMap([{ id: "place_other", type: "symbol", paint: {}, layout: {} }]);
+    syncPlanRoutePreviewScene(map, lineFC([[-0.14, 51.51], [-0.13, 51.52]]), STOPS);
+
+    const ids = order();
+    expect(ids.indexOf("route-stops")).toBeLessThan(ids.indexOf("route-stops-name"));
+    expect(ids.indexOf("route-stops-name")).toBeLessThan(ids.indexOf("route-stops-label"));
+    expect(find("route-stops-label")?.layout["text-padding"]).toBe(9);
+    expect(find("route-stops-label")?.layout["text-allow-overlap"]).toBe(true);
+    expect(find("route-stops-name")?.layout["text-allow-overlap"]).toBeUndefined();
+  });
+
   it("keeps the stop numbers' and names' own styling when a routed line arrives later", () => {
     const { map, find, sources } = fakeMap([{ id: "place_other", type: "symbol", paint: {}, layout: {} }]);
     const straight = lineFC([

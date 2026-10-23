@@ -25,6 +25,7 @@ function BenchmarkFigures({ row }: { row: NationalPintBenchmark }) {
   const arc = nationalPintArc(row);
   if (!arc) {
     const [only] = row.figures;
+    if (!only) return null;
     return (
       <p className="nationalPintLine">
         <span className="nationalPintClause">
@@ -65,7 +66,12 @@ export default function NationalPintBenchmarks({
       <dl className="nationalPintList" aria-labelledby={headingId}>
         {rows.map((row) => (
           <div className="nationalPintRow" key={row.id}>
-            <dt className="nationalPintMeasure">{row.measure}</dt>
+            {/* The measure is stored as a phrase ("a draught pint, UK-wide")
+                and printed as a label, so it opens with a capital. It was set
+                in spaced capitals, which are for stamps alone. */}
+            <dt className="nationalPintMeasure">
+              {row.measure.charAt(0).toUpperCase() + row.measure.slice(1)}
+            </dt>
             <dd className="nationalPintValue">
               <BenchmarkFigures row={row} />
               <p className="nationalPintSource">

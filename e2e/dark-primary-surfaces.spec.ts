@@ -1,6 +1,7 @@
 import { expect, test, type Locator, type Page } from "@playwright/test";
 
 import { installDeterministicMapBasemap } from "./helpers/mapNetworkFixtures";
+import { mobileMapShellControl } from "./helpers/mobileMapShell";
 
 const VIEWPORTS = [
   { width: 390, height: 844 },
@@ -205,6 +206,7 @@ async function prepareDarkRoutes(
       status: 200,
       contentType: "application/json",
       body: JSON.stringify({
+        servedAt: new Date().toISOString(),
         rows: [],
         asOf: "2026-07-30T18:00:00.000Z",
       }),
@@ -268,10 +270,7 @@ for (const viewport of VIEWPORTS) {
     // The venue-type chips are read in the Filters sheet on a phone (design
     // judgement 2026-08-01, finding 2.3), so that is where their contrast is
     // measured.
-    await page
-      .locator(".mobileMapTopbar")
-      .getByRole("button", { name: /^Filters/ })
-      .click();
+    await (await mobileMapShellControl(page, "filters")).click();
     const filtersSheet = page.locator(
       '.mobileSheetPortal[data-sheet-kind="filters"]',
     );
@@ -303,7 +302,7 @@ for (const viewport of VIEWPORTS) {
     );
 
     // Selection is the fill (#700, components/map/venueSheet.css): the active
-    // tab is flat `--panel-raised` with ink text and a 2px coral underline. The
+    // tab is flat `--panel-raised` with ink text and a 2px ink underline. The
     // coral gradient it replaced is gone, so its contrast is read off the fill.
     const activeTab = sheet.locator(".venueTab.active");
     await expect(activeTab).toBeVisible();
@@ -371,7 +370,7 @@ test("bounds user-entered search identity while keeping fixed qualifiers visible
   const query = status.locator(".mapToolbarSearchQuery");
   const qualifier = status.locator(".mapToolbarSearchQualifier");
   await expect(query).toHaveText(LONG_QUERY.trim());
-  await expect(qualifier).toHaveText("’ with your current filters.");
+  await expect(qualifier).toHaveText("' with your current filters.");
 
   const queryGeometry = await query.evaluate((node) => {
     const style = getComputedStyle(node);
@@ -400,6 +399,40 @@ test("bounds user-entered search identity while keeping fixed qualifiers visible
   );
 });
 
+test("an opened city-status feed survives an unchanged background refresh", async ({ page }) => {
+  await page.setViewportSize({ width: 800, height: 800 });
+  const status = {
+    weather: null, tubeLines: [],
+    signals: [{ headline: "Major London transport disruption", severity: "major", kind: "transport", areas: ["London"] }],
+  };
+  // This is the persisted public-response snapshot contract, aged beyond the
+  // five-second reuse window so the real cache consumer must refresh it.
+  await page.addInitScript(value => {
+    sessionStorage.setItem("pubmax:citySuggestDismiss:v1", "1");
+    sessionStorage.setItem("pubmax.surface.v1:/api/citymcp/status", JSON.stringify({ value, storedAt: Date.now() - 6000 }));
+  }, status);
+  await installDeterministicMapBasemap(page);
+  let release!: () => void;
+  const refresh = new Promise<void>(resolve => { release = resolve; });
+  await page.route("**/api/citymcp/status**", async route => {
+    await refresh;
+    await route.fulfill({ json: { ...status, asOf: "2026-07-30T18:01:00.000Z" } });
+  });
+  await page.goto("/map");
+  const toggle = page.getByRole("button", { name: /Major London transport disruption/ });
+  await expect(toggle).toBeVisible();
+  await toggle.click();
+  const sheet = page.getByRole("region", { name: "Live London updates for tonight" });
+  await expect(sheet).toBeVisible();
+  await expect(sheet.locator(".cityStatusSignalSheetMeta")).toHaveText("CityMCP");
+  release();
+  await expect(sheet.locator(".cityStatusSignalSheetMeta")).toContainText("Updated");
+  await expect(toggle).toHaveAttribute("aria-expanded", "true");
+  await page.getByRole("button", { name: "Close signals list" }).click();
+  await expect(sheet).toHaveCount(0);
+  await expect(toggle).toBeFocused();
+});
+
 test("expanded city-status sheet follows wrapped headline geometry", async ({
   page,
 }) => {
@@ -416,12 +449,12 @@ test("expanded city-status sheet follows wrapped headline geometry", async ({
     // wrapped headline, so the ask is already answered.
     window.sessionStorage.setItem("pubmax:citySuggestDismiss:v1", "1");
   });
-  await installDeterministicMapBasemap(page);
+  await installDeterministicMapBasemap(page, { styleDelayMs: 2500 });
   await page.route("**/api/whats-on**", (route) =>
     route.fulfill({
       status: 200,
       contentType: "application/json",
-      body: JSON.stringify({ rows: [] }),
+      body: JSON.stringify({ servedAt: new Date().toISOString(), rows: [] }),
     }),
   );
   await page.route("**/api/citymcp/status**", (route) =>
@@ -438,6 +471,7 @@ test("expanded city-status sheet follows wrapped headline geometry", async ({
             detail: "Use another route where possible.",
             kind: "transport",
             severity: "major",
+            areas: ["London"],
           },
         ],
       }),
@@ -459,6 +493,7 @@ test("expanded city-status sheet follows wrapped headline geometry", async ({
   await sheet.evaluate(async (element) => {
     await Promise.all(element.getAnimations().map((animation) => animation.finished));
   });
+  await expect(sheet).toBeVisible();
   const [bannerBox, sheetBox] = await Promise.all([
     banner.boundingBox(),
     sheet.boundingBox(),

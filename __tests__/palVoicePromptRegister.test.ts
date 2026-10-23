@@ -1,13 +1,30 @@
+import { readFileSync } from "node:fs";
+import path from "node:path";
 import { describe, expect, it } from "vitest";
+import { PAL_RECALL_MEMORIES_TOOL } from "@/lib/palConfirmedMemories.server";
+import { PAL_PROPOSE_MEMORY_TOOL } from "@/lib/palMemoryProposal.server";
 import { PAL_VOICE_MAX_SESSION_SECONDS } from "@/lib/palVoiceMetering";
-import { pubPalAgentSystemPrompt } from "@/lib/palVoicePrompt.mjs";
+import {
+  PAL_VOICE_BEST_MATE_RULE,
+  PAL_VOICE_PRE_TOOL_LINE_RULE,
+  PAL_VOICE_QUICK_PICK_OR_PLAN_RULE,
+  PAL_VOICE_TASTE_RULE,
+  pubPalAgentSystemPrompt,
+} from "@/lib/palVoicePrompt.mjs";
 import { DEFAULT_PAL_DRAFT } from "@/lib/pubPal";
 import {
   PAL_VOICE_GET_HOME_REGISTER_INTRO,
   PAL_VOICE_GET_HOME_REGISTER_RULES,
+  PAL_VOICE_PROPOSE_MEMORY_RULE,
   PAL_VOICE_PROPOSE_THEN_CONFIRM_RULE,
+  PAL_VOICE_RECALL_MEMORIES_RULE,
+  PAL_VOICE_SESSION_SUMMARY_RULE,
   buildPalVoiceOverrides,
 } from "@/lib/palVoiceOverrides";
+
+const agentConfig = JSON.parse(
+  readFileSync(path.join(process.cwd(), "scripts/pubpal/pub-pal-agent-config.json"), "utf8"),
+) as { toolNames: string[] };
 
 describe("Pub Pal voice prompt register", () => {
   const pal = {
@@ -41,8 +58,41 @@ describe("Pub Pal voice prompt register", () => {
     const prompt = pubPalAgentSystemPrompt(PAL_VOICE_MAX_SESSION_SECONDS);
     expect(prompt).toContain(PAL_VOICE_PROPOSE_THEN_CONFIRM_RULE);
     const overrides = buildPalVoiceOverrides(pal);
-    expect(Object.keys(overrides).sort()).toEqual(["firstMessage", "voiceId"]);
+    expect(Object.keys(overrides).sort()).toEqual(["firstMessage", "voiceId", "voiceSource"]);
     expect(overrides.firstMessage).toContain("Ripley");
+  });
+
+  it("asks for a checking line before each tool that states no fact", () => {
+    const prompt = pubPalAgentSystemPrompt(PAL_VOICE_MAX_SESSION_SECONDS);
+    expect(prompt).toContain(PAL_VOICE_PRE_TOOL_LINE_RULE);
+  });
+
+  it("emits the memory and summary rules, and every Pal-only tool it names is one the agent is given", () => {
+    const prompt = pubPalAgentSystemPrompt(PAL_VOICE_MAX_SESSION_SECONDS);
+    for (const rule of [
+      PAL_VOICE_RECALL_MEMORIES_RULE,
+      PAL_VOICE_PROPOSE_MEMORY_RULE,
+      PAL_VOICE_SESSION_SUMMARY_RULE,
+    ]) {
+      expect(prompt).toContain(rule);
+    }
+    for (const tool of [PAL_RECALL_MEMORIES_TOOL, PAL_PROPOSE_MEMORY_TOOL]) {
+      expect(prompt).toContain(tool);
+      expect(agentConfig.toolNames).toContain(tool);
+    }
+  });
+
+  it("talks like a best mate who knows their taste, and picks or plans by the ask", () => {
+    const prompt = pubPalAgentSystemPrompt(PAL_VOICE_MAX_SESSION_SECONDS);
+    for (const rule of [PAL_VOICE_BEST_MATE_RULE, PAL_VOICE_TASTE_RULE, PAL_VOICE_QUICK_PICK_OR_PLAN_RULE]) {
+      expect(prompt).toContain(rule);
+      expect(rule).not.toMatch(/[!\u2014]/);
+    }
+    expect(PAL_VOICE_TASTE_RULE).toMatch(/never as a fact about a pub/);
+    expect(PAL_VOICE_QUICK_PICK_OR_PLAN_RULE).toContain("propose_plan");
+    expect(agentConfig.toolNames).toContain("propose_plan");
+    // The Safe Night register still wins over the warmer one.
+    expect(prompt.indexOf(PAL_VOICE_GET_HOME_REGISTER_INTRO)).toBeGreaterThan(prompt.indexOf(PAL_VOICE_BEST_MATE_RULE));
   });
 
   it("leaves no dynamic slot a voice browser could fill inside the system prompt", () => {
@@ -54,6 +104,10 @@ describe("Pub Pal voice prompt register", () => {
       PAL_VOICE_GET_HOME_REGISTER_INTRO,
       ...PAL_VOICE_GET_HOME_REGISTER_RULES,
       PAL_VOICE_PROPOSE_THEN_CONFIRM_RULE,
+      PAL_VOICE_PRE_TOOL_LINE_RULE,
+      PAL_VOICE_RECALL_MEMORIES_RULE,
+      PAL_VOICE_PROPOSE_MEMORY_RULE,
+      PAL_VOICE_SESSION_SUMMARY_RULE,
     ];
     for (const line of strings) {
       expect(line).not.toMatch(/!/);

@@ -113,6 +113,55 @@ describe("GET/POST /api/wanted", () => {
     expect(body.error).toBeTruthy();
   });
 
+  it("answers the age gate on a list read as data at 200, and a write as 409", async () => {
+    // A new account has not tapped "I'm 18 or over". Opening the profile reads
+    // the list on every load, and a 409 there logged a console error and made
+    // the panel say "Could not load". The read carries the gate as data; the
+    // write is still refused.
+    contributionIdentityState.resolution = {
+      ok: false,
+      accountId: "acct-a",
+      body: { status: "adult_check_required", error: "Confirm you are 18 or over before contributing." },
+      httpStatus: 409,
+    };
+    const listed = await GET(get());
+    expect(listed.status).toBe(200);
+    expect(await listed.json()).toEqual({
+      status: "adult_check_required",
+      error: "Confirm you are 18 or over before contributing.",
+    });
+
+    const created = await POST(
+      post({ venueId: "venue-dove", venueName: "The Dove", venueKind: "curated" }),
+    );
+    expect(created.status).toBe(409);
+    expect((await created.json()).status).toBe("adult_check_required");
+  });
+
+  it("lets the owner correct the note on a row, and nobody else", async () => {
+    const created = await POST(
+      post({ venueId: "venue-dove", venueName: "The Dove", venueKind: "curated", note: "Back room" }),
+    );
+    const { wanted } = await created.json();
+
+    const edited = await POST(post({ action: "note", id: wanted.id, note: "Ask for the snug" }));
+    expect(edited.status).toBe(200);
+    expect((await edited.json()).wanted).toMatchObject({ id: wanted.id, note: "Ask for the snug" });
+    expect((await (await GET(get())).json()).wanteds[0].note).toBe("Ask for the snug");
+
+    const cleared = await POST(post({ action: "note", id: wanted.id, note: "" }));
+    expect((await cleared.json()).wanted.note).toBe("");
+
+    contributionIdentityState.resolution = {
+      ok: true,
+      accountId: "acct-b",
+      actor: "profile:bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb",
+      handle: "bob",
+    };
+    const stranger = await POST(post({ action: "note", id: wanted.id, note: "Mine" }));
+    expect(stranger.status).toBe(404);
+  });
+
   it("creates and lists a Wanted for the owner only", async () => {
     const created = await POST(
       post({

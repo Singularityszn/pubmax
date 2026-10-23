@@ -74,6 +74,7 @@ export declare const EMPTY_EVENT_DROPS: Readonly<EventDropCounts>;
 export declare function emptyEventDrops(): EventDropCounts;
 export declare function mergeEventDrops(into: EventDropCounts, from: EventDropCounts | null | undefined): EventDropCounts;
 export declare function summariseEventDrops(dropped: EventDropCounts): string;
+export declare function currentOwnSiteRows<T extends { id: string; startsAt?: string; endsAt?: string }>(rows: readonly T[], nowMs: number): T[];
 export declare function dedupeEventRowsBySourceId(rows: WhatsOnEventRow[]): WhatsOnEventRow[];
 export declare function cityGeo(city?: string): {
   lat: number;

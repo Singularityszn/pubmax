@@ -49,7 +49,7 @@ export default function MagicLinkForm({
       setStatus("sending");
       setMessage("");
       const result = await signInWithEmail(email);
-      setStatus(result.status);
+      setStatus(result.status === "cancelled" ? "idle" : result.status);
       setMessage(result.message);
     },
     [disabled, email, signInWithEmail, status, valid],
@@ -93,7 +93,7 @@ export default function MagicLinkForm({
           data-primary-action={primaryAction ? "" : undefined}
           disabled={!valid || disabled || status === "sending" || status === "sent"}
         >
-          <Mail size={18} aria-hidden="true" />
+          <Mail size={16} aria-hidden="true" />
           {status === "sending"
             ? "Sending…"
             : status === "sent"

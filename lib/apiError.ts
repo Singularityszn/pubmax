@@ -95,6 +95,20 @@ export function publicApiErrorFromStatus(
   });
 }
 
+/**
+ * The answer for a sign-in check we could not run (Auth is down, not the
+ * caller's credential). A fact about us, so it is a retryable 503 and never the
+ * 401 that would tell a signed-in person they are signed out.
+ */
+export function authUnavailableError(): Response {
+  return publicApiError(
+    "We could not check your sign-in. Try again.",
+    "AUTH_UNAVAILABLE",
+    503,
+    { retryable: true },
+  );
+}
+
 interface ApiErrorBody {
   error: {
     code: string;

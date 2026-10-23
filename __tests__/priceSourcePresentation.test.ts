@@ -210,7 +210,7 @@ describe("baseline price-source presentation", () => {
     expect(html).toContain("£6.40");
     expect(html).toContain("Publisher not recorded");
     expect(html).toContain(
-      "the price is on record but its publisher was not captured",
+      "the price is on record but its publisher is not",
     );
     expect(html).not.toContain(">On record<");
   });

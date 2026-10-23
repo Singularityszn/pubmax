@@ -21,6 +21,7 @@ import {
   ACCESSIBILITY_SEED_COUNT,
   getVenueAccessibility,
 } from "@/lib/venueAccessibilitySeeds";
+import { defined } from "@/__tests__/helpers/defined";
 
 // Minimal Venue factory: only the `accessibility` block matters to these units.
 function venueWith(accessibility?: VenueAccessibility): Venue {
@@ -101,6 +102,18 @@ describe("display helpers", () => {
 });
 
 describe("accessibilityFilterSummary — honest, non-broken framing", () => {
+  it.each(["stepFree", "accessibleToilet", "seatedService"] as const)(
+    "explains why pubs without confirmed details are excluded for %s",
+    (facet) => {
+      for (const count of [0, 3]) {
+        expect(accessibilityFilterSummary(
+          { ...EMPTY_ACCESSIBILITY_FILTERS, [facet]: true },
+          count,
+        )).toContain("Pubs without confirmed access details are left out.");
+      }
+    },
+  );
+
   it("returns null when no filter is active", () => {
     expect(accessibilityFilterSummary(EMPTY_ACCESSIBILITY_FILTERS, 0)).toBeNull();
     expect(anyAccessibilityFilterActive(EMPTY_ACCESSIBILITY_FILTERS)).toBe(false);
@@ -210,7 +223,7 @@ describe("integration: groupVenuePrices attaches only seeded accessibility", () 
         primary_borough: "Camden",
       },
     ]);
-    expect(seeded.accessibility?.stepFree).toBe(true);
+    expect(defined(seeded).accessibility?.stepFree).toBe(true);
 
     const [unseeded] = groupVenuePrices([
       {
@@ -222,6 +235,6 @@ describe("integration: groupVenuePrices attaches only seeded accessibility", () 
         primary_borough: "Camden",
       },
     ]);
-    expect(unseeded.accessibility).toBeUndefined();
+    expect(defined(unseeded).accessibility).toBeUndefined();
   });
 });

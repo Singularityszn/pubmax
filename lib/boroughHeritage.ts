@@ -91,7 +91,7 @@ function pickOldest(pubs: HistoricPub[]): HistoricPub | null {
     const yb = eraStartYear(b.era);
     if (ya !== yb) return ya - yb;
     return a.name.localeCompare(b.name);
-  })[0];
+  })[0] ?? null;
 }
 
 // The heritage rollup for one borough slug, computed over a HistoricPub[]. A pub
@@ -108,11 +108,12 @@ export function boroughHeritageForSlug(
   const inBorough = pubs.filter(
     (pub) => pub.borough != null && slugifyBorough(pub.borough) === target,
   );
-  if (inBorough.length === 0) return null;
+  const [representative] = inBorough;
+  if (!representative) return null;
 
   // Display name taken from the first matched pub (input order) — every match
   // shares the slug, so this is a deterministic representative spelling.
-  const borough = inBorough[0].borough as string;
+  const borough = representative.borough as string;
 
   return {
     borough,

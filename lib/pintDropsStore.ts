@@ -19,7 +19,7 @@ import {
 } from "@/lib/drinkMeasure";
 import { detectImageKind, magicBytesOk as magicBytesOkPure, stripImageMetadata } from "@/lib/imageSafety";
 import { log } from "@/lib/log";
-import { loadVenueAliasResolver } from "@/lib/venueAliases";
+import { loadVenueAliasResolver, storedVenueIds } from "@/lib/venueAliases";
 import { demoDropsFor, demoPintDropsForCity } from "@/lib/pintDropSeeds";
 import {
   confirmationIsLive,
@@ -69,22 +69,13 @@ function cleanVibeTagsOrUndefined(value: unknown): VibeTag[] | undefined {
 }
 import { PRICE_AUTHORITY_MAX_AGE_MS } from "@/lib/priceAuthorityWindow";
 import { UPLOAD_PHOTO_MAX_BYTES, uploadPhotoSizeLabel } from "@/lib/uploadBodyLimit";
-import { admin, selectStore } from "@/lib/storeBackend";
+import { admin, selectStore, whereVenueIdIn } from "@/lib/storeBackend";
 import { STORAGE_BUCKET } from "@/lib/supabase";
 import { isLiveLastTrainDecision } from "@/lib/lastTrainBadge";
 import { londonDayKey } from "@/lib/pintContributions";
 import { PINT_DROPS_TABLE } from "@/lib/pintDropTable";
 
 const TABLE = PINT_DROPS_TABLE;
-
-/**
- * Every venue id a drop for this venue may be stored under, current id first.
- * A drop keeps the id it was written with, so a read for a venue whose id was
- * since merged or superseded still finds the drops logged under the old one.
- */
-async function storedVenueIds(venueId: string): Promise<string[]> {
-  return (await loadVenueAliasResolver()).storedIds(venueId);
-}
 
 /**
  * The ceiling on ONE Pint Index build. It is deliberately far above today's
@@ -191,6 +182,15 @@ export type PintDropStore = {
     /** Scopes unscoped reads (no venueId) so Manchester demo seeds stay off London feeds. */
     cityId?: CityId | null,
   ): Promise<PintDropDTO[]>;
+  /** Complete venue identities for an attributed author's visible passport geography.
+   * The timeline remains capped. This read applies the same viewer and withdrawal rules.
+   */
+  listVisibleAuthorVenueIds(
+    authorHandle: string,
+    viewer?: ViewerContext,
+    cityId?: CityId | null,
+    venueId?: string,
+  ): Promise<string[]>;
   /**
    * The LEGACY (family/heirloom) lane for one venue — the ledger-only capability
    * issue #27 (Family Table) can adopt (issue #29 exposes it, doesn't build its
@@ -682,6 +682,43 @@ function dropWithdrawnFromViewer<T extends { handle: string }>(
   );
 }
 
+/** Each stored id of the requested venues, mapped to the requested id it answers for. */
+async function requestedIdByStoredId(venueIds: Iterable<string>): Promise<Map<string, string>> {
+  const aliases = await loadVenueAliasResolver();
+  const requestedOf = new Map<string, string>();
+  for (const venueId of venueIds) {
+    for (const storedId of aliases.storedIds(venueId)) {
+      if (!requestedOf.has(storedId)) requestedOf.set(storedId, venueId);
+    }
+  }
+  return requestedOf;
+}
+
+/** The memory mirror of the daily cap, asked across every id the venue's drops may carry. */
+async function hasPricedDropTodayAcrossIds(
+  venueId: string,
+  handle: string,
+  day: Date,
+): Promise<boolean> {
+  return (await storedVenueIds(venueId)).some((id) => hasPricedDropTodayMemory(id, handle, day));
+}
+
+async function attributedAuthorVenueIds(
+  rows: PersistableDrop[],
+  author: string,
+  viewer?: ViewerContext,
+): Promise<string[]> {
+  const permitted = rows.filter(
+    (drop) =>
+      normalizeViewerHandle(drop.handle) === author &&
+      visibilityOf(drop) !== "legacy" &&
+      canViewOnPublicSurface(drop, viewer) &&
+      normalizeViewerHandle(toDTO(drop).handle) === author,
+  );
+  const published = await dropWithdrawnFromViewer(permitted, viewer);
+  return [...new Set(published.map((drop) => drop.venueId))].sort();
+}
+
 export const memoryPintDropStore: PintDropStore = {
   async create(drop, _photos, options) {
     // The same hard guard the Supabase backend gets from
@@ -691,7 +728,7 @@ export const memoryPintDropStore: PintDropStore = {
     // Postgres. Asked against the drop's OWN day, so the row and the rule agree.
     if (
       dailyCapDay(drop, options) !== null &&
-      hasPricedDropTodayMemory(drop.venueId, drop.handle, new Date(drop.createdAt))
+      (await hasPricedDropTodayAcrossIds(drop.venueId, drop.handle, new Date(drop.createdAt)))
     ) {
       throw new PintDropDailyCapError();
     }
@@ -717,6 +754,14 @@ export const memoryPintDropStore: PintDropStore = {
     const published = await dropWithdrawnFromViewer(permitted, viewer);
     return newestFirstCapped(published).map((d) => toDTO(withVerifiedReportCount(d)));
   },
+  async listVisibleAuthorVenueIds(authorHandle, viewer, cityId, venueId) {
+    const author = normalizeViewerHandle(authorHandle);
+    if (!author) return [];
+    const rows = venueId
+      ? (await storedVenueIds(venueId)).flatMap((id) => listVisiblePintDrops(id))
+      : listAllVisiblePintDrops(cityId);
+    return attributedAuthorVenueIds(rows, author, viewer);
+  },
   async listLegacyForVenue(venueId) {
     const published = await dropWithdrawnAuthors(
       (await storedVenueIds(venueId)).flatMap((id) => listLegacyPintDropsForVenue(id)),
@@ -739,9 +784,9 @@ export const memoryPintDropStore: PintDropStore = {
   },
   async listConfirmationCandidates(venueId) {
     return newestFirstCapped(
-      listVisiblePintDrops(venueId).filter(
-        (d) => d.priceGbp !== null && isPubliclyReadableDrop(d),
-      ),
+      (await storedVenueIds(venueId))
+        .flatMap((id) => listVisiblePintDrops(id))
+        .filter((d) => d.priceGbp !== null && isPubliclyReadableDrop(d)),
     );
   },
   async confirm(ids, confirmation, now = Date.now()) {
@@ -763,13 +808,14 @@ export const memoryPintDropStore: PintDropStore = {
       .slice(0, limit);
   },
   async listConfirmedVenueIds(venueIds, now = Date.now()) {
-    const wanted = new Set(venueIds);
+    const requestedOf = await requestedIdByStoredId(venueIds);
     const dated = new Set<string>();
     for (const drop of listConfirmedPintDrops()) {
-      if (!wanted.has(drop.venueId)) continue;
+      const requested = requestedOf.get(drop.venueId);
+      if (!requested) continue;
       if (!isPubliclyReadableDrop(drop)) continue;
       if (!confirmationIsLive(drop.confirmation, now)) continue;
-      dated.add(drop.venueId);
+      dated.add(requested);
     }
     return dated;
   },
@@ -780,7 +826,7 @@ export const memoryPintDropStore: PintDropStore = {
     return status === "visible" ? restorePintDrop(id, note) : keepHiddenPintDrop(id, note);
   },
   async hasPricedDropToday(venueId, handle, now = Date.now()) {
-    return hasPricedDropTodayMemory(venueId, handle, new Date(now));
+    return hasPricedDropTodayAcrossIds(venueId, handle, new Date(now));
   },
 };
 
@@ -1221,6 +1267,51 @@ export const supabasePintDropStore: PintDropStore = {
     return toDTOsWithBatchedPhotos(capped);
   },
 
+  async listVisibleAuthorVenueIds(authorHandle, viewer, cityId, venueId) {
+    const author = normalizeViewerHandle(authorHandle);
+    if (!author) return [];
+    const venueIds = venueId ? await storedVenueIds(venueId) : [];
+    const visited = new Set<string>();
+    let afterId: string | undefined;
+    // Unique IDs give every page a stable boundary, including equal timestamps.
+    // Only venue identities survive each page. Photos and the timeline stay bounded.
+    for (;;) {
+      const base = () => {
+        let query = admin()
+          .from(TABLE)
+          .select("*")
+          .eq("status", "visible")
+          .eq("handle", author)
+          .order("id", { ascending: true })
+          .limit(MAX_PUBLIC_DROPS);
+        if (afterId) query = query.gt("id", afterId);
+        if (venueIds.length === 1) query = query.eq("venue_id", venueIds[0]);
+        else if (venueIds.length > 1) query = query.in("venue_id", venueIds);
+        return query;
+      };
+      let { data, error } = await base().neq("visibility", "legacy");
+      if (error && isMissingVisibilityColumnError(error)) {
+        ({ data, error } = await base());
+      }
+      if (error) throw new Error(error.message);
+      const page = data ?? [];
+      const rows = page.map(fromRow)
+        .filter((drop) => venueId || dropMatchesCityScope(drop.venueId, cityId));
+      for (const id of await attributedAuthorVenueIds(rows, author, viewer)) visited.add(id);
+      if (page.length < MAX_PUBLIC_DROPS) break;
+      const nextId = page[page.length - 1]?.id;
+      if (typeof nextId !== "string" || (afterId && nextId <= afterId)) {
+        throw new Error("Pint Drop geography pagination did not advance.");
+      }
+      afterId = nextId;
+    }
+    const seeds = venueId
+      ? venueIds.flatMap((id) => demoDropsFor(id))
+      : demoPintDropsForCity(cityId);
+    for (const id of await attributedAuthorVenueIds(seeds, author, viewer)) visited.add(id);
+    return [...visited].sort();
+  },
+
   /** The LEGACY lane for one venue (ledger-only capability for issue #27).
    *  Visible `legacy` rows for the venue, newest-first, as public DTOs. */
   async listLegacyForVenue(venueId) {
@@ -1280,11 +1371,10 @@ export const supabasePintDropStore: PintDropStore = {
   /** The venue's publicly readable priced drops, newest-first. The window,
    *  tolerance and independence rules stay in the pure finder. */
   async listConfirmationCandidates(venueId) {
-    const { data, error } = await admin()
-      .from(TABLE)
-      .select("*")
-      .eq("status", "visible")
-      .eq("venue_id", venueId)
+    const { data, error } = await whereVenueIdIn(
+      admin().from(TABLE).select("*").eq("status", "visible"),
+      await storedVenueIds(venueId),
+    )
       .in("visibility", ["public", "anonymous"])
       .not("price_gbp", "is", null)
       .order("created_at", { ascending: false })
@@ -1336,17 +1426,23 @@ export const supabasePintDropStore: PintDropStore = {
 
   async listConfirmedVenueIds(venueIds, now = Date.now()) {
     if (venueIds.length === 0) return new Set<string>();
+    const requestedOf = await requestedIdByStoredId(venueIds);
     const liveSince = new Date(now - PRICE_AUTHORITY_MAX_AGE_MS).toISOString();
     const { data, error } = await admin()
       .from(TABLE)
       .select("venue_id")
       .eq("status", "visible")
       .in("visibility", ["public", "anonymous"])
-      .in("venue_id", [...venueIds])
+      .in("venue_id", [...requestedOf.keys()])
       .not("confirmation_id", "is", null)
       .gte("confirmed_at", liveSince);
     if (error) throw new Error(error.message);
-    return new Set((data ?? []).map((row) => String(row.venue_id)));
+    return new Set(
+      (data ?? []).flatMap((row) => {
+        const requested = requestedOf.get(String(row.venue_id));
+        return requested ? [requested] : [];
+      }),
+    );
   },
 
   /** ONE atomic RPC (migration 0112) writes the verified-account report ledger
@@ -1398,10 +1494,10 @@ export const supabasePintDropStore: PintDropStore = {
   async hasPricedDropToday(venueId, handle, now = Date.now()) {
     const who = normalizeViewerHandle(handle);
     if (!who) return false;
-    const { data, error } = await admin()
-      .from(TABLE)
-      .select("created_at")
-      .eq("venue_id", venueId)
+    const { data, error } = await whereVenueIdIn(
+      admin().from(TABLE).select("created_at"),
+      await storedVenueIds(venueId),
+    )
       .eq("handle", who)
       .not("price_gbp", "is", null)
       .neq("status", "hidden")

@@ -55,7 +55,7 @@ import { isDemoDrinkProvenance } from "@/lib/drinks";
 import {
   isHarvestableDrinkUpdateUrl,
 } from "@/lib/harvest/sourcePolicy";
-import { estimateForPub } from "@/lib/priceEstimate";
+import { ESTIMATE_DRINK_CATEGORIES, estimateForPub } from "@/lib/priceEstimate";
 import { normalizeSiteHarvestLedgerRow } from "@/lib/siteHarvestLedgerCore";
 import { estimateBaselines } from "@/lib/priceEstimateBaselines";
 import {
@@ -81,6 +81,8 @@ const DRINK_UPDATES = path.join(
   "public/data/drink_price_updates/latest.json",
 );
 const BOUNDARIES = path.join(ROOT, "data/london_boroughs_simplified.json");
+const LONDON_SLIM = path.join(ROOT, "public/data/venues_slim.json");
+const VENUE_ALIASES = path.join(ROOT, "public/data/venue_id_aliases.json");
 const HARVEST_LEDGER_ROWS = path.join(
   ROOT,
   "data-harvest/uk_prices/rows.jsonl",
@@ -122,6 +124,8 @@ function basePubs() {
     );
     if (!existsSync(file)) continue;
     for (const pub of read(file).pubs ?? []) {
+      // An unnamed pub (name "") has no name to model or match a price on.
+      if (pub[1] === "") continue;
       pubs.push({ ref: pub[0], name: pub[1], lat: pub[3], lng: pub[4], curatedVenueId: pub[5] });
     }
   }
@@ -250,6 +254,8 @@ function collectRows(report) {
     new Set(pubs.map((pub) => pub.ref)),
     push,
     report,
+    existsSync(BOUNDARIES) ? read(BOUNDARIES) : null,
+    existsSync(VENUE_ALIASES) ? read(VENUE_ALIASES).aliases ?? {} : {},
   );
   notes.push(
     harvest.from
@@ -280,8 +286,20 @@ function collectRows(report) {
   return { rows, notes, harvest };
 }
 
+// A base pub has no curated record to carry its place, so a subtype view that
+// ranks London pubs could not place it. Its own ledger row states the point the
+// pub was read at; the borough is that point's, and a point outside every
+// London borough gets nothing, which is what keeps the view to London.
+function londonBasePlace(venueId, row, drinkFields, boundaries) {
+  if (!boundaries || !venueId.startsWith("venue-uk-") || !drinkFields.drinkSubtype) return {};
+  const lat = Number(row.lat);
+  const lng = Number(row.lng);
+  const londonBorough = boroughNameForPoint(lat, lng, boundaries);
+  return londonBorough ? { lat, lng, londonBorough } : {};
+}
+
 /** Lane one: the prices a pub's or a chain's own site stated. */
-function addSiteHarvestRows(harvestRows, owners, servedRefs, push, report) {
+function addSiteHarvestRows(harvestRows, owners, servedRefs, push, report, boundaries, venueAliases = {}) {
   for (const ledgerRow of harvestRows) {
     const row = normalizeSiteHarvestLedgerRow(ledgerRow);
     if (!isHarvestableDrinkUpdateUrl(row.sourceUrl ?? "")) {
@@ -300,11 +318,18 @@ function addSiteHarvestRows(harvestRows, owners, servedRefs, push, report) {
       row.venueId.startsWith("venue-uk-") &&
       !servedRefs.has(osmRef) &&
       !owners.has(osmRef);
-    const venueId = (osmRef && owners.get(osmRef)) || row.venueId;
+    // A curated id canonicalize:venues merged away resolves to the venue that
+    // kept the pub, so the append-only ledger never has to be rewritten.
+    const ownedId = (osmRef && owners.get(osmRef)) || row.venueId;
+    const venueId = venueAliases[ownedId] ?? ownedId;
     if (leftTheBase || typeof venueId !== "string" || venueId.length === 0) {
       report.droppedUnresolvedVenue += 1;
       continue;
     }
+    const drinkFields = bundleDrinkFieldsFromPrintedName(
+      row.drinkLabel ?? row.drinkName ?? null,
+      row.category,
+    );
     push({
       venueId,
       name: row.name ?? null,
@@ -318,10 +343,8 @@ function addSiteHarvestRows(harvestRows, owners, servedRefs, push, report) {
       basis: null,
       sampleSize: null,
       ...(row.servingSize !== undefined ? { servingSize: row.servingSize } : {}),
-      ...bundleDrinkFieldsFromPrintedName(
-        row.drinkLabel ?? row.drinkName ?? null,
-        row.category,
-      ),
+      ...drinkFields,
+      ...londonBasePlace(venueId, row, drinkFields, boundaries),
     });
   }
 }
@@ -360,10 +383,22 @@ function addDrinkPriceUpdateRows(updates, push, report) {
   }
 }
 
+// The curated venues that themselves state they serve cocktails, from the
+// dataset's own cocktails column. A pub nobody has said that about never gets a
+// modelled cocktail price.
+function cocktailVenueIds() {
+  const slim = existsSync(LONDON_SLIM) ? read(LONDON_SLIM) : null;
+  const rows = Array.isArray(slim?.rows) ? slim.rows : [];
+  return new Set(
+    rows.filter((row) => row?.filterHints?.amenities?.cocktails === true).map((row) => row.id),
+  );
+}
+
 /** Lane three: the modelled figures, labelled as modelled. */
 function addEstimateRows(owners, push, report) {
   const baselines = estimateBaselines();
   const boundaries = existsSync(BOUNDARIES) ? read(BOUNDARIES) : null;
+  const servesCocktails = cocktailVenueIds();
   const snapshot = read(OSM_PUBS);
   const pubs = Array.isArray(snapshot) ? snapshot : (snapshot.pubs ?? []);
   for (const pub of pubs) {
@@ -375,34 +410,36 @@ function addEstimateRows(owners, push, report) {
       boundaries && Number.isFinite(pub.lat) && Number.isFinite(pub.lng)
         ? boroughNameForPoint(pub.lat, pub.lng, boundaries)
         : null;
-    const estimate = estimateForPub(
-      {
-        operator: pub.operator ?? null,
-        website: pub.website ?? null,
-        postcode: pub.postcode ?? null,
-        londonBoroughCode: boroughName ? boroughCode(boroughName) : null,
-      },
-      baselines,
-    );
-    if (!estimate) {
-      report.pubsWithNoBasis += 1;
-      continue;
+    const modelled = {
+      operator: pub.operator ?? null,
+      website: pub.website ?? null,
+      postcode: pub.postcode ?? null,
+      londonBoroughCode: boroughName ? boroughCode(boroughName) : null,
+      servesCocktails: servesCocktails.has(venueId),
+    };
+    // The engine models a PINT first, then each non-beer drink it holds a
+    // London basis for. Every row is filed under the drink it was modelled for.
+    let modelledAny = false;
+    for (const category of ["beer", ...ESTIMATE_DRINK_CATEGORIES]) {
+      const estimate = estimateForPub(modelled, baselines, category);
+      if (!estimate) continue;
+      modelledAny = true;
+      push({
+        venueId,
+        name: pub.name ?? null,
+        category,
+        priceGbp: estimate.priceGbp,
+        lane: "estimate",
+        standing: "estimate",
+        sourceUrl: null,
+        publisher: null,
+        observedAt: estimate.computedAt,
+        basis: `${estimate.basis}:${estimate.basisKey}`,
+        sampleSize: estimate.sampleSize,
+        ...(estimate.operatorCount !== undefined ? { operatorCount: estimate.operatorCount } : {}),
+      });
     }
-    push({
-      venueId,
-      name: pub.name ?? null,
-      // The estimate engine models a PINT, so its row is a beer row and says so
-      // rather than being filed under a category nobody modelled.
-      category: "beer",
-      priceGbp: estimate.priceGbp,
-      lane: "estimate",
-      standing: "estimate",
-      sourceUrl: null,
-      publisher: null,
-      observedAt: estimate.computedAt,
-      basis: `${estimate.basis}:${estimate.basisKey}`,
-      sampleSize: estimate.sampleSize,
-    });
+    if (!modelledAny) report.pubsWithNoBasis += 1;
   }
   return pubs.length;
 }

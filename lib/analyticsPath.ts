@@ -11,7 +11,6 @@ const PAGEVIEW_STATIC_SURFACES = new Set([
   "/moment",
   "/near",
   "/onboarding",
-  "/out",
   "/pal",
   "/pal/chat",
   "/pint-index",
@@ -80,7 +79,7 @@ export function analyticsReferrerFromUrl(value: unknown, currentUrl: unknown): s
  */
 export function safeAnalyticsPathname(path: unknown): string | null {
   if (typeof path !== "string" || !path.startsWith("/") || path.length > 120) return null;
-  const pathname = path.split("?")[0];
+  const pathname = path.split("?")[0] ?? "";
   if (
     pathname.includes("#")
     || pathname.includes("%")

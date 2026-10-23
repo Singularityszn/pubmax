@@ -1,0 +1,190 @@
+/* Add a pub (/add-a-pub). Scoped to this page; values lean on the shared
+   tokens so it reads in the light and dark themes the same way the rest of
+   the app does. One filled control on the page: the send. */
+
+.addPubShell {
+  min-height: 100dvh;
+  background: var(--paper);
+  color: var(--ink);
+  padding: 24px var(--page-gutter) 64px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 24px;
+}
+
+.addPubShell .siteNav,
+.addPubShell .addPubScreen {
+  width: 100%;
+  max-width: 640px;
+}
+
+.addPubShell .addPubScreen {
+  padding-inline: 0;
+}
+
+.addPubForm,
+.addPubDone {
+  display: grid;
+  gap: 20px;
+  width: 100%;
+}
+
+.addPubFieldset {
+  display: grid;
+  gap: 12px;
+  margin: 0;
+  padding: 16px;
+  border: 1px solid var(--line-soft);
+  border-radius: var(--control-radius);
+  background: var(--panel);
+  min-width: 0;
+}
+
+.addPubSectionTitle {
+  margin: 0;
+  padding: 0;
+  font-size: var(--text-base);
+  font-weight: 700;
+  color: var(--ink);
+}
+
+.addPubField {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--ink-soft);
+}
+
+.addPubField input,
+.addPubField select,
+.addPubField textarea {
+  width: 100%;
+  min-height: var(--control-height);
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--control-radius);
+  background: var(--paper);
+  color: var(--ink);
+  font: inherit;
+  font-weight: 400;
+}
+
+.addPubField input[type="file"] {
+  padding: 8px;
+}
+
+.addPubField textarea {
+  resize: vertical;
+}
+
+.addPubField--short {
+  max-width: 14rem;
+}
+
+.addPubHint {
+  margin: 0;
+  font-size: var(--text-xs);
+  line-height: 1.45;
+  color: var(--muted);
+}
+
+.addPubPriceRow {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(8rem, 1fr));
+  gap: 10px;
+  align-items: end;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--line-soft);
+}
+
+.addPubFiles,
+.addPubAddedList,
+.addPubErrors {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.addPubFileRow,
+.addPubAddedRow {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  overflow-wrap: anywhere;
+  font-size: var(--text-sm);
+}
+
+.addPubAddedName {
+  font-weight: 700;
+}
+
+.addPubAddedStatus {
+  color: var(--muted);
+  font-size: var(--text-xs);
+}
+
+.addPubRemove {
+  min-height: 44px;
+  min-width: 44px;
+  padding: 0 12px;
+  border: 0;
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+  font-size: var(--text-sm);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+
+.addPubMatches {
+  display: grid;
+  gap: 12px;
+  padding: 16px;
+  border: 1px solid var(--amber);
+  border-radius: var(--control-radius);
+  background: var(--panel);
+}
+
+.addPubRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+}
+
+.addPubLink {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  color: var(--ink);
+  font-weight: 700;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.addPubError,
+.addPubErrors {
+  margin: 0;
+  color: var(--tint-ink-negative);
+  font-size: var(--text-sm);
+}
+
+.addPubDoneTitle {
+  margin: 0;
+  font-size: var(--text-md);
+  line-height: 1.3;
+}
+
+.addPubAdded {
+  display: grid;
+  gap: 10px;
+}

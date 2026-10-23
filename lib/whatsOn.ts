@@ -14,7 +14,10 @@ import {
   isValidIso as isValidIsoShape,
   isValidObservedAt as isValidObservedAtShape,
   isValidWhatsOnRow as isValidWhatsOnRowShape,
+  timedRowEffectiveEnd,
 } from "@/lib/whatsOnRowShape.mjs";
+
+export { POINT_ROW_GRACE_MS } from "@/lib/whatsOnRowShape.mjs";
 
 export type WhatsOnListedWindow = "tonight" | "tomorrow_night" | "this_weekend";
 
@@ -118,6 +121,14 @@ export function whatsOnBarePriceGbp(row: Pick<WhatsOnRow, "kind" | "priceGbp">):
 export type WhatsOnKindObservedAt = Partial<Record<WhatsOnKind, string>>;
 
 export const EMPTY_KIND_OBSERVED_AT: WhatsOnKindObservedAt = Object.freeze({});
+
+/** The most cards the live-music lane shows (components/discovery/MusicTonightLane.tsx). */
+export const MUSIC_LANE_MAX_CARDS = 8;
+
+/** The music cards that lane shows, in order, and so the cards its stamp covers. */
+export function musicLaneRows(rows: readonly WhatsOnRow[]): WhatsOnRow[] {
+  return rows.filter((row) => row.kind === "music").slice(0, MUSIC_LANE_MAX_CARDS);
+}
 
 /** Read the per-kind map off an API body. An unknown kind or an unparseable
  *  time contributes nothing: an unusable value must not become a date printed
@@ -403,27 +414,6 @@ export function londonServiceDayBounds(now: number = Date.now()): { start: strin
   return { start: new Date(startMs).toISOString(), end: new Date(endMs).toISOString() };
 }
 
-// A point row carries no endsAt, so on its own it collapses to a zero-width
-// instant at startsAt. That made an in-progress event vanish the moment its
-// start passed: a 19:30 quiz dropped from the default path at 19:31 (#417).
-// Give a point row a kind-aware effective DURATION instead, so its interval is
-// [startsAt, startsAt + grace]. Each duration is the typical real run-length of
-// that activity, picked conservatively (better to keep a just-finished row a
-// little too long than to drop one that is still live):
-//   quiz  ~3h    a pub quiz plus its wind-down runs about three hours.
-//   music ~3h    a live-music or residency night runs a full set, about three hours.
-//   sport ~2.5h  a match plus build-up and reaction runs about two and a half hours.
-//   deal   0     deals always carry an explicit endsAt (their window is exact),
-//                so a deal reaching here as a point gets no invented grace.
-// Interval rows (any row WITH endsAt) are untouched: their endsAt stays exact.
-export const POINT_ROW_GRACE_MS: Record<WhatsOnKind, number> = {
-  quiz: 3 * 60 * 60 * 1000,
-  music: 3 * 60 * 60 * 1000,
-  sport: 2.5 * 60 * 60 * 1000,
-  deal: 0,
-  event: 3 * 60 * 60 * 1000,
-};
-
 /**
  * The 16:00-04:00 service window as instants, resolved once for a caller that
  * is about to ask about many rows. Named for the SERVICE day it comes from,
@@ -513,21 +503,18 @@ export function filterTonight(rows: WhatsOnRow[], now: number = Date.now()): Wha
 
 // The instant a row stops being relevant: its explicit endsAt, or (for a point
 // row that carries no endsAt) startsAt plus a kind-aware effective duration
-// (POINT_ROW_GRACE_MS above). Same interval reading isOnTonight uses (#409/#417):
+// (POINT_ROW_GRACE_MS in lib/whatsOnRowShape.mjs). Same interval reading isOnTonight uses (#409/#417):
 // a row is [startsAt, effectiveEnd]. Interval rows keep their exact endsAt; only
 // point rows gain grace. Returns NaN only when startsAt itself is unparseable (a
 // row that would already fail isValidWhatsOnRow).
 export function rowEffectiveEnd(row: WhatsOnRow): number {
-  const startsAt = row.startsAt ? Date.parse(row.startsAt) : Number.NaN;
-  const parsedEnd = row.endsAt ? Date.parse(row.endsAt) : NaN;
-  if (Number.isFinite(parsedEnd)) return parsedEnd; // interval row: exact endsAt
-  if (!Number.isFinite(startsAt)) {
+  const end = timedRowEffectiveEnd(row);
+  if (!Number.isFinite(end)) {
     // Date-only row: its stated evening closes at 04:00 the next morning, so it
     // goes past-dated with that evening rather than never at all.
     if (row.startsDate) return londonEveningWindowForDate(row.startsDate)?.endMs ?? Number.NaN;
-    return startsAt; // unparseable start -> NaN
   }
-  return startsAt + POINT_ROW_GRACE_MS[row.kind]; // point row: kind-aware grace
+  return end;
 }
 
 // Freshness guard for the serving/build seam. A row is past-dated once its

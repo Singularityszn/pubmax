@@ -30,6 +30,7 @@ import {
   isFreshOverpassSnapshot,
 } from "../scripts/lib/overpassClient.mjs";
 import {
+  ALCOHOLIC_DRINK_KEYS,
   UK_VENUE_GROUPS,
   UK_VENUE_KINDS,
   UK_VENUE_QUERY_SCOPES,
@@ -38,6 +39,7 @@ import {
   classifyVenueTags,
   countVenues,
   normalizeVenueElements,
+  statesAlcohol,
   taxonomyForScope,
 } from "../scripts/lib/ukOsmVenueSeed.mjs";
 import { VENUE_KINDS, isVenueKind, type VenueKind } from "@/lib/venues";
@@ -58,15 +60,18 @@ describe("UK venue taxonomy", () => {
     const query = buildUkVenueQuery(LONDON_CELL);
     expect(query).toContain("[timeout:90]");
     expect(query).toContain("area(id:3600062149)->.uk;");
-    expect(query).toContain('node["amenity"="pub"](area.uk)(50.8,-0.7,51.8,0.3);');
-    expect(query).toContain('way["amenity"="pub"](area.uk)(50.8,-0.7,51.8,0.3);');
+    expect(query).toContain('node["amenity"="pub"](50.8,-0.7,51.8,0.3);');
+    expect(query).toContain('way["amenity"="pub"](50.8,-0.7,51.8,0.3);');
+    // The UK clip runs once over the cell's union, not once per selector.
+    expect(query).toContain(")->.cell;\n(\n  node.cell(area.uk);\n  way.cell(area.uk);\n);");
+    expect(query.match(/\(area\.uk\)/g)).toHaveLength(2);
     expect(query.trimEnd().endsWith("out center tags;")).toBe(true);
   });
 
   it("asks for the whole taxonomy in one request by default", () => {
     const all = buildUkVenueQuery(LONDON_CELL);
     for (const row of UK_VENUE_TAXONOMY) {
-      for (const selector of row.selectors) expect(all).toContain(`node${selector}(area.uk)`);
+      for (const selector of row.selectors) expect(all).toContain(`node${selector}(50.8`);
     }
     expect(taxonomyForScope("all")).toHaveLength(UK_VENUE_TAXONOMY.length);
     expect(UK_VENUE_QUERY_SCOPES[0]).toBe("all");
@@ -74,16 +79,116 @@ describe("UK venue taxonomy", () => {
 
   it("narrows to one lane when a scope is named", () => {
     const work = buildUkVenueQuery(LONDON_CELL, "work");
-    expect(work).toContain('node["amenity"="library"](area.uk)');
+    expect(work).toContain('node["amenity"="library"](50.8');
     expect(work).not.toContain('"amenity"="pub"');
     expect(() => taxonomyForScope("nightclubs")).toThrow(/Unknown venue scope/);
   });
 
-  it("takes a restaurant only where OSM states a bar, a microbrewery or real ale", () => {
+  it("takes a nightclub as a club, and nothing inferred from a name", () => {
+    expect(classifyVenueTags({ amenity: "nightclub", name: "Fabric" })?.kind).toBe("club");
+    expect(classifyVenueTags({ amenity: "nightclub" })?.key).toBe("nightclub");
+    expect(classifyVenueTags({ amenity: "bar", name: "Nightclub" })?.kind).toBe("bar");
+    expect(classifyVenueTags({ name: "The Club" })).toBeNull();
+  });
+
+  it("takes a restaurant only where OSM states alcohol", () => {
     expect(classifyVenueTags({ amenity: "restaurant", name: "Plain" })).toBeNull();
     expect(classifyVenueTags({ amenity: "restaurant", bar: "yes" })?.key).toBe("restaurant_bar");
     expect(classifyVenueTags({ amenity: "restaurant", real_ale: "yes" })?.key).toBe("restaurant_bar");
+    expect(classifyVenueTags({ amenity: "restaurant", alcohol: "yes" })?.key).toBe("restaurant_bar");
+    expect(classifyVenueTags({ amenity: "restaurant", alcohol: "served" })?.kind).toBe("restaurant");
+    expect(classifyVenueTags({ amenity: "restaurant", "drink:wine": "served" })?.key).toBe(
+      "restaurant_bar",
+    );
+    expect(classifyVenueTags({ amenity: "restaurant", "drink:beer": "draught" })?.key).toBe(
+      "restaurant_bar",
+    );
+    expect(classifyVenueTags({ amenity: "restaurant", drink: "wine" })?.key).toBe("restaurant_bar");
     expect(classifyVenueTags({ amenity: "restaurant", bar: "no" })).toBeNull();
+    expect(classifyVenueTags({ amenity: "restaurant", alcohol: "no" })).toBeNull();
+    expect(classifyVenueTags({ amenity: "restaurant", "drink:coffee": "yes" })).toBeNull();
+    expect(classifyVenueTags({ amenity: "restaurant", "drink:beer": "served;bottled" })?.key).toBe(
+      "restaurant_bar",
+    );
+    expect(classifyVenueTags({ amenity: "restaurant", "drink:beer": "no;served" })?.key).toBe(
+      "restaurant_bar",
+    );
+    expect(classifyVenueTags({ amenity: "restaurant", "drink:beer": "served; bottled" })?.key).toBe(
+      "restaurant_bar",
+    );
+    expect(classifyVenueTags({ amenity: "restaurant", "drink:beer": "no" })).toBeNull();
+    expect(classifyVenueTags({ amenity: "restaurant", "drink:beer": "retail" })).toBeNull();
+    expect(classifyVenueTags({ amenity: "restaurant", "drink:beer": "no;retail" })).toBeNull();
+    expect(classifyVenueTags({ amenity: "restaurant", "drink:beer": "notserved" })).toBeNull();
+    expect(classifyVenueTags({ amenity: "restaurant", drink: "coffee" })).toBeNull();
+    expect(classifyVenueTags({ amenity: "restaurant", opening_hours: "24/7" })).toBeNull();
+    expect(statesAlcohol({ "drink:coffee": "yes", "drink:tea": "yes" })).toBe(false);
+  });
+
+  it("takes a music venue as a club", () => {
+    expect(classifyVenueTags({ amenity: "music_venue" })?.key).toBe("music_venue");
+    expect(classifyVenueTags({ amenity: "music_venue" })?.kind).toBe("club");
+  });
+
+  it("takes a social or members' club only where OSM states alcohol", () => {
+    expect(classifyVenueTags({ club: "social" })).toBeNull();
+    expect(classifyVenueTags({ club: "social", bar: "yes" })?.key).toBe("social_club");
+    expect(classifyVenueTags({ club: "sport", "drink:beer": "yes" })?.kind).toBe("club");
+    expect(classifyVenueTags({ club: "social", "drink:coffee": "yes" })).toBeNull();
+    expect(classifyVenueTags({ amenity: "pub", club: "social", bar: "yes" })?.key).toBe("pub");
+    expect(classifyVenueTags({ bar: "yes" })).toBeNull();
+  });
+
+  it("takes a casino only where OSM states alcohol", () => {
+    expect(classifyVenueTags({ amenity: "casino" })).toBeNull();
+    expect(classifyVenueTags({ amenity: "casino", alcohol: "no" })).toBeNull();
+    expect(classifyVenueTags({ amenity: "casino", bar: "yes" })?.key).toBe("casino_bar");
+    expect(classifyVenueTags({ amenity: "casino", alcohol: "served" })?.kind).toBe("other");
+  });
+
+  it("asks Overpass for every alcoholic drink key and no non-alcoholic one", () => {
+    const query = buildUkVenueQuery(LONDON_CELL, "drink");
+    expect(query).toContain('node["amenity"="nightclub"](50.8');
+    expect(query).toContain('node["amenity"="music_venue"](50.8');
+    expect(query).toContain('node["club"]["bar"="yes"](50.8');
+    expect(query).toContain('node["amenity"="casino"]["alcohol"~"^(yes|served)$"](50.8');
+    expect(query).not.toContain("drink:coffee");
+    expect(query).toContain('"^([^;]*;)* *(yes|served|draught|bottled) *(;.*)?$"');
+    for (const key of ALCOHOLIC_DRINK_KEYS) expect(query).toContain(key);
+  });
+
+  // Overpass compiles a tag regex as POSIX ERE. A PCRE-only form such as `(?:`
+  // or `\s` is a static error, and the server answers 400 for the whole chunk.
+  it("writes every Overpass regex in POSIX ERE, matching what statesAlcohol accepts", () => {
+    const query = buildUkVenueQuery(LONDON_CELL, "all");
+    const patterns = [...query.matchAll(/~"([^"]*)"/g)].map((match) => match[1]);
+    expect(patterns.length).toBeGreaterThan(0);
+    for (const pattern of patterns) {
+      expect(pattern).not.toContain("(?");
+      expect(pattern).not.toContain("\\");
+    }
+
+    const valuePattern = query.match(/\[~"\^\(drink:[^"]*\)\$"~"([^"]*)"\]/)?.[1];
+    expect(valuePattern).toBeDefined();
+    const available = new RegExp(valuePattern!);
+    const samples = [
+      "yes",
+      "served",
+      "draught",
+      "bottled",
+      "served;bottled",
+      "served; bottled",
+      "no;served",
+      "no; yes",
+      "no",
+      "retail",
+      "no;retail",
+      "notserved",
+      "yesno",
+    ];
+    for (const value of samples) {
+      expect(available.test(value), value).toBe(statesAlcohol({ "drink:beer": value }));
+    }
   });
 
   it("takes fast food only where OSM states alcohol or round-the-clock hours", () => {
@@ -198,7 +303,7 @@ describe("the widened venue vocabulary", () => {
   it("leaves pub behaviour exactly as it was", () => {
     expect(isPubVenueKind(undefined)).toBe(true);
     expect(isPubVenueKind("pub")).toBe(true);
-    for (const kind of ["cafe", "coworking", "library", "hotel_lounge", "other"] as const) {
+    for (const kind of ["cafe", "club", "coworking", "library", "hotel_lounge", "other"] as const) {
       expect(isPubVenueKind(kind)).toBe(false);
     }
   });

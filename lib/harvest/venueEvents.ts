@@ -1,15 +1,12 @@
 // Reading a venue's OWN what's-on page into What's-On rows. PURE: markdown in,
 // rows and drop reasons out.
 //
-// events_london.json has been empty since it shipped, because every discovery
-// API that covers pub-scale London is partner-gated or non-commercial (see
-// docs/EVENT_SOURCES_RESEARCH_2026-07-18.md). The one source that is neither is
-// the venue itself, so this reads operators' own listings.
+// Source permissions and restrictions live in docs/data/SOURCE_LEDGER.md.
 //
 // THREE THINGS AN EVENT MUST STATE, or it is not a row:
 //
-//   A KIND we already have. Our four kinds are sport, quiz, deal and music, and
-//   only an unambiguous word maps ("quiz night" -> quiz, "live music" -> music).
+//   A KIND recognized by KIND_WORDS. Only an unambiguous word maps
+//   ("quiz night" -> quiz, "live music" -> music).
 //   A comedy night or a supper club is DROPPED rather than filed under the
 //   nearest kind, which is the same refusal eventsRefresh.mjs makes for a
 //   Ticketmaster segment it cannot map.
@@ -35,8 +32,8 @@ import type { WhatsOnKind } from "@/lib/whatsOn";
 const EVENT_FORWARD_HORIZON_DAYS = 400;
 
 /**
- * Words that name one of our kinds without ambiguity. Order matters: the first
- * match on a line wins, so "live music quiz" reads as the quiz it leads with.
+ * Words that name one of our kinds without ambiguity. The first matching
+ * pattern wins, so quiz takes precedence in "live music quiz".
  */
 const KIND_WORDS: ReadonlyArray<{ pattern: RegExp; kind: WhatsOnKind }> = [
   { pattern: /\b(pub\s+)?quiz(\s+night)?\b/i, kind: "quiz" },
@@ -117,6 +114,7 @@ export function resolveEventDate(line: string, nowMs: number): EventDateResoluti
   if (!match) return { ok: false, reason: "no-date" };
 
   const [, weekdayWord, dayText, monthText, yearText] = match;
+  if (monthText === undefined) return { ok: false, reason: "no-date" };
   const month = MONTH_INDEX.get(monthText.toLowerCase().slice(0, monthText.length > 3 ? undefined : 3));
   const monthIndex = month ?? MONTH_INDEX.get(monthText.toLowerCase().slice(0, 3));
   if (monthIndex === undefined) return { ok: false, reason: "no-date" };
@@ -144,14 +142,15 @@ export function resolveEventDate(line: string, nowMs: number): EventDateResoluti
     candidates.push({ year, month: monthIndex + 1, day });
   }
 
-  if (candidates.length === 0) return { ok: false, reason: "ambiguous-date" };
+  const [soonest] = candidates;
+  if (!soonest) return { ok: false, reason: "ambiguous-date" };
   if (candidates.length > 1 && wanted === undefined) {
     // No weekday to choose between them: take the soonest, which is what an
     // upcoming-events list means by a bare day and month.
-    return { ok: true, date: candidates[0] };
+    return { ok: true, date: soonest };
   }
   if (candidates.length > 1) return { ok: false, reason: "ambiguous-date" };
-  return { ok: true, date: candidates[0] };
+  return { ok: true, date: soonest };
 }
 
 const TIME_IN_LINE = /(?:doors?|from|starts?|kick[- ]?off)?\s*\b(\d{1,2}(?:[:.]\d{2})?\s*(?:am|pm))\b|\b(\d{1,2}:\d{2})\b/i;
@@ -266,7 +265,7 @@ export function parseVenueEventListings(markdown: string, nowMs: number): VenueE
     const heading = /^#{2,4}\s+(.+?)\s*$/.exec(raw);
     if (heading) {
       flush();
-      title = heading[1].trim();
+      title = (heading[1] ?? "").trim();
       continue;
     }
     if (title) body.push(raw);
@@ -291,7 +290,7 @@ export function findEventsPageUrl(markdown: string, siteUrl: string): string | n
     return null;
   }
   const links = markdown.matchAll(/\[([^\]]*)\]\(([^)\s]+)[^)]*\)/g);
-  for (const [, text, href] of links) {
+  for (const [, text = "", href = ""] of links) {
     let candidate: URL;
     try {
       candidate = new URL(href, base);

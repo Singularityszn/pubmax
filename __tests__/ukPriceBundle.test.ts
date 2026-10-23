@@ -21,6 +21,7 @@ import {
   strongestBundleRow,
   type UkPriceBundleRow,
 } from "@/lib/ukPriceBundle";
+import { defined } from "@/__tests__/helpers/defined";
 
 const NOW = Date.parse("2026-09-04T12:00:00.000Z");
 
@@ -57,6 +58,35 @@ describe("what a bundle row owes", () => {
     expect(isValidUkPriceBundleRow(listed)).toBe(true);
   });
 
+  it("takes a London place only whole, inside London, on a listed base subtype row", () => {
+    const placed = {
+      ...listed,
+      category: "soft-drink",
+      drinkLabel: "Diet Coke",
+      drinkSubtype: "soft-drink-diet-coke",
+      lat: 51.4648,
+      lng: -0.0337,
+      londonBorough: "Lewisham",
+    };
+    expect(isValidUkPriceBundleRow(placed)).toBe(true);
+    expect(isValidUkPriceBundleRow({ ...placed, londonBorough: undefined })).toBe(false);
+    expect(isValidUkPriceBundleRow({ ...placed, lat: undefined })).toBe(false);
+    expect(isValidUkPriceBundleRow({ ...placed, lat: 53.48, lng: -2.24 })).toBe(false);
+    expect(isValidUkPriceBundleRow({ ...placed, venueId: "venue-abc123" })).toBe(false);
+    expect(isValidUkPriceBundleRow({ ...placed, drinkSubtype: undefined })).toBe(false);
+    expect(
+      isValidUkPriceBundleRow({
+        ...placed,
+        lane: "estimate",
+        standing: "estimate",
+        sourceUrl: null,
+        basis: "b",
+        sampleSize: 5,
+        operatorCount: 3,
+      }),
+    ).toBe(false);
+  });
+
   it("accepts bounded explicit servings while preserving unknown volume", () => {
     expect(isValidUkPriceBundleRow({ ...listed, servingSize: "125ml" })).toBe(true);
     expect(isValidUkPriceBundleRow({ ...listed, servingSize: "Btl" })).toBe(true);
@@ -66,8 +96,8 @@ describe("what a bundle row owes", () => {
     expect(isValidUkPriceBundleRow({ ...listed, servingSize: "125\0ml" })).toBe(false);
     expect(isValidUkPriceBundleRow({ ...listed, servingSize: "125ml\u007f" })).toBe(false);
     expect(parseUkPriceBundleRows([{ ...listed, servingSize: "125\0ml" }])).toEqual([]);
-    expect(parseUkPriceBundleRows([{ ...listed, servingSize: "Btl" }])[0].servingSize).toBe("Btl");
-    expect(parseUkPriceBundleRows([listed])[0].servingSize).toBeUndefined();
+    expect(defined(parseUkPriceBundleRows([{ ...listed, servingSize: "Btl" }])[0]).servingSize).toBe("Btl");
+    expect(defined(parseUkPriceBundleRows([listed])[0]).servingSize).toBeUndefined();
   });
 
   it("keeps same named wine servings in separate collect keys", () => {
@@ -174,6 +204,15 @@ describe("which rows a surface may treat as a fact", () => {
     }
     const valid = { ...listed, category: "wine", drinkLabel: "House red wine 175ml", priceGbp: 7.5 };
     expect(authoritativeBundleRows([valid])).toEqual([valid]);
+  });
+
+  it("lists Venue 5's draught pint, not the bottles its menu prints below it", () => {
+    const published: UkPriceBundleRow[] = JSON.parse(readFileSync("public/data/uk_prices/rows.json", "utf8"));
+    const venue = published.filter((row) => row.sourceUrl === "https://venue5.com/drinks-menu/");
+    // "Bottle Beer" heads Peroni, Budweiser, Corona and Desperados at £4.95;
+    // the draught list above it runs from Guinness at £5.75 to £6.20.
+    expect(venue.some((row) => row.category === "beer" && row.priceGbp === 4.95)).toBe(false);
+    expect(bundlePricesForCategory(venue, "beer").listed?.priceGbp).toBe(5.75);
   });
 
   it("hands an authority lane the published rows and never the modelled ones", () => {

@@ -6,7 +6,7 @@
 // stood behind a price, so this named, dated, account-bound lane is the only
 // way a drinker's agreement now reaches anything.
 //
-//   POST { venueId, drinkCategory, priceGbp, measure? }    → { ok, price }
+//   POST { venueId, drinkCategory, priceGbp, measure?, drinkSubtype? } → { ok, price }
 //   POST { kind: "venue-signal", venueId, signalKey, ... } → { ok, signal }
 //   POST { action: "report", id, reason? }                 → { ok }
 //   GET  ?venueId=<id>                                     → { prices, signals }
@@ -38,6 +38,10 @@
 // submission, the paired pint_drops row through lib/oneTapPintDrop.server.ts.
 // It never edits the venue dataset or the scraped price CSV - the scraped
 // baseline survives every submission and keeps its own dated badge.
+// ONE NON-PUB TARGET: a London fast-food counter (`venue-osm-…`, kind `food`)
+// takes a soft-drink price its drinker says was a Coke Zero or a Diet Coke, and
+// nothing else (lib/londonFoodPlaces.ts, resolvePriceVenueId). It rides the
+// same auth, bill, rate limits, store and corroboration as a pub's price.
 // Reads and reader reports remain keyless. New contributions require configured
 // authentication plus a completed account profile.
 
@@ -78,7 +82,8 @@ import type { PintDropConfirmationOutcome } from "@/lib/pintDropSecondDrinker";
 import { pintDropAuthorityKey } from "@/lib/pintDropAuthority.server";
 import type { PintTrustState } from "@/lib/pintTrust";
 import { qualifyCheapPintForOwnerActor } from "@/lib/cheapPintPingQualify.server";
-import { RECEIPT_REQUIRED_LINE, priceNeedsReceipt } from "@/lib/pintDropReceipt";
+import { magicBytesOk } from "@/lib/imageSafety";
+import { RECEIPT_REQUIRED_LINE, photoRefusal, priceNeedsReceipt } from "@/lib/pintDropReceipt";
 import { parsePriceSubmitPostBody } from "@/lib/priceSubmitPostBody.server";
 import type { PintDropPhotos } from "@/lib/pintDropsStore";
 import { syncTrustAfterPriceWrite } from "@/lib/priceTrustImpact.server";
@@ -89,7 +94,10 @@ import {
   MAX_PROVISIONAL_BASE_VENUE_IDS,
 } from "@/lib/ukBasePubs";
 import { lookupCanonicalVenue } from "@/lib/venueIndex";
+import { lookupLondonFoodPlace } from "@/lib/londonFoodIndex.server";
+import { isLondonVenueId } from "@/lib/londonVenueShards";
 import {
+  resolvePriceVenueId,
   resolveWritableVenueId,
   type VenueWriteTarget,
 } from "@/lib/venueWriteTarget.server";
@@ -159,6 +167,15 @@ async function reportObservation(request: Request, body: Record<string, unknown>
   return jsonNoStore({ ok: true }, { status: 200 });
 }
 
+/** Why the attached bill is not a photo we could keep, or null. */
+async function receiptPhotoRefusal(receipt: File | null | undefined): Promise<string | null> {
+  if (!receipt) return null;
+  const refusal = photoRefusal(receipt);
+  if (refusal) return refusal;
+  const head = new Uint8Array(await receipt.slice(0, 64).arrayBuffer());
+  return magicBytesOk(head, receipt.type) ? null : "Photo must be a JPEG, PNG, or WebP image.";
+}
+
 export async function POST(request: Request): Promise<Response> {
   const parsedBody = await parsePriceSubmitPostBody(request);
   if (!parsedBody) {
@@ -225,7 +242,13 @@ export async function POST(request: Request): Promise<Response> {
     return publicApiError(result.error, "INVALID_REQUEST", 400);
   }
 
-  const resolved = await resolvePubVenueId(result.value.venueId);
+  // A pub, or a London fast-food counter for a Coke Zero or Diet Coke price
+  // (lib/londonFoodPlaces.ts). Everything after this line is the same lane for
+  // both: the bill, the rate limits, the store and its corroboration.
+  const resolved = await resolvePriceVenueId(result.value.venueId, {
+    drinkCategory: result.value.drinkCategory,
+    drinkSubtype: body.drinkSubtype,
+  });
   if (!resolved.ok) {
     return publicApiErrorFromStatus(resolved.error, resolved.status);
   }
@@ -237,6 +260,14 @@ export async function POST(request: Request): Promise<Response> {
   // lib/pintDropReceipt.ts; this route only asks.
   if (priceNeedsReceipt(submission.priceGbp) && !pintDropPhotos.receipt) {
     return publicApiError(RECEIPT_REQUIRED_LINE, "RECEIPT_REQUIRED", 400);
+  }
+  // ...and the bill has to BE a photo. Only a beer price pairs a Pint Drop,
+  // whose upload sniffs the bytes; every other category stops at its community
+  // price, so without this any non-empty file satisfied the rule above. Same
+  // refusal and same 400 the drop's own photo check answers with.
+  const receiptRefusal = await receiptPhotoRefusal(pintDropPhotos.receipt);
+  if (receiptRefusal) {
+    return publicApiError(receiptRefusal, "INVALID_REQUEST", 400);
   }
 
   // Cap one account across every venue before applying the tighter per-venue
@@ -570,7 +601,19 @@ export async function GET(request: Request): Promise<Response> {
     const venueId = (searchParams.get("venueId") ?? "").trim();
     if (!venueId) return jsonNoStore({ prices: [] }, { status: 200 });
     let priceVenueId = venueId;
-    if (!isUkBaseId(venueId)) {
+    if (isLondonVenueId(venueId)) {
+      // A London counter reads back only when the food pack holds it, the
+      // same membership its write door asks.
+      const place = await lookupLondonFoodPlace(venueId);
+      if (place.status !== "ready") {
+        return jsonNoStore(
+          place.status === "unavailable"
+            ? { prices: [], signals: [], degraded: true }
+            : { prices: [] },
+          { status: 200 },
+        );
+      }
+    } else if (!isUkBaseId(venueId)) {
       const venueLookup = await lookupCanonicalVenue(venueId);
       if (venueLookup.status !== "found") {
         return jsonNoStore({ prices: [] }, { status: 200 });

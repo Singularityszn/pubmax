@@ -9,7 +9,9 @@ import { join } from "node:path";
 
 import { UK_PUB_SEARCH_INDEX_FILE } from "@/lib/ukPubSearchIndexFile.mjs";
 import { ukBaseIdFor } from "@/lib/ukBasePubs";
+import { displayVenueName } from "@/lib/venueDisplay";
 import { normaliseUkPlaceQuery } from "@/lib/ukPlaceSearch";
+import { VERIFIED_CLOSED_OSM_REFS } from "@/lib/verifiedClosedPubs";
 
 const INDEX_FILE = join(
   /* turbopackIgnore: true */ process.cwd(),
@@ -103,6 +105,7 @@ export function __setUkNationalPubSearchIndexForTests(
 export function searchUkNationalPubs(
   rawQuery: string,
   limit = 8,
+  closedOsmRefs: ReadonlySet<string> = VERIFIED_CLOSED_OSM_REFS,
 ): { status: "ready" | "degraded"; hits: UkNationalPubHit[] } {
   const query = normaliseUkPlaceQuery(rawQuery);
   if (query.length < 2 || limit <= 0) {
@@ -113,6 +116,7 @@ export function searchUkNationalPubs(
 
   const scored: { tier: number; row: IndexRow }[] = [];
   for (const row of index) {
+    if (closedOsmRefs.has(row.osmRef)) continue;
     const tier = matchTier(row.search, query);
     if (tier === null) continue;
     scored.push({ tier, row });
@@ -125,7 +129,7 @@ export function searchUkNationalPubs(
 
   const hits = scored.slice(0, limit).map(({ row }) => ({
     id: ukBaseIdFor(row.osmRef),
-    name: row.name,
+    name: displayVenueName(row.name),
     address: row.address,
     lat: row.lat,
     lng: row.lng,

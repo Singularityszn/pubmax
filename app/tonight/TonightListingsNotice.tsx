@@ -87,7 +87,7 @@ export default function TonightListingsNotice({
           <p role="status">{state.reason ?? PICKS_UNAVAILABLE_LINE}</p>
           {picksStateOffersRetry(state) ? (
             <button type="button" className="tonightRetry" onClick={onRetry}>
-              <RefreshCw size={15} aria-hidden="true" />
+              <RefreshCw size={16} aria-hidden="true" />
               {PICKS_RETRY_LABEL}
             </button>
           ) : null}
@@ -102,7 +102,7 @@ export default function TonightListingsNotice({
           <p role="status">{note}</p>
           {noteOffersRetry ? (
             <button type="button" className="tonightRetry" onClick={onRetry}>
-              <RefreshCw size={15} aria-hidden="true" />
+              <RefreshCw size={16} aria-hidden="true" />
               {PICKS_RETRY_LABEL}
             </button>
           ) : null}

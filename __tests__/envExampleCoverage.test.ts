@@ -2,6 +2,7 @@ import { readFileSync, readdirSync, statSync } from "node:fs";
 import { join } from "node:path";
 
 import { describe, it, expect } from "vitest";
+import { defined } from "@/__tests__/helpers/defined";
 
 /**
  * A VARIABLE THE CODE READS IS EITHER DOCUMENTED OR PLATFORM-OWNED.
@@ -28,6 +29,8 @@ const PLATFORM_OWNED: Record<string, string> = {
   NEXT_DIST_DIR: "Next.js build directory (npm scripts pass it)",
   // Set by the Vercel platform on a deployment.
   VERCEL_ENV: "Vercel platform",
+  VERCEL_URL: "Vercel platform deployment hostname",
+  VERCEL_BRANCH_URL: "Vercel platform branch hostname",
   VERCEL_DEPLOYMENT_ID: "Vercel platform",
   // Injected by next.config.mjs from lib/buildInfo.mjs at build time.
   PUBMAX_BUILD_COMMIT_SHA: "next.config.mjs env, from lib/buildInfo.mjs",
@@ -69,7 +72,7 @@ function documentedNames(): Set<string> {
   const names = new Set<string>();
   for (const line of source.split("\n")) {
     const match = /^([A-Z0-9_]+)=/.exec(line.trim());
-    if (match) names.add(match[1]);
+    if (match) names.add(defined(match[1]));
   }
   return names;
 }

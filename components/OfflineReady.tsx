@@ -2,18 +2,18 @@
 
 import { useEffect } from "react";
 
-// Registers the offline service worker (public/sw.js — issue #32, PRD § The
-// Spill). Renders nothing and nags about nothing: registration is silent,
+// Registers the offline service worker where navigator.serviceWorker is available
+// (public/sw.js, issue #32, PRD section The Spill). Registration is silent,
 // updates install in the background.
 //
 // The ?v= query carries the per-deploy build id (inlined from next.config.mjs
 // as NEXT_PUBLIC_SW_VERSION). A new deploy changes the registration URL, the
-// browser treats it as a new worker, and its `activate` step preserves usable
-// offline entries while retiring superseded cache versions only when safe.
+// browser treats it as a new worker. public/sw.js owns activation and cache
+// migration. public/sw-plan-cache.js documents Plan cache retirement.
 //
-// REGISTRATION IS OWED TO EVERY ROUTE, NOT ONLY THE MAP. The first-pins gate
-// below exists so installing the worker cannot tax the map's cold path, and it
-// is kept for exactly that. What it may not be is the ONLY key: the native
+// WHERE SUPPORTED, REGISTRATION IS OWED TO EVERY ROUTE, NOT ONLY THE MAP.
+// The first-pins gate exists so installing the worker cannot tax the map's
+// cold path, and it is kept for exactly that. What it may not be is the ONLY key: the native
 // shell cold-starts on /tonight (lib/entryDecision.ts), so a reader whose
 // sessions are Tonight, Out, Social or You never opened /map, never fired
 // `pubmax:first-pins`, and got no offline shell at all — in an app whose
@@ -53,12 +53,12 @@ export default function OfflineReady() {
       if (!version) return;
       navigator.serviceWorker
         .register(
-          `/sw.js?v=${encodeURIComponent(version)}&cache-policy=write-safe-v1`,
+          `/sw.js?v=${encodeURIComponent(version)}&cache-policy=plan-preview-safe-v2`,
         )
         .then((registration) => {
           registration.addEventListener("updatefound", () => {
             console.info(
-              "PUBMAXXING: a new offline version is installing.",
+              "PUBMAXX: a new offline version is installing.",
             );
           });
         })

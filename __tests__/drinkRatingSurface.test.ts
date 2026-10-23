@@ -26,6 +26,7 @@ import { publishAuthActionState } from "@/lib/authedFetch";
 import { MIN_VOTES_TO_SHOW } from "@/lib/ratings";
 import { groupVenuePrices, type VenuePrice } from "@/lib/venues";
 import { __resetMemoryRatings } from "@/lib/ratingsStore";
+import { defined } from "@/__tests__/helpers/defined";
 
 let root: Root | null = null;
 let container: HTMLDivElement | null = null;
@@ -122,7 +123,7 @@ async function openDrinksMenu(
 
   await act(async () => {
     root = createRoot(host);
-    root.render(createElement(VenueMenuTab, { venue, tab: "menu" }));
+    root.render(createElement(VenueMenuTab, { venue: defined(venue), tab: "menu" }));
   });
 
   const drinksButton = Array.from(host.querySelectorAll("button")).find(

@@ -11,9 +11,12 @@ import {
   VENUE_DATA_RETRY_NOTICE,
   VENUE_DATA_RETRY_PENDING_NOTICE,
   VENUE_DATA_RETRY_SPENT_NOTICE,
+  basemapPaintCarriesIntoReveal,
   createPinRevealCoordinator,
+  openingCancelsPendingTiles,
   pinRetryPendingNotice,
   pinRetrySpentNotice,
+  overviewSkipsVenueWait,
   revealTimeoutNotice,
   venueDataFailureNotice,
   venueRetryMayDispatch,
@@ -24,11 +27,11 @@ import {
 
 function harness({
   confirmVisibleFrameBeforeReveal = false,
-  visibleFrameHoldMs = 0,
+  compositeConfirmFrames = 0,
   requiresBasemapPaint = true,
 }: {
   confirmVisibleFrameBeforeReveal?: boolean;
-  visibleFrameHoldMs?: number;
+  compositeConfirmFrames?: number;
   requiresBasemapPaint?: boolean;
 } = {}) {
   let basemapPainted = false;
@@ -36,6 +39,7 @@ function harness({
   let nextId = 1;
   const timers = new Map<number, () => void>();
   const timerDelays = new Map<number, number>();
+  const frames = new Map<number, () => void>();
   const renderListeners = new Set<() => void>();
   const idleListeners = new Set<() => void>();
   const visibility: boolean[] = [];
@@ -50,7 +54,15 @@ function harness({
     hasPinsPaintable: () => pinsPaintable,
     requiresBasemapPaint,
     confirmVisibleFrameBeforeReveal,
-    visibleFrameHoldMs,
+    compositeConfirmFrames,
+    scheduleFrame: (callback) => {
+      const id = nextId++;
+      frames.set(id, callback);
+      return id;
+    },
+    cancelFrame: (id) => {
+      frames.delete(id);
+    },
     setPinsVisible: (visible) => visibility.push(visible),
     subscribeRender: (listener) => {
       renderListeners.add(listener);
@@ -116,6 +128,13 @@ function harness({
     },
     firePinTimeout() { this.fireByDelay(3_000); },
     fireCeiling() { this.fireByDelay(12_000); },
+    fireFrame() {
+      const next = frames.entries().next();
+      if (next.done) return;
+      const [id, callback] = next.value;
+      frames.delete(id);
+      callback();
+    },
   };
 }
 
@@ -168,6 +187,49 @@ describe("pin reveal coordinator", () => {
     // An error-owned notice is truthful until Retry rebuilds the map.
     expect(revealTimeoutNotice("timeout", "errors", nothingReady)).toBeNull();
     expect(revealTimeoutNotice("timeout", "errors", basemapOnly)).toBeNull();
+  });
+
+  // /map?uk=1 opens below the pub zoom gate. The curated index is unread on
+  // purpose and base pubs are absent until the reader zooms in. A painted
+  // basemap with a still-pending index is that overview, not a failed fetch.
+  it("treats only a national camera below the pub zoom gate as an overview", () => {
+    expect(
+      overviewSkipsVenueWait({ nationalBrowse: true, zoom: 5.6, minPubZoom: 12 }),
+    ).toBe(true);
+    expect(
+      overviewSkipsVenueWait({ nationalBrowse: true, zoom: 12, minPubZoom: 12 }),
+    ).toBe(false);
+    expect(
+      overviewSkipsVenueWait({ nationalBrowse: false, zoom: 5.6, minPubZoom: 12 }),
+    ).toBe(false);
+    expect(
+      overviewSkipsVenueWait({
+        nationalBrowse: true,
+        zoom: Number.NaN,
+        minPubZoom: 12,
+      }),
+    ).toBe(false);
+  });
+
+  it("does not call a zoom-gated national overview a failed pub list", () => {
+    expect(
+      revealTimeoutNotice("timeout", "none", {
+        basemapPainted: true,
+        venueData: "pending",
+        filteredVenueCount: 0,
+        pinsPaintable: false,
+        pubsDeferredUntilZoom: true,
+      }),
+    ).toBeNull();
+    expect(
+      revealTimeoutNotice("timeout", "none", {
+        basemapPainted: false,
+        venueData: "pending",
+        filteredVenueCount: 0,
+        pinsPaintable: false,
+        pubsDeferredUntilZoom: true,
+      }),
+    ).toEqual(BASEMAP_RETRY_NOTICE);
   });
 
   it("does not blame paint for an empty filtered venue collection", () => {
@@ -410,10 +472,10 @@ describe("pin reveal coordinator", () => {
     expect(h.reveals).toEqual([{ reason: "tiles", generation: 1 }]);
   });
 
-  it("can hold loading chrome through the phone's visual composite", () => {
+  it("confirms the phone composite with two frames after the visible pin render", () => {
     const h = harness({
       confirmVisibleFrameBeforeReveal: true,
-      visibleFrameHoldMs: 500,
+      compositeConfirmFrames: 2,
     });
     h.setBasemapPainted(true);
     h.coordinator.arm();
@@ -422,14 +484,33 @@ describe("pin reveal coordinator", () => {
     h.fireRender();
     expect(h.reveals).toEqual([]);
 
-    h.fireByDelay(500);
+    h.fireFrame();
+    expect(h.reveals).toEqual([]);
+    h.fireFrame();
     expect(h.reveals).toEqual([{ reason: "tiles", generation: 1 }]);
+  });
+
+  it("drops a composite frame that arrives after the ready ceiling", () => {
+    const h = harness({
+      confirmVisibleFrameBeforeReveal: true,
+      compositeConfirmFrames: 2,
+    });
+    h.setBasemapPainted(true);
+    h.coordinator.arm();
+    h.fireRender();
+    h.fireRender();
+    expect(h.reveals).toEqual([]);
+
+    h.fireCeiling();
+    h.fireFrame();
+
+    expect(h.reveals).toEqual([{ reason: "timeout", generation: 1 }]);
   });
 
   it("emits timeout when no phone frame follows the paintable-source render", () => {
     const h = harness({
       confirmVisibleFrameBeforeReveal: true,
-      visibleFrameHoldMs: 500,
+      compositeConfirmFrames: 2,
     });
     h.setBasemapPainted(true);
     h.coordinator.arm();
@@ -601,5 +682,84 @@ describe("pin reveal coordinator", () => {
 
     expect(h.reveals).toEqual([{ reason: "idle", generation: 1 }]);
     expect(h.visibility).toEqual([false, true]);
+  });
+  describe("the arrival flight (owner decision 15 Oct 2026)", () => {
+    const carried = (overrides: Partial<Parameters<typeof basemapPaintCarriesIntoReveal>[0]> = {}) =>
+      basemapPaintCarriesIntoReveal({
+        basemapPainted: true,
+        paintedStyleGeneration: 1,
+        armedStyleGeneration: 1,
+        reducedMotion: false,
+        ...overrides,
+      });
+
+    it("carries only a paint this style made, and never for reduced motion", () => {
+      expect(carried()).toBe(true);
+      // A theme swap or a context loss armed a newer style.
+      expect(carried({ armedStyleGeneration: 2 })).toBe(false);
+      expect(carried({ paintedStyleGeneration: null })).toBe(false);
+      // A silent tile retry already cleared the live latch.
+      expect(carried({ basemapPainted: false })).toBe(false);
+      // The camera jumps under reduced motion, so its gate is unchanged.
+      expect(carried({ reducedMotion: true })).toBe(false);
+    });
+
+    it("reveals pins on a flight frame when the basemap already painted", () => {
+      // A zooming camera has its tile requests cancelled, so the flight
+      // delivers render frames and no idle and no fresh tile.
+      const h = harness();
+      h.setBasemapPainted(carried());
+      h.coordinator.arm();
+      expect(h.visibility).toEqual([false]);
+
+      h.fireRender();
+
+      expect(h.visibility).toEqual([false, true]);
+      expect(h.reveals).toEqual([{ reason: "tiles", generation: 1 }]);
+    });
+
+    it("keeps reduced motion waiting for a fresh tile, as it always did", () => {
+      const h = harness();
+      h.setBasemapPainted(carried({ reducedMotion: true }));
+      h.coordinator.arm();
+
+      h.fireRender();
+      expect(h.reveals).toEqual([]);
+
+      h.setBasemapPainted(true);
+      h.fireRender();
+      expect(h.reveals).toEqual([{ reason: "tiles", generation: 1 }]);
+    });
+
+    it("keeps the opening's in-flight tiles while the flight zooms, except under reduced motion", () => {
+      // MapLibre's default cancels them, which left no basemap frame until
+      // the flight landed.
+      expect(openingCancelsPendingTiles(false)).toBe(false);
+      expect(openingCancelsPendingTiles(true)).toBe(true);
+      const source = readFileSync(
+        join(process.cwd(), "components/PubMapCanvas.tsx"),
+        "utf8",
+      );
+      expect(source).toMatch(
+        /cancelPendingTileRequestsWhileZooming: openingCancelsPendingTiles\(\s*reducedRef\.current,\s*\)/,
+      );
+      // Only the opening: the first idle hands later zooms back to the default.
+      expect(source).toMatch(
+        /settledMap\.once\("idle", \(\) => \{\s*settledMap\.cancelPendingTileRequestsWhileZooming = true;/,
+      );
+    });
+
+    it("is what the canvas arms with, after the tile-failure reset", () => {
+      const source = readFileSync(
+        join(process.cwd(), "components/PubMapCanvas.tsx"),
+        "utf8",
+      );
+      expect(source).toMatch(
+        /basemapTileReadyForPaint = true;\s*basemapPaintStyleGeneration = styleGeneration;/,
+      );
+      expect(source).toMatch(
+        /const basemapPaintCarries = basemapPaintCarriesIntoReveal\(\{\s*basemapPainted: basemapTileReadyForPaint,\s*paintedStyleGeneration: basemapPaintStyleGeneration,\s*armedStyleGeneration: generation,\s*reducedMotion: reducedRef\.current,\s*\}\);\s*beginTileFailureGeneration\(\);\s*basemapTileReadyForPaint = basemapPaintCarries;\s*initialBasemapPending = true;\s*pinRevealCoordinator\.arm\(\);/,
+      );
+    });
   });
 });

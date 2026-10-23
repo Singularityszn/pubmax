@@ -126,8 +126,7 @@ export function extractVenueDrinkPricesWithReader(
   const prices: TavilyVenueDrinkPrice[] = [];
   const seen = new Set<string>();
 
-  for (let index = 0; index < compact.length; index += 1) {
-    const line = compact[index];
+  for (const [index, line] of compact.entries()) {
     if (!/£/.test(line)) continue;
     const previous = index > 0 ? compact[index - 1] : "";
     const snippet = isPriceOnlyLine(line) && previous ? `${previous}\n${line}` : line;

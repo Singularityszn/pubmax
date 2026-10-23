@@ -42,6 +42,7 @@ import {
   LEAGUE_CSV_HEADER,
   validatePintIndexSnapshot,
 } from "@/lib/pintIndex";
+import { defined } from "@/__tests__/helpers/defined";
 
 const ROOT = resolve(__dirname, "..");
 
@@ -137,7 +138,7 @@ describe("national yardstick: the shape fence", () => {
       observationWindow: { start: "1990-01-01T00:00:00.000Z", end: "2026-07-27T00:00:00.000Z" },
       classification: {},
       sources: shipped.map((row) => ({ id: row.id, publisher: row.publisher, sourceUrl: row.sourceUrl, licence: null, kind: "national" })),
-      observations: shipped.map((row) => ({ ...row, pricePence: Math.round(row.figures[0].priceGbp * 100) })),
+      observations: shipped.map((row) => ({ ...row, pricePence: Math.round(defined(row.figures[0]).priceGbp * 100) })),
       excluded: [],
     });
     expect(result.ok).toBe(false);
@@ -246,7 +247,10 @@ describe("national yardstick: the presentation fence", () => {
   });
 
   it("says on the page that the figures are not ours", () => {
-    const dek = page.slice(page.indexOf("nationalHeading"), page.indexOf("zoneHeading"));
+    // The national block follows London's own figures (taste plan, 18 Oct
+    // 2026), so its dek is read from its heading to the end of its section.
+    const start = page.indexOf("nationalHeading");
+    const dek = page.slice(start, page.indexOf("</section>", start));
     expect(dek).toMatch(/None of these figures are ours/);
   });
 });

@@ -1,8 +1,10 @@
 "use client";
 
+import type { Route } from "next";
 import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 
 import { useAuth } from "@/components/auth/authContext";
+import { barTabPath, profilePath } from "@/lib/appLink";
 import { readActiveRoundCode } from "@/lib/activeRound";
 import { getAnonId } from "@/lib/anonId";
 import { authedActionFetch } from "@/lib/authedFetch";
@@ -92,7 +94,7 @@ export type PhotoSlotName = "pint" | "venue" | "receipt";
 export type DropMsg = {
   ok: boolean;
   text: string;
-  links?: Array<{ href: string; label: string }>;
+  links?: Array<{ href: Route; label: string }>;
 };
 
 // ONE NUMBER ON BOTH SIDES OF THE WIRE, and ONE PLACE THAT ASKS. This gate
@@ -102,6 +104,7 @@ export type DropMsg = {
 // its size (PlanAstra, section 2.4). `photoRefusal` (lib/pintDropReceipt.ts) is
 // the browser's whole half of that rule, quoting lib/uploadBodyLimit.ts's own
 // figure, and both composers ask it rather than each keeping a copy.
+const VENUE_DROP_READ_TIMEOUT_MS = 8_000;
 const MAX_VIBE_TAGS = 4; // mirrors the server cap in lib/pintDrops.ts.
 
 /**
@@ -196,6 +199,10 @@ function measureFieldsOf(form: {
   };
 }
 
+function fileOfPhoto(photo: PhotoSlot | null): File | null {
+  return photo?.file ?? null;
+}
+
 function groupDropsByVenueId(drops: DropWithPhotos[]): Map<string, DropWithPhotos[]> {
   const grouped = new Map<string, DropWithPhotos[]>();
   for (const drop of drops) {
@@ -278,6 +285,7 @@ export function usePintDrops(
   const [venueDropStatus, setVenueDropStatus] = useState<
     Map<string, VenueDropReadStatus>
   >(() => new Map());
+  const venueDropRequests = useRef(new Map<string, symbol>());
   const [dropsByVenueId, setDropsByVenueId] = useState<Map<string, DropWithPhotos[]>>(
     () => new Map(),
   );
@@ -318,6 +326,13 @@ export function usePintDrops(
   const pintInputRef = useRef<HTMLInputElement>(null);
   const venueInputRef = useRef<HTMLInputElement>(null);
   const receiptInputRef = useRef<HTMLInputElement>(null);
+  // EVERY PREVIEW URL THIS HOOK HAS MINTED AND NOT YET REVOKED. A slot's URL
+  // is revoked when the slot is replaced or removed; a URL handed to an
+  // optimistic row (map drop, feed spill) outlives the composer and is revoked
+  // when the server row replaces it. Whatever is still held at unmount goes
+  // then. One set, so nothing is revoked twice and nothing still on screen is
+  // revoked by a sibling slot changing.
+  const livePreviewUrls = useRef(new Set<string>());
   // Ref guard + optimistic removal is the whole "pending state" for reports —
   // the button unmounts on click, so double-submit can't happen.
   const reportsInFlight = useRef(new Set<string>());
@@ -379,11 +394,20 @@ export function usePintDrops(
   // a failure; this now does the same, and records the read so a surface can
   // tell "we could not look" from "nobody has logged one".
   const refreshVenueDrops = useCallback((venueId: string) => {
-    let active = true;
+    const request = Symbol();
+    const controller = new AbortController();
+    venueDropRequests.current.set(venueId, request);
+    setVenueDropStatus((current) => {
+      const next = new Map(current);
+      next.set(venueId, "idle");
+      return next;
+    });
     // ONE RULE for both outcomes (lib/venueDropRead.ts), so the failure path
     // cannot quietly grow a second answer.
     const settle = (read: VenueDropRead<DropWithPhotos>) => {
-      if (!active) return;
+      clearTimeout(deadline);
+      if (venueDropRequests.current.get(venueId) !== request) return;
+      venueDropRequests.current.delete(venueId);
       setDropsByVenueId((current) => {
         const held = current.get(venueId);
         const kept = venueDropsAfterRead(held, read);
@@ -398,14 +422,22 @@ export function usePintDrops(
         return next;
       });
     };
-    fetch(`/api/pint-drops?venueId=${encodeURIComponent(venueId)}`)
+    const deadline = setTimeout(() => {
+      settle({ status: "unavailable" });
+      controller.abort();
+    }, VENUE_DROP_READ_TIMEOUT_MS);
+    fetch(`/api/pint-drops?venueId=${encodeURIComponent(venueId)}`, { signal: controller.signal })
       .then((response) => (response.ok ? response.json() : Promise.reject(new Error("bad status"))))
       .then((data: { drops?: DropWithPhotos[] }) => {
         settle({ status: "ready", drops: data.drops ?? [] });
       })
       .catch(() => settle({ status: "unavailable" }));
     return () => {
-      active = false;
+      clearTimeout(deadline);
+      controller.abort();
+      if (venueDropRequests.current.get(venueId) === request) {
+        venueDropRequests.current.delete(venueId);
+      }
     };
   }, []);
 
@@ -420,6 +452,11 @@ export function usePintDrops(
     receipt: { value: receiptPhoto, set: setReceiptPhoto, input: receiptInputRef },
   } as const;
 
+  function revokePreview(url: string) {
+    if (!livePreviewUrls.current.delete(url)) return;
+    URL.revokeObjectURL(url);
+  }
+
   function pickPhoto(slot: PhotoSlotName, file: File | undefined, inputEl: HTMLInputElement | null) {
     const current = photoSlots[slot].value;
     const setSlot = photoSlots[slot].set;
@@ -430,9 +467,11 @@ export function usePintDrops(
       if (inputEl) inputEl.value = "";
       return;
     }
-    if (current) URL.revokeObjectURL(current.previewUrl);
+    if (current) revokePreview(current.previewUrl);
     setDropMsg(null);
-    setSlot({ file, previewUrl: URL.createObjectURL(file) });
+    const previewUrl = URL.createObjectURL(file);
+    livePreviewUrls.current.add(previewUrl);
+    setSlot({ file, previewUrl });
   }
 
   // Toggle a vibe tag on/off. Multi-select, but silently ignores a new
@@ -451,24 +490,23 @@ export function usePintDrops(
     const current = photoSlots[slot].value;
     const setSlot = photoSlots[slot].set;
     const inputEl = photoSlots[slot].input.current;
-    if (current) URL.revokeObjectURL(current.previewUrl);
+    if (current) revokePreview(current.previewUrl);
     setSlot(null);
     if (inputEl) inputEl.value = "";
   }
 
-  const resetComposer = useCallback(() => {
-    setPintPhoto((current) => {
-      if (current) URL.revokeObjectURL(current.previewUrl);
+  // `keepPreviews` is the post: the slots empty, but their URLs now belong to
+  // the optimistic row that is about to render them.
+  const resetComposer = useCallback((options?: { keepPreviews?: boolean }) => {
+    const release = (current: PhotoSlot | null) => {
+      if (current && !options?.keepPreviews && livePreviewUrls.current.delete(current.previewUrl)) {
+        URL.revokeObjectURL(current.previewUrl);
+      }
       return null;
-    });
-    setVenuePhoto((current) => {
-      if (current) URL.revokeObjectURL(current.previewUrl);
-      return null;
-    });
-    setReceiptPhoto((current) => {
-      if (current) URL.revokeObjectURL(current.previewUrl);
-      return null;
-    });
+    };
+    setPintPhoto(release);
+    setVenuePhoto(release);
+    setReceiptPhoto(release);
     setDropForm({
       price: "",
       drink: "",
@@ -485,14 +523,16 @@ export function usePintDrops(
     if (receiptInputRef.current) receiptInputRef.current.value = "";
   }, []);
 
-  // Revoke any live preview URLs when the component unmounts.
+  // Revoke every preview URL still held when the component unmounts. Empty
+  // deps on purpose: a cleanup keyed on the slots ran with the previous
+  // closure, so changing ONE slot revoked all three (review finding CMP-2).
   useEffect(() => {
+    const held = livePreviewUrls.current;
     return () => {
-      if (pintPhoto) URL.revokeObjectURL(pintPhoto.previewUrl);
-      if (venuePhoto) URL.revokeObjectURL(venuePhoto.previewUrl);
-      if (receiptPhoto) URL.revokeObjectURL(receiptPhoto.previewUrl);
+      for (const url of held) URL.revokeObjectURL(url);
+      held.clear();
     };
-  }, [pintPhoto, venuePhoto, receiptPhoto]);
+  }, []);
 
   function updateOptimisticFeedStorage(
     update: (current: ReturnType<typeof readOptimisticSpills>) => ReturnType<typeof readOptimisticSpills>,
@@ -550,7 +590,7 @@ export function usePintDrops(
         text:
           authConfigured && !signedIn
             ? "Sign in to post a Pint Drop."
-            : "Finish setting your PUBMAXX Handle before posting.",
+            : "Finish setting your PUBMAXX handle before posting.",
       });
       return;
     }
@@ -636,9 +676,9 @@ export function usePintDrops(
     const submittedEra = dropForm.era;
     const submittedVisibility = visibility;
     const submittedVibeTags = [...vibeTags];
-    const submittedPintFile = pintPhoto?.file ?? null;
-    const submittedVenueFile = venuePhoto?.file ?? null;
-    const submittedReceiptFile = receiptPhoto?.file ?? null;
+    const submittedPintFile = fileOfPhoto(pintPhoto);
+    const submittedVenueFile = fileOfPhoto(venuePhoto);
+    const submittedReceiptFile = fileOfPhoto(receiptPhoto);
     clearPintDropDraft(safeSessionStorage(), venueId);
     const local = safeLocalStorage();
     if (local) {
@@ -648,7 +688,11 @@ export function usePintDrops(
         // Storage blocked — handle can be re-entered later.
       }
     }
-    resetComposer();
+    // The previews stay alive for the optimistic row (review finding NEW-1).
+    const handedOffPreviews = [pintPhoto, venuePhoto, receiptPhoto].flatMap((slot) =>
+      slot ? [slot.previewUrl] : [],
+    );
+    resetComposer({ keepPreviews: true });
     setComposerOpen(false);
     setSubmitting(false);
     setDropMsg({
@@ -741,6 +785,8 @@ export function usePintDrops(
         ]);
         return next;
       });
+      // The server row has replaced the optimistic one, so its previews go.
+      handedOffPreviews.forEach(revokePreview);
 
       // Loop 2: if a Round is open, append this pub as a stop (existing
       // addStop API). Fail-soft — the drop already landed.
@@ -757,12 +803,12 @@ export function usePintDrops(
       ];
       if (addedToNight) {
         links.push({
-          href: `/bar-tab/${encodeURIComponent(venueId)}`,
+          href: barTabPath(venueId),
           label: "Bar tab",
         });
         const cleanHandle = submittedRound?.handle.replace(/^@+/, "") ?? "";
         if (cleanHandle) {
-          links.push({ href: `/u/${encodeURIComponent(cleanHandle)}`, label: "Your profile" });
+          links.push({ href: profilePath(cleanHandle), label: "Your profile" });
         }
       }
       // What the second-reporter pass answered. A mint changes the standing of

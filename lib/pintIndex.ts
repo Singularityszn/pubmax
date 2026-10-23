@@ -199,20 +199,22 @@ export function buildLeagueTable(snapshot: PintIndexSnapshot): LeagueRow[] {
     rows.push(observation);
     grouped.set(observation.boroughCode, rows);
   }
-  return [...grouped.entries()].map(([slug, rows]) => {
+  return [...grouped.entries()].flatMap(([slug, rows]) => {
+    const [first] = rows;
+    if (!first) return [];
     const prices = rows.map((row) => row.pricePence);
     const min = Math.min(...prices);
     const max = Math.max(...prices);
-    return {
+    return [{
       slug,
-      name: rows[0].boroughName,
+      name: first.boroughName,
       pubCount: rows.length,
       averageGbp: Math.round(prices.reduce((sum, price) => sum + price, 0) / rows.length) / 100,
       minGbp: min / 100,
       minPubName: rows.find((row) => row.pricePence === min)!.pubName,
       maxGbp: max / 100,
       maxPubName: rows.find((row) => row.pricePence === max)!.pubName,
-    };
+    }];
   }).sort((a, b) => a.averageGbp - b.averageGbp || a.name.localeCompare(b.name));
 }
 

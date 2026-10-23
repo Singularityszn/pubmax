@@ -4,6 +4,7 @@ import { Suspense, useCallback, useEffect, useSyncExternalStore } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 
 import SiteNav from "@/components/nav/SiteNav";
+import { samePathWithQuery } from "@/lib/appLink";
 import { trackEvent } from "@/lib/analytics";
 import {
   clearPosterLandingSession,
@@ -13,6 +14,7 @@ import { readPreferredCity, subscribePreferredCity } from "@/lib/cityPreference"
 import { DEFAULT_CITY_ID } from "@/lib/cities";
 import {
   NEAR_MODE_QUERY,
+  nearUrlNamesContent,
   resolveNearMode,
   shouldSwitchNearMode,
   type NearMode,
@@ -27,6 +29,7 @@ import { resolveNightPatch } from "@/lib/nightPatches";
 import NearDeskNow from "./NearDeskNow";
 import NearMeNow from "./NearMeNow";
 import NearModeSwitch from "./NearModeSwitch";
+import NearOnboardingChip from "./NearOnboardingChip";
 import PosterLandingNote from "./PosterLandingNote";
 import "./nearPage.css";
 
@@ -42,18 +45,24 @@ export function resolveNearAutoLocate(
  * page must answer Pint too, even for `?mode=desk`, or React finds Desk text
  * where the document holds Pint text and throws #418. The query and the
  * remembered mode both swap in once the browser answers.
+ *
+ * A link that names its own content (`?patch=`, `?locate=1`, `?src=`) is read
+ * from the URL alone: the remembered mode only decides the bare `/near`, so a
+ * shared link opens the same page for everyone.
  */
 export function resolveNearPageMode({
   hydrated,
   modeParam,
   rememberedMode,
+  urlNamesContent = false,
 }: {
   hydrated: boolean;
   modeParam: string | null;
   rememberedMode: string | null;
+  urlNamesContent?: boolean;
 }): NearMode {
   if (!hydrated) return "pint";
-  return resolveNearMode(modeParam, rememberedMode);
+  return resolveNearMode(modeParam, urlNamesContent ? null : rememberedMode);
 }
 
 function NearPageBody() {
@@ -86,6 +95,7 @@ function NearPageBody() {
     hydrated,
     modeParam: searchParams.get(NEAR_MODE_QUERY),
     rememberedMode,
+    urlNamesContent: nearUrlNamesContent(searchParams),
   });
 
   const setMode = useCallback((next: NearMode) => {
@@ -99,7 +109,7 @@ function NearPageBody() {
       );
       params.set(NEAR_MODE_QUERY, next);
       const query = params.toString();
-      router.replace(query ? `${pathname}?${query}` : pathname, { scroll: false });
+      router.replace(samePathWithQuery(pathname, query), { scroll: false });
     } catch {
       // URL sync is best-effort — the remembered mode still stands.
     }
@@ -144,6 +154,9 @@ function NearPageBody() {
             showPriceTrust
           />
         )}
+        {/* The first-run setup is offered here, under the answer, and never
+            stands in front of it (owner decision 16 Oct 2026). */}
+        <NearOnboardingChip />
       </main>
     </div>
   );

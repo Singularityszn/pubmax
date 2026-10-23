@@ -8,6 +8,7 @@ import {
   answerFromBody,
   createAskSession,
 } from "@/lib/conciergeAskClient";
+import { defined } from "@/__tests__/helpers/defined";
 
 function jsonResponse(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {
@@ -43,7 +44,7 @@ describe("createAskSession", () => {
     expect(result?.status).toBe("answered");
     if (result?.status === "answered") {
       expect(result.cards).toHaveLength(1);
-      expect(result.cards[0].venueId).toBe("venue-1");
+      expect(defined(result.cards[0]).venueId).toBe("venue-1");
       expect(result.message).toBe("1 pick from our records, each with its source.");
     }
   });
@@ -227,8 +228,8 @@ describe("answerFromBody", () => {
     expect(result.status).toBe("answered");
     if (result.status === "answered") {
       expect(result.message).toContain("verified quiz night");
-      expect(result.cards[0].venueId).toBe("venue-9");
-      expect(result.cards[0].price).toBe(2);
+      expect(defined(result.cards[0]).venueId).toBe("venue-9");
+      expect(defined(result.cards[0]).price).toBe(2);
     }
   });
 
@@ -319,7 +320,7 @@ describe("answerFromBody", () => {
       listings: [{ id: "x", title: "T", venue: "V" }],
     });
     if (result.status === "answered") {
-      expect(result.cards[0].venueId).toBe("");
+      expect(defined(result.cards[0]).venueId).toBe("");
     }
   });
 });

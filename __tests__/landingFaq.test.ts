@@ -3,10 +3,13 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 
 import LandingFaq, { LANDING_FAQ } from "@/components/landing/LandingFaq";
+import { RECEIPT_REQUIRED_LINE } from "@/lib/pintDropReceipt";
+import { LOG_PRICE_DOOR_LABEL } from "@/lib/pintTrust";
 
 // The captain asked for an FAQ "where people understand how the app works and
-// everything" (7 Sep 2026). Six questions, one paragraph each, in the house
-// voice, and nothing a drinker is asked to buy.
+// everything" (7 Sep 2026). The UX audit (16 Oct 2026) cut it to three
+// questions, two short sentences each at most, in the house voice, and nothing
+// a drinker is asked to buy.
 
 /** docs/VOICE.md's own list, the ones a marketing template reaches for. */
 const BANNED = [
@@ -33,38 +36,36 @@ const BANNED = [
 ];
 
 describe("the landing FAQ", () => {
-  it("asks six questions and answers each in one paragraph", () => {
-    expect(LANDING_FAQ).toHaveLength(6);
+  it("asks three questions and answers each in two short sentences at most", () => {
+    expect(LANDING_FAQ).toHaveLength(3);
     for (const entry of LANDING_FAQ) {
       expect(entry.question.endsWith("?")).toBe(true);
       expect(entry.answer.split("\n")).toHaveLength(1);
       expect(entry.answer.length).toBeGreaterThan(60);
+      const sentences = entry.answer.split(/(?<=[.?])\s+/);
+      expect(sentences.length, entry.id).toBeLessThanOrEqual(2);
     }
-    expect(new Set(LANDING_FAQ.map((entry) => entry.id)).size).toBe(6);
+    expect(new Set(LANDING_FAQ.map((entry) => entry.id)).size).toBe(3);
   });
 
-  it("covers the six things a stranger actually asks", () => {
+  it("covers the three things a stranger needs before a first tap", () => {
     expect(LANDING_FAQ.map((entry) => entry.id)).toEqual([
       "how-it-works",
       "prices",
       "log-a-price",
-      "today-tonight",
-      "outside-london",
-      "app",
     ]);
   });
 
-  it("states the photo rule the composer itself states", () => {
-    const answer = LANDING_FAQ.find((entry) => entry.id === "log-a-price")?.answer ?? "";
-    expect(answer).toContain("optional");
-    expect(answer).toContain("public");
-    expect(answer).toMatch(/photo of the bill or the pint/);
+  it("names the product by its one name", () => {
+    expect(LANDING_FAQ[0]?.question).toBe("How does PUBMAXX work?");
   });
 
-  it("says prices are London's, because every listed price we hold is", () => {
-    const answer = LANDING_FAQ.find((entry) => entry.id === "outside-london")?.answer ?? "";
-    expect(answer).toContain("London");
-    expect(answer).toMatch(/not for prices yet/i);
+  it("names the button the sheet really prints, and the bill rule the composer states", () => {
+    const answer = LANDING_FAQ.find((entry) => entry.id === "log-a-price")?.answer ?? "";
+    expect(answer).toContain(`tap ${LOG_PRICE_DOOR_LABEL}`);
+    expect(answer).toContain("Log it");
+    expect(answer).toContain(RECEIPT_REQUIRED_LINE);
+    expect(answer).not.toMatch(/price door/i);
   });
 
   it("keeps the house voice: no em dash, no exclamation, no template words", () => {

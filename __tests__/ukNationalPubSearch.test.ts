@@ -35,6 +35,17 @@ describe("searchUkNationalPubs", () => {
     expect(hits.some((hit) => hit.name.includes("Philharmonic"))).toBe(true);
   });
 
+  it("hides a permanently closed pub from name search", () => {
+    __setUkNationalPubSearchIndexForTests({
+      pubs: [
+        ["n1", "The Crown", "Hackney", 51.54, -0.05],
+        ["n2", "The Anchor", "Hackney", 51.55, -0.06],
+      ],
+    });
+    const { hits } = searchUkNationalPubs("The", 5, new Set(["n1"]));
+    expect(hits.map((hit) => hit.name)).toEqual(["The Anchor"]);
+  });
+
   it("returns no hits for a tiny query", () => {
     __setUkNationalPubSearchIndexForTests({
       pubs: [["n1", "The Crown", "Hackney", 51.54, -0.05]],

@@ -7,6 +7,7 @@ vi.mock("next/dynamic", () => ({
   default: () => () => null,
 }));
 vi.mock("next/navigation", () => ({
+  usePathname: () => "/",
   useRouter: () => ({ prefetch: () => Promise.resolve() }),
 }));
 vi.mock("@/components/auth/SignInButton", () => ({ default: () => null }));
@@ -22,18 +23,20 @@ vi.mock("@/lib/cityPreference", () => ({
 }));
 
 import LandingPage from "@/components/landing/LandingPage";
+import { defined } from "@/__tests__/helpers/defined";
 
 // The landing document is CDN-held, so its Social label is the first one a
-// stranger reads. Social is not a front door, so the top bar carries none; the
-// footer keeps one link, and it must agree with the rollback state: "Social"
-// while the friends launch is on, "Social preview" when it is rolled back.
+// stranger reads. Social is a main tab (captain, 16 Oct 2026), so the top bar
+// carries it once and the footer keeps its own link, and both must agree with
+// the rollback state: "Social" while the friends launch is on, "Social
+// preview" when it is rolled back.
 
 function renderLanding(socialFriendsLaunchEnabled: boolean): string {
   return renderToStaticMarkup(createElement(LandingPage, { socialFriendsLaunchEnabled }));
 }
 
 function socialLinks(html: string): string[] {
-  return [...html.matchAll(/<a[^>]*href="\/social"[^>]*>([\s\S]*?)<\/a>/g)].map((m) => m[1]);
+  return [...html.matchAll(/<a[^>]*href="\/social"[^>]*>([\s\S]*?)<\/a>/g)].map((m) => defined(m[1]));
 }
 
 function landingNav(html: string): string {
@@ -41,24 +44,23 @@ function landingNav(html: string): string {
 }
 
 describe("landing social honesty", () => {
-  it("keeps Social out of the top bar in either launch state", () => {
-    for (const enabled of [true, false]) {
+  it("carries Social once in the top bar, named for either launch state", () => {
+    for (const [enabled, name] of [[true, "Social"], [false, "Social preview"]] as const) {
       const nav = landingNav(renderLanding(enabled));
       expect(nav, "landing navigation present").not.toBe("");
-      expect(nav).not.toContain('href="/social"');
-      expect(nav).not.toContain("Social");
+      expect(socialLinks(nav)).toEqual([name]);
     }
   });
 
-  it("names Social plainly in the footer while the friends launch is on", () => {
+  it("names Social plainly in the bar and the footer while the friends launch is on", () => {
     const html = renderLanding(true);
-    expect(socialLinks(html)).toEqual(["Social"]);
+    expect(socialLinks(html)).toEqual(["Social", "Social"]);
     expect(html).not.toContain("Social preview");
   });
 
-  it("says Social preview in the footer when the launch is rolled back", () => {
+  it("says Social preview in the bar and the footer when the launch is rolled back", () => {
     const html = renderLanding(false);
-    expect(socialLinks(html)).toEqual(["Social preview"]);
+    expect(socialLinks(html)).toEqual(["Social preview", "Social preview"]);
   });
 
   it("offers no Social or Memories call to action on the landing", () => {

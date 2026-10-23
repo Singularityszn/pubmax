@@ -1,3 +1,5 @@
+import type { Route } from "next";
+
 // WHAT A PICK SECTION IS, IN FOUR WORDS, AND NOWHERE ELSE.
 //
 // F04 of the 5 Sep 2026 live audit: /today's tonight-recommendations section
@@ -158,7 +160,7 @@ type PicksAlternativeKey = "pubs-near" | "plan";
 export type PicksAlternativeWay = {
   key: PicksAlternativeKey;
   label: string;
-  href: string;
+  href: Route;
 };
 
 /**
@@ -176,7 +178,7 @@ export type PicksContext = {
   occasion?: string | null;
 };
 
-function withParam(path: string, key: string, value: string | null | undefined): string {
+function withParam(path: "/near" | "/plan", key: string, value: string | null | undefined): Route {
   const trimmed = (value ?? "").trim();
   if (!trimmed) return path;
   return `${path}?${new URLSearchParams({ [key]: trimmed }).toString()}`;

@@ -9,6 +9,7 @@ import {
 } from "@/lib/out/venueMatch";
 import type { VenueRef } from "@/lib/venueIndex";
 import type { WhatsOnRow } from "@/lib/whatsOn";
+import { defined } from "@/__tests__/helpers/defined";
 
 // The request-time matcher over the slim venue index. It is the SAME matcher
 // the build-time refresh runs (scripts/whatson/resolveVenueId.mjs), fed an
@@ -109,23 +110,74 @@ describe("attachOutVenues", () => {
     const matched = liveRow();
     const arena = liveRow({ id: "events-tm-o2", placeName: "The O2", lat: 51.503, lng: 0.0032 });
     const result = attachOutVenues([matched, arena], index);
-    expect(result.rows[0].venueId).toBe("venue-1137z1c");
-    expect(result.rows[1].venueId).toBeUndefined();
+    expect(defined(result.rows[0]).venueId).toBe("venue-1137z1c");
+    expect(defined(result.rows[1]).venueId).toBeUndefined();
     expect(result.matchedAtRequest).toBe(1);
     expect(result.unmatched).toBe(1);
   });
 
   it("leaves a row the refresh already matched alone", () => {
-    const bundled = liveRow({ venueId: "venue-from-refresh", placeName: "The Dublin Castle" });
+    const bundled = liveRow({
+      venueId: DUBLIN_CASTLE.id,
+      placeName: "The Dublin Castle",
+      lat: undefined,
+      lng: undefined,
+    });
     const result = attachOutVenues([bundled], index);
-    expect(result.rows[0].venueId).toBe("venue-from-refresh");
+    expect(result.rows[0]).toBe(bundled);
     expect(result.matchedAtRequest).toBe(0);
     expect(result.unmatched).toBe(0);
   });
 
+  it("rewrites a merged pub id to its current id instead of treating it as stale", () => {
+    const aliased = buildOutVenueMatchIndex(
+      [DUBLIN_CASTLE],
+      (id) => (id === "venue-merged-dublin-castle" ? DUBLIN_CASTLE.id : id),
+    );
+    const bundled = liveRow({
+      venueId: "venue-merged-dublin-castle",
+      placeName: "The Dublin Castle",
+      lat: undefined,
+      lng: undefined,
+    });
+    const result = attachOutVenues([bundled], aliased, () => false);
+
+    expect(defined(result.rows[0]).venueId).toBe(DUBLIN_CASTLE.id);
+    expect(result.matchedAtRequest).toBe(0);
+    expect(result.unmatched).toBe(0);
+    expect(bundled.venueId).toBe("venue-merged-dublin-castle");
+  });
+
+  it("keeps a listing visible but clears an attached id absent from the pub index", () => {
+    const arena = liveRow({
+      venueId: "venue-old-arena",
+      placeName: "The O2",
+      lat: 51.503,
+      lng: 0.0032,
+    });
+    const result = attachOutVenues([arena], index, () => false);
+
+    expect(result.rows).toHaveLength(1);
+    expect(result.rows[0]).toMatchObject({ id: arena.id, title: arena.title, source: arena.source });
+    expect(defined(result.rows[0]).venueId).toBeUndefined();
+    expect(result.matchedAtRequest).toBe(0);
+    expect(result.unmatched).toBe(1);
+    expect(arena.venueId).toBe("venue-old-arena");
+  });
+
+  it("does not label an arena as a pub using another listed pub's id", () => {
+    const arena = liveRow({ venueId: LEXINGTON.id, placeName: "ABBA Arena" });
+    const result = attachOutVenues([arena], index);
+
+    expect(defined(result.rows[0]).venueId).toBeUndefined();
+    expect(defined(result.rows[0]).placeName).toBe("ABBA Arena");
+    expect(result.unmatched).toBe(1);
+    expect(result.matchedAtRequest).toBe(0);
+  });
+
   it("reattaches a row whose venueId is only whitespace", () => {
     const result = attachOutVenues([liveRow({ venueId: "  " })], index);
-    expect(result.rows[0].venueId).toBe("venue-1137z1c");
+    expect(defined(result.rows[0]).venueId).toBe("venue-1137z1c");
     expect(result.matchedAtRequest).toBe(1);
     expect(result.unmatched).toBe(0);
   });

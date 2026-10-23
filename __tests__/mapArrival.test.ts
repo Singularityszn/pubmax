@@ -19,6 +19,32 @@ describe("isDrinkShapeArrival", () => {
   });
 });
 
+describe("unrefined Beer completed-share arrival", () => {
+  it("keeps ordered completed Beer stops on the mapped crawl path", () => {
+    expect(isDrinkShapeArrival("?mode=build&pubs=venue-a,venue-b&drink=beer")).toBe(false);
+  });
+
+  it.each([
+    "?drink=beer",
+    "?drink=beer&mode=build&pubs=venue-a",
+    "?drink=beer&mode=build&pubs=venue-a,venue-a",
+    "?drink=beer&mode=build&pubs=,",
+    "?drink=beer&pubs=venue-a,venue-b",
+    "?drink=wine&mode=build&pubs=venue-a,venue-b",
+    "?drink=beer&brand=guinness&mode=build&pubs=venue-a,venue-b",
+    "?drink=beer&sub=beer-cider&mode=build&pubs=venue-a,venue-b",
+    "?drink=beer&topshelf=1&mode=build&pubs=venue-a,venue-b",
+    "?drink=beer&cocktails=1&mode=build&pubs=venue-a,venue-b",
+  ])("retains the clean drink arrival for %s", (search) => {
+    expect(isDrinkShapeArrival(search)).toBe(true);
+  });
+
+  it("does not confuse parameter prefixes with the completed Beer contract", () => {
+    expect(isDrinkShapeArrival("?drink=beers&mode=build&pubs=venue-a,venue-b")).toBe(true);
+    expect(isDrinkShapeArrival("?drink=beer&mode=builder&pubs=venue-a,venue-b")).toBe(true);
+  });
+});
+
 describe("isCuratedCrawlArrival", () => {
   it("detects crawl= or pubs= with mode=build", () => {
     expect(isCuratedCrawlArrival("?crawl=victorian-soho")).toBe(true);

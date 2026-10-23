@@ -33,6 +33,12 @@ vi.mock("@/lib/authedFetch", () => ({
   authedActionFetch: state.action,
   authedFetch: state.fetch,
 }));
+// The Wanted list's age door shares the contribution gate dialog's module,
+// which pulls in SignInButton, and that file imports next/dynamic. This file replaces
+// next/dynamic with a factory that awaits WantedListBody, so the real
+// SignInButton would wait on a factory that is waiting on it. The door is not
+// under test here.
+vi.mock("@/components/auth/SignInButton", () => ({ default: () => null }));
 vi.mock("@/lib/venueMapUrl", () => ({
   venueMapUrl: (venueId: string) => `/map/${venueId}`,
 }));
@@ -123,9 +129,9 @@ describe("Wanted saves crossing auth settlement", () => {
       candidate?.click();
       await Promise.resolve();
     });
-    const anonymousList = container.querySelector<HTMLElement>("[aria-label='Anonymous open Wanted places']");
+    const anonymousList = container.querySelector<HTMLElement>("[aria-label='Pubs to try on this device']");
     expect(anonymousList?.textContent).toContain("The Dove");
-    expect(container.querySelector("[aria-label='Open Wanted places']")).toBeNull();
+    expect(container.querySelector("[aria-label='Pubs to try']")).toBeNull();
     expect(state.action.mock.calls.some(([input]) => String(input) === "/api/wanted")).toBe(false);
     expect(state.action.mock.calls.find(([input]) => String(input) === "/api/wanted/resolve")?.[2]).toEqual({
       requiresIdentity: false,
@@ -143,8 +149,8 @@ describe("Wanted saves crossing auth settlement", () => {
       await Promise.resolve();
     });
 
-    expect(container.querySelector("[aria-label='Anonymous open Wanted places']")?.textContent)
+    expect(container.querySelector("[aria-label='Pubs to try on this device']")?.textContent)
       .toContain("The Dove");
-    expect(container.querySelector("[aria-label='Open Wanted places']")).toBeNull();
+    expect(container.querySelector("[aria-label='Pubs to try']")).toBeNull();
   });
 });

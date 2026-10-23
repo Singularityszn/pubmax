@@ -3,7 +3,7 @@ import { mkdirSync } from "node:fs";
 import { join } from "node:path";
 import { expect, test, type Page, type Route } from "@playwright/test";
 
-import { runnerShotDir } from "./helpers/runnerShotDir";
+import { runnerShotDir } from "@/e2e/helpers/runnerShotDir";
 
 const SOCIAL_TITLE = "Crews and people who are already here.";
 const SOCIAL_PREVIEW_BOUNDARY =
@@ -508,6 +508,12 @@ test("verified Activity rail shows reauthorised generic notifications only", asy
   });
   let activityReads = 0;
   await page.route("**/api/social/interactions?**", async (route) => {
+    const view = new URL(route.request().url()).searchParams.get("view");
+    if (view === "summary") {
+      await route.fulfill({ json: { summary: { cheered: false, saved: false, cheerCount: 0 } } });
+      return;
+    }
+    expect(view).toBe("notifications");
     activityReads += 1;
     await route.fulfill({
       contentType: "application/json",
@@ -653,12 +659,18 @@ test("Social shell fits target viewports in light and dark themes", async ({
         await expect(
           page.getByRole("navigation", { name: "Primary" }),
         ).toBeVisible();
-        const bottomPadding = await page
-          .locator("main.socialPage")
-          .evaluate((element) =>
-            Number.parseFloat(getComputedStyle(element).paddingBottom),
-          );
-        expect(bottomPadding).toBeGreaterThanOrEqual(120);
+        const lastAction = page.locator(".socialPostCard").last().getByRole("button").last();
+        await lastAction.scrollIntoViewIfNeeded();
+        const actionBox = await lastAction.boundingBox();
+        const barBox = await page.getByRole("navigation", { name: "Primary" }).boundingBox();
+        expect(actionBox).not.toBeNull();
+        expect(barBox).not.toBeNull();
+        expect(actionBox!.y + actionBox!.height).toBeLessThanOrEqual(barBox!.y);
+        expect(await lastAction.evaluate((element) => {
+          const box = element.getBoundingClientRect();
+          const hit = document.elementFromPoint(box.x + box.width / 2, box.y + box.height / 2);
+          return hit === element || element.contains(hit);
+        })).toBe(true);
       } else {
         await expect(
           page.getByRole("navigation", { name: "Primary" }),

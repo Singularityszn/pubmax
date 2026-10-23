@@ -49,6 +49,14 @@ export const CHIP_CATEGORIES: DrinkCategory[] = [
 type DrinkShapeChipsProps = {
   filters: Filters;
   onFiltersChange: (filters: Filters) => void;
+  /**
+   * Whether the strip of drink categories is drawn. The desktop tray sits
+   * under `DrinkLanePicker`, which already offers every one of these drinks as
+   * text tabs and writes the same `drinkCategory`, so it draws only what the
+   * chosen drink adds (its refinements, the soft-drinks link) and not a second
+   * row of the same choice (QA journeys F24). A phone sheet draws both.
+   */
+  categories?: boolean;
 };
 
 function activeCategory(filters: Filters): DrinkCategory | null {
@@ -136,36 +144,41 @@ export function showsDrinkRefinements(filters: Filters): boolean {
 export default function DrinkShapeChips({
   filters,
   onFiltersChange,
+  categories = true,
 }: DrinkShapeChipsProps) {
   const active = activeCategory(filters);
   const subtype = activeSubtype(filters);
   const subtypes = active ? subtypesForCategory(active) : [];
+  const showsRefinements = active !== null && showsDrinkRefinements(filters);
+  if (!categories && active !== "soft-drink" && !showsRefinements) return null;
 
   return (
     <div className="drinkShapeChipsStack">
-      <div className="drinkShapeChips" role="group" aria-label="Filter by drink shape">
-        {CHIP_CATEGORIES.map((cat) => {
-          const on = active === cat;
-          return (
-            <button
-              key={cat}
-              type="button"
-              className={on ? "drinkShapeChip isOn" : "drinkShapeChip"}
-              aria-pressed={on}
-              aria-label={`${CATEGORY_META[cat].label}${on ? " (selected)" : ""}`}
-              onClick={() => onFiltersChange(nextDrinkShapeFilters(filters, cat))}
-            >
-              {/* The glyph keeps its own drink colour in BOTH states now that
-                  selection is a neutral fill, not a coral one. Inheriting the
-                  label colour on selection dropped the chosen drink to
-                  monochrome while the unchosen ones stayed in colour,
-                  which read backwards. */}
-              <DrinkGlyph category={cat} size={22} />
-              <span className="drinkShapeChipLabel">{categoryLabel(cat)}</span>
-            </button>
-          );
-        })}
-      </div>
+      {categories ? (
+        <div className="drinkShapeChips" role="group" aria-label="Filter by drink shape">
+          {CHIP_CATEGORIES.map((cat) => {
+            const on = active === cat;
+            return (
+              <button
+                key={cat}
+                type="button"
+                className={on ? "drinkShapeChip isOn" : "drinkShapeChip"}
+                aria-pressed={on}
+                aria-label={`${CATEGORY_META[cat].label}${on ? " (selected)" : ""}`}
+                onClick={() => onFiltersChange(nextDrinkShapeFilters(filters, cat))}
+              >
+                {/* The glyph keeps its own drink colour in BOTH states now that
+                    selection is a neutral fill, not a coral one. Inheriting the
+                    label colour on selection dropped the chosen drink to
+                    monochrome while the unchosen ones stayed in colour,
+                    which read backwards. */}
+                <DrinkGlyph category={cat} size={22} />
+                <span className="drinkShapeChipLabel">{categoryLabel(cat)}</span>
+              </button>
+            );
+          })}
+        </div>
+      ) : null}
 
       {active === "soft-drink" ? (
         <p className="drinkShapeChipsMore">
@@ -173,7 +186,7 @@ export default function DrinkShapeChips({
         </p>
       ) : null}
 
-      {active && showsDrinkRefinements(filters) ? (
+      {active && showsRefinements ? (
         <div
           className="drinkSubtypeChips"
           role="group"

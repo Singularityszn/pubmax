@@ -10,10 +10,10 @@
       "sha256": "4bde028b4242740372fed5f7678b4e34887e8f3ba4e0fccc231a0c16bb49dc24"
     },
     "data/osm/uk/uk_osm_pubs.json": {
-      "sha256": "1bd94a9528a47e212b5a2cbffdc0fbbeedc9ce2cd71b1cf4a8b8ce8a1a516154"
+      "sha256": "5280bd5012c59487582ef35585da5146dc9c41bec17ca5405df99197dc79cc4c"
     },
     "data/postcode_coordinate_corrections.json": {
-      "sha256": "95997a516fd8ba7acab7a5b1e0b6f5a2d6fc30bf8c1d374859f58f8227e26b87"
+      "sha256": "15e5351a53e9a47aec0c0726663318e733c9077e56bf23577ac8b9f5bce3d782"
     },
     "data/postcode_coordinate_quarantine.json": {
       "sha256": "56bac489da4e1cd999f1aa0bdd2e40abdd33d7c21621b9b3b99b26331512c1d8"
@@ -234,6 +234,48 @@
         "is_clean_canonical_app_row": false
       },
       "dataQualityNote": "postcode_coordinate_corrected_from_osm"
+    },
+    {
+      "decisionId": "white-bear-kennington",
+      "appPriceId": "app_price_000410",
+      "pubName": "White Bear",
+      "reason": "The source row names White Bear at SE11 4DJ, which is 138 Kennington Park Road, Kennington. Its scraped coordinates are the point of the other White Bear, 57 St John Street, Farringdon EC1M 4AN, 3.8 km away, so the Kennington prices drew as a second Farringdon pin.",
+      "changes": {
+        "latitude": 51.4868645,
+        "longitude": -0.1080348,
+        "boroughs_visible": "",
+        "boroughs_raw_embedded_non_anomaly": "",
+        "boroughs_all_sources": "Havering|Hillingdon|Redbridge",
+        "primary_borough": "Lambeth",
+        "rank_visible_borough": "",
+        "estimated_average_price_text": "",
+        "borough_urls": "",
+        "pub_key": "White Bear51.4868645",
+        "has_visible_borough_row": false,
+        "is_clean_canonical_app_row": false
+      },
+      "dataQualityNote": "postcode_coordinate_corrected_from_osm"
+    },
+    {
+      "decisionId": "white-bear-kennington",
+      "appPriceId": "app_price_000411",
+      "pubName": "White Bear",
+      "reason": "The source row names White Bear at SE11 4DJ, which is 138 Kennington Park Road, Kennington. Its scraped coordinates are the point of the other White Bear, 57 St John Street, Farringdon EC1M 4AN, 3.8 km away, so the Kennington prices drew as a second Farringdon pin.",
+      "changes": {
+        "latitude": 51.4868645,
+        "longitude": -0.1080348,
+        "boroughs_visible": "",
+        "boroughs_raw_embedded_non_anomaly": "",
+        "boroughs_all_sources": "Havering|Hillingdon|Redbridge",
+        "primary_borough": "Lambeth",
+        "rank_visible_borough": "",
+        "estimated_average_price_text": "",
+        "borough_urls": "",
+        "pub_key": "White Bear51.4868645",
+        "has_visible_borough_row": false,
+        "is_clean_canonical_app_row": false
+      },
+      "dataQualityNote": "postcode_coordinate_corrected_from_osm"
     }
   ],
   "quarantines": [
@@ -336,7 +378,7 @@
   ],
   "output": {
     "path": "data/pint_prices_app_dataset.csv",
-    "sha256": "9beff33ce357748df7ac3d78cbb726f3cb5f34fb118d554943746260c8bafc83",
+    "sha256": "2e86accfc035429af38614f2dce1c3efa1b68c9e0f3ab032049fceb7bbbf093b",
     "rows": 3084
   }
 }

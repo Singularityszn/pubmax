@@ -11,6 +11,7 @@ vi.mock("next/navigation", () => ({
 }));
 
 import WebMcpNightBoard from "@/components/webmcp/WebMcpNightBoard";
+import { defined } from "@/__tests__/helpers/defined";
 
 let container: HTMLDivElement;
 let root: Root;
@@ -79,10 +80,61 @@ describe("WebMCP Agent Night Board", () => {
     });
 
     expect(fetchMock).toHaveBeenCalledTimes(1);
-    const [url, init] = fetchMock.mock.calls[0];
+    const [url, init] = defined(fetchMock.mock.calls[0]);
     expect(url).toBe("/api/plans/generate");
     expect(JSON.parse(String(init?.body))).toEqual({ query: "Three pubs in Victoria" });
     expect(container.textContent).toContain("Revision 1");
     expect(container.textContent).toContain("Market Halls, Victoria");
+  });
+
+  it("cancels a London context read that resolves after the board has gone (CMP-10)", async () => {
+    // Every sibling action asks isActive() before it commits. The context read
+    // asked only its signal, so an agent's read finishing after the board
+    // unmounted still committed and reported success.
+    type Tool = {
+      name: string;
+      execute: (input: unknown, context: { signal: AbortSignal }) => Promise<unknown>;
+    };
+    const tools = new Map<string, Tool>();
+    Object.defineProperty(document, "modelContext", {
+      configurable: true,
+      value: {
+        registerTool: vi.fn(async (tool: Tool) => {
+          tools.set(tool.name, tool);
+          return undefined;
+        }),
+      },
+    });
+    const pending: Array<(response: Response) => void> = [];
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(() => new Promise<Response>((resolve) => pending.push(resolve))),
+    );
+
+    try {
+      await act(async () => {
+        root.render(createElement(WebMcpNightBoard));
+        await new Promise((resolve) => setTimeout(resolve, 0));
+      });
+      const contextTool = defined(tools.get("read_london_night_context"));
+      const read = contextTool.execute({}, { signal: new AbortController().signal });
+      await act(async () => {
+        await new Promise((resolve) => setTimeout(resolve, 0));
+      });
+      expect(pending).toHaveLength(2);
+
+      act(() => root.unmount());
+      root = createRoot(container);
+      for (const resolve of pending) {
+        resolve(new Response(JSON.stringify({ asOf: "2026-10-16T20:00:00Z" }), { status: 200 }));
+      }
+
+      await expect(read).resolves.toMatchObject({
+        status: "error",
+        error: { code: "cancelled" },
+      });
+    } finally {
+      delete (document as { modelContext?: unknown }).modelContext;
+    }
   });
 });

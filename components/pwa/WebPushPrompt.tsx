@@ -1,8 +1,10 @@
 "use client";
 
+import { FOCUS_TRAP_EXEMPT_ATTRIBUTE, readStrictModalFocusTrap, serverStrictModalFocusTrap, subscribeStrictModalFocusTrap } from "@/lib/useFocusTrap";
+
 import { offlineOrMessage } from "@/lib/apiErrorMessage";
 
-import { useEffect, useState, useSyncExternalStore } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 
 import { claimPromptBudget, hasPromptBudgetFor } from "@/lib/promptBudget";
 import { registerWebPush } from "@/lib/webPush";
@@ -25,31 +27,50 @@ export default function WebPushPrompt(): React.JSX.Element | null {
     getWebPushPromptVisibleSnapshot,
     getWebPushPromptServerSnapshot,
   );
-  const canShow = visible && hasPromptBudgetFor(WEB_PUSH_SURFACE);
+  const strictModalOpen = useSyncExternalStore(
+    subscribeStrictModalFocusTrap,
+    readStrictModalFocusTrap,
+    serverStrictModalFocusTrap,
+  );
+  const canShow = visible && hasPromptBudgetFor(WEB_PUSH_SURFACE) && !strictModalOpen;
+  const registrationAbortRef = useRef<AbortController | null>(null);
 
   useEffect(() => {
     if (canShow) claimPromptBudget(WEB_PUSH_SURFACE);
   }, [canShow]);
 
+  useEffect(() => () => {
+    registrationAbortRef.current?.abort();
+  }, []);
+
   if (!canShow) return null;
 
   async function handleEnable() {
     if (pending) return;
+    const controller = new AbortController();
+    registrationAbortRef.current = controller;
     setPending(true);
     setError("");
-    const registered = await registerWebPush();
-    if (registered) {
-      markWebPushPromptEnabled();
-    } else {
-      setError(
-        offlineOrMessage("Could not enable alerts. Try again.")
-      );
+    try {
+      const registered = await registerWebPush(controller.signal);
+      if (controller.signal.aborted) return;
+      if (registered) {
+        markWebPushPromptEnabled();
+      } else {
+        setError(
+          offlineOrMessage("Couldn't turn on alerts. Try again.")
+        );
+      }
+    } finally {
+      if (registrationAbortRef.current === controller) {
+        registrationAbortRef.current = null;
+      }
+      if (!controller.signal.aborted) setPending(false);
     }
-    setPending(false);
   }
 
   return (
-    <div className="nativePushPrompt">
+    <div className="nativePushPrompt nativePushPrompt--permission" {...{ [FOCUS_TRAP_EXEMPT_ATTRIBUTE]: "" }}>
       <div
         className="nativePushPrompt__card"
         role="dialog"
@@ -61,7 +82,7 @@ export default function WebPushPrompt(): React.JSX.Element | null {
           Get the London brief
         </p>
         <p id="web-push-prompt-body" className="nativePushPrompt__body">
-          Weather verdict and one sourced pick for tonight. No crew or personal alerts yet.
+          The weather verdict and one sourced pick for tonight. No crew or personal alerts yet.
         </p>
         {error ? (
           <p className="nativePushPrompt__error" role="status">
@@ -83,7 +104,7 @@ export default function WebPushPrompt(): React.JSX.Element | null {
             onClick={() => void handleEnable()}
             disabled={pending}
           >
-            {pending ? "Enabling..." : "Enable"}
+            {pending ? "Turning on…" : "Turn on"}
           </button>
         </div>
       </div>

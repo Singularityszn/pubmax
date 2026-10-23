@@ -10,6 +10,7 @@ import {
   PLAN_ROUTE_DRAFT_V2_KEY,
   readPlanRouteDraftEnvelope,
 } from "@/lib/planRouteDraft";
+import { defined } from "@/__tests__/helpers/defined";
 
 const NOW = Date.parse("2026-07-24T12:00:00.000Z");
 
@@ -63,7 +64,7 @@ describe("mapGeneratedRouteDraftValue / transferMapRouteToDraft", () => {
     expect(parsed?.origin).toBe("map-generated");
     expect(parsed?.value.outcome).toBe("unanchored");
     expect(parsed?.value.stops.map((stop) => stop.venueId)).toEqual(["venue-a", "venue-b", "venue-c"]);
-    expect(parsed?.value.stops[0].alternatives).toEqual([{ venueId: "venue-x", venueName: "Venue X" }]);
+    expect(defined(parsed?.value.stops[0]).alternatives).toEqual([{ venueId: "venue-x", venueName: "Venue X" }]);
     expect(parsed?.value.groundingProof).toEqual(expect.any(String));
     expect(parsed?.value.operationKey).toBe("operation-1");
     expect(parsed?.value.transportBasis).toBe("straight-line");
@@ -83,7 +84,7 @@ describe("mapGeneratedRouteDraftValue / transferMapRouteToDraft", () => {
     expect(parsed?.value.outcome).toBe("route");
     expect(parsed?.value.anchorVenueId).toBe("venue-a");
     expect(parsed?.value.anchorSource).toBe("near");
-    expect(parsed?.value.stops[0].venueId).toBe("venue-a");
+    expect(defined(parsed?.value.stops[0]).venueId).toBe("venue-a");
   });
 
   it("writes nothing for a malformed or empty Route (caller falls back)", () => {

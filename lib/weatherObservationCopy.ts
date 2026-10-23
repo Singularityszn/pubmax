@@ -37,6 +37,28 @@ function formatSunsetLabel(sunsetAt: string | null, now: Date, timeZone = "Europ
   return `sunset ${time}`;
 }
 
+/**
+ * An absolute London date and clock, e.g. "18 October 2026, 18:02". It holds
+ * no relative word, so it stays true however long it sits on screen. Null
+ * when the instant is not a valid date.
+ */
+export function formatLondonDateTime(at: Date): string | null {
+  if (!Number.isFinite(at.getTime())) return null;
+  const date = new Intl.DateTimeFormat("en-GB", {
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+    timeZone: "Europe/London",
+  }).format(at);
+  const time = new Intl.DateTimeFormat("en-GB", {
+    hour: "2-digit",
+    minute: "2-digit",
+    hourCycle: "h23",
+    timeZone: "Europe/London",
+  }).format(at);
+  return `${date}, ${time}`;
+}
+
 function dayNightLabel(isDay: boolean | null): string | null {
   if (isDay === null) return null;
   return isDay ? "daylight" : "night";
@@ -48,7 +70,8 @@ function dayNightLabel(isDay: boolean | null): string | null {
  * and carry no sunset or day or night.
  */
 export function formatWeatherObservationFacts(input: WeatherObservationFactsInput): string {
-  const temp = `${Math.round(input.feelsLikeC)}°C feels like`;
+  // The line opens a sentence when fresh and follows a colon when stale.
+  const temp = `${input.stale ? "feels" : "Feels"} like ${Math.round(input.feelsLikeC)}°C`;
   const condition = input.condition.trim().toLocaleLowerCase("en-GB");
   const rain = `${Math.round(input.precipitationProbabilityPct)}% chance of rain`;
   const wind =
@@ -62,7 +85,7 @@ export function formatWeatherObservationFacts(input: WeatherObservationFactsInpu
     (part): part is string => typeof part === "string" && part.length > 0,
   );
   const body = core.join(", ");
-  return `${input.stale ? "Last read of the sky: " : ""}${body}.`;
+  return `${input.stale ? "Last reading: " : ""}${body}.`;
 }
 
 // Human "x ago" from an observation timestamp. Floor-based so the label only

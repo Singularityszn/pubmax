@@ -33,7 +33,7 @@ Out-tonight / crew presence → Show up → Safe home → Memory → Invite agai
 |---|---|
 | Crew of 3–8, invite-only / mutual | Public stranger heat-map |
 | Alcohol-optional soft occasions first | Nightlife-only Social |
-| Honest £ spend on the invite | Invented budgets |
+| Sourced pint-price guidance on the invite | Invented budgets |
 | Friends-gated check-ins | Area-public densification without sign-off |
 | Chronological / consent memory later | Algorithmic For You / dating adjacency |
 | Keep Social live by default | Open `/social` feed theatre |
@@ -60,7 +60,7 @@ Ordered for parallel work; later slices must not block earlier merges.
 |---|---|---|---|---|
 | 0 | `cursor/crew-night-loop-plan-dd0b` | This plan + README index | `docs/plans/` | No product code |
 | 1 | `cursor/crew-northstar-metric-dd0b` | Scoreboard + funnel docs for `crew_committed` `participants >= 2`; pin tests | `docs/METRICS_FUNNEL.md`, `docs/growth/V1_INVITE_SCOREBOARD.md` (create if missing), analytics tests | No UI / WhatsApp CTA |
-| 2 | `cursor/invite-spend-band-dd0b` | Honest £X–Y pp on invite share text, `/invite/[token]` copy, OG when stop prices complete; omit when incomplete | `lib/shareArtifacts.ts`, `planPresentation.ts`, invite page + OG | Do not redesign `PlanInviteNextStep` |
+| 2 | `cursor/invite-spend-band-dd0b` | Invite price guidance follows the [listed-price contract](../../lib/shareArtifacts.ts). | `lib/shareArtifacts.ts`, `planPresentation.ts`, invite page + OG | Do not redesign `PlanInviteNextStep` |
 | 3 | `cursor/soft-occasion-defaults-dd0b` | Soft defaults: describe-first / Tonight → plan handoff / landing Why → `/plan` for AF, coffee, chill | `PlanDescribeFirst`, Tonight vibe chips, landing links | No ShareBar; no launch-flag change; no taste CSS churn |
 | 4 | `cursor/crew-tonight-board-dd0b` | Friends-only “who’s out” board over `visibleCheckInsForViewer`; keep `/we-are-out` honest under live or rollback state | check-in feed, You/lot surface, `WeAreOutClient` | No area-public densify |
 | 5 | `cursor/usual-lot-reinvite-loop-dd0b` | Completed-plan → usual-lot nudge; emit `next_night_committed` with closed `source` (`crew-reinvite` / `completed_plan`) | `LastCrewInvite`, `lastCrew.ts`, analytics emission | No Social crew snapshot RPC; no new server roster table |
@@ -86,7 +86,7 @@ Follow `docs/VOICE.md`. No em dashes, no exclamation marks, British spelling. Jo
 
 - [x] Plan doc on `main` (PR #918)
 - [x] Per-night and loop metrics documented and test-pinned (`crew_committed` pin PR #919; `next_night_committed` loop north star documented and pinned in `__tests__/analyticsEvents.test.ts`)
-- [x] Invite artifact can show an honest spend band (or silence) (PR #924: `planInviteSpendBandFromListedPrices`, invite page, OG card; silent when any stop price is missing)
+- [x] Invite price guidance follows the [listed-price contract](../../lib/shareArtifacts.ts) (PR #924).
 - [x] Soft occasion path visible without changing Social launch state (PR #921: `SOFT_PLAN_OCCASION_IDS` in `lib/planOccasion.ts`)
 - [x] Friends-only crew tonight surface + We-are-out honesty (PR #922; hardened for live-default Social by PR #1247)
 - [x] Usual-lot reinvite emits `next_night_committed` (PR #923: `LastCrewInvite`, `CompletedPlanUsualLot` and `MorningReentryCard`, all three through `nextNightCommittedProps` with closed sources in `lib/lastCrew.ts`)

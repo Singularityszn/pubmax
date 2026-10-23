@@ -65,3 +65,68 @@ test("a signed-out visitor sees the account gate before visit-report fields moun
   expect(fits).toBe(true);
   expect(errors).toEqual([]);
 });
+
+// The phone tab bar paints above the identity gates (--z-tabbar over the gate
+// backdrop), and the page behind a gate, bar included, goes inert. Inert still
+// paints, so a click or a hit test at the button's centre passes with the bar
+// drawn over it. The proof is the painted edges themselves.
+for (const width of [320, 390] as const) {
+  for (const theme of ["light", "dark"] as const) {
+    test(`${width}px ${theme}: the gate's Not now paints clear of the phone tab bar`, async ({
+      page,
+    }) => {
+      const errors = watchPageErrors(page);
+      await page.setViewportSize({ width, height: VIEWPORT.height });
+      await page.addInitScript((initialTheme) => {
+        window.localStorage.setItem("pubmax-theme", initialTheme);
+      }, theme);
+
+      const response = await page.goto(`/map?sel=${SEED_VENUE_ID}`);
+      expect(response?.status()).toBe(200);
+      await expect(page.locator("html")).toHaveAttribute("data-theme", theme);
+
+      const sheet = page.locator('.mobileSheetPortal[data-sheet-kind="venue"]');
+      await expect(sheet).toBeVisible({ timeout: 60_000 });
+      await expect(
+        page.getByRole("status", { name: "Loading the London pub map." }),
+      ).toBeHidden({ timeout: 30_000 });
+      await page.locator("#venueTab-story").click();
+
+      const lane = page.locator("#venuePanel-story .visitReportPanel");
+      const gate = lane.getByRole("button", { name: "Sign in to contribute" });
+      await expect(gate).toBeVisible();
+      await gate.click();
+
+      const dialog = page.getByRole("dialog", { name: "Sign in to contribute" });
+      await expect(dialog).toBeVisible();
+      const notNow = dialog.getByRole("button", { name: "Not now" });
+      await expect(notNow).toBeVisible();
+      await notNow.scrollIntoViewIfNeeded();
+
+      const dock = page.locator(".mobileTabBar");
+      await expect(dock).toBeVisible();
+      // The bar's painted top: its own box, or the solid band it draws above
+      // the pill while a sheet is open, whichever reaches higher.
+      const dockTop = await dock.evaluate((bar) => {
+        const rect = bar.getBoundingClientRect();
+        const band = getComputedStyle(bar, "::before");
+        const bandHeight =
+          band.content === "none" ? 0 : Number.parseFloat(band.height) || 0;
+        return Math.min(rect.top, rect.bottom - bandHeight);
+      });
+      const box = await notNow.boundingBox();
+      expect(box).not.toBeNull();
+      expect(box!.height).toBeGreaterThanOrEqual(44);
+      expect(box!.y).toBeGreaterThanOrEqual(0);
+      expect(
+        box!.y + box!.height,
+        "Not now must sit fully above the tab bar's painted top",
+      ).toBeLessThanOrEqual(dockTop + 0.5);
+
+      await notNow.click();
+      await expect(dialog).toBeHidden();
+      await expect(gate).toBeFocused();
+      expect(errors).toEqual([]);
+    });
+  }
+}

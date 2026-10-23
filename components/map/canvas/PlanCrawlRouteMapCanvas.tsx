@@ -5,6 +5,7 @@ import * as maplibregl from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 
 import { syncPlanRoutePreviewScene } from "@/components/map/canvas/planRoutePreviewScene";
+import { followMapPixelRatio, mapPixelRatio } from "@/components/map/canvas/webgl";
 import {
   MAP_STYLES,
   LONDON_VIEW,
@@ -14,6 +15,7 @@ import {
 import { MAPLIBRE_WORKER_URL } from "@/lib/maplibreWorkerAssets";
 import type { LngLat } from "@/lib/routeMiniMap";
 import { planCrawlRouteFitBounds } from "@/lib/planCrawlRouteMap";
+import { easeInOutCubic, partialRouteLine, ROUTE_DRAW_MS } from "@/lib/routeDraw";
 
 maplibregl.setWorkerUrl(MAPLIBRE_WORKER_URL);
 
@@ -41,7 +43,17 @@ function fitPreviewRoute(map: maplibregl.Map, stopCoords: LngLat[], lineCoords: 
   });
 }
 
+/**
+ * Routes already drawn in this tab, keyed by their pubs in arrival order. A
+ * route draws itself ONCE: a strip that remounts, a theme swap or a new key on
+ * the same map must not replay the draw for a route the reader has already
+ * watched arrive.
+ */
+const drawnRouteKeys = new Set<string>();
+
 export type PlanCrawlRouteMapCanvasProps = {
+  /** The arrived route's pubs in order. Same key, never drawn twice. */
+  drawKey?: string;
   stopCoords: LngLat[];
   routeLine: GeoJSON.FeatureCollection;
   routeStops: GeoJSON.FeatureCollection;
@@ -50,6 +62,7 @@ export type PlanCrawlRouteMapCanvasProps = {
 };
 
 export default function PlanCrawlRouteMapCanvas({
+  drawKey,
   stopCoords,
   routeLine,
   routeStops,
@@ -59,6 +72,9 @@ export default function PlanCrawlRouteMapCanvas({
   const containerRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<maplibregl.Map | null>(null);
   const routeRef = useRef({ stopCoords, routeLine, routeStops, lineCoords });
+  const drawKeyRef = useRef(drawKey);
+  const drawingRef = useRef(false);
+  const drawRef = useRef<() => void>(() => {});
   const themeRef = useRef<"light" | "dark">(
     document.documentElement.dataset.theme === "dark" ? "dark" : "light",
   );
@@ -75,10 +91,12 @@ export default function PlanCrawlRouteMapCanvas({
       pitch: PREVIEW_PITCH,
       bearing: PREVIEW_BEARING,
       maxBounds: UK_BOUNDS,
+      pixelRatio: mapPixelRatio(),
       attributionControl: { compact: true, customAttribution: OSM_ATTRIBUTION },
       interactive: false,
     });
     mapRef.current = map;
+    const stopFollowingPixelRatio = followMapPixelRatio(map);
     const attributionSlot = attributionSlotRef?.current ?? null;
     // MapLibre opens the compact attribution expanded and only collapses it on
     // a drag, which this static preview never gets, so the panel would sit on
@@ -98,15 +116,54 @@ export default function PlanCrawlRouteMapCanvas({
     };
     parkAttribution();
 
+    // The draw owns the line source while it runs; a routed line that lands
+    // mid-draw is picked up by the next frame through `routeRef`, and the last
+    // frame is always the whole line.
+    let drawFrame = 0;
+    const drawRouteOnce = () => {
+      const key = drawKeyRef.current;
+      const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+      if (!key || reduced || drawnRouteKeys.has(key)) return false;
+      drawnRouteKeys.add(key);
+      cancelAnimationFrame(drawFrame);
+      drawingRef.current = true;
+      // The scene was just built with the whole line. Take it back before the
+      // first frame so the finished route never flashes ahead of its own draw.
+      (map.getSource("route-line") as maplibregl.GeoJSONSource | undefined)
+        ?.setData(partialRouteLine(routeRef.current.routeLine, 0));
+      const started = performance.now();
+      const step = (now: number) => {
+        const source = map.getSource("route-line") as maplibregl.GeoJSONSource | undefined;
+        if (!source) {
+          drawingRef.current = false;
+          return;
+        }
+        const progress = (now - started) / ROUTE_DRAW_MS;
+        if (progress >= 1) {
+          drawingRef.current = false;
+          syncPlanRoutePreviewScene(map, routeRef.current.routeLine, routeRef.current.routeStops);
+          return;
+        }
+        source.setData(partialRouteLine(routeRef.current.routeLine, easeInOutCubic(progress)));
+        drawFrame = requestAnimationFrame(step);
+      };
+      drawFrame = requestAnimationFrame(step);
+      return true;
+    };
+
     const paintRoute = () => {
       const route = routeRef.current;
       syncPlanRoutePreviewScene(map, route.routeLine, route.routeStops);
       fitPreviewRoute(map, route.stopCoords, route.lineCoords);
       parkAttribution();
+      drawRouteOnce();
     };
 
     map.on("load", paintRoute);
     if (map.loaded()) paintRoute();
+    drawRef.current = () => {
+      if (map.getSource("route-line")) drawRouteOnce();
+    };
 
     const onTheme = () => {
       const next = document.documentElement.dataset.theme === "dark" ? "dark" : "light";
@@ -122,7 +179,11 @@ export default function PlanCrawlRouteMapCanvas({
     });
 
     return () => {
+      drawRef.current = () => {};
+      cancelAnimationFrame(drawFrame);
+      drawingRef.current = false;
       themeObserver.disconnect();
+      stopFollowingPixelRatio();
       const parked = attributionSlot?.querySelector(".maplibregl-ctrl-bottom-right");
       if (parked) container.appendChild(parked);
       map.remove();
@@ -134,9 +195,15 @@ export default function PlanCrawlRouteMapCanvas({
     routeRef.current = { stopCoords, routeLine, routeStops, lineCoords };
     const map = mapRef.current;
     if (!map || !map.getSource("route-line")) return;
-    syncPlanRoutePreviewScene(map, routeLine, routeStops);
+    // Mid-draw, the animation's next frame reads the new line from `routeRef`.
+    if (!drawingRef.current) syncPlanRoutePreviewScene(map, routeLine, routeStops);
     fitPreviewRoute(map, stopCoords, lineCoords);
   }, [stopCoords, routeLine, routeStops, lineCoords]);
+
+  useEffect(() => {
+    drawKeyRef.current = drawKey;
+    drawRef.current();
+  }, [drawKey]);
 
   return (
     <div

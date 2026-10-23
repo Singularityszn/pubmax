@@ -2,6 +2,7 @@
 
 import { act, createElement, type ReactElement, type ReactNode } from "react";
 import { createRoot, type Root } from "react-dom/client";
+import { renderToString } from "react-dom/server";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const authState = vi.hoisted(() => ({
@@ -97,6 +98,7 @@ vi.mock("@/components/profile/ProfileImageCropper", () => ({ default: () => null
 
 import MessagesInboxClient from "@/app/messages/MessagesInboxClient";
 import MessageThread from "@/components/messages/MessageThread";
+import { defined } from "@/__tests__/helpers/defined";
 
 let host: HTMLDivElement;
 let root: Root;
@@ -287,7 +289,7 @@ describe("message sign-in doors", () => {
     expect(link()?.textContent).toContain(createdGroup.title);
     expect(host.textContent).not.toContain("Your messages start here");
     expect(host.textContent).not.toContain("Couldn’t");
-    expect(host.textContent).not.toContain("Sign in to message");
+    expect(host.textContent).not.toContain("Your conversations show here.");
     expect(host.textContent).not.toContain("With you in a sec.");
     if (cancel) expect(cancel).toHaveBeenCalledOnce();
   });
@@ -337,7 +339,7 @@ describe("message sign-in doors", () => {
     signedIn();
     fetchState.pending = true;
     await render(createElement(MessagesInboxClient));
-    const signal = fetchState.requests[0].signal;
+    const signal = defined(fetchState.requests[0]).signal;
     await completeCreation();
     expect(fetchState.requests).toHaveLength(2);
     await act(async () => root.render(null));
@@ -351,15 +353,27 @@ describe("message sign-in doors", () => {
     expect(host.textContent).toBe("");
   });
 
+  // A session that answered "nobody" has no inbox to read, so the sign-in
+  // state is the first paint rather than a line that waits on the read. The
+  // server render runs no effect at all, which is the strictest form of "the
+  // read has not landed".
+  it("says sign in on the first paint to a session that has answered nobody", () => {
+    const html = renderToString(createElement(MessagesInboxClient));
+
+    expect(html).toContain("Your conversations show here.");
+    expect(html).toContain('href="/login?mode=signin&amp;from=%2Fmessages"');
+    expect(html).not.toContain("With you in a sec.");
+  });
+
   it("ignores an old anonymous inbox result once the session is signed in", async () => {
     await render(createElement(MessagesInboxClient));
-    expect(host.textContent).toContain("Sign in to message");
+    expect(host.textContent).toContain("Your conversations show here.");
 
     fetchState.pending = true;
     signedIn();
     await render(createElement(MessagesInboxClient));
 
-    expect(host.textContent).not.toContain("Sign in to message");
+    expect(host.textContent).not.toContain("Your conversations show here.");
     await releaseFetch();
   });
 

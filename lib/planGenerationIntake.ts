@@ -12,6 +12,7 @@ import {
   type PlanIntakeStep,
   type PlanTimeWindowId,
 } from "@/lib/planIntake";
+import { clockMinutes } from "@/lib/clock";
 import { NIGHT_PATCHES, type NightPatchId } from "@/lib/nightPatches";
 import type { Budget, NightAreaSlug } from "@/lib/nightPlanning";
 import { isPlanStopCount, normalizePlanStopCount } from "@/lib/planStopCount";
@@ -93,22 +94,19 @@ function presetContainsStart(windowId: PlanTimeWindowId, iso: string): boolean {
   const option = PLAN_TIME_WINDOWS.find((candidate) => candidate.id === windowId);
   const minute = londonClockMinutes(iso);
   if (!option || minute === null) return false;
-  const [startHour, startMinute] = option.start.split(":").map(Number);
-  const start = startHour * 60 + startMinute;
+  const start = clockMinutes(option.start);
   if (option.end === null) return minute >= start || minute < 4 * 60;
-  const [endHour, endMinute] = option.end.split(":").map(Number);
-  return minute >= start && minute < endHour * 60 + endMinute;
+  return minute >= start && minute < clockMinutes(option.end);
 }
 
-function windowEndIso(windowId: PlanTimeWindowId, exactStartIso: string): string | null {
-  const option = PLAN_TIME_WINDOWS.find((candidate) => candidate.id === windowId);
+function windowEndIso(end: string | null, exactStartIso: string): string | null {
   const local = londonDateTimeInputFromIso(exactStartIso);
-  if (!option || !local) return null;
-  if (option.end === null) {
+  if (!local) return null;
+  if (end === null) {
     return new Date(Date.parse(exactStartIso) + 6 * 60 * 60 * 1000).toISOString();
   }
   return londonDateTimeInputToIso(
-    `${local.slice(0, 10)}T${option.end}`,
+    `${local.slice(0, 10)}T${end}`,
     new Date(Date.parse(exactStartIso) - 1),
   );
 }
@@ -134,7 +132,7 @@ function parseTimeWindow(
   if (
     !option
     || value.start !== option.start
-    || value.end !== option.end
+    || (value.end !== null && value.end !== option.end)
     || !Number.isFinite(timestamp)
     || new Date(timestamp).toISOString() !== value.exactStartIso
     || !presetContainsStart(option.id, value.exactStartIso as string)
@@ -149,14 +147,14 @@ function parseTimeWindow(
       message: `Choose a start within the next ${PLAN_GENERATION_HORIZON_DAYS} days.`,
     };
   }
-  const endsAt = windowEndIso(option.id, value.exactStartIso as string);
+  const endsAt = windowEndIso(value.end as string | null, value.exactStartIso as string);
   if (!endsAt || Date.parse(endsAt) <= timestamp) return malformed("Plan intake time window is invalid.");
   return {
     ok: true,
     value: {
       id: option.id,
       start: option.start,
-      end: option.end,
+      end: value.end as string | null,
       exactStartIso: new Date(timestamp).toISOString(),
     },
     routeWindow: { startsAt: new Date(timestamp).toISOString(), endsAt },

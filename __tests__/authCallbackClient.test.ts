@@ -8,9 +8,15 @@ import {
 } from "@/lib/authCallbackClient";
 import { scrubAuthCallback } from "@/lib/authRedirect";
 
+import { accessTokenWithMethod } from "./helpers/authTokens";
+
+const MINTED_ACCESS = accessTokenWithMethod("synthetic-access");
+const FRESH_ACCESS_A = accessTokenWithMethod("fresh-access-a");
+const FRESH_ACCESS = accessTokenWithMethod("fresh-access");
+
 const mintMatchingSession = async (refreshToken: string) => ({
   status: "minted" as const,
-  session: { access_token: "synthetic-access", refresh_token: refreshToken },
+  session: { access_token: MINTED_ACCESS, refresh_token: refreshToken },
 });
 
 describe("explicit implicit-flow callback completion", () => {
@@ -29,7 +35,7 @@ describe("explicit implicit-flow callback completion", () => {
     });
     const setSession = vi.fn().mockResolvedValue({ data: { session: null }, error: null });
     const getUser = vi.fn().mockResolvedValue({
-      data: { user: { id: "account-a", email: "person@example.com" } },
+      data: { user: { id: "account-a", email: "person@example.com", emailConfirmedAt: "2026-01-01T00:00:00.000Z" } },
       error: null,
     });
     const pending = await prepareAuthCallbackSession(
@@ -76,7 +82,10 @@ describe("explicit implicit-flow callback completion", () => {
       { setSession: vi.fn() },
       { accessToken: "synthetic-access", refreshToken: "synthetic-refresh" },
       false,
-      mintMatchingSession,
+      async (refreshToken: string) => ({
+        status: "minted" as const,
+        session: { access_token: accessTokenWithMethod("a", "magiclink"), refresh_token: refreshToken },
+      }),
       getUser,
     );
     expect(pending).toMatchObject({
@@ -118,12 +127,12 @@ describe("explicit implicit-flow callback completion", () => {
       error: null,
     }));
     const getUser = vi.fn().mockResolvedValue({
-      data: { user: { id: "account-a", email: "a@example.com" } },
+      data: { user: { id: "account-a", email: "a@example.com", emailConfirmedAt: "2026-01-01T00:00:00.000Z" } },
       error: null,
     });
     const mintSession = vi.fn().mockResolvedValue({
       status: "minted",
-      session: { access_token: "fresh-access-a", refresh_token: "fresh-refresh-a" },
+      session: { access_token: FRESH_ACCESS_A, refresh_token: "fresh-refresh-a" },
     });
     const prepared = await prepareAuthCallbackSession(
       { setSession },
@@ -137,9 +146,9 @@ describe("explicit implicit-flow callback completion", () => {
     expect(setSession).not.toHaveBeenCalled();
     await prepared.confirm();
     expect(getUser).toHaveBeenCalledWith("expiring-access-a");
-    expect(getUser).toHaveBeenCalledWith("fresh-access-a");
+    expect(getUser).toHaveBeenCalledWith(FRESH_ACCESS_A);
     expect(setSession).toHaveBeenCalledWith({
-      access_token: "fresh-access-a",
+      access_token: FRESH_ACCESS_A,
       refresh_token: "fresh-refresh-a",
     });
   });
@@ -152,7 +161,7 @@ describe("explicit implicit-flow callback completion", () => {
       : { data: { user: { id: "account-a", email: "a@example.com", emailConfirmedAt: "2026-01-01T00:00:00.000Z" } }, error: null });
     const mintSession = vi.fn().mockResolvedValue({
       status: "minted",
-      session: { access_token: "fresh-access-a", refresh_token: "fresh-refresh-a" },
+      session: { access_token: FRESH_ACCESS_A, refresh_token: "fresh-refresh-a" },
     });
 
     const prepared = await prepareAuthCallbackSession(
@@ -209,7 +218,8 @@ describe("explicit implicit-flow callback completion", () => {
     expect(setSession).not.toHaveBeenCalled();
 
     getUser.mockResolvedValue({
-      data: { user: { id: "account-a", email: "person@example.com" } }, error: null,
+      data: { user: { id: "account-a", email: "person@example.com", emailConfirmedAt: "2026-01-01T00:00:00.000Z" } },
+      error: null,
     });
     const pending = await prepareAuthCallbackSession(
       { setSession }, tokens, false, mintMatchingSession, getUser,
@@ -291,6 +301,105 @@ describe("explicit implicit-flow callback completion", () => {
   });
 });
 
+describe("unowned callback sign-in method", () => {
+  // Week security review L4: an unowned callback exists for an emailed link
+  // opened in another browser. OAuth and a password always return to the
+  // browser that started them, so a link carrying one is a handed-over session.
+  const verifiedUser = vi.fn().mockResolvedValue({
+    data: { user: { id: "account-a", email: "person@example.com", emailConfirmedAt: "2026-01-01T00:00:00.000Z" } },
+    error: null,
+  });
+  const tokens = { accessToken: "synthetic-access", refreshToken: "synthetic-refresh" };
+  const mintWith = (accessToken: string) => async (refreshToken: string) => ({
+    status: "minted" as const,
+    session: { access_token: accessToken, refresh_token: refreshToken },
+  });
+
+  it.each(["otp", "magiclink", "email/signup"])("offers confirmation for an emailed %s link", async (method) => {
+    const setSession = vi.fn();
+    const pending = await prepareAuthCallbackSession(
+      { setSession }, tokens, false, mintWith(accessTokenWithMethod("a", method)), verifiedUser,
+    );
+    expect(pending.status).toBe("confirmation-required");
+    expect(setSession).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ["an OAuth session", accessTokenWithMethod("a", "oauth")],
+    ["a password session", accessTokenWithMethod("a", "password")],
+    ["a token with no amr", "header.e30.signature"],
+    ["an opaque token", "opaque-access"],
+  ])("refuses %s handed over in a link", async (_name, mintedAccess) => {
+    const setSession = vi.fn();
+    const pending = await prepareAuthCallbackSession(
+      { setSession }, tokens, false, mintWith(mintedAccess), verifiedUser,
+    );
+    expect(pending).toEqual({ status: "verification-failed" });
+    expect(setSession).not.toHaveBeenCalled();
+  });
+
+  // GoTrue records amr `otp` for an emailed link and an SMS code alike. This
+  // app has no phone sign-in, so only the account's confirmed phone tells them apart.
+  const providerUser = (user: object) => (accessToken: string) => fetchAuthCallbackUser(accessToken, {
+    authConfig: { url: "https://provider.example", key: "public-key" },
+    fetchImpl: vi.fn<typeof fetch>(async () => new Response(JSON.stringify(user))),
+  });
+
+  it("refuses an SMS code session handed over in a link", async () => {
+    const setSession = vi.fn();
+    const pending = await prepareAuthCallbackSession(
+      { setSession }, tokens, false, mintWith(accessTokenWithMethod("a", "otp")),
+      providerUser({
+        id: "account-a",
+        email: "person@example.com",
+        email_confirmed_at: "2026-01-01T00:00:00.000Z",
+        phone: "447700900123",
+        phone_confirmed_at: "2026-01-01T00:00:00.000Z",
+      }),
+    );
+    expect(pending).toEqual({ status: "verification-failed" });
+    expect(setSession).not.toHaveBeenCalled();
+  });
+
+  it("refuses an otp session whose account has no confirmed email", async () => {
+    const setSession = vi.fn();
+    const pending = await prepareAuthCallbackSession(
+      { setSession }, tokens, false, mintWith(accessTokenWithMethod("a", "otp")),
+      providerUser({ id: "account-a", email: "person@example.com", email_confirmed_at: null }),
+    );
+    expect(pending).toEqual({ status: "verification-failed" });
+    expect(setSession).not.toHaveBeenCalled();
+  });
+
+  it.each(["otp", "magiclink"])("offers confirmation for an emailed %s link read from the provider", async (method) => {
+    const setSession = vi.fn();
+    const pending = await prepareAuthCallbackSession(
+      { setSession }, tokens, false, mintWith(accessTokenWithMethod("a", method)),
+      providerUser({
+        id: "account-a",
+        email: "person@example.com",
+        email_confirmed_at: "2026-01-01T00:00:00.000Z",
+        phone: "",
+        phone_confirmed_at: null,
+      }),
+    );
+    expect(pending).toMatchObject({
+      status: "confirmation-required",
+      identity: { userId: "account-a", label: "person@example.com" },
+    });
+    expect(setSession).not.toHaveBeenCalled();
+  });
+
+  it("keeps a callback this browser started immediate whatever its method", async () => {
+    const setSession = vi.fn().mockResolvedValue({ data: { session: { user: { id: "account-a" } } }, error: null });
+    const pending = await prepareAuthCallbackSession(
+      { setSession }, tokens, true, mintWith(accessTokenWithMethod("a", "oauth")), verifiedUser,
+    );
+    expect(pending.status).toBe("established");
+    expect(setSession).toHaveBeenCalledOnce();
+  });
+});
+
 describe("callback identity verification failures", () => {
   const expiryMessage = "invalid JWT: unable to parse or verify signature, token has invalid claims: token is expired";
   const expiredAccess = `header.${btoa(JSON.stringify({ sub: "account-a", exp: 1 }))}.signature`;
@@ -352,16 +461,16 @@ describe("callback identity verification failures", () => {
     try {
       const prepared = await prepareAuthCallbackSession(
         { setSession }, { accessToken, refreshToken: "refresh-a" }, false,
-        async () => ({ status: "minted", session: { access_token: "fresh-access", refresh_token: "rotated-refresh-a" } }),
+        async () => ({ status: "minted", session: { access_token: FRESH_ACCESS, refresh_token: "rotated-refresh-a" } }),
         getUser,
       );
       expect(prepared.status).toBe(refreshedId === "account-a" ? "confirmation-required" : "verification-failed");
-      expect(getUser).toHaveBeenCalledWith("fresh-access");
+      expect(getUser).toHaveBeenCalledWith(FRESH_ACCESS);
       expect(setSession).not.toHaveBeenCalled();
       if (prepared.status === "confirmation-required") {
         expect(prepared.identity).toEqual({ userId: "account-a", label: "account-a@example.com" });
         await prepared.confirm();
-        expect(setSession).toHaveBeenCalledWith({ access_token: "fresh-access", refresh_token: "rotated-refresh-a" });
+        expect(setSession).toHaveBeenCalledWith({ access_token: FRESH_ACCESS, refresh_token: "rotated-refresh-a" });
       }
     } finally {
       browserClock.mockRestore();
@@ -402,7 +511,7 @@ describe("callback identity verification failures", () => {
     const setSession = vi.fn().mockResolvedValue({ data: { session: null }, error: null });
     const prepared = await prepareAuthCallbackSession(
       { setSession }, { accessToken: expiredAccess, refreshToken: "refresh-a" }, false,
-      async () => ({ status: "minted", session: { access_token: "fresh-access", refresh_token: "rotated-refresh-a" } }),
+      async () => ({ status: "minted", session: { access_token: FRESH_ACCESS, refresh_token: "rotated-refresh-a" } }),
       (token) => fetchAuthCallbackUser(token, {
         authConfig: { url: "https://provider.example", key: "public-key" }, fetchImpl,
       }),
@@ -415,7 +524,7 @@ describe("callback identity verification failures", () => {
     if (prepared.status === "confirmation-required") {
       expect(prepared.identity).toEqual({ userId: "account-a", label: "account-a@example.com" });
       await prepared.confirm();
-      expect(setSession).toHaveBeenCalledWith({ access_token: "fresh-access", refresh_token: "rotated-refresh-a" });
+      expect(setSession).toHaveBeenCalledWith({ access_token: FRESH_ACCESS, refresh_token: "rotated-refresh-a" });
     }
   });
 
@@ -426,7 +535,7 @@ describe("callback identity verification failures", () => {
     await expect(fetchAuthCallbackUser("access-a", {
       authConfig: { url: "https://provider.example", key: "public-key" }, fetchImpl,
     })).resolves.toEqual({
-      data: { user: { id: "account-a", email: "a@example.com", emailConfirmedAt: null } },
+      data: { user: { id: "account-a", email: "a@example.com", emailConfirmedAt: null, phoneConfirmedAt: null } },
       error: null,
     });
     expect(fetchImpl).toHaveBeenCalledWith("https://provider.example/auth/v1/user", expect.objectContaining({

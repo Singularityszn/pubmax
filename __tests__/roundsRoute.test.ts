@@ -236,6 +236,7 @@ import {
   __resetMemoryPrivateIdentities,
   memoryPrivateIdentityStore,
 } from "@/lib/privateIdentityStore";
+import { defined } from "@/__tests__/helpers/defined";
 
 const CREATE_URL = "http://localhost/api/rounds";
 
@@ -374,8 +375,8 @@ describe("GET /api/rounds/[code]", () => {
     }
 
     expect(responses.slice(0, 120).every((res) => res.status === 200)).toBe(true);
-    expect(responses[120].status).toBe(429);
-    expect(await responses[120].json()).toEqual({ error: "Too many requests, slow down.", code: "RATE_LIMITED", retryable: true });
+    expect(defined(responses[120]).status).toBe(429);
+    expect(await defined(responses[120]).json()).toEqual({ error: "Too many requests, slow down.", code: "RATE_LIMITED", retryable: true });
   });
 });
 
@@ -734,8 +735,8 @@ describe("POST /api/rounds/[code] — actions", () => {
     ]);
     const merged = mergeCommunityPriceSignals(
       baseline,
-      new Map([["venue-1", rows[0]]]),
-      rows[0].submittedAt,
+      new Map([["venue-1", defined(rows[0])]]),
+      defined(rows[0]).submittedAt,
     );
     expect(merged).toBe(baseline);
     expect(merged.get("venue-1")?.latestContributorPrice).toBeNull();

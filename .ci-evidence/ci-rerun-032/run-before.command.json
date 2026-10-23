@@ -1,0 +1,14 @@
+{
+  "name": "run-before",
+  "argv": [
+    "gh-axi",
+    "api",
+    "/repos/Singularityszn/pubmax/actions/runs/38097088260",
+    "--full"
+  ],
+  "startedAt": "2026-10-11T01:19:18.302967+00:00",
+  "completedAt": "2026-10-11T01:19:18.733617+00:00",
+  "exitCode": 0,
+  "stdoutSHA256": "3ab748f511533edb7ed907224cbe368c1af02b6018882afcb2e76d3be0f3b62b",
+  "stderrSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+}

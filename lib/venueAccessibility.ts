@@ -145,5 +145,5 @@ export function accessibilityFilterSummary(
     active.length === 1
       ? active[0]
       : `${active.slice(0, -1).join(", ")} and ${active[active.length - 1]}`;
-  return `Only showing pubs with confirmed ${phrase}. ${confirmedCount} confirmed so far; help by spilling what you know.`;
+  return `Only showing pubs with confirmed ${phrase}. Pubs without confirmed access details are left out. ${confirmedCount} confirmed so far; help by spilling what you know.`;
 }

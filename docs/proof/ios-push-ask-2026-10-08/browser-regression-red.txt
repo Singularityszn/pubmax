@@ -1,0 +1,222 @@
+npm notice run pubmaxxing@0.1.0 npx
+npm notice run 'playwright' test -c artifacts/ios-push-ask-2026-10-08/suite.config.ts --grep native push ask survives
+[WebServer] npm notice run pubmaxxing@0.1.0 start
+[WebServer] npm notice run node -e "const d=process.env.NEXT_DIST_DIR||'.next'; require('fs').existsSync(d+'/BUILD_ID') || (console.error('\n\u2717 '+d+'/BUILD_ID is missing \u2014 there is no completed production build to serve.\n  Run npm run build to completion first. In this shared worktree a concurrent next dev/next build can clobber .next mid-build and leave it partial; for isolated production QA use NEXT_DIST_DIR=.next-prod.\n'), process.exit(1))" && next start --port 3417
+[WebServer] (node:72421) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+[WebServer] ▲ Next.js 16.3.8
+[WebServer] - Local:         http://localhost:3417
+[WebServer] - Network:       http://192.168.0.41:3417
+[WebServer] ✓ Ready in 167ms
+[WebServer] ✓ Running next.config.mjs took 586ms
+
+Running 4 tests using 1 worker
+
+(node:74085) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+[WebServer] {"level":"info","event":"http.request","route":"citymcp/status","method":"GET","status":200,"durationMs":343,"ts":1791461647565}
+[WebServer] {"level":"info","event":"http.request","route":"citymcp/things-to-do","method":"GET","status":200,"durationMs":142,"ts":1791461647735}
+[WebServer] {"level":"info","event":"http.request","route":"citymcp/journey","method":"GET","status":200,"durationMs":150,"ts":1791461647796}
+[WebServer] {"level":"info","event":"http.request","route":"citymcp/journey","method":"GET","status":200,"durationMs":726,"ts":1791461648369}
+[WebServer] {"level":"info","event":"http.request","route":"citymcp/things-to-do","method":"GET","status":200,"durationMs":0,"ts":1791461648666}
+[WebServer] {"level":"info","event":"out.supply","city":"london","day":"today","baselineRows":0,"liveRows":0,"providers":["skiddle:not-configured:0","ticketmaster:not-configured:0"],"folded":0,"inWindow":0,"served":0,"matchedAtRequest":0,"matched":0,"unmatched":0,"venueMatch":"ready","ts":1791461648701}
+[WebServer] {"level":"info","event":"http.request","route":"out","method":"GET","status":200,"durationMs":7,"ts":1791461648702}
+  ✘  1 [push-journeys] › e2e/native-push-ask-lifecycle.spec.ts:12:9 › native push ask survives map arrival teardown after Plan my night in light (13.6s)
+(node:84174) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+[WebServer] {"level":"info","event":"out.supply","city":"london","day":"today","baselineRows":0,"liveRows":0,"providers":["skiddle:not-configured:0","ticketmaster:not-configured:0"],"folded":0,"inWindow":0,"served":0,"matchedAtRequest":0,"matched":0,"unmatched":0,"venueMatch":"ready","ts":1791461660899}
+[WebServer] {"level":"info","event":"http.request","route":"out","method":"GET","status":200,"durationMs":1,"ts":1791461660899}
+[WebServer] {"level":"info","event":"http.request","route":"citymcp/status","method":"GET","status":200,"durationMs":0,"ts":1791461661396}
+[WebServer] {"level":"info","event":"http.request","route":"citymcp/journey","method":"GET","status":200,"durationMs":147,"ts":1791461661589}
+[WebServer] {"level":"info","event":"http.request","route":"citymcp/journey","method":"GET","status":200,"durationMs":202,"ts":1791461661646}
+[WebServer] {"level":"info","event":"http.request","route":"citymcp/journey","method":"GET","status":200,"durationMs":1,"ts":1791461661753}
+[WebServer] {"level":"info","event":"http.request","route":"citymcp/journey","method":"GET","status":200,"durationMs":0,"ts":1791461661754}
+[WebServer] {"level":"info","event":"http.request","route":"citymcp/things-to-do","method":"GET","status":200,"durationMs":0,"ts":1791461661863}
+[WebServer] {"level":"info","event":"http.request","route":"citymcp/things-to-do","method":"GET","status":200,"durationMs":0,"ts":1791461662470}
+[WebServer] {"level":"info","event":"out.supply","city":"london","day":"today","baselineRows":0,"liveRows":0,"providers":["skiddle:not-configured:0","ticketmaster:not-configured:0"],"folded":0,"inWindow":0,"served":0,"matchedAtRequest":0,"matched":0,"unmatched":0,"venueMatch":"ready","ts":1791461662534}
+[WebServer] {"level":"info","event":"http.request","route":"out","method":"GET","status":200,"durationMs":1,"ts":1791461662535}
+  ✘  2 [push-journeys] › e2e/native-push-ask-lifecycle.spec.ts:12:9 › native push ask survives map arrival teardown after Skip in light (12.8s)
+(node:94258) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+[WebServer] {"level":"info","event":"http.request","route":"citymcp/status","method":"GET","status":200,"durationMs":1,"ts":1791461675311}
+[WebServer] {"level":"info","event":"http.request","route":"citymcp/journey","method":"GET","status":200,"durationMs":0,"ts":1791461675381}
+[WebServer] {"level":"info","event":"http.request","route":"citymcp/journey","method":"GET","status":200,"durationMs":0,"ts":1791461675383}
+[WebServer] {"level":"info","event":"http.request","route":"citymcp/journey","method":"GET","status":200,"durationMs":0,"ts":1791461675622}
+[WebServer] {"level":"info","event":"http.request","route":"citymcp/journey","method":"GET","status":200,"durationMs":0,"ts":1791461675624}
+[WebServer] {"level":"info","event":"http.request","route":"citymcp/things-to-do","method":"GET","status":200,"durationMs":0,"ts":1791461675751}
+[WebServer] {"level":"info","event":"http.request","route":"citymcp/journey","method":"GET","status":200,"durationMs":632,"ts":1791461676049}
+[WebServer] {"level":"info","event":"out.supply","city":"london","day":"today","baselineRows":0,"liveRows":0,"providers":["skiddle:not-configured:0","ticketmaster:not-configured:0"],"folded":0,"inWindow":0,"served":0,"matchedAtRequest":0,"matched":0,"unmatched":0,"venueMatch":"ready","ts":1791461676421}
+[WebServer] {"level":"info","event":"http.request","route":"out","method":"GET","status":200,"durationMs":1,"ts":1791461676422}
+[WebServer] {"level":"info","event":"http.request","route":"citymcp/journey","method":"GET","status":200,"durationMs":1193,"ts":1791461676612}
+  ✘  3 [push-journeys] › e2e/native-push-ask-lifecycle.spec.ts:12:9 › native push ask survives map arrival teardown after Plan my night in dark (12.9s)
+(node:6852) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+[WebServer] {"level":"info","event":"out.supply","city":"london","day":"today","baselineRows":0,"liveRows":0,"providers":["skiddle:not-configured:0","ticketmaster:not-configured:0"],"folded":0,"inWindow":0,"served":0,"matchedAtRequest":0,"matched":0,"unmatched":0,"venueMatch":"ready","ts":1791461688574}
+[WebServer] {"level":"info","event":"http.request","route":"out","method":"GET","status":200,"durationMs":1,"ts":1791461688574}
+[WebServer] {"level":"info","event":"http.request","route":"citymcp/status","method":"GET","status":200,"durationMs":0,"ts":1791461689085}
+[WebServer] {"level":"info","event":"http.request","route":"citymcp/journey","method":"GET","status":200,"durationMs":0,"ts":1791461689138}
+[WebServer] {"level":"info","event":"http.request","route":"citymcp/journey","method":"GET","status":200,"durationMs":0,"ts":1791461689140}
+[WebServer] {"level":"info","event":"http.request","route":"citymcp/journey","method":"GET","status":200,"durationMs":0,"ts":1791461689165}
+[WebServer] {"level":"info","event":"http.request","route":"citymcp/journey","method":"GET","status":200,"durationMs":0,"ts":1791461689167}
+[WebServer] {"level":"info","event":"http.request","route":"citymcp/journey","method":"GET","status":200,"durationMs":0,"ts":1791461689362}
+[WebServer] {"level":"info","event":"http.request","route":"citymcp/journey","method":"GET","status":200,"durationMs":0,"ts":1791461689364}
+[WebServer] {"level":"info","event":"http.request","route":"citymcp/things-to-do","method":"GET","status":200,"durationMs":0,"ts":1791461689480}
+[WebServer] {"level":"info","event":"http.request","route":"citymcp/journey","method":"GET","status":200,"durationMs":649,"ts":1791461689888}
+[WebServer] {"level":"info","event":"out.supply","city":"london","day":"today","baselineRows":0,"liveRows":0,"providers":["skiddle:not-configured:0","ticketmaster:not-configured:0"],"folded":0,"inWindow":0,"served":0,"matchedAtRequest":0,"matched":0,"unmatched":0,"venueMatch":"ready","ts":1791461690044}
+[WebServer] {"level":"info","event":"http.request","route":"out","method":"GET","status":200,"durationMs":2,"ts":1791461690045}
+  ✘  4 [push-journeys] › e2e/native-push-ask-lifecycle.spec.ts:12:9 › native push ask survives map arrival teardown after Skip in dark (12.6s)
+
+
+  1) [push-journeys] › e2e/native-push-ask-lifecycle.spec.ts:12:9 › native push ask survives map arrival teardown after Plan my night in light
+
+    Error: expect(locator).toBeVisible() failed
+
+    Locator: getByRole('dialog', { name: 'Know when tonight changes' })
+    Expected: visible
+    Timeout: 10000ms
+    Error: element(s) not found
+
+    Call log:
+      - Expect "toBeVisible" getByRole('dialog', { name: 'Know when tonight changes' }) with timeout 10000ms
+      - waiting for getByRole('dialog', { name: 'Know when tonight changes' })
+
+
+      69 |       expect(await page.evaluate(() => performance.timeOrigin)).toBe(documentStartedAt);
+      70 |       await expectStreamedPageSettled(page);
+    > 71 |       await expect(ask).toBeVisible();
+         |                         ^
+      72 |       await expect(page.getByText(NATIVE_PUSH_PROMPT_COPY.body)).toBeVisible();
+      73 |       await expect(page.getByRole("complementary", { name: "First visit" })).toHaveCount(0);
+      74 |       await test.info().attach("Tonight push ask", {
+        at /Users/karanmanoharan/.treehouse/pubmaxx-bde241/13/pubmaxx/e2e/native-push-ask-lifecycle.spec.ts:71:25
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    artifacts/ios-push-ask-2026-10-08/browser-regression-red/native-push-ask-lifecycle--51291-fter-Plan-my-night-in-light-push-journeys/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: artifacts/ios-push-ask-2026-10-08/browser-regression-red/native-push-ask-lifecycle--51291-fter-Plan-my-night-in-light-push-journeys/error-context.md
+
+    attachment #3: trace (application/zip) ─────────────────────────────────────────────────────────
+    artifacts/ios-push-ask-2026-10-08/browser-regression-red/native-push-ask-lifecycle--51291-fter-Plan-my-night-in-light-push-journeys/trace.zip
+    Usage:
+
+        npx playwright show-trace artifacts/ios-push-ask-2026-10-08/browser-regression-red/native-push-ask-lifecycle--51291-fter-Plan-my-night-in-light-push-journeys/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  2) [push-journeys] › e2e/native-push-ask-lifecycle.spec.ts:12:9 › native push ask survives map arrival teardown after Skip in light
+
+    Error: expect(locator).toBeVisible() failed
+
+    Locator: getByRole('dialog', { name: 'Know when tonight changes' })
+    Expected: visible
+    Timeout: 10000ms
+    Error: element(s) not found
+
+    Call log:
+      - Expect "toBeVisible" getByRole('dialog', { name: 'Know when tonight changes' }) with timeout 10000ms
+      - waiting for getByRole('dialog', { name: 'Know when tonight changes' })
+
+
+      69 |       expect(await page.evaluate(() => performance.timeOrigin)).toBe(documentStartedAt);
+      70 |       await expectStreamedPageSettled(page);
+    > 71 |       await expect(ask).toBeVisible();
+         |                         ^
+      72 |       await expect(page.getByText(NATIVE_PUSH_PROMPT_COPY.body)).toBeVisible();
+      73 |       await expect(page.getByRole("complementary", { name: "First visit" })).toHaveCount(0);
+      74 |       await test.info().attach("Tonight push ask", {
+        at /Users/karanmanoharan/.treehouse/pubmaxx-bde241/13/pubmaxx/e2e/native-push-ask-lifecycle.spec.ts:71:25
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    artifacts/ios-push-ask-2026-10-08/browser-regression-red/native-push-ask-lifecycle--4e09d-eardown-after-Skip-in-light-push-journeys/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: artifacts/ios-push-ask-2026-10-08/browser-regression-red/native-push-ask-lifecycle--4e09d-eardown-after-Skip-in-light-push-journeys/error-context.md
+
+    attachment #3: trace (application/zip) ─────────────────────────────────────────────────────────
+    artifacts/ios-push-ask-2026-10-08/browser-regression-red/native-push-ask-lifecycle--4e09d-eardown-after-Skip-in-light-push-journeys/trace.zip
+    Usage:
+
+        npx playwright show-trace artifacts/ios-push-ask-2026-10-08/browser-regression-red/native-push-ask-lifecycle--4e09d-eardown-after-Skip-in-light-push-journeys/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  3) [push-journeys] › e2e/native-push-ask-lifecycle.spec.ts:12:9 › native push ask survives map arrival teardown after Plan my night in dark
+
+    Error: expect(locator).toBeVisible() failed
+
+    Locator: getByRole('dialog', { name: 'Know when tonight changes' })
+    Expected: visible
+    Timeout: 10000ms
+    Error: element(s) not found
+
+    Call log:
+      - Expect "toBeVisible" getByRole('dialog', { name: 'Know when tonight changes' }) with timeout 10000ms
+      - waiting for getByRole('dialog', { name: 'Know when tonight changes' })
+
+
+      69 |       expect(await page.evaluate(() => performance.timeOrigin)).toBe(documentStartedAt);
+      70 |       await expectStreamedPageSettled(page);
+    > 71 |       await expect(ask).toBeVisible();
+         |                         ^
+      72 |       await expect(page.getByText(NATIVE_PUSH_PROMPT_COPY.body)).toBeVisible();
+      73 |       await expect(page.getByRole("complementary", { name: "First visit" })).toHaveCount(0);
+      74 |       await test.info().attach("Tonight push ask", {
+        at /Users/karanmanoharan/.treehouse/pubmaxx-bde241/13/pubmaxx/e2e/native-push-ask-lifecycle.spec.ts:71:25
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    artifacts/ios-push-ask-2026-10-08/browser-regression-red/native-push-ask-lifecycle--be56c-after-Plan-my-night-in-dark-push-journeys/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: artifacts/ios-push-ask-2026-10-08/browser-regression-red/native-push-ask-lifecycle--be56c-after-Plan-my-night-in-dark-push-journeys/error-context.md
+
+    attachment #3: trace (application/zip) ─────────────────────────────────────────────────────────
+    artifacts/ios-push-ask-2026-10-08/browser-regression-red/native-push-ask-lifecycle--be56c-after-Plan-my-night-in-dark-push-journeys/trace.zip
+    Usage:
+
+        npx playwright show-trace artifacts/ios-push-ask-2026-10-08/browser-regression-red/native-push-ask-lifecycle--be56c-after-Plan-my-night-in-dark-push-journeys/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  4) [push-journeys] › e2e/native-push-ask-lifecycle.spec.ts:12:9 › native push ask survives map arrival teardown after Skip in dark
+
+    Error: expect(locator).toBeVisible() failed
+
+    Locator: getByRole('dialog', { name: 'Know when tonight changes' })
+    Expected: visible
+    Timeout: 10000ms
+    Error: element(s) not found
+
+    Call log:
+      - Expect "toBeVisible" getByRole('dialog', { name: 'Know when tonight changes' }) with timeout 10000ms
+      - waiting for getByRole('dialog', { name: 'Know when tonight changes' })
+
+
+      69 |       expect(await page.evaluate(() => performance.timeOrigin)).toBe(documentStartedAt);
+      70 |       await expectStreamedPageSettled(page);
+    > 71 |       await expect(ask).toBeVisible();
+         |                         ^
+      72 |       await expect(page.getByText(NATIVE_PUSH_PROMPT_COPY.body)).toBeVisible();
+      73 |       await expect(page.getByRole("complementary", { name: "First visit" })).toHaveCount(0);
+      74 |       await test.info().attach("Tonight push ask", {
+        at /Users/karanmanoharan/.treehouse/pubmaxx-bde241/13/pubmaxx/e2e/native-push-ask-lifecycle.spec.ts:71:25
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    artifacts/ios-push-ask-2026-10-08/browser-regression-red/native-push-ask-lifecycle--10d2f-teardown-after-Skip-in-dark-push-journeys/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: artifacts/ios-push-ask-2026-10-08/browser-regression-red/native-push-ask-lifecycle--10d2f-teardown-after-Skip-in-dark-push-journeys/error-context.md
+
+    attachment #3: trace (application/zip) ─────────────────────────────────────────────────────────
+    artifacts/ios-push-ask-2026-10-08/browser-regression-red/native-push-ask-lifecycle--10d2f-teardown-after-Skip-in-dark-push-journeys/trace.zip
+    Usage:
+
+        npx playwright show-trace artifacts/ios-push-ask-2026-10-08/browser-regression-red/native-push-ask-lifecycle--10d2f-teardown-after-Skip-in-dark-push-journeys/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  4 failed
+    [push-journeys] › e2e/native-push-ask-lifecycle.spec.ts:12:9 › native push ask survives map arrival teardown after Plan my night in light
+    [push-journeys] › e2e/native-push-ask-lifecycle.spec.ts:12:9 › native push ask survives map arrival teardown after Skip in light
+    [push-journeys] › e2e/native-push-ask-lifecycle.spec.ts:12:9 › native push ask survives map arrival teardown after Plan my night in dark
+    [push-journeys] › e2e/native-push-ask-lifecycle.spec.ts:12:9 › native push ask survives map arrival teardown after Skip in dark

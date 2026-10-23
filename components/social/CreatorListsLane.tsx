@@ -150,9 +150,13 @@ export function CreatorListsContent({
     <section className="creatorListsLane" aria-labelledby="creator-lists-title">
       <h2 id="creator-lists-title">Creator lists</h2>
       {status === "loading" ? (
-        <p className="creatorListsState" role="status">
-          Loading creator lists…
-        </p>
+        // The empty and unavailable answers both settle as a line and a
+        // control row, so the read holds that row: the Discover board below
+        // the lane on /social does not jump 52px when it lands.
+        <div className="creatorListsState" role="status">
+          <p>Loading creator lists…</p>
+          <span className="creatorListsControlHold" aria-hidden="true" />
+        </div>
       ) : status === "unavailable" ? (
         <div className="creatorListsState" role="status">
           <p>We could not reach creator lists.</p>
@@ -161,7 +165,7 @@ export function CreatorListsContent({
       ) : lists.length === 0 ? (
         <div className="creatorListsState">
           <p>No creators have shared a list yet.</p>
-          <Link href="/map">Find venues on Map</Link>
+          <Link href="/map">Find venues on the map</Link>
         </div>
       ) : (
         <ul className="creatorListsGrid">
@@ -205,7 +209,7 @@ export function CreatorListsContent({
                     href={list.mapUrl}
                     onClick={() => trackEvent("creator_list_map_opened")}
                   >
-                    Open Map
+                    Open map
                   </Link>
                   <Link
                     className="creatorListPlanAction"

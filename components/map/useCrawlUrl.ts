@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef } from "react";
 
 import { encodeCrawl, seedCrawlState, type CrawlUrlState } from "@/lib/crawlUrl";
+import { isDrinkShapeArrival } from "@/lib/mapArrival";
 
 // (a) seedCrawlState reads the URL once on mount for a lazy useState initializer;
 // (b) useCrawlUrlSync writes crawl state back to the URL via history.replaceState,
@@ -38,6 +39,7 @@ export function mergeCrawlUrlSearch(
   encodedSearch: string,
   liveSearch: string,
   preserveCrawlParam = false,
+  preserveBeerParam = false,
 ): string {
   const params = new URLSearchParams(encodedSearch);
   const live = new URLSearchParams(liveSearch);
@@ -48,6 +50,10 @@ export function mergeCrawlUrlSearch(
   const crawl = live.get("crawl");
   if (preserveCrawlParam && crawl !== null && !params.has("crawl")) {
     params.set("crawl", crawl);
+  }
+  if (preserveBeerParam && live.get("drink") === "beer" && !params.has("drink")
+    && !isDrinkShapeArrival(liveSearch)) {
+    params.set("drink", "beer");
   }
   return params.toString();
 }
@@ -72,11 +78,12 @@ export function crawlUrlWriteAllowed(
   return hold === null || encoded !== hold.encodedAtMount;
 }
 
-function writeCrawlUrl(encoded: string, preserveCrawlParam: boolean): void {
+function writeCrawlUrl(encoded: string, preserveCrawlParam: boolean, preserveBeerParam: boolean): void {
   const query = mergeCrawlUrlSearch(
     encoded,
     window.location.search,
     preserveCrawlParam,
+    preserveBeerParam,
   );
   const url = query
     ? `${window.location.pathname}?${query}${window.location.hash}`
@@ -93,11 +100,13 @@ const CRAWL_CONTEXT_PARAMS = [
   "zone", "pubs", "band", "alt", "crawl",
 ] as const;
 
-function writeLandedCrawlContext(encoded: string, preserveCrawlParam: boolean): void {
+function writeLandedCrawlContext(encoded: string, preserveCrawlParam: boolean, preserveBeerParam: boolean): void {
   // The landed entry owns selection, intents and place context. Only Map
   // filters changed while a surface was open cross this history boundary.
   const live = new URLSearchParams(window.location.search);
-  const selected = new URLSearchParams(encoded);
+  const selected = new URLSearchParams(mergeCrawlUrlSearch(
+    encoded, window.location.search, preserveCrawlParam, preserveBeerParam,
+  ));
   for (const key of CRAWL_CONTEXT_PARAMS) {
     const value = selected.get(key);
     if (key === "crawl" && preserveCrawlParam && value === null) continue;
@@ -121,11 +130,45 @@ export function useCrawlUrlSync(
   const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const hold = useRef<CleanUrlHold | undefined>(undefined);
   const crawlHold = useRef<CleanUrlHold | undefined>(undefined);
-  const latestWrite = useRef<{ encoded: string; preserveCrawlParam: boolean } | null>(null);
+  const beerShareHold = useRef<CleanUrlHold | undefined>(undefined);
+  const latestWrite = useRef<{
+    encoded: string; preserveCrawlParam: boolean; preserveBeerParam: boolean;
+  } | null>(null);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
     const encoded = encodeCrawl(state);
+    // Keep a shared explicit default only for its original plan context.
+    // Selection and hydrated curated identity do not change the drink choice.
+    const beerContextParams = new URLSearchParams(encoded);
+    for (const key of ["sel", "landmark", "crawl"]) beerContextParams.delete(key);
+    const beerContext = beerContextParams.toString();
+    if (beerShareHold.current === undefined) {
+      const live = new URLSearchParams(window.location.search);
+      const candidate = new URLSearchParams(beerContext);
+      const isDefaultLane = !candidate.has("drink");
+      candidate.set("drink", "beer");
+      beerShareHold.current = isDefaultLane && live.get("drink") === "beer"
+        && !isDrinkShapeArrival(window.location.search)
+        && !isDrinkShapeArrival(`?${candidate}`)
+        ? { encodedAtMount: beerContext } : null;
+    }
+    if (beerShareHold.current !== null && beerShareHold.current.encodedAtMount !== beerContext) {
+      const original = new URLSearchParams(beerShareHold.current.encodedAtMount);
+      const hydrated = new URLSearchParams(beerContext);
+      for (const key of ["style", "alt"]) {
+        original.delete(key);
+        hydrated.delete(key);
+      }
+      // The pending catalogue lookup may supply its style and display with
+      // its first resolved identity. Every other plan choice must still match.
+      const resolvedCuratedContext = crawlHold.current != null
+        && !holdSeededCrawlParam && Boolean(state.crawlId)
+        && !new URLSearchParams(crawlHold.current.encodedAtMount).has("crawl")
+        && original.toString() === hydrated.toString();
+      beerShareHold.current = resolvedCuratedContext ? { encodedAtMount: beerContext } : null;
+    }
+    const preserveBeerParam = beerShareHold.current !== null;
     if (hold.current === undefined) {
       hold.current = holdCleanUrl ? { encodedAtMount: encoded } : null;
     }
@@ -142,9 +185,9 @@ export function useCrawlUrlSync(
       crawlHold.current !== undefined &&
       holdSeededCrawlParam;
     if (!holdSeededCrawlParam) crawlHold.current = null;
-    latestWrite.current = { encoded, preserveCrawlParam };
+    latestWrite.current = { encoded, preserveCrawlParam, preserveBeerParam };
     if (timer.current) clearTimeout(timer.current);
-    timer.current = setTimeout(() => writeCrawlUrl(encoded, preserveCrawlParam), CRAWL_URL_DEBOUNCE_MS);
+    timer.current = setTimeout(() => writeCrawlUrl(encoded, preserveCrawlParam, preserveBeerParam), CRAWL_URL_DEBOUNCE_MS);
 
     return () => {
       if (timer.current) clearTimeout(timer.current);
@@ -154,8 +197,8 @@ export function useCrawlUrlSync(
   return useCallback(() => {
     if (timer.current) clearTimeout(timer.current);
     if (latestWrite.current !== null) {
-      const { encoded, preserveCrawlParam } = latestWrite.current;
-      writeLandedCrawlContext(encoded, preserveCrawlParam);
+      const { encoded, preserveCrawlParam, preserveBeerParam } = latestWrite.current;
+      writeLandedCrawlContext(encoded, preserveCrawlParam, preserveBeerParam);
     }
   }, []);
 }

@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 
 import { act, createElement } from "react";
+import { renderToStaticMarkup } from "react-dom/server";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -49,6 +50,49 @@ afterEach(() => {
   container.remove();
 });
 
+describe("ShareBar emitted links", () => {
+  it("uses the production origin for both anchors, copy, and native share", async () => {
+    vi.stubEnv("NODE_ENV", "production");
+    vi.stubEnv("NEXT_PUBLIC_SITE_URL", "https://pubmaxxing.com");
+    const previousShare = Object.getOwnPropertyDescriptor(navigator, "share");
+    const share = vi.fn().mockResolvedValue(undefined);
+    Object.defineProperty(navigator, "share", { configurable: true, value: share });
+    try {
+      await render("/plan/abc?vibe=quiet-pint#invite=token");
+      const expected = "https://pubmaxxing.com/plan/abc?vibe=quiet-pint#invite=token";
+      const whatsapp = new URL(container.querySelector<HTMLAnchorElement>('a[aria-label="Share on WhatsApp"]')!.href);
+      const tweet = new URL(container.querySelector<HTMLAnchorElement>('a[aria-label="Share on X"]')!.href);
+      expect(whatsapp.searchParams.get("text")).toBe(`A night out ${expected}`);
+      expect(tweet.searchParams.get("url")).toBe(expected);
+      await copyLink();
+      expect(navigator.clipboard.writeText).toHaveBeenCalledWith(expected);
+      await act(async () => { container.querySelector<HTMLButtonElement>('button[aria-label="Share to another app"]')!.click(); });
+      expect(share).toHaveBeenCalledWith({ title: "A night out", text: "A night out", url: expected });
+    } finally {
+      if (previousShare) Object.defineProperty(navigator, "share", previousShare);
+      else Reflect.deleteProperty(navigator, "share");
+      vi.unstubAllEnvs();
+    }
+  });
+
+  it("emits absolute invite URLs during SSR and after mounting", async () => {
+    const path = "/plan/abc?vibe=date-night#invite=secret-token";
+    const server = document.createElement("div");
+    server.innerHTML = renderToStaticMarkup(createElement(ShareBar, { url: path, title: "A night out" }));
+    const assertLinks = (element: HTMLDivElement, expected: string) => {
+      const whatsapp = new URL(element.querySelector<HTMLAnchorElement>('a[aria-label="Share on WhatsApp"]')!.href);
+      const tweet = new URL(element.querySelector<HTMLAnchorElement>('a[aria-label="Share on X"]')!.href);
+      expect(whatsapp.searchParams.get("text")).toBe(`A night out ${expected}`);
+      expect(tweet.searchParams.get("url")).toBe(expected);
+    };
+    assertLinks(server, "https://pubmaxxing.com/plan/abc?vibe=date-night#invite=secret-token");
+    await render(path);
+    assertLinks(container, `${window.location.origin}${path}`);
+    await copyLink();
+    expect(navigator.clipboard.writeText).toHaveBeenCalledWith(`${window.location.origin}${path}`);
+  });
+});
+
 describe("ShareBar content_shared surface", () => {
   it.each([
     ["/plan/abc?invite=tok", "plan"],
@@ -70,6 +114,20 @@ describe("ShareBar content_shared surface", () => {
     await render("/plan/abc/recap");
     await copyLink();
     expect(sharedSurfaces()).toEqual(["plan", "recap"]);
+  });
+});
+
+describe("ShareBar copied flash", () => {
+  afterEach(() => vi.useRealTimers());
+
+  it("leaves no reset timer running once the bar unmounts", async () => {
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    await render("/plan/abc");
+    await copyLink();
+    expect(container.querySelector('button[aria-label="Link copied"]')).not.toBeNull();
+    act(() => root.unmount());
+    root = createRoot(container);
+    expect(vi.getTimerCount()).toBe(0);
   });
 });
 

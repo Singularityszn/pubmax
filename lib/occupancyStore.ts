@@ -11,6 +11,7 @@ import { randomUUID } from "crypto";
 
 import { trimVenueId } from "@/lib/cleanVenueId";
 import { isDeployedProduction } from "@/lib/deploymentEnv";
+import { storedVenueIds } from "@/lib/venueAliases";
 import {
   admin,
   createDualBackendStore,
@@ -18,6 +19,7 @@ import {
   isMissingTableSchema,
   onMissingDurableWrite,
   runStoreOp,
+  whereVenueIdIn,
 } from "@/lib/storeBackend";
 import {
   OCCUPANCY_SOURCE,
@@ -53,6 +55,15 @@ type OccupancyWriteInput = {
 export type OccupancyStore = {
   report(input: OccupancyWriteInput): Promise<OccupancyStoredReport>;
   readNow(venueId: string, now?: number): Promise<OccupancyNowAnswer>;
+  /**
+   * Every crowd report this account made, newest first, at most `limit`, a
+   * moderator's hidden rows included: the reading is still the account's own.
+   * `degraded` is a read that could not run, never "no reports".
+   */
+  listForReporter(
+    reporterUserId: string,
+    limit: number,
+  ): Promise<{ degraded: boolean; reports: OccupancyStoredReport[] }>;
   flag(id: string, reason?: string, actorHash?: string): Promise<boolean>;
   moderate(id: string, hidden: boolean, note?: string): Promise<boolean>;
 };
@@ -108,11 +119,12 @@ export const memoryOccupancyStore: OccupancyStore = {
     if (!venueId) throw new Error("A venue is required.");
     if (!reporterUserId) throw new Error("A signed-in account is required.");
     const nowMs = input.now ?? Date.now();
+    const venueIds = await storedVenueIds(venueId);
     // A hidden row is never the retake target: reusing one would launder a
     // moderator hide into the account's next honest reading.
     const open = memoryReports.find(
       (row) =>
-        row.venueId === venueId &&
+        venueIds.includes(row.venueId) &&
         row.reporterUserId === reporterUserId &&
         !row.hiddenAt &&
         occupancyRetakeOpen(row.reportedAt, nowMs),
@@ -128,11 +140,22 @@ export const memoryOccupancyStore: OccupancyStore = {
   },
 
   async readNow(venueId, now) {
-    const id = trimVenueId(venueId);
+    const venueIds = await storedVenueIds(trimVenueId(venueId));
     return occupancyNowFromReports(
-      memoryReports.filter((row) => row.venueId === id),
+      memoryReports.filter((row) => venueIds.includes(row.venueId)),
       now ?? Date.now(),
     );
+  },
+
+  async listForReporter(reporterUserId, limit) {
+    const owner = cleanUserId(reporterUserId);
+    const reports = owner
+      ? memoryReports
+          .filter((row) => row.reporterUserId === owner)
+          .sort((a, b) => b.reportedAt.localeCompare(a.reportedAt))
+          .slice(0, limit)
+      : [];
+    return { degraded: false, reports };
   },
 
   async flag(id, reason, actorHash) {
@@ -292,10 +315,10 @@ export const supabaseOccupancyStore: OccupancyStore = {
       run: () =>
         withOccupancyColumns(async (select, moderated) => {
           const since = new Date(nowMs - 15 * 60 * 1000).toISOString();
-          let openQuery = admin()
-            .from(TABLE)
-            .select(select)
-            .eq("venue_id", venueId)
+          let openQuery = whereVenueIdIn(
+            admin().from(TABLE).select(select),
+            await storedVenueIds(venueId),
+          )
             .eq("reporter_user_id", reporterUserId);
           if (moderated) openQuery = openQuery.is("hidden_at", null);
           const { data: openRows, error: openError } = await openQuery
@@ -362,7 +385,10 @@ export const supabaseOccupancyStore: OccupancyStore = {
         withOccupancyColumns(async (select, moderated) => {
           // The row cap is a window over rows a reader may actually see, so a
           // hidden row may never spend one of the 200.
-          let query = admin().from(TABLE).select(select).eq("venue_id", id);
+          let query = whereVenueIdIn(
+            admin().from(TABLE).select(select),
+            await storedVenueIds(id),
+          );
           if (moderated) query = query.is("hidden_at", null);
           const { data, error } = await query
             .order("reported_at", { ascending: false })
@@ -372,6 +398,39 @@ export const supabaseOccupancyStore: OccupancyStore = {
             .map((row) => fromRow(row as OccupancyRow))
             .filter((row): row is OccupancyStoredReport => row !== null);
           return occupancyNowFromReports(reports, now ?? Date.now());
+        }),
+    });
+  },
+
+  async listForReporter(reporterUserId, limit) {
+    const owner = cleanUserId(reporterUserId);
+    if (!owner) return { degraded: false, reports: [] };
+    return guard.guard({
+      context: "listForReporter",
+      // The export refuses a lane it could not read, so outside a deployed
+      // production instance the memory store answers while the migration is
+      // being prepared, and a deployed one reports the read as degraded.
+      onSchemaMiss: () =>
+        isDeployedProduction()
+          ? Promise.resolve({ degraded: true, reports: [] })
+          : memoryOccupancyStore.listForReporter(owner, limit),
+      onError: () => ({ degraded: true, reports: [] }),
+      message: "occupancy owner read failed",
+      run: () =>
+        withOccupancyColumns(async (select) => {
+          const { data, error } = await admin()
+            .from(TABLE)
+            .select(select)
+            .eq("reporter_user_id", owner)
+            .order("reported_at", { ascending: false })
+            .limit(limit);
+          if (error) throwPostgrest(error);
+          return {
+            degraded: false,
+            reports: (data ?? [])
+              .map((row) => fromRow(row as OccupancyRow))
+              .filter((row): row is OccupancyStoredReport => row !== null),
+          };
         }),
     });
   },

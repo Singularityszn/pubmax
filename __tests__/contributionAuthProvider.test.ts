@@ -13,9 +13,19 @@ const providerState = vi.hoisted(() => ({
 
 const clerkState = vi.hoisted(() => ({ configured: true }));
 
+const identityRead = vi.hoisted(() => ({
+  resolve: vi.fn<(...read: unknown[]) => Promise<null>>(async () => null),
+}));
+
 const authAvailability = vi.hoisted(() => ({
   guard: vi.fn(),
-  loadSupabase: vi.fn(async () => ({ google: false, apple: false , microsoft: false })),
+  loadSupabase: vi.fn(
+    async (): Promise<Record<"google" | "apple" | "microsoft", boolean> | null> => ({
+      google: false,
+      apple: false,
+      microsoft: false,
+    }),
+  ),
 }));
 
 const authRedirect = vi.hoisted(() => ({
@@ -26,6 +36,7 @@ const authRedirect = vi.hoisted(() => ({
   })),
 }));
 
+vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn() }) }));
 vi.mock("@/components/identity/AccountOnboarding", () => ({
   default: () => null,
 }));
@@ -40,7 +51,8 @@ vi.mock("@/lib/authCallbackClient", () => ({
   clearLegacyPkceVerifiers: vi.fn(),
   establishAuthCallbackSession: vi.fn(),
 }));
-vi.mock("@/lib/authClient", () => ({
+vi.mock("@/lib/authClient", async (original) => ({
+  ...await original<typeof import("@/lib/authClient")>(),
   ensureSupabaseBrowser: async () => ({
     auth: {
       getSession: async () => ({ data: { session: providerState.session } }),
@@ -71,7 +83,7 @@ vi.mock("@/lib/identityClient", () => ({
   handleClaimRouteAfterSignIn: vi.fn(async () => null),
   IDENTITY_HANDLE_CHANGED_EVENT: "pubmax:identity-handle-changed",
   identityHandleForOwner: () => null,
-  resolveCanonicalIdentity: async () => null,
+  resolveCanonicalIdentity: identityRead.resolve,
 }));
 vi.mock("@/lib/referralClaimClient", () => ({
   claimSignupReferralFromAuthCallback: vi.fn(),
@@ -225,6 +237,7 @@ beforeEach(() => {
   });
   authAvailability.loadSupabase.mockClear();
   authRedirect.begin.mockClear();
+  identityRead.resolve.mockClear();
   const document = new TestDocument();
   const window = {
     document,
@@ -354,6 +367,36 @@ describe("shared contribution auth invalidation", () => {
     });
   });
 
+
+  it("reports the provider read as pending until it answers, even with nothing", async () => {
+    let answer: (value: null) => void = () => {};
+    authAvailability.loadSupabase.mockImplementationOnce(
+      () => new Promise((resolve) => (answer = resolve)),
+    );
+    const container = globalThis.document.createElement("div");
+    root = createRoot(container);
+
+    await commitReactWork(async () => {
+      root?.render(
+        createElement(
+          AuthProvider,
+          { clerkIntegrationConfigured: false },
+          createElement(Consumer, { name: "providers" }),
+        ),
+      );
+      await Promise.resolve();
+    });
+    expect(consumers.get("providers")?.auth.socialProvidersResolved).toBe(false);
+
+    await commitReactWork(async () => {
+      answer(null);
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+    const auth = consumers.get("providers")?.auth;
+    expect(auth?.socialProvidersResolved).toBe(true);
+    expect(auth?.socialProviders).toEqual({ google: false, apple: false, microsoft: false });
+  });
 
   it("starts Microsoft OAuth through Supabase with Azure scopes", async () => {
     const container = globalThis.document.createElement("div");
@@ -505,5 +548,39 @@ describe("shared contribution auth invalidation", () => {
       provider: "google",
       options: { redirectTo: "http://localhost/auth-callback" },
     });
+  });
+});
+
+describe("identity read retry", () => {
+  it("reads the account's identity again after a read that failed", async () => {
+    const container = globalThis.document.createElement("div");
+    root = createRoot(container);
+
+    await commitReactWork(async () => {
+      root?.render(
+        createElement(
+          AuthProvider,
+          { clerkIntegrationConfigured: clerkState.configured },
+          createElement(Consumer, { name: "page" }),
+        ),
+      );
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    await vi.waitFor(() => {
+      expect(identityRead.resolve).toHaveBeenCalledTimes(1);
+    });
+    expect(consumers.get("page")?.auth.identityResolved).toBe(false);
+
+    await commitReactWork(async () => {
+      consumers.get("page")?.auth.retryIdentity();
+      await Promise.resolve();
+    });
+
+    await vi.waitFor(() => {
+      expect(identityRead.resolve).toHaveBeenCalledTimes(2);
+    });
+    expect(identityRead.resolve.mock.calls[1]?.[0]).toBe("account-a");
   });
 });

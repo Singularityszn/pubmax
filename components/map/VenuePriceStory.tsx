@@ -53,7 +53,7 @@ function StoryBars({ baseline, now }: { baseline: VenuePriceStamp; now: VenuePri
         <span className="vpsBarValue">{formatPrice(baseline.gbp)}</span>
       </div>
       <div className="vpsBarRow">
-        <span className="vpsBarLabel">Now</span>
+        <span className="vpsBarLabel">{now.isFresh ? "Now" : "Logged"}</span>
         <span className="vpsBarTrack">
           <span className="vpsBarFill vpsBarFillNow" style={{ width: `${nowPct}%` }} />
         </span>
@@ -108,7 +108,7 @@ export default function VenuePriceStory({ venue, drops, onPriceChanged }: VenueP
         </div>
         <p className="description muted">
           No price story on record for {venue.name}{" "}yet. Log tonight&rsquo;s price, or pass down a
-          dated memory (&ldquo;a pint here in 1985&hellip;&rdquo;), and this pub&rsquo;s thread
+          dated memory (&quot;a pint here in 1985&hellip;&quot;), and this pub&rsquo;s thread
           starts here.
         </p>
       </section>
@@ -116,8 +116,8 @@ export default function VenuePriceStory({ venue, drops, onPriceChanged }: VenueP
   }
 
   const { baseline, now, deltaGbp, pct, inflation } = story;
-  // The freshest actionable price to vouch for: the community "now" price when
-  // present, otherwise the baseline on record.
+  // The newest community observation is shown beside the baseline. Its label
+  // says whether it is still fresh enough to describe as tonight's price.
 
   const dir = deltaGbp !== null ? direction(deltaGbp) : "flat";
   const DirIcon = dir === "up" ? ArrowUpRight : dir === "down" ? ArrowDownRight : Minus;
@@ -166,7 +166,7 @@ export default function VenuePriceStory({ venue, drops, onPriceChanged }: VenueP
 
       {deltaGbp !== null && pct !== null ? (
         <p className={`vpsDelta vpsDelta-${dir}`}>
-          <DirIcon size={15} aria-hidden="true" />
+          <DirIcon size={16} aria-hidden="true" />
           <span aria-hidden="true">
             {dir === "flat"
               ? "No change from the earlier price"
@@ -208,7 +208,7 @@ export default function VenuePriceStory({ venue, drops, onPriceChanged }: VenueP
       ) : null}
 
       <p className="vpsFootnote">
-        Baseline = dataset price on record · Now = community-reported · inflation revalued via UK CPI
+        The earlier price is the one on record. The newer one is a community report. We adjust old prices for inflation with UK CPI.
       </p>
     </section>
   );

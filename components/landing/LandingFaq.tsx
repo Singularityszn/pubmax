@@ -1,56 +1,44 @@
-// Six questions and one paragraph each, in the words a person would use at the
-// bar (docs/VOICE.md).
+// Three questions, two short sentences each at most, in the words a person
+// would use at the bar (docs/VOICE.md).
 //
 // Captain 7 Sep 2026: "There should be an FAQ section where people understand
-// how the app works and everything." Every answer here states a fact the code
-// or the dataset already backs: the two price lanes, the composer's own photo
-// rule, what /today and /tonight read, that every listed price we hold is a
-// London one, and that the web app installs to a home screen today.
-// __tests__/landingFaq.test.ts holds the count at six and the copy to the
-// voice rules.
+// how the app works and everything." The UX audit (16 Oct 2026) cut it from six
+// to the three a stranger needs before a first tap: how it works, where the
+// prices come from, and how to log one. Every answer states a fact the code or
+// the dataset already backs, and the log answer names the button by the label
+// the venue sheet really prints (`LOG_PRICE_DOOR_LABEL`, lib/pintTrust.ts), so
+// the two cannot drift apart. __tests__/landingFaq.test.ts holds the count at
+// three and the copy to the voice rules. The landing ships no FAQPage JSON-LD,
+// so there is no second copy of these questions to keep in step.
 //
 // NOTHING HERE IS FOR SALE. First revenue comes from venues, never drinkers
 // (AGENTS.md anti-goals), so the front door names no price a drinker would pay
 // and collects no address for one.
+
+import { BRAND_NAME } from "@/lib/brandNaming";
+import { RECEIPT_REQUIRED_LINE } from "@/lib/pintDropReceipt";
+import { LOG_PRICE_DOOR_LABEL } from "@/lib/pintTrust";
 
 type Question = { id: string; question: string; answer: string };
 
 export const LANDING_FAQ: readonly Question[] = [
   {
     id: "how-it-works",
-    question: "How does PUBMAXXING work?",
+    question: `How does ${BRAND_NAME} work?`,
     answer:
-      "Say where you are and we show what a pint costs at the pubs around you, cheapest first. Each figure carries the day it was collected, and names the publisher when the record has one. Nothing else sets the order, and no pub can pay to sit higher.",
+      "Say where you are and we list what a pint costs at the pubs around you, cheapest first. Each figure shows the day it was collected, and no pub can pay to sit higher.",
   },
   {
     id: "prices",
     question: "Where do the prices come from?",
     answer:
-      "Two places. A pub's own published price list, which we name and link beside the figure. And drinkers, who log what they paid on the day they paid it. When no publisher is recorded for a price, the price says so. We would rather leave a gap than invent a figure.",
+      "From pubs' own published price lists, which we name and link, and from drinkers logging what they paid that day. When no publisher is recorded the price says so, and we'd rather leave a gap than invent a figure.",
   },
   {
     id: "log-a-price",
     question: "How do I log a price?",
     answer:
-      "Open a pub on the map and press the price door. Type what you paid and which drink it was, then press Log it. A photo of the bill or the pint is optional. Photos and notes are public and can show people, so only add one you are happy to share.",
-  },
-  {
-    id: "today-tonight",
-    question: "What is on today and tonight?",
-    answer:
-      "Today reads the London weather and says what sort of drinking day it is. Tonight lists what is on across the city through the evening, from published listings. Both cards near the top of this page stamp the day they speak for, so you can tell a fresh answer from a held one.",
-  },
-  {
-    id: "outside-london",
-    question: "Does it work outside London?",
-    answer:
-      "Not for prices yet. Every listed price we hold today is a London one. The map opens in eleven other UK cities, and a pub there stays without a price until somebody logs the first one.",
-  },
-  {
-    id: "app",
-    question: "Is there an app?",
-    answer:
-      "This site installs to your home screen today. Open it in your phone browser and choose Add to Home Screen, and it opens full screen from then on. We are building the App Store and Play Store versions now.",
+      `Open a pub on the map, tap ${LOG_PRICE_DOOR_LABEL}, type what you paid and press Log it. ${RECEIPT_REQUIRED_LINE}`,
   },
 ];
 

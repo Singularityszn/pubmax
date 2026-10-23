@@ -1,0 +1,420 @@
+// Backup helpers, including temporary-login requests. scripts/backup-offplatform.mjs
+// runs the backup. docs/DR_RUNBOOK.md owns the operating and restore procedures.
+//
+// WHY IT EXISTS. Production is on the Supabase free plan: no daily backup, no
+// point-in-time recovery (audit of 6 October 2026, 0 backups). The repository is
+// public, so a dump may never be a workflow artifact or a committed file. The
+// copy lives on the captain's Mac, outside every git checkout, written 0600.
+
+import {
+  chmodSync,
+  existsSync,
+  mkdirSync,
+  readFileSync,
+  readdirSync,
+  renameSync,
+  rmdirSync,
+  rmSync,
+  statSync,
+  utimesSync,
+  writeFileSync,
+} from "node:fs";
+import path from "node:path";
+
+export const DEFAULT_BUCKET = "pint-drops";
+// Normal pruning leaves a week of slack for the weekly schedule. The maximum
+// expires a dump only once a newer complete dump exists: the last good backup
+// is never deleted, however old, and a run that leaves it past the maximum
+// alerts instead (owner decision, 16 October 2026).
+export const PRUNE_AFTER_WEEKS = 7;
+export const MAX_RETENTION_WEEKS = 8;
+const PRUNE_AFTER_MS = PRUNE_AFTER_WEEKS * 7 * 24 * 60 * 60 * 1000;
+const MAX_RETENTION_MS = MAX_RETENTION_WEEKS * 7 * 24 * 60 * 60 * 1000;
+// Public data, the account table and what the auth schema needs to restore
+// sign-in, storage object rows, the migration ledger, and pubmax_private: the
+// RLS helper functions every policy calls and two private tables. Without it a
+// restore loses about 31 policies and the auth.users trigger (restore proof,
+// 18 October 2026).
+export const DUMP_SCHEMAS = ["public", "auth", "storage", "supabase_migrations", "pubmax_private"];
+
+/** Connection settings as PG* variables, so the password never rides in an argument list. */
+export function pgEnvFromUrl(connectionString) {
+  let url;
+  try {
+    url = new URL(connectionString);
+  } catch {
+    // URL errors include their input, which can contain the database password.
+    throw new Error("PUBMAX_BACKUP_DB_URL must be a postgres:// connection string.");
+  }
+  if (url.protocol !== "postgres:" && url.protocol !== "postgresql:") {
+    throw new Error("PUBMAX_BACKUP_DB_URL must be a postgres:// connection string.");
+  }
+  if (!url.hostname || !url.username) {
+    throw new Error("PUBMAX_BACKUP_DB_URL needs a host and a user.");
+  }
+  return {
+    PGHOST: url.hostname,
+    PGPORT: url.port || "5432",
+    PGUSER: decodeURIComponent(url.username),
+    PGPASSWORD: decodeURIComponent(url.password),
+    PGDATABASE: decodeURIComponent(url.pathname.replace(/^\//, "")) || "postgres",
+    PGSSLMODE: "require",
+  };
+}
+
+/** Bind temporary credentials to this project's direct or session-pooler endpoint. */
+export function cliLoginConfig({ dbUrl, baseUrl }) {
+  const pgEnv = pgEnvFromUrl(dbUrl);
+  const project = /^https:\/\/([a-z]{20})\.supabase\.co$/.exec(baseUrl);
+  if (!project) throw new Error("CLI read-only login needs a canonical SUPABASE_URL.");
+  const projectRef = project[1];
+  const direct = pgEnv.PGHOST === `db.${projectRef}.supabase.co` && pgEnv.PGUSER === "postgres";
+  const pooler = /^[a-z0-9-]+\.pooler\.supabase\.com$/.test(pgEnv.PGHOST) && pgEnv.PGUSER === `postgres.${projectRef}`;
+  if ((!direct && !pooler) || pgEnv.PGPORT !== "5432" || pgEnv.PGDATABASE !== "postgres" || pgEnv.PGPASSWORD) {
+    throw new Error("CLI read-only login needs this project's password-free direct or session-pooler URL on port 5432.");
+  }
+  if (new URL(dbUrl).search || new URL(dbUrl).hash) {
+    throw new Error("CLI read-only login does not accept connection URL options.");
+  }
+  return { pgEnv, projectRef, pooler };
+}
+
+/** Acquire once per run. Never expose API bodies, credentials or network errors in logs. */
+export async function cliReadOnlyPgEnv({ config, token, fetchImpl = fetch }) {
+  let response;
+  const requestedAt = Date.now();
+  try {
+    response = await fetchImpl(`https://api.supabase.com/v1/projects/${config.projectRef}/cli/login-role`, {
+      method: "POST",
+      headers: { authorization: `Bearer ${token}`, "content-type": "application/json" },
+      body: JSON.stringify({ read_only: true }),
+      redirect: "error",
+      signal: AbortSignal.timeout(30_000),
+    });
+  } catch {
+    throw new Error("Could not acquire the temporary read-only database login.");
+  }
+  if (response.status !== 201) throw new Error(`Temporary read-only login answered ${response.status}.`);
+  let login;
+  try {
+    login = await response.json();
+  } catch {
+    throw new Error("Temporary read-only login returned an invalid response.");
+  }
+  if (
+    !login || typeof login.role !== "string" || !/^cli_login_[a-z0-9_]+$/.test(login.role) ||
+    typeof login.password !== "string" || !login.password ||
+    !Number.isSafeInteger(login.ttl_seconds) || login.ttl_seconds <= 0 ||
+    Date.now() - requestedAt >= login.ttl_seconds * 1000
+  ) {
+    throw new Error("Temporary read-only login returned invalid or expired credentials.");
+  }
+  return {
+    ...config.pgEnv,
+    PGUSER: login.role + (config.pooler ? `.${config.projectRef}` : ""),
+    PGPASSWORD: login.password,
+    PGOPTIONS: "-c default_transaction_read_only=on",
+    PGCONNECT_TIMEOUT: "10",
+  };
+}
+
+export function dumpFileName(date) {
+  const stamp = date.toISOString().replace(/[-:]/g, "").replace(/\.\d+Z$/, "Z");
+  return `pubmax-${stamp}.dump`;
+}
+
+export function pgDumpArgs(outputFile) {
+  return [
+    "--format=custom",
+    "--no-owner",
+    "--no-privileges",
+    ...DUMP_SCHEMAS.flatMap((schema) => ["--schema", schema]),
+    "--file",
+    outputFile,
+  ];
+}
+
+const DUMP_NAME = /^pubmax-(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})(\d{2})Z\.dump$/;
+const PARTIAL_DUMP_NAME = /^(pubmax-\d{8}T\d{6}Z\.dump)\.partial$/;
+
+/** When a dump was taken, read from its name, or null for any other file. */
+function dumpTakenAt(file) {
+  const match = DUMP_NAME.exec(file);
+  if (!match) return null;
+  const [year, month, day, hour, minute, second] = match.slice(1).map(Number);
+  return Date.UTC(year, month - 1, day, hour, minute, second);
+}
+
+/**
+ * Delete what is past retention, by age, however many runs there were.
+ *
+ * Dumps: every dump older than `PRUNE_AFTER_WEEKS` goes, except the newest
+ * complete dump, which is never deleted here: it is the last good backup, and
+ * the next one to complete is what retires it. Partial dumps expire at
+ * `MAX_RETENTION_WEEKS`, or when a newer complete dump makes them redundant.
+ * Other files in `dir` are never touched.
+ *
+ * Bucket files: each run stamps a file's mtime with the run's start while its
+ * object is still in the bucket, so the mtime is the last run that saw it. A
+ * file last seen before the oldest kept dump belongs to no dump that remains,
+ * and it goes with them; a file the oldest kept dump knew stays with it, at
+ * any age. With no complete dump at all, every photo or incoming file expires
+ * at the maximum, and unexpired orphan files stay until then.
+ * Version metadata keeps only identifiers of files that remain.
+ *
+ * Directories: an emptied directory under `bucketRoot` goes too, because the
+ * bucket's folder names are account, profile and conversation ids.
+ */
+export function pruneBackupCopy({ dir, bucketRoot, now }) {
+  const dumps = readdirSync(dir)
+    .filter((file) => dumpTakenAt(file) !== null)
+    .sort();
+  const newest = dumps.at(-1);
+  const maximumCutoff = now - MAX_RETENTION_MS;
+  const expired = dumps.filter((file) => file !== newest && dumpTakenAt(file) < now - PRUNE_AFTER_MS);
+  const newestTakenAt = newest === undefined ? null : dumpTakenAt(newest);
+  const killed = readdirSync(dir).filter((file) => {
+    const match = PARTIAL_DUMP_NAME.exec(file);
+    if (match === null) return false;
+    const takenAt = dumpTakenAt(match[1]);
+    return takenAt <= maximumCutoff || (newestTakenAt !== null && takenAt < newestTakenAt);
+  });
+  for (const file of [...expired, ...killed]) rmSync(path.join(dir, file), { force: true });
+
+  const kept = dumps.filter((file) => !expired.includes(file)).map(dumpTakenAt);
+  const oldestKept = kept.length === 0 ? null : Math.min(...kept);
+
+  const entries = readdirSync(bucketRoot, { recursive: true }).map((relative) => {
+    const entry = path.join(bucketRoot, relative);
+    return { entry, stat: statSync(entry) };
+  });
+  const files = entries.filter(({ stat }) => stat.isFile() &&
+    (oldestKept === null ? stat.mtimeMs <= maximumCutoff : stat.mtimeMs < oldestKept),
+  );
+  for (const { entry } of files) rmSync(entry, { force: true });
+
+  const versionsFile = path.join(path.dirname(bucketRoot), `${path.basename(bucketRoot)}.versions.json`);
+  if (existsSync(versionsFile)) {
+    let recorded = {};
+    try {
+      const parsed = JSON.parse(readFileSync(versionsFile, "utf8"));
+      if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) recorded = parsed;
+    } catch {
+      // An unreadable index cannot justify retaining personal identifiers.
+    }
+    const removed = new Set(files.map(({ entry }) => entry));
+    const retainedPaths = new Set(entries
+      .filter(({ entry, stat }) => stat.isFile() && !removed.has(entry))
+      .map(({ entry }) => path.relative(bucketRoot, entry).split(path.sep).join("/")));
+    const versions = Object.fromEntries(Object.entries(recorded).filter(([key]) => retainedPaths.has(key)));
+    if (Object.keys(versions).length === 0) rmSync(versionsFile, { force: true });
+    else {
+      chmodSync(versionsFile, 0o600);
+      writeFileSync(versionsFile, JSON.stringify(versions));
+    }
+  }
+
+  let directories = 0;
+  const deepestFirst = entries
+    .filter(({ stat }) => stat.isDirectory())
+    .map(({ entry }) => entry)
+    .sort((a, b) => b.length - a.length);
+  for (const entry of deepestFirst) {
+    if (readdirSync(entry).length > 0) continue;
+    rmdirSync(entry);
+    directories += 1;
+  }
+  return { dumps: expired.length + killed.length, files: files.length, directories };
+}
+
+/**
+ * The newest complete dump's UTC stamp when it has reached the eight-week
+ * maximum, or null. pruneBackupCopy keeps it because nothing newer completed,
+ * so a run that ends with one says so out loud.
+ */
+export function lastCompleteBackupPastMaximum({ dir, now }) {
+  if (!existsSync(dir)) return null;
+  const newest = readdirSync(dir).filter((file) => dumpTakenAt(file) !== null).sort().at(-1);
+  if (newest === undefined) return null;
+  const takenAt = dumpTakenAt(newest);
+  return takenAt <= now - MAX_RETENTION_MS ? new Date(takenAt).toISOString() : null;
+}
+
+/** True when `candidate` is `directory` itself or anything under it. */
+export function isInsideDirectory(candidate, directory) {
+  const relative = path.relative(path.resolve(directory), path.resolve(candidate));
+  return relative === "" || (!relative.startsWith("..") && !path.isAbsolute(relative));
+}
+
+/**
+ * Every object path in a bucket, listing folders recursively through the
+ * Storage API. A folder entry has a null id.
+ */
+export async function listBucketObjects({ baseUrl, key, bucket, fetchImpl = fetch }) {
+  const found = [];
+  const pending = [""];
+  while (pending.length > 0) {
+    const prefix = pending.pop();
+    for (let offset = 0; ; offset += 100) {
+      const response = await fetchImpl(`${baseUrl}/storage/v1/object/list/${bucket}`, {
+        method: "POST",
+        headers: { authorization: `Bearer ${key}`, apikey: key, "content-type": "application/json" },
+        body: JSON.stringify({ prefix, limit: 100, offset, sortBy: { column: "name", order: "asc" } }),
+        signal: AbortSignal.timeout(30_000),
+      });
+      if (!response.ok) throw new Error(`Listing bucket ${bucket} answered ${response.status}.`);
+      const page = await response.json();
+      for (const entry of page) {
+        const full = prefix ? `${prefix}/${entry.name}` : entry.name;
+        if (entry.id === null || entry.id === undefined) pending.push(full);
+        else {
+          found.push({
+            path: full,
+            size: entry.metadata?.size ?? null,
+            // The object's identity. A replacement under the same key keeps its
+            // size more often than not, so size alone cannot say "unchanged".
+            version: entry.metadata?.eTag ?? entry.updated_at ?? null,
+          });
+        }
+      }
+      if (page.length < 100) break;
+    }
+  }
+  return found.sort((a, b) => a.path.localeCompare(b.path));
+}
+
+/**
+ * Whether an object must be downloaded again. A file is trusted only when it
+ * exists, has the listed size, and the version the last run recorded for it is
+ * the version listed now. A version nobody can name is never trusted, because
+ * the shared upload path replaces objects in place (`upsert: true`).
+ */
+export function objectNeedsDownload({ exists, localSize, size, version, recordedVersion }) {
+  if (!exists) return true;
+  if (size !== null && localSize !== size) return true;
+  if (version === null || version === undefined) return true;
+  return recordedVersion !== version;
+}
+
+/**
+ * Where a sync keeps what it is about to replace. `previousRoot` holds every
+ * retained photo a commit displaces, and `journalFile` names the dump the
+ * commit publishes, the identifiers it added and the version index before it.
+ * Both sit beside `bucketRoot`, outside what pruneBackupCopy walks.
+ */
+export function bucketCommitPaths(dir, bucket) {
+  return {
+    previousRoot: path.join(dir, "bucket", `${bucket}.previous`),
+    journalFile: path.join(dir, "bucket", `${bucket}.commit.json`),
+  };
+}
+
+function filesUnder(root) {
+  if (!existsSync(root)) return [];
+  return readdirSync(root, { recursive: true })
+    .map((relative) => String(relative))
+    .filter((relative) => statSync(path.join(root, relative)).isFile());
+}
+
+/**
+ * Finish or undo a commit that did not reach its end. Publishing the dump is
+ * the commit point: once the journal's dump exists, the swapped photos belong
+ * to it and the displaced copies go. Before that, the swap is undone, so the
+ * last complete dump is paired with exactly the photos and identifiers it was
+ * taken with. An unreadable journal still undoes the swap, and drops the
+ * version index so every photo is fetched again rather than trusted.
+ */
+export function settleInterruptedCommit({ dir, bucketRoot, versionsFile, previousRoot, journalFile }) {
+  if (!existsSync(journalFile)) {
+    rmSync(previousRoot, { recursive: true, force: true });
+    return "none";
+  }
+  let journal = null;
+  try {
+    const parsed = JSON.parse(readFileSync(journalFile, "utf8"));
+    if (parsed && typeof parsed.dump === "string" && Array.isArray(parsed.added)) journal = parsed;
+  } catch {
+    journal = null;
+  }
+  if (journal && existsSync(path.join(dir, path.basename(journal.dump)))) {
+    rmSync(previousRoot, { recursive: true, force: true });
+    rmSync(journalFile, { force: true });
+    return "committed";
+  }
+  for (const relative of filesUnder(previousRoot)) {
+    const target = safeObjectPath(bucketRoot, relative);
+    mkdirSync(path.dirname(target), { recursive: true, mode: 0o700 });
+    renameSync(path.join(previousRoot, relative), target);
+  }
+  for (const relative of journal?.added ?? []) {
+    if (typeof relative === "string") rmSync(safeObjectPath(bucketRoot, relative), { force: true });
+  }
+  if (journal && typeof journal.versionsBefore === "string") {
+    writeFileSync(versionsFile, journal.versionsBefore, { mode: 0o600 });
+  } else {
+    rmSync(versionsFile, { force: true });
+  }
+  rmSync(previousRoot, { recursive: true, force: true });
+  rmSync(journalFile, { force: true });
+  return "rolled-back";
+}
+
+/**
+ * Swap a fully downloaded sync into the kept copy and publish its dump, as one
+ * recoverable step: the journal is written first, each retained photo is moved
+ * aside rather than overwritten, and the dump's rename is the commit point.
+ * Any failure before that point is undone here; a killed process is undone by
+ * the next run's settleInterruptedCommit.
+ */
+export function commitBucketSync({
+  dir,
+  bucketRoot,
+  versionsFile,
+  previousRoot,
+  journalFile,
+  staged,
+  unchanged,
+  versions,
+  partialDump,
+  dumpFile,
+  stamp,
+  rename = renameSync,
+}) {
+  const paths = { dir, bucketRoot, versionsFile, previousRoot, journalFile };
+  try {
+    const added = staged
+      .filter(({ target }) => !existsSync(target))
+      .map(({ target }) => path.relative(bucketRoot, target));
+    writeFileSync(journalFile, JSON.stringify({
+      dump: path.basename(dumpFile),
+      added,
+      versionsBefore: existsSync(versionsFile) ? readFileSync(versionsFile, "utf8") : null,
+    }), { mode: 0o600 });
+    for (const { stagedFile, target } of staged) {
+      mkdirSync(path.dirname(target), { recursive: true, mode: 0o700 });
+      if (existsSync(target)) {
+        const aside = safeObjectPath(previousRoot, path.relative(bucketRoot, target));
+        mkdirSync(path.dirname(aside), { recursive: true, mode: 0o700 });
+        rename(target, aside);
+      }
+      rename(stagedFile, target);
+      utimesSync(target, stamp, stamp);
+    }
+    for (const target of unchanged) utimesSync(target, stamp, stamp);
+    writeFileSync(versionsFile, JSON.stringify(versions), { mode: 0o600 });
+    rename(partialDump, dumpFile);
+  } catch (error) {
+    settleInterruptedCommit(paths);
+    throw error;
+  }
+  settleInterruptedCommit(paths);
+}
+
+/** A bucket path that would escape its directory is refused rather than written. */
+export function safeObjectPath(root, objectPath) {
+  const target = path.resolve(root, objectPath);
+  if (!isInsideDirectory(target, root) || target === path.resolve(root)) {
+    throw new Error("A bucket object path escaped the backup directory.");
+  }
+  return target;
+}

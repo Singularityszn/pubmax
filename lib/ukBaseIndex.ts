@@ -12,6 +12,8 @@ import {
   parseUkBaseShardForEntry,
   type UkBasePub,
 } from "@/lib/ukBasePubs";
+import { lookupCanonicalVenueId } from "@/lib/venueAliases";
+import { VERIFIED_CLOSED_OSM_REFS, isVerifiedClosedPub } from "@/lib/verifiedClosedPubs";
 
 // Server-only membership index for the UK BASE layer, the sibling of
 // lib/venueIndex.ts for `venue-uk-…` ids. Base pubs deliberately live OUTSIDE
@@ -148,12 +150,30 @@ export async function getUkBaseIdIndex(): Promise<UkBaseIdIndexResult> {
 }
 
 /**
- * Resolve one `venue-uk-*` id to its shard record for cold deep-link restore.
- * Fail closed: a well-formed id the pack does not carry is `missing`; a pack
- * read failure is `unavailable` (never treated as an empty city).
+ * The id a `venue-uk-*` reference names now: the same pub's new id when a
+ * refresh re-mapped it, else the id itself. `null` when the alias map cannot
+ * be read.
  */
-export async function lookupUkBasePub(id: string): Promise<UkBasePubLookupResult> {
-  if (!isUkBaseId(id)) return { status: "missing" };
+export async function currentUkBaseId(id: string): Promise<string | null> {
+  const lookup = await lookupCanonicalVenueId(id);
+  return lookup.status === "resolved" ? lookup.venueId : null;
+}
+
+/**
+ * Resolve one `venue-uk-*` id to its shard record for cold deep-link restore.
+ * An id a refresh re-mapped answers with the same pub under its current id.
+ * Fail closed: a well-formed id the pack does not carry, or a pub verified
+ * permanently closed, is `missing`; a pack read failure is `unavailable`
+ * (never treated as an empty city).
+ */
+export async function lookupUkBasePub(
+  requestedId: string,
+  closedOsmRefs: ReadonlySet<string> = VERIFIED_CLOSED_OSM_REFS,
+): Promise<UkBasePubLookupResult> {
+  if (!isUkBaseId(requestedId)) return { status: "missing" };
+  const id = await currentUkBaseId(requestedId);
+  if (!id) return { status: "unavailable" };
+  if (!isUkBaseId(id) || isVerifiedClosedPub(id, closedOsmRefs)) return { status: "missing" };
   const map = await ensureIdToShardUrl();
   if (!map) return { status: "unavailable" };
   const shardUrl = map.get(id);

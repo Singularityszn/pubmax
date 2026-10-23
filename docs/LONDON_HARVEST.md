@@ -1,17 +1,15 @@
 # London harvest
 
 A Firecrawl-backed refresh that keeps London pub data fresh from **first-party
-pages only**. Two halves that share one set of parsers:
+pages only**. The durable and scheduled passes share the chain-deal parsers:
 
-| Half | Command | Writes |
-|---|---|---|
-| Durable pass | `npm run harvest:run` | the What's-On files, the pub-facts artifact, the run report |
-| Scheduled pass | `GET /api/cron/harvest-refresh` (weekly, `vercel.json`) | nothing; it reports to the function log |
+| Half | Command | Reads | Writes |
+|---|---|---|---|
+| Durable pass | `npm run harvest:run` | Chain deals by default. Venue events with `--events`, pub facts with `--facts`, or all lanes with `--all` | the What's-On files, the pub-facts artifact, the run report |
+| Scheduled pass | `GET /api/cron/harvest-refresh` (weekly, `vercel.json`) | Chain deals only, through [`runHarvestBatch`](../lib/harvestRefresh.server.ts) | nothing. It reports to the function log |
 
-A Vercel function's file system is read only, so the scheduled pass cannot commit
-a file. What it buys is **noticing**: it runs the same fetchers over the same
-pages every week and reports what each one stated. `/api/cron/enrich-city-pubs`
-already splits this way; the harvest follows it.
+A Vercel function's file system is read-only, so the scheduled pass reports
+results without writing files. The durable pass produces files for review.
 
 ## The rules
 
@@ -136,11 +134,11 @@ The listings page itself is read main-content only, where the listings are.
 
 ## Adding a source
 
-Add it to `HARVEST_SOURCES` with its access decision, the rule behind that
-decision, and the day the rule was checked. Nothing else takes a URL from a
-caller, so a source absent from that table is not harvested at all. A source
-that publishes what somebody else owns also needs `nonFirstPartyException`,
-naming what the reader may take and what it may not.
+Add a registered source to `HARVEST_SOURCES` with its access decision, the rule
+behind that decision, and the day the rule was checked. The
+[source ledger](data/SOURCE_LEDGER.md) owns the separate venue own-site input
+contracts. A source that publishes what somebody else owns also needs
+`nonFirstPartyException`, naming what the reader may take and what it may not.
 
 Check `robots.txt` before adding one, and treat an unreadable `robots.txt` as a
 refusal: several Mitchells & Butlers brands answer theirs with a challenge page,

@@ -15,18 +15,24 @@ function serveCanonicalOriginLocally(page: import("@playwright/test").Page, base
   });
 }
 
-function stubSupabaseSettings(page: import("@playwright/test").Page, external: Record<string, boolean>) {
-  return page.route(`${SUPABASE_HOST}/**`, async (route) => {
-    const url = route.request().url();
-    if (url.includes("/auth/v1/settings")) {
+function stubAuthProviders(page: import("@playwright/test").Page, external: Record<string, boolean>) {
+  return Promise.all([
+    page.route("**/api/auth/providers**", async (route) => {
       await route.fulfill({
         status: 200,
         contentType: "application/json",
-        headers: { "access-control-allow-origin": "*" },
-        body: JSON.stringify({ external }),
+        headers: {
+          "cache-control": "public, max-age=0, s-maxage=300, stale-while-revalidate=60",
+        },
+        body: JSON.stringify({
+          google: external.google === true,
+          apple: external.apple === true,
+          microsoft: external.azure === true,
+        }),
       });
-      return;
-    }
+    }),
+    page.route(`${SUPABASE_HOST}/**`, async (route) => {
+    const url = route.request().url();
     if (url.includes("/auth/v1/authorize")) {
       await route.fulfill({ status: 200, contentType: "text/html", body: "<p>authorize</p>" });
       return;
@@ -37,7 +43,8 @@ function stubSupabaseSettings(page: import("@playwright/test").Page, external: R
       headers: { "access-control-allow-origin": "*" },
       body: "{}",
     });
-  });
+    }),
+  ]);
 }
 
 test.describe("Microsoft sign-in button", () => {
@@ -46,9 +53,6 @@ test.describe("Microsoft sign-in button", () => {
 
   test.beforeEach(async ({ page }) => {
     await page.emulateMedia({ colorScheme: "light", reducedMotion: "reduce" });
-    await page.route("**/_vercel/insights/script.js", (route) =>
-      route.fulfill({ status: 200, contentType: "application/javascript", body: "" }),
-    );
     await page.routeWebSocket("wss://pubmaxx-e2e.supabase.co/realtime/v1/websocket**", () => {});
     await page.addInitScript(() => {
       localStorage.setItem("pubmax-theme", "light");
@@ -57,9 +61,18 @@ test.describe("Microsoft sign-in button", () => {
     });
   });
 
+  // The canonical-origin proxy can still be fetching a late asset when a test
+  // ends. Drop the routes so that fetch cannot fail the worker after the test.
+  test.afterEach(async ({ page }) => {
+    await page.unrouteAll({ behavior: "ignoreErrors" });
+  });
+
   test("shows Microsoft when Azure is enabled and starts Azure OAuth", async ({ page, baseURL }) => {
-    await stubSupabaseSettings(page, { google: false, apple: false, azure: true, email: true });
+    // Playwright tries the newest route first. The canonical-origin proxy also
+    // matches the canonical /api/auth/providers, so it is registered first and
+    // the provider stub answers that read instead of the keyless server's 503.
     await serveCanonicalOriginLocally(page, baseURL ?? "");
+    await stubAuthProviders(page, { google: false, apple: false, azure: true, email: true });
     await page.goto(`${CANONICAL_ORIGIN}/login`);
 
     const microsoft = page.getByRole("button", { name: "Continue with Microsoft" });
@@ -81,7 +94,7 @@ test.describe("Microsoft sign-in button", () => {
   });
 
   test("hides Microsoft when Azure is disabled", async ({ page }) => {
-    await stubSupabaseSettings(page, { google: true, apple: false, azure: false, email: true });
+    await stubAuthProviders(page, { google: true, apple: false, azure: false, email: true });
     await page.goto("/login");
 
     await expect(page.getByRole("button", { name: "Continue with Google" })).toBeVisible();

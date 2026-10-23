@@ -1,73 +1,92 @@
-/* The founders wall. A ledger, not a leaderboard: one column of numbered rows
-   in arrival order, with no ranking, no scores and nothing to beat. Tokens
-   only, per docs/DESIGN_SYSTEM.md, so it flips light and dark with the rest. */
+/* The founders wall: an honours board set in type alone (captain 18 Oct 2026).
+   A ledger, not a leaderboard: names and numbers on one baseline in arrival
+   order, with no ranking, no scores, no boxes and nothing to beat. Every number
+   wears the same weight, so No. 1 is not a winner. Tokens only, per
+   docs/DESIGN_SYSTEM.md, so it flips light and dark with the rest. */
 
 .foundersPage {
   min-height: 100dvh;
   color: var(--ink);
-  background:
-    linear-gradient(
-      180deg,
-      color-mix(in srgb, var(--brass) 4%, var(--paper)) 0,
-      var(--paper) 300px
-    );
+  background: var(--paper);
 }
 
 /* The head is the shared Screen primitive (components/ui/screen.css): kicker,
-   heading, lede, one primary. No card around it: a heading with a list under
-   it is already a section. */
+   heading, lede, then the roll, then the one primary and its quiet secondary
+   (`actionsAfterContent`). A short honest roll ends where it ends. */
 .foundersPage .foundersMain {
-  width: min(720px, 100%);
+  width: min(880px, 100%);
   margin: 0 auto;
-  padding: 0 var(--page-gutter) 88px;
+  padding: 0 var(--page-gutter) var(--space-12);
 }
 
 .foundersCount {
   margin: 0;
   font-size: var(--text-sm);
   font-variant-numeric: tabular-nums;
-  color: var(--ink-soft);
+  color: var(--color-text-muted);
 }
 
 .foundersList {
   list-style: none;
-  margin: var(--space-5) 0 0;
+  margin: var(--space-6) 0 var(--space-8);
   padding: 0;
-  display: grid;
-  gap: var(--space-2);
 }
 
 .foundersRow {
+  /* The handle link stretches over the whole row, so the tap target is the
+     row, not a line of text. */
+  position: relative;
   display: grid;
-  grid-template-columns: 2.6rem 44px minmax(0, 1fr) auto;
+  grid-template-columns: 3ch 36px minmax(0, 1fr);
   align-items: center;
   gap: var(--space-3);
   min-height: 56px;
-  padding: var(--space-2) var(--space-3);
-  border: 1px solid var(--line);
-  border-radius: 16px;
+  padding: var(--space-2) var(--space-2);
+  border-bottom: 1px solid var(--line-soft);
+  border-radius: var(--radius-sm);
+  break-inside: avoid;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .foundersRow {
+    transition: background-color var(--duration-fast) var(--ease-out);
+  }
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .foundersRow:hover {
+    background: var(--panel);
+  }
+}
+
+.foundersRow:focus-within {
   background: var(--panel);
 }
 
+/* The number, once, in the figure face: ink, never coral, right-aligned so 1,
+   11 and 100 sit on one edge. No "No.", no leading zeros. */
 .foundersNumber {
+  font-family: var(--font-data);
   font-variant-numeric: tabular-nums;
-  font-size: var(--text-sm);
+  font-size: var(--text-lg);
   font-weight: 700;
-  color: var(--brass);
+  line-height: 1;
+  color: var(--ink);
   text-align: right;
 }
 
+/* Initials and photos read as one family: no ring and no coral tint. */
 .foundersAvatar {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 44px;
-  height: 44px;
+  width: 36px;
+  height: 36px;
   border-radius: 50%;
-  border: 1px solid color-mix(in srgb, var(--brass) 30%, var(--line));
-  background: color-mix(in srgb, var(--brass) 10%, var(--panel-raised));
-  color: var(--tint-ink-accent);
-  font-weight: 700;
+  background: var(--panel-raised);
+  color: var(--ink-soft);
+  font-family: var(--font-display);
+  font-weight: 600;
 }
 
 .foundersAvatarImage {
@@ -88,30 +107,34 @@
   overflow-wrap: anywhere;
 }
 
-.foundersHandle:hover,
+.foundersHandle::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: var(--radius-sm);
+}
+
 .foundersHandle:focus-visible {
   text-decoration: underline;
 }
 
+@media (hover: hover) and (pointer: fine) {
+  .foundersHandle:hover {
+    text-decoration: underline;
+  }
+}
+
 .foundersSubHandle {
   font-size: var(--text-xs);
-  color: var(--ink-soft);
+  color: var(--color-text-muted);
   overflow-wrap: anywhere;
 }
 
-/* The row already leads with its number, so the mark inside it stays a caption.
-   Below the phone breakpoint it drops out entirely rather than squeezing the
-   handle: the number is already there, twice would be noise. */
-.foundersRowMark {
-  justify-self: end;
-}
-
-@media (max-width: 480px) {
-  .foundersRow {
-    grid-template-columns: 2.2rem 44px minmax(0, 1fr);
-  }
-
-  .foundersRowMark {
-    display: none;
+/* Two boards on a wide screen, numbers reading down the first and on into the
+   second: at eleven names a tight six and five, at a hundred two even boards. */
+@media (min-width: 901px) {
+  .foundersList {
+    columns: 2;
+    column-gap: var(--space-10);
   }
 }

@@ -1,5 +1,8 @@
 import { expect, test, type Page } from "@playwright/test";
 
+import { expectLayoutSettled } from "./helpers/layoutSettled";
+import { expectMobileMapShellReady, mobileMapShellControl } from "./helpers/mobileMapShell";
+
 function watchPageErrors(page: Page): string[] {
   const errors: string[] = [];
   page.on("pageerror", (err) => errors.push(err.message));
@@ -10,18 +13,10 @@ async function expectTapTarget(
   locator: ReturnType<Page["locator"]>,
   label: string,
 ): Promise<void> {
-  await expect(locator).toBeVisible();
-  // A sheet and its panels scale in as they open, so the box is read once it
-  // stops moving: a chip caught mid-entry measures under its 44px rest size.
-  let previous = "";
-  await expect
-    .poll(async () => {
-      const current = JSON.stringify(await locator.boundingBox());
-      const settled = current === previous;
-      previous = current;
-      return settled;
-    })
-    .toBe(true);
+  // A sheet and its panels scale in as they open, so the box is read once the
+  // product says it is at rest: a chip caught mid-entry measures under its
+  // 44px rest size.
+  await expectLayoutSettled(locator);
   const box = await locator.boundingBox();
   expect(box, `${label} should have a layout box`).not.toBeNull();
   if (!box) return;
@@ -50,24 +45,25 @@ test("mobile map controls: top bar, drink filters, and coordinated layers are ta
   await expect(page.locator(".mapCanvasWrap")).toBeVisible({ timeout: 20_000 });
   await expect(page.locator(".mapLoading")).toBeHidden({ timeout: 45_000 });
 
+  await expectMobileMapShellReady(page);
   const topbar = page.locator(".mobileMapTopbar");
-  await expect(topbar).toBeVisible();
   // The place name is the city switcher's own full label, the text a phone
   // reader sees in the one top bar (components/map/CitySwitcher.tsx).
   const area = topbar.getByRole("button", { name: "Map area: London. Change city" });
   await expectTapTarget(area, "map area switcher");
   await expect(area.locator(".citySwitcherLabelFull")).toHaveText("London");
-  await expectTapTarget(topbar.getByRole("button", { name: "Search the map" }), "map search action");
-  await topbar.getByRole("button", { name: "Search the map" }).click();
+  const search = await mobileMapShellControl(page, "search");
+  await expectTapTarget(search, "map search action");
+  await search.click();
   // The field suggests pubs as it is typed in, so it is a combobox.
   const searchInput = page.getByRole("combobox", { name: "Search pubs" });
   await expect(searchInput).toBeVisible();
   await expectTapTarget(searchInput.locator(".."), "map search field");
 
-  await topbar.getByRole("button", { name: "Search the map" }).click();
+  await search.click();
   // The drink filters live in the Filters sheet, opened from the top bar
   // (#1631: one bar, and the category row moved into Filters).
-  const filtersButton = topbar.getByRole("button", { name: /^Filters/ });
+  const filtersButton = await mobileMapShellControl(page, "filters");
   await expectTapTarget(filtersButton, "filters button");
   await filtersButton.click();
   const filters = page.locator('.mobileSheetPortal[data-sheet-kind="filters"]');
@@ -100,7 +96,7 @@ test("mobile map controls: top bar, drink filters, and coordinated layers are ta
       .getByRole("button", { name: "Drink shown on the map: Gin. Choose another drink" }),
   ).toBeVisible();
 
-  const layersFab = topbar.getByRole("button", { name: "More map controls" });
+  const layersFab = await mobileMapShellControl(page, "more");
   await expectTapTarget(layersFab, "layers button");
   await layersFab.click();
 
@@ -153,7 +149,9 @@ test("critical city status badges TfL without adding a third chrome row", async 
             severity: "notable",
           },
         ],
-        tubeLines: [],
+        // The map-edge badge counts only urgent tube lines (lib/mapChromeTiers.ts
+        // isUrgentTubeStatus); routine updates stay in the sheet.
+        tubeLines: [{ line: "Weaver", status: "Part Suspended" }],
         weather: null,
       }),
     }),
@@ -166,7 +164,7 @@ test("critical city status badges TfL without adding a third chrome row", async 
 
   await expect(page.locator(".mobileMapChrome > :visible")).toHaveCount(2);
   await expect(page.locator(".cityStatusBanner")).toHaveCount(0);
-  const tfl = page.getByRole("button", { name: /TfL/ });
+  const tfl = await mobileMapShellControl(page, "tfl");
   await expectTapTarget(tfl, "TfL status chip");
   await expect(tfl).toContainText("1");
   await tfl.click();

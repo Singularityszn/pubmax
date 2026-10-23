@@ -24,13 +24,16 @@ import { isProfileWithdrawnFromPublic } from "@/lib/accountPublicAccess.server";
 //    together. Hiding never deletes: the row, its bytes and its report trail
 //    stay, so the decision is reversible from the surface that made it.
 
+
 import {
   admin,
   createFailSoftGuard,
   onMissingDurableWrite,
   selectStore,
+  whereVenueIdIn,
 } from "@/lib/storeBackend";
 import { isDrinkCategory } from "@/lib/drinks";
+import { loadVenueAliasResolver, storedVenueIds } from "@/lib/venueAliases";
 import {
   isProfileTombstoned,
   profileStore,
@@ -80,6 +83,16 @@ type DrinkWallListQuery = {
   /** When set, only rows tied to these venues (near scope). */
   nearVenueIds?: readonly string[] | null;
 };
+
+/** The near scope widened to every id each venue's photos may be stored under. */
+async function withStoredNearVenueIds(query: DrinkWallListQuery): Promise<DrinkWallListQuery> {
+  if (!query.nearVenueIds) return query;
+  const aliases = await loadVenueAliasResolver();
+  return {
+    ...query,
+    nearVenueIds: [...new Set(query.nearVenueIds.flatMap((id) => aliases.storedIds(id)))],
+  };
+}
 
 function matchesDrinkWallQuery(row: VenuePhoto, query: DrinkWallListQuery): boolean {
   if (row.moderationState !== "approved") return false;
@@ -230,8 +243,14 @@ const memoryVenuePhotoStore: VenuePhotoStore = {
   async listForVenue(venueId, query = {}) {
     const limit = boundedLimit(query.limit);
     const cursor = parseVenuePhotoCursor(query.cursor);
+    const venueIds = await storedVenueIds(venueId);
     const rows = [...byId.values()]
-      .filter((row) => row.venueId === venueId && row.moderationState === "approved")
+      .filter(
+        (row) =>
+          row.venueId !== null &&
+          venueIds.includes(row.venueId) &&
+          row.moderationState === "approved",
+      )
       .filter((row) => (cursor ? isBeforeVenuePhotoCursor(row, cursor) : true))
       .sort(byNewestVenuePhoto)
       .slice(0, limit + 1);
@@ -239,11 +258,13 @@ const memoryVenuePhotoStore: VenuePhotoStore = {
   },
 
   async countForAuthorAtVenue(authorProfileId, venueId) {
+    const venueIds = await storedVenueIds(venueId);
     let count = 0;
     for (const row of byId.values()) {
       if (
         row.authorProfileId === authorProfileId &&
-        row.venueId === venueId &&
+        row.venueId !== null &&
+        venueIds.includes(row.venueId) &&
         row.moderationState === "approved"
       ) {
         count += 1;
@@ -305,8 +326,9 @@ const memoryVenuePhotoStore: VenuePhotoStore = {
   async listDrinkWall(query = {}) {
     const limit = boundedLimit(query.limit);
     const cursor = parseVenuePhotoCursor(query.cursor);
+    const scoped = await withStoredNearVenueIds(query);
     const rows = [...byId.values()]
-      .filter((row) => matchesDrinkWallQuery(row, query))
+      .filter((row) => matchesDrinkWallQuery(row, scoped))
       .filter((row) => (cursor ? isBeforeVenuePhotoCursor(row, cursor) : true))
       .sort(byNewestVenuePhoto)
       .slice(0, limit + 1);
@@ -439,10 +461,10 @@ const supabaseVenuePhotoStore: VenuePhotoStore = {
       message: "listForVenue failed - returning no photos",
       onError: () => ({ status: "degraded", photos: [], nextCursor: null }),
       run: async () => {
-        let request = admin()
-          .from(TABLE)
-          .select("*")
-          .eq("venue_id", venueId)
+        let request = whereVenueIdIn(
+          admin().from(TABLE).select("*"),
+          await storedVenueIds(venueId),
+        )
           .eq("moderation_state", "approved")
           .order("created_at", { ascending: false })
           .order("id", { ascending: false })
@@ -497,11 +519,10 @@ const supabaseVenuePhotoStore: VenuePhotoStore = {
         memoryVenuePhotoStore.countForAuthorAtVenue(authorProfileId, venueId),
       // No onError: a cap that cannot be counted must not read as room to spare.
       run: async () => {
-        const { count, error } = await admin()
-          .from(TABLE)
-          .select("id", { count: "exact", head: true })
-          .eq("author_profile_id", authorProfileId)
-          .eq("venue_id", venueId)
+        const { count, error } = await whereVenueIdIn(
+          admin().from(TABLE).select("id", { count: "exact", head: true }).eq("author_profile_id", authorProfileId),
+          await storedVenueIds(venueId),
+        )
           .eq("moderation_state", "approved");
         if (error) throw new Error(error.message);
         return typeof count === "number" && count > 0 ? count : 0;
@@ -524,42 +545,17 @@ const supabaseVenuePhotoStore: VenuePhotoStore = {
   },
 
   async report(id, reason, actorHash) {
-    return guard<boolean>({
-      context: "report",
-      onSchemaMiss: () =>
-        onMissingDurableWrite({
-          storeTag: "venue-photos",
-          migrationHint: MIGRATION_HINT,
-          fallback: () => memoryVenuePhotoStore.report(id, reason, actorHash),
-        }),
-      run: async () => {
-        const { data, error } = await admin()
-          .from(TABLE)
-          .select("id, moderation_state, report_count, report_actors")
-          .eq("id", id)
-          .maybeSingle();
-        if (error) throw new Error(error.message);
-        if (!data) return false;
-        const row = data as Record<string, unknown>;
-        const actors = Array.isArray(row.report_actors)
-          ? (row.report_actors as unknown[]).filter((a): a is string => typeof a === "string")
-          : [];
-        if (actors.includes(actorHash)) return true;
-        const nextActors = [...actors, actorHash];
-        const { error: updateError } = await admin()
-          .from(TABLE)
-          .update({
-            report_actors: nextActors,
-            report_count: nextActors.length,
-            reported_at: new Date().toISOString(),
-            ...(reason ? { report_reason: reason } : {}),
-            ...(row.moderation_state === "approved" ? { moderated_at: null } : {}),
-          })
-          .eq("id", id);
-        if (updateError) throw new Error(updateError.message);
-        return true;
-      },
+    // The database owns actor uniqueness and reads the current moderation
+    // state under its row lock. A missing RPC must never acknowledge a flag
+    // through the former read-modify-write or process-memory fallback.
+    const { data, error } = await admin().rpc("append_venue_photo_report_actor", {
+      p_id: id,
+      p_actor: actorHash,
+      p_reason: reason ?? null,
     });
+    if (error) throw new Error(error.message);
+    if (typeof data !== "boolean") throw new Error("Reporter storage returned an invalid result.");
+    return data;
   },
 
   async moderate(id, state, note) {
@@ -620,7 +616,7 @@ const supabaseVenuePhotoStore: VenuePhotoStore = {
       message: "listDrinkWall failed - returning no photos",
       onError: () => ({ status: "degraded", photos: [], nextCursor: null }),
       run: async () => {
-        const near = query.nearVenueIds ?? null;
+        const near = (await withStoredNearVenueIds(query)).nearVenueIds ?? null;
         if (near !== null && near.length === 0) return toPage([], limit, query.viewerProfileId);
         let request = admin()
           .from(TABLE)

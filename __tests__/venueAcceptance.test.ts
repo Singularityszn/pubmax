@@ -9,6 +9,7 @@ import {
   type PlanningIntentStorage,
 } from "@/lib/planningIntent";
 import { acceptNearVenue } from "@/lib/venueAcceptance";
+import { defined } from "@/__tests__/helpers/defined";
 
 // The Near acceptance seam is pure — inject storage + clock and read the result.
 // It must never mistake a browse for an acceptance, never guess the source, and
@@ -97,7 +98,7 @@ describe("acceptNearVenue", () => {
 
   it("records a canonical borough as the accepted area", () => {
     const result = acceptNearVenue(
-      { ...baseInput, area: { kind: "borough", name: CANONICAL_BOROUGH } },
+      { ...baseInput, area: { kind: "borough", name: defined(CANONICAL_BOROUGH) } },
       { storage, now: NOW },
     );
 

@@ -4,7 +4,6 @@ import {
   applyBasemapTaste,
   applySelectionMute,
   buildPalette,
-  clusterCircleColorExpr,
   isBasemapSelectionMuteLayer,
   mixHex,
   muteOpacityExpr,
@@ -12,7 +11,14 @@ import {
   tameNumericShieldFilters,
   withAlpha,
 } from "@/lib/mapBasemapTaste";
-import { applySelectionState, type SceneCtx } from "@/components/map/canvas/buildScene";
+import {
+  applySelectionState,
+  assembleSceneDeferred,
+  buildPubs,
+  type SceneCtx,
+} from "@/components/map/canvas/buildScene";
+import type { Tokens } from "@/components/map/canvas/tokens";
+import { defined } from "@/__tests__/helpers/defined";
 
 function channels(hex: string): [number, number, number] {
   const n = parseInt(hex.replace("#", ""), 16);
@@ -24,12 +30,12 @@ function relativeLuminance(hex: string): number {
   const [r, g, b] = channels(hex).map((c) =>
     c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4,
   );
-  return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+  return 0.2126 * defined(r) + 0.7152 * defined(g) + 0.0722 * defined(b);
 }
 
 function contrast(a: string, b: string): number {
   const [hi, lo] = [relativeLuminance(a), relativeLuminance(b)].sort((x, y) => y - x);
-  return (hi + 0.05) / (lo + 0.05);
+  return (defined(hi) + 0.05) / (defined(lo) + 0.05);
 }
 
 /** HSL saturation as a percentage — the axis a park must NOT grow along. */
@@ -75,42 +81,6 @@ const darkTokens = {
   buildingEmissive: "#8f7d6b",
   parkTint: "#3f5c38",
 };
-
-function evaluateClusterExpression(
-  expression: unknown,
-  properties: Record<string, unknown>,
-): unknown {
-  if (!Array.isArray(expression)) return expression;
-  const [operator, ...args] = expression;
-  const value = (item: unknown) =>
-    evaluateClusterExpression(item, properties);
-
-  if (operator === "get") return properties[String(args[0])];
-  if (operator === "coalesce") {
-    return args.map(value).find((item) => item !== null && item !== undefined);
-  }
-  if (operator === ">") return Number(value(args[0])) > Number(value(args[1]));
-  if (operator === ">=") return Number(value(args[0])) >= Number(value(args[1]));
-  if (operator === "!=") return value(args[0]) !== value(args[1]);
-  if (operator === "has") return Object.hasOwn(properties, String(args[0]));
-  if (operator === "%") return Number(value(args[0])) % Number(value(args[1]));
-  if (operator === "+") return args.reduce((sum, item) => sum + Number(value(item)), 0);
-  if (operator === "all") return args.every((item) => Boolean(value(item)));
-  if (operator === "match") {
-    const input = value(args[0]);
-    for (let index = 1; index < args.length - 1; index += 2) {
-      if (value(args[index]) === input) return value(args[index + 1]);
-    }
-    return value(args.at(-1));
-  }
-  if (operator === "case") {
-    for (let index = 0; index < args.length - 1; index += 2) {
-      if (value(args[index])) return value(args[index + 1]);
-    }
-    return value(args.at(-1));
-  }
-  throw new Error(`Unsupported test expression operator: ${String(operator)}`);
-}
 
 // Wave A — crude luminance proxy (sum of RGB channels) shared by the dark-map
 // hierarchy assertions. Accepts `#rrggbb`; the dark palette paints solid hex.
@@ -402,7 +372,7 @@ describe("mapBasemapTaste (Wave A / dark basemap overhaul)", () => {
     const layers = [
       { id: "poi_label", type: "symbol" },
       { id: "poi_name", type: "symbol" },
-      { id: "pois-label", type: "symbol" },
+      { id: "pois_label", type: "symbol" },
       { id: "poi-name", type: "symbol" },
       // A non-POI id can contain `poi` as part of another token.
       { id: "point_bar_label", type: "symbol" },
@@ -411,7 +381,7 @@ describe("mapBasemapTaste (Wave A / dark basemap overhaul)", () => {
       { id: "poi_bars_label", type: "symbol" },
       { id: "poi_beer_name", type: "symbol" },
       { id: "poi_brewery_name", type: "symbol" },
-      { id: "pois-pubs-label", type: "symbol" },
+      { id: "pois_pubs_label", type: "symbol" },
       { id: "poi_breweries_name", type: "symbol" },
     ];
     const map = {
@@ -430,7 +400,7 @@ describe("mapBasemapTaste (Wave A / dark basemap overhaul)", () => {
     for (const generic of [
       "poi_label",
       "poi_name",
-      "pois-label",
+      "pois_label",
       "poi-name",
       "point_bar_label",
     ]) {
@@ -447,7 +417,7 @@ describe("mapBasemapTaste (Wave A / dark basemap overhaul)", () => {
       "poi_bars_label",
       "poi_beer_name",
       "poi_brewery_name",
-      "pois-pubs-label",
+      "pois_pubs_label",
       "poi_breweries_name",
     ]) {
       expect(
@@ -607,72 +577,6 @@ describe("mapBasemapTaste (Wave A / dark basemap overhaul)", () => {
     expect(paints.some(([id]) => id === "custom_road_layer")).toBe(true);
   });
 
-  it("colours fallback clusters by their most common known pint-price band", () => {
-    const expr = clusterCircleColorExpr(tokens, false) as unknown[];
-    const serialized = JSON.stringify(expr);
-
-    expect(expr[0]).toBe("case");
-    expect(serialized).toContain('"b0"');
-    expect(serialized).toContain('"b1"');
-    expect(serialized).toContain('"b2"');
-    expect(serialized).not.toContain('"point_count"');
-    expect(serialized).toContain("47, 143, 91"); // pint rgb
-    expect(serialized).toContain("217, 159, 69"); // amber
-    expect(serialized).toContain("209, 99, 83"); // brick
-    expect(serialized).toContain("107, 114, 106"); // no known price
-  });
-
-  it.each([
-    {
-      name: "cheap wins a three-way tie",
-      properties: { b0: 2, b1: 2, b2: 2 },
-      expected: withAlpha(tokens.pint, 0.9),
-    },
-    {
-      name: "middle wins a middle-dear tie",
-      properties: { b0: 0, b1: 3, b2: 3 },
-      expected: withAlpha(tokens.amber, 0.92),
-    },
-    {
-      name: "dear wins when it has the largest count",
-      properties: { b0: 1, b1: 2, b2: 4 },
-      expected: withAlpha(tokens.brick, 0.88),
-    },
-    {
-      name: "unknown pubs do not outvote a known band",
-      properties: { b0: 1, b1: 0, b2: 0, b3: 99 },
-      expected: withAlpha(tokens.pint, 0.9),
-    },
-    {
-      name: "all unknown is grey",
-      properties: { b0: 0, b1: 0, b2: 0, b3: 12 },
-      expected: withAlpha(tokens.muted, 0.84),
-    },
-    {
-      name: "missing counts are grey",
-      properties: {},
-      expected: withAlpha(tokens.muted, 0.84),
-    },
-    {
-      // Under the Spoons value lens the disc counts the lens's own band, so a
-      // ring of pubs painted by units can never be coloured by their prices.
-      name: "the lens's own bands win once its counts are there",
-      properties: { b0: 9, b1: 0, b2: 0, b3: 0, s0: 0, s1: 0, s2: 2, s3: 7 },
-      expected: withAlpha(tokens.brick, 0.88),
-    },
-    {
-      name: "a cluster with nothing in the ranking is grey under the lens",
-      properties: { b0: 9, b1: 0, b2: 0, b3: 0, s0: 0, s1: 0, s2: 0, s3: 9 },
-      expected: withAlpha(tokens.muted, 0.84),
-    },
-  ])("$name", ({ properties, expected }) => {
-    expect(
-      evaluateClusterExpression(
-        clusterCircleColorExpr(tokens, false),
-        properties,
-      ),
-    ).toBe(expected);
-  });
 });
 
 describe("mixHex (M4 token-derivation primitive)", () => {
@@ -790,22 +694,22 @@ describe("M2 · POI-at-initiation selection mute", () => {
     applySelectionMute(map, true, store);
 
     // Issue #222 — the muted value is min(original, 0.12), not a flat 0.12.
-    expect(map.paint.poi_label["text-opacity"]).toEqual(["min", 0.9, SELECTION_MUTE_OPACITY]);
-    expect(map.paint.road_label["text-opacity"]).toEqual(["min", 1, SELECTION_MUTE_OPACITY]);
-    expect(map.paint["pois-label"]["text-opacity"]).toEqual(["min", 0.88, SELECTION_MUTE_OPACITY]);
-    expect(map.paint["tube-lines-color"]["line-opacity"]).toEqual([
+    expect(defined(map.paint.poi_label)["text-opacity"]).toEqual(["min", 0.9, SELECTION_MUTE_OPACITY]);
+    expect(defined(map.paint.road_label)["text-opacity"]).toEqual(["min", 1, SELECTION_MUTE_OPACITY]);
+    expect(defined(map.paint["pois-label"])["text-opacity"]).toEqual(["min", 0.88, SELECTION_MUTE_OPACITY]);
+    expect(defined(map.paint["tube-lines-color"])["line-opacity"]).toEqual([
       "min",
       ["interpolate"],
       SELECTION_MUTE_OPACITY,
     ]);
-    expect(map.paint["landmarks-label"]["text-opacity"]).toEqual([
+    expect(defined(map.paint["landmarks-label"])["text-opacity"]).toEqual([
       "min",
       0.86,
       SELECTION_MUTE_OPACITY,
     ]);
-    expect(map.paint["landmarks-icon"]["icon-opacity"]).toEqual(["min", 1, SELECTION_MUTE_OPACITY]);
+    expect(defined(map.paint["landmarks-icon"])["icon-opacity"]).toEqual(["min", 1, SELECTION_MUTE_OPACITY]);
     // Place labels are overview context — untouched.
-    expect(map.paint.place_city["text-opacity"]).toBe(0.95);
+    expect(defined(map.paint.place_city)["text-opacity"]).toBe(0.95);
   });
 
   it("restores EXACT originals on deselect (idempotent select/deselect cycles)", () => {
@@ -829,7 +733,7 @@ describe("M2 · POI-at-initiation selection mute", () => {
     applySelectionMute(map, true, store); // must NOT capture the muted 0.12
     expect(store.get("poi_label::text-opacity")).toBe(0.9);
     applySelectionMute(map, false, store);
-    expect(map.paint.poi_label["text-opacity"]).toBe(0.9);
+    expect(defined(map.paint.poi_label)["text-opacity"]).toBe(0.9);
   });
 
   it("restores an unset paint prop to style default via undefined", () => {
@@ -840,7 +744,7 @@ describe("M2 · POI-at-initiation selection mute", () => {
     expect(store.get("road_label::icon-opacity")).toBeUndefined();
     applySelectionMute(map, false, store);
     // Restored to undefined (style default), not left at the mute value.
-    expect(map.paint.road_label["icon-opacity"]).toBeUndefined();
+    expect(defined(map.paint.road_label)["icon-opacity"]).toBeUndefined();
   });
 });
 
@@ -914,7 +818,7 @@ describe("style.load recapture path (applySelectionState, buildScene.ts)", () =>
     expect(store.get("pois-transport-minor::icon-opacity")).toBe(0);
     // The muted paint attenuates the FRESH original, never the stale one —
     // min(0, 0.12) stays 0, not min(0.9, 0.12) = 0.12 (a raise).
-    expect(paint["pois-transport-minor"]["icon-opacity"]).toEqual(["min", 0, SELECTION_MUTE_OPACITY]);
+    expect(defined(paint["pois-transport-minor"])["icon-opacity"]).toEqual(["min", 0, SELECTION_MUTE_OPACITY]);
   });
 
   it("with nothing selected, a reload is a pure clear — no mute is (re)applied", () => {
@@ -956,7 +860,7 @@ describe("style.load recapture path (applySelectionState, buildScene.ts)", () =>
     // style.load with a venue still selected: clear stale, recapture fresh, mute.
     applySelectionState(makeCtx(map, store, "venue-1"));
     expect(store.get("pois-transport-minor::icon-opacity")).toBe(0.7); // fresh, not 0.9
-    expect(paint["pois-transport-minor"]["icon-opacity"]).toEqual([
+    expect(defined(paint["pois-transport-minor"])["icon-opacity"]).toEqual([
       "min",
       0.7,
       SELECTION_MUTE_OPACITY,
@@ -964,7 +868,73 @@ describe("style.load recapture path (applySelectionState, buildScene.ts)", () =>
 
     // Deselect: restore must land on the FRESH original (0.7), and clear.
     applySelectionMute(map, false, store);
-    expect(paint["pois-transport-minor"]["icon-opacity"]).toBe(0.7);
+    expect(defined(paint["pois-transport-minor"])["icon-opacity"]).toBe(0.7);
     expect(store.size).toBe(0);
+  });
+});
+
+describe("deferred scene taste (assembleSceneDeferred, buildScene.ts)", () => {
+  // The taste pass runs after the pub layers exist. It must retint the stock
+  // basemap's labels and leave the scene's own symbol layers as they were
+  // built: `pubs-point-selected` reads as `poi` to the label heuristic.
+  function buildThenDefer(dark: boolean) {
+    const themeTokens = dark ? darkTokens : tokens;
+    type Layer = { id: string; type: string; paint: Record<string, unknown> };
+    const layers = new Map<string, Layer>([
+      ["poi_label", { id: "poi_label", type: "symbol", paint: {} }],
+    ]);
+    const map = {
+      getSource: () => undefined,
+      addSource: () => {},
+      getLayer: (id: string) => layers.get(id),
+      getStyle: () => ({ layers: [...layers.values()] }),
+      getPaintProperty: (id: string, prop: string) => layers.get(id)?.paint[prop],
+      setPaintProperty: (id: string, prop: string, value: unknown) => {
+        const layer = layers.get(id);
+        if (!layer) throw new Error(`no layer ${id}`);
+        layer.paint[prop] = value;
+      },
+      setLayoutProperty: () => {},
+      setSky: () => {},
+    };
+    const ctx = {
+      map,
+      tokens: new Proxy(themeTokens, {
+        get: (target, key) =>
+          key === "priceStampTiltDeg"
+            ? -1.5
+            : ((target as Record<string | symbol, unknown>)[key] ?? "#000000"),
+      }) as unknown as Tokens,
+      dark,
+      textFont: ["Noto Sans Regular"],
+      addLayerOnce: ((layer: Layer) =>
+        layers.set(layer.id, { ...layer, paint: { ...layer.paint } })) as SceneCtx["addLayerOnce"],
+      poiHidden: {},
+      transitLinesPath: null,
+      pubsData: { type: "FeatureCollection", features: [] },
+      tonightData: { type: "FeatureCollection", features: [] },
+      tonightVisible: false,
+      selectedId: "venue-1",
+      selectionMuteStore: new Map<string, unknown>(),
+    } as unknown as SceneCtx;
+
+    buildPubs(ctx);
+    const built = structuredClone(defined(layers.get("pubs-point-selected")).paint);
+    assembleSceneDeferred(ctx);
+    return { themeTokens, built, layers };
+  }
+
+  it.each([false, true])("keeps the selected price tag inverted (dark: %s)", (dark) => {
+    const { themeTokens, built, layers } = buildThenDefer(dark);
+    const paint = defined(layers.get("pubs-point-selected")).paint;
+
+    expect(paint["text-color"]).toBe(dark ? themeTokens.inkDeep : themeTokens.paper);
+    expect(paint["text-halo-color"]).toBe(dark ? themeTokens.ink : themeTokens.inkDeep);
+    expect(paint["text-opacity"]).toBe(1);
+    expect(paint).toEqual(built);
+    // The pass did run: the basemap's own POI label took the theme's ink.
+    expect(defined(layers.get("poi_label")).paint["text-color"]).toBe(
+      dark ? themeTokens.ink : themeTokens.inkDeep,
+    );
   });
 });

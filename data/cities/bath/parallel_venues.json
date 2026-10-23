@@ -1,0 +1,70 @@
+{
+  "city": "bath",
+  "source": "Parallel Task API; Tavily Search and Extract",
+  "observationMeaning": "Each row's observedAt is the date its Parallel research result, Tavily search page text or page read was retrieved; provider names the lane. Cached reruns retain that date. Not a claim that the venue is open tonight.",
+  "populationPriority": 193400,
+  "populationSources": [
+    "https://www.ons.gov.uk/peoplepopulationandcommunity/populationandmigration/populationestimates/bulletins/populationandhouseholdestimatesenglandandwales/census2021",
+    "https://www.scotlandscensus.gov.uk/2022-reports/scotlands-census-2022-rounded-population-estimates/"
+  ],
+  "venues": [
+    {
+      "name": "Hudson Bar & Grill",
+      "kind": "pub",
+      "address": "14 London Road, Bath BA1 5BU",
+      "postcode": "BA1 5BU",
+      "locality": "Bath",
+      "website": null,
+      "lat": 51.388888,
+      "lng": -2.358829,
+      "coordinatePrecision": "postcode-centroid",
+      "sourceUrls": [
+        "https://camra.org.uk/pubs/postcode/ba2-6ns-1644844"
+      ],
+      "evidence": [
+        {
+          "url": "https://camra.org.uk/pubs/postcode/ba2-6ns-1644844",
+          "excerpt": "[### Hudson Bar & Grill\n\nPub, in Bath]\n\n**Cask Ale not available**\n\n**0.6** miles from you\n\n14 London Road, Bath, BA1 5BU"
+        }
+      ],
+      "observedAt": "2026-10-04T12:52:47.453Z",
+      "geocode": {
+        "url": "https://api.postcodes.io/postcodes/BA1%205BU",
+        "observedAt": "2026-10-04T13:06:55.820Z",
+        "postcode": "BA1 5BU",
+        "quality": 1
+      },
+      "provider": "tavily",
+      "id": "venue-bat-1ftmwfc"
+    },
+    {
+      "name": "Wolf Wine",
+      "kind": "pub",
+      "address": "Walcot Street, Bath BA1 5BW",
+      "postcode": "BA1 5BW",
+      "locality": "Bath",
+      "website": null,
+      "lat": 51.387529,
+      "lng": -2.359407,
+      "coordinatePrecision": "postcode-centroid",
+      "sourceUrls": [
+        "https://camra.org.uk/pubs/postcode/ba2-6ns-1644844"
+      ],
+      "evidence": [
+        {
+          "url": "https://camra.org.uk/pubs/postcode/ba2-6ns-1644844",
+          "excerpt": "### Wolf Wine\n\nPub, in Bath]\n\n**Cask Ale not available**\n\n**0.6** miles from you\n\nWalcot Street, Bath, BA1 5BW"
+        }
+      ],
+      "observedAt": "2026-10-04T12:52:47.453Z",
+      "geocode": {
+        "url": "https://api.postcodes.io/postcodes/BA1%205BW",
+        "observedAt": "2026-10-04T13:06:55.789Z",
+        "postcode": "BA1 5BW",
+        "quality": 1
+      },
+      "provider": "tavily",
+      "id": "venue-bat-1kit5a0"
+    }
+  ]
+}

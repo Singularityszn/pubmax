@@ -19,6 +19,7 @@
 //   - a verified price is surfaced when we have one, never fabricated when we
 //     don't. No em dashes in any copy this module builds.
 
+import type { Route } from "next";
 import { estimateBusyness } from "@/lib/busyness";
 import { formatGbp } from "@/lib/formatGbp";
 import { isFeaturedHeritageSource, type HeritageFact } from "@/lib/heritageFacts";
@@ -81,8 +82,10 @@ type QuietPintRow = {
   quietLabel: string;
   /** "£4.80" when a verified price exists for this venue, else null. */
   priceLabel: string | null;
+  /** The same figure as a number, so the row can band it (lib/priceBand.ts). */
+  priceGbp?: number | null;
   /** Deep link to the venue on the map ({@link venueMapUrl}). */
-  mapHref: string;
+  mapHref: Route;
 };
 
 export type QuietPintModule = {
@@ -122,8 +125,7 @@ function bestSourcedFact(facts: readonly HeritageFact[]): HeritageFact | null {
       typeof fact.fact === "string" &&
       fact.fact.trim(),
   );
-  if (sourced.length === 0) return null;
-  return [...sourced].sort((a, b) => sourcePriority(a.source) - sourcePriority(b.source))[0];
+  return [...sourced].sort((a, b) => sourcePriority(a.source) - sourcePriority(b.source))[0] ?? null;
 }
 
 function londonWeekdayName(now: Date): string {
@@ -131,6 +133,10 @@ function londonWeekdayName(now: Date): string {
     timeZone: "Europe/London",
     weekday: "long",
   }).format(now);
+}
+
+function finitePrice(price: number | null | undefined): number | null {
+  return typeof price === "number" && Number.isFinite(price) ? price : null;
 }
 
 function priceLabel(price: number | null | undefined): string | null {
@@ -222,6 +228,7 @@ export function buildQuietPint(input: BuildQuietPintInput): QuietPintModule | nu
     sourceRef: typeof best.sourceRef === "string" && best.sourceRef.trim() ? best.sourceRef : null,
     quietLabel,
     priceLabel: priceLabel(priceById.get(candidate.venueId)),
+    priceGbp: finitePrice(priceById.get(candidate.venueId)),
     mapHref: venueMapUrl(candidate.venueId),
   }));
 

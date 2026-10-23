@@ -172,7 +172,15 @@ export type LastTrainResult = {
   nearestPubs?: NearestPub[];
   /** True when station context came from bundled static data, not live TfL. */
   staticFallback?: boolean;
+  /**
+   * How `decision.walkMinutesEstimate` was measured: along the streets
+   * (lib/stationWalkAccess, Zone 1 and 1 km around it) or the straight line everywhere else.
+   */
+  walkBasis?: WalkBasis;
 };
+
+/** How a walk to the station was measured. */
+export type WalkBasis = "street" | "straight";
 
 // --- Last Pint decision (user stories 19, 21, 23, 24) ---------------------
 //
@@ -226,6 +234,16 @@ export function walkMinutesForKm(distanceKm: number): number {
 //     may have already gone — do NOT add a day.
 //   • A same-service departure earlier than now has already left → negative
 //     minutes (the caller reads that as departed/withdrawn), NOT +1440.
+//   • An evening departure (hour<24, not pastMidnight) checked in the small
+//     hours (now before SERVICE_DAY_ROLLBACK_HOUR) belongs to YESTERDAY's
+//     service day, so subtract a day: a 23:00 train checked at 00:30 left 90
+//     minutes ago (-90), not in 22.5 hours (+1350). From 04:00 the service day
+//     is today again and the same 23:00 is tonight's train.
+//
+// In short, against now's service day (which starts at 04:00 London):
+//   pastMidnight && now >= 04:00  → departure is tomorrow's calendar date (+1 day)
+//   !pastMidnight && now < 04:00  → departure is yesterday's calendar date (-1 day)
+//   otherwise                     → departure is today's calendar date
 //
 // The old bug: keying the +1440 off the entry's `pastMidnight` flag meant a
 // 00:30 train, checked at 00:45, reported ~24h left instead of "gone 15m ago".
@@ -249,8 +267,12 @@ export function minutesUntilDeparture(
   // Only wrap a past-midnight departure forward a day when NOW is still in the
   // evening (before the early-hours window it lands in). Once now itself is in
   // the small hours, that departure is today — a negative result means it's gone.
-  if (pastMidnight && nowMinutes >= SERVICE_DAY_ROLLBACK_HOUR * 60) {
+  // Conversely, an evening departure seen from the small hours was yesterday's.
+  const nowInSmallHours = nowMinutes < SERVICE_DAY_ROLLBACK_HOUR * 60;
+  if (pastMidnight && !nowInSmallHours) {
     mins += 24 * 60;
+  } else if (!pastMidnight && nowInSmallHours) {
+    mins -= 24 * 60;
   }
   return mins;
 }
@@ -308,7 +330,12 @@ function minutesUntilLondonDeparture(
   serviceHour?: number,
 ): number {
   const nowParts = londonDateTimeParts(nowDate);
-  const dayOffset = pastMidnight && nowParts.hour >= SERVICE_DAY_ROLLBACK_HOUR ? 1 : 0;
+  // Same service-day rule as the plain path: see the comment above
+  // minutesUntilDeparture.
+  const nowInSmallHours = nowParts.hour < SERVICE_DAY_ROLLBACK_HOUR;
+  let dayOffset = 0;
+  if (pastMidnight && !nowInSmallHours) dayOffset = 1;
+  else if (!pastMidnight && nowInSmallHours) dayOffset = -1;
   const departureWallAsUtc = Date.UTC(
     nowParts.year,
     nowParts.month - 1,
@@ -367,7 +394,9 @@ function selectLondonDepartureCandidate(
   candidates: number[],
   serviceHour?: number,
 ): number {
-  if (candidates.length === 0) {
+  const first = candidates[0];
+  const last = candidates.at(-1);
+  if (first === undefined || last === undefined) {
     // Spring-forward gaps have no real instant. Keep the existing offset-based
     // fallback for malformed or exceptional timetable data.
     const departureOffset = londonOffsetMinutes(new Date(wallAsUtc));
@@ -376,7 +405,7 @@ function selectLondonDepartureCandidate(
   // TfL's 25:xx service hour is the first 01:xx occurrence on a fall-back
   // night. Without the original hour, retain the prior later-occurrence choice
   // for callers that only have a display clock and past-midnight flag.
-  return serviceHour === 25 ? candidates[0] : candidates[candidates.length - 1];
+  return serviceHour === 25 ? first : last;
 }
 
 export type LastPintDecisionInput = {
@@ -557,7 +586,7 @@ export function buildLastPintShareText(input: LastPintShareInput): string {
     lines.push(shareToneTag(decision));
   }
 
-  lines.push("via PUBMAXXING");
+  lines.push("via PUBMAXX");
   return lines.join("\n");
 }
 

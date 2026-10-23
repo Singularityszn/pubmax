@@ -90,7 +90,10 @@ describe("POST /api/plans — anchored lock", () => {
 
     const missing = await create({ stops: [{ venueId: "venue-a", venueName: "A" }], anchor: ANCHOR });
     expect(missing.status).toBe(422);
-    expect((await missing.json()).code).toBe("PLAN_ANCHOR_PROOF_MISSING");
+    expect(await missing.json()).toMatchObject({
+      code: "PLAN_ANCHOR_PROOF_MISSING",
+      error: "We couldn't check this route. Draft it again and save.",
+    });
 
     const tampered = await create({
       stops: [{ venueId: "venue-a", venueName: "A" }],
@@ -271,7 +274,10 @@ describe("POST /api/plans — anchored lock", () => {
       groundingProof: routeProof("op-upgrade-real"), operationKey: "op-upgrade-other",
     });
     expect(wrongOp.status).toBe(422);
-    expect((await wrongOp.json()).code).toBe("PLAN_ANCHOR_PROOF_OPERATION_MISMATCH");
+    expect(await wrongOp.json()).toMatchObject({
+      code: "PLAN_ANCHOR_PROOF_OPERATION_MISMATCH",
+      error: "This route was drafted for a different save. Draft it again and save.",
+    });
   });
 
   it("treats a legacy V1 creation proof as no upgrade claim, not a malformed one", async () => {

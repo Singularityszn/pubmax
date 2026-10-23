@@ -291,7 +291,7 @@ export async function GET(request: Request): Promise<Response> {
 
   const nearParsed = scope === "near" ? parseNearVenueIds(params.get("nearVenueIds")) : undefined;
   if (nearParsed === null) {
-    return publicApiError("Near pubs are not valid.", "INVALID_REQUEST", 400);
+    return publicApiError("Those nearby pubs aren't valid.", "INVALID_REQUEST", 400);
   }
 
   let viewerProfileId: string | null = null;

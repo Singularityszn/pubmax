@@ -5,7 +5,7 @@ import { offlineOrMessage } from "@/lib/apiErrorMessage";
 import { Copy, Users } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useId, useMemo, useRef, useState } from "react";
 
 import { useAuth } from "@/components/auth/AuthProvider";
 import { writeActiveRoundCode } from "@/lib/activeRound";
@@ -42,10 +42,22 @@ export type RoundStarterProps = {
   /** Fires after a successful start when staying on the map (chip can light immediately). */
   onRoundStarted?: (code: string) => void;
   className?: string;
+  /**
+   * Mark the submit as the screen's one primary action (the launch-screen
+   * marker). Only a route that is itself the start door passes it, as /rounds
+   * does. Every embedded use sits beside a page that already has a primary.
+   */
+  primaryAction?: boolean;
+  /**
+   * The start form as the body of its own screen (/rounds): no card around it
+   * and no title of its own, because the Screen head above it already names
+   * the page. Every embedded use keeps the framed card.
+   */
+  bare?: boolean;
 };
 
 /**
- * Start a Round: group-crawl entry (GH #26). Mints a Round, optionally seeds
+ * Start a round: group-crawl entry (GH #26). Mints a Round, optionally seeds
  * stops from a Plan route, stamps the active Round key, and either navigates
  * to the live Round page or (Plan drawer / stayOnMap) keeps the user on the map.
  */
@@ -56,6 +68,8 @@ export default function RoundStarter({
   stayOnMap,
   onRoundStarted,
   className,
+  primaryAction = false,
+  bare = false,
 }: RoundStarterProps): React.JSX.Element {
   const router = useRouter();
   const {
@@ -167,7 +181,8 @@ export default function RoundStarter({
     router.push(`/rounds/${result.code}`);
   }
 
-  const formClass = ["roundStarter", compact ? "compact" : null, className]
+  const handleFieldId = useId();
+  const formClass = ["roundStarter", compact ? "compact" : null, bare ? "roundStarter--bare" : null, className]
     .filter(Boolean)
     .join(" ");
 
@@ -203,24 +218,32 @@ export default function RoundStarter({
 
   return (
     <form className={formClass} onSubmit={start}>
-      <span className="roundStarterBadge">
-        <Users size={14} aria-hidden="true" /> The Round · group crawl
-      </span>
-      <h2 className="roundStarterTitle">
-        {hasSeeds ? "Invite friends to this plan" : "Start a Round"}
-      </h2>
+      {/* No kicker over the card: a label above every card is a template
+          tell, and the heading already says what this is. */}
+      {bare ? null : (
+        <h2 className="roundStarterTitle">
+          {hasSeeds ? "Invite friends to this plan" : "Start a round"}
+        </h2>
+      )}
       <p className="roundStarterBlurb">
         {hasSeeds
-          ? "Turn this plan into a Round. Friends join by a short code; stops are already queued."
-          : "A group crawl that builds itself. Friends join by a short code; as everyone drops pints, the route grows itself, stop by stop."}
+          ? "Turn this plan into a Round. Friends join with a short code, and the stops are already queued."
+          : "A group crawl that builds itself. Friends join with a short code, and the route grows as everyone drops pints."}
       </p>
+      {/* A real label above the field, never a placeholder standing in for
+          one. The drawer's dense copy keeps it for screen readers alone. */}
+      <label
+        className={compact ? "roundStarterLabel roundStarterLabel--hidden" : "roundStarterLabel"}
+        htmlFor={handleFieldId}
+      >
+        Your handle
+      </label>
       <div className="roundStarterRow">
         <input
+          id={handleFieldId}
           type="text"
           value={handle}
           onChange={(e) => setHandle(e.target.value)}
-          placeholder="your handle"
-          aria-label="Your handle"
           autoComplete="off"
           autoCapitalize="off"
           autoCorrect="off"
@@ -231,10 +254,11 @@ export default function RoundStarter({
         <button
           type="submit"
           className="crawlPrimaryBtn"
+          data-primary-action={primaryAction ? "" : undefined}
           disabled={busy || authLoading}
         >
           <Users size={16} aria-hidden="true" />{" "}
-          {busy ? "Starting…" : hasSeeds ? "Start Round" : "Start a Round"}
+          {busy ? "Starting…" : hasSeeds ? "Start the round" : "Start a round"}
         </button>
       </div>
       {error ? (

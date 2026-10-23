@@ -33,6 +33,12 @@ describe("PostHog EU reverse proxy", () => {
     expect(nextConfig.skipTrailingSlashRedirect).toBe(true);
   });
 
+  it("ships no public browser source maps", () => {
+    // The repo is private, and browser exceptions carry only a redacted value,
+    // so a public .js.map would publish the client source for nothing (L6).
+    expect(nextConfig.productionBrowserSourceMaps).not.toBe(true);
+  });
+
   it("preserves slashless canonical redirects outside ingest", () => {
     const pageResponse = securityProxy(new NextRequest("https://pubmaxxing.com/map/?mode=cheap"));
     const apiResponse = securityProxy(new NextRequest("https://pubmaxxing.com/api/events/?mode=test"));

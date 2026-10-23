@@ -1,0 +1,25 @@
+{
+  "version": 1,
+  "rows": [
+    {
+      "venueKey": "dodo|52, boston road, london, w7 3tr|51.50673|-0.33744",
+      "sourceUrl": "https://www.thedodomicropub.com/events/dodo-summer-beer-festival-2026",
+      "rejectedAt": "2026-10-19T15:00:00.000Z"
+    },
+    {
+      "venueKey": "euston flyer|83-87, euston road, london, nw1 2ra|51.52867|-0.12670",
+      "sourceUrl": "https://www.eustonflyer.co.uk/whats-on/cask-ale-craft-ipa-mondays",
+      "rejectedAt": "2026-10-19T15:00:00.000Z"
+    },
+    {
+      "venueKey": "ħ|imperial college road, london, sw7 2bx|51.49863|-0.17832",
+      "sourceUrl": "https://www.imperialcollegeunion.org/blog/price-increases-at-icu-bars",
+      "rejectedAt": "2026-10-19T15:00:00.000Z"
+    },
+    {
+      "venueKey": "lord napier and star|25, white post lane, london, e9 5en|51.54313|-0.02525",
+      "sourceUrl": "https://lordnapierstar.co.uk/events/craft-beer-wednesdays-6-per-pint-drop-project-sippin-radler-2026-06-10",
+      "rejectedAt": "2026-10-19T15:00:00.000Z"
+    }
+  ]
+}

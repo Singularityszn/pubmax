@@ -3,6 +3,7 @@ import { describe, it, expect } from "vitest";
 import { GET } from "@/app/pint-index/[month]/data.csv/route";
 import { LEAGUE_CSV_HEADER, PUBLISHED_EDITION_CSV_HEADER } from "@/lib/pintIndex";
 import { listPintIndexArchiveMonths } from "@/lib/pintIndexSnapshot.server";
+import { defined } from "@/__tests__/helpers/defined";
 
 const request = new Request("https://pubmaxxing.com/pint-index/2026-06/data.csv");
 const params = (month: string) => ({ params: Promise.resolve({ month }) });
@@ -22,7 +23,7 @@ describe("GET /pint-index/[month]/data.csv", () => {
     const [month] = await listPintIndexArchiveMonths();
     expect(month, "at least one dated edition is published").toBeTruthy();
 
-    const res = await GET(request, params(month));
+    const res = await GET(request, params(defined(month)));
     expect(res.status).toBe(200);
     expect(res.headers.get("content-type")).toContain("text/csv");
     expect(res.headers.get("content-disposition")).toContain(`filename="london-pint-index-${month}.csv"`);

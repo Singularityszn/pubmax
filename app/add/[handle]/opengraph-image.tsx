@@ -95,7 +95,7 @@ export default async function Image({ params }: PageProps) {
                 letterSpacing: 0.5,
               }}
             >
-              PUBMAXXING
+              PUBMAXX
             </div>
           </div>
           <div
@@ -124,7 +124,7 @@ export default async function Image({ params }: PageProps) {
               display: "flex",
             }}
           >
-            You have been added
+            You&apos;ve been added
           </div>
           <div
             style={{

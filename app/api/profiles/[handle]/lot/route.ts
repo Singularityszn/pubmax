@@ -12,6 +12,7 @@ import { publicApiError } from "@/lib/apiError";
 import { withdrawnHandles } from "@/lib/accountPublicAccess.server";
 import { followStore } from "@/lib/followStore";
 import { normalizeHandle } from "@/lib/profiles";
+import { handleWithdrawnFromCaller } from "@/lib/profileOwnership";
 import { assertServerEnv } from "@/lib/serverEnv";
 import {
   isSocialFriendsLaunchEnabled,
@@ -23,7 +24,7 @@ import {
 assertServerEnv();
 
 export async function GET(
-  _request: Request,
+  request: Request,
   { params }: { params: Promise<{ handle: string }> },
 ): Promise<Response> {
   if (!isSocialFriendsLaunchEnabled(process.env[SOCIAL_FRIENDS_LAUNCH_ENV])) {
@@ -33,10 +34,14 @@ export async function GET(
   if (!handle) return jsonNoStore({ lot: [] }, { status: 200 });
 
   try {
+    // The same gate as /followers and /following: a withdrawn handle reads
+    // like an unknown one, except to its own owner.
+    if (await handleWithdrawnFromCaller(request, handle)) {
+      return jsonNoStore({ lot: [] }, { status: 200 });
+    }
     const mutuals = await followStore().listMutuals(handle);
-    const hidden = await withdrawnHandles([handle, ...mutuals]);
-    // The subject is withdrawn: the same empty lot an unknown handle gets.
-    if (hidden.has(handle)) return jsonNoStore({ lot: [] }, { status: 200 });
+    // Withdrawn mutuals stay hidden from every reader, the owner included.
+    const hidden = await withdrawnHandles(mutuals);
     const lot = mutuals.filter((entry) => !hidden.has(normalizeHandle(entry)));
     return jsonNoStore({ lot }, { status: 200 });
   } catch {

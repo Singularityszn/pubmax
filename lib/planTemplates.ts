@@ -17,7 +17,7 @@ export const PLAN_TEMPLATES: readonly PlanTemplate[] = [
     label: "Watch the match",
     title: "Match night",
     conciergeQuery: "pubs screening live sport tonight in Clapham",
-    blurb: "Screens + a pint before kick-off.",
+    blurb: "Screens and a pint before kick-off.",
   },
   {
     id: "leaving-do",
@@ -45,7 +45,7 @@ export const PLAN_TEMPLATES: readonly PlanTemplate[] = [
     label: "Cheap round",
     title: "Cheap round tonight",
     conciergeQuery: "deal nights and cheap pints tonight in Victoria",
-    blurb: "Deal days + honest pint prices.",
+    blurb: "Deal days and honest pint prices.",
   },
   {
     id: "client-dinner",

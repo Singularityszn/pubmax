@@ -33,6 +33,7 @@ const SEARCH_INDEX = {
 
 vi.mock("@/lib/analytics", () => ({ trackEvent: vi.fn() }));
 vi.mock("@/lib/mapSearchIndexLoader", () => ({
+  isCompleteMapSearchIndex: () => true,
   loadMapSearchIndex: vi.fn(() => Promise.resolve(SEARCH_INDEX)),
 }));
 
@@ -122,5 +123,60 @@ describe("Map search current-city priority", () => {
 
     expect(onSelectVenue).toHaveBeenCalledTimes(1);
     expect(onSelectVenue).toHaveBeenCalledWith("venue-london-blackfriar");
+  });
+
+  it("lists a pub of this city the map has not loaded in Venues, not across city maps", async () => {
+    const onSelectVenue = vi.fn();
+    container = document.createElement("div");
+    document.body.append(container);
+
+    await act(async () => {
+      root = createRoot(container);
+      root.render(
+        createElement(MapSearchSuggest, {
+          id: "map-search",
+          mode: "overlay",
+          cityId: "london",
+          query: "The Blackfriar",
+          onQueryChange: vi.fn(),
+          // The opening viewport's shards: the City of London is not among them.
+          venues: [],
+          localities: [],
+          userLocation: null,
+          mapCenter: [-0.1276, 51.5072],
+          placeholder: "Search the map",
+          onSelectVenue,
+          onFlyToArea: vi.fn(),
+        }),
+      );
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    const venueIds = [...container.querySelectorAll<HTMLElement>(
+      '[role="group"][aria-label="Venues"] [data-venue-id]',
+    )].map((row) => row.dataset.venueId);
+    expect(venueIds).toEqual(["venue-london-blackfriar"]);
+    const crossCityIds = [...container.querySelectorAll<HTMLElement>(
+      '[role="group"][aria-label="Venues across city maps"] [data-venue-id]',
+    )].map((row) => row.dataset.venueId);
+    expect(crossCityIds).toEqual(["venue-mcr-black-friar"]);
+
+    const input = container.querySelector<HTMLInputElement>('[role="combobox"]');
+    act(() => {
+      input!.dispatchEvent(
+        new KeyboardEvent("keydown", { key: "ArrowDown", bubbles: true }),
+      );
+    });
+    const londonOption = container.querySelector<HTMLElement>(
+      '[role="group"][aria-label="Venues"] [data-venue-id="venue-london-blackfriar"]',
+    );
+    expect(input!.getAttribute("aria-activedescendant")).toBe(londonOption!.id);
+    act(() => {
+      input!.dispatchEvent(
+        new KeyboardEvent("keydown", { key: "Enter", bubbles: true }),
+      );
+    });
+    expect(onSelectVenue).toHaveBeenCalledWith("venue-london-blackfriar", "london");
   });
 });

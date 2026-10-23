@@ -1,3 +1,6 @@
+import type { Route } from "next";
+
+import type { AppOrExternalLink } from "@/lib/appLink";
 import { firstHttp } from "@/lib/httpUrl";
 import {
   outCardSource,
@@ -20,6 +23,7 @@ import {
   coveringObservedAt,
   dedupeRows,
   filterNotPast,
+  musicLaneRows,
   type WhatsOnKind,
   type WhatsOnKindObservedAt,
   type WhatsOnRow,
@@ -102,7 +106,35 @@ export function tonightAcceptedVenueId(
   return selectable.has(venueId) ? venueId : null;
 }
 
-/** Past-guarded rows that belong on a pub surface, never a theatre dump. */
+/**
+ * How old a read may be and still say what is on TONIGHT.
+ *
+ * A day. Past that the answer is about another night, and "Checked 22 Aug" over
+ * tonight's quiet sentence is the 6 September defect wearing the live read's
+ * clothes. The same day bounds a LISTING: on 17 October the page printed
+ * "2 listings · Checked 7 Oct" over two fixtures a pub's own page had listed
+ * ten days earlier, which is a claim about tonight nobody had checked.
+ */
+const TONIGHT_READ_MAX_AGE_MS = 24 * 60 * 60 * 1000;
+
+/**
+ * Whether a row's own check is recent enough to be shown as on tonight.
+ *
+ * A deal is the one exception, because it already has its own rule: it is a
+ * standing offer with a stated window, and `dealListingAgeCaption`
+ * (`lib/dealsHonesty.ts`) says its age out loud beside the card instead. Every
+ * other kind is a dated occurrence, and an undatable or stale check fails
+ * closed: the row leaves, and the night reads honestly empty rather than
+ * borrowing an old page's word for tonight.
+ */
+export function isTonightCheckedRow(row: WhatsOnRow, now: number = Date.now()): boolean {
+  if (row.kind === "deal") return true;
+  const observed = Date.parse(row.observedAt);
+  if (!Number.isFinite(observed)) return false;
+  return now - observed <= TONIGHT_READ_MAX_AGE_MS;
+}
+
+/** Past-guarded, recently checked rows that belong on a pub surface, never a theatre dump. */
 export function filterTonightPubSurfaceRows(
   rows: readonly WhatsOnRow[],
   now: number = Date.now(),
@@ -112,8 +144,8 @@ export function filterTonightPubSurfaceRows(
   // has already proved the row's venue identity; a lazy map shard must not
   // turn confirmed supply into an empty night.
   void selectable;
-  return filterNotPast([...rows], now).filter((row) =>
-    tonightRowHasListedPub(row),
+  return filterNotPast([...rows], now).filter(
+    (row) => tonightRowHasListedPub(row) && isTonightCheckedRow(row, now),
   );
 }
 
@@ -305,7 +337,7 @@ export function tonightListingLanes(
  * page carrying Out rows and no What's-On row still claims no What's-On day,
  * because that lane really did contribute nothing to what a reader is looking
  * at. (2) THE READ MUST BE ABOUT TONIGHT: evidence older than
- * `TONIGHT_QUIET_READ_MAX_AGE_MS` cannot say what is on tonight, which is
+ * `TONIGHT_READ_MAX_AGE_MS` cannot say what is on tonight, which is
  * exactly what "Checked 22 Aug" claimed on 6 September, so it goes undated
  * instead. A read that dated nothing answers null either way, because then
  * nobody looked at all.
@@ -333,15 +365,6 @@ export function tonightWhatsOnObservedAt(input: {
   return tonightQuietReadObservedAt(input.kindObservedAt, input.now ?? Date.now());
 }
 
-/**
- * How old a read may be and still say what is on TONIGHT.
- *
- * A day. Past that the answer is about another night, and "Checked 22 Aug" over
- * tonight's quiet sentence is the 6 September defect wearing the live read's
- * clothes.
- */
-const TONIGHT_QUIET_READ_MAX_AGE_MS = 24 * 60 * 60 * 1000;
-
 /** The day an empty surface may claim it was checked, or null. */
 function tonightQuietReadObservedAt(
   kindObservedAt: WhatsOnKindObservedAt,
@@ -354,7 +377,7 @@ function tonightQuietReadObservedAt(
   if (!observed) return null;
   const ms = Date.parse(observed);
   if (!Number.isFinite(ms)) return null;
-  return now - ms <= TONIGHT_QUIET_READ_MAX_AGE_MS ? observed : null;
+  return now - ms <= TONIGHT_READ_MAX_AGE_MS ? observed : null;
 }
 
 /**
@@ -588,12 +611,18 @@ export const TONIGHT_QUIET_NIGHT_SENTENCE =
  * A lane nobody asked makes the whole-city claim untrue, so the sentence
  * narrows to the lane that answered and the note beside it names the one that
  * did not.
+ * Sourced pub suggestions also prevent an empty event list from describing
+ * the whole city as quiet.
  */
 export function tonightEmptyLead(
   whatsOn: TonightWhatsOnStatus,
   out: TonightOutAnswer,
+  pubSuggestionCount = 0,
 ): string {
   const reports = tonightLaneReports(whatsOn, out);
+  if (pubSuggestionCount > 0 && reports.length === 0) {
+    return "No confirmed events listed tonight.";
+  }
   if (reports.length === 0) return TONIGHT_QUIET_NIGHT_SENTENCE;
   return `Nothing listed ${TONIGHT_WHATS_ON_CREDIT}.`;
 }
@@ -629,6 +658,7 @@ export function tonightProvenanceCredits(input: {
   outEvents: WhatsOnRow[];
   whatsOnChecked: string | null;
   outObservedAt?: Record<string, string> | undefined;
+  pubSuggestionCount?: number;
 }): TonightProvenanceCredits {
   const lanes = tonightListingLanes(
     input.renderedGroups.map((group) => group.row),
@@ -637,8 +667,11 @@ export function tonightProvenanceCredits(input: {
   // With nothing from Out, the coverage count is What's-On's claim, empty night
   // included: the quiet answer came from that read and is credited to it.
   const creditsWhatsOn = lanes.whatsOnCount > 0 || lanes.outRows.length === 0;
+  const whatsOnLabel = lanes.whatsOnCount === 0 && (input.pubSuggestionCount ?? 0) > 0
+    ? "No events listed"
+    : whatsOnLaneLabel(lanes.whatsOnCount);
   const whatsOn = creditsWhatsOn
-    ? `${whatsOnLaneLabel(lanes.whatsOnCount)}${input.whatsOnChecked ? ` · ${input.whatsOnChecked}` : " · undated"} · ${TONIGHT_WHATS_ON_CREDIT}`
+    ? `${whatsOnLabel}${input.whatsOnChecked ? ` · ${input.whatsOnChecked}` : ""} · ${TONIGHT_WHATS_ON_CREDIT}`
     : null;
   const out = outLaneCredit(lanes.outRows, input.outObservedAt ?? {});
   const whatsOnDated = creditsWhatsOn ? input.whatsOnChecked !== null : true;
@@ -655,6 +688,22 @@ function outLaneCredit(
   observedAt: Record<string, string>,
 ): { text: string | null; dated: boolean } {
   if (rows.length === 0) return { text: null, dated: true };
+  const { labels, oldest, dated } = outLaneObservedAt(rows, observedAt);
+  const noun = rows.length === 1 ? "listing" : "listings";
+  const via = labels.length === 0 ? "" : ` via ${joinLabels(labels)}`;
+  const stamp = dated ? ` · ${checkedLabel(oldest)}` : "";
+  return { text: `${rows.length} ${noun}${via}${stamp}`, dated };
+}
+
+/**
+ * The day a set of Out rows was checked: the OLDEST of each publisher's
+ * freshest check, and undated when any publisher, or an unlabelled row, has
+ * none. The same answer dates the Out credit line and the live-music lane.
+ */
+function outLaneObservedAt(
+  rows: readonly WhatsOnRow[],
+  observedAt: Record<string, string>,
+): { labels: string[]; oldest: string | null; dated: boolean } {
   const freshestByLabel = new Map<string, string | null>();
   for (const row of rows) {
     const raw = row.source?.label?.trim() ?? "";
@@ -688,17 +737,58 @@ function outLaneCredit(
     if (!oldest || Date.parse(observed) < Date.parse(oldest)) oldest = observed;
   }
   const dated = everyLabelDated && oldest !== null;
-  const noun = rows.length === 1 ? "listing" : "listings";
-  const via = unlabelled ? "" : ` via ${joinLabels(labels)}`;
-  const stamp = dated ? ` · ${checkedLabel(oldest)}` : "";
-  return { text: `${rows.length} ${noun}${via}${stamp}`, dated };
+  return { labels, oldest, dated };
+}
+
+/**
+ * The day the live-music lane may claim it was checked, or null.
+ *
+ * ONE STAMP COVERS EVERY CARD IN THE LANE, so it takes the OLDEST check behind
+ * them and goes undated when it cannot date one. On Tonight the lane mixes two
+ * reads, and each card is dated by its own read's evidence, never by its
+ * `observedAt` alone: a What's-On card by `kindObservedAt.music`, because a
+ * LIVE row's `observedAt` is the request instant whenever the provider states
+ * no time (`mapThingsToDoToRows`) and the store already keeps that out of the
+ * map; an Out card by its publisher's check, as the Out credit line dates it.
+ * Which read a card came from is reference identity against the Out read's
+ * whole answer, Ticketmaster included, because the lane keeps those rows.
+ */
+export function tonightMusicLaneObservedAt(input: {
+  /** The rows handed to the lane; it shows `musicLaneRows` of them. */
+  rows: readonly WhatsOnRow[];
+  /** Everything the Out read returned, before any lane narrowed it. */
+  outEvents: readonly WhatsOnRow[];
+  /** The live read's own per-kind observation map. */
+  kindObservedAt: WhatsOnKindObservedAt;
+  /** The Out read's per-publisher observation map. */
+  outObservedAt?: Record<string, string> | undefined;
+}): string | null {
+  const laneRows = musicLaneRows(input.rows);
+  if (laneRows.length === 0) return null;
+  const { whatsOnCount, outRows } = tonightListingLanes(laneRows, [...input.outEvents]);
+  const checks: string[] = [];
+  if (whatsOnCount > 0) {
+    const music = input.kindObservedAt.music;
+    if (!music) return null;
+    checks.push(music);
+  }
+  if (outRows.length > 0) {
+    const out = outLaneObservedAt(outRows, input.outObservedAt ?? {});
+    if (!out.dated || !out.oldest) return null;
+    checks.push(out.oldest);
+  }
+  let oldest: string | null = null;
+  for (const at of checks) {
+    if (oldest === null || Date.parse(at) < Date.parse(oldest)) oldest = at;
+  }
+  return oldest;
 }
 
 export type TonightRowLinks = {
   /** The whole card's link, or null when the row carries neither. */
-  primary: { href: string; external: boolean } | null;
+  primary: AppOrExternalLink | null;
   /** The map, when the card link went to the publisher instead. */
-  mapHref: string | null;
+  mapHref: Route | null;
   /** How this row's publisher is spelled, wherever the row names it. */
   sourceLabel: string;
 };
@@ -728,7 +818,7 @@ export function tonightRowLinks(
   const sourceLabel = credit.label;
   const sourceUrl = credit.href ? firstHttp(credit.href) : null;
   const venueId = canonicalOutVenueId(row.venueId);
-  const mapHref =
+  const mapHref: Route | null =
     venueId && tonightMapHrefAllowed(venueId, selectable)
       ? `/map?sel=${encodeURIComponent(venueId)}`
       : null;

@@ -1,13 +1,26 @@
 import * as maplibregl from "maplibre-gl";
 import type { GeoJSONFeature } from "maplibre-gl";
-import { buildDonutMarkerSvg, donutTotal, type DonutCounts } from "@/lib/donutClusterGeometry";
+import {
+  buildDonutMarkerSvg,
+  donutOuterRadius,
+  clusterLabelText,
+  donutTotal,
+  placeClusterCaptions,
+  readMinPrice,
+  readMinPriceBand,
+  type DonutCounts,
+} from "@/lib/donutClusterGeometry";
+import { CLUSTER_COUNT_BADGE_FILTER, CLUSTER_PRICE_NONE } from "./filters";
+import { formatPinPriceLabel } from "./geojson";
 import { readTokens } from "./tokens";
-import { CLUSTER_MAX_ZOOM } from "./buildScene";
+import { CLUSTER_FILTER, CLUSTER_MAX_ZOOM } from "./buildScene";
 
-// M5 — donut cluster markers segmented by price band. `clusterProperties`
-// (wired in buildPubs, buildScene.ts) accumulate per-bucket counts (b0..b3 —
-// same priceBucket() order the legend/pin fill already use: ≤£5.50 / >£5.50–
-// ≤£7 / >£7 / no price) directly on the supercluster tree, so no extra
+// M5 — DOM cluster discs for the desktop. Once segmented by price band, now
+// (owner decision 16 Oct 2026) a NEUTRAL disc: "from" over the cheapest figure
+// in that figure's own band ink and "n pubs" under it, the design the GL
+// `clusters` / `cluster-count` / `cluster-count-badge` layers draw too.
+// `clusterProperties` (wired in buildPubs, buildScene.ts) accumulate the counts
+// and `minPrice` / `minPriceKey` directly on the supercluster tree, so no extra
 // source or client-side aggregation is needed here — just read them off the
 // queried cluster features.
 //
@@ -16,16 +29,17 @@ import { CLUSTER_MAX_ZOOM } from "./buildScene";
 // bounded (DONUT_CAP) precisely so this never turns into an unbounded-DOM
 // perf trap — past the cap we fall back to the plain circle+count GL layers
 // (buildScene's `clusters` / `cluster-count`), which stay in the style as an
-// underlay the whole time and are simply toggled visible/none rather than
-// added/removed, so there is never a frame where neither is visible.
+// underlay the whole time and are simply filtered empty/full rather than
+// added/removed, so there is never a frame where neither is visible. Their
+// visibility belongs to the pin-reveal gate alone: hiding them would leave the
+// `pubs` source with no visible layer below PIN_MIN_ZOOM, MapLibre would drop
+// its tiles, and the next settled query would find no clusters at all.
 const DONUT_CAP = 60;
 // Sync runs off the map's own `render`/`moveend`/`sourcedata` events — no new
 // RAF loop (Single-RAF rule). `render` still fires every animation frame during
 // explicit camera moves, so throttle the expensive querySourceFeatures + diff
 // pass rather than run it 60x/sec.
 const RENDER_THROTTLE_MS = 120;
-
-const BUCKET_COLOR_KEYS = ["pint", "amber", "brick", "muted"] as const;
 
 // Exported for unit tests — coerces the supercluster's accumulated b0..b3
 // per-bucket props into a DonutCounts tuple, guarding a missing / non-numeric /
@@ -57,7 +71,20 @@ type MarkerEntry = {
   marker: maplibregl.Marker;
   el: HTMLDivElement;
   counts: DonutCounts;
+  /** The marker's own drawing, so a change of figure or size rebuilds it and
+   *  a mere move does not. */
+  look: string;
 };
+
+// The GL layers a donut stands in for, each with the filter it wears while it
+// is showing. The figure comes last on purpose: it is the one a test and a
+// reader both treat as "the" cluster layer.
+const GL_CLUSTER_LAYERS: ReadonlyArray<readonly [string, maplibregl.FilterSpecification]> = [
+  ["clusters-casing", CLUSTER_FILTER],
+  ["clusters", CLUSTER_FILTER],
+  ["cluster-count-badge", CLUSTER_COUNT_BADGE_FILTER],
+  ["cluster-count", CLUSTER_FILTER],
+];
 
 export type DonutClusterSync = {
   /** Detach every listener + marker. Safe to call once, from the same
@@ -85,9 +112,8 @@ export function createDonutClusterSync(
   let lastRenderAt = 0;
 
   const setLegacyLayersVisible = (visible: boolean) => {
-    const visibility: "visible" | "none" = visible ? "visible" : "none";
-    for (const id of ["clusters", "cluster-count"]) {
-      if (map.getLayer(id)) map.setLayoutProperty(id, "visibility", visibility);
+    for (const [id, filter] of GL_CLUSTER_LAYERS) {
+      if (map.getLayer(id)) map.setFilter(id, visible ? filter : false);
     }
   };
 
@@ -130,7 +156,7 @@ export function createDonutClusterSync(
     }
     let features: GeoJSONFeature[];
     try {
-      features = map.querySourceFeatures("pubs", { filter: ["has", "point_count"] });
+      features = map.querySourceFeatures("pubs", { filter: CLUSTER_FILTER });
     } catch {
       return;
     }
@@ -161,26 +187,72 @@ export function createDonutClusterSync(
     }
     const tokens = readTokens();
     const dark = document.documentElement.dataset.theme === "dark";
-    const colors = BUCKET_COLOR_KEYS.map((key) => tokens[key]);
     const textColor = dark ? tokens.ink : tokens.inkDeep;
+    const casingColor = dark ? tokens.ink : tokens.inkDeep;
+    const outerRadius = donutOuterRadius(map.getZoom());
+    // Where each disc stands on screen, cheapest first, so the captions are
+    // placed by hand the way the GL caption layer places them by collision.
+    const onScreen = [...byId].map(([id, feature]) => {
+      const [lng, lat] = (feature.geometry as GeoJSON.Point).coordinates as [number, number];
+      const point = map.project([lng, lat]);
+      const minPrice = readMinPrice(feature.properties, CLUSTER_PRICE_NONE);
+      return {
+        id,
+        x: point.x,
+        y: point.y,
+        total: donutTotal(readCounts(feature.properties)),
+        priced: minPrice !== null,
+        order: minPrice ?? Number.POSITIVE_INFINITY,
+      };
+    });
+    onScreen.sort((a, b) => a.order - b.order);
+    const captions = placeClusterCaptions(onScreen, outerRadius);
+    const markup = (
+      counts: DonutCounts,
+      figure: string | null,
+      figureColor: string,
+      countCaption: boolean,
+    ) =>
+      buildDonutMarkerSvg({
+        counts,
+        discColor: tokens.panelRaised,
+        casingColor,
+        // The GL disc's own neutral ring (buildScene `clusters`), so the two
+        // renderers draw one design.
+        trackColor: tokens.line,
+        textColor,
+        figureColor,
+        outerRadius,
+        figure,
+        countCaption,
+      });
     const seen = new Set<number>();
     for (const [clusterId, feature] of byId) {
       seen.add(clusterId);
       const counts = readCounts(feature.properties);
+      // The cheapest price any pub in the disc says, written the way a pin
+      // writes one. Under the Spoons value lens no pub carries one, so the disc
+      // prints its count, exactly as the GL layer does.
+      const minPrice = readMinPrice(feature.properties, CLUSTER_PRICE_NONE);
+      const figure = minPrice === null ? null : formatPinPriceLabel(minPrice);
+      // The figure wears its OWN pub's band ink, never the crowd's colour.
+      const band = figure === null ? null : readMinPriceBand(feature.properties);
+      const figureColor = band === null ? textColor : tokens.bandInk[band];
+      const countCaption = captions.has(clusterId);
+      const look = `${outerRadius}|${figure ?? ""}|${figureColor}|${countCaption}|${textColor}|${casingColor}|${tokens.panelRaised}`;
+      const label = `${clusterLabelText(figure, donutTotal(counts))}, tap to zoom in`;
       const [lng, lat] = (feature.geometry as GeoJSON.Point).coordinates as [number, number];
       const existing = markers.get(clusterId);
       if (existing) {
         existing.marker.setLngLat([lng, lat]);
-        // Perf guardrail: rebuild the SVG only when this cluster's counts
-        // actually changed — position updates are cheap setLngLat calls.
-        if (!countsEqual(existing.counts, counts)) {
+        // Perf guardrail: rebuild the SVG only when this cluster's counts,
+        // figure or size actually changed - position updates are cheap
+        // setLngLat calls.
+        if (!countsEqual(existing.counts, counts) || existing.look !== look) {
           existing.counts = counts;
-          existing.el.innerHTML = buildDonutMarkerSvg({
-            counts,
-            colors,
-            ringColor: tokens.panelRaised,
-            textColor,
-          });
+          existing.look = look;
+          existing.el.setAttribute("aria-label", label);
+          existing.el.innerHTML = markup(counts, figure, figureColor, countCaption);
         }
         continue;
       }
@@ -188,19 +260,27 @@ export function createDonutClusterSync(
       el.className = "donut-cluster-marker";
       el.style.cursor = "pointer";
       el.setAttribute("role", "button");
-      el.setAttribute("aria-label", `${donutTotal(counts)} pubs, tap to zoom in`);
-      el.innerHTML = buildDonutMarkerSvg({
-        counts,
-        colors,
-        ringColor: tokens.panelRaised,
-        textColor,
-      });
-      el.addEventListener("click", (event) => {
+      // A button the keyboard can reach and press, like every other control.
+      el.setAttribute("tabindex", "0");
+      el.setAttribute("aria-label", label);
+      el.innerHTML = markup(counts, figure, figureColor, countCaption);
+      const marker = new maplibregl.Marker({ element: el }).setLngLat([lng, lat]);
+      // A re-used marker is moved with setLngLat above, and supercluster can
+      // hand this cluster_id to a different cluster after a filter change, so
+      // the flight reads where the disc stands NOW, never where it was made.
+      const activate = (event: Event) => {
         event.stopPropagation();
-        handleClusterClick(clusterId, [lng, lat]);
+        const live = marker.getLngLat();
+        handleClusterClick(clusterId, [live.lng, live.lat]);
+      };
+      el.addEventListener("click", activate);
+      el.addEventListener("keydown", (event) => {
+        if (event.key !== "Enter" && event.key !== " ") return;
+        event.preventDefault();
+        activate(event);
       });
-      const marker = new maplibregl.Marker({ element: el }).setLngLat([lng, lat]).addTo(map);
-      markers.set(clusterId, { marker, el, counts });
+      marker.addTo(map);
+      markers.set(clusterId, { marker, el, counts, look });
     }
     for (const [id, entry] of markers) {
       if (!seen.has(id)) {

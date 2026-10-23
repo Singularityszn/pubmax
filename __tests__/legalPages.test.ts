@@ -3,7 +3,11 @@ import { join } from "node:path";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
+
+// The shared top nav is a client component that needs the app router; these
+// pages are read as server markup, so the nav renders nothing here.
+vi.mock("@/components/nav/SiteNav", () => ({ default: () => null }));
 
 import PrivacyPage from "@/app/privacy/page";
 import TermsPage from "@/app/terms/page";
@@ -12,13 +16,13 @@ import {
   WEATHER_RECOMMENDATION_CONDITIONS,
   weatherRecommendationConditionLabel,
 } from "@/lib/weatherRecommendations";
+import { defined } from "@/__tests__/helpers/defined";
 
 // The /privacy + /terms fence. These pages are the only surfaces where the site
 // makes promises about data ON THE RECORD, so the regressions that matter are
 // (a) a reader who cannot find them, (b) a dead contact address, and (c) a
-// privacy claim drifting away from what the code does. Source-level assertions,
-// the same house pattern as landingChromeCss.test.ts: they fail in CI rather
-// than needing a browser pass we can't run headless.
+// privacy claim drifting away from what the code does. Source-level assertions:
+// they fail in CI rather than needing a browser pass we can't run headless.
 
 function read(path: string): string {
   return readFileSync(join(process.cwd(), path), "utf8");
@@ -39,7 +43,8 @@ describe("legal content pages", () => {
   it("reaches the reader from the site footer", () => {
     expect(landing).toMatch(/<Link\b[^>]*href="\/privacy"[^>]*>/);
     expect(landing).toMatch(/<Link\b[^>]*href="\/terms"[^>]*>/);
-    expect(landing).toMatch(/CONTACT_MAILTO/);
+    // A plain Contact link names the brand inbox (lib/siteContact.mjs).
+    expect(landing).toMatch(/HELLO_MAILTO/);
   });
 
   it("is discoverable in the sitemap", () => {
@@ -166,8 +171,15 @@ describe("legal content pages", () => {
     expect(privacy).toMatch(/Hiding stops public delivery/i);
     expect(privacy).toMatch(/never deletes the stored file/i);
     expect(privacy).toMatch(/Removing\s+the picture yourself[^]*removes the stored\s+file/i);
-    expect(terms).toMatch(/Profile pictures use the same OpenAI omni\s+moderation/i);
+    expect(terms).toMatch(/Profile pictures use an advisory OpenAI omni\s+moderation/i);
+    expect(terms).toMatch(/cannot run[^.]*upload can proceed\s+without scan approval/i);
     expect(terms).toMatch(/hiding never deletes\s+the stored file/i);
+    for (const text of [privacyText, termsText]) {
+      expect(text).toMatch(/advisory (OpenAI )?omni moderation/i);
+      expect(text).toMatch(/refuses[^.]*picture, we refuse the upload/i);
+      expect(text).toMatch(/cannot run or gives no usable decision, the upload can proceed without scan approval/i);
+    }
+    expect(privacyText).not.toMatch(/no usable decision, we refuse the upload/i);
   });
 
   it("discloses Social interactions, private saves, governance, and held derivatives", () => {
@@ -316,7 +328,6 @@ describe("legal content pages", () => {
       { name: "Arize", host: "otlp.arize.com", source: "lib/observability/arize.ts" },
       { name: "OpenRouter", host: "openrouter.ai", source: "lib/ask/modelLoop.ts" },
       { name: "TypeSafe", host: "api.typesafe.ai", source: "lib/ai/typesafe.server.ts" },
-      { name: "ElevenLabs", host: "api.elevenlabs.io", source: "lib/palElevenLabsChat.server.ts" },
     ];
     for (const recipient of promptTextRecipients) {
       expect(thirdPartySection, `Missing recipient name ${recipient.name}`).toContain(
@@ -325,6 +336,105 @@ describe("legal content pages", () => {
       expect(read(recipient.source), `${recipient.source} no longer contacts ${recipient.host}`)
         .toContain(recipient.host);
     }
+  });
+
+  it("names every host a typed Pub Pal ask reaches", async () => {
+    // Runs a real typed turn. The provider hands back a socket on the host the
+    // app asked for a signed URL, as ElevenLabs does, and every host that then
+    // receives the typed text, by request body or socket message, must be named.
+    const thirdPartySection =
+      privacy.match(/aria-labelledby="third"[\s\S]*?aria-labelledby="keep"/)?.[0] ?? "";
+    const query = "a quiet pub near the Lamb and Flag for six";
+    const signedUrlHosts = new Set<string>();
+    const promptHosts = new Set<string>();
+
+    class ProviderSocket {
+      private listeners: Record<string, Array<(event: unknown) => void>> = {};
+      private readonly url: URL;
+
+      constructor(url: string) {
+        this.url = new URL(url);
+        queueMicrotask(() => {
+          this.emit("open", {});
+          this.emit("conversation_initiation_metadata", {
+            conversation_initiation_metadata_event: {
+              conversation_id: this.url.searchParams.get("conversation_id"),
+            },
+          });
+        });
+      }
+
+      addEventListener(type: string, listener: (event: unknown) => void): void {
+        (this.listeners[type] ??= []).push(listener);
+      }
+
+      send(raw: string): void {
+        if (raw.includes(query)) promptHosts.add(this.url.host);
+        if ((JSON.parse(raw) as { type?: string }).type !== "user_message") return;
+        queueMicrotask(() => {
+          this.emit("agent_response", { agent_response_event: { agent_response: "Two quiet picks." } });
+          this.emit("agent_response_complete", {});
+        });
+      }
+
+      close(): void {}
+
+      private emit(type: string, event: Record<string, unknown>): void {
+        const listeners = type === "open" ? this.listeners.open : this.listeners.message;
+        const message = type === "open" ? event : { data: JSON.stringify({ type, ...event }) };
+        for (const listener of listeners ?? []) listener(message);
+      }
+    }
+
+    vi.stubEnv("ELEVENLABS_API_KEY", "test-key");
+    vi.stubEnv("ELEVENLABS_PUB_PAL_AGENT_ID", "agent-id");
+    vi.stubGlobal("WebSocket", ProviderSocket);
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: string | URL | Request, init?: RequestInit) => {
+        const url = new URL(input instanceof Request ? input.url : String(input));
+        if (String(init?.body ?? "").includes(query)) promptHosts.add(url.host);
+        if (!url.pathname.endsWith("/get-signed-url")) return new Response(null, { status: 503 });
+        signedUrlHosts.add(url.host);
+        return Response.json({
+          signed_url: `wss://${url.host}/v1/convai/conversation?agent_id=agent-id&conversation_signature=sig&conversation_id=conv_legalfence01`,
+        });
+      }),
+    );
+    try {
+      const { runPalElevenLabsChatTurn } = await import("@/lib/palElevenLabsChat.server");
+      const outcome = await runPalElevenLabsChatTurn({
+        query,
+        ownerId: "11111111-1111-4111-8111-111111111111",
+      });
+      expect(outcome.ok).toBe(true);
+    } finally {
+      vi.unstubAllGlobals();
+      vi.unstubAllEnvs();
+    }
+
+    expect([...signedUrlHosts]).toEqual(["api.elevenlabs.io"]);
+    expect(promptHosts.has("api.elevenlabs.io")).toBe(true);
+    expect(thirdPartySection, "Missing recipient name ElevenLabs").toContain("ElevenLabs");
+    for (const host of promptHosts) {
+      expect(thirdPartySection, `Missing recipient host ${host}`).toContain(host);
+    }
+  });
+
+  it("says confirmed Pal memories go to the model provider with each Pub Pal chat", () => {
+    // Confirmed memories go ahead of every typed ask and to the voice agent
+    // through recall_memories. The AI features row must not still claim
+    // nothing else about you goes.
+    expect(privacyText).toMatch(/memories you confirmed for your Pal[\s\S]*go with each chat or voice call/i);
+  });
+
+  it("says confirmed memories go to TypeSafe when a memory offer is sorted", () => {
+    // lib/palMemoryRelation.server.ts sends the proposed fact and the confirmed
+    // memories about the same thing to TypeSafe. The TypeSafe row must say so,
+    // and not still claim its two safety questions are all it receives.
+    expect(read("lib/palMemoryRelation.server.ts")).toContain("systemOneOutcome");
+    const typesafeRow = privacy.match(/<dt>TypeSafe<\/dt>[\s\S]*?<\/dd>/)?.[0] ?? "";
+    expect(typesafeRow.replace(/\s+/g, " ")).toMatch(/memories you confirmed that are about the same thing also go to TypeSafe/);
   });
 
   it("names the host of every observability egress the code carries", () => {
@@ -352,7 +462,7 @@ describe("legal content pages", () => {
       for (const name of modules) {
         const source = readFileSync(join(directory, name), "utf8");
         for (const match of source.matchAll(/https:\/\/([A-Za-z0-9.-]+)/g)) {
-          hosts.add(match[1]);
+          hosts.add(defined(match[1]));
         }
       }
     }
@@ -392,9 +502,36 @@ describe("legal content pages", () => {
     expect(privacy).toMatch(/until\s+the\s+push\s+service\s+reports\s+it\s+dead\s+or\s+you\s+ask\s+us\s+to\s+remove\s+it/);
     expect(privacy).toMatch(/belongs\s+to\s+your\s+own\s+browser&rsquo;s\s+push\s+service/);
     expect(privacy).toMatch(/stored\s+subscription\s+row\s+stays/);
-    expect(privacy).toMatch(/Step Out weekly nudge is off by default/i);
-    expect(privacy).toMatch(/at most one\s+place-bound push a week/i);
+    expect(privacy).toMatch(/weekly nudge is off by default/i);
+    expect(privacy).toMatch(/at most one push a week/i);
     expect(privacy).not.toMatch(/a push subscription is held\s+by your own browser/);
+  });
+
+  it("names every push delivery and connected-profile host the code contacts", () => {
+    // Native push sends a device token and the notification text to Apple or
+    // Google, and a social connection sends an OAuth code to the platform. The
+    // web-push block above covered neither, so both vendors sat unnamed.
+    const thirdPartySection =
+      privacy.match(/aria-labelledby="third"[\s\S]*?aria-labelledby="keep"/)?.[0] ?? "";
+    const recipients = [
+      { name: "Apple", host: "api.push.apple.com", source: "lib/pushProvider.ts" },
+      { name: "Apple", host: "api.sandbox.push.apple.com", source: "lib/pushProvider.ts" },
+      { name: "Firebase", host: "fcm.googleapis.com", source: "lib/fcmPushProvider.ts" },
+      { name: "X", host: "api.x.com", source: "lib/socialOAuth.ts" },
+      { name: "Instagram", host: "api.instagram.com", source: "lib/socialOAuth.ts" },
+      { name: "Instagram", host: "graph.instagram.com", source: "lib/socialOAuth.ts" },
+      { name: "TikTok", host: "open.tiktokapis.com", source: "lib/socialOAuth.ts" },
+    ];
+    for (const recipient of recipients) {
+      expect(thirdPartySection, `Missing recipient name ${recipient.name}`).toContain(recipient.name);
+      expect(thirdPartySection, `Undisclosed host ${recipient.host}`).toContain(recipient.host);
+      expect(read(recipient.source), `${recipient.source} no longer contacts ${recipient.host}`)
+        .toContain(recipient.host);
+    }
+    // lib/nativePush.ts only ever POSTs a token, and the row holds no account,
+    // so a person cannot have one removed on request. The page must say so.
+    expect(read("lib/nativePush.ts")).not.toMatch(/method:\s*"DELETE"/);
+    expect(thirdPartySection).toMatch(/cannot find it from an account or email request/);
   });
 
   it("describes remembered-area request use without claiming all state stays local", () => {
@@ -419,7 +556,7 @@ describe("legal content pages", () => {
     // authored reason, a server timestamp, and a server-derived actor token.
     // Current community prices also carry an account-owned public handle;
     // anonymity is reserved for legacy price rows without one.
-    expect(privacy).toMatch(/Recommendations, and Night\s+Memories/);
+    expect(privacy).toMatch(/Recommendations, and your\s+memories/);
     expect(privacy).toMatch(/public PUBMAXX\s+handle/);
     expect(privacy).toMatch(/needs a signed-in account/);
     expect(privacy).toMatch(/stable private profile key/);

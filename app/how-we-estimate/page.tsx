@@ -1,13 +1,17 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 
+import SiteNav from "@/components/nav/SiteNav";
+import Kicker from "@/components/ui/kicker";
+import TrustPill from "@/components/ui/trust-pill";
 import { appPageTitle, metadataSiteName } from "@/lib/brandNaming";
 import {
   CONFIRMED_MAX_AGE_DAYS,
   LISTED_MAX_AGE_DAYS,
   PRICE_STANDINGS,
-  priceStandingLabel,
   priceStandingNote,
+  type PriceStanding,
+  type PriceStandingDecision,
 } from "@/lib/priceTier";
 import { MIN_ESTIMATE_SAMPLE } from "@/lib/priceEstimate";
 import { estimateBaselines } from "@/lib/priceEstimateBaselines";
@@ -25,7 +29,7 @@ import "../legal.css";
 
 const PAGE_TITLE = "How we estimate";
 const PAGE_DESCRIPTION =
-  "What a price on PubMaxxing is worth: confirmed, listed, estimated or missing, and exactly how an estimate is modelled.";
+  "What a price on PUBMAXX is worth: confirmed, listed, estimated or missing, and how we model an estimate.";
 
 export const metadata: Metadata = {
   title: PAGE_TITLE,
@@ -40,40 +44,71 @@ export const metadata: Metadata = {
   },
 };
 
+/**
+ * The pill a reader meets beside a price, shown here with no figure in it.
+ * The page names what each label means, so it shows the label itself, from
+ * the one renderer every price uses, rather than a drawing of it. With no
+ * figure there is no price band, so every pill here reads in neutral ink:
+ * the colour on a real pill is what the figure costs, never the label.
+ */
+const SPECIMEN_REASON: Record<PriceStanding, PriceStandingDecision["reason"]> = {
+  confirmed: "confirmed_in_window",
+  listed: "listed_with_source",
+  estimate: "modelled",
+  none: "nothing_known",
+};
+
+function specimen(standing: PriceStanding): PriceStandingDecision {
+  return {
+    standing,
+    reason: SPECIMEN_REASON[standing],
+    priceGbp: null,
+    sourceUrl: null,
+    asOf: null,
+    basis: null,
+    sampleSize: null,
+  };
+}
+
 export default function HowWeEstimatePage() {
   const baselines = estimateBaselines();
   const chains = baselines?.chains ?? [];
   const regions = baselines?.regions ?? [];
 
   return (
+    <>
+    <SiteNav />
     <main id="main" className="legalPage">
       <header className="legalHead">
-        <p className="legalEyebrow">Prices</p>
+        <Kicker>Prices</Kicker>
         <h1 className="legalTitle">How we estimate</h1>
         <p className="legalLede">
-          A price is only worth the evidence behind it. Every price here says
-          which of four standings it holds, so you can tell a figure a drinker
-          checked from one nobody has published at all.
+          Each figure says whether it is confirmed, listed or estimated.
+          If we have no price, we say so.
         </p>
       </header>
 
       <section className="legalSection" aria-labelledby="standings">
-        <h2 id="standings" className="legalH2">The four standings</h2>
+        <h2 id="standings" className="legalH2">What the labels mean</h2>
         <ul className="legalPanelList">
           {PRICE_STANDINGS.map((standing) => (
-            <li key={standing}>
-              <strong>{priceStandingLabel(standing)}.</strong>{" "}
+            <li key={standing} data-standing-definition={standing}>
+              <span className="legalTerm">
+                <TrustPill decision={specimen(standing)} />
+              </span>
               {priceStandingNote(standing)}
             </li>
           ))}
         </ul>
         <p className="legalBody">
-          A confirmation lasts {CONFIRMED_MAX_AGE_DAYS} days, because a price a
-          drinker checked last month is evidence about last month. A published
-          menu price lasts {LISTED_MAX_AGE_DAYS} days, because a chain
-          republishes its menu on its own slow cadence rather than on your
-          visit. Past those ages a price drops to whatever weaker standing the
-          pub can still support.
+          The label is always a word. Beside a real price the pill also takes
+          that price&rsquo;s colour: green for a cheap pint, yellow for an
+          average one, red for a dear one.
+        </p>
+        <p className="legalBody">
+          A confirmation lasts {CONFIRMED_MAX_AGE_DAYS} days. A listed menu
+          price lasts {LISTED_MAX_AGE_DAYS} days. After that, we use whichever
+          weaker label the remaining evidence supports.
         </p>
       </section>
 
@@ -102,8 +137,7 @@ export default function HowWeEstimatePage() {
         </ul>
         <p className="legalBody">
           A basis needs at least {MIN_ESTIMATE_SAMPLE} published prices behind
-          it. Below that we show no estimate at all, because a figure modelled
-          from one or two pubs is a guess wearing a decimal point.
+          it. With fewer prices, we show no estimate.
         </p>
       </section>
 
@@ -133,9 +167,8 @@ export default function HowWeEstimatePage() {
           </>
         ) : (
           <p className="legalBody">
-            We could not read the estimate basis just now, so this page cannot
-            tell you what it holds. That is a fault on our side, and not a
-            statement that the basis is empty.
+            We could not load the estimate data. This page cannot show which
+            prices we used to model the estimates.
           </p>
         )}
       </section>
@@ -145,15 +178,15 @@ export default function HowWeEstimatePage() {
         <p className="legalBody">
           By a real price. When a pub publishes its menu, or a drinker logs what
           they paid and somebody else confirms it, the estimate goes and the
-          published or confirmed figure takes its place. Estimates fill the gap
-          until then. They do not stand in for the work.
+          published or confirmed figure takes its place.
         </p>
         <p className="legalBody">
           <Link href="/pint-index" className="legalLink">The Pint Index</Link>{" "}
-          is the strict end of this. It publishes only prices with a named source
+          publishes only prices with a named source
           and a date, and no estimate has ever entered it.
         </p>
       </section>
     </main>
+    </>
   );
 }

@@ -21,6 +21,8 @@ export type PlanStopConstraintFlag = {
 };
 
 export type GroundedRouteTimingSummary = {
+  /** Absent reads as "straight-line", the basis every timing had before street walks. */
+  walkingBasis?: PlanWalkingBasis;
   straightLineWalkingKm: number;
   walkingMinutes: number;
   transferUncertaintyMinutes: number;
@@ -38,6 +40,7 @@ type PlanGenerationDtoVenue = {
 type PlanGenerationDtoCandidate = {
   venue: PlanGenerationDtoVenue;
   selectedDrinkPrice?: MapLensPrice | null;
+  pintPriceEvidence?: PlanPriceEvidence | null;
   distance: number;
   reasons: readonly string[];
   tonightEvents: readonly {
@@ -98,12 +101,13 @@ function planAlternativeDto(
     venueId: alternative.id,
     venueName: alternative.name,
     distanceKm: Number(venueDistanceKm(origin, alternative).toFixed(2)),
-    estimatedPintPricePence: !usesPintPrices ? null : grounded
+    estimatedPintPricePence: !usesPintPrices ? null : candidate.pintPriceEvidence ? candidate.pintPriceEvidence.pence : grounded
       ? grounded.price.pence
       : alternative.cheapestPrice === null
         ? null
         : Math.round(alternative.cheapestPrice * 100),
-    priceEvidence: usesPintPrices ? grounded?.price ?? null : null,
+    priceEvidence: usesPintPrices ? candidate.pintPriceEvidence ?? grounded?.price ?? null : null,
+    ...(usesPintPrices && candidate.pintPriceEvidence ? { priceCategory: "beer", priceServing: "pint" } : {}),
     selectedDrinkPriceEvidence: selectedDrinkPriceEvidenceForPrice(candidate.selectedDrinkPrice, priceContext),
     accessEvidence: grounded?.access ?? null,
     constraintFlags: grounded?.constraintFlags ?? [],
@@ -123,6 +127,15 @@ function planAlternativeDto(
 }
 
 /** Pure projection from selected candidates and evidence to public Stop DTOs. */
+/** How the walk into a stop was measured: routed, along the streets, or the straight line. */
+function stopTransportBasis(legSource: string | undefined, grounded: boolean): string {
+  if (legSource === "ors") return ROUTED_WALK_TRANSPORT_BASIS;
+  if (legSource === "street") return STREET_WALK_TRANSPORT_BASIS;
+  return grounded
+    ? `direct-distance at ${WALK_KMH} km/h plus 5 minutes uncertainty per leg`
+    : "compact-straight-line";
+}
+
 export function buildPlanGenerationStops(params: {
   chosen: readonly PlanGenerationDtoCandidate[];
   candidates: readonly PlanGenerationDtoCandidate[];
@@ -146,7 +159,7 @@ export function buildPlanGenerationStops(params: {
   const usesPintPrices = planUsesPintPrices(priceContext);
   const chosenVenueIds = new Set(chosen.map(({ venue }) => venue.id));
 
-  return chosen.map(({ venue, distance, reasons, tonightEvents, signalClaims }, index) => {
+  return chosen.map(({ venue, distance, reasons, tonightEvents, signalClaims, pintPriceEvidence }, index) => {
     const grounded = groundedStops?.[index] ?? null;
     const groundedAlternativeCandidates = groundedAlternatives?.[index] ?? null;
     const alternatives = groundedAlternativeCandidates
@@ -155,9 +168,7 @@ export function buildPlanGenerationStops(params: {
       : candidates
           .filter(({ venue: alternative }) => !chosenVenueIds.has(alternative.id))
           .map((entry) => planAlternativeDto(venue, entry, null, priceContext));
-    const legRouted = walkingEstimate.legs.some(
-      (leg) => leg.toIndex === index && leg.source === "ors",
-    );
+    const legSource = walkingEstimate.legs.find((leg) => leg.toIndex === index)?.source;
 
     return {
       venueId: venue.id,
@@ -165,10 +176,11 @@ export function buildPlanGenerationStops(params: {
       position: index,
       walkingMinutesFromPrevious: walkingEstimate.walkingMinutesFromPrevious[index] ?? null,
       distanceKm: Number(distance.toFixed(2)),
-      estimatedPintPricePence: !usesPintPrices ? null : grounded
+      estimatedPintPricePence: !usesPintPrices ? null : pintPriceEvidence ? pintPriceEvidence.pence : grounded
         ? grounded.price.pence
         : venue.cheapestPrice === null ? null : Math.round(venue.cheapestPrice * 100),
-      priceEvidence: usesPintPrices ? grounded?.price ?? null : null,
+      priceEvidence: usesPintPrices ? pintPriceEvidence ?? grounded?.price ?? null : null,
+      ...(usesPintPrices && pintPriceEvidence ? { priceCategory: "beer", priceServing: "pint" } : {}),
       selectedDrinkPriceEvidence: selectedDrinkPriceEvidenceForPrice(chosen[index]?.selectedDrinkPrice, priceContext),
       accessEvidence: grounded?.access ?? null,
       evidence: reasons,
@@ -177,11 +189,7 @@ export function buildPlanGenerationStops(params: {
         openingAtVisit: grounded?.opening.state ?? null,
         openingSource: grounded?.opening.source ?? null,
         visitWindow: grounded?.visitWindow ?? null,
-        transportBasis: legRouted
-          ? "openrouteservice foot-walking route duration"
-          : grounded
-            ? `direct-distance at ${WALK_KMH} km/h plus 5 minutes uncertainty per leg`
-            : "compact-straight-line",
+        transportBasis: stopTransportBasis(legSource, grounded !== null),
       },
       provenance: [
         { kind: "venue_dataset", label: `PUBMAXX venue record for ${venue.name}` },
@@ -236,13 +244,19 @@ export function planBudgetSummary(
   };
 }
 
+const TIMING_BASIS_COPY: Record<PlanWalkingBasis, string> = {
+  street: "street walking estimate; add five minutes uncertainty per transfer",
+  mixed: "street walking estimate where mapped, straight-line elsewhere; add five minutes uncertainty per transfer",
+  "straight-line": "straight-line walking estimate; add five minutes uncertainty per transfer",
+};
+
 export function planRouteTimingDisclosure(grounded: GroundedRouteTimingSummary | null) {
   return grounded ? {
     walkingSpeedKmh: WALK_KMH,
     walkingMinutes: grounded.walkingMinutes,
     transferUncertaintyMinutes: grounded.transferUncertaintyMinutes,
     scheduledRouteMinutes: grounded.scheduledRouteMinutes,
-    basis: "straight-line walking estimate; add five minutes uncertainty per transfer",
+    basis: TIMING_BASIS_COPY[grounded.walkingBasis ?? "straight-line"],
   } : null;
 }
 import { haversineKm } from "@/lib/haversine";
@@ -254,4 +268,5 @@ import type {
   PlanAccessEvidence,
   PlanPriceEvidence,
 } from "@/lib/planRouteEvidence";
-import { WALK_KMH } from "@/lib/routeLegs";
+import type { PlanWalkingBasis } from "@/lib/planRouteOptimizer";
+import { ROUTED_WALK_TRANSPORT_BASIS, STREET_WALK_TRANSPORT_BASIS, WALK_KMH } from "@/lib/routeLegs";

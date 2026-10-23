@@ -158,7 +158,7 @@ the module is what the test measures.
 >
 > Plan the night
 >
-> - Describe the outing and get a crawl route back in order, with the walking kept honest.
+> - Say where, how many and what budget, and get a pub crawl back in order, with the walking kept honest.
 > - What is on tonight, from named sources, with the date we read them.
 > - The last train, so the night has an ending you chose.
 >
@@ -303,6 +303,7 @@ These are derived from the actual code, not aspirations. File references are inl
 | Device/web push delivery material | Yes, when the user enables notifications | No (stored with no user or plan link) | No | App functionality (public night-signal and installed-web daily-brief pushes) | `lib/nativePush.ts` or explicitly-invoked `lib/webPush.ts` posts to `POST /api/push-tokens`; `lib/pushTokenStore.ts` stores it with no identity column (migrations 0039 + 0046). |
 | Photos | Only when the user chooses to publish one. Moment drafts stay on the phone. FOUR surfaces take a photo: a Moment, a pub photo wall, the Drink Wall (`/wall`), and an optional photo on a logged price. | Tied to that content only, not to a real-world identity | No | User content | `lib/momentDraft.ts` keeps Moment drafts in IndexedDB/localStorage on the device; `lib/nightMomentMedia.ts` uploads on publish. Camera access is `lib/nativeCamera.ts`, declared as usage strings in `ios/App/App/Info.plist` and as `CAMERA` plus `READ_MEDIA_IMAGES` in `android/app/src/main/AndroidManifest.xml`. |
 | Email address | Only if the user signs in, or asks us to cover an area they name | Yes (it is the contact) | No | Account sign-in, and telling one person we reached the area they asked for | Sign-in is a Supabase magic link (`components/auth/AuthProvider.tsx`); the optional area-demand contact is `app/api/area-demand/route.ts` (most rows carry no address at all). There is no marketing list and no digest capture (`docs/EMAIL_CAPTURE.md`). |
+| Audio (voice) | Only while the user talks to Pub Pal by voice. The microphone streams to ElevenLabs (`api.elevenlabs.io`) for that conversation. PUBMAXXING stores no audio. The checked-in agent config requests `record_voice: false` and `zero_retention_mode: true`. Nobody has verified that the live ElevenLabs agent carries those settings, and the voice-token field `retention: "provider_default"` is a fixed label that does not read them. Run `npm run pubpal:agent -- --check --base-url https://pubmaxxing.com` and confirm the live ElevenLabs retention settings before either store form is submitted. | Yes (it belongs to the signed-in conversation) | No | App functionality | `components/pubpal/PubPalVoiceSession.tsx` is the only module that imports the ElevenLabs SDK. The microphone is declared as `NSMicrophoneUsageDescription` in `ios/App/App/Info.plist` and as `RECORD_AUDIO` in `android/app/src/main/AndroidManifest.xml`. `scripts/pubpal/create-elevenlabs-agent.mjs` holds the requested provider privacy settings. `app/privacy/page.tsx` names ElevenLabs under AI features. |
 
 ### What the app does not do
 
@@ -316,7 +317,7 @@ These are derived from the actual code, not aspirations. File references are inl
 Declare the following. Everything else: Not Collected.
 
 - **Data Used to Track You:** None.
-- **Data Linked to You:** Contact Info > Email Address (account sign-in or optional area-demand contact), purpose App Functionality. User Content > Photos or Videos (a published Moment, a pub wall or Drink Wall photo, or a photo on a logged price), purpose App Functionality.
+- **Data Linked to You:** Contact Info > Email Address (account sign-in or optional area-demand contact), purpose App Functionality. User Content > Photos or Videos (a published Moment, a pub wall or Drink Wall photo, or a photo on a logged price), purpose App Functionality. User Content > Audio Data (Pub Pal voice, streamed to ElevenLabs as the conversation provider), purpose App Functionality.
 - **Data Not Linked to You:** Identifiers > Device ID (push token), purpose App Functionality. Usage Data > Product Interaction (opt-in analytics), purpose Analytics. Precise Location, purpose App Functionality, only when the user starts a location feature.
 - **Location processing:** declare Precise Location because three decimal places is about 70 to 110 metres. Mark it optional, not linked, not used for tracking, and used for App Functionality. The app processes the rounded point ephemerally. Confirm current processor retention terms in App Store Connect before submission.
 
@@ -326,6 +327,7 @@ Declare the following. Everything else: Not Collected.
 - **Precise location:** Collected, optional, processed ephemerally, purpose App functionality, not used for tracking. Full GPS precision stays on the device; only the three-decimal point leaves it. In the Data safety flow, identify the ephemeral processing and current service-provider or user-initiated transfers exactly as the form asks.
 - **Personal info > Email address:** Collected, not shared, optional, purpose App functionality. Encrypted in transit. Account deletion removes the sign-in address; other erasure requests use the public contact in `lib/siteContact.mjs`.
 - **Photos and videos:** Collected, purpose App functionality. Answer **shared: yes** for pub wall and Drink Wall photos. A wall photo is PUBLIC by design: it appears on that pub's page and on `/wall` when it is in the city grid, and the pub-wall composer offers a crosspost to the public feed. Saying "not shared publicly by default" would be a wrong answer on the form, not a cautious one. Moment drafts stay on the device and are collected only on publish.
+- **Audio > Voice or sound recordings:** Collected, not shared, optional, purpose App functionality. Do not answer "processed ephemerally" unless the live provider settings confirm no retention. See this section's Audio (voice) row for the check.
 - **App activity > Product interaction:** Collected, not shared, optional (opt-in), purpose Analytics. Encrypted in transit.
 - **Device or other IDs:** Collected (push token), not shared, purpose App functionality.
 - **Is all data encrypted in transit?** Yes (HTTPS only, the shell loads `https://pubmaxxing.com`).
@@ -421,16 +423,16 @@ scroll past the third shot, so the first three carry the listing.
 | 3 | `/crawls` | A crawl you can walk. | The differentiator, and the reason someone keeps the app. |
 | 4 | `/tonight` | What is on across London tonight. | Recurring use. |
 | 5 | `/pint-index` | Pint prices, month by month. | The receipt. Nobody else publishes this. |
-| 6 | `/plan` | Describe the outing. Get it in order. | The planner, in the words the screen itself uses. |
+| 6 | `/plan` | Plan a pub crawl. | The planner, in the words the screen itself uses. |
 
 **Change requested, for the worker who owns `SHOTS`:**
 
 - Shot 3 caption: "A crawl you can actually walk." to "A crawl you can walk."
   Shot 2 already says "actually" and two captions in a row leaning on the same
   word reads as one voice tic rather than two claims.
-- Shot 6 caption: "Describe the night. Get it in order." to "Describe the
-  outing. Get it in order." The screen's own heading is "Describe the outing.
-  We'll put it in order." (`docs/design/LAUNCH_SCREENS.md`), and a caption that
+- Shot 6 caption: "Describe the night. Get it in order." to "Plan a pub
+  crawl." The screen's own heading is "Plan a pub crawl"
+  (`docs/design/LAUNCH_SCREENS.md`), and a caption that
   paraphrases the screen it sits beside is a small lie a reviewer can see.
 - **Add a seventh shot: `/pal`, caption "Your Pub Pal knows the round."** Pub
   Pal is the landing page's secondary action and seven rendered forms as of
@@ -994,6 +996,8 @@ not tick any band under 18 and do not opt into Designed for Families.
 - **Photos and videos > Photos:** collected AND **shared**. Purpose: App
   functionality. A pub wall photo is public by design, so "shared" is the honest
   answer here and "not shared" would be a wrong one.
+- **Audio > Voice or sound recordings:** use the Google Play Data safety
+  answers in section 5, including the required check of live provider retention.
 - **App activity > App interactions:** collected, not shared. Optional, because
   analytics are opt-in and default off. Purpose: Analytics.
 - **Device or other IDs:** collected, not shared. Purpose: App functionality

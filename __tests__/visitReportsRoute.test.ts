@@ -42,6 +42,15 @@ vi.mock("@/lib/pintDrops", async (importOriginal) => {
   };
 });
 
+// The ONE venue resolver every community write runs through. Its own rules are
+// pinned in its own suite; here an alias and an unknown id stand in for it.
+vi.mock("@/lib/venueWriteTarget.server", () => ({
+  resolveWritableVenueId: async (venueId: string) =>
+    venueId === "venue-unknown"
+      ? { ok: false, status: 400, error: "Pick a venue from the map." }
+      : { ok: true, venueId: venueId === "venue-old-alias" ? "venue-1" : venueId },
+}));
+
 import { GET, POST } from "@/app/api/visit-reports/route";
 import { __resetVisitReports, memoryVisitReportStore } from "@/lib/visitReportsStore";
 import { __resetPintDrops } from "@/lib/pintDrops";
@@ -50,6 +59,7 @@ import {
   __setMemoryProfileWithdrawn,
 } from "@/lib/accountPublicAccess.server";
 import { __resetMemoryProfiles, __seedMemoryOwnedProfile } from "@/lib/profileStore";
+import { defined } from "@/__tests__/helpers/defined";
 
 function post(body: unknown, ip = "203.0.113.9"): Request {
   return new Request("http://localhost/api/visit-reports", {
@@ -118,6 +128,25 @@ describe("POST /api/visit-reports (create)", () => {
     ]);
   });
 
+  it("refuses a venue id the resolver does not know, and stores nothing", async () => {
+    const res = await POST(
+      post({ venueId: "venue-unknown", visitedAt: dayKey(1), busyness: "steady" }),
+    );
+    expect(res.status).toBe(400);
+    expect((await res.json()).error).toBe("Pick a venue from the map.");
+    expect((await memoryVisitReportStore.readForVenue("venue-unknown")).reports).toEqual([]);
+  });
+
+  it("stores a report posted under an alias against the canonical venue", async () => {
+    const res = await POST(
+      post({ venueId: "venue-old-alias", visitedAt: dayKey(1), busyness: "steady" }),
+    );
+    expect(res.status).toBe(201);
+    expect((await res.json()).report.venueId).toBe("venue-1");
+    expect((await memoryVisitReportStore.readForVenue("venue-1")).reports).toHaveLength(1);
+    expect((await memoryVisitReportStore.readForVenue("venue-old-alias")).reports).toEqual([]);
+  });
+
   it("requires the established account prompt without orphaning a legacy unlinked row", async () => {
     await memoryVisitReportStore.create({
       venueId: "venue-legacy",
@@ -178,7 +207,7 @@ describe("POST /api/visit-reports (create)", () => {
 
     expect(res.status).toBe(201);
     expect(rateLimitCalls).toHaveLength(1);
-    const [localKey, durableKey] = rateLimitCalls[0];
+    const [localKey, durableKey] = defined(rateLimitCalls[0]);
     expect(localKey).toBe(durableKey);
     expect(localKey).toMatch(
       /^visit-report:profile:attacker-profile:[a-f0-9]{64}$/,
@@ -274,7 +303,7 @@ describe("POST /api/visit-reports (report + moderation)", () => {
     expect((await memoryVisitReportStore.readForVenue("venue-1")).reports).toHaveLength(1);
     const queue = await memoryVisitReportStore.listForReview();
     expect(queue).toHaveLength(1);
-    expect(queue[0].reportCount).toBe(2);
+    expect(defined(queue[0]).reportCount).toBe(2);
 
     const hide = post({ action: "hide", id: report.id });
     hide.headers.set("x-admin-token", "test-admin-secret");
@@ -431,9 +460,9 @@ describe("GET /api/visit-reports", () => {
       venueId: "venue-3",
       handle: "sam",
     });
-    expect(body.reports[0].visitedAt).toBeTruthy();
+    expect(defined(body.reports[0]).visitedAt).toBeTruthy();
 
-    const restore = post({ action: "restore", id: body.reports[0].id });
+    const restore = post({ action: "restore", id: defined(body.reports[0]).id });
     restore.headers.set("x-admin-token", "test-admin-secret");
     expect((await POST(restore)).status).toBe(200);
     // Restored means back on PUBLIC reads, not just out of the hidden lane.

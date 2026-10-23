@@ -46,6 +46,7 @@ vi.mock("@/components/auth/useViewerSession", () => ({
 }));
 
 vi.mock("@/lib/authedFetch", () => ({
+  authedFetch: (input: RequestInfo | URL, init?: RequestInit) => fetch(input, init),
   authedActionFetch: transport.authedActionFetch,
 }));
 
@@ -106,6 +107,7 @@ const A_FEED_POST: SocialPostDTO = {
   venueProjected: false,
   hashtags: [],
   commentPolicy: "open",
+  nameHidden: false,
   photo: null,
   moderationState: "approved",
   featureRequest: null,

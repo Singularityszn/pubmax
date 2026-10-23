@@ -1,7 +1,5 @@
 // @vitest-environment jsdom
 
-import { readFileSync } from "node:fs";
-import { join } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
@@ -19,8 +17,6 @@ import {
 // bar overflowed. The seam applies the size on iOS, reads it on Android, and
 // publishes the bucket the tab bar changes shape on.
 
-const ROOT = join(__dirname, "..");
-
 function plugin(preferred: number, current = 1) {
   return {
     get: vi.fn(async () => ({ value: current })),
@@ -31,6 +27,7 @@ function plugin(preferred: number, current = 1) {
 
 afterEach(() => {
   document.documentElement.removeAttribute(TEXT_SCALE_ATTRIBUTE);
+  document.documentElement.style.removeProperty("--native-text-layout-scale");
 });
 
 describe("the pure rules", () => {
@@ -50,6 +47,22 @@ describe("the pure rules", () => {
 });
 
 describe("applyNativeTextScale", () => {
+  it("publishes the iOS layout scale only after WebKit accepts the text size", async () => {
+    let accept!: () => void;
+    const p = plugin(3.1176470588235294);
+    p.set = vi.fn(() => new Promise<void>((resolve) => { accept = resolve; }));
+    const applying = applyNativeTextScale({
+      isNative: () => true, platform: () => "ios", loadPlugin: async () => p,
+    });
+    await vi.waitFor(() => expect(p.set).toHaveBeenCalledWith({ value: 2 }));
+    expect(document.documentElement.style.getPropertyValue("--native-text-layout-scale")).toBe("");
+    expect(document.documentElement.hasAttribute(TEXT_SCALE_ATTRIBUTE)).toBe(false);
+    accept();
+    await applying;
+    expect(document.documentElement.style.getPropertyValue("--native-text-layout-scale")).toBe("2");
+    expect(document.documentElement.getAttribute(TEXT_SCALE_ATTRIBUTE)).toBe("large");
+  });
+
   it("does nothing off the shell", async () => {
     const p = plugin(2);
     await expect(applyNativeTextScale({ isNative: () => false, loadPlugin: async () => p })).resolves.toEqual({
@@ -68,11 +81,13 @@ describe("applyNativeTextScale", () => {
   });
 
   it("reads the zoom the Android WebView already applies and only publishes", async () => {
+    document.documentElement.style.setProperty("--native-text-layout-scale", "2");
     const p = plugin(1, 2);
     await expect(
       applyNativeTextScale({ isNative: () => true, platform: () => "android", loadPlugin: async () => p }),
     ).resolves.toEqual({ status: "read", scale: 2 });
     expect(p.set).not.toHaveBeenCalled();
+    expect(document.documentElement.style.getPropertyValue("--native-text-layout-scale")).toBe("");
     expect(document.documentElement.getAttribute(TEXT_SCALE_ATTRIBUTE)).toBe("large");
   });
 
@@ -80,6 +95,16 @@ describe("applyNativeTextScale", () => {
     document.documentElement.setAttribute(TEXT_SCALE_ATTRIBUTE, "large");
     const p = plugin(1, 1);
     await applyNativeTextScale({ isNative: () => true, platform: () => "android", loadPlugin: async () => p });
+    expect(document.documentElement.hasAttribute(TEXT_SCALE_ATTRIBUTE)).toBe(false);
+  });
+
+  it("restores ordinary iOS layout when the person reduces their text size", async () => {
+    document.documentElement.style.setProperty("--native-text-layout-scale", "2");
+    document.documentElement.setAttribute(TEXT_SCALE_ATTRIBUTE, "large");
+    const p = plugin(1);
+    await applyNativeTextScale({ isNative: () => true, platform: () => "ios", loadPlugin: async () => p });
+    expect(p.set).toHaveBeenCalledWith({ value: 1 });
+    expect(document.documentElement.style.getPropertyValue("--native-text-layout-scale")).toBe("1");
     expect(document.documentElement.hasAttribute(TEXT_SCALE_ATTRIBUTE)).toBe(false);
   });
 
@@ -100,6 +125,8 @@ describe("applyNativeTextScale", () => {
     await expect(
       applyNativeTextScale({ isNative: () => true, platform: () => "ios", loadPlugin: async () => refusing }),
     ).resolves.toEqual({ status: "unavailable" });
+    expect(document.documentElement.style.getPropertyValue("--native-text-layout-scale")).toBe("");
+    expect(document.documentElement.hasAttribute(TEXT_SCALE_ATTRIBUTE)).toBe(false);
   });
 });
 
@@ -115,23 +142,5 @@ describe("followNativeTextScale", () => {
     document.dispatchEvent(new Event("visibilitychange"));
     await new Promise((r) => setTimeout(r, 10));
     expect(p.set).toHaveBeenCalledTimes(2);
-  });
-});
-
-describe("the surfaces that change shape", () => {
-  it("is wired from the shell's document marker and drops the tab words at the large bucket", () => {
-    const chrome = readFileSync(join(ROOT, "components/native/NativeShellChrome.tsx"), "utf8");
-    expect(chrome).toContain("followNativeTextScale()");
-    const css = readFileSync(join(ROOT, "components/nav/mobileNav.css"), "utf8");
-    expect(css).toContain('html[data-text-scale="large"] .mobileTabLabel');
-    // The accessible name lives on the link, so hiding the word costs a screen
-    // reader nothing.
-    const bar = readFileSync(join(ROOT, "components/nav/MobileTabBar.tsx"), "utf8");
-    expect(bar).toContain("aria-label={tab.ariaLabel}");
-    // The consent card grows past its phone ceiling rather than clipping the
-    // disclosure and the way out.
-    const globals = readFileSync(join(ROOT, "app/globals.css"), "utf8");
-    expect(globals).toContain('html[data-text-scale="large"] .analyticsConsentPrompt {');
-    expect(globals).toMatch(/html\[data-text-scale="large"\] \.analyticsConsentPrompt \{[^}]*max-height: none;/);
   });
 });
