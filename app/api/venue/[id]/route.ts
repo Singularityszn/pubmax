@@ -20,8 +20,7 @@ import { publicApiError } from "@/lib/apiError";
 import { canGroupGetIn, estimateBusyness, resolveBookingOption } from "@/lib/busyness";
 import { isLimited } from "@/lib/pintDrops";
 import { clientIp, hashIp } from "@/lib/supabase";
-import { BUNDLE_DEFAULT_CATEGORY, bundlePricesForCategory } from "@/lib/ukPriceBundle";
-import { ukPriceBundleRowsFor } from "@/lib/ukPriceBundle.server";
+import { readVenuePintPriceEvidence } from "@/lib/venuePintPriceEvidence.server";
 import { venuePriceUpdatesFor } from "@/lib/priceUpdates.server";
 import { VENUE_DETAIL_INCLUDE_RETIRED_PARAM } from "@/lib/prefetchVenue";
 import { lookupVenueDetail } from "@/lib/venueDetailIndex";
@@ -51,17 +50,14 @@ export async function GET(
     return publicApiError("Venue details unavailable.", "UNAVAILABLE", 503, { retryable: true });
   }
   const { venue } = lookup;
+  const evidence = await readVenuePintPriceEvidence(venue);
 
   // WHAT THE BUNDLE HOLDS ABOUT THIS PUB, carried on the venue so the sheet
   // reads it off the detail it already fetches rather than opening a second
   // request. A read that FAILED contributes nothing here and is not an empty
   // answer either: the sheet falls through to the lanes it always had, which is
   // what it did before this field existed.
-  const bundle = await ukPriceBundleRowsFor(venue.id);
-  const bundlePrices =
-    bundle.status === "unavailable"
-      ? null
-      : bundlePricesForCategory(bundle.rows, BUNDLE_DEFAULT_CATEGORY);
+  const bundlePrices = evidence.bundlePrices;
 
   // WHAT THE TWO OBSERVED PACKS HOLD ABOUT THIS PUB, scoped here for the same
   // reason the bundle is: the Drinks tab drew a handful of rows about one pub
@@ -120,6 +116,7 @@ export async function GET(
         contacts,
         amenityStatus,
         bundlePrices,
+        priceReads: evidence.reads,
         priceUpdates,
       },
       busyness,

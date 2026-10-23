@@ -17,6 +17,7 @@ vi.mock("@/components/nav/SiteNav", () => ({ default: () => null }));
 
 import { GET } from "@/app/api/ledger/[id]/route";
 import { GET as readPintDrops } from "@/app/api/pint-drops/route";
+import { GET as readVenue } from "@/app/api/venue/[id]/route";
 import LedgerPage from "@/app/ledger/[id]/page";
 import {
   __resetMemoryProfileWithdrawals,
@@ -96,6 +97,26 @@ describe("GET /api/ledger/[id] and a withdrawn author", () => {
 });
 
 describe("GET /api/ledger/[id]", () => {
+  it("uses the same refreshed Small Beer menu row as the venue sheet", async () => {
+    vi.spyOn(Date, "now").mockReturnValue(Date.parse("2026-10-23T18:00:00Z"));
+    const id = "venue-19mn6ss";
+    const response = await readLedger(id);
+    const sheet = await readVenue(new Request(`http://localhost/api/venue/${id}`), { params: Promise.resolve({ id }) });
+    expect(response.status).toBe(200);
+    expect(sheet.status).toBe(200);
+    const body = await response.json();
+    const sheetBody = await sheet.json();
+    expect(sheetBody.venue.bundlePrices.listed).toEqual({
+      priceGbp: 5, sourceUrl: "https://www.smallbeern8.co.uk/drinks", observedAt: "2026-10-23T16:15:47.970Z",
+    });
+    expect(body.priceRecord).toMatchObject({
+      lane: { lane: "listed", listed: sheetBody.venue.bundlePrices.listed },
+      drinkName: "Session IPA , 4.0%, Two by Two (Newcastle)",
+      publisher: "smallbeern8.co.uk",
+      reads: { bundle: "ready", sourced: "ready" },
+    });
+  });
+
   it("returns the public pint report that the sheet uses, with its original source and date", async () => {
     addPintDrop(drop("hatton-price", "ledger_alice", {
       venueId: "venue-1vle947", drink: "Lager", measure: "pint", priceGbp: 4.7,
@@ -107,6 +128,7 @@ describe("GET /api/ledger/[id]", () => {
         dropId: "hatton-price", drink: "Lager", measure: "pint", priceGbp: 4.7,
         createdAt: "2026-09-06T01:22:18.585Z", handle: "ledger_alice", state: "aged-out",
       },
+      priceRecord: { lane: { lane: "aged", agedPrice: 4.7 } },
     });
   });
 
@@ -151,6 +173,33 @@ describe("GET /api/ledger/[id]", () => {
     addPintDrop(drop("split-a", "alice", { drink: "Lager", priceGbp: 4.5, createdAt: "2026-10-22T19:00:00Z" }));
     addPintDrop(drop("split-b", "bert", { drink: "Lager", priceGbp: 4.7, createdAt: "2026-10-22T20:00:00Z" }));
     expect((await readLog()).pintPrice).toMatchObject({ state: "disputed", priceGbp: null, split: { prices: [4.5, 4.7], reporters: 2 } });
+  });
+
+  it.each([venue.id, defined(groupVenuePrices(rows)[1]).id])(
+    "keeps a corroborated public price and its timestamp ahead of published inputs at %s",
+    async (venueId) => {
+      vi.spyOn(Date, "now").mockReturnValue(Date.parse("2026-10-23T18:00:00Z"));
+      addPintDrop(drop("first-paid", "alice", { venueId, drink: "Lager", priceGbp: 6, authorityKey: "independent-alice", createdAt: "2026-10-23T16:00:00Z" }));
+      addPintDrop(drop("second-paid", "bert", { venueId, drink: "Lager", priceGbp: 6, authorityKey: "independent-bert", createdAt: "2026-10-23T17:00:00Z" }));
+      const response = await readLedger(venueId);
+      expect(await response.json()).toMatchObject({
+        pintPrice: { priceGbp: 6, state: "corroborated", createdAt: "2026-10-23T17:00:00Z" },
+        priceRecord: { lane: { lane: "contributor", contributorPrice: 6 } },
+      });
+    },
+  );
+
+  it("never derives its selected lane from private, non-pint or future reports", async () => {
+    addPintDrop(drop("future-pair-a", "alice", { priceGbp: 9.99, authorityKey: "alice", createdAt: "2099-10-23T16:00:00Z" }));
+    addPintDrop(drop("future-pair-b", "bert", { priceGbp: 9.99, authorityKey: "bert", createdAt: "2099-10-23T16:00:00Z" }));
+    addPintDrop(drop("private-pair-a", "alice", { priceGbp: 9.99, authorityKey: "alice", visibility: "friends" }));
+    addPintDrop(drop("private-pair-b", "bert", { priceGbp: 9.99, authorityKey: "bert", visibility: "friends" }));
+    addPintDrop(drop("half-pair-a", "alice", { priceGbp: 9.99, authorityKey: "alice", measure: "half" }));
+    addPintDrop(drop("half-pair-b", "bert", { priceGbp: 9.99, authorityKey: "bert", measure: "half" }));
+    const body = await readLog();
+    expect(body.pintPrice).toBeNull();
+    expect(body.priceRecord.lane?.lane).not.toBe("contributor");
+    expect(JSON.stringify(body.priceRecord)).not.toContain("9.99");
   });
 
   it("puts public drops in the logbook and the story, and legacy drops only at the Family Table", async () => {

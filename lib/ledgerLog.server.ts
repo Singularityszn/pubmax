@@ -1,6 +1,6 @@
 import "server-only";
 
-import type { VenueCuration, VenueClaim } from "@/lib/curation";
+import type { VenueClaim } from "@/lib/curation";
 import {
   buildFamilyTableEntries,
   buildLedgerEntries,
@@ -10,6 +10,7 @@ import {
   type FamilyTableEntry,
   type LedgerEntry,
   type LedgerPintPrice,
+  type LedgerPriceRecordData,
   type LedgerSourceDrop,
   type RedactedFamilyEntry,
 } from "@/lib/ledger";
@@ -19,7 +20,10 @@ import {
   supabasePintDropStore,
   type PintDropDTO,
 } from "@/lib/pintDropsStore";
-import { pintTrustFor } from "@/lib/pintTrust";
+import { dropLaneInput, pintTrustFor, pintTrustSignalFields, splitLaneInput } from "@/lib/pintTrust";
+import { readVenuePintPriceEvidence } from "@/lib/venuePintPriceEvidence.server";
+import { venuePriceLane } from "@/lib/venuePriceLane";
+import type { Venue } from "@/lib/venues";
 import { isSupabaseConfigured } from "@/lib/supabase";
 
 // THE LEDGER'S LIVE HALF (task vercel-f2-seo-cdn, option a). The /ledger/[id]
@@ -33,6 +37,7 @@ import { isSupabaseConfigured } from "@/lib/supabase";
 export type LedgerLog = {
   /** The same public pint reading as the map sheet, never a private or demo row. */
   pintPrice: LedgerPintPrice | null;
+  priceRecord: LedgerPriceRecordData;
   /** The pub's story: the curated note first, then every drop-derived line. */
   claims: VenueClaim[];
   /** The public logbook: public and anonymous drops only, newest first. */
@@ -59,17 +64,17 @@ function sourceOf(d: PintDropDTO): LedgerSourceDrop {
 }
 
 /**
- * Read one venue's logbook and Family Table. `canonicalId` is the surviving
- * venue id (D1), never a raw route param, so a merged alias and its canonical
+ * Read one venue's logbook and Family Table. The venue holds the surviving
+ * canonical id (D1), never a raw route param, so a merged alias and its canonical
  * address share one logbook. `viewer` only ever unredacts the viewer's OWN
  * legacy rows; the public logbook is read with no viewer at all, exactly as the
  * server-rendered page read it.
  */
 export async function readLedgerLog(
-  canonicalId: string,
-  curation: VenueCuration,
+  venue: Venue,
   viewer: ViewerContext | undefined,
 ): Promise<LedgerLog> {
+  const { id: canonicalId, curation } = venue;
   const store = pintDropStoreFor();
   const publicDrops = await store.listVisible(canonicalId);
   const sources = publicDrops.map(sourceOf);
@@ -84,6 +89,31 @@ export async function readLedgerLog(
     state: trust.state,
     split: trust.split,
   } : null;
+  const signal = pintTrustSignalFields(trust);
+  // Only the shared trust reading may affect sourced-refresh precedence.
+  const publicVenue = {
+    ...venue,
+    latestContributorPrice: signal.latestContributorPrice,
+    latestContributorAt: signal.latestContributorAt === null ? null
+      : new Date(signal.latestContributorAt).toISOString(),
+  };
+  const evidence = await readVenuePintPriceEvidence(publicVenue);
+  const lane = venuePriceLane(
+    evidence.venue,
+    signal.latestContributorPrice,
+    evidence.venue.sourcedPrice,
+    evidence.bundlePrices ?? {},
+    dropLaneInput(signal.provisionalContributorPrice, signal.provisionalContributorAt),
+    dropLaneInput(signal.agedContributorPrice, signal.agedContributorAt),
+    splitLaneInput(signal.disputedPrices, signal.disputedAt),
+  );
+  const priceRecord: LedgerPriceRecordData = {
+    lane,
+    drinkName: lane?.lane === "listed" ? evidence.listedRow?.drinkLabel ?? null
+      : lane?.lane === "baseline" ? venue.cheapestPint || null : null,
+    publisher: lane?.lane === "listed" ? evidence.listedRow?.publisher ?? null : null,
+    reads: evidence.reads,
+  };
   // The Family Table (issue #27): LEGACY drops, read via the ledger-only
   // listLegacyForVenue capability (issue #29), deliberately a SEPARATE store
   // call from listVisible above, never a filter over it, so a legacy row can
@@ -91,6 +121,7 @@ export async function readLedgerLog(
   const legacySources = (await store.listLegacyForVenue(canonicalId)).map(sourceOf);
   return {
     pintPrice,
+    priceRecord,
     claims: buildVenueClaims(curation, ledgerClaimDrops(sources)),
     entries: buildLedgerEntries(sources),
     familyEntries: resolveFamilyTableDisplay(
