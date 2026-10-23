@@ -243,6 +243,8 @@ export default defineConfig({
         "**/map-you-are-here.spec.ts",
         "**/map-arrival-card-pins.spec.ts",
         "**/map-desktop-arrival-chrome.spec.ts",
+        "**/mobile-map-first-visit.spec.ts",
+        "**/mobile-map-shell-matrix.spec.ts",
         "**/map-tile-retry.spec.ts",
         "**/map-webgl-recovery.spec.ts",
         "**/map-fallback.spec.ts",
@@ -376,6 +378,10 @@ export default defineConfig({
         "**/map-you-are-here.spec.ts",
         // The arrival chrome count at 1440: a rendered map, so a real canvas.
         "**/map-desktop-arrival-chrome.spec.ts",
+        // First visit needs revealed pins. The shell matrix reads a real camera
+        // and rendered basemap at each zoom, so both require software WebGL.
+        "**/mobile-map-first-visit.spec.ts",
+        "**/mobile-map-shell-matrix.spec.ts",
         // A deep-linked pin's painted position against the phone sheet's own
         // rendered edge: both need a real MapLibre camera to project from.
         "**/map-deep-link-pin.spec.ts",
