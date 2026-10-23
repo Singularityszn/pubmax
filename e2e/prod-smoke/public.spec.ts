@@ -69,7 +69,9 @@ test("a venue sheet shows Google Places hours and address", async ({ page }) => 
   await expect(sheet.getByRole("heading", { name: PLACES_VENUE.name })).toBeInViewport();
   await expect(sheet.locator(".venueAddress")).toContainText(PLACES_VENUE.postcode);
   await sheet.getByText("Details and practical info").click();
-  const places = sheet.locator(".venuePlacesDetails");
+  // Google Places and OpenStreetMap share this layout class. Match the source credit.
+  const places = sheet.locator(".venuePlacesDetails").filter({ hasText: "Google Places · Checked" });
+  await expect(places).toHaveCount(1);
   await expect(places).toBeVisible();
   await places.getByText("Opening hours", { exact: true }).click();
   await expect(places.locator("dt").first()).toHaveText("Monday");
