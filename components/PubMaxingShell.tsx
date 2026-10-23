@@ -145,6 +145,7 @@ export default function PubMaxingShell({
   return (
     <MapSkeletonCityContext.Provider value={mapDisplayName}>
       <MapPricesReadContext.Provider value={pricesReadLine}>
+        <h1 className="sr-only">{mapDisplayName} pub map</h1>
         <PubMap
           key={cityId}
           cityId={cityId}

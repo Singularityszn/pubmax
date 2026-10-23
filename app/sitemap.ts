@@ -28,8 +28,7 @@ import {
 // most of it from bots). Scope is provenance-first and honest:
 //
 //  Included:
-//   - static hubs: /, /map, /borough, /historic, /pubs, /tonight,
-//     /places, /crawls, /social while Social is live by default.
+//   - static hubs declared in staticRoutes below, with their admission gates
 //   - /map/{city} for every enabled non-London city (London is /map)
 //   - /borough/{slug} for every borough present in the price dataset
 //   - /drink/{slug} and /area/{slug}/drink/{brand} for every governed drink
@@ -184,6 +183,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     },
     { path: "/pubs", priority: 0.7, changeFrequency: "weekly", lastModified: pricesModified },
     { path: "/tonight", priority: 0.6, changeFrequency: "daily", lastModified: now },
+    { path: "/pal", priority: 0.5, changeFrequency: "monthly", lastModified: now },
     {
       path: "/how-we-estimate",
       priority: 0.4,

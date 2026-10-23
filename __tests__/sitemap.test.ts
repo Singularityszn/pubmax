@@ -33,7 +33,7 @@ import type { MetadataRoute } from "next";
 // public account-deletion page Play Console holds in its Data safety form and
 // expects to be able to open, /spoons-value, the national Wetherspoon units-per-tenner ranking, and
 // /price-pulse, the weekly Price Pulse and its "Where your £6 goes" explainer.
-// The public /feedback and /updates pages also belong in this list.
+// The public /feedback, /updates and /pal pages also belong in this list.
 //
 // /pint-index is NOT here. Captain decision D10 holds its row until a month
 // carries the admission floor of priced pubs in at least one borough, and the
@@ -41,7 +41,7 @@ import type { MetadataRoute } from "next";
 // row returning is a conscious test edit, the same as a change to the list
 // above; the gate itself is proved in both directions by the fixture-driven
 // describe at the foot of this file. The ROUTE is unaffected either way.
-const STATIC_HUB_COUNT = 19;
+const STATIC_HUB_COUNT = 20;
 
 // Wave S1.2 — sitemap sanity. Runs the real generator against the bundled
 // dataset (process.cwd() is the repo root in tests, so public/data/*.json is
@@ -177,6 +177,11 @@ describe("sitemap()", () => {
     ]) {
       expect(urls).toContain(`${SITE}${hub}`);
     }
+  });
+
+  it("lists the public Pub Pal introduction once without advertising private chat", () => {
+    expect(urls.filter((url) => url === `${SITE}/pal`)).toHaveLength(1);
+    expect(urls).not.toContain(`${SITE}/pal/chat`);
   });
 
   it("lists the brand-relevant discovery routes a stranger can be sent to", () => {

@@ -47,7 +47,6 @@ export default function MapLoadingSkeleton({
         <div className="mapSkeletonCopy" id="mapSkeletonStatus" role="status">
           <PintLoader size="sm" />
           <div>
-            <h1>UK venue map</h1>
             <p>{mapLoadingPrimaryLine(cityDisplayName)}</p>
             {pricesReadLine ? <p className="mapSkeletonReads">{pricesReadLine}</p> : null}
           </div>

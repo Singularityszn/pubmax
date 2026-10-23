@@ -38,6 +38,7 @@ export function londonMapMetadata(
   return {
     title,
     description,
+    alternates: { canonical: "/map" },
     openGraph: {
       title,
       description,
