@@ -12,8 +12,8 @@ import {
 // Permanent one-action hierarchy (captain 2026-09-03, issue #1354; 2026-09-04,
 // issue #1357; rebuilt 2026-09-07). No build flag changes this contract: the
 // near-me answer is the one primary, the price receipt door is the first quiet
-// door ("Log what you paid", into the pub's own Pint Drop composer, or the
-// plain door when no card backs the document) with Tonight beside it, the hero fills the
+// door ("Log what you paid", into the pub picker before a blank price form)
+// with Tonight beside it, the hero fills the
 // viewport at every width and the phone order is the desktop order.
 
 async function openLanding(page: Page, viewport: { width: number; height: number }) {
@@ -121,7 +121,7 @@ test.describe("landing hierarchy", () => {
     });
   }
 
-  test("shows one real pub with its price, publisher, day and archive line, and a quiet door to log a price there", async ({ page }) => {
+  test("shows one real pub with its price, publisher, day and archive line, and a quiet door to choose a pub", async ({ page }) => {
     await openLanding(page, { width: 1440, height: 900 });
     const card = page.locator(".lpHero .lpPubCard");
     await expect(card).toBeVisible();
@@ -132,16 +132,10 @@ test.describe("landing hierarchy", () => {
     await expect(card.locator(".lpPubThen")).toContainText(/£\d+\.\d\d in \w+ \d{4}\./);
     await expect(card.locator(".lpPubThenSource a")).toHaveAttribute("href", /^https?:\/\//);
 
-    // The quiet receipt door says what it does and opens THAT pub's Pint Drop
-    // door: the map, that pub selected, the composer open.
-    const price = (await card.locator(".priceBadge").first().textContent())?.trim();
-    const pubHref = await card.locator(".lpPubName a").getAttribute("href");
+    // The general receipt door asks which pub before it opens a blank form.
     const receipt = page.locator(".lpHero .screenSecondary a").first();
     await expect(receipt).toHaveText(LANDING_RECEIPT_NAME);
-    // #1462 — the figure rides with the intent, so the composer the tap opens
-    // holds the price the card printed.
-    const figure = price!.replace("£", "");
-    await expect(receipt).toHaveAttribute("href", `${pubHref}&log=1&price=${figure}`);
+    await expect(receipt).toHaveAttribute("href", "/map?log=1");
 
     // Three next-cheapest rows under it, each a Pint Drop door of its own,
     // each carrying the figure its own row prints.
@@ -161,23 +155,31 @@ test.describe("landing hierarchy", () => {
     await expect(page.locator("a[href*='locate=1']")).toHaveCount(1);
   });
 
-  test("the receipt door lands on that pub with the Pint Drop composer already holding the card's figure", async ({ page }) => {
+  test("the receipt door asks which pub before opening its blank Pint Drop price form", async ({ page }) => {
+    test.setTimeout(60_000);
     await openLanding(page, { width: 390, height: 844 });
     const receipt = page.locator(".lpHero .screenSecondary a").first();
     await expect(receipt).toHaveText(LANDING_RECEIPT_NAME);
-    const printed = (await page.locator(".lpHero .lpPubCard .priceBadge").first().textContent())!.trim();
-    const figure = printed.replace(/^£/, "");
-    expect(figure).toMatch(/^\d+\.\d\d$/);
+    await expect(async () => {
+      await receipt.click();
+      await expect(page).toHaveURL(/\/map\?log=1$/, { timeout: 1_000 });
+    }).toPass({ timeout: 20_000 });
 
-    await receipt.click();
-    await expect(page).toHaveURL(/\/map\?sel=[^&]+&log=1&price=\d+\.\d\d$/);
-    await expect(page.getByText("Set the price now. Sign in to post it under your name.")).toBeVisible({ timeout: 20_000 });
-
-    // #1462 — the receipt the tap promised: the figure is already in the field,
-    // and it is the same figure the card printed.
+    const picker = page.locator(".logIntentFallback:visible");
+    await expect(picker).toBeVisible({ timeout: 30_000 });
+    await expect(picker.locator("strong")).toHaveText("Pick a pub to log a Pint Drop");
     const priceInput = page.locator(".spillPriceStep .priceStepper input");
-    await expect(priceInput).toHaveValue(figure, { timeout: 20_000 });
-    // It is a seed, not a submission: the field is still the drinker's to edit.
+    await expect(priceInput).toHaveCount(0);
+
+    const pubName = await picker.locator(".logIntentNearbyBtn > span:first-child").first().innerText();
+    const pub = picker.locator(".logIntentNearbyBtn").filter({ has: page.getByText(pubName, { exact: true }) });
+    await expect(async () => {
+      if (await pub.isVisible()) await pub.click({ timeout: 2_000 });
+      await expect(priceInput).toBeVisible({ timeout: 2_000 });
+    }).toPass({ timeout: 20_000 });
+    await expect(page).toHaveURL((url) => url.searchParams.get("log") === "1" &&
+      Boolean(url.searchParams.get("sel")) && !url.searchParams.has("price"));
+    await expect(priceInput).toHaveValue("");
     await expect(priceInput).toBeEditable();
   });
 
