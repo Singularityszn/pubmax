@@ -10,12 +10,13 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("server-only", () => ({}));
 vi.mock("@/components/nav/SiteNav", () => ({ default: () => null }));
 
 import { GET } from "@/app/api/ledger/[id]/route";
+import { GET as readPintDrops } from "@/app/api/pint-drops/route";
 import LedgerPage from "@/app/ledger/[id]/page";
 import {
   __resetMemoryProfileWithdrawals,
@@ -67,6 +68,10 @@ async function renderDocument(): Promise<string> {
   return renderToStaticMarkup(createElement(() => element as React.ReactElement));
 }
 
+beforeEach(() => {
+  vi.spyOn(Date, "now").mockReturnValue(Date.parse("2026-10-23T16:00:00Z"));
+});
+
 afterEach(() => {
   vi.restoreAllMocks();
   __resetMemoryProfileWithdrawals();
@@ -91,6 +96,63 @@ describe("GET /api/ledger/[id] and a withdrawn author", () => {
 });
 
 describe("GET /api/ledger/[id]", () => {
+  it("returns the public pint report that the sheet uses, with its original source and date", async () => {
+    addPintDrop(drop("hatton-price", "ledger_alice", {
+      venueId: "venue-1vle947", drink: "Lager", measure: "pint", priceGbp: 4.7,
+      createdAt: "2026-09-06T01:22:18.585Z",
+    }));
+    const response = await readLedger("venue-1vle947");
+    expect(await response.json()).toMatchObject({
+      pintPrice: {
+        dropId: "hatton-price", drink: "Lager", measure: "pint", priceGbp: 4.7,
+        createdAt: "2026-09-06T01:22:18.585Z", handle: "ledger_alice", state: "aged-out",
+      },
+    });
+  });
+
+  it.each(["venue-1vle947", venue.id, defined(groupVenuePrices(rows)[1]).id])(
+    "selects the latest valid public pint at %s and keeps its source timestamp",
+    async (venueId) => {
+      const latest = "2026-10-22T23:30:00Z";
+      for (const item of [
+        drop("older", "older_drinker", { venueId, drink: "Lager", priceGbp: 4.1, createdAt: "2026-08-01T12:00:00Z" }),
+        drop("latest", "latest_drinker", { venueId, drink: "Lager", priceGbp: 5.2, createdAt: latest }),
+        drop("half", "half_drinker", { venueId, drink: "Lager", measure: "half", priceGbp: 2.6, createdAt: "2026-10-23T12:00:00Z" }),
+        drop("other", "other_drinker", { venueId, drink: "Wine", measure: "other", measureLabel: "175 ml", priceGbp: 8, createdAt: "2026-10-23T12:00:00Z" }),
+        drop("future", "future_drinker", { venueId, priceGbp: 8, createdAt: "2099-10-23T12:00:00Z" }),
+        drop("invalid", "invalid_drinker", { venueId, priceGbp: 7, createdAt: "unknown" }),
+        drop("private", "private_drinker", { venueId, visibility: "friends", priceGbp: 9, createdAt: "2026-10-23T12:00:00Z" }),
+        drop("hidden", "hidden_drinker", { venueId, status: "hidden", priceGbp: 9, createdAt: "2026-10-23T12:00:00Z" }),
+        drop("demo", "demo_drinker", { venueId, provenance: "demo", priceGbp: 9, createdAt: "2026-10-23T12:00:00Z" }),
+      ]) addPintDrop(item);
+      const publicResponse = await readPintDrops(new Request(`http://localhost/api/pint-drops?venueId=${venueId}`));
+      expect(publicResponse.status).toBe(200);
+      const publicBody = await publicResponse.json();
+      expect(publicBody.drops).toEqual(expect.arrayContaining([expect.objectContaining({
+        id: "latest", priceGbp: 5.2, drink: "Lager", createdAt: latest,
+      })]));
+      const response = await readLedger(venueId);
+      expect(response.headers.get("cache-control")).toContain("no-store");
+      expect(await response.json()).toMatchObject({ pintPrice: {
+        dropId: "latest", priceGbp: 5.2, drink: "Lager", measure: "pint",
+        createdAt: latest, handle: "latest_drinker", state: "logged-once",
+      } });
+    },
+  );
+
+  it("does not invent a pint price from a half, a private report, or an invalid date", async () => {
+    addPintDrop(drop("half-only", "half_drinker", { measure: "half" }));
+    addPintDrop(drop("private-only", "private_drinker", { visibility: "friends" }));
+    addPintDrop(drop("bad-date", "bad_date_drinker", { createdAt: "unknown" }));
+    expect((await readLog()).pintPrice).toBeNull();
+  });
+
+  it("withholds a single figure when current reports disagree", async () => {
+    addPintDrop(drop("split-a", "alice", { drink: "Lager", priceGbp: 4.5, createdAt: "2026-10-22T19:00:00Z" }));
+    addPintDrop(drop("split-b", "bert", { drink: "Lager", priceGbp: 4.7, createdAt: "2026-10-22T20:00:00Z" }));
+    expect((await readLog()).pintPrice).toMatchObject({ state: "disputed", priceGbp: null, splitLine: "Two drinkers, two prices: £4.50 and £4.70" });
+  });
+
   it("puts public drops in the logbook and the story, and legacy drops only at the Family Table", async () => {
     addPintDrop(drop("drop-public", "ledger_alice"));
     addPintDrop(

@@ -17,17 +17,14 @@ import {
   LedgerLiveProvider,
   LedgerLogSections,
   LedgerReadAloud,
+  LedgerPriceRecord,
 } from "@/components/ledger/LedgerLive";
 import ShareWithFamilyButton from "@/components/ledger/ShareWithFamilyButton";
 import VenuePhotoWall from "@/components/venue/VenuePhotoWall";
 import { LEDGER_READ_UNAVAILABLE } from "./ledgerReadUnavailable";
 import VisitReportPanel from "@/components/visits/VisitReportPanel";
-import ListedPriceSource from "@/components/venue/ListedPriceSource";
-import VenuePriceThen from "@/components/map/VenuePriceThen";
-import { PintPriceBadge } from "@/components/PriceBadge";
 import { venueListedPint } from "@/lib/venueListedPint";
 import { isPubVenueKind } from "@/lib/venueKindFilters";
-import { displayDrinkName } from "@/components/listing/displayCase";
 
 import "./ledger.css";
 
@@ -255,14 +252,7 @@ export default async function LedgerPage({ params }: PageProps) {
             <ShareWithFamilyButton venueName={venue.name} url={ledgerUrl} label="Share this ledger" />
           </div>
 
-          <section className="ledgerSection" aria-labelledby="ledgerPriceHeading">
-            <h2 className="ledgerSectionTitle" id="ledgerPriceHeading">Price record</h2>
-            {listedPint ? <>
-              <p><PintPriceBadge priceGbp={listedPint.priceGbp} venueId={canonicalId} /> {listedPint.pintName ? displayDrinkName(listedPint.pintName) : "Cheapest listed pint"}</p>
-              <ListedPriceSource evidence={listedPint} />
-            </> : <p>No listed pint price is available.</p>}
-            <VenuePriceThen venueId={canonicalId} currentPriceGbp={listedPint?.priceGbp} />
-          </section>
+          <LedgerPriceRecord venueId={canonicalId} listedPint={listedPint} />
 
           {/* Individual, dated Visit Reports. No score or aggregate verdict. */}
           <VisitReportPanel venueId={canonicalId} venueName={venue.name} />

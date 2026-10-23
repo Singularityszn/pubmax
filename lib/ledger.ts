@@ -1,6 +1,8 @@
 import { buildVenueClaims, type ClaimDrop, type Provenance } from "@/lib/curation";
 import { displayHandle, handleOnly } from "@/lib/handleDisplay";
 import { normalizeHandle } from "@/lib/profiles";
+import type { PintTrustState } from "@/lib/pintTrust";
+
 import { formatGbp } from "@/lib/formatGbp";
 
 // The Ledger (issue #25, PRD_FOR_FABLE.md § "The Spill"): a large-text,
@@ -22,6 +24,17 @@ export type LedgerSourceDrop = {
   era: string;
   provenance: Provenance;
   createdAt: string;
+};
+
+export type LedgerPintPrice = {
+  dropId: string;
+  drink: string;
+  measure: "pint";
+  priceGbp: number | null;
+  createdAt: string;
+  handle: string;
+  state: Exclude<PintTrustState, "none">;
+  splitLine: string | null;
 };
 
 export type LedgerEntry = {
