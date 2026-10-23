@@ -335,6 +335,30 @@ export function generatedPlanAnchorFromResponse(value: unknown): GeneratedPlanAn
   });
 }
 
+function generatedRouteFeedback(input: {
+  inferredContext: NightContext | undefined;
+  submittedContext: Partial<NightContext>;
+  generatedAnchor: GeneratedPlanAnchor | null;
+  suggested: DraftStop[];
+}): { reconciled: NightContext | null; conciergeNote: string; routeStatus: string } {
+  const { inferredContext, submittedContext, generatedAnchor, suggested } = input;
+  const anchorOnly = generatedAnchor?.outcome === "anchor-only";
+  const reconciled = inferredContext
+    ? reconcileGeneratedNightContext(
+        inferredContext,
+        submittedContext,
+        anchorOnly ? normalizePlanStopCount(inferredContext.stopCount) : suggested.length,
+      )
+    : null;
+  const routeStatus = anchorOnly
+    ? `We kept ${suggested[0]!.venueName}. We could not build the ${normalizePlanStopCount(reconciled?.stopCount)}-stop route you asked for. Change the details or add pubs.`
+    : "Route refreshed. Review the preview, then lock it in when it feels right.";
+  const conciergeNote = anchorOnly
+    ? routeStatus
+    : `${planStopCountPhrase(suggested.length)} we can stand behind, shaped by the outing you set.`;
+  return { reconciled, conciergeNote, routeStatus };
+}
+
 /** Validate attribution returned by POST /api/plans; never source it from draft storage. */
 export function serverPlanCreationAttribution(value: unknown): ServerPlanCreationAttribution | null {
   if (!value || typeof value !== "object") return null;
@@ -2250,14 +2274,12 @@ function PlanComposerForm({
       setCultureOpener(cleanCultureOpener(body.cultureOpener));
       const grounded = isGroundedGeneratedRoute(body, suggested);
       const generatedAnchor = generatedPlanAnchorFromResponse(body);
-      const anchorOnly = generatedAnchor?.outcome === "anchor-only";
-      const reconciled = body.inferredContext
-        ? reconcileGeneratedNightContext(
-            body.inferredContext,
-            submittedContext,
-            anchorOnly ? normalizePlanStopCount(body.inferredContext.stopCount) : suggested.length,
-          )
-        : null;
+      const { reconciled, conciergeNote, routeStatus: generationStatus } = generatedRouteFeedback({
+        inferredContext: body.inferredContext,
+        submittedContext,
+        generatedAnchor,
+        suggested,
+      });
       if (reconciled) {
         setNightContext(reconciled);
         if (!user) writeDeviceNightContext(reconciled);
@@ -2274,12 +2296,7 @@ function PlanComposerForm({
       }
       trackEvent("plan_started");
       trackEvent("plan_generated", { stops: suggested.length, grounded });
-      const generationStatus = anchorOnly
-        ? `We kept ${suggested[0]!.venueName}. We could not build the ${normalizePlanStopCount(reconciled?.stopCount)}-stop route you asked for. Change the details or add pubs.`
-        : "Route refreshed. Review the preview, then lock it in when it feels right.";
-      setConciergeNote(anchorOnly
-        ? generationStatus
-        : `${planStopCountPhrase(suggested.length)} we can stand behind, shaped by the outing you set.`);
+      setConciergeNote(conciergeNote);
       setRouteStatus(generationStatus);
       setRouteRevealTick((tick) => tick + 1);
       setRouteDrawKey(suggested.map((stop) => stop.venueId).join(">"));
