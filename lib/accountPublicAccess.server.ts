@@ -274,31 +274,42 @@ async function readWithdrawnProfiles(query: WithdrawnQuery): Promise<WithdrawnPr
   return { profileIds, handles };
 }
 
+// Explicit operational account from e2e/prod-smoke/README.md. Never infer
+// test ownership from a person's name or a substring of their handle.
+export function isKnownTestHandle(handle: string | undefined): boolean {
+  return normalizeHandle(handle ?? "") === "pubmaxx_smoke";
+}
+
+type PublicPresenceProfile = Pick<ProfileRecord, "id" | "tombstonedAt"> &
+  Partial<Pick<ProfileRecord, "handle">>;
+
 export type ProfilePublicPresence = "visible" | "gone" | "withdrawn";
 
 export async function profilePublicPresence(
-  profile: Pick<ProfileRecord, "id" | "tombstonedAt"> | null | undefined,
+  profile: PublicPresenceProfile | null | undefined,
 ): Promise<ProfilePublicPresence> {
   if (!profile) return "visible";
   if (isProfileTombstoned(profile)) return "gone";
+  if (isKnownTestHandle(profile.handle)) return "withdrawn";
   const withdrawn = await readWithdrawnProfiles({ profileIds: [profile.id] });
   return withdrawn.profileIds.has(profile.id) ? "withdrawn" : "visible";
 }
 
 export async function isProfileWithdrawnFromPublic(
-  profile: Pick<ProfileRecord, "id" | "tombstonedAt"> | null | undefined,
+  profile: PublicPresenceProfile | null | undefined,
 ): Promise<boolean> {
   return (await profilePublicPresence(profile)) === "withdrawn";
 }
 
 /** Drop withdrawn owners from public profile lists (search, directory, founders). */
-export async function filterProfilesWithdrawnFromPublic<T extends Pick<ProfileRecord, "id" | "tombstonedAt">>(
+export async function filterProfilesWithdrawnFromPublic<T extends PublicPresenceProfile>(
   profiles: readonly T[],
 ): Promise<T[]> {
-  const live = profiles.filter((profile) => !isProfileTombstoned(profile));
-  if (live.length === 0) return [...profiles];
+  const eligible = profiles.filter((profile) => !isKnownTestHandle(profile.handle));
+  const live = eligible.filter((profile) => !isProfileTombstoned(profile));
+  if (live.length === 0) return [...eligible];
   const withdrawn = await readWithdrawnProfiles({ profileIds: live.map((profile) => profile.id) });
-  return profiles.filter(
+  return eligible.filter(
     (profile) => isProfileTombstoned(profile) || !withdrawn.profileIds.has(profile.id),
   );
 }
@@ -308,7 +319,7 @@ export async function withdrawnHandles(handles: readonly string[]): Promise<Read
   const keys = [...new Set(handles.map((handle) => normalizeHandle(handle)).filter(Boolean))];
   if (keys.length === 0) return new Set();
   const withdrawn = await readWithdrawnProfiles({ handles: keys });
-  return new Set(keys.filter((key) => withdrawn.handles.has(key)));
+  return new Set(keys.filter((key) => isKnownTestHandle(key) || withdrawn.handles.has(key)));
 }
 
 /** Drop contributions whose author profile is withdrawn from public view. */
