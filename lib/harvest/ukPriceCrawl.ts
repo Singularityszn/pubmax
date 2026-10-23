@@ -929,7 +929,9 @@ function servingSection(heading: string): boolean | null {
 
 function beerSectionContexts(text: string): Map<number, boolean> {
   const contexts = new Map<number, boolean>();
-  const sections = [{ level: 0, bottled: false }];
+  const rootSection = { level: 0, bottled: false };
+  const sections = [rootSection];
+  let section = rootSection;
   let offset = 0;
   for (const line of text.split("\n")) {
     const structural = /^\uE000([1-6])\uE001/.exec(line);
@@ -937,13 +939,17 @@ function beerSectionContexts(text: string): Map<number, boolean> {
     const serving = servingSection(heading);
     if (structural) {
       const level = Number(structural[1]);
-      while (sections.length > 1 && sections[sections.length - 1].level >= level) sections.pop();
-      sections.push({ level, bottled: serving ?? sections[sections.length - 1].bottled });
+      while (sections.length > 1 && section.level >= level) {
+        sections.pop();
+        section = sections[sections.length - 1] ?? rootSection;
+      }
+      section = { level, bottled: serving ?? section.bottled };
+      sections.push(section);
     } else if (serving !== null) {
-      sections[sections.length - 1].bottled = serving;
+      section.bottled = serving;
     }
     for (const price of line.matchAll(UK_PRICE_PATTERN)) {
-      contexts.set(offset + (price.index ?? 0), sections[sections.length - 1].bottled);
+      contexts.set(offset + (price.index ?? 0), section.bottled);
     }
     offset += line.length + 1;
   }
