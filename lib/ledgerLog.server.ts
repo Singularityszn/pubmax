@@ -9,6 +9,7 @@ import {
   resolveFamilyTableDisplay,
   type FamilyTableEntry,
   type LedgerEntry,
+  type LedgerPintPrice,
   type LedgerSourceDrop,
   type RedactedFamilyEntry,
 } from "@/lib/ledger";
@@ -18,6 +19,8 @@ import {
   supabasePintDropStore,
   type PintDropDTO,
 } from "@/lib/pintDropsStore";
+import { pintPriceSplitLine } from "@/lib/pintDropAgreement";
+import { pintTrustFor } from "@/lib/pintTrust";
 import { isSupabaseConfigured } from "@/lib/supabase";
 
 // THE LEDGER'S LIVE HALF (task vercel-f2-seo-cdn, option a). The /ledger/[id]
@@ -29,6 +32,8 @@ import { isSupabaseConfigured } from "@/lib/supabase";
 // drop leaves the page the moment the store stops returning it.
 
 export type LedgerLog = {
+  /** The same public pint reading as the map sheet, never a private or demo row. */
+  pintPrice: LedgerPintPrice | null;
   /** The pub's story: the curated note first, then every drop-derived line. */
   claims: VenueClaim[];
   /** The public logbook: public and anonymous drops only, newest first. */
@@ -67,13 +72,26 @@ export async function readLedgerLog(
   viewer: ViewerContext | undefined,
 ): Promise<LedgerLog> {
   const store = pintDropStoreFor();
-  const sources = (await store.listVisible(canonicalId)).map(sourceOf);
+  const publicDrops = await store.listVisible(canonicalId);
+  const sources = publicDrops.map(sourceOf);
+  const trust = pintTrustFor(publicDrops);
+  const pintPrice: LedgerPintPrice | null = trust.drop && trust.state !== "none" ? {
+    dropId: trust.drop.id,
+    drink: trust.drop.drink,
+    measure: "pint",
+    priceGbp: trust.priceGbp,
+    createdAt: trust.drop.createdAt,
+    handle: trust.drop.handle,
+    state: trust.state,
+    splitLine: trust.split ? pintPriceSplitLine(trust.split) : null,
+  } : null;
   // The Family Table (issue #27): LEGACY drops, read via the ledger-only
   // listLegacyForVenue capability (issue #29), deliberately a SEPARATE store
   // call from listVisible above, never a filter over it, so a legacy row can
   // never end up in the public logbook.
   const legacySources = (await store.listLegacyForVenue(canonicalId)).map(sourceOf);
   return {
+    pintPrice,
     claims: buildVenueClaims(curation, ledgerClaimDrops(sources)),
     entries: buildLedgerEntries(sources),
     familyEntries: resolveFamilyTableDisplay(
