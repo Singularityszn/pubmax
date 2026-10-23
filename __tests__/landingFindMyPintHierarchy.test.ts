@@ -26,15 +26,8 @@ vi.mock("@/lib/cityPreference", () => ({
 import LandingPage from "@/components/landing/LandingPage";
 import { LANDING_QUIET_DOORS } from "@/lib/landingHero";
 
-// The landing hierarchy is permanent and no flag decides it (captain
-// 2026-09-03, issue #1354; 2026-09-04, issue #1357; rebuilt 2026-09-07): ONE
-// primary action, and it is now `/near`, which answers a stranger in one tap
-// and answers from a London patch when they say no to location. The price
-// receipt door is the FIRST QUIET door, because it ends in a sign-in ask and a
-// stranger has to be given something first. With a real pub behind the document
-// that quiet door is "Still £X?" into that pub's Pint Drop composer; with no
-// card it is the plain receipt door. Every other route off the page is a text
-// link below the hero or a directory link in the footer.
+// The landing has one primary action and one quiet row. General price entry
+// starts with the pub picker, independently of the featured pub.
 
 import type { LandingPubCardData } from "@/lib/landingPubCard";
 import { defined } from "@/__tests__/helpers/defined";
@@ -76,10 +69,9 @@ describe("landing hierarchy: the price receipt door", () => {
       /data-primary-action=""><a[^>]*href="\/near\?locate=1"[^>]*>Cheapest pints near me<\/a>/,
     );
     expect(h.match(/data-primary-action/g)).toHaveLength(1);
-    // The pub's own Pint Drop door, quiet, still carrying that pub's figure in
-    // its href and saying what the tap does in its label.
+    // A general contribution starts with a pub choice, without a price seed.
     expect(h).toMatch(
-      /class="screenSecondary"><a[^>]*href="\/map\?sel=venue-test&amp;log=1&amp;price=6\.50"[^>]*>Log what you paid<\/a>/,
+      /class="screenSecondary"><a[^>]*href="\/map\?log=1"[^>]*>Log what you paid<\/a>/,
     );
     // No card behind the document: the same primary, and the plain receipt door.
     const bare = hero(render(false));
@@ -87,7 +79,7 @@ describe("landing hierarchy: the price receipt door", () => {
       /data-primary-action=""><a[^>]*href="\/near\?locate=1"[^>]*>Cheapest pints near me<\/a>/,
     );
     expect(bare.match(/data-primary-action/g)).toHaveLength(1);
-    expect(bare).toMatch(/class="screenSecondary"><a[^>]*href="\/near"[^>]*>Log what you paid<\/a>/);
+    expect(bare).toMatch(/class="screenSecondary"><a[^>]*href="\/map\?log=1"[^>]*>Log what you paid<\/a>/);
     expect(bare).not.toContain("lpPubCard");
     // The old landing button family is gone, so nothing else can wear coral.
     expect(h).not.toContain("lpButton");
@@ -118,10 +110,10 @@ describe("landing hierarchy: the price receipt door", () => {
       (match) => [match[1], (match[2] ?? "").replace(/&#x27;/g, "'")],
     );
     expect(quietDoors).toEqual([
-      ["/map?sel=venue-test&amp;log=1&amp;price=6.50", "Log what you paid"],
+      ["/map?log=1", "Log what you paid"],
       ["/tonight", "What's on tonight"],
     ]);
-    // The receipt door is dynamic, so the STATIC half of the row is the table
+    // The STATIC half of the row is the table
     // in lib/landingHero.ts, which is what e2e/mobile-button-system.spec.ts
     // counts the painted anchors against; the two cannot disagree about how
     // many doors the hero carries (#1503).

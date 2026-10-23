@@ -25,6 +25,9 @@ export function LogIntentFallback({
   onPrefetchVenue,
   onFocusSearch,
   onResetFilters,
+  onUseMyLocation,
+  locationBusy = false,
+  locationUnavailable = false,
   onDismiss,
 }: {
   candidates: LogNearbyCandidate[];
@@ -35,6 +38,9 @@ export function LogIntentFallback({
   onPrefetchVenue: (id: string) => void;
   onFocusSearch: () => void;
   onResetFilters: () => void;
+  onUseMyLocation: () => void;
+  locationBusy?: boolean;
+  locationUnavailable?: boolean;
   /** D4 — the desktop panel's own way out. The phone sheet already has one. */
   onDismiss?: () => void;
 }) {
@@ -99,7 +105,13 @@ export function LogIntentFallback({
           })}
         </ul>
       ) : null}
+      {locationUnavailable ? (
+        <p className="description">We couldn’t get your location. Search for your pub instead.</p>
+      ) : null}
       <div className="logIntentActions">
+        <button type="button" className="addStopBtn" onClick={onUseMyLocation} disabled={locationBusy}>
+          {locationBusy ? "Finding you…" : "Near me"}
+        </button>
         <button type="button" className="addStopBtn" onClick={onFocusSearch}>
           Search pubs
         </button>
