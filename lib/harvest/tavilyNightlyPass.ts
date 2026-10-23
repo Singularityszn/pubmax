@@ -16,6 +16,7 @@ import { isHttpUrl } from "@/lib/httpUrl";
 import type { RobotsChecker } from "@/lib/harvest/robots";
 import {
   CATEGORY_PRICE_BANDS,
+  PRICE_ITEM_SEPARATOR,
   decideKeylessUkPriceCandidate,
   findUkPriceCandidates,
   fractionalMeasureAtPrice,
@@ -33,6 +34,7 @@ const BEER_MIN_GBP = 2;
 const BEER_MAX_GBP = 12;
 const DAY_MS = 86_400_000;
 const EXCERPT_MAX = 500;
+const AFTER_PRICE_ITEM_SEPARATORS = new RegExp(`^(?:${PRICE_ITEM_SEPARATOR.source}|\\s)+`);
 
 const SEED_PATCHES = ["soho", "clapham", "shoreditch", "islington", "camden"] as const;
 const THIN_BOROUGHS = new Set(["barking and dagenham", "kingston upon thames", "hounslow"]);
@@ -732,10 +734,9 @@ function splitPriceItems(line: string): string[] {
     const priceAt = match.index ?? 0;
     const suffix = fractionalMeasureAtPrice(line, priceAt, match[0]).suffix ?? "";
     const after = priceAt + match[0].length + suffix.length;
-    const lead = /^,?\s+/.exec(line.slice(after));
+    const lead = AFTER_PRICE_ITEM_SEPARATORS.exec(line.slice(after));
     if (!lead) continue;
     const nextStart = after + lead[0].length;
-    if (/^[.!?;|]/.test(line.slice(nextStart))) continue;
     consider(after, nextStart);
   }
   splits.sort((a, b) => a.sepStart - b.sepStart || a.nextStart - b.nextStart);

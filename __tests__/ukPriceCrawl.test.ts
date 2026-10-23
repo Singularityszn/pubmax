@@ -42,7 +42,11 @@ const drinksList = `
 describe("what a page states", () => {
   it.each([
     ...["2/3", "⅔", "two-thirds pint"].flatMap((measure) =>
-      [", ", ". ", "; "].map((separator) => `Kernel stout £6.00 (${measure})${separator}Guinness pint £6.20`)),
+      [
+        ...[",", ".", ";", ":", "|", "•", "·", "!", "?"].flatMap((mark) =>
+          [mark, `${mark} `, ` ${mark}`, ` ${mark} `]),
+        " - ", "  -  ", "\t-\t",
+      ].map((separator) => `Kernel stout £6.00 (${measure})${separator}Guinness pint £6.20`)),
     "Guinness pint £6.20 Kernel stout £6.00 (2/3)",
     "Guinness pint £6.20 Kernel stout (2/3) £6.00",
     "Kernel stout £6.00 (2/3) Guinness pint £6.20",
