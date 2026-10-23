@@ -112,16 +112,15 @@ For the messaging exception to these surface and accent rules, see the [design s
 
 ### Named Rules
 
-**Price and trust.** Price figures use the `priceBand-*` class family described in
-[the engineering guide](docs/DESIGN_SYSTEM.md#launch-tokens). Trust standing is
-shown in words. A TrustPill takes its colour from its price band and stays
-neutral when it has no figure. Do not colour a badge by trust standing.
+**Price and trust.** Follow the engineering guide's
+[status and price rules](docs/DESIGN_SYSTEM.md#launch-tokens) for price colours
+and TrustPill rendering.
 
 **The One Accent Rule.** Coral owns the one primary CTA per screen and the floating create disc in both themes; a selection (active tab, pressed chip) reads in ink (`--state-selected-*`, docs/DESIGN_SYSTEM.md "Coral is spent twice"). Amber stays a route and price signal; pint, river, and brick never decorate chrome that isn’t a price band, heritage marker, or status.
 
 **The No Purple Glow Rule.** Dark theme uses deep ink, amber routes, and muted pint green. Chrome uses neutral shadows without an amber glow. No purple mesh, violet gradients, or grape bloom behind surfaces.
 
-**The Candle Not Cream Rule.** Light paper stays peach-warm (`#fff1e6` family). Avoid generic warm-cream DTC (`#F4F1EA` + terracotta + serif display).
+**The Candle Not Cream Rule.** Keep the light surface roles listed above. Avoid generic warm-cream DTC (`#F4F1EA` + terracotta + serif display).
 
 ## 3. Typography
 
@@ -214,5 +213,5 @@ Full-bleed map plane with colored pins (pint / amber / brick / river by semantic
 - **Don't** default to cream DTC (`#F4F1EA` + terracotta + serif display).
 - **Don't** build card dashboards or equal feature-card grids in the first viewport.
 - **Don't** use Inter (or Roboto / Arial / system) as the display/hero face.
-- **Don't** blend A’s coral paper with B’s neon and C’s river accents in one theme.
+- **Don't** blend the [locked theme directions](PRODUCT.md#color-decision-locked).
 - **Don't** put floating promo badges or sticker chips on the map hero.
