@@ -22,8 +22,10 @@
 // cached for a few minutes), so an exhausted Friday night costs ZERO durable
 // reads per request. The dominant debounced map-redraw sends one request with
 // at most one uncached leg, i.e. one durable read; a cold full route does one
-// per uncached leg (bounded by WALK_ROUTE_MAX_STOPS - 1). Releasing an unused
-// durable reservation separately reads the bucket and attempts an atomic refund.
+// per uncached leg (bounded by WALK_ROUTE_MAX_STOPS - 1). Each unused durable
+// reservation attempts at most one refund RPC with only the bucket key.
+// The RPC removes at most one unit through a single atomic UPDATE.
+// The request size does not grow with the bucket. The timeout is 2.5 seconds.
 //
 // DEGRADED MODE (documented, inherited from isLimited):
 //   • Supabase configured + durable RPC answers -> the true GLOBAL cap holds.

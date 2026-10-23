@@ -106,7 +106,10 @@ If a later agent finds the live ledger behind the tree again, re-run `supabase m
 #### Walking-route refunds
 
 Migration [`0196`](../supabase/migrations/20261023170000_0196_rate_limit_refund.sql) adds the service-role-only `refund_rate_limit_hit` function.
-It compares the complete timestamp array in the JSON request body and removes at most one unit.
+The client sends only `p_key` in the JSON request body, so the request size does not grow with the bucket.
+The function removes at most one unit through a single atomic `UPDATE`.
+The application attempts a refund at most once per unused reservation, within a 2.5-second timeout.
+Repeated releases do not send another refund request.
 The migration remains unapplied to production and shared databases.
 The captain must apply it before production rollout.
 If the function is missing, the application retains the charged unit and emits `rate_limit.refund_failed`.
