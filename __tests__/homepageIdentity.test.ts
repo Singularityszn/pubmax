@@ -15,7 +15,7 @@ const landingSource = readFileSync(
 );
 
 describe("homepage identity", () => {
-  it("publishes the founder and only the verified public identity links", () => {
+  it("assigns personal identity links to the founder instead of the organization", () => {
     const organization = siteJsonLd.find(
       (node) => node["@type"] === "Organization",
     );
@@ -26,9 +26,10 @@ describe("homepage identity", () => {
         "@type": "Person",
         name: "Karan Manoharan",
         url: "https://x.com/karansznx",
+        sameAs: ["https://x.com/karansznx", "https://github.com/karanmrn"],
       },
-      sameAs: ["https://x.com/karansznx", "https://github.com/karanmrn"],
     });
+    expect(organization).not.toHaveProperty("sameAs");
     expect(layoutSource).toContain('import { siteJsonLd } from "@/lib/siteJsonLd"');
   });
 
