@@ -15,7 +15,7 @@ export type PubmaxPerformanceMark =
   | "pubmax:pin-entrance-settled";
 
 const FIRST_PINS_EVENT = "pubmax:first-pins";
-/** Dispatched on window when the pin layers are first made visible. */
+/** Dispatched when pin reveal releases the parent loading frame. */
 export const PINS_VISIBLE_EVENT = "pubmax:pins-visible";
 export const FIRST_PINS_SEEN_KEY = "pubmax:first-pins-seen:v1";
 
