@@ -39,7 +39,7 @@ const TEA_OR_WATER_ITEM = new RegExp(
 const COFFEE_NAME = new RegExp(
   String.raw`^(?:[\w'-]+\s+){0,2}` +
     COFFEE_HARVEST_WORD_PATTERN.source +
-    String.raw`(?:\s*\([^)]*\))*\s*[:|\u2013\u2014-]?$`,
+    /(?:\s*\([^)]*\))*\s*[:|\u2013\u2014-]?$/.source,
   "i",
 );
 
