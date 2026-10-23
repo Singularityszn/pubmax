@@ -242,6 +242,7 @@ jobs:
           e2e/desktop-map-chrome-fit.spec.ts
           e2e/desktop-map-rail.spec.ts
           e2e/desktop-sheet-chrome-fit.spec.ts
+          e2e/feedback.spec.ts
           e2e/first-run-chrome-share.spec.ts
           e2e/first-run-tour-placement.spec.ts
           e2e/launch-phone-controls.spec.ts
@@ -283,6 +284,7 @@ jobs:
           e2e/price-source-create-action.spec.ts
           e2e/profile-avatar.spec.ts
           e2e/profile-hero-desktop.spec.ts
+          e2e/public-updates.spec.ts
           e2e/quality-floor.spec.ts
           e2e/social-composer.spec.ts
           e2e/tonight-vibe-chips.spec.ts
@@ -304,6 +306,75 @@ jobs:
           node scripts/assert-playwright-gate.mjs playwright-layout-pins-${{ env.LAYOUT_SHARD }}.json
           --require-zero-skipped
           --skips-argued e2e/conditional-skips.allowlist.json
+
+      # Preserve the ordinary layout run above. Each of two existing shards
+      # then serves one clean immutable revision for public before/after proof.
+      - name: Checkout public evidence source
+        if: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository && (github.head_ref == 'codex/pubmaxx-food-evidence-1022' || github.head_ref == 'codex/ops-feedback-1022' || github.head_ref == 'codex/ops-updates-1022') && (env.LAYOUT_SHARD == '1' || env.LAYOUT_SHARD == '2') }}
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ env.LAYOUT_SHARD == '1' && github.event.pull_request.head.sha || (github.head_ref == 'codex/pubmaxx-food-evidence-1022' && '325122c23eb9d8bc809c4388448c0e5459146152' || github.event.pull_request.base.sha) }}
+          path: .public-proof-source
+          persist-credentials: false
+
+      - name: Install public evidence source dependencies
+        if: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository && (github.head_ref == 'codex/pubmaxx-food-evidence-1022' || github.head_ref == 'codex/ops-feedback-1022' || github.head_ref == 'codex/ops-updates-1022') && (env.LAYOUT_SHARD == '1' || env.LAYOUT_SHARD == '2') }}
+        working-directory: .public-proof-source
+        run: |
+          npm ci
+          npm run deps:install-scripts
+
+      - name: Capture signed-out public evidence
+        if: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository && (github.head_ref == 'codex/pubmaxx-food-evidence-1022' || github.head_ref == 'codex/ops-feedback-1022' || github.head_ref == 'codex/ops-updates-1022') && (env.LAYOUT_SHARD == '1' || env.LAYOUT_SHARD == '2') }}
+        env:
+          PUBMAX_TRACKED_OUTPUTS: public/data
+          NODE_OPTIONS: "--max-old-space-size=6144"
+          PUBMAX_E2E_KEYLESS: "1"
+          PW_SKIP_KEYLESS_WEBSERVER: "1"
+          PUBMAX_PUBLIC_EVIDENCE_PHASE: ${{ env.LAYOUT_SHARD == '1' && 'after' || 'before' }}
+          PUBMAX_PUBLIC_EVIDENCE_ROOT: ${{ github.workspace }}/.public-proof-source
+          PUBMAX_PUBLIC_EVIDENCE_SHA: ${{ env.LAYOUT_SHARD == '1' && github.event.pull_request.head.sha || (github.head_ref == 'codex/pubmaxx-food-evidence-1022' && '325122c23eb9d8bc809c4388448c0e5459146152' || github.event.pull_request.base.sha) }}
+          PUBMAX_PUBLIC_EVIDENCE_HEAD: ${{ github.event.pull_request.head.sha }}
+          PUBMAX_PUBLIC_EVIDENCE_BASE: ${{ github.head_ref == 'codex/pubmaxx-food-evidence-1022' && '325122c23eb9d8bc809c4388448c0e5459146152' || github.event.pull_request.base.sha }}
+          PUBMAX_PUBLIC_EVIDENCE_OUTPUT: ${{ runner.temp }}/pubmax-public-evidence
+          PUBLIC_EVIDENCE_SPEC: ${{ github.head_ref == 'codex/pubmaxx-food-evidence-1022' && 'e2e/food-menu-discovery.spec.ts' || github.head_ref == 'codex/ops-feedback-1022' && 'e2e/feedback.spec.ts' || 'e2e/public-updates.spec.ts' }}
+        run: >-
+          npx playwright test "$PUBLIC_EVIDENCE_SPEC"
+          --grep="public screenshot evidence"
+          --project=chromium
+          --workers=1
+          --reporter=line
+
+      - name: Upload Food public evidence
+        if: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository && github.head_ref == 'codex/pubmaxx-food-evidence-1022' && (env.LAYOUT_SHARD == '1' || env.LAYOUT_SHARD == '2') }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: public-ui-pr${{ github.event.pull_request.number }}-${{ env.LAYOUT_SHARD == '1' && 'after' || 'before' }}-${{ github.event.pull_request.head.sha }}
+          path: |
+            ${{ runner.temp }}/pubmax-public-evidence/page-390.png
+            ${{ runner.temp }}/pubmax-public-evidence/page-768.png
+            ${{ runner.temp }}/pubmax-public-evidence/page-1440.png
+            ${{ runner.temp }}/pubmax-public-evidence/identity.json
+          if-no-files-found: error
+          retention-days: 7
+          compression-level: 0
+
+      - name: Upload Ops public evidence
+        if: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository && (github.head_ref == 'codex/ops-feedback-1022' || github.head_ref == 'codex/ops-updates-1022') && (env.LAYOUT_SHARD == '1' || env.LAYOUT_SHARD == '2') }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: public-ui-pr${{ github.event.pull_request.number }}-${{ env.LAYOUT_SHARD == '1' && 'after' || 'before' }}-${{ github.event.pull_request.head.sha }}
+          path: |
+            ${{ runner.temp }}/pubmax-public-evidence/account-390.png
+            ${{ runner.temp }}/pubmax-public-evidence/account-768.png
+            ${{ runner.temp }}/pubmax-public-evidence/account-1440.png
+            ${{ runner.temp }}/pubmax-public-evidence/page-390.png
+            ${{ runner.temp }}/pubmax-public-evidence/page-768.png
+            ${{ runner.temp }}/pubmax-public-evidence/page-1440.png
+            ${{ runner.temp }}/pubmax-public-evidence/identity.json
+          if-no-files-found: error
+          retention-days: 7
+          compression-level: 0
 
   layout-pins-2:
     name: Browser layout pins (2/3)
