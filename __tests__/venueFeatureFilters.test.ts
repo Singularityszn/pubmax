@@ -1,8 +1,13 @@
+import { createElement } from "react";
+import { renderToStaticMarkup } from "react-dom/server";
+import { Amenity } from "@/components/map/venueInspectorBits";
+import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { filterMapVenues, mapFiltersSuspendUkBasePubs } from "@/lib/filterMapVenues";
-import { initialFilters, type Venue } from "@/lib/venues";
+import { groupVenuePrices, initialFilters, venueAmenityStatus, type Venue, type VenuePrice, type VenueFeatureObservation } from "@/lib/venues";
 import { mergeLazyDetailPins } from "@/lib/lazyVenueDetail";
 import { slimVenueToPin } from "@/lib/slimPins";
+import type { SlimVenue } from "@/lib/venuesSlim";
 import { buildVenueFeatureHints } from "@/scripts/lib/venueFeatureHints.mjs";
 
 const pin = (id: string, extras: Partial<Venue> = {}) => ({ ...slimVenueToPin({
@@ -28,6 +33,54 @@ describe("sourced venue feature filters", () => {
     const slim = pin("outdoor", { filterHints: { searchText: "", amenities: { food: false, cocktails: false, beerGarden: false, liveSports: false, nonAlcoholic: false }, curation: { nearWater: false, hasStory: false }, canonical: false, outdoorSeating: [true, "OpenStreetMap", "2026-10-05"] } });
     const merged = mergeLazyDetailPins([slim], new Map([["outdoor", pin("outdoor")]]));
     expect(filterMapVenues(merged, { ...initialFilters, requireOutdoorSeating: true }, () => false)).toHaveLength(1);
+  });
+  it("keeps the Edinboro Castle garden after its real price rows hydrate", () => {
+    const slimRows = JSON.parse(readFileSync("public/data/venues_slim.json", "utf8")).rows as SlimVenue[];
+    const rows = JSON.parse(readFileSync("public/data/pint_prices_app_dataset.json", "utf8")) as VenuePrice[];
+    const slim = slimRows.find((row) => row.id === "venue-1e1zj83");
+    if (!slim) throw new Error("Edinboro Castle missing from committed slim pack");
+    const detail = groupVenuePrices(rows.filter((row) => row.pub_name === "The Edinboro Castle"))[0];
+    if (!detail) throw new Error("Edinboro Castle missing from committed price rows");
+    expect(detail.prices.length).toBeGreaterThan(0);
+    expect(detail.amenities.beerGarden).toBe(false);
+    expect(slim.filterHints?.beerGardenSource).toEqual([true, "OpenStreetMap", "2026-10-05"]);
+    const filters = { ...initialFilters, requireBeerGarden: true };
+    const slimPin = slimVenueToPin(slim);
+    expect(filterMapVenues([slimPin], filters, () => false)).toHaveLength(1);
+    const hydrated = mergeLazyDetailPins([slimPin], new Map([[detail.id, detail]]));
+    expect(filterMapVenues(hydrated, filters, () => false)).toHaveLength(1);
+    const status = venueAmenityStatus(hydrated[0] ?? detail).beerGarden;
+    expect(status).toBe("unknown");
+    expect(renderToStaticMarkup(createElement(Amenity, { status, label: "Beer garden" }))).toBe("");
+  });
+  it("rejects negative, undated, future, and unsupported garden source tuples", () => {
+    const baseHints = { searchText: "", amenities: { food: false, cocktails: false, beerGarden: true, liveSports: false, nonAlcoholic: false }, curation: { nearWater: false, hasStory: false }, canonical: false };
+    const rows = JSON.parse(readFileSync("public/data/pint_prices_app_dataset.json", "utf8")) as VenuePrice[];
+    const detail = groupVenuePrices(rows.filter((row) => row.pub_name === "The Edinboro Castle"))[0];
+    if (!detail) throw new Error("Edinboro Castle missing from committed price rows");
+    const observations: Array<VenueFeatureObservation | undefined> = [
+      undefined,
+      [false, "OpenStreetMap", "2026-10-05"],
+      [true, "OpenStreetMap", "not-a-date"],
+      [true, "OpenStreetMap", "2999-01-01"],
+      [true, "Google Places", "2026-10-05"],
+    ];
+    for (const beerGardenSource of observations) {
+      const slim = pin(detail.id, { filterHints: { ...baseHints, beerGardenSource } });
+      const hydrated = mergeLazyDetailPins([slim], new Map([[detail.id, detail]]));
+      expect(filterMapVenues(hydrated, { ...initialFilters, requireBeerGarden: true }, () => false)).toEqual([]);
+    }
+  });
+  it("keeps a newer explicit garden absence from the pub record", () => {
+    const rows = JSON.parse(readFileSync("public/data/pint_prices_app_dataset.json", "utf8")) as VenuePrice[];
+    const negativeRows = rows.filter((row) => row.pub_name === "The Edinboro Castle")
+      .map((row) => ({ ...row, beer_garden: "no", scraped_at_values: "2026-10-23T12:00:00Z" }));
+    const detail = groupVenuePrices(negativeRows)[0];
+    if (!detail) throw new Error("Edinboro Castle missing from committed price rows");
+    const slim = pin(detail.id, { filterHints: { searchText: "", amenities: { food: false, cocktails: false, beerGarden: true, liveSports: false, nonAlcoholic: false }, curation: { nearWater: false, hasStory: false }, canonical: false, beerGardenSource: [true, "OpenStreetMap", "2026-10-05"] } });
+    const hydrated = mergeLazyDetailPins([slim], new Map([[detail.id, detail]]));
+    expect(venueAmenityStatus(hydrated[0] ?? detail).beerGarden).toBe("known-false");
+    expect(filterMapVenues(hydrated, { ...initialFilters, requireBeerGarden: true }, () => false)).toEqual([]);
   });
   it("keeps the existing unknown-hours behavior", () => {
     const open = pin("open"), closed = pin("closed"), unknown = pin("unknown");
