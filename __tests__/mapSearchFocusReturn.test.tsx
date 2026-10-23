@@ -19,6 +19,7 @@ const SEARCH_INDEX = { cities: [], venues: [] } satisfies MapSearchIndex;
 
 vi.mock("@/lib/analytics", () => ({ trackEvent: vi.fn() }));
 vi.mock("@/lib/mapSearchIndexLoader", () => ({
+  isCompleteMapSearchIndex: () => true,
   loadMapSearchIndex: vi.fn(() => Promise.resolve(SEARCH_INDEX)),
 }));
 
@@ -177,5 +178,43 @@ describe("toolbar search after the pub drawer closes", () => {
     await settle(() => type(search(), "Princess L"));
     expect(listbox()).not.toBeNull();
     expect(search().getAttribute("aria-expanded")).toBe("true");
+  });
+});
+
+
+describe("toolbar search dismissal", () => {
+  it("minimises results without clearing the query and keeps the close control keyboard reachable", async () => {
+    await settle(() => root.render(createElement(DesktopMap)));
+    await settle(() => { search().focus(); search().click(); });
+    const close = button('[aria-label="Close search results"]');
+    await settle(() => close.focus());
+    expect(listbox()).not.toBeNull();
+    expect(document.activeElement).toBe(close);
+    await settle(() => close.click());
+    expect(search().value).toBe("Princess");
+    expect(search().getAttribute("aria-expanded")).toBe("false");
+    expect(document.activeElement).toBe(search());
+    await settle(() => search().click());
+    expect(listbox()).not.toBeNull();
+  });
+
+  it("closes highlighted results with one Escape without clearing the query", async () => {
+    await settle(() => root.render(createElement(DesktopMap)));
+    await settle(() => search().click());
+    await settle(() => search().dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowDown", bubbles: true })));
+    await settle(() => search().dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true })));
+    expect(search().value).toBe("Princess");
+    expect(search().getAttribute("aria-expanded")).toBe("false");
+    expect(listbox()).toBeNull();
+  });
+
+  it("clears the query and closes the suggestions with the field's X", async () => {
+    await settle(() => root.render(createElement(DesktopMap)));
+    await settle(() => search().click());
+    expect(listbox()).not.toBeNull();
+    await settle(() => button('[aria-label="Clear search"]').click());
+    expect(search().value).toBe("");
+    expect(search().getAttribute("aria-expanded")).toBe("false");
+    expect(listbox()).toBeNull();
   });
 });

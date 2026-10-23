@@ -2,13 +2,15 @@ import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
+const navigationState = vi.hoisted(() => ({ pathname: "/tonight" }));
+
 // SiteNav pulls in several context-bound children (auth, command palette,
 // theme) and the app-router `usePathname` hook. This test isolates SiteNav's
 // own markup — specifically the desktop Moment compose affordance (audit
 // finding D2) — by stubbing those dependencies. `momentHref` stays REAL so the
 // href shape under test is the same one the mobile FAB produces.
 vi.mock("next/navigation", () => ({
-  usePathname: () => "/tonight",
+  usePathname: () => navigationState.pathname,
   useRouter: () => ({ prefetch: () => {} }),
 }));
 vi.mock("@/components/command/CommandPaletteProvider", () => ({
@@ -21,9 +23,9 @@ vi.mock("@/components/auth/SignInButton", () => ({ default: () => null }));
 vi.mock("@/components/brand/PubmaxxWordmark", () => ({ default: () => null }));
 // SiteNavMore keeps real markup so the overflow link contract is tested.
 
-async function renderSiteNav(): Promise<string> {
+async function renderSiteNav(active?: "today" | "tonight" | "crawls"): Promise<string> {
   const { default: SiteNav } = await import("@/components/nav/SiteNav");
-  return renderToStaticMarkup(createElement(SiteNav));
+  return renderToStaticMarkup(createElement(SiteNav, active ? { active } : undefined));
 }
 
 describe("SiteNav desktop Moment affordance (audit D2)", () => {
@@ -62,23 +64,21 @@ describe("SiteNav More overflow (Wave D2.2)", () => {
     expect(markup).toContain(">More</span>");
   });
 
-  it("exposes only live secondary destinations in More, Social last", async () => {
+  it("exposes only live secondary destinations in More", async () => {
     const { SITE_NAV_MORE_LINKS } = await import("@/components/nav/SiteNavMore");
-    // Plan is a primary destination now, so it is not repeated here; Social
-    // left the primary row and lives here instead.
+    // Plan and Social are primary destinations (Social by the captain's call,
+    // 16 Oct 2026), so neither is repeated here.
     expect(SITE_NAV_MORE_LINKS.map((link) => link.href)).toEqual([
       "/wall",
       "/near",
       "/historic",
       "/pal",
-      "/social",
     ]);
     expect(SITE_NAV_MORE_LINKS.map((link) => link.label)).toEqual([
-      "Drink Wall",
+      "Photos",
       "Near",
       "Historic",
       "Pal",
-      "Social",
     ]);
   });
 
@@ -89,32 +89,58 @@ describe("SiteNav More overflow (Wave D2.2)", () => {
       "Find priced pubs close to you",
       "Read the stories behind old pubs",
       "Ask for a pub that fits tonight",
-      "Pub-night posts and crews",
     ]);
   });
 
-  it("names Social in More the way the launch state names it", async () => {
+  it("never lists Social in More, so the menu cannot repeat the tab", async () => {
     const { siteNavMoreItems } = await import("@/components/nav/SiteNavMore");
-    const { socialSurfaceName } = await import("@/lib/socialLaunch");
-    expect(siteNavMoreItems(socialSurfaceName(true)).at(-1)).toMatchObject({
-      href: "/social",
-      label: "Social",
-    });
-    expect(siteNavMoreItems(socialSurfaceName(false)).at(-1)).toMatchObject({
-      href: "/social",
-      label: "Social preview",
-    });
+    expect(siteNavMoreItems().map((item) => item.href)).not.toContain("/social");
   });
 
-  it("renders no Social link and exactly one Plan link in the primary row", async () => {
+  it("renders exactly one Social link and one Plan link in the primary row", async () => {
     const markup = await renderSiteNav();
     const row = markup.match(/<ul class="siteNavLinks">[\s\S]*?<\/ul>/)?.[0] ?? "";
-    expect(row).not.toContain('href="/social"');
+    expect(row.match(/href="\/social"/g)).toHaveLength(1);
     expect(row.match(/href="\/plan"/g)).toHaveLength(1);
   });
 
   it("keeps More markup free of em dashes", async () => {
     const markup = await renderSiteNav();
     expect(markup).not.toContain("—");
+  });
+});
+
+describe("SiteNav current page state", () => {
+  afterEach(() => {
+    navigationState.pathname = "/tonight";
+  });
+
+  it("does not mark Tonight current when the host page is Today", async () => {
+    navigationState.pathname = "/today";
+    const markup = await renderSiteNav("today");
+    const row = markup.match(/<ul class="siteNavLinks">[\s\S]*?<\/ul>/)?.[0] ?? "";
+    expect(row.match(/aria-current="page"/g) ?? []).toHaveLength(0);
+  });
+
+  it.each(["/social", "/feed"])("marks Social current on %s", async (pathname) => {
+    navigationState.pathname = pathname;
+    const markup = await renderSiteNav();
+    const row = markup.match(/<ul class="siteNavLinks">[\s\S]*?<\/ul>/)?.[0] ?? "";
+    expect(row.match(/aria-current="page"[^>]*>Social</g) ?? []).toHaveLength(1);
+  });
+
+  it.each(["/crawls", "/crawls/soho"])("marks Plan, never Social, current on %s", async (pathname) => {
+    navigationState.pathname = pathname;
+    const markup = await renderSiteNav("crawls");
+    const row = markup.match(/<ul class="siteNavLinks">[\s\S]*?<\/ul>/)?.[0] ?? "";
+    expect(row.match(/aria-current="page"[^>]*>Plan</g) ?? []).toHaveLength(1);
+    expect(row).not.toMatch(/aria-current="page"[^>]*>Social</);
+  });
+
+  it("marks Tonight current when the host page is Tonight", async () => {
+    navigationState.pathname = "/tonight";
+    const markup = await renderSiteNav("tonight");
+    const row = markup.match(/<ul class="siteNavLinks">[\s\S]*?<\/ul>/)?.[0] ?? "";
+    expect(row.match(/aria-current="page"/g) ?? []).toHaveLength(1);
   });
 });

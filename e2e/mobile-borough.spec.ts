@@ -50,25 +50,22 @@ test.describe("mobile Borough discovery", () => {
     expect(response?.status()).toBe(200);
 
     await expect(page.getByRole("heading", { name: /London, by the area you drink in/i })).toBeVisible();
-    const boroughCards = page.locator(".boroughCard");
-    await expect(boroughCards.first()).toBeVisible();
-    await expectTappable(boroughCards.first(), "first borough card");
+    const boroughRows = page.locator(".boroughRow");
+    await expect(boroughRows.first()).toBeVisible();
+    await expectTappable(boroughRows.first(), "first borough row");
     await expectNoHorizontalOverflow(page);
 
-    await boroughCards.first().click();
+    await boroughRows.first().locator(".rowListTitleLink").click();
     await expect(page).toHaveURL(/\/borough\/[a-z0-9-]+$/);
-    await expect(page.getByRole("heading", { name: /^Pubs in / })).toBeVisible();
+    await expect(page.getByRole("heading", { level: 1, name: /^Pubs in / })).toBeVisible();
     await expectNoHorizontalOverflow(page);
 
-    await expectVisibleTargetsTappable(page.locator(".boroughCrawlLink"), "borough map/crawl CTA");
-    await expectVisibleTargetsTappable(page.locator(".boroughPub").first(), "borough pub link");
+    // Every list on the chapter is a RowList: the whole row is the target.
+    await expectVisibleTargetsTappable(page.locator(".boroughRows .rowListItem").first(), "borough pub row");
     await expectVisibleTargetsTappable(page.locator(".boroughLedgerLink").first(), "borough ledger link");
     await expectVisibleTargetsTappable(page.locator(".boroughChip").first(), "borough story chip");
-    await expectVisibleTargetsTappable(page.locator(".boroughCrawlPlanLink").first(), "borough crawl plan link");
-    await expectVisibleTargetsTappable(page.locator(".boroughHeritageMapLink").first(), "borough heritage map link");
     await expectVisibleTargetsTappable(page.locator(".boroughHeritageFoot a"), "borough heritage foot link");
     await expectVisibleTargetsTappable(page.locator(".boroughPassportFoot a"), "borough passport link");
-    await expectVisibleTargetsTappable(page.locator(".boroughFootnote a"), "borough footnote link");
 
     const ledgerLink = page.locator(".boroughLedgerLink").first();
     await expect(ledgerLink).toHaveAttribute("href", /\/ledger\/venue-/);

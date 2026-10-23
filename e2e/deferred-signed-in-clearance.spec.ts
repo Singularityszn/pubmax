@@ -79,6 +79,8 @@ for (const theme of ["light", "dark"] as const) {
       expect(portrait?.width).toBe(160);
       expect(portrait?.height).toBe(160);
     }
+    await test.info().attach("voice-consent-layout", { body: await page.screenshot(), contentType: "image/png" });
+    await test.info().attach("voice-consent-boxes", { body: JSON.stringify(await page.locator(".palHomeHero, .palHomePortrait, .palHomeCopy, .palHomeCopy > *, .palVoice > *, .analyticsConsentPrompt").evaluateAll((nodes) => nodes.map((node) => ({ name: node.className, box: node.getBoundingClientRect().toJSON() })))), contentType: "application/json" });
     const geometry = await page.locator(".palVoice").evaluate((element) => {
       const card = element.getBoundingClientRect();
       const consent = document.querySelector(".analyticsConsentPrompt")!.getBoundingClientRect();

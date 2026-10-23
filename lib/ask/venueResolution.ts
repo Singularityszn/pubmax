@@ -6,10 +6,8 @@
 
 import { choice } from "@typesafe-ai/sdk";
 
-import stationZones from "@/data/tfl_station_zones.json";
-import { NIGHT_AREAS } from "@/lib/nightAreas";
+import { PLACE_PHRASES, wordsOnly } from "@/lib/ask/placePhrases";
 import { venueSearchNames } from "@/lib/venueSearchNames.mjs";
-import localityGazetteer from "@/public/data/london_localities.json";
 
 import {
   normalizeVenueIdentityName,
@@ -61,29 +59,6 @@ export function toVenueResolutionCandidate(
     address: venueResolutionAddress(venue),
   };
 }
-
-/** Lower-case words only: "&" reads as "and", apostrophes drop, other marks split. */
-function wordsOnly(value: string): string {
-  return value
-    .toLowerCase()
-    .replace(/&/g, " and ")
-    .replace(/['\u2019\u2018]/g, "")
-    .replace(/[^\p{L}\p{N}]+/gu, " ")
-    .trim();
-}
-
-/** Place names of two or more words: night areas, London localities, TfL stations. */
-const PLACE_PHRASES: readonly string[][] = [
-  ...new Set(
-    [
-      ...NIGHT_AREAS.flatMap((area) => [area.name, ...area.aliases, ...area.transportAnchors]),
-      ...localityGazetteer.localities.map((locality) => locality.name),
-      ...stationZones.stations.map((station) => station.name),
-    ].map(wordsOnly),
-  ),
-]
-  .map((phrase) => phrase.split(" "))
-  .filter((words) => words.length > 1);
 
 /** Words any pub may carry: a name made only of these names no pub in particular. */
 const GENERIC_PUB_WORDS = new Set([
@@ -164,13 +139,13 @@ export function matchVenueByNameKeyless<T extends VenueNameMatchInput>(
   venues: readonly T[],
   name: string,
 ): T | null {
-  const needle = name.trim().toLowerCase();
+  const needle = wordsOnly(name);
   if (!needle) return null;
-  const exact = venues.find((v) => venueSearchNames(v).some((label) => label.toLowerCase() === needle));
+  const exact = venues.find((v) => venueSearchNames(v).some((label) => wordsOnly(label) === needle));
   if (exact) return exact;
-  const starts = venues.find((v) => venueSearchNames(v).some((label) => label.toLowerCase().startsWith(needle)));
+  const starts = venues.find((v) => venueSearchNames(v).some((label) => wordsOnly(label).startsWith(needle)));
   if (starts) return starts;
-  return venues.find((v) => venueSearchNames(v).some((label) => label.toLowerCase().includes(needle))) ?? null;
+  return venues.find((v) => venueSearchNames(v).some((label) => wordsOnly(label).includes(needle))) ?? null;
 }
 
 function queryTokens(query: string): string[] {
@@ -222,9 +197,9 @@ export function uniqueExactVenueNameMatch<T extends VenueNameMatchInput>(
   venues: readonly T[],
   name: string,
 ): T | null {
-  const needle = name.trim().toLowerCase();
+  const needle = wordsOnly(name);
   if (!needle) return null;
-  const hits = venues.filter((v) => venueSearchNames(v).some((label) => label.toLowerCase() === needle));
+  const hits = venues.filter((v) => venueSearchNames(v).some((label) => wordsOnly(label) === needle));
   return hits.length === 1 ? (hits[0] ?? null) : null;
 }
 

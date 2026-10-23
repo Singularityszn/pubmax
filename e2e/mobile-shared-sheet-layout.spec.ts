@@ -1,6 +1,7 @@
 import { expect, test, type Locator, type Page, type TestInfo } from "@playwright/test";
 
 import { stubSocialAuthProviders } from "./helpers/authDoubles";
+import { expectMobileMapShellReady, mobileMapShellControl } from "./helpers/mobileMapShell";
 
 const MOBILE_VIEWPORT = { width: 390, height: 844 };
 
@@ -230,9 +231,9 @@ test("mobile planner and contextual portal sheets retain the canonical bottom an
 
   const response = await page.goto("/map");
   expect(response?.status()).toBe(200);
-  await expect(page.locator(".mobileMapTopbar")).toBeVisible({ timeout: 20_000 });
+  await expectMobileMapShellReady(page, 20_000);
 
-  await page.getByRole("button", { name: "Describe the outing" }).click();
+  await page.getByRole("button", { name: "Plan a pub crawl" }).click();
   const planner = page.locator('.mobileSheetPortal[data-sheet-kind="planner"]');
   await expect(planner).toBeVisible();
   await expectSheetInsideViewport(page, planner.locator(".mobileSharedSheet"));
@@ -240,7 +241,7 @@ test("mobile planner and contextual portal sheets retain the canonical bottom an
   await planner.getByRole("button", { name: "Close planner" }).click();
   await expect(planner).toHaveCount(0);
 
-  await page.getByRole("button", { name: "More map controls" }).click();
+  await (await mobileMapShellControl(page, "more")).click();
   const layers = page.locator('.mobileSheetPortal[data-sheet-kind="layers"]');
   await expect(layers).toBeVisible();
   await expectSheetInsideViewport(page, layers.locator(".mobileSharedSheet"));

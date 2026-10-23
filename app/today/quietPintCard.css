@@ -1,55 +1,42 @@
-/* Styles for TodayQuietPintCard — owned by the component so /tonight can host
-   the same module without importing the whole /today page sheet. Class names
-   stay on the todayCard / quietPint idiom so /today keeps a single visual
-   language. Role tokens only. */
+/* The section idiom /today is built from, and the quiet-pint list /tonight
+   hosts too. Owned here so /tonight can host the module without importing the
+   whole /today page sheet; /today loads this sheet through the same component.
+
+   A SECTION IS NOT A CARD (taste plan, 18 Oct 2026; docs/DESIGN_SYSTEM.md
+   "Edges: the de-box rule"). It is a heading, at most one line under it, and
+   its rows, set off from the section above by one hairline and space. No box,
+   no lift, no icon disc and no eyebrow over the heading. The class keeps its
+   old name so every test id and anchor that finds a section still finds it.
+   Tokens only, so both themes inherit. */
 
 .todayCard {
   display: flex;
   flex-direction: column;
-  gap: 12px;
-  padding: 16px;
-  border: 1px solid var(--line);
-  border-radius: 16px;
-  background: var(--panel-raised);
-  box-shadow: 0 1px 2px color-mix(in srgb, var(--ink) 4%, transparent),
-    0 6px 16px color-mix(in srgb, var(--ink) 5%, transparent);
-}
-
-.todayCardHead {
-  display: flex;
-  align-items: flex-start;
-  gap: 12px;
-}
-
-.todayCardIcon {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-  width: 34px;
-  height: 34px;
-  margin-top: 1px;
-  border-radius: 999px;
-  background: color-mix(in srgb, var(--brass) 14%, var(--panel-raised));
-  color: var(--tint-ink-accent);
-}
-
-.todayCardEyebrow {
-  margin: 0 0 3px;
-  font-size: 0.72rem;
-  font-weight: 700;
-  letter-spacing: 0.01em;
-  color: var(--muted, var(--ink-soft));
+  gap: var(--space-3);
+  min-width: 0;
+  padding: var(--space-5) 0 var(--space-2);
+  border-top: 1px solid var(--line-soft);
 }
 
 .todayCardTitle {
   margin: 0;
   font-family: var(--font-display);
-  font-size: 1.06rem;
-  font-weight: 650;
-  line-height: var(--leading-snug, 1.35);
-  letter-spacing: var(--tracking-tight, -0.01em);
+  font-size: var(--text-md);
+  font-weight: 700;
+  line-height: var(--leading-snug);
+  letter-spacing: var(--tracking-tight);
   color: var(--ink);
+  text-wrap: pretty;
+}
+
+/* The one line a section may carry under its heading: the fact every row
+   below it shares, said once. */
+.todayCardLine {
+  margin: calc(-1 * var(--space-2)) 0 0;
+  max-width: 40rem;
+  font-size: var(--text-sm);
+  line-height: var(--leading-normal);
+  color: var(--color-text-muted);
   text-wrap: pretty;
 }
 
@@ -57,13 +44,37 @@
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 8px 12px;
+  gap: var(--space-2) var(--space-5);
   margin: 0;
 }
 
 .todayProvenance {
-  font-size: 0.76rem;
-  color: var(--ink-soft);
+  font-size: var(--text-xs);
+  color: var(--color-text-muted);
+}
+
+/* A way onward inside a section reads as a link in ink, never a coral word:
+   the coral on this page is the one primary in the head. */
+.todayInkLink {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  min-height: 44px;
+  margin-block: calc(-1 * var(--space-2));
+  color: var(--ink);
+  font-size: var(--text-sm);
+  font-weight: 700;
+  text-decoration: underline;
+  text-decoration-color: var(--hairline-strong);
+  text-underline-offset: 4px;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .todayInkLink:hover {
+    text-decoration-color: currentColor;
+  }
 }
 
 /* The Button primitive's ghost paints this action; the sheet only places it
@@ -75,25 +86,25 @@
 }
 
 .todayTextButton:first-child {
-  margin-inline-start: calc(-1 * var(--control-pad-x, 16px));
+  margin-inline-start: calc(-1 * var(--control-pad-x));
 }
 
+/* A provenance word is a stamp, so it wears the neutral badge trio: a coral
+   tint here read as a second accent beside the page's one primary. */
 .todayProvChip {
   display: inline-flex;
   align-items: center;
-  padding: 3px 9px;
-  border-radius: 999px;
-  border: 1px solid color-mix(in srgb, var(--brass) 34%, var(--line));
-  background: color-mix(in srgb, var(--brass) 10%, var(--panel-raised));
-  font-size: 0.75rem;
+  padding: 2px var(--space-2);
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--badge-border);
+  background: var(--badge-surface);
+  font-size: var(--text-xs);
   font-weight: 700;
-  letter-spacing: 0.03em;
-  color: var(--state-active-ink);
+  color: var(--badge-ink);
 }
 
-/* Rows inside the card are a list, not a second card each: a hairline between
-   rows does the grouping (docs/DESIGN_SYSTEM.md "Edges: the de-box rule") and
-   the row's text lines up with the card's own heading. */
+/* The quiet pints: a hairline between rows, the name and its banded pint on
+   one line, the cited history under it, and one small line of its own facts. */
 .quietPintList {
   list-style: none;
   margin: 0;
@@ -105,104 +116,83 @@
 .quietPintRow {
   display: flex;
   flex-direction: column;
+  gap: var(--space-1);
+  padding: var(--space-3) 0;
 }
 
 .quietPintRow + .quietPintRow {
-  border-top: 1px solid var(--line);
+  border-top: 1px solid var(--line-soft);
+}
+
+.quietPintTop {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
 }
 
 .quietPintLink {
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  gap: 6px;
+  display: inline-flex;
+  align-items: center;
   min-height: 44px;
-  padding: 12px 0 8px;
-  color: inherit;
+  margin-block: calc(-1 * var(--space-2));
+  color: var(--ink);
+  font-size: var(--text-base);
+  font-weight: 700;
+  line-height: 1.25;
   text-decoration: none;
   touch-action: manipulation;
   -webkit-tap-highlight-color: transparent;
-  transition: background var(--duration-base, 0.15s) var(--ease-out);
 }
 
 @media (hover: hover) and (pointer: fine) {
-  .quietPintLink:hover .quietPintName {
+  .quietPintLink:hover {
     text-decoration: underline;
     text-underline-offset: 3px;
   }
 }
 
-.quietPintLink:active {
-  background: color-mix(in srgb, var(--brass) 7%, var(--panel-raised));
-}
-
-.quietPintTop {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 12px;
-}
-
-.quietPintName {
-  font-size: 0.96rem;
-  font-weight: 700;
-  line-height: 1.25;
-  color: var(--ink);
-}
-
 .quietPintPrice {
   flex: none;
-  font-size: 0.9rem;
-  font-weight: 700;
-  color: var(--ink);
-  font-variant-numeric: tabular-nums;
 }
 
 .quietPintHeritage {
-  padding: 0 0 8px;
-  font-size: 0.85rem;
-  line-height: 1.5;
+  font-size: var(--text-sm);
+  line-height: var(--leading-normal);
   color: var(--ink-soft);
   overflow-wrap: break-word;
+}
+
+/* "Show more" is a fold, not an accent: it reads in ink like the text it
+   opens. */
+.quietPintHeritage .proseDisclosureMore,
+.quietPintHeritage .proseDisclosureLess {
+  color: var(--ink);
 }
 
 .quietPintFoot {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 6px 10px;
-  padding: 0 0 12px;
-}
-
-.quietPintGrade,
-.quietPintEra {
-  padding: 2px 8px;
-  border-radius: 999px;
-  border: 1px solid var(--line);
-  background: var(--panel-raised);
-  font-size: 0.72rem;
-  font-weight: 700;
-  color: var(--ink-soft);
-}
-
-.quietPintQuiet {
-  font-size: 0.76rem;
-  color: var(--ink-soft);
+  gap: 0 var(--space-1);
+  margin: 0;
+  font-size: var(--text-xs);
+  color: var(--color-text-muted);
 }
 
 .quietPintSource {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
+  gap: var(--space-1);
   min-height: 44px;
-  font-size: 0.75rem;
-  color: var(--ink-soft);
+  margin-block: calc(-1 * var(--space-3));
+  color: var(--color-text-muted);
   text-decoration: underline;
   text-underline-offset: 2px;
 }
 
 @media (hover: hover) and (pointer: fine) {
   .quietPintSource:hover {
-    color: var(--brass);
+    color: var(--ink);
   }
 }

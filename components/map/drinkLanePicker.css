@@ -21,13 +21,13 @@
   align-items: center;
   gap: 6px;
   min-width: 0;
-  color: var(--brass);
+  color: var(--color-text-muted);
 }
 
 /* Sentence case: uppercase is reserved for stamps (docs/DESIGN_SYSTEM.md). */
 .drinkLanePickerHead > span {
   color: var(--ink);
-  font-size: 0.85rem;
+  font-size: var(--text-sm);
   font-weight: 800;
   letter-spacing: -0.005em;
 }
@@ -39,7 +39,7 @@
   min-width: 0;
   padding: 4px;
   border: 1px solid var(--line-soft);
-  border-radius: var(--radius-md, 14px);
+  border-radius: var(--radius);
 }
 
 .drinkLanePickerOption {
@@ -50,11 +50,11 @@
   min-height: 44px;
   padding: 7px 12px;
   border: 0;
-  border-radius: var(--control-radius, 12px);
+  border-radius: var(--control-radius);
   background: transparent;
   color: var(--muted);
   font: inherit;
-  font-size: 0.76rem;
+  font-size: var(--text-xs);
   font-weight: 700;
   cursor: pointer;
   touch-action: manipulation;
@@ -63,9 +63,14 @@
     color var(--duration-base) var(--ease-out);
 }
 
-.drinkLanePickerOption:hover,
 .drinkLanePickerOption:focus-visible {
   color: var(--ink);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .drinkLanePickerOption:hover {
+    color: var(--ink);
+  }
 }
 
 .drinkLanePickerOption:focus-visible {
@@ -87,7 +92,7 @@
   margin: 0;
   min-width: 0;
   color: var(--ink-soft);
-  font-size: 0.72rem;
+  font-size: var(--text-xs);
   line-height: 1.4;
   /* A coverage line carries a drink name and a claim about the map. It wraps;
      it never truncates (the phone-chrome rule for price captions). */
@@ -112,11 +117,22 @@
 
 .drinkLanePicker--sheet .drinkLanePickerOption {
   padding: 7px 14px;
-  font-size: 0.82rem;
+  font-size: var(--text-sm);
 }
 
 @media (prefers-reduced-motion: reduce) {
   .drinkLanePickerOption {
     transition: none;
   }
+}
+
+.drinkLanePickerClose {
+  margin-left: auto;
+}
+
+.mapToolbarDrinkChoices {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  min-width: 0;
 }

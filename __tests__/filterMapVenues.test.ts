@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  createMemberStabilizer,
   filterMapVenues,
   mapFiltersSuspendUkBasePubs,
   withForcedVenue,
@@ -272,5 +273,73 @@ describe("withForcedVenue", () => {
     const byId = new Map([[venue.id, venue]]);
     const out = withForcedVenue([venue], byId, venue.id);
     expect(out).toHaveLength(1);
+  });
+
+  // The canvas rebuilds every pin and re-sends the whole source in a layout
+  // effect keyed on this array, so a copy per selection put that rebuild inside
+  // the tap's frame: 1040 ms INP on a lab phone (map-p99-vitals-tail).
+  it("hands back the SAME array when a selection adds nothing to the canvas", () => {
+    const venue = slimPin();
+    const other = slimPin({ id: "venue-other" });
+    const byId = new Map([
+      [venue.id, venue],
+      [other.id, other],
+    ]);
+    const filtered = [venue, other];
+    expect(withForcedVenue(filtered, byId, venue.id)).toBe(filtered);
+    expect(withForcedVenue(filtered, byId, other.id)).toBe(filtered);
+    expect(withForcedVenue(filtered, byId, null)).toBe(filtered);
+    expect(withForcedVenue(filtered, byId, "  ")).toBe(filtered);
+    expect(withForcedVenue(filtered, byId, "venue-unknown")).toBe(filtered);
+  });
+
+  it("copies rather than mutates when it does append a forced venue", () => {
+    const visible = slimPin();
+    const forced = slimPin({ id: "venue-force" });
+    const byId = new Map([[forced.id, forced]]);
+    const filtered = [visible];
+    const out = withForcedVenue(filtered, byId, forced.id);
+    expect(out).not.toBe(filtered);
+    expect(filtered).toHaveLength(1);
+    expect(out.map((v) => v.id)).toEqual([visible.id, forced.id]);
+  });
+});
+
+// A sheet's own reads rebuild the venue signals, the pipeline re-runs, and it
+// almost always lets through the same pins: the suggested crawl and the canvas
+// pin rebuild must not re-run for that (map-selection-inp).
+describe("createMemberStabilizer", () => {
+  it("hands back the held list while the members and their order are the same", () => {
+    const stable = createMemberStabilizer<Venue>();
+    const a = slimPin({ id: "venue-a" });
+    const b = slimPin({ id: "venue-b" });
+    const first = stable([a, b]);
+    expect(stable([a, b])).toBe(first);
+    expect(stable([...first])).toBe(first);
+  });
+
+  it("takes the new list when a member, the order or the length changes", () => {
+    const stable = createMemberStabilizer<Venue>();
+    const a = slimPin({ id: "venue-a" });
+    const b = slimPin({ id: "venue-b" });
+    stable([a, b]);
+    const reordered = [b, a];
+    expect(stable(reordered)).toBe(reordered);
+    const shorter = [b];
+    expect(stable(shorter)).toBe(shorter);
+    // Same id, richer object: a hydrated venue is news, so identity is by reference.
+    const hydrated = [{ ...b, cheapestPrice: 4.5 }];
+    expect(stable(hydrated)).toBe(hydrated);
+    expect(stable([hydrated[0]!])).toBe(hydrated);
+  });
+
+  it("keeps each list's own history", () => {
+    const one = createMemberStabilizer<Venue>();
+    const two = createMemberStabilizer<Venue>();
+    const a = slimPin({ id: "venue-a" });
+    const held = one([a]);
+    const other = [a];
+    expect(two(other)).toBe(other);
+    expect(one([a])).toBe(held);
   });
 });

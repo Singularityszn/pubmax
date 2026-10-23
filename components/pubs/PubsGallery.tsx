@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ExternalLink, MapPinned } from "lucide-react";
+import { ExternalLink } from "lucide-react";
 import { firstHttps } from "@/lib/httpUrl";
 
 import BookingClickAnalytics from "@/components/pubs/BookingClickAnalytics";
@@ -7,14 +7,16 @@ import PubsFilters, {
   type PubsFilterCounts,
   type PubsFilterKey,
 } from "@/components/pubs/PubsFilters";
-import { DrinkGlyph } from "@/components/drinks/DrinkGlyph";
 import VenueImage from "@/components/media/VenueImage";
-import { categoryLabel, type DrinkCategory } from "@/lib/drinks";
+import PriceBadge from "@/components/PriceBadge";
+import { LANDING_RECEIPT_LABEL, pintDropDoorHref } from "@/lib/landingHero";
 import {
   SCRAPED_SOURCE_LABELS,
   type ScrapedPub,
 } from "@/lib/scrapedPubs";
 import { formatPrice } from "@/lib/venues";
+import { priceBand } from "@/lib/priceBand";
+import { VENUE_IMAGE_PROVENANCE_LABEL } from "@/lib/venueImages";
 import { pubsIndexHref } from "@/lib/pageFilters";
 import { venueMapUrl } from "@/lib/venueMapUrl";
 import { resolveBookingAction } from "@/lib/venueExternalActions";
@@ -47,56 +49,33 @@ export function pubsCountLabel({
   return parts.join(" · ");
 }
 
-function DrinkArt({
-  accent,
-  shelf,
-  photoUrl,
-  name,
-}: {
-  accent: DrinkCategory;
-  shelf: DrinkCategory[];
-  photoUrl?: string;
-  name: string;
-}) {
+// The chain's own photograph of the pub, and nothing painted over it. The card
+// used to lay a drink glyph and a word ("Shots", "Whisky", "Alcohol-free") on
+// top, picked by hashing the venue id: decoration that read as a fact about
+// what the pub pours, so it is gone. So is the dark wash, and the "Photo: pub
+// website" pill that sat on the picture: the credit is a caption UNDER it
+// (taste plan, 18 Oct 2026). VenueImage still prints its own on-image label,
+// which pubsGallery.css hides here because this caption says the same thing;
+// a photo that fails to load shows VenueImage's own "No photo yet", and the
+// caption hides with it.
+function PubPhoto({ photoUrl }: { photoUrl: string }) {
   return (
-    <div
-      className="pubsCardArt"
-      data-drink={accent}
-      style={{ ["--drink" as string]: `var(--cat-${accent})` }}
-    >
-      {photoUrl ? (
+    <figure className="pubsCardFigure">
+      <div className="pubsCardArt">
         <VenueImage
           className="pubsCardPhoto"
           sources={[{ url: photoUrl, provenance: "chain" }]}
           alt=""
           fill
-          // The card art is one column at 420 and under, two up to 640, and a
-          // 240-400px cell above that. Capped at 640 because this picture sits
-          // under a gradient wash, a glyph and a shelf at 0.88 opacity: it is
-          // the card's background, and a 3x phone has no use for a third pass
-          // of pixels over it.
+          // One column at 420 and under, two up to 640, and a column of at
+          // most 344px above that. Capped at 640: a 3x phone has no use for a
+          // third pass of pixels over a card photograph.
           sizes="(max-width: 420px) 100vw, (max-width: 640px) 50vw, 344px"
           maxWidth={640}
         />
-      ) : null}
-      <div className="pubsCardArtWash" aria-hidden="true" />
-      <div className="pubsCardGlyphHero" aria-hidden="true">
-        <DrinkGlyph category={accent} size={72} inheritColor />
       </div>
-      <ul className="pubsCardShelf" aria-label={`${categoryLabel(accent)} and more`}>
-        <li>
-          <DrinkGlyph category={accent} size={22} inheritColor />
-          <span>{categoryLabel(accent)}</span>
-        </li>
-        {shelf.map((category) => (
-          <li key={category}>
-            <DrinkGlyph category={category} size={18} inheritColor />
-            <span>{categoryLabel(category)}</span>
-          </li>
-        ))}
-      </ul>
-      <span className="pubsCardArtLabel">{name}</span>
-    </div>
+      <figcaption className="pubsCardCredit">{VENUE_IMAGE_PROVENANCE_LABEL.chain}</figcaption>
+    </figure>
   );
 }
 
@@ -170,56 +149,65 @@ export default function PubsGallery({
             : "pubsCard pubsCard--no-art";
           return (
             <li key={pub.id} id={`pubsCard-${pub.id}`} className={cardClassName}>
-              {hasPhoto ? (
-                <DrinkArt
-                  accent={pub.drinkAccent}
-                  shelf={pub.drinkShelf}
-                  photoUrl={pub.photoUrl}
-                  name={categoryLabel(pub.drinkAccent)}
-                />
-              ) : null}
+              {pub.photoUrl ? <PubPhoto photoUrl={pub.photoUrl} /> : null}
               <div className="pubsCardBody">
-                {!hasPhoto ? (
-                  <p className="pubsCardDrink">
-                    <DrinkGlyph category={pub.drinkAccent} size={18} inheritColor />
-                    <span>{categoryLabel(pub.drinkAccent)}</span>
-                  </p>
-                ) : null}
-                <div className="pubsCardMeta">
-                  <span className="pubsSource" data-source={pub.source}>
-                    {pub.sourceLabel}
-                  </span>
-                  {pub.borough ? <span className="pubsBorough">{pub.borough}</span> : null}
-                  {pub.zone !== null ? (
-                    <span className="pubsZone" title="Nearest station's fare zone">
-                      Zone {pub.zone}
-                    </span>
-                  ) : null}
-                </div>
-                <h2 className="pubsCardName">
-                  {/* A plain Link that PREFETCHES NOTHING, which is the same
-                      rule IntentLink states and the only way to state it from a
-                      server component. IntentLink is a client one, so importing
-                      it here pulled the router and lib/mapWarmup into this
-                      page's own bundle: measured on the Avrea runner, /pubs went
-                      from 1114 KB decoded to 1276 KB against a 1200 ceiling.
-                      Reverting to a bare Link put the weight back a second way,
-                      because Next prefetches a Link on sight and each of these
-                      pulls /map's own chunks in front of this page's answer.
-                      `prefetch={false}` costs nothing and warms nothing. */}
-                  <Link href={venueMapUrl(pub.id)} prefetch={false}>
-                    {pub.name}
-                  </Link>
-                </h2>
-                <p className="pubsCardPrice">
-                  {pub.cheapestPrice != null
-                    ? `From ${formatPrice(pub.cheapestPrice)}`
-                    : "No price logged yet"}
+                <h2 className="pubsCardName">{pub.name}</h2>
+                {/* One meta line in one style: chain, borough, fare zone. It
+                    was a tinted chain pill, a plain borough and a zone pill
+                    sharing a line. */}
+                <p className="pubsCardMeta">
+                  {[pub.sourceLabel, pub.borough || null, pub.zone !== null ? `Zone ${pub.zone}` : null]
+                    .filter(Boolean)
+                    .join(", ")}
                 </p>
-                <div className="pubsCardActions">
-                  <Link className="pubsMapLink" href={venueMapUrl(pub.id)} prefetch={false}>
-                    <MapPinned size={14} aria-hidden="true" />
-                    See on map
+                <p className="pubsCardPrice">
+                  {pub.cheapestPrice != null ? (
+                    <>
+                      <span className="listingFrom">from</span>
+                      <PriceBadge variant="current" band={priceBand(pub.cheapestPrice, { city: "london" })}>
+                        {formatPrice(pub.cheapestPrice)}
+                      </PriceBadge>
+                    </>
+                  ) : (
+                    <>
+                      <span className="pubsCardNoPrice">No listed price yet.</span>{" "}
+                      <Link
+                        className="pubsCardLog"
+                        href={pintDropDoorHref(pub.id)}
+                        prefetch={false}
+                      >
+                        {LANDING_RECEIPT_LABEL}
+                      </Link>
+                    </>
+                  )}
+                </p>
+                {/* THE CARD IS ONE DOOR: the whole card opens the pub on the
+                    map. "On the map" is the card's own link, stretched over the
+                    card (`.pubsMapLink::after`), and it carries the pub's name
+                    so twenty cards are not twenty identical links to a screen
+                    reader. It is a quiet ink link, not a tinted button: the
+                    tint was the "you are here" state, on every card. Menu and
+                    booking sit above the stretch, so they still open their own
+                    pages.
+
+                    A plain Link that PREFETCHES NOTHING, which is the same rule
+                    IntentLink states and the only way to state it from a server
+                    component. IntentLink is a client one, so importing it here
+                    pulled the router and lib/mapWarmup into this page's own
+                    bundle: measured on the Avrea runner, /pubs went from 1114 KB
+                    decoded to 1276 KB against a 1200 ceiling. Reverting to a
+                    bare Link put the weight back a second way, because Next
+                    prefetches a Link on sight and each of these pulls /map's own
+                    chunks in front of this page's answer. `prefetch={false}`
+                    costs nothing and warms nothing. */}
+                <div className="pubsCardLinks">
+                  <Link
+                    className="pubsMapLink"
+                    href={venueMapUrl(pub.id)}
+                    prefetch={false}
+                    aria-label={`See ${pub.name} on the map`}
+                  >
+                    On the map
                   </Link>
                   {menuUrl ? (
                     <a
@@ -229,7 +217,7 @@ export default function PubsGallery({
                       rel="noopener noreferrer"
                     >
                       Menu
-                      <ExternalLink size={13} aria-hidden="true" />
+                      <ExternalLink size={14} aria-hidden="true" />
                     </a>
                   ) : null}
                   <a
@@ -242,7 +230,7 @@ export default function PubsGallery({
                     data-venue-id={pub.id}
                   >
                     {booking.label}
-                    <ExternalLink size={13} aria-hidden="true" />
+                    <ExternalLink size={14} aria-hidden="true" />
                   </a>
                 </div>
               </div>

@@ -39,7 +39,7 @@ import AddPageShell from "./AddPageShell";
 import "./add.css";
 
 export const metadata: Metadata = {
-  title: "Add to your lot · PUBMAXX",
+  title: "Add to your lot",
   description: "Add a friend to your lot on PUBMAXX.",
   robots: { index: false, follow: false },
 };

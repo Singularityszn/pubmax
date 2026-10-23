@@ -151,7 +151,7 @@ test("installed PWA asks for the honest London brief only after a useful plan ac
 
   await page.goto("/map?plan=1");
   const webPrompt = page.getByRole("dialog", { name: "Get the London brief" });
-  await expect(page.getByRole("heading", { name: "Describe the outing" })).toBeVisible({ timeout: 30_000 });
+  await expect(page.getByRole("heading", { name: "Plan a pub crawl" })).toBeVisible({ timeout: 30_000 });
   await expect(webPrompt).toHaveCount(0);
   await expect(page.getByRole("dialog", { name: "Stay in the loop" })).toHaveCount(0);
 
@@ -159,6 +159,38 @@ test("installed PWA asks for the honest London brief only after a useful plan ac
   await expect(webPrompt).toBeVisible();
   await expect(page.getByText("The weather verdict and one sourced pick for tonight. No crew or personal alerts yet.")).toBeVisible();
   await expect(page.getByText("Get pinged when your crew votes or the get-in closes.")).toHaveCount(0);
+
+  await expect(page.getByRole("heading", { name: "Hand-built plan", exact: true })).toBeVisible();
+  await page.keyboard.press("Control+k");
+  const palette = page.getByRole("dialog", { name: "Command palette", exact: true });
+  await expect(palette).toBeVisible();
+  await expect(webPrompt).toHaveCount(0);
+  const search = palette.getByRole("combobox", { name: "Search commands", exact: true });
+  await expect(search).toBeFocused();
+  await search.fill("Map");
+  await expect(search).toHaveValue("Map");
+  await page.keyboard.press("Escape");
+  await expect(palette).toHaveCount(0);
+  await expect(webPrompt).toBeVisible();
+  expect(await page.evaluate(() => (window as unknown as { __webPushPermissionRequests: number }).__webPushPermissionRequests)).toBe(0);
+
+  for (const name of ["Later", "Turn on"]) {
+    await expect.poll(() => webPrompt.getByRole("button", { name, exact: true }).evaluate((button) => {
+      const box = button.getBoundingClientRect();
+      const hit = document.elementFromPoint(box.left + box.width / 2, box.top + box.height / 2);
+      return hit === button || button.contains(hit);
+    })).toBe(true);
+  }
+  const enable = webPrompt.getByRole("button", { name: "Turn on", exact: true });
+  let reached = false;
+  for (let index = 0; index < 80; index += 1) {
+    if (await enable.evaluate((button) => button === document.activeElement)) {
+      reached = true;
+      break;
+    }
+    await page.keyboard.press("Tab");
+  }
+  expect(reached).toBe(true);
 
   const registration = page.waitForRequest(
     (request) => request.method() === "POST" && new URL(request.url()).pathname === "/api/push-tokens",
@@ -199,7 +231,7 @@ test("installed PWA recovers when service-worker readiness never settles", async
 
   await page.goto("/map?plan=1");
   const webPrompt = page.getByRole("dialog", { name: "Get the London brief" });
-  await expect(page.getByRole("heading", { name: "Describe the outing" })).toBeVisible({ timeout: 30_000 });
+  await expect(page.getByRole("heading", { name: "Plan a pub crawl" })).toBeVisible({ timeout: 30_000 });
   await page.getByRole("button", { name: "Make a plan" }).click();
   await expect(webPrompt).toBeVisible();
 

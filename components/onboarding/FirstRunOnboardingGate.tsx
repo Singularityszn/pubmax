@@ -27,8 +27,8 @@ type EligibilityDecision = {
 /**
  * Fail-closed route boundary for /onboarding. The stateful onboarding UI is
  * mounted after a native entry handoff or while a native journey is unfinished.
- * On the web, it mounts when the landing hero sent a first-time visitor with the
- * start mark. A start-marked visit that already holds the seen mark (browser
+ * On the web, it mounts when /near's first-run chip sent a first-time visitor
+ * with the start mark (components/nearme/NearOnboardingChip.tsx). A start-marked visit that already holds the seen mark (browser
  * Back after finishing or skipping) goes on to the hero's own door, any other
  * web visit returns home, and an ineligible native visit returns to Tonight.
  */

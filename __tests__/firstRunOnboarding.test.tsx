@@ -1,5 +1,8 @@
 // @vitest-environment jsdom
 
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
+
 import { act, createElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -29,14 +32,20 @@ vi.mock("@/lib/nativePlatform", () => ({
 import FirstRunOnboarding from "@/components/onboarding/FirstRunOnboarding";
 import { hasSeenTour } from "@/lib/firstRunTour";
 import { NATIVE_FIRST_RUN_PATCH_KEY, NATIVE_FIRST_RUN_STEP_KEY } from "@/lib/nativeFirstRun";
-import { ONBOARDING_STEPS, readBudgetChoice, readPlannerHandoff } from "@/lib/onboardingFlow";
+import {
+  ONBOARDING_STEPS,
+  onboardingPlanHref,
+  readBudgetChoice,
+  readPlannerHandoff,
+  type PlannerHandoff,
+} from "@/lib/onboardingFlow";
 import { readHistoryStep } from "@/lib/useStepHistory";
 import { decideEntry, readEntryContext } from "@/lib/entryDecision";
 
 let container: HTMLDivElement;
 let root: Root | null = null;
 // "Plan my night" leaves the app router for a document load; the spy stands in.
-const openPlanner = vi.fn();
+const openPlanner = vi.fn<(handoff: PlannerHandoff) => void>();
 
 // Pubs around Soho (51.5136, -0.1365), cheapest first by price. Three sit inside
 // the walkable ring so the answer is not widened.
@@ -215,12 +224,12 @@ afterEach(async () => {
 });
 
 describe("first-run budget question", () => {
-  it("states why it asks and what stays private, and holds Continue until answered", async () => {
+  it("discloses budget storage and transmission, and holds Continue until answered", async () => {
     await tap("Use London");
 
     expect(container.querySelector("h1")?.textContent).toBe("What's a fair pint to you?");
     expect(container.textContent).toContain("We use this to count the pubs near you that come in under it.");
-    expect(container.textContent).toContain("Only you see your answer. It stays on this device.");
+    expect(container.textContent).toContain("Your budget is saved on this device. When you plan a night, it goes in the planner link and to our server.");
     expect(buttonContaining("Continue").disabled).toBe(true);
 
     await tap("£6 or less");
@@ -293,7 +302,7 @@ describe("first-run location ask", () => {
     await reachLocation();
 
     expect(container.querySelector("h1")?.textContent).toBe("Find the cheapest pint near you.");
-    expect(container.textContent).toContain("We only use it to rank pubs nearby. Your location is never stored.");
+    expect(container.textContent).toContain("We use your location to rank nearby pubs and pick an area for your plan. Your coordinates are never stored or sent.");
     // The ask has not been made yet.
     expect(navigator.geolocation.getCurrentPosition).not.toHaveBeenCalled();
   });
@@ -717,7 +726,12 @@ describe("first-run handoff to the planner", () => {
     expect(container.textContent).toContain("Cheapest listed around Soho");
   });
 
-  it("hands over the budget alone after a located answer, and keeps no coordinates", async () => {
+  it.each([
+    { reload: false, isNative: false },
+    { reload: true, isNative: false },
+    { reload: true, isNative: true },
+  ])("hands over a located area without coordinates: %j", async ({ reload, isNative }) => {
+    native.enabled = isNative;
     stubGeolocation((ok) =>
       ok({ coords: { latitude: 51.5136, longitude: -0.1365 } } as GeolocationPosition),
     );
@@ -727,8 +741,132 @@ describe("first-run handoff to the planner", () => {
     await tap("Use my location");
     await settle();
     await tap("That looks right");
+    if (reload) {
+      await act(async () => root?.unmount());
+      if (isNative) {
+        window.sessionStorage.clear();
+        window.history.replaceState(null, "", "/");
+      }
+      root = createRoot(container);
+      await act(async () => {
+        root?.render(createElement(FirstRunOnboarding, { reviewedAreas: [], skipHref: "/tonight", openPlanner }));
+      });
+    }
     await tap("Plan my night");
 
-    expect(readPlannerHandoff()).toEqual({ patch: null, budget: "seven" });
+    expect(readPlannerHandoff()).toEqual({ patch: null, budget: "seven", nightArea: "piccadilly-soho" });
+    const href = new URL(onboardingPlanHref(readPlannerHandoff()), "http://localhost");
+    expect(href.searchParams.get("query")).toBe("3 pubs in Piccadilly & Soho, under £21 per person, maximum £7 per pint");
+    expect(href.searchParams.get("from")).toBe("onboarding");
+    for (const storage of [window.localStorage, window.sessionStorage]) {
+      const stored = JSON.stringify(Object.entries(storage));
+      expect(stored).not.toContain("51.5136");
+      expect(stored).not.toContain("-0.1365");
+    }
+  });
+  it("shows nearby listed prices outside planner-area discs", async () => {
+    slim.load.mockResolvedValueOnce({ status: "ready", rows: [
+      { id: "arnos-arms", name: "Arnos Arms", lat: 51.6162, lng: -0.132117, cheapestPrice: 5.5, borough: "Enfield" },
+    ] });
+    stubGeolocation((ok) => ok({ coords: { latitude: 51.6162, longitude: -0.132117 } } as GeolocationPosition));
+    await reachLocation();
+    await tap("Use my location");
+    await settle();
+    expect(container.textContent).toContain("Arnos Arms");
+    expect(container.textContent).toContain("£5.50");
+    expect(container.textContent).not.toContain("We don't list prices where you are yet");
+    await tap("That looks right");
+    await tap("Plan my night");
+    expect(openPlanner).not.toHaveBeenCalled();
+    expect(hasSeenTour()).toBe(false);
+    expect(container.textContent).toContain("Or pick where you’re drinking");
+    await historySettles();
+    await tap("Soho");
+    await settle();
+    await tap("That looks right");
+    await tap("Plan my night");
+    await historySettles();
+    expect(openPlanner).toHaveBeenCalledOnce();
+    expect(readPlannerHandoff()).toEqual({ patch: { lat: 51.5136, lng: -0.1365 }, budget: "six" });
+    for (const storage of [window.localStorage, window.sessionStorage]) {
+      expect(JSON.stringify(Object.entries(storage))).not.toMatch(/51\.6162|-0\.132117/);
+    }
+  });
+
+  // The tab's copy is optional restoration. A refused write must not lose the
+  // reader's choice, and an older copy must never stand in for it.
+  it.each([
+    { prior: false },
+    { prior: true },
+  ])("opens the planner on this click's choices when the tab refuses the handoff: %j", async ({ prior }) => {
+    const handoffKey = "pubmax:onboarding:planner-handoff:v1";
+    const older = JSON.stringify({ nightArea: "clapham", patch: null, budget: "five", at: Date.now() });
+    if (prior) window.sessionStorage.setItem(handoffKey, older);
+    const setItem = Storage.prototype.setItem;
+    const refuse = vi.spyOn(Storage.prototype, "setItem").mockImplementation(function (this: Storage, key, value) {
+      if (this === window.sessionStorage && key === handoffKey) {
+        throw new DOMException("The quota has been exceeded.", "QuotaExceededError");
+      }
+      setItem.call(this, key, value);
+    });
+    try {
+      await reachLocation();
+      await tap("Pick a London patch instead");
+      await tap("Soho");
+      await settle();
+      await tap("That looks right");
+      await tap("Fox");
+      await tap("Plan my night");
+      await historySettles();
+    } finally {
+      refuse.mockRestore();
+    }
+
+    expect(window.sessionStorage.getItem(handoffKey)).toBe(prior ? older : null);
+    expect(openPlanner).toHaveBeenCalledOnce();
+    expect(openPlanner).toHaveBeenCalledWith({ patch: { lat: 51.5136, lng: -0.1365 }, budget: "six" });
+    const firstCall = openPlanner.mock.calls[0];
+    if (!firstCall) throw new Error("The planner did not receive the onboarding choices.");
+    const href = new URL(onboardingPlanHref(firstCall[0]), "http://localhost");
+    expect(href.searchParams.get("query")).toBe("3 pubs in Soho, under £18 per person, maximum £6 per pint");
+    expect(href.searchParams.get("from")).toBe("onboarding");
+  });
+
+});
+
+// #1531: once the consent card was answered, the photograph band came back at
+// full height and pushed "Use London" under the foot of an Android screen,
+// because the action row was laid out INSIDE the stage the photograph shares.
+// The row is now the surface's own footer, outside the scroller, in a column
+// exactly the viewport tall, so no height the stage takes can move it.
+describe("first-run primary action", () => {
+  // Led by a newline so the file's first rule matches like every other.
+  const css = `\n${readFileSync(join(process.cwd(), "app/onboarding/onboarding.css"), "utf8")}`;
+  const rule = (selector: string): string => {
+    const start = css.indexOf(`\n${selector} {`);
+    expect(start, `${selector} must be styled`).toBeGreaterThan(-1);
+    return css.slice(start, css.indexOf("\n}", start + 1));
+  };
+
+  it("sits in a footer beside the scrolling stage, never inside it", () => {
+    const primary = buttonContaining("Use London");
+    const footer = primary.closest("footer.firstRunActions");
+    const stage = container.querySelector(".firstRunStage");
+    expect(footer).not.toBeNull();
+    expect(stage).not.toBeNull();
+    expect(stage?.contains(primary)).toBe(false);
+    expect(stage?.nextElementSibling).toBe(footer);
+  });
+
+  it("is laid out in a column the viewport tall, where only the stage gives", () => {
+    const surface = rule(".firstRunOnboarding");
+    expect(surface).toMatch(/height:\s*100dvh;/);
+    expect(surface).toMatch(/flex-direction:\s*column;/);
+    expect(surface).toMatch(/overflow:\s*hidden;/);
+    const stage = rule(".firstRunStage");
+    expect(stage).toMatch(/flex:\s*1 1 auto;/);
+    expect(stage).toMatch(/min-height:\s*0;/);
+    expect(stage).toMatch(/overflow-y:\s*auto;/);
+    expect(rule(".firstRunActions")).toMatch(/flex:\s*0 0 auto;/);
   });
 });

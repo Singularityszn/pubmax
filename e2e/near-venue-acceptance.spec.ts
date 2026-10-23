@@ -53,12 +53,12 @@ test("Near separates browsing from permanent Venue acceptance", async ({ page })
   const accept = page.locator(".nmnAccept").first();
   await expect(accept).toBeVisible();
   await expect(accept).toHaveText("Keep for tonight");
-  // Keep for tonight is a tinted text button, so it reads the --control-* row
+  // Keep for tonight is a secondary text button, so it reads the --control-* row
   // (docs/DESIGN_SYSTEM.md, "Text buttons", #1508): the control height, and the
-  // tinted surface and border, which are the active state's own.
+  // secondary surface, border and ink.
   const appearance = await accept.evaluate((button) => {
     const probe = document.createElement("span");
-    probe.style.cssText = "position:fixed;box-sizing:border-box;height:var(--control-height);background:var(--state-active-surface);border:1px solid var(--state-active-border);color:var(--state-active-ink)";
+    probe.style.cssText = "position:fixed;box-sizing:border-box;height:var(--control-height);background:var(--control-secondary-surface);border:1px solid var(--control-secondary-border);color:var(--ink)";
     document.body.appendChild(probe);
     const actual = getComputedStyle(button);
     const expected = getComputedStyle(probe);
@@ -121,10 +121,17 @@ test("Near separates browsing from permanent Venue acceptance", async ({ page })
   await expect(page).toHaveURL(/\/map(\/[a-z-]+)?\?[^#]*\bsel=[^&]+&accept=1&src=near/);
   await expect(page.getByText("Kept for tonight. Make it Stop 1 when you are ready.")).toBeVisible();
   const acceptStop1 = page
-    .locator('.mobileSheetPortal[data-sheet-kind="venue"]')
+    .locator('.mobileSheetPortal[data-sheet-kind="venue"] .mobileVenuePeekSummary')
     .getByRole("button", { name: /^Make .+ Stop 1$/ });
   await expect(acceptStop1).toBeVisible({ timeout: 30_000 });
   await expect(acceptStop1).toHaveText("Make it Stop 1");
+  // The receipt names ONE door, and the phone sheet has exactly one: the
+  // peek's coral plan door (lib/venuePlanDoor.ts), never a footer ghost too.
+  await expect(
+    page
+      .locator('.mobileSheetPortal[data-sheet-kind="venue"]')
+      .getByRole("button", { name: /^Make .+ Stop 1$/ }),
+  ).toHaveCount(1);
   // The acceptance markers must survive the Venue detail load. Canonicalising
   // the selected id is the SAME pub resolving its own name, never a switch to
   // another one, so it may not quietly turn an accepted arrival into browsing.
@@ -220,7 +227,7 @@ test("Map rejects forged Near acceptance markers", async ({ page }) => {
   await page.goto(forgedUrl.toString());
 
   const acceptStop1 = page
-    .locator('.mobileSheetPortal[data-sheet-kind="venue"]')
+    .locator('.mobileSheetPortal[data-sheet-kind="venue"] .mobileVenuePeekSummary')
     .getByRole("button", { name: /^Make .+ Stop 1$/ });
   await expect(acceptStop1).toBeVisible({ timeout: 45_000 });
   await expect(page.locator(".venueAcceptanceReceipt")).toHaveCount(0);

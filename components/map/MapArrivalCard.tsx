@@ -62,7 +62,7 @@ export default function MapArrivalCard({
     onDismiss?.();
   };
 
-  useDismissOnEscape(true, dismiss);
+  useDismissOnEscape(true, dismiss, cardRef);
 
   return (
     <aside

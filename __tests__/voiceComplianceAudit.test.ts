@@ -171,7 +171,7 @@ describe("VOICE.md compliance audit", () => {
     expect(tonight).not.toContain("same spine as the map");
     expect(tonightPage).not.toContain("Same spine as the map");
     expect(tonightPage).toContain(
-      "Check sourced London pub listings for tonight on PubMaxxing, with map links when available.",
+      "Check sourced London pub listings for tonight on PUBMAXX, with map links when available.",
     );
     expect(planTemplates).not.toContain("What's-On spine");
     expect(planTemplates).toContain("Quiz listings with start times.");
@@ -524,7 +524,8 @@ describe("DESIGN_SYSTEM.md caps policy — eyebrows are sentence case", () => {
     ["app/pal/pal.css", [".palEyebrow", ".palMemoryList__meta span"]],
     // Pub Pal chat's kicker is the shared Kicker primitive inside its Screen head.
     ["components/pal/palChat.css", [".palGlanceLabel"]],
-    ["app/messages/messages.css", [".messagesThreadEyebrow"]],
+    // The messages thread-pane eyebrow is gone (taste plan, 18 Oct 2026): the
+    // signed-out page is one empty state with no second "Messages" kicker.
     // The landing's labels are the shared Kicker primitive (components/ui/kicker.css).
     ["components/ui/kicker.css", [".kicker"]],
     ["components/plan/nightCrawl.css", [

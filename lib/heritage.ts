@@ -26,6 +26,7 @@ import { heritageFactFromOverlay } from "@/lib/harvestFold";
 import { harvestOverlayStore } from "@/lib/harvestOverlayStore";
 import { resolveHarvestOverlayVenue } from "@/lib/harvestOverlayVenue";
 import { getListedBuilding } from "@/lib/heritageListings";
+import { packWikidataHistoryForVenue } from "@/lib/wikidataHistory.server";
 import { getSupabaseAdmin, isSupabaseConfigured } from "@/lib/supabase";
 import { lookupCanonicalVenue } from "@/lib/venueIndex";
 import { venueKindNoun } from "@/lib/venueKindFilters";
@@ -38,6 +39,8 @@ export type HeritageFact = {
   source: "osm" | "wikidata" | "wikipedia" | "seed" | "nhle" | "web";
   fact: string;
   sourceRef?: string;
+  /** ISO day the source was read, where the pack records one; the sheet prints it. */
+  observedAt?: string;
 };
 
 // Sources that count as trusted/sourced facts (server-retrieved). "nhle" is
@@ -151,8 +154,18 @@ export async function retrieveHeritageWithStatus(input: {
   // same-named pub. This is the authoritative "brass plaque" line, so it leads.
   const listed = await getListedBuilding(input.venueId);
   if (listed) {
-    facts.push({ source: "nhle", fact: listed.fact, sourceRef: listed.url });
+    facts.push({
+      source: "nhle",
+      fact: listed.fact,
+      sourceRef: listed.url,
+      ...(listed.retrievedAt ? { observedAt: listed.retrievedAt } : {}),
+    });
   }
+
+  // (0b) Wikidata history, through the pub's own OSM wikidata tag: an exact
+  // item, each statement dated and linked (lib/wikidataHistory.ts). Ahead of
+  // the name-keyed cache, so its exact facts win the de-dupe.
+  if (input.venueId) facts.push(...(await packWikidataHistoryForVenue(input.venueId)));
 
   if (!input.venueId || serverVenueName) {
     // (1) Server facts first — the shipped cache keyed by normalised name.
@@ -401,8 +414,14 @@ export async function answerHeritage(input: {
     ...input,
     overlayVenueResolution: venueResolution ?? undefined,
   });
-  const facts = heritageRead.facts;
-  const citations = dedupeCitations(facts);
+  const citations = dedupeCitations(heritageRead.facts);
+  const seenFacts = new Set<string>();
+  const facts = heritageRead.facts.filter(({ fact }) => {
+    const key = fact.normalize("NFC").trim().replace(/\s+/g, " ").replace(/[.!?]+$/, "").toLowerCase();
+    if (seenFacts.has(key)) return false;
+    seenFacts.add(key);
+    return true;
+  });
 
   if (useLlm && key) {
     const modelAnswer = await answerWithModel(input.question, facts, venueNoun);

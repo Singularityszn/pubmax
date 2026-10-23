@@ -46,17 +46,41 @@ export type PintPriceAverages = {
  */
 export const MIN_SAVINGS_SAMPLE = 30;
 
+/**
+ * Each priced pub's cheapest pint, the one figure per pub every "London
+ * average pint" on the site is taken over. The landing and /about both read it
+ * (site review, 18 Oct 2026: the landing said £5.54 and /about £5.72, because
+ * /about averaged every reading and so counted a pub with five pints five
+ * times). One cohort, one number.
+ */
+export function pubCheapestPrices(
+  venues: readonly { cheapestPrice?: number | null }[],
+): number[] {
+  return venues.flatMap((venue) =>
+    typeof venue.cheapestPrice === "number" &&
+    Number.isFinite(venue.cheapestPrice) &&
+    venue.cheapestPrice > 0
+      ? [venue.cheapestPrice]
+      : [],
+  );
+}
+
+/** The mean of the usable prices, rounded to pence, or null when there are none. */
+export function averagePriceGbp(prices: readonly number[]): number | null {
+  const usable = prices.filter((price) => Number.isFinite(price) && price > 0);
+  if (usable.length === 0) return null;
+  return round2(usable.reduce((total, price) => total + price, 0) / usable.length);
+}
+
 /** The two means, over one array of prices. Sorted here, so callers need not. */
 export function pintPriceAverages(prices: readonly number[]): PintPriceAverages | null {
   const usable = prices.filter((price) => Number.isFinite(price) && price > 0).sort((a, b) => a - b);
   if (usable.length < MIN_SAVINGS_SAMPLE) return null;
-  const mean = (rows: readonly number[]): number =>
-    rows.reduce((total, price) => total + price, 0) / rows.length;
   // The cheapest third, the same cut lib/priceBand.ts makes.
   const third = usable.slice(0, Math.floor(usable.length / 3));
   return {
-    averageGbp: round2(mean(usable)),
-    cheapAverageGbp: round2(mean(third)),
+    averageGbp: averagePriceGbp(usable) as number,
+    cheapAverageGbp: averagePriceGbp(third) as number,
     sampleSize: usable.length,
   };
 }

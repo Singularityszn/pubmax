@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { BookOpen, ExternalLink } from "lucide-react";
+import { PintPriceBadge } from "@/components/PriceBadge";
 import { useStaggeredRead } from "@/lib/useStaggeredRead";
 
 import { ClaimBadge } from "@/components/map/venueInspectorBits";
@@ -8,7 +9,8 @@ import { discardBody } from "@/lib/responseBody";
 import { formatPrice, type Venue } from "@/lib/venues";
 import { buildVenueClaims } from "@/lib/curation";
 import { heritageSourceLabel } from "@/lib/historicFilter";
-import { sanitizeHeritageFacts, type HeritageFact } from "@/lib/heritageFacts";
+import DataCreditsLink from "@/components/legal/DataCreditsLink";
+import { heritageReadLabel, sanitizeHeritageFacts, type HeritageFact } from "@/lib/heritageFacts";
 import { presentableDescription } from "@/lib/slopFilter";
 import type { DropWithPhotos } from "@/components/map/usePintDrops";
 import { bandsForVenue, type StoryBand } from "@/lib/storyBands";
@@ -150,6 +152,9 @@ export default function VenueStoryTab({
                   <span className="heritageSourceChip" data-source={fact.source}>
                     {heritageSourceLabel(fact.source)}
                   </span>
+                  {heritageReadLabel(fact.observedAt) ? (
+                    <span className="heritageFactRead">{heritageReadLabel(fact.observedAt)}</span>
+                  ) : null}
                   {fact.sourceRef ? (
                     <a
                       className="heritageFactCite"
@@ -158,13 +163,16 @@ export default function VenueStoryTab({
                       rel="noopener noreferrer"
                     >
                       Source
-                      <ExternalLink size={13} />
+                      <ExternalLink size={14} />
                     </a>
                   ) : null}
                 </div>
               </li>
             ))}
           </ul>
+          <p className="heritageCredits">
+            <DataCreditsLink />
+          </p>
         </section>
       ) : null}
       {description ? (
@@ -181,7 +189,7 @@ export default function VenueStoryTab({
               rel="noopener noreferrer"
             >
               Story source
-              <ExternalLink size={13} />
+              <ExternalLink size={14} />
             </a>
           ) : null}
         </div>
@@ -204,7 +212,7 @@ export default function VenueStoryTab({
               {claim.sourceRef ? (
                 <a href={claim.sourceRef} target="_blank" rel="noreferrer">
                   {claim.label}
-                  <ExternalLink size={13} />
+                  <ExternalLink size={14} />
                 </a>
               ) : null}
             </div>
@@ -265,7 +273,7 @@ export default function VenueStoryTab({
                         rel="noreferrer"
                       >
                         {source.label}
-                        <ExternalLink size={13} />
+                        <ExternalLink size={14} />
                       </a>
                     ) : null}
                   </div>
@@ -293,7 +301,11 @@ export default function VenueStoryTab({
         {venue.prices.slice(0, 6).map((price) => (
           <div key={price.app_price_id}>
             <span>{price.pint_name}</span>
-            <strong>{formatPrice(price.price_gbp)}</strong>
+            {price.price_gbp === null ? (
+              <span>{formatPrice(null)}</span>
+            ) : (
+              <PintPriceBadge priceGbp={price.price_gbp} venueId={venue.id} />
+            )}
           </div>
         ))}
       </div>

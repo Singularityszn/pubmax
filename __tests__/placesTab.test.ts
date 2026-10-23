@@ -29,6 +29,11 @@ import {
   PLACES_SET_CITY_LABEL,
   PLACES_SHOW_ALL_LABEL,
   PLACES_TITLE,
+  PLACES_LEDE,
+  PLACES_UK_LINE,
+  PLACES_UK_TITLE,
+  PLACES_WAITLIST_HREF,
+  PLACES_WAITLIST_LABEL,
   filterPlacesCityRows,
   parsePlacesCityParam,
   placesAreasEmptyLine,
@@ -38,6 +43,7 @@ import {
   placesCityRows,
   placesCityActions,
   placesCurrentCityLine,
+  placesLiveCityRows,
   placesPricesLine,
   placesPricesPill,
   placesSearchEmptyLine,
@@ -151,6 +157,23 @@ describe("Places city chooser", () => {
     expect(filterPlacesCityRows(rows, "reykjavik")).toEqual([]);
   });
 
+  it("lists only the cities with listed prices, London first", () => {
+    // Product owner, Oct 2026 UX audit: eleven "Prices coming" rows read as
+    // eleven promises, so the list screen names the live cities alone.
+    const live = placesLiveCityRows();
+    expect(live.map((row) => row.cityId)).toEqual(
+      placesCityRows().filter((row) => row.pricesListed).map((row) => row.cityId),
+    );
+    expect(live[0]?.cityId).toBe("london");
+    for (const row of live) expect(row.pricesListed).toBe(true);
+    expect(live.some((row) => row.cityId === "manchester")).toBe(false);
+  });
+
+  it("offers a waitlist for every other city, by email", () => {
+    expect(PLACES_WAITLIST_LABEL).toBe("Want your city next? Tell us.");
+    expect(PLACES_WAITLIST_HREF).toBe("mailto:hello@pubmaxxing.com?subject=City%20request");
+  });
+
   it("says which name it could not find rather than showing a bare blank", () => {
     expect(placesSearchEmptyLine("Reykjavik")).toContain("Reykjavik");
     expect(placesSearchEmptyLine("Reykjavik")).not.toMatch(/try again later/i);
@@ -240,8 +263,15 @@ describe("Places capability copy", () => {
   it("keeps plumbing words out of every sentence a reader sees", () => {
     const copy = [
       PLACES_TITLE,
+  PLACES_LEDE,
+  PLACES_UK_LINE,
+  PLACES_UK_TITLE,
       PLACES_KICKER,
       PLACES_SET_CITY_LABEL,
+      PLACES_WAITLIST_LABEL,
+      PLACES_LEDE,
+      PLACES_UK_TITLE,
+      PLACES_UK_LINE,
       ...listEnabledCities().flatMap((city) => [
         placesPricesLine(city.id),
         placesAreasEmptyLine(city.id),
@@ -262,7 +292,7 @@ describe("Places capability copy", () => {
 // The preference write, and the surfaces that follow it
 // ---------------------------------------------------------------------------
 
-describe("Places sets the one city Map, Out and Near follow", () => {
+describe("Places sets the one city Map and Near follow", () => {
   beforeEach(() => {
     installWindow();
   });
@@ -279,13 +309,6 @@ describe("Places sets the one city Map, Out and Near follow", () => {
     expect(buildTabs("/u/you" as Route, preferredCityMapHref()).find(
       (tab) => tab.label === "Map",
     )?.href).toBe("/map/manchester");
-  });
-
-  it("Out asks its API for the city Places set", () => {
-    writePreferredCity("manchester");
-    // The one thing /out reads. `useOutListings` builds its query from exactly
-    // this value, and the route accepts every city the app knows.
-    expect(readPreferredCity()).toBe("manchester");
   });
 
   it("Near reads the same stored city Places wrote", () => {
@@ -313,10 +336,11 @@ describe("Places sets the one city Map, Out and Near follow", () => {
       primary: null,
       secondary: { href: "/map/manchester", label: "Open the map" },
     });
-    // Yours: the map is the painted way in, and Out follows the same city.
+    // Yours: the map is the painted way in, and Tonight (which carries what
+    // Out listed; /out 308s there) is the quiet second.
     expect(placesCityActions(map, true)).toEqual({
       primary: { href: "/map/manchester", label: "Open the map" },
-      secondary: { href: "/out", label: "What's on" },
+      secondary: { href: "/tonight", label: "What's on" },
     });
     // Neither shape offers the same door twice.
     for (const isYours of [true, false]) {
@@ -324,7 +348,7 @@ describe("Places sets the one city Map, Out and Near follow", () => {
       expect(primary?.href).not.toBe(secondary.href);
     }
     expect(placesCurrentCityLine("manchester")).toBe(
-      "The map, Out and Near now open on Manchester.",
+      "The map and Near now open on Manchester.",
     );
   });
 });
@@ -333,25 +357,25 @@ describe("Places sets the one city Map, Out and Near follow", () => {
 // The tab itself
 // ---------------------------------------------------------------------------
 
-describe("Places is a durable destination", () => {
-  it("sits beside Map in the phone tab row and the desktop nav model", () => {
+describe("Places is a setting, not a tab", () => {
+  it("is in neither the phone tab row nor the desktop nav model", () => {
+    // Product owner, Oct 2026: the row is Map, Tonight, Plan, Social, You. The
+    // picker is reached from the map's city chip and the footer's "Pick your city".
     expect(PRIMARY_NAV_ITEMS.map((item) => item.key)).toEqual([
-      "now",
       "map",
-      "places",
-      "out",
+      "now",
       "plan",
+      "social",
       "you",
     ]);
     expect(buildTabs().map((tab) => tab.label)).toEqual([
-      "Tonight",
       "Map",
-      "Places",
-      "Out",
+      "Tonight",
       "Plan",
+      "Social",
       "You",
     ]);
-    expect(primaryNavKeyForPath("/places")).toBe("places");
+    expect(primaryNavKeyForPath("/places")).toBeUndefined();
   });
 });
 
@@ -544,9 +568,19 @@ describe("Places screen", () => {
     expect(list).toContain(PLACES_TITLE);
     // Exactly one painted action per screen, counted the way coreUiAudit does.
     expect(list.match(/data-primary-action/g)?.length).toBe(1);
-    expect(list).toContain("Manchester");
-    expect(list).toContain(PLACES_PRICES_COMING_PILL);
-    expect(list).toContain(PLACES_PRICES_LISTED_PILL);
+    // ONE CITY SAYS SO (taste plan, 18 Oct 2026): the heading names London
+    // as the only city, the one door opens it and the city request sits
+    // beside that door. No city search field, no one-row city list, and no
+    // other city named.
+    expect(list).toContain("London only, for now.");
+    expect(list).not.toContain("Manchester");
+    expect(list).not.toContain(PLACES_PRICES_COMING_PILL);
+    expect(list).not.toContain(PLACES_PRICES_LISTED_PILL);
+    expect(list).not.toContain("Find a city");
+    expect(list).toMatch(/class="screenSecondary"><a[^>]*href="mailto:hello@pubmaxxing.com\?subject=City%20request"/);
+    expect(list).toContain(PLACES_WAITLIST_LABEL);
+    expect(list).toContain(PLACES_UK_TITLE);
+    expect(list).toContain("mailto:hello@pubmaxxing.com?subject=City%20request");
 
     const panel = renderToStaticMarkup(
       createElement(PlacesClient, { cityId: "manchester" as const }),

@@ -31,6 +31,8 @@ import {
   rankNearMe,
   type NearMeCard,
 } from "@/lib/nearMeAnswer";
+import { getNightAreasForCity, tryGetNightArea } from "@/lib/nightAreas";
+import { venueAreaClaim } from "@/lib/venueTruth";
 import { NIGHT_PATCHES } from "@/lib/nightPatches";
 import {
   markNativeFirstRunRouted,
@@ -45,16 +47,19 @@ import {
   ONBOARDING_STEPS,
   nextOnboardingStep,
   onboardingResult,
+  onboardingPlanHref,
   onboardingStepNumber,
   previousOnboardingStep,
   readBudgetChoice,
   readOnboardingPatch,
+  clearPlannerHandoff,
   writeBudgetChoice,
   writeOnboardingPatch,
   writePlannerHandoff,
   type BudgetChoiceId,
   type OnboardingOrigin,
   type OnboardingStep,
+  type PlannerHandoff,
 } from "@/lib/onboardingFlow";
 import { DEFAULT_PAL_DRAFT } from "@/lib/pubPal";
 import { readHistoryStep, useStepHistory } from "@/lib/useStepHistory";
@@ -85,18 +90,21 @@ const GEO_OPTIONS: PositionOptions = {
 };
 
 /**
- * The map reads its arrival query once, when it mounts. A client navigation
- * can mount it before the address bar holds `?plan=1`, so the planner stayed
- * shut and the handoff below was never read. A document load always carries
- * the query, so this one step leaves the app router.
+ * The shared planner generates from this handoff instead of displaying the
+ * map's unrelated default crawl. A document load carries its query on mount.
+ * The current choice supplies the link when session storage refuses a write.
  */
-function openPlannerDocument(): void {
-  window.location.assign(new URL("/map?plan=1", window.location.origin).href);
+function openPlannerDocument(handoff: PlannerHandoff): void {
+  const href = onboardingPlanHref(handoff);
+  clearPlannerHandoff();
+  window.location.assign(new URL(href, window.location.origin).href);
 }
 
 function patchOrigin(id: string | null): OnboardingOrigin | null {
   const patch = NIGHT_PATCHES.find((candidate) => candidate.id === id);
-  return patch ? { kind: "patch", ...patch } : null;
+  if (patch) return { kind: "patch", ...patch };
+  const area = id?.startsWith("area:") ? tryGetNightArea(id.slice(5)) : null;
+  return area ? { kind: "location", ...area.centre } : null;
 }
 
 /** The pinned action bar's one primary, named for the step it advances. */
@@ -138,7 +146,7 @@ export default function FirstRunOnboarding({
   /** Where Skip lands: where the reader was going before the journey. */
   skipHref: Route;
   /** How "Plan my night" reaches the planner. Tests replace the page load. */
-  openPlanner?: () => void;
+  openPlanner?: (handoff: PlannerHandoff) => void;
 }) {
   const router = useRouter();
   // A reload lands on the step the reader was on. The answer screen is rebuilt
@@ -236,9 +244,13 @@ export default function FirstRunOnboarding({
   // not run is not an empty area: it is its own answer, with a retry.
   const readAnswer = useCallback(async (from: OnboardingOrigin) => {
     const generation = beginAnswer();
+    const locatedArea = from.kind === "location"
+      ? venueAreaClaim({ latitude: from.lat, longitude: from.lng }, getNightAreasForCity("london")).area
+      : null;
     setOrigin(from);
-    writeOnboardingPatch(from.kind === "patch" ? from.id : null);
-    rememberNativeFirstRunPatch(from.kind === "patch" ? from.id : null);
+    const areaId = from.kind === "patch" ? from.id : locatedArea ? `area:${locatedArea.slug}` : null;
+    writeOnboardingPatch(areaId);
+    rememberNativeFirstRunPatch(areaId);
     setAnswer({ status: "loading" });
     setStep("result");
     let read: SlimVenueLoadResult;
@@ -336,6 +348,15 @@ export default function FirstRunOnboarding({
 
   function startPlan() {
     if (!companion) return;
+    const locatedArea = origin?.kind === "location" ? tryGetNightArea(venueAreaClaim(
+      { latitude: origin.lat, longitude: origin.lng }, getNightAreasForCity("london"),
+    ).area?.slug)?.slug : undefined;
+    if (origin?.kind === "location" && !locatedArea) {
+      setLocateState("idle");
+      setShowPatches(true);
+      setStep("location");
+      return;
+    }
     writePreferredCity("london");
     writeFirstRunCompanion(companion);
     if (isNativeApp()) markNativeFirstRunRouted();
@@ -345,11 +366,15 @@ export default function FirstRunOnboarding({
     // action allowed to arm the native permission explainer.
     releaseTourPromptBudget();
     // The planner opens on the patch and budget the reader just gave.
-    writePlannerHandoff({
+    const handoff: PlannerHandoff = {
       patch: origin?.kind === "patch" ? { lat: origin.lat, lng: origin.lng } : null,
       budget,
-    });
-    stepHistory.leave(openPlanner);
+      ...(origin?.kind === "location" ? {
+        nightArea: locatedArea,
+      } : {}),
+    };
+    writePlannerHandoff(handoff);
+    stepHistory.leave(() => openPlanner(handoff));
   }
 
   const stepNumber = onboardingStepNumber(step);
@@ -389,9 +414,9 @@ export default function FirstRunOnboarding({
       data-stage={step}
     >
       <header className="firstRunTopbar">
-        <div className="firstRunBrand" aria-label="PUBMAXXING">
+        <div className="firstRunBrand" aria-label="PUBMAXX">
           <Image src="/brand/icon.svg" alt="" width={30} height={30} priority />
-          <span>PUBMAXXING</span>
+          <span>PUBMAXX</span>
         </div>
         <div
           className="firstRunProgress"
@@ -476,7 +501,7 @@ export default function FirstRunOnboarding({
                 <div className="firstRunAreaList" aria-label="Reviewed London route areas">
                   {reviewedAreas.map((area) => (
                     <article key={area.name}>
-                      <MapPinned size={19} aria-hidden="true" />
+                      <MapPinned size={20} aria-hidden="true" />
                       {/* The stamp rides INSIDE the text block, so a short
                           phone can fold it onto the way-home line
                           (app/onboarding/onboarding.css, the short phone). */}
@@ -540,7 +565,7 @@ export default function FirstRunOnboarding({
                       >
                         <span>{choice.label}</span>
                         <small>{choice.note}</small>
-                        {selected ? <Check size={18} aria-hidden="true" /> : null}
+                        {selected ? <Check size={16} aria-hidden="true" /> : null}
                       </button>
                     );
                   })}
@@ -566,13 +591,13 @@ export default function FirstRunOnboarding({
               beginAnswer();
               goTo(step === "companion" ? resultStep : previous);
             }}>
-              <ArrowLeft size={18} aria-hidden="true" /> Back
+              <ArrowLeft size={16} aria-hidden="true" /> Back
             </button>
           ) : null}
           <button type="button" className="firstRunPrimary pressable" disabled={primaryDisabled} onClick={advance}>
-            {step === "location" ? <LocateFixed size={18} aria-hidden="true" /> : null}
+            {step === "location" ? <LocateFixed size={16} aria-hidden="true" /> : null}
             {primaryLabel}
-            {step !== "location" ? <ArrowRight size={18} aria-hidden="true" /> : null}
+            {step !== "location" ? <ArrowRight size={16} aria-hidden="true" /> : null}
           </button>
         </div>
       </footer>

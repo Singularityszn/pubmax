@@ -11,10 +11,15 @@
 // this card as a sentence about the past and stops. It never touches the
 // card's current price, which is passed in from the priced venue index.
 //
-// Which pub: a short preference list first, because the front door should
-// show a pub a Londoner knows, then the longest archive span among pubs that
-// carry both a listed price and a history row. Deterministic, so the
-// prerendered document and its share card agree.
+// Which pub: the CHEAPEST listed pint among pubs that carry both a listed
+// price and a history row (product decision 16 Oct 2026, after a UX audit).
+// The front door's one action says "Cheapest pints near me", so the pub under
+// it shows a cheap pint rather than a famous dear one: a hand-picked £6.50 pub
+// under that promise read as a contradiction. A pub whose figure stands as
+// `listed` (a named publisher read inside its window) beats one that does not,
+// so the card keeps its provenance line; ties go to the longer archive span,
+// then the name. Deterministic, so the prerendered document and its share card
+// agree, and derived, so a re-collected dataset moves the pick.
 
 import type { Route } from "next";
 import { buildDrinkBrandLanding, DRINK_BRAND_LANDING_CATALOG } from "@/lib/drinkBrandLanding";
@@ -35,21 +40,16 @@ import {
 } from "@/lib/priceHistory";
 import { priceMovementLine } from "@/lib/priceMovementLine";
 import type { PriceStanding } from "@/lib/priceTier";
-import { isPubVenueKind } from "@/lib/venueKindFilters";
+import { isPublicRankablePub } from "@/lib/venueKindFilters";
 import { venueMapUrl } from "@/lib/venueMapUrl";
+import { venueAreaLabel } from "@/lib/venueDisplay";
 import type { Venue } from "@/lib/venues";
-
-/** Pubs a Londoner knows, tried in order. Ids are the curated venue ids. */
-export const LANDING_PUB_PREFERENCE: readonly string[] = [
-  "venue-eltcmh", // The Blackfriar, City of London
-  "venue-1w54puk", // Fountains Abbey, Paddington
-  "venue-qk6ti7", // Camden Head
-];
 
 export type LandingPubCardData = {
   id: string;
   name: string;
   area: string;
+  primaryBorough: string;
   /** Listed cheapest pint today, in pounds. */
   priceGbp: number;
   /** The pint the price is for, as the dataset names it. */
@@ -78,8 +78,12 @@ export type LandingPubCardData = {
     observedOn: string;
     source: { label: string; url: string };
   };
-  /** "Up £2.90 in 13 years." */
-  movementLine: string;
+  /**
+   * "Up £2.90 in 13 years.", or null when lib/priceHistory.ts cannot show the
+   * two figures are the same pint at an ordinary price. Both figures print
+   * either way; only the movement is withheld.
+   */
+  movementLine: string | null;
   mapHref: string;
 };
 
@@ -111,18 +115,35 @@ export function buildLandingPubCard(
   const now = opts.now ?? Date.now();
   const history = groupPriceHistoryByVenue(parsePriceHistory(rawHistory, now));
   const candidates = venues.filter(
-    (venue) => typeof venue.cheapestPrice === "number" && venue.cheapestPrice > 0 && history.has(venue.id),
+    (venue) =>
+      isPublicRankablePub(venue) &&
+      typeof venue.cheapestPrice === "number" &&
+      venue.cheapestPrice > 0 &&
+      history.has(venue.id),
   );
   if (candidates.length === 0) return null;
 
-  const preferred = LANDING_PUB_PREFERENCE.map((id) => candidates.find((v) => v.id === id)).find(Boolean);
-  const chosen =
-    preferred ??
-    [...candidates].sort((a, b) => spanYears(history.get(b.id), b, now) - spanYears(history.get(a.id), a, now))[0];
+  // Listed first, then cheapest, then the longest archive span, then the name.
+  const ranked = candidates.map((venue) => ({
+    venue,
+    listed: answerEvidenceFor({ priceGbp: venue.cheapestPrice as number, prices: venue.prices }, now).standing === "listed",
+    span: spanYears(history.get(venue.id), venue, now),
+  }));
+  ranked.sort(
+    (a, b) =>
+      Number(b.listed) - Number(a.listed) ||
+      (a.venue.cheapestPrice as number) - (b.venue.cheapestPrice as number) ||
+      b.span - a.span ||
+      a.venue.name.localeCompare(b.venue.name),
+  );
+  const chosen = ranked[0]?.venue;
   if (!chosen) return null;
 
+  // The bundled index names the cheapest pint but states neither its serving
+  // nor its terms, so today's figure carries no comparison item and no movement
+  // is said against the archive. The card still stands on both figures.
   const arc = venuePriceArc(history.get(chosen.id) ?? [], chosen.cheapestPrice, now);
-  if (!arc || arc.nowGbp === null || arc.deltaGbp === null) return null;
+  if (!arc || arc.nowGbp === null) return null;
 
   const { publisher, standing, observedOn } = answerEvidenceFor(
     { priceGbp: arc.nowGbp, prices: chosen.prices },
@@ -132,7 +153,8 @@ export function buildLandingPubCard(
   return {
     id: chosen.id,
     name: chosen.name,
-    area: chosen.primaryBorough,
+    area: venueAreaLabel(chosen),
+    primaryBorough: chosen.primaryBorough,
     priceGbp: arc.nowGbp,
     pintName: pintLabel(chosen),
     drinkHref: drinkHrefFor(chosen, venues),
@@ -144,7 +166,7 @@ export function buildLandingPubCard(
       observedOn: arc.then.observedOn,
       source: { label: arc.then.source.label, url: arc.then.source.url },
     },
-    movementLine: priceMovementLine(arc.deltaGbp, arc.years),
+    movementLine: arc.deltaGbp === null ? null : priceMovementLine(arc.deltaGbp, arc.years),
     mapHref: venueMapUrl(chosen.id),
   };
 }
@@ -178,6 +200,11 @@ export function buildLandingArchiveIndex(
       observedDay: formatObservedDay(arc.then.observedOn),
       years: arc.years,
       source: { label: arc.then.source.label, url: arc.then.source.url },
+      // Decided here, with the policy, against this venue's own listed figure.
+      movement:
+        arc.nowGbp !== null && arc.deltaGbp !== null
+          ? { nowGbp: arc.nowGbp, line: priceMovementLine(arc.deltaGbp, arc.years) }
+          : null,
     };
   }
   return index;
@@ -190,15 +217,15 @@ export function buildLandingArchiveIndex(
  */
 export function buildLandingAnchorRail(
   venues: readonly Venue[],
-  anchor: { id: string; area: string },
+  anchor: { id: string; primaryBorough: string },
   archive: LandingArchiveIndex,
 ): LandingRailRow[] {
   return venues
     .filter(
       (venue) =>
         venue.id !== anchor.id &&
-        isPubVenueKind(venue.kind) &&
-        venue.primaryBorough === anchor.area &&
+        isPublicRankablePub(venue) &&
+        venue.primaryBorough === anchor.primaryBorough &&
         typeof venue.cheapestPrice === "number" &&
         venue.cheapestPrice > 0,
     )
@@ -207,7 +234,8 @@ export function buildLandingAnchorRail(
     .map((venue) => ({
       id: venue.id,
       name: venue.name,
-      area: venue.primaryBorough,
+      area: venueAreaLabel(venue),
+      primaryBorough: venue.primaryBorough,
       priceGbp: venue.cheapestPrice as number,
       hasThen: venue.id in archive,
     }));

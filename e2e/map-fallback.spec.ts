@@ -1,3 +1,5 @@
+import AxeBuilder from "@axe-core/playwright";
+
 import { test, expect } from "@playwright/test";
 import { mkdir } from "node:fs/promises";
 
@@ -59,6 +61,14 @@ test("/map surfaces an honest fallback with a detail line when WebGL is disabled
     .poll(async () => page.locator(".mapFallbackVenue").count(), { timeout: 15000 })
     .toBeGreaterThan(0);
   await expect(page.locator(".mapFallbackVenueName").first()).not.toBeEmpty();
+  for (const control of await fallback.locator("button, a").all()) {
+    const box = (await control.boundingBox())!;
+    expect.soft(box.width, await control.innerText()).toBeGreaterThanOrEqual(44);
+    expect.soft(box.height, await control.innerText()).toBeGreaterThanOrEqual(44);
+  }
+  const contrast = await new AxeBuilder({ page }).include(".mapFallback")
+    .withRules(["color-contrast"]).analyze();
+  expect(contrast.violations).toEqual([]);
 
   // The bottom card lifts Create after the fallback appears. Check the settled
   // price text itself, since the row centre can remain tappable under an overlap.

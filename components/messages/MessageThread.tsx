@@ -76,6 +76,7 @@ import {
   type TimelineItem,
 } from "@/lib/messageTimeline";
 import { normalizeHandle } from "@/lib/profiles";
+import { safeLocalStorage } from "@/lib/safeStorage";
 import {
   readSoftKeyboardOpen,
   serverSoftKeyboardOpen,
@@ -129,8 +130,7 @@ const HANDLE_KEY = "pubmax_handle";
 const COUNTER_FROM = MAX_MESSAGE_BODY - 100;
 
 function readHandle(): string {
-  if (typeof window === "undefined") return "";
-  return normalizeHandle(window.localStorage.getItem(HANDLE_KEY) ?? "");
+  return normalizeHandle(safeLocalStorage()?.getItem(HANDLE_KEY) ?? "");
 }
 
 /**
@@ -1240,7 +1240,7 @@ export default function MessageThread({
               // eslint-disable-next-line @next/next/no-img-element -- local object URL for the photo about to send
               <img className="composerPendingThumb" src={pending.previewUrl} alt="" />
             ) : (
-              <MapPin size={18} aria-hidden="true" className="composerPendingIcon" />
+              <MapPin size={16} aria-hidden="true" className="composerPendingIcon" />
             )}
             <span className="composerPendingLabel">{pendingLabel(pending)}</span>
             <button type="button" className="composerPendingRemove" onClick={clearPending}>
@@ -1267,7 +1267,7 @@ export default function MessageThread({
                   setMobileAttachOpen(true);
                 }}
               >
-                <Plus size={22} aria-hidden="true" />
+                <Plus size={20} aria-hidden="true" />
               </button>
             ) : (
               <button

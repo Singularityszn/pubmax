@@ -1,3 +1,4 @@
+import { legacyOsmVenueKind } from "@/lib/legacyOsmVenueKind.mjs";
 import { spawnSync } from "node:child_process";
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -193,5 +194,17 @@ describe("the committed promotion keeps its evidence", () => {
       expect(row?.source_datasets).toBe("london_osm_promotion");
       expect(String(row?.data_quality_notes)).toContain(String(entry.osmId));
     }
+  });
+});
+
+
+describe("the published London venue kind", () => {
+  it("keeps the source bar classification for the arena presence row", () => {
+    const rows = JSON.parse(readFileSync(join(ROOT, "public/data/pint_prices_app_dataset.json"), "utf8"));
+    const seed = JSON.parse(readFileSync(join(ROOT, "data/osm/outer_london_osm_pubs.json"), "utf8"));
+    const arena = rows.find((row: { pub_name: string }) => row.pub_name === "ABBA Arena");
+    expect(seed.pubs.find((pub: { osmId: string }) => pub.osmId === "node/9829140325").amenity).toBe("bar");
+    expect(legacyOsmVenueKind([arena])).toBe("bar");
+    expect(legacyOsmVenueKind([{ data_quality_notes: "outer_london_osm|osm_overpass|node/unknown|sourced" }])).toBeUndefined();
   });
 });

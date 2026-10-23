@@ -11,6 +11,7 @@ import Link from "next/link";
 
 import PriceBadge from "@/components/PriceBadge";
 import PubmaxxNightSeal from "@/components/brand/PubmaxxNightSeal";
+import PalPostcard from "@/components/pal/PalPostcard";
 import RecapShareButton from "@/components/plan/RecapShareButton";
 import type { RecapView } from "@/lib/recapView";
 
@@ -134,6 +135,11 @@ export default function RecapDetail({ planId }: { planId: string }) {
               </li>
             ))}
           </ol>
+          <PalPostcard
+            stops={view.route.map((stop) => stop.venueName)}
+            title={view.title}
+            completedAt={view.completedAt}
+          />
         </section>
       ) : null}
 

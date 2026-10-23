@@ -3,6 +3,7 @@ import { expect, test, type Locator, type Page, type TestInfo } from "@playwrigh
 import { formatObservedDate, PINT_DATASET_OBSERVED_AT } from "@/lib/dataFreshness";
 
 import { stubSocialAuthProviders } from "./helpers/authDoubles";
+import { mobileMapShellControl } from "./helpers/mobileMapShell";
 
 const BRAND = "Guinness";
 const BRAND_SLUG = "guinness";
@@ -12,7 +13,7 @@ const BRAND_SLUG = "guinness";
 // (#1504). The pub count stays a checked figure, because it is the dataset's
 // own answer for this brand and a change to it is a change worth reading.
 const COLLECTED_DAY = formatObservedDate(PINT_DATASET_OBSERVED_AT);
-const SUMMARY = `347 pubs with listed Guinness pints. Collected ${COLLECTED_DAY}.`;
+const SUMMARY = `345 pubs with listed Guinness pints. Collected ${COLLECTED_DAY}.`;
 const TRACKED_PROOF_DIR = "docs/proof/drink-brand-landing";
 type ProofScreenshotName =
   | "guinness-390-light.png"
@@ -222,7 +223,7 @@ async function assertLandingContract(page: Page): Promise<void> {
         .evaluate((node) => getComputedStyle(node, "::after").content),
     )
     .toBe("none");
-  await expect(rows.first()).toContainText("J.J. Moon's - JD Wetherspoon");
+  await expect(rows.first().locator(".drinkBrandDirectory__venue")).toHaveText("J.J. Moon's");
   await expect(rows.first()).toContainText("£3.09");
   // One publisher block per price: the hero states the "From" figure's, and
   // every row states its own beside its own figure, rank 1 included
@@ -321,9 +322,7 @@ test.describe("Guinness landing cross-surface journey", () => {
 
     await page.getByRole("link", { name: "Open the map", exact: true }).click();
     await expect(page).toHaveURL(/\/map\?brand=guinness$/);
-    const mapFilters = page.locator(".mobileMapFiltersButton");
-    await expect(mapFilters).toBeVisible({ timeout: 45_000 });
-    await mapFilters.click();
+    await (await mobileMapShellControl(page, "filters", 45_000)).click();
     const filtersSheet = page.locator('.mobileSheetPortal[data-sheet-kind="filters"]:visible');
     await expect(filtersSheet).toBeVisible();
     await expect(

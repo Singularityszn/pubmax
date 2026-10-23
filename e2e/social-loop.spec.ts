@@ -1,6 +1,6 @@
 import { test, expect, type Page } from "@playwright/test";
 
-import { expectStreamedPageSettled } from "./helpers/streamedPage";
+import { expectStreamedPageSettled } from "@/e2e/helpers/streamedPage";
 
 test.beforeEach(async ({ page }) => {
   await page.addInitScript(() => {
@@ -29,6 +29,16 @@ function watchPageErrors(page: Page): string[] {
 // guarantee (§9) is that a card links the pub by NAME, never leaking this id as
 // visible text. This regex must NOT match the rendered venue link text.
 const RAW_VENUE_ID = /^venue-[a-z0-9]+$/;
+
+function publicDropFixture() {
+  return {
+    id: "bfe4a00a-85b4-4892-b404-7d93b2d8d167", venueId: "venue-eltcmh",
+    venueName: "The Blackfriar", venueMapUrl: "/map?sel=venue-eltcmh", handle: "testdrinker",
+    drink: "Lager", priceGbp: 4.5, passedDownNote: "", era: "", provenance: "contributor",
+    status: "visible", visibility: "public", createdAt: new Date().toISOString(),
+    pintPhotoUrl: null, venuePhotoUrl: null,
+  };
+}
 
 test("legacy /feed opens signed-out Social, not the retired feed", async ({
   page,
@@ -127,55 +137,38 @@ test("crawl surfaces render; unknown slug is a friendly 404/empty", async ({ pag
 });
 
 // ---------------------------------------------------------------------------
-// Discover · Tonight board (components/discovery/TonightBoard.tsx). The live
-// "cheapest pints logged tonight" board is community-driven and time-windowed
-// (trailing 24h), so on a quiet night it renders its friendly empty state
-// instead of rows — both are valid. We assert the section's stable heading
-// always renders, and that whichever state shows is well-formed: real rows link
-// the pub into /map?sel=… by NAME (never a raw venue id), or the empty note is
-// present. Read-only: it consumes the same /api/pint-drops the page fetches and
-// never POSTs.
-test("discover recently logged cheap pints board renders rows or its empty state (§5.1)", async ({
-  page,
-}) => {
-  const errors = watchPageErrors(page);
-
-  const response = await page.goto("/social?tab=discover");
-  expect(response?.status()).toBe(200);
-
-  // The app-owned section heading (stable id in DiscoverBody) always
-  // renders regardless of whether any pints landed in the last 24h.
-  await expect(page.locator("#tonight-title")).toHaveText("Recently logged cheap pints");
-
-  // The board mounts EITHER as an ordered list of rows OR as its empty note. It
-  // starts empty (drops arrive after the client fetch), so web-first wait until
-  // one of the two states is present rather than snapshotting mid-load.
-  const rows = page.locator(".tonightBoard .tonightRow");
-  const empty = page.locator(".discoverEmpty");
-  await expect
-    .poll(async () => (await rows.count()) + (await empty.count()))
-    .toBeGreaterThan(0);
-
-  const rowCount = await rows.count();
-  if (rowCount > 0) {
-    const link = rows.first().locator(".tonightPub").first();
-    await expect(link).toBeVisible();
-
-    // The pub is linked by its human name — never the raw internal venue id.
-    const name = (await link.innerText()).trim();
-    expect(name.length).toBeGreaterThan(0);
-    expect(name).not.toMatch(RAW_VENUE_ID);
-
-    // …and that name routes onto the map with this pub selected (/map?sel=…).
-    const href = await link.getAttribute("href");
-    expect(href ?? "").toMatch(/^\/map\?sel=/);
-  } else {
-    // Quiet night: the empty note ("be the first tonight") stands in for rows.
-    await expect(empty.first()).toBeVisible();
-  }
-
-  expect(errors).toEqual([]);
-});
+// Discover's settled empty community board is omitted. Controlled public reads
+// exercise empty and populated states. Populated rows name the pub and open its
+// map selection. These cases make no writes.
+for (const hasDrops of [false, true]) {
+  test(`discover recently logged prices ${hasDrops ? "name and open the pub" : "omit the settled empty board"}`, async ({ page }) => {
+    const errors = watchPageErrors(page);
+    let dropReads = 0;
+    await page.route("**/api/pint-drops**", (route) => {
+      dropReads += 1;
+      return route.fulfill({ json: { drops: hasDrops ? [publicDropFixture()] : [] } });
+    });
+    const response = await page.goto("/social?tab=discover");
+    expect(response?.status()).toBe(200);
+    await page.getByRole("heading", { name: "UK cities, ranked", exact: true }).scrollIntoViewIfNeeded();
+    await expect.poll(() => dropReads).toBeGreaterThan(0);
+    const board = page.getByRole("region", { name: "Recently logged cheap pints" });
+    if (hasDrops) {
+      const link = board.locator(".tonightBoard .tonightPub").first();
+      await expect(link).toHaveText("The Blackfriar");
+      expect((await link.innerText()).trim()).not.toMatch(RAW_VENUE_ID);
+      await expect(link).toHaveAttribute("href", "/map?sel=venue-eltcmh");
+      await link.click();
+      await expect(page).toHaveURL(/\/map\?sel=venue-eltcmh$/);
+      await expect(page.getByRole("heading", { name: "The Blackfriar", exact: true })).toBeVisible();
+    } else {
+      await expect(board).toHaveCount(0);
+      await expect(page.locator("#tonight-title")).toHaveCount(0);
+      await expect(page.getByRole("heading", { name: "UK cities, ranked", exact: true })).toBeVisible();
+    }
+    expect(errors).toEqual([]);
+  });
+}
 
 test("discover mobile price badges stay stable and inside the viewport", async ({ page }) => {
   const errors = watchPageErrors(page);
@@ -234,7 +227,8 @@ test("borough index lists boroughs, each linking to its own page (§14/§25)", a
   // is populated in practice — but guard for [] so an empty dataset shows its
   // friendly note rather than failing the run.
   await expect(page.locator(".screenTitle").first()).toBeVisible();
-  const cards = page.locator(".boroughGrid .boroughCard");
+  // One list of boroughs (taste plan, 18 Oct 2026); each row's link is its title.
+  const cards = page.locator(".boroughRows .boroughRow .rowListTitleLink");
   await expect
     .poll(async () => (await cards.count()) + (await page.locator(".boroughEmpty").count()))
     .toBeGreaterThan(0);
@@ -262,7 +256,7 @@ test("a real borough page ranks pubs that link onto the map (§14/§25)", async 
 
   // The ranked table renders (guard for the empty state in case the dataset ever
   // stops carrying this borough — the page must still not fail).
-  const pubs = page.locator(".boroughTable .boroughPub");
+  const pubs = page.locator(".boroughPubRows .rowListTitleLink");
   await expect
     .poll(async () => (await pubs.count()) + (await page.locator(".boroughEmpty").count()))
     .toBeGreaterThan(0);
@@ -295,40 +289,37 @@ test("an unknown borough slug is a friendly 404, not a crash (§14/§25)", async
 // §9 honesty fix is pinned here: when drop cards DO render, the venue label is
 // the human pub name — never a raw "venue-…" id leaked as visible text. Purely
 // read-only: it filters the public /api/pint-drops feed, never writes.
-test("profile mounts its header for any handle; drop labels are never a raw venue id (§9)", async ({
-  page,
-}) => {
-  const errors = watchPageErrors(page);
-
-  const response = await page.goto("/u/testdrinker");
-  expect(response?.status()).toBe(200);
-
-  // The profile header always mounts (synthesized identity for an unknown handle).
-  await expect(page.locator(".profileHeader")).toBeVisible();
-
-  // The drops section resolves to one of: loading→ready with cards, or a
-  // "no pints logged" empty note. Wait until it settles off the loading state so
-  // we branch on a stable snapshot, not a mid-fetch one.
-  const cards = page.locator(".profileDropCard");
-  const dropsEmpty = page.locator(".profileDropsSection .profileEmpty");
-  await expect
-    .poll(async () => (await cards.count()) + (await dropsEmpty.count()))
-    .toBeGreaterThan(0);
-
-  // §9 pin: every rendered drop card labels its venue by the human name — a raw
-  // internal "venue-…" id must NEVER appear as the visible venue link text.
-  const cardCount = await cards.count();
-  for (let i = 0; i < cardCount; i++) {
-    const label = cards.nth(i).locator(".profileDropVenue").first();
-    const name = (await label.innerText()).trim();
-    expect(name.length).toBeGreaterThan(0);
-    expect(name).not.toMatch(RAW_VENUE_ID);
-    // The venue link still routes onto the map (via enriched url or ?sel=<id>).
-    await expect(label).toHaveAttribute("href", /\/map/);
-  }
-
-  expect(errors).toEqual([]);
-});
+for (const hasDrops of [false, true]) {
+  test(`profile ${hasDrops ? "names and opens each logged pub" : "shows a blank passport without an empty Timeline"}`, async ({ page }) => {
+    const errors = watchPageErrors(page);
+    let dropReads = 0;
+    await page.route("**/api/pint-drops?author=testdrinker", (route) => {
+      dropReads += 1;
+      return route.fulfill({ json: { drops: hasDrops ? [publicDropFixture()] : [], passportAreas: [] } });
+    });
+    const response = await page.goto("/u/testdrinker");
+    expect(response?.status()).toBe(200);
+    await expect(page.locator(".profileHeader")).toBeVisible();
+    await expect.poll(() => dropReads).toBeGreaterThan(0);
+    const timeline = page.getByRole("feed", { name: "Memory timeline" });
+    if (hasDrops) {
+      const cards = timeline.locator(".feedCard");
+      await expect(cards).toHaveCount(1);
+      const label = cards.first().locator(".feedVenueLink").first();
+      await expect(label).toHaveText("The Blackfriar");
+      expect((await label.innerText()).trim()).not.toMatch(RAW_VENUE_ID);
+      await expect(label).toHaveAttribute("href", "/map?sel=venue-eltcmh");
+      await label.click();
+      await expect(page).toHaveURL(/\/map\?sel=venue-eltcmh$/);
+      await expect(page.getByRole("heading", { name: "The Blackfriar", exact: true })).toBeVisible();
+    } else {
+      await expect(page.getByText("This passport is blank, for now.", { exact: true })).toBeVisible();
+      await expect(timeline).toHaveCount(0);
+      await expect(page.locator("#timeline")).toHaveCount(0);
+    }
+    expect(errors).toEqual([]);
+  });
+}
 
 // ---------------------------------------------------------------------------
 // Map onboarding surface (components/PubMap.tsx). WebGL-agnostic, like

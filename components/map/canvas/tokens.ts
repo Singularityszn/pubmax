@@ -9,6 +9,7 @@ import {
   MAP_ICON_SPECS,
   iconId,
   rasterize,
+  type IconSpec,
   type IconTokens,
 } from "@/lib/mapIcons";
 
@@ -160,6 +161,13 @@ export type Tokens = {
   pricePlaqueInk: string;
   pricePlaqueSurface: string;
   /**
+   * The three price-band INKS (`--price-band-cheap-ink`, `-average-ink`,
+   * `-expensive-ink`), in band order: the band's hue deepened to read as text.
+   * A cluster's figure wears the ink of its own cheapest pub's band, so the
+   * colour on a printed price is that price's band and nothing else.
+   */
+  bandInk: readonly [string, string, string];
+  /**
    * The reader's own position. Named rather than borrowed from a price band,
    * because "where you are" is not a price and must never be read as one.
    * Resolves the same `--color-info-strong` the DOM marker used, so the dot
@@ -222,6 +230,7 @@ type MapThemeToken = Exclude<
   | "cat"
   | "pricePlaqueInk"
   | "pricePlaqueSurface"
+  | "bandInk"
   | "priceStampTiltDeg"
   | "userLocation"
 >;
@@ -247,10 +256,41 @@ const MAP_THEME_TOKEN_PROPERTIES = {
   parkTint: "--map-park-tint",
 } as const satisfies Record<MapThemeToken, `--${string}`>;
 
+let heldTokens: { key: string; tokens: Tokens } | null = null;
+
+// Everything a theme token can follow, read without a style recalc: the
+// attributes on <html> (data-theme, data-mode, data-legacy, class, style), the
+// stylesheets in the page and the system colour scheme.
+function themeInputsKey(): string {
+  const root = document.documentElement;
+  const attributes = Array.from(root.attributes, (attribute) =>
+    `${attribute.name}=${attribute.value}`,
+  );
+  const systemDark =
+    typeof window.matchMedia === "function" &&
+    window.matchMedia("(prefers-color-scheme: dark)").matches;
+  return [...attributes, document.styleSheets.length, systemDark].join("\n");
+}
+
 // Every map colour derives from the app's theme tokens so both modes
 // (candle-lit night / positron day guidebook) flip from one system.
+//
+// Reading them forces a style recalc of the whole page (the colour probe below
+// joins the DOM), and the pins rebuild on every venue read. The tokens only
+// move when a theme input does, so one read is held per set of inputs.
 export function readTokens(): Tokens {
+  const key = themeInputsKey();
+  if (heldTokens?.key === key) return heldTokens.tokens;
+  const read = readTokensFromStyles();
+  // Before the theme stylesheet applies every token is its fallback: keep
+  // reading until a real theme arrives.
+  heldTokens = read.themed ? { key, tokens: read.tokens } : null;
+  return read.tokens;
+}
+
+function readTokensFromStyles(): { tokens: Tokens; themed: boolean } {
   const styles = getComputedStyle(document.documentElement);
+  const themed = styles.getPropertyValue("--ink").trim() !== "";
   const token = (name: string, fallback: string) =>
     styles.getPropertyValue(name).trim() || fallback;
   const mapToken = (name: MapThemeToken, fallback: string) =>
@@ -268,6 +308,11 @@ export function readTokens(): Tokens {
   const pricePlaqueInk = resolvedColour("--accent-price-ink", "#8f671f");
   const pricePlaqueSurface = resolvedColour("--price-plaque-surface", "#f4ead5");
   const userLocation = resolvedColour("--color-info-strong", "#29b6f6");
+  const bandInk = [
+    resolvedColour("--price-band-cheap-ink", "#2c6b47"),
+    resolvedColour("--price-band-average-ink", "#7a5a21"),
+    resolvedColour("--price-band-expensive-ink", "#a8463a"),
+  ] as const;
   colourProbe.remove();
   // Additive `--cat-*` read: one entry per drink family, resolved from the live
   // computed vars (with the canonical light hex as a fallback) so map consumers
@@ -278,7 +323,7 @@ export function readTokens(): Tokens {
       token(categoryVar(c), CATEGORY_COLORS[c].light),
     ]),
   ) as Record<DrinkCategory, string>;
-  return {
+  const tokens: Tokens = {
     cat,
     ink: mapToken("ink", "#1b2620"),
     inkDeep: mapToken("inkDeep", "#0f1c16"),
@@ -293,6 +338,7 @@ export function readTokens(): Tokens {
     brassBright: mapToken("brassBright", "#d3a44a"),
     pricePlaqueInk,
     pricePlaqueSurface,
+    bandInk,
     userLocation,
     priceStampTiltDeg:
       Number.parseFloat(token("--ink-stamp-tilt", "-1.5deg")) || -1.5,
@@ -304,6 +350,7 @@ export function readTokens(): Tokens {
     buildingEmissive: mapToken("buildingEmissive", "#8f7d6b"),
     parkTint: mapToken("parkTint", "#7ea052"),
   };
+  return { tokens, themed };
 }
 
 /**
@@ -365,24 +412,72 @@ export function withAlpha(hex: string, alpha: number): string {
   return `rgba(${(n >> 16) & 255}, ${(n >> 8) & 255}, ${n & 255}, ${alpha})`;
 }
 
-// Register every designed marker image (landmark pictograms + TfL symbols) with
-// the map, re-tinting from the live theme tokens. Called from buildScene on the
-// first load and after each theme-driven setStyle (which wipes prior images).
+/**
+ * The colours every designed map icon is drawn with, per theme. ONE recipe,
+ * read by the scene at runtime and by `npm run build:map-icon-sprites`, which
+ * draws the shipped sprite from it, so the two cannot disagree about what a
+ * dark pin's rim is. `scripts/lib/mapIconSpriteFingerprint.mjs` hashes this
+ * declaration, so changing it makes the sprite fence ask for a rebuild.
+ */
+export function iconTokensFor(tokens: Tokens, dark: boolean): IconTokens {
+  return {
+    ink: tokens.ink,
+    paper: dark ? tokens.inkDeep : tokens.paper,
+    brass: tokens.brass,
+    brassBright: tokens.brassBright,
+    river: tokens.river,
+    riverBright: tokens.riverBright,
+    pint: tokens.pint,
+    amber: tokens.amber,
+    brick: tokens.brick,
+    muted: tokens.muted,
+    // The drink pin's rim + casing. Dark only, and for the reason spelled out on
+    // venuePinEdgeTokens: `paper` above resolves to a near-black in dark, so the
+    // glasses' "light rim" was a black one against a near-black basemap.
+    ...venuePinEdgeTokens(tokens, dark),
+    ...pricePillTokens(tokens),
+    coffee: dark ? CATEGORY_COLORS.coffee.dark : CATEGORY_COLORS.coffee.light,
+  };
+}
+
+/** The pixel ratio every designed icon is drawn at, in the browser or in the sprite. */
+export const MAP_ICON_PIXEL_RATIO = 2;
+
+/**
+ * MapLibre's image options for a spec drawn at MAP_ICON_PIXEL_RATIO. The spec
+ * states its nine-slice in CSS px, and MapLibre reads it in image pixels.
+ */
+export function mapIconImageOptions(spec: IconSpec) {
+  const r = MAP_ICON_PIXEL_RATIO;
+  const stretch = spec.stretch;
+  return {
+    pixelRatio: r,
+    ...(stretch
+      ? {
+          stretchX: stretch.x.map(([from, to]) => [from * r, to * r] as [number, number]),
+          stretchY: stretch.y.map(([from, to]) => [from * r, to * r] as [number, number]),
+          content: stretch.content.map((n) => n * r) as [number, number, number, number],
+        }
+      : {}),
+  };
+}
+
+/** Draw ONE designed icon in the browser and hand it to the map. */
+export function addDrawnMapIcon(
+  map: maplibregl.Map,
+  spec: IconSpec,
+  tokens: IconTokens,
+) {
+  const id = iconId(spec.ns, spec.key);
+  if (map.hasImage(id)) map.removeImage(id);
+  map.addImage(id, rasterize(spec, tokens, MAP_ICON_PIXEL_RATIO), mapIconImageOptions(spec));
+}
+
+// Draw every designed marker image (landmark pictograms, TfL symbols, glasses,
+// pills) in the browser, re-tinted from the live theme tokens. This is the
+// FALLBACK. The scene registers the pre-drawn sprite first
+// (components/map/canvas/iconSprite.ts), and draws only when that sprite has not
+// arrived, has failed, or was drawn in other colours than the live theme's.
 export function registerMapIcons(map: maplibregl.Map, tokens: IconTokens) {
-  for (const spec of MAP_ICON_SPECS) {
-    const id = iconId(spec.ns, spec.key);
-    if (map.hasImage(id)) map.removeImage(id);
-    const stretch = spec.stretch;
-    map.addImage(id, rasterize(spec, tokens), {
-      pixelRatio: 2,
-      ...(stretch
-        ? {
-            // MapLibre reads these in image pixels, the spec states them in CSS px.
-            stretchX: stretch.x.map(([from, to]) => [from * 2, to * 2] as [number, number]),
-            stretchY: stretch.y.map(([from, to]) => [from * 2, to * 2] as [number, number]),
-            content: stretch.content.map((n) => n * 2) as [number, number, number, number],
-          }
-        : {}),
-    });
-  }
+  for (const spec of MAP_ICON_SPECS) addDrawnMapIcon(map, spec, tokens);
 }

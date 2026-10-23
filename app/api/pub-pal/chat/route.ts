@@ -1,11 +1,17 @@
+import { openPalConversation } from "@/lib/palOpening.server";
+import { palOpeningAcceptance, palOpeningFollowUp } from "@/lib/palOpening";
+import { readOwnedPubPalToolTurn, registerPubPalToolTurn } from "@/lib/pubPalToolTurnStore";
+import { isPubPalConversationId } from "@/lib/pubPalConversationId";
+import { pubPalGetHomeRegisterAnswer, regexFenceIntent, resolvePubPalFenceIntent } from "@/lib/pubPalLlmFence";
 import { publicApiError } from "@/lib/apiError";
+import { askCardSources } from "@/lib/ask/types";
 import { jsonNoStore } from "@/lib/apiResponses";
 import { callerUserId } from "@/lib/authServer";
 import { refineRoutedAskQuery, socialTurnKind } from "@/lib/ask/router";
 import { runAsk } from "@/lib/ask/runAsk";
 import type { AskTurn } from "@/lib/ask/types";
 import { parseConciergeIntent } from "@/lib/concierge/intent";
-import { DEFAULT_GROUP_SIZE } from "@/lib/concierge/intentPolicy";
+import { DEFAULT_GROUP_SIZE, defaultKnownAreas } from "@/lib/concierge/intentPolicy";
 import { PAL_ERROR_FALLBACK } from "@/lib/palChat";
 import {
   acceptsPalChatStream,
@@ -15,10 +21,14 @@ import {
 } from "@/lib/palChatStream";
 import {
   runPalElevenLabsChatTurn,
+  preparePalElevenLabsChatTurn,
+  type PalElevenLabsChatContext,
   type PalElevenLabsChatInput,
   type PalElevenLabsChatOutcome,
 } from "@/lib/palElevenLabsChat.server";
 import { paidSpendBudgetRefusal } from "@/lib/paidSpendBudget.server";
+import { palTasteAsk } from "@/lib/palTaste";
+import { readPalTaste } from "@/lib/palTaste.server";
 import { palVoiceConfigured } from "@/lib/pubPalVoiceConfig.server";
 import { isLimited } from "@/lib/pintDrops";
 import { clientIp, hashIp } from "@/lib/supabase";
@@ -49,7 +59,7 @@ function answerBody(outcome: Extract<PalElevenLabsChatOutcome, { ok: true }>) {
     answer: outcome.message,
     cards: outcome.cards,
     proposals: outcome.proposals,
-    sources: [],
+    sources: askCardSources(outcome.cards),
     status: "ready",
     toolsUsed: outcome.toolsUsed,
     conversationId: outcome.conversationId,
@@ -62,7 +72,7 @@ function answerBody(outcome: Extract<PalElevenLabsChatOutcome, { ok: true }>) {
  * its normal JSON status before this runs, so a refusal never opens a stream.
  * Only a failure after the stream began is an `error` event.
  */
-function streamTurn(input: PalElevenLabsChatInput, request: Request): Response {
+function streamTurn(input: PalElevenLabsChatInput, context: PalElevenLabsChatContext, request: Request): Response {
   const encoder = new TextEncoder();
   const abort = new AbortController();
   request.signal.addEventListener("abort", () => abort.abort(), { once: true });
@@ -80,7 +90,7 @@ function streamTurn(input: PalElevenLabsChatInput, request: Request): Response {
           ...input,
           signal: abort.signal,
           onProgress: send,
-        });
+        }, context);
         send(
           outcome.ok
             ? { type: "final", body: answerBody(outcome) }
@@ -110,8 +120,55 @@ function streamTurn(input: PalElevenLabsChatInput, request: Request): Response {
   });
 }
 
+export async function GET(request: Request): Promise<Response> {
+  const limiterKey = `pub-pal-chat:${hashIp(clientIp(request))}`;
+  if (await isLimited(limiterKey, limiterKey, RATE_LIMIT, RATE_WINDOW_MS, { failClosed: true })) {
+    return publicApiError("Too many asks, slow down.", "RATE_LIMITED", 429, { retryable: true });
+  }
+  const ownerId = await callerUserId(request);
+  if (!ownerId) return publicApiError("Sign in to read your Pal opening.", "UNAUTHENTICATED", 401);
+  try {
+    return jsonNoStore(await openPalConversation(ownerId));
+  } catch {
+    return publicApiError("Your saved memories could not be read just now.", "UNAVAILABLE", 503, { retryable: true });
+  }
+}
+
+async function openingReply(request: Request, record: Record<string, unknown>, query: string): Promise<Response | null> {
+  const social = socialTurnKind(query);
+  const firstGreeting = social === "greeting" && !record.threadId && normaliseTurns(record.turns).length === 0;
+  const threadId = typeof record.threadId === "string" && isPubPalConversationId(record.threadId) ? record.threadId : null;
+  if (firstGreeting || threadId) {
+    const ownerId = await callerUserId(request);
+    if (ownerId) {
+      try {
+        if (firstGreeting) return jsonNoStore(await openPalConversation(ownerId));
+        const prior = threadId ? await readOwnedPubPalToolTurn(threadId, ownerId) : null;
+        // The sole assistant turn and matching result hint are the pending opening.
+        // Clearing its hint consumes it without adding this ask to earlier history.
+        if (!threadId || !prior || prior.query || prior.turns.length !== 1 || prior.turns[0]?.role !== "assistant"
+          || prior.hints.length !== 1 || prior.hints[0] !== prior.turns[0].content) return null;
+        let answer: string | null = null;
+        if (palOpeningAcceptance(query)) answer = palOpeningFollowUp(query, prior.turns[0].content);
+        await registerPubPalToolTurn(threadId, {
+          ownerId, cityId: prior.cityId, query: answer ? query : "", turns: prior.turns,
+          cards: [], proposals: [], hints: answer ? [answer] : [], toolsUsed: [],
+        });
+        if (answer) {
+          return jsonNoStore({ answer, conversationId: threadId, cards: [], proposals: [], sources: [], toolsUsed: [], status: "ready" });
+        }
+      } catch {
+        return publicApiError("Your saved conversation could not be read just now.", "UNAVAILABLE", 503, { retryable: true });
+      }
+    }
+  }
+  return null;
+}
+
 export async function POST(request: Request): Promise<Response> {
   const limiterKey = `pub-pal-chat:${hashIp(clientIp(request))}`;
+  // The limiter answers before anything else is asked: the token check is a
+  // GoTrue round trip, and a refused request must not reach the auth backend.
   if (
     await isLimited(limiterKey, limiterKey, RATE_LIMIT, RATE_WINDOW_MS, {
       failClosed: true,
@@ -138,11 +195,44 @@ export async function POST(request: Request): Promise<Response> {
     return publicApiError("Ask a question.", "QUERY_REQUIRED", 400);
   }
 
+  const configured = palVoiceConfigured();
+  const ownerId = configured ? await callerUserId(request) : null;
+  if (configured && !ownerId) {
+    return publicApiError("Sign in to ask Pub Pal.", "UNAUTHENTICATED", 401);
+  }
+  const turns = normaliseTurns(record.turns);
+  const turn: PalElevenLabsChatInput = {
+    query,
+    cityId: record.cityId,
+    threadId: record.threadId,
+    fenceTurns: turns.filter((item) => item.role === "user"),
+    ownerId: ownerId!,
+  };
+  // Current and browser safety requests must still answer when stored history is unavailable.
+  let fence = configured ? regexFenceIntent(query, turns) : await resolvePubPalFenceIntent(query, turns);
+  let context: PalElevenLabsChatContext | undefined;
+  if (configured && !fence.fenced) {
+    try {
+      context = await preparePalElevenLabsChatTurn(turn);
+      fence = context.fence;
+    } catch {
+      return publicApiError(PAL_ERROR_FALLBACK, "UNAVAILABLE", 503, { retryable: true });
+    }
+  }
+  if (fence.fenced) {
+    return jsonNoStore({
+      answer: pubPalGetHomeRegisterAnswer("", fence.sobrietyOnly),
+      cards: [], proposals: [], sources: [], toolsUsed: [], status: "ready", conversationId: "",
+    });
+  }
+
+  const opening = await openingReply(request, record, query);
+  if (opening) return opening;
+
   // Voice is optional. Keyless deploys still answer from the same grounded
   // tools as /api/ask, and they never call OpenRouter.
-  if (!palVoiceConfigured()) {
+  if (!configured) {
     try {
-      const turns = normaliseTurns(record.turns);
       const social = socialTurnKind(query);
       if (social) {
         return jsonNoStore({
@@ -171,7 +261,7 @@ export async function POST(request: Request): Promise<Response> {
       if (answer.toolsUsed.length === 1 && answer.toolsUsed[0] === "search_venues") {
         const priorUser = [...turns].reverse().find((turn) => turn.role === "user");
         const { intent } = await parseConciergeIntent(
-          refineRoutedAskQuery(query, priorUser?.content),
+          refineRoutedAskQuery(query, priorUser?.content, turns.filter((turn) => turn.role === "user").map((turn) => turn.content)),
           { skipModel: true },
         );
         if (
@@ -180,6 +270,23 @@ export async function POST(request: Request): Promise<Response> {
           intent.maxPintPrice === undefined &&
           intent.groupSize === DEFAULT_GROUP_SIZE
         ) {
+          // A signed-in person who has logged their nights gets a pick off
+          // their own patch and habits instead of a question.
+          const ownerId = await callerUserId(request);
+          const tasteAsk = ownerId
+            ? palTasteAsk(await readPalTaste(ownerId), defaultKnownAreas())
+            : null;
+          if (tasteAsk) {
+            const picked = await runAsk({
+              query: tasteAsk.query,
+              cityId: record.cityId,
+              skipModel: true,
+              traceRoute: "api/pub-pal/chat",
+            });
+            if (picked.cards.length > 0) {
+              return jsonNoStore({ ...picked, answer: `${tasteAsk.because} ${picked.answer}` });
+            }
+          }
           return jsonNoStore({
             answer: "Tell me an area, a mood or a budget and I'll find you a pub.",
             cards: [],
@@ -197,24 +304,12 @@ export async function POST(request: Request): Promise<Response> {
     }
   }
 
-  const ownerId = await callerUserId(request);
-  if (!ownerId) {
-    return publicApiError("Sign in to ask Pub Pal.", "UNAUTHENTICATED", 401);
-  }
-
   const budgetRefusal = await paidSpendBudgetRefusal("pub-pal-chat");
   if (budgetRefusal) return budgetRefusal;
 
-  const turn: PalElevenLabsChatInput = {
-    query,
-    cityId: record.cityId,
-    threadId: record.threadId,
-    fenceTurns: normaliseTurns(record.turns).filter((item) => item.role === "user"),
-    ownerId,
-  };
-  if (acceptsPalChatStream(request.headers.get("accept"))) return streamTurn(turn, request);
+  if (acceptsPalChatStream(request.headers.get("accept"))) return streamTurn(turn, context!, request);
 
-  const outcome = await runPalElevenLabsChatTurn(turn);
+  const outcome = await runPalElevenLabsChatTurn(turn, context);
 
   if (!outcome.ok) {
     return publicApiError(PAL_ERROR_FALLBACK, "UNAVAILABLE", 503, { retryable: true });

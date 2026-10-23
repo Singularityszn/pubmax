@@ -166,8 +166,11 @@ describe("launch routes (group c) carry one primary action", () => {
       /class="screenPrimary" data-primary-action=""><a[^>]*href="\/map\?q=Camden"[^>]*>Open the map here<\/a>/,
     );
     expect(rendered).toMatch(/<h1[^>]*>Pubs in Camden\.<\/h1>/);
-    // The crawl deep-link under the head stays a text link, not a second button.
-    expect(rendered).toContain("Start a crawl from cheapest pubs");
+    // The head's two doors are the only actions above the list: the old
+    // "Start a crawl from cheapest pubs" link was a third (taste plan,
+    // 18 Oct 2026), and the pubs follow the head as one row list.
+    expect(rendered).not.toContain("Start a crawl from cheapest pubs");
+    expect(rendered).toContain('class="rowList boroughRows boroughPubRows');
   });
 
   it("/crawls carries one primary action", () => {
@@ -177,7 +180,7 @@ describe("launch routes (group c) carry one primary action", () => {
     expect(rendered).toMatch(
       /class="screenPrimary" data-primary-action=""><a[^>]*href="\/map\?[^"]*"[^>]*>Start a crawl<\/a>/,
     );
-    expect(rendered).toMatch(/<h1[^>]*>Pub stories mapped into walks\.<\/h1>/);
+    expect(rendered).toMatch(/<h1[^>]*>London pub crawl routes<\/h1>/);
     // The featured card's own way onto the map reads as a link, never as the
     // filled control the old grid painted on every card.
     expect(rendered).not.toContain("curatedLink");
@@ -186,7 +189,7 @@ describe("launch routes (group c) carry one primary action", () => {
   it("/crawls carries one primary action on a shared poster (?s=)", () => {
     SEARCH.current = `s=${SHARED_STORY}`;
     try {
-      const rendered = renderToStaticMarkup(createElement(CrawlsPageClient));
+      const rendered = renderToStaticMarkup(createElement(CrawlsPageClient, { encodedStory: SHARED_STORY }));
       expect(primaryCount(rendered)).toBe(1);
       expect(rendered).toMatch(
         /class="screenPrimary" data-primary-action=""><a[^>]*href="\/map\?mode=build&amp;pubs=venue-soho-1%2Cvenue-soho-2"[^>]*>Start this crawl<\/a>/,

@@ -21,13 +21,16 @@
 // holds the policy each path answers; this file holds the page files behind it.
 //
 // Captain decisions: 2026-08-09 (`/` and `/map`), 2026-09-05 ("Widen": the
-// other logged-out pages, `/tonight`, `/today`, `/near`).
+// other logged-out pages, `/tonight`, `/today`, `/near`), 2026-10-17 (`/plan`
+// and `/pal`). Task
+// vercel-f2-seo-cdn (2026-10-15) added the public SEO route shapes in
+// CDN_CACHED_DOCUMENT_ROUTES, whose patterns are the app/ directory paths.
 
 import { readdirSync, readFileSync, statSync } from "node:fs";
 import { join, relative } from "node:path";
 import { describe, expect, it } from "vitest";
 
-import { CDN_CACHED_DOCUMENT_PATHS } from "@/proxy";
+import { CDN_CACHED_DOCUMENT_PATHS, CDN_CACHED_DOCUMENT_ROUTES } from "@/proxy";
 
 const REPO_ROOT = process.cwd();
 const APP_DIR = join(REPO_ROOT, "app");
@@ -44,6 +47,9 @@ const SIGNED_IN_ROUTES: Record<string, string> = {
   "/admin": "app/admin/page.tsx",
   "/onboarding": "app/onboarding/page.tsx",
   "/social": "app/social/page.tsx",
+  // Not signed-in, but its document resolves a friends-gated Pint Drop viewer
+  // from the Authorization header, so it is held to the same rule.
+  "/p/[id]": "app/p/[id]/page.tsx",
 };
 
 function pageFileFor(pathname: string): string {
@@ -76,11 +82,14 @@ function readsPerRequest(rawSource: string): string[] {
   if (/\bdraftMode\s*\(\s*\)/.test(source)) findings.push("calls draftMode()");
   if (/\bsearchParams\b/.test(source)) findings.push("takes searchParams");
   if (/from\s+["']@\/lib\/adminAuth["']/.test(source)) findings.push("imports the admin gate");
+  if (/from\s+["']@\/lib\/authServer["']/.test(source)) findings.push("imports the session resolver");
+  if (/x-nonce/.test(source)) findings.push("reads the request nonce");
+  if (/authorization/i.test(source)) findings.push("reads an Authorization header");
   return findings;
 }
 
 describe("every CDN-cached document is a force-static page", () => {
-  const listed = [...CDN_CACHED_DOCUMENT_PATHS].sort();
+  const listed = [...CDN_CACHED_DOCUMENT_PATHS, ...CDN_CACHED_DOCUMENT_ROUTES].sort();
 
   it.each(listed)("%s is backed by a page that declares force-static and an ISR window", (pathname) => {
     const file = pageFileFor(pathname);
@@ -115,6 +124,23 @@ describe("every CDN-cached document is a force-static page", () => {
     expect(window("/today")).toBeLessThanOrEqual(300);
     expect(window("/near")).toBe(window("/map"));
   });
+
+  it("keeps every drinker's words out of the cached Ledger document", () => {
+    // The logbook, the drop-derived story lines and the Family Table are read
+    // by GET /api/ledger/[id] after load. A Pint Drop store read in the page
+    // would put a drinker's words in a copy handed to every visitor, and a
+    // hidden, withdrawn or erased drop would outlive its removal there.
+    const source = stripComments(readFileSync(join(REPO_ROOT, "app/ledger/[id]/page.tsx"), "utf8"));
+    expect(source).not.toMatch(/pintDropsStore|pintDropViewer|ledgerLog\.server|listVisible|listLegacyForVenue/);
+  });
+
+  it.each([...CDN_CACHED_DOCUMENT_ROUTES].sort())(
+    "%s reads only bundled data, so it takes the hour `/map` takes",
+    (pattern) => {
+      const source = readFileSync(join(REPO_ROOT, pageFileFor(pattern)), "utf8");
+      expect(Number(/export const revalidate = (\d+);/.exec(source)?.[1])).toBe(3600);
+    },
+  );
 });
 
 describe("a signed-in surface is never a cached document", () => {
@@ -122,6 +148,7 @@ describe("a signed-in surface is never a cached document", () => {
 
   it.each(routes)("%s is absent from the list", (pathname) => {
     expect(CDN_CACHED_DOCUMENT_PATHS.has(pathname)).toBe(false);
+    expect(CDN_CACHED_DOCUMENT_ROUTES.has(pathname)).toBe(false);
   });
 
   it.each(routes)("%s does not declare force-static", (_pathname, file) => {

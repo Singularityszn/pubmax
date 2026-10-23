@@ -1,0 +1,491 @@
+import { expect, test, type Page, type WebSocketRoute } from "@playwright/test";
+import { mkdir } from "node:fs/promises";
+
+import { DEFAULT_PAL_DRAFT } from "../lib/pubPal";
+import { ACCOUNTS, installAuthDoubles, seedSignedIn } from "./helpers/authDoubles";
+
+// The voice panel on /pal, driven through the REAL ElevenLabs SDK against a
+// stand-in for the provider's socket. The stand-in speaks the provider's own
+// event shapes (initiation, audio, agent_response, tentative and final user
+// transcripts), so the panel is proved on what it will receive, without a key
+// or a paid minute. Shots land in artifacts/pal-voice-transcript/ (gitignored).
+
+const SHOTS = "artifacts/pal-voice-transcript";
+const SIGNED_URL = "wss://api.elevenlabs.io/v1/convai/conversation?agent_id=agent_e2e&conversation_signature=e2e";
+
+test.use({
+  permissions: ["microphone"],
+  launchOptions: {
+    args: ["--use-fake-ui-for-media-stream", "--use-fake-device-for-media-stream"],
+  },
+});
+
+/** Half a second of speech-band harmonics as base64 PCM16 at 16 kHz. */
+function toneChunk(): string {
+  const samples = 8_000;
+  const buffer = Buffer.alloc(samples * 2);
+  for (let index = 0; index < samples; index += 1) {
+    // A lone tone fills too few spectrum bins to exercise the voice meter.
+    let wave = 0;
+    for (let harmonic = 1; harmonic <= 20; harmonic += 1) {
+      wave += Math.sin((2 * Math.PI * 120 * harmonic * index) / 16_000);
+    }
+    const value = (wave / 20) * 0.5 * 0x7fff;
+    buffer.writeInt16LE(Math.round(value), index * 2);
+  }
+  return buffer.toString("base64");
+}
+
+let eventId = 0;
+function say(socket: WebSocketRoute, text: string): void {
+  eventId += 1;
+  socket.send(JSON.stringify({ type: "agent_response", agent_response_event: { agent_response: text, event_id: eventId } }));
+  for (let chunk = 0; chunk < 3; chunk += 1) {
+    socket.send(JSON.stringify({ type: "audio", audio_event: { audio_base_64: toneChunk(), event_id: eventId } }));
+  }
+}
+
+function hear(socket: WebSocketRoute, text: string, tentative = false): void {
+  eventId += 1;
+  socket.send(JSON.stringify(tentative
+    ? { type: "tentative_user_transcript", tentative_user_transcription_event: { user_transcript: text, event_id: eventId } }
+    : { type: "user_transcript", user_transcription_event: { user_transcript: text, event_id: eventId } }));
+}
+
+async function openLiveVoice(page: Page, memoryProposals = false, firstMessage?: string): Promise<WebSocketRoute> {
+  const timestamp = "2026-10-04T12:00:00.000Z";
+  const pal = {
+    id: "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb", ownerId: ACCOUNTS.A.id,
+    name: "Ripley", adultAttestedAt: timestamp,
+    appearance: DEFAULT_PAL_DRAFT.appearance, personality: DEFAULT_PAL_DRAFT.personality,
+    voice: DEFAULT_PAL_DRAFT.voice, muted: false, hidden: false,
+    proposalPreferences: { memories: memoryProposals, routes: true }, masteryPoints: 0,
+    createdAt: timestamp, updatedAt: timestamp,
+  };
+  await page.route("**/api/pub-pal", (route) => route.fulfill({ json: { pal, adultOnFile: true } }));
+  await page.route("**/api/pub-pal/memories", (route) => route.fulfill({ json: { memories: [] } }));
+  await page.route("**/api/pub-pal/tool-turn", (route) => route.fulfill({ status: 204 }));
+  await page.route("**/api/pub-pal/voice-token", (route) => {
+    if (route.request().method() === "GET") {
+      return route.fulfill({ json: { available: true, retention: "provider_default" } });
+    }
+    const body = route.request().postDataJSON() as { action?: string } | null;
+    if (body?.action === "release") return route.fulfill({ status: 204 });
+    return route.fulfill({ json: { signedUrl: SIGNED_URL, conversationId: "conv_e2e_transcript", maxSessionSeconds: 180, ...(firstMessage ? { overrides: { firstMessage, voiceId: null } } : {}) } });
+  });
+
+  let resolveSocket!: (socket: WebSocketRoute) => void;
+  const opened = new Promise<WebSocketRoute>((resolve) => { resolveSocket = resolve; });
+  await page.routeWebSocket(/api\.elevenlabs\.io/, (socket) => {
+    socket.onMessage((message) => {
+      const event = JSON.parse(String(message)) as { type?: string };
+      if (event.type !== "conversation_initiation_client_data") return;
+      if (firstMessage) {
+        expect(event).toMatchObject({ conversation_config_override: { agent: { first_message: firstMessage } } });
+      }
+      socket.send(JSON.stringify({
+        type: "conversation_initiation_metadata",
+        conversation_initiation_metadata_event: {
+          conversation_id: "conv_e2e_transcript",
+          agent_output_audio_format: "pcm_16000",
+          user_input_audio_format: "pcm_16000",
+        },
+      }));
+      if (firstMessage) say(socket, firstMessage);
+      resolveSocket(socket);
+    });
+  });
+
+  await installAuthDoubles(page);
+  await page.addInitScript(() => {
+    localStorage.setItem("pubmax-tour-v1-done", "1");
+    localStorage.setItem("pubmax:first-run-welcome:v1", "1");
+    localStorage.setItem("pubmaxx:analytics-consent:v1", "denied");
+    localStorage.setItem("pubmax:identityNudge:dismissedAt:v1", String(Date.now()));
+    localStorage.setItem("pubmaxx.pub-pal-route-activation.v1", JSON.stringify({
+      version: 1, activatedAt: new Date().toISOString(),
+    }));
+  });
+  await seedSignedIn(page, "A");
+  await page.goto("/pal");
+  const start = page.getByRole("button", { name: "Start voice chat", exact: true });
+  await expect(start).toBeVisible({ timeout: 30_000 });
+  await expect(page.locator(".palVoiceEmpty")).toContainText("the conversation shows up here");
+  await expect(async () => {
+    await start.click();
+    await expect(page.getByRole("status").filter({ hasText: /Pal is (listening|talking)/ })).toBeVisible({ timeout: 2_000 });
+  }).toPass({ timeout: 30_000 });
+  return opened;
+}
+
+test.describe("phone voice map tap targets", () => {
+  test.use({ hasTouch: true });
+
+  for (const pinNumber of [1, 2, 3, 4]) {
+    test(`independent transport replies keep four pins tappable and pin ${pinNumber} opens its pub`, async ({ page }) => {
+      test.setTimeout(90_000);
+      await page.setViewportSize({ width: 390, height: 844 });
+      const socket = await openLiveVoice(page);
+      hear(socket, "Find four pubs in Soho and check Tube delays.");
+      const response = await page.request.post("/api/pub-pal/chat", { data: {
+        query: "Find me four pubs in Soho and show them on the map.",
+      } });
+      expect(response.ok()).toBe(true);
+      const answer = await response.json();
+      expect(answer.cards).toHaveLength(4);
+      let toolId = 0;
+      const deliver = (tool: string, cards: unknown[]) => {
+        const request = { tool_name: tool, tool_call_id: `transport-${++toolId}`, tool_type: "webhook", event_id: eventId };
+        socket.send(JSON.stringify({ type: "agent_tool_request", agent_tool_request: request }));
+        socket.send(JSON.stringify({ type: "agent_tool_response_full_payload", agent_tool_response_full_payload: {
+          ...request, is_error: false, is_called: true,
+          full_tool_result: JSON.stringify({ requestedTool: tool, result: { ok: true, tool, answerHint: "Recorded results.", cards } }),
+        } }));
+      };
+      const map = page.getByRole("region", { name: "4 pubs on the map" });
+      const list = page.getByRole("list", { name: "Pubs from the voice answer" });
+      const checkPins = async () => {
+        await map.scrollIntoViewIfNeeded();
+        await page.mouse.move(0, 0);
+        await expect(map.locator('[data-map-ready="true"]')).toBeVisible({ timeout: 20_000 });
+        await expect(map.locator(".palChatMapPin")).toHaveCount(4);
+        await expect.poll(() => map.locator(".palChatMapPin").evaluateAll((pins) => pins.map((pin) => {
+          const box = pin.getBoundingClientRect();
+          const target = document.elementFromPoint(box.x + box.width / 2, box.y + box.height / 2);
+          return target === pin || pin.contains(target);
+        }))).toEqual([true, true, true, true]);
+        for (const card of answer.cards) {
+          const pin = map.locator(`.palChatMapPin[data-venue-id="${card.venueId}"]`);
+          await expect(pin).toHaveAttribute("href", `/map?sel=${card.venueId}`);
+          await pin.tap({ trial: true });
+        }
+      };
+      deliver("search_venues", answer.cards);
+      await expect(list.locator("li")).toHaveCount(4);
+      await checkPins();
+      for (const tool of ["city_status", "journey"]) {
+        deliver(tool, [{ key: tool, title: `${tool} answer`, note: "Transport information." }]);
+        say(socket, `${tool} completed.`);
+        await expect(page.getByRole("log", { name: "Voice chat transcript" })).toContainText(`${tool} completed.`);
+        await expect(list.locator("li")).toHaveCount(4);
+        await checkPins();
+      }
+      await test.info().attach("voice-map-after-transport", { body: await map.screenshot({ path: test.info().outputPath("voice-map-after-transport.png") }), contentType: "image/png" });
+      const pin = map.locator(".palChatMapPin").nth(pinNumber - 1);
+      const destination = await pin.getAttribute("href");
+      await pin.tap();
+      await expect(page).toHaveURL(new RegExp(`${destination!.replace("?", "\\?")}$`));
+    });
+  }
+});
+
+for (const width of [390, 1440]) {
+  test(`${width}px: real SDK tool events show four mapped pubs and require a tap before keeping a voice memory`, async ({ page }) => {
+    test.setTimeout(90_000);
+    await page.setViewportSize({ width, height: 1000 });
+    const socket = await openLiveVoice(page, true);
+    const query = "Find me four pubs in Soho and show them on the map.";
+    hear(socket, query);
+    const response = await page.request.post("/api/pub-pal/chat", { data: { query } });
+    expect(response.ok()).toBe(true);
+    const answer = await response.json();
+    expect(answer.cards).toHaveLength(4);
+    const deliver = (tool: string, result: unknown) => {
+      const request = { tool_name: tool, tool_call_id: `${tool}-${eventId}`, tool_type: "webhook", event_id: eventId };
+      socket.send(JSON.stringify({ type: "agent_tool_request", agent_tool_request: request }));
+      socket.send(JSON.stringify({ type: "agent_tool_response_full_payload", agent_tool_response_full_payload: {
+        ...request, is_error: false, is_called: true, full_tool_result: JSON.stringify({ requestedTool: tool, result }),
+      } }));
+    };
+    deliver("venue_prices", { ok: true, tool: "search_venues", answerHint: answer.answer, cards: answer.cards });
+    await expect(page.getByRole("list", { name: "Pubs from the voice answer" }).locator("li")).toHaveCount(4);
+    const map = page.getByRole("region", { name: "4 pubs on the map" });
+    await map.scrollIntoViewIfNeeded();
+    await expect(map.locator('[data-map-ready="true"]')).toBeVisible({ timeout: 20_000 });
+    await expect(page).toHaveURL(/\/pal$/);
+    await mkdir("artifacts/pubpal-complete-1019", { recursive: true });
+    await page.screenshot({ path: `artifacts/pubpal-complete-1019/voice-map-${width}.png` });
+
+    deliver("venue_drinks", { ok: true, tool: "venue_drinks", answerHint: "Two recorded drinks.", cards: [
+      { ...answer.cards[0], key: "wine", title: "Red wine at Shakespeares Head", price: 7.5, note: "Seen 2 October 2026. Corroboration pending.", provenance: { kind: "community-price", label: "People-logged" } },
+      { ...answer.cards[0], key: "meal", title: "Lunch at Shakespeares Head", price: 18, note: "Published menu. Read 2 October 2026. Availability unknown.", provenance: { kind: "published-menu", label: "Pub menu" }, menuEvidence: { kind: "published-menu", itemId: "lunch", itemName: "Lunch", menu: "food", category: "meal", currency: "GBP", serving: "portion", caloriesKcal: null, caloriesProvenance: null, dietary: [], dietaryProvenance: null, observedAt: "2026-10-02", source: "Pub menu", sourceUrl: null, licence: "Published menu", availability: "unknown" } },
+    ] });
+    const sourced = page.getByRole("list", { name: "Pubs from the voice answer" });
+    await expect(sourced.locator("li")).toHaveCount(6);
+    for (const card of answer.cards) {
+      const recommendation = sourced.locator("li").filter({ has: page.getByRole("link", { name: card.title, exact: true }) });
+      await expect(recommendation).toHaveCount(1);
+      await expect(recommendation).toContainText(card.note);
+      await expect(recommendation.locator('.priceBadge[title]')).toHaveCount(typeof card.price === "number" ? 1 : 0);
+      if (typeof card.price === "number") {
+        await expect(recommendation.locator('.priceBadge')).toHaveText(`£${card.price.toFixed(2)}`);
+      } else {
+        await expect(recommendation.locator('.priceBadge')).toHaveCount(0);
+      }
+    }
+    const wine = sourced.locator("li").filter({ has: page.getByRole("link", { name: "Red wine at Shakespeares Head", exact: true }) });
+    const meal = sourced.locator("li").filter({ has: page.getByRole("link", { name: "Lunch at Shakespeares Head", exact: true }) });
+    await expect(wine).toContainText("£7.50");
+    await expect(wine).toContainText("Seen 2 October 2026. Corroboration pending.");
+    await expect(meal).toContainText("£18.00");
+    await expect(meal).toContainText("Published menu. Read 2 October 2026. Availability unknown.");
+    await expect(wine.locator('.priceBadge[title]')).toHaveCount(0);
+    await expect(meal.locator('.priceBadge[title]')).toHaveCount(0);
+    await expect(map).toBeVisible();
+    await expect(map.locator(".palChatMapPin")).toHaveCount(4);
+
+    let writes = 0;
+    const memories: Array<Record<string, unknown>> = [];
+    await page.route("**/api/pub-pal/memories", async (route) => {
+      if (route.request().method() === "POST") {
+        writes += 1;
+        const memory = { id: "voice-memory-1", ...route.request().postDataJSON(), provenance: "user_confirmed", createdAt: "2026-10-20T00:00:00Z", updatedAt: "2026-10-20T00:00:00Z" };
+        memories.push(memory);
+        return route.fulfill({ status: 201, json: { memory } });
+      }
+      return route.fulfill({ json: { memories } });
+    });
+    hear(socket, "I prefer cask ale.");
+    deliver("propose_memory", { ok: true, tool: "propose_memory", answerHint: "A card is waiting. Nothing is saved.", proposals: [{ id: "voice-test-memory-1", kind: "remember_memory", memoryKind: "drink_preference", value: "Cask ale", label: "Remember: Cask ale" }] });
+    const confirm = page.getByRole("button", { name: "Remember: Cask ale", exact: true });
+    await expect(confirm).toBeVisible();
+    expect(writes).toBe(0);
+    await confirm.click();
+    await expect(page.getByRole("status").filter({ hasText: "Saved: Cask ale" })).toBeVisible();
+    expect(writes).toBe(1);
+    await expect(page.locator(".palMemoryList")).toContainText("Cask ale");
+    await page.getByRole("button", { name: "End", exact: true }).click();
+    await page.reload();
+    await expect(page.locator(".palMemoryList")).toContainText("Cask ale");
+  });
+}
+
+for (const [width, theme] of [[390, "light"], [1280, "dark"]] as const) {
+  test(`${width}px ${theme}: the voice panel prints the conversation and "show me the map" opens /map`, async ({ page }) => {
+    test.setTimeout(90_000);
+    await page.setViewportSize({ width, height: width === 390 ? 844 : 900 });
+    await page.emulateMedia({ colorScheme: theme });
+    await mkdir(SHOTS, { recursive: true });
+    const socket = await openLiveVoice(page);
+
+    // On a phone the panel carries its own live head; on a desktop the big
+    // portrait stays in view beside the panel, so the small one is hidden.
+    const face = page.locator(".palVoiceFace");
+    if (width === 390) {
+      await expect(face).toBeVisible();
+      await expect(face).toHaveAttribute("data-head-3d", "live");
+    } else {
+      await expect(face).toBeHidden();
+    }
+
+    // The portrait is a 3D head that lifts and nods on the Pal's own voice.
+    // Off screen its loop sleeps, so the head is brought into view first.
+    const head = page.locator(".palHomePortrait");
+    await head.scrollIntoViewIfNeeded();
+    await expect(head).toHaveAttribute("data-head-3d", "live");
+    say(socket, "Evening. I'm Ripley. Tell me the night you want and I'll find it.");
+    await expect.poll(
+      () => head.evaluate((element) => Number.parseFloat(getComputedStyle(element).getPropertyValue("--pal-lift")) || 0),
+      { timeout: 5_000, intervals: [50] },
+    ).toBeGreaterThan(0.5);
+    await head.screenshot({ path: `${SHOTS}/${width}-0-head-speaking.png` });
+    const log = page.getByRole("log", { name: "Voice chat transcript" });
+    await expect(log.locator(".palVoiceLine--pal")).toContainText("Tell me the night you want");
+    await expect(page.locator(".palVoice")).toHaveAttribute("data-mode", "speaking");
+    await page.waitForTimeout(500);
+    await page.locator(".palVoice").screenshot({ path: `${SHOTS}/${width}-1-pal-speaking.png` });
+
+    await expect(page.locator(".palVoice")).toHaveAttribute("data-mode", "listening", { timeout: 10_000 });
+    hear(socket, "cheap pints near", true);
+    await expect(log.locator(".palVoiceLine--live")).toContainText("cheap pints near");
+    await page.locator(".palVoice").screenshot({ path: `${SHOTS}/${width}-2-hearing-you.png` });
+
+    hear(socket, "Cheap pints near Soho for four of us");
+    // The fake microphone plays a steady tone, so the live "hearing you" row
+    // can sit under the final line; the final line is what is asserted.
+    await expect(log.locator(".palVoiceLine--you:not(.palVoiceLine--live)").last()).toHaveText("YouCheap pints near Soho for four of us");
+    say(socket, "The Toucan on Carlisle Street has a listed pint at £5.20. Want me to plan a route from there?");
+    await expect(log.locator(".palVoiceLine--pal").last()).toContainText("The Toucan");
+
+    hear(socket, "Show me the map");
+    const mapCard = page.locator(".palVoiceMapCard");
+    await expect(mapCard).toContainText("Opening the map");
+    await page.locator(".palVoice").screenshot({ path: `${SHOTS}/${width}-3-opening-map.png` });
+    await page.screenshot({ path: `${SHOTS}/${width}-4-page.png`, fullPage: width === 390 });
+    await expect(page).toHaveURL(/\/map(?:\?|$)/, { timeout: 15_000 });
+  });
+}
+
+test("Stay here keeps the person on the Pal, and the Pal's own words never open the map", async ({ page }) => {
+  test.setTimeout(90_000);
+  await page.setViewportSize({ width: 390, height: 844 });
+  const socket = await openLiveVoice(page);
+  say(socket, "Shall I show you the map?");
+  // The panel's own head lifts on the Pal's voice while the big one is off screen.
+  const face = page.locator(".palVoiceFace");
+  await expect.poll(
+    () => face.evaluate((element) => Number.parseFloat(getComputedStyle(element).getPropertyValue("--pal-lift")) || 0),
+    { timeout: 5_000, intervals: [50] },
+  ).toBeGreaterThan(0.5);
+  await page.locator(".palVoice").screenshot({ path: `${SHOTS}/390-5-panel-face-speaking.png` });
+  const log = page.getByRole("log", { name: "Voice chat transcript" });
+  await expect(log).toContainText("Shall I show you the map?");
+  await page.waitForTimeout(2_000);
+  await expect(page.locator(".palVoiceMapCard")).toHaveCount(0);
+
+  hear(socket, "Open the map");
+  await page.getByRole("button", { name: "Stay here", exact: true }).click();
+  await page.waitForTimeout(2_000);
+  await expect(page).toHaveURL(/\/pal$/);
+  await expect(page.locator(".palVoiceMapCard")).toHaveCount(0);
+});
+
+test("the head stays a still photograph under reduced motion", async ({ page }) => {
+  test.setTimeout(90_000);
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  const socket = await openLiveVoice(page);
+  say(socket, "Evening.");
+  await expect(page.getByRole("log", { name: "Voice chat transcript" })).toContainText("Evening.");
+  const head = page.locator(".palHomePortrait");
+  await expect(head).not.toHaveAttribute("data-head-3d", "live");
+  await expect(head.locator(".palPortrait")).toHaveCSS("transform", "none");
+});
+
+
+test.describe("repeated voice search", () => {
+  test.use({ hasTouch: true });
+for (const detailFirst of [true, false]) {
+  test(`repeated voice searches replace old recommendations and preserve independent detail (${detailFirst})`, async ({ page }, testInfo) => {
+    test.setTimeout(90_000);
+    await page.setViewportSize({ width: 390, height: 1000 });
+    const socket = await openLiveVoice(page);
+    hear(socket, "Find four pubs in Soho, then four near Bank.");
+    const results = [];
+    for (const query of ["Find four pubs in Soho", "Find four pubs near Bank"]) {
+      const response = await page.request.post("/api/pub-pal/chat", { data: { query } });
+      expect(response.ok()).toBe(true);
+      const answer = await response.json();
+      expect(answer.cards).toHaveLength(4);
+      results.push(answer.cards);
+    }
+    const [soho, bank] = results;
+    expect(bank.map((card: { venueId: string }) => card.venueId)).not.toEqual(soho.map((card: { venueId: string }) => card.venueId));
+    const request = (tool: string, id: string) => {
+      const event = { tool_name: tool, tool_call_id: id, tool_type: "webhook", event_id: eventId };
+      socket.send(JSON.stringify({ type: "agent_tool_request", agent_tool_request: event }));
+      return event;
+    };
+    const complete = (event: ReturnType<typeof request>, cards: unknown[], canonical = event.tool_name) => socket.send(JSON.stringify({
+      type: "agent_tool_response_full_payload", agent_tool_response_full_payload: {
+        ...event, is_error: false, is_called: true,
+        full_tool_result: JSON.stringify({ requestedTool: event.tool_name, result: { ok: true, tool: canonical, answerHint: "Recorded results.", cards } }),
+      },
+    }));
+    const first = request("search_venues", "first-search");
+    complete(first, soho);
+    const list = page.getByRole("list", { name: "Pubs from the voice answer" });
+    await expect(list.locator("li")).toHaveCount(4);
+    const menu = request("venue_drinks", "menu-old-pub");
+    const detail = [{ ...soho[0], key: "menu-detail", title: "Menu at the earlier pub" }];
+    if (detailFirst) complete(menu, detail);
+    const lateOld = request("search_venues", "late-old-search");
+    const latest = request("search_venues", "latest-search");
+    complete(latest, bank);
+    if (!detailFirst) complete(menu, detail);
+    complete(lateOld, soho);
+    complete(latest, bank);
+    complete(request("city_status", "status"), [{ key: "status", title: "Tube status", note: "No severe delays." }]);
+    await expect(list.locator("li")).toHaveCount(5);
+    await expect(list.getByRole("link", { name: "Menu at the earlier pub", exact: true })).toHaveCount(1);
+    for (const card of bank) await expect(list.getByRole("link", { name: card.title, exact: true })).toHaveCount(1);
+    const map = page.getByRole("region", { name: "4 pubs on the map", exact: true });
+    await map.scrollIntoViewIfNeeded();
+    await expect(map.locator('[data-map-ready="true"]')).toBeVisible({ timeout: 20_000 });
+    const pins = map.locator(".palChatMapPin");
+    await expect(pins).toHaveCount(4);
+    expect(await pins.evaluateAll(nodes => nodes.map(node => node.getAttribute("data-venue-id")))).toEqual(bank.map((card: { venueId: string }) => card.venueId));
+    const canvas = map.locator("canvas");
+    const identity = await canvas.elementHandle();
+    const before = await map.locator(".palChatMapAnchor").evaluateAll(nodes => nodes.map(node => (node as HTMLElement).style.transform));
+    const box = await canvas.boundingBox();
+    await page.mouse.move(box!.x + box!.width / 2, box!.y + box!.height / 2);
+    await page.mouse.down();
+    await page.mouse.move(box!.x + box!.width / 2 + 25, box!.y + box!.height / 2 + 15, { steps: 8 });
+    await page.mouse.up();
+    await expect.poll(() => map.locator(".palChatMapAnchor").evaluateAll(nodes => nodes.map(node => (node as HTMLElement).style.transform))).not.toEqual(before);
+    // Compare the next result only after the reader's pan stops moving the pins.
+    let previous = "";
+    let settled = 0;
+    await expect.poll(async () => {
+      const positions = JSON.stringify(await map.locator(".palChatMapAnchor").evaluateAll(nodes => nodes.map(node => (node as HTMLElement).style.transform)));
+      settled = positions === previous ? settled + 1 : 0;
+      previous = positions;
+      return settled;
+    }, { intervals: [100] }).toBeGreaterThanOrEqual(3);
+    const panned = await map.locator(".palChatMapAnchor").evaluateAll(nodes => nodes.map(node => (node as HTMLElement).style.transform));
+    complete(request("journey", "independent-journey"), [{ ...soho[0], key: "journey-detail", title: "Journey from the earlier pub" }]);
+    await expect(list.getByRole("link", { name: "Journey from the earlier pub", exact: true })).toBeVisible();
+    expect(await canvas.evaluate((node, old) => node === old, identity)).toBe(true);
+    expect(await map.locator(".palChatMapAnchor").evaluateAll(nodes => nodes.map(node => (node as HTMLElement).style.transform))).toEqual(panned);
+    await expect(pins).toHaveCount(4);
+    for (const width of [390, 1440]) {
+      await page.setViewportSize({ width, height: 1000 });
+      await map.screenshot({ path: testInfo.outputPath(`${width}-choices-before-map-followups.png`) });
+      for (const spoken of [true, false]) {
+        await map.scrollIntoViewIfNeeded();
+        for (const pin of await pins.all()) await pin.tap({ trial: true });
+        const camera = await map.locator(".palChatMapAnchor").evaluateAll(nodes => nodes.map(node => (node as HTMLElement).style.transform));
+        const thanks = page.getByRole("log", { name: "Voice chat transcript" }).locator(".palVoiceLine--you").filter({ hasText: "Thanks" });
+        const previousThanks = await thanks.count();
+        if (spoken) hear(socket, "Thanks");
+        else {
+          await page.getByPlaceholder("Or type the night you want…", { exact: true }).fill("Thanks");
+          await page.getByRole("button", { name: "Send message", exact: true }).click();
+        }
+        await expect(thanks).toHaveCount(previousThanks + 1);
+        say(socket, "You are welcome.");
+        await expect(page.getByRole("log", { name: "Voice chat transcript" })).toContainText("You are welcome.");
+        for (const followup of ["Show those pubs on the map", "Show me the map"]) {
+          if (spoken) hear(socket, followup);
+          else {
+            await page.getByPlaceholder("Or type the night you want…", { exact: true }).fill(followup);
+            await page.getByRole("button", { name: "Send message", exact: true }).click();
+          }
+          await expect(map).toBeFocused();
+          await expect(page).toHaveURL(/\/pal$/);
+          expect(await canvas.evaluate((node, old) => node === old, identity)).toBe(true);
+          expect(await map.locator(".palChatMapAnchor").evaluateAll(nodes => nodes.map(node => (node as HTMLElement).style.transform))).toEqual(camera);
+          expect(await pins.evaluateAll(nodes => nodes.map(node => node.getAttribute("data-venue-id")))).toEqual(bank.map((card: { venueId: string }) => card.venueId));
+          await map.screenshot({ path: testInfo.outputPath(`${width}-${spoken ? "spoken" : "typed"}-${followup}-map-followup.png`) });
+        }
+      }
+    }
+    await page.setViewportSize({ width: 390, height: 1000 });
+    complete(request("search_venues", "changed-after-pan"), soho);
+    await expect.poll(() => pins.evaluateAll(nodes => nodes.map(node => node.getAttribute("data-venue-id")))).toEqual(soho.map((card: { venueId: string }) => card.venueId));
+    await expect(map.locator('[data-map-ready="true"]')).toBeVisible({ timeout: 20_000 });
+    for (const pin of await pins.all()) await pin.tap({ trial: true });
+    const alias = request("venue_prices", "alias-search");
+    complete(alias, bank, "search_venues");
+    await expect.poll(() => pins.evaluateAll(nodes => nodes.map(node => node.getAttribute("data-venue-id")))).toEqual(bank.map((card: { venueId: string }) => card.venueId));
+    const oldAlias = request("venue_prices", "late-alias-search");
+    const newestSearch = request("search_venues", "newest-search");
+    complete(newestSearch, soho);
+    complete(oldAlias, bank, "search_venues");
+    await expect.poll(() => pins.evaluateAll(nodes => nodes.map(node => node.getAttribute("data-venue-id")))).toEqual(soho.map((card: { venueId: string }) => card.venueId));
+    await expect(list.locator("li")).toHaveCount(6);
+    await page.getByRole("button", { name: "End", exact: true }).click();
+    await expect(pins).toHaveCount(4);
+    await page.getByRole("button", { name: "Start voice chat", exact: true }).click();
+    await expect(list).toHaveCount(0);
+  });
+}
+
+});
+
+test("the real SDK carries a grounded returning opening into a fresh voice session", async ({ page }) => {
+  const greeting = 'Hi, I\'m Ripley. You told me: "I visited The Crown on 10 October 2026, drank Camden Hells and spent £26.80 in total." Something similar tonight?';
+  await openLiveVoice(page, false, greeting);
+  await expect(page.getByRole("log", { name: "Voice chat transcript" })).toContainText(greeting);
+});

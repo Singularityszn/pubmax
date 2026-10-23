@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState, useSyncExternalStore } from "react";
+import Link from "next/link";
 
 import InviteMapLink from "@/components/plan/InviteMapLink";
 import { discardBody } from "@/lib/responseBody";
@@ -161,6 +162,10 @@ export function applyInviteRsvpCapability(
   return true;
 }
 
+// The remembered name is read once React owns the page. This tab writes it
+// only on submit, after the guest has typed, so nothing needs to re-read it.
+const subscribeNever = () => () => {};
+
 function readStoredGuestName(): string {
   if (typeof window === "undefined") return "";
   try {
@@ -241,10 +246,18 @@ export default function PlanInviteRsvp({
 }) {
   const [rsvp, setRsvp] = useState(initialRsvp);
   const [reactions, setReactions] = useState(initialReactions);
-  const [name, setName] = useState(() => readStoredGuestName());
+  // The server renders this page with no device storage, so the remembered
+  // name arrives through a store whose server snapshot is "" (the same shape
+  // as `rsvpRemembered` below). Reading localStorage in a state initialiser
+  // put the name into the hydration render and the input's `value` disagreed
+  // with the server HTML. The name the guest types overrides it.
+  const storedName = useSyncExternalStore(subscribeNever, readStoredGuestName, () => "");
+  const [typedName, setName] = useState<string | null>(null);
+  const name = typedName ?? storedName;
   const [status, setStatus] = useState<RsvpStatus | null>(null);
   const [submittingRsvp, setSubmittingRsvp] = useState(false);
   const [rsvpError, setRsvpError] = useState<string | null>(null);
+  const [rsvpPlanRecovery, setRsvpPlanRecovery] = useState(false);
   const [rsvpCommitted, setRsvpCommitted] = useState(false);
   const [pendingReaction, setPendingReaction] = useState<ReactionKey | null>(null);
   const [reactionError, setReactionError] = useState<string | null>(null);
@@ -347,6 +360,7 @@ export default function PlanInviteRsvp({
       setStatus(chosen);
       setSubmittingRsvp(true);
       setRsvpError(null);
+      setRsvpPlanRecovery(false);
       writeStoredGuestName(trimmedName);
 
       try {
@@ -361,9 +375,14 @@ export default function PlanInviteRsvp({
         });
         const res = submitted.response;
         if (!res.ok) {
+          const failure = res.status === 403 ? await res.clone().json().catch(() => null) as { code?: unknown } | null : null;
+          const recoverOnPlan = submitted.capability?.role === "guest" && failure?.code === "PLAN_INVITE_RSVP_FORBIDDEN";
+          setRsvpPlanRecovery(recoverOnPlan);
           discardBody(res);
           setRsvpError(
-            res.status === 429
+            recoverOnPlan
+              ? "Change your crew status on the plan."
+              : res.status === 429
               ? "That's a lot of RSVPs. Give it a moment."
               : res.status === 404
                 ? "This invite link isn't valid."
@@ -536,6 +555,7 @@ export default function PlanInviteRsvp({
       {rsvpError ? (
         <p className="inviteRsvp__error" role="status">
           {rsvpError}
+          {rsvpPlanRecovery ? <> <Link prefetch={false} href={`/plan/${planId}`}>Open the plan</Link></> : null}
         </p>
       ) : null}
 

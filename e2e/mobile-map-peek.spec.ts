@@ -1,4 +1,5 @@
 import { expect, test, type CDPSession, type Page } from "@playwright/test";
+import { expectMobileMapShellReady, mobileMapShellControl, routeTubeStatus } from "./helpers/mobileMapShell";
 
 // The phone map's bottom card: "Cheapest in this view", the plan door inside it,
 // a pull up that opens List view. Rules: docs/rules/components-sheets-chrome-and-navigation.md,
@@ -44,7 +45,7 @@ async function openMap(
   options: { reducedMotion?: "reduce" | "no-preference"; arrival?: string | null; url?: string } = {},
 ): Promise<void> {
   await loadMap(page, options);
-  await expect(page.locator(".mobileMapTopbar")).toBeVisible({ timeout: 45_000 });
+  await expectMobileMapShellReady(page, 45_000);
 }
 
 /** A real touch drag through CDP, so the card sees pointer events with `pointerType: touch`. */
@@ -98,7 +99,7 @@ test("the card names the cheapest listed pub in view, and the door rides inside 
   await expect(card.locator(".mapPeekPrice")).toHaveText(/£\d+\.\d{2}/);
   await expect(card.locator(".mapPeekName")).not.toBeEmpty();
   // One surface: the plan door is a child and keeps its own label and 48px.
-  const door = card.getByRole("button", { name: "Describe the outing" });
+  const door = card.getByRole("button", { name: "Plan a pub crawl" });
   await expect(door).toBeVisible();
   const doorBox = await door.boundingBox();
   expect(doorBox!.height).toBeGreaterThanOrEqual(48);
@@ -106,6 +107,72 @@ test("the card names the cheapest listed pub in view, and the door rides inside 
   expect(box.height).toBeCloseTo(112, 0);
   expect(doorBox!.y).toBeGreaterThan(box.y);
   expect(doorBox!.y + doorBox!.height).toBeLessThan(box.y + box.height);
+});
+
+test.describe("failed price reads with enlarged text", () => {
+  test.use({ serviceWorkers: "block" });
+
+  test("the long unread status keeps map controls clear as text grows and shrinks", async ({ page }, testInfo) => {
+    await page.setViewportSize({ width: 320, height: PHONE.height });
+    await routeTubeStatus(page, "routine");
+    await page.route("**/api/price-submit?drinkCategory=alcohol-free", (route) => route.fulfill({
+      status: 503,
+      json: { error: "Controlled unavailable price read" },
+    }));
+    await openMap(page, { url: "/map?drink=alcohol-free" });
+    const card = page.locator('.mapPeek[data-state="unread"]');
+    const status = card.locator(".mapPeekHush");
+    await expect(status).toHaveText("Could not read prices just now");
+    const nearMe = await mobileMapShellControl(page, "nearMe");
+    const credit = page.locator(".maplibregl-ctrl-attrib");
+    const toggle = credit.locator(".maplibregl-ctrl-attrib-button");
+
+    async function expectControlsClear(): Promise<void> {
+      await expect(async () => {
+        const cardBounds = await card.boundingBox();
+        expect(cardBounds).not.toBeNull();
+        for (const [name, control] of [["Near me", nearMe], ["Map credit", toggle]] as const) {
+          const bounds = await control.boundingBox();
+          expect(bounds, `${name} is painted`).not.toBeNull();
+          expect(bounds!.y + bounds!.height, `${name} stays above the whole price card`).toBeLessThanOrEqual(cardBounds!.y);
+          expect(await control.evaluate((element) => {
+            const box = element.getBoundingClientRect();
+            return element.contains(document.elementFromPoint(box.x + box.width / 2, box.y + box.height / 2));
+          }), `${name} owns its centre`).toBe(true);
+        }
+      }).toPass({ timeout: 5_000 });
+    }
+
+    await page.evaluate(() => {
+      document.documentElement.style.setProperty("font-size", "32px", "important");
+      document.documentElement.setAttribute("data-text-scale", "large");
+    });
+    await expect(status).toHaveCSS("font-size", "32px");
+    await page.evaluate(async () => { await document.fonts.ready; });
+    await expectControlsClear();
+    const largeHeight = (await card.boundingBox())!.height;
+    const screenshot = testInfo.outputPath("unread-price-320-text200-controls.png");
+    await page.screenshot({ path: screenshot });
+    await testInfo.attach("long unread status keeps map controls usable", { path: screenshot, contentType: "image/png" });
+
+    await toggle.click();
+    await expect(credit).toHaveClass(/maplibregl-compact-show/);
+    await toggle.click();
+    await expect(credit).not.toHaveClass(/maplibregl-compact-show/);
+
+    await page.evaluate(() => {
+      document.documentElement.style.removeProperty("font-size");
+      document.documentElement.removeAttribute("data-text-scale");
+    });
+    await expect(status).toHaveCSS("font-size", "16px");
+    await expect.poll(async () => (await card.boundingBox())!.height).toBeLessThan(largeHeight);
+    await expectControlsClear();
+    await card.locator(".mapPeekList").click();
+    await expect(page.locator(".mapVenueList--open")).toBeVisible();
+    await page.keyboard.press("Escape");
+    await expect(card).toBeVisible();
+    await expectControlsClear();
+  });
 });
 
 test("320px quiet price status stays complete at 200% text with both doors usable", async ({ page }, testInfo) => {
@@ -122,7 +189,7 @@ test("320px quiet price status stays complete at 200% text with both doors usabl
     document.documentElement.setAttribute("data-text-scale", "large");
   });
   await expect(page.locator("html")).toHaveCSS("font-size", "32px");
-  await expect(status).toHaveCSS("font-size", "30px");
+  await expect(status).toHaveCSS("font-size", "32px");
   await page.evaluate(async () => {
     await document.fonts.ready;
     await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
@@ -302,7 +369,7 @@ test("tapping the answer opens that pub, and the card stands down behind its she
   // Hidden, not unmounted: the map-edge column must not jump behind the sheet.
   await expect(card).toBeHidden();
   await expect(card).toHaveCount(1);
-  await expect(page.getByRole("button", { name: "Describe the outing" })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Plan a pub crawl" })).toHaveCount(0);
 });
 
 test("List opens List view sorted cheapest, and its first row is the card's own answer", async ({ page }) => {
@@ -320,7 +387,7 @@ test("List opens List view sorted cheapest, and its first row is the card's own 
   await expect(first).toContainText(price);
   // Nothing floats over the list: the card is covered, not painted or hit.
   await expect(card).toBeHidden();
-  await expect(page.getByRole("button", { name: "Describe the outing" })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Plan a pub crawl" })).toHaveCount(0);
 });
 
 for (const reducedMotion of ["reduce", "no-preference"] as const) {
@@ -487,10 +554,10 @@ test("a mouse release outside an interrupted card returns it to rest and restore
 test("a native pointer click on the peek plan door opens the planner", async ({ page }) => {
   await openMap(page);
   const card = await answeredCard(page);
-  await card.getByRole("button", { name: "Describe the outing", exact: true }).click();
+  await card.getByRole("button", { name: "Plan a pub crawl", exact: true }).click();
   const planner = page.getByRole("dialog", { name: "Plan an outing", exact: true });
   await expect(planner).toBeVisible();
-  await expect(planner.getByRole("textbox", { name: "Describe the outing", exact: true })).toBeVisible();
+  await expect(planner.getByRole("textbox", { name: "Where, how many, what budget", exact: true })).toBeVisible();
   await planner.getByRole("button", { name: "Close planner", exact: true }).click();
   await expect(card).toBeVisible();
   await expect(card).not.toHaveAttribute("data-dragging", "true");
@@ -581,7 +648,7 @@ for (const control of [
 test("a tap on the door still plans, and a drag that starts on it does not", async ({ page }) => {
   await openMap(page);
   const card = await answeredCard(page);
-  const door = card.getByRole("button", { name: "Describe the outing" });
+  const door = card.getByRole("button", { name: "Plan a pub crawl" });
   const doorBox = (await door.boundingBox())!;
   const cdp = await page.context().newCDPSession(page);
   await touchDrag(
@@ -597,7 +664,7 @@ test("a tap on the door still plans, and a drag that starts on it does not", asy
 test("the credit is a control on the map and copy under the Key", async ({ page }) => {
   await openMap(page);
   await expect(page.locator(".maplibregl-ctrl-attrib-button")).toBeVisible();
-  await page.locator(".mobileMapTopbar").getByRole("button", { name: "More map controls" }).click();
+  await (await mobileMapShellControl(page, "more")).click();
   const credits = page.locator(".mobileMapCredits");
   await expect(credits).toBeVisible({ timeout: 20_000 });
   await expect(credits).toContainText("OpenStreetMap contributors (ODbL)");
@@ -629,7 +696,7 @@ test("the first-visit ask offers both answers side by side, and an answer holds 
   await expect(page.locator(".mapPeek")).toBeVisible({ timeout: 20_000 });
 
   await page.reload();
-  await expect(page.locator(".mobileMapTopbar")).toBeVisible({ timeout: 45_000 });
+  await expectMobileMapShellReady(page, 45_000);
   expect(await page.evaluate(() => window.localStorage.getItem("pubmax:map-first-visit-arrival:v1")))
     .toBe(stored);
   await expect(ask).toHaveCount(0);
@@ -666,7 +733,7 @@ for (const theme of ["light", "dark"] as const) {
     await expect(page.locator(".mapPeek")).toHaveCount(0);
     await expect(page.getByText("No price yet", { exact: true })).toHaveCount(0);
     await expect(page.getByRole("button", { name: "Show the pubs in this view as a list" })).toHaveCount(0);
-    await expect(page.getByRole("button", { name: "Describe the outing", exact: true })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Plan a pub crawl", exact: true })).toBeVisible();
     await page.screenshot({ path: testInfo.outputPath(`390-${theme}-coffee-map.png`) });
     await page.getByRole("button", { name: "Drink shown on the map: Coffee. Choose another drink" }).click();
     const drinkSheet = page.locator('.mobileSheetPortal[data-sheet-kind="drink"]');

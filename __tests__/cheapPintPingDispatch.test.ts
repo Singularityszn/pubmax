@@ -71,7 +71,8 @@ describe("dispatchCheapPintPings", () => {
         priceLabel: "£4.50",
       }),
       send,
-      markSent: vi.fn(),
+      claim: vi.fn(async () => true),
+      release: vi.fn(),
     };
     const summary = await dispatchCheapPintPings(
       new Date("2026-08-22T16:00:00.000Z"),
@@ -88,15 +89,17 @@ describe("dispatchCheapPintPings", () => {
       resolveAccountId: async () => "user-1",
       selectPayload: async () => null,
       send,
-      markSent: vi.fn(),
+      claim: vi.fn(async () => true),
+      release: vi.fn(),
     };
     const summary = await dispatchCheapPintPings(WED_5PM, deps);
     expect(summary.skippedNoGroundedPint).toBe(1);
     expect(send).not.toHaveBeenCalled();
   });
 
-  it("sends once and stamps cheap_pint_sent_at", async () => {
-    const markSent = vi.fn();
+  it("claims cheap_pint_sent_at, then sends once", async () => {
+    const claim = vi.fn(async () => true);
+    const release = vi.fn();
     const deps: CheapPintPingDispatchDeps = {
       listSendReady: async () => [pref()],
       resolveAccountId: async () => "user-1",
@@ -108,10 +111,12 @@ describe("dispatchCheapPintPings", () => {
         priceLabel: "£4.50",
       }),
       send: async () => ({ sent: 1, pruned: 0, errors: 0 }),
-      markSent,
+      claim,
+      release,
     };
     const summary = await dispatchCheapPintPings(WED_5PM, deps);
     expect(summary.sent).toBe(1);
-    expect(markSent).toHaveBeenCalledWith(ACTOR, WED_5PM.toISOString());
+    expect(claim).toHaveBeenCalledWith(ACTOR, WED_5PM.toISOString());
+    expect(release).not.toHaveBeenCalled();
   });
 });

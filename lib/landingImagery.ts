@@ -27,6 +27,9 @@
 // (3) A SLOT ALWAYS ANSWERS. The chain is the pub, then the area, then the
 //     borough, then London itself. There is no "No photo yet" on a landing:
 //     London is a photograph we hold for every reader.
+//     The home pub card is the one exception. It takes only the `pub` scope,
+//     so a card naming a pub we hold no photograph of is text and price, never
+//     a view of somewhere else read as that pub's front door.
 //
 // (4) TEXT OVER A PHOTOGRAPH IS AA BY CONSTRUCTION, NOT BY SAMPLING. A card
 //     scrim is opaque enough that the WORST pixel a photograph could carry
@@ -221,11 +224,11 @@ export const LANDING_PHOTOS: Record<string, LandingPhoto> = {
 export const LONDON_PHOTO_ID = "city-of-london";
 
 /**
- * A pub we hold a photograph OF. Keyed by curated venue id, so the landing's
- * anchor pub shows its own front room rather than a view of the city.
+ * A pub we hold a photograph OF, keyed by curated venue id. The landing's pub
+ * card shows a photograph only from this table, never a match by name.
  */
 export const PUB_PHOTOS: Record<string, string> = {
-  // The Black Friar, the landing's anchor pub (lib/landingPubCard.ts).
+  // The Black Friar, Blackfriars.
   "venue-eltcmh": "the-black-friar",
 };
 
@@ -260,8 +263,8 @@ function photoById(id: string | undefined): LandingPhoto | null {
  * The photograph a landing shows, and the question it answered.
  *
  * Order is the rule: the pub itself, then the area it sits in, then its
- * borough, then London. Every argument is optional, so a borough page asks
- * with a borough slug alone and the landing hero asks with all three.
+ * borough, then London. Every argument is optional, so a borough page can
+ * pass only a borough slug.
  */
 export function landingPhotoFor(where: {
   venueId?: string | null;
@@ -383,3 +386,22 @@ export function landingPhotoScrimContrast(
     foreground > surface ? [foreground, surface] : [surface, foreground];
   return (lighter + 0.05) / (darker + 0.05);
 }
+
+// ── Where a street photograph was taken ─────────────────────────────────────
+//
+// A listing page may lead a crawl with a photograph of the patch its route
+// walks through (components/listing/placePhotoRules.ts). That needs to know WHERE a
+// photograph was taken, so a route is matched by distance and never by a name
+// in its title. Only a photograph of a PLACE has a spot. A photograph of one
+// pub (The Black Friar, the Cutty Sark, the Old Red Lion) has none, because a
+// route that only passes near it must never borrow that pub's front door; nor
+// does the City skyline, which is a view taken from across the river.
+
+/** Photograph id to where it was taken, [latitude, longitude]. */
+export const LANDING_PHOTO_SPOTS: Readonly<Record<string, readonly [number, number]>> = {
+  "piccadilly-circus": [51.5101, -0.1342],
+  "camden-lock": [51.5414, -0.1462],
+  "borough-market": [51.5055, -0.091],
+  "brick-lane": [51.5215, -0.0718],
+  brixton: [51.463, -0.1137],
+};

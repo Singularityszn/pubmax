@@ -1,4 +1,5 @@
 import { test, expect, type Page } from "@playwright/test";
+import { expectMobileMapShellReady, mobileMapShellControl } from "./helpers/mobileMapShell";
 
 /**
  * PlanAstra item 9, over the map's chrome overload at 768 and 1440.
@@ -30,9 +31,11 @@ function seedDismissedChrome(page: Page): Promise<void> {
 async function openMap(page: Page, phone = false): Promise<void> {
   const response = await page.goto("/map", { waitUntil: "domcontentloaded" });
   expect(response?.status()).toBe(200);
-  await expect(
-    page.locator(phone ? ".mobileMapTopbar" : ".mapToolbar"),
-  ).toBeVisible({ timeout: 60_000 });
+  if (phone) {
+    await expectMobileMapShellReady(page, 60_000);
+  } else {
+    await expect(page.locator(".mapToolbar")).toBeVisible({ timeout: 60_000 });
+  }
 }
 
 for (const viewport of DESKTOP) {
@@ -225,11 +228,9 @@ test.describe("390x844", () => {
     await expect(page.locator(".mapVenueKindFilterBtn")).toHaveCount(0);
     await expect(page.getByRole("group", { name: "Venue types" })).toHaveCount(0);
 
+    const filters = await mobileMapShellControl(page, "filters");
     await expect(async () => {
-      await page
-        .locator(".mobileMapTopbar")
-        .getByRole("button", { name: /^Filters/ })
-        .click();
+      await filters.click();
       await expect(
         page
           .locator('.mobileSheetPortal[data-sheet-kind="filters"]')

@@ -70,12 +70,13 @@ const publicFiles = walk(PUBLIC_DIR);
 const filesOutsideData = publicFiles.filter((file) => !file.startsWith("/data/"));
 
 const LANDING_IMAGE_PATTERN = /\.(?:avif|webp|jpg)$/i;
-const FIXED_ASSET_PREFIXES = ["/fonts/", "/night-signals/", "/pal/"];
+const FIXED_ASSET_PREFIXES = ["/fonts/", "/night-signals/", "/pal/", "/sounds/"];
 const FIXED_ASSET_PROBES = [
   "/fonts/example.woff2",
   "/landing/hero-thames-1600.avif",
   "/night-signals/example.svg",
   "/pal/circuit-robin-512.webp",
+  "/sounds/pal/voice-start.mp3",
 ];
 const FIXED_ASSETS = filesOutsideData.filter((file) =>
   FIXED_ASSET_PREFIXES.some((prefix) => file.startsWith(prefix)) ||
@@ -88,6 +89,8 @@ const EDITED_IN_PLACE_ASSETS = filesOutsideData.filter(
     file.startsWith("/vendor/") ||
     file.startsWith("/store-assets/") ||
     file.startsWith("/brand/") ||
+    // npm run build:map-icon-sprites rewrites these in place.
+    file.startsWith("/map-icons/") ||
     /^\/(?:icon-|apple-touch-icon|favicon)/.test(file) ||
     [
       "/theme-init.js",

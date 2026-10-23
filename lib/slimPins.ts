@@ -12,6 +12,7 @@
 import type { Venue } from "@/lib/venues";
 import { isNationalBaseVenueId, venueCityPrefix } from "@/lib/cityVenueIds";
 import { getVenueAccessibility } from "@/lib/venueAccessibilitySeeds";
+import { displayVenueAddress, displayVenueName, venueSourceNameField } from "@/lib/venueDisplay";
 import type { SlimVenue } from "@/lib/venuesSlim";
 
 /**
@@ -23,11 +24,17 @@ import type { SlimVenue } from "@/lib/venuesSlim";
 function addressFromSlimSearchText(slim: SlimVenue): string {
   const search = (slim.filterHints?.searchText ?? "").trim().toLowerCase();
   if (!search) return "";
-  const name = slim.name.trim().toLowerCase();
   const borough = slim.borough.trim().toLowerCase();
   let rest = search;
-  const nameVariants = [name];
-  if (name.startsWith("the ")) nameVariants.push(name.slice(4));
+  // searchText opens with the dataset's own name, so its operator-suffixed
+  // spelling is tried before the reader-facing one.
+  const nameVariants: string[] = [];
+  for (const raw of [slim.sourceName, slim.name]) {
+    const name = raw?.trim().toLowerCase();
+    if (!name) continue;
+    nameVariants.push(name);
+    if (name.startsWith("the ")) nameVariants.push(name.slice(4));
+  }
   for (const variant of nameVariants) {
     if (variant && rest.startsWith(variant)) {
       rest = rest.slice(variant.length).trim();
@@ -49,18 +56,20 @@ function addressFromSlimSearchText(slim: SlimVenue): string {
 export function slimVenueToPin(slim: SlimVenue): Venue {
   return {
     id: slim.id,
-    name: slim.name,
-    address: addressFromSlimSearchText(slim),
+    name: displayVenueName(slim.name),
+    ...(slim.sourceName ? { sourceName: slim.sourceName } : venueSourceNameField(slim.name)),
+    address: displayVenueAddress(addressFromSlimSearchText(slim)),
     latitude: slim.lat,
     longitude: slim.lng,
     primaryBorough: slim.borough,
+    ...(slim.locality !== undefined ? { locality: slim.locality } : {}),
     // Carry the nearest-station fare zone so the zone lens filters slim pins
     // before detail hydrates (undefined stays undefined — honestly unknown).
     ...(slim.zone !== undefined ? { zone: slim.zone } : {}),
     visibleBoroughs: slim.borough ? [slim.borough] : [],
     // Existing curated access facts belong to legacy London pins only.
     accessibility: venueCityPrefix(slim.id) === null && !isNationalBaseVenueId(slim.id)
-      ? getVenueAccessibility(slim.name, slim.borough)
+      ? getVenueAccessibility(slim.sourceName ?? slim.name, slim.borough)
       : undefined,
     prices: [],
     cheapestPrice: slim.cheapestPrice,
@@ -92,7 +101,12 @@ export function slimVenueToPin(slim: SlimVenue): Venue {
     sourceDatasets: [],
     curation: {},
     ...(slim.filterHints ? { filterHints: slim.filterHints } : {}),
+    ...(slim.priceObservedAt !== undefined
+      ? { priceObservedAt: slim.priceObservedAt }
+      : {}),
     ...(slim.kind !== undefined ? { kind: slim.kind } : {}),
+    ...(slim.legacyOsmBar === true ? { legacyOsmBar: true as const } : {}),
+    ...(slim.priceSource !== undefined ? { priceSource: slim.priceSource } : {}),
     ...(slim.priceBand !== undefined ? { priceBand: slim.priceBand } : {}),
     ...(slim.anchorLabel !== undefined ? { anchorLabel: slim.anchorLabel } : {}),
     ...(slim.anchorCourse !== undefined
@@ -117,14 +131,19 @@ function pinToSlimVenue(pin: Venue): SlimVenue {
   return {
     id: pin.id,
     name: pin.name,
+    ...(pin.sourceName ? { sourceName: pin.sourceName } : {}),
     lat: pin.latitude,
     lng: pin.longitude,
     cheapestPrice: pin.cheapestPrice,
     borough: pin.primaryBorough,
+    ...(pin.locality !== undefined ? { locality: pin.locality } : {}),
     ...(pin.zone !== undefined ? { zone: pin.zone } : {}),
     ...(pin.filterHints ? { filterHints: pin.filterHints } : {}),
     ...(pin.kind !== undefined ? { kind: pin.kind } : {}),
+    ...(pin.legacyOsmBar === true ? { legacyOsmBar: true as const } : {}),
+    ...(pin.priceSource !== undefined ? { priceSource: pin.priceSource } : {}),
     ...(pin.priceBand !== undefined ? { priceBand: pin.priceBand } : {}),
+    ...(pin.priceObservedAt !== undefined ? { priceObservedAt: pin.priceObservedAt } : {}),
     ...(pin.anchorLabel !== undefined ? { anchorLabel: pin.anchorLabel } : {}),
     ...(pin.anchorCourse !== undefined ? { anchorCourse: pin.anchorCourse } : {}),
     ...(pin.anchorObservedAt !== undefined

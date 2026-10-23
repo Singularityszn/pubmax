@@ -1,6 +1,7 @@
 name: Security CI
 
-# zizmor (workflow lint), osv-scanner (lockfile CVEs), Semgrep CE (SAST).
+# zizmor (workflow lint), osv-scanner (lockfile CVEs), Semgrep CE (SAST),
+# gitleaks (secrets in the full git history).
 # Each job installs its CLI on ubuntu-latest. These checks are advisory: no
 # branch protection requires them, so a red job here blocks nothing on its own.
 # The weekly run catches a new advisory against a lockfile or a pinned action
@@ -19,7 +20,10 @@ permissions:
   contents: read
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.ref }}
+  # One group per pull request: a newer head cancels that pull request's
+  # older run. Every other run (main push, schedule, dispatch) gets a
+  # group of its own, so GitHub never drops it while it waits.
+  group: ${{ github.workflow }}-${{ github.event_name == 'pull_request' && format('pr-{0}', github.event.pull_request.number) || format('run-{0}', github.run_id) }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
@@ -80,6 +84,36 @@ jobs:
       # non-zero when it finds no lockfile at all, so it cannot pass empty.
       - name: osv-scanner
         run: osv-scanner scan source --recursive .
+
+  gitleaks:
+    name: gitleaks (secrets)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      # Full history, because a secret removed in a later commit is still
+      # readable in the one that added it.
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Install gitleaks
+        run: |
+          set -euo pipefail
+          curl --fail --location --silent --show-error \
+            --output "$RUNNER_TEMP/gitleaks.tar.gz" \
+            https://github.com/gitleaks/gitleaks/releases/download/v8.30.0/gitleaks_8.30.0_linux_x64.tar.gz
+          echo "79a3ab579b53f71efd634f3aaf7e04a0fa0cf206b7ed434638d1547a2470a66e  $RUNNER_TEMP/gitleaks.tar.gz" \
+            | sha256sum --check
+          tar --extract --gzip --file "$RUNNER_TEMP/gitleaks.tar.gz" --directory "$RUNNER_TEMP" gitleaks
+          sudo mv "$RUNNER_TEMP/gitleaks" /usr/local/bin/gitleaks
+          gitleaks version
+
+      # --redact keeps a found value out of the job log. The allowlists and
+      # their reasons are in .gitleaks.toml.
+      - name: gitleaks
+        run: gitleaks git --redact --verbose --no-banner --config .gitleaks.toml .
 
   semgrep:
     name: Semgrep CE (SAST)

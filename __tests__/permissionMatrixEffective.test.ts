@@ -144,6 +144,8 @@ const GUEST_TOKEN = "pm-guest-device-token";
 const PLAN_ID = "c0000000-0000-4000-8000-000000000003";
 const HOST_MEMBER_ID = "c1000000-0000-4000-8000-000000000004";
 const HOST_TOKEN = "pm-host-member-token";
+const ALICE_PAL = "e5000000-0000-4000-8000-0000000000a1";
+const BOB_PAL = "e5000000-0000-4000-8000-0000000000b2";
 const ALICE_MEMORY = "d0000000-0000-4000-8000-000000000005";
 const ALICE_MOMENT = "d1000000-0000-4000-8000-000000000006";
 const ALICE_MOMENT_OBJECT = `night-moments/${ALICE}/${ALICE_MEMORY}/venue.jpg`;
@@ -349,10 +351,12 @@ beforeAll(async () => {
     messagePhotoRoute,
     wantedRoute,
     diaryRoute,
+    venueSubmissionsRoute,
     savedPubsRoute,
     tagsRoute,
     profileRoute,
     planStore,
+    crewPalsRoute,
   ] = await Promise.all([
     import("@/app/api/plans/[id]/route"),
     import("@/app/api/plans/[id]/getin/route"),
@@ -380,10 +384,12 @@ beforeAll(async () => {
     import("@/app/api/messages/[id]/photo/[messageId]/route"),
     import("@/app/api/wanted/route"),
     import("@/app/api/diary/route"),
+    import("@/app/api/venue-submissions/route"),
     import("@/app/api/saved-pubs/route"),
     import("@/app/api/social/tags/route"),
     import("@/app/api/profiles/[handle]/route"),
     import("@/lib/planStore"),
+    import("@/app/api/plans/[id]/pals/route"),
   ]);
   handlers = {
     readPlan: planRoute.GET as Handler,
@@ -394,6 +400,7 @@ beforeAll(async () => {
     join: joinRoute.POST as Handler,
     rotateInvite: rotateRoute.POST as Handler,
     presence: presenceRoute.POST as Handler,
+    crewPals: crewPalsRoute.GET as Handler,
     planCard: planCard.GET as unknown as Handler,
     listMemories: memoriesRoute.GET as unknown as Handler,
     createMemory: memoriesRoute.POST as unknown as Handler,
@@ -423,6 +430,8 @@ beforeAll(async () => {
     writeWanted: wantedRoute.POST as unknown as Handler,
     listDiary: diaryRoute.GET as unknown as Handler,
     writeDiary: diaryRoute.POST as unknown as Handler,
+    listVenueSubmissions: venueSubmissionsRoute.GET as unknown as Handler,
+    writeVenueSubmission: venueSubmissionsRoute.POST as unknown as Handler,
     listSavedPubs: savedPubsRoute.GET as unknown as Handler,
     writeSavedPub: savedPubsRoute.POST as unknown as Handler,
     tagInbox: tagsRoute.GET as unknown as Handler,
@@ -824,6 +833,60 @@ describe("invite capability", () => {
     // At the table, the seat makes B a participant: RLS now answers her JWT.
     const rows = await requireSession().rest(`/plans?select=id&id=eq.${PLAN_ID}`, { sub: BOB });
     expect(rows.body).toEqual([{ id: PLAN_ID }]);
+  });
+
+  it("crew Pals: a member sees only the OTHER members' Pals their owners showed to the crew, and nobody else sees any", async () => {
+    // Both seated accounts have a Pal. Alice shows hers to the crew; Bob keeps his private.
+    truth(`
+      insert into public.pub_pals (id, owner_id, name, adult_attested_at, appearance, personality, voice, muted, hidden, crew_visible)
+      values
+        ('${ALICE_PAL}', '${ALICE}', 'Ripley', now(),
+         '{"species":"robin","signalAffinity":"beer","material":"hologram","accessory":"none"}',
+         '{"playfulness":60,"energy":50,"storytelling":50,"relationship":"sidekick"}',
+         '{"id":"ember","pace":50,"warmth":50,"energy":50}', false, false, true),
+        ('${BOB_PAL}', '${BOB}', 'Moss', now(),
+         '{"species":"fox","signalAffinity":"gin","material":"chrome","accessory":"none"}',
+         '{"playfulness":60,"energy":50,"storytelling":50,"relationship":"sidekick"}',
+         '{"id":"ember","pace":50,"warmth":50,"energy":50}', false, false, false);
+      select 1`);
+
+    const readPals = (bearer?: string) => defined(handlers.crewPals)(
+      request(`/api/plans/${PLAN_ID}/pals`, bearer ? { bearer } : {}),
+      context({ id: PLAN_ID }),
+    );
+
+    // Bob's seat sees Alice's Pal, by its name and look alone.
+    const asBob = await readPals(guestToken);
+    expect(asBob.status).toBe(200);
+    const bobText = await asBob.text();
+    expect(JSON.parse(bobText)).toEqual({
+      visibility: "member",
+      pals: [{ id: ALICE_PAL, name: "Ripley", species: "robin", personality: { playfulness: 60, energy: 50, storytelling: 50, relationship: "sidekick" }, muted: false }],
+    });
+    expect(bobText).not.toContain(ALICE);
+    expect(bobText).not.toContain(HOST_MEMBER_ID);
+
+    // Alice's seat sees no Pal: Bob kept his private, and her own never comes back.
+    expect(await readJson(await readPals(HOST_TOKEN))).toEqual({ visibility: "member", pals: [] });
+
+    // No capability, no crew: anonymous, an account bearer and the invite token all read the preview.
+    for (const bearer of [undefined, BEARER_BOB, BEARER_ALICE, inviteToken]) {
+      expect(await readJson(await readPals(bearer))).toEqual({ visibility: "preview" });
+    }
+
+    // At the table, a Pal answers its owner alone, crew choice or not.
+    expect(visibleRows("authenticated", BOB, `select count(*) from public.pub_pals where owner_id = '${ALICE}'`)).toBe(0);
+    expect(visibleRows("authenticated", ALICE, `select count(*) from public.pub_pals where owner_id = '${ALICE}'`)).toBe(1);
+    expect(visibleRows("anon", null, "select count(*) from public.pub_pals")).toBe(0);
+
+    // Bob turns his on: now Alice's seat sees Moss.
+    truth(`update public.pub_pals set crew_visible = true where owner_id = '${BOB}'; select 1`);
+    const asAlice = await readJson<{ pals: Array<{ name: string }> }>(await readPals(HOST_TOKEN));
+    expect(asAlice.pals.map((pal) => pal.name)).toEqual(["Moss"]);
+
+    // A hidden Pal stays off the crew's map even when shown.
+    truth(`update public.pub_pals set hidden = true where owner_id = '${BOB}'; select 1`);
+    expect(await readJson(await readPals(HOST_TOKEN))).toEqual({ visibility: "member", pals: [] });
   });
 
   it("the invite is spent: a second redemption is refused, and one account holds one seat", async () => {
@@ -2036,6 +2099,60 @@ describe("saves: two lanes, two promises", () => {
       await defined(handlers.listDiary)(request("/api/diary", { bearer: BEARER_BOB }), context({})),
     );
     expectNoDisclosure(bobRead, ["Alice diary line"]);
+  });
+
+  it("a pub a drinker adds is theirs alone at the read and the write, and no browser role reaches the table", async () => {
+    const pub = { name: "Matrix Proof Arms", address: "1 Proof Street, London", postcode: "SE1 9AA", confirmNew: true };
+    const seeded = await defined(handlers.writeVenueSubmission)(
+      request("/api/venue-submissions", {
+        bearer: BEARER_ALICE,
+        body: { ...pub, note: "Alice submission line", prices: [{ drinkCategory: "beer", priceGbp: 5.2 }] },
+      }),
+      context({}),
+    );
+    expect(seeded.status, await seeded.clone().text()).toBe(201);
+    expect(
+      Number(truth(`select count(*) from public.venue_submissions where owner_user_id = '${ALICE}'`)),
+    ).toBe(1);
+
+    const owner = await readJson<{ submissions?: { name?: string; priceCount?: number }[] }>(
+      await defined(handlers.listVenueSubmissions)(request("/api/venue-submissions", { bearer: BEARER_ALICE }), context({})),
+    );
+    expect(owner.submissions?.some((row) => row.name === "Matrix Proof Arms" && row.priceCount === 1)).toBe(true);
+
+    // The body names no owner: Bob naming Alice writes Bob's own row.
+    const bobWrite = await defined(handlers.writeVenueSubmission)(
+      request("/api/venue-submissions", {
+        bearer: BEARER_BOB,
+        body: { ...pub, name: "Bob Proof Tavern", ownerUserId: ALICE, owner_user_id: ALICE, note: "Bob submission line" },
+      }),
+      context({}),
+    );
+    expect(bobWrite.status, await bobWrite.clone().text()).toBe(201);
+    expect(
+      Number(truth(`select count(*) from public.venue_submissions where owner_user_id = '${ALICE}'`)),
+    ).toBe(1);
+
+    const anonymous = await defined(handlers.writeVenueSubmission)(
+      request("/api/venue-submissions", { body: { ...pub, name: "Anon Proof Inn" } }),
+      context({}),
+    );
+    expect(anonymous.status).toBe(401);
+    expect((await defined(handlers.listVenueSubmissions)(request("/api/venue-submissions"), context({}))).status).toBe(401);
+    for (const bearer of [BEARER_BOB, BEARER_CAROL, BEARER_DAVE]) {
+      const response = await defined(handlers.listVenueSubmissions)(request("/api/venue-submissions", { bearer }), context({}));
+      expectNoDisclosure(await readJson(response), ["Matrix Proof Arms"]);
+    }
+
+    for (const table of ["venue_submissions", "venue_submission_files"]) {
+      expect(visibleRows("anon", null, `select count(*) from public.${table}`)).toBe(0);
+      for (const sub of [ALICE, BOB]) {
+        expect(visibleRows("authenticated", sub, `select count(*) from public.${table}`)).toBe(0);
+        const write = attemptAsRole("authenticated", sub, `delete from public.${table}`);
+        expect(write.ok).toBe(false);
+        expect(write.err).toMatch(/permission denied/i);
+      }
+    }
   });
 
   it("a saved-pub list is PUBLIC to read and gated to write, and the write gate holds", async () => {

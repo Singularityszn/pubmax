@@ -3,10 +3,22 @@ import type { Metadata } from "next";
 import PlanComposer from "@/components/plan/PlanComposer";
 import SiteNav from "@/components/nav/SiteNav";
 import { appPageTitle, metadataSiteName } from "@/lib/brandNaming";
+import { PLAN_HEADING } from "@/lib/planCopy";
 
 import "./plan.css";
 
-const PAGE_TITLE = "Sort the outing";
+// THIS DOCUMENT IS PRERENDERED (product decision 17 Oct 2026, recorded in
+// proxy.ts beside the other CDN-cached documents): it drops the per-request
+// CSP nonce so the Vercel CDN can hold it. Nothing per-request may be read
+// here and nothing personal may reach it, because one copy is handed to every
+// stranger; the composer reads drafts, the session and any ask in the address
+// in the browser, after load.
+export const dynamic = "force-static";
+// Every input is bundled and changes only on deploy, so an hour is a quiet
+// ceiling rather than a refresh the page needs.
+export const revalidate = 3600;
+
+const PAGE_TITLE = PLAN_HEADING;
 const PAGE_DESCRIPTION =
   "Put the pubs in order, pick a time, and send one link to the crew.";
 /** The site card. There is no per-plan card until a plan exists. */

@@ -23,7 +23,7 @@ import {
 import {
   mapFirstVisitArrivalBlocksConsent,
   subscribeMapFirstVisitArrival,
-} from "@/lib/mapFirstVisitArrival";
+} from "@/lib/mapFirstVisitArrivalGate";
 
 /** sessionStorage slot holding the surface id that has spent the budget. */
 const STORAGE_KEY = "pubmax:prompt-budget:v1";
@@ -175,18 +175,13 @@ export function releasePromptBudget(surface: PromptSurface, storage?: Storage | 
   }
 }
 
-// ON A PHONE THE MAP OWNS THE FOOT OF THE SCREEN. Site audit 13 Sep 2026 (D3):
-// the analytics card was lifted above "Describe the outing", so the top chrome,
-// the card, the pill and the dock took 38 percent of the map. Two surfaces go
-// through this gate: NativePushPrompt and CreatePasswordPrompt neither claim
-// the budget nor paint on a phone-width map route, and come back on the next
-// route. The analytics card does not use it: on the phone map it takes the
-// outing pill's slot instead (components/mobile/mobileMapShell.css).
+// Prompt deferral and the analytics exception are documented in
+// docs/PROMPT_ORCHESTRATION.md under "The contract".
 
 /**
  * Whether the page at `pathname` owns the foot of the screen at `viewportWidth`:
- * the map family at phone width (MOBILE_MAX_WIDTH). A pathname we cannot read
- * answers false, which is how every other route behaves.
+ * the map family and the plan composer at phone width (MOBILE_MAX_WIDTH).
+ * A pathname we cannot read answers false, as does every other route.
  */
 export function routeOwnsScreenFoot(
   pathname: string | null | undefined,
@@ -195,7 +190,7 @@ export function routeOwnsScreenFoot(
   if (!(viewportWidth <= MOBILE_MAX_WIDTH)) return false;
   if (typeof pathname !== "string") return false;
   const path = (pathname.split(/[?#]/)[0] ?? "").replace(/\/+$/, "");
-  return path === "/map" || path.startsWith("/map/");
+  return path === "/map" || path.startsWith("/map/") || path === "/plan";
 }
 
 /**

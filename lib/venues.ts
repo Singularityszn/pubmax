@@ -1,8 +1,12 @@
+import { legacyOsmVenueKind } from "@/lib/legacyOsmVenueKind.mjs";
+import { legacyCheapestPriceEvidence } from "@/lib/legacyPriceEvidence.mjs";
+import { cheapestPriceReadDay } from "@/lib/priceReadDay.mjs";
 import {
   COMMUNITY_PRICE_CORROBORATION_THRESHOLD,
   isWithinMaxAge,
 } from "@/lib/communityPrice";
 import { getVenueCuration, type Provenance, type VenueCuration } from "@/lib/curation";
+import { displayVenueAddress, displayVenueName, venueSourceNameField } from "@/lib/venueDisplay";
 import { venueSearchNames } from "@/lib/venueSearchNames.mjs";
 import {
   drinksMayBeOne,
@@ -33,7 +37,11 @@ import {
   type PintDropConfirmation,
 } from "@/lib/pintDropConfirmationRecord";
 import { hasNonAlcoholic } from "@/lib/nonAlcoholicDrinks";
-import { isLivePriceRow, type PriceSuperseded } from "@/lib/priceRowEligibility.mjs";
+import {
+  isCurrentVenueRow,
+  isLivePriceRow,
+  type PriceSuperseded,
+} from "@/lib/priceRowEligibility.mjs";
 import { getVenueAccessibility } from "@/lib/venueAccessibilitySeeds";
 import {
   matchesAccessibilityFilters,
@@ -72,6 +80,7 @@ export type VenuePrice = {
   price_gbp: number | null;
   price_text: string;
   address: string;
+  locality?: string;
   latitude: number;
   longitude: number;
   boroughs_visible: string;
@@ -157,17 +166,34 @@ export function isVenueKind(value: unknown): value is VenueKind {
   return typeof value === "string" && (VENUE_KINDS as readonly string[]).includes(value);
 }
 
+export function hasPintPriceSemantics(
+  venue: { kind?: VenueKind; legacyOsmBar?: unknown },
+): boolean {
+  return isPubVenueKind(venue.kind) ||
+    (venue.kind === "bar" && venue.legacyOsmBar === true);
+}
+
 export type Venue = {
   placesContent?: import("@/lib/placesEnrichment").PlacesEnrichmentRecord;
   /** Dog policy and opening hours the pub's own website states (lib/venueSiteFacts.ts). Absent is unknown. */
   siteFacts?: import("@/lib/venueSiteFacts").VenueSiteFacts;
+  /** What OpenStreetMap states about the pub, from its own ODbL pack (lib/osmPubFacts.ts). Absent is unknown. */
+  osmFacts?: import("@/lib/osmPubFacts").OsmPubFacts;
   openingHours?: import("@/lib/busyness").WeeklyOpeningHours;
   id: string;
+  /** The reader-facing name, operator suffix dropped (lib/venueDisplay.ts#displayVenueName). */
   name: string;
+  /**
+   * The name as the dataset files it, present only when it differs from `name`
+   * ("The George - JD Wetherspoon"). Identity joins and search read it; it is
+   * never rendered.
+   */
+  sourceName?: string;
   address: string;
   latitude: number;
   longitude: number;
   primaryBorough: string;
+  locality?: string;
   visibleBoroughs: string[];
   prices: VenuePrice[];
   cheapestPrice: number | null;
@@ -241,10 +267,17 @@ export type Venue = {
   // Compact facts carried by the slim map index so URL/query filters can work
   // before the heavy venue detail rows are hydrated.
   filterHints?: VenueFilterHints;
-  /** Famous-venue taxonomy. Absent is a pub for legacy/cache compatibility. */
+  /** Venue taxonomy. Absent is a pub for legacy/cache compatibility. */
   kind?: VenueKind;
+  legacyOsmBar?: true;
+  priceSource?: string;
   /** Type-relative price band computed at build time (cheap/mid/dear). */
   priceBand?: 0 | 1 | 2;
+  /**
+   * `YYYY-MM-DD` the slim index's cheapest figure was last read at its source.
+   * Absent when unknown; the map reads that as an aging price, never a fresh one.
+   */
+  priceObservedAt?: string;
   /** Provenance for non-pub anchor prices and editorial stories. */
   anchorLabel?: string;
   anchorCourse?: FoodCategory;
@@ -567,8 +600,6 @@ export function formatPrice(value: number | null): string {
   return typeof value === "number" ? formatGbp(value) : "No price";
 }
 
-export { formatGbp };
-
 function normaliseVenueKeyPart(value: string): string {
   return value.trim().toLowerCase().replace(/\s+/g, " ");
 }
@@ -616,8 +647,9 @@ export function groupVenuePrices(rows: VenuePrice[]): Venue[] {
       return left - right;
     });
     // A superseded row is dated history: it keeps the pub, its id and its story,
-    // and gives nothing the pub served or charged (lib/priceRowEligibility.mjs).
-    const prices = groupRows.filter(isLivePriceRow);
+    // and gives nothing the pub served or charged. An out-of-band row gives no
+    // price but still tells the story (lib/priceRowEligibility.mjs).
+    const prices = groupRows.filter(isCurrentVenueRow);
     const sortedPrices = sortedRows.filter(isLivePriceRow);
     const first = sortedPrices[0] ?? sortedRows[0] ?? groupRows[0];
     const numericPrices = sortedPrices
@@ -635,17 +667,32 @@ export function groupVenuePrices(rows: VenuePrice[]): Venue[] {
     // other venue gets undefined (honestly unknown). Keyed by pub name +
     // borough so a common name doesn't cross-contaminate the wrong pub.
     const accessibility = getVenueAccessibility(first.pub_name, first.primary_borough);
+    const locality = sortedRows
+      .map((price) => String(price.locality ?? "").trim())
+      .find(Boolean);
 
+    const kind = legacyOsmVenueKind(groupRows);
+    const cheapestPrice = numericPrices.length ? Math.min(...numericPrices) : null;
+    const { priceSource } = kind ? legacyCheapestPriceEvidence(sortedPrices, cheapestPrice) : {};
+    const priceObservedAt = kind ? cheapestPriceReadDay(sortedPrices, cheapestPrice) : null;
     return {
       id: stableVenueIdFromKey(key),
-      name: first.pub_name,
-      address: first.address,
+      ...(kind ? {
+        kind,
+        legacyOsmBar: true as const,
+        ...(priceSource ? { priceSource } : {}),
+        ...(priceObservedAt ? { priceObservedAt } : {}),
+      } : {}),
+      name: displayVenueName(first.pub_name),
+      ...venueSourceNameField(first.pub_name),
+      address: displayVenueAddress(first.address),
       latitude: first.latitude,
       longitude: first.longitude,
       primaryBorough: first.primary_borough,
+      ...(locality ? { locality } : {}),
       visibleBoroughs: splitList(first.boroughs_visible),
       prices: sortedPrices,
-      cheapestPrice: numericPrices.length ? Math.min(...numericPrices) : null,
+      cheapestPrice,
       cheapestPint: sortedPrices[0]?.pint_name ?? "",
       averagePrice: numericPrices.length
         ? numericPrices.reduce((sum, price) => sum + price, 0) / numericPrices.length
@@ -1252,7 +1299,7 @@ export function filterVenues(
     // anchors use their own type-relative bands and must not be compared with
     // a pub pint's absolute price cap.
     const matchesPrice =
-      (venue.kind !== undefined && venue.kind !== "pub") ||
+      !hasPintPriceSemantics(venue) ||
       venue.cheapestPrice === null ||
       venue.cheapestPrice <= filters.maxPrice;
 

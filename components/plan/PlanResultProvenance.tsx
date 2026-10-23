@@ -10,5 +10,6 @@ import { PUB_LIST_REFRESHED_CAPTION } from "@/lib/nearPriceTrust";
  * page every visitor opens has no other reason to carry.
  */
 export default function PlanResultProvenance() {
-  return <p className="planResult__provenance">{PUB_LIST_REFRESHED_CAPTION}</p>;
+  // A span: it closes the result's one fine-print line (PlanComposer owns the <p>).
+  return <span>{PUB_LIST_REFRESHED_CAPTION}</span>;
 }

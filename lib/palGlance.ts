@@ -11,6 +11,9 @@
 // renders NOTHING here (the glance is a bonus, not a surface that may
 // apologise — the ask path reports outages when the user actually asks).
 
+import { formatObservedDate } from "@/lib/dataFreshness";
+import { listedPriceReceipt } from "@/lib/listedPriceReceipt";
+import type { NearMeScope } from "@/lib/nearMeAnswer";
 import type { WhatsOnRow } from "@/lib/whatsOn";
 
 export type TonightGlanceCounts = {
@@ -48,18 +51,18 @@ const KIND_WORDS: ReadonlyArray<{
 /**
  * One line for the glance panel, or null when there is nothing honest to say
  * (no rows). Only non-zero kinds are named, in evening order, e.g.
- * "On across London tonight: 12 pub quizzes, 3 matches on, 31 deals running."
+ * "In our London listings tonight: 12 pub quizzes, 3 matches on, 31 deals running."
  */
 export function tonightGlanceLine(counts: TonightGlanceCounts): string | null {
   const parts = KIND_WORDS.filter(({ kind }) => counts[kind] > 0).map(
     ({ kind, one, many }) => `${counts[kind]} ${counts[kind] === 1 ? one : many}`,
   );
   if (parts.length === 0) return null;
-  return `On across London tonight: ${parts.join(", ")}.`;
+  return `In our London listings tonight: ${parts.join(", ")}.`;
 }
 
 /** The quiet-night line: honest, and hands the user somewhere real to go. */
-export const GLANCE_QUIET_LINE = "The city's having a quiet one tonight.";
+export const GLANCE_QUIET_LINE = "No listings in this view tonight.";
 export const GLANCE_QUIET_EXIT = "The map still knows where the cheap pints are.";
 
 // ── Cheapest-pint glance row (judge-w2 polish item 1) ───────────────────────
@@ -70,15 +73,18 @@ export const GLANCE_QUIET_EXIT = "The map still knows where the cheap pints are.
 // venues. Pure formatter; the component owns the one slim-index load.
 
 export type CheapestGlanceCard = {
+  id?: string;
+  scope?: NearMeScope;
+  priceSource?: string;
+  priceObservedAt?: string;
   name: string;
   cheapestPrice: number;
   walkMinutes: number | null;
 };
 
 /**
- * One line naming the cheapest pour near the area, or null when there is no
- * honestly priced card to name. Walk minutes only when the ranker vouched for
- * them, e.g. "Cheapest round Soho: £2.95 at The Three Tuns, about 11 min on foot."
+ * One listed figure within the actual ranked scope. Missing scope makes no
+ * cheapest claim. Walk minutes appear only when the caller measured them.
  */
 export function cheapestGlanceLine(
   areaLabel: string,
@@ -90,5 +96,25 @@ export function cheapestGlanceLine(
     card.walkMinutes != null && Number.isFinite(card.walkMinutes)
       ? `, about ${card.walkMinutes} min on foot`
       : "";
-  return `Cheapest round ${areaLabel}: ${formatPrice(card.cheapestPrice)} at ${card.name}${walk}.`;
+  const area = card.scope === "walkable"
+    ? `Lowest listed price within 1 km of ${areaLabel}`
+    : card.scope === "widened"
+      ? `Lowest listed price among nearby pubs around ${areaLabel}`
+      : `Listed price around ${areaLabel}`;
+  return `${area}: ${formatPrice(card.cheapestPrice)} at ${card.name}${walk}.`;
+}
+
+export function cheapestGlanceReceipt(card: CheapestGlanceCard, now = Date.now()): string {
+  return listedPriceReceipt(card, now);
+}
+
+/** Every counted row owns its read date, including an older source lane. */
+export function tonightGlanceReceipt(rows: readonly WhatsOnRow[], now = Date.now()): string | null {
+  if (rows.length === 0) return null;
+  const sources = [...new Set(rows.map((row) => row.source.label))].join(", ");
+  const reads = rows.map((row) => Date.parse(row.observedAt));
+  const date = reads.every((ms) => Number.isFinite(ms) && ms <= now)
+    ? formatObservedDate(new Date(Math.min(...reads)))
+    : null;
+  return `Sources: ${sources}. ${date ? `Oldest listing observed ${date}` : "Listing read date unknown"}.`;
 }

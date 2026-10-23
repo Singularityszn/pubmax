@@ -4,6 +4,7 @@ import Link from "next/link";
 import Kicker from "@/components/ui/kicker";
 import { CONTACT_EMAIL, CONTACT_MAILTO } from "@/lib/siteContact";
 import { appPageTitle, metadataSiteName } from "@/lib/brandNaming";
+import SiteNav from "@/components/nav/SiteNav";
 
 import "../legal.css";
 
@@ -17,7 +18,7 @@ import "../legal.css";
 const PAGE_TITLE = "Terms of use";
 const PAGE_DESCRIPTION =
   "Plain-language terms covering what PUBMAXX is, what you can post, what map prices mean, and where our responsibility ends.";
-const LAST_UPDATED = "6 August 2026";
+const LAST_UPDATED = "18 October 2026";
 
 export const metadata: Metadata = {
   title: PAGE_TITLE,
@@ -34,6 +35,8 @@ export const metadata: Metadata = {
 
 export default function TermsPage() {
   return (
+    <>
+    <SiteNav />
     <main id="main" className="legalPage">
       {/* A legal page has no primary action (docs/design/LAUNCH_SCREENS.md),
           so the head is a kicker and the heading, never a Screen. */}
@@ -130,6 +133,9 @@ export default function TermsPage() {
           separate hosted age check. Your date of birth,
           documents and verification status aren&rsquo;t public profile fields or
           badges.
+          You can hide your name on a public Social post. Other people won&rsquo;t
+          see your handle, but we still know the post is yours, and the house
+          rules, reports and moderation apply exactly as they do to any post.
           Keep your sign-in to yourself, use a handle that isn&rsquo;t someone
           else&rsquo;s identity, and don&rsquo;t hand the account to anyone
           else. You can stop using it whenever you like, and ask us to delete
@@ -356,5 +362,6 @@ export default function TermsPage() {
         </p>
       </section>
     </main>
+    </>
   );
 }

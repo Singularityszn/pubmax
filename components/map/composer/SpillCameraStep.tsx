@@ -44,7 +44,7 @@ export function SpillCameraStep({
             onClick={() => removePhoto("pint")}
             aria-label="Remove pint photo"
           >
-            <X size={13} /> Retake
+            <X size={14} /> Retake
           </button>
         </div>
       ) : (
@@ -59,7 +59,7 @@ export function SpillCameraStep({
           {/* Rear camera first — the pour is the hero. `capture="environment"`
               opens the rear camera on mobile; on desktop it's a file pick. */}
             <label className="spillCameraBtn primary">
-              <Camera size={22} />
+              <Camera size={20} />
               <span>Snap the pour</span>
               <input
                 ref={pintInputRef}
@@ -75,7 +75,7 @@ export function SpillCameraStep({
           {/* Flip to the front camera for a bar selfie. Stored in the venue
               slot so provenance/photo semantics are unchanged. */}
             <label className="spillCameraBtn">
-              <SmilePlus size={18} />
+              <SmilePlus size={16} />
               <span>Flip: you at the bar</span>
               <input
                 ref={venueInputRef}

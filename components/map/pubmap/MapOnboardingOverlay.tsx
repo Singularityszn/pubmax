@@ -1,4 +1,5 @@
 import { X } from "lucide-react";
+import { useRef } from "react";
 
 import { type CuratedCrawl } from "@/lib/curatedCrawls";
 import { useDismissOnEscape } from "@/lib/useDismissOnEscape";
@@ -20,9 +21,11 @@ export function MapOnboardingOverlay({
 }) {
   // The scrim and the close glyph both leave. Escape now does too, so the
   // keyboard has the same way out the pointer has.
-  useDismissOnEscape(true, onDismiss);
+  const panelRef = useRef<HTMLDivElement>(null);
+  useDismissOnEscape(true, onDismiss, panelRef);
   return (
     <div
+      ref={panelRef}
       className="mapOnboarding"
       role="dialog"
       aria-modal="false"

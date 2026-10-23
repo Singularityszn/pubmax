@@ -60,7 +60,7 @@ export default function VenuePintsTab({
         <section className="pintDrops">
           <div className="inspectorTitle">
             <Quote size={16} />
-            <span>Pint Drops</span>
+            <span>Recent prices</span>
           </div>
           {hasDemoDrops ? (
             <div className="demoDataNote">
@@ -79,7 +79,7 @@ export default function VenuePintsTab({
                 }}
                 aria-label={`Log a Pint Drop at ${venue.name}`}
               >
-                <PlusCircle size={17} /> Log a Pint Drop
+                <PlusCircle size={16} /> Log a Pint Drop
               </button>
               {dropMsg ? (
                 <span

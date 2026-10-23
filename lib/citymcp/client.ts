@@ -116,8 +116,8 @@ export type CityMcpCallOptions = {
   /** Override AbortSignal (advanced; usually leave alone). */
   signal?: AbortSignal;
   /**
-   * Extra attempts on a *transient* failure (timeout / network / HTTP 429 or
-   * 5xx), mirroring the TfL `tflGet` retry contract. Deterministic failures
+   * Extra attempts on a *transient* failure (timeout / network / HTTP
+   * 5xx). A 429 is not retried, unlike the TfL `tflGet` lane. Deterministic failures
    * (parse / rpc / 4xx / empty) are never retried — a second identical POST
    * would just double the latency. Defaults to 1 (one retry, two attempts).
    */
@@ -128,17 +128,19 @@ export type CityMcpCallOptions = {
 const DEFAULT_RETRIES = 1;
 
 /**
- * Is this failure worth a second attempt? Mirrors the TfL `tflGet`
- * classification exactly: timeouts, network blips, and HTTP 429 / 5xx are
- * transient; a parse, rpc, 4xx, or empty error is deterministic (retrying is
- * pure latency with no upside).
+ * Is this failure worth a second attempt? Timeouts, network blips and HTTP
+ * 5xx are transient; a 429, a parse, rpc, other 4xx or empty error is not.
+ * The TfL `tflGet` lane retries a 429; this one does not, because the retry is
+ * immediate and a rate-limited upstream needs the caller to back off.
  */
 function isTransientCityMcpError(err: unknown): boolean {
   if (!(err instanceof CityMcpError)) return false;
   if (err.kind === "timeout" || err.kind === "network") return true;
   if (err.kind === "http") {
+    // A 429 asks us to slow down, so an instant retry only spends more of the
+    // upstream's budget. Only a server fault is retried.
     const status = err.httpStatus ?? 0;
-    return status === 429 || status >= 500;
+    return status >= 500;
   }
   return false;
 }
@@ -351,7 +353,7 @@ function nextJsonRpcId(): number {
  * the JSON-RPC envelope (which contains at least `structuredContent`). Throws
  * `CityMcpError` on any failure — callers should try/catch and degrade.
  *
- * A single transient retry (timeout / network / 429 / 5xx) is applied by
+ * A single transient retry (timeout / network / 5xx) is applied by
  * default — see `opts.retries` — so a one-off blip on the third-party upstream
  * self-heals before the caller ever sees an error. Deterministic failures are
  * surfaced immediately.

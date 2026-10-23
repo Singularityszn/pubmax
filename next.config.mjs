@@ -10,6 +10,8 @@ import {
   freshnessArtifactIncludes,
 } from "./lib/freshnessTracing.mjs";
 import { PAL_MASCOT_SIZES, PAL_MASCOT_SLUGS } from "./lib/palMascotAssets.mjs";
+import { cdnEdgeHeaderRules } from "./lib/cdnDocumentEdge.mjs";
+import { cdnDocumentContentSecurityPolicy } from "./lib/contentSecurityPolicy.mjs";
 import { staticAssetHeaderSources } from "./lib/staticAssetPrefixes.mjs";
 import { runtimeDataPackRouteIncludes } from "./lib/venueIndexTracing.mjs";
 
@@ -92,7 +94,7 @@ const feedDataFiles = withRuntimeDataPacks(
 // runtime of a `vercel deploy` from a CLI, so reading it at request time made
 // /api/version answer null on exactly the deploys a verifier most needs to
 // identify. Ask git for the working tree instead, ONCE, here: the source is
-// uploaded with its .git directory on a CLI deploy, and a build with no
+// uploaded without its .git directory on a CLI deploy, and a build with no
 // repository around it still answers honestly (null) rather than guessing.
 // lib/buildInfo.mjs owns the rule; app/api/version reads the values back.
 const workingTreeCommitSha = readWorkingTreeCommitSha(projectRoot);
@@ -129,8 +131,9 @@ const deploymentId = process.env.DEPLOYMENT_VERSION ??
 // (HSTS, nosniff, XFO, Permissions-Policy, COOP, Referrer) stay here on
 // `/:path*`; only the CSP moved. Trade-off: the per-request nonce forces
 // dynamic rendering (no static generation / ISR / PPR) on every route except
-// the two public documents named in proxy.ts's CDN_CACHED_DOCUMENT_PATHS, which
-// take `script-src 'unsafe-inline'` in exchange for a CDN copy.
+// the public documents named in proxy.ts's CDN_CACHED_DOCUMENT_PATHS and
+// CDN_CACHED_DOCUMENT_ROUTES, which take `script-src 'unsafe-inline'` in
+// exchange for a CDN copy.
 
 // Baseline security headers on every response.
 const securityHeaders = [
@@ -212,6 +215,8 @@ const nextConfig = {
   },
   outputFileTracingIncludes: {
     ...runtimeDataPackIncludes,
+    // Every root-layout document executes the canonical pre-paint script.
+    "/*": ["./public/theme-init.js"],
     // Both freshness readers need every registered artifact (see above).
     "/api/freshness": withRuntimeDataPacks("/api/freshness", freshnessArtifacts),
     "/api/cron/freshness-audit": withRuntimeDataPacks(
@@ -317,11 +322,33 @@ const nextConfig = {
       // Landing still says "Our story"; keep the old paths as aliases.
       { source: "/our-story", destination: "/about", permanent: true },
       { source: "/story", destination: "/about", permanent: true },
+      // The product calls it Pub Pal, so people type the long form. The page
+      // lives at /pal; without these the vanity link 404'd (site review,
+      // 18 Oct 2026).
+      { source: "/pub-pal", destination: "/pal", permanent: true },
+      { source: "/pub-pal/:path*", destination: "/pal/:path*", permanent: true },
+      { source: "/pubpal", destination: "/pal", permanent: true },
     ];
   },
   async headers() {
     return [
       { source: "/:path*", headers: securityHeaders },
+      // The CDN documents answer with no function in front on the canonical
+      // host (lib/cdnDocumentEdge.mjs), so their Content-Security-Policy ships
+      // here: the same builder proxy.ts calls (lib/contentSecurityPolicy.mjs),
+      // with 'unsafe-inline' in the nonce slot exactly as the proxy sent it, and
+      // read from the build's env, which on Vercel is the runtime's env. Each
+      // rule is held off the queries the proxy still answers, so a request takes
+      // its policy from exactly one place. `__tests__/cdnDocumentEdge.test.ts`
+      // holds this header equal to securityProxy's answer for the same path.
+      ...cdnEdgeHeaderRules(cdnDocumentContentSecurityPolicy(process.env)),
+      // Next's response writer retains configured headers before route headers.
+      // Override the baseline only for the two fixed native callback modes.
+      {
+        source: "/auth/callback",
+        has: [{ type: "query", key: "native", value: "ios-(email-)?pkce" }],
+        headers: [{ key: "Referrer-Policy", value: "no-referrer" }],
+      },
       // Preview and development deploys must never be indexed, and the static
       // asset prefixes no longer pass through proxy.ts, which is where
       // applyNonProductionRobotsTag used to stamp them. Keep the header by a
@@ -408,6 +435,11 @@ const nextConfig = {
       cacheRule("/manifest.webmanifest", UNHASHED_PUBLIC_ASSET_CACHE_CONTROL),
       cacheRule("/fonts/:path*", UNHASHED_PUBLIC_ASSET_CACHE_CONTROL),
       cacheRule("/night-signals/:path*", UNHASHED_PUBLIC_ASSET_CACHE_CONTROL),
+      cacheRule("/sounds/:path*", UNHASHED_PUBLIC_ASSET_CACHE_CONTROL),
+      // The map's pre-drawn icon atlases. npm run build:map-icon-sprites writes
+      // them at fixed URLs, and the canvas asks with a ?v= of the PNG's own
+      // hash, so a redrawn atlas is a new URL to every browser.
+      cacheRule("/map-icons/:path*", UNHASHED_PUBLIC_ASSET_CACHE_CONTROL),
       cacheRule(
         "/pal/:asset(" + palMascotAssetPattern + ")",
         UNHASHED_PUBLIC_ASSET_CACHE_CONTROL,

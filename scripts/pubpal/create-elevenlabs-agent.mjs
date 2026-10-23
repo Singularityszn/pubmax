@@ -7,7 +7,7 @@
 // Captain, after this file changes, re-run once. Do not do this from an agent:
 //   npm run pubpal:agent -- --base-url https://pubmaxxing.com
 //
-// This script sets five things:
+// This script sets six things:
 //
 //   1. the webhook tools, the shared secret they present, and the speech
 //      around each call (a short checking line before the tool runs),
@@ -16,7 +16,9 @@
 //   3. a default voice, when one is set, plus greeting and voice-id overrides,
 //   4. the house first message and the propose-then-confirm rule (ADR 0006),
 //   5. signed-URL authentication, so a conversation starts only with a URL the
-//      sign-in, the voice cap and the spend budget handed out.
+//      sign-in, the voice cap and the spend budget handed out,
+//   6. how the agent hears a person in a pub: patient turn-taking, speech kept
+//      during a proposal, and London pub words for the recogniser.
 //
 // Idempotent: with ELEVENLABS_PUB_PAL_AGENT_ID set it PATCHes that agent;
 // without one it looks for an agent of the same name before creating a new
@@ -43,6 +45,7 @@ import { PAL_VOICE_MAX_SESSION_SECONDS } from "../../lib/palVoiceCap.mjs";
 import { pubPalAgentSystemPrompt } from "../../lib/palVoicePrompt.mjs";
 import { agentDrift, formatDrift } from "./agent-drift.mjs";
 import { resolveExistingTools } from "./existing-tools.mjs";
+import { privacyDeleteOnly } from "./privacy-delete-only.mjs";
 
 const SCRIPT_DIR = path.dirname(fileURLToPath(import.meta.url));
 const AGENT_CONFIG = JSON.parse(
@@ -59,7 +62,7 @@ const MAX_SESSION_SECONDS = PAL_VOICE_MAX_SESSION_SECONDS;
 /** Short descriptions aligned with lib/ask/tools.ts allowlist, plus the Pal-only memory tools. */
 const TOOL_DESCRIPTIONS = {
   search_venues:
-    "Rank listed pubs by mood, area, group size, and budget. Never invents venues.",
+    "Find one to six listed pubs by mood, area, group size, and budget. Pass the requested result count as limit. Never invent venues.",
   whats_on:
     "Look up sourced What's On listings (quiz, sport, deals) for tonight or a weekday.",
   venue_heritage:
@@ -84,9 +87,9 @@ const TOOL_DESCRIPTIONS = {
   report_occupancy:
     "Propose a crowd report for a pub. Writes nothing until the reader confirms.",
   recall_memories:
-    "On the first substantive request, read confirmed preferences before a factual tool unless the message already supplies them. Do not use for greetings or thanks alone. Read-only. Never facts about a pub.",
+    "On the first substantive request, read confirmed preferences and past-night reports before a factual tool unless the message already supplies them. Do not use for greetings or thanks alone. Read-only. Never facts about a pub.",
   propose_memory:
-    "Typed chat only. Propose one preference for the Pal to remember. Saves nothing until the person confirms the card.",
+    "Propose one lasting preference or explicitly reported past-night outcome for the Pal to remember in typed or voice chat. Saves nothing until the person confirms the card in the app.",
 };
 
 function loadDotEnv() {
@@ -145,6 +148,7 @@ const TOOL_WEBHOOK_BODY_PROPERTIES = {
   search_venues: {
     conversation_id: conversationIdProperty(),
     query: { type: "string", description: "The venue search ask." },
+    limit: { type: "number", description: "Number of pub recommendations requested, from 1 to 6. This is not the number of people. Use 4 when no result count is requested." },
   },
   recall_memories: {
     conversation_id: conversationIdProperty(),
@@ -154,11 +158,11 @@ const TOOL_WEBHOOK_BODY_PROPERTIES = {
     kind: {
       type: "string",
       enum: [...PUB_PAL_MEMORY_KINDS],
-      description: "What sort of preference this is.",
+      description: "The preference kind, or night_outcome for an explicit past-night report.",
     },
     value: {
       type: "string",
-      description: "The preference in the person's own words, one short line.",
+      description: "The preference or past-night report in the person's own words, one short line. Preserve any stated pub, date and spend. Never infer expenditure from a price observation.",
     },
   },
 };
@@ -181,12 +185,72 @@ const CLIENT_EVENTS = [
   "audio",
   "interruption",
   "user_transcript",
+  // The voice panel prints the words as they are heard (lib/palVoiceTranscript.ts).
+  "tentative_user_transcript",
   "agent_response",
   "agent_response_correction",
   "agent_tool_request",
   "agent_tool_response",
+  "agent_tool_response_full_payload",
   "agent_response_complete",
 ];
+
+// How the agent hears a person. The provider's defaults are tuned for a quick
+// phone line; a pub is loud and people pause mid-sentence ("somewhere in...
+// Soho"). Left at the defaults, the agent took the turn at that pause, so the
+// rest of the sentence arrived as a talk-over and the answer was to half of it.
+//
+// - `turn_eagerness: "patient"` waits longer at a pause before it answers.
+// - `transcribe_on_disabled_interruptions: true` keeps what the person says
+//   while a confirm proposal plays. The four confirm tools disable talk-over
+//   for their whole turn (ADR 0006), and without this flag every word spoken
+//   in that turn was dropped, not carried into the next one.
+// - `keywords` bias the recogniser to the names a London night uses. Only
+//   words that are hard to hear and common in asks go here, not a gazetteer.
+// - `quality` and `user_input_audio_format` restate the provider's defaults,
+//   so `--check` reports a dashboard change that would make the Pal hear worse.
+const PAL_TURN_CONFIG = {
+  turn_eagerness: "patient",
+  transcribe_on_disabled_interruptions: true,
+};
+
+const PAL_ASR_KEYWORDS = [
+  "PUBMAXX",
+  "Pub Pal",
+  "pint",
+  "Guinness",
+  "Spoons",
+  "Wetherspoons",
+  "Sam Smith's",
+  "Fuller's",
+  "Young's",
+  "Greene King",
+  "real ale",
+  "cask",
+  "pub crawl",
+  "last train",
+  "night bus",
+  "Soho",
+  "Camden",
+  "Shoreditch",
+  "Clerkenwell",
+  "Fitzrovia",
+  "Covent Garden",
+  "Borough",
+  "Bermondsey",
+  "Peckham",
+  "Brixton",
+  "Hackney",
+  "Dalston",
+  "Islington",
+  "Marylebone",
+];
+
+const PAL_ASR_CONFIG = {
+  quality: "high",
+  user_input_audio_format: "pcm_16000",
+  keywords: PAL_ASR_KEYWORDS,
+};
 
 function clientEvents(existing) {
   return [...new Set([...(Array.isArray(existing) ? existing : []), ...CLIENT_EVENTS])];
@@ -280,6 +344,7 @@ function agentBody(toolIds) {
         prompt: {
           prompt: systemPrompt(),
           llm: AGENT_CONFIG.llm,
+          reasoning_effort: AGENT_CONFIG.reasoning_effort,
           tool_ids: toolIds,
         },
         first_message: "Hello, I'm your Pub Pal. What kind of night are you planning?",
@@ -289,6 +354,8 @@ function agentBody(toolIds) {
         max_duration_seconds: MAX_SESSION_SECONDS,
         client_events: clientEvents(),
       },
+      asr: structuredClone(PAL_ASR_CONFIG),
+      turn: { ...PAL_TURN_CONFIG },
       ...(defaultVoice ? { tts: { voice_id: defaultVoice } } : {}),
     },
     platform_settings: {
@@ -423,15 +490,14 @@ function mergeAgentPatch(existingAgent, body) {
 
 /** The PATCH a run sends to an existing agent: the live agent with this repo's fields laid over it. */
 function agentPatch(currentAgent, toolIds) {
+  const { body } = agentBody(toolIds);
   const conversationConfig = structuredClone(currentAgent.conversation_config ?? {});
   conversationConfig.agent = {
     ...(conversationConfig.agent ?? {}),
     prompt: {
       ...(conversationConfig.agent?.prompt ?? {}),
-      prompt: systemPrompt(),
-      llm: AGENT_CONFIG.llm,
+      ...body.conversation_config.agent.prompt,
       custom_llm: null,
-      tool_ids: toolIds,
     },
     first_message:
       conversationConfig.agent?.first_message ??
@@ -445,8 +511,11 @@ function agentPatch(currentAgent, toolIds) {
     max_duration_seconds: MAX_SESSION_SECONDS,
     client_events: clientEvents(conversationConfig.conversation?.client_events),
   };
+  // Laid over the live sections, so a dashboard-only setting there is kept.
+  conversationConfig.asr = { ...(conversationConfig.asr ?? {}), ...structuredClone(PAL_ASR_CONFIG) };
+  conversationConfig.turn = { ...(conversationConfig.turn ?? {}), ...PAL_TURN_CONFIG };
   return mergeAgentPatch(currentAgent, {
-    ...agentBody(toolIds).body,
+    ...body,
     conversation_config: conversationConfig,
   });
 }
@@ -493,6 +562,18 @@ async function checkAgent(apiKey, baseUrl) {
 }
 
 async function main() {
+  if (process.argv.includes("--privacy-delete-only")) {
+    if (process.argv.includes("--check") || process.argv.includes("--dry-run")) {
+      fail("--privacy-delete-only cannot be combined with --check or --dry-run.");
+    }
+    await privacyDeleteOnly({
+      agentId: arg("agent-id"),
+      branchId: arg("branch-id"),
+      attestationFile: arg("privacy-attestation"),
+      apiKey: process.env.ELEVENLABS_API_KEY?.trim(),
+    });
+    return;
+  }
   loadDotEnv();
 
   const dryRun = process.argv.includes("--dry-run");

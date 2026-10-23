@@ -3,6 +3,12 @@ import { expect, test, type Locator, type Page } from "@playwright/test";
 import { PRIMARY_NAV_ITEMS } from "../components/nav/navigationModel";
 import { PERFORMANCE_BUDGETS } from "../lib/performanceBudgets";
 import { expectStreamedPageSettled } from "./helpers/streamedPage";
+import {
+  expectMobileMapShellReady,
+  forgetHeldTubeStatus,
+  mobileMapShellControl,
+  routeTubeStatus,
+} from "./helpers/mobileMapShell";
 
 // Rendered geometry for the phone map chrome at 320, 390 and 430.
 //
@@ -14,6 +20,12 @@ import { expectStreamedPageSettled } from "./helpers/streamedPage";
 // measurements below are the bar, the chip row, the bottom card (which carries
 // the plan door), the map-edge lane and the budget they may not exceed: THREE
 // resting layers, counted by `restingLayers` below.
+//
+// TfL left the resting map in the taste pass (18 Oct 2026): it is painted on
+// the map edge only while a line is badly disrupted, and its everyday home is
+// More map controls, Transit. A spec here names the feed it means through
+// `routeTubeStatus`, "routine" by default and "urgent" where the TfL control's
+// own berth is what is measured.
 
 const VIEWPORTS = [
   { width: 390, height: 844 },
@@ -140,6 +152,7 @@ async function preparePhoneMap(
   viewport: (typeof VIEWPORTS)[number],
   reducedMotion: "reduce" | "no-preference" = "reduce",
   path = "/map",
+  tube: "urgent" | "routine" = "routine",
 ): Promise<void> {
   await page.setViewportSize(viewport);
   await page.emulateMedia({ reducedMotion });
@@ -168,12 +181,11 @@ async function preparePhoneMap(
     });
   });
   await installPositiveTonightResponse(page);
+  await routeTubeStatus(page, tube);
 
   const response = await page.goto(path);
   expect(response?.status()).toBe(200);
-  await expect(page.locator(".mobileMapTopbar")).toBeVisible({
-    timeout: 45_000,
-  });
+  await expectMobileMapShellReady(page, 45_000);
 }
 
 async function openPhoneMap(
@@ -181,16 +193,17 @@ async function openPhoneMap(
   viewport: (typeof VIEWPORTS)[number],
   reducedMotion: "reduce" | "no-preference" = "reduce",
   path = "/map",
+  tube: "urgent" | "routine" = "routine",
 ): Promise<void> {
-  await preparePhoneMap(page, viewport, reducedMotion, path);
+  await preparePhoneMap(page, viewport, reducedMotion, path, tube);
   // One bar: neither the old rail nor the map-floating category band.
   await expect(page.locator(".mobileMapRail")).toHaveCount(0);
   await expect(
     page.getByRole("group", { name: "Venue types" }),
   ).toHaveCount(0);
-  await expect(page.locator(".mobileMapLocateFab")).toBeVisible();
+  await expect(await mobileMapShellControl(page, "nearMe")).toBeVisible();
   await expect(
-    page.getByRole("button", { name: "Describe the outing" }),
+    page.getByRole("button", { name: "Plan a pub crawl" }),
   ).toBeVisible();
   await expect(page.locator(".mapLoading")).toBeHidden({ timeout: 45_000 });
 }
@@ -429,7 +442,10 @@ for (const viewport of VIEWPORTS) {
   test(`${viewport.width}px phone chrome is one bar sharing the shell boundary`, async ({
     page,
   }) => {
-    await openPhoneMap(page, viewport);
+    // A badly disrupted line, so the TfL control is on the edge and its berth
+    // is measured beside Near me.
+    await openPhoneMap(page, viewport, "reduce", "/map", "urgent");
+    await expect(await mobileMapShellControl(page, "tfl")).toBeVisible({ timeout: 20_000 });
     const layout = await shellLayout(page);
     console.log(
       `mobile-map-chrome-layout ${viewport.width}px ${JSON.stringify(layout)}`,
@@ -488,8 +504,8 @@ for (const viewport of VIEWPORTS) {
       "phone top chrome height",
     ).toBeLessThanOrEqual(60);
 
-    // The map-edge lane runs TfL at the top and Near me at the thumb, both
-    // right-aligned and both clear of the bar.
+    // The map-edge lane runs TfL at the top (while a line is badly disrupted)
+    // and Near me at the thumb, both right-aligned and both clear of the bar.
     expect(layout.utility.top, "TfL clears the bar").toBeGreaterThan(
       layout.topbar.bottom,
     );
@@ -615,9 +631,11 @@ for (const viewport of VIEWPORTS) {
     // The Tonight chip and the first-visit ask are not painted at rest.
     expect(layers.arrival, "the first-visit ask is answered").toBe(false);
     expect(layers.tonightChip, "no Tonight chip").toBe(false);
-    // The round map controls: TfL, Near me and the Create action on the right,
-    // and the credit (i) on the left. It is a control like Near me, not a band.
-    expect(layers.edge.sort()).toEqual(["create", "credit", "locate", "tfl"]);
+    // The round map controls: Near me and the Create action on the right, and
+    // the credit (i) on the left. It is a control like Near me, not a band.
+    // TfL is not one of them on a routine night: it rests in More map
+    // controls, Transit, and comes to the edge only for a badly disrupted line.
+    expect(layers.edge.sort()).toEqual(["create", "credit", "locate"]);
     const { credit, card, locate } = layers;
     expect(credit, "the credit (i) is painted on the map").not.toBeNull();
     expect(card).not.toBeNull();
@@ -633,10 +651,9 @@ for (const viewport of VIEWPORTS) {
     page,
   }) => {
     await openPhoneMap(page, viewport);
-    const topbar = page.locator(".mobileMapTopbar");
     await tapRenderedCentre(
       page,
-      topbar.getByRole("button", { name: /^Filters/ }),
+      await mobileMapShellControl(page, "filters"),
       viewport.width,
       "Filters",
     );
@@ -678,7 +695,7 @@ for (const viewport of VIEWPORTS) {
 
     // Near me before Search: MapEdgeControls unmount while search owns the
     // overlay, and Back from the layers sheet restores search when it was open.
-    const nearMe = page.locator(".mobileMapLocateFab");
+    const nearMe = await mobileMapShellControl(page, "nearMe");
     await tapRenderedCentre(page, nearMe, viewport.width, "Near me", false);
     await expect(nearMe).toHaveAttribute("aria-label", /^Nearby \d+$/, {
       timeout: 20_000,
@@ -687,7 +704,7 @@ for (const viewport of VIEWPORTS) {
       await dismissSheet(page);
     }
 
-    const search = topbar.getByRole("button", { name: "Search the map" });
+    const search = await mobileMapShellControl(page, "search");
     await tapRenderedCentre(page, search, viewport.width, "Search");
     const searchField = page.getByRole("combobox", { name: "Search pubs" });
     await expect(searchField).toBeVisible();
@@ -695,14 +712,14 @@ for (const viewport of VIEWPORTS) {
     await expect(searchField).toHaveCount(0);
     await expect(search).toHaveAttribute("aria-expanded", "false");
 
-    const more = topbar.getByRole("button", { name: "More map controls" });
+    const more = await mobileMapShellControl(page, "more");
     await tapRenderedCentre(page, more, viewport.width, "More map controls");
     await expect(
       page.locator('.mobileSheetPortal[data-sheet-kind="layers"]:visible'),
     ).toHaveCount(1);
     await dismissSheet(page);
 
-    const filters = topbar.getByRole("button", { name: /^Filters/ });
+    const filters = await mobileMapShellControl(page, "filters");
     await tapRenderedCentre(page, filters, viewport.width, "Filters");
     const sheet = page.locator(
       '.mobileSheetPortal[data-sheet-kind="filters"]:visible',
@@ -754,7 +771,9 @@ test("320px keeps the whole place name and the map-edge lane tappable", async ({
   page,
 }) => {
   const viewport = VIEWPORTS[2];
-  await openPhoneMap(page, viewport, "reduce", "/map?drink=wine");
+  // A badly disrupted line, so the safe-area check below reads both map-edge
+  // controls, TfL at the head of the lane and Near me at the thumb.
+  await openPhoneMap(page, viewport, "reduce", "/map?drink=wine", "urgent");
 
   const topbar = page.locator(".mobileMapTopbar");
   // The wordmark yields its column at 360px and below, so the place name is
@@ -773,9 +792,8 @@ test("320px keeps the whole place name and the map-edge lane tappable", async ({
     "the place name is not truncated at 320px",
   ).toBeLessThanOrEqual(areaFit.clientWidth);
 
-  const filters = topbar.getByRole("button", {
-    name: "Filters: drinks active",
-  });
+  const filters = await mobileMapShellControl(page, "filters");
+  await expect(filters).toHaveAccessibleName("Filters: drinks active");
   await expect(filters.locator(".mobileMapTopbarBadge")).toHaveText("1");
   await tapRenderedCentre(
     page,
@@ -790,7 +808,7 @@ test("320px keeps the whole place name and the map-edge lane tappable", async ({
   ).toHaveCount(1);
   await dismissSheet(page);
 
-  const nearMe = page.getByRole("button", { name: "Near me" });
+  const nearMe = await mobileMapShellControl(page, "nearMe");
   await tapRenderedCentre(page, nearMe, viewport.width, "Near me", false);
   await expect(page.getByRole("button", { name: /^Nearby \d+$/ })).toBeVisible({
     timeout: 20_000,
@@ -835,6 +853,49 @@ test("320px keeps the whole place name and the map-edge lane tappable", async ({
     Math.round(safeAreaLayout.locate.right),
     "both map-edge controls honour the safe-area inset",
   ).toBe(viewport.width - safeAreaRight);
+});
+
+test("390px TfL rests in More map controls and comes to the edge only when a line is badly disrupted", async ({
+  page,
+}) => {
+  const viewport = VIEWPORTS[0];
+  // A routine night: two updates, nothing urgent. The resting map paints no
+  // TfL control, and the same feed is one tap away in More map controls.
+  await openPhoneMap(page, viewport);
+  await expect(await mobileMapShellControl(page, "tfl")).toHaveCount(0);
+  const more = await mobileMapShellControl(page, "more");
+  await tapRenderedCentre(page, more, viewport.width, "More map controls");
+  const sheet = page.locator('.mobileSheetPortal[data-sheet-kind="layers"]:visible');
+  await expect(sheet).toHaveCount(1);
+  const transit = sheet
+    .getByRole("tablist", { name: "Map control sections" })
+    .getByRole("tab", { name: "Transit" });
+  await tapRenderedCentre(page, transit, viewport.width, "Transit tab");
+  await expect(transit).toHaveAttribute("aria-selected", "true");
+  await expect(sheet.getByRole("heading", { name: "Transport" })).toBeVisible({
+    timeout: 20_000,
+  });
+  await expect(sheet.locator("strong", { hasText: "Central" })).toBeVisible();
+  await dismissSheet(page);
+
+  // A badly disrupted line is news before the reader sets out, so it puts TfL
+  // back on the map edge with the one count that says so.
+  await page.unrouteAll({ behavior: "ignoreErrors" });
+  await routeTubeStatus(page, "urgent");
+  await installPositiveTonightResponse(page);
+  await forgetHeldTubeStatus(page);
+  await page.reload();
+  await expectMobileMapShellReady(page, 45_000);
+  const tfl = await mobileMapShellControl(page, "tfl");
+  await expect(tfl).toBeVisible({ timeout: 20_000 });
+  await expect(tfl.locator(".mobileMapCornerBadge")).toHaveText("1");
+  await expect(tfl).toHaveAccessibleName("TfL live: 1 line badly disrupted, 2 updates");
+  const layers = await restingLayers(page);
+  expect(layers.edge.sort()).toEqual(["create", "credit", "locate", "tfl"]);
+  await tapRenderedCentre(page, tfl, viewport.width, "TfL live");
+  await expect(
+    page.locator('.mobileSheetPortal[data-sheet-kind="tfl"]:visible'),
+  ).toHaveCount(1);
 });
 
 test("320px limited map keeps its topbar and city menu inside the viewport", async ({
@@ -884,9 +945,7 @@ test("390px recorded map journey reaches Filters and a painted pin", async ({
   await openPhoneMap(page, viewport, "no-preference");
   await page.waitForTimeout(500);
 
-  const filters = page
-    .locator(".mobileMapTopbar")
-    .getByRole("button", { name: /^Filters/ });
+  const filters = await mobileMapShellControl(page, "filters");
   await tapRenderedCentre(page, filters, viewport.width, "Filters");
   const filtersSheet = page.locator(
     '.mobileSheetPortal[data-sheet-kind="filters"]:visible',
@@ -1059,7 +1118,9 @@ for (const viewport of VIEWPORTS) {
     // cannot happen - and whether it renders at all depends on a prompt
     // budget, so an undecided seed is nondeterministic as well as blind.
     await seedAnsweredConsentAndPal(page);
-    await openPhoneMap(page, viewport);
+    // A badly disrupted line, so TfL is painted at the head of the edge lane
+    // and the sweep measures it too.
+    await openPhoneMap(page, viewport, "reduce", "/map", "urgent");
     // The pill is stored-pal gated and mounts after a microtask.
     await expect(page.locator(".palSummon")).toBeVisible({ timeout: 30_000 });
     await expect(page.locator(".createFab")).toBeVisible();
@@ -1194,7 +1255,9 @@ for (const viewport of VIEWPORTS) {
     expect(closed.backgroundImage).not.toBe("none");
     expect(closed.backgroundRepeat).toBe("no-repeat");
     expect(closed.backgroundPosition).toBe("50% 50%");
-    expect(closed.backgroundSize).toBe("24px 24px");
+    // One glyph, at the 20px control size the bar and Near me wear
+    // (lib/iconScale.ts), never tiled.
+    expect(closed.backgroundSize).toBe("20px 20px");
     expect(closed.controlRadius).toBe("50%");
     expect(closed.controlColor).toBe(closed.surfaceColor);
     expect(closed.controlColor).not.toBe("rgba(0, 0, 0, 0)");
@@ -1426,8 +1489,8 @@ test.describe("story and credit placement", () => {
 //
 // THE CARD IS EARNED, NOT MET ON ARRIVAL (lib/consentAnswerMoment.ts). It no
 // longer mounts on first paint, so this case performs one real first-answer
-// event before it measures anything. /out carries no pin and no venue sheet,
-// and the surface under test has to STAY /out because that is where the map
+// event before it measures anything. /places carries no pin and no venue sheet,
+// and the surface under test has to STAY /places because that is where the map
 // members are absent and the berth is the default one, so the answer here is
 // the reader reaching a second route - which is what a list tap, a card link
 // and a tab all come out as.
@@ -1448,7 +1511,7 @@ for (const viewport of VIEWPORTS) {
 
     // Route one. `domcontentloaded` returns before React has hydrated, so the
     // first route is polled for rather than assumed: leaving too early would
-    // leave it unrecorded and /out would be read as the first route instead.
+    // leave it unrecorded and /places would be read as the first route instead.
     await page.goto("/", { waitUntil: "domcontentloaded" });
     await expect
       .poll(
@@ -1458,11 +1521,11 @@ for (const viewport of VIEWPORTS) {
       )
       .not.toBeNull();
 
-    // Route two, and the surface this case measures.
-    const response = await page.goto("/out");
+    // Route two, and the surface this case measures. /out used to be this
+    // off-map route; it 308s to /tonight now (Oct 2026), so the city picker,
+    // an ordinary off-map page with the dock and the create action, stands in.
+    const response = await page.goto("/places");
     expect(response?.status()).toBe(200);
-    // /out streams behind its loading skeleton, and until React swaps the page
-    // in the document holds the skeleton's tab bar and the page's own.
     await expectStreamedPageSettled(page);
 
     const prompt = page.locator(".analyticsConsentPrompt");
@@ -1513,8 +1576,8 @@ for (const viewport of VIEWPORTS) {
       "the card sits on the reserved tab-bar lane",
     ).toBeLessThanOrEqual(1);
 
-    // And it covers nothing the reader came for. /out leads with its own
-    // listings, so the first one is what the card may never stand over.
+    // And it covers nothing the reader came for: the first link in the page's
+    // main is what the card may never stand over.
     const firstListing = page.locator("main a").first();
     if (await firstListing.count() > 0) {
       const listingBox = await firstListing.boundingBox();
@@ -1559,10 +1622,9 @@ for (const viewport of VIEWPORTS) {
       window.localStorage.setItem("pubmaxx:analytics-consent:v1", "denied");
     });
 
-    const response = await page.goto("/out");
+    // An ordinary off-map page (/out 308s to /tonight since Oct 2026).
+    const response = await page.goto("/places");
     expect(response?.status()).toBe(200);
-    // /out streams behind its loading skeleton, and until React swaps the page
-    // in the document holds the skeleton's tab bar and the page's own.
     await expectStreamedPageSettled(page);
 
     const create = page.getByTestId("create-fab");
@@ -1582,9 +1644,8 @@ for (const viewport of VIEWPORTS) {
       "the create action parks above the tab bar",
     ).toBeLessThanOrEqual(Math.round(bar!.y) + 1);
 
-    // Every row of its sheet keeps the tap floor. Scope to the sheet: /out's
-    // own empty state links to /plan under the same name, so a page-wide
-    // lookup is ambiguous rather than wrong.
+    // Every row of its sheet keeps the tap floor. Scope to the sheet, so a
+    // page link under the same name can never answer for a row.
     await create.click();
     const createMenu = page.locator(".createFabMenu");
     for (const label of ["Post a moment", "Log a price", "Start a plan"]) {
@@ -1705,28 +1766,246 @@ for (const viewport of VIEWPORTS) {
   });
 }
 
+// The control's HORIZONTAL lane, for the prose and the controls that run to the
+// gutter (UX sprint, 15 Oct 2026, 390x844). Three routes were reported: the
+// landing lost the ends of its FAQ answers and its saving line, Tonight lost
+// the end of "The map still knows where the cheap pints ar...", and /near ran
+// its location line, its scope line and its two footer links under the control.
+// Its patch-coverage note and the Work spot answer's ODbL credit sit in the
+// same lane, and the credit carries a link, so the control took the tap too.
+// The landing's lane is measured on the FAQ's question and answer rather than
+// on the list that holds them: on the list it would size the row divider too.
+//
+// The measurement is the TEXT, not the box: these elements are full-width, so
+// a box-level overlap is true even when the lane is reserved. Each line is
+// parked in the control's own band first, because the page scrolls under a
+// FIXED control and any line may be the one that comes to rest there.
+//
+// Counted PER SELECTOR, and every selector a call names must have matched. One
+// aggregate count let an absent selector ride along on its neighbours, which
+// reads as proof and is not: these lines are an either/or in one ternary
+// (`.nmnSub` against `.nmnWiden`) or conditional on an answer's own state, so
+// each page state is measured with the list it really renders.
+async function expectTextClearOfCreateAction(
+  page: Page,
+  selectors: readonly string[],
+): Promise<void> {
+  await expect(page.getByTestId("create-fab")).toBeVisible();
+  const report = await page.evaluate((list) => {
+    const fab = document.querySelector(".createFab");
+    const counted: Array<{ selector: string; lines: number }> = [];
+    const overlaps: string[] = [];
+    if (!fab) return { counted, overlaps };
+    for (const selector of list) {
+      let lines = 0;
+      for (const node of document.querySelectorAll(selector)) {
+        node.scrollIntoView({ block: "end", behavior: "instant" });
+        const f = fab.getBoundingClientRect();
+        const range = document.createRange();
+        range.selectNodeContents(node);
+        for (const line of range.getClientRects()) {
+          if (line.width === 0 || line.height === 0) continue;
+          lines += 1;
+          if (line.left < f.right && line.right > f.left
+            && line.top < f.bottom && line.bottom > f.top) {
+            overlaps.push(`${selector}: ${(node.textContent ?? "").trim().slice(0, 48)}`);
+            break;
+          }
+        }
+      }
+      counted.push({ selector, lines });
+    }
+    return { counted, overlaps };
+  }, [...selectors]);
+  expect(report.counted.map(({ selector }) => selector)).toEqual([...selectors]);
+  for (const { selector, lines } of report.counted) {
+    expect(lines, `${selector} had lines on the page to measure`).toBeGreaterThan(0);
+  }
+  expect(report.overlaps, "nothing runs under the create action").toEqual([]);
+}
+
+for (const viewport of VIEWPORTS) {
+  test(`${viewport.width}px /near prose and footer actions stay clear of the create action`, async ({
+    page,
+  }) => {
+    await page.setViewportSize(viewport);
+    await page.emulateMedia({ reducedMotion: "reduce" });
+    await page.addInitScript(() => {
+      window.localStorage.setItem("pubmaxx:analytics-consent:v1", "denied");
+    });
+
+    // The idle screen carries the location line; the answered screen carries
+    // the price column, the patch-coverage note and the footer's two links.
+    // /near streams its body into a hidden segment and React swaps it in on a
+    // timer, so until that lands the document can hold the hint twice.
+    const idle = await page.goto("/near");
+    expect(idle?.status()).toBe(200);
+    await expectStreamedPageSettled(page);
+    await expect(page.locator(".nmnHint")).toBeVisible();
+    await expectTextClearOfCreateAction(page, [".nmnHint"]);
+
+    const answered = await page.goto("/near?patch=soho");
+    expect(answered?.status()).toBe(200);
+    await expectStreamedPageSettled(page);
+    await expect(page.locator(".nmnCard").first()).toBeVisible();
+    await expect(page.locator(".nmnPatchTier")).toBeVisible();
+    // The collected line waits on the price-trust read, which lands after the
+    // cards: without this the measurement can find no line and fail for the
+    // wrong reason.
+    await expect(page.locator(".nmnPriceCollected").first()).toBeVisible();
+    await expectTextClearOfCreateAction(page, [
+      ".nmnListCaption",
+      ".nmnPriceCollected",
+      ".nmnPatchTier",
+      ".nmnFoot",
+    ]);
+  });
+}
+
+// A patch link the drinker chose owes no explanation, so `.nmnSub` only prints
+// once the answer is about an area RATHER than about the reader. Refusing the
+// location is the honest way to reach it.
+for (const viewport of VIEWPORTS) {
+  test(`${viewport.width}px the /near location line stays clear of the create action`, async ({
+    page,
+  }) => {
+    await page.setViewportSize(viewport);
+    await page.emulateMedia({ reducedMotion: "reduce" });
+    await page.addInitScript(() => {
+      window.localStorage.setItem("pubmaxx:analytics-consent:v1", "denied");
+      Object.defineProperty(navigator, "geolocation", {
+        configurable: true,
+        value: {
+          getCurrentPosition: (_ok: PositionCallback, fail?: PositionErrorCallback) => {
+            fail?.({ code: 1, message: "denied", PERMISSION_DENIED: 1 } as GeolocationPositionError);
+          },
+        },
+      });
+    });
+
+    const response = await page.goto("/near");
+    expect(response?.status()).toBe(200);
+    await expect(async () => {
+      await page.getByRole("button", { name: "Find my pint" }).click();
+      await expect(page.locator(".nmnSub")).toBeVisible({ timeout: 2_000 });
+    }).toPass({ timeout: 30_000 });
+    await expect(page.locator(".nmnSub")).toContainText("Location's off");
+    await expectTextClearOfCreateAction(page, [".nmnSub", ".nmnPatchTier"]);
+  });
+}
+
+for (const viewport of VIEWPORTS) {
+  test(`${viewport.width}px the Work spot credit keeps its link out of the create action`, async ({
+    page,
+  }) => {
+    await page.setViewportSize(viewport);
+    await page.emulateMedia({ reducedMotion: "reduce" });
+    await page.addInitScript(() => {
+      window.localStorage.setItem("pubmaxx:analytics-consent:v1", "denied");
+      window.localStorage.setItem("pubmax-tour-v1-done", "1");
+    });
+
+    const response = await page.goto("/near?mode=desk&patch=soho");
+    expect(response?.status()).toBe(200);
+    const credit = page.locator(".ndnSource");
+    await expect(credit).toBeVisible({ timeout: 30_000 });
+    await expectTextClearOfCreateAction(page, [".ndnSource", ".nmnFoot"]);
+
+    // The credit owes a tap, not just the words: with the line parked in the
+    // control's band, the link still receives its own press.
+    const link = credit.getByRole("link", { name: "OpenStreetMap contributors" });
+    await expect(link).toBeVisible();
+    const owner = await link.evaluate((node) => {
+      node.scrollIntoView({ block: "end", behavior: "instant" });
+      const box = node.getBoundingClientRect();
+      const hit = document.elementFromPoint(
+        (box.left + box.right) / 2,
+        (box.top + box.bottom) / 2,
+      );
+      if (!hit) return "nothing";
+      if (hit.closest(".ndnSource")) return "credit";
+      if (hit.closest(".createFabRoot")) return "create action";
+      return hit.className || hit.tagName;
+    });
+    expect(owner, "the licence link receives its own tap").toBe("credit");
+  });
+}
+
+for (const viewport of VIEWPORTS) {
+  test(`${viewport.width}px the Tonight status line stays clear of the create action`, async ({
+    page,
+  }) => {
+    await page.setViewportSize(viewport);
+    await page.emulateMedia({ reducedMotion: "reduce" });
+    await page.addInitScript(() => {
+      window.localStorage.setItem("pubmaxx:analytics-consent:v1", "denied");
+      window.localStorage.setItem("pubmax-tour-v1-done", "1");
+      window.localStorage.setItem("pubmax_onboarding_dismissed", "1");
+    });
+    // A quiet night is the reported case: it prints the sentence whose way back
+    // to the map ran under the control.
+    await page.route("**/api/whats-on**", (route) => route.fulfill({
+      json: { rows: [], asOf: null, servedAt: new Date().toISOString() },
+    }));
+
+    const response = await page.goto("/tonight");
+    expect(response?.status()).toBe(200);
+    await expect(page.locator(".tonightStatus").first()).toBeVisible({ timeout: 30_000 });
+    await expectTextClearOfCreateAction(page, [".tonightStatus"]);
+  });
+}
+
+for (const viewport of VIEWPORTS) {
+  test(`${viewport.width}px the landing prose stays clear of the create action`, async ({
+    page,
+  }) => {
+    await page.setViewportSize(viewport);
+    await page.emulateMedia({ reducedMotion: "reduce" });
+    await page.addInitScript(() => {
+      window.localStorage.setItem("pubmaxx:analytics-consent:v1", "denied");
+    });
+
+    const response = await page.goto("/");
+    expect(response?.status()).toBe(200);
+    await expect(page.locator(".lpWorth").first()).toBeVisible({ timeout: 30_000 });
+    // Signed out, the savings band is the read range of the hero's average
+    // and its map link (LandingSavings prints only a signed-in reader's own
+    // total), so those are the lines.
+    await expectTextClearOfCreateAction(page, [
+      ".lpWorth .lpPriceReads",
+      ".lpWorth .lpTextLink",
+      ".lpFaqQuestion",
+      ".lpFaqAnswer",
+    ]);
+  });
+}
+
 // The phone dock leads with the loop, not Social (13 Sep 2026 audit, lane 2).
-// Tonight is the dock's first door and Social is never a dock tab: it answers a
-// stranger with "Sign in to use Social.", so its doors are the desktop More
-// menu and the signed-in You hub. The count-driven row must close over the
-// WHOLE primary set at every supported phone width.
+// Map is the dock's first door (the five-door row, Oct 2026 UX audit), Tonight
+// is in it, and Social is in it once, after Plan (captain, 16 Oct 2026). The
+// count-driven row must close over the WHOLE primary set at every supported
+// phone width.
 //
 // The total is read from the nav model rather than typed, because it is not
-// what this test is about: it grew from five to six when Places landed, and a
+// what this test is about: it grew from five to six when Places landed and fell
+// to four when Out and Places folded, then rose to five with Social, and a
 // number written here fails the day the row changes for a reason this file has
 // no opinion on. What it holds is that the row is the primary set entire, that
-// Social is not in it, and that every column still clears the tap floor.
+// Map leads it, and that every column still clears the tap floor. The Pub
+// Pal's own door rides beside the set, never in it (captain, 19 Oct 2026), so
+// the row is the set plus that one door.
 for (const viewport of VIEWPORTS) {
-  test(`${viewport.width}px phone chrome leads with Tonight, never Social`, async ({
+  test(`${viewport.width}px phone chrome leads with Map, Social after Plan`, async ({
     page,
   }) => {
     await openPhoneMap(page, viewport);
 
     const primary = page.getByRole("navigation", { name: "Primary" });
-    await expect(primary.locator("a").first()).toHaveAttribute("href", "/tonight");
+    await expect(primary.locator("a").first()).toHaveAttribute("href", "/map");
     await expect(primary.getByRole("link", { name: "Tonight", exact: true })).toHaveCount(1);
-    await expect(primary.locator('a[href="/social"]')).toHaveCount(0);
-    await expect(primary.locator("a")).toHaveCount(PRIMARY_NAV_ITEMS.length);
+    await expect(primary.locator('a[href="/social"]')).toHaveCount(1);
+    await expect(primary.locator('a[href="/pal"]')).toHaveCount(1);
+    await expect(primary.locator("a")).toHaveCount(PRIMARY_NAV_ITEMS.length + 1);
     for (const tab of await primary.locator("a").all()) {
       const box = await tab.boundingBox();
       expect(box, "every primary tab has a box").not.toBeNull();

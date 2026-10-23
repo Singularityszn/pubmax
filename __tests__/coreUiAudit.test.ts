@@ -37,7 +37,7 @@ vi.mock("@/lib/cityPreference", () => ({
 // out, with the live session answered, and the chrome another track owns
 // stubbed to nothing. Every hook that reads over the network answers a settled
 // state, so the surface under test is the one a reader sees, not a skeleton.
-vi.mock("@/components/nav/SiteNav", () => ({ default: () => null }));
+vi.mock("@/components/nav/SiteNav", () => ({ default: () => null, SiteNavActions: () => null }));
 vi.mock("@/components/nav/NowSegment", () => ({ default: () => null }));
 vi.mock("@/components/auth/useViewerHandle", () => ({ useViewerHandle: () => null }));
 vi.mock("@/components/auth/AuthProvider", () => ({
@@ -119,7 +119,6 @@ import LandingPage from "@/components/landing/LandingPage";
 import NearPageClient from "@/components/nearme/NearPageClient";
 import TodayClient from "@/app/today/TodayClient";
 import TonightClient from "@/app/tonight/TonightClient";
-import OutClient from "@/app/out/OutClient";
 import PlanDescribeFirst from "@/components/plan/PlanDescribeFirst";
 import { PalMeetingScreen } from "@/components/pal/PalExperience";
 import SocialPageClient from "@/app/social/SocialPageClient";
@@ -172,7 +171,7 @@ describe("core UI audit fixes", () => {
   it("keeps the plan entry placeholder readable on a phone", () => {
     expect(planEntry).toMatch(/placeholder="Quiet in Clapham for 4"/);
     expect(planEntry).not.toMatch(/placeholder="[^"]*…/);
-    expect(planCss).toMatch(/@media \(max-width: 760px\)[\s\S]*?\.planPage__intro\s*\{\s*margin:\s*10px auto 10px/);
+    expect(planCss).toMatch(/@media \(max-width: 900px\)[\s\S]*?\.planPage__intro\s*\{\s*margin:\s*10px auto 10px/);
   });
 
   it("leaves the map's own tools up during first-session arrival", () => {
@@ -265,7 +264,6 @@ const LAUNCH_SURFACES: ReadonlyArray<[string, () => string]> = [
         }),
       ),
   ],
-  ["/out", () => renderToStaticMarkup(createElement(OutClient, { day: "tonight" }))],
   [
     "/plan",
     () =>
@@ -373,7 +371,7 @@ describe("every launch route is rendered by an audit", () => {
     const table = readFileSync(join(root, "docs/design/LAUNCH_SCREENS.md"), "utf8");
     const retired = table.slice(table.indexOf("## Retired addresses"));
     expect(retired, "the table has a retired-addresses section").not.toBe("");
-    for (const route of ["/discover", "/drinks", "/feed"]) {
+    for (const route of ["/discover", "/drinks", "/feed", "/out"]) {
       expect(retired, `${route} is recorded as retired`).toContain(`\`${route}\``);
     }
   });

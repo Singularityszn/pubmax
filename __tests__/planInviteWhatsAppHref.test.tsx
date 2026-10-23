@@ -46,6 +46,7 @@ vi.mock("@/components/plan/PlanHostInviteLink", () => ({
 vi.mock("@/lib/analytics", () => ({ trackEvent: vi.fn() }));
 
 import PlanInviteNextStep from "@/components/plan/PlanInviteNextStep";
+import { trackEvent } from "@/lib/analytics";
 
 let root: Root;
 let container: HTMLDivElement;
@@ -109,5 +110,39 @@ describe("Send on WhatsApp carries an absolute crew-join URL", () => {
     const anchor = container.querySelector<HTMLAnchorElement>("a.planInviteNext__whatsapp");
     const payload = sharedPayload(anchor!.href);
     expect(payload).not.toMatch(/lat=|lng=|lon=|near=/);
+  });
+});
+
+// window.open as the HTML spec has it: a "noopener" feature opens the tab and
+// returns null. The mock above answers a window whatever it is given, which is
+// how every WhatsApp invite told its host "Could not open WhatsApp" and sent no
+// plan_invite_sent without a test noticing.
+function specWindowOpen() {
+  return vi.fn((_url?: string, _target?: string, features?: string) => (
+    features?.includes("noopener") ? null : ({ opener: window } as unknown as Window)
+  ));
+}
+
+describe("a WhatsApp invite that opened is counted, and is not reported as failing", () => {
+  it("sends plan_invite_sent and shows no error when the tab opens", () => {
+    vi.stubGlobal("open", specWindowOpen());
+    const anchor = container.querySelector<HTMLAnchorElement>("a.planInviteNext__whatsapp");
+    act(() => {
+      anchor!.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true }));
+    });
+
+    expect(trackEvent).toHaveBeenCalledWith("plan_invite_sent", { channel: "whatsapp" });
+    expect(container.querySelector(".planInviteNext__error")).toBeNull();
+  });
+
+  it("still says so, and counts nothing, when a blocker really ate the tab", () => {
+    vi.stubGlobal("open", vi.fn().mockReturnValue(null));
+    const anchor = container.querySelector<HTMLAnchorElement>("a.planInviteNext__whatsapp");
+    act(() => {
+      anchor!.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true }));
+    });
+
+    expect(trackEvent).not.toHaveBeenCalledWith("plan_invite_sent", expect.anything());
+    expect(container.querySelector(".planInviteNext__error")?.textContent).toContain("Could not open WhatsApp");
   });
 });

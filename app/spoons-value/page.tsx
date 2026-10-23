@@ -20,8 +20,10 @@ import {
 } from "@/lib/spoonsValue";
 import { readSpoonsValue } from "@/lib/spoonsValue.server";
 
+import SpoonsValueHistogram from "./SpoonsValueHistogram";
 import SpoonsValueTable from "./SpoonsValueTable";
 
+import "@/components/listing/listing.css";
 import "./spoons-value.css";
 
 const SITE_URL = "https://pubmaxxing.com";
@@ -31,7 +33,7 @@ const SITE_URL = "https://pubmaxxing.com";
 // post), and this page takes nothing from anybody. It states what a published
 // menu costs, which is the same kind of claim /borough and /pint-index make.
 export const metadata: Metadata = {
-  title: `${SPOONS_VALUE_PAGE_TITLE} · PUBMAXX`,
+  title: SPOONS_VALUE_PAGE_TITLE,
   description:
     "Every UK Wetherspoon ranked by the alcohol units the best £10 round holds, with the round itself beside each pub.",
   alternates: { canonical: SPOONS_VALUE_ROUTE },
@@ -60,7 +62,7 @@ export default async function SpoonsValuePage() {
     return (
       <>
         <SiteNav />
-        <main className="spoonsPage" id="main">
+        <main className="spoonsPage listingShell" id="main">
           <EmptyState title={SPOONS_VALUE_PAGE_TITLE}>
             {read.status === "unavailable"
               ? "The ranking would not load. Reload the page."
@@ -102,7 +104,7 @@ export default async function SpoonsValuePage() {
   return (
     <>
       <SiteNav />
-      <main className="spoonsPage" id="main">
+      <main className="spoonsPage listingShell" id="main">
         <JsonLd data={jsonLd} nonce={nonce} />
         <Screen
           kicker="Wetherspoons, everywhere"
@@ -128,11 +130,9 @@ export default async function SpoonsValuePage() {
             </p>
           ) : null}
 
-          <SpoonsValueTable
-            rows={rows}
-            cuts={cuts}
-            modalMilliunits={modalMilliunits}
-          />
+          <SpoonsValueHistogram rows={rows} />
+
+          <SpoonsValueTable rows={rows} cuts={cuts} />
 
           <section className="spoonsCredit" aria-label="Where these figures come from">
             <h2 className="spoonsCreditTitle">Where these figures come from</h2>

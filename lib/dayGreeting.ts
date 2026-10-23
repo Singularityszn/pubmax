@@ -13,7 +13,7 @@
 //     never invents a sky.
 //   - a stale reading, or a grey evening the rules table has no verdict for,
 //     keeps a weather-free headline and prints the reading's own facts (with
-//     "Last read of the sky" when stale) as the supporting line.
+//     "Last reading" when stale) as the supporting line.
 //   - the viewer's claimed handle is optional decoration; absent, the salutation
 //     simply stands alone.
 //

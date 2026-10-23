@@ -27,7 +27,12 @@ export const maxDuration = 15;
 
 // A4: the banner's expanded feed shows every signal; the upstream sends ~8.
 const SIGNAL_CAP = 8;
-const CACHE_MAX_AGE_S = 60;
+// F10: `/map` asks for this on every load and it is off the first-pin path, so a
+// five-minute edge answer spares readers the ~1 s upstream round trip and the
+// durable rate-limit check a miss pays. City status moves on the scale of
+// minutes, not seconds. The stale window is five minutes more, so the oldest
+// answer the edge can hand out is ten minutes old.
+const CACHE_MAX_AGE_S = 300;
 const CACHE_STALE_WHILE_REVALIDATE_S = 300;
 
 function jsonResponse(body: unknown, opts: { status?: number; cache?: boolean } = {}): Response {

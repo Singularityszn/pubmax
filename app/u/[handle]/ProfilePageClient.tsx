@@ -2,7 +2,7 @@
 
 import dynamic from "next/dynamic";
 import Link from "next/link";
-import { notFound, useRouter } from "next/navigation";
+import { notFound, useRouter, useSearchParams } from "next/navigation";
 import { use, useEffect, useRef, useState, useSyncExternalStore } from "react";
 
 import ClaimMomentWelcome from "@/components/profile/ClaimMomentWelcome";
@@ -10,6 +10,7 @@ import ContributionLanesCard from "@/components/profile/ContributionLanesCard";
 import FirstActionsRow from "@/components/profile/FirstActionsRow";
 import FollowButton from "@/components/profile/FollowButton";
 import ProfileMessageButton from "@/components/messages/ProfileMessageButton";
+import ProfileMuteBlock from "@/components/social/ProfileMuteBlock";
 import NextBadgeChips from "@/components/profile/NextBadgeChips";
 import OutTonightBoard from "@/components/profile/OutTonightBoard";
 import OutTonightCrewLine from "@/components/profile/OutTonightCrewLine";
@@ -71,12 +72,14 @@ import {
   fetchFollowedListsForHandle,
   fetchSavedForHandle,
   groupDTOsByList,
+  SAVED_VENUE_FALLBACK_NAME,
   savedByList,
   type FollowedSavedListDTO,
   type ListType,
   type SavedPub,
   type SavedPubDTO,
 } from "@/lib/savedPubs";
+import { resolveSavedVenueNames } from "@/lib/savedVenueNames";
 import { venueMapUrl } from "@/lib/venueMapUrl";
 import { currentMode, modeEnablesLegacy } from "@/lib/viewMode";
 
@@ -199,17 +202,25 @@ function isEventActive(event: (typeof BADGE_EVENTS)[number], now: string): boole
   );
 }
 
-// localStorage fallback → DTO groups. The client has no server venue index, so a
-// local-only save renders its id as the name (the demo degrade for a signed-out /
-// offline viewer); the durable path is the one that carries real names. The map
-// url is still correct (?sel=<id>), so the link works either way.
-function localSavedDTOs(): Partial<Record<ListType, SavedPubDTO[]>> {
+// localStorage fallback → DTO groups. The client has no server venue index, so
+// each local-only save is named from the map's own venue detail
+// (lib/savedVenueNames.ts): newest saves first, a bounded number of lookups, and
+// a pub nothing can name reads "A London venue". It used to print the id itself
+// ("venue-s2ppfm") as the pub's name. The map url is the id's own (?sel=<id>).
+async function localSavedDTOs(
+  signal: AbortSignal,
+): Promise<Partial<Record<ListType, SavedPubDTO[]>>> {
   const local: Partial<Record<ListType, SavedPub[]>> = savedByList();
+  const newestFirst = Object.values(local)
+    .flatMap((pubs) => pubs ?? [])
+    .sort((a, b) => b.savedAt.localeCompare(a.savedAt))
+    .map((pub) => pub.venueId);
+  const names = await resolveSavedVenueNames(newestFirst, { signal });
   const groups: Partial<Record<ListType, SavedPubDTO[]>> = {};
   for (const key of Object.keys(local) as ListType[]) {
     groups[key] = (local[key] ?? []).map((pub) => ({
       venueId: pub.venueId,
-      venueName: pub.venueId,
+      venueName: names.get(pub.venueId) ?? SAVED_VENUE_FALLBACK_NAME,
       venueMapUrl: venueMapUrl(pub.venueId),
       listType: pub.listType,
       note: pub.note,
@@ -362,6 +373,14 @@ export function profileSocialDataForLaunch(
     : { socialLinks: [], counts: null, following: false, followsViewer: false };
 }
 
+/** What a handle gets you, said once and plainly. Every line is a real feature. */
+const YOU_SIGNED_OUT_PERKS: readonly string[] = [
+  "Save pubs and keep a list of ones to try.",
+  "Log prices under your own name.",
+  "Keep private memories of your nights.",
+  "Get one weekly nudge, if you want it.",
+];
+
 export function YouSignedOutSurface({
   nightMemoriesInvite,
 }: {
@@ -371,12 +390,20 @@ export function YouSignedOutSurface({
     <section className="youIdentityIntro" aria-labelledby="you-title">
       <div className="youIdentityAvatar" aria-hidden="true">PXX</div>
       <div>
-        <p className="profileSectionKicker">Your PUBMAXX identity</p>
-        <h1 id="you-title">Make the night yours.</h1>
-        <p>Claim a unique @handle, meet your Pub Pal, and keep every moment in one place.</p>
+        <p className="profileSectionKicker">You</p>
+        <h1 id="you-title">Claim your @handle.</h1>
+        <p>It&rsquo;s free. With a handle you can:</p>
+        {/* What a handle gets you, in plain words. This page used to explain
+            Wanted, Step Out and Night Memories one panel at a time to someone
+            who had none of them; this list is the whole pitch now. */}
+        <ul className="youIdentityPerks">
+          {YOU_SIGNED_OUT_PERKS.map((perk) => (
+            <li key={perk}>{perk}</li>
+          ))}
+        </ul>
         {nightMemoriesInvite ? (
           <p className="youMemoriesInvite" role="status">
-            Private Memories need a claimed @handle on your account. Claim yours below to keep nights in one place.
+            Memories need a handle. Claim yours to keep them.
           </p>
         ) : null}
       </div>
@@ -421,6 +448,7 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
   const routeHandle = normalizeHandle(use(params)?.handle);
   const isYouRoute = routeHandle === YOU_SENTINEL;
   const router = useRouter();
+  const editRequested = useSearchParams().get("edit") === "1";
   const documentComplete = useDocumentComplete();
   const { accountRevision, user, identityResolved, loading: sessionLoading, signOut } = useAuth();
   const viewerSession = useViewerSession();
@@ -504,6 +532,13 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
 
   // Owner-only "edit my profile" panel; opened from the header's Edit button.
   const [editing, setEditing] = useState(false);
+  const editToggleRef = useRef<HTMLButtonElement>(null);
+  const wasEditingRef = useRef(false);
+  useEffect(() => {
+    const wasEditing = wasEditingRef.current;
+    wasEditingRef.current = editing;
+    if (wasEditing && !editing) editToggleRef.current?.focus({ preventScroll: true });
+  }, [editing]);
   // Post-save confirmation shown back in view mode; clears itself shortly.
   const [savedNotice, setSavedNotice] = useState(false);
 
@@ -673,12 +708,14 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
       if (controller.signal.aborted) return;
       if (readProviderIdentityRevision() !== accountRevision) return;
       // Durable hit (even an empty list) is authoritative for this handle; only a
-      // null (no handle / request failed) falls back to the local view.
-      setSavedRead({
-        handle: routeHandle,
-        accountRevision,
-        groups: durable ? groupDTOsByList(durable) : localSavedDTOs(),
-      });
+      // null (no handle / request failed) falls back to the local view, whose
+      // names are read before it is shown, so no id is ever painted first.
+      const groups = durable
+        ? groupDTOsByList(durable)
+        : await localSavedDTOs(controller.signal);
+      if (controller.signal.aborted) return;
+      if (readProviderIdentityRevision() !== accountRevision) return;
+      setSavedRead({ handle: routeHandle, accountRevision, groups });
     }
     void loadSaved();
     return () => controller.abort();
@@ -1058,21 +1095,21 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
 
   // "Edit profile" is reachable from the site nav, which can only carry a URL,
   // so ?edit=1 opens the editing surface on arrival. The parameter is spent
-  // once: it is stripped straight away, so Back never re-opens the editor.
+  // once after opening, so same-profile navigation works and Back cannot reopen it.
   useEffect(() => {
-    if (!isOwnProfile) return;
-    const url = new URL(window.location.href);
-    if (url.searchParams.get("edit") !== "1") return;
-    url.searchParams.delete("edit");
-    window.history.replaceState(null, "", `${url.pathname}${url.search}${url.hash}`);
+    if (!isOwnProfile || !editRequested) return;
     const frame = window.requestAnimationFrame(() => {
+      const url = new URL(window.location.href);
+      if (url.searchParams.get("edit") !== "1") return;
       setEditing(true);
+      url.searchParams.delete("edit");
+      window.history.replaceState(null, "", `${url.pathname}${url.search}${url.hash}`);
       window.requestAnimationFrame(() => {
         document.getElementById("profile-editing")?.scrollIntoView({ block: "start" });
       });
     });
     return () => window.cancelAnimationFrame(frame);
-  }, [isOwnProfile]);
+  }, [isOwnProfile, editRequested]);
 
   // A stored row changed under an OPEN editor: a photo went up, a cover moved,
   // one came down. The header repaints from the reply without a refetch and the
@@ -1122,6 +1159,7 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
         </Link>
       ) : null}
       <button
+        ref={editToggleRef}
         type="button"
         className="profileEditToggle"
         data-primary-action=""
@@ -1157,6 +1195,10 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
         targetHandle={routeHandle}
         viewerHandle={viewerHandle}
       />
+      {/* Mute and block, folded shut. Renders only for a viewer Social admits. */}
+      {socialFriendsLaunchEnabled ? (
+        <ProfileMuteBlock targetHandle={routeHandle} viewerHandle={viewerHandle} />
+      ) : null}
     </>
     );
   }
@@ -1313,7 +1355,9 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
           aria-labelledby="profile-editing-title"
         >
           <h2 id="profile-editing-title">Editing your profile</h2>
-          <ProfileEditor
+          {/* Text fields keep their opening values. Wait for the full card so
+              a late read cannot leave a writable form full of empty fields. */}
+          {publicRead === "answered" && projection === "full" ? <ProfileEditor
             handle={routeHandle}
             initial={{
               // Only pre-fill from durable, user-owned values — never the
@@ -1336,19 +1380,35 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
             onSaved={handleSaved}
             onProfileChanged={handleProfileChanged}
             onClose={() => setEditing(false)}
-          />
+          /> : (
+            <div role="status">
+              <p>{publicRead === "asking" ? "Loading your profile…" : "Your profile could not be loaded."}</p>
+              {publicRead !== "asking" ? <a href={`/u/${encodeURIComponent(routeHandle)}?edit=1`}>Try again</a> : null}
+            </div>
+          )}
           {/* Linked socials are public content the owner typed in,
               so they edit beside the public fields. Account
               plumbing lives in Account settings below. */}
-          {user ? <SocialLinksEditor /> : null}
+          {user && publicRead === "answered" && projection === "full" ? <SocialLinksEditor /> : null}
         </section>
       ) : null
     );
   }
 
+  function hasTimelineSection() {
+    return !youSignedOut && (state === "loading" || drops.length > 0 || isOwnProfile || isYouRoute);
+  }
+
+  function hasCrawlsSection() {
+    return !youSignedOut && (authoredCrawls.length > 0 || ownUnlistedCrawls.length > 0);
+  }
+
   function timelineSection() {
+    // A visitor on a handle with no pints meets no Timeline: the passport above
+    // already says it is blank, and a heading over "No pints logged" said it
+    // twice. The owner keeps the section, where it is where pints will land.
     return (
-      !youSignedOut ? (
+      hasTimelineSection() ? (
         <section id="timeline" className="profileDropsSection" aria-labelledby="dropsHeading">
           <h2 id="dropsHeading" className="profileSectionHeading">
             Timeline
@@ -1381,8 +1441,7 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
   // published one, so an empty section never sits under a zero - or when the
   // owner has an unlisted crawl, which lives nowhere else at all.
   function crawlsSection() {
-    return !youSignedOut &&
-      (authoredCrawls.length > 0 || ownUnlistedCrawls.length > 0) ? (
+    return hasCrawlsSection() ? (
         <section
           id="crawl-stories"
           className="profileDropsSection"
@@ -1496,6 +1555,7 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
                 <ProfileHeader
                   profile={profile}
                   stats={stats}
+                  sectionLinks={{ timeline: hasTimelineSection(), crawls: hasCrawlsSection(), memories: Boolean(user) && (isOwnProfile || isYouRoute) }}
                   socialLinks={visibleSocialData.socialLinks}
                   crawls={storyCount}
                   memories={stats.memoriesPosted}
@@ -1554,7 +1614,7 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
                 <nav className="youProfileTabs" aria-label="Your profile sections">
                   <a href="#timeline">Moments</a>
                   <a href="#passport">Passport</a>
-                  <a href="#wanted">Wanted</a>
+                  <a href="#wanted">Pubs to try</a>
                   <a href="#saved-pubs">Saved</a>
                   <a href="#account-settings">Account settings</a>
                 </nav>
@@ -1617,6 +1677,7 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
                     ownerHandle={isYouRoute ? viewerHandle : routeHandle}
                     groups={saved}
                     followedLists={followedLists}
+                    isOwner={isYouRoute || isOwnProfile}
                   />
                 </div>
               ) : null}
@@ -1661,11 +1722,12 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
 
       <main id="main" className="container profileMain pageHidesCreateFab">
         {surfaceBody()}
-        {surface === "identity-loading" || surface === "you-invitation" ? (
-          <WantedList
-            key="you-wanted-panel"
-            body={surface === "you-invitation" && documentComplete}
-          />
+        {/* The list's title paints while identity is still answering, so a
+            signed-in owner's page does not jump when it lands. A signed-out
+            reader has no list, and the invitation above already says what a
+            handle keeps, so the panel is not shown to them. */}
+        {surface === "identity-loading" ? (
+          <WantedList key="you-wanted-panel" body={false} />
         ) : null}
         {surface === "you-invitation" && documentComplete ? (
           <div id="account-settings">

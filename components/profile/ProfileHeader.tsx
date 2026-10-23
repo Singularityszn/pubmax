@@ -36,6 +36,7 @@ type ProfileHeaderProps = {
   following?: number;
   drops?: readonly ProfileDrop[];
   actions?: ReactNode;
+  sectionLinks?: { timeline: boolean; crawls: boolean; memories: boolean };
 };
 
 const PROFILE_STAT_LABELS = [
@@ -61,22 +62,17 @@ function ProfileStatTile({
 }: {
   label: string;
   value: number | string;
-  href: Route;
+  href?: Route;
   hint: string;
 }) {
+  const content = <><span className="profileStatLabel">{label}</span><strong className="profileStatValue">{value}</strong></>;
   return (
     <div className="profileStat" role="listitem">
-      {/* data-pressable is how an anchor joins the ONE shared press-scale owner
-          in globals.css; a local transform here would compound with it. */}
-      <Link
-        className="profileStatLink"
-        data-pressable
-        href={href}
-        aria-label={`${label}: ${value}. ${hint}.`}
-      >
-        <span className="profileStatLabel">{label}</span>
-        <strong className="profileStatValue">{value}</strong>
-      </Link>
+      {href ? (
+        <Link className="profileStatLink" data-pressable href={href} aria-label={`${label}: ${value}. ${hint}.`}>
+          {content}
+        </Link>
+      ) : <div className="profileStatLink" aria-label={`${label}: ${value}.`}>{content}</div>}
     </div>
   );
 }
@@ -145,6 +141,7 @@ export default function ProfileHeader({
   following,
   drops,
   actions,
+  sectionLinks,
 }: ProfileHeaderProps) {
   const { handle, displayName, homeCity, bio, avatarUrl, foundingMemberNumber } = profile;
   if (viewerState === "loading") return <ProfileHeaderLoading />;
@@ -202,7 +199,7 @@ export default function ProfileHeader({
             <p className="profileHandle">{displayHandle(handle)}</p>
             {homeCity ? (
               <p className="profileHomeCity">
-                <MapPin size={14} strokeWidth={1.75} aria-hidden="true" />{" "}
+                <MapPin size={14} aria-hidden="true" />{" "}
                 {homeCity}
               </p>
             ) : null}
@@ -247,26 +244,19 @@ export default function ProfileHeader({
         ) : null}
       </div>
 
-      {/* Every tile is a way in. A statistic that counts something the page can
-          show, and does not link to it, is a dead end wearing a number: the
-          reader has been told they have 14 followers and given no way to see
-          one. The destinations are real surfaces, so a tile never navigates to
-          a promise.
-
-          The row sits BELOW the hero and spans the whole card, because six
-          figures squeezed into a narrow column is how they came to read as a
-          receipt rather than as six doors. */}
+      {/* A statistic opens only a section this page can render. Private or
+          absent sections keep their figures without a destination. */}
       <div className="profileStats" role="list" aria-label="Profile statistics">
         <ProfileStatTile
           label="Pints logged"
           value={stats.pintsLogged}
-          href={profileHref("#timeline")}
+          href={sectionLinks?.timeline ? profileHref("#timeline") : undefined}
           hint="Open the pint timeline"
         />
         <ProfileStatTile
           label="Cheapest pint"
           value={formatCheapestPint(stats.cheapestPintGbp)}
-          href={profileHref("#timeline")}
+          href={sectionLinks?.timeline ? profileHref("#timeline") : undefined}
           hint="Open the pint timeline"
         />
         {typeof followers === "number" ? (
@@ -288,13 +278,13 @@ export default function ProfileHeader({
         <ProfileStatTile
           label="Crawls"
           value={formatStatCount(crawlsPosted)}
-          href={profileHref("#crawl-stories")}
+          href={sectionLinks?.crawls ? profileHref("#crawl-stories") : undefined}
           hint="Open the published crawls"
         />
         <ProfileStatTile
           label="Memories"
           value={memoriesPosted}
-          href={profileHref("#night-memories")}
+          href={sectionLinks?.memories ? profileHref("#night-memories") : undefined}
           hint="Open night memories"
         />
       </div>

@@ -443,6 +443,37 @@ export function freshestPintPrice(
 }
 
 /**
+ * The freshest pint per venue, as one map - what the map's pins carry.
+ *
+ * Hands back `previous` itself when the answer has not changed. Every first
+ * open of a pub writes that pub's (often empty) price list, which made a new
+ * map here, which made the canvas rebuild every pin and re-send the whole
+ * source about a second after the tap - a long task waiting for the next one.
+ * Identity is the signal the canvas keys on, so an equal answer keeps it.
+ */
+export function freshestPintByVenue(
+  byVenueId: ReadonlyMap<string, readonly CommunityPrice[]>,
+  previous?: Map<string, CommunityPrice> | null,
+): Map<string, CommunityPrice> {
+  const freshest = new Map<string, CommunityPrice>();
+  for (const [venueId, rows] of byVenueId) {
+    const top = freshestPintPrice(rows);
+    if (top) freshest.set(venueId, top);
+  }
+  if (previous && previous.size === freshest.size) {
+    let same = true;
+    for (const [venueId, top] of freshest) {
+      if (previous.get(venueId) !== top) {
+        same = false;
+        break;
+      }
+    }
+    if (same) return previous;
+  }
+  return freshest;
+}
+
+/**
  * The pin/pin-band bucket a pint price falls into: 0 = cheap, 1 = average,
  * 2 = expensive, 3 = unknown (no price). The thresholds are lib/priceBand.ts's
  * city terciles (London: cheap up to £5.20, average up to £6.15), no longer a

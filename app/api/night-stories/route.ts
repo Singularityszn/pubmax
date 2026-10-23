@@ -34,5 +34,5 @@ export async function POST(request: Request): Promise<Response> {
   const story = await createNightStory(ownerId, body);
   return story
     ? jsonNoStore({ story }, { status: 201 })
-    : publicApiError("Choose one of your Night Memories and add a title.", "INVALID_REQUEST", 400);
+    : publicApiError("Choose one of your memories and add a title.", "INVALID_REQUEST", 400);
 }

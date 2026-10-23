@@ -65,10 +65,42 @@ behind a challenge is counted as `blocked-by-challenge` and left alone.
 
 `scripts/harvest/uk-prices/run.mjs`. Candidate hosts are the `website` tags the
 committed UK OSM pub snapshot already carries, grouped by host and crawled
-biggest first. Per host it reads the home page, whatever the host's own
+biggest first. With `--london`, the `website` a curated London venue states in
+`public/data/pint_prices_app_dataset.json` joins them where the snapshot carries
+no such host (`addCuratedLondonWebsiteHosts` in `londonScope.mjs`): it is a page
+the pub stated about itself, so it is derived rather than typed, and its rows
+carry the curated venue's id, name and position. An aggregator
+(`pint-prices.com`), a social page, a host a source-table row names (a chain
+estate has its own lane) and a URL `sourcePolicy` refuses never join, and the
+report counts them under `londonScope.curatedWebsites`. Per host it reads the home page, whatever the host's own
 `robots.txt` names as a sitemap, and the links on the home page that look like a
 drinks list, to a per-host page ceiling. Resumable: `data-harvest/uk_prices/hosts.json`
 records what each host answered, so a rerun continues.
+
+### Websites Exa found
+
+OpenStreetMap states a website for about one London pub in two. The Exa lane
+finds the others, and the document lane reads them only after an address check:
+
+```
+npm run harvest:uk-pubs -- --london --enrich      # Exa, London pubs (EXA_API_KEY)
+npm run harvest:uk-exa-sites                      # cut data/uk_prices/exa_site_candidates.json
+npm run harvest:uk-prices -- --london --exa-sites data/uk_prices/exa_site_candidates.json --exa-sites-only
+npm run build:uk-price-bundle
+npm run harvest:uk-record-publications -- --reader "<how the rows were read>"
+```
+
+The last step records the new rows in `data/uk_prices/site_harvest_reconciliation.json`,
+one later publication per source page, each with an evidence file the page's own
+words were re-read into. `__tests__/siteHarvestReconciliation.test.ts` fails
+until it runs.
+
+A site only Exa named gives a price only when one of its pages states the pub's
+own OSM postcode or house number and street. A namesake's site never binds and
+is counted as `exa-site-unbound`. An `--exa-sites-only` run writes its counts
+to `data/uk_prices/exa_sites_report.json`, never over `harvest_report.json`. The
+rule is in
+[`docs/rules/scripts-harvest-and-source-permission.md`](./rules/scripts-harvest-and-source-permission.md#an-exa-website-is-read-for-a-price-only-when-its-own-page-states-the-pub-s-address).
 
 ## Lane two: the browser
 
@@ -82,6 +114,22 @@ a browser on 2026-09-04 states 102 prices, so that verdict was withdrawn.
 The lane reads the per-pub menu page of every chain the source table allows,
 one page per pub, and the source row names the brand hosts that chain publishes
 the same menu on.
+
+`--pub-sites` points the same browser at a pub's OWN website instead:
+
+```
+npm run harvest:uk-prices-rendered -- --pub-sites --only tapeast.co.uk,lvls.london
+```
+
+The site is the snapshot `website` the document lane reads, permitted by the same
+rule (`scripts/harvest/uk-prices/pubSites.mjs`), and only a site serving exactly
+one pub is rendered, because a price on an estate's home page belongs to no one
+pub. The lane renders the home page, then up to three of that page's own drinks
+links, asking robots before each. A drink stated on several pages keeps its
+cheapest page, as in the document lane. Where the environment reaches the web
+through a proxy, the lane hands the renderer `HTTPS_PROXY`, since wigolo strips
+proxy variables from its browser and takes a proxy only through its own
+settings.
 
 ## Lane three: the scan
 
@@ -188,6 +236,15 @@ In mixed Markdown and HTML, the normaliser
 collapses formatting whitespace within HTML elements and between adjacent
 elements while preserving surrounding Markdown rows. Inline and table-cell
 fragments therefore keep a wrapped drink name within its item.
+
+In `text`, Markdown syntax is layout, not words. Before whitespace is
+collapsed, an image is dropped (its alt text states no price), a link reads
+as its own words without its target, and heading marks, `**`/`__` emphasis and
+backslash escapes are removed. A rendered line therefore names its drink as the
+served page does, and lands on the same ledger key. The 2026-10-17 Lvls read
+had stored `#### Coke / Diet Coke 330ml glass bottle` beside the served page's
+`Coke / Diet Coke 330ml glass bottle`. Served HTML is not touched, so a page's
+own `#` or brackets stay.
 
 The judged reader and its deterministic fallback use the same format and
 boundary-preserving text. Candidate offsets identify figures in that text,

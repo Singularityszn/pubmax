@@ -1,3 +1,6 @@
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
+
 import { describe, it, expect } from "vitest";
 
 import { drinkLensPriceNoun } from "@/lib/mapExperienceLens";
@@ -5,6 +8,7 @@ import {
   buildMapVenueListModel,
   buildLondonRestaurantListModel,
   buildUkBasePubListModel,
+  closedMapVenueListModel,
   summarizeListGroups,
   projectedItemIdsInViewport,
   MAP_VENUE_LIST_LIMIT,
@@ -656,5 +660,43 @@ describe("summarizeListGroups", () => {
     expect(summarizeListGroups([group([]), group([]), group(["venue-osm-n1"])]).firstRowId).toBe(
       "venue-osm-n1",
     );
+  });
+});
+
+// The full model sorts and labels every venue in view. It was rebuilt on every
+// camera frame and every venue tap while the list was closed and drew nothing,
+// a long task inside the /map tap's frame on a phone (map-p99-vitals-tail).
+describe("closedMapVenueListModel — a closed list carries its count and no rows", () => {
+  it("keeps the count the chrome prints, and builds no rows", () => {
+    const venues = [venue({ id: "a" }), venue({ id: "b" }), venue({ id: "c" })];
+    const open = buildMapVenueListModel(venues, [-0.12, 51.5]);
+    const closed = closedMapVenueListModel(venues.length);
+    expect(closed.total).toBe(open.total);
+    expect(closed.rows).toEqual([]);
+    expect(closed.shown).toBe(0);
+    expect(closed.coverageNote).toBeNull();
+    expect(summarizeListGroups([closed]).firstRowId).toBeUndefined();
+  });
+
+  it("is honest-empty on an empty view", () => {
+    expect(closedMapVenueListModel(0)).toEqual({
+      rows: [],
+      total: 0,
+      shown: 0,
+      truncated: false,
+      coverageNote: null,
+    });
+  });
+
+  it("is what /map builds while the list is closed", () => {
+    const source = readFileSync(join(process.cwd(), "components/PubMap.tsx"), "utf8");
+    const memo = source.slice(
+      source.indexOf("const mapVenueListModel = useMemo("),
+      source.indexOf("const mapPeek = useMapPeek("),
+    );
+    expect(memo).toMatch(
+      /!mapListOpen\s*\?\s*closedMapVenueListModel\(mapVenueListVenues\.length\)\s*:\s*buildMapVenueListModel\(/,
+    );
+    expect(memo).toMatch(/\[[^\]]*\bmapListOpen\b[^\]]*\]/);
   });
 });

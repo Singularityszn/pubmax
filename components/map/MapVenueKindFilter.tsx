@@ -24,6 +24,7 @@ import { useEffect, useId, useRef, useState } from "react";
 import MapExperienceLensControl from "@/components/map/MapExperienceLens";
 import ZonePicker from "@/components/map/ZonePicker";
 import type { MapExperienceLens } from "@/lib/mapExperienceLens";
+import { useDismissOnEscape } from "@/lib/useDismissOnEscape";
 import {
   hiddenVenueKindCount,
   mapFilterRefinementCount,
@@ -81,18 +82,13 @@ export default function MapVenueKindFilter({
     lensNarrowed: experienceLens !== "all",
     zoneNarrowed: zoneParsed !== null && zoneParsed !== "all",
   });
+  useDismissOnEscape(open, () => {
+    setOpen(false);
+    buttonRef.current?.focus();
+  }, rootRef);
 
   useEffect(() => {
     if (!open) return;
-    function onKey(event: KeyboardEvent) {
-      if (event.key !== "Escape") return;
-      // Claim the key, so the map-level Escape (close drawer) does not also
-      // fire, and hand focus back to the control the reader opened.
-      event.preventDefault();
-      event.stopPropagation();
-      setOpen(false);
-      buttonRef.current?.focus();
-    }
     function onPointer(event: MouseEvent | TouchEvent) {
       const root = rootRef.current;
       if (!root) return;
@@ -100,11 +96,9 @@ export default function MapVenueKindFilter({
         setOpen(false);
       }
     }
-    window.addEventListener("keydown", onKey);
     window.addEventListener("mousedown", onPointer);
     window.addEventListener("touchstart", onPointer, { passive: true });
     return () => {
-      window.removeEventListener("keydown", onKey);
       window.removeEventListener("mousedown", onPointer);
       window.removeEventListener("touchstart", onPointer);
     };
@@ -128,7 +122,7 @@ export default function MapVenueKindFilter({
         aria-label={venueKindFilterAriaLabel(refinements)}
         onClick={() => setOpen((current) => !current)}
       >
-        <SlidersHorizontal size={15} aria-hidden="true" />
+        <SlidersHorizontal size={16} aria-hidden="true" />
         {/* The word goes under 900px, where the toolbar row is a budget and the
             search field is what pays for a longer label (the top bar drops its
             own "More" label in the same band). The count stays, and the

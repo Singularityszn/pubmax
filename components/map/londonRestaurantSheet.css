@@ -20,10 +20,10 @@
   gap: 5px;
   padding: 3px 9px;
   border: 1px solid var(--line);
-  border-radius: var(--radius-pill, 999px);
+  border-radius: var(--radius-pill);
   background: var(--panel-raised);
   color: var(--ink);
-  font-size: 0.68rem;
+  font-size: var(--text-2xs);
   font-weight: 700;
   letter-spacing: 0.06em;
   text-transform: uppercase;
@@ -35,8 +35,8 @@
 
 .londonRestaurantName {
   margin: 0;
-  font-family: var(--font-display, var(--serif));
-  font-size: 1.32rem;
+  font-family: var(--font-display);
+  font-size: var(--text-lg);
   font-weight: 700;
   line-height: 1.15;
   color: var(--ink);
@@ -47,8 +47,8 @@
   align-items: center;
   gap: 6px;
   margin: 0;
-  color: var(--ink-soft, var(--muted));
-  font-size: 0.86rem;
+  color: var(--ink-soft);
+  font-size: var(--text-sm);
   line-height: 1.35;
 }
 
@@ -65,19 +65,25 @@
 
 .londonRestaurantLead {
   margin: 14px 0 0;
-  color: var(--ink-soft, var(--muted));
-  font-size: 0.94rem;
+  color: var(--ink-soft);
+  font-size: var(--text-base);
   line-height: 1.45;
 }
 
 .londonRestaurantSource {
   margin: 16px 0 0;
   color: var(--muted);
-  font-size: 0.72rem;
+  font-size: var(--text-xs);
   line-height: 1.4;
 }
 
 .londonRestaurantSource a {
   color: inherit;
   text-decoration: underline;
+}
+
+/* The Coke Zero or Diet Coke composer on a London counter's sheet
+   (components/map/LondonFoodPlaceSheet.tsx), which shares this sheet's frame. */
+.londonFoodPlaceLog {
+  margin-top: 18px;
 }

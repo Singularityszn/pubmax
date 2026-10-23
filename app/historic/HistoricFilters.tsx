@@ -1,14 +1,14 @@
 "use client";
 
 import { usePathname, useRouter } from "next/navigation";
-import { useTransition } from "react";
+import { useEffect, useOptimistic, useRef, useTransition } from "react";
 
 import { samePathWithQuery } from "@/lib/appLink";
 import type { HistoricFilterQuery } from "@/lib/pageFilters";
 
 const SORT_OPTIONS: { value: HistoricFilterQuery["sort"]; label: string }[] = [
   { value: "oldest", label: "Oldest first" },
-  { value: "az", label: "A–Z" },
+  { value: "az", label: "A to Z" },
   { value: "borough", label: "By borough" },
 ];
 
@@ -31,10 +31,16 @@ export default function HistoricFilters({
   const router = useRouter();
   const pathname = usePathname();
   const [pending, startTransition] = useTransition();
+  const intended = useRef(filters);
+  const [selection, setSelection] = useOptimistic(filters);
+  useEffect(() => { intended.current = filters; }, [filters]);
 
-  function navigate(next: HistoricFilterQuery): void {
+  function navigate(patch: Partial<HistoricFilterQuery>): void {
+    const next = { ...intended.current, ...patch, page: 1 };
+    intended.current = next;
     const query = queryFor(next);
     startTransition(() => {
+      setSelection(next);
       router.push(samePathWithQuery(pathname, query));
     });
   }
@@ -53,10 +59,9 @@ export default function HistoricFilters({
           <select
             id="historic-borough"
             className="historicSelect"
-            value={filters.borough ?? ""}
+            value={selection.borough ?? ""}
             onChange={(event) =>
               navigate({
-                ...filters,
                 borough: event.target.value || null,
               })
             }
@@ -79,10 +84,9 @@ export default function HistoricFilters({
           <select
             id="historic-sort"
             className="historicSelect"
-            value={filters.sort}
+            value={selection.sort}
             onChange={(event) =>
               navigate({
-                ...filters,
                 sort: event.target.value as HistoricFilterQuery["sort"],
               })
             }
@@ -104,18 +108,18 @@ export default function HistoricFilters({
         <button
           type="button"
           className="historicToggle"
-          data-active={filters.listedOnly}
-          aria-pressed={filters.listedOnly}
-          onClick={() => navigate({ ...filters, listedOnly: !filters.listedOnly })}
+          data-active={selection.listedOnly}
+          aria-pressed={selection.listedOnly}
+          onClick={() => navigate({ listedOnly: !intended.current.listedOnly })}
         >
           Listed only
         </button>
         <button
           type="button"
           className="historicToggle"
-          data-active={filters.hasDate}
-          aria-pressed={filters.hasDate}
-          onClick={() => navigate({ ...filters, hasDate: !filters.hasDate })}
+          data-active={selection.hasDate}
+          aria-pressed={selection.hasDate}
+          onClick={() => navigate({ hasDate: !intended.current.hasDate })}
         >
           Has a date
         </button>

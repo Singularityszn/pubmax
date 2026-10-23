@@ -6,6 +6,7 @@ import {
   type AskPlanDraft,
   type AskProposal,
   type AskTurn,
+  type AskMenuEvidence,
 } from "@/lib/ask/types";
 import { isPubPalMemoryKind } from "@/lib/palMemoryKinds.mjs";
 
@@ -16,6 +17,7 @@ export type AskCard = {
   place: string;
   note: string;
   price: number | null;
+  menuEvidence?: AskMenuEvidence;
 };
 
 export type AskResult =
@@ -59,6 +61,7 @@ function asCards(raw: unknown): AskCard[] {
       place: str(record.place),
       note: str(record.note),
       price: num(record.price),
+      ...(record.menuEvidence && typeof record.menuEvidence === "object" ? { menuEvidence: record.menuEvidence as AskMenuEvidence } : {}),
     };
   });
 }
@@ -109,6 +112,7 @@ function asProposals(raw: unknown): AskProposal[] {
         lat: record.lat,
         lng: record.lng,
         ...(typeof record.place === "string" ? { place: record.place } : {}),
+        ...(str(record.venueId) ? { venueId: str(record.venueId) } : {}),
       });
       continue;
     }
@@ -129,12 +133,20 @@ function asProposals(raw: unknown): AskProposal[] {
       continue;
     }
     if (record.kind === "remember_memory" && isPubPalMemoryKind(record.memoryKind) && str(record.value).trim()) {
+      const supersedesMemoryId = str(record.supersedesMemoryId).trim();
+      const relation: "update" | "delete" | null =
+        record.relation === "update" ? "update" : record.relation === "delete" ? "delete" : null;
+      const supersedes =
+        relation && supersedesMemoryId
+          ? { relation, supersedesMemoryId, supersedesValue: str(record.supersedesValue).trim() }
+          : {};
       out.push({
         id: id || `remember:${record.memoryKind}`,
         kind: "remember_memory",
         label,
         memoryKind: record.memoryKind,
         value: str(record.value).trim(),
+        ...supersedes,
       });
     }
   }

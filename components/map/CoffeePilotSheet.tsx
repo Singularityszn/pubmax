@@ -2,6 +2,8 @@
 
 import { Coffee, ExternalLink, MapPin } from "lucide-react";
 
+import DataCreditsLink from "@/components/legal/DataCreditsLink";
+import PriceBadge from "@/components/PriceBadge";
 import {
   coffeePilotDrinkLabel,
   coffeePilotSourceLine,
@@ -21,13 +23,13 @@ export default function CoffeePilotSheet({ cafe }: { cafe: CoffeePilotCafe }) {
     <div className="coffeePilot" data-coffee-pilot-cafe={cafe.id}>
       <div className="coffeePilotHead">
         <span className="coffeePilotTag">
-          <Coffee size={12} aria-hidden="true" />
+          <Coffee size={14} aria-hidden="true" />
           Listed prices
         </span>
         <h2 className="coffeePilotName">{cafe.name}</h2>
         {cafe.address ? (
           <p className="coffeePilotAddress">
-            <MapPin size={13} aria-hidden="true" />
+            <MapPin size={14} aria-hidden="true" />
             {cafe.address}
           </p>
         ) : null}
@@ -41,7 +43,7 @@ export default function CoffeePilotSheet({ cafe }: { cafe: CoffeePilotCafe }) {
         {cafe.prices.map((price) => (
           <li key={price.drink} className="coffeePilotPrice">
             <span className="coffeePilotDrink">{coffeePilotDrinkLabel(price.drink)}</span>
-            <strong className="coffeePilotFigure">{formatGbp(price.priceGbp)}</strong>
+            <PriceBadge className="coffeePilotFigure">{formatGbp(price.priceGbp)}</PriceBadge>
             <a
               className="coffeePilotSourceLink"
               href={price.sourceUrl}
@@ -49,7 +51,7 @@ export default function CoffeePilotSheet({ cafe }: { cafe: CoffeePilotCafe }) {
               rel="noopener noreferrer"
             >
               {coffeePilotSourceLine(price)}
-              <ExternalLink size={12} aria-hidden="true" />
+              <ExternalLink size={14} aria-hidden="true" />
             </a>
           </li>
         ))}
@@ -64,7 +66,7 @@ export default function CoffeePilotSheet({ cafe }: { cafe: CoffeePilotCafe }) {
           OpenStreetMap contributors
         </a>
         , ODbL. Shoreditch coffee pilot: prices come from each cafe&rsquo;s own page,
-        never from OpenStreetMap.
+        never from OpenStreetMap. <DataCreditsLink />
       </p>
     </div>
   );

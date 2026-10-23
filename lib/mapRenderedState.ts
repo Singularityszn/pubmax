@@ -1,3 +1,5 @@
+import { hasPintPriceSemantics } from "@/lib/venues";
+
 export type MapRenderedPriceBucket = 0 | 1 | 2 | 3;
 export type MapRenderedPriceMeaning = "pint" | "type-relative" | "spoons";
 export type MapRenderedPriceBand = Readonly<{
@@ -29,9 +31,11 @@ function isMapRenderedPriceBucket(
 }
 
 function priceMeaning(
-  kind: unknown,
+  properties: GeoJSON.GeoJsonProperties,
 ): MapRenderedPriceMeaning | null {
-  if (kind === "pub") return "pint";
+  if (!properties || properties.kind === undefined) return null;
+  if (hasPintPriceSemantics(properties)) return "pint";
+  const kind = properties.kind;
   if (
     kind === "bar" ||
     kind === "club" ||
@@ -58,7 +62,7 @@ export function deriveMapRenderedState<Tokens extends { brass: string }>(
       // type-relative answers below are untouched.
       const spoonsBucket = feature.properties?.spoonsBucket;
       if (isMapRenderedPriceBucket(spoonsBucket)) return [`spoons:${spoonsBucket}`];
-      const meaning = priceMeaning(feature.properties?.kind);
+      const meaning = priceMeaning(feature.properties);
       const bucket = feature.properties?.bucket;
       return meaning !== null && isMapRenderedPriceBucket(bucket)
         ? [`${meaning}:${bucket}`]

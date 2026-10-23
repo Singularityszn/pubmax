@@ -25,7 +25,7 @@ export async function DELETE(request: Request, context: Context): Promise<Respon
   const verification = await verifyCallerAuth(request);
   if (verification.status === "unavailable") return authUnavailableError();
   if (verification.status !== "verified") {
-    return publicApiError("Sign in to remove a Night Memory.", "UNAUTHENTICATED", 401);
+    return publicApiError("Sign in to remove a memory.", "UNAUTHENTICATED", 401);
   }
   const ownerId = verification.identity.id;
   const { id } = await context.params;

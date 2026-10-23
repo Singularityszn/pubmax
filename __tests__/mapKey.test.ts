@@ -122,9 +122,10 @@ describe("MapKey", () => {
 
 describe("MapKey cluster sample", () => {
   const sampleFor = (legend: MapPriceLegendModel) =>
-    renderToStaticMarkup(createElement(MapKey, { legend })).match(
-      /class="mapKeyClusterSample"[^>]*>([^<]*)</,
-    )?.[1];
+    renderToStaticMarkup(createElement(MapKey, { legend }))
+      .match(/class="mapKeyClusterSample"[^>]*>(.*?)<\/span><p>/)?.[1]
+      // A priced sample's figure sits in its band's span; a count is bare.
+      ?.replace(/<[^>]+>/g, "");
   const pintBands = [
     { meaning: "pint", bucket: 0 },
     { meaning: "pint", bucket: 3 },

@@ -1,4 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
+import { mobileMapShellControl } from "./helpers/mobileMapShell";
 
 // Honesty for a bogus `?sel=`: show a quiet note, keep the map open, do not
 // open a venue sheet. A real `?sel=` still opens the sheet.
@@ -156,8 +157,9 @@ test.describe("unknown ?sel= honesty", () => {
 
     // Back from another sheet lands on the held pub's entry, still shut.
     const filters = page.locator('.mobileSheetPortal[data-sheet-kind="filters"]');
+    const filtersButton = await mobileMapShellControl(page, "filters");
     await expect(async () => {
-      await page.getByRole("button", { name: /Filters/i }).click();
+      await filtersButton.click();
       await expect(filters).toBeVisible({ timeout: 1_000 });
     }).toPass({ timeout: 20_000 });
     await page.goBack();
@@ -187,6 +189,51 @@ test.describe("unknown ?sel= honesty", () => {
     expect(new URL(page.url()).searchParams.get("sel")).toBe("venue-transient-failure");
     await expect(page.getByTestId("unknown-map-selection")).toHaveCount(0);
   });
+
+  for (const status of [429, 503]) {
+    test(`a curated lookup failure ${status} closes its skeleton and recovers on reload`, async ({ page }) => {
+      test.setTimeout(90_000);
+      const id = "venue-s0go8s";
+      let unavailable = true;
+      let refused = 0;
+      await page.route((url) => url.pathname === `/api/venue/${id}`, async (route) => {
+        if (unavailable) {
+          refused += 1;
+          await route.fulfill({ status, json: { error: "Temporarily unavailable" } });
+        } else {
+          await route.continue();
+        }
+      });
+      await page.goto(`/map?sel=${id}`);
+      await expect(page.getByTestId("map-selection-lookup-failed")).toContainText(
+        "We could not check that pub right now.", { timeout: 45_000 },
+      );
+      expect(refused).toBeGreaterThan(0);
+      await expect(page.getByTestId("unknown-map-selection")).toHaveCount(0);
+      await expect(venuePortal(page)).toHaveCount(0);
+      await expect(page.getByText("Loading full venue details…")).toHaveCount(0);
+      expect(new URL(page.url()).searchParams.get("sel")).toBe(id);
+
+      const filters = page.locator('.mobileSheetPortal[data-sheet-kind="filters"]');
+      const control = await mobileMapShellControl(page, "filters");
+      await expect(async () => {
+        await control.click();
+        await expect(filters).toBeVisible({ timeout: 1_000 });
+      }).toPass({ timeout: 20_000 });
+      await page.goBack();
+      await expect(filters).toHaveCount(0);
+      await expect(venuePortal(page)).toHaveCount(0);
+      expect(new URL(page.url()).searchParams.get("sel")).toBe(id);
+
+      unavailable = false;
+      await page.reload();
+      await expect(venuePortal(page)).toBeVisible({ timeout: 45_000 });
+      await expect(venuePortal(page)).toContainText("The Half Moon");
+      await expect(page.getByText("Loading full venue details…")).toHaveCount(0);
+      await expect(page.getByTestId("map-selection-lookup-failed")).toHaveCount(0);
+      expect(new URL(page.url()).searchParams.get("sel")).toBe(id);
+    });
+  }
 
   test("an aliased ?sel= opens its canonical venue", async ({ page }) => {
     await page.goto(`/map?sel=${ALIASED_VENUE_ID}`);

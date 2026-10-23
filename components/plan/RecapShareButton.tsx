@@ -12,6 +12,7 @@ import {
 } from "@/lib/webShareAvailable";
 
 import { trackEvent } from "@/lib/analytics";
+import { openExternalTab } from "@/lib/openExternalTab";
 import { whatsappShareHref } from "@/lib/shareArtifacts";
 
 // The recap share affordance — deliberately two-state and approval-gated.
@@ -124,11 +125,7 @@ export default function RecapShareButton({ planId, shareText, shareUrl }: RecapS
           event.preventDefault();
           setShareError("");
           try {
-            const opened = window.open(
-              whatsappShareHref(shareText, toAbsoluteUrl(shareUrl)),
-              "_blank",
-              "noopener,noreferrer",
-            );
+            const opened = openExternalTab(whatsappShareHref(shareText, toAbsoluteUrl(shareUrl)));
             if (!opened) {
               setShareError(
                 offlineOrMessage("Could not open WhatsApp. Try again.")

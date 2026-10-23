@@ -906,6 +906,36 @@ describe("restoredSessionFrame", () => {
     ).toBe("");
   });
 
+  it("never puts a saved session's search back on a bare /map", () => {
+    // A remembered query narrowed the priced pins to its matches, so a reload
+    // of /map opened on a map with no £ labels and a stale word in the field.
+    const saved = { ...initialFilters, query: "Hatton", maxPrice: 6 } as Filters;
+    const frame = restoredSessionFrame({
+      seed: { ...(seed as object), filters: { ...initialFilters } } as never,
+      restoredSession: { filters: saved },
+      resumeSeed: null,
+      cityId: "london",
+      search: "",
+      shouldOpenPlanningInitially,
+    });
+    expect(frame.filters.query).toBe("");
+    // Every other saved filter still comes back.
+    expect(frame.filters.maxPrice).toBe(6);
+  });
+
+  it("keeps the search the address asks for", () => {
+    expect(
+      restoredSessionFrame({
+        seed,
+        restoredSession: { filters: { ...initialFilters, query: "Hatton" } as Filters },
+        resumeSeed: null,
+        cityId: "london",
+        search: "?q=seeded",
+        shouldOpenPlanningInitially,
+      }).filters.query,
+    ).toBe("seeded");
+  });
+
   it("settles the city only when a resume snapshot supplies its rows", () => {
     expect(
       restoredSessionFrame({
@@ -1038,7 +1068,7 @@ describe("mapSelectionFrame", () => {
     ).toBe(true);
   });
 
-  it("keeps a curated deep link's skeleton open after a failed lookup, for the index to resolve", () => {
+  it("holds a failed curated deep link with the sheet shut until its record resolves", () => {
     const answer = mapSelectionFrame({
       selectedVenueId: "v2",
       selectedVenue: undefined,
@@ -1047,7 +1077,18 @@ describe("mapSelectionFrame", () => {
       isPubVenue,
       lookupFailed: true,
     });
-    expect(answer.detailOpen).toBe(true);
+    expect(answer.detailOpen).toBe(false);
+    expect(answer.resolvable).toBe(false);
+    expect(answer.selectedId).toBeUndefined();
+    const resolved = { id: "v2", name: "The Crown" } as never;
+    expect(mapSelectionFrame({
+      selectedVenueId: "v2",
+      selectedVenue: resolved,
+      selectedBasePub: null,
+      venueById: new Map([["v2", resolved]]),
+      isPubVenue,
+      lookupFailed: true,
+    }).detailOpen).toBe(true);
   });
 
   it("holds the sheet shut while nothing is selected", () => {

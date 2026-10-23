@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { expectMobileMapShellReady, mobileMapShellControl } from "./helpers/mobileMapShell";
 
 test.setTimeout(60_000);
 
@@ -35,21 +36,25 @@ for (const city of ["manchester", "london"] as const) {
     });
 
     await page.goto(`/map/${city}`);
-    await expect(page.locator(".mobileMapTopbar")).toBeVisible({ timeout: 45_000 });
+    await expectMobileMapShellReady(page, 45_000);
     await expect(page.locator(".mapLoading")).toBeHidden({ timeout: 45_000 });
-    const tflButton = page.getByRole("button", { name: /TfL live/ });
+    const tflButton = await mobileMapShellControl(page, "tfl");
 
     if (city === "london") {
-      await expect(tflButton).toBeVisible();
+      // London reads its live status at once. An unavailable feed is not
+      // urgent, so the map edge carries no TfL control: the status rests in
+      // More map controls, Transit, which is opened below.
       await expect.poll(() => statusRequests.length).toBeGreaterThan(0);
+      await expect(tflButton).toHaveCount(0);
     } else {
       await expect(tflButton).toHaveCount(0);
       expect(statusRequests).toEqual([]);
-      await expect(page.getByRole("button", { name: "Near me" })).toBeVisible();
+      await expect(await mobileMapShellControl(page, "nearMe")).toBeVisible();
     }
 
+    const more = await mobileMapShellControl(page, "more");
     await expect(async () => {
-      await page.getByRole("button", { name: "More map controls" }).click();
+      await more.click();
       await expect(page.locator('.mobileSheetPortal[data-sheet-kind="layers"]')).toBeVisible({ timeout: 1_000 });
     }).toPass({ timeout: 20_000 });
     const transitTab = page.getByRole("tab", { name: "Transit" });

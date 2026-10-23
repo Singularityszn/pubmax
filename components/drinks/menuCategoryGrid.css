@@ -1,4 +1,4 @@
-/* Venue Menu hub — 2-column visual tiles (alcohol-first). */
+/* Venue Menu hub uses the same food and drink doors. */
 
 .menuHub {
   display: grid;
@@ -13,7 +13,7 @@
 .menuHub__title {
   margin: 0;
   font-family: var(--serif);
-  font-size: 1.2rem;
+  font-size: var(--text-md);
   font-weight: 650;
   color: var(--ink);
   letter-spacing: -0.01em;
@@ -21,9 +21,9 @@
 
 .menuHub__lede {
   margin: 0;
-  font-size: 0.84rem;
+  font-size: var(--text-sm);
   line-height: 1.45;
-  color: var(--ink-soft, var(--muted));
+  color: var(--ink-soft);
 }
 
 .menuHub__grid {
@@ -31,11 +31,25 @@
   margin: 0;
   padding: 0;
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   gap: 10px;
 }
 
 .menuHub__item--primary {
+  grid-column: 1 / -1;
+}
+
+.menuHub__grid--with-food .menuHub__item--primary {
+  grid-column: auto;
+  grid-row: 1;
+}
+
+.menuHub__item--recorded-food {
+  grid-column: 2;
+  grid-row: 1;
+}
+
+.menuHub__grid--food-only .menuHub__item--recorded-food {
   grid-column: 1 / -1;
 }
 
@@ -47,22 +61,22 @@
   width: 100%;
   min-height: 132px;
   padding: 0;
-  border: 1px solid var(--line-soft, var(--line));
-  border-radius: var(--radius, 12px);
-  background: var(--panel-raised, var(--panel));
+  border: 1px solid var(--line-soft);
+  border-radius: var(--radius);
+  background: var(--panel-raised);
   color: inherit;
   text-align: left;
   text-decoration: none;
   cursor: pointer;
   overflow: hidden;
   transition:
-    border-color var(--duration-base, 180ms) ease-out,
-    transform var(--duration-base, 180ms) ease-out;
+    border-color var(--duration-base) ease-out,
+    transform var(--duration-base) ease-out;
 }
 
 @media (hover: hover) and (pointer: fine) {
   .menuHub__tile:hover {
-    border-color: color-mix(in srgb, var(--brass) 50%, var(--line));
+    border-color: var(--hairline-strong);
   }
 
   @media (prefers-reduced-motion: no-preference) {
@@ -99,12 +113,29 @@
   flex: 0 0 auto;
 }
 
+.menuHub__grid--with-food .menuHub__item--primary .menuHub__tile {
+  min-height: 132px;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0;
+  padding-right: 0;
+}
+
+.menuHub__grid--with-food .menuHub__item--primary .menuHub__media {
+  width: 100%;
+  min-height: 88px;
+}
+
+.menuHub__grid--with-food .menuHub__item--primary .menuHub__meta {
+  padding: 10px 12px;
+}
+
 .menuHub__media--drinks {
   color: var(--cat-beer);
 }
 
 .menuHub__media--food {
-  color: var(--brass);
+  color: var(--color-text-muted);
   min-height: 88px;
 }
 
@@ -136,14 +167,14 @@
 
 .menuHub__label {
   font-family: var(--font-body);
-  font-size: 0.95rem;
+  font-size: var(--text-base);
   font-weight: 700;
   color: var(--ink);
 }
 
 .menuHub__hint {
-  font-size: 0.78rem;
-  color: var(--ink-soft, var(--muted));
+  font-size: var(--text-xs);
+  color: var(--ink-soft);
 }
 
 .menuHub__ext {
@@ -151,7 +182,7 @@
   top: 10px;
   right: 10px;
   opacity: 0.55;
-  color: var(--ink-soft, var(--muted));
+  color: var(--ink-soft);
 }
 
 .menuHubEmpty {
@@ -164,16 +195,20 @@
   color: var(--ink);
 }
 
+/* An empty state's one QUIET way onward, read off the text-button row: a
+   secondary. It was a coral pill, a second painted primary on the sheet beside
+   the peek's plan door, in a radius no other text button wears. */
 .menuHubEmptyAction {
-  min-height: 44px;
+  min-height: var(--control-height);
   margin-top: 6px;
-  padding: 9px 16px;
-  border: 1px solid var(--brass);
-  border-radius: var(--radius-pill, 999px);
-  background: var(--brass);
-  color: var(--color-on-accent-strong);
+  padding: 8px var(--control-pad-x);
+  border: 1px solid var(--control-secondary-border);
+  border-radius: var(--control-radius);
+  background: var(--control-secondary-surface);
+  color: var(--ink);
   font: inherit;
-  font-weight: 700;
+  font-size: var(--control-font-size);
+  font-weight: var(--control-font-weight);
   cursor: pointer;
 }
 

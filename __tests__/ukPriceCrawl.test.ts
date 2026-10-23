@@ -227,6 +227,17 @@ describe("what a page states", () => {
     expect(drinkLabelFromPriceContext("Coke Zero £2.50", "£2.50")).toBe("Coke Zero");
   });
 
+  it("drops an inline price list's separator from the front of each later item", () => {
+    // Printed on https://jollycoopers.co.uk/menu, read 2026-10-17.
+    const line = "Cans (Coke £3.30, Coke Zero £3, Fanta Orange Zero £3, Sprite Zero £3)";
+    const at = (needle: string) => line.indexOf(needle) + needle.length + 1;
+    expect(drinkLabelFromPriceContext(line, "£3", at("Coke Zero"))).toBe("Coke Zero");
+    expect(drinkLabelFromPriceContext(line, "£3", at("Sprite Zero"))).toBe("Sprite Zero");
+    // A comma inside a name is the name, not a separator.
+    expect(drinkLabelFromPriceContext("Coca Cola,Diet Coke,Schweppes Lemonade £3.85", "£3.85"))
+      .toBe("Coca Cola,Diet Coke,Schweppes Lemonade");
+  });
+
   it("reads a priced juice beside wine as a soft drink, without losing the wine", () => {
     // Synthetic menu using the printed Frobishers item in the committed source
     // ledger. No live page was fetched for this regression.
@@ -377,6 +388,27 @@ describe("what a page states", () => {
       "<p>Draught Guinness 4.3% &pound;2.30/&pound;4.60 Pravha 4% &pound;2.35/&pound;4.70 Madri 4.6% &pound;2.50/&pound;5.00 Atlantic Pale Ale &pound;2.30/&pound;4.80</p>",
     );
     expect(reading.kept.map((row) => row.priceGbp)).toEqual([4.6, 4.7, 5, 4.8]);
+  });
+
+  it("takes the pint of a bare pair under Half and Pint column heads", () => {
+    const reading = readVenueDrinkPrices(
+      "<p>Draught Half Pint Peroni 5.0% &pound;3.90 &pound;7.70 Carling 4.0% &pound;3.60 &pound;7.20 Jubel 4.0% &pound;4.10 &pound;8.00</p>",
+    );
+    expect(reading.kept.map((row) => row.priceGbp)).toEqual([7.7, 7.2, 8]);
+    expect(reading.drops.filter((reason) => reason === "half-measure-not-a-pint")).toHaveLength(3);
+  });
+
+  it("drops a figure written as a 1/2 pint when the line never says half", () => {
+    const reading = readVenueDrinkPrices(
+      "<p>Paulaner Lager Helles 4.9% 1/2 Pint &pound;4.05 Sierra Nevada IPA 4.2% 1/2 Pint &pound;4.20 Pint &pound;6.50</p>",
+    );
+    expect(reading.kept.map((row) => row.priceGbp)).toEqual([6.5]);
+    expect(reading.drops.filter((reason) => reason === "half-measure-not-a-pint")).toHaveLength(2);
+  });
+
+  it("keeps two neighbouring pints that are not a half and its pint", () => {
+    const reading = readVenueDrinkPrices("<p>Draught beer Peroni &pound;6.50 Camden Hells lager &pound;6.90</p>");
+    expect(reading.kept.map((row) => row.priceGbp)).toEqual([6.5, 6.9]);
   });
 
   it("takes the pint column of a half|pint table pair", () => {
@@ -639,5 +671,67 @@ describe("a long wine list", () => {
       drinkLabel: expect.stringContaining(`House red ${count - 1}`),
     });
     expect(reading.kept.some((row) => row.category === "beer" && row.priceGbp === 6.2)).toBe(true);
+  });
+});
+
+// A rendered page reaches the reader as Markdown. The Lvls drinks page, read
+// through the rendered lane on 2026-10-17, stored "#### Coke / Diet Coke 330ml
+// glass bottle" beside the document lane's "Coke / Diet Coke 330ml glass bottle",
+// and a Stratford pub's event banner was read out of its own link syntax.
+describe("a page that reaches the reader as Markdown", () => {
+  const menu = `### SOFT DRINKS
+
+#### Coke / Diet Coke 330ml glass bottle
+
+£3.50
+
+#### Fentimans Ginger Beer
+
+**£3.80**
+
+#### J2O Apple \\& Mango
+
+£3.20
+
+#### [Seedlip Garden](https://example.pub/seedlip) and tonic
+
+£6.50
+
+[![£6 Margarita Monday](https://example.pub/banner.jpg)](https://example.pub/whats-on/6-margarita-monday/)
+`;
+
+  it("names each drink by its words, not its heading, emphasis, escape or link marks", () => {
+    const reading = readVenueDrinkPrices(menu);
+    expect(pageStatesADrinksList(reading)).toBe(true);
+    expect(reading.kept.map((row) => [row.drinkLabel, row.priceGbp])).toEqual(
+      expect.arrayContaining([
+        // The section heading leads the first item, as it does on a served page.
+        ["SOFT DRINKS Coke / Diet Coke 330ml glass bottle", 3.5],
+        ["Fentimans Ginger Beer", 3.8],
+        ["J2O Apple & Mango", 3.2],
+      ]),
+    );
+    for (const row of reading.kept) {
+      expect(row.drinkLabel ?? "").not.toMatch(/[#*\\[\]]|\]\(|https?:/);
+    }
+  });
+
+  it("reads an image as no words at all, so its alt text states no price", () => {
+    expect(pageText(menu)).not.toContain("Margarita");
+    expect(pageText(menu)).toContain("Seedlip Garden and tonic");
+    expect(readVenueDrinkPrices(menu).kept.some((row) => row.priceGbp === 6)).toBe(false);
+  });
+
+  it("keeps the same label a served HTML page states for the same line", () => {
+    const html = "<h4>Coke / Diet Coke 330ml glass bottle</h4><p>£3.50</p>";
+    const markdown = "#### Coke / Diet Coke 330ml glass bottle\n\n£3.50";
+    const label = (text: string, format: "html" | "text") =>
+      readVenueDrinkPrices(text, format).kept[0]?.drinkLabel;
+    expect(label(markdown, "text")).toBe("Coke / Diet Coke 330ml glass bottle");
+    expect(label(markdown, "text")).toBe(label(html, "html"));
+  });
+
+  it("leaves a served HTML page's own hash and bracket text alone", () => {
+    expect(pageText("<p>Pint #2 [house] £5.50</p>", false, "html")).toBe("Pint #2 [house] £5.50");
   });
 });

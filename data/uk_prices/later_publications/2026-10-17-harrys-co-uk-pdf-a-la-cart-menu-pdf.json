@@ -1,0 +1,96 @@
+{
+  "lane": "npm run harvest:uk-prices",
+  "command": "npm run harvest:uk-prices -- --london --only harrys.co.uk",
+  "sourceUrl": "http://harrys.co.uk/pdf/a_la_cart_menu.pdf",
+  "sourceObservedAt": "2026-10-17T13:52:05.594Z",
+  "candidateHost": "Curated London website (addCuratedLondonWebsiteHosts): Harry's Bar & Dining Room states its own website in public/data/pint_prices_app_dataset.json; the UK OSM pub snapshot carries no harrys.co.uk website.",
+  "selection": "Soft-drink rows the lane stated with a drink name whose ledger key (pub, category, name, serving) the ledger did not already hold. Rows matching a reviewed withdrawal reason are listed under withheld and were not published. Rows whose label names no drink, or names a mixer flavour from a mixer list, are listed under notSelected and were not published.",
+  "pageTextQuoted": "The page's own lines, re-read on 2026-10-17 through sourcePolicy and a live robots ask, normalised by lib/harvest/ukPriceCrawl.ts pageText (HTML) or lib/harvest/pdfText.ts readPdfText (PDF).",
+  "pageText": [
+    "SOFT DRINKS",
+    "Coca Cola, Diet Coke   £4 ",
+    "contour bottles 330mls ",
+    "Fever Tree Soft Drinks   £3.25",
+    "Freshly Squeezed Orange Juice   £4",
+    "Pressed Cloudy Apple Juice   £3",
+    "Virgin Mary   £9 ",
+    "Tomato juice shaken over ice with Harry’s House Virgin Mary Mix ",
+    "Mineral Water   £5 "
+  ],
+  "rows": [
+    {
+      "host": "harrys.co.uk",
+      "venueId": "venue-ygsdq3",
+      "osmId": null,
+      "name": "Harry's Bar & Dining Room",
+      "postcode": null,
+      "lat": 51.5115,
+      "lng": -0.088582,
+      "category": "soft-drink",
+      "priceGbp": 4,
+      "drinkLabel": "Freshly Squeezed Orange Juice",
+      "sourceUrl": "http://harrys.co.uk/pdf/a_la_cart_menu.pdf",
+      "observedAt": "2026-10-17T13:52:05.594Z",
+      "pubsOnHost": 1,
+      "linesOnPage": 17
+    },
+    {
+      "host": "harrys.co.uk",
+      "venueId": "venue-ygsdq3",
+      "osmId": null,
+      "name": "Harry's Bar & Dining Room",
+      "postcode": null,
+      "lat": 51.5115,
+      "lng": -0.088582,
+      "category": "soft-drink",
+      "priceGbp": 3,
+      "drinkLabel": "Pressed Cloudy Apple Juice",
+      "sourceUrl": "http://harrys.co.uk/pdf/a_la_cart_menu.pdf",
+      "observedAt": "2026-10-17T13:52:05.594Z",
+      "pubsOnHost": 1,
+      "linesOnPage": 17
+    }
+  ],
+  "withheld": [
+    {
+      "reason": "malformed-label-contains-price",
+      "row": {
+        "host": "harrys.co.uk",
+        "venueId": "venue-ygsdq3",
+        "osmId": null,
+        "name": "Harry's Bar & Dining Room",
+        "postcode": null,
+        "lat": 51.5115,
+        "lng": -0.088582,
+        "category": "soft-drink",
+        "priceGbp": 5,
+        "drinkLabel": "9 Tomato juice shaken over ice with Harry’s House Virgin Mary Mix Mineral Water",
+        "sourceUrl": "http://harrys.co.uk/pdf/a_la_cart_menu.pdf",
+        "observedAt": "2026-10-17T13:52:05.594Z",
+        "pubsOnHost": 1,
+        "linesOnPage": 17
+      }
+    }
+  ],
+  "notSelected": [
+    {
+      "reason": "label-carries-a-neighbouring-items-words",
+      "row": {
+        "host": "harrys.co.uk",
+        "venueId": "venue-ygsdq3",
+        "osmId": null,
+        "name": "Harry's Bar & Dining Room",
+        "postcode": null,
+        "lat": 51.5115,
+        "lng": -0.088582,
+        "category": "soft-drink",
+        "priceGbp": 3.25,
+        "drinkLabel": "contour bottles 330mls Fever Tree Soft Drinks",
+        "sourceUrl": "http://harrys.co.uk/pdf/a_la_cart_menu.pdf",
+        "observedAt": "2026-10-17T13:52:05.594Z",
+        "pubsOnHost": 1,
+        "linesOnPage": 17
+      }
+    }
+  ]
+}

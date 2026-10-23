@@ -14,9 +14,13 @@ import {
 } from "@/lib/socialPostMedia.server";
 import { socialPostStore, SocialPostStoreError } from "@/lib/socialPostStore";
 import { socialPostConsentStore } from "@/lib/socialPostConsentStore";
+import { socialPostReviewStore, SocialPostReviewError } from "@/lib/socialPostReviewStore";
+import { SocialPostVideoError, socialPostVideoStore } from "@/lib/socialPostVideoStore";
+import { socialPostExtraPhotoStore } from "@/lib/socialPostExtraPhotoStore";
+import { sniffSocialVideoType } from "@/lib/socialPostVideos";
 import { parseSocialCreateSubmission } from "@/lib/socialPostSubmission";
 import { projectSocialVenueName, projectSocialVenueNames, resolveSocialVenueId, type SocialVenueResolution } from "@/lib/socialPostVenue.server";
-import { enrichSocialPostAuthors, isSocialPostArea, type SocialPostFields } from "@/lib/socialPosts";
+import { enrichSocialPostAuthors, isSocialPostArea, type SocialPostDTO, type SocialPostFields } from "@/lib/socialPosts";
 import { hashActor } from "@/lib/supabase";
 import { boundedFormData, boundedJson } from "@/lib/boundedRequest.server";
 import { socialPhotoMediaId, socialPostRequestDigest, validSocialPostIdempotencyKey } from "@/lib/socialPostIdempotency.server";
@@ -55,6 +59,43 @@ async function submissionBody(request: Request): Promise<{
   }
 }
 
+// Photos 2 to 4 ride a post the viewer may read: approved, or the viewer's own.
+async function withExtraPhotos(posts: SocialPostDTO[], viewer: { profileId: string }): Promise<SocialPostDTO[]> {
+  const withFirst = posts.filter((post) => post.photo).map((post) => post.id);
+  if (withFirst.length === 0) return posts;
+  const extras = await socialPostExtraPhotoStore().forPosts(withFirst, viewer);
+  return extras.size === 0 ? posts : posts.map((post) => {
+    const photos = extras.get(post.id);
+    return photos ? { ...post, extraPhotos: photos } : post;
+  });
+}
+
+// A video rides a post the viewer may read: approved, or the viewer's own.
+async function withVideos(posts: SocialPostDTO[], viewer: { profileId: string }): Promise<SocialPostDTO[]> {
+  if (posts.length === 0) return posts;
+  const videos = await socialPostVideoStore().forPosts(posts.map((post) => post.id), viewer);
+  return videos.size === 0 ? posts : posts.map((post) => {
+    const video = videos.get(post.id);
+    return video ? { ...post, video } : post;
+  });
+}
+
+function videoError(error: SocialPostVideoError): Response {
+  const status = error.code === "VIDEO_UNAVAILABLE" ? 503 : error.code === "VIDEO_NOT_FOUND" ? 409 : 400;
+  return publicApiError(error.message, error.code, status, { retryable: status === 503, headers: { "Cache-Control": "private, no-store" } });
+}
+
+// A score rides the post only beside a venue the viewer is allowed to see.
+async function withReviews(posts: SocialPostDTO[]): Promise<SocialPostDTO[]> {
+  const scored = posts.filter((post) => post.venueProjected && post.venueId).map((post) => post.id);
+  if (scored.length === 0) return posts;
+  const reviews = await socialPostReviewStore().forPosts(scored);
+  return posts.map((post) => {
+    const review = post.venueProjected ? reviews.get(post.id) : undefined;
+    return review ? { ...post, review } : post;
+  });
+}
+
 function accessError(access: Exclude<Awaited<ReturnType<typeof requireVerifiedSocialActor>>, { ok: true }>): Response {
   return publicApiError(access.error, access.code, access.status, { retryable: access.retryable === true, headers: { "Cache-Control": "private, no-store" } });
 }
@@ -67,6 +108,7 @@ function storeError(error: unknown): Response {
     const status = error.code === "FORBIDDEN" ? 403
       : error.code === "NOT_FOUND" ? 404
         : error.code === "EDIT_CONFLICT" || error.code === "IDEMPOTENCY_CONFLICT" ? 409
+          : error.code === "HIDDEN_NAME_UNAVAILABLE" ? 503
           : 400;
     return publicApiError(error.message, error.code, status, { headers: { "Cache-Control": "private, no-store" } });
   }
@@ -108,11 +150,11 @@ export async function GET(request: Request): Promise<Response> {
       : new Map();
     return privateJson({
       ...page,
-      posts: await enrichSocialPostAuthors(
+      posts: await withExtraPhotos(await withVideos(await withReviews(await enrichSocialPostAuthors(
         await projectSocialVenueNames(page.posts.map((post) => post.photo
           ? { ...post, photo: { ...post.photo, tags: tags.get(post.id) ?? [] } }
           : post)),
-      ),
+      )), access.actor), access.actor),
     });
   } catch (error) {
     return storeError(error);
@@ -149,6 +191,23 @@ export async function POST(request: Request): Promise<Response> {
     }
     fields = { ...fields, venueId: venue.venueId };
     resolvedVenue = venue;
+  }
+  // The video is checked BEFORE the post exists: what Storage holds must be
+  // the declared container and within the declared size, or nothing is posted.
+  let videoBytes = 0;
+  if (validation.video) {
+    try {
+      const stored = await socialPostVideoStore().inspectUpload(access.actor, validation.video.uploadId);
+      if (!stored) return publicApiError("That video has not finished uploading. Try again.", "VIDEO_NOT_UPLOADED", 409, { retryable: true, headers: { "Cache-Control": "private, no-store" } });
+      const sniffed = sniffSocialVideoType(stored.head);
+      const sameFamily = sniffed === stored.contentType ||
+        (sniffed !== "video/webm" && sniffed !== null && stored.contentType !== "video/webm");
+      if (!sameFamily) return publicApiError("That file is not a video we can play. Choose an MP4, MOV or WebM.", "INVALID_VIDEO", 400, { headers: { "Cache-Control": "private, no-store" } });
+      videoBytes = stored.byteSize;
+    } catch (error) {
+      if (error instanceof SocialPostVideoError) return videoError(error);
+      return publicApiError("Video upload is unavailable right now.", "VIDEO_UNAVAILABLE", 503, { retryable: true, headers: { "Cache-Control": "private, no-store" } });
+    }
   }
   let uploaded: UploadedSocialPhoto | null = null;
   let reserved: UploadedSocialPhoto | null = null;
@@ -198,10 +257,23 @@ export async function POST(request: Request): Promise<Response> {
           requestDigest,
           ...(replayExistingMedia ? { replayExistingMedia: true } : {}),
         });
-    return privateJson({ post: await projectSocialVenueName(post, resolvedVenue) }, { status: 201 });
+    let projected: SocialPostDTO = await projectSocialVenueName(post, resolvedVenue);
+    if (validation.video) {
+      const video = await socialPostVideoStore().attach(access.actor, post.id, validation.video.uploadId, videoBytes, validation.video.durationSeconds);
+      projected = { ...projected, video };
+    }
+    if (validation.reviewRating !== null && fields.venueId) {
+      const review = await socialPostReviewStore().attach(access.actor, { id: post.id, venueId: fields.venueId }, validation.reviewRating);
+      projected = { ...projected, review };
+    }
+    return privateJson({ post: projected }, { status: 201 });
   } catch (error) {
     if (reserved) {
       await reconcileSocialPhotoUpload(access.actor.profileId, reserved.mediaId, reserved.generation).catch(() => false);
+    }
+    if (error instanceof SocialPostVideoError) return videoError(error);
+    if (error instanceof SocialPostReviewError) {
+      return publicApiError("That score could not be saved. Your post is up without it.", "REVIEW_NOT_SAVED", 409, { headers: { "Cache-Control": "private, no-store" } });
     }
     if (error instanceof SocialPhotoError) {
       const unavailable = error.code === "STORAGE_UNAVAILABLE";

@@ -3,7 +3,7 @@ import { buildLogNearbyCandidates, type LogNearbyCandidate } from "@/lib/mapLogI
 import { haversineKm } from "@/lib/haversine";
 import type { LondonVenue } from "@/lib/londonVenueShards";
 import type { UkBasePub } from "@/lib/ukBasePubs";
-import type { Venue } from "@/lib/venues";
+import { hasPintPriceSemantics, type Venue } from "@/lib/venues";
 import {
   drinkLensCoverageNote,
   drinkLensUnknownSentence,
@@ -12,7 +12,6 @@ import {
 } from "@/lib/mapExperienceLens";
 import { priceBand, priceBandAreaForVenue } from "@/lib/priceBand";
 import { compactVenueAnchor, type CompactVenueAnchor } from "@/lib/venueAnchorPresentation";
-import { isPubVenueKind } from "@/lib/venueKindFilters";
 
 type MapVenueListVenueSignals = ReadonlyMap<
   string,
@@ -127,7 +126,7 @@ function mapVenueListPintPrice(
   venue: Venue,
   venueSignals: MapVenueListVenueSignals | null,
 ): number | null {
-  if (!isPubVenueKind(venue.kind) && compactVenueAnchor(venue) === null) {
+  if (!hasPintPriceSemantics(venue) && compactVenueAnchor(venue) === null) {
     return null;
   }
   const price =
@@ -222,7 +221,7 @@ export function buildMapVenueListModel(
           const item = venueById.get(row.id);
           if (!item) return row;
           // A pub's figure wears its band; an anchor is not a pint and wears none.
-          const pint = isPubVenueKind(item.kind) ? mapVenueListPintPrice(item, venueSignals) : null;
+          const pint = hasPintPriceSemantics(item) ? mapVenueListPintPrice(item, venueSignals) : null;
           return {
             ...row,
             priceLabel: mapVenueListPintPriceLabel(item, venueSignals),
@@ -259,6 +258,17 @@ export function buildMapVenueListModel(
     coverageNote:
       lensPrices === null ? null : drinkLensCoverageNote(drinkNoun, lensStatus),
   };
+}
+
+/**
+ * The list's answer while it is CLOSED: the count the chrome prints, and no
+ * rows. A closed list renders nothing (MapVenueList), but the full model sorts
+ * every venue in view by distance and labels each one, and it was rebuilt on
+ * every camera frame and every venue tap - a long task on a phone for a panel
+ * nobody had open (map-p99-vitals-tail). Opening the list builds the real one.
+ */
+export function closedMapVenueListModel(total: number): MapVenueListModel {
+  return { rows: [], total, shown: 0, truncated: total > 0, coverageNote: null };
 }
 
 function sortMapVenueListRowsCheapest(

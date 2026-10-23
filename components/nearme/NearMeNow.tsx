@@ -5,7 +5,7 @@ import PriceBadge from "@/components/PriceBadge";
 import { samePathWithQuery } from "@/lib/appLink";
 import { priceBand, priceBandAreaForVenue } from "@/lib/priceBand";
 import { usePathname, useRouter } from "next/navigation";
-import { ChevronDown, Footprints, LocateFixed, MapPin, RotateCw } from "lucide-react";
+import { ChevronDown, ChevronRight, Footprints, LocateFixed, MapPin, RotateCw } from "lucide-react";
 
 import { trackEvent } from "@/lib/analytics";
 import type { NearAnswerSource } from "@/lib/analyticsEvents";
@@ -59,6 +59,9 @@ import {
   type NearPriceTrustView,
 } from "@/components/nearme/useNearPriceTrust";
 import NearPriceEvidenceMission from "@/components/nearme/NearPriceEvidenceMission";
+import SharePintButton from "@/components/share/SharePintButton";
+import { nearTopPintShare } from "@/lib/venuePintShare";
+import { markPriceAnswerMoment } from "@/lib/priceAnswerMoment";
 import Screen from "@/components/ui/screen";
 
 import "./nearMeNow.css";
@@ -737,6 +740,13 @@ function NearMeIdleIntro({
   const patches = (
     <div className="nmnQuickPatches">
       <p className="nmnQuickPatchesLabel">Or pick a patch</p>
+      {/* What a patch answers, said once and only on the page: the map's
+          sheet is a tighter host with its own title. */}
+      {titledByHost ? null : (
+        <p className="nmnQuickPatchesNote">
+          Each one lists its pubs cheapest first, with the day each price was listed.
+        </p>
+      )}
       <ul className="nmnAreaChips" aria-label="Pick an area">
         {NIGHT_PATCHES.map((entry) => (
           <li key={entry.id}>
@@ -765,7 +775,7 @@ function NearMeIdleIntro({
           data-primary-action=""
           onClick={onLocate}
         >
-          <LocateFixed size={18} aria-hidden="true" /> Find my pint
+          <LocateFixed size={16} aria-hidden="true" /> Find my pint
         </button>
         {hint}
         {patches}
@@ -785,7 +795,7 @@ function NearMeIdleIntro({
       titleId="near-title"
       primary={
         <button type="button" onClick={onLocate}>
-          <LocateFixed size={18} aria-hidden="true" /> Find my pint
+          <LocateFixed size={16} aria-hidden="true" /> Find my pint
         </button>
       }
     >
@@ -825,7 +835,7 @@ export function NearMeReadUnavailable({
     <div className="nmnStatus nmnStatusFail" role="status">
       <p>We could not read the pub list for {areaLabel} just now.</p>
       <button type="button" className="nmnRetry nmnRetryGhost" onClick={onRetry}>
-        <RotateCw size={15} aria-hidden="true" /> Try again
+        <RotateCw size={16} aria-hidden="true" /> Try again
       </button>
     </div>
   );
@@ -858,7 +868,7 @@ function NearMeOutsideCoverage({
       />
       <footer className="nmnFoot nmnFootArea">
         <button type="button" className="nmnRetry nmnRetryGhost" onClick={onLocate}>
-          <LocateFixed size={15} aria-hidden="true" /> Try my location again
+          <LocateFixed size={16} aria-hidden="true" /> Try my location again
         </button>
       </footer>
     </div>
@@ -917,7 +927,7 @@ function NearMeLocatedAnswer({
           <MapPin size={16} aria-hidden="true" /> Open the full map
         </a>
         <button type="button" className="nmnRetry nmnRetryGhost" onClick={onLocate}>
-          <RotateCw size={15} aria-hidden="true" /> Update location
+          <RotateCw size={16} aria-hidden="true" /> Update location
         </button>
       </footer>
     </>
@@ -1025,7 +1035,7 @@ function NearMeAreaAnswer({
           onPickBorough={onPickBorough}
         />
         <button type="button" className="nmnRetry nmnRetryGhost" onClick={onLocate}>
-          <LocateFixed size={15} aria-hidden="true" /> Try my location again
+          <LocateFixed size={16} aria-hidden="true" /> Try my location again
         </button>
       </footer>
     </>
@@ -1034,6 +1044,9 @@ function NearMeAreaAnswer({
 
 /** The one caption for the whole list. It heads the list; it never rides a row. */
 export const NEAR_ME_PRICE_CAPTION = "Cheapest pint";
+
+/** The visible action for the row's browse tap. */
+const NEAR_ME_VIEW_LABEL = "View pub";
 
 function collectedPriceLabel(): string {
   return NEAR_PRICE_TRUST_CAPTION;
@@ -1070,7 +1083,7 @@ function NearMeCardBody({
           <span className="nmnCardBorough">{card.borough}</span>
           {card.walkMinutes != null ? (
             <span className="nmnCardWalk">
-              <Footprints size={13} aria-hidden="true" />
+              <Footprints size={14} aria-hidden="true" />
               {card.walkMinutes} min
               {distance ? ` · ${distance}` : null}
             </span>
@@ -1088,6 +1101,11 @@ function NearMeCardBody({
         >
           {formatPrice(card.cheapestPrice)}
         </PriceBadge>
+        {/* The cue names the row's tap. Keep remains a separate control. */}
+        <span className="nmnCardView">
+          {NEAR_ME_VIEW_LABEL}
+          <ChevronRight size={14} aria-hidden="true" />
+        </span>
       </span>
     </>
   );
@@ -1117,6 +1135,14 @@ export function NearMeCardList({
   /** `/near` only. Embedded map answers omit this and keep their compact rows. */
   priceTrust?: NearPriceTrustView;
 }) {
+  const topShare = nearTopPintShare(cards, priceTrust);
+  // THE PRICE ANSWER HAS LANDED: the top card wears a sourced, dated price.
+  // The install ask waits for this (lib/priceAnswerMoment.ts). A mark, never a
+  // beacon.
+  const answered = topShare !== null;
+  useEffect(() => {
+    if (answered) markPriceAnswerMoment("near-answer");
+  }, [answered]);
   if (cards.length === 0) return null;
   const collectedLabel =
     priceTrust && priceTrust !== "loading"
@@ -1126,8 +1152,10 @@ export function NearMeCardList({
     <>
     <p className="nmnListCaption">{NEAR_ME_PRICE_CAPTION}</p>
     <ul className="nmnList">
-      {cards.map((card) =>
-        onAccept ? (
+      {cards.map((card, index) => {
+        // One share moment on the page: the top answer's own pint.
+        const share = index === 0 && topShare?.venueId === card.id ? topShare : null;
+        return onAccept ? (
           <li key={card.id} className="nmnCardRow">
             <button type="button" className="nmnCard nmnCardBrowse" onClick={() => onOpen(card.id)}>
               <NearMeCardBody card={card} trustLabel={trustLabelForCard(card, priceTrust)} />
@@ -1140,15 +1168,17 @@ export function NearMeCardList({
             >
               Keep for tonight
             </button>
+            {share ? <SharePintButton share={share} className="nmnSharePint" /> : null}
           </li>
         ) : (
           <li key={card.id}>
             <button type="button" className="nmnCard" onClick={() => onOpen(card.id)}>
               <NearMeCardBody card={card} trustLabel={trustLabelForCard(card, priceTrust)} />
             </button>
+            {share ? <SharePintButton share={share} className="nmnSharePint" /> : null}
           </li>
-        ),
-      )}
+        );
+      })}
     </ul>
     {collectedLabel ? <p className="nmnPriceCollected">{collectedLabel}</p> : null}
     </>
@@ -1224,7 +1254,7 @@ function AreaPicker({
         aria-expanded={open}
         onClick={() => (open ? close() : setOpen(true))}
       >
-        <MapPin size={15} aria-hidden="true" /> Change area
+        <MapPin size={16} aria-hidden="true" /> Change area
         <ChevronDown size={14} aria-hidden="true" className={open ? "nmnAreaCaretOpen" : undefined} />
       </button>
       <div className={`nmnAreaPanel${open ? " nmnAreaPanelOpen" : ""}`} aria-hidden={!open}>
@@ -1279,7 +1309,7 @@ function AreaPicker({
             tabIndex={open ? undefined : -1}
             onClick={() => setShowBoroughs(true)}
           >
-            More areas <ChevronDown size={13} aria-hidden="true" />
+            More areas <ChevronDown size={14} aria-hidden="true" />
           </button>
         )}
       </div>

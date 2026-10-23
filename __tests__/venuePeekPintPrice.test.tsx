@@ -54,7 +54,10 @@ const HELD: Array<{
   },
   {
     name: "baseline", lane: {
-      lane: "baseline", cheapestPrice: 4.7, standing: "none", publisher: null, observedOn: null,
+      // Read on the test day: a price with no read day is aging (lib/priceTier.ts
+      // priceAgeFor) and its chip says so, which __tests__/pinPriceAging.test.ts pins.
+      lane: "baseline", cheapestPrice: 4.7, standing: "none", publisher: null,
+      observedOn: NOW.slice(0, 10),
     },
     figure: "£4.70", caption: "Price on record, publisher not recorded",
   },
@@ -113,6 +116,15 @@ describe("held pint evidence while venue details load", () => {
     }
   });
 
+  it.each(HELD)("preserves the $name evidence when the latest logged-price read fails", async (fixture) => {
+    await render({
+      lane: fixture.lane, pintTrust: fixture.trust ?? null, detailLoading: false,
+      priceReadStatus: "degraded", dropReadStatus: "unavailable",
+    });
+    expect(host.textContent).toBe(fixture.figure + fixture.caption);
+    expect(host.querySelector('[role="status"]')).toBeNull();
+  });
+
   it.each(["absence", "estimate"])("keeps %s pending until details and both price reads settle", async (name) => {
     const evidence: Partial<Props> = name === "estimate"
       ? { lane: { lane: "estimate", estimate }, bundle: { estimate } }
@@ -139,8 +151,11 @@ describe("held pint evidence while venue details load", () => {
     }
   });
 
-  it("names an unavailable read without claiming the pub is unpriced", async () => {
-    await render({ detailLoading: false, dropReadStatus: "unavailable" });
+  it.each(["absence", "estimate"])("names an unavailable read instead of the %s fallback", async (name) => {
+    const evidence: Partial<Props> = name === "estimate"
+      ? { lane: { lane: "estimate", estimate }, bundle: { estimate } }
+      : {};
+    await render({ ...evidence, detailLoading: false, dropReadStatus: "unavailable" });
     expect(host.textContent).toContain("could not read");
     expect(host.textContent).not.toContain("Checking prices");
     expect(host.textContent).not.toContain("No price yet");

@@ -1,7 +1,7 @@
 {
   "id": "/",
-  "name": "PUBMAXXING",
-  "short_name": "PUBMAXXING",
+  "name": "PUBMAXX",
+  "short_name": "PUBMAXX",
   "description": "Listed pint prices on a London pub map. Plan a crawl with your mates.",
   "lang": "en-GB",
   "dir": "ltr",
@@ -10,7 +10,7 @@
   "display": "standalone",
   "orientation": "portrait-primary",
   "background_color": "#f8f2ec",
-  "theme_color": "#0b0b0d",
+  "theme_color": "#f8f2ec",
   "icons": [
     {
       "src": "/icon-192.png?v=2",

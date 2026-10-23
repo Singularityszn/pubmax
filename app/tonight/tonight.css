@@ -7,26 +7,10 @@
 .tonightPage {
   max-width: 720px;
   margin: 0 auto;
-  /* Bottom clearance = tab bar height + safe-area + a little reading room.
-     --tabbar-h is owned by components/nav/mobileNav.css. */
-  padding: 16px var(--page-gutter)
-    calc(var(--tabbar-h, 64px) + env(safe-area-inset-bottom, 0px) + 24px);
+  /* Reading room only: the body reserves the bar and the create disc
+     (--chrome-bottom-clearance, components/nav/mobileNav.css). */
+  padding: 16px var(--page-gutter) var(--space-6);
   color: var(--ink);
-}
-
-/* Top-bar uniformity (nav-wrapper only): SiteNav is this page's first child, so
-   the shell's 16px top padding set the bar's top offset — the standard bar's
-   top sat at 16px while landing/map sit ~10px from the viewport top. Drop the
-   mobile top padding to a flat 10px so the bar lands on the same rect
-   page-to-page. NOTE the bar itself already adds env(safe-area-inset-top) via
-   .siteNavBar:not(.siteNavBarFloating){margin-top}, so this stays a flat 10px
-   (NOT --topbar-inset, which would double the safe-area on notched devices):
-   10px + safe-area == the map bar's --topbar-inset. Mobile-scoped so desktop
-   (>640px) is unchanged; content shifts up ~6px with the padding. */
-@media (max-width: 640px) {
-  .tonightPage {
-    padding-top: 10px;
-  }
 }
 
 /* The page shell already keeps the gutter, so the screen does not pad it a
@@ -41,13 +25,60 @@
   padding-top: var(--space-3);
 }
 
+/* The one painted primary and its quiet secondary share ONE row at every
+   width. Stacked, the pair cost a phone a second 44px row in front of the
+   first pub; side by side the head stays short enough that the first row of
+   the list still clears the tab bar (docs/rules/app-landing-city-and-listing-pages.md). */
+@media (max-width: 640px) {
+  .tonightPage > .tonightDesktopGrid > .screenHead .screenActions {
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-2) var(--space-5);
+  }
+
+  .tonightPage > .tonightDesktopGrid > .screenHead .screenPrimary > :is(a, button) {
+    width: auto;
+    min-width: 0;
+  }
+}
+
+/* The smallest phones (320 to 360 wide) still hold the pair on one row: the
+   gap tightens and the primary gives back side padding, so the first pub
+   clears a docked consent card at 320x568 (e2e/consent-after-first-answer). */
+@media (max-width: 360px) {
+  .tonightPage > .tonightDesktopGrid > .screenHead .screenActions {
+    flex-wrap: nowrap;
+    column-gap: var(--space-3);
+  }
+
+  .tonightPage > .tonightDesktopGrid > .screenHead .screenPrimary > :is(a, button) {
+    padding-inline: var(--space-4);
+  }
+
+  .tonightPage > .tonightDesktopGrid > .screenHead .screenActions a {
+    white-space: nowrap;
+  }
+
+  /* Section headings take one step down the scale here, so the list's own
+     title holds one line beside a 276px column. */
+  .tonightPage .tonightSectionTitle {
+    font-size: var(--text-base);
+  }
+
+  .tonightPage > .tonightDesktopGrid > .screenHead {
+    padding-top: 0;
+    padding-bottom: var(--space-2);
+  }
+}
+
 /* The credit lines and the share control, directly under the listings they are
    about (app/tonight/TonightClient.tsx says why they left the head). */
 .tonightHeadCredits {
   display: grid;
   justify-items: start;
-  gap: 8px;
-  margin: 20px 0 0;
+  gap: var(--space-2);
+  margin: var(--space-5) 0 var(--space-8);
 }
 
 .tonightShare {
@@ -64,7 +95,12 @@
   font-size: var(--control-font-size);
   font-weight: var(--control-font-weight);
   cursor: pointer;
-  transition: border-color 0.16s ease, color 0.16s ease;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .tonightShare {
+    transition: border-color var(--duration-fast) var(--ease-out);
+  }
 }
 
 .tonightShareControl {
@@ -87,31 +123,28 @@
   max-width: min(100%, 28ch);
   margin: 0;
   color: color-mix(in srgb, var(--ink) 70%, crimson 30%);
-  font-size: 0.72rem;
+  font-size: var(--text-xs);
   line-height: 1.35;
   overflow-wrap: anywhere;
 }
 
 @media (hover: hover) and (pointer: fine) {
   .tonightShare:hover {
-    border-color: color-mix(in srgb, var(--brass) 50%, var(--line));
-    color: var(--state-active-ink);
+    border-color: var(--state-selected-border);
   }
 }
 
 .tonightProvenance {
   margin: 0;
-  font-size: 0.76rem;
-  color: var(--ink-soft);
+  font-size: var(--text-xs);
+  line-height: var(--leading-snug);
+  color: var(--color-text-muted);
 }
 
 .tonightLocation {
   display: grid;
-  margin-top: 14px;
-  margin-bottom: 8px;
-  border: 1px solid var(--line);
-  border-radius: var(--control-radius);
-  background: var(--panel-raised);
+  margin: var(--space-2) 0;
+  border-block: 1px solid var(--line-soft);
 }
 
 /* Collapsed row: one ghost control from the button system
@@ -142,8 +175,8 @@
 
 .tonightLocationBody {
   display: grid;
-  gap: 8px;
-  padding: 4px var(--control-pad-x) 14px;
+  gap: var(--space-2);
+  padding: var(--space-1) 0 var(--space-4);
 }
 
 .tonightLocationCopy,
@@ -153,8 +186,8 @@
 
 .tonightLocationCopy {
   color: var(--ink-soft);
-  font-size: 0.76rem;
-  line-height: 1.45;
+  font-size: var(--text-sm);
+  line-height: var(--leading-normal);
 }
 
 .tonightLocationButton,
@@ -166,9 +199,9 @@
   min-height: var(--control-height);
   width: fit-content;
   padding: 8px var(--control-pad-x);
-  border: 1px solid var(--control-tint-border);
+  border: 1px solid var(--control-secondary-border);
   border-radius: var(--control-radius);
-  background: var(--control-tint-surface);
+  background: var(--control-secondary-surface);
   color: var(--ink);
   font: inherit;
   font-size: var(--control-font-size);
@@ -200,14 +233,16 @@
 }
 
 .tonightStatus {
-  margin: 20px 0;
-  font-size: 0.88rem;
-  line-height: 1.45;
-  color: var(--ink-soft);
+  margin: var(--space-5) 0;
+  font-size: var(--text-sm);
+  line-height: var(--leading-normal);
+  color: var(--color-text-muted);
 }
 
+/* A lane we could not read is a fact about US, not an alarm: it reads in the
+   same muted ink as every status line, and the retry beside it is the act. */
 .tonightStatusError {
-  color: color-mix(in srgb, var(--ink) 70%, crimson 30%);
+  color: var(--ink-soft);
 }
 
 /* A lane that could not answer, printed ABOVE the cards that did. Quieter than
@@ -218,11 +253,13 @@
 
 /* The one exit on an empty night: same quiet register as the status line,
    underlined so it reads as a door, not a shout. */
+/* INLINE, so it wraps as words: an inline-flex box wrapped whole and left the
+   sentence's full stop alone on its own line at 390px (taste plan, 18 Oct
+   2026). The reach comes from block padding, which grows the tap target
+   without moving a line. */
 .tonightStatusLink {
-  display: inline-flex;
-  align-items: center;
-  min-height: 44px;
-  vertical-align: middle;
+  display: inline;
+  padding-block: var(--space-3);
   color: var(--ink);
   text-decoration: underline;
   text-underline-offset: 3px;
@@ -242,8 +279,7 @@
 @media (hover: hover) and (pointer: fine) {
   .tonightLocationButton:hover:not(:disabled),
   .tonightRetry:hover {
-    border-color: var(--brass);
-    background: color-mix(in srgb, var(--brass) 14%, var(--panel-raised));
+    border-color: var(--state-selected-border);
   }
 }
 
@@ -259,9 +295,21 @@
 }
 
 /* Vibe picker shell (docs/VIBE_LAYER_SPEC_2026-07-19.md). Chip skin lives in
-   components/vibe/vibeChips.css; this file keeps Tonight-only spacing. */
+   components/vibe/vibeChips.css; this file keeps Tonight-only spacing, and the
+   ask over the chips reads as the section heading it is, in the same voice as
+   every other heading on the page rather than a small eyebrow. */
 .tonightVibes {
-  margin: 24px 0 0;
+  margin: 0 0 var(--space-6);
+}
+
+.tonightVibes .vibeChipsLede {
+  margin: 0 0 var(--space-3);
+  font-family: var(--font-display);
+  font-size: var(--text-md);
+  font-weight: 700;
+  line-height: var(--leading-snug);
+  letter-spacing: var(--tracking-tight);
+  color: var(--ink);
 }
 
 /* Filter chips - derived from the kinds actually present tonight. This is the
@@ -311,19 +359,21 @@
   min-height: 44px;
   padding: 8px 14px;
   border: 1px solid var(--line);
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: var(--panel-raised);
   color: var(--ink-soft);
-  font-size: 0.8rem;
+  font-size: var(--text-xs);
   font-weight: 700;
   cursor: pointer;
   transition: border-color 0.16s ease, color 0.16s ease, background 0.16s ease;
 }
 
+/* Chosen is a selection, so it reads in ink, never coral
+   (docs/DESIGN_SYSTEM.md "Coral is spent twice"). */
 .tonightChip[data-active="true"] {
-  border-color: color-mix(in srgb, var(--brass) 80%, var(--line));
-  background: color-mix(in srgb, var(--brass) 20%, var(--panel-raised));
-  color: var(--ink);
+  border-color: var(--state-selected-border);
+  background: var(--state-selected-surface);
+  color: var(--state-selected-ink);
   font-weight: 800;
 }
 
@@ -334,49 +384,47 @@
 
 @media (hover: hover) and (pointer: fine) {
   .tonightChip:hover {
-    border-color: color-mix(in srgb, var(--brass) 45%, var(--line));
+    border-color: var(--state-selected-border);
     color: var(--ink);
   }
 }
 
 .tonightChipCount {
-  font-size: 0.68rem;
+  font-size: var(--text-2xs);
   font-weight: 700;
   color: var(--ink-soft);
   opacity: 0.85;
 }
 
 /* Rows */
+/* The listings are a list: one hairline between rows and no box around any
+   of them (taste plan, 18 Oct 2026; components/ui/row-list.tsx is the same
+   shape). */
 .tonightList {
   list-style: none;
-  margin: 0;
+  margin: 0 0 var(--space-6);
   padding: 0;
   display: flex;
   flex-direction: column;
-  gap: 12px;
 }
 
-.tonightRow {
-  border: 1px solid var(--line);
-  border-radius: 14px;
-  background: var(--panel-raised);
-  box-shadow: 0 8px 20px color-mix(in srgb, var(--ink) 6%, transparent);
-  transition: border-color 0.18s ease, box-shadow 0.18s ease;
+.tonightRow + .tonightRow {
+  border-top: 1px solid var(--line-soft);
 }
 
 .tonightRowLink {
   display: flex;
   flex-direction: column;
-  gap: 6px;
-  padding: 16px;
+  gap: var(--space-1);
+  padding: var(--space-4) 0 var(--space-3);
   color: inherit;
   text-decoration: none;
 }
 
 @media (hover: hover) and (pointer: fine) {
-  .tonightRow:hover {
-    border-color: color-mix(in srgb, var(--brass) 50%, var(--line));
-    box-shadow: 0 14px 28px color-mix(in srgb, var(--brass) 12%, transparent);
+  .tonightRow:hover .tonightRowTitle {
+    text-decoration: underline;
+    text-underline-offset: 3px;
   }
 }
 
@@ -398,14 +446,12 @@
 }
 
 .tonightRowPrice {
-  font-size: 0.72rem;
-  font-weight: 700;
-  color: var(--ink-soft);
+  font-size: var(--text-xs);
 }
 
 .tonightRowTitle {
   margin: 0;
-  font-size: 1.05rem;
+  font-size: var(--text-base);
   font-weight: 700;
   line-height: 1.25;
   color: var(--ink);
@@ -416,7 +462,7 @@
   align-items: center;
   gap: 5px;
   margin: 0;
-  font-size: 0.8rem;
+  font-size: var(--text-xs);
   color: var(--ink-soft);
 }
 
@@ -425,7 +471,7 @@
   flex-wrap: wrap;
   align-items: center;
   gap: 6px 12px;
-  font-size: 0.78rem;
+  font-size: var(--text-xs);
   color: var(--ink-soft);
 }
 
@@ -438,7 +484,7 @@
 /* A deal's own closing time, beside the start the row already prints. */
 .tonightRowEnds {
   font-weight: 700;
-  color: var(--state-active-ink);
+  color: var(--ink);
 }
 
 .tonightRowSource {
@@ -448,28 +494,32 @@
 /* Wraps rather than truncating: half a listing age is worse than none. */
 .tonightRowListingAge {
   margin: 6px 0 0;
-  font-size: 0.72rem;
+  font-size: var(--text-xs);
   font-weight: 600;
   line-height: 1.35;
   color: var(--ink-soft);
   overflow-wrap: break-word;
 }
 
+/* Per-row ways on read in ink. Five coral "Open on map" words down the page
+   competed with the one primary (taste plan, 18 Oct 2026). */
 .tonightRowCta {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
+  gap: var(--space-1);
   min-height: 44px;
-  margin-top: 2px;
-  font-size: 0.82rem;
-  font-weight: 700;
-  color: var(--state-active-ink);
+  margin-block: calc(-1 * var(--space-2));
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--ink);
+  text-decoration: underline;
+  text-decoration-color: var(--hairline-strong);
+  text-underline-offset: 3px;
 }
 
 @media (hover: hover) and (pointer: fine) {
   .tonightRow:hover .tonightRowCta {
-    color: var(--ink);
-    text-decoration: underline;
+    text-decoration-color: currentColor;
   }
 }
 
@@ -488,14 +538,14 @@
   /* The touch target is unchanged at 48px: D3 lowered the WEIGHT, not the size
      of the thing a thumb has to hit. */
   min-height: 48px;
-  margin: 0 16px 16px;
-  padding: 6px 14px;
-  border: 1px solid var(--state-active-border);
-  border-radius: var(--control-radius, 14px);
-  font-size: 0.8rem;
+  margin: 0 0 var(--space-4);
+  padding: var(--space-1) var(--space-4);
+  border: 1px solid var(--control-secondary-border);
+  border-radius: var(--control-radius);
+  font-size: var(--text-sm);
   font-weight: 700;
-  color: var(--state-active-ink);
-  background: var(--state-active-surface);
+  color: var(--ink);
+  background: var(--control-secondary-surface);
   cursor: pointer;
 }
 
@@ -509,13 +559,13 @@
   gap: 4px;
   width: fit-content;
   min-height: 48px;
-  margin: 0 16px 16px;
-  padding: 6px 14px;
-  border: 1px solid var(--line);
-  border-radius: var(--control-radius, 14px);
-  font-size: 0.8rem;
+  margin: 0 0 var(--space-4);
+  padding: var(--space-1) var(--space-4);
+  border: 1px solid var(--control-secondary-border);
+  border-radius: var(--control-radius);
+  font-size: var(--text-sm);
   font-weight: 700;
-  color: var(--ink-soft);
+  color: var(--ink);
 }
 
 .tonightRowMapLink:focus-visible {
@@ -525,15 +575,14 @@
 
 @media (hover: hover) and (pointer: fine) {
   .tonightRowMapLink:hover {
-    border-color: var(--state-active-border);
-    color: var(--ink);
+    border-color: var(--state-selected-border);
   }
 }
 
 .tonightAcceptanceError {
-  margin: 0 16px 16px;
-  color: var(--color-negative, var(--brick));
-  font-size: 0.86rem;
+  margin: 0 0 var(--space-4);
+  color: var(--color-negative);
+  font-size: var(--text-sm);
   font-weight: 700;
 }
 
@@ -542,199 +591,52 @@
   outline-offset: 2px;
 }
 
-/* Soft-plans module — quiet-hour handoffs into /plan occasions. Plan links only. */
-.tonightSoftPlans {
-  margin: 28px 0 0;
-}
-
-.tonightSoftPlansEyebrow {
-  margin: 0 0 12px;
-  font-size: 0.82rem;
-  font-weight: 700;
-  color: var(--ink-soft);
-}
-
-/* Culture Crawl lane sits under the soft occasions in the same module, so it
-   reuses the row chrome and only needs its own separating lead. */
+/* Soft-plans module: quiet-hour handoffs into /plan occasions, plan links
+   only, in the shared RowList shape (app/tonight/TonightSoftPlansModule.tsx).
+   The second list's lead is the section's one line. */
 .tonightSoftPlansCultureEyebrow {
-  margin: 18px 0 12px;
+  margin: var(--space-4) 0 0;
 }
 
-.tonightSoftPlansList {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
+.tonightSoftPlansRow,
+.tonightQuietRow {
+  padding-inline: 0;
 }
 
-.tonightSoftPlansRow {
-  border: 1px solid var(--line);
-  border-radius: 14px;
-  background: var(--panel-raised);
-  box-shadow: 0 8px 20px color-mix(in srgb, var(--ink) 6%, transparent);
-  transition: border-color 0.18s ease, box-shadow 0.18s ease;
-}
-
-@media (hover: hover) and (pointer: fine) {
-  .tonightSoftPlansRow:hover {
-    border-color: color-mix(in srgb, var(--brass) 50%, var(--line));
-    box-shadow: 0 14px 28px color-mix(in srgb, var(--brass) 12%, transparent);
-  }
-}
-
-.tonightSoftPlansLink {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  min-height: 44px;
-  padding: 12px 14px;
-  color: inherit;
-  text-decoration: none;
-}
-
-/* The create action floats over a phone's right edge, and a soft plan's
-   arrow sat under it (measured 6 Sep 2026 at 390, signed in). The row
-   reserves the control's own published lane, the shape the /near list and
-   the landing's city cards take, and holds it whenever the control is in
-   the document rather than only while it is painted. */
+/* The create action floats over a phone's right edge, and a listing's way on
+   sat under it (measured 6 Sep 2026 at 390, signed in). The row reserves the
+   control's own published lane, the shape the /near list and the landing's
+   rail take, and holds it whenever the control is in the document rather
+   than only while it is painted. */
 @media (max-width: 640px) {
-  body:has(.createFabRoot):not(:has(.pageHidesCreateFab)) .tonightSoftPlansLink {
-    padding-right: max(
-      14px,
-      calc(var(--create-fab-lane) - var(--page-gutter))
-    );
-  }
-
   body:has(.createFabRoot):not(:has(.pageHidesCreateFab)) .tonightRowLink {
     padding-right: max(
-      14px,
+      var(--space-3),
       calc(var(--create-fab-lane) - var(--page-gutter))
     );
   }
-}
 
-.tonightSoftPlansIcon {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-  width: 34px;
-  height: 34px;
-  border-radius: 999px;
-  background: color-mix(in srgb, var(--brass) 14%, var(--panel-raised));
-  color: var(--tint-ink-accent);
-}
-
-.tonightSoftPlansLabel {
-  font-size: 0.92rem;
-  font-weight: 700;
-  color: var(--ink);
-}
-
-.tonightSoftPlansArrow {
-  flex-shrink: 0;
-  margin-left: auto;
-  color: var(--brass);
-  opacity: 0.85;
-}
-
-/* Quiet-pint module — after the listing spine, before thin-night CTAs. Spacing
-   only; the card owns its chrome via TodayQuietPintCard's sheet. */
-.tonightQuietPint {
-  margin: 28px 0 0;
-}
-
-/* Thin-night alternatives — fills the space a short (or empty) listing leaves
-   behind with the three things still genuinely useful tonight. Same card
-   idiom as .tonightRow so it reads as part of the page, not a bolted-on ad. */
-.tonightQuiet {
-  margin: 28px 0 0;
-}
-
-.tonightQuietLede {
-  margin: 0 0 12px;
-  font-size: 0.82rem;
-  font-weight: 700;
-  color: var(--ink-soft);
-}
-
-.tonightQuietList {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-
-.tonightQuietRow {
-  border: 1px solid var(--line);
-  border-radius: 14px;
-  background: var(--panel-raised);
-  box-shadow: 0 8px 20px color-mix(in srgb, var(--ink) 6%, transparent);
-  transition: border-color 0.18s ease, box-shadow 0.18s ease;
-}
-
-@media (hover: hover) and (pointer: fine) {
-  .tonightQuietRow:hover {
-    border-color: color-mix(in srgb, var(--brass) 50%, var(--line));
-    box-shadow: 0 14px 28px color-mix(in srgb, var(--brass) 12%, transparent);
+  /* The status line runs to the gutter, and its way back to the map sat
+     under the control at rest (UX sprint, 15 Oct 2026, 390x844). */
+  body:has(.createFabRoot):not(:has(.pageHidesCreateFab)) .tonightStatus {
+    padding-right: calc(var(--create-fab-lane) - var(--page-gutter));
   }
 }
 
-.tonightQuietLink {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  min-height: 44px;
-  padding: 12px 14px;
-  color: inherit;
-  text-decoration: none;
+/* Quiet-pint section: after the listing spine, before the thin-night doors.
+   Spacing only; the section owns its look through TodayQuietPintCard's sheet. */
+.tonightQuietPint {
+  margin: var(--space-2) 0 var(--space-6);
 }
 
-.tonightQuietIcon {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-  width: 34px;
-  height: 34px;
-  border-radius: 999px;
-  background: color-mix(in srgb, var(--brass) 14%, var(--panel-raised));
-  color: var(--tint-ink-accent);
+.tonightQuiet {
+  margin: 0 0 var(--space-6);
 }
 
-.tonightQuietBody {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  min-width: 0;
-}
-
-.tonightQuietTitle {
-  font-size: 0.92rem;
-  font-weight: 700;
-  color: var(--ink);
-}
-
-.tonightQuietSub {
-  font-size: 0.76rem;
-  color: var(--ink-soft);
-}
-
-.tonightQuietArrow {
-  flex-shrink: 0;
-  margin-left: auto;
-  color: var(--brass);
-  opacity: 0.85;
-}
-
-/* Entrance — a quiet staggered settle, suppressed under reduced-motion. */
+/* Entrance: a quiet staggered settle, suppressed under reduced motion. */
 @media (prefers-reduced-motion: no-preference) {
   .tonightRow {
-    animation: tonightRowIn var(--duration-slow, 0.28s) var(--ease-out-strong) both;
+    animation: tonightRowIn var(--duration-slow) var(--ease-out-strong) both;
   }
   .tonightRow:nth-child(2) { animation-delay: 40ms; }
   .tonightRow:nth-child(3) { animation-delay: 80ms; }
@@ -742,15 +644,9 @@
   .tonightRow:nth-child(n + 5) { animation-delay: 160ms; }
 
   @keyframes tonightRowIn {
-    from { opacity: 0; transform: translateY(10px) scale(0.98); }
+    from { opacity: 0; transform: translateY(6px); }
     to { opacity: 1; transform: none; }
   }
-
-  .tonightQuietRow {
-    animation: tonightRowIn var(--duration-slow, 0.28s) var(--ease-out-strong) both;
-  }
-  .tonightQuietRow:nth-child(2) { animation-delay: 40ms; }
-  .tonightQuietRow:nth-child(3) { animation-delay: 80ms; }
 }
 
 /* Get-home strip: one calm line pair inside the location block once the
@@ -759,20 +655,20 @@
 .tonightGetHome {
   display: flex;
   align-items: flex-start;
-  gap: 8px;
-  padding-top: 8px;
-  border-top: 1px solid var(--line);
+  gap: var(--space-2);
+  padding-top: var(--space-2);
+  border-top: 1px solid var(--line-soft);
 }
 
 .tonightGetHomeIcon {
   flex: none;
   margin-top: 2px;
-  color: var(--brass);
+  color: var(--ink-soft);
 }
 
 .tonightGetHomeCopy {
   margin: 0;
-  font-size: 0.8rem;
+  font-size: var(--text-xs);
   line-height: 1.5;
   color: var(--ink-soft);
 }
@@ -783,7 +679,28 @@
 }
 
 /* .tonightConditions* rules live in tonightConditions.css (component-owned,
-   multi-host: Tonight page + desktop rails). */
+   multi-host: Tonight page + desktop rails). On Tonight the strip is one quiet
+   line under the list, not a boxed panel with a coral glyph: the weather is a
+   footnote to the night, and the page's coral is its primary. */
+.tonightWeather .tonightConditions {
+  margin: 0 0 var(--space-2);
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: none;
+}
+
+.tonightWeather .tonightConditionsIcon {
+  color: var(--color-text-muted);
+}
+
+.tonightWeather .tonightConditionsCopy {
+  font-size: var(--text-sm);
+}
+
+.tonightWeather .tonightConditionsVenues {
+  color: var(--ink-soft);
+}
 
 .tonightDesktopGrid,
 .tonightWeather,
@@ -794,6 +711,9 @@
 
 .tonightPrimary {
   display: block;
+  /* The head's action row and the first section heading need a beat between
+     them, or the heading reads as the button's caption. */
+  padding-top: var(--space-3);
 }
 
 .tonightPrimary[data-status="idle"] {
@@ -823,10 +743,24 @@
 /* While the listings read runs, nothing after the lede may paint: the lede
    answer lands above it and would push it down the page (a layout shift). The
    rail holds the soft plans and the area news, which do not wait on that
-   read, so it waits with the rest. */
+   read, so it waits with the rest.
+
+   It waits OUT OF THE LAYOUT, not invisibly inside it. `visibility: hidden`
+   kept every box below the lede, so a phone on a slow read scrolled past the
+   skeleton into about 2,000px of blank page (product owner, 16 Oct 2026). A
+   box that is not there yet cannot shift when it arrives below the fold, and
+   the primary column's own min-height still holds the room the lede needs. */
 .tonightPage[data-listings-status="idle"] .tonightContext,
 .tonightPage[data-listings-status="idle"] .tonightAfterPrimary {
-  visibility: hidden;
+  display: none;
+}
+
+/* The rail's lead photograph is the place the page is about (TonightClient).
+   A phone reads one column, where it would stand between the head and the
+   first pub, so it is a wide-screen block only. Hidden, its lazy image is
+   never fetched. */
+.tonightRailPhoto {
+  display: none;
 }
 
 /* WIDE TONIGHT IS A COLUMN AND A RAIL (site audit D8, 13 Sep 2026). The rail
@@ -843,13 +777,13 @@
    around the column opened about 1,000px of empty rail beside the lede, the
    defect D8 was filed for, so the editorial rail lives in the rail too.
 
-   Below 1100px the rail contributes no box, so a phone and a tablet read one
+   Below 1024px the rail contributes no box, so a phone and a tablet read one
    column in DOM order: head, lede, weather, credits, cheap pints, chain
    blocks, vibe chips, the full Deals and Music lanes, the editorial rail, the
    soft plans, the area news, the rest, and the way-onward row. */
-@media (min-width: 1100px) {
+@media (min-width: 1024px) {
   .tonightPage {
-    max-width: var(--content-max-wide, 1240px);
+    max-width: var(--content-max-wide);
   }
 
   .tonightDesktopGrid {
@@ -891,14 +825,6 @@
     min-width: 0;
   }
 
-  /* The way-onward row ends the primary column, the same place it ends the
-     phone. One composition at every width, so the tab order never disagrees
-     with the paint order. */
-  .tonightDesktopGrid > .screenActions {
-    grid-column: 1;
-    grid-row: 6;
-  }
-
   .tonightDesktopGrid > .tonightContext {
     grid-column: 2;
     grid-row: 1 / -1;
@@ -930,5 +856,9 @@
 
   .tonightSecondaryLanes--mobile {
     display: none;
+  }
+
+  .tonightContext > .tonightRailPhoto {
+    display: grid;
   }
 }

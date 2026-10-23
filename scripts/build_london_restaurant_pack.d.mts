@@ -13,6 +13,12 @@ export function restaurantRowsFromLayer(
   readShard: (url: string) => Promise<unknown>,
 ): Promise<unknown[][]>;
 
+export function kindRowsFromLayer(
+  manifest: LayerManifest,
+  readShard: (url: string) => Promise<unknown>,
+  kind: string,
+): Promise<unknown[][]>;
+
 export function restaurantPackBody(
   manifest: LayerManifest,
   rows: unknown[][],

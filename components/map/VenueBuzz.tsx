@@ -5,7 +5,7 @@
 //
 // PROVENANCE IS THE FEATURE: everything in this block is an AI summary of
 // third-party press & reviews relayed by CityMCP London. It must NEVER read
-// as PUBMAXXING editorial or community content — the eyebrow, source chip
+// as PUBMAXX editorial or community content — the eyebrow, source chip
 // and footnote below say exactly what it is, every render.
 //
 // Resolve flow (same confidence gate as CityPlaceStrip): search_places by
@@ -199,7 +199,7 @@ export default function VenueBuzz({
     >
       <div className="venueBuzzHead">
         <span className="venueBuzzEyebrow">
-          <Newspaper size={12} aria-hidden="true" />
+          <Newspaper size={14} aria-hidden="true" />
           Around the web: AI summary of press &amp; reviews
         </span>
         <span
@@ -219,7 +219,7 @@ export default function VenueBuzz({
           {mentions.map((m) => (
             <li key={m.url} className="venueBuzzMention">
               <a href={m.url} target="_blank" rel="noreferrer noopener">
-                <ExternalLink size={10} aria-hidden="true" />
+                <ExternalLink size={14} aria-hidden="true" />
                 {m.label}
               </a>
             </li>
@@ -228,7 +228,7 @@ export default function VenueBuzz({
       ) : null}
       <small className="venueBuzzNote">
         AI-synthesised from third-party press and reviews via CityMCP London.
-        Not community reports or PUBMAXXING editorial.
+        Not community reports or PUBMAXX editorial.
       </small>
     </section>
   );

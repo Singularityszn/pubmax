@@ -6,7 +6,7 @@ const PHONE = { width: 390, height: 844 };
 const SHOTS_DIR = process.env.PAL_OPENVENUE_SHOTS_DIR ?? "";
 
 async function askOnPhone(page: import("@playwright/test").Page, ask: string) {
-  await page.getByRole("textbox", { name: /Describe the outing/i }).fill(ask);
+  await page.getByRole("textbox", { name: /Where, how many, what budget/i }).fill(ask);
   await page.getByRole("button", { name: "Ask" }).click();
   await expect(page.locator(".palChatBubble--pending")).toHaveCount(0, {
     timeout: 20_000,

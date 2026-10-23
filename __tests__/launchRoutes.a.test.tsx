@@ -109,7 +109,6 @@ const OUT_EMPTY_BODY = vi.hoisted(() => ({
 import NearPageClient from "@/components/nearme/NearPageClient";
 import TodayClient from "@/app/today/TodayClient";
 import TonightClient from "@/app/tonight/TonightClient";
-import OutClient from "@/app/out/OutClient";
 
 function renderNear(): string {
   return renderToStaticMarkup(createElement(NearPageClient));
@@ -146,10 +145,6 @@ function renderTonight(): string {
   );
 }
 
-function renderOut(): string {
-  return renderToStaticMarkup(createElement(OutClient, { day: "tonight" }));
-}
-
 describe("launch routes (group a) carry one primary action", () => {
   it("/near carries one primary action", () => {
     const rendered = renderNear();
@@ -173,17 +168,7 @@ describe("launch routes (group a) carry one primary action", () => {
     const rendered = renderTonight();
     expect(rendered.match(/data-primary-action/g)).toHaveLength(1);
     expect(rendered).toMatch(
-      /class="screenPrimary" data-primary-action=""><a[^>]*href="\/map"[^>]*>See them on the map<\/a>/,
-    );
-  });
-
-  it("/out carries one primary action", () => {
-    const rendered = renderOut();
-    expect(rendered.match(/data-primary-action/g)).toHaveLength(1);
-    expect(rendered).toMatch(
       /class="screenPrimary" data-primary-action=""><a[^>]*href="\/map"[^>]*>Open the map<\/a>/,
     );
-    // The empty lane's own map link stays unmarked so the page counts one.
-    expect(rendered).toMatch(/class="emptyStateAction"><a[^>]*href="\/map"[^>]*>Open the map<\/a>/);
   });
 });

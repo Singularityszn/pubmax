@@ -19,11 +19,14 @@
 //
 // Storage follows lib/firstRunTour.ts: SSR-safe and silent when storage is
 // blocked. The budget is in localStorage. The chosen patch and the planner
-// handoff are held in sessionStorage for this tab only. Nothing here is sent
-// anywhere.
+// handoff are held in sessionStorage for this tab only. BUDGET_QUESTION owns
+// the disclosure for storage and transmission through onboardingPlanHref.
 
 import { WALKABLE_RADIUS_KM, walkMinutesFromKm, type NearMeCard } from "@/lib/nearMeAnswer";
 import { safeLocalStorage, safeSessionStorage } from "@/lib/safeStorage";
+import { tryGetNightArea, type NightAreaSlug } from "@/lib/nightAreas";
+import { NIGHT_PATCHES } from "@/lib/nightPatches";
+import { DEFAULT_PLAN_STOP_COUNT } from "@/lib/planStopCount";
 
 /** The steps in the order a reader meets them. */
 export const ONBOARDING_STEPS = [
@@ -70,22 +73,17 @@ export function budgetCeiling(id: BudgetChoiceId): number | null {
   return BUDGET_CHOICES.find((choice) => choice.id === id)?.ceiling ?? null;
 }
 
-/**
- * The question and the reason for it. The privacy line is a promise, so it
- * says only what the code does: the answer is saved on this device and read by
- * the result screen.
- */
 export const BUDGET_QUESTION = {
   title: "What's a fair pint to you?",
   why: "We use this to count the pubs near you that come in under it.",
-  privacy: "Only you see your answer. It stays on this device.",
+  privacy: "Your budget is saved on this device. When you plan a night, it goes in the planner link and to our server.",
 } as const;
 
 /** The location ask's reason, spent on its own screen before the system prompt. */
 export const LOCATION_PRIMER = {
   title: "Find the cheapest pint near you.",
   why: "Your location lets us rank pubs by how far you'd walk for the price.",
-  privacy: "We only use it to rank pubs nearby. Your location is never stored.",
+  privacy: "We use your location to rank nearby pubs and pick an area for your plan. Your coordinates are never stored or sent.",
 } as const;
 
 const BUDGET_KEY = "pubmax:onboarding:budget:v1";
@@ -114,11 +112,6 @@ export function writeBudgetChoice(id: BudgetChoiceId, storage?: Storage | null):
 
 const PATCH_KEY = "pubmax:onboarding:patch:v1";
 
-/**
- * The patch the reader chose, held for this tab so a reload on a later step
- * still hands it to the planner. Null clears it: a located answer keeps no
- * place at all.
- */
 export function writeOnboardingPatch(id: string | null, storage?: Storage | null): void {
   const store = storage ?? safeSessionStorage();
   if (!store) return;
@@ -130,7 +123,7 @@ export function writeOnboardingPatch(id: string | null, storage?: Storage | null
   }
 }
 
-/** The held patch id, or null when none is held. */
+/** The held patch id or `area:` identifier, never the browser's coordinates. */
 export function readOnboardingPatch(storage?: Storage | null): string | null {
   const store = storage ?? safeSessionStorage();
   if (!store) return null;
@@ -143,20 +136,35 @@ export function readOnboardingPatch(storage?: Storage | null): string | null {
 
 const HANDOFF_KEY = "pubmax:onboarding:planner-handoff:v1";
 
-/**
- * What the planner takes from the journey: the patch the reader chose and the
- * budget they gave. A located reader's coordinates are never kept, so a
- * located answer hands over its budget alone.
- */
 export type PlannerHandoff = {
+  nightArea?: NightAreaSlug;
   patch: { lat: number; lng: number } | null;
   budget: BudgetChoiceId | null;
 };
 
+/** Open the shared planner with the reader's choices, without a default map route. */
+export function onboardingPlanHref(handoff: PlannerHandoff | null): string {
+  const patch = handoff?.patch
+    ? NIGHT_PATCHES.find(({ lat, lng }) => lat === handoff.patch?.lat && lng === handoff.patch?.lng)
+    : null;
+  const area = tryGetNightArea(handoff?.nightArea);
+  const label = patch?.label ?? area?.name;
+  const ceiling = handoff?.budget ? budgetCeiling(handoff.budget) : null;
+  if (!label && ceiling === null) return "/plan?from=onboarding";
+  const query = [
+    `${DEFAULT_PLAN_STOP_COUNT} pubs${label ? ` in ${label}` : ""}`,
+    ...(ceiling === null ? [] : [
+      `under £${ceiling * DEFAULT_PLAN_STOP_COUNT} per person`,
+      `maximum £${ceiling} per pint`,
+    ]),
+  ].join(", ");
+  return `/plan?${new URLSearchParams({ query, from: "onboarding" })}`;
+}
+
 /** A handoff the planner never opened for is stale after this long. */
 const HANDOFF_MAX_AGE_MS = 10 * 60_000;
 
-/** Held for this tab only and read once by the planner the journey opens. */
+/** Optional tab restoration. The journey opens the planner from its current choice. */
 export function writePlannerHandoff(
   handoff: PlannerHandoff,
   storage?: Storage | null,
@@ -167,7 +175,7 @@ export function writePlannerHandoff(
   try {
     store.setItem(HANDOFF_KEY, JSON.stringify({ ...handoff, at: now }));
   } catch {
-    // Storage full or blocked: the planner opens on its own defaults.
+    // Storage full or blocked: the journey still hands over its current choice.
   }
 }
 
@@ -178,11 +186,13 @@ export function readPlannerHandoff(storage?: Storage | null, now = Date.now()): 
   try {
     const raw = store.getItem(HANDOFF_KEY);
     if (!raw) return null;
-    const value = JSON.parse(raw) as { patch?: { lat?: unknown; lng?: unknown } | null; budget?: unknown; at?: unknown };
+    const value = JSON.parse(raw) as { patch?: { lat?: unknown; lng?: unknown } | null; budget?: unknown; nightArea?: unknown; at?: unknown };
     if (typeof value.at !== "number" || now - value.at > HANDOFF_MAX_AGE_MS) return null;
     const lat = value.patch?.lat;
     const lng = value.patch?.lng;
+    const area = typeof value.nightArea === "string" ? tryGetNightArea(value.nightArea) : null;
     return {
+      ...(area ? { nightArea: area.slug } : {}),
       patch:
         typeof lat === "number" && typeof lng === "number" && Number.isFinite(lat) && Number.isFinite(lng)
           ? { lat, lng }

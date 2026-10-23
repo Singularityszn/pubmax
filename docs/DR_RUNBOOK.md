@@ -21,6 +21,21 @@ Facts to start from:
 | Scratch project for drills | `pubmax-pentest`, paused. Resume it, use it, pause it again |
 | Escalation list | [`OPS_FREEZE_RUNBOOK.md`](OPS_FREEZE_RUNBOOK.md) "Escalation list". Fill it in |
 
+## Targets
+
+- **Recovery point objective (RPO), the most data a loss can take: 7 days today.** The off-platform dump runs once a week, so a loss can take everything written since the last complete dump. If the Mac is asleep, off or away, no dump runs, and this figure has no limit until the next complete run.
+- **Recovery time objective (RTO), the longest the restore may take: not measured yet.** The first restore drill sets it. Write the measured minutes in the drill log below, then write the target here. Until then there is no figure.
+
+Accepted risks. Each one is known and open today:
+
+- One region. Vercel functions run only in `lhr1` (`vercel.json`), and the database is in eu-west-2. Both are in London.
+- One Supabase project holds all production data.
+- One owner on each account. See section 4.
+- One person on call.
+- No point-in-time recovery (PITR), because the free plan does not have it. The weekly dump is the only way back.
+
+The floor is automated. `__tests__/offPlatformBackupEffective.test.ts` builds the real schema from every migration, takes a dump with the backup script, and restores it into a fresh PostgreSQL cluster with the command in section 2. It fails when a table, a row count, a policy or a trigger does not come back, or when the restore prints an error not on its list. It does not prove a restore into Supabase, the bucket upload or the time a restore takes. The manual drill in section 1 is the real proof.
+
 ## 1. Make the backup, and prove it restores
 
 ### Take it
@@ -30,9 +45,33 @@ server's major version or newer, and these variables in
 `~/.config/pubmax/backup.env`, mode 0600 (never in the repository):
 
 - `PUBMAX_BACKUP_DB_URL`: a `postgres://` connection string for the project (Supabase dashboard, Connect, session pooler).
+- `PUBMAX_BACKUP_DB_AUTH`: optional, defaults to `password`. Set `cli-read-only` only for the approved temporary-login mode below.
 - `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY`: for the bucket sync.
 - `PUBMAX_BACKUP_DIR`: optional, default `~/pubmax-backups`. The script refuses a directory inside any git checkout.
 - `PUBMAX_ALERT_WEBHOOK_URL`: optional. A failed run posts one fixed line with no reason in it. The reason stays in the local log.
+
+The optional `cli-read-only` mode needs the existing private `SUPABASE_ACCESS_TOKEN`.
+A fine-grained token needs the Management API's `database_write` permission,
+even though the database session is read-only.
+The database URL must omit the password and use this project's direct endpoint
+or session pooler on port 5432. The direct username is `postgres`. The pooler
+username is `postgres.<project ref>`. The database is `postgres`, with no URL
+options. `SUPABASE_URL` must be the canonical `https://<project ref>.supabase.co`.
+The script refuses another project's endpoint or the transaction-pooler port.
+
+Each normal run sends one `POST /v1/projects/<project ref>/cli/login-role` with
+`{"read_only":true}` to the [Supabase Management API](https://supabase.com/docs/reference/api/v1-create-login-role).
+This creates or refreshes a managed temporary login. The endpoint is Beta and
+can change or disappear.
+The script rejects invalid or expired credentials and keeps the returned
+password in the `pg_dump` environment. It does not save that password or pass
+the management token to PostgreSQL clients.
+
+The dump uses `--role=supabase_read_only_user` and a read-only session.
+Missing role membership, authentication, or table access fails the dump.
+This mode retains all five schemas and their table data. Storage still needs
+the existing service role key. A dry run makes no login request.
+The script never resets the database password or deletes the managed login role.
 
 ```sh
 node --env-file="$HOME/.config/pubmax/backup.env" scripts/backup-offplatform.mjs --dry-run   # prints the plan and touches nothing
@@ -40,14 +79,19 @@ node --env-file="$HOME/.config/pubmax/backup.env" scripts/backup-offplatform.mjs
 ```
 
 It writes `pubmax-<UTC stamp>.dump` (custom format, mode 0600) with the `public`,
-`auth`, `storage` and `supabase_migrations` schemas, and syncs the bucket into
+`auth`, `storage`, `supabase_migrations` and `pubmax_private` schemas, and syncs the bucket into
 `bucket/pint-drops/`. A dump becomes visible only after `pg_restore --list` finds
-table data in it.
+table data and the bucket sync completes. Changed photos download into
+`bucket/pint-drops.staging/` and replace the kept copies only after every object
+has downloaded, so a failed sync removes the partial dump and the staged photos
+and leaves the last complete dump and its photos exactly as they were.
 
 ### Schedule it
 
 The captain or firstmate runs the installer once, from the checkout the job
-should use:
+should use. Agents do not run the installer.
+
+The installer command is:
 
 ```sh
 npm run backup:install-launchd
@@ -59,19 +103,31 @@ from `backup.env`, and logs to `~/Library/Logs/pubmax-backup.log`. The installer
 refuses while `backup.env` is missing or open to other users. Running it again
 rewrites the same agent and reloads it, so run it again after the checkout moves.
 
+Installation loads the calendar job without an immediate backup. The job does
+not wake a sleeping or powered-off Mac. A missed calendar event can run after
+wake, but an offline or unavailable Mac can delay backup and pruning beyond
+eight weeks. Installation alone proves neither a successful backup nor durability.
+
 ### Retention
 
 The copy holds personal data: account emails, password hashes, profiles, Pint
-Drops and their photos. It is not encrypted. Each run prunes at 7 weeks, so every
-copy is gone before 8 weeks, with one exception: the newest dump and the bucket
-files it names always stay, so a restore is always possible.
+Drops and their photos. It is not encrypted. Normal pruning starts at 7 weeks.
+The 8-week maximum applies once a newer complete backup exists. The last good
+backup, the newest complete dump and its photos, is NEVER deleted: if newer
+backups keep failing it is kept past 8 weeks, and every failed run says so in
+the log and in the alert (owner decision, 16 October 2026).
 
-- Each run deletes every dump older than 7 weeks, however many runs there were, except the newest. The week of slack covers a weekly run that fires late because the Mac was asleep.
-- Each run also deletes a `.partial` file older than the newest dump. That is a run that was killed during `pg_dump`, and it holds the same personal data.
-- The bucket copy follows the dumps. Each run stamps every file whose object is still in the bucket. A file whose object was deleted in production is removed when no kept dump is old enough to name it. A folder left empty is removed too, because the folder names are account and conversation ids.
-- Each run prunes first, before the dump, so a failing dump or an unreachable database does not keep expired copies. A bucket file is fetched again when its recorded version (ETag) changes, even at the same size.
-- Pruning happens only when the backup runs. The weekly schedule is what keeps every copy under 8 weeks. If the backup stops running, nothing is pruned until it runs again.
-- So data deleted in production, a deleted account included, leaves the copy within 8 weeks of the deletion. The privacy page says so.
+- Each run deletes dumps older than 7 weeks, except the newest complete dump. That one goes only when a newer complete dump exists and it has passed 7 weeks. The one-week margin covers ordinary weekly scheduling jitter.
+- A dump's name supplies its UTC age. The eight-week comparison includes the exact deadline. A newer filesystem timestamp cannot extend that age.
+- When the newest complete dump has reached 8 weeks, a failed run logs `past the 8-week maximum` and its alert names the dump's UTC stamp. Fix the failing backup: the held copy goes on the first run after a newer backup completes.
+- A `.partial` dump expires at 8 weeks or when a newer complete dump makes it redundant. A failed renewal, dump or bucket sync removes the current partial dump and the staged photos.
+- Each photo's last-seen timestamp supplies its age. A photo the oldest kept dump knew stays with that dump, at any age. With no complete dump at all, photos and `.incoming` files expire at 8 weeks, and unexpired files remain until that deadline.
+- The bucket copy also removes files last seen before the oldest kept dump. Empty account and conversation folders are removed. The version index retains identifiers only for files that remain. An empty index is removed.
+- Pruning runs before credential renewal and again on exit, including after a failed renewal, dump or bucket sync.
+- A bucket file is fetched again when its recorded version changes, even at the same size. The replacement waits in the staging folder until the whole sync succeeds.
+- The swap and the new dump are one journalled step. `bucket/pint-drops.commit.json` is written first, each retained photo is moved into `bucket/pint-drops.previous/` rather than overwritten, and publishing the dump is the commit point. A failure before that point puts the retained photos and the version index back. A killed run is finished or undone by the next run before it prunes or reads anything: kept if its dump was published, undone if not.
+- With the session pooler, a refused connection right after the temporary login is issued is retried with backoff (1, 2, 4 and 8 seconds), because the pooler can take a moment to learn the new password. A query error, such as a missing grant, is never retried.
+- Pruning requires the backup process to run. A killed process, or a sleeping, powered-off or unavailable Mac, can postpone deletion beyond eight weeks. The next run applies the age limit before it requests credentials. Installation does not prove continuous deletion or backup durability.
 
 Keep a second copy off the Mac. A free option is an encrypted archive on a
 personal cloud drive. `gpg --symmetric --cipher-algo AES256 <dump>` or an
@@ -81,6 +137,8 @@ not beside the file.
 ### The restore drill (owed to the captain)
 
 Nobody has run one yet. Run it once, then every quarter, and fill in the log.
+The automated restore test (see "Targets") is a floor, not a drill. Only this
+drill proves a restore into Supabase and measures the RTO.
 
 1. Resume `pubmax-pentest` in the Supabase dashboard. Note its connection string.
 2. Restore the newest dump into it, following section 2 steps 2 to 4.
@@ -102,8 +160,9 @@ Use when data is lost or corrupt. The target is either the production project
 3. Set the target through the standard variables, never on a command line:
    `export PGHOST=... PGPORT=5432 PGUSER=postgres PGDATABASE=postgres PGSSLMODE=require` and `read -s PGPASSWORD; export PGPASSWORD`.
 4. Restore. On a fresh project, restore everything. On the live project, restore only what was lost:
-   - Fresh or empty schema: `pg_restore --no-owner --no-privileges --dbname "$PGDATABASE" <dump> 2> restore.log`, then `grep -A1 'ERROR:' restore.log`. Do not add `--exit-on-error`: a fresh database already has the `public` schema (a fresh Supabase project also has `auth` and `storage`), so the dump's `CREATE SCHEMA` fails at once and nothing is restored. Every error in the log must say "already exists". Any other error means the restore is not complete.
+   - Fresh or empty schema: `pg_restore --no-owner --no-privileges --dbname "$PGDATABASE" <dump> 2> restore.log`, then `grep -A1 'ERROR:' restore.log`. Do not add `--exit-on-error`: a fresh database already has the `public` schema (a fresh Supabase project also has `auth` and `storage`), so the dump's `CREATE SCHEMA` fails at once and nothing is restored. Every error in the log must be one of two kinds, and only on `public`, `auth` or `storage` objects the project already holds: "already exists", or "multiple primary keys for table ... are not allowed" on a table that already has its primary key. Any other error means the restore is not complete. The automated restore test holds this list for the stand-in project, so read its `EXPECTED_RESTORE_ERRORS` first. A real project holds more `auth` and `storage` objects, so its log has more lines of these two kinds.
    - One table: `pg_restore --no-owner --data-only --table <name> --schema public --dbname "$PGDATABASE" <dump>`.
+   - After a full restore, run `psql "$PGDATABASE" -v ON_ERROR_STOP=1 -f scripts/db/restore-realtime-policies.sql`. The dump leaves the platform's `realtime` schema out, but migrations `0148` and `0171` put two policies on `realtime.messages`, and the restored migration ledger says both already ran. Without this step no signed-in browser can join private messaging or the Pint Drop channel. The restore proof holds the file equal to the migrated policies.
    Supabase owns objects in `auth` and `storage`. If a restore of those schemas fails on ownership, restore `public` first, then load `auth.users` and `auth.identities` data-only.
 5. Check:
    - `select count(*) from auth.users;` is within a few rows of the figure recorded at backup time (20 on 6 October 2026).
@@ -162,7 +221,7 @@ set it in Vercel Production, redeploy with `npm run release:prod`, confirm
 
 | Order | Secret | Why it is here | Side effect of rotating |
 | --- | --- | --- | --- |
-| 1 | `SUPABASE_SERVICE_ROLE_KEY`, and the database password | Full read and write on every table, bypassing row level security | None for users. Update `PUBMAX_BACKUP_DB_URL` too. |
+| 1 | `SUPABASE_SERVICE_ROLE_KEY`, and the database password | Full read and write on every table, bypassing row level security | None for users. Update the backup's service role key. Update `PUBMAX_BACKUP_DB_URL` only in `password` mode. |
 | 2 | `CLERK_SECRET_KEY` | Can mint and read sessions | Signed-in users are signed out. |
 | 3 | `ADMIN_TOKEN`, `CRON_SECRET` | Admin routes and every mutating scheduled route | Generate with `openssl rand -hex 32`. Vercel cron picks up `CRON_SECRET` on the next deploy. |
 | 4 | `PLAN_IDEMPOTENCY_SECRET`, `SOCIAL_CONNECTION_ENCRYPTION_KEY` | Signs proofs and encrypts stored tokens | Open proofs expire. Rotating the encryption key makes stored social tokens unreadable: users reconnect. |
@@ -170,7 +229,7 @@ set it in Vercel Production, redeploy with `npm run release:prod`, confirm
 | 6 | Paid vendor keys: `ELEVENLABS_API_KEY`, `OPENROUTER_API_KEY`, `TYPESAFE_API_KEY`, `OPENAI_API_KEY`, `AI_GATEWAY_API_KEY`, `ELEVENLABS_LLM_SHARED_SECRET` | Money. Set a monthly cap in each vendor dashboard as well | None for users. |
 | 7 | Push and mail: `APNS_PRIVATE_KEY`, `FCM_PRIVATE_KEY`, `VAPID_PRIVATE_KEY`, `RESEND_API_KEY` | Sends as the app | Rotating `VAPID_PRIVATE_KEY` drops every web push subscription. |
 | 8 | Data vendors: `TAVILY_API_KEY`, `EXA_API_KEY`, `FIRECRAWL_API_KEY`, `TICKETMASTER_API_KEY`, `GOOGLE_PLACES_API_KEY` and the rest in `.env.example` | Quota only | None. |
-| 9 | `SUPABASE_ACCESS_TOKEN` (ledger check), GitHub personal tokens, the Vercel token, `PUBMAX_ALERT_WEBHOOK_URL` | Operator access | Re-create in the vendor, update the environment that runs the backup and the repository secret. |
+| 9 | `SUPABASE_ACCESS_TOKEN` (ledger check and `cli-read-only` backup login), GitHub personal tokens, the Vercel token, `PUBMAX_ALERT_WEBHOOK_URL` | Operator access | Re-create in the vendor, update the environment that runs the backup and the repository secret. |
 
 ### If it was committed
 

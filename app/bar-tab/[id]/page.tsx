@@ -3,19 +3,21 @@ import { headers } from "next/headers";
 import Image from "next/image";
 import Link from "next/link";
 
+import { PintPriceBadge } from "@/components/PriceBadge";
 import EmptyState from "@/components/ui/empty-state";
 import SiteNav from "@/components/nav/SiteNav";
 import ShareBar from "@/components/share/ShareBar";
 import VenuePhotoWall from "@/components/venue/VenuePhotoWall";
 import VenueReadUnavailable from "@/components/venue/VenueReadUnavailable";
 import VisitReportPanel from "@/components/visits/VisitReportPanel";
+import { BRAND_NAME } from "@/lib/brandNaming";
 import { buildBarTab, normalizePintDrop, type BarTabTile, type PintDropDTO } from "@/lib/feed";
 import { buildBarTabShareText } from "@/lib/shareArtifacts";
 import { isSupabaseConfigured } from "@/lib/supabase";
 import { memoryPintDropStore, supabasePintDropStore } from "@/lib/pintDropsStore";
 import { lookupVenueDetail } from "@/lib/venueDetailIndex";
 import { venueMapUrl } from "@/lib/venueIndex";
-import { formatGbp } from "@/lib/venues";
+import { venueAreaLabel } from "@/lib/venueDisplay";
 
 import "./barTab.css";
 
@@ -44,20 +46,23 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   // A read we could not run claims nothing in the unfurl: the same bare title
   // an absent pub gets, because the answer is unknown, not "no".
   if (read.status !== "found") {
-    return { title: "Bar Tab: PUBMAXXING", robots: { index: false, follow: false } };
+    return { title: "Bar Tab", robots: { index: false, follow: false } };
   }
   const { venue } = read;
-  const title = `The Bar Tab: ${venue.name}. PUBMAXXING`;
+  // The layout's template adds the brand to the document title. The share
+  // card is not templated, so it keeps the branded form.
+  const title = `The Bar Tab: ${venue.name}`;
+  const cardTitle = `${title}. ${BRAND_NAME}`;
   const description = `Recent pints dropped at ${venue.name} in ${
-    venue.primaryBorough || "London"
+    venueAreaLabel(venue)
   }. Photos, prices, and the stories behind them.`;
   return {
     title,
     description,
     // The card image comes from the sibling opengraph-image.tsx (Next file
     // convention injects og:image / twitter:image automatically).
-    openGraph: { title, description, type: "website" },
-    twitter: { card: "summary_large_image", title, description },
+    openGraph: { title: cardTitle, description, type: "website" },
+    twitter: { card: "summary_large_image", title: cardTitle, description },
   };
 }
 
@@ -137,14 +142,14 @@ export default async function BarTabPage({ params }: PageProps) {
         <h1 className="barTabTitle">{venue.name}</h1>
         <p className="barTabAddress">
           {venue.address ? `${venue.address} · ` : ""}
-          {venue.primaryBorough || "London"}
+          {venueAreaLabel(venue)}
         </p>
 
         <div className="barTabHeadRow">
           {barTab.cheapestGbp !== null ? (
             <span className="barTabCheapest" title="Cheapest pint on the tab">
               <span className="barTabCheapestLabel">From</span>
-              <span className="barTabCheapestValue">{formatGbp(barTab.cheapestGbp)}</span>
+              <PintPriceBadge priceGbp={barTab.cheapestGbp} venueId={canonicalId} />
             </span>
           ) : null}
           <span className="barTabCount">
@@ -184,7 +189,7 @@ export default async function BarTabPage({ params }: PageProps) {
         <ul className="barTabGrid" aria-label={`Recent pints at ${venue.name}`}>
           {barTab.tiles.map((tile) => (
             <li key={tile.id} className="barTabCell">
-              <Tile tile={tile} venueName={venue.name} />
+              <Tile tile={tile} venueName={venue.name} venueId={canonicalId} />
             </li>
           ))}
         </ul>
@@ -193,8 +198,12 @@ export default async function BarTabPage({ params }: PageProps) {
   );
 }
 
-function Tile({ tile, venueName }: { tile: BarTabTile; venueName: string }) {
-  const price = typeof tile.priceGbp === "number" ? formatGbp(tile.priceGbp) : null;
+function Tile({ tile, venueName, venueId }: { tile: BarTabTile; venueName: string; venueId: string }) {
+  // A pint price wears its band through the one price look (components/PriceBadge.tsx).
+  const price =
+    typeof tile.priceGbp === "number" ? (
+      <PintPriceBadge priceGbp={tile.priceGbp} venueId={venueId} className="barTabTilePrice" />
+    ) : null;
 
   if (tile.kind === "photo" && tile.photoUrl) {
     return (
@@ -208,7 +217,7 @@ function Tile({ tile, venueName }: { tile: BarTabTile; venueName: string }) {
           loading="lazy"
           unoptimized
         />
-        {price ? <span className="barTabTilePrice">{price}</span> : null}
+        {price}
       </Link>
     );
   }
@@ -217,7 +226,7 @@ function Tile({ tile, venueName }: { tile: BarTabTile; venueName: string }) {
   return (
     <Link className="barTabTile barTabTile--receipt" href={`/p/${tile.id}`}>
       <span className="barTabTileEyebrow">Pint Drop</span>
-      <span className="barTabTileReceiptPrice">{price ?? "A memory"}</span>
+      {price ?? <span className="barTabTileMemory">A memory</span>}
       {tile.drink ? <span className="barTabTileDrink">{tile.drink}</span> : null}
       {tile.note ? <span className="barTabTileNote">{tile.note}</span> : null}
     </Link>

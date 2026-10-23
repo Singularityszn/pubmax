@@ -13,9 +13,23 @@ test.beforeEach(async ({ page }) => {
   });
 });
 
+for (const width of [390, 1440]) {
+  test(`Soho answer cards retain their price receipts at ${width}px`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 900 });
+    await page.goto("/pal/chat");
+    const box = page.getByRole("textbox").first();
+    await box.fill("Find me four pubs in Soho");
+    await box.press("Enter");
+    const card = page.locator(".palChatCard").filter({ hasText: "Shakespeares Head" });
+    await expect(card).toBeVisible({ timeout: 20_000 });
+    await expect(card).toContainText("£6.25");
+    await expect(card).toContainText("Pint Prices. Source read 2 October 2026.");
+  });
+}
+
 test("the cheapest-pint glance names no walk when nobody shared a location", async ({ page }) => {
   await page.goto("/pal/chat");
-  const glance = page.getByText(/^Cheapest round /);
+  const glance = page.getByRole("note", { name: "Listed price nearby", exact: true });
   await expect(glance).toBeVisible();
   await expect(glance).toContainText(/£\d+\.\d\d at /);
   await expect(glance).not.toContainText("on foot");

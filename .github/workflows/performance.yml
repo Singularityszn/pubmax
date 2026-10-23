@@ -39,8 +39,8 @@ jobs:
   # From 6 to 15 September 2026 the measurement ran on a 4 vCPU runner (Avrea,
   # then Blacksmith). A private repository's 2 vCPU `ubuntu-latest` could not
   # measure itself, which is one reason the sweep left the pull-request path.
-  # This job launches Playwright, so it runs on macos-latest with the law pins.
-  # Ubuntu font metrics do not match those pins. The
+  # This job stays on macos-latest: its route budgets were measured there,
+  # and a Linux figure is a different measurement. The
   # 6 September run reported LCP samples spread 37 to 51 per cent on /today,
   # /discover, /drinks and /crawls, past the method's own 12 per cent width, so
   # a route flipped between pass and fail on one commit. A ceiling is only a
@@ -73,7 +73,7 @@ jobs:
 
       - name: Setup Node
         timeout-minutes: 5
-        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: 22
           cache: npm
@@ -171,7 +171,7 @@ jobs:
 
       - name: Keep the A/B evidence with the run
         if: failure()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: performance-budget-ab
           path: |
@@ -204,7 +204,7 @@ jobs:
 
       - name: Setup Node
         timeout-minutes: 5
-        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: 22
           cache: npm
@@ -236,7 +236,7 @@ jobs:
       # one and does not need a second red mark.
       - name: Upload UX lane table
         if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: ux-lane-13-perf
           path: test-results/**/ux-lane-13-perf.md

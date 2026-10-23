@@ -21,6 +21,7 @@ vi.mock("@/components/wanted/WantedList", () => ({
   default: () => createElement("div", null, "wanted list"),
 }));
 vi.mock("next/navigation", () => ({
+  useSearchParams: () => new URLSearchParams(window.location.search),
   useRouter: () => ({ replace: () => undefined, push: () => undefined }),
 }));
 

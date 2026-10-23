@@ -3,6 +3,7 @@ import { mkdir, writeFile } from "node:fs/promises";
 import { expect, test, type Locator, type Page } from "@playwright/test";
 
 import { NATIVE_PUSH_PROMPT_COPY } from "@/lib/nativePushPrompt";
+import { ANALYTICS_CONSENT_STORAGE_KEY } from "@/lib/analyticsIdentity";
 
 import { answerFirstRunQuestions } from "./helpers/firstRunJourney";
 import { installNativeShell } from "./helpers/nativeShell";
@@ -52,7 +53,7 @@ async function expectPushAskOnNextRoute(page: Page): Promise<void> {
   const ask = page.getByRole("dialog", { name: NATIVE_PUSH_PROMPT_COPY.title });
   await expect(ask).toHaveCount(0);
   await page.keyboard.press("Escape");
-  await expect(page.getByRole("heading", { name: "Describe the outing" })).toBeHidden();
+  await expect(page.getByRole("heading", { name: "Plan a pub crawl" })).toBeHidden();
   const documentStartedAt = await page.evaluate(() => performance.timeOrigin);
   await page.getByRole("navigation", { name: "Primary" }).getByRole("link", { name: "Tonight" }).click();
   await expect(page).toHaveURL(/\/tonight$/);
@@ -85,7 +86,7 @@ for (const theme of ["light", "dark"] as const) {
     await expect(page.getByRole("heading", { name: "London is ready." })).toBeVisible();
     await expect(page.getByText("Clapham", { exact: true })).toBeVisible();
     await expect(page.getByText("Victoria", { exact: true })).toBeVisible();
-    await expect(page.getByText("Piccadilly & Soho", { exact: true })).toBeVisible();
+    await expect(page.getByText("Canary Wharf", { exact: true })).toBeVisible();
     await expect(page.getByRole("navigation", { name: "Primary" })).toBeHidden();
     await expect(page.getByRole("dialog", { name: NATIVE_PUSH_PROMPT_COPY.title })).toHaveCount(0);
     await expectTouchTarget(page.getByRole("button", { name: "Use London" }));
@@ -107,11 +108,14 @@ for (const theme of ["light", "dark"] as const) {
   });
 }
 
-test("native first run hands one useful Plan to the contextual push ask", async ({ page }) => {
+test("native first run with analytics decided hands one useful Plan to the contextual push ask", async ({ page }) => {
   test.setTimeout(90_000);
   await page.setViewportSize(VIEWPORT);
   await page.emulateMedia({ reducedMotion: "reduce" });
   await installNativeShell(page);
+  // This case owns push eligibility. An unanswered analytics choice correctly
+  // spends the one-prompt budget and is covered by the consent journeys.
+  await page.addInitScript((key) => localStorage.setItem(key, "denied"), ANALYTICS_CONSENT_STORAGE_KEY);
   // Establish the app origin on an ordinary deep link before clearing state.
   // addInitScript runs for every document, so cleanup there would erase the
   // first-run marker on the second boot.
@@ -138,11 +142,8 @@ test("native first run hands one useful Plan to the contextual push ask", async 
   await expect.poll(() => page.evaluate(() => window.localStorage.getItem("pubmax:first-run-companion:v1"))).toBe("pigeon");
   await page.getByRole("button", { name: "Plan my night" }).click();
 
-  await expect(page).toHaveURL(/\/map\?plan=1$/);
-  await expect(page.getByRole("heading", { name: "Describe the outing" })).toBeVisible({ timeout: 30_000 });
-  await expect(page.getByRole("dialog", { name: NATIVE_PUSH_PROMPT_COPY.title })).toHaveCount(0);
-
-  await page.getByRole("button", { name: "Make a plan" }).click();
+  await expect(page).toHaveURL(/\/plan\?query=/);
+  await expect(page.getByText("Balanced plan", { exact: true })).toHaveCount(0);
   await expect.poll(() => page.evaluate(
     () => window.localStorage.getItem("pubmax:nativePush:actionSeq:v1"),
   )).toBe("1");
@@ -198,6 +199,7 @@ test("Skip releases onboarding budget for the next Plan but never prompts on reb
   test.setTimeout(90_000);
   await page.setViewportSize(VIEWPORT);
   await installNativeShell(page);
+  await page.addInitScript((key) => localStorage.setItem(key, "denied"), ANALYTICS_CONSENT_STORAGE_KEY);
   await installSuccessfulPlanRoute(page);
 
   await page.goto("/");
@@ -209,7 +211,7 @@ test("Skip releases onboarding budget for the next Plan but never prompts on reb
   )).toBeNull();
 
   await page.goto("/map?plan=1");
-  await expect(page.getByRole("heading", { name: "Describe the outing" })).toBeVisible({ timeout: 30_000 });
+  await expect(page.getByRole("heading", { name: "Plan a pub crawl" })).toBeVisible({ timeout: 30_000 });
   await page.getByRole("button", { name: "Make a plan" }).click();
   // The plan has to land before Escape: closing the planner mid-generation
   // drops the qualifying action, so no ask is armed for the next route.

@@ -1,4 +1,4 @@
-// Pubs people are talking about: the rows Tonight leads with.
+// Pubs Londoners keep recommending: the rows Tonight leads with.
 //
 // A row here is a pub somebody wrote about somewhere public, on a day we can
 // name, with the link still in the row. There is no crawl behind it and no
@@ -6,7 +6,7 @@
 // file into `public/data/hyped/london.json` and this module is the shape both
 // sides read.
 //
-// THREE RULES, and each one is a guard below rather than a note.
+// FOUR RULES, and each one is a guard below rather than a note.
 //
 //   1. A ROW WITHOUT A SOURCE IS NOT A ROW. Every row prints one credit, so a
 //      row carrying no dated http source is dropped rather than shown bare.
@@ -19,6 +19,12 @@
 //      sort the rows. Neither is ever printed: they are one researcher's
 //      reading of how loud a pub is, and a number on a screen reads as a
 //      measurement.
+//   4. A RECOMMENDATION IS NOT TONIGHT'S BUZZ, AND AN OLD ONE IS DROPPED.
+//      The rows are things people said on a day, sometimes months ago, so the
+//      heading never claims they are being said tonight (product owner,
+//      16 Oct 2026: "Checked 14 Aug" under a live label read as stale). A row
+//      whose freshest credit is older than `HYPED_PUB_FRESH_DAYS` leaves the
+//      page.
 
 import type { Route } from "next";
 import { isHttpUrl } from "@/lib/httpUrl";
@@ -30,6 +36,13 @@ export type HypedPubSource = {
   label: string;
   url: string;
   /** ISO instant the researcher read the page. */
+  observedAt: string;
+};
+
+/** The cheapest pint we list at the pub, and the day that price was read. */
+export type HypedPubListedPint = {
+  priceGbp: number;
+  /** ISO instant the price was last read at its source. */
   observedAt: string;
 };
 
@@ -46,6 +59,11 @@ export type HypedPub = {
   score: number;
   /** How many separate mentions the row was built from. Never printed. */
   mentions: number;
+  /**
+   * The pub's cheapest listed pint, joined by venue id from the same price
+   * dataset the cheapest-pints list reads. Absent when we hold no dated price.
+   */
+  listedPint?: HypedPubListedPint;
 };
 
 export type HypedPubsFile = {
@@ -59,8 +77,24 @@ export const EMPTY_HYPED_PUBS: HypedPubsFile = Object.freeze({
   rows: [],
 });
 
-/** What the lede says above the rows. */
-export const HYPED_PUBS_TITLE = "Pubs people are talking about";
+/**
+ * What the lede says above the rows. It names what the rows are: pubs people
+ * recommended in public, each on a day its card prints. It never claims they
+ * are tonight's talk.
+ */
+export const HYPED_PUBS_TITLE = "Pubs Londoners keep recommending";
+
+/**
+ * How old a row's freshest credit may be before the row leaves the page.
+ *
+ * About four months: long enough that a researched pack survives a season,
+ * short enough that a card never cites a thread from another time of year as
+ * the reason to go tonight. Measured from the render clock, so a held copy of
+ * a prerendered page drops a row within one revalidation of it ageing out.
+ */
+export const HYPED_PUB_FRESH_DAYS = 120;
+
+const DAY_MS = 86_400_000;
 
 /** What a row says when the pub is not in our own index yet. */
 export const HYPED_PUB_UNMATCHED_LINE = "Not on our map yet";
@@ -176,15 +210,94 @@ export function hypedPubMapHref(
   return `/map?sel=${encodeURIComponent(row.venueId)}`;
 }
 
-/** The loudest rows, each carrying only the credit its card prints. */
+/** True when the row's freshest credit is inside `HYPED_PUB_FRESH_DAYS` of `now`. */
+export function hypedPubIsFresh(row: HypedPub, now: Date | number): boolean {
+  const credit = hypedPubCredit(row);
+  if (!credit) return false;
+  const nowMs = typeof now === "number" ? now : now.getTime();
+  const observedMs = Date.parse(credit.observedAt);
+  if (!Number.isFinite(nowMs) || !Number.isFinite(observedMs)) return false;
+  return nowMs - observedMs <= HYPED_PUB_FRESH_DAYS * DAY_MS;
+}
+
+/** A priced venue as the page reads it, reduced to what a card prints. */
+export type HypedPubPriceCandidate = {
+  id: string;
+  cheapestPrice: number | null;
+  observedAt: string | null;
+};
+
+/**
+ * Index the price dataset by venue id. A figure with no read date is left out,
+ * because a listed price is a figure from a day and says so wherever it shows.
+ */
+export function hypedPubPriceIndex(
+  venues: readonly HypedPubPriceCandidate[],
+): Map<string, HypedPubListedPint> {
+  const index = new Map<string, HypedPubListedPint>();
+  for (const venue of venues) {
+    const price = venue.cheapestPrice;
+    if (typeof price !== "number" || !Number.isFinite(price) || price <= 0) continue;
+    if (!isDatedIso(venue.observedAt)) continue;
+    index.set(venue.id, { priceGbp: price, observedAt: venue.observedAt });
+  }
+  return index;
+}
+
+export type HypedPubsForPageOptions = {
+  /** The render clock. Rows older than the freshness window are dropped. */
+  now: Date | number;
+  limit?: number;
+  /** Listed pints by venue id. A matched row with a price carries it. */
+  prices?: ReadonlyMap<string, HypedPubListedPint>;
+};
+
+/**
+ * The loudest FRESH rows, each carrying only the credit its card prints and
+ * the listed pint we hold for it.
+ *
+ * Rows pinned to a venue take the page first, and an unpinned row only fills
+ * a place the pinned rows leave empty. A card that ends in "Not on our map
+ * yet" cannot be opened, so it must not hold a place a pub we can open could
+ * take (site review, 18 Oct 2026, over Simmons on `/tonight`). The pack keeps
+ * every row; only the page's choice of twelve changes.
+ */
 export function hypedPubsForPage(
   rows: readonly HypedPub[],
-  limit: number = HYPED_PUBS_PAGE_LIMIT,
+  { now, limit = HYPED_PUBS_PAGE_LIMIT, prices }: HypedPubsForPageOptions,
 ): HypedPub[] {
-  return orderHypedPubs(rows)
+  const fresh = orderHypedPubs(rows).filter((row) => hypedPubIsFresh(row, now));
+  return [...fresh.filter((row) => row.venueId), ...fresh.filter((row) => !row.venueId)]
     .slice(0, Math.max(0, Math.floor(limit)))
     .map((row) => {
       const credit = hypedPubCredit(row);
-      return { ...row, sources: credit ? [credit] : [] };
+      const listedPint = row.venueId ? prices?.get(row.venueId) : undefined;
+      const page: HypedPub = {
+        name: row.name,
+        area: row.area,
+        venueId: row.venueId,
+        whyLine: row.whyLine,
+        sources: credit ? [credit] : [],
+        score: row.score,
+        mentions: row.mentions,
+      };
+      return listedPint ? { ...page, listedPint } : page;
     });
+}
+
+/**
+ * Pubs the map can open first, then the ones we have not got yet, each half
+ * keeping the file's order. A card saying "Not on our map yet" is honest, but
+ * it is not the card to lead with.
+ */
+export function hypedPubsMapFirst(
+  rows: readonly HypedPub[],
+  selectable: ReadonlySet<string> | null | undefined,
+): HypedPub[] {
+  const onMap: HypedPub[] = [];
+  const offMap: HypedPub[] = [];
+  for (const row of rows) {
+    (hypedPubMapHref(row, selectable) ? onMap : offMap).push(row);
+  }
+  return [...onMap, ...offMap];
 }

@@ -36,6 +36,7 @@ import type { DrinkWallCategory } from "@/lib/venuePhotos";
 import type { PublicSocialConnection } from "@/lib/socialConnections";
 import type { VisitReportDTO } from "@/lib/visitReports";
 import type { DiaryEntryDTO } from "@/lib/diary";
+import type { VenueSubmissionFileKind, VenueSubmissionPublicFields } from "@/lib/venueSubmissions";
 import type { WantedDTO } from "@/lib/wanted";
 
 /** The export document's version, bumped when a field changes meaning. */
@@ -119,10 +120,24 @@ export type AccountExportSocialPost = {
   hashtags: string[];
   commentPolicy: string;
   photo: { mediaId: string; altText: string } | null;
+  /** The account's own score for the pub the post names (ADR 0017), or null. */
+  review: { rating: number } | null;
+  /** Photos 2 to 4, named by id, description and check state, never by bytes. */
+  extraPhotos: Array<{ mediaId: string; slot: number; altText: string; moderationState: string }>;
+  /** The post's video, named by its state rather than its bytes, or null. */
+  video: { contentType: string; durationSeconds: number | null; reviewState: string } | null;
   /** `pending`, `approved` or `needs_review`: where the moderation lane last left it. */
   moderationState: string;
   createdAt: string;
   editedAt: string | null;
+};
+
+/** One pub in the account's own compared order (migration 0186). */
+export type AccountExportPubRanking = {
+  venueId: string;
+  band: string;
+  place: number;
+  score: number;
 };
 
 /** One crowd reading this account gave for a pub. */
@@ -233,6 +248,11 @@ export type AccountExportConversation = {
   messages: AccountExportMessage[];
 };
 
+/** A pub the account added. The owner and the stored file keys stay out: the file is the account's, the key is ours. */
+export type AccountExportVenueSubmission = VenueSubmissionPublicFields & {
+  files: { kind: VenueSubmissionFileKind; byteSize: number; createdAt: string }[];
+};
+
 export type AccountExportLane<T> = {
   status: AccountExportLaneStatus;
   /** True when the lane cap bit, so `items` is a window rather than the whole. */
@@ -268,6 +288,10 @@ export type AccountExport = {
   wanted: AccountExportLane<WantedDTO>;
   /** The account's own diary: private visits, each with its day and optional half-star rating. */
   diary: AccountExportLane<DiaryEntryDTO>;
+  /** The account's own pub order, built by comparing pubs: band, place and the 0-10 it derives. */
+  pubRankings: AccountExportLane<AccountExportPubRanking>;
+  /** Pubs the account added, with their prices and what each menu file was. */
+  venueSubmissions: AccountExportLane<AccountExportVenueSubmission>;
   socialLinks: AccountExportLane<PublicSocialConnection>;
   /** At most one row, the same way `identity` is. */
   nightProfile: AccountExportLane<NightProfile>;
@@ -291,6 +315,8 @@ export const ACCOUNT_EXPORT_LANES = [
   "savedPubs",
   "wanted",
   "diary",
+  "pubRankings",
+  "venueSubmissions",
   "socialLinks",
   "nightProfile",
   "messages",

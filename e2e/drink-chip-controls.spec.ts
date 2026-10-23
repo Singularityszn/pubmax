@@ -1,7 +1,8 @@
 import { expect, test, type Locator, type Page } from "@playwright/test";
 
-import { installDeterministicMapBasemap } from "./helpers/mapNetworkFixtures";
-import { priceBandLegendLabel } from "../lib/priceBand";
+import { installDeterministicMapBasemap } from "@/e2e/helpers/mapNetworkFixtures";
+import { priceBandLegendLabel } from "@/lib/priceBand";
+import { mobileMapShellControl } from "@/e2e/helpers/mobileMapShell";
 
 const VIEWPORT = { width: 390, height: 844 };
 const CHIP_LABELS = ["Beer", "Wine", "Cocktails", "Whisky", "Gin", "Rum", "Coffee", "Alcohol-free", "Soft drinks"];
@@ -278,10 +279,7 @@ for (const width of [390, 320]) {
     await expect(
       page.getByRole("group", { name: "Venue types" }),
     ).toHaveCount(0);
-    await page
-      .locator(".mobileMapTopbar")
-      .getByRole("button", { name: /^Filters/ })
-      .click();
+    await (await mobileMapShellControl(page, "filters")).click();
     const filtersSheet = page.locator(
       '.mobileSheetPortal[data-sheet-kind="filters"]',
     );
@@ -378,15 +376,11 @@ for (const width of [390, 320]) {
   });
 }
 
-test("390px the lens narrows which venue types the sheet offers", async ({
+test("390px food and All views retain the four venue kinds and explicit exclusions", async ({
   page,
 }) => {
   test.setTimeout(90_000);
-  // This test used to pin the `Clubs` chip's reason tooltip appearing and
-  // disappearing with the lens. The chip is deleted (walk finding B9), but what
-  // it was riding on is still worth holding: the experience lens decides WHICH
-  // venue types the sheet offers, and a kind the lens rules out must not be
-  // reachable behind it.
+  // Every lens keeps the same four venue kinds reachable.
   const sheet = await openFilters(page);
   const arc = sheet.getByRole("group", { name: "Venue types" });
   await expect(arc).toBeVisible({ timeout: 45_000 });
@@ -399,17 +393,27 @@ test("390px the lens narrows which venue types the sheet offers", async ({
 
   expect(await labels()).toEqual(["Pints", "Bars", "Food", "Restaurants"]);
 
-  // The food view offers the two food kinds and nothing else, which is the
-  // same set `offeredVenueKinds` counts on the closed control.
+  await arc.getByRole("button", { name: "Bars", exact: true }).click();
+  await expect(arc.getByRole("button", { name: "Bars", exact: true })).toHaveAttribute("aria-pressed", "false");
+
+  // Food includes pubs and bars with food, alongside the two food kinds.
   await mapView.getByRole("button", { name: "Food", exact: true }).click();
   await expect
     .poll(async () => labels(), { timeout: 20_000 })
-    .toEqual(["Food", "Restaurants"]);
+    .toEqual(["Pubs", "Bars", "Food", "Restaurants"]);
+  await expect(mapView.getByRole("button", { name: "Food", exact: true })).toHaveAttribute("aria-pressed", "true");
+  await arc.getByRole("button", { name: "Pubs", exact: true }).click();
+  await expect(arc.getByRole("button", { name: "Pubs", exact: true })).toHaveAttribute("aria-pressed", "false");
 
   await mapView.getByRole("button", { name: "All", exact: true }).click();
   await expect
     .poll(async () => labels(), { timeout: 20_000 })
     .toEqual(["Pints", "Bars", "Food", "Restaurants"]);
+  // All restores its original kind snapshot rather than the temporary Food choices.
+  await expect(arc.getByRole("button", { name: "Pints", exact: true })).toHaveAttribute("aria-pressed", "true");
+  await expect(arc.getByRole("button", { name: "Bars", exact: true })).toHaveAttribute("aria-pressed", "false");
+  await arc.getByRole("button", { name: "Bars", exact: true }).click();
+  await expect(arc.getByRole("button", { name: "Bars", exact: true })).toHaveAttribute("aria-pressed", "true");
 });
 
 for (const width of [390, 320]) {
@@ -439,7 +443,7 @@ for (const width of [390, 320]) {
     await expect(fullCredit).toContainText("OpenMapTiles");
     await expect(fullCredit).toContainText("Data from OpenStreetMap");
 
-    await expect(page.getByRole("button", { name: "Describe the outing" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Plan a pub crawl" })).toBeVisible();
     const geometry = await page.evaluate(() => {
       const attributionElement = document.querySelector<HTMLElement>(
         ".maplibregl-ctrl-attrib",
@@ -491,11 +495,11 @@ for (const width of [390, 320]) {
     await installDeterministicMapBasemap(page);
     const response = await page.goto("/map");
     expect(response?.status()).toBe(200);
-    await expect(page.getByRole("button", { name: "Describe the outing" })).toBeVisible({
+    await expect(page.getByRole("button", { name: "Plan a pub crawl" })).toBeVisible({
       timeout: 45_000,
     });
 
-    await page.getByRole("button", { name: "More map controls" }).click();
+    await (await mobileMapShellControl(page, "more")).click();
     const credits = page.locator(".mobileMapCredits");
     await expect(credits).toBeVisible({ timeout: 20_000 });
     await expect(credits).toContainText("Pub data © OpenStreetMap contributors (ODbL)");
@@ -650,8 +654,8 @@ test("390px More map controls credits the active CARTO fallback", async ({ page 
   await installDeterministicMapBasemap(page);
   await page.route(/^https:\/\/tiles\.openfreemap\.org\/styles\//, (route) => route.abort("failed"));
   await page.goto("/map");
-  await expect(page.getByRole("button", { name: "Describe the outing" })).toBeVisible({ timeout: 45_000 });
-  await page.getByRole("button", { name: "More map controls" }).click();
+  await expect(page.getByRole("button", { name: "Plan a pub crawl" })).toBeVisible({ timeout: 45_000 });
+  await (await mobileMapShellControl(page, "more")).click();
   const credits = page.locator(".mobileMapCredits");
   await expect(credits).toContainText("CARTO", { timeout: 20_000 });
   await expect(credits).toContainText("Pub data © OpenStreetMap contributors (ODbL)");

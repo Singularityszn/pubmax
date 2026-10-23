@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import {
   freshestCommunityPrice,
+  freshestPintByVenue,
   freshestPintPrice,
   validateCommunityPrice,
   type CommunityPrice,
@@ -204,6 +205,11 @@ export type CommunityPricesState = {
     /** The photo of the bill. Required on every new price (captain 7 Sept
      *  2026); the route refuses the write without it. */
     receiptPhoto?: File | null;
+    /**
+     * Which soft drink the figure is about. Only a London fast-food counter
+     * asks it (lib/londonFoodPlaces.ts), and only a soft-drink price carries it.
+     */
+    drinkSubtype?: string;
   }, auth: AccountAuthSnapshot) => Promise<CommunityPriceSubmitResult>;
   /** Log one categorical pub observation through the same write seam. */
   submitVenueSignal: (input: {
@@ -1068,6 +1074,9 @@ export function useCommunityPrices(): CommunityPricesState {
             ...(drinkCategory === "beer"
               ? { measure, ...(measureLabel ? { measureLabel } : {}) }
               : {}),
+            ...(drinkCategory === "soft-drink" && input.drinkSubtype
+              ? { drinkSubtype: input.drinkSubtype }
+              : {}),
           },
           pintPhoto || receiptPhoto ? { pintPhoto, receiptPhoto } : undefined,
         );
@@ -1288,15 +1297,23 @@ export function useCommunityPrices(): CommunityPricesState {
   }, [reportedIds]);
 
   // The freshest beer observation per venue - what a pin can carry. Derived,
-  // never stored, so it can't drift from the per-category lists.
-  const freshestByVenueId = useMemo(() => {
-    const freshest = new Map<string, CommunityPrice>();
-    for (const [venueId, rows] of byVenueId) {
-      const top = freshestPintPrice(rows);
-      if (top) freshest.set(venueId, top);
-    }
-    return freshest;
-  }, [byVenueId]);
+  // never stored, so it can't drift from the per-category lists. The previous
+  // answer is kept when nothing a pin carries changed (freshestPintByVenue), so
+  // opening a pub with no new pint price does not rebuild every pin.
+  // The previous answer is held in a closure, not in state: a state write
+  // during render made React run the whole map component a second time on
+  // every price read (map-selection-inp).
+  const [freshestFor] = useState(() => {
+    let previous: Map<string, CommunityPrice> | null = null;
+    return (rows: Map<string, CommunityPrice[]>) => {
+      previous = freshestPintByVenue(rows, previous);
+      return previous;
+    };
+  });
+  const freshestByVenueId = useMemo(
+    () => freshestFor(byVenueId),
+    [byVenueId, freshestFor],
+  );
 
   return {
     byVenueId,

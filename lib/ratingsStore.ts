@@ -35,6 +35,7 @@ import {
   admin,
   createSchemaMissWarner,
   missingTables,
+  onMissingDurableWrite,
   selectStore,
 } from "@/lib/storeBackend";
 
@@ -155,7 +156,13 @@ const supabaseRatingsStore: RatingsStore = {
     } catch (err) {
       if (isMissingRatingsSchema(err)) {
         warnSchemaMiss("rate", err);
-        return memoryRatingsStore.rate(input);
+        // Off production only: a rating held in one instance's memory is gone
+        // on the next cold start, so production refuses instead of answering 200.
+        return onMissingDurableWrite({
+          storeTag: "ratings",
+          migrationHint: "apply the ratings migration",
+          fallback: () => memoryRatingsStore.rate(input),
+        });
       }
       throw err;
     }

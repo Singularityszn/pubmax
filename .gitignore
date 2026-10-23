@@ -37,6 +37,7 @@ scripts/__pycache__/
 test-results/
 playwright-report/
 evals/pal/scoreboard/
+evals/pal/memory/scoreboard/
 evals/askRouterModel/scoreboard/
 artifacts/
 .tmp-evidence/
@@ -74,7 +75,10 @@ scratch-*.mjs
 !.cursor/mcp.json
 # Project skills live only under .agents/skills/. The machine-wide set is
 # ~/.agents/skills. .cursor/skills/ is not a second project skill root.
-.claude/
+# .claude/skills is the one tracked entry under .claude/: a symlink to
+# ../.agents/skills so Claude Code loads the same skills, never a copy.
+.claude/*
+!.claude/skills
 .mcp.json
 .playwright-mcp/
 skills-lock.json
@@ -135,6 +139,8 @@ notes.md
 PR_TITLE_AND_BODY.json
 CHECK_SUMMARY.json
 EXIT.json
+/findings.json
+/review-results.json
 
 # Playwright screenshots written by the Tonight trusted-UI specs. The specs
 # create the directory themselves and overwrite every file on each run, so a

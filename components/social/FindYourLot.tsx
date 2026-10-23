@@ -28,7 +28,6 @@ import { displayHandle } from "@/lib/handleDisplay";
 import { normalizeHandle } from "@/lib/profiles";
 import { useSocialFriendsLaunch } from "@/lib/useSocialFriendsLaunch";
 import { useViewerHandle } from "@/components/auth/useViewerHandle";
-import Kicker from "@/components/ui/kicker";
 
 import "./findYourLot.css";
 
@@ -259,7 +258,6 @@ export default function FindYourLot({
       className={compact ? "findLot findLot--compact" : "findLot"}
       aria-labelledby="find-lot-title"
     >
-      <Kicker tone="muted">Your lot</Kicker>
       <h2 id="find-lot-title" className="findLot__title">
         Find your lot
       </h2>
@@ -342,16 +340,14 @@ export default function FindYourLot({
                 {isSelf ? (
                   <span className="findLot__self">You</span>
                 ) : !viewer ? (
-                  viewerSession.unresolved ? null : (
-                    <Link
-                      className="findLot__ghost"
-                      href={viewerSession.signedIn ? "/u/you" : "/login"}
-                    >
-                      {viewerSession.signedIn
-                        ? "Claim a handle to follow"
-                        : "Sign in to follow"}
+                  // A stranger is not offered a sign-in door on every row: the
+                  // page they are on already carries the one door. A signed-in
+                  // drinker with no handle yet is told the one thing missing.
+                  viewerSession.signedIn ? (
+                    <Link className="findLot__ghost" href="/u/you">
+                      Claim a handle to follow
                     </Link>
-                  )
+                  ) : null
                 ) : (
                   <button
                     type="button"
@@ -387,16 +383,11 @@ export default function FindYourLot({
           >
             {inviteBusy ? "Minting…" : "Get invite link"}
           </button>
-        ) : viewerSession.unresolved ? null : (
-          <Link
-            className="findLot__follow"
-            href={viewerSession.signedIn ? "/u/you" : "/login"}
-          >
-            {viewerSession.signedIn
-              ? "Claim a handle to invite"
-              : "Sign in to invite"}
+        ) : viewerSession.signedIn ? (
+          <Link className="findLot__follow" href="/u/you">
+            Claim a handle to invite
           </Link>
-        )}
+        ) : null}
         {shareSelf ? (
           <Link className="findLot__ghost" href={`/add/${encodeURIComponent(viewer)}`}>
             Share your add link

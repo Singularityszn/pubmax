@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
 
 import SiteNav from "@/components/nav/SiteNav";
+import RoundCodeJoin from "@/components/round/RoundCodeJoin";
 import RoundStarter from "@/components/round/RoundStarter";
-import EmptyState from "@/components/ui/empty-state";
 import Screen from "@/components/ui/screen";
 
 import "./[code]/round.css";
@@ -14,7 +14,7 @@ import "./[code]/round.css";
 // the starter takes a handle, so a signed-out visitor is never turned away.
 
 export const metadata: Metadata = {
-  title: "Rounds · PUBMAXXING",
+  title: "Rounds",
   description: "Start a round and share the code, or join one from a share link.",
   robots: { index: false, follow: false },
 };
@@ -31,11 +31,11 @@ export default function RoundsIndex(): React.JSX.Element {
         title="Who bought the last round."
         titleId="rounds-title"
       >
-        <RoundStarter primaryAction />
-        <EmptyState title="Join with a link">
-          A round opens from the link whoever started it sent you
-          (pubmaxxing.com/rounds/…). Got a code? Add it to that link.
-        </EmptyState>
+        {/* The start form IS the page: no card, no second title under the
+            head. Its submit is the one primary; opening a code a mate read out
+            is the quiet secondary under it (docs/design/LAUNCH_SCREENS.md). */}
+        <RoundStarter primaryAction bare />
+        <RoundCodeJoin />
       </Screen>
     </main>
   );

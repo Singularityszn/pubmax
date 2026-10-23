@@ -122,14 +122,14 @@ describe("home card copy", () => {
     expect(hero).toBe("What a pint costs, pub by pub.");
     expect(landing).toContain("What a pint costs, pub by pub.");
 
-    const { LONDON_MAP_PUB_COUNT } = await import(
+    const { HISTORIC_PUB_COUNT } = await import(
       "@/components/landing/londonMapGeometry"
     );
     expect(landing.replace(/\s+/g, " ")).toContain(
-      "London on one map, with ${LONDON_MAP_PUB_COUNT} historic pubs marked and a listed price wherever we hold one.",
+      "London on one map, with ${HISTORIC_PUB_COUNT} historic pubs cited and a listed price wherever we hold one.",
     );
     expect(HOME_CARD_SUPPORT.split(". ")[0]).toBe(
-      `London on one map, with ${LONDON_MAP_PUB_COUNT} historic pubs marked and a listed price wherever we hold one`,
+      `London on one map, with ${HISTORIC_PUB_COUNT} historic pubs cited and a listed price wherever we hold one`,
     );
   });
 
@@ -165,10 +165,10 @@ describe("home card copy", () => {
 describe("home card brand", () => {
   it("draws the site header's wordmark, not a boxed mark", () => {
     const markup = renderToStaticMarkup(Wordmark({}));
-    // PUBMA + the doubled hero + ING, exactly as components/brand/
-    // PubmaxxWordmark splits it.
+    // PUBMA + the doubled hero: the card reads PUBMAXX, the one product
+    // name, and never PUBMAXXING.
     expect(markup).toContain("PUBMA");
-    expect(markup).toContain("ING");
+    expect(markup).not.toContain("ING");
     // Two glyphs, the second tinted coral, and no ember: these are letterforms.
     expect(markup.match(/<svg/g)).toHaveLength(2);
     expect(markup).toContain("#ff5a5f");

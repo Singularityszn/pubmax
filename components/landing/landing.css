@@ -61,26 +61,31 @@ body:has(.lp) {
   align-items: center;
   gap: 9px;
   color: var(--ink);
-  font: 750 15px/1 var(--font-display);
-  letter-spacing: -.02em;
+  font: 750 1.02rem/1 var(--font-display);
+  letter-spacing: -.025em;
   text-decoration: none;
 }
 
 .lpWordmark .pubmaxxWordmark { max-width: 100%; }
 
-.lpPrimaryNav { display: flex; justify-content: center; align-items: center; gap: 2px; }
+.lpPrimaryNav { display: flex; justify-content: flex-start; align-items: center; gap: 2px; }
 .lpPrimaryNav a {
   min-height: 44px;
-  padding: 0 13px;
+  padding: 0 12px;
   display: inline-flex;
   align-items: center;
   border-radius: var(--radius-pill);
   color: var(--ink-soft);
-  font-size: 13px;
-  font-weight: 650;
+  font-size: var(--text-sm);
+  font-weight: 600;
   text-decoration: none;
 }
-.lpPrimaryNav a:hover { color: var(--ink); background: var(--panel); }
+@media (hover: hover) and (pointer: fine) {
+  .lpPrimaryNav a:hover {
+    color: var(--ink);
+    background: var(--panel);
+  }
+}
 .lpNavActions { display: flex; align-items: center; gap: 7px; }
 
 .lp :where(a, button):focus-visible { outline: 3px solid var(--brass); outline-offset: 3px; }
@@ -122,14 +127,19 @@ body:has(.lp) {
    the grid starts under the nav rather than floating at the vertical centre.
    Both grids share one column template, so the rail lines up under the
    answer. The head's third row is the flexible one, so the answer's height
-   never opens the gap between the kicker and the heading. */
+   never opens the gap between the kicker and the heading.
+
+   Beneath the head, the pub card takes the left column under the copy and
+   the rail the right one under the picture. Both used to stack in the right
+   column, so the left sat empty for some 700px under four lines of copy
+   while the page ran on down the right. DOM order (the phone order) is
+   untouched: this is grid areas only, never `order`. */
 @media (min-width: 960px) {
   .lpHero {
     grid-template-columns: minmax(0, 1.05fr) minmax(0, .95fr);
     grid-template-areas:
       "head head"
-      ". card"
-      ". rail";
+      "card rail";
     column-gap: clamp(28px, 4vw, 56px);
     row-gap: var(--space-4);
     align-content: start;
@@ -189,7 +199,7 @@ body:has(.lp) {
 .lpPubCard--photo {
   position: relative;
   isolation: isolate;
-  background: var(--ink-deep, #0c0a09);
+  background: var(--ink-deep);
 }
 
 /* The credit the licence requires, as the card's own last line rather than a
@@ -220,31 +230,27 @@ body:has(.lp) {
 }
 
 .lpPubCard--photo .lpPubName a { color: var(--landing-photo-ink); }
-.lpPubCard--photo .lpPubName a:hover { color: var(--landing-photo-ink); }
-.lpPubCard--photo a.lpPubPint:hover,
-.lpPubCard--photo .lpPubSource a:hover,
-.lpPubCard--photo .lpPubThenSource a:hover { color: var(--landing-photo-ink); }
+@media (hover: hover) and (pointer: fine) {
+  .lpPubCard--photo .lpPubName a:hover {
+    color: var(--landing-photo-ink);
+  }
+  .lpPubCard--photo a.lpPubPint:hover,
+  .lpPubCard--photo .lpPubSource a:hover,
+  .lpPubCard--photo .lpPubThenSource a:hover {
+    color: var(--landing-photo-ink);
+  }
+}
 
 .lpPubCard--photo .lpPubThen { border-top-color: rgb(251 249 246 / 0.22); }
 
-/* The standing chip and the location control carry their own surfaces so they
-   read against the photograph rather than against the page they came from. */
+/* The standing chip carries its own surface so it reads against the
+   photograph rather than against the page it came from. */
 .lpPubCard--photo .lpStanding {
   background: rgb(251 249 246 / 0.14);
   color: var(--landing-photo-ink);
 }
 .lpPubCard--photo .lpStandingDot { background: var(--landing-photo-ink-soft); }
 
-.lpPubCard--photo .lpNearMe {
-  border-color: rgb(251 249 246 / 0.4);
-  color: var(--landing-photo-ink);
-}
-.lpPubCard--photo .lpNearMe:hover {
-  border-color: var(--landing-photo-ink);
-  background: rgb(251 249 246 / 0.12);
-}
-.lpPubCard--photo .lpNearMe:disabled { color: var(--landing-photo-ink-soft); }
-.lpPubCard--photo .lpNearMe svg { color: var(--landing-photo-ink); }
 
 
 .lpPubName {
@@ -255,7 +261,13 @@ body:has(.lp) {
 /* The pub's name is the card's one link, so it takes the 44px tap floor the
    phone chrome measures against, without growing the line the eye reads. */
 .lpPubName a { display: inline-flex; align-items: center; min-height: 44px; color: var(--ink); text-decoration: none; }
-.lpPubName a:hover { color: var(--brass); text-decoration: underline; text-underline-offset: 4px; }
+@media (hover: hover) and (pointer: fine) {
+  .lpPubName a:hover {
+    color: var(--ink);
+    text-decoration: underline;
+    text-underline-offset: 4px;
+  }
+}
 
 .lpPubPrice {
   margin: var(--space-1) 0 0;
@@ -268,7 +280,11 @@ body:has(.lp) {
 .lpPubPrice .priceBadge { font-size: var(--text-lg); min-block-size: 2.4rem; padding-inline: .7rem; }
 .lpPubPint { color: var(--ink-soft); font-size: var(--text-base); }
 a.lpPubPint { text-decoration: underline; text-underline-offset: 3px; }
-a.lpPubPint:hover { color: var(--ink); }
+@media (hover: hover) and (pointer: fine) {
+  a.lpPubPint:hover {
+    color: var(--ink);
+  }
+}
 
 .lpPubSource {
   margin: 0;
@@ -287,7 +303,12 @@ a.lpPubPint:hover { color: var(--ink); }
   text-decoration: underline;
   text-underline-offset: 3px;
 }
-.lpPubSource a:hover, .lpPubThenSource a:hover { color: var(--ink); }
+@media (hover: hover) and (pointer: fine) {
+  .lpPubSource a:hover,
+  .lpPubThenSource a:hover {
+    color: var(--ink);
+  }
+}
 
 /* The standing chip: the word lib/priceTier.ts gives the row, and the word
    alone. It wears no tone, because colour on this card is the price BAND's
@@ -335,12 +356,16 @@ a.lpPubPint:hover { color: var(--ink); }
   align-items: center;
   gap: 7px;
   color: var(--ink);
-  font-size: 14px;
+  font-size: var(--text-sm);
   font-weight: 700;
   text-decoration: underline;
   text-underline-offset: 5px;
 }
-.lpTextLink:hover { color: var(--brass); }
+@media (hover: hover) and (pointer: fine) {
+  .lpTextLink:hover {
+    color: var(--ink);
+  }
+}
 
 /* ── The prose sections: one column of copy, no card, no grid ───────────── */
 
@@ -350,12 +375,22 @@ a.lpPubPint:hover { color: var(--ink); }
   margin: 0 auto;
   padding: clamp(56px, 8vw, 104px) 0 clamp(24px, 3vw, 40px);
 }
-.lpWorth h2,
-.lpFaqTitle {
+.lpWorth h2 {
   max-width: 16ch;
   margin: 0;
   font: 700 clamp(2rem, 4.2vw, 3.25rem)/1 var(--font-display);
   letter-spacing: -.04em;
+  text-wrap: balance;
+}
+/* A section title, not a second hero: the claim at the top is the page's one
+   display line, so the questions take the h2 step (--text-xl). */
+.lpFaqTitle {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: var(--text-xl);
+  font-weight: 700;
+  line-height: var(--leading-tight);
+  letter-spacing: var(--tracking-tight);
   text-wrap: balance;
 }
 .lpWorth p,
@@ -363,11 +398,16 @@ a.lpPubPint:hover { color: var(--ink); }
   max-width: 36rem;
   margin: var(--space-4) 0 0;
   color: var(--ink-soft);
-  font-size: 17px;
+  font-size: var(--text-base);
   line-height: 1.6;
   text-wrap: pretty;
 }
 .lpWorth .lpTextLink { margin-top: var(--space-3); }
+/* A stranger has no saving of their own, so the band is the map link alone.
+   With the band's section padding it floated between two blank strips, about
+   100px each at 1440, orphaned from both. It follows the answers above it. */
+.lpWorth:not(:has(> .lpSaved, > p, > h2)) { padding-block: var(--space-3) 0; }
+.lpWorth:not(:has(> .lpSaved, > p, > h2)) > .lpTextLink { margin-top: 0; }
 
 /* ── Pint Drops strip ───────────────────────────────────────────────────── */
 
@@ -376,30 +416,29 @@ a.lpPubPint:hover { color: var(--ink); }
   margin: 0 auto;
   padding: clamp(24px, 4vw, 56px) 0;
 }
+/* An empty or failed feed renders nothing, and the band goes with it rather
+   than leaving its padding behind as a blank gap. */
+.lpDrops:empty { display: none; }
 .dropStripHead { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; }
-.dropStripHead .eyebrow { margin: 0; display: flex; align-items: center; gap: 7px; color: var(--ink); font-size: 13px; font-weight: 700; }
-.dropStripHint { color: var(--ink-soft); font: 550 10px/1 var(--font-data); }
+.dropStripHead .eyebrow { margin: 0; display: flex; align-items: center; gap: 7px; color: var(--ink); font-size: var(--text-sm); font-weight: 700; }
+.dropStripHint { color: var(--ink-soft); font: 550 10px/1 var(--font-body); }
 .dropStripRail { margin: 0; padding: 0 0 10px; display: grid; grid-auto-flow: column; grid-auto-columns: minmax(260px, 1fr); gap: 12px; overflow-x: auto; touch-action: pan-x pan-y; overscroll-behavior-x: contain; list-style: none; scroll-snap-type: x proximity; scrollbar-width: thin; }
 /* The skeleton is decoration behind aria-hidden, so it must not be a scroll
    container a keyboard could never reach: it shows four placeholder cards and
    nothing past them. */
-.dropStripRailStatic { overflow-x: hidden; }
 /* The rail is a tab stop (PintDropStrip.tsx), so it wears the same ring every
    other focusable thing on this page does. */
 .dropStripRail:focus-visible { outline: 3px solid var(--brass); outline-offset: 3px; }
 .dropStripCard { min-height: 210px; padding: 20px; display: flex; flex-direction: column; scroll-snap-align: start; border-radius: var(--radius-lg); background: var(--panel-raised); box-shadow: var(--shadow-sm); }
 .dropStripTop { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; }
-.dropStripWho { color: var(--ink-soft); font: 600 11px/1 var(--font-data); }
+.dropStripLead { display: inline-flex; align-items: center; gap: 8px; min-width: 0; }
+.dropStripWho { color: var(--ink-soft); font: 600 11px/1 var(--font-body); }
 .dropStripPrice { flex: 0 0 auto; }
-.dropStripNote { margin: 25px 0 18px; color: var(--ink); font-size: 14px; line-height: 1.55; }
+.dropStripNote { margin: 25px 0 18px; color: var(--ink); font-size: var(--text-sm); line-height: 1.55; }
 .dropStripMeta { margin-top: auto; display: flex; align-items: center; justify-content: space-between; gap: 8px; }
-.dropStripEra, .provChip { color: var(--ink-soft); font: 600 9px/1 var(--font-data); }
+.dropStripEra, .provChip { color: var(--ink-soft); font: 600 9px/1 var(--font-body); }
 .provChip { padding: 5px 7px; border-radius: var(--radius-pill); background: var(--badge-surface); }
 .dropStripEmpty { padding: 24px; border-block: 1px solid var(--line); color: var(--ink-soft); }
-.dropStripCardSkeleton { gap: 15px; }
-.skelLine { height: 10px; border-radius: var(--radius-pill); background: var(--line-soft); animation: lpSkeleton var(--duration-ambient) ease-in-out infinite alternate; }
-.skelLineTop { width: 45%; height: 18px; }.skelLineShort { width: 62%; }
-@keyframes lpSkeleton { to { opacity: .42; } }
 
 /* ── Footer: directory, disclosure, small print ─────────────────────────── */
 
@@ -407,27 +446,43 @@ a.lpPubPint:hover { color: var(--ink); }
 .lpFooterInner { width: min(var(--lp-max), 100%); margin: 0 auto; display: grid; grid-template-columns: 1.3fr 1fr; gap: clamp(40px, 6vw, 92px); }
 .lpFooterBrand { max-width: 520px; }
 .lpFooterBrand .lpWordmark { color: var(--ink); }
-.lpFooterProvenance { margin: 20px 0 0; max-width: 640px; color: var(--ink-soft); font-size: 14px; line-height: 1.55; text-wrap: pretty; }
+.lpFooterProvenance { margin: 20px 0 0; max-width: 640px; color: var(--ink-soft); font-size: var(--text-sm); line-height: 1.55; text-wrap: pretty; }
 .lpFooterNav { display: grid; grid-template-columns: 1fr 1fr; gap: 28px; }
 .lpFooterCol { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; }
-.lpFooterCol h2 { margin: 0 0 8px; color: var(--muted); font: 650 12px/1 var(--font-data); letter-spacing: .04em; }
-.lpFooterCol a { min-width: 44px; min-height: 44px; display: inline-flex; align-items: center; color: var(--ink-soft); font-size: 15px; font-weight: 600; text-decoration: none; }
-.lpFooterCol a:hover { color: var(--ink); }
+.lpFooterCol h2 { margin: 0 0 8px; color: var(--muted); font: 650 12px/1 var(--font-body); letter-spacing: .01em; }
+.lpFooterCol a { min-width: 44px; min-height: 44px; display: inline-flex; align-items: center; color: var(--ink-soft); font-size: var(--text-base); font-weight: 600; text-decoration: none; }
+@media (hover: hover) and (pointer: fine) {
+  .lpFooterCol a:hover {
+    color: var(--ink);
+  }
+}
 .lpFooterBase { width: min(var(--lp-max), 100%); margin: clamp(32px, 5vw, 56px) auto 0; padding-top: 24px; border-top: 1px solid var(--line); display: flex; flex-direction: column; gap: 14px; }
 .lpFooterSmallPrint { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 18px; }
-.lpFooterSmallPrint a { min-height: 44px; display: inline-flex; align-items: center; color: var(--ink-soft); font: 650 12px/1 var(--font-data); letter-spacing: .04em; text-decoration: none; }
-.lpFooterSmallPrint a:hover { color: var(--ink); }
-.lpFooterCredit { margin: 0; color: var(--ink-soft); font: 650 12px/1.4 var(--font-data); letter-spacing: .02em; }
-.lpFooterLegal { margin: 0; color: var(--muted); font: 550 12px/1.4 var(--font-data); }
+.lpFooterSmallPrint a { min-height: 44px; display: inline-flex; align-items: center; color: var(--ink-soft); font: 650 12px/1 var(--font-body); letter-spacing: .01em; text-decoration: none; }
+@media (hover: hover) and (pointer: fine) {
+  .lpFooterSmallPrint a:hover {
+    color: var(--ink);
+  }
+}
+.lpFooterCredit { margin: 0; color: var(--ink-soft); font: 650 12px/1.4 var(--font-body); }
+.lpFooterLegal { margin: 0; color: var(--muted); font: 550 12px/1.4 var(--font-body); }
 /* The drinkaware link takes the footer's own ink, never the browser's blue. */
 .lpFooterLegal a { display: inline-flex; align-items: center; min-height: 44px; color: inherit; text-decoration: underline; text-underline-offset: 2px; vertical-align: middle; }
-.lpFooterLegal a:hover { color: var(--ink); }
+@media (hover: hover) and (pointer: fine) {
+  .lpFooterLegal a:hover {
+    color: var(--ink);
+  }
+}
 
 
 /* Desktop width: prose sections and the drops rail use the wide token instead
    of leaving a single narrow column floating in 1920px of paper. */
 @media (min-width: 1024px) {
-  .lpWorth {
+  /* The split is for a heading beside its copy. The section carries no
+     kicker or h2 today (it is one sentence and a link), and with the split
+     always on, that sentence sat alone in the right column beside an empty
+     left one. Without a heading it reads as one block from the gutter. */
+  .lpWorth:has(> h2) {
     display: grid;
     grid-template-columns: minmax(0, 0.95fr) minmax(0, 1.05fr);
     column-gap: clamp(40px, 5vw, 72px);
@@ -471,12 +526,26 @@ a.lpPubPint:hover { color: var(--ink); }
    NO primary navigation at all: six links rendered at 0x0 and no dock under
    them. The links now stay to 641px in the same compact cut the in-app bar
    takes on that band (siteNav.css, "the tablet band"): tighter gaps, the
-   0.78rem label, 6px side padding. Measured at 641px: brand, six links and
+   0.74rem label, 6px side padding. Measured at 641px: brand, six links and
    the four-control action island fit the bar with room to spare. */
+/* One bar from the front door to every app page (siteNav.css, "Shared top-bar
+   FRAME tokens"). Its contents differ by design, since Social and the compose
+   action are not front doors, but the frame does not: the same 1100px capsule,
+   the wordmark at the same size, and the link row starting beside it in the
+   same label type, rather than a wider pill whose links sat in its centre. */
+@media (min-width: 641px) {
+  .lpNav { width: min(1100px, 100vw - 48px); }
+}
+
+/* SiteNav's lower-tablet band (siteNav.css) widens its capsule to a 24px
+   inset from 641px to 767px. Mirror it, or the bar narrowed by 24px on the
+   way from the front door into the app. The phone frame below ends at 640,
+   the same cut the in-app bar takes. */
+
 @media (max-width: 960px) {
   .lpNav { gap: 10px; padding-left: 12px; }
   .lpPrimaryNav { gap: 0; }
-  .lpPrimaryNav a { padding: 0 6px; font-size: 0.78rem; }
+  .lpPrimaryNav a { padding: 0 6px; font-size: var(--text-xs); }
 }
 
 /* Under 641px the six-tab dock owns primary navigation, so the link row goes. */
@@ -485,8 +554,8 @@ a.lpPubPint:hover { color: var(--ink); }
 }
 
 @media (max-width: 640px) {
-  /* The answer card has its own right-aligned Near me control. Keep it out of
-     the same published compose lane the rail rows already reserve. */
+  /* The answer card's kicker line keeps out of the same published compose
+     lane the rail rows already reserve, so the floating + never sits on it. */
   body:has(.createFabRoot):not(:has(.pageHidesCreateFab)) .lpAnswerHead {
     padding-right: max(
       var(--space-4),
@@ -501,11 +570,23 @@ a.lpPubPint:hover { color: var(--ink); }
   body:has(.createFabRoot):not(:has(.pageHidesCreateFab)) .lpHero .screenPrimary {
     padding-right: min(calc(var(--create-fab-lane) - var(--page-gutter)), calc(100% - 14rem));
   }
+
+  /* The prose runs to the gutter, so a paragraph that came to rest in the
+     control's band lost the end of its lines under it (UX sprint, 15 Oct
+     2026, 390x844: the FAQ answers and the saving line). The copy column
+     keeps the same published lane.
+     The lane goes on the TEXT, never on the list that holds it: on the list
+     it sized the row divider's content box too, and every FAQ hairline
+     stopped a control's width short of the gutter. */
+  body:has(.createFabRoot):not(:has(.pageHidesCreateFab))
+    :is(.lpWorth p, .lpFaqQuestion, .lpFaqAnswer) {
+    padding-right: calc(var(--create-fab-lane) - var(--page-gutter));
+  }
 }
 
-@media (max-width: 700px) {
+@media (max-width: 640px) {
   /* Shared top-bar FRAME (siteNav.css :root --topbar-*): on a phone the landing
-     bar takes the same 52px height, 14px radius and tight shadow as the in-app
+     bar takes the same 52px height, --topbar-radius corner and tight shadow as the in-app
      bars so landing to app never jumps. The top offset keeps its max() literal. */
   .lpNav {
     top: max(10px, env(safe-area-inset-top));
@@ -513,7 +594,7 @@ a.lpPubPint:hover { color: var(--ink); }
     min-height: var(--topbar-h, 52px);
     padding: 3px var(--topbar-pad-x, 10px);
     gap: 8px;
-    border-radius: var(--topbar-radius, 14px);
+    border-radius: var(--topbar-radius, var(--radius-lg));
     box-shadow: var(--topbar-shadow, var(--shadow-sm));
   }
   /* Paper fill from the viewport top through the bar's offset so a coral hero
@@ -528,28 +609,31 @@ a.lpPubPint:hover { color: var(--ink); }
     background: var(--paper);
     pointer-events: none;
   }
-  .lpWordmark { font-size: 12px; }
+  .lpWordmark { font-size: var(--text-xs); }
   .lpPubCard { width: 100%; padding: var(--space-4) var(--space-5); }
   .lpWorth,
   .lpFaq { padding: 48px 0 12px; }
   .lpWorth h2,
-  .lpFaqTitle { font-size: clamp(1.9rem, 9vw, 2.75rem); }
   .lpWorth p,
-  .lpFaqAnswer { font-size: 16px; }
+  .lpFaqAnswer { font-size: var(--text-base); }
   /* Full-bleed the rail to the section's own gutters symmetrically (negative
      margin then re-pad) so the first and last card line up with the content
      edges and nothing overflows the viewport on one side. */
   .dropStripRail { margin-inline: calc(-1 * var(--page-gutter)); padding-inline: var(--page-gutter); grid-auto-columns: min(82vw, 310px); }
+  /* The cards snap to their start edge, and without a scroll padding the snap
+     ran past the gutter: MEASURED at 390, the first card sat at x 0, flush to
+     the glass. The padding tells the snap where the content edge is. */
+  .dropStripRail { scroll-padding-inline: var(--page-gutter); }
 }
 
 /* Mobile legibility floor: every visible micro-label rides at least 12px on a
    phone. Desktop keeps the tighter display sizes. */
-@media (max-width: 700px) {
-  .dropStripWho, .dropStripHint, .dropStripEra, .provChip { font-size: 12px; }
+@media (max-width: 640px) {
+  .dropStripWho, .dropStripHint, .dropStripEra, .provChip { font-size: var(--text-xs); }
   .lpFooterInner { grid-template-columns: 1fr; gap: 36px; }
 }
 
-@media (max-width: 350px) {
+@media (max-width: 360px) {
   .lpNavActions .authUserNav { display: none; }
 }
 
@@ -568,7 +652,9 @@ a.lpPubPint:hover { color: var(--ink); }
 /* ── The answer, the Near me control and the rail ───────────────────────── */
 
 .lpAnswerCard { width: 100%; }
-@media (min-width: 960px) { .lpAnswerCard, .lpRail { width: min(100%, 32rem); } }
+/* The photograph above them takes the same measure, or its right edge ran
+   20px past the card's and the rail's on a desktop. */
+@media (min-width: 960px) { .lpAnswerCard, .lpRail, .lpHero .lpLondonFigure { width: min(100%, 32rem); } }
 
 .lpAnswerHead {
   display: flex;
@@ -579,29 +665,6 @@ a.lpPubPint:hover { color: var(--ink); }
 }
 .lpAnswerHead .kicker { min-width: 0; overflow-wrap: anywhere; }
 .lpAnswerWalk { color: var(--muted); font-weight: 600; }
-
-/* The one quiet control that asks for a location. A text control with a
-   hairline, never the coral: the Screen paints exactly one filled action. */
-.lpNearMe {
-  flex: none;
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-2);
-  min-height: 44px;
-  padding: 0 var(--space-3);
-  border: 1px solid var(--hairline-strong);
-  border-radius: var(--radius-pill);
-  background: transparent;
-  color: var(--ink);
-  font: inherit;
-  font-size: var(--text-sm);
-  font-weight: 700;
-  cursor: pointer;
-  transition: border-color var(--duration-fast) var(--ease-out), background-color var(--duration-fast) var(--ease-out);
-}
-.lpNearMe:hover { border-color: var(--ink); background: var(--panel); }
-.lpNearMe:disabled { color: var(--ink-soft); cursor: progress; }
-.lpNearMe svg { color: var(--river); }
 
 .lpNearLine { margin: 0; color: var(--ink-soft); font-size: var(--text-sm); line-height: var(--leading-normal); }
 .lpNearLine:empty { display: none; }
@@ -633,14 +696,20 @@ a.lpPubPint:hover { color: var(--ink); }
   color: var(--ink);
   text-decoration: none;
 }
-.lpRailLink:hover .lpRailName { color: var(--brass); text-decoration: underline; text-underline-offset: 4px; }
+@media (hover: hover) and (pointer: fine) {
+  .lpRailLink:hover .lpRailName {
+    color: var(--ink);
+    text-decoration: underline;
+    text-underline-offset: 4px;
+  }
+}
 .lpRailMain { display: grid; gap: 2px; min-width: 0; }
 .lpRailName { font-family: var(--font-display); font-size: var(--text-base); font-weight: 700; letter-spacing: var(--tracking-tight); }
 .lpRailMeta { color: var(--ink-soft); font-size: var(--text-sm); }
 .lpRailPrice { flex: none; }
 .lpRailPrice .priceBadge { font-size: var(--text-sm); }
 
-@media (max-width: 700px) {
+@media (max-width: 640px) {
   .lpAnswerCard { width: 100%; }
 }
 
@@ -660,22 +729,27 @@ a.lpPubPint:hover { color: var(--ink); }
 
 /* On a phone the fixed tab bar owns the bottom of the screen, so the photo's
    share is taken from the height above the bar, with no floor: at 320x568 the
-   14rem floor pushed the primary under the bar and a tap landed on a tab. Only
-   the photo narrows; the caption keeps the figure's width, or it wraps a
-   line deeper and hands back the height the photo gave up. */
+   14rem floor pushed the primary under the bar and a tap landed on a tab. The
+   photo spends that height budget across the figure's whole width as a wider
+   crop, rather than narrowing to a 3:2 thumbnail stranded on the left of the
+   column, and never grows taller than 3:2 of that width (100cqi is the
+   figure's width). Its edges line up with the primary under it. */
 @media (max-width: 640px) {
   .lpHero .lpLondonFigure {
     width: min(calc(100% + var(--page-gutter) - var(--create-fab-lane)), 34rem);
+    container-type: inline-size;
   }
   .lpHero .lpLondonPhoto {
-    width: min(100%, calc((100svh - var(--tabbar-h) - env(safe-area-inset-bottom, 0px)) * .22 * 3 / 2));
+    width: 100%;
+    aspect-ratio: auto;
+    height: min(100cqi * 2 / 3, calc((100svh - var(--tabbar-h) - env(safe-area-inset-bottom, 0px)) * .22));
   }
 }
 
 /* Phone: the answer sits between the heading and the tap, so the heading
    gives up one size step and the card its outer padding, and the whole
    screen still reads kicker, claim, answer, action inside 844px. */
-@media (max-width: 700px) {
+@media (max-width: 640px) {
   .lpHero { padding-top: 80px; gap: var(--space-5); }
   .lpHero .screenTitle { font-size: clamp(2.125rem, 10vw, 2.75rem); line-height: .94; }
   .lpHero .lpAnswerCard { gap: var(--space-1); padding: var(--space-4); }
@@ -694,9 +768,9 @@ a.lpPubPint:hover { color: var(--ink); }
   .lpHero .screenHead { gap: var(--space-1); }
   .lpHero .screenAnswer { margin-top: 0; }
   .lpHero .lpLondonPhoto {
-    width: min(100%, calc(
+    height: min(100cqi * 2 / 3, calc(
       (100svh - var(--tabbar-h, 64px) - env(safe-area-inset-bottom, 0px)
-        - var(--analytics-consent-mobile-clearance, 56px)) * .22 * 3 / 2
+        - var(--analytics-consent-mobile-clearance)) * .22
     ));
   }
 }
@@ -729,6 +803,14 @@ a.lpPubPint:hover { color: var(--ink); }
 
 /* ── Today and tonight: two answers, one sentence each ──────────────────── */
 
+/* When the prices behind the hero's average were read, in the data face a
+   dated figure uses elsewhere on this page. */
+.lpWorth > .lpPriceReads {
+  margin: 0;
+  color: var(--muted);
+  font: 550 var(--text-xs)/1.4 var(--font-data);
+}
+
 .lpAnswers {
   width: min(var(--lp-max), calc(100% - 2 * var(--page-gutter)));
   margin: 0 auto;
@@ -747,8 +829,10 @@ a.lpPubPint:hover { color: var(--ink); }
   grid-template-columns: minmax(0, 1fr);
 }
 
-@media (min-width: 720px) {
+@media (min-width: 641px) {
   .lpAnswersGrid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  /* The Pub Pal door spans both answers rather than leaving one alone. */
+  .lpAnswerTileWide { grid-column: 1 / -1; }
 }
 
 .lpAnswerTile {
@@ -763,18 +847,36 @@ a.lpPubPint:hover { color: var(--ink); }
   color: var(--ink);
   text-decoration: none;
 }
-.lpAnswerTile:hover { border-color: var(--line); }
-.lpAnswerTile:hover .lpAnswerTileHead { color: var(--brass-ink); }
+@media (hover: hover) and (pointer: fine) {
+  .lpAnswerTile:hover {
+    border-color: var(--line);
+  }
+  .lpAnswerTile:hover .lpAnswerTileHead {
+    color: var(--ink);
+  }
+}
 
+/* Each tile is a door to /today or /tonight. Without a mark it read as a
+   finished statement, so the head carries the chevron a list row uses to say
+   "this opens". */
 .lpAnswerTileHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
   color: var(--ink);
   font-size: var(--text-sm);
   font-weight: 700;
 }
 
+.lpAnswerTileChevron {
+  flex: none;
+  color: var(--muted);
+}
+
 .lpAnswerTileLine {
   color: var(--ink-soft);
-  font-size: 16px;
+  font-size: var(--text-base);
   line-height: 1.5;
 }
 
@@ -789,14 +891,16 @@ a.lpPubPint:hover { color: var(--ink); }
   max-width: 36rem;
   margin: var(--space-4) 0 0;
   color: var(--ink-soft);
-  font-size: 17px;
+  font-size: var(--text-base);
   line-height: 1.6;
   text-wrap: pretty;
 }
 
 /* ── The questions ──────────────────────────────────────────────────────── */
 
-.lpFaqList { margin: var(--space-5) 0 0; }
+/* The hairlines between questions stop where the answers stop, so a rule
+   never runs out past the column it divides. */
+.lpFaqList { max-width: 36rem; margin: var(--space-5) 0 0; }
 
 .lpFaqRow + .lpFaqRow {
   margin-top: var(--space-5);
@@ -807,8 +911,14 @@ a.lpPubPint:hover { color: var(--ink); }
 .lpFaqQuestion {
   margin: 0;
   color: var(--ink);
-  font-size: 18px;
+  font-size: var(--text-md);
   font-weight: 700;
 }
 
 .lpFaqAnswer { margin: var(--space-2) 0 0; }
+
+/* Lower-tablet bar width, mirrored from siteNav.css; see the frame note above.
+   Last in the file so it outranks the phone frame's calc(100vw - 20px). */
+@media (min-width: 641px) and (max-width: 767px) {
+  .lpNav { width: min(1100px, 100vw - 24px); }
+}

@@ -19,13 +19,13 @@ Full rules: [`docs/rules/lib-images-uploads-and-photo-walls.md`](../docs/rules/l
 
 ## Prices, trust and drinks
 
-Community prices, bands, trust states, confirmations, measures, missions, drink lanes, pint index, spoons value lens.
+Community prices, bands, trust states, confirmations, measures, missions, drink lanes, pint index, spoons value lens, the London counter soft-drink lane.
 
 Full rules: [`docs/rules/lib-prices-trust-and-drinks.md`](../docs/rules/lib-prices-trust-and-drinks.md).
 
 ## Venues, areas, listings and nights
 
-Venue truth, deals, kinds, near desk, landing imagery, picks, what's on, out listings, plans, UK base, night areas.
+Venue truth, display names, deals, kinds, near desk, landing imagery, picks, what's on, out listings, plans, UK base, night areas, map pack revision skew.
 
 Full rules: [`docs/rules/lib-venues-areas-listings-and-nights.md`](../docs/rules/lib-venues-areas-listings-and-nights.md).
 

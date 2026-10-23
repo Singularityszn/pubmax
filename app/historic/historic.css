@@ -1,44 +1,40 @@
 /* Flagship "Historic Pubs" discovery surface (/historic).
-   Shares the app's visual language — light type, brass accents, raised panels —
-   as a filterable card index. Self-contained: depends only on the globally
-   loaded design tokens (paper, panel-raised, ink, line, brass, river, radius
-   and shadow scales from globals.css + theme.css). No hardcoded hex.
-   Mobile-first (390px), 44px tap targets, both themes, reduced-motion safe.
-   Bottom padding clears the mobile tab bar + safe-area (cf. tonight.css). */
+   A register read down the page (taste plan, 18 Oct 2026): a date column on
+   the left, oldest first, and beside it the pub, its place, its grade, its
+   cited sentence in full and the source. Tokens only, both themes track.
+   Nothing here is coral: coral is the Screen primary's alone, and a date or a
+   grade is a fact, not an accent. The shell and the section heading are the
+   listing pages' own (components/listing/listing.css). */
 
 /* The head (kicker, heading, the one primary action) is the Screen primitive
-   (components/ui/screen.tsx), which owns the page gutter, so the page itself
-   carries none: an inline padding here would double it. The failed and the
+   (components/ui/screen.tsx), which owns the page gutter. The failed and the
    empty states are the shared EmptyState (components/ui/empty-state.tsx). */
 .historicPage {
-  max-width: 1080px;
-  margin: 0 auto;
-  padding: 16px 0 calc(96px + env(safe-area-inset-bottom, 0px));
-  color: var(--ink);
+  padding-block: var(--space-2) var(--space-6);
 }
 
-/* Filter + sort controls */
+/* --- filter + sort controls ---------------------------------------------- */
+
 .historicFilters {
   display: flex;
   flex-wrap: wrap;
   align-items: flex-end;
-  gap: 14px;
-  margin: 0 0 14px;
+  gap: var(--space-3);
+  margin: 0 0 var(--space-3);
 }
 
 .historicField {
   display: flex;
   flex-direction: column;
-  gap: 5px;
+  gap: var(--space-1);
   min-width: 0;
 }
 
+/* A field label is a label: sentence case, the body face (Caps policy). */
 .historicFieldLabel {
-  font-size: 0.68rem;
-  font-weight: 700;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  color: var(--muted);
+  color: var(--color-text-muted);
+  font-size: var(--text-xs);
+  font-weight: 600;
 }
 
 .historicSelectWrap {
@@ -50,7 +46,7 @@
   content: "";
   position: absolute;
   top: 50%;
-  right: 12px;
+  right: var(--space-3);
   width: 8px;
   height: 8px;
   pointer-events: none;
@@ -59,77 +55,367 @@
   transform: translateY(-70%) rotate(45deg);
 }
 
+/* A select is an input, so it keeps its border (the de-box rule). */
 .historicSelect {
   min-height: 44px;
-  padding: 0 34px 0 14px;
+  padding: 0 var(--space-8) 0 var(--space-3);
   border: 1px solid var(--line);
-  border-radius: var(--radius-pill, 999px);
+  border-radius: var(--control-radius);
   background: var(--panel-raised);
-  color: var(--ink);
-  font-size: 0.85rem;
+  color: var(--color-text);
+  font-size: var(--text-sm);
   font-weight: 600;
   line-height: 44px;
   cursor: pointer;
   appearance: none;
   -webkit-appearance: none;
-  transition: border-color 0.16s ease;
 }
 
 .historicToggles {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
+  gap: var(--space-2);
 }
 
 .historicToggle {
   min-height: 44px;
-  padding: 0 16px;
-  border: 1px solid var(--line);
-  border-radius: var(--radius-pill, 999px);
-  background: var(--panel-raised);
-  color: var(--ink-soft);
-  font-size: 0.82rem;
-  font-weight: 700;
+  padding: 0 var(--space-4);
+  border: 1px solid var(--hairline-strong);
+  border-radius: var(--control-radius);
+  background: transparent;
+  color: var(--color-text-soft);
+  font-size: var(--text-sm);
+  font-weight: 600;
   cursor: pointer;
-  transition: border-color 0.16s ease, color 0.16s ease, background 0.16s ease;
 }
 
 .historicToggle[data-active="true"] {
-  border-color: color-mix(in srgb, var(--brass) 60%, var(--line));
-  background: color-mix(in srgb, var(--brass) 14%, var(--panel-raised));
-  color: var(--ink);
+  border-color: var(--state-selected-border);
+  background: var(--state-selected-surface);
+  color: var(--state-selected-ink);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .historicSelect,
+  .historicToggle {
+    transition: border-color var(--duration-fast) var(--ease-out),
+      background-color var(--duration-fast) var(--ease-out);
+  }
 }
 
 @media (hover: hover) and (pointer: fine) {
   .historicSelect:hover,
   .historicToggle:hover {
-    border-color: color-mix(in srgb, var(--brass) 45%, var(--line));
+    border-color: var(--state-selected-border);
   }
   .historicToggle:hover {
-    color: var(--ink);
+    color: var(--color-text);
   }
 }
 
 .historicSelect:focus-visible,
 .historicToggle:focus-visible {
-  outline: 2px solid var(--brass);
+  outline: 2px solid var(--color-text);
   outline-offset: 2px;
 }
 
 .historicCount {
-  margin: 0 0 16px;
-  font-size: 0.78rem;
-  color: var(--muted);
+  margin: 0 0 var(--space-2);
+  color: var(--color-text-muted);
+  font-size: var(--text-xs);
 }
+
+/* --- the register --------------------------------------------------------- */
+
+.historicList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  max-width: 48rem;
+}
+
+/* Two columns that do different jobs: the date, then the entry. A hairline
+   between entries and no box around any of them. */
+.historicEntry {
+  display: grid;
+  grid-template-columns: 7rem minmax(0, 1fr);
+  gap: var(--space-5);
+  padding-block: var(--space-5);
+}
+
+.historicEntry + .historicEntry {
+  border-top: 1px solid var(--line-soft);
+}
+
+/* Read aloud "Founded 1520"; seen as the figure over the word. */
+.historicDate {
+  display: flex;
+  flex-direction: column-reverse;
+  justify-content: flex-end;
+  gap: 2px;
+  margin: 0;
+  padding-top: 2px;
+}
+
+/* A year is a figure: the data face. A century reads "17th c." in the same
+   face so the column stays one texture. */
+.historicDateFigure {
+  color: var(--color-text);
+  font-family: var(--font-data);
+  font-size: var(--text-md);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  line-height: var(--leading-tight);
+}
+
+.historicDateKind {
+  color: var(--color-text-muted);
+  font-size: var(--text-xs);
+}
+
+.historicEntryBody {
+  display: grid;
+  gap: var(--space-1);
+  min-width: 0;
+}
+
+.historicEntryName {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: var(--text-md);
+  font-weight: 700;
+  line-height: var(--leading-snug);
+}
+
+/* The name is the entry's own link, and a thumb's: 44px each way through
+   padding the line gives back, so a short name ("Ship") is still a target
+   and the row is no taller for it. */
+.historicEntryName a {
+  display: inline-flex;
+  align-items: center;
+  min-width: 44px;
+  min-height: 44px;
+  margin-block: calc(-1 * var(--space-2));
+  color: var(--color-text);
+  text-decoration: none;
+}
+
+.historicEntryName a:focus-visible {
+  outline: 2px solid var(--color-text);
+  outline-offset: 2px;
+  border-radius: var(--radius-sm);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .historicEntryName a:hover {
+    text-decoration: underline;
+    text-decoration-thickness: 1px;
+    text-underline-offset: 3px;
+  }
+}
+
+.historicEntryMeta {
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: var(--text-sm);
+}
+
+/* The cited sentence, whole. Hooks run from a few words to five lines, so
+   nothing is clipped and nothing needs a "Show more". */
+.historicHook {
+  margin: var(--space-1) 0 0;
+  max-width: 65ch;
+  color: var(--color-text-soft);
+  font-size: var(--text-sm);
+  line-height: var(--leading-normal);
+  overflow-wrap: break-word;
+  text-wrap: pretty;
+}
+
+/* A photograph OF this pub, only on its own entry (components/listing/
+   placePhotoRules.ts). Small, under its sentence, with its credit. */
+.historicEntryPhoto {
+  max-width: 16rem;
+  margin-top: var(--space-2);
+}
+
+/* Where the sentence came from, and the map. Two quiet links on one line; the
+   outbound one carries the outbound mark, the internal one does not. Each is
+   44px tall through padding the line gives back, so the row stays compact. */
+.historicProvenance {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0 var(--space-5);
+  margin: 0;
+  font-size: var(--text-xs);
+}
+
+.historicCite,
+.historicMapLink {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  min-height: 44px;
+  margin-block: calc(-1 * var(--space-2));
+  color: var(--color-text-soft);
+  font-weight: 600;
+  text-decoration: underline;
+  text-decoration-color: var(--hairline-strong);
+  text-underline-offset: 3px;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .historicCite:hover,
+  .historicMapLink:hover {
+    color: var(--color-text);
+    text-decoration-color: currentColor;
+  }
+}
+
+.historicCite:focus-visible,
+.historicMapLink:focus-visible {
+  outline: 2px solid var(--color-text);
+  outline-offset: 2px;
+  border-radius: var(--radius-sm);
+}
+
+/* --- the desktop side pane ---------------------------------------------- */
+/* One column of entries, and beside it from 1024px (the desktop breakpoint) a sticky pane (the
+   DesktopRail pattern): the lead photograph and the index in figures. The
+   column is the reading width; the pane takes what the data column leaves.
+   A phone and a narrow window keep the one column and no pane. */
+
+.historicLayout {
+  display: grid;
+  gap: var(--space-10);
+}
+
+.historicColumn {
+  min-width: 0;
+}
+
+.desktopRail.historicPane {
+  display: none;
+}
+
+@media (min-width: 1024px) {
+  .historicLayout {
+    grid-template-columns: minmax(0, var(--content-max)) minmax(0, 1fr);
+    align-items: start;
+  }
+
+  .desktopRail.historicPane {
+    display: flex;
+    gap: var(--space-6);
+  }
+}
+
+.historicPanePhoto .placePhoto__frame {
+  aspect-ratio: 4 / 3;
+}
+
+.historicPaneLead {
+  display: grid;
+  gap: var(--space-1);
+  margin: 0;
+  font-size: var(--text-sm);
+}
+
+.historicPaneLead a,
+.historicPaneOldest a {
+  color: var(--color-text);
+  font-weight: 600;
+  text-decoration: underline;
+  text-decoration-color: var(--hairline-strong);
+  text-underline-offset: 3px;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .historicPaneLead a:hover,
+  .historicPaneOldest a:hover {
+    text-decoration-color: currentColor;
+  }
+}
+
+.historicPaneLead a:focus-visible,
+.historicPaneOldest a:focus-visible {
+  outline: 2px solid var(--color-text);
+  outline-offset: 2px;
+  border-radius: var(--radius-sm);
+}
+
+.historicPaneLead span {
+  color: var(--color-text-muted);
+}
+
+.historicPaneIndex {
+  display: grid;
+  gap: var(--space-3);
+  padding-top: var(--space-5);
+  border-top: 1px solid var(--line-soft);
+}
+
+.historicPaneHeading {
+  margin: 0;
+  color: var(--color-text);
+  font-size: var(--text-sm);
+  font-weight: 700;
+}
+
+.historicPaneFigures {
+  display: grid;
+  margin: 0;
+}
+
+.historicPaneFigures > div {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding-block: var(--space-2);
+}
+
+.historicPaneFigures > div + div {
+  border-top: 1px solid var(--line-soft);
+}
+
+.historicPaneFigures dt {
+  color: var(--color-text-soft);
+  font-size: var(--text-sm);
+}
+
+/* A count is a figure: the data face. */
+.historicPaneFigures dd {
+  margin: 0;
+  color: var(--color-text);
+  font-family: var(--font-data);
+  font-size: var(--text-base);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.historicPaneOldest {
+  margin: 0;
+  color: var(--color-text-soft);
+  font-size: var(--text-sm);
+  line-height: var(--leading-normal);
+  text-wrap: pretty;
+}
+
+/* --- pagination ------------------------------------------------------------ */
 
 .historicPagination {
   display: grid;
   grid-template-columns: 1fr auto 1fr;
   align-items: center;
-  gap: 12px;
-  margin-top: 16px;
-  color: var(--ink-soft);
-  font-size: 0.86rem;
+  gap: var(--space-3);
+  max-width: 48rem;
+  margin-top: var(--space-4);
+  padding-top: var(--space-3);
+  border-top: 1px solid var(--line-soft);
+  color: var(--color-text-muted);
+  font-size: var(--text-sm);
   text-align: center;
 }
 
@@ -140,8 +426,11 @@
   align-items: center;
   min-width: 44px;
   min-height: 44px;
-  color: var(--color-accent-ink);
+  color: var(--color-text);
   font-weight: 700;
+  text-decoration: underline;
+  text-decoration-color: var(--hairline-strong);
+  text-underline-offset: 3px;
 }
 
 .historicPagination > :last-child {
@@ -149,269 +438,57 @@
   justify-content: flex-end;
 }
 
-/* Card grid */
-.historicGrid {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: 12px;
-}
-
-@media (min-width: 640px) {
-  .historicGrid {
-    grid-template-columns: repeat(2, 1fr);
-  }
-}
-
-@media (min-width: 960px) {
-  .historicGrid {
-    grid-template-columns: repeat(3, 1fr);
-  }
-}
-
-.historicCard {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  padding: 16px;
-  border: 1px solid var(--line);
-  border-radius: var(--radius-lg, 18px);
-  background: var(--panel-raised);
-  box-shadow: var(--shadow-sm);
-  transition: border-color 0.18s ease, box-shadow 0.18s ease;
-}
-
-@media (hover: hover) and (pointer: fine) {
-  .historicCard:hover {
-    border-color: color-mix(in srgb, var(--brass) 45%, var(--line));
-    box-shadow: var(--shadow);
-  }
-}
-
-.historicCardMeta {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 6px;
-  min-height: 20px;
-}
-
-.historicEra {
-  display: inline-flex;
-  align-items: center;
-  padding: 2px 9px;
-  border-radius: var(--radius-pill, 999px);
-  background: color-mix(in srgb, var(--brass) 14%, var(--panel-raised));
-  border: 1px solid color-mix(in srgb, var(--brass) 30%, transparent);
-  font-size: 0.72rem;
-  font-weight: 700;
-  color: var(--tint-ink-accent);
-}
-
-.historicGrade {
-  display: inline-flex;
-  align-items: center;
-  padding: 2px 9px;
-  border-radius: var(--radius-pill, 999px);
-  background: color-mix(in srgb, var(--river) 14%, var(--panel-raised));
-  border: 1px solid color-mix(in srgb, var(--river) 32%, transparent);
-  font-size: 0.7rem;
-  font-weight: 700;
-  letter-spacing: 0.01em;
-  color: var(--tint-ink-info);
-}
-
-.historicCardName {
-  margin: 0;
-  font-size: 1.05rem;
-  font-weight: 700;
-  line-height: 1.2;
-  color: var(--ink);
-}
-
-.historicBorough {
-  margin: 0;
-  font-size: 0.78rem;
-  font-weight: 600;
-  color: var(--muted);
-}
-
-.historicHook {
-  margin: 0;
-  font-size: 0.85rem;
-  line-height: 1.45;
-  color: var(--ink-soft);
-  overflow-wrap: break-word;
-}
-
-.historicProvenance {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 6px 12px;
-  margin-top: 2px;
-  font-size: 0.74rem;
-  color: var(--muted);
-}
-
-.historicFactCount {
-  font-weight: 600;
-}
-
-/* 44 px tall so a thumb lands the citation (13 Sep audit D12 measured 14 px);
-   the words keep the provenance line's small size. */
-.historicCite {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  min-height: 44px;
-  font-weight: 700;
-  color: var(--river);
-  text-decoration: none;
-}
-
-.historicCite:hover {
-  text-decoration: underline;
-}
-
-.historicCite:focus-visible {
-  outline: 2px solid var(--river);
-  outline-offset: 2px;
-  border-radius: 3px;
-}
-
-.historicActions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  margin-top: auto;
-  padding-top: 4px;
-}
-
-.historicMapLink {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  min-height: 44px;
-  padding: 0 16px;
-  border: 1px solid color-mix(in srgb, var(--brass) 45%, var(--line));
-  border-radius: var(--radius-pill, 999px);
-  background: color-mix(in srgb, var(--brass) 12%, var(--panel-raised));
-  color: var(--ink);
-  font-size: 0.84rem;
-  font-weight: 700;
-  text-decoration: none;
-  transition: border-color 0.16s ease, background 0.16s ease;
-}
-
-@media (hover: hover) and (pointer: fine) {
-  .historicMapLink:hover {
-    border-color: var(--brass);
-    background: color-mix(in srgb, var(--brass) 20%, var(--panel-raised));
-  }
-}
-
-.historicMapLink:focus-visible {
-  outline: 2px solid var(--brass);
-  outline-offset: 2px;
-}
-
-/* Entrance — a quiet staggered settle, suppressed under reduced-motion. */
-@media (prefers-reduced-motion: no-preference) {
-  .historicCard {
-    animation: historicCardIn var(--duration-base, 0.24s) var(--ease-out, ease) both;
-  }
-  .historicCard:nth-child(2) { animation-delay: 30ms; }
-  .historicCard:nth-child(3) { animation-delay: 60ms; }
-  .historicCard:nth-child(4) { animation-delay: 90ms; }
-  .historicCard:nth-child(n + 5) { animation-delay: 120ms; }
-
-  @keyframes historicCardIn {
-    from { opacity: 0; transform: translateY(8px); }
-    to { opacity: 1; transform: none; }
-  }
-}
-
-/* "Oldest pubs by borough" cross-link rail (Wave S3.4). A server-rendered
-   region below the interactive list — plain <Link> hrefs so crawlers can walk
-   /historic → each borough's cited heritage section. Tokens only; both themes
-   track. Mirrors the historic card idiom (hairline borders, brass links). */
+/* --- "Oldest pubs by borough" (Wave S3.4) ---------------------------------- */
+/* A server-rendered RowList under the register (components/seo/
+   HistoricBoroughLinks.tsx); its shell is .listingSection. */
 .historicBoroughRegion {
-  max-width: 1080px;
-  margin: 8px auto 0;
-  padding: 24px 16px calc(64px + env(safe-area-inset-bottom, 0px));
-  color: var(--ink);
+  padding-block: var(--space-10) calc(var(--space-12) + env(safe-area-inset-bottom, 0px));
 }
 
-.historicBoroughTitle {
-  margin: 0 0 6px;
-  font-family: var(--font-garamond, var(--serif));
-  font-size: 24px;
-  font-weight: 700;
-  color: var(--ink);
+/* Row text lines up with the heading above, not a row-padding in from it. */
+.historicBoroughList .rowListItem {
+  margin-inline: calc(-1 * var(--space-2));
 }
 
-.historicBoroughDek {
-  margin: 0 0 16px;
-  max-width: 62ch;
-  color: var(--ink-soft);
-  font-size: 15px;
-  line-height: 1.55;
-}
+/* --- the lede's credits link ------------------------------------------------ */
 
-.historicBoroughList {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
-  gap: 12px;
-}
-
-.historicBoroughCard {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  padding: 14px 16px;
-  border: 1px solid var(--line);
-  border-radius: 12px;
-  background: var(--panel);
-}
-
-.historicBoroughLink {
-  /* A 44px tap target that does not grow the card: the block padding is the hit
-     area and the equal negative margin gives the layout height back (the same
-     pattern as .analyticsConsentPrompt a). The link measured 324x19. */
-  display: block;
-  padding-block: 13px;
-  margin-block: -13px;
-  font-weight: 700;
-  font-size: 15px;
-  color: var(--color-accent-ink);
-  text-decoration: none;
-}
-
-.historicBoroughLink:hover {
+/* The credits link sits inside a sentence. It stays inline so the lede keeps
+   one line height (a 44px inline-flex box opened a 34px gap under "Never"),
+   and its padding gives the thumb the 44px the phone tap-target pin measures
+   (e2e/phone-tap-targets.spec.ts) without growing the line. */
+.historicCreditsLink {
+  display: inline-block;
+  padding-block: var(--space-3);
+  margin-block: calc(-1 * var(--space-3));
+  color: inherit;
+  font-weight: 600;
   text-decoration: underline;
+  text-underline-offset: 2px;
 }
 
-.historicBoroughLink:focus-visible {
-  outline: 2px solid var(--brass);
-  outline-offset: 2px;
-  border-radius: 4px;
-}
+/* --- phone ----------------------------------------------------------------- */
 
-.historicBoroughMeta {
-  margin: 0;
-  font-size: 13px;
-  color: var(--ink-soft);
-  line-height: 1.45;
-}
+/* The date column folds above the name: the same order, read down. */
+@media (max-width: 640px) {
+  .historicEntry {
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--space-1);
+    padding-block: var(--space-4);
+  }
 
-@media (max-width: 560px) {
-  .historicBoroughList {
-    grid-template-columns: 1fr;
+  .historicDate {
+    flex-direction: row;
+    justify-content: flex-start;
+    align-items: baseline;
+    gap: var(--space-2);
+    padding-top: 0;
+  }
+
+  .historicDate:empty {
+    display: none;
+  }
+
+  .historicDateFigure {
+    font-size: var(--text-sm);
   }
 }

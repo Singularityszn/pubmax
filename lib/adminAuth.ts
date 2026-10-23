@@ -2,6 +2,9 @@ import "server-only";
 
 import { createHash, createHmac, timingSafeEqual } from "node:crypto";
 
+import { isCrossSiteRequest } from "@/lib/crossSiteRequest";
+import { log } from "@/lib/log";
+
 // Moderator gate — shared by app/api/admin/comments/route.ts and the moderator
 // branches of app/api/pint-drops/route.ts. The token may arrive via the
 // `x-admin-token` header (backwards compat during transition) OR an httpOnly
@@ -17,6 +20,25 @@ const SOCIAL_MODERATOR_STAFF_ROLE_ID_ENV = "SOCIAL_MODERATOR_STAFF_ROLE_ID";
 // 24h — long enough for a moderation shift, short enough to limit stolen-cookie
 // exposure. Refreshed on each successful POST /api/admin/session.
 export const ADMIN_SESSION_MAX_AGE_SEC = 60 * 60 * 24;
+
+// ADMIN_TOKEN is both the header credential and the HMAC key for admin
+// sessions, so Vercel Production holds it to the same 32 bytes as the other
+// signing secrets (LIB-S6). A short token closes the moderator door rather
+// than failing the boot: the public app stays up, every admin credential is
+// refused, and one error line says why. Keyed on VERCEL_ENV alone because CI
+// bakes NODE_ENV=production into the test runner.
+const MIN_PRODUCTION_ADMIN_TOKEN_BYTES = 32;
+let shortAdminTokenLogged = false;
+
+function adminTokenTooShort(token: string): boolean {
+  if (process.env.VERCEL_ENV !== "production") return false;
+  if (Buffer.byteLength(token.trim(), "utf8") >= MIN_PRODUCTION_ADMIN_TOKEN_BYTES) return false;
+  if (!shortAdminTokenLogged) {
+    shortAdminTokenLogged = true;
+    log("error", "admin_auth.token_too_short", { minBytes: MIN_PRODUCTION_ADMIN_TOKEN_BYTES });
+  }
+  return true;
+}
 
 // Constant-time compare: sha256 both sides so lengths always match, then
 // timingSafeEqual — a plain === leaks match length/prefix via timing.
@@ -73,8 +95,18 @@ export function canOpenAdminDocument(headerList: ModeratorHeaders): boolean {
   return hasModeratorCredential(headerList);
 }
 
+/**
+ * The API gate. A browser attaches the session cookie to a cross-site request
+ * too (SameSite=Lax still sends it on a top-level POST form), so a cookie
+ * credential on a WRITE from another site is refused: that is the CSRF shape.
+ * The `x-admin-token` header cannot be set by another site, so it is unaffected.
+ */
 export function isModerator(request: Request): boolean {
-  return hasModeratorCredential(request.headers);
+  const credential = moderatorCredential(request.headers);
+  if (credential !== "cookie") return credential !== null;
+  const method = (request.method ?? "GET").toUpperCase();
+  if (method === "GET" || method === "HEAD" || method === "OPTIONS") return true;
+  return !isCrossSiteRequest(request);
 }
 
 /**
@@ -92,18 +124,26 @@ export function moderatorStaffRoleId(request: Request): string | null {
 }
 
 function hasModeratorCredential(headerList: ModeratorHeaders): boolean {
+  return moderatorCredential(headerList) !== null;
+}
+
+/** Which credential admitted the caller, or null when none did. */
+function moderatorCredential(headerList: ModeratorHeaders): "local" | "header" | "cookie" | null {
   const expected = process.env.ADMIN_TOKEN;
   if (!expected) {
-    return process.env.NODE_ENV === "development" || process.env.NODE_ENV === "test";
+    return process.env.NODE_ENV === "development" || process.env.NODE_ENV === "test"
+      ? "local"
+      : null;
   }
+  if (adminTokenTooShort(expected)) return null;
 
   const headerToken = headerList.get("x-admin-token") ?? undefined;
-  if (headerToken && safeTokenEqual(headerToken, expected)) return true;
+  if (headerToken && safeTokenEqual(headerToken, expected)) return "header";
 
   const sessionValue = readAdminSessionCookie(headerList);
-  if (sessionValue && validAdminSession(sessionValue, expected)) return true;
+  if (sessionValue && validAdminSession(sessionValue, expected)) return "cookie";
 
-  return false;
+  return null;
 }
 
 export function verifyAdminToken(token: string): boolean {
@@ -111,5 +151,6 @@ export function verifyAdminToken(token: string): boolean {
   if (!expected) {
     return process.env.NODE_ENV === "development" || process.env.NODE_ENV === "test";
   }
+  if (adminTokenTooShort(expected)) return false;
   return safeTokenEqual(token, expected);
 }

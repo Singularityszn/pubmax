@@ -2,7 +2,11 @@
 
 // Add-to-Home-Screen install prompt (Cycle-4 Wave-C). A small branded bottom
 // sheet that offers to put PUBMAXX on the home screen — but only AFTER PROVEN
-// VALUE (a second-visit-day or a first completed night), never on first touch.
+// VALUE (a second-visit-day or a first completed night), never on first touch,
+// and then only once THIS sitting has handed the reader a listed pint
+// (lib/priceAnswerMoment.ts) and they have had a moment to read it. On a
+// phone-width map or plan composer the outing controls own the foot of the
+// screen, so the sheet waits for the next route, as native push does.
 // All the policy lives in the pure gate lib/a2hsPrompt.ts; this component is
 // the DOM shell around it: detect the platform, consume Android's event from
 // the early root owner, and, when the gate says yes and the shared session
@@ -32,6 +36,7 @@ import {
   useState,
   useSyncExternalStore,
 } from "react";
+import { usePathname } from "next/navigation";
 import { Share, Plus, X } from "lucide-react";
 
 import {
@@ -43,12 +48,22 @@ import {
   registerDecline,
   registerDismissedForever,
   registerInstalled,
+  registerShown,
   writeA2hsState,
+  A2HS_ANSWER_DWELL_MS,
   type A2hsPlatform,
   type A2hsSurface,
 } from "@/lib/a2hsPrompt";
 import { completedCrawlCount } from "@/lib/crawlCompletion";
-import { claimPromptBudget, hasPromptBudgetFor } from "@/lib/promptBudget";
+import {
+  claimPromptBudget,
+  hasPromptBudgetFor,
+  routeOwnsScreenFoot,
+} from "@/lib/promptBudget";
+import {
+  hasPriceAnswerThisSession,
+  subscribePriceAnswerMoment,
+} from "@/lib/priceAnswerMoment";
 import { hasSeenTour } from "@/lib/firstRunTour";
 import { dayBucketFromDate } from "@/lib/a2hsPrompt";
 import {
@@ -101,6 +116,13 @@ export default function A2HSInstallPrompt(): React.JSX.Element | null {
     getA2hsInstallPrompt,
     () => null,
   );
+  const priceAnswerSeen = useSyncExternalStore(
+    subscribePriceAnswerMoment,
+    hasPriceAnswerThisSession,
+    () => false,
+  );
+  const [dwellDone, setDwellDone] = useState(false);
+  const pathname = usePathname();
 
   const platformRef = useRef<A2hsPlatform>("unsupported");
   const finalizedRef = useRef(false);
@@ -168,6 +190,9 @@ export default function A2HSInstallPrompt(): React.JSX.Element | null {
     // Defer to the first-run tour and any sibling prompt that already spent
     // the session budget — A2HS is never the second interruption in a session.
     if (!hasSeenTour()) return;
+    // The answer comes first, and it is given a moment on screen alone.
+    if (!priceAnswerSeen || !dwellDone) return;
+    if (routeOwnsScreenFoot(pathname, window.innerWidth)) return;
     if (!hasPromptBudgetFor(BUDGET_SURFACE)) return;
 
     const platform = platformRef.current;
@@ -177,13 +202,24 @@ export default function A2HSInstallPrompt(): React.JSX.Element | null {
       todayBucket: dayBucketFromDate(new Date()),
       planCompleted: completedCrawlCount() > 0,
       androidPromptReady: deferredPrompt !== null,
+      priceAnswerSeen,
     });
     // POST-#301: when eligible, emit `pwa_install_prompt_available`
     // ({ platform }) here.
     if (!decision.show || !decision.surface) return;
     if (!claimPromptBudget(BUDGET_SURFACE)) return; // a sibling won the race
+    // A show starts the cooldown too, so an ignored sheet is not re-offered
+    // on the next visit.
+    writeA2hsState(registerShown(readA2hsState(), dayBucketFromDate(new Date())));
     setSurface(decision.surface);
-  }, [deferredPrompt, surface]);
+  }, [deferredPrompt, surface, priceAnswerSeen, dwellDone, pathname]);
+
+  // The dwell: once this session's price answer lands, wait before asking.
+  useEffect(() => {
+    if (!priceAnswerSeen || dwellDone) return;
+    const id = window.setTimeout(() => setDwellDone(true), A2HS_ANSWER_DWELL_MS);
+    return () => window.clearTimeout(id);
+  }, [priceAnswerSeen, dwellDone]);
 
   // Flip the mount gate off the sync effect body (repo convention for
   // react-hooks/set-state-in-effect). Records today's visit day as a side
@@ -281,7 +317,7 @@ export default function A2HSInstallPrompt(): React.JSX.Element | null {
         onClick={() => close(true)}
         aria-label="Not now"
       >
-        <X size={18} aria-hidden="true" />
+        <X size={20} aria-hidden="true" />
       </button>
 
       <p className="a2hsEyebrow">Add to home screen</p>
@@ -292,7 +328,7 @@ export default function A2HSInstallPrompt(): React.JSX.Element | null {
       {surface === "android" ? (
         <>
           <p id="a2hsBody" className="a2hsBody">
-            Listed pint prices, one tap away.
+            Keep the listed prices one tap away.
           </p>
           {installError ? (
             <p className="a2hsError" role="status">
@@ -315,13 +351,13 @@ export default function A2HSInstallPrompt(): React.JSX.Element | null {
       ) : (
         <>
           <p id="a2hsBody" className="a2hsBody">
-            One tap to tonight, and once it&apos;s installed, PUBMAXX can send you
-            price-drop and last-orders alerts. Works in Safari.
+            Keep the listed prices one tap away. Safari has no install button,
+            so it&apos;s three taps:
           </p>
           <ol className="a2hsSteps">
             <li className="a2hsStep">
               <span className="a2hsStepIcon" aria-hidden="true">
-                <Share size={18} />
+                <Share size={20} />
               </span>
               <span>
                 Tap <strong>Share</strong> in Safari&apos;s toolbar.
@@ -329,7 +365,7 @@ export default function A2HSInstallPrompt(): React.JSX.Element | null {
             </li>
             <li className="a2hsStep">
               <span className="a2hsStepIcon" aria-hidden="true">
-                <Plus size={18} />
+                <Plus size={20} />
               </span>
               <span>
                 Choose <strong>Add to Home Screen</strong>.

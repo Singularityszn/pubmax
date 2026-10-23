@@ -20,6 +20,7 @@ import { POST as PRESENCE } from "@/app/api/plans/[id]/presence/route";
 import { POST as CREATE_INVITE } from "@/app/api/plans/[id]/invites/route";
 import { GET as SESSION, POST as EXCHANGE_SESSION } from "@/app/api/plans/[id]/session/route";
 import { __resetPlanCollaboration } from "@/lib/planCollaborationStore";
+import { PLAN_MEMBER_SESSION_MAX_AGE_SECONDS } from "@/lib/planMemberCapability";
 import { PLAN_HTTP_ONLY_SESSION } from "@/lib/planSessionCapability";
 import { __resetMemoryPlans } from "@/lib/planStore";
 import type { PlanState } from "@/lib/plan";
@@ -69,7 +70,11 @@ describe("Plan public HTTP contract", () => {
     expect(body.role).toBe("host");
     expect(response.headers.get("set-cookie")).toContain("HttpOnly");
     expect(response.headers.get("set-cookie")).toContain(`Path=/api/plans/${body.plan.plan.id}`);
-    expect(response.headers.get("set-cookie")).not.toContain("Max-Age");
+    // A session cookie dies with a native WebView's process, so a cold start
+    // on the plan's own link showed its host the invitee teaser (#1540).
+    expect(response.headers.get("set-cookie")).toContain(
+      `Max-Age=${PLAN_MEMBER_SESSION_MAX_AGE_SECONDS}`,
+    );
   });
 
   it("restores host authority through a path-scoped HttpOnly session", async () => {
@@ -188,6 +193,19 @@ describe("Plan public HTTP contract", () => {
     expect(guest.memberToken).toMatch(/^[a-f0-9]{64}$/);
     expect(guest.role).toBe("guest");
     expect(guest.collaborationAuthorized).toBe(false);
+    const presence = await PRESENCE(new Request(URL + "/" + body.plan.plan.id + "/presence", {
+      method: "POST", body: JSON.stringify({ memberToken: guest.memberToken, status: "on_the_way" }),
+    }), ctx(body.plan.plan.id));
+    expect(presence.status).toBe(200);
+    for (const type of ["arrived", "skipped"]) {
+      const denied = await ACTION(new Request(URL + "/" + body.plan.plan.id + "/actions", {
+        method: "POST", headers: { "idempotency-key": "classic-guest-" + type },
+        body: JSON.stringify({ memberToken: guest.memberToken, type, stopPosition: 0 }),
+      }), ctx(body.plan.plan.id));
+      expect(denied.status).toBe(403);
+      expect(await denied.json()).toMatchObject({ code: "PLAN_ACTION_FORBIDDEN", retryable: false });
+    }
+
 
     const wrongPlan = await createPlan();
     const cross = await JOIN(new Request(`${URL}/${wrongPlan.body.plan.plan.id}/join`, {

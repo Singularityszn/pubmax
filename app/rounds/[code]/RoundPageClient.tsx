@@ -460,7 +460,7 @@ function RoundBoard({
             aria-label={copied ? `Round code ${round.code} copied` : `Copy the Round code ${round.code}`}
           >
             {round.code}
-            {copied ? <Check size={18} aria-hidden="true" /> : <Copy size={18} aria-hidden="true" />}
+            {copied ? <Check size={16} aria-hidden="true" /> : <Copy size={16} aria-hidden="true" />}
           </button>
           {copied ? (
             <span className="roundCopyFeedback" role="status">
@@ -514,14 +514,14 @@ function RoundBoard({
                   <span className="roundHereDot" title="Here now. They tapped I'm here themselves in the last two hours." aria-label="here now" />
                 ) : null}
                 <Link href={`/u/${m.handle}`}>@{m.handle}</Link>
-                {m.handle === round.createdByHandle ? <span className="roundHostTag">host</span> : null}
+                {m.handle === round.createdByHandle ? <span className="roundHostTag">Host</span> : null}
               </li>
             );
           })}
         </ul>
       </section>
 
-      <RouteList stops={stops} />
+      <RouteList stops={stops} live={!closed} />
 
       {!amMember && !closed ? (
         <JoinForm
@@ -908,7 +908,7 @@ function RoundSpendComposer({
         className="roundPrimaryBtn roundRecordOpen"
         onClick={openForm}
       >
-        <ReceiptText size={17} aria-hidden="true" /> Put this round on the mat
+        <ReceiptText size={16} aria-hidden="true" /> Put this round on the mat
       </button>
     );
   }
@@ -929,7 +929,7 @@ function RoundSpendComposer({
             onClick={() => setOpen(false)}
             aria-label="Close round cost form"
           >
-            <X size={18} aria-hidden="true" />
+            <X size={20} aria-hidden="true" />
           </button>
         </div>
 
@@ -1250,7 +1250,13 @@ export function RoundSpendHistory({
 
 // The self-building route as a numbered stop list with who-added-what + a running
 // leg summary. Coords for the leg math are resolved from the slim index once.
-function RouteList({ stops }: { stops: RoundState["stops"] }): React.JSX.Element {
+function RouteList({
+  stops,
+  live,
+}: {
+  stops: RoundState["stops"];
+  live: boolean;
+}): React.JSX.Element {
   const [venueIndex, setVenueIndex] = useState<Map<string, SlimVenue>>(new Map());
   useEffect(() => {
     let active = true;
@@ -1288,19 +1294,25 @@ function RouteList({ stops }: { stops: RoundState["stops"] }): React.JSX.Element
         <MapPin size={16} aria-hidden="true" /> The route so far
       </h2>
       <ol className="roundStops">
-        {stops.map((stop, index) => (
-          <li key={stop.id} className="roundStop">
-            <span className="roundStopNumber" aria-hidden="true">
-              {index + 1}
-            </span>
-            <div className="roundStopBody">
-              <strong>{stop.venueName}</strong>
-              <span className="roundStopBy">
-                added by <Link href={`/u/${stop.addedByHandle}`}>@{stop.addedByHandle}</Link>
+        {stops.map((stop, index) => {
+          // While the Round is out, its last stop is where the crew is now.
+          const now = live && index === stops.length - 1;
+          return (
+            <li key={stop.id} className={`roundStop${now ? " roundStopNow" : ""}`}>
+              <span className="roundStopNumber" aria-hidden="true">
+                {index + 1}
               </span>
-            </div>
-          </li>
-        ))}
+              <div className="roundStopBody">
+                <strong>
+                  {stop.venueName}
+                  {now ? <span className="roundStopNowTag">Now</span> : null}
+                </strong>
+                {/* Plain text: each handle's profile is one tap away in Who's out. */}
+                <span className="roundStopBy">added by @{stop.addedByHandle}</span>
+              </div>
+            </li>
+          );
+        })}
       </ol>
       {summary.legs.length > 0 ? (
         <div className="roundLegs">

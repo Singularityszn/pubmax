@@ -117,9 +117,14 @@ function expiredCallbackSubject(error: unknown, accessToken: string): string | n
 const EMAIL_LINK_AMR_METHODS = new Set(["magiclink", "email/signup"]);
 
 /**
- * GoTrue records `otp` for an emailed link and for an SMS code alike. This app
- * has no phone sign-in, so an emailed link's account has a confirmed email and
- * no confirmed phone, and an SMS code's account always has a confirmed phone.
+ * GoTrue records `otp` for an emailed link and for an SMS code alike. An SMS
+ * code never arrives through a callback (components/auth/PhoneSignIn.tsx checks
+ * it on the page that asked), so an `otp` session in an unowned callback is
+ * read as an emailed link only when the account has no confirmed phone. An
+ * account that holds a confirmed phone fails closed here: its emailed link
+ * still works in the browser that asked for it, and only the hand-over to a
+ * second browser is refused, because that is exactly what a forwarded SMS
+ * session would look like.
  */
 function isEmailLinkSession(accessToken: string, user: AuthCallbackUser): boolean {
   const amr = accessTokenClaims(accessToken)?.amr;

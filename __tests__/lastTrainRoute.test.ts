@@ -8,22 +8,31 @@ const realFetch = global.fetch;
 const ORIGINAL_SUPABASE_URL = process.env.SUPABASE_URL;
 const ORIGINAL_SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
-function mockLastTrainResponses(hour: string, minute: string): void {
+type MockStation = { id: string; commonName: string; lat: number; lon: number };
+
+const OXFORD_CIRCUS_FIXTURE: MockStation = {
+  id: "940GZZLUOXC",
+  commonName: "Oxford Circus",
+  lat: 51.5,
+  lon: -0.12,
+};
+
+function mockLastTrainResponses(
+  hour: string,
+  minute: string,
+  station: MockStation | MockStation[] = OXFORD_CIRCUS_FIXTURE,
+): void {
+  const stations = Array.isArray(station) ? station : [station];
   global.fetch = vi.fn(async (input: RequestInfo | URL) => {
     const url = String(input);
     if (url.includes("/StopPoint?")) {
       return new Response(
         JSON.stringify({
-          stopPoints: [
-            {
-              id: "940GZZLUOXC",
-              commonName: "Oxford Circus",
-              distance: 0,
-              lat: 51.5,
-              lon: -0.12,
-              lines: [{ id: "victoria", name: "Victoria" }],
-            },
-          ],
+          stopPoints: stations.map((stop) => ({
+            ...stop,
+            distance: 0,
+            lines: [{ id: "victoria", name: "Victoria" }],
+          })),
         }),
         { status: 200, headers: { "content-type": "application/json" } },
       );
@@ -78,6 +87,162 @@ afterEach(() => {
   else process.env.SUPABASE_URL = ORIGINAL_SUPABASE_URL;
   if (ORIGINAL_SUPABASE_SERVICE_ROLE_KEY === undefined) delete process.env.SUPABASE_SERVICE_ROLE_KEY;
   else process.env.SUPABASE_SERVICE_ROLE_KEY = ORIGINAL_SUPABASE_SERVICE_ROLE_KEY;
+});
+
+function mockMultiLineResponses(
+  lines: { id: string; name: string; journeys: { hour: string; minute: string }[] }[],
+  scheduleName: string,
+): void {
+  global.fetch = vi.fn(async (input: RequestInfo | URL) => {
+    const url = String(input);
+    const json = (body: unknown) =>
+      new Response(JSON.stringify(body), {
+        status: 200,
+        headers: { "content-type": "application/json" },
+      });
+    if (url.includes("/StopPoint?")) {
+      return json({
+        stopPoints: [
+          {
+            id: "940GZZLUOXC",
+            commonName: "Oxford Circus",
+            distance: 0,
+            lat: 51.5,
+            lon: -0.12,
+            lines: lines.map(({ id, name }) => ({ id, name })),
+          },
+        ],
+      });
+    }
+    for (const line of lines) {
+      if (url.includes(`/Line/${line.id}/Timetable/`)) {
+        return json({
+          timetable: {
+            routes: [
+              {
+                schedules: line.journeys.map((lastJourney) => ({
+                  name: scheduleName,
+                  lastJourney,
+                })),
+              },
+            ],
+          },
+        });
+      }
+    }
+    if (url.includes("/Arrivals")) return json([]);
+    if (url.includes("/Status")) {
+      return json(
+        lines.map(({ id, name }) => ({
+          id,
+          name,
+          lineStatuses: [{ statusSeverityDescription: "Good Service" }],
+        })),
+      );
+    }
+    return new Response("not found", { status: 404 });
+  });
+}
+
+describe("GET /api/last-train service-day frame", () => {
+  it("lists the upcoming 00:28 at 00:20, not three trains that have already left", async () => {
+    vi.useFakeTimers();
+    // Saturday 00:20 Europe/London (BST): Friday night's service.
+    vi.setSystemTime(new Date("2026-07-10T23:20:00.000Z"));
+    mockMultiLineResponses(
+      [
+        {
+          id: "victoria",
+          name: "Victoria",
+          journeys: [
+            { hour: "22", minute: "30" },
+            { hour: "23", minute: "45" },
+            { hour: "24", minute: "15" },
+            { hour: "24", minute: "28" },
+          ],
+        },
+      ],
+      "Friday",
+    );
+
+    const res = await GET(
+      new Request("http://localhost/api/last-train?lat=51.5&lng=-0.12", {
+        headers: { "x-forwarded-for": "198.51.100.41" },
+      }),
+    );
+    const body = await res.json();
+    expect(body.departures).toEqual([
+      expect.objectContaining({ lineId: "victoria", times: ["00:28"], live: false }),
+    ]);
+  });
+
+  it("drops a line whose timetabled trains have all left", async () => {
+    vi.useFakeTimers();
+    // Saturday 01:30 Europe/London (BST).
+    vi.setSystemTime(new Date("2026-07-11T00:30:00.000Z"));
+    mockMultiLineResponses(
+      [
+        {
+          id: "victoria",
+          name: "Victoria",
+          journeys: [
+            { hour: "23", minute: "45" },
+            { hour: "24", minute: "28" },
+          ],
+        },
+      ],
+      "Friday",
+    );
+
+    const res = await GET(
+      new Request("http://localhost/api/last-train?lat=51.5&lng=-0.12&scope=stable", {
+        headers: { "x-forwarded-for": "198.51.100.42" },
+      }),
+    );
+    const body = await res.json();
+    expect(body.trains).toHaveLength(1);
+    expect(body.departures).toEqual([]);
+  });
+
+  it("orders last trains by service time, so 23:50 comes before 00:15", async () => {
+    vi.useFakeTimers();
+    // Friday 22:00 Europe/London (BST).
+    vi.setSystemTime(new Date("2026-07-10T21:00:00.000Z"));
+    mockMultiLineResponses(
+      [
+        { id: "victoria", name: "Victoria", journeys: [{ hour: "24", minute: "15" }] },
+        { id: "central", name: "Central", journeys: [{ hour: "23", minute: "50" }] },
+      ],
+      "Friday",
+    );
+
+    const res = await GET(
+      new Request("http://localhost/api/last-train?lat=51.5&lng=-0.12", {
+        headers: { "x-forwarded-for": "198.51.100.43" },
+      }),
+    );
+    const body = await res.json();
+    expect(body.trains.map((t: { clock: string }) => t.clock)).toEqual(["23:50", "00:15"]);
+  });
+
+  it("never lets a stable answer outlive the 04:00 service-day rollover", async () => {
+    vi.useFakeTimers();
+    // Sunday 03:59:30 Europe/London (BST): Saturday's service ends at 04:00.
+    vi.setSystemTime(new Date("2026-07-12T02:59:30.000Z"));
+    mockMultiLineResponses(
+      [{ id: "victoria", name: "Victoria", journeys: [{ hour: "24", minute: "28" }] }],
+      "Saturday",
+    );
+
+    const res = await GET(
+      new Request("http://localhost/api/last-train?lat=51.5&lng=-0.12&scope=stable", {
+        headers: { "x-forwarded-for": "198.51.100.44" },
+      }),
+    );
+    expect(res.status).toBe(200);
+    expect((await res.json()).trains).toHaveLength(1);
+    expect(res.headers.get("cache-control")).toBe("public, s-maxage=30");
+  });
 });
 
 describe("GET /api/last-train", () => {
@@ -357,7 +522,10 @@ describe("GET /api/last-train", () => {
       expect.objectContaining({ lineId: "victoria", live: false }),
     ]);
     expect(prefetchedBody.decision).toBeUndefined();
-    expect(prefetched.headers.get("cache-control")).toContain("s-maxage=3600");
+    // Time-relative departures and a service-day timetable: short shared cache.
+    expect(prefetched.headers.get("cache-control")).toBe(
+      "public, s-maxage=60, stale-while-revalidate=60",
+    );
     let calls = vi.mocked(global.fetch).mock.calls.map(([input]) => String(input));
     expect(calls.some((url) => url.includes("/Arrivals"))).toBe(false);
     expect(calls.some((url) => url.includes("/Status"))).toBe(false);
@@ -503,5 +671,86 @@ describe("GET /api/last-train", () => {
     const afterBody = await afterFallback.json();
     expect(afterBody.trains[0]).toMatchObject({ clock: "01:30", pastMidnight: true });
     expect(afterBody.decision.leaveByIso).toBe("2026-10-25T00:30:00.000Z");
+  });
+
+  it("walks to the station along the streets inside Zone 1, and says so", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-10-24T20:00:00.000Z"));
+    // TfL's hub point for Tottenham Court Road, about 60 m from ours.
+    mockLastTrainResponses("24", "30", {
+      id: "940GZZLUTCR",
+      commonName: "Tottenham Court Road",
+      lat: 51.5167,
+      lon: -0.1305,
+    });
+
+    const res = await GET(
+      new Request("http://localhost/api/last-train?lat=51.514&lng=-0.132", {
+        headers: { "x-forwarded-for": "198.51.100.36" },
+      }),
+    );
+    const body = await res.json();
+    expect(body.walkBasis).toBe("street");
+    // 458 street metres from data/station_walk_access.json at 4.8 km/h is 6
+    // minutes; the straight line (about 320 m) would have said 4.
+    expect(body.decision.walkMinutesEstimate).toBe(6);
+  });
+
+  it("keeps the straight line outside the street-walk area and labels it", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-10-24T20:00:00.000Z"));
+    // Brixton is Zone 2, more than 1 km from any Zone 1 station.
+    mockLastTrainResponses("24", "30", { id: "940GZZLUBXN", commonName: "Brixton", lat: 51.4627, lon: -0.1145 });
+
+    const res = await GET(
+      new Request("http://localhost/api/last-train?lat=51.4627&lng=-0.1145", {
+        headers: { "x-forwarded-for": "198.51.100.37" },
+      }),
+    );
+    const body = await res.json();
+    expect(body.walkBasis).toBe("straight");
+    expect(body.decision.walkMinutesEstimate).toBe(0);
+  });
+
+  it("picks the station that is the shortest street walk, not TfL's straight-line first", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-10-24T20:00:00.000Z"));
+    // TfL lists Leicester Square first, the nearer station along the straight
+    // line. On foot Charing Cross is closer: 481 m against 545 m in
+    // data/station_walk_access.json for this cell.
+    mockLastTrainResponses("24", "30", [
+      { id: "940GZZLULSQ", commonName: "Leicester Square", lat: 51.5113, lon: -0.1281 },
+      { id: "940GZZLUCHX", commonName: "Charing Cross", lat: 51.5082, lon: -0.1247 },
+    ]);
+
+    const res = await GET(
+      new Request("http://localhost/api/last-train?lat=51.509&lng=-0.129", {
+        headers: { "x-forwarded-for": "198.51.100.38" },
+      }),
+    );
+    const body = await res.json();
+    expect(body.station).toMatchObject({ id: "940GZZLUCHX", name: "Charing Cross" });
+    expect(body.decision.stationName).toBe("Charing Cross");
+    expect(body.walkBasis).toBe("street");
+    // 481 m at 4.8 km/h.
+    expect(body.decision.walkMinutesEstimate).toBe(6);
+  });
+
+  it("keeps TfL's first station outside the street-walk area", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-10-24T20:00:00.000Z"));
+    mockLastTrainResponses("24", "30", [
+      { id: "940GZZLUBXN", commonName: "Brixton", lat: 51.4627, lon: -0.1145 },
+      { id: "940GZZLUSKW", commonName: "Stockwell", lat: 51.4723, lon: -0.123 },
+    ]);
+
+    const res = await GET(
+      new Request("http://localhost/api/last-train?lat=51.4627&lng=-0.1145", {
+        headers: { "x-forwarded-for": "198.51.100.39" },
+      }),
+    );
+    const body = await res.json();
+    expect(body.station.id).toBe("940GZZLUBXN");
+    expect(body.walkBasis).toBe("straight");
   });
 });

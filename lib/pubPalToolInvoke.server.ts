@@ -6,13 +6,13 @@ import {
   runAskTool,
   type AskToolArgs,
 } from "@/lib/ask/tools";
-import type { AskToolName } from "@/lib/ask/types";
 import { isAskToolName } from "@/lib/ask/types";
 import {
   pubPalGetHomeRegisterAnswer,
   resolvePubPalFenceIntent,
+  type PubPalFenceTurn,
 } from "@/lib/pubPalLlmFence";
-import { routeAskDeterministically } from "@/lib/ask/router";
+import { isIndependentAskTool, refineVenueBudgetFollowUp, routeAskDeterministically, unsupportedPriceComparison } from "@/lib/ask/router";
 import {
   appendPubPalToolTurn,
   readPubPalToolTurn,
@@ -28,12 +28,14 @@ function isEmptyArg(value: unknown): boolean {
 export function resolvePubPalToolQuery(input: {
   turnQuery?: string | null;
   args: AskToolArgs;
+  turns?: readonly PubPalFenceTurn[];
 }): string {
   const fromTurn = input.turnQuery?.trim() ?? "";
   const fromArgs =
     typeof input.args.query === "string" ? input.args.query.trim() : "";
-  if (fromTurn.length >= fromArgs.length) return fromTurn || fromArgs;
-  return fromArgs || fromTurn;
+  const query = fromTurn || fromArgs;
+  const priorUsers = input.turns?.filter((turn) => turn.role === "user").map((turn) => turn.content);
+  return refineVenueBudgetFollowUp(query, priorUsers) ?? query;
 }
 
 export function enrichPubPalToolArgs(
@@ -105,13 +107,24 @@ export async function invokePubPalAskTool(input: {
   const turn = input.conversationId
     ? await readPubPalToolTurn(input.conversationId)
     : null;
-  const query = resolvePubPalToolQuery({ turnQuery: turn?.query, args: input.args });
+  const query = resolvePubPalToolQuery({ turnQuery: turn?.query, args: input.args, turns: turn?.turns });
   const cityId = resolveAskCityId(
     typeof input.args.cityId === "string" ? input.args.cityId : turn?.cityId,
   );
   const args = enrichPubPalToolArgs(input.toolName, input.args, query);
 
   const threadTurns = turn?.turns ?? [];
+  const unsupported = unsupportedPriceComparison(query);
+  const priceRefusal = unsupported && !isIndependentAskTool(input.toolName) ? unsupported : null;
+  // The fence decides what the agent hears, never what the tool reads, and both
+  // can take seconds, so they run together. A fenced turn drops the tool's
+  // answer unread: nothing from it is appended, spoken or returned. A price ask
+  // the tools cannot answer starts no tool at all.
+  const startTool = () => runAskTool(input.toolName, args, { cityId, query, skipModel: true });
+  const toolRun = priceRefusal ? null : startTool();
+  // Awaited below on the unfenced path; this only keeps a fenced turn's
+  // discarded run from surfacing as an unhandled rejection.
+  toolRun?.catch(() => {});
   const { fenced, sobrietyOnly } = await resolvePubPalFenceIntent(query, threadTurns);
   if (fenced) {
     const register = pubPalGetHomeRegisterAnswer("", sobrietyOnly);
@@ -139,18 +152,29 @@ export async function invokePubPalAskTool(input: {
     };
   }
 
-  const toolResult = await runAskTool(input.toolName as AskToolName, args, {
-    cityId,
-    query,
-    skipModel: true,
-  });
+  if (priceRefusal) {
+    if (input.conversationId) {
+      await appendPubPalToolTurn(input.conversationId, { hints: [priceRefusal.answer] });
+    }
+    return {
+      result: {
+        ok: false,
+        code: priceRefusal.code,
+        answerHint: priceRefusal.answer,
+        cards: [],
+        proposals: [],
+      },
+    };
+  }
+
+  const toolResult = await (toolRun ?? startTool());
 
   if (input.conversationId) {
     await appendPubPalToolTurn(input.conversationId, {
       cards: toolResult.cards,
       proposals: toolResult.proposals,
       hints: toolResult.answerHint ? [toolResult.answerHint] : [],
-      toolsUsed: [input.toolName],
+      toolsUsed: [toolResult.tool],
     });
   }
 
@@ -168,6 +192,8 @@ export async function invokePubPalAskTool(input: {
       tool: toolResult.tool,
       answerHint: spokenHint,
       cards: toolResult.cards,
+      ...(toolResult.priceEvidence ? { priceEvidence: toolResult.priceEvidence } : {}),
+      sources: toolResult.provenance,
       proposals: toolResult.proposals,
       degraded: toolResult.degraded ?? false,
     },

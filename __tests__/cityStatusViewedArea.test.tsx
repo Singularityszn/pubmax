@@ -108,6 +108,18 @@ it("keeps explicitly London-wide alerts without borrowing local areas", async ()
   expect(container.querySelector(".cityStatusBannerCopy")?.textContent).toBe("London-wide transport strike");
 });
 
+it("keeps an opened city-wide feed when the initial map area settles without changing its contents", async () => {
+  vi.mocked(fetch).mockResolvedValue(new Response(JSON.stringify({
+    signals: [{ headline: "London-wide transport strike", severity: "major", areas: ["London"] }],
+  }), { status: 200 }));
+  await renderArea(null);
+  act(() => container.querySelector<HTMLButtonElement>(".cityStatusBannerLink")?.click());
+  expect(container.querySelector(".cityStatusSignalSheet")).not.toBeNull();
+  await renderArea("Soho");
+  expect(container.querySelector(".cityStatusSignalSheet")).not.toBeNull();
+  expect(container.querySelector(".cityStatusBannerLink")?.getAttribute("aria-expanded")).toBe("true");
+});
+
 it.each([
   { areas: ["London"] },
   { areas: ["Greater London"] },

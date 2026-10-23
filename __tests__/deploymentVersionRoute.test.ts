@@ -1,7 +1,4 @@
-import { readFileSync } from "node:fs";
-import path from "node:path";
-
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { GET } from "@/app/api/version/route";
 import {
@@ -25,6 +22,7 @@ const ORIGINAL = Object.fromEntries(
 ) as Record<(typeof STAMP_KEYS)[number], string | undefined>;
 
 afterEach(() => {
+  vi.unstubAllEnvs();
   for (const key of STAMP_KEYS) {
     if (ORIGINAL[key] === undefined) delete process.env[key];
     else process.env[key] = ORIGINAL[key];
@@ -177,7 +175,7 @@ describe("deployment version route", () => {
   });
 
   // Stale tabs call this route with no credential and compare deploymentId.
-  // The commit, its source and the build time stay behind the cron check.
+  // The commit is public. Its source and build time require the cron credential.
   it("gives the stale-tab reload a non-empty deployment id when Vercel set one", async () => {
     const deploymentKeys = [
       "NEXT_DEPLOYMENT_ID",
@@ -202,7 +200,7 @@ describe("deployment version route", () => {
       expect(seen).toBe("dpl_public_skew");
       expect(body.deploymentId).toBe("dpl_public_skew");
       expect(body.deploymentId.length).toBeGreaterThan(0);
-      expect(body).not.toHaveProperty("gitCommitSha");
+      expect(body.gitCommitSha).toBe(SHA);
       expect(body).not.toHaveProperty("gitCommitShaSource");
       expect(body).not.toHaveProperty("builtAt");
     } finally {
@@ -216,26 +214,31 @@ describe("deployment version route", () => {
   // The defect this route is answering for: the sha was read at REQUEST time
   // from a variable Vercel sets only on a build its Git integration owns, so a
   // CLI deploy served null for ever. The build decides; the request only reports.
-  it("hides build metadata from callers without the cron credential", async () => {
+  it("names the built commit publicly while protecting operational metadata", async () => {
     process.env.CRON_SECRET = "deploy-marker-secret";
     process.env.PUBMAX_BUILD_COMMIT_SHA = SHA;
 
     const body = await GET().json();
     expect(body.ok).toBe(true);
-    expect(body).not.toHaveProperty("gitCommitSha");
+    expect(body.gitCommitSha).toBe(SHA);
     expect(body).not.toHaveProperty("gitCommitShaSource");
     expect(body).not.toHaveProperty("builtAt");
   });
 
-  it("reads no platform git variable and runs no git at request time", () => {
-    const source = readFileSync(
-      path.join(process.cwd(), "app/api/version/route.ts"),
-      "utf8",
-    );
-    const code = source.replace(/\/\/[^\n]*\n/g, "\n");
+  it.each([
+    [SHA, SHA],
+    [undefined, null],
+    ["", null],
+    ["main", null],
+  ] as const)("reports build stamp %j independently of the runtime platform commit", async (stamp, expected) => {
+    vi.stubEnv("VERCEL_GIT_COMMIT_SHA", "f".repeat(40));
+    process.env.CRON_SECRET = "version-route-test-secret";
+    if (stamp === undefined) delete process.env.PUBMAX_BUILD_COMMIT_SHA;
+    else process.env.PUBMAX_BUILD_COMMIT_SHA = stamp;
 
-    expect(code).not.toContain("VERCEL_GIT_COMMIT_SHA");
-    expect(code).not.toContain("child_process");
-    expect(code).not.toContain("rev-parse");
+    for (const request of [undefined, cronVersionRequest("wrong-secret"), cronVersionRequest()]) {
+      const body = await GET(request).json();
+      expect(body.gitCommitSha).toBe(expected);
+    }
   });
 });

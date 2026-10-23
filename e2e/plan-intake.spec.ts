@@ -2,7 +2,7 @@ import { expect, test, type Page } from "@playwright/test";
 
 // #1402 seated /plan's opening question on the Screen primitive, which
 // renders the head this asserts. The old "What’s the plan?" h2 went with it.
-const DESCRIBE_FIRST_HEADING = "Describe the outing. We’ll put it in order.";
+const DESCRIBE_FIRST_HEADING = "Plan a pub crawl";
 
 async function continueIntake(page: Page): Promise<void> {
   const continueButton = page.getByRole("button", { name: "Continue" });
@@ -11,7 +11,7 @@ async function continueIntake(page: Page): Promise<void> {
 }
 
 async function openWizard(page: Page): Promise<void> {
-  await page.getByRole("button", { name: "Guide me instead" }).click();
+  await page.getByRole("button", { name: "Step by step" }).click();
 }
 
 async function chooseClaphamAndContinue(page: Page): Promise<void> {
@@ -37,7 +37,7 @@ test.beforeEach(async ({ page }) => {
   });
 });
 
-test("blank Plan opens on describe-first, with the wizard reachable behind Guide me instead", async ({
+test("blank Plan opens on describe-first, with the wizard reachable behind Step by step", async ({
   page,
 }) => {
   await page.goto("/plan");
@@ -251,7 +251,7 @@ test("single-value intake fields advance with Enter without submitting the Plan"
   await expect.poll(async () => groupHeading.evaluate((element) => ({
     style: getComputedStyle(element).outlineStyle,
     width: getComputedStyle(element).outlineWidth,
-  }))).toEqual({ style: "solid", width: "3px" });
+  }))).toEqual({ style: "solid", width: "2px" });
 
   const groupSize = page.getByLabel("Or enter a group size");
   await groupSize.fill("7");

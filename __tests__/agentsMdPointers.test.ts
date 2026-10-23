@@ -193,6 +193,9 @@ const NOT_REPO_PATHS = new Set([
   "supabase.auth.setSession",
   "supabasePlanStore.create",
   "webServer.env",
+  // Culture Crawl property names, not repository paths.
+  "budgetSummary.withinLimit",
+  "cultureOpener.costs",
   // Structured log event names, not paths.
   "out.provider_failed",
   "out.supply",
@@ -204,6 +207,8 @@ const NOT_REPO_PATHS = new Set([
   "public.create_one_tap_price_pair",
   "public.rls_*",
   "pubmax_private.grant_founding_member_number",
+  "profiles.founding_member_excluded",
+  "pubmax_private.founding_member_renumber_0190",
   // Storage key TEMPLATES with runtime segments, not committed files.
   "messages/{conversationId}/{messageId}.jpg",
   "venue-photos/{venueId}/{photoId}.jpg",

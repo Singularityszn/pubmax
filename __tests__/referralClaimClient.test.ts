@@ -16,6 +16,51 @@ const AUTH_ATTEMPT = {
 describe("same-journey referral claim", () => {
   afterEach(() => {
     vi.useRealTimers();
+    vi.unstubAllGlobals();
+  });
+
+  it("does not store a follow handle when ownership changes during response parsing", async () => {
+    const setItem = vi.fn();
+    vi.stubGlobal("window", { sessionStorage: { setItem } });
+    let finish!: (value: { inviterHandle: string }) => void;
+    const json = vi.fn(() => new Promise<{ inviterHandle: string }>((resolve) => { finish = resolve; }));
+    const request = vi.fn(async () => ({ ok: true, json }) as unknown as Response);
+    let current = true;
+    const claim = claimSignupReferral("opaque_code_123456789", AUTH_ATTEMPT.id, "signed-proof", request, () => current);
+    await vi.waitFor(() => expect(json).toHaveBeenCalledOnce());
+    current = false;
+    finish({ inviterHandle: "captured_friend" });
+    await claim;
+    expect(setItem).not.toHaveBeenCalled();
+  });
+
+  it("releases the unread claim body when ownership ends during the request", async () => {
+    const setItem = vi.fn();
+    vi.stubGlobal("window", { sessionStorage: { setItem } });
+    let cancelled = false;
+    const body = new ReadableStream<Uint8Array>({
+      start(controller) { controller.enqueue(new TextEncoder().encode('{"inviterHandle":')); },
+      cancel() { cancelled = true; },
+    });
+    let current = true;
+    const request = vi.fn(async () => { current = false; return new Response(body, { status: 200 }); });
+    await claimSignupReferral("opaque_code_123456789", AUTH_ATTEMPT.id, "signed-proof", request, () => current);
+    expect(request).toHaveBeenCalledOnce();
+    expect(setItem).not.toHaveBeenCalled();
+    await vi.waitFor(() => expect(cancelled).toBe(true), { timeout: 1000 });
+  });
+
+  it("does not retry under a new account after the original ownership expires", async () => {
+    vi.useFakeTimers();
+    const request = vi.fn().mockResolvedValueOnce(new Response(null, { status: 503 }));
+    let current = true;
+    const claim = claimSignupReferral("opaque_code_123456789", AUTH_ATTEMPT.id, "signed-proof", request, () => current);
+    await vi.advanceTimersByTimeAsync(249);
+    expect(request).toHaveBeenCalledOnce();
+    current = false;
+    await vi.advanceTimersByTimeAsync(1);
+    await claim;
+    expect(request).toHaveBeenCalledOnce();
   });
 
   it("waits for Retry-After before retrying the live handoff", async () => {

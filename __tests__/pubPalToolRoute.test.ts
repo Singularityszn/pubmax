@@ -18,9 +18,9 @@ vi.mock("@/lib/ask/tools", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/lib/ask/tools")>();
   return {
     ...actual,
-    runAskTool: vi.fn(async () => ({
+    runAskTool: vi.fn(async (tool: string) => ({
       ok: true,
-      tool: "search_venues",
+      tool,
       data: null,
       provenance: [],
       cards: [
@@ -125,6 +125,7 @@ describe("POST /api/pub-pal/tools/[toolName]", () => {
     );
     expect(response.status).toBe(200);
     expect(runAskTool).toHaveBeenCalled();
+    expect(await response.json()).toMatchObject({ requestedTool: "search_venues", result: { tool: "search_venues" } });
   });
 
   it("fails closed when the shared secret is unset, even for a listed tool", async () => {

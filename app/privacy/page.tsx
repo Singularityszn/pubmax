@@ -4,6 +4,7 @@ import Link from "next/link";
 import Kicker from "@/components/ui/kicker";
 import { CONTACT_EMAIL, CONTACT_MAILTO } from "@/lib/siteContact";
 import { appPageTitle, metadataSiteName } from "@/lib/brandNaming";
+import SiteNav from "@/components/nav/SiteNav";
 
 import "../legal.css";
 
@@ -26,7 +27,7 @@ import "../legal.css";
 const PAGE_TITLE = "Privacy";
 const PAGE_DESCRIPTION =
   "What PUBMAXX collects, why, who else sees it, how long we keep it, and how to get it deleted. Written against the app's behaviour.";
-const LAST_UPDATED = "6 October 2026";
+const LAST_UPDATED = "20 October 2026";
 
 export const metadata: Metadata = {
   title: PAGE_TITLE,
@@ -43,6 +44,8 @@ export const metadata: Metadata = {
 
 export default function PrivacyPage() {
   return (
+    <>
+    <SiteNav />
     <main id="main" className="legalPage">
       {/* A legal page has no primary action (docs/design/LAUNCH_SCREENS.md),
           so the head is a kicker and the heading, never a Screen. */}
@@ -79,7 +82,7 @@ export default function PrivacyPage() {
             data sales, no ad networks, no advertising trackers on the site.
           </li>
           <li>
-            <strong>Your nights are yours.</strong>{" "}Night Memories and private
+            <strong>Your nights are yours.</strong>{" "}Your memories and private
             plans aren&rsquo;t public unless you choose to share them.
           </li>
         </ul>
@@ -88,7 +91,7 @@ export default function PrivacyPage() {
       <section className="legalSection" aria-labelledby="who">
         <h2 id="who" className="legalH2">Who&rsquo;s responsible</h2>
         <p className="legalBody">
-          PUBMAXXING is run by Karan Manoharan, an individual based in London,
+          PUBMAXX is run by Karan Manoharan, an individual based in London,
           UK. There is no company behind it yet, so for UK GDPR purposes the
           data controller is that individual, reachable at{" "}
           <a href={CONTACT_MAILTO} className="legalLink">{CONTACT_EMAIL}</a>. We
@@ -121,9 +124,11 @@ export default function PrivacyPage() {
 
         <h3 className="legalH3">If you make an account</h3>
         <p className="legalBody">
-          Supabase handles sign-in, using either an emailed magic link or
-          Microsoft, Google or Apple sign-in. That means we hold your email
-          address. You must choose one public handle, which is linked to your
+          Supabase handles sign-in, using an emailed magic link, a code sent
+          by text message to a UK mobile number, or Microsoft,
+          Google or Apple sign-in. That means we hold your email address, or your phone number
+          if you sign in with a text code. We use the phone number only to send
+          sign-in codes. It is never shown to anybody. You must choose one public handle, which is linked to your
           authenticated account and is the only identity shown with contributions.
           You need a handle to finish signup. Date of birth is optional.
           Full name, gender and sex are optional. We collect and store date
@@ -218,8 +223,8 @@ export default function PrivacyPage() {
         <p className="legalBody">
           Pint Drops (a price, a note, sometimes a photo), plans and crawl
           routes, presence taps (&ldquo;I&rsquo;m here tonight&rdquo;), ratings,
-          messages to other people, Visit Reports, Recommendations, and Night
-          Memories. We keep these because they are the product. A price with no
+          messages to other people, Visit Reports, Recommendations, and your
+          memories. We keep these because they are the product. A price with no
           date and no source is worth nothing. Presence is always a deliberate
           tap; the app never tracks your location in the background.
         </p>
@@ -235,6 +240,14 @@ export default function PrivacyPage() {
           tags appear only after the tagged person approves them and can be
           withdrawn later. The browser keeps unfinished text and selected photo
           data on this device until you post or clear the draft.
+        </p>
+        <p className="legalBody">
+          You can hide your name on a public Social post. Other people then see
+          &ldquo;a PUBMAXXER&rdquo; instead of your handle, with no picture and
+          no link to your profile. We still store your account and handle with
+          the post. Moderators can see them, and a report on the post reaches
+          your account. A post with your name hidden cannot name a pub or tag
+          anybody.
         </p>
         <p className="legalBody">
           Failed or interrupted Social photo uploads can stay temporarily in
@@ -456,9 +469,10 @@ export default function PrivacyPage() {
             Page visits and events include browser and version, operating
             system, device type, screen and viewport size, the referring page,
             recognised campaign parameters and coarse app paths. The browser
-            SDK also sends Web Vitals so we can measure loading and interaction
-            performance. No account, handle, email, message content, free text
-            or precise location is attached.
+            SDK also sends Web Vitals, and how long the map took to show its
+            pubs, so we can measure loading and interaction performance. No
+            account, handle, email, message content, free text or precise
+            location is attached.
           </li>
           <li>
             Product actions still come from a closed, named list, such as a plan
@@ -479,7 +493,8 @@ export default function PrivacyPage() {
             the provider. The first-party browser proxy doesn&rsquo;t forward
             cookies or sign-in headers. For named product events, the server
             passes the request user agent and raw IP address to PostHog along
-            with the validated referrer and screen context. PUBMAXX doesn&rsquo;t
+            with the validated referrer, screen context and the analytics
+            session the event happened in. PUBMAXX doesn&rsquo;t
             put that raw IP address in its own logs or database; its own rate
             limit keeps only a salted hash.
           </li>
@@ -611,6 +626,22 @@ export default function PrivacyPage() {
           </li>
         </ul>
         <p className="legalBody">
+          Pub Pal keeps up to 24 conversation entries in this tab, including
+          your questions, answers, sourced cards and pending proposals. It uses
+          your browser&rsquo;s sessionStorage when available, so you can return
+          to the chat after browsing a pub.
+        </p>
+        <p className="legalBody">
+          We do not restore a saved conversation after more than two idle
+          minutes. We remove an older copy when the chat reads it. Until then,
+          the copy can remain in tab storage.
+        </p>
+        <p className="legalBody">
+          Changing accounts, signing out or choosing New conversation clears
+          the current thread. Confirmed Pal memories stay separate. A pending
+          proposal becomes a memory only after you confirm it.
+        </p>
+        <p className="legalBody">
           Because nothing non-essential is set before you agree to it, the first
           visit choice is a small prompt rather than a wall in front of the map.
           Your account keeps the later control.
@@ -630,6 +661,15 @@ export default function PrivacyPage() {
             <dd>
               Database, sign-in and file storage, on their EU region. Holds your
               account, your posts and your community price and venue report rows.
+            </dd>
+          </div>
+          <div className="legalRow">
+            <dt>Twilio</dt>
+            <dd>
+              Sends the sign-in code by text message, and only when you choose
+              to sign in with a phone number. It receives your phone number and
+              the code. Phone sign-in stays off until it is switched on in our
+              Supabase settings.
             </dd>
           </div>
           <div className="legalRow">
@@ -728,9 +768,18 @@ export default function PrivacyPage() {
               provider that answers it (OpenRouter, and ElevenLabs at{" "}
               <code>api.elevenlabs.io</code> when Pub Pal voice or typed chat is
               configured). With Pub Pal, the memories you confirmed for your
-              Pal (up to eight short preferences, such as a drink you like or
-              an access need) go with each chat or voice call too, so it can
-              use them. Nothing else about you goes with it. We do not keep
+              Pal go with each chat or voice call too, so it can use them:
+              every one of those short preferences, such as a drink you like or
+              an access need, up to forty, with the ones about what you just
+              asked first. Past forty, the ones about what you asked go and the
+              oldest of the rest wait for a question about them. So does a short read of your taste that we work out
+              from your profile&rsquo;s favourite drink and what you logged yourself: your usual patches, the pubs you
+              go back to or rated, what you drink, what you usually pay for a
+              pint, the vibes you tag and the pubs you saved. Our server keeps
+              that read in memory for two minutes at most and never writes it
+              to a database. Turn the taste read off on your Pal&rsquo;s page
+              and neither your favourite drink nor your logs are read for it. Nothing else about you
+              goes with it. We do not keep
               the audio. Recent lines are stored against your account for two
               minutes after your last line, then deleted by a clean-up that
               runs every minute.
@@ -740,14 +789,18 @@ export default function PrivacyPage() {
             <dt>TypeSafe</dt>
             <dd>
               Pub Pal asks TypeSafe two yes-or-no safety questions about your
-              message before it answers: whether you are asking if you are fit
-              to travel after drinking, and whether you are asking how to get
-              home. Your message and up to six recent turns of that
+              message before it answers. Are you asking if you are fit to
+              travel after drinking? Are you asking how to get home? Your
+              message and up to six recent turns of that
               conversation go to <code>api.typesafe.ai</code> for those
-              judgments, and nothing else about you goes with them. It is off
-              and sends nothing unless a TypeSafe key is set on the deployment;
-              without one Pub Pal falls back to a fixed word list on our own
-              server.
+              judgments. When Pub Pal offers to remember something in a typed
+              or voice chat, the new fact and up to five of the memories you confirmed
+              that are about the same thing also go to TypeSafe, which says
+              whether the fact is new, repeats one of them or replaces one.
+              Nothing else about you goes with them. It is off and sends
+              nothing unless a TypeSafe key is set on the deployment; without
+              one Pub Pal falls back to a fixed word list on our own server,
+              and every memory offer is an ordinary card.
             </dd>
           </div>
           <div className="legalRow">
@@ -780,12 +833,44 @@ export default function PrivacyPage() {
               subscription itself belongs to your own browser&rsquo;s push service.
               We keep that stored row until the push service reports it dead or
               you ask us to remove it.
-              The separate Step Out weekly nudge is off by default. If you turn
-              it on, we store that preference against your account, bind it to
-              the same web push subscription, and may send at most one
-              place-bound push a week about a Wanted pub near your night patch,
-              an open Soft Plan, or a sourced deal. Turning it off withdraws the
+              The separate weekly nudge is off by default. If you turn it on,
+              we store that preference against your account, bind it to the
+              same web push subscription, and may send at most one push a week
+              about a pub on your list to try near your night patch, an open
+              plan for tonight, or a sourced deal. Turning it off withdraws the
               preference and removes the bound subscription.
+            </dd>
+          </div>
+          <div className="legalRow">
+            <dt>Apple and Google push</dt>
+            <dd>
+              If you allow notifications in the iPhone or Android app, your
+              phone gives the app a device token, and we store that token with
+              the platform name. The token carries no account, handle or email.
+              To deliver a notification, our server sends the token with the
+              notification title and text to the Apple Push Notification
+              service at <code>api.push.apple.com</code> (or{" "}
+              <code>api.sandbox.push.apple.com</code> for development builds),
+              or to Firebase Cloud Messaging at <code>fcm.googleapis.com</code>.
+              We keep the token until Apple or Google reports it invalid, for
+              example after you delete the app. Because the token carries no
+              account, we cannot find it from an account or email request.
+            </dd>
+          </div>
+          <div className="legalRow">
+            <dt>Sign-in and connected profiles</dt>
+            <dd>
+              If you choose Microsoft, Google or Apple sign-in, that provider
+              confirms who you are to our Supabase sign-in service and shares
+              your email address and the basic profile details it releases. If
+              you connect an X, Instagram or TikTok profile, our server
+              exchanges the sign-in code with that platform at{" "}
+              <code>api.x.com</code>, <code>api.instagram.com</code> and{" "}
+              <code>graph.instagram.com</code>, or{" "}
+              <code>open.tiktokapis.com</code>, and reads your username, profile
+              link and, where the platform gives it, display name and picture.
+              Disconnecting the profile, or deleting your account, removes the
+              stored details and tokens.
             </dd>
           </div>
         </dl>
@@ -819,7 +904,11 @@ export default function PrivacyPage() {
           <li>
             <strong>Backups:</strong>{" "}data you delete, including a deleted
             account, can remain in our backups for up to 8 weeks before it is
-            removed.
+            removed. We never delete our only complete backup, so if newer
+            backups fail, that one is kept past 8 weeks until a newer backup
+            completes. A failed backup sends us an alert so we can fix it.
+            If the backup Mac is asleep, powered off, or unavailable, deletion
+            is delayed until the next run.
           </li>
           <li>
             <strong>Social account records:</strong>{" "}the private product account
@@ -899,7 +988,7 @@ export default function PrivacyPage() {
           <li>
             <strong>Push subscriptions:</strong>{" "}if you turned notifications
             on, the stored subscription row stays until your browser&rsquo;s
-            push service reports it dead or you ask us to remove it. A Step Out
+            push service reports it dead or you ask us to remove it. A weekly nudge
             opt-in preference and its last-sent stamp stay until you turn the
             nudge off or delete your account.
           </li>
@@ -927,7 +1016,7 @@ export default function PrivacyPage() {
         <p className="legalBody">
           A portable copy you can take yourself, without asking us: open the You
           tab, go to Account settings and choose Download your data. It is one
-          JSON file of your Night Memories and Moments, the prices and Pint Drops
+          JSON file of your memories and Moments, the prices and Pint Drops
           you logged, and the messages you sent.
         </p>
         <p className="legalBody">
@@ -1001,5 +1090,6 @@ export default function PrivacyPage() {
         </p>
       </section>
     </main>
+    </>
   );
 }

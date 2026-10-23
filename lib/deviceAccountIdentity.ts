@@ -49,6 +49,13 @@ export const DEVICE_IDENTITY_LOCAL_KEYS = [
   "pubmax:identityNudge:dismissedAt:v1",
   // Badge event opt-ins are chosen on the owner's own profile.
   "pubmax-badge-event-opt-ins",
+  // The host name the plan composer remembers prints on every share card.
+  "pubmax:plan-host-name:v1",
+  // The Pub Pal this browser last saved (lib/localPal.ts): its name and
+  // portrait stand in the dock, on the map and on the recap postcard.
+  "pubmax_pub_pal_v1",
+  // Tonight's answer to the Pal's evening question (lib/palNightQuestion.ts).
+  "pubmax:pal-night-answer:v1",
 ] as const;
 
 /** The sessionStorage half of the same set. */

@@ -251,14 +251,20 @@ test.describe("Today picks states", () => {
       "temporarily_unavailable",
     ]).toContain(state);
 
-    const pubSuggestions = card.getByRole("region", { name: "Pubs people are talking about" });
+    const pubSuggestions = card.getByRole("region", { name: "Pubs Londoners keep recommending" });
     if (await pubSuggestions.count()) {
       await expect(pubSuggestions).toBeVisible();
-      await expect(pubSuggestions.getByRole("link", { name: "Open on map" }).first())
-        .toHaveAttribute("href", /^\/map\?sel=.+/);
+      const pubLink = pubSuggestions.locator('a[href^="/map?sel="]').first();
+      await expect(pubLink).toHaveText(/\S/);
+      const pubName = (await pubLink.innerText()).trim();
+      const mapHref = await pubLink.getAttribute("href");
+      expect(mapHref).toMatch(/^\/map\?sel=.+/);
       await expect(card.locator(".todayCardEmpty")).not.toHaveText(QUIET_NIGHT_FRAGMENT);
       await expect(card.getByRole("link", { name: "See everything on tonight" }))
         .toHaveAttribute("href", "/tonight");
+      await pubLink.click();
+      await expect(page).toHaveURL(new RegExp(mapHref!.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + "$"));
+      await expect(page.getByRole("heading", { name: pubName, exact: true })).toBeVisible();
       return;
     }
 

@@ -832,7 +832,13 @@ export function restoredSessionFrame<NightAreaSlug extends string = string>(inpu
     loadedCityId: resumeSeed ? cityId : null,
     resumeViewport: resumeSeed?.viewport ?? null,
     selectedVenueId: seed.selectedVenueId || "",
-    filters: restoredSession?.filters ?? seed.filters,
+    // The search comes from the address alone (`?q=`), never from a saved
+    // session. A remembered "Hatton" on a bare /map narrowed the priced pins to
+    // its few matches, so the map opened with no prices on it and a stale word
+    // in the field. Every other saved filter still comes back.
+    filters: restoredSession?.filters
+      ? { ...restoredSession.filters, query: seed.filters.query }
+      : seed.filters,
     landmarkId: seed.landmarkId ?? "",
     nightArea: restoredSession?.nightArea ?? null,
     plannerOpen:
@@ -939,6 +945,23 @@ export function londonRestaurantSelection<Restaurant>(input: {
 }
 
 /**
+ * The London fast-food counter a selection opens (lib/londonFoodPlaces.ts), and
+ * whether the food pack would let the selection go. A counter has no pin, so it
+ * opens only from a link, such as the soft drinks page's "Add a price", and the
+ * pack is shown on every London map. An id the pack does not hold, once its
+ * read has settled, is let go by this source.
+ */
+export function londonFoodPlaceSelection<Place>(input: {
+  shown: boolean;
+  selectedVenueId: string;
+  status: LondonLayerReadStatus;
+  byId: ReadonlyMap<string, Place>;
+}): { place: Place | null; release: boolean } {
+  const pick = londonLayerPick(input);
+  return { place: pick.item, release: pick.release };
+}
+
+/**
  * The London venue-layer place a `venue-osm-` selection opens: a pilot cafe or
  * a restaurant. The selection is let go only when EVERY London source would
  * let it go, because an id one source cannot place may be the other's. An id
@@ -974,9 +997,9 @@ export function londonVenueSelection<Cafe, Restaurant>(input: {
  * one read.
  * A deep-linked `sel=` before the slim index resolves still counts as detail
  * open (`pendingDeepLinkSelection`) so the venue skeleton can mount while the
- * shard loads. A base pub whose cold restore could not be answered has no
- * record coming, so its selection holds with the sheet shut and the selection
- * notice says what happened; a curated id keeps its skeleton for the index.
+ * shard loads. After a failed lookup, no record is pending for either a base
+ * pub or a curated venue absent from the index. The selection holds with the
+ * sheet shut, and the selection notice explains the failed lookup.
  */
 export type MapSelectionFrame = {
   selectedId: string | undefined;
@@ -985,6 +1008,7 @@ export type MapSelectionFrame = {
   basePubOpen: boolean;
   coffeeCafeOpen: boolean;
   londonRestaurantOpen: boolean;
+  londonFoodPlaceOpen: boolean;
   detailOpen: boolean;
 };
 
@@ -996,6 +1020,8 @@ export function mapSelectionFrame(input: {
   selectedCoffeeCafe?: { id: string } | null;
   /** The London restaurant the selected id resolved to, once the pack has loaded. */
   selectedLondonRestaurant?: { id: string } | null;
+  /** The London fast-food counter the selected id resolved to, once the pack has loaded. */
+  selectedLondonFoodPlace?: { id: string } | null;
   venueById: ReadonlyMap<string, Venue>;
   isPubVenue: (venue: Venue) => boolean;
   /** The selected id's lookup could not be answered (offline, 503). */
@@ -1009,14 +1035,18 @@ export function mapSelectionFrame(input: {
   const londonRestaurantOpen = Boolean(
     input.selectedLondonRestaurant && input.selectedLondonRestaurant.id === selectedVenueId,
   );
+  const londonFoodPlaceOpen = Boolean(
+    input.selectedLondonFoodPlace && input.selectedLondonFoodPlace.id === selectedVenueId,
+  );
   const pendingDeepLinkSelection =
     Boolean(selectedVenueId) &&
     !selectedVenue &&
     !basePubOpen &&
     !coffeeCafeOpen &&
     !londonRestaurantOpen &&
+    !londonFoodPlaceOpen &&
     !venueById.has(selectedVenueId) &&
-    !(input.lookupFailed && isUkBaseId(selectedVenueId));
+    !input.lookupFailed;
   return {
     selectedId: selectedVenue?.id,
     resolvable: selectedVenueId ? venueById.has(selectedVenueId) : false,
@@ -1024,11 +1054,13 @@ export function mapSelectionFrame(input: {
     basePubOpen,
     coffeeCafeOpen,
     londonRestaurantOpen,
+    londonFoodPlaceOpen,
     detailOpen:
       Boolean(selectedVenueId && selectedVenue) ||
       basePubOpen ||
       coffeeCafeOpen ||
       londonRestaurantOpen ||
+      londonFoodPlaceOpen ||
       pendingDeepLinkSelection,
   };
 }

@@ -11,6 +11,7 @@ import {
   releaseDeviceAccountOwner,
   subscribeDeviceIdentity,
 } from "@/lib/deviceAccountIdentity";
+import { LOCAL_PAL_KEY } from "@/lib/localPal";
 import { NIGHT_PROFILE_DEVICE_KEY } from "@/lib/nightProfileDeviceProvenance";
 
 function fakeStorage(initial: Record<string, string> = {}) {
@@ -125,6 +126,20 @@ describe("device account identity", () => {
     });
     clearDeviceAccountArtifacts(legacy);
     expect(legacy.getItem(NIGHT_PROFILE_DEVICE_KEY)).not.toBeNull();
+  });
+
+  it("takes the stored Pub Pal with the account, on a switch and on sign-out", () => {
+    // The dock, the map and the recap postcard wear this Pal's name and face,
+    // so a second account on the same browser must never inherit it.
+    expect(DEVICE_IDENTITY_LOCAL_KEYS).toContain(LOCAL_PAL_KEY);
+    const pal = JSON.stringify({ id: "pal-a", ownerId: "user-a", name: "Ripley" });
+    const switched = fakeStorage({ [DEVICE_ACCOUNT_OWNER_KEY]: "user-a", [LOCAL_PAL_KEY]: pal });
+    expect(bindDeviceAccountOwner("user-b", switched)).toBe(true);
+    expect(switched.getItem(LOCAL_PAL_KEY)).toBeNull();
+
+    const signedOut = fakeStorage({ [DEVICE_ACCOUNT_OWNER_KEY]: "user-a", [LOCAL_PAL_KEY]: pal });
+    releaseDeviceAccountOwner(signedOut);
+    expect(signedOut.getItem(LOCAL_PAL_KEY)).toBeNull();
   });
 
   it("sign-out drops the set AND the claim that anyone owns it", () => {

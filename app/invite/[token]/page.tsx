@@ -3,6 +3,9 @@ import Link from "next/link";
 
 import RouteThumbnail from "@/app/crawls/RouteThumbnail";
 import InvitePageView from "@/components/plan/InvitePageView";
+import { PintPriceBadge } from "@/components/PriceBadge";
+import ListedPriceSource from "@/components/venue/ListedPriceSource";
+import { venueListedPint, type VenueListedPint } from "@/lib/venueListedPint";
 import PlanInviteRsvp from "@/components/plan/PlanInviteRsvp";
 import type { PlanInviteRsvpSummary } from "@/lib/planInvite";
 import { reactionStore, rsvpStore } from "@/lib/planInviteRsvpStore";
@@ -14,7 +17,6 @@ import {
   planInviteSpendBandFromListedPrices,
   type PlanInviteSpendBand,
 } from "@/lib/shareArtifacts";
-import { formatPrice } from "@/lib/venues";
 import { lookupVenueDetail } from "@/lib/venueDetailIndex";
 import { planAlcoholOptionalInviteLine } from "@/lib/planAlcoholOptional";
 
@@ -43,8 +45,7 @@ type InviteStop = {
   venueId: string;
   venueName: string;
   position: number;
-  price: string | null;
-  priceGbp: number | null;
+  listedPint: VenueListedPint | null;
   coordinates: [number, number] | null;
 };
 
@@ -84,8 +85,7 @@ async function loadStops(stops: PlanStopDTO[]): Promise<InviteStop[]> {
       venueId: stop.venueId,
       venueName: stop.venueName,
       position: stop.position,
-      price: venue && typeof venue.cheapestPrice === "number" ? formatPrice(venue.cheapestPrice) : null,
-      priceGbp: venue && typeof venue.cheapestPrice === "number" ? venue.cheapestPrice : null,
+      listedPint: venue ? venueListedPint(venue) : null,
       coordinates: venue ? ([venue.longitude, venue.latitude] as [number, number]) : null,
     };
   });
@@ -116,7 +116,7 @@ async function loadInitialSummaries(
 }
 
 function inviteSpendBand(stops: readonly InviteStop[]): PlanInviteSpendBand | null {
-  return planInviteSpendBandFromListedPrices(stops.map((stop) => stop.priceGbp));
+  return planInviteSpendBandFromListedPrices(stops.map((stop) => stop.listedPint?.priceGbp));
 }
 
 function inviteDescription(
@@ -131,6 +131,18 @@ function inviteDescription(
   return `${detail} on PUBMAXX.`;
 }
 
+// AN INVITE IS ONE CREW'S NIGHT, SO IT IS NOT A SEARCH RESULT. The page renders
+// the title, host, start time, every stop and the RSVP list, and the bearer
+// token is the URL, so every branch below carries the same noindex the Plan
+// page does (app/plan/[id]/page.tsx). A meta tag rather than a robots.txt
+// disallow, so a crawler can still read it. Follow stays true and `og:` is
+// untouched: an unfurler ignores robots, and the WhatsApp card IS the invite.
+const INVITE_ROBOTS = {
+  index: false,
+  follow: true,
+  googleBot: { index: false, follow: true },
+} as const;
+
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   const { token } = await params;
   const lookup = await resolvePlanIdByInviteToken(token);
@@ -139,6 +151,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
     return {
       title: "This invite link isn't valid",
       description: "This PUBMAXX invite couldn't be found.",
+      robots: INVITE_ROBOTS,
     };
   }
 
@@ -148,6 +161,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
     return {
       title: "This invite link isn't valid",
       description: "This PUBMAXX invite couldn't be found.",
+      robots: INVITE_ROBOTS,
     };
   }
 
@@ -163,6 +177,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   return {
     title,
     description,
+    robots: INVITE_ROBOTS,
     openGraph: {
       title,
       description,
@@ -183,7 +198,7 @@ function InviteNotFound() {
     <main id="main" className="invite invite--empty">
       <div className="invite__emptyCard">
         <Link className="invite__home" href="/">
-          PUBMAXXING
+          PUBMAXX
         </Link>
         <p className="invite__eyebrow">Invite</p>
         <h1 className="invite__emptyTitle">This invite link isn&rsquo;t valid</h1>
@@ -201,7 +216,7 @@ function InviteUnavailable() {
     <main id="main" className="invite invite--empty">
       <div className="invite__emptyCard">
         <Link className="invite__home" href="/">
-          PUBMAXXING
+          PUBMAXX
         </Link>
         <p className="invite__eyebrow">Invite</p>
         <h1 className="invite__emptyTitle">This invite isn&rsquo;t available right now</h1>
@@ -247,7 +262,7 @@ export default async function PlanInvitePage({ params }: PageProps) {
       <div className="invite__mat">
         <div className="invite__kicker">
           <Link className="invite__brand" href="/">
-            PUBMAXXING
+            PUBMAXX
           </Link>
           <span className="invite__edition">You&rsquo;re invited</span>
         </div>
@@ -278,8 +293,13 @@ export default async function PlanInvitePage({ params }: PageProps) {
           {stops.map((stop) => (
             <li className="invite__stop" key={`${stop.position}-${stop.venueId}`}>
               <span className="invite__stopPosition">{stop.position + 1}</span>
-              <span className="invite__stopName">{stop.venueName}</span>
-              {stop.price ? <span className="invite__stopPrice">{stop.price}</span> : null}
+              <div className="invite__stopName">
+                <span>{stop.venueName}</span>
+                {stop.listedPint ? <ListedPriceSource evidence={stop.listedPint} className="invite__stopSource" /> : null}
+              </div>
+              {stop.listedPint ? (
+                <PintPriceBadge className="invite__stopPrice" priceGbp={stop.listedPint.priceGbp} venueId={stop.venueId} />
+              ) : null}
             </li>
           ))}
         </ol>

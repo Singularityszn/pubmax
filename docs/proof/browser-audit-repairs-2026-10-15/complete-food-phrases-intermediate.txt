@@ -1,0 +1,80 @@
+
+ RUN  v5.0.3 /Users/karanmanoharan/.no-mistakes/worktrees/0a94b5a8763e/01M4ZQRV5QZPYFNNC4P95AMFCP
+
+············································································································································································································································································································································································································································································································································································································································································································································································································································································································································································································································································································································································································································································································································································································································································································································································································································································································································································································································································································································································································································································································································································································x·xxx·xxx·xx·····x·xxx·xxx·xx·····························································································································································································································································································································································································································································································································································································································································································································································································································································································································································································································································································································································································································································································································································································································································································································································································································································································································································································································································································································································································stdout | __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > keeps the paid slot available after a deterministic refusal: {"query":"One vegan meal in Soho"}
+{"level":"warn","event":"paid_spend.budget_spent","lane":"plan-generate","budget":1,"windowMs":86400000,"ts":1792078847239}
+
+stdout | __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > keeps the paid slot available after a deterministic refusal: {"query":"One meal under 500 calories in Soho"}
+{"level":"warn","event":"paid_spend.budget_spent","lane":"plan-generate","budget":1,"windowMs":86400000,"ts":1792078847242}
+
+stdout | __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > keeps the paid slot available after a deterministic refusal: {"query":"One pizza under £10 in Soho"}
+{"level":"warn","event":"paid_spend.budget_spent","lane":"plan-generate","budget":1,"windowMs":86400000,"ts":1792078847244}
+
+stdout | __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > keeps the paid slot available after a deterministic refusal: {"query":"3 pubs"}
+{"level":"warn","event":"paid_spend.budget_spent","lane":"plan-generate","budget":1,"windowMs":86400000,"ts":1792078847246}
+
+stdout | __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > keeps the paid slot available after a deterministic refusal: {"query":""}
+{"level":"warn","event":"paid_spend.budget_spent","lane":"plan-generate","budget":1,"windowMs":86400000,"ts":1792078847247}
+
+stdout | __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > keeps the paid slot available after a deterministic refusal: {"query":"3 pubs in Soho","cityId":"not-a-city"}
+{"level":"warn","event":"paid_spend.budget_spent","lane":"plan-generate","budget":1,"windowMs":86400000,"ts":1792078847249}
+
+stdout | __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > keeps the paid slot available after a deterministic refusal: {"query":"3 pubs in Soho","cityId":"manchester"}
+{"level":"warn","event":"paid_spend.budget_spent","lane":"plan-generate","budget":1,"windowMs":86400000,"ts":1792078847251}
+
+stdout | __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > keeps the paid slot available after a deterministic refusal: {"intake":{"version":1,"area":{"kind":"night-patch","id":"hackney"},"timeWindow":null,"groupSize":4,"budget":{"tier":"standard","limitPence":null},"accessibilityNeeds":[],"skipped":["time-window"]}}
+{"level":"warn","event":"paid_spend.budget_spent","lane":"plan-generate","budget":1,"windowMs":86400000,"ts":1792078847253}
+
+····················································································································································································stdout | __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > refuses with the deployment ceiling's own sentence once it is spent
+{"level":"warn","event":"paid_spend.budget_spent","lane":"plan-generate","budget":1000,"windowMs":86400000,"ts":1792078847554}
+
+·············································
+
+⎯⎯⎯⎯⎯⎯ Failed Tests 18 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > keeps price subjects separate from venue food preferences: {"query":"3 pubs in Clapham, £5 pint at Cock and Bottle with fish and chips","total":null,"ceiling":500}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > keeps price subjects separate from venue food preferences: {"query":"3 pubs in Clapham","context":{"foodNeeds":["£5 pint at X with fish&chips"]},"total":null,"ceiling":500}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > keeps price subjects separate from venue food preferences: {"query":"3 pubs in Clapham, £5 pint at Cock and Bottle with fish and chips, route total£20","total":2000,"ceiling":500}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > keeps price subjects separate from venue food preferences: {"query":"3 pubs in Clapham, £5 pint at Cock and Bottle serving fish and chips","total":null,"ceiling":500}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > keeps price subjects separate from venue food preferences: {"query":"3 pubs in Clapham","context":{"foodNeeds":["£5 pint at X serving fish&chips"]},"total":null,"ceiling":500}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > keeps price subjects separate from venue food preferences: {"query":"3 pubs in Clapham, £5 pint at Cock and Bottle serving fish and chips, route total£20","total":2000,"ceiling":500}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > keeps price subjects separate from venue food preferences: {"query":"3 pubs in Clapham, £5 pint at Cock and Bottle serves fish and chips","total":null,"ceiling":500}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > keeps price subjects separate from venue food preferences: {"query":"3 pubs in Clapham","context":{"foodNeeds":["£5 pint at X serves fish&chips"]},"total":null,"ceiling":500}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > keeps price subjects separate from venue food preferences: {"query":"3 pubs in Clapham, £5 pint at Cock and Bottle serves fish and chips, route total£20","total":2000,"ceiling":500}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > keeps price subjects separate from venue food preferences: {"query":"3 pubs in Clapham, £5 pint at Cock and Bottle with cheese and tomato pizza","total":null,"ceiling":500}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > keeps price subjects separate from venue food preferences: {"query":"3 pubs in Clapham","context":{"foodNeeds":["£5 pint at X with cheese&tomato pizza"]},"total":null,"ceiling":500}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > keeps price subjects separate from venue food preferences: {"query":"3 pubs in Clapham, £5 pint at Cock and Bottle with cheese and tomato pizza, route total£20","total":2000,"ceiling":500}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > keeps price subjects separate from venue food preferences: {"query":"3 pubs in Clapham, £5 pint at Cock and Bottle serving cheese and tomato pizza","total":null,"ceiling":500}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > keeps price subjects separate from venue food preferences: {"query":"3 pubs in Clapham","context":{"foodNeeds":["£5 pint at X serving cheese&tomato pizza"]},"total":null,"ceiling":500}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > keeps price subjects separate from venue food preferences: {"query":"3 pubs in Clapham, £5 pint at Cock and Bottle serving cheese and tomato pizza, route total£20","total":2000,"ceiling":500}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > keeps price subjects separate from venue food preferences: {"query":"3 pubs in Clapham, £5 pint at Cock and Bottle serves cheese and tomato pizza","total":null,"ceiling":500}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > keeps price subjects separate from venue food preferences: {"query":"3 pubs in Clapham","context":{"foodNeeds":["£5 pint at X serves cheese&tomato pizza"]},"total":null,"ceiling":500}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > keeps price subjects separate from venue food preferences: {"query":"3 pubs in Clapham, £5 pint at Cock and Bottle serves cheese and tomato pizza, route total£20","total":2000,"ceiling":500}
+AssertionError: {"error":"This route planner cannot verify meal prices, dietary requirements or calories. Use the food map for sourced menu items.","code":"MEAL_CONSTRAINTS_UNSUPPORTED","retryable":false}: expected { preparation: 422, post: 422 } to deeply equal { preparation: 200, post: 200 }
+
+- Expected
++ Received
+
+  {
+-   "post": 200,
+-   "preparation": 200,
++   "post": 422,
++   "preparation": 422,
+  }
+
+ ❯ __tests__/planGenerateRoute.test.ts:605:10
+    603|       const body = await response.json();
+    604|       expect({ preparation: "prepared" in prepared ? 200 : prepared.re…
+    605|         .toEqual({ preparation: 200, post: 200 });
+       |          ^
+    606|       if (!("prepared" in prepared)) throw new Error(JSON.stringify(aw…
+    607|       expect(prepared.prepared.context.budgetLimitPence).toBe(total);
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/18]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  18 failed | 4277 passed (4295)
+   Start at  16:40:34
+   Duration  13.22s (tests 95%, transform 3%, import 1%)
+

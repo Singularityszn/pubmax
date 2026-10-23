@@ -21,3 +21,8 @@ Full rules: [`docs/rules/perf-budgets-and-measured-findings.md`](../docs/rules/p
 - [Speed is a number, and the number is enforced.](../docs/rules/perf-budgets-and-measured-findings.md#speed-is-a-number-and-the-number-is-enforced)
 - [A ROUTE THAT REDIRECTS IS MEASURED AS A REDIRECT, NEVER AS ITS TARGET.](../docs/rules/perf-budgets-and-measured-findings.md#a-route-that-redirects-is-measured-as-a-redirect-never-as-its-target)
 - [THE BASEMAP ALREADY RIDES A CDN, SO THE FIRST TILE IS WON IN THE ENGINE, NOT ON THE WIRE.](../docs/rules/perf-budgets-and-measured-findings.md#the-basemap-already-rides-a-cdn-so-the-first-tile-is-won-in-the-engine-not-on-th)
+- [THE ROOT SHELL READS LEAVES, NEVER LIBRARIES.](../docs/rules/perf-budgets-and-measured-findings.md#the-root-shell-reads-leaves-never-libraries)
+- [A TAB IS WARMED ON INTENT, BECAUSE AN IDLE WARM WAS MEASURED AND BOUGHT NOTHING.](../docs/rules/perf-budgets-and-measured-findings.md#a-tab-is-warmed-on-intent-because-an-idle-warm-was-measured-and-bought-nothing)
+- [A HYDRATION REMOUNT IS A NEW LARGEST PAINT, SO IT HAPPENS ONLY WHEN THERE IS SOMETHING TO RECOVER.](../docs/rules/perf-budgets-and-measured-findings.md#a-hydration-remount-is-a-new-largest-paint-so-it-happens-only-when-there-is-something-to-recover)
+- [A PHONE MAP DRAWS AT TWO PIXELS PER POINT, BECAUSE THREE IS NINE TIMES THE SHADING.](../docs/rules/perf-budgets-and-measured-findings.md#a-phone-map-draws-at-two-pixels-per-point-because-three-is-nine-times-the-shadin)
+- [A PHONE MAP OPENS AT ITS FULL RATIO, BECAUSE A 1X OPENING WAS MEASURED AND BOUGHT NOTHING.](../docs/rules/perf-budgets-and-measured-findings.md#a-phone-map-opens-at-its-full-ratio-because-a-1x-opening-was-measured-and-bought)

@@ -92,6 +92,19 @@
     pointer-events: none;
   }
 
+  /* Reading down a page tucks the control off the prose under it
+     (lib/createFabScrollTuck.ts). It fades in place and keeps its box, so
+     every rendered measure of its lane and berth still reads the real
+     control, and it stays in the tab order with no `visibility: hidden`, so a
+     keyboard that reaches it brings it straight back through :focus-within. */
+  .createFabRoot.isScrollTucked:not(:focus-within) {
+    opacity: 0;
+  }
+
+  .createFabRoot.isScrollTucked:not(:focus-within) .createFab {
+    pointer-events: none;
+  }
+
   .createFab {
     display: inline-flex;
     align-items: center;
@@ -104,10 +117,10 @@
     border: 0;
     border-radius: 50%;
     background: var(--brass);
-    color: var(--color-on-accent, var(--paper));
-    box-shadow: 0 2px 10px color-mix(in srgb, var(--ink-deep, var(--ink)) 22%, transparent);
+    color: var(--color-on-accent);
+    box-shadow: var(--shadow-sm);
     cursor: pointer;
-    transition: transform var(--duration-press, 0.13s) var(--ease-out);
+    transition: transform var(--duration-press) var(--ease-out);
   }
 
   .createFabScrim {
@@ -147,9 +160,9 @@
     min-width: 11.5rem;
     padding: 6px;
     border: 1px solid var(--line);
-    border-radius: 14px;
-    background: var(--panel-raised, var(--paper));
-    box-shadow: 0 8px 24px color-mix(in srgb, var(--ink) 14%, transparent);
+    border-radius: var(--radius-lg);
+    background: var(--panel-raised);
+    box-shadow: var(--shadow);
   }
 
   .createFabRow {
@@ -157,15 +170,20 @@
     align-items: center;
     min-height: 44px;
     padding: 0 12px;
-    border-radius: 10px;
+    border-radius: var(--radius);
     color: var(--ink);
-    font: 650 0.95rem/1.2 var(--font-display, inherit);
+    font: 650 0.95rem/1.2 var(--font-display);
     text-decoration: none;
   }
 
-  .createFabRow:hover,
   .createFabRow:focus-visible {
     background: color-mix(in srgb, var(--ink) 6%, transparent);
+  }
+
+  @media (hover: hover) and (pointer: fine) {
+    .createFabRow:hover {
+      background: color-mix(in srgb, var(--ink) 6%, transparent);
+    }
   }
 
   .createFabRow:focus-visible {
@@ -195,6 +213,9 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
+  /* The scroll tuck and its return both jump rather than fade. */
+  .createFabRoot,
+  .createFabRoot.isScrollTucked:not(:focus-within) { transition: none; }
   .createFab svg { transition: none; }
   .createFabScrim { animation: none; }
   .createFab:active {

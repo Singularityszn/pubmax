@@ -80,7 +80,7 @@ describe("buildWeatherBrief", () => {
     const brief = buildWeatherBrief(snapshot({ feelsLikeC: 19.4, ageHours: 2 }), NOW) as WeatherBrief;
     expect(brief).not.toBeNull();
     expect(brief.stale).toBe(false);
-    expect(brief.factsLine).toMatch(/^19°C feels like, cloudy, 0% chance of rain, /);
+    expect(brief.factsLine).toMatch(/^Feels like 19°C, cloudy, 0% chance of rain, /);
     expect(brief.checkedLabel).toBe("Checked 2 hours ago");
     // 19.4C, 0% rain, July -> the warm-dry / summer-garden verdict fires.
     expect(brief.verdictLine.length).toBeGreaterThan(0);
@@ -101,18 +101,26 @@ describe("buildWeatherBrief", () => {
       NOW,
     ) as WeatherBrief;
 
-    expect(brief.factsLine).toMatch(/^24°C feels like, cloudy, 70% chance of rain, /);
+    expect(brief.factsLine).toMatch(/^Feels like 24°C, cloudy, 70% chance of rain, /);
     expect(brief.ruleId).toBe("hard-rain");
   });
 
-  it("still shows a stale-but-real observation, marked Last checked", () => {
-    // Observed 3 days ago with a 12h ttl: long past expiry at NOW.
-    const brief = buildWeatherBrief(snapshot({ ageHours: 72 }), NOW) as WeatherBrief;
+  it("still shows a stale-but-real observation inside the cut-off, marked Last checked", () => {
+    // Observed 20 hours ago with a 12h ttl: past expiry, inside the 30h cut-off,
+    // which is what a normal evening holds between daily refreshes.
+    const brief = buildWeatherBrief(snapshot({ ageHours: 20 }), NOW) as WeatherBrief;
     expect(brief).not.toBeNull();
     expect(brief.stale).toBe(true);
-    expect(brief.checkedLabel).toBe("Last checked 3 days ago");
+    expect(brief.checkedLabel).toBe("Last checked 20 hours ago");
     expect(brief.ruleId).toBeNull();
     expect(brief.verdictLine).toBe("");
+  });
+
+  it("has no reading once the observation is older than the cut-off", () => {
+    // Owner ruling, 17 Oct 2026: /today opened on a reading 44 days old.
+    expect(buildWeatherBrief(snapshot({ ageHours: 31 }), NOW)).toBeNull();
+    expect(buildWeatherBrief(snapshot({ ageHours: 72 }), NOW)).toBeNull();
+    expect(buildWeatherBrief(snapshot({ ageHours: 44 * 24 }), NOW)).toBeNull();
   });
 
   it("reads 25 July 23:00 at 20C and dry as a terrace night from the area's own sunset", () => {
@@ -144,7 +152,7 @@ describe("buildWeatherBrief", () => {
     expect(brief.ruleId).toBe("warm-night");
     expect(brief.venueLens).toBe("any");
     expect(brief.verdictLine).toBe("Warm and dry after dark. Terrace or open-window weather.");
-    expect(brief.factsLine).toMatch(/^20°C feels like, clear, 5% chance of rain, 8 km\/h wind, sunset was \d{2}:\d{2}, night\.$/);
+    expect(brief.factsLine).toMatch(/^Feels like 20°C, clear, 5% chance of rain, 8 km\/h wind, sunset was \d{2}:\d{2}, night\.$/);
   });
 
   it("returns null for an invalid snapshot", () => {
@@ -178,7 +186,7 @@ describe("buildWeatherBrief", () => {
       venueLens: "any",
       checkedLabel: "Checked 1 hour ago",
     });
-    expect(grey?.factsLine).toMatch(/^12°C feels like, overcast, 55% chance of rain, 13 km\/h wind, /);
+    expect(grey?.factsLine).toMatch(/^Feels like 12°C, overcast, 55% chance of rain, 13 km\/h wind, /);
   });
 
   it("returns null when the requested area is absent from the snapshot", () => {
@@ -190,7 +198,7 @@ describe("buildWeatherBrief", () => {
     const snap = snapshot({ area: "clapham", feelsLikeC: 19 });
     const brief = buildWeatherBrief(snap, NOW, "clapham") as WeatherBrief;
     expect(brief).not.toBeNull();
-    expect(brief.factsLine).toMatch(/^19°C feels like, /);
+    expect(brief.factsLine).toMatch(/^Feels like 19°C, /);
   });
 });
 

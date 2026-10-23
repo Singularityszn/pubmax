@@ -25,7 +25,11 @@ import { getCity, type CityId, DEFAULT_CITY_ID } from "@/lib/cities";
 import { offlineCache } from "@/lib/offlineCache";
 import { loadSlimVenuesFromPathResult, type SlimVenue } from "@/lib/venuesSlim";
 import { WALKABLE_RADIUS_KM } from "@/lib/nearMeAnswer";
-import { EXPECTED_MAP_DATA_REVISION, MAP_DATA_REVISION } from "@/lib/mapDataRevision";
+import {
+  EXPECTED_MAP_DATA_REVISION,
+  MAP_DATA_REVISION,
+  reportMapDataRevisionSkew,
+} from "@/lib/mapDataRevision";
 
 /** [minLng, minLat, maxLng, maxLat] — GeoJSON bbox order (matches the build). */
 export type ShardBbox = [number, number, number, number];
@@ -262,9 +266,12 @@ function manifestRequestPath(path: string): string {
   return `${path}?v=${encodeURIComponent(MAP_DATA_REVISION)}`;
 }
 
-function shardRequestPath(path: string): string {
-  if (MAP_DATA_REVISION === "local") return path;
-  return `${path}?v=${encodeURIComponent(MAP_DATA_REVISION)}`;
+// A shard is keyed by the revision of the pack it belongs to: the baked one,
+// or the one an adopted manifest names, so a skewed pack never reads a cache
+// entry filed under the other revision.
+function shardRequestPath(path: string, revision: string = MAP_DATA_REVISION): string {
+  if (revision === "local") return path;
+  return `${path}?v=${encodeURIComponent(revision)}`;
 }
 
 /** Guessed core shard URL for a city's slim index (London: venues_slim.core.json). */
@@ -498,12 +505,86 @@ export function createSlimShardLoader(
   let manifestAnswered = false;
   let settledManifest: ShardManifest | null = null;
   let manifestRevisionRejected = false;
+  // The revision every shard must carry, and the one its `?v=` key names. The
+  // baked revision until a manifest that disagrees with it is adopted.
+  let packRevision: string | undefined = EXPECTED_MAP_DATA_REVISION;
+  let packRequestRevision: string = MAP_DATA_REVISION;
   // A city with no manifest ships one file, so loading it covers everything.
   let wholeIndexLoaded = false;
-  // url -> in-flight/settled fetch of that shard's venues.
+  // request path -> in-flight/settled fetch of that shard's venues.
   const shardPromises = new Map<string, Promise<SlimShardLoadResult>>();
+  // request path -> the revision a read was refused for, until it is reported.
+  const shardSkews = new Map<string, { served: unknown }>();
   // shard urls that have successfully contributed venues (so inBounds skips them).
   const loadedUrls = new Set<string>();
+
+  function revisionMatches(parsed: ShardManifest): boolean {
+    return (
+      EXPECTED_MAP_DATA_REVISION === undefined ||
+      parsed.revision === EXPECTED_MAP_DATA_REVISION
+    );
+  }
+
+  // A well-formed manifest that names another revision, after a cache-bypassed
+  // read, is the pack the server holds: around a deploy that is the previous
+  // or the next revision, and refusing it left the map with no pins at all.
+  // Its shards are then held to ITS revision, so a mixed pack is still refused.
+  // Only a manifest that NAMES its revision can be adopted: one with none
+  // would leave its shards unchecked, free to mix any revision.
+  function adoptable(parsed: ShardManifest | null): parsed is ShardManifest & { revision: string } {
+    return typeof parsed?.revision === "string";
+  }
+
+  function adoptSkewedManifest(parsed: ShardManifest & { revision: string }): ShardManifest {
+    packRevision = parsed.revision;
+    packRequestRevision = parsed.revision;
+    manifestRevisionRejected = false;
+    // Whatever loaded before adoption (the core guessed under the baked
+    // revision) belongs to another pack; forget it so the adopted pack's own
+    // shards are read in its place and coverage is not claimed for a mix.
+    loadedUrls.clear();
+    reportMapDataRevisionSkew({
+      asset: "manifest",
+      outcome: "adopted",
+      expected: EXPECTED_MAP_DATA_REVISION,
+      served: parsed.revision,
+    });
+    return parsed;
+  }
+
+  function servedRevision(payload: unknown): unknown {
+    return typeof payload === "object" && payload !== null
+      ? (payload as { revision?: unknown }).revision
+      : undefined;
+  }
+
+  // Keep shard reads below the local HTTP connection budget. Every loader
+  // operation shares these slots, including queued reads in shardPromises.
+  const shardReadLimit = 4;
+  let activeShardReads = 0;
+  const queuedShardReads: Array<{ key: string; start: () => void }> = [];
+  const queuedForegroundShardReads: typeof queuedShardReads = [];
+
+  async function readShardWithSlot(
+    path: string,
+    readOptions: Parameters<typeof loadSlimVenuesFromPathResult>[1],
+    foreground: boolean,
+  ): Promise<SlimShardLoadResult> {
+    await new Promise<void>((resolve) => {
+      const start = () => {
+        activeShardReads += 1;
+        resolve();
+      };
+      if (activeShardReads < shardReadLimit) start();
+      else (foreground ? queuedForegroundShardReads : queuedShardReads).push({ key: path, start });
+    });
+    try {
+      return await loadSlimVenuesFromPathResult(path, readOptions);
+    } finally {
+      activeShardReads -= 1;
+      (queuedForegroundShardReads.shift() ?? queuedShardReads.shift())?.start();
+    }
+  }
 
   async function fetchManifest(): Promise<ShardManifest | null> {
     try {
@@ -530,51 +611,84 @@ export function createSlimShardLoader(
         }
         payload = await response.json();
       }
-      let parsed = parseShardManifest(
-        payload,
-        expectedManifestVersion,
-        EXPECTED_MAP_DATA_REVISION,
-      );
-      if (!parsed && expectedManifestVersion === SPATIAL_SHARD_MANIFEST_VERSION) {
-        manifestRevisionRejected = true;
-        if (!earlyPayloadRejected) {
-          try {
-            const response = await fetch(manifestRequestPath(manifestPath), {
-              cache: "no-store",
-            });
-            if (response.ok) {
-              parsed = parseShardManifest(
-                await response.json(),
-                expectedManifestVersion,
-                EXPECTED_MAP_DATA_REVISION,
-              );
-            } else {
-              discardBody(response);
+      let wellFormed = parseShardManifest(payload, expectedManifestVersion);
+      let parsed = wellFormed && revisionMatches(wellFormed) ? wellFormed : null;
+      const retry =
+        !parsed &&
+        (wellFormed !== null || expectedManifestVersion === SPATIAL_SHARD_MANIFEST_VERSION);
+      if (retry && !earlyPayloadRejected) {
+        try {
+          const response = await fetch(manifestRequestPath(manifestPath), {
+            cache: "no-store",
+          });
+          if (response.ok) {
+            const freshPayload: unknown = await response.json();
+            const fresh = parseShardManifest(freshPayload, expectedManifestVersion);
+            if (fresh) {
+              payload = freshPayload;
+              wellFormed = fresh;
+              parsed = revisionMatches(fresh) ? fresh : null;
             }
-          } catch {
-            parsed = null;
+          } else {
+            discardBody(response);
           }
+        } catch {
+          // The first answer still stands.
         }
       }
-      if (parsed) void offlineCache.set(manifestOfflineKey, parsed);
-      if (parsed) manifestRevisionRejected = false;
-      return parsed;
+      if (parsed) {
+        void offlineCache.set(manifestOfflineKey, parsed);
+        manifestRevisionRejected = false;
+        return parsed;
+      }
+      if (adoptable(wellFormed)) return adoptSkewedManifest(wellFormed);
+      if (expectedManifestVersion === SPATIAL_SHARD_MANIFEST_VERSION) {
+        manifestRevisionRejected = true;
+        reportMapDataRevisionSkew({
+          asset: "manifest",
+          outcome: "refused",
+          expected: EXPECTED_MAP_DATA_REVISION,
+          served: servedRevision(payload),
+        });
+      }
+      return null;
     } catch {
       const stored = await offlineCache.get<unknown>(manifestOfflineKey);
-      const parsed = parseShardManifest(
-        stored,
-        expectedManifestVersion,
-        EXPECTED_MAP_DATA_REVISION,
-      );
+      const wellFormed = parseShardManifest(stored, expectedManifestVersion);
+      if (wellFormed && revisionMatches(wellFormed)) return wellFormed;
+      // Only a manifest that once matched is ever mirrored, so a stored one
+      // that disagrees is the previous deploy's, with its shards mirrored
+      // under its own revision beside it.
+      if (adoptable(wellFormed)) return adoptSkewedManifest(wellFormed);
       if (
         stored !== null &&
         stored !== undefined &&
-        !parsed &&
         expectedManifestVersion === SPATIAL_SHARD_MANIFEST_VERSION
       ) {
         manifestRevisionRejected = true;
+        reportMapDataRevisionSkew({
+          asset: "manifest",
+          outcome: "refused",
+          expected: EXPECTED_MAP_DATA_REVISION,
+          served: servedRevision(stored),
+        });
+      } else if (
+        (stored === null || stored === undefined) &&
+        expectedManifestVersion === SPATIAL_SHARD_MANIFEST_VERSION &&
+        EXPECTED_MAP_DATA_REVISION !== undefined &&
+        (typeof navigator === "undefined" || navigator.onLine !== false)
+      ) {
+        // Online, with no stored copy, the read itself failed. A service
+        // worker from before skewed packs reached the page answers a skewed
+        // manifest with a network error, so this is the only trace it leaves.
+        reportMapDataRevisionSkew({
+          asset: "manifest",
+          outcome: "unread",
+          expected: EXPECTED_MAP_DATA_REVISION,
+          served: undefined,
+        });
       }
-      return parsed;
+      return null;
     }
   }
 
@@ -594,7 +708,11 @@ export function createSlimShardLoader(
     const wholeIndexOptions =
       EXPECTED_MAP_DATA_REVISION === undefined
         ? options
-        : { ...options, expectedRevision: EXPECTED_MAP_DATA_REVISION };
+        : {
+            ...options,
+            expectedRevision: EXPECTED_MAP_DATA_REVISION,
+            acceptRevisionSkew: true,
+          };
     return loadSlimVenuesFromPathResult(wholeIndexPath, wholeIndexOptions).then((result) => {
       if (result.status === "ready") wholeIndexLoaded = true;
       return result;
@@ -606,29 +724,66 @@ export function createSlimShardLoader(
   }
 
   // Fetch one shard body once; a failure (no offline mirror) is NOT memoized as
-  // loaded, so a later call retries it.
-  function loadShard(url: string): Promise<SlimShardLoadResult> {
-    const existing = shardPromises.get(url);
-    if (existing) return existing;
-    const shardOptions =
-      EXPECTED_MAP_DATA_REVISION === undefined
-        ? options
-        : { ...options, expectedRevision: EXPECTED_MAP_DATA_REVISION };
-    const p = loadSlimVenuesFromPathResult(shardRequestPath(url), shardOptions)
-      .then((result) => {
-        if (result.status === "ready") {
-          loadedUrls.add(url);
-        } else {
-          shardPromises.delete(url);
-        }
-        return result;
-      })
-      .catch(() => {
-        shardPromises.delete(url); // allow retry
-        return { rows: [], status: "unavailable" as const };
-      });
-    shardPromises.set(url, p);
-    return p;
+  // loaded, so a later call retries it. A SPECULATIVE read (the core guessed
+  // before the manifest answered) never reports a refusal: the manifest may
+  // yet adopt the very revision it was refused for.
+  function loadShard(
+    url: string,
+    speculative = false,
+    foreground = false,
+  ): Promise<SlimShardLoadResult> {
+    const key = shardRequestPath(url, packRequestRevision);
+    let p = shardPromises.get(key);
+    if (p && foreground) {
+      const queuedIndex = queuedShardReads.findIndex((read) => read.key === key);
+      if (queuedIndex !== -1) {
+        const queued = queuedShardReads.splice(queuedIndex, 1)[0];
+        if (queued) queuedForegroundShardReads.push(queued);
+      }
+    }
+    if (!p) {
+      const expectedRevision = packRevision;
+      const shardOptions =
+        expectedRevision === undefined
+          ? options
+          : {
+              ...options,
+              expectedRevision,
+              onRevisionSkew: (served: unknown) => shardSkews.set(key, { served }),
+            };
+      shardSkews.delete(key);
+      const created = readShardWithSlot(key, shardOptions, foreground)
+        .then((result) => {
+          if (result.status === "ready") {
+            // A read that lands after another pack was adopted contributed
+            // rows, but it does not cover anything in the adopted pack.
+            if (key === shardRequestPath(url, packRequestRevision)) loadedUrls.add(url);
+          } else {
+            shardPromises.delete(key);
+          }
+          return result;
+        })
+        .catch(() => {
+          shardPromises.delete(key); // allow retry
+          return { rows: [], status: "unavailable" as const };
+        });
+      shardPromises.set(key, created);
+      p = created;
+    }
+    if (speculative) return p;
+    return p.then((result) => {
+      const skew = shardSkews.get(key);
+      if (result.status === "unavailable" && skew) {
+        shardSkews.delete(key);
+        reportMapDataRevisionSkew({
+          asset: "shard",
+          outcome: "refused",
+          expected: packRevision,
+          served: skew.served,
+        });
+      }
+      return result;
+    });
   }
 
   function coreEntry(m: ShardManifest): ShardEntry | undefined {
@@ -643,7 +798,14 @@ export function createSlimShardLoader(
       options.deferSpatial &&
       manifestPath === "/data/venues_slim.manifest.json"
     ) {
-      return loadShard(guessedCoreShardUrl(slimVenuesPath));
+      const guessedUrl = guessedCoreShardUrl(slimVenuesPath);
+      const guessed = await loadShard(guessedUrl, true);
+      // A guess refused for its REVISION falls through to the manifest, which
+      // can adopt the revision the server holds; a map with no pins is never
+      // the answer. Any other failure keeps its old meaning.
+      if (!shardSkews.has(shardRequestPath(guessedUrl, packRequestRevision))) {
+        return guessed;
+      }
     }
     const m = await manifest();
     if (!m) {
@@ -670,12 +832,14 @@ export function createSlimShardLoader(
       // once the manifest names that very URL as its core, so a city with no
       // manifest (or a differently named core) is not serialised behind a
       // request its answer discards. loadShard never rejects.
-      const guessedRows = loadShard(guessedCoreUrl);
+      const guessedRows = loadShard(guessedCoreUrl, true);
       const m = await manifest();
       if (!m) return manifestRevisionRejected ? [] : loadWholeIndex();
       const core = coreEntry(m);
       if (!core) return manifestRevisionRejected ? [] : loadWholeIndex();
-      if (core.url === guessedCoreUrl) {
+      // The guess was asked under the baked revision; once a skewed manifest
+      // is adopted its core must carry the manifest's revision instead.
+      if (core.url === guessedCoreUrl && packRequestRevision === MAP_DATA_REVISION) {
         const result = await guessedRows;
         if (result.rows.length > 0) return result.rows;
       }
@@ -687,7 +851,9 @@ export function createSlimShardLoader(
       if (!m) return [];
       const needed = shardsForBounds(m, bounds, ring, true).filter((s) => !loadedUrls.has(s.url));
       if (needed.length === 0) return [];
-      const results = await Promise.all(needed.map((s) => loadShard(s.url)));
+      const results = await Promise.all(
+        needed.map((s) => loadShard(s.url, false, ring === VIEWPORT_SHARD_RING)),
+      );
       return results.flatMap((result) => result.rows);
     },
 

@@ -22,16 +22,23 @@ import {
   useSyncExternalStore,
   type ReactNode,
 } from "react";
+import type { Route } from "next";
+import nextDynamic from "next/dynamic";
+import { useRouter } from "next/navigation";
 import type { Session, User } from "@supabase/supabase-js";
 
 import "@/app/auth/auth.css";
 import AuthAccountBannedNotice from "@/components/auth/AuthAccountBannedNotice";
-import ArrivalWelcome from "@/components/auth/ArrivalWelcome";
-import AccountOnboarding from "@/components/identity/AccountOnboarding";
 import IdentityNudge from "@/components/identity/IdentityNudge";
-import { markArrival, takeChosenIntent } from "@/lib/arrivalWelcome";
+import { LOGIN_ADD_ACCOUNT_PARAM, markArrival, parseAddAccount, takeChosenIntent } from "@/lib/arrivalWelcome";
 import { forgetCurrentIdentityRead } from "@/lib/currentIdentityRead";
 import { oauthOpensInSystemBrowser, openOAuthInSystemBrowser } from "@/lib/nativeOAuth";
+import { activateNativeEmailLinks, readNativeEmailCallback } from "@/lib/nativeEmailLinks";
+import { completeNativeEmailLink, discardNativeEmailAttempt, nativeEmailAuthConfig, prepareNativeEmailReceipt, requestNativeEmailLink } from "@/lib/nativeEmailAuth";
+import { readNativeEmailReceipt, removeNativeEmailReceipt } from "@/lib/nativeEmailPkce";
+import { nativePlatform } from "@/lib/nativePlatform";
+import { completeNativeIOSOAuth } from "@/lib/nativeIOSOAuth";
+import { cancelNativeAuthSession, createNativeAuthLifetime, nativeAuthSessionAvailable } from "@/lib/nativeAuthSession";
 import {
   accountComposerAuth,
   captureAccountAuth,
@@ -49,13 +56,14 @@ import {
   type AuthCallbackSessionResult,
   type PreparedAuthCallbackSession,
 } from "@/lib/authCallbackClient";
-import { ensureSupabaseBrowser, isAuthConfigured } from "@/lib/authClient";
+import { discardCancelledNativeSessionInstallation, ensureSupabaseBrowser, finishNativeSessionInstallation, installNativeSession, isAuthConfigured, nativeSessionInstallationPending } from "@/lib/authClient";
 import { loadAuthClientWithRetry } from "@/lib/authClientLoad";
 import { requestDeploymentSkewCheck } from "@/lib/deploymentSkewRecovery";
 import {
   guardSocialAuthProvider,
   loadSocialAuthProviders,
   NO_SOCIAL_AUTH_PROVIDERS,
+  type AuthStartResult,
   type SocialAuthProviderAvailability,
 } from "@/lib/authProviderAvailability";
 import { createAuthSessionTransitionTracker } from "@/lib/authSessionTransition";
@@ -86,6 +94,7 @@ import {
   releaseAuthAttempt,
   scrubAuthCallback,
   scrubLingeringAuthCallback,
+  safeAuthNext,
   type CanonicalAuthAttemptStart,
   type AuthCallbackAttempt,
   type CapturedAuthCallback,
@@ -118,6 +127,7 @@ import {
 import { authAccountBanMessageFromError } from "@/lib/authAccountBan";
 import { requestMagicLink, type MagicLinkResult } from "@/lib/passwordlessAuth";
 import {
+  readProviderAccountSignal,
   readProviderAuthState,
   readProviderIdentityRevision,
   resolveSupabaseAuthState,
@@ -128,14 +138,37 @@ import {
 import {
   AuthContext,
   type AuthContextValue,
+  type CancelAuthAttemptOptions,
   type SignOutScope,
 } from "@/components/auth/authContext";
 
 export type { AuthContextValue, SignOutScope } from "@/components/auth/authContext";
 export { useAuth } from "@/components/auth/authContext";
 
+// Two of the account overlays this provider hosts render nothing without a
+// signed-in user, and this provider rides the root shell on every route.
+// Imported eagerly they put the handle-claim form and the founders' welcome in
+// front of every anonymous page. Each is its own chunk now, mounted only once a
+// user exists, so a stranger never downloads them and nothing a signed-in
+// reader sees moves: both already waited on the session before drawing.
+//
+// IdentityNudge stays eager on purpose. Its first-paint grace starts when it
+// mounts, so mounting it late would hold a nudge the reader just armed.
+const ArrivalWelcome = nextDynamic(() => import("@/components/auth/ArrivalWelcome"), {
+  ssr: false,
+});
+const AccountOnboarding = nextDynamic(
+  () => import("@/components/identity/AccountOnboarding"),
+  { ssr: false },
+);
+
 const AUTH_CALLBACK_ERROR_MESSAGE =
   "Sign-in could not be completed. The link may be invalid or expired. Try again.";
+const AUTH_STATE_UNCONFIRMED_MESSAGE = "Your sign-in state could not be confirmed. Try again.";
+// An obsolete start cannot publish a sent claim or an alert.
+const NATIVE_EMAIL_SUPERSEDED: MagicLinkResult = { status: "cancelled", message: "" };
+// The native sheet reports a closed sheet and a provider failure the same way.
+const AUTH_PROVIDER_INCOMPLETE_MESSAGE = "Sign-in was cancelled or could not be completed. Try again.";
 
 function signedInAsMessage(user: User): string {
   const address = authCallbackConfirmationLabel({
@@ -193,8 +226,8 @@ function releaseBrowserAuthAttempt(attemptId: string): void {
   releaseAuthAttempt(attemptId, browserLocalStorage(), browserSessionStorage());
 }
 
-function cancelBrowserAuthAttempt(): void {
-  cancelAuthAttempt(browserLocalStorage(), browserSessionStorage());
+function cancelBrowserAuthAttempt(keepAttemptId?: string | null): void {
+  cancelAuthAttempt(browserLocalStorage(), browserSessionStorage(), keepAttemptId);
 }
 
 /**
@@ -244,6 +277,7 @@ async function persistSessionWithRetry(
 async function prepareAuthCallback(
   currentUrl: string,
   requestedNext?: string,
+  replacePendingAttemptIfCurrent?: () => boolean,
 ): Promise<CanonicalAuthAttemptStart> {
   const attempt = await beginCanonicalAuthAttempt(
     currentUrl,
@@ -253,11 +287,26 @@ async function prepareAuthCallback(
       tabStorage: browserSessionStorage(),
       cryptoProvider: globalThis.crypto,
       lockManager: browserLockManager(),
+      replacePendingAttemptIfCurrent,
     },
     (url) => window.location.assign(url),
   );
   if (!attempt.ok) return attempt;
   return withReferralSignupProof(attempt, currentUrl, fetch);
+}
+
+async function waitForNativeEmailReadiness(): Promise<boolean> {
+  const state = () => readProviderAuthState("supabase");
+  if (state() !== "unresolved") return state() === "signed-out";
+  return new Promise((resolve) => {
+    let stop = () => {};
+    const finish = (ready: boolean) => { window.clearTimeout(timer); stop(); resolve(ready); };
+    const timer = window.setTimeout(() => finish(false), AUTH_SESSION_BOOTSTRAP_TIMEOUT_MS);
+    stop = subscribeProviderIdentityRevision(() => {
+      if (state() !== "unresolved") finish(state() === "signed-out");
+    });
+    if (state() !== "unresolved") finish(state() === "signed-out");
+  });
 }
 
 /** How far a sign-out reaches: this account, or every account on this device. */
@@ -286,11 +335,13 @@ export function AuthProvider({
   children?: ReactNode;
   clerkIntegrationConfigured: boolean;
 }): React.JSX.Element {
+  const router = useRouter();
   const accountRevision = useSyncExternalStore(
     subscribeProviderIdentityRevision,
     readProviderIdentityRevision,
     () => 0,
   );
+  const providerAccountSignal = readProviderAccountSignal();
   const [session, setSession] = useState<Session | null>(null);
   // Who the app may say this is. "unknown" is not "nobody": a signed-in account
   // whose canonical handle has not come back yet must render neutral rather
@@ -336,6 +387,9 @@ export function AuthProvider({
           ? "unavailable"
           : "signed-out";
   const sessionTransitions = useRef(createAuthSessionTransitionTracker());
+  const nativeAuthLifetime = useRef(createNativeAuthLifetime());
+  const nativeAuthAttempt = useRef<string | null>(null);
+  const publishAuthEvent = useRef<((event: string, session: Session | null) => void) | null>(null);
   const updateSession = useCallback(
     (nextSession: Session | null, event: string | null = null) => {
       const previousUserId = sessionTransitions.current.currentUserId();
@@ -428,7 +482,10 @@ export function AuthProvider({
   useEffect(() => {
     const user = session?.user ?? null;
     let active = true;
+    const current = () => active && !providerAccountSignal.aborted &&
+      getCurrentUserId() === (user?.id ?? null);
     const onChanged = (event: Event) => {
+      if (!current()) return;
       const handle = identityHandleForOwner(
         (event as CustomEvent<unknown>).detail,
         user?.id ?? null,
@@ -444,17 +501,19 @@ export function AuthProvider({
     window.addEventListener(IDENTITY_HANDLE_CHANGED_EVENT, onChanged);
     async function loadCanonicalHandle() {
       if (!user) {
-        if (active) setCanonicalIdentityState(NOBODY_IDENTITY);
+        if (current()) setCanonicalIdentityState(NOBODY_IDENTITY);
         return;
       }
       const resolution = await resolveCanonicalIdentity(
         user.id,
         session,
         browserLocalStorage(),
+        undefined,
+        current,
       ).catch(() => null);
       // A read that failed is not evidence the account has no handle, so the
       // answer stays unknown rather than becoming a confident "nobody".
-      if (!active || !resolution?.ok) return;
+      if (!current() || !resolution?.ok) return;
       setCanonicalIdentityState({
         status: "resolved",
         identity: resolution.identity,
@@ -469,7 +528,7 @@ export function AuthProvider({
       active = false;
       window.removeEventListener(IDENTITY_HANDLE_CHANGED_EVENT, onChanged);
     };
-  }, [session, identityReadAttempt]);
+  }, [session, identityReadAttempt, getCurrentUserId, providerAccountSignal]);
 
   useEffect(() => {
     // Capture callback inputs once across React Strict Mode's effect replay and
@@ -617,8 +676,8 @@ export function AuthProvider({
 
       // Live updates: SIGNED_IN / SIGNED_OUT / TOKEN_REFRESHED. The callback is
       // the ONLY place these setStates run — never the effect body.
-      const registration = supabase.auth.onAuthStateChange((event, nextSession) => {
-        if (!active) return;
+      const handleAuthEvent = (event: string, nextSession: Session | null) => {
+        if (!active || nativeSessionInstallationPending(nextSession)) return;
         // A refresh or the first read changes nothing about who this is. Any
         // other event may have (a new password, another sign-in), so the page's
         // shared identity read is dropped and the next surface asks again.
@@ -686,7 +745,9 @@ export function AuthProvider({
         if (event === "SIGNED_OUT") {
           trackEvent("user_signed_out");
         }
-      });
+      };
+      publishAuthEvent.current = handleAuthEvent;
+      const registration = supabase.auth.onAuthStateChange(handleAuthEvent);
       subscription = registration.data.subscription;
       // Unmounted while the chunk was loading: tear the subscription right back
       // down so the cleanup's null slot doesn't leak it.
@@ -714,6 +775,9 @@ export function AuthProvider({
         if (exchangedSession) {
           window.clearTimeout(loadingTimeout);
           updateSession(exchangedSession);
+          const accountSignal = readProviderAccountSignal();
+          const current = () => active && !accountSignal.aborted &&
+            sessionTransitions.current.currentUserId() === exchangedSession.user.id;
           setSessionLoading(false);
           if (!captured.localAttemptOwned) {
             setAuthSignedInNotice(
@@ -726,6 +790,7 @@ export function AuthProvider({
           const referralClaimed = claimSignupReferralFromAuthCallback({
             currentUrl: window.location.href,
             callback: callbackAttempt,
+            current,
             request: (input, init) =>
               authedActionFetch(input, init ?? {}, { requiresIdentity: true }),
             replaceUrl: (cleanUrl) => {
@@ -737,15 +802,17 @@ export function AuthProvider({
           // claimed handle lands on the claim surface.
           void referralClaimed
             .catch(() => {})
-            .then(() =>
-              handleClaimRouteAfterSignIn(
+            .then(() => current()
+              ? handleClaimRouteAfterSignIn(
                 exchangedSession,
                 captured.cleanUrl,
                 browserLocalStorage(),
-              ),
+                undefined,
+                current,
+              ) : null,
             )
             .then((destination) => {
-              if (destination && active) window.location.assign(destination);
+              if (destination && current()) window.location.assign(destination);
             })
             .catch(() => {});
         }
@@ -871,16 +938,260 @@ export function AuthProvider({
       window.clearTimeout(loadingTimeout);
       window.clearTimeout(lingeringSweepTimeout);
       subscription?.unsubscribe();
+      publishAuthEvent.current = null;
     };
   }, [configured, updateSession]);
 
-  // Inside the native shell the provider page opens in the system browser
-  // (lib/nativeOAuth.ts): Google refuses OAuth in an embedded web view, and the
-  // universal link /auth/callback brings the person back to this WebView. On
-  // the web supabase-js has already navigated by the time this runs.
+  const cancelPendingNativeAuth = useCallback((preserveEmailReceipt = false) => {
+    if (!preserveEmailReceipt && typeof window !== "undefined") {
+      discardNativeEmailAttempt(browserLocalStorage(), browserSessionStorage(), window.location.origin);
+    }
+    const installation = nativeAuthLifetime.current.invalidate();
+    discardCancelledNativeSessionInstallation();
+    const attemptId = nativeAuthAttempt.current;
+    nativeAuthAttempt.current = null;
+    if (attemptId) {
+      releaseBrowserAuthAttempt(attemptId);
+      void cancelNativeAuthSession(attemptId);
+    }
+    return installation;
+  }, []);
+
+  useEffect(() => () => { void cancelPendingNativeAuth(true); }, [cancelPendingNativeAuth]);
+
+  const cancelSignInAttempt = useCallback((options?: CancelAuthAttemptOptions) => {
+    const keepEmailLink = options?.keepEmailLink === true;
+    void cancelPendingNativeAuth(keepEmailLink);
+    // A sent iPhone link finishes only while its receipt and its attempt claim
+    // both survive, so a prompt closing without a cancel leaves both alone.
+    const sentLink = keepEmailLink && typeof window !== "undefined"
+      ? readNativeEmailReceipt(browserLocalStorage(), window.location.origin)?.id ?? null
+      : null;
+    cancelBrowserAuthAttempt(sentLink);
+  }, [cancelPendingNativeAuth]);
+
+  const finishNativeSignIn = useCallback((result: { session: Session; captured: CapturedAuthCallback }, current: () => boolean) => {
+    if (!current() || !finishNativeSessionInstallation(result.session)) return;
+    publishAuthEvent.current?.("SIGNED_IN", result.session);
+    const accountSignal = readProviderAccountSignal();
+    const ownsAccount = () => current() && !accountSignal.aborted &&
+      sessionTransitions.current.currentUserId() === result.session.user.id;
+    if (!ownsAccount()) return;
+    setSessionLoading(false);
+    setAuthCallbackError(null);
+    let returnUrl = result.captured.cleanUrl;
+    const referralClaimed = claimSignupReferralFromAuthCallback({
+      currentUrl: new URL(returnUrl, window.location.origin).toString(),
+      callback: result.captured.attempt,
+      request: (input, init) => authedActionFetch(input, init ?? {}, { requiresIdentity: true }),
+      current: ownsAccount,
+      // The return URL is not this page, so only the push target is cleaned;
+      // rewriting this entry would pair its router state with another URL.
+      replaceUrl: (cleanUrl) => {
+        returnUrl = safeAuthNext(cleanUrl, window.location.origin);
+      },
+    });
+    void referralClaimed.catch(() => {}).then(() =>
+      ownsAccount() ? handleClaimRouteAfterSignIn(result.session, returnUrl, browserLocalStorage(), undefined, ownsAccount) : null,
+    ).then((destination) => {
+      if (ownsAccount()) {
+        router.push(safeAuthNext(destination ?? returnUrl, window.location.origin) as Route);
+      }
+    }).catch(() => {});
+  }, [router]);
+
+  // A tap only reserves its place. The provider check may still refuse it, and
+  // a refused tap must not end a sent link or an email sign-in in progress.
+  // A cancel or a newer start during the check ends the reservation.
+  const claimNativeIOSOAuth = useCallback(() => {
+    if (typeof window === "undefined" || nativePlatform() !== "ios") return null;
+    return nativeAuthLifetime.current.reserve();
+  }, []);
+
+  const startNativeIOSOAuth = useCallback(async (
+    provider: "google" | "apple" | "azure",
+    reservation: NonNullable<ReturnType<typeof claimNativeIOSOAuth>>,
+    next?: string,
+  ): Promise<AuthStartResult | { useExistingOAuth: true }> => {
+    if (!reservation.current()) return { error: null };
+    // The provider passed its check, so this start now replaces older native work.
+    const installation = cancelPendingNativeAuth();
+    const ticket = nativeAuthLifetime.current.begin();
+    await installation;
+    if (!ticket.current()) return { error: null };
+    const supabase = await ensureSupabaseBrowser().catch(() => null);
+    if (!ticket.current()) return { error: null };
+    if (!supabase) return { error: "Sign-in is not configured." };
+    const activeSession = await supabase.auth.getSession().catch(() => null);
+    if (!ticket.current()) return { error: null };
+    if (!activeSession || activeSession.error) return { error: AUTH_STATE_UNCONFIRMED_MESSAGE };
+    if (activeSession.data.session) {
+      const page = new URL(window.location.href);
+      const addAccount = (page.pathname === "/login" || page.pathname === "/signin") &&
+        page.searchParams.getAll(LOGIN_ADD_ACCOUNT_PARAM).length === 1 &&
+        parseAddAccount(page.searchParams.get(LOGIN_ADD_ACCOUNT_PARAM));
+      if (addAccount && readProviderAuthState("supabase") === "authenticated" &&
+          sessionTransitions.current.currentUserId() === activeSession.data.session.user.id) {
+        // Keep the existing Add account flow until session replacement has its own safe native proof.
+        return { useExistingOAuth: true };
+      }
+      return { error: "You are already signed in. Use Switch account to add or change an account." };
+    }
+    if (sessionTransitions.current.currentUserId() !== null || readProviderAuthState("supabase") !== "signed-out") {
+      return { error: AUTH_STATE_UNCONFIRMED_MESSAGE };
+    }
+    const revision = readProviderIdentityRevision();
+    if (!await nativeAuthSessionAvailable()) return { error: "Update the iPhone app to use Google, Apple or Microsoft sign-in." };
+    if (!ticket.current()) return { error: null };
+    const attempt = await prepareAuthCallback(window.location.href, next);
+    if ("navigationStarted" in attempt) return { error: null, navigating: true };
+    if (!attempt.ok) return { error: attempt.message };
+    if (!ticket.current()) {
+      releaseBrowserAuthAttempt(attempt.id);
+      return { error: null };
+    }
+    nativeAuthAttempt.current = attempt.id;
+    let completed: Awaited<ReturnType<typeof completeNativeIOSOAuth>> = null;
+    try {
+      completed = await completeNativeIOSOAuth(provider, attempt, {
+        ownership: {
+          persistentStorage: browserLocalStorage(),
+          tabStorage: browserSessionStorage(),
+          lockManager: browserLockManager(),
+        },
+        current: () => ticket.current() && readProviderIdentityRevision() === revision,
+        install: (result) => ticket.install(() => installNativeSession(
+          supabase.auth, result,
+          () => ticket.current() && readProviderIdentityRevision() === revision,
+        )),
+      });
+    } finally {
+      releaseBrowserAuthAttempt(attempt.id);
+      if (nativeAuthAttempt.current === attempt.id) nativeAuthAttempt.current = null;
+    }
+    if (!ticket.current()) return { error: null };
+    if (!completed) return { error: AUTH_PROVIDER_INCOMPLETE_MESSAGE };
+    finishNativeSignIn(completed, ticket.current);
+    return { error: null };
+  }, [cancelPendingNativeAuth, finishNativeSignIn]);
+
+  const nativeEmailCallbacks = useRef(new Set<string>());
+  // Links this document already answered, so a second copy stays quiet.
+  const settledNativeEmailCallbacks = useRef(new Set<string>());
+  useEffect(() => {
+    if (nativePlatform() !== "ios") return;
+    readNativeEmailReceipt(browserLocalStorage(), window.location.origin);
+    let active = true;
+    let stop = () => {};
+    void activateNativeEmailLinks((raw) => {
+      const callback = readNativeEmailCallback(raw, window.location.origin);
+      const storage = browserLocalStorage();
+      const receipt = readNativeEmailReceipt(storage, window.location.origin);
+      if (!callback || nativeEmailCallbacks.current.has(callback.id) || settledNativeEmailCallbacks.current.has(callback.id)) return;
+      if (receipt?.id !== callback.id) {
+        // This app can no longer finish the link: it expired, a newer request
+        // replaced it, or it was cancelled. Say so to a signed-out reader.
+        settledNativeEmailCallbacks.current.add(callback.id);
+        void waitForNativeEmailReadiness().then((signedOut) => {
+          if (active && signedOut) setAuthCallbackError(AUTH_CALLBACK_ERROR_MESSAGE);
+        });
+        return;
+      }
+      nativeEmailCallbacks.current.add(callback.id);
+      void (async () => {
+        try {
+          const ready = await waitForNativeEmailReadiness();
+          if (!active || readNativeEmailReceipt(storage, window.location.origin)?.id !== callback.id) return;
+          if (!ready) {
+            removeNativeEmailReceipt(storage, callback.id);
+            releaseBrowserAuthAttempt(callback.id);
+            setAuthCallbackError(AUTH_CALLBACK_ERROR_MESSAGE);
+            return;
+          }
+          const ticket = nativeAuthLifetime.current.begin();
+          const revision = readProviderIdentityRevision();
+          const supabase = await ensureSupabaseBrowser().catch(() => null);
+          const config = nativeEmailAuthConfig();
+          if (!active || !ticket.current()) return;
+          if (!supabase || !config) {
+            removeNativeEmailReceipt(storage, callback.id); releaseBrowserAuthAttempt(callback.id);
+            setAuthCallbackError(AUTH_CALLBACK_ERROR_MESSAGE);
+            return;
+          }
+          const outcome = await completeNativeEmailLink(raw, {
+            storage, origin: window.location.origin, config,
+            ownership: { persistentStorage: storage, tabStorage: browserSessionStorage(), lockManager: browserLockManager() },
+            current: () => active && ticket.current() && readProviderIdentityRevision() === revision,
+            install: (result) => ticket.install(() => installNativeSession(supabase.auth, result,
+              () => active && ticket.current() && readProviderIdentityRevision() === revision)),
+          });
+          if (!active || !ticket.current()) return;
+          if (outcome.status === "established") finishNativeSignIn(outcome, ticket.current);
+          else if (outcome.status === "failed") setAuthCallbackError(AUTH_CALLBACK_ERROR_MESSAGE);
+        } finally {
+          nativeEmailCallbacks.current.delete(callback.id);
+          settledNativeEmailCallbacks.current.add(callback.id);
+        }
+      })();
+    }).then((cleanup) => { if (!active) cleanup(); else stop = cleanup; });
+    return () => { active = false; stop(); };
+  }, [finishNativeSignIn]);
+
+  const startNativeEmail = useCallback(async (email: string | null, next?: string): Promise<MagicLinkResult | { useExistingEmail: true }> => {
+    const installation = cancelPendingNativeAuth();
+    const ticket = nativeAuthLifetime.current.begin();
+    await installation;
+    if (!ticket.current()) return NATIVE_EMAIL_SUPERSEDED;
+    const supabase = await ensureSupabaseBrowser().catch(() => null);
+    // A superseded start is quiet. A current session read failure stays visible.
+    if (!ticket.current()) return NATIVE_EMAIL_SUPERSEDED;
+    const activeSession = await supabase?.auth.getSession().catch(() => null);
+    if (!ticket.current()) return NATIVE_EMAIL_SUPERSEDED;
+    if (!supabase) return { status: "error", message: "Sign-in is not configured." };
+    if (!activeSession || activeSession.error) return { status: "error", message: AUTH_STATE_UNCONFIRMED_MESSAGE };
+    if (activeSession.data.session) {
+      const page = new URL(window.location.href);
+      if ((page.pathname === "/login" || page.pathname === "/signin") && page.searchParams.getAll(LOGIN_ADD_ACCOUNT_PARAM).length === 1 &&
+          parseAddAccount(page.searchParams.get(LOGIN_ADD_ACCOUNT_PARAM)) && readProviderAuthState("supabase") === "authenticated" &&
+          sessionTransitions.current.currentUserId() === activeSession.data.session.user.id) return { useExistingEmail: true };
+      return { status: "error", message: "You are already signed in. Use Switch account to add or change an account." };
+    }
+    if (sessionTransitions.current.currentUserId() !== null || readProviderAuthState("supabase") !== "signed-out") {
+      return { status: "error", message: AUTH_STATE_UNCONFIRMED_MESSAGE };
+    }
+    const attempt = await prepareAuthCallback(window.location.href, next ?? defaultEmailAuthNext(window.location.href),
+      () => ticket.current() && sessionTransitions.current.currentUserId() === null && readProviderAuthState("supabase") === "signed-out");
+    if ("navigationStarted" in attempt) return { status: "error", message: "Continue sign-in on pubmaxxing.com." };
+    if (!attempt.ok) return ticket.current() ? { status: "error", message: attempt.message } : NATIVE_EMAIL_SUPERSEDED;
+    const config = nativeEmailAuthConfig();
+    if (!config) { releaseBrowserAuthAttempt(attempt.id); return { status: "error", message: "Sign-in is not configured." }; }
+    const prepared = await prepareNativeEmailReceipt(attempt, email, browserLocalStorage(), Date.now(), ticket.current, config);
+    if (!ticket.current()) {
+      removeNativeEmailReceipt(browserLocalStorage(), attempt.id); releaseBrowserAuthAttempt(attempt.id);
+      return NATIVE_EMAIL_SUPERSEDED;
+    }
+    if (prepared.status !== "prepared") {
+      removeNativeEmailReceipt(browserLocalStorage(), attempt.id); releaseBrowserAuthAttempt(attempt.id);
+      return prepared.status === "storage"
+        ? { status: "error", message: "Sign-in needs browser storage. Enable site storage, then try again." }
+        : { status: "error", message: "Sign-in could not be started. Try again." };
+    }
+    const result = email === null
+      ? await requestResumeLink(prepared.receipt.callbackUrl, fetch, { codeChallenge: prepared.challenge })
+      : await requestNativeEmailLink(email, prepared.receipt, prepared.challenge, config);
+    if (result.status !== "sent") {
+      removeNativeEmailReceipt(browserLocalStorage(), attempt.id); releaseBrowserAuthAttempt(attempt.id);
+    }
+    return ticket.current() ? result : NATIVE_EMAIL_SUPERSEDED;
+  }, [cancelPendingNativeAuth]);
+
+  // Android opens the provider through lib/nativeOAuth.ts and returns via its
+  // HTTPS App Link. iPhone sign-in uses the separate authentication session above.
+  // On the web supabase-js navigates before this handoff runs.
   const handOffToSystemBrowser = useCallback(
     async (systemBrowser: boolean, url: string | null | undefined, attemptId: string) => {
-      if (!systemBrowser) return { error: null };
+      // supabase-js has already started this page's redirect to the provider.
+      if (!systemBrowser) return { error: null, navigating: true };
       if (!url) {
         releaseBrowserAuthAttempt(attemptId);
         return { error: "Sign-in could not be started. Try again." };
@@ -889,15 +1200,19 @@ export function AuthProvider({
       if (outcome === "opened") return { error: null };
       // No system browser to hand to: take the web's own path.
       window.location.assign(url);
-      return { error: null };
+      return { error: null, navigating: true };
     },
     [],
   );
 
-  const startSupabaseGoogleOAuth = useCallback(async (next?: string): Promise<{ error: string | null }> => {
+  const startSupabaseGoogleOAuth = useCallback(async (next: string | undefined, nativeClaim: ReturnType<typeof claimNativeIOSOAuth>): Promise<AuthStartResult> => {
     if (typeof window === "undefined") return { error: "Sign-in is unavailable on this page." };
+    if (nativeClaim) {
+      const native = await startNativeIOSOAuth("google", nativeClaim, next);
+      if (!("useExistingOAuth" in native)) return native;
+    }
     const attempt = await prepareAuthCallback(window.location.href, next);
-    if ("navigationStarted" in attempt) return { error: null };
+    if ("navigationStarted" in attempt) return { error: null, navigating: true };
     if (!attempt.ok) return { error: attempt.message };
     const supabase = await ensureSupabaseBrowser().catch(() => null);
     if (!supabase) {
@@ -924,12 +1239,16 @@ export function AuthProvider({
       releaseBrowserAuthAttempt(attempt.id);
       return { error: "Sign-in could not be started. Try again." };
     }
-  }, [handOffToSystemBrowser]);
+  }, [handOffToSystemBrowser, startNativeIOSOAuth]);
 
-  const startSupabaseAppleOAuth = useCallback(async (next?: string): Promise<{ error: string | null }> => {
+  const startSupabaseAppleOAuth = useCallback(async (next: string | undefined, nativeClaim: ReturnType<typeof claimNativeIOSOAuth>): Promise<AuthStartResult> => {
     if (typeof window === "undefined") return { error: "Sign-in is unavailable on this page." };
+    if (nativeClaim) {
+      const native = await startNativeIOSOAuth("apple", nativeClaim, next);
+      if (!("useExistingOAuth" in native)) return native;
+    }
     const attempt = await prepareAuthCallback(window.location.href, next);
-    if ("navigationStarted" in attempt) return { error: null };
+    if ("navigationStarted" in attempt) return { error: null, navigating: true };
     if (!attempt.ok) return { error: attempt.message };
     const supabase = await ensureSupabaseBrowser().catch(() => null);
     if (!supabase) {
@@ -954,12 +1273,16 @@ export function AuthProvider({
       releaseBrowserAuthAttempt(attempt.id);
       return { error: "Sign-in could not be started. Try again." };
     }
-  }, [handOffToSystemBrowser]);
+  }, [handOffToSystemBrowser, startNativeIOSOAuth]);
 
-  const startSupabaseMicrosoftOAuth = useCallback(async (next?: string): Promise<{ error: string | null }> => {
+  const startSupabaseMicrosoftOAuth = useCallback(async (next: string | undefined, nativeClaim: ReturnType<typeof claimNativeIOSOAuth>): Promise<AuthStartResult> => {
     if (typeof window === "undefined") return { error: "Sign-in is unavailable on this page." };
+    if (nativeClaim) {
+      const native = await startNativeIOSOAuth("azure", nativeClaim, next);
+      if (!("useExistingOAuth" in native)) return native;
+    }
     const attempt = await prepareAuthCallback(window.location.href, next);
-    if ("navigationStarted" in attempt) return { error: null };
+    if ("navigationStarted" in attempt) return { error: null, navigating: true };
     if (!attempt.ok) return { error: attempt.message };
     const supabase = await ensureSupabaseBrowser().catch(() => null);
     if (!supabase) {
@@ -985,42 +1308,49 @@ export function AuthProvider({
       releaseBrowserAuthAttempt(attempt.id);
       return { error: "Sign-in could not be started. Try again." };
     }
-  }, [handOffToSystemBrowser]);
+  }, [handOffToSystemBrowser, startNativeIOSOAuth]);
 
-  const signInWithGoogle = useCallback(async (next?: string): Promise<{ error: string | null }> => {
+  const signInWithGoogle = useCallback(async (next?: string): Promise<AuthStartResult> => {
+    const nativeClaim = claimNativeIOSOAuth();
     const guarded = await guardSocialAuthProvider(
       "google",
-      () => startSupabaseGoogleOAuth(next),
+      () => startSupabaseGoogleOAuth(next, nativeClaim),
       () => loadSocialAuthProviders(globalThis.fetch, { fresh: true }),
     );
     setSocialProviders(guarded.availability ?? NO_SOCIAL_AUTH_PROVIDERS);
     return guarded.result;
-  }, [startSupabaseGoogleOAuth]);
+  }, [claimNativeIOSOAuth, startSupabaseGoogleOAuth]);
 
-  const signInWithApple = useCallback(async (next?: string): Promise<{ error: string | null }> => {
+  const signInWithApple = useCallback(async (next?: string): Promise<AuthStartResult> => {
+    const nativeClaim = claimNativeIOSOAuth();
     const guarded = await guardSocialAuthProvider(
       "apple",
-      () => startSupabaseAppleOAuth(next),
+      () => startSupabaseAppleOAuth(next, nativeClaim),
       () => loadSocialAuthProviders(globalThis.fetch, { fresh: true }),
     );
     setSocialProviders(guarded.availability ?? NO_SOCIAL_AUTH_PROVIDERS);
     return guarded.result;
-  }, [startSupabaseAppleOAuth]);
+  }, [claimNativeIOSOAuth, startSupabaseAppleOAuth]);
 
-  const signInWithMicrosoft = useCallback(async (next?: string): Promise<{ error: string | null }> => {
+  const signInWithMicrosoft = useCallback(async (next?: string): Promise<AuthStartResult> => {
+    const nativeClaim = claimNativeIOSOAuth();
     const guarded = await guardSocialAuthProvider(
       "microsoft",
-      () => startSupabaseMicrosoftOAuth(next),
+      () => startSupabaseMicrosoftOAuth(next, nativeClaim),
       () => loadSocialAuthProviders(globalThis.fetch, { fresh: true }),
     );
     setSocialProviders(guarded.availability ?? NO_SOCIAL_AUTH_PROVIDERS);
     return guarded.result;
-  }, [startSupabaseMicrosoftOAuth]);
+  }, [claimNativeIOSOAuth, startSupabaseMicrosoftOAuth]);
 
   const signInWithEmail = useCallback(
     async (email: string, next?: string): Promise<MagicLinkResult> => {
       if (typeof window === "undefined") {
         return { status: "error", message: "Sign-in is unavailable on this page." };
+      }
+      if (nativePlatform() === "ios") {
+        const native = await startNativeEmail(email, next);
+        if (!("useExistingEmail" in native)) return native;
       }
       const attempt = await prepareAuthCallback(
         window.location.href,
@@ -1044,11 +1374,12 @@ export function AuthProvider({
       }
       return result;
     },
-    [],
+    [startNativeEmail],
   );
 
   const signOut = useCallback(
     async (scope: SignOutScope = "account"): Promise<void> => {
+      await cancelPendingNativeAuth();
       const supabase = await ensureSupabaseBrowser();
       if (!supabase) return;
       const departing = sessionTransitions.current.currentUserId();
@@ -1086,11 +1417,12 @@ export function AuthProvider({
       if (!next) return;
       await activateDeviceAccount(next.userId, browserDeviceAccountSwitchDeps());
     },
-    [],
+    [cancelPendingNativeAuth],
   );
 
   const switchAccount = useCallback(
     async (userId: string): Promise<DeviceAccountSwitchOutcome> => {
+      await cancelPendingNativeAuth();
       if (userId === sessionTransitions.current.currentUserId()) {
         return { status: "switched", userId };
       }
@@ -1102,7 +1434,7 @@ export function AuthProvider({
       if (outcome.status === "switched") trackEvent("account_switched");
       return outcome;
     },
-    [],
+    [cancelPendingNativeAuth],
   );
 
   useEffect(() => {
@@ -1125,6 +1457,10 @@ export function AuthProvider({
     if (typeof window === "undefined") {
       return { status: "error", message: "Sign-in is unavailable on this page." };
     }
+    if (nativePlatform() === "ios") {
+      const native = await startNativeEmail(null, next);
+      if (!("useExistingEmail" in native)) return native;
+    }
     const attempt = await prepareAuthCallback(
       window.location.href,
       next ?? defaultEmailAuthNext(window.location.href),
@@ -1138,7 +1474,7 @@ export function AuthProvider({
       releaseBrowserAuthAttempt(attempt.id);
     }
     return result;
-  }, []);
+  }, [startNativeEmail]);
 
   const value = useMemo<AuthContextValue>(() => {
     const user = session?.user ?? null;
@@ -1163,7 +1499,7 @@ export function AuthProvider({
       signInWithApple,
       signInWithMicrosoft,
       signInWithEmail,
-      cancelAuthAttempt: cancelBrowserAuthAttempt,
+      cancelAuthAttempt: cancelSignInAttempt,
       signOut,
       switchAccount,
       welcomeBack: user ? null : welcomeBack,
@@ -1196,6 +1532,7 @@ export function AuthProvider({
     signInWithEmail,
     signOut,
     switchAccount,
+    cancelSignInAttempt,
     welcomeBack,
     resumeSignIn,
     canonicalIdentityState,
@@ -1252,11 +1589,12 @@ export function AuthProvider({
         </div>
       ) : null}
       {/* The warm second after a sign-in lands. Not a dialog and not a gate:
-          it names the person and retires itself. */}
-      <ArrivalWelcome />
+          it names the person and retires itself. Both it and the handle claim
+          render nothing without a user, so neither is fetched without one. */}
+      {session?.user ? <ArrivalWelcome /> : null}
+      {session?.user ? <AccountOnboarding /> : null}
       {/* Signed-out account nudge after a high-intent action. Self-gates on
           auth + a pending trigger, so it renders nothing until armed. */}
-      <AccountOnboarding />
       <IdentityNudge />
     </AuthContext.Provider>
   );

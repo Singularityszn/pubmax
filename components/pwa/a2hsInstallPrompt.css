@@ -54,7 +54,11 @@
   width: auto;
   max-width: 27rem;
   margin-inline: auto;
-  padding: var(--space-3);
+  padding: var(--space-2) var(--space-3);
+}
+
+.a2hsSheet--android .a2hsClose {
+  top: var(--space-2);
 }
 
 .a2hsSheet--android .a2hsEyebrow {
@@ -186,9 +190,9 @@
   width: 34px;
   height: 34px;
   border-radius: var(--radius-pill);
-  border: 1px solid color-mix(in srgb, var(--brass) 40%, var(--line));
-  background: color-mix(in srgb, var(--brass) 12%, transparent);
-  color: var(--brass);
+  border: 1px solid var(--line);
+  background: transparent;
+  color: var(--color-text-muted);
 }
 
 .a2hsStepNum {
@@ -260,7 +264,7 @@
 }
 
 /* Give the sheet a touch more room on narrow phones. */
-@media (max-width: 400px) {
+@media (max-width: 640px) {
   .a2hsTitle {
     font-size: var(--text-lg);
   }

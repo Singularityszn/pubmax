@@ -8,10 +8,11 @@ import "server-only";
 
 import { isPlanId } from "@/lib/plan";
 import {
-  __listMemoryPlanMemberUserIds,
   __setMemoryPlanOwnerUserId,
   claimMemoryPlanMembership,
   hashPlanMemberToken,
+  memoryPlanCrewUserIds,
+  memoryPlanHostUserId,
   planMemberIdentityResult,
   planIdempotencyDigest,
   planRequestDigest,
@@ -263,14 +264,38 @@ export async function linkPlanOwnerUser(
   }
 }
 
-/** Claimed-member candidates already stamped on this plan (internal only). */
-export async function listPlanMemberUserIds(
-  planId: string,
-): Promise<Array<{ memberId: string; userId: string }>> {
-  if (!isPlanId(planId)) return [];
-  if (!isSupabaseConfigured()) {
-    return __listMemoryPlanMemberUserIds(planId);
+/** Read only the host account. An unclaimed host never falls back to a guest. */
+export async function planHostUserId(planId: string): Promise<string | null> {
+  if (!isPlanId(planId)) return null;
+  if (!isSupabaseConfigured()) return memoryPlanHostUserId(planId);
+  try {
+    // Use the same active-member ordering that planMemberIdentity uses for
+    // the host role. Select the host before checking whether it is claimed.
+    const { data, error } = await requireSupabaseAdmin()
+      .from(MEMBERS)
+      .select("user_id")
+      .eq("plan_id", planId)
+      .is("membership_revoked_at", null)
+      .order("joined_at").order("id")
+      .limit(1)
+      .maybeSingle();
+    if (error) throw new Error(error.message);
+    return cleanUserId(data?.user_id) || null;
+  } catch {
+    return null;
   }
+}
+
+/**
+ * Every active crew seat an account has claimed, with its account (Pals walk
+ * together). Server-only: the caller must already hold the plan's member
+ * capability, and no account id from here may leave the server.
+ */
+export async function planCrewUserIds(
+  planId: string,
+): Promise<{ ok: true; value: Array<{ memberId: string; userId: string }> } | { ok: false }> {
+  if (!isPlanId(planId)) return { ok: true, value: [] };
+  if (!isSupabaseConfigured()) return { ok: true, value: memoryPlanCrewUserIds(planId) };
   try {
     const { data, error } = await requireSupabaseAdmin()
       .from(MEMBERS)
@@ -278,15 +303,14 @@ export async function listPlanMemberUserIds(
       .eq("plan_id", planId)
       .is("membership_revoked_at", null)
       .not("user_id", "is", null);
-    if (error) throw new Error(error.message);
-    const out: Array<{ memberId: string; userId: string }> = [];
-    for (const row of data ?? []) {
-      const memberId = typeof row.id === "string" ? row.id : "";
-      const userId = typeof row.user_id === "string" ? row.user_id : "";
-      if (memberId && userId) out.push({ memberId, userId });
-    }
-    return out;
+    if (error) return { ok: false };
+    return {
+      ok: true,
+      value: (data ?? [])
+        .map((row) => ({ memberId: String((row as { id: unknown }).id), userId: cleanUserId((row as { user_id: unknown }).user_id) }))
+        .filter((seat) => seat.userId.length > 0),
+    };
   } catch {
-    return [];
+    return { ok: false };
   }
 }

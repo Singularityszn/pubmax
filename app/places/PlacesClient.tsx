@@ -45,7 +45,10 @@ import {
   PLACES_SET_CITY_LABEL,
   PLACES_SHOW_ALL_LABEL,
   PLACES_TITLE,
-  filterPlacesCityRows,
+  PLACES_UK_LINE,
+  PLACES_UK_TITLE,
+  PLACES_WAITLIST_HREF,
+  PLACES_WAITLIST_LABEL,
   placesAreasEmptyLine,
   placesAreasForCity,
   placesAreasTitle,
@@ -54,7 +57,6 @@ import {
   placesCityActions,
   placesCurrentCityLine,
   placesPricesLine,
-  placesPricesPill,
   placesSearchEmptyLine,
   placesShouldSearchTowns,
   placesTownLookupPending,
@@ -63,11 +65,21 @@ import {
 } from "@/lib/places";
 import { useUkPlaceIndex } from "@/lib/useUkPlaceIndex";
 
+import "@/components/listing/listing.css";
 import "./places.css";
 
 /**
- * The Places tab: pick a city, see what is inside it, and set the one city the
- * map, Out and Near all open on.
+ * The city picker: pick a city, see what is inside it, and set the one city the
+ * map and Near open on. It is not a tab (Oct 2026 UX audit): the map's city
+ * chip and the footer's "Pick your city" reach it.
+ *
+ * ONE CITY SAYS SO (taste plan, 18 Oct 2026). With London the only city that
+ * has listed prices, a city search field over a one-row city list read as a
+ * multi-city product that was not there. The list view now says plainly
+ * "London only, for now", paints one door (Open London) and offers the city
+ * request beside it. What the old field did that was real stays, under its own
+ * heading: a town lookup that opens the UK map, where pubs show without
+ * prices. Every other city still answers by `?city=` and on its own map.
  *
  * Two views in one route, keyed off `?city=`, so Back is the browser's own and a
  * chosen city is a link somebody can send. Each view is ONE `Screen`, which is
@@ -90,7 +102,7 @@ export default function PlacesClient({ cityId }: { cityId: CityId | null }) {
   return (
     <div className="placesPage">
       <SiteNav active="places" />
-      <main id="main" className="placesBody">
+      <main id="main" className="placesBody listingShell">
         {cityId ? (
           <CityPanel cityId={cityId} preferredCity={preferredCity} />
         ) : (
@@ -104,12 +116,9 @@ export default function PlacesClient({ cityId }: { cityId: CityId | null }) {
 function CityList({ preferredCity }: { preferredCity: CityId | null }) {
   const searchId = useId();
   const [query, setQuery] = useState("");
-  const rows = useMemo(() => placesCityRows(), []);
-  const shown = useMemo(() => filterPlacesCityRows(rows, query), [rows, query]);
-  // A query no city row answers is not automatically a query with no answer:
-  // the retired /choose-city address read the UK place index and offered the
-  // base map where that town is, and that capability rides on here.
-  const searchTowns = placesShouldSearchTowns(shown.length, query);
+  // The field looks up towns, not cities: there is one city, and it is the
+  // door above. A town opens the UK map where that town is.
+  const searchTowns = placesShouldSearchTowns(0, query);
   const {
     status: indexStatus,
     places: indexPlaces,
@@ -129,140 +138,124 @@ function CityList({ preferredCity }: { preferredCity: CityId | null }) {
         : ([] as CityChooserSearchResult[]),
     [searchTowns, indexStatus, indexPlaces, query],
   );
-  const showTowns = shown.length === 0 && towns.length > 0;
+  const showTowns = towns.length > 0;
 
   return (
     <Screen
       as="div"
       kicker={PLACES_KICKER}
       title={PLACES_TITLE}
-      lede={PLACES_LEDE}
-      actionsAfterContent
+      lede={
+        preferredCity === "london"
+          ? `${PLACES_LEDE} The map and Near already open there.`
+          : PLACES_LEDE
+      }
       primary={
         <Link prefetch={false} href={placesCityHref("london")}>
           {PLACES_LIST_PRIMARY_LABEL}
         </Link>
       }
       secondary={
-        <Link prefetch={false} href={PLACES_LIST_SECONDARY_HREF}>
-          {PLACES_LIST_SECONDARY_LABEL}
-        </Link>
+        <a href={PLACES_WAITLIST_HREF} data-testid="places-waitlist">
+          {PLACES_WAITLIST_LABEL}
+        </a>
       }
     >
-      <div className="placesSearch">
-        <label className="placesSearchLabel" htmlFor={searchId}>
-          {PLACES_SEARCH_LABEL}
-        </label>
-        <div className="placesSearchField">
-          <Search size={18} strokeWidth={1.75} aria-hidden="true" />
-          <input
-            id={searchId}
-            className="placesSearchInput"
-            type="search"
-            value={query}
-            onChange={(event) => setQuery(event.target.value)}
-            placeholder={PLACES_SEARCH_PLACEHOLDER}
-            autoComplete="off"
-            spellCheck="false"
-          />
+      <section className="placesSection placesUk" aria-labelledby="places-uk-title">
+        <h2 id="places-uk-title" className="placesSectionTitle">
+          {PLACES_UK_TITLE}
+        </h2>
+        <p className="placesSectionLine">
+          {PLACES_UK_LINE}{" "}
+          <Link prefetch={false} href={PLACES_LIST_SECONDARY_HREF} className="placesUkLink">
+            {PLACES_LIST_SECONDARY_LABEL}
+          </Link>
+        </p>
+
+        <div className="placesSearch">
+          <label className="placesSearchLabel" htmlFor={searchId}>
+            {PLACES_SEARCH_LABEL}
+          </label>
+          <div className="placesSearchField">
+            <Search size={16} aria-hidden="true" />
+            <input
+              id={searchId}
+              className="placesSearchInput"
+              type="search"
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+              placeholder={PLACES_SEARCH_PLACEHOLDER}
+              autoComplete="off"
+              spellCheck="false"
+            />
+          </div>
         </div>
-      </div>
 
-      {/* The town answer and the empty state swap under one another a keystroke
-          at a time, so the region that holds them is always mounted and polite:
-          a live region that arrives WITH its content is announced by only some
-          screen readers. The city list stays outside it, because re-reading
-          every city on each character is noise rather than an answer. */}
-      <div className="placesResults" aria-live="polite">
-        {showTowns ? (
-          <ul className="placesTownList" aria-label="Places">
-            {towns.map((town) => (
-              <li
-                key={`${town.kind}-${town.name}-${town.href}`}
-                className="placesCityItem"
-              >
-                <Link
-                  prefetch={false}
-                  href={town.href}
-                  className="placesCityLink"
+        {/* The town answer and the empty state swap under one another a
+            keystroke at a time, so the region that holds them is always
+            mounted and polite: a live region that arrives WITH its content is
+            announced by only some screen readers. */}
+        <div className="placesResults" aria-live="polite">
+          {showTowns ? (
+            <ul className="placesTownList" aria-label="Places">
+              {towns.map((town) => (
+                <li
+                  key={`${town.kind}-${town.name}-${town.href}`}
+                  className="placesCityItem"
                 >
-                  <span className="placesCityMark" aria-hidden="true">
-                    <MapPin size={18} strokeWidth={1.65} />
-                  </span>
-                  <span className="placesCityCopy">
-                    <span className="placesCityNameRow">
-                      <span className="placesCityName">{town.name}</span>
-                      {cityChooserResultContext(town) ? (
-                        <span className="placesCityContext">
-                          {cityChooserResultContext(town)}
-                        </span>
-                      ) : null}
-                      <span className="placesPill">
-                        {cityChooserResultBadge(town.kind)}
-                      </span>
+                  <Link
+                    prefetch={false}
+                    href={town.href}
+                    className="placesCityLink"
+                  >
+                    <span className="placesCityMark" aria-hidden="true">
+                      <MapPin size={20} />
                     </span>
-                    <span className="placesCityTagline">{town.description}</span>
-                  </span>
-                </Link>
-              </li>
-            ))}
-          </ul>
-        ) : shown.length === 0 ? (
-          <EmptyState
-            title={
-              townLookupPending
-                ? PLACE_INDEX_PENDING_LINE
-                : searchTowns && indexStatus === "error"
-                  ? placesTownSearchUnavailableLine()
-                  : placesSearchEmptyLine(query)
-            }
-          >
-            <button type="button" onClick={() => setQuery("")}>
-              {PLACES_SHOW_ALL_LABEL}
-            </button>
-          </EmptyState>
-        ) : null}
-      </div>
-
-      {/* These rows are OpenStreetMap's place names, and this surface draws no
-          map canvas to carry the credit MapLibre would. It sits outside the
-          live region: it is provenance for the list, not a result to announce.
-          It takes the create action's own lane, because a licence line is the
-          one line that may never be painted under a floating button
-          (components/nav/createFab.css). */}
-      {showTowns ? (
-        <PlaceIndexCredit className="placesTownSource createFabLane" />
-      ) : null}
-
-      {shown.length > 0 ? (
-        <ul className="placesCityList" aria-label="Cities">
-          {shown.map((row) => (
-            <li key={row.cityId} className="placesCityItem">
-              <Link
-                prefetch={false}
-                href={placesCityHref(row.cityId)}
-                className="placesCityLink"
-              >
-                <span className="placesCityMark" aria-hidden="true">
-                  <MapPin size={18} strokeWidth={1.65} />
-                </span>
-                <span className="placesCityCopy">
-                  <span className="placesCityNameRow">
-                    <span className="placesCityName">{row.name}</span>
-                    {row.cityId === preferredCity ? (
-                      <span className="placesPill" data-tone="yours">
-                        Your city
+                    <span className="placesCityCopy">
+                      <span className="placesCityNameRow">
+                        <span className="placesCityName">{town.name}</span>
+                        {cityChooserResultContext(town) ? (
+                          <span className="placesCityContext">
+                            {cityChooserResultContext(town)}
+                          </span>
+                        ) : null}
+                        <span className="placesPill">
+                          {cityChooserResultBadge(town.kind)}
+                        </span>
                       </span>
-                    ) : null}
-                    <span className="placesPill">{placesPricesPill(row)}</span>
-                  </span>
-                  <span className="placesCityTagline">{row.tagline}</span>
-                </span>
-              </Link>
-            </li>
-          ))}
-        </ul>
-      ) : null}
+                      <span className="placesCityTagline">{town.description}</span>
+                    </span>
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          ) : searchTowns && (townLookupPending || indexStatus === "error" || indexStatus === "ready") ? (
+            <EmptyState
+              title={
+                townLookupPending
+                  ? PLACE_INDEX_PENDING_LINE
+                  : indexStatus === "error"
+                    ? placesTownSearchUnavailableLine()
+                    : placesSearchEmptyLine(query)
+              }
+            >
+              <button type="button" onClick={() => setQuery("")}>
+                {PLACES_SHOW_ALL_LABEL}
+              </button>
+            </EmptyState>
+          ) : null}
+        </div>
+
+        {/* These rows are OpenStreetMap's place names, and this surface draws
+            no map canvas to carry the credit MapLibre would. It sits outside
+            the live region: it is provenance for the list, not a result to
+            announce. It takes the create action's own lane, because a licence
+            line is the one line that may never be painted under a floating
+            button (components/nav/createFab.css). */}
+        {showTowns ? (
+          <PlaceIndexCredit className="placesTownSource createFabLane" />
+        ) : null}
+      </section>
     </Screen>
   );
 }
@@ -295,9 +288,9 @@ function CityPanel({
 
   return (
     <>
-      <p className="placesBack">
+      <p className="placesBack listingSection">
         <Link prefetch={false} href={PLACES_PATH} className="placesBackLink">
-          <ArrowLeft size={16} strokeWidth={1.9} aria-hidden="true" />
+          <ArrowLeft size={16} aria-hidden="true" />
           {PLACES_BACK_LABEL}
         </Link>
       </p>
@@ -341,7 +334,7 @@ function CityPanel({
           className="placesSection"
           aria-labelledby="places-prices-title"
         >
-          <Kicker tone="muted">Prices</Kicker>
+          <Kicker>Prices</Kicker>
           <h2 id="places-prices-title" className="placesSectionTitle">
             {row.pricesListed
               ? "Listed pint prices"
@@ -351,7 +344,7 @@ function CityPanel({
         </section>
 
         <section className="placesSection" aria-labelledby="places-areas-title">
-          <Kicker tone="muted">{PLACES_AREAS_KICKER}</Kicker>
+          <Kicker>{PLACES_AREAS_KICKER}</Kicker>
           <div className="placesSectionHead">
             <h2 id="places-areas-title" className="placesSectionTitle">
               {placesAreasTitle(cityId)}

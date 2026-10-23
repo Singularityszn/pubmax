@@ -2,7 +2,10 @@
 // and provenance. No tool invents a price.
 
 import { DEFAULT_CITY_ID, parseCityId, type CityId } from "@/lib/cities";
+import { isIndependentAskTool, isVenueDiscoveryAsk, resolveAskJourney, resolveAskPriceIntent, routeAskDeterministically } from "@/lib/ask/router";
+import { communityCategoryEvidence, listedPintEvidence } from "@/lib/ask/toolContract";
 import { formatGbp } from "@/lib/formatGbp";
+import { listedPriceReceipt } from "@/lib/listedPriceReceipt";
 import {
   drivesMap,
   type CommunityPrice,
@@ -45,8 +48,10 @@ import {
   toolTonightNow,
   toolVenueDrinks,
 } from "@/lib/ask/conciergeTools.server";
+import { uniqueExactVenueNameMatch } from "@/lib/ask/venueResolution";
 import { matchVenueByName } from "@/lib/ask/venueResolution.server";
 import { resolveCanonicalVenueId } from "@/lib/venueAliases";
+import { STATIC_STATIONS } from "@/lib/staticStations";
 import type {
   AskProvenance,
   AskToolArgs,
@@ -91,6 +96,7 @@ function venueCard(
   venue: ConciergeVenue,
   note: string,
   key?: string,
+  now?: number,
 ): AskCard {
   return {
     key: key ?? venue.id,
@@ -99,7 +105,9 @@ function venueCard(
     place: venue.area,
     note,
     price: venue.cheapestPrice,
-    provenance: directoryProvenance(),
+    provenance: venue.cheapestPrice !== null && venue.cheapestPrice > 0
+      ? { kind: "directory", label: listedPriceReceipt(venue, now) }
+      : directoryProvenance(),
   };
 }
 
@@ -113,12 +121,16 @@ async function toolSearchVenues(
   try {
     const parsed = await parseConciergeIntent(query, { skipModel: true });
     const venues = await loadConciergeVenues(ctx.cityId);
-    const ranked = rankConciergeVenues(venues, parsed.intent, {
+    const ceiling = parsed.intent.maxPintPrice;
+    const eligible = ceiling === undefined ? venues : venues.filter((venue) =>
+      venue.cheapestPrice !== null && venue.cheapestPrice > 0 && venue.cheapestPrice <= ceiling,
+    );
+    const ranked = rankConciergeVenues(eligible, parsed.intent, {
       limit,
       areaCircle: areaCircleForAsk(ctx.cityId, parsed.intent.area),
     });
     const cards = ranked.map((row) =>
-      venueCard(row.venue, rankedNote(row), row.venue.id),
+      venueCard(row.venue, rankedNote(row), row.venue.id, ctx.now),
     );
     const proposals: AskProposal[] = cards
       .filter((c) => c.venueId)
@@ -151,7 +163,7 @@ async function toolSearchVenues(
       proposals,
       answerHint:
         cards.length > 0
-          ? ""
+          ? cards.length < limit ? `Only ${cards.length} listed ${cards.length === 1 ? "pub matches" : "pubs match"} those choices.` : ""
           : "Nothing listed matches that. Try a nearby area or a broader mood.",
     };
   } catch {
@@ -368,10 +380,12 @@ async function toolVenuePrices(
       ? "Current recorded pint on the listed index."
       : "No current recorded pint on the listed index.",
     `${venue.id}:curated`,
+    ctx.now,
   );
 
   const communityRead = await readCommunityPricesWithStatus(venue.id);
-  const trusted = communityRead.prices.filter((p) => drivesMap(p));
+  const intent = resolveAskPriceIntent(ctx.query);
+  const trusted = communityRead.prices.filter((p) => drivesMap(p) && (intent.kind !== "pint" || p.drinkCategory === "beer"));
   const communityCards: AskCard[] = trusted.map((p, index) => ({
     key: `${venue.id}:c-${index}`,
     venueId: venue.id,
@@ -424,6 +438,10 @@ async function toolVenuePrices(
     },
     provenance,
     cards,
+    priceEvidence: [
+      ...trusted.map((price, index) => communityCategoryEvidence(`${venue.id}:c-${index}`, venue.id, price)),
+      ...(venue.cheapestPrice != null ? [listedPintEvidence(`${venue.id}:curated`, venue.id, venue.cheapestPrice)] : []),
+    ],
     proposals,
     answerHint,
     degraded: communityRead.degraded,
@@ -506,12 +524,10 @@ async function toolJourney(
   const from = str(args.from);
   const to = str(args.to);
   const venues = await loadConciergeVenues(ctx.cityId);
-  const fromVenue = from ? await matchVenueByName(venues, from) : null;
-  const toVenue =
-    (to ? await matchVenueByName(venues, to) : null) ??
-    (!to ? await matchVenueByName(venues, stripForMatch(ctx.query)) : null);
+  const fromVenue = uniqueExactVenueNameMatch(venues, from);
+  const toVenue = uniqueExactVenueNameMatch(venues, to);
 
-  if (!from && !fromVenue) {
+  if (!from) {
     return {
       ok: false,
       tool: "journey",
@@ -523,7 +539,7 @@ async function toolJourney(
         "Say where from and which listed pub to head to (or lat,lng points).",
     };
   }
-  if (!to && !toVenue) {
+  if (!to) {
     return {
       ok: false,
       tool: "journey",
@@ -535,9 +551,16 @@ async function toolJourney(
     };
   }
 
+  const stationName = from.toLowerCase().replace(/['’]/g, "");
+  const fromStation = STATIC_STATIONS.find((station) =>
+    station.name.toLowerCase().replace(/['’]/g, "") ===
+      (stationName === "kings cross" ? "kings cross st pancras" : stationName),
+  );
   const fromPoint = fromVenue
     ? formatJourneyPoint(fromVenue.lat, fromVenue.lng)
-    : from;
+    : fromStation
+      ? formatJourneyPoint(fromStation.lat, fromStation.lon)
+      : from;
   const toPoint = toVenue
     ? formatJourneyPoint(toVenue.lat, toVenue.lng)
     : to;
@@ -595,16 +618,6 @@ async function toolJourney(
       degraded: true,
     };
   }
-}
-
-function stripForMatch(query: string): string {
-  return query
-    .replace(
-      /\b(how (do|can) i get|journey|get (me )?to|directions to|route to|from|to)\b/gi,
-      " ",
-    )
-    .replace(/\s+/g, " ")
-    .trim();
 }
 
 async function toolAreaBuzz(
@@ -700,7 +713,7 @@ async function toolProposePlan(
         data: { intent: parsed.intent },
         provenance: [directoryProvenance()],
         cards: ranked.map((row) =>
-          venueCard(row.venue, rankedNote(row)),
+          venueCard(row.venue, rankedNote(row), undefined, ctx.now),
         ),
         proposals: [],
         answerHint:
@@ -708,7 +721,7 @@ async function toolProposePlan(
       };
     }
     const cards = ranked.map((row, index) =>
-      venueCard(row.venue, `Stop ${index + 1}: ${rankedNote(row, "Listed pick")}`),
+      venueCard(row.venue, `Stop ${index + 1}: ${rankedNote(row, "Listed pick")}`, undefined, ctx.now),
     );
     const stopIds = cards.map((c) => c.venueId);
     const stopNames = cards.map((c) => c.title);
@@ -784,6 +797,7 @@ async function toolProposeMapAction(
         lat: venue.lat,
         lng: venue.lng,
         place: venue.name,
+        venueId: venue.id,
       },
     ];
     return {
@@ -791,7 +805,7 @@ async function toolProposeMapAction(
       tool: "propose_map_action",
       data: { venueId: venue.id, lat: venue.lat, lng: venue.lng },
       provenance: [directoryProvenance()],
-      cards: [venueCard(venue, "Confirm to open or fly on the map.")],
+      cards: [venueCard(venue, "Confirm to open or fly on the map.", undefined, ctx.now)],
       proposals,
       answerHint: `Ready to open ${venue.name} on the map when you confirm.`,
     };
@@ -1008,11 +1022,57 @@ export async function runAskTool(
       answerHint: "That tool is not available.",
     };
   }
-  const venueId = str(args.venueId);
+  const intent = resolveAskPriceIntent(ctx.query);
+  if (intent.kind === "unsupported" && !isIndependentAskTool(name)) {
+    return {
+      ok: false, tool: name, data: { kind: "unsupported-price", code: intent.coverage.code },
+      provenance: [], cards: [], proposals: [], priceEvidence: [], answerHint: intent.coverage.answer,
+    };
+  }
+  let toolName = name;
+  let toolArgs = ctx.query.trim() ? { ...args, query: ctx.query } : args;
+  if (name === "journey") {
+    const journey = resolveAskJourney(ctx.query);
+    if (journey) toolArgs = { ...toolArgs, from: str(args.from) || "London Bridge", ...journey };
+  }
+  if (intent.kind === "menu" && !isIndependentAskTool(name)) {
+    toolName = "venue_drinks";
+    toolArgs = { venueName: intent.venueName };
+  }
+  const answersPrice = ["search_venues", "venue_prices", "venue_drinks", "cheapest_pint_near"].includes(name);
+  const discoveryCall = isVenueDiscoveryAsk(ctx.query) && (answersPrice || name === "venue_heritage")
+    ? routeAskDeterministically(ctx.query).find((call) => call.name === "search_venues") : undefined;
+  if (discoveryCall) {
+    toolName = discoveryCall.name;
+    toolArgs = discoveryCall.args;
+  } else if (answersPrice && intent.kind === "recorded-drinks") {
+    toolName = "venue_drinks";
+    toolArgs = { venueName: intent.venueName, ...(intent.category ? { drinkCategory: intent.category } : {}) };
+  } else if (answersPrice && intent.kind === "drink-venues") {
+    toolName = "search_venues";
+    toolArgs = { query: ctx.query, limit: 4 };
+  } else if (answersPrice && (intent.kind === "pint" || intent.kind === "pub-price")) {
+    const priceCall = routeAskDeterministically(ctx.query)
+      .find((call) => call.name === "venue_prices" || call.name === "cheapest_pint_near");
+    if (priceCall) {
+      toolName = priceCall.name;
+      toolArgs = { ...priceCall.args, ...(intent.venueName ? { venueName: intent.venueName } : {}) };
+    }
+    if (intent.kind === "pint" && intent.foodAvailability) toolArgs = { ...toolArgs, foodOnly: true };
+  }
+  const venueId = str(toolArgs.venueId);
   const canonicalArgs = venueId
-    ? { ...args, venueId: await resolveCanonicalVenueId(venueId) }
-    : args;
-  return HANDLERS[name](canonicalArgs, ctx);
+    ? { ...toolArgs, venueId: await resolveCanonicalVenueId(venueId) }
+    : toolArgs;
+  const result = await HANDLERS[toolName](canonicalArgs, ctx);
+  if (!result.priceEvidence && ["search_venues", "propose_plan", "propose_map_action"].includes(result.tool)) {
+    return {
+      ...result,
+      priceEvidence: result.cards.flatMap((card) => typeof card.price === "number" && card.venueId
+        ? [listedPintEvidence(card.key, card.venueId, card.price)] : []),
+    };
+  }
+  return result;
 }
 
 export function resolveAskCityId(raw: unknown): CityId {

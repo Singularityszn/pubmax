@@ -156,7 +156,7 @@ describe("the Plan door yields the foot of the map", () => {
         if (withPeek) expect(container.querySelector(".mapPeek")).not.toBeNull();
         const restored = mount({ ...props, overlay: "none", planOpen: false, venueListOpen: false, bandNoticeOpen: false });
         const door = container.querySelector<HTMLButtonElement>(".mobilePlanActivation")!;
-        expect(door.getAttribute("aria-label")).toBe("Describe the outing");
+        expect(door.getAttribute("aria-label")).toBe("Plan a pub crawl");
         act(() => door.click());
         expect(restored.onPlan).toHaveBeenCalledTimes(1);
       });

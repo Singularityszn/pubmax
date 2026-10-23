@@ -1,5 +1,19 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+// The aggregator is fail-soft by contract; one case makes it throw anyway so
+// the route's defensive branch is exercised. Every other case is the real one.
+const aggregatorState = vi.hoisted(() => ({ throwWith: null as Error | null }));
+vi.mock("@/lib/events/provider", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/events/provider")>();
+  return {
+    ...actual,
+    aggregateTonightEvents: async (...args: Parameters<typeof actual.aggregateTonightEvents>) => {
+      if (aggregatorState.throwWith) throw aggregatorState.throwWith;
+      return actual.aggregateTonightEvents(...args);
+    },
+  };
+});
+
 import { GET } from "@/app/api/events/tonight/route";
 import { resetEventbriteCache } from "@/lib/events/eventbrite";
 
@@ -52,6 +66,22 @@ describe("GET /api/events/tonight", () => {
     expect(body.rows).toEqual([]);
     expect(body.providers).toEqual([{ name: "eventbrite", configured: false, rows: 0 }]);
     expect(typeof body.asOf).toBe("string");
+  });
+
+  it("answers fixed text, not the thrown message, if the aggregator throws anyway", async () => {
+    aggregatorState.throwWith = new Error("ENOENT: open '/var/task/secret/events.json'");
+    const error = vi.spyOn(console, "error").mockImplementation(() => {});
+    try {
+      const res = await GET(new Request("http://localhost/api/events/tonight"));
+      expect(res.status).toBe(200);
+      const raw = await res.text();
+      expect(raw).not.toContain("/var/task");
+      expect(raw).not.toContain("ENOENT");
+      expect(JSON.parse(raw)).toMatchObject({ rows: [], code: "events_unavailable" });
+    } finally {
+      aggregatorState.throwWith = null;
+      error.mockRestore();
+    }
   });
 
   it("200s with zero rows (fail-soft) and reports the provider error when Eventbrite is down", async () => {

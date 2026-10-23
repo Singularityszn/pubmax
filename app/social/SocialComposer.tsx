@@ -1,14 +1,29 @@
 "use client";
 
-import { type RefObject, useEffect, useId, useRef, useState } from "react";
+import { type ReactNode, type RefObject, useEffect, useId, useRef, useState } from "react";
 
 import { nightAreasByCity } from "@/lib/nightAreas";
 import { getCity } from "@/lib/cities";
 import { errorMessageFrom, offlineOrMessage } from "@/lib/apiErrorMessage";
-import { authedActionJson } from "@/lib/authedFetch";
+import { authedActionFetch, authedActionJson } from "@/lib/authedFetch";
 import { readSocialDraftPhoto, saveSocialDraftPhoto } from "@/lib/socialComposerDrafts";
+import {
+  HIDDEN_NAME_OWN_LINE,
+  HIDDEN_NAME_TOGGLE_HINT,
+  HIDDEN_NAME_TOGGLE_LABEL,
+} from "@/lib/socialHiddenName";
 import type { SocialPostDTO } from "@/lib/socialPosts";
 import { useDismissOnEscape } from "@/lib/useDismissOnEscape";
+import { SOCIAL_REVIEW_MAX, SOCIAL_REVIEW_MIN, SOCIAL_REVIEW_STEP } from "@/lib/socialPostReviews";
+import {
+  formatSocialVideoDuration,
+  isSocialVideoType,
+  SOCIAL_VIDEO_MAX_BYTES,
+  SOCIAL_VIDEO_MAX_SECONDS,
+  SOCIAL_VIDEO_TYPES,
+} from "@/lib/socialPostVideos";
+import ExtraPhotosEditor, { type ExtraPhotoDraft, uploadExtraPhotos } from "@/components/social/ExtraPhotosEditor";
+import ReviewStars from "@/components/social/ReviewStars";
 
 type VenueChoice = { id: string; name: string; borough: string };
 type Draft = {
@@ -22,6 +37,10 @@ type Draft = {
   kind: SocialPostDTO["kind"];
   hashtags: string;
   tagHandles: string;
+  /** The author's own score for the picked pub. Absent on drafts saved before scores. */
+  rating?: number | null;
+  /** Readers see "a PUBMAXXER". New posts only; absent on older drafts. */
+  nameHidden?: boolean;
 };
 type DraftChannelMessage = {
   key?: string;
@@ -49,6 +68,8 @@ function initialDraft(post?: SocialPostDTO): Draft {
     kind: post?.kind ?? "standard",
     hashtags: post?.hashtags.join(" ") ?? "",
     tagHandles: "",
+    rating: null,
+    nameHidden: false,
   };
 }
 
@@ -69,7 +90,9 @@ function draftHasChanges(
       draft.visibility !== (post?.visibility ?? "friends") ||
       draft.kind !== (post?.kind ?? "standard") ||
       draft.hashtags !== (post?.hashtags.join(" ") ?? "") ||
-      draft.tagHandles !== ""
+      draft.tagHandles !== "" ||
+      (draft.rating ?? null) !== null ||
+      draft.nameHidden === true
   );
 }
 
@@ -188,12 +211,276 @@ function VenueEditor({
   );
 }
 
-function PolicyFields({ draft, hasPhoto, onDraft }: { draft: Draft; hasPhoto: boolean; onDraft: (draft: Draft) => void }) {
+/**
+ * Score the pub the post names, the way a review app asks: one slider in half
+ * stars, and a way back to no score. It is the author's own score and nothing
+ * adds it to anybody else's.
+ */
+function ReviewEditor({ draft, onDraft }: { draft: Draft; onDraft: (draft: Draft) => void }) {
+  const rating = draft.rating ?? null;
+  const inputId = useId();
+  return (
+    <div className="socialReviewEditor">
+      <div className="socialReviewEditor__head">
+        <label htmlFor={inputId}>Score {draft.venueName || "this pub"}</label>
+        {rating !== null ? (
+          <button type="button" className="socialReviewEditor__clear" onClick={() => onDraft({ ...draft, rating: null })}>
+            No score
+          </button>
+        ) : null}
+      </div>
+      <div className="socialReviewEditor__row">
+        <input
+          id={inputId}
+          type="range"
+          min={SOCIAL_REVIEW_MIN}
+          max={SOCIAL_REVIEW_MAX}
+          step={SOCIAL_REVIEW_STEP}
+          value={rating ?? 3}
+          aria-valuetext={rating === null ? "No score yet" : `${rating} out of 5`}
+          data-unscored={rating === null ? "true" : undefined}
+          onChange={(event) => onDraft({ ...draft, rating: Number(event.currentTarget.value) })}
+          onPointerUp={(event) => { if (rating === null) onDraft({ ...draft, rating: Number(event.currentTarget.value) }); }}
+        />
+        {rating !== null
+          ? <ReviewStars rating={rating} size={20} />
+          : <span className="socialReviewEditor__hint">Slide to score</span>}
+      </div>
+    </div>
+  );
+}
+
+/**
+ * One video in place of a photo: a reel, up to ten minutes and 100 MB. It is
+ * shown to its author at once and to everybody else once a person has watched
+ * it, which the hint says before anybody uploads.
+ */
+function VideoEditor({
+  video,
+  previewUrl,
+  duration,
+  onVideo,
+  onDuration,
+}: {
+  video: File | null;
+  previewUrl: string | null;
+  duration: number | null;
+  onVideo: (video: File | null) => void;
+  onDuration: (seconds: number | null) => void;
+}) {
+  const hintId = useId();
+  return (
+    <>
+      <label className="socialPhotoPicker">
+        <span className="socialPhotoCue" aria-hidden="true">+</span>
+        <span>{video ? video.name : "Add video"}</span>
+        <input
+          aria-label="Add video"
+          aria-describedby={hintId}
+          type="file"
+          accept={SOCIAL_VIDEO_TYPES.join(",")}
+          onChange={(event) => onVideo(event.currentTarget.files?.[0] ?? null)}
+        />
+      </label>
+      <p id={hintId} className="socialVideoHint">
+        Up to 10 minutes. You see it straight away; your lot sees it once we have watched it.
+      </p>
+      {previewUrl ? (
+        <figure className="socialComposerVideoPreview">
+          <video
+            src={previewUrl}
+            muted
+            playsInline
+            controls
+            preload="metadata"
+            onLoadedMetadata={(event) => {
+              const seconds = event.currentTarget.duration;
+              onDuration(Number.isFinite(seconds) ? seconds : null);
+            }}
+          />
+          {duration !== null ? <figcaption>{formatSocialVideoDuration(duration)}</figcaption> : null}
+        </figure>
+      ) : null}
+      {video ? (
+        <button type="button" className="socialRemovePhoto" onClick={() => onVideo(null)}>Remove video</button>
+      ) : null}
+    </>
+  );
+}
+
+/** Opens the intent, then PUTs the file where it says: Storage, or our own door when keyless. */
+async function uploadSocialVideo(video: File): Promise<string> {
+  const { response, body } = await authedActionJson<{ upload?: { uploadId: string; uploadUrl: string }; error?: string }>(
+    "/api/social/videos/uploads",
+    {
+      method: "POST",
+      credentials: "same-origin",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ contentType: video.type, byteSize: video.size }),
+    },
+    { requiresIdentity: true },
+  );
+  if (!response.ok || !body.upload) throw new Error(errorMessageFrom(body, "That video could not start uploading."));
+  const { uploadId, uploadUrl } = body.upload;
+  const sameOrigin = uploadUrl.startsWith("/");
+  const put = sameOrigin
+    ? await authedActionFetch(uploadUrl, { method: "PUT", credentials: "same-origin", headers: { "Content-Type": video.type }, body: video }, { requiresIdentity: true })
+    : await fetch(uploadUrl, { method: "PUT", headers: { "Content-Type": video.type }, body: video });
+  if (!put.ok) throw new Error("That video did not finish uploading. Try again.");
+  return uploadId;
+}
+
+/** The video checks a browser can make, then the upload itself. */
+async function prepareVideo(
+  video: File,
+  duration: number | null,
+  caption: string,
+): Promise<{ uploadId: string } | { error: string }> {
+  if (duration !== null && duration > SOCIAL_VIDEO_MAX_SECONDS) return { error: "Videos can be up to 10 minutes. Trim it and try again." };
+  if (!caption.trim()) return { error: "Add a caption to your video." };
+  try {
+    return { uploadId: await uploadSocialVideo(video) };
+  } catch (cause) {
+    return { error: cause instanceof Error ? cause.message : "That video did not finish uploading. Try again." };
+  }
+}
+
+/**
+ * Everything a new post's media must clear before the post is sent: every
+ * extra photo described, and a video uploaded to Storage first.
+ */
+async function prepareNewPostMedia(input: {
+  editing: boolean;
+  photo: File | null;
+  extraPhotos: ExtraPhotoDraft[];
+  video: File | null;
+  videoDuration: number | null;
+  caption: string;
+  onUploading: () => void;
+}): Promise<{ videoUploadId: string | null } | { error: string }> {
+  if (input.photo && input.extraPhotos.some((extra) => !extra.altText.trim())) {
+    return { error: "Describe every photo before you post." };
+  }
+  if (!input.video || input.editing) return { videoUploadId: null };
+  input.onUploading();
+  const uploaded = await prepareVideo(input.video, input.videoDuration, input.caption);
+  return "error" in uploaded ? uploaded : { videoUploadId: uploaded.uploadId };
+}
+
+/** Only a new post with a first photo sends photos 2 to 4. */
+function newPostPhotoDrafts(editing: boolean, photo: File | null, drafts: ExtraPhotoDraft[]): ExtraPhotoDraft[] {
+  return !editing && photo ? drafts : [];
+}
+
+/** Photos 2 to 4 go up after the post exists, one request each. */
+async function withExtraPhotos(
+  post: SocialPostDTO | undefined,
+  drafts: ExtraPhotoDraft[],
+): Promise<{ post: SocialPostDTO | undefined; notice: string | null }> {
+  if (!post || drafts.length === 0) return { post, notice: null };
+  const { uploaded, failed } = await uploadExtraPhotos(post.id, drafts);
+  return {
+    post: uploaded.length > 0 ? { ...post, extraPhotos: uploaded } : post,
+    notice: failed === 0 ? null : `Your post is up, but ${failed === 1 ? "one photo" : `${failed} photos`} did not upload.`,
+  };
+}
+
+/** What only a new post carries: the pub's score, the uploaded video and a hidden name. */
+function newPostExtras(draft: Draft, videoUploadId: string | null, videoDuration: number | null): Record<string, unknown> {
+  return {
+    ...(draft.nameHidden === true ? { nameHidden: true } : {}),
+    ...(draft.venueId && draft.kind === "standard" && typeof draft.rating === "number" ? { reviewRating: draft.rating } : {}),
+    ...(videoUploadId ? { videoUploadId } : {}),
+    ...(videoUploadId && videoDuration !== null ? { videoDurationSeconds: Math.round(videoDuration * 100) / 100 } : {}),
+  };
+}
+
+/** Photo or video, never both: picking one puts the other's picker away. */
+function MediaEditors({
+  editing, photoEditor, video, videoPreviewUrl, videoDuration, hasPhoto, onVideo, onDuration, extraPhotos, onExtraPhotos,
+}: {
+  editing: boolean;
+  photoEditor: ReactNode;
+  extraPhotos: ExtraPhotoDraft[];
+  onExtraPhotos: (drafts: ExtraPhotoDraft[]) => void;
+  video: File | null;
+  videoPreviewUrl: string | null;
+  videoDuration: number | null;
+  hasPhoto: boolean;
+  onVideo: (video: File | null) => void;
+  onDuration: (seconds: number | null) => void;
+}) {
+  return (
+    <>
+      {video ? null : photoEditor}
+      {!editing && hasPhoto ? <ExtraPhotosEditor drafts={extraPhotos} onChange={onExtraPhotos} /> : null}
+      {!editing && !hasPhoto ? (
+        <VideoEditor video={video} previewUrl={videoPreviewUrl} duration={videoDuration} onVideo={onVideo} onDuration={onDuration} />
+      ) : null}
+    </>
+  );
+}
+
+/**
+ * Hiding the name is chosen once, on a new post. Turning it on makes the post
+ * public and takes off the pub, its score and any photo tags, because each of
+ * those would name the author (`lib/socialHiddenName.ts`).
+ */
+function HiddenNameField({ draft, onDraft }: { draft: Draft; onDraft: (draft: Draft) => void }) {
+  const hintId = useId();
+  return (
+    <div className="socialHiddenName">
+      <label>
+        <input
+          type="checkbox"
+          checked={draft.nameHidden === true}
+          aria-describedby={hintId}
+          onChange={(event) => {
+            const nameHidden = event.currentTarget.checked;
+            onDraft(nameHidden
+              ? { ...draft, nameHidden, visibility: "public", venueId: null, venueName: "", rating: null, tagHandles: "" }
+              : { ...draft, nameHidden });
+          }}
+        />
+        {HIDDEN_NAME_TOGGLE_LABEL}
+      </label>
+      <p id={hintId} className="socialHiddenName__hint">{HIDDEN_NAME_TOGGLE_HINT}</p>
+    </div>
+  );
+}
+
+/**
+ * Who the post names: the hidden-name switch on a new post, then the pub and
+ * its score, which a hidden-name post cannot carry.
+ */
+function PlaceFields({ editing, nameHidden, draft, onDraft, venueEditor }: {
+  editing: boolean;
+  nameHidden: boolean;
+  draft: Draft;
+  onDraft: (draft: Draft) => void;
+  venueEditor: ReactNode;
+}) {
+  return (
+    <>
+      {editing
+        ? nameHidden ? <p className="socialHiddenName__hint">{HIDDEN_NAME_OWN_LINE}</p> : null
+        : <HiddenNameField draft={draft} onDraft={onDraft} />}
+      {nameHidden ? null : venueEditor}
+      {!editing && !nameHidden && draft.venueId && draft.kind === "standard"
+        ? <ReviewEditor draft={draft} onDraft={onDraft} />
+        : null}
+    </>
+  );
+}
+
+function PolicyFields({ draft, hasPhoto, nameHidden, onDraft }: { draft: Draft; hasPhoto: boolean; nameHidden: boolean; onDraft: (draft: Draft) => void }) {
   return (
     <>
       <label>Hashtags<input value={draft.hashtags} onChange={(event) => onDraft({ ...draft, hashtags: event.currentTarget.value })} /></label>
-      {hasPhoto ? <label>Photo tags<input value={draft.tagHandles} onChange={(event) => onDraft({ ...draft, tagHandles: event.currentTarget.value })} /></label> : null}
-      <label>Visibility<select value={draft.visibility} onChange={(event) => onDraft({ ...draft, visibility: event.currentTarget.value as Draft["visibility"] })}><option value="private">Private</option><option value="friends">Friends</option><option value="public">Public</option></select></label>
+      {hasPhoto && !nameHidden ? <label>Photo tags<input value={draft.tagHandles} onChange={(event) => onDraft({ ...draft, tagHandles: event.currentTarget.value })} /></label> : null}
+      {nameHidden
+        ? <label>Visibility<select value="public" disabled><option value="public">Public</option></select></label>
+        : <label>Visibility<select value={draft.visibility} onChange={(event) => onDraft({ ...draft, visibility: event.currentTarget.value as Draft["visibility"] })}><option value="private">Private</option><option value="friends">Friends</option><option value="public">Public</option></select></label>}
       <label>Post type<select value={draft.kind} onChange={(event) => onDraft({ ...draft, kind: event.currentTarget.value as Draft["kind"] })}><option value="standard">Post</option><option value="feature_request">Feature request</option></select></label>
     </>
   );
@@ -216,9 +503,18 @@ export default function SocialComposer({
   const [basePost, setBasePost] = useState(post);
   const [open, setOpen] = useState(false);
   const [draft, setDraft] = useState(() => initialDraft(post));
+  // Chosen once, at posting: an edit reads it off the post and cannot move it.
+  const nameHidden = editing ? post?.nameHidden === true : draft.nameHidden === true;
   const [photo, setPhoto] = useState<File | null>(null);
   const [photoPreviewUrl, setPhotoPreviewUrl] = useState<string | null>(null);
+  const [video, setVideo] = useState<File | null>(null);
+  const [videoPreviewUrl, setVideoPreviewUrl] = useState<string | null>(null);
+  const [videoDuration, setVideoDuration] = useState<number | null>(null);
+  const [extraPhotos, setExtraPhotos] = useState<ExtraPhotoDraft[]>([]);
   const [draftReady, setDraftReady] = useState(false);
+  // The pending debounced write of the draft. Clear draft cancels it first,
+  // or a write scheduled before the clear lands after it and restores the text.
+  const draftSaveTimerRef = useRef<number | null>(null);
   const [removePhoto, setRemovePhoto] = useState(false);
   const [mutationVersion, setMutationVersion] = useState(post?.mutationVersion ?? 0);
   const [busy, setBusy] = useState(false);
@@ -259,6 +555,8 @@ export default function SocialComposer({
   }
 
   async function clearDraft() {
+    if (draftSaveTimerRef.current !== null) window.clearTimeout(draftSaveTimerRef.current);
+    draftSaveTimerRef.current = null;
     localStorage.removeItem(draftKey);
     await saveSocialDraftPhoto(draftKey, null).catch(() => undefined);
     setDraft(initialDraft(initialPostRef.current));
@@ -315,11 +613,15 @@ export default function SocialComposer({
 
   useEffect(() => {
     if (!draftReady) return;
-    const timer = window.setTimeout(
-      () => localStorage.setItem(draftKey, JSON.stringify(draft)),
-      300,
-    );
-    return () => window.clearTimeout(timer);
+    const timer = window.setTimeout(() => {
+      draftSaveTimerRef.current = null;
+      localStorage.setItem(draftKey, JSON.stringify(draft));
+    }, 300);
+    draftSaveTimerRef.current = timer;
+    return () => {
+      window.clearTimeout(timer);
+      if (draftSaveTimerRef.current === timer) draftSaveTimerRef.current = null;
+    };
   }, [draft, draftKey, draftReady]);
 
   useEffect(() => {
@@ -335,6 +637,30 @@ export default function SocialComposer({
       if (url) URL.revokeObjectURL(url);
     };
   }, [photo]);
+
+  useEffect(() => {
+    const url = video ? URL.createObjectURL(video) : null;
+    void Promise.resolve().then(() => setVideoPreviewUrl(url));
+    return () => {
+      if (url) URL.revokeObjectURL(url);
+    };
+  }, [video]);
+
+  function chooseVideo(next: File | null) {
+    setVideoDuration(null);
+    if (next && !isSocialVideoType(next.type)) {
+      setFeedbackIsStatus(false);
+      setFeedback("Choose an MP4, MOV or WebM video.");
+      return;
+    }
+    if (next && next.size > SOCIAL_VIDEO_MAX_BYTES) {
+      setFeedbackIsStatus(false);
+      setFeedback("Videos can be up to 100 MB. Trim it and try again.");
+      return;
+    }
+    setFeedback(null);
+    setVideo(next);
+  }
 
   useEffect(() => {
     if (open) bodyRef.current?.focus();
@@ -448,6 +774,17 @@ export default function SocialComposer({
     setFeedback(null);
     setFeedbackIsStatus(false);
     setConflict(false);
+    const media = await prepareNewPostMedia({
+      editing, photo, extraPhotos, video, videoDuration, caption: draft.body,
+      onUploading: () => { setFeedbackIsStatus(true); setFeedback("Uploading your video…"); },
+    });
+    setFeedbackIsStatus(false);
+    setFeedback("error" in media ? media.error : null);
+    if ("error" in media) {
+      setBusy(false);
+      return;
+    }
+    const videoUploadId = media.videoUploadId;
     const hashtags = draft.hashtags
       .split(/[\s,]+/)
       .map((tag) => tag.replace(/^#/, "").trim())
@@ -470,6 +807,7 @@ export default function SocialComposer({
         ? { tagHandles: draft.tagHandles.split(/[\s,]+/).filter(Boolean) }
         : {}),
       ...(editing && removePhoto && !photo ? { removePhoto: true } : {}),
+      ...(editing ? {} : newPostExtras(draft, videoUploadId, videoDuration)),
     };
     const requestBody: BodyInit = photo
       ? (() => {
@@ -520,10 +858,15 @@ export default function SocialComposer({
       setBasePost(savedPost);
       setDraft(initialDraft(savedPost));
       if (savedPost) setMutationVersion(savedPost.mutationVersion);
+      const finished = await withExtraPhotos(result.post, newPostPhotoDrafts(editing, photo, extraPhotos));
       setPhoto(null);
+      setVideo(null);
+      setExtraPhotos([]);
       setRemovePhoto(false);
-      closeComposer();
-      onSaved(result.post);
+      setFeedbackIsStatus(Boolean(finished.notice));
+      setFeedback(finished.notice);
+      if (!finished.notice) closeComposer();
+      onSaved(finished.post);
     } catch (cause) {
       if (isAbortError(cause)) return;
       setFeedback(
@@ -635,12 +978,19 @@ export default function SocialComposer({
               />
             </label>
 
-            <PhotoEditor
-              post={basePost} draft={draft} photo={photo} previewSource={previewSource}
-              removePhoto={removePhoto} fileInputRef={fileInputRef} onDraft={setDraft}
-              onPhoto={(nextPhoto) => { setPhoto(nextPhoto); setRemovePhoto(false); }}
-              onClearSelected={clearSelectedPhoto}
-              onToggleExisting={() => setRemovePhoto((value) => !value)}
+            <MediaEditors
+              editing={editing} video={video} videoPreviewUrl={videoPreviewUrl} videoDuration={videoDuration}
+              hasPhoto={Boolean(photo)} onVideo={chooseVideo} onDuration={setVideoDuration}
+              extraPhotos={extraPhotos} onExtraPhotos={setExtraPhotos}
+              photoEditor={(
+                <PhotoEditor
+                  post={basePost} draft={draft} photo={photo} previewSource={previewSource}
+                  removePhoto={removePhoto} fileInputRef={fileInputRef} onDraft={setDraft}
+                  onPhoto={(nextPhoto) => { setPhoto(nextPhoto); setRemovePhoto(false); }}
+                  onClearSelected={clearSelectedPhoto}
+                  onToggleExisting={() => setRemovePhoto((value) => !value)}
+                />
+              )}
             />
 
             <label>
@@ -664,15 +1014,20 @@ export default function SocialComposer({
               </select>
             </label>
 
-            <VenueEditor
-              draft={draft} results={venueResults} activeIndex={activeVenueIndex}
-              listId={venueListId} announcement={venueAnnouncement} onDraft={setDraft}
-              onActiveIndex={setActiveVenueIndex}
-              onClearResults={() => { setVenueResults([]); setActiveVenueIndex(-1); }}
-              onSelect={selectVenue}
+            <PlaceFields
+              editing={editing} nameHidden={nameHidden} draft={draft} onDraft={setDraft}
+              venueEditor={(
+                <VenueEditor
+                  draft={draft} results={venueResults} activeIndex={activeVenueIndex}
+                  listId={venueListId} announcement={venueAnnouncement} onDraft={setDraft}
+                  onActiveIndex={setActiveVenueIndex}
+                  onClearResults={() => { setVenueResults([]); setActiveVenueIndex(-1); }}
+                  onSelect={selectVenue}
+                />
+              )}
             />
 
-            <PolicyFields draft={draft} hasPhoto={Boolean(photo)} onDraft={setDraft} />
+            <PolicyFields draft={draft} hasPhoto={Boolean(photo)} nameHidden={nameHidden} onDraft={setDraft} />
 
             {concurrent ? (
               <p className="socialComposerConcurrent" role="status">

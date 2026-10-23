@@ -3,10 +3,15 @@ import { describe, expect, it } from "vitest";
 import {
   hypedPubCredit,
   hypedPubMapHref,
+  hypedPubIsFresh,
+  hypedPubPriceIndex,
   hypedPubsForPage,
+  hypedPubsMapFirst,
   orderHypedPubs,
   parseHypedPubs,
+  HYPED_PUB_FRESH_DAYS,
   HYPED_PUBS_PAGE_LIMIT,
+  HYPED_PUBS_TITLE,
   type HypedPub,
 } from "@/lib/hypedPubs";
 
@@ -20,6 +25,8 @@ import {
  */
 
 const OBSERVED = "2026-09-06T09:00:00.000Z";
+const NOW = new Date("2026-09-07T09:00:00.000Z");
+const DAY_MS = 86_400_000;
 
 function row(overrides: Record<string, unknown> = {}): Record<string, unknown> {
   return {
@@ -132,7 +139,7 @@ describe("hyped pubs pack", () => {
         }),
       ),
     }).rows;
-    const page = hypedPubsForPage(rows);
+    const page = hypedPubsForPage(rows, { now: NOW });
     expect(page).toHaveLength(HYPED_PUBS_PAGE_LIMIT);
     expect(page[0]?.name).toBe("Pub 0");
     expect(page[0]?.sources).toHaveLength(1);
@@ -148,5 +155,106 @@ describe("hyped pubs pack", () => {
     expect(hypedPubMapHref(matched, null)).toBeNull();
     expect(hypedPubMapHref(matched, undefined)).toBe("/map?sel=venue-example");
     expect(hypedPubMapHref(unmatched, new Set(["venue-example"]))).toBeNull();
+  });
+
+  it("names the rows as recommendations, never as tonight's talk", () => {
+    expect(HYPED_PUBS_TITLE).toBe("Pubs Londoners keep recommending");
+    expect(HYPED_PUBS_TITLE.toLowerCase()).not.toContain("tonight");
+    expect(HYPED_PUBS_TITLE.toLowerCase()).not.toContain("talking");
+  });
+
+  it("drops a row whose freshest credit is older than the freshness window", () => {
+    const at = (days: number) => new Date(NOW.getTime() - days * DAY_MS).toISOString();
+    const rows = parseHypedPubs({
+      rows: [
+        row({ name: "Fresh", sources: [{ label: "r/london", url: "https://example.com/a", observedAt: at(10) }] }),
+        row({ name: "Edge", sources: [{ label: "r/london", url: "https://example.com/b", observedAt: at(HYPED_PUB_FRESH_DAYS) }] }),
+        row({
+          name: "Stale",
+          sources: [{ label: "r/london", url: "https://example.com/c", observedAt: at(HYPED_PUB_FRESH_DAYS + 1) }],
+        }),
+        // One fresh credit keeps a row with older ones beside it.
+        row({
+          name: "Mixed",
+          sources: [
+            { label: "Old", url: "https://example.com/d", observedAt: at(300) },
+            { label: "New", url: "https://example.com/e", observedAt: at(5) },
+          ],
+        }),
+      ],
+    }).rows;
+    expect(rows.filter((entry) => hypedPubIsFresh(entry, NOW)).map((entry) => entry.name).sort()).toEqual([
+      "Edge",
+      "Fresh",
+      "Mixed",
+    ]);
+    const page = hypedPubsForPage(rows, { now: NOW });
+    expect(page.map((entry) => entry.name)).not.toContain("Stale");
+    expect(page.find((entry) => entry.name === "Mixed")?.sources[0]?.label).toBe("New");
+    // A pack that has wholly aged out prints nothing rather than old talk.
+    expect(hypedPubsForPage(rows, { now: NOW.getTime() + 400 * DAY_MS })).toEqual([]);
+  });
+
+  it("carries the listed pint we hold for a matched pub, dated, and nothing for the rest", () => {
+    const prices = hypedPubPriceIndex([
+      { id: "venue-example", cheapestPrice: 5.2, observedAt: "2026-09-01T10:00:00.000Z" },
+      { id: "venue-undated", cheapestPrice: 4.1, observedAt: null },
+      { id: "venue-unpriced", cheapestPrice: null, observedAt: "2026-09-01T10:00:00.000Z" },
+    ]);
+    expect([...prices.keys()]).toEqual(["venue-example"]);
+    const rows = parseHypedPubs({
+      rows: [
+        row(),
+        row({ name: "Undated", venueId: "venue-undated" }),
+        row({ name: "Unmatched", venueId: undefined }),
+      ],
+    }).rows;
+    const page = hypedPubsForPage(rows, { now: NOW, prices });
+    expect(page.find((entry) => entry.name === "The Example Arms")?.listedPint).toEqual({
+      priceGbp: 5.2,
+      observedAt: "2026-09-01T10:00:00.000Z",
+    });
+    expect(page.find((entry) => entry.name === "Undated")).not.toHaveProperty("listedPint");
+    expect(page.find((entry) => entry.name === "Unmatched")).not.toHaveProperty("listedPint");
+  });
+
+  it("puts the pubs the map can open before the ones not on it yet", () => {
+    const rows = parseHypedPubs({
+      rows: [
+        row({ name: "Loud unmatched", venueId: undefined, score: 9 }),
+        row({ name: "Matched", venueId: "venue-a", score: 8 }),
+        row({ name: "Not selectable", venueId: "venue-b", score: 7 }),
+        row({ name: "Also matched", venueId: "venue-c", score: 6 }),
+      ],
+    }).rows;
+    expect(hypedPubsMapFirst(rows, new Set(["venue-a", "venue-c"])).map((entry) => entry.name)).toEqual([
+      "Matched",
+      "Also matched",
+      "Loud unmatched",
+      "Not selectable",
+    ]);
+  });
+
+  it("fills the page with pinned pubs first, and an unpinned one only fills a gap", () => {
+    // Site review, 18 Oct 2026: the third card on /tonight was Simmons, which
+    // ends in "Not on our map yet" while louder-than-the-rest pinned pubs sat
+    // past the page limit.
+    const rows = parseHypedPubs({
+      rows: [
+        row({ name: "Loud unpinned", venueId: undefined, score: 9 }),
+        row({ name: "Pinned A", venueId: "venue-a", score: 8 }),
+        row({ name: "Pinned B", venueId: "venue-b", score: 7 }),
+      ],
+    }).rows;
+    expect(hypedPubsForPage(rows, { now: NOW, limit: 2 }).map((entry) => entry.name)).toEqual([
+      "Pinned A",
+      "Pinned B",
+    ]);
+    // With room to spare the unpinned row still shows, after the pinned ones.
+    expect(hypedPubsForPage(rows, { now: NOW, limit: 3 }).map((entry) => entry.name)).toEqual([
+      "Pinned A",
+      "Pinned B",
+      "Loud unpinned",
+    ]);
   });
 });

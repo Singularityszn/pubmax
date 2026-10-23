@@ -5,6 +5,8 @@ import PubMaxingShell from "@/components/PubMaxingShell";
 import { loadZonePintIndex } from "@/lib/zonePintIndex.server";
 import { firstSearchParam, stopCountFromPubsParam } from "@/lib/cityShare";
 import { londonMapMetadata } from "@/lib/londonMapMetadata";
+import { mapPricesReadLineFor } from "@/lib/mapPricesReadLine.server";
+import { pintShareCardVenue, pintShareMetadata } from "@/lib/pintShare";
 import { resolveUkPlaceMapArrival } from "@/lib/ukPlaceIndex.server";
 import {
   UK_NATIONAL_BROWSE_COPY,
@@ -20,6 +22,8 @@ import { ukPlaceMapUrl } from "@/lib/ukPlaceSearch";
 // crawl share card - is rewritten HERE by proxy.ts, keeping `/map` in the
 // address bar. This is the page `/map` used to be; the split only decides which
 // requests pay for a render. lib/mapDocumentTwin.ts owns the key list.
+// A "Share this pint" link (`?sel=<id>&card=pint`, lib/pintShare.ts) is one
+// of them: its preview is that pub's listed pint.
 //
 // Reachable directly at /map/arrival too, which is why it is noindex: the
 // canonical address of every document below is `/map`.
@@ -105,6 +109,18 @@ export async function generateMetadata({
       },
     };
   }
+  // A "Share this pint" link: the pub's own card, which the card route reads.
+  const pintVenue = pintShareCardVenue(
+    firstSearchParam(sp?.card),
+    firstSearchParam(sp?.sel),
+  );
+  if (pintVenue) {
+    return {
+      ...pintShareMetadata(pintVenue),
+      alternates: { canonical: "/map" },
+      robots: { index: false, follow: true },
+    };
+  }
   const band = firstSearchParam(sp?.band);
   const crawl = firstSearchParam(sp?.crawl);
   const stopCount = stopCountFromPubsParam(firstSearchParam(sp?.pubs));
@@ -121,13 +137,21 @@ export default async function MapArrivalPage({
   const sp = searchParams ? await searchParams : undefined;
   const placeArrival = placeArrivalFor(sp);
   const zonePintIndex = await loadZonePintIndex();
+  const ukNationalBrowse = nationalBrowseFor(sp, placeArrival);
+  // London's bundled prices date the London map only: a UK-wide browse or an
+  // uncovered place arrival opens somewhere those prices do not describe.
+  const pricesReadLine =
+    placeArrival || ukNationalBrowse
+      ? null
+      : mapPricesReadLineFor("london");
   return (
     <>
       <PubMaxingShell
         cityId="london"
         placeArrival={placeArrival}
-        ukNationalBrowse={nationalBrowseFor(sp, placeArrival)}
+        ukNationalBrowse={ukNationalBrowse}
         zonePintIndex={zonePintIndex}
+        pricesReadLine={pricesReadLine}
       />
       {/* Records that a Pint Index arrival reached the map. Renders nothing and
           owns no map state; it only reads its own arrival marker off the URL. */}

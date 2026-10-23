@@ -1,8 +1,7 @@
 import { describe, expect, it } from "vitest";
 
-import { buildLandingPubCard, LANDING_PUB_PREFERENCE } from "@/lib/landingPubCard";
+import { buildLandingPubCard } from "@/lib/landingPubCard";
 import type { Venue } from "@/lib/venues";
-import { defined } from "@/__tests__/helpers/defined";
 
 // The landing's one real pub is built from data alone: a listed price from
 // the priced index, a publisher only when the row names one, and a dated,
@@ -105,7 +104,7 @@ function history(rows: Array<{ venueId: string; priceGbp: number; observedOn: st
 }
 
 describe("landing pub card", () => {
-  it("builds the card from the listed price, the publisher and the oldest archive row", () => {
+  it("builds the card from the listed price, the publisher and the oldest archive row, and claims no movement", () => {
     const card = buildLandingPubCard(
       [venue("venue-eltcmh", "The Blackfriar", 6.5)],
       history([
@@ -118,6 +117,7 @@ describe("landing pub card", () => {
       id: "venue-eltcmh",
       name: "The Blackfriar",
       area: "City of London",
+      primaryBorough: "City of London",
       priceGbp: 6.5,
       pintName: "a pint of Pravha",
       // One pub is under the drink-brand floor, so the pint stays plain text.
@@ -133,24 +133,62 @@ describe("landing pub card", () => {
         observedOn: "2013-07-14",
         source: { label: "beerintheevening.com", url: "https://www.beerintheevening.com/pubs/x" },
       },
-      movementLine: "Up £2.90 in 13 years.",
+      // The archive row states no drink, serving or terms, so both figures
+      // stand and nothing says the pint went up or down between them.
+      movementLine: null,
       mapHref: "/map?sel=venue-eltcmh",
     });
   });
 
-  it("prefers a pub a Londoner knows, then the longest archive span", () => {
+  it("anchors on the cheapest listed pint, never a famous dear one", () => {
+    // The front door's action says "Cheapest pints near me", so the pub under
+    // it is the cheapest one the data can back with an archive row.
     const venues = [
+      venue("venue-eltcmh", "The Blackfriar", 6.5),
       venue("venue-other", "Other Arms", 5),
-      venue("venue-old", "Old Tavern", 5.5),
-      venue(defined(LANDING_PUB_PREFERENCE[0]), "The Blackfriar", 6.5),
+      venue("venue-cheap", "Cheap Tavern", 3.2),
     ];
     const rows = history([
+      { venueId: "venue-eltcmh", priceGbp: 3.6, observedOn: "2013-07-14" },
       { venueId: "venue-other", priceGbp: 4, observedOn: "2018-01-01" },
-      { venueId: "venue-old", priceGbp: 2, observedOn: "2009-01-01" },
-      { venueId: defined(LANDING_PUB_PREFERENCE[0]), priceGbp: 3.6, observedOn: "2013-07-14" },
+      { venueId: "venue-cheap", priceGbp: 2.9, observedOn: "2016-01-01" },
     ]);
-    expect(buildLandingPubCard(venues, rows, { now: NOW })?.id).toBe(LANDING_PUB_PREFERENCE[0]);
-    expect(buildLandingPubCard(venues.slice(0, 2), rows, { now: NOW })?.id).toBe("venue-old");
+    expect(buildLandingPubCard(venues, rows, { now: NOW })?.id).toBe("venue-cheap");
+  });
+
+  it("prefers a listed figure, then breaks a price tie on the longer archive span", () => {
+    const venues = [
+      // Cheapest, but its row names no publisher, so it cannot stand as listed.
+      venue("venue-unlisted", "Quiet Arms", 2.5, ""),
+      venue("venue-short", "Short Span", 3),
+      venue("venue-long", "Long Span", 3),
+    ];
+    const rows = history([
+      { venueId: "venue-unlisted", priceGbp: 2, observedOn: "2010-01-01" },
+      { venueId: "venue-short", priceGbp: 2.5, observedOn: "2020-01-01" },
+      { venueId: "venue-long", priceGbp: 2, observedOn: "2009-01-01" },
+    ]);
+    const card = buildLandingPubCard(venues, rows, { now: NOW });
+    expect(card?.id).toBe("venue-long");
+    expect(card?.standing).toBe("listed");
+    expect(card?.publisher).not.toBeNull();
+  });
+
+  it("keeps display locality separate from canonical borough", () => {
+    const card = buildLandingPubCard(
+      [{
+        ...venue("venue-hatton", "The Sir Christopher Hatton", 6.5),
+        primaryBorough: "Camden",
+        locality: "Hatton Garden",
+      }],
+      history([{ venueId: "venue-hatton", priceGbp: 6.5, observedOn: "2026-09-01" }]),
+      { now: NOW },
+    );
+
+    expect(card).toMatchObject({
+      area: "Hatton Garden",
+      primaryBorough: "Camden",
+    });
   });
 
   it("chooses nothing rather than a pub missing a price or an archive row", () => {

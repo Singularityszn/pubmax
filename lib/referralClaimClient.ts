@@ -6,6 +6,7 @@ import {
 import { storeReferralFollowHandle } from "@/lib/referralFollowBack";
 import { referralSignupClaimFromUrl } from "@/lib/referrals";
 import { normalizeHandle } from "@/lib/profiles";
+import { discardBody } from "@/lib/responseBody";
 
 type ReferralClaimRequest = (
   input: string,
@@ -47,8 +48,10 @@ export async function claimSignupReferral(
   authAttemptId: string,
   signupProof: string,
   request: ReferralClaimRequest,
+  current: () => boolean = () => true,
 ): Promise<void> {
   for (let attempt = 0; attempt < MAX_CLAIM_ATTEMPTS; attempt += 1) {
+    if (!current()) return;
     let delayMs: number = FALLBACK_RETRY_DELAYS_MS[attempt] ?? 0;
     try {
       const response = await request("/api/referrals/claim-attribution", {
@@ -56,6 +59,10 @@ export async function claimSignupReferral(
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ code, authAttemptId, signupProof }),
       });
+      if (!current()) {
+        discardBody(response);
+        return;
+      }
       if (response.ok) {
         const body = (await response.json().catch(() => null)) as
           | { inviterHandle?: unknown }
@@ -63,7 +70,7 @@ export async function claimSignupReferral(
         const handle = normalizeHandle(
           typeof body?.inviterHandle === "string" ? body.inviterHandle : "",
         );
-        if (handle) storeReferralFollowHandle(handle);
+        if (handle && current()) storeReferralFollowHandle(handle);
         return;
       }
       if (!(await responseIsRetryable(response))) return;
@@ -124,7 +131,9 @@ export async function claimSignupReferralFromAuthCallback(input: {
   callback: AuthCallbackAttempt;
   request: ReferralClaimRequest;
   replaceUrl: (cleanUrl: string) => void;
+  current?: () => boolean;
 }): Promise<void> {
+  if (input.current && !input.current()) return;
   const referral = referralSignupClaimFromUrl(input.currentUrl);
   if (!referral) return;
   try {
@@ -142,6 +151,7 @@ export async function claimSignupReferralFromAuthCallback(input: {
       input.callback.attemptId,
       input.callback.signupProof,
       input.request,
+      input.current,
     );
   }
 }

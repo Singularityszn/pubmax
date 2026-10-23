@@ -15,6 +15,7 @@ import "server-only";
 import { listEnabledCities } from "@/lib/cities";
 import { loadHistoricPubs } from "@/lib/historic";
 import { getPricedVenues } from "@/lib/venuePriceIndex";
+import { averagePriceGbp, pubCheapestPrices } from "@/lib/pintSavings";
 import { isLivePriceRow } from "@/lib/priceRowEligibility.mjs";
 import { groupVenuePrices, type VenuePrice } from "@/lib/venues";
 
@@ -27,7 +28,15 @@ export type AboutStats = {
   cheapestPint: number | null;
   /** Dearest observed pint (GBP), or null when no priced row exists. */
   dearestPint: number | null;
-  /** Mean observed pint (GBP, rounded to pence), or null when none. */
+  /**
+   * Mean of each tracked pub's cheapest pint (GBP, rounded to pence), or null
+   * when none. The SAME cohort and the same arithmetic as the landing's
+   * "average listed pint across N pubs" (`pubCheapestPrices` and
+   * `averagePriceGbp` in lib/pintSavings.ts), taken over the same
+   * `pubsTracked` pubs, so the two pages print one number. It used to be the
+   * mean of every reading, which counted a pub with five pints five times and
+   * printed £5.72 beside the landing's £5.54 (site review, 18 Oct 2026).
+   */
   averagePint: number | null;
   /** Distinct London boroughs & named neighbourhoods present in the data. */
   boroughsCovered: number;
@@ -63,16 +72,15 @@ export function computeAboutStats(
   // "Pubs tracked" uses the same grouping the app uses everywhere else, so the
   // number on /about matches what a user would count on the map — but only
   // venues carrying at least one accepted price observation qualify.
-  const pubsTracked = groupVenuePrices(pricedRows).length;
+  const pubs = groupVenuePrices(pricedRows);
+  const pubsTracked = pubs.length;
 
   const prices = pricedRows.map((row) => row.price_gbp as number);
 
   const pintPricesObserved = prices.length;
   const cheapestPint = prices.length ? Math.min(...prices) : null;
   const dearestPint = prices.length ? Math.max(...prices) : null;
-  const averagePint = prices.length
-    ? Math.round((prices.reduce((sum, p) => sum + p, 0) / prices.length) * 100) / 100
-    : null;
+  const averagePint = averagePriceGbp(pubCheapestPrices(pubs));
 
   const boroughs = new Set(
     safeRows

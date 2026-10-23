@@ -2,14 +2,14 @@ import { expect, test } from "@playwright/test";
 
 import { NATIVE_PUSH_PROMPT_COPY } from "@/lib/nativePushPrompt";
 
-import { answerFirstRunQuestions } from "./helpers/firstRunJourney";
-import { installSuccessfulPlanRoute } from "./helpers/nativePushJourney";
-import { installNativeShell } from "./helpers/nativeShell";
-import { expectStreamedPageSettled } from "./helpers/streamedPage";
+import { answerFirstRunQuestions } from "@/e2e/helpers/firstRunJourney";
+import { installSuccessfulPlanRoute } from "@/e2e/helpers/nativePushJourney";
+import { installNativeShell } from "@/e2e/helpers/nativeShell";
+import { expectStreamedPageSettled } from "@/e2e/helpers/streamedPage";
 
 for (const theme of ["light", "dark"] as const) {
   for (const finish of ["Plan my night", "Skip"] as const) {
-    test(`native push ask survives map arrival teardown after ${finish} in ${theme}`, async ({ page }) => {
+    test(`native push ask survives planning navigation after ${finish} in ${theme}`, async ({ page }) => {
       test.setTimeout(90_000);
       await page.setViewportSize({ width: 390, height: 844 });
       await page.emulateMedia({ colorScheme: theme, reducedMotion: "reduce" });
@@ -38,26 +38,27 @@ for (const theme of ["light", "dark"] as const) {
       await page.getByRole("button", { name: finish, exact: true }).click();
       if (finish === "Skip") {
         await expect(page).toHaveURL(/\/tonight$/);
-        await expect.poll(() => page.evaluate(() => window.sessionStorage.getItem(
-          "pubmax:prompt-budget:v1",
-        ))).toBeNull();
+        await expect.poll(() => page.evaluate(() => window.sessionStorage.getItem("pubmax:prompt-budget:v1"))).toBeNull();
         await page.goto("/map?plan=1");
+        await expect(page.getByRole("heading", { name: "Plan a pub crawl" })).toBeVisible();
+        await expect(ask).toHaveCount(0);
+        await page.getByRole("button", { name: "Make a plan", exact: true }).click();
+        await expect.poll(() => page.evaluate(() => window.localStorage.getItem("pubmax:nativePush:actionSeq:v1"))).toBe("1");
+        await page.keyboard.press("Escape");
+        await expect(page.getByRole("button", { name: "Edit active 3-stop plan" })).toBeVisible();
+      } else {
+        await expect(page).toHaveURL(/\/plan\?[^#]*from=onboarding/);
+        await expect(page.getByTestId("plan-route-summary")).toBeVisible();
+        await expect(page.getByRole("heading", { level: 1, name: /Soho/ })).toBeVisible();
+        await expect(ask).toHaveCount(0);
+        await expect.poll(() => page.evaluate(() => window.localStorage.getItem("pubmax:nativePush:actionSeq:v1"))).toBe("1");
       }
-      await expect(page).toHaveURL(/\/map\?plan=1$/);
-      await expect(page.getByRole("heading", { name: "Describe the outing" })).toBeVisible();
       await expect(ask).toHaveCount(0);
-      await page.getByRole("button", { name: "Make a plan" }).click();
-      await expect.poll(() => page.evaluate(() => window.localStorage.getItem(
-        "pubmax:nativePush:actionSeq:v1",
-      ))).toBe("1");
-      await page.keyboard.press("Escape");
-      await expect(page.getByRole("button", { name: "Edit active 3-stop plan" })).toBeVisible();
-      await expect(ask).toHaveCount(0);
-
       const tabs = page.getByRole("navigation", { name: "Primary" });
-      await tabs.getByRole("link", { name: "Places", exact: true }).click();
-      await expect(page).toHaveURL(/\/places$/);
-      await expect(ask).toBeVisible();
+      await tabs.getByRole("link", { name: "Plan", exact: true }).click();
+      await expect(page).toHaveURL(/\/plan$/);
+      // The phone composer owns the screen foot, just as the map does.
+      await expect(ask).toHaveCount(0);
       await tabs.getByRole("link", { name: "Map", exact: true }).click();
       await expect(page).toHaveURL(/\/map$/);
       await expect(page.getByRole("complementary", { name: "First visit" })).toBeVisible({ timeout: 30_000 });

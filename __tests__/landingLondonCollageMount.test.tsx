@@ -51,7 +51,7 @@ describe("the founder London collage once the reader scrolls near it", () => {
     expect(container.querySelectorAll(".lpCollageTile")).toHaveLength(LONDON_COLLAGE_PHOTOS.length);
     expect(container.querySelectorAll(".lpCollageTile__frame")).toHaveLength(LONDON_COLLAGE_PHOTOS.length);
     expect(container.querySelector("img")).toBeNull();
-    expect(observerOptions?.rootMargin).toBe("80px 0px");
+    expect(observerOptions?.rootMargin).toBe("200px 0px");
 
     await act(async () => fire?.(false));
     expect(container.querySelector("img")).toBeNull();

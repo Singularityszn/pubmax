@@ -46,6 +46,17 @@ describe("parseQuestionOneVenuesPage", () => {
     expect(parseQuestionOneNextPage("<html></html>")).toBeNull();
   });
 
+  it("follows rel=next only on the page's own host", () => {
+    const page = "https://questionone.com/venues/";
+    const offHost = '<link rel="next" href="https://evil.example/venues/page/2/" />';
+    const downgraded = '<link rel="next" href="http://questionone.com/venues/page/2/" />';
+    const relative = '<link rel="next" href="/venues/page/2/" />';
+    expect(parseQuestionOneNextPage(offHost, page)).toBeNull();
+    expect(parseQuestionOneNextPage(offHost)).toBeNull();
+    expect(parseQuestionOneNextPage(downgraded, page)).toBeNull();
+    expect(parseQuestionOneNextPage(relative, page)).toBe("https://questionone.com/venues/page/2/");
+  });
+
   it("returns [] for pages without cards", () => {
     expect(parseQuestionOneVenuesPage("<html><body></body></html>")).toEqual([]);
   });

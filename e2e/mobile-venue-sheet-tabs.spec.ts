@@ -2,6 +2,9 @@ import { expect, test, type Locator, type Page } from "@playwright/test";
 
 import { SURFACE_NAV_HOME_ICON_SIZE } from "@/components/ui/surface-nav";
 
+import { routeHygieneBadge } from "./helpers/hygieneBadge";
+import { routeLateVenueRows } from "./helpers/lateVenueRows";
+
 function stableVenueIdFromKey(key: string): string {
   let hash = 0x811c9dc5;
   for (let i = 0; i < key.length; i += 1) {
@@ -36,7 +39,7 @@ test.use({
 const TABS: ReadonlyArray<{ label: string; panelId: string }> = [
   { label: "Overview", panelId: "venuePanel-overview" },
   { label: "Photos", panelId: "venuePanel-photos" },
-  { label: "Drinks", panelId: "venuePanel-menu" },
+  { label: "Menu", panelId: "venuePanel-menu" },
   { label: "Stories", panelId: "venuePanel-pints" },
   { label: "Lore", panelId: "venuePanel-story" },
 ];
@@ -143,13 +146,15 @@ async function expectPrimaryActions(page: Page): Promise<void> {
   );
 
   // The toolbar carries no price action: the Overview's one price door owns
-  // that (lib/pintTrust.ts, `overviewPriceDoor`). "Make <venue> Stop 1" rides
-  // as a ghost when acceptance is offered; this spec covers the tab strip's
-  // touch scrolling, so it asserts the commands the strip must keep reachable.
-  expect(actions.map((action) => action.name)).toEqual(
-    expect.arrayContaining(["Crawl", "Share Arnos Arms"]),
-  );
-  expect(actions.map((action) => action.name)).not.toContain("Add a price at Arnos Arms");
+  // that (lib/pintTrust.ts, `overviewPriceDoor`). On a phone it carries no plan
+  // action either, in build mode too: the peek's ONE plan door owns those
+  // (lib/venuePlanDoor.ts), so the Crawl and Stop 1 ghosts are desktop's alone.
+  expect(actions.map((action) => action.name)).toEqual(["Share Arnos Arms"]);
+  const planDoors = page
+    .locator('.mobileSheetPortal[data-sheet-kind="venue"]')
+    .getByRole("button", { name: /Stop 1$|^Plan stop$|^In plan$|crawl$|^Crawl$|^Remove$/ });
+  await expect(planDoors).toHaveCount(1);
+  await expect(planDoors).toHaveText("Make it Stop 1");
 
   for (const action of actions) {
     expect(action.width, `${action.name} width should be at least 44px`).toBeGreaterThanOrEqual(44);
@@ -282,9 +287,10 @@ test("the peek price plaque hugs its figure and stays inside its own row", async
  * standing line "Logged once, needs a second drinker" ran the full width of the
  * figure column, the phrase column had no floor of its own, and "Near me" -
  * one unbreakable phrase - overflowed its cell and printed as "Near m" under
- * the `Plan stop` button. The caption is set here rather than hunted for,
- * because the contract is about caption LENGTH and the pub a fixture opens on
- * is not the pub that carries the longest one.
+ * the peek's plan door (then `Plan stop`; with no crawl it is now
+ * `Make it Stop 1`, the longest label it carries). The caption is set here
+ * rather than hunted for, because the contract is about caption LENGTH and the
+ * pub a fixture opens on is not the pub that carries the longest one.
  */
 for (const width of [320, 390] as const) {
   test(`the peek head keeps Near me whole beside the longest standing line @${width}`, async ({
@@ -432,6 +438,8 @@ for (const width of [320, 390, 430] as const) {
  * sheet: the getting-home fold on the Overview, and Ask inside Lore.
  */
 test("the getting-home fold and Ask are one tap from their tabs", async ({ page }) => {
+  // The wait below needs the hygiene row, so it may not hang on the live FSA service.
+  await routeHygieneBadge(page);
   const response = await page.goto(`/map?sel=${ARNOS_ARMS_ID}&mode=build`);
   expect(response?.status()).toBe(200);
 
@@ -441,17 +449,74 @@ test("the getting-home fold and Ask are one tap from their tabs", async ({ page 
   await expect(overview).toBeVisible();
 
   const fold = overview.locator("#venueSection-getting-home");
-  const summary = fold.locator("summary");
+  const summary = fold.locator(":scope > summary");
   await expect(summary).toHaveText("Last train");
   await expect(fold).not.toHaveAttribute("open", "");
+  // The Overview rows that land after their own reads (the area price line
+  // and the food hygiene rating) arrive three to five seconds after the sheet
+  // opens on a slow runner. They sit below the fold now (the pin below holds
+  // that), but wait for both anyway, so nothing in the Overview is still
+  // landing when the tap goes in.
+  await expect(overview.locator(".venueAreaPriceCompare")).toBeVisible({ timeout: 20_000 });
+  await expect(overview.locator(".venueHygiene")).toBeVisible({ timeout: 20_000 });
   await summary.scrollIntoViewIfNeeded();
   await expectTapTarget(summary, "Last train fold");
-  await summary.click();
-  await expect(fold).toHaveAttribute("open", "");
+  // The sheet keeps changing height after it opens (the command bar lands in
+  // its footer and the sheet re-caps), so the fold can move between the
+  // click's hit test and the press, and the tap lands beside it. Wait for the
+  // sheet to rest, then retry the tap until the fold opens. The tap is only
+  // repeated while the fold is still shut, so a slow toggle is never undone.
+  const sheet = portal.locator(".mobileSharedSheet");
+  await expect(sheet).toHaveAttribute("data-sheet-motion", "idle");
+  await expect(async () => {
+    if ((await fold.getAttribute("open")) === null) await summary.click();
+    await expect(fold).toHaveAttribute("open", "", { timeout: 1_000 });
+  }).toPass({ timeout: 20_000 });
   await expect(fold.getByLabel("Last Pint")).toBeVisible();
 
   await portal.getByRole("tab", { name: "Lore", exact: true }).click();
   const ask = portal.locator("#venuePanel-story #venueSection-ask");
   await expect(ask).toBeVisible();
   await expect(ask.getByRole("button", { name: /Tell me about this/ })).toBeVisible();
+});
+
+/**
+ * The Overview rows that render only after their own read answers (the Spoons
+ * value row, "What it used to cost", the area price line and the food hygiene
+ * rating) sit below the getting-home fold, so the fold's summary does not move
+ * under a finger once it is painted.
+ */
+test("the getting-home fold stays put while the late Overview rows land", async ({ page }) => {
+  // The pin needs every late row to land. The hygiene row may not hang on the
+  // live FSA service, and Arnos Arms is neither a ranked Wetherspoons nor a pub
+  // with a dated history price, so it borrows real answers for both.
+  await routeHygieneBadge(page);
+  await routeLateVenueRows(page, ARNOS_ARMS_ID, "Arnos Arms");
+  const response = await page.goto(`/map?sel=${ARNOS_ARMS_ID}&mode=build`);
+  expect(response?.status()).toBe(200);
+
+  const portal = page.locator('.mobileSheetPortal[data-sheet-kind="venue"]');
+  await expect(portal).toBeVisible();
+  const overview = portal.locator("#venuePanel-overview");
+  await expect(overview).toBeVisible();
+  const summary = overview.locator("#venueSection-getting-home > summary");
+  await expect(summary).toHaveText("Last train");
+  // Measured against the panel, so scrolling the sheet does not move it.
+  const offset = (target: Locator) =>
+    target.evaluate((element) => {
+      const panel = element.closest("#venuePanel-overview");
+      return Math.round(element.getBoundingClientRect().top - (panel?.getBoundingClientRect().top ?? 0));
+    });
+  const before = await offset(summary);
+
+  const lateRows = [
+    overview.locator(".venueSpoonsValue"),
+    overview.locator(".venuePriceThen"),
+    overview.locator(".venueAreaPriceCompare"),
+    overview.locator(".venueHygiene"),
+  ];
+  for (const row of lateRows) await expect(row).toBeVisible({ timeout: 20_000 });
+
+  expect(await offset(summary), "the fold summary did not move").toBe(before);
+  for (const row of lateRows) expect(await offset(row)).toBeGreaterThan(before);
 });

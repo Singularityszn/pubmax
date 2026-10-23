@@ -14,6 +14,7 @@ import { GlassWater, Search, Sparkles, X } from "lucide-react";
 import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
 
 import type { DrinkCategory } from "@/lib/drinks";
+import { useDismissOnEscape } from "@/lib/useDismissOnEscape";
 import {
   buildPersonaPickerListEntries,
   stepPersonaPickerActiveIndex,
@@ -144,21 +145,16 @@ export default function PersonaLensPicker({
   const safeActive =
     activeIndex >= 0 && activeIndex < listEntries.length ? activeIndex : -1;
 
+  useDismissOnEscape(open, closePanel, rootRef);
+
   useEffect(() => {
     if (!open) return;
     function onPointerDown(event: PointerEvent) {
       if (!rootRef.current?.contains(event.target as Node)) closePanel();
     }
-    function onKeyDown(event: KeyboardEvent) {
-      if (event.key !== "Escape") return;
-      event.preventDefault();
-      closePanel();
-    }
     document.addEventListener("pointerdown", onPointerDown);
-    document.addEventListener("keydown", onKeyDown);
     return () => {
       document.removeEventListener("pointerdown", onPointerDown);
-      document.removeEventListener("keydown", onKeyDown);
     };
   }, [closePanel, open]);
 
@@ -211,7 +207,7 @@ export default function PersonaLensPicker({
         aria-controls={open ? listId : undefined}
         onClick={() => setOpen((value) => !value)}
       >
-        <GlassWater size={15} aria-hidden="true" />
+        <GlassWater size={16} aria-hidden="true" />
         <span className="personaLensTriggerLabel">
           {active ? active.name : "Drink like..."}
         </span>
@@ -223,7 +219,7 @@ export default function PersonaLensPicker({
           aria-label="Clear persona lens"
           onClick={() => choose(null)}
         >
-          <X size={13} aria-hidden="true" />
+          <X size={14} aria-hidden="true" />
         </button>
       ) : null}
 
@@ -289,7 +285,7 @@ export default function PersonaLensPicker({
                         {persona.drink}
                         {fits ? (
                           <span className="personaLensFitsTag">
-                            <Sparkles size={11} aria-hidden="true" />
+                            <Sparkles size={14} aria-hidden="true" />
                             fits tonight
                           </span>
                         ) : null}

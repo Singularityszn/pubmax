@@ -35,11 +35,11 @@
   min-width: 20px;
   height: 20px;
   padding: 0 6px;
-  border-radius: 999px;
-  border: 1px solid color-mix(in srgb, var(--brass) 40%, var(--line));
-  background: color-mix(in srgb, var(--brass) 12%, transparent);
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--line);
+  background: transparent;
   color: var(--ink);
-  font-size: 0.7rem;
+  font-size: var(--text-2xs);
   font-weight: 800;
 }
 
@@ -63,7 +63,7 @@
   max-width: min(360px, calc(100vw - 24px));
   padding: 10px;
   border: 1px solid var(--line);
-  border-radius: 14px;
+  border-radius: var(--radius-lg);
   background: var(--panel);
   box-shadow: var(--shadow-float);
 }
@@ -75,14 +75,16 @@
   border-radius: var(--control-radius);
   background: transparent;
   color: var(--ink-soft);
-  font: var(--control-font-weight) var(--control-font-size) / 1 var(--font-sans);
+  font: var(--control-font-weight) var(--control-font-size) / 1 var(--font-body);
   text-align: left;
   cursor: pointer;
 }
 
-.mapVenueKindFilterReset:hover {
-  color: var(--ink);
-  background: color-mix(in srgb, var(--brass) 9%, transparent);
+@media (hover: hover) and (pointer: fine) {
+  .mapVenueKindFilterReset:hover {
+    color: var(--ink);
+    background: color-mix(in srgb, var(--ink) 6%, transparent);
+  }
 }
 
 .mapVenueKindFilterReset:focus-visible {
@@ -128,5 +130,18 @@
 .mapVenueKindFilterPanel > .mapExperienceLens,
 .mapVenueKindFilterPanel > .zonePicker {
   padding-top: 12px;
-  border-top: 1px solid var(--hairline, var(--line));
+  border-top: 1px solid var(--hairline);
+}
+
+/* Removing the drink lane moves the trigger right. In the narrow toolbar,
+   anchor the panel to the toolbar's bounded edge instead of that moving button. */
+@media (min-width: 641px) and (max-width: 900px) {
+  .mapVenueKindFilter {
+    position: static;
+  }
+
+  .mapVenueKindFilterPanel {
+    left: auto;
+    right: 0;
+  }
 }

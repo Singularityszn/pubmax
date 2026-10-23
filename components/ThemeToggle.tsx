@@ -1,87 +1,47 @@
 "use client";
 
-import { useEffect, useSyncExternalStore } from "react";
+import { useEffect } from "react";
 import { Moon, Sun } from "lucide-react";
 
-import { safeLocalStorage } from "@/lib/safeStorage";
+import { resolveThemePreference } from "@/lib/themePreference";
 import {
-  THEME_STORAGE_KEY,
-  resolveThemePreference,
-  storedThemePreference,
-  type ThemePreference,
-} from "@/lib/themePreference";
+  storedThemeChoice,
+  themeSwitchLabel,
+  toggleThemeChoice,
+  useThemeChoice,
+} from "@/lib/useThemeChoice";
 
-type Theme = ThemePreference;
-
-function storedTheme(): Theme | null {
-  return storedThemePreference(safeLocalStorage());
-}
-
-function domTheme(): Theme {
-  if (typeof document === "undefined") return "light";
-  // Prefer the attribute the no-flash script set; fall back to the stored
-  // choice so the icon stays correct even if hydration dropped the attribute.
-  const attr = document.documentElement.dataset.theme;
-  if (attr === "light" || attr === "dark") return attr;
-  return storedTheme() ?? "light";
-}
-
-// useSyncExternalStore reads the theme without a hydration mismatch: the SERVER
-// snapshot (and therefore the FIRST client render) is a deterministic "light",
-// so server HTML === first client HTML (no #418). After hydration commits, the
-// store re-reads the real theme from html[data-theme] and re-renders, and a
-// MutationObserver keeps the icon in sync when the theme is toggled or changed
-// in another tab. No setState-in-effect (repo enforces that as an error).
-function subscribe(onChange: () => void): () => void {
-  const el = document.documentElement;
-  const mo = new MutationObserver(onChange);
-  mo.observe(el, { attributes: true, attributeFilter: ["data-theme"] });
-  window.addEventListener("storage", onChange);
-  return () => {
-    mo.disconnect();
-    window.removeEventListener("storage", onChange);
-  };
-}
-
-function useTheme(): Theme {
-  return useSyncExternalStore(subscribe, domTheme, () => "light");
-}
-
+// The icon toggle. It no longer rides the primary header (Oct 2026 UX audit):
+// the theme is a setting, so the desktop More menu and the You page's
+// Appearance block offer it in words, and this icon stays where the map's
+// Layers sheet already groups "Map appearance". All three read and write
+// through lib/useThemeChoice.ts.
 export default function ThemeToggle({ floating = false }: { floating?: boolean }) {
-  const theme = useTheme();
-  const goingDark = theme === "light";
+  const theme = useThemeChoice();
+  const label = themeSwitchLabel(theme);
 
   // React 19 hydration can strip the attribute the no-flash script set on
   // <html>, so a reload lands with no data-theme even though the choice is
   // still in localStorage. Re-assert it on mount (DOM write only — not
   // setState — so it doesn't trip react-hooks/set-state-in-effect). The
-  // MutationObserver above then re-reads it, so the icon resolves too.
+  // MutationObserver in the shared store then re-reads it, so the icon
+  // resolves too.
   useEffect(() => {
     document.documentElement.dataset.theme = resolveThemePreference(
-      storedTheme(),
+      storedThemeChoice(),
       window.matchMedia("(prefers-color-scheme: dark)").matches,
     );
   }, []);
 
-  function toggle() {
-    const next: Theme = domTheme() === "dark" ? "light" : "dark";
-    document.documentElement.dataset.theme = next;
-    try {
-      safeLocalStorage()?.setItem(THEME_STORAGE_KEY, next);
-    } catch {
-      // Site data blocked: the attribute still flips for this view.
-    }
-  }
-
   return (
     <button
       type="button"
-      onClick={toggle}
+      onClick={toggleThemeChoice}
       className={floating ? "themeToggle floating" : "themeToggle"}
-      aria-label={goingDark ? "Switch to dark theme" : "Switch to light theme"}
-      title={goingDark ? "Switch to dark theme" : "Switch to light theme"}
+      aria-label={label}
+      title={label}
     >
-      {theme === "dark" ? <Sun size={18} /> : <Moon size={18} />}
+      {theme === "dark" ? <Sun size={20} /> : <Moon size={20} />}
     </button>
   );
 }

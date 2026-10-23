@@ -11,11 +11,23 @@ import {
 import { isAskToolName, type AskTurn } from "@/lib/ask/types";
 import { traceArizeModelLoop, type ArizeModelLoopSpans } from "@/lib/observability/arize";
 
-const OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions";
+/**
+ * The one host Ask sends prompt text to, named here so `/privacy` can be held
+ * to it (`__tests__/legalPages.test.ts`). `OPENROUTER_BASE_URL` overrides it so
+ * a test can point the loop at a local mock model server
+ * (`__tests__/askModelLoopMock.test.ts`); /privacy names this default, so a
+ * deployment pointed elsewhere is a change to that page too.
+ */
+const OPENROUTER_API_BASE_URL = "https://openrouter.ai/api/v1";
 const MAX_ROUNDS = 3;
 const MAX_TOKENS = 500;
 const TIMEOUT_MS = 12_000;
 export const DEFAULT_ASK_MODEL = "anthropic/claude-sonnet-4-5";
+
+function openRouterChatCompletionsUrl(): string {
+  const base = process.env.OPENROUTER_BASE_URL?.trim() || OPENROUTER_API_BASE_URL;
+  return `${base.replace(/\/+$/, "")}/chat/completions`;
+}
 
 export type ModelAskOutcome = {
   toolResults: AskToolResult[];
@@ -34,7 +46,7 @@ type ChatMessage = {
 
 function systemPrompt(): string {
   return [
-    "You are the Night OS Ask assistant for PUBMAXXING, a London pub night planner.",
+    "You are the Night OS Ask assistant for PUBMAXX, a London pub night planner.",
     "Use ONLY the provided tools. Never invent pubs, prices, listings, or transit facts.",
     "If a tool returns nothing, say so plainly. Prefer short British English.",
     "For map moves or plans, call propose_map_action or propose_plan - the user must confirm.",
@@ -129,7 +141,7 @@ export async function probeAskModelToolChoice(input: {
   const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
   try {
     const response = await fetchImpl(
-      OPENROUTER_URL,
+      openRouterChatCompletionsUrl(),
       askModelRequest({
         apiKey: input.apiKey,
         model: input.model,
@@ -169,16 +181,17 @@ export async function probeAskModelToolChoice(input: {
   }
 }
 
-function parseArgs(raw: string): Record<string, unknown> {
+/** The call's arguments as an object, or null when they are not a JSON object. */
+function parseArgs(raw: string): Record<string, unknown> | null {
   try {
     const parsed: unknown = JSON.parse(raw || "{}");
     if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
       return parsed as Record<string, unknown>;
     }
   } catch {
-    /* ignore */
+    /* rejected below */
   }
-  return {};
+  return null;
 }
 
 /**
@@ -206,6 +219,14 @@ async function runAskLoopTools(
       continue;
     }
     const args = parseArgs(call.function.arguments);
+    if (!args) {
+      handlers.messages.push({
+        role: "tool",
+        tool_call_id: call.id,
+        content: JSON.stringify({ error: "Tool arguments were not a JSON object." }),
+      });
+      continue;
+    }
     const toolSpan = handlers.toolCall({ name, input: args });
     let result: AskToolResult;
     try {
@@ -254,6 +275,8 @@ export async function runAskModelLoop(input: {
   apiKey?: string;
   model?: string;
   fetchImpl?: typeof fetch;
+  /** Whole-loop deadline; defaults to TIMEOUT_MS. */
+  timeoutMs?: number;
   /** Static route tag for the trace (e.g. "api/ask"). */
   traceRoute?: string;
 }): Promise<ModelAskOutcome | null> {
@@ -276,7 +299,7 @@ export async function runAskModelLoop(input: {
       const toolResults: AskToolResult[] = [];
       let tracedMessageCount = 0;
       const controller = new AbortController();
-      const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
+      const timer = setTimeout(() => controller.abort(), input.timeoutMs ?? TIMEOUT_MS);
 
       try {
         for (let round = 0; round < MAX_ROUNDS; round += 1) {
@@ -287,7 +310,7 @@ export async function runAskModelLoop(input: {
           let message: ChatMessage | undefined;
           try {
             const response = await fetchImpl(
-              OPENROUTER_URL,
+              openRouterChatCompletionsUrl(),
               askModelRequest({ apiKey, model, messages, signal: controller.signal }),
             );
             if (!response.ok) {

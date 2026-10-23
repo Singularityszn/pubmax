@@ -32,6 +32,18 @@ function venue(
 }
 
 describe("rankConciergeVenues", () => {
+  it("does not place a Westminster pub in Soho because it pours Soho Lager", () => {
+    const results = rankConciergeVenues([
+      venue("blue-boar", {
+        name: "Blue Boar Pub", area: "Westminster", lat: 51.4996, lng: -0.132244,
+        searchText: "blue boar pub 45 tothill st london westminster soho lager",
+        drinkText: "soho lager",
+      }),
+      venue("soho", { name: "Comptons of Soho", area: "Westminster", searchText: "comptons of soho" }),
+    ], { mood: [], groupSize: 2, area: "Soho" });
+    expect(results.map((row) => row.venue.id)).toEqual(["soho"]);
+  });
+
   it("deterministically chooses a quiet, inexpensive Bank option", () => {
     const candidates = [
       venue("lively", {

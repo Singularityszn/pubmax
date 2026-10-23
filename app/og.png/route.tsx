@@ -115,7 +115,7 @@ export async function GET() {
                 letterSpacing: 0.5,
               }}
             >
-              PUBMAXXING
+              PUBMAXX
             </div>
           </div>
           <div

@@ -5,6 +5,10 @@ import { renderToStaticMarkup } from "react-dom/server";
 
 import { describe, expect, it, vi } from "vitest";
 
+// The shared top nav is a client component that needs the app router; these
+// pages are read as server markup, so the nav renders nothing here.
+vi.mock("@/components/nav/SiteNav", () => ({ default: () => null }));
+
 import PrivacyPage from "@/app/privacy/page";
 import TermsPage from "@/app/terms/page";
 import { CONTACT_EMAIL } from "@/lib/siteContact";
@@ -39,7 +43,8 @@ describe("legal content pages", () => {
   it("reaches the reader from the site footer", () => {
     expect(landing).toMatch(/<Link\b[^>]*href="\/privacy"[^>]*>/);
     expect(landing).toMatch(/<Link\b[^>]*href="\/terms"[^>]*>/);
-    expect(landing).toMatch(/CONTACT_MAILTO/);
+    // A plain Contact link names the brand inbox (lib/siteContact.mjs).
+    expect(landing).toMatch(/HELLO_MAILTO/);
   });
 
   it("is discoverable in the sitemap", () => {
@@ -423,6 +428,15 @@ describe("legal content pages", () => {
     expect(privacyText).toMatch(/memories you confirmed for your Pal[\s\S]*go with each chat or voice call/i);
   });
 
+  it("says confirmed memories go to TypeSafe when a memory offer is sorted", () => {
+    // lib/palMemoryRelation.server.ts sends the proposed fact and the confirmed
+    // memories about the same thing to TypeSafe. The TypeSafe row must say so,
+    // and not still claim its two safety questions are all it receives.
+    expect(read("lib/palMemoryRelation.server.ts")).toContain("systemOneOutcome");
+    const typesafeRow = privacy.match(/<dt>TypeSafe<\/dt>[\s\S]*?<\/dd>/)?.[0] ?? "";
+    expect(typesafeRow.replace(/\s+/g, " ")).toMatch(/memories you confirmed that are about the same thing also go to TypeSafe/);
+  });
+
   it("names the host of every observability egress the code carries", () => {
     // The WIDENING. The two blocks above are hand-written recipient tables, so
     // they only ever catch a vendor somebody remembered to add. This one reads
@@ -488,9 +502,36 @@ describe("legal content pages", () => {
     expect(privacy).toMatch(/until\s+the\s+push\s+service\s+reports\s+it\s+dead\s+or\s+you\s+ask\s+us\s+to\s+remove\s+it/);
     expect(privacy).toMatch(/belongs\s+to\s+your\s+own\s+browser&rsquo;s\s+push\s+service/);
     expect(privacy).toMatch(/stored\s+subscription\s+row\s+stays/);
-    expect(privacy).toMatch(/Step Out weekly nudge is off by default/i);
-    expect(privacy).toMatch(/at most one\s+place-bound push a week/i);
+    expect(privacy).toMatch(/weekly nudge is off by default/i);
+    expect(privacy).toMatch(/at most one push a week/i);
     expect(privacy).not.toMatch(/a push subscription is held\s+by your own browser/);
+  });
+
+  it("names every push delivery and connected-profile host the code contacts", () => {
+    // Native push sends a device token and the notification text to Apple or
+    // Google, and a social connection sends an OAuth code to the platform. The
+    // web-push block above covered neither, so both vendors sat unnamed.
+    const thirdPartySection =
+      privacy.match(/aria-labelledby="third"[\s\S]*?aria-labelledby="keep"/)?.[0] ?? "";
+    const recipients = [
+      { name: "Apple", host: "api.push.apple.com", source: "lib/pushProvider.ts" },
+      { name: "Apple", host: "api.sandbox.push.apple.com", source: "lib/pushProvider.ts" },
+      { name: "Firebase", host: "fcm.googleapis.com", source: "lib/fcmPushProvider.ts" },
+      { name: "X", host: "api.x.com", source: "lib/socialOAuth.ts" },
+      { name: "Instagram", host: "api.instagram.com", source: "lib/socialOAuth.ts" },
+      { name: "Instagram", host: "graph.instagram.com", source: "lib/socialOAuth.ts" },
+      { name: "TikTok", host: "open.tiktokapis.com", source: "lib/socialOAuth.ts" },
+    ];
+    for (const recipient of recipients) {
+      expect(thirdPartySection, `Missing recipient name ${recipient.name}`).toContain(recipient.name);
+      expect(thirdPartySection, `Undisclosed host ${recipient.host}`).toContain(recipient.host);
+      expect(read(recipient.source), `${recipient.source} no longer contacts ${recipient.host}`)
+        .toContain(recipient.host);
+    }
+    // lib/nativePush.ts only ever POSTs a token, and the row holds no account,
+    // so a person cannot have one removed on request. The page must say so.
+    expect(read("lib/nativePush.ts")).not.toMatch(/method:\s*"DELETE"/);
+    expect(thirdPartySection).toMatch(/cannot find it from an account or email request/);
   });
 
   it("describes remembered-area request use without claiming all state stays local", () => {
@@ -515,7 +556,7 @@ describe("legal content pages", () => {
     // authored reason, a server timestamp, and a server-derived actor token.
     // Current community prices also carry an account-owned public handle;
     // anonymity is reserved for legacy price rows without one.
-    expect(privacy).toMatch(/Recommendations, and Night\s+Memories/);
+    expect(privacy).toMatch(/Recommendations, and your\s+memories/);
     expect(privacy).toMatch(/public PUBMAXX\s+handle/);
     expect(privacy).toMatch(/needs a signed-in account/);
     expect(privacy).toMatch(/stable private profile key/);

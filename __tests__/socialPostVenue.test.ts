@@ -31,6 +31,7 @@ const base = {
   createdAt: "2026-08-05T12:00:00.000Z",
   updatedAt: "2026-08-05T12:00:00.000Z",
   author: { handle: "alice" },
+  nameHidden: false,
   ownedByViewer: false,
 } satisfies SocialPostDTO;
 

@@ -17,16 +17,16 @@
 
 import type { Route } from "next";
 import Link from "next/link";
-import dynamic from "next/dynamic";
 import { usePathname } from "next/navigation";
 import { useCallback, useEffect, useId, useRef, useState, useSyncExternalStore } from "react";
 import { LogIn } from "lucide-react";
 
-import { useAuth, type SignOutScope } from "@/components/auth/AuthProvider";
+import { useAuth, type SignOutScope } from "@/components/auth/authContext";
 import AccountMenu from "@/components/auth/AccountMenu";
+import ClerkAccountSlot from "@/components/auth/ClerkAccountSlot";
 import MagicLinkForm from "@/components/auth/MagicLinkForm";
-import { hasSocialAuthProviders } from "@/lib/authProviderAvailability";
-import { providerHasAnswered } from "@/lib/authProviderRevision";
+import { hasSocialAuthProviders, type AuthStartResult } from "@/lib/authProviderAvailability";
+import { readProviderAccountSignal, providerHasAnswered } from "@/lib/authProviderRevision";
 import { usePublicProfileCard } from "@/components/auth/usePublicProfileCard";
 import SocialSignInButtons from "@/components/auth/SocialSignInButtons";
 import { useDeviceAccounts } from "@/components/auth/useDeviceAccounts";
@@ -34,6 +34,7 @@ import { isClerkProductSessionAvailable } from "@/lib/clerkAvailability";
 import { trackEvent } from "@/lib/analytics";
 import { displayHandle, handleOnly } from "@/lib/handleDisplay";
 import { authAvatarInitials } from "@/lib/authAvatarInitials";
+import { useDismissOnEscape } from "@/lib/useDismissOnEscape";
 import {
   ARRIVAL_FROM_PARAM,
   LOGIN_ADD_ACCOUNT_PARAM,
@@ -42,17 +43,6 @@ import {
   AUTH_MENU_FOCUSABLE_SELECTOR,
   authMenuFocusBoundary,
 } from "@/lib/authFocus";
-
-const ClerkAccountControls = dynamic(
-  () => import("@/components/auth/ClerkAccountControls"),
-  {
-    loading: () => (
-      <div className="clerkAccount clerkAccountLoading" hidden aria-hidden="true">
-        Clerk account controls
-      </div>
-    ),
-  },
-);
 
 /** Phone band: full-page /login instead of the nav popover. */
 const PHONE_LOGIN_MEDIA = "(max-width: 640px)";
@@ -126,6 +116,15 @@ function accountIdentity(
   };
 }
 
+function authMenuCanShow({
+  compact,
+  phoneLogin,
+  signedIn,
+  available,
+}: { compact: boolean; phoneLogin: boolean; signedIn: boolean; available: boolean }): boolean {
+  return compact && (signedIn || !phoneLogin) && available;
+}
+
 export default function SignInButton({
   compact = false,
 }: {
@@ -167,6 +166,15 @@ export default function SignInButton({
   const signInHref = loginHref(pathname);
   const addAccountHref = addAccountLoginHref(pathname);
   const [busy, setBusy] = useState<"google" | "apple" | "microsoft" | "out" | null>(null);
+  const operationRef = useRef<symbol | null>(null);
+  const mountedRef = useRef(false);
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+      operationRef.current = null;
+    };
+  }, []);
   const [error, setError] = useState<string | null>(null);
   const [menuOpen, setMenuOpen] = useState(false);
   const [phoneLogin, setPhoneLogin] = useState(false);
@@ -175,6 +183,18 @@ export default function SignInButton({
   const triggerRef = useRef<HTMLButtonElement>(null);
   const wasOpenRef = useRef(false);
   const menuId = useId();
+  // Clerk does not mint the Supabase session that owns PUBMAXX identity. Its
+  // secondary controls stay behind an established product session until that
+  // provider bridge exists end to end.
+  const clerkSessionAvailable = isClerkProductSessionAvailable(
+    user,
+    clerkIntegrationConfigured,
+  );
+  const menuVisible = menuOpen && authMenuCanShow({ compact, phoneLogin, signedIn: Boolean(user), available: configured || clerkSessionAvailable });
+  useDismissOnEscape(menuVisible, () => {
+    setMenuOpen(false);
+    triggerRef.current?.focus();
+  }, menuRef);
 
   // Phone viewports own a full /login page. Desktop keeps the compact popover.
   useEffect(() => {
@@ -186,13 +206,13 @@ export default function SignInButton({
     return () => mq.removeEventListener?.("change", apply);
   }, []);
 
-  // A successful provider start normally navigates away before its promise
-  // settles, leaving `busy` set. If Back restores this page from the BFCache,
-  // React state is restored too, so explicitly re-enable the provider buttons.
+  // A provider can navigate away while its promise is pending. BFCache can
+  // restore that busy state, so a persisted pageshow supersedes its operation.
   useEffect(() => {
     const onPageShow = (event: PageTransitionEvent) => {
       if (event.persisted) {
-        cancelAuthAttempt();
+        operationRef.current = null;
+        cancelAuthAttempt({ keepEmailLink: true });
         setBusy(null);
       }
     };
@@ -215,10 +235,6 @@ export default function SignInButton({
       }
     };
     const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") {
-        setMenuOpen(false);
-        return;
-      }
       if (event.key === "Tab") {
         const focusables = menuRef.current?.querySelectorAll<HTMLElement>(
           AUTH_MENU_FOCUSABLE_SELECTOR,
@@ -275,40 +291,33 @@ export default function SignInButton({
   // above the new account's @handle.
   const card = usePublicProfileCard(accountHandle);
 
-  const onSignInGoogle = useCallback(async () => {
-    trackEvent("sign_in_initiated", { provider: "google" });
-    setBusy("google");
+  const onProviderSignIn = useCallback(async (
+    provider: "google" | "apple" | "microsoft",
+    start: (next?: string) => Promise<AuthStartResult>,
+  ) => {
+    const operation = Symbol();
+    const accountSignal = readProviderAccountSignal();
+    operationRef.current = operation;
+    const ownsOperation = () => mountedRef.current && operationRef.current === operation;
+    trackEvent("sign_in_initiated", { provider });
+    setBusy(provider);
     setError(null);
-    const { error: signInError } = await signInWithGoogle();
-    // On success the browser redirects to Google, so we usually never get here;
-    // if signInWithOAuth returned an error instead, surface it and re-enable.
-    if (signInError) {
-      setError(signInError);
-      setBusy(null);
+    // While the page leaves for the provider the controls stay busy; a
+    // back-forward cache restore releases them.
+    let navigating = false;
+    try {
+      const { error: signInError, navigating: leaving } = await start();
+      navigating = leaving === true && !signInError;
+      if (ownsOperation() && !accountSignal.aborted && signInError) setError(signInError);
+    } catch {
+      if (ownsOperation() && !accountSignal.aborted) setError("Sign-in could not be started. Try again.");
+    } finally {
+      if (ownsOperation() && !navigating) {
+        operationRef.current = null;
+        setBusy(null);
+      }
     }
-  }, [signInWithGoogle]);
-
-  const onSignInApple = useCallback(async () => {
-    trackEvent("sign_in_initiated", { provider: "apple" });
-    setBusy("apple");
-    setError(null);
-    const { error: signInError } = await signInWithApple();
-    if (signInError) {
-      setError(signInError);
-      setBusy(null);
-    }
-  }, [signInWithApple]);
-
-  const onSignInMicrosoft = useCallback(async () => {
-    trackEvent("sign_in_initiated", { provider: "microsoft" });
-    setBusy("microsoft");
-    setError(null);
-    const { error: signInError } = await signInWithMicrosoft();
-    if (signInError) {
-      setError(signInError);
-      setBusy(null);
-    }
-  }, [signInWithMicrosoft]);
+  }, []);
 
   const onSignOut = useCallback(
     async (scope: SignOutScope = "account") => {
@@ -316,20 +325,21 @@ export default function SignInButton({
       // out it has done its job, and leaving it open would re-render the same
       // popover as the SIGNED-OUT one: a sign-in form that opened by itself.
       setMenuOpen(false);
+      const operation = Symbol();
+      operationRef.current = operation;
       setBusy("out");
-      await signOut(scope);
-      setBusy(null);
+      try {
+        await signOut(scope);
+      } finally {
+        if (mountedRef.current && operationRef.current === operation) {
+          operationRef.current = null;
+          setBusy(null);
+        }
+      }
     },
     [signOut],
   );
 
-  // Clerk does not mint the Supabase session that owns PUBMAXX identity. Its
-  // secondary controls stay behind an established product session until that
-  // provider bridge exists end to end.
-  const clerkSessionAvailable = isClerkProductSessionAvailable(
-    user,
-    clerkIntegrationConfigured,
-  );
   if (!configured && !clerkSessionAvailable) {
     return (
       <span
@@ -403,7 +413,7 @@ export default function SignInButton({
                 deviceAccounts={deviceAccounts}
                 onSwitchAccount={switchAccount}
                 addAccountHref={addAccountHref}
-                extraControls={clerkSessionAvailable ? <ClerkAccountControls /> : null}
+                extraControls={clerkSessionAvailable ? <ClerkAccountSlot /> : null}
               />
             ) : null}
           </div>
@@ -427,7 +437,7 @@ export default function SignInButton({
         >
           Sign out
         </button>
-        {clerkSessionAvailable ? <ClerkAccountControls /> : null}
+        {clerkSessionAvailable ? <ClerkAccountSlot /> : null}
       </div>
     );
   }
@@ -485,9 +495,9 @@ export default function SignInButton({
       <SocialSignInButtons
         availability={socialProviders}
         disabled={busy !== null}
-        onGoogle={onSignInGoogle}
-        onApple={onSignInApple}
-        onMicrosoft={onSignInMicrosoft}
+        onGoogle={() => onProviderSignIn("google", signInWithGoogle)}
+        onApple={() => onProviderSignIn("apple", signInWithApple)}
+        onMicrosoft={() => onProviderSignIn("microsoft", signInWithMicrosoft)}
         fullLabels={fullLabels}
       />
     ) : null;
@@ -543,7 +553,7 @@ export default function SignInButton({
             aria-label="Sign in"
           >
             <span className="authCompactIcon">
-              <LogIn size={16} strokeWidth={2} aria-hidden="true" />
+              <LogIn size={16} aria-hidden="true" />
             </span>
             <span className="authCompactLabel" aria-hidden="true">
               <span>Sign in</span>
@@ -577,7 +587,7 @@ export default function SignInButton({
           aria-label="Sign in"
         >
           <span className="authCompactIcon">
-            <LogIn size={16} strokeWidth={2} aria-hidden="true" />
+            <LogIn size={16} aria-hidden="true" />
           </span>
           {/* Visually hidden on the densest tablet band (auth.css ≤900px);
               the aria-label above keeps the accessible name either way. */}

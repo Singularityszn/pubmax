@@ -2,59 +2,15 @@ import type { CityId } from "@/lib/cities";
 import type { Daypart } from "@/lib/nightPlanning";
 import derivedAreaData from "@/public/data/night_areas/uk_cities.json";
 
-/** London's hand-curated patches. Every other city's areas are derived below. */
-export const LONDON_NIGHT_AREA_SLUGS = [
-  "clapham", "victoria", "piccadilly-soho", "canary-wharf", "barnes", "chiswick",
-  "shoreditch", "camden", "brixton", "bermondsey-london-bridge", "kings-cross", "islington",
-  "dalston", "peckham", "greenwich", "hammersmith", "balham", "marylebone", "richmond", "putney",
-] as const;
-/** A London patch, for the London-only tables (weather points, late food). */
-export type LondonNightAreaSlug = (typeof LONDON_NIGHT_AREA_SLUGS)[number];
+import type { NightAreaSlug } from "@/lib/nightAreaSlugs";
 
-/**
- * The areas DERIVED for the other cities out of the OpenStreetMap base layer.
- *
- * Written out here rather than read off the JSON because `NightAreaSlug` is a
- * closed union the whole tree narrows against, and a JSON import widens to
- * `string`. `__tests__/cityNightAreas.test.ts` fails when this list and
- * `public/data/night_areas/uk_cities.json` stop naming the same areas, so the
- * builder cannot add one without it landing here too.
- */
-export const DERIVED_NIGHT_AREA_SLUGS = [
-  "manchester-city-centre",
-  "manchester-shaw-heath",
-  "manchester-werneth",
-  "manchester-portwood",
-  "manchester-chorlton-on-medlock",
-  "manchester-heaton-norris",
-  "birmingham-city-centre",
-  "birmingham-vauxhall",
-  "birmingham-moseley",
-  "birmingham-hockley-port",
-  "birmingham-harborne",
-  "birmingham-aston",
-  "leeds-city-centre",
-  "leeds-armley",
-  "leeds-hyde-park",
-  "leeds-hunslet",
-  "leeds-holbeck",
-  "leeds-burmantofts",
-  "leeds-kirkstall",
-  "bristol-city-centre",
-  "bristol-montpelier",
-  "bristol-hotwells",
-  "bristol-bedminster",
-  "bristol-barton-hill",
-  "bristol-westbury-park",
-  "bristol-eastville",
-  "bristol-totterdown",
-] as const;
-
-export const NIGHT_AREA_SLUGS = [
-  ...LONDON_NIGHT_AREA_SLUGS,
-  ...DERIVED_NIGHT_AREA_SLUGS,
-] as const;
-export type NightAreaSlug = (typeof NIGHT_AREA_SLUGS)[number];
+export {
+  DERIVED_NIGHT_AREA_SLUGS,
+  LONDON_NIGHT_AREA_SLUGS,
+  NIGHT_AREA_SLUGS,
+  type LondonNightAreaSlug,
+  type NightAreaSlug,
+} from "@/lib/nightAreaSlugs";
 
 export type CoverageStatus = "discovered" | "captured" | "reviewed" | "route_ready" | "paused";
 
@@ -160,7 +116,7 @@ const discovered = () => coverage("discovered", 0, ["venue_density", "price_cove
 const AREA_SEEDS: readonly AreaSeed[] = [
   { slug: "clapham", cityId: "london", name: "Clapham", aliases: ["Clapham Common", "Clapham Junction"], centre: { lat: 51.462, lng: -0.138 }, radiusKm: 2.4, transportAnchors: ["Clapham Common", "Clapham Junction"], demandWave: 0, description: "A south-London night centred on the Common, Junction and compact pub walks.", afterWork: "Begin near the station, then move toward the Common.", lateNight: "Keep the ending close to food and Night Tube connections.", coverage: ready() },
   { slug: "victoria", cityId: "london", name: "Victoria", aliases: ["Pimlico"], centre: { lat: 51.496, lng: -0.143 }, radiusKm: 1.5, transportAnchors: ["Victoria"], demandWave: 0, description: "A practical central start for post-office drinks and an easy route home.", afterWork: "Optimise for a quick post-office start and commuter access.", lateNight: "Finish close to Victoria station and confirmed late transport.", coverage: ready() },
-  { slug: "piccadilly-soho", cityId: "london", name: "Piccadilly & Soho", aliases: ["Piccadilly", "Soho"], centre: { lat: 51.511, lng: -0.134 }, radiusKm: 1.4, transportAnchors: ["Piccadilly Circus", "Oxford Circus", "Tottenham Court Road"], demandWave: 0, description: "A dense West End night for short walks, bookings and lively choices.", afterWork: "Avoid unnecessary crossings and favour bookable group space.", lateNight: "Expect crowds; favour short walks and checked closing times.", coverage: ready() },
+  { slug: "piccadilly-soho", cityId: "london", name: "Piccadilly & Soho", aliases: ["Piccadilly", "Soho"], centre: { lat: 51.511, lng: -0.134 }, radiusKm: 1.4, transportAnchors: ["Piccadilly Circus", "Oxford Circus", "Tottenham Court Road"], demandWave: 0, description: "A dense West End patch where pint prices are still being checked.", afterWork: "Avoid unnecessary crossings and favour bookable group space.", lateNight: "Expect crowds; favour short walks and checked closing times.", coverage: reviewed(64, ["price_coverage"]) },
   { slug: "canary-wharf", cityId: "london", name: "Canary Wharf", aliases: ["West India Quay"], centre: { lat: 51.505, lng: -0.022 }, radiusKm: 1.8, transportAnchors: ["Canary Wharf", "West India Quay"], demandWave: 0, description: "A waterside and after-work district with clear rail anchors.", afterWork: "Start close to offices, then move toward waterside venues.", lateNight: "Keep the final stop near the Elizabeth line or Jubilee line.", coverage: ready() },
   { slug: "barnes", cityId: "london", name: "Barnes", aliases: ["Barnes Bridge"], centre: { lat: 51.474, lng: -0.239 }, radiusKm: 1.8, transportAnchors: ["Barnes", "Barnes Bridge"], demandWave: 0, description: "A relaxed riverside patch where late opening and travel details still need checking.", afterWork: "Lean into relaxed riverside and neighbourhood pubs.", lateNight: "Plan the return early because late transport is less frequent.", coverage: reviewed(62, ["opening_hours", "terminal_get_home"]) },
   { slug: "chiswick", cityId: "london", name: "Chiswick", aliases: ["Turnham Green"], centre: { lat: 51.493, lng: -0.255 }, radiusKm: 2, transportAnchors: ["Turnham Green", "Chiswick"], demandWave: 0, description: "A west-London patch with some opening and food details still to check.", afterWork: "Build westward from Turnham Green with a compact route.", lateNight: "End near a dependable bus or Tube connection.", coverage: reviewed(64, ["opening_hours", "terminal_food"]) },

@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 
+import { announcePalMoment } from "@/lib/palMoments";
 import type { Venue } from "@/lib/venues";
 import {
   acknowledgeCrawlCompletion,
@@ -84,6 +85,8 @@ export function useCrawlProgress(
     }
     const entry = markCrawlComplete(progressKey);
     applyCompletionAck(entry);
+    // The person just walked it: every Pal on screen cheers (lib/palMoments.ts).
+    if (isComplete(entry)) announcePalMoment({ kind: "crawl-finished", stops: entry!.stopIds.length });
   }
 
   const crawlDone = isComplete(crawlProgress);

@@ -12,6 +12,7 @@ import { useAuth } from "@/components/auth/AuthProvider";
 import { useTransientSpeechInput } from "@/components/plan/useTransientSpeechInput";
 import AreaNewsBlock from "@/components/areanews/AreaNewsBlock";
 import type { CityId } from "@/lib/cities";
+import { PLAN_FIELD_LABEL, PLAN_HEADING } from "@/lib/planCopy";
 import { getNightAreasForCity, nearestRouteReadyNightArea, type NightAreaSlug } from "@/lib/nightAreas";
 import { budgetCeiling, clearPlannerHandoff, readPlannerHandoff } from "@/lib/onboardingFlow";
 import { inferNightContext, type NightContext } from "@/lib/nightPlanning";
@@ -253,15 +254,15 @@ export function MobilePlanActivation({
       <div className="mobilePlannerIntentHeading">
         <Sparkles size={20} aria-hidden="true" />
         <div>
-          <h3 id="mobile-plan-intent-title">Describe the outing</h3>
+          <h3 id="mobile-plan-intent-title">{PLAN_HEADING}</h3>
           <p>Choose {PLAN_STOP_COUNT_RANGE_SENTENCE} stops, all straight off the map.</p>
         </div>
       </div>
       <div className="mobilePlannerIntentInput">
-        <label htmlFor="mobile-plan-query">Describe the outing</label>
+        <label htmlFor="mobile-plan-query">{PLAN_FIELD_LABEL}</label>
         <div>
           <input id="mobile-plan-query" type="text" enterKeyHint="go" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Quiet in Soho, four of us, under £25" maxLength={500} />
-          {speech.supported ? <Button type="button" variant="ghost" size="icon" aria-label={speech.listening ? "Stop describing the outing" : "Describe the outing by voice"} aria-pressed={speech.listening} onClick={speech.toggle}>{speech.listening ? <MicOff size={18} /> : <Mic size={18} />}</Button> : null}
+          {speech.supported ? <Button type="button" variant="ghost" size="icon" aria-label={speech.listening ? "Stop listening" : "Say it out loud"} aria-pressed={speech.listening} onClick={speech.toggle}>{speech.listening ? <MicOff size={20} /> : <Mic size={20} />}</Button> : null}
         </div>
         {speech.listening ? <small role="status">Listening. The transcript stays in this field only.</small> : null}
         {speech.error ? <small role="status">{speech.error}</small> : null}
@@ -294,7 +295,7 @@ export function MobilePlanActivation({
       {result ? (
         <div className="mobilePlannerResult" role="status">
           <div className="mobilePlannerConfidence" data-level={result.confidence.level}>
-            <ShieldCheck size={17} aria-hidden="true" />
+            <ShieldCheck size={16} aria-hidden="true" />
             <div><strong>{result.confidence.level === "high" ? "Prices checked" : result.confidence.level === "medium" ? "Not all checked" : "Rough guess, yours to change"}</strong><span>{result.budget.basis === "selected-drink-price-unavailable" ? "We don't have recorded prices for the drink you picked. Check each stop before relying on the budget." : result.budget.estimatedPerPersonPence === null ? "Some prices are missing. Check each stop before relying on the budget." : `Estimated £${(result.budget.estimatedPerPersonPence / 100).toFixed(2)} each for one recorded pint per stop.`}</span>{result.confidence.warnings.length ? <ul aria-label="Route warnings">{result.confidence.warnings.map((warning) => <li key={warning}><small>{warning}</small></li>)}</ul> : null}</div>
           </div>
           <p className="mobilePlannerRouteTotal">{result.routeTotalLabel}</p>

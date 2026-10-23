@@ -1,0 +1,172 @@
+
+ RUN  v5.0.3 /Users/karanmanoharan/.no-mistakes/worktrees/0a94b5a8763e/01M4ZQRV5QZPYFNNC4P95AMFCP
+
+·······················································································································································································································································································································································································································································································································································································································································································································································································································································································································································································································································································································································································································································································································································································································stdout | __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > keeps the paid slot available after a deterministic refusal: {"query":"One vegan meal in Soho"}
+{"level":"warn","event":"paid_spend.budget_spent","lane":"plan-generate","budget":1,"windowMs":86400000,"ts":1792073812433}
+
+stdout | __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > keeps the paid slot available after a deterministic refusal: {"query":"One meal under 500 calories in Soho"}
+{"level":"warn","event":"paid_spend.budget_spent","lane":"plan-generate","budget":1,"windowMs":86400000,"ts":1792073812436}
+
+stdout | __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > keeps the paid slot available after a deterministic refusal: {"query":"One pizza under £10 in Soho"}
+{"level":"warn","event":"paid_spend.budget_spent","lane":"plan-generate","budget":1,"windowMs":86400000,"ts":1792073812438}
+
+················································································stdout | __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > keeps the paid slot available after a deterministic refusal: {"query":"3 pubs"}
+{"level":"warn","event":"paid_spend.budget_spent","lane":"plan-generate","budget":1,"windowMs":86400000,"ts":1792073812441}
+
+stdout | __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > keeps the paid slot available after a deterministic refusal: {"query":""}
+{"level":"warn","event":"paid_spend.budget_spent","lane":"plan-generate","budget":1,"windowMs":86400000,"ts":1792073812442}
+
+stdout | __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > keeps the paid slot available after a deterministic refusal: {"query":"3 pubs in Soho","cityId":"not-a-city"}
+{"level":"warn","event":"paid_spend.budget_spent","lane":"plan-generate","budget":1,"windowMs":86400000,"ts":1792073812444}
+
+stdout | __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > keeps the paid slot available after a deterministic refusal: {"query":"3 pubs in Soho","cityId":"manchester"}
+{"level":"warn","event":"paid_spend.budget_spent","lane":"plan-generate","budget":1,"windowMs":86400000,"ts":1792073812446}
+
+stdout | __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > keeps the paid slot available after a deterministic refusal: {"intake":{"version":1,"area":{"kind":"night-patch","id":"hackney"},"timeWindow":null,"groupSize":4,"budget":{"tier":"standard","limitPence":null},"accessibilityNeeds":[],"skipped":["time-window"]}}
+{"level":"warn","event":"paid_spend.budget_spent","lane":"plan-generate","budget":1,"windowMs":86400000,"ts":1792073812448}
+
+··········································································································x·x·x·x·x·x·x·x·x·x·x··························stdout | __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > refuses with the deployment ceiling's own sentence once it is spent
+{"level":"warn","event":"paid_spend.budget_spent","lane":"plan-generate","budget":1000,"windowMs":86400000,"ts":1792073812762}
+
+···············································
+
+⎯⎯⎯⎯⎯⎯ Failed Tests 11 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > preserves drink budgets with query: 3 pubs in Clapham, under £20 per person… undefined
+Error: Expected a prepared food-aware pub route: {"query":"3 pubs in Clapham, under £20 per person, maximum £5 per pint, pizza, maximum £5 per pint","response":{"error":"This route planner cannot verify meal prices, dietary requirements or calories. Use the food map for sourced menu items.","code":"MEAL_CONSTRAINTS_UNSUPPORTED","retryable":false}}
+ ❯ __tests__/planGenerateRoute.test.ts:1006:40
+    1004|       }),
+    1005|     }), PLAN_GENERATION_TEST_NOW);
+    1006|     if (!("prepared" in result)) throw new Error(`Expected a prepared …
+       |                                        ^
+    1007|     expect(result.prepared.context.budgetLimitPence).toBe(2000);
+    1008|     expect(result.prepared.context.foodNeeds).toEqual(foodNeeds ?? [qu…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/11]⎯
+
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > preserves drink budgets with query: 3 pubs in Clapham, under £20 per person… undefined
+Error: Expected a prepared food-aware pub route: {"query":"3 pubs in Clapham, under £20 per person, maximum £5 per pint, pizza under £5 per pint","response":{"error":"This route planner cannot verify meal prices, dietary requirements or calories. Use the food map for sourced menu items.","code":"MEAL_CONSTRAINTS_UNSUPPORTED","retryable":false}}
+ ❯ __tests__/planGenerateRoute.test.ts:1006:40
+    1004|       }),
+    1005|     }), PLAN_GENERATION_TEST_NOW);
+    1006|     if (!("prepared" in result)) throw new Error(`Expected a prepared …
+       |                                        ^
+    1007|     expect(result.prepared.context.budgetLimitPence).toBe(2000);
+    1008|     expect(result.prepared.context.foodNeeds).toEqual(foodNeeds ?? [qu…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/11]⎯
+
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > preserves drink budgets with query: 3 pubs in Clapham, under £20 per person… undefined
+Error: Expected a prepared food-aware pub route: {"query":"3 pubs in Clapham, under £20 per person, maximum £5 per pint, pizza with pints under £5","response":{"error":"This route planner cannot verify meal prices, dietary requirements or calories. Use the food map for sourced menu items.","code":"MEAL_CONSTRAINTS_UNSUPPORTED","retryable":false}}
+ ❯ __tests__/planGenerateRoute.test.ts:1006:40
+    1004|       }),
+    1005|     }), PLAN_GENERATION_TEST_NOW);
+    1006|     if (!("prepared" in result)) throw new Error(`Expected a prepared …
+       |                                        ^
+    1007|     expect(result.prepared.context.budgetLimitPence).toBe(2000);
+    1008|     expect(result.prepared.context.foodNeeds).toEqual(foodNeeds ?? [qu…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/11]⎯
+
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > preserves drink budgets with query: 3 pubs in Clapham, under £20 per person… undefined
+Error: Expected a prepared food-aware pub route: {"query":"3 pubs in Clapham, under £20 per person, maximum £5 per pint, pizza with £5 pints","response":{"error":"This route planner cannot verify meal prices, dietary requirements or calories. Use the food map for sourced menu items.","code":"MEAL_CONSTRAINTS_UNSUPPORTED","retryable":false}}
+ ❯ __tests__/planGenerateRoute.test.ts:1006:40
+    1004|       }),
+    1005|     }), PLAN_GENERATION_TEST_NOW);
+    1006|     if (!("prepared" in result)) throw new Error(`Expected a prepared …
+       |                                        ^
+    1007|     expect(result.prepared.context.budgetLimitPence).toBe(2000);
+    1008|     expect(result.prepared.context.foodNeeds).toEqual(foodNeeds ?? [qu…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/11]⎯
+
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > preserves drink budgets with query: 3 pubs in Clapham, under £20 per person… undefined
+Error: Expected a prepared food-aware pub route: {"query":"3 pubs in Clapham, under £20 per person, maximum £5 per pint, pizza with £5 for a pint","response":{"error":"This route planner cannot verify meal prices, dietary requirements or calories. Use the food map for sourced menu items.","code":"MEAL_CONSTRAINTS_UNSUPPORTED","retryable":false}}
+ ❯ __tests__/planGenerateRoute.test.ts:1006:40
+    1004|       }),
+    1005|     }), PLAN_GENERATION_TEST_NOW);
+    1006|     if (!("prepared" in result)) throw new Error(`Expected a prepared …
+       |                                        ^
+    1007|     expect(result.prepared.context.budgetLimitPence).toBe(2000);
+    1008|     expect(result.prepared.context.foodNeeds).toEqual(foodNeeds ?? [qu…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[5/11]⎯
+
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > preserves drink budgets with query: 3 pubs in Clapham, under £20 per person… undefined
+Error: Expected a prepared food-aware pub route: {"query":"3 pubs in Clapham, under £20 per person, maximum £5 per pint, food under £5 per pint","response":{"error":"This route planner cannot verify meal prices, dietary requirements or calories. Use the food map for sourced menu items.","code":"MEAL_CONSTRAINTS_UNSUPPORTED","retryable":false}}
+ ❯ __tests__/planGenerateRoute.test.ts:1006:40
+    1004|       }),
+    1005|     }), PLAN_GENERATION_TEST_NOW);
+    1006|     if (!("prepared" in result)) throw new Error(`Expected a prepared …
+       |                                        ^
+    1007|     expect(result.prepared.context.budgetLimitPence).toBe(2000);
+    1008|     expect(result.prepared.context.foodNeeds).toEqual(foodNeeds ?? [qu…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[6/11]⎯
+
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > preserves drink budgets with query: 3 pubs in Clapham, under £20 per person… undefined
+Error: Expected a prepared food-aware pub route: {"query":"3 pubs in Clapham, under £20 per person, maximum £5 per pint, pizza, pints priced under £5","response":{"error":"This route planner cannot verify meal prices, dietary requirements or calories. Use the food map for sourced menu items.","code":"MEAL_CONSTRAINTS_UNSUPPORTED","retryable":false}}
+ ❯ __tests__/planGenerateRoute.test.ts:1006:40
+    1004|       }),
+    1005|     }), PLAN_GENERATION_TEST_NOW);
+    1006|     if (!("prepared" in result)) throw new Error(`Expected a prepared …
+       |                                        ^
+    1007|     expect(result.prepared.context.budgetLimitPence).toBe(2000);
+    1008|     expect(result.prepared.context.foodNeeds).toEqual(foodNeeds ?? [qu…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[7/11]⎯
+
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > preserves drink budgets with query: 3 pubs in Clapham, under £20 per person… undefined
+Error: Expected a prepared food-aware pub route: {"query":"3 pubs in Clapham, under £20 per person, maximum £5 per pint, pizza, pints costing under £5","response":{"error":"This route planner cannot verify meal prices, dietary requirements or calories. Use the food map for sourced menu items.","code":"MEAL_CONSTRAINTS_UNSUPPORTED","retryable":false}}
+ ❯ __tests__/planGenerateRoute.test.ts:1006:40
+    1004|       }),
+    1005|     }), PLAN_GENERATION_TEST_NOW);
+    1006|     if (!("prepared" in result)) throw new Error(`Expected a prepared …
+       |                                        ^
+    1007|     expect(result.prepared.context.budgetLimitPence).toBe(2000);
+    1008|     expect(result.prepared.context.foodNeeds).toEqual(foodNeeds ?? [qu…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[8/11]⎯
+
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > preserves drink budgets with query: 3 pubs in Clapham, under £20 per person… undefined
+Error: Expected a prepared food-aware pub route: {"query":"3 pubs in Clapham, under £20 per person, maximum £5 per pint, pizza, pints for under £5","response":{"error":"This route planner cannot verify meal prices, dietary requirements or calories. Use the food map for sourced menu items.","code":"MEAL_CONSTRAINTS_UNSUPPORTED","retryable":false}}
+ ❯ __tests__/planGenerateRoute.test.ts:1006:40
+    1004|       }),
+    1005|     }), PLAN_GENERATION_TEST_NOW);
+    1006|     if (!("prepared" in result)) throw new Error(`Expected a prepared …
+       |                                        ^
+    1007|     expect(result.prepared.context.budgetLimitPence).toBe(2000);
+    1008|     expect(result.prepared.context.foodNeeds).toEqual(foodNeeds ?? [qu…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[9/11]⎯
+
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > preserves drink budgets with query: 3 pubs in Clapham, under £20 per person… undefined
+Error: Expected a prepared food-aware pub route: {"query":"3 pubs in Clapham, under £20 per person, maximum £5 per pint, pizza, under £5 for a pint","response":{"error":"This route planner cannot verify meal prices, dietary requirements or calories. Use the food map for sourced menu items.","code":"MEAL_CONSTRAINTS_UNSUPPORTED","retryable":false}}
+ ❯ __tests__/planGenerateRoute.test.ts:1006:40
+    1004|       }),
+    1005|     }), PLAN_GENERATION_TEST_NOW);
+    1006|     if (!("prepared" in result)) throw new Error(`Expected a prepared …
+       |                                        ^
+    1007|     expect(result.prepared.context.budgetLimitPence).toBe(2000);
+    1008|     expect(result.prepared.context.foodNeeds).toEqual(foodNeeds ?? [qu…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[10/11]⎯
+
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > preserves drink budgets with query: 3 pubs in Clapham, under £20 per person… undefined
+Error: Expected a prepared food-aware pub route: {"query":"3 pubs in Clapham, under £20 per person, maximum £5 per pint, pizza and a pint, pints under £5","response":{"error":"This route planner cannot verify meal prices, dietary requirements or calories. Use the food map for sourced menu items.","code":"MEAL_CONSTRAINTS_UNSUPPORTED","retryable":false}}
+ ❯ __tests__/planGenerateRoute.test.ts:1006:40
+    1004|       }),
+    1005|     }), PLAN_GENERATION_TEST_NOW);
+    1006|     if (!("prepared" in result)) throw new Error(`Expected a prepared …
+       |                                        ^
+    1007|     expect(result.prepared.context.budgetLimitPence).toBe(2000);
+    1008|     expect(result.prepared.context.foodNeeds).toEqual(foodNeeds ?? [qu…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[11/11]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  11 failed | 1636 passed (1647)
+   Start at  15:16:46
+   Duration  6.20s (tests 91%, transform 7%, import 2%)
+

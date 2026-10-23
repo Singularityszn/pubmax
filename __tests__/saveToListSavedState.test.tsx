@@ -35,6 +35,7 @@ beforeEach(() => {
 afterEach(async () => {
   await act(async () => root.unmount());
   container.remove();
+  vi.useRealTimers();
 });
 
 async function open(): Promise<void> {
@@ -74,6 +75,29 @@ describe("SaveToListControl chips", () => {
     expect(container.querySelector(".saveToListToast")?.textContent).toBe(
       'Removed from "Want to Visit"',
     );
+  });
+
+  it("keeps each new receipt visible for its full two seconds", async () => {
+    vi.useFakeTimers();
+    await open();
+    await act(async () => { chip("Want to Visit").click(); });
+    await act(async () => { vi.advanceTimersByTime(1000); });
+    await act(async () => { chip("Date Night").click(); });
+    const receipt = 'Saved to "Date Night" on this device';
+    expect(container.querySelector(".saveToListToast")?.textContent).toBe(receipt);
+    await act(async () => { vi.advanceTimersByTime(1999); });
+    expect(container.querySelector(".saveToListToast")?.textContent).toBe(receipt);
+    await act(async () => { vi.advanceTimersByTime(1); });
+    expect(container.querySelector(".saveToListToast")).toBeNull();
+  });
+
+  it("cancels the receipt clock when the control unmounts", async () => {
+    vi.useFakeTimers();
+    await open();
+    await act(async () => { chip("Want to Visit").click(); });
+    expect(vi.getTimerCount()).toBe(1);
+    await act(async () => { root.render(null); });
+    expect(vi.getTimerCount()).toBe(0);
   });
 
   it("opens with the lists this pub is already in pressed", async () => {
@@ -511,6 +535,43 @@ describe("SaveToListControl as the inspector moves between pubs", () => {
       ),
     ).toBe(true);
     expect(container.querySelector(".saveToListToast")).toBeNull();
+  });
+});
+
+describe("SaveToListControl for a pub saved under a superseded id", () => {
+  it("shows the old save as held, leaves storage alone, and an explicit press removes it", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: string) => ({
+        ok: true,
+        status: 200,
+        json: async () =>
+          input.endsWith("/data/venue_id_aliases.json") ? { aliases: { "venue-old": "venue-1" } } : {},
+      })),
+    );
+    const raw = JSON.stringify([
+      { venueId: "venue-old", listType: "Date Night", savedAt: "2026-10-06T10:00:00.000Z" },
+    ]);
+    window.localStorage.setItem("pubmax:savedPubs:v1", raw);
+    try {
+      await open();
+      await act(async () => {
+        await new Promise<void>((resolve) => setTimeout(resolve, 0));
+      });
+      expect(chip("Date Night").getAttribute("aria-pressed")).toBe("true");
+      expect(window.localStorage.getItem("pubmax:savedPubs:v1")).toBe(raw);
+
+      await act(async () => {
+        chip("Date Night").click();
+      });
+      expect(chip("Date Night").getAttribute("aria-pressed")).toBe("false");
+      expect(container.querySelector(".saveToListToast")?.textContent).toBe(
+        'Removed from "Date Night"',
+      );
+      expect(JSON.parse(window.localStorage.getItem("pubmax:savedPubs:v1") ?? "[]")).toEqual([]);
+    } finally {
+      vi.unstubAllGlobals();
+    }
   });
 });
 

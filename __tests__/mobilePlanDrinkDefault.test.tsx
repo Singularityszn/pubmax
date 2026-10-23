@@ -214,16 +214,17 @@ describe("map drink default in the phone planner", () => {
 
 describe("first-run handoff in the phone planner", () => {
   it("opens on the chosen patch's checked area and carries the budget", async () => {
-    // The Soho patch, and a £5 pint across the default three stops.
-    writePlannerHandoff({ patch: { lat: 51.5136, lng: -0.1365 }, budget: "five" });
+    // The Clapham patch, and a £5 pint across the default three stops.
+    writePlannerHandoff({ patch: { lat: 51.462, lng: -0.138 }, budget: "five" });
     await render(wine);
     const area = container.querySelector<HTMLSelectElement>("select")!;
-    expect(area.value).toBe("piccadilly-soho");
+    expect(area.value).toBe("clapham");
     const maxEach = container.querySelector<HTMLInputElement>('input[placeholder="£"]')!;
     expect(maxEach.value).toBe("15");
     await generate();
-    expect(requests[0]!.context).toMatchObject({ nightArea: "piccadilly-soho", budgetLimitPence: 1500 });
+    expect(requests[0]!.context).toMatchObject({ nightArea: "clapham", budgetLimitPence: 1500 });
   });
+
 
   it("is read once: a second planner opens on its own defaults", async () => {
     writePlannerHandoff({ patch: { lat: 51.5136, lng: -0.1365 }, budget: "five" });

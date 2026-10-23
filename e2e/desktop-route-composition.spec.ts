@@ -1,7 +1,16 @@
-import { expect, test, type Locator } from "@playwright/test";
+import { expect, test, type Locator, type Page } from "@playwright/test";
 
 async function widthOf(locator: Locator): Promise<number> {
   return locator.evaluate((element) => element.getBoundingClientRect().width);
+}
+
+// We're out paints a "Checking your account." door (role=status, the same
+// `.weAreOutForm` box) while the session is unanswered, then swaps it for the
+// settled door or the form. With browser auth configured, as the E2E server
+// is, measuring the waiting door raced that swap and read a null box. Measure
+// the card the page settles on.
+function settledWeAreOutCard(page: Page): Locator {
+  return page.locator('.weAreOut .weAreOutForm:not([role="status"])');
 }
 
 test.describe("desktop route composition", () => {
@@ -39,7 +48,7 @@ test.describe("desktop route composition", () => {
     await page.goto("/we-are-out");
 
     const explanation = page.locator(".weAreOut .feedHeader");
-    const card = page.locator(".weAreOut .weAreOutForm");
+    const card = settledWeAreOutCard(page);
     await expect(explanation).toBeVisible();
     await expect(card).toBeVisible();
 
@@ -56,7 +65,7 @@ test.describe("desktop route composition", () => {
   });
 
   test("Near leads with the answer and rails the mode control", async ({ page }) => {
-    await page.goto("/near");
+    await page.goto("/near?patch=soho");
 
     const answer = page.locator(".nmnPageBody > .nmn");
     const control = page.locator(".nmnPageBody > .nearModeSwitch");
@@ -126,12 +135,19 @@ test.describe("phone route composition", () => {
     await page.goto("/today");
     await expect(page.getByTestId("today-tube")).toBeVisible();
 
-    const cards = page.locator(".todayStack .todayCard");
-    const cardIds = await cards.evaluateAll((elements) =>
-      elements.map((element) => element.getAttribute("data-testid")),
-    );
+    // Top picks is a boxed `.todayCard` when events are listed, and the
+    // unboxed `.todayPicksFallback` section when only sourced pub suggestions
+    // remain (its rows are already cards, so it carries no box of its own:
+    // __tests__/todayPicksHonesty.test.ts). Either way it holds its place in
+    // the column, so the order check reads both.
+    const cards = page.locator(".todayStack :is(.todayCard, .todayPicksFallback)");
+    const current = await cards.evaluateAll((elements) => elements.map((element) => ({
+      id: element.getAttribute("data-testid"), box: element.getBoundingClientRect().toJSON(),
+    })));
+    const cardIds = current.map((card) => card.id);
     const expectedCardIds = [
-      "today-weather",
+      // The server omits weather when no fresh snapshot is available.
+      ...(cardIds.includes("today-weather") ? ["today-weather"] : []),
       "today-tube",
       "today-picks",
       "today-get-there",
@@ -140,18 +156,15 @@ test.describe("phone route composition", () => {
       "today-fact",
     ];
     expect(cardIds).toEqual(expectedCardIds);
-    const boxes = await cards.evaluateAll((elements) =>
-      elements.map((element) => element.getBoundingClientRect().toJSON()),
-    );
-    expect(boxes.every((box) => box.width < 390)).toBe(true);
-    expect(boxes.every((box, index) => index === 0 || box.top > boxes[index - 1]!.top)).toBe(true);
+    expect(current.every(({ box }) => box.width > 0 && box.width < 390)).toBe(true);
+    expect(current.every(({ box }, index) => index === 0 || box.top > current[index - 1]!.box.top)).toBe(true);
   });
 
   test("We're out keeps one stacked column on a phone", async ({ page }) => {
     await page.goto("/we-are-out");
 
     const explanation = page.locator(".weAreOut .feedHeader");
-    const card = page.locator(".weAreOut .weAreOutForm");
+    const card = settledWeAreOutCard(page);
     await expect(explanation).toBeVisible();
     await expect(card).toBeVisible();
 

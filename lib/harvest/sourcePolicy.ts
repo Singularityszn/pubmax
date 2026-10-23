@@ -50,7 +50,13 @@ export type HarvestSourceKind =
   // A chain's own list of the pubs it runs today. It names pubs, places and
   // opening hours and never a price, which is why it is not a flavour of
   // `chain-menu-prices`.
-  | "pub-directory";
+  | "pub-directory"
+  // A public body's or a commons' open-data API, read by a builder into its
+  // own committed pack. Its permission is the publisher's open licence and API
+  // terms rather than robots.txt, and it states facts about businesses it does
+  // not own, so every row is a non-first-party exception. A builder never
+  // types its URL: it asks `openDataSourceUrl` for one.
+  | "open-data";
 
 type HarvestSourceAccess =
   | { allowed: true; evidence: string; checkedOn: string }
@@ -116,6 +122,10 @@ const EVENTS_CHECKED_ON = "2026-09-07";
 // The Wetherspoon pub directory, re-read against the live robots.txt and read in
 // full on this day.
 const DIRECTORY_CHECKED_ON = "2026-09-14";
+// The open-data APIs, last checked on this day on each builder's first networked
+// run. Not every terms page could be read: each row's evidence says what was
+// read live and what was not.
+const OPEN_DATA_CHECKED_ON = "2026-10-17";
 
 export const HARVEST_SOURCES: readonly HarvestSource[] = [
   // --- chain deals: first-party operator offers pages ----------------------
@@ -405,6 +415,59 @@ export const HARVEST_SOURCES: readonly HarvestSource[] = [
     notes:
       "Checked 2026-08-09: the London search page is a national promo shelf in any case (its cards were North Shields and Northampton events), so the permitted half carries no London listing worth taking.",
   },
+
+  // --- open data: public APIs read by a builder into a committed pack ------
+  {
+    id: "fsa-fhrs-api",
+    label: "Food Standards Agency - Food Hygiene Rating Scheme API",
+    url: "https://api.ratings.food.gov.uk/",
+    kind: "open-data",
+    firstParty: false,
+    nonFirstPartyException:
+      "The FSA is the statutory publisher of the ratings its local authorities award, so its record IS the rating. Take the rating, its date and the authority for an FHRSID that an OSM pub names in its own fhrs:id tag; never a name match, never anything about the business beyond the rating.",
+    access: {
+      allowed: true,
+      evidence:
+        "Owner decision, 16 Oct 2026. Read live on 17 Oct 2026, before the first networked run of npm run build:fsa-hygiene. The FSA's terms and conditions (food.gov.uk/terms-and-conditions) put its content under the Open Government Licence v3.0 and make the use of food hygiene ratings information subject to the OGL; they remind users that showing an invalid or inaccurate rating may be an offence, so a user must show the current rating or the date the information was updated; and they reserve the FHRS imagery and the FSA logo, which may not be used without permission. The API's BestPractices page (api.ratings.food.gov.uk/Help/BestPractices) asks bulk readers for pages of 200 or fewer, because larger pages are rate-limited and answer HTTP 429; for flow control with a configurable sleep, because throttling limits change; recommends the nightly Open Data files for regular full downloads; and suggests running bulk reads between 01:00 and 06:00, though the same throttle applies all day. The API's FAQs say an over-rate client address gets HTTP 403 and concurrency limits answer HTTP 429, and that the FSA does not publish those limits.",
+      checkedOn: OPEN_DATA_CHECKED_ON,
+    },
+    notes:
+      "Read by scripts/build_fsa_hygiene_pack.mjs into public/data/fsa_hygiene/london.json: pages of 200 or fewer, one request a second by default (--delay-ms may slow it, never speed it up), the x-api-version: 2 header, and a 429 or 5xx retried a bounded number of times; a 403 stops the run and writes nothing. The pack shows the day it was read beside every rating, as the FSA terms ask. The live /api/hygiene route reads the same API per sheet, server-side.",
+  },
+  {
+    id: "wikidata-query-service",
+    label: "Wikidata Query Service (SPARQL)",
+    url: "https://query.wikidata.org/sparql",
+    kind: "open-data",
+    firstParty: false,
+    nonFirstPartyException:
+      "Wikidata is a commons, not the pub. Take only the history statements (inception, heritage designation, named after, architect) of an item an OSM pub names in its own wikidata tag, at best or normal rank, only when the item is a pub and not a brand, each with its item link and read day.",
+    access: {
+      allowed: true,
+      evidence:
+        "Owner decision, 16 Oct 2026. Read live on 17 Oct 2026, before the first networked run of npm run build:wikidata-history. Wikidata:Data access says all of Wikidata's data is CC0 and asks clients to follow the User-Agent policy. The Wikidata Query Service user manual (mediawiki.org) sets a hard 60-second query deadline; allows one client (User-Agent plus IP) 60 seconds of processing time each 60 seconds, 30 error queries a minute and 5 parallel queries per IP; answers a client over those limits with HTTP 429 and a Retry-After header; may temporarily ban a client that keeps asking through 429s; and may block one that breaks the User-Agent policy. The Wikimedia Foundation User-Agent Policy asks scripts for a descriptive User-Agent with contact information (a website or an email address), and says generic or browser-copied agents may be blocked.",
+      checkedOn: OPEN_DATA_CHECKED_ON,
+    },
+    notes:
+      "Read by scripts/build_wikidata_history_pack.mjs into public/data/wikidata_history/london.json: batches of 100 items one second apart, a descriptive User-Agent naming a contact URL, and a 429 or 5xx retried a bounded number of times after the service's Retry-After, or after a doubling wait when it sends none.",
+  },
+  {
+    id: "historic-england-nhle",
+    label: "Historic England - National Heritage List for England (Listed Building points)",
+    url: "https://services-eu1.arcgis.com/ZOdPfBS3aqqDYPUQ/ArcGIS/rest/services/National_Heritage_List_for_England_NHLE_v02_VIEW/FeatureServer/0/query",
+    kind: "open-data",
+    firstParty: false,
+    nonFirstPartyException:
+      "Historic England keeps the statutory List of buildings of special architectural or historic interest, so its record IS the listing. Take the list entry number, name, grade and list date of listed-building points inside the Greater London box, and keep one only where scripts/lib/heritageMatch.mjs matches it to a pub by name and place; never a description, an era or a construction date.",
+    access: {
+      allowed: true,
+      evidence:
+        "Registered 17 Oct 2026, when the builder's own hard-coded FeatureServer URL moved into this table. Read live on 17 Oct 2026: the layer's service metadata, whose copyright text reads \"© Crown Copyright 2026. Contains Ordnance Survey data © Crown copyright and database right 2026. Released under OGL.\", and its ArcGIS item (owner gis_historicengland), whose licence field names the Historic England Open Data Hub Terms and Conditions and whose data was last edited on 15 Oct 2026. NOT read live: that terms page on historicengland.org.uk, which answered every request from the building environment with a Cloudflare challenge (HTTP 403), and no earlier dated read of it is recorded in this tree. The Open Government Licence v3.0 credit in lib/dataCredits.ts stands on the service's own statement above.",
+      checkedOn: OPEN_DATA_CHECKED_ON,
+    },
+    notes:
+      "Read by scripts/build_heritage_listings.mjs into public/data/heritage_listings.json: one page of 1,000 points at a time (the layer allows 2,000), redirects refused, and a failed page stops the run and writes nothing.",
+  },
 ];
 
 const BY_ID = new Map(HARVEST_SOURCES.map((source) => [source.id, source]));
@@ -424,6 +487,32 @@ export function harvestSourcesOfKind(kind: HarvestSourceKind): HarvestSource[] {
 /** The sources of a kind this run may actually read. */
 export function allowedHarvestSources(kind: HarvestSourceKind): HarvestSource[] {
   return harvestSourcesOfKind(kind).filter(isHarvestSourceAllowed);
+}
+
+/**
+ * The URL an open-data builder may fetch: `pathAndQuery` resolved against its
+ * registered row's own url, or a throw.
+ *
+ * THE TABLE OWNS THE HOST. A builder names its row and the path it wants, so
+ * no builder types an origin, a row the table refuses reads nothing, and a
+ * path that would resolve anywhere else (`//other.host/`, another scheme) is
+ * refused before it is asked. Builders pair this with `redirect: "error"`, so
+ * the host they land on is the host this returned.
+ */
+export function openDataSourceUrl(id: string, pathAndQuery: string): URL {
+  const source = harvestSource(id);
+  if (!source || source.kind !== "open-data") {
+    throw new Error(`sourcePolicy: no open-data source "${id}"`);
+  }
+  if (!source.access.allowed) {
+    throw new Error(`sourcePolicy refuses ${id}: ${source.access.reason}`);
+  }
+  const base = new URL(source.url);
+  const url = new URL(pathAndQuery, base);
+  if (url.protocol !== "https:" || url.host !== base.host) {
+    throw new Error(`sourcePolicy: ${url.href} is not ${source.id}'s ${base.origin}`);
+  }
+  return url;
 }
 
 /**

@@ -4,7 +4,7 @@ Speed is the promise this product makes. A promise nobody counts is a wish, so
 every budgeted route has a number, the number is tracked in the repository, and
 CI refuses a change that goes past it.
 
-- The ceilings: [`perf/route-budgets.json`](../perf/route-budgets.json). Every route the site serves a stranger, all 46 rows
+- The ceilings: [`perf/route-budgets.json`](../perf/route-budgets.json). Every route the site serves a stranger, all 47 rows
 - The pawl on the ratchet: [`scripts/check-budget-ratchet.mjs`](../scripts/check-budget-ratchet.mjs), which refuses a ceiling taken up against the base branch without a record
 - The rules and the failure table: [`lib/performanceBudgets.ts`](../lib/performanceBudgets.ts)
 - The measuring: [`e2e/performance-budget.spec.ts`](../e2e/performance-budget.spec.ts)
@@ -98,10 +98,11 @@ sweep has actually produced, plus a quarter. Every route has at least 25% headro
 against its own worst observation, except `/pal`, which simply keeps its existing
 1500 ms - tighter than the rule would give it, and not raised to suit it.
 
-Production RUM corroborates the lab figure independently: `onLCP` already
-reports through `lib/webVitals.ts` and the consent-gated `web_vital` event
-(`components/PerformanceVitals.tsx`), rounded and route-patterned, carrying no
-identifier.
+Production RUM corroborates the lab figure independently: the consent-gated
+PostHog browser SDK sends one `$web_vitals` event per page (CLS, FCP, INP, LCP)
+on the coarse `$pathname` surface, through `/ingest` and `before_send`
+(`lib/posthogClient.ts`). It is the one field-vitals pipeline; the separate
+`web_vital` product event was removed because it double-counted every load.
 
 ## The regression the rig caught on its first sweep
 
@@ -875,7 +876,7 @@ an unmeasured route reads as a pass and never fails again.
 
 Every route the site serves a stranger. That is two lists.
 
-**The 35 with no dynamic segment**, which is every such `page.tsx` less two:
+**The 36 with no dynamic segment**, which is every such `page.tsx` less two:
 
 - `/admin`, which answers 401 to an anonymous request and renders a token form
   rather than a route.
@@ -914,6 +915,14 @@ runner, so their ceilings are set in FAMILY with `/about` and `/pubs` the way
 `/webmcp`'s were, not at the measured figure: a request count taken on one box
 is not comparable to CI's. CI's sweep is the oracle. Take them DOWN at the next
 sweep, never up.
+
+**And `/credits`**, added on 16 October 2026 with the page itself. It is on the
+legal shell, so it takes the same ceilings as `/how-we-estimate`, and it was
+measured before its row was written: on a production build of its branch, five
+samples beside `/privacy`, `/terms` and `/how-we-estimate`, it rendered in
+16 ms, decoded 835 KB of JS over 31 requests and painted its LCP at a median of
+372 ms (worst 412). Like the ten above, those figures came from a laptop under
+the tracked throttle, so CI's sweep is the oracle. Take them down, never up.
 
 ## The pin-ready record on /map
 

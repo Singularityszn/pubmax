@@ -1,15 +1,18 @@
 import type { Metadata } from "next";
 import { headers } from "next/headers";
 import Link from "next/link";
+import DataCreditsLink from "@/components/legal/DataCreditsLink";
 
+import PriceBadge from "@/components/PriceBadge";
 import JsonLd from "@/components/seo/JsonLd";
 import SiteNav from "@/components/nav/SiteNav";
 import Screen from "@/components/ui/screen";
 import { appPageTitle, metadataSiteName } from "@/lib/brandNaming";
-import { loadAboutStats, type AboutStats } from "@/lib/aboutStats";
+import { loadAboutStats } from "@/lib/aboutStats";
 import { buildLeagueTable, indexSummary } from "@/lib/pintIndex";
+import { priceBand } from "@/lib/priceBand";
 import { loadPublicPintIndexSnapshot } from "@/lib/publicPintIndexSnapshot.server";
-import { CONTACT_EMAIL } from "@/lib/siteContact";
+import { HELLO_EMAIL, HELLO_MAILTO } from "@/lib/siteContact";
 
 import "./about.css";
 
@@ -27,7 +30,7 @@ import "./about.css";
 
 const PAGE_TITLE = "About PUBMAXX";
 const PAGE_DESCRIPTION =
-  "A pint in London can cost eight quid. PubMaxxing puts listed prices on one map for nights out, coffee, food, and sober hangs. We name and link publishers when recorded, and say when none is recorded. Free, and nobody pays to rank.";
+  "A pint in London can cost eight quid. PUBMAXX puts listed prices on one map for nights out, coffee, food, and sober hangs. We name and link publishers when recorded, and say when none is recorded. Free, and nobody pays to rank.";
 
 export const metadata: Metadata = {
   title: PAGE_TITLE,
@@ -44,7 +47,7 @@ export const metadata: Metadata = {
         url: "/og.png",
         width: 1200,
         height: 630,
-        alt: "PUBMAXXING: every pint has a story",
+        alt: "PUBMAXX: every pint has a story",
       },
     ],
   },
@@ -73,31 +76,14 @@ function fmtGbp(n: number | null): string {
   }).format(n);
 }
 
-type Stat = { value: string; label: string; note: string };
+/** A figure inside a sentence: the data face, in ink, with no tile around it. */
+function Figure({ children }: { children: string }) {
+  return <span className="aboutFigure">{children}</span>;
+}
 
-function tractionStats(s: AboutStats): Stat[] {
-  return [
-    {
-      value: fmtInt(s.pubsTracked),
-      label: "pubs tracked",
-      note: "each with a price on record",
-    },
-    {
-      value: fmtInt(s.pintPricesObserved),
-      label: "pint prices logged",
-      note: "readings with their source status shown",
-    },
-    {
-      value: fmtInt(s.historicPubsCited),
-      label: "historic pubs cited",
-      note: "one sourced fact each",
-    },
-    {
-      value: fmtInt(s.citiesCovered),
-      label: "UK cities live",
-      note: "London first, more to browse",
-    },
-  ];
+/** A pint price in a sentence wears its band, like every pint price. */
+function Pint({ gbp }: { gbp: number | null }) {
+  return <PriceBadge band={priceBand(gbp)}>{fmtGbp(gbp)}</PriceBadge>;
 }
 
 export default async function AboutPage() {
@@ -124,7 +110,7 @@ export default async function AboutPage() {
     url: "https://pubmaxxing.com/about",
     isPartOf: {
       "@type": "WebSite",
-      name: "PUBMAXXING",
+      name: "PUBMAXX",
       url: "https://pubmaxxing.com",
     },
     about: {
@@ -135,7 +121,7 @@ export default async function AboutPage() {
       logo: "https://pubmaxxing.com/icon-512.png",
       description:
         "Listed prices with explicit source status for UK pubs, mapped for nights out, daytime hangs, food, coffee, and alcohol-free rounds. A free outing planner that never lets anyone pay to rank.",
-      email: CONTACT_EMAIL,
+      email: HELLO_EMAIL,
       founder: {
         "@type": "Person",
         name: "Karan Manoharan",
@@ -144,10 +130,6 @@ export default async function AboutPage() {
       sameAs: ["https://x.com/karansznx"],
     },
   };
-
-  const cheapest = fmtGbp(stats.cheapestPint);
-  const average = fmtGbp(stats.averagePint);
-  const dearest = fmtGbp(stats.dearestPint);
 
   return (
     <main id="main" className="aboutPage">
@@ -179,7 +161,7 @@ export default async function AboutPage() {
           </>
         }
         primary={<Link prefetch={false} href="/map">Open the map</Link>}
-        secondary={<a href={`mailto:${CONTACT_EMAIL}`}>Contact</a>}
+        secondary={<a href={HELLO_MAILTO}>Contact</a>}
       >
 
       <section className="aboutSection" aria-labelledby="map">
@@ -210,8 +192,8 @@ export default async function AboutPage() {
           separate from pint prices. A drinker pays for nothing.
         </p>
         <p className="aboutBody">
-          Nobody pays to rank. Sponsored listings are labelled and separate
-          from the price order.
+          Nobody pays to rank. There are no sponsored listings today. If one
+          ever comes, it will be labelled and kept out of the price order.
         </p>
       </section>
 
@@ -235,8 +217,8 @@ export default async function AboutPage() {
             a pub on the map doesn&rsquo;t mean we hold its drink prices.
           </li>
           <li>
-            <strong>The price order is not for sale.</strong> Sponsored slots
-            stay labelled and separate.
+            <strong>The price order is not for sale.</strong> No slot is
+            sponsored today, and one never will be without a label.
           </li>
           <li>
             <strong>You can check the source.</strong> Listed prices name and link
@@ -280,40 +262,41 @@ export default async function AboutPage() {
         </figure>
       </section>
 
-      {/* ── Traction / numbers (real, computed at build) ───────── */}
-      <section className="aboutSection aboutTraction" aria-labelledby="traction">
+      {/* ── Traction / numbers (real, computed at request time). One
+          sentence of figures, not a grid of KPI tiles. ──────────── */}
+      <section className="aboutSection" aria-labelledby="traction">
         <h2 id="traction" className="aboutH2">By the numbers</h2>
-        <p className="aboutBody aboutTractionIntro">
-          Every number here is counted from the same public data the app runs
-          on.
+        <p className="aboutBody">
+          PUBMAXX holds a price for <Figure>{fmtInt(stats.pubsTracked)}</Figure>{" "}
+          pubs from <Figure>{fmtInt(stats.pintPricesObserved)}</Figure> pint
+          prices on record, each with its source status shown.{" "}
+          <Figure>{fmtInt(stats.historicPubsCited)}</Figure> historic pubs carry
+          a cited fact, and <Figure>{fmtInt(stats.citiesCovered)}</Figure> UK
+          cities are live, London first. Every figure here is counted from the
+          same public data the app runs on.
         </p>
-        <dl className="aboutStatGrid">
-          {tractionStats(stats).map((stat) => (
-            <div key={stat.label} className="aboutStat">
-              <dt className="aboutStatValue">{stat.value}</dt>
-              <dd className="aboutStatBody">
-                <span className="aboutStatLabel">{stat.label}</span>
-                <span className="aboutStatNote">{stat.note}</span>
-              </dd>
-            </div>
-          ))}
-        </dl>
         <p className="aboutPriceLine">
-          Across <strong>{fmtInt(stats.boroughsCovered)}</strong> London
-          boroughs and neighbourhoods, the cheapest pint we&rsquo;ve logged is{" "}
-          <span className="aboutPriceStamp">{cheapest}</span>. The dearest is{" "}
-          <span className="aboutPriceStamp">{dearest}</span>. The average is{" "}
-          <span className="aboutPriceStamp">{average}</span>.
+          Across <Figure>{fmtInt(stats.boroughsCovered)}</Figure> London
+          boroughs and neighbourhoods, the cheapest listed pint we hold is{" "}
+          <Pint gbp={stats.cheapestPint} />. The dearest is{" "}
+          <Pint gbp={stats.dearestPint} />. The average listed pint across{" "}
+          <Figure>{fmtInt(stats.pubsTracked)}</Figure> London pubs is{" "}
+          <Pint gbp={stats.averagePint} />, the same figure the homepage gives,
+          taken from each pub&rsquo;s cheapest pint.
         </p>
       </section>
 
       {/* ── Press appendix (kit + journalist hooks) ─────────────── */}
-      <section className="aboutSection aboutPress" aria-labelledby="press">
+      <section className="aboutSection" aria-labelledby="press">
         <h2 id="press" className="aboutH2">Press appendix</h2>
         <dl className="aboutPressGrid">
           <div className="aboutPressRow">
             <dt>Name</dt>
-            <dd>PUBMAXX. The app is PUBMAXXING.</dd>
+            <dd>
+              PUBMAXX, always with two Xs. The web address is pubmaxxing.com,
+              because pubmaxxing is what you do with it. Print PUBMAXX for the
+              app and keep the address for links.
+            </dd>
           </div>
           <div className="aboutPressRow">
             <dt>One line</dt>
@@ -334,8 +317,8 @@ export default async function AboutPage() {
           <div className="aboutPressRow">
             <dt>Contact</dt>
             <dd>
-              <a href={`mailto:${CONTACT_EMAIL}`} className="aboutLink">
-                {CONTACT_EMAIL}
+              <a href={HELLO_MAILTO} className="aboutLink">
+                {HELLO_EMAIL}
               </a>
             </dd>
           </div>
@@ -435,7 +418,7 @@ export default async function AboutPage() {
             Open the map
           </Link>
           {" · "}
-          <a href={`mailto:${CONTACT_EMAIL}`} className="aboutLink">
+          <a href={HELLO_MAILTO} className="aboutLink">
             Get in touch
           </a>
         </p>
@@ -452,6 +435,7 @@ export default async function AboutPage() {
               href="https://www.nationalarchives.gov.uk/doc/open-government-licence/version/3/"
               target="_blank"
               rel="noopener noreferrer"
+              className="aboutLink"
             >
               Open Government Licence v3.0
             </a>
@@ -459,6 +443,9 @@ export default async function AboutPage() {
           </li>
           <li>Pub histories cite Wikipedia and Wikidata.</li>
           <li>Mapping data is &copy; OpenStreetMap contributors.</li>
+          <li>
+            <DataCreditsLink className="aboutLink">Every source and its licence</DataCreditsLink>
+          </li>
         </ul>
       </section>
       </Screen>

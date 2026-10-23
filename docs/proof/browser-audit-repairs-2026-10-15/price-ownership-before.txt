@@ -1,0 +1,157 @@
+
+ RUN  v5.0.3 /Users/karanmanoharan/.no-mistakes/worktrees/0a94b5a8763e/01M4ZQRV5QZPYFNNC4P95AMFCP
+
+xxxxxxxxxxxxxxxxxxxxxxxx····xxxxxxxxxxxxxxxxxxxxxxxx---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+⎯⎯⎯⎯⎯⎯ Failed Tests 48 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > refuses complete serving qualifiers before paid consumption: {"query":"3 pubs in Clapham, 330ml beers under£5"}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > refuses complete serving qualifiers before paid consumption: {"query":"3 pubs in Clapham","context":{"foodNeeds":["pizza","330ml beers under£5"]}}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > refuses complete serving qualifiers before paid consumption: {"query":"3 pubs in Clapham, £5 for a 330ml beer"}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > refuses complete serving qualifiers before paid consumption: {"query":"3 pubs in Clapham, 330 ml beers under£5"}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > refuses complete serving qualifiers before paid consumption: {"query":"3 pubs in Clapham","context":{"foodNeeds":["pizza","330 ml beers under£5"]}}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > refuses complete serving qualifiers before paid consumption: {"query":"3 pubs in Clapham, £5 for a 330 ml beer"}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > refuses complete serving qualifiers before paid consumption: {"query":"3 pubs in Clapham, 33cl beers under£5"}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > refuses complete serving qualifiers before paid consumption: {"query":"3 pubs in Clapham","context":{"foodNeeds":["pizza","33cl beers under£5"]}}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > refuses complete serving qualifiers before paid consumption: {"query":"3 pubs in Clapham, £5 for a 33cl beer"}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > refuses complete serving qualifiers before paid consumption: {"query":"3 pubs in Clapham, 0.33L beers under£5"}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > refuses complete serving qualifiers before paid consumption: {"query":"3 pubs in Clapham","context":{"foodNeeds":["pizza","0.33L beers under£5"]}}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > refuses complete serving qualifiers before paid consumption: {"query":"3 pubs in Clapham, £5 for a 0.33L beer"}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > refuses complete serving qualifiers before paid consumption: {"query":"3 pubs in Clapham, £5 for a beer 330ml"}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > refuses complete serving qualifiers before paid consumption: {"query":"3 pubs in Clapham","context":{"foodNeeds":["pizza","£5 for a beer 330ml"]}}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > refuses complete serving qualifiers before paid consumption: {"query":"3 pubs in Clapham, two 330ml beers under£5"}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > refuses complete serving qualifiers before paid consumption: {"query":"3 pubs in Clapham","context":{"foodNeeds":["pizza","two 330ml beers under£5"]}}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > refuses complete serving qualifiers before paid consumption: {"query":"3 pubs in Clapham, £5 for two 330ml beers"}
+AssertionError: expected 200 to be 422 // Object.is equality
+
+- Expected
++ Received
+
+- 422
++ 200
+
+ ❯ __tests__/planGenerateRoute.test.ts:203:29
+    201|       method: "POST", body: JSON.stringify(input),
+    202|     }));
+    203|     expect(response.status).toBe(422);
+       |                             ^
+    204|     expect(await response.json()).toMatchObject({ code: "DRINK_PRICE_C…
+    205|     expect("response" in prepared ? prepared.response.status : 200).to…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/48]⎯
+
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > refuses complete serving qualifiers before paid consumption: {"query":"3 pubs in Clapham","context":{"foodNeeds":["pizza","£5 for a 330ml beer"]}}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > refuses complete serving qualifiers before paid consumption: {"query":"3 pubs in Clapham","context":{"foodNeeds":["pizza","£5 for a 330 ml beer"]}}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > refuses complete serving qualifiers before paid consumption: {"query":"3 pubs in Clapham","context":{"foodNeeds":["pizza","£5 for a 33cl beer"]}}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > refuses complete serving qualifiers before paid consumption: {"query":"3 pubs in Clapham","context":{"foodNeeds":["pizza","£5 for a 0.33L beer"]}}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > refuses complete serving qualifiers before paid consumption: {"query":"3 pubs in Clapham","context":{"foodNeeds":["pizza","beers 330ml under£5"]}}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > refuses complete serving qualifiers before paid consumption: {"query":"3 pubs in Clapham","context":{"foodNeeds":["pizza","£5 for two 330ml beers"]}}
+AssertionError: expected { …(3) } to match object { Object (code) }
+(2 matching properties omitted from actual)
+
+- Expected
++ Received
+
+  {
+-   "code": "DRINK_PRICE_CONSTRAINTS_UNSUPPORTED",
++   "code": "MEAL_CONSTRAINTS_UNSUPPORTED",
+  }
+
+ ❯ __tests__/planGenerateRoute.test.ts:204:35
+    202|     }));
+    203|     expect(response.status).toBe(422);
+    204|     expect(await response.json()).toMatchObject({ code: "DRINK_PRICE_C…
+       |                                   ^
+    205|     expect("response" in prepared ? prepared.response.status : 200).to…
+    206|     if (!("response" in prepared)) throw new Error("Expected unsupport…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/48]⎯
+
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > refuses complete serving qualifiers before paid consumption: {"query":"3 pubs in Clapham, beers 330ml under£5"}
+AssertionError: expected { …(4) } to match object { Object (code) }
+(8 matching properties omitted from actual)
+
+- Expected
++ Received
+
+  {
+-   "code": "DRINK_PRICE_CONSTRAINTS_UNSUPPORTED",
++   "code": "GROUNDED_CONSTRAINTS_UNSATISFIED",
+  }
+
+ ❯ __tests__/planGenerateRoute.test.ts:204:35
+    202|     }));
+    203|     expect(response.status).toBe(422);
+    204|     expect(await response.json()).toMatchObject({ code: "DRINK_PRICE_C…
+       |                                   ^
+    205|     expect("response" in prepared ? prepared.response.status : 200).to…
+    206|     if (!("response" in prepared)) throw new Error("Expected unsupport…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/48]⎯
+
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > preserves explicit route ownership before drink rates: {"query":"3 pubs in Clapham, pub route budget of£5 for drinks, pints under£5"}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > preserves explicit route ownership before drink rates: {"query":"3 pubs in Clapham, pints under£5, pub route budget of£5 for drinks"}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > preserves explicit route ownership before drink rates: {"query":"3 pubs in Clapham","context":{"foodNeeds":["pizza","pub route budget of£5 for drinks","pints under£5"]}}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > preserves explicit route ownership before drink rates: {"query":"3 pubs in Clapham","context":{"foodNeeds":["pints under£5","pub route budget of£5 for drinks","pizza"]}}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > preserves explicit route ownership before drink rates: {"query":"3 pubs in Clapham, pub route budget of£5 for beers, pints under£5"}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > preserves explicit route ownership before drink rates: {"query":"3 pubs in Clapham, pints under£5, pub route budget of£5 for beers"}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > preserves explicit route ownership before drink rates: {"query":"3 pubs in Clapham","context":{"foodNeeds":["pizza","pub route budget of£5 for beers","pints under£5"]}}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > preserves explicit route ownership before drink rates: {"query":"3 pubs in Clapham","context":{"foodNeeds":["pints under£5","pub route budget of£5 for beers","pizza"]}}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > preserves explicit route ownership before drink rates: {"query":"3 pubs in Clapham, pub route budget of£5 for pints, pints under£5"}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > preserves explicit route ownership before drink rates: {"query":"3 pubs in Clapham, pints under£5, pub route budget of£5 for pints"}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > preserves explicit route ownership before drink rates: {"query":"3 pubs in Clapham","context":{"foodNeeds":["pizza","pub route budget of£5 for pints","pints under£5"]}}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > preserves explicit route ownership before drink rates: {"query":"3 pubs in Clapham","context":{"foodNeeds":["pints under£5","pub route budget of£5 for pints","pizza"]}}
+AssertionError: expected 200 to be 422 // Object.is equality
+
+- Expected
++ Received
+
+- 422
++ 200
+
+ ❯ __tests__/planGenerateRoute.test.ts:236:33
+    234|       const body = await response.json();
+    235|       if (total === 500) {
+    236|         expect(response.status).toBe(422);
+       |                                 ^
+    237|         expect(body).toMatchObject({ code: "GROUNDED_CONSTRAINTS_UNSAT…
+    238|       } else {
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/48]⎯
+
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > preserves explicit route ownership before drink rates: {"query":"3 pubs in Clapham, pub route budget of£20 for drinks, pints under£5"}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > preserves explicit route ownership before drink rates: {"query":"3 pubs in Clapham, pints under£5, pub route budget of£20 for drinks"}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > preserves explicit route ownership before drink rates: {"query":"3 pubs in Clapham","context":{"foodNeeds":["pizza","pub route budget of£20 for drinks","pints under£5"]}}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > preserves explicit route ownership before drink rates: {"query":"3 pubs in Clapham","context":{"foodNeeds":["pints under£5","pub route budget of£20 for drinks","pizza"]}}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > preserves explicit route ownership before drink rates: {"query":"3 pubs in Clapham, pub route budget of£20 for beers, pints under£5"}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > preserves explicit route ownership before drink rates: {"query":"3 pubs in Clapham, pints under£5, pub route budget of£20 for beers"}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > preserves explicit route ownership before drink rates: {"query":"3 pubs in Clapham","context":{"foodNeeds":["pizza","pub route budget of£20 for beers","pints under£5"]}}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > preserves explicit route ownership before drink rates: {"query":"3 pubs in Clapham","context":{"foodNeeds":["pints under£5","pub route budget of£20 for beers","pizza"]}}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > preserves explicit route ownership before drink rates: {"query":"3 pubs in Clapham, pub route budget of£20 for pints, pints under£5"}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > preserves explicit route ownership before drink rates: {"query":"3 pubs in Clapham, pints under£5, pub route budget of£20 for pints"}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > preserves explicit route ownership before drink rates: {"query":"3 pubs in Clapham","context":{"foodNeeds":["pizza","pub route budget of£20 for pints","pints under£5"]}}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > preserves explicit route ownership before drink rates: {"query":"3 pubs in Clapham","context":{"foodNeeds":["pints under£5","pub route budget of£20 for pints","pizza"]}}
+AssertionError: expected null to be 2000 // Object.is equality
+
+- Expected:
+2000
+
++ Received:
+null
+
+ ❯ __tests__/planGenerateRoute.test.ts:240:55
+    238|       } else {
+    239|         expect(response.status, JSON.stringify(body)).toBe(200);
+    240|         expect(body.inferredContext.budgetLimitPence).toBe(2000);
+       |                                                       ^
+    241|         expect(body.budgetSummary).toMatchObject({ limitPence: 2000, w…
+    242|         expect(body.stops).toHaveLength(3);
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[5/48]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  48 failed | 4 passed | 957 skipped (1009)
+   Start at  14:24:37
+   Duration  824ms (transform 52%, tests 29%, import 18%)
+

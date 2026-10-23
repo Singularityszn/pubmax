@@ -48,6 +48,7 @@ export default function RouteList({
       name: venue.name,
       address: venue.address,
       storyTag: venue.curation.storyTag,
+      locality: venue.locality,
       primaryBorough: venue.primaryBorough,
       visibleBoroughs: venue.visibleBoroughs,
     })),
@@ -87,7 +88,7 @@ export default function RouteList({
                     style={{ marginLeft: "6px", verticalAlign: "middle" }}
                     title={`${dropCount} Pint Drop${dropCount === 1 ? "" : "s"} logged here`}
                   >
-                    <Beer size={11} aria-hidden="true" />
+                    <Beer size={14} aria-hidden="true" />
                     {dropCount}
                   </span>
                 ) : null}
@@ -106,12 +107,12 @@ export default function RouteList({
             target="_blank"
             rel="noopener noreferrer"
           >
-            <Navigation size={12} aria-hidden="true" />
+            <Navigation size={14} aria-hidden="true" />
             <span>Directions</span>
           </a>
           {leg ? (
             <div className="routeLeg" aria-label={`Leg to ${leg.to.name}`}>
-              <Footprints size={13} aria-hidden="true" />
+              <Footprints size={14} aria-hidden="true" />
               <span>{formatLeg(leg)}</span>
               {onTheWay.length > 0 ? (
                 <p className="routeLegOnWay">
@@ -120,7 +121,7 @@ export default function RouteList({
               ) : null}
               {transitJourney ? (
                 <p className="routeLegTransit" aria-label="TfL leg">
-                  <TrainFront size={12} aria-hidden="true" />
+                  <TrainFront size={14} aria-hidden="true" />
                   <span>{transitJourney.summary}</span>
                 </p>
               ) : null}

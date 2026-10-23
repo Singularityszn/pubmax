@@ -61,6 +61,8 @@ const TICKETMASTER_ROWS = Array.from({ length: 24 }, (_, index) => ({
   confidence: "listed",
 })) as WhatsOnRow[];
 
+const OUT_EVENTS: WhatsOnRow[] = [];
+
 const HYPED: HypedPub[] = [
   {
     name: "The Pelican Rise",
@@ -105,7 +107,7 @@ vi.mock("@/components/map/useWhatsOnTonight", () => ({
 }));
 vi.mock("@/components/out/useOutListings", () => ({
   useOutListings: () => ({
-    body: { status: "ready", listingsStatus: "ready", events: [], reason: undefined },
+    body: { status: "ready", listingsStatus: "ready", events: OUT_EVENTS, reason: undefined },
     failed: false,
     pending: false,
     retry: () => {},
@@ -127,6 +129,7 @@ beforeEach(() => {
 afterEach(() => {
   act(() => root.unmount());
   container.remove();
+  OUT_EVENTS.length = 0;
 });
 
 async function mount(props: Record<string, unknown> = {}): Promise<void> {
@@ -143,6 +146,12 @@ function ledeText(): string {
 }
 
 describe("the tonight lede, hydrated", () => {
+  it("explains why event listings without a pub match are absent", async () => {
+    OUT_EVENTS.push({ ...TICKETMASTER_ROWS[0]!, id: "unmatched-arena", venueId: undefined });
+    await mount();
+    expect(container.textContent).toContain("Some event listings are not matched to a pub.");
+  });
+
   it("keeps every Wetherspoon and Ticketmaster row out of the lede region", async () => {
     await mount();
     const lede = ledeText();
@@ -156,10 +165,10 @@ describe("the tonight lede, hydrated", () => {
     ).toBe("empty");
   });
 
-  it("leads with the pubs people are talking about when the pack carries rows", async () => {
+  it("leads with the pubs Londoners keep recommending when the pack carries rows", async () => {
     await mount({ hypedPubs: HYPED });
     const lede = ledeText();
-    expect(lede).toContain("Pubs people are talking about");
+    expect(lede).toContain("Pubs Londoners keep recommending");
     expect(lede).toContain("The Pelican Rise");
     expect(lede).toContain("r/london");
     expect(lede).toContain("Not on our map yet");
@@ -167,7 +176,7 @@ describe("the tonight lede, hydrated", () => {
     expect(lede).not.toContain("Ticketmaster");
   });
 
-  it("keeps only the first pub explanation behind a disclosure", async () => {
+  it("folds every pub's reason the same way, so no card is the odd one out", async () => {
     const rows = Array.from({ length: 6 }, (_, index) => ({
       ...HYPED[index % HYPED.length]!,
       name: `Pub ${index + 1}`,
@@ -176,25 +185,44 @@ describe("the tonight lede, hydrated", () => {
     await mount({ hypedPubs: rows });
     const pubs = Array.from(container.querySelectorAll('[data-testid="tonight-hyped-row"]'));
     expect(pubs).toHaveLength(6);
-    const firstDetails = pubs[0]!.querySelector("details");
-    expect(firstDetails).not.toBeNull();
-    expect(firstDetails?.open).toBe(false);
-    firstDetails!.querySelector("summary")!.click();
-    expect(firstDetails?.open).toBe(true);
-    expect(pubs[0]!.querySelector(".tonightHypedWhy")?.textContent).toBe(rows[0]!.whyLine);
     for (const [index, pub] of pubs.entries()) {
-      expect(pub.querySelector(".tonightHypedSource")?.getAttribute("href"))
+      const reason = pub.querySelector<HTMLDetailsElement>("details.tonightHypedReason");
+      expect(reason, `card ${index + 1} folds its reason`).not.toBeNull();
+      expect(reason!.open).toBe(false);
+      expect(reason!.querySelector("summary")?.textContent).toContain("Why this pub");
+      expect(reason!.querySelector(".tonightHypedWhy")?.textContent).toBe(rows[index]!.whyLine);
+      expect(reason!.querySelector(".tonightHypedSource")?.getAttribute("href"))
         .toBe(rows[index]!.sources[0]!.url);
-      expect(pub.querySelector(".tonightHypedChecked")?.textContent).toContain("Checked");
-      if (index > 0) {
-        expect(pub.querySelector("details")).toBeNull();
-        expect(pub.querySelector(".tonightHypedWhy")?.textContent).toBe(rows[index]!.whyLine);
-      }
+      expect(reason!.querySelector(".tonightHypedChecked")?.textContent).toContain("Checked");
     }
     const more = container.querySelector<HTMLDetailsElement>(".tonightHypedMore");
     more!.querySelector("summary")!.click();
     expect(more?.open).toBe(true);
-    expect(more?.querySelector("details")).toBeNull();
+    expect(more?.querySelectorAll("details.tonightHypedReason").length).toBeGreaterThan(0);
+  });
+
+  it("leads with pubs the map can open and prints the listed pint we hold", async () => {
+    const priced: HypedPub[] = [
+      HYPED[0]!,
+      {
+        ...HYPED[1]!,
+        listedPint: { priceGbp: 5.2, observedAt: "2026-09-01T10:00:00.000Z" },
+      },
+    ];
+    await mount({ hypedPubs: priced });
+    const pubs = Array.from(container.querySelectorAll('[data-testid="tonight-hyped-row"]'));
+    // The pack ranks the unmatched pub louder; the map's pub still leads.
+    expect(pubs.map((pub) => pub.querySelector(".tonightHypedName")?.textContent)).toEqual([
+      "The Dover Castle",
+      "The Pelican Rise",
+    ]);
+    const price = pubs[0]!.querySelector('[data-testid="tonight-hyped-price"]');
+    expect(price?.textContent).toContain("Cheapest listed pint");
+    expect(price?.textContent).toContain("£5.20");
+    expect(price?.textContent).toContain("listed 1 Sept");
+    expect(price?.querySelector("time")?.getAttribute("title")).toBe("1 September 2026");
+    expect(pubs[1]!.querySelector('[data-testid="tonight-hyped-price"]')).toBeNull();
+    expect(pubs[1]!.textContent).toContain("Not on our map yet");
   });
 
   it("does not call the city quiet beside pub suggestions", async () => {

@@ -73,7 +73,12 @@ export default function NextBadgeChips({
               : [];
           const mine = all.filter((d) => normalizeHandle(d.handle) === resolved);
           if (controller.signal.aborted) return;
-          setQuests(nextBadgeProgress(mine, profileStats(mine)));
+          // A badge with nothing toward it yet is not progress, and "0/1" for
+          // being a person read as a gamified level (docs/VOICE.md). Only a
+          // badge somebody has started on is named.
+          setQuests(
+            nextBadgeProgress(mine, profileStats(mine)).filter((quest) => quest.current > 0),
+          );
         },
       );
     }
@@ -91,8 +96,8 @@ export default function NextBadgeChips({
       const events = placeQuestEventChips();
       if (active) {
         setCrawlsWalked(next);
-        setCrawlQuests(chips);
-        setEventQuests(events);
+        setCrawlQuests(chips.filter((chip) => chip.current > 0));
+        setEventQuests(events.filter((chip) => chip.current > 0));
       }
     }
     void loadWalked();

@@ -107,8 +107,8 @@ export default function MobileTflPanel({ status }: { status: MobileTflStatus }) 
   return (
     <div className="mobileTflGroups">
       {freshness(payload.asOf)}
-      {disrupted.length ? <section><h3><TrainFront size={18} />Transport</h3><ul>{disrupted.map((line) => <li key={`${line.line}-${line.status}`}><strong>{line.line}</strong><span>{line.status}</span>{line.disruption ? <p>{line.disruption}</p> : null}</li>)}</ul></section> : null}
-      {grouped.map((group) => <section key={group.label}><h3>{group.label === "Events" ? <CalendarClock size={18} /> : <AlertTriangle size={18} />}{group.label}</h3><ul>{group.rows.map((signal, index) => <li key={`${signal.headline}-${index}`}><strong>{signal.headline}</strong>{signal.detail ? <p>{signal.detail}</p> : null}<span>{[signal.timeWindow, signal.areas?.join(", ")].filter(Boolean).join(" · ")}</span><SignalSource sourceUrl={signal.sourceUrl} /></li>)}</ul></section>)}
+      {disrupted.length ? <section><h3><TrainFront size={16} />Transport</h3><ul>{disrupted.map((line) => <li key={`${line.line}-${line.status}`}><strong>{line.line}</strong><span>{line.status}</span>{line.disruption ? <p>{line.disruption}</p> : null}</li>)}</ul></section> : null}
+      {grouped.map((group) => <section key={group.label}><h3>{group.label === "Events" ? <CalendarClock size={16} /> : <AlertTriangle size={16} />}{group.label}</h3><ul>{group.rows.map((signal, index) => <li key={`${signal.headline}-${index}`}><strong>{signal.headline}</strong>{signal.detail ? <p>{signal.detail}</p> : null}<span>{[signal.timeWindow, signal.areas?.join(", ")].filter(Boolean).join(" · ")}</span><SignalSource sourceUrl={signal.sourceUrl} /></li>)}</ul></section>)}
     </div>
   );
 }

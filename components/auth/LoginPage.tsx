@@ -17,14 +17,17 @@ import AccountDeviceControls from "@/components/auth/AccountDeviceControls";
 import type { PublicProfileCard } from "@/components/auth/publicProfileCard";
 import { usePublicProfileCard } from "@/components/auth/usePublicProfileCard";
 import { useAuth, type SignOutScope } from "@/components/auth/AuthProvider";
-import { hasSocialAuthProviders } from "@/lib/authProviderAvailability";
+import { readProviderAccountSignal } from "@/lib/authProviderRevision";
+import { hasSocialAuthProviders, type AuthStartResult } from "@/lib/authProviderAvailability";
 import { useDeviceAccounts } from "@/components/auth/useDeviceAccounts";
 import MagicLinkForm from "@/components/auth/MagicLinkForm";
 import HandlePasswordSignIn from "@/components/auth/HandlePasswordSignIn";
+import PhoneSignIn from "@/components/auth/PhoneSignIn";
 import type { MagicLinkResult } from "@/lib/passwordlessAuth";
 import SocialSignInButtons from "@/components/auth/SocialSignInButtons";
 import Kicker from "@/components/ui/kicker";
 import Screen from "@/components/ui/screen";
+import { moveTablistFocus } from "@/components/ui/tabs";
 import { BRAND_NAME } from "@/lib/brandNaming";
 import { isClerkProductSessionAvailable } from "@/lib/clerkAvailability";
 import { trackEvent } from "@/lib/analytics";
@@ -82,7 +85,7 @@ const DOORS: Record<
   },
   signup: {
     tab: "New here",
-    title: "Let's get you in",
+    title: "Make an account",
     lead: "Log a pint price, plan a crawl, keep your nights. Takes a handle and a minute.",
     emailLabel: "Create your account with email",
     emailCta: "Email me a sign-up link",
@@ -378,14 +381,58 @@ function DoorSwitch({
           role="tab"
           className="loginPageDoor"
           aria-selected={intent === option}
+          tabIndex={intent === option ? 0 : -1}
           data-selected={intent === option ? "" : undefined}
           onClick={() => onChoose(option)}
+          onKeyDown={(event) => moveTablistFocus(event)}
         >
           {DOORS[option].tab}
         </button>
       ))}
     </div>
   );
+}
+
+function renderLoginPageHeadActions({
+  showSignedIn,
+  showWelcomeBack,
+  resumeStatus,
+  maskedEmail,
+  onResume,
+  onUseDifferentAccount,
+}: {
+  showSignedIn: boolean;
+  showWelcomeBack: boolean;
+  resumeStatus: "idle" | "sending" | MagicLinkResult["status"];
+  maskedEmail: string | null | undefined;
+  onResume: () => Promise<void>;
+  onUseDifferentAccount: () => void;
+}): {
+  primary: ReactElement | undefined;
+  secondary: ReactElement | undefined;
+} {
+  const resumeSettled = resumeStatus === "sending" || resumeStatus === "sent";
+  const primary: ReactElement | undefined = showSignedIn ? (
+    <Link href="/map">Continue to the map</Link>
+  ) : showWelcomeBack ? (
+    <button type="button" onClick={() => void onResume()} disabled={resumeSettled}>
+      {resumeStatus === "sending"
+        ? "Sending…"
+        : resumeStatus === "sent"
+          ? "Link sent"
+          : maskedEmail
+            ? `Continue as ${maskedEmail}`
+            : "Email me a sign-in link"}
+    </button>
+  ) : undefined;
+  const secondary: ReactElement | undefined = showSignedIn ? (
+    <Link href="/u/you">Your profile</Link>
+  ) : showWelcomeBack ? (
+    <button type="button" onClick={onUseDifferentAccount}>
+      Use a different account
+    </button>
+  ) : undefined;
+  return { primary, secondary };
 }
 
 /**
@@ -441,6 +488,15 @@ export default function LoginPage({
   // ONE live read of the remembered-account lane on this page.
   const deviceAccounts = useDeviceAccounts();
   const [busy, setBusy] = useState<"google" | "apple" | "microsoft" | "out" | null>(null);
+  const operationRef = useRef<symbol | null>(null);
+  const mountedRef = useRef(false);
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+      operationRef.current = null;
+    };
+  }, []);
   const [error, setError] = useState<string | null>(null);
   const [resumeStatus, setResumeStatus] = useState<
     "idle" | "sending" | MagicLinkResult["status"]
@@ -458,7 +514,8 @@ export default function LoginPage({
   useEffect(() => {
     const onPageShow = (event: PageTransitionEvent) => {
       if (event.persisted) {
-        cancelAuthAttempt();
+        operationRef.current = null;
+        cancelAuthAttempt({ keepEmailLink: true });
         setBusy(null);
       }
     };
@@ -510,44 +567,33 @@ export default function LoginPage({
     [destination, intent, signInWithEmail],
   );
 
-  const onSignInGoogle = useCallback(async () => {
-    trackEvent("sign_in_initiated", { provider: "google" });
-    setBusy("google");
+  const onProviderSignIn = useCallback(async (
+    provider: "google" | "apple" | "microsoft",
+    start: (next?: string) => Promise<AuthStartResult>,
+  ) => {
+    const operation = Symbol();
+    const accountSignal = readProviderAccountSignal();
+    operationRef.current = operation;
+    const ownsOperation = () => mountedRef.current && operationRef.current === operation;
+    trackEvent("sign_in_initiated", { provider });
+    setBusy(provider);
     setError(null);
-    const { error: signInError } = providerDestination
-      ? await signInWithGoogle(providerDestination)
-      : await signInWithGoogle();
-    if (signInError) {
-      setError(signInError);
-      setBusy(null);
+    // While the page leaves for the provider the controls stay busy; a
+    // back-forward cache restore releases them.
+    let navigating = false;
+    try {
+      const { error: signInError, navigating: leaving } = providerDestination ? await start(providerDestination) : await start();
+      navigating = leaving === true && !signInError;
+      if (ownsOperation() && !accountSignal.aborted && signInError) setError(signInError);
+    } catch {
+      if (ownsOperation() && !accountSignal.aborted) setError("Sign-in could not be started. Try again.");
+    } finally {
+      if (ownsOperation() && !navigating) {
+        operationRef.current = null;
+        setBusy(null);
+      }
     }
-  }, [providerDestination, signInWithGoogle]);
-
-  const onSignInApple = useCallback(async () => {
-    trackEvent("sign_in_initiated", { provider: "apple" });
-    setBusy("apple");
-    setError(null);
-    const { error: signInError } = providerDestination
-      ? await signInWithApple(providerDestination)
-      : await signInWithApple();
-    if (signInError) {
-      setError(signInError);
-      setBusy(null);
-    }
-  }, [providerDestination, signInWithApple]);
-
-  const onSignInMicrosoft = useCallback(async () => {
-    trackEvent("sign_in_initiated", { provider: "microsoft" });
-    setBusy("microsoft");
-    setError(null);
-    const { error: signInError } = providerDestination
-      ? await signInWithMicrosoft(providerDestination)
-      : await signInWithMicrosoft();
-    if (signInError) {
-      setError(signInError);
-      setBusy(null);
-    }
-  }, [providerDestination, signInWithMicrosoft]);
+  }, [providerDestination]);
 
   const onResume = useCallback(async () => {
     if (resumeStatus === "sending" || resumeStatus === "sent") return;
@@ -557,15 +603,23 @@ export default function LoginPage({
     const result = providerDestination
       ? await resumeSignIn(providerDestination)
       : await resumeSignIn();
-    setResumeStatus(result.status);
+    setResumeStatus(result.status === "cancelled" ? "idle" : result.status);
     setResumeMessage(result.message);
   }, [providerDestination, resumeSignIn, resumeStatus]);
 
   const onSignOut = useCallback(
     async (scope: SignOutScope) => {
+      const operation = Symbol();
+      operationRef.current = operation;
       setBusy("out");
-      await signOut(scope);
-      setBusy(null);
+      try {
+        await signOut(scope);
+      } finally {
+        if (mountedRef.current && operationRef.current === operation) {
+          operationRef.current = null;
+          setBusy(null);
+        }
+      }
     },
     [signOut],
   );
@@ -614,10 +668,6 @@ export default function LoginPage({
     !loading && !showSignedIn && hasAuthSurface && Boolean(welcomeBack) && !useDifferentAccount;
 
 
-  // ONE primary for the page, decided by the same state the body is. A signed-in
-  // reader's is the map; a returning device's is the one-tap resume; everybody
-  // else's is the link.
-  const resumeSettled = resumeStatus === "sending" || resumeStatus === "sent";
   // ONE painted control for the page. A signed-in reader gets the map door and
   // a returning one the resume tap; while the FORM is on screen the head paints
   // nothing, because the form's own submit beside the field is the primary
@@ -625,26 +675,14 @@ export default function LoginPage({
   // submit under it were two doors for one action). A reader with no session
   // hint paints that form immediately. A hint keeps the skeleton where the
   // card will be, and no door is painted until the session answers.
-  const headPrimary: ReactElement | undefined = showSignedIn && !loading ? (
-    <Link href="/map">Continue to the map</Link>
-  ) : showWelcomeBack ? (
-    <button type="button" onClick={() => void onResume()} disabled={resumeSettled}>
-      {resumeStatus === "sending"
-        ? "Sending…"
-        : resumeStatus === "sent"
-          ? "Link sent"
-          : welcomeBack?.maskedEmail
-            ? `Continue as ${welcomeBack.maskedEmail}`
-            : "Email me a sign-in link"}
-    </button>
-  ) : undefined;
-  const headSecondary: ReactElement | undefined = showSignedIn && !loading ? (
-    <Link href="/u/you">Your profile</Link>
-  ) : showWelcomeBack ? (
-    <button type="button" onClick={() => setUseDifferentAccount(true)}>
-      Use a different account
-    </button>
-  ) : undefined;
+  const { primary: headPrimary, secondary: headSecondary } = renderLoginPageHeadActions({
+    showSignedIn: showSignedIn && !loading,
+    showWelcomeBack,
+    resumeStatus,
+    maskedEmail: welcomeBack?.maskedEmail,
+    onResume,
+    onUseDifferentAccount: () => setUseDifferentAccount(true),
+  });
 
   return (
     <main className="loginPage">
@@ -702,6 +740,12 @@ export default function LoginPage({
                     submitLabel={door.emailCta}
                     primaryAction
                   />
+                  {/* A text code makes the account on first use, so the
+                      phone door serves both intents, like the email one. */}
+                  <PhoneSignIn
+                    disabled={busy !== null}
+                    redirectTo={passwordDestination}
+                  />
                   {intent === "signin" ? (
                     <HandlePasswordSignIn
                       disabled={busy !== null}
@@ -725,9 +769,9 @@ export default function LoginPage({
                 <SocialSignInButtons
                   availability={socialProviders}
                   disabled={busy !== null}
-                  onGoogle={onSignInGoogle}
-                  onApple={onSignInApple}
-                  onMicrosoft={onSignInMicrosoft}
+                  onGoogle={() => onProviderSignIn("google", signInWithGoogle)}
+                  onApple={() => onProviderSignIn("apple", signInWithApple)}
+                  onMicrosoft={() => onProviderSignIn("microsoft", signInWithMicrosoft)}
                   fullLabels
                 />
               ) : null}

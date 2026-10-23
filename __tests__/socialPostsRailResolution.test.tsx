@@ -41,6 +41,7 @@ vi.mock("@/app/social/SocialOutbox", () => ({ default: () => null }));
 vi.mock("@/app/social/SocialTagInbox", () => ({ default: () => null }));
 
 import SocialPageClient from "@/app/social/SocialPageClient";
+import { SOCIAL_SIGNED_OUT_VALUE_LINE } from "@/lib/socialLaunch";
 
 const posts = { valid: true as const, tab: "posts" as const, feed: "following" as const, area: null };
 let host: HTMLDivElement;
@@ -124,17 +125,24 @@ describe("Social Posts account resolution", () => {
     expect(getComputedStyle(primary).maxWidth).toBe(pendingMaxWidth);
   });
 
-  it("reserves the signed-out content in the same rail slot before the account answers", async () => {
+  it("reserves the signed-out door's one line in the same slot before the account answers", async () => {
     await renderSocial();
 
-    const rail = host.querySelector('aside[aria-label="Social views"]')!;
-    const slot = rail.querySelector('section[aria-label="Social posts"]');
-    expect(slot, "the pending account must reserve the Posts rail slot").not.toBeNull();
+    // A stranger on the posts tab reads ONE column (taste plan, 18 Oct 2026):
+    // no rail beside a body that holds a single line.
+    expect(host.querySelector('aside[aria-label="Social views"]')).toBeNull();
+    const door = host.querySelector(".socialDoor")!;
+    expect(door, "the posts tab paints one reading column for a stranger").not.toBeNull();
+    expect(host.querySelector("main")?.classList.contains("socialPage--door")).toBe(true);
+    const slot = door.querySelector('section[aria-label="Social posts"]');
+    expect(slot, "the pending account must reserve the door's slot").not.toBeNull();
     const content = slot!.querySelector(".emptyState")!.parentElement!;
-    const pendingChildren = Array.from(rail.children);
+    const pendingChildren = Array.from(door.children);
     const sizingContent = content.textContent;
-    expect(sizingContent).toContain("No posts to read yet.");
-    expect(sizingContent).toContain("Sign in from the button above");
+    // The hidden sizing copy is the same shape as the answer (a one-line title
+    // and the value line) and names no door before the session answers.
+    expect(sizingContent).toContain(SOCIAL_SIGNED_OUT_VALUE_LINE);
+    expect(sizingContent).not.toMatch(/sign in/i);
     expect(content.getAttribute("aria-hidden")).toBe("true");
     expect(getComputedStyle(content).visibility).toBe("hidden");
     expect(getComputedStyle(content).display).not.toBe("none");
@@ -149,18 +157,25 @@ describe("Social Posts account resolution", () => {
     setSession("signed-out");
     await renderSocial();
 
-    expect(rail.querySelector('section[aria-label="Social posts"]')).toBe(slot);
-    expect(Array.from(rail.children)).toEqual(pendingChildren);
+    expect(door.querySelector('section[aria-label="Social posts"]')).toBe(slot);
     expect(slot!.querySelector(".emptyState")!.parentElement).toBe(content);
-    expect(content.textContent).toBe(sizingContent);
+    // The boundary prints its line ONCE, beside the value line, and the head
+    // carries the only door.
+    expect(content.textContent).toContain("Sign in to use Social.");
+    expect(content.textContent).toContain(SOCIAL_SIGNED_OUT_VALUE_LINE);
     expect(content.hasAttribute("aria-hidden")).toBe(false);
     expect(getComputedStyle(content).visibility).toBe("visible");
+    expect(slot!.getAttribute("role")).toBe("status");
     expect(slot!.querySelector('[role="status"]')).toBeNull();
+    expect(host.querySelectorAll('a[href*="/login"]')).toHaveLength(1);
     expect(host.querySelectorAll('.screenPrimary a[href*="/login"]')).toHaveLength(1);
+    expect(host.textContent!.match(/Sign in/g)).toHaveLength(2);
     expect(host.querySelectorAll(".starterPacks__card")).toHaveLength(1);
     expect(host.querySelectorAll(".starterPacks__follow")).toHaveLength(0);
     expect(host.querySelectorAll("#find-lot-title")).toHaveLength(1);
     expect(host.querySelectorAll(".socialFoundersLink")).toHaveLength(1);
+    // Everything above the packs kept its place while the account answered.
+    expect(Array.from(door.children).slice(0, 2)).toEqual(pendingChildren.slice(0, 2));
   });
 
   it("keeps an unanswered account neutral and hides stale signed-out copy when resolution restarts", async () => {

@@ -22,7 +22,7 @@
       "rowIdentitySetSha256": "685286bb4c197ef95568be98c0d933017867f220754c9c098543a21c38c49320"
     },
     "currentBundle": {
-      "rowCount": 7595,
+      "rowCount": 7200,
       "siteHarvestRows": 3085
     }
   },
@@ -9140,6 +9140,1158 @@
       "currentBundle": {
         "rowCount": 7597,
         "siteHarvestRows": 3087
+      }
+    },
+    {
+      "sourceEvidencePath": "data/uk_prices/later_publications/coachhotelkew-2026-10-17.json",
+      "sourceEvidenceSha256": "5f1e85f2eda9302fcddf5872f7485d6300bafa66e9c3e61e2496e023a9f783ab",
+      "sourceUrl": "https://www.coachhotelkew.co.uk/food-drink/",
+      "sourceObservedAt": "2026-10-17T12:29:05.127Z",
+      "addedRows": 2,
+      "currentLedger": {
+        "sha256": "4337b5ee90476ac2d9a2f438ff1d2a1b25f0f5ae5e903a55df92192f3189d116",
+        "rowCount": 3110,
+        "rowIdentitySetSha256": "ba72f67debe8ad398c74ff057822182dd972430f6dfe9e9f1535438e59510b0f"
+      },
+      "currentBundle": {
+        "rowCount": 7599,
+        "siteHarvestRows": 3089
+      }
+    },
+    {
+      "sourceEvidencePath": "data/uk_prices/later_publications/thecrownlee-2026-10-17.json",
+      "sourceEvidenceSha256": "264041a0bf69a3973cbad565456c19225156d62bb601e4cb246a75c612d25308",
+      "sourceUrl": "https://www.thecrownlee.co.uk/food-drink/",
+      "sourceObservedAt": "2026-10-17T12:29:05.127Z",
+      "addedRows": 2,
+      "currentLedger": {
+        "sha256": "bf9d73730c86d6940e0b5d680539aab0c73cb4923fa8b064b4487a4bd8788b63",
+        "rowCount": 3112,
+        "rowIdentitySetSha256": "c44d1d7b19c606fc77bb125d6c22ae2e78bdbf7949d5ec7941d63d11a3910fc3"
+      },
+      "currentBundle": {
+        "rowCount": 7601,
+        "siteHarvestRows": 3091
+      }
+    },
+    {
+      "sourceEvidencePath": "data/uk_prices/later_publications/lvls-2026-10-17.json",
+      "sourceEvidenceSha256": "263df8355215f79113b6d9dce4820a5e0be89a352ba86a6ce188d000631f511f",
+      "sourceUrl": "https://lvls.london/drink",
+      "sourceObservedAt": "2026-10-17T12:44:32.110Z",
+      "addedRows": 1,
+      "currentLedger": {
+        "sha256": "399a16a745c72a5655700ba18d6a23db00d5b165b17533f9fc5b21d580ab669f",
+        "rowCount": 3113,
+        "rowIdentitySetSha256": "e6ab96945a303cb80080187e3c16c05d558e82fd139e85d97054948009108dc5"
+      },
+      "currentBundle": {
+        "rowCount": 7602,
+        "siteHarvestRows": 3092
+      }
+    },
+    {
+      "sourceEvidencePath": "data/uk_prices/later_publications/thetalbotbrockley-2026-10-17.json",
+      "sourceEvidenceSha256": "7429552317cf0cbab84e7bbad8acfcb6d3ec5e916a1f97a13b1fd7e3d2d1739f",
+      "sourceUrl": "https://www.thetalbotbrockley.co.uk/s/Drinks-Menu.pdf",
+      "sourceObservedAt": "2026-10-17T12:38:01.092Z",
+      "addedRows": 1,
+      "currentLedger": {
+        "sha256": "83482bad50d250361e50303f60c10f9eb978081114eec554484e3d5c26c5eb86",
+        "rowCount": 3114,
+        "rowIdentitySetSha256": "d556a42c19c911f7ff93a9f8ff55f80f0da6893b0eb522f82957dfdbaf639aa0"
+      },
+      "currentBundle": {
+        "rowCount": 7603,
+        "siteHarvestRows": 3093
+      }
+    },
+    {
+      "sourceEvidencePath": "data/uk_prices/later_publications/huntersmoonlondon-2026-10-17.json",
+      "sourceEvidenceSha256": "30726ffad19b601dcead6686d4155dc0f98663ae2b5d5f94d304d855cc87d8fe",
+      "sourceUrl": "https://huntersmoonlondon.co.uk/drinks/",
+      "sourceObservedAt": "2026-10-17T12:39:21.246Z",
+      "addedRows": 1,
+      "currentLedger": {
+        "sha256": "e04f712820d36aa5a840d3ca9467479e282f81d666c406d85e5cb0a8c2296b3d",
+        "rowCount": 3115,
+        "rowIdentitySetSha256": "bfcc28269f7c4c553577a7654ae85176389272cbc039b2f5e05e932d46d9c7d9"
+      },
+      "currentBundle": {
+        "rowCount": 7604,
+        "siteHarvestRows": 3094
+      }
+    },
+    {
+      "sourceEvidencePath": "data/uk_prices/later_publications/stonemasonsarms-2026-10-17.json",
+      "sourceEvidenceSha256": "b1341e89d995168876a70d56cafa50c50f6b93d8a0a419f317f82464c21ba146",
+      "sourceUrl": "https://stonemasonsarms.co.uk/wp-content/uploads/2026/05/Stonemasons-Drinks-Menu-April-2026.pdf",
+      "sourceObservedAt": "2026-10-17T12:39:45.068Z",
+      "addedRows": 1,
+      "currentLedger": {
+        "sha256": "a0f19f13845d9c46df92981a9bbc3a07c908da3e5a0bca5e348ff0c82c224dfa",
+        "rowCount": 3116,
+        "rowIdentitySetSha256": "6c032631dedc4c9cdf988b3301416d36c8b1025ce67b0bcf9b3c29b4e781aa63"
+      },
+      "currentBundle": {
+        "rowCount": 7605,
+        "siteHarvestRows": 3095
+      }
+    },
+    {
+      "sourceEvidencePath": "data/uk_prices/later_publications/georgeanddragonacton-2026-10-17.json",
+      "sourceEvidenceSha256": "d32021fb8d3ab80979bf068b20c6828dc4376a1cdbaf768fccd0fd28148afb19",
+      "sourceUrl": "https://georgeanddragonacton.co.uk/drinks-menu",
+      "sourceObservedAt": "2026-10-17T12:40:59.240Z",
+      "addedRows": 1,
+      "currentLedger": {
+        "sha256": "b769e9593ab917f08ac5228f2d8e1359c48df3116e772ebcf56c4e8f7426c4e5",
+        "rowCount": 3117,
+        "rowIdentitySetSha256": "8b56c914046bc5f78c1ca28008bdfbb6c4ac0c528e78262f2c749fe5f42f6ec0"
+      },
+      "currentBundle": {
+        "rowCount": 7606,
+        "siteHarvestRows": 3096
+      }
+    },
+    {
+      "sourceEvidencePath": "data/uk_prices/later_publications/redlionhoxton-2026-10-17.json",
+      "sourceEvidenceSha256": "9e9d7545822fe6eb84c6b764db353265b79d334e11f8980019096b45b75f678e",
+      "sourceUrl": "https://www.redlionhoxton.co.uk/drinks-1",
+      "sourceObservedAt": "2026-10-17T12:43:40.047Z",
+      "addedRows": 1,
+      "currentLedger": {
+        "sha256": "09106f4f2134123a94724c16a4d891d36c49fd2f3de2e9c14ade7112b7bcefce",
+        "rowCount": 3118,
+        "rowIdentitySetSha256": "3a9c6f808b04814c8edd607044eaf7dc364c2e90865e2390fef364f5534e8202"
+      },
+      "currentBundle": {
+        "rowCount": 7607,
+        "siteHarvestRows": 3097
+      }
+    },
+    {
+      "sourceEvidencePath": "data/uk_prices/later_publications/thewellshampstead-2026-10-17.json",
+      "sourceEvidenceSha256": "d577c92ae147564e3d912721d18bdfab19874a01adcfc429d7e5804b58567bda",
+      "sourceUrl": "https://thewellshampstead.co.uk/wp-content/uploads/2026/02/Wine-List-Spring-docx.pdf",
+      "sourceObservedAt": "2026-10-17T12:45:20.608Z",
+      "addedRows": 2,
+      "currentLedger": {
+        "sha256": "fb2ba86b671f4876e5fec9d1fe51a165f6d9b2f8443aaf827734850d3b2e771e",
+        "rowCount": 3120,
+        "rowIdentitySetSha256": "d3a367a20925f77cf8364bfaedd9ced772b6c952e8990b9f694f1d5d08c513a1"
+      },
+      "currentBundle": {
+        "rowCount": 7609,
+        "siteHarvestRows": 3099
+      }
+    },
+    {
+      "sourceEvidencePath": "data/uk_prices/later_publications/thetallyhopub-2026-10-17.json",
+      "sourceEvidenceSha256": "a88772c49677b8ae1317a69a3a8465c629cf99c5b31af8fb87c7b5c087686972",
+      "sourceUrl": "https://thetallyhopub.co.uk/wp-content/uploads/2025/01/TALLY-HO-Drinks-compressed.pdf",
+      "sourceObservedAt": "2026-10-17T12:46:19.027Z",
+      "addedRows": 1,
+      "currentLedger": {
+        "sha256": "2b56a09cdbbfc8845a7842f90e92847944548a56a257709eb542871e02046a6e",
+        "rowCount": 3121,
+        "rowIdentitySetSha256": "76377ef4bb32df62c5fa46f2305610e7aee50af280129cae3ea3147d01d9a5f1"
+      },
+      "currentBundle": {
+        "rowCount": 7610,
+        "siteHarvestRows": 3100
+      }
+    },
+    {
+      "sourceEvidencePath": "data/uk_prices/later_publications/maltandhopslondon-2026-10-17.json",
+      "sourceEvidenceSha256": "684132c9e8dbb195c802b2ee578f1ad6cd801b1fd47ad7478ca13dfd6cfad177",
+      "sourceUrl": "https://www.maltandhopslondon.co.uk/menu/drinks/",
+      "sourceObservedAt": "2026-10-17T12:46:24.480Z",
+      "addedRows": 1,
+      "currentLedger": {
+        "sha256": "986b67261c3d0968c61d90ca57c161748be085119e9bdd04e9131e9820fa8676",
+        "rowCount": 3122,
+        "rowIdentitySetSha256": "86936b5e83ade9332da53d68e9ec90ba246ab53b2eb60d56313c354d9a4dc00d"
+      },
+      "currentBundle": {
+        "rowCount": 7611,
+        "siteHarvestRows": 3101
+      }
+    },
+    {
+      "sourceEvidencePath": "data/uk_prices/later_publications/2026-10-17-thewellshampstead-co-uk-wp-content-uploads-2026-02-wine-list-spring-docx-pdf.json",
+      "sourceEvidenceSha256": "5b64c919b6232546fca635d57bc278cf8808b1af756780122d8cefe56be215ea",
+      "sourceUrl": "https://thewellshampstead.co.uk/wp-content/uploads/2026/02/Wine-List-Spring-docx.pdf",
+      "sourceObservedAt": "2026-10-17T12:39:21.137Z",
+      "addedRows": 8,
+      "currentLedger": {
+        "sha256": "78d889b157e0f0bbd9f27edd9c5cba91fc8e6e50d898077f6fdc77323f935663",
+        "rowCount": 3130,
+        "rowIdentitySetSha256": "afe86dbd565602003bf23e2d9a57ca47ce1ff2463b36b5b255efe788472b7e46"
+      },
+      "currentBundle": {
+        "rowCount": 7619,
+        "siteHarvestRows": 3109
+      }
+    },
+    {
+      "sourceEvidencePath": "data/uk_prices/later_publications/2026-10-17-maltandhopslondon-co-uk-menu-drinks.json",
+      "sourceEvidenceSha256": "a7ea1bb88c5f7efb2d4426d03f57c99e263cdbadbd959844447c4cbe0dc79e7d",
+      "sourceUrl": "https://www.maltandhopslondon.co.uk/menu/drinks/",
+      "sourceObservedAt": "2026-10-17T12:40:27.303Z",
+      "addedRows": 4,
+      "currentLedger": {
+        "sha256": "68b6bad6944da7cc33c5909c1bb93ad84b5dc26ea7b849b3c05d677b89862db5",
+        "rowCount": 3134,
+        "rowIdentitySetSha256": "fe9ef5ad9c0fecf1dbf2966e8c1f0a121a25b082800ab995b75278d142eeb5b4"
+      },
+      "currentBundle": {
+        "rowCount": 7623,
+        "siteHarvestRows": 3113
+      }
+    },
+    {
+      "sourceEvidencePath": "data/uk_prices/later_publications/2026-10-17-redlionhoxton-co-uk-drinks-1.json",
+      "sourceEvidenceSha256": "9522e0b48a7ce6d00126958af851163af0e9d221b701c71d787d54fcd0cf2b4a",
+      "sourceUrl": "https://www.redlionhoxton.co.uk/drinks-1",
+      "sourceObservedAt": "2026-10-17T12:40:41.410Z",
+      "addedRows": 7,
+      "currentLedger": {
+        "sha256": "d51e2bde2159e7f2067920271bd12babccf77d41bbcfdf2194e2bd530fbb2e91",
+        "rowCount": 3141,
+        "rowIdentitySetSha256": "5bbbe2a74121bee82322edc2ac5daa52357ab29582c1c5fe68aa9b570635cacf"
+      },
+      "currentBundle": {
+        "rowCount": 7630,
+        "siteHarvestRows": 3120
+      }
+    },
+    {
+      "sourceEvidencePath": "data/uk_prices/later_publications/2026-10-17-richardthefirst-co-uk-menus.json",
+      "sourceEvidenceSha256": "0d727c4d1cbf6c649cd99a1510423b845dac92908e4fc60f7b3d933a22808289",
+      "sourceUrl": "https://www.richardthefirst.co.uk/menus",
+      "sourceObservedAt": "2026-10-17T12:40:44.618Z",
+      "addedRows": 1,
+      "currentLedger": {
+        "sha256": "3801afa010b72148b64da5f16593384f3c6b7e7fa6809579d3493213b5da72cd",
+        "rowCount": 3142,
+        "rowIdentitySetSha256": "82160bd9269a1ddede4d517fa28139271682dd68885e289ba8094e98afc900ea"
+      },
+      "currentBundle": {
+        "rowCount": 7631,
+        "siteHarvestRows": 3121
+      }
+    },
+    {
+      "sourceEvidencePath": "data/uk_prices/later_publications/2026-10-17-roseandcrownwimbledon-co-uk-food-drink.json",
+      "sourceEvidenceSha256": "12956c5fa2e79c6416cfd8ee96ffc4dad4201b1862a99a73439d0c800a1ba0c4",
+      "sourceUrl": "https://www.roseandcrownwimbledon.co.uk/food-drink/",
+      "sourceObservedAt": "2026-10-17T12:40:52.475Z",
+      "addedRows": 3,
+      "currentLedger": {
+        "sha256": "87c46f3cfaa05e51a5fdbae256bd6120d12e3536cbbf0b877edaeb858258d822",
+        "rowCount": 3145,
+        "rowIdentitySetSha256": "25ce3b33756a7aa9c670fb5cfd58ce97384539fd178d306b1aee615878586572"
+      },
+      "currentBundle": {
+        "rowCount": 7634,
+        "siteHarvestRows": 3124
+      }
+    },
+    {
+      "sourceEvidencePath": "data/uk_prices/later_publications/2026-10-17-stonemasonsarms-co-uk-wp-content-uploads-2026-05-stonemasons-drinks-menu-april-2026-pdf.json",
+      "sourceEvidenceSha256": "54d5886ec0cae811a5f5dbc06ec93403b2cfce49d120434561d3eae1787be514",
+      "sourceUrl": "https://stonemasonsarms.co.uk/wp-content/uploads/2026/05/Stonemasons-Drinks-Menu-April-2026.pdf",
+      "sourceObservedAt": "2026-10-17T12:41:01.728Z",
+      "addedRows": 1,
+      "currentLedger": {
+        "sha256": "c9c9e930eb923a60468609c5a69c94fa1853da13299a4ee160ff6fd88656390c",
+        "rowCount": 3146,
+        "rowIdentitySetSha256": "7438a1bc3d5866d4860dfaedbf45ab63754c079bd9f35a0bd267b7aed65f84f9"
+      },
+      "currentBundle": {
+        "rowCount": 7635,
+        "siteHarvestRows": 3125
+      }
+    },
+    {
+      "sourceEvidencePath": "data/uk_prices/later_publications/2026-10-17-the-old-manor-co-uk-food-drink.json",
+      "sourceEvidenceSha256": "f303a3a819c5fc3434ed79fbf65bd5e481c2bf461973315bc87c7d82cebb0226",
+      "sourceUrl": "https://www.the-old-manor.co.uk/food-drink/",
+      "sourceObservedAt": "2026-10-17T12:41:10.457Z",
+      "addedRows": 5,
+      "currentLedger": {
+        "sha256": "1579857f0cea215069eb01912f0c5c142370e2bd05b2513195329c1be4472c65",
+        "rowCount": 3151,
+        "rowIdentitySetSha256": "618c1668d282d5050fa0a1ee021771e1e01e96d63e99cf38e7482481ad7ecbde"
+      },
+      "currentBundle": {
+        "rowCount": 7640,
+        "siteHarvestRows": 3130
+      }
+    },
+    {
+      "sourceEvidencePath": "data/uk_prices/later_publications/2026-10-17-thealbionpub-com-uploads-drink-pdf-v-1772220206.json",
+      "sourceEvidenceSha256": "71a6567358f74226603e3bad7cc6d4c18b3131fe9528882777aa534fd3527554",
+      "sourceUrl": "https://www.thealbionpub.com/uploads/drink.pdf?v=1772220206",
+      "sourceObservedAt": "2026-10-17T12:41:23.643Z",
+      "addedRows": 4,
+      "currentLedger": {
+        "sha256": "a5d342a567b3a6ba51eecf947f50b859284499dbd431ec196dfe37f56f9c2592",
+        "rowCount": 3155,
+        "rowIdentitySetSha256": "519ea03bdbba6655965d82feb37d3df4992c1b51eb09fbada013f0979a40a359"
+      },
+      "currentBundle": {
+        "rowCount": 7644,
+        "siteHarvestRows": 3134
+      }
+    },
+    {
+      "sourceEvidencePath": "data/uk_prices/later_publications/2026-10-17-thedukeofcambridge-com-food-and-drink.json",
+      "sourceEvidenceSha256": "98aaa690f8c673eb586e9d3c23b4479c46445928c8095cd02808019cc2604e66",
+      "sourceUrl": "https://www.thedukeofcambridge.com/food-and-drink/",
+      "sourceObservedAt": "2026-10-17T12:41:45.233Z",
+      "addedRows": 4,
+      "currentLedger": {
+        "sha256": "00c53f98eb666414178c5d09fae2cd5aba29263a50f180397bc83a685031161d",
+        "rowCount": 3159,
+        "rowIdentitySetSha256": "c4adb0ae8cf799e458199f59c66b7f15d6380872600a0266e38bf8da2fc749dd"
+      },
+      "currentBundle": {
+        "rowCount": 7648,
+        "siteHarvestRows": 3138
+      }
+    },
+    {
+      "sourceEvidencePath": "data/uk_prices/later_publications/2026-10-17-theprincealbertbattersea-co-uk-food-and-drink.json",
+      "sourceEvidenceSha256": "eedda603d24f6a05d5e27387dc8e40cf581c8c7263326a4bc3e551d98aa96ed5",
+      "sourceUrl": "https://www.theprincealbertbattersea.co.uk/food-and-drink",
+      "sourceObservedAt": "2026-10-17T12:41:57.515Z",
+      "addedRows": 10,
+      "currentLedger": {
+        "sha256": "bcffa67ec5acedfe921d07e80cb34578e4c51b4b3157c9d4a8659350bd5044db",
+        "rowCount": 3169,
+        "rowIdentitySetSha256": "4fda18952268e667a011c89f3b9ef4273a3a0ebebe6c22c028c6916be59baf51"
+      },
+      "currentBundle": {
+        "rowCount": 7658,
+        "siteHarvestRows": 3148
+      }
+    },
+    {
+      "sourceEvidencePath": "data/uk_prices/later_publications/2026-10-17-thescolthead-co-uk-scolt-head-wp-content-uploads-2022-10-thescolthead-winedrinks-0525-mb-0.json",
+      "sourceEvidenceSha256": "e9ee0ac01b6db89225cc03e9d977a4ed7b521c0887e9e3276451b4daf752403e",
+      "sourceUrl": "https://www.thescolthead.co.uk/scolt-head/wp-content/uploads/2022/10/TheScoltHead_WineDrinks_0525_mb_02.pdf",
+      "sourceObservedAt": "2026-10-17T12:42:16.242Z",
+      "addedRows": 5,
+      "currentLedger": {
+        "sha256": "b598cacfec5e463a8ad182d1ff829d8a8eb6447fcef5c205eedd15b55cfb01d3",
+        "rowCount": 3174,
+        "rowIdentitySetSha256": "7369b09109fb264fc48027aa0a0088b25746eb04b57bf430ea61baee34a6e02c"
+      },
+      "currentBundle": {
+        "rowCount": 7663,
+        "siteHarvestRows": 3153
+      }
+    },
+    {
+      "sourceEvidencePath": "data/uk_prices/later_publications/2026-10-17-thetalbotbrockley-co-uk-s-drinks-menu-pdf.json",
+      "sourceEvidenceSha256": "e4cda699889a96d413debfbc0c20cca0c7090bd8999b7fe8ba7a9d25c757a7fd",
+      "sourceUrl": "https://www.thetalbotbrockley.co.uk/s/Drinks-Menu.pdf",
+      "sourceObservedAt": "2026-10-17T12:42:27.409Z",
+      "addedRows": 10,
+      "currentLedger": {
+        "sha256": "5cb0ace7cd6cd362705133288e7679f754054d8e7efab3bdd6409643c96e0a0c",
+        "rowCount": 3184,
+        "rowIdentitySetSha256": "89d18d765b327a3ab891811238296f91422451d96e0db3e919b8a8dd25d9d478"
+      },
+      "currentBundle": {
+        "rowCount": 7673,
+        "siteHarvestRows": 3163
+      }
+    },
+    {
+      "sourceEvidencePath": "data/uk_prices/later_publications/2026-10-17-thetallyhopub-co-uk-wp-content-uploads-2025-01-tally-ho-drinks-compressed-pdf.json",
+      "sourceEvidenceSha256": "ccb49218132d683aa7dd34560b997fe39f7414047af30052ec1cc2cd3bcb73ad",
+      "sourceUrl": "https://thetallyhopub.co.uk/wp-content/uploads/2025/01/TALLY-HO-Drinks-compressed.pdf",
+      "sourceObservedAt": "2026-10-17T12:42:38.624Z",
+      "addedRows": 11,
+      "currentLedger": {
+        "sha256": "1b02aeb6002aefa3574ea951320bc7bf59a72588f32c47b66e9213a561cddaed",
+        "rowCount": 3195,
+        "rowIdentitySetSha256": "cc108510bf4e65a466b12816e7a69d7610ec9ca3927f0552856b5d6a1004d739"
+      },
+      "currentBundle": {
+        "rowCount": 7684,
+        "siteHarvestRows": 3174
+      }
+    },
+    {
+      "sourceEvidencePath": "data/uk_prices/later_publications/2026-10-17-lvls-london-drink.json",
+      "sourceEvidenceSha256": "8aedf74d170d587f2aca82d91cfae5f6fcd4b9314624ef7e2bddf33406c8d30d",
+      "sourceUrl": "https://lvls.london/drink",
+      "sourceObservedAt": "2026-10-17T13:12:07.212Z",
+      "addedRows": 2,
+      "currentLedger": {
+        "sha256": "b2833ed5bc15c1f60ee8cc251cd75883f9c8cd0624ea293da10ff5167e7d9cc1",
+        "rowCount": 3197,
+        "rowIdentitySetSha256": "e8abf1d9265d06fda9c608e8a16c291542316922be4a10f01d9d6c3df9740a5d"
+      },
+      "currentBundle": {
+        "rowCount": 7686,
+        "siteHarvestRows": 3176
+      }
+    },
+    {
+      "sourceEvidencePath": "data/uk_prices/later_publications/jollycoopers-2026-10-17.json",
+      "sourceEvidenceSha256": "49ee004fd36a18e2ffeb342fe62950ea56189c54628d1dac0eaecf24f07bcbe9",
+      "sourceUrl": "https://jollycoopers.co.uk/menu",
+      "sourceObservedAt": "2026-10-17T13:24:55.632Z",
+      "addedRows": 1,
+      "currentLedger": {
+        "sha256": "e61b156c75d14836dd5a9596b62806f30bc0b2944c475519d0ef8feeae358ebd",
+        "rowCount": 3198,
+        "rowIdentitySetSha256": "1507e4218453429f2f1a7c0659e317a7ba56e41e72065211ff2348b862b00dfb"
+      },
+      "currentBundle": {
+        "rowCount": 7687,
+        "siteHarvestRows": 3177
+      }
+    },
+    {
+      "sourceEvidencePath": "data/uk_prices/later_publications/jollycoopers-zero-cans-2026-10-17.json",
+      "sourceEvidenceSha256": "49720148b8fce89715f3c04fceec50828eb72ceb95dff4f37ba396fe60ea8e8f",
+      "sourceUrl": "https://jollycoopers.co.uk/menu",
+      "sourceObservedAt": "2026-10-17T13:24:55.632Z",
+      "addedRows": 2,
+      "currentLedger": {
+        "sha256": "281970ba87dffb0a24f9a1be7ce38d485aa06c073a7034824b56832bba3b5df2",
+        "rowCount": 3200,
+        "rowIdentitySetSha256": "9f871c92286882f92dd7a2e003513ce2dd63a64d236709c34d10f0b9271b5a43"
+      },
+      "currentBundle": {
+        "rowCount": 7689,
+        "siteHarvestRows": 3179
+      }
+    },
+    {
+      "sourceEvidencePath": "data/uk_prices/later_publications/theguardhousewoolwich-2026-10-17.json",
+      "sourceEvidenceSha256": "2ebac9e7fc4ff73db5512eebd808621055c9025035941193bfdc9c302ccc941f",
+      "sourceUrl": "https://www.theguardhousewoolwich.co.uk/food-and-drink/",
+      "sourceObservedAt": "2026-10-17T12:29:05.127Z",
+      "addedRows": 3,
+      "currentLedger": {
+        "sha256": "25eeaa6d5f02822b616bb73a21fbb951a47acf3a3e019be3d53040939d50319a",
+        "rowCount": 3203,
+        "rowIdentitySetSha256": "0dcd11fe00a4cdc19f504f73cb9cc53862016a7cab605b3d36018c043a012405"
+      },
+      "currentBundle": {
+        "rowCount": 7692,
+        "siteHarvestRows": 3182
+      }
+    },
+    {
+      "sourceEvidencePath": "data/uk_prices/later_publications/2026-10-17-roofeast-com-food-and-drink-roof-east-bars.json",
+      "sourceEvidenceSha256": "0ee9e970e03708c22063f60a3ff7724fdd188655d72bb7033c28241ade79b3f2",
+      "sourceUrl": "https://www.roofeast.com/food-and-drink/roof-east-bars",
+      "sourceObservedAt": "2026-10-17T13:27:10.082Z",
+      "addedRows": 9,
+      "currentLedger": {
+        "sha256": "3a86cda0a30a5a880f9a76b33e771c0c91a5cf1ba4ad4579cc04f38a26cb74c3",
+        "rowCount": 3212,
+        "rowIdentitySetSha256": "81fcd54c454a28cb86aa929e7ebeb8b0f947762bb8598306d0f50abe209178e5"
+      },
+      "currentBundle": {
+        "rowCount": 7701,
+        "siteHarvestRows": 3191
+      }
+    },
+    {
+      "sourceEvidencePath": "data/uk_prices/later_publications/2026-10-17-deliciobexleyheath-co-uk-home-menu.json",
+      "sourceEvidenceSha256": "54ad8a9898964b452fea47b185522fc1257e188b7fa8ba4034f7e383dec109bf",
+      "sourceUrl": "https://www.deliciobexleyheath.co.uk/Home/Menu",
+      "sourceObservedAt": "2026-10-17T13:47:45.718Z",
+      "addedRows": 12,
+      "currentLedger": {
+        "sha256": "8bb039a52823d83be62b9a8a68366c0f141c4f95ca206dd71738bbae688a6daa",
+        "rowCount": 3224,
+        "rowIdentitySetSha256": "ca34d0151a192edb1b4136e6bc7cd359a1464d72a960636df1666096e66dca63"
+      },
+      "currentBundle": {
+        "rowCount": 7713,
+        "siteHarvestRows": 3203
+      }
+    },
+    {
+      "sourceEvidencePath": "data/uk_prices/later_publications/2026-10-17-harrys-co-uk-pdf-a-la-cart-menu-pdf.json",
+      "sourceEvidenceSha256": "44708759e11d51e8eaf4efa28ae24aa3ee8ea918b6fbac0dbe77a2d7aeee53ee",
+      "sourceUrl": "http://harrys.co.uk/pdf/a_la_cart_menu.pdf",
+      "sourceObservedAt": "2026-10-17T13:52:05.594Z",
+      "addedRows": 2,
+      "currentLedger": {
+        "sha256": "8bcf619e088b0b4f55ceb5fc04d95d1e0e98fa5e74131741226b273c273493ab",
+        "rowCount": 3226,
+        "rowIdentitySetSha256": "e241e8f4177d590b0f67354759f5f0213622932e453baedd946ce1a09632e7ec"
+      },
+      "currentBundle": {
+        "rowCount": 7715,
+        "siteHarvestRows": 3205
+      }
+    },
+    {
+      "sourceEvidencePath": "data/uk_prices/later_publications/2026-10-17-harrys-co-uk-pdf-drinks-menu-pdf.json",
+      "sourceEvidenceSha256": "c2c0e1b90bad7736c9263a66a1fb8c16d1cad3a62000624c27a06c7a2bcf9512",
+      "sourceUrl": "http://harrys.co.uk/pdf/drinks_menu.pdf",
+      "sourceObservedAt": "2026-10-17T13:52:05.594Z",
+      "addedRows": 2,
+      "currentLedger": {
+        "sha256": "055af734548241b2d5ef625325e7be9e3fecb2a658d858b414ad5740d7e8e549",
+        "rowCount": 3228,
+        "rowIdentitySetSha256": "5432b933e27415fbef24fc4dddf6ca533b5d841ace778dab23b9c9eb5ab1d56f"
+      },
+      "currentBundle": {
+        "rowCount": 7717,
+        "siteHarvestRows": 3207
+      }
+    },
+    {
+      "sourceEvidencePath": "data/uk_prices/later_publications/2026-10-17-tapelia-co-uk-menu2025.json",
+      "sourceEvidenceSha256": "b578f84cdded3da65dc4d4c10520c4f19e1a93358285cf7db2001a034bcec361",
+      "sourceUrl": "https://www.tapelia.co.uk/menu2025",
+      "sourceObservedAt": "2026-10-17T13:54:39.220Z",
+      "addedRows": 4,
+      "currentLedger": {
+        "sha256": "424a3538dbda639abf93530714c6d871b77828ab5d222854d4fb7730f8f18be0",
+        "rowCount": 3232,
+        "rowIdentitySetSha256": "91c57cc5238f09e1c1d08f9746860683c27a629b4564fe3767b333eb14944b6e"
+      },
+      "currentBundle": {
+        "rowCount": 7721,
+        "siteHarvestRows": 3211
+      }
+    },
+    {
+      "sourceEvidencePath": "data/uk_prices/later_publications/2026-10-17-thenorthcote-co-uk-menus.json",
+      "sourceEvidenceSha256": "281f34db41037b9a4b862196aae8d97ea571318457948015aa9d29a914fa6451",
+      "sourceUrl": "https://www.thenorthcote.co.uk/menus",
+      "sourceObservedAt": "2026-10-17T14:03:47.079Z",
+      "addedRows": 8,
+      "currentLedger": {
+        "sha256": "ef5a69ad55fc9b5ea88eab80a1555cc60742c52d2f824cad8ef82e5fd7dbe8c9",
+        "rowCount": 3240,
+        "rowIdentitySetSha256": "3a60984a52de5724c0dea4f6729b67671f35bb724f19e76105575e122fac08d8"
+      },
+      "currentBundle": {
+        "rowCount": 7729,
+        "siteHarvestRows": 3219
+      }
+    },
+    {
+      "sourceEvidencePath": "data/uk_prices/later_publications/2026-10-17-tattoo-bar-co-uk-menu.json",
+      "sourceEvidenceSha256": "d2b394f116306aff51a7bd807975ba6b3f83089e3b11d53d492687a6189bc684",
+      "sourceUrl": "https://tattoo-bar.co.uk/menu",
+      "sourceObservedAt": "2026-10-17T14:11:25.414Z",
+      "addedRows": 2,
+      "currentLedger": {
+        "sha256": "388a8b864c47d58985e4292de38d920001a48798e91a71b5b846d91fa595bcf3",
+        "rowCount": 3242,
+        "rowIdentitySetSha256": "c95a848f2360cf94483aab1e5623d9e1d9f9d16af3e4ebb75d94f817da2be5d0"
+      },
+      "currentBundle": {
+        "rowCount": 7731,
+        "siteHarvestRows": 3221
+      }
+    },
+    {
+      "sourceEvidencePath": "data/uk_prices/later_publications/2026-10-17-bunchofgrapesborough-co-uk-foodanddrink.json",
+      "sourceEvidenceSha256": "de4a9f81660dd84191da485a86ca4d07864a19d98c66fb4b6a4739afb1aeb71a",
+      "sourceUrl": "https://www.bunchofgrapesborough.co.uk/foodanddrink",
+      "sourceObservedAt": "2026-10-17T14:09:04.148Z",
+      "addedRows": 11,
+      "currentLedger": {
+        "sha256": "5bce4322b0ddc2632ff143073cb157ed55718273daeb232320444d6eefbb8ae2",
+        "rowCount": 3253,
+        "rowIdentitySetSha256": "8c8e6882ce0753ac7c5be6f6a6117315fa27d3f34a6f2b9b4156fb9d8a657d8f"
+      },
+      "currentBundle": {
+        "rowCount": 7742,
+        "siteHarvestRows": 3232
+      }
+    },
+    {
+      "sourceEvidencePath": "data/uk_prices/later_publications/2026-10-17-deliciobexleyheath-co-uk-home-menu-beer-wine.json",
+      "sourceEvidenceSha256": "6304ed536dc4274381707f1d93a67fe3389148cb5143168bdfe52d5ec03b27fd",
+      "sourceUrl": "https://www.deliciobexleyheath.co.uk/Home/Menu",
+      "sourceObservedAt": "2026-10-17T13:47:45.718Z",
+      "addedRows": 6,
+      "currentLedger": {
+        "sha256": "dced3eeb44de902e6d7eb11d378be5e87a0b479fb60b5bf69835055245ca2e28",
+        "rowCount": 3259,
+        "rowIdentitySetSha256": "6f98c7b53e5f3e691219fe6fae74a9aca9205c31530542e46ed3afaab5ced887"
+      },
+      "currentBundle": {
+        "rowCount": 7748,
+        "siteHarvestRows": 3238
+      }
+    },
+    {
+      "sourceEvidencePath": "data/uk_prices/later_publications/2026-10-17-harrys-co-uk-pdf-drinks-menu-pdf-beer-wine.json",
+      "sourceEvidenceSha256": "a41d5d6348eb91410b1705ea49e9dec6becc9cbe76aa439f01d11240ee527e5a",
+      "sourceUrl": "http://harrys.co.uk/pdf/drinks_menu.pdf",
+      "sourceObservedAt": "2026-10-17T13:52:05.594Z",
+      "addedRows": 16,
+      "currentLedger": {
+        "sha256": "aa1bc07c3e24242a5e44febd4ecbbf7d6508c419d63e942619c675281a0e3598",
+        "rowCount": 3275,
+        "rowIdentitySetSha256": "a759d6b2ad1b4cedbf8edecf8de98feae3a5e4b6865c21ae5c0a6b88af2145ae"
+      },
+      "currentBundle": {
+        "rowCount": 7764,
+        "siteHarvestRows": 3254
+      }
+    },
+    {
+      "sourceEvidencePath": "data/uk_prices/later_publications/2026-10-17-tattoo-bar-co-uk-menu-beer-wine.json",
+      "sourceEvidenceSha256": "31fe5f64cf32c4b2577ba851449683a06d2777ad8e82f3aa514364f0ee2dce50",
+      "sourceUrl": "https://tattoo-bar.co.uk/menu",
+      "sourceObservedAt": "2026-10-17T14:11:25.414Z",
+      "addedRows": 11,
+      "currentLedger": {
+        "sha256": "a02528a50007b0075a48d2f3b085ea7553a3e2ab2ed9204d525d366332a61fe9",
+        "rowCount": 3286,
+        "rowIdentitySetSha256": "3a9bdca42081da986f96ac0ae2ca477097a3082cf46f0df48c5ad83a8fef7489"
+      },
+      "currentBundle": {
+        "rowCount": 7775,
+        "siteHarvestRows": 3265
+      }
+    },
+    {
+      "sourceEvidencePath": "data/uk_prices/later_publications/2026-10-17-thecurtainsup-co-uk-food-drink.json",
+      "sourceEvidenceSha256": "2a521ad1596911baa2cdac481cb23cc9acca88fdb206e35bf413545a96335af4",
+      "sourceUrl": "https://www.thecurtainsup.co.uk/food-drink/",
+      "sourceObservedAt": "2026-10-17T13:56:59.755Z",
+      "addedRows": 11,
+      "currentLedger": {
+        "sha256": "d52320c46e57adb446fe69b1b87aa0edad2ea731f28a36a7f9e2b8f50001ab92",
+        "rowCount": 3297,
+        "rowIdentitySetSha256": "dd900a08d0752d6f7386f6cd2d222fd35cb581aac28378b5aaf16065da0e1aed"
+      },
+      "currentBundle": {
+        "rowCount": 7786,
+        "siteHarvestRows": 3276
+      }
+    },
+    {
+      "sourceEvidencePath": "data/uk_prices/later_publications/2026-10-17-fredericks-co-uk-drink-wines.json",
+      "sourceEvidenceSha256": "6ff2dcfb88a2d996077f13b59847fdfe9c38d07d9495086bdf54fd30d2b4216b",
+      "sourceUrl": "https://www.fredericks.co.uk/drink/wines/",
+      "sourceObservedAt": "2026-10-17T13:48:23.370Z",
+      "addedRows": 18,
+      "currentLedger": {
+        "sha256": "b365037d1d1b9b7a416da2d96d7bf1a8466dcbd5a000f900a3640b538e39518b",
+        "rowCount": 3315,
+        "rowIdentitySetSha256": "481e146f2bbc80dde8679e1fe636e9fed0f200ebebc688f537de494c2aa46832"
+      },
+      "currentBundle": {
+        "rowCount": 7804,
+        "siteHarvestRows": 3294
+      }
+    },
+    {
+      "sourceEvidencePath": "data/uk_prices/later_publications/2026-10-17-roofeast-com-food-and-drink-roof-east-bars-beer-wine.json",
+      "sourceEvidenceSha256": "43f82d2e578a7d0e2a2f4ca593c7377cbdbfaf2f91413e277eb4ba22d5c3947b",
+      "sourceUrl": "https://www.roofeast.com/food-and-drink/roof-east-bars",
+      "sourceObservedAt": "2026-10-17T13:27:10.082Z",
+      "addedRows": 4,
+      "currentLedger": {
+        "sha256": "b68a2becd9073f99e2cca33327f92dc167b57c53f75a41e22594f44e946d70f0",
+        "rowCount": 3319,
+        "rowIdentitySetSha256": "425b05ea24930eacd272f3ff81345458e1bc7988ebeaf517e5411d9b0c9d4bb8"
+      },
+      "currentBundle": {
+        "rowCount": 7413,
+        "siteHarvestRows": 3298
+      }
+    },
+    {
+      "sourceEvidencePath": "data/uk_prices/later_publications/2026-10-18-enidstreettavern-com-taplist.json",
+      "sourceEvidenceSha256": "c698d406d032c9706329cd4568a9de9d5cca426d36df7479b3493b7452f7bbfe",
+      "sourceUrl": "https://enidstreettavern.com/taplist",
+      "sourceObservedAt": "2026-10-18T20:49:30.822Z",
+      "addedRows": 15,
+      "currentLedger": {
+        "sha256": "2102e487a1c3e12d6e4f5341f183be9c359f2f982f8de82ec23429faa589a1c1",
+        "rowCount": 3334,
+        "rowIdentitySetSha256": "ca8308c7d31878ad06936ff630051d0a2e79f1d9c8a1ff5465ccaf748162ee9b"
+      },
+      "currentBundle": {
+        "rowCount": 7866,
+        "siteHarvestRows": 3336
+      }
+    },
+    {
+      "sourceEvidencePath": "data/uk_prices/later_publications/2026-10-18-thebeaufortpub-co-uk-menus.json",
+      "sourceEvidenceSha256": "59615a49612e36ad0a559956dcce4a841fc1cacaf5819dc2840b92221bbc66aa",
+      "sourceUrl": "https://www.thebeaufortpub.co.uk/menus/",
+      "sourceObservedAt": "2026-10-18T20:49:54.288Z",
+      "addedRows": 4,
+      "currentLedger": {
+        "sha256": "fb0e076edff15631c6b9aacc67db5b0a5939feb2d5c4a79c7d4a5cf35f0f1dd5",
+        "rowCount": 3338,
+        "rowIdentitySetSha256": "ad362d41305afaf6b8061d96945543d9add23a8be0a4baefa80e4cc638fc8741"
+      },
+      "currentBundle": {
+        "rowCount": 7866,
+        "siteHarvestRows": 3336
+      }
+    },
+    {
+      "sourceEvidencePath": "data/uk_prices/later_publications/2026-10-18-watermanstw9-co-uk-menu.json",
+      "sourceEvidenceSha256": "22e7bb0b5fd4ff38a6234081cbb47919391606b5887822eafae44e765e03416e",
+      "sourceUrl": "https://watermanstw9.co.uk/menu",
+      "sourceObservedAt": "2026-10-18T20:50:36.867Z",
+      "addedRows": 19,
+      "currentLedger": {
+        "sha256": "56d25a3129b3f0d3e4ddd7116ba801260e1ce0e107d522438315d5d867883416",
+        "rowCount": 3357,
+        "rowIdentitySetSha256": "ec73c018dd33e45c4beff3a19ebe262ed5e69f08bb31e1afa03373f3499b1ebb"
+      },
+      "currentBundle": {
+        "rowCount": 7866,
+        "siteHarvestRows": 3336
+      }
+    },
+    {
+      "sourceEvidencePath": "data/uk_prices/later_publications/2026-10-18-blackcapcamden-co-uk.json",
+      "sourceEvidenceSha256": "286d51e27fc2255601377cbcb62df614bdc5de7b182597650226d6170d649f2d",
+      "sourceUrl": "https://blackcapcamden.co.uk",
+      "sourceObservedAt": "2026-10-18T21:37:55.150Z",
+      "addedRows": 108,
+      "currentLedger": {
+        "sha256": "b6ba2ee52795cbf1d20bfa61e17ec9bf465dbbe35d00ba34bfbb2824c04af4e8",
+        "rowCount": 3465,
+        "rowIdentitySetSha256": "4f71f534e9c46e46d2d3c4a7630374b0fa00aebb50083e21d018b520cc244c05"
+      },
+      "currentBundle": {
+        "rowCount": 8024,
+        "siteHarvestRows": 3494
+      }
+    },
+    {
+      "sourceEvidencePath": "data/uk_prices/later_publications/2026-10-18-theduchessofkent-co-uk-food-and-drinks.json",
+      "sourceEvidenceSha256": "9e632ddb7387321e4651f7694d45ee03ab2e725129a0e4ce02bd9d5f579c0f6a",
+      "sourceUrl": "https://www.theduchessofkent.co.uk/food-and-drinks/",
+      "sourceObservedAt": "2026-10-18T21:37:58.600Z",
+      "addedRows": 8,
+      "currentLedger": {
+        "sha256": "b14e32553c48d9f5b77122ef8f734da95d19c67c01a86c9df87cee7b8c54e002",
+        "rowCount": 3473,
+        "rowIdentitySetSha256": "f3ef72f9b0c2c126aa0ff93cff5a3e0f8eb044ff260960b815e1ae6a1f5281e6"
+      },
+      "currentBundle": {
+        "rowCount": 8024,
+        "siteHarvestRows": 3494
+      }
+    },
+    {
+      "sourceEvidencePath": "data/uk_prices/later_publications/2026-10-18-theblacksmithsse16-com-drink.json",
+      "sourceEvidenceSha256": "0c1644637c1da0247be3d7734b0d402f4ff368c97da49048276115c884325ce8",
+      "sourceUrl": "https://theblacksmithsse16.com/drink",
+      "sourceObservedAt": "2026-10-18T21:37:58.704Z",
+      "addedRows": 20,
+      "currentLedger": {
+        "sha256": "87a945e71aa269952cec2824d0b2c382eeaef94018515bbb99ff64af1a2b310f",
+        "rowCount": 3493,
+        "rowIdentitySetSha256": "6827da1eb654b11fd06ad107f7a50b733c7355a889df742ec9c8dc2ab2eaf3a7"
+      },
+      "currentBundle": {
+        "rowCount": 8024,
+        "siteHarvestRows": 3494
+      }
+    },
+    {
+      "sourceEvidencePath": "data/uk_prices/later_publications/2026-10-18-thepaternoster-com-food-drink.json",
+      "sourceEvidenceSha256": "730d4184507ac380c27d6f8059dafa72043f208d94962a0319056fe7af48c5fd",
+      "sourceUrl": "https://www.thepaternoster.com/food-drink/",
+      "sourceObservedAt": "2026-10-18T21:38:00.909Z",
+      "addedRows": 20,
+      "currentLedger": {
+        "sha256": "1617865b6f4546b63209fd6d00a06bcc926ae315459e178aed164383085ca353",
+        "rowCount": 3513,
+        "rowIdentitySetSha256": "28e5adbffbafa6ef2c11c18c7d6992c87608dfcff9d3f0ae73aec418c079b7bd"
+      },
+      "currentBundle": {
+        "rowCount": 8024,
+        "siteHarvestRows": 3494
+      }
+    },
+    {
+      "sourceEvidencePath": "data/uk_prices/later_publications/2026-10-18-coachandhorsesbeckenham-com-wines.json",
+      "sourceEvidenceSha256": "d490b9b9200b1d5062931a42c2f59b3867dee058f213e88fbac3081b32d03363",
+      "sourceUrl": "https://www.coachandhorsesbeckenham.com/wines",
+      "sourceObservedAt": "2026-10-18T21:38:01.690Z",
+      "addedRows": 2,
+      "currentLedger": {
+        "sha256": "54df1d108672e1d8edcb4897b1fc87f209312d0082d43a0ee67409adfd2e8de1",
+        "rowCount": 3515,
+        "rowIdentitySetSha256": "acb9867aee1ee0114c5ad9918495cdff7f91f0e9fd4c01f8b787019c5968be96"
+      },
+      "currentBundle": {
+        "rowCount": 8020,
+        "siteHarvestRows": 3490
+      }
+    },
+    {
+      "sourceEvidencePath": "data/uk_prices/later_publications/2026-10-18-thecottonmillpub-com.json",
+      "sourceEvidenceSha256": "c28ac3170da7a2925bc28168e8424abdd27f8b815b8c4eb85d49ebc71dc653ed",
+      "sourceUrl": "https://thecottonmillpub.com",
+      "sourceObservedAt": "2026-10-18T22:46:13.457Z",
+      "addedRows": 6,
+      "currentLedger": {
+        "sha256": "36fbc5331632fc86c410ed6c50b56a98c8e9a644dd8d1fb1437ca445830299da",
+        "rowCount": 3521,
+        "rowIdentitySetSha256": "1d51fbd739056b2cedb8bd544790bfafd0df786fe10506c622dbd9c9b907f582"
+      },
+      "currentBundle": {
+        "rowCount": 8072,
+        "siteHarvestRows": 3542
+      }
+    },
+    {
+      "sourceEvidencePath": "data/uk_prices/later_publications/2026-10-18-thebluemonklondon-com-bar.json",
+      "sourceEvidenceSha256": "ff9891528507519114a5e9c508d725af62290f7a0b4f8b5d591c8dbe0990966a",
+      "sourceUrl": "https://www.thebluemonklondon.com/bar",
+      "sourceObservedAt": "2026-10-18T22:46:37.618Z",
+      "addedRows": 40,
+      "currentLedger": {
+        "sha256": "aadd7ce7f4f8f1cc55a29559950de1767c63e456e780e9286cd7949995433d4a",
+        "rowCount": 3561,
+        "rowIdentitySetSha256": "ca8536f9d364a5fedd23ae0354b7df616438ce3acf6e1d4c5e601fc34137c46a"
+      },
+      "currentBundle": {
+        "rowCount": 8072,
+        "siteHarvestRows": 3542
+      }
+    },
+    {
+      "sourceEvidencePath": "data/uk_prices/later_publications/2026-10-18-exale-uk-wines.json",
+      "sourceEvidenceSha256": "692601e52eca6e8cefe5bf6ee376f9a5f45c4a7d9e5150ca64e45424d6726001",
+      "sourceUrl": "https://www.exale.uk/wines",
+      "sourceObservedAt": "2026-10-18T22:46:43.301Z",
+      "addedRows": 6,
+      "currentLedger": {
+        "sha256": "be436f90949c1a0d89512bbd8bafa977baf61a2d49bedb74b90d948c752bd394",
+        "rowCount": 3567,
+        "rowIdentitySetSha256": "5790ff102cdba9feeaaaeb49337a5bc1d0ed85691caaa853c890b6e26a3aaec7"
+      },
+      "currentBundle": {
+        "rowCount": 8062,
+        "siteHarvestRows": 3532
+      }
+    },
+    {
+      "sourceEvidencePath": "data/uk_prices/later_publications/2026-10-18-imperialarmschislehurst-co-uk-wp-content-uploads-2026-03-tp251592-imperial-drinks-menu-final-pdf.json",
+      "sourceEvidenceSha256": "1e2d5ae3ae9663cc7e87a3cead8523ede1360f1afcb806c202d811cc8ed621e7",
+      "sourceUrl": "https://imperialarmschislehurst.co.uk/wp-content/uploads/2026/03/TP251592-Imperial-Drinks-Menu-Final.pdf",
+      "sourceObservedAt": "2026-10-18T23:31:18.614Z",
+      "addedRows": 85,
+      "currentLedger": {
+        "sha256": "1bcf48fdd1ed1b5ba72eac6e9a5b6796ba5b38ac6b897e74576e17a225420b62",
+        "rowCount": 3652,
+        "rowIdentitySetSha256": "1ebfa152a9b39d489f2c501eed22e2a2b0868d3194108d3f35f5f8e83492123a"
+      },
+      "currentBundle": {
+        "rowCount": 8181,
+        "siteHarvestRows": 3651
+      }
+    },
+    {
+      "sourceEvidencePath": "data/uk_prices/later_publications/2026-10-18-thegreyhoundhotel-com-food-drink.json",
+      "sourceEvidenceSha256": "add8a2ddb126342d0da53ed6549351ab73f4ad48e57c45d163aaddd8ce254bdf",
+      "sourceUrl": "https://www.thegreyhoundhotel.com/food-drink/",
+      "sourceObservedAt": "2026-10-18T23:32:29.015Z",
+      "addedRows": 21,
+      "currentLedger": {
+        "sha256": "87929d51fa8302cabfab141e024f854d95fede542327de5419c68d6c676d9467",
+        "rowCount": 3673,
+        "rowIdentitySetSha256": "1dacbad9be660f866a016d47644ee6b8828ab66046d7a211a82fbce645f9b002"
+      },
+      "currentBundle": {
+        "rowCount": 8181,
+        "siteHarvestRows": 3651
+      }
+    },
+    {
+      "sourceEvidencePath": "data/uk_prices/later_publications/2026-10-18-crownofmitcham-co-uk-menu.json",
+      "sourceEvidenceSha256": "871e4da14e2d0532d376b00f1708bed6f33f3a94004eab0b7011c1b641b0668f",
+      "sourceUrl": "https://www.crownofmitcham.co.uk/menu?menu=menu",
+      "sourceObservedAt": "2026-10-18T23:32:31.698Z",
+      "addedRows": 13,
+      "currentLedger": {
+        "sha256": "fed3c3e824226d61ff47182e2aff707e635dabae73ca7e013569f40b8e09a327",
+        "rowCount": 3686,
+        "rowIdentitySetSha256": "aadbafbe8592b2b937c0f55bae3c6dfbfa30bd7841090ca0ef4dda47c3559615"
+      },
+      "currentBundle": {
+        "rowCount": 7730,
+        "siteHarvestRows": 3615
+      }
+    },
+    {
+      "sourceEvidencePath": "data/uk_prices/later_publications/2026-10-19-godetlondon-com-wine.json",
+      "sourceEvidenceSha256": "22da756a42994340b1ae1e5a1d6acd930ba47198896b1582d6e620624c7d7254",
+      "sourceUrl": "https://godetlondon.com/wine/",
+      "sourceObservedAt": "2026-10-19T15:09:51.397Z",
+      "addedRows": 8,
+      "currentLedger": {
+        "sha256": "8a0b6c4a5310df07933826765f39cd7f1075a5dd6276a09c5980b34bd0209bba",
+        "rowCount": 3694,
+        "rowIdentitySetSha256": "911cf978b51ee51174cc8d3a96acb791c843d914315f229cf49f748f3a259323"
+      },
+      "currentBundle": {
+        "rowCount": 7790,
+        "siteHarvestRows": 3667
+      }
+    },
+    {
+      "sourceEvidencePath": "data/uk_prices/later_publications/2026-10-19-parkhotelteddington-com-food-drink.json",
+      "sourceEvidenceSha256": "08a0e1ead9663b4905228c0322dba938628e2e0d6fedd98ca44dc08db4df7d3f",
+      "sourceUrl": "https://www.parkhotelteddington.com/food-drink/",
+      "sourceObservedAt": "2026-10-19T15:10:49.637Z",
+      "addedRows": 15,
+      "currentLedger": {
+        "sha256": "69885ff212092afc7de17202e95c49d6eece2bae6734e22c59a83f2b20a6eab2",
+        "rowCount": 3709,
+        "rowIdentitySetSha256": "538b26cbca88327b5b58dc46d82893909c171c290134bea68aa8b1c2e1c61b3a"
+      },
+      "currentBundle": {
+        "rowCount": 7790,
+        "siteHarvestRows": 3667
+      }
+    },
+    {
+      "sourceEvidencePath": "data/uk_prices/later_publications/2026-10-19-thedysartpetersham-co-uk-wine-drink.json",
+      "sourceEvidenceSha256": "c6a47b35f692e7d6aaf81f9fa42e03223422591692e3c0f4f0ed3f4eb2ea8840",
+      "sourceUrl": "https://www.thedysartpetersham.co.uk/wine-drink/",
+      "sourceObservedAt": "2026-10-19T15:11:12.995Z",
+      "addedRows": 49,
+      "currentLedger": {
+        "sha256": "e1e39ecd8ae61551ee8f5437f5d8a5ec2621e03bbc24ea305e919a771e5f7221",
+        "rowCount": 3758,
+        "rowIdentitySetSha256": "187ef40545627609c98fb5f9877ccc4c55dc65ec40abc0c6be79f4292041b967"
+      },
+      "currentBundle": {
+        "rowCount": 7790,
+        "siteHarvestRows": 3667
+      }
+    },
+    {
+      "sourceEvidencePath": "data/uk_prices/later_publications/2026-10-19-lambsurbiton-co-uk-bar-hire-london.json",
+      "sourceEvidenceSha256": "92fdfabbeef2c12879e8ab1de8198de721a27c7b6aa43e81b37127f154d91e00",
+      "sourceUrl": "https://www.lambsurbiton.co.uk/bar-hire-london",
+      "sourceObservedAt": "2026-10-19T15:58:39.531Z",
+      "addedRows": 2,
+      "currentLedger": {
+        "sha256": "f96e34ac6a2d6ffef37d7dfae0cd8dd1cfff60a45d23cee413ba3822c66030ad",
+        "rowCount": 3760,
+        "rowIdentitySetSha256": "565129e3d7f5e0bdd16f6072751d0b8c98e8920e8aa524400a4382dd0c67cefb"
+      },
+      "currentBundle": {
+        "rowCount": 7821,
+        "siteHarvestRows": 3698
+      }
+    },
+    {
+      "sourceEvidencePath": "data/uk_prices/later_publications/2026-10-19-thewarwickpimlico-co-uk-wine-list-html.json",
+      "sourceEvidenceSha256": "de0f1e216f0a3507ea740adf3d98dc28f0db89a76cd4fb3a702ef8967fc3bc07",
+      "sourceUrl": "https://www.thewarwickpimlico.co.uk/wine-list.html",
+      "sourceObservedAt": "2026-10-19T15:58:45.245Z",
+      "addedRows": 17,
+      "currentLedger": {
+        "sha256": "11fd218707f8d351bb990b2f457d13e9ef741401254330060ad72b59bed03f0b",
+        "rowCount": 3777,
+        "rowIdentitySetSha256": "41c3134f5d2fe9c93a78be5ae983ce8472759c8654ceba5bc21008cbe1e0a2d8"
+      },
+      "currentBundle": {
+        "rowCount": 7821,
+        "siteHarvestRows": 3698
+      }
+    },
+    {
+      "sourceEvidencePath": "data/uk_prices/later_publications/2026-10-19-thejollycoopers-co-uk-menus.json",
+      "sourceEvidenceSha256": "0cb90391cc41e5dac0ade6753c9746c3d97927d035898532f03ebc30113a2080",
+      "sourceUrl": "https://www.thejollycoopers.co.uk/menus/",
+      "sourceObservedAt": "2026-10-19T15:58:48.114Z",
+      "addedRows": 15,
+      "currentLedger": {
+        "sha256": "973355a788a5c449f8d1cc1eebd46d6ad3b967a26fcab8840e5afd1112a690bb",
+        "rowCount": 3792,
+        "rowIdentitySetSha256": "d869bb52cbe7adfce0abb058c135a16339b99c1f74103758346dfdc069a2ad66"
+      },
+      "currentBundle": {
+        "rowCount": 7821,
+        "siteHarvestRows": 3698
+      }
+    },
+    {
+      "sourceEvidencePath": "data/uk_prices/later_publications/2026-10-19-moyletts-co-uk.json",
+      "sourceEvidenceSha256": "a89fb99b4a5e76005b96178e7578ceb1ab5903da6bbab28b851af8bcd5bd7192",
+      "sourceUrl": "https://moyletts.co.uk",
+      "sourceObservedAt": "2026-10-19T16:20:41.693Z",
+      "addedRows": 2,
+      "currentLedger": {
+        "sha256": "88a9304a84acc36d014ee36f89ef0e65f4944aede90dab13d380c25da7ad086c",
+        "rowCount": 3794,
+        "rowIdentitySetSha256": "d747d1d691a72c92b30fa9d3da10b6010bf45078f128169d148047106f370838"
+      },
+      "currentBundle": {
+        "rowCount": 7965,
+        "siteHarvestRows": 3850
+      }
+    },
+    {
+      "sourceEvidencePath": "data/uk_prices/later_publications/2026-10-19-moyletts-co-uk-blog-moyletts-spotlight-2-matt-leppier-our-in-house-kitchen.json",
+      "sourceEvidenceSha256": "a98778557e6c2ebf7abeab68266fe1b1d410303bd0b45f7bbcd8e7e248ddb49a",
+      "sourceUrl": "https://moyletts.co.uk/blog/moyletts-spotlight-2-matt-leppier-our-in-house-kitchen",
+      "sourceObservedAt": "2026-10-19T16:20:41.693Z",
+      "addedRows": 1,
+      "currentLedger": {
+        "sha256": "ae6793764d9ec66db7e51a76ae277a402a3c13825699eb3568a4e4de7285f66c",
+        "rowCount": 3795,
+        "rowIdentitySetSha256": "3d14b7c88f6746c2382e70adafc776920c56e95a4e63932a478976832fe9609f"
+      },
+      "currentBundle": {
+        "rowCount": 7965,
+        "siteHarvestRows": 3850
+      }
+    },
+    {
+      "sourceEvidencePath": "data/uk_prices/later_publications/2026-10-19-venue5-com-drinks-menu.json",
+      "sourceEvidenceSha256": "b775d75979358720cf2bb530ecf92ca1450d167364bb64a8a8ab940f927ab53f",
+      "sourceUrl": "https://venue5.com/drinks-menu/",
+      "sourceObservedAt": "2026-10-19T16:20:53.510Z",
+      "addedRows": 95,
+      "currentLedger": {
+        "sha256": "0fdc040d821fb7f289f95486e47d018eaccfeb5c985e6ed191267c6a4935b71e",
+        "rowCount": 3890,
+        "rowIdentitySetSha256": "05bd3ceff6d378b973af8d6ed2a1dcb96601f99227d8279f027bc7f0ca13a3ae"
+      },
+      "currentBundle": {
+        "rowCount": 7965,
+        "siteHarvestRows": 3850
+      }
+    },
+    {
+      "sourceEvidencePath": "data/uk_prices/later_publications/2026-10-19-venue5-com-banquet-hall-menu.json",
+      "sourceEvidenceSha256": "25c9eef0e9dca413158b775528780448720f5fa09b9d526d3f8d78ac92897c30",
+      "sourceUrl": "https://venue5.com/banquet-hall-menu/",
+      "sourceObservedAt": "2026-10-19T16:20:53.510Z",
+      "addedRows": 5,
+      "currentLedger": {
+        "sha256": "f77579e625a47935e4f2e3636bfe92d857a6cd749b25899663545ac2609f7cf7",
+        "rowCount": 3895,
+        "rowIdentitySetSha256": "683f08529a38d65ec688fc12cc149dd324eab3e42832d6ba667b9011db12717f"
+      },
+      "currentBundle": {
+        "rowCount": 7965,
+        "siteHarvestRows": 3850
+      }
+    },
+    {
+      "sourceEvidencePath": "data/uk_prices/later_publications/2026-10-19-theartichoke-net-menu-page-2.json",
+      "sourceEvidenceSha256": "64511a524f41430e524e5cf1d99be44fe43b5a34820c5ba12c020fd81b520ff8",
+      "sourceUrl": "https://theartichoke.net/menu-page-2/",
+      "sourceObservedAt": "2026-10-19T16:21:08.701Z",
+      "addedRows": 13,
+      "currentLedger": {
+        "sha256": "6203a97925316e00a0ecf6fd2e8c3c9de2b2ae13ecaa442cc3b15b5dc8a436b6",
+        "rowCount": 3908,
+        "rowIdentitySetSha256": "9381da090835eff2145c2f08bc846c9726340dbba621316bcbf215436b0d4fbb"
+      },
+      "currentBundle": {
+        "rowCount": 7965,
+        "siteHarvestRows": 3850
+      }
+    },
+    {
+      "sourceEvidencePath": "data/uk_prices/later_publications/2026-10-19-foxandduck-co-uk-our-menus.json",
+      "sourceEvidenceSha256": "8a179c3a2e9e5d6c1fb7fc27e608cd06545bc7efabf898596203d076c4ffdbf7",
+      "sourceUrl": "https://foxandduck.co.uk/our-menus/",
+      "sourceObservedAt": "2026-10-19T16:21:18.862Z",
+      "addedRows": 4,
+      "currentLedger": {
+        "sha256": "d0a6eb9dffca9762b7d447d6950de64b94655e9669bf79b79e84d8a9d96a95a6",
+        "rowCount": 3912,
+        "rowIdentitySetSha256": "e81310c03a8e87267cd442b2abac634a308a35609291beea12acd6a8ebe28cfd"
+      },
+      "currentBundle": {
+        "rowCount": 7965,
+        "siteHarvestRows": 3850
+      }
+    },
+    {
+      "sourceEvidencePath": "data/uk_prices/later_publications/2026-10-19-alexanderpope-co-uk-food-and-drink.json",
+      "sourceEvidenceSha256": "e74e9aa3b0eb6b444ad9a8cc724e991bee5cc5f404c96895701119f88ef54519",
+      "sourceUrl": "https://www.alexanderpope.co.uk/food-and-drink/",
+      "sourceObservedAt": "2026-10-19T16:21:25.320Z",
+      "addedRows": 13,
+      "currentLedger": {
+        "sha256": "20684ae4fcc1b71174a56f0ad1f1183dc6d16272f2e800cb30ff9ab4509ce282",
+        "rowCount": 3925,
+        "rowIdentitySetSha256": "90a12a23f56ea6eb8d3f150ee74902b2ffefcbc2027d6d02413391cd45e9b595"
+      },
+      "currentBundle": {
+        "rowCount": 7965,
+        "siteHarvestRows": 3850
+      }
+    },
+    {
+      "sourceEvidencePath": "data/uk_prices/later_publications/2026-10-19-silverfoxmicropub-com-drinks.json",
+      "sourceEvidenceSha256": "9885583188ecee3ae944e653d104f054d93705341b468184934caba394c7f231",
+      "sourceUrl": "https://www.silverfoxmicropub.com/drinks",
+      "sourceObservedAt": "2026-10-19T16:21:29.579Z",
+      "addedRows": 49,
+      "currentLedger": {
+        "sha256": "466575c4ba1fd97150af93afae6126100fd4cd88ba2a0dc6f84dfe41e9cf6962",
+        "rowCount": 3974,
+        "rowIdentitySetSha256": "d4f0be165457d009ff22f5de7691fc90749b44100185818ceeac2aa84f6e271f"
+      },
+      "currentBundle": {
+        "rowCount": 7965,
+        "siteHarvestRows": 3850
+      }
+    },
+    {
+      "sourceEvidencePath": "data/uk_prices/later_publications/2026-10-19-loreoftheland-com-menu-drinks-menu.json",
+      "sourceEvidenceSha256": "a09661d0d3c90b3b013159c180b93f8e06ff36607a72d915a72127e7923cedf6",
+      "sourceUrl": "https://loreoftheland.com/menu/drinks-menu/",
+      "sourceObservedAt": "2026-10-19T16:21:31.607Z",
+      "addedRows": 29,
+      "currentLedger": {
+        "sha256": "5e2c96cf2590de32e5ae23479dc2c801f3adcf3c1ff222c183b7be681b132336",
+        "rowCount": 4003,
+        "rowIdentitySetSha256": "5de7b0cff41807496cbfc58971df62ea3d0dd4ea8d6e50aeb0c4d3924d40c9cb"
+      },
+      "currentBundle": {
+        "rowCount": 7965,
+        "siteHarvestRows": 3850
+      }
+    },
+    {
+      "sourceEvidencePath": "data/uk_prices/later_publications/2026-10-19-loreoftheland-com-menu-wine-list.json",
+      "sourceEvidenceSha256": "0eeb8709e7ecd04b80eac0b7ec97024af8ad1b96be16f86816cb51b584ca7f00",
+      "sourceUrl": "https://loreoftheland.com/menu/wine-list/",
+      "sourceObservedAt": "2026-10-19T16:21:31.607Z",
+      "addedRows": 9,
+      "currentLedger": {
+        "sha256": "e1288ab4bff179811334a07650e4c76ea0cd081fce8180cbd50a48a5c7a4a30c",
+        "rowCount": 4012,
+        "rowIdentitySetSha256": "e80aac08531c2bb7bc2280ad0abd1e2c153ea7651f1bfa6366814a778756157b"
+      },
+      "currentBundle": {
+        "rowCount": 7965,
+        "siteHarvestRows": 3850
       }
     }
   ]

@@ -346,6 +346,15 @@ export function venuePhotoCursor(photo: Pick<VenuePhoto, "createdAt" | "id">): s
   return `${photo.createdAt}|${photo.id}`;
 }
 
+/** A photo id is a uuid (`crypto.randomUUID()` at upload, a uuid column). */
+const VENUE_PHOTO_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/**
+ * The cursor's id is written into a PostgREST `.or()` filter against a uuid
+ * column (the venue wall and the drink wall both), so anything that is not a
+ * uuid is refused here: unchecked, it raised a cast error the route answered
+ * with a 500, and a comma or bracket in it would have reshaped the filter.
+ */
 export function parseVenuePhotoCursor(
   value: string | null | undefined,
 ): { createdAt: string; id: string } | null {
@@ -354,6 +363,7 @@ export function parseVenuePhotoCursor(
   const createdAt = value.slice(0, at);
   const id = value.slice(at + 1);
   if (!createdAt || !id || !Number.isFinite(Date.parse(createdAt))) return null;
+  if (!VENUE_PHOTO_ID.test(id)) return null;
   return { createdAt, id };
 }
 

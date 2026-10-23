@@ -6,10 +6,11 @@
   display: flex;
   flex-direction: column;
   min-height: 100dvh;
-  padding-top: env(safe-area-inset-top, 0px);
-  background:
-    radial-gradient(circle at 82% 8%, color-mix(in srgb, var(--brass) 9%, transparent), transparent 26rem),
-    var(--paper);
+  /* No top safe-area inset: SiteNav renders above this main and already pays
+     the notch (components/nav/siteNav.css); paid here too it was a blank band
+     the notch's height under the bar (e2e/page-shell-safe-area-top.spec.ts). */
+  /* Plain paper: coral is the composer's submit, never a wash behind it. */
+  background: var(--paper);
   color: var(--ink);
   font-family: var(--font-body);
   -webkit-font-smoothing: antialiased;
@@ -122,22 +123,125 @@
 
 .palChatRow--pal {
   align-items: stretch;
+  scroll-margin-block-start: 1rem;
 }
+
+.palChatMap {
+  position: relative;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  background: var(--panel-raised);
+}
+
+.palChatMapTitle {
+  margin: 0;
+  padding: 0.8rem 0.9rem 0.3rem;
+  font-weight: 700;
+}
+
+.palChatMapCaption {
+  margin: 0;
+  padding: 0 0.9rem 0.8rem;
+  color: var(--ink-soft);
+  font-size: var(--text-sm);
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+
+.palChatMapCanvas {
+  position: relative;
+  width: 100%;
+  height: clamp(16rem, 38vw, 21rem);
+}
+
+.palChatMapFrame {
+  position: relative;
+}
+
+.palChatMapLoading {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  display: grid;
+  place-items: center;
+  margin: 0;
+  background: var(--panel-raised);
+  color: var(--ink-soft);
+}
+
+.palChatMapCanvas[data-map-ready="true"] + .palChatMapLoading {
+  display: none;
+}
+
+.palChatMapCanvas:not([data-map-ready="true"]) .palChatMapAnchor {
+  visibility: hidden;
+}
+
+.palChatMapAnchor {
+  width: 0;
+  height: 0;
+}
+
+.palChatMapAnchor svg {
+  position: absolute;
+  left: -160px;
+  top: -160px;
+  width: 320px;
+  height: 320px;
+  overflow: visible;
+  pointer-events: none;
+}
+
+.palChatMapAnchor line {
+  stroke: var(--ink);
+  stroke-width: 1.5;
+}
+
+.palChatMapAnchor circle {
+  fill: var(--ink);
+}
+
+.palChatMap .palChatMapPin {
+  position: absolute;
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  translate: -50% -50%;
+  border: 2px solid var(--ink);
+  border-radius: 50%;
+  background: var(--panel-raised);
+  color: var(--ink);
+  font-family: var(--font-data);
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.palChatMapStatus {
+  padding: 0.9rem;
+  margin: 0;
+  color: var(--ink-soft);
+  line-height: 1.5;
+}
+
 
 .palChatBubble {
   max-width: 85%;
   margin: 0;
   padding: 0.7rem 0.9rem;
   border: 1px solid var(--line);
-  border-radius: var(--radius-lg, 16px);
+  border-radius: var(--radius-lg);
   line-height: 1.45;
-  font-size: 0.95rem;
+  font-size: var(--text-base);
 }
 
+/* Your own words read in ink on the selected surface, not a coral tint
+   (docs/DESIGN_SYSTEM.md, "Coral is spent twice"). */
 .palChatBubble--user {
-  border-color: color-mix(in srgb, var(--brass) 55%, var(--line));
+  border-color: var(--line);
   border-bottom-right-radius: 0.35rem;
-  background: color-mix(in srgb, var(--brass) 15%, var(--panel-raised));
+  background: var(--state-selected-surface);
   color: var(--ink);
 }
 
@@ -153,7 +257,7 @@
 }
 
 .palChatBubble--error {
-  border-color: color-mix(in srgb, var(--brass) 45%, var(--line));
+  border-color: var(--color-border);
   color: var(--ink-soft);
 }
 
@@ -173,7 +277,7 @@
   width: 0.42rem;
   height: 0.42rem;
   border-radius: 50%;
-  background: var(--brass);
+  background: var(--ink-soft);
   opacity: 0.4;
 }
 
@@ -207,7 +311,7 @@
 
 .palChatCard {
   border: 1px solid var(--line);
-  border-radius: var(--radius, 12px);
+  border-radius: var(--radius);
   background: var(--panel);
   overflow: hidden;
 }
@@ -223,11 +327,13 @@
 
 .palChatCardBody:has(.palChatCardBody--link) {
   cursor: pointer;
-  transition: background var(--duration-base, 0.18s) var(--ease-out, ease-out);
+  transition: background var(--duration-base) var(--ease-out);
 }
 
-.palChatCardBody:has(.palChatCardBody--link):hover {
-  background: color-mix(in srgb, var(--brass) 7%, var(--panel));
+@media (hover: hover) and (pointer: fine) {
+  .palChatCardBody:has(.palChatCardBody--link):hover {
+    background: var(--panel-raised);
+  }
 }
 
 .palChatCardBody:has(.palChatCardBody--link):active {
@@ -252,15 +358,14 @@
 .palChatCardTitle {
   margin: 0;
   font-family: var(--font-display);
-  font-size: 1.02rem;
+  font-size: var(--text-base);
   font-weight: 650;
   letter-spacing: -0.01em;
 }
 
+/* Layout only: the figure is the one price look (components/PriceBadge.tsx). */
 .palChatCardPrice {
   flex: 0 0 auto;
-  font: 650 0.9rem/1 var(--font-data);
-  color: color-mix(in srgb, var(--amber) 82%, var(--ink));
 }
 
 .palChatCardPlace {
@@ -269,24 +374,24 @@
   gap: 0.3rem;
   margin: 0;
   color: var(--ink-soft);
-  font-size: 0.8rem;
+  font-size: var(--text-xs);
 }
 
 .palChatCardPlace svg {
   flex: 0 0 auto;
-  color: var(--brass);
+  color: var(--color-text-muted);
 }
 
 .palChatCardWhen {
   margin: 0;
-  color: var(--river-bright, var(--ink-soft));
+  color: var(--river-bright);
   font: 600 0.76rem/1.3 var(--font-data);
 }
 
 .palChatCardNote {
   margin: 0;
   color: var(--ink-soft);
-  font-size: 0.85rem;
+  font-size: var(--text-sm);
   line-height: 1.4;
 }
 
@@ -303,33 +408,37 @@
   display: inline-flex;
   align-items: center;
   padding: 0.15rem 0.5rem;
-  border: 1px solid color-mix(in srgb, var(--brass) 32%, var(--line));
-  border-radius: var(--radius-pill, 999px);
-  background: color-mix(in srgb, var(--brass) 10%, transparent);
-  color: color-mix(in srgb, var(--brass) 76%, var(--ink));
-  font: 640 0.64rem/1 var(--font-data);
+  border: 1px solid var(--badge-border);
+  border-radius: var(--radius-pill);
+  background: var(--badge-surface);
+  color: var(--badge-ink);
+  font: 640 0.64rem/1 var(--font-body);
   letter-spacing: 0.05em;
   text-transform: uppercase;
   text-decoration: none;
 }
 
-.palChatProv--link:hover {
-  border-color: var(--brass);
-  text-decoration: underline;
-  text-underline-offset: 0.2rem;
+@media (hover: hover) and (pointer: fine) {
+  .palChatProv--link:hover {
+    border-color: var(--hairline-strong);
+    text-decoration: underline;
+    text-underline-offset: 0.2rem;
+  }
 }
 
 .palChatConfidence {
   color: var(--muted);
-  font: 600 0.64rem/1 var(--font-data);
+  font: 600 0.64rem/1 var(--font-body);
   letter-spacing: 0.05em;
   text-transform: capitalize;
 }
 
 .palChatCardCta {
   margin-left: auto;
-  color: var(--brass);
-  font: 640 0.68rem/1 var(--font-data);
+  color: var(--ink);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  font: 640 0.68rem/1 var(--font-body);
   letter-spacing: 0.03em;
 }
 
@@ -345,21 +454,28 @@
    first-open dead zone with receipts. Enters with transform+opacity only
    (ease-out, under 300ms); the zone below is empty and the composer is
    pinned, so the entrance shifts nothing. */
+/* THE PANEL KEEPS THE TRANSCRIPT'S COLUMN. At `min(30rem, 100%)` it ran edge
+   to edge on a phone, its border cut by both sides of the screen with no
+   gutter, while on a desktop it sat centred 104px inside the column the
+   bubbles and chips start on (Pal UI audit, 19 Oct 2026, 390 and 1280). It
+   now pays the transcript's own gutter and measure, so its left edge is the
+   bubbles' left edge at every width. */
 .palGlance {
-  width: min(30rem, 100%);
+  width: calc(min(46rem, 100%) - 2 * clamp(1rem, 4vw, 1.5rem));
   margin: 0.9rem auto 0;
   padding: 0.7rem 0.9rem;
-  border: 1px solid color-mix(in srgb, var(--brass) 18%, var(--line));
-  border-radius: 14px;
-  background: color-mix(in srgb, var(--panel-raised) 82%, transparent);
-  animation: palGlanceIn var(--duration-base, 0.22s) var(--ease-out, ease-out) both;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--panel-raised);
+  animation: palGlanceIn var(--duration-base) var(--ease-out) both;
 }
 
 .palGlanceLabel {
   display: inline-flex;
   align-items: center;
   gap: 0.35rem;
-  color: var(--brass);
+  /* A label: muted ink, never coral. */
+  color: var(--color-text-muted);
   font-size: var(--text-2xs);
   font-weight: 700;
   letter-spacing: 0.01em;
@@ -368,7 +484,7 @@
 .palGlanceLine {
   margin: 0.3rem 0 0;
   color: var(--ink-soft);
-  font-size: 0.9rem;
+  font-size: var(--text-sm);
   line-height: 1.45;
 }
 
@@ -376,7 +492,7 @@
   color: var(--ink);
   text-decoration: underline;
   text-underline-offset: 3px;
-  text-decoration-color: color-mix(in srgb, var(--brass) 55%, transparent);
+  text-decoration-color: currentColor;
 }
 
 @keyframes palGlanceIn {
@@ -417,7 +533,7 @@
   display: flex;
   align-items: center;
   gap: 0.55rem;
-  border-top: 1px solid var(--line-soft, var(--line));
+  border-top: 1px solid var(--line-soft);
   background: var(--paper);
 }
 
@@ -440,10 +556,10 @@
   min-height: 3rem;
   padding: 0 1rem;
   border: 1px solid var(--line);
-  border-radius: var(--radius-pill, 999px);
+  border-radius: var(--radius-pill);
   background: var(--panel-raised);
   color: var(--ink);
-  font-size: 1rem;
+  font-size: var(--text-base);
 }
 
 .palChatInput::placeholder {
@@ -466,17 +582,25 @@
   color: var(--color-on-accent);
   cursor: pointer;
   transition:
-    background var(--duration-base, 0.18s) var(--ease-out, ease-out),
-    opacity var(--duration-base, 0.18s) var(--ease-out, ease-out);
+    background var(--duration-base) var(--ease-out),
+    opacity var(--duration-base) var(--ease-out);
 }
 
-.palChatSend:hover:not(:disabled) {
-  background: var(--accent-action-strong);
-  color: var(--color-on-accent-strong);
+@media (hover: hover) and (pointer: fine) {
+  .palChatSend:hover:not(:disabled) {
+    background: var(--accent-action-strong);
+    color: var(--color-on-accent-strong);
+  }
 }
 
+/* NOT READY READS AS NOT READY. With nothing typed the submit is disabled,
+   and a coral fill at 42% opacity was a muddy maroon that read as a fault. It
+   sits on the neutral control surface until there is something to ask. */
 .palChatSend:disabled {
-  opacity: 0.45;
+  border-color: var(--line);
+  background: var(--panel-raised);
+  color: var(--color-text-muted);
+  opacity: 1;
   cursor: default;
 }
 
@@ -485,10 +609,7 @@
   --shared-press-scale: 1;
 }
 
-.palChatSend:disabled {
-  opacity: 0.42;
-  cursor: not-allowed;
-}
+
 
 /* Clear the fixed mobile tab bar AND the floating re-open pill so the composer
    never hides behind either. --night-pill-clearance is 0px unless a pill is
@@ -501,9 +622,12 @@
     padding-bottom: var(--night-pill-clearance, 0px);
   }
   .palChatComposer {
-    --pal-composer-clearance: calc(
+    /* The phone's own foot: the bar's lane and the re-open pill. The consent
+       rule below stands on this rather than restating it. */
+    --pal-composer-foot: calc(
       var(--tabbar-h, 64px) + env(safe-area-inset-bottom, 0px) + var(--night-pill-clearance, 0px)
     );
+    --pal-composer-clearance: var(--pal-composer-foot);
 
     padding-bottom: 0.7rem;
   }
@@ -511,6 +635,32 @@
      only thing under the composer is the keyboard's own inset. */
   .palChatComposer[data-keyboard-open] {
     --pal-composer-clearance: 0px;
+  }
+  /* THE CONSENT CARD NEVER COVERS THE FIELD. The card parks in the lane above
+     the tab bar (app/globals.css) and publishes its measured height
+     (--analytics-consent-reserve), so while it is up the composer stands on
+     it, as the message thread's composer does (app/messages/messages.css).
+     Before this the field and the Ask button sat under the card on a fresh
+     /pal/chat at 390 and 360 (Pal UI audit, 19 Oct 2026). With the keyboard
+     up the card steps aside instead: a person typing has the field first. */
+  body:has(.analyticsConsentPrompt) .palChatComposer:not([data-keyboard-open]) {
+    --pal-composer-clearance: calc(
+      var(--pal-composer-foot)
+        + var(--analytics-consent-reserve, var(--analytics-consent-mobile-clearance))
+    );
+  }
+  body:has(.palChatComposer[data-keyboard-open]) .analyticsConsentPrompt {
+    visibility: hidden;
+    pointer-events: none;
+  }
+}
+
+/* The desktop consent strip is fixed to the foot of the window, so the sticky
+   composer stands on its measured top edge rather than sliding under it (the
+   field and the Ask button were under the strip at 1440x900 and 1280x720). */
+@media (min-width: 641px) {
+  body:has(.analyticsConsentPrompt) .palChatComposer {
+    --pal-composer-clearance: var(--analytics-consent-reserve, var(--analytics-consent-clearance));
   }
 }
 
@@ -555,15 +705,20 @@
   min-height: 44px;
   margin: 0 0.9rem 0.9rem;
   padding: 0 0.9rem;
-  border-radius: 0.5rem;
-  background: var(--brass);
-  color: var(--color-on-accent);
-  font: 600 0.85rem/1 var(--font-body);
+  border: 1px solid var(--control-secondary-border);
+  border-radius: var(--radius);
+  background: var(--control-secondary-surface);
+  color: var(--ink);
+  font: 700 0.85rem/1 var(--font-body);
   text-decoration: none;
 }
 
-.palChatCardAccept:hover {
-  background: var(--brass-bright);
+/* A card's accept is a secondary: the composer's submit is the page's one
+   coral, so a second coral fill inside a card made two primaries. */
+@media (hover: hover) and (pointer: fine) {
+  .palChatCardAccept:hover {
+    border-color: var(--hairline-strong);
+  }
 }
 
 .palChatProposals {
@@ -597,7 +752,7 @@
   justify-content: center;
   min-height: 44px;
   padding: 0.6rem 0.85rem;
-  border-radius: 0.65rem;
+  border-radius: var(--radius);
   font: 700 0.82rem/1.25 var(--font-body);
   text-decoration: none;
   color: var(--ink);
@@ -605,15 +760,17 @@
   border: 1px solid var(--line);
 }
 
-.palChatPlanHandoff:hover {
-  background: color-mix(in srgb, var(--paper) 88%, var(--brass) 12%);
+@media (hover: hover) and (pointer: fine) {
+  .palChatPlanHandoff:hover {
+    background: var(--panel);
+  }
 }
 
 .palChatProposalConfirm,
 .palChatProposalDismiss {
   min-height: 44px;
   padding: 0.6rem 0.85rem;
-  border-radius: 0.65rem;
+  border-radius: var(--radius);
   font: 700 0.82rem/1.25 var(--font-body);
 }
 
@@ -629,14 +786,42 @@
   flex: 0 0 auto;
 }
 
+.palChatProposalReplaces {
+  display: block;
+  margin-top: 0.2rem;
+  font-weight: 400;
+  color: var(--ink-soft);
+}
+
 .palChatProposalConfirm {
-  border: 1px solid color-mix(in srgb, var(--line) 50%, var(--brass) 50%);
-  background: color-mix(in srgb, var(--brass) 22%, transparent);
-  color: var(--ink);
+  border: 1px solid var(--state-selected-border);
+  background: var(--state-selected-surface);
+  color: var(--state-selected-ink);
 }
 
 .palChatProposalDismiss {
   border: 1px solid var(--line);
   background: transparent;
   color: var(--ink-soft);
+}
+
+.palGlanceReceipt {
+  margin: 0.35rem 0 0;
+  font-size: var(--text-sm);
+  line-height: 1.45;
+  color: var(--ink-soft);
+  overflow-wrap: anywhere;
+}
+.palChatReset {
+  min-height: 44px;
+  padding: 8px 0;
+  margin-bottom: 12px;
+  border: 0;
+  background: transparent;
+  color: var(--ink-soft);
+  font: inherit;
+  font-size: var(--text-sm);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
 }

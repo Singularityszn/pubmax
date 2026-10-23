@@ -1,6 +1,28 @@
 export const PAL_VOICE_START_ERROR = "Voice isn't available. Type instead.";
 export const PAL_MICROPHONE_PERMISSION_ERROR =
   "Microphone access is off. Type instead.";
+export const PAL_VOICE_START_TIMEOUT_MS = 20_000;
+export const PAL_VOICE_START_TIMEOUT_ERROR =
+  "Voice took too long to start. Ask in writing or try again.";
+export const PAL_VOICE_LINE_DROPPED_ERROR =
+  "The voice line dropped, so the Pal stopped hearing you. Start voice chat again or ask in writing.";
+
+/**
+ * Did the provider's line drop under a live call, rather than end on purpose?
+ *
+ * The SDK reports a socket that closed with any code but 1000 as
+ * `reason: "error"`. On a phone in a pub that is a weak signal, and the panel
+ * used to flip back to "Voice ready" in silence while the person kept talking
+ * to nobody. The provider's own session cap also ends as an error, but it is
+ * the same three-minute cap the browser keeps, so it says nothing new.
+ */
+export function palVoiceLineDropped(details: unknown): boolean {
+  if (!details || typeof details !== "object") return false;
+  const { reason, context } = details as { reason?: unknown; context?: unknown };
+  if (reason !== "error") return false;
+  const type = context && typeof context === "object" ? (context as { type?: unknown }).type : undefined;
+  return type !== "max_duration_exceeded";
+}
 
 type VoiceProbeStream = {
   getTracks: () => Array<{ stop: () => void }>;
@@ -67,6 +89,8 @@ export function createPubPalVoiceStartController() {
       if (!activeStart) return;
       activeStart.cancelled = true;
       notifyCancellation(activeStart);
+      activeStart = null;
+      inFlight = null;
     },
     start<TGrant>(attempt: VoiceStartAttempt<TGrant>): Promise<boolean> {
       if (inFlight) return inFlight;
@@ -120,7 +144,7 @@ export function createPubPalVoiceStartController() {
           }
         })
         .finally(() => {
-          inFlight = null;
+          if (inFlight === current) inFlight = null;
           if (activeStart === currentStart) activeStart = null;
         });
       inFlight = current;

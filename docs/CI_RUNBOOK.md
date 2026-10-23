@@ -6,20 +6,31 @@ check layer.
 
 ## GitHub-hosted runners
 
-Every job that runs Playwright uses `macos-latest`. Every other job uses
-`ubuntu-latest`. The repository is public, so both are GitHub's free hosted
-runners. Ubuntu font metrics wrap the landing hero differently from the
-macOS metrics the law pins were proved on, so the browser jobs stay on
-macOS. PostgreSQL, Semgrep and the rest stay on Linux. The performance
+Every job uses `ubuntu-latest`, including Browser law pins. Five Playwright
+jobs stay on `macos-latest`, each with a reason in `MACOS_JOBS` in
+`__tests__/ciRunnerIsolation.test.ts`:
+
+- The layout pins and the nightly full suite. Their specs were proved on
+  macOS glyph widths. Both use the same self-hosted webfonts, but Linux
+  Chromium draws some lines a few pixels wider. On 16 Oct 2026 four layout
+  specs failed on `ubuntu-latest` (for example 7px short at 320px), and the
+  full suite failed 19 more tests than the macOS nightly.
+- The two `performance.yml` jobs. Their route budgets were measured on macOS.
+- `prod-smoke.yml`. It runs once per production deploy.
+
+The repository is public, so both are GitHub's free hosted runners. The free
+plan runs about 20 Linux jobs at once but only 5 macOS jobs. A pull request
+that changes code takes 3 macOS jobs (the layout shards). A docs or data pull
+request takes none (see "What a pull request runs"). The performance
 sweep once failed to measure itself on a private repository's 2 vCPU
 runner; that is why it is not on the pull-request path. It is not a reason
 to run a public repository's CI on a personal machine.
 
 ```yaml
-# a job that runs Playwright
-runs-on: macos-latest
-# every other job
+# every job, including Browser law pins
 runs-on: ubuntu-latest
+# the MACOS_JOBS list only
+runs-on: macos-latest
 ```
 
 `__tests__/ciRunnerIsolation.test.ts` holds those labels, and it holds the
@@ -97,7 +108,9 @@ Job `timeout-minutes` values in `ci.yml`, `e2e.yml`, `rls-session.yml`, and the 
 
 Browser law pins, the three browser layout-pin shards and the two `performance.yml` jobs keep `--workers=1`. The layout pins run on every pull request as three shards, because they alone hold the layout that source-text unit tests once pinned. The nightly full suite runs as four shards. Each keeps Playwright's default worker count, which `playwright.config.ts` leaves unset when `CI` is set, and a hosted macOS runner resolves that to one worker.
 
-Each workflow has its own concurrency group. A newer pull request head supersedes that pull request's older runs of the same workflow, so rerun the latest workflow run for the current head. Main pushes, the nightly browser suite and manual dispatches never cancel. There is no repo-wide group and no shared browser queue.
+Each workflow has its own concurrency group. A newer pull request head supersedes that pull request's older runs of the same workflow, so rerun the latest workflow run for the current head. The nightly browser suite and manual dispatches never cancel: each one gets a group of its own (`run-<run_id>`). Main pushes of `ci.yml`, `rls-session.yml` and `security-ci.yml` also get a group of their own. GitHub keeps only one waiting run per group, so the old per-ref group dropped waiting main pushes. There is no repo-wide group and no shared browser queue.
+
+Main pushes of Browser tests (`e2e.yml`) share one group, `main-push` (owner decision, 19 Oct 2026). The run in progress always finishes. Only the newest push waits behind it, and GitHub cancels an older waiting push. Each main push holds 3 of the 5 macOS runners for the layout pins. On 19 Oct 2026, 22 merges queued 66 macOS jobs. The first layout shard of the 08:57 push started at 13:42, and a pull request's last layout shard waited 72 minutes for a runner. The newest main commit holds every older one, so main is still tested. When a main run fails, it can cover several merges: read the merges since the last green main run. The nightly full suite still runs on its own group.
 
 `ci.yml` starts lint and the two unit shards at once. `production-build` runs
 after lint. The unit shards wait on nothing, because they build their own slim
@@ -130,6 +143,39 @@ bridge compiler, `node node_modules/typescript/bin/tsc --noEmit`. Next resolves
 that TypeScript 6 compiler API at build time; see
 [`next.config.mjs`](../next.config.mjs) for why both exist. `npx tsc` resolves
 to TypeScript 7, so call the TypeScript 6 compiler by its path.
+
+### What a pull request runs
+
+A pull request that changes only docs or only data skips the heavy jobs (owner decision, 16 Oct 2026). Each heavy job's second step, `Classify the change`, diffs the pull request's merge commit against its first parent and names the scope:
+
+- **docs**: every changed file is under `docs/` or ends in `.md`.
+- **data**: every changed file is docs or data, and at least one is data (`data/**/*.json` or anything under `public/data/`).
+- **code**: anything else. That includes an empty diff, any other file under `data/`, every `.github/` file that is not Markdown, and every event that is not a pull request. A push to `main` always runs in full.
+
+The diff runs with `--no-renames`, so a file moved counts under both its old and its new path. A pull request that moves `lib/` code into `docs/` reads as code, not docs.
+
+The job still starts and reports. Only its steps are skipped, so it shows green under its real name. A matrix job skipped at the job level reports one check under its unexpanded name, `Unit tests (${{ matrix.shard }}/2)`, and a required `Unit tests (1/2)` would then wait for ever. That is why no Linux job is skipped whole. The gated checkouts fetch two commits, the merge and its base. Every copy of the classifier is identical, and `__tests__/ciChangeScope.test.ts` holds them to that and runs them.
+
+The macOS layout pins are the one exception (owner decision, 17 Oct 2026). A job that starts only to skip its steps still holds a runner, and the free plan has only 5 macOS runners. Three layout shards per pull request filled that queue, and docs-only pull requests waited up to 53 minutes for a job that then ran for 1 minute. So in `e2e.yml` one Linux job, `Change scope`, runs the classifier, and `Browser layout pins (1/3)`, `(2/3)` and `(3/3)` are three named jobs that need it. They are skipped whole, and start no macOS runner, only when `Change scope` succeeds and says `docs` or `data`. If `Change scope` fails, they run: a skipped check counts as passed, so a broken classifier must not skip them (fail closed). A skipped named job reports under its own name, and branch protection counts a skipped check as passed. The three jobs share one step list through a YAML anchor and differ only in `LAYOUT_SHARD`.
+
+| Check | docs only | data only | code |
+| --- | --- | --- | --- |
+| CI / Review scope | runs | runs | runs |
+| CI / Lint and typecheck | green, steps skipped (ESLint reads no `.md`) | runs (a JSON pack can be imported by TypeScript) | runs |
+| CI / Production build | green, steps skipped | green, steps skipped | runs |
+| CI / Unit tests (1/2) | unit tests whose source names a changed file, PostgreSQL suites aside | same | whole half, with coverage |
+| CI / Unit tests (2/2) | green, steps skipped | green, steps skipped | whole half, with coverage |
+| CI / Coverage | green, steps skipped | green, steps skipped | merges and enforces thresholds |
+| CI / Freshness release gate | runs | runs | runs |
+| CI / Data validation | runs | runs | runs |
+| Browser tests / law pins | green, steps skipped | green, steps skipped | runs |
+| Browser tests / Change scope | runs (Linux, classifier only) | runs | runs |
+| Browser tests / layout pins (1-3/3) | skipped, no macOS runner | skipped, no macOS runner | runs |
+| Browser tests / full suite (1-4/4) | not run on pull requests (nightly and dispatch only) | same | same |
+| RLS session tests | green, steps skipped | green, steps skipped | runs |
+| Security CI (zizmor, osv-scanner, Semgrep) | runs | runs | runs |
+
+The named-test step covers fences that read the very file a pull request changed, such as an `AGENTS.md`, a pack or `data/freshness_registry.json`. It selects every `__tests__/*.test.ts(x)` file that names a changed file by path or by file name. A browser pin or a unit test that reads data without naming the file is not run until the merge reaches `main`, which runs everything. The local merge bar, `npm run verify`, is unchanged.
 
 ### Prove the runner
 

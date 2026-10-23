@@ -1,8 +1,10 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
+  HYGIENE_CACHE_MAX_ENTRIES,
   extractPostcode,
   fetchEstablishmentsByPostcode,
+  hygieneCacheSize,
   matchEstablishment,
   nameSimilarity,
   normaliseName,
@@ -116,6 +118,19 @@ describe("resolveHygieneRating", () => {
     await resolveHygieneRating("The Arnos Arms", "N11 1AN", opts);
     await resolveHygieneRating("The Arnos Arms", "N11 1AN", opts);
     expect(fetchImpl).toHaveBeenCalledTimes(1);
+  });
+
+  it("holds the per-instance cache to a ceiling, however many names arrive", async () => {
+    const fetchImpl = vi.fn(async () => jsonResponse([PUB]));
+    const opts = { fetchImpl: fetchImpl as unknown as typeof fetch };
+    for (let i = 0; i < HYGIENE_CACHE_MAX_ENTRIES + 25; i += 1) {
+      await resolveHygieneRating(`Made Up Name ${i}`, "N11 1AN", opts);
+    }
+    expect(hygieneCacheSize()).toBe(HYGIENE_CACHE_MAX_ENTRIES);
+    // The newest entry survives, so a re-open stays free.
+    const calls = fetchImpl.mock.calls.length;
+    await resolveHygieneRating(`Made Up Name ${HYGIENE_CACHE_MAX_ENTRIES + 24}`, "N11 1AN", opts);
+    expect(fetchImpl).toHaveBeenCalledTimes(calls);
   });
 
   it("returns null (no badge) for an unmatched pub", async () => {

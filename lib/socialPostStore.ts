@@ -2,8 +2,11 @@ import "server-only";
 
 import { createHmac, randomUUID, timingSafeEqual } from "node:crypto";
 
+import { withdrawnHandles } from "@/lib/accountPublicAccess.server";
 import { followStore } from "@/lib/followStore";
+import { normalizeHandle } from "@/lib/profiles";
 import { profileStore } from "@/lib/profileStore";
+import { HIDDEN_NAME_NO_TAGS_MESSAGE, hiddenNamePostRefusal } from "@/lib/socialHiddenName";
 import {
   socialPostModerationClaim,
   socialPostDTO,
@@ -16,7 +19,7 @@ import { isMissingTableSchema, onMissingDurableWrite, selectStore } from "@/lib/
 import { moderationJobShouldRetry, moderationRetryBackoffMs } from "@/lib/moderationRetry";
 import { trustedSigningKey } from "@/lib/trustedSigningKey.server";
 import { signSocialPhotoObject } from "@/lib/socialPostMedia.server";
-import { socialMemoryBlockedProfiles } from "@/lib/socialBlockMemory";
+import { socialMemoryBlockedProfiles, socialMemoryMutedProfiles } from "@/lib/socialBlockMemory";
 
 export type SocialPostActor = {
   accountId: string;
@@ -28,6 +31,12 @@ export type SocialPostRelationships = {
   followingProfileIds: Set<string>;
   mutualProfileIds: Set<string>;
   blockedProfileIds?: Set<string>;
+  /**
+   * Accounts the viewer has muted. One-way and private: a muted author's posts
+   * leave the viewer's lanes and nothing else changes, so a direct read, a
+   * follow and the author's own view are untouched (`read_social_post_feed`).
+   */
+  mutedProfileIds?: Set<string>;
 };
 
 type SocialPostFeedLane = "discover" | "nearby" | "following";
@@ -47,6 +56,12 @@ type SocialPostFeedPage = {
 export type SocialPostServerProjection = {
   post: SocialPostDTO;
   authorProfileId: string;
+  /**
+   * The author's REAL handle, even when the post hides it. Server-only: it is
+   * how a list built from this projection checks a withdrawn author before
+   * the name comes off, and it never reaches a viewer.
+   */
+  authorHandle: string;
 };
 
 export type SocialPostModerationAdapter = {
@@ -96,7 +111,8 @@ export class SocialPostStoreError extends Error {
       | "FORBIDDEN"
       | "EDIT_CONFLICT"
       | "IDEMPOTENCY_CONFLICT"
-      | "INVALID_POST",
+      | "INVALID_POST"
+      | "HIDDEN_NAME_UNAVAILABLE",
     message: string,
   ) {
     super(message);
@@ -182,6 +198,8 @@ export function socialPostFromRow(value: unknown): SocialPost {
     photo: row.photo_media_id && row.photo_alt_text
       ? { mediaId: String(row.photo_media_id), altText: String(row.photo_alt_text) }
       : null,
+    // Absent before migration 0191 is applied, and every row was named then.
+    nameHidden: row.author_name_hidden === true,
     moderationState: row.moderation_state === "approved" || row.moderation_state === "needs_review"
       ? row.moderation_state
       : "pending",
@@ -203,17 +221,14 @@ export function socialPostFromRow(value: unknown): SocialPost {
 }
 
 export function socialPostServerProjectionFromRow(value: unknown): SocialPostServerProjection {
-  const post = socialPostFromRow(value);
-  return {
-    post: socialPostDTO(post),
-    authorProfileId: post.authorProfileId,
-  };
+  return serverProjection(socialPostFromRow(value));
 }
 
 function serverProjection(post: SocialPost): SocialPostServerProjection {
   return {
     post: socialPostDTO(post),
     authorProfileId: post.authorProfileId,
+    authorHandle: post.authorHandle,
   };
 }
 
@@ -324,6 +339,7 @@ async function defaultRelationships(actor: SocialPostActor): Promise<SocialPostR
     followingProfileIds: new Set(following.flatMap((profile) => profile ? [profile.id] : [])),
     mutualProfileIds: new Set(mutual.flatMap((profile) => profile ? [profile.id] : [])),
     blockedProfileIds: socialMemoryBlockedProfiles(actor.profileId),
+    mutedProfileIds: socialMemoryMutedProfiles(actor.profileId),
   };
 }
 
@@ -335,8 +351,11 @@ function feedAllows(
   area: string | null,
 ): boolean {
   if (!canRead(post, viewer, relationships)) return false;
+  if (relationships.mutedProfileIds?.has(post.authorProfileId)) return false;
   if (lane === "discover") return post.visibility === "public";
   if (lane === "nearby") return post.visibility === "public" && post.area === area;
+  // "Somebody you follow" is a short list, so it would name a hidden author.
+  if (post.nameHidden) return false;
   if (!relationships.followingProfileIds.has(post.authorProfileId)) return false;
   return post.visibility === "public" ||
     (post.visibility === "friends" && relationships.mutualProfileIds.has(post.authorProfileId));
@@ -364,6 +383,8 @@ function mergedEditFields(
     venueId: "venueId" in changes ? changes.venueId ?? null : current.venueId,
     hashtags: changes.hashtags ?? current.hashtags,
     commentPolicy: changes.commentPolicy ?? current.commentPolicy,
+    // Chosen once, at posting. An edit can neither hide nor reveal the name.
+    nameHidden: current.nameHidden,
     photo: "photo" in changes
       ? changes.photo ?? null
       : options?.existingPhotoAltText && current.photo
@@ -373,7 +394,74 @@ function mergedEditFields(
   if (options?.existingPhotoAltText && !current.photo) throw new SocialPostStoreError("INVALID_POST", "That post has no photo description to edit.");
   if (!merged.body && !merged.photo) throw new SocialPostStoreError("INVALID_POST", "Add some words or a photo.");
   if (merged.kind === "feature_request" && !merged.body) throw new SocialPostStoreError("INVALID_POST", "Add words to a feature request.");
+  const hiddenNameRefusal = hiddenNamePostRefusal(merged);
+  if (hiddenNameRefusal) throw new SocialPostStoreError("INVALID_POST", hiddenNameRefusal);
+  if (merged.nameHidden && (options?.tagHandles?.length ?? 0) > 0) {
+    throw new SocialPostStoreError("INVALID_POST", HIDDEN_NAME_NO_TAGS_MESSAGE);
+  }
   return merged;
+}
+
+const HIDDEN_NAME_UNAVAILABLE_MESSAGE =
+  "Posting with your name hidden is not ready yet. Nothing was posted.";
+
+/** PostgREST's "no such function" (PGRST202) or PostgreSQL's 42883. */
+function isMissingHiddenNameDoor(error: { code?: string; message?: string }): boolean {
+  return error.code === "PGRST202" || error.code === "42883" ||
+    /create_social_post_hidden_name/i.test(error.message ?? "");
+}
+
+/**
+ * Before 0191 is applied there is no hidden-name door. Refusing is the whole
+ * point: falling back to the named door would publish the post under a name.
+ */
+function hiddenNameCreateError(fields: SocialPostFields, error: { code?: string; message?: string }): unknown {
+  return fields.nameHidden && isMissingHiddenNameDoor(error)
+    ? new SocialPostStoreError("HIDDEN_NAME_UNAVAILABLE", HIDDEN_NAME_UNAVAILABLE_MESSAGE)
+    : error;
+}
+
+/**
+ * Which create door a post goes through. A hidden-name post has its own
+ * (migration 0191), which stamps the choice in the same transaction as the
+ * insert. It is keyed, so a retry can never post the same words twice, once
+ * named and once not.
+ */
+function createPostRpc(
+  fields: SocialPostFields,
+  tagHandles: readonly string[] | undefined,
+  idempotent: boolean,
+): "create_social_post_hidden_name" | "create_social_post_idempotent" | "create_social_post" {
+  refuseHiddenNameTags(fields, tagHandles);
+  if (!fields.nameHidden) return idempotent ? "create_social_post_idempotent" : "create_social_post";
+  if (!idempotent) throw new SocialPostStoreError("INVALID_POST", "Post request key is not valid.");
+  return "create_social_post_hidden_name";
+}
+
+/**
+ * Refuse photo tags on a hidden-name post. The tagged person's inbox shows the
+ * author's handle, so a tag would undo the choice.
+ */
+function refuseHiddenNameTags(fields: SocialPostFields, tagHandles: readonly string[] | undefined): void {
+  if (fields.nameHidden && (tagHandles?.length ?? 0) > 0) {
+    throw new SocialPostStoreError("INVALID_POST", HIDDEN_NAME_NO_TAGS_MESSAGE);
+  }
+}
+
+/**
+ * A withdrawn author's posts leave every public read. For a named post the
+ * route checks that by handle (`enrichSocialPostAuthors`); a hidden-name post
+ * reaches the route with no handle, so the store, which still knows the
+ * author, checks it here before the name comes off.
+ */
+async function dropWithdrawnHiddenNamePosts(posts: SocialPost[], viewer: SocialPostActor): Promise<SocialPost[]> {
+  const hidden = posts.filter((post) => post.nameHidden && post.authorProfileId !== viewer.profileId);
+  if (hidden.length === 0) return posts;
+  const withdrawn = await withdrawnHandles(hidden.map((post) => post.authorHandle));
+  if (withdrawn.size === 0) return posts;
+  return posts.filter((post) =>
+    !post.nameHidden || post.authorProfileId === viewer.profileId ||
+    !withdrawn.has(normalizeHandle(post.authorHandle)));
 }
 
 function makePage(
@@ -430,6 +518,7 @@ export function createMemorySocialPostStore(options: {
 
   return {
     async create(actor, fields, createOptions = {}) {
+      refuseHiddenNameTags(fields, createOptions.tagHandles);
       const timestamp = now().toISOString();
       const post: SocialPost = {
         id: randomUUID(),
@@ -521,7 +610,9 @@ export function createMemorySocialPostStore(options: {
       const post = rows.get(id);
       if (!post) return null;
       const graph = await relationships(viewer);
-      return canRead(post, viewer, graph) ? projectedPost(post, viewer, graph) : null;
+      if (!canRead(post, viewer, graph)) return null;
+      if ((await dropWithdrawnHiddenNamePosts([post], viewer)).length === 0) return null;
+      return projectedPost(post, viewer, graph);
     },
     async readOwned(id, owner) {
       const post = rows.get(id);
@@ -544,7 +635,7 @@ export function createMemorySocialPostStore(options: {
     },
     async feed(viewer, input) {
       const graph = await relationships(viewer);
-      return makePage([...rows.values()], viewer, input, graph);
+      return makePage(await dropWithdrawnHiddenNamePosts([...rows.values()], viewer), viewer, input, graph);
     },
     async applyFeatureRequestUpdate(id, status, staffResponse) {
       const post = rows.get(id);
@@ -688,7 +779,7 @@ export const supabaseSocialPostStore: SocialPostStore = {
       if (createOptions.replayExistingMedia && !replayExistingMedia) {
         throw new SocialPostStoreError("INVALID_POST", "Photo ownership is not valid.");
       }
-      const { data, error } = await requireSupabaseAdmin().rpc(idempotent ? "create_social_post_idempotent" : "create_social_post", {
+      const { data, error } = await requireSupabaseAdmin().rpc(createPostRpc(fields, createOptions.tagHandles, idempotent), {
         p_author_profile_id: actor.profileId,
         p_author_handle: actor.handle,
         p_kind: fields.kind,
@@ -710,7 +801,7 @@ export const supabaseSocialPostStore: SocialPostStore = {
       });
       if (error) {
         if (/idempotency conflict/i.test(error.message)) throw new SocialPostStoreError("IDEMPOTENCY_CONFLICT", "That post request key was already used for different content.");
-        throw error;
+        throw hiddenNameCreateError(fields, error);
       }
       const created = (data ?? [])[0];
       if (!created) throw new Error("Social post was not created.");
@@ -815,6 +906,7 @@ export const supabaseSocialPostStore: SocialPostStore = {
       const row = (data ?? [])[0];
       if (!row) return null;
       const post = socialPostFromRow(row);
+      if ((await dropWithdrawnHiddenNamePosts([post], viewer)).length === 0) return null;
       return socialPostDTO(post, { exactVenue: Boolean(post.venueId), viewerProfileId: viewer.profileId });
     }, () => memorySocialPostStore.read(id, viewer), false);
   },
@@ -877,9 +969,12 @@ export const supabaseSocialPostStore: SocialPostStore = {
       if (error) throw error;
       const posts: SocialPost[] = (data ?? []).map(socialPostFromRow);
       const pageRows = posts.slice(0, limit);
+      // The cursor is the last row the lane READ, so a dropped row never makes
+      // the next page skip or repeat a post.
       const last = pageRows.at(-1);
+      const shown = await dropWithdrawnHiddenNamePosts(pageRows, viewer);
       return {
-        posts: pageRows.map((post) => socialPostDTO(post, {
+        posts: shown.map((post) => socialPostDTO(post, {
           exactVenue: Boolean(post.venueId),
           viewerProfileId: viewer.profileId,
         })),

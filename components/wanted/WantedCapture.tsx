@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useState } from "react";
 
 import ContributionGateDoor from "@/components/identity/ContributionGateDoor";
@@ -8,6 +9,7 @@ import { authedActionFetch } from "@/lib/authedFetch";
 import { errorMessageFrom } from "@/lib/apiErrorMessage";
 import { readContributionDoor, type ContributionDoorStatus } from "@/lib/contributionGateStatus";
 import { cleanText } from "@/lib/textClean";
+import { addPubHref } from "@/lib/venueSubmissions";
 import {
   cleanWantedNote,
   detectSourcePlatform,
@@ -110,7 +112,7 @@ export default function WantedCapture({ onSaved, anonymous = false, prefill }: P
       }, { requiresIdentity: true });
       const body = (await res.json().catch(() => null)) as { wanted?: WantedDTO; error?: unknown; status?: string } | null;
       if (!body) {
-        setStatus("Could not save that Wanted place.");
+        setStatus("Could not save that pub.");
         return;
       }
       if (!res.ok || !body.wanted) {
@@ -118,9 +120,9 @@ export default function WantedCapture({ onSaved, anonymous = false, prefill }: P
         if (gate) {
           setDoor({ status: gate, retry: () => void saveConfirmed(candidate, sourceUrl, rawPaste) });
         } else if (body.status === "sign_in_required") {
-          setStatus("Sign in to save a Wanted place.");
+          setStatus("Sign in to save a pub to try.");
         } else {
-          setStatus(errorMessageFrom(body, "Could not save that Wanted place."));
+          setStatus(errorMessageFrom(body, "Could not save that pub."));
         }
         return;
       }
@@ -134,7 +136,7 @@ export default function WantedCapture({ onSaved, anonymous = false, prefill }: P
       setResolve(null);
       onSaved?.(body.wanted);
     } catch {
-      setStatus("Could not save that Wanted place.");
+      setStatus("Could not save that pub.");
     } finally {
       setBusy(false);
     }
@@ -183,7 +185,7 @@ export default function WantedCapture({ onSaved, anonymous = false, prefill }: P
         if (gate) {
           setDoor({ status: gate, retry: () => void savePending(rawPaste, sourceUrl) });
         } else if (body.status === "sign_in_required") {
-          setStatus("Sign in to save a Wanted place.");
+          setStatus("Sign in to save a pub to try.");
         } else {
           setStatus(errorMessageFrom(body, "Could not save that paste."));
         }
@@ -248,7 +250,7 @@ export default function WantedCapture({ onSaved, anonymous = false, prefill }: P
       }
       if (!res.ok) {
         if (body.status === "sign_in_required") {
-          setStatus("Sign in to save a Wanted place.");
+          setStatus("Sign in to save a pub to try.");
         } else {
           setStatus(errorMessageFrom(body, "Could not resolve that paste."));
         }
@@ -359,10 +361,20 @@ export default function WantedCapture({ onSaved, anonymous = false, prefill }: P
           Save as still matching
         </button>
       ) : null}
+      {resolve && resolve.candidates.length === 0 && resolve.query ? (
+        <Link
+          href={addPubHref(resolve.query)}
+          prefetch={false}
+          className="wantedCapture__add"
+          data-testid="wanted-add-pub"
+        >
+          Not on the map? Add the pub
+        </Link>
+      ) : null}
       {door ? (
         <ContributionGateDoor
           status={door.status}
-          subject="keep a Wanted list"
+          subject="keep a list of pubs to try"
           onAsserted={door.retry}
         />
       ) : null}

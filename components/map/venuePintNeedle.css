@@ -1,0 +1,121 @@
+/* VenuePintNeedle.tsx: where this pint sits against its city. The arcs wear
+   the three band hues (app/globals.css --price-band-*), the needle and the
+   hub are ink, and the band word wears its band's ink, as every price
+   surface does through .priceBand-*. */
+.venuePintNeedle {
+  position: relative;
+  margin: 12px 0 16px;
+  display: grid;
+  grid-template-columns: 132px 1fr;
+  align-items: center;
+  gap: 12px;
+}
+.venuePintNeedleDial {
+  display: block;
+  width: 132px;
+  height: auto;
+  overflow: visible;
+}
+.venuePintNeedleArc {
+  fill: none;
+  stroke-width: 14;
+  stroke-linecap: round;
+  opacity: 0.55;
+}
+.venuePintNeedleArc--cheap {
+  stroke: var(--price-band-cheap);
+}
+.venuePintNeedleArc--average {
+  stroke: var(--price-band-average);
+}
+.venuePintNeedleArc--expensive {
+  stroke: var(--price-band-expensive);
+}
+/* The band the pint is in reads at full strength. */
+.venuePintNeedle[data-band="cheap"] .venuePintNeedleArc--cheap,
+.venuePintNeedle[data-band="average"] .venuePintNeedleArc--average,
+.venuePintNeedle[data-band="expensive"] .venuePintNeedleArc--expensive {
+  opacity: 1;
+}
+.venuePintNeedleHand {
+  transform-box: view-box;
+  transform-origin: 100px 100px;
+  transform: rotate(var(--needle-angle, 0deg));
+}
+.venuePintNeedleHand line {
+  stroke: var(--ink);
+  stroke-width: 5;
+  stroke-linecap: round;
+}
+.venuePintNeedleHand circle {
+  fill: var(--ink);
+}
+.venuePintNeedleHub {
+  fill: var(--ink);
+}
+/* The Pal sits at the pivot. The dial is 132px wide on a 200-unit view box,
+   so the pivot (100, 100) is at 66px across and 66px down. */
+.venuePintNeedlePal {
+  position: absolute;
+  left: 66px;
+  top: 66px;
+  width: 26px;
+  height: 26px;
+  margin: -13px 0 0 -13px;
+  border: 2px solid var(--ink);
+  border-radius: 50%;
+  background: var(--panel-raised);
+  overflow: hidden;
+  pointer-events: none;
+}
+.venuePintNeedlePal picture,
+.venuePintNeedlePal img {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+.venuePintNeedlePal img {
+  object-fit: cover;
+  transform-origin: 50% 55%;
+  transform: translate(var(--genome-x, 0%), var(--genome-y, 0%)) scale(var(--genome-zoom, 1)) scaleX(var(--genome-flip, 1));
+  rotate: var(--genome-tilt, 0deg);
+}
+.venuePintNeedlePal[data-pal-state="sleeping"] img {
+  filter: brightness(0.72);
+}
+.venuePintNeedleCaption {
+  display: grid;
+  gap: 2px;
+}
+.venuePintNeedleBand {
+  color: var(--price-band-ink);
+  font-size: var(--text-lg);
+  font-weight: 750;
+}
+.venuePintNeedleAgainst {
+  color: var(--muted);
+}
+@media (prefers-reduced-motion: no-preference) {
+  .venuePintNeedleHand {
+    animation: venuePintNeedleSwing 900ms cubic-bezier(0.2, 0.9, 0.3, 1.2) both;
+  }
+  .venuePintNeedlePal:not([data-pal-state="sleeping"]).isCheering {
+    animation: venuePintNeedleHop 900ms cubic-bezier(0.2, 0.9, 0.3, 1.25) 700ms both;
+  }
+}
+@keyframes venuePintNeedleSwing {
+  from {
+    transform: rotate(-90deg);
+  }
+}
+@keyframes venuePintNeedleHop {
+  30% {
+    translate: 0 -8px;
+  }
+  55% {
+    translate: 0 0;
+  }
+  72% {
+    translate: 0 -4px;
+  }
+}

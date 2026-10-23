@@ -43,6 +43,16 @@ function venue(id: string, name = id): Venue {
 }
 
 describe("mergeLazyDetailPins", () => {
+  it("keeps the slim pin's price read day on the hydrated record, so a fresh price stays fresh", () => {
+    const slim = { ...venue("venue-a", "Slim A"), priceObservedAt: "2026-10-01" };
+    const detail = venue("venue-a", "Detail A");
+
+    const [merged] = mergeLazyDetailPins([slim], new Map([["venue-a", detail]]));
+    expect(merged?.name).toBe("Detail A");
+    expect(merged?.priceObservedAt).toBe("2026-10-01");
+  });
+
+
   it("replaces slim pins with loaded venue detail", () => {
     const slim = venue("venue-a", "Slim A");
     const detail = venue("venue-a", "Detail A");

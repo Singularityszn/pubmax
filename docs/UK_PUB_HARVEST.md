@@ -32,6 +32,7 @@ The run resumes by default.
 | `--limit N` | Cap rows (tests and dry runs) |
 | `--chunk=lat50.80_lon-0.70` | One grid cell |
 | `--bars` | Plain-bar lane. Seed from harvest Overpass raw. Enrich writes `data-harvest/bars-enriched/` |
+| `--london` | London-first lane. With `--enrich`, reads the Greater London subset of the pub seed and writes `data-harvest/london-enriched/` |
 
 With no stage flag, the command enumerates then enriches.
 

@@ -2,15 +2,25 @@ import "server-only";
 
 import { createHash, createHmac, randomUUID, timingSafeEqual } from "node:crypto";
 
+import { withdrawnHandles } from "@/lib/accountPublicAccess.server";
 import { followStore } from "@/lib/followStore";
+import { normalizeHandle } from "@/lib/handleNormalize";
 import { profileStore } from "@/lib/profileStore";
 import type {
   SocialPostActor,
   SocialPostRelationships,
+  SocialPostServerProjection,
   SocialPostStore,
 } from "@/lib/socialPostStore";
 import { socialPostServerProjectionFromRow, socialPostStore, SocialPostStoreError } from "@/lib/socialPostStore";
-import { clearSocialMemoryBlocks, setSocialMemoryBlock, socialMemoryBlocked } from "@/lib/socialBlockMemory";
+import {
+  clearSocialMemoryBlocks,
+  setSocialMemoryBlock,
+  setSocialMemoryMute,
+  socialMemoryBlocked,
+  socialMemoryBlocks,
+  socialMemoryMutes,
+} from "@/lib/socialBlockMemory";
 import type { SocialPostCommentPolicy, SocialPostDTO, SocialPostVisibility } from "@/lib/socialPosts";
 import {
   cleanSocialText,
@@ -30,6 +40,7 @@ import {
   type SocialModerationState,
   type SocialNotificationDTO,
   type SocialQuoteInput,
+  type SocialRelationship,
   type SocialReportReason,
 } from "@/lib/socialInteractions";
 import { moderationJobShouldRetry, moderationRetryBackoffMs } from "@/lib/moderationRetry";
@@ -88,6 +99,9 @@ export type SocialInteractionStore = {
   listDerivatives(viewer: SocialInteractionActor, page: PageInput): Promise<Page<SocialDerivativeDTO>>;
   processModerationQueue(adapter: ModerationAdapter, limit?: number): Promise<ModerationResult>;
   setBlock(actor: SocialInteractionActor, targetProfileId: string, active: boolean): Promise<void>;
+  setMute(actor: SocialInteractionActor, targetProfileId: string, active: boolean): Promise<void>;
+  /** What this actor has set against one account: their own block and mute, never the other side's. */
+  relationship(actor: SocialInteractionActor, targetProfileId: string): Promise<SocialRelationship>;
   notifications(viewer: SocialInteractionActor, page: PageInput): Promise<Page<SocialNotificationDTO>>;
   markNotificationRead(viewer: SocialInteractionActor, id: string, read: boolean): Promise<void>;
   updateFeatureRequest(actor: SocialInteractionActor, postId: string, input: SocialFeatureUpdateInput): Promise<SocialFeatureUpdateDTO>;
@@ -139,7 +153,9 @@ function cursorSignature(encoded: string, viewerProfileId: string, scope: string
 }
 
 function encodeCursor(value: { createdAt: string; id: string }, viewerProfileId: string, scope: string): string {
-  const encoded = Buffer.from(JSON.stringify({ v: 1, ...value }), "utf8").toString("base64url");
+  // Only the position travels. A page row also carries its post and, for a
+  // hidden-name post, the author's real handle, and a cursor is not secret.
+  const encoded = Buffer.from(JSON.stringify({ v: 1, createdAt: value.createdAt, id: value.id }), "utf8").toString("base64url");
   return `${encoded}.${cursorSignature(encoded, viewerProfileId, scope).toString("base64url")}`;
 }
 
@@ -193,6 +209,25 @@ function makePage<T extends { createdAt: string; id: string }>(
   };
 }
 
+/**
+ * A withdrawn account's Social posts leave every public read, and a saved
+ * post, a repost and a quote each show one. The check is by the source post's
+ * REAL author, made here before the name comes off, because a hidden-name post
+ * reaches the route with no handle to check. A repost or quote whose own
+ * author is withdrawn goes too, the same as a withdrawn author's comment.
+ * Callers page by the rows READ, never by what is left, so a dropped row never
+ * makes the next page skip or repeat one.
+ */
+async function dropWithdrawnInteractionAuthors<T>(
+  rows: readonly T[],
+  authorHandles: (row: T) => readonly string[],
+): Promise<T[]> {
+  if (rows.length === 0) return [];
+  const withdrawn = await withdrawnHandles(rows.flatMap(authorHandles));
+  if (withdrawn.size === 0) return [...rows];
+  return rows.filter((row) => !authorHandles(row).some((handle) => withdrawn.has(normalizeHandle(handle))));
+}
+
 async function defaultRelationships(actor: SocialInteractionActor): Promise<SocialPostRelationships> {
   const graph = followStore();
   const profiles = profileStore();
@@ -232,7 +267,7 @@ export function createMemorySocialInteractionStore(options: {
 
   const blocked = socialMemoryBlocked;
 
-  async function visiblePost(postId: string, viewer: SocialInteractionActor): Promise<{ post: SocialPostDTO; authorProfileId: string } | null> {
+  async function visiblePost(postId: string, viewer: SocialInteractionActor): Promise<SocialPostServerProjection | null> {
     const projection = await posts.readServerProjection(postId, viewer as SocialPostActor);
     if (!projection || blocked(viewer.profileId, projection.authorProfileId)) return null;
     return projection;
@@ -286,7 +321,10 @@ export function createMemorySocialInteractionStore(options: {
     return (await relationships(actor)).mutualProfileIds.has(source.authorProfileId);
   }
 
-  async function derivativeVisible(row: QuoteRow, viewer: SocialInteractionActor): Promise<SocialDerivativeDTO | null> {
+  async function derivativeVisible(
+    row: QuoteRow,
+    viewer: SocialInteractionActor,
+  ): Promise<{ derivative: SocialDerivativeDTO; sourceAuthorHandle: string } | null> {
     if (row.status !== "visible" || row.moderationState !== "approved" || blocked(viewer.profileId, row.authorProfileId)) return null;
     const source = await visiblePost(row.sourcePost.id, viewer);
     if (!source) return null;
@@ -295,14 +333,17 @@ export function createMemorySocialInteractionStore(options: {
       if (row.visibility === "friends" && !(await relationships(viewer)).mutualProfileIds.has(row.authorProfileId)) return null;
     }
     return {
-      id: row.id,
-      kind: row.kind,
-      sourcePost: source.post,
-      body: row.body,
-      visibility: row.visibility,
-      author: row.author,
-      moderationState: row.moderationState,
-      createdAt: row.createdAt,
+      derivative: {
+        id: row.id,
+        kind: row.kind,
+        sourcePost: source.post,
+        body: row.body,
+        visibility: row.visibility,
+        author: row.author,
+        moderationState: row.moderationState,
+        createdAt: row.createdAt,
+      },
+      sourceAuthorHandle: source.authorHandle,
     };
   }
 
@@ -380,13 +421,22 @@ export function createMemorySocialInteractionStore(options: {
     },
 
     async listSaved(viewer, input) {
-      const rows: Array<{ id: string; createdAt: string; savedAt: string; post: SocialPostDTO }> = [];
+      const rows: Array<{ id: string; createdAt: string; savedAt: string; post: SocialPostDTO; sourceAuthorHandle: string }> = [];
       for (const row of desired.values()) {
         if (row.kind !== "save" || row.actor.profileId !== viewer.profileId) continue;
         const source = await visiblePost(row.postId, viewer);
-        if (source) rows.push({ id: row.postId, createdAt: row.createdAt, savedAt: row.createdAt, post: source.post });
+        if (source) {
+          rows.push({
+            id: row.postId,
+            createdAt: row.createdAt,
+            savedAt: row.createdAt,
+            post: source.post,
+            sourceAuthorHandle: source.authorHandle,
+          });
+        }
       }
-      const page = makePage(rows, viewer, "saves", input);
+      const shown = await dropWithdrawnInteractionAuthors(rows, (row) => [row.sourceAuthorHandle]);
+      const page = makePage(shown, viewer, "saves", input);
       return { items: page.items.map(({ savedAt, post }) => ({ savedAt, post })), nextCursor: page.nextCursor };
     },
 
@@ -483,7 +533,7 @@ export function createMemorySocialInteractionStore(options: {
     },
 
     async listDerivatives(viewer, input) {
-      const rows: SocialDerivativeDTO[] = [];
+      const rows: Array<{ derivative: SocialDerivativeDTO; sourceAuthorHandle: string }> = [];
       for (const row of quotes.values()) {
         const visible = await derivativeVisible(row, viewer);
         if (visible) rows.push(visible);
@@ -493,17 +543,21 @@ export function createMemorySocialInteractionStore(options: {
         const source = await visiblePost(row.postId, viewer);
         if (!source) continue;
         rows.push({
-          id: `repost:${row.postId}:${row.actor.profileId}`,
-          kind: "repost",
-          sourcePost: source.post,
-          body: null,
-          visibility: source.post.visibility,
-          author: { handle: row.actor.handle },
-          moderationState: "approved",
-          createdAt: row.createdAt,
+          derivative: {
+            id: `repost:${row.postId}:${row.actor.profileId}`,
+            kind: "repost",
+            sourcePost: source.post,
+            body: null,
+            visibility: source.post.visibility,
+            author: { handle: row.actor.handle },
+            moderationState: "approved",
+            createdAt: row.createdAt,
+          },
+          sourceAuthorHandle: source.authorHandle,
         });
       }
-      return makePage(rows, viewer, "derivatives", input);
+      const shown = await dropWithdrawnInteractionAuthors(rows, (row) => [row.sourceAuthorHandle, row.derivative.author.handle]);
+      return makePage(shown.map((row) => row.derivative), viewer, "derivatives", input);
     },
 
     async processModerationQueue(adapter, requestedLimit = 20) {
@@ -553,6 +607,20 @@ export function createMemorySocialInteractionStore(options: {
         throw new SocialInteractionStoreError("INVALID_INTERACTION", "Choose another account to block.");
       }
       setSocialMemoryBlock(actor.profileId, targetProfileId, active);
+    },
+
+    async setMute(actor, targetProfileId, active) {
+      if (!targetProfileId || targetProfileId === actor.profileId) {
+        throw new SocialInteractionStoreError("INVALID_INTERACTION", "Choose another account to mute.");
+      }
+      setSocialMemoryMute(actor.profileId, targetProfileId, active);
+    },
+
+    async relationship(actor, targetProfileId) {
+      return {
+        blocked: socialMemoryBlocks(actor.profileId, targetProfileId),
+        muted: socialMemoryMutes(actor.profileId, targetProfileId),
+      };
     },
 
     async notifications(viewer, input) {
@@ -819,6 +887,7 @@ async function durableOrMemory<T>(
   } catch (error) {
     if (!isMissingTableSchema(error, [
       "social_blocks",
+      "social_mutes",
       "social_cheers",
       "social_saves",
       "social_reposts",
@@ -914,14 +983,15 @@ export const supabaseSocialInteractionStore: SocialInteractionStore = {
         p_limit: size + 1,
       });
       if (error) throw error;
-      const items: Array<{ id: string; createdAt: string; savedAt: string; post: SocialPostDTO }> = (data ?? []).map((value: unknown) => {
+      const items = (data ?? []).map((value: unknown) => {
         const valueRow = row(value);
-        const post = socialPostServerProjectionFromRow(valueRow.source_post).post;
-        return { id: post.id, createdAt: String(valueRow.saved_at), savedAt: String(valueRow.saved_at), post };
+        const { post, authorHandle } = socialPostServerProjectionFromRow(valueRow.source_post);
+        return { id: post.id, createdAt: String(valueRow.saved_at), savedAt: String(valueRow.saved_at), post, sourceAuthorHandle: authorHandle };
       });
       const pageResult = durablePage(items, viewer, "saves", size);
+      const shown = await dropWithdrawnInteractionAuthors(pageResult.items, (item) => [item.sourceAuthorHandle]);
       return {
-        items: pageResult.items.map(({ savedAt, post }) => ({ savedAt, post })),
+        items: shown.map(({ savedAt, post }) => ({ savedAt, post })),
         nextCursor: pageResult.nextCursor,
       };
     }, () => memorySocialInteractionStore.listSaved(viewer, input), false);
@@ -1029,20 +1099,24 @@ export const supabaseSocialInteractionStore: SocialInteractionStore = {
         p_limit: size + 1,
       });
       if (error) throw error;
-      const items = (data ?? []).map((value: unknown): SocialDerivativeDTO => {
+      const items = (data ?? []).map((value: unknown) => {
         const valueRow = row(value);
-        return {
+        const source = socialPostServerProjectionFromRow(valueRow.source_post);
+        const derivative: SocialDerivativeDTO = {
           id: String(valueRow.id),
           kind: valueRow.kind === "quote" ? "quote" : "repost",
-          sourcePost: socialPostServerProjectionFromRow(valueRow.source_post).post,
+          sourcePost: source.post,
           body: typeof valueRow.body === "string" ? valueRow.body : null,
           visibility: valueRow.visibility as SocialPostVisibility,
           author: { handle: String(valueRow.author_handle) },
           moderationState: "approved",
           createdAt: String(valueRow.created_at),
         };
+        return { id: derivative.id, createdAt: derivative.createdAt, derivative, sourceAuthorHandle: source.authorHandle };
       });
-      return durablePage(items, viewer, "derivatives", size);
+      const pageResult = durablePage(items, viewer, "derivatives", size);
+      const shown = await dropWithdrawnInteractionAuthors(pageResult.items, (item) => [item.sourceAuthorHandle, item.derivative.author.handle]);
+      return { items: shown.map((item) => item.derivative), nextCursor: pageResult.nextCursor };
     }, () => memorySocialInteractionStore.listDerivatives(viewer, input), false);
   },
 
@@ -1106,6 +1180,32 @@ export const supabaseSocialInteractionStore: SocialInteractionStore = {
       });
       if (error) throw error;
     }, () => memorySocialInteractionStore.setBlock(actor, targetProfileId, active), true);
+  },
+
+  async setMute(actor, targetProfileId, active) {
+    if (!targetProfileId || targetProfileId === actor.profileId) {
+      throw new SocialInteractionStoreError("INVALID_INTERACTION", "Choose another account to mute.");
+    }
+    return durableOrMemory(async () => {
+      const { error } = await requireSupabaseAdmin().rpc("set_social_mute", {
+        p_actor: actor.profileId,
+        p_target: targetProfileId,
+        p_active: active,
+      });
+      if (error) throw error;
+    }, () => memorySocialInteractionStore.setMute(actor, targetProfileId, active), true);
+  },
+
+  async relationship(actor, targetProfileId) {
+    return durableOrMemory(async () => {
+      const { data, error } = await requireSupabaseAdmin().rpc("read_social_relationship", {
+        p_actor: actor.profileId,
+        p_target: targetProfileId,
+      });
+      if (error) throw error;
+      const value = row((data ?? [])[0]);
+      return { blocked: value.blocked === true, muted: value.muted === true };
+    }, () => memorySocialInteractionStore.relationship(actor, targetProfileId), false);
   },
 
   async notifications(viewer, input) {

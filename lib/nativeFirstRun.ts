@@ -25,9 +25,9 @@ export const NATIVE_FIRST_RUN_DONE_KEY = "pubmax:nativeFirstRun:done:v2";
  * my night, so the pair means finished. Without the tour mark the journey resumes.
  */
 export const NATIVE_FIRST_RUN_LEGACY_ROUTED_KEY = "pubmax:nativeFirstRun:routed:v1";
-/** Only the unfinished step is durable. Location coordinates are never stored here. */
+/** Location coordinates must never enter durable first-run state. */
 export const NATIVE_FIRST_RUN_STEP_KEY = "pubmax:nativeFirstRun:step:v1";
-/** The id of the patch an unfinished journey chose. Never coordinates. */
+/** A patch id or locally resolved `area:` identifier. Never browser coordinates. */
 export const NATIVE_FIRST_RUN_PATCH_KEY = "pubmax:nativeFirstRun:patch:v1";
 /**
  * The one-time onboarding eligibility slot. Exported for the same reason as
@@ -132,7 +132,6 @@ export function rememberNativeFirstRunStep(step: OnboardingStep): void {
   }
 }
 
-/** Read the patch id an unfinished journey chose. The onboarding UI validates it. */
 export function readNativeFirstRunPatch(): string | null {
   const store = safeLocalStorage();
   if (!store) return null;
@@ -143,7 +142,6 @@ export function readNativeFirstRunPatch(): string | null {
   }
 }
 
-/** Record the chosen patch id for the native journey. Null clears it: a located answer keeps no place. */
 export function rememberNativeFirstRunPatch(id: string | null): void {
   if (!isNativeApp()) return;
   const store = safeLocalStorage();

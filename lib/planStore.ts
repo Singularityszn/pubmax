@@ -1236,8 +1236,13 @@ export function __setMemoryPlanOwnerUserId(planId: string, userId: string): bool
   return true;
 }
 
-/** Test/dev seam: list stamped member user ids for friend-edge formation. */
-export function __listMemoryPlanMemberUserIds(
+/** Internal memory read of the host account, using the membership role order. */
+export function memoryPlanHostUserId(planId: string): string | null {
+  return memoryPlans.get(planId)?.crew[0]?.userId ?? null;
+}
+
+/** Internal memory read of every crew seat an account has claimed. */
+export function memoryPlanCrewUserIds(
   planId: string,
 ): Array<{ memberId: string; userId: string }> {
   const plan = memoryPlans.get(planId);
@@ -1245,6 +1250,12 @@ export function __listMemoryPlanMemberUserIds(
   return plan.crew
     .filter((member): member is MemoryMember & { userId: string } => Boolean(member.userId))
     .map((member) => ({ memberId: member.id, userId: member.userId }));
+}
+
+export function __listMemoryPlanMemberUserIds(
+  planId: string,
+): Array<{ memberId: string; userId: string }> {
+  return memoryPlanCrewUserIds(planId);
 }
 
 /** Rotate one account-owned memory membership without creating another seat. */

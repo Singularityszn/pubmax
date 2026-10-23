@@ -11,12 +11,19 @@ vi.mock("maplibre-gl", () => ({
   Marker: class {
     remove = vi.fn();
 
+    lngLat = { lng: 0, lat: 0 };
+
     constructor() {
       markerHarness.instances.push(this);
     }
 
-    setLngLat() {
+    setLngLat([lng, lat]: [number, number]) {
+      this.lngLat = { lng, lat };
       return this;
+    }
+
+    getLngLat() {
+      return this.lngLat;
     }
 
     addTo() {
@@ -106,6 +113,7 @@ describe("createDonutClusterSync (M5 donut — listener lifecycle)", () => {
       getSource: () => undefined,
       getLayer: () => undefined,
       getZoom: () => 10,
+      project: () => ({ x: 0, y: 0 }),
       querySourceFeatures: (): unknown[] => [],
       setFilter: vi.fn(),
       setLayoutProperty: vi.fn(),
@@ -444,7 +452,7 @@ describe("createDonutClusterSync (M5 donut — listener lifecycle)", () => {
     const [idle] = [...(handlers.get("idle") ?? [])];
 
     defined(idle)();
-    expect(attributes.get("aria-label")).toBe("94 pubs, cheapest £4.20, tap to zoom in");
+    expect(attributes.get("aria-label")).toBe("from £4.20 · 94 pubs, tap to zoom in");
 
     // A lens takes the price off every disc, and supercluster keeps the id.
     defined(idle)();
@@ -452,7 +460,85 @@ describe("createDonutClusterSync (M5 donut — listener lifecycle)", () => {
     expect(attributes.get("aria-label")).toBe("94 pubs, tap to zoom in");
 
     defined(idle)();
-    expect(attributes.get("aria-label")).toBe("94 pubs, cheapest £4.20, tap to zoom in");
+    expect(attributes.get("aria-label")).toBe("from £4.20 · 94 pubs, tap to zoom in");
+
+    sync.destroy();
+    vi.unstubAllGlobals();
+    vi.restoreAllMocks();
+  });
+  it("flies a re-used disc to where it stands NOW, and answers Enter and Space like a click", async () => {
+    // After a filter change supercluster can hand a cluster_id to a different
+    // cluster. The marker is moved with setLngLat, so its click must read the
+    // live position, never the one it was created at (CMP-7).
+    markerHarness.instances.length = 0;
+    const attributes = new Map<string, string>();
+    const listeners = new Map<string, (event: unknown) => void>();
+    vi.stubGlobal("document", {
+      documentElement: { dataset: { theme: "dark" } },
+      createElement: () => ({
+        className: "",
+        style: {},
+        innerHTML: "",
+        setAttribute: (name: string, value: string) => attributes.set(name, value),
+        addEventListener: (type: string, fn: (event: unknown) => void) => listeners.set(type, fn),
+      }),
+    });
+
+    const { map, handlers } = makeFakeMap();
+    const cluster = (coordinates: [number, number]) => ({
+      properties: { cluster_id: 22, point_count: 5, b0: 2, b1: 1, b2: 1, b3: 1 },
+      geometry: { type: "Point", coordinates },
+    });
+    const OLD: [number, number] = [-0.1276, 51.5072];
+    const NEW: [number, number] = [-0.0754, 51.5055];
+    const getClusterExpansionZoom = vi.fn(async () => 15);
+    map.getSource = () => ({ getClusterExpansionZoom }) as never;
+    map.getLayer = () => ({}) as never;
+    map.querySourceFeatures = vi
+      .fn()
+      .mockReturnValueOnce([cluster(OLD)])
+      .mockReturnValue([cluster(NEW)]);
+
+    const cinematic = vi.fn();
+    const sync = createDonutClusterSync(map as unknown as maplibregl.Map, cinematic);
+    const [idle] = [...(handlers.get("idle") ?? [])];
+
+    defined(idle)();
+    defined(idle)();
+    expect(markerHarness.instances).toHaveLength(1);
+
+    expect(attributes.get("role")).toBe("button");
+    expect(attributes.get("tabindex")).toBe("0");
+
+    const flush = () => new Promise((resolve) => setTimeout(resolve, 0));
+    const stopPropagation = vi.fn();
+    defined(listeners.get("click"))({ stopPropagation });
+    await flush();
+    expect(getClusterExpansionZoom).toHaveBeenLastCalledWith(22);
+    expect(cinematic).toHaveBeenLastCalledWith(
+      { center: NEW, zoom: 15, duration: 700 },
+      "cluster",
+    );
+
+    const keydown = defined(listeners.get("keydown"));
+    for (const key of ["Enter", " "]) {
+      cinematic.mockClear();
+      const preventDefault = vi.fn();
+      keydown({ key, preventDefault, stopPropagation });
+      await flush();
+      expect(preventDefault).toHaveBeenCalledOnce();
+      expect(cinematic).toHaveBeenCalledWith(
+        { center: NEW, zoom: 15, duration: 700 },
+        "cluster",
+      );
+    }
+
+    cinematic.mockClear();
+    const preventDefault = vi.fn();
+    keydown({ key: "a", preventDefault, stopPropagation });
+    await flush();
+    expect(preventDefault).not.toHaveBeenCalled();
+    expect(cinematic).not.toHaveBeenCalled();
 
     sync.destroy();
     vi.unstubAllGlobals();

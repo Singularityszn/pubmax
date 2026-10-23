@@ -15,11 +15,14 @@ import { expect, test, type Locator, type Page, type Request } from "@playwright
 // silently removes the very control these tests are about. The place names
 // stay invented, because they come from the mocked row alone.
 const TEST_TONIGHT_START = Date.now() + 60 * 60 * 1000;
+// A row's own check must fall within the day for Tonight to show it
+// (isTonightCheckedRow in lib/tonightOutListings.ts).
+const TEST_ROW_OBSERVED_AT = new Date(Date.now() - 60_000).toISOString();
 const ROWS = [
-  { id: "d1", venueId: "venue-xjf3n0", placeName: "The Deal Arms A", kind: "deal", startsAt: new Date(TEST_TONIGHT_START).toISOString(), title: "Curry Club", source: { label: "Chain Co", url: "https://chain.example/deal" }, observedAt: "2026-07-20T12:00:00.000Z", confidence: "listed" },
-  { id: "d2", venueId: "venue-1f5ygjb", placeName: "The Deal Arms B", kind: "deal", startsAt: new Date(TEST_TONIGHT_START).toISOString(), title: "Curry Club", source: { label: "Chain Co", url: "https://chain.example/deal" }, observedAt: "2026-07-20T12:00:00.000Z", confidence: "listed" },
-  { id: "m1", venueId: "venue-3h52h", placeName: "The Blue Note", kind: "music", startsAt: new Date(TEST_TONIGHT_START + 60 * 60 * 1000).toISOString(), title: "Live Jazz", source: { label: "Listings", url: "https://listings.example/jazz" }, observedAt: "2026-07-20T12:00:00.000Z", confidence: "listed" },
-  { id: "q1", venueId: "venue-lrz4u2", placeName: "The Sharp Wit", kind: "quiz", startsAt: new Date(TEST_TONIGHT_START - 30 * 60 * 1000).toISOString(), title: "Pub Quiz", source: { label: "Listings", url: "https://listings.example/quiz" }, observedAt: "2026-07-20T12:00:00.000Z", confidence: "listed" },
+  { id: "d1", venueId: "venue-xjf3n0", placeName: "The Deal Arms A", kind: "deal", startsAt: new Date(TEST_TONIGHT_START).toISOString(), title: "Curry Club", source: { label: "Chain Co", url: "https://chain.example/deal" }, observedAt: TEST_ROW_OBSERVED_AT, confidence: "listed" },
+  { id: "d2", venueId: "venue-1f5ygjb", placeName: "The Deal Arms B", kind: "deal", startsAt: new Date(TEST_TONIGHT_START).toISOString(), title: "Curry Club", source: { label: "Chain Co", url: "https://chain.example/deal" }, observedAt: TEST_ROW_OBSERVED_AT, confidence: "listed" },
+  { id: "m1", venueId: "venue-3h52h", placeName: "The Blue Note", kind: "music", startsAt: new Date(TEST_TONIGHT_START + 60 * 60 * 1000).toISOString(), title: "Live Jazz", source: { label: "Listings", url: "https://listings.example/jazz" }, observedAt: TEST_ROW_OBSERVED_AT, confidence: "listed" },
+  { id: "q1", venueId: "venue-lrz4u2", placeName: "The Sharp Wit", kind: "quiz", startsAt: new Date(TEST_TONIGHT_START - 30 * 60 * 1000).toISOString(), title: "Pub Quiz", source: { label: "Listings", url: "https://listings.example/quiz" }, observedAt: TEST_ROW_OBSERVED_AT, confidence: "listed" },
 ];
 
 type WhatsOnBody = { sourceFreshnessKind?: string; sourceObservedAt?: string | null };
@@ -134,7 +137,7 @@ test.describe("Tonight trusted UI", () => {
     expect(box?.height).toBeGreaterThanOrEqual(48);
     const appearance = await accept.evaluate((button) => {
       const probe = document.createElement("span");
-      probe.style.cssText = "position:fixed;background:var(--state-active-surface);border:1px solid var(--state-active-border);color:var(--state-active-ink)";
+      probe.style.cssText = "position:fixed;background:var(--control-secondary-surface);border:1px solid var(--control-secondary-border);color:var(--ink)";
       document.body.appendChild(probe);
       const actual = getComputedStyle(button);
       const expected = getComputedStyle(probe);
@@ -201,7 +204,7 @@ test.describe("Tonight trusted UI", () => {
     });
     expect(order).toBeTruthy(); // list FOLLOWS deals → list above
 
-    // The lede region is the answer (#1627): the pubs people are talking about
+    // The lede region is the answer (#1627): the pubs Londoners keep recommending
     // lead it and the listings follow them. What must clear the tab bar is the
     // answer's first entry, and the listings stay inside that region.
     const lede = page.getByTestId("tonight-lede");

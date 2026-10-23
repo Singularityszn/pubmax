@@ -9,6 +9,7 @@ import {
 } from "@/lib/ask/conciergeTools";
 import { getCity, type CityId } from "@/lib/cities";
 import { rowsFromSlimPayload } from "@/lib/slimPayload";
+import { displayVenueName } from "@/lib/venueDisplay";
 
 // The work-friendly half of the city pack, read for `find_desk` alone.
 //
@@ -52,7 +53,7 @@ function toDeskVenue(value: unknown): DeskVenue | null {
   const area = typeof row.borough === "string" ? row.borough : "";
   return {
     id: row.id,
-    name: row.name,
+    name: displayVenueName(row.name),
     area,
     lat: row.lat,
     lng: row.lng,

@@ -299,7 +299,13 @@ export default function PlanCollaborationPanel({ planId, memberToken, isHost, dr
       ) : null}
 
       {state.memberId ? (
-        <MatchGroupPrefs planId={planId} memberId={state.memberId} memberToken={memberToken} isHost={isHost} />
+        <MatchGroupPrefs
+          planId={planId}
+          memberId={state.memberId}
+          memberToken={memberToken}
+          isHost={isHost}
+          candidateStops={draftStops}
+        />
       ) : null}
 
       <form className="planCollab__form" onSubmit={addConstraint}>

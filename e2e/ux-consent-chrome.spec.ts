@@ -224,14 +224,14 @@ test("mobile consent never covers Plan primary action while visible", async ({ p
   const prompt = page.getByLabel("Anonymous analytics choice");
   await expect(prompt).toBeVisible({ timeout: 30_000 });
 
-  // /plan opens on describe-first, whose ONE painted action is "Sort it".
+  // /plan opens on describe-first, whose ONE painted action is "Plan it".
   // The rule this test owns is about the ROUTE's primary action, so it is read
   // off the Screen's own [data-primary-action] marker rather than named copy
   // alone: the marker is what makes exactly one control the primary, and a
   // later rename of the label cannot quietly leave the rule untested.
   const planPrimary = page
     .locator("[data-primary-action]")
-    .getByRole("button", { name: "Sort it", exact: true });
+    .getByRole("button", { name: "Plan it", exact: true });
   await expect(planPrimary).toBeVisible();
   await planPrimary.scrollIntoViewIfNeeded();
 
@@ -280,14 +280,14 @@ test("mobile consent never covers a control keyboard focus lands on in /social",
   // painted one is the page a reader can Tab through.
   const socialPage = page.locator(".socialPage:visible");
   await expect(socialPage).toBeVisible({ timeout: 30_000 });
-  await expect(socialPage.locator('.socialRailEmpty[aria-busy="true"]')).toBeVisible();
+  await expect(socialPage.locator('.socialDoorSlot[aria-busy="true"]')).toBeVisible();
   const handle = socialPage.getByRole("searchbox", { name: "Search handles", exact: true });
   await expect(handle).toBeEnabled();
   for (let press = 0; press < 60 && !(await handle.evaluate((el) => el === document.activeElement)); press += 1) {
     await page.keyboard.press("Tab");
   }
   await expect(handle).toBeFocused();
-  await expect(socialPage.locator('.socialRailEmpty[aria-busy="true"]')).toBeVisible();
+  await expect(socialPage.locator('.socialDoorSlot[aria-busy="true"]')).toBeVisible();
   await page.screenshot({ path: test.info().outputPath("social-focused-pending.png") });
   settleIdentity();
   await expect(socialPage.locator('[aria-busy="true"]')).toHaveCount(0, { timeout: 30_000 });

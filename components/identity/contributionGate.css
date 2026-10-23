@@ -1,7 +1,7 @@
 .contributionGateBackdrop {
   position: fixed;
   inset: 0;
-  z-index: calc(var(--z-overlay-top, 1300) + 2);
+  z-index: calc(var(--z-overlay-top) + 2);
   display: grid;
   place-items: center;
   padding: 1rem;
@@ -20,7 +20,7 @@
   border-radius: 1.2rem;
   background: var(--panel-raised);
   color: var(--ink);
-  box-shadow: 0 24px 70px color-mix(in srgb, var(--ink-deep) 30%, transparent);
+  box-shadow: var(--shadow);
 }
 
 .contributionGate h2,
@@ -35,13 +35,13 @@
 
 .contributionGate > p:not(.contributionGateEyebrow, .contributionGateError) {
   color: var(--ink-soft);
-  font-size: 0.9rem;
+  font-size: var(--text-sm);
   line-height: 1.45;
 }
 
 .contributionGateEyebrow {
-  color: var(--brass);
-  font-size: 0.72rem;
+  color: var(--color-text-muted);
+  font-size: var(--text-xs);
   font-weight: 800;
   letter-spacing: 0.1em;
   text-transform: uppercase;
@@ -50,7 +50,7 @@
 .contributionGateField {
   display: grid;
   gap: 0.35rem;
-  font-size: 0.82rem;
+  font-size: var(--text-sm);
   font-weight: 750;
 }
 
@@ -58,7 +58,7 @@
   min-height: 46px;
   padding: 0.65rem 0.75rem;
   border: 1px solid var(--line);
-  border-radius: 0.8rem;
+  border-radius: var(--radius);
   background: var(--panel);
   color: var(--ink);
   font: inherit;
@@ -98,7 +98,7 @@
 
 .contributionGateError {
   color: var(--brick);
-  font-size: 0.82rem;
+  font-size: var(--text-sm);
 }
 
 .contributionGate button:focus-visible,
@@ -107,7 +107,7 @@
   outline-offset: 2px;
 }
 
-@media (max-width: 520px) {
+@media (max-width: 640px) {
   .contributionGateBackdrop {
     align-items: end;
     padding: 0;
@@ -116,7 +116,12 @@
   .contributionGate {
     width: 100%;
     max-height: calc(100dvh - env(safe-area-inset-top, 0px));
-    padding: 1rem 1rem calc(1rem + env(safe-area-inset-bottom, 0px));
+    /* The phone tab bar paints ABOVE this sheet (--z-tabbar 1350 over the
+       backdrop's 1302), so Not now sat under it. Reserve the bar's lane under
+       the actions rather than re-layer: the gate order is pinned in
+       __tests__/accountOnboarding.test.ts. */
+    padding: 1rem 1rem
+      calc(1rem + var(--tabbar-h, 64px) + env(safe-area-inset-bottom, 0px));
     border-right: 0;
     border-bottom: 0;
     border-left: 0;

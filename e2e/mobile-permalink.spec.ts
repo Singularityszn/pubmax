@@ -93,12 +93,15 @@ test("mobile seeded Pint Drop permalink exposes tappable action and share contro
   const card = page.locator(".permalink__mat");
   await expect(card).toBeVisible();
 
-  const copyAction = card.locator("[data-copy-link]");
-  await expectTappable(copyAction, "copy-link action");
-  await copyAction.click();
-  await expect.poll(() => page.evaluate(() => window.sessionStorage.getItem("pubmax-e2e-permalink-copy"))).toContain(
-    "/p/seed-prospect-1",
-  );
+  const copyActions = card.getByRole("button", { name: "Copy link", exact: true });
+  await expect(copyActions).toHaveCount(2);
+  for (const [index, copyAction] of (await copyActions.all()).entries()) {
+    await expectTappable(copyAction, `copy-link action ${index + 1}`);
+    await page.evaluate(() => window.sessionStorage.removeItem("pubmax-e2e-permalink-copy"));
+    await copyAction.click();
+    await expect.poll(() => page.evaluate(() => window.sessionStorage.getItem("pubmax-e2e-permalink-copy"))).toContain("/p/seed-prospect-1");
+  }
+
 
   await expectTappable(
     card.getByRole("link", { name: "Open the pub on the map" }),

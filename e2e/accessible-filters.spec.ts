@@ -21,7 +21,7 @@ async function openPlanner(page: Page) {
   const response = await page.goto("/map");
   expect(response?.status()).toBe(200);
   await expect(page.locator(".mapCanvasWrap")).toBeVisible();
-  const activation = page.getByRole("button", { name: "Describe the outing" });
+  const activation = page.getByRole("button", { name: "Plan a pub crawl" });
   await expect(activation).toBeEnabled();
   await activation.click();
   const sheet = page.locator('.mobileSheetPortal[data-sheet-kind="planner"]');

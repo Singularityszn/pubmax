@@ -1,7 +1,7 @@
 import { expect, test, type Page } from "@playwright/test";
 import path from "node:path";
 
-import { runnerShotDir } from "./helpers/runnerShotDir";
+import { runnerShotDir } from "@/e2e/helpers/runnerShotDir";
 
 test.use({ viewport: { width: 390, height: 844 } });
 
@@ -207,7 +207,7 @@ test.describe("Step Out weekly nudge opt-in (390x844)", () => {
     const panel = page.getByTestId("step-out-nudge-pref");
     await expect(panel).toBeVisible({ timeout: 20_000 });
     await expect(panel.getByRole("heading", { name: "Notifications" })).toBeVisible();
-    await expect(page.getByText(/at most one place-bound push a week/i)).toBeVisible();
+    await expect(page.getByText(/at most one push a week/i)).toBeVisible();
     // Installed/standalone runtime: iOS install note is hidden.
     await expect(page.getByTestId("step-out-ios-install-note")).toHaveCount(0);
 
@@ -219,15 +219,15 @@ test.describe("Step Out weekly nudge opt-in (390x844)", () => {
     const registration = page.waitForRequest(
       (request) => request.method() === "POST" && new URL(request.url()).pathname === "/api/push-tokens",
     );
-    await panel.getByRole("button", { name: "Turn Step Out on" }).click();
-    await expect(panel.getByText(/Step Out on/i)).toBeVisible({ timeout: 10_000 });
+    await panel.getByRole("button", { name: "Turn weekly nudge on" }).click();
+    await expect(panel.getByText(/Weekly nudge on/i)).toBeVisible({ timeout: 10_000 });
     expect(state.enabled).toBe(true);
     const registrationRequest = await registration;
     expect(registrationRequest.postDataJSON()).toMatchObject({ platform: "web", token: expect.stringMatching(/^webpush:/) });
     expect((await registrationRequest.response())?.status()).toBe(200);
 
-    await panel.getByRole("button", { name: "Turn Step Out off" }).click();
-    await expect(panel.getByText(/Step Out off/i)).toBeVisible({ timeout: 10_000 });
+    await panel.getByRole("button", { name: "Turn weekly nudge off" }).click();
+    await expect(panel.getByText(/Weekly nudge off/i)).toBeVisible({ timeout: 10_000 });
     expect(state.enabled).toBe(false);
 
     await page.screenshot({
@@ -236,19 +236,39 @@ test.describe("Step Out weekly nudge opt-in (390x844)", () => {
     });
   });
 
-  test("documents Home Screen install when not standalone", async ({ page }) => {
+  // Web push needs the Home Screen install on an iPhone or iPad and nowhere
+  // else (#2051, lib/a2hsPrompt.ts webPushNeedsHomeScreenInstall). A browser
+  // tab off iOS is not standalone either, and it must be offered the switch
+  // with no iPhone instruction.
+  test("offers Step Out with no Home Screen note in a browser tab off iOS", async ({ page }) => {
     await seedSignedInSession(page);
     await installStepOutRoutes(page);
     await page.goto("/u/you#account-settings", { waitUntil: "domcontentloaded" });
     const panel = page.getByTestId("step-out-nudge-pref");
-    await expect(panel).toBeVisible({ timeout: 20_000 });
-    await expect(page.getByTestId("step-out-ios-install-note")).toBeVisible();
-    await expect(
-      page.getByText(/web push needs the Home Screen install/i),
-    ).toBeVisible();
-    await page.screenshot({
-      path: path.join(SHOTS, "step-out-nudge-ios-note-390.png"),
-      fullPage: true,
+    await expect(panel.getByRole("button", { name: "Turn weekly nudge on" })).toBeVisible({ timeout: 20_000 });
+    await expect(page.getByTestId("step-out-ios-install-note")).toHaveCount(0);
+  });
+
+  test.describe("on an iPhone Safari tab", () => {
+    test.use({
+      userAgent:
+        "Mozilla/5.0 (iPhone; CPU iPhone OS 19_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/19.0 Mobile/15E148 Safari/604.1",
+    });
+
+    test("documents Home Screen install when not standalone", async ({ page }) => {
+      await seedSignedInSession(page);
+      await installStepOutRoutes(page);
+      await page.goto("/u/you#account-settings", { waitUntil: "domcontentloaded" });
+      const panel = page.getByTestId("step-out-nudge-pref");
+      await expect(panel.getByRole("button", { name: "Turn weekly nudge on" })).toBeVisible({ timeout: 20_000 });
+      await expect(page.getByTestId("step-out-ios-install-note")).toBeVisible();
+      await expect(
+        page.getByText(/web push needs the Home Screen install/i),
+      ).toBeVisible();
+      await page.screenshot({
+        path: path.join(SHOTS, "step-out-nudge-ios-note-390.png"),
+        fullPage: true,
+      });
     });
   });
 });

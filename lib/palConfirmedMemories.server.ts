@@ -1,8 +1,11 @@
 import "server-only";
 
 import type { PubPalMemory, PubPalMemoryKind } from "@/lib/pubPal";
+import { palTastePreamble } from "@/lib/palTaste";
+import { readPalTaste } from "@/lib/palTaste.server";
 import { listPalMemoriesResult } from "@/lib/pubPalStore";
-import { readPubPalToolTurnBinding } from "@/lib/pubPalToolTurnStore";
+import { PAL_RECALL_MEMORY_LIMIT, selectPalMemoriesForAsk } from "@/lib/palMemoryRelevance";
+import { readPubPalToolTurn, readPubPalToolTurnBinding } from "@/lib/pubPalToolTurnStore";
 
 /**
  * What the Pal may remember in a conversation: only lines the person wrote or
@@ -11,7 +14,7 @@ import { readPubPalToolTurnBinding } from "@/lib/pubPalToolTurnStore";
  */
 const CONFIRMED_PROVENANCE = new Set<PubPalMemory["provenance"]>(["user_confirmed", "user_correction"]);
 
-export const PAL_RECALL_MEMORY_LIMIT = 8;
+export { PAL_RECALL_MEMORY_LIMIT };
 const PAL_RECALL_VALUE_LIMIT = 200;
 
 /** The Pal-only webhook tool that reads the bound owner's confirmed memories. It is not an ADR 0014 Ask tool. */
@@ -38,11 +41,13 @@ function recalled(memory: PubPalMemory): PalRecalledMemory | null {
 }
 
 /**
- * The newest confirmed memories of the account's own Pal, or null when the
- * store failed. A missing Pal has none. A typed turn still answers on null, but
- * it says recall was unavailable instead of claiming nothing is confirmed.
+ * The account's own confirmed memories that this ask needs
+ * (lib/palMemoryRelevance.ts), or null when the store failed. A missing Pal
+ * has none. A typed turn still answers on null, but it says recall was
+ * unavailable instead of claiming nothing is confirmed. Without an ask it is
+ * the pinned kinds and the newest.
  */
-export async function readConfirmedPalMemories(ownerId: string): Promise<PalRecalledMemory[] | null> {
+export async function readConfirmedPalMemories(ownerId: string, ask = ""): Promise<PalRecalledMemory[] | null> {
   let result: Awaited<ReturnType<typeof listPalMemoriesResult>>;
   try {
     result = await listPalMemoriesResult(ownerId);
@@ -50,14 +55,11 @@ export async function readConfirmedPalMemories(ownerId: string): Promise<PalReca
     return null;
   }
   if (!result.ok) return result.error === "not_found" ? [] : null;
-  const newestFirst = [...result.value].sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
-  const out: PalRecalledMemory[] = [];
-  for (const memory of newestFirst) {
-    const line = recalled(memory);
-    if (line) out.push(line);
-    if (out.length >= PAL_RECALL_MEMORY_LIMIT) break;
-  }
-  return out;
+  const newestFirst = [...result.value]
+    .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))
+    .map(recalled)
+    .filter((line): line is PalRecalledMemory => line !== null);
+  return selectPalMemoriesForAsk(newestFirst, ask);
 }
 
 /**
@@ -71,7 +73,7 @@ export function palMemoryPreamble(memories: PalRecalledMemory[] | null): string[
   }
   if (memories.length === 0) return ["I have not confirmed anything for you to remember about me."];
   return [
-    "Things I confirmed you should remember about me. Use them as preferences, never as facts about a pub:",
+    "Things I confirmed you should remember about me. Preferences guide picks. Past nights are my personal reports, including explicitly reported spend. Preserve the stated pub and date. Never infer a bill from price observations or treat memories as current facts about a pub:",
     ...memories.map((memory) => `- ${memory.label}: ${memory.value}`),
   ];
 }
@@ -97,6 +99,12 @@ export async function recallPalMemoriesForConversation(
     result: { ok: false, tool: PAL_RECALL_MEMORIES_TOOL, answerHint, memories: [] },
   });
   if (!conversationId) return refuse("No saved memories are available in this conversation.");
+  // The latest line the person said in this call picks which memories matter.
+  // It is the server's own stored turn, never the webhook body.
+  const askRead = readPubPalToolTurn(conversationId).then(
+    (turn) => turn?.query ?? "",
+    () => "",
+  );
   let ownerId: string | null;
   try {
     ownerId = (await readPubPalToolTurnBinding(conversationId))?.ownerId ?? null;
@@ -104,16 +112,21 @@ export async function recallPalMemoriesForConversation(
     return refuse("Saved memories are unavailable right now.");
   }
   if (!ownerId) return refuse("No saved memories are available in this conversation.");
-  const memories = await readConfirmedPalMemories(ownerId);
+  const ask = await askRead;
+  const [memories, taste] = await Promise.all([readConfirmedPalMemories(ownerId, ask), readPalTaste(ownerId)]);
   if (!memories) return refuse("Saved memories are unavailable right now.");
+  // Voice has no typed preamble, so the taste read rides the recall answer.
+  const tasteLines = palTastePreamble(taste, "third");
+  const tasteHint = tasteLines.length > 0 ? ` ${tasteLines.join(" ")}` : "";
   return {
     result: {
       ok: true,
       tool: PAL_RECALL_MEMORIES_TOOL,
       answerHint:
-        memories.length === 0
+        (memories.length === 0
           ? "The person has not confirmed anything to remember yet."
-          : `The person confirmed these preferences: ${memories.map((memory) => `${memory.label}: ${memory.value}`).join("; ")}. Treat them as preferences, never as facts about a pub.`,
+          : `The person confirmed these preferences and past-night reports: ${memories.map((memory) => `${memory.label}: ${memory.value}`).join("; ")}. Use preferences for picks. Past nights are personal history, including explicitly reported spend. Preserve the stated pub and date. Never infer or sum price observations into a bill, or treat memories as current facts about a pub.`) +
+        tasteHint,
       memories: memories.map(({ kind, value }) => ({ kind, value })),
     },
   };

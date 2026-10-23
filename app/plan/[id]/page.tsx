@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
+import PlacePhoto from "@/components/listing/PlacePhoto";
+import { areaRoutePlacePhoto, type PlacePhoto as PlacePhotoData } from "@/components/listing/placePhotoRules";
 import ActivePlanMarker from "@/components/plan/ActivePlanMarker";
 import NightCrawlMode from "@/components/plan/NightCrawlMode";
 import PlanInviteOpened from "@/components/plan/PlanInviteOpened";
@@ -19,6 +21,7 @@ import { buildPlanPrivacyPreview, type PlanPrivacyPreviewDTO } from "@/lib/planP
 import { planCollaborationStore } from "@/lib/planCollaborationStore";
 import { planStore } from "@/lib/planStore";
 import { buildPlanInviteShareText } from "@/lib/shareArtifacts";
+import { loadGroupedVenues } from "@/lib/venueDataset";
 import { shareVibeSlug, VIBE_SLUGS } from "@/lib/vibeChips";
 import type { VibeTally } from "@/lib/vibeTally";
 
@@ -98,8 +101,8 @@ export async function generateMetadata({ params, searchParams }: Props): Promise
   // A read we could not run is not a plan that has gone. It is never indexed
   // either way, so the unfurl says the neutral thing and the page below says
   // the honest one.
-  if (read.status === "unavailable") return { title: "Plan · PUBMAXXING", robots: PLAN_INVITE_ROBOTS };
-  if (read.status === "absent") return { title: "Plan not found · PUBMAXXING", robots: PLAN_INVITE_ROBOTS };
+  if (read.status === "unavailable") return { title: "Plan", robots: PLAN_INVITE_ROBOTS };
+  if (read.status === "absent") return { title: "Plan not found", robots: PLAN_INVITE_ROBOTS };
   const state = read.state;
   // Vibe stamp on the unfurl (share loop, issue #438): a valid ?vibe= on the
   // shared link pins the stamp the sharer saw; otherwise the crew's live top
@@ -115,7 +118,7 @@ export async function generateMetadata({ params, searchParams }: Props): Promise
   const vibe = shareVibeSlug(query.vibe, tally?.top ?? null);
   const card = `/api/plan-card?id=${encodeURIComponent(id)}${vibe ? `&vibe=${encodeURIComponent(vibe)}` : ""}`;
   return {
-    title: `${safeTitle} · PUBMAXXING`,
+    title: safeTitle,
     description,
     robots: PLAN_INVITE_ROBOTS,
     openGraph: {
@@ -127,6 +130,28 @@ export async function generateMetadata({ params, searchParams }: Props): Promise
     },
     twitter: { card: "summary_large_image", title: safeTitle, description, images: [card] },
   };
+}
+
+// THE PLAN'S LEAD PHOTOGRAPH, OR NONE (components/listing/placePhotoRules.ts).
+//
+// The page publishes the plan's AREA to anyone with the link and keeps its
+// stops to the crew (§4.10). So the only photograph it may lead with is the
+// one of the area it already names, and only when every stop is a short walk
+// from where that photograph was taken: a picture of Borough Market over a
+// night that is really in Bermondsey would be a picture of somewhere else. It
+// names no stop. A stop we cannot place could be anywhere, so it means none,
+// and so does a dataset that cannot be read.
+async function planLeadPhoto(state: PlanState): Promise<PlacePhotoData | null> {
+  const area = state.context?.nightArea;
+  if (!area || state.stops.length === 0) return null;
+  const venues = await loadGroupedVenues();
+  const byId = new Map(venues.map((venue) => [venue.id, venue]));
+  const points = state.stops.flatMap((stop) => {
+    const venue = byId.get(stop.venueId);
+    return venue ? [{ lat: venue.latitude, lng: venue.longitude }] : [];
+  });
+  if (points.length !== state.stops.length) return null;
+  return areaRoutePlacePhoto(area, points);
 }
 
 const ENDING_LABEL: Record<"food" | "get_home" | "keep_going", string> = {
@@ -148,7 +173,7 @@ export default async function PlanPage({ params }: Props) {
   const state = read.state;
   // Crew vibe (share loop): the picker's server-rendered starting tally, and
   // the top slug that stamps the invite URL. Both fail soft to "no votes".
-  const vibeTally = await readVibeTally(id);
+  const [vibeTally, leadPhoto] = await Promise.all([readVibeTally(id), planLeadPhoto(state)]);
   const topVibeSlug = vibeTally?.top ? VIBE_SLUGS[vibeTally.top] : null;
   // §4.10: the page's server HTML/RSC carries ONLY this preview — no venue
   // route, no crew list, no user title. Members upgrade to the full route
@@ -220,9 +245,16 @@ export default async function PlanPage({ params }: Props) {
       <div className="planPage__grid">
         <PlanSummary planId={id} initialPreview={preview} vibeTally={vibeTally} />
         <aside className="planPage__side">
+          {leadPhoto ? (
+            <PlacePhoto
+              className="planLeadPhoto"
+              photo={leadPhoto}
+              sizes="(min-width: 900px) 24rem, calc(100vw - 2.5rem)"
+              caption={<p className="planLeadPhotoCaption">Every stop is a short walk from here.</p>}
+            />
+          ) : null}
           {!completed ? (
             <section className="planShare" aria-labelledby="plan-share-title">
-              <p className="planPage__eyebrow">Send the invite</p>
               <h2 id="plan-share-title">Get the crew in</h2>
               <p>WhatsApp the night link, or copy the invite. Mates tap &quot;I&apos;m in&quot; and add a name.</p>
               <PlanInviteNextStep

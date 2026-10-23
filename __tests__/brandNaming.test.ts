@@ -1,3 +1,6 @@
+import { readFileSync } from "node:fs";
+import path from "node:path";
+
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import type { Metadata } from "next";
@@ -23,9 +26,15 @@ vi.mock("@/lib/scrapedPubs.server", () => ({
 }));
 
 // next/font is a build-time loader, so the root layout needs its faces stubbed
-// to be importable here. Nothing about the metadata under test reads them.
+// to be importable here. Nothing about the metadata under test reads them, but
+// the layout reads each Google face's generated fallback from style.fontFamily,
+// so the stub keeps next/font's "primary, fallback" shape.
 vi.mock("next/font/google", () => {
-  const face = () => ({ variable: "--font-x", className: "font-x", style: {} });
+  const face = () => ({
+    variable: "--font-x",
+    className: "font-x",
+    style: { fontFamily: "'X', 'X Fallback'" },
+  });
   return { Space_Grotesk: face, Inter: face };
 });
 vi.mock("next/font/local", () => {
@@ -33,14 +42,24 @@ vi.mock("next/font/local", () => {
   return { default: face };
 });
 
-describe("brand naming (captain 2026-08-17)", () => {
-  it("names the brand and app separately", () => {
+describe("brand naming (product decision 16 Oct 2026)", () => {
+  it("names PUBMAXX on the web, and keeps the old name for the native install alone", () => {
     expect(BRAND_NAME).toBe("PUBMAXX");
+    // The native shells and the store record keep it until the captain
+    // renames them; no web surface may print it (the fences below).
     expect(APP_NAME).toBe("PUBMAXXING");
   });
 
-  it("uses the app name in page titles", () => {
-    expect(appPageTitle("Privacy")).toBe("Privacy · PUBMAXXING");
+  it("names PUBMAXX on the offline page the service worker falls back to", () => {
+    // public/sw.js serves this document when a navigation has no network, so
+    // it is a web surface like any page and keeps no trace of the old name.
+    const offline = readFileSync(path.join(process.cwd(), "public/offline.html"), "utf8");
+    expect(offline).not.toContain(APP_NAME);
+    expect(offline).toContain(`<title>You're offline. ${BRAND_NAME}</title>`);
+  });
+
+  it("uses the one name in share-card page titles", () => {
+    expect(appPageTitle("Privacy")).toBe("Privacy · PUBMAXX");
   });
 
   it("uses the brand in metadata siteName", () => {
@@ -51,13 +70,12 @@ describe("brand naming (captain 2026-08-17)", () => {
 // Every route that restates openGraph must resolve the BRAND for siteName. App
 // Router replaces a parent's openGraph object wholesale rather than merging it,
 // so each of these owns its own share-card name, and the assertion runs their
-// real `metadata` / `generateMetadata`: a page that reverts to "PUBMAXXING"
+// real `metadata` / `generateMetadata`: a page that reverts to the old name
 // fails here rather than shipping a wrong card. The list covers the routes the
 // brand decision touched PLUS the ones that still hold the literal, so an edit
 // to either group is caught.
 const OG_SITE_NAME_PAGES: ReadonlyArray<[string, () => Promise<Metadata>]> = [
   ["/about", async () => (await import("@/app/about/page")).metadata],
-  ["/out", async () => (await import("@/app/out/page")).metadata],
   ["/privacy", async () => (await import("@/app/privacy/page")).metadata],
   ["/terms", async () => (await import("@/app/terms/page")).metadata],
   ["/historic", async () => (await import("@/app/historic/page")).metadata],
@@ -93,7 +111,6 @@ const OG_SITE_NAME_PAGES: ReadonlyArray<[string, () => Promise<Metadata>]> = [
 // Resolved with Next's own resolver rather than a restatement of it.
 const TEMPLATED_TITLE_PAGES: ReadonlyArray<[string, () => Promise<Metadata>]> = [
   ["/about", async () => (await import("@/app/about/page")).metadata],
-  ["/out", async () => (await import("@/app/out/page")).metadata],
   ["/privacy", async () => (await import("@/app/privacy/page")).metadata],
   ["/terms", async () => (await import("@/app/terms/page")).metadata],
   ["/pubs", async () => (await import("@/app/pubs/page")).generateMetadata()],
@@ -127,13 +144,15 @@ describe("page metadata names the brand, never the app", () => {
     ).toBe(BRAND_NAME);
   });
 
-  it("names the app, never the brand, in the share-card title", async () => {
+  it("names PUBMAXX, never the old app name, in the share-card title", async () => {
     const privacy = (await import("@/app/privacy/page")).metadata;
     const privacyCardTitle = (privacy.openGraph as { title?: string }).title;
     expect(privacyCardTitle).toBe(appPageTitle("Privacy"));
 
     const social = await (await import("@/app/social/page")).generateMetadata();
-    expect((social.openGraph as { title?: string }).title).toContain(APP_NAME);
+    const socialCardTitle = (social.openGraph as { title?: string }).title ?? "";
+    expect(socialCardTitle).toContain(BRAND_NAME);
+    expect(socialCardTitle).not.toContain(APP_NAME);
   });
 });
 

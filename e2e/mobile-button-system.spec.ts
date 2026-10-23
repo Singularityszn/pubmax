@@ -1,6 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
 
-import { LANDING_FALLBACK_RECEIPT_LABEL, LANDING_QUIET_DOORS } from "@/lib/landingHero";
+import { LANDING_QUIET_DOORS, LANDING_RECEIPT_LABEL } from "@/lib/landingHero";
 
 import { LANDING_PRIMARY_NAME } from "./helpers/landingHero";
 
@@ -33,7 +33,7 @@ for (const viewport of DEVICES) {
 
       // ONE painted primary plus the quiet row. The row is the receipt door,
       // which components/landing/LandingHero.tsx always renders first (the
-      // anchor pub's "Still £6.50?" or the fallback), then the table in
+      // anchor pub's door or the fallback, one label), then the table in
       // lib/landingHero.ts rather than a number typed here: the row carried two
       // doors from #1488 while this spec still counted for one (#1503), and it
       // counted the table alone after the receipt door left the table (#1628).
@@ -42,11 +42,9 @@ for (const viewport of DEVICES) {
       await expect(page.getByRole("link", { name: LANDING_PRIMARY_NAME }).first()).toBeVisible();
       const quietDoors = page.locator(".lpHero .screenSecondary > a");
       await expect(quietDoors).toHaveCount(1 + LANDING_QUIET_DOORS.length);
-      // The receipt door names the anchor pub's figure, or is the plain price
-      // door when no card backs one (components/landing/LandingHero.tsx).
-      await expect(quietDoors.first()).toHaveText(
-        new RegExp(`^(Still £\\d+\\.\\d{2}\\?|${LANDING_FALLBACK_RECEIPT_LABEL})$`),
-      );
+      // The receipt door says what it does, with or without a card behind it
+      // (components/landing/LandingHero.tsx).
+      await expect(quietDoors.first()).toHaveText(LANDING_RECEIPT_LABEL);
       for (const [index, door] of LANDING_QUIET_DOORS.entries()) {
         await expect(quietDoors.nth(index + 1)).toHaveAttribute("href", door.href);
         await expect(quietDoors.nth(index + 1)).toHaveText(door.label);
@@ -608,16 +606,20 @@ for (const width of [320, 390] as const) {
     await page.emulateMedia({ reducedMotion: "reduce" });
     await setTheme(page, "light");
     await page.goto("/moment");
-    const heading = page.locator(".momentPage h1");
+    // While React reveals the streamed Suspense boundary it briefly holds a
+    // second, hidden copy of the composer, so a bare `.momentPage h1` can match
+    // two headings (seen on PR #2103, shard 2/3). Measure the one on screen.
+    const heading = page.locator(".momentPage h1:visible");
+    await expect(heading).toHaveCount(1);
     await expect(heading).toBeVisible();
-    const geometry = await page.evaluate(() => {
+    const geometry = await heading.evaluate((h1) => {
       const probe = document.createElement("div");
       probe.style.cssText = "position:absolute;visibility:hidden;width:var(--page-gutter)";
       document.body.append(probe);
       const gutter = probe.getBoundingClientRect().width;
       probe.remove();
-      const h1 = document.querySelector(".momentPage h1")!.getBoundingClientRect();
-      return { gutter, left: h1.left, right: window.innerWidth - h1.right };
+      const rect = h1.getBoundingClientRect();
+      return { gutter, left: rect.left, right: window.innerWidth - rect.right };
     });
     expect(Math.abs(geometry.left - geometry.gutter)).toBeLessThanOrEqual(1);
     expect(geometry.right).toBeGreaterThanOrEqual(geometry.gutter - 1);
@@ -628,9 +630,12 @@ for (const width of [320, 390] as const) {
 // the "Cheapest pint" column on a borough table (head text 272 to 357). The
 // cell is scrolled to the control's own band, and its content box must end
 // before the control starts. The profile page hides the control, so it has no
-// lane (e2e/account-password.spec.ts).
+// lane (e2e/account-password.spec.ts). The borough table became a ranked row
+// list in the taste pass (18 Oct 2026): each pub is one row whose trailing
+// figure is its cheapest pint, so the row's content box (which ends where the
+// price ends) is what must stay out of the lane now.
 const COMPOSE_LANE_CELLS = [
-  { route: "/borough/southwark", cells: ".boroughPriceHead, .boroughPriceCell" },
+  { route: "/borough/southwark", cells: ".boroughPubRows .rowListItem" },
 ] as const;
 
 for (const surface of COMPOSE_LANE_CELLS) {
@@ -662,3 +667,44 @@ for (const surface of COMPOSE_LANE_CELLS) {
     });
   }
 }
+
+// The lane above reaches only rows that opt in, and running prose cannot give
+// up 80px of its line, so on /about the + sat on the paragraph a reader was in
+// (16 Oct 2026 design audit, 390x844). Reading down tucks it; reading up, the
+// foot of the page and keyboard focus each bring it back
+// (lib/createFabScrollTuck.ts).
+test("390px: the compose action steps off prose while the reader scrolls down", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await setTheme(page, "light");
+  await page.addInitScript(() => {
+    window.localStorage.setItem("pubmaxx:analytics-consent:v1", "denied");
+  });
+  await page.goto("/about");
+
+  const root = page.locator(".createFabRoot");
+  const fab = page.getByTestId("create-fab");
+  await expect(fab).toBeVisible();
+  await expect(root).toHaveCSS("opacity", "1");
+
+  await expect(async () => {
+    await page.mouse.wheel(0, 240);
+    await expect(root).toHaveCSS("opacity", "0", { timeout: 1_000 });
+  }).toPass({ timeout: 15_000 });
+  await expect(fab).toHaveCSS("pointer-events", "none");
+
+  await page.mouse.wheel(0, -120);
+  await expect(root).toHaveCSS("opacity", "1");
+
+  await expect(async () => {
+    await page.mouse.wheel(0, 240);
+    await expect(root).toHaveCSS("opacity", "0", { timeout: 1_000 });
+  }).toPass({ timeout: 15_000 });
+  await fab.focus();
+  await expect(root).toHaveCSS("opacity", "1");
+  await expect(fab).toHaveCSS("pointer-events", "auto");
+  await fab.blur();
+
+  await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
+  await expect(root).toHaveCSS("opacity", "1");
+});

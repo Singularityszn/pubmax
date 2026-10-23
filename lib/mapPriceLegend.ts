@@ -1,5 +1,6 @@
 import type { CategoryPriceIndexStatus } from "@/lib/mapExperienceLens";
 import { priceBandLegendLabel } from "@/lib/priceBand";
+import { CONFIRMED_MAX_AGE_DAYS } from "@/lib/priceTier";
 import {
   SPOONS_VALUE_BANDS,
   SPOONS_VALUE_LENS_LABEL,
@@ -40,6 +41,9 @@ export type MapKeyEntry = {
 type MapKeyCluster = {
   note: string;
   sample: string;
+  /** Whether the sample figure is a price, so it wears a band's ink the way a
+   *  priced disc's figure does. A count stays in ink. */
+  samplePriced: boolean;
 };
 
 export type MapPriceLegendModel = {
@@ -81,32 +85,31 @@ export type MapPriceLegendContext = (
 ) &
   MapPriceLegendMapState;
 
-// A cluster is a paper disc: the ring is the price band, the figure is the
-// cheapest price a pub in it lists and, from DONUT_BADGE_MIN venues up, the
-// small number on the rim is the venue count.
-// Where no pub in it lists a price the figure is the count, whatever colour the
-// ring is: a bar's band or a demo seed paints a ring without listing a pint.
+// A cluster is a NEUTRAL disc (owner decision 16 Oct 2026): its ring carries
+// no band, and the one colour on it is its figure's own band. A priced disc
+// reads "from £x" with the cheapest price in that price's band colour and its
+// venue count under it; a disc with no listed pint prints its count.
 const PRICE_CLUSTER_NOTE =
-  "The ring on a cluster shows the price bands inside it: split where there is room, otherwise the most common known one. Grey means none has a known map price. When a pub in it lists a pint price, the figure is the cheapest one, and a cluster of ten or more venues shows how many as a small number on the rim. Otherwise the figure is the venue count.";
+  "A cluster is a plain disc. When a pub in it lists a pint price, it reads from the cheapest one, in that price's own band colour, with how many venues it holds underneath. Otherwise it shows the venue count.";
 
 // Where no pub lists a PINT price on a disc (a drink view, or a map of non-pub
-// venues only), the disc says its count and the ring keeps the bands.
+// venues only), the disc says its count.
 const COUNT_CLUSTER_NOTE =
-  "The ring on a cluster shows the price bands inside it: split where there is room, otherwise the most common known one. Grey means none has a known map price. The number is every venue in the cluster.";
+  "A cluster is a plain disc. The number is every venue in it. Zoom in to see each one's band.";
 
 const SPOONS_CLUSTER_NOTE =
-  "The ring on a cluster shows the value bands inside it: split where there is room, otherwise the most common one. Grey means no pub in it is in the ranking. The number is every venue in the cluster.";
+  "A cluster is a plain disc. The number is every venue in it. Zoom in to see each pub's value band.";
 
 const SPOONS_EMPTY_CLUSTER_NOTE =
-  "Clusters stay grey because no pub in view is in the ranking. The number is every venue in the cluster.";
+  "No pub in view is in the ranking. A cluster shows every venue in it.";
 
 const FOOD_CLUSTER_NOTE =
-  "Food clusters stay grey because food prices do not colour this map. The number is every venue in the cluster.";
+  "Food prices do not colour this map. A cluster shows every venue in it.";
 
-const PRICE_CLUSTER: MapKeyCluster = { note: PRICE_CLUSTER_NOTE, sample: "£4" };
+const PRICE_CLUSTER: MapKeyCluster = { note: PRICE_CLUSTER_NOTE, sample: "£4", samplePriced: true };
 
 function countCluster(note: string): MapKeyCluster {
-  return { note, sample: "12" };
+  return { note, sample: "12", samplePriced: false };
 }
 
 const MAP_SHAPES: MapKeyEntry[] = [
@@ -130,6 +133,9 @@ const MAP_SHAPES: MapKeyEntry[] = [
   },
 ];
 
+/** What the broken rim on a glass says, in the windows the standings own. */
+const AGING_PRICE_MARK_DETAIL = `Its price may have changed: a drinker logged it over ${CONFIRMED_MAX_AGE_DAYS} days ago, the pub listed it over a year ago, or it has no read date.`;
+
 const MAP_MARKS: [MapKeyEntry, ...MapKeyEntry[]] = [
   {
     id: "your-location",
@@ -145,6 +151,13 @@ const MAP_MARKS: [MapKeyEntry, ...MapKeyEntry[]] = [
     id: "pint-drop",
     label: "Blue ring",
     detail: "This pub has a visible Pint Drop.",
+  },
+  {
+    // An aging price (lib/priceTier.ts `priceAgeFor`): the glass keeps its band
+    // colour and its rim breaks, because colour carries the band alone.
+    id: "aging-price",
+    label: "Glass with a broken rim",
+    detail: AGING_PRICE_MARK_DETAIL,
   },
   { id: "quiz", label: "Amber ring", detail: "Quiz on tonight." },
   { id: "sport", label: "Bright blue ring", detail: "Live sport shown here." },
@@ -415,11 +428,11 @@ function drinkCluster(
   if (buckets.some((bucket) => bucket !== 3)) return countCluster(COUNT_CLUSTER_NOTE);
   if (status === "degraded") {
     return countCluster(
-      `Clusters stay grey because ${drink} prices could not be read just now. The number is every venue in the cluster.`,
+      `We could not read the ${drink} prices just now. A cluster shows every venue in it.`,
     );
   }
   return countCluster(
-    `Clusters stay grey because no current venue has a trusted ${drink} price. The number is every venue in the cluster.`,
+    `No current venue has a trusted ${drink} price. A cluster shows every venue in it.`,
   );
 }
 
@@ -437,7 +450,7 @@ function defaultCluster(
     return clusterPrices ? PRICE_CLUSTER : countCluster(COUNT_CLUSTER_NOTE);
   }
   return countCluster(
-    "Clusters stay grey because no current venue has a known map price. The number is every venue in the cluster.",
+    "No current venue has a known map price. A cluster shows every venue in it.",
   );
 }
 

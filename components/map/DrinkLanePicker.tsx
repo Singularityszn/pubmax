@@ -1,7 +1,8 @@
 "use client";
 
-import { GlassWater } from "lucide-react";
+import { GlassWater, X } from "lucide-react";
 
+import { IconButton } from "@/components/ui/icon-button";
 import { MAP_DRINK_LANES } from "@/lib/drinkLanes";
 import type { DrinkCategory } from "@/lib/drinks";
 import {
@@ -28,12 +29,14 @@ export default function DrinkLanePicker({
   status = "ready",
   variant = "panel",
   onChange,
+  onClose,
 }: {
   lane: DrinkCategory;
   /** How complete the selected lane's cross-venue read was, for the note. */
   status?: CategoryPriceIndexStatus;
   variant?: "panel" | "sheet";
   onChange: (lane: DrinkCategory) => void;
+  onClose?: () => void;
 }) {
   const active = MAP_DRINK_LANES.find((option) => option.category === lane);
   // A lane still loading, or one we could not read, must not be worded as a
@@ -56,8 +59,13 @@ export default function DrinkLanePicker({
           is no chrome above it. */}
       {variant === "sheet" ? null : (
         <div className="drinkLanePickerHead">
-          <GlassWater size={15} aria-hidden="true" />
+          <GlassWater size={16} aria-hidden="true" />
           <span>What are you drinking?</span>
+          {onClose ? (
+            <IconButton variant="ghost" className="drinkLanePickerClose" aria-label="Close drink choices" onClick={onClose}>
+              <X size={16} aria-hidden="true" />
+            </IconButton>
+          ) : null}
         </div>
       )}
       <div

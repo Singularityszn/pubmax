@@ -18,7 +18,7 @@ const nightModeCardSource = readFileSync(
   "utf8",
 );
 
-const SNAPSHOT_NOW = Date.parse("2026-07-16T23:00:00.000Z");
+const SNAPSHOT_NOW = Date.parse("2026-10-17T23:00:00.000Z");
 
 describe("lateFoodNearMapUrl", () => {
   it("opens the map food view around the last stop", () => {

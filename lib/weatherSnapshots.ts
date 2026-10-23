@@ -100,9 +100,22 @@ export type AreaWeatherRead = {
 };
 
 /**
- * Latest observation for a night area, including readings past their expiry.
- * Used by display surfaces that must say plainly when a row is stale rather
- * than vanish or recycle generic garden copy.
+ * The oldest reading a display surface may still show, measured from when it
+ * was observed. Owner ruling, 17 Oct 2026: /today and /tonight opened on a
+ * reading checked 44 days earlier. It was honestly labelled, and it still made
+ * a daily page read stale. The refresh runs once a day (weather-refresh.yml)
+ * and a reading is valid for 12 hours (lib/weatherProvider.ts), so a normal
+ * evening holds a reading a few hours past its expiry, told as "Last checked".
+ * One missed day's refresh plus a six-hour grace still shows that way; past
+ * it, the surface says it has no reading, the same as when there is none.
+ */
+const WEATHER_READING_MAX_AGE_MS = 30 * 60 * 60 * 1000;
+
+/**
+ * Latest observation for a night area, including readings past their expiry
+ * up to WEATHER_READING_MAX_AGE_MS. Used by display surfaces that must say
+ * plainly when a row is stale rather than vanish or recycle generic garden
+ * copy; a reading older than the cut-off is no reading at all.
  */
 export function latestWeatherForArea(
   value: unknown,
@@ -115,7 +128,9 @@ export function latestWeatherForArea(
 
   const observation = snapshot.observations.find((candidate) => candidate.nightArea === nightArea);
   if (!observation) return null;
-  if (Date.parse(observation.observedAt) > nowMs) return null;
+  const observedAtMs = Date.parse(observation.observedAt);
+  if (observedAtMs > nowMs) return null;
+  if (nowMs - observedAtMs > WEATHER_READING_MAX_AGE_MS) return null;
 
   const stale = nowMs >= Date.parse(observation.expiresAt);
   return { observation, stale };

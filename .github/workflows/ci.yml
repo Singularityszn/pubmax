@@ -1,8 +1,9 @@
 name: CI
 
 # GitHub-hosted ubuntu-latest. The repository is public, so CI does not run
-# on a personal Mac. Playwright jobs live in e2e.yml and performance.yml
-# and use macos-latest. Effective RLS stays in
+# on a personal Mac. Playwright jobs live in e2e.yml, performance.yml and
+# prod-smoke.yml; __tests__/ciRunnerIsolation.test.ts lists the ones on
+# macos-latest. Effective RLS stays in
 # rls-session.yml so this workflow stays lean. Job timeout-minutes are the
 # ceilings already measured for these jobs; see docs/CI_RUNBOOK.md.
 
@@ -16,9 +17,10 @@ permissions:
   contents: read
 
 concurrency:
-  # One group per workflow, event and ref. A newer pull request head
-  # supersedes older runs of this workflow. Main and dispatch runs finish.
-  group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.ref }}
+  # One group per pull request: a newer head cancels that pull request's
+  # older run. Every other run (main push, schedule, dispatch) gets a
+  # group of its own, so GitHub never drops it while it waits.
+  group: ${{ github.workflow }}-${{ github.event_name == 'pull_request' && format('pr-{0}', github.event.pull_request.number) || format('run-{0}', github.run_id) }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 
@@ -37,7 +39,7 @@ jobs:
 
       - name: Setup Node
         timeout-minutes: 5
-        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: 22
           cache: npm
@@ -62,29 +64,63 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+          # Two commits: the merge and its base, for the change scope below.
+          fetch-depth: 2
+
+      # CHANGE SCOPE (docs/CI_RUNBOOK.md, "What a pull request runs"). A pull
+      # request is checked out as its merge commit, whose first parent is the
+      # base, so one diff names every file the merge would change. Only every
+      # changed file being docs (docs/**, *.md) or data (data/**/*.json,
+      # public/data/**) makes it "docs" or "data"; anything else, an empty diff
+      # and every event other than a pull request is "code" and runs in full.
+      # The job always runs and reports, so a required check never waits on a
+      # job that was skipped. Every copy of this step is identical
+      # (__tests__/ciChangeScope.test.ts).
+      - name: Classify the change
+        id: scope
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+        run: |
+          set -euo pipefail
+          scope=code
+          if [ "$EVENT_NAME" = pull_request ]; then
+            scope="$(git diff --no-renames --name-only HEAD^1 HEAD | awk '
+              NF == 0 { next }
+              /^docs\// || /\.md$/ { docs++; next }
+              /^data\/.*\.json$/ || /^public\/data\// { data++; next }
+              { code++ }
+              END { if (code || !(docs + data)) print "code"; else if (data) print "data"; else print "docs" }')"
+          fi
+          echo "scope=$scope" >> "$GITHUB_OUTPUT"
+          echo "Change scope: $scope"
 
       - name: Setup Node
+        if: steps.scope.outputs.scope != 'docs'
         timeout-minutes: 5
-        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: 22
           cache: npm
 
       - name: Install dependencies
+        if: steps.scope.outputs.scope != 'docs'
         run: |
           npm ci
           npm run deps:install-scripts
 
       - name: Lint
+        if: steps.scope.outputs.scope != 'docs'
         run: npm run lint
 
       - name: Typecheck
+        if: steps.scope.outputs.scope != 'docs'
         env:
           NODE_OPTIONS: "--max-old-space-size=6144"
         # Generates the typedRoutes link types before the native tsc pass.
         run: npm run typecheck
 
       - name: Typecheck (TypeScript 6)
+        if: steps.scope.outputs.scope != 'docs'
         env:
           NODE_OPTIONS: "--max-old-space-size=6144"
         # The bridge compiler Next builds with, over the full tsconfig. The
@@ -101,20 +137,52 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+          # Two commits: the merge and its base, for the change scope below.
+          fetch-depth: 2
+
+      # CHANGE SCOPE (docs/CI_RUNBOOK.md, "What a pull request runs"). A pull
+      # request is checked out as its merge commit, whose first parent is the
+      # base, so one diff names every file the merge would change. Only every
+      # changed file being docs (docs/**, *.md) or data (data/**/*.json,
+      # public/data/**) makes it "docs" or "data"; anything else, an empty diff
+      # and every event other than a pull request is "code" and runs in full.
+      # The job always runs and reports, so a required check never waits on a
+      # job that was skipped. Every copy of this step is identical
+      # (__tests__/ciChangeScope.test.ts).
+      - name: Classify the change
+        id: scope
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+        run: |
+          set -euo pipefail
+          scope=code
+          if [ "$EVENT_NAME" = pull_request ]; then
+            scope="$(git diff --no-renames --name-only HEAD^1 HEAD | awk '
+              NF == 0 { next }
+              /^docs\// || /\.md$/ { docs++; next }
+              /^data\/.*\.json$/ || /^public\/data\// { data++; next }
+              { code++ }
+              END { if (code || !(docs + data)) print "code"; else if (data) print "data"; else print "docs" }')"
+          fi
+          echo "scope=$scope" >> "$GITHUB_OUTPUT"
+          echo "Change scope: $scope"
 
       - name: Setup Node
+        if: steps.scope.outputs.scope == 'code'
         timeout-minutes: 5
-        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: 22
           cache: npm
 
       - name: Install dependencies
+        if: steps.scope.outputs.scope == 'code'
         run: |
           npm ci
           npm run deps:install-scripts
 
       - name: Build
+        if: steps.scope.outputs.scope == 'code'
         env:
           NODE_OPTIONS: "--max-old-space-size=6144"
         run: npm run build
@@ -138,15 +206,46 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+          # Two commits: the merge and its base, for the change scope below.
+          fetch-depth: 2
+
+      # CHANGE SCOPE (docs/CI_RUNBOOK.md, "What a pull request runs"). A pull
+      # request is checked out as its merge commit, whose first parent is the
+      # base, so one diff names every file the merge would change. Only every
+      # changed file being docs (docs/**, *.md) or data (data/**/*.json,
+      # public/data/**) makes it "docs" or "data"; anything else, an empty diff
+      # and every event other than a pull request is "code" and runs in full.
+      # The job always runs and reports, so a required check never waits on a
+      # job that was skipped. Every copy of this step is identical
+      # (__tests__/ciChangeScope.test.ts).
+      - name: Classify the change
+        id: scope
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+        run: |
+          set -euo pipefail
+          scope=code
+          if [ "$EVENT_NAME" = pull_request ]; then
+            scope="$(git diff --no-renames --name-only HEAD^1 HEAD | awk '
+              NF == 0 { next }
+              /^docs\// || /\.md$/ { docs++; next }
+              /^data\/.*\.json$/ || /^public\/data\// { data++; next }
+              { code++ }
+              END { if (code || !(docs + data)) print "code"; else if (data) print "data"; else print "docs" }')"
+          fi
+          echo "scope=$scope" >> "$GITHUB_OUTPUT"
+          echo "Change scope: $scope"
 
       - name: Setup Node
+        if: steps.scope.outputs.scope == 'code' || matrix.shard == 1
         timeout-minutes: 5
-        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: 22
           cache: npm
 
       - name: Install dependencies
+        if: steps.scope.outputs.scope == 'code' || matrix.shard == 1
         run: |
           npm ci
           npm run deps:install-scripts
@@ -154,6 +253,7 @@ jobs:
       # Fresh checkout: production-build does not upload data/generated, but
       # validate-data and venue route tests expect slim/detail artifacts.
       - name: Build slim venue artifacts
+        if: steps.scope.outputs.scope == 'code' || matrix.shard == 1
         run: npm run build:slim
 
       # Postgres/PostgREST proofs live in rls-session.yml, the one job that
@@ -164,6 +264,7 @@ jobs:
       # partial client tools; with the suites excluded it changes nothing here
       # and keeps a stray probe on the loud-skip path.
       - name: Unit tests with coverage
+        if: steps.scope.outputs.scope == 'code'
         env:
           NODE_OPTIONS: "--max-old-space-size=6144"
           PUBMAX_RLS_NO_PG: "1"
@@ -179,8 +280,34 @@ jobs:
           --reporter=blob
           --outputFile.blob=blob-reports/blob-${{ matrix.shard }}.json
 
+      # A docs or data pull request skips the whole-suite shards, but a unit
+      # fence can read the very file it changed (an AGENTS.md, a pack, the
+      # freshness registry). So shard 1 runs every unit test whose source
+      # names a changed file by path or by file name, PostgreSQL suites aside
+      # (rls-session.yml owns those). Main runs the whole suite on merge.
+      - name: Unit tests that name a changed file
+        if: steps.scope.outputs.scope != 'code' && matrix.shard == 1
+        env:
+          NODE_OPTIONS: "--max-old-space-size=6144"
+          PUBMAX_RLS_NO_PG: "1"
+        run: |
+          set -euo pipefail
+          postgres_suites="$(node --input-type=module -e 'import { POSTGRES_BACKED_SUITES } from "./scripts/rls/postgresSuites.mjs"; console.log(POSTGRES_BACKED_SUITES.join("\n"))')"
+          tests="$(git diff --no-renames --name-only HEAD^1 HEAD | while IFS= read -r file; do
+            [ -n "$file" ] || continue
+            grep -rlF -e "$file" -e "$(basename "$file")" __tests__ --include='*.test.ts' --include='*.test.tsx' || true
+          done | sort -u | grep -vxF -f <(printf '%s\n' "$postgres_suites") || true)"
+          if [ -z "$tests" ]; then
+            echo "No unit test names a changed file."
+            exit 0
+          fi
+          printf 'Running:\n%s\n' "$tests"
+          # shellcheck disable=SC2086 # one test path per word
+          npx vitest run $tests
+
       - name: Upload coverage blob
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        if: steps.scope.outputs.scope == 'code'
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: unit-blob-${{ matrix.shard }}
           path: blob-reports/blob-${{ matrix.shard }}.json
@@ -197,23 +324,56 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+          # Two commits: the merge and its base, for the change scope below.
+          fetch-depth: 2
+
+      # CHANGE SCOPE (docs/CI_RUNBOOK.md, "What a pull request runs"). A pull
+      # request is checked out as its merge commit, whose first parent is the
+      # base, so one diff names every file the merge would change. Only every
+      # changed file being docs (docs/**, *.md) or data (data/**/*.json,
+      # public/data/**) makes it "docs" or "data"; anything else, an empty diff
+      # and every event other than a pull request is "code" and runs in full.
+      # The job always runs and reports, so a required check never waits on a
+      # job that was skipped. Every copy of this step is identical
+      # (__tests__/ciChangeScope.test.ts).
+      - name: Classify the change
+        id: scope
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+        run: |
+          set -euo pipefail
+          scope=code
+          if [ "$EVENT_NAME" = pull_request ]; then
+            scope="$(git diff --no-renames --name-only HEAD^1 HEAD | awk '
+              NF == 0 { next }
+              /^docs\// || /\.md$/ { docs++; next }
+              /^data\/.*\.json$/ || /^public\/data\// { data++; next }
+              { code++ }
+              END { if (code || !(docs + data)) print "code"; else if (data) print "data"; else print "docs" }')"
+          fi
+          echo "scope=$scope" >> "$GITHUB_OUTPUT"
+          echo "Change scope: $scope"
       - name: Setup Node
+        if: steps.scope.outputs.scope == 'code'
         timeout-minutes: 5
-        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: 22
           cache: npm
       - name: Install dependencies
+        if: steps.scope.outputs.scope == 'code'
         run: |
           npm ci
           npm run deps:install-scripts
       - name: Download coverage blobs
-        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        if: steps.scope.outputs.scope == 'code'
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           pattern: unit-blob-*
           path: blob-reports
           merge-multiple: true
       - name: Enforce coverage
+        if: steps.scope.outputs.scope == 'code'
         env:
           NODE_OPTIONS: "--max-old-space-size=6144"
         run: npx vitest --merge-reports=blob-reports --coverage
@@ -229,7 +389,7 @@ jobs:
           persist-credentials: false
       - name: Setup Node
         timeout-minutes: 5
-        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: 22
           cache: npm
@@ -259,7 +419,7 @@ jobs:
           persist-credentials: false
       - name: Setup Node
         timeout-minutes: 5
-        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: 22
           cache: npm

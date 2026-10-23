@@ -59,6 +59,10 @@ When the lookup itself fails, it shows `"We could not check that pub right
 now."` (`MAP_SELECTION_LOOKUP_FAILED_NOTE`). Either way, the map stays open
 and the reader can dismiss the notice.
 
+If a curated venue is absent from the loaded index and its full-record lookup
+fails, the loading sheet closes instead of waiting indefinitely.
+The failed lookup keeps `sel`, so a later allowed lookup can recover the selection.
+
 A UK base pub id (`venue-uk-*`) needs no `at` hint to open. Without one, the
 cold restore asks `/api/uk-base/[id]` for the record. An id that the pack does
 not hold and that no venue alias owns shows the unknown notice and drops

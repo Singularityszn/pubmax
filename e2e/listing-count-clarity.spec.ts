@@ -1,4 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
+import { mobileMapShellControl } from "./helpers/mobileMapShell";
+import { ICON_SIZE } from "../lib/iconScale";
 
 test.use({ launchOptions: { args: ["--use-angle=swiftshader", "--enable-unsafe-swiftshader"] } });
 test.setTimeout(90_000);
@@ -18,9 +20,7 @@ function listing(index: number) {
 }
 
 async function openTonightLens(page: Page, count: number) {
-  const filters = page.locator(".mobileMapTopbar").getByRole("button", { name: /^Filters/ });
-  await expect(filters).toBeVisible({ timeout: 30_000 });
-  await filters.click();
+  await (await mobileMapShellControl(page, "filters", 30_000)).click();
   const sheet = page.locator('.mobileSheetPortal[data-sheet-kind="filters"]:visible');
   const lens = sheet.getByRole("button", { name: `Tonight listings: ${count}`, exact: true });
   await expect(lens).toBeVisible({ timeout: 30_000 });
@@ -124,7 +124,8 @@ test("the longest drink lanes keep a three-digit Tonight count whole on a 320px 
         throw new Error(`drink parts missing for ${where}: ${JSON.stringify(drinkParts)}`);
       }
       expect(drinkLabel.scrollWidth, `drink label, ${where}`).toBeLessThanOrEqual(drinkLabel.clientWidth);
-      expect(Math.round(drinkIcon.width), `glass icon, ${where}`).toBe(15);
+      // The glass draws at the icon scale's inline step (lib/iconScale.ts).
+      expect(Math.round(drinkIcon.width), `glass icon, ${where}`).toBe(ICON_SIZE.inline);
       expect(Math.round(drink.height), `drink chip height, ${where}`).toBe(44);
       expect(drink.width, `drink chip width, ${where}`).toBeGreaterThanOrEqual(44);
       expect(drink.left, `drink chip inside the viewport, ${where}`).toBeGreaterThanOrEqual(0);
@@ -155,7 +156,7 @@ test("the longest drink lanes keep a three-digit Tonight count whole on a 320px 
       expect(label.scrollWidth, `Tonight label, ${where}`).toBeLessThanOrEqual(label.clientWidth);
       expect(count.scrollWidth, `listing count, ${where}`).toBeLessThanOrEqual(count.clientWidth);
       expect(label.bottom, `Tonight label clear of the count, ${where}`).toBeLessThanOrEqual(count.top);
-      expect(Math.round(icon.width), `calendar icon, ${where}`).toBe(18);
+      expect(Math.round(icon.width), `calendar icon, ${where}`).toBe(ICON_SIZE.inline);
       expect(tonight.height, `Tonight lens tap height, ${where}`).toBeGreaterThanOrEqual(44);
       expect(tonight.width, `Tonight lens tap width, ${where}`).toBeGreaterThanOrEqual(44);
       expect(tonight.left, `Tonight lens inside the viewport, ${where}`).toBeGreaterThanOrEqual(0);
@@ -171,7 +172,7 @@ test("the longest drink lanes keep a three-digit Tonight count whole on a 320px 
   }
 });
 
-test("Out distinguishes listings shown from their accepted venue links", async ({ page }) => {
+test("Tonight's later listings distinguish listings shown from their accepted venue links", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.route("**/api/out?**", (route) => route.fulfill({
     json: {
@@ -180,15 +181,18 @@ test("Out distinguishes listings shown from their accepted venue links", async (
       observedAt: {}, providers: [],
     },
   }));
-  await page.goto("/out");
-  await expect(page.getByTestId("out-listing-count")).toHaveText(
+  // /out folded into /tonight: the listings live behind its Tomorrow switch.
+  await page.goto("/tonight");
+  const later = page.getByTestId("tonight-later");
+  await later.getByRole("button", { name: "Tomorrow", exact: true }).click();
+  await expect(later.getByTestId("out-listing-count")).toHaveText(
     "2 listings shown. 1 linked to a venue on our map.",
   );
-  await expect(page.getByTestId("out-listing-row")).toHaveCount(2);
-  await expect(page.getByRole("link", { name: "Open on map", exact: true })).toHaveCount(1);
+  await expect(later.getByTestId("out-listing-row")).toHaveCount(2);
+  await expect(later.getByRole("link", { name: "Open on map", exact: true })).toHaveCount(1);
 });
 
-test("Out makes no match-count claim when venue matching is unavailable", async ({ page }) => {
+test("Tonight's later listings make no match-count claim when venue matching is unavailable", async ({ page }) => {
   await page.route("**/api/out?**", (route) => route.fulfill({
     json: {
       status: "degraded", listingsStatus: "ready", events: [listing(1)],
@@ -196,8 +200,10 @@ test("Out makes no match-count claim when venue matching is unavailable", async 
       observedAt: {}, providers: [],
     },
   }));
-  await page.goto("/out");
-  await expect(page.getByTestId("out-listing-count")).toHaveText("1 listing shown.");
-  await expect(page.getByTestId("out-venue-match-notice")).toBeVisible();
-  await expect(page.getByTestId("out-listing-row")).toHaveCount(1);
+  await page.goto("/tonight");
+  const later = page.getByTestId("tonight-later");
+  await later.getByRole("button", { name: "Tomorrow", exact: true }).click();
+  await expect(later.getByTestId("out-listing-count")).toHaveText("1 listing shown.");
+  await expect(later.getByTestId("out-venue-match-notice")).toBeVisible();
+  await expect(later.getByTestId("out-listing-row")).toHaveCount(1);
 });

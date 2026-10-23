@@ -14,7 +14,7 @@ Two reader transports, one consent gate, plus server telemetry that no reader is
 | Transport | Carries | Path |
 |---|---|---|
 | Named product events | The closed registry in `lib/analyticsEvents.ts` | `trackEvent()` (`lib/analytics.ts`) to `POST /api/events`, re-validated there, then `lib/posthogServer.ts` to the EU capture endpoint |
-| Browser SDK events | `$pageview`, `$web_vitals`, redacted `$exception` | `posthog-js` (`lib/posthogClient.ts`) through the first-party `/ingest` proxy (`app/ingest/[...path]/route.ts`) |
+| Browser SDK events | `$pageview`, `$web_vitals`, redacted `$exception`, `map_load_timing` (`docs/analytics/MAP_LOAD_TIMING.md`) | `posthog-js` (`lib/posthogClient.ts`) through the first-party `/ingest` proxy (`app/ingest/[...path]/route.ts`) |
 | Server telemetry | `$ai_generation` per direct model call, redacted server `$exception` | `capturePosthogServerEvent` (`lib/posthogServer.ts`) under a fixed server `distinct_id` with no person profile, so it is never a reader and never enters a reader rate |
 
 Four facts that decide how every query below is written.
@@ -23,12 +23,17 @@ Four facts that decide how every query below is written.
    and `/api/events` re-checks consent plus the pseudonymous id before it forwards
    anything. Every rate in this plan is a rate over CONSENTED visitors. It is not a
    rate over all traffic, and it may never be reported as one.
-2. **Named events carry no `$session_id`.** `capturePosthogEvent` sends the event
-   name, its props, `path`, and `distinct_id`. Session-scoped funnels therefore do
-   not work on named events. Time-window funnels on `distinct_id` do.
-3. **A named event's page is `path`, not `$pathname`.** A browser SDK event uses
-   `$pathname` from the closed vocabulary in `lib/analyticsPath.ts`. A query that
-   mixes the two transports must read the right property for each step.
+2. **A named event carries `$session_id` only when the browser SDK had one.**
+   `trackEvent` sends the SDK's session id once consent has started the SDK, and
+   `capturePosthogEvent` forwards it with `$lib: "pubmaxx-events-relay"`. An event
+   sent before the SDK booted, or before 15 October 2026, has none. A session-scoped
+   funnel over named events therefore undercounts; a time-window funnel on
+   `distinct_id` stays the reliable shape.
+3. **A named event's page is `path`, and `$pathname` repeats it.** Both hold the
+   product-event surface from `lib/analyticsSurface.ts`, which is narrower than the
+   pageview vocabulary a browser SDK event's `$pathname` uses (`lib/analyticsPath.ts`).
+   An unrecognised page sends `path: null` and no `$pathname`. A query that mixes
+   the two transports must not expect the two vocabularies to match.
 4. **No account identity ever joins the analytics id.** ADR 0009. A query that needs
    a person is the wrong query.
 5. **Every event names its lane and its build.** Both transports stamp `environment`
@@ -137,7 +142,7 @@ seven insights: tile 2 ships its funnel companion beside the figure it answers w
 | 2 | First action within 60 seconds | The HogQL in 2.1, plus the funnel in 2.2 |
 | 3 | Landing to Map to venue sheet | `discovery_viewed` (landing), `$pageview` (`/map`), `venue_sheet_opened` |
 | 4 | Pint Drop submissions and corroboration | `price_submitted`, `price_submit_outcome`, `price_submit_failed` |
-| 5 | Top routes by LCP | `web_vital` where `metric = LCP`, p75 of `value`, broken down by `route` |
+| 5 | Top routes by LCP | `$web_vitals`, p75 of `$web_vitals_LCP_value`, broken down by `$pathname` |
 | 6 | The four loop moments (5.10) | `late_food_viewed` / `late_food_added`, `briefing_viewed` / `briefing_opened`, `voice_started`, `recap_viewed` |
 
 Two honest limits on that table.
@@ -297,9 +302,10 @@ vocabularies. The column here is the question the event exists to answer.
 |---|---|
 | `plan_generated` | A route came back. |
 | `plan_started` | A generation request produced a route the reader can review. |
+| `plan_one_tap` | The one tap on the empty /plan page, and what it did: planned the remembered area, planned the crawl-ready area the reader stood in, found no location, or found no crawl-ready area near. |
 | `stop_added` | A pub joined the crawl being built, and on which surface. |
 | `route_opened` | A route of two or more stops was drawn on the Map, and from which surface. |
-| `crawl_locked` | A plan was accepted, with its stop count. |
+| `crawl_locked` | A plan was locked, with its stop count. Unsigned, so it counts plans `plan_accepted` cannot. |
 | `plan_draft_saved` | An anchored one-stop draft was kept. |
 | `plan_accepted` | A grounded, route-ready three-stop plan was verified server-side. |
 | `plan_saved` | The plan and its route finished saving. |
@@ -329,7 +335,7 @@ vocabularies. The column here is the question the event exists to answer.
 | `invite_redeemed` | A guest unlocked collaboration with it. The k-factor pair. |
 | `plan_invite_sent` | An invite left through a channel. |
 | `content_shared` | Something left through a share channel, and which surface it came from. |
-| `plan_invite_opened` | An invite was opened. |
+| `plan_invite_opened` | An invite was opened by someone other than the host. The host's own landing after Lock is not counted. |
 | `plan_invite_link_copied` | The link was copied. |
 | `plan_invite_link_rotated` | The link was rotated. |
 | `invite_page_viewed` | The public invite page was seen, and whether it already had replies. |
@@ -348,9 +354,8 @@ vocabularies. The column here is the question the event exists to answer.
 | `tonight_filter_select` | A tonight filter was used. |
 | `tonight_vibe_select` | A mood chip was pressed. |
 | `tonight_result_opened` | A tonight row was opened, and on what locality basis. |
-| `out_screen_view` | Out was opened. |
-| `out_filter_select` | An Out filter was used. |
-| `out_card_opened` | An Out listing was opened, and from which source. |
+| `out_filter_select` | A Tomorrow or Weekend window was chosen on Tonight. |
+| `out_card_opened` | A Tomorrow or Weekend listing on Tonight was opened, and from which source. |
 | `create_fab_action` | The compose action was used. |
 | `night_moment_saved` | A moment was kept, and how visible. |
 | `night_memory_created` | A memory was created. |
@@ -395,7 +400,6 @@ vocabularies. The column here is the question the event exists to answer.
 | `native_push_prompt_enable` | The push explainer was accepted. |
 | `native_push_prompt_later` | It was deferred. |
 | `activity_pulse` | One coarse day bucket per identity per day. The return-rate rail. |
-| `web_vital` | Field performance, per metric, per route. Tile 5. |
 | `error_shown` | An error notice was put in front of a reader, on which surface, and of which kind. |
 
 ### 5.10 The four loop moments

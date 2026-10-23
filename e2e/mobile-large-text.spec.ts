@@ -4,9 +4,10 @@ import { NATIVE_FIRST_RUN_HANDOFF_KEY } from "@/lib/nativeFirstRun";
 
 import { installNativeShell } from "./helpers/nativeShell";
 import { ACCOUNTS, installAuthDoubles, seedSignedIn } from "./helpers/authDoubles";
+import { expectMobileMapShellReady, mobileMapShellControl } from "./helpers/mobileMapShell";
 
 const CORE_ROUTES = [
-  "/tonight", "/places", "/out", "/plan", "/u/qa_android",
+  "/tonight", "/places", "/plan", "/u/qa_android",
   "/map", "/near", "/wall", "/pal/chat", "/moment",
 ] as const;
 
@@ -39,7 +40,7 @@ for (const scale of [1.3, 1.5, 2]) {
     }));
     await page.goto("/map");
     await expect(page.locator("html")).toHaveAttribute("data-native-shell", "android");
-    const badges = page.locator(".mobileMapTflButton .mobileMapCornerBadge");
+    const badges = (await mobileMapShellControl(page, "tfl")).locator(".mobileMapCornerBadge");
     await expect(badges).toHaveCount(1);
     for (const badge of await badges.all()) await expect(badge).toBeVisible();
     await page.evaluate(() => document.fonts.ready);
@@ -87,7 +88,7 @@ for (const scale of [1.3, 1.5, 2]) {
       await expect(page.locator("html")).toHaveAttribute("data-native-shell", "android");
       await expect(page.locator(".mobileTabBar")).toBeVisible();
       if (route === "/map") {
-        await expect(page.locator(".mobileMapTopbar")).toBeVisible({ timeout: 60_000 });
+        await expectMobileMapShellReady(page, 60_000);
       }
       await page.evaluate((fontScale) => {
         document.documentElement.style.fontSize = `${fontScale * 100}%`;
@@ -114,6 +115,49 @@ for (const scale of [1.3, 1.5, 2]) {
 // The iOS shell enlarges text through -webkit-text-size-adjust with the root
 // left at 16px. Its layout scale grows the card separately. Actual iOS startup
 // and WebKit painting need native proof and are not modelled here.
+test("Android font growth clears map controls before the next height measurement", async ({ page }) => {
+  await page.setViewportSize({ width: 412, height: 840 });
+  await installNativeShell(page, "android");
+  await page.goto("/map");
+  await expectMobileMapShellReady(page);
+  await expect(page.locator(".mapPeek .mobilePlanActivation")).toBeVisible();
+  await page.evaluate(() => {
+    document.documentElement.style.fontSize = "100%";
+    document.documentElement.setAttribute("data-text-scale", "large");
+  });
+  await expect.poll(() => page.locator(".mapPeek").evaluate((element) => ({
+    height: element.getBoundingClientRect().height,
+    measured: parseFloat(document.documentElement.style.getPropertyValue("--map-peek-rendered-h")),
+  }))).toEqual({ height: 112, measured: 112 });
+
+  const geometry = await page.evaluate(() => {
+    const root = document.documentElement;
+    root.style.fontSize = "200%";
+    const card = document.querySelector(".mapPeek")!.getBoundingClientRect();
+    return {
+      font: parseFloat(getComputedStyle(root).fontSize),
+      measured: root.style.getPropertyValue("--map-peek-rendered-h"),
+      height: card.height,
+      controls: [".mobileMapLocateFab", ".createFab"].map((selector) => {
+        const box = document.querySelector(selector)!.getBoundingClientRect();
+        return {
+          selector,
+          painted: box.width > 0 && box.height > 0,
+          overlap: card.left < box.right && box.left < card.right
+            && card.top < box.bottom && box.top < card.bottom,
+        };
+      }),
+    };
+  });
+  expect(geometry.font).toBe(32);
+  expect(geometry.measured, "the previous measurement is still held in this frame").toBe("112px");
+  expect(geometry.height).toBe(156);
+  expect(geometry.controls).toEqual([
+    { selector: ".mobileMapLocateFab", painted: true, overlap: false },
+    { selector: ".createFab", painted: true, overlap: false },
+  ]);
+});
+
 for (const scale of [1.3, 1.5, 2]) {
   test(`Android ${scale}x text grows the map's bottom card with its text, and the controls above it follow`, async ({ page }) => {
     await page.setViewportSize({ width: 412, height: 840 });
@@ -223,8 +267,9 @@ for (const scale of [1.3, 1.5, 2]) {
       }, scale);
       await page.evaluate(() => document.fonts.ready);
     };
-    await page.goto("/out");
-    await expect(page.locator(".outDayChip")).toHaveCount(3);
+    // /out folded into /tonight, whose later-listings switch carries the day chips.
+    await page.goto("/tonight");
+    await expect(page.locator(".outDayChip")).toHaveCount(2);
     await applyScale();
     const chips = await page.locator(".outDayChip").evaluateAll((elements) => elements.map((element) => {
       const range = document.createRange();
@@ -277,8 +322,11 @@ for (const platform of ["android", "ios"] as const) {
       const screenshot = testInfo.outputPath("signed-out-header.png");
       await header.screenshot({ path: screenshot });
       await testInfo.attach("signed-out header", { path: screenshot, contentType: "image/png" });
+      // Signed out, the bell and messages are not drawn (nothing is behind
+      // them) and the theme lives in More and on You, so sign-in is the one
+      // icon left in the compact header.
       const icons = header.locator(".siteNavBell svg:visible, .themeToggle svg:visible, .authCompactTrigger svg:visible");
-      await expect(icons).toHaveCount(4);
+      await expect(icons).toHaveCount(1);
       for (const size of await icons.evaluateAll((elements) => elements.map((element) => {
         const box = element.getBoundingClientRect();
         return { width: box.width, height: box.height };
@@ -335,6 +383,38 @@ for (const platform of ["android", "ios"] as const) {
   }
 }
 
+// Five dock doors at the narrowest phone we support, at a large OS text size
+// (captain, 16 Oct 2026: Social is a main tab). The bar keeps its shape and
+// drops its words at that size (mobileNav.css), so no word can be cut short,
+// every door keeps a 44px square and the accessible name stays on the link.
+test("320px large text: five dock doors keep 44px targets and lose no name", async ({ page }) => {
+  await page.setViewportSize({ width: 320, height: 844 });
+  await page.addInitScript(() => {
+    document.documentElement.setAttribute("data-text-scale", "large");
+  });
+  await page.goto("/tonight");
+  await page.evaluate(() => document.documentElement.setAttribute("data-text-scale", "large"));
+  const dock = page.getByRole("navigation", { name: "Primary" });
+  const tabs = dock.locator(".mobileTab");
+  await expect(tabs).toHaveCount(5);
+  expect(
+    await tabs.evaluateAll((links) => links.map((link) => link.getAttribute("aria-label"))),
+  ).toEqual(["Map", "Tonight", "Plan", "Social", "You"]);
+  await expect(dock.locator(".mobileTabLabel:visible")).toHaveCount(0);
+  for (const box of await tabs.evaluateAll((links) => links.map((link) => {
+    const rect = link.getBoundingClientRect();
+    return { width: rect.width, height: rect.height, right: rect.right };
+  }))) {
+    expect(box.width).toBeGreaterThanOrEqual(44);
+    expect(box.height).toBeGreaterThanOrEqual(44);
+    expect(box.right).toBeLessThanOrEqual(320);
+  }
+  const overflow = await page.evaluate(
+    () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
+  );
+  expect(overflow).toBeLessThanOrEqual(1);
+});
+
 test("Android chrome and checkbox labels have 48px touch targets", async ({ page }) => {
   await page.setViewportSize({ width: 412, height: 840 });
   await installNativeShell(page, "android");
@@ -343,7 +423,9 @@ test("Android chrome and checkbox labels have 48px touch targets", async ({ page
   await page.goto("/places");
   await expect(page.locator("html")).toHaveAttribute("data-native-shell", "android");
   const controls = page.locator(".siteNavBar .siteNavBell:visible, .siteNavBar .themeToggle:visible, .siteNavBar .authCompactTrigger:visible, .mobileTabBar .mobileTab:visible");
-  await expect(controls).toHaveCount(10);
+  // Signed in: bell, messages and the account control up top, and the five
+  // dock doors. The theme left the header for More and the You page.
+  await expect(controls).toHaveCount(8);
   for (const box of await controls.evaluateAll((elements) => elements.map((element) => {
     const box = element.getBoundingClientRect();
     return { width: box.width, height: box.height };
@@ -352,8 +434,8 @@ test("Android chrome and checkbox labels have 48px touch targets", async ({ page
     expect(box.height).toBeGreaterThanOrEqual(48);
   }
   await page.goto("/map");
-  const filters = page.locator(".mobileMapTopbar").getByRole("button", { name: /^Filters/ });
-  await expect(filters).toBeVisible({ timeout: 60_000 });
+  const filters = await mobileMapShellControl(page, "filters", 60_000);
+  await expect(filters).toBeVisible();
   await expect(async () => {
     const box = await filters.boundingBox();
     expect(box!.width).toBeGreaterThanOrEqual(48);
@@ -400,7 +482,7 @@ for (const route of ["/map", "/pubs", "/discover", "/pint-index", "/onboarding"]
       await expect(page.getByRole("heading", { name: "London is ready." })).toBeVisible();
     }
     if (route === "/map") {
-      await expect(page.locator(".mobileMapTopbar")).toBeVisible({ timeout: 60_000 });
+      await expectMobileMapShellReady(page, 60_000);
     }
     await page.evaluate(() => document.fonts.ready);
     const unreadable = await page.evaluate(() => [...document.querySelectorAll("body *")]

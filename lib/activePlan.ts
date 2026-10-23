@@ -12,7 +12,8 @@
 // Mirrors lib/activeRound.ts's idiom (same-tab custom event + cross-tab storage
 // + focus), so the two "what's live right now" pointers behave identically.
 
-import { isPlanId, type CrawlEnding, type PlanMemberRole } from "@/lib/plan";
+import type { CrawlEnding, PlanMemberRole } from "@/lib/plan";
+import { isPlanId } from "@/lib/planId";
 import { DAY_MS } from "@/lib/dayMs";
 
 export const ACTIVE_PLAN_KEY = "pubmax_active_plan";
@@ -137,6 +138,22 @@ export function isPlanActiveNow(ref: ActivePlanRef | null, now: number): boolean
   const start = Date.parse(ref.startTime);
   if (Number.isNaN(start)) return false;
   return now >= start - ACTIVE_PLAN_PRE_MS && now <= start + ACTIVE_PLAN_POST_MS;
+}
+
+/**
+ * How long until the plan's active window next opens or closes, or null once
+ * it has closed (or its start is unreadable). A page left open re-checks at
+ * that edge, because no plan event fires when the clock alone crosses it.
+ */
+export function msUntilActivePlanEdge(ref: ActivePlanRef | null, now: number): number | null {
+  if (!ref) return null;
+  const start = Date.parse(ref.startTime);
+  if (Number.isNaN(start)) return null;
+  const opens = start - ACTIVE_PLAN_PRE_MS;
+  const closes = start + ACTIVE_PLAN_POST_MS;
+  if (now < opens) return opens - now;
+  if (now <= closes) return closes - now;
+  return null;
 }
 
 /**

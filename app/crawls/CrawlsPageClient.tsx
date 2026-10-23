@@ -4,26 +4,28 @@ import type { Route } from "next";
 import { offlineOrMessage } from "@/lib/apiErrorMessage";
 
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
-import { Check, Copy, MapPin, Flag } from "lucide-react";
-import { Suspense, useEffect, useMemo, useState } from "react";
+import { Check, Copy, MapPin } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
 import { decodeCrawlStory, totalGbp, type CrawlStory } from "@/lib/crawlStory";
-import { curatedCrawlMapHref, curatedCrawls, type CuratedCrawl } from "@/lib/curatedCrawls";
+import { curatedCrawlMapHref, type CuratedCrawl } from "@/lib/curatedCrawls";
 import { landmarks } from "@/lib/landmarks";
-import { bandById } from "@/lib/storyBands";
 import { getRoutePack, routePacks } from "@/lib/routePacks";
 import { formatGbp } from "@/lib/formatGbp";
 import { loadSlimVenues, type SlimVenue } from "@/lib/venuesSlim";
 import SiteNav from "@/components/nav/SiteNav";
 import RoundStarter from "@/components/round/RoundStarter";
+import { RowList } from "@/components/ui/row-list";
 import Screen from "@/components/ui/screen";
-import RouteThumbnail from "./RouteThumbnail";
+import { plainDashes } from "@/components/listing/displayCase";
+import PlacePhoto from "@/components/listing/PlacePhoto";
+import type { PlacePhoto as PlacePhotoData } from "@/components/listing/placePhotoRules";
 import {
   buildCrawlRouteSummary,
   crawlPriceRange,
-  formatCrawlRouteSummary,
   formatPriceRange,
+  visibleCuratedCrawls,
 } from "./routeSummary";
+import "@/components/listing/listing.css";
 import "./crawls.css";
 
 // The landmark a crawl starts at (story 27) — "starts at Big Ben"-style chip.
@@ -94,22 +96,27 @@ function crawlMapHref(story: CrawlStory): Route {
   return `/map?${params.toString()}`;
 }
 
-function CrawlsPageInner() {
-  // useSearchParams so client navigations between ?pack= links re-filter the
-  // curated grid (a mount-only window.location read would stick on the first pack).
-  const searchParams = useSearchParams();
-  const activePackId = searchParams.get("pack");
+export default function CrawlsPageClient({ pack, encodedStory, featuredPhoto = null }: {
+  pack?: string;
+  encodedStory?: string | null;
+  /**
+   * The featured crawl's lead photograph, resolved on the server
+   * (components/listing/placePhotoRules.ts): the patch every stop is a short walk
+   * from, or null when no photograph we hold is honestly of its route.
+   */
+  featuredPhoto?: PlacePhotoData | null;
+}) {
+  // The server passes query values on each navigation. No Suspense placeholder
+  // hides the directory from a reader whose JavaScript cannot run.
+  const activePackId = pack;
   const activePack = activePackId ? getRoutePack(activePackId) : undefined;
-  const activePackCrawlIds = activePack ? new Set(activePack.crawlIds) : null;
-  const visibleCrawls = activePackCrawlIds
-    ? curatedCrawls.filter((crawl) => activePackCrawlIds.has(crawl.id))
-    : curatedCrawls;
+  const visibleCrawls = visibleCuratedCrawls(activePackId);
 
-  // Read ?s= from the live search params so client navigations stay in sync.
-  // decode never throws, so a garbage param falls through to the empty state.
+  // The server supplies ?s= again on navigation. Invalid values fall through
+  // to the directory because decodeCrawlStory never throws.
   const story = useMemo<CrawlStory | null>(
-    () => decodeCrawlStory(searchParams.get("s")),
-    [searchParams],
+    () => decodeCrawlStory(encodedStory),
+    [encodedStory],
   );
 
   // Slim venue index — the only client-safe source of stop coords + price, used
@@ -166,7 +173,7 @@ function CrawlsPageInner() {
   return (
     <main
       id="main"
-      className="crawlsShell"
+      className="crawlsShell listingShell"
       aria-busy={venueIndexStatus === "loading"}
       data-venue-index-status={venueIndexStatus}
     >
@@ -183,9 +190,9 @@ function CrawlsPageInner() {
           as="section"
           className="crawlEmpty"
           kicker="Crawls"
-          title="Pub stories mapped into walks."
+          title="London pub crawl routes"
           titleId="crawlsHeading"
-          lede="A Crawl Story is a poster of a London pub crawl that you can share, with its stops, prices and vibe. Here are a few listed routes worth the walk. Pick one, or start your own on the map."
+          lede="Pub stories mapped into walks, each with its stops, prices and the walk between them. Pick one, or start your own on the map."
           primary={
             <Link
               prefetch={false}
@@ -200,123 +207,138 @@ function CrawlsPageInner() {
             </Link>
           }
         >
-          <nav className="routePackNav" aria-labelledby="routePacksHeading">
-            <p className="crawlEyebrow" id="routePacksHeading">
-              Jump to a route pack
-            </p>
-            <ul className="routePackChipRow">
-              {routePacks.map((pack) => {
-                const browseHref: Route = `/crawls?pack=${encodeURIComponent(pack.id)}`;
-                const isBrowsing = activePackId === pack.id;
-                const n = pack.crawlIds.length;
-                return (
-                  <li key={pack.id}>
-                    <Link
-                      href={browseHref}
-                      className={isBrowsing ? "routePackChip isActive" : "routePackChip"}
-                      aria-current={isBrowsing ? "true" : undefined}
-                      title={pack.blurb}
-                    >
-                      {pack.title}
-                      <span className="routePackChipCount">{n}</span>
-                    </Link>
-                  </li>
-                );
-              })}
-            </ul>
-            {activePack ? (
-              <p className="routePackActiveNote">
-                Showing {activePack.title} routes.{" "}
-                <Link href="/crawls">Show all crawls</Link>
+          {/* One column, and from 1100px the featured crawl beside it as a
+              sticky pane (crawls.css). The pane is a grid placement of the
+              same element, so the reading and tab order stay the DOM's. */}
+          <div className="crawlLayout">
+            <nav className="routePackNav" aria-labelledby="routePacksHeading">
+              <p className="crawlEyebrow" id="routePacksHeading">
+                Jump to a route pack
               </p>
+              <ul className="routePackChipRow">
+                {routePacks.map((pack) => {
+                  const browseHref: Route = `/crawls?pack=${encodeURIComponent(pack.id)}`;
+                  const isBrowsing = activePackId === pack.id;
+                  const n = pack.crawlIds.length;
+                  return (
+                    <li key={pack.id}>
+                      <Link
+                        href={browseHref}
+                        className={isBrowsing ? "routePackChip isActive" : "routePackChip"}
+                        aria-current={isBrowsing ? "true" : undefined}
+                        title={pack.blurb}
+                      >
+                        {pack.title}
+                        <span className="routePackChipCount">{n}</span>
+                      </Link>
+                    </li>
+                  );
+                })}
+              </ul>
+              {activePack ? (
+                <p className="routePackActiveNote">
+                  Showing {activePack.title} routes.{" "}
+                  <Link href="/crawls">Show all crawls</Link>
+                </p>
+              ) : null}
+            </nav>
+
+            {featuredCrawl ? (
+              <FeaturedCrawlCard crawl={featuredCrawl} slimById={slimById} photo={featuredPhoto} />
             ) : null}
-          </nav>
 
-          {featuredCrawl ? (
-            <FeaturedCrawlCard crawl={featuredCrawl} slimById={slimById} />
-          ) : null}
-
-          {compactGroups.length ? (
-            <div className="crawlCompactGroups">
-              {compactGroups.map(([groupLabel, crawlsInGroup]) => (
-                <section
-                  key={groupLabel}
-                  className="crawlCompactGroup"
-                  aria-labelledby={`crawlGroup-${groupLabel.replace(/\s+/g, "-")}`}
-                >
-                  <h3
-                    id={`crawlGroup-${groupLabel.replace(/\s+/g, "-")}`}
-                    className="crawlCompactGroupHeading"
+            {compactGroups.length ? (
+              <div className="crawlCompactGroups">
+                {compactGroups.map(([groupLabel, crawlsInGroup]) => (
+                  <section
+                    key={groupLabel}
+                    className="crawlCompactGroup"
+                    aria-labelledby={`crawlGroup-${groupLabel.replace(/\s+/g, "-")}`}
                   >
-                    {groupHead(groupLabel)}
-                  </h3>
-                  <ul className="crawlCompactList" aria-label={`${groupLabel} crawls`}>
-                    {crawlsInGroup.map((crawl) => (
-                      <CompactCrawlRow key={crawl.id} crawl={crawl} slimById={slimById} />
-                    ))}
-                  </ul>
-                </section>
-              ))}
-            </div>
-          ) : null}
+                    <h3
+                      id={`crawlGroup-${groupLabel.replace(/\s+/g, "-")}`}
+                      className="crawlCompactGroupHeading"
+                    >
+                      {groupHead(groupLabel)}
+                    </h3>
+                    <RowList className="crawlCompactList" label={`${groupLabel} crawls`}>
+                      {crawlsInGroup.map((crawl) => (
+                        <CompactCrawlRow key={crawl.id} crawl={crawl} slimById={slimById} />
+                      ))}
+                    </RowList>
+                  </section>
+                ))}
+              </div>
+            ) : null}
 
-          <RoundStarter />
+            <RoundStarter />
 
-          <p className="crawlEmptyBody crawlOwnLead">
-            Or build your own. Pick the pubs, pass the round on.
-          </p>
-          <Link prefetch={false} href="/map" className="crawlSecondaryBtn">
-            <MapPin size={16} aria-hidden="true" /> Build your own crawl on the map
-          </Link>
+            <p className="crawlEmptyBody crawlOwnLead">
+              Or build your own. Pick the pubs, pass the round on.
+            </p>
+            <Link prefetch={false} href="/map" className="crawlSecondaryBtn">
+              <MapPin size={16} aria-hidden="true" /> Build your own crawl on the map
+            </Link>
+          </div>
         </Screen>
       )}
     </main>
   );
 }
 
-// The one full-width card at the top of the empty state — keeps the route
-// thumbnail + honest metrics that made the old grid nice, minus the
-// repetition of shipping 15 of them.
+// The one featured crawl, said in four things (taste plan, 18 Oct 2026): its
+// name, its one line, a meta line and one quiet link. It used to stack eight
+// treatments: a coral caps style pill, the name, the line, a 58px route glyph,
+// the walk, "Pints from", a flag chip, the stop count and a coral link.
+//
+// When a photograph we hold is honestly of the patch the route walks through,
+// it leads the card, captioned with the place it shows and its credit. A route
+// with no such photograph gets none, never a stand-in.
 function FeaturedCrawlCard({
   crawl,
   slimById,
+  photo,
 }: {
   crawl: CuratedCrawl;
   slimById: ReadonlyMap<string, SlimVenue>;
+  photo: PlacePhotoData | null;
 }) {
   const originName = startLandmarkName(crawl);
-  const placeStory = crawl.placeStoryBandId ? bandById(crawl.placeStoryBandId) : undefined;
   const routeSummary = buildCrawlRouteSummary(crawl.venueIds, slimById);
   const priceRange = crawlPriceRange(crawl.venueIds, slimById);
+  const stops = crawl.venueIds.length;
+  const meta = [
+    `${stops} stop${stops === 1 ? "" : "s"}${originName ? ` from ${originName}` : ""}`,
+    routeSummary ? `${routeSummary.totalMinutes} min walk` : null,
+  ]
+    .filter(Boolean)
+    .join(", ");
 
   return (
     <div className="curatedFeaturedWrap">
       <p className="crawlEyebrow curatedFeaturedEyebrow">Featured crawl</p>
-      <article key={crawl.id} id={crawl.id} className="curatedCard curatedFeaturedCard">
-        <span className="curatedBadge">{styleLabel(crawl.crawlStyle)}</span>
+      <article
+        key={crawl.id}
+        id={crawl.id}
+        className={photo ? "curatedCard curatedFeaturedCard curatedCard--photo" : "curatedCard curatedFeaturedCard"}
+      >
+        {photo ? (
+          <PlacePhoto
+            className="curatedPhoto"
+            photo={photo}
+            sizes="(min-width: 1100px) 18rem, (min-width: 700px) 40rem, calc(100vw - 2.75rem)"
+          />
+        ) : null}
         <h2 className="curatedName">{crawl.name}</h2>
-        <p className="curatedBlurb">{crawl.blurb}</p>
-        {routeSummary ? (
-          <div className="curatedRoute">
-            <RouteThumbnail points={routeSummary.points} className="curatedRouteThumb" />
-            <span className="curatedRouteMeta">{formatCrawlRouteSummary(routeSummary)}</span>
-          </div>
-        ) : null}
-        {priceRange ? (
-          <span className="curatedPriceFrom">Pints from {formatPriceRange(priceRange)}</span>
-        ) : null}
-        {originName ? (
-          <span className="curatedOriginChip">
-            <Flag size={12} aria-hidden="true" /> Starts at {originName}
-          </span>
-        ) : null}
-        {placeStory ? (
-          <span className="curatedOriginChip curatedPlaceStoryChip">
-            Place story · {placeStory.title}
-          </span>
-        ) : null}
+        <p className="curatedBlurb">{plainDashes(crawl.blurb)}</p>
         <p className="curatedMeta">
-          {crawl.venueIds.length} stop{crawl.venueIds.length === 1 ? "" : "s"}
+          {meta}
+          {priceRange ? (
+            <>
+              {". Pints "}
+              <span className="curatedPriceRange">{formatPriceRange(priceRange)}</span>
+            </>
+          ) : null}
         </p>
         <Link
           prefetch={false}
@@ -324,18 +346,25 @@ function FeaturedCrawlCard({
           className="curatedPlanBtn"
           aria-label={`Plan the ${crawl.name} crawl on the map`}
         >
-          Plan this crawl →
+          Plan this crawl
         </Link>
       </article>
     </div>
   );
 }
 
-// Compact scannable row for every other curated crawl — name, area (the
-// landmark it starts at, when known), stop count, price range. One line,
-// tap anywhere to open the crawl on the map (its existing "detail" surface —
-// curated crawls have no standalone detail page; /crawls/[slug] is reserved
-// for durable, user-shared Crawl Stories, a different id namespace).
+// Compact scannable row for every other curated crawl: name, area (the
+// landmark it starts at, when known), stop count, and the price range in the
+// trailing cell. Tap anywhere to open the crawl on the map (its existing
+// "detail" surface; curated crawls have no standalone detail page, and
+// /crawls/[slug] is reserved for durable, user-shared Crawl Stories, a
+// different id namespace).
+//
+// A row of the shared RowList (components/ui/row-list.tsx): one hairline
+// between rows and no panel round the group (taste plan, 18 Oct 2026). The
+// heritage group used to read as one filled, bordered box and every group
+// with it. The link is the whole row, so the tap target is the row's height,
+// never the name's line.
 function CompactCrawlRow({
   crawl,
   slimById,
@@ -355,16 +384,18 @@ function CompactCrawlRow({
         className="crawlCompactLink"
         aria-label={`Plan the ${crawl.name} crawl on the map`}
       >
-        <span className="crawlCompactName">{crawl.name}</span>
-        <span className="crawlCompactMetaRow">
-          {originName ? <span className="crawlCompactArea">{originName}</span> : null}
-          <span className="crawlCompactStops">
-            {stopCount} stop{stopCount === 1 ? "" : "s"}
-          </span>
-          <span className="crawlCompactPrice">
-            {priceRange ? formatPriceRange(priceRange) : "–"}
+        <span className="rowListBody">
+          <span className="rowListTitle crawlCompactName">{crawl.name}</span>
+          <span className="rowListMeta crawlCompactMetaRow">
+            {originName ? <span className="crawlCompactArea">{originName}</span> : null}
+            <span className="crawlCompactStops">
+              {stopCount} stop{stopCount === 1 ? "" : "s"}
+            </span>
           </span>
         </span>
+        {priceRange ? (
+          <span className="rowListTrailing crawlCompactPrice">{formatPriceRange(priceRange)}</span>
+        ) : null}
       </Link>
     </li>
   );
@@ -388,7 +419,7 @@ function CrawlPoster({
   // the surface, the heading is the story's own name, the one primary starts
   // the crawl on the map and the quiet way onward is the bare map.
   return (
-    <article className="crawlPoster">
+    <article className="crawlPoster listingSection">
       <Screen
         as="section"
         className="crawlPosterHead"
@@ -428,7 +459,7 @@ function CrawlPoster({
                 {stop.note ? <p className="crawlStopNote">{stop.note}</p> : null}
               </div>
               <span className="crawlStopPrice">
-                {typeof stop.priceGbp === "number" ? formatGbp(stop.priceGbp) : "–"}
+                {typeof stop.priceGbp === "number" ? formatGbp(stop.priceGbp) : "No price"}
               </span>
             </li>
           ))}
@@ -458,15 +489,5 @@ function CrawlPoster({
         <p className="crawlFootnote">Pubs, prices and the route between them.</p>
       </Screen>
     </article>
-  );
-}
-
-export default function CrawlsPageClient() {
-  // Suspense boundary required by Next.js when a client page uses useSearchParams
-  // during static prerender — without it, /crawls fails the production build.
-  return (
-    <Suspense fallback={<main id="main" className="crawlsShell" aria-busy="true" />}>
-      <CrawlsPageInner />
-    </Suspense>
   );
 }
