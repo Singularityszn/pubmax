@@ -1,8 +1,27 @@
 // Build runtime files and the freshness stamp from committed observations only. No network or new observation dates.
 import { mkdir, readdir, rename, unlink, writeFile } from "node:fs/promises";
+import { randomUUID } from "node:crypto";
 import path from "node:path";
 import { canonicalOsmId } from "../lib/harvestFold.ts";
 import { PLACES_ENRICHMENT_STAMP, placesEnrichmentStamp, readPlacesEnrichmentPacks } from "./lib/placesEnrichmentStamp.mjs";
+
+async function removeIfPresent(file) {
+  try {
+    await unlink(file);
+  } catch (error) {
+    if (error?.code !== "ENOENT") throw error;
+  }
+}
+
+async function writeAtomic(file, content) {
+  const temporary = `${file}.${process.pid}.${randomUUID()}.tmp`;
+  try {
+    await writeFile(temporary, content, { flag: "wx" });
+    await rename(temporary, file);
+  } finally {
+    await removeIfPresent(temporary);
+  }
+}
 
 const root = process.cwd();
 const packs = readPlacesEnrichmentPacks(root);
@@ -30,13 +49,11 @@ const directory = path.join(root, "data/generated/places_enrichment");
 await mkdir(directory, { recursive: true });
 for (const [key, rows] of grouped) {
   const file = path.join(directory, `${key.replace("/", "-")}.json`);
-  await writeFile(`${file}.tmp`, `${JSON.stringify(rows)}\n`);
-  await rename(`${file}.tmp`, file);
+  await writeAtomic(file, `${JSON.stringify(rows)}\n`);
 }
 for (const name of await readdir(directory)) {
-  if (/^(node|way|relation)-\d+\.json$/.test(name) && !grouped.has(name.slice(0, -5).replace("-", "/"))) await unlink(path.join(directory, name));
+  if (/^(node|way|relation)-\d+\.json$/.test(name) && !grouped.has(name.slice(0, -5).replace("-", "/"))) await removeIfPresent(path.join(directory, name));
 }
 const stamp = path.join(root, PLACES_ENRICHMENT_STAMP);
-await writeFile(`${stamp}.tmp`, `${JSON.stringify(placesEnrichmentStamp(packs), null, 2)}\n`);
-await rename(`${stamp}.tmp`, stamp);
+await writeAtomic(stamp, `${JSON.stringify(placesEnrichmentStamp(packs), null, 2)}\n`);
 console.log(`Places enrichment runtime files: ${grouped.size} identities, ${records.length} records`);
