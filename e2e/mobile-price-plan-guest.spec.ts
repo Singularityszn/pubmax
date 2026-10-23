@@ -88,3 +88,53 @@ test("a phone user checks a price, corrects an incomplete plan, and invites a gu
     await guestContext.close();
   }
 });
+
+test("a five-stop incomplete plan keeps its count after clearing, then accepts a new count", async ({ page }, testInfo) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await pinLondonEvening(page);
+  await page.goto("/near?patch=clapham");
+  await page.getByRole("button", { name: /The Coach & Horses.*View pub/ }).click();
+  await page.getByRole("dialog", { name: "The Coach & Horses", exact: true })
+    .getByRole("button", { name: "Make The Coach & Horses Stop 1" }).click();
+  const description = page.getByRole("textbox", { name: "Where, how many, what budget" });
+  await description.fill("Five pubs in Clapham with short walks and listed pint prices.");
+  await page.getByRole("button", { name: "Make a plan", exact: true }).click();
+  await expect(page.locator("#plan-route-status")).toContainText("5-stop route");
+  await page.getByRole("button", { name: "Tune details", exact: true }).click();
+  const stops = page.getByRole("combobox", { name: "Stops", exact: true });
+  await expect(stops).toHaveValue("5");
+  await description.click();
+  await description.press("ControlOrMeta+A");
+  await description.press("Backspace");
+  await expect(description).toHaveValue("");
+  const cleared = page.waitForResponse((response) =>
+    response.request().method() === "POST" && response.url().endsWith("/api/plans/generate"));
+  await page.getByRole("button", { name: "Plan it again", exact: true }).click();
+  const response = await cleared;
+  const clearedRequest = response.request().postDataJSON();
+  const clearedResult = await response.json();
+  await testInfo.attach("cleared-description.json", {
+    body: JSON.stringify({ request: clearedRequest, inferredContext: clearedResult.inferredContext, outcome: clearedResult.outcome }, null, 2),
+    contentType: "application/json",
+  });
+  expect(clearedRequest.context.stopCount).toBe(5);
+  expect(clearedResult.inferredContext.stopCount).toBe(5);
+  await page.getByRole("button", { name: "Tune details", exact: true }).click();
+  await expect(stops).toHaveValue("5");
+  await page.screenshot({ path: testInfo.outputPath("cleared-description-five-stops.png") });
+
+  await description.fill("Three pubs in Clapham with listed pint prices.");
+  const resized = page.waitForResponse((next) =>
+    next.request().method() === "POST" && next.url().endsWith("/api/plans/generate"));
+  await page.getByRole("button", { name: "Plan it again", exact: true }).click();
+  const resizedResponse = await resized;
+  const resizedResult = await resizedResponse.json();
+  await testInfo.attach("three-stop-description.json", {
+    body: JSON.stringify({ request: resizedResponse.request().postDataJSON(), inferredContext: resizedResult.inferredContext, outcome: resizedResult.outcome }, null, 2),
+    contentType: "application/json",
+  });
+  expect(resizedResult.inferredContext.stopCount).toBe(3);
+  await page.getByRole("button", { name: "Tune details", exact: true }).click();
+  await expect(stops).toHaveValue("3");
+  await page.screenshot({ path: testInfo.outputPath("new-description-three-stops.png") });
+});

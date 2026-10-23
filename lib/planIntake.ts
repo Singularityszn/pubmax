@@ -807,8 +807,11 @@ export function buildPlanGenerationIntakeBody(
   const sent = skipRemainingPlanIntake(draft);
   // Transport needs come from the current description. Preserve recovered
   // control choices, whose explicit ownership is not stored across reloads.
+  // Clearing the description keeps the stop count currently shown by the composer.
+  const retainedStopCount = cleanQuery ? undefined : currentContext?.stopCount;
   const context = {
     ...stripPlanIntakeOwnedContext(currentContext),
+    ...(isPlanStopCount(retainedStopCount) ? { stopCount: retainedStopCount } : {}),
     transportConstraints: inferNightContext(cleanQuery).context.transportConstraints,
     ...explicitContext,
     ...planIntakeNightContextPatch(sent),

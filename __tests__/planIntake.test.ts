@@ -553,6 +553,32 @@ describe("Wave 2.2 typed handoff and stale constraint retraction", () => {
     },
   );
 
+  it.each(([1, 2, 3, 4, 5, 6] as const).flatMap((stopCount) =>
+    ["", " \t\n "].map((query) => ({ stopCount, query })),
+  ))("keeps the displayed $stopCount stops for cleared description $query", ({ stopCount, query }) => {
+    const body = buildPlanGenerationIntakeBody(
+      answeredDraft(), query, { ...generatedContext, stopCount },
+    );
+    expect(body.context?.stopCount).toBe(stopCount);
+    expect(body.context?.transportConstraints).toEqual([]);
+  });
+
+  it("keeps explicit controls and intake ahead of a retained count", () => {
+    const draft = answeredDraft();
+    const previous = { ...generatedContext, stopCount: 5 as const };
+    expect(buildPlanGenerationIntakeBody(draft, "", previous, { stopCount: 2 }).context?.stopCount).toBe(2);
+    const intake = { ...draft, answers: { ...draft.answers, stopCount: 6 as const } };
+    expect(buildPlanGenerationIntakeBody(intake, "", previous, { stopCount: 2 }).context?.stopCount).toBe(6);
+  });
+
+  it("lets a new counted description replace the previous count", () => {
+    const body = buildPlanGenerationIntakeBody(
+      answeredDraft(), "Three pubs in Clapham", { ...generatedContext, stopCount: 5 },
+    );
+    expect(body.query).toBe("Three pubs in Clapham");
+    expect(body.context).not.toHaveProperty("stopCount");
+  });
+
   it("threads an exact accepted Venue anchor through generation intake", () => {
     const anchor = {
       venueId: "venue-intent",

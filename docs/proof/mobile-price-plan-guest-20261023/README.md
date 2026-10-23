@@ -42,3 +42,27 @@ The local guest can dismiss the optional account prompt with **Not now**. The te
 The full gate also exposed an unused test-helper type export and an hours evaluator that depended on changing enrichment. The type is now private. The hours evaluator fixes Google Places as absent while testing its existing missing-hours and website-evidence cases. Production hours data is unchanged.
 
 The local build evidence does not establish a production deployment of these fixes.
+
+## Stop-count recovery repair
+
+This repair used the working tree based on `7bf4e11f514e97e1f98641f9d89a853d45b678db`.
+
+The original Chrome flow reproduced the reported failure. A five-pub request returned `anchor-only`. Clearing the description omitted `context.stopCount`, and the API inferred three stops. The new request tests failed before the fix in all twelve empty-text and whitespace cases across counts one through six.
+
+The shared request builder now retains the displayed count for blank text. Explicit controls and intake answers still take precedence. A new nonempty description still uses fresh count inference. Transport requirements still follow the current description.
+
+The focused request and composer run passed all 215 tests across six files. Lint exited successfully with 11 warnings in unchanged files. The changed source and tests passed ESLint with `--max-warnings=0`.
+
+Both tests in `e2e/mobile-price-plan-guest.spec.ts` passed against a fresh production build using system Chrome. The run used private port 43189, `.next-ci-stop-green`, local dependencies, one worker and zero retries. The original price, plan and fresh guest flow passed in 8.6 seconds. The count-recovery flow passed in 4.0 seconds. Build and browser execution took 1.7 minutes together.
+
+The [recorded request and response fields](stop-count-request-evidence.json) come from the browser network traces. A null request field in this record means that the request omitted it. After clearing, the repaired request sent five stops and the API inferred five. A new three-pub description then inferred three stops. Screenshots show the resulting states.
+
+| Cleared description retains five stops | New description requests three stops |
+| --- | --- |
+| ![Cleared description with five stops](cleared-description-five-stops.png) | ![New description with three stops](new-description-three-stops.png) |
+
+The ignored `artifacts/mobile-stop-count/` directory contains the local logs, temporary Chrome configuration and browser traces.
+
+The cancelled layout workflow on the old head has no passing verdict. The outer executor must obtain a fresh full browser layout verdict for the repaired head. This local evidence does not establish a production deployment.
+
+The full local `npm run verify` gate passed after the repair. Coverage passed 43,174 tests with one existing skip. Database tests passed all 690 cases. Type checking, dead-code checks, the browser-skip check, install-script policy and dependency audit passed. Freshness passed with two advisory stale datasets and three unmeasurable feeds. Those datasets were not reported fresh. The complete gate output is `artifacts/mobile-stop-count/verify.log`.
