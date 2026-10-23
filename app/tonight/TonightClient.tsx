@@ -359,7 +359,9 @@ export default function TonightClient({
   const { renderedAt, clearInitial } = initialAnswer;
   const { retry } = liveWhatsOn;
   const { retry: retryOut } = liveOut;
-  const { body: outBody, failed: outFailed, pending: outPending } = initialAnswer.out;
+  const {
+    body: outBody, failed: outFailed, pending: outPending, sourceEvidence: outSourceEvidence,
+  }: TonightOutAnswer = initialAnswer.out;
   const selectableVenueIds = useMemo(
     () => {
       if (mapSelectableVenueIds === undefined) return undefined;
@@ -369,8 +371,8 @@ export default function TonightClient({
     [mapSelectableVenueIds],
   );
   const outAnswer = useMemo(
-    () => ({ body: outBody, failed: outFailed, pending: outPending }),
-    [outBody, outFailed, outPending],
+    () => ({ body: outBody, failed: outFailed, pending: outPending, sourceEvidence: outSourceEvidence }),
+    [outBody, outFailed, outPending, outSourceEvidence],
   );
   // One instant answers both questions. Reading the clock twice lets the merge
   // drop the night's last row while the status still calls the page ready, and

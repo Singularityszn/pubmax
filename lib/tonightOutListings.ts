@@ -73,6 +73,10 @@ export function tonightListingLede(
 }
 
 export type TonightOutAnswer = {
+  sourceEvidence?: {
+    hasPubMatches: boolean;
+    sources: ReturnType<typeof outLaneObservedAt>;
+  };
   body:
     | (Pick<OutResponse, "status" | "events" | "reason"> &
         Partial<
@@ -85,6 +89,13 @@ export type TonightOutAnswer = {
   failed: boolean;
   pending: boolean;
 };
+
+export function tonightOutSourceEvidence(out: TonightOutAnswer) {
+  return out.sourceEvidence ?? {
+    hasPubMatches: (out.body?.events ?? []).some((row) => tonightRowHasListedPub(row)),
+    sources: outLaneObservedAt(out.body?.events ?? [], out.body?.observedAt ?? {}),
+  };
+}
 
 /** Whether a row carries a canonical venue identity; map availability is separate. */
 export function tonightRowHasListedPub(
@@ -681,13 +692,15 @@ export function tonightProvenanceCredits(input: {
   const whatsOn = creditsWhatsOn
     ? `${whatsOnLabel}${input.whatsOnChecked ? ` · ${input.whatsOnChecked}` : ""} · ${TONIGHT_WHATS_ON_CREDIT}`
     : null;
-  const outEvents = input.out.body?.events ?? [];
+  const sourceEvidence = tonightOutSourceEvidence(input.out);
   const emptyOutRead = lanes.outRows.length === 0 && !input.out.failed && !input.out.pending &&
     outListingsStatus(input.out).status === "ready" && input.out.body?.venueMatch === "ready" &&
-    !outEvents.some((row) => tonightRowHasListedPub(row));
+    !sourceEvidence.hasPubMatches;
   const out = outLaneCredit(
-    emptyOutRead ? outEvents : lanes.outRows,
-    input.out.body?.observedAt ?? {},
+    lanes.outRows.length,
+    emptyOutRead
+      ? sourceEvidence.sources
+      : outLaneObservedAt(lanes.outRows, input.out.body?.observedAt ?? {}),
     emptyOutRead,
   );
   const whatsOnDated = creditsWhatsOn ? input.whatsOnChecked !== null : true;
@@ -700,17 +713,17 @@ export function tonightProvenanceCredits(input: {
 }
 
 function outLaneCredit(
-  rows: WhatsOnRow[],
-  observedAt: Record<string, string>,
+  count: number,
+  sources: ReturnType<typeof outLaneObservedAt>,
   emptyPubResult = false,
 ): { text: string | null; dated: boolean } {
-  if (rows.length === 0 && !emptyPubResult) return { text: null, dated: true };
-  const { labels, oldest, dated } = outLaneObservedAt(rows, observedAt);
-  const noun = rows.length === 1 ? "listing" : "listings";
+  if (count === 0 && !emptyPubResult) return { text: null, dated: true };
+  const { labels, oldest, dated } = sources;
+  const noun = count === 1 ? "listing" : "listings";
   const via = labels.length === 0 ? "" : ` via ${joinLabels(labels)}`;
   const stamp = dated ? ` · ${checkedLabel(oldest)}` : "";
-  const count = emptyPubResult ? "No pub-matched events" : `${rows.length} ${noun}`;
-  return { text: `${count}${via}${stamp}`, dated };
+  const label = emptyPubResult ? "No pub-matched events" : `${count} ${noun}`;
+  return { text: `${label}${via}${stamp}`, dated };
 }
 
 /**

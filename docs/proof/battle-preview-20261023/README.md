@@ -86,7 +86,10 @@ The repeated flow returned signed-out HTTP 403, duplicate HTTP 409, and a succes
 The saved receipt and screenshot show persisted confirmation and the updated sheet.
 The repeated run recorded zero nonlocal writes.
 The saved listener records show the [app](listener-3220.txt), [Supabase API](listener-54321.txt), and [database](listener-54322.txt) bound to loopback.
-The sanitised refreshed-API field contains no values, so that field alone cannot prove the refreshed API result.
+The corrected receipt includes two refreshed API rows from a later local GET capture at 12:57:14 UTC.
+Their IDs, prices and confirmation dates agree with the persisted rows.
+The first sanitised repeat receipt omitted these rows.
+The local stack is stopped again. No hosted writes or migrations occurred.
 The local stack omitted Realtime. Its broadcast failure did not prevent persistence or confirmation.
 No hosted write proof is claimed because hosted database isolation is not established.
 

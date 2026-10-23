@@ -72,7 +72,28 @@
     }
   },
   "refreshed": [
-    {}
+    {
+      "id": "70d40c8a-c550-4a48-b771-57964a0880cc",
+      "priceGbp": 4.7,
+      "createdAt": "2026-10-23T12:48:29.019+00:00",
+      "confirmation": {
+        "confirmationId": "6894b338-0355-48f7-a64f-566a824f68e4",
+        "confirmedAt": "2026-10-23T12:48:29.099Z",
+        "basis": "second_reporter",
+        "confirmingDropId": "aa9c1730-71e0-4195-9665-1a762139ab6c"
+      }
+    },
+    {
+      "id": "aa9c1730-71e0-4195-9665-1a762139ab6c",
+      "priceGbp": 4.7,
+      "createdAt": "2026-10-23T12:48:20.236+00:00",
+      "confirmation": {
+        "confirmationId": "6894b338-0355-48f7-a64f-566a824f68e4",
+        "confirmedAt": "2026-10-23T12:48:29.099Z",
+        "basis": "second_reporter",
+        "confirmingDropId": "aa9c1730-71e0-4195-9665-1a762139ab6c"
+      }
+    }
   ],
   "loopbackCheck": {
     "repeatedAfterForwardingCorrection": true,
@@ -82,5 +103,12 @@
     "databaseListener": "127.0.0.1:54322",
     "method": "Explicit local SSH forwarding, checked with lsof after disabling automatic VM port forwarding.",
     "initialAttemptLimit": "The first VM configuration forwarded Supabase on all host interfaces. That VM was stopped. The confirmation flow was repeated after correcting the listeners."
+  },
+  "refreshedApiCapture": {
+    "capturedAt": "2026-10-23T12:57:14.386Z",
+    "origin": "http://127.0.0.1:3220",
+    "path": "/api/pint-drops?venueId=venue-1vle947",
+    "method": "GET",
+    "note": "A new read of the repeated loopback run. The first sanitised repeat receipt omitted these rows. The original UI runner also asserted the API match before exiting successfully."
   }
 }
