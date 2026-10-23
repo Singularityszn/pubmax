@@ -10,9 +10,10 @@ The map builds its state from the URL in layers:
 - `components/map/useCrawlUrl.ts` writes that encoded state back to the
   address bar on a 300 ms debounce, and carries a fixed set of "owned
   passthrough" params through each rewrite so they do not get dropped.
-- `lib/explicitMapIntent.ts` composes several of the predicates below to
-  decide if an arrival is intentional enough to suppress first-run
-  onboarding.
+- `lib/mapUrlIntent.ts` owns the URL-only predicates that identify an
+  intentional arrival. The city suggestion and first-run prompts use them
+  to avoid interrupting that arrival. `lib/explicitMapIntent.ts` adds restored
+  planning and mobile-session intent for first-run onboarding.
 - `lib/mapFirstVisitArrival.ts` adds the planner handoff params to that
   answer for the first-visit arrival card. See "First-visit arrival card"
   below.
@@ -50,6 +51,9 @@ the URL or a resume seed (`restoredSessionFrame` in `lib/pubMap.ts`).
 Regression cases live in
 [`mapCrawlUrlSync.test.tsx`](../__tests__/mapCrawlUrlSync.test.tsx).
 
+The [map camera and search contract](rules/components-map-canvas-and-pins.md#a-camera-move-has-an-owner-and-the-map-a-reader-is-looking-at-loads-first)
+owns query framing, surrounding price pins, and sheet behavior after reload.
+
 ## Fail-soft for an unknown `?sel=`
 
 An unknown `sel` value never breaks the map. `lib/pubMap.ts` computes a
@@ -80,7 +84,7 @@ owns its dismissal window and storage compatibility.
 `searchSuppressesMapFirstVisitArrival` (`lib/mapFirstVisitArrival.ts`) holds
 the card back for an arrival that already has its own question. It is
 `searchHasExplicitMapIntent` (a deep-linked venue, query, place, crawl, and
-the other intentional arrivals in `lib/explicitMapIntent.ts`) plus the three
+the other intentional arrivals in `lib/mapUrlIntent.ts`) plus the three
 planner handoff params `query`, `occasion`, and `describe`
 (`lib/planOccasion.ts`). The map honours those three only here: it reads
 their presence to stay quiet, never their values.
@@ -113,7 +117,7 @@ While the card is on screen, the analytics consent prompt stands down. See
 | `landmark` | A landmark chapter id | `lib/crawlUrl.ts` | Deep-links to a landmark chapter. | Trimmed only. No validation here. | Debounced crawl sync preserves an active story. Sheet-history restoration clears the parameter when the landed trail contains no story, including after Home. |
 | `alt` | One of `pint`, `food`, `coffee`, `mocktail` | `lib/crawlUrl.ts` | Sets the alt crawl style. | A value outside this set is ignored. The state stays the default, `pint`. | Yes, same debounced sync. Omitted when it is the default `pint`. |
 | `crawl` | A curated crawl id | `lib/crawlUrl.ts` | Loads a named curated crawl. | Passed through `normalizeCrawlId`: lower-cased, non-alphanumeric runs become a dash, leading and trailing dashes trimmed, cut to 80 characters. Never throws on a malformed id. | Written with the current stops. See [History and filter synchronisation](#history-and-filter-synchronisation) for identity clearing and pending hydration. |
-| `log` | `1` | `lib/mapLogIntent.ts` | Arms the legacy Pint Drop composer for a resolved pub, or asks the reader to choose a pub. | Only the exact value `1` counts. Any other value, or absence, is false. | Preserved through crawl-state rewrites while active. Leaving the flow clears it and its `price` seed; dismissal does not block a new request. |
+| `log` | `1` | `lib/mapUrlIntent.ts` (predicate), `lib/mapLogIntent.ts` (composer) | Arms the legacy Pint Drop composer for a resolved pub, or asks the reader to choose a pub. | Only the exact value `1` counts. Any other value, or absence, is false. | Preserved through crawl-state rewrites while active. Leaving the flow clears it and its `price` seed; dismissal does not block a new request. |
 | `contribute` | `price` | `lib/priceContributionIntent.ts` | Requests the selected pub's category price form, or opens the pub picker until a pub is selected. `VenueInspector` handles sign-in and form entry. | Only the exact value `price` requests the flow. It grants no write permission. | Preserves city, drink, and pub through sign-in. Bound to the first opened pub through deselection; form entry, Home, picker dismissal, or another pub outside the restored picker retires it. Back to the held price picker allows a new pub choice. |
 | `plan` | `1` | `lib/mapArrival.ts` | Forces the crawl planner drawer open on first paint. | Only the exact value `1` opens the planner from this param. Other values fall through to the ordinary open rules (built stops, `mode=build`, or `style=`/`mode=` present). | Preserved as an owned passthrough param during crawl-state rewrites. |
 | `accept` | `1` | `lib/mapAcceptance.ts` | Requests the accepted-arrival receipt for `sel`. URL text is not acceptance authority. | Counts only when `sel`, `src`, city, and a live stored PlanningIntent agree. A forged, mismatched, or expired marker is ordinary browsing. | Preserved while the same Venue remains selected. A switch or pin tap strips `accept` and `src`, so acceptance never leaks to another Venue. |

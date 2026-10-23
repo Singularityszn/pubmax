@@ -1,0 +1,80 @@
+import { expect, test } from "@playwright/test";
+
+for (const width of [390, 1440]) {
+  test(`Tonight acknowledges its pub-matched music at ${width}px`, async ({ page }) => {
+    await page.setViewportSize({ width, height: width === 390 ? 844 : 900 });
+    const now = Date.now();
+    const observedAt = new Date(now - 60_000).toISOString();
+    const gig = {
+      id: "ticketmaster-pub-gig",
+      venueId: "venue-1vle947",
+      placeName: "The Fixture Arms",
+      kind: "music",
+      title: "A pub gig",
+      startsAt: new Date(now + 60 * 60_000).toISOString(),
+      observedAt,
+      source: { label: "Ticketmaster", url: "https://www.ticketmaster.co.uk/event/fixture" },
+      confidence: "listed",
+    };
+    const deal = {
+      ...gig,
+      id: "ticketmaster-pub-deal",
+      kind: "deal",
+      title: "A pub deal",
+    };
+    await page.route("**/api/whats-on?**", (route) => route.fulfill({
+      json: {
+        rows: [gig, deal],
+        readStatus: "ready",
+        servedAt: new Date(now).toISOString(),
+        sourceObservedAt: observedAt,
+        sourceFreshnessKind: "provider-observed",
+        kindObservedAt: { music: observedAt, deal: observedAt },
+        localityBasis: "london-default",
+      },
+    }));
+    await page.route("**/api/out?**", (route) => route.fulfill({
+      json: {
+        status: "ready",
+        listingsStatus: "ready",
+        events: [gig],
+        openPlans: [],
+        attribution: [],
+        observedAt: { ticketmaster: observedAt },
+        providers: [],
+        venueMatch: "ready",
+      },
+    }));
+    await page.goto("/tonight");
+
+    await expect(page.getByRole("heading", { name: "Live music tonight", exact: true })).toBeVisible();
+    const musicList = page.locator('[aria-labelledby="music-tonight-title"] .dealsTonightList');
+    const musicCard = musicList.locator(".dealsTonightCard").first();
+    const listBox = await musicList.boundingBox();
+    const cardBox = await musicCard.boundingBox();
+    expect(listBox).not.toBeNull();
+    expect(cardBox).not.toBeNull();
+    expect(cardBox!.width).toBeGreaterThanOrEqual(listBox!.width - 1);
+    expect(await musicList.evaluate((list) => getComputedStyle(list).gridTemplateColumns.split(" ").length)).toBe(1);
+    await expect(page.getByText("1 sourced live music listing below.", { exact: false })).toBeVisible();
+    await expect(page.getByText("A pub gig", { exact: true })).toBeVisible();
+    await expect(page.getByText("1 listing · Checked", { exact: false })).toBeVisible();
+    await expect(page.getByRole("link", { name: /A pub gig The Fixture Arms Ticketmaster/ })).toBeVisible();
+    await expect(page.getByText("No confirmed events listed tonight.", { exact: false })).toHaveCount(0);
+    await expect(page.getByText("No events listed", { exact: false })).toHaveCount(0);
+
+    const deals = page.locator('[aria-labelledby="deals-tonight-title"]');
+    await expect(deals).toHaveCount(1);
+    for (const resizedWidth of [width, 1023, 1024, 1440, 390]) {
+      await page.setViewportSize({ width: resizedWidth, height: 900 });
+      if (resizedWidth < 1024) {
+        await expect(deals).toBeVisible();
+        await expect(deals.getByText("A pub deal", { exact: true })).toBeVisible();
+      } else {
+        await expect(deals).toBeHidden();
+      }
+      await expect(page.getByRole("heading", { name: "Live music tonight", exact: true })).toBeVisible();
+      await expect(page.getByText("A pub gig", { exact: true })).toBeVisible();
+    }
+  });
+}
