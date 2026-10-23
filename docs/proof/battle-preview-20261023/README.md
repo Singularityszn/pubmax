@@ -192,3 +192,11 @@ The #2335 stylesheet comparison first showed 88 to 100 ms FCP during another bui
 Its repeat after the build showed 88 to 80 ms. That result does not support a stable stylesheet regression.
 Shared-machine scheduling remains a measurement limitation. No performance budget increased.
 Hosted measurements remain separate because edge state and the preview toolbar differ.
+
+## Hosted schema receipt format
+
+The hosted receipt selects the captured BarOrPub name, address, geo and URL fields.
+It also lists the schema types found in each response.
+It omits unrelated legacy brand aliases that are intentionally present in the site's base schema.
+The original complete JSON-LD scripts remain unchanged in the local observations files.
+This selection changes the evidence summary, not the served schema.
