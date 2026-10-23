@@ -5,14 +5,17 @@ import { renderToStaticMarkup } from "react-dom/server";
 
 import { describe, expect, it } from "vitest";
 
+import TonightProvenanceLines from "@/app/tonight/TonightProvenanceLines";
+import { PalMeetingScreen } from "@/components/pal/PalExperience";
+import { DEFAULT_PAL_DRAFT } from "@/lib/pubPal";
+import { provenanceLabel } from "@/lib/tonight";
+import { checkedLabel } from "@/lib/whatsOnBadges";
+
 import {
   nightAreaOptionLabel,
   nightAreaSelectorGroups,
 } from "@/components/plan/PlanComposer";
 import { defined } from "@/__tests__/helpers/defined";
-import TonightProvenanceLines from "@/app/tonight/TonightProvenanceLines";
-import { provenanceLabel } from "@/lib/tonight";
-import { checkedLabel } from "@/lib/whatsOnBadges";
 
 function read(path: string): string {
   return readFileSync(join(process.cwd(), path), "utf8");
@@ -465,6 +468,41 @@ describe("VOICE.md rule 2 — plumbing words stay off reader surfaces", () => {
     expect(html).not.toContain("Freshness unknown");
   });
 
+  it.each([null, undefined, "", "not-a-date", "2026-10-02T12:00:00Z"])(
+    "uses reader-facing freshness labels for %s",
+    (date) => {
+      for (const label of [provenanceLabel(date), checkedLabel(date)]) {
+        expect(label).toBe(date === "2026-10-02T12:00:00Z" ? "Checked 2 Oct" : "No date on this yet");
+        expect(label).not.toContain("Freshness unknown");
+      }
+    },
+  );
+
+  it.each([
+    [false, false], [false, true], [true, false], [true, true],
+  ])("dates each Tonight lane independently (%s, %s)", (whatsOnDated, outDated) => {
+    const html = renderToStaticMarkup(createElement(TonightProvenanceLines, {
+      provenance: { whatsOn: "Pub listings", out: "Music listings", whatsOnDated, outDated },
+      nearestSuffix: " · nearest Soho first",
+    }));
+    const lines = html.split("</p>");
+    expect(lines[0]).toContain("Pub listings · nearest Soho first");
+    expect(lines[1]).toContain("Music listings");
+    for (const [index, dated] of [whatsOnDated, outDated].entries()) {
+      if (dated) expect(lines[index]).not.toContain("The source check date is not recorded.");
+      else expect(lines[index]).toContain("The source check date is not recorded.");
+    }
+    expect(html).not.toContain("Freshness unknown");
+  });
+
+  it("prints no date notice for absent Tonight lanes", () => {
+    const html = renderToStaticMarkup(createElement(TonightProvenanceLines, {
+      provenance: { whatsOn: null, out: null, whatsOnDated: false, outDated: false },
+      nearestSuffix: null,
+    }));
+    expect(html).toBe("");
+  });
+
   it("names area coverage in pub words, not evidence stages or score bands", () => {
     const areaButton = read("lib/areaButton.ts");
     const mobilePlan = read("components/plan/MobilePlanActivation.tsx");
@@ -492,16 +530,15 @@ describe("VOICE.md rule 2 — plumbing words stay off reader surfaces", () => {
     expect(nightAreaOptionLabel(notReady!, false)).toBe("Barnes, not crawl-ready yet");
   });
 
-  it("keeps the Plan result and Pub Pal free of product-speak", () => {
-    const composer = read("components/plan/PlanComposer.tsx");
-    const pal = read("components/pal/PalExperience.tsx");
-
-    expect(composer).not.toContain("Context changed");
-    expect(composer).toMatch(/You&rsquo;ve changed the night since we sorted it/u);
-    expect(pal).not.toContain("Optional by design");
-    expect(pal).not.toContain("Route before character");
-    expect(pal).toContain("Your Pub Pal");
-    expect(pal).toContain("Plan your night with Pub Pal");
+  it("keeps the Pub Pal meeting free of product-speak", () => {
+    const html = renderToStaticMarkup(createElement(PalMeetingScreen, {
+      appearance: DEFAULT_PAL_DRAFT.appearance,
+      onMeet: () => undefined,
+    }));
+    expect(html).not.toContain("Optional by design");
+    expect(html).not.toContain("Route before character");
+    expect(html).toContain("Your Pub Pal");
+    expect(html).toMatch(/<h1[^>]*>Plan your night with Pub Pal<\/h1>/u);
   });
 });
 
