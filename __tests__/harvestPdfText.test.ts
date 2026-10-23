@@ -56,6 +56,36 @@ describe("reading the words a PDF menu states", () => {
     expect(pageStatesADrinksList(reading)).toBe(true);
   });
 
+  it.each(["Draught beer", "On tap", "Draught beer & cider", "DRAFT BEERS AND CIDERS", "Cask ales / keg lagers", "On tap (pint)"])("ends the bottled section at %s", async (heading) => {
+    const text = await readPdfText(pdfStating([
+      "Bottled beers", "Peroni 330ml £5.20", heading, "Guinness £6.20",
+      "Madri pint £6.40", "Neck Oil pint £6.80", "House red wine 175ml £7.50",
+    ]));
+    const reading = readVenueDrinkPrices(text ?? "", "text");
+    expect(reading.kept.map(({ drinkLabel, category, priceGbp }) => ({ drinkLabel, category, priceGbp }))).toEqual([
+      { drinkLabel: "Guinness", category: "beer", priceGbp: 6.2 },
+      { drinkLabel: "Madri pint", category: "beer", priceGbp: 6.4 },
+      { drinkLabel: "Neck Oil pint", category: "beer", priceGbp: 6.8 },
+      { drinkLabel: "House red wine", category: "wine", priceGbp: 7.5 },
+    ]);
+    expect(reading.drops).toEqual(["bottled-measure-not-a-pint"]);
+    expect(pageStatesADrinksList(reading)).toBe(true);
+  });
+
+  it("keeps split product names within bottles until a semantic PDF boundary", async () => {
+    const text = await readPdfText(pdfStating([
+      "On tap", "Guinness £6.20", "Canned beers / bottled ciders", "NECK OIL", "IPA £6.80",
+      "Draught beer and cider", "Madri pint £6.40", "House red wine 175ml £7.50",
+    ]));
+    const reading = readVenueDrinkPrices(text ?? "", "text");
+    expect(reading.kept.map(({ drinkLabel, category, priceGbp }) => ({ drinkLabel, category, priceGbp }))).toEqual([
+      { drinkLabel: "Guinness", category: "beer", priceGbp: 6.2 },
+      { drinkLabel: "Madri pint", category: "beer", priceGbp: 6.4 },
+      { drinkLabel: "House red wine", category: "wine", priceGbp: 7.5 },
+    ]);
+    expect(reading.drops).toEqual(["bottled-measure-not-a-pint"]);
+  });
+
   it("reads a drinks list out of a PDF", async () => {
     const text = await readPdfText(
       pdfStating([

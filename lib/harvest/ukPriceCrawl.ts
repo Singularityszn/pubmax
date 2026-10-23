@@ -246,7 +246,7 @@ export const MIN_PRICED_LINES_FOR_LIST = 4;
 function isBottledMeasure(before: string): boolean {
   // 568ml is a UK pint, not a bottle. The generic ml pattern would otherwise
   // drop every drinks list that writes the measure in millilitres.
-  return /(\b(?!568\s*ml\b)\d{2,3}\s?ml|\bbottle[ds]?\b|\bcans?\b)/i.test(before);
+  return /(\b(?!568\s*ml\b)\d{2,3}\s?ml|\bbottle[ds]?\b|\b(?:cans?|canned)\b)/i.test(before);
 }
 
 /**
@@ -911,25 +911,47 @@ function keylessPriceDropReason(
   return null;
 }
 
-/** A section's bottle or can measure lasts until the next printed heading. */
-function inBottledSection(text: string, at: number): boolean {
-  const itemStart = text.lastIndexOf("\n", at - 1);
-  if (itemStart < 0) return false;
-  const lines = text.slice(0, itemStart).split("\n");
-  for (const line of lines.reverse()) {
-    const heading = line.replace(/[\u200b-\u200d\ufeff]/g, "").trim();
-    if (!heading || heading.includes("£")) continue;
-    const section = /^(?:[A-Z][A-Z \d().%&-]*)(?:\([^)]*\))?$/.test(heading)
-      || /^(?:(?:draught|draft|keg|cask)(?:\s+(?:beers?|ales?|lagers?|stouts?))?|beers?|wines?|cocktails?|soft drinks?|bottled beers?|cans?)$/i.test(heading);
-    if (heading.length <= 80 && section) {
-      return isBottledMeasure(heading);
+const SECTION_SERVING = "(?:bottled|bottles?|canned|cans?|draught|draft|kegs?|casks?|on\\s+tap)";
+const SECTION_DRINK = "(?:beers?|ales?|lagers?|stouts?|ciders?|wines?|cocktails?|soft\\s+drinks?|spirits?|coffees?|teas?|drinks?)";
+const SECTION_STRENGTH = "(?:low\\s+(?:abv|alcohol)|(?:alcohol[ -]free|non[ -]alcoholic))";
+const SECTION_TERM = `(?:${SECTION_SERVING}(?:\\s+${SECTION_DRINK})?|${SECTION_DRINK}(?:\\s+${SECTION_SERVING})?|${SECTION_STRENGTH}(?:\\s+${SECTION_DRINK})?)`;
+const SECTION_MEASURE = "(?:\\d{2,4}\\s*ml|pints?)";
+const SECTION_MEASURES = `${SECTION_MEASURE}(?:\\s*[/&]\\s*${SECTION_MEASURE})*`;
+const SECTION_ANNOTATION = `(?:${SECTION_MEASURES}(?:\\s+${SECTION_SERVING})?|${SECTION_SERVING}(?:\\s+${SECTION_MEASURES})?)`;
+const SERVING_SECTION = new RegExp(
+  `^${SECTION_TERM}(?:(?:\\s*[&/]\\s*|\\s+and\\s+)${SECTION_TERM})*(?:\\s*(?:\\(${SECTION_ANNOTATION}\\)|${SECTION_MEASURES}))?$`, "i",
+);
+
+function servingSection(heading: string): boolean | null {
+  if (!SERVING_SECTION.test(heading)) return null;
+  return isBottledMeasure(heading);
+}
+
+function beerSectionContexts(text: string): Map<number, boolean> {
+  const contexts = new Map<number, boolean>();
+  const sections = [{ level: 0, bottled: false }];
+  let offset = 0;
+  for (const line of text.split("\n")) {
+    const structural = /^\uE000([1-6])\uE001/.exec(line);
+    const heading = line.slice(structural?.[0].length ?? 0).replace(/[\u200b-\u200d\ufeff]/g, "").trim();
+    const serving = servingSection(heading);
+    if (structural) {
+      const level = Number(structural[1]);
+      while (sections.length > 1 && sections[sections.length - 1].level >= level) sections.pop();
+      sections.push({ level, bottled: serving ?? sections[sections.length - 1].bottled });
+    } else if (serving !== null) {
+      sections[sections.length - 1].bottled = serving;
     }
+    for (const price of line.matchAll(UK_PRICE_PATTERN)) {
+      contexts.set(offset + (price.index ?? 0), sections[sections.length - 1].bottled);
+    }
+    offset += line.length + 1;
   }
-  return false;
+  return contexts;
 }
 
 function beerMeasureDrop(
-  text: string, at: number, verbatim: string, priceGbp: number, drinkLabel?: string,
+  text: string, at: number, verbatim: string, priceGbp: number, drinkLabel: string | undefined, bottledSection: boolean,
 ): UkPriceDropReason | null {
   const before = drinkLabel ?? text.slice(Math.max(0, at - 30), at);
   const after = text.slice(at + verbatim.length, at + verbatim.length + 12);
@@ -940,7 +962,7 @@ function beerMeasureDrop(
     return "fractional-measure-not-a-pint";
   }
   const explicitPint = /\b(?:pints?|568\s*ml)\b/i.test(before);
-  return isBottledMeasure(before) || (!explicitPint && inBottledSection(text, at)) ? "bottled-measure-not-a-pint" : null;
+  return isBottledMeasure(before) || (!explicitPint && bottledSection) ? "bottled-measure-not-a-pint" : null;
 }
 
 /**
@@ -952,7 +974,8 @@ function decideKeylessUkPriceAt(
   at: number,
   priceGbp: number,
   verbatim: string,
-  inWineSection = false,
+  inWineSection: boolean,
+  bottledSection: boolean,
 ): { kept?: UkPriceCandidate; drop?: UkPriceDropReason } {
   const contextStart = Math.max(0, at - PRICE_CONTEXT_CHARS);
   const context = text.slice(
@@ -999,7 +1022,7 @@ function decideKeylessUkPriceAt(
   const drop = keylessPriceDropReason(category, priceGbp, context);
   if (drop) return { drop };
   if (category === "beer") {
-    const measureDrop = beerMeasureDrop(text, at, verbatim, priceGbp, drinkLabel);
+    const measureDrop = beerMeasureDrop(text, at, verbatim, priceGbp, drinkLabel, bottledSection);
     if (measureDrop) return { drop: measureDrop };
   }
   return {
@@ -1018,10 +1041,11 @@ export function decideKeylessUkPriceCandidate(
   text: string,
   raw: UkPriceRawCandidate,
   inWineSection = false,
+  bottledSection = beerSectionContexts(text).get(raw.at) ?? false,
 ): { kept?: UkPriceCandidate; drop?: UkPriceDropReason } {
   // The candidate's own offset, never a fresh search: see `at` on the type.
   if (text.startsWith(raw.verbatim, raw.at)) {
-    return decideKeylessUkPriceAt(text, raw.at, raw.priceGbp, raw.verbatim, inWineSection);
+    return decideKeylessUkPriceAt(text, raw.at, raw.priceGbp, raw.verbatim, inWineSection, bottledSection);
   }
   return { drop: "not-verbatim-on-page" };
 }
@@ -1034,6 +1058,9 @@ export function readKeylessUkPriceDecisions(
   const decisions = new Map<number, ReturnType<typeof decideKeylessUkPriceCandidate>>();
   const candidates = findUkPriceCandidates(text);
   const winePrices = wineSectionPrices(html);
+  const sectionSource = html.replace(/<h([1-6])\b[^>]*>/gi, (tag, level: string) => `${tag}\uE000${level}\uE001`);
+  const sectionText = pageText(sectionSource, true, sourceFormat);
+  const bottledSections = [...beerSectionContexts(sectionText).values()];
 
   for (const [index, raw] of candidates.entries()) {
     const scoped = winePrices.get(index);
@@ -1042,7 +1069,7 @@ export function readKeylessUkPriceDecisions(
       : null;
     const outcome = scopedIdentity && scoped
       ? decideKeylessUkPriceCandidate(scoped.text, scoped.raw, true)
-      : decideKeylessUkPriceCandidate(text, raw);
+      : decideKeylessUkPriceCandidate(text, raw, false, bottledSections[index]);
     decisions.set(raw.at, outcome);
   }
 
