@@ -112,8 +112,11 @@ jobs:
 
       # --redact keeps a found value out of the job log. The allowlists and
       # their reasons are in .gitleaks.toml.
+      # A PR scans its complete history. Main and scheduled scans retain all refs.
       - name: gitleaks
-        run: gitleaks git --redact --verbose --no-banner --config .gitleaks.toml .
+        env:
+          GITLEAKS_LOG_OPTS: ${{ github.event_name == 'pull_request' && '--full-history HEAD' || '--full-history --all' }}
+        run: gitleaks git --redact --verbose --no-banner --config .gitleaks.toml --log-opts="$GITLEAKS_LOG_OPTS" .
 
   semgrep:
     name: Semgrep CE (SAST)

@@ -69,6 +69,51 @@ describe("map search index", () => {
     expect(defined(searchMapSearchIndex(index, "crwn")[0]).id).toBe("venue-bath-crown");
   });
 
+  it("does not turn Hatton into unrelated venues across city maps", () => {
+    const index = buildMapSearchIndex(
+      [
+        { id: "london", displayName: "London" },
+        { id: "manchester", displayName: "Manchester" },
+      ],
+      [
+        {
+          cityId: "london",
+          venues: [
+            { id: "hatton", name: "The Sir Christopher Hatton", area: "Camden" },
+            { id: "chatterton", name: "Chatterton Arms", area: "Bromley" },
+            { id: "club", name: "Feltham Constitutional Club", area: "Hounslow" },
+            { id: "fire-station", name: "Hammersmith Fire Station", area: "Hammersmith and Fulham" },
+            { id: "moon", name: "Howl at The Moon", area: "Hackney" },
+            {
+              id: "lounge",
+              name: "Palm Riverside | Shisha & Hookah Lounge | Lebanese Restaurant | Cocktail Bar | Wandsworth London",
+              area: "Wandsworth",
+            },
+          ],
+        },
+        {
+          cityId: "manchester",
+          venues: [{ id: "hatters", name: "Hatters Food & Drinks Hall", area: "Manchester" }],
+        },
+      ],
+    );
+
+    expect(searchMapSearchIndex(index, "Hatton").map((result) => result.id)).toEqual(["hatton"]);
+  });
+
+  it("keeps spacing aliases and one missing letter without matching distant subsequences", () => {
+    const index = buildMapSearchIndex(cities, [{
+      cityId: "london",
+      venues: [
+        { id: "black-friar", name: "The Black Friar", area: "City of London" },
+        { id: "crown", name: "The Crown", area: "Camden" },
+      ],
+    }]);
+
+    expect(searchMapSearchIndex(index, "The Blackfriar").map((result) => result.id)).toEqual(["black-friar"]);
+    expect(searchMapSearchIndex(index, "crwn").map((result) => result.id)).toEqual(["crown"]);
+  });
+
   it("ranks an area or city match above venues named for that area", () => {
     const index = buildMapSearchIndex(cities, packs);
 

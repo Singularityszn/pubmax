@@ -16,7 +16,11 @@ test.describe("avatar WP3 mobile screenshots", () => {
 
   test("feed and contributors surfaces render initials fallback at 390px", async ({ page }) => {
     await page.goto("/feed");
-    await expect(page.locator("main")).toBeVisible();
+    await expect(page).toHaveURL(/\/social$/);
+    // Hidden streamed copies must not count as accessible page landmarks.
+    const main = page.getByRole("main");
+    await expect(main).toHaveCount(1);
+    await expect(main).toBeVisible();
     await page.screenshot({ path: join(SHOT_DIR, "feed-390.png"), fullPage: true });
 
     await page.goto("/contributors");

@@ -861,4 +861,8 @@
   .tonightContext > .tonightRailPhoto {
     display: grid;
   }
+
+  .tonightContext [aria-labelledby="music-tonight-title"] .dealsTonightList {
+    grid-template-columns: minmax(0, 1fr);
+  }
 }
