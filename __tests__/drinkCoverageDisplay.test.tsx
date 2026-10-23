@@ -33,6 +33,7 @@ describe("pub list coverage copy", () => {
     expect(html).toContain("1 of 2 pubs");
     expect(html).toContain("(50%)");
     expect(html).toContain("not every pub in London");
+    expect(html).toContain("pub price list and published menus");
     expect(html).toContain("separate from the borough league");
   });
   it("never turns an unread pub list into zero coverage", () => {
