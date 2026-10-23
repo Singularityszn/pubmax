@@ -6149,7 +6149,6 @@ export default function PubMap({
 
   const venuePanel = renderSelectedPlacePanel();
   const storyPanel = renderStoryPanel();
-  const storyOnlyOpen = storyOpen && !detailOpen && !planningOpen;
 
   // The held frame keeps its own question (painted, tappable pins), and loses
   // it outright the moment there is no canvas to paint them: an honest card
@@ -7123,6 +7122,7 @@ export default function PubMap({
 
   /* The phone's one bottom sheet: whichever of the venue detail or the planner owns the surface. */
   function renderPhoneSheet() {
+    const storyOnlyOpen = storyOpen && !detailOpen && !planningOpen;
     return mobileViewport ? (
           <Sheet
             kind={
