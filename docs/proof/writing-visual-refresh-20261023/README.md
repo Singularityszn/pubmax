@@ -118,8 +118,17 @@ check found no horizontal overflow on the seven reviewed page families.
 Around London uses four existing founder photographs. Southwark, Leadenhall
 Market and Canary Wharf link to map searches. The Crown Tavern links to the
 Clerkenwell venue, not the pub with the same name in Lewisham. Existing photo
-rules also use the relevant images on Southwark, Canary Wharf and Crown Tavern
-pages. Wider-area images retain their area labels.
+rules also use the relevant images for Southwark borough records and Crown
+Tavern historic records. Tonight now enumerates supported London areas through
+the photo resolver, so its client receives the founder's Canary Wharf photo.
+Wider-area images retain their area labels.
+
+The review regression first reproduced the missing Canary Wharf client input.
+`__tests__/tonightInitialOutAnswer.test.tsx` executes the server page and checks
+its photo props, including every licensed area photo and the London fallback.
+This correction adds composition coverage, with no new browser or account
+verification claim. The recorded browser and performance results describe
+the original refresh.
 
 The optional film uses these same four privacy-edited photographs. It has 288
 frames at 24 fps, runs for 12 seconds and contains no audio. The H.264 file is
