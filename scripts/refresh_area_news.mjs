@@ -175,6 +175,7 @@ async function collectCandidates({ queries, env, searchFn, logger, publishedAfte
   const candidates = [];
   const seenUrls = new Set();
   for (const query of queries) {
+    if (candidates.length >= maxCandidates) break;
     let results;
     try {
       results = await withOperationTimeout(
