@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import schemaWithheld from "@/data/bar_or_pub_schema_withheld.json";
+import identityReconciliations from "@/data/venue_identity_reconciliations.json";
 import Link from "next/link";
 import DataCreditsLink from "@/components/legal/DataCreditsLink";
 
@@ -80,7 +80,10 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   // card is not templated, so it keeps the branded form.
   const title = `The Ledger: ${venue.name}`;
   const cardTitle = `${title}. ${BRAND_NAME}`;
-  const description = `The story of ${venue.name} in ${venueAreaLabel(venue)}. Heritage notes and the pub's logbook of visits, in large print.`;
+  const currentBusiness = IDENTITY_RECONCILIATIONS.get(venue.id)?.currentBusiness;
+  const description = currentBusiness
+    ? `The earlier ${venue.name} record, with separately sourced information about ${currentBusiness.name} at this address.`
+    : `The story of ${venue.name} in ${venueAreaLabel(venue)}. Heritage notes and the pub's logbook of visits, in large print.`;
   // Canonicalise onto the surviving canonical venue id (D1) so a merged/alias
   // URL points at the one indexable venue permalink.
   const canonical = `/ledger/${encodeURIComponent(venue.id)}`;
@@ -96,9 +99,31 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 
 const SITE_URL = "https://pubmaxxing.com";
 
-// Newer source records dispute these business identities. Keep their history,
-// but withhold the pub classification until the identity is reconciled.
-const SCHEMA_WITHHELD_IDS = new Set(schemaWithheld.venues.map((row) => row.venueId));
+// A current business is not the earlier venue merely because its address matches.
+const IDENTITY_RECONCILIATIONS = new Map(
+  identityReconciliations.venues.map((row) => [row.venueId, row] as const),
+);
+type IdentityReconciliation = (typeof identityReconciliations.venues)[number];
+
+function currentBusinessJsonLd(review: IdentityReconciliation, ledgerUrl: string) {
+  const business = review.currentBusiness;
+  const url = `${SITE_URL}${ledgerUrl}#${business.entityId}`;
+  return {
+    "@context": "https://schema.org",
+    "@type": business.schemaType,
+    "@id": url,
+    name: business.name,
+    url,
+    sameAs: [`https://ratings.food.gov.uk/business/${business.fsaId}`],
+    address: {
+      "@type": "PostalAddress",
+      streetAddress: business.streetAddress,
+      addressLocality: business.addressLocality,
+      postalCode: business.postalCode,
+      addressCountry: business.addressCountry,
+    },
+  };
+}
 
 // The region is the city the venue id names. A London id carries no city
 // prefix, so the region stays London. A national base id names no city, so
@@ -207,6 +232,8 @@ export default async function LedgerPage({ params }: PageProps) {
   // Table, and ratings, never the raw route param, which may be a losing
   // duplicate id.
   const canonicalId = venue.id;
+  const reconciliation = IDENTITY_RECONCILIATIONS.get(canonicalId);
+  const currentBusiness = reconciliation?.currentBusiness;
 
   const curation = venue.curation;
   // Official listed-building record (Historic England NHLE), keyed by canonical
@@ -225,27 +252,52 @@ export default async function LedgerPage({ params }: PageProps) {
   const speechIntro = [
     `The Ledger for ${venue.name}, ${venueAreaLabel(venue)}.`,
     curation.heritageNote ? curation.heritageNote : "",
+    ...(currentBusiness ? [
+      `Current business listed at this address: ${currentBusiness.name}, ${currentBusiness.businessLabel}.`,
+      `${currentBusiness.streetAddress}, ${currentBusiness.addressLocality}, ${currentBusiness.postalCode}.`,
+      `The link between these businesses is not confirmed. Prices and visits belong to the earlier ${venue.name} record.`,
+    ] : []),
   ];
   const listedPint = venueListedPint(venue);
   const streetAddress = ledgerStreetAddress(venue);
   const hasPubOrBarSchema =
     (isPubVenueKind(venue.kind) || venue.kind === "bar") &&
-    !SCHEMA_WITHHELD_IDS.has(canonicalId);
+    !reconciliation;
 
   return (
     <main id="main" className="ledgerPage">
-      {hasPubOrBarSchema ? <JsonLd data={venueJsonLd(venue, listedBuilding)} /> : null}
+      {reconciliation ? <JsonLd data={currentBusinessJsonLd(reconciliation, ledgerUrl)} /> :
+        hasPubOrBarSchema ? <JsonLd data={venueJsonLd(venue, listedBuilding)} /> : null}
       <LedgerLiveProvider venueId={canonicalId}>
         <header className="ledgerHead">
           <Link className="ledgerHomeLink" href="/">
             PUBMAXX
           </Link>
-          <p className="ledgerEyebrow">The Ledger</p>
+          <p className="ledgerEyebrow">{reconciliation ? "Earlier venue record" : "The Ledger"}</p>
           <h1 className="ledgerTitle">{venue.name}</h1>
           <p className="ledgerAddress">
             {streetAddress ? `${streetAddress} · ` : ""}
             {venueAreaLabel(venue)}
           </p>
+
+          {currentBusiness ? (
+            <section className="ledgerIdentity" aria-labelledby={currentBusiness.entityId}>
+              <p className="ledgerEyebrow">Current business listed at this address</p>
+              <h2 className="ledgerSectionTitle" id={currentBusiness.entityId}>{currentBusiness.name}</h2>
+              <p>{currentBusiness.businessLabel}</p>
+              <p className="ledgerCurrentAddress">
+                {currentBusiness.streetAddress}, {currentBusiness.addressLocality}, {currentBusiness.postalCode}
+              </p>
+              <p>Shown separately from the earlier {venue.name} record. The link between these businesses is not confirmed.</p>
+              <p>Prices and visits below belong to {venue.name}. They are not evidence for {currentBusiness.name}.</p>
+              <ul className="ledgerIdentitySources">
+                {currentBusiness.sources.map((source) => (
+                  <li key={source.url}><a href={source.url} target="_blank" rel="noopener noreferrer">{source.label}</a></li>
+                ))}
+              </ul>
+              <p className="ledgerEyebrow">Sources checked <time dateTime={identityReconciliations.checkedAt}>{new Date(`${identityReconciliations.checkedAt}T12:00:00Z`).toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric", timeZone: "UTC" })}</time></p>
+            </section>
+          ) : null}
 
           {/* Listed-building brass plaque (Historic England NHLE). Rendered only
               when the pub is on the official register; the citation link is the

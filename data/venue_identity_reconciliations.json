@@ -1,0 +1,113 @@
+{
+  "reviewedAt": "2026-10-23",
+  "reason": "Current business listings are separate from earlier venue records. Shared premises do not establish business continuity.",
+  "venues": [
+    {
+      "venueId": "venue-liv-1xzq0ay",
+      "venueName": "McGreavy's",
+      "osmId": "way/1174024625",
+      "observedName": "Shium Cafe",
+      "observedKind": "cafe",
+      "observedAt": "2026-10-04T23:58:31.421Z",
+      "sourceFile": "data/osm/uk/uk_osm_venues_food.json",
+      "sourceSha256": "4a99ed729372aeb6c767e0961fe2822786ac4a4033df1a6e2fabc1b269df4618",
+      "sourceUrl": "https://www.openstreetmap.org/way/1174024625",
+      "observedAmenity": "cafe",
+      "observedTaxonomyKey": "cafe",
+      "currentBusiness": {
+        "entityId": "business-shirin-cafe-1985141",
+        "name": "Shirin cafe",
+        "schemaType": "CafeOrCoffeeShop",
+        "businessLabel": "Café",
+        "streetAddress": "3-4 Williamson Square",
+        "addressLocality": "Liverpool",
+        "postalCode": "L1 1EQ",
+        "addressCountry": "GB",
+        "fsaId": "1985141",
+        "sources": [
+          {
+            "label": "Food Standards Agency",
+            "url": "https://ratings.food.gov.uk/business/1985141"
+          }
+        ]
+      },
+      "relationship": "Shared premises confirmed. Business continuity is not established."
+    },
+    {
+      "venueId": "venue-we2z9j",
+      "venueName": "Betty",
+      "osmId": "node/249573138",
+      "observedName": "Lil' Nashville",
+      "observedKind": "restaurant",
+      "observedAt": "2026-10-04T23:58:31.421Z",
+      "sourceFile": "data/osm/uk/uk_osm_venues_drink.json",
+      "sourceSha256": "c7c28492a62eaa220cbf5e9f8b5d25e3f06d686a3930b8eafeb74c1387e9ef5f",
+      "sourceUrl": "https://www.openstreetmap.org/node/249573138",
+      "observedAmenity": "restaurant",
+      "observedTaxonomyKey": "restaurant_bar",
+      "currentBusiness": {
+        "entityId": "business-lil-nashville-490209",
+        "name": "Lil' Nashville",
+        "schemaType": "BarOrPub",
+        "businessLabel": "Country bar and kitchen",
+        "streetAddress": "11 Barley Mow Passage",
+        "addressLocality": "London",
+        "postalCode": "W4 4PH",
+        "addressCountry": "GB",
+        "fsaId": "490209",
+        "sources": [
+          {
+            "label": "Business website",
+            "url": "https://www.lilnashville.co.uk/contact"
+          },
+          {
+            "label": "Food Standards Agency",
+            "url": "https://ratings.food.gov.uk/business/490209"
+          },
+          {
+            "label": "CAMRA venue record",
+            "url": "https://camra.org.uk/pubs/lil-nashville-chiswick-122088"
+          }
+        ]
+      },
+      "relationship": "Shared premises confirmed. Business continuity is not established."
+    },
+    {
+      "venueId": "venue-o6ns02",
+      "venueName": "Friends Bar & Restaurant",
+      "osmId": "node/5812916583",
+      "observedName": "Cinco",
+      "observedKind": "cafe",
+      "observedAt": "2026-10-04T23:58:31.421Z",
+      "sourceFile": "data/osm/uk/uk_osm_venues_food.json",
+      "sourceSha256": "4a99ed729372aeb6c767e0961fe2822786ac4a4033df1a6e2fabc1b269df4618",
+      "sourceUrl": "https://www.openstreetmap.org/node/5812916583",
+      "observedAmenity": "cafe",
+      "observedTaxonomyKey": "cafe",
+      "currentBusiness": {
+        "entityId": "business-cinco-coffee-lounge-1937073",
+        "name": "Cinco Coffee Lounge",
+        "schemaType": "CafeOrCoffeeShop",
+        "businessLabel": "Coffee lounge",
+        "streetAddress": "202 High Road Leytonstone",
+        "addressLocality": "London",
+        "postalCode": "E11 3HU",
+        "addressCountry": "GB",
+        "fsaId": "1937073",
+        "sources": [
+          {
+            "label": "Business website",
+            "url": "https://coffeelounge.uk/"
+          },
+          {
+            "label": "Food Standards Agency",
+            "url": "https://ratings.food.gov.uk/business/1937073"
+          }
+        ]
+      },
+      "relationship": "Shared premises confirmed. Business continuity is not established."
+    }
+  ],
+  "priorSnapshotLimit": "The cited normalized snapshots are bundled. Their corresponding raw October cache is unavailable.",
+  "checkedAt": "2026-10-23"
+}

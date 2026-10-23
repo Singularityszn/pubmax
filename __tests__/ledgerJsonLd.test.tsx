@@ -45,15 +45,34 @@ describe("the canonical venue document's structured data", () => {
   });
 
   it.each([
-    ["venue-liv-1xzq0ay", "McGreavy's"],
-    ["venue-we2z9j", "Betty"],
-    ["venue-o6ns02", "Friends Bar & Restaurant"],
-  ])("withholds disputed pub classification for %s without replacing its history", async (id, name) => {
+    ["venue-liv-1xzq0ay", "McGreavy's", "Shirin cafe", "CafeOrCoffeeShop", "business-shirin-cafe-1985141", "3-4 Williamson Square", "L1 1EQ"],
+    ["venue-we2z9j", "Betty", "Lil' Nashville", "BarOrPub", "business-lil-nashville-490209", "11 Barley Mow Passage", "W4 4PH"],
+    ["venue-o6ns02", "Friends Bar & Restaurant", "Cinco Coffee Lounge", "CafeOrCoffeeShop", "business-cinco-coffee-lounge-1937073", "202 High Road Leytonstone", "E11 3HU"],
+  ])("describes the evidenced business at %s separately from its earlier record", async (id, oldName, name, type, anchor, streetAddress, postalCode) => {
     const read = await lookupVenueDetail(id);
     expect(read.status).toBe("found");
-    if (read.status !== "found") throw new Error(`Missing disputed venue: ${id}`);
-    expect(read.venue.name).toBe(name);
-    expect(await ledgerSchema(id)).toEqual([]);
+    if (read.status !== "found") throw new Error(`Missing earlier venue: ${id}`);
+    expect(read.venue.name).toBe(oldName);
+    const records = await ledgerSchema(id);
+    expect(records).toHaveLength(1);
+    expect(records[0]).toMatchObject({
+      "@type": type,
+      "@id": `https://pubmaxxing.com/ledger/${id}#${anchor}`,
+      name,
+      url: `https://pubmaxxing.com/ledger/${id}#${anchor}`,
+      address: { "@type": "PostalAddress", streetAddress, postalCode, addressCountry: "GB" },
+    });
+    const html = renderToStaticMarkup(await LedgerPage({ params: Promise.resolve({ id }) }));
+    expect(html).toContain('Earlier venue record');
+    expect(html).toContain(`id="${anchor}"`);
+    expect(html).toContain('Current business listed at this address');
+    expect(html).toContain('23 October 2026');
+    expect(html).toContain('Food Standards Agency');
+    expect(html.indexOf(`id="${anchor}"`)).toBeLessThan(html.indexOf('id="ledgerPriceHeading"'));
+    for (const field of ["geo", "priceRange", "aggregateRating", "review", "openingHours", "openingHoursSpecification", "alternateName", "image"]) {
+      expect(records[0]).not.toHaveProperty(field);
+    }
+    expect(records[0]?.name).not.toBe(oldName);
   });
 
   it("uses the curated canonical schema for a historical national alias", async () => {
