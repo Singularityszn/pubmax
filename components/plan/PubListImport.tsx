@@ -4,6 +4,7 @@ import dynamic from "next/dynamic";
 import { useEffect, useMemo, useRef, useState, type RefObject, type ComponentProps } from "react";
 
 import { useAuth } from "@/components/auth/authContext";
+import { useViewerSession, type ViewerSession } from "@/components/auth/useViewerSession";
 import { probeWebGl2 } from "@/components/map/canvas/webgl";
 import { Button } from "@/components/ui/button";
 import PlanTuneSheet from "@/components/plan/PlanTuneSheet";
@@ -39,15 +40,16 @@ type Generated = MapGeneratedRouteResponse & { grounded?: boolean; error?: strin
 
 export default function PubListImport() {
   const { user } = useAuth();
+  const { phase } = useViewerSession();
   const [open, setOpen] = useState(false);
   const triggerRef = useRef<HTMLButtonElement>(null);
   return <div className="pubImportDoor">
     <Button ref={triggerRef} type="button" variant="secondary" onClick={() => setOpen(true)}>Import a pub list</Button>
-    {open ? <ImportSession key={user?.id ?? "signed-out"} signedIn={Boolean(user)} returnFocusRef={triggerRef} onClose={() => setOpen(false)} /> : null}
+    {open ? <ImportSession key={user?.id ?? phase} phase={phase} returnFocusRef={triggerRef} onClose={() => setOpen(false)} /> : null}
   </div>;
 }
 
-export function ImportSession({ signedIn, onClose, returnFocusRef }: { signedIn: boolean; onClose: () => void; returnFocusRef?: RefObject<HTMLElement | null> }) {
+export function ImportSession({ phase, onClose, returnFocusRef }: { phase: ViewerSession["phase"]; onClose: () => void; returnFocusRef?: RefObject<HTMLElement | null> }) {
   const [text, setText] = useState("");
   const [sourceUrl, setSourceUrl] = useState("");
   const [review, setReview] = useState<Review | null>(null);
@@ -61,6 +63,7 @@ export function ImportSession({ signedIn, onClose, returnFocusRef }: { signedIn:
   const gate = useRef(false);
   const reviewIntroRef = useRef<HTMLParagraphElement>(null);
   const routeHeadingRef = useRef<HTMLHeadingElement>(null);
+  const signedIn = phase === "signed-in";
 
   useEffect(() => { reviewIntroRef.current?.focus(); }, [review?.importId]);
   useEffect(() => { if (route) routeHeadingRef.current?.focus(); }, [route]);
@@ -161,7 +164,7 @@ export function ImportSession({ signedIn, onClose, returnFocusRef }: { signedIn:
 
   return <PlanTuneSheet open title="Import a pub list" onClose={onClose} returnFocusRef={returnFocusRef}>
     <div className="pubImport">
-      {!signedIn ? <p><a href="/login?next=%2Fplan">Sign in to import a pub list</a>. Your notes stay yours.</p> : <>
+      {phase === "unresolved" ? <p>With you in a sec.</p> : phase === "signed-out" ? <p><a href="/login?next=%2Fplan">Sign in to import a pub list</a>. Your notes stay yours.</p> : <>
         {!review ? <>
           <p>Turn a caption, a note or a message into a night out.</p>
           <label htmlFor="pub-import-text">Paste your pub list</label>

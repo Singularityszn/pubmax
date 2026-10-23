@@ -48,7 +48,7 @@ async function fill(selector: string, value: string) {
   });
 }
 async function open() {
-  await act(async () => root.render(<ImportSession signedIn onClose={() => {}} />));
+  await act(async () => root.render(<ImportSession phase="signed-in" onClose={() => {}} />));
   await fill("#pub-import-text", "A private group chat\nThe Crown");
   await click("Match these pubs");
 }
@@ -104,8 +104,15 @@ describe("pub list review", () => {
   });
 
   it("requires sign-in without sending pasted text", async () => {
-    await act(async () => root.render(<ImportSession signedIn={false} onClose={() => {}} />));
+    await act(async () => root.render(<ImportSession phase="signed-out" onClose={() => {}} />));
     expect(document.body.textContent).toContain("Sign in to import a pub list");
+    expect(api.json).not.toHaveBeenCalled();
+    expect(document.querySelector("textarea")).toBeNull();
+  });
+
+  it("offers no sign-in door before the live session answers", async () => {
+    await act(async () => root.render(<ImportSession phase="unresolved" onClose={() => {}} />));
+    expect(document.body.textContent).not.toContain("Sign in to import a pub list");
     expect(api.json).not.toHaveBeenCalled();
     expect(document.querySelector("textarea")).toBeNull();
   });

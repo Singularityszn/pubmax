@@ -4,7 +4,7 @@
 .pubImport textarea, .pubImport input, .pubImport select {
   box-sizing: border-box; width: 100%; min-height: 44px; padding: var(--space-3);
   border: 1px solid var(--hairline); border-radius: var(--radius-sm);
-  background: var(--panel); color: var(--ink); font: inherit; font-size: 16px;
+  background: var(--panel); color: var(--ink); font: inherit; font-size: var(--text-base);
 }
 .pubImport textarea { resize: vertical; }
 .pubImport p { line-height: 1.5; }
