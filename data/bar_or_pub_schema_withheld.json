@@ -1,0 +1,46 @@
+{
+  "reviewedAt": "2026-10-23",
+  "reason": "Withhold BarOrPub markup where a newer normalized OSM snapshot contradicts the stored venue identity and kind. This does not assert closure or transfer history to the replacement business.",
+  "provenanceLimit": "The cited normalized snapshots are bundled. Their corresponding raw October cache is unavailable.",
+  "venues": [
+    {
+      "venueId": "venue-liv-1xzq0ay",
+      "venueName": "McGreavy's",
+      "osmId": "way/1174024625",
+      "observedName": "Shium Cafe",
+      "observedKind": "cafe",
+      "observedAt": "2026-10-04T23:58:31.421Z",
+      "sourceFile": "data/osm/uk/uk_osm_venues_food.json",
+      "sourceSha256": "4a99ed729372aeb6c767e0961fe2822786ac4a4033df1a6e2fabc1b269df4618",
+      "sourceUrl": "https://www.openstreetmap.org/way/1174024625",
+      "observedAmenity": "cafe",
+      "observedTaxonomyKey": "cafe"
+    },
+    {
+      "venueId": "venue-we2z9j",
+      "venueName": "Betty",
+      "osmId": "node/249573138",
+      "observedName": "Lil' Nashville",
+      "observedKind": "restaurant",
+      "observedAt": "2026-10-04T23:58:31.421Z",
+      "sourceFile": "data/osm/uk/uk_osm_venues_drink.json",
+      "sourceSha256": "c7c28492a62eaa220cbf5e9f8b5d25e3f06d686a3930b8eafeb74c1387e9ef5f",
+      "sourceUrl": "https://www.openstreetmap.org/node/249573138",
+      "observedAmenity": "restaurant",
+      "observedTaxonomyKey": "restaurant_bar"
+    },
+    {
+      "venueId": "venue-o6ns02",
+      "venueName": "Friends Bar & Restaurant",
+      "osmId": "node/5812916583",
+      "observedName": "Cinco",
+      "observedKind": "cafe",
+      "observedAt": "2026-10-04T23:58:31.421Z",
+      "sourceFile": "data/osm/uk/uk_osm_venues_food.json",
+      "sourceSha256": "4a99ed729372aeb6c767e0961fe2822786ac4a4033df1a6e2fabc1b269df4618",
+      "sourceUrl": "https://www.openstreetmap.org/node/5812916583",
+      "observedAmenity": "cafe",
+      "observedTaxonomyKey": "cafe"
+    }
+  ]
+}

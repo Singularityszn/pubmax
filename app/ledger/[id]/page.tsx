@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import schemaWithheld from "@/data/bar_or_pub_schema_withheld.json";
 import Link from "next/link";
 import DataCreditsLink from "@/components/legal/DataCreditsLink";
 
@@ -94,6 +95,10 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 }
 
 const SITE_URL = "https://pubmaxxing.com";
+
+// Newer source records dispute these business identities. Keep their history,
+// but withhold the pub classification until the identity is reconciled.
+const SCHEMA_WITHHELD_IDS = new Set(schemaWithheld.venues.map((row) => row.venueId));
 
 // The region is the city the venue id names. A London id carries no city
 // prefix, so the region stays London. A national base id names no city, so
@@ -211,7 +216,9 @@ export default async function LedgerPage({ params }: PageProps) {
     curation.heritageNote ? curation.heritageNote : "",
   ];
   const listedPint = venueListedPint(venue);
-  const hasPubOrBarSchema = isPubVenueKind(venue.kind) || venue.kind === "bar";
+  const hasPubOrBarSchema =
+    (isPubVenueKind(venue.kind) || venue.kind === "bar") &&
+    !SCHEMA_WITHHELD_IDS.has(canonicalId);
 
   return (
     <main id="main" className="ledgerPage">

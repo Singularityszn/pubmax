@@ -44,6 +44,18 @@ describe("the canonical venue document's structured data", () => {
     expect(await ledgerSchema(id)).toEqual([]);
   });
 
+  it.each([
+    ["venue-liv-1xzq0ay", "McGreavy's"],
+    ["venue-we2z9j", "Betty"],
+    ["venue-o6ns02", "Friends Bar & Restaurant"],
+  ])("withholds disputed pub classification for %s without replacing its history", async (id, name) => {
+    const read = await lookupVenueDetail(id);
+    expect(read.status).toBe("found");
+    if (read.status !== "found") throw new Error(`Missing disputed venue: ${id}`);
+    expect(read.venue.name).toBe(name);
+    expect(await ledgerSchema(id)).toEqual([]);
+  });
+
   it("keeps BarOrPub for an explicitly classified bar", async () => {
     const read = await lookupVenueDetail("bar-american-bar-savoy");
     expect(read.status).toBe("found");
