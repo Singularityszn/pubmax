@@ -11,7 +11,7 @@ The live audit found identity errors in valid JSON-LD. Schema.org defines `sameA
 | The Grapes | `sameAs` includes a photographic print product page. | Only its single Wikipedia identity remains. The visible citation remains. |
 | Black Lion | `sameAs` equates the pub with the Kilburn and Hammersmith Wikipedia entries. | The ambiguous identity claim is omitted. Both visible citations remain available for reconciliation. |
 
-The historic filter accepts only Wikipedia/Wikidata source records on their corresponding article/entity hosts. It emits identity links only when one unique reference remains. Multiple references can be legitimate, but these records do not establish that they describe one entity. Omission is deliberate until reconciliation supplies that evidence.
+The historic filter accepts Wikipedia or Wikidata source records with an English Wikipedia article URL or a Wikidata entity URL. It emits identity links only when one unique reference remains. Multiple references can be legitimate, but these records do not establish that they describe one entity. Omission is deliberate until reconciliation supplies that evidence.
 
 The committed before JSON files contain the relevant identity excerpts. Full captured graphs remain in the local audit artifacts.
 
@@ -33,9 +33,9 @@ Schema.org's public validator reported zero errors and zero warnings for the pub
 
 ## Test dependency
 
-A post-build full-suite run exposed the existing hours-evaluation fixture issue. The focused reproduction returned 25 failures because recorded Places hours made nominally unknown fixtures known. [PR #2345](https://github.com/Singularityszn/pubmax/pull/2345) supplies the prepared fixture repair and shared evidence setup.
+A post-build full-suite run exposed the existing hours-evaluation fixture issue. The focused reproduction returned 25 failures because recorded Places hours made nominally unknown fixtures known. [PR #2345](https://github.com/Singularityszn/pubmax/pull/2345) supplied the fixture repair and shared evidence setup.
 
-This schema PR targets `codex/hours-eval-pr-1023`. Its diff contains the schema changes and this evidence. PR #2345 must merge first. The schema commit does not modify the hours fixtures or weaken their graders.
+This schema PR initially targeted `codex/hours-eval-pr-1023`. PR #2345 merged into `main`, which is now the schema PR's base. The schema diff preserves that dependency and does not modify the hours fixtures or weaken their graders.
 
 ## Validation and delivery
 
