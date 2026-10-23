@@ -2249,8 +2249,14 @@ function PlanComposerForm({
       setRouteSorted(true);
       setCultureOpener(cleanCultureOpener(body.cultureOpener));
       const grounded = isGroundedGeneratedRoute(body, suggested);
+      const generatedAnchor = generatedPlanAnchorFromResponse(body);
+      const anchorOnly = generatedAnchor?.outcome === "anchor-only";
       const reconciled = body.inferredContext
-        ? reconcileGeneratedNightContext(body.inferredContext as NightContext, submittedContext, suggested.length)
+        ? reconcileGeneratedNightContext(
+            body.inferredContext,
+            submittedContext,
+            anchorOnly ? normalizePlanStopCount(body.inferredContext.stopCount) : suggested.length,
+          )
         : null;
       if (reconciled) {
         setNightContext(reconciled);
@@ -2261,15 +2267,20 @@ function PlanComposerForm({
       setRouteStale(false);
       setGroundingProof(typeof body.groundingProof === "string" ? body.groundingProof : null);
       setCreateOperationKey(typeof body.operationKey === "string" ? body.operationKey : null);
-      setPlanAnchor(generatedPlanAnchorFromResponse(body));
+      setPlanAnchor(generatedAnchor);
       markPalRouteActivation();
       if (new URLSearchParams(window.location.search).get("from") === "onboarding") {
         recordPlanHighIntentAction();
       }
       trackEvent("plan_started");
       trackEvent("plan_generated", { stops: suggested.length, grounded });
-      setConciergeNote(`${planStopCountPhrase(suggested.length)} we can stand behind, shaped by the outing you set.`);
-      setRouteStatus("Route refreshed. Review the preview, then lock it in when it feels right.");
+      const generationStatus = anchorOnly
+        ? `We kept ${suggested[0]!.venueName}. We could not build the ${normalizePlanStopCount(reconciled?.stopCount)}-stop route you asked for. Change the details or add pubs.`
+        : "Route refreshed. Review the preview, then lock it in when it feels right.";
+      setConciergeNote(anchorOnly
+        ? generationStatus
+        : `${planStopCountPhrase(suggested.length)} we can stand behind, shaped by the outing you set.`);
+      setRouteStatus(generationStatus);
       setRouteRevealTick((tick) => tick + 1);
       setRouteDrawKey(suggested.map((stop) => stop.venueId).join(">"));
       if (body.inferredContext) {

@@ -522,6 +522,20 @@ describe("Wave 2.2 typed handoff and stale constraint retraction", () => {
     });
   });
 
+  it("retracts removed walking text while preserving recovered drink and food choices", () => {
+    const body = buildPlanGenerationIntakeBody(
+      answeredDraft(),
+      "Three pubs in Clapham with listed pint prices.",
+      { ...generatedContext, transportConstraints: ["walking"] },
+    );
+    expect(body.context).toMatchObject({
+      zeroProof: true,
+      atmosphere: ["quiet"],
+      foodNeeds: ["vegan"],
+      transportConstraints: [],
+    });
+  });
+
   it("threads an exact accepted Venue anchor through generation intake", () => {
     const anchor = {
       venueId: "venue-intent",
