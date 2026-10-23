@@ -69,7 +69,18 @@ test("a phone user checks a price, corrects an incomplete plan, and invites a gu
     if (await decline.isVisible()) await decline.click();
     await guest.locator("#join-name").fill("Flow guest");
     await guest.getByRole("button", { name: "I’m in", exact: true }).click();
-    for (const name of venueNames) await expect(guest.locator("main")).toContainText(name);
+    const route = guest.getByRole("region", { name: "The route", exact: true });
+    await expect(async () => {
+      const accountPrompt = guest.getByRole("dialog", { name: "Keep your nights", exact: true });
+      if (await accountPrompt.isVisible()) {
+        await accountPrompt.getByRole("button", { name: "Not now", exact: true }).click();
+      }
+      await route.scrollIntoViewIfNeeded();
+      for (const name of venueNames) await expect(route.getByText(name, { exact: true })).toBeVisible();
+      await route.getByRole("link", { name: "Open on the map", exact: true }).first().click({ trial: true, timeout: 1_000 });
+      await expect(guest.getByRole("dialog")).toHaveCount(0);
+    }).toPass({ timeout: 20_000 });
+    await expect(route).toBeInViewport();
     await expect(guest.getByRole("link", { name: "Join the crew to see the route" })).toHaveCount(0);
     await guest.screenshot({ path: testInfo.outputPath("guest-route-revealed.png") });
     expect(await guest.evaluate(() => document.documentElement.scrollWidth - innerWidth)).toBeLessThanOrEqual(1);

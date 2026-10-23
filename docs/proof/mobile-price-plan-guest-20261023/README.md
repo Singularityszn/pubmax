@@ -25,13 +25,15 @@ The host saved the plan and opened its invite in a fresh guest browser. The prev
 
 ## Changes and regression checks
 
-The composer now explains an incomplete route and keeps the requested stop count. Editing the description refreshes its transport requirements. Recovered drink, food and atmosphere choices remain intact.
+The composer now explains an incomplete route and keeps the requested stop count. Editing or clearing the description refreshes its transport requirements. Explicit transport overrides and recovered drink, food and atmosphere choices remain intact.
 
 The browser regression uses the real local API and an isolated production build. It starts at Clapham, checks a pub price and its source, reproduces the incomplete result, removes the walking requirement, saves three stops and joins through a fresh guest context. It also checks guest-page horizontal overflow.
 
 The browser test is `e2e/mobile-price-plan-guest.spec.ts`. The component and request-boundary tests failed before their respective fixes.
 
-The final production-build browser run passed in 5.4 seconds after the build. It used system Chrome because the pinned Playwright browser was absent. The test used a private local port and a separate Next.js output directory.
+The final production-build browser run passed in 7.6 seconds after the build. It used system Chrome because the pinned Playwright browser was absent. The test used a private local port and a separate Next.js output directory.
+
+The local guest can dismiss the optional account prompt with **Not now**. The test dismisses that prompt when present, scrolls to the route and checks that a pub link is usable. The screenshots below show the route after that check.
 
 | Incomplete result after the fix | Guest after joining the local plan |
 | --- | --- |
