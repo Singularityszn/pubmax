@@ -1,8 +1,9 @@
 # Design guidance and validator trial
 
 Recorded on 23 October 2026. The baseline is `b58546dfe18ce2834e576e8378bf99cb6c475e04`.
-This record covers documentation and skill changes. It does not claim a product
-redesign or a measured improvement in agent task completion.
+This record covers the initial documentation and skill trial.
+It excludes the later Discover touch-target repair and browser-test updates.
+It does not claim a product redesign or a measured improvement in agent task completion.
 
 ## Changes
 
@@ -14,7 +15,7 @@ adding permanent animations, or prohibiting the phone sheet height animation.
 
 The root DESIGN.md now describes the existing brick and dark semantic colours,
 neutral dark shadows, and neutral tab selection. Its `primary` colour names the
-existing coral value for external DESIGN.md consumers. Application CSS and
+existing coral value for external DESIGN.md consumers. Runtime token values and
 package dependencies do not change.
 
 Full verification found an unused `PublicEvidenceFile` type export in
