@@ -84,6 +84,10 @@ const RAW_DATASET_FILE = path.join(process.cwd(), "public", "data", "pint_prices
 const VENUE_ID_RE =
   /^(?:venue-(?:[a-z]{3}-)?[a-z0-9]{1,24}|(?:bar|food|restaurant)-[a-z0-9-]{1,100})$/;
 
+// Historical national links may resolve to curated venues. They are never
+// admitted as detail records unless their canonical target passes VENUE_ID_RE.
+const NATIONAL_VENUE_ALIAS_RE = /^venue-uk-[nwr]\d{1,20}$/;
+
 const cachedDetails = new Map<string, { venue: Venue; overlayVenueIds?: string[] }>();
 /** Successful manifests only — I/O failures stay unset so the next call can retry.
  * Schema-invalid manifests are cached as INVALID_MANIFEST (warn once). */
@@ -273,13 +277,16 @@ async function getFallbackIndex(): Promise<Map<string, Venue>> {
 }
 
 async function lookupVenueDetailBase(requestedId: string): Promise<VenueDetailLookupResult> {
-  if (!isVenueDetailId(requestedId) || isVerifiedClosedCuratedVenue(requestedId)) {
+  if (
+    (!isVenueDetailId(requestedId) && !NATIONAL_VENUE_ALIAS_RE.test(requestedId)) ||
+    isVerifiedClosedCuratedVenue(requestedId)
+  ) {
     return { status: "missing" };
   }
   const aliasResult = await lookupCanonicalVenueId(requestedId);
   if (aliasResult.status === "unavailable") return aliasResult;
   const id = aliasResult.venueId;
-  if (isVerifiedClosedCuratedVenue(id)) return { status: "missing" };
+  if (!isVenueDetailId(id) || isVerifiedClosedCuratedVenue(id)) return { status: "missing" };
   const cached = cachedDetails.get(id);
   if (cached) {
     try {

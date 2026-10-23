@@ -110,6 +110,16 @@ function ledgerAddressRegion(venueId: string): string | undefined {
   return "London";
 }
 
+// An area-only source is location evidence, not a street address.
+function ledgerStreetAddress(venue: Venue): string | undefined {
+  const address = venue.address?.trim();
+  if (!address) return undefined;
+  const areas = [venue.locality, venue.primaryBorough, ledgerAddressRegion(venue.id)];
+  return areas.some((area) => area?.trim().toLowerCase() === address.toLowerCase())
+    ? undefined
+    : address;
+}
+
 // Only pub and bar records receive BarOrPub structured data. An absent kind
 // retains the legacy pub interpretation. The schema includes the name,
 // coordinates, postal address, and canonical URL. No invented cuisine,
@@ -120,6 +130,7 @@ function ledgerAddressRegion(venueId: string): string | undefined {
 // AI/search engines see the listed-building status straight from the JSON-LD.
 function venueJsonLd(venue: Venue, listed: ListedBuilding | null) {
   const addressRegion = ledgerAddressRegion(venue.id);
+  const streetAddress = ledgerStreetAddress(venue);
   const hasGeo =
     typeof venue.latitude === "number" && typeof venue.longitude === "number";
   return {
@@ -142,7 +153,7 @@ function venueJsonLd(venue: Venue, listed: ListedBuilding | null) {
       ? {
           address: {
             "@type": "PostalAddress",
-            ...(venue.address ? { streetAddress: venue.address } : {}),
+            ...(streetAddress ? { streetAddress } : {}),
             ...(venue.locality || venue.primaryBorough
               ? { addressLocality: venueAreaLabel(venue) }
               : {}),
@@ -216,6 +227,7 @@ export default async function LedgerPage({ params }: PageProps) {
     curation.heritageNote ? curation.heritageNote : "",
   ];
   const listedPint = venueListedPint(venue);
+  const streetAddress = ledgerStreetAddress(venue);
   const hasPubOrBarSchema =
     (isPubVenueKind(venue.kind) || venue.kind === "bar") &&
     !SCHEMA_WITHHELD_IDS.has(canonicalId);
@@ -231,7 +243,7 @@ export default async function LedgerPage({ params }: PageProps) {
           <p className="ledgerEyebrow">The Ledger</p>
           <h1 className="ledgerTitle">{venue.name}</h1>
           <p className="ledgerAddress">
-            {venue.address ? `${venue.address} · ` : ""}
+            {streetAddress ? `${streetAddress} · ` : ""}
             {venueAreaLabel(venue)}
           </p>
 

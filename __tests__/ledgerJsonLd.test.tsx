@@ -56,6 +56,22 @@ describe("the canonical venue document's structured data", () => {
     expect(await ledgerSchema(id)).toEqual([]);
   });
 
+  it("uses the curated canonical schema for a historical national alias", async () => {
+    const canonical = await ledgerSchema("venue-sy8k64");
+    expect(canonical).toHaveLength(1);
+    expect(canonical[0]).toHaveProperty("url", "https://pubmaxxing.com/ledger/venue-sy8k64");
+    expect(await ledgerSchema("venue-uk-n269255191")).toEqual(canonical);
+    expect(await ledgerSchema("venue-uk-n999999999999999")).toEqual([]);
+  });
+
+  it("does not claim a known area as a street address", async () => {
+    const [schema] = await ledgerSchema("venue-mtvaah");
+    expect(schema).toMatchObject({ address: { addressLocality: "Southwark" } });
+    expect(schema?.address).not.toHaveProperty("streetAddress");
+    const html = renderToStaticMarkup(await LedgerPage({ params: Promise.resolve({ id: "venue-mtvaah" }) }));
+    expect(html).toContain('<p class="ledgerAddress">Southwark</p>');
+  });
+
   it("keeps BarOrPub for an explicitly classified bar", async () => {
     const read = await lookupVenueDetail("bar-american-bar-savoy");
     expect(read.status).toBe("found");

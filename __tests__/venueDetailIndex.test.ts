@@ -234,7 +234,7 @@ describe("venueDetailIndex", () => {
     expect(venue).toMatchObject({
       id: "venue-bat-1vw6eb2",
       name: "The Raven",
-      address: "6-7, queen street, bath, ba1 1he bath pie",
+      address: "6-7, Queen Street, Bath, BA1 1HE",
       hasStory: true,
       filterHints: {
         amenities: { food: true, beerGarden: true },
