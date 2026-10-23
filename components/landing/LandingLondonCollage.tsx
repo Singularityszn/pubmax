@@ -12,11 +12,12 @@
 import { lastOf } from "@/lib/tuple";
 import { useEffect, useRef, useState, type CSSProperties } from "react";
 
-import Kicker from "@/components/ui/kicker";
+import Link from "next/link";
 import { formatGbp } from "@/lib/formatGbp";
 import {
   LONDON_COLLAGE_CREDIT,
-  LONDON_COLLAGE_PHOTOS,
+  LONDON_JOURNAL_PHOTOS,
+  londonPhotoMapHref,
   LONDON_COLLAGE_WIDTHS,
   londonCollagePricedTileIds,
   londonCollageSrc,
@@ -31,7 +32,7 @@ const WIDEST = lastOf(LONDON_COLLAGE_WIDTHS);
 
 /** Phone strip tile width, tablet hero span, then the widest desktop span (2 of 5 columns). */
 const COLLAGE_SIZES =
-  "(max-width: 699px) min(72vw, 280px), (max-width: 959px) 100vw, min(40vw, 500px)";
+  "(max-width: 640px) min(72vw, 280px), (max-width: 1023px) 50vw, min(50vw, 600px)";
 
 /** Start fetching a little before the reader reaches the section. */
 const COLLAGE_ROOT_MARGIN = "200px 0px";
@@ -79,6 +80,8 @@ function CollageTile({
       data-collage-id={photo.id}
       style={{ "--collage-cell": photo.cell } as CSSProperties}
     >
+      <Link prefetch={false} href={londonPhotoMapHref(photo)} className="lpCollageTile__link"
+        aria-label={`See ${photo.caption} on the map`}>
       <figure className="lpCollageTile__figure">
         <div
           className="lpCollageTile__frame"
@@ -90,12 +93,13 @@ function CollageTile({
           <span className="lpCollageTile__place">{photo.caption}</span>
           {price ? (
             <span className="lpCollageTile__price">
-              Pints from <data value={price.cheapestPrice.toFixed(2)}>{formatGbp(price.cheapestPrice)}</data>{" "}
+              Listed pints from <data value={price.cheapestPrice.toFixed(2)}>{formatGbp(price.cheapestPrice)}</data>{" "}
               within half a mile
             </span>
           ) : null}
         </figcaption>
       </figure>
+      </Link>
     </li>
   );
 }
@@ -134,9 +138,8 @@ export default function LandingLondonCollage({
     <section className="lpCollage" aria-labelledby="lpCollageHeading" ref={sectionRef}>
       <div className="lpCollageInner">
         <header className="lpCollageHead">
-          <Kicker>London</Kicker>
           <h2 id="lpCollageHeading" className="lpCollageTitle">
-            Streets the map sits on.
+            Around London
           </h2>
         </header>
 
@@ -145,7 +148,7 @@ export default function LandingLondonCollage({
           aria-label="Founder photographs of London"
           tabIndex={0}
         >
-          {LONDON_COLLAGE_PHOTOS.map((photo) => (
+          {LONDON_JOURNAL_PHOTOS.map((photo) => (
             <CollageTile
               key={photo.id}
               photo={photo}

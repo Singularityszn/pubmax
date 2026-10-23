@@ -183,6 +183,18 @@ export const LONDON_COLLAGE_PHOTOS: readonly LondonCollagePhoto[] = [
 
 export const LONDON_COLLAGE_CREDIT = "Photos by the PUBMAXX founder";
 
+/** A short selection for the homepage. The full collection still serves place pages. */
+export const LONDON_JOURNAL_PHOTOS: readonly LondonCollagePhoto[] = [
+  "southwark-shard", "crown-tavern", "leadenhall-boxhall", "canary-wharf-night",
+].flatMap((id) => LONDON_COLLAGE_PHOTOS.filter((photo) => photo.id === id));
+
+export function londonPhotoMapHref(photo: LondonCollagePhoto): `/map?${string}` {
+  // Two London pubs share this name. This photograph shows the Clerkenwell pub.
+  return photo.id === "crown-tavern"
+    ? "/map?sel=venue-13sug69"
+    : `/map?q=${encodeURIComponent(photo.caption)}`;
+}
+
 export function londonCollageSrc(photo: LondonCollagePhoto, width: number, format: "avif" | "webp"): string {
   return `${PHOTO_DIR}/${photo.id}-${width}.${format}`;
 }

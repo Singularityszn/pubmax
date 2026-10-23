@@ -33,6 +33,7 @@ import LandingAnswerCards from "./LandingAnswerCards";
 import LandingFaq from "./LandingFaq";
 import LandingHero from "./LandingHero";
 import LandingLondonCollage from "./LandingLondonCollage";
+import LandingLondonFilm from "./LandingLondonFilm";
 import LandingSavings from "./LandingSavings";
 import "./landing.css";
 
@@ -174,6 +175,7 @@ export default function LandingPage({
         </div>
 
         <LandingFaq />
+        <LandingLondonFilm />
       </main>
 
       <footer className="lpFooter">
