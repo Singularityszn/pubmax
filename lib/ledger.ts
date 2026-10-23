@@ -2,6 +2,7 @@ import { buildVenueClaims, type ClaimDrop, type Provenance } from "@/lib/curatio
 import { displayHandle, handleOnly } from "@/lib/handleDisplay";
 import { normalizeHandle } from "@/lib/profiles";
 import type { PintTrustState } from "@/lib/pintTrust";
+import type { PintPriceSplit } from "@/lib/pintDropAgreement";
 
 import { formatGbp } from "@/lib/formatGbp";
 
@@ -34,7 +35,7 @@ export type LedgerPintPrice = {
   createdAt: string;
   handle: string;
   state: Exclude<PintTrustState, "none">;
-  splitLine: string | null;
+  split: PintPriceSplit | null;
 };
 
 export type LedgerEntry = {

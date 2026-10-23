@@ -330,6 +330,20 @@ describe("buildLogNearbyCandidates", () => {
 });
 
 describe("resolveLogNearbyOrigin", () => {
+  it("uses the latest picker fix instead of an older map fix for ordering and distance", () => {
+    const resolved = resolveLogNearbyOrigin({
+      pickerLocation: { lat: 51.55, lng: -0.1 },
+      userLocation: { lat: 51.5, lng: -0.1 },
+      mapCenter: [-0.2, 51.4],
+    });
+    expect(resolved).toEqual({ origin: { lat: 51.55, lng: -0.1 }, source: "user" });
+    const candidates = buildLogNearbyCandidates([
+      { id: "older", name: "Older fix pub", latitude: 51.5, longitude: -0.1 },
+      { id: "latest", name: "Latest fix pub", latitude: 51.55, longitude: -0.1 },
+    ], undefined, resolved?.origin, LOG_NEARBY_MAX_KM);
+    expect(candidates.map(({ id }) => id)).toEqual(["latest"]);
+    expect(candidates[0]?.distanceKm).toBe(0);
+  });
   it("falls back to the map centre when the reader gave no location", () => {
     expect(
       resolveLogNearbyOrigin({ userLocation: null, mapCenter: [-0.143, 51.539] }),

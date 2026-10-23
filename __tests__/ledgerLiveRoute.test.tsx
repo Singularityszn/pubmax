@@ -150,7 +150,7 @@ describe("GET /api/ledger/[id]", () => {
   it("withholds a single figure when current reports disagree", async () => {
     addPintDrop(drop("split-a", "alice", { drink: "Lager", priceGbp: 4.5, createdAt: "2026-10-22T19:00:00Z" }));
     addPintDrop(drop("split-b", "bert", { drink: "Lager", priceGbp: 4.7, createdAt: "2026-10-22T20:00:00Z" }));
-    expect((await readLog()).pintPrice).toMatchObject({ state: "disputed", priceGbp: null, splitLine: "Two drinkers, two prices: £4.50 and £4.70" });
+    expect((await readLog()).pintPrice).toMatchObject({ state: "disputed", priceGbp: null, split: { prices: [4.5, 4.7], reporters: 2 } });
   });
 
   it("puts public drops in the logbook and the story, and legacy drops only at the Family Table", async () => {

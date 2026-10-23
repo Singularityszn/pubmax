@@ -876,9 +876,12 @@ function beerMeasureDrop(
     return "half-measure-not-a-pint";
   }
   const lineStart = text.lastIndexOf("\n", at - 1) + 1;
-  const nextLine = text.indexOf("\n", at);
-  const itemLine = text.slice(lineStart, nextLine < 0 ? text.length : nextLine);
-  if (/(?:\b[12]\s*\/\s*3\b|[⅓⅔])/.test(itemLine)) {
+  const previousPrices = [...text.slice(lineStart, at).matchAll(PRICE_PATTERN)];
+  const ownBefore = previousPrices.length > 0
+    ? before.replace(/^\s*\(?\s*(?:[12]\s*\/\s*3\b|[⅓⅔])\s*\)?\s*/, "")
+    : before;
+  if (/(?:\b[12]\s*\/\s*3\b|[⅓⅔])/.test(ownBefore)
+    || /^\s*\(?\s*(?:[12]\s*\/\s*3\b|[⅓⅔])/.test(after.split("\n", 1)[0] ?? "")) {
     return "fractional-measure-not-a-pint";
   }
   return isBottledMeasure(before) || inBottledSection(text, at) ? "bottled-measure-not-a-pint" : null;
