@@ -23,9 +23,11 @@ certification.
   pageviews so staff traffic cannot contaminate product funnels.
 - Revoking consent removes the local pseudonymous identifier and stops future
   collection.
-- Vercel Web Analytics and Speed Insights use `beforeSend` to cancel
-  pre-consent pageviews and vitals respectively. Neither is a second
-  custom-event rail.
+- In production builds with `VERCEL=1`, Web Analytics and Speed Insights load
+  and mount only after explicit analytics consent. Withdrawal unmounts both components.
+  Their `beforeSend` callbacks still check consent for every pageview or vital.
+  Neither sends custom product events. Implementation checks live in
+  `__tests__/vercelAnalyticsMount.test.tsx` and `e2e/vercel-consent-loading.spec.ts`.
 - PostHog capture targets the EU endpoint and enables pseudonymous
   person/device profiles. Product events remain registry-known; explicit
   pageviews carry a coarse templated path plus standard browser and device
