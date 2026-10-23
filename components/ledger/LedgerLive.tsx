@@ -13,6 +13,8 @@ import { formatGbp } from "@/lib/formatGbp";
 import { formatLedgerDate, type LedgerPintPrice } from "@/lib/ledger";
 import { displayHandle } from "@/lib/handleDisplay";
 import { PINT_TRUST_LINE } from "@/lib/pintTrust";
+import { pintPriceSplitLine } from "@/lib/pintDropAgreement";
+import { venuePriceLane, venuePriceLaneIsDrinkerLog, venuePriceLaneObservedGbp } from "@/lib/venuePriceLane";
 import { ANON_HANDLE_LABEL } from "@/lib/pintDropShared";
 import type { VenueListedPint } from "@/lib/venueListedPint";
 import ShareWithFamilyButton from "@/components/ledger/ShareWithFamilyButton";
@@ -145,18 +147,27 @@ export function LedgerPriceRecord({ venueId, listedPint }: {
 }) {
   const { state, reload } = useLedgerLive();
   const publicPint = state.status === "ready" ? state.log.pintPrice : null;
-  const reportLeads = publicPint && (
-    !listedPint || publicPint.state === "confirmed" || publicPint.state === "corroborated"
+  const reportPrice = publicPint?.priceGbp != null
+    ? { priceGbp: publicPint.priceGbp, observedAt: publicPint.createdAt }
+    : null;
+  const priceLane = venuePriceLane(
+    { cheapestPrice: listedPint?.priceGbp ?? null },
+    publicPint?.state === "confirmed" || publicPint?.state === "corroborated" ? publicPint.priceGbp : null,
+    null,
+    {},
+    publicPint?.state === "logged-once" ? reportPrice : null,
+    publicPint?.state === "aged-out" ? reportPrice : null,
+    publicPint?.split ? { split: publicPint.split, observedAt: publicPint.createdAt } : null,
   );
-  const reported = reportLeads ? publicPint : null;
-  const currentPriceGbp = reported ? reported.priceGbp : listedPint?.priceGbp;
+  const reported = priceLane && venuePriceLaneIsDrinkerLog(priceLane) ? publicPint : null;
+  const currentPriceGbp = priceLane ? venuePriceLaneObservedGbp(priceLane) : undefined;
 
   return (
     <section className="ledgerSection" aria-labelledby="ledgerPriceHeading">
       <h2 className="ledgerSectionTitle" id="ledgerPriceHeading">Price record</h2>
       {reported ? (
         <>
-          {reported.splitLine ? <p>{reported.splitLine}</p> : reported.priceGbp !== null ? (
+          {reported.split ? <p>{pintPriceSplitLine(reported.split)}</p> : reported.priceGbp !== null ? (
             <p>
               <PriceBadge>{formatGbp(reported.priceGbp)}</PriceBadge>{" "}
               {displayDrinkName(reported.drink) || "Beer"} · Pint

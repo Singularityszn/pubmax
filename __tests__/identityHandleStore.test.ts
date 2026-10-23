@@ -6,6 +6,9 @@ const rows = vi.hoisted(() => ({
 }));
 
 vi.mock("@/lib/supabase", () => ({
+  getSupabaseAdmin: () => ({
+    rpc: () => ({ order: () => ({ order: () => ({ range: async () => ({ data: [], error: null }) }) }) }),
+  }),
   requireSupabaseAdmin: () => ({
     from: (table: keyof typeof rows) => ({
       select: () => ({
@@ -44,6 +47,31 @@ describe("Supabase handle availability", () => {
     ).resolves.toEqual({
       handle: "brand_new_night",
       available: true,
+    });
+  });
+});
+
+describe("Supabase public handle resolution", () => {
+  it.each([false, true])("withholds the smoke account with alias: %s", async (alias) => {
+    rows.profiles = [{ id: "smoke-id", handle: "pubmaxx_smoke", user_id: "smoke-owner", tombstoned_at: null }];
+    if (alias) rows.profile_handle_aliases = [{ profile_id: "smoke-id", is_current: false }];
+    await expect(supabaseIdentityHandleStore.resolve(alias ? "old-smoke" : "pubmaxx_smoke")).resolves.toBeNull();
+  });
+
+  it.each([false, true])("keeps ordinary live profiles visible with alias: %s", async (alias) => {
+    rows.profiles = [{ id: "real-id", handle: "smokey", user_id: null, tombstoned_at: null }];
+    if (alias) rows.profile_handle_aliases = [{ profile_id: "real-id", is_current: false }];
+    await expect(supabaseIdentityHandleStore.resolve(alias ? "old-name" : "smokey")).resolves.toEqual({
+      profileId: "real-id", requestedHandle: alias ? "old-name" : "smokey", currentHandle: "smokey",
+      redirect: alias, status: "live",
+    });
+  });
+
+  it.each([false, true])("preserves deleted profile tombstones with alias: %s", async (alias) => {
+    rows.profiles = [{ id: "gone-id", handle: "departed", user_id: null, tombstoned_at: "2026-10-23T16:00:00Z" }];
+    if (alias) rows.profile_handle_aliases = [{ profile_id: "gone-id", is_current: false }];
+    await expect(supabaseIdentityHandleStore.resolve(alias ? "old-name" : "departed")).resolves.toMatchObject({
+      profileId: "gone-id", currentHandle: "departed", redirect: false, status: "gone",
     });
   });
 });

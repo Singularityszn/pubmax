@@ -280,8 +280,7 @@ export function isKnownTestHandle(handle: string | undefined): boolean {
   return normalizeHandle(handle ?? "") === "pubmaxx_smoke";
 }
 
-type PublicPresenceProfile = Pick<ProfileRecord, "id" | "tombstonedAt"> &
-  Partial<Pick<ProfileRecord, "handle">>;
+type PublicPresenceProfile = Pick<ProfileRecord, "id" | "tombstonedAt" | "handle">;
 
 export type ProfilePublicPresence = "visible" | "gone" | "withdrawn";
 

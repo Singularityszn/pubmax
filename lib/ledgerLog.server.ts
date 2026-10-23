@@ -19,7 +19,6 @@ import {
   supabasePintDropStore,
   type PintDropDTO,
 } from "@/lib/pintDropsStore";
-import { pintPriceSplitLine } from "@/lib/pintDropAgreement";
 import { pintTrustFor } from "@/lib/pintTrust";
 import { isSupabaseConfigured } from "@/lib/supabase";
 
@@ -83,7 +82,7 @@ export async function readLedgerLog(
     createdAt: trust.drop.createdAt,
     handle: trust.drop.handle,
     state: trust.state,
-    splitLine: trust.split ? pintPriceSplitLine(trust.split) : null,
+    split: trust.split,
   } : null;
   // The Family Table (issue #27): LEGACY drops, read via the ledger-only
   // listLegacyForVenue capability (issue #29), deliberately a SEPARATE store

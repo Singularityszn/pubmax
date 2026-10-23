@@ -1860,6 +1860,7 @@ export default function PubMap({
   const [nearbyLoading, setNearbyLoading] = useState(false);
   const [nearbyError, setNearbyError] = useState<string | null>(null);
   const [userLocation, setUserLocation] = useState<UserLocation | null>(null);
+  const [logPickerLocation, setLogPickerLocation] = useState<UserLocation | null>(null);
   const readerPosition = useMapReaderPosition();
   // Purpose-limited copy used only after the viewer explicitly asks for travel
   // times. A location granted for "Pubs near me" must not silently become a
@@ -3813,8 +3814,8 @@ export default function PubMap({
   // D1 — the picker is grounded in a real origin: the reader's fix, else the
   // centre of the map they are looking at. It never offers a city-wide five.
   const logNearbyOrigin = useMemo(
-    () => resolveLogNearbyOrigin({ userLocation: userLocation ?? venueJourneyLocation, mapCenter: mapViewport.center }),
-    [mapViewport.center, userLocation, venueJourneyLocation],
+    () => resolveLogNearbyOrigin({ pickerLocation: logPickerLocation, userLocation, mapCenter: mapViewport.center }),
+    [mapViewport.center, userLocation, logPickerLocation],
   );
   const logNearbyCandidates = useMemo(
     () =>
@@ -3843,7 +3844,7 @@ export default function PubMap({
 
   useEffect(() => {
     const request = pendingNearMeRequest;
-    const location = request?.location ?? userLocation ?? venueJourneyLocation;
+    const location = request?.location ?? logPickerLocation ?? userLocation ?? venueJourneyLocation;
     if (!location) return;
     const loader = slimLoaderRef.current;
     const finish = () => {
@@ -3938,6 +3939,7 @@ export default function PubMap({
     setMode,
     setRouteMapped,
     showLoadedRoute,
+    logPickerLocation,
     userLocation,
     venueJourneyLocation,
     venueIndexAttempt,
@@ -6558,9 +6560,7 @@ export default function PubMap({
               requestAnimationFrame(focusMapSearch);
             }}
             onResetFilters={resetLogIntentFilters}
-            onUseMyLocation={requestVenueLocation}
-            locationBusy={locationRequestStatus === "requesting"}
-            locationUnavailable={locationRequestStatus === "unavailable"}
+            onLocation={setLogPickerLocation}
           />
         }
         nearMeContent={
@@ -7051,9 +7051,7 @@ export default function PubMap({
             focusMapSearch();
           }}
           onResetFilters={resetLogIntentFilters}
-          onUseMyLocation={requestVenueLocation}
-          locationBusy={locationRequestStatus === "requesting"}
-          locationUnavailable={locationRequestStatus === "unavailable"}
+          onLocation={setLogPickerLocation}
           onDismiss={clearLogIntent}
         />
       ) : null}

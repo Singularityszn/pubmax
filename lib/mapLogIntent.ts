@@ -80,10 +80,11 @@ export type LogNearbyOriginResolution = {
  * rather than the same five pubs to every visitor.
  */
 export function resolveLogNearbyOrigin(input: {
+  pickerLocation?: LogNearbyOrigin | null;
   userLocation?: { lat: number; lng: number } | null;
   mapCenter?: [number, number] | null;
 }): LogNearbyOriginResolution {
-  const user = input.userLocation;
+  const user = input.pickerLocation ?? input.userLocation;
   if (user && Number.isFinite(user.lat) && Number.isFinite(user.lng)) {
     return { origin: { lat: user.lat, lng: user.lng }, source: "user" };
   }

@@ -40,6 +40,31 @@ const drinksList = `
 </body></html>`;
 
 describe("what a page states", () => {
+  it.each([
+    "Guinness pint £6.20 Kernel stout £6.00 (2/3)",
+    "Guinness pint £6.20 Kernel stout (2/3) £6.00",
+    "Kernel stout £6.00 (2/3) Guinness pint £6.20",
+    "Kernel stout (2/3) £6.00 Guinness pint £6.20",
+    "Guinness pint £6.20 Kernel stout £6.00 ⅔",
+    "Kernel stout £6.00 ⅔ Guinness pint £6.20",
+    "Guinness pint £6.20 Kernel stout £6.00 (1/3)",
+    "Kernel stout £6.00 (⅓) Guinness pint £6.20",
+    "Guinness pint £6.20\n2/3 Kernel stout £6.00",
+  ])("keeps a pint beside a fractional pour: %s", (row) => {
+    for (const format of ["html", "text"] as const) {
+      const reading = readVenueDrinkPrices(format === "html" ? `<p>${row.replace(/\n/g, "</p><p>")}</p>` : row, format);
+      expect(reading.kept.map(({ priceGbp }) => priceGbp)).toEqual([6.2]);
+      expect(reading.drops).toEqual(["fractional-measure-not-a-pint"]);
+    }
+  });
+
+  it("keeps a useful drinks list when a neighbouring pour is fractional", () => {
+    const reading = readVenueDrinkPrices(`<p>Guinness pint £6.20 Kernel stout £6.00 (2/3)</p>
+      <p>Madri pint £6.40</p><p>Neck Oil pint £6.80</p><p>House red wine 175ml £7.50</p>`, "html");
+    expect(reading.kept.map(({ priceGbp }) => priceGbp)).toEqual([6.2, 6.4, 6.8, 7.5]);
+    expect(pageStatesADrinksList(reading)).toBe(true);
+  });
+
   it("does not publish Small Beer fractional pours as pints or borrow their measure", () => {
     // Small Beer drinks page, read 23 October 2026. Each paragraph is one item.
     const menu = `<p>Never Come Back, Hazy IPA, 6.5%, Two Flints (Windsor) £8.60(2/3)</p>

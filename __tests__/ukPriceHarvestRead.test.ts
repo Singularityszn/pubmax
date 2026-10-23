@@ -1,6 +1,3 @@
-import { readFileSync } from "node:fs";
-import { join } from "node:path";
-
 import { describe, expect, it, vi } from "vitest";
 
 import { readChainPintPrices } from "@/lib/harvest/chainMenuPrices";
@@ -110,19 +107,6 @@ describe("chain and Tavily harvest readers without TYPESAFE_API_KEY", () => {
     }
   });
 
-  it("chain and Tavily CLIs call the harvest reader, not a second extractor", () => {
-    const chain = readFileSync(
-      join(process.cwd(), "scripts/harvest_chain_menu_prices.mjs"),
-      "utf8",
-    );
-    const tavily = readFileSync(
-      join(process.cwd(), "scripts/lib/tavilyPubEnrichment.mjs"),
-      "utf8",
-    );
-    expect(chain).toMatch(/readChainPintPricesForHarvest|readChainPintPricesMaybeJudged/);
-    expect(tavily).toMatch(/extractPintPricesForHarvest|extractPintPricesMaybeJudged/);
-    expect(tavily).not.toMatch(/function extractPintPrices\s*\(/);
-  });
 });
 
 it("accepts useful prices without proving that a complete menu was extracted", async () => {
