@@ -79,6 +79,14 @@ The receipt photo is a valid test fixture, not a real purchase receipt.
 7. The refreshed API and sheet show the new confirmation date and £4.70.
 
 [Sanitised write and persistence receipt](local-confirm.json).
+This receipt and screenshot replace the initial local proof with the repeated loopback-only run.
+The first Colima configuration forwarded Supabase on all host interfaces.
+The operator stopped that VM, disabled automatic port forwarding, and restarted it with explicit `127.0.0.1` SSH forwards.
+The repeated flow returned signed-out HTTP 403, duplicate HTTP 409, and a successful UI confirmation.
+The saved receipt and screenshot show persisted confirmation and the updated sheet.
+The repeated run recorded zero nonlocal writes.
+The saved listener records show the [app](listener-3220.txt), [Supabase API](listener-54321.txt), and [database](listener-54322.txt) bound to loopback.
+The sanitised refreshed-API field contains no values, so that field alone cannot prove the refreshed API result.
 The local stack omitted Realtime. Its broadcast failure did not prevent persistence or confirmation.
 No hosted write proof is claimed because hosted database isolation is not established.
 

@@ -129,10 +129,19 @@ describe("/tonight pub surface", () => {
     const outEvents = [unmatchedTheatre, matchedOut];
     const merged = mergeTonightListingRows([], outEvents, NOW, "error", SELECTABLE);
     const credits = tonightProvenanceCredits({
+      whatsOnRows: [],
       renderedGroups: groupTonightListings(merged, null),
-      outEvents: filterTonightPubSurfaceRows(outEvents, NOW, SELECTABLE),
+      out: {
+        body: {
+          status: "degraded",
+          venueMatch: "ready",
+          events: filterTonightPubSurfaceRows(outEvents, NOW, SELECTABLE),
+          observedAt: {},
+        },
+        failed: false,
+        pending: false,
+      },
       whatsOnChecked: null,
-      outObservedAt: {},
     });
     expect(merged).toHaveLength(1);
     expect(credits.out).toBe(`1 listing via Ticketmaster · ${checkedLabel(NOW_ISO)}`);
@@ -143,10 +152,19 @@ describe("/tonight pub surface", () => {
     const outEvents = [matchedOut, secondVenue];
     const merged = mergeTonightListingRows([], outEvents, NOW, "error", SELECTABLE);
     const credits = tonightProvenanceCredits({
+      whatsOnRows: [],
       renderedGroups: groupTonightListings(merged, null),
-      outEvents,
+      out: {
+        body: {
+          status: "degraded",
+          venueMatch: "ready",
+          events: outEvents,
+          observedAt: {},
+        },
+        failed: false,
+        pending: false,
+      },
       whatsOnChecked: null,
-      outObservedAt: {},
     });
 
     expect(groupTonightListings(merged, null)).toHaveLength(1);

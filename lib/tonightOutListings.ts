@@ -658,31 +658,36 @@ export type TonightProvenanceCredits = {
 export function tonightProvenanceCredits(input: {
   /** The grouped cards on screen, in render order. */
   renderedGroups: TonightGroupedRow[];
-  /** Everything the Out read returned, merged or not. */
-  outEvents: WhatsOnRow[];
+  out: TonightOutAnswer;
+  whatsOnRows: readonly WhatsOnRow[];
   whatsOnChecked: string | null;
-  outObservedAt?: Record<string, string> | undefined;
-  /** Only a successful listings read can support a checked empty result. */
-  outReadReady?: boolean;
   pubSuggestionCount?: number;
 }): TonightProvenanceCredits {
   const lanes = tonightListingLanes(
     input.renderedGroups.map((group) => group.row),
-    input.outEvents,
+    input.out.body?.events ?? [],
   );
   // With nothing from Out, the coverage count is What's-On's claim, empty night
   // included: the quiet answer came from that read and is credited to it.
   const creditsWhatsOn = lanes.whatsOnCount > 0 || lanes.outRows.length === 0;
-  const whatsOnLabel = lanes.whatsOnCount === 0 && (input.pubSuggestionCount ?? 0) > 0
-    ? "No pub-matched events"
-    : whatsOnLaneLabel(lanes.whatsOnCount);
+  const whatsOnHasMatches = input.whatsOnRows.some((row) => tonightRowHasListedPub(row));
+  const whatsOnLabel = lanes.whatsOnCount > 0
+    ? whatsOnLaneLabel(lanes.whatsOnCount)
+    : whatsOnHasMatches
+      ? "Pub-matched listings"
+      : (input.pubSuggestionCount ?? 0) > 0
+        ? "No pub-matched events"
+        : whatsOnLaneLabel(0);
   const whatsOn = creditsWhatsOn
     ? `${whatsOnLabel}${input.whatsOnChecked ? ` · ${input.whatsOnChecked}` : ""} · ${TONIGHT_WHATS_ON_CREDIT}`
     : null;
-  const emptyOutRead = input.renderedGroups.length === 0 && input.outReadReady === true;
+  const outEvents = input.out.body?.events ?? [];
+  const emptyOutRead = lanes.outRows.length === 0 && !input.out.failed && !input.out.pending &&
+    outListingsStatus(input.out).status === "ready" && input.out.body?.venueMatch === "ready" &&
+    !outEvents.some((row) => tonightRowHasListedPub(row));
   const out = outLaneCredit(
-    emptyOutRead ? input.outEvents : lanes.outRows,
-    input.outObservedAt ?? {},
+    emptyOutRead ? outEvents : lanes.outRows,
+    input.out.body?.observedAt ?? {},
     emptyOutRead,
   );
   const whatsOnDated = creditsWhatsOn ? input.whatsOnChecked !== null : true;

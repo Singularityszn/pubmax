@@ -1,0 +1,2 @@
+COMMAND   PID           USER   FD   TYPE            DEVICE SIZE/OFF NODE NAME
+ssh     62607 karanmanoharan    8u  IPv4 0x6fd03318a1b946e      0t0  TCP 127.0.0.1:54321 (LISTEN)

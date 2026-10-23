@@ -477,9 +477,18 @@ describe("tonight provenance credits", () => {
 
   it("dates an empty pub result from Out's own read without counting unmatched events", () => {
     const credits = tonightProvenanceCredits({
-      renderedGroups: [], outEvents: [{ ...outRow, venueId: undefined }],
-      whatsOnChecked: null, outReadReady: true, pubSuggestionCount: 3,
-      outObservedAt: { ticketmaster: "2026-08-31T09:00:00.000Z" },
+      whatsOnRows: [],
+      renderedGroups: [], out: {
+        body: {
+          status: "ready",
+          venueMatch: "ready",
+          events: [{ ...outRow, venueId: undefined }],
+          observedAt: { ticketmaster: "2026-08-31T09:00:00.000Z" },
+        },
+        failed: false,
+        pending: false,
+      },
+      whatsOnChecked: null, pubSuggestionCount: 3,
     });
     expect(credits.out).toBe("No pub-matched events via Ticketmaster · Checked 31 Aug");
     expect(credits.outDated).toBe(true);
@@ -489,9 +498,18 @@ describe("tonight provenance credits", () => {
 
   it("never uses an event start as the missing source check date", () => {
     const credits = tonightProvenanceCredits({
-      renderedGroups: [], outEvents: [{ ...outRow, venueId: undefined, observedAt: "not-a-date" }],
-      whatsOnChecked: null, outReadReady: true,
-      outObservedAt: { ticketmaster: "not-a-date" },
+      whatsOnRows: [],
+      renderedGroups: [], out: {
+        body: {
+          status: "ready",
+          venueMatch: "ready",
+          events: [{ ...outRow, venueId: undefined, observedAt: "not-a-date" }],
+          observedAt: { ticketmaster: "not-a-date" },
+        },
+        failed: false,
+        pending: false,
+      },
+      whatsOnChecked: null,
     });
     expect(credits.out).toBe("No pub-matched events via Ticketmaster");
     expect(credits.outDated).toBe(false);
@@ -499,16 +517,34 @@ describe("tonight provenance credits", () => {
 
   it("does not credit a failed read as an empty checked result", () => {
     const credits = tonightProvenanceCredits({
-      renderedGroups: [], outEvents: [outRow], whatsOnChecked: null,
-      outReadReady: false, outObservedAt: { ticketmaster: "2026-08-31T09:00:00.000Z" },
+      whatsOnRows: [],
+      renderedGroups: [], out: {
+        body: {
+          status: "degraded",
+          venueMatch: "ready",
+          events: [outRow],
+          observedAt: { ticketmaster: "2026-08-31T09:00:00.000Z" },
+        },
+        failed: false,
+        pending: false,
+      }, whatsOnChecked: null,
     });
     expect(credits.out).toBeNull();
   });
 
   it("dates a genuinely empty ready Out read from its provider checks", () => {
     const credits = tonightProvenanceCredits({
-      renderedGroups: [], outEvents: [], whatsOnChecked: null, outReadReady: true,
-      outObservedAt: { ticketmaster: "2026-08-31T09:00:00.000Z" },
+      whatsOnRows: [],
+      renderedGroups: [], out: {
+        body: {
+          status: "ready",
+          venueMatch: "ready",
+          events: [],
+          observedAt: { ticketmaster: "2026-08-31T09:00:00.000Z" },
+        },
+        failed: false,
+        pending: false,
+      }, whatsOnChecked: null,
     });
     expect(credits.out).toBe("No pub-matched events via Ticketmaster · Checked 31 Aug");
   });
@@ -535,10 +571,19 @@ describe("tonight provenance credits", () => {
       (row) => row.id === outRow.id,
     );
     const credits = tonightProvenanceCredits({
+      whatsOnRows: [quiz, sport],
       renderedGroups: groupTonightListings(merged, null),
-      outEvents: filteredOut.length > 0 ? [outRow] : [],
+      out: {
+        body: {
+          status: "degraded",
+          venueMatch: "ready",
+          events: filteredOut.length > 0 ? [outRow] : [],
+          observedAt: { ticketmaster: "2026-08-31T09:00:00.000Z" },
+        },
+        failed: false,
+        pending: false,
+      },
       whatsOnChecked: "Checked 15 Aug",
-      outObservedAt: { ticketmaster: "2026-08-31T09:00:00.000Z" },
     });
     expect(credits.whatsOn).toBe("2 listings · Checked 15 Aug · via what’s-on");
     expect(credits.out).toBe("1 listing via Ticketmaster · Checked 31 Aug");
@@ -547,10 +592,19 @@ describe("tonight provenance credits", () => {
 
   it("never dates an Out row to the What's-On stamp", () => {
     const credits = tonightProvenanceCredits({
+      whatsOnRows: [],
       renderedGroups: groupTonightListings([outRow], null),
-      outEvents: [outRow],
+      out: {
+        body: {
+          status: "degraded",
+          venueMatch: "ready",
+          events: [outRow],
+          observedAt: {},
+        },
+        failed: false,
+        pending: false,
+      },
       whatsOnChecked: "Checked 15 Aug",
-      outObservedAt: {},
     });
     // Nothing came from What's-On, so that lane claims nothing at all, and the
     // Out line carries the row's OWN stated observation.
@@ -569,10 +623,19 @@ describe("tonight provenance credits", () => {
     });
     const outEvents = [outRow, skiddle];
     const credits = tonightProvenanceCredits({
+      whatsOnRows: [],
       renderedGroups: groupTonightListings(outEvents, null),
-      outEvents,
+      out: {
+        body: {
+          status: "degraded",
+          venueMatch: "ready",
+          events: outEvents,
+          observedAt: {},
+        },
+        failed: false,
+        pending: false,
+      },
       whatsOnChecked: null,
-      outObservedAt: {},
     });
     expect(credits.out).toBe("2 listings via Ticketmaster and Skiddle · Checked 14 Aug");
     expect(credits.whatsOnDated && credits.outDated).toBe(true);
@@ -587,10 +650,19 @@ describe("tonight provenance credits", () => {
       source: { label: "common", url: "https://www.common-social.com/e/1" },
     });
     const credits = tonightProvenanceCredits({
+      whatsOnRows: [],
       renderedGroups: groupTonightListings([common], null),
-      outEvents: [common],
+      out: {
+        body: {
+          status: "degraded",
+          venueMatch: "ready",
+          events: [common],
+          observedAt: {},
+        },
+        failed: false,
+        pending: false,
+      },
       whatsOnChecked: null,
-      outObservedAt: {},
     });
     expect(credits.out).toBe(`1 listing via Common · ${checkedLabel(NOW_ISO)}`);
   });
@@ -606,10 +678,19 @@ describe("tonight provenance credits", () => {
     });
     const outEvents = [outRow, skiddle];
     const credits = tonightProvenanceCredits({
+      whatsOnRows: [],
       renderedGroups: groupTonightListings(outEvents, null),
-      outEvents,
+      out: {
+        body: {
+          status: "degraded",
+          venueMatch: "ready",
+          events: outEvents,
+          observedAt: {},
+        },
+        failed: false,
+        pending: false,
+      },
       whatsOnChecked: null,
-      outObservedAt: {},
     });
     expect(credits.out).toBe("2 listings via Ticketmaster and Skiddle");
     expect(credits.whatsOnDated && credits.outDated).toBe(false);
@@ -617,8 +698,17 @@ describe("tonight provenance credits", () => {
 
   it("keeps the quiet night credited to What's-On when Out brought nothing", () => {
     const credits = tonightProvenanceCredits({
+      whatsOnRows: [],
       renderedGroups: groupTonightListings([], null),
-      outEvents: [],
+      out: {
+        body: {
+          status: "degraded",
+          venueMatch: "ready",
+          events: [],
+        },
+        failed: false,
+        pending: false,
+      },
       whatsOnChecked: null,
     });
     // The chain carries no "undated" segment: the line under it says so in a
@@ -630,8 +720,17 @@ describe("tonight provenance credits", () => {
 
   it("says a dated quiet night in words rather than as a bare zero", () => {
     const credits = tonightProvenanceCredits({
+      whatsOnRows: [],
       renderedGroups: [],
-      outEvents: [],
+      out: {
+        body: {
+          status: "degraded",
+          venueMatch: "ready",
+          events: [],
+        },
+        failed: false,
+        pending: false,
+      },
       whatsOnChecked: "Checked 15 Aug",
     });
     expect(credits.whatsOn).toBe("Quiet night · Checked 15 Aug · via what’s-on");

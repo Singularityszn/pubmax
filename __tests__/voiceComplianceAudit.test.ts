@@ -1,5 +1,7 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
+import { createElement } from "react";
+import { renderToStaticMarkup } from "react-dom/server";
 
 import { describe, expect, it } from "vitest";
 
@@ -8,6 +10,9 @@ import {
   nightAreaSelectorGroups,
 } from "@/components/plan/PlanComposer";
 import { defined } from "@/__tests__/helpers/defined";
+import TonightProvenanceLines from "@/app/tonight/TonightProvenanceLines";
+import { provenanceLabel } from "@/lib/tonight";
+import { checkedLabel } from "@/lib/whatsOnBadges";
 
 function read(path: string): string {
   return readFileSync(join(process.cwd(), path), "utf8");
@@ -446,23 +451,18 @@ describe("VOICE.md rule 2 — plumbing words stay off reader surfaces", () => {
     expect(chipsCss).not.toContain(".tonightArcLabel");
   });
 
-  it("never prints the freshness spine's enum", () => {
-    for (const path of [
-      "lib/tonight.ts",
-      "lib/whatsOnBadges.ts",
-      "app/tonight/TonightClient.tsx",
-    ]) {
-      expect(read(path)).not.toContain("Freshness unknown");
-    }
-
-    // An undatable source states the fact plainly instead of sitting in the
-    // interpunct chain, which is what made the /tonight subtitle read as debug
-    // output rather than a sentence.
-    // The sentence itself now lives in TonightProvenanceLines.tsx, which
-    // TonightClient.tsx renders rather than inlining the string.
-    expect(read("app/tonight/TonightProvenanceLines.tsx")).toContain("The source check date is not recorded.");
-    expect(read("lib/whatsOnBadges.ts")).toContain("No date on this yet");
-    expect(read("lib/tonight.ts")).toContain("No date on this yet");
+  it.each([undefined, null, "", "not-a-date"])("names missing source dates in reader words: %s", (date) => {
+    expect(checkedLabel(date)).toBe("No date on this yet");
+    expect(provenanceLabel(date)).toBe("No date on this yet");
+    const html = renderToStaticMarkup(createElement(TonightProvenanceLines, {
+      provenance: {
+        whatsOn: "1 listing · via what’s-on", out: "1 listing via Ticketmaster",
+        whatsOnDated: false, outDated: false,
+      },
+      nearestSuffix: null,
+    }));
+    expect(html.match(/The source check date is not recorded\./gu)).toHaveLength(2);
+    expect(html).not.toContain("Freshness unknown");
   });
 
   it("names area coverage in pub words, not evidence stages or score bands", () => {
