@@ -1031,7 +1031,9 @@ describe("Pub Pal voice controls", () => {
 type LiveSession = {
   onConnect?: () => void;
   onDisconnect?: (details?: unknown) => void;
-  onMessage?: (message: { role: string; message: string }) => void;
+  onMessage?: (message: { role: string; message: string; event_id?: number }) => void;
+  onAgentToolRequest?: (event: { tool_call_id: string; event_id: number; tool_name: string }) => void;
+  onAgentToolResponse?: (event: { tool_call_id: string; event_id: number; tool_name: string; is_error: boolean; is_called: boolean; full_tool_result: string }) => void;
   onAgentResponseCorrection?: (event: { original_agent_response: string; corrected_agent_response: string }) => void;
   onDebug?: (event: unknown) => void;
 };
@@ -1071,6 +1073,85 @@ function transcriptLines(): string[] {
 }
 
 describe("Pub Pal voice transcript", () => {
+  it.each(["search_venues", "cheapest_pint_near"])("retains choices until a completed %s replaces them and rejects stale responses", async (replacementTool) => {
+    const canvas = vi.spyOn(HTMLCanvasElement.prototype, "getContext").mockReturnValue(null);
+    const session = await startLiveSession();
+    const result = (id: string, eventId: number, name: string) => ({
+      tool_call_id: id, event_id: eventId, tool_name: "search_venues", is_error: false, is_called: true,
+      full_tool_result: JSON.stringify({ result: {
+        ok: true, tool: "search_venues", answerHint: "Listed pubs.",
+        cards: [{ key: id, venueId: "venue-lamb", title: name, place: "Camden", note: "", price: 5.2, provenance: { kind: "directory", label: "Source read 2 October 2026" } }],
+      } }),
+    });
+    await act(async () => {
+      session.onMessage?.({ role: "user", message: "Find pubs in Soho", event_id: 4 });
+      session.onAgentToolRequest?.({ tool_call_id: "first", event_id: 4, tool_name: "search_venues" });
+      session.onAgentToolResponse?.(result("first", 4, "The Lamb"));
+    });
+    expect(container.querySelector('[aria-label="Pubs from the voice answer"] a')?.textContent).toContain("The Lamb");
+    expect(container.querySelector('[aria-label="Pubs from the voice answer"]')?.textContent).toContain("Source read 2 October 2026");
+    await act(async () => {
+      session.onMessage?.({ role: "user", message: "Thanks", event_id: 5 });
+      session.onAgentToolResponse?.(result("first", 4, "Old result"));
+    });
+    expect(container.querySelector('[aria-label="Pubs from the voice answer"] a')?.textContent).toContain("The Lamb");
+    await act(async () => {
+      session.onMessage?.({ role: "user", message: "Actually Camden", event_id: 7 });
+      session.onAgentToolResponse?.(result("first", 4, "Old result"));
+    });
+    expect(container.querySelector('[aria-label="Pubs from the voice answer"] a')?.textContent).toContain("The Lamb");
+    await act(async () => {
+      session.onAgentToolRequest?.({ tool_call_id: "empty", event_id: 7, tool_name: replacementTool });
+      session.onAgentToolResponse?.({ ...result("empty", 7, ""), tool_name: replacementTool, full_tool_result: JSON.stringify({ result: {
+        ok: true, tool: replacementTool, answerHint: "No matching pubs.", cards: [],
+      } }) });
+    });
+    expect(container.querySelector('[aria-label="Pubs from the voice answer"]')).toBeNull();
+    await act(async () => {
+      session.onAgentToolRequest?.({ tool_call_id: "second", event_id: 7, tool_name: "search_venues" });
+      session.onDisconnect?.();
+      session.onAgentToolResponse?.(result("second", 7, "Late result"));
+    });
+    expect(container.querySelector('[aria-label="Pubs from the voice answer"]')).toBeNull();
+    canvas.mockRestore();
+  });
+  it.each([
+    ["search_venues", "city_status", "journey"],
+    ["journey", "city_status", "search_venues"],
+    ["city_status", "search_venues", "journey"],
+    ["search_venues", "journey", "city_status"],
+    ["journey", "search_venues", "city_status"],
+    ["city_status", "journey", "search_venues"],
+  ])("preserves authoritative pubs across independent responses: %s, %s, %s", async (...tools) => {
+    const canvas = vi.spyOn(HTMLCanvasElement.prototype, "getContext").mockReturnValue(null);
+    const session = await startLiveSession();
+    await act(async () => {
+      session.onMessage?.({ role: "user", message: "Find four pubs in Soho and check Tube delays", event_id: 4 });
+    });
+    for (const tool of tools) {
+      await act(async () => {
+        session.onAgentToolRequest?.({ tool_call_id: tool, event_id: 4, tool_name: tool });
+        session.onAgentToolResponse?.({
+          tool_call_id: tool, event_id: 4, tool_name: tool, is_error: false, is_called: true,
+          full_tool_result: JSON.stringify({ result: {
+            ok: true, tool, answerHint: "Sourced result.",
+            cards: tool === "search_venues" ? [1, 2, 3, 4].map((id) => ({
+              key: `pub-${id}`, venueId: `venue-${id}`, title: `Soho pub ${id}`, place: "Soho", note: "", price: 6,
+              provenance: { kind: "directory", label: "On record" },
+            })) : [{ key: "pub-1", venueId: "", title: "Travel status", price: null }],
+          } }),
+        });
+      });
+    }
+    expect([...container.querySelectorAll('[aria-label="Pubs from the voice answer"] li > a:first-child')].map((link) => link.textContent))
+      .toEqual(["Soho pub 1", "Soho pub 2", "Soho pub 3", "Soho pub 4"]);
+    for (const message of ["Thanks", "Actually Camden"]) {
+      await typeAndSend(message);
+      expect([...container.querySelectorAll('[aria-label="Pubs from the voice answer"] li > a:first-child')].map((link) => link.textContent))
+        .toEqual(["Soho pub 1", "Soho pub 2", "Soho pub 3", "Soho pub 4"]);
+    }
+    canvas.mockRestore();
+  });
   it("prints what the person said and what the Pal answered, by name", async () => {
     const session = await startLiveSession();
     expect(container.textContent).toContain("Talk to Ripley.");

@@ -1,6 +1,7 @@
 import { expect, test, type Page } from "@playwright/test";
 
 import { measureHitArea, resolvedColour } from "./helpers/hitArea";
+import { installAuthDoubles, seedSignedIn } from "./helpers/authDoubles";
 
 // The bubble the first live DM on production drew wrong.
 //
@@ -349,6 +350,16 @@ for (const viewport of VIEWPORTS) {
 
     if (viewport.width >= 1024) {
       test("the desktop thread panel has round corners", async ({ page }) => {
+        await installAuthDoubles(page);
+        await seedSignedIn(page, "A");
+        await page.route("**/api/messages**", route => {
+          const path = new URL(route.request().url()).pathname;
+          return route.fulfill({ json: path === "/api/messages/c1"
+            ? { messages: [] }
+            : { conversations: [{ id: "c1", otherHandle: "alice", lastAt: new Date().toISOString(), unread: 0 }] } });
+        });
+        await page.goto("/messages/c1");
+        await expect(page.locator(".composerDock")).toBeVisible();
         const radius = await page
           .locator(".messagesSplit")
           .first()

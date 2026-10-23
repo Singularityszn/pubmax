@@ -28,7 +28,7 @@ test("retrying a failed question preserves a separate unsent draft", async ({ pa
   });
   await page.goto("/pal/chat");
   await expect(page.getByText("Hi. What kind of night are you planning?", { exact: true })).toBeVisible();
-  const composer = page.getByRole("textbox", { name: "Describe the outing", exact: true });
+  const composer = page.getByRole("textbox", { name: "Where, how many, what budget", exact: true });
   await composer.fill(failedQuestion);
   await page.getByRole("button", { name: "Ask", exact: true }).click();
   const retry = page.getByRole("button", { name: `Ask again: ${failedQuestion}`, exact: true });
@@ -53,7 +53,7 @@ test("a sign-in-required response offers sign-in instead of provider retry", asy
     await route.fulfill({ status: 401, contentType: "application/json", body: JSON.stringify({ error: "Sign in to ask Pub Pal." }) });
   });
   await page.goto("/pal/chat");
-  await page.getByRole("textbox", { name: "Describe the outing", exact: true }).fill("Quiet pubs in Soho");
+  await page.getByRole("textbox", { name: "Where, how many, what budget", exact: true }).fill("Quiet pubs in Soho");
   await page.getByRole("button", { name: "Ask", exact: true }).click();
   await expect(page.getByText("Sign in to ask Pub Pal.", { exact: false })).toBeVisible();
   await expect(page.getByRole("button", { name: /^Ask again:/ })).toHaveCount(0);

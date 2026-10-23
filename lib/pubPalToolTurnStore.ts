@@ -3,8 +3,8 @@ import "server-only";
 import type { AskCard, AskProposal } from "@/lib/ask/types";
 import type { CityId } from "@/lib/cities";
 import type { PubPalFenceTurn } from "@/lib/pubPalLlmFence";
-import { isPubPalConversationId } from "@/lib/pubPalConversationId";
-import { PAL_SESSION_RECENT_TURNS, windowPalSessionTurns } from "@/lib/palSessionSummary";
+import { isPubPalConversationId, PUB_PAL_CONVERSATION_IDLE_MS } from "@/lib/pubPalConversationId";
+import { windowPalSessionTurns } from "@/lib/palSessionSummary";
 import {
   createDualBackendStore,
   createFailSoftGuard,
@@ -13,7 +13,7 @@ import {
 import { requireSupabaseAdmin } from "@/lib/supabase";
 
 /** Two minutes after the user's last line. The purge cron deletes expired rows every minute. */
-export const PUB_PAL_TOOL_TURN_TTL_MS = 120_000;
+export const PUB_PAL_TOOL_TURN_TTL_MS = PUB_PAL_CONVERSATION_IDLE_MS;
 
 const PUB_PAL_TOOL_TURN_MIGRATION_HINT = "apply migration 0169";
 
@@ -116,7 +116,7 @@ function turnFromPayload(
   return {
     query: payload.query,
     cityId: payload.cityId,
-    turns: Array.isArray(payload.turns) ? payload.turns.slice(-PAL_SESSION_RECENT_TURNS) : [],
+    turns: Array.isArray(payload.turns) ? windowPalSessionTurns("", payload.turns).turns : [],
     summary: typeof payload.summary === "string" ? payload.summary : "",
     expiresAt: expiresAtMs,
     cards: Array.isArray(payload.cards) ? payload.cards : [],
@@ -247,7 +247,7 @@ const memoryPubPalToolTurnStore: PubPalToolTurnStore = {
     pruneMemory(now);
     const existing = memoryTurns.get(conversationId);
     if (!existing || existing.ownerId !== ownerId) return false;
-    existing.turns = [...existing.turns, turn].slice(-PAL_SESSION_RECENT_TURNS);
+    existing.turns = windowPalSessionTurns("", [...existing.turns, turn]).turns;
     if (turn.role === "user" && turn.content.trim()) existing.query = turn.content.trim();
     existing.cityId = cityId;
     existing.expiresAt = now + PUB_PAL_TOOL_TURN_TTL_MS;
@@ -536,7 +536,7 @@ const supabasePubPalToolTurnStore: PubPalToolTurnStore = {
         }),
       run: async () => {
         return updateOwnedRow(conversationId, ownerId, (existing) => {
-          existing.turns = [...existing.turns, turn].slice(-PAL_SESSION_RECENT_TURNS);
+          existing.turns = windowPalSessionTurns("", [...existing.turns, turn]).turns;
           if (turn.role === "user" && turn.content.trim()) existing.query = turn.content.trim();
           existing.cityId = cityId;
           existing.expiresAt = Date.now() + PUB_PAL_TOOL_TURN_TTL_MS;

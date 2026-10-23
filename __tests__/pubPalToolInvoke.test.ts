@@ -1,3 +1,4 @@
+import { CHAINED_ALCOHOL_FITNESS_QUESTIONS, QUANTITY_FITNESS_CASES } from "./fixtures/pubPalTemporalSafety";
 import { VIBE_CHIPS } from "@/lib/vibeChips";
 import { JOURNEY_ENDPOINT_REQUESTS, NAMED_QUALIFIED_PRICE_REQUESTS, NAMED_TERMINAL_PRICE_REQUESTS, QUALIFIED_PRICE_REQUESTS } from "./fixtures/askPriceSubjects";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -89,6 +90,94 @@ describe("propose_plan over the Pal webhook", () => {
     vi.restoreAllMocks();
     __resetPubPalToolTurnStore();
     vi.unstubAllGlobals();
+  });
+
+  it.each(QUANTITY_FITNESS_CASES.flatMap((entry) => (["current", "user", "assistant"] as const).map((role) => ({ ...entry, role }))))(
+    "classifies numeric quantities in voice $role turns: $query", async ({ query, fenced, role }) => {
+      const conversationId = "conv_quantityvoice01";
+      await registerPubPalToolTurn(conversationId, {
+        query: role === "current" ? query : "Find four quiet pubs in Soho",
+        turns: role === "current" ? [] : [{ role, content: query }],
+        cityId: "london", ownerId: "11111111-1111-4111-8111-111111111111",
+      });
+      const { result } = await invokePubPalAskTool({
+        toolName: "search_venues", args: { query: "pubs in Soho" }, conversationId,
+      });
+      if (fenced && role !== "assistant") {
+        expect(result).toMatchObject({
+          ok: true, fenced: true, cards: [], proposals: [],
+          answerHint: "I can't tell you whether to have another drink. Open Getting Home on the venue sheet for last-train times, ride links, and the TfL planner.",
+        });
+        expect((await readPubPalToolTurn(conversationId))?.cards).toEqual([]);
+      } else {
+        expect(result.fenced).not.toBe(true);
+        expect(result.answerHint).not.toContain("Getting Home");
+        if (role !== "current") expect(result.cards).toEqual(expect.arrayContaining([expect.objectContaining({ venueId: expect.any(String) })]));
+      }
+    },
+  );
+
+  it.each([
+    ...CHAINED_ALCOHOL_FITNESS_QUESTIONS.flatMap((query) => [
+      { conversationId: null, query },
+      { conversationId: "conv_chainedsafety01", query },
+      { conversationId: "conv_chainedhistory01", query },
+    ]),
+    { conversationId: null, query: "Where can I buy beer in Soho? How many pints can I have before driving?" },
+    { conversationId: "conv_mixedsafety01", query: "Where can I buy beer in Soho? How many pints can I have before driving?" },
+    { conversationId: null, query: "Where can I buy beer after cycling through Soho? Would it be safe to drive after two beers?" },
+    { conversationId: "conv_temporalsafety01", query: "Where can I buy beer after cycling through Soho? Would it be safe to drive after two beers?" },
+    { conversationId: null, query: "Can I drink 1.5 pints in Soho before driving?" },
+    { conversationId: "conv_decimalsafety00", query: "Can I drink 1.5 pints in Soho before driving?" },
+    { conversationId: null, query: "Would it be safe to drive after 1.5 pints?" },
+    { conversationId: "conv_decimalsafety01", query: "Would it be safe to drive after 1.5 pints?" },
+  ])("fences mixed discovery and alcohol allowance in voice tools: $conversationId $query", async ({ conversationId, query }) => {
+    if (conversationId) {
+      await registerPubPalToolTurn(conversationId, {
+        query: conversationId === "conv_chainedhistory01" ? "What about Soho?" : query,
+        turns: conversationId === "conv_chainedhistory01" ? [{ role: "user", content: query }] : [],
+        cityId: "london", ownerId: "11111111-1111-4111-8111-111111111111",
+      });
+    }
+    const { result } = await invokePubPalAskTool({
+      toolName: "search_venues", args: { query: conversationId ? "beer in Soho" : query }, conversationId,
+    });
+    expect(result).toMatchObject({
+      ok: true, fenced: true, cards: [], proposals: [],
+      answerHint: "I can't tell you whether to have another drink. Open Getting Home on the venue sheet for last-train times, ride links, and the TfL planner.",
+    });
+    if (conversationId) {
+      expect((await readPubPalToolTurn(conversationId))?.cards).toEqual([]);
+      expect((await readPubPalToolTurn(conversationId))?.hints).toContain(result.answerHint);
+    }
+  });
+
+  it("excludes chained alcohol questions from assistant history in voice tools", async () => {
+    const query = CHAINED_ALCOHOL_FITNESS_QUESTIONS[0];
+    if (query === undefined) throw new Error("A chained alcohol question fixture is required.");
+    await registerPubPalToolTurn("conv_chainedassistant01", {
+      query: "Find four quiet pubs in Soho", cityId: "london",
+      ownerId: "11111111-1111-4111-8111-111111111111",
+      turns: [{ role: "assistant", content: query }],
+    });
+    const { result } = await invokePubPalAskTool({
+      toolName: "search_venues", args: { query: "pubs in Soho" }, conversationId: "conv_chainedassistant01",
+    });
+    expect(result.fenced).not.toBe(true);
+    expect(result.cards).toEqual(expect.arrayContaining([expect.objectContaining({ venueId: expect.any(String) })]));
+    expect(result.answerHint).not.toContain("I can't tell you whether to have another drink.");
+  });
+
+  it("uses the stored prior area for a budget refinement without rewriting its history", async () => {
+    const query = "Same area, but under £6.30 a pint.";
+    await registerPubPalToolTurn("conv_budgetfollow1", { query, cityId: "london", ownerId: "11111111-1111-4111-8111-111111111111",
+      turns: [{ role: "user", content: "Find me four pubs in Soho and show them on the map." }, { role: "user", content: "Same area, but under £6.50 a pint." }],
+    });
+    const { result } = await invokePubPalAskTool({ toolName: "venue_prices", args: { query: "pints in Camden" }, conversationId: "conv_budgetfollow1" });
+    expect(result.tool).toBe("search_venues");
+    expect(result.cards).toEqual(expect.arrayContaining([expect.objectContaining({ venueId: "venue-e1srzr" })]));
+    expect(result.cards).not.toEqual(expect.arrayContaining([expect.objectContaining({ venueId: "venue-15i2wst" })]));
+    expect((await readPubPalToolTurn("conv_budgetfollow1"))?.query).toBe(query);
   });
 
   it.each(JOURNEY_ENDPOINT_REQUESTS)("preserves stored journey endpoints over provider rewrites: $query", async ({ query, from, to, venueId, name }) => {

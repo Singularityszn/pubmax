@@ -41,6 +41,8 @@ export type ConciergeVenue = {
   lat: number;
   lng: number;
   cheapestPrice: number | null;
+  priceSource?: string;
+  priceObservedAt?: string;
   amenities: {
     beerGarden: boolean;
     cocktails: boolean;
@@ -54,6 +56,8 @@ export type ConciergeVenue = {
   canonical: boolean;
   /** Server-owned searchable venue text, used only to resolve an area phrase. */
   searchText?: string;
+  /** Menu words must not count as evidence for a neighbourhood. */
+  drinkText?: string;
   /** Paid placements are never eligible for concierge results. */
   promoted?: boolean;
 };
@@ -108,6 +112,16 @@ function normalise(value: string): string {
   return value.trim().toLocaleLowerCase("en-GB").replace(/\s+/g, " ");
 }
 
+function locationText(venue: ConciergeVenue): string {
+  const drinkWords = new Set(normalise(venue.drinkText ?? "").split(/[^\p{L}\p{N}]+/u).filter(Boolean));
+  const addressWords = normalise(venue.searchText ?? "").split(/\s+/).filter((word) =>
+    !drinkWords.has(word.replace(/[^\p{L}\p{N}]/gu, "")),
+  );
+  // Restore structured identity after removing ambiguous menu words. An
+  // uncertain address can lose evidence, but a drink cannot invent a place.
+  return normalise([venue.area, venue.name, venue.sourceName ?? "", ...addressWords].join(" "));
+}
+
 function amenityScore(venue: ConciergeVenue, mood: ConciergeMood): number {
   const a = venue.amenities;
   switch (mood) {
@@ -144,7 +158,7 @@ function areaFit(
 ): { score: number; reason: string | null; nearAreaNote?: string } {
   const requestedArea = normalise(intent.area ?? "");
   if (!requestedArea || requestedArea === "london") return { score: 0, reason: null };
-  const venueArea = normalise(`${venue.area} ${venue.searchText ?? ""}`);
+  const venueArea = locationText(venue);
   if (venueArea.includes(requestedArea)) {
     // Area is the strongest coordination constraint: a perfect mood match in
     // the wrong part of town is rarely useful for a same-evening plan.
@@ -155,7 +169,7 @@ function areaFit(
     // pint within budget, so a cheap ask still prefers a priced pub nearby to
     // an unpriced one inside.
     const nearAreaNote = `Near ${areaLabel ?? intent.area!.trim()}, ${areaCircleKm.toFixed(1)} km`;
-    return { score: 20, reason: nearAreaNote, nearAreaNote };
+    return { score: 20 - Math.min(areaCircleKm, 2), reason: nearAreaNote, nearAreaNote };
   }
   return { score: 0, reason: null };
 }
@@ -276,7 +290,7 @@ function areaEligibleVenues(
   if (requestedArea === "london") return [...venues];
   const own = venues.filter((venue) => normalise(venue.area).includes(requestedArea));
   if (own.length > 0) return own;
-  return venues.filter((venue) => normalise(`${venue.area} ${venue.searchText ?? ""}`).includes(requestedArea));
+  return venues.filter((venue) => locationText(venue).includes(requestedArea));
 }
 
 /** Pure, stable honest ranking. The result never mutates or depends on input order. */

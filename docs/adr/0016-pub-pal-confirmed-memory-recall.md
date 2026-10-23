@@ -23,12 +23,14 @@ had to say it again every night.
    webhook body, so one conversation can only read its own account's Pal.
 3. **Two read paths.** Typed chat puts the confirmed lines ahead of the ask on
    the server (the typed preamble). Voice calls the Pal-only `recall_memories`
-   webhook. Both read through `lib/palConfirmedMemories.server.ts`.
+   webhook. Signed-in text and voice openings can also reference confirmed context
+   when the taste read permits it. All paths read through `lib/palConfirmedMemories.server.ts`.
 4. **Writes stay confirm-gated.** The Pal-only `propose_memory` webhook adds
-   the existing confirm card to a typed chat. It saves nothing: the memory
-   exists only once the person taps Confirm, which posts to
-   `POST /api/pub-pal/memories`. It is typed chat only, because voice shows no
-   card, so it refuses in a voice call and claims no card.
+   a visible card to typed and voice chat. The webhook saves nothing.
+   Only the person's confirmation can create, update or delete a memory through
+   `/api/pub-pal/memories`. Speech alone cannot confirm a card.
+   The bound owner's Pal must allow memory proposals.
+   [Pub Pal setup](../PUB_PAL_SETUP.md) owns the webhook and client-event requirements.
 5. **Recall carries everything, ranked by the ask** (amended 17 October
    2026). A turn carries every confirmed memory up to forty
    (`PAL_RECALL_MEMORY_LIMIT`), which covers nearly everyone, at most about
@@ -45,6 +47,9 @@ had to say it again every night.
 ## Consequences
 
 - The Pal remembers what the person confirmed, and nothing the person did not.
-- A memory is a preference, never a fact about a pub, so it cannot ground a
-  price, an hour or pub lore.
+- Preferences guide choices. A confirmed `night_outcome` records the person's
+  own report, including any stated pub, date, drinks and expenditure.
+- Recall preserves explicitly reported spending. Pint-price observations cannot
+  establish consumption or a bill total.
+- Memories cannot establish a current pub price, opening hour or pub lore.
 - Setup and the webhook details live in `docs/PUB_PAL_SETUP.md`.

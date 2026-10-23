@@ -68,34 +68,27 @@ test.describe("places tab @390", () => {
     const head = page.locator(".screenHead");
     await expect(head.locator(".kicker")).toHaveText("Places");
     await expect(
-      page.getByRole("heading", { level: 1, name: "Pick a city.", exact: true }),
+      page.getByRole("heading", { level: 1, name: "London only, for now.", exact: true }),
     ).toBeVisible();
     // Exactly one painted action on the screen.
     await expect(page.locator("[data-primary-action]")).toHaveCount(1);
 
-    // Only the live city is a row; every other city is one waitlist line.
-    const cities = page.getByRole("list", { name: "Cities" });
-    await expect(cities.getByRole("link")).toHaveCount(1);
-    await expect(cities.getByRole("link", { name: /London/ })).toContainText(
-      "Prices listed",
-    );
+    await expect(page.getByRole("link", { name: "Open London", exact: true })).toHaveAttribute("href", "/places?city=london");
+    await expect(page.getByText("London is the one city with listed pint prices.", { exact: false })).toBeVisible();
     await expect(page.getByText("Prices coming", { exact: true })).toHaveCount(0);
-    await expect(
-      page.getByRole("heading", { name: "More cities when the prices are in.", exact: true }),
-    ).toBeVisible();
-    await expect(
-      page.getByRole("link", { name: "Want your city next? Tell us.", exact: true }),
-    ).toHaveAttribute("href", "mailto:hello@pubmaxxing.com?subject=City%20request");
-
-    // A city that is not a row is still found by search, through the town
-    // lookup that names its city guide.
-    await page.getByLabel("Find a city").fill("manch");
-    await expect(cities).toHaveCount(0);
-    await expect(
-      page.getByRole("list", { name: "Places" }).getByRole("link", { name: /Manchester/ }).first(),
-    ).toBeVisible({ timeout: 20_000 });
-    await page.getByLabel("Find a city").fill("");
-    await expect(cities.getByRole("link").first()).toBeVisible();
+    await expect(page.getByRole("link", { name: "Browse pubs across the UK", exact: true })).toHaveAttribute("href", /\/map/);
+    await expect(page.getByText(/Outside London the map shows the pubs, without prices yet/)).toBeVisible();
+    await expect(page.getByRole("link", { name: "Want your city next? Tell us.", exact: true }))
+      .toHaveAttribute("href", "mailto:hello@pubmaxxing.com?subject=City%20request");
+    const field = page.getByLabel("Find a town");
+    await field.fill("manch");
+    await expect(page.getByRole("list", { name: "Places" }).getByRole("link", { name: /Manchester/ }).first()).toBeVisible({ timeout: 20_000 });
+    await field.fill("zzzznotatown");
+    await expect(page.getByRole("list", { name: "Places" })).toHaveCount(0);
+    await expect(page.locator(".placesResults")).toContainText(/No .*zzzznotatown/);
+    await field.fill("");
+    await expect(page.getByRole("link", { name: "Open London", exact: true })).toBeVisible();
+    await expect(page.getByRole("list", { name: "Places" })).toHaveCount(0);
 
     await page.screenshot({ path: testInfo.outputPath("places-list-390.png"), fullPage: true });
 
@@ -162,19 +155,22 @@ test.describe("places tab @390", () => {
 test.describe("places tab @320", () => {
   test.use({ viewport: { width: 320, height: 844 } });
 
-  test("five tabs fit, each keeps its tap floor, and nothing scrolls sideways", async ({
+  test("all six dock controls fit, each keeps its tap floor, and nothing scrolls sideways", async ({
     page,
   }) => {
     await page.goto("/places");
     const tabs = primaryNav(page).getByRole("link");
-    await expect(tabs).toHaveCount(5);
+    await expect(tabs).toHaveCount(6);
+    for (const name of ["Map", "Tonight", "Pub Pal", "Plan", "Social", "You"]) {
+      await expect(primaryNav(page).getByRole("link", { name, exact: true })).toHaveCount(1);
+    }
     await expect(page.locator(".authCompactTrigger")).toBeVisible();
     await page.evaluate(() => document.fonts.ready);
     for (const tab of await tabs.all()) {
       const box = await tab.boundingBox();
       expect(box, "every tab has a box").not.toBeNull();
       expect(box!.height, "tab keeps the 44px tap floor").toBeGreaterThanOrEqual(44);
-      expect(box!.width, "tab keeps a thumb-sized column").toBeGreaterThanOrEqual(40);
+      expect(box!.width, "tab keeps a thumb-sized column").toBeGreaterThanOrEqual(44);
     }
     const overflow = await page.evaluate(
       () => document.documentElement.scrollWidth - document.documentElement.clientWidth,

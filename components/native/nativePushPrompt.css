@@ -18,6 +18,9 @@
   pointer-events: none;
 }
 
+/* Permission choices remain above an active map sheet. */
+.nativePushPrompt--permission { z-index: var(--z-context-prompt); }
+
 .nativePushPrompt__card {
   pointer-events: auto;
   width: min(100%, 26rem);

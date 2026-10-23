@@ -1,3 +1,4 @@
+import { CHAINED_ALCOHOL_FITNESS_QUESTIONS, QUANTITY_FITNESS_CASES } from "./fixtures/pubPalTemporalSafety";
 import { offlineFetch } from "@/evals/pal/offlineFetch";
 import { NAMED_QUALIFIED_PRICE_REQUESTS, QUALIFIED_PRICE_REQUESTS } from "./fixtures/askPriceSubjects";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -125,7 +126,7 @@ class MockElevenLabsWebSocket {
 
 const fenceMocks = vi.hoisted(() => ({
   resolvePubPalFenceIntent: vi.fn<
-    (message: string, turns: Array<{ role: string; content: string }>) => Promise<{
+    (message: string, turns: Array<{ role: "user" | "assistant"; content: string }>) => Promise<{
       fenced: boolean;
       sobrietyOnly: boolean;
     }>
@@ -185,12 +186,14 @@ vi.mock("@/lib/palTaste.server", () => ({ readPalTaste: tasteMocks.readPalTaste 
 
 import { VIBE_CHIPS } from "@/lib/vibeChips";
 import { runPalElevenLabsChatTurn } from "@/lib/palElevenLabsChat.server";
+import { pubPalGetHomeRegisterAnswer } from "@/lib/pubPalLlmFence";
 import { readPubPalToolTurn } from "@/lib/pubPalToolTurnStore";
 import { DEFAULT_PAL_DRAFT } from "@/lib/pubPal";
 import { __resetPubPalStore, confirmPalMemoryResult, createPubPalResult } from "@/lib/pubPalStore";
 
 describe("runPalElevenLabsChatTurn", () => {
   beforeEach(() => {
+    vi.mocked(pubPalGetHomeRegisterAnswer).mockReset().mockReturnValue("Getting Home has the trains.");
     wsState.socketsOpened = 0;
     wsState.lastInitPayload = null;
     wsState.userMessageText = null;
@@ -215,8 +218,21 @@ describe("runPalElevenLabsChatTurn", () => {
   });
 
   afterEach(() => {
+    __resetPubPalStore();
     vi.unstubAllEnvs();
     vi.unstubAllGlobals();
+  });
+
+  it("keeps the budget follow-up and owned context intact for its webhook", async () => {
+    storeMocks.readOwnedPubPalToolTurn.mockResolvedValue({ ...toolTurnPayload, query: "Find me four pubs in Soho and show them on the map.", turns: [], summary: "" });
+    const query = "Same area, but under £6.50 a pint.";
+    const outcome = await runPalElevenLabsChatTurn({ query, ownerId: "11111111-1111-4111-8111-111111111111", threadId: "conv_ownedfollow1",
+      fenceTurns: [{ role: "user", content: "Find pubs in Camden" }],
+    });
+    expect(outcome.ok).toBe(true);
+    expect(storeMocks.registerPubPalToolTurn).toHaveBeenCalledWith("conv_regression01", expect.objectContaining({ query, turns: [{ role: "user", content: "Find me four pubs in Soho and show them on the map." }] }));
+    expect(wsState.userMessageText).toContain(`Current user message: ${query}`);
+    expect(wsState.userMessageText).not.toContain("Camden");
   });
 
   it("review regression: returns independent transit with the unsupported price answer", async () => {
@@ -323,6 +339,99 @@ describe("runPalElevenLabsChatTurn", () => {
     expect(storeMocks.registerPubPalToolTurn).toHaveBeenCalledWith(
       "conv_regression01", expect.objectContaining({ query }),
     );
+  });
+
+  it.each(QUANTITY_FITNESS_CASES.flatMap((entry) => (["current", "user", "assistant"] as const).map((role) => ({ ...entry, role }))))(
+    "classifies numeric quantities in provider $role turns: $query", async ({ query, fenced, role }) => {
+      vi.stubEnv("TYPESAFE_API_KEY", "");
+      const actual = await vi.importActual<typeof import("@/lib/pubPalLlmFence")>("@/lib/pubPalLlmFence");
+      fenceMocks.resolvePubPalFenceIntent.mockImplementation(actual.resolvePubPalFenceIntent);
+      vi.mocked(pubPalGetHomeRegisterAnswer).mockImplementationOnce(actual.pubPalGetHomeRegisterAnswer);
+      if (role !== "current") storeMocks.readOwnedPubPalToolTurn.mockResolvedValue({
+        ...toolTurnPayload, query: "Find four quiet pubs in Soho", turns: [{ role, content: query }],
+      });
+      const outcome = await runPalElevenLabsChatTurn({
+        query: role === "current" ? query : "Find four quiet pubs in Soho",
+        threadId: role === "current" ? undefined : "conv_quantityprevious01",
+        ownerId: "11111111-1111-4111-8111-111111111111",
+      });
+      expect(outcome.ok).toBe(true);
+      if (fenced && role !== "assistant") {
+        expect(outcome).toMatchObject({
+          message: "I can't tell you whether to have another drink. Open Getting Home on the venue sheet for last-train times, ride links, and the TfL planner.",
+          conversationId: "", cards: [], proposals: [], toolsUsed: [],
+        });
+        expect(fetch).not.toHaveBeenCalled();
+        expect(wsState.socketsOpened).toBe(0);
+      } else {
+        expect(outcome).toMatchObject({ message: SOURCED_ANSWER });
+        expect(wsState.socketsOpened).toBe(1);
+      }
+    },
+  );
+
+  it.each([
+    ...CHAINED_ALCOHOL_FITNESS_QUESTIONS,
+    "Where can I buy beer in Soho? How many pints can I have before driving?",
+    "How many pints can I have before driving? Where should we have beer in Soho?",
+    "Where can I drink beer in Soho? Would it be safe to drive after two beers?",
+    "Where can I buy beer after cycling through Soho? Would it be safe to drive after two beers?",
+    "Can I drink 1.5 pints in Soho before driving?",
+    "Would it be safe to drive after 1.5 pints?",
+  ].flatMap((query) => [
+    { query, history: false },
+    { query, history: true },
+  ]))("fences mixed discovery and alcohol allowance before provider startup: $query $history", async ({ query, history }) => {
+    vi.stubEnv("TYPESAFE_API_KEY", "");
+    const actual = await vi.importActual<typeof import("@/lib/pubPalLlmFence")>("@/lib/pubPalLlmFence");
+    fenceMocks.resolvePubPalFenceIntent.mockImplementation((message, turns) => actual.resolvePubPalFenceIntent(message, turns));
+    vi.mocked(pubPalGetHomeRegisterAnswer).mockImplementationOnce(actual.pubPalGetHomeRegisterAnswer);
+
+    const outcome = await runPalElevenLabsChatTurn({
+      query: history ? "What about Soho?" : query,
+      fenceTurns: history ? [{ role: "user", content: query }] : [],
+      ownerId: "11111111-1111-4111-8111-111111111111",
+    });
+
+    expect(outcome).toEqual({
+      ok: true,
+      message: "I can't tell you whether to have another drink. Open Getting Home on the venue sheet for last-train times, ride links, and the TfL planner.",
+      cards: [],
+      proposals: [],
+      conversationId: "",
+      toolsUsed: [],
+    });
+    expect(fetch).not.toHaveBeenCalled();
+    expect(wsState.socketsOpened).toBe(0);
+    expect(tasteMocks.readPalTaste).not.toHaveBeenCalled();
+    expect(storeMocks.registerPubPalToolTurn).not.toHaveBeenCalled();
+  });
+
+  it.each(["user", "assistant"] as const)("classifies chained alcohol questions in owned %s history", async (role) => {
+    vi.stubEnv("TYPESAFE_API_KEY", "");
+    const actual = await vi.importActual<typeof import("@/lib/pubPalLlmFence")>("@/lib/pubPalLlmFence");
+    fenceMocks.resolvePubPalFenceIntent.mockImplementation((message, turns) => actual.resolvePubPalFenceIntent(message, turns));
+    if (role === "user") vi.mocked(pubPalGetHomeRegisterAnswer).mockImplementationOnce(actual.pubPalGetHomeRegisterAnswer);
+    storeMocks.readOwnedPubPalToolTurn.mockResolvedValue({
+      ...toolTurnPayload, query: "Quiet pubs in Soho",
+      turns: [{ role, content: CHAINED_ALCOHOL_FITNESS_QUESTIONS[0] }],
+    });
+    const outcome = await runPalElevenLabsChatTurn({
+      query: "What about Soho?", threadId: "conv_previous01",
+      ownerId: "11111111-1111-4111-8111-111111111111",
+    });
+    expect(outcome.ok).toBe(true);
+    if (role === "user") {
+      expect(outcome).toMatchObject({
+        message: "I can't tell you whether to have another drink. Open Getting Home on the venue sheet for last-train times, ride links, and the TfL planner.",
+        conversationId: "", cards: [], proposals: [], toolsUsed: [],
+      });
+      expect(fetch).not.toHaveBeenCalled();
+      expect(wsState.socketsOpened).toBe(0);
+    } else {
+      expect(outcome).toMatchObject({ message: SOURCED_ANSWER });
+      expect(wsState.socketsOpened).toBe(1);
+    }
   });
 
   it("keeps the sobriety fence before configured price coverage", async () => {
@@ -482,7 +591,7 @@ describe("runPalElevenLabsChatTurn", () => {
     expect(JSON.stringify(wsState.lastInitPayload)).not.toContain("quiet pubs in Soho");
   });
 
-  it("asks for the signed URL while the earlier-turn read is still in flight", async () => {
+  it("waits for the owned context safety check before requesting a signed URL", async () => {
     let releasePrior: (value: null) => void = () => {};
     storeMocks.readOwnedPubPalToolTurn.mockImplementation(
       () => new Promise((resolve) => { releasePrior = resolve; }),
@@ -495,9 +604,10 @@ describe("runPalElevenLabsChatTurn", () => {
     });
     await Promise.resolve();
 
-    expect(vi.mocked(fetch)).toHaveBeenCalledTimes(1);
+    expect(vi.mocked(fetch)).not.toHaveBeenCalled();
     releasePrior(null);
     expect((await pending).ok).toBe(true);
+    expect(vi.mocked(fetch)).toHaveBeenCalledTimes(1);
   });
 
   it("registers the turn under the signed URL's conversation before the socket names it", async () => {
@@ -577,13 +687,11 @@ describe("runPalElevenLabsChatTurn", () => {
     const outcome = await runPalElevenLabsChatTurn({ query: "a pub in Soho tonight", ownerId });
 
     expect(outcome.ok).toBe(true);
-    expect(wsState.userMessageText).toBe(
-      [
-        "Things I confirmed you should remember about me. Use them as preferences, never as facts about a pub:",
-        "- Drinks: Cask ale, no lager",
-        "Current user message: a pub in Soho tonight",
-      ].join("\n"),
-    );
+    expect(wsState.userMessageText?.split("\n").slice(-2)).toEqual([
+      "- Drinks: Cask ale, no lager",
+      "Current user message: a pub in Soho tonight",
+    ]);
+    expect(wsState.userMessageText).not.toContain("Stranger's rooftop bars");
     expect(JSON.stringify(wsState.lastInitPayload)).not.toContain("Cask ale");
     __resetPubPalStore();
   });

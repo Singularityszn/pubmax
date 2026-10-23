@@ -87,6 +87,9 @@ test("the town answer's licence credit is clear of the floating chrome", async (
     await expect(credit).toBeVisible({ timeout: 2_000 });
   }).toPass({ timeout: 30_000 });
 
+  await expect(page.getByRole("list", { name: "Places" }).getByRole("link")).toHaveCount(3);
+  await credit.getByRole("link", { name: "Data credits", exact: true }).scrollIntoViewIfNeeded();
+  await credit.evaluate((node) => node.scrollIntoView({ block: "center" }));
   const probe = await page.evaluate(() => {
     const line = document.querySelector(".placesTownSource");
     if (!line) return null;
@@ -118,13 +121,16 @@ test("the town answer's licence credit is clear of the floating chrome", async (
       ),
     );
     // The link inside it still answers the tap floor.
-    const link = line.querySelector("a")!.getBoundingClientRect();
-    return { covering, paintsItsOwnText, scrollY: window.scrollY, linkHeight: link.height };
+    const links = [...line.querySelectorAll("a")].map((link) => ({
+      href: link.getAttribute("href"), height: link.getBoundingClientRect().height,
+    }));
+    return { covering, paintsItsOwnText, links };
   });
 
   expect(probe).not.toBeNull();
-  expect(probe?.scrollY).toBe(0);
   expect(probe?.covering).toEqual([]);
   expect(probe?.paintsItsOwnText).toBe(true);
-  expect(probe?.linkHeight).toBeGreaterThanOrEqual(44);
+  expect(probe?.links).toHaveLength(2);
+  expect(probe?.links.map((link) => link.href)).toEqual(["https://www.openstreetmap.org/copyright", "/credits"]);
+  for (const link of probe!.links) expect(link.height).toBeGreaterThanOrEqual(44);
 });

@@ -179,6 +179,15 @@ Provider-backed typed chat uses the agent in text-only mode via `/api/pub-pal/ch
 The server opens its WebSocket. Voice opens a browser WebSocket from the signed URL.
 Live proof after a real run: `node scripts/pubpal/prove-pal-text-tool.mjs --base-url https://pubmaxxing.com`.
 
+`GET /api/pub-pal/chat` prepares the signed-in owner's opening without a provider session, including on keyless deployments.
+A first typed greeting can request the same opening.
+The opening uses confirmed past-night reports, the latest logged visit or the profile's favourite drink when the taste read permits it.
+An unavailable memory read produces an explicit unavailable message.
+An affirmative reply to a past-night opening asks for an area and a price per pint.
+It never converts reported expenditure into a pint budget.
+Voice uses the same opening builder in its first-message override.
+[ADR 0016](adr/0016-pub-pal-confirmed-memory-recall.md) owns confirmed-memory access.
+
 1. **Hosted LLM** (`gemini-2.5-flash-lite` by default) on the ElevenLabs plan.
 2. **Webhook tools** for the ADR 0014 allowlist (same handlers as `/api/ask`).
    Each tool sets `pre_tool_speech: "force"` and `execution_mode: "immediate"`,
@@ -198,6 +207,11 @@ Live proof after a real run: `node scripts/pubpal/prove-pal-text-tool.mjs --base
    slow tool's checking line that outlasts the settle window would be returned
    as the answer. `npm run pubpal:agent -- --check` reports whether the live
    agent matches this config.
+   Voice also needs `agent_tool_response_full_payload` to show the actual
+   returned pub cards, their fitted map and memory-confirmation cards. The
+   browser uses the tool result, never pub names or prices parsed from speech.
+   Requests for one to six pubs pass a result count to `search_venues`.
+   An upper pint-price limit filters eligible records before ranking.
    The script also sets how the agent hears a person in a pub. Turn-taking is
    `turn_eagerness: "patient"`, so a pause in the middle of a sentence does not
    end the person's turn. `transcribe_on_disabled_interruptions: true` keeps
@@ -216,27 +230,31 @@ Live proof after a real run: `node scripts/pubpal/prove-pal-text-tool.mjs --base
    that opened the conversation, read from the server-side conversation binding
    and never from the request body. Typed chat puts the same lines ahead of the
    ask on the server, or one line saying nothing is confirmed, so it does not
-   need the tool. A second Pal-only webhook, `propose_memory`, adds a memory card
-   to a typed chat for the bound account, only when that Pal has memory
+   need the tool. [ADR 0016](adr/0016-pub-pal-confirmed-memory-recall.md) owns
+   confirmed-memory access, past-night reports and the confirmation rule.
+   A second Pal-only webhook, `propose_memory`, adds a memory card
+   to a typed or voice chat for the bound account, only when that Pal has memory
    proposals on. They are on for a new Pal; a Pal saved with them off keeps
-   them off. It refuses in a voice call, where no card can be shown. It
-   saves nothing: the memory exists once the person taps
-   Confirm, which posts to `POST /api/pub-pal/memories`. Before the card is
-   made, `lib/palMemoryRelation.server.ts` sorts the fact against the person's
+   them off. Voice displays the card from `agent_tool_response_full_payload`.
+   Ask-tool responses include a `requestedTool` receipt. This binds a canonical result,
+   such as venue discovery returned for a price request, to its original SDK tool call.
+   Before the card is made, `lib/palMemoryRelation.server.ts` sorts the fact against the person's
    confirmed memories: a fact they already have makes no card, and one that
    replaces or withdraws a memory makes an "Update" or "Forget" card that
    PATCHes or DELETEs that memory on Confirm. The card sends the value it
    showed as replaced, and the route answers 409 when the memory has changed
    since, so a stale card never overwrites a newer fact. Without a TypeSafe key only exact
    duplicates are caught and every other offer is an ordinary card. Typed chat also carries
-   a rolling session summary turn capped at 300 UTF-8 bytes, label included.
+   recent turns through `windowPalSessionTurns` in `lib/palSessionSummary.ts`.
+   It resolves same-area pint-budget references before older turns leave the window.
+   Older user asks form a rolling session summary turn capped at 300 UTF-8 bytes, label included.
    A byte-level BPE token always covers at least one byte, so the turn is at
    most 300 tokens for any input. It is built only from the person's own older
    asks and never used as a fact source.
    Both paths also carry a **taste read** (`lib/palTaste.ts`, read by
-   `lib/palTaste.server.ts`) worked out from what the signed-in person logged
-   themselves: diary visits and ratings, their own pint drops (drink, pint
-   price, vibe tags) and their saved pubs. Typed chat puts it after the
+   `lib/palTaste.server.ts`) from the verified owner's declared favourite drink
+   and their own records: diary visits and ratings, pint drops (drink, pint
+   price, vibe tags) and saved pubs. Typed chat puts it after the
    memories, in the person's voice; voice gets it inside the `recall_memories`
    answer. It runs beside the signed-URL request with a 900 ms budget and a
    two-minute in-process cache, so a turn does not wait on it, and a slow or
@@ -244,7 +262,7 @@ Live proof after a real run: `node scripts/pubpal/prove-pal-text-tool.mjs --base
    It is opt-out: the "Taste read" toggle on the Pal's page writes
    the `taste` key of `proposal_preferences` (inside the existing jsonb, so no migration;
    a missing key is on). The setting is read fresh before every read, so
-   turning it off stops the next turn reading any logs, past the cache, and a
+   turning it off stops the next turn reading the favourite drink or logs, past the cache, and a
    Pal that cannot be read fails closed.
    Without ElevenLabs keys, a signed-in ask with no area, mood or budget runs
    `search_venues` off the read's patch, vibe and usual price instead of
@@ -293,6 +311,11 @@ It does not change the public error response or establish a provider failure's c
 ---
 
 ## Checking it
+
+Local builds, tests and controlled provider sockets do not establish live voice recall or production agent configuration.
+Provider access and the production workspace remain unresolved for this change.
+Live voice recall, physical-device acceptance, deployment and exhaustive website acceptance remain unverified.
+The checks below require separate provider access and do not resolve those limits by themselves.
 
 ```bash
 # Read-only drift check. It GETs the live agent and tools, compares them with

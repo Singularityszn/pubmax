@@ -106,6 +106,12 @@ export default function SaveToListControl({
   const [newName, setNewName] = useState("");
   const [busy, setBusy] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
+  const toastTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const showToast = useCallback((message: string, duration?: number) => {
+    clearTimeout(toastTimer.current);
+    setToast(message);
+    if (duration !== undefined) toastTimer.current = setTimeout(() => setToast(null), duration);
+  }, []);
   // WHICH LISTS HOLD THIS PUB. A chip is a switch, so it has to say which way it
   // is set: pressing it a second time removes the save, and a chip that looked
   // the same either way took the pub off a list with no sign it had.
@@ -132,6 +138,7 @@ export default function SaveToListControl({
   // read, so another account, or its handle landing, starts from this device's
   // answer, and the server read for it runs again.
   const accountKey = `${user?.id ?? ""}\n${handle}`;
+  useEffect(() => () => clearTimeout(toastTimer.current), [venueId, accountKey]);
   const [membershipAccountKey, setMembershipAccountKey] = useState(accountKey);
   if (membershipAccountKey !== accountKey) {
     setMembershipAccountKey(accountKey);
@@ -192,9 +199,9 @@ export default function SaveToListControl({
       setSavedIn(listsHolding(venueId, durable));
       setServerVenueId(venueId);
     } else {
-      setToast("Could not load your lists. Close and open again.");
+      showToast("Could not load your lists. Close and open again.");
     }
-  }, [handle, venueId]);
+  }, [handle, venueId, showToast]);
 
   useEffect(() => {
     // Defer through a promise callback so setState never runs synchronously in
@@ -205,15 +212,15 @@ export default function SaveToListControl({
   const announce = useCallback((forVenue: string, listType: string, held: string[] | null) => {
     if (currentVenue.current !== forVenue) return;
     if (held) setSavedIn(held);
-    setToast(
+    showToast(
       !held
         ? "Could not confirm that just now."
         : held.includes(listType)
           ? savedToast(listType, handle)
           : `Removed from "${listType}"`,
+      2000,
     );
-    window.setTimeout(() => setToast(null), 2000);
-  }, [handle]);
+  }, [handle, showToast]);
 
   const save = useCallback(
     async (listType: string) => {
@@ -249,8 +256,7 @@ export default function SaveToListControl({
     if (!name || busy || !ready) return;
     membershipRead.current += 1;
     if (!isListTypeEligibleForVenue(name, venueKind)) {
-      setToast("Pint lists are for pubs");
-      window.setTimeout(() => setToast(null), 2000);
+      showToast("Pint lists are for pubs", 2000);
       return;
     }
     setBusy(true);
@@ -290,7 +296,7 @@ export default function SaveToListControl({
     } finally {
       setBusy(false);
     }
-  }, [handle, venueId, venueKind, newName, busy, ready, savedIn, announce]);
+  }, [handle, venueId, venueKind, newName, busy, ready, showToast, savedIn, announce]);
 
   if (!open) {
     return (

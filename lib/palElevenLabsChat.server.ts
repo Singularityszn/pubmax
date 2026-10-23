@@ -18,6 +18,7 @@ import { isPubPalConversationId, newPalLocalThreadId } from "@/lib/pubPalConvers
 import {
   pubPalGetHomeRegisterAnswer,
   resolvePubPalFenceIntent,
+  type PubPalFenceIntent,
   type PubPalFenceTurn,
 } from "@/lib/pubPalLlmFence";
 import {
@@ -67,16 +68,15 @@ async function waitForPubPalToolTurn(
 type PriorSession = { turns: PubPalFenceTurn[]; summary: string; conversationId?: string };
 
 /**
- * The signed-in owner's earlier asks, read from their own stored turn and never
- * from the request. The newest stay word for word and older ones roll into the
- * session summary.
+ * Read earlier context from the signed-in owner's stored turn, never the request.
+ * The shared session window resolves same-area budget references before eviction.
  */
 async function priorOwnedSession(threadId: unknown, ownerId: string): Promise<PriorSession> {
   if (typeof threadId !== "string" || !isPubPalConversationId(threadId)) return { turns: [], summary: "" };
   const prior = await readOwnedPubPalToolTurn(threadId, ownerId);
   if (!prior) return { turns: [], summary: "" };
   const asks = [...prior.turns, { role: "user" as const, content: prior.query }].filter(
-    (turn) => turn.role === "user" && turn.content.trim(),
+    (turn) => turn.content.trim(),
   );
   return { ...windowPalSessionTurns(prior.summary, asks), conversationId: threadId };
 }
@@ -97,10 +97,11 @@ function userMessageText(
   memories: PalRecalledMemory[] | null,
   taste: PalTaste | null,
 ): string {
-  const priorAsks = prior.turns;
+  const priorAsks = prior.turns.filter((turn) => turn.role === "user");
   return [
     ...palPersonalContext(memories, taste),
     ...palSessionSummaryTurn(prior.summary),
+    ...prior.turns.filter((turn) => turn.role === "assistant").map((turn) => `Earlier Pal opening in this conversation: ${turn.content}`),
     ...(priorAsks.length > 0
       ? ["My earlier asks in this chat, oldest first:", ...priorAsks.map((turn) => `- ${turn.content}`)]
       : []),
@@ -155,8 +156,27 @@ type PalChatFailureStage =
   | "configuration" | "input" | "context" | "signed_url" | "registration"
   | "tool_result" | "deadline" | "caller_cancel" | "socket_error" | "socket_close" | "turn";
 
+export type PalElevenLabsChatContext = {
+  prior: PriorSession;
+  fence: PubPalFenceIntent;
+};
+
+/** Prepare owned history and its safety result once, before any opening or provider turn. */
+export async function preparePalElevenLabsChatTurn(
+  input: PalElevenLabsChatInput,
+): Promise<PalElevenLabsChatContext> {
+  const prior = await priorOwnedSession(input.threadId, input.ownerId);
+  const fenceTurns = (input.fenceTurns ?? []).filter((turn) => turn.role === "user");
+  const fence = await resolvePubPalFenceIntent(input.query.trim().slice(0, 500), [
+    ...fenceTurns,
+    ...prior.turns,
+  ]);
+  return { prior, fence };
+}
+
 export async function runPalElevenLabsChatTurn(
   input: PalElevenLabsChatInput,
+  context?: PalElevenLabsChatContext,
 ): Promise<PalElevenLabsChatOutcome> {
   const startedAt = Date.now();
   const recordFailure = (
@@ -191,28 +211,14 @@ export async function runPalElevenLabsChatTurn(
   // and the test is on the ask alone, so it is decided before anything leaves.
   const unsupported = unsupportedPriceComparison(query);
   const answeredFromRecords = Boolean(unsupported) || recordedDrinkComparison(query);
-  // Otherwise the signed URL, the owner's memories and taste depend on neither the
-  // earlier asks nor the fence, so all three leave now and travel under the
-  // prior-turn read and the fence check instead of queueing behind them.
-  // None ever rejects. A fenced turn drops the URL unused: no socket is
-  // opened, so no conversation starts on it.
-  const sessionRead = answeredFromRecords ? null : fetchPalSignedConversation({ apiKey, agentId });
-  // Read from the signed-in owner's own Pal and logs, never from the request body.
-  const memoriesRead = answeredFromRecords ? null : readConfirmedPalMemories(input.ownerId, query);
-  const tasteRead = answeredFromRecords ? null : readPalTaste(input.ownerId);
-  let prior: PriorSession;
   try {
-    prior = await priorOwnedSession(input.threadId, input.ownerId);
+    context ??= await preparePalElevenLabsChatTurn(input);
   } catch {
     recordFailure("UNAVAILABLE", "context");
     return { ok: false, code: "UNAVAILABLE" };
   }
+  const { prior, fence: { fenced, sobrietyOnly } } = context;
   const turns = prior.turns;
-  const fenceTurns = (input.fenceTurns ?? []).filter((turn) => turn.role === "user");
-  const { fenced, sobrietyOnly } = await resolvePubPalFenceIntent(query, [
-    ...fenceTurns,
-    ...turns,
-  ]);
   if (fenced) {
     return {
       ok: true,
@@ -224,6 +230,12 @@ export async function runPalElevenLabsChatTurn(
     };
   }
 
+  // Only unfenced turns start provider and personal reads. These independent
+  // reads run together after the owned context and safety check finish.
+  const sessionRead = answeredFromRecords ? null : fetchPalSignedConversation({ apiKey, agentId });
+  // Read from the signed-in owner's own Pal and logs, never from the request body.
+  const memoriesRead = answeredFromRecords ? null : readConfirmedPalMemories(input.ownerId, query);
+  const tasteRead = answeredFromRecords ? null : readPalTaste(input.ownerId);
   // The three reads are null exactly when the records answer; testing them here
   // also tells the compiler so.
   if (answeredFromRecords || !sessionRead || !memoriesRead || !tasteRead) {

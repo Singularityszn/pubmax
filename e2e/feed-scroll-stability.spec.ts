@@ -33,7 +33,9 @@ test.describe("canonical Social route", () => {
     const response = await page.goto("/social");
     expect(response?.status()).toBe(200);
     await expect(page.locator("h1.screenTitle")).toBeVisible();
-    await expect(page.locator(".socialBoundary")).toBeVisible();
+    await expect(page.getByRole("status", { name: "Social posts", exact: true })).toContainText("Sign in to use Social.");
+    await expect(page.getByRole("link", { name: "Sign in", exact: true }).last()).toHaveAttribute("href", "/login?mode=signin&from=%2Fsocial");
+    await expect(page.getByRole("heading", { name: "Your crews", exact: true })).toHaveCount(0);
     await expect(page.getByRole("heading", { name: "Find your lot" })).toBeVisible();
     await expectNoHorizontalOverflow(page);
   });

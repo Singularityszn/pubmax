@@ -16,7 +16,7 @@ for (const width of [390, 1440]) {
     });
     await installDeterministicMapBasemap(page);
     await page.goto("/pal/chat");
-    const input = page.getByRole("textbox", { name: "Describe the outing", exact: true });
+    const input = page.getByRole("textbox", { name: "Where, how many, what budget", exact: true });
     await input.fill("Wine prices at Sherlock Holmes");
     const reply = page.waitForResponse((response) =>
       new URL(response.url()).pathname === "/api/pub-pal/chat" && response.request().method() === "POST",
@@ -42,7 +42,9 @@ for (const width of [390, 1440]) {
     await expect(publishedCard).toContainText("Serving size not recorded.");
     await expect(publishedCard).toContainText("Price observed 2026-09-21.");
     await expect(publishedCard.locator('a[href="https://www.greeneking.co.uk/pubs/greater-london/sherlock-holmes/menu"]')).toBeVisible();
-    await page.getByRole("button", { name: "Open Sherlock Holmes", exact: true }).click();
+    const venueLink = publishedCard.locator(`a.palChatCardMain[href="/map?sel=${body.proposals[0].venueId}"]`);
+    await expect(venueLink).toBeVisible();
+    await venueLink.click();
     await expect(page).toHaveURL(new RegExp(`sel=${body.proposals[0].venueId}`));
     const menu = page.getByRole("tab", { name: "Menu", exact: true });
     await expect(async () => {
@@ -68,7 +70,7 @@ for (const query of [
 ]) {
   test(`the rendered chat preserves the complete journey question: ${query}`, async ({ page }) => {
     await page.goto("/pal/chat");
-    const input = page.getByRole("textbox", { name: "Describe the outing", exact: true });
+    const input = page.getByRole("textbox", { name: "Where, how many, what budget", exact: true });
     await input.fill(query);
     const responsePromise = page.waitForResponse((response) =>
       new URL(response.url()).pathname === "/api/pub-pal/chat" && response.request().method() === "POST",
@@ -162,7 +164,7 @@ for (const chip of VIBE_CHIPS.filter((chip) => chip.id !== "bender")) {
 for (const query of ["somewhere cheap and quiet", "Somewhere cheap in Soho"]) {
   test(`typed discovery retains the budget through chat: ${query}`, async ({ page }) => {
     await page.goto("/pal/chat");
-    const input = page.getByRole("textbox", { name: "Describe the outing", exact: true });
+    const input = page.getByRole("textbox", { name: "Where, how many, what budget", exact: true });
     await expect(input).toBeVisible();
     await input.fill(query);
     const responsePromise = page.waitForResponse((response) =>
@@ -193,7 +195,7 @@ for (const query of [
 ]) {
   test(`typed item and destination constraints survive rendered chat: ${query}`, async ({ page }) => {
     await page.goto("/pal/chat");
-    const input = page.getByRole("textbox", { name: "Describe the outing", exact: true });
+    const input = page.getByRole("textbox", { name: "Where, how many, what budget", exact: true });
     await expect(input).toBeVisible();
     await input.fill(query);
     const responsePromise = page.waitForResponse((response) =>

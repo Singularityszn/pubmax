@@ -6,6 +6,27 @@ import { ASK_TOOL_NAMES, isAskToolName } from "@/lib/ask/types";
 
 describe("routeAskDeterministically", () => {
   it.each([
+    ["Find me two quiet pubs in Soho", 2],
+    ["Show me 6 pubs in Soho on the map", 6],
+    ["Find me three good places in Soho for six people", 3],
+    ["Find pubs in Soho for two people", 4],
+  ])("keeps the requested choices separate from the group size: %s", (query, limit) => {
+    expect(routeAskDeterministically(String(query))).toEqual([
+      { name: "search_venues", args: { query, limit } },
+    ]);
+  });
+  it.each([
+    "Find me four pubs in Soho and show them on the map.",
+    "Show me quiet pubs in Soho on the map",
+    "Show me four pubs in Soho",
+    "Find four pubs in Soho under £6 a pint.",
+  ])("answers discovery before offering map actions: %s", (query) => {
+    expect(routeAskDeterministically(query)).toEqual([
+      { name: "search_venues", args: { query, limit: 4 } },
+    ]);
+  });
+
+  it.each([
     "Is the Tube running tonight?",
     "Are there Tube delays?",
     "Are Tube services delayed?",
@@ -274,6 +295,23 @@ describe("routeAskDeterministically: Pub Pal V0.1 concierge tools", () => {
     expect(refineRoutedAskQuery("somewhere quiet", "pubs in Camden")).toBe(
       "somewhere quiet in Camden",
     );
+  });
+
+  it.each(["Same area, but under £6.50 a pint.", "In the same area but under £6.50 please"])("keeps a longer budget refinement in the discovered area: %s", (query) => {
+    const refined = refineRoutedAskQuery(query, "Find me four pubs in Soho and show them on the map.");
+    expect(refined).toContain("pubs in Soho");
+    expect(routeAskDeterministically(refined).map((call) => call.name)).toEqual(["search_venues"]);
+  });
+
+  it.each(["Pint at The Lamb in the same area under £6.50", "Same area but cheapest wine under £6.50", "Pubs in Camden in the same area under £6.50"])("keeps a new named subject or place: %s", (query) => {
+    expect(refineRoutedAskQuery(query, "Find four pubs in Soho")).toBe(query);
+  });
+
+  it("keeps the explicit area across successive budget refinements", () => {
+    const prior = ["Find four pubs in Soho", "Same area, under £6.50 a pint"];
+    const refined = refineRoutedAskQuery("Same area but under £6.30 a pint", prior.at(-1), prior);
+    expect(refined).toContain("pubs in Soho");
+    expect(routeAskDeterministically(refined).map((call) => call.name)).toEqual(["search_venues"]);
   });
 
   it("keeps a cheap CRAWL on propose_plan", () => {

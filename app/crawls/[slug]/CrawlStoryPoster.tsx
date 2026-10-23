@@ -80,7 +80,7 @@ export default function CrawlStoryPoster({
   const shareText = buildCrawlShareText({
     title: story.title,
     stopCount,
-    totalGbp: total,
+    totalGbp: pricedStops === stopCount ? total : null,
   });
 
   // Chaos Score + meme export (issue #30): computed once here so the on-page
@@ -161,12 +161,12 @@ export default function CrawlStoryPoster({
 
         <div className="storyReceipt" role="group" aria-label="Crawl total">
           <span>
-            Round total
+            {pricedStops === stopCount ? "Round total" : "Recorded subtotal"}
             <small>
               {pricedStops} of {stopCount} stop{stopCount === 1 ? "" : "s"} priced
             </small>
           </span>
-          <strong>{formatGbp(total)}</strong>
+          <strong>{pricedStops > 0 ? formatGbp(total) : "Prices unknown"}</strong>
         </div>
 
         {/* Chaos Score (issue #30): optional and playful; a crawl with zero

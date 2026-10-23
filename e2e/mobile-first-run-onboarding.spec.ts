@@ -86,7 +86,7 @@ for (const theme of ["light", "dark"] as const) {
     await expect(page.getByRole("heading", { name: "London is ready." })).toBeVisible();
     await expect(page.getByText("Clapham", { exact: true })).toBeVisible();
     await expect(page.getByText("Victoria", { exact: true })).toBeVisible();
-    await expect(page.getByText("Piccadilly & Soho", { exact: true })).toBeVisible();
+    await expect(page.getByText("Canary Wharf", { exact: true })).toBeVisible();
     await expect(page.getByRole("navigation", { name: "Primary" })).toBeHidden();
     await expect(page.getByRole("dialog", { name: NATIVE_PUSH_PROMPT_COPY.title })).toHaveCount(0);
     await expectTouchTarget(page.getByRole("button", { name: "Use London" }));

@@ -125,6 +125,7 @@ describe("POST /api/pub-pal/tools/[toolName]", () => {
     );
     expect(response.status).toBe(200);
     expect(runAskTool).toHaveBeenCalled();
+    expect(await response.json()).toMatchObject({ requestedTool: "search_venues", result: { tool: "search_venues" } });
   });
 
   it("fails closed when the shared secret is unset, even for a listed tool", async () => {

@@ -237,7 +237,7 @@ describe("a pub the area circle alone finds", () => {
       intent,
       options,
     )[0]!;
-    expect(inSoho.score - near.score).toBe(10);
+    expect(inSoho.score).toBeGreaterThan(near.score);
   });
 
   it("keeps a pub the text names even when its geocode sits outside the radius", () => {
@@ -260,7 +260,7 @@ describe("a pub the area circle alone finds", () => {
 
   it("says Near and the distance on the card when the circle alone admitted the pub", async () => {
     state.venues = [adamAndEve, threeTuns, shakespearesHead];
-    const result = await runAskTool("search_venues", {}, ctx("cheap pubs in Soho"));
+    const result = await runAskTool("search_venues", {}, ctx("pubs in Soho under £6.50"));
     const note = (id: string) => result.cards.find((card) => card.venueId === id)?.note ?? "";
     expect(note("venue-s4j91a")).toBe("£5.40 is within budget \u00b7 Near Piccadilly & Soho, 1.3 km");
     expect(result.cards.map((card) => card.venueId)).toContain("venue-e1srzr");

@@ -42,6 +42,15 @@ function dryRun() {
 }
 
 describe("pubpal:agent dry run", () => {
+  it("lets the agent request four sourced pubs and return their display data", () => {
+    const printed = dryRun().stdout.split("\nDefault voice resolved:")[0] ?? "";
+    const body = JSON.parse(printed.slice(printed.indexOf("{"), printed.lastIndexOf("}") + 1));
+    const search = body.webhook_tools.find((tool: { name: string }) => tool.name === "search_venues");
+    expect(search.api_schema.request_body_schema.properties.limit).toMatchObject({ type: "number" });
+    expect(body.conversation_config.conversation.client_events).toContain("agent_tool_response_full_payload");
+    expect(body.conversation_config.agent.prompt.prompt).toContain("A requested number of pubs is a result count");
+  });
+
   it("keeps social turns separate from factual requests in the provisioned prompt and tools", () => {
     const printed = dryRun().stdout.split("\nDefault voice resolved:")[0] ?? "";
     const body = JSON.parse(printed.slice(printed.indexOf("{"), printed.lastIndexOf("}") + 1));

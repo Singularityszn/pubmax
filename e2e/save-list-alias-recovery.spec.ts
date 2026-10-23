@@ -2,7 +2,7 @@ import { mkdir, writeFile } from "node:fs/promises";
 
 import { expect, test, type Locator, type Page, type TestInfo } from "@playwright/test";
 
-import { desktopVenueDrawer, expectSoleDesktopDrawer } from "./helpers/mapSurfaceDrawers";
+import { desktopVenueDrawer, expectSoleDesktopDrawer } from "@/e2e/helpers/mapSurfaceDrawers";
 
 const STORAGE_KEY = "pubmax:savedPubs:v1";
 const SEEDED_MARKER = "pubmax:e2e:save-list-alias-recovery-seeded";
@@ -45,25 +45,64 @@ async function failAliasReadsUntilReleased(page: Page): Promise<() => void> {
   };
 }
 
+type SavePressRecord = {
+  before: string | null;
+  after: string | null;
+  chipPressed: string | null;
+  status: string | null;
+  statusVisible: boolean;
+};
+
 async function recordAfterPress(
-  page: Page,
   testInfo: TestInfo,
   picker: Locator,
-  chip: Locator,
-  status: Locator,
   name: string,
-  assertions: () => Promise<void>,
+  press: () => Promise<void>,
+  assertions: (record: SavePressRecord) => Promise<void>,
 ): Promise<void> {
-  await status.waitFor({ state: "visible" });
-  const record = {
-    before: SAVED_RAW,
-    after: await savedBytes(page),
-    chipPressed: await chip.getAttribute("aria-pressed"),
-    status: await status.textContent(),
-  };
+  let record: SavePressRecord | null = null;
+  // Observe before pressing. A slow driver can return after the brief status
+  // has gone, so capture its visible message and saved state in the browser.
+  const observation = await picker.evaluateHandle((region, { key, list }) => {
+    const before = window.localStorage.getItem(key);
+    const records: SavePressRecord[] = [];
+    const capture = () => {
+      const status = region.querySelector<HTMLElement>('[role="status"]');
+      const chip = [...region.querySelectorAll('button[aria-pressed]')].find((button) =>
+        button.textContent?.replace(/^✓/, "").trim() === list,
+      );
+      records.push({
+        before,
+        after: window.localStorage.getItem(key),
+        chipPressed: chip?.getAttribute("aria-pressed") ?? null,
+        status: status?.textContent ?? null,
+        statusVisible: Boolean(status && status.getBoundingClientRect().height > 0 &&
+          getComputedStyle(status).visibility !== "hidden"),
+      });
+    };
+    const observer = new MutationObserver(capture);
+    observer.observe(region, {
+      subtree: true,
+      childList: true,
+      characterData: true,
+      attributes: true,
+      attributeFilter: ["aria-pressed", "class", "style", "hidden"],
+    });
+    return { records, capture, disconnect: () => observer.disconnect() };
+  }, { key: STORAGE_KEY, list: LIST });
   try {
-    await assertions();
+    await press();
+    await observation.evaluate((value) => value.capture());
+    await expect(async () => {
+      const snapshots = await observation.evaluate((value) => value.records);
+      const snapshot = snapshots.filter((value) => value.statusVisible).at(-1);
+      record = snapshot ?? snapshots.at(-1) ?? null;
+      expect(snapshot?.statusVisible).toBe(true);
+      if (snapshot) await assertions(snapshot);
+    }).toPass({ timeout: 20_000 });
   } finally {
+    await observation.evaluate((value) => value.disconnect());
+    await observation.dispose();
     await mkdir(testInfo.outputDir, { recursive: true });
     const recordPath = testInfo.outputPath(`${name}-storage.json`);
     await writeFile(recordPath, JSON.stringify(record, null, 2));
@@ -96,24 +135,28 @@ test("an explicit save after the alias lookup recovers keeps the old save and it
   test.slow();
   await seed(page);
   const release = await failAliasReadsUntilReleased(page);
-  const { picker, chip, status } = await openPickerAfterFailedAliasRead(page);
+  const { picker, chip } = await openPickerAfterFailedAliasRead(page);
 
   release();
-  await chip.click();
-  await recordAfterPress(page, testInfo, picker, chip, status, "recovered-chip-save", async () => {
-    expect(await savedBytes(page)).toBe(SAVED_RAW);
-    await expect(chip).toHaveAttribute("aria-pressed", "true");
-    await expect(status).toHaveText(`Saved to "${LIST}" on this device`);
+  await recordAfterPress(testInfo, picker, "recovered-chip-save", () => chip.click(), async (record) => {
+    expect(record.after).toBe(SAVED_RAW);
+    expect(record.chipPressed).toBe("true");
+    expect(record.status).toBe(`Saved to "${LIST}" on this device`);
   });
 
-  await chip.click();
-  await expect(chip).toHaveAttribute("aria-pressed", "false");
-  await expect(status).toHaveText(`Removed from "${LIST}"`);
-  expect(await savedBytes(page)).toBe("[]");
+  await recordAfterPress(testInfo, picker, "removed-chip-save", () => chip.click(), async (record) => {
+    expect(record.after).toBe("[]");
+    expect(record.chipPressed).toBe("false");
+    expect(record.status).toBe(`Removed from "${LIST}"`);
+  });
 
-  await chip.click();
-  await expect(chip).toHaveAttribute("aria-pressed", "true");
-  await expect(status).toHaveText(`Saved to "${LIST}" on this device`);
+  await recordAfterPress(testInfo, picker, "new-chip-save", () => chip.click(), async (record) => {
+    expect(record.chipPressed).toBe("true");
+    expect(record.status).toBe(`Saved to "${LIST}" on this device`);
+    expect(JSON.parse(record.after ?? "null")).toEqual([
+      { venueId: BLACKFRIAR_ID, listType: LIST, savedAt: expect.any(String) },
+    ]);
+  });
   await expect
     .poll(async () => JSON.parse((await savedBytes(page)) ?? "null"))
     .toEqual([{ venueId: BLACKFRIAR_ID, listType: LIST, savedAt: expect.any(String) }]);
@@ -123,22 +166,22 @@ test("Create & save after the alias lookup recovers keeps the old save and its n
   test.slow();
   await seed(page);
   const release = await failAliasReadsUntilReleased(page);
-  const { picker, chip, status } = await openPickerAfterFailedAliasRead(page);
+  const { picker } = await openPickerAfterFailedAliasRead(page);
   const name = picker.getByRole("textbox", { name: "New list name" });
   const create = picker.getByRole("button", { name: "Create & save" });
 
   release();
   await name.fill(LIST);
-  await create.click();
-  await recordAfterPress(page, testInfo, picker, chip, status, "recovered-create-save", async () => {
-    expect(await savedBytes(page)).toBe(SAVED_RAW);
-    await expect(chip).toHaveAttribute("aria-pressed", "true");
-    await expect(status).toHaveText(`Saved to "${LIST}" on this device`);
+  await recordAfterPress(testInfo, picker, "recovered-create-save", () => create.click(), async (record) => {
+    expect(record.after).toBe(SAVED_RAW);
+    expect(record.chipPressed).toBe("true");
+    expect(record.status).toBe(`Saved to "${LIST}" on this device`);
   });
 
   await name.fill(LIST);
-  await create.click();
-  await expect(chip).toHaveAttribute("aria-pressed", "true");
-  await expect(status).toHaveText(`Saved to "${LIST}" on this device`);
-  expect(await savedBytes(page)).toBe(SAVED_RAW);
+  await recordAfterPress(testInfo, picker, "repeated-create-save", () => create.click(), async (record) => {
+    expect(record.after).toBe(SAVED_RAW);
+    expect(record.chipPressed).toBe("true");
+    expect(record.status).toBe(`Saved to "${LIST}" on this device`);
+  });
 });

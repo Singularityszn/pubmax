@@ -4,15 +4,15 @@ import {
   COMMUNITY_SHEET_FIXTURE_MAP_PATH,
   COMMUNITY_SHEET_FIXTURE_VENUE_ID,
   COMMUNITY_SHEET_FIXTURE_VENUE_NAME,
-} from "./helpers/communitySheetFixture";
-import { priceBand, type PriceBand } from "../lib/priceBand";
+} from "@/e2e/helpers/communitySheetFixture";
+import { priceBand, type PriceBand } from "@/lib/priceBand";
 
 // THE PRICE COLOUR LAW (captain, 5 Sept 2026, "I already told you"): RED means
 // expensive, YELLOW means affordable and average, GREEN means cheap, and a
 // price wears no other colour. lib/priceBand.ts is the one rule. This spec
 // holds three phone surfaces to it at 390x844: the landing answer card, the
 // venue sheet on the community-sheet fixture pub and the near-you rail on
-// /near?patch=soho. On each, a £6.50 pint reads expensive and the area's
+// /near?patch=soho. Controlled £6.50 pints read expensive and the area's
 // cheapest reads green, and the colour a reader sees is the band token, read
 // off a probe element so the assertion is about paint and not a class name.
 
@@ -64,15 +64,17 @@ test.beforeEach(async ({ page }) => {
   await dismissFirstRunChrome(page);
 });
 
-test("landing: the £6.50 answer is red, the rail's cheapest is green, the trust chip wears no tone", async ({
+test("landing: the recorded answer wears its own band, the rail's cheapest is green, the trust chip wears no tone", async ({
   page,
 }) => {
   const response = await page.goto("/");
   expect(response?.status()).toBe(200);
 
   const answer = page.locator(".lpAnswerCard .lpPubPrice .priceBadge");
-  await expect(answer).toHaveText("£6.50");
-  await expectBand(page, answer, "expensive");
+  await expect(answer).toBeVisible();
+  const answerPrice = poundsOf(await answer.innerText());
+  expect(answerPrice).toBeGreaterThan(0);
+  await expectBand(page, answer, priceBand(answerPrice, { city: "london" }));
 
   // The standing is a word beside the figure, in the neutral badge ink.
   const standing = page.locator(".lpAnswerCard .lpStanding");

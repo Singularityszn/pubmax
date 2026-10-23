@@ -10,8 +10,9 @@ import { isAskToolName } from "@/lib/ask/types";
 import {
   pubPalGetHomeRegisterAnswer,
   resolvePubPalFenceIntent,
+  type PubPalFenceTurn,
 } from "@/lib/pubPalLlmFence";
-import { isIndependentAskTool, routeAskDeterministically, unsupportedPriceComparison } from "@/lib/ask/router";
+import { isIndependentAskTool, refineVenueBudgetFollowUp, routeAskDeterministically, unsupportedPriceComparison } from "@/lib/ask/router";
 import {
   appendPubPalToolTurn,
   readPubPalToolTurn,
@@ -27,11 +28,14 @@ function isEmptyArg(value: unknown): boolean {
 export function resolvePubPalToolQuery(input: {
   turnQuery?: string | null;
   args: AskToolArgs;
+  turns?: readonly PubPalFenceTurn[];
 }): string {
   const fromTurn = input.turnQuery?.trim() ?? "";
   const fromArgs =
     typeof input.args.query === "string" ? input.args.query.trim() : "";
-  return fromTurn || fromArgs;
+  const query = fromTurn || fromArgs;
+  const priorUsers = input.turns?.filter((turn) => turn.role === "user").map((turn) => turn.content);
+  return refineVenueBudgetFollowUp(query, priorUsers) ?? query;
 }
 
 export function enrichPubPalToolArgs(
@@ -103,7 +107,7 @@ export async function invokePubPalAskTool(input: {
   const turn = input.conversationId
     ? await readPubPalToolTurn(input.conversationId)
     : null;
-  const query = resolvePubPalToolQuery({ turnQuery: turn?.query, args: input.args });
+  const query = resolvePubPalToolQuery({ turnQuery: turn?.query, args: input.args, turns: turn?.turns });
   const cityId = resolveAskCityId(
     typeof input.args.cityId === "string" ? input.args.cityId : turn?.cityId,
   );

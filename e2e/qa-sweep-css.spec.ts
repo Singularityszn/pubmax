@@ -1,7 +1,7 @@
 import { expect, test, type Page } from "@playwright/test";
 
-import { measureHitArea, resolvedColour } from "./helpers/hitArea";
-import { desktopVenueDrawer } from "./helpers/mapSurfaceDrawers";
+import { measureHitArea, resolvedColour } from "@/e2e/helpers/hitArea";
+import { desktopVenueDrawer } from "@/e2e/helpers/mapSurfaceDrawers";
 
 // The small fixes from the signed-in and signed-out QA sweeps, measured in the
 // browser under the shipped stylesheets. The arrival ask beside an open drawer
@@ -147,7 +147,7 @@ test.describe("theme ink", () => {
     const accent = await page
       .locator("#qa-probe .venuePhotoComposerShare input")
       .evaluate((el) => getComputedStyle(el).accentColor);
-    expect(accent).toBe(await resolvedColour(page, "#qa-probe", "var(--brass)"));
+    expect(accent).toBe(await resolvedColour(page, "#qa-probe", "var(--ink)"));
   });
 
   test("a profile editor field is filled apart from its panel", async ({ page }) => {

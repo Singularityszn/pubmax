@@ -1,3 +1,4 @@
+import { CHAINED_ALCOHOL_FITNESS_QUESTIONS, QUANTITY_FITNESS_CASES } from "./fixtures/pubPalTemporalSafety";
 import { QUALIFIED_PRICE_REQUESTS } from "./fixtures/askPriceSubjects";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -9,7 +10,8 @@ vi.mock("@/lib/supabase", () => ({
   checkRateLimitDurableDetailed: async () => ({ verdict: false, reason: "counted" }),
 }));
 
-vi.mock("@/lib/palElevenLabsChat.server", () => ({
+vi.mock("@/lib/palElevenLabsChat.server", async (original) => ({
+  ...await original<typeof import("@/lib/palElevenLabsChat.server")>(),
   runPalElevenLabsChatTurn: vi.fn(),
 }));
 
@@ -49,6 +51,95 @@ describe("POST /api/pub-pal/chat", () => {
   afterEach(() => {
     vi.unstubAllEnvs();
     vi.unstubAllGlobals();
+  });
+
+  it.each(QUANTITY_FITNESS_CASES.flatMap((entry) => (["current", "user", "assistant"] as const).map((role) => ({ ...entry, role }))))(
+    "classifies numeric quantities in typed $role turns: $query", async ({ query, fenced, role }) => {
+      vi.stubEnv("ELEVENLABS_API_KEY", "");
+      vi.stubEnv("TYPESAFE_API_KEY", "");
+      vi.stubGlobal("fetch", offlineFetch);
+      const response = await POST(new Request("http://localhost/api/pub-pal/chat", {
+        method: "POST", headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          query: role === "current" ? query : "Find four quiet pubs in Soho",
+          turns: role === "current" ? [] : [{ role, content: query }], cityId: "london",
+        }),
+      }));
+      expect(response.status).toBe(200);
+      const body = await response.json();
+      if (fenced && role !== "assistant") {
+        expect(body.answer).toBe("I can't tell you whether to have another drink. Open Getting Home on the venue sheet for last-train times, ride links, and the TfL planner.");
+        expect(body.cards).toEqual([]);
+        expect(body.toolsUsed).toEqual([]);
+      } else {
+        expect(body.answer).not.toContain("Getting Home");
+        if (role !== "current") expect(body.cards.length).toBeGreaterThan(0);
+      }
+      expect(runPalElevenLabsChatTurn).not.toHaveBeenCalled();
+    },
+  );
+
+  it.each([
+    ...CHAINED_ALCOHOL_FITNESS_QUESTIONS,
+    "Where can I buy beer in Soho? How many pints can I have before driving?",
+    "Where can I buy beer after cycling through Soho? Would it be safe to drive after two beers?",
+    "Can I drink 1.5 pints in Soho before driving?",
+    "Would it be safe to drive after 1.5 pints?",
+  ].flatMap((query) => [
+    { query, history: false },
+    { query, history: true },
+  ]))("answers mixed discovery and alcohol allowance with the safety handoff: $query $history", async ({ query, history }) => {
+    vi.stubEnv("ELEVENLABS_API_KEY", "");
+    vi.stubEnv("TYPESAFE_API_KEY", "");
+    vi.stubGlobal("fetch", offlineFetch);
+    const response = await POST(new Request("http://localhost/api/pub-pal/chat", {
+      method: "POST", headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        query: history ? "What about Soho?" : query,
+        turns: history ? [{ role: "user", content: query }] : [],
+        cityId: "london",
+      }),
+    }));
+    expect(response.status).toBe(200);
+    const body = await response.json();
+    expect(body.answer).toBe("I can't tell you whether to have another drink. Open Getting Home on the venue sheet for last-train times, ride links, and the TfL planner.");
+    expect(body.cards).toEqual([]);
+    expect(body.proposals).toEqual([]);
+    expect(body.toolsUsed).toEqual([]);
+    expect(runPalElevenLabsChatTurn).not.toHaveBeenCalled();
+  });
+
+  it("excludes chained alcohol questions from assistant history in keyless chat", async () => {
+    vi.stubEnv("ELEVENLABS_API_KEY", "");
+    vi.stubEnv("TYPESAFE_API_KEY", "");
+    vi.stubGlobal("fetch", offlineFetch);
+    const response = await POST(new Request("http://localhost/api/pub-pal/chat", {
+      method: "POST", headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        query: "Find four quiet pubs in Soho", cityId: "london",
+        turns: [{ role: "assistant", content: CHAINED_ALCOHOL_FITNESS_QUESTIONS[0] }],
+      }),
+    }));
+    expect(response.status).toBe(200);
+    const body = await response.json();
+    expect(body.toolsUsed).toEqual(["search_venues"]);
+    expect(body.cards.length).toBeGreaterThan(0);
+    expect(body.answer).not.toContain("I can't tell you whether to have another drink.");
+  });
+
+  it("uses the preceding Soho discovery for a longer budget follow-up", async () => {
+    vi.stubEnv("ELEVENLABS_API_KEY", "");
+    vi.stubGlobal("fetch", offlineFetch);
+    const response = await POST(new Request("http://localhost/api/pub-pal/chat", {
+      method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({
+        query: "Same area, but under £6.50 a pint.", cityId: "london",
+        turns: [{ role: "user", content: "Find me four pubs in Soho and show them on the map." }, { role: "assistant", content: "Four listed choices." }],
+      }),
+    }));
+    const body = await response.json();
+    expect(body.toolsUsed).toEqual(["search_venues"]);
+    expect(body.cards).toEqual(expect.arrayContaining([expect.objectContaining({ venueId: "venue-e1srzr" })]));
+    expect(body.cards.every((card: { price: number | null }) => typeof card.price === "number" && card.price <= 6.5)).toBe(true);
   });
 
   it.each(QUALIFIED_PRICE_REQUESTS)("refuses qualified item comparisons through chat: $query", async ({ query, wording }) => {
@@ -505,7 +596,7 @@ describe("POST /api/pub-pal/chat", () => {
       threadId: "conv_previous01",
       fenceTurns: [{ role: "user", content: "Earlier question." }],
       ownerId: authState.userId,
-    });
+    }, expect.objectContaining({ fence: { fenced: false, sobrietyOnly: false } }));
   });
 
   // The token check is a GoTrue round trip, so a request the limiter refuses

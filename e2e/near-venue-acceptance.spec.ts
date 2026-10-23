@@ -53,12 +53,12 @@ test("Near separates browsing from permanent Venue acceptance", async ({ page })
   const accept = page.locator(".nmnAccept").first();
   await expect(accept).toBeVisible();
   await expect(accept).toHaveText("Keep for tonight");
-  // Keep for tonight is a tinted text button, so it reads the --control-* row
+  // Keep for tonight is a secondary text button, so it reads the --control-* row
   // (docs/DESIGN_SYSTEM.md, "Text buttons", #1508): the control height, and the
-  // tinted surface and border, which are the active state's own.
+  // secondary surface, border and ink.
   const appearance = await accept.evaluate((button) => {
     const probe = document.createElement("span");
-    probe.style.cssText = "position:fixed;box-sizing:border-box;height:var(--control-height);background:var(--state-active-surface);border:1px solid var(--state-active-border);color:var(--state-active-ink)";
+    probe.style.cssText = "position:fixed;box-sizing:border-box;height:var(--control-height);background:var(--control-secondary-surface);border:1px solid var(--control-secondary-border);color:var(--ink)";
     document.body.appendChild(probe);
     const actual = getComputedStyle(button);
     const expected = getComputedStyle(probe);

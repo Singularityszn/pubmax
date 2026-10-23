@@ -1,7 +1,7 @@
 import { expect, test, type Page } from "@playwright/test";
 import path from "node:path";
 
-import { runnerShotDir } from "./helpers/runnerShotDir";
+import { runnerShotDir } from "@/e2e/helpers/runnerShotDir";
 
 test.use({ viewport: { width: 390, height: 844 } });
 
@@ -245,7 +245,7 @@ test.describe("Step Out weekly nudge opt-in (390x844)", () => {
     await installStepOutRoutes(page);
     await page.goto("/u/you#account-settings", { waitUntil: "domcontentloaded" });
     const panel = page.getByTestId("step-out-nudge-pref");
-    await expect(panel.getByRole("button", { name: "Turn Step Out on" })).toBeVisible({ timeout: 20_000 });
+    await expect(panel.getByRole("button", { name: "Turn weekly nudge on" })).toBeVisible({ timeout: 20_000 });
     await expect(page.getByTestId("step-out-ios-install-note")).toHaveCount(0);
   });
 
@@ -260,7 +260,7 @@ test.describe("Step Out weekly nudge opt-in (390x844)", () => {
       await installStepOutRoutes(page);
       await page.goto("/u/you#account-settings", { waitUntil: "domcontentloaded" });
       const panel = page.getByTestId("step-out-nudge-pref");
-      await expect(panel.getByRole("button", { name: "Turn Step Out on" })).toBeVisible({ timeout: 20_000 });
+      await expect(panel.getByRole("button", { name: "Turn weekly nudge on" })).toBeVisible({ timeout: 20_000 });
       await expect(page.getByTestId("step-out-ios-install-note")).toBeVisible();
       await expect(
         page.getByText(/web push needs the Home Screen install/i),

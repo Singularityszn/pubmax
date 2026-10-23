@@ -1,5 +1,7 @@
 import { expect, test, type Locator, type Page } from "@playwright/test";
 
+import { COMMUNITY_SHEET_FIXTURE_VENUE_ID } from "@/e2e/helpers/communitySheetFixture";
+
 const DESKTOP = { width: 1440, height: 900 };
 const MOBILE = { width: 390, height: 844 };
 const ARNOS_ARMS_ID = "venue-xjf3n0";
@@ -214,9 +216,15 @@ async function openVenueListWithKeyboard(page: Page): Promise<Locator> {
   await tabTo(page, list);
   await page.keyboard.press("Enter");
 
-  const firstVenue = page.locator(".mapVenueListItem").first();
-  await expect(firstVenue).toBeFocused();
-  return firstVenue;
+  // The pub stream can reorder the first row while focus correctly stays on
+  // the venue the keyboard reader reached. Follow that venue, not its index.
+  const focusedVenue = page.locator(".mapVenueListItem:focus");
+  await expect(focusedVenue).toHaveCount(1);
+  const venueId = await focusedVenue.getAttribute("data-venue-id");
+  expect(venueId).toBeTruthy();
+  const venue = page.locator(`.mapVenueListItem[data-venue-id=${JSON.stringify(venueId)}]`);
+  await expect(venue).toBeFocused();
+  return venue;
 }
 
 test.describe("map keyboard and screen-reader venue path", () => {
@@ -232,7 +240,7 @@ test.describe("map keyboard and screen-reader venue path", () => {
     await page.goto("/map");
 
     for (const name of ["Zoom in", "Zoom out"] as const) {
-      const control = page.getByRole("button", { name });
+      const control = page.getByRole("button", { name, exact: true });
       await expect(control).toBeVisible({ timeout: 30_000 });
       const box = await control.boundingBox();
       expect(box).not.toBeNull();
@@ -446,13 +454,13 @@ test.describe("map keyboard and screen-reader venue path", () => {
     const lastFocusable = focusables.last();
     const toolbar = page.locator(".mapToolbar");
     const toolbarFocusables = toolbar.locator(focusableSelector);
-    const firstToolbarFocusable = toolbarFocusables.first();
+    const firstExemptFocusable = page.getByRole("link", { name: "Open PUBMAXX landing page", exact: true });
     const lastToolbarFocusable = toolbarFocusables.last();
     await expect(toolbar).toBeVisible();
 
     await lastFocusable.focus();
     await page.keyboard.press("Tab");
-    await expect(firstToolbarFocusable).toBeFocused();
+    await expect(firstExemptFocusable).toBeFocused();
     await page.keyboard.press("Shift+Tab");
     await expect(lastFocusable).toBeFocused();
 
@@ -462,10 +470,10 @@ test.describe("map keyboard and screen-reader venue path", () => {
     await page.keyboard.press("Tab");
     await expect(firstFocusable).toBeFocused();
 
-    // Enter through the exempt toolbar and use its Filters control with keys.
+    // Traverse the exempt header and toolbar, then use Filters with keys.
     await lastFocusable.focus();
     await page.keyboard.press("Tab");
-    await expect(firstToolbarFocusable).toBeFocused();
+    await expect(firstExemptFocusable).toBeFocused();
     const filters = toolbar.locator(".mapVenueKindFilterBtn");
     await tabTo(page, filters);
     await page.keyboard.press("Enter");
@@ -597,9 +605,11 @@ test.describe("map keyboard and screen-reader venue path", () => {
 
     const firstVenue = await openVenueListWithKeyboard(page);
     const firstVenueId = await firstVenue.getAttribute("data-venue-id");
-    const secondVenueCandidate = page.locator(".mapVenueListItem").nth(1);
-    const secondVenueId = await secondVenueCandidate.getAttribute("data-venue-id");
     expect(firstVenueId).toBeTruthy();
+    const secondVenueCandidate = page.locator(
+      `.mapVenueListItem:not([data-venue-id=${JSON.stringify(firstVenueId)}])`,
+    ).first();
+    const secondVenueId = await secondVenueCandidate.getAttribute("data-venue-id");
     expect(secondVenueId).toBeTruthy();
     expect(secondVenueId).not.toBe(firstVenueId);
     const secondVenue = page.locator(
@@ -643,26 +653,26 @@ test.describe("map keyboard and screen-reader venue path", () => {
     }
 
     await page.setViewportSize(MOBILE);
-    await page.goto(`/map?sel=${ARNOS_ARMS_ID}&mode=build`);
-    const planStop = page.getByRole("button", { name: "Plan stop" });
-    // One painted primary per screen: the peek's "Plan stop" keeps the locked
-    // coral, and the sticky bar's "Make it Stop 1" is its ghost neighbour. The
-    // sheet's one painted PRICE action is the Overview's price door, and it
-    // wears the same locked pair. The guarantee follows the primary; it never
-    // followed the button's name.
-    const acceptStop1 = page.getByRole("button", {
-      name: "Make Arnos Arms Stop 1",
-    });
-    const priceDoor = page.locator("[data-price-door]");
-    await expect(planStop).toBeVisible();
-    await expect(acceptStop1).toBeVisible();
-    await expect(priceDoor).toHaveCount(1);
-
-    for (const theme of ["light", "dark"] as const) {
-      await applyTheme(page, theme, [planStop, priceDoor, acceptStop1]);
-      await expectLockedCoralContrast(planStop);
-      await expectLockedCoralContrast(priceDoor);
-      await expectReadableGhostContrast(acceptStop1);
+    for (const crawlInProgress of [false, true]) {
+      const crawlQuery = crawlInProgress ? `&pubs=${COMMUNITY_SHEET_FIXTURE_VENUE_ID}` : "";
+      await page.goto(`/map?sel=${ARNOS_ARMS_ID}&mode=build${crawlQuery}`);
+      const portal = page.locator('.mobileSheetPortal[data-sheet-kind="venue"]');
+      const planDoor = portal.getByRole("button", {
+        name: crawlInProgress ? "Plan stop" : "Make Arnos Arms Stop 1",
+        exact: true,
+      });
+      const priceDoor = portal.locator("[data-price-door]");
+      const actions = portal.getByRole("toolbar", { name: "Venue actions" });
+      const share = actions.getByRole("button", { name: "Share Arnos Arms", exact: true });
+      await expect(planDoor).toBeVisible();
+      await expect(priceDoor).toHaveCount(1);
+      await expect(actions.getByRole("button")).toHaveText(["Share"]);
+      for (const theme of ["light", "dark"] as const) {
+        await applyTheme(page, theme, [planDoor, priceDoor, share]);
+        await expectLockedCoralContrast(planDoor);
+        await expectLockedCoralContrast(priceDoor);
+        await expectReadableGhostContrast(share);
+      }
     }
   });
 });

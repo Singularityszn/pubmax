@@ -6,6 +6,8 @@ import {
   palSessionSummaryTurn,
   windowPalSessionTurns,
 } from "@/lib/palSessionSummary";
+import { refineRoutedAskQuery } from "@/lib/ask/router";
+import { resolvePalLocality } from "@/lib/palLocality";
 import type { PubPalFenceTurn } from "@/lib/pubPalLlmFence";
 
 const ask = (content: string): PubPalFenceTurn => ({ role: "user", content });
@@ -24,6 +26,20 @@ describe("Pal rolling session summary", () => {
     expect(palSessionSummaryTurn("")).toEqual([]);
   });
 
+  it("resolves area references before older turns leave the provider window", () => {
+    let session = { summary: "", turns: [ask("Find four pubs in Soho")] };
+    for (const budget of [7, 6.8, 6.6, 6.4, 6.2, 6, 5.8, 5.6]) {
+      session = windowPalSessionTurns(session.summary, [...session.turns, ask(`Same area, under £${budget} a pint`)]);
+      const users = session.turns.map((turn) => turn.content);
+      const query = refineRoutedAskQuery("Same area, under £5.50 a pint", users.at(-1), users);
+      expect(resolvePalLocality(query, null).label).toBe("Soho");
+      expect(session.turns.length).toBeLessThanOrEqual(6);
+    }
+    const switched = windowPalSessionTurns(session.summary, [...session.turns, ask("Find pubs in Camden"), ask("Same area, under £7 a pint")]);
+    expect(resolvePalLocality(switched.turns.at(-1)!.content, null).label).toBe("Camden");
+    const alone = windowPalSessionTurns("", [ask("Same area, under £7 a pint")]);
+    expect(resolvePalLocality(alone.turns[0]!.content, null).grounded).toBe(false);
+  });
   it("rolls only the person's own lines, never a Pal reply", () => {
     const turns: PubPalFenceTurn[] = [
       ask("a pub for six"),

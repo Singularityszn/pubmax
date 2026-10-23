@@ -60,7 +60,7 @@ Full rules: [`docs/rules/components-venue-plan-and-message-surfaces.md`](../docs
 
 Full rules: [`docs/rules/components-design-system-and-launch-primitives.md`](../docs/rules/components-design-system-and-launch-primitives.md).
 
-- [Every Pub Pal is a rendered master, and the family is the Circuit Robin.](../docs/rules/components-design-system-and-launch-primitives.md#every-pub-pal-is-a-rendered-master-and-the-family-is-the-circuit-robin)
+- [Pub Pal artwork follows the Circuit Robin family.](../docs/rules/components-design-system-and-launch-primitives.md#every-pub-pal-is-a-rendered-master-and-the-family-is-the-circuit-robin)
 - [THE FRONT DOOR SHOWS LONDON, THEN ANSWERS IN ONE TAP.](../docs/rules/components-design-system-and-launch-primitives.md#the-front-door-shows-london-then-answers-in-one-tap)
 - [A launch screen is built from the launch tokens and the four primitives, and template patterns are fenced.](../docs/rules/components-design-system-and-launch-primitives.md#a-launch-screen-is-built-from-the-launch-tokens-and-the-four-primitives-and-temp)
 - [CORAL IS A FILL AND CORAL IS A WORD, AND THOSE ARE TWO TOKENS.](../docs/rules/components-design-system-and-launch-primitives.md#coral-is-a-fill-and-coral-is-a-word-and-those-are-two-tokens)

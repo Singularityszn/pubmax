@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { decodeCrawlStory, encodeCrawlStory, type CrawlStory } from "@/lib/crawlStory";
 import {
@@ -72,6 +72,14 @@ describe("cleanVisibility", () => {
 });
 
 describe("createCrawlStory + getCrawlStoryBySlug (in-memory)", () => {
+  it("keeps a keyless story visible across independently loaded route modules", async () => {
+    const created = await createCrawlStory({ title: "Local route handoff", visibility: "unlisted", stops: [{ venueId: "venue-a1" }] });
+    expect(created).not.toBeNull();
+    vi.resetModules();
+    const reader = await import("@/lib/crawlStoryStore");
+    expect(await reader.getCrawlStoryBySlug(created!.slug)).toMatchObject({ title: "Local route handoff" });
+  });
+
   it("round-trips a story with ordered, enriched stops", async () => {
     const created = await createCrawlStory({
       title: "Last train from Soho",

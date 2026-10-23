@@ -628,6 +628,8 @@ Never write a literal `z-index` in app/component CSS — use the semantic ladder
 defined in `:root` in `app/globals.css` (`--z-float` 50 → `--z-overlay-top`
 1300, with the map's internal ladder `--z-map-base` 450 … `--z-map-toolbar`
 560 in between; see the token block for the full list with per-token comments).
+Contextual push cards use `--z-context-prompt` (1320), above map sheets (1300)
+and below the primary dock (1350). They stand down while a strict modal owns focus.
 Each token's value equals the literal it replaced, so adopting one is never a
 stacking-order change. If two overlays must NOT tie, they get separate tokens
 (e.g. `--z-map-route-chip` sits under `--z-map-chip`). Map status news uses

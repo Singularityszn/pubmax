@@ -73,6 +73,26 @@ for (const viewport of [{ width: 390, height: 844 }, { width: 1440, height: 900 
       .or(page.getByRole("button", { name: "Sign in", exact: true }));
     await expect(signIn.first()).toBeVisible();
   });
+
+  test(`the account edit link opens on the same profile at ${viewport.width}px`, async ({ page }) => {
+    await page.setViewportSize(viewport);
+    await openOwnProfile(page);
+    await expect(page.getByRole("button", { name: "Edit profile", exact: true })).toBeVisible();
+    for (let request = 0; request < 2; request += 1) {
+      const menu = await openAccountMenu(page);
+      await menu.getByRole("link", { name: "Edit profile", exact: true }).click();
+      const editor = page.locator("#profile-editing");
+      await expect(editor).toBeVisible();
+      await expect(editor.getByRole("button", { name: "Cancel", exact: true })).toBeVisible();
+      await expect.poll(() => new URL(page.url()).searchParams.has("edit")).toBe(false);
+      await editor.getByRole("button", { name: "Cancel", exact: true }).click();
+      await expect(editor).toBeHidden();
+      await page.goBack();
+      await expect(page.getByRole("button", { name: "Edit profile", exact: true })).toBeVisible();
+      await expect(editor).toBeHidden();
+      expect(new URL(page.url()).searchParams.has("edit")).toBe(false);
+    }
+  });
 }
 
 test("the sign-in greeting never covers the open account menu at 390px", async ({ page }) => {

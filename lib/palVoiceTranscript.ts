@@ -1,19 +1,19 @@
-// What the voice panel shows of a live Pub Pal session, and the one spoken
-// command the browser acts on by itself.
+// What the voice panel shows of a live Pub Pal session, and the map commands
+// the browser acts on by itself.
 //
 // The panel's copy of the transcript lives in the tab: it is never written to
 // browser storage, and a reload or a closed tab forgets it. This panel sends
 // nothing new. The person's own lines already reach the server's short-lived
 // tool turn (`/api/pub-pal/tool-turn`, expired two minutes after the last line
-// and purged by cron) so the Pal's tools can read the ask, and none of it
-// becomes a memory.
+// and purged by cron) so the Pal's tools can read the ask. The transcript
+// does not automatically become a memory.
 //
 // "Show me the map" is read from the PERSON's own words, never the agent's.
-// The agent may only PROPOSE a map move (ADR 0006); a person asking for the
-// map in their own voice is the same as tapping the Map link, so the panel
-// opens /map with a beat to say "stay here".
+// The agent may only PROPOSE navigation (ADR 0006). A map follow-up focuses
+// the retained recommendations. Without those choices, the panel opens /map
+// after a beat to say "stay here".
 
-import { palMapAskTarget } from "@/lib/palMapAsk";
+import { palAsksForCurrentMap, palAsksForVenueDiscovery, palMapAskTarget } from "@/lib/palMapAsk";
 import { venueMapUrl } from "@/lib/venueMapUrl";
 
 export type PalVoiceSpeaker = "you" | "pal";
@@ -161,6 +161,8 @@ export function palAsksForNextStop(text: string): boolean {
  */
 export function palVoiceMapIntent(text: string, nightIsOn: boolean): "next-stop" | "pub" | "map" | null {
   if (nightIsOn && palAsksForNextStop(text)) return "next-stop";
+  if (palAsksForCurrentMap(text)) return "map";
+  if (palAsksForVenueDiscovery(text)) return null;
   // One pub on the map ("take me there", "where is The Lamb?"): the caller
   // names it (lib/palMapAsk.ts), else a map ask still opens the map.
   if (palMapAskTarget(text)) return "pub";

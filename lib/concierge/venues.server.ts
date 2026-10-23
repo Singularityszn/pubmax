@@ -51,6 +51,8 @@ function toVenue(value: unknown): ConciergeVenue | null {
     lat: row.lat,
     lng: row.lng,
     cheapestPrice: row.cheapestPrice as number | null,
+    ...(typeof row.priceSource === "string" ? { priceSource: row.priceSource } : {}),
+    ...(typeof row.priceObservedAt === "string" ? { priceObservedAt: row.priceObservedAt } : {}),
     amenities: {
       beerGarden: bool(amenities, "beerGarden"),
       cocktails: bool(amenities, "cocktails"),
@@ -63,6 +65,7 @@ function toVenue(value: unknown): ConciergeVenue | null {
     hasStory: bool(curation, "hasStory"),
     canonical: hints.canonical === true,
     ...(typeof hints.searchText === "string" ? { searchText: hints.searchText } : {}),
+    ...(typeof hints.drinkText === "string" ? { drinkText: hints.drinkText } : {}),
     // Future datasets may carry placements. Preserve only the exclusion flag;
     // never pass placement metadata into ranking or the response.
     ...(row.promoted === true || hints.promoted === true ? { promoted: true } : {}),

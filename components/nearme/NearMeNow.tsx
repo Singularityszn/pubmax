@@ -1046,7 +1046,7 @@ function NearMeAreaAnswer({
 export const NEAR_ME_PRICE_CAPTION = "Cheapest pint";
 
 /** The visible action for the row's browse tap. */
-export const NEAR_ME_VIEW_LABEL = "View pub";
+const NEAR_ME_VIEW_LABEL = "View pub";
 
 function collectedPriceLabel(): string {
   return NEAR_PRICE_TRUST_CAPTION;

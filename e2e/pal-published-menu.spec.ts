@@ -22,7 +22,7 @@ for (const width of [390, 1440]) {
       });
       await installDeterministicMapBasemap(page);
       await page.goto("/pal/chat");
-      const composer = page.getByRole("textbox", { name: "Describe the outing", exact: true });
+      const composer = page.getByRole("textbox", { name: "Where, how many, what budget", exact: true });
       await composer.fill(scenario.question);
       const responsePromise = page.waitForResponse((response) => response.url().endsWith("/api/pub-pal/chat") && response.request().method() === "POST");
       await page.getByRole("button", { name: "Ask", exact: true }).click();
@@ -90,7 +90,7 @@ for (const width of [390, 1440]) {
         localStorage.setItem("pubmax_onboarding_dismissed", "1");
       });
       await page.goto("/pal/chat");
-      await page.getByRole("textbox", { name: "Describe the outing", exact: true }).fill(question);
+      await page.getByRole("textbox", { name: "Where, how many, what budget", exact: true }).fill(question);
       const responsePromise = page.waitForResponse((response) => response.url().endsWith("/api/pub-pal/chat") && response.request().method() === "POST");
       await page.getByRole("button", { name: "Ask", exact: true }).click();
       const response = await responsePromise;

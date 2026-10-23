@@ -1,5 +1,7 @@
 "use client";
 
+import { FOCUS_TRAP_EXEMPT_ATTRIBUTE, readStrictModalFocusTrap, serverStrictModalFocusTrap, subscribeStrictModalFocusTrap } from "@/lib/useFocusTrap";
+
 import { offlineOrMessage } from "@/lib/apiErrorMessage";
 
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
@@ -25,7 +27,12 @@ export default function WebPushPrompt(): React.JSX.Element | null {
     getWebPushPromptVisibleSnapshot,
     getWebPushPromptServerSnapshot,
   );
-  const canShow = visible && hasPromptBudgetFor(WEB_PUSH_SURFACE);
+  const strictModalOpen = useSyncExternalStore(
+    subscribeStrictModalFocusTrap,
+    readStrictModalFocusTrap,
+    serverStrictModalFocusTrap,
+  );
+  const canShow = visible && hasPromptBudgetFor(WEB_PUSH_SURFACE) && !strictModalOpen;
   const registrationAbortRef = useRef<AbortController | null>(null);
 
   useEffect(() => {
@@ -63,7 +70,7 @@ export default function WebPushPrompt(): React.JSX.Element | null {
   }
 
   return (
-    <div className="nativePushPrompt">
+    <div className="nativePushPrompt nativePushPrompt--permission" {...{ [FOCUS_TRAP_EXEMPT_ATTRIBUTE]: "" }}>
       <div
         className="nativePushPrompt__card"
         role="dialog"

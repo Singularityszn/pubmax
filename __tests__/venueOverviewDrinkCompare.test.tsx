@@ -30,7 +30,7 @@ vi.mock("@/lib/pintIndexLeagueLoader", () => ({
 }));
 
 describe("VenueOverviewTab drink comparison", () => {
-  it("removes a settled pint comparison when Wine has no observations", async () => {
+  it("keeps actions before a late pint comparison and removes it for Wine", async () => {
     // These prices and this pub are synthetic, not observations about a real pub.
     const venueId = "synthetic-wine-compare-pub";
     const noop = () => {};
@@ -65,7 +65,7 @@ describe("VenueOverviewTab drink comparison", () => {
       }),
       tab: "overview",
       cityId: "london",
-      mode: "suggest",
+      mode: "build",
       inCrawl: false,
       latestContributorPrice: null,
       dropReadStatus: "ready",
@@ -118,6 +118,22 @@ describe("VenueOverviewTab drink comparison", () => {
       });
       expect(container.querySelector(".venueAreaPriceCompare")?.textContent)
         .toBe(pintComparison);
+      const comparison = container.querySelector(".venueAreaPriceCompare");
+      expect(comparison).not.toBeNull();
+      const actions = [
+        container.querySelector(".saveToListToggle"),
+        container.querySelector(".wantedSaveBtn"),
+        container.querySelector('button[aria-label^="Mark that you"]'),
+        [...container.querySelectorAll("button")]
+          .find((button) => button.textContent === "Add to crawl"),
+      ];
+      for (const action of actions) {
+        expect(action).toBeTruthy();
+        expect(Boolean(
+          action && comparison &&
+          (action.compareDocumentPosition(comparison) & Node.DOCUMENT_POSITION_FOLLOWING),
+        )).toBe(true);
+      }
 
       await act(async () => root.render(createElement(VenueOverviewTab, {
         ...props,

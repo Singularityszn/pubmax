@@ -36,9 +36,8 @@ test("the crawl progress line has its own space under the last-train button", as
   expect(gap).not.toBeNull();
   expect(gap!).toBeGreaterThanOrEqual(8);
 
-  // The line is printed in the accent ink, not the pale gold an undefined
-  // --accent fell back to.
+  // Progress uses the shared secondary-text ink, clear of the last-train action.
   const ink = await row.locator(".crawlProgressStatus").evaluate((el) => getComputedStyle(el).color);
-  expect(ink).toBe(await resolvedColour(page, ".mapDrawer .routePanel", "var(--brass-ink)"));
+  expect(ink).toBe(await resolvedColour(page, ".mapDrawer .routePanel", "var(--color-text-muted)"));
   expect(ink).not.toBe("rgb(224, 179, 74)");
 });

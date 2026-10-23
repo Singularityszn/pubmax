@@ -23,18 +23,17 @@ export type AskMenuEvidence = {
   availability: "unknown";
 };
 
+const ASK_SOURCE_KINDS = ["directory", "whats-on", "heritage", "community-price", "published-menu", "citymcp", "plan"] as const;
+
 export type AskSource = {
   label: string;
   url?: string;
-  kind:
-    | "directory"
-    | "whats-on"
-    | "heritage"
-    | "community-price"
-    | "published-menu"
-    | "citymcp"
-    | "plan";
+  kind: typeof ASK_SOURCE_KINDS[number];
 };
+
+export function isAskSourceKind(value: unknown): value is AskSource["kind"] {
+  return typeof value === "string" && (ASK_SOURCE_KINDS as readonly string[]).includes(value);
+}
 
 export type AskCard = {
   key: string;

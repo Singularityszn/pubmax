@@ -281,8 +281,14 @@ test.describe("Android install prompt", () => {
     );
 
     const card = page.locator(".a2hsSheet--android");
+    await expect(card).toHaveCount(0);
+    await page.goto("/near?patch=soho");
+    const answer = page.getByRole("heading", { name: "Cheapest listed around Soho" });
+    await expect(answer).toBeVisible();
+    const keepAction = page.getByRole("button", { name: /^Keep .+ for tonight$/ }).first();
+    await keepAction.focus();
     await expect(card).toBeVisible({ timeout: 10_000 });
-    return { card, map, expandSheet };
+    return { card, answer, keepAction };
   }
 
   for (const viewport of PHONE_VIEWPORTS) {
@@ -313,7 +319,7 @@ test.describe("Android install prompt", () => {
       expect(neverAskBox!.height).toBeGreaterThanOrEqual(44);
       await expect(card.locator("#a2hsTitle")).toHaveText("Install PUBMAXX");
       await expect(card.locator("#a2hsBody")).toHaveText(
-        "Listed pint prices, one tap away.",
+        "Keep the listed prices one tap away.",
       );
     });
   }
@@ -341,8 +347,8 @@ test.describe("Android install prompt", () => {
     }
   });
 
-  test("is a compact non-modal card while map stays visible and interactive", async ({ page }) => {
-    const { card, map, expandSheet } = await openInstallCard(page);
+  test("is a compact non-modal card after the price answer and leaves Near interactive", async ({ page }) => {
+    const { card, answer, keepAction } = await openInstallCard(page);
     await expect(card).toHaveAttribute("role", "region");
     await expect(card).toHaveAttribute("aria-labelledby", "a2hsTitle");
     await expect(page.locator(".a2hsScrim")).toHaveCount(0);
@@ -350,7 +356,7 @@ test.describe("Android install prompt", () => {
     // design (lib/mobileSheetA11y.ts), so only the install surface is counted.
     await expect(card).not.toHaveAttribute("aria-modal", /.*/);
     await expect(page.locator('.a2hsSheet[role="dialog"]')).toHaveCount(0);
-    await expect(map).toBeVisible();
+    await expect(answer).toBeVisible();
 
     const cardBox = await card.boundingBox();
     expect(cardBox).not.toBeNull();
@@ -368,13 +374,13 @@ test.describe("Android install prompt", () => {
     expect(installBox!.height).toBeGreaterThanOrEqual(44);
     expect(closeBox!.height).toBeGreaterThanOrEqual(44);
 
-    const expandBox = await expandSheet.boundingBox();
+    const expandBox = await keepAction.boundingBox();
     expect(expandBox).not.toBeNull();
     await expect
       .poll(() => page.evaluate(({ x, y }) => {
         const hit = document.elementFromPoint(x, y);
         return {
-          ariaLabel: hit?.closest("button")?.getAttribute("aria-label") ?? null,
+          label: hit?.closest("button")?.textContent?.trim() ?? null,
           className: hit instanceof HTMLElement ? hit.className : null,
           tagName: hit?.tagName ?? null,
         };
@@ -384,11 +390,11 @@ test.describe("Android install prompt", () => {
       }), {
         message: "Android card must not install a pointer-blocking page layer",
       })
-      .toMatchObject({ ariaLabel: "Expand sheet" });
+      .toMatchObject({ label: "Keep for tonight" });
 
     await close.click();
     await expect(card).toBeHidden();
-    await expect(expandSheet).toBeFocused();
+    await expect(keepAction).toBeFocused();
     expect(
       await page.evaluate(() => {
         const state = JSON.parse(localStorage.getItem("pubmax:a2hs:v1") ?? "null") as {
@@ -398,8 +404,8 @@ test.describe("Android install prompt", () => {
       }),
     ).toBe(true);
 
-    await expandSheet.click();
-    await expect(page.getByRole("button", { name: "Collapse sheet" })).toBeVisible();
+    await keepAction.click();
+    await expect(page).toHaveURL(/\/map\?[^#]*accept=1/);
   });
 });
 
@@ -433,11 +439,14 @@ test.describe("iOS install instructions", () => {
     const dialog = page.getByRole("dialog", {
       name: "Put PUBMAXX on your home screen",
     });
+    await expect(dialog).toHaveCount(0);
+    await page.goto("/near?patch=soho");
+    await expect(page.getByRole("heading", { name: "Cheapest listed around Soho" })).toBeVisible();
     await expect(dialog).toBeVisible();
     await expect(dialog).toHaveAttribute("aria-modal", "true");
     await expect(page.locator(".a2hsScrim")).toBeVisible();
     await expect(dialog.locator(".a2hsSteps > li")).toHaveCount(3);
-    await expect(dialog).toContainText("Works in Safari");
+    await expect(dialog).toContainText("Safari has no install button");
     await expect(dialog.getByRole("button", { name: "Got it" })).toBeVisible();
   });
 });

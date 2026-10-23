@@ -2,7 +2,7 @@
 
 import dynamic from "next/dynamic";
 import Link from "next/link";
-import { notFound, useRouter } from "next/navigation";
+import { notFound, useRouter, useSearchParams } from "next/navigation";
 import { use, useEffect, useRef, useState, useSyncExternalStore } from "react";
 
 import ClaimMomentWelcome from "@/components/profile/ClaimMomentWelcome";
@@ -448,6 +448,7 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
   const routeHandle = normalizeHandle(use(params)?.handle);
   const isYouRoute = routeHandle === YOU_SENTINEL;
   const router = useRouter();
+  const editRequested = useSearchParams().get("edit") === "1";
   const documentComplete = useDocumentComplete();
   const { accountRevision, user, identityResolved, loading: sessionLoading, signOut } = useAuth();
   const viewerSession = useViewerSession();
@@ -1094,21 +1095,21 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
 
   // "Edit profile" is reachable from the site nav, which can only carry a URL,
   // so ?edit=1 opens the editing surface on arrival. The parameter is spent
-  // once: it is stripped straight away, so Back never re-opens the editor.
+  // once after opening, so same-profile navigation works and Back cannot reopen it.
   useEffect(() => {
-    if (!isOwnProfile) return;
-    const url = new URL(window.location.href);
-    if (url.searchParams.get("edit") !== "1") return;
-    url.searchParams.delete("edit");
-    window.history.replaceState(null, "", `${url.pathname}${url.search}${url.hash}`);
+    if (!isOwnProfile || !editRequested) return;
     const frame = window.requestAnimationFrame(() => {
+      const url = new URL(window.location.href);
+      if (url.searchParams.get("edit") !== "1") return;
       setEditing(true);
+      url.searchParams.delete("edit");
+      window.history.replaceState(null, "", `${url.pathname}${url.search}${url.hash}`);
       window.requestAnimationFrame(() => {
         document.getElementById("profile-editing")?.scrollIntoView({ block: "start" });
       });
     });
     return () => window.cancelAnimationFrame(frame);
-  }, [isOwnProfile]);
+  }, [isOwnProfile, editRequested]);
 
   // A stored row changed under an OPEN editor: a photo went up, a cover moved,
   // one came down. The header repaints from the reply without a refetch and the
@@ -1354,7 +1355,9 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
           aria-labelledby="profile-editing-title"
         >
           <h2 id="profile-editing-title">Editing your profile</h2>
-          <ProfileEditor
+          {/* Text fields keep their opening values. Wait for the full card so
+              a late read cannot leave a writable form full of empty fields. */}
+          {publicRead === "answered" && projection === "full" ? <ProfileEditor
             handle={routeHandle}
             initial={{
               // Only pre-fill from durable, user-owned values — never the
@@ -1377,24 +1380,35 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
             onSaved={handleSaved}
             onProfileChanged={handleProfileChanged}
             onClose={() => setEditing(false)}
-          />
+          /> : (
+            <div role="status">
+              <p>{publicRead === "asking" ? "Loading your profile…" : "Your profile could not be loaded."}</p>
+              {publicRead !== "asking" ? <a href={`/u/${encodeURIComponent(routeHandle)}?edit=1`}>Try again</a> : null}
+            </div>
+          )}
           {/* Linked socials are public content the owner typed in,
               so they edit beside the public fields. Account
               plumbing lives in Account settings below. */}
-          {user ? <SocialLinksEditor /> : null}
+          {user && publicRead === "answered" && projection === "full" ? <SocialLinksEditor /> : null}
         </section>
       ) : null
     );
+  }
+
+  function hasTimelineSection() {
+    return !youSignedOut && (state === "loading" || drops.length > 0 || isOwnProfile || isYouRoute);
+  }
+
+  function hasCrawlsSection() {
+    return !youSignedOut && (authoredCrawls.length > 0 || ownUnlistedCrawls.length > 0);
   }
 
   function timelineSection() {
     // A visitor on a handle with no pints meets no Timeline: the passport above
     // already says it is blank, and a heading over "No pints logged" said it
     // twice. The owner keeps the section, where it is where pints will land.
-    const emptyForVisitor =
-      state !== "loading" && drops.length === 0 && !isOwnProfile && !isYouRoute;
     return (
-      !youSignedOut && !emptyForVisitor ? (
+      hasTimelineSection() ? (
         <section id="timeline" className="profileDropsSection" aria-labelledby="dropsHeading">
           <h2 id="dropsHeading" className="profileSectionHeading">
             Timeline
@@ -1427,8 +1441,7 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
   // published one, so an empty section never sits under a zero - or when the
   // owner has an unlisted crawl, which lives nowhere else at all.
   function crawlsSection() {
-    return !youSignedOut &&
-      (authoredCrawls.length > 0 || ownUnlistedCrawls.length > 0) ? (
+    return hasCrawlsSection() ? (
         <section
           id="crawl-stories"
           className="profileDropsSection"
@@ -1542,6 +1555,7 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
                 <ProfileHeader
                   profile={profile}
                   stats={stats}
+                  sectionLinks={{ timeline: hasTimelineSection(), crawls: hasCrawlsSection(), memories: Boolean(user) && (isOwnProfile || isYouRoute) }}
                   socialLinks={visibleSocialData.socialLinks}
                   crawls={storyCount}
                   memories={stats.memoriesPosted}

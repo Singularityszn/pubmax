@@ -27,7 +27,7 @@ import "../legal.css";
 const PAGE_TITLE = "Privacy";
 const PAGE_DESCRIPTION =
   "What PUBMAXX collects, why, who else sees it, how long we keep it, and how to get it deleted. Written against the app's behaviour.";
-const LAST_UPDATED = "19 October 2026";
+const LAST_UPDATED = "20 October 2026";
 
 export const metadata: Metadata = {
   title: PAGE_TITLE,
@@ -626,6 +626,22 @@ export default function PrivacyPage() {
           </li>
         </ul>
         <p className="legalBody">
+          Pub Pal keeps up to 24 conversation entries in this tab, including
+          your questions, answers, sourced cards and pending proposals. It uses
+          your browser&rsquo;s sessionStorage when available, so you can return
+          to the chat after browsing a pub.
+        </p>
+        <p className="legalBody">
+          We do not restore a saved conversation after more than two idle
+          minutes. We remove an older copy when the chat reads it. Until then,
+          the copy can remain in tab storage.
+        </p>
+        <p className="legalBody">
+          Changing accounts, signing out or choosing New conversation clears
+          the current thread. Confirmed Pal memories stay separate. A pending
+          proposal becomes a memory only after you confirm it.
+        </p>
+        <p className="legalBody">
           Because nothing non-essential is set before you agree to it, the first
           visit choice is a small prompt rather than a wall in front of the map.
           Your account keeps the later control.
@@ -757,12 +773,12 @@ export default function PrivacyPage() {
               an access need, up to forty, with the ones about what you just
               asked first. Past forty, the ones about what you asked go and the
               oldest of the rest wait for a question about them. So does a short read of your taste that we work out
-              from what you logged yourself: your usual patches, the pubs you
+              from your profile&rsquo;s favourite drink and what you logged yourself: your usual patches, the pubs you
               go back to or rated, what you drink, what you usually pay for a
               pint, the vibes you tag and the pubs you saved. Our server keeps
               that read in memory for two minutes at most and never writes it
               to a database. Turn the taste read off on your Pal&rsquo;s page
-              and none of your logs are read for it. Nothing else about you
+              and neither your favourite drink nor your logs are read for it. Nothing else about you
               goes with it. We do not keep
               the audio. Recent lines are stored against your account for two
               minutes after your last line, then deleted by a clean-up that
@@ -778,7 +794,7 @@ export default function PrivacyPage() {
               message and up to six recent turns of that
               conversation go to <code>api.typesafe.ai</code> for those
               judgments. When Pub Pal offers to remember something in a typed
-              chat, the new fact and up to five of the memories you confirmed
+              or voice chat, the new fact and up to five of the memories you confirmed
               that are about the same thing also go to TypeSafe, which says
               whether the fact is new, repeats one of them or replaces one.
               Nothing else about you goes with them. It is off and sends

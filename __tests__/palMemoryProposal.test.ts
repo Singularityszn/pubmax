@@ -138,7 +138,7 @@ describe("propose_memory: the Pal proposes, only the person saves", () => {
     }
   });
 
-  it("refuses in a voice call, where no card can be shown, and makes no card", async () => {
+  it("offers a visible voice confirm card and recalls only after the owner confirms", async () => {
     await pal(OWNER, true);
     await bindPubPalToolTurn(CONVERSATION, OWNER, "london");
 
@@ -146,10 +146,19 @@ describe("propose_memory: the Pal proposes, only the person saves", () => {
       await propose({ conversation_id: CONVERSATION, kind: "drink_preference", value: "Cask ale" })
     ).json();
 
-    expect(body.result).toMatchObject({ ok: false, proposals: [] });
-    expect(body.result.answerHint).not.toMatch(/card is waiting/i);
-    expect(await storedProposals()).toEqual([]);
-    expect((await readPubPalToolTurn(CONVERSATION))?.toolsUsed).toEqual([]);
+    expect(body.result).toMatchObject({ ok: true, proposals: [{ kind: "remember_memory", value: "Cask ale" }] });
+    expect(await listPalMemoriesResult(OWNER)).toEqual({ ok: true, value: [] });
+    const confirmed = await CONFIRM_MEMORY(new Request("http://localhost/api/pub-pal/memories", {
+      method: "POST", headers: { "content-type": "application/json", authorization: `Bearer ${OWNER}` },
+      body: JSON.stringify({ kind: "drink_preference", value: "Cask ale" }),
+    }));
+    expect(confirmed.status).toBe(201);
+    await bindPubPalToolTurn("conv_returnvoice01", OWNER, "london");
+    const recalled = await TOOL(new Request("http://localhost/api/pub-pal/tools/recall_memories", {
+      method: "POST", headers: { "content-type": "application/json", authorization: "Bearer test-llm-secret" },
+      body: JSON.stringify({ conversation_id: "conv_returnvoice01" }),
+    }), { params: Promise.resolve({ toolName: "recall_memories" }) });
+    expect(await recalled.json()).toMatchObject({ result: { ok: true, memories: [{ kind: "drink_preference", value: "Cask ale" }] } });
   });
 
   it("refuses a kind outside the memory vocabulary or an empty value", async () => {

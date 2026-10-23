@@ -23,6 +23,7 @@ import { useAuth } from "@/components/auth/AuthProvider";
 import { useViewerSession } from "@/components/auth/useViewerSession";
 import SignInButton from "@/components/auth/SignInButton";
 import { authedActionFetch } from "@/lib/authedFetch";
+import { accountBoundFetch, captureAccountAuth } from "@/lib/accountBoundFetch";
 import { errorMessageFrom, offlineOrMessage } from "@/lib/apiErrorMessage";
 import {
   DEFAULT_PAL_DRAFT,
@@ -223,7 +224,7 @@ function PalTasteToggle({
       <Sparkles />
       <span>
         <strong>Taste read {on ? "on" : "off"}</strong>
-        <small>{on ? "Picks lean on the pubs and pints you log" : "Pal won't read your diary, drops or saves"}</small>
+        <small>{on ? "Your favourite drink and logged pubs shape picks" : "Pal won't read your favourite drink, diary, drops or saves"}</small>
       </span>
     </button>
   );
@@ -287,6 +288,7 @@ function PalHomeScreen({
   removePal,
   exportMemories,
   memories,
+  onMemoryChange,
   editingMemoryId,
   editingMemoryValue,
   setEditingMemoryValue,
@@ -306,6 +308,7 @@ function PalHomeScreen({
   removePal: () => Promise<void>;
   exportMemories: () => Promise<void>;
   memories: PubPalMemory[];
+  onMemoryChange: () => void;
   editingMemoryId: string;
   editingMemoryValue: string;
   setEditingMemoryValue: Dispatch<SetStateAction<string>>;
@@ -340,7 +343,7 @@ function PalHomeScreen({
             <span>{pal.name}&apos;s print. No other Pal has this one.</span>
           </div>
           <Link className="palPrimary" href="/plan">Plan with {pal.name}<ArrowRight size={16} /></Link>
-          <PubPalVoice muted={pal.muted} onStateChange={setPalAnimationState} palName={pal.name} signal={voiceSignal} appearance={pal.appearance} genome={genome} />
+          <PubPalVoice muted={pal.muted} onStateChange={setPalAnimationState} palName={pal.name} signal={voiceSignal} appearance={pal.appearance} genome={genome} onMemoryChange={onMemoryChange} />
         </div>
       </section>
       <PalNightQuestion muted={pal.muted} palName={pal.name} />
@@ -386,7 +389,7 @@ function PalHomeScreen({
           <div>
             <p className="palEyebrow">Memories</p>
             <h2 id="pal-memory-title">What {pal.name} remembers.</h2>
-            <p>Only these confirmed facts shape suggestions. Correct or delete any of them. What you say in chat or by voice never shows up here.</p>
+            <p>Only facts you approve shape suggestions. Correct or delete any of them. Your audio and full chat transcripts never become memories.</p>
           </div>
           <button type="button" onClick={() => void exportMemories()} disabled={saving}><Download size={16} /> Download my memories</button>
         </div>
@@ -563,7 +566,7 @@ function PalOnboardingScreen({
 }
 
 export default function PalExperience() {
-  const { user, loading, configured } = useAuth();
+  const { user, session, loading, configured } = useAuth();
   const palViewerSession = useViewerSession();
   // The account gate is a claim about the viewer, so it waits for the live
   // session rather than reading a null user as a settled sign-out.
@@ -1074,6 +1077,14 @@ export default function PalExperience() {
         removePal={removePal}
         exportMemories={exportMemories}
         memories={memories}
+        onMemoryChange={() => {
+          const ownerId = user.id;
+          const auth = captureAccountAuth(ownerId, session);
+          void accountBoundFetch(auth, "/api/pub-pal/memories").then(async (response) => {
+            const body = await response.json() as { memories?: PubPalMemory[] };
+            if (response.ok && activeOwnerRef.current === ownerId) setMemories(body.memories ?? []);
+          }).catch(() => {});
+        }}
         editingMemoryId={editingMemoryId}
         editingMemoryValue={editingMemoryValue}
         setEditingMemoryValue={setEditingMemoryValue}
