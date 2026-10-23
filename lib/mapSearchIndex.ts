@@ -65,16 +65,23 @@ function words(value: string): string[] {
   return value.split(" ").filter(Boolean);
 }
 
-function isSubsequence(query: string, value: string): boolean {
+function hasOneMissingCharacter(query: string, value: string): boolean {
+  if (query.length < 4 || value.length !== query.length + 1) return false;
   let queryIndex = 0;
+  let skipped = false;
   for (const character of value) {
-    if (character === query[queryIndex]) queryIndex += 1;
-    if (queryIndex === query.length) return true;
+    if (character === query[queryIndex]) {
+      queryIndex += 1;
+    } else if (skipped) {
+      return false;
+    } else {
+      skipped = true;
+    }
   }
-  return false;
+  return queryIndex === query.length;
 }
 
-/** Lower score wins. Area/city matches intentionally sit above venue names. */
+/** Lower score wins. */
 function matchScore(query: string, name: string, area = ""): number | null {
   const normalisedName = normalise(name);
   const normalisedArea = normalise(area);
@@ -90,8 +97,9 @@ function matchScore(query: string, name: string, area = ""): number | null {
   if (areaWords.some((word) => word.startsWith(query))) return 34;
   if (normalisedName.includes(query)) return 40;
   if (normalisedArea.includes(query)) return 42;
-  if (isSubsequence(query, normalisedName)) return 60;
-  if (isSubsequence(query, normalisedArea)) return 62;
+  const compactQuery = query.replaceAll(" ", "");
+  if (normalisedName.replaceAll(" ", "") === compactQuery) return 50;
+  if (nameWords.some((word) => hasOneMissingCharacter(query, word))) return 60;
   return null;
 }
 
