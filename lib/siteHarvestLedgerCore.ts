@@ -5,6 +5,7 @@ import path from "node:path";
 
 import {
   bundleRowSupersedes,
+  isValidUkPriceBundleRow,
   ukPriceBundleCollectKey,
   type UkPriceBundleLane,
   type UkPriceBundleRow,
@@ -22,6 +23,8 @@ export type SiteHarvestLedgerRow = {
   drinkName?: string;
   servingSize?: string;
   robotsDisallowed?: boolean;
+  /** The crawler read and parsed the whole source page successfully. */
+  sourceSnapshotComplete?: boolean;
 };
 
 const SITE_HARVEST_LANE: UkPriceBundleLane = "site-harvest";
@@ -125,6 +128,27 @@ function ledgerRowAsBundleRow(
       : {}),
     ...(row.servingSize !== undefined ? { servingSize: row.servingSize } : {}),
   };
+}
+
+/** Publish the latest complete page while preserving the append-only ledger. */
+export function currentSiteHarvestRows(
+  rows: readonly SiteHarvestLedgerRow[], now = Date.now(),
+): SiteHarvestLedgerRow[] {
+  const completed = new Map<string, number>();
+  const pageKey = (row: SiteHarvestLedgerRow) => JSON.stringify([row.venueId, row.sourceUrl]);
+  for (const row of rows) {
+    if (row.sourceSnapshotComplete !== true) continue;
+    const asBundle = ledgerRowAsBundleRow(row, new Map());
+    const observedAt = Date.parse(row.observedAt ?? "");
+    if (!asBundle || !isValidUkPriceBundleRow(asBundle) || !Number.isFinite(observedAt) || observedAt > now) continue;
+    const key = pageKey(row);
+    completed.set(key, Math.max(observedAt, completed.get(key) ?? -Infinity));
+  }
+  return rows.filter((row) => {
+    const latest = completed.get(pageKey(row));
+    const observedAt = Date.parse(row.observedAt ?? "");
+    return latest === undefined || !Number.isFinite(observedAt) || observedAt >= latest;
+  });
 }
 
 /** Fold duplicate collect keys, keeping the row the bundle builder would keep. */

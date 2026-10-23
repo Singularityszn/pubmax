@@ -26,3 +26,28 @@ export function keepGoingDistanceDescription(distanceKm: number): string {
 export function nextStopWalkDescription(minutes: number): string {
   return `about ${minutes} min on foot, straight-line estimate`;
 }
+
+function formatCoverageDate(value: string | null): string | null {
+  if (!value) return null;
+  const timestamp = Date.parse(value);
+  if (!Number.isFinite(timestamp)) return null;
+  return new Intl.DateTimeFormat("en-GB", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+    timeZone: "UTC",
+  }).format(new Date(timestamp));
+}
+
+/** Keep the review window visible anywhere coverage is presented. */
+export function nightAreaCoverageMeta(area: NightArea, now = new Date()): string {
+  const reviewed = formatCoverageDate(area.lastReviewedAt);
+  const expires = formatCoverageDate(area.reviewExpiresAt);
+  if (!reviewed) return "Not checked yet.";
+  if (!expires) return `Last checked ${reviewed}.`;
+  const expiry = Date.parse(area.reviewExpiresAt ?? "");
+  if (Number.isFinite(expiry) && expiry <= now.getTime()) {
+    return `Last checked ${reviewed} · review expired ${expires}.`;
+  }
+  return `Last checked ${reviewed} · review through ${expires}.`;
+}
