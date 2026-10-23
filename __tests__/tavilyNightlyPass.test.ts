@@ -791,6 +791,14 @@ describe("a price stays in the lane the reader gave it", () => {
           { drink: "Kernel stout", size: "unstated", sizeDetail: "two-thirds", priceGbp: 6 },
         ],
       },
+      ...["2/3 pint", "⅔ pint", "two-thirds pint"].flatMap((measure) =>
+        [", ", ". ", "; "].map((separator) => ({
+          text: `Kernel stout £6.00 (${measure})${separator}Guinness pint £6.20`,
+          drinks: [
+            { drink: "Kernel stout", size: "unstated", sizeDetail: "two-thirds", priceGbp: 6 },
+            { drink: "Guinness", size: "pint", sizeDetail: "pint", priceGbp: 6.2 },
+          ],
+        }))),
       {
         text: "Kernel stout £6.00 (2/3 pint) Guinness pint £6.20",
         drinks: [

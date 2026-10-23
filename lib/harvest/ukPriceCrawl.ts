@@ -285,8 +285,9 @@ function isHalfMeasure(before: string): boolean {
 const PRICE_PATTERN = /£\s?(\d{1,2}(?:\.\d{1,2})?)(?![\da-z]|\.\d)/gi;
 
 const FRACTIONAL_BEER_MEASURE = /(?:\b[12]\s*\/\s*3\b|[⅓⅔]|\b(?:one[\s-]third|two[\s-]thirds)\b)/i;
+// Printed item separators also close a suffix, so it cannot become the next drink's prefix.
 const LEADING_FRACTIONAL_BEER_MEASURE = new RegExp(
-  `^\\s*(?:\\(\\s*(?:${FRACTIONAL_BEER_MEASURE.source})(?:\\s+(?:of\\s+a\\s+)?pints?)?\\s*\\)|(?:${FRACTIONAL_BEER_MEASURE.source})(?:\\s+(?:of\\s+a\\s+)?pints?)?)(?=\\s|$)`, "i",
+  `^\\s*(?:\\(\\s*(?:${FRACTIONAL_BEER_MEASURE.source})(?:\\s+(?:of\\s+a\\s+)?pints?)?\\s*\\)|(?:${FRACTIONAL_BEER_MEASURE.source})(?:\\s+(?:of\\s+a\\s+)?pints?)?)(?=[\\s,.;]|$)`, "i",
 );
 
 /** Null means no fraction follows. An empty suffix belongs to the next drink. */
