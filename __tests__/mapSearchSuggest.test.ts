@@ -35,6 +35,23 @@ function venue(overrides: Partial<Venue> & { id: string }): Venue {
   } as Venue;
 }
 
+it("uses a loaded pub's known price when an area match is rendered from the index", () => {
+  const result = mergeMapSearchVenueSuggestions({
+    query: "Reviewland",
+    drinkCategory: "beer",
+    venues: [
+      venue({ id: "alpha", name: "Review Alpha", locality: "Reviewland" }),
+      venue({ id: "zulu", name: "Review Zulu", locality: "Reviewland", latestContributorPrice: 4.7 }),
+    ],
+    pubs: [],
+    indexedVenues: [
+      { kind: "venue", id: "alpha", name: "Review Alpha", area: "Reviewland", cityId: "london", venueKind: "pub" },
+      { kind: "venue", id: "zulu", name: "Review Zulu", area: "Reviewland", cityId: "london", venueKind: "pub" },
+    ],
+  });
+  expect(result.map((row) => row.item.id)).toEqual(["zulu", "alpha"]);
+});
+
 const UK_PLACES: UkPlace[] = [
   {
     name: "Sheffield",

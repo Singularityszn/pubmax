@@ -13,6 +13,7 @@ import {
   loadMapSearchIndex,
 } from "@/lib/mapSearchIndexLoader";
 import {
+  mapSearchPintRank,
   searchMapSearchIndex,
   type MapSearchIndex,
   type MapSearchIndexResult,
@@ -20,6 +21,7 @@ import {
 import {
   buildMapSearchSuggestions,
   mapSearchVenuesLeadAreas,
+  mapSearchVerifiedPrice,
   mergeMapSearchVenueSuggestions,
   type AreaSuggestion,
   type MapSearchAreaOption,
@@ -215,6 +217,10 @@ export default function MapSearchSuggest({
     ],
   );
 
+  const knownPintRanks = useMemo(() => new Map(venues.map((venue) => [
+    venue.id, mapSearchPintRank(venue.kind, mapSearchVerifiedPrice(venue)),
+  ])), [venues]);
+
   const indexedResults = useMemo(
     () => {
       const cityOnlyIndex = {
@@ -228,13 +234,14 @@ export default function MapSearchSuggest({
       const venueResults = searchIndex
         ? searchMapSearchIndex(searchIndex, deferredQuery, undefined, {
             preferPints: !drinkCategory || drinkCategory === "beer",
+            pintRankByVenueId: knownPintRanks,
           }).filter(
             (result) => result.kind === "venue",
           )
         : [];
       return [...cityResults, ...venueResults];
     },
-    [deferredQuery, drinkCategory, searchIndex],
+    [deferredQuery, drinkCategory, knownPintRanks, searchIndex],
   );
   const indexedCities = useMemo(
     () => indexedResults.filter((result): result is Extract<MapSearchIndexResult, { kind: "city" }> => result.kind === "city"),

@@ -65,6 +65,45 @@ function londonVenue(): Venue {
 }
 
 describe("Map search current-city priority", () => {
+  it.each(["beer", "wine"])("uses known prices before the index limit only in Pints: %s", async (drinkCategory) => {
+    vi.mocked(loadMapSearchIndex).mockResolvedValueOnce({
+      cities: [],
+      venues: [
+        ...Array.from({ length: 15 }, (_, index) => ({
+          id: `unpriced-${index}`, name: `Alpha ${String(index).padStart(2, "0")}`,
+          cityId: "london" as const, area: "Reviewland", venueKind: "pub" as const,
+        })),
+        { id: "known-priced", name: "Zulu", cityId: "london", area: "Reviewland", venueKind: "pub" },
+      ],
+    });
+    container = document.createElement("div");
+    document.body.append(container);
+    const props = {
+      id: "map-search", mode: "overlay" as const, cityId: "london" as const,
+      query: "Reviewland", drinkCategory, onQueryChange: vi.fn(),
+      localities: [], userLocation: null, mapCenter: [-0.1042, 51.5] as [number, number],
+      placeholder: "Search the map", onSelectVenue: vi.fn(), onFlyToArea: vi.fn(),
+    };
+    const priced = { ...londonVenue(), id: "known-priced", name: "Zulu", locality: "Reviewland",
+      cheapestPrice: null, latestContributorPrice: 4.7 };
+    await act(async () => {
+      root = createRoot(container);
+      root.render(createElement(MapSearchSuggest, { ...props, venues: [priced] }));
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+    const firstOption = () => container.querySelector<HTMLElement>('[role="group"][aria-label="Venues"] [data-venue-id]');
+    expect(firstOption()?.dataset.venueId).toBe(drinkCategory === "beer" ? "known-priced" : "unpriced-0");
+    const input = container.querySelector<HTMLInputElement>('[role="combobox"]')!;
+    act(() => input.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowDown", bubbles: true })));
+    expect(input.getAttribute("aria-activedescendant")).toBe(firstOption()?.id);
+
+    await act(async () => root!.render(createElement(MapSearchSuggest, {
+      ...props, venues: [{ ...priced, latestContributorPrice: null }],
+    })));
+    expect(firstOption()?.dataset.venueId).toBe("unpriced-0");
+  });
+
   it.each([
     { drinkCategory: "beer", loadedId: "priced", expected: ["priced", "unpriced", "area-only"] },
     { drinkCategory: "beer", loadedId: "unpriced", expected: ["priced", "unpriced", "area-only"] },

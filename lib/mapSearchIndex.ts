@@ -166,7 +166,7 @@ export function searchMapSearchIndex(
   index: MapSearchIndex,
   rawQuery: string,
   limit = DEFAULT_RESULT_LIMIT,
-  options?: { preferPints: boolean },
+  options?: { preferPints: boolean; pintRankByVenueId?: ReadonlyMap<string, number> },
 ): MapSearchIndexResult[] {
   const query = normalise(rawQuery);
   if (!query || limit <= 0) return [];
@@ -192,8 +192,11 @@ export function searchMapSearchIndex(
         return left.result.kind === "city" ? -1 : 1;
       }
       if (options?.preferPints && left.result.kind === "venue" && right.result.kind === "venue") {
-        const difference = mapSearchPintRank(left.result.venueKind, left.result.pintPrice) -
+        const leftRank = options.pintRankByVenueId?.get(left.result.id) ??
+          mapSearchPintRank(left.result.venueKind, left.result.pintPrice);
+        const rightRank = options.pintRankByVenueId?.get(right.result.id) ??
           mapSearchPintRank(right.result.venueKind, right.result.pintPrice);
+        const difference = leftRank - rightRank;
         if (difference !== 0) return difference;
       }
       return left.result.name.localeCompare(right.result.name, "en-GB");

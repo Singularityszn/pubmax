@@ -145,7 +145,7 @@ export function mergeMapSearchVenueSuggestions(input: {
   ];
   const preferPints = !input.drinkCategory || input.drinkCategory === "beer";
   const rank = (row: MapSearchVenueSuggestion) => {
-    const venue = row.type === "pub" ? loaded.get(row.item.id) : undefined;
+    const venue = loaded.get(row.item.id);
     const record = row.type === "indexedVenue" ? row.item : {
       id: row.item.id, name: row.item.name, sourceName: venue?.sourceName,
       area: row.item.boroughLabel,
@@ -155,9 +155,11 @@ export function mergeMapSearchVenueSuggestions(input: {
       score: preferPints
         ? mapSearchVenueScore(record, input.query) ?? Number.MAX_SAFE_INTEGER
         : nameTier === 0 ? 0 : 1,
-      pint: row.type === "indexedVenue"
-        ? mapSearchPintRank(row.item.venueKind, row.item.pintPrice)
-        : mapSearchPintRank(row.item.kind, venue ? verifiedPrice(venue) : null),
+      pint: venue
+        ? mapSearchPintRank(venue.kind, mapSearchVerifiedPrice(venue))
+        : row.type === "indexedVenue"
+          ? mapSearchPintRank(row.item.venueKind, row.item.pintPrice)
+          : mapSearchPintRank(row.item.kind, null),
     };
   };
   return rows.map((row, index) => ({ row, index, ...rank(row) }))
@@ -334,7 +336,7 @@ function matchTier(labels: readonly string[], query: string): number | null {
  * drop overrides the baseline. Mirrors lib/areaButton so the popup and the area
  * sheet never disagree on a pub's price.
  */
-function verifiedPrice(venue: Venue): number | null {
+export function mapSearchVerifiedPrice(venue: Venue): number | null {
   const price = isPubVenue(venue)
     ? venue.latestContributorPrice ?? venue.cheapestPrice
     : venue.cheapestPrice;
@@ -430,7 +432,7 @@ function buildPubSuggestion(
     venue.longitude,
     venue.latitude,
   ]);
-  const price = verifiedPrice(venue);
+  const price = mapSearchVerifiedPrice(venue);
   const anchor = compactVenueAnchor(venue);
   const canShowPrice = isPubVenue(venue) || anchor !== null;
 
@@ -633,7 +635,7 @@ export function buildMapSearchSuggestions(input: MapSearchSuggestInput): MapSear
       seen.add(venue.id);
       pubMatches.push({
         tier,
-        pintRank: isPubVenue(venue) ? verifiedPrice(venue) !== null ? 0 : 1 : 2,
+        pintRank: isPubVenue(venue) ? mapSearchVerifiedPrice(venue) !== null ? 0 : 1 : 2,
         suggestion: buildPubSuggestion(venue, originPoint, origin),
       });
     }
