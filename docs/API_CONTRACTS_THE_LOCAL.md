@@ -265,6 +265,8 @@ unanchored selection path. The anchored lane answers `200` with an `outcome`:
 
 [`reconcilePlanContext`](../lib/planGenerationContext.ts) applies query inference, explicit context corrections, then completed intake fields in that order. Recognised price limits can tighten the resulting budget as described below. `context.nightArea` must resolve. A `null` area returns `422`.
 
+The composer always includes `context` through [`buildPlanGenerationIntakeBody`](../lib/planIntake.ts). It derives transport requirements from the current description, including empty or whitespace-only text. Removing transport wording removes the previous inferred requirement. An `explicitContext.transportConstraints` override still takes precedence. Recovered drink, food, and atmosphere choices remain intact. Request and component coverage live in `__tests__/planIntake.test.ts` and `__tests__/planComposerDescribeLink.test.ts`.
+
 ### Response `200`
 
 ```ts
