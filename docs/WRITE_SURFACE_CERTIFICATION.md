@@ -6,7 +6,7 @@ reviewed surface—even when a POST is semantically read-only. The regression te
 Adding a mutating route or removing its authority/abuse boundary fails
 CI until this certification is deliberately updated.
 
-> **Inventory: 162 mutating handlers across 129 route files.** Each exported
+> **Inventory: 163 mutating handlers across 130 route files.** Each exported
 > `POST`, `PUT`, `PATCH`, or `DELETE` is one reviewed surface. A file with two
 > mutation methods contributes two entries. Read-only handlers do not enter this
 > inventory. Both counts are merge-conflict coordination points.
@@ -143,6 +143,7 @@ Protection in a sibling method cannot certify another method.
 - `POST app/api/pub-pal/tool-turn`
 - `POST app/api/pub-pal/tools/[toolName]`
 - `POST app/api/pub-pal/voice-token`
+- `POST app/api/pub-list-import`
 - `POST app/api/push-tokens`
 - `DELETE app/api/push-tokens`
 - `POST app/api/step-out-nudge`
@@ -1635,3 +1636,20 @@ Each request passes origin checks, a 32 KiB body limit and the hashed-address ra
 Generation delegates to the existing plan route and retains its paid-spend ceiling.
 Tool errors use the MCP result contract. HTTP errors use the public API envelope.
 The anonymous paid-route probe proves that a spent generation ceiling makes no paid provider call.
+
+### `app/api/pub-list-import` - signed-in pub list matching
+
+POST requires an account checked by `verifyCallerAuth`, including revocation.
+The address budget allows 30 attempts per minute before the account check.
+The verified account budget allows 10 attempts per minute across addresses.
+Both budgets use salted hashes and refuse requests when the configured durable limiter cannot answer.
+The server reads at most 48,000 bytes, then accepts up to 4,000 text characters and an optional source link.
+Unknown fields are refused. The source link carries attribution only and is never fetched.
+The response contains a temporary import ID and ordered match states with `Cache-Control: no-store`.
+The endpoint discards pasted text after matching. Short prose can use the bounded zero-retention model fallback.
+The cluster action resolves selected IDs again and excludes closed and national pubs from London crawls.
+The save action stores matched IDs and attribution as an owner-only Planned Night draft. It stores no pasted text or creator claims.
+The resume action and GET read only the verified account's drafts. Missing storage refuses a save without a memory fallback.
+Invalid input answers 400, missing sign-in answers 401, and a spent budget answers 429.
+An oversized body answers 413. Unavailable account checks or catalogues answer a retryable 503.
+`__tests__/pubListImportRoute.test.ts` exercises these responses through the real import entry point.

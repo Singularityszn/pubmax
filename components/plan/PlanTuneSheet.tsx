@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useId, useRef, useState, type PointerEvent, type ReactNode } from "react";
+import { useCallback, useEffect, useId, useRef, useState, type PointerEvent, type ReactNode, type RefObject } from "react";
 import { createPortal } from "react-dom";
 import { X } from "lucide-react";
 
@@ -36,11 +36,13 @@ export default function PlanTuneSheet({
   title,
   onClose,
   children,
+  returnFocusRef,
 }: {
   open: boolean;
   title: string;
   onClose: () => void;
   children: ReactNode;
+  returnFocusRef?: RefObject<HTMLElement | null>;
 }) {
   const titleId = useId();
   const sheetRef = useRef<HTMLElement | null>(null);
@@ -74,10 +76,10 @@ export default function PlanTuneSheet({
 
   useEffect(() => {
     if (!open) return;
-    originRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    originRef.current = returnFocusRef?.current ?? (document.activeElement instanceof HTMLElement ? document.activeElement : null);
     const frame = requestAnimationFrame(() => sheetRef.current?.focus({ preventScroll: true }));
     return () => cancelAnimationFrame(frame);
-  }, [open]);
+  }, [open, returnFocusRef]);
 
   useFocusTrap(open, sheetRef, "strict-modal", originRef);
   useDismissOnEscape(open, onClose, sheetRef);

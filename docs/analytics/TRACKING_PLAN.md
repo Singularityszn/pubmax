@@ -480,3 +480,11 @@ that was missing: all 18 failed at this bar, and nobody noticed for months.
   owns page-exit measurements and their privacy limits. These measurements do not
   add duration or scroll properties to the named product-event registry.
 - **Traffic without consent.** Every figure here is a figure about consented visitors.
+
+## Imported pub lists
+
+`pub_list_import_started` counts submitted pasted lists.
+`pub_list_import_matched` reports the matched, ambiguous and unmatched line counts after matching succeeds.
+`pub_list_import_routed` counts generated crawls that contain only pubs from the selected cluster.
+These events measure the consented import funnel. They contain no pasted text, source URL, handle, venue ID or coordinates.
+A saved import is a private night draft. It does not count as an accepted plan.

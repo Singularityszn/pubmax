@@ -765,6 +765,18 @@ export default function PrivacyPage() {
             </dd>
           </div>
           <div className="legalRow">
+            <dt>Imported pub lists</dt>
+            <dd>
+              We match the pub names in a caption, note or message you paste.
+              Short prose may go to OpenRouter, using providers that do not retain it.
+              We discard the pasted text after matching and exclude it from logs and analytics.
+              If you save the list, we keep its matched pub IDs, your optional source link,
+              its creator handle when the link names one, and the save date in a private night draft.
+              Only your account can read that draft. Your account export includes it.
+              Deleting your account removes it. We never fetch the source link.
+            </dd>
+          </div>
+          <div className="legalRow">
             <dt>AI features</dt>
             <dd>
               If you ask The Landlord about a pub, or talk to Pub Pal by typing

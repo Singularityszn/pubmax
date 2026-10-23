@@ -289,3 +289,18 @@ anon key and the two seeded accounts' own sessions: the private Moment object
 answered `NoSuchKey` on the public, authenticated and plain object paths and an
 empty list on the bucket for anonymous, owner and stranger alike, and no client
 could mint a signed URL for it. `night_moments` answered the owner's rows alone.
+
+## Imported Planned Night drafts
+
+The signed-in import endpoint stores matched pub IDs, optional source credit and the save date.
+It stores no pasted text or creator descriptions.
+
+| Actor | API read or resume | Table read | Browser table write |
+| --- | --- | --- | --- |
+| Owner | Own drafts | Own drafts | Refused |
+| Other account | Own drafts only, another owner's ID returns 404 | No other owner's rows | Refused |
+| Anonymous | 401 | Refused | Refused |
+
+The service role writes after the API checks the account and resolves the pub IDs again.
+Account deletion cascades to these drafts. The account export includes the owner's drafts.
+Migration 0195 and its rollback leave existing plans and pub records unchanged.

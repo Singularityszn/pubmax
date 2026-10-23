@@ -2247,6 +2247,53 @@ describe("saves: two lanes, two promises", () => {
   });
 });
 
+describe("imported Planned Night drafts", () => {
+  it("saves only matched IDs and credit, and admits only the owner at both doors", async () => {
+    const route = await import("@/app/api/pub-list-import/route");
+    const imported = await route.POST(request("/api/pub-list-import", { method: "POST", bearer: BEARER_ALICE,
+      body: { text: "The Harp\nThe Blackfriar", sourceUrl: "https://www.tiktok.com/@pubmate/video/123" } }));
+    expect(imported.status, await imported.clone().text()).toBe(200);
+    const matched = await imported.json();
+    const ids = matched.items.flatMap((item: { state: string; venue?: { id: string } }) =>
+      item.state === "matched" && item.venue ? [item.venue.id] : []);
+    expect(ids.length).toBeGreaterThan(0);
+    const saved = await route.POST(request("/api/pub-list-import", { method: "POST", bearer: BEARER_ALICE,
+      body: { action: "save", importId: matched.importId, venueIds: ids, sourceUrl: matched.source.url } }));
+    expect(saved.status, await saved.clone().text()).toBe(200);
+    const owner = await requireSession().rest(`/pub_list_night_drafts?select=id,venue_ids&id=eq.${matched.importId}`, { sub: ALICE });
+    expect(owner.body).toEqual([{ id: matched.importId, venue_ids: ids }]);
+    const stranger = await requireSession().rest(`/pub_list_night_drafts?select=id&id=eq.${matched.importId}`, { sub: BOB });
+    expect(stranger.body).toEqual([]);
+    const anon = await requireSession().rest("/pub_list_night_drafts?select=id");
+    expect(anon.status).toBeGreaterThanOrEqual(400);
+    const browserWrite = attemptAsRole("authenticated", ALICE,
+      `update public.pub_list_night_drafts set source_handle = '@changed' where id = '${matched.importId}'`);
+    expect(browserWrite.ok).toBe(false);
+    const refused = await route.POST(request("/api/pub-list-import", { method: "POST", bearer: BEARER_BOB,
+      body: { action: "resume", importId: matched.importId } }));
+    expect(refused.status).toBe(404);
+    const deniedBody = await refused.json();
+    const missing = await route.POST(request("/api/pub-list-import", { method: "POST", bearer: BEARER_BOB,
+      body: { action: "resume", importId: "00000000-0000-4000-8000-000000000000" } }));
+    expect(missing.status).toBe(refused.status);
+    expect(await missing.json()).toEqual(deniedBody);
+    expectNoDisclosure(deniedBody);
+    expect(JSON.stringify(deniedBody)).not.toMatch(/pubmate|tiktok|Blackfriar|Harp/);
+    const unchanged = await requireSession().rest(`/pub_list_night_drafts?select=id,venue_ids&id=eq.${matched.importId}`, { sub: ALICE });
+    expect(unchanged.body).toEqual(owner.body);
+    const resumed = await route.POST(request("/api/pub-list-import", { method: "POST", bearer: BEARER_ALICE,
+      body: { action: "resume", importId: matched.importId } }));
+    expect(resumed.status).toBe(200);
+    expect((await resumed.json()).source.handle).toBe("@pubmate");
+    const columns = truth("select string_agg(column_name, ',') from information_schema.columns where table_name = 'pub_list_night_drafts'");
+    expect(columns).not.toMatch(/raw_line|pasted|description/);
+    requireSession().sqlFile(join(MIGRATIONS, "rollback/20261022120000_0195_pub_list_night_drafts_rollback.sql"));
+    expect(truth("select to_regclass('public.pub_list_night_drafts') is null")).toBe("true");
+    requireSession().sqlFile(join(MIGRATIONS, "20261022120000_0195_pub_list_night_drafts.sql"));
+    await requireSession().reloadPostgrestSchema();
+  });
+});
+
 describe("account export", () => {
   it("anonymous is refused the file", async () => {
     const response = await defined(handlers.exportAccount)(request("/api/account/export"), context({}));

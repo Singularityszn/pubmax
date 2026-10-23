@@ -146,6 +146,11 @@ const STORE_INVENTORY: Record<string, StoreRow> = {
     reason: "The cross-store moderation RPC has no memory equivalent and answers null without Supabase.",
   },
   "lib/profileStore.ts": { class: "policy-heavy", selector: "selectStore" },
+  "lib/pubListImportDraftStore.server.ts": {
+    class: "not-dual-backend",
+    selector: "none",
+    reason: "Durable-only service-role table for signed-in owners; no memory implementation.",
+  },
   "lib/pubPalStore.ts": {
     class: "legacy-exception",
     selector: "inline",
