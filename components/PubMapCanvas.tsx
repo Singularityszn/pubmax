@@ -456,13 +456,14 @@ type PubMapCanvasProps = {
    */
   fitQueryOnArrival?: boolean;
   /**
-   * Reactive search framing. When a live search narrows to more than one match
-   * the parent bumps this token; each new value re-frames the camera onto the
-   * current (filtered) venue set so a query never dead-ends on vanished pins.
-   * A single match is handled by selection (the cinematic fly-to below), not
-   * this token. Starts at 0 (no-op) so first paint is untouched.
+   * Reframes the current query matches when the parent increments the token.
+   * Typed multi-result searches and restored queries use this path. A restored
+   * single match stays unselected, while a typed single match opens its sheet.
+   * Starts at 0 so this token does not move the camera on first paint.
    */
   searchFitToken?: number;
+  /** Search matches to frame while surrounding venues stay on the map. */
+  queryVenues?: Venue[];
   /** Precise location retained only in memory after explicit permission. */
   userLocation?: { lat: number; lng: number } | null;
   readerPosition?: MapReaderPosition | null;
@@ -768,6 +769,7 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
     londonRestaurants,
     fitQueryOnArrival,
     searchFitToken,
+    queryVenues = venues,
     userLocation,
     readerPosition,
     poiHidden: controlledPoiHidden,
@@ -1215,11 +1217,13 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
   // "no pubs visible" fallback).
   const bandMemberIdsRef = useRef<string[]>([]);
   const venuesRef = useRef(venues);
+  const queryVenuesRef = useRef(queryVenues);
   const filteredVenueCountRef = useRef(venues.length);
   useEffect(() => {
     venuesRef.current = venues;
+    queryVenuesRef.current = queryVenues;
     filteredVenueCountRef.current = filteredVenueCount;
-  }, [filteredVenueCount, venues]);
+  }, [filteredVenueCount, queryVenues, venues]);
   const selectedIdRef = useRef(selectedVenueId);
   // The reader's Pub Pal perched beside the selected pin (palMarker.ts).
   const palMarkerRef = useRef<PalMapMarker | null>(null);
@@ -1358,6 +1362,7 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
     cityBoundsRef,
     routeRef,
     venuesRef,
+    queryVenuesRef,
     gestureCameraRef,
   })
 
@@ -4395,16 +4400,14 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
     if (didFitQueryOnArrivalRef.current) return;
     // User already tapped a venue — leave the cinematic fly-to alone.
     if (selectedVenueId) return;
-    if (venues.length === 0) return;
+    if (queryVenues.length === 0) return;
     didFitQueryOnArrivalRef.current = true;
     fitQueryVenues();
-  }, [mapReady, fitQueryOnArrival, venues.length, selectedVenueId, fitQueryVenues]);
+  }, [mapReady, fitQueryOnArrival, queryVenues.length, selectedVenueId, fitQueryVenues]);
 
-  // Reactive search framing (issue: map search dead-ends). When a live search
-  // narrows to a multi-venue set the parent bumps `searchFitToken`; re-frame the
-  // camera onto the current filtered venues so the matches are actually shown
-  // instead of the pins silently vanishing at city zoom. Token 0 is the initial
-  // no-op so first paint (owned by arrival framing) is left alone.
+  // Restored queries and typed multi-result searches frame queryVenues.
+  // Surrounding pins do not affect these bounds. Token 0 leaves initial
+  // framing to the arrival effect above.
   useEffect(() => {
     if (!mapReady || searchFitToken <= 0) return;
     fitQueryVenues();

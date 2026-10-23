@@ -26,6 +26,7 @@ import ListedPriceSource from "@/components/venue/ListedPriceSource";
 import VenuePriceThen from "@/components/map/VenuePriceThen";
 import { PintPriceBadge } from "@/components/PriceBadge";
 import { venueListedPint } from "@/lib/venueListedPint";
+import { isPubVenueKind } from "@/lib/venueKindFilters";
 import { displayDrinkName } from "@/components/listing/displayCase";
 
 import "./ledger.css";
@@ -104,8 +105,9 @@ function ledgerAddressRegion(venueId: string): string | undefined {
   return "London";
 }
 
-// BarOrPub structured data for the venue permalink (Wave S1.3). Name, geo
-// (lat/lng), postal address, and the canonical url. No invented cuisine,
+// Only pub and bar records receive BarOrPub structured data. An absent kind
+// retains the legacy pub interpretation. The schema includes the name,
+// coordinates, postal address, and canonical URL. No invented cuisine,
 // price range, or rating. lat/lng and the street address are omitted when
 // absent. The region is the city the id names. When the pub is on the official
 // register (Historic England NHLE) we add a factual `description` + a
@@ -209,10 +211,11 @@ export default async function LedgerPage({ params }: PageProps) {
     curation.heritageNote ? curation.heritageNote : "",
   ];
   const listedPint = venueListedPint(venue);
+  const hasPubOrBarSchema = isPubVenueKind(venue.kind) || venue.kind === "bar";
 
   return (
     <main id="main" className="ledgerPage">
-      <JsonLd data={venueJsonLd(venue, listedBuilding)} />
+      {hasPubOrBarSchema ? <JsonLd data={venueJsonLd(venue, listedBuilding)} /> : null}
       <LedgerLiveProvider venueId={canonicalId}>
         <header className="ledgerHead">
           <Link className="ledgerHomeLink" href="/">
