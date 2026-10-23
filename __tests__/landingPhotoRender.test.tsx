@@ -13,7 +13,6 @@ vi.mock("@/lib/landingPubCard.server", () => ({
     card: heroData.card,
     archive: {},
     rail: [],
-    averages: null,
   }),
 }));
 vi.mock("@/lib/landingAnswers.server", () => ({

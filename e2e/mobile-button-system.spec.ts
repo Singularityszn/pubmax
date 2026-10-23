@@ -69,7 +69,7 @@ for (const viewport of DEVICES) {
       // therefore not a wait for hydration: retry the tap itself until the
       // first onboarding step opens (same idiom as e2e/plan-invite.spec.ts).
       const meetPal = page.getByRole("button", { name: /Meet your Pub Pal/i });
-      const eligibility = page.getByRole("heading", { name: "The grown-up bit first." });
+      const eligibility = page.getByRole("heading", { name: "Before you start" });
       await expect(async () => {
         await meetPal.click();
         await expect(eligibility).toBeVisible({ timeout: 1_000 });

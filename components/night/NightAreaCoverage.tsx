@@ -22,11 +22,11 @@ type CoverageState = {
 };
 
 const STATUS_ORDER: Array<{ bucket: CoverageBucket; label: string }> = [
-  { bucket: "route_ready", label: "Route-ready" },
-  { bucket: "captured", label: "Some checks done" },
-  { bucket: "reviewed", label: "Reviewed" },
-  { bucket: "discovered", label: "Not checked" },
-  { bucket: "paused", label: "Paused" },
+  { bucket: "route_ready", label: "Plan a crawl" },
+  { bucket: "captured", label: "Browse pubs" },
+  { bucket: "reviewed", label: "Browse pubs" },
+  { bucket: "discovered", label: "Browse pubs" },
+  { bucket: "paused", label: "Browse pubs" },
 ];
 
 function stateForArea(area: NightArea, now: Date): CoverageState {
@@ -34,8 +34,8 @@ function stateForArea(area: NightArea, now: Date): CoverageState {
   if (routeReady) {
     return {
       bucket: "route_ready",
-      label: "Route-ready",
-      detail: "Prices here are fresh and checked. Plan a crawl whenever.",
+      label: "Plan a crawl",
+      detail: "Enough checked information to plan a crawl.",
       tone: "ready",
       actionLabel: "Open planner",
       href: "/plan",
@@ -50,14 +50,14 @@ function stateForArea(area: NightArea, now: Date): CoverageState {
 
   switch (area.coverageStatus) {
     case "captured":
-      return { bucket: "captured", label: "Some checks done", detail: gateDetail, tone: "captured", ...shared };
+      return { bucket: "captured", label: "Browse pubs", detail: gateDetail, tone: "captured", ...shared };
     case "reviewed":
-      return { bucket: "reviewed", label: "Reviewed", detail: gateDetail, tone: "reviewed", ...shared };
+      return { bucket: "reviewed", label: "Browse pubs", detail: gateDetail, tone: "reviewed", ...shared };
     case "paused":
       return {
         bucket: "paused",
-        label: "Paused",
-        detail: "Prices here have gone stale. Have a browse while we recheck them.",
+        label: "Browse pubs",
+        detail: "The information needs updating before you can plan a crawl.",
         tone: "paused",
         ...shared,
       };
@@ -66,16 +66,16 @@ function stateForArea(area: NightArea, now: Date): CoverageState {
       if (Number.isFinite(expiresAt) && expiresAt <= now.getTime()) {
         return {
           bucket: "paused",
-          label: "Paused",
-          detail: "This one was crawl-ready, but its prices have gone stale. Have a browse while we recheck them.",
+          label: "Browse pubs",
+          detail: "The information needs updating before you can plan a crawl.",
           tone: "paused",
           ...shared,
         };
       }
       return {
         bucket: "reviewed",
-        label: "Reviewed",
-        detail: "Not crawl-ready right now. Have a browse while we recheck the prices.",
+        label: "Browse pubs",
+        detail: "Not enough checked information to plan a crawl here yet.",
         tone: "reviewed",
         ...shared,
       };
@@ -84,8 +84,8 @@ function stateForArea(area: NightArea, now: Date): CoverageState {
     default:
       return {
         bucket: "discovered",
-        label: "Not checked",
-        detail: "Haven't got to this one yet. Have a browse.",
+        label: "Browse pubs",
+        detail: "Browse the pubs. We haven't checked this area for crawl planning yet.",
         tone: "discovered",
         ...shared,
       };
@@ -94,7 +94,7 @@ function stateForArea(area: NightArea, now: Date): CoverageState {
 
 function areaMapLabel(area: NightArea, state: CoverageState): string {
   return state.bucket === "route_ready"
-    ? `Open the planner from ${area.name} coverage`
+    ? `Open the planner for ${area.name}`
     : `See ${area.name} pubs on the map`;
 }
 
@@ -142,10 +142,7 @@ export default function NightAreaCoverage() {
   const now = new Date();
   const areas = NIGHT_AREAS;
   const featured = displayAreas(areas, now);
-  const counts = STATUS_ORDER.map((status) => ({
-    ...status,
-    count: areas.filter((area) => stateForArea(area, now).bucket === status.bucket).length,
-  }));
+
 
   return (
     <section className="nightAreaCoverage" aria-labelledby="night-area-coverage-title">
@@ -160,21 +157,10 @@ export default function NightAreaCoverage() {
       </header>
 
       <p className="nightAreaCoverage__intro">
-        We only call an area crawl-ready when its prices are fresh and checked. The rest
-        are yours to browse.
+        Browse pubs across London. Crawl planning is available where we have enough checked information.
       </p>
 
-      <ul className="nightAreaCoverage__counts" aria-label="Area coverage counts">
-        {counts.map((status) => (
-          <li key={status.bucket}>
-            <strong>{status.count}</strong>
-            <span>{status.label}</span>
-          </li>
-        ))}
-      </ul>
-
       <div className="nightAreaCoverage__quickRead">
-        <p className="nightAreaCoverage__sectionLabel">Quick read</p>
         <ul className="nightAreaCoverage__list" aria-label="Representative area coverage">
           {featured.map((area) => <CoverageRow key={area.slug} area={area} now={now} />)}
         </ul>
@@ -186,8 +172,7 @@ export default function NightAreaCoverage() {
           <span className="nightAreaCoverage__detailsMeta">{areas.length} areas</span>
         </summary>
         <p className="nightAreaCoverage__detailsIntro">
-          &quot;See the pubs&quot; just opens the map for a browse. It won’t turn an area into a
-          planned crawl until its prices are fresh.
+          Each area shows whether you can plan a crawl or browse its pubs.
         </p>
         <ul className="nightAreaCoverage__list" aria-label="All area coverage">
           {areas.map((area) => <CoverageRow key={area.slug} area={area} now={now} />)}

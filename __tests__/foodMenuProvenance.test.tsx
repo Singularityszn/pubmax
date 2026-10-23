@@ -339,7 +339,7 @@ describe("food menu price evidence", () => {
     const time = new DOMParser().parseFromString(html, "text/html").querySelector("time");
     expect(time?.getAttribute("datetime")).toBe("2026-07-11T12:00:00Z");
     expect(time?.textContent).toBe("11 July 2026");
-    expect(html).toContain("Snapshot from");
+    expect(html).toContain("Records from");
     expect(html).toContain("£12.50");
   });
 
@@ -354,6 +354,6 @@ describe("food menu price evidence", () => {
     const html = renderFood({ provenance: { source: "seed", licence: "demo", observedAt: "2026-07-11T12:00:00Z" }, source: undefined });
     expect(html).toContain("Demo");
     expect(html).not.toContain("<time");
-    expect(html).not.toContain("Snapshot from");
+    expect(html).not.toContain("Records from");
   });
 });

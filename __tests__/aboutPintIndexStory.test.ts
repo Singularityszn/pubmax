@@ -143,14 +143,14 @@ describe("About outings story (Wave S1)", () => {
   it("names daytime and sober outings without inventing biography or metrics", async () => {
     const html = await renderAbout();
 
-    expect(html).toContain("coffee and a laptop at a Spoons");
-    expect(html).toContain("alcohol-free hang");
-    expect(html).toContain("Food listings name their source");
+    expect(html).toContain("coffee, food and alcohol-free choices");
+    expect(html).toContain("alcohol-free drinks and logged coffee prices");
+    expect(html).toContain("name their source and stay separate from pint prices");
     expect(html).toContain("Wetherspoons prices");
     expect(html).toContain("second independent drinker");
-    expect(html).toContain("founder-led by");
+    expect(html).toContain("is built by");
     expect(html).toContain("Karan Manoharan");
-    expect(html).toContain("one map for nights out and daytime hangs");
+    expect(html).toContain("Find a pub, compare listed prices and share a plan");
     expect(html).not.toMatch(/small team/iu);
     expect(html).toContain(
       "where to go for a night out, a coffee, food, or a quiet afternoon",

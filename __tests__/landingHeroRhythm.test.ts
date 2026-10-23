@@ -101,14 +101,15 @@ describe("landing hero rhythm", () => {
     expect([...order].sort((a, b) => a - b)).toEqual(order);
   });
 
-  it("puts the measured saving under the claim, beside the licensed London skyline", () => {
+  it("keeps the introduction short and puts measured savings below the answer", () => {
     const hero = html.match(/<section class="screen lpHero"[\s\S]*?<\/section>/)?.[0] ?? "";
     expect(hero.match(/class="screenLede"/g)).toHaveLength(1);
     // The figures are the ones handed in (lib/pintSavings.ts measures them from
     // the priced read), never typed into the hero.
-    expect(hero).toContain(
-      '<p class="screenLede">The average listed pint across 950 London pubs is £5.54. In the cheapest third it&#x27;s £4.17. That&#x27;s £1.37 a pint you keep.</p>',
-    );
+    expect(hero).toContain('<p class="screenLede">Find a London pub, compare listed pint prices and plan your night.</p>');
+    expect(hero).not.toContain("The average listed pint");
+    expect(html).toContain("The average listed pint across 950 London pubs is £5.54.");
+    expect(html.indexOf("The average listed pint")).toBeGreaterThan(html.indexOf('class="lpRail"'));
     expect(hero).toContain('alt="Tower Bridge and the Thames in London from above"');
     expect(hero).toContain('/landing/hero-thames-1600.avif');
     expect(hero).not.toContain('class="lpMapSnapshot"');
@@ -126,10 +127,11 @@ describe("landing hero rhythm", () => {
     );
   });
 
-  it("falls back to the map line when the dataset cannot back a saving", () => {
+  it("keeps the introduction when no savings can be measured", () => {
     const bare = renderToStaticMarkup(createElement(LandingPage, { card }));
     const hero = bare.match(/<section class="screen lpHero"[\s\S]*?<\/section>/)?.[0] ?? "";
-    expect(hero).toMatch(/<p class="screenLede">London on one map, with \d+ historic pubs cited/);
+    expect(hero).toContain("Find a London pub, compare listed pint prices and plan your night.");
+    expect(bare).not.toContain("The average listed pint");
   });
 
   it("prints every rail row as its own Pint Drop door, with a price stamp and no borough the heading already names", () => {

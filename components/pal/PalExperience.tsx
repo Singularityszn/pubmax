@@ -254,9 +254,9 @@ export function PalMeetingScreen({
         as="section"
         className="palMeetingStage"
         kicker="Your Pub Pal"
-        title="A little signal that becomes yours."
+        title="Plan your night with Pub Pal"
         titleId="pal-meeting-title"
-        lede="Pick its look and voice, and set what it's allowed to do. Then ask it for tonight's route or the cheapest pint near you. It remembers your usual drink only after you approve it."
+        lede="Find a pub or plan a route. You choose its look, voice and what it can remember."
         primary={
           <button type="button" onClick={onMeet}>
             Meet your Pub Pal
@@ -478,7 +478,7 @@ function PalOnboardingScreen({
           {step === 0 && (
             <div className="palStep">
               <p className="palEyebrow">Age check</p>
-              <h1>The grown-up bit first.</h1>
+              <h1>Before you start</h1>
               <p>Pub Pal is for adults planning a night out.</p>
               <label className="palToggleRow">
                 <input type="checkbox" checked={draft.adultConfirmed} onChange={(event) => setDraft((current) => ({ ...current, adultConfirmed: event.target.checked }))} />
@@ -489,7 +489,7 @@ function PalOnboardingScreen({
           {step === 1 && (
             <div className="palStep">
               <p className="palEyebrow">Form and name</p>
-              <h1>Who finds you?</h1>
+              <h1>Choose your Pub Pal</h1>
               <p>Every Pal plans the same way. Pick the one you want with you.</p>
               <div className="palChoiceList palSpeciesGrid">{PAL_ONBOARDING_SPECIES.map((species) => <ChoiceButton key={species} selected={draft.appearance.species === species} title={speciesCopy[species].title} note={speciesCopy[species].note} onClick={() => updateAppearance({ species })} />)}</div>
               <label className="palField"><span>Name</span><input value={draft.name} maxLength={32} autoComplete="off" placeholder="Any name you like" onChange={(event) => setDraft((current) => ({ ...current, name: event.target.value }))} /><small>This is yours. Change it whenever you want.</small></label>
@@ -506,8 +506,8 @@ function PalOnboardingScreen({
           {step === 2 && (
             <div className="palStep">
               <p className="palEyebrow">Appearance</p>
-              <h1>Tune the signal.</h1>
-              <fieldset><legend>Affinity</legend><div className="palChoiceGrid">{SIGNAL_FAMILIES.map((signal) => <ChoiceButton key={signal} selected={draft.appearance.signalAffinity === signal} title={signalCopy[signal]} onClick={() => updateAppearance({ signalAffinity: signal })} />)}</div></fieldset>
+              <h1>Choose its look</h1>
+              <fieldset><legend>Colour</legend><div className="palChoiceGrid">{SIGNAL_FAMILIES.map((signal) => <ChoiceButton key={signal} selected={draft.appearance.signalAffinity === signal} title={signalCopy[signal]} onClick={() => updateAppearance({ signalAffinity: signal })} />)}</div></fieldset>
               <fieldset><legend>Material</legend><div className="palChoiceGrid">{(["hologram", "chrome", "glass"] as const).map((material) => <ChoiceButton key={material} selected={draft.appearance.material === material} title={materialCopy[material]} onClick={() => updateAppearance({ material })} />)}</div></fieldset>
               <fieldset><legend>Accessory</legend><div className="palChoiceGrid">{(["none", "collar", "monocle", "signal-ring"] as const).map((accessory) => <ChoiceButton key={accessory} selected={draft.appearance.accessory === accessory} title={accessoryCopy[accessory]} onClick={() => updateAppearance({ accessory })} />)}</div></fieldset>
             </div>

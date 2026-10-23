@@ -145,44 +145,31 @@ export default async function AboutPage() {
       <section className="aboutSection" aria-labelledby="map">
         <h2 id="map" className="aboutH2">What the map does</h2>
         <p className="aboutBody">
-          We put real prices on the map, starting in London. When a price record
-          names a publisher, we name and link it. When no publisher is recorded,
-          the price says so. The ones logged by drinkers carry the day they were
-          seen. Tap a pub and you see what a drink costs before you walk in.
+          Compare listed drink prices, read pub histories with references and
+          share a plan with the stops and walking route. PUBMAXX is free to use.
         </p>
         <p className="aboutBody">
-          A first report can mark a pub straight away. Its price only changes
-          the pin colour and cheapest-price lists after a second independent
-          drinker confirms it.
-        </p>
-        <p className="aboutBody">
-          Pub histories come with references, so you can read where each story
-          came from.
-        </p>
-        <p className="aboutBody">
-          Send your crew one plan link with the stops and walking route.
-        </p>
-        <p className="aboutBody">
-          Choose a cheap pint, coffee and a laptop at a Spoons, food then a
-          soft drink, or an alcohol-free hang. Soft drink and alcohol-free prices
-          share the same trust rules as beer. Coffee prices follow those rules
-          once someone logs one. Food listings name their source and stay
-          separate from pint prices. A drinker pays for nothing.
-        </p>
-        <p className="aboutBody">
-          Nobody pays to rank. There are no sponsored listings today. If one
-          ever comes, it will be labelled and kept out of the price order.
+          You can also find coffee, food and alcohol-free choices. Food listings
+          name their source and stay separate from pint prices.
         </p>
       </section>
 
       <section className="aboutSection" aria-labelledby="fights">
         <h2 id="fights" className="aboutH2">How we handle prices</h2>
+        <p className="aboutBody">
+          Listed prices name their publisher when recorded and say when one is
+          missing. Drinker reports show the day they were logged. Prices can
+          change, so check at the bar.
+        </p>
+        <details className="aboutDisclosure">
+          <summary>Sources, confirmation and coverage</summary>
         <ul className="aboutEthos">
           <li>
             <strong>A price needs confirmation.</strong> A single report can
             show on the pub&rsquo;s own page. It only sets the pin colour after
             a second independent drinker agrees while the report is recent
-            enough.
+            enough. The same requirement applies to cheapest-price lists,
+            soft drinks, alcohol-free drinks and logged coffee prices.
           </li>
           <li>
             <strong>Wetherspoons prices.</strong> Their public web menus don&rsquo;t
@@ -196,12 +183,8 @@ export default async function AboutPage() {
           </li>
           <li>
             <strong>The price order is not for sale.</strong> No slot is
-            sponsored today, and one never will be without a label.
-          </li>
-          <li>
-            <strong>You can check the source.</strong> Listed prices name and link
-            their publisher when recorded, and say when none is recorded. Cited
-            pub stories link to their references.
+            sponsored today. Any future sponsorship will be labelled and kept
+            out of the price order.
           </li>
           <li>
             <strong>You choose what to share.</strong> Rewards and rankings
@@ -209,12 +192,13 @@ export default async function AboutPage() {
             you choose to share them, and you can browse without an account.
           </li>
         </ul>
+        </details>
       </section>
 
       <section className="aboutSection" aria-labelledby="team">
         <h2 id="team" className="aboutH2">Who builds it</h2>
         <p className="aboutBody">
-          PUBMAXX is founder-led by{" "}
+          PUBMAXX is built by{" "}
           <a
             href="https://x.com/karansznx"
             target="_blank"
@@ -225,6 +209,12 @@ export default async function AboutPage() {
           </a>
           .
         </p>
+        <p className="aboutBody">
+          The London photographs on the homepage are Karan&apos;s own. They show
+          the streets, pubs and places behind the map.
+        </p>
+        <details className="aboutDisclosure">
+          <summary>A note on sources</summary>
         <figure className="aboutFounderNote">
           <blockquote className="aboutFounderQuote">
             <p className="aboutBody">
@@ -238,6 +228,7 @@ export default async function AboutPage() {
             Karan Manoharan, founder of PUBMAXX
           </figcaption>
         </figure>
+        </details>
       </section>
 
       {/* ── Traction / numbers (real, computed at request time). One
@@ -266,22 +257,21 @@ export default async function AboutPage() {
 
       {/* ── Press appendix (kit + journalist hooks) ─────────────── */}
       <section className="aboutSection" aria-labelledby="press">
-        <h2 id="press" className="aboutH2">Press appendix</h2>
+        <h2 id="press" className="aboutH2">For the press</h2>
+        <details className="aboutDisclosure">
+          <summary>Press details and downloads</summary>
         <dl className="aboutPressGrid">
           <div className="aboutPressRow">
             <dt>Name</dt>
             <dd>
-              PUBMAXX, always with two Xs. The web address is pubmaxxing.com,
-              because pubmaxxing is what you do with it. Print PUBMAXX for the
-              app and keep the address for links.
+              PUBMAXX. Website: pubmaxxing.com.
             </dd>
           </div>
           <div className="aboutPressRow">
             <dt>One line</dt>
             <dd>
-              Listed prices with explicit source status, one map for nights out
-              and daytime hangs, and a plan you can send. Free, and nobody pays
-              to rank.
+              Find a pub, compare listed prices and share a plan. Free to use,
+              with no paid ranking.
             </dd>
           </div>
           <div className="aboutPressRow">
@@ -384,6 +374,7 @@ export default async function AboutPage() {
             </Link>
           </p>
         </div>
+        </details>
       </section>
 
       <section className="aboutSection aboutCta" aria-labelledby="cta">

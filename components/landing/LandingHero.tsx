@@ -36,7 +36,6 @@ import {
   type ResolvedLandingPhoto,
 } from "@/lib/landingImagery";
 import { NEAR_ME_LOCATION_OPTIONS } from "@/lib/nearMeLocation";
-import { strangerSavingLine, type PintPriceAverages } from "@/lib/pintSavings";
 import type { NearMeCard } from "@/lib/nearMeAnswer";
 import { PRICE_NOT_COMPARED_LINE } from "@/lib/priceMovementLine";
 import { priceStandingLabel, priceStandingNote, type PriceStanding } from "@/lib/priceTier";
@@ -52,7 +51,6 @@ import { formatPrice } from "@/lib/venues";
 import { venueMapUrl } from "@/lib/venueMapUrl";
 
 import LandingPhoto, { LandingPhotoCredit } from "./LandingPhoto";
-import { HISTORIC_PUB_COUNT } from "./londonMapGeometry";
 
 // The landing hero (issue #1357, rebuilt on the captain's 7 Sep 2026 ask, and
 // trimmed after the 16 Oct 2026 UX audit): the claim, one line under it, the
@@ -221,21 +219,17 @@ async function readEvidence(
   }
 }
 
-/** The line under the claim when the dataset cannot back a saving. */
-const MAP_LEDE = `London on one map, with ${HISTORIC_PUB_COUNT} historic pubs cited and a listed price wherever we hold one.`;
+const MAP_LEDE = "Find a London pub, compare listed pint prices and plan your night.";
 
 export default function LandingHero({
   card,
   archive,
   rail,
-  averages = null,
 }: {
   /** The one real pub, or null when the data cannot back one. */
   card: LandingPubCardData | null;
   archive: LandingArchiveIndex;
   rail: LandingRailRow[];
-  /** The city's two mean pint prices, for the saving line (lib/pintSavings.ts). */
-  averages?: PintPriceAverages | null;
 }) {
   const [answer, setAnswer] = useState<Answer | null>(() =>
     card ? anchorAnswer(card, rail, archive) : null,
@@ -343,7 +337,7 @@ export default function LandingHero({
       className="lpHero"
       title="What a pint costs, pub by pub."
       titleId="hero-title"
-      lede={strangerSavingLine(averages) ?? MAP_LEDE}
+      lede={MAP_LEDE}
       answer={
         <figure className="lpLondonFigure">
           <picture>
@@ -487,7 +481,8 @@ function AnswerCard({
         </span>
       ) : null}
       {answer.then ? (
-        <>
+        <details className="lpEarlierPrices">
+          <summary>Earlier prices</summary>
           <p className="lpPubThen">
             <strong>{formatPrice(answer.then.priceGbp)}</strong> in {answer.then.observedMonth}.{" "}
             {archiveMovementLine(answer.then, answer.priceGbp) ?? PRICE_NOT_COMPARED_LINE}
@@ -498,7 +493,7 @@ function AnswerCard({
             </a>
             , {answer.then.observedDay}
           </p>
-        </>
+        </details>
       ) : null}
       <p className="lpNearLine" role="status" aria-live="polite">
         {near.kind === "failed" ? near.line : ""}

@@ -501,7 +501,7 @@ describe("VOICE.md rule 2 — plumbing words stay off reader surfaces", () => {
     expect(pal).not.toContain("Optional by design");
     expect(pal).not.toContain("Route before character");
     expect(pal).toContain("Your Pub Pal");
-    expect(pal).toContain("A little signal that becomes yours.");
+    expect(pal).toContain("Plan your night with Pub Pal");
   });
 });
 
