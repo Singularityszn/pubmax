@@ -16,8 +16,7 @@
 // skip its steps still holds a macOS runner while it waits. So one Linux job,
 // "Change scope", classifies the diff, and the three layout-pin jobs are
 // skipped whole when it succeeds and says no screen code changed (captain,
-// 23 Oct 2026): a test-only, data or lib/ logic change no longer waits for
-// three macOS runs, and main still runs them on every push. They are named
+// 23 Oct 2026). Main still runs them on every push. They are named
 // jobs, not a matrix, so a skipped one reports under its own name, which
 // branch protection counts as passed. If the classifier fails, they run.
 //
@@ -77,7 +76,7 @@ function shimBin(): string {
     join(bin, "git"),
     [
       "#!/bin/sh",
-      'if [ "$*" = "diff --no-renames --name-only HEAD^1 HEAD" ]; then printf "%s" "$FAKE_DIFF"; exit 0; fi',
+      'if [ "$*" = "diff --no-renames --name-only HEAD^1 HEAD" ]; then printf "%s" "$FAKE_DIFF"; exit "${FAKE_GIT_STATUS:-0}"; fi',
       'echo "unexpected git $*" >&2; exit 2',
     ].join("\n"),
   );
@@ -301,7 +300,8 @@ describe("the layout scope", () => {
     ...[
       "lib/cities.ts", "lib/cityStoryBands.ts", "lib/contentSecurityPolicy.mjs",
       "lib/deviceAccountSessions.ts", "lib/landingHero.ts", "lib/lateFood.ts",
-      "lib/mapCanvasAvailability.ts", "lib/priceBand.ts", "lib/profileCovers.ts",
+      "lib/mapCanvasAvailability.ts", "lib/mapBasemapTaste.ts", "lib/mapIcons.ts",
+      "lib/donutClusterGeometry.ts", "lib/priceBand.ts", "lib/profileCovers.ts",
       "lib/siteContact.ts", "lib/surfaceDataCache.ts", "lib/ukBasePubSearch.ts",
     ].map((file) => ({ files: [file], layout: "ui" })),
     { files: [".github/workflows/e2e.yml"], layout: "ui" },
@@ -314,13 +314,12 @@ describe("the layout scope", () => {
     { files: ["playwright.config.ts"], layout: "ui" },
     { files: ["proxy.ts"], layout: "ui" },
     { files: ["__tests__/venues.test.ts", "components/nav/navigationModel.ts"], layout: "ui" },
-    // Tests, data, docs and logic.
     { files: ["__tests__/venues.test.ts"], layout: "none" },
-    { files: ["e2e/smoke.spec.ts", "e2e/food-menu-discovery.spec.ts"], layout: "none" },
+    { files: ["e2e/smoke.spec.ts", "e2e/food-menu-discovery.spec.ts"], layout: "ui" },
     { files: ["data/freshness_registry.json", "public/data/london/venues.slim.json"], layout: "none" },
     { files: ["data/venues.csv"], layout: "none" },
     { files: ["docs/CI_RUNBOOK.md", "app/AGENTS.md"], layout: "none" },
-    { files: ["lib/venues.ts", "lib/harvest/sourcePolicy.ts"], layout: "none" },
+    { files: ["lib/venues.ts", "lib/harvest/sourcePolicy.ts"], layout: "ui" },
     ...[
       "app/api/feedback/route.ts", "app/api/city-map-card/route.tsx",
       "app/api/helpers.ts", "app/api/style.css", "app/route.ts", "app/feed/route.ts",
@@ -329,16 +328,42 @@ describe("the layout scope", () => {
       "scripts/copy_maplibre_worker.mjs", "scripts/copy_elevenlabs_worklets.mjs",
       "scripts/ci/install-script-allowlist.mjs", "scripts/lib/uiUxBattleTestBrowser.mjs",
       "scripts/lib/committedBundledDataPaths.mjs", "scripts/build_slim_index.mjs", "scripts/style.css",
+    ].map((file) => ({ files: [file], layout: "none" })),
+    ...[
       "lib/e2eReviewAuth.ts", "lib/performanceBudgets.ts", "lib/playwrightDistDir.mjs",
       "lib/priceChipLadder.ts", "lib/staticAssetPrefixes.mjs", "lib/webVitalsBaseline.ts",
-    ].map((file) => ({ files: [file], layout: "none" })),
+    ].map((file) => ({ files: [file], layout: "ui" })),
     { files: ["app/api/feedback/route.ts", "components/PriceBadge.tsx"], layout: "ui" },
     { files: ["app/feed/route.ts", "e2e/helpers/mobileMapShell.ts"], layout: "ui" },
-    { files: ["supabase/migrations/1_x.sql", ".github/workflows/ci.yml"], layout: "none" },
+    { files: ["supabase/migrations/1_x.sql", "supabase/rollbacks/1_x.sql"], layout: "none" },
+    { files: ["supabase/migrations/1_x.sql", ".github/workflows/ci.yml"], layout: "ui" },
+    { files: ["supabase/config.toml"], layout: "ui" },
+    { files: ["unknown/new-file.txt"], layout: "ui" },
+    { files: ["app/route-helper.ts"], layout: "ui" },
+    { files: ["data-harvest/notes.json"], layout: "ui" },
+    {
+      files: [
+        "__tests__/venues.test.ts", "data/venues.csv", "public/data/venues.json",
+        "docs/CI_RUNBOOK.md", "scripts/build_slim_index.mjs", "app/api/feedback/route.ts",
+        "supabase/migrations/1_x.sql",
+      ],
+      layout: "none",
+    },
+    { files: ["docs/CI_RUNBOOK.md", "data/venues.csv", "lib/mapBasemapTaste.ts"], layout: "ui" },
     // An empty diff fails closed.
     { files: [], layout: "ui" },
   ])("reads $files as $layout", ({ files, layout }) => {
     expect(layoutOf(files)).toBe(layout);
+  });
+
+  it("fails without a skip output when git cannot read the diff", () => {
+    const result = runStep(LAYOUT_RUN, {
+      EVENT_NAME: "pull_request",
+      FAKE_DIFF: "docs/CI_RUNBOOK.md\n",
+      FAKE_GIT_STATUS: "2",
+    });
+    expect(result.status).not.toBe(0);
+    expect(result.output).toBe("");
   });
 
   it("runs every pin on every event other than a pull request, without asking git", () => {

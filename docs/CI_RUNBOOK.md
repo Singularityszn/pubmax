@@ -158,19 +158,18 @@ The job still starts and reports. Only its steps are skipped, so it shows green 
 
 The macOS layout pins are the one exception (owner decision, 17 Oct 2026). A job that starts only to skip its steps still holds a runner, and the free plan has only 5 macOS runners. Three layout shards per pull request filled that queue, and docs-only pull requests waited up to 53 minutes for a job that then ran for 1 minute. So in `e2e.yml` one Linux job, `Change scope`, runs the classifier, and `Browser layout pins (1/3)`, `(2/3)` and `(3/3)` are three named jobs that need it. They are skipped whole, and start no macOS runner, when `Change scope` succeeds and its second step, `Classify the layout change`, says `none`. If `Change scope` fails, they run: a skipped check counts as passed, so a broken classifier must not skip them (fail closed). A skipped named job reports under its own name, and branch protection counts a skipped check as passed. The three jobs share one step list through a YAML anchor and differ only in `LAYOUT_SHARD`.
 
-The layout scope is narrower than code (captain, 23 Oct 2026). A pull request reads `ui` when it changes a listed screen file or test dependency. The layout jobs run for these paths:
+The layout scope uses a denylist (captain, 23 Oct 2026). A pull request reads `none` only when every changed file belongs to these categories:
 
-- `app/` except API handlers, `components/`, any `.css` file, a `lib/` `.tsx` file, and `public/` outside `public/data/`.
-  The classifier excludes `app/api/**` and `app/**/route.*` before it checks screen paths.
-- The layout-pin specs, `e2e/helpers/`, `e2e/fixtures/`, and `e2e/conditional-skips.allowlist.json`.
-  The workflow classifier names the specs in a static path list.
-- The listed screen dependencies under `lib/`: `cities`, `cityStoryBands`, `contentSecurityPolicy`, `deviceAccountSessions`, `landingHero`, and `lateFood`.
-  The list also includes `mapCanvasAvailability`, `priceBand`, `profileCovers`, `siteContact`, `surfaceDataCache`, and `ukBasePubSearch`.
-  These modules reach screens through direct or transitive imports. The classifier excludes libraries used only by tests or configuration.
-- `e2e.yml`, the Playwright port action, `playwright.config.ts`, `next.config.*`, `postcss.config.mjs`, `tsconfig.json`, `proxy.ts`, and the three `instrumentation` files.
-- `package.json`, `.npmrc`, and root dependency lockfiles for npm, Yarn, pnpm, and Bun.
+- Unit tests under `__tests__/`.
+- Data files under `data/` or `public/data/`.
+- Database migrations and rollbacks under `supabase/migrations/` or `supabase/rollbacks/`.
+- Files under `docs/` and Markdown files ending in `.md`.
+- Files under `scripts/` that no layout spec directly runs. No current layout spec directly runs a repository script.
+- API-only files under `app/api/` and route handlers named `app/**/route.*` that render no page.
 
-Anything else reads `none`: unit tests, other browser specs, API handlers, scripts, data, docs, and other `lib/` logic. No layout spec directly runs a repository script. An empty diff and every event other than a pull request read `ui`. A push to `main` therefore runs every layout pin. `__tests__/ciChangeScope.test.ts` executes the classifier on sample diffs and on each spec selected by the layout job.
+Every other changed file reads `ui` and runs all three layout jobs. This includes every `lib/` module, components, pages, styles, browser specs, helpers, fixtures, and workflows. The Playwright port action, configuration, `package.json`, lockfiles, and unknown paths also read `ui`.
+
+An empty diff and every event other than a pull request read `ui`. A push to `main`, a schedule, and a dispatch therefore run every layout pin. A failed classifier also runs the layout jobs. `__tests__/ciChangeScope.test.ts` executes the classifier on sample diffs and on each spec selected by the layout job.
 
 | Check | docs only | data only | code |
 | --- | --- | --- | --- |

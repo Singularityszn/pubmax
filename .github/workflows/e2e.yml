@@ -192,21 +192,10 @@ jobs:
             layout="$(git diff --no-renames --name-only HEAD^1 HEAD | awk '
               NF == 0 { next }
               { files++ }
-              /^docs\// || /\.md$/ || /^public\/data\// { next }
+              /^__tests__\// || /^data\// || /^public\/data\// { next }
+              /^supabase\/(migrations|rollbacks)\// || /^docs\// || /\.md$/ { next }
               /^scripts\// || /^app\/api\// || /^app\/(.*\/)?route\.[cm]?[jt]sx?$/ { next }
-              /^(app|components)\// || /\.css$/ || /^lib\/.+\.tsx$/ || /^public\// { ui++; next }
-              /^e2e\/(aperture-splash|avatar-wp3-mobile|consent-after-first-answer|core-route-smoke|crews-and-people|dark-primary-surfaces|design-review-followups|design-taste-wave-1)\.spec\.ts$/ { ui++; next }
-              /^e2e\/(desktop-map-chrome-fit|desktop-map-rail|desktop-sheet-chrome-fit|feedback|first-run-chrome-share|first-run-tour-placement|launch-phone-controls|map-arrival-card-pins)\.spec\.ts$/ { ui++; next }
-              /^e2e\/(map-arrival|map-blocked-fallback|map-body-clearance|map-consent-bottom-controls|map-desktop-arrival-chrome|map-desktop-filters|map-fallback|map-search-no-results)\.spec\.ts$/ { ui++; next }
-              /^e2e\/(map-search-typing|map-selection-history|map-tile-retry|mobile-bottom-nav|mobile-button-system|mobile-city-chooser|mobile-feed-actions|mobile-first-run-tour)\.spec\.ts$/ { ui++; next }
-              /^e2e\/(mobile-landing-entry|mobile-map-chrome-fit|mobile-map-controls|mobile-map-first-visit|mobile-map-search|mobile-map-shell-matrix|mobile-pal-layout|mobile-profile)\.spec\.ts$/ { ui++; next }
-              /^e2e\/(mobile-venue-sheet-tabs|night-mode-chrome|pal-chat-composer|passport-and-activity|phone-tap-targets|plan-crawl-stops|plan-invite|plan-join-reveal)\.spec\.ts$/ { ui++; next }
-              /^e2e\/(price-caption-integrity|price-pulse-create-action|price-source-create-action|profile-avatar|profile-hero-desktop|public-updates|quality-floor|social-composer)\.spec\.ts$/ { ui++; next }
-              /^e2e\/(tonight-vibe-chips|tonight|ui-consistency-layout|ui-empty-states-fit|ux-consent-chrome|venue-sheet-tablet-command-bar|venue-tabs-fit|wordmark-chrome)\.spec\.ts$/ { ui++; next }
-              /^e2e\/(helpers|fixtures)\// || $0 == "e2e/conditional-skips.allowlist.json" { ui++; next }
-              /^lib\/(cities|cityStoryBands|contentSecurityPolicy|deviceAccountSessions|landingHero|lateFood|mapCanvasAvailability|priceBand|profileCovers|siteContact|surfaceDataCache|ukBasePubSearch)\.(ts|mjs)$/ { ui++; next }
-              /^\.github\/workflows\/e2e\.yml$/ || /^\.github\/actions\/pubmax-playwright-port\// { ui++; next }
-              /^(package\.json|package-lock\.json|npm-shrinkwrap\.json|yarn\.lock|pnpm-lock\.yaml|bun\.lockb?|\.npmrc|next\.config\.(js|mjs|ts)|postcss\.config\.mjs|tsconfig\.json|playwright\.config\.ts|proxy\.ts|instrumentation\.ts|instrumentation\.node\.ts|instrumentation-client\.ts)$/ { ui++; next }
+              { ui++ }
               END { if (ui || !files) print "ui"; else print "none" }')"
           fi
           echo "layout=$layout" >> "$GITHUB_OUTPUT"
