@@ -294,7 +294,13 @@ export type Venue = {
   accessibility?: VenueAccessibility;
 };
 
+export type VenueFeatureObservation = readonly [
+  value: boolean, source: "OpenStreetMap" | "Google Places", observedAt: string,
+];
+
 export type VenueFilterHints = {
+  outdoorSeating?: VenueFeatureObservation;
+  beerGardenSource?: VenueFeatureObservation;
   searchText: string;
   amenities: {
     food: boolean;
@@ -359,6 +365,7 @@ export type Filters = {
   stopCount: number;
   routeWindow: number;
   requireBeerGarden: boolean;
+  requireOutdoorSeating?: boolean;
   requireNonAlcoholic: boolean;
   requireLiveSports: boolean;
   requireFood: boolean;
@@ -413,6 +420,7 @@ export const initialFilters: Filters = {
   stopCount: 6,
   routeWindow: 20,
   requireBeerGarden: false,
+  requireOutdoorSeating: false,
   requireNonAlcoholic: false,
   requireLiveSports: false,
   requireFood: false,
@@ -1149,6 +1157,10 @@ function matchesVenueAmenities(venue: Venue, filters: Filters): boolean {
     [filters.requireFood, venue.amenities.food, (hints: VenueFilterHints) => hints.amenities.food],
     [filters.requireCocktails, venue.amenities.cocktails, (hints: VenueFilterHints) => hints.amenities.cocktails],
   ] as const;
+  const outdoor = venue.filterHints?.outdoorSeating;
+  const outdoorStated = outdoor?.[0] === true && Number.isFinite(Date.parse(outdoor[2]))
+    && Date.parse(outdoor[2]) <= Date.now();
+  if (filters.requireOutdoorSeating && !outdoorStated) return false;
   return checks.every(([required, detailedValue, pickHint]) => {
     return !required || detailedValue || hasSlimFlag(venue, pickHint);
   });

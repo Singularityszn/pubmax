@@ -241,6 +241,7 @@ function filtersAskBeyondARestaurantRow(filters: Filters): boolean {
     filters.canonicalOnly ||
     filters.requirePintDrops ||
     filters.requireBeerGarden ||
+    filters.requireOutdoorSeating ||
     filters.requireNonAlcoholic ||
     filters.requireLiveSports ||
     filters.requireCocktails ||
