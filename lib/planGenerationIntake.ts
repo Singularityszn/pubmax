@@ -99,15 +99,14 @@ function presetContainsStart(windowId: PlanTimeWindowId, iso: string): boolean {
   return minute >= start && minute < clockMinutes(option.end);
 }
 
-function windowEndIso(windowId: PlanTimeWindowId, exactStartIso: string): string | null {
-  const option = PLAN_TIME_WINDOWS.find((candidate) => candidate.id === windowId);
+function windowEndIso(end: string | null, exactStartIso: string): string | null {
   const local = londonDateTimeInputFromIso(exactStartIso);
-  if (!option || !local) return null;
-  if (option.end === null) {
+  if (!local) return null;
+  if (end === null) {
     return new Date(Date.parse(exactStartIso) + 6 * 60 * 60 * 1000).toISOString();
   }
   return londonDateTimeInputToIso(
-    `${local.slice(0, 10)}T${option.end}`,
+    `${local.slice(0, 10)}T${end}`,
     new Date(Date.parse(exactStartIso) - 1),
   );
 }
@@ -133,7 +132,7 @@ function parseTimeWindow(
   if (
     !option
     || value.start !== option.start
-    || value.end !== option.end
+    || (value.end !== null && value.end !== option.end)
     || !Number.isFinite(timestamp)
     || new Date(timestamp).toISOString() !== value.exactStartIso
     || !presetContainsStart(option.id, value.exactStartIso as string)
@@ -148,14 +147,14 @@ function parseTimeWindow(
       message: `Choose a start within the next ${PLAN_GENERATION_HORIZON_DAYS} days.`,
     };
   }
-  const endsAt = windowEndIso(option.id, value.exactStartIso as string);
+  const endsAt = windowEndIso(value.end as string | null, value.exactStartIso as string);
   if (!endsAt || Date.parse(endsAt) <= timestamp) return malformed("Plan intake time window is invalid.");
   return {
     ok: true,
     value: {
       id: option.id,
       start: option.start,
-      end: option.end,
+      end: value.end as string | null,
       exactStartIso: new Date(timestamp).toISOString(),
     },
     routeWindow: { startsAt: new Date(timestamp).toISOString(), endsAt },

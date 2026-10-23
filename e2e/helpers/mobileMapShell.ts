@@ -23,6 +23,13 @@ const MOBILE_MAP_SHELL_SLACK_MS = 5_000;
 const MOBILE_MAP_SHELL_READY_MS =
   MAP_CANVAS_READINESS_CEILING_MS + MOBILE_MAP_SHELL_SLACK_MS;
 
+/** Wait for the shared loading frame before capturing a selected venue. */
+export async function expectMapLoadingFrameReleased(page: Page): Promise<void> {
+  await expect(page.locator(".mapLoading")).toHaveCount(0, {
+    timeout: MOBILE_MAP_SHELL_READY_MS,
+  });
+}
+
 /**
  * The phone map's top bar is on screen, and with it every control the shell
  * owns (the top bar's buttons and the map-edge column). Wait here, or reach a
