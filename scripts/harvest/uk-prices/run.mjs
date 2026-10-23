@@ -637,6 +637,8 @@ function seedOverlayMenuUrls(hosts, overlayCrawlable) {
   return { overlaySeeded, overlayOnUnknownHost };
 }
 
+// A successful page can still contain unparsed items or unread follow-on pages.
+// Publish supported facts only. Absence from this extract never withdraws a fact.
 function appendPriceRows(entry, rows) {
   const observedAt = new Date().toISOString();
   const lines = [];
@@ -665,7 +667,6 @@ function appendPriceRows(entry, rows) {
           ...(row.servingSize ? { servingSize: row.servingSize } : {}),
           sourceUrl: row.url,
           observedAt,
-          sourceSnapshotComplete: true,
           pubsOnHost: entry.pubs.length,
           linesOnPage: row.linesOnPage,
         }),
