@@ -140,6 +140,7 @@ describe("the coverage line", () => {
 
 
 it.each([
+  ...[", ", ". ", "; "].map((separator) => `Kernel stout £6.00 (2/3)${separator}Guinness pint £6.20`),
   "Guinness pint £6.20 2/3 Kernel stout £6.00",
   "Kernel stout £6.00 (2/3) Guinness pint £6.20",
   "Guinness pint £6.20 Kernel stout two-thirds pint £6.00",
