@@ -90,6 +90,11 @@ export type TonightOutAnswer = {
   pending: boolean;
 };
 
+/**
+ * Preserve source matches and checks before display filtering removes rows.
+ * Initial document and browser reads use this boundary for absence claims.
+ * A stale or hidden match still prevents a claim of zero source matches.
+ */
 export function tonightOutSourceEvidence(out: TonightOutAnswer) {
   return out.sourceEvidence ?? {
     hasPubMatches: (out.body?.events ?? []).some((row) => tonightRowHasListedPub(row)),
@@ -331,9 +336,8 @@ export function tonightListingLanes(
  * dated by a snapshot file on disk rather than by anything anybody checked.
  *
  * This asks `kindObservedAt` instead - the per-kind map the live read returns
- * and nothing else writes - and takes the covering rule already stated in
- * CLAUDE.md: one line covering several kinds takes the OLDEST of them and goes
- * undated entirely when it cannot date one.
+ * and nothing else writes. The source-date contract lives in
+ * docs/rules/lib-venues-areas-listings-and-nights.md under "Checked" stamps.
  *
  * A QUIET NIGHT WAS CHECKED, AND THE CHIP NOW SAYS WHEN. With no What's-On row
  * on screen the first cut answered null, so the phone printed "Quiet night · No
@@ -663,8 +667,8 @@ export type TonightProvenanceCredits = {
  * different times from different sources, so one shared stamp would date a
  * Ticketmaster row to a bundled artifact nobody asked about it. The Out line
  * covers several sources at once, so it takes the OLDEST of the sources it
- * names and goes undated entirely when it cannot date one of them - the
- * covering rule in CLAUDE.md, applied to sources rather than kinds.
+ * names and stays undated when any participating row lacks source evidence.
+ * See outLaneObservedAt for the shared Out credit and music-date calculation.
  */
 export function tonightProvenanceCredits(input: {
   /** The grouped cards on screen, in render order. */

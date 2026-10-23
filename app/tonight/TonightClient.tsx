@@ -531,8 +531,8 @@ export default function TonightClient({
   // Null when the source cannot be dated; the header then prints the plain
   // sentence instead of a dated chain segment.
   // The day the What's-On rows on screen were observed, off the live read's own
-  // per-kind map. Undated when a kind cannot be dated and undated on a night
-  // carrying no What's-On rows, because a snapshot on disk is not a check.
+  // per-kind map. A missing kind date leaves the credit undated. An empty
+  // surface may use the live read's date, as tonightWhatsOnObservedAt defines.
   const whatsOnObservedAt = useMemo(
     () =>
       tonightWhatsOnObservedAt({

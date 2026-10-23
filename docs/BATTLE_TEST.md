@@ -16,6 +16,9 @@ Save the unmodified response bodies as `api-version.json`, `api-pint-drops.json`
 Request `/api/out` for the tested Tonight window.
 The report counts canonical pub-matched rows before display grouping. Unmatched events do not contribute to that count.
 The scorer does not infer rendered cards from raw event totals.
+For identity PASS, `--expected-sha` must match `gitCommitSha` in `api-version.json`, and that response must include a nonempty `deploymentId`.
+Without `--expected-sha`, identity remains UNVERIFIED.
+Tonight also requires `listingsStatus` to be `ready`, or `status` when `listingsStatus` is absent, and `venueMatch` to be `ready`.
 
 Record browser assertions in `browser-checks.json`:
 
