@@ -2,6 +2,7 @@ import { buildVenueClaims, type ClaimDrop, type Provenance } from "@/lib/curatio
 import { displayHandle, handleOnly } from "@/lib/handleDisplay";
 import { normalizeHandle } from "@/lib/profiles";
 import type { PintTrustState } from "@/lib/pintTrust";
+import type { VenuePriceLane } from "@/lib/venuePriceLane";
 import type { PintPriceSplit } from "@/lib/pintDropAgreement";
 
 import { formatGbp } from "@/lib/formatGbp";
@@ -36,6 +37,16 @@ export type LedgerPintPrice = {
   handle: string;
   state: Exclude<PintTrustState, "none">;
   split: PintPriceSplit | null;
+};
+
+export type LedgerPriceRecordData = {
+  lane: VenuePriceLane | null;
+  drinkName: string | null;
+  publisher: string | null;
+  reads: {
+    bundle: "ready" | "empty" | "unavailable";
+    sourced: "ready" | "unavailable";
+  };
 };
 
 export type LedgerEntry = {
