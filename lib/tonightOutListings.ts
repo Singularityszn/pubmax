@@ -650,9 +650,9 @@ export const TONIGHT_WHATS_ON_CREDIT = "via what’s-on";
 const TONIGHT_QUIET_NIGHT_LABEL = "Quiet night";
 
 export type TonightProvenanceCredits = {
-  /** The What's-On segment of the coverage line, or null when it carried none. */
+  /** Null when only Out contributes displayed groups. */
   whatsOn: string | null;
-  /** Its own line: the Out lane's count, its sources and its own date. */
+  /** The Out credit for displayed groups or a successful read with no pub matches. */
   out: string | null;
   /** False when What's-On could not be dated. */
   whatsOnDated: boolean;

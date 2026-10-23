@@ -2,11 +2,10 @@
 // panel under the map's search input that names matching AREAS and PUBS, each
 // with its distance from the viewer.
 //
-// House pattern (see lib/areaButton.ts, lib/mapVenueList.ts): all the matching,
-// ranking and distance logic lives here, hermetic and node-testable, so the
-// React shell in components/map/MapSearchSuggest.tsx is a thin render over these
-// models. No fs, no serverEnv, no route imports — safe to import on the client
-// and to unit test without a DOM.
+// Shared venue-name relevance and pint priority live in lib/mapSearchIndex.ts.
+// This module adds area, place and distance suggestions for the React shell in
+// components/map/MapSearchSuggest.tsx. No fs, serverEnv or route imports, so the
+// client can import these models and unit tests need no DOM.
 
 import {
   areaCoverageLabel,
