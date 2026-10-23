@@ -191,18 +191,7 @@ export default function EditorialRail() {
   }
 
   if (!snapshot) {
-    return (
-      <section
-        className="editorialRail"
-        aria-labelledby="editorial-rail-heading"
-        aria-busy="true"
-      >
-        <h2 id="editorial-rail-heading" className="editorialRailTitle">
-          {EDITORIAL_RAIL_TITLE}
-        </h2>
-        <p className="editorialRailLoading">Loading picks</p>
-      </section>
-    );
+    return null;
   }
 
   return <EditorialRailView snapshot={snapshot} onRetry={retry} />;
