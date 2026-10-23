@@ -62,7 +62,7 @@ in the same commit.
 |---|---|---|---|---|
 | `GET /api/cron/refresh-weather` | `0 */6 * * *` | 01:00·07:00·13:00·19:00 / 00:00·06:00·12:00·18:00 | Fetch Open-Meteo for every night area → durable `weather_snapshots` store | 60s |
 | `GET /api/cron/refresh-whats-on` | `30 5 * * *` and `0 15 * * *` | **06:30** and **16:00** / 05:30 and 15:00 | Refresh bounded quiz, deal, music, and sport lanes plus official Ticketmaster / Skiddle events into `whats_on_listings`; readers prefer non-expired durable rows and fall back to bundled files | 60s |
-| `GET /api/cron/freshness-audit` | `30 6 * * *` | 07:30 / 06:30 | Read the freshness spine, report stale feeds and unresolvable feeds as two separate findings (console only) | 30s |
+| `GET /api/cron/freshness-audit` | `30 6 * * *` | 07:30 / 06:30 | Read the freshness spine and report stale feeds and unresolvable feeds separately. See [failure posture](#failure-posture-never-fake-success) for alert delivery. | 30s |
 | `GET /api/cron/refresh-night-signals` | `15 5 * * *` | 06:15 / 05:15 | Exa sweep for PENDING Night Signal candidates + freshness stamp — never publishes; human review still gates the feed | 60s |
 | `GET /api/cron/moderate-social-posts` | `*/10 * * * *` | Every 10 minutes | Claim and moderate up to 20 queued Social posts; posts stay held until approval | 30s |
 | `GET /api/cron/moderate-social-interactions` | `*/10 * * * *` | Every 10 minutes | Claim and moderate up to 20 queued comments or quote posts; text stays held until approval | 30s |
@@ -128,7 +128,7 @@ own observation times and bundled files remain the fallback.
 | What's-On — bounded lanes | Question One plus existing first-party definitions and bundled venue inputs | **none** | Cron refreshes quiz, deal, music, and sport into `whats_on_listings`; a failed lane leaves its prior rows unchanged. Broader Exa / Firecrawl harvest remains a separate recovery path. |
 | What's-On — events vertical | Ticketmaster / Skiddle | `TICKETMASTER_API_KEY`, `SKIDDLE_API_KEY` | Cron persists live rows to `whats_on_listings`. Without an official provider key, that event lane is skipped while bounded lanes can still refresh. Skiddle also needs **written commercial approval** (email dev@skiddle.com) and `SKIDDLE_BRAND_ASSET_PRESENT`. |
 | **Night Signals — candidates** | Exa | `EXA_API_KEY` | Cron logs the absent key and no-op skips; candidates stay wherever the last sweep left them. |
-| **Social text moderation** | OpenAI | `OPENAI_API_KEY` | Both crons answer `200 { skipped: "openai_not_configured" }` before they claim a job; queued posts, comments, and quotes stay pending. The posts cron still reads the backlog and logs its `[social-moderation][ALERT]` findings on that skip. |
+| **Social text moderation** | OpenAI | `OPENAI_API_KEY` | See [failure posture](#failure-posture-never-fake-success) for missing-key responses, held content and production diagnostics. |
 | **UK city pub enrichment** | Exa through Vercel AI Gateway, with Tavily fallback (discovery only - never provenance; see `data/price_sources.json`) | `SEARCH_PROVIDER`, `AI_GATEWAY_API_KEY` or automatic Vercel OIDC, `SEARCH_GATEWAY_MAX_CALLS`, `TAVILY_API_KEY` | Defaults to Exa. Missing Gateway credentials or a failed Gateway request fall back loudly when Tavily is configured. Explicit Tavily selection requires `TAVILY_API_KEY` and does not use Exa. When the selection has no configured provider or fallback, the cron is an honest no-op. Set server-only values as Vercel secrets. |
 
 Provider-key failures follow the table above. A missing key never produces fake
@@ -310,8 +310,9 @@ would only duplicate the live path. Same for `/api/last-train` and friends
   the separate **503 `UNAVAILABLE`** answer, with the cause logged.
   In deployed production, each missing-key skip also logs an error event:
   `social_posts.moderation_unconfigured` or
-  `social_interactions.moderation_unconfigured`. The configured alert webhook
-  receives these events under its normal cooldown. Pending content stays held.
+  `social_interactions.moderation_unconfigured`. These events qualify for
+  webhook delivery under the [alert policy](rules/lib-observability.md#an-alert-leaves-the-process-through-one-webhook-and-unset-is-silent).
+  Pending content stays held.
   Configure the provider key and alert destination before release. Inspect the
   backlog, then use the authenticated drain and terminal-requeue actions.
   A `200` skipped response does not prove that moderation processed content.
