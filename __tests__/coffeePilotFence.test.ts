@@ -1,6 +1,6 @@
 // Coffee pilot fence (PR 1): tea, water and affogato never become coffee prices;
 // matcha is a coffee word; flat white, latte and matcha latte do not collapse.
-// The 73 legacy `category: coffee` bundle rows stay committed as evidence.
+// The 85 legacy `category: coffee` bundle rows stay committed as evidence.
 
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
@@ -271,13 +271,13 @@ describe("coffee pilot judged harvest fence", () => {
 });
 
 describe("coffee pilot bundle regression fixture", () => {
-  it("keeps 73 legacy coffee rows as misread evidence", () => {
+  it("keeps 85 legacy coffee rows as misread evidence", () => {
     const rows = JSON.parse(readFileSync(BUNDLE_ROWS, "utf8")) as Array<{
       category: string;
       drinkLabel?: string;
     }>;
     const coffee = rows.filter((row) => row.category === "coffee");
-    expect(coffee).toHaveLength(73);
+    expect(coffee).toHaveLength(85);
   });
 
   it("flags every tea, water and affogato label the bundle already misfiled", () => {

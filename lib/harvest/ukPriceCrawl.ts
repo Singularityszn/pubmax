@@ -134,14 +134,6 @@ const ZERO_ALCOHOL_MARKER = /(?<![\w.,])0(?:\.0+)?\s*%(?![\d.])/i;
 const SOFT_DRINK_WEARING_A_BEER_WORD = /\b(ginger\s+(ale|beer)|bitter\s+lemon|root\s+beer|dandelion\s*(and|&)\s*burdock)\b/i;
 
 /**
- * The words that file a line as coffee. `matcha` is here because a matcha latte
- * is sold beside the coffees. `latte` after `chai` or `tea` is a tea line, so
- * "Chai latte" never files as coffee.
- */
-const COFFEE_HARVEST_WORD_PATTERN =
-  /\b(coffee|espresso|americano|cappuccino|(?<!\b(?:chai|tea)\s)latte|flat white|mocha|matcha)\b/i;
-
-/**
  * The vocabulary that names a category, strongest signal first. The order is
  * the order these are TESTED in, so a phrase that belongs to two lanes lands in
  * the narrower one: "alcohol-free lager" is alcohol-free before it is beer, and

@@ -2,25 +2,25 @@
 // -------------------------------------------------------------------------
 // PR 1 of the coffee pilot fences the UK price reader so tea, water and
 // affogato never file as coffee, matcha counts as a coffee word, and flat
-// white, latte and matcha latte never collapse to one figure. The 73 legacy
+// white, latte and matcha latte never collapse to one figure. The 85 legacy
 // bundle rows stay as regression evidence; this module is what a fence test
 // and ukPriceCrawl share.
 
+import { COFFEE_PILOT_DRINKS } from "@/scripts/lib/coffeePilotArea.mjs";
+
 /** The three drinks the Shoreditch pilot may show; each is its own price fact. */
-export const COFFEE_PILOT_NAMED_DRINKS = [
-  "flat white",
-  "latte",
-  "matcha latte",
-] as const;
+export const COFFEE_PILOT_NAMED_DRINKS = COFFEE_PILOT_DRINKS;
 
 export type CoffeePilotNamedDrink = (typeof COFFEE_PILOT_NAMED_DRINKS)[number];
 
 /**
- * Coffee vocabulary for the UK price reader and the tea and water fence below.
- * Matcha is a coffee word on its own; "matcha latte" is covered by both.
+ * The words that file a line as coffee, for the UK price reader and the tea
+ * and water fence below. `matcha` is here because a matcha latte is sold beside
+ * the coffees. `latte` after `chai` or `tea` is a tea line, so "Chai latte"
+ * never files as coffee.
  */
 export const COFFEE_HARVEST_WORD_PATTERN =
-  /\b(coffee|espresso|americano|cappuccino|latte|flat white|mocha|matcha|macchiato|cortado)\b/i;
+  /\b(coffee|espresso|americano|cappuccino|(?<!\b(?:chai|tea)\s)latte|flat white|mocha|matcha|macchiato|cortado)\b/i;
 
 const TEA = /\b(?:tea|chai)\b/i;
 const TEA_OR_WATER = /\b(?:tea|chai|water)\b/i;
