@@ -185,7 +185,7 @@
 
 .nightAreaCoverage__badge--ready {
   border-color: color-mix(in srgb, var(--color-positive) 50%, var(--line));
-  color: var(--color-positive);
+  color: var(--tint-ink-positive);
 }
 
 .nightAreaCoverage__badge--paused {
