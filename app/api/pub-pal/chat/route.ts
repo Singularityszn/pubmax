@@ -7,7 +7,7 @@ import { publicApiError } from "@/lib/apiError";
 import { askCardSources } from "@/lib/ask/types";
 import { jsonNoStore } from "@/lib/apiResponses";
 import { callerUserId } from "@/lib/authServer";
-import { refineRoutedAskQuery, socialTurnKind } from "@/lib/ask/router";
+import { isVenueHoursQuestion, refineRoutedAskQuery, socialTurnKind } from "@/lib/ask/router";
 import { runAsk } from "@/lib/ask/runAsk";
 import type { AskTurn } from "@/lib/ask/types";
 import { parseConciergeIntent } from "@/lib/concierge/intent";
@@ -166,6 +166,23 @@ async function openingReply(request: Request, record: Record<string, unknown>, q
   return null;
 }
 
+function keylessSocialReply(query: string, turns: AskTurn[]): Response | null {
+  const social = socialTurnKind(query);
+  if (!social) return null;
+  return jsonNoStore({
+    answer: social === "thanks"
+      ? "You're welcome."
+      : turns.some((turn) => turn.role === "assistant")
+        ? "Hey."
+        : "Hi. What kind of night are you planning?",
+    cards: [],
+    proposals: [],
+    sources: [],
+    status: "ready",
+    toolsUsed: [],
+  });
+}
+
 export async function POST(request: Request): Promise<Response> {
   const limiterKey = `pub-pal-chat:${hashIp(clientIp(request))}`;
   // The limiter answers before anything else is asked: the token check is a
@@ -234,21 +251,8 @@ export async function POST(request: Request): Promise<Response> {
   // tools as /api/ask, and they never call OpenRouter.
   if (!configured) {
     try {
-      const social = socialTurnKind(query);
-      if (social) {
-        return jsonNoStore({
-          answer: social === "thanks"
-            ? "You're welcome."
-            : turns.some((turn) => turn.role === "assistant")
-              ? "Hey."
-              : "Hi. What kind of night are you planning?",
-          cards: [],
-          proposals: [],
-          sources: [],
-          status: "ready",
-          toolsUsed: [],
-        });
-      }
+      const social = keylessSocialReply(query, turns);
+      if (social) return social;
       const answer = await runAsk({
         query,
         cityId: record.cityId,
@@ -256,10 +260,10 @@ export async function POST(request: Request): Promise<Response> {
         skipModel: true,
         traceRoute: "api/pub-pal/chat",
       });
-      // search_venues ranks on area, mood, budget and group size only. With
-      // none of them it lists the same arbitrary pubs for any words ("hi how
-      // are you", "sup"), so ask for one instead.
-      if (answer.toolsUsed.length === 1 && answer.toolsUsed[0] === "search_venues") {
+      // Discovery ranks on area, mood, budget and group size. Without one,
+      // it lists arbitrary pubs, so ask for a constraint. Preserve named-hours
+      // results, including refusals and read failures, before this fallback.
+      if (!isVenueHoursQuestion(query) && answer.toolsUsed.length === 1 && answer.toolsUsed[0] === "search_venues") {
         const priorUser = [...turns].reverse().find((turn) => turn.role === "user");
         const { intent } = await parseConciergeIntent(
           refineRoutedAskQuery(query, priorUser?.content, turns.filter((turn) => turn.role === "user").map((turn) => turn.content)),

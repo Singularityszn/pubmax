@@ -2,7 +2,7 @@
 // and provenance. No tool invents a price.
 
 import { DEFAULT_CITY_ID, parseCityId, type CityId } from "@/lib/cities";
-import { isIndependentAskTool, isVenueDiscoveryAsk, resolveAskJourney, resolveAskPriceIntent, routeAskDeterministically } from "@/lib/ask/router";
+import { isIndependentAskTool, isVenueDiscoveryAsk, isVenueHoursQuestion, resolveAskJourney, resolveAskPriceIntent, routeAskDeterministically } from "@/lib/ask/router";
 import { communityCategoryEvidence, listedPintEvidence } from "@/lib/ask/toolContract";
 import { formatGbp } from "@/lib/formatGbp";
 import { listedPriceReceipt } from "@/lib/listedPriceReceipt";
@@ -50,6 +50,7 @@ import {
 } from "@/lib/ask/conciergeTools.server";
 import { uniqueExactVenueNameMatch } from "@/lib/ask/venueResolution";
 import { matchVenueByName } from "@/lib/ask/venueResolution.server";
+import { searchVenueHours } from "@/lib/ask/venueHours.server";
 import { resolveCanonicalVenueId } from "@/lib/venueAliases";
 import { STATIC_STATIONS } from "@/lib/staticStations";
 import type {
@@ -1030,6 +1031,9 @@ export async function runAskTool(
       ok: false, tool: name, data: { kind: "unsupported-price", code: intent.coverage.code },
       provenance: [], cards: [], proposals: [], priceEvidence: [], answerHint: intent.coverage.answer,
     };
+  }
+  if (isVenueHoursQuestion(ctx.query) && !isIndependentAskTool(name)) {
+    return searchVenueHours(ctx.query, ctx);
   }
   let toolName = name;
   let toolArgs = ctx.query.trim() ? { ...args, query: ctx.query } : args;
