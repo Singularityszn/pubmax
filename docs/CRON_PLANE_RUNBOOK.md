@@ -297,10 +297,9 @@ would only duplicate the live path. Same for `/api/last-train` and friends
   lanes may still produce an overall successful refresh.
 - A bounded lane fails → its prior rows remain unchanged; other lanes may
   advance, and the combined response reports `ok:false`.
-- Freshness audit → **never 500s**; a broken artifact surfaces as that dataset's
-  own `unknown` status. Alerting is **console-only** today
-  (`lib/freshnessNotify.ts` is the seam a later push/alert integration hangs
-  off; push delivery is a separate lane and this plane sends none).
+- Freshness audit → **never 500s**. A broken artifact returns that dataset's
+  own `unknown` status. `lib/freshnessNotify.ts` sends system findings through
+  `PUBMAX_ALERT_WEBHOOK_URL` when configured. An unset webhook sends nothing.
 - Social moderation provider failures keep posts, comments, and quotes held.
   Retryable failures use bounded backoff; terminal failures require an
   authenticated requeue action.
@@ -309,6 +308,13 @@ would only duplicate the live path. Same for `/api/last-train` and friends
   failed drain. The posts cron still inspects the backlog and emits its findings
   on that path, so a growing pending queue is never silent. A store failure is
   the separate **503 `UNAVAILABLE`** answer, with the cause logged.
+  In deployed production, each missing-key skip also logs an error event:
+  `social_posts.moderation_unconfigured` or
+  `social_interactions.moderation_unconfigured`. The configured alert webhook
+  receives these events under its normal cooldown. Pending content stays held.
+  Configure the provider key and alert destination before release. Inspect the
+  backlog, then use the authenticated drain and terminal-requeue actions.
+  A `200` skipped response does not prove that moderation processed content.
 - A drain that claimed nothing names why, and the two crons word it apart
   because only one of them can tell. The posts cron answers **`200 { skipped:
   "queue_empty" }`** and only when the backlog read agrees `pending` is 0. The

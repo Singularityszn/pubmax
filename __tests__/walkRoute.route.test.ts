@@ -73,6 +73,7 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  vi.restoreAllMocks();
   vi.unstubAllEnvs();
 });
 
@@ -108,6 +109,38 @@ describe("GET /api/walk-route", () => {
     expect(fetchWalkLeg).toHaveBeenCalledTimes(2);
     // Two 3-point legs stitched (shared vertices B dropped once) => 5 points.
     expect((defined(line.features[0]).geometry as GeoJSON.LineString).coordinates).toHaveLength(5);
+  });
+
+  it("keeps the approximate line when the daily budget service is unavailable", async () => {
+    orsApiKey.mockReturnValue("ork_secret");
+    consumeOrsBudget.mockRejectedValue(new Error("budget unavailable"));
+    const response = await get([A, B]);
+    expect(response.status).toBe(200);
+    expect(await body(response)).toMatchObject({ source: "straight" });
+    expect(fetchWalkLeg).not.toHaveBeenCalled();
+  });
+
+  it("does not spend provider quota for an already cancelled request", async () => {
+    orsApiKey.mockReturnValue("ork_secret");
+    const controller = new AbortController();
+    controller.abort();
+    const response = await GET(new Request(`https://pubmaxxing.com/api/walk-route?stops=${encodeURIComponent(encodeStops([A, B]))}`, { signal: controller.signal }));
+    expect(await body(response)).toMatchObject({ source: "straight" });
+    expect(consumeOrsBudget).not.toHaveBeenCalled();
+    expect(fetchWalkLeg).not.toHaveBeenCalled();
+  });
+
+  it("passes cancellation to a pending provider request", async () => {
+    orsApiKey.mockReturnValue("ork_secret");
+    const controller = new AbortController();
+    fetchWalkLeg.mockImplementation(async (_from: LngLat, _to: LngLat, options: { signal: AbortSignal }) => {
+      controller.abort();
+      expect(options.signal.aborted).toBe(true);
+      return null;
+    });
+    const response = await GET(new Request(`https://pubmaxxing.com/api/walk-route?stops=${encodeURIComponent(encodeStops([A, B]))}`, { signal: controller.signal }));
+    expect(await body(response)).toMatchObject({ source: "straight" });
+    expect(fetchWalkLeg).toHaveBeenCalledTimes(1);
   });
 
   it("serves a cached leg without re-calling ORS", async () => {

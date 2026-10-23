@@ -36,6 +36,7 @@ import { jsonNoStore } from "@/lib/apiResponses";
 import { isLimited } from "@/lib/pintDrops";
 import { assertServerEnv } from "@/lib/serverEnv";
 import { clientIp, hashIp } from "@/lib/supabase";
+import { log } from "@/lib/log";
 import {
   legCacheKey,
   legDistances,
@@ -65,7 +66,7 @@ export const runtime = "nodejs";
 
 const EMPTY_LINE: GeoJSON.FeatureCollection = { type: "FeatureCollection", features: [] };
 
-async function resolveLegs(stops: LngLat[]): Promise<WalkLeg[]> {
+async function resolveLegs(stops: LngLat[], signal: AbortSignal): Promise<WalkLeg[]> {
   const store = walkRouteStore();
   const hasKey = orsApiKey() !== null;
   return Promise.all(
@@ -79,12 +80,17 @@ async function resolveLegs(stops: LngLat[]): Promise<WalkLeg[]> {
       const key = legCacheKey(pair.from, pair.to);
       const cached = await store.getLeg(key);
       if (cached) return { ...straight, coordinates: cached, source: "ors" };
-      if (!hasKey) return straight;
+      if (!hasKey || signal.aborted) return straight;
       // A real provider call is about to happen (cache miss + key present).
       // Draw down the global daily ORS budget FIRST; over the cap ⇒ serve the
       // straight leg (fail-soft), so the day's quota can't be silently drained.
-      if (!(await consumeOrsBudget())) return straight;
-      const routed = await fetchWalkLeg(pair.from, pair.to);
+      try {
+        if (!(await consumeOrsBudget())) return straight;
+      } catch {
+        log("error", "walk_route.budget_unavailable");
+        return straight;
+      }
+      const routed = await fetchWalkLeg(pair.from, pair.to, { signal });
       if (!routed) return straight;
       await store.putLeg(key, routed);
       return { ...straight, coordinates: routed, source: "ors" };
@@ -102,7 +108,7 @@ export async function GET(request: Request): Promise<Response> {
   if (stops.length < 2) {
     return jsonNoStore({ line: EMPTY_LINE, source: "straight", legs: [] });
   }
-  const legs = await resolveLegs(stops);
+  const legs = await resolveLegs(stops, request.signal);
   // `legs` carries each leg's real drawn-polyline distance + source so a client
   // can label it source-aware ("walking route" vs "straight-line") without
   // re-measuring the stitched line; `line`/`source` stay the drawable payload.
