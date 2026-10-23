@@ -151,7 +151,9 @@ export function mergeMapSearchVenueSuggestions(input: {
       area: row.item.boroughLabel,
     };
     return {
-      score: mapSearchVenueScore(record, input.query) ?? Number.MAX_SAFE_INTEGER,
+      score: preferPints
+        ? mapSearchVenueScore(record, input.query) ?? Number.MAX_SAFE_INTEGER
+        : matchTier(venueSearchNames(record), normalizeSearchText(input.query)) === 0 ? 0 : 1,
       pint: row.type === "indexedVenue"
         ? mapSearchPintRank(row.item.venueKind, row.item.pintPrice)
         : mapSearchPintRank(row.item.kind, venue ? verifiedPrice(venue) : null),

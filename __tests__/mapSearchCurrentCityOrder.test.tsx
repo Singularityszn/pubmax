@@ -67,6 +67,7 @@ function londonVenue(): Venue {
 describe("Map search current-city priority", () => {
   it.each([
     { query: "The Blackfriar", indexedName: "The Blackfriar", drinkCategory: "", expected: "indexed" },
+    { query: "The Blackfriar", indexedName: "The Blackfriar", drinkCategory: "wine", expected: "indexed" },
     { query: "The Blackfriar", indexedName: "The Blackfriar Inn", drinkCategory: "", expected: "indexed" },
     { query: "The Blackfriar", indexedName: "The Blackfriar Inn", drinkCategory: "wine", expected: "loaded" },
   ])("ranks loaded and indexed matches together: $indexedName / $drinkCategory", async ({ query, indexedName, drinkCategory, expected }) => {
@@ -96,6 +97,50 @@ describe("Map search current-city priority", () => {
     expect(input.getAttribute("aria-activedescendant")).toBe(options[0]!.id);
     act(() => input.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true })));
     expect(onSelectVenue).toHaveBeenCalledWith(...(expected === "indexed" ? ["indexed", "london"] : ["loaded"]));
+  });
+
+  it.each(["wine", "cider", "spirits"])("preserves loaded %s order before and after the index arrives", async (drinkCategory) => {
+    let resolveIndex!: (index: MapSearchIndex) => void;
+    vi.mocked(loadMapSearchIndex).mockReturnValueOnce(new Promise((resolve) => {
+      resolveIndex = resolve;
+    }));
+    const onSelectVenue = vi.fn();
+    container = document.createElement("div");
+    document.body.append(container);
+    await act(async () => {
+      root = createRoot(container);
+      root.render(createElement(MapSearchSuggest, {
+        id: "map-search", mode: "overlay", cityId: "london", query: "geor", drinkCategory,
+        onQueryChange: vi.fn(),
+        venues: [
+          { ...londonVenue(), id: "george-iv", name: "The George IV", latitude: 51.5147, longitude: -0.12 },
+          { ...londonVenue(), id: "george-dragon", name: "George and Dragon, Fitzrovia", latitude: 51.52, longitude: -0.14 },
+        ],
+        localities: [], userLocation: null, mapCenter: [-0.12, 51.5147],
+        placeholder: "Search the map", onSelectVenue, onFlyToArea: vi.fn(),
+      }));
+    });
+    const venueOptions = () => [...container.querySelectorAll<HTMLElement>(
+      '[role="group"][aria-label="Venues"] [data-venue-id]',
+    )];
+    expect(venueOptions().map((option) => option.dataset.venueId)).toEqual(["george-iv", "george-dragon"]);
+
+    await act(async () => {
+      resolveIndex({
+        cities: SEARCH_INDEX.cities,
+        venues: [{ id: "indexed-george", name: "George Street Arms", cityId: "london", area: "Westminster", venueKind: "pub", pintPrice: 4.7 }],
+      });
+    });
+    const options = venueOptions();
+    expect(options.map((option) => option.dataset.venueId)).toEqual(["george-iv", "george-dragon", "indexed-george"]);
+
+    const input = container.querySelector<HTMLInputElement>('[role="combobox"]')!;
+    for (const option of options) {
+      act(() => input.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowDown", bubbles: true })));
+      expect(input.getAttribute("aria-activedescendant")).toBe(option.id);
+      act(() => input.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true })));
+    }
+    expect(onSelectVenue.mock.calls).toEqual([["george-iv"], ["george-dragon"], ["indexed-george", "london"]]);
   });
 
   it("selects the current Map venue before a cross-city name match", async () => {
