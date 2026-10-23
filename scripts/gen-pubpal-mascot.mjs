@@ -3,8 +3,8 @@
 //
 // Masters stay outside the repo; only the renditions are committed. Every
 // species writes the SAME set, so a surface never has to know which pal it is
-// drawing: four square sizes and four circular-avatar sizes, each as webp and
-// png. The species table is lib/palMascotAssets.mjs, shared with the app.
+// drawing: square and circular-avatar renditions at every shared size, each as
+// webp and png. The species table is lib/palMascotAssets.mjs, shared with the app.
 //
 // Run: node scripts/gen-pubpal-mascot.mjs <species> <master.png>
 

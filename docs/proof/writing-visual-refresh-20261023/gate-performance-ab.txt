@@ -1,0 +1,14 @@
+[perf-ab] the branch against its merge base: same box, same job, navigations interleaved
+[perf-ab] branch http://127.0.0.1:3300  base http://127.0.0.1:3301  head 0cf756fab with gate test corrections
+[perf-ab] 2 route(s) breached; 2 measured against the merge base, spending 16 navigation(s) across both arms.
+[perf-ab] No job wall was handed over, so this run measured unbounded.
+
+route   metric    ceiling  branch  base  samples     delta  verdict
+------  --------  -------  ------  ----  ----------  -----  --------------------
+/about  LCP (ms)  500      860     852   3/3 vs 3/3  +1%    NOT SLOWER THAN BASE
+/pal    LCP (ms)  700      856     844   3/3 vs 3/3  +1%    NOT SLOWER THAN BASE
+
+  - /about LCP (ms): the sweep measured 852 past this ceiling and the A/B measured no slower than the merge base on this box (branch 860 from 3 of 3 samples, base 852 from 3 of 3, ceiling 500, +1%): runner drift.
+  - /pal LCP (ms): the sweep measured 844 past this ceiling and the A/B measured no slower than the merge base on this box (branch 856 from 3 of 3 samples, base 844 from 3 of 3, ceiling 700, +1%): runner drift.
+
+[perf-ab] This moves no ceiling and fails nothing: the breach table is still the gate.

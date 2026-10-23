@@ -5,6 +5,43 @@ an independent refresh, separate from open PRs #2347, #2339 and #2346. Those PRs
 must be reconciled before merge, especially homepage copy, Tonight credits,
 area availability and About schema. This change does not deploy production.
 
+## Gate test corrections
+
+These results cover the working changes after `0cf756fab`, against base source `1dd819f3c`.
+The performance verdict remains **no-go** on this machine.
+The isolated comparison found no change-caused slowdown, but both builds exceed the unchanged paint ceilings.
+
+| Route | Paint ceiling | Standalone change | Alternating change | Alternating base |
+| --- | ---: | ---: | ---: | ---: |
+| Pub Pal | 700 ms | 844 ms | 856 ms | 844 ms |
+| About | 500 ms | 852 ms | 860 ms | 852 ms |
+
+[All standalone samples](gate-performance.json) and the [controlled comparison](gate-performance-ab.txt) retain the failures.
+Both browser contexts blocked service workers, which cache pages.
+Earlier samples allowed workers to change caching, request counts and navigation timing between measurements.
+The corrected tests prevent that contamination. They keep every existing ceiling and assertion.
+
+The Discover badge now uses the existing positive ink token. Its previous light-theme contrast was 2.37:1.
+The new browser regression passes at 390, 768 and 1440 pixels in both themes.
+The missing `@types/jsdom` dependency now supplies the declarations required by the rendered copy tests.
+
+The shared mascot size list now includes 256 pixels for every species and both image shapes.
+The files derive from existing published 512-pixel PNGs with the existing encoder settings.
+The phone regression decoded 512 pixels before the fix and 256 pixels after it.
+The selected robin WebP falls from 21,724 to 8,422 bytes. Its decoded pixel count falls by 75%.
+All 28 added renditions decode at 256 by 256 pixels without camera metadata.
+Larger renditions, dimensions, artwork, crops and motion keep their existing behavior.
+
+Current public captures show [Pub Pal at 390 by 844 pixels](gate-pal-phone.png) and [Discover at 1440 by 900 pixels](gate-discover-desktop.png).
+Both captures use Chromium, the light theme and the initial public state.
+
+Focused verification passed 64 unit tests, 11 layout and contrast checks, and the service-worker isolation regression.
+The image and worker regressions each failed before their fixes and passed afterward.
+The isolated production build completed for browser testing.
+Temporary servers, downloaded browsers, disposable drivers and build outputs were removed after testing.
+The outer executor owns static checks, broad regression, PR and CI phases.
+These results do not establish performance acceptance, account verification, merge readiness or a production release.
+
 ## Stage 1
 
 The homepage introduces its task in one sentence. Measured savings and their

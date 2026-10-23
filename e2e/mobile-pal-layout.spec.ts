@@ -106,3 +106,20 @@ for (const viewport of [
     expect(await page.evaluate(() => document.body.scrollWidth)).toBe(viewport.width);
   });
 }
+
+
+test("uses a phone-sized rendition for the first Pub Pal portrait", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto("/pal");
+  const portrait = page.locator(".palMeetingPortrait .palPortraitMascot img");
+  await expect(portrait).toBeVisible();
+  const decoded = await portrait.evaluate(async (image: HTMLImageElement) => {
+    await image.decode();
+    const response = await fetch(image.currentSrc);
+    const bitmap = await createImageBitmap(await response.blob());
+    const dimensions = { width: bitmap.width, height: bitmap.height };
+    bitmap.close();
+    return dimensions;
+  });
+  expect(decoded).toEqual({ width: 256, height: 256 });
+});

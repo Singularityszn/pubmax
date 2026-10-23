@@ -21,6 +21,10 @@ import {
 } from "../lib/performanceBudgets";
 import { measurePerfRedirect, preparePerfPage, runPerfRoute } from "./helpers/perfMeasurement";
 
+// A worker installed after warm-up can answer later samples from cache.
+// Keep every navigation on the tracked network profile.
+test.use({ serviceWorkers: "block" });
+
 // The enforced site performance budget (docs/PERFORMANCE_BUDGETS.md).
 //
 // One spec measures every budgeted route against perf/route-budgets.json and
@@ -216,4 +220,13 @@ test("every budgeted route stays inside its performance budget", async ({ page, 
       ? "no breach"
       : `Over the performance budget. Fix the route or take the ceiling up deliberately (docs/PERFORMANCE_BUDGETS.md).\n\n${formatBreachTable(breaches)}\n${unmeasuredReport}`,
   ).toEqual([]);
+});
+
+test("performance browser prevents service-worker registration", async ({ page }) => {
+  await page.goto("/pal");
+  const registered = await page.evaluate(async () => Boolean(
+    await navigator.serviceWorker.register("/sw.js?v=perf-isolation"),
+  ));
+  expect(registered).toBe(false);
+  expect(page.context().serviceWorkers()).toEqual([]);
 });

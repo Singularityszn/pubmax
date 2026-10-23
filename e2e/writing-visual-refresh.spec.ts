@@ -1,3 +1,5 @@
+import AxeBuilder from "@axe-core/playwright";
+
 import { expect, test } from "@playwright/test";
 
 for (const width of [390, 768, 1440]) {
@@ -62,3 +64,21 @@ test("optional explanations stay available by keyboard", async ({ page }) => {
   await expect(press).toHaveAttribute("open");
   await expect(press.getByRole("link", { name: "PNG (512px)" })).toBeVisible();
 });
+
+for (const width of [390, 768, 1440]) {
+  for (const theme of ["light", "dark"] as const) {
+    test(`Discover coverage badges have readable contrast at ${width}px in ${theme}`, async ({ page }) => {
+      await page.setViewportSize({ width, height: 900 });
+      await page.emulateMedia({ colorScheme: theme });
+      await page.addInitScript((value) => localStorage.setItem("pubmax-theme", value), theme);
+      await page.goto("/social?tab=discover");
+      const coverage = page.locator(".nightAreaCoverage");
+      await expect(coverage.getByText("Plan a crawl", { exact: true }).first()).toBeVisible();
+      const result = await new AxeBuilder({ page })
+        .include(".nightAreaCoverage")
+        .withRules(["color-contrast"])
+        .analyze();
+      expect(result.violations).toEqual([]);
+    });
+  }
+}
