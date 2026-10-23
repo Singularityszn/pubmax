@@ -102,10 +102,13 @@ async function readPriceUpdates(): Promise<PriceUpdatesIndex | null> {
  * from an empty answer.
  */
 /** Every drink-price update row, flattened once per process read. */
-export async function allDrinkPriceUpdates(): Promise<DrinkPriceUpdate[]> {
+export async function readAllDrinkPriceUpdates(): Promise<DrinkPriceUpdate[] | null> {
   const index = await readPriceUpdates();
-  if (!index) return [];
-  return [...index.drinkByKey.values()].flat();
+  return index ? [...index.drinkByKey.values()].flat() : null;
+}
+
+export async function allDrinkPriceUpdates(): Promise<DrinkPriceUpdate[]> {
+  return (await readAllDrinkPriceUpdates()) ?? [];
 }
 
 export async function venuePriceUpdatesFor(

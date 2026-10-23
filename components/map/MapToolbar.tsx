@@ -10,6 +10,7 @@ import {
 } from "react";
 
 import CitySwitcher from "@/components/map/CitySwitcher";
+import type { MapDrinkCoverage } from "@/components/map/DrinkCoverage";
 import DrinkLanePicker from "@/components/map/DrinkLanePicker";
 import SpoonsValueLensControl from "@/components/map/SpoonsValueLensControl";
 import DrinkShapeChips from "@/components/map/DrinkShapeChips";
@@ -183,6 +184,7 @@ type MapToolbarProps = {
   onDrinkLaneChange: (lane: DrinkCategory) => void;
   /** Completeness of the active lane's cross-venue read, for its own note. */
   drinkLaneStatus: CategoryPriceIndexStatus;
+  drinkCoverage?: MapDrinkCoverage;
   /** The Spoons value lens, which shares this panel with the drink lanes. */
   spoonsValueOn: boolean;
   spoonsValueLens: SpoonsValueLensState;
@@ -253,6 +255,7 @@ export default function MapToolbar({
   onDrinkBrandChange,
   onDrinkLaneChange,
   drinkLaneStatus,
+  drinkCoverage,
   spoonsValueOn,
   spoonsValueLens,
   onSpoonsValueChange,
@@ -526,6 +529,7 @@ export default function MapToolbar({
           <DrinkLanePicker
             lane={activeLane}
             status={drinkLaneStatus}
+            coverage={drinkCoverage}
             onClose={closeDrinkChoices}
             onChange={(lane) => {
               setPintsPicked(lane === DEFAULT_DRINK_LANE);
