@@ -8,9 +8,9 @@ import { normalizeHandle } from "@/lib/profiles";
 import { isProfileTombstoned, profileStore, type ProfileRecord } from "@/lib/profileStore";
 import { getSupabaseAdmin, isSupabaseConfigured } from "@/lib/supabase";
 
-// Public withdrawal is a moderation fact about a LIVE profile: its owner is
-// banned in Supabase auth, or its private Social account is suspended. A
-// DELETED (tombstoned) profile is never withdrawn: its contributions stay
+// Public withdrawal excludes the operational handle checked by isKnownTestHandle.
+// For other LIVE profiles, it follows an auth ban or Social suspension.
+// A DELETED (tombstoned) profile is never withdrawn: its contributions stay
 // public under the retired label (migration 0150), and `profilePublicPresence`
 // answers it as `gone`. A withdrawn profile answers every handle it has worn,
 // because a rename never rewrites what it authored.
@@ -300,7 +300,7 @@ export async function isProfileWithdrawnFromPublic(
   return (await profilePublicPresence(profile)) === "withdrawn";
 }
 
-/** Drop withdrawn owners from public profile lists (search, directory, founders). */
+/** Drop withdrawn and known test owners from public profile lists. */
 export async function filterProfilesWithdrawnFromPublic<T extends PublicPresenceProfile>(
   profiles: readonly T[],
 ): Promise<T[]> {
