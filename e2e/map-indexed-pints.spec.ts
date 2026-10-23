@@ -3,6 +3,9 @@ import { readFile } from "node:fs/promises";
 import { listEnabledCities } from "../lib/cities";
 import { expectMapLoadingFrameReleased, mobileMapShellControl } from "./helpers/mobileMapShell";
 
+// Network fixtures must not be answered from a service worker cache.
+test.use({ serviceWorkers: "block" });
+
 for (const width of [1280, 390]) {
   test(`an indexed exact venue leads a loaded name match at ${width}px`, async ({ page }, testInfo) => {
     await page.setViewportSize({ width, height: width === 390 ? 844 : 800 });
