@@ -123,6 +123,7 @@ export function buildCitySlim(city, pack) {
     slim.push({
       id,
       name,
+      address: typeof pub.address === "string" ? pub.address.trim() : "",
       lat,
       lng,
       ...(pub.kind ? { kind: pub.kind } : {}),

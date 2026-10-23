@@ -51,6 +51,8 @@ export type SlimVenue = {
   name: string;
   /** The dataset's own name when it differs from `name`; identity and search only. */
   sourceName?: string;
+  /** Sourced address. An explicit blank records that no address is known. */
+  address?: string;
   lat: number;
   lng: number;
   cheapestPrice: number | null;
@@ -83,6 +85,10 @@ export type SlimVenue = {
   /** A pub that left OpenStreetMap, served by id only so a stored reference names it. */
   retired?: true;
 };
+
+function isOptionalString(value: unknown): value is string | undefined {
+  return value === undefined || typeof value === "string";
+}
 
 function isBoolean(value: unknown): value is boolean {
   return typeof value === "boolean";
@@ -184,8 +190,7 @@ function isValidSlimVenue(value: unknown): value is SlimVenue {
   const price = row.cheapestPrice;
   const priceOk =
     price === null || (typeof price === "number" && Number.isFinite(price));
-  const localityOk =
-    row.locality === undefined || typeof row.locality === "string";
+  const localityOk = isOptionalString(row.locality);
   // zone, when present, must be a positive integer (fare zone). Absent is fine.
   const zoneOk =
     row.zone === undefined ||
@@ -203,6 +208,7 @@ function isValidSlimVenue(value: unknown): value is SlimVenue {
     row.priceBand === 2;
   return (
     priceOk &&
+    isOptionalString(row.address) &&
     (row.priceSource === undefined || (typeof row.priceSource === "string" && row.priceSource.trim().length > 0)) &&
     observedOk &&
     localityOk &&
@@ -227,6 +233,7 @@ function normalizeRows(data: unknown): SlimVenue[] {
     ...(typeof venue.sourceName === "string" && venue.sourceName
       ? { sourceName: venue.sourceName }
       : venueSourceNameField(venue.name)),
+    ...(venue.address !== undefined ? { address: venue.address } : {}),
     lat: venue.lat,
     lng: venue.lng,
     cheapestPrice: venue.cheapestPrice,
