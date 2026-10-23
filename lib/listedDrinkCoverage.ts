@@ -3,6 +3,7 @@ import type { DrinkPriceUpdate } from "@/lib/drinkPriceUpdates";
 import { venueMenuForInspector, venueMenuLookupKeys } from "@/lib/venueMenu";
 import { isLivePriceRow } from "@/lib/priceRowEligibility.mjs";
 import { isPubVenue } from "@/lib/venueKindFilters";
+import { authoritativeBundleRows, strongestBundleRow, type UkPriceBundleRow } from "@/lib/ukPriceBundle";
 import type { Venue } from "@/lib/venues";
 
 export type ListedDrinkCoverage = {
@@ -15,6 +16,8 @@ export type ListedDrinkCoverage = {
 export function listedDrinkCoverage(
   venues: readonly Venue[],
   updates: readonly DrinkPriceUpdate[],
+  bundleByVenue: ReadonlyMap<string, readonly UkPriceBundleRow[]> = new Map(),
+  now: number = Date.now(),
 ): ListedDrinkCoverage {
   const pubs = new Map(venues.filter(isPubVenue).map((venue) => [venue.id, venue]));
   const counts = Object.fromEntries(DRINK_CATEGORIES.map((category) => [category, 0])) as Record<DrinkCategory, number>;
@@ -26,19 +29,24 @@ export function listedDrinkCoverage(
   }
   let pricedPubs = 0;
   for (const venue of pubs.values()) {
-    if (typeof venue.cheapestPrice === "number" && Number.isFinite(venue.cheapestPrice)) pricedPubs += 1;
     const scoped = venueMenuLookupKeys(venue).flatMap((key) => byKey.get(key) ?? []);
     const menu = venueMenuForInspector({ ...venue, prices: venue.prices.filter(isLivePriceRow) }, scoped);
     const categories = new Set<DrinkCategory>();
     for (const drink of menu) {
       if (!Number.isFinite(drink.priceGbp) || drink.priceGbp < 0 || isDemoDrinkProvenance(drink.provenance)) continue;
-      categories.add(drink.category);
+      if (drink.category !== "beer") categories.add(drink.category);
       if (drink.alcoholType === "low-no") categories.add("alcohol-free");
     }
+    // The bundle reader owns source quarantine, measure rules and price age.
+    const bundleRows = authoritativeBundleRows(bundleByVenue.get(venue.id) ?? []);
+    for (const category of DRINK_CATEGORIES) {
+      const decision = strongestBundleRow(bundleRows.filter((row) => row.category === category), now);
+      if (decision.standing === "listed") categories.add(category);
+    }
+    if (typeof venue.cheapestPrice === "number" && Number.isFinite(venue.cheapestPrice)) categories.add("beer");
+    if (categories.has("beer")) pricedPubs += 1;
     for (const category of categories) counts[category] += 1;
   }
-  // A menu beer can be a bottle or a half. The pint lane owns the pint count.
-  counts.beer = pricedPubs;
   return { total: pubs.size, pricedPubs, counts };
 }
 
