@@ -732,8 +732,9 @@ function outLaneCredit(
 
 /**
  * The day a set of Out rows was checked: the OLDEST of each publisher's
- * freshest check, and undated when any publisher, or an unlabelled row, has
- * none. The same answer dates the Out credit line and the live-music lane.
+ * freshest check. Any row without a publisher or valid row check leaves the
+ * date unknown, even when its publisher has an aggregate check date.
+ * The same answer dates the Out credit line and the live-music lane.
  */
 function outLaneObservedAt(
   rows: readonly WhatsOnRow[],
