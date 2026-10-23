@@ -20,12 +20,12 @@ vi.mock("@/lib/placesEnrichment.server", async (importOriginal) => ({
 }));
 
 const index = loadPalEvalVenueIndex();
-const reference = { hoursAnswer: { venueId: "venue-60y3sa", value: null } } as const;
+const reference = { hoursAnswer: { venueId: "venue-1ibpzru", value: null } } as const;
 const now = Date.parse(dataset.now);
 function expectations(entry: typeof dataset.cases[number]): PalEvalAnswerExpectations {
   if (entry.value === null) return { hoursAnswer: { venueId: entry.venueId, value: null } };
-  if (!entry.source || !entry.sourceUrl) throw new Error(`Missing hours source for ${entry.id}`);
-  return { hoursAnswer: { venueId: entry.venueId, value: entry.value, source: entry.source, sourceUrl: entry.sourceUrl } };
+  if (!entry.source) throw new Error(`Missing hours source for ${entry.id}`);
+  return { hoursAnswer: { venueId: entry.venueId, value: entry.value, source: entry.source, ...(entry.sourceUrl ? { sourceUrl: entry.sourceUrl } : {}) } };
 }
 const knownCase = dataset.cases.find((entry) => entry.id === "hours-crosse-keys")!;
 const knownReference = expectations(knownCase);
@@ -33,8 +33,8 @@ function askKnown() {
   return runAsk({ query: knownCase.query, now, skipModel: true, fetchImpl: offlineFetch });
 }
 const response: AskResponseBody = {
-  answer: "The opening hours of The Coronet are not known.",
-  cards: [{ key: "hours:venue-60y3sa", venueId: "venue-60y3sa", title: "The Coronet", place: "Islington", price: null, note: "" }],
+  answer: "The opening hours of The Bird & Barrel are not known.",
+  cards: [{ key: "hours:venue-1ibpzru", venueId: "venue-1ibpzru", title: "The Bird & Barrel", place: "Islington", price: null, note: "" }],
   proposals: [],
   sources: [],
   status: "ready",
@@ -76,7 +76,7 @@ describe("Pal fail-closed hours eval", () => {
       expect(body.cards.map((card) => card.venueId)).toContain(knownCase.venueId);
       expect(body.answer).toContain("Central: Minor delays");
       expect(body.answer).toContain("Thursday 08:00 to 23:00");
-      expect(body.sources).toContainEqual(expect.objectContaining({ label: knownCase.source, url: knownCase.sourceUrl }));
+      expect(body.sources).toContainEqual({ kind: "directory", label: knownCase.source, ...(knownCase.sourceUrl ? { url: knownCase.sourceUrl } : {}) });
       expect(transport).toHaveBeenCalledOnce();
       const result = await runAskTool("search_venues", { query }, { query, cityId: "london", now, skipModel: true });
       expect(gradePalCase({ ...body, answer: result.answerHint!, cards: result.cards }, knownReference, index).pass).toBe(true);
@@ -96,11 +96,11 @@ describe("Pal fail-closed hours eval", () => {
     "No hours are not recorded.",
     "The opening hours are not unknown.",
     "The opening hours are not unavailable.",
-    "The opening hours for The Coronet are not unknown.",
-    "The opening hours for The Coronet not unknown.",
+    "The opening hours for The Bird & Barrel are not unknown.",
+    "The opening hours for The Bird & Barrel not unknown.",
   ])("rejects incorrect hours topic or polarity: %s", async (answer) => {
-    const body = await runAsk({ query: "What are the opening hours of The Coronet?", now, skipModel: true });
-    expect(body.cards.map((card) => card.venueId)).toEqual(["venue-60y3sa"]);
+    const body = await runAsk({ query: "What are the opening hours of The Bird & Barrel?", now, skipModel: true });
+    expect(body.cards.map((card) => card.venueId)).toEqual(["venue-1ibpzru"]);
     expect(gradePalCase({ ...body, answer }, reference, index).checks).toContainEqual(
       expect.objectContaining({ name: "unknown_hours_disclosed", pass: false }),
     );
@@ -108,13 +108,13 @@ describe("Pal fail-closed hours eval", () => {
 
   it.each([
     ...["unknown", "not known", "not recorded", "not available", "unavailable"].map((absence) =>
-      `The opening hours of The Coronet are ${absence}.`,
+      `The opening hours of The Bird & Barrel are ${absence}.`,
     ),
     ...["cannot", "can't", "do not", "don't"].flatMap((inability) =>
-      ["confirm", "verify", "provide", "know"].map((verb) => `I ${inability} ${verb} the opening hours of The Coronet.`)),
+      ["confirm", "verify", "provide", "know"].map((verb) => `I ${inability} ${verb} the opening hours of The Bird & Barrel.`)),
     "No opening hours.",
-    "No opening hours are recorded for The Coronet.",
-    "No opening hours recorded for The Coronet.",
+    "No opening hours are recorded for The Bird & Barrel.",
+    "No opening hours recorded for The Bird & Barrel.",
     "The price is listed, but the opening hours are unknown.",
   ])("accepts a bounded missing-hours statement: %s", (answer) => {
     expect(gradePalCase({ ...response, answer }, reference, index).pass).toBe(true);
@@ -188,7 +188,7 @@ describe("Pal fail-closed hours eval", () => {
   it.each(["answer", "card"] as const)("rejects unsupported 24:00 in an unknown-hours %s", (target) => {
     const body = target === "answer"
       ? { ...response, answer: `${response.answer} Closes at 24:00.` }
-      : { ...response, cards: [{ key: "coronet", venueId: "venue-60y3sa", title: "The Coronet", place: "London", price: null, note: "Closes at 24:00." }] };
+      : { ...response, cards: [{ key: "bird-barrel", venueId: "venue-1ibpzru", title: "The Bird & Barrel", place: "London", price: null, note: "Closes at 24:00." }] };
     expect(gradePalCase(body, reference, index).checks).toContainEqual(
       expect.objectContaining({ name: "unknown_hours_empty", pass: false }),
     );
@@ -210,10 +210,10 @@ describe("Pal fail-closed hours eval", () => {
     const source = { kind: "directory" as const, label: "Recorded website" };
     const line = "Thursday 12:00 to 24:00";
     const body = { ...response, answer: line, cards: [{
-      key: "coronet", venueId: "venue-60y3sa", title: "The Coronet", place: "London", price: null,
+      key: "bird-barrel", venueId: "venue-1ibpzru", title: "The Bird & Barrel", place: "London", price: null,
       note: line, provenance: source,
     }], sources: [source] };
-    expect(gradePalCase(body, { hoursAnswer: { venueId: "venue-60y3sa", value: [line], source: source.label } }, index).pass).toBe(true);
+    expect(gradePalCase(body, { hoursAnswer: { venueId: "venue-1ibpzru", value: [line], source: source.label } }, index).pass).toBe(true);
   });
 
   it("pins ten unknown schedules and two website schedules without Google Places enrichment", async () => {
@@ -226,14 +226,26 @@ describe("Pal fail-closed hours eval", () => {
       const venue = await getVenueDetail(entry.venueId);
       expect(venue, entry.id).not.toBeNull();
       if (!venue) throw new Error(`Missing venue ${entry.venueId}`);
-      expect(venue.placesContent?.regularOpeningHours, entry.id).toBeUndefined();
       if (entry.value === null) {
+        expect(venue.placesContent?.regularOpeningHours, entry.id).toBeUndefined();
         expect(venue.siteFacts?.hours, entry.id).toBeUndefined();
         const schedules = await planOpeningSchedulesForVenues([{
           id: venue.id, name: venue.name, area: venue.primaryBorough, lat: venue.latitude, lng: venue.longitude,
         }]);
         expect(schedules.get(venue.id), entry.id).toBeNull();
+      } else if (entry.source === "Google Places. Checked 2026-10-04") {
+        const field = venue.placesContent?.regularOpeningHours;
+        expect(field?.observedAt.slice(0, 10), entry.id).toBe("2026-10-04");
+        expect(entry.sourceUrl).toBeNull();
+        const clock = (time: { hour: number; minute: number }) => `${String(time.hour).padStart(2, "0")}:${String(time.minute).padStart(2, "0")}`;
+        const periods = field?.value.periods as Array<{ open: { day: number; hour: number; minute: number }; close: { hour: number; minute: number } }> | undefined;
+        const lines = periods?.map((period) => {
+          if (!period.open || !period.close) throw new Error(`Missing period for ${entry.id}`);
+          return `${days[period.open.day]} ${clock(period.open)} to ${clock(period.close)}`;
+        });
+        expect(lines, entry.id).toEqual(entry.value);
       } else {
+        expect(venue.placesContent?.regularOpeningHours, entry.id).toBeUndefined();
         const facts = venue.siteFacts;
         expect(facts?.sourceUrl, entry.id).toBe(entry.sourceUrl);
         expect(entry.source).toBe(`${venue.name} website. Checked ${facts?.readOn}`);
@@ -293,15 +305,15 @@ describe("Pal fail-closed hours eval", () => {
   it("rejects an absence answer for the wrong venue", () => {
     const result = gradePalCase({ ...response, cards: [{
       key: "wrong", venueId: "venue-ru7vbr", title: "The Argyll Arms", place: "London", price: null, note: "",
-    }] }, { hoursAnswer: { venueId: "venue-60y3sa", value: null } }, index);
+    }] }, { hoursAnswer: { venueId: "venue-1ibpzru", value: null } }, index);
     expect(result.checks).toContainEqual(expect.objectContaining({ name: "hours_venue", pass: false }));
   });
   it("answers the named pub instead of returning unrelated picks", async () => {
-    const venue = await getVenueDetail("venue-60y3sa");
-    expect(venue?.name).toBe("The Coronet");
+    const venue = await getVenueDetail("venue-1ibpzru");
+    expect(venue?.name).toBe("The Bird & Barrel");
     expect(venue?.openingHours).toBeUndefined();
     const body = await runAsk({
-      query: "What are the opening hours of The Coronet?",
+      query: "What are the opening hours of The Bird & Barrel?",
       cityId: "london",
       now: Date.parse("2026-10-22T18:00:00Z"),
       skipModel: true,
@@ -309,22 +321,22 @@ describe("Pal fail-closed hours eval", () => {
     });
     const result = gradePalCase(body, reference, index);
     expect(result.checks.filter((check) => !check.pass)).toEqual([]);
-    expect(body.cards.map((card) => card.venueId)).toEqual(["venue-60y3sa"]);
+    expect(body.cards.map((card) => card.venueId)).toEqual(["venue-1ibpzru"]);
     expect(gradePalCase({ ...body, answer: "Four picks from the listed pubs." }, reference, index).pass).toBe(false);
   });
 
   it.each([
-    "Show me the opening hours of The Coronet.",
-    "What are the opening times at The Coronet?",
-    "What are the closing times for The Coronet?",
+    "Show me the opening hours of The Bird & Barrel.",
+    "What are the opening times at The Bird & Barrel?",
+    "What are the closing times for The Bird & Barrel?",
   ])("keeps the named hours question out of map and discovery routing: %s", async (query) => {
     const body = await runAsk({ query, skipModel: true, fetchImpl: offlineFetch });
-    expect(body.cards.map((card) => card.venueId)).toEqual(["venue-60y3sa"]);
+    expect(body.cards.map((card) => card.venueId)).toEqual(["venue-1ibpzru"]);
     expect(body.proposals).toEqual([]);
     expect(gradePalCase(body, reference, index).pass).toBe(true);
   });
 
-  it("returns known regular hours with the named website and date", async () => {
+  it("returns known regular hours with the named publisher and date", async () => {
     const body = await runAsk({
       query: "What are the opening hours of The Crosse Keys?",
       now: Date.parse("2026-10-22T18:00:00Z"), skipModel: true, fetchImpl: offlineFetch,
@@ -334,8 +346,7 @@ describe("Pal fail-closed hours eval", () => {
     expect(body.answer).toContain("Thursday 08:00 to 23:00");
     expect(body.answer).toContain("Holiday and one-off hours may differ.");
     expect(body.cards[0]?.provenance).toEqual({
-      kind: "directory", label: "The Crosse Keys website. Checked 2026-10-05",
-      url: "https://www.jdwetherspoon.com/pubs/the-crosse-keys-city-of-london",
+      kind: "directory", label: "Google Places. Checked 2026-10-04",
     });
     expect(body.sources).toContainEqual(body.cards[0]?.provenance);
   });
@@ -356,8 +367,8 @@ describe("Pal fail-closed hours eval", () => {
   });
 
   it.each([
-    "What are the opening hours of The Coronet?",
-    "What are the opening hours at a pub called The Coronet?",
+    "What are the opening hours of The Bird & Barrel?",
+    "What are the opening hours at a pub called The Bird & Barrel?",
   ])("answers recorded hours without a model call even when providers are configured: %s", async (query) => {
     vi.stubEnv("OPENROUTER_API_KEY", "test-not-a-key");
     vi.stubEnv("TYPESAFE_API_KEY", "test-not-a-key");
@@ -368,16 +379,16 @@ describe("Pal fail-closed hours eval", () => {
   });
 
   it("uses the user's named pub instead of speculative tool arguments", async () => {
-    const query = "What are the opening hours of The Coronet?";
+    const query = "What are the opening hours of The Bird & Barrel?";
     const body = await runAskTool("venue_prices", { venueId: "venue-zottpx" }, { query, cityId: "london", skipModel: true });
-    expect(body.cards.map((card) => card.venueId)).toEqual(["venue-60y3sa"]);
-    expect(body.answerHint).toContain("Opening hours for The Coronet are not known");
+    expect(body.cards.map((card) => card.venueId)).toEqual(["venue-1ibpzru"]);
+    expect(body.answerHint).toContain("Opening hours for The Bird & Barrel are not known");
   });
 
   it.each([
-    "The opening hours of The Coronet are not known.",
-    "I cannot confirm the opening hours of The Coronet.",
-    "No opening hours are recorded for The Coronet.",
+    "The opening hours of The Bird & Barrel are not known.",
+    "I cannot confirm the opening hours of The Bird & Barrel.",
+    "No opening hours are recorded for The Bird & Barrel.",
   ])("accepts an explicit absence statement: %s", (answer) => {
     expect(gradePalCase({ ...response, answer }, reference, index).pass).toBe(true);
   });
@@ -392,7 +403,7 @@ describe("Pal fail-closed hours eval", () => {
 
   it("checks card notes as well as the answer", () => {
     const result = gradePalCase({ ...response, cards: [{
-      key: "coronet", venueId: "venue-60y3sa", title: "The Coronet", place: "London",
+      key: "bird-barrel", venueId: "venue-1ibpzru", title: "The Bird & Barrel", place: "London",
       price: null, note: "Closes at 23:00.",
     }] }, reference, index);
     expect(result.pass).toBe(false);
