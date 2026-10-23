@@ -1,0 +1,42 @@
+{
+  "method": "Single unthrottled local Chromium visits at 360px, no analytics consent. Before and after builds use VERCEL=1. This is a resource comparison, not a Core Web Vitals acceptance test.",
+  "results": {
+    "before": {
+      "viewportWidth": 360,
+      "horizontalOverflow": false,
+      "vercelScriptRequests": [
+        "/_vercel/insights/script.js",
+        "/_vercel/speed-insights/script.js"
+      ],
+      "scriptResourceCount": 26,
+      "encodedScriptBytes": 288726,
+      "paint": [
+        {
+          "name": "first-paint",
+          "startTime": 180
+        },
+        {
+          "name": "first-contentful-paint",
+          "startTime": 180
+        }
+      ]
+    },
+    "after": {
+      "viewportWidth": 360,
+      "horizontalOverflow": false,
+      "vercelScriptRequests": [],
+      "scriptResourceCount": 23,
+      "encodedScriptBytes": 286551,
+      "paint": [
+        {
+          "name": "first-paint",
+          "startTime": 192
+        },
+        {
+          "name": "first-contentful-paint",
+          "startTime": 192
+        }
+      ]
+    }
+  }
+}
