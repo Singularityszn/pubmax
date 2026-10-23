@@ -11,7 +11,7 @@ begin
      set hits = hits[1:cardinality(hits) - 1]
    where key = p_key
      and cardinality(hits) > 0;
-  -- Empty or expired buckets already have no unused unit to return.
+  -- Empty or missing buckets already have no unused unit to return.
   return true;
 end;
 $$;
