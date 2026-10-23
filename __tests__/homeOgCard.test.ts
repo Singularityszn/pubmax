@@ -122,15 +122,8 @@ describe("home card copy", () => {
     expect(hero).toBe("What a pint costs, pub by pub.");
     expect(landing).toContain("What a pint costs, pub by pub.");
 
-    const { HISTORIC_PUB_COUNT } = await import(
-      "@/components/landing/londonMapGeometry"
-    );
-    expect(landing.replace(/\s+/g, " ")).toContain(
-      "London on one map, with ${HISTORIC_PUB_COUNT} historic pubs cited and a listed price wherever we hold one.",
-    );
-    expect(HOME_CARD_SUPPORT.split(". ")[0]).toBe(
-      `London on one map, with ${HISTORIC_PUB_COUNT} historic pubs cited and a listed price wherever we hold one`,
-    );
+    expect(HOME_CARD_SUPPORT).toBe("Find a London pub, compare listed pint prices and plan your night.");
+    expect(renderCard(stats())).toContain(HOME_CARD_SUPPORT);
   });
 
   it("keeps the retired night-OS lines off the card", () => {

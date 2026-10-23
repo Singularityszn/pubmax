@@ -53,7 +53,7 @@ export default function LandingAnswerCards({ answers }: { answers: LandingAnswer
             <ChevronRight size={16} aria-hidden="true" className="lpAnswerTileChevron" />
           </span>
           <span className="lpAnswerTileLine">
-            Ask for pubs or a route using the map&apos;s listed prices. It remembers only what you approve.
+            Plan a route using listed prices from the map. It remembers only what you approve.
           </span>
         </Link>
       </div>

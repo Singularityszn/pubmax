@@ -15,7 +15,7 @@ for (const width of [390, 768, 1440]) {
       const journal = page.getByRole("region", { name: "Around London" });
       await journal.scrollIntoViewIfNeeded();
       await expect(journal.getByRole("link")).toHaveCount(4);
-      await expect(journal.getByRole("link", { name: "See The Crown Tavern on the map" }))
+      await expect(journal.getByRole("link", { name: /The Crown Tavern/ }))
         .toHaveAttribute("href", "/map?sel=venue-13sug69");
       await expect(journal.locator("img").first()).toBeVisible();
       const film = page.getByRole("region", { name: "London, day to night" });
@@ -31,6 +31,7 @@ for (const width of [390, 768, 1440]) {
         await expect(film.locator("video")).toBeVisible({ timeout: 1_000 });
       }).toPass({ timeout: 20_000 });
       const video = film.locator("video");
+      await expect(video).toBeFocused();
       await expect.poll(() => video.evaluate((element: HTMLVideoElement) => element.currentTime)).toBeGreaterThan(0);
       expect(await video.evaluate((element: HTMLVideoElement) => element.duration)).toBeCloseTo(12, 1);
       expect(await video.evaluate((element: HTMLVideoElement) => element.controls && !element.loop)).toBe(true);

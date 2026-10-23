@@ -132,7 +132,7 @@ export default async function AboutPage() {
   };
 
   return (
-    <main id="main" className="aboutPage">
+    <main id="main" className="aboutPage pageHidesCreateFab">
       {/* JSON-LD is inert data, not executable script. It goes through the ONE
           hardened injector (components/seo/JsonLd), which escapes every
           HTML-significant character before the body is inlined, so a future

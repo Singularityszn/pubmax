@@ -245,3 +245,6 @@ export function answerEvidenceFor(
   );
   return { publisher, standing, observedOn };
 }
+
+/** Shared introduction for the homepage and its link previews. */
+export const LANDING_INTRO = "Find a London pub, compare listed pint prices and plan your night.";

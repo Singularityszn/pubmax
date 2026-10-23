@@ -16,6 +16,7 @@ import {
   archiveMovementLine,
   HERO_RAIL_SIZE,
   LANDING_FALLBACK_RECEIPT_HREF,
+  LANDING_INTRO,
   LANDING_PRIMARY_HREF,
   LANDING_PRIMARY_LABEL,
   LANDING_QUIET_DOORS,
@@ -219,7 +220,7 @@ async function readEvidence(
   }
 }
 
-const MAP_LEDE = "Find a London pub, compare listed pint prices and plan your night.";
+
 
 export default function LandingHero({
   card,
@@ -349,7 +350,7 @@ export default function LandingHero({
       className="lpHero"
       title="What a pint costs, pub by pub."
       titleId="hero-title"
-      lede={MAP_LEDE}
+      lede={LANDING_INTRO}
       answer={
         <figure className="lpLondonFigure">
           <picture>

@@ -14,7 +14,7 @@ describe("the optional London film", () => {
     const root = createRoot(container);
     try {
       await act(async () => root.render(createElement(LandingLondonFilm)));
-      expect(container.querySelector("video, source")).toBeNull();
+      expect(container.querySelector("video, video source")).toBeNull();
       expect(container.querySelector("img")?.getAttribute("loading")).toBe("lazy");
       const play = container.querySelector("button");
       expect(play?.textContent).toContain("Play London film");

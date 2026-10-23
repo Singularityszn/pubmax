@@ -26,15 +26,15 @@ describe("the public discovery metadata", () => {
   });
 
   it("gives Pub Pal its own canonical and matching share cards", () => {
-    expect(palMetadata.title).toBe("Meet your Pub Pal");
+    expect(palMetadata.title).toBe("Plan your night with Pub Pal");
     expect(palMetadata.alternates?.canonical).toBe("/pal");
     expect(palMetadata.openGraph).toMatchObject({
-      title: "Meet your Pub Pal",
+      title: "Plan your night with Pub Pal",
       url: "/pal",
       images: [{ url: "/pal/circuit-robin-512.png" }],
     });
     expect(palMetadata.twitter).toMatchObject({
-      title: "Meet your Pub Pal",
+      title: "Plan your night with Pub Pal",
       images: ["/pal/circuit-robin-512.png"],
     });
   });
