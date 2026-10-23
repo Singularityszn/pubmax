@@ -86,4 +86,11 @@ The focused existing suite passed all 74 tests across five files:
 token and contrast contracts. No new source-string tests were added to claim
 that a model will follow prose correctly.
 
+Full verification also reproduced four failures in `pubListImport.test.ts`.
+The suite inherited a real provider credential and invoked the model adapter
+when it expected no requests. Its setup now clears `OPENROUTER_API_KEY` and
+restores the environment after each test. With a non-secret ambient sentinel
+key, all 78 tests pass. The assertions and application implementation are
+unchanged. Failure logs were redacted before retention.
+
 The full repository verification result is recorded with the delivery status.
