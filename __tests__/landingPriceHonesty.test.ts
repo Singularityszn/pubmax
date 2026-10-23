@@ -54,6 +54,8 @@ function renderCard(overrides: Partial<LandingPubCardData> = {}) {
 describe("landing price honesty", () => {
   it("never says every price is dated or sourced", () => {
     for (const banned of [
+      "cheap pints near you, live",
+      "no endless listings. just",
       "each dated",
       "dated prices",
       "every one dated",
