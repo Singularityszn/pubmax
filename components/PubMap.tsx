@@ -5040,6 +5040,7 @@ export default function PubMap({
       query: filters.query,
       onQueryChange: changeMapSearchQuery,
       venues: limitedCoverageSearch ? NO_SEARCH_VENUES : venues,
+      drinkCategory: filters.drinkCategory,
       localities: limitedCoverageSearch ? NO_LOCALITIES : localities,
       places: ukPlaces,
       includeLocalResults: !limitedCoverageSearch,

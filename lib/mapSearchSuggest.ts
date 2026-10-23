@@ -167,6 +167,8 @@ export type MapSearchSuggestInput = {
   cityId: CityId;
   query: string;
   venues: Venue[];
+  /** The selected drink category. The resting map uses the pint lane. */
+  drinkCategory?: string;
   /** The Greater London locality gazetteer (public/data/london_localities.json).
    *  Optional + defaults to []: a non-London city, or a fetch that hasn't
    *  landed yet, simply falls back to the modelled areas + boroughs. */
@@ -580,7 +582,8 @@ export function buildMapSearchSuggestions(input: MapSearchSuggestInput): MapSear
     .slice(0, Math.max(0, areaLimit))
     .map((entry) => entry.suggestion);
 
-  const pubMatches: { tier: number; suggestion: PubSuggestion }[] = [];
+  const pubMatches: { tier: number; pintRank: number; suggestion: PubSuggestion }[] = [];
+  const preferPints = !input.drinkCategory || input.drinkCategory === "beer";
   if (includeLocalResults && !isEmptyQuery) {
     const seen = new Set<string>();
     for (const venue of venues) {
@@ -590,12 +593,17 @@ export function buildMapSearchSuggestions(input: MapSearchSuggestInput): MapSear
       seen.add(venue.id);
       pubMatches.push({
         tier,
+        pintRank: isPubVenue(venue) ? verifiedPrice(venue) !== null ? 0 : 1 : 2,
         suggestion: buildPubSuggestion(venue, originPoint, origin),
       });
     }
   }
   const rankedPubs = pubMatches
-    .sort(comparePub)
+    .sort((left, right) => {
+      if (left.tier !== right.tier) return left.tier - right.tier;
+      if (preferPints && left.pintRank !== right.pintRank) return left.pintRank - right.pintRank;
+      return comparePub(left, right);
+    })
     .slice(0, Math.max(0, pubLimit))
     .map((entry) => entry.suggestion);
 

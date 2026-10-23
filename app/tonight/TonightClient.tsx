@@ -558,9 +558,12 @@ export default function TonightClient({
         outEvents: outBody?.events ?? [],
         whatsOnChecked: checked,
         outObservedAt: outBody?.observedAt,
+        outReadReady: !outFailed && !outPending && Boolean(
+          outBody && (outBody.listingsStatus ?? outBody.status) === "ready" && outBody.venueMatch === "ready",
+        ),
         pubSuggestionCount,
       }),
-    [creditedGroups, outBody, checked, pubSuggestionCount],
+    [creditedGroups, outBody, outFailed, outPending, checked, pubSuggestionCount],
   );
   // A lane that could not answer is named beside the cards, not only in place
   // of them: a degraded Out answer still carrying Ticketmaster rows makes the

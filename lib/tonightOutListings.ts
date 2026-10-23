@@ -662,6 +662,8 @@ export function tonightProvenanceCredits(input: {
   outEvents: WhatsOnRow[];
   whatsOnChecked: string | null;
   outObservedAt?: Record<string, string> | undefined;
+  /** Only a successful listings read can support a checked empty result. */
+  outReadReady?: boolean;
   pubSuggestionCount?: number;
 }): TonightProvenanceCredits {
   const lanes = tonightListingLanes(
@@ -672,12 +674,17 @@ export function tonightProvenanceCredits(input: {
   // included: the quiet answer came from that read and is credited to it.
   const creditsWhatsOn = lanes.whatsOnCount > 0 || lanes.outRows.length === 0;
   const whatsOnLabel = lanes.whatsOnCount === 0 && (input.pubSuggestionCount ?? 0) > 0
-    ? "No events listed"
+    ? "No pub-matched events"
     : whatsOnLaneLabel(lanes.whatsOnCount);
   const whatsOn = creditsWhatsOn
     ? `${whatsOnLabel}${input.whatsOnChecked ? ` · ${input.whatsOnChecked}` : ""} · ${TONIGHT_WHATS_ON_CREDIT}`
     : null;
-  const out = outLaneCredit(lanes.outRows, input.outObservedAt ?? {});
+  const emptyOutRead = input.renderedGroups.length === 0 && input.outReadReady === true;
+  const out = outLaneCredit(
+    emptyOutRead ? input.outEvents : lanes.outRows,
+    input.outObservedAt ?? {},
+    emptyOutRead,
+  );
   const whatsOnDated = creditsWhatsOn ? input.whatsOnChecked !== null : true;
   return {
     whatsOn,
@@ -690,13 +697,15 @@ export function tonightProvenanceCredits(input: {
 function outLaneCredit(
   rows: WhatsOnRow[],
   observedAt: Record<string, string>,
+  emptyPubResult = false,
 ): { text: string | null; dated: boolean } {
-  if (rows.length === 0) return { text: null, dated: true };
+  if (rows.length === 0 && !emptyPubResult) return { text: null, dated: true };
   const { labels, oldest, dated } = outLaneObservedAt(rows, observedAt);
   const noun = rows.length === 1 ? "listing" : "listings";
   const via = labels.length === 0 ? "" : ` via ${joinLabels(labels)}`;
   const stamp = dated ? ` · ${checkedLabel(oldest)}` : "";
-  return { text: `${rows.length} ${noun}${via}${stamp}`, dated };
+  const count = emptyPubResult ? "No pub-matched events" : `${rows.length} ${noun}`;
+  return { text: `${count}${via}${stamp}`, dated };
 }
 
 /**
@@ -709,6 +718,11 @@ function outLaneObservedAt(
   observedAt: Record<string, string>,
 ): { labels: string[]; oldest: string | null; dated: boolean } {
   const freshestByLabel = new Map<string, string | null>();
+  if (rows.length === 0) {
+    for (const [label, observed] of Object.entries(observedAt)) {
+      freshestByLabel.set(outSourceDisplayLabel(label), canonicalIso(observed));
+    }
+  }
   for (const row of rows) {
     const raw = row.source?.label?.trim() ?? "";
     if (!raw) continue;

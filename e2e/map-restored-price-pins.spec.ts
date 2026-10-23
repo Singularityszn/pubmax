@@ -1,11 +1,11 @@
 import { expect, test } from "@playwright/test";
 
-import { expectMobileMapShellReady } from "./helpers/mobileMapShell";
+import { expectMapLoadingFrameReleased, expectMobileMapShellReady } from "./helpers/mobileMapShell";
 
 const HATTON = "venue-1vle947";
 
 for (const viewport of [
-  { name: "desktop", width: 1440, height: 900 },
+  { name: "desktop", width: 1280, height: 800 },
   { name: "phone", width: 390, height: 844 },
 ]) {
   test(`${viewport.name} restored search keeps surrounding pins after the venue closes`, async ({ page }) => {
@@ -22,6 +22,7 @@ for (const viewport of [
     });
     await page.goto(`/map?q=Hatton&sel=${HATTON}`);
     if (viewport.name === "phone") await expectMobileMapShellReady(page);
+    await expectMapLoadingFrameReleased(page);
     await expect(page.getByRole("heading", { name: "The Sir Christopher Hatton", exact: true })).toBeVisible({ timeout: 30_000 });
 
     // The former idle query admitted only Hatton, whose pin sat below the
@@ -42,13 +43,14 @@ for (const viewport of [
       }).__pubmaxPaintedMapTapPoints;
       return probe?.().some((point) => point.kind === "cluster" ||
         (point.kind === "pin" && !point.id.startsWith("venue-uk-") && point.id !== "venue-1vle947")) ?? false;
-    })).toBe(true);
+    }), { timeout: 30_000, intervals: [1_000] }).toBe(true);
 
     await page.waitForTimeout(1_000);
     await expect(page.locator("#main")).not.toHaveClass(/detail-open/);
     await expect(page.getByText("Visiting another city?", { exact: true })).toHaveCount(0);
     await page.reload();
     if (viewport.name === "phone") await expectMobileMapShellReady(page);
+    await expectMapLoadingFrameReleased(page);
     await expect.poll(async () => Number(await page.locator(".mapCanvasWrap").getAttribute("data-venue-count")))
       .toBeGreaterThan(1);
     await expect.poll(async () => page.evaluate(() => {

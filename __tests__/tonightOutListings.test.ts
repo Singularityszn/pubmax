@@ -475,6 +475,44 @@ describe("tonight provenance credits", () => {
     observedAt: "2026-08-31T09:00:00.000Z",
   });
 
+  it("dates an empty pub result from Out's own read without counting unmatched events", () => {
+    const credits = tonightProvenanceCredits({
+      renderedGroups: [], outEvents: [{ ...outRow, venueId: undefined }],
+      whatsOnChecked: null, outReadReady: true, pubSuggestionCount: 3,
+      outObservedAt: { ticketmaster: "2026-08-31T09:00:00.000Z" },
+    });
+    expect(credits.out).toBe("No pub-matched events via Ticketmaster · Checked 31 Aug");
+    expect(credits.outDated).toBe(true);
+    expect(credits.whatsOn).toBe("No pub-matched events · via what’s-on");
+    expect(credits.whatsOnDated).toBe(false);
+  });
+
+  it("never uses an event start as the missing source check date", () => {
+    const credits = tonightProvenanceCredits({
+      renderedGroups: [], outEvents: [{ ...outRow, venueId: undefined, observedAt: "not-a-date" }],
+      whatsOnChecked: null, outReadReady: true,
+      outObservedAt: { ticketmaster: "not-a-date" },
+    });
+    expect(credits.out).toBe("No pub-matched events via Ticketmaster");
+    expect(credits.outDated).toBe(false);
+  });
+
+  it("does not credit a failed read as an empty checked result", () => {
+    const credits = tonightProvenanceCredits({
+      renderedGroups: [], outEvents: [outRow], whatsOnChecked: null,
+      outReadReady: false, outObservedAt: { ticketmaster: "2026-08-31T09:00:00.000Z" },
+    });
+    expect(credits.out).toBeNull();
+  });
+
+  it("dates a genuinely empty ready Out read from its provider checks", () => {
+    const credits = tonightProvenanceCredits({
+      renderedGroups: [], outEvents: [], whatsOnChecked: null, outReadReady: true,
+      outObservedAt: { ticketmaster: "2026-08-31T09:00:00.000Z" },
+    });
+    expect(credits.out).toBe("No pub-matched events via Ticketmaster · Checked 31 Aug");
+  });
+
   it("credits and dates each lane by its own read", () => {
     const quiz = row({
       id: "quiz-1",

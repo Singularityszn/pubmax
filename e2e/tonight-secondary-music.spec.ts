@@ -1,8 +1,8 @@
 import { expect, test } from "@playwright/test";
 
-for (const width of [390, 1440]) {
+for (const width of [390, 1280]) {
   test(`Tonight acknowledges its pub-matched music at ${width}px`, async ({ page }) => {
-    await page.setViewportSize({ width, height: width === 390 ? 844 : 900 });
+    await page.setViewportSize({ width, height: width === 390 ? 844 : 800 });
     const now = Date.now();
     const observedAt = new Date(now - 60_000).toISOString();
     const gig = {
@@ -37,7 +37,7 @@ for (const width of [390, 1440]) {
       json: {
         status: "ready",
         listingsStatus: "ready",
-        events: [gig],
+        events: [gig, { ...gig, id: "unmatched-gig", venueId: undefined, title: "Unmatched concert" }],
         openPlans: [],
         attribution: [],
         observedAt: { ticketmaster: observedAt },
@@ -58,6 +58,8 @@ for (const width of [390, 1440]) {
     expect(await musicList.evaluate((list) => getComputedStyle(list).gridTemplateColumns.split(" ").length)).toBe(1);
     await expect(page.getByText("1 sourced live music listing below.", { exact: false })).toBeVisible();
     await expect(page.getByText("A pub gig", { exact: true })).toBeVisible();
+    await expect(musicList.locator(".dealsTonightCard")).toHaveCount(1);
+    await expect(page.getByText("Unmatched concert", { exact: true })).toHaveCount(0);
     await expect(page.getByText("1 listing · Checked", { exact: false })).toBeVisible();
     await expect(page.getByRole("link", { name: /A pub gig The Fixture Arms Ticketmaster/ })).toBeVisible();
     await expect(page.getByText("No confirmed events listed tonight.", { exact: false })).toHaveCount(0);
@@ -76,5 +78,7 @@ for (const width of [390, 1440]) {
       await expect(page.getByRole("heading", { name: "Live music tonight", exact: true })).toBeVisible();
       await expect(page.getByText("A pub gig", { exact: true })).toBeVisible();
     }
+    await page.setViewportSize({ width, height: width === 390 ? 844 : 800 });
+    await page.screenshot({ path: test.info().outputPath(`music-${width}.png`), fullPage: true });
   });
 }

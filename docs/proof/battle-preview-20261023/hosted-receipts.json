@@ -1,0 +1,253 @@
+{
+  "live": {
+    "url": "https://pubmaxxing.com",
+    "version": {
+      "ok": true,
+      "deploymentId": "dpl_H8cZfyzhPPUorvaNVF8hiddpwjxn",
+      "gitCommitSha": "e81aaa6a04b720ddb8ef4b909b35ffad445b0088"
+    },
+    "score": {
+      "schemaVersion": 1,
+      "identity": "PASS",
+      "bars": {
+        "map": "FAIL",
+        "pint": "PASS",
+        "tonight": "FAIL"
+      },
+      "tonight": {
+        "rawRows": 56,
+        "pubMatchedRows": 0,
+        "countBasis": "pub-matched API rows, before display grouping"
+      },
+      "overall": "FAIL"
+    },
+    "out": {
+      "rows": 56,
+      "status": "ready",
+      "listingsStatus": "ready",
+      "venueMatch": "ready",
+      "unmatchedCount": 56,
+      "observedAt": {
+        "ticketmaster": "2026-10-23T12:12:04.735Z"
+      }
+    },
+    "nonGetRequests": {
+      "desktop": 0,
+      "mobile": 0
+    },
+    "analyticsBeforeConsent": {
+      "desktop": 0,
+      "mobile": 0
+    },
+    "home": {
+      "desktop": "942 London pubs is \u00a35.55. In the cheapest third it's \u00a34.19. That's \u00a31.36 a pint you keep.",
+      "mobile": "942 London pubs is \u00a35.55. In the cheapest third it's \u00a34.19. That's \u00a31.36 a pint you keep."
+    },
+    "restored": {
+      "desktop": {
+        "venueCount": 1,
+        "cityPrompt": true,
+        "closeReload": {
+          "url": "https://pubmaxxing.com/map?q=Hatton&sel=venue-1vle947",
+          "selection": "venue-1vle947"
+        }
+      },
+      "mobile": {
+        "venueCount": 1,
+        "cityPrompt": false,
+        "closeReload": {
+          "url": "https://pubmaxxing.com/map?q=Hatton&sel=venue-1vle947",
+          "selection": "venue-1vle947"
+        }
+      }
+    },
+    "redirects": {
+      "desktop": {
+        "/out": {
+          "status": 308,
+          "location": "/tonight"
+        },
+        "/you": {
+          "status": 308,
+          "location": "/u/you"
+        }
+      },
+      "mobile": {
+        "/out": {
+          "status": 308,
+          "location": "/tonight"
+        },
+        "/you": {
+          "status": 308,
+          "location": "/u/you"
+        }
+      }
+    },
+    "structuredData": {
+      "desktop": {
+        "/ledger/venue-1vle947": {
+          "status": 200,
+          "canonical": "https://pubmaxxing.com/ledger/venue-1vle947",
+          "robots": "index, follow, max-image-preview:large",
+          "jsonld": [
+            "[{\"@context\":\"https://schema.org\",\"@type\":\"WebSite\",\"@id\":\"https://pubmaxxing.com/#website\",\"name\":\"PUBMAXX\",\"alternateName\":[\"PubMaxxing\",\"PUBMAXXING\",\"PubMaxx\",\"Pubmax\",\"Pub Maxxing\",\"Pubmaxing\"],\"url\":\"https://pubmaxxing.com\",\"description\":\"PUBMAXX is a London pub map and crawl planner with listed pint prices, explicit source status and cited pub history.\",\"publisher\":{\"@id\":\"https://pubmaxxing.com/#organization\"}},{\"@context\":\"https://schema.org\",\"@type\":\"Organization\",\"@id\":\"https://pubmaxxing.com/#organization\",\"name\":\"PUBMAXX\",\"alternateName\":[\"PubMaxxing\",\"PUBMAXXING\",\"PubMaxx\",\"Pubmax\",\"Pub Maxxing\",\"Pubmaxing\"],\"url\":\"https://pubmaxxing.com\",\"logo\":\"https://pubmaxxing.com/brand/icon-512.png\",\"founder\":{\"@type\":\"Person\",\"name\":\"Karan Manoharan\",\"url\":\"https://x.com/karansznx\"},\"sameAs\":[\"https://x.com/karansznx\",\"https://github.com/karanmrn\"]}]",
+            "{\"@context\":\"https://schema.org\",\"@type\":\"BarOrPub\",\"name\":\"The Sir Christopher Hatton\",\"url\":\"https://pubmaxxing.com/ledger/venue-1vle947\",\"address\":{\"@type\":\"PostalAddress\",\"streetAddress\":\"4 Leather Ln, London EC1N 7RA, UK\",\"addressLocality\":\"Hatton Garden\",\"addressRegion\":\"London\",\"addressCountry\":\"GB\"},\"geo\":{\"@type\":\"GeoCoordinates\",\"latitude\":51.51816,\"longitude\":-0.1089}}"
+          ]
+        },
+        "/pubs/venue-1vle947": {
+          "status": 200,
+          "canonical": "https://pubmaxxing.com/ledger/venue-1vle947",
+          "robots": "noindex, follow",
+          "jsonld": [
+            "[{\"@context\":\"https://schema.org\",\"@type\":\"WebSite\",\"@id\":\"https://pubmaxxing.com/#website\",\"name\":\"PUBMAXX\",\"alternateName\":[\"PubMaxxing\",\"PUBMAXXING\",\"PubMaxx\",\"Pubmax\",\"Pub Maxxing\",\"Pubmaxing\"],\"url\":\"https://pubmaxxing.com\",\"description\":\"PUBMAXX is a London pub map and crawl planner with listed pint prices, explicit source status and cited pub history.\",\"publisher\":{\"@id\":\"https://pubmaxxing.com/#organization\"}},{\"@context\":\"https://schema.org\",\"@type\":\"Organization\",\"@id\":\"https://pubmaxxing.com/#organization\",\"name\":\"PUBMAXX\",\"alternateName\":[\"PubMaxxing\",\"PUBMAXXING\",\"PubMaxx\",\"Pubmax\",\"Pub Maxxing\",\"Pubmaxing\"],\"url\":\"https://pubmaxxing.com\",\"logo\":\"https://pubmaxxing.com/brand/icon-512.png\",\"founder\":{\"@type\":\"Person\",\"name\":\"Karan Manoharan\",\"url\":\"https://x.com/karansznx\"},\"sameAs\":[\"https://x.com/karansznx\",\"https://github.com/karanmrn\"]}]"
+          ]
+        }
+      },
+      "mobile": {
+        "/ledger/venue-1vle947": {
+          "status": 200,
+          "canonical": "https://pubmaxxing.com/ledger/venue-1vle947",
+          "robots": "index, follow, max-image-preview:large",
+          "jsonld": [
+            "[{\"@context\":\"https://schema.org\",\"@type\":\"WebSite\",\"@id\":\"https://pubmaxxing.com/#website\",\"name\":\"PUBMAXX\",\"alternateName\":[\"PubMaxxing\",\"PUBMAXXING\",\"PubMaxx\",\"Pubmax\",\"Pub Maxxing\",\"Pubmaxing\"],\"url\":\"https://pubmaxxing.com\",\"description\":\"PUBMAXX is a London pub map and crawl planner with listed pint prices, explicit source status and cited pub history.\",\"publisher\":{\"@id\":\"https://pubmaxxing.com/#organization\"}},{\"@context\":\"https://schema.org\",\"@type\":\"Organization\",\"@id\":\"https://pubmaxxing.com/#organization\",\"name\":\"PUBMAXX\",\"alternateName\":[\"PubMaxxing\",\"PUBMAXXING\",\"PubMaxx\",\"Pubmax\",\"Pub Maxxing\",\"Pubmaxing\"],\"url\":\"https://pubmaxxing.com\",\"logo\":\"https://pubmaxxing.com/brand/icon-512.png\",\"founder\":{\"@type\":\"Person\",\"name\":\"Karan Manoharan\",\"url\":\"https://x.com/karansznx\"},\"sameAs\":[\"https://x.com/karansznx\",\"https://github.com/karanmrn\"]}]",
+            "{\"@context\":\"https://schema.org\",\"@type\":\"BarOrPub\",\"name\":\"The Sir Christopher Hatton\",\"url\":\"https://pubmaxxing.com/ledger/venue-1vle947\",\"address\":{\"@type\":\"PostalAddress\",\"streetAddress\":\"4 Leather Ln, London EC1N 7RA, UK\",\"addressLocality\":\"Hatton Garden\",\"addressRegion\":\"London\",\"addressCountry\":\"GB\"},\"geo\":{\"@type\":\"GeoCoordinates\",\"latitude\":51.51816,\"longitude\":-0.1089}}"
+          ]
+        },
+        "/pubs/venue-1vle947": {
+          "status": 200,
+          "canonical": "https://pubmaxxing.com/ledger/venue-1vle947",
+          "robots": "noindex, follow",
+          "jsonld": [
+            "[{\"@context\":\"https://schema.org\",\"@type\":\"WebSite\",\"@id\":\"https://pubmaxxing.com/#website\",\"name\":\"PUBMAXX\",\"alternateName\":[\"PubMaxxing\",\"PUBMAXXING\",\"PubMaxx\",\"Pubmax\",\"Pub Maxxing\",\"Pubmaxing\"],\"url\":\"https://pubmaxxing.com\",\"description\":\"PUBMAXX is a London pub map and crawl planner with listed pint prices, explicit source status and cited pub history.\",\"publisher\":{\"@id\":\"https://pubmaxxing.com/#organization\"}},{\"@context\":\"https://schema.org\",\"@type\":\"Organization\",\"@id\":\"https://pubmaxxing.com/#organization\",\"name\":\"PUBMAXX\",\"alternateName\":[\"PubMaxxing\",\"PUBMAXXING\",\"PubMaxx\",\"Pubmax\",\"Pub Maxxing\",\"Pubmaxing\"],\"url\":\"https://pubmaxxing.com\",\"logo\":\"https://pubmaxxing.com/brand/icon-512.png\",\"founder\":{\"@type\":\"Person\",\"name\":\"Karan Manoharan\",\"url\":\"https://x.com/karansznx\"},\"sameAs\":[\"https://x.com/karansznx\",\"https://github.com/karanmrn\"]}]"
+          ]
+        }
+      }
+    }
+  },
+  "preview": {
+    "url": "https://chengdu-ifmm6d1bb-pubmax69.vercel.app",
+    "version": {
+      "ok": true,
+      "deploymentId": "dpl_4eFUq4NCjXBfhCKBtUzCLSqEQrvU",
+      "gitCommitSha": "ac48bbc4cc5fb4b6af34c80321e9cec2e110ff77"
+    },
+    "score": {
+      "schemaVersion": 1,
+      "identity": "PASS",
+      "bars": {
+        "map": "PASS",
+        "pint": "PASS",
+        "tonight": "PASS"
+      },
+      "tonight": {
+        "rawRows": 35,
+        "pubMatchedRows": 0,
+        "countBasis": "pub-matched API rows, before display grouping"
+      },
+      "overall": "PASS"
+    },
+    "out": {
+      "rows": 35,
+      "status": "ready",
+      "listingsStatus": "ready",
+      "venueMatch": "ready",
+      "unmatchedCount": 35,
+      "observedAt": {
+        "ticketmaster": "2026-10-23T05:30:15.053Z"
+      }
+    },
+    "nonGetRequests": {
+      "desktop": 0,
+      "mobile": 0
+    },
+    "analyticsBeforeConsent": {
+      "desktop": 0,
+      "mobile": 0
+    },
+    "home": {
+      "desktop": "942 London pubs is \u00a35.55. In the cheapest third it's \u00a34.19. That's \u00a31.36 a pint you keep.",
+      "mobile": "942 London pubs is \u00a35.55. In the cheapest third it's \u00a34.19. That's \u00a31.36 a pint you keep."
+    },
+    "restored": {
+      "desktop": {
+        "venueCount": 1529,
+        "cityPrompt": false,
+        "closeReload": {
+          "url": "https://chengdu-ifmm6d1bb-pubmax69.vercel.app/map?q=Hatton",
+          "selection": null
+        }
+      },
+      "mobile": {
+        "venueCount": 1019,
+        "cityPrompt": false,
+        "closeReload": {
+          "url": "https://chengdu-ifmm6d1bb-pubmax69.vercel.app/map?q=Hatton",
+          "selection": null,
+          "note": "Rechecked after waiting for URL state before reload. The first capture reloaded before close completed."
+        }
+      }
+    },
+    "redirects": {
+      "desktop": {
+        "/out": {
+          "status": 308,
+          "location": "/tonight"
+        },
+        "/you": {
+          "status": 308,
+          "location": "/u/you"
+        }
+      },
+      "mobile": {
+        "/out": {
+          "status": 308,
+          "location": "/tonight"
+        },
+        "/you": {
+          "status": 308,
+          "location": "/u/you"
+        }
+      }
+    },
+    "structuredData": {
+      "desktop": {
+        "/ledger/venue-1vle947": {
+          "status": 200,
+          "canonical": "https://pubmaxxing.com/ledger/venue-1vle947",
+          "robots": "index, follow, max-image-preview:large",
+          "jsonld": [
+            "[{\"@context\":\"https://schema.org\",\"@type\":\"WebSite\",\"@id\":\"https://pubmaxxing.com/#website\",\"name\":\"PUBMAXX\",\"alternateName\":[\"PubMaxxing\",\"PUBMAXXING\",\"PubMaxx\",\"Pubmax\",\"Pub Maxxing\",\"Pubmaxing\"],\"url\":\"https://pubmaxxing.com\",\"description\":\"PUBMAXX is a London pub map and crawl planner with listed pint prices, explicit source status and cited pub history.\",\"publisher\":{\"@id\":\"https://pubmaxxing.com/#organization\"}},{\"@context\":\"https://schema.org\",\"@type\":\"Organization\",\"@id\":\"https://pubmaxxing.com/#organization\",\"name\":\"PUBMAXX\",\"alternateName\":[\"PubMaxxing\",\"PUBMAXXING\",\"PubMaxx\",\"Pubmax\",\"Pub Maxxing\",\"Pubmaxing\"],\"url\":\"https://pubmaxxing.com\",\"logo\":\"https://pubmaxxing.com/brand/icon-512.png\",\"founder\":{\"@type\":\"Person\",\"name\":\"Karan Manoharan\",\"url\":\"https://x.com/karansznx\"},\"sameAs\":[\"https://x.com/karansznx\",\"https://github.com/karanmrn\"]}]",
+            "{\"@context\":\"https://schema.org\",\"@type\":\"BarOrPub\",\"name\":\"The Sir Christopher Hatton\",\"url\":\"https://pubmaxxing.com/ledger/venue-1vle947\",\"address\":{\"@type\":\"PostalAddress\",\"streetAddress\":\"4 Leather Ln, London EC1N 7RA, UK\",\"addressLocality\":\"Hatton Garden\",\"addressRegion\":\"London\",\"addressCountry\":\"GB\"},\"geo\":{\"@type\":\"GeoCoordinates\",\"latitude\":51.51816,\"longitude\":-0.1089}}"
+          ]
+        },
+        "/pubs/venue-1vle947": {
+          "status": 200,
+          "canonical": "https://pubmaxxing.com/ledger/venue-1vle947",
+          "robots": "noindex, follow",
+          "jsonld": [
+            "[{\"@context\":\"https://schema.org\",\"@type\":\"WebSite\",\"@id\":\"https://pubmaxxing.com/#website\",\"name\":\"PUBMAXX\",\"alternateName\":[\"PubMaxxing\",\"PUBMAXXING\",\"PubMaxx\",\"Pubmax\",\"Pub Maxxing\",\"Pubmaxing\"],\"url\":\"https://pubmaxxing.com\",\"description\":\"PUBMAXX is a London pub map and crawl planner with listed pint prices, explicit source status and cited pub history.\",\"publisher\":{\"@id\":\"https://pubmaxxing.com/#organization\"}},{\"@context\":\"https://schema.org\",\"@type\":\"Organization\",\"@id\":\"https://pubmaxxing.com/#organization\",\"name\":\"PUBMAXX\",\"alternateName\":[\"PubMaxxing\",\"PUBMAXXING\",\"PubMaxx\",\"Pubmax\",\"Pub Maxxing\",\"Pubmaxing\"],\"url\":\"https://pubmaxxing.com\",\"logo\":\"https://pubmaxxing.com/brand/icon-512.png\",\"founder\":{\"@type\":\"Person\",\"name\":\"Karan Manoharan\",\"url\":\"https://x.com/karansznx\"},\"sameAs\":[\"https://x.com/karansznx\",\"https://github.com/karanmrn\"]}]"
+          ]
+        }
+      },
+      "mobile": {
+        "/ledger/venue-1vle947": {
+          "status": 200,
+          "canonical": "https://pubmaxxing.com/ledger/venue-1vle947",
+          "robots": "index, follow, max-image-preview:large",
+          "jsonld": [
+            "[{\"@context\":\"https://schema.org\",\"@type\":\"WebSite\",\"@id\":\"https://pubmaxxing.com/#website\",\"name\":\"PUBMAXX\",\"alternateName\":[\"PubMaxxing\",\"PUBMAXXING\",\"PubMaxx\",\"Pubmax\",\"Pub Maxxing\",\"Pubmaxing\"],\"url\":\"https://pubmaxxing.com\",\"description\":\"PUBMAXX is a London pub map and crawl planner with listed pint prices, explicit source status and cited pub history.\",\"publisher\":{\"@id\":\"https://pubmaxxing.com/#organization\"}},{\"@context\":\"https://schema.org\",\"@type\":\"Organization\",\"@id\":\"https://pubmaxxing.com/#organization\",\"name\":\"PUBMAXX\",\"alternateName\":[\"PubMaxxing\",\"PUBMAXXING\",\"PubMaxx\",\"Pubmax\",\"Pub Maxxing\",\"Pubmaxing\"],\"url\":\"https://pubmaxxing.com\",\"logo\":\"https://pubmaxxing.com/brand/icon-512.png\",\"founder\":{\"@type\":\"Person\",\"name\":\"Karan Manoharan\",\"url\":\"https://x.com/karansznx\"},\"sameAs\":[\"https://x.com/karansznx\",\"https://github.com/karanmrn\"]}]",
+            "{\"@context\":\"https://schema.org\",\"@type\":\"BarOrPub\",\"name\":\"The Sir Christopher Hatton\",\"url\":\"https://pubmaxxing.com/ledger/venue-1vle947\",\"address\":{\"@type\":\"PostalAddress\",\"streetAddress\":\"4 Leather Ln, London EC1N 7RA, UK\",\"addressLocality\":\"Hatton Garden\",\"addressRegion\":\"London\",\"addressCountry\":\"GB\"},\"geo\":{\"@type\":\"GeoCoordinates\",\"latitude\":51.51816,\"longitude\":-0.1089}}"
+          ]
+        },
+        "/pubs/venue-1vle947": {
+          "status": 200,
+          "canonical": "https://pubmaxxing.com/ledger/venue-1vle947",
+          "robots": "noindex, follow",
+          "jsonld": [
+            "[{\"@context\":\"https://schema.org\",\"@type\":\"WebSite\",\"@id\":\"https://pubmaxxing.com/#website\",\"name\":\"PUBMAXX\",\"alternateName\":[\"PubMaxxing\",\"PUBMAXXING\",\"PubMaxx\",\"Pubmax\",\"Pub Maxxing\",\"Pubmaxing\"],\"url\":\"https://pubmaxxing.com\",\"description\":\"PUBMAXX is a London pub map and crawl planner with listed pint prices, explicit source status and cited pub history.\",\"publisher\":{\"@id\":\"https://pubmaxxing.com/#organization\"}},{\"@context\":\"https://schema.org\",\"@type\":\"Organization\",\"@id\":\"https://pubmaxxing.com/#organization\",\"name\":\"PUBMAXX\",\"alternateName\":[\"PubMaxxing\",\"PUBMAXXING\",\"PubMaxx\",\"Pubmax\",\"Pub Maxxing\",\"Pubmaxing\"],\"url\":\"https://pubmaxxing.com\",\"logo\":\"https://pubmaxxing.com/brand/icon-512.png\",\"founder\":{\"@type\":\"Person\",\"name\":\"Karan Manoharan\",\"url\":\"https://x.com/karansznx\"},\"sameAs\":[\"https://x.com/karansznx\",\"https://github.com/karanmrn\"]}]"
+          ]
+        }
+      }
+    }
+  }
+}

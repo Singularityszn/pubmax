@@ -75,6 +75,35 @@ const soho = getNightArea("piccadilly-soho");
 // A map centre far from Shoreditch so distance ordering is unambiguous.
 const CENTRE: [number, number] = [soho.centre.lng, soho.centre.lat];
 
+describe("drink-aware venue suggestions", () => {
+  const venues = [
+    venue({ id: "restaurant", name: "Soho Kitchen", kind: "restaurant", cheapestPrice: 12 }),
+    venue({ id: "pub", name: "The Soho Arms", kind: "pub", latitude: 51.51, cheapestPrice: 5.2 }),
+    venue({ id: "cocktails", name: "Soho Cocktails", kind: "bar", cheapestPrice: 10 }),
+  ];
+
+  it("puts a priced pub above nearer food and cocktail matches in Pints", () => {
+    const result = buildMapSearchSuggestions({ cityId: "london", query: "Soho", venues,
+      userLocation: null, mapCenter: [-0.12, 51.5], drinkCategory: "beer" });
+    expect(result.pubs.map((item) => item.id)).toEqual(["pub", "cocktails", "restaurant"]);
+    expect(result.pubs[0]?.priceLabel).toBe("£5.20");
+    expect(result.pubs.find((item) => item.id === "restaurant")?.priceLabel).toBeNull();
+  });
+
+  it("keeps an exact venue name above an area-like pint match", () => {
+    const result = buildMapSearchSuggestions({ cityId: "london", query: "Soho Kitchen",
+      venues: [...venues, venue({ id: "other", name: "Soho Kitchen Arms", kind: "pub", cheapestPrice: 4 })],
+      userLocation: null, mapCenter: [-0.12, 51.5], drinkCategory: "beer" });
+    expect(result.pubs[0]?.id).toBe("restaurant");
+  });
+
+  it("preserves distance order for another drink category", () => {
+    const result = buildMapSearchSuggestions({ cityId: "london", query: "Soho", venues,
+      userLocation: null, mapCenter: [-0.12, 51.5], drinkCategory: "wine" });
+    expect(result.pubs.map((item) => item.id)).toEqual(["cocktails", "restaurant", "pub"]);
+  });
+});
+
 describe("formatSuggestDistance — honest, origin-aware register", () => {
   it("reads the viewer's own distance as 'away'", () => {
     expect(formatSuggestDistance(0, "user")).toBe("right here");
