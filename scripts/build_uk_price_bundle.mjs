@@ -56,7 +56,7 @@ import {
   isHarvestableDrinkUpdateUrl,
 } from "@/lib/harvest/sourcePolicy";
 import { ESTIMATE_DRINK_CATEGORIES, estimateForPub } from "@/lib/priceEstimate";
-import { normalizeSiteHarvestLedgerRow } from "@/lib/siteHarvestLedgerCore";
+import { currentSiteHarvestRows, normalizeSiteHarvestLedgerRow } from "@/lib/siteHarvestLedgerCore";
 import { estimateBaselines } from "@/lib/priceEstimateBaselines";
 import {
   bundleRowSupersedes,
@@ -248,8 +248,9 @@ function collectRows(report) {
   const harvest = siteHarvestRows();
   const pubs = basePubs();
   const owners = curatedOwners(pubs);
+  const currentHarvest = currentSiteHarvestRows(harvest.rows);
   addSiteHarvestRows(
-    harvest.rows,
+    currentHarvest,
     siteHarvestOwners(harvest.rows, pubs, owners),
     new Set(pubs.map((pub) => pub.ref)),
     push,
@@ -257,6 +258,7 @@ function collectRows(report) {
     existsSync(BOUNDARIES) ? read(BOUNDARIES) : null,
     existsSync(VENUE_ALIASES) ? read(VENUE_ALIASES).aliases ?? {} : {},
   );
+  notes.push(`site-harvest: ${harvest.rows.length - currentHarvest.length} row(s) superseded by complete source-page reads`);
   notes.push(
     harvest.from
       ? `site-harvest: ${harvest.rows.length} row(s) read from ${harvest.from}`

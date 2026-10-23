@@ -10293,6 +10293,22 @@
         "rowCount": 7965,
         "siteHarvestRows": 3850
       }
+    },
+    {
+      "sourceEvidencePath": "data/uk_prices/later_publications/2026-10-23-smallbeern8-co-uk-drinks.json",
+      "sourceEvidenceSha256": "9ae746aba12c4a1cdbb4dfe05acd9b1addc5bea123d77c42816a4d678e396735",
+      "sourceUrl": "https://www.smallbeern8.co.uk/drinks",
+      "sourceObservedAt": "2026-10-23T16:08:27.530Z",
+      "addedRows": 19,
+      "currentLedger": {
+        "sha256": "358be16480f64143cc31a244178fb459dec1e9880e6b18dedfe34f9e2b0df8a9",
+        "rowCount": 4031,
+        "rowIdentitySetSha256": "eb895ed149f1e79df63653d7d3411b1231cb3332cabe07cf51089c3739cbbfd5"
+      },
+      "currentBundle": {
+        "rowCount": 7977,
+        "siteHarvestRows": 3862
+      }
     }
   ]
 }

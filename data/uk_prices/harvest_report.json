@@ -1,23 +1,30 @@
 {
   "version": 1,
-  "generatedAt": "2026-09-21T19:01:56.493Z",
+  "generatedAt": "2026-10-23T16:08:27.535Z",
   "snapshot": {
-    "pubs": 38215,
-    "statedWebsite": 1839,
+    "pubs": 38122,
+    "statedWebsite": 1860,
     "refusedByPolicy": 105
   },
   "londonScope": {
     "enabled": true,
-    "pubsOutsideBboxSkipped": 34566,
+    "pubsOutsideBboxSkipped": 34482,
+    "curatedWebsites": {
+      "considered": 2259,
+      "added": 278,
+      "hostsAdded": 274,
+      "alreadyCandidate": 851,
+      "refused": 982
+    },
     "menuEnrichment": {
-      "seeded": 51,
+      "seeded": 75,
       "venuesConsidered": 119,
-      "onUnknownHost": 24,
+      "onUnknownHost": 0,
       "refused": 88
     },
     "chainMenuSourcesOmitted": true
   },
-  "hostsKnown": 1267,
+  "hostsKnown": 1551,
   "overlayMenuUrls": {
     "inputRead": true,
     "held": 0,
@@ -25,49 +32,41 @@
     "seeded": 0,
     "onHostWithNoSnapshotPub": 0
   },
-  "hostsCrawledThisRun": 1262,
-  "hostsInLedger": 1267,
-  "pagesRead": 3515,
-  "pdfs": {
-    "seen": 142,
-    "read": 140,
-    "unreadable": 2
+  "exaSites": {
+    "inputRead": false
   },
-  "pageBudget": 20000,
+  "hostsCrawledThisRun": 1,
+  "hostsInLedger": 1,
+  "pagesRead": 3,
+  "pdfs": {
+    "seen": 0,
+    "read": 0,
+    "unreadable": 0
+  },
+  "pageBudget": 6,
   "outcomes": {
-    "priced": 66,
-    "robots-disallowed": 3,
-    "robots-unreadable": 92,
+    "priced": 1,
+    "robots-disallowed": 0,
+    "robots-unreadable": 0,
     "policy-refused-host": 0,
-    "unreachable": 219,
-    "no-menu-page-found": 240,
-    "menu-states-no-price": 645,
-    "estate-page-names-no-pub": 2
+    "unreachable": 0,
+    "no-menu-page-found": 0,
+    "menu-states-no-price": 0,
+    "estate-page-names-no-pub": 0,
+    "exa-site-unbound": 0
   },
   "robotsFiles": {
-    "rules-file": 928,
-    "html-page": 44,
-    "absent": 76,
-    "unreachable": 127,
-    "challenge-page": 70,
-    "http-refused": 21,
-    "not-a-rules-file": 1
+    "rules-file": 1
   },
-  "pubsOnPricedHosts": 66,
+  "pubsOnPricedHosts": 1,
   "drops": {
-    "offer-not-a-menu-price": 2451,
-    "food-word-nearby": 4014,
-    "no-price-on-page": 1706,
-    "judgment-needs-review": 18,
-    "outside-category-band": 1045,
-    "bottled-measure-not-a-pint": 477,
-    "judgment-below-threshold": 394,
-    "typesafe-judgment-call-error": 9597,
-    "mixer-serve-not-one-drink": 35,
-    "no-category-word-nearby": 4176,
-    "page-is-not-a-drinks-list": 135,
-    "half-measure-not-a-pint": 24,
-    "typesafe-judgment-call-timeout": 40
+    "no-price-on-page": 1,
+    "food-word-nearby": 1,
+    "no-category-word-nearby": 2,
+    "fractional-measure-not-a-pint": 3,
+    "bottled-measure-not-a-pint": 3,
+    "outside-category-band": 1,
+    "item-name-ambiguous": 3
   },
   "sourcesRefusedByPolicy": [
     {
@@ -78,8 +77,8 @@
     {
       "id": "mitchells-butlers-menu-prices",
       "reason": "robots-unreadable",
-      "checkedOn": "2026-09-03"
+      "checkedOn": "2026-09-22"
     }
   ],
-  "elapsedSeconds": 2820
+  "elapsedSeconds": 2
 }

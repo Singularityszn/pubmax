@@ -4,6 +4,7 @@ import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 
 import {
+  currentSiteHarvestRows,
   dedupeSiteHarvestLedgerRows,
   loadCuratedUkBaseOwners,
   normalizeSiteHarvestLedgerRow,
@@ -148,5 +149,39 @@ describe("site harvest ledger", () => {
     expect(nicholsonRows).toHaveLength(0);
     expect(refusedSoftDrinkRows).toHaveLength(0);
     expect(alcoholicMislabels).toHaveLength(0);
+  });
+});
+
+
+describe("complete source-page replacement", () => {
+  const older = { venueId: "venue-uk-n1", category: "beer", priceGbp: 5,
+    drinkLabel: "Old label", sourceUrl: "https://example.com/menu",
+    observedAt: "2026-09-01T00:00:00Z" };
+  const newer = { ...older, drinkLabel: "New label", priceGbp: 6,
+    observedAt: "2026-10-23T12:00:00Z", sourceSnapshotComplete: true };
+  const now = Date.parse("2026-10-23T14:00:00Z");
+
+  it("retires old names only for the same pub and complete source page", () => {
+    const otherPub = { ...older, venueId: "venue-uk-n2" };
+    const otherPage = { ...older, sourceUrl: "https://example.com/other-menu" };
+    const history = [older, otherPub, otherPage, newer];
+    expect(currentSiteHarvestRows(history, now)).toEqual([otherPub, otherPage, newer]);
+    expect(history).toEqual([older, otherPub, otherPage, newer]);
+  });
+
+  it("retains old names for partial, malformed or future reads", () => {
+    for (const partial of [
+      { ...newer, sourceSnapshotComplete: false },
+      { ...newer, sourceSnapshotComplete: undefined },
+      { ...newer, priceGbp: -1 },
+      { ...newer, observedAt: "invalid" },
+      { ...newer, observedAt: "2026-10-24T12:00:00Z" },
+    ]) expect(currentSiteHarvestRows([older, partial], now)).toEqual([older, partial]);
+  });
+
+  it("keeps every row in a complete reading and any later partial reading", () => {
+    const sibling = { ...newer, drinkLabel: "Second beer", priceGbp: 7 };
+    const later = { ...older, observedAt: "2026-10-23T13:00:00Z" };
+    expect(currentSiteHarvestRows([older, newer, sibling, later], now)).toEqual([newer, sibling, later]);
   });
 });

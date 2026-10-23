@@ -665,6 +665,7 @@ function appendPriceRows(entry, rows) {
           ...(row.servingSize ? { servingSize: row.servingSize } : {}),
           sourceUrl: row.url,
           observedAt,
+          sourceSnapshotComplete: true,
           pubsOnHost: entry.pubs.length,
           linesOnPage: row.linesOnPage,
         }),
