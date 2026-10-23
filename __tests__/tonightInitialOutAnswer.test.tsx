@@ -203,16 +203,17 @@ describe("Tonight's serialized Out answer", () => {
     });
 
     it.each([
-      { label: "", expected: "Ticketmaster and an unrecorded source", dated: false },
-      { label: "Skiddle", expected: "Ticketmaster and Skiddle", dated: true },
-    ])("preserves mixed-source attribution and date uncertainty: $label", ({ label, expected, dated }) => {
+      { label: "", observedAt: "", expected: "Ticketmaster and an unrecorded source", dated: false },
+      { label: "Skiddle", observedAt: "", expected: "Ticketmaster and Skiddle", dated: false },
+      { label: "Skiddle", observedAt: OBSERVED, expected: "Ticketmaster and Skiddle", dated: true },
+    ])("preserves mixed-source attribution and date uncertainty: $label / $observedAt", ({ label, observedAt, expected, dated }) => {
       const doc = new DOMParser().parseFromString(renderDocument({
         ...readyOut,
         body: {
           ...body,
           events: [
-            { ...unmatched, source: ticketmasterEvent.source, observedAt: "" },
-            { ...unmatched, id: "other-source", source: { label, url: "https://example.com/event" }, observedAt: "" },
+            { ...unmatched, source: ticketmasterEvent.source, observedAt },
+            { ...unmatched, id: "other-source", source: { label, url: "https://example.com/event" }, observedAt },
           ],
           observedAt: { ticketmaster: OBSERVED, skiddle: OBSERVED },
         },
