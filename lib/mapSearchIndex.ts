@@ -96,7 +96,7 @@ function matchScore(query: string, name: string, area = ""): number | null {
   const areaWords = words(normalisedArea);
   if (normalisedName === query) return 10;
   if (normalisedName.startsWith(query)) return 20;
-  if (nameWords.some((word) => word.startsWith(query))) return 22;
+  if (nameWords.some((word) => word.startsWith(query))) return 20;
   if (normalisedArea === query) return 30;
   if (normalisedArea.startsWith(query)) return 32;
   if (areaWords.some((word) => word.startsWith(query))) return 34;

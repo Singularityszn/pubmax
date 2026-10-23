@@ -150,10 +150,14 @@ export function mergeMapSearchVenueSuggestions(input: {
       id: row.item.id, name: row.item.name, sourceName: venue?.sourceName,
       area: row.item.boroughLabel,
     };
+    const nameTier = matchTier(venueSearchNames(record), normalizeSearchText(input.query));
+    const score = row.type === "indexedVenue"
+      ? mapSearchVenueScore(record, input.query) ?? Number.MAX_SAFE_INTEGER
+      : nameTier === 0 ? 10 : nameTier === 1 ? 20 : nameTier === 2 ? 40 : Number.MAX_SAFE_INTEGER;
     return {
       score: preferPints
-        ? mapSearchVenueScore(record, input.query) ?? Number.MAX_SAFE_INTEGER
-        : matchTier(venueSearchNames(record), normalizeSearchText(input.query)) === 0 ? 0 : 1,
+        ? score
+        : nameTier === 0 ? 0 : 1,
       pint: row.type === "indexedVenue"
         ? mapSearchPintRank(row.item.venueKind, row.item.pintPrice)
         : mapSearchPintRank(row.item.kind, venue ? verifiedPrice(venue) : null),

@@ -99,7 +99,13 @@ describe("Map search current-city priority", () => {
     expect(onSelectVenue).toHaveBeenCalledWith(...(expected === "indexed" ? ["indexed", "london"] : ["loaded"]));
   });
 
-  it.each(["wine", "cider", "spirits"])("preserves loaded %s order before and after the index arrives", async (drinkCategory) => {
+  it.each([
+    { drinkCategory: "", expected: ["george-iv", "indexed-george", "george-dragon"] },
+    { drinkCategory: "beer", expected: ["george-iv", "indexed-george", "george-dragon"] },
+    { drinkCategory: "wine", expected: ["george-iv", "george-dragon", "indexed-george"] },
+    { drinkCategory: "cider", expected: ["george-iv", "george-dragon", "indexed-george"] },
+    { drinkCategory: "spirits", expected: ["george-iv", "george-dragon", "indexed-george"] },
+  ])("preserves loaded $drinkCategory order before and after the index arrives", async ({ drinkCategory, expected }) => {
     let resolveIndex!: (index: MapSearchIndex) => void;
     vi.mocked(loadMapSearchIndex).mockReturnValueOnce(new Promise((resolve) => {
       resolveIndex = resolve;
@@ -114,7 +120,7 @@ describe("Map search current-city priority", () => {
         onQueryChange: vi.fn(),
         venues: [
           { ...londonVenue(), id: "george-iv", name: "The George IV", latitude: 51.5147, longitude: -0.12 },
-          { ...londonVenue(), id: "george-dragon", name: "George and Dragon, Fitzrovia", latitude: 51.52, longitude: -0.14 },
+          { ...londonVenue(), id: "george-dragon", name: "George and Dragon, Fitzrovia", latitude: 51.52, longitude: -0.14, cheapestPrice: null },
         ],
         localities: [], userLocation: null, mapCenter: [-0.12, 51.5147],
         placeholder: "Search the map", onSelectVenue, onFlyToArea: vi.fn(),
@@ -132,7 +138,7 @@ describe("Map search current-city priority", () => {
       });
     });
     const options = venueOptions();
-    expect(options.map((option) => option.dataset.venueId)).toEqual(["george-iv", "george-dragon", "indexed-george"]);
+    expect(options.map((option) => option.dataset.venueId)).toEqual(expected);
 
     const input = container.querySelector<HTMLInputElement>('[role="combobox"]')!;
     for (const option of options) {
@@ -140,7 +146,9 @@ describe("Map search current-city priority", () => {
       expect(input.getAttribute("aria-activedescendant")).toBe(option.id);
       act(() => input.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true })));
     }
-    expect(onSelectVenue.mock.calls).toEqual([["george-iv"], ["george-dragon"], ["indexed-george", "london"]]);
+    expect(onSelectVenue.mock.calls).toEqual(expected.map((id) =>
+      id === "indexed-george" ? [id, "london"] : [id],
+    ));
   });
 
   it("selects the current Map venue before a cross-city name match", async () => {

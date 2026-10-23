@@ -25,6 +25,21 @@ const packs: MapSearchPack[] = [
 ];
 
 describe("map search index", () => {
+  it.each([
+    { preferPints: true, expected: ["george-iv", "george-dragon"] },
+    { preferPints: false, expected: ["george-dragon", "george-iv"] },
+  ])("ranks label and word prefixes in the same tier before limiting: $preferPints", ({ preferPints, expected }) => {
+    const index = buildMapSearchIndex(cities, [{ cityId: "london", venues: [
+      { id: "george-dragon", name: "George and Dragon, Fitzrovia", area: "Westminster", venueKind: "pub" },
+      { id: "george-iv", name: "The George IV", area: "Westminster", venueKind: "pub", pintPrice: 6.5 },
+    ] }]);
+    expect(searchMapSearchIndex(index, "geor", 2, { preferPints }).map((row) => row.id)).toEqual(expected);
+    expect(searchMapSearchIndex(index, "geor", 1, { preferPints }).map((row) => row.id)).toEqual(expected.slice(0, 1));
+
+    index.venues = [...index.venues, { id: "exact", name: "Geor", area: "Westminster", cityId: "london", venueKind: "bar" }];
+    expect(searchMapSearchIndex(index, "geor", 1, { preferPints }).map((row) => row.id)).toEqual(["exact"]);
+  });
+
   it("ranks supported pint pubs before the result limit without changing other modes", () => {
     const index = buildMapSearchIndex(cities, [{ cityId: "london", venues: [
       { id: "restaurant", name: "Soho A Kitchen", area: "Soho", venueKind: "restaurant", pintPrice: 12 },

@@ -6,6 +6,7 @@ import {
   formatSuggestDistance,
   LOCALITY_FLY_ZOOM,
   mapSearchVenuesLeadAreas,
+  mergeMapSearchVenueSuggestions,
   SUGGEST_PUB_LIMIT,
 } from "@/lib/mapSearchSuggest";
 import {
@@ -101,6 +102,21 @@ describe("drink-aware venue suggestions", () => {
     const result = buildMapSearchSuggestions({ cityId: "london", query: "Soho", venues,
       userLocation: null, mapCenter: [-0.12, 51.5], drinkCategory: "wine" });
     expect(result.pubs.map((item) => item.id)).toEqual(["cocktails", "restaurant", "pub"]);
+  });
+
+  it.each([
+    { drinkCategory: "beer", expected: ["priced", "unpriced"] },
+    { drinkCategory: "wine", expected: ["unpriced", "priced"] },
+  ])("keeps loaded name tiers independent of area matches in $drinkCategory", ({ drinkCategory, expected }) => {
+    const matchingVenues = [
+      venue({ id: "priced", name: "The Riverside Arms", kind: "pub", cheapestPrice: 5.2, latitude: 51.51 }),
+      venue({ id: "unpriced", name: "East Riverside Inn", kind: "pub", locality: "Side" }),
+    ];
+    const suggestions = buildMapSearchSuggestions({ cityId: "london", query: "side", venues: matchingVenues,
+      userLocation: null, mapCenter: [-0.12, 51.5], drinkCategory });
+    expect(suggestions.pubs.map((item) => item.id)).toEqual(expected);
+    expect(mergeMapSearchVenueSuggestions({ query: "side", drinkCategory, venues: matchingVenues,
+      pubs: suggestions.pubs, indexedVenues: [] }).map((row) => row.item.id)).toEqual(expected);
   });
 });
 
