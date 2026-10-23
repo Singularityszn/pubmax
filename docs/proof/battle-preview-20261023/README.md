@@ -1,6 +1,7 @@
 # Preview battle-test evidence, 23 October 2026
 
-This record describes local changes based on `b58546dfe18ce2834e576e8378bf99cb6c475e04`.
+This record describes evidence for the original candidate, based on `b58546dfe18ce2834e576e8378bf99cb6c475e04`.
+The candidate branch later rebased onto newer main commits. These captures do not verify the rebased head.
 It does not establish a new hosted deployment.
 Karan reported that he had not applied the proposed build setting.
 
@@ -11,7 +12,7 @@ Karan reported that he had not applied the proposed build setting.
 | Live | `e81aaa6a04b720ddb8ef4b909b35ffad445b0088` | `dpl_H8cZfyzhPPUorvaNVF8hiddpwjxn` | Read-only hosted rerun |
 | Existing preview | `ac48bbc4cc5fb4b6af34c80321e9cec2e110ff77` | `dpl_4eFUq4NCjXBfhCKBtUzCLSqEQrvU` | Read-only hosted rerun |
 | Pinned main | `b58546dfe18ce2834e576e8378bf99cb6c475e04` | No accepted Git READY receipt | Local production build and fixtures |
-| Candidate | This branch, based on pinned main | No accepted Git READY receipt | Local production build, browser tests and isolated database |
+| Original candidate | Based on pinned main | No accepted Git READY receipt | Local production build, browser tests and isolated database |
 
 The existing preview used an explicit ignore-step bypass. It does not satisfy Git build acceptance.
 The local branch `codex/preview/main-2026-10-23` points to the exact pinned main commit without an additional commit.
