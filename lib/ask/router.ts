@@ -67,6 +67,7 @@ const VENUE_COMPARISON_MODIFIERS = "(?:quiet(?:-ish)?|calm|low-key|lively|buzzin
 const IMPLICIT_PUB_COMPARISON_SUBJECT_RE = new RegExp(`^(?:and\\s+)?(?:${VENUE_COMPARISON_MODIFIERS}(?:\\s+(?:and\\s+)?${VENUE_COMPARISON_MODIFIERS})*)?$`, "i");
 const PUB_DISCOVERY_CONSTRAINT_RE = new RegExp(`\\b${VENUE_COMPARISON_MODIFIERS}\\b`, "i");
 const PUB_COMPARISON_SUBJECT_RE = new RegExp(`^(?:(?:listed|recorded|local|nearby|${VENUE_COMPARISON_MODIFIERS})\\s+)*pubs?(?:\\s+(?:with|serving|that serves?)\\s+(?:food|(?:a\\s+)?(?:beer\\s+)?garden|(?:live\\s+)?sports))?$`, "i");
+const PUB_LISTED_PINT_SUBJECT_RE = new RegExp(`^(?:(?:one|two|three|four|five|six|[1-6])\\s+)?(?:${VENUE_COMPARISON_MODIFIERS}\\s+)*pubs?\\s+with\\s+(?:(?:listed|recorded)\\s+)?pints?$`, "i");
 const PLAN_COMPARISON_SUBJECT = `(?:(?:3|three)[- ]stop\\s+)?(?:${VENUE_COMPARISON_MODIFIERS}\\s+)*(?:pub\\s+)?(?:crawl|night|route)`;
 const PLAN_COMPARISON_SUBJECT_RE = new RegExp(`^${PLAN_COMPARISON_SUBJECT}$`, "i");
 const PLAN_COMPARISON_TAIL_RE = new RegExp(`\\s+(?:and|with)\\s+(?:a\\s+)?${PLAN_COMPARISON_SUBJECT}$`, "i");
@@ -130,12 +131,16 @@ export function resolveAskJourney(query: string): { from?: string; to: string } 
   return { to: endpoints };
 }
 
+// Presentation requests describe the answer, not an item whose price is sought.
+// Keep this whole-clause match narrow so a second food/drink ask stays visible.
+const PRICE_PRESENTATION_CLAUSE_RE = /^(?:please\s+)?(?:show|include|give)(?:\s+me)?\s+(?:the\s+)?(?:sources?|source dates?|recorded dates?|map)(?:\s+and\s+(?:the\s+)?(?:sources?|source dates?|recorded dates?|map))*$/i;
+
 function priceQuestion(query: string): string {
-  const clauses = askRequestClauses(query).map((clause) =>
+  const clauses = askRequestClauses(query).flatMap((clause) => clause.split(/(?<=[.!?])\s+(?=(?:please\s+)?(?:show|include|give)\s)/i)).map((clause) =>
     stripTrailingQualifiers(stripTrailingPunctuation(clause)),
   );
   const priceClauses = clauses.filter((clause) =>
-    !socialTurnKind(clause) && !((isCityStatusRequest(clause) || JOURNEY_RE.test(clause))
+    clause.length > 0 && !socialTurnKind(clause) && !PRICE_PRESENTATION_CLAUSE_RE.test(clause) && !((isCityStatusRequest(clause) || JOURNEY_RE.test(clause))
       && !ITEM_PRICE_RE.test(clause) && !PRICE_COMPARISON_RE.test(clause)),
   );
   return priceClauses.join(" and ");
@@ -148,7 +153,7 @@ export function namedMenuRequest(query: string): { venueName: string; subject: s
   const subject = question.slice(0, question.search(/\bat\s+/i)).trim();
   if (!/\b(?:prices?|costs?|how much|menu|food|meals?|calories|calorie|kcal|dietary|vegan|vegetarian|gluten[- ]free|servings?)\b/i.test(subject)) return null;
   const priceSubject = priceComparisonSubject(question);
-  if (priceSubject !== null && (PINT_COMPARISON_SUBJECT_RE.test(priceSubject) || PUB_COMPARISON_SUBJECT_RE.test(priceSubject) || !priceSubject)) return null;
+  if (priceSubject !== null && (PINT_COMPARISON_SUBJECT_RE.test(priceSubject) || PUB_COMPARISON_SUBJECT_RE.test(priceSubject) || PUB_LISTED_PINT_SUBJECT_RE.test(priceSubject) || !priceSubject)) return null;
   return { venueName, subject };
 }
 
@@ -186,7 +191,7 @@ function priceComparisonSubject(query: string): string | null {
       return conjunction < 0 ? " " : place.slice(conjunction);
     }).trim();
     return normalizeSubject(subject.replace(/^(?:and|with)\s+/i, ""))
-      .replace(PRICE_COMPARISON_RE, "").trim();
+      .replace(PRICE_COMPARISON_RE, "").replace(/\s+/g, " ").trim();
   });
   return subjects.filter(Boolean).join(" ");
 }
@@ -211,7 +216,7 @@ export function resolveAskPriceIntent(query: string): AskPriceIntent {
   const priceSubject = comparative && PLAN_RE.test(query)
     ? subject.replace(PLAN_COMPARISON_TAIL_RE, "") : subject;
   const food = FOOD_RE.test(priceSubject);
-  if ((PINT_COMPARISON_SUBJECT_RE.test(priceSubject) || PUB_COMPARISON_SUBJECT_RE.test(priceSubject)) && (!food || comparative)) {
+  if ((PINT_COMPARISON_SUBJECT_RE.test(priceSubject) || PUB_COMPARISON_SUBJECT_RE.test(priceSubject) || PUB_LISTED_PINT_SUBJECT_RE.test(priceSubject)) && (!food || comparative)) {
     return PLAN_RE.test(query) ? { kind: "plan" } : { kind: "pint", venueName, foodAvailability: food };
   }
   if (PLAN_RE.test(query) && PLAN_COMPARISON_SUBJECT_RE.test(subject)) return { kind: "plan" };

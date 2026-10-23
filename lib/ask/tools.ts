@@ -123,8 +123,10 @@ async function toolSearchVenues(
     const parsed = await parseConciergeIntent(query, { skipModel: true });
     const venues = await loadConciergeVenues(ctx.cityId);
     const ceiling = parsed.intent.maxPintPrice;
-    const eligible = ceiling === undefined ? venues : venues.filter((venue) =>
-      venue.cheapestPrice !== null && venue.cheapestPrice > 0 && venue.cheapestPrice <= ceiling,
+    const requiresPintPrice = resolveAskPriceIntent(query).kind === "pint";
+    const eligible = ceiling === undefined && !requiresPintPrice ? venues : venues.filter((venue) =>
+      venue.cheapestPrice !== null && venue.cheapestPrice > 0
+      && (ceiling === undefined || venue.cheapestPrice <= ceiling),
     );
     const ranked = rankConciergeVenues(eligible, parsed.intent, {
       limit,

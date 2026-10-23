@@ -152,7 +152,7 @@ export type RunAskInput = {
   query: string;
   cityId?: unknown;
   turns?: unknown;
-  /** When true, never call OpenRouter (tests / production without durable limiter). */
+  /** When true, use deterministic tools without any model routing or narration. */
   skipModel?: boolean;
   fetchImpl?: typeof fetch;
   /** Injected clock for the tools that read "tonight" or "now". */
@@ -218,7 +218,9 @@ export async function runAsk(input: RunAskInput): Promise<AskResponseBody> {
     } catch {
       venues = [];
     }
-    const routed = await routeAsk(routedQuery, { venues });
+    const routed = input.skipModel
+      ? { calls: routeAskDeterministically(routedQuery) }
+      : await routeAsk(routedQuery, { venues });
     for (const call of routed.calls) {
       toolResults.push(
         await runAskTool(call.name, { ...call.args, query: routedQuery }, {
