@@ -50,9 +50,11 @@ through `runAsk`. [ADR 0014](../../docs/adr/0014-night-os-ask-agent.md) owns the
 routing and evidence rules.
 
 The hours dataset in `fail-closed-hours.json` contains twelve real-venue asks.
-Ten venues have no hours in the current dataset. Two venues have recorded hours
-from their named websites. The test checks these references against the venue
-records before it runs `runAsk` without network access.
+Ten cases use isolated missing-hours fixtures, independent of generated Places,
+website, and directory hours. These fixtures do not describe current venue data.
+Two cases retain real first-party schedules. The test checks their recorded
+hours, sources, and dates against venue records before it runs `runAsk` without
+network access.
 
 The known `hoursAnswer` expectation requires every recorded weekday and time in
 the answer. The matching venue card must carry those hours and their named
