@@ -1,7 +1,8 @@
 ---
 name: PUBMAXX
-description: Nights-out-with-friends crawl planner — Candle Coral light, Night Out dark
+description: Nights-out-with-friends crawl planner with Candle Coral light and Night Out dark
 colors:
+  primary: "#ff5a5f"
   ink: "#17171a"
   ink-soft: "#3f3f46"
   muted: "#666670"
@@ -15,7 +16,7 @@ colors:
   brass-bright: "#ff7a55"
   pint: "#18a76d"
   amber: "#f2a71b"
-  brick: "#ff5a5f"
+  brick: "#b8323c"
   river: "#2864d8"
   river-bright: "#29b6f6"
   night-paper: "#0a0a0b"
@@ -56,11 +57,19 @@ spacing:
 
 ## 1. Overview
 
+This file describes visual intent and a subset of the existing design tokens.
+The [engineering guide](docs/DESIGN_SYSTEM.md#where-things-live) identifies each
+owner and the precedence of project rules over generic skills.
+The YAML describes default light DOM values, except keys prefixed with `night-`.
+`primary` names the existing coral `brass` value for DESIGN.md consumers. It does
+not introduce a CSS token. CSS owns runtime values, theme overrides, and the
+separate map/root values. Do not export this subset over the application styles.
+
 **Creative North Star: "Nights Out With Friends"**
 
 PUBMAXX is a map-first crawl planner that should feel like planning Saturday with your mates - warm candle paper by day, street-amber energy by night. The UI serves the product: Plan, Stop, Venue, Friend, Route. Brand moments (display type, coral CTA) punch through; chrome stays calm enough to navigate under street light or kitchen lamp.
 
-Light theme ships **Direction A Candle Coral** (warm peach paper + coral Plan CTA). Dark theme ships **Direction B Night Out** (deep ink + coral Plan CTA + amber route + pint neon go). Field Guide hues (`river` / `pint` / `brick`) keep semantic jobs for pins and prices - they do not steal the primary CTA.
+Light theme ships **Direction A Candle Coral** (warm peach paper + coral Plan CTA). Dark theme ships **Direction B Night Out** (deep ink + coral Plan CTA + amber route + muted pint green). Field Guide hues (`river` / `pint` / `brick`) keep semantic jobs for pins and prices - they do not steal the primary CTA.
 
 This system explicitly rejects purple-glow SaaS dark, cream+terracotta DTC defaults, card-dashboard first viewports, and Inter-as-display. Explorations live in `docs/design-explorations/`; strategic context in `PRODUCT.md`; implementation tokens in `app/globals.css` + `app/theme.css`.
 
@@ -80,16 +89,16 @@ For the messaging exception to these surface and accent rules, see the [design s
 
 ### Primary
 
-- **Candle Coral** (`#ff5a5f` / `--brass`): Plan CTA, selection, active accent in both themes. Legacy token name `--brass` - keep the name so `readTokens()` and existing components keep working.
+- **Candle Coral** (`#ff5a5f` / `--brass`): Primary Plan action in both themes. Keep the legacy token name. Selected tabs and chips use `--state-selected-*`. Coral words use `--brass-ink`.
 - **Coral Hover** (`#ff7a55` / `--brass-bright`): Louder warm hover / marker lift on Plan actions.
 - **Night Amber** (`#f0a01a` / `--night-amber`): Dark-theme route and price energy. Plan actions stay coral.
 
 ### Secondary (semantic — not decoration)
 
-- **Pint Go** (`#18a76d` light / `#3dff9a` dark / `--pint`): Cheap pint / positive / neon-go on night.
+- **Pint Go** (`#18a76d` light / `#5fb389` dark / `--pint`): Positive status and the map's cheap-pint hue.
 - **Lager Caution** (`#f2a71b` / `--amber`): Mid price / caution.
-- **Brick Dear** (`#ff5a5f` family / `--brick`): Expensive / destructive — same coral family as light CTA, but job is price/danger, not Plan.
-- **River Info** (`#2864d8` / `--river`): Heritage / by-water / tube-blue info.
+- **Brick Dear** (`#b8323c` light / `#d47a82` dark / `--brick`): Expensive or destructive. This hue stays distinct from the coral Plan action.
+- **River Info** (`#2864d8` light / `#7aa6cc` dark / `--river`): Heritage, by-water, and transport information.
 
 ### Neutral
 
@@ -103,9 +112,14 @@ For the messaging exception to these surface and accent rules, see the [design s
 
 ### Named Rules
 
+**Price and trust.** Price figures use the `priceBand-*` class family described in
+[the engineering guide](docs/DESIGN_SYSTEM.md#launch-tokens). Trust standing is
+shown in words. A TrustPill takes its colour from its price band and stays
+neutral when it has no figure. Do not colour a badge by trust standing.
+
 **The One Accent Rule.** Coral owns the one primary CTA per screen and the floating create disc in both themes; a selection (active tab, pressed chip) reads in ink (`--state-selected-*`, docs/DESIGN_SYSTEM.md "Coral is spent twice"). Amber stays a route and price signal; pint, river, and brick never decorate chrome that isn’t a price band, heritage marker, or status.
 
-**The No Purple Glow Rule.** Dark theme uses ink + amber bloom + pint neon only. No purple mesh, violet gradients, or grape bloom behind surfaces.
+**The No Purple Glow Rule.** Dark theme uses deep ink, amber routes, and muted pint green. Chrome uses neutral shadows without an amber glow. No purple mesh, violet gradients, or grape bloom behind surfaces.
 
 **The Candle Not Cream Rule.** Light paper stays peach-warm (`#fff1e6` family). Avoid generic warm-cream DTC (`#F4F1EA` + terracotta + serif display).
 
@@ -133,12 +147,12 @@ For the messaging exception to these surface and accent rules, see the [design s
 
 ## 4. Elevation
 
-Hybrid: light theme uses soft paper-lift shadows; dark theme uses deeper drop plus a faint warm amber bloom so chrome feels lit, not merely dimmed. Map floating chrome uses solid night panels (no frosted glass wash).
+Light theme uses warm paper-lift shadows. Dark theme uses neutral drop shadows and a faint white inset edge. Map floating controls use solid panels.
 
 ### Shadow Vocabulary
 
 - **Paper lift** (light `--shadow`): Soft warm-tinted lift over candle paper.
-- **Night bloom** (dark `--shadow`): Deep black drop + amber glow (`rgba` warm, never purple).
+- **Night depth** (dark `--shadow`): Black drop shadow, dark outline, and a faint white inset highlight. No coloured glow.
 - **Pressed ink** (`--shadow-inset-press`): Letterpress inset for `.ink-stamp`.
 
 ### Named Rules
@@ -157,8 +171,8 @@ Tactile and decisive — Plan actions read louder than chrome.
 
 - **Shape and type:** Every text button, Plan included, reads the `--control-*` row. See `docs/DESIGN_SYSTEM.md` "Text buttons".
 - **Primary (`.planBtn`):** The Button primitive's flat primary (`--color-accent`, hover `--color-accent-strong`, dark label ink) in both themes. It keeps `--shadow-btn` because it floats over the map.
-- **Hover / Focus:** Accent border or glow ring; focus-visible outline 2px accent.
-- **Active Plan:** Ink-deep treatment for “planning” state (existing `.planBtn.active`).
+- **Hover / Focus:** Use the shared button styles. Keyboard focus uses a visible outline, without a decorative glow.
+- **Active Plan:** Use the existing `.planBtn.active` styling and its theme-specific rules in `app/globals.css` and `app/theme.css`.
 
 ### Chips
 
@@ -182,7 +196,7 @@ Quiet accent hover on icons; floating theme toggle as raised pill on map. Mobile
 
 ### Map (signature)
 
-Full-bleed map plane with colored pins (pint / amber / brick / river by semantics) and route stroke in theme accent. `readTokens()` in `components/map/canvas/tokens.ts` supplies semantic mark and label colours. `lib/mapBasemapTaste.ts` owns the map style-layer palette and pub-first label hierarchy; do not duplicate those values elsewhere.
+Full-bleed map plane with colored pins (pint / amber / brick / river by semantics) and route styling from the existing map tokens. `readTokens()` in `components/map/canvas/tokens.ts` supplies semantic mark and label colours. `lib/mapBasemapTaste.ts` owns the map style-layer palette and pub-first label hierarchy; do not duplicate those values elsewhere.
 
 ## 6. Do's and Don'ts
 

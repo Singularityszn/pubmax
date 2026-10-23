@@ -1,0 +1,20 @@
+{
+  "findings": [
+    {
+      "severity": "warning",
+      "path": "colors",
+      "message": "No 'primary' color defined. The agent will auto-generate key colors, reducing your control over the palette.",
+      "rule": "missing-primary"
+    },
+    {
+      "severity": "info",
+      "message": "Design system defines 21 colors, 3 typography scales, 4 rounding levels, 9 spacing tokens.",
+      "rule": "token-summary"
+    }
+  ],
+  "summary": {
+    "errors": 0,
+    "warnings": 1,
+    "infos": 1
+  }
+}
