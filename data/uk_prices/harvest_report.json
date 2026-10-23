@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "generatedAt": "2026-10-23T16:15:47.970Z",
+  "generatedAt": "2026-10-23T20:17:12.395Z",
   "snapshot": {
     "pubs": 38122,
     "statedWebsite": 1860,
@@ -17,10 +17,10 @@
       "refused": 982
     },
     "menuEnrichment": {
-      "seeded": 75,
-      "venuesConsidered": 119,
+      "seeded": 1,
+      "venuesConsidered": 1,
       "onUnknownHost": 0,
-      "refused": 88
+      "refused": 0
     },
     "chainMenuSourcesOmitted": true
   },
@@ -36,16 +36,25 @@
     "inputRead": false
   },
   "hostsCrawledThisRun": 1,
-  "hostsInLedger": 1,
-  "pagesRead": 3,
+  "hostsInLedger": 2,
+  "pagesRead": 4,
   "pdfs": {
-    "seen": 0,
-    "read": 0,
+    "seen": 1,
+    "read": 1,
     "unreadable": 0
   },
-  "pageBudget": 6,
+  "pageBudget": 8,
+  "publication": {
+    "categories": [
+      "beer"
+    ],
+    "candidateRows": 19,
+    "selectedRows": 1,
+    "excludedRows": 18,
+    "writtenRows": 1
+  },
   "outcomes": {
-    "priced": 1,
+    "priced": 2,
     "robots-disallowed": 0,
     "robots-unreadable": 0,
     "policy-refused-host": 0,
@@ -56,17 +65,18 @@
     "exa-site-unbound": 0
   },
   "robotsFiles": {
-    "rules-file": 1
+    "rules-file": 2
   },
-  "pubsOnPricedHosts": 1,
+  "pubsOnPricedHosts": 2,
   "drops": {
-    "no-price-on-page": 1,
+    "no-price-on-page": 3,
     "food-word-nearby": 1,
-    "no-category-word-nearby": 2,
+    "no-category-word-nearby": 52,
     "fractional-measure-not-a-pint": 3,
-    "bottled-measure-not-a-pint": 3,
-    "outside-category-band": 1,
-    "item-name-ambiguous": 3
+    "bottled-measure-not-a-pint": 10,
+    "outside-category-band": 21,
+    "item-name-ambiguous": 4,
+    "half-measure-not-a-pint": 11
   },
   "sourcesRefusedByPolicy": [
     {
@@ -80,5 +90,5 @@
       "checkedOn": "2026-09-22"
     }
   ],
-  "elapsedSeconds": 3
+  "elapsedSeconds": 5
 }

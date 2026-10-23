@@ -1,0 +1,25 @@
+{
+  "version": 1,
+  "sourceUrl": "https://www.graftonarms.co.uk/_files/ugd/c20749_93fbe653f9c2439490f09e744b00e58f.pdf",
+  "observedAt": "2026-10-23T20:17:12.394Z",
+  "evidence": "not re-read as text: the page is a PDF",
+  "evidenceReadAt": "2026-10-23T20:17:32.364Z",
+  "reader": "Permission-checked first-party PDF text read. The original PDF and rendered page 2 confirm the half-pint and pint columns. Only the unlabeled generic beer minimum was published through --publish-categories beer. Eighteen other category candidates were excluded. Retrieval and observation are dated separately from PDF creation metadata.",
+  "rows": [
+    {
+      "host": "graftonarms.co.uk",
+      "venueId": "venue-uk-n257937397",
+      "osmId": "node/257937397",
+      "name": "The Grafton Arms",
+      "postcode": "W1T 5DU",
+      "lat": 51.5231854,
+      "lng": -0.138689,
+      "category": "beer",
+      "priceGbp": 6.5,
+      "sourceUrl": "https://www.graftonarms.co.uk/_files/ugd/c20749_93fbe653f9c2439490f09e744b00e58f.pdf",
+      "observedAt": "2026-10-23T20:17:12.394Z",
+      "pubsOnHost": 1,
+      "linesOnPage": 39
+    }
+  ]
+}
