@@ -49,4 +49,3 @@ export function listedDrinkCoverage(
   }
   return { total: pubs.size, pricedPubs, counts };
 }
-
