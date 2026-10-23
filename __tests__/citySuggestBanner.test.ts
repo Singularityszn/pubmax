@@ -112,6 +112,27 @@ describe("CitySuggestBanner opt-in geo", () => {
     expect(a.saveData).toBe(false);
   });
 
+  it.each(["?q=Hatton", "?sel=venue-1vle947", "?q=Hatton&sel=venue-1vle947"])(
+    "keeps the location prompt out of an explicit map arrival %s",
+    async (search) => {
+      setWindow({
+        sessionStorage: makeMemoryStorage(),
+        localStorage: makeMemoryStorage(),
+        location: { pathname: "/map", search },
+        matchMedia: () => ({
+          matches: true,
+          addEventListener: () => {},
+          removeEventListener: () => {},
+        }),
+      });
+      vi.stubGlobal("navigator", {
+        geolocation: { getCurrentPosition: vi.fn() },
+      });
+      const { getMapLocationControlAvailable } = await import("@/lib/mapLocationPrompt");
+      expect(getMapLocationControlAvailable()).toBe(false);
+    },
+  );
+
   it("releases prompt priority after dismiss when sessionStorage rejects writes", async () => {
     const session = makeMemoryStorage();
     session.setItem = () => {

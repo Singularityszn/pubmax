@@ -1,0 +1,17 @@
+{
+  "now": "2026-10-22T18:00:00Z",
+  "cases": [
+    { "id": "price-coronet", "venueId": "venue-60y3sa", "query": "How much is a pint at The Coronet?", "value": null, "source": null },
+    { "id": "price-millers-well", "venueId": "venue-10paqy", "query": "What is the pint price at The Millers Well?", "value": null, "source": null },
+    { "id": "price-argyll-arms", "venueId": "venue-ru7vbr", "query": "How much is a pint at The Argyll Arms?", "value": null, "source": null },
+    { "id": "price-clachan", "venueId": "venue-4pqtn7", "query": "What is the pint price at The Clachan?", "value": null, "source": null },
+    { "id": "price-henry-addington", "venueId": "venue-on4bgj", "query": "How much is a pint at The Henry Addington?", "value": null, "source": null },
+    { "id": "price-observatory", "venueId": "venue-f1vl09", "query": "What is the pint price at The Observatory?", "value": null, "source": null },
+    { "id": "price-old-bell-tavern", "venueId": "venue-1kt3p9o", "query": "How much is a pint at The Old Bell Tavern?", "value": null, "source": null },
+    { "id": "price-porcupine", "venueId": "venue-1wgngrf", "query": "What is the pint price at The Porcupine?", "value": null, "source": null },
+    { "id": "price-three-greyhounds", "venueId": "venue-14mrz2z", "query": "How much is a pint at The Three Greyhounds?", "value": null, "source": null },
+    { "id": "price-lion-unicorn", "venueId": "venue-4zg2be", "query": "What is the pint price at Lion & Unicorn?", "value": null, "source": null },
+    { "id": "price-arnos-arms", "venueId": "venue-xjf3n0", "query": "How much is a pint at Arnos Arms?", "value": 5.5, "source": "Pint Prices" },
+    { "id": "price-finchley-club", "venueId": "venue-lrz4u2", "query": "What is the pint price at Finchley United Services Club Ltd?", "value": 3.2, "source": "Pint Prices" }
+  ]
+}
