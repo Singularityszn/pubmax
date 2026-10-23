@@ -3807,8 +3807,8 @@ export default function PubMap({
   // D1 — the picker is grounded in a real origin: the reader's fix, else the
   // centre of the map they are looking at. It never offers a city-wide five.
   const logNearbyOrigin = useMemo(
-    () => resolveLogNearbyOrigin({ userLocation, mapCenter: mapViewport.center }),
-    [mapViewport.center, userLocation],
+    () => resolveLogNearbyOrigin({ userLocation: userLocation ?? venueJourneyLocation, mapCenter: mapViewport.center }),
+    [mapViewport.center, userLocation, venueJourneyLocation],
   );
   const logNearbyCandidates = useMemo(
     () =>
@@ -6568,6 +6568,9 @@ export default function PubMap({
               requestAnimationFrame(focusMapSearch);
             }}
             onResetFilters={resetLogIntentFilters}
+            onUseMyLocation={requestVenueLocation}
+            locationBusy={locationRequestStatus === "requesting"}
+            locationUnavailable={locationRequestStatus === "unavailable"}
           />
         }
         nearMeContent={
@@ -7057,6 +7060,9 @@ export default function PubMap({
             focusMapSearch();
           }}
           onResetFilters={resetLogIntentFilters}
+          onUseMyLocation={requestVenueLocation}
+          locationBusy={locationRequestStatus === "requesting"}
+          locationUnavailable={locationRequestStatus === "unavailable"}
           onDismiss={clearLogIntent}
         />
       ) : null}
