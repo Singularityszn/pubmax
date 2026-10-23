@@ -32,6 +32,13 @@ export type PriceUpdate = {
   observedAt: string; // ISO-8601
 };
 
+// Venue detail carries only its own public observation, so a failed independent
+// refresh-file fetch does not discard evidence the server successfully read.
+export type VenuePintPriceRefresh = {
+  status: "ready" | "unavailable";
+  update: PriceUpdate | null;
+};
+
 // The provenance a refreshed price is stamped with. A sourced (attributed)
 // price is authoritative-but-attributed; it is never "contributor"/"demo".
 export const PRICE_UPDATE_PROVENANCE: Provenance = "sourced";
@@ -109,10 +116,17 @@ export function mergePriceUpdates(
   venues: Venue[],
   updates: PriceUpdate[],
   keyFor: (venue: Venue) => string,
+  includeScopedUpdates = true,
 ): PricedVenue[] {
-  const byKey = new Map(updates.map((u) => [u.venueKey, u] as const));
+  const byKey = new Map(parsePriceUpdates(updates).map((u) => [u.venueKey, u] as const));
   return venues.map((venue) => {
-    const update = byKey.get(keyFor(venue));
+    const key = keyFor(venue);
+    const scoped = (venue as Venue & { pintPriceRefresh?: VenuePintPriceRefresh }).pintPriceRefresh;
+    const scopedUpdate = includeScopedUpdates && scoped?.status === "ready"
+      && isValidPriceUpdate(scoped.update) && scoped.update.venueKey === key ? scoped.update : null;
+    const globalUpdate = byKey.get(key);
+    const update = scopedUpdate && (!globalUpdate || Date.parse(scopedUpdate.observedAt) > Date.parse(globalUpdate.observedAt))
+      ? scopedUpdate : globalUpdate;
     if (!update) {
       return { ...venue, sourcedPrice: null };
     }

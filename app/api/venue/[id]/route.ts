@@ -117,6 +117,7 @@ export async function GET(
         amenityStatus,
         bundlePrices,
         priceReads: evidence.reads,
+        pintPriceRefresh: evidence.pintPriceRefresh,
         priceUpdates,
       },
       busyness,

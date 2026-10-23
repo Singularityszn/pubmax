@@ -3,7 +3,7 @@ import "server-only";
 import { promises as fs } from "node:fs";
 import path from "node:path";
 
-import { mergePriceUpdates, parsePriceUpdates } from "@/lib/priceUpdates";
+import { mergePriceUpdates, parsePriceUpdates, type VenuePintPriceRefresh } from "@/lib/priceUpdates";
 import { isValidObservedAt } from "@/lib/priceUpdateRowShape";
 import { venueUpdateKey } from "@/lib/pubMap";
 import { authoritativeBundleRows, BUNDLE_DEFAULT_CATEGORY, bundlePricesForCategory } from "@/lib/ukPriceBundle";
@@ -29,6 +29,10 @@ export async function readVenuePintPriceEvidence(venue: Venue) {
   ) : null;
   return {
     venue: pricedVenue,
+    pintPriceRefresh: {
+      status: updates === null ? "unavailable" : "ready",
+      update: updates?.find((update) => update.venueKey === venueUpdateKey(venue)) ?? null,
+    } satisfies VenuePintPriceRefresh,
     bundlePrices,
     listedRow,
     reads: { bundle: bundle.status, sourced: updates === null ? "unavailable" as const : "ready" as const },
