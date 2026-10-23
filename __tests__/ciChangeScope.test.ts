@@ -15,18 +15,20 @@
 // The free plan runs only 5 macOS jobs at once, and a job that starts only to
 // skip its steps still holds a macOS runner while it waits. So one Linux job,
 // "Change scope", classifies the diff, and the three layout-pin jobs are
-// skipped whole when it succeeds and says docs or data. They are named jobs,
-// not a matrix, so a skipped one reports under its own name, which branch
-// protection counts as passed. If the classifier fails, they run.
+// skipped whole when it succeeds and says no screen code changed (captain,
+// 23 Oct 2026): a test-only, data or lib/ logic change no longer waits for
+// three macOS runs, and main still runs them on every push. They are named
+// jobs, not a matrix, so a skipped one reports under its own name, which
+// branch protection counts as passed. If the classifier fails, they run.
 //
 // The classifier and the named-test step are EXECUTED here, against a
 // stand-in `git` and `npx`, so these are pins on what the steps do, not on
 // how they are spelled.
 
 import { spawnSync } from "node:child_process";
-import { chmodSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
+import { chmodSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { dirname, join, relative } from "node:path";
 
 import { afterAll, describe, expect, it } from "vitest";
 import { parse } from "yaml";
@@ -36,6 +38,7 @@ import { defined } from "@/__tests__/helpers/defined";
 
 const ROOT = process.cwd();
 const CLASSIFY = "Classify the change";
+const CLASSIFY_LAYOUT = "Classify the layout change";
 const NAMED_TESTS = "Unit tests that name a changed file";
 
 type Step = { name?: string; id?: string; if?: string; run?: string; uses?: string; with?: Record<string, unknown> };
@@ -185,12 +188,12 @@ describe("the change scope", () => {
 // The job that only classifies, for the macOS layout pins to read.
 const SCOPE_JOB = "e2e.yml / change-scope";
 const LAYOUT_PIN_JOBS = ["layout-pins-1", "layout-pins-2", "layout-pins-3"];
-// Run unless the classifier succeeded and said docs or data. A failed
-// classifier must run the layout pins, not skip them: a skipped check counts
-// as passed for branch protection, so skipping would let a code change merge
-// without them (fail closed).
+// Run unless the classifier succeeded and said no screen code changed. A
+// failed classifier must run the layout pins, not skip them: a skipped check
+// counts as passed for branch protection, so skipping would let a screen
+// change merge without them (fail closed).
 const LAYOUT_PIN_IF =
-  "${{ !cancelled() && (needs.change-scope.result != 'success' || needs.change-scope.outputs.scope == 'code') }}";
+  "${{ !cancelled() && (needs.change-scope.result != 'success' || needs.change-scope.outputs.layout == 'ui') }}";
 
 describe("what each scope runs", () => {
   it("gates every step after the classifier, and never a whole job", () => {
@@ -217,16 +220,19 @@ describe("what each scope runs", () => {
     expect(step("ci.yml / lint-and-types", "Typecheck").if).toBe("steps.scope.outputs.scope != 'docs'");
   });
 
-  it("skips the macOS layout pins whole, by fixed name, only for a classified docs or data change", () => {
+  it("skips the macOS layout pins whole, by fixed name, only for a classified change with no screen code", () => {
     const e2e = defined(workflows.find(({ file }) => file === "e2e.yml")).parsed.jobs as Record<
       string,
       Job & { "runs-on"?: string; needs?: string[]; outputs?: Record<string, string>; strategy?: unknown }
     >;
     const scopeJob = defined(e2e["change-scope"], "change-scope");
-    // It only classifies: checkout, then the classifier, on Linux.
+    // It only classifies: checkout, then the two classifiers, on Linux.
     expect(scopeJob["runs-on"]).toBe("ubuntu-latest");
-    expect(scopeJob.steps.map((entry) => entry.name)).toEqual(["Checkout", CLASSIFY]);
-    expect(scopeJob.outputs).toEqual({ scope: "${{ steps.scope.outputs.scope }}" });
+    expect(scopeJob.steps.map((entry) => entry.name)).toEqual(["Checkout", CLASSIFY, CLASSIFY_LAYOUT]);
+    expect(scopeJob.outputs).toEqual({
+      scope: "${{ steps.scope.outputs.scope }}",
+      layout: "${{ steps.layout.outputs.layout }}",
+    });
     expect(scopeJob.if).toBeUndefined();
     for (const id of LAYOUT_PIN_JOBS) {
       const layout = defined(e2e[id], id);
@@ -254,6 +260,120 @@ describe("what each scope runs", () => {
     }
   });
 });
+
+describe("the layout scope", () => {
+  const LAYOUT_RUN = defined(step(SCOPE_JOB, CLASSIFY_LAYOUT).run, "layout classifier run");
+  const E2E_WORKFLOW = readFileSync(join(ROOT, ".github/workflows/e2e.yml"), "utf8");
+  // The spec list the classifier reads: the layout-pin run step's own words.
+  const LAYOUT_SPECS = defined(
+    /- name: Run layout-pinning journeys\n[\s\S]*?\n {8}run: >-\n([\s\S]*?)\n\n/.exec(E2E_WORKFLOW)?.[1],
+    "layout-pin run step",
+  )
+    .split(/\s+/)
+    .filter((word) => /^e2e\/.+\.spec\.ts$/.test(word));
+
+  function layoutOf(files: string[], eventName = "pull_request", cwd = ROOT): string {
+    const result = runStep(
+      LAYOUT_RUN,
+      { EVENT_NAME: eventName, FAKE_DIFF: files.join("\n") + (files.length ? "\n" : "") },
+      { cwd },
+    );
+    expect(result.status, result.stderr).toBe(0);
+    return defined(/^layout=(\w+)$/m.exec(result.output)?.[1], `layout in ${result.output}`);
+  }
+
+  it("reads the layout-pin specs from the step that runs them", () => {
+    expect(LAYOUT_SPECS.length).toBeGreaterThan(40);
+    expect(LAYOUT_SPECS).toContain("e2e/mobile-map-chrome-fit.spec.ts");
+    expect(LAYOUT_SPECS).not.toContain("e2e/smoke.spec.ts");
+  });
+
+  it.each([
+    // Screen code and what the pins run with.
+    { files: ["components/map/MapCanvas.tsx"], layout: "ui" },
+    { files: ["app/(map)/page.tsx"], layout: "ui" },
+    { files: ["app/globals.css"], layout: "ui" },
+    { files: ["lib/someView.tsx"], layout: "ui" },
+    { files: ["public/fonts/x.woff2"], layout: "ui" },
+    { files: ["e2e/mobile-map-chrome-fit.spec.ts"], layout: "ui" },
+    { files: ["e2e/helpers/mobileMapShell.ts"], layout: "ui" },
+    { files: ["e2e/conditional-skips.allowlist.json"], layout: "ui" },
+    { files: ["lib/priceBand.ts"], layout: "ui" },
+    { files: ["lib/contentSecurityPolicy.mjs"], layout: "ui" },
+    { files: ["scripts/assert-playwright-gate.mjs"], layout: "ui" },
+    { files: [".github/workflows/e2e.yml"], layout: "ui" },
+    { files: [".github/actions/pubmax-playwright-port/action.yml"], layout: "ui" },
+    { files: ["package.json"], layout: "ui" },
+    { files: ["package-lock.json"], layout: "ui" },
+    { files: ["next.config.mjs"], layout: "ui" },
+    { files: ["playwright.config.ts"], layout: "ui" },
+    { files: ["proxy.ts"], layout: "ui" },
+    { files: ["__tests__/venues.test.ts", "components/nav/navigationModel.ts"], layout: "ui" },
+    // Tests, data, docs and logic.
+    { files: ["__tests__/venues.test.ts"], layout: "none" },
+    { files: ["e2e/smoke.spec.ts", "e2e/food-menu-discovery.spec.ts"], layout: "none" },
+    { files: ["data/freshness_registry.json", "public/data/london/venues.slim.json"], layout: "none" },
+    { files: ["data/venues.csv"], layout: "none" },
+    { files: ["docs/CI_RUNBOOK.md", "app/AGENTS.md"], layout: "none" },
+    { files: ["lib/venues.ts", "lib/harvest/sourcePolicy.ts"], layout: "none" },
+    { files: ["scripts/build_slim_index.mjs"], layout: "none" },
+    { files: ["supabase/migrations/1_x.sql", ".github/workflows/ci.yml"], layout: "none" },
+    // An empty diff fails closed.
+    { files: [], layout: "ui" },
+  ])("reads $files as $layout", ({ files, layout }) => {
+    expect(layoutOf(files)).toBe(layout);
+  });
+
+  it("runs every pin on every event other than a pull request, without asking git", () => {
+    for (const event of ["push", "schedule", "workflow_dispatch"]) {
+      expect(layoutOf(["__tests__/venues.test.ts"], event)).toBe("ui");
+    }
+  });
+
+  it("runs every pin when it cannot read the layout-pin spec list", () => {
+    // A tree with no e2e.yml: the spec list is empty, so nothing can be ruled out.
+    const empty = mkdtempSync(join(scratch, "no-workflow-"));
+    const result = runStep(LAYOUT_RUN, { EVENT_NAME: "pull_request", FAKE_DIFF: "__tests__/venues.test.ts\n" }, { cwd: empty });
+    expect(result.status).not.toBe(0);
+    mkdirSync(join(empty, ".github/workflows"), { recursive: true });
+    writeFileSync(join(empty, ".github/workflows/e2e.yml"), "jobs: {}\n");
+    expect(layoutOf(["__tests__/venues.test.ts"], "pull_request", empty)).toBe("ui");
+  });
+
+  it("reads every repository module a layout pin, its helpers or the Playwright config imports as ui", () => {
+    // A spec that starts importing a lib/ module would otherwise let a change
+    // to that module skip the pin that reads it.
+    const helpers = readdirSync(join(ROOT, "e2e/helpers")).map((file) => `e2e/helpers/${file}`);
+    const importers = [...LAYOUT_SPECS, ...helpers, "playwright.config.ts"];
+    const imported = new Set<string>();
+    for (const importer of importers) {
+      const source = readFileSync(join(ROOT, importer), "utf8");
+      for (const [, specifier] of source.matchAll(/(?:from|import|require)\s*\(?\s*["']([^"']+)["']/g)) {
+        const target = resolveRepoImport(importer, defined(specifier, "specifier"));
+        if (target && !target.startsWith("node_modules/")) imported.add(target);
+      }
+    }
+    expect(imported.size).toBeGreaterThan(10);
+    const missed = [...imported].filter((file) => layoutOf([file]) !== "ui");
+    expect(missed).toEqual([]);
+  });
+});
+
+/** The repository file an import names, or null for a package import. */
+function resolveRepoImport(importer: string, specifier: string): string | null {
+  let base: string;
+  if (specifier.startsWith("@/")) base = join(ROOT, specifier.slice(2));
+  else if (specifier.startsWith(".")) base = join(ROOT, dirname(importer), specifier);
+  else return null;
+  for (const ext of ["", ".ts", ".tsx", ".mts", ".mjs", ".js", ".cjs", ".json"]) {
+    try {
+      if (statSync(base + ext).isFile()) return relative(ROOT, base + ext);
+    } catch {
+      // Try the next extension.
+    }
+  }
+  return null;
+}
 
 describe("the unit tests a docs or data change still runs", () => {
   const named = step("ci.yml / unit-tests", NAMED_TESTS);

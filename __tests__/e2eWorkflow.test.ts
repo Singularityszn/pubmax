@@ -30,24 +30,12 @@ type Workflow = {
 
 // The layout pins are three named jobs that share one step list, not a matrix.
 const LAYOUT_PIN_JOBS = ["layout-pins-1", "layout-pins-2", "layout-pins-3"];
-// Run unless the classifier succeeded and said docs or data. A failed
+// Run unless the classifier succeeded and said no screen code changed. A failed
 // classifier must run the layout pins, not skip them: a skipped check counts
-// as passed for branch protection, so skipping would let a code change merge
+// as passed for branch protection, so skipping would let a screen change merge
 // without them (fail closed).
 const LAYOUT_PIN_IF =
-  "${{ !cancelled() && (needs.change-scope.result != 'success' || needs.change-scope.outputs.scope == 'code') }}";
-const PUBLIC_EVIDENCE_IF =
-  "${{ github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository && (github.head_ref == 'codex/pubmaxx-food-evidence-1022' || github.head_ref == 'codex/ops-feedback-1022' || github.head_ref == 'codex/ops-updates-1022') && (env.LAYOUT_SHARD == '1' || env.LAYOUT_SHARD == '2') }}";
-const FOOD_PUBLIC_EVIDENCE_IF =
-  "${{ github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository && github.head_ref == 'codex/pubmaxx-food-evidence-1022' && (env.LAYOUT_SHARD == '1' || env.LAYOUT_SHARD == '2') }}";
-const OPS_PUBLIC_EVIDENCE_IF =
-  "${{ github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository && (github.head_ref == 'codex/ops-feedback-1022' || github.head_ref == 'codex/ops-updates-1022') && (env.LAYOUT_SHARD == '1' || env.LAYOUT_SHARD == '2') }}";
-const PUBLIC_EVIDENCE_REF =
-  "${{ env.LAYOUT_SHARD == '1' && github.event.pull_request.head.sha || (github.head_ref == 'codex/pubmaxx-food-evidence-1022' && '325122c23eb9d8bc809c4388448c0e5459146152' || github.event.pull_request.base.sha) }}";
-const PUBLIC_EVIDENCE_BASE =
-  "${{ github.head_ref == 'codex/pubmaxx-food-evidence-1022' && '325122c23eb9d8bc809c4388448c0e5459146152' || github.event.pull_request.base.sha }}";
-const PUBLIC_EVIDENCE_SPEC =
-  "${{ github.head_ref == 'codex/pubmaxx-food-evidence-1022' && 'e2e/food-menu-discovery.spec.ts' || github.head_ref == 'codex/ops-feedback-1022' && 'e2e/feedback.spec.ts' || 'e2e/public-updates.spec.ts' }}";
+  "${{ !cancelled() && (needs.change-scope.result != 'success' || needs.change-scope.outputs.layout == 'ui') }}";
 
 // A `${{ ... }}` expression is one word even though it holds spaces.
 function runWords(run: string | undefined): string[] {
@@ -128,7 +116,7 @@ describe("browser CI policy", () => {
     }
   });
 
-  it("runs the layout-pinning browser specs on every code pull request, in three named shards", () => {
+  it("runs the layout-pinning browser specs on every screen-code pull request, in three named shards", () => {
     const { jobs } = parse(readFileSync(workflowPath, "utf8")) as Workflow;
     const layoutJobs = LAYOUT_PIN_JOBS.map((id) => defined(jobs[id], id));
     layoutJobs.forEach((job, index) => {
@@ -143,11 +131,9 @@ describe("browser CI policy", () => {
       expect(job.steps).toEqual(defined(layoutJobs[0]).steps);
     });
     const layoutPinsJob = defined(layoutJobs[0]);
-    const [testStep, evidenceStep, ...extraTestSteps] = playwrightSteps(layoutPinsJob);
+    const [testStep, ...extraTestSteps] = playwrightSteps(layoutPinsJob);
     expect(extraTestSteps).toEqual([]);
     expect(testStep?.if).toBeUndefined();
-    expect(evidenceStep?.name).toBe("Capture signed-out public evidence");
-    expect(evidenceStep?.if).toBe(PUBLIC_EVIDENCE_IF);
     const run = runWords(defined(testStep, "layout-pins Playwright step").run);
     expect(run).toContain(`--shard=\${{ env.LAYOUT_SHARD }}/${LAYOUT_PIN_JOBS.length}`);
     expect(run).toContain("--workers=1");
@@ -176,61 +162,14 @@ describe("browser CI policy", () => {
     );
   });
 
-  it("captures only immutable signed-out public revisions after the normal layout gate", () => {
+  it("runs the same layout steps for every pull request branch", () => {
+    // The before/after evidence steps for three October branches were gated
+    // on their names. Those pull requests merged, and no step may be kept
+    // for one branch again.
     const { jobs } = parse(readFileSync(workflowPath, "utf8")) as Workflow;
     for (const id of LAYOUT_PIN_JOBS) {
-      const steps = defined(jobs[id]).steps;
-      const checkout = defined(steps.find((step) => step.name === "Checkout public evidence source"));
-      const install = defined(steps.find((step) => step.name === "Install public evidence source dependencies"));
-      const capture = defined(steps.find((step) => step.name === "Capture signed-out public evidence"));
-      const foodUpload = defined(steps.find((step) => step.name === "Upload Food public evidence"));
-      const opsUpload = defined(steps.find((step) => step.name === "Upload Ops public evidence"));
-      for (const step of [checkout, install, capture]) expect(step.if).toBe(PUBLIC_EVIDENCE_IF);
-      expect(checkout.uses).toBe("actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1");
-      expect(checkout.with).toEqual({
-        ref: PUBLIC_EVIDENCE_REF,
-        path: ".public-proof-source",
-        "persist-credentials": false,
-      });
-      expect(steps.indexOf(install)).toBeGreaterThan(steps.indexOf(checkout));
-      expect(steps.indexOf(capture)).toBeGreaterThan(steps.indexOf(install));
-      expect(capture.env?.PUBMAX_PUBLIC_EVIDENCE_ROOT).toBe("${{ github.workspace }}/.public-proof-source");
-      expect(capture.env?.PUBMAX_PUBLIC_EVIDENCE_SHA).toBe(checkout.with?.ref);
-      expect(capture.env?.PUBMAX_PUBLIC_EVIDENCE_HEAD).toBe("${{ github.event.pull_request.head.sha }}");
-      expect(capture.env?.PUBMAX_PUBLIC_EVIDENCE_BASE).toBe(PUBLIC_EVIDENCE_BASE);
-      expect(capture.env?.PUBLIC_EVIDENCE_SPEC).toBe(PUBLIC_EVIDENCE_SPEC);
-      expect(capture.env?.PW_SKIP_KEYLESS_WEBSERVER).toBe("1");
-      const run = runWords(capture.run);
-      expect(run.filter((word) => word.startsWith("--project="))).toEqual(["--project=chromium"]);
-      expect(run.filter((word) => word.startsWith("--workers="))).toEqual(["--workers=1"]);
-      expect(capture.run).toContain('--grep="public screenshot evidence"');
-      expect(steps.indexOf(capture)).toBeGreaterThan(
-        steps.findIndex((step) => step.name === "Gate the layout-pinning shard"),
-      );
-      const pageFiles = [
-        "${{ runner.temp }}/pubmax-public-evidence/page-390.png",
-        "${{ runner.temp }}/pubmax-public-evidence/page-768.png",
-        "${{ runner.temp }}/pubmax-public-evidence/page-1440.png",
-        "${{ runner.temp }}/pubmax-public-evidence/identity.json",
-        "",
-      ];
-      for (const { upload, condition, files } of [
-        { upload: foodUpload, condition: FOOD_PUBLIC_EVIDENCE_IF, files: pageFiles },
-        { upload: opsUpload, condition: OPS_PUBLIC_EVIDENCE_IF, files: [
-          "${{ runner.temp }}/pubmax-public-evidence/account-390.png",
-          "${{ runner.temp }}/pubmax-public-evidence/account-768.png",
-          "${{ runner.temp }}/pubmax-public-evidence/account-1440.png",
-          ...pageFiles,
-        ] },
-      ]) {
-        expect(upload.if).toBe(condition);
-        expect(steps.indexOf(upload)).toBeGreaterThan(steps.indexOf(capture));
-        expect(upload.uses).toBe("actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9");
-        expect(upload.with?.path).toBe(files.join("\n"));
-        expect(upload.with?.["if-no-files-found"]).toBe("error");
-        expect(upload.with?.["retention-days"]).toBe(7);
-        expect(upload.with?.["compression-level"]).toBe(0);
-        expect(upload.with?.name).toBe("public-ui-pr${{ github.event.pull_request.number }}-${{ env.LAYOUT_SHARD == '1' && 'after' || 'before' }}-${{ github.event.pull_request.head.sha }}");
+      for (const step of defined(jobs[id]).steps) {
+        expect(JSON.stringify(step), `${id} / ${step.name}`).not.toContain("head_ref");
       }
     }
   });
