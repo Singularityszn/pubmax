@@ -121,6 +121,32 @@ describe("reserveOrsBudget", () => {
     expect(reserveRateLimit).toHaveBeenCalledTimes(2);
   });
 
+  it("caches a pending current-day refusal after a previous-day refund", async () => {
+    const reservation = await reserveOrsBudget(DAY1);
+    let finishRefusal!: (value: null) => void;
+    reserveRateLimit.mockReturnValueOnce(new Promise<null>((resolve) => { finishRefusal = resolve; }));
+    const pendingRefusal = reserveOrsBudget(DAY2);
+    expect(await reservation!.release()).toBe(true);
+    finishRefusal(null);
+    expect(await pendingRefusal).toBeNull();
+    expect(await reserveOrsBudget(DAY2 + 1)).toBeNull();
+    expect(reserveRateLimit).toHaveBeenCalledTimes(2);
+  });
+
+  it("retains same-day refund invalidation after another day's refund", async () => {
+    const firstDayReservation = await reserveOrsBudget(DAY1);
+    const secondDayReservation = await reserveOrsBudget(DAY2);
+    let finishRefusal!: (value: null) => void;
+    reserveRateLimit.mockReturnValueOnce(new Promise<null>((resolve) => { finishRefusal = resolve; }));
+    const pendingRefusal = reserveOrsBudget(DAY1 + 1);
+    expect(await firstDayReservation!.release()).toBe(true);
+    expect(await secondDayReservation!.release()).toBe(true);
+    finishRefusal(null);
+    expect(await pendingRefusal).toBeNull();
+    expect(await reserveOrsBudget(DAY1 + 2)).not.toBeNull();
+    expect(reserveRateLimit).toHaveBeenCalledTimes(4);
+  });
+
   it("rechecks the budget when an unused reservation is returned after exhaustion", async () => {
     const reservation = await reserveOrsBudget(DAY1);
     reserveRateLimit.mockResolvedValue(null);

@@ -73,6 +73,7 @@ export function orsBudgetKey(now: number = Date.now()): string {
 // remember that (scoped to the UTC date so a rolled day is never held down by a
 // stale flag) and skip the durable round-trip until the TTL lapses.
 let exhausted: { date: string; until: number } = { date: "", until: 0 };
+const refundGenerations = new Map<string, number>();
 
 /**
  * Emit ONE structured WARN when the global daily ORS budget is first observed
@@ -104,8 +105,9 @@ export async function reserveOrsBudget(now: number = Date.now(), signal?: AbortS
   if (exhausted.date === date && now < exhausted.until) return null;
 
   const key = orsBudgetKey(now);
+  const refundGeneration = refundGenerations.get(date) ?? 0;
   const reservation = await reserveRateLimit(key, orsDailyBudget(), ORS_BUDGET_WINDOW_MS, signal);
-  if (!reservation && !signal?.aborted) {
+  if (!reservation && !signal?.aborted && refundGeneration === (refundGenerations.get(date) ?? 0)) {
     exhausted = { date, until: now + ORS_BUDGET_EXHAUSTED_TTL_MS };
     warnOrsBudgetExhausted(date, orsDailyBudget());
     return null;
@@ -114,7 +116,10 @@ export async function reserveOrsBudget(now: number = Date.now(), signal?: AbortS
     commit: reservation.commit,
     release: async () => {
       const returned = await reservation.release();
-      if (returned && exhausted.date === date) exhausted = { date: "", until: 0 };
+      if (returned) {
+        refundGenerations.set(date, (refundGenerations.get(date) ?? 0) + 1);
+        if (exhausted.date === date) exhausted = { date: "", until: 0 };
+      }
       return returned;
     },
   };
@@ -130,4 +135,5 @@ export async function consumeOrsBudget(now: number = Date.now()): Promise<boolea
  *  counter itself resets via the supabase/in-memory limiter reset. */
 export function __resetOrsBudget(): void {
   exhausted = { date: "", until: 0 };
+  refundGenerations.clear();
 }
