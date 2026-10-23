@@ -67,6 +67,60 @@ describe("orsBudgetKey", () => {
 });
 
 describe("reserveOrsBudget", () => {
+  it.each(["refusal-first", "refund-first"] as const)(
+    "rechecks capacity after overlapping exhaustion and refund responses: %s",
+    async (order) => {
+      vi.stubEnv("ORS_DAILY_BUDGET", "1");
+      let finishRefusal!: (value: null) => void;
+      let finishRefund!: (value: boolean) => void;
+      const refusal = new Promise<null>((resolve) => { finishRefusal = resolve; });
+      const refund = new Promise<boolean>((resolve) => { finishRefund = resolve; });
+      reserveRateLimit.mockResolvedValueOnce({ commit: () => true, release: () => refund });
+      const reservation = await reserveOrsBudget(DAY1);
+      expect(reservation).not.toBeNull();
+      reserveRateLimit.mockReturnValueOnce(refusal);
+      const pendingRefusal = reserveOrsBudget(DAY1 + 1);
+      const pendingRefund = reservation!.release();
+
+      if (order === "refusal-first") {
+        finishRefusal(null);
+        expect(await pendingRefusal).toBeNull();
+        finishRefund(true);
+        expect(await pendingRefund).toBe(true);
+      } else {
+        finishRefund(true);
+        expect(await pendingRefund).toBe(true);
+        finishRefusal(null);
+        expect(await pendingRefusal).toBeNull();
+      }
+
+      expect(await reserveOrsBudget(DAY1 + 2)).not.toBeNull();
+      expect(reserveRateLimit).toHaveBeenCalledTimes(3);
+    },
+  );
+
+  it("keeps exhaustion cached when an overlapping refund fails", async () => {
+    reserveRateLimit.mockResolvedValueOnce({ commit: () => true, release: async () => false });
+    const reservation = await reserveOrsBudget(DAY1);
+    let finishRefusal!: (value: null) => void;
+    reserveRateLimit.mockReturnValueOnce(new Promise<null>((resolve) => { finishRefusal = resolve; }));
+    const pendingRefusal = reserveOrsBudget(DAY1 + 1);
+    expect(await reservation!.release()).toBe(false);
+    finishRefusal(null);
+    expect(await pendingRefusal).toBeNull();
+    expect(await reserveOrsBudget(DAY1 + 2)).toBeNull();
+    expect(reserveRateLimit).toHaveBeenCalledTimes(2);
+  });
+
+  it("keeps the current day's exhausted cache after a previous day's refund", async () => {
+    const reservation = await reserveOrsBudget(DAY1);
+    reserveRateLimit.mockResolvedValueOnce(null);
+    expect(await reserveOrsBudget(DAY2)).toBeNull();
+    expect(await reservation!.release()).toBe(true);
+    expect(await reserveOrsBudget(DAY2 + 1)).toBeNull();
+    expect(reserveRateLimit).toHaveBeenCalledTimes(2);
+  });
+
   it("rechecks the budget when an unused reservation is returned after exhaustion", async () => {
     const reservation = await reserveOrsBudget(DAY1);
     reserveRateLimit.mockResolvedValue(null);
