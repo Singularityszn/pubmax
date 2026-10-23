@@ -17,7 +17,8 @@ import { defined } from "@/__tests__/helpers/defined";
 
 const now = Date.parse("2026-10-23T20:00:00Z");
 const pack: { rows: SlimVenue[] } = JSON.parse(readFileSync("public/data/venues_slim.json", "utf8"));
-const small = slimVenueToPin(defined(pack.rows.find((row) => row.id === "venue-19mn6ss")));
+const small = { ...slimVenueToPin(defined(pack.rows.find((row) => row.id === "venue-19mn6ss"))),
+  cheapestPint: "Best Bitter, 4.5%, Almasty (Newcastle)" };
 const rows = parseUkPriceBundleRows(JSON.parse(readFileSync("public/data/uk_prices/rows.json", "utf8")));
 const menu = defined(rows.find((row) => row.venueId === small.id && row.priceGbp === 5 && row.category === "beer"));
 const noSignals = new Map<string, VenueSignal>();
@@ -31,6 +32,7 @@ describe("published pint evidence before map consumers", () => {
     const projected = project();
     const venue = defined(projected[0]);
     expect(venue.cheapestPrice).toBe(5);
+    expect(venue.cheapestPint).toBe("");
     expect(venue.priceObservedAt).toBe("2026-10-23T16:15:47.970Z");
     expect(venuePriceLane(venue, null, venueSourcedPrice(venue), venueBundlePrices(venue), undefined, undefined, undefined, now))
       .toMatchObject({ lane: "listed", listed: { priceGbp: 5, sourceUrl: "https://www.smallbeern8.co.uk/drinks", observedAt: "2026-10-23T16:15:47.970Z" } });
@@ -47,6 +49,7 @@ describe("published pint evidence before map consumers", () => {
     const signals = new Map([[small.id, { hasPintDrops: true, latestContributorPrice: 4.6, latestContributorAt: now }]]);
     const projected = project(rows, signals);
     expect(projected[0]?.cheapestPrice).toBe(4.6);
+    expect(projected[0]?.cheapestPint).toBe("");
     expect(projected[0]?.priceObservedAt).toBe("2026-10-23T20:00:00.000Z");
     expect(pubsToGeoJSON(projected, signals, null).features[0]?.properties)
       .toMatchObject({ priceLabel: "£4.60", clusterPrice: 4.6 });
@@ -58,10 +61,21 @@ describe("published pint evidence before map consumers", () => {
       source: { label: "Pub website", url: "https://example.com/drinks" }, observedAt: "2026-10-23T16:00:00Z" }], venueUpdateKey);
     const projected = projectMapPintPrices(sourced, bundleRowsByVenue(rows), noSignals, "london", now);
     expect(projected[0]?.cheapestPrice).toBe(4.8);
+    expect(projected[0]?.cheapestPint).toBe("");
     expect(projected[0]?.priceObservedAt).toBe("2026-10-23T16:00:00Z");
     expect(project([])[0]?.cheapestPrice).toBe(5.5);
+    expect(project([])[0]?.cheapestPint).toBe(small.cheapestPint);
     expect(pubsToGeoJSON(project([]), noSignals, null).features[0]?.properties)
       .toMatchObject({ priceLabel: "£5.50", clusterPrice: 5.5 });
+  });
+
+  it("does not infer a matching drink name from an equal price", () => {
+    const signals = new Map([[small.id, { hasPintDrops: true, latestContributorPrice: 5.5, latestContributorAt: now }]]);
+    expect(project([], signals)[0]?.cheapestPint).toBe("");
+    const sourced = mergePriceUpdates([small], [{ venueKey: venueUpdateKey(small), price: 5.5,
+      source: { label: "Pub website", url: "https://example.com/drinks" }, observedAt: "2026-10-23T16:00:00Z" }], venueUpdateKey);
+    expect(projectMapPintPrices(sourced, new Map(), noSignals, "london", now)[0]?.cheapestPint).toBe("");
+    expect(small.cheapestPint).toBe("Best Bitter, 4.5%, Almasty (Newcastle)");
   });
 
   it("does not promote estimates, future rows, other categories, venues or cities", () => {

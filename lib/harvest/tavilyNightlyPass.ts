@@ -564,6 +564,7 @@ function cleanName(label: string): string | null {
 }
 
 function isMixedNumber(line: string): boolean {
+  line = line.replace(UK_PRICE_PATTERN, " ");
   return /\d\s*[½⅓⅔¼¾]\s*pints?\b/i.test(line)
     || /\d[ \t]+1\/2\s*pints?\b/i.test(line);
 }
@@ -809,7 +810,7 @@ function recordPriceLine(
   if (!line.includes("£")) return;
   for (const raw of findUkPriceCandidates(line)) {
     const own = ownPrice(line, raw.verbatim, raw.at);
-    if (!SERVING_SIZE.test(own.text)) continue;
+    if (!SERVING_SIZE.test(own.text) && !fractionalMeasureAtPrice(line, raw.at, raw.verbatim).suffix) continue;
     const outcome = decideKeylessUkPriceCandidate(own.text, { ...raw, at: own.at });
     const row = outcome.kept
       ? listedDrink(

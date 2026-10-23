@@ -38,6 +38,7 @@ export function projectMapPintPrices(
       ...venue,
       bundlePrices: { ...bundle, listed },
       cheapestPrice: price,
+      cheapestPint: "",
       priceBand: undefined,
       priceObservedAt: observedAt ?? venue.priceObservedAt,
     };

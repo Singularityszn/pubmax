@@ -122,6 +122,9 @@ describe("reading the words a PDF menu states", () => {
 
 it.each([
   "Guinness pint £6.20 2/3 Kernel stout £6.00",
+  ...[", ", ". ", "; ", ": ", " | ", " - ", "! ", "? "].flatMap((separator) =>
+    ["1/3", "1 / 3", "one-third", "one third", "2/3", "2 / 3", "two-thirds", "two thirds"].flatMap((measure) =>
+      ["£6.0", "£6.00"].map((price) => `Kernel stout ${price} ${measure} pint${separator}Guinness pint £6.20`))),
   ...[", ", ". ", "; "].map((separator) => `Kernel stout £6.00 (2/3)${separator}Guinness pint £6.20`),
 ])("keeps the PDF pint separate from an inline fraction: %s", async (line) => {
   const text = await readPdfText(pdfStating([

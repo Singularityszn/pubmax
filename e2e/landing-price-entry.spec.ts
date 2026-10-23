@@ -1,6 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
 
-import { expectMobileMapShellReady } from "./helpers/mobileMapShell";
+import { expectMobileMapShellReady, mobileMapShellControl } from "./helpers/mobileMapShell";
 import { UI_UX_CHROMIUM_ARGS } from "../scripts/lib/uiUxBattleTestBrowser.mjs";
 
 test.use({ launchOptions: { args: UI_UX_CHROMIUM_ARGS }, serviceWorkers: "block" });
@@ -51,6 +51,7 @@ for (const width of [390, 1280]) {
     if (width === 390) await expectMobileMapShellReady(page);
     await expect.poll(async () => (await settledCamera(page))?.center[0] ?? 0,
       { timeout: 45_000 }).toBeLessThan(-0.2);
+    if (width === 390) await (await mobileMapShellControl(page, "search")).click();
     await page.getByRole("button", { name: "Clear search", exact: true }).click();
     await expect(page).toHaveURL(/\/map$/);
     await expect.poll(async () => (await savedViewport(page))?.center[0] ?? 0).toBeLessThan(-0.2);
@@ -59,7 +60,7 @@ for (const width of [390, 1280]) {
     if (!before) throw new Error("The Richmond camera did not settle.");
     await expect.poll(() => savedViewport(page)).toEqual(before);
     const stored = await savedViewport(page);
-    await page.getByRole("link", { name: "Home", exact: true }).first().click();
+    await page.getByRole("link", { name: "Open PUBMAXX landing page", exact: true }).first().click();
     await expect(page).toHaveURL(/\/$/);
     const door = page.getByRole("link", { name: "Log what you paid", exact: true });
     await expect(async () => {
@@ -88,7 +89,23 @@ for (const width of [390, 1280]) {
     await expect(picker).toBeVisible({ timeout: 45_000 });
     await expect(picker.getByRole("button", { name: "Near me", exact: true })).toBeVisible();
     await expect(picker.getByRole("button", { name: "Search pubs", exact: true })).toBeVisible();
-    await picker.locator(".logIntentNearbyBtn").first().click();
-    await expect(page.locator('input[inputmode="decimal"]')).toHaveValue("");
+    if (width === 390) await expectMobileMapShellReady(page);
+    const priceInput = page.locator('input[inputmode="decimal"]');
+    await expect(priceInput).toHaveCount(0);
+    let pubName = "";
+    await expect(async () => {
+      if (!await priceInput.isVisible()) {
+        const pub = picker.locator(".logIntentNearbyBtn").first();
+        pubName = await pub.locator("span").first().innerText();
+        await picker.locator(".logIntentNearbyBtn")
+          .filter({ has: page.getByText(pubName, { exact: true }) }).click({ timeout: 2_000 });
+      }
+      await expect(priceInput).toBeVisible({ timeout: 2_000 });
+    }).toPass({ timeout: 20_000 });
+    await expect(page).toHaveURL((url) => url.searchParams.get("log") === "1" &&
+      Boolean(url.searchParams.get("sel")) && !url.searchParams.has("price"));
+    await expect(page.locator(".spillComposerIntro strong")).toHaveText(pubName);
+    await expect(priceInput).toHaveValue("");
+    await expect(priceInput).toBeEditable();
   });
 }

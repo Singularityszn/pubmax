@@ -305,8 +305,9 @@ const LEADING_FRACTIONAL_BEER_MEASURE = new RegExp(
 function fractionalSuffix(gap: string, previousLabel: string): string | null {
   const marker = LEADING_FRACTIONAL_BEER_MEASURE.exec(gap)?.[0];
   if (!marker) return null;
-  const followingLabel = gap.slice(marker.length).trim();
-  if (!followingLabel || marker.includes("(")) return marker;
+  const following = gap.slice(marker.length);
+  const followingLabel = following.trim();
+  if (!followingLabel || marker.includes("(") || LEADING_PRICE_ITEM_SEPARATORS.test(following)) return marker;
   // An explicitly full pint cannot borrow the next drink's prefix measure.
   if (/\b(?:pints?|568\s*ml)\b/i.test(previousLabel) && !FRACTIONAL_BEER_MEASURE.test(previousLabel)) return "";
   if (/\b(?:pints?|568\s*ml)\b/i.test(followingLabel)) return marker;

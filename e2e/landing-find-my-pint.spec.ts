@@ -171,12 +171,17 @@ test.describe("landing hierarchy", () => {
     const priceInput = page.locator(".spillPriceStep .priceStepper input");
     await expect(priceInput).toHaveCount(0);
 
-    const pubName = await picker.locator(".logIntentNearbyBtn > span:first-child").first().innerText();
-    const pub = picker.locator(".logIntentNearbyBtn").filter({ has: page.getByText(pubName, { exact: true }) });
+    let pubName = "";
     await expect(async () => {
-      if (await pub.isVisible()) await pub.click({ timeout: 2_000 });
+      if (!await priceInput.isVisible()) {
+        const pub = picker.locator(".logIntentNearbyBtn").first();
+        pubName = await pub.locator("span").first().innerText();
+        await picker.locator(".logIntentNearbyBtn")
+          .filter({ has: page.getByText(pubName, { exact: true }) }).click({ timeout: 2_000 });
+      }
       await expect(priceInput).toBeVisible({ timeout: 2_000 });
     }).toPass({ timeout: 20_000 });
+    await expect(page.locator(".spillComposerIntro strong")).toHaveText(pubName);
     await expect(page).toHaveURL((url) => url.searchParams.get("log") === "1" &&
       Boolean(url.searchParams.get("sel")) && !url.searchParams.has("price"));
     await expect(priceInput).toHaveValue("");

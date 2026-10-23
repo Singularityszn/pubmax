@@ -1,9 +1,12 @@
 // @vitest-environment jsdom
+import { readFileSync } from "node:fs";
 import { act, createElement } from "react";
 import { createRoot } from "react-dom/client";
 import { afterEach, expect, it } from "vitest";
 
 import RouteList from "@/components/map/route/RouteList";
+import { projectMapPintPrices } from "@/lib/mapPintPrices";
+import { bundleRowsByVenue, parseUkPriceBundleRows } from "@/lib/ukPriceBundle";
 import { slimVenueToPin } from "@/lib/slimPins";
 import type { Venue } from "@/lib/venues";
 
@@ -54,4 +57,15 @@ it("prints the cheapest drop beside the drink it names", async () => {
 it("prints a cheapest drop that names no drink as the price alone", async () => {
   expect(await stopLine(venue({ cheapestPrice: 4.5, cheapestPint: "", latestContributorPrice: 4.5 }), 4.5))
     .toBe("£4.50");
+});
+
+it("prints Small Beer's projected menu price without the unrelated baseline beer", async () => {
+  const small = venue({ id: "venue-19mn6ss", name: "Small Beer", cheapestPrice: 5.5,
+    cheapestPint: "Best Bitter, 4.5%, Almasty (Newcastle)" });
+  const rows = parseUkPriceBundleRows(JSON.parse(readFileSync("public/data/uk_prices/rows.json", "utf8")));
+  const [projected] = projectMapPintPrices([small], bundleRowsByVenue(rows), new Map(), "london", Date.parse("2026-10-23T20:00:00Z"));
+  if (!projected) throw new Error("Small Beer did not resolve into the route.");
+  expect(await stopLine(projected, null)).toBe("£5.00");
+  expect(small.cheapestPint).toBe("Best Bitter, 4.5%, Almasty (Newcastle)");
+  expect(small.cheapestPrice).toBe(5.5);
 });
