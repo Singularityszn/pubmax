@@ -37,6 +37,8 @@ Pick a crawl style, filter, and either accept a **Suggested Crawl** or **Build y
 
 - **Crawl planner** - describe a night at `/plan`, such as "Quiet wine in Clapham for 2". Before saving, [review the result, including incomplete routes, and check **Drinks** in **Tune details**](docs/rules/components-venue-plan-and-message-surfaces.md#the-plan-result-is-a-route-and-the-settings-sit-behind-it). You can choose an alcoholic drink category or the existing no-alcohol option. A non-beer selection leaves unavailable prices and route budgets unknown. For these nights or the no-alcohol option, leave **Max per person** unset: generation cannot prove that ceiling from the available reports. Saved community reports show their date and say when serving size is missing. First-run **Plan my night** opens the same planner with your selected area and budget. See the [generation limits](docs/API_CONTRACTS_THE_LOCAL.md#3-post-apiplansgenerate--grounded-plan-generation) for meal constraints and pint ceilings. The map also offers Suggest mode or Build mode. Developer details and current persistence limits live in the [Plan price contract](docs/API_CONTRACTS_THE_LOCAL.md#selected-drink-price-evidence).
 
+  If the map cannot obtain a street route, it keeps a dashed straight-line estimate.
+
   On a saved Plan with candidate pubs, open **Plan it together**. Choose **Compare journeys from broad areas**. The comparison starts off. Add broad London areas to see each pub's longest and average straight-line walking estimates from the area centres. Pubs without usable coordinates show **journey time unknown**. These estimates do not establish routed or step-free journeys.
 
   Starting areas stay in temporary local state. They never enter shared preferences, requests, URLs, browser storage or analytics. Switching the comparison off or changing the Plan or member clears the choices. The comparison does not change the route.
@@ -194,3 +196,7 @@ Local keyless demos may leave it empty to keep labelled seed content visible.
 - **`docs/DEMO_DECK.md`** — demo script.
 - **[`data/osm/uk/README.md`](data/osm/uk/README.md)** - UK-wide OSM seed-pack refresh, provenance, dedupe, and runtime shard generation.
 - **[`public/data/price_history/README.md`](public/data/price_history/README.md)** - what earns a row in the hand-curated historical price file, where wave one came from, and what it yielded.
+
+### Walking-route refund rollout
+
+See the [walking-route refund prerequisites and rollback](docs/SOFT_LAUNCH_RUNBOOK.md#walking-route-refunds) before production rollout.

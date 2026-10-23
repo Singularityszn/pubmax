@@ -1,20 +1,20 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-// Unit tests for the global daily ORS budget. The durable seam (isLimited) and
+// Unit tests for the global daily ORS budget. The durable seam (reserveRateLimit) and
 // the structured logger are mocked so the budget module's own logic — the
 // per-call reservation, the exhausted short-circuit, and the config reader — is
 // exercised in isolation, with no Supabase and no real network.
 
-const isLimited = vi.hoisted(() =>
-  vi.fn<(l: string, d: string, limit?: number, windowMs?: number) => Promise<boolean>>(),
+const reserveRateLimit = vi.hoisted(() =>
+  vi.fn<() => Promise<{ commit: () => boolean; release: () => Promise<boolean> } | null>>(),
 );
 const log = vi.hoisted(() => vi.fn());
 
-vi.mock("@/lib/pintDrops", () => ({ isLimited }));
+vi.mock("@/lib/pintDrops", () => ({ reserveRateLimit }));
 vi.mock("@/lib/log", () => ({ log }));
 
 import {
-  consumeOrsBudget,
+  reserveOrsBudget,
   orsBudgetKey,
   orsDailyBudget,
   ORS_BUDGET_WINDOW_MS,
@@ -28,9 +28,9 @@ const DAY2 = Date.parse("2026-07-23T09:00:00Z");
 
 beforeEach(() => {
   __resetOrsBudget();
-  isLimited.mockReset();
+  reserveRateLimit.mockReset();
   log.mockReset();
-  isLimited.mockResolvedValue(false); // under budget by default
+  reserveRateLimit.mockResolvedValue({ commit: () => true, release: async () => true }); // under budget by default
 });
 
 afterEach(() => {
@@ -66,32 +66,122 @@ describe("orsBudgetKey", () => {
   });
 });
 
-describe("consumeOrsBudget", () => {
+describe("reserveOrsBudget", () => {
+  it.each(["refusal-first", "refund-first"] as const)(
+    "rechecks capacity after overlapping exhaustion and refund responses: %s",
+    async (order) => {
+      vi.stubEnv("ORS_DAILY_BUDGET", "1");
+      let finishRefusal!: (value: null) => void;
+      let finishRefund!: (value: boolean) => void;
+      const refusal = new Promise<null>((resolve) => { finishRefusal = resolve; });
+      const refund = new Promise<boolean>((resolve) => { finishRefund = resolve; });
+      reserveRateLimit.mockResolvedValueOnce({ commit: () => true, release: () => refund });
+      const reservation = await reserveOrsBudget(DAY1);
+      expect(reservation).not.toBeNull();
+      reserveRateLimit.mockReturnValueOnce(refusal);
+      const pendingRefusal = reserveOrsBudget(DAY1 + 1);
+      const pendingRefund = reservation!.release();
+
+      if (order === "refusal-first") {
+        finishRefusal(null);
+        expect(await pendingRefusal).toBeNull();
+        finishRefund(true);
+        expect(await pendingRefund).toBe(true);
+      } else {
+        finishRefund(true);
+        expect(await pendingRefund).toBe(true);
+        finishRefusal(null);
+        expect(await pendingRefusal).toBeNull();
+      }
+
+      expect(await reserveOrsBudget(DAY1 + 2)).not.toBeNull();
+      expect(reserveRateLimit).toHaveBeenCalledTimes(3);
+    },
+  );
+
+  it("keeps exhaustion cached when an overlapping refund fails", async () => {
+    reserveRateLimit.mockResolvedValueOnce({ commit: () => true, release: async () => false });
+    const reservation = await reserveOrsBudget(DAY1);
+    let finishRefusal!: (value: null) => void;
+    reserveRateLimit.mockReturnValueOnce(new Promise<null>((resolve) => { finishRefusal = resolve; }));
+    const pendingRefusal = reserveOrsBudget(DAY1 + 1);
+    expect(await reservation!.release()).toBe(false);
+    finishRefusal(null);
+    expect(await pendingRefusal).toBeNull();
+    expect(await reserveOrsBudget(DAY1 + 2)).toBeNull();
+    expect(reserveRateLimit).toHaveBeenCalledTimes(2);
+  });
+
+  it("keeps the current day's exhausted cache after a previous day's refund", async () => {
+    const reservation = await reserveOrsBudget(DAY1);
+    reserveRateLimit.mockResolvedValueOnce(null);
+    expect(await reserveOrsBudget(DAY2)).toBeNull();
+    expect(await reservation!.release()).toBe(true);
+    expect(await reserveOrsBudget(DAY2 + 1)).toBeNull();
+    expect(reserveRateLimit).toHaveBeenCalledTimes(2);
+  });
+
+  it("caches a pending current-day refusal after a previous-day refund", async () => {
+    const reservation = await reserveOrsBudget(DAY1);
+    let finishRefusal!: (value: null) => void;
+    reserveRateLimit.mockReturnValueOnce(new Promise<null>((resolve) => { finishRefusal = resolve; }));
+    const pendingRefusal = reserveOrsBudget(DAY2);
+    expect(await reservation!.release()).toBe(true);
+    finishRefusal(null);
+    expect(await pendingRefusal).toBeNull();
+    expect(await reserveOrsBudget(DAY2 + 1)).toBeNull();
+    expect(reserveRateLimit).toHaveBeenCalledTimes(2);
+  });
+
+  it("retains same-day refund invalidation after another day's refund", async () => {
+    const firstDayReservation = await reserveOrsBudget(DAY1);
+    const secondDayReservation = await reserveOrsBudget(DAY2);
+    let finishRefusal!: (value: null) => void;
+    reserveRateLimit.mockReturnValueOnce(new Promise<null>((resolve) => { finishRefusal = resolve; }));
+    const pendingRefusal = reserveOrsBudget(DAY1 + 1);
+    expect(await firstDayReservation!.release()).toBe(true);
+    expect(await secondDayReservation!.release()).toBe(true);
+    finishRefusal(null);
+    expect(await pendingRefusal).toBeNull();
+    expect(await reserveOrsBudget(DAY1 + 2)).not.toBeNull();
+    expect(reserveRateLimit).toHaveBeenCalledTimes(4);
+  });
+
+  it("rechecks the budget when an unused reservation is returned after exhaustion", async () => {
+    const reservation = await reserveOrsBudget(DAY1);
+    reserveRateLimit.mockResolvedValue(null);
+    expect(await reserveOrsBudget(DAY1 + 1)).toBeNull();
+    await reservation?.release();
+    reserveRateLimit.mockResolvedValue({ commit: () => true, release: async () => true });
+    expect(await reserveOrsBudget(DAY1 + 2)).not.toBeNull();
+    expect(reserveRateLimit).toHaveBeenCalledTimes(3);
+  });
+
   it("draws ONE durable unit against the global bucket and allows the call when under budget", async () => {
-    const allowed = await consumeOrsBudget(DAY1);
-    expect(allowed).toBe(true);
-    expect(isLimited).toHaveBeenCalledTimes(1);
+    const allowed = await reserveOrsBudget(DAY1);
+    expect(allowed).toBeTruthy();
+    expect(reserveRateLimit).toHaveBeenCalledTimes(1);
     // Reuses the check_rate_limit seam: same key for local + durable, the
     // configured budget as the limit, and a 24h window.
-    expect(isLimited).toHaveBeenCalledWith(
-      "ors-global:2026-07-22",
+    expect(reserveRateLimit).toHaveBeenCalledWith(
       "ors-global:2026-07-22",
       ORS_DAILY_BUDGET_DEFAULT,
       ORS_BUDGET_WINDOW_MS,
+      undefined,
     );
     expect(log).not.toHaveBeenCalled();
   });
 
   it("passes the configured ORS_DAILY_BUDGET through as the durable limit", async () => {
     vi.stubEnv("ORS_DAILY_BUDGET", "3");
-    await consumeOrsBudget(DAY1);
-    expect(isLimited).toHaveBeenCalledWith(expect.any(String), expect.any(String), 3, ORS_BUDGET_WINDOW_MS);
+    await reserveOrsBudget(DAY1);
+    expect(reserveRateLimit).toHaveBeenCalledWith(expect.any(String), 3, ORS_BUDGET_WINDOW_MS, undefined);
   });
 
   it("denies the call and logs ONE structured warn when over budget", async () => {
-    isLimited.mockResolvedValue(true);
-    const allowed = await consumeOrsBudget(DAY1);
-    expect(allowed).toBe(false);
+    reserveRateLimit.mockResolvedValue(null);
+    const allowed = await reserveOrsBudget(DAY1);
+    expect(allowed).toBeNull();
     expect(log).toHaveBeenCalledTimes(1);
     expect(log).toHaveBeenCalledWith("warn", "ors_budget.exhausted", {
       date: "2026-07-22",
@@ -101,42 +191,42 @@ describe("consumeOrsBudget", () => {
   });
 
   it("short-circuits once exhausted: later calls stay denied with NO extra durable read", async () => {
-    isLimited.mockResolvedValue(true);
-    expect(await consumeOrsBudget(DAY1)).toBe(false);
+    reserveRateLimit.mockResolvedValue(null);
+    expect(await reserveOrsBudget(DAY1)).toBeNull();
     // Even if the durable limiter would now answer 'under budget', the cached
     // exhausted flag denies without touching it — zero durable reads per request.
-    isLimited.mockResolvedValue(false);
-    expect(await consumeOrsBudget(DAY1 + 1_000)).toBe(false);
-    expect(await consumeOrsBudget(DAY1 + 2_000)).toBe(false);
-    expect(isLimited).toHaveBeenCalledTimes(1);
+    reserveRateLimit.mockResolvedValue({ commit: () => true, release: async () => true });
+    expect(await reserveOrsBudget(DAY1 + 1_000)).toBeNull();
+    expect(await reserveOrsBudget(DAY1 + 2_000)).toBeNull();
+    expect(reserveRateLimit).toHaveBeenCalledTimes(1);
     // And only the first exhaustion logged — one warn per window, not per call.
     expect(log).toHaveBeenCalledTimes(1);
   });
 
   it("scopes the short-circuit to the UTC day: a new day re-checks the durable budget", async () => {
-    isLimited.mockResolvedValue(true);
-    expect(await consumeOrsBudget(DAY1)).toBe(false);
-    expect(isLimited).toHaveBeenCalledTimes(1);
+    reserveRateLimit.mockResolvedValue(null);
+    expect(await reserveOrsBudget(DAY1)).toBeNull();
+    expect(reserveRateLimit).toHaveBeenCalledTimes(1);
     // Next UTC day: fresh bucket, the stale exhausted flag must not hold it down.
-    isLimited.mockResolvedValue(false);
-    expect(await consumeOrsBudget(DAY2)).toBe(true);
-    expect(isLimited).toHaveBeenCalledTimes(2);
-    expect(isLimited).toHaveBeenLastCalledWith(
-      "ors-global:2026-07-23",
+    reserveRateLimit.mockResolvedValue({ commit: () => true, release: async () => true });
+    expect(await reserveOrsBudget(DAY2)).toBeTruthy();
+    expect(reserveRateLimit).toHaveBeenCalledTimes(2);
+    expect(reserveRateLimit).toHaveBeenLastCalledWith(
       "ors-global:2026-07-23",
       ORS_DAILY_BUDGET_DEFAULT,
       ORS_BUDGET_WINDOW_MS,
+      undefined,
     );
   });
 
-  it("DEGRADED MODE (documented): delegates to isLimited, inheriting its fail-open-to-memory seam", async () => {
-    // The budget owns no limiter of its own — it rides the SAME isLimited path
+  it("DEGRADED MODE (documented): delegates to reserveRateLimit, inheriting its fail-open-to-memory seam", async () => {
+    // The budget owns no limiter of its own — it rides the SAME reserveRateLimit path
     // every rate-limited route uses. So when Supabase can't answer, the budget
-    // degrades to a per-instance in-memory counter exactly as isLimited does
+    // degrades to a per-instance in-memory counter exactly as reserveRateLimit does
     // (looser than ORS_DAILY_BUDGET by the live instance count), and never hard
     // stops routing. Proven here by the single delegation; the fail-open logic
     // itself is covered by the pintDrops limiter tests.
-    await consumeOrsBudget(DAY1);
-    expect(isLimited).toHaveBeenCalledTimes(1);
+    await reserveOrsBudget(DAY1);
+    expect(reserveRateLimit).toHaveBeenCalledTimes(1);
   });
 });

@@ -8,8 +8,9 @@
 // draws it SOLID only for a complete road route and DASHED for any approximate
 // fallback.
 //
-// ALWAYS 200 with a drawable line (fail-soft, never blocks the map). Keyless is
-// the documented default: no ORS_API_KEY ⇒ the straight fallback, no network.
+// Routing failures return a drawable fallback with status 200. The per-client
+// limiter can still return 429. Without ORS_API_KEY, uncached legs use the
+// straight fallback without a provider call.
 // A GET (stops in the query) keeps this off the social write-surface fence — it
 // reads and caches routed geometry, it is not a user-content write.
 //
@@ -26,16 +27,20 @@
 // GLOBAL DAILY BUDGET: the per-client cap can't bound aggregate ORS spend, and
 // under the degraded (per-instance) limiter many instances each grant their own
 // 20/min. So an ACTUAL provider call also draws down a durable global daily
-// budget (lib/walkRouteBudget consumeOrsBudget, keyed ors-global:<UTC-date>,
+// budget (lib/walkRouteBudget reserveOrsBudget, keyed ors-global:<UTC-date>,
 // ORS_DAILY_BUDGET default 2000). Over the daily cap ⇒ skip the provider and
 // serve the straight leg — the same fail-soft the keyless/unroutable paths use.
 // Cache hits and the keyless path never call it, so they never consume budget.
+// An unexpected budget error also keeps the straight leg and skips the provider.
+// On a cache miss, an already-cancelled request skips the budget and provider.
+// Cancellation during a provider request aborts that request.
 
 import { publicApiError } from "@/lib/apiError";
 import { jsonNoStore } from "@/lib/apiResponses";
 import { isLimited } from "@/lib/pintDrops";
 import { assertServerEnv } from "@/lib/serverEnv";
 import { clientIp, hashIp } from "@/lib/supabase";
+import { log } from "@/lib/log";
 import {
   legCacheKey,
   legDistances,
@@ -50,7 +55,7 @@ import {
   type LngLat,
   type WalkLeg,
 } from "@/lib/walkRoute";
-import { consumeOrsBudget } from "@/lib/walkRouteBudget";
+import { reserveOrsBudget } from "@/lib/walkRouteBudget";
 import { fetchWalkLeg, orsApiKey } from "@/lib/walkRouteProvider";
 import { walkRouteStore } from "@/lib/walkRouteStore";
 
@@ -65,9 +70,9 @@ export const runtime = "nodejs";
 
 const EMPTY_LINE: GeoJSON.FeatureCollection = { type: "FeatureCollection", features: [] };
 
-async function resolveLegs(stops: LngLat[]): Promise<WalkLeg[]> {
+async function resolveLegs(stops: LngLat[], signal: AbortSignal): Promise<WalkLeg[]> {
   const store = walkRouteStore();
-  const hasKey = orsApiKey() !== null;
+  const apiKey = orsApiKey();
   return Promise.all(
     stopPairs(stops).map(async (pair): Promise<WalkLeg> => {
       const straight: WalkLeg = {
@@ -79,15 +84,27 @@ async function resolveLegs(stops: LngLat[]): Promise<WalkLeg[]> {
       const key = legCacheKey(pair.from, pair.to);
       const cached = await store.getLeg(key);
       if (cached) return { ...straight, coordinates: cached, source: "ors" };
-      if (!hasKey) return straight;
+      if (!apiKey || signal.aborted) return straight;
       // A real provider call is about to happen (cache miss + key present).
       // Draw down the global daily ORS budget FIRST; over the cap ⇒ serve the
       // straight leg (fail-soft), so the day's quota can't be silently drained.
-      if (!(await consumeOrsBudget())) return straight;
-      const routed = await fetchWalkLeg(pair.from, pair.to);
-      if (!routed) return straight;
-      await store.putLeg(key, routed);
-      return { ...straight, coordinates: routed, source: "ors" };
+      let reservation;
+      try {
+        reservation = await reserveOrsBudget(Date.now(), signal);
+        if (!reservation) return straight;
+      } catch {
+        log("error", "walk_route.budget_unavailable");
+        return straight;
+      }
+      try {
+        if (!reservation.commit()) return straight;
+        const routed = await fetchWalkLeg(pair.from, pair.to, { signal, apiKey });
+        if (!routed) return straight;
+        await store.putLeg(key, routed);
+        return { ...straight, coordinates: routed, source: "ors" };
+      } finally {
+        await reservation.release();
+      }
     }),
   );
 }
@@ -102,7 +119,7 @@ export async function GET(request: Request): Promise<Response> {
   if (stops.length < 2) {
     return jsonNoStore({ line: EMPTY_LINE, source: "straight", legs: [] });
   }
-  const legs = await resolveLegs(stops);
+  const legs = await resolveLegs(stops, request.signal);
   // `legs` carries each leg's real drawn-polyline distance + source so a client
   // can label it source-aware ("walking route" vs "straight-line") without
   // re-measuring the stitched line; `line`/`source` stay the drawable payload.
