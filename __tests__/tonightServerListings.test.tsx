@@ -153,6 +153,40 @@ describe("Tonight's server listing composition", () => {
 });
 
 describe("Tonight's completed server document", () => {
+  it("acknowledges a pub-matched gig when ticket-platform listings stay outside the primary list", () => {
+    const gig = {
+      ...independent,
+      id: "ticketmaster-lexington",
+      kind: "music" as const,
+      title: "REALLY GOOD TIME",
+      source: { label: "Ticketmaster", url: "https://www.ticketmaster.co.uk/event/lexington" },
+    };
+    const html = renderToStaticMarkup(createElement(TonightClient, {
+      initialListings: {
+        whatsOn: { ...whatsOn, rows: [gig] },
+        out: {
+          body: { status: "ready", events: [gig], observedAt: { ticketmaster: OBSERVED }, venueMatch: "ready" },
+          failed: false,
+          pending: false,
+        },
+        renderedAt: NOW,
+      },
+      mapSelectableVenueIds: ["venue-quiz"],
+    }));
+
+    expect(html).toContain("1 sourced live music listing below.");
+    expect(html).toContain("REALLY GOOD TIME");
+    expect(html).toContain("1 listing via Ticketmaster");
+    expect(html).not.toContain("No confirmed events");
+    expect(html).not.toContain("No events listed");
+    expect(html).not.toContain("Quiet night");
+    expect(html).not.toContain("nothing’s confirmed");
+  });
+
+  it("does not publish a loading-picks placeholder in the completed document", () => {
+    expect(documentFor(whatsOn)).not.toContain("Loading picks");
+  });
+
   it("contains approved listings and their real source before browser reads run", () => {
     const html = documentFor(whatsOn);
     expect(html).toContain("Friday pub quiz");

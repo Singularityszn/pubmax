@@ -32,9 +32,10 @@ referrer and campaign parameters, Web Vitals, unique users, and retention.
   PostHog for product analytics. PUBMAXX does not store or log the raw values.
   The existing abuse limiter continues to hash IP addresses and never stores
   them in raw form.
-- Autocapture and session recording remain disabled. Product events remain a
-  closed named registry, while explicit coarse pageviews, redacted exceptions,
-  and Web Vitals remain the only allowed browser SDK event classes.
+- Autocapture and session recording remain disabled. Product events use a
+  closed named registry. The [browser SDK contract](../analytics/POSTHOG_SAMPLING.md)
+  owns the allowed browser events and bounded page-exit measurements.
+  The [privacy notice](../../app/privacy/page.tsx) describes this collection.
 - Events must be deleted 12 months after collection. Pseudonymous person/device
   profiles must be deleted 12 months after their last activity. Provider-side
   configuration and verification are release gates, not assumptions made by

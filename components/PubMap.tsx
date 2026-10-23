@@ -1088,37 +1088,28 @@ function mapChipLabelFor(input: {
 }
 
 /**
- * The venues the map pins. While a search field holds the caret or the search
- * overlay is open, the pins keep every filter but the query, so a half-typed
- * name never empties the map. Otherwise they are the filtered venues.
+ * Search narrows the results and camera, not the surrounding price context.
+ * Pins keep every other filter after a query is restored or its field blurs.
  */
-function useSearchStablePinVenues({
-  searchFieldFocused,
-  mapOverlay,
+function useMapPinVenues({
   venues,
   mapFilters,
   venueSignals,
   openNowStateById,
   savedOnly,
   savedIds,
-  filteredVenues,
 }: {
-  searchFieldFocused: boolean;
-  mapOverlay: MapOverlay;
   venues: readonly Venue[];
   mapFilters: Filters;
   venueSignals: ReadonlyMap<string, { hasPintDrops: boolean }>;
   openNowStateById: ReadonlyMap<string, OpenNowState> | null;
   savedOnly: boolean;
   savedIds: ReadonlySet<string>;
-  filteredVenues: Venue[];
 }): Venue[] {
   const pinFilterKey = JSON.stringify(mapPinFilters(mapFilters));
   // eslint-disable-next-line react-hooks/exhaustive-deps -- the key includes every non-query filter
   const pinFilters = useMemo(() => mapPinFilters(mapFilters), [pinFilterKey]);
-  const searchActive = searchFieldFocused || mapOverlay === "search";
-  const searchPinVenues = useMemo(() => {
-    if (!searchActive) return null;
+  return useMemo(() => {
     const candidates = filterMapVenues(
       venues,
       pinFilters,
@@ -1126,8 +1117,7 @@ function useSearchStablePinVenues({
       (id) => openNowStateById?.get(id) ?? "unknown",
     );
     return savedOnly ? candidates.filter((venue) => savedIds.has(venue.id)) : candidates;
-  }, [searchActive, openNowStateById, pinFilters, savedIds, savedOnly, venues, venueSignals]);
-  return searchPinVenues ?? filteredVenues;
+  }, [openNowStateById, pinFilters, savedIds, savedOnly, venues, venueSignals]);
 }
 
 /**
@@ -3146,16 +3136,13 @@ export default function PubMap({
     [filteredVenues],
   );
 
-  const pinVenues = useSearchStablePinVenues({
-    searchFieldFocused: mapSearchFieldFocused,
-    mapOverlay,
+  const pinVenues = useMapPinVenues({
     venues,
     mapFilters: effectiveMapFilters,
     venueSignals,
     openNowStateById,
     savedOnly,
     savedIds,
-    filteredVenues,
   });
 
   const nearbyMapResultForView = useMemo(() => {
@@ -3195,6 +3182,10 @@ export default function PubMap({
     () => withForcedVenue(kindVisibleMapVenues, venueById, selectedVenueId),
     [kindVisibleMapVenues, venueById, selectedVenueId],
   );
+  const queryVenues = useMemo(() => {
+    const matchingIds = new Set(filteredVenues.map((venue) => venue.id));
+    return canvasVenues.filter((venue) => matchingIds.has(venue.id));
+  }, [canvasVenues, filteredVenues]);
   const experienceLensPrices = useMemo(
     () =>
       experienceLens === "all"
@@ -3652,6 +3643,7 @@ export default function PubMap({
       initialTab: VenueTabRequest = "overview",
     ) => {
       if (!id) return;
+      setNearbyMapResult(null);
       setArrivalSelectionNotice(null);
       setSelectionNotice(null);
       setAcceptanceError(null);
@@ -4343,6 +4335,9 @@ export default function PubMap({
         // answer for this query. Do not let the timer fire late and replace it.
         cameraOwnedByPick: searchQueryCameraOwnedRef.current === trimmedMapQuery,
       });
+      // Search takes the camera beyond the reader's location. Release its
+      // Near me membership so the matching venues can paint and frame there.
+      if (move !== "none") setNearbyMapResult(null);
       if (move === "select-one") {
         // Fly to the one match and open its sheet (reuses the pin path).
         const [match] = filteredVenuesRef.current;
@@ -4356,14 +4351,9 @@ export default function PubMap({
     return () => window.clearTimeout(handle);
   }, [mapSearchFieldFocused, searchOverlayOpen, trimmedMapQuery, selectVenue, ukPlaceArrival]);
 
-  // #397: a query restored from the URL (?q=) must fly to its matches exactly
-  // like typed search does (#371). The typed-search effect above deliberately
-  // skips first paint, and the arrival framing prop can miss the restore on the
-  // slow two-stage venue load (mapReady fires before slim pins match) — leaving
-  // the query in the field and a pin count on screen while the camera sits on
-  // the default view with no match in sight. Drive the same select-one /
-  // fit-many result here once the map is ready and the slim pins have matched.
-  // A zero-result query never moves the camera and never claims pins.
+  // A restored query frames its matches without reopening a closed sheet.
+  // Explicit sel owns sheet restoration, while typed search keeps its own
+  // select-one behavior. Wait until both the map and matching pins are ready.
   const didRestoreQueryFlyRef = useRef(false);
   useEffect(() => {
     const matches = filteredVenues;
@@ -4391,18 +4381,13 @@ export default function PubMap({
     // No matches can also mean the slim pins are still loading. Keep waiting
     // without consuming the one-shot restore.
     if (restore === "wait") return;
-    const firstMatchId = matches[0]?.id;
     // Defer the state write out of the effect body (matches the typed-search
     // effect above) and latch on the actual fire, so re-renders while the pins
     // are still settling reschedule cleanly instead of losing the fly-to.
     const handle = window.setTimeout(() => {
       didRestoreQueryFlyRef.current = true;
       searchQueryCameraOwnedRef.current = trimmedMapQuery;
-      if (restore === "select-single" && firstMatchId) {
-        selectVenue(firstMatchId);
-      } else if (restore === "fit-many") {
-        setSearchFitToken((token) => token + 1);
-      }
+      setSearchFitToken((token) => token + 1);
     }, 0);
     return () => window.clearTimeout(handle);
   }, [
@@ -4411,7 +4396,6 @@ export default function PubMap({
     arrivalSearch,
     trimmedMapQuery,
     selectedVenueId,
-    selectVenue,
   ]);
 
   const focusMapSearch = useCallback(() => {
@@ -6887,6 +6871,7 @@ export default function PubMap({
         maxBounds={UK_BOUNDS}
         fitQueryOnArrival={shouldFitQueryVenuesOnArrival(arrivalSearch)}
         searchFitToken={searchFitToken}
+        queryVenues={queryVenues}
         userLocation={userLocation}
         nearMePending={nearbyLoading}
         readerPosition={readerPosition}
