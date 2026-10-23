@@ -53,8 +53,9 @@ The hours dataset in `fail-closed-hours.json` contains twelve real-venue asks.
 Ten venues have no hours in the current dataset. Lion & Unicorn has recorded
 website hours. The Crosse Keys has copied Google Places hours with a checked
 date. The test checks each reference against the actual venue records before
-it runs `runAsk` without network access. Vitest prepares the same Places
-runtime files as a production build, using committed observations only.
+it runs `runAsk` without network access. See
+[Places preparation](../../docs/rules/lib-venues-areas-listings-and-nights.md#google-places-venue-content)
+for the shared build and test setup.
 
 The known `hoursAnswer` expectation requires every recorded weekday and time in
 the answer. The matching venue card must carry those hours and their named
