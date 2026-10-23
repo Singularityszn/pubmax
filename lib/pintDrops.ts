@@ -56,6 +56,7 @@ import {
   isSupabaseConfigured,
 } from "@/lib/supabase";
 import { log } from "@/lib/log";
+import { refundRateLimitHit } from "@/lib/rateLimitRefund.server";
 
 /** Unscoped feed/map reads: keep Manchester venue ids off the London surface. */
 export function dropMatchesCityScope(
@@ -309,18 +310,28 @@ export const RATE_LIMIT_RPC_TIMEOUT_MS = 2_500;
  * durable verdict is used as-is. `checkRateLimitDurableDetailed` logs the
  * downgrade loudly.
  */
-export async function isLimited(
+async function takeRateLimit(
   localKey: string,
   durableKey: string,
   limit = RATE_LIMIT,
   windowMs = RATE_WINDOW_MS,
   opts?: { failClosed?: boolean },
+  admitted?: (refund: () => Promise<boolean>) => void,
 ): Promise<boolean> {
   limit = applyE2ERateLimitAllowance(limit);
+  const local = (cap: number) => {
+    const chargedAt = Date.now();
+    const limited = isRateLimited(localKey, chargedAt, cap, windowMs);
+    if (!limited) admitted?.(async () => {
+      if (Date.now() - chargedAt < windowMs) rateWindow.get(localKey.toLowerCase())?.hits.pop();
+      return true;
+    });
+    return limited;
+  };
   if (!isSupabaseConfigured()) {
     // Pure local dev (no Supabase at all): in-memory result even for
     // fail-closed callers, so local dev keeps working.
-    return isRateLimited(localKey, Date.now(), limit, windowMs);
+    return local(limit);
   }
 
   const { verdict, reason } = await checkRateLimitDurableDetailed(
@@ -329,7 +340,10 @@ export async function isLimited(
     windowMs,
     AbortSignal.timeout(RATE_LIMIT_RPC_TIMEOUT_MS),
   );
-  if (typeof verdict === "boolean") return verdict;
+  if (typeof verdict === "boolean") {
+    if (!verdict) admitted?.(() => refundRateLimitHit(durableKey));
+    return verdict;
+  }
 
   // Supabase IS configured but the durable check could not answer. For
   // cost-sensitive callers (paid LLM spend) fail CLOSED rather than falling
@@ -345,17 +359,58 @@ export async function isLimited(
     // so the effective cap is looser than intended exactly during an outage.
     // No PII: only the failure reason, resulting mode, and numeric caps.
     warnRateLimitFailOpen(reason, "degraded", Math.min(limit, DEGRADED_RATE_LIMIT), windowMs);
-    return isRateLimited(
-      localKey,
-      Date.now(),
-      Math.min(limit, DEGRADED_RATE_LIMIT),
-      windowMs,
-    );
+    return local(Math.min(limit, DEGRADED_RATE_LIMIT));
   }
 
   // no-client / unknown → full in-memory budget (fail-open wide).
   warnRateLimitFailOpen(reason ?? "unknown", "full", limit, windowMs);
-  return isRateLimited(localKey, Date.now(), limit, windowMs);
+  return local(limit);
+}
+
+export async function isLimited(
+  localKey: string,
+  durableKey: string,
+  limit = RATE_LIMIT,
+  windowMs = RATE_WINDOW_MS,
+  opts?: { failClosed?: boolean },
+): Promise<boolean> {
+  return takeRateLimit(localKey, durableKey, limit, windowMs, opts);
+}
+
+export type RateLimitReservation = {
+  commit: () => boolean;
+  release: () => Promise<boolean>;
+};
+
+/** A caller commits immediately before dispatch, or releases an unused unit. */
+export async function reserveRateLimit(
+  key: string,
+  limit: number,
+  windowMs: number,
+  signal?: AbortSignal,
+): Promise<RateLimitReservation | null> {
+  if (signal?.aborted) return null;
+  let refund: (() => Promise<boolean>) | undefined;
+  if (await takeRateLimit(key, key, limit, windowMs, undefined, (release) => { refund = release; })) return null;
+  let state: "reserved" | "spent" | "released" = "reserved";
+  return {
+    commit: () => {
+      if (state !== "reserved" || signal?.aborted) return false;
+      state = "spent";
+      return true;
+    },
+    release: async () => {
+      if (state !== "reserved") return false;
+      state = "released";
+      try {
+        if (refund && await refund()) return true;
+      } catch {
+        // A failed refund keeps the charge rather than risk widening the cap.
+      }
+      log("error", "rate_limit.refund_failed");
+      return false;
+    },
+  };
 }
 
 /**

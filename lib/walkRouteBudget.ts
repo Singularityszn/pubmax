@@ -35,7 +35,7 @@
 //     design target, the in-memory budget is the fail-soft floor — never a hard
 //     stop on routing, which stays fail-soft to straight lines throughout.
 
-import { isLimited } from "@/lib/pintDrops";
+import { reserveRateLimit, type RateLimitReservation } from "@/lib/pintDrops";
 import { log } from "@/lib/log";
 import { DAY_MS } from "@/lib/dayMs";
 
@@ -86,30 +86,44 @@ function warnOrsBudgetExhausted(date: string, budget: number): void {
 }
 
 /**
- * Reserve ONE unit of the global daily ORS budget for an actual provider call
- * that is about to happen. Returns true when the call may proceed, false when
- * the day is over budget and the caller must serve the straight leg instead.
+ * Reserve one unit for an outbound call, or return null when none is available.
+ * Commit immediately before dispatch. Release in finally so cancellation while
+ * the durable check waits returns an unused unit to its original backend.
  *
  * Call this ONLY immediately before a real ORS fetch — never for a cache hit or
  * the keyless path — so budget is consumed per PROVIDER CALL, not per request.
- * Delegates to isLimited (the check_rate_limit seam), inheriting its documented
+ * Uses the same check_rate_limit seam as isLimited, inheriting its documented
  * durable/degraded behaviour verbatim (see the module header).
  */
-export async function consumeOrsBudget(now: number = Date.now()): Promise<boolean> {
+export async function reserveOrsBudget(now: number = Date.now(), signal?: AbortSignal): Promise<RateLimitReservation | null> {
+  if (signal?.aborted) return null;
   const date = new Date(now).toISOString().slice(0, 10);
 
   // Short-circuit: the day is already known-exhausted and the TTL hasn't lapsed.
   // Costs nothing — no durable round-trip, no provider call.
-  if (exhausted.date === date && now < exhausted.until) return false;
+  if (exhausted.date === date && now < exhausted.until) return null;
 
   const key = orsBudgetKey(now);
-  const over = await isLimited(key, key, orsDailyBudget(), ORS_BUDGET_WINDOW_MS);
-  if (over) {
+  const reservation = await reserveRateLimit(key, orsDailyBudget(), ORS_BUDGET_WINDOW_MS, signal);
+  if (!reservation && !signal?.aborted) {
     exhausted = { date, until: now + ORS_BUDGET_EXHAUSTED_TTL_MS };
     warnOrsBudgetExhausted(date, orsDailyBudget());
-    return false;
+    return null;
   }
-  return true;
+  return reservation && {
+    commit: reservation.commit,
+    release: async () => {
+      const returned = await reservation.release();
+      if (returned && exhausted.date === date) exhausted = { date: "", until: 0 };
+      return returned;
+    },
+  };
+}
+
+/** Non-cancellable callers spend their admitted reservation immediately. */
+export async function consumeOrsBudget(now: number = Date.now()): Promise<boolean> {
+  const reservation = await reserveOrsBudget(now);
+  return reservation?.commit() ?? false;
 }
 
 /** Test-only: clear the in-process exhausted flag between cases. The durable
