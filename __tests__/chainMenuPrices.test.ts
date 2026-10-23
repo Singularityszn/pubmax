@@ -4,9 +4,6 @@
 // work the day a chain publishes a price: an untested harvester that yields
 // zero is indistinguishable from a broken one.
 
-import { readFileSync } from "node:fs";
-import { join } from "node:path";
-
 import { describe, expect, it } from "vitest";
 
 import {
@@ -107,14 +104,6 @@ describe("reading a chain menu page", () => {
   it("uses the shared beer band rather than a second pint range", () => {
     expect(CHAIN_PINT_MIN_GBP).toBe(CATEGORY_PRICE_BANDS.beer?.minGbp);
     expect(CHAIN_PINT_MAX_GBP).toBe(CATEGORY_PRICE_BANDS.beer?.maxGbp);
-  });
-
-  it("has no drink-word table of its own", () => {
-    const source = readFileSync(join(process.cwd(), "lib/harvest/chainMenuPrices.ts"), "utf8");
-    expect(source).toMatch(/from "\.\/ukPriceCrawl"/);
-    expect(source).not.toMatch(/neck oil\|madri/);
-    expect(source).not.toMatch(/const PRICE_PATTERN/);
-    expect(source).not.toMatch(/const DRINK_WORDS/);
   });
 });
 

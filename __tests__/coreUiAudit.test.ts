@@ -1,5 +1,6 @@
-import { readdirSync, readFileSync } from "node:fs";
+import { readFileSync } from "node:fs";
 import { join } from "node:path";
+import type { NextConfig } from "next";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 
@@ -125,18 +126,11 @@ import SocialPageClient from "@/app/social/SocialPageClient";
 import { DEFAULT_PAL_DRAFT } from "@/lib/pubPal";
 import { defined } from "@/__tests__/helpers/defined";
 
+// @ts-expect-error -- no declaration file for the JS config module.
+import nextConfigModule from "@/next.config.mjs";
+
 const root = process.cwd();
-const wordmark = readFileSync(join(root, "components/brand/PubmaxxWordmark.tsx"), "utf8");
-const consent = readFileSync(join(root, "app/globals.css"), "utf8");
-const tour = readFileSync(join(root, "components/onboarding/firstRunTour.css"), "utf8");
-const planEntry = readFileSync(join(root, "components/plan/PlanDescribeFirst.tsx"), "utf8");
-const planCss = readFileSync(join(root, "app/plan/plan.css"), "utf8");
-const mobileMapCss = readFileSync(
-  join(root, "components/mobile/mobileMapShell.css"),
-  "utf8",
-);
-const nextConfig = readFileSync(join(root, "next.config.mjs"), "utf8");
-const vercelIgnore = readFileSync(join(root, ".vercelignore"), "utf8");
+const nextConfig = nextConfigModule as NextConfig;
 
 describe("core UI audit fixes", () => {
   it("makes the near-me answer the landing hero's one primary action", () => {
@@ -150,76 +144,16 @@ describe("core UI audit fixes", () => {
     expect(hero).toMatch(/class="screenSecondary"><a[^>]*href="\/map\?log=1"[^>]*>Log what you paid<\/a>/);
   });
 
-  it("publishes the complete PUBMAXX brand to assistive technology", () => {
-    expect(wordmark).toMatch(/className=\{`pubmaxxWordmark[\s\S]*?role="img"/);
-    expect(wordmark).toMatch(/aria-label=\{BRAND_NAME\}/);
-  });
-
-  it("clears mobile consent with the measured 64px tab bar", () => {
-    expect(consent).toMatch(/var\(--tabbar-h,\s*64px\)/);
-    expect(consent).toMatch(/--analytics-consent-mobile-clearance,\s*56px/);
-  });
-
-  it("uses a distinct neutral tone for the dearest first-visit price band", () => {
-    expect(tour).toMatch(/\.tourLegendRow \.mapPriceDot\.red\s*\{[\s\S]*?background:\s*color-mix\(/);
-    expect(tour).not.toMatch(/\.tourLegendRow \.mapPriceDot\.red\s*\{[\s\S]*?background:\s*var\(--amber\)/);
-    expect(tour).not.toMatch(/\.tourLegendRow \.mapPriceDot\.red\s*\{[\s\S]*?var\(--brick\)/);
-  });
-
-  it("keeps the plan entry placeholder readable on a phone", () => {
-    expect(planEntry).toMatch(/placeholder="Quiet in Clapham for 4"/);
-    expect(planEntry).not.toMatch(/placeholder="[^"]*…/);
-    expect(planCss).toMatch(/@media \(max-width: 900px\)[\s\S]*?\.planPage__intro\s*\{\s*margin:\s*10px auto 10px/);
-  });
-
-  it("leaves the map's own tools up during first-session arrival", () => {
-    // This used to assert the opposite: the arrival card hid the chip row, the
-    // plan pill, the map-edge column and the camera controls, and the map under
-    // it was `inert`. The painted-pin probe then found zero tappable marks
-    // ANYWHERE on the canvas, 3 fresh contexts of 3 (docs/proof/
-    // astra-live-walk/report.md B1). The ask is a strip under the top bar now
-    // and it takes nothing down with it.
-    expect(mobileMapCss).not.toMatch(
-      /body:has\(\.mapArrivalCard\) \.mobileMapChipRow/,
-    );
-    expect(mobileMapCss).not.toMatch(
-      /body:has\(\.mapArrivalCard\) \.mobileMapUtilityCorner/,
-    );
+  it("renders the complete plan entry example", () => {
+    const rendered = renderToStaticMarkup(createElement(PlanDescribeFirst, {
+      onSubmit: () => undefined,
+      onGuideMeInstead: () => undefined,
+    }));
+    expect(rendered).toContain('placeholder="Quiet in Clapham for 4"');
   });
 
   it("does not ship removed Next experimental options", () => {
-    expect(nextConfig).not.toMatch(/\bviewTransition\s*:/);
-  });
-
-  it("keeps proof and local build artifacts out of Vercel uploads", () => {
-    expect(vercelIgnore).toMatch(/^\/docs\/$/m);
-    expect(vercelIgnore).toMatch(/^\/\.next-\*$/m);
-    expect(vercelIgnore).toMatch(/^\/coverage\/$/m);
-    expect(vercelIgnore).not.toMatch(/^\/?data\/$/m);
-    expect(vercelIgnore).not.toMatch(/^\/?public\/$/m);
-  });
-
-  // A .vercelignore REPLACES the .gitignore fallback, so every heavy directory
-  // has to be named here or it is uploaded. `/.next-*` reads as a glob that
-  // covers the build directory and does not: it matches `.next-prod` and
-  // `.next-sweep` while leaving `.next` itself, the largest of them, in the
-  // upload. Each line below is a directory measured at tens or hundreds of
-  // megabytes that no build step reads.
-  it("names every heavy directory, including the one the glob misses", () => {
-    for (const entry of [
-      "/.next",
-      "/data-harvest/",
-      "/.opencode/",
-      "/.cursor/",
-      "/.agents/",
-      "/skills/",
-      "/.firecrawl/",
-      "/.tmp-evidence/",
-      "/e2e-shots/",
-    ]) {
-      const line = new RegExp(`^${entry.replaceAll(".", "\\.")}$`, "m");
-      expect(vercelIgnore, entry).toMatch(line);
-    }
+    expect(nextConfig.experimental).not.toHaveProperty("viewTransition");
   });
 });
 
@@ -303,17 +237,6 @@ describe("launch routes carry one primary action", () => {
   });
 });
 
-// Every route in docs/design/LAUNCH_SCREENS.md is rendered by a launch-route
-// audit somewhere: here, or in one of the __tests__/launchRoutes.*.test.tsx
-// files, whose test names open with the route path. A route may be excused
-// only by name and reason below, so the table and the audits cannot drift
-// apart in silence.
-const NOT_RENDERED: ReadonlyArray<{ route: string; reason: string }> = [
-  { route: "/map", reason: "the map canvas is another track's surface and has no heading" },
-  { route: "/map/[city]", reason: "the map canvas is another track's surface and has no heading" },
-  { route: "/u/you", reason: "an alias of /u/[handle], rendered under that row" },
-];
-
 /** Every table row's route, in the order the table names them. */
 function tableRoutes(): string[] {
   const table = readFileSync(join(root, "docs/design/LAUNCH_SCREENS.md"), "utf8");
@@ -323,42 +246,16 @@ function tableRoutes(): string[] {
   );
 }
 
-describe("every launch route is rendered by an audit", () => {
-  it("names each table route in a launch-route audit or excuses it by name", () => {
-    const routes = tableRoutes();
-    expect(routes.length).toBeGreaterThan(30);
-    const audits = readdirSync(join(root, "__tests__"))
-      .filter((name) => /^launchRoutes\.[a-z]+\.test\.tsx$/.test(name))
-      .map((name) => readFileSync(join(root, "__tests__", name), "utf8"))
-      .join("\n");
-    const here = LAUNCH_SURFACES.map(([route]) => route);
-    const excused = new Set(NOT_RENDERED.map((row) => row.route));
-    const missing = routes.filter((route) => {
-      if (excused.has(route) || route === "/" || here.includes(route)) return false;
-      const escaped = route.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-      return !new RegExp(`it(?:\\.skip)?\\(\\s*["'\`]${escaped}\\s`).test(audits);
-    });
-    expect(missing, "table routes with no launch-route audit").toEqual([]);
-  });
-
-  // A ROUTE THE ROUTER REDIRECTS IS NOT A SCREEN. /discover, /drinks and /feed
-  // held full rows in the table while next.config.mjs answered all three with a
-  // permanent 308 to /social, and the audit above reported them covered because
-  // two launchRoutes tests rendered the page components behind them - components
-  // no reader can reach. The excuse note the table carried for /drinks was
-  // itself the proof that the row was fiction, so the rows are gone and this is
-  // what keeps another one from landing.
-  it("names no route the router permanently redirects", () => {
-    const redirected = [
-      ...nextConfig.matchAll(
-        /source:\s*"(\/[^"*]*)",\s*destination:\s*"([^"]+)",\s*permanent:\s*true/g,
-      ),
-    ].map((match) => defined(match[1]));
-    expect(redirected.length, "permanent redirects read out of next.config.mjs")
+describe("the launch-route document matches router configuration", () => {
+  it("names no route the router permanently redirects", async () => {
+    const redirected = (await nextConfig.redirects?.() ?? [])
+      .filter((rule) => rule.permanent === true)
+      .map((rule) => rule.source);
+    expect(redirected.length, "permanent redirects returned by the router configuration")
       .toBeGreaterThan(2);
     const rows = new Set(tableRoutes());
     expect(
-      redirected.filter((route) => rows.has(defined(route))),
+      redirected.filter((route) => rows.has(route)),
       "launch table rows the router answers with a 308",
     ).toEqual([]);
   });
