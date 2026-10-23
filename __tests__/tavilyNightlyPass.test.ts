@@ -24,6 +24,7 @@ import {
   tonightAllowance,
   venueKey,
 } from "@/lib/harvest/tavilyNightlyPass";
+import { findUkPriceCandidates } from "@/lib/harvest/ukPriceCrawl";
 import { defined } from "@/__tests__/helpers/defined";
 
 const FIXTURES = path.join(__dirname, "fixtures", "tavily-nightly");
@@ -611,6 +612,80 @@ function expectDrinkNameOwnedByLine(text: string, drinks: ReadonlyArray<{ drink:
     }
   }
 }
+
+describe("complete price tokens at item boundaries", () => {
+  const separators = [
+    " ",
+    ...[",", ".", ";", ":", "|", "•", "·", "!", "?"].flatMap((mark) =>
+      [mark, `${mark} `, ` ${mark}`, ` ${mark} `]),
+    " - ", "  -  ", "\t-\t",
+  ];
+
+  it.each([
+    ["£6", "£7", 6, 7],
+    ["£6.2", "£6.4", 6.2, 6.4],
+    ["£6.20", "£6.40", 6.2, 6.4],
+    ["£6.2", "£6.40", 6.2, 6.4],
+  ] as const)("keeps complete %s and %s figures across every separator", (first, second, firstPrice, secondPrice) => {
+    for (const separator of separators) {
+      const line = `Guinness pint ${first}${separator}Madri pint ${second}`;
+      expect(findUkPriceCandidates(line).map((row) => row.priceGbp), line).toEqual([firstPrice, secondPrice]);
+      expect(factsFromPage(line, pageFact).drinks.map(({ drink, priceGbp }) => ({ drink, priceGbp })), line).toEqual([
+        { drink: "Guinness", priceGbp: firstPrice },
+        { drink: "Madri", priceGbp: secondPrice },
+      ]);
+    }
+  });
+
+  it.each(["£6", "£6.0", "£6.00"])("keeps the %s token beside a fractional suffix", (price) => {
+    for (const measure of ["2/3 pint", "⅔ pint", "two-thirds pint"]) {
+      for (const separator of separators) {
+        const line = `Kernel stout ${price} (${measure})${separator}Guinness pint £6.2`;
+        expect(factsFromPage(line, pageFact).drinks.map(({ drink, priceGbp, sizeDetail }) =>
+          ({ drink, priceGbp, sizeDetail })), line).toEqual([
+          { drink: "Kernel stout", priceGbp: 6, sizeDetail: "two-thirds" },
+          { drink: "Guinness", priceGbp: 6.2, sizeDetail: "pint" },
+        ]);
+      }
+    }
+  });
+
+  it.each(["£6.200", "£6.20.5", "£123", "£6.2x", "£6.20GBP"])("does not split a malformed %s token into a price", (price) => {
+    const line = `Guinness pint ${price}`;
+    expect(findUkPriceCandidates(line), line).toEqual([]);
+    expect(factsFromPage(line, pageFact).drinks, line).toEqual([]);
+    const beside = `${line}; Madri pint £6.40`;
+    expect(factsFromPage(beside, pageFact).drinks.map(({ drink, priceGbp }) => ({ drink, priceGbp })), beside).toEqual([
+      { drink: "Madri", priceGbp: 6.4 },
+    ]);
+  });
+
+  it.each(["£5.5/£6.500", "£5.500/£6.5", "£5.5/£123", "£5.5/£6.5x"])("rejects incomplete paired-measure figures from %s", (prices) => {
+    expect(factsFromPage(`House wine 125/175ml ${prices}`, pageFact).drinks).toEqual([]);
+  });
+
+  it("carries the printed name across complete one-decimal glass prices", () => {
+    const line = "House Merlot 175ml £6.5 / 250ml £8.5";
+    expect(factsFromPage(line, pageFact).drinks.map(({ drink, priceGbp, sizeDetail }) =>
+      ({ drink, priceGbp, sizeDetail }))).toEqual([
+      { drink: "House Merlot", priceGbp: 6.5, sizeDetail: "175ml" },
+      { drink: "House Merlot", priceGbp: 8.5, sizeDetail: "250ml" },
+    ]);
+  });
+
+  it.each([
+    ["£5/£7", [5, 7]],
+    ["£5.5/£6.5", [5.5, 6.5]],
+    ["£5.50/£6.50", [5.5, 6.5]],
+  ] as const)("keeps complete paired-measure figures from %s", (prices, expected) => {
+    const line = `House wine 125/175ml ${prices}`;
+    expect(factsFromPage(line, pageFact).drinks.map(({ drink, priceGbp, sizeDetail }) =>
+      ({ drink, priceGbp, sizeDetail })), line).toEqual([
+      { drink: "House wine", priceGbp: expected[0], sizeDetail: "125ml" },
+      { drink: "House wine", priceGbp: expected[1], sizeDetail: "175ml" },
+    ]);
+  });
+});
 
 describe("a price stays in the lane the reader gave it", () => {
   const rows: Array<{

@@ -17,6 +17,7 @@ import type { RobotsChecker } from "@/lib/harvest/robots";
 import {
   CATEGORY_PRICE_BANDS,
   PRICE_ITEM_SEPARATOR,
+  UK_PRICE_PATTERN,
   decideKeylessUkPriceCandidate,
   findUkPriceCandidates,
   fractionalMeasureAtPrice,
@@ -651,19 +652,19 @@ function namedLabel(line: string, at: number, local: string): string {
   let cursor = at;
   for (let hop = 0; hop < 4; hop += 1) {
     const before = line.slice(0, cursor);
-    const prior = [...before.matchAll(/£\s?\d{1,2}(?:\.\d{2})?\b/g)].at(-1);
-    if (!prior || prior.index === undefined) return local;
-    const between = before.slice(prior.index + prior[0].length);
+    const prior = findUkPriceCandidates(before).at(-1);
+    if (!prior) return local;
+    const between = before.slice(prior.at + prior.verbatim.length);
     if (/(?:\. |; )/.test(between)) return local;
     const crossedPipe = /(?: \| |\|\s)/.test(between);
     if (crossedPipe && !isBareGlassMeasure(ownMeasure)) return local;
-    const priorLabel = drinkLabelFromPriceContext(line, prior[0], prior.index) ?? "";
+    const priorLabel = drinkLabelFromPriceContext(line, prior.verbatim, prior.at) ?? "";
     const priorName = cleanName(priorLabel);
     const priorMl = /\b(\d{2,4})\s*ml\b/i.exec(priorLabel);
     if (crossedPipe && priorName && !(priorMl && GLASS_ML.has(`${priorMl[1]}ml`))) return local;
     if (priorName) return ownMeasure ? `${priorName} ${ownMeasure}` : priorName;
     if (!isBareGlassMeasure(priorLabel)) return local;
-    cursor = prior.index;
+    cursor = prior.at;
   }
   return local;
 }
@@ -706,7 +707,7 @@ function rememberDrink(drinks: ListedDrinkLine[], seenDrinks: Set<string>, row: 
 }
 
 const JOINED_SIZE_LIST = /(?<![\d/.£])\d{2,4}(?:\s*ml)?(?:\s*\/\s*\d{2,4}(?:\s*ml)?)+(?!\s*\/\s*\d)/gi;
-const JOINED_PRICE_LIST = /^\s*((?:£\s?\d{1,2}(?:\.\d{2})?)(?:\s*\/\s*£\s?\d{1,2}(?:\.\d{2})?)*)/;
+const JOINED_PRICE_LIST = new RegExp(`^\\s*((?:${UK_PRICE_PATTERN.source})(?:\\s*\\/\\s*(?:${UK_PRICE_PATTERN.source}))*)`, "i");
 const LEADING_MEASURE = new RegExp(`^(?:${SERVING_WORD}|\\d{2,4}\\s*ml|½|1\\/2|2\\/3|⅔)\\b`, "i");
 
 function isNewDrinkName(text: string): boolean {
@@ -730,10 +731,9 @@ function splitPriceItems(line: string): string[] {
   for (const match of line.matchAll(/\s*\|\s*/g)) {
     consider(match.index ?? 0, (match.index ?? 0) + match[0].length);
   }
-  for (const match of line.matchAll(/£\s?\d{1,2}(?:\.\d{2})?(?:\s*\/\s*£\s?\d{1,2}(?:\.\d{2})?)*/g)) {
-    const priceAt = match.index ?? 0;
-    const suffix = fractionalMeasureAtPrice(line, priceAt, match[0]).suffix ?? "";
-    const after = priceAt + match[0].length + suffix.length;
+  for (const price of findUkPriceCandidates(line)) {
+    const suffix = fractionalMeasureAtPrice(line, price.at, price.verbatim).suffix ?? "";
+    const after = price.at + price.verbatim.length + suffix.length;
     const lead = AFTER_PRICE_ITEM_SEPARATORS.exec(line.slice(after));
     if (!lead) continue;
     const nextStart = after + lead[0].length;
@@ -763,7 +763,7 @@ function pairedMeasureLines(line: string): string[] | null {
     const sizes = [...match[0].matchAll(/\d{2,4}/g)].map((token) => `${token[0]}ml`);
     const priceMatch = JOINED_PRICE_LIST.exec(line.slice(match.index + match[0].length));
     const prices = priceMatch
-      ? [...(priceMatch[1] ?? "").matchAll(/£\s?\d{1,2}(?:\.\d{2})?/g)].map((token) => token[0].replace(/\s+/g, ""))
+      ? findUkPriceCandidates(priceMatch[1] ?? "").map((token) => token.verbatim.replace(/\s+/g, ""))
       : [];
     if (!priceMatch || prices.length !== sizes.length) {
       const before = line.slice(cursor, match.index).trim();

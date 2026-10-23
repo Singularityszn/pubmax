@@ -282,7 +282,7 @@ function isHalfMeasure(before: string): boolean {
   return !before.slice(at + 4).includes("£");
 }
 
-const PRICE_PATTERN = /£\s?(\d{1,2}(?:\.\d{1,2})?)(?![\da-z]|\.\d)/gi;
+export const UK_PRICE_PATTERN = /£\s?(\d{1,2}(?:\.\d{1,2})?)(?![\da-z]|\.\d)/gi;
 
 // Item punctuation is a boundary after a known price or measure. Commas inside
 // a drink name remain part of that name. Hyphens need padding to avoid splitting names.
@@ -315,7 +315,7 @@ export function fractionalMeasureAtPrice(text: string, at: number, verbatim: str
   const lineEnd = text.indexOf("\n", at);
   let cursor = lineStart;
   let previousLabel = "";
-  for (const price of text.slice(lineStart, at).matchAll(PRICE_PATTERN)) {
+  for (const price of text.slice(lineStart, at).matchAll(UK_PRICE_PATTERN)) {
     const priceAt = lineStart + (price.index ?? 0);
     const gap = text.slice(cursor, priceAt);
     const previousSuffix = cursor > lineStart ? fractionalSuffix(gap, previousLabel) : null;
@@ -327,7 +327,7 @@ export function fractionalMeasureAtPrice(text: string, at: number, verbatim: str
   const ownLabel = before.slice(previousSuffix?.length ?? 0);
   const afterStart = at + verbatim.length;
   const remainder = text.slice(afterStart, lineEnd < 0 ? text.length : lineEnd);
-  const nextPrice = new RegExp(PRICE_PATTERN.source, "i").exec(remainder);
+  const nextPrice = new RegExp(UK_PRICE_PATTERN.source, "i").exec(remainder);
   const after = remainder.slice(0, nextPrice?.index ?? remainder.length);
   const suffix = fractionalSuffix(after, ownLabel);
   return {
@@ -374,7 +374,7 @@ function printedItemName(text: string, at: number): PrintedItemName | undefined 
   if (/£\s?\d/.test(line)) return undefined;
   const windowStart = Math.max(0, at - PRICE_CONTEXT_CHARS);
   const before = text.slice(windowStart, lineStart);
-  const lastFigure = [...before.matchAll(PRICE_PATTERN)].at(-1);
+  const lastFigure = [...before.matchAll(UK_PRICE_PATTERN)].at(-1);
   const since = lastFigure ? before.slice((lastFigure.index ?? 0) + lastFigure[0].length) : before;
   return {
     own: line.trim(),
@@ -448,7 +448,7 @@ export function drinkLabelFromPriceContext(
 
   const before = context.slice(0, priceAt);
   let start = 0;
-  const priorPrices = [...before.matchAll(PRICE_PATTERN)];
+  const priorPrices = [...before.matchAll(UK_PRICE_PATTERN)];
   const last = priorPrices.at(-1);
   if (last) {
     start = (last.index ?? 0) + last[0].length;
@@ -513,7 +513,7 @@ export function statedWineIdentity(
   for (let i = 0; i < 3; i += 1) {
     const price = i === 0
       ? verbatim
-      : context.slice(candidateAt).match(new RegExp(`^(?:${PRICE_PATTERN.source})`, "i"))?.[0];
+      : context.slice(candidateAt).match(new RegExp(`^(?:${UK_PRICE_PATTERN.source})`, "i"))?.[0];
     if (!price) return null;
     const label = drinkLabelFromPriceContext(context, price, candidateAt);
     const match = label?.match(/^(.*?)(?:\s+)?(\d{2,3}\s*ml)$/i);
@@ -521,7 +521,7 @@ export function statedWineIdentity(
     currentMeasure ??= (match[2] ?? "").replace(/\s+/g, "").toLowerCase();
     const name = (match[1] ?? "").replace(/^[/|\s\u2013\u2014-]+$/, "").trim();
     if (name) return { drinkLabel: name, servingSize: currentMeasure };
-    const prior = [...context.slice(0, candidateAt).matchAll(PRICE_PATTERN)].at(-1);
+    const prior = [...context.slice(0, candidateAt).matchAll(UK_PRICE_PATTERN)].at(-1);
     if (!prior) return null;
     candidateAt = prior.index ?? 0;
   }
@@ -810,7 +810,7 @@ export function categoryFor(context: string, at = Math.floor(context.length / 2)
  */
 export function findUkPriceCandidates(text: string, snippetChars = 120): UkPriceRawCandidate[] {
   const out: UkPriceRawCandidate[] = [];
-  for (const match of text.matchAll(PRICE_PATTERN)) {
+  for (const match of text.matchAll(UK_PRICE_PATTERN)) {
     const priceGbp = Number(match[1]);
     const verbatim = match[0];
     const at = match.index ?? 0;
