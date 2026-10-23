@@ -50,13 +50,16 @@ through `runAsk`. [ADR 0014](../../docs/adr/0014-night-os-ask-agent.md) owns the
 routing and evidence rules.
 
 The hours dataset in `fail-closed-hours.json` contains twelve real-venue asks.
-Ten venues have no hours in the current dataset. Two venues have recorded hours
-from their named websites. The test checks these references against the venue
-records before it runs `runAsk` without network access.
+Ten venues have no hours in the current dataset. Lion & Unicorn has recorded
+website hours. The Crosse Keys has copied Google Places hours with a checked
+date. The test checks each reference against the actual venue records before
+it runs `runAsk` without network access. Vitest prepares the same Places
+runtime files as a production build, using committed observations only.
 
 The known `hoursAnswer` expectation requires every recorded weekday and time in
 the answer. The matching venue card must carry those hours and their named
-source, date and URL. Extra numeric times and common opening-status claims fail.
+source and date. Website evidence also requires its URL. Extra numeric times
+and common opening-status claims fail.
 Replay tests alter a time, change a weekday, remove a day, and replace a source.
 The code checks require the current schedule format. They do not judge equivalent
 free-form wording or spelled-out times.
