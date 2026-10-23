@@ -1,4 +1,5 @@
 import type { CityId } from "@/lib/cities";
+import type { VenueKind } from "@/lib/venues";
 import { isVerifiedClosedCuratedVenue } from "@/lib/verifiedClosedPubs";
 import { venueSearchNames } from "@/lib/venueSearchNames.mjs";
 
@@ -18,6 +19,7 @@ type MapSearchVenue = {
   /** The dataset's own name when it carries an operator suffix; matched, never shown. */
   sourceName?: string;
   area: string;
+  venueKind?: VenueKind;
 };
 
 export type MapSearchPack = {
@@ -119,6 +121,7 @@ export function buildMapSearchIndex(
         name: venue.name,
         ...(venue.sourceName ? { sourceName: venue.sourceName } : {}),
         area: venue.area ?? "",
+        ...(venue.venueKind !== undefined ? { venueKind: venue.venueKind } : {}),
         cityId: pack.cityId,
       });
     }

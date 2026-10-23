@@ -21,7 +21,8 @@ import { venueAreaLabel } from "@/lib/venueDisplay";
 // v3: venue names lost their operator suffix and carry `sourceName` for search.
 // v4: a v3 snapshot could hold the current city as only the shards the map had
 // loaded around the opening viewport, so it is not trusted.
-const SEARCH_INDEX_CACHE_KEY = "map-search-index:v4";
+// v5: preserve venue kinds so an indexed bar or restaurant names itself.
+const SEARCH_INDEX_CACHE_KEY = "map-search-index:v5";
 const SEARCH_INDEX_MAX_AGE_MS = 24 * 60 * 60 * 1000;
 
 let cachedIndex: MapSearchIndex | null = null;
@@ -79,6 +80,7 @@ function packFromSlim(cityId: CityId, venues: readonly SlimVenue[]): MapSearchPa
       name: venue.name,
       ...(venue.sourceName ? { sourceName: venue.sourceName } : {}),
       area: venueAreaLabel({ locality: venue.locality, primaryBorough: venue.borough }),
+      ...(venue.kind !== undefined ? { venueKind: venue.kind } : {}),
     })),
   };
 }
@@ -90,7 +92,7 @@ function packFromSlim(cityId: CityId, venues: readonly SlimVenue[]): MapSearchPa
  */
 function packWithCurrentVenues(
   pack: MapSearchPack,
-  venues: readonly Pick<Venue, "id" | "name" | "sourceName" | "primaryBorough" | "locality">[],
+  venues: readonly Pick<Venue, "id" | "name" | "sourceName" | "primaryBorough" | "locality" | "kind">[],
 ): MapSearchPack {
   const packIds = new Set(pack.venues.map((venue) => venue.id));
   return {
@@ -104,6 +106,7 @@ function packWithCurrentVenues(
           name: venue.name,
           ...(venue.sourceName ? { sourceName: venue.sourceName } : {}),
           area: venueAreaLabel(venue),
+          ...(venue.kind !== undefined ? { venueKind: venue.kind } : {}),
         })),
     ],
   };
@@ -118,7 +121,7 @@ function loadCityPack(cityId: CityId): Promise<SlimVenueLoadResult> {
 
 export type MapSearchIndexLoadOptions = {
   currentCityId?: CityId;
-  currentVenues?: readonly Pick<Venue, "id" | "name" | "sourceName" | "primaryBorough" | "locality">[];
+  currentVenues?: readonly Pick<Venue, "id" | "name" | "sourceName" | "primaryBorough" | "locality" | "kind">[];
 };
 
 /** Whether the index answers for every city, so a caller need not ask again. */

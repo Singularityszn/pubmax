@@ -50,6 +50,28 @@ beforeEach(() => {
 });
 
 describe("loadMapSearchIndex", () => {
+  it("keeps venue kinds from city packs and held venues in search results", async () => {
+    loadSlimVenuesForCityResult.mockImplementation(async (cityId) => ({
+      rows: cityId === "london"
+        ? [{ ...slimRow("hatton-bar", "Hatton Bar", "Camden"), kind: "bar" }]
+        : [],
+      status: "ready",
+    }));
+    const { loadMapSearchIndex } = await freshLoader();
+
+    const index = await loadMapSearchIndex({
+      currentCityId: "london",
+      currentVenues: [{
+        id: "hatton-food", name: "Hatton Kitchen", primaryBorough: "Camden", kind: "restaurant",
+      }],
+    });
+
+    expect(searchMapSearchIndex(index, "Hatton")).toEqual([
+      expect.objectContaining({ id: "hatton-bar", venueKind: "bar" }),
+      expect.objectContaining({ id: "hatton-food", venueKind: "restaurant" }),
+    ]);
+  });
+
   it("answers for the whole current city, not just the shards the map has read", async () => {
     loadSlimVenuesForCityResult.mockImplementation(async (cityId) => ({
       rows: cityId === "london" ? LONDON_PACK : [],

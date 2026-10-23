@@ -21,6 +21,7 @@ const SEARCH_INDEX = {
       name: "The Black Friar",
       area: "Salford",
       cityId: "manchester",
+      venueKind: "bar",
     },
     {
       id: "venue-london-blackfriar",
@@ -157,6 +158,14 @@ describe("Map search current-city priority", () => {
       '[role="group"][aria-label="Venues"] [data-venue-id]',
     )].map((row) => row.dataset.venueId);
     expect(venueIds).toEqual(["venue-london-blackfriar"]);
+    const localKind = container.querySelector<HTMLElement>(
+      '[data-venue-id="venue-london-blackfriar"] .mapSearchSuggestBorough',
+    );
+    expect(localKind?.textContent).toBe("Pub");
+    const crossCityKind = container.querySelector<HTMLElement>(
+      '[data-venue-id="venue-mcr-black-friar"] .mapSearchSuggestBorough',
+    );
+    expect(crossCityKind?.textContent).toBe("Bar");
     const crossCityIds = [...container.querySelectorAll<HTMLElement>(
       '[role="group"][aria-label="Venues across city maps"] [data-venue-id]',
     )].map((row) => row.dataset.venueId);

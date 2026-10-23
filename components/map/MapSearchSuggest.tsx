@@ -33,6 +33,7 @@ import { addPubHref } from "@/lib/venueSubmissions";
 import type { UkBasePub } from "@/lib/ukBasePubs";
 import type { UkPlace } from "@/lib/ukPlaceSearch";
 import type { Venue } from "@/lib/venues";
+import { venueKindLabel } from "@/lib/venueKindFilters";
 import { useDismissOnEscape } from "@/lib/useDismissOnEscape";
 import CompactVenuePrice from "@/components/map/CompactVenuePrice";
 
@@ -476,8 +477,10 @@ export default function MapSearchSuggest({
   const placeStartIndex = cursor;
   cursor += suggestions.places.length;
   const ukBaseStartIndex = cursor;
-  const originNote =
-    suggestions.origin === "user" ? "Distances from you" : "Distances from the map centre";
+  const originNote = {
+    user: "Distances from you",
+    "map-centre": "Distances from the map centre",
+  }[suggestions.origin];
   const liveAnnouncement =
     showEmptyLine && announcedQuery === deferredTrimmed.toLocaleLowerCase() ? NO_RESULTS_MESSAGE : "";
 
@@ -505,6 +508,7 @@ export default function MapSearchSuggest({
       >
         <span className="mapSearchSuggestRowMain">
           <span className="mapSearchSuggestRowName">{venue.name}</span>
+          <span className="mapSearchSuggestBorough">{venueKindLabel(venue.venueKind)}</span>
           {locationLabel ? <span className="mapSearchSuggestBorough">{locationLabel}</span> : null}
         </span>
       </div>
