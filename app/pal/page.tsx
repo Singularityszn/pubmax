@@ -14,8 +14,8 @@ export const dynamic = "force-static";
 // ceiling rather than a refresh the page needs.
 export const revalidate = 3600;
 
-const title = "Meet your Pub Pal";
-const description = "Meet, shape and control your private companion for a night out.";
+const title = "Plan your night with Pub Pal";
+const description = "Find a pub or plan a route with Pub Pal. Choose its look, voice and what it can remember.";
 const image = "/pal/circuit-robin-512.png";
 
 export const metadata: Metadata = {

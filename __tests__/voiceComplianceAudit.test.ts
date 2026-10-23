@@ -460,7 +460,7 @@ describe("VOICE.md rule 2 — plumbing words stay off reader surfaces", () => {
     // output rather than a sentence.
     // The sentence itself now lives in TonightProvenanceLines.tsx, which
     // TonightClient.tsx renders rather than inlining the string.
-    expect(read("app/tonight/TonightProvenanceLines.tsx")).toContain("We can’t date these listings yet.");
+    expect(read("app/tonight/TonightProvenanceLines.tsx")).toContain("Check date not recorded.");
     expect(read("lib/whatsOnBadges.ts")).toContain("No date on this yet");
     expect(read("lib/tonight.ts")).toContain("No date on this yet");
   });
@@ -501,7 +501,7 @@ describe("VOICE.md rule 2 — plumbing words stay off reader surfaces", () => {
     expect(pal).not.toContain("Optional by design");
     expect(pal).not.toContain("Route before character");
     expect(pal).toContain("Your Pub Pal");
-    expect(pal).toContain("A little signal that becomes yours.");
+    expect(pal).toContain("Plan your night with Pub Pal");
   });
 });
 

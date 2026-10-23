@@ -175,7 +175,7 @@ describe("mapPricesReadLineFor", () => {
   it("gives London its snapshot line, in the snapshot owner's words, and every other city none", () => {
     const line = mapPricesReadLineFor("london");
     expect(line).toBe(`London pint prices. ${formatPintDatasetSnapshot()}.`);
-    expect(line).toMatch(/^London pint prices\. Snapshot from \d{1,2} \w+ \d{4}\.$/);
+    expect(line).toMatch(/^London pint prices\. Records from \d{1,2} \w+ \d{4}\.$/);
     expect(line).not.toMatch(/newest|latest/i);
     expect(mapPricesReadLineFor("manchester")).toBeNull();
   });

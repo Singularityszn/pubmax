@@ -26,13 +26,13 @@ export const LANDING_FAQ: readonly Question[] = [
     id: "how-it-works",
     question: `How does ${BRAND_NAME} work?`,
     answer:
-      "Say where you are and we list what a pint costs at the pubs around you, cheapest first. Each figure shows the day it was collected, and no pub can pay to sit higher.",
+      "Find nearby pubs, compare listed pint prices and share a plan. Prices can change, so check at the bar.",
   },
   {
     id: "prices",
     question: "Where do the prices come from?",
     answer:
-      "From pubs' own published price lists, which we name and link, and from drinkers logging what they paid that day. When no publisher is recorded the price says so, and we'd rather leave a gap than invent a figure.",
+      "From published listings and drinkers logging what they paid. Each price names its publisher when recorded, or says one is missing, and drinker reports show their date.",
   },
   {
     id: "log-a-price",

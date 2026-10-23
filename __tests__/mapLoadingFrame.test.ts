@@ -300,7 +300,7 @@ describe("useMapPinsRevealed", () => {
 // loading screens now date the bundled London pint snapshot, from a line
 // the page builds on the server, and say nothing where none was handed in.
 describe("the map's loading screens date the London pint snapshot", () => {
-  const line = "London pint prices. Snapshot from 2 October 2026.";
+  const line = "London pint prices. Records from 2 October 2026.";
 
   it("prints the line the shell hands the held frame, and nothing without one", () => {
     act(() => {

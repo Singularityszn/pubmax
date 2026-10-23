@@ -71,7 +71,7 @@ describe("public pint-price clock", () => {
     );
 
     expect(todayHtml).toContain(snapshotCaption);
-    expect(todayHtml).toContain("Snapshot from 2 October 2026");
+    expect(todayHtml).toContain("Records from 2 October 2026");
     expect(todayHtml).not.toContain("today's price");
     expect(todayHtml).not.toContain(asOf);
     expect(pintIndexHtml).toContain(asOf);

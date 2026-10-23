@@ -10,7 +10,7 @@
 import type { TonightProvenanceCredits } from "@/lib/tonightOutListings";
 
 /** Said instead of a dated chain segment when a lane carries no date. */
-const UNDATED_SOURCE_LINE = "We can’t date these listings yet.";
+const UNDATED_SOURCE_LINE = "Check date not recorded.";
 
 export default function TonightProvenanceLines({
   provenance,
@@ -30,11 +30,7 @@ export default function TonightProvenanceLines({
         >
           {provenance.whatsOn}
           {nearestSuffix}
-        </p>
-      ) : null}
-      {provenance.whatsOn && !provenance.whatsOnDated ? (
-        <p className="tonightProvenance" data-tonight-provenance="undated-whats-on">
-          {UNDATED_SOURCE_LINE}
+          {!provenance.whatsOnDated ? <span data-tonight-provenance="undated-whats-on"> · {UNDATED_SOURCE_LINE}</span> : null}
         </p>
       ) : null}
       {provenance.out ? (
@@ -44,11 +40,7 @@ export default function TonightProvenanceLines({
           data-tonight-dated={provenance.outDated ? "yes" : "no"}
         >
           {provenance.out}
-        </p>
-      ) : null}
-      {provenance.out && !provenance.outDated ? (
-        <p className="tonightProvenance" data-tonight-provenance="undated-out">
-          {UNDATED_SOURCE_LINE}
+          {!provenance.outDated ? <span data-tonight-provenance="undated-out"> · {UNDATED_SOURCE_LINE}</span> : null}
         </p>
       ) : null}
     </>

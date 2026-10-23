@@ -53,8 +53,7 @@ export default function LandingAnswerCards({ answers }: { answers: LandingAnswer
             <ChevronRight size={16} aria-hidden="true" className="lpAnswerTileChevron" />
           </span>
           <span className="lpAnswerTileLine">
-            Tell it the night you want. It picks pubs from the same listed prices as the map,
-            and it remembers only what you approve.
+            Ask for pubs or a route using the map&apos;s listed prices. It remembers only what you approve.
           </span>
         </Link>
       </div>
