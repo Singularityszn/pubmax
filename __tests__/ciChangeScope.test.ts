@@ -15,9 +15,10 @@
 // The free plan runs only 5 macOS jobs at once, and a job that starts only to
 // skip its steps still holds a macOS runner while it waits. So one Linux job,
 // "Change scope", classifies the diff, and the three layout-pin jobs are
-// skipped whole when it succeeds and says docs or data. They are named jobs,
-// not a matrix, so a skipped one reports under its own name, which branch
-// protection counts as passed. If the classifier fails, they run.
+// skipped whole when it succeeds and says no screen code changed (captain,
+// 23 Oct 2026). Main still runs them on every push. They are named
+// jobs, not a matrix, so a skipped one reports under its own name, which
+// branch protection counts as passed. If the classifier fails, they run.
 //
 // The classifier and the named-test step are EXECUTED here, against a
 // stand-in `git` and `npx`, so these are pins on what the steps do, not on
@@ -36,6 +37,7 @@ import { defined } from "@/__tests__/helpers/defined";
 
 const ROOT = process.cwd();
 const CLASSIFY = "Classify the change";
+const CLASSIFY_LAYOUT = "Classify the layout change";
 const NAMED_TESTS = "Unit tests that name a changed file";
 
 type Step = { name?: string; id?: string; if?: string; run?: string; uses?: string; with?: Record<string, unknown> };
@@ -74,7 +76,7 @@ function shimBin(): string {
     join(bin, "git"),
     [
       "#!/bin/sh",
-      'if [ "$*" = "diff --no-renames --name-only HEAD^1 HEAD" ]; then printf "%s" "$FAKE_DIFF"; exit 0; fi',
+      'if [ "$*" = "diff --no-renames --name-only HEAD^1 HEAD" ]; then printf "%s" "$FAKE_DIFF"; exit "${FAKE_GIT_STATUS:-0}"; fi',
       'echo "unexpected git $*" >&2; exit 2',
     ].join("\n"),
   );
@@ -185,12 +187,12 @@ describe("the change scope", () => {
 // The job that only classifies, for the macOS layout pins to read.
 const SCOPE_JOB = "e2e.yml / change-scope";
 const LAYOUT_PIN_JOBS = ["layout-pins-1", "layout-pins-2", "layout-pins-3"];
-// Run unless the classifier succeeded and said docs or data. A failed
-// classifier must run the layout pins, not skip them: a skipped check counts
-// as passed for branch protection, so skipping would let a code change merge
-// without them (fail closed).
+// Run unless the classifier succeeded and said no screen code changed. A
+// failed classifier must run the layout pins, not skip them: a skipped check
+// counts as passed for branch protection, so skipping would let a screen
+// change merge without them (fail closed).
 const LAYOUT_PIN_IF =
-  "${{ !cancelled() && (needs.change-scope.result != 'success' || needs.change-scope.outputs.scope == 'code') }}";
+  "${{ !cancelled() && (needs.change-scope.result != 'success' || needs.change-scope.outputs.layout == 'ui') }}";
 
 describe("what each scope runs", () => {
   it("gates every step after the classifier, and never a whole job", () => {
@@ -217,16 +219,19 @@ describe("what each scope runs", () => {
     expect(step("ci.yml / lint-and-types", "Typecheck").if).toBe("steps.scope.outputs.scope != 'docs'");
   });
 
-  it("skips the macOS layout pins whole, by fixed name, only for a classified docs or data change", () => {
+  it("skips the macOS layout pins whole, by fixed name, only for a classified change with no screen code", () => {
     const e2e = defined(workflows.find(({ file }) => file === "e2e.yml")).parsed.jobs as Record<
       string,
       Job & { "runs-on"?: string; needs?: string[]; outputs?: Record<string, string>; strategy?: unknown }
     >;
     const scopeJob = defined(e2e["change-scope"], "change-scope");
-    // It only classifies: checkout, then the classifier, on Linux.
+    // It only classifies: checkout, then the two classifiers, on Linux.
     expect(scopeJob["runs-on"]).toBe("ubuntu-latest");
-    expect(scopeJob.steps.map((entry) => entry.name)).toEqual(["Checkout", CLASSIFY]);
-    expect(scopeJob.outputs).toEqual({ scope: "${{ steps.scope.outputs.scope }}" });
+    expect(scopeJob.steps.map((entry) => entry.name)).toEqual(["Checkout", CLASSIFY, CLASSIFY_LAYOUT]);
+    expect(scopeJob.outputs).toEqual({
+      scope: "${{ steps.scope.outputs.scope }}",
+      layout: "${{ steps.layout.outputs.layout }}",
+    });
     expect(scopeJob.if).toBeUndefined();
     for (const id of LAYOUT_PIN_JOBS) {
       const layout = defined(e2e[id], id);
@@ -251,6 +256,119 @@ describe("what each scope runs", () => {
     const security = defined(workflows.find(({ file }) => file === "security-ci.yml")).parsed.jobs;
     for (const [id, entry] of Object.entries(security)) {
       expect(entry.steps.some((s) => s.name === CLASSIFY), id).toBe(false);
+    }
+  });
+});
+
+describe("the layout scope", () => {
+  const LAYOUT_RUN = defined(step(SCOPE_JOB, CLASSIFY_LAYOUT).run, "layout classifier run");
+
+  function layoutOf(files: string[], eventName = "pull_request"): string {
+    const result = runStep(
+      LAYOUT_RUN,
+      { EVENT_NAME: eventName, FAKE_DIFF: files.join("\n") + (files.length ? "\n" : "") },
+    );
+    expect(result.status, result.stderr).toBe(0);
+    return defined(/^layout=(\w+)$/m.exec(result.output)?.[1], `layout in ${result.output}`);
+  }
+
+  it("runs the layout pins when any selected spec changes", () => {
+    const e2e = defined(workflows.find(({ file }) => file === "e2e.yml")).parsed;
+    const run = defined(defined(e2e.jobs["layout-pins-1"]).steps.find(
+      (entry) => entry.name === "Run layout-pinning journeys",
+    )?.run);
+    const log = join(mkdtempSync(join(scratch, "layout-npx-")), "npx.log");
+    const result = runStep(run.replaceAll("${{ env.LAYOUT_SHARD }}", "1"), { NPX_LOG: log });
+    expect(result.status, result.stderr).toBe(0);
+    const files = readFileSync(log, "utf8").trim().split("\n");
+    for (const file of files.filter((word) => word.startsWith("e2e/"))) {
+      expect(layoutOf([file]), file).toBe("ui");
+    }
+  });
+
+  it.each([
+    // Screen code and what the pins run with.
+    { files: ["components/map/MapCanvas.tsx"], layout: "ui" },
+    { files: ["app/(map)/page.tsx"], layout: "ui" },
+    { files: ["app/globals.css"], layout: "ui" },
+    { files: ["lib/someView.tsx"], layout: "ui" },
+    { files: ["public/fonts/x.woff2"], layout: "ui" },
+    { files: ["e2e/mobile-map-chrome-fit.spec.ts"], layout: "ui" },
+    { files: ["e2e/helpers/mobileMapShell.ts"], layout: "ui" },
+    { files: ["e2e/fixtures/venue.json"], layout: "ui" },
+    { files: ["e2e/conditional-skips.allowlist.json"], layout: "ui" },
+    ...[
+      "lib/cities.ts", "lib/cityStoryBands.ts", "lib/contentSecurityPolicy.mjs",
+      "lib/deviceAccountSessions.ts", "lib/landingHero.ts", "lib/lateFood.ts",
+      "lib/mapCanvasAvailability.ts", "lib/mapBasemapTaste.ts", "lib/mapIcons.ts",
+      "lib/donutClusterGeometry.ts", "lib/priceBand.ts", "lib/profileCovers.ts",
+      "lib/siteContact.ts", "lib/surfaceDataCache.ts", "lib/ukBasePubSearch.ts",
+    ].map((file) => ({ files: [file], layout: "ui" })),
+    { files: [".github/workflows/e2e.yml"], layout: "ui" },
+    { files: [".github/actions/pubmax-playwright-port/action.yml"], layout: "ui" },
+    { files: ["package.json"], layout: "ui" },
+    ...["package-lock.json", "npm-shrinkwrap.json", "yarn.lock", "pnpm-lock.yaml", "bun.lock", "bun.lockb"]
+      .map((file) => ({ files: [file], layout: "ui" })),
+    ...["next.config.js", "next.config.mjs", "next.config.ts"]
+      .map((file) => ({ files: [file], layout: "ui" })),
+    { files: ["playwright.config.ts"], layout: "ui" },
+    { files: ["proxy.ts"], layout: "ui" },
+    { files: ["__tests__/venues.test.ts", "components/nav/navigationModel.ts"], layout: "ui" },
+    { files: ["__tests__/venues.test.ts"], layout: "none" },
+    { files: ["e2e/smoke.spec.ts", "e2e/food-menu-discovery.spec.ts"], layout: "ui" },
+    { files: ["data/freshness_registry.json", "public/data/london/venues.slim.json"], layout: "none" },
+    { files: ["data/venues.csv"], layout: "none" },
+    { files: ["docs/CI_RUNBOOK.md", "app/AGENTS.md"], layout: "none" },
+    { files: ["lib/venues.ts", "lib/harvest/sourcePolicy.ts"], layout: "ui" },
+    ...[
+      "app/api/feedback/route.ts", "app/api/city-map-card/route.tsx",
+      "app/api/helpers.ts", "app/api/style.css", "app/route.ts", "app/feed/route.ts",
+      "app/(feeds)/rss/route.js", "app/(feeds)/rss/route.jsx", "app/(feeds)/rss/route.tsx",
+      "scripts/assert-playwright-gate.mjs", "scripts/run-with-restored-next-env.mjs",
+      "scripts/copy_maplibre_worker.mjs", "scripts/copy_elevenlabs_worklets.mjs",
+      "scripts/ci/install-script-allowlist.mjs", "scripts/lib/uiUxBattleTestBrowser.mjs",
+      "scripts/lib/committedBundledDataPaths.mjs", "scripts/build_slim_index.mjs", "scripts/style.css",
+    ].map((file) => ({ files: [file], layout: "none" })),
+    ...[
+      "lib/e2eReviewAuth.ts", "lib/performanceBudgets.ts", "lib/playwrightDistDir.mjs",
+      "lib/priceChipLadder.ts", "lib/staticAssetPrefixes.mjs", "lib/webVitalsBaseline.ts",
+    ].map((file) => ({ files: [file], layout: "ui" })),
+    { files: ["app/api/feedback/route.ts", "components/PriceBadge.tsx"], layout: "ui" },
+    { files: ["app/feed/route.ts", "e2e/helpers/mobileMapShell.ts"], layout: "ui" },
+    { files: ["supabase/migrations/1_x.sql", "supabase/rollbacks/1_x.sql"], layout: "none" },
+    { files: ["supabase/migrations/1_x.sql", ".github/workflows/ci.yml"], layout: "ui" },
+    { files: ["supabase/config.toml"], layout: "ui" },
+    { files: ["unknown/new-file.txt"], layout: "ui" },
+    { files: ["app/route-helper.ts"], layout: "ui" },
+    { files: ["data-harvest/notes.json"], layout: "ui" },
+    {
+      files: [
+        "__tests__/venues.test.ts", "data/venues.csv", "public/data/venues.json",
+        "docs/CI_RUNBOOK.md", "scripts/build_slim_index.mjs", "app/api/feedback/route.ts",
+        "supabase/migrations/1_x.sql",
+      ],
+      layout: "none",
+    },
+    { files: ["docs/CI_RUNBOOK.md", "data/venues.csv", "lib/mapBasemapTaste.ts"], layout: "ui" },
+    // An empty diff fails closed.
+    { files: [], layout: "ui" },
+  ])("reads $files as $layout", ({ files, layout }) => {
+    expect(layoutOf(files)).toBe(layout);
+  });
+
+  it("fails without a skip output when git cannot read the diff", () => {
+    const result = runStep(LAYOUT_RUN, {
+      EVENT_NAME: "pull_request",
+      FAKE_DIFF: "docs/CI_RUNBOOK.md\n",
+      FAKE_GIT_STATUS: "2",
+    });
+    expect(result.status).not.toBe(0);
+    expect(result.output).toBe("");
+  });
+
+  it("runs every pin on every event other than a pull request, without asking git", () => {
+    for (const event of ["push", "schedule", "workflow_dispatch"]) {
+      expect(layoutOf(["__tests__/venues.test.ts"], event)).toBe("ui");
     }
   });
 });
