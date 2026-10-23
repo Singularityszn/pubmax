@@ -120,9 +120,12 @@ describe("reading the words a PDF menu states", () => {
 });
 
 
-it("keeps the PDF pint separate from an inline fractional prefix", async () => {
+it.each([
+  "Guinness pint £6.20 2/3 Kernel stout £6.00",
+  ...[", ", ". ", "; "].map((separator) => `Kernel stout £6.00 (2/3)${separator}Guinness pint £6.20`),
+])("keeps the PDF pint separate from an inline fraction: %s", async (line) => {
   const text = await readPdfText(pdfStating([
-    "Guinness pint £6.20 2/3 Kernel stout £6.00",
+    line,
     "Madri pint £6.40", "Neck Oil pint £6.80", "House red wine 175ml £7.50",
   ]));
   const reading = readVenueDrinkPrices(text ?? "", "text");
