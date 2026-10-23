@@ -41,6 +41,7 @@ vi.mock("@/lib/todayListings.server", () => ({
 
 const NOW = Date.parse("2026-10-22T17:00:00Z");
 const OBSERVED = "2026-10-22T09:00:00Z";
+const STALE_OBSERVED = "2026-10-20T09:00:00Z";
 const pub: WhatsOnRow = {
   id: "pub-music",
   venueId: "venue-pub",
@@ -60,7 +61,7 @@ const expired: WhatsOnRow = {
   ...pub, id: "expired", endsAt: "2026-10-22T16:00:00Z",
 };
 const stale: WhatsOnRow = {
-  ...pub, id: "stale", observedAt: "2026-10-20T09:00:00Z",
+  ...pub, id: "stale", observedAt: STALE_OBSERVED,
 };
 const body: OutResponse = {
   status: "degraded",
@@ -191,7 +192,7 @@ describe("Tonight's serialized Out answer", () => {
     it.each([OBSERVED, undefined, "not-a-date"])("credits an unmatched Out read separately from displayed What's-on cards: %s", (observedAt) => {
       const doc = new DOMParser().parseFromString(renderDocument({
         ...readyOut,
-        body: { ...body, events: [{ ...unmatched, observedAt }], observedAt: observedAt ? { skiddle: observedAt } : {} },
+        body: { ...body, events: [{ ...unmatched, observedAt: observedAt ?? "" }], observedAt: observedAt ? { skiddle: observedAt } : {} },
       }), "text/html");
       expect(doc.querySelector('[data-tonight-provenance="whats-on"]')?.textContent)
         .toBe("1 listing · Checked 22 Oct · via what’s-on");
@@ -199,6 +200,27 @@ describe("Tonight's serialized Out answer", () => {
         .toBe(`No pub-matched events via Skiddle${observedAt === OBSERVED ? " · Checked 22 Oct" : ""}`);
       expect(doc.querySelector('[data-tonight-provenance="undated-out"]')?.textContent ?? null)
         .toBe(observedAt === OBSERVED ? null : "The source check date is not recorded.");
+    });
+
+    it.each([
+      { label: "", expected: "Ticketmaster and an unrecorded source", dated: false },
+      { label: "Skiddle", expected: "Ticketmaster and Skiddle", dated: true },
+    ])("preserves mixed-source attribution and date uncertainty: $label", ({ label, expected, dated }) => {
+      const doc = new DOMParser().parseFromString(renderDocument({
+        ...readyOut,
+        body: {
+          ...body,
+          events: [
+            { ...unmatched, source: ticketmasterEvent.source, observedAt: "" },
+            { ...unmatched, id: "other-source", source: { label, url: "https://example.com/event" }, observedAt: "" },
+          ],
+          observedAt: { ticketmaster: OBSERVED, skiddle: OBSERVED },
+        },
+      }, whatsOn, [suggestion]), "text/html");
+      expect(doc.querySelector('[data-tonight-provenance="out"]')?.textContent)
+        .toBe(`No pub-matched events via ${expected}${dated ? " · Checked 22 Oct" : ""}`);
+      expect(doc.querySelector('[data-tonight-provenance="undated-out"]')?.textContent ?? null)
+        .toBe(dated ? null : "The source check date is not recorded.");
     });
 
     it.each([
@@ -218,7 +240,7 @@ describe("Tonight's serialized Out answer", () => {
     it.each([{ otherEvents: [] }, { otherEvents: [unmatched] }])("retains a stale pub match when display filtering removes it: $otherEvents", ({ otherEvents }) => {
       const doc = new DOMParser().parseFromString(renderDocument({
         ...readyOut,
-        body: { ...body, events: [stale, ...otherEvents], observedAt: { skiddle: stale.observedAt! } },
+        body: { ...body, events: [stale, ...otherEvents], observedAt: { skiddle: STALE_OBSERVED } },
       }, { ...whatsOn, rows: [] }, [suggestion]), "text/html");
       expect(doc.body.textContent).not.toContain("Thursday live music");
       expect(doc.querySelector('[data-tonight-provenance="out"]')).toBeNull();

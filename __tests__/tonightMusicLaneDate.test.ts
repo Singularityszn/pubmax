@@ -87,6 +87,24 @@ describe("the live-music lane's checked date", () => {
     expect(observed).toBe(SKIDDLE_DAY);
   });
 
+  it.each<{ label: string; observedAt: string; checks: Record<string, string>; expected: string | null }>([
+    { label: "", observedAt: "", checks: { ticketmaster: TICKETMASTER_DAY }, expected: null },
+    { label: "Skiddle", observedAt: "", checks: { ticketmaster: TICKETMASTER_DAY }, expected: null },
+    { label: "Ticketmaster", observedAt: "", checks: {}, expected: null },
+    { label: "Skiddle", observedAt: SKIDDLE_DAY, checks: { ticketmaster: TICKETMASTER_DAY }, expected: SKIDDLE_DAY },
+  ])("requires check evidence for every participating Out music row: $label / $observedAt", ({ label, observedAt, checks, expected }) => {
+    const events = [
+      row("out-tm-known", { source: { label: "Ticketmaster", url: "https://www.ticketmaster.co.uk/e/1" }, observedAt: TICKETMASTER_DAY }),
+      row("out-other", { source: { label, url: "https://example.com/e/2" }, observedAt }),
+    ];
+    expect(tonightMusicLaneObservedAt({
+      rows: events,
+      outEvents: events,
+      kindObservedAt: {},
+      outObservedAt: checks,
+    })).toBe(expected);
+  });
+
   it("goes undated when one read on screen cannot be dated", () => {
     const whatsOn = row("own-site-1");
     const unlabelled = row("out-1", { source: { label: " ", url: "https://example.com/e" } });

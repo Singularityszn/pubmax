@@ -62,6 +62,26 @@ Music proof uses fixtures at the required widths.
 | --- | --- |
 | ![Music at 1280](music-1280.png) | ![Music at 390](music-390.png) |
 
+### Soho Pints search comparison
+
+The operator replayed the exact live `e81aaa6` source build locally to capture the baseline search order.
+These baseline captures occurred after editing. They are not captures from the hosted live site.
+The candidate captures came from `af246a4f`. Later Tonight fixes did not change Map ranking code.
+Only the four named PNG files were copied from the operator's `artifacts/battle-20261023/` directory.
+
+Both baseline captures show Three Sheets and Hoppers above Comptons.
+Both candidate captures show Comptons first. The displayed cocktail and food labels stay unchanged.
+The desktop baseline still shows the map loading, so this pair proves search ordering only.
+The phone captures use a 390-pixel viewport. They do not establish physical-device behaviour.
+
+| Width | Live source replay | Candidate |
+| --- | --- | --- |
+| 1280 pixels | ![Soho baseline desktop](soho-before-1280.png) | ![Soho candidate desktop](soho-after-1280.png) |
+| 390 pixels | ![Soho baseline phone](soho-before-390.png) | ![Soho candidate phone](soho-after-390.png) |
+
+The operator reported a later main commit, `d64a5cf0474407d51c7d2b521a7337c2c3f8c663`, after PR #2338.
+This local test phase did not repeat that external check or change the pinned baseline branch.
+
 ## Isolated Confirm proof
 
 The dedicated Colima profile and Supabase project are `pubmax-battle-1023` and `pubmax-battle-20261023`.
@@ -108,6 +128,22 @@ Both hosts retain BarOrPub JSON-LD on the ledger and the pub route's noindex and
 `/out` returns 308 to `/tonight`. `/you` returns 308 to `/u/you`.
 
 ## Validation
+
+The local test repair reproduced the outdated rendered `Quiet night` expectation with exit code 1.
+New regressions reproduced false dated credits for unnamed sources on both response paths and in the shared music-date calculation.
+The repair preserves unnamed-source attribution and leaves a combined source date unknown when any row lacks check evidence.
+The fixture uses a string for a missing row date and a known stale checked-time string in the source map.
+
+The focused command below exited 0 with 121 tests passing across four files.
+The configured changed-file command was not repeated because this phase prohibits its lint and static analysis steps.
+The reported type error therefore has no new compiler verification from this phase.
+Existing browser evidence remains unchanged. No new browser or hosted run occurred during this repair.
+
+```sh
+OPENROUTER_API_KEY= node_modules/.bin/vitest run __tests__/tonightInitialOutAnswer.test.tsx __tests__/tonightHypedLede.test.ts __tests__/tonightMusicLaneDate.test.ts __tests__/tonightOutListings.test.ts --maxWorkers=2
+```
+
+The following checks describe the earlier implementation run, before this local test repair.
 
 - Targeted regression tests passed, including 363 tests across nine files.
 - The selected Chromium browser suite passed all ten tests.

@@ -736,6 +736,7 @@ function outLaneObservedAt(
   observedAt: Record<string, string>,
 ): { labels: string[]; oldest: string | null; dated: boolean } {
   const freshestByLabel = new Map<string, string | null>();
+  let everyRowDated = true;
   if (rows.length === 0) {
     for (const [label, observed] of Object.entries(observedAt)) {
       freshestByLabel.set(outSourceDisplayLabel(label), canonicalIso(observed));
@@ -743,7 +744,11 @@ function outLaneObservedAt(
   }
   for (const row of rows) {
     const raw = row.source?.label?.trim() ?? "";
-    if (!raw) continue;
+    if (!raw) {
+      freshestByLabel.set("an unrecorded source", null);
+      everyRowDated = false;
+      continue;
+    }
     // Spelled the one way every Out surface spells a publisher, so the credit
     // beside a card and the credit over the list cannot read differently. The
     // per-source map is keyed by the label the lane WROTE, so the lookup keeps
@@ -752,6 +757,7 @@ function outLaneObservedAt(
     // The response's per-source map is the lane's own answer; a row's stated
     // observation is the fall-back, because the row itself is the evidence.
     const next = canonicalIso(observedAt[raw.toLowerCase()] ?? row.observedAt ?? null);
+    if (!next) everyRowDated = false;
     const held = freshestByLabel.get(label);
     if (held === undefined) {
       freshestByLabel.set(label, next);
@@ -764,7 +770,7 @@ function outLaneObservedAt(
   const labels = [...freshestByLabel.keys()];
   const unlabelled = labels.length === 0;
   let oldest: string | null = null;
-  let everyLabelDated = !unlabelled;
+  let everyLabelDated = !unlabelled && everyRowDated;
   for (const observed of freshestByLabel.values()) {
     if (!observed) {
       everyLabelDated = false;
