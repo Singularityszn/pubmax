@@ -49,6 +49,7 @@ describe("shared venue pint evidence", () => {
     expect(evidence.bundlePrices?.listed?.priceGbp).toBe(5);
     expect(evidence.venue.cheapestPrice).toBe(5.5);
     expect(evidence.venue.sourcedPrice).toBeNull();
+    expect(evidence.pintPriceRefresh).toEqual({ status: "ready", update: null });
   });
   it("preserves the sourced-refresh price and exact attribution used by the sheet", async () => {
     vi.mocked(fs.readFile).mockResolvedValue(JSON.stringify({ updates: [update] }));
@@ -70,5 +71,6 @@ describe("shared venue pint evidence", () => {
     expect(evidence.bundlePrices).toBeNull();
     expect(evidence.reads).toEqual({ bundle: "unavailable", sourced: "unavailable" });
     expect(evidence.venue.cheapestPrice).toBe(5.5);
+    expect(evidence.pintPriceRefresh).toEqual({ status: "unavailable", update: null });
   });
 });

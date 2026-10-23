@@ -6,7 +6,7 @@
 // answer, while the rest of the venue's ledger answers as before. The Family
 // Table opens in full only to its own author.
 
-import { readFileSync } from "node:fs";
+import { promises as fs, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
@@ -27,7 +27,10 @@ import type { LedgerLog } from "@/lib/ledgerLog.server";
 import { __resetPintDrops, addPintDrop, type PintDrop } from "@/lib/pintDrops";
 import { memoryPintDropStore } from "@/lib/pintDropsStore";
 import { __resetMemoryProfiles, __seedMemoryOwnedProfile } from "@/lib/profileStore";
-import { groupVenuePrices, type VenuePrice } from "@/lib/venues";
+import { groupVenuePrices, venueFromDetailPayload, type VenuePrice } from "@/lib/venues";
+import { mergePriceUpdates } from "@/lib/priceUpdates";
+import { venueUpdateKey } from "@/lib/pubMap";
+import { venueBundlePrices, venuePriceLane, venueSourcedPrice } from "@/lib/venuePriceLane";
 import { defined } from "@/__tests__/helpers/defined";
 
 const rows = JSON.parse(
@@ -97,6 +100,34 @@ describe("GET /api/ledger/[id] and a withdrawn author", () => {
 });
 
 describe("GET /api/ledger/[id]", () => {
+  it("keeps the sheet and Ledger sourced price equal when the browser's separate refresh fetch fails", async () => {
+    const update = {
+      venueKey: venueUpdateKey(venue), price: 4.8,
+      source: { label: "Pub website", url: "https://example.com/drinks" }, observedAt: "2026-10-23T15:00:00Z",
+    };
+    const readFile = fs.readFile.bind(fs);
+    vi.spyOn(fs, "readFile").mockImplementation((...args: Parameters<typeof fs.readFile>) => {
+      if (String(args[0]).endsWith("/public/data/price_updates/latest.json")) {
+        return Promise.resolve(JSON.stringify({ updates: [update, { ...update, venueKey: "another-pub", price: 1 }] }));
+      }
+      return readFile(...args);
+    });
+    const ledger = await readLog();
+    const response = await readVenue(new Request(`http://localhost/api/venue/${venue.id}`), { params: Promise.resolve({ id: venue.id }) });
+    const body = await response.json();
+    // Keep the raw baseline contract while delivering only this pub's public observation.
+    expect(body.venue.cheapestPrice).toBe(venue.cheapestPrice);
+    const hydrated = venueFromDetailPayload(body.venue);
+    const merged = defined(mergePriceUpdates([hydrated], [], venueUpdateKey)[0]);
+    const lane = venuePriceLane(merged, null, venueSourcedPrice(merged), venueBundlePrices(merged));
+    expect(lane).toEqual(ledger.priceRecord.lane);
+    expect(lane).toMatchObject({ lane: "sourced", cheapestPrice: 4.8, sourcedPrice: {
+      sourceLabel: update.source.label, sourceUrl: update.source.url, observedAt: update.observedAt,
+    } });
+    expect(body.venue.pintPriceRefresh).toEqual({ status: "ready", update });
+    expect(JSON.stringify(body)).not.toContain("another-pub");
+  });
+
   it("uses the same refreshed Small Beer menu row as the venue sheet", async () => {
     vi.spyOn(Date, "now").mockReturnValue(Date.parse("2026-10-23T18:00:00Z"));
     const id = "venue-19mn6ss";
