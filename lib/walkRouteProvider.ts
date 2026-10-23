@@ -14,6 +14,7 @@
 // falls back to its straight segment; the map never breaks.
 
 import { isValidLngLat, type LngLat } from "@/lib/walkRoute";
+import { log } from "@/lib/log";
 
 /** The GeoJSON directions endpoint — returns a LineString FeatureCollection. */
 export const ORS_FOOT_WALKING_URL =
@@ -36,14 +37,18 @@ function deadlineSignal(
   timeoutMs: number,
 ): { signal: AbortSignal; clear: () => void } {
   const controller = new AbortController();
+  const onAbort = () => controller.abort(callerSignal?.reason);
   const timer = setTimeout(() => {
     controller.abort(new DOMException("walk-route ORS timeout", "TimeoutError"));
   }, timeoutMs);
   if (callerSignal) {
     if (callerSignal.aborted) controller.abort(callerSignal.reason);
-    else callerSignal.addEventListener("abort", () => controller.abort(callerSignal.reason), { once: true });
+    else callerSignal.addEventListener("abort", onAbort, { once: true });
   }
-  return { signal: controller.signal, clear: () => clearTimeout(timer) };
+  return { signal: controller.signal, clear: () => {
+    clearTimeout(timer);
+    callerSignal?.removeEventListener("abort", onAbort);
+  } };
 }
 
 /** Trimmed ORS_API_KEY, or null when unset/blank (the keyless default). */
@@ -118,7 +123,7 @@ export async function fetchWalkLegRoute(
   opts: FetchWalkLegOptions = {},
 ): Promise<RoutedWalkLeg | null> {
   const apiKey = opts.apiKey === undefined ? orsApiKey() : opts.apiKey;
-  if (!apiKey) return null;
+  if (!apiKey || opts.signal?.aborted) return null;
   const doFetch = opts.doFetch ?? defaultFetch;
   const { signal, clear } = deadlineSignal(opts.signal, opts.timeoutMs ?? WALK_LEG_TIMEOUT_MS);
   try {
@@ -137,10 +142,17 @@ export async function fetchWalkLegRoute(
       }),
       signal,
     });
-    if (!response.ok) return null;
-    return parseOrsRoute(await response.json());
+    if (!response.ok) {
+      log("error", "walk_route.provider_failed", { reason: "http", status: response.status });
+      return null;
+    }
+    const route = parseOrsRoute(await response.json());
+    if (!route) log("error", "walk_route.provider_failed", { reason: "invalid_response" });
+    return route;
   } catch {
-    // Network error, abort, timeout, or a JSON parse throw — all degrade to straight.
+    if (!opts.signal?.aborted) {
+      log("error", "walk_route.provider_failed", { reason: signal.aborted ? "timeout" : "network_or_json" });
+    }
     return null;
   } finally {
     clear();
