@@ -105,12 +105,29 @@ describe("sendAlert", () => {
     expect(fetchImpl).toHaveBeenCalledTimes(ALERT_HOURLY_CAP + 1);
   });
 
+  it("reports refused delivery without leaking the webhook or alert payload", async () => {
+    const warned = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const fetchImpl = vi.fn(async () => new Response("secret response body", { status: 403 }));
+    await sendAlert({ source: "moderation", text: "private payload" }, { env, fetchImpl });
+    const lines = warned.mock.calls.map(([line]) => String(line)).join("\n");
+    expect(lines).toContain('"event":"alert.delivery_failed"');
+    expect(lines).toContain('"status":403');
+    for (const secret of [URL_OK, "secret-token", "secret response body", "private payload"]) {
+      expect(lines).not.toContain(secret);
+    }
+    expect(sendAlert({ source: "moderation", text: "retry" }, { env, fetchImpl })).toBeNull();
+    expect(fetchImpl).toHaveBeenCalledTimes(1);
+  });
+
   it("never throws when the request fails", async () => {
+    const warned = vi.spyOn(console, "warn").mockImplementation(() => {});
     const fetchImpl = vi.fn(async () => {
       throw new Error("network down");
     });
     await expect(sendAlert({ source: "x", text: "y" }, { env, fetchImpl })).resolves.toBeUndefined();
-    expect(() => sendAlert({ source: "z", text: "y" }, { env, fetchImpl: undefined })).not.toThrow();
+    expect(warned).toHaveBeenCalledWith(JSON.stringify({ event: "alert.delivery_failed", reason: "network" }));
+    vi.stubGlobal("fetch", fetchImpl);
+    await expect(sendAlert({ source: "z", text: "y" }, { env })).resolves.toBeUndefined();
   });
 });
 
@@ -129,13 +146,15 @@ describe("the seams", () => {
     log("error", "pint_drops.storage_error", { route: "POST /api/pint-drops" });
     log("warn", "paid_spend.budget_spent", { lane: "ask", budget: 1000 });
     log("warn", "rate_limit.fail_open", { reason: "error", mode: "degraded" });
-    expect(fetchMock).toHaveBeenCalledTimes(3);
+    log("warn", "ors_budget.exhausted", { date: "2026-10-23", budget: 2000 });
+    expect(fetchMock).toHaveBeenCalledTimes(4);
     const bodies = fetchMock.mock.calls.map((call) =>
       String(((call as unknown as [string, RequestInit])[1]).body),
     );
     expect(bodies[0]).toContain("pint_drops.storage_error");
     expect(bodies[1]).toContain("paid_spend.budget_spent");
     expect(bodies[2]).toContain("rate_limit.fail_open");
+    expect(bodies[3]).toContain("ors_budget.exhausted");
   });
 
   it("log() sends the event name, level, time and deployment id, and none of the line's fields", () => {
