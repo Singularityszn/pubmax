@@ -4843,8 +4843,8 @@ export default function PubMap({
     (camera: { center: [number, number]; zoom: number }) => {
       setNearbyMapResult(null);
       // A deliberate move is the reader taking the camera, exactly as a
-      // gesture is (dismissAmbientBanners sets the same flag), and it is set
-      // FIRST because the cancellation below cannot do it: cancelOpeningLocation
+      // gesture is (dismissAmbientBanners claims it the same way). claimMapCamera
+      // sets the flag FIRST because its cancellation cannot do it: cancelOpeningLocation
       // early-returns once the location has already resolved
       // (openingLocationCancellationAfterAttempt). Two readers of this ref then
       // hold the pick. The opening-location mint effect bails on it. So do both
