@@ -1,5 +1,7 @@
 "use client";
 
+import { mapDrinkCoverage } from "@/lib/drinkCoverage";
+
 import { CalendarClock, ChevronRight, List, MapPinned, Navigation2, ShieldCheck, X } from "lucide-react";
 import { formatGbp } from "@/lib/formatGbp";
 import { priceBand, priceBandAreaForVenue } from "@/lib/priceBand";
@@ -3023,6 +3025,10 @@ export default function PubMap({
     [baseVenues, dropsByVenueId, priceUpdates, cityId],
   );
   const pubVenues = useMemo(() => venues.filter(isPubVenue), [venues]);
+  const drinkCoverage = useMemo(() => ({
+    ...mapDrinkCoverage(pubVenues, activeMapDrinkLane, drinkLensPrices, venueIndexFailed ? "degraded" : !loaded || loadedCityId !== cityId ? "loading" : drinkIndexStatus),
+    ...(coffeePilotLensOn ? { coffeePilot: { count: coffeePilot.cafes.length, status: coffeePilot.status } } : {}),
+  }), [pubVenues, activeMapDrinkLane, drinkLensPrices, drinkIndexStatus, venueIndexFailed, loaded, loadedCityId, cityId, coffeePilotLensOn, coffeePilot.cafes.length, coffeePilot.status]);
   const hasSavedPub = useMemo(
     () => hasSavedPubVenue(pubVenues, savedIds),
     [pubVenues, savedIds],
@@ -6504,6 +6510,7 @@ export default function PubMap({
             <DrinkLanePicker
               lane={activeMapDrinkLane}
               status={drinkIndexStatus}
+              coverage={experienceLens === "all" ? drinkCoverage : undefined}
               variant="sheet"
               onChange={(lane) => {
                 changeDrinkLane(lane);
@@ -6970,6 +6977,7 @@ export default function PubMap({
         onDrinkBrandChange={changeDrinkBrand}
         onDrinkLaneChange={changeDrinkLane}
         drinkLaneStatus={drinkIndexStatus}
+        drinkCoverage={experienceLens === "all" ? drinkCoverage : undefined}
         spoonsValueOn={spoonsValueOn}
         spoonsValueLens={spoonsValueLens}
         onSpoonsValueChange={changeSpoonsValue}
