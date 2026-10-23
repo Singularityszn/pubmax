@@ -184,4 +184,6 @@
   outline: 2px solid var(--brass-ink);
   outline-offset: 4px;
 }
-.lpCollageTile__link:hover .lpCollageTile__place { text-decoration: underline; }
+@media (hover: hover) and (pointer: fine) {
+  .lpCollageTile__link:hover .lpCollageTile__place { text-decoration: underline; }
+}

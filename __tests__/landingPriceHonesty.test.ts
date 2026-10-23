@@ -55,11 +55,11 @@ describe("landing price honesty", () => {
     }
   });
 
-  it("carries the disclosure sentence once, in the footer", () => {
-    expect(copy).toContain("When a price record names a publisher, we name and link it.");
-    expect(copy).toContain("When no publisher is recorded, the price says so.");
-    expect(lower).toContain("the ones drinkers log come with the day they were seen");
-    expect(copy.match(/we name and link it/g)).toHaveLength(1);
+  it("explains missing sources and drinker dates once, in the FAQ", () => {
+    expect(faqText).toContain("Each price names its publisher when recorded, or says one is missing");
+    expect(faqText).toContain("drinker reports show their date");
+    expect(faqText.match(/publisher when recorded/g)).toHaveLength(1);
+    expect(copy).toContain("Free to use. No pub can pay to rank higher.");
   });
 
   it("keeps the saving beat as one column of plain words", () => {
@@ -72,8 +72,7 @@ describe("landing price honesty", () => {
     expect(worth).not.toContain("data-primary-action");
     expect(worth).not.toMatch(/href="\/plan"/);
     // The gap sentence moved to the questions, and it is still said once.
-    expect(faqText).toContain("we'd rather leave a gap than invent a figure.");
-    expect(faqText.match(/we'd rather leave a gap than invent a figure\./gi)).toHaveLength(1);
+    expect(faqText).toContain("Prices can change, so check at the bar.");
   });
 
   it("stays out of the marketing register", () => {

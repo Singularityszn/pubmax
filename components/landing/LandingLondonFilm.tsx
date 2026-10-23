@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import Image from "next/image";
 import "./landingLondonFilm.css";
 
 /** Mount the media only after a deliberate request, including with reduced motion. */
@@ -27,6 +26,8 @@ export default function LandingLondonFilm() {
             width={720}
             height={960}
             controls
+            tabIndex={0}
+            ref={(node) => node?.focus()}
             autoPlay
             muted
             playsInline
@@ -42,18 +43,21 @@ export default function LandingLondonFilm() {
           <button
             type="button"
             className="lpFilmPlay"
+            ref={(node) => { if (failed) node?.focus(); }}
             onClick={() => { setFailed(false); setRequested(true); }}
             aria-describedby="london-film-description"
           >
-            <Image
+            <picture>
+              <source type="image/avif" srcSet="/landing/london-collage/southwark-shard-640.avif" />
+            <img
               src="/landing/london-collage/southwark-shard-640.webp"
               width={640}
               height={853}
               alt=""
               loading="lazy"
               decoding="async"
-              unoptimized
             />
+            </picture>
             <span>{failed ? "Try the film again" : "Play London film"}<small>12 seconds · No sound</small></span>
           </button>
         )}

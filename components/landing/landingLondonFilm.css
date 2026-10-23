@@ -50,6 +50,7 @@
   font-weight: 650;
   text-align: center;
 }
+.lpFilmPlay picture { display: contents; }
 .lpFilmPlay small { font-size: var(--text-xs); font-weight: 400; }
 .lpFilmPlay:focus-visible { outline: 3px solid var(--brass-ink); outline-offset: -5px; }
 @media (min-width: 641px) {

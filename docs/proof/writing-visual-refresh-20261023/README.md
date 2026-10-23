@@ -43,16 +43,106 @@ signed-in state or every dynamic URL received a browser check.
 
 ## Evidence
 
-Before and after-copy captures are under `artifacts/writing-refresh/`, with
-seven page families at 390, 768 and 1440 pixels. These first captures use a
-keyless development server on port 3197. Dark screenshots taken during a theme
-transition are diagnostic only. Final production-build checks are recorded
-separately below. Production data and authenticated services are not simulated
-as live evidence.
+Matched baseline and final captures are under `artifacts/writing-refresh/`, with
+seven page families at 390, 768 and 1440 pixels in both themes. The baseline and
+final builds use the same Playwright environment on private ports 3199 and 3198.
+Earlier development captures remain diagnostic only. Both builds use test
+provider configuration, not a real signed-in account.
 
-The archive disclosure test failed before implementation. Focused rendered
-copy tests, lint and TypeScript checks are recorded in the task logs. Final
-verification is pending until both stages are complete.
+| Page | Before | After |
+| --- | --- | --- |
+| Homepage | ![Homepage before](before-home-phone.png) | ![Homepage after](after-home-phone.png) |
+| About | ![About before](before-about-phone.png) | ![About after](after-about-phone.png) |
+| Pub Pal | ![Pub Pal before](before-pal-phone.png) | ![Pub Pal after](after-pal-phone.png) |
+
+![Four founder photographs linked to the map](journal-desktop.png)
+
+![Optional London film with a static poster and playback button](film-desktop.png)
+
+The final production build passed. Nine additional accessibility, keyboard and
+reduced-motion checks passed. The focused Chromium run passed all 32
+checks across the new journal/film suite and the existing homepage, photography
+and Pub Pal layout suites. It covers 390, 768 and 1440 pixels in light and dark,
+reduced motion, keyboard playback and disclosures, stable media dimensions,
+no video request before Play, and media failure recovery. A separate 200% text
+check found no horizontal overflow on the seven reviewed page families.
+
+## Stage 2
+
+Around London uses four existing founder photographs. Southwark, Leadenhall
+Market and Canary Wharf link to map searches. The Crown Tavern links to the
+Clerkenwell venue, not the pub with the same name in Lewisham. Existing photo
+rules also use the relevant images on Southwark, Canary Wharf and Crown Tavern
+pages. Wider-area images retain their area labels.
+
+The optional film uses these same four privacy-edited photographs. It has 288
+frames at 24 fps, runs for 12 seconds and contains no audio. The H.264 file is
+1,675,670 bytes at 720 by 960 pixels. Existing AVIF and WebP images supply the
+poster. No video element or media request exists before Play. Playback has
+native controls, place captions, keyboard focus and an error retry. Reduced
+motion keeps the poster static until the reader requests playback.
+
+## Repository verification
+
+`PUBMAX_VERIFY_COMMITTED_DATA=1 NEXT_PUBLIC_SW_VERSION=local npm run verify`
+passed on 23 October 2026. The coverage run passed 43,521 tests in 2,104 files,
+with one existing skipped test/file. PostgreSQL permission and migration tests
+passed 681 tests in 74 files. The separate harness checks also passed.
+Lint, database types, TypeScript, dead-code checks, data validation, install
+policy and the dependency audit passed. Freshness reported two stale datasets
+and three unmeasurable store feeds as advisory findings. They are not claimed
+fresh. The full log is `/tmp/pubmaxx-writing-verify-complete.log`.
+
+## Performance
+
+The first ad hoc measurements used the fallback harness timing boundary and
+reported JavaScript budget breaches on Home, Pub Pal and About. The repository's alternating A/B check then measured the
+branch and its exact base on the same machine. Each arm supplied three samples.
+
+| Route | Base decoded JS | Refresh decoded JS | Existing ceiling |
+| --- | ---: | ---: | ---: |
+| Home | 856 KB | 858 KB | 1,010 KB |
+| Pub Pal | 915 KB | 915 KB | 1,050 KB |
+| About | 771 KB | 771 KB | 960 KB |
+
+The A/B classified all three as no slower than base and reported timing drift
+in the earlier measurement. This comparison does not waive a budget gate or
+prove performance on routes it did not measure. No ceiling was raised. The scoped check through the repository Playwright runner then passed every
+metric for all three routes with the page-ready boundary. It recorded no
+breaches and no unmeasured metrics. The [final samples](performance.json) are
+attached. The original fallback result remains in the local artifacts directory.
+The [A/B report](performance-ab.txt) records the method and verdict.
+
+## Review
+
+### Standards
+
+The independent standards review found that the journal link label hid its
+price caption from the accessible name. The link now uses its visible caption,
+including the listed price and half-mile qualification, as its accessible name.
+
+### Specification
+
+The independent specification review found that a ready-area link promised an
+area-specific planner, but opened the general planner. Its label now says
+Open planner. The destination and eligibility rules are unchanged.
+
+## Delivery checklist
+
+- [x] Keep the original routes and navigation destinations.
+- [x] Preserve price qualifications, credits, consent and recovery text.
+- [x] Keep the Thames hero and existing design tokens.
+- [x] Inventory public route templates and record unchanged families.
+- [x] Keep the local writing skill specific to PUBMAXX.
+- [x] Separate copy/layout and photography/film in distinct commits.
+- [x] Include requested playback, reserved media dimensions and failure recovery.
+- [x] Complete the performance comparison and scoped budget checks.
+- [x] Complete final repository verification.
+- [ ] Complete the required publishing gate and hosted review.
+
+Real account sessions, physical devices and assistive-technology software were
+not exercised. The browser checks cover the provider-shaped test environment.
+These limits remain separate from unit coverage and production release approval.
 
 ## Route templates
 

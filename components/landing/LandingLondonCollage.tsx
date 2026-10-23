@@ -81,7 +81,7 @@ function CollageTile({
       style={{ "--collage-cell": photo.cell } as CSSProperties}
     >
       <Link prefetch={false} href={londonPhotoMapHref(photo)} className="lpCollageTile__link"
-        aria-label={`See ${photo.caption} on the map`}>
+        aria-labelledby={`london-photo-${photo.id}`}>
       <figure className="lpCollageTile__figure">
         <div
           className="lpCollageTile__frame"
@@ -89,7 +89,7 @@ function CollageTile({
         >
           {showPicture ? <CollagePicture photo={photo} /> : null}
         </div>
-        <figcaption className="lpCollageTile__caption">
+        <figcaption id={`london-photo-${photo.id}`} className="lpCollageTile__caption">
           <span className="lpCollageTile__place">{photo.caption}</span>
           {price ? (
             <span className="lpCollageTile__price">

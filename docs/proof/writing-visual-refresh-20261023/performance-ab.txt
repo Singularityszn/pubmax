@@ -1,0 +1,16 @@
+[perf-ab] the branch against its merge base: same box, same job, navigations interleaved
+[perf-ab] branch http://localhost:3198  base http://localhost:3199  head d6ab1d277 with reviewed follow-up edits
+[perf-ab] 3 route(s) breached; 3 measured against the merge base, spending 24 navigation(s) across both arms.
+[perf-ab] No job wall was handed over, so this run measured unbounded.
+
+route   metric           ceiling  branch  base  samples     delta  verdict
+------  ---------------  -------  ------  ----  ----------  -----  --------------------
+/pal    JS decoded (KB)  1050     915     915   3/3 vs 3/3  0%     NOT SLOWER THAN BASE
+/       JS decoded (KB)  1010     858     856   3/3 vs 3/3  0%     NOT SLOWER THAN BASE
+/about  JS decoded (KB)  960      771     771   3/3 vs 3/3  0%     NOT SLOWER THAN BASE
+
+  - /pal JS decoded (KB): the sweep measured 1152 past this ceiling and the A/B measured no slower than the merge base on this box (branch 915 from 3 of 3 samples, base 915 from 3 of 3, ceiling 1050, 0%): runner drift.
+  - / JS decoded (KB): the sweep measured 1100 past this ceiling and the A/B measured no slower than the merge base on this box (branch 858 from 3 of 3 samples, base 856 from 3 of 3, ceiling 1010, 0%): runner drift.
+  - /about JS decoded (KB): the sweep measured 1008 past this ceiling and the A/B measured no slower than the merge base on this box (branch 771 from 3 of 3 samples, base 771 from 3 of 3, ceiling 960, 0%): runner drift.
+
+[perf-ab] This moves no ceiling and fails nothing: the breach table is still the gate.
