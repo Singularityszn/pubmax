@@ -26,7 +26,7 @@ import {
   oneTapQuery,
   rememberedOneTapArea,
 } from "@/lib/planOneTap";
-import { normalizePlanStopCount, type PlanStopCount } from "@/lib/planStopCount";
+import { DEFAULT_PLAN_STOP_COUNT, normalizePlanStopCount, type PlanStopCount } from "@/lib/planStopCount";
 import PlanStopCountPicker from "@/components/plan/PlanStopCountPicker";
 
 export { DESCRIBE_FIRST_CHIPS };
@@ -60,7 +60,8 @@ export default function PlanDescribeFirst({
   ready = true,
 }: {
   onSubmit: (query: string, stopCount?: PlanStopCount) => void;
-  onGuideMeInstead: () => void;
+  /** The guide takes the count this form holds when the reader chose it or their words named it. */
+  onGuideMeInstead: (stopCount?: PlanStopCount) => void;
   onQueryChange?: (query: string) => void;
   /** External handoffs only: URL or Ask prefills while the field stays untouched. */
   onPrefillQueryChange?: (query: string) => void;
@@ -131,6 +132,12 @@ export default function PlanDescribeFirst({
     const trimmed = queryOverride.trim();
     if (!trimmed) return;
     onSubmit(trimmed, stopCount);
+  }
+
+  // An untouched default carries nothing, so a count the guide already holds
+  // keeps its own. A count the reader picked, or one their words named, goes.
+  function guideStopCount(): PlanStopCount | undefined {
+    return stopCountTouched || stopCount !== DEFAULT_PLAN_STOP_COUNT ? stopCount : undefined;
   }
 
   function submitChip(value: string) {
@@ -232,7 +239,7 @@ export default function PlanDescribeFirst({
         <button
           type="button"
           aria-disabled={ready ? undefined : true}
-          onClick={() => { if (ready) onGuideMeInstead(); }}
+          onClick={() => { if (ready) onGuideMeInstead(guideStopCount()); }}
         >
           {PLAN_STEP_BY_STEP_LABEL}
         </button>

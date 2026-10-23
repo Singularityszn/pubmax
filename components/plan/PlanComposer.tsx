@@ -1825,7 +1825,12 @@ function PlanComposerForm({
       if (!seed) return;
       setPlanIntake((current) => {
         if (cancelled || !canSeedPlanIntakeArea(current)) return current;
-        return createPlanIntakeDraft(seed);
+        // A seed answers the area alone. A pub-stop count the reader already
+        // chose on this blank draft is theirs, so it rides into the seeded one.
+        const seeded = createPlanIntakeDraft(seed);
+        return current.answers.stopCount === undefined
+          ? seeded
+          : applyPlanStopCount(seeded, null, current.answers.stopCount).draft;
       });
     }
     function seedRememberedSoon(): void {
@@ -1896,6 +1901,13 @@ function PlanComposerForm({
       setNightContext(reconciled.context);
     }
     setPlanIntake(reconciled.draft);
+  }
+
+  /** Step by step from describe-first: the guide opens on the count the reader chose there. */
+  function openGuide(stopCount?: PlanStopCount) {
+    setEntryMode("wizard");
+    if (stopCount === undefined || planIntake.answers.stopCount === stopCount) return;
+    updatePlanIntake({ ...planIntake, answers: { ...planIntake.answers, stopCount } });
   }
 
   function adoptDescribePrefillQuery(value: string) {
@@ -2772,7 +2784,7 @@ function PlanComposerForm({
           onSubmit={submitFromEntry}
           onQueryChange={setConciergeQuery}
           onPrefillQueryChange={adoptDescribePrefillQuery}
-          onGuideMeInstead={() => setEntryMode("wizard")}
+          onGuideMeInstead={openGuide}
         />
       ) : !(resultMode && planIntake.completed) && planComposerShowsIntake({
         heldVenueId,
