@@ -11,18 +11,19 @@
 // which ORS 403s and EVERY route degrades to straight lines for everyone.
 //
 // This module adds a DURABLE global daily counter for the ACTUAL provider calls,
-// reusing the exact same check_rate_limit seam (lib/supabase, via isLimited)
+// reusing check_rate_limit through lib/pintDrops reserveRateLimit
 // with a single global bucket keyed `ors-global:<UTC-date>` and a 24h window.
 // Each real provider call consumes one unit; cache hits and the keyless path
 // never call in here, so they never consume budget. Over budget -> the caller
 // skips the provider and serves the straight leg (the existing fail-soft path).
 //
-// COST: at most one cheap durable round-trip per ACTUAL provider call, and an
+// COST: admission takes at most one durable round-trip per provider call, and an
 // in-process short-circuit once the day is exhausted (the exhausted verdict is
 // cached for a few minutes), so an exhausted Friday night costs ZERO durable
 // reads per request. The dominant debounced map-redraw sends one request with
 // at most one uncached leg, i.e. one durable read; a cold full route does one
-// per uncached leg (bounded by WALK_ROUTE_MAX_STOPS - 1).
+// per uncached leg (bounded by WALK_ROUTE_MAX_STOPS - 1). Releasing an unused
+// durable reservation separately reads the bucket and attempts an atomic refund.
 //
 // DEGRADED MODE (documented, inherited from isLimited):
 //   • Supabase configured + durable RPC answers -> the true GLOBAL cap holds.
@@ -47,10 +48,8 @@ export const ORS_DAILY_BUDGET_DEFAULT = 2000;
  *  window makes the durable counter prune anything older than a day too. */
 export const ORS_BUDGET_WINDOW_MS = DAY_MS;
 
-/** Once exhausted, cache that verdict this long so we stop paying a durable
- *  round-trip (and stop making provider calls) for the rest of the window. Short
- *  enough that a freed budget — a rolled UTC day, or a raised env cap — recovers
- *  within minutes rather than being pinned for the whole day. */
+/** Cache exhaustion for this long unless a successful same-day refund clears it.
+ *  A new UTC day rechecks immediately. A raised cap takes effect after expiry. */
 const ORS_BUDGET_EXHAUSTED_TTL_MS = 5 * 60 * 1000;
 
 /**
@@ -71,8 +70,9 @@ export function orsBudgetKey(now: number = Date.now()): string {
 
 // In-process short-circuit: once the durable check reports the day is spent, we
 // remember that (scoped to the UTC date so a rolled day is never held down by a
-// stale flag) and skip the durable round-trip until the TTL lapses.
+// stale flag) and skip the durable round-trip until expiry or a same-day refund.
 let exhausted: { date: string; until: number } = { date: "", until: 0 };
+// A refusal that started before a same-day refund must not restore exhaustion.
 const refundGenerations = new Map<string, number>();
 
 /**
@@ -88,8 +88,8 @@ function warnOrsBudgetExhausted(date: string, budget: number): void {
 
 /**
  * Reserve one unit for an outbound call, or return null when none is available.
- * Commit immediately before dispatch. Release in finally so cancellation while
- * the durable check waits returns an unused unit to its original backend.
+ * Commit immediately before dispatch. Release in finally to attempt a refund
+ * to the original backend if cancellation prevented dispatch.
  *
  * Call this ONLY immediately before a real ORS fetch — never for a cache hit or
  * the keyless path — so budget is consumed per PROVIDER CALL, not per request.

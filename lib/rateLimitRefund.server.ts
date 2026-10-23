@@ -2,7 +2,12 @@ import "server-only";
 
 import { getSupabaseAdmin } from "@/lib/supabase";
 
-/** Return one admitted, unused unit without overwriting concurrent charges. */
+/**
+ * Return one admitted, unused unit without overwriting concurrent charges.
+ * Read and compare at most three times under one 2.5-second deadline.
+ * Retry only a definite comparison miss. An ambiguous write must not repeat.
+ * An empty or absent bucket already has no unit to return.
+ */
 export async function refundRateLimitHit(key: string): Promise<boolean> {
   const admin = getSupabaseAdmin();
   if (!admin) return false;

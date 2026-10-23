@@ -103,6 +103,21 @@ Note the order: `0075_social_crews` has a later timestamp than `0076` and `0077`
 
 If a later agent finds the live ledger behind the tree again, re-run `supabase migration list` (or the dashboard history) before applying, and never assume this section is current.
 
+#### Walking-route refunds
+
+Migration [`0196`](../supabase/migrations/20261023170000_0196_rate_limit_refund.sql) adds the service-role-only `refund_rate_limit_hit` function.
+It compares the complete timestamp array in the JSON request body and removes at most one unit.
+The migration remains unapplied to production and shared databases.
+The captain must apply it before production rollout.
+If the function is missing, the application retains the charged unit and emits `rate_limit.refund_failed`.
+Other refund failures emit the same event.
+After an ambiguous write, the application does not retry or grant replacement quota.
+The cancelled request does not call the routing provider.
+Admission still uses the existing limiter policy without a refund-function preflight.
+
+The [rollback](../supabase/migrations/rollback/20261023170000_0196_rate_limit_refund_rollback.sql) removes the function and preserves all rate-limit rows, table grants, and policies.
+After rollback, unused durable reservations retain their charges until the migration returns.
+
 ### 1.4 Feature flags
 
 Social ships behind one server-checked launch switch:
