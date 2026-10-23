@@ -13,16 +13,15 @@ export async function refundRateLimitHit(key: string): Promise<boolean> {
       if (read.error) return false;
       if (!read.data || read.data.hits.length === 0) return true;
       const hits = read.data.hits;
-      // Match the complete array. A concurrent charge or refund must retry
-      // against the new row, rather than replace it with our stale snapshot.
-      const expected = `{${hits.map((hit) => `"${hit}"`).join(",")}}`;
-      const update = await admin.from("rate_limits")
-        .update({ hits: hits.slice(0, -1) })
-        .eq("key", key).filter("hits", "eq", expected).select("key").abortSignal(signal);
+      const update = await admin.rpc("refund_rate_limit_hit", {
+        p_key: key,
+        p_expected_hits: hits,
+      }).abortSignal(signal);
       // An error can mean that the write committed but its reply was lost.
       // Retry only a definite comparison miss, never an ambiguous write.
       if (update.error) return false;
-      if (update.data?.length) return true;
+      if (update.data === true) return true;
+      if (update.data !== false) return false;
     }
   } catch {
     return false;

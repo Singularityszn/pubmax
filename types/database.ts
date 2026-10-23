@@ -8239,6 +8239,13 @@ export type Database = {
         };
         Returns: boolean;
       };
+      refund_rate_limit_hit: {
+        Args: {
+          p_key: string | null;
+          p_expected_hits: string[] | null;
+        };
+        Returns: boolean;
+      };
       release_pub_pal_voice_trial: {
         Args: {
           p_owner_id: string | null;

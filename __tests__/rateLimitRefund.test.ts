@@ -15,6 +15,9 @@ let writes: number;
 let beforeWrite: (() => void) | undefined;
 let refuseWrites: boolean;
 let loseWriteReply: boolean;
+let stallWrite: boolean;
+let throwWriteReply: boolean;
+let signals: AbortSignal[];
 
 beforeEach(() => {
   hits = [FIRST, SECOND];
@@ -22,23 +25,40 @@ beforeEach(() => {
   beforeWrite = undefined;
   refuseWrites = false;
   loseWriteReply = false;
+  stallWrite = false;
+  throwWriteReply = false;
+  signals = [];
   boundary.getClient = () => createClient<Database>("http://fixture.invalid", "fixture-key", {
     auth: { persistSession: false },
     global: { fetch: async (input, init) => {
       const url = new URL(String(input));
-      expect(url.pathname).toBe("/rest/v1/rate_limits");
-      expect(url.searchParams.get("key")).toBe(`eq.${KEY}`);
-      if (init?.method === "PATCH") {
+      if (init?.signal) signals.push(init.signal);
+      if (url.href.length > 8_192) return Response.json({ message: "URI too long" }, { status: 414 });
+      if (init?.method === "POST") {
+        expect(url.pathname).toBe("/rest/v1/rpc/refund_rate_limit_hit");
+        expect(url.search).toBe("");
         writes += 1;
+        if (stallWrite) {
+          const signal = init.signal;
+          if (!signal) throw new Error("Missing timeout signal");
+          await new Promise<void>((_, reject) => {
+            if (signal.aborted) reject(signal.reason);
+            else signal.addEventListener("abort", () => reject(signal.reason), { once: true });
+          });
+        }
         beforeWrite?.();
         beforeWrite = undefined;
-        const matches = url.searchParams.get("hits") === `eq.{${hits.map((hit) => `"${hit}"`).join(",")}}`;
-        if (!matches || refuseWrites) return Response.json([]);
-        const body = JSON.parse(String(init.body)) as { hits: string[] };
-        hits = body.hits;
+        const body = JSON.parse(String(init.body)) as { p_key: string; p_expected_hits: string[] };
+        expect(body.p_key).toBe(KEY);
+        const matches = JSON.stringify(body.p_expected_hits) === JSON.stringify(hits);
+        if (!matches || refuseWrites) return Response.json(false);
+        hits = hits.slice(0, -1);
+        if (throwWriteReply) throw new TypeError("connection lost");
         if (loseWriteReply) return Response.json({ message: "reply unavailable" }, { status: 500 });
-        return Response.json([{ key: KEY }]);
+        return Response.json(true);
       }
+      expect(url.pathname).toBe("/rest/v1/rate_limits");
+      expect(url.searchParams.get("key")).toBe(`eq.${KEY}`);
       return Response.json([{ hits: [...hits] }]);
     } },
   });
@@ -74,5 +94,34 @@ it("bounds definite comparison retries without replacing another writer", async 
   refuseWrites = true;
   expect(await refundRateLimitHit(KEY)).toBe(false);
   expect(writes).toBe(3);
+  expect(new Set(signals).size).toBe(1);
+  expect(hits).toEqual([FIRST, SECOND]);
+});
+
+it("refunds a 2,000-entry bucket through a bounded URL", async () => {
+  hits = Array.from({ length: 2_000 }, () => FIRST);
+  expect(await refundRateLimitHit(KEY)).toBe(true);
+  expect(hits).toHaveLength(1_999);
+  expect(writes).toBe(1);
+});
+
+it("does not write for an empty bucket", async () => {
+  hits = [];
+  expect(await refundRateLimitHit(KEY)).toBe(true);
+  expect(writes).toBe(0);
+});
+
+it("does not repeat a committed write after a network rejection", async () => {
+  throwWriteReply = true;
+  expect(await refundRateLimitHit(KEY)).toBe(false);
+  expect(writes).toBe(1);
+  expect(hits).toEqual([FIRST]);
+});
+
+it("bounds a stalled refund with the overall timeout", async () => {
+  stallWrite = true;
+  expect(await refundRateLimitHit(KEY)).toBe(false);
+  expect(writes).toBe(1);
+  expect(signals.every((signal) => signal.aborted)).toBe(true);
   expect(hits).toEqual([FIRST, SECOND]);
 });

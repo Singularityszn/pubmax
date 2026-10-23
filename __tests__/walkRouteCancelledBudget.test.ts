@@ -2,6 +2,7 @@ import { afterEach, beforeEach, expect, it, vi } from "vitest";
 
 const state = vi.hoisted(() => ({
   charged: 0,
+  refundFails: false,
   reserved: undefined as (() => void) | undefined,
   finish: undefined as (() => void) | undefined,
 }));
@@ -23,15 +24,15 @@ vi.mock("@/lib/walkRouteStore", () => ({
   walkRouteStore: () => ({ getLeg: async () => null, putLeg: async () => {} }),
 }));
 vi.mock("@/lib/rateLimitRefund.server", () => ({
-  refundRateLimitHit: async () => { state.charged -= 1; return true; },
+  refundRateLimitHit: async () => { if (state.refundFails) return false; state.charged -= 1; return true; },
 }));
 
 import { GET } from "@/app/api/walk-route/route";
 import { reserveRateLimit } from "@/lib/pintDrops";
 
-beforeEach(() => { state.charged = 0; state.reserved = undefined; state.finish = undefined; });
+beforeEach(() => { state.refundFails = false; state.charged = 0; state.reserved = undefined; state.finish = undefined; });
 
-afterEach(() => { vi.unstubAllEnvs(); vi.unstubAllGlobals(); });
+afterEach(() => { vi.unstubAllEnvs(); vi.unstubAllGlobals(); vi.restoreAllMocks(); });
 
 it("does not charge a provider call cancelled while the durable reservation is pending", async () => {
   vi.stubEnv("ORS_API_KEY", "test-key");
@@ -75,4 +76,25 @@ it("keeps a dispatched call charged when its caller later cancels", async () => 
   await reservation?.release();
   await reservation?.release();
   expect(state.charged).toBe(1);
+});
+
+it("retains the charge and reports safely when a cancelled request cannot refund", async () => {
+  state.refundFails = true;
+  vi.stubEnv("ORS_API_KEY", "test-key");
+  const provider = vi.fn();
+  vi.stubGlobal("fetch", provider);
+  const errors = vi.spyOn(console, "error").mockImplementation(() => {});
+  const waiting = new Promise<void>((resolve) => { state.reserved = resolve; });
+  const controller = new AbortController();
+  const pending = GET(new Request("http://localhost/api/walk-route?stops=-0.1,51.5;-0.11,51.51", { signal: controller.signal }));
+  await waiting;
+  controller.abort();
+  state.finish?.();
+  expect(await (await pending).json()).toMatchObject({ source: "straight" });
+  expect(provider).not.toHaveBeenCalled();
+  expect(state.charged).toBe(1);
+  expect(errors).toHaveBeenCalledTimes(1);
+  expect(JSON.parse(String(errors.mock.calls[0]?.[0]))).toEqual({
+    level: "error", event: "rate_limit.refund_failed", ts: expect.any(Number),
+  });
 });

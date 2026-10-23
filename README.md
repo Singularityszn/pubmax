@@ -196,3 +196,14 @@ Local keyless demos may leave it empty to keep labelled seed content visible.
 - **`docs/DEMO_DECK.md`** — demo script.
 - **[`data/osm/uk/README.md`](data/osm/uk/README.md)** - UK-wide OSM seed-pack refresh, provenance, dedupe, and runtime shard generation.
 - **[`public/data/price_history/README.md`](public/data/price_history/README.md)** - what earns a row in the hand-curated historical price file, where wave one came from, and what it yielded.
+
+### Walking-route refund rollout
+
+Migration `0196` adds the service-role-only `refund_rate_limit_hit` function.
+It compares the complete timestamp array in the request body and removes at most one unit.
+The migration remains unapplied to production and shared databases.
+The captain must apply it before production rollout.
+A missing or failed function retains the charged unit and emits `rate_limit.refund_failed`.
+The cancelled request does not call the routing provider.
+The rollback removes the function and preserves all rate-limit rows, grants, and policies.
+After rollback, unused durable reservations retain their charges until the migration returns.
