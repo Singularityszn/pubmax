@@ -1,3 +1,5 @@
+import type { MapIntentQuery as QueryLike } from "@/lib/mapUrlIntent";
+export { hasMapLogIntent } from "@/lib/mapUrlIntent";
 import { formatGbp } from "@/lib/formatGbp";
 import { haversineKm } from "@/lib/haversine";
 import { drinkLensPriceNoun, type MapLensPrice } from "@/lib/mapExperienceLens";
@@ -166,14 +168,6 @@ export function buildLogNearbyCandidates(
         : {}),
     };
   });
-}
-
-type QueryLike = string | { get(name: string): string | null };
-
-export function hasMapLogIntent(query: QueryLike): boolean {
-  if (typeof query !== "string") return query.get("log") === "1";
-  const normalized = query.startsWith("?") ? query.slice(1) : query;
-  return new URLSearchParams(normalized).get("log") === "1";
 }
 
 /**
