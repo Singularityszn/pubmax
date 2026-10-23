@@ -16,7 +16,7 @@ function git(root: string, ...args: string[]): string {
 }
 
 export type PublicEvidenceFeature = "feedback" | "updates" | "food-menu-discovery";
-export type PublicEvidenceFile =
+type PublicEvidenceFile =
   | `page-${390 | 768 | 1440}.png`
   | `account-${390 | 768 | 1440}.png`;
 
