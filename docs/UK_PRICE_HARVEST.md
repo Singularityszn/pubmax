@@ -276,6 +276,10 @@ so failed batches recover the decision for the same item.
   The reader emits explicit glass measures separately from the wine name. The
   [bundle reference](../public/data/uk_prices/README.md#what-a-row-is) owns the
   serving field and its publication contract.
+* **Beer servings must be pints.** The pint reader rejects detected half,
+  one-third, two-thirds, bottled, and canned servings. A bottle or can section
+  applies until the next recognised heading. These checks use
+  `beerMeasureDrop` and `inBottledSection` in `lib/harvest/ukPriceCrawl.ts`.
 * **Its own category's band.** £14 is a fair cocktail and an impossible pint.
 * **No food word,** checked after the drink word, so a steak-and-a-pint meal
   deal is not the price of the pint.
