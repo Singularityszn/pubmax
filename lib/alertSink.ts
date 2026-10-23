@@ -48,6 +48,7 @@ export const ALERT_MAX_TEXT = 1_500;
 export const ALERT_WARN_EVENTS: ReadonlySet<string> = new Set([
   "paid_spend.budget_spent",
   "rate_limit.fail_open",
+  "ors_budget.exhausted",
 ]);
 
 export type Alert = { source: string; text: string };
@@ -137,8 +138,13 @@ export function sendAlert(alert: Alert, deps: SendDeps = {}): Promise<void> | nu
       cache: "no-store",
       signal: AbortSignal.timeout(ALERT_TIMEOUT_MS),
     }).then(
-      () => undefined,
-      () => undefined,
+      (response) => {
+        if (!response.ok) reportDeliveryFailure("http", response.status);
+        // A webhook refusal can have a body. Do not retain its stream or read
+        // provider text, which can contain the webhook credential.
+        void response.body?.cancel().catch(() => {});
+      },
+      () => reportDeliveryFailure("network"),
     );
     try {
       after(sent);
@@ -148,5 +154,14 @@ export function sendAlert(alert: Alert, deps: SendDeps = {}): Promise<void> | nu
     return sent;
   } catch {
     return null;
+  }
+}
+
+function reportDeliveryFailure(reason: "http" | "network", status?: number): void {
+  try {
+    // Do not call log(): that would send another alert through this sink.
+    console.warn(JSON.stringify({ event: "alert.delivery_failed", reason, ...(status ? { status } : {}) }));
+  } catch {
+    // A diagnostic must not reject the alert promise.
   }
 }
