@@ -1,6 +1,14 @@
 import { expect, test, type Page, type Route } from "@playwright/test";
+import type { BeforeSend } from "@vercel/analytics";
+import type { BeforeSendMiddleware } from "@vercel/speed-insights";
 import { writeFile } from "node:fs/promises";
 import { installAuthDoubles, seedSignedIn } from "./helpers/authDoubles";
+
+type BadgeWindow = Window & typeof globalThis & { __badgeAborts: string[] };
+type SdkWindow = Window & typeof globalThis & {
+  vaq?: [string, unknown?][];
+  siq?: [string, unknown?][];
+};
 
 const EVIDENCE = process.env.NM_EVIDENCE_DIR;
 test.use({ serviceWorkers: "block" });
@@ -38,11 +46,12 @@ async function badges(page: Page, start = "/today", initiallyHidden = false) {
     localStorage.setItem("pubmax-tour-v1-done", "1");
     sessionStorage.setItem("pubmax_onboarding_dismissed", "1");
     const original = window.fetch.bind(window);
-    (window as any).__badgeAborts = [];
+    const w = window as BadgeWindow;
+    w.__badgeAborts = [];
     window.fetch = (input, init) => {
       const path = typeof input === "string" ? input : input instanceof Request ? input.url : input.toString();
       if (/\/api\/(messages|notifications)\?/.test(path)) {
-        init?.signal?.addEventListener("abort", () => (window as any).__badgeAborts.push(path));
+        init?.signal?.addEventListener("abort", () => w.__badgeAborts.push(path));
         // Model a response that still arrives after cancellation.
         return original(input, { ...init, signal: undefined });
       }
@@ -77,7 +86,6 @@ async function badges(page: Page, start = "/today", initiallyHidden = false) {
 
 for (const width of [390, 1280]) {
   test(`consent withdrawal stops SDK route activity and rejects later measurements at ${width}px`, async ({ page }) => {
-    test.skip(process.env.VERCEL !== "1", "Build and run with VERCEL=1 to exercise the SDK lifecycle.");
     await page.setViewportSize({ width, height: 844 });
     const auth = await installAuthDoubles(page, { analyticsConsent: "pending" });
     await seedSignedIn(page, "A");
@@ -95,12 +103,43 @@ for (const width of [390, 1280]) {
     await expect(settings).toBeVisible();
     expect(scripts).toEqual([]);
     await settings.getByRole("button", { name: "Allow", exact: true }).click();
+    if (process.env.VERCEL !== "1") {
+      const sdkState = () => page.evaluate(() => {
+        const w = window as SdkWindow;
+        return {
+          analyticsCommands: (w.vaq ?? []).length,
+          speedCommands: (w.siq ?? []).length,
+          scripts: document.querySelectorAll('script[src*="/_vercel/"]').length,
+        };
+      });
+      await expect(settings.getByRole("button", { name: "Withdraw", exact: true })).toBeVisible();
+      await page.waitForTimeout(1_000);
+      const before = await sdkState();
+      expect(before).toEqual({ analyticsCommands: 0, speedCommands: 0, scripts: 0 });
+      expect(scripts).toEqual([]);
+      await shot(page, `consent-allowed-local-${width}`);
+      await settings.getByRole("button", { name: "Withdraw", exact: true }).click();
+      await expect(settings.getByRole("button", { name: "Allow", exact: true })).toBeVisible();
+      expect(await sdkState()).toEqual({ analyticsCommands: 0, speedCommands: 0, scripts: 0 });
+      await shot(page, `consent-withdrawn-local-${width}`);
+      await page.locator('a[href="/privacy"]').first().click();
+      await expect(page).toHaveURL(/\/privacy$/);
+      await page.waitForTimeout(500);
+      const after = await sdkState();
+      expect(after).toEqual({ analyticsCommands: 0, speedCommands: 0, scripts: 0 });
+      expect(scripts).toEqual([]);
+      await record(`consent-lifecycle-local-${width}`, { scripts, before, after });
+      return;
+    }
     await expect.poll(() => scripts.length).toBe(2);
     const measurement = () => page.evaluate(() => {
-      const w = window as any;
-      const analytics = w.vaq.filter((entry: any[]) => entry[0] === "beforeSend").at(-1)[1];
-      const speed = w.siq.filter((entry: any[]) => entry[0] === "beforeSend").at(-1)[1];
-      return { analytics: analytics({ type: "pageview", url: location.href }), speed: speed({ type: "vital", url: location.href }) };
+      const w = window as SdkWindow;
+      const analytics = w.vaq?.filter((entry) => entry[0] === "beforeSend").at(-1)?.[1];
+      const speed = w.siq?.filter((entry) => entry[0] === "beforeSend").at(-1)?.[1];
+      if (typeof analytics !== "function" || typeof speed !== "function") {
+        throw new Error("Both SDK beforeSend callbacks must be registered.");
+      }
+      return { analytics: (analytics as BeforeSend)({ type: "pageview", url: location.href }), speed: (speed as BeforeSendMiddleware)({ type: "vital", url: location.href }) };
     });
     const allowed = await measurement();
     expect(allowed.analytics).not.toBeNull();
@@ -110,7 +149,7 @@ for (const width of [390, 1280]) {
     await expect(settings.getByRole("button", { name: "Allow", exact: true })).toBeVisible();
     expect(await measurement()).toEqual({ analytics: null, speed: null });
     const sdkState = () => page.evaluate(() => ({
-      pageviews: (window as any).vaq.filter((entry: any[]) => entry[0] === "pageview").length,
+      pageviews: (window as SdkWindow).vaq?.filter((entry) => entry[0] === "pageview").length ?? 0,
       speedRoute: document.querySelector<HTMLScriptElement>('script[src*="speed-insights/script"]')?.dataset.route,
     }));
     const before = await sdkState();
@@ -129,7 +168,7 @@ for (const width of [390, 1280]) {
 test("badges combine pending reads, pause hidden pages, and reject late cancelled responses", async ({ page }) => {
   await page.clock.install();
   const state = await badges(page);
-  await page.evaluate(() => { (window as any).__badgeAborts = []; });
+  await page.evaluate(() => { (window as BadgeWindow).__badgeAborts = []; });
   state.setHold(true);
   const initial = state.requests.length;
   await focus(page);
@@ -142,7 +181,7 @@ test("badges combine pending reads, pause hidden pages, and reject late cancelle
   await page.clock.runFor(180_000);
   await focus(page);
   expect(state.requests.length).toBe(initial + 2);
-  const aborted = await page.evaluate(() => (window as any).__badgeAborts);
+  const aborted = await page.evaluate(() => (window as BadgeWindow).__badgeAborts);
   expect(aborted).toHaveLength(2);
   await visibility(page, "visible");
   await focus(page);
@@ -178,7 +217,7 @@ test("signing out cancels pending badge reads and prevents signed-out polling", 
   await expect(state.messages).toHaveCount(0);
   await expect(state.activity).toHaveCount(0);
   await shot(page, "badges-signed-out");
-  await record("badge-signout", { requests: state.requests, aborts: await page.evaluate(() => (window as any).__badgeAborts), finalBadgeCount: await page.locator("a.siteNavBell").count() });
+  await record("badge-signout", { requests: state.requests, aborts: await page.evaluate(() => (window as BadgeWindow).__badgeAborts), finalBadgeCount: await page.locator("a.siteNavBell").count() });
 });
 
 test("opening an unread thread refreshes the message badge immediately despite a pending count", async ({ page }) => {
