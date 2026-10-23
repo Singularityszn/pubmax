@@ -21,11 +21,11 @@ Anyone who can reach `api.keenable.ai`. `KEENABLE_API_KEY` is optional: without 
 ## Steps
 
 1. Start from fresh `main` on a new branch.
-2. Run `npm run refresh:area-news`. It searches the previous and current month for London pub openings, closures, refurbishments, awards and price sightings, reads each candidate page, and keeps one dated fact per page published in the last 21 days. Earlier rows stay in the file as archive. `--max-results` (default 8 per query) and `--max-candidates` (default 36) widen or narrow the sweep.
+2. Run `npm run refresh:area-news`. It searches the previous and current month for London pub openings, closures, refurbishments, awards and price sightings. It reads each candidate page and keeps one dated fact per page published in the last 21 days. Legacy editorial rows stay in the archive. Earlier generated rows with `area-news-` IDs remain only while they pass current fact validation and stay within the serving window. `--max-results` defaults to 8 results per query. `--max-candidates` defaults to 36 distinct accepted URLs.
 
    Search stops when the producer collects `--max-candidates` distinct accepted URLs. Remaining queries cannot add candidates and are not sent.
 
-   The run is all or nothing. Any failed page fetch, or no valid fact at all, throws and leaves the file unchanged, so re-run it. A good run ends with `READY area news: N fresh facts from M candidates, 0 fetch failures, T total archive rows`.
+   Any failed search, failed page fetch, or absence of valid facts stops the run and leaves the file unchanged. A successful run ends with `READY area news: N fresh facts from M candidates, 0 fetch failures, T total archive rows`.
 3. Review every new entry in the diff against its `sourceUrl`:
    - The page says what `title` and `detail` say.
    - `observedAt` is the page's own date.
@@ -42,7 +42,7 @@ Anyone who can reach `api.keenable.ai`. `KEENABLE_API_KEY` is optional: without 
 
    Then run `npm run check:freshness`, `npm run validate-data` and `npx vitest run __tests__/areaNews.test.ts __tests__/areaNewsLoader.test.ts __tests__/refreshAreaNews.test.ts __tests__/checkFreshnessAreaNewsAdvisory.test.ts`.
 
-The provider and the serverless limits are described in `docs/CRON_PLANE_RUNBOOK.md`.
+Vercel cannot publish this committed file. The [cron runbook](./CRON_PLANE_RUNBOOK.md) describes the scheduled jobs that use durable stores instead.
 
 ## Next time
 
