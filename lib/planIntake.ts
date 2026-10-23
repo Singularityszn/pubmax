@@ -809,13 +809,13 @@ export function buildPlanGenerationIntakeBody(
   // control choices, whose explicit ownership is not stored across reloads.
   const context = {
     ...stripPlanIntakeOwnedContext(currentContext),
-    ...(cleanQuery ? { transportConstraints: inferNightContext(cleanQuery).context.transportConstraints } : {}),
+    transportConstraints: inferNightContext(cleanQuery).context.transportConstraints,
     ...explicitContext,
     ...planIntakeNightContextPatch(sent),
   };
   return {
     ...(cleanQuery ? { query: cleanQuery } : {}),
-    ...(Object.keys(context).length > 0 ? { context } : {}),
+    context,
     ...(anchor?.cityId ? { cityId: anchor.cityId } : {}),
     intake: planIntakeHandoff(sent),
     ...(anchor ? {

@@ -518,14 +518,18 @@ describe("Wave 2.2 typed handoff and stale constraint retraction", () => {
       wetherspoonsPreferred: false,
       atmosphere: ["quiet"],
       foodNeeds: ["vegan"],
-      transportConstraints: ["tube"],
+      transportConstraints: [],
     });
   });
 
-  it("retracts removed walking text while preserving recovered drink and food choices", () => {
+  it.each([
+    "Three pubs in Clapham with listed pint prices.",
+    "",
+    " \t\n ",
+  ])("retracts removed transport text for %j while preserving recovered choices", (query) => {
     const body = buildPlanGenerationIntakeBody(
       answeredDraft(),
-      "Three pubs in Clapham with listed pint prices.",
+      query,
       { ...generatedContext, transportConstraints: ["walking"] },
     );
     expect(body.context).toMatchObject({
@@ -535,6 +539,19 @@ describe("Wave 2.2 typed handoff and stale constraint retraction", () => {
       transportConstraints: [],
     });
   });
+
+  it.each(["", " \t\n ", "short walks"])(
+    "preserves explicit transport over description %j",
+    (query) => {
+      const body = buildPlanGenerationIntakeBody(
+        answeredDraft(),
+        query,
+        { ...generatedContext, transportConstraints: ["walking"] },
+        { transportConstraints: ["tube"] },
+      );
+      expect(body.context?.transportConstraints).toEqual(["tube"]);
+    },
+  );
 
   it("threads an exact accepted Venue anchor through generation intake", () => {
     const anchor = {

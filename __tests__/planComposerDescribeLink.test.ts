@@ -851,7 +851,11 @@ describe("Your name is asked for once, beside Lock", () => {
 });
 
 describe("an accepted pub without enough companion stops", () => {
-  it("explains the incomplete route and keeps the requested stop count editable", async () => {
+  it.each([
+    "Three pubs in central London with listed pint prices",
+    "",
+    " \t\n ",
+  ])("retracts walking after editing to %j and keeps the incomplete draft editable", async (editedQuery) => {
     const query = "Three pubs in central London with short walks";
     const inferredContext = inferNightContext(query).context;
     vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo) => {
@@ -896,7 +900,7 @@ describe("an accepted pub without enough companion stops", () => {
     expect(document.querySelector<HTMLSelectElement>("#plan-context-stops")?.value).toBe("3");
 
     await act(async () => {
-      typeInto("#plan-concierge-query", "Three pubs in central London with listed pint prices");
+      typeInto("#plan-concierge-query", editedQuery);
     });
     await act(async () => { clickButton("Plan it again"); });
     await settleComposerEffects();
