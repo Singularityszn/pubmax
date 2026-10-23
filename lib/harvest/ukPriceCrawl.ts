@@ -814,10 +814,10 @@ function priceItemIdentity(
   let itemName = printedItemName(text, at);
   // Some menus print the price first. Its name follows on the same item,
   // never in the previous item's description.
-  const after = text.slice(at + verbatim.length).split("\n", 1)[0].trim();
+  const after = (text.slice(at + verbatim.length).split("\n", 1)[0] ?? "").trim();
   const priceFirst = itemName && /[\p{L}\p{N}]/u.test(after) && (!/[\p{L}\p{N}]/u.test(itemName.own)
     || (!after.includes("£") && titleCategory(after) === "cocktail"));
-  if (priceFirst) itemName = { ...itemName, own: after };
+  if (itemName && priceFirst) itemName = { ...itemName, own: after };
   if (itemName && /^[*_]+$/.test(itemName.own)) return { decision: "item-name-ambiguous" };
   const markdownPrice = itemName !== undefined && /[*_]+$/.test(itemName.own);
   const printedTitle = normalizeHarvestDrinkLabel(
