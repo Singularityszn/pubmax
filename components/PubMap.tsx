@@ -58,6 +58,9 @@ import {
   venuePriceLane,
   venueSourcedPrice,
 } from "@/lib/venuePriceLane";
+import { allowsMapViewportResume } from "@/lib/mapUrlIntent";
+import { projectMapPintPrices } from "@/lib/mapPintPrices";
+import { bundleRowsByVenue, parseUkPriceBundleRows, type UkPriceBundleRow } from "@/lib/ukPriceBundle";
 import { dropLaneInput, splitLaneInput } from "@/lib/pintTrust";
 import {
   isMapSearchField,
@@ -1382,7 +1385,7 @@ export default function PubMap({
     }),
   );
   const [mapResumeSeed] = useState(() =>
-    currentSearch() ? null : readMapResumeSync(cityId),
+    allowsMapViewportResume(currentSearch()) ? readMapResumeSync(cityId) : null,
   );
   const shouldResolveOpeningLocation = shouldResolveOpeningLocationFor({
     needsOpeningResolution: arrival.needsOpeningResolution,
@@ -2638,7 +2641,7 @@ export default function PubMap({
   useEffect(() => {
     if (
       !initialShardReady &&
-      !arrivalSearch &&
+      allowsMapViewportResume(arrivalSearch) &&
       !ukPlaceArrival &&
       !ukNationalBrowse
     ) {
@@ -2679,7 +2682,7 @@ export default function PubMap({
       }
     });
     if (
-      !arrivalSearch &&
+      allowsMapViewportResume(arrivalSearch) &&
       !ukPlaceArrival &&
       !ukNationalBrowse &&
       initialShardReady
@@ -2974,6 +2977,19 @@ export default function PubMap({
   // always outrank it inside mergePriceUpdates. Skip the fetch for other cities
   // and ignore any stale London updates while viewing them (no setState clear).
   const [priceUpdates, setPriceUpdates] = useState<PriceUpdate[]>([]);
+  const [pintBundleRows, setPintBundleRows] = useState<UkPriceBundleRow[]>([]);
+  useEffect(() => {
+    if (cityId !== "london") return;
+    let cancelled = false;
+    void fetch("/data/uk_prices/rows.json")
+      .then((response) => response.ok ? response.json() : null)
+      .then((raw) => {
+        if (!cancelled && raw) setPintBundleRows(parseUkPriceBundleRows(raw));
+      })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, [cityId]);
+  const pintBundleByVenue = useMemo(() => bundleRowsByVenue(pintBundleRows), [pintBundleRows]);
   useEffect(() => {
     if (cityId !== "london") return;
     let cancelled = false;
@@ -3018,13 +3034,20 @@ export default function PubMap({
 
   const venues = useMemo<Venue[]>(
     () =>
-      mergePriceUpdates(
-        mergeVenueDrops(baseVenues, dropsByVenueId),
-        cityId === "london" ? priceUpdates : [],
-        venueUpdateKey,
-        cityId === "london",
+      projectMapPintPrices(
+        mergePriceUpdates(
+          mergeVenueDrops(baseVenues, dropsByVenueId),
+          cityId === "london" ? priceUpdates : [],
+          venueUpdateKey,
+          cityId === "london",
+        ),
+        pintBundleByVenue,
+        venueSignals,
+        cityId,
+        experiencePolicyNow,
+        favoritePint,
       ),
-    [baseVenues, dropsByVenueId, priceUpdates, cityId],
+    [baseVenues, dropsByVenueId, priceUpdates, cityId, pintBundleByVenue, venueSignals, experiencePolicyNow, favoritePint],
   );
   const pubVenues = useMemo(() => venues.filter(isPubVenue), [venues]);
   const drinkCoverage = useMemo(() => ({

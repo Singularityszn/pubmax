@@ -40,6 +40,22 @@ const drinksList = `
 </body></html>`;
 
 describe("what a page states", () => {
+  it.each(["1/3", "1 / 3", "⅓", "one-third", "one third", "2/3", "2 / 3", "⅔", "two-thirds", "two thirds"])(
+    "rejects the same fractional servings as the curator reader: %s", (measure) => {
+      for (const row of [
+        `Kernel stout £6.00 (${measure} pint) Guinness pint £6.20`,
+        `Guinness pint £6.20 ${measure} Kernel stout £6.00`,
+        `Guinness pint £6.20 Kernel stout (${measure} pint) £6.00`,
+      ]) {
+        for (const format of ["text", "html"] as const) {
+          const reading = readVenueDrinkPrices(format === "html" ? `<p>${row}</p>` : row, format);
+          expect(reading.kept.map(({ drinkLabel, category, priceGbp }) => ({ drinkLabel, category, priceGbp })), row)
+            .toEqual([{ drinkLabel: "Guinness pint", category: "beer", priceGbp: 6.2 }]);
+          expect(reading.drops, row).toEqual(["fractional-measure-not-a-pint"]);
+        }
+      }
+    },
+  );
   it.each([
     ...["2/3", "⅔", "two-thirds pint"].flatMap((measure) =>
       [

@@ -603,6 +603,34 @@ describe("arguments and redaction", () => {
 const listedQueue = { version: 1 as const, standingRule: "listed" as const, venues: [] };
 const pageFact = { sourceUrl: "https://eastbrookpub.co.uk/drink-menu.html", seenOn: "2026-10-01" };
 
+describe("shared fractional serving grammar", () => {
+  const measures = [
+    ["1/3", "one-third"], ["1 / 3", "one-third"], ["⅓", "one-third"],
+    ["one-third", "one-third"], ["one third", "one-third"],
+    ["2/3", "two-thirds"], ["2 / 3", "two-thirds"], ["⅔", "two-thirds"],
+    ["two-thirds", "two-thirds"], ["two thirds", "two-thirds"],
+  ] as const;
+  it.each(measures)("retains %s as %s before recovery", (measure, sizeDetail) => {
+    for (const text of [
+      `Peroni £5.20 (${measure} pint)`,
+      `Peroni (${measure} pint) £5.20`,
+      `${measure} pint Peroni £5.20`,
+      `Peroni ${measure} pint £5.20`,
+    ]) {
+      expect(factsFromPage(text, pageFact).drinks, text).toEqual([
+        { drink: "Peroni", size: "unstated", sizeDetail, priceGbp: 5.2,
+          standing: "listed", ...pageFact },
+      ]);
+      const adjacent = `${text} Guinness pint £6.20`;
+      expect(factsFromPage(adjacent, pageFact).drinks.map(({ drink, size, sizeDetail, priceGbp }) =>
+        ({ drink, size, sizeDetail, priceGbp })), adjacent).toEqual([
+        { drink: "Peroni", size: "unstated", sizeDetail, priceGbp: 5.2 },
+        { drink: "Guinness", size: "pint", sizeDetail: "pint", priceGbp: 6.2 },
+      ]);
+    }
+  });
+});
+
 function expectDrinkNameOwnedByLine(text: string, drinks: ReadonlyArray<{ drink: string }>): void {
   for (const drink of drinks) {
     expect(text.includes(drink.drink), text).toBe(true);

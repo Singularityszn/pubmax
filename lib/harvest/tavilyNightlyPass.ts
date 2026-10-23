@@ -18,9 +18,11 @@ import {
   CATEGORY_PRICE_BANDS,
   PRICE_ITEM_SEPARATOR,
   UK_PRICE_PATTERN,
+  FRACTIONAL_BEER_MEASURE,
   decideKeylessUkPriceCandidate,
   findUkPriceCandidates,
   fractionalMeasureAtPrice,
+  fractionalBeerServing,
   isLikelyMenuUrl,
   pageText,
   drinkLabelFromPriceContext,
@@ -43,7 +45,7 @@ const THIN_BOROUGHS = new Set(["barking and dagenham", "kingston upon thames", "
 const VAGUE_NAME = /^(about|around|roughly|approximately|only|from|just|under|over)$/i;
 const SERVING_WORD = "pints?|halves|half|schooners?|two[\\s-]thirds|kegs?|bottles?|cans?|glasses|glass|measures|measure";
 const SERVING_SIZE = new RegExp(`\\b(?:${SERVING_WORD}|\\d{2,4}\\s*ml)\\b`, "i");
-const POUR_OF = /^(?:(?:a|an)\s+)?(?:pints?|half|measures?|schooners?|two[\s-]thirds|glass(?:es)?|bottles?|cans?)\s+of\s+(?:(?:a|an)\s+)?(.+)$/i;
+const POUR_OF = new RegExp(`^(?:(?:a|an)\\s+)?(?:pints?|half|measures?|schooners?|${FRACTIONAL_BEER_MEASURE.source}|glass(?:es)?|bottles?|cans?)\\s+of\\s+(?:(?:a|an)\\s+)?(.+)$`, "i");
 const FOOD_PATH = /(food|kitchen|lunch|dinner|brunch|\beat\b)/i;
 const FOOD_PATH_EXCLUDE = /(privacy|cookie|terms|careers|login|account|basket|checkout)/i;
 const DRINKS_PATH =
@@ -543,8 +545,7 @@ function cleanName(label: string): string | null {
   const source = poured?.[1]?.trim() ?? label;
   const cleaned = source
     .replace(/\bschooners?\b(?:\s*\([^)]*\))?/gi, " ")
-    .replace(/\btwo[\s-]thirds\b(?:\s+of\s+a)?(?:\s+pints?\b)?/gi, " ")
-    .replace(/(?:⅔|\b2\/3\b)(?:\s+of\s+a)?(?:\s+pints?\b)?/gi, " ")
+    .replace(new RegExp(`\\(?\\s*(?:${FRACTIONAL_BEER_MEASURE.source})(?:\\s+of\\s+a)?(?:\\s+pints?\\b)?\\s*\\)?`, "gi"), " ")
     .replace(/(?:½|\b1\/2\b)(?:\s+of\s+a)?(?:\s+pints?\b)?/gi, " ")
     .replace(/\b\d{2,4}\s*ml\b/gi, " ")
     .replace(new RegExp(`\\b(?:${SERVING_WORD})(?:\\s+of(?:\\s+a)?)?\\b`, "gi"), " ")
@@ -569,9 +570,8 @@ function isMixedNumber(line: string): boolean {
 
 function sizeOf(line: string): { size: DrinkSize; sizeDetail: string | null } {
   if (/\bschooners?\b/i.test(line)) return { size: "unstated", sizeDetail: "schooner" };
-  if (/\btwo[\s-]thirds\b/i.test(line) || /(?<!\d)⅔|(?<!\d)\b2\/3\b/.test(line)) {
-    return { size: "unstated", sizeDetail: "two-thirds" };
-  }
+  const fractionalServing = fractionalBeerServing(line);
+  if (fractionalServing) return { size: "unstated", sizeDetail: fractionalServing };
   if (/(?<!\d)(?:½|\b1\/2\b|\bhalf)[\s-]+bottles?\b/i.test(line)) {
     return { size: "unstated", sizeDetail: "half bottle" };
   }
@@ -593,7 +593,7 @@ function sizeOf(line: string): { size: DrinkSize; sizeDetail: string | null } {
 function measureAllowed(line: string, size: { size: DrinkSize; sizeDetail: string | null }): boolean {
   if (isMixedNumber(line)) return false;
   if (size.size === "pint" || size.size === "keg" || size.size === "bottle" || size.size === "can") return true;
-  if (size.sizeDetail === "half" || size.sizeDetail === "half bottle" || size.sizeDetail === "schooner" || size.sizeDetail === "two-thirds") return true;
+  if (size.sizeDetail === "half" || size.sizeDetail === "half bottle" || size.sizeDetail === "schooner" || fractionalBeerServing(line)) return true;
   if (size.sizeDetail && (GLASS_ML.has(size.sizeDetail) || SPIRIT_ML.has(size.sizeDetail))) return true;
   if (/\b\d{2,4}\s*ml\b/i.test(line)) return true;
   return /\b(?:glasses|glass)\b/i.test(line);
@@ -708,7 +708,7 @@ function rememberDrink(drinks: ListedDrinkLine[], seenDrinks: Set<string>, row: 
 
 const JOINED_SIZE_LIST = /(?<![\d/.£])\d{2,4}(?:\s*ml)?(?:\s*\/\s*\d{2,4}(?:\s*ml)?)+(?!\s*\/\s*\d)/gi;
 const JOINED_PRICE_LIST = new RegExp(`^\\s*((?:${UK_PRICE_PATTERN.source})(?:\\s*\\/\\s*(?:${UK_PRICE_PATTERN.source}))*)`, "i");
-const LEADING_MEASURE = new RegExp(`^(?:${SERVING_WORD}|\\d{2,4}\\s*ml|½|1\\/2|2\\/3|⅔)\\b`, "i");
+const LEADING_MEASURE = new RegExp(`^(?:(?:${FRACTIONAL_BEER_MEASURE.source})|(?:${SERVING_WORD}|\\d{2,4}\\s*ml|½|1\\/2)\\b)`, "i");
 
 function isNewDrinkName(text: string): boolean {
   const body = text.replace(/^[/|\s]+/, "");

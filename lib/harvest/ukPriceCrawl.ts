@@ -289,7 +289,13 @@ export const UK_PRICE_PATTERN = /£\s?(\d{1,2}(?:\.\d{1,2})?)(?![\da-z]|\.\d)/gi
 export const PRICE_ITEM_SEPARATOR = /(?:[,.;:•·|!?]|\s+-\s+)/;
 const LEADING_PRICE_ITEM_SEPARATORS = new RegExp(`^\\s*(?:${PRICE_ITEM_SEPARATOR.source}\\s*)+`);
 
-const FRACTIONAL_BEER_MEASURE = /(?:\b[12]\s*\/\s*3\b|[⅓⅔]|\b(?:one[\s-]third|two[\s-]thirds)\b)/i;
+export const FRACTIONAL_BEER_MEASURE = /(?:\b[12]\s*\/\s*3\b|[⅓⅔]|\b(?:one[\s-]third|two[\s-]thirds)\b)/i;
+
+export function fractionalBeerServing(text: string): "one-third" | "two-thirds" | null {
+  const match = FRACTIONAL_BEER_MEASURE.exec(text)?.[0];
+  if (!match) return null;
+  return /^(?:1|⅓|one)/i.test(match) ? "one-third" : "two-thirds";
+}
 // Printed item separators also close a suffix, so it cannot become the next drink's prefix.
 const LEADING_FRACTIONAL_BEER_MEASURE = new RegExp(
   `^\\s*(?:\\(\\s*(?:${FRACTIONAL_BEER_MEASURE.source})(?:\\s+(?:of\\s+a\\s+)?pints?)?\\s*\\)|(?:${FRACTIONAL_BEER_MEASURE.source})(?:\\s+(?:of\\s+a\\s+)?pints?)?)(?=\\s|${PRICE_ITEM_SEPARATOR.source}|$)`, "i",

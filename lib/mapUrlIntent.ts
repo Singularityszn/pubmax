@@ -24,6 +24,12 @@ export function hasMapLogIntent(query: MapIntentQuery): boolean {
   return new URLSearchParams(normalized).get("log") === "1";
 }
 
+export function allowsMapViewportResume(search: string): boolean {
+  const params = new URLSearchParams(search);
+  if (params.size === 0) return true;
+  return params.size === 1 && (params.get("log") === "1" || params.get("contribute") === "price");
+}
+
 // Trusted-handoff arrival markers not already recognised by
 // hasCrawlArrivalParams: the planner deep link (plan=1), the accepted-handoff
 // sentinel (accept=1), and the fixed acceptance source (src=<source>).
