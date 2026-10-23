@@ -17,6 +17,18 @@ export type PalEvalAnswerExpectations = {
   topVenueId?: string;
   topPrice?: number;
   priceTolerance?: number;
+  priceAnswer?: { venueId: string } & (
+    | { value: null }
+    | { value: number; source: string }
+  );
+  heritageAnswer?: {
+    venueId: string;
+    venueName: string;
+    facts: Array<{ fact: string; source: string; sourceUrl: string }>;
+  };
+  hoursAnswer?:
+    | { venueId?: string; value: null }
+    | { venueId: string; value: string[]; source: string; sourceUrl?: string };
 };
 
 export type PalEvalUsage = {
