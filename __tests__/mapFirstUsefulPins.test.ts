@@ -190,7 +190,10 @@ describe("first useful map pins", () => {
     expect(source).toContain(
       "setOpeningLocationCancelledBeforeResolution(nextCancellation)",
     );
-    expect(source.match(/cancelOpeningLocation\(\)/g)).toHaveLength(2);
+    // claimMapCamera is the one caller. A gesture, a deliberate camera move
+    // and a venue pick all claim the camera through it.
+    expect(source.match(/cancelOpeningLocation\(\)/g)).toHaveLength(1);
+    expect(source.match(/claimMapCamera\(\)/g)).toHaveLength(3);
   });
 
   it("does not turn a post-resolution camera move into cancellation", () => {

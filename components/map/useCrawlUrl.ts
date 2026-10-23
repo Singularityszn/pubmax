@@ -29,6 +29,7 @@ const OWNED_PASSTHROUGH_PARAMS = [
   "src",
   "at",
   "place",
+  "area",
   "lat",
   "lng",
   "uk",
@@ -44,6 +45,7 @@ export function mergeCrawlUrlSearch(
   const params = new URLSearchParams(encodedSearch);
   const live = new URLSearchParams(liveSearch);
   for (const key of OWNED_PASSTHROUGH_PARAMS) {
+    if (key === "area" && (params.has("q") || params.has("sel"))) continue;
     const value = live.get(key);
     if (value !== null && !params.has(key)) params.set(key, value);
   }
@@ -97,7 +99,7 @@ function writeCrawlUrl(encoded: string, preserveCrawlParam: boolean, preserveBee
 const CRAWL_CONTEXT_PARAMS = [
   "mode", "style", "max", "stops", "win", "drops", "low",
   "cocktails", "food", "q", "drink", "brand", "sub", "topshelf",
-  "zone", "pubs", "band", "alt", "crawl",
+  "zone", "pubs", "band", "alt", "crawl", "area",
 ] as const;
 
 function writeLandedCrawlContext(encoded: string, preserveCrawlParam: boolean, preserveBeerParam: boolean): void {

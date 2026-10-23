@@ -839,12 +839,13 @@ export function restoredSessionFrame<NightAreaSlug extends string = string>(inpu
   };
 }
 
-/** The viewport the map opens on: a resume snapshot, else a restored session, else none. */
+/** An explicit area wins over a resume snapshot and a restored session. */
 export function openingViewportFrom(
   resumeViewport: MapViewportSnapshot | null,
   restoredSession: RestoredSessionLike<string>,
+  explicitViewport: MapViewportSnapshot | null = null,
 ): MapViewportSnapshot | null {
-  return resumeViewport ?? restoredSession?.viewport ?? null;
+  return explicitViewport ?? resumeViewport ?? restoredSession?.viewport ?? null;
 }
 
 /**

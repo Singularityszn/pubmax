@@ -163,29 +163,37 @@ describe("a deliberate move takes the camera and keeps it", () => {
     join(__dirname, "..", "components/PubMap.tsx"),
     "utf8",
   );
-  const moveMapCameraTo = (() => {
-    const start = pubMap.indexOf("const moveMapCameraTo = useCallback(");
+  const sliceCallback = (name: string, deps: string) => {
+    const start = pubMap.indexOf(`const ${name} = useCallback(`);
     expect(start).toBeGreaterThan(-1);
-    const end = pubMap.indexOf("[cancelOpeningLocation],", start);
+    const end = pubMap.indexOf(deps, start);
     expect(end).toBeGreaterThan(start);
     return pubMap.slice(start, end);
-  })();
+  };
+  const moveMapCameraTo = sliceCallback("moveMapCameraTo", "[claimMapCamera],");
+  const claimMapCamera = sliceCallback("claimMapCamera", "[cancelOpeningLocation]);");
+
+  it("takes the camera through the one claim a gesture also uses", () => {
+    expect(moveMapCameraTo).toContain("claimMapCamera()");
+    const dismiss = sliceCallback("dismissAmbientBanners", "[claimMapCamera]);");
+    expect(dismiss).toContain("claimMapCamera()");
+  });
 
   it("marks the camera touched", () => {
-    expect(moveMapCameraTo).toContain("mapCameraTouchedRef.current = true");
-    expect(moveMapCameraTo).toContain("setMapCameraTouched(true)");
+    expect(claimMapCamera).toContain("mapCameraTouchedRef.current = true");
+    expect(claimMapCamera).toContain("setMapCameraTouched(true)");
   });
 
   it("marks it before it asks the cancellation that cannot", () => {
-    const touched = moveMapCameraTo.indexOf("mapCameraTouchedRef.current = true");
-    const cancelled = moveMapCameraTo.indexOf("cancelOpeningLocation()");
+    const touched = claimMapCamera.indexOf("mapCameraTouchedRef.current = true");
+    const cancelled = claimMapCamera.indexOf("cancelOpeningLocation()");
     expect(touched).toBeGreaterThan(-1);
     expect(cancelled).toBeGreaterThan(-1);
     expect(touched).toBeLessThan(cancelled);
   });
 
   it("drops the opening focus it just overtook", () => {
-    expect(moveMapCameraTo).toContain("setOpeningLocationFocus(null)");
+    expect(claimMapCamera).toContain("setOpeningLocationFocus(null)");
   });
 
   it("is the guard the opening-location mint effect reads", () => {

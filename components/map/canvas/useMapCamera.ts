@@ -327,13 +327,13 @@ export function useMapCamera(refs: CameraRefs) {
   // Borough browse arrival: frame the filtered venue set once (query owns the
   // camera). Skip if the user already tapped a pin — don't fight selectedVenue
   // fly-to. Padding mirrors fitRoute; maxZoom ~13 keeps outer boroughs readable.
-  const fitQueryVenues = useCallback(() => {
+  const fitQueryVenues = useCallback((kind: "query" | "search-recovery" = "query", requestId = 0) => {
     const current = (queryVenuesRef ?? venuesRef).current;
     if (current.length === 0) return;
     const bounds = new maplibregl.LngLatBounds();
     current.forEach((venue) => bounds.extend([venue.longitude, venue.latitude]));
     const isPhone = window.matchMedia("(max-width: 640px)").matches;
-    scheduleCamera("query", `query:${current.map((venue) => venue.id).join(">")}`, (map) => map.fitBounds(bounds, {
+    scheduleCamera(kind, `${kind}:${requestId}:${current.map((venue) => venue.id).join(">")}`, (map) => map.fitBounds(bounds, {
       padding: isPhone
         ? { top: 160, right: 28, bottom: 200, left: 28 }
         : 90,

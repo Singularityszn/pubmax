@@ -117,6 +117,17 @@ afterEach(() => {
 });
 
 describe("curated crawl URL hydration hold", () => {
+  it("preserves a named area until a new venue query replaces it", async () => {
+    window.history.replaceState({}, "", "/map?area=piccadilly-soho");
+    await act(async () => root.render(createElement(Harness, { query: "", pending: false })));
+    act(() => vi.advanceTimersByTime(CRAWL_URL_DEBOUNCE_MS));
+    expect(new URLSearchParams(window.location.search).get("area")).toBe("piccadilly-soho");
+    await act(async () => root.render(createElement(Harness, { query: "Churchill Arms", pending: false })));
+    act(() => vi.advanceTimersByTime(CRAWL_URL_DEBOUNCE_MS));
+    expect(new URLSearchParams(window.location.search).has("area")).toBe(false);
+    expect(new URLSearchParams(window.location.search).get("q")).toBe("Churchill Arms");
+  });
+
   it("keeps category price intent while the chosen drink and venue sync", async () => {
     window.history.replaceState({}, "", "/map?drink=wine&contribute=price");
     await act(async () => {

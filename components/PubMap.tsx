@@ -505,6 +505,9 @@ import {
 import { mapAmbientBannersVisible, pickMapSurfaceToast } from "@/lib/mapSurfaceChrome";
 import { resolveMapDisplayName } from "@/lib/mapDisplayName";
 import MapLoadingFrame from "@/components/map/MapLoadingFrame";
+import MapSearchEmptyState from "@/components/map/MapSearchEmptyState";
+import { useMapOpeningArrival, useNamedMapAreaArrival } from "@/components/map/useMapOpeningArrival";
+import { mapAreaOpeningView } from "@/lib/mapAreaArrival";
 import { useMapPinsRevealed } from "@/components/map/useMapPinsRevealed";
 import { useMapSecondaryStreamHold } from "@/components/map/useMapSecondaryStreamHold";
 import { markPalRouteActivation } from "@/lib/pubPal";
@@ -578,6 +581,7 @@ import {
   subscribeMapFirstVisitArrival,
 } from "@/lib/mapFirstVisitArrival";
 import {
+  areaElsewhereOptions,
   areaSheetOpenDelay,
   areaClaimedByViewport,
   rememberedAreaNamesView,
@@ -649,7 +653,6 @@ import {
   firstIdOf,
   crawlJourneysWanted,
   londonVenueSelection,
-  mapArrivalFrame,
   mapDrinkLensSelection,
   isRecordlessMapSelection,
   ukBaseRestoreFailureNotice,
@@ -1263,20 +1266,19 @@ export default function PubMap({
   const [lastKnownLocation] = useState(() =>
     currentSearch() ? null : readMapOpeningLocation(),
   );
-  const arrivalSearchNow = currentSearch();
-  const arrival = useMemo(
-    () =>
-      mapArrivalFrame({
-        search: arrivalSearchNow,
-        placeArrival: ukPlaceArrival,
-        nationalBrowse: ukNationalBrowse,
-        cityId,
-        cityDisplayName: city.displayName,
-      }),
-    [arrivalSearchNow, ukPlaceArrival, ukNationalBrowse, cityId, city.displayName],
+  const { search: arrivalSearch, frame: arrival, area: namedAreaArrival } = useMapOpeningArrival({
+    placeArrival: ukPlaceArrival,
+    nationalBrowse: ukNationalBrowse,
+    cityId,
+    cityDisplayName: city.displayName,
+  });
+  const namedAreaViewport = useMemo(
+    () => mapAreaOpeningView(namedAreaArrival, city.mapView),
+    [city.mapView, namedAreaArrival],
   );
   const mapOpeningNeedsResolution = arrival.needsOpeningResolution;
   const [initialMapView] = useState<MapViewportSnapshot>(() => {
+    if (namedAreaViewport) return namedAreaViewport;
     if (ukPlaceArrival) return ukPlaceMapView(ukPlaceArrival, city.mapView);
     if (ukNationalBrowse) {
       return {
@@ -1362,9 +1364,6 @@ export default function PubMap({
     const saved = readMobileMapSession();
     return saved?.cityId === cityId ? saved : null;
   });
-  // Freeze arrival search with the seed so fit-on-arrival does not flip when the
-  // user later maps a route or the address bar syncs.
-  const [arrivalSearch] = useState(() => currentSearch());
   // §4.5: did the page arrive with any crawl-shaping URL param (a shared/deep
   // link)? Captured ONCE at mount — useCrawlUrlSync starts writing mode/style back
   // to the URL after ~300ms, so re-reading location.search later would be wrong.
@@ -1405,16 +1404,19 @@ export default function PubMap({
     openingLocationCancelledRef.current = true;
     setOpeningLocationCancelledBeforeResolution(nextCancellation);
   }, [openingLocationCancelledBeforeResolution, openingLocationResolved]);
+  const claimMapCamera = useCallback(() => {
+    mapCameraTouchedRef.current = true;
+    setMapCameraTouched(true);
+    cancelOpeningLocation();
+    setOpeningLocationFocus(null);
+  }, [cancelOpeningLocation]);
   const dismissAmbientBanners = useCallback(() => {
     // The reader's own first move on the map answers the first-visit ask. See
     // lib/mapFirstVisitArrival.ts; this fires on a GESTURE only, never on a
     // camera move the app made for them (PubMapCanvas emitUserCameraMove).
     dismissMapFirstVisitArrivalOnMapUse();
-    mapCameraTouchedRef.current = true;
-    cancelOpeningLocation();
-    setOpeningLocationFocus(null);
-    setMapCameraTouched(true);
-  }, [cancelOpeningLocation]);
+    claimMapCamera();
+  }, [claimMapCamera]);
   useEffect(() => {
     if (!shouldResolveOpeningLocation) return;
     let cancelled = false;
@@ -1451,10 +1453,10 @@ export default function PubMap({
         restoredSession: restoredMobileSession,
         resumeSeed: mapResumeSeed,
         cityId,
-        search: arrivalSearchNow,
+        search: arrivalSearch,
         shouldOpenPlanningInitially,
       }),
-    [arrivalSearchNow, cityId, mapResumeSeed, restoredMobileSession, seed],
+    [arrivalSearch, cityId, mapResumeSeed, restoredMobileSession, seed],
   );
   // A restored /map?sel=venue-uk-* arrival: the base pub's id, plus the `at=`
   // location hint the selecting tap wrote alongside sel when the link has one.
@@ -1572,7 +1574,7 @@ export default function PubMap({
   const [mapResumeUpdating, setMapResumeUpdating] = useState(Boolean(mapResumeSeed));
   const [mapResumeViewport, setMapResumeViewport] =
     useState<MapViewportSnapshot | null>(restoredSession.resumeViewport);
-  const openingViewport = openingViewportFrom(mapResumeViewport, restoredMobileSession);
+  const openingViewport = openingViewportFrom(mapResumeViewport, restoredMobileSession, namedAreaViewport);
   const fallbackOpeningMapView = useMemo(() => {
     const location =
       lastKnownLocation &&
@@ -1616,6 +1618,9 @@ export default function PubMap({
   );
   const [selectedVenueId, setSelectedVenueId] = useState<string>(
     restoredSession.selectedVenueId,
+  );
+  const [searchPickedVenueId, setSearchPickedVenueId] = useState(() =>
+    seed.filters.query ? seed.selectedVenueId : "",
   );
   const reactiveAcceptanceSearch = searchParamsQuery(searchParams);
   // Canonicalising an alias `sel` moves the URL with history.replaceState,
@@ -3179,8 +3184,8 @@ export default function PubMap({
     [experienceVisibleMapVenues, venueKindVisibility],
   );
   const canvasVenues = useMemo(
-    () => withForcedVenue(kindVisibleMapVenues, venueById, selectedVenueId),
-    [kindVisibleMapVenues, venueById, selectedVenueId],
+    () => withForcedVenue(kindVisibleMapVenues, venueById, selectedVenueId || (filters.query.trim() ? searchPickedVenueId : "")),
+    [kindVisibleMapVenues, venueById, selectedVenueId, filters.query, searchPickedVenueId],
   );
   const queryVenues = useMemo(() => {
     const matchingIds = new Set(filteredVenues.map((venue) => venue.id));
@@ -3643,6 +3648,7 @@ export default function PubMap({
       initialTab: VenueTabRequest = "overview",
     ) => {
       if (!id) return;
+      claimMapCamera();
       setNearbyMapResult(null);
       setArrivalSelectionNotice(null);
       setSelectionNotice(null);
@@ -3706,6 +3712,7 @@ export default function PubMap({
     },
     [
       beginReveal,
+      claimMapCamera,
       claimMapDrawer,
       closeComposer,
       communityPrices.byVenueId,
@@ -4286,6 +4293,7 @@ export default function PubMap({
   // unrelated churn (drops/signals) never yanks the camera; only a query
   // change drives a move.
   const [searchFitToken, setSearchFitToken] = useState(0);
+  const [searchRecoveryToken, setSearchRecoveryToken] = useState(0);
   const [searchAreaNewsArea, setSearchAreaNewsArea] = useState<string | null>(null);
   // The query whose camera an explicit pick already owns. Cleared on every
   // keystroke, so the next word re-arms the typed-search move.
@@ -4418,6 +4426,7 @@ export default function PubMap({
   // mobile active-search chip so a restored (or typed) query is never an
   // invisible filter. Leaves every other filter and the camera untouched.
   const changeMapSearchQuery = useCallback((query: string) => {
+    setSearchPickedVenueId("");
     searchQueryCameraOwnedRef.current = null;
     setSearchAreaNewsArea(null);
     setFilters((current) => ({ ...current, query }));
@@ -4817,8 +4826,8 @@ export default function PubMap({
     (camera: { center: [number, number]; zoom: number }) => {
       setNearbyMapResult(null);
       // A deliberate move is the reader taking the camera, exactly as a
-      // gesture is (dismissAmbientBanners sets the same flag), and it is set
-      // FIRST because the cancellation below cannot do it: cancelOpeningLocation
+      // gesture is (dismissAmbientBanners claims it the same way). claimMapCamera
+      // sets the flag FIRST because its cancellation cannot do it: cancelOpeningLocation
       // early-returns once the location has already resolved
       // (openingLocationCancellationAfterAttempt). Two readers of this ref then
       // hold the pick. The opening-location mint effect bails on it. So do both
@@ -4826,13 +4835,10 @@ export default function PubMap({
       // PubMapCanvas long after the pick and throws the reader back to the
       // viewport they arrived on - the reachable yank this closes. MapLibre
       // 6.10.0 readies the map early enough to widen that window.
-      mapCameraTouchedRef.current = true;
-      setMapCameraTouched(true);
-      cancelOpeningLocation();
-      setOpeningLocationFocus(null);
+      claimMapCamera();
       setAreaFocus((prev) => nextAreaCameraFocus(prev, camera));
     },
-    [cancelOpeningLocation],
+    [claimMapCamera],
   );
   const flyToArea = useCallback(
     (option: AreaElsewhereOption) =>
@@ -4896,6 +4902,15 @@ export default function PubMap({
       });
       // 2. Resolve what the sheet shows on arrival.
       const target = journey.target;
+      const areaUrl = new URL(window.location.href);
+      areaUrl.searchParams.delete("q");
+      areaUrl.searchParams.delete("sel");
+      if (target.kind === "area" && getNightAreasForCity(cityId).some((area) => area.slug === target.slug)) {
+        areaUrl.searchParams.set("area", target.slug);
+      } else {
+        areaUrl.searchParams.delete("area");
+      }
+      window.history.replaceState(window.history.state, "", `${areaUrl.pathname}${areaUrl.search}${areaUrl.hash}`);
       // Every explicit search-area pick is a new named map area, so it replaces
       // any older remembered area before the chip renders. The pure transition
       // carries the public search centre; viewer location never reaches it.
@@ -4924,6 +4939,17 @@ export default function PubMap({
     },
     [cityId, clearAreaSheetTimer, clearLogIntent, moveMapCameraTo],
   );
+  const selectNamedAreaArrival = useCallback((area: NightArea) => {
+    const option = areaElsewhereOptions(cityId).find((option) => option.slug === area.slug);
+    if (!option) return;
+    selectSearchArea({ ...option, areaNewsArea: area.slug, kind: "area" });
+  }, [cityId, selectSearchArea]);
+  useNamedMapAreaArrival({
+    area: namedAreaArrival,
+    ready: mapCanvasReady && loaded,
+    readerActed: mapCameraTouchedRef,
+    onSelect: selectNamedAreaArrival,
+  });
   // §4.8: picking a search result records the typed "map-search" origin, unlike
   // a browse pin tap. The current search input text is NOT proof of origin — only
   // an explicit result selection through this seam is.
@@ -4945,6 +4971,7 @@ export default function PubMap({
         );
         return;
       }
+      setSearchPickedVenueId(id);
       selectVenue(id, "overview");
     },
     [cityId, hasCategoryPriceIntent, mapDrinkLensCategory, selectVenue, trimmedMapQuery],
@@ -5287,6 +5314,12 @@ export default function PubMap({
     [activeLandmarkId, mobileLayersTab, pricePickerOpen, searchAreaTarget, selectedVenueId, venueInitialTab],
   );
   const closeMapSurfaces = useCallback(() => {
+    const searchPick = selectedVenueId === searchPickedVenueId && filters.query.trim()
+      ? venueById.get(searchPickedVenueId)
+      : null;
+    if (searchPick) {
+      moveMapCameraTo({ center: [searchPick.longitude, searchPick.latitude], zoom: 14.5 });
+    }
     clearAreaSheetTimer();
     setSearchAreaTarget(null);
     closeComposer();
@@ -5295,7 +5328,7 @@ export default function PubMap({
     setPlanningOpen(false);
     setMapListOpen(false);
     setActiveLandmarkId("");
-  }, [clearAreaSheetTimer, closeComposer, setPlanningOpen, setSelectedVenueId]);
+  }, [clearAreaSheetTimer, closeComposer, filters.query, moveMapCameraTo, searchPickedVenueId, selectedVenueId, setPlanningOpen, setSelectedVenueId, venueById]);
   const closeEverySurface = useCallback(() => {
     clearLogIntent();
     closeMapSurfaces();
@@ -6745,22 +6778,20 @@ export default function PubMap({
       visibleMapPinCount === 0;
 
     return mapSearchEmptyVisible ? (
-      <aside
-        className="mapSearchEmpty"
-        role="status"
-        data-testid="map-filter-empty"
-      >
-        <span className="mapSearchEmptyMessage">
-          No pubs match &apos;{trimmedMapQuery}&apos; here
-        </span>
-        <button
-          type="button"
-          className="mapSearchEmptyAction"
-          onClick={clearMapQuery}
-        >
-          Clear search
-        </button>
-      </aside>
+      <MapSearchEmptyState
+        query={trimmedMapQuery}
+        matchCount={filteredPubVenueCount}
+        onShowMatches={() => {
+          const match = filteredPubVenues[0];
+          if (filteredPubVenueCount === 1 && match) {
+            moveMapCameraTo({ center: [match.longitude, match.latitude], zoom: 14.5 });
+          } else {
+            setNearbyMapResult(null);
+            setSearchRecoveryToken((token) => token + 1);
+          }
+        }}
+        onClear={clearMapQuery}
+      />
     ) : null;
   }
 
@@ -6871,6 +6902,7 @@ export default function PubMap({
         maxBounds={UK_BOUNDS}
         fitQueryOnArrival={shouldFitQueryVenuesOnArrival(arrivalSearch)}
         searchFitToken={searchFitToken}
+        searchRecoveryToken={searchRecoveryToken}
         queryVenues={queryVenues}
         userLocation={userLocation}
         nearMePending={nearbyLoading}

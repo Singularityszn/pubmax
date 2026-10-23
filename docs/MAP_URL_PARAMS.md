@@ -31,6 +31,10 @@ through `next.config.mjs`.
 
 ## History and filter synchronisation
 
+`useMapOpeningArrival` reads the opening URL once per mounted map. Later `q`
+and `sel` history writes do not change the opening location decision or restart
+the opening venue loader.
+
 `useMapSurfaceNavigation` owns the map's sheet history. When Back, Forward,
 or Home traverses related sheet entries on the same pathname, it calls the
 synchronisation callback returned by `useCrawlUrlSync`. That callback cancels
@@ -53,6 +57,25 @@ Regression cases live in
 
 The [map camera and search contract](rules/components-map-canvas-and-pins.md#a-camera-move-has-an-owner-and-the-map-a-reader-is-looking-at-loads-first)
 owns query framing, surrounding price pins, and sheet behavior after reload.
+
+## Named area arrivals
+
+Places area links use `/map?area=piccadilly-soho` for London and
+`/map/{city}?area={slug}` for another city. `lib/mapAreaArrival.ts` resolves the
+slug against that city's published areas. Unknown slugs and slugs from another
+city have no area target. The name and coordinates come from that catalogue.
+
+A valid area opens at the area's centre and the normal area zoom. It takes
+precedence over saved viewports. Once the map and venue data are ready, it uses
+the same area selection action as map search to open the area's pubs. It does
+not use `q`, which filters venue names and other venue text.
+
+The area value survives crawl URL synchronisation until a venue query or
+selection replaces it. A different area selection updates it. If a link has
+both `area` and a non-empty `q` or `sel`, the venue query or selection wins.
+A later page load resolves the area against the current city catalogue.
+These links do not create an `/area` route or require a separate server-rendered
+map document.
 
 ## Fail-soft for an unknown `?sel=`
 
@@ -96,6 +119,7 @@ While the card is on screen, the analytics consent prompt stands down. See
 
 | Param | Values | Owner file | What it does | Decode fallback behaviour | Round-trip |
 |---|---|---|---|---|---|
+| `area` | A published area slug for the route's city | `lib/mapAreaArrival.ts` | Opens the named area and its pubs. Its coordinates take precedence over saved viewports. | Unknown and wrong-city slugs have no area target. | Preserved by `components/map/useCrawlUrl.ts`. |
 | `mode` | `suggest` (default) or `build` | `lib/crawlUrl.ts` | Sets the crawl planner to suggestion mode or build mode. | Any other value is ignored. The state stays `suggest`. | Yes. `encodeCrawl` writes it back on every crawl-state change (debounced, `components/map/useCrawlUrl.ts`). Omitted when it is the default `suggest`. |
 | `style` | One of `balanced`, `cheapest`, `heritage`, `writerTrail`, `beerGarden`, `sports`, `dateNight` | `lib/crawlUrl.ts` | Picks the crawl-style filter preset. | A value outside this set is ignored. No style is applied. | Yes, same debounced sync as `mode`. |
 | `max` | Number | `lib/crawlUrl.ts` | Sets the maximum pint price filter. | Clamped to 4 to `NO_PINT_PRICE_CAP`. A non-numeric value is ignored. | Yes, same debounced sync. |
