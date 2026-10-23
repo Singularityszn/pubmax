@@ -240,6 +240,9 @@
     "yaml": "^2.9.1"
   },
   "overrides": {
+    "@vercel/cli-config": {
+      "zod": "$zod"
+    },
     "uuid": "14.0.2",
     "browserslist": "^4.29.3",
     "playwright": "1.64.0",

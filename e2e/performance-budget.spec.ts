@@ -230,3 +230,29 @@ test("performance browser prevents service-worker registration", async ({ page }
   expect(registered).toBe(false);
   expect(page.context().serviceWorkers()).toEqual([]);
 });
+
+test("performance warm-up retains HTTP caching while blocking third parties", async ({ page, baseURL }) => {
+  await preparePerfPage(page, new URL(baseURL!).origin);
+  await page.goto("/about");
+  const asset = await page.locator('link[rel="stylesheet"]').first().getAttribute("href");
+  expect(asset).toBeTruthy();
+  const cached = await page.evaluate(async (url) => {
+    await (await fetch(url, { cache: "reload" })).text();
+    performance.clearResourceTimings();
+    await (await fetch(url)).text();
+    const entry = performance.getEntriesByName(
+      new URL(url, location.href).href,
+    ).at(-1) as PerformanceResourceTiming;
+    return { transferred: entry.transferSize, decoded: entry.decodedBodySize };
+  }, asset!);
+  expect(cached.decoded).toBeGreaterThan(0);
+  expect(cached.transferred).toBe(0);
+
+  // This origin passes the document CSP, so the failure must come from the rig.
+  const thirdParty = "https://tiles.openfreemap.org/__pubmax_perf_block_probe";
+  const refused = page.waitForEvent(
+    "requestfailed", request => request.url() === thirdParty,
+  );
+  await page.evaluate(url => fetch(url).catch(() => null), thirdParty);
+  expect((await refused).failure()?.errorText).toBe("inspector");
+});

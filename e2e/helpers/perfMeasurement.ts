@@ -250,18 +250,22 @@ export async function preparePerfPage(
     requestAnimationFrame(tick);
   }, { routes: gateRoutes });
 
-  if (method.thirdPartyBlocked) {
-    await page.route("**/*", (route) => {
-      if (route.request().url().startsWith(origin)) return route.continue();
-      return route.abort();
-    });
-  }
-
   const rate = method.cpuThrottleRate;
   const network = method.network;
   const throttlesNetwork = network && network.profile !== "loopback";
-  if ((rate && rate > 1) || throttlesNetwork) {
+  if (method.thirdPartyBlocked || (rate && rate > 1) || throttlesNetwork) {
     const session = await page.context().newCDPSession(page);
+    if (method.thirdPartyBlocked || throttlesNetwork) {
+      await session.send("Network.enable");
+    }
+    if (method.thirdPartyBlocked) {
+      // Playwright routing disables HTTP caching, turning every measured warm
+      // navigation into a cold load. Browser-native blocking keeps the cache.
+      await session.send("Network.setBlockedURLs", {
+        urlPatterns: [{ urlPattern: `${origin}/*`, block: false }],
+        urls: ["*"],
+      });
+    }
     if (rate && rate > 1) {
       await session.send("Emulation.setCPUThrottlingRate", { rate });
     }
@@ -270,7 +274,6 @@ export async function preparePerfPage(
       // still lose the night to a waterfall, and a waterfall only costs
       // anything where a round trip does - so the rig pins one named profile
       // with its own numbers rather than measuring over a wire nobody has.
-      await session.send("Network.enable");
       await session.send("Network.emulateNetworkConditions", {
         offline: false,
         latency: network.latencyMs,

@@ -5,11 +5,37 @@ an independent refresh, separate from open PRs #2347, #2339 and #2346. Those PRs
 must be reconciled before merge, especially homepage copy, Tonight credits,
 area availability and About schema. This change does not deploy production.
 
-## Gate test corrections
+## Warm-cache test correction
 
-These results cover the working changes after `0cf756fab`, against base source `1dd819f3c`.
-The performance verdict remains **no-go** on this machine.
-The isolated comparison found no change-caused slowdown, but both builds exceed the unchanged paint ceilings.
+The latest targeted checks pass all existing ceilings for Home, Pub Pal and About.
+Playwright routing disabled the HTTP cache, so discarded warm-up loads could not warm the static assets.
+The measurement helper now uses browser-native blocking for third-party requests.
+It preserves the HTTP cache, service-worker isolation, CPU throttle, network profile and sample counts.
+Product copy, styles and behavior remain unchanged.
+
+| Route | Paint ceiling | Before cache correction | After cache correction |
+| --- | ---: | ---: | ---: |
+| Home | 800 ms | 984 ms | 248 ms |
+| Pub Pal | 700 ms | 852 ms | 212 ms |
+| About | 500 ms | 856 ms | 220 ms |
+
+These figures use the same production build from `b44976e23` before and after the helper correction.
+They are not a new comparison against the base commit.
+Script sizes and request counts remain unchanged in these samples.
+[The receipt](gate-cache-correction.json) retains every sample, ceiling and open map-prefetch stream.
+
+The cache regression failed before the fix and passed afterward.
+The browser checks also confirm third-party blocking and service-worker isolation.
+All six measurement-helper unit tests pass.
+The configured dependency audit also passes after updating body-parser and replacing the pinned, vulnerable nested Zod version.
+This test phase did not run the full suite, lint or separate static checks.
+The outer executor owns those phases and the remaining delivery decisions.
+
+## Earlier gate test corrections
+
+These earlier results cover the working changes after `0cf756fab`, against base source `1dd819f3c`.
+Before the cache correction, the performance verdict was **no-go** on this machine.
+The isolated comparison found no change-caused slowdown, but both builds exceeded the unchanged paint ceilings.
 
 | Route | Paint ceiling | Standalone change | Alternating change | Alternating base |
 | --- | ---: | ---: | ---: | ---: |
