@@ -6870,6 +6870,7 @@ export default function PubMap({
         resumeViewport={mapResumeViewport}
         maxBounds={UK_BOUNDS}
         fitQueryOnArrival={shouldFitQueryVenuesOnArrival(arrivalSearch)}
+        hasSearchQuery={Boolean(filters.query.trim())}
         searchFitToken={searchFitToken}
         queryVenues={queryVenues}
         userLocation={userLocation}

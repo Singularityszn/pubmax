@@ -455,6 +455,8 @@ type PubMapCanvasProps = {
    * style/load so outer-London places land framed, not on the city default.
    */
   fitQueryOnArrival?: boolean;
+  /** The current reader query, before deferred matching or camera fitting. */
+  hasSearchQuery?: boolean;
   /**
    * Reframes the current query matches when the parent increments the token.
    * Typed multi-result searches and restored queries use this path. A restored
@@ -634,6 +636,7 @@ function withPubMapCanvasDefaults({
   tonightOverlayVisible = false,
   coffeePilotCafes = NO_COFFEE_PILOT_CAFES,
   fitQueryOnArrival = false,
+  hasSearchQuery,
   searchFitToken = 0,
   userLocation = null,
   readerPosition = null,
@@ -674,6 +677,7 @@ function withPubMapCanvasDefaults({
     tonightOverlayVisible,
     coffeePilotCafes,
     fitQueryOnArrival,
+    hasSearchQuery,
     searchFitToken,
     userLocation,
     readerPosition,
@@ -768,6 +772,7 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
     coffeePilotCafes,
     londonRestaurants,
     fitQueryOnArrival,
+    hasSearchQuery,
     searchFitToken,
     queryVenues = venues,
     userLocation,
@@ -847,6 +852,8 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
   const userCameraInteractionRef = useRef(false);
   const [mapReady, setMapReady] = useState(false);
   const [mapInstanceReady, setMapInstanceReady] = useState(false);
+  const [mapRevealReady, setMapRevealReady] = useState(false);
+  const coldOpeningGroundRef = useRef(false);
   const [mapBearing, setMapBearing] = useState(() => mapView.bearing ?? 0);
   const [mapPitch, setMapPitch] = useState(() => mapView.pitch ?? 0);
   // Who owns the camera right now. lib/mapGestureGuard.ts holds the rule; this
@@ -1393,8 +1400,24 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
     openingCameraSettledRef.current = openingCameraSettled;
   }, [focusPoint, openingCameraSettled]);
   useEffect(() => {
+    if (hasSearchQuery) arrivalBearingSpentRef.current = true;
+  }, [hasSearchQuery]);
+  useEffect(() => {
+    const takeCamera = (event: Event) => {
+      const kind = (event as CustomEvent<{ kind?: string }>).detail?.kind;
+      if (kind && kind !== "arrival" && kind !== "opening-location") {
+        arrivalBearingSpentRef.current = true;
+      }
+    };
+    window.addEventListener("pubmax:camera-intent", takeCamera);
+    return () => window.removeEventListener("pubmax:camera-intent", takeCamera);
+  }, []);
+  useEffect(() => {
     const map = mapRef.current;
     if (!map || arrivalBearingSpentRef.current) return;
+    // A cold ground owns this camera until the reveal commit retires its
+    // loading frame. Start the separate six-second location wait only then.
+    if (coldOpeningGroundRef.current && !mapRevealReady) return;
     let cancelled = false;
     let wait: ArrivalBearingWait | null = { stillPolls: 0, waitedMs: 0 };
     // The turn waits for the map to STOP. Measured without the wait: the
@@ -1431,7 +1454,7 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
       cancelled = true;
       if (timer) clearTimeout(timer);
     };
-  }, [mapInstanceReady, easeArrivalBearing, cameraLanePending]);
+  }, [mapInstanceReady, mapRevealReady, easeArrivalBearing, cameraLanePending]);
 
   // The parent owns the selection and renders the story (the phone's shared
   // sheet, the desktop's left drawer); the canvas only reports a pin tap here
@@ -1535,10 +1558,12 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
     paintContainerBase(themeRef.current);
     hoverCapableRef.current = window.matchMedia("(hover: hover) and (pointer: fine)").matches;
     const phoneFirstImpression = window.matchMedia("(max-width: 640px)").matches;
+    setMapRevealReady(false);
     const openingGroundActive =
       document.documentElement.dataset.mapPreview === "on" &&
       document.documentElement.dataset.mapGround === "on" &&
       document.querySelector(".mapOpeningGround") !== null;
+    coldOpeningGroundRef.current = openingGroundActive;
     const reducedQuery = window.matchMedia("(prefers-reduced-motion: reduce)");
     reducedRef.current = reducedQuery.matches;
     performance.clearMarks("pubmax:pin-entrance-settled");
@@ -1897,6 +1922,7 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
     const emitUserCameraMove = (event: { originalEvent?: unknown }) => {
       if (!event.originalEvent) return;
       userCameraInteractionRef.current = true;
+      arrivalBearingSpentRef.current = true;
       onUserCameraMoveRef.current?.();
     };
     // One pinch raises drag, zoom, rotate and pitch together, and each ends on
@@ -2362,6 +2388,7 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
         // gate. The ceiling degrades honestly if either required phone signal
         // never arrives.
         onMapReadyRef.current?.(true);
+        setMapRevealReady(true);
         // The short pin timer only ungates layers behind the loading frame.
         // Start the document preview's handoff when this frame can retire.
         markPubmaxTiming("pubmax:pins-visible");
