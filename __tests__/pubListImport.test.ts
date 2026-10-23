@@ -1,11 +1,15 @@
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("server-only", () => ({}));
 
 import { importPubList } from "@/lib/pubListImport.server";
 
 describe("pub list import", () => {
-  afterEach(() => vi.restoreAllMocks());
+  beforeEach(() => vi.stubEnv("OPENROUTER_API_KEY", ""));
+  afterEach(() => {
+    vi.unstubAllEnvs();
+    vi.restoreAllMocks();
+  });
 
   it("uses no model for a deterministic list even when every pub is unmatched", async () => {
     const extract = vi.fn().mockRejectedValue(new Error("The model must not run."));

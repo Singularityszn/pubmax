@@ -396,9 +396,8 @@
   --control-tint-surface: var(--state-active-surface);
   --control-tint-border: var(--state-active-border);
 
-  /* — Shadow: --shadow kept as the default (paper-lift in light, overridden to
-       a deeper candle-glow in theme.css dark). --shadow-inset-* power the
-       pressed-ink utility below and are shared by both themes. */
+  /* --shadow takes its dark override from theme.css. --shadow-inset-* power
+     the pressed-ink utility below and are shared by both themes. */
   --shadow: 0 18px 45px rgba(60, 30, 20, 0.11), 0 8px 18px rgba(60, 30, 20, 0.05);
   --shadow-sm: 0 7px 18px rgba(60, 30, 20, 0.09);
   --shadow-float: var(--shadow); /* chrome floating over the map (arc chips, arrival banner); follows the theme.css dark --shadow override */

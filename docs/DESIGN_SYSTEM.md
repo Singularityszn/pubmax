@@ -14,7 +14,7 @@ Explored in [`docs/design-explorations/`](./design-explorations/README.md).
 | Theme | Direction | Thesis |
 |---|---|---|
 | **Light (default)** | **A Candle Coral** | Warm peach paper + coral Plan CTA (`--brass` ≈ `#ff5a5f`) |
-| **Dark** | **B Night Out** | Deep ink + coral CTA (`--brass`) + amber route (`--night-amber`) + pint neon go - **no purple glow** |
+| **Dark** | **B Night Out** | Deep ink + coral CTA (`--brass`) + amber route (`--night-amber`) + muted pint green - **no purple glow** |
 
 Field Guide jobs retained: `--river` / `--pint` / `--brick` stay semantic for
 pins and prices. Coral owns the primary CTA in both themes; amber stays a
@@ -34,6 +34,17 @@ files, and every token that existed before this pass still resolves under the
 same **name** (values may retune within the A/B decision).
 
 ## Where things live
+
+Project and area rules govern every design task. `DESIGN.md` describes visual
+intent and a token subset. This guide owns engineering conventions. CSS owns
+runtime token values and theme overrides. Component code and tests establish
+current behaviour. Investigate any mismatch with a rule.
+`docs/VOICE.md` owns product copy.
+
+Skills provide task procedures. A generic skill or its example must not replace
+these owners, change the chosen fonts, or introduce new colours or motion rules.
+Read only the skills needed for the task. Keep each decision in its owning file
+and link to it from other documents.
 
 | File | Owns |
 |---|---|
@@ -89,6 +100,21 @@ loads or bundles them.
 |---|---|
 | [Squints](https://squints.app) | A free Chrome extension for a live page: rulers, the gap between two elements, the colour and the font that actually rendered, a column grid and slow motion. Use it to check a change against the tokens below: a spacing step, a radius from the corner scale, a colour that is a token and not a literal, and an animation at its real pace. |
 | [The Iconography Encyclopedia](https://encyclopedia.iconography.co) | A glossary of icon design terms (stroke weight, corner smoothing, boolean operations, naming). Use its words when you describe or review an icon. Icons still come from Lucide alone, at the scale under [Icons](#icons). |
+
+### Optional DESIGN.md validation
+
+For a structural check of the root specification, run the pinned Google tool:
+
+```sh
+npm exec --yes --ignore-scripts --package=@google/design.md@0.4.0 -- designmd lint DESIGN.md
+```
+
+Inspect warnings even when the command exits successfully. The tool checks
+structured token references and declared component colour pairs. It does not
+resolve contradictory prose, compare application CSS, or verify a rendered page.
+The root specification is a token subset without component colour pairs, so a
+clean result does not establish accessible UI contrast. Keep the existing tests
+and browser checks. Do not export this subset over the application stylesheets.
 
 ## Launch tokens
 
@@ -489,21 +515,16 @@ A width kept outside the set (the map's 768 sheet band, the site nav's 767
 row, the landing hero's 960 and the map's 1371 zoom lane) is measured, and
 its reason is written beside it in the allowlist. The allowlist only shrinks.
 
-### Shadow: night bloom (dark) vs paper-lift (light)
+### Shadow: neutral depth (dark) and paper-lift (light)
 
-`--shadow` is the same variable in both themes but tuned to a different
-*feeling*, not just a darker version of itself:
+`--shadow` and `--shadow-sm` use the values in the theme stylesheets.
 
-- **Light (`app/globals.css`)** — soft warm paper-lift over Candle Coral paper
-  (coral-tinted, not cool lavender).
-- **Dark (`app/theme.css`)** — deeper drop **plus a faint amber bloom** (Night
-  Out street light) — never purple mesh/glow.
+- **Light (`app/globals.css`):** Warm brown drop shadows over Candle Coral paper.
+- **Dark (`app/theme.css`):** Black drop shadows, a dark outline, and a faint white inset highlight. No amber bloom.
 
-`--shadow-sm` follows the same day/night pairing for smaller elements.
-`--shadow-inset-press` is the inset "pressed" shadow shared by both themes
-for the pressed-ink utility (see below) — it flips its highlight edge (cream
-in light, amber in dark) so the letterpress effect reads correctly against
-either surface.
+`--shadow-inset-press` uses a dark inset edge and a white inset highlight in
+both themes. The theme values change their opacity for the surface behind them.
+Use these shared tokens instead of adding a new glow.
 
 ### Edges: the de-box rule
 
