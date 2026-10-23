@@ -1,0 +1,116 @@
+{
+  "now": "2026-10-22T18:00:00Z",
+  "cases": [
+    {
+      "id": "heritage-coronet",
+      "venueId": "venue-60y3sa",
+      "venueName": "The Coronet",
+      "query": "Tell me the history of The Coronet.",
+      "facts": []
+    },
+    {
+      "id": "heritage-henry-addington",
+      "venueId": "venue-on4bgj",
+      "venueName": "The Henry Addington",
+      "query": "Tell me the history of The Henry Addington.",
+      "facts": []
+    },
+    {
+      "id": "heritage-observatory",
+      "venueId": "venue-f1vl09",
+      "venueName": "The Observatory",
+      "query": "Tell me the history of The Observatory.",
+      "facts": []
+    },
+    {
+      "id": "heritage-porcupine",
+      "venueId": "venue-1wgngrf",
+      "venueName": "The Porcupine",
+      "query": "Tell me the history of The Porcupine.",
+      "facts": []
+    },
+    {
+      "id": "heritage-three-greyhounds",
+      "venueId": "venue-14mrz2z",
+      "venueName": "The Three Greyhounds",
+      "query": "Tell me the history of The Three Greyhounds.",
+      "facts": []
+    },
+    {
+      "id": "heritage-arnos-arms",
+      "venueId": "venue-xjf3n0",
+      "venueName": "Arnos Arms",
+      "query": "Tell me the history of Arnos Arms.",
+      "facts": []
+    },
+    {
+      "id": "heritage-finchley-united-services-club-ltd",
+      "venueId": "venue-lrz4u2",
+      "venueName": "Finchley United Services Club Ltd",
+      "query": "Tell me the history of Finchley United Services Club Ltd.",
+      "facts": []
+    },
+    {
+      "id": "heritage-lion-unicorn",
+      "venueId": "venue-4zg2be",
+      "venueName": "Lion & Unicorn",
+      "query": "Tell me the history of Lion & Unicorn.",
+      "facts": []
+    },
+    {
+      "id": "heritage-crosse-keys",
+      "venueId": "venue-zottpx",
+      "venueName": "The Crosse Keys",
+      "query": "Tell me the history of The Crosse Keys.",
+      "facts": []
+    },
+    {
+      "id": "heritage-millers-well",
+      "venueId": "venue-10paqy",
+      "venueName": "The Millers Well",
+      "query": "Tell me the history of The Millers Well.",
+      "facts": []
+    },
+    {
+      "id": "heritage-argyll-arms",
+      "venueId": "venue-ru7vbr",
+      "venueName": "The Argyll Arms",
+      "query": "Tell me the history of The Argyll Arms.",
+      "facts": [
+        {
+          "fact": "Heritage designation recorded as Grade II* listed building.",
+          "source": "WIKIDATA",
+          "sourceUrl": "https://www.wikidata.org/wiki/Q15978878#P1435"
+        },
+        {
+          "fact": "Historic pub in London",
+          "source": "WIKIDATA",
+          "sourceUrl": "https://en.wikipedia.org/wiki/Argyll_Arms"
+        }
+      ]
+    },
+    {
+      "id": "heritage-clachan",
+      "venueId": "venue-4pqtn7",
+      "venueName": "The Clachan",
+      "query": "Tell me the history of The Clachan.",
+      "facts": [
+        {
+          "fact": "Grade II listed public house.",
+          "source": "NHLE",
+          "sourceUrl": "https://historicengland.org.uk/listing/the-list/list-entry/1061360"
+        },
+        {
+          "fact": "Heritage designation recorded as Grade II listed building.",
+          "source": "WIKIDATA",
+          "sourceUrl": "https://www.wikidata.org/wiki/Q26314557#P1435"
+        },
+        {
+          "fact": "pub in Soho, London",
+          "source": "WIKIDATA",
+          "sourceUrl": "https://en.wikipedia.org/wiki/The_Clachan"
+        }
+      ]
+    }
+  ]
+}

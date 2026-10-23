@@ -133,7 +133,8 @@ export function searchUkPlaces(
   return places
     .filter(
       (place) =>
-        !excluded.has(place.search) && place.search.includes(normalizedQuery),
+        !excluded.has(place.search) &&
+        (place.search.startsWith(normalizedQuery) || place.search.includes(` ${normalizedQuery}`)),
     )
     .sort((left, right) => {
       return (
