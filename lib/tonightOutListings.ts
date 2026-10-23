@@ -618,7 +618,11 @@ export function tonightEmptyLead(
   whatsOn: TonightWhatsOnStatus,
   out: TonightOutAnswer,
   pubSuggestionCount = 0,
+  musicListingCount = 0,
 ): string {
+  if (musicListingCount > 0) {
+    return `${musicListingCount} sourced live music listing${musicListingCount === 1 ? "" : "s"} below.`;
+  }
   const reports = tonightLaneReports(whatsOn, out);
   if (pubSuggestionCount > 0 && reports.length === 0) {
     return "No confirmed events listed tonight.";

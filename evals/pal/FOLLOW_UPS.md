@@ -7,4 +7,10 @@ The deterministic suite encodes today's keyless Ask behaviour. These are known p
   `/api/ask`. Pal typed chat, voice, and webhook tools fence via
   `resolvePubPalFenceIntent` in `lib/pubPalToolInvoke.server.ts`.
 - **Venue price resolution** - unresolved price asks return "Name a listed pub" (`dearest-soho-honest`, `cheapest-no-anchor`). `wine-lamb-honest` reads people-logged wine prices and names the pub when nobody has logged one. Published menu prices remain available through the pub's Menu.
-- **Heritage card venue id** — heritage answers may ship cards with empty `venueId` while naming a pub in the title.
+- **Heritage question routing** - `runAsk` loses the venue ID for
+  `Tell me the history of The Coronet`. The card title becomes `Tell me of Coronet`.
+  `Tell me the history of The Clachan.` also returns no story and an empty ID,
+  although the dataset contains three sourced facts. The heritage subset tests
+  the shared tool with a canonical venue ID. Add the typed
+  route after repairing name resolution. Reproduction: call `runAsk` with that
+  query and `skipModel: true`, then inspect `cards[0].venueId` and `cards[0].title`.

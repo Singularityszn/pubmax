@@ -195,6 +195,7 @@ type CameraRefs = {
   cityBoundsRef: MutableRefObject<[[number, number], [number, number]]>;
   routeRef: MutableRefObject<Venue[]>;
   venuesRef: MutableRefObject<Venue[]>;
+  queryVenuesRef?: MutableRefObject<Venue[]>;
   /** Live gesture ownership. See lib/mapGestureGuard.ts for the rule. */
   gestureCameraRef: MutableRefObject<GestureCameraState>;
 };
@@ -211,6 +212,7 @@ export function useMapCamera(refs: CameraRefs) {
     cityBoundsRef,
     routeRef,
     venuesRef,
+    queryVenuesRef,
     gestureCameraRef,
   } = refs;
   const coordinator = useMemo(() => createCameraIntentCoordinator({
@@ -326,7 +328,7 @@ export function useMapCamera(refs: CameraRefs) {
   // camera). Skip if the user already tapped a pin — don't fight selectedVenue
   // fly-to. Padding mirrors fitRoute; maxZoom ~13 keeps outer boroughs readable.
   const fitQueryVenues = useCallback((kind: "query" | "search-recovery" = "query", requestId = 0) => {
-    const current = venuesRef.current;
+    const current = (queryVenuesRef ?? venuesRef).current;
     if (current.length === 0) return;
     const bounds = new maplibregl.LngLatBounds();
     current.forEach((venue) => bounds.extend([venue.longitude, venue.latitude]));
@@ -340,7 +342,7 @@ export function useMapCamera(refs: CameraRefs) {
       // Same flattening trap as fitRoute: keep the current rotation.
       bearing: map.getBearing(),
     }));
-  }, [reducedRef, scheduleCamera, venuesRef]);
+  }, [queryVenuesRef, reducedRef, scheduleCamera, venuesRef]);
 
   // Near me puts the READER on the map, not a cloud of pubs. A fitBounds over
   // nearby venues centres the cloud, which drops the reader wherever the
