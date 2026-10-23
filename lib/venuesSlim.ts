@@ -94,6 +94,12 @@ function isStringArray(value: unknown): value is string[] {
   );
 }
 
+function isFeatureObservation(value: unknown): boolean {
+  return Array.isArray(value) && value.length === 3 && typeof value[0] === "boolean"
+    && ["OpenStreetMap", "Google Places"].includes(value[1])
+    && typeof value[2] === "string" && Number.isFinite(Date.parse(value[2]));
+}
+
 function isFilterHints(value: unknown): value is VenueFilterHints {
   if (typeof value !== "object" || value === null) return false;
   const row = value as Record<string, unknown>;
@@ -113,6 +119,11 @@ function isFilterHints(value: unknown): value is VenueFilterHints {
     return false;
   if (row.drinkText !== undefined && typeof row.drinkText !== "string")
     return false;
+  for (const field of ["outdoorSeating", "beerGardenSource"] as const) {
+    const value = row[field];
+    if (value === undefined) continue;
+    if (!isFeatureObservation(value)) return false;
+  }
   if (row.topShelf !== undefined && !isBoolean(row.topShelf)) return false;
   if (row.scraped !== undefined && !isBoolean(row.scraped)) return false;
   return (

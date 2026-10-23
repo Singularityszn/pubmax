@@ -1,5 +1,7 @@
 "use client";
 
+import VenueFeatureFilters from "@/components/map/VenueFeatureFilters";
+
 import { CalendarClock, ChevronRight, List, MapPinned, Navigation2, ShieldCheck, X } from "lucide-react";
 import { formatGbp } from "@/lib/formatGbp";
 import { priceBand, priceBandAreaForVenue } from "@/lib/priceBand";
@@ -68,7 +70,6 @@ import {
   withForcedVenue,
 } from "@/lib/filterMapVenues";
 import {
-  OPEN_NOW_FILTER_CAPTION,
   openNowStatesForVenues,
   type OpenNowState,
 } from "@/lib/openNow";
@@ -6299,6 +6300,7 @@ export default function PubMap({
             onOpen={() => changeMapOverlay("tonight")}
           />
         ) : null}
+        <VenueFeatureFilters filters={filters} onChange={setFilters} resultCount={loaded && loadedCityId === cityId ? filteredVenueCount : null} />
         <MapExperienceLensControl
           lens={experienceLens}
           allSelected={!drinkFiltersActive}
@@ -6374,26 +6376,6 @@ export default function PubMap({
             setFilters((current) => ({ ...current, maxPrice }))
           }
         />
-        <label className="mobileMapFilterToggle">
-          <input
-            type="checkbox"
-            checked={filters.openNow}
-            onChange={(event) =>
-              setFilters((current) => ({
-                ...current,
-                openNow: event.target.checked,
-              }))
-            }
-          />
-          <span>
-            <strong>Open now</strong>
-            {filters.openNow ? (
-              <small>{OPEN_NOW_FILTER_CAPTION}</small>
-            ) : (
-              <small>Hide pubs we know are closed. Pubs without hours stay visible.</small>
-            )}
-          </span>
-        </label>
       </div>
     );
   }
@@ -6474,6 +6456,8 @@ export default function PubMap({
           filters.zone !== "all"
         }
         openNowActive={filters.openNow}
+        beerGardenActive={filters.requireBeerGarden}
+        outdoorSeatingActive={filters.requireOutdoorSeating}
         savedOnlyActive={savedOnly}
         priceCapActive={
           experienceLens === "all" &&
