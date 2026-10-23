@@ -12,6 +12,38 @@ import type { AskResponseBody } from "@/lib/ask/types";
 import { getVenueDetail } from "@/lib/venueDetailIndex";
 import { planOpeningSchedulesForVenues } from "@/lib/planRouteEvidence.server";
 
+// These cases exercise missing and first-party hours independently of generated Places shards.
+vi.mock("@/lib/placesEnrichment.server", () => ({
+  placesRecordForVenue: async () => null,
+}));
+
+vi.mock("@/lib/venueSiteFacts.server", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/venueSiteFacts.server")>();
+  const { default: fixture } = await import("@/evals/pal/fail-closed-hours.json");
+  const unknown = new Set(fixture.cases.filter((entry) => entry.value === null).map((entry) => entry.venueId));
+  return {
+    ...actual,
+    siteFactsForVenue: async (venueId: string) => {
+      const facts = await actual.siteFactsForVenue(venueId);
+      return unknown.has(venueId) && facts ? { ...facts, hours: undefined } : facts;
+    },
+  };
+});
+
+vi.mock("@/lib/planRouteEvidence.server", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/planRouteEvidence.server")>();
+  const { default: fixture } = await import("@/evals/pal/fail-closed-hours.json");
+  const unknown = new Set(fixture.cases.filter((entry) => entry.value === null).map((entry) => entry.venueId));
+  return {
+    ...actual,
+    planOpeningSchedulesForVenues: async (...args: Parameters<typeof actual.planOpeningSchedulesForVenues>) => {
+      const schedules = await actual.planOpeningSchedulesForVenues(...args);
+      for (const id of unknown) if (schedules.has(id)) schedules.set(id, null);
+      return schedules;
+    },
+  };
+});
+
 const index = loadPalEvalVenueIndex();
 const reference = { hoursAnswer: { venueId: "venue-60y3sa", value: null } } as const;
 const now = Date.parse(dataset.now);
@@ -209,7 +241,7 @@ describe("Pal fail-closed hours eval", () => {
     expect(gradePalCase(body, { hoursAnswer: { venueId: "venue-60y3sa", value: [line], source: source.label } }, index).pass).toBe(true);
   });
 
-  it("pins ten unknown schedules and two sourced schedules to the venue dataset", async () => {
+  it("pins ten missing-hours fixtures and two real first-party schedules", async () => {
     expect(Number.isFinite(now)).toBe(true);
     expect(new Set(dataset.cases.map((entry) => entry.id)).size).toBe(12);
     expect(new Set(dataset.cases.map((entry) => entry.venueId)).size).toBe(12);
