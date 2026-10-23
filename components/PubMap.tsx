@@ -4303,9 +4303,9 @@ export default function PubMap({
   const [searchFitToken, setSearchFitToken] = useState(0);
   const [searchRecoveryToken, setSearchRecoveryToken] = useState(0);
   const [searchAreaNewsArea, setSearchAreaNewsArea] = useState<string | null>(null);
-  // The query whose camera an explicit pick already owns. Cleared on every
-  // keystroke, so the next word re-arms the typed-search move.
-  const searchQueryCameraOwnedRef = useRef<string | null>(null);
+  // Arrival framing owns the initial query before the canvas is ready.
+  // A keystroke releases that ownership for the typed-search move.
+  const searchQueryCameraOwnedRef = useRef<string | null>(seed.filters.query.trim() || null);
   const filteredVenuesRef = useRef(filteredVenues);
   useEffect(() => {
     filteredVenuesRef.current = filteredVenues;

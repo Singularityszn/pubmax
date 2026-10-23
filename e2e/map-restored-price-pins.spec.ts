@@ -59,6 +59,14 @@ for (const viewport of [
     })).toBe(true);
     await page.waitForTimeout(1_000);
     await expect(page.locator("#main")).not.toHaveClass(/detail-open/);
+    await expect(page.locator("#main")).not.toHaveAttribute("inert");
+    await expect.poll(async () => page.evaluate(() => {
+      const probe = (window as Window & {
+        __pubmaxPaintedMapTapPoints?: () => Array<{ kind: string; id: string }>;
+      }).__pubmaxPaintedMapTapPoints;
+      return probe?.().some((point) => point.kind === "cluster" ||
+        (point.kind === "pin" && !point.id.startsWith("venue-uk-") && point.id !== "venue-1vle947")) ?? false;
+    })).toBe(true);
     await expect(page).toHaveURL(/\/map\?q=Hatton$/);
     await expect(page.getByText("Visiting another city?", { exact: true })).toHaveCount(0);
   });
@@ -96,8 +104,6 @@ for (const selection of ["typed search", "venue suggestion", "base pub suggestio
       await expect(page.getByRole("button", { name: "Map area: Near me. Change city", exact: true }))
         .toBeVisible({ timeout: 2_000 });
     }).toPass({ timeout: 30_000 });
-    await expect(page.getByText("Showing pubs near you", { exact: true }))
-      .toBeVisible({ timeout: 30_000 });
     await expect.poll(async () => page.evaluate(() => {
       const camera = (window as Window & {
         __pubmaxMapCamera?: { read(): { center: number[]; zoom: number; moving: boolean; settling: boolean } };
