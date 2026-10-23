@@ -118,3 +118,15 @@ describe("reading the words a PDF menu states", () => {
     expect(pdfIsWorthReading(0)).toBe(false);
   });
 });
+
+
+it("keeps the PDF pint separate from an inline fractional prefix", async () => {
+  const text = await readPdfText(pdfStating([
+    "Guinness pint £6.20 2/3 Kernel stout £6.00",
+    "Madri pint £6.40", "Neck Oil pint £6.80", "House red wine 175ml £7.50",
+  ]));
+  const reading = readVenueDrinkPrices(text ?? "", "text");
+  expect(pageStatesADrinksList(reading)).toBe(true);
+  expect(reading.kept).toContainEqual(expect.objectContaining({ drinkLabel: "Guinness pint", category: "beer", priceGbp: 6.2 }));
+  expect(reading.kept.some((row) => row.drinkLabel?.includes("Kernel"))).toBe(false);
+});

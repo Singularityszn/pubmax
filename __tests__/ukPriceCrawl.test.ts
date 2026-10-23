@@ -50,16 +50,28 @@ describe("what a page states", () => {
     "Guinness pint £6.20 Kernel stout £6.00 (1/3)",
     "Kernel stout £6.00 (⅓) Guinness pint £6.20",
     "Guinness pint £6.20\n2/3 Kernel stout £6.00",
+    "Guinness pint £6.20 2/3 Kernel stout £6.00",
+    "2/3 Kernel stout £6.00 Guinness pint £6.20",
+    "Guinness pint £6.20 ⅔ Kernel stout £6.00",
+    "⅔ Kernel stout £6.00 Guinness pint £6.20",
+    "Guinness pint £6.20 Kernel stout two-thirds pint £6.00",
+    "Kernel stout two-thirds pint £6.00 Guinness pint £6.20",
+    "Guinness pint £6.20 Kernel stout £6.00 (2/3 pint)",
+    "Kernel stout £6.00 (2/3 pint) Guinness pint £6.20",
+    "(2/3) Kernel stout £6.00 Guinness pint £6.20",
+    "Kernel stout pint £6.00 (2/3 pint) Guinness pint £6.20",
   ])("keeps a pint beside a fractional pour: %s", (row) => {
     for (const format of ["html", "text"] as const) {
       const reading = readVenueDrinkPrices(format === "html" ? `<p>${row.replace(/\n/g, "</p><p>")}</p>` : row, format);
-      expect(reading.kept.map(({ priceGbp }) => priceGbp)).toEqual([6.2]);
+      expect(reading.kept.map(({ drinkLabel, category, priceGbp }) => ({ drinkLabel, category, priceGbp }))).toEqual([
+        { drinkLabel: "Guinness pint", category: "beer", priceGbp: 6.2 },
+      ]);
       expect(reading.drops).toEqual(["fractional-measure-not-a-pint"]);
     }
   });
 
   it("keeps a useful drinks list when a neighbouring pour is fractional", () => {
-    const reading = readVenueDrinkPrices(`<p>Guinness pint £6.20 Kernel stout £6.00 (2/3)</p>
+    const reading = readVenueDrinkPrices(`<p>Guinness pint £6.20 2/3 Kernel stout £6.00</p>
       <p>Madri pint £6.40</p><p>Neck Oil pint £6.80</p><p>House red wine 175ml £7.50</p>`, "html");
     expect(reading.kept.map(({ priceGbp }) => priceGbp)).toEqual([6.2, 6.4, 6.8, 7.5]);
     expect(pageStatesADrinksList(reading)).toBe(true);
