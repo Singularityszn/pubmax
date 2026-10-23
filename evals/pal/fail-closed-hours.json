@@ -2,17 +2,17 @@
   "now": "2026-10-22T18:00:00Z",
   "cases": [
     {
-      "id": "hours-coronet",
-      "venueId": "venue-60y3sa",
-      "query": "What are the opening hours of The Coronet?",
+      "id": "hours-bird-barrel",
+      "venueId": "venue-1ibpzru",
+      "query": "What are the opening hours of The Bird & Barrel?",
       "value": null,
       "source": null,
       "sourceUrl": null
     },
     {
-      "id": "hours-argyll-arms",
-      "venueId": "venue-ru7vbr",
-      "query": "What are the opening hours of The Argyll Arms?",
+      "id": "hours-bexleyheath-club",
+      "venueId": "venue-3ojh5z",
+      "query": "What are the opening hours of Bexleyheath Working Mens Club?",
       "value": null,
       "source": null,
       "sourceUrl": null
@@ -26,17 +26,17 @@
       "sourceUrl": null
     },
     {
-      "id": "hours-henry-addington",
-      "venueId": "venue-on4bgj",
-      "query": "What are the opening hours of The Henry Addington?",
+      "id": "hours-travellers-home",
+      "venueId": "venue-1e1odn1",
+      "query": "What are the opening hours of The Travellers Home?",
       "value": null,
       "source": null,
       "sourceUrl": null
     },
     {
-      "id": "hours-observatory",
-      "venueId": "venue-f1vl09",
-      "query": "What are the opening times at The Observatory?",
+      "id": "hours-oneills-bromley",
+      "venueId": "venue-1n11y32",
+      "query": "What are the opening hours of O'Neill's Bromley?",
       "value": null,
       "source": null,
       "sourceUrl": null
@@ -58,17 +58,17 @@
       "sourceUrl": null
     },
     {
-      "id": "hours-three-greyhounds",
-      "venueId": "venue-14mrz2z",
-      "query": "What are the opening hours of The Three Greyhounds?",
+      "id": "hours-artful-duke",
+      "venueId": "venue-bd6rpo",
+      "query": "What are the opening hours of The Artful Duke Pub (Bromley)?",
       "value": null,
       "source": null,
       "sourceUrl": null
     },
     {
-      "id": "hours-arnos-arms",
-      "venueId": "venue-xjf3n0",
-      "query": "What are the opening hours of Arnos Arms?",
+      "id": "hours-freelands-tavern",
+      "venueId": "venue-1lld70u",
+      "query": "What are the opening hours of The Freelands Tavern?",
       "value": null,
       "source": null,
       "sourceUrl": null
@@ -110,8 +110,8 @@
         "Friday 08:00 to 00:00",
         "Saturday 08:30 to 23:00"
       ],
-      "source": "The Crosse Keys website. Checked 2026-10-05",
-      "sourceUrl": "https://www.jdwetherspoon.com/pubs/the-crosse-keys-city-of-london"
+      "source": "Google Places. Checked 2026-10-04",
+      "sourceUrl": null
     }
   ]
 }
