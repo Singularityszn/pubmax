@@ -27,12 +27,27 @@ Ship one Night OS Ask surface over a **server tool registry** and `POST /api/ask
    The list is pinned by `__tests__/askRouter.test.ts`; the V0.1 five keep
    their policy and their words in `lib/ask/conciergeTools.ts` and their
    handlers in `lib/ask/conciergeTools.server.ts`.
-2. **Grounded answers** — every card and figure carries provenance; tools never
-   invent pint prices. Uncorroborated community rows may appear on the pub’s
-   own sheet language only; map-authority claims require corroboration.
+2. **Grounded answers** - cards with recorded answers carry provenance, as does
+   every figure. Tools never invent pint prices. Uncorroborated community rows
+   may appear on the pub’s own sheet language only. Map-authority claims
+   require corroboration.
    `lib/ask/router.ts` owns price-subject routing for both HTTP paths.
    Named menu requests and unsupported price comparisons use deterministic
    `runAsk` even when a model provider is configured.
+   Explicit named questions about opening or closing hours or times also
+   bypass the map Ask model loop. `search_venues` delegates these questions to
+   `lib/ask/venueHours.server.ts`. Keyless typed chat preserves the result
+   before its discovery fallback. Discovery and crawl requests retain their
+   existing routing.
+   The resolver isolates the hours clause before matching a complete venue
+   name or alias. It tries complete names before removing a grammatical
+   possessive. Nearby landmarks cannot replace the requested pub.
+   It reads usable Google Places hours first, then website hours, then the
+   existing directory schedule. Freshness limits come from `PLACES_REFRESH_DAYS`
+   and `OPENING_EVIDENCE_FRESH_DAYS`. Website and directory evidence require a
+   source URL. `__tests__/askVenueHours.test.ts` covers source precedence and
+   name resolution. `__tests__/pubPalChatHours.test.ts` covers the keyless chat
+   response and combined transit questions.
    `runAskTool` applies the original question before speculative model arguments.
    `venue_drinks` also reads accepted food and drink menu items through
    `lib/ask/publishedMenu.server.ts`, preserving each field's source and date.
@@ -53,13 +68,13 @@ Ship one Night OS Ask surface over a **server tool registry** and `POST /api/ask
    (same honesty as heritage structured-only).
 5. **Bounded model loop (map Ask)** — with OpenRouter, tool-calling on
    `POST /api/ask` is allowlisted, low temperature, capped rounds and tokens.
-   The model selects tools only; `composeAnswer` builds reader copy from
-   returned hints and cards.
+   The model selects tools only. For model-routed turns, `composeAnswer`
+   builds reader copy from returned hints and cards.
 6. **Pal typed chat and voice (ElevenLabs when configured)** — without
    `ELEVENLABS_API_KEY` and `ELEVENLABS_PUB_PAL_AGENT_ID`, typed chat on
    `POST /api/pub-pal/chat` uses the same keyless `runAsk` tool path as map Ask
    (`skipModel: true`). With both values set, typed chat and voice share one
-   ElevenLabs agent, subject to the deterministic routing in decision 2.
+   ElevenLabs agent, subject to the menu and price routing in decision 2.
    [Pub Pal setup](../PUB_PAL_SETUP.md) owns the session transport details. Server
    webhook tools at `POST /api/pub-pal/tools/{name}` invoke the same ADR 0014
    handlers as `/api/ask`. Tool-turn correlation uses `pub_pal_tool_turns`

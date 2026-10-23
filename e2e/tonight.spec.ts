@@ -443,10 +443,18 @@ test("scopes the empty answer to events when the whole feed is Ticketmaster", as
     "data-listings-status",
     "empty",
   );
-  await expectNoEventsWithPubSuggestions(page);
+  await expect(page.getByTestId("tonight-hyped-row").first()).toBeVisible();
+  await expect(page.locator(".tonightStatus")).toContainText("1 sourced live music listing below.");
   await expect(page.locator('[data-tonight-provenance="whats-on"]')).toHaveText(
-    /^No events listed · /,
+    /^1 listing · via what’s-on/,
   );
+  await expect(page.locator(".tonightList")).toHaveCount(0);
+  const music = page.locator('[aria-labelledby="music-tonight-title"]');
+  await expect(music).toBeVisible();
+  await expect(music.locator(".dealsTonightCard")).toHaveCount(1);
+  await expect(music.getByText("Day Fever - London", { exact: true })).toBeVisible();
+  await expect(music.getByText("Ticketmaster · sourced", { exact: true })).toBeVisible();
+  await expect(music.locator(".dealsTonightChecked")).toHaveText("No date on this yet");
 
   // No Ticketmaster title reaches the first screen, whatever kind it arrived as.
   for (const title of [
@@ -862,7 +870,8 @@ async function phoneColumnBoxes(page: Page) {
     };
     return {
       vibes: rect(".tonightVibes"),
-      lanes: rect(".tonightSecondaryLanes--mobile"),
+      deals: rect('[aria-labelledby="deals-tonight-title"]'),
+      music: rect('[aria-labelledby="music-tonight-title"]'),
       editorial: rect(".tonightEditorial"),
       softPlans: rect('[data-testid="tonight-soft-plans"]'),
       areaNews: rect(".tonightRail"),
@@ -881,17 +890,23 @@ test("phone Tonight reads the Deals and Music lanes before the editorial rail, t
 
   const lanes = page.locator(".tonightSecondaryLanes--mobile");
   await expect(lanes.locator("#deals-tonight-title")).toBeVisible();
-  await expect(lanes.locator("#music-tonight-title")).toBeVisible();
+  const music = page.locator('[aria-labelledby="music-tonight-title"]');
+  await expect(music.getByRole("heading", { name: "Live music tonight", exact: true })).toBeVisible();
+  await expect(lanes.locator(".dealsTonightCard")).toHaveCount(1);
+  await expect(music.locator(".dealsTonightCard")).toHaveCount(1);
 
   const boxes = await phoneColumnBoxes(page);
   expect(boxes.vibes).not.toBeNull();
-  expect(boxes.lanes).not.toBeNull();
+  expect(boxes.deals).not.toBeNull();
+  expect(boxes.music).not.toBeNull();
   expect(boxes.editorial).not.toBeNull();
   expect(boxes.areaNews).not.toBeNull();
-  if (!boxes.vibes || !boxes.lanes || !boxes.editorial || !boxes.areaNews) return;
-  expect(boxes.lanes.height).toBeGreaterThan(0);
-  expect(boxes.lanes.top).toBeGreaterThanOrEqual(boxes.vibes.bottom - 1);
-  expect(boxes.lanes.bottom).toBeLessThanOrEqual(boxes.editorial.top + 1);
+  if (!boxes.vibes || !boxes.deals || !boxes.music || !boxes.editorial || !boxes.areaNews) return;
+  expect(boxes.deals.height).toBeGreaterThan(0);
+  expect(boxes.music.height).toBeGreaterThan(0);
+  expect(boxes.deals.top).toBeGreaterThanOrEqual(boxes.vibes.bottom - 1);
+  expect(boxes.music.top).toBeGreaterThanOrEqual(boxes.deals.bottom - 1);
+  expect(boxes.music.bottom).toBeLessThanOrEqual(boxes.editorial.top + 1);
   expect(boxes.editorial.top).toBeLessThanOrEqual(boxes.areaNews.top + 1);
   if (boxes.softPlans) {
     expect(boxes.editorial.bottom).toBeLessThanOrEqual(boxes.softPlans.top + 1);
@@ -901,6 +916,8 @@ test("phone Tonight reads the Deals and Music lanes before the editorial rail, t
   await page.setViewportSize({ width: 1440, height: 900 });
   await expect(page.locator(".tonightOnTonightSummary")).toBeVisible();
   await expect(lanes).toBeHidden();
+  await expect(music).toBeVisible();
+  await expect(music.getByText("Live band", { exact: true })).toBeVisible();
 });
 
 // The quiet-hour order on a phone. The soft plans window reads the London hour
