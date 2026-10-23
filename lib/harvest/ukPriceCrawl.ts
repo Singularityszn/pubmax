@@ -32,6 +32,11 @@
 // lib/harvest/sourcePolicy.ts and lib/harvest/robots.ts, asked live, before
 // anything here runs.
 
+import {
+  COFFEE_HARVEST_WORD_PATTERN,
+  canonicalCoffeePilotDrink,
+  coffeePriceLabelExcluded,
+} from "@/lib/coffeePricePilot";
 import type { DrinkCategory } from "@/lib/drinks";
 import { parse, parseFragment, serializeOuter, type DefaultTreeAdapterTypes } from "parse5";
 
@@ -129,14 +134,6 @@ const ZERO_ALCOHOL_MARKER = /(?<![\w.,])0(?:\.0+)?\s*%(?![\d.])/i;
 const SOFT_DRINK_WEARING_A_BEER_WORD = /\b(ginger\s+(ale|beer)|bitter\s+lemon|root\s+beer|dandelion\s*(and|&)\s*burdock)\b/i;
 
 /**
- * The words that file a line as coffee. `matcha` is here because a matcha latte
- * is sold beside the coffees. `latte` after `chai` or `tea` is a tea line, so
- * "Chai latte" never files as coffee.
- */
-const COFFEE_HARVEST_WORD_PATTERN =
-  /\b(coffee|espresso|americano|cappuccino|(?<!\b(?:chai|tea)\s)latte|flat white|mocha|matcha)\b/i;
-
-/**
  * The vocabulary that names a category, strongest signal first. The order is
  * the order these are TESTED in, so a phrase that belongs to two lanes lands in
  * the narrower one: "alcohol-free lager" is alcohol-free before it is beer, and
@@ -186,7 +183,8 @@ const CATEGORY_WORDS: ReadonlyArray<{ category: DrinkCategory; pattern: RegExp }
   { category: "shot", pattern: /\b(shot|shots|tequila|sambuca|jagerbomb|j[aä]germeister)\b/i },
   {
     category: "soft-drink",
-    pattern: /\b(soft drink|coke|coca[- ]cola|pepsi|lemonade|j2o|fruit shoot|juice|squash|still water|sparkling water)\b/i,
+    pattern:
+      /\b(soft drink|coke|coca[- ]cola|pepsi|lemonade|j2o|fruit shoot|juice|squash|still water|sparkling water|bottled water|spring water)\b/i,
   },
   { category: "coffee", pattern: COFFEE_HARVEST_WORD_PATTERN },
 ];
@@ -417,13 +415,29 @@ export function drinkLabelFromPriceContext(
   return normalizeHarvestDrinkLabel(raw);
 }
 
-/** Dedup key for site-harvest rows: category, printed name and explicit serving. */
+/** Tea, water and affogato never file as coffee, judged on the own line and its item lines. */
+export function coffeePriceExcludedAt(
+  text: string,
+  at: number,
+  drinkLabel?: string | null,
+): boolean {
+  const printed = printedItemName(text, at);
+  if (!printed) return coffeePriceLabelExcluded(drinkLabel);
+  return coffeePriceLabelExcluded(printed.own, printed.preceding);
+}
+
+/**
+ * Dedup key for site-harvest rows: category, printed name and explicit serving.
+ * A coffee printed as exactly a pilot drink keys by that drink, so flat white,
+ * latte and matcha latte each keep their own figure.
+ */
 export function siteHarvestPriceKey(
   category: DrinkCategory,
   drinkLabel?: string | null,
   servingSize?: string | null,
 ): string {
-  const label = typeof drinkLabel === "string" ? drinkLabel.trim().toLowerCase() : "";
+  const name = category === "coffee" ? canonicalCoffeePilotDrink(drinkLabel) ?? drinkLabel : drinkLabel;
+  const label = typeof name === "string" ? name.trim().toLowerCase() : "";
   const serving = typeof servingSize === "string" ? servingSize.trim().toLowerCase() : "";
   return `${category}\0${label}\0${serving}`;
 }
@@ -875,6 +889,9 @@ function decideKeylessUkPriceAt(
     return { drop: "mixer-serve-not-one-drink" };
   }
   const category = decision.category;
+  if (category === "coffee" && coffeePriceExcludedAt(text, at, drinkLabel)) {
+    return { drop: "no-category-word-nearby" };
+  }
   const drop = keylessPriceDropReason(category, priceGbp, context);
   if (drop) return { drop };
   // A preceding item's printed measure cannot turn this item's pint into a
