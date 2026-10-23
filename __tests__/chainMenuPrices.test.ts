@@ -137,3 +137,16 @@ describe("the coverage line", () => {
     );
   });
 });
+
+
+it.each([
+  "Guinness pint £6.20 2/3 Kernel stout £6.00",
+  "Kernel stout £6.00 (2/3) Guinness pint £6.20",
+  "Guinness pint £6.20 Kernel stout two-thirds pint £6.00",
+])("publishes only the full pint from %s", (line) => {
+  const reading = readChainPintPrices(`<p>${line}</p>`);
+  expect(reading.kept.map(({ drinkLabel, priceGbp }) => ({ drinkLabel, priceGbp }))).toEqual([
+    { drinkLabel: "Guinness pint", priceGbp: 6.2 },
+  ]);
+  expect(cheapestStatedPint(reading)).toBe(6.2);
+});

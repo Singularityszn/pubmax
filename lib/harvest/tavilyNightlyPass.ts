@@ -18,6 +18,7 @@ import {
   CATEGORY_PRICE_BANDS,
   decideKeylessUkPriceCandidate,
   findUkPriceCandidates,
+  fractionalMeasureAtPrice,
   isLikelyMenuUrl,
   pageText,
   drinkLabelFromPriceContext,
@@ -668,7 +669,8 @@ function namedLabel(line: string, at: number, local: string): string {
 function ownPrice(line: string, verbatim: string, at: number): { text: string; at: number; label: string } {
   const local = drinkLabelFromPriceContext(line, verbatim, at) ?? "";
   const label = namedLabel(line, at, local);
-  const tail = trailingMeasure(line.slice(at + verbatim.length));
+  const tail = fractionalMeasureAtPrice(line, at, verbatim).suffix
+    ?? trailingMeasure(line.slice(at + verbatim.length));
   const prefix = label ? `${label} ` : "";
   return { label, text: `${prefix}${verbatim}${tail}`, at: prefix.length };
 }
@@ -727,7 +729,9 @@ function splitPriceItems(line: string): string[] {
     consider(match.index ?? 0, (match.index ?? 0) + match[0].length);
   }
   for (const match of line.matchAll(/£\s?\d{1,2}(?:\.\d{2})?(?:\s*\/\s*£\s?\d{1,2}(?:\.\d{2})?)*/g)) {
-    const after = (match.index ?? 0) + match[0].length;
+    const priceAt = match.index ?? 0;
+    const suffix = fractionalMeasureAtPrice(line, priceAt, match[0]).suffix ?? "";
+    const after = priceAt + match[0].length + suffix.length;
     const lead = /^,?\s+/.exec(line.slice(after));
     if (!lead) continue;
     const nextStart = after + lead[0].length;
