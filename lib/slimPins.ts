@@ -16,10 +16,10 @@ import { displayVenueAddress, displayVenueName, venueSourceNameField } from "@/l
 import type { SlimVenue } from "@/lib/venuesSlim";
 
 /**
- * City slim packs embed the OSM address inside filterHints.searchText as
+ * Legacy London slim packs embed the address inside filterHints.searchText as
  *   "{name lower} {address lower} {borough lower}"
- * Recover it so drink/food price updates keyed by name|address|lat|lng attach
- * to city venues that have no VenuePrice rows.
+ * Keep that fallback for older London rows. City search hints also contain
+ * cuisine and brewery terms, so only an explicit city address is trustworthy.
  */
 function addressFromSlimSearchText(slim: SlimVenue): string {
   const search = (slim.filterHints?.searchText ?? "").trim().toLowerCase();
@@ -58,7 +58,8 @@ export function slimVenueToPin(slim: SlimVenue): Venue {
     id: slim.id,
     name: displayVenueName(slim.name),
     ...(slim.sourceName ? { sourceName: slim.sourceName } : venueSourceNameField(slim.name)),
-    address: displayVenueAddress(addressFromSlimSearchText(slim)),
+    address: displayVenueAddress(slim.address ??
+      (venueCityPrefix(slim.id) === null ? addressFromSlimSearchText(slim) : "")),
     latitude: slim.lat,
     longitude: slim.lng,
     primaryBorough: slim.borough,
@@ -132,6 +133,7 @@ function pinToSlimVenue(pin: Venue): SlimVenue {
     id: pin.id,
     name: pin.name,
     ...(pin.sourceName ? { sourceName: pin.sourceName } : {}),
+    address: pin.address,
     lat: pin.latitude,
     lng: pin.longitude,
     cheapestPrice: pin.cheapestPrice,
