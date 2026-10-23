@@ -296,7 +296,7 @@ test.describe("phone controls on the launch surfaces", () => {
 
 // Phone target sizes must not depend on the pointer media query.
 for (const hasTouch of [false, true]) {
-  test.describe(`Discover targets with a ${hasTouch ? "coarse" : "fine"} pointer`, () => {
+  test.describe(`Discover targets with touch ${hasTouch ? "enabled" : "disabled"}`, () => {
     test.use({ hasTouch, isMobile: hasTouch });
 
     for (const route of ["/discover", "/social?tab=discover"]) {
@@ -313,13 +313,18 @@ for (const hasTouch of [false, true]) {
           }));
           const response = await page.goto(route, { waitUntil: "load" });
           expect(response?.ok()).toBe(true);
-          await expect(page.locator(ROUTE_ROOTS["/discover"])).toBeVisible();
-          expect(await page.evaluate(() => matchMedia("(pointer: coarse)").matches)).toBe(hasTouch);
-          await page.locator("#cheap-title").scrollIntoViewIfNeeded();
+          const discover = page.locator(`${ROUTE_ROOTS["/discover"]}:visible`).first();
+          await expect(discover).toBeVisible();
+          // Browser emulation can report a different pointer. Geometry must hold either way.
+          const reportedPointer = await page.evaluate(() => ({
+            coarse: matchMedia("(pointer: coarse)").matches,
+            fine: matchMedia("(pointer: fine)").matches,
+          }));
+          await discover.locator("#cheap-title").scrollIntoViewIfNeeded();
 
           const measurements = [];
           for (const selector of [".discoverBrandChip", "a.leaderboardPub", "a.tonightPub"]) {
-            const targets = page.locator(selector);
+            const targets = discover.locator(selector);
             await expect(targets.first()).toBeVisible({ timeout: REQUIRED_SELECTOR_TIMEOUT_MS });
             const sizes = await targets.evaluateAll((elements) => elements.map((element) => {
               const rect = element.getBoundingClientRect();
@@ -332,10 +337,10 @@ for (const hasTouch of [false, true]) {
             }
           }
           await testInfo.attach("Discover target geometry", {
-            body: JSON.stringify({ route, width, hasTouch, measurements }, null, 2),
+            body: JSON.stringify({ route, width, hasTouch, reportedPointer, measurements }, null, 2),
             contentType: "application/json",
           });
-          await page.locator(".discoverBrandChip").first().scrollIntoViewIfNeeded();
+          await discover.locator(".discoverBrandChip").first().scrollIntoViewIfNeeded();
           await testInfo.attach("Discover brand targets", {
             body: await page.screenshot(),
             contentType: "image/png",
