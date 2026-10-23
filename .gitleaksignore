@@ -7,6 +7,8 @@ ac301ca263387e8a2196b8f66d871fcdfa23d3e9:docs/proof/ios-push-ask-2026-10-08/full
 
 # test fixture value
 3b27ad7617c279cf864f67b464be916d6f4a7627:__tests__/pubPalAgentScriptCheck.test.ts:generic-api-key:10
+84ca0c7eec84ca99e834582304b662d842dc58ed:__tests__/pubPalAgentScriptCheck.test.ts:generic-api-key:10
+9042e4c09c9ab7fb65e7d92a98869e3fa2b1c289:__tests__/planInviteWhatsAppHref.test.tsx:generic-api-key:15
 91b57d07164947ca9c7a84af1bf357d5f07f3651:__tests__/planCrewAnalytics.test.tsx:generic-api-key:42
 a07cbae160552f51a102fc0eca3bf5b6b364761c:__tests__/pubPalAgentScriptDryRun.test.ts:generic-api-key:10
 cbc6e7e19de24db1555aca44c3c71d6ca1bc0ac4:__tests__/planInviteWhatsAppHref.test.tsx:generic-api-key:15
@@ -14,11 +16,15 @@ e188a1d0ec987c1368ffd6a957dc8cc08a2999ac:__tests__/clientErrorRoute.test.ts:gene
 
 # a LinkedIn handle in harvested OpenStreetMap data
 231c03e9b17b7df86024ddb53284894f9b706f13:data/osm/uk/raw/chunk_lat55.80_lon-3.70.json:linkedin-client-secret:1
+5a1a3fa084bb53a05dd1a82907c7cf3b445d83da:data/osm/uk/raw/chunk_lat55.80_lon-3.70.json:linkedin-client-secret:1
+6195165bd3dcbed75541cbee03a19578166d5cc7:data/osm/uk/raw/chunk_lat55.80_lon-3.70.json:linkedin-client-secret:1
+8108bb606614a4ab308e5d8b33d33bf86e12fc3b:data/osm/uk/raw/chunk_lat55.80_lon-3.70.json:linkedin-client-secret:1
 774eae281d53bac133026a3bef6176c8a7e433db:data/osm/uk/raw/chunk_lat55.80_lon-3.70.json:linkedin-client-secret:1
 931ebc0c2bc1f807eeca7c9f900b76747e3d3e04:data/osm/uk/raw/chunk_lat55.80_lon-3.70.json:linkedin-client-secret:1
 eef66577e3c3c25fcbaadb8b657ea757fcbc2f56:data/osm/uk/raw/chunk_lat55.80_lon-3.70.json:linkedin-client-secret:1
 
 # placeholder key in a skill doc example
+ab2354f2ea4201b8e21ccb567e6c928643466442:.agents/skills/capacitor-security/SKILL.md:generic-api-key:82
 dde6fb95729459f58d1acb736c9d092f5cbcb1d1:.agents/skills/capacitor-security/SKILL.md:generic-api-key:82
 fbceef96205988987a929fa6b01d70677647e42f:skills/api-design/SKILL.md:generic-api-key:307
 
@@ -43,3 +49,18 @@ fbceef96205988987a929fa6b01d70677647e42f:skills/api-design/SKILL.md:generic-api-
 # Synthetic rate_limits row key in a throwaway PostgreSQL migration test.
 # This is not an authentication credential. Exact historical finding only.
 40ce6f41da1d26ee2751f03793c9836d42f4e64e:__tests__/rateLimitRefusalsUnchargedMigrationEffective.test.ts:generic-api-key:156
+3201c38383c82563c47a9ec2f63798c16595ee7d:__tests__/rateLimitRefusalsUnchargedMigrationEffective.test.ts:generic-api-key:156
+c7354856c41b28f43636502474a1092bad3717ed:__tests__/rateLimitRefusalsUnchargedMigrationEffective.test.ts:generic-api-key:156
+
+# Compiled key-import code. The match spans a PEM header string and JavaScript,
+# not a private key. Exact historical finding only.
+9f895647b247688ed56ee6485998ea18a927e9a3:.plan-entry-auth-combined-v15-retry1/server/chunks/[root-of-the-server]__1ge7r6ykrte7_._.js:private-key:2
+
+# Compiled OpenTelemetry export initialization: an identifier assignment chain
+# ending in void 0, not an API key. Both chunks have the same non-credential.
+9f895647b247688ed56ee6485998ea18a927e9a3:.plan-entry-auth-combined-v15-retry1/server/chunks/node_modules_@vercel_otel_dist_node_index_0vtszs5ox-hp_.js:generic-api-key:1
+9f895647b247688ed56ee6485998ea18a927e9a3:.plan-entry-auth-combined-v15-retry1/server/chunks/node_modules_@vercel_otel_dist_node_index_1hdweb9y7-qp3.js:generic-api-key:1
+
+# Per-build Next.js server-action key from a QA build. Production sets no
+# NEXT_SERVER_ACTIONS_ENCRYPTION_KEY, so this key never protected a live deploy.
+9f895647b247688ed56ee6485998ea18a927e9a3:.plan-entry-auth-combined-v15-retry1/server/server-reference-manifest.json:generic-api-key:267
