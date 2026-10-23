@@ -68,7 +68,16 @@
             "label": "CAMRA venue record",
             "url": "https://camra.org.uk/pubs/lil-nashville-chiswick-122088"
           }
-        ]
+        ],
+        "telephone": {
+          "value": "+442046198285",
+          "display": "020 4619 8285",
+          "sourceUrl": "https://www.lilnashville.co.uk/contact"
+        },
+        "servesCuisine": {
+          "value": "Southern American",
+          "sourceUrl": "https://www.lilnashville.co.uk/post/things-to-do-in-chiswick-lil-nashville"
+        }
       },
       "relationship": "Shared premises confirmed. Business continuity is not established."
     },
@@ -103,7 +112,12 @@
             "label": "Food Standards Agency",
             "url": "https://ratings.food.gov.uk/business/1937073"
           }
-        ]
+        ],
+        "telephone": {
+          "value": "+447955555404",
+          "display": "079 55555 404",
+          "sourceUrl": "https://coffeelounge.uk/"
+        }
       },
       "relationship": "Shared premises confirmed. Business continuity is not established."
     }

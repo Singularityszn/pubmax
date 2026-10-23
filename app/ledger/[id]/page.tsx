@@ -115,6 +115,8 @@ function currentBusinessJsonLd(review: IdentityReconciliation, ledgerUrl: string
     name: business.name,
     url,
     sameAs: [`https://ratings.food.gov.uk/business/${business.fsaId}`],
+    ...(business.telephone ? { telephone: business.telephone.value } : {}),
+    ...(business.servesCuisine ? { servesCuisine: business.servesCuisine.value } : {}),
     address: {
       "@type": "PostalAddress",
       streetAddress: business.streetAddress,
@@ -255,6 +257,8 @@ export default async function LedgerPage({ params }: PageProps) {
     ...(currentBusiness ? [
       `Current business listed at this address: ${currentBusiness.name}, ${currentBusiness.businessLabel}.`,
       `${currentBusiness.streetAddress}, ${currentBusiness.addressLocality}, ${currentBusiness.postalCode}.`,
+      ...(currentBusiness.telephone ? [`Telephone: ${currentBusiness.telephone.display}.`] : []),
+      ...(currentBusiness.servesCuisine ? [`Food: ${currentBusiness.servesCuisine.value}.`] : []),
       `The link between these businesses is not confirmed. Prices and visits belong to the earlier ${venue.name} record.`,
     ] : []),
   ];
@@ -288,6 +292,18 @@ export default async function LedgerPage({ params }: PageProps) {
               <p className="ledgerCurrentAddress">
                 {currentBusiness.streetAddress}, {currentBusiness.addressLocality}, {currentBusiness.postalCode}
               </p>
+              {currentBusiness.telephone ? (
+                <p className="ledgerIdentityDetail">
+                  Telephone: <a href={`tel:${currentBusiness.telephone.value}`}>{currentBusiness.telephone.display}</a>
+                  {" · "}<a href={currentBusiness.telephone.sourceUrl} target="_blank" rel="noopener noreferrer">Phone source</a>
+                </p>
+              ) : null}
+              {currentBusiness.servesCuisine ? (
+                <p className="ledgerIdentityDetail">
+                  Food: {currentBusiness.servesCuisine.value}
+                  {" · "}<a href={currentBusiness.servesCuisine.sourceUrl} target="_blank" rel="noopener noreferrer">Food source</a>
+                </p>
+              ) : null}
               <p>Shown separately from the earlier {venue.name} record. The link between these businesses is not confirmed.</p>
               <p>Prices and visits below belong to {venue.name}. They are not evidence for {currentBusiness.name}.</p>
               <ul className="ledgerIdentitySources">

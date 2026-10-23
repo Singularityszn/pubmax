@@ -500,7 +500,8 @@ html[data-theme="dark"] .ledgerPrimaryLink {
   padding-left: 20px;
 }
 
-.ledgerIdentitySources a {
+.ledgerIdentitySources a,
+.ledgerIdentityDetail a {
   display: inline-flex;
   align-items: center;
   min-height: 44px;
