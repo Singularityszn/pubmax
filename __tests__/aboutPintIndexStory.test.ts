@@ -1,3 +1,4 @@
+import { JSDOM } from "jsdom";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -157,6 +158,26 @@ describe("About outings story (Wave S1)", () => {
     expect(html).not.toMatch(/\b(journey|unlock|seamless|curated|discover|elevate)\b/iu);
     expect(html).not.toMatch(/co-founder|Discord|thousands of/iu);
     expect(html).not.toContain("!");
+  });
+
+  it("shows publisher and date limits in the visible price policy", async () => {
+    const document = new JSDOM(await renderAbout()).window.document;
+    const policy = document.querySelector('section[aria-labelledby="fights"] > p');
+    expect(policy?.textContent?.replace(/\s+/gu, " ").trim()).toBe(
+      "Listed prices name their publisher when recorded and say when one is missing. Drinker reports show the day they were logged. Prices can change, so check at the bar.",
+    );
+    document.querySelectorAll("script, style").forEach((node) => node.remove());
+    const copy = document.querySelector("main")?.textContent ?? "";
+    for (const claim of [
+      "Every one names where it came from",
+      "Listed prices name their sources",
+      "Listed pint prices with named sources",
+      "Every price and every fact",
+      "Nothing in here nudges you to drink more",
+    ]) {
+      expect(copy).not.toContain(claim);
+    }
+    expect(copy).not.toMatch(/prices from real people|every figure links back/iu);
   });
 
   it("keeps the founder note to the owner-approved beats", async () => {

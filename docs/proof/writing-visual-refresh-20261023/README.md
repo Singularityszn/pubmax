@@ -33,13 +33,59 @@ copy, quoted sources and user posts remain protected.
 | About | Description, source policy, founder, figures, press, attribution | Repetition removed, disclosures added |
 | Account, sign-in and onboarding | Authentication, consent, account deletion | Existing copy and behaviour retained |
 | Messages, moments and profiles | Private content, public posts, empty and error states | User content retained |
+| Invites, rounds and bar tabs | Invitation, joining, shared totals, missing or expired links | Existing routes and state copy retained |
+| Activity, updates, wall and founders | Personal activity, public updates, recognition, empty lists | Existing copy retained |
+| Venue, ledger, landmark and crawl records | Record details, source credits, missing records, unavailable reads | Existing routes and recovery retained |
 | Price index and reference pages | Dates, methodology, source data | Shared date caption simplified |
 | Legal and credits | Privacy, terms, attribution | Retained |
 | Feedback and contributions | Forms, validation, confirmation | Retained |
 | Administrative and integration pages | Moderation and API information | Outside the public visual refresh |
 
-This inventory records every page template. It does not claim that every
-signed-in state or every dynamic URL received a browser check.
+The route list below records the public page templates. The following tables
+record shared components and application states, including templates retained
+without a copy change. Inventory coverage does not mean browser verification.
+
+### Shared components and metadata
+
+| Component family | Owned surfaces and states | Treatment and evidence limit |
+| --- | --- | --- |
+| Navigation | `SiteNav`, `SiteNavMore`, `MobileTabBar`, `NowSegment`, landing header and footer | Destinations, active states, theme and sign-in controls retained. Existing public captures show navigation on the sampled pages. |
+| Shared actions | `CreateFab`, `PalNavButton`, `MessagesLink`, `NotificationBell`, command palette | Creation, Pub Pal, messages, notifications and search retained. No real account notification or unread state was browser-verified. |
+| Page and control primitives | `Screen`, `Kicker`, buttons, tabs, chips, rows, search fields, sheets, `EmptyState`, `PintLoader` | Existing tokens and components retained. Changed pages use the existing hierarchy. Browser evidence covers sampled uses only. |
+| Map and venue panels | `MobileMapShell`, `MobileSharedSheet`, venue inspectors, unverified venue sheets, area and food panels | Search, filters, location refusal, absent prices and source links retained. Shared date wording changed. |
+| Prices and source credits | `PriceBadge`, `ListedPriceSource`, food and drink menu captions, `dataFreshness` | Price bands, publishers, missing publishers, dates and uncertainty retained. Rendered tests cover changed captions and homepage cards. |
+| Root metadata | `app/layout.tsx`, `siteJsonLd`, `app/sitemap.ts`, `app/robots.ts` | Default titles, descriptions, canonical origin, social defaults, structured data and indexing rules retained. No new metadata design. |
+| Page metadata | Route `metadata` and `generateMetadata` interfaces across the route list | Home, About and Pub Pal descriptions follow their revised purpose. Other page titles, descriptions, canonical links and indexing policies retained. Metadata tests are separate from browser evidence. |
+| Share images and structured data | Home card API, route Open Graph images, `JsonLd` on public records | Home card follows the homepage promise. Existing record cards and source identities retained. Executed home-card tests cover supplied counts and referral redirects. |
+| Photography and media | `LandingHero`, `LandingLondonCollage`, `LandingLondonFilm`, listing photo rules | Thames hero retained. Linked photographs and requested film added. Browser evidence covers media loading, focus, reduced motion and failure recovery. |
+
+### Loading, failure and missing records
+
+| Template or state | Treatment | Evidence limit |
+| --- | --- | --- |
+| Global loading | There is no root `app/loading.tsx`. Root layout suspense reserves mobile navigation space and renders no page-wide loading text. | Source inventory only. No new global loading template added. |
+| Route loading | `app/map/loading.tsx` uses `MapLoadingSkeleton`. Feed and Social use `RouteLoadingShell` with their own labels. | Existing loading labels and accessible busy states retained. No new browser coverage claimed. |
+| Page render failure | `app/error.tsx` keeps retry, home navigation and the error reference. | Existing recovery retained. No forced browser failure claimed. |
+| Root layout failure | `app/global-error.tsx` keeps its own document, system theme, retry, home link and reference. | Existing recovery retained. No root layout crash was browser-verified. |
+| Missing page or record | `app/not-found.tsx`, crawl and shared-plan not-found templates | Existing map, Tonight and record recovery links retained. Inventory only. |
+| Unavailable record read | Ledger error boundary, `VenueReadUnavailable`, `PlanReadUnavailable` | Existing unavailable-read explanations and recovery retained. An unavailable read remains distinct from an absent record. |
+| Empty or failed content lanes | Today and Tonight picks, Social, Stories, messages, prices and public record lists | Existing empty and failure distinctions retained. Today renders ready and degraded reads in unit tests. No live provider outage claimed. |
+| Media failure | Optional homepage film failure and retry | Existing stage 2 browser checks cover this state. Other retained media fallbacks received no new browser proof. |
+
+### Onboarding, permissions and account states
+
+| Journey | States inventoried | Treatment and evidence limit |
+| --- | --- | --- |
+| First run | `/onboarding`, `FirstRunOnboardingGate`, `FirstRunOnboarding`, `OnboardingPanels`, `FirstRunTour` | Native handoff, web eligibility, loading, budget, location, results, skip and completion retained. Existing test-provider evidence is not physical-device proof. |
+| Sign-in and account setup | `/login`, `/signin`, `LoginPage`, `AccountOnboarding`, contribution gates | Sign-in alias, account creation, return destination, session hints, handle availability, validation and recovery retained. No real authentication-provider session verified. |
+| Consent and permissions | `AnalyticsConsentPrompt`, location controls, Pub Pal microphone controls, deferred install and push prompts | Explanations, accept/refuse choices and recovery retained. Pub Pal setup labels clarified. Native permission dialogs received no new device proof. |
+| Pub Pal saved state | Appearance, age check, voice, memory review, confirmation and deletion | Existing controls and eligibility retained. Existing interaction tests support the controls. No real saved backend memory verified in a browser. |
+| Account and profile | `/profile`, `/u/[handle]`, `PubmaxxAccountHub`, public account-deletion page | Own and other profiles, signed-out prompts, loading, unavailable accounts, settings and deletion confirmation retained. No real account deletion performed. |
+| Private and social content | Messages, activity, Social crews, moments, public posts and profile lists | Signed-out, loading, empty, unavailable, signed-in and user-authored content retained. Social tab headings changed. No real inbox, crew or private content browser verification claimed. |
+| Shared night and return | Plan collaboration, invites, rounds, bar tabs, recaps and night memories | Guest and account participation, pending joins, unavailable links, saved plans and return states retained. No durable backend transition browser-verified. |
+
+These entries record treatment and evidence limits for the refresh. Real
+signed-in backend states and dynamic URLs remain outside the browser proof.
 
 ## Evidence
 

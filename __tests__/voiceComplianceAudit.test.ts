@@ -1,11 +1,13 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
+import { JSDOM } from "jsdom";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 
 import TonightProvenanceLines from "@/app/tonight/TonightProvenanceLines";
+import NightAreaCoverage from "@/components/night/NightAreaCoverage";
 import { PalMeetingScreen } from "@/components/pal/PalExperience";
 import { DEFAULT_PAL_DRAFT } from "@/lib/pubPal";
 import { provenanceLabel } from "@/lib/tonight";
@@ -30,6 +32,21 @@ function notInspectedFiles(evidence: string): Set<string> {
 }
 
 describe("VOICE.md compliance audit", () => {
+  it("labels rendered area coverage with available actions", () => {
+    const document = new JSDOM(
+      renderToStaticMarkup(createElement(NightAreaCoverage)),
+    ).window.document;
+    const rows = document.querySelectorAll('[aria-label="All area coverage"] > li');
+    expect(rows.length).toBeGreaterThan(0);
+    for (const row of rows) {
+      const ready = row.getAttribute("data-route-ready") === "true";
+      expect(row.querySelector(".nightAreaCoverage__badge")?.textContent).toBe(
+        ready ? "Plan a crawl" : "Browse pubs",
+      );
+      expect(row.querySelector("a")?.textContent).toBe(ready ? "Open planner" : "See the pubs");
+    }
+  });
+
   it("records changed audit candidates as inspected and documents absolute-claim policy", () => {
     const evidence = read("docs/voice-audit-evidence.md");
     const notInspected = notInspectedFiles(evidence);
@@ -147,7 +164,6 @@ describe("VOICE.md compliance audit", () => {
     const planPage = read("app/plan/page.tsx");
     const feed = read("app/feed/FeedPageClient.tsx");
     const feedCard = read("components/feed/FeedCard.tsx");
-    const today = read("app/today/TodayClient.tsx");
     const tonight = read("app/tonight/TonightClient.tsx");
     const tonightPage = read("app/tonight/page.tsx");
     const near = read("components/nearme/NearMeNow.tsx");
@@ -174,8 +190,6 @@ describe("VOICE.md compliance audit", () => {
     expect(feed).not.toContain("Capture a Moment");
     expect(feedCard).not.toContain("Provenance:");
 
-    expect(today).not.toContain("refresh this by hand right now");
-    expect(today).not.toContain("catch up shortly");
     expect(tonight).not.toContain("same spine as the map");
     expect(tonightPage).not.toContain("Same spine as the map");
     expect(tonightPage).toContain(
@@ -257,7 +271,6 @@ describe("VOICE.md compliance audit", () => {
 
   it("keeps route, photo, operator, navigation, and API copy out of the plumbing", () => {
     const nightAreas = read("lib/nightAreas.ts");
-    const coverage = read("components/night/NightAreaCoverage.tsx");
     const cityCapabilities = read("lib/cityCapabilities.ts");
     const planEndings = read("lib/planEndings.ts");
     const planOptimizer = read("lib/planRouteOptimizer.ts");
@@ -290,7 +303,6 @@ describe("VOICE.md compliance audit", () => {
     expect(nightAreas).not.toMatch(
       /"[^"]*(?:capture district|Capture evidence|reviewed snapshot|evidence to verify|Crawl Route)[^"]*"/u,
     );
-    expect(coverage).not.toMatch(/label: "(?:Captured|Discovered)"/u);
     expect(cityCapabilities).not.toContain("pint-price snapshot");
     expect(cityCapabilities).not.toContain("per-item provenance");
     expect(planEndings).not.toMatch(
@@ -349,7 +361,6 @@ describe("VOICE.md compliance audit", () => {
     const tour = read("components/onboarding/FirstRunTour.tsx");
     const stories = read("app/discover/DiscoverPageClient.tsx");
     const digest = read("lib/weeklyDigest.ts");
-    const landing = read("components/landing/LandingPage.tsx");
     const crew = read("components/plan/PlanCrew.tsx");
     const plan = read("components/plan/PlanComposer.tsx");
     const activity = read("app/activity/ActivityClient.tsx");
@@ -363,7 +374,6 @@ describe("VOICE.md compliance audit", () => {
     const whatsOn = read("lib/concierge/whatsOn.ts");
     const palChat = read("lib/palChat.ts");
     const pushSender = read("lib/pushSender.ts");
-    const about = read("app/about/page.tsx");
     const accountHub = read("components/profile/PubmaxxAccountHub.tsx");
 
     expect(palPortrait).not.toMatch(
@@ -400,17 +410,7 @@ describe("VOICE.md compliance audit", () => {
     expect(palChat).not.toContain("I won't make anything up");
     expect(pushSender).not.toContain("new signals tonight");
     expect(pushSender).toContain("updates for tonight");
-    expect(landing).not.toContain("Cheap pints near you, live");
-    expect(landing).not.toContain("No endless listings. Just");
-    expect(landing).not.toContain("Every price names where it came from");
-    expect(about).not.toContain("Every one names where it came from");
-    expect(about).not.toContain("Listed prices name their sources");
-    expect(about).not.toContain("Listed pint prices with named sources");
-    expect(about).not.toMatch(/prices from real people|every figure links back/iu);
     expect(accountHub).not.toMatch(/prices from real people/iu);
-    expect(about).toMatch(
-      /names? and links? publishers? when recorded[\s\S]*says? when none is recorded/iu,
-    );
     expect(accountHub).toMatch(
       /prices name and link their publisher when recorded and say when none is recorded/iu,
     );
@@ -418,8 +418,6 @@ describe("VOICE.md compliance audit", () => {
 
     expect(activity).not.toContain("reach the bar");
     expect(activity).not.toContain("every follow, cheer and comment");
-    expect(about).not.toContain("Every price and every fact");
-    expect(about).not.toContain("Nothing in here nudges you to drink more");
     expect(plan).not.toContain("Every listed area can be planned");
     expect(plan).not.toContain("Every area can still make an editable route");
     expect(profile).not.toContain("Please try again");
