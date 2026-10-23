@@ -138,30 +138,36 @@ test.describe("the document's opening prices", () => {
     await expect(page.locator(".mapOpeningGround")).toBeHidden();
   });
 
-  for (const action of ["gesture", "query"] as const) {
-    test(`cancel the waiting arrival turn after a reader ${action}`, async ({ page }) => {
-      test.setTimeout(45_000);
-      await page.setViewportSize({ width: 440, height: 956 });
-      await page.emulateMedia({ reducedMotion: "no-preference" });
-      await installDeterministicMapBasemap(page, { primaryRasterDelayMs: 8_000 });
-      await page.goto("/map");
-      await expect.poll(() => page.evaluate(() => "__pubmaxMapCamera" in window)).toBe(true);
-      await expect(page.locator(".mapLoading")).toBeVisible();
-      if (action === "query") {
-        await page.getByRole("combobox", { name: "Search pubs", exact: true }).fill("Hatton");
-      } else {
-        await page.mouse.move(220, 450);
-        await page.mouse.down();
-        await page.mouse.move(290, 450, { steps: 12 });
-        await page.mouse.up();
-        await expect(page.locator(".mapOpeningGround")).toBeHidden();
-      }
-      await expect(page.locator(".mapLoading")).toHaveCount(0, { timeout: 20_000 });
-      // Outlast the separate six-second opening-location wait and its ease.
-      await page.waitForTimeout(8_000);
-      expect(await page.evaluate(() => performance.getEntriesByName("pubmax:camera-intent:arrival").length)).toBe(0);
-    });
-  }
+  test("cancel the waiting arrival turn after a reader gesture", async ({ page }) => {
+    test.setTimeout(45_000);
+    await page.setViewportSize({ width: 440, height: 956 });
+    await page.emulateMedia({ reducedMotion: "no-preference" });
+    await installDeterministicMapBasemap(page, { primaryRasterDelayMs: 8_000 });
+    await page.goto("/map");
+    await expect.poll(() => page.evaluate(() => "__pubmaxMapCamera" in window)).toBe(true);
+    await expect(page.locator(".mapLoading")).toBeVisible();
+    await page.mouse.move(220, 450);
+    await page.mouse.down();
+    await page.mouse.move(290, 450, { steps: 12 });
+    await page.mouse.up();
+    await expect(page.locator(".mapOpeningGround")).toBeHidden();
+    await expect(page.locator(".mapLoading")).toHaveCount(0, { timeout: 20_000 });
+    await page.waitForTimeout(8_000);
+    expect(await page.evaluate(() => performance.getEntriesByName("pubmax:camera-intent:arrival").length)).toBe(0);
+  });
+
+  test("give a restored search ownership of the arrival camera", async ({ page }) => {
+    test.setTimeout(45_000);
+    await page.setViewportSize({ width: 440, height: 956 });
+    await page.emulateMedia({ reducedMotion: "no-preference" });
+    await installDeterministicMapBasemap(page, { primaryRasterDelayMs: 8_000 });
+    await page.goto("/map?q=Hatton");
+    await expect(page.locator(".mapLoading")).toHaveCount(0, { timeout: 20_000 });
+    await expect(page.getByRole("button", { name: "Clear pub search: Hatton", exact: true })).toBeVisible();
+    await expect.poll(() => page.evaluate(() => "__pubmaxMapCamera" in window)).toBe(true);
+    await page.waitForTimeout(8_000);
+    expect(await page.evaluate(() => performance.getEntriesByName("pubmax:camera-intent:arrival").length)).toBe(0);
+  });
 
   test("ship in the prerendered /map document, with no script of their own", async ({ request }) => {
     const html = await (await request.get("/map")).text();
