@@ -25,6 +25,17 @@ const packs: MapSearchPack[] = [
 ];
 
 describe("map search index", () => {
+  it("ranks supported pint pubs before the result limit without changing other modes", () => {
+    const index = buildMapSearchIndex(cities, [{ cityId: "london", venues: [
+      { id: "restaurant", name: "Soho A Kitchen", area: "Soho", venueKind: "restaurant", pintPrice: 12 },
+      { id: "unpriced", name: "Soho B Arms", area: "Soho", venueKind: "pub" },
+      { id: "priced", name: "Soho C Arms", area: "Soho", venueKind: "pub", pintPrice: 4.7 },
+    ] }]);
+    expect(searchMapSearchIndex(index, "Soho", 1, { preferPints: true })[0]?.id).toBe("priced");
+    expect(searchMapSearchIndex(index, "Soho", 1, { preferPints: false })[0]?.id).toBe("restaurant");
+    expect(searchMapSearchIndex(index, "Soho A Kitchen", 1, { preferPints: true })[0]?.id).toBe("restaurant");
+  });
+
   it("shows literal Hatton matches without unrelated fuzzy venue results", () => {
     const index = buildMapSearchIndex(cities, [{
       cityId: "london",

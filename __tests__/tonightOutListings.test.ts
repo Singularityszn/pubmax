@@ -515,6 +515,29 @@ describe("tonight provenance credits", () => {
     expect(credits.outDated).toBe(false);
   });
 
+  it.each(["", "not-a-date"])("does not date an empty pub result from another row's publisher check: %s", (observedAt) => {
+    const credits = tonightProvenanceCredits({
+      whatsOnRows: [],
+      renderedGroups: [],
+      out: {
+        body: {
+          status: "ready",
+          venueMatch: "ready",
+          events: [
+            { ...outRow, venueId: undefined },
+            { ...outRow, id: "unknown", venueId: undefined, observedAt },
+          ],
+          observedAt: { ticketmaster: outRow.observedAt },
+        },
+        failed: false,
+        pending: false,
+      },
+      whatsOnChecked: null,
+    });
+    expect(credits.out).toBe("No pub-matched events via Ticketmaster");
+    expect(credits.outDated).toBe(false);
+  });
+
   it("does not credit a failed read as an empty checked result", () => {
     const credits = tonightProvenanceCredits({
       whatsOnRows: [],

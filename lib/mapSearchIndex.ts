@@ -2,6 +2,7 @@ import type { CityId } from "@/lib/cities";
 import type { VenueKind } from "@/lib/venues";
 import { isVerifiedClosedCuratedVenue } from "@/lib/verifiedClosedPubs";
 import { venueSearchNames } from "@/lib/venueSearchNames.mjs";
+import { isPubVenueKind } from "@/lib/venueKindFilters";
 
 type MapSearchCity = {
   id: CityId;
@@ -20,6 +21,8 @@ type MapSearchVenue = {
   sourceName?: string;
   area: string;
   venueKind?: VenueKind;
+  /** A listed pint price, never a restaurant or cocktail anchor. */
+  pintPrice?: number;
 };
 
 export type MapSearchPack = {
@@ -105,6 +108,20 @@ function matchScore(query: string, name: string, area = ""): number | null {
   return null;
 }
 
+export function mapSearchVenueScore(venue: MapSearchVenue, rawQuery: string): number | null {
+  const query = normalise(rawQuery);
+  if (!query) return null;
+  const scores = venueSearchNames(venue)
+    .map((name) => matchScore(query, name, venue.area))
+    .filter((score): score is number => score !== null);
+  return scores.length > 0 ? Math.min(...scores) : null;
+}
+
+export function mapSearchPintRank(kind: VenueKind | undefined, price: number | null | undefined): number {
+  if (!isPubVenueKind(kind)) return 2;
+  return typeof price === "number" && Number.isFinite(price) && price > 0 ? 0 : 1;
+}
+
 export function buildMapSearchIndex(
   cities: readonly MapSearchCityInput[],
   packs: readonly MapSearchPack[],
@@ -122,6 +139,7 @@ export function buildMapSearchIndex(
         ...(venue.sourceName ? { sourceName: venue.sourceName } : {}),
         area: venue.area ?? "",
         ...(venue.venueKind !== undefined ? { venueKind: venue.venueKind } : {}),
+        ...(venue.pintPrice !== undefined ? { pintPrice: venue.pintPrice } : {}),
         cityId: pack.cityId,
       });
     }
@@ -137,6 +155,7 @@ export function searchMapSearchIndex(
   index: MapSearchIndex,
   rawQuery: string,
   limit = DEFAULT_RESULT_LIMIT,
+  options?: { preferPints: boolean },
 ): MapSearchIndexResult[] {
   const query = normalise(rawQuery);
   if (!query || limit <= 0) return [];
@@ -149,11 +168,8 @@ export function searchMapSearchIndex(
     }
   }
   for (const venue of index.venues) {
-    const scores = venueSearchNames(venue)
-      .map((name) => matchScore(query, name, venue.area))
-      .filter((score): score is number => score !== null);
-    if (scores.length > 0) {
-      const score = Math.min(...scores);
+    const score = mapSearchVenueScore(venue, query);
+    if (score !== null) {
       candidates.push({ result: { kind: "venue", ...venue }, score });
     }
   }
@@ -163,6 +179,11 @@ export function searchMapSearchIndex(
       if (left.score !== right.score) return left.score - right.score;
       if (left.result.kind !== right.result.kind) {
         return left.result.kind === "city" ? -1 : 1;
+      }
+      if (options?.preferPints && left.result.kind === "venue" && right.result.kind === "venue") {
+        const difference = mapSearchPintRank(left.result.venueKind, left.result.pintPrice) -
+          mapSearchPintRank(right.result.venueKind, right.result.pintPrice);
+        if (difference !== 0) return difference;
       }
       return left.result.name.localeCompare(right.result.name, "en-GB");
     })

@@ -118,6 +118,19 @@ describe("the live-music lane's checked date", () => {
     ).toBeNull();
   });
 
+  it.each(["", "not-a-date"])("does not lend a publisher check to an invalid row date: %s", (observedAt) => {
+    const events = [
+      row("known", { source: { label: "Ticketmaster", url: "https://example.com/known" }, observedAt: TICKETMASTER_DAY }),
+      row("unknown", { source: { label: "Ticketmaster", url: "https://example.com/unknown" }, observedAt }),
+    ];
+    expect(tonightMusicLaneObservedAt({
+      rows: events,
+      outEvents: events,
+      kindObservedAt: {},
+      outObservedAt: { ticketmaster: TICKETMASTER_DAY },
+    })).toBeNull();
+  });
+
   it("dates only the cards the lane shows", () => {
     const shown = Array.from({ length: MUSIC_LANE_MAX_CARDS }, (_, index) => row(`own-site-${index}`));
     const hiddenOut = row("out-tm-hidden", {

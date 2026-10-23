@@ -42,6 +42,7 @@ import {
 import type { UkBasePub } from "@/lib/ukBasePubs";
 import { kebabSlug, normalizeSearchText } from "@/lib/textSlug";
 import { venueSearchNames } from "@/lib/venueSearchNames.mjs";
+import { mapSearchPintRank, mapSearchVenueScore, type MapSearchIndexResult } from "@/lib/mapSearchIndex";
 
 export type { UkBasePubSuggestion };
 export { UK_BASE_SEARCH_GROUP_LABEL } from "@/lib/ukBasePubSearch";
@@ -124,6 +125,42 @@ export type PubSuggestion = {
   distanceKm: number;
   distanceLabel: string;
 };
+
+export type MapSearchVenueSuggestion =
+  | { type: "pub"; item: PubSuggestion }
+  | { type: "indexedVenue"; item: Extract<MapSearchIndexResult, { kind: "venue" }> };
+
+/** Rank the current city's loaded and indexed rows before rendering or keyboard navigation. */
+export function mergeMapSearchVenueSuggestions(input: {
+  query: string;
+  drinkCategory?: string;
+  venues: readonly Venue[];
+  pubs: readonly PubSuggestion[];
+  indexedVenues: readonly Extract<MapSearchIndexResult, { kind: "venue" }>[];
+}): MapSearchVenueSuggestion[] {
+  const loaded = new Map(input.venues.map((venue) => [venue.id, venue]));
+  const rows: MapSearchVenueSuggestion[] = [
+    ...input.pubs.map((item) => ({ type: "pub" as const, item })),
+    ...input.indexedVenues.map((item) => ({ type: "indexedVenue" as const, item })),
+  ];
+  const preferPints = !input.drinkCategory || input.drinkCategory === "beer";
+  const rank = (row: MapSearchVenueSuggestion) => {
+    const venue = row.type === "pub" ? loaded.get(row.item.id) : undefined;
+    const record = row.type === "indexedVenue" ? row.item : {
+      id: row.item.id, name: row.item.name, sourceName: venue?.sourceName,
+      area: row.item.boroughLabel,
+    };
+    return {
+      score: mapSearchVenueScore(record, input.query) ?? Number.MAX_SAFE_INTEGER,
+      pint: row.type === "indexedVenue"
+        ? mapSearchPintRank(row.item.venueKind, row.item.pintPrice)
+        : mapSearchPintRank(row.item.kind, venue ? verifiedPrice(venue) : null),
+    };
+  };
+  return rows.map((row, index) => ({ row, index, ...rank(row) }))
+    .sort((a, b) => a.score - b.score || (preferPints ? a.pint - b.pint : 0) || a.index - b.index)
+    .map(({ row }) => row);
+}
 
 /**
  * A UK place from the national gazetteer (public/data/uk_base/places.json).

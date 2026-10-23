@@ -39,6 +39,7 @@ vi.mock("@/lib/mapSearchIndexLoader", () => ({
 }));
 
 import MapSearchSuggest from "@/components/map/MapSearchSuggest";
+import { loadMapSearchIndex } from "@/lib/mapSearchIndexLoader";
 
 let container: HTMLDivElement;
 let root: Root | null = null;
@@ -64,6 +65,39 @@ function londonVenue(): Venue {
 }
 
 describe("Map search current-city priority", () => {
+  it.each([
+    { query: "The Blackfriar", indexedName: "The Blackfriar", drinkCategory: "", expected: "indexed" },
+    { query: "The Blackfriar", indexedName: "The Blackfriar Inn", drinkCategory: "", expected: "indexed" },
+    { query: "The Blackfriar", indexedName: "The Blackfriar Inn", drinkCategory: "wine", expected: "loaded" },
+  ])("ranks loaded and indexed matches together: $indexedName / $drinkCategory", async ({ query, indexedName, drinkCategory, expected }) => {
+    const index = {
+      cities: SEARCH_INDEX.cities,
+      venues: [{ id: "indexed", name: indexedName, cityId: "london", area: "City of London", venueKind: "pub", pintPrice: 4.7 }],
+    } as MapSearchIndex;
+    vi.mocked(loadMapSearchIndex).mockResolvedValueOnce(index);
+    const onSelectVenue = vi.fn();
+    container = document.createElement("div");
+    document.body.append(container);
+    await act(async () => {
+      root = createRoot(container);
+      root.render(createElement(MapSearchSuggest, {
+        id: "map-search", mode: "overlay", cityId: "london", query, drinkCategory,
+        onQueryChange: vi.fn(), venues: [{ ...londonVenue(), id: "loaded", name: "The Blackfriar Kitchen", kind: "restaurant" }],
+        localities: [], userLocation: null, mapCenter: [-0.1276, 51.5072],
+        placeholder: "Search the map", onSelectVenue, onFlyToArea: vi.fn(),
+      }));
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+    const options = [...container.querySelectorAll<HTMLElement>('[role="group"][aria-label="Venues"] [data-venue-id]')];
+    expect(options.map((option) => option.dataset.venueId)).toEqual(expected === "indexed" ? ["indexed", "loaded"] : ["loaded", "indexed"]);
+    const input = container.querySelector<HTMLInputElement>('[role="combobox"]')!;
+    act(() => input.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowDown", bubbles: true })));
+    expect(input.getAttribute("aria-activedescendant")).toBe(options[0]!.id);
+    act(() => input.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true })));
+    expect(onSelectVenue).toHaveBeenCalledWith(...(expected === "indexed" ? ["indexed", "london"] : ["loaded"]));
+  });
+
   it("selects the current Map venue before a cross-city name match", async () => {
     const onSelectVenue = vi.fn();
     container = document.createElement("div");

@@ -760,8 +760,11 @@ function outLaneObservedAt(
     const label = outSourceDisplayLabel(raw);
     // The response's per-source map is the lane's own answer; a row's stated
     // observation is the fall-back, because the row itself is the evidence.
-    const next = canonicalIso(observedAt[raw.toLowerCase()] ?? row.observedAt ?? null);
-    if (!next) everyRowDated = false;
+    const rowCheck = canonicalIso(row.observedAt ?? null);
+    const next = canonicalIso(observedAt[raw.toLowerCase()] ?? rowCheck);
+    // The publisher map is an aggregate of its freshest row, not evidence
+    // that every row from that publisher was checked.
+    if (!rowCheck || !next) everyRowDated = false;
     const held = freshestByLabel.get(label);
     if (held === undefined) {
       freshestByLabel.set(label, next);

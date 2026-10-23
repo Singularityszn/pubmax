@@ -10,6 +10,7 @@ for (const width of [1280, 390]) {
       title: "A dated concert",
       kind: "music",
       startsAt: new Date(Date.now() + 60 * 60_000).toISOString(),
+      observedAt: now,
       source: { label: "Ticketmaster", url: "https://www.ticketmaster.co.uk/event/fixture" },
       confidence: "listed",
     };
@@ -34,5 +35,31 @@ for (const width of [1280, 390]) {
     await expect(page.locator('[data-tonight-provenance="undated-whats-on"]'))
       .toHaveText("The source check date is not recorded.");
     await page.screenshot({ path: testInfo.outputPath(`source-check-${width}.png`), fullPage: true });
+  });
+
+  test(`Tonight keeps an invalid row's source check unknown at ${width}px`, async ({ page }, testInfo) => {
+    await page.setViewportSize({ width, height: width === 390 ? 844 : 800 });
+    const now = new Date().toISOString();
+    const event = {
+      placeName: "A concert hall", title: "A dated concert", kind: "music",
+      startsAt: new Date(Date.now() + 60 * 60_000).toISOString(),
+      source: { label: "Ticketmaster", url: "https://www.ticketmaster.co.uk/event/fixture" },
+      confidence: "listed",
+    };
+    await page.route("**/api/whats-on?**", (route) => route.fulfill({ json: {
+      rows: [], readStatus: "ready", servedAt: now,
+      sourceFreshnessKind: "unknown", kindObservedAt: {}, localityBasis: "london-default",
+    } }));
+    await page.route("**/api/out?**", (route) => route.fulfill({ json: {
+      status: "ready", listingsStatus: "ready", venueMatch: "ready",
+      events: [{ ...event, id: "dated", observedAt: now }, { ...event, id: "unknown", observedAt: "not-a-date" }],
+      openPlans: [], attribution: [], providers: [], observedAt: { ticketmaster: now },
+    } }));
+    await page.goto("/tonight");
+    const credit = page.locator('[data-tonight-provenance="out"]');
+    await expect(credit).toHaveText("No pub-matched events via Ticketmaster");
+    await expect(page.locator('[data-tonight-provenance="undated-out"]'))
+      .toHaveText("The source check date is not recorded.");
+    await page.screenshot({ path: testInfo.outputPath(`shared-source-${width}.png`), fullPage: true });
   });
 }
