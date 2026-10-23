@@ -12,6 +12,9 @@
 // EVERY failure is soft: a missing key, a non-200, a malformed payload, a
 // network error or an abort all resolve to null. A leg that cannot be routed
 // falls back to its straight segment; the map never breaks.
+// Diagnostics contain only fixed failure categories and HTTP status. Never log
+// coordinates, credentials, response bodies or exception text. Caught caller
+// aborts are silent, and an already-aborted signal prevents a provider call.
 
 import { isValidLngLat, type LngLat } from "@/lib/walkRoute";
 import { log } from "@/lib/log";
@@ -31,7 +34,7 @@ const WALK_LEG_TIMEOUT_MS = 4000;
 // Bound a fetch to `timeoutMs`, honouring any caller signal too, without
 // depending on AbortSignal.any/timeout being present. The returned signal
 // aborts when either the deadline elapses or the caller's signal fires; `clear`
-// releases the timer so a fast reply never leaves it pending.
+// releases the timer and caller listener after every outcome.
 function deadlineSignal(
   callerSignal: AbortSignal | undefined,
   timeoutMs: number,

@@ -8,8 +8,9 @@
 // draws it SOLID only for a complete road route and DASHED for any approximate
 // fallback.
 //
-// ALWAYS 200 with a drawable line (fail-soft, never blocks the map). Keyless is
-// the documented default: no ORS_API_KEY ⇒ the straight fallback, no network.
+// Routing failures return a drawable fallback with status 200. The per-client
+// limiter can still return 429. Without ORS_API_KEY, uncached legs use the
+// straight fallback without a provider call.
 // A GET (stops in the query) keeps this off the social write-surface fence — it
 // reads and caches routed geometry, it is not a user-content write.
 //
@@ -30,6 +31,9 @@
 // ORS_DAILY_BUDGET default 2000). Over the daily cap ⇒ skip the provider and
 // serve the straight leg — the same fail-soft the keyless/unroutable paths use.
 // Cache hits and the keyless path never call it, so they never consume budget.
+// An unexpected budget error also keeps the straight leg and skips the provider.
+// On a cache miss, an already-cancelled request skips the budget and provider.
+// Cancellation during a provider request aborts that request.
 
 import { publicApiError } from "@/lib/apiError";
 import { jsonNoStore } from "@/lib/apiResponses";
