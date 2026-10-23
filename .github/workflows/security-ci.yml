@@ -113,7 +113,7 @@ jobs:
       # --redact keeps a found value out of the job log. The allowlists and
       # their reasons are in .gitleaks.toml.
       - name: gitleaks
-        run: gitleaks git --redact --no-banner --config .gitleaks.toml .
+        run: gitleaks git --redact --verbose --no-banner --config .gitleaks.toml .
 
   semgrep:
     name: Semgrep CE (SAST)
