@@ -348,6 +348,9 @@ test("/map reveals pins only for the final rapid theme style generation", async 
   ).toEqual([]);
 });
 
+// Returning phones have no opening snapshot, so they can still use local
+// pins while a remote basemap is pending. Cold snapshot handoff is covered by
+// map-opening-preview.spec.ts.
 // e8bc70d3a set `requiresBasemapPaint: !phoneFirstImpression`, so a phone
 // reveals on its local pins ("pins") rather than on the readiness ceiling
 // ("timeout"). `revealTimeoutNotice` only names the basemap for a "timeout"
@@ -355,11 +358,12 @@ test("/map reveals pins only for the final rapid theme style generation", async 
 // useful map behind the loading shell nor invent a failure before a tile
 // request has actually failed. The toast contract for a basemap that really
 // fails is asserted by the honest-retry test below.
-test("/map keeps its pins visible while a slow basemap misses the phone readiness ceiling", async ({
+test("/map keeps returning-phone pins visible while a slow basemap misses the readiness ceiling", async ({
   page,
 }) => {
   test.setTimeout(60_000);
   await page.setViewportSize({ width: 390, height: 844 });
+  await page.addInitScript(() => localStorage.setItem("pubmax:first-pins-seen:v1", "1"));
   await installDeterministicMapBasemap(page, { primaryRasterDelayMs: 12_000 });
   let landedRasterTiles = 0;
   page.on("response", (response) => {
@@ -380,6 +384,7 @@ test("/map keeps its pins visible while a slow basemap misses the phone readines
   await expect(page.locator(".mapLoading")).toHaveCount(0, { timeout: 30_000 });
   await expect(page.locator(".mapFallback")).toHaveCount(0);
   await expect(page.locator(".mapSoftRetry")).toHaveCount(0);
+  expect(landedRasterTiles, "returning phones reveal before the delayed basemap").toBe(0);
 
   await expect
     .poll(

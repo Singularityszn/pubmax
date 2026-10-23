@@ -79,6 +79,35 @@ async function readReveal(page: Page): Promise<Reveal> {
 }
 
 test.describe("the document's opening prices", () => {
+  test("keep the opening streets until a live basemap tile can replace them", async ({ page }) => {
+    test.setTimeout(45_000);
+    await page.setViewportSize({ width: 440, height: 956 });
+    await page.emulateMedia({ colorScheme: "dark", reducedMotion: "reduce" });
+    await installDeterministicMapBasemap(page, { primaryRasterDelayMs: 8_000 });
+    let basemapAnswered = false;
+    page.on("response", (response) => {
+      if (response.ok() && response.url().includes("/__empty/")) basemapAnswered = true;
+    });
+
+    await page.goto("/map");
+    const ground = page.locator(".mapOpeningGround");
+    await expect(ground).toHaveCount(1);
+    await expect(ground).toBeVisible();
+    await expect(page.locator(".mapLoading")).toBeVisible();
+    expect(basemapAnswered).toBe(false);
+    // The short pin timer can show local layers behind the loading frame.
+    // It must not replace the streets with a canvas whose tiles are pending.
+    while (!basemapAnswered) {
+      await expect(ground).toBeVisible({ timeout: 250 });
+      await expect(page.locator(".mapLoading")).toBeVisible({ timeout: 250 });
+      await page.waitForTimeout(100);
+    }
+    await expect.poll(() => basemapAnswered, { timeout: 20_000 }).toBe(true);
+    await expect(page.locator(".mapLoading")).toHaveCount(0, { timeout: 20_000 });
+    await expect(ground).toBeHidden();
+    await expect(page.locator(".mapFallback, .mapSoftRetry")).toHaveCount(0);
+  });
+
   test("ship in the prerendered /map document, with no script of their own", async ({ request }) => {
     const html = await (await request.get("/map")).text();
     expect(html).toContain('class="mapOpeningPreview"');

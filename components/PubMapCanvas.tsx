@@ -1535,6 +1535,10 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
     paintContainerBase(themeRef.current);
     hoverCapableRef.current = window.matchMedia("(hover: hover) and (pointer: fine)").matches;
     const phoneFirstImpression = window.matchMedia("(max-width: 640px)").matches;
+    const openingGroundActive =
+      document.documentElement.dataset.mapPreview === "on" &&
+      document.documentElement.dataset.mapGround === "on" &&
+      document.querySelector(".mapOpeningGround") !== null;
     const reducedQuery = window.matchMedia("(prefers-reduced-motion: reduce)");
     reducedRef.current = reducedQuery.matches;
     performance.clearMarks("pubmax:pin-entrance-settled");
@@ -2292,12 +2296,12 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
       hasBasemapPainted: () => basemapTileReadyForPaint,
       hasPinsPaintable: () =>
         pubsDeferredUntilZoom() || !phoneFirstImpression || hasPinsPaintable(),
-      // On a phone, local pub GeoJSON is the useful content that the reader
-      // is waiting for. Do not hold its first painted frame behind remote
-      // basemap tiles; tile failures still use their independent classifier
-      // and retry lane below. A national overview is the other way round:
-      // there are no pins to paint yet, so the frame waits on the basemap.
-      requiresBasemapPaint: nationalBrowseRef.current || !phoneFirstImpression,
+      // A cold opening snapshot must hand over to streets, not a blank canvas.
+      // Phones without that picture can still use local pins before remote
+      // tiles arrive. Tile failures and the readiness ceiling keep their
+      // existing retry path, and a national overview still waits for tiles.
+      requiresBasemapPaint:
+        openingGroundActive || nationalBrowseRef.current || !phoneFirstImpression,
       confirmVisibleFrameBeforeReveal: phoneFirstImpression,
       compositeConfirmFrames: phoneFirstImpression
         ? PHONE_PIN_COMPOSITE_CONFIRM_FRAMES
@@ -2305,7 +2309,6 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
       scheduleFrame: (callback) => window.requestAnimationFrame(callback),
       cancelFrame: (handle) => window.cancelAnimationFrame(handle),
       setPinsVisible: (visible) => {
-        if (visible) markPubmaxTiming("pubmax:pins-visible");
         for (const id of PUB_PIN_LAYERS) {
           if (map.getLayer(id)) {
             map.setLayoutProperty(id, "visibility", visible ? "visible" : "none");
@@ -2359,6 +2362,9 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
         // gate. The ceiling degrades honestly if either required phone signal
         // never arrives.
         onMapReadyRef.current?.(true);
+        // The short pin timer only ungates layers behind the loading frame.
+        // Start the document preview's handoff when this frame can retire.
+        markPubmaxTiming("pubmax:pins-visible");
         window.dispatchEvent(new CustomEvent(MAP_PIN_REVEAL_EVENT, {
           detail: { reason, generation },
         }));
