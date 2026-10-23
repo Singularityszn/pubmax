@@ -90,8 +90,10 @@ for (const selection of ["typed search", "venue suggestion", "base pub suggestio
     }), { timeout: 30_000 }).toBeLessThan(-0.2);
     await page.getByRole("button", { name: "Clear search", exact: true }).click();
     await page.getByRole("button", { name: /^Map area:/ }).click();
-    await context.grantPermissions(["geolocation"]);
     await context.setGeolocation({ latitude: 51.5074, longitude: -0.1278, accuracy: 10 });
+    // A granted permission can start the banner's read immediately.
+    // Supply coordinates first so that read never starts without a position.
+    await context.grantPermissions(["geolocation"]);
     const useLocation = page.getByRole("button", { name: "Use my location", exact: true });
     await expect(async () => {
       await useLocation.click();
