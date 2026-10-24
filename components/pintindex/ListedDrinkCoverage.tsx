@@ -21,7 +21,7 @@ export default function ListedDrinkCoverage({ coverage, status }: {
           <dd>{coverage.counts[category].toLocaleString("en-GB")}<small>of {coverage.total.toLocaleString("en-GB")} pubs</small></dd>
         </div>)}
       </dl>
-      <p className="listingSectionDek">These counts are separate from the borough league and its CSV. Cafés are outside this pub count. The map&rsquo;s coffee list counts them separately. Map drink colours use confirmed prices from drinkers.</p>
+      <p className="listingSectionDek">These counts are separate from the borough league and its CSV. Cafés are outside this pub count. The map&rsquo;s coffee list counts them separately. The default pint colours can use published prices from our pub price list. Other drink colours need prices confirmed by more than one drinker.</p>
       <Link href="/map?drink=coffee" prefetch={false} className="listingLink">See coffee on the map</Link>
     </>}
   </section>;

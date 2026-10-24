@@ -360,6 +360,7 @@ import { useSelParamSync } from "@/components/map/pubmap/useSelParamSync";
 import { useMapKeyboardShortcuts } from "@/components/map/pubmap/useMapKeyboardShortcuts";
 import { useLandmarkJourney } from "@/components/map/pubmap/useLandmarkJourney";
 import { useLogIntent } from "@/components/map/pubmap/useLogIntent";
+import { useLogPickerLocation } from "@/components/map/pubmap/useLogPickerLocation";
 import { useLogIntentRevealScope } from "@/components/map/pubmap/useLogIntentRevealScope";
 import { MappedRouteChip } from "@/components/map/pubmap/MappedRouteChip";
 import { BandOnboardingChip } from "@/components/map/pubmap/BandOnboardingChip";
@@ -1861,7 +1862,6 @@ export default function PubMap({
   const [nearbyLoading, setNearbyLoading] = useState(false);
   const [nearbyError, setNearbyError] = useState<string | null>(null);
   const [userLocation, setUserLocation] = useState<UserLocation | null>(null);
-  const [logPickerLocation, setLogPickerLocation] = useState<UserLocation | null>(null);
   const readerPosition = useMapReaderPosition();
   // Purpose-limited copy used only after the viewer explicitly asks for travel
   // times. A location granted for "Pubs near me" must not silently become a
@@ -3812,6 +3812,30 @@ export default function PubMap({
   );
   const tonightLaneForcedOpen = Boolean(tonightLaneKind);
 
+  // The landmark whose story is open, resolved against the city's own catalog.
+  // Resolved HERE, ahead of the overlay coordination below, because the story
+  // is a surface the reader is on: it hides the planning pill and it enters
+  // the Back trail like the venue sheet and the planner do.
+  const activeLandmark = useMemo(
+    () =>
+      activeLandmarkId
+        ? cityLandmarks.find((landmark) => landmark.id === activeLandmarkId) ?? null
+        : null,
+    [activeLandmarkId, cityLandmarks],
+  );
+  const storyOpen = activeLandmark !== null;
+  const coordinatedMobileOverlay: MapOverlay = coordinatedMapOverlay({
+    logIntentFallbackVisible,
+    detailOpen: mapSelection.detailOpen,
+    planningOpen,
+    storyOpen,
+    mapOverlay,
+  });
+  const { location: logPickerLocation, setLocation: setLogPickerLocation } = useLogPickerLocation(
+    mobileViewport ? coordinatedMobileOverlay === "moment" : logIntentFallbackVisible,
+    userLocation,
+  );
+
   // D1 — the picker is grounded in a real origin: the reader's fix, else the
   // centre of the map they are looking at. It never offers a city-wide five.
   const logNearbyOrigin = useMemo(
@@ -5084,25 +5108,6 @@ export default function PubMap({
       });
     }
   }, [activateGeneratedPlan, changeExperienceLens, setActiveCrawl]);
-  // The landmark whose story is open, resolved against the city's own catalog.
-  // Resolved HERE, ahead of the overlay coordination below, because the story
-  // is a surface the reader is on: it hides the planning pill and it enters
-  // the Back trail like the venue sheet and the planner do.
-  const activeLandmark = useMemo(
-    () =>
-      activeLandmarkId
-        ? cityLandmarks.find((landmark) => landmark.id === activeLandmarkId) ?? null
-        : null,
-    [activeLandmarkId, cityLandmarks],
-  );
-  const storyOpen = activeLandmark !== null;
-  const coordinatedMobileOverlay: MapOverlay = coordinatedMapOverlay({
-    logIntentFallbackVisible,
-    detailOpen,
-    planningOpen,
-    storyOpen,
-    mapOverlay,
-  });
   const activeNightAreaSlug = nightAreaSlugOf(activeNightArea);
   const mobileShellState: MobileShellState = {
     overlay: coordinatedMobileOverlay,

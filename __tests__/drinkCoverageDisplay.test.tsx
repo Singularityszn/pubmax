@@ -41,6 +41,12 @@ describe("pub list coverage copy", () => {
     expect(html).toContain("pub price list and published menus");
     expect(html).toContain("separate from the borough league");
   });
+  it.each(["ready", "partial"] as const)("distinguishes pint colours from confirmed other drinks when %s", (status) => {
+    const html = renderToStaticMarkup(<ListedDrinkCoverage coverage={listed} status={status} />);
+    expect(html).toContain("default pint colours can use published prices from our pub price list");
+    expect(html).toContain("Other drink colours need prices confirmed by more than one drinker");
+    expect(html).not.toContain("Map drink colours use confirmed prices from drinkers");
+  });
   it("never turns an unread pub list into zero coverage", () => {
     const html = renderToStaticMarkup(<ListedDrinkCoverage coverage={listed} status="degraded" />);
     expect(html).toContain("Coverage is unavailable");
