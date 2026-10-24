@@ -84,6 +84,64 @@ async function tap(label: string) {
 }
 
 describe("Night mode action permissions and recovery", () => {
+  it.each([false, true])("reads the route after bootstrap and removes it after revocation (collapsed: %s)", async (collapsed) => {
+    const preview = { visibility: "preview", stopCount: 2 };
+    const initialState = { ...plan, stops: [], crew: [], actions: [] };
+    let releaseSession!: (response: Response) => void;
+    const session = new Promise<Response>((resolve) => { releaseSession = resolve; });
+    let member = false;
+    let previewReads = 0;
+    vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL) => {
+      if (String(input).endsWith("/session")) {
+        return member ? Response.json({ active: false }) : session;
+      }
+      if (!member) previewReads += 1;
+      return Response.json(member ? plan : preview);
+    }));
+    await act(async () => root.render(createElement(NightCrawlMode, { planId, initialState })));
+    await settle(() => {
+      expect(previewReads).toBeGreaterThan(0);
+      expect(host.querySelector('[role="dialog"]')).not.toBeNull();
+      expect(host.querySelector(".nightCrawl__heroName")).toBeNull();
+    });
+    await act(async () => {
+      member = true;
+      releaseSession(Response.json({ active: true, role: "guest", collaborationAuthorized: false }));
+    });
+    await settle(() => expect(host.querySelector(".nightCrawl__heroName")?.textContent).toBe("First Arms"));
+    expect(action("We are here")).toBeUndefined();
+    expect(action("Skip it")).toBeUndefined();
+
+    let releaseOldRead!: (response: Response) => void;
+    const oldRead = new Promise<Response>((resolve) => { releaseOldRead = resolve; });
+    let oldReadStarted = false;
+    vi.mocked(fetch).mockImplementation(async () => {
+      oldReadStarted = true;
+      return oldRead;
+    });
+    await act(async () => writePlanCapability(planId, {
+      token: PLAN_HTTP_ONLY_SESSION, role: "guest", collaborationAuthorized: true,
+    }));
+    await settle(() => expect(oldReadStarted).toBe(true));
+    if (collapsed) await act(async () => action("View full plan")!.click());
+    const readsBeforeRevocation = previewReads;
+    // The server has revoked access. The new capability snapshot triggers a
+    // preview read even when the overlay is closed.
+    vi.mocked(fetch).mockImplementation(async (input) => {
+      if (String(input).endsWith("/session")) return Response.json({ active: false });
+      previewReads += 1;
+      return Response.json(preview);
+    });
+    await act(async () => clearPlanCapability(planId));
+    await settle(() => expect(previewReads).toBeGreaterThan(readsBeforeRevocation));
+    await act(async () => releaseOldRead(Response.json(plan)));
+    if (collapsed) await act(async () => action("Night mode")!.click());
+    expect(host.querySelector(".nightCrawl__heroName")).toBeNull();
+    expect(host.textContent).not.toContain("First Arms");
+    expect(host.textContent).not.toContain("Second Arms");
+    expect(actionCalls).toBe(0);
+  });
+
   it("keeps classic guests on the route without impossible arrival or skip controls", async () => {
     await render("guest", false);
     expect(host.textContent).toContain("First Arms");
