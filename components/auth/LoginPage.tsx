@@ -435,6 +435,46 @@ function renderLoginPageHeadActions({
   return { primary, secondary };
 }
 
+function LoginPageFooter({ legalLead }: { legalLead?: string }): React.JSX.Element {
+  return (
+    <footer className="loginPageFoot">
+      <Link href="/map" className="loginPageQuietLink">
+        <LogIn size={14} aria-hidden="true" />
+        Browse without signing in
+      </Link>
+      {legalLead ? <p className="loginPageLegal">
+        {legalLead}{" "}<Link href="/terms">terms</Link> and{" "}
+        <Link href="/privacy">privacy notice</Link>.
+      </p> : null}
+    </footer>
+  );
+}
+
+function SignInUnavailable(): React.JSX.Element {
+  return (
+    <main className="loginPage">
+      <div className="loginPageInner">
+        <PageHead
+          title="Sign-in is temporarily unavailable"
+          lead="You can still browse the map."
+          primary={<button type="button" onClick={() => window.location.reload()}>Try again</button>}
+        />
+        <p className="loginPageNotice" role="alert">Your account could not be checked.</p>
+        <LoginPageFooter />
+      </div>
+    </main>
+  );
+}
+
+function hasUnavailableSignIn(input: {
+  configured: boolean;
+  loading: boolean;
+  state: ReturnType<typeof useAuth>["supabaseAuthState"];
+  signedIn: boolean;
+}): boolean {
+  return input.configured && !input.loading && input.state === "unavailable" && !input.signedIn;
+}
+
 /**
  * Full-page sign-in surface. Owns the email-link flow as a first-class page
  * (not only the nav popover). Phone nav Sign in routes here; desktop may still
@@ -471,6 +511,7 @@ export default function LoginPage({
     user,
     loading,
     configured,
+    supabaseAuthState,
     clerkIntegrationConfigured,
     socialProviders,
     socialProvidersResolved,
@@ -684,6 +725,10 @@ export default function LoginPage({
     onUseDifferentAccount: () => setUseDifferentAccount(true),
   });
 
+  if (hasUnavailableSignIn({ configured, loading, state: supabaseAuthState, signedIn: showSignedIn })) {
+    return <SignInUnavailable />;
+  }
+
   return (
     <main className="loginPage">
       <div className="loginPageInner">
@@ -784,17 +829,7 @@ export default function LoginPage({
           </section>
         ) : null}
 
-        <footer className="loginPageFoot">
-          <Link href="/map" className="loginPageQuietLink">
-            <LogIn size={14} aria-hidden="true" />
-            Browse without signing in
-          </Link>
-          <p className="loginPageLegal">
-            {door.legalLead}{" "}
-            <Link href="/terms">terms</Link> and{" "}
-            <Link href="/privacy">privacy notice</Link>.
-          </p>
-        </footer>
+        <LoginPageFooter legalLead={door.legalLead} />
       </div>
     </main>
   );

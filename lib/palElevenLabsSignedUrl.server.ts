@@ -22,7 +22,7 @@ export async function fetchPalSignedConversation(input: {
   timeoutMs?: number;
 }): Promise<PalSignedConversation> {
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), input.timeoutMs ?? SIGNED_URL_TIMEOUT_MS);
+  const timeout = setTimeout(() => controller.abort(), Math.min(input.timeoutMs ?? SIGNED_URL_TIMEOUT_MS, SIGNED_URL_TIMEOUT_MS));
   try {
     const url = new URL("https://api.elevenlabs.io/v1/convai/conversation/get-signed-url");
     url.searchParams.set("agent_id", input.agentId);
