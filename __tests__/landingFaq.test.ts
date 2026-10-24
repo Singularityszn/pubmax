@@ -60,6 +60,14 @@ describe("the landing FAQ", () => {
     expect(LANDING_FAQ[0]?.question).toBe("How does PUBMAXX work?");
   });
 
+  it("names the real price sources and keeps missing read days unknown", () => {
+    const html = renderToStaticMarkup(createElement(LandingFaq));
+    expect(html).toContain("public directories");
+    expect(html).toContain("drinker reports");
+    expect(html).toContain("show its read day when known");
+    expect(html).not.toContain("each figure shows the day");
+  });
+
   it("names the button the sheet really prints, and the bill rule the composer states", () => {
     const answer = LANDING_FAQ.find((entry) => entry.id === "log-a-price")?.answer ?? "";
     expect(answer).toContain(`tap ${LOG_PRICE_DOOR_LABEL}`);

@@ -106,8 +106,8 @@ export default function HowWeEstimatePage() {
           average one, red for a dear one.
         </p>
         <p className="legalBody">
-          A confirmation lasts {CONFIRMED_MAX_AGE_DAYS} days. A listed menu
-          price lasts {LISTED_MAX_AGE_DAYS} days. After that, we use whichever
+          A confirmation lasts {CONFIRMED_MAX_AGE_DAYS} days. A listed price
+          stays listed for {LISTED_MAX_AGE_DAYS} days after we read it. After that, we use whichever
           weaker label the remaining evidence supports.
         </p>
       </section>

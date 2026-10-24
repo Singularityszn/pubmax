@@ -2,9 +2,10 @@
 // that claim looks.
 //
 // FOUR STANDINGS, AND THE GAP BETWEEN TWO OF THEM IS THE WHOLE POINT. A
-// `listed` price was published by the pub or its chain and carries the URL and
-// the day it was read. An `estimate` was MODELLED here and was never published
-// by anybody, so it may never be printed as a bare figure: it says "est. £X",
+// `listed` price appears on a public source page and carries the URL and the
+// day we read it. The source may be a pub or chain, or a public directory. An
+// `estimate` was MODELLED here and was never published by anybody, so it may
+// never be printed as a bare figure: it says "est. £X",
 // it carries the basis it was modelled from, and it links to the method. A
 // surface that formats a standing's price itself can drop that "est.", which is
 // why `priceStandingFigure` is the ONE place a figure becomes a string.
@@ -63,7 +64,7 @@ export type ConfirmedPriceInput = {
   observedAt: string;
 };
 
-/** A price the pub or its chain PUBLISHED, with the two things that make it citable. */
+/** A price on a public source page, with the two things that make it citable. */
 export type ListedPriceInput = {
   priceGbp: number;
   sourceUrl: string;
@@ -292,7 +293,7 @@ export function priceStandingNote(standing: PriceStanding): string {
     case "confirmed":
       return `A drinker confirmed this price in the last ${CONFIRMED_MAX_AGE_DAYS} days.`;
     case "listed":
-      return "The pub or its chain published this price. The date and the page are below.";
+      return "A public source lists this price. The source and the day we read it are below.";
     case "estimate":
       return "Nobody has published this price. We modelled it, and it is not a quote.";
     case "none":

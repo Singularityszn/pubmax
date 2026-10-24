@@ -71,6 +71,11 @@ describe("price standings", () => {
     }
   });
 
+  it("describes listed prices by their source without claiming the venue published them", () => {
+    expect(priceStandingNote("listed")).toContain("A public source lists this price");
+    expect(priceStandingNote("listed")).not.toContain("The pub or its chain published");
+  });
+
   it("refuses a future observation rather than treating it as the freshest evidence", () => {
     const decision = priceStandingFor(
       { confirmed: { priceGbp: 5.4, observedAt: daysAgo(-3) } },
