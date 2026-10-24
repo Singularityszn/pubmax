@@ -164,3 +164,31 @@ test("Southwark page paints the credited founder photograph", async ({ page }) =
   await expect.poll(() => image.evaluate((element: HTMLImageElement) => element.complete && element.naturalWidth > 0)).toBe(true);
   expect(await image.evaluate((element: HTMLImageElement) => element.currentSrc)).toMatch(/\/landing\/london-collage\/southwark-shard-(640|1280)\.(avif|webp)$/);
 });
+
+for (const width of [320, 390, 768, 1440]) {
+  for (const theme of ["light", "dark"] as const) {
+    test(`Historic filters fit at ${width}px and 200% text in ${theme}`, async ({ page }) => {
+      await page.setViewportSize({ width, height: 900 });
+      await page.emulateMedia({ colorScheme: theme, reducedMotion: "reduce" });
+      await page.addInitScript((value) => localStorage.setItem("pubmax-theme", value), theme);
+      await page.goto("/historic");
+      const filters = page.getByRole("region", { name: "Filter and sort historic pubs" });
+      const borough = page.getByRole("combobox", { name: "Borough", exact: true });
+      await expect(borough).toBeVisible();
+      const baselineFont = await borough.evaluate((element) => parseFloat(getComputedStyle(element).fontSize));
+      await page.evaluate(() => { document.documentElement.style.fontSize = "200%"; });
+      await expect.poll(() => borough.evaluate((element) => parseFloat(getComputedStyle(element).fontSize)))
+        .toBeCloseTo(baselineFont * 2, 1);
+      for (const control of await filters.getByRole("combobox").all()) {
+        const bounds = await control.boundingBox();
+        expect(bounds).not.toBeNull();
+        expect(bounds!.x).toBeGreaterThanOrEqual(0);
+        expect(bounds!.x + bounds!.width).toBeLessThanOrEqual(width);
+        expect(bounds!.height).toBeGreaterThanOrEqual(44);
+      }
+      expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
+      await borough.focus();
+      await expect(borough).toBeFocused();
+    });
+  }
+}
