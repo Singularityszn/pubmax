@@ -165,6 +165,14 @@ export function filterTonightPubSurfaceRows(
   );
 }
 
+/** Count the pub listings the Tonight page can display from this feed. */
+export function tonightPubListingCount(
+  rows: readonly WhatsOnRow[],
+  now: number = Date.now(),
+): number {
+  return dedupeRows(filterTonightPubSurfaceRows(rows, now)).length;
+}
+
 /**
  * Out is a fallback lane for Tonight, not a second pub inventory. Hold its
  * rows until the What's-On spine has answered. An empty spine means there is
