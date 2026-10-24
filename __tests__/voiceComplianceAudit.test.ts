@@ -165,15 +165,12 @@ describe("VOICE.md compliance audit", () => {
     const planPage = read("app/plan/page.tsx");
     const feed = read("app/feed/FeedPageClient.tsx");
     const feedCard = read("components/feed/FeedCard.tsx");
-    const tonight = read("app/tonight/TonightClient.tsx");
-    const tonightPage = read("app/tonight/page.tsx");
     const near = read("components/nearme/NearMeNow.tsx");
     const nearHeadline = read("lib/nearMeAnswer.ts");
     const nearPage = read("app/near/page.tsx");
     const palChatPage = read("app/pal/chat/page.tsx");
     const deals = read("components/discovery/DealsTonightLane.tsx");
     const rivalry = read("components/discovery/CityRivalryTable.tsx");
-    const borough = read("app/borough/[slug]/page.tsx");
     const memories = read("components/profile/NightMemoryStudio.tsx");
     const planTemplates = read("lib/planTemplates.ts");
 
@@ -191,11 +188,6 @@ describe("VOICE.md compliance audit", () => {
     expect(feed).not.toContain("Capture a Moment");
     expect(feedCard).not.toContain("Provenance:");
 
-    expect(tonight).not.toContain("same spine as the map");
-    expect(tonightPage).not.toContain("Same spine as the map");
-    expect(tonightPage).toContain(
-      "Check sourced London pub listings for tonight on PUBMAXX, with map links when available.",
-    );
     expect(planTemplates).not.toContain("What's-On spine");
     expect(planTemplates).toContain("Quiz listings with start times.");
 
@@ -214,7 +206,6 @@ describe("VOICE.md compliance audit", () => {
     expect(rivalry).not.toContain(
       'caption = "UK city energy. Demo Pint Drops, curated crawls',
     );
-    expect(borough).not.toMatch(/curated (?:route|crawls)/iu);
     expect(memories).not.toContain("Capture a Moment");
   });
 

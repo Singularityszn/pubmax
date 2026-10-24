@@ -6,16 +6,40 @@ vi.mock("server-only", () => ({}));
 vi.mock("@/components/nav/SiteNav", () => ({ default: () => null }));
 vi.mock("@/components/borough/BoroughPassportSlice", () => ({ default: () => null }));
 
-import BoroughPage from "@/app/borough/[slug]/page";
+import BoroughPage, { generateMetadata } from "@/app/borough/[slug]/page";
 
-async function photograph(slug: string) {
-  const document = new JSDOM(renderToStaticMarkup(
+async function boroughDocument(slug: string) {
+  return new JSDOM(renderToStaticMarkup(
     await BoroughPage({ params: Promise.resolve({ slug }) }),
   )).window.document;
-  return document.querySelector(".boroughPhoto");
+}
+
+async function photograph(slug: string) {
+  return (await boroughDocument(slug)).querySelector(".boroughPhoto");
 }
 
 describe("borough page photograph composition", () => {
+  it.each(["southwark", "camden", "barnet"])(
+    "keeps %s public copy free of route-production jargon",
+    async (slug) => {
+      const document = await boroughDocument(slug);
+      const metadata = await generateMetadata({ params: Promise.resolve({ slug }) });
+      expect(document.querySelector("h1")?.textContent).toBeTruthy();
+      for (const copy of [
+        document.body.textContent,
+        ...Array.from(document.querySelectorAll("[aria-label]"), (element) => element.getAttribute("aria-label")),
+        metadata.title,
+        metadata.description,
+        metadata.openGraph?.title,
+        metadata.openGraph?.description,
+        metadata.twitter?.title,
+        metadata.twitter?.description,
+      ]) {
+        expect(copy).not.toMatch(/curated (?:route|crawls)/iu);
+      }
+    },
+  );
+
   it("shows the founder's Southwark photograph with its place and credit", async () => {
     const photo = await photograph("southwark");
     expect(photo?.textContent).toContain("Southwark");

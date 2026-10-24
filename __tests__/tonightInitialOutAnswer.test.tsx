@@ -181,6 +181,26 @@ describe("Tonight's serialized Out answer", () => {
     const renderDocument = (out: TonightOutAnswer, listings: LoadWhatsOnResult | null = whatsOn, pubs: HypedPub[] = []) =>
       documentFor(out, listings, pubs, path);
 
+    it.each(["ready", "empty", "pending", "failed"])(
+      "keeps %s public copy free of map implementation jargon",
+      (state) => {
+        const out = state === "ready" ? readyOut : {
+          body: state === "empty" ? { ...body, events: [], openPlans: [] } : null,
+          pending: state === "pending",
+          failed: state === "failed",
+        };
+        const listings = state === "ready" ? whatsOn : state === "empty" ? { ...whatsOn, rows: [] } : null;
+        const doc = new DOMParser().parseFromString(renderDocument(out, listings), "text/html");
+        expect(doc.querySelector("h1")?.textContent).toBe("What’s on across London tonight.");
+        for (const copy of [
+          doc.body.textContent,
+          ...Array.from(doc.querySelectorAll("[aria-label]"), (element) => element.getAttribute("aria-label")),
+        ]) {
+          expect(copy).not.toMatch(/same spine as the map/iu);
+        }
+      },
+    );
+
     it.each(["ready", "empty", "failed"])(
       "does not call a hidden pub-matched nonmusic event unmatched with What's-on %s",
       (state) => {
@@ -226,9 +246,9 @@ describe("Tonight's serialized Out answer", () => {
       expect(doc.querySelector('[data-tonight-provenance="whats-on"]')?.textContent)
         .toBe("1 listing · Checked 22 Oct · via what’s-on");
       expect(doc.querySelector('[data-tonight-provenance="out"]')?.textContent)
-        .toBe(`No pub-matched events via Skiddle${observedAt === OBSERVED ? " · Checked 22 Oct" : ""}`);
+        .toBe(`No pub-matched events via Skiddle${observedAt === OBSERVED ? " · Checked 22 Oct" : " · The source check date is not recorded."}`);
       expect(doc.querySelector('[data-tonight-provenance="undated-out"]')?.textContent ?? null)
-        .toBe(observedAt === OBSERVED ? null : "The source check date is not recorded.");
+        .toBe(observedAt === OBSERVED ? null : " · The source check date is not recorded.");
     });
 
     it.each([
@@ -248,9 +268,9 @@ describe("Tonight's serialized Out answer", () => {
         },
       }, whatsOn, [suggestion]), "text/html");
       expect(doc.querySelector('[data-tonight-provenance="out"]')?.textContent)
-        .toBe(`No pub-matched events via ${expected}${dated ? " · Checked 22 Oct" : ""}`);
+        .toBe(`No pub-matched events via ${expected}${dated ? " · Checked 22 Oct" : " · The source check date is not recorded."}`);
       expect(doc.querySelector('[data-tonight-provenance="undated-out"]')?.textContent ?? null)
-        .toBe(dated ? null : "The source check date is not recorded.");
+        .toBe(dated ? null : " · The source check date is not recorded.");
     });
 
     it.each([
@@ -286,9 +306,9 @@ describe("Tonight's serialized Out answer", () => {
         },
       }), "text/html");
       expect(doc.querySelector('[data-tonight-provenance="out"]')?.textContent)
-        .toBe(`No pub-matched events via Skiddle and Ticketmaster${observedAt === "not-a-date" ? "" : " · Checked 21 Oct"}`);
+        .toBe(`No pub-matched events via Skiddle and Ticketmaster${observedAt === "not-a-date" ? " · The source check date is not recorded." : " · Checked 21 Oct"}`);
       expect(doc.querySelector('[data-tonight-provenance="undated-out"]')?.textContent ?? null)
-        .toBe(observedAt === "not-a-date" ? "The source check date is not recorded." : null);
+        .toBe(observedAt === "not-a-date" ? " · The source check date is not recorded." : null);
     });
 
     it("credits a truly empty read using actual provider checks", () => {
