@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 
-import { act, createElement } from "react";
+import { act, createElement, type ComponentProps } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -30,10 +30,10 @@ function rawRows(): WhatsOnRow[] {
   ];
 }
 
-function render(rows: WhatsOnRow[], pins = 0, open?: boolean) {
+function render(rows: WhatsOnRow[], pins = 0, open?: boolean, options: Partial<ComponentProps<typeof TonightLane>> = {}) {
   act(() => root.render(createElement(TonightLane, {
     rows, asOf: new Date(NOW).toISOString(), status: "ready", onSelectVenue: vi.fn(),
-    overlayCount: pins, onToggleOverlay: vi.fn(), open,
+    overlayCount: pins, onToggleOverlay: vi.fn(), open, ...options,
   })));
 }
 
@@ -91,5 +91,72 @@ describe("map Tonight pub eligibility", () => {
     expect(container.textContent).not.toContain("Old music");
     expect(container.textContent).not.toContain("Theatre");
     expect(container.querySelector('[data-kind="music"]')).toBeNull();
+  });
+
+  describe.each(["map", "sheet"] as const)("%s category recovery", (variant) => {
+    function clearCategory() {
+      const all = Array.from(container.querySelectorAll<HTMLButtonElement>("button"))
+        .find((button) => button.textContent === "All");
+      expect(all).toBeDefined();
+      expect(all?.getAttribute("aria-pressed")).toBe("false");
+      act(() => all!.click());
+      expect(container.querySelector('button[data-kind][aria-pressed="true"]')).toBeNull();
+    }
+
+    function expectEmptyCategory() {
+      expect(container.querySelectorAll(".tonightLaneCard")).toHaveLength(0);
+      expect(container.querySelector('[role="status"]')?.textContent)
+        .toContain("Nothing listed in this category tonight via What's-on.");
+      expect(container.textContent).not.toContain("Nothing listed on tonight near you right now.");
+    }
+
+    it("lets a music link clear stale music and reveal the fresh quiz", () => {
+      render([...rawRows(), listing("fresh")], 7, true, { variant, initialKind: "music" });
+      expectEmptyCategory();
+      expect(container.textContent).toContain("Pins");
+      expect(container.textContent).toContain("7");
+      expect(container.textContent).toContain("via What's-on");
+      clearCategory();
+      expect(container.querySelector('[role="status"]')).toBeNull();
+      expect(container.querySelectorAll(".tonightLaneCard")).toHaveLength(1);
+      expect(container.textContent).toContain("Fresh quiz");
+      expect(container.textContent).not.toContain("Old music");
+      expect(container.textContent).not.toContain("Theatre");
+      expect(container.querySelector('[data-kind="music"]')).toBeNull();
+    });
+
+    it("preserves a chosen category and offers All when refresh removes it", () => {
+      const music = listing("fresh-music", { kind: "music", title: "Fresh music" });
+      const quiz = listing("fresh-quiz");
+      render([music, quiz], 0, true, { variant });
+      const musicFilter = container.querySelector<HTMLButtonElement>('button[data-kind="music"]');
+      expect(musicFilter).not.toBeNull();
+      act(() => musicFilter!.click());
+      expect(musicFilter?.getAttribute("aria-pressed")).toBe("true");
+      expect(container.querySelectorAll(".tonightLaneCard")).toHaveLength(1);
+      expect(container.textContent).toContain("Fresh music");
+      expect(container.textContent).not.toContain("Fresh quiz");
+      render([quiz], 0, true, { variant });
+      expectEmptyCategory();
+      clearCategory();
+      expect(container.querySelectorAll(".tonightLaneCard")).toHaveLength(1);
+      expect(container.textContent).toContain("Fresh quiz");
+      expect(container.textContent).not.toContain("Fresh music");
+    });
+
+    it("keeps All available when refresh removes every eligible listing", () => {
+      render([listing("music", { kind: "music" })], 0, true, { variant, initialKind: "music" });
+      expect(container.querySelectorAll(".tonightLaneCard")).toHaveLength(1);
+      render(rawRows(), 0, true, { variant, initialKind: "music" });
+      expectEmptyCategory();
+      clearCategory();
+      expect(container.querySelectorAll(".tonightLaneCard")).toHaveLength(0);
+      if (variant === "sheet") {
+        expect(container.querySelector('[role="status"]')?.textContent)
+          .toContain("Nothing listed on tonight near you right now.");
+      } else {
+        expect(container.textContent).toBe("");
+      }
+    });
   });
 });

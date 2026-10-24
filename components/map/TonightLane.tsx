@@ -141,7 +141,7 @@ export default function TonightLane({
     return <TonightErrorState inSheet={inSheet} />;
   }
 
-  if (rows.length === 0 && !toggleOverlay) {
+  if (rows.length === 0 && !toggleOverlay && (!isOpen || activeKind === null)) {
     // In-sheet the viewer explicitly opened Tonight, so an empty portal reads as
     // broken — say quietly that nothing is on rather than rendering nothing.
     if (inSheet) {
@@ -168,7 +168,6 @@ export default function TonightLane({
   return (
     <TonightLaneOpen
       inSheet={inSheet}
-      hasListings={rows.length > 0}
       asOf={asOf}
       gardenCue={gardenCue}
       toggleOverlay={toggleOverlay}
@@ -280,7 +279,6 @@ function TonightLaneCollapsed({
 
 function TonightLaneOpen({
   inSheet,
-  hasListings,
   asOf,
   gardenCue,
   toggleOverlay,
@@ -296,7 +294,6 @@ function TonightLaneOpen({
   onSelectVenue,
 }: {
   inSheet: boolean;
-  hasListings: boolean;
   asOf: string | null;
   gardenCue: string | null;
   toggleOverlay: (() => void) | undefined;
@@ -357,7 +354,7 @@ function TonightLaneOpen({
             ) : null}
           </div>
         </div>
-        {facets.length > 1 ? (
+        {facets.length > 1 || activeKind !== null ? (
           <div
             className="tonightLaneChips"
             role="group"
@@ -396,9 +393,11 @@ function TonightLaneOpen({
         ) : null}
       </div>
 
-      {!hasListings ? (
+      {cards.length === 0 ? (
         <p className="tonightLaneEmpty" role="status">
-          Nothing listed on tonight near you right now.
+          {activeKind !== null
+            ? "Nothing listed in this category tonight via What's-on. Choose All to clear this filter."
+            : "Nothing listed on tonight near you right now."}
         </p>
       ) : null}
       <ul className="tonightLaneScroll" data-testid="tonight-lane">
