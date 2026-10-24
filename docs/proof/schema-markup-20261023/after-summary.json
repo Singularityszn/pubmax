@@ -1,0 +1,136 @@
+[
+  {
+    "path": "/",
+    "status": 200,
+    "canonical": "https://pubmaxxing.com",
+    "topLevelTypes": [
+      "WebSite",
+      "Organization"
+    ],
+    "file": "home.json"
+  },
+  {
+    "path": "/about",
+    "status": 200,
+    "canonical": "https://pubmaxxing.com/about",
+    "topLevelTypes": [
+      "WebSite",
+      "Organization",
+      "AboutPage"
+    ],
+    "file": "about.json"
+  },
+  {
+    "path": "/borough/camden",
+    "status": 200,
+    "canonical": "https://pubmaxxing.com/borough/camden",
+    "topLevelTypes": [
+      "WebSite",
+      "Organization",
+      "BreadcrumbList",
+      "ItemList",
+      "FAQPage"
+    ],
+    "file": "borough--camden.json"
+  },
+  {
+    "path": "/drink/guinness",
+    "status": 200,
+    "canonical": "https://pubmaxxing.com/drink/guinness",
+    "topLevelTypes": [
+      "WebSite",
+      "Organization",
+      "BreadcrumbList",
+      "ItemList"
+    ],
+    "file": "drink--guinness.json"
+  },
+  {
+    "path": "/area/clapham/drink/guinness",
+    "status": 200,
+    "canonical": "https://pubmaxxing.com/area/clapham/drink/guinness",
+    "topLevelTypes": [
+      "WebSite",
+      "Organization",
+      "BreadcrumbList",
+      "ItemList"
+    ],
+    "file": "area--clapham--drink--guinness.json"
+  },
+  {
+    "path": "/ledger/venue-1vle947",
+    "status": 200,
+    "canonical": "https://pubmaxxing.com/ledger/venue-1vle947",
+    "topLevelTypes": [
+      "WebSite",
+      "Organization",
+      "BarOrPub"
+    ],
+    "file": "ledger--venue-1vle947.json"
+  },
+  {
+    "path": "/historic/prospect-of-whitby",
+    "status": 200,
+    "canonical": "https://pubmaxxing.com/historic/prospect-of-whitby",
+    "topLevelTypes": [
+      "WebSite",
+      "Organization",
+      "LandmarksOrHistoricalBuildings"
+    ],
+    "file": "historic--prospect-of-whitby.json"
+  },
+  {
+    "path": "/historic/the-grapes",
+    "status": 200,
+    "canonical": "https://pubmaxxing.com/historic/the-grapes",
+    "topLevelTypes": [
+      "WebSite",
+      "Organization",
+      "LandmarksOrHistoricalBuildings"
+    ],
+    "file": "historic--the-grapes.json"
+  },
+  {
+    "path": "/historic/black-lion",
+    "status": 200,
+    "canonical": "https://pubmaxxing.com/historic/black-lion",
+    "topLevelTypes": [
+      "WebSite",
+      "Organization",
+      "LandmarksOrHistoricalBuildings"
+    ],
+    "file": "historic--black-lion.json"
+  },
+  {
+    "path": "/spoons-value",
+    "status": 200,
+    "canonical": "https://pubmaxxing.com/spoons-value",
+    "topLevelTypes": [
+      "WebSite",
+      "Organization",
+      "Dataset"
+    ],
+    "file": "spoons-value.json"
+  },
+  {
+    "path": "/pint-index",
+    "status": 200,
+    "canonical": "https://pubmaxxing.com/pint-index",
+    "topLevelTypes": [
+      "WebSite",
+      "Organization"
+    ],
+    "file": "pint-index.json"
+  },
+  {
+    "path": "/pint-index/2026-06",
+    "status": 200,
+    "canonical": "https://pubmaxxing.com/pint-index/2026-06",
+    "topLevelTypes": [
+      "WebSite",
+      "Organization",
+      "Dataset"
+    ],
+    "file": "pint-index--2026-06.json"
+  }
+]
