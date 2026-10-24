@@ -59,6 +59,7 @@ export default function PlacePhoto({
   photo,
   sizes,
   caption,
+  priority = false,
   className = "",
 }: {
   photo: PlacePhotoData;
@@ -70,6 +71,7 @@ export default function PlacePhoto({
    * `.placePhoto__frame`; the photograph covers it either way.
    */
   caption?: ReactNode;
+  priority?: boolean;
   className?: string;
 }) {
   return (
@@ -88,8 +90,9 @@ export default function PlacePhoto({
             width={photo.width}
             height={photo.height}
             alt={photo.alt}
-            loading="lazy"
-            decoding="async"
+            loading={priority ? "eager" : "lazy"}
+            decoding={priority ? "sync" : "async"}
+            fetchPriority={priority ? "high" : "auto"}
             sizes={sizes}
             style={{ backgroundImage: `url(${photo.blurDataUrl})` }}
           />

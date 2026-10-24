@@ -82,3 +82,80 @@ for (const width of [390, 768, 1440]) {
     });
   }
 }
+
+
+for (const width of [320, 390]) {
+  for (const theme of ["light", "dark"] as const) {
+    for (const scale of [1, 2]) {
+      test(`navigation labels have separate space at ${width}px and ${scale * 100}% in ${theme}`, async ({ page }) => {
+        await page.setViewportSize({ width, height: 844 });
+        await page.emulateMedia({ colorScheme: theme, reducedMotion: "reduce" });
+        await page.addInitScript((value) => localStorage.setItem("pubmax-theme", value), theme);
+        await page.goto("/about");
+        const dock = page.getByRole("navigation", { name: "Primary", exact: true });
+        await expect(dock).toBeVisible();
+        const baselineFont = await dock.locator(".mobileTabLabelText").first().evaluate((element) => parseFloat(getComputedStyle(element).fontSize));
+        await page.evaluate((value) => {
+          document.documentElement.style.fontSize = `${value * 100}%`;
+        }, scale);
+        await page.evaluate(() => document.fonts.ready);
+        const labels = await dock.locator(".mobileTabLabelText").evaluateAll((elements) => elements.map((element) => {
+          const link = element.closest("a")!;
+          const control = link.getBoundingClientRect();
+          const range = document.createRange();
+          range.selectNodeContents(element);
+          const text = [...range.getClientRects()].filter((rect) => rect.width > 0 && rect.height > 0);
+          return {
+            text: element.textContent,
+            href: link.getAttribute("href"),
+            name: link.getAttribute("aria-label"),
+            fontSize: parseFloat(getComputedStyle(element).fontSize),
+            control: { left: control.left, right: control.right, top: control.top, bottom: control.bottom, width: control.width, height: control.height },
+            rects: text.map((rect) => ({ left: rect.left, right: rect.right, top: rect.top, bottom: rect.bottom })),
+          };
+        }));
+        expect(labels.map((label) => label.text)).toEqual(["Map", "Tonight", "Pal", "Plan", "Social", "You"]);
+        expect(labels.find((label) => label.text === "Tonight")?.href).toBe("/tonight");
+        expect(labels.find((label) => label.text === "Pal")?.href).toBe("/pal");
+        for (const label of labels) {
+          expect(label.name).toBeTruthy();
+          expect(label.fontSize).toBeCloseTo(baselineFont * scale, 1);
+          expect(label.control.width).toBeGreaterThanOrEqual(44);
+          expect(label.control.height).toBeGreaterThanOrEqual(44);
+          expect(label.control.left).toBeGreaterThanOrEqual(0);
+          expect(label.control.right).toBeLessThanOrEqual(width);
+          expect(label.control.bottom).toBeLessThanOrEqual(844 - 6);
+          expect(label.rects.length, label.text ?? "").toBeGreaterThan(0);
+          for (const rect of label.rects) {
+            expect(rect.left, label.text ?? "").toBeGreaterThanOrEqual(label.control.left - 0.5);
+            expect(rect.right, label.text ?? "").toBeLessThanOrEqual(label.control.right + 0.5);
+            expect(rect.top).toBeGreaterThanOrEqual(label.control.top - 0.5);
+            expect(rect.bottom).toBeLessThanOrEqual(label.control.bottom + 0.5);
+            for (const sibling of labels.filter((other) => other !== label)) {
+              for (const other of sibling.rects) {
+                const overlapX = Math.min(rect.right, other.right) - Math.max(rect.left, other.left);
+                const overlapY = Math.min(rect.bottom, other.bottom) - Math.max(rect.top, other.top);
+                expect(overlapX > 0.5 && overlapY > 0.5, `${label.text} overlaps ${sibling.text}`).toBe(false);
+              }
+            }
+          }
+        }
+        const clearance = await page.evaluate(() => ({
+          reserved: parseFloat(getComputedStyle(document.body).paddingBottom),
+          height: document.querySelector(".mobileTabBar")!.getBoundingClientRect().height,
+        }));
+        expect(clearance.reserved).toBeGreaterThanOrEqual(clearance.height);
+      });
+    }
+  }
+}
+
+test("Southwark page paints the credited founder photograph", async ({ page }) => {
+  await page.goto("/borough/southwark");
+  const photograph = page.locator(".boroughPhoto");
+  await expect(photograph).toContainText("Southwark. Photo: the PUBMAXX founder");
+  const image = photograph.getByRole("img", { name: "The Shard seen down a Southwark street under a mackerel sky, London" });
+  await expect(image).toBeVisible();
+  await expect.poll(() => image.evaluate((element: HTMLImageElement) => element.complete && element.naturalWidth > 0)).toBe(true);
+  expect(await image.evaluate((element: HTMLImageElement) => element.currentSrc)).toMatch(/\/landing\/london-collage\/southwark-shard-(640|1280)\.(avif|webp)$/);
+});
