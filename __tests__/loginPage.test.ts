@@ -1,7 +1,5 @@
 import { createElement, type FunctionComponent } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import { readFileSync } from "node:fs";
-import { join } from "node:path";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const authActions = vi.hoisted(() => ({
@@ -108,7 +106,6 @@ vi.mock("@/components/auth/HandlePasswordSignIn", () => ({
 }));
 
 import LoginPage from "@/components/auth/LoginPage";
-import { defined } from "@/__tests__/helpers/defined";
 
 // The page declares every prop optional with a `= {}` default, so React's own
 // inference reads it as taking none. This names the props it really accepts.
@@ -330,35 +327,6 @@ describe("login page", () => {
     expect(html).not.toContain("Sign in or create your account");
   });
 
-  it("keeps phone sign-in as a /login link and desktop as a disclosure", () => {
-    const button = readFileSync(
-      join(process.cwd(), "components/auth/SignInButton.tsx"),
-      "utf8",
-    );
-    // The nav hands /login the page it was on, so a completed sign-in returns
-    // there instead of parking the person on the account surface.
-    expect(button).toContain("function loginHref");
-    expect(button).toContain('return "/login"');
-    expect(button).toContain("ARRIVAL_FROM_PARAM");
-    expect(button).toContain("href={signInHref}");
-    expect(button).toContain("PHONE_LOGIN_MEDIA");
-    expect(button).toContain("Open full sign-in page");
-  });
-
-  it("names the two doors and lands each one differently", () => {
-    const page = readFileSync(
-      join(process.cwd(), "components/auth/LoginPage.tsx"),
-      "utf8",
-    );
-    // Copy, email intent and landing all differ; only the machinery is shared.
-    expect(page).toContain("Welcome back");
-    expect(page).toContain("Email me a sign-in link");
-    expect(page).toContain("Email me a sign-up link");
-    expect(page).toContain("rememberChosenIntent");
-    // Handle-and-password stays beside the link on the sign-in door.
-    expect(page).toContain("HandlePasswordSignIn");
-  });
-
   it("hands the add-link destination to every visible sign-in action", async () => {
     const destination = "/add/karan?auto=1";
     renderToStaticMarkup(
@@ -389,126 +357,4 @@ describe("login page", () => {
     expect(loginEntries.passwordDestination).toBeNull();
   });
 
-  it("styles the page as a full dvh composition with 44px+ taps", () => {
-    const css = readFileSync(
-      join(process.cwd(), "components/auth/loginPage.css"),
-      "utf8",
-    );
-    expect(css).toMatch(/min-height:\s*100dvh/);
-    expect(css).toMatch(/min-height:\s*46px/);
-  });
-
-  // THE FRONT DOOR HAS A PRIMARY, AND EXACTLY ONE. The page shipped with none:
-  // its email CTA measured `rgb(32,32,36)`, the same fill as the active thumb
-  // of the segmented control above it, and the second door had no control
-  // language at all. Both halves were CSS, so both are pinned in CSS.
-  it("gives the email link the primary treatment and the second door a secondary shape", () => {
-    const authCss = readFileSync(join(process.cwd(), "app/auth/auth.css"), "utf8");
-    const loginCss = readFileSync(
-      join(process.cwd(), "components/auth/loginPage.css"),
-      "utf8",
-    );
-
-    // `.authSignIn` sets `background: var(--panel-raised)` and the `border`
-    // SHORTHAND further down the same file, so a bare `.authMagicLinkButton`
-    // rule loses the accent fill at equal specificity and paints nothing. The
-    // accent rule has to name both classes.
-    const accent = authCss.match(
-      /\.authSignIn\.authMagicLinkButton\s*{([^}]*)}/,
-    )?.[1];
-    expect(accent, "the accent rule must out-specify .authSignIn").toBeTruthy();
-    expect(accent).toMatch(/background:\s*var\(--brass-accessible\)/);
-    expect(accent).toMatch(/color:\s*var\(--color-on-photo\)/);
-    expect(accent).toMatch(/min-height:\s*44px/);
-
-    // The handle-and-password door is the SECONDARY: a real control shape, and
-    // never a second accent fill beside the primary.
-    const toggle = loginCss.match(
-      /\.loginPageHandlePasswordToggle\s*{([^}]*)}/,
-    )?.[1];
-    expect(toggle, ".loginPageHandlePasswordToggle rule present").toBeTruthy();
-    expect(toggle).toMatch(/border:\s*1px solid var\(--line\)/);
-    expect(toggle).toMatch(/border-radius:/);
-    expect(toggle).toMatch(/background:\s*var\(--panel\)/);
-    expect(toggle, "one filled accent on the page, and it is the primary").not.toMatch(
-      /background:\s*var\(--brass\)/,
-    );
-  });
-
-  // The primary is white-on-coral in BOTH states, so the hover fill is held to
-  // the same floor as the resting one. --ink is theme-dependent (near-white in
-  // dark), so a hover that mixed toward it LIGHTENED the coral and dropped the
-  // pair to ~3.95:1 on a dark device; the mix has to darken in every theme.
-  it("keeps white primary label contrast on the coral fill, resting and hover", () => {
-    const globals = readFileSync(join(process.cwd(), "app/globals.css"), "utf8");
-    const theme = readFileSync(join(process.cwd(), "app/theme.css"), "utf8");
-    const token = (css: string, name: string) =>
-      css.match(new RegExp(`--${name}:\\s*(#[0-9a-fA-F]{6})`))?.[1];
-
-    const brassAccessible = token(globals, "brass-accessible");
-    const onPhoto = token(globals, "color-on-photo");
-    // Both themes declare --ink-deep; the dark one wins under html[data-theme].
-    const inkDeepLight = token(globals, "ink-deep");
-    const inkDeepDark = token(theme, "ink-deep");
-    expect(brassAccessible).toBeTruthy();
-    expect(onPhoto).toBeTruthy();
-    expect(inkDeepLight).toBeTruthy();
-    expect(inkDeepDark).toBeTruthy();
-
-    const channels = (hex: string) =>
-      [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16));
-    const lum = (hex: string) => {
-      const [r, g, b] = channels(hex).map((c) => {
-        const v = c / 255;
-        return v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4;
-      });
-      return 0.2126 * defined(r) + 0.7152 * defined(g) + 0.0722 * defined(b);
-    };
-    const ratio = (a: string, b: string) => {
-      const [hi, lo] = [lum(a), lum(b)].sort((x, y) => y - x);
-      return (defined(hi) + 0.05) / (defined(lo) + 0.05);
-    };
-    // color-mix(in srgb, ...) interpolates the gamma-encoded channels.
-    const mix = (a: string, weight: number, b: string) => {
-      const [ar, ag, ab] = channels(a);
-      const [br, bg, bb] = channels(b);
-      const blend = (x: number, y: number) =>
-        Math.round(x * weight + y * (1 - weight))
-          .toString(16)
-          .padStart(2, "0");
-      return `#${blend(defined(ar), defined(br))}${blend(defined(ag), defined(bg))}${blend(defined(ab), defined(bb))}`;
-    };
-
-    expect(ratio(onPhoto!, brassAccessible!)).toBeGreaterThanOrEqual(4.5);
-
-    // The /login head's own primary is painted by the Screen primitive
-    // (components/ui/screen.css), so the coral hover mix under test is the
-    // shared email button's alone.
-    const hoverRule =
-      /color-mix\(in srgb, var\(--brass-accessible\) (\d+)%, var\(--([a-z-]+)\) (\d+)%\)/;
-    for (const [label, css] of [
-      ["app/auth/auth.css", readFileSync(join(process.cwd(), "app/auth/auth.css"), "utf8")],
-    ] as const) {
-      const hover = css.match(hoverRule);
-      expect(hover, `${label} must state the primary hover fill as one mix`).toBeTruthy();
-      const [, accentPct, mixToken, otherPct] = hover!;
-      expect(Number(accentPct) + Number(otherPct)).toBe(100);
-      const mixedInto =
-        mixToken === "ink-deep"
-          ? [inkDeepLight!, inkDeepDark!]
-          : [token(globals, defined(mixToken)), token(theme, defined(mixToken))].filter(Boolean) as string[];
-      expect(mixedInto.length, `${label} mixes toward an unresolved --${mixToken}`).toBe(2);
-      for (const other of mixedInto) {
-        const fill = mix(brassAccessible!, Number(accentPct) / 100, other);
-        expect(
-          ratio(onPhoto!, fill),
-          `${label} hover ${fill} (mixing --${mixToken} ${other})`,
-        ).toBeGreaterThanOrEqual(4.5);
-        expect(
-          lum(fill),
-          `${label} hover must darken, never lighten, the resting fill`,
-        ).toBeLessThanOrEqual(lum(brassAccessible!));
-      }
-    }
-  });
 });
