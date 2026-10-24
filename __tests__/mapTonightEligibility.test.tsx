@@ -30,10 +30,10 @@ function rawRows(): WhatsOnRow[] {
   ];
 }
 
-function render(rows: WhatsOnRow[], pins = 0) {
+function render(rows: WhatsOnRow[], pins = 0, open?: boolean) {
   act(() => root.render(createElement(TonightLane, {
     rows, asOf: new Date(NOW).toISOString(), status: "ready", onSelectVenue: vi.fn(),
-    overlayCount: pins, onToggleOverlay: vi.fn(),
+    overlayCount: pins, onToggleOverlay: vi.fn(), open,
   })));
 }
 
@@ -65,6 +65,15 @@ describe("map Tonight pub eligibility", () => {
     expect(container.textContent).toContain("Pins");
     expect(container.textContent).toContain("7");
     expect(container.textContent).not.toContain("39");
+  });
+
+  it("explains an empty open lane while keeping the Pins action", () => {
+    render(rawRows(), 7, true);
+    expect(container.querySelector('[role="status"]')?.textContent)
+      .toContain("Nothing listed on tonight near you right now.");
+    expect(container.querySelectorAll(".tonightLaneCard")).toHaveLength(0);
+    expect(container.textContent).toContain("Pins");
+    expect(container.textContent).toContain("7");
   });
 
   it("counts fresh pub listings once and opens only eligible cards and facets", () => {

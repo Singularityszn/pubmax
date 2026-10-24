@@ -168,6 +168,7 @@ export default function TonightLane({
   return (
     <TonightLaneOpen
       inSheet={inSheet}
+      hasListings={rows.length > 0}
       asOf={asOf}
       gardenCue={gardenCue}
       toggleOverlay={toggleOverlay}
@@ -279,6 +280,7 @@ function TonightLaneCollapsed({
 
 function TonightLaneOpen({
   inSheet,
+  hasListings,
   asOf,
   gardenCue,
   toggleOverlay,
@@ -294,6 +296,7 @@ function TonightLaneOpen({
   onSelectVenue,
 }: {
   inSheet: boolean;
+  hasListings: boolean;
   asOf: string | null;
   gardenCue: string | null;
   toggleOverlay: (() => void) | undefined;
@@ -393,6 +396,11 @@ function TonightLaneOpen({
         ) : null}
       </div>
 
+      {!hasListings ? (
+        <p className="tonightLaneEmpty" role="status">
+          Nothing listed on tonight near you right now.
+        </p>
+      ) : null}
       <ul className="tonightLaneScroll" data-testid="tonight-lane">
         {cards.map((card) => {
           const when = card.timeLabel ?? card.badgeLabel;
