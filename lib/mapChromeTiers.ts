@@ -36,12 +36,12 @@ export type FiltersChipModel = {
   ariaLabel: string;
 };
 
-export const TONIGHT_LISTINGS_LABEL = "Tonight listings";
+export const TONIGHT_LISTINGS_LABEL = "Pub listings tonight";
 
 export type TonightChipModel = {
   label: typeof TONIGHT_LISTINGS_LABEL;
   count: number;
-  /** Screen-reader detail, e.g. "Tonight listings: 3" or "... near you". */
+  /** Screen-reader detail, e.g. "Pub listings tonight: 3 via What's-on" or "... near you". */
   ariaLabel: string;
 };
 
@@ -172,10 +172,10 @@ export function buildTonightChip(
 ): TonightChipModel | null {
   if (!Number.isFinite(rowCount) || rowCount <= 0) return null;
   const count = Math.floor(rowCount);
-  const nearSuffix = nearReader ? " near you" : "";
+  const areaSuffix = nearReader ? " near you" : " in London";
   return {
     label: TONIGHT_LISTINGS_LABEL,
     count,
-    ariaLabel: `${TONIGHT_LISTINGS_LABEL}: ${count}${nearSuffix}`,
+    ariaLabel: `${TONIGHT_LISTINGS_LABEL}: ${count} via What's-on${areaSuffix}`,
   };
 }

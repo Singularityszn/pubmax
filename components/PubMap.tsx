@@ -631,6 +631,7 @@ import { currentSurface, homeActionLabel, type SurfaceEntry } from "@/lib/surfac
 import { readMapSurfaceHistory } from "@/lib/mapSurfaceHistory";
 import { mapListOpenFromSearch } from "@/lib/mapListRoute";
 import { buildTonightChip } from "@/lib/mapChromeTiers";
+import { tonightPubListingCount } from "@/lib/tonightOutListings";
 import { buildMapPeek, type MapPeekModel } from "@/lib/mapPeek";
 import {
   filtersForCuratedCrawl,
@@ -1198,7 +1199,7 @@ function MobileMapTonightLens({
       <CalendarClock size={16} aria-hidden="true" />
       <span className="mobileMapTonightLensText">
         <strong>{tonightLens.label}</strong>
-        <small>{tonightLens.count} {tonightLens.count === 1 ? "listing" : "listings"}{nearReader ? " near you" : " in London"}</small>
+        <small>{tonightLens.count} via What&apos;s-on{nearReader ? " near you" : " in London"}</small>
       </span>
       <ChevronRight size={16} aria-hidden="true" className="mobileMapTonightLensChevron" />
     </button>
@@ -6302,7 +6303,7 @@ export default function PubMap({
       <div className="mobileMapFilters">
         {isLondon ? (
           <MobileMapTonightLens
-            rowCount={whatsOnTonight.rows.length}
+            rowCount={tonightPubListingCount(whatsOnTonight.rows)}
             nearReader={userLocation != null}
             onOpen={() => changeMapOverlay("tonight")}
           />
