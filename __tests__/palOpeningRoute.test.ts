@@ -44,7 +44,7 @@ beforeEach(async () => {
   vi.stubEnv("ELEVENLABS_PUB_PAL_AGENT_ID", "");
   expect((await createPubPalResult("owner-a", { ...DEFAULT_PAL_DRAFT, name: "Ripley", adultConfirmed: true })).ok).toBe(true);
 });
-afterEach(() => { vi.unstubAllEnvs(); vi.unstubAllGlobals(); vi.restoreAllMocks(); });
+afterEach(() => { vi.useRealTimers(); vi.unstubAllEnvs(); vi.unstubAllGlobals(); vi.restoreAllMocks(); });
 
 async function confirmNight() {
   const response = await confirm(request({ kind: "night_outcome", value: report }));
@@ -196,5 +196,93 @@ describe("owner-bound returning conversation", () => {
     expect(personalRead).not.toHaveBeenCalled();
     expect(persist).not.toHaveBeenCalled();
     expect(isLimited).toHaveBeenCalledWith(expect.stringMatching(/^pub-pal-chat:/), expect.any(String), 20, 60_000, { failClosed: true });
+  });
+});
+
+
+describe("configured chat request deadline", () => {
+  beforeEach(() => {
+    vi.stubEnv("ELEVENLABS_API_KEY", "controlled-test-key");
+    vi.stubEnv("ELEVENLABS_PUB_PAL_AGENT_ID", "controlled-test-agent");
+    vi.stubEnv("TYPESAFE_API_KEY", "");
+  });
+
+  const deadlineRequest = (query: string, stream: boolean, threadId?: string) => new Request(
+    "http://localhost/api/pub-pal/chat", {
+      method: "POST",
+      headers: { "content-type": "application/json", ...(stream ? { accept: "application/x-ndjson" } : {}) },
+      body: JSON.stringify({ query, threadId }),
+    },
+  );
+
+  it.each([false, true])("reuses the prepared owned opening instead of a second history read, stream: %s", async (stream) => {
+    await confirmNight();
+    const initial = await (await opening()).json();
+    const prior = await readOwnedPubPalToolTurn(initial.conversationId, "owner-a");
+    const read = vi.spyOn(turnStore, "readOwnedPubPalToolTurn")
+      .mockResolvedValueOnce(prior).mockImplementation(() => new Promise(() => {}));
+    const provider = vi.spyOn(globalThis, "fetch");
+    state.authReads = 0;
+    vi.useFakeTimers();
+    let response: Response | undefined;
+    const pending = POST(deadlineRequest("Yes", stream, initial.conversationId)).then((value) => { response = value; });
+    await vi.advanceTimersByTimeAsync(22_000);
+    expect(response).toBeDefined();
+    await pending;
+    expect(response!.status).toBe(200);
+    expect((await response!.json()).answer).toContain("Which area and price per pint");
+    expect(read).toHaveBeenCalledTimes(1);
+    expect(state.authReads).toBe(1);
+    expect(provider).not.toHaveBeenCalled();
+  });
+
+  it.each([false, true])("times out a greeting read and does not write when it resolves late, stream: %s", async (stream) => {
+    const pal = await palStore.getPubPalResult("owner-a");
+    let release!: (value: typeof pal) => void;
+    vi.spyOn(palStore, "getPubPalResult").mockImplementation(() => new Promise((resolve) => { release = resolve; }));
+    const persist = vi.spyOn(turnStore, "registerPubPalToolTurn");
+    const provider = vi.spyOn(globalThis, "fetch");
+    vi.useFakeTimers();
+    let response: Response | undefined;
+    const pending = POST(deadlineRequest("Hi", stream)).then((value) => { response = value; });
+    await vi.advanceTimersByTimeAsync(22_000);
+    expect(response).toBeDefined();
+    await pending;
+    expect(response!.status).toBe(503);
+    expect((await response!.json()).code).toBe("UNAVAILABLE");
+    release(pal);
+    await vi.advanceTimersByTimeAsync(0);
+    expect(persist).not.toHaveBeenCalled();
+    expect(provider).not.toHaveBeenCalled();
+  });
+
+  it.each([false, true])("times out a pending opening write without starting a provider, stream: %s", async (stream) => {
+    const persist = vi.spyOn(turnStore, "registerPubPalToolTurn").mockImplementation(() => new Promise(() => {}));
+    const provider = vi.spyOn(globalThis, "fetch");
+    vi.useFakeTimers();
+    let response: Response | undefined;
+    const pending = POST(deadlineRequest("Hi", stream)).then((value) => { response = value; });
+    await vi.advanceTimersByTimeAsync(22_000);
+    expect(response).toBeDefined();
+    await pending;
+    expect(response!.status).toBe(503);
+    expect(persist).toHaveBeenCalledTimes(1);
+    expect(provider).not.toHaveBeenCalled();
+  });
+
+  it.each([false, true])("times out paid admission and cannot start a provider after late admission, stream: %s", async (stream) => {
+    let release!: (value: boolean) => void;
+    vi.mocked(isLimited).mockResolvedValueOnce(false).mockImplementationOnce(() => new Promise((resolve) => { release = resolve; }));
+    const provider = vi.spyOn(globalThis, "fetch");
+    vi.useFakeTimers();
+    let response: Response | undefined;
+    const pending = POST(deadlineRequest("Find four quiet pubs in Soho", stream)).then((value) => { response = value; });
+    await vi.advanceTimersByTimeAsync(22_000);
+    expect(response).toBeDefined();
+    await pending;
+    expect(response!.status).toBe(503);
+    release(false);
+    await vi.advanceTimersByTimeAsync(0);
+    expect(provider).not.toHaveBeenCalled();
   });
 });

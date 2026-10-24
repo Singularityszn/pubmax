@@ -1,5 +1,6 @@
 import "server-only";
 
+import { assertPalChatDeadline } from "@/lib/palChatDeadline";
 import { palTasteAllowed } from "@/lib/pubPal";
 import { getPubPalResult } from "@/lib/pubPalStore";
 import { readConfirmedPalMemories } from "@/lib/palConfirmedMemories.server";
@@ -17,8 +18,9 @@ async function readPalOpening(ownerId: string) {
   return palOpeningMessage(pal.name, { memories, taste });
 }
 
-export async function openPalConversation(ownerId: string) {
+export async function openPalConversation(ownerId: string, deadline?: number) {
   const answer = await readPalOpening(ownerId);
+  if (deadline !== undefined) assertPalChatDeadline(deadline);
   const conversationId = newPalLocalThreadId();
   await registerPubPalToolTurn(conversationId, {
     ownerId, cityId: "london", query: "", turns: [{ role: "assistant", content: answer }],

@@ -1,3 +1,4 @@
+import { assertPalChatDeadline, beforePalChatDeadline } from "@/lib/palChatDeadline";
 import { openPalConversation } from "@/lib/palOpening.server";
 import { palOpeningAcceptance, palOpeningFollowUp } from "@/lib/palOpening";
 import { readOwnedPubPalToolTurn, registerPubPalToolTurn } from "@/lib/pubPalToolTurnStore";
@@ -135,22 +136,28 @@ export async function GET(request: Request): Promise<Response> {
   }
 }
 
-async function openingReply(request: Request, record: Record<string, unknown>, query: string): Promise<Response | null> {
+async function openingReply(
+  request: Request, record: Record<string, unknown>, query: string,
+  prepared?: { ownerId: string; context: PalElevenLabsChatContext },
+): Promise<Response | null> {
   const social = socialTurnKind(query);
   const firstGreeting = social === "greeting" && !record.threadId && normaliseTurns(record.turns).length === 0;
   const threadId = typeof record.threadId === "string" && isPubPalConversationId(record.threadId) ? record.threadId : null;
   if (firstGreeting || threadId) {
-    const ownerId = await callerUserId(request);
+    const ownerId = prepared?.ownerId ?? await callerUserId(request);
     if (ownerId) {
       try {
-        if (firstGreeting) return jsonNoStore(await openPalConversation(ownerId));
-        const prior = threadId ? await readOwnedPubPalToolTurn(threadId, ownerId) : null;
+        if (firstGreeting) return jsonNoStore(await openPalConversation(ownerId, prepared?.context.deadline));
+        const prior = prepared
+          ? prepared.context.prior.ownedTurn ?? null
+          : threadId ? await readOwnedPubPalToolTurn(threadId, ownerId) : null;
         // The sole assistant turn and matching result hint are the pending opening.
         // Clearing its hint consumes it without adding this ask to earlier history.
         if (!threadId || !prior || prior.query || prior.turns.length !== 1 || prior.turns[0]?.role !== "assistant"
           || prior.hints.length !== 1 || prior.hints[0] !== prior.turns[0].content) return null;
         let answer: string | null = null;
         if (palOpeningAcceptance(query)) answer = palOpeningFollowUp(query, prior.turns[0].content);
+        if (prepared) assertPalChatDeadline(prepared.context.deadline);
         await registerPubPalToolTurn(threadId, {
           ownerId, cityId: prior.cityId, query: answer ? query : "", turns: prior.turns,
           cards: [], proposals: [], hints: answer ? [answer] : [], toolsUsed: [],
@@ -244,8 +251,13 @@ export async function POST(request: Request): Promise<Response> {
     });
   }
 
-  const opening = await openingReply(request, record, query);
-  if (opening) return opening;
+  try {
+    const readOpening = () => openingReply(request, record, query, context ? { context, ownerId: ownerId! } : undefined);
+    const opening = context ? await beforePalChatDeadline(context.deadline, readOpening) : await readOpening();
+    if (opening) return opening;
+  } catch {
+    return publicApiError(PAL_ERROR_FALLBACK, "UNAVAILABLE", 503, { retryable: true });
+  }
 
   // Voice is optional. Keyless deploys still answer from the same grounded
   // tools as /api/ask, and they never call OpenRouter.
@@ -309,7 +321,11 @@ export async function POST(request: Request): Promise<Response> {
     }
   }
 
-  return configuredTurn(turn, context!, request);
+  try {
+    return await beforePalChatDeadline(context!.deadline, () => configuredTurn(turn, context!, request));
+  } catch {
+    return publicApiError(PAL_ERROR_FALLBACK, "UNAVAILABLE", 503, { retryable: true });
+  }
 }
 
 async function configuredTurn(turn: PalElevenLabsChatInput, context: PalElevenLabsChatContext, request: Request): Promise<Response> {
@@ -317,6 +333,7 @@ async function configuredTurn(turn: PalElevenLabsChatInput, context: PalElevenLa
   // address limiter, owner check and safety fence still cover local records.
   if (palChatRecordQuery(turn.query, context.prior.turns) === null) {
     const budgetRefusal = await paidSpendBudgetRefusal("pub-pal-chat");
+    assertPalChatDeadline(context.deadline);
     if (budgetRefusal) return budgetRefusal;
   }
 

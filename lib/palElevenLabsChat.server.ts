@@ -29,7 +29,7 @@ import {
   type PubPalToolTurn,
 } from "@/lib/pubPalToolTurnStore";
 
-const CHAT_TIMEOUT_MS = 22_000;
+import { PAL_CHAT_TIMEOUT_MS as CHAT_TIMEOUT_MS, PalChatDeadlineExceeded, assertPalChatDeadline, beforePalChatDeadline } from "@/lib/palChatDeadline";
 const LOCAL_TURN_WRITE_BUDGET_MS = 1_500;
 const TOOL_TURN_WAIT_MS = 4_000;
 const TOOL_TURN_POLL_MS = 120;
@@ -67,7 +67,7 @@ async function waitForPubPalToolTurn(
   return readPubPalToolTurn(conversationId);
 }
 
-type PriorSession = { turns: PubPalFenceTurn[]; summary: string; conversationId?: string };
+type PriorSession = { turns: PubPalFenceTurn[]; summary: string; conversationId?: string; ownedTurn?: PubPalToolTurn };
 
 /**
  * Read earlier context from the signed-in owner's stored turn, never the request.
@@ -80,7 +80,7 @@ async function priorOwnedSession(threadId: unknown, ownerId: string): Promise<Pr
   const asks = [...prior.turns, { role: "user" as const, content: prior.query }].filter(
     (turn) => turn.content.trim(),
   );
-  return { ...windowPalSessionTurns(prior.summary, asks), conversationId: threadId };
+  return { ...windowPalSessionTurns(prior.summary, asks), conversationId: threadId, ownedTurn: prior };
 }
 
 /**
@@ -164,35 +164,21 @@ export type PalElevenLabsChatContext = {
   deadline: number;
 };
 
-class PalChatContextTimeout extends Error {}
-
 /** Prepare owned history and its safety result once, before any opening or provider turn. */
 export async function preparePalElevenLabsChatTurn(
   input: PalElevenLabsChatInput,
   deadline = Date.now() + CHAT_TIMEOUT_MS,
 ): Promise<PalElevenLabsChatContext> {
-  if (Date.now() >= deadline) throw new PalChatContextTimeout();
-  let timer: ReturnType<typeof setTimeout> | undefined;
-  const prepare = async (): Promise<PalElevenLabsChatContext> => {
+  return beforePalChatDeadline(deadline, async () => {
     const prior = await priorOwnedSession(input.threadId, input.ownerId);
-    if (Date.now() >= deadline) throw new PalChatContextTimeout();
+    assertPalChatDeadline(deadline);
     const fenceTurns = (input.fenceTurns ?? []).filter((turn) => turn.role === "user");
     const fence = await resolvePubPalFenceIntent(input.query.trim().slice(0, 500), [
       ...fenceTurns,
       ...prior.turns,
     ]);
     return { prior, fence, deadline };
-  };
-  try {
-    return await Promise.race([
-      prepare(),
-      new Promise<never>((_, reject) => {
-        timer = setTimeout(() => reject(new PalChatContextTimeout()), Math.max(0, deadline - Date.now()));
-      }),
-    ]);
-  } finally {
-    clearTimeout(timer);
-  }
+  });
 }
 
 /** The validated read-only pint/menu asks that need no provider narration. */
@@ -249,7 +235,7 @@ export async function runPalElevenLabsChatTurn(
   try {
     context ??= await preparePalElevenLabsChatTurn(input, deadline);
   } catch (error) {
-    const code = error instanceof PalChatContextTimeout ? "TIMEOUT" : "UNAVAILABLE";
+    const code = error instanceof PalChatDeadlineExceeded ? "TIMEOUT" : "UNAVAILABLE";
     recordFailure(code, "context");
     return { ok: false, code };
   }
