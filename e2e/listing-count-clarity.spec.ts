@@ -8,6 +8,7 @@ test.setTimeout(90_000);
 function listing(index: number, pubMatched = false) {
   return {
     id: `count-fixture-${index}`,
+    sourceId: `count-fixture-${index}`,
     kind: "quiz",
     title: `Count fixture ${index}`,
     placeName: `Count fixture venue ${index}`,
