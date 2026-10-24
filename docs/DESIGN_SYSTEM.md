@@ -381,7 +381,8 @@ carries a **white** label (`--color-on-photo`). They paint `--brass-accessible`,
 a deepened coral, because `--brass` under white is below AA. It is not a second
 site-wide primary: the landing hero CTA and the map's sanctioned coral marks
 stay on `--brass` with dark ink. `app/globals.css` owns the rationale beside the
-token, and `__tests__/loginPage.test.ts` holds both states to 4.5:1.
+token. `e2e/login-page.spec.ts` measures rendered label contrast at rest and on
+hover in both themes, with a 4.5:1 minimum.
 
 ## Type
 

@@ -49,6 +49,8 @@ const wsState = vi.hoisted(() => ({
   socketsOpened: 0,
   lastInitPayload: null as unknown,
   userMessageText: null as string | null,
+  userMessageCount: 0,
+  repeatMetadata: false,
   /** What the agent sends after the user message. Null sends the answer and the turn end. */
   replyScript: null as ScriptedEvent[] | null,
   /** False until the mock sends a tool response, as the webhook fills the store first. */
@@ -82,6 +84,14 @@ class MockElevenLabsWebSocket {
           conversation_initiation_metadata_event: { conversation_id: "conv_regression01" },
         }),
       });
+      if (wsState.repeatMetadata) {
+        this.emit("message", {
+          data: JSON.stringify({
+            type: "conversation_initiation_metadata",
+            conversation_initiation_metadata_event: { conversation_id: "conv_regression01" },
+          }),
+        });
+      }
     });
   }
 
@@ -96,6 +106,7 @@ class MockElevenLabsWebSocket {
       return;
     }
     if (payload.type === "user_message") {
+      wsState.userMessageCount += 1;
       wsState.userMessageText = payload.text ?? null;
       if (wsState.replyScript) {
         let at = 0;
@@ -197,6 +208,8 @@ describe("runPalElevenLabsChatTurn", () => {
     wsState.socketsOpened = 0;
     wsState.lastInitPayload = null;
     wsState.userMessageText = null;
+    wsState.userMessageCount = 0;
+    wsState.repeatMetadata = false;
     wsState.replyScript = null;
     wsState.storeFilled = true;
     vi.stubEnv("ELEVENLABS_API_KEY", "test-key");
@@ -221,6 +234,60 @@ describe("runPalElevenLabsChatTurn", () => {
     __resetPubPalStore();
     vi.unstubAllEnvs();
     vi.unstubAllGlobals();
+    vi.useRealTimers();
+  });
+
+  it("sends the current ask once when provider metadata repeats during registration", async () => {
+    wsState.repeatMetadata = true;
+    const outcome = await runPalElevenLabsChatTurn({
+      query: "Which quiet pubs near Soho have a beer garden?",
+      ownerId: "11111111-1111-4111-8111-111111111111",
+    });
+    expect(outcome).toMatchObject({ ok: true });
+    expect(wsState.userMessageCount).toBe(1);
+  });
+
+  it("ends a hung owned-history read within the chat deadline and ignores its late result", async () => {
+    vi.useFakeTimers();
+    let finishHistory!: (value: unknown) => void;
+    storeMocks.readOwnedPubPalToolTurn.mockImplementationOnce(() => new Promise((resolve) => {
+      finishHistory = resolve;
+    }));
+    let outcome: Awaited<ReturnType<typeof runPalElevenLabsChatTurn>> | undefined;
+    void runPalElevenLabsChatTurn({
+      query: "Which quiet pubs near Soho have a beer garden?",
+      ownerId: "11111111-1111-4111-8111-111111111111",
+      threadId: "conv_previous01",
+    }).then((result) => { outcome = result; });
+    await vi.advanceTimersByTimeAsync(21_999);
+    expect(outcome).toBeUndefined();
+    await vi.advanceTimersByTimeAsync(1);
+    expect(outcome).toEqual({ ok: false, code: "TIMEOUT" });
+    finishHistory(null);
+    await vi.advanceTimersByTimeAsync(0);
+    expect(wsState.socketsOpened).toBe(0);
+    expect(wsState.userMessageCount).toBe(0);
+  });
+
+  it("counts owned-history latency inside the provider request deadline", async () => {
+    vi.useFakeTimers();
+    storeMocks.readOwnedPubPalToolTurn.mockImplementationOnce(() => new Promise((resolve) => {
+      setTimeout(() => resolve(null), 21_000);
+    }));
+    vi.stubGlobal("fetch", vi.fn((_url, init: RequestInit) => new Promise<Response>((_resolve, reject) => {
+      init.signal?.addEventListener("abort", () => reject(new Error("aborted")), { once: true });
+    })));
+    let outcome: Awaited<ReturnType<typeof runPalElevenLabsChatTurn>> | undefined;
+    void runPalElevenLabsChatTurn({
+      query: "Which quiet pubs near Soho have a beer garden?",
+      ownerId: "11111111-1111-4111-8111-111111111111",
+      threadId: "conv_previous01",
+    }).then((result) => { outcome = result; });
+    await vi.advanceTimersByTimeAsync(21_999);
+    expect(outcome).toBeUndefined();
+    await vi.advanceTimersByTimeAsync(1);
+    expect(outcome).toEqual({ ok: false, code: "TIMEOUT" });
+    expect(wsState.socketsOpened).toBe(0);
   });
 
   it.each([
