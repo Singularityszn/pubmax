@@ -5759,7 +5759,7 @@ export default function PubMap({
   // (GateZ regression). Once the lane has no rows (quiet night / non-London),
   // onboarding is free to show as before.
   const { hasRows: tonightLaneHasRows, pending: tonightLanePending } =
-    tonightLaneReadState(isLondon, whatsOnTonight.status, whatsOnTonight.rows.length);
+    tonightLaneReadState(isLondon, whatsOnTonight.status, tonightPubListingCount(whatsOnTonight.rows));
   // W3: curated crawl waits until first-map orientation (band-colour tour) is
   // done — at most one orientation surface after consent.
   const mapOrientationPending = !hasSeenTour();

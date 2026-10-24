@@ -859,7 +859,7 @@ function inBottledSection(text: string, at: number): boolean {
     const heading = line.replace(/[\u200b-\u200d\ufeff]/g, "").trim();
     if (!heading || heading.includes("£")) continue;
     const section = /^(?:[A-Z][A-Z \d().%&-]*)(?:\([^)]*\))?$/.test(heading)
-      || /^(?:(?:on )?(?:draught|draft)|keg|cask|beers?|wines?|cocktails?|soft drinks?|bottled beers?(?: & ciders?)?|cans?)$/i.test(heading);
+      || /^(?:(?:on )?(?:draught|draft)(?: beers?)?|keg|cask|beers?|wines?|cocktails?|soft drinks?|bottled beers?(?: & ciders?)?|cans?)$/i.test(heading);
     if (heading.length <= 80 && section) {
       return isBottledMeasure(heading);
     }

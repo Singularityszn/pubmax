@@ -118,6 +118,31 @@ describe("what a page states", () => {
     }
   });
 
+  it.each(["On Draught", "Draught Beer", "Draught Beers", "Draft Beer", "Draft Beers", "DRAUGHT BEER"])(
+    "keeps the Jolly Coopers draught rows after %s", (heading) => {
+      // Items and order from the 19 October Jolly Coopers capture. Only the
+      // heading varies: the captured page itself says "On Draught".
+      const lines = [
+        "Bottled Beers", "Budweiser 330ml £5.00", "Peroni Gluten Free 330ml £5.00",
+        "Peroni 330ml £5.00", "Leffe 330ml £6.50", "Estrella Damm 330ml £5.00",
+        "Heineken 00 330ml £4.50", "Bottled Ciders", "Various Flavours 568ml £7.00",
+        "Canned Guiness 0.0% 568ml £5.50", heading, "Guinness £7.80", "Foster’s £6.20",
+        "Heineken Export £7.50", "Birra Moretti £7.50", "Inches Cider £7.00",
+        "London Lager £7.80", "Bevertown Neck Oil £7.80", "Cruzcampo Sevilla Lager £7.20",
+      ];
+      for (const format of ["text", "html"] as const) {
+        const menu = format === "text" ? lines.join("\n") : lines.map((line) => `<p>${line}</p>`).join("");
+        const reading = readVenueDrinkPrices(menu, format);
+        expect(reading.kept.filter((row) => row.category === "beer").map((row) => row.priceGbp))
+          .toEqual([7.8, 6.2, 7.5, 7.5, 7, 7.8, 7.8, 7.2]);
+        expect(reading.drops).toHaveLength(7);
+        expect(reading.kept.some((row) => row.drinkLabel?.includes("330ml"))).toBe(false);
+        expect(pageStatesADrinksList(reading)).toBe(true);
+        expect([...readKeylessUkPriceDecisions(menu, format).values()].filter((row) => row.kept)).toHaveLength(9);
+      }
+    },
+  );
+
   it("does not label an unqualified sour style as a cocktail", () => {
     const reading = readVenueDrinkPrices(`<p>Raspberry, Apricot &amp; Lemon, Sour, 4%, Howling Hops £7.70</p>`, "html");
     expect(reading.kept).toEqual([]);
