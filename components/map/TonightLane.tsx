@@ -23,7 +23,8 @@ import PriceBadge from "@/components/PriceBadge";
 import { formatGbp } from "@/lib/formatGbp";
 import { trackEvent } from "@/lib/analytics";
 import { TONIGHT_LISTINGS_LABEL } from "@/lib/mapChromeTiers";
-import type { WhatsOnKind, WhatsOnRow } from "@/lib/whatsOn";
+import { filterTonightPubSurfaceRows } from "@/lib/tonightOutListings";
+import { dedupeRows, type WhatsOnKind, type WhatsOnRow } from "@/lib/whatsOn";
 import { WhatsOnUrgencyBadge } from "@/components/map/WhatsOnUrgencyBadge";
 import {
   dealEndsCaption,
@@ -72,7 +73,7 @@ type TonightLaneProps = {
 };
 
 export default function TonightLane({
-  rows,
+  rows: sourceRows,
   asOf,
   status = "idle",
   onSelectVenue,
@@ -87,6 +88,7 @@ export default function TonightLane({
   onDismissOverlay,
   variant = "map",
 }: TonightLaneProps) {
+  const rows = dedupeRows(filterTonightPubSurfaceRows(sourceRows));
   const inSheet = variant === "sheet";
   const [activeKind, setActiveKind] = useState<WhatsOnKind | null>(initialKind);
   // Deep-link kind changes (e.g. /map?src=whats-on-deal) reset the chip during
@@ -139,7 +141,7 @@ export default function TonightLane({
     return <TonightErrorState inSheet={inSheet} />;
   }
 
-  if (rows.length === 0 && !toggleOverlay) {
+  if (rows.length === 0 && !toggleOverlay && (!isOpen || activeKind === null)) {
     // In-sheet the viewer explicitly opened Tonight, so an empty portal reads as
     // broken — say quietly that nothing is on rather than rendering nothing.
     if (inSheet) {
@@ -250,7 +252,7 @@ function TonightLaneCollapsed({
             <span className="tonightLaneCollapsedTitle">
               {TONIGHT_LISTINGS_LABEL} <span aria-hidden="true">·</span> {rows.length}
             </span>
-            <span className="tonightLaneCollapsedChecked">{checkedLabel(asOf)}</span>
+            <span className="tonightLaneCollapsedChecked">via What&apos;s-on · {checkedLabel(asOf)}</span>
           </button>
         ) : (
           <span className="tonightLaneCollapsedMain" role="status">
@@ -315,7 +317,7 @@ function TonightLaneOpen({
         <div className="tonightLaneTitleRow">
           <div className="tonightLaneTitleMeta">
             <h2 className="tonightLaneTitle">On tonight</h2>
-            <span className="tonightLaneChecked">{checkedLabel(asOf)}</span>
+            <span className="tonightLaneChecked">via What&apos;s-on · {checkedLabel(asOf)}</span>
             {gardenCue ? (
               <span className="tonightLaneGardenCue" data-testid="tonight-lane-garden-cue">
                 {gardenCue}
@@ -352,7 +354,7 @@ function TonightLaneOpen({
             ) : null}
           </div>
         </div>
-        {facets.length > 1 ? (
+        {facets.length > 1 || activeKind !== null ? (
           <div
             className="tonightLaneChips"
             role="group"
@@ -391,6 +393,13 @@ function TonightLaneOpen({
         ) : null}
       </div>
 
+      {cards.length === 0 ? (
+        <p className="tonightLaneEmpty" role="status">
+          {activeKind !== null
+            ? "Nothing listed in this category tonight via What's-on. Choose All to clear this filter."
+            : "Nothing listed on tonight near you right now."}
+        </p>
+      ) : null}
       <ul className="tonightLaneScroll" data-testid="tonight-lane">
         {cards.map((card) => {
           const when = card.timeLabel ?? card.badgeLabel;

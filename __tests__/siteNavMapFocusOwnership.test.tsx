@@ -135,10 +135,11 @@ it("isolates the palette over navigation and portalled More, then restores the h
   const opener = control<HTMLButtonElement>(".siteNavCmdk");
   expect(opener.closest("[inert]")).toBeNull();
   await act(async () => { opener.focus(); opener.click(); });
+  // Wait for the real lazy chunk, including cold coverage transforms.
   await vi.waitFor(async () => {
     await act(async () => { await Promise.resolve(); });
     expect(document.querySelector('[aria-label="Search commands"]')).not.toBeNull();
-  });
+  }, { timeout: 5_000 });
   await act(async () => new Promise<void>((resolve) => requestAnimationFrame(() => resolve())));
   const input = control<HTMLInputElement>('[aria-label="Search commands"]');
   expect(document.activeElement).toBe(input);

@@ -1,0 +1,24 @@
+[
+  {
+    "@context": "https://schema.org",
+    "@type": "LandmarksOrHistoricalBuildings",
+    "name": "The Grapes",
+    "url": "https://pubmaxxing.com/historic/the-grapes",
+    "description": "The Grapes is a Grade II listed public house at 76 Narrow Street, Limehouse, on the north bank of the Thames; a pub has stood on the site since 1583.",
+    "address": {
+      "@type": "PostalAddress",
+      "addressLocality": "Tower Hamlets",
+      "addressRegion": "London",
+      "addressCountry": "GB"
+    },
+    "geo": {
+      "@type": "GeoCoordinates",
+      "latitude": 51.5088,
+      "longitude": -0.0339919
+    },
+    "sameAs": [
+      "https://www.alastairhiltonphotographer.com/product-page/the-grapes",
+      "https://en.wikipedia.org/wiki/The_Grapes,_Limehouse"
+    ]
+  }
+]

@@ -22,7 +22,7 @@ let result;
 try {
   result = spawnSync(executable, args, {
     cwd: process.cwd(),
-    env: process.env,
+    env: { ...process.env, OPENROUTER_API_KEY: "" },
     stdio: "inherit",
   });
 } finally {

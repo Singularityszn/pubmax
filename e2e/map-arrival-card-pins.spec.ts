@@ -91,13 +91,18 @@ test.describe("the first-visit card and the pin field", () => {
     const card = page.locator(".mapArrivalCard");
     await expect(card).toBeVisible({ timeout: ARRIVAL_TIMEOUT_MS });
 
+    let points: PaintedPoint[] = [];
     await expect
-      .poll(async () => (await paintedPoints(page)).length, {
+      .poll(async () => {
+        points = await paintedPoints(page);
+        return points.length;
+      }, {
         timeout: ARRIVAL_TIMEOUT_MS,
       })
       .toBeGreaterThan(0);
 
-    const [point] = await paintedPoints(page);
+    // Use the successful sample. A new scene update can empty the live probe.
+    const [point] = points;
     await page.touchscreen.tap(point.x, point.y);
     await expect(card).toHaveCount(0, { timeout: 10_000 });
   });

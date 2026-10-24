@@ -93,18 +93,19 @@ export async function generateMetadata({
 
 const SITE_URL = "https://pubmaxxing.com";
 
-// LandmarksOrHistoricalBuildings structured data for a cited historic pub
-// (Wave S1.3). Every field is lifted verbatim from the record — name, the
-// borough it sits in, its coordinates, its own hook — and `sameAs` carries the
-// Wikipedia/Wikidata citation URLs from the pub's cited facts, so an AI engine
-// can follow provenance straight to the source. Nothing invented: a field only
-// appears when the record actually carries it.
+// A citation can describe a pub without identifying it. Only a single
+// Wikipedia/Wikidata identity reference is unambiguous enough for sameAs.
+// Multiple references stay visible as citations until the record is reconciled.
 function historicPubJsonLd(pub: HistoricPub) {
-  const sameAs = Array.from(
+  const identityRefs = Array.from(
     new Set(
       pub.facts
+        .filter((fact) => fact.source === "wikipedia" || fact.source === "wikidata")
         .map((fact) => fact.sourceRef)
-        .filter((ref): ref is string => typeof ref === "string" && /^https?:\/\//.test(ref)),
+        .filter((ref): ref is string =>
+          typeof ref === "string" &&
+          /^https:\/\/(?:en\.wikipedia\.org\/wiki\/[^?#]+|www\.wikidata\.org\/wiki\/Q[1-9]\d*)$/.test(ref),
+        ),
     ),
   );
   return {
@@ -126,7 +127,7 @@ function historicPubJsonLd(pub: HistoricPub) {
     ...(typeof pub.lat === "number" && typeof pub.lng === "number"
       ? { geo: { "@type": "GeoCoordinates", latitude: pub.lat, longitude: pub.lng } }
       : {}),
-    ...(sameAs.length ? { sameAs } : {}),
+    ...(identityRefs.length === 1 ? { sameAs: identityRefs } : {}),
   };
 }
 
