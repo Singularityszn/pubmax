@@ -14,9 +14,9 @@ import { formatLedgerDate, type LedgerPintPrice } from "@/lib/ledger";
 import { displayHandle } from "@/lib/handleDisplay";
 import { PINT_TRUST_LINE } from "@/lib/pintTrust";
 import { pintPriceSplitLine } from "@/lib/pintDropAgreement";
-import { venuePriceLane, venuePriceLaneIsDrinkerLog, venuePriceLaneObservedGbp, type VenueBundlePrices } from "@/lib/venuePriceLane";
+import { venuePriceLane, venuePriceLaneIsDrinkerLog, venuePriceLaneObservedGbp, type VenueBundlePrices, type VenuePriceLane } from "@/lib/venuePriceLane";
 import { ANON_HANDLE_LABEL } from "@/lib/pintDropShared";
-import { venueListedPint } from "@/lib/venueListedPint";
+import { venueListedPint, type VenueListedPint } from "@/lib/venueListedPint";
 import type { PricedVenue } from "@/lib/priceUpdates";
 import { priceStandingFor, priceStandingFigure } from "@/lib/priceTier";
 import ShareWithFamilyButton from "@/components/ledger/ShareWithFamilyButton";
@@ -146,6 +146,37 @@ type LedgerPriceVenue = Pick<PricedVenue,
   "id" | "cheapestPrice" | "cheapestPint" | "prices" | "sourcedPrice"
 >;
 
+function LedgerPublishedPriceRecord({ publishedLane, listedPint, venueId }: {
+  publishedLane: VenuePriceLane | null;
+  listedPint: VenueListedPint | null;
+  venueId: string;
+}) {
+  const publication = publishedLane?.lane === "sourced"
+    ? { priceGbp: publishedLane.cheapestPrice, sourceUrl: publishedLane.sourcedPrice.sourceUrl,
+        sourceLabel: publishedLane.sourcedPrice.sourceLabel, observedAt: publishedLane.sourcedPrice.observedAt }
+    : publishedLane?.lane === "listed"
+      ? { ...publishedLane.listed, sourceLabel: "Published menu" }
+      : null;
+  return publication ? <>
+    <p>Published price</p>
+    <p>
+      {publication.priceGbp !== null ? <PintPriceBadge priceGbp={publication.priceGbp} venueId={venueId} /> : null}{" "}
+      Cheapest listed pint
+    </p>
+    <p>
+      Listed by <a className="ledgerMapLink" href={publication.sourceUrl} target="_blank" rel="noopener noreferrer">{publication.sourceLabel}</a>, collected{" "}
+      <time dateTime={publication.observedAt}>{formatLedgerDate(publication.observedAt)}</time>.
+    </p>
+  </> : publishedLane?.lane === "baseline" ? <>
+    <p>Price on record</p>
+    <p>
+      <PintPriceBadge priceGbp={publishedLane.cheapestPrice} venueId={venueId} />{" "}
+      {listedPint?.pintName ? displayDrinkName(listedPint.pintName) : "Cheapest listed pint"}
+    </p>
+    <ListedPriceSource evidence={listedPint ?? publishedLane} />
+  </> : publishedLane?.lane === "estimate" ? <p>{priceStandingFigure(priceStandingFor({ estimate: publishedLane.estimate }))}</p> : null;
+}
+
 /** Public reports arrive with the logbook, never in the shared cached document. */
 export function LedgerPriceRecord({ venue, bundle }: {
   venue: LedgerPriceVenue;
@@ -173,30 +204,7 @@ export function LedgerPriceRecord({ venue, bundle }: {
   );
   const publishedLane = venuePriceLane(pintVenue, null, venue.sourcedPrice, bundle);
   const currentPriceGbp = priceLane ? venuePriceLaneObservedGbp(priceLane) : undefined;
-  const publication = publishedLane?.lane === "sourced"
-    ? { priceGbp: publishedLane.cheapestPrice, sourceUrl: publishedLane.sourcedPrice.sourceUrl,
-        sourceLabel: publishedLane.sourcedPrice.sourceLabel, observedAt: publishedLane.sourcedPrice.observedAt }
-    : publishedLane?.lane === "listed"
-      ? { ...publishedLane.listed, sourceLabel: "Published menu" }
-      : null;
-  const publishedRecord = publication ? <>
-    <p>Published price</p>
-    <p>
-      {publication.priceGbp !== null ? <PintPriceBadge priceGbp={publication.priceGbp} venueId={venueId} /> : null}{" "}
-      Cheapest listed pint
-    </p>
-    <p>
-      Listed by <a className="ledgerMapLink" href={publication.sourceUrl} target="_blank" rel="noopener noreferrer">{publication.sourceLabel}</a>, collected{" "}
-      <time dateTime={publication.observedAt}>{formatLedgerDate(publication.observedAt)}</time>.
-    </p>
-  </> : publishedLane?.lane === "baseline" ? <>
-    <p>Price on record</p>
-    <p>
-      <PintPriceBadge priceGbp={publishedLane.cheapestPrice} venueId={venueId} />{" "}
-      {listedPint?.pintName ? displayDrinkName(listedPint.pintName) : "Cheapest listed pint"}
-    </p>
-    <ListedPriceSource evidence={listedPint ?? publishedLane} />
-  </> : publishedLane?.lane === "estimate" ? <p>{priceStandingFigure(priceStandingFor({ estimate: publishedLane.estimate }))}</p> : null;
+  const publishedRecord = <LedgerPublishedPriceRecord publishedLane={publishedLane} listedPint={listedPint} venueId={venueId} />;
   const reportRecord = publicPint ? <>
     <p>Public pint report</p>
     {publicPint.split ? <p>{pintPriceSplitLine(publicPint.split)}</p> : publicPint.priceGbp !== null ? (
