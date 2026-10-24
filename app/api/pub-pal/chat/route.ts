@@ -159,6 +159,7 @@ async function openingReply(
         if (palOpeningAcceptance(query)) answer = palOpeningFollowUp(query, prior.turns[0].content);
         if (prepared) assertPalChatDeadline(prepared.context.deadline);
         await registerPubPalToolTurn(threadId, {
+          deadline: prepared?.context.deadline,
           ownerId, cityId: prior.cityId, query: answer ? query : "", turns: prior.turns,
           cards: [], proposals: [], hints: answer ? [answer] : [], toolsUsed: [],
         });

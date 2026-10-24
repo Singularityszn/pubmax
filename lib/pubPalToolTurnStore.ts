@@ -5,6 +5,7 @@ import type { CityId } from "@/lib/cities";
 import type { PubPalFenceTurn } from "@/lib/pubPalLlmFence";
 import { isPubPalConversationId, PUB_PAL_CONVERSATION_IDLE_MS } from "@/lib/pubPalConversationId";
 import { windowPalSessionTurns } from "@/lib/palSessionSummary";
+import { assertPalChatDeadline } from "@/lib/palChatDeadline";
 import {
   createDualBackendStore,
   createFailSoftGuard,
@@ -57,6 +58,7 @@ type PubPalToolTurnPayload = {
 };
 
 type OwnedWrite = {
+  deadline?: number;
   query: string;
   cityId: CityId;
   turns?: PubPalFenceTurn[];
@@ -201,6 +203,7 @@ const memoryPubPalToolTurnStore: PubPalToolTurnStore = {
 
   async register(conversationId, input) {
     assertConversationId(conversationId);
+    if (input.deadline !== undefined) assertPalChatDeadline(input.deadline);
     const now = Date.now();
     pruneMemory(now);
     const existing = memoryTurns.get(conversationId) ?? null;
@@ -442,6 +445,7 @@ const supabasePubPalToolTurnStore: PubPalToolTurnStore = {
       run: async () => {
         const existing = claimedTurn(await lookupStoredRow(conversationId));
         if (existing && existing.ownerId !== input.ownerId) throw new PubPalToolTurnAccessError();
+        if (input.deadline !== undefined) assertPalChatDeadline(input.deadline);
         await writeStoredRow(conversationId, mergeOwned(existing, input, Date.now()));
       },
     });

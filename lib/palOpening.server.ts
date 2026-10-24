@@ -23,6 +23,7 @@ export async function openPalConversation(ownerId: string, deadline?: number) {
   if (deadline !== undefined) assertPalChatDeadline(deadline);
   const conversationId = newPalLocalThreadId();
   await registerPubPalToolTurn(conversationId, {
+    deadline,
     ownerId, cityId: "london", query: "", turns: [{ role: "assistant", content: answer }],
     cards: [], proposals: [], hints: [answer], toolsUsed: [],
   });

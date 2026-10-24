@@ -26,6 +26,7 @@ import { offlineFetch } from "@/evals/pal/offlineFetch";
 import * as palStore from "@/lib/pubPalStore";
 import * as turnStore from "@/lib/pubPalToolTurnStore";
 import * as venueStore from "@/lib/concierge/venues.server";
+import * as supabase from "@/lib/supabase";
 
 const report = "I visited The Crown on 10 October 2026, drank Camden Hells and spent £26.80 in total.";
 const request = (body: unknown) => new Request("http://localhost/api/pub-pal/chat", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
@@ -431,6 +432,59 @@ describe("configured chat request deadline", () => {
     release(pal);
     await vi.advanceTimersByTimeAsync(0);
     expect(persist).not.toHaveBeenCalled();
+    expect(provider).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    { stream: false, lookupMs: 21_000 },
+    { stream: true, lookupMs: 21_000 },
+    { stream: false, lookupMs: 23_000 },
+    { stream: true, lookupMs: 23_000 },
+  ])("completes opening registration only before expiry, stream: $stream, lookup: $lookupMs ms", async ({ stream, lookupMs }) => {
+    await confirmNight();
+    const initial = await (await opening()).json();
+    const prior = (await readOwnedPubPalToolTurn(initial.conversationId, "owner-a"))!;
+    let row = {
+      conversation_id: initial.conversationId,
+      owner_id: "owner-a",
+      payload: { ...prior, surface: "text" },
+      expires_at: new Date(prior.expiresAt).toISOString(),
+    };
+    const lookup = vi.fn().mockResolvedValueOnce({ data: structuredClone(row), error: null })
+      .mockImplementationOnce(() => new Promise((resolve) => {
+        setTimeout(() => resolve({ data: structuredClone(row), error: null }), lookupMs);
+      }))
+      .mockImplementation(async () => ({ data: structuredClone(row), error: null }));
+    const upsert = vi.fn(async (value: typeof row) => { row = structuredClone(value); return { error: null }; });
+    const selection = { eq: () => selection, gt: () => selection, maybeSingle: lookup };
+    vi.spyOn(supabase, "requireSupabaseAdmin").mockReturnValue({
+      from: () => ({ select: () => selection, upsert }),
+    } as unknown as ReturnType<typeof supabase.requireSupabaseAdmin>);
+    vi.spyOn(supabase, "isSupabaseConfigured").mockReturnValue(true);
+    const provider = vi.spyOn(globalThis, "fetch");
+    vi.useFakeTimers();
+    let completed: { response: Response; body: string } | undefined;
+    const pending = POST(deadlineRequest("Yes", stream, initial.conversationId)).then(async (response) => {
+      completed = { response, body: await response.text() };
+    });
+    await vi.advanceTimersByTimeAsync(22_000);
+    expect(completed).toBeDefined();
+    await pending;
+    expect(completed!.response.status).toBe(lookupMs < 22_000 ? 200 : 503);
+    if (lookupMs < 22_000) {
+      expect(JSON.parse(completed!.body).answer).toContain("Which area and price per pint");
+    } else {
+      expect(JSON.parse(completed!.body)).toMatchObject({ code: "UNAVAILABLE" });
+    }
+    await vi.advanceTimersByTimeAsync(1_000);
+    const stored = await readOwnedPubPalToolTurn(initial.conversationId, "owner-a");
+    if (lookupMs < 22_000) {
+      expect(stored).toMatchObject({ query: "Yes", turns: prior.turns, hints: [JSON.parse(completed!.body).answer] });
+      expect(upsert).toHaveBeenCalledTimes(1);
+    } else {
+      expect(stored).toEqual(prior);
+      expect(upsert).not.toHaveBeenCalled();
+    }
     expect(provider).not.toHaveBeenCalled();
   });
 
