@@ -14,8 +14,13 @@ describe("map drink coverage copy", () => {
     expect(html).not.toContain("0 of 20");
     expect(html).toContain("could not read");
   });
+  it("renders the café count from the coverage record", () => {
+    const html = renderToStaticMarkup(<DrinkCoverage category="coffee" coverage={{ count: 1, total: 20, status: "ready", coffeePilot: { count: 7, status: "ready" } }} />);
+    expect(html).toContain("1 of 20 loaded pubs");
+    expect(html).toContain("7 cafés with listed prices");
+  });
   it("keeps the separate cafe count and its failed read explicit", () => {
-    const html = renderToStaticMarkup(<DrinkCoverage category="coffee" coverage={{ count: 0, total: 20, status: "ready" }} coffeePilot={{ count: 0, status: "failed" }} />);
+    const html = renderToStaticMarkup(<DrinkCoverage category="coffee" coverage={{ count: 0, total: 20, status: "ready", coffeePilot: { count: 0, status: "failed" } }} />);
     expect(html).toContain("café prices could not be read");
   });
 });

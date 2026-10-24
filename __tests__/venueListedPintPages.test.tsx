@@ -31,6 +31,15 @@ import * as venueDetails from "@/lib/venueDetailIndex";
 import { venueListedPint } from "@/lib/venueListedPint";
 
 describe("pint receipts on venue pages", () => {
+  it("carries Small Beer's bundled listing into the cached Ledger document", async () => {
+    const root = document.createElement("div");
+    root.innerHTML = renderToStaticMarkup(await LedgerPage({ params: Promise.resolve({ id: "venue-19mn6ss" }) }));
+    const priceRecord = root.querySelector('section[aria-labelledby="ledgerPriceHeading"]');
+    expect(priceRecord?.querySelector(".priceBadge")?.textContent).toBe("£5.00");
+    expect(priceRecord?.querySelector('a[href="https://www.smallbeern8.co.uk/drinks"]')?.textContent).toBe("Published menu");
+    expect(priceRecord?.querySelector("time")?.dateTime).toBe("2026-09-21T18:58:02.492Z");
+    expect(priceRecord?.textContent).not.toContain("Public pint report");
+  });
   it.each([
     { name: "Ledger", page: LedgerPage },
     { name: "pub", page: PubPage },

@@ -25,6 +25,7 @@ import {
   pageText,
   pubNameSlug,
   readVenueDrinkPrices,
+  readKeylessUkPriceDecisions,
   renderLooksEmpty,
   sitemapLocations,
 } from "@/lib/harvest/ukPriceCrawl";
@@ -103,6 +104,18 @@ describe("what a page states", () => {
       <p>Draught</p><p>Guinness pint £6.20</p>`, "html");
     expect(reading.kept.map((row) => row.priceGbp)).toEqual([6.2]);
     expect(reading.drops).toEqual(Array(3).fill("bottled-measure-not-a-pint"));
+  });
+
+  it.each(["Bottled Beers", "Bottled Beers & Ciders"])("ends %s at the captured On Draught heading", (heading) => {
+    for (const format of ["text", "html"] as const) {
+      const lines = [heading, "Peroni £5.50", "On Draught", "Guinness £6.20"];
+      const menu = format === "text" ? lines.join("\n") : lines.map((line) => `<p>${line.replace(/&/g, "&amp;")}</p>`).join("");
+      const reading = readVenueDrinkPrices(menu, format);
+      expect(reading.kept.map(({ category, priceGbp }) => ({ category, priceGbp }))).toEqual([{ category: "beer", priceGbp: 6.2 }]);
+      expect(reading.drops).toEqual(["bottled-measure-not-a-pint"]);
+      const decisions = [...readKeylessUkPriceDecisions(menu, format).values()];
+      expect(decisions.map((decision) => decision.drop ?? decision.kept?.priceGbp)).toEqual(["bottled-measure-not-a-pint", 6.2]);
+    }
   });
 
   it("does not label an unqualified sour style as a cocktail", () => {

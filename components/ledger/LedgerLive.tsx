@@ -14,9 +14,11 @@ import { formatLedgerDate, type LedgerPintPrice } from "@/lib/ledger";
 import { displayHandle } from "@/lib/handleDisplay";
 import { PINT_TRUST_LINE } from "@/lib/pintTrust";
 import { pintPriceSplitLine } from "@/lib/pintDropAgreement";
-import { venuePriceLane, venuePriceLaneIsDrinkerLog, venuePriceLaneObservedGbp } from "@/lib/venuePriceLane";
+import { venuePriceLane, venuePriceLaneIsDrinkerLog, venuePriceLaneObservedGbp, type VenueBundlePrices } from "@/lib/venuePriceLane";
 import { ANON_HANDLE_LABEL } from "@/lib/pintDropShared";
-import type { VenueListedPint } from "@/lib/venueListedPint";
+import { venueListedPint } from "@/lib/venueListedPint";
+import type { PricedVenue } from "@/lib/priceUpdates";
+import { priceStandingFor, priceStandingFigure } from "@/lib/priceTier";
 import ShareWithFamilyButton from "@/components/ledger/ShareWithFamilyButton";
 import type { VenueClaim } from "@/lib/curation";
 import type { FamilyTableEntry, LedgerEntry, RedactedFamilyEntry } from "@/lib/ledger";
@@ -140,62 +142,83 @@ export function LedgerReadAloud({ intro }: { intro: string[] }) {
   return <ReadLedgerButton text={text} />;
 }
 
+type LedgerPriceVenue = Pick<PricedVenue,
+  "id" | "cheapestPrice" | "cheapestPint" | "prices" | "sourcedPrice"
+>;
+
 /** Public reports arrive with the logbook, never in the shared cached document. */
-export function LedgerPriceRecord({ venueId, listedPint }: {
-  venueId: string;
-  listedPint: VenueListedPint | null;
+export function LedgerPriceRecord({ venue, bundle }: {
+  venue: LedgerPriceVenue;
+  bundle: VenueBundlePrices;
 }) {
+  const venueId = venue.id;
+  const listedPint = venueListedPint(venue);
+  const pintVenue = {
+    cheapestPrice: venue.sourcedPrice ? venue.cheapestPrice : listedPint?.priceGbp ?? null,
+    prices: venue.prices,
+  };
   const { state, reload } = useLedgerLive();
   const publicPint = state.status === "ready" ? state.log.pintPrice : null;
   const reportPrice = publicPint?.priceGbp != null
     ? { priceGbp: publicPint.priceGbp, observedAt: publicPint.createdAt }
     : null;
   const priceLane = venuePriceLane(
-    { cheapestPrice: listedPint?.priceGbp ?? null },
+    pintVenue,
     publicPint?.state === "confirmed" || publicPint?.state === "corroborated" ? publicPint.priceGbp : null,
-    null,
-    {},
+    venue.sourcedPrice,
+    bundle,
     publicPint?.state === "logged-once" ? reportPrice : null,
     publicPint?.state === "aged-out" ? reportPrice : null,
     publicPint?.split ? { split: publicPint.split, observedAt: publicPint.createdAt } : null,
   );
-  const reported = priceLane && venuePriceLaneIsDrinkerLog(priceLane) ? publicPint : null;
+  const publishedLane = venuePriceLane(pintVenue, null, venue.sourcedPrice, bundle);
   const currentPriceGbp = priceLane ? venuePriceLaneObservedGbp(priceLane) : undefined;
+  const publication = publishedLane?.lane === "sourced"
+    ? { priceGbp: publishedLane.cheapestPrice, sourceUrl: publishedLane.sourcedPrice.sourceUrl,
+        sourceLabel: publishedLane.sourcedPrice.sourceLabel, observedAt: publishedLane.sourcedPrice.observedAt }
+    : publishedLane?.lane === "listed"
+      ? { ...publishedLane.listed, sourceLabel: "Published menu" }
+      : null;
+  const publishedRecord = publication ? <>
+    <p>Published price</p>
+    <p>
+      {publication.priceGbp !== null ? <PintPriceBadge priceGbp={publication.priceGbp} venueId={venueId} /> : null}{" "}
+      Cheapest listed pint
+    </p>
+    <p>
+      Listed by <a className="ledgerMapLink" href={publication.sourceUrl} target="_blank" rel="noopener noreferrer">{publication.sourceLabel}</a>, collected{" "}
+      <time dateTime={publication.observedAt}>{formatLedgerDate(publication.observedAt)}</time>.
+    </p>
+  </> : publishedLane?.lane === "baseline" ? <>
+    <p>Price on record</p>
+    <p>
+      <PintPriceBadge priceGbp={publishedLane.cheapestPrice} venueId={venueId} />{" "}
+      {listedPint?.pintName ? displayDrinkName(listedPint.pintName) : "Cheapest listed pint"}
+    </p>
+    <ListedPriceSource evidence={listedPint ?? publishedLane} />
+  </> : publishedLane?.lane === "estimate" ? <p>{priceStandingFigure(priceStandingFor({ estimate: publishedLane.estimate }))}</p> : null;
+  const reportRecord = publicPint ? <>
+    <p>Public pint report</p>
+    {publicPint.split ? <p>{pintPriceSplitLine(publicPint.split)}</p> : publicPint.priceGbp !== null ? (
+      <p><PriceBadge>{formatGbp(publicPint.priceGbp)}</PriceBadge>{" "}{displayDrinkName(publicPint.drink) || "Beer"} · Pint</p>
+    ) : null}
+    <p>
+      Logged by {publicPint.handle === ANON_HANDLE_LABEL ? ANON_HANDLE_LABEL : displayHandle(publicPint.handle)} on{" "}
+      <time dateTime={publicPint.createdAt}>{formatLedgerDate(publicPint.createdAt)}</time>.{" "}
+      <Link className="ledgerMapLink" href={`/p/${encodeURIComponent(publicPint.dropId)}`}>View Pint Drop</Link>
+    </p>
+    {PINT_TRUST_LINE[publicPint.state] ? <p>{PINT_TRUST_LINE[publicPint.state]}</p> : null}
+  </> : null;
 
   return (
     <section className="ledgerSection" aria-labelledby="ledgerPriceHeading">
       <h2 className="ledgerSectionTitle" id="ledgerPriceHeading">Price record</h2>
-      {reported ? (
-        <>
-          {reported.split ? <p>{pintPriceSplitLine(reported.split)}</p> : reported.priceGbp !== null ? (
-            <p>
-              <PriceBadge>{formatGbp(reported.priceGbp)}</PriceBadge>{" "}
-              {displayDrinkName(reported.drink) || "Beer"} · Pint
-            </p>
-          ) : null}
-          <p>
-            Logged by {reported.handle === ANON_HANDLE_LABEL ? ANON_HANDLE_LABEL : displayHandle(reported.handle)} on{" "}
-            <time dateTime={reported.createdAt}>{formatLedgerDate(reported.createdAt)}</time>.{" "}
-            <Link className="ledgerMapLink" href={`/p/${encodeURIComponent(reported.dropId)}`}>View Pint Drop</Link>
-          </p>
-          {PINT_TRUST_LINE[reported.state] ? <p>{PINT_TRUST_LINE[reported.state]}</p> : null}
-        </>
-      ) : listedPint ? (
-        <>
-          <p>
-            <PintPriceBadge priceGbp={listedPint.priceGbp} venueId={venueId} />{" "}
-            {listedPint.pintName ? displayDrinkName(listedPint.pintName) : "Cheapest listed pint"}
-          </p>
-          <ListedPriceSource evidence={listedPint} />
-        </>
-      ) : state.status === "ready" ? (
-        <p>No pint price is on record yet.</p>
-      ) : state.status === "unavailable" ? (
-        <p role="status">
+      {priceLane && venuePriceLaneIsDrinkerLog(priceLane) ? <>{reportRecord}{publishedRecord}</> : <>{publishedRecord}{reportRecord}</>}
+      {!priceLane && state.status === "ready" ? <p>No pint price is on record yet.</p>
+        : !priceLane && state.status === "unavailable" ? <p role="status">
           The price record did not answer just now.{" "}
           <button type="button" className="ledgerMapLink" onClick={reload}>Try again</button>
-        </p>
-      ) : <p role="status">Checking the price record.</p>}
+        </p> : !priceLane ? <p role="status">Checking the price record.</p> : null}
       <VenuePriceThen venueId={venueId} currentPriceGbp={currentPriceGbp} />
     </section>
   );

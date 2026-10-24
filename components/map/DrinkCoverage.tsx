@@ -7,11 +7,11 @@ export type MapDrinkCoverage = DrinkCoverageCount & {
   coffeePilot?: { count: number; status: CoffeePilotStatus };
 };
 
-export default function DrinkCoverage({ category, coverage, coffeePilot = coverage.coffeePilot }: {
+export default function DrinkCoverage({ category, coverage }: {
   category: DrinkCategory;
   coverage: MapDrinkCoverage;
-  coffeePilot?: MapDrinkCoverage["coffeePilot"];
 }) {
+  const coffeePilot = coverage.coffeePilot;
   const noun = category === "beer" ? "pint" : drinkLaneNoun(category);
   const pending = coverage.status === "idle" || coverage.status === "loading";
   return (
