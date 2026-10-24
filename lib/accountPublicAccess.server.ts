@@ -8,7 +8,7 @@ import { normalizeHandle } from "@/lib/profiles";
 import { isProfileTombstoned, profileStore, type ProfileRecord } from "@/lib/profileStore";
 import { getSupabaseAdmin, isSupabaseConfigured } from "@/lib/supabase";
 
-// Public withdrawal excludes the operational handle checked by isKnownTestHandle.
+// Public reads hide the operational handle checked by isKnownTestHandle.
 // For other LIVE profiles, it follows an auth ban or Social suspension.
 // A DELETED (tombstoned) profile is never withdrawn: its contributions stay
 // public under the retired label (migration 0150), and `profilePublicPresence`
@@ -313,7 +313,7 @@ export async function filterProfilesWithdrawnFromPublic<T extends PublicPresence
   );
 }
 
-/** The normalised handles among `handles` whose live profile is withdrawn. */
+/** The normalised handles hidden under the public-read policy above. */
 export async function withdrawnHandles(handles: readonly string[]): Promise<ReadonlySet<string>> {
   const keys = [...new Set(handles.map((handle) => normalizeHandle(handle)).filter(Boolean))];
   if (keys.length === 0) return new Set();

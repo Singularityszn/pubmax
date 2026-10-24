@@ -94,14 +94,7 @@ async function readPriceUpdates(): Promise<PriceUpdatesIndex | null> {
   return pending;
 }
 
-/**
- * Every overlay row either pack holds about one venue, scoped by the keys that
- * venue answers to (lib/venueMenu.ts `venueMenuLookupKeys`).
- *
- * Null when the read failed, so the caller publishes an absence it can tell
- * from an empty answer.
- */
-/** Every drink-price update row, flattened once per process read. */
+/** Every drink-price update row. Null distinguishes a failed read from an empty pack. */
 export async function readAllDrinkPriceUpdates(): Promise<DrinkPriceUpdate[] | null> {
   const index = await readPriceUpdates();
   return index ? [...index.drinkByKey.values()].flat() : null;
@@ -111,6 +104,13 @@ export async function allDrinkPriceUpdates(): Promise<DrinkPriceUpdate[]> {
   return (await readAllDrinkPriceUpdates()) ?? [];
 }
 
+/**
+ * Every overlay row either pack holds about one venue, scoped by the keys that
+ * venue answers to (lib/venueMenu.ts `venueMenuLookupKeys`).
+ *
+ * Null when the read failed, so the caller publishes an absence it can tell
+ * from an empty answer.
+ */
 export async function venuePriceUpdatesFor(
   keys: readonly string[],
 ): Promise<VenuePriceUpdates | null> {
