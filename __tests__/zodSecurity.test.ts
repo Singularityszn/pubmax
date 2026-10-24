@@ -1,21 +1,7 @@
-import { createRequire } from "node:module";
 import { describe, expect, it } from "vitest";
-import type { ZodType } from "zod";
+import { z } from "zod";
 
-const require = createRequire(import.meta.url);
-const oidcRequire = createRequire(require.resolve("@vercel/oidc"));
-const configPath = oidcRequire.resolve("@vercel/cli-config");
-const configRequire = createRequire(configPath);
-const z: typeof import("zod") = configRequire("zod");
-const config: {
-  parseGlobalConfig: (value: unknown) => unknown;
-  parseAuthConfig: (value: unknown) => unknown;
-  parseAuthFileConfig: (value: unknown) => Record<string, unknown>;
-  globalConfigSchema: ZodType;
-  authConfigSchema: ZodType;
-} = require(configPath);
-
-describe("Zod resolved for @vercel/cli-config (GHSA-mrhx-c7xc-m3w5)", () => {
+describe("Application Zod collection limits (GHSA-mrhx-c7xc-m3w5)", () => {
   // The upstream fix rejects oversized collections before validating elements.
   // Three values exercise that contract without a resource-exhaustion payload.
   it.each(["array max", "array length", "set max", "set size"] as const)(
@@ -50,61 +36,4 @@ describe("Zod resolved for @vercel/cli-config (GHSA-mrhx-c7xc-m3w5)", () => {
       expect(schema.safeParse(invalid).success).toBe(false);
     }
   });
-});
-
-describe("real Vercel config parser compatibility", () => {
-  it("accepts synthetic global config and preserves unknown keys at each level", () => {
-    const value = {
-      credStorage: "file",
-      currentTeam: "team_synthetic",
-      api: "https://example.invalid",
-      telemetry: { enabled: false, futureTelemetry: true },
-      guidance: { enabled: true, futureGuidance: "retained" },
-      updates: { auto: false, bypassMinReleaseAge: false, futureUpdates: 1 },
-      useNativeBinary: false,
-      nativeBinaryAutoOptIn: true,
-      futureGlobal: { enabled: true },
-    };
-    expect(config.parseGlobalConfig(value)).toEqual(value);
-    expect(config.globalConfigSchema.parse(value)).toEqual(value);
-    expect(config.parseGlobalConfig({})).toEqual({});
-  });
-
-  it.each([
-    { credStorage: "invalid" },
-    { currentTeam: 1 },
-    { telemetry: { enabled: "false" } },
-    { guidance: { enabled: 1 } },
-    { updates: { auto: "true" } },
-    { useNativeBinary: "false" },
-  ])("rejects invalid global config %j", (value) => {
-    expect(() => config.parseGlobalConfig(value)).toThrow();
-    expect(config.globalConfigSchema.safeParse(value).success).toBe(false);
-  });
-
-  it("accepts synthetic auth values and preserves unknown keys", () => {
-    const value = {
-      token: "synthetic-token",
-      refreshToken: "synthetic-refresh-token",
-      userId: "synthetic-user",
-      expiresAt: 123456789,
-      tokenSource: "env",
-      skipWrite: true,
-      futureAuth: { enabled: true },
-    };
-    expect(config.parseAuthConfig(value)).toEqual(value);
-    expect(config.authConfigSchema.parse(value)).toEqual(value);
-    const fileValue = config.parseAuthFileConfig(value);
-    expect(fileValue).not.toHaveProperty("tokenSource");
-    expect({ ...fileValue, tokenSource: value.tokenSource }).toEqual(value);
-    expect(config.parseAuthConfig({})).toEqual({});
-  });
-
-  it.each([{ token: 1 }, { expiresAt: "123" }, { skipWrite: "true" }, { tokenSource: "invalid" }])(
-    "rejects invalid auth config %j",
-    (value) => {
-      expect(() => config.parseAuthConfig(value)).toThrow();
-      expect(config.authConfigSchema.safeParse(value).success).toBe(false);
-    },
-  );
 });

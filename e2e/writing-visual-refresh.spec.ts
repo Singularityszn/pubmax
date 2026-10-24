@@ -98,6 +98,11 @@ for (const width of [320, 390]) {
         await page.evaluate((value) => {
           document.documentElement.style.fontSize = `${value * 100}%`;
         }, scale);
+        // Reduced motion keeps a near-zero font transition. Measure the
+        // enlarged labels after that transition, not in its initial frame.
+        await expect.poll(() => dock.locator(".mobileTabLabelText").first().evaluate(
+          (element) => parseFloat(getComputedStyle(element).fontSize),
+        )).toBeCloseTo(baselineFont * scale, 1);
         await page.evaluate(() => document.fonts.ready);
         const labels = await dock.locator(".mobileTabLabelText").evaluateAll((elements) => elements.map((element) => {
           const link = element.closest("a")!;
