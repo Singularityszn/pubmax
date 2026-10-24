@@ -40,7 +40,7 @@ The Jev pass checks at most eight non-exact pairs from the same file and revisio
 
 `--jev` sends those bounded summaries and evidence to TypeSafe. Supply reviewed, non-secret data only.
 
-Jev output is advice for a reviewer. Probability `0.9` or higher produces `review_possible_duplicate`. This threshold is provisional and has not been calibrated as a quality measure. Lower probabilities produce `retain_uncertain`, and request or response failures produce `retain_failed`. Truncated input produces `review_possible_duplicate_bounded_evidence`, which tells the reviewer to inspect the full findings. No result removes either record.
+Jev output is advice for a reviewer. With complete input, probability `0.9` or higher produces `review_possible_duplicate`. This threshold is provisional and has not been calibrated as a quality measure. Lower probabilities produce `retain_uncertain`, and request or response failures produce `retain_failed`. When the probability meets the threshold, truncated input produces `review_possible_duplicate_bounded_evidence`. The reviewer must inspect the full findings. No result removes either record.
 
 The report contains IDs, file paths, revisions, decisions, probabilities, model name, request count, and API usage. It does not copy summaries or evidence into stdout or error output. `jev.usage` is `null` when no call ran or complete API usage was unavailable. The tool does not replace missing usage with zero.
 
