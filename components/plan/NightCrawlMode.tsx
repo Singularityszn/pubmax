@@ -20,6 +20,7 @@ import { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from 
 
 import type { CrewMemberDTO, CrewPresenceStatus } from "@/lib/crew";
 import type { PlanState } from "@/lib/plan";
+import { isPlanPreviewProjection, type PlanPrivacyPreviewDTO } from "@/lib/planPrivacy";
 import {
   clampStopIndex,
   isPlanActiveNow,
@@ -290,7 +291,7 @@ export default function NightCrawlMode({ planId, initialState }: { planId: strin
     };
   }, [planId, showSurface, applyFlushResult]);
 
-  // Refresh the active Plan even while the Crawl overlay is closed. A final
+  // Refresh on capability changes even while the Crawl overlay is closed. A final
   // action may have confirmed through the site-wide outbox on another route;
   // its canonical action log must still reopen the existing ending owner.
   useEffect(() => {
@@ -298,8 +299,11 @@ export default function NightCrawlMode({ planId, initialState }: { planId: strin
     let active = true;
     fetch(`/api/plans/${planId}`, { cache: "no-store" })
       .then((response) => (response.ok ? response.json() : null))
-      .then((body: PlanState | null) => {
-        if (active && body && Array.isArray(body.stops)) {
+      .then((body: PlanState | PlanPrivacyPreviewDTO | null) => {
+        if (!active) return;
+        if (isPlanPreviewProjection(body)) {
+          setPlan(initialState);
+        } else if (body && "stops" in body && Array.isArray(body.stops)) {
           setPlan(body);
           requestNightModeEndingFromPlan(body);
         }
@@ -308,7 +312,7 @@ export default function NightCrawlMode({ planId, initialState }: { planId: strin
     return () => {
       active = false;
     };
-  }, [activeNow, planId]);
+  }, [activeNow, planId, capabilitySnapshot, initialState]);
 
   const stops = plan.stops;
   const stack = useMemo(
