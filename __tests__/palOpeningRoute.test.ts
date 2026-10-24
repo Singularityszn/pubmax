@@ -280,10 +280,11 @@ describe("configured chat request deadline", () => {
   });
 
   it.each(
-    [false, true].flatMap((stream) => [false, true].flatMap((toolsRan) => [false, true].map((stalled) => ({ stream, toolsRan, stalled })))),
+    [false, true].flatMap((stream) => [false, true].flatMap((toolsRan) => [false, true].flatMap((stalled) =>
+      (stalled ? [false, true] : [false]).map((readbackFirst) => ({ stream, toolsRan, stalled, readbackFirst }))))),
   )(
-    "settles provider readback before the deadline, stream: $stream, tools: $toolsRan, stalled: $stalled",
-    async ({ stream, toolsRan, stalled }) => {
+    "settles provider readback before the deadline, stream: $stream, tools: $toolsRan, stalled: $stalled, readback first: $readbackFirst",
+    async ({ stream, toolsRan, stalled, readbackFirst }) => {
       const signedUrl = "wss://api.elevenlabs.io/v1/convai/conversation?conversation_id=conv_deadlineprovider01";
       const provider = vi.fn(async () => Response.json({ signed_url: signedUrl }));
       vi.stubGlobal("fetch", provider);
@@ -291,7 +292,10 @@ describe("configured chat request deadline", () => {
         cards: [{ key: "crown", venueId: "venue-crown", title: "The Crown", place: "Soho", note: "Listed pint", price: 4.8 }],
         proposals: [], hints: [], toolsUsed: ["search_venues"],
       };
-      const read = vi.spyOn(turnStore, "readPubPalToolTurn").mockImplementation(() => stalled ? new Promise(() => {}) : Promise.resolve(readback));
+      let releaseReadback!: (turn: typeof readback | null) => void;
+      const read = vi.spyOn(turnStore, "readPubPalToolTurn").mockImplementation(() => stalled
+        ? new Promise<typeof readback | null>((resolve) => { releaseReadback = resolve; })
+        : Promise.resolve(readback));
       const close = vi.fn();
       const sent: unknown[] = [];
       let emit!: (type: string, payload: unknown) => void;
@@ -331,6 +335,13 @@ describe("configured chat request deadline", () => {
       await vi.advanceTimersByTimeAsync(21_900);
       if (stalled) expect(completed).toBeUndefined();
       expect(read).toHaveBeenCalledTimes(1);
+      if (readbackFirst) {
+        // The clock can reach expiry before the event loop runs the main timer.
+        // Complete the store read then, so its deadline check settles first.
+        vi.setSystemTime(Date.now() + 100);
+        releaseReadback(null);
+        await vi.advanceTimersByTimeAsync(0);
+      }
       await vi.advanceTimersByTimeAsync(100);
       expect(completed).toBeDefined();
       expect(close).toHaveBeenCalledTimes(1);

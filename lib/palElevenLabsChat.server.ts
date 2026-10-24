@@ -431,7 +431,9 @@ export async function runPalElevenLabsChatTurn(
           const turn = conversationId ? await waitForPubPalToolTurn(conversationId, events > 0, deadline) : null;
           if (generation !== replyGeneration || events !== toolEvents) return;
           finish(answer(agentMessage, turn));
-        } catch {
+        } catch (error) {
+          // The main deadline timer preserves an eligible reply and closes the socket.
+          if (error instanceof PalChatDeadlineExceeded) return;
           finish({ ok: false, code: "UNAVAILABLE" }, "tool_result");
         }
       })();
