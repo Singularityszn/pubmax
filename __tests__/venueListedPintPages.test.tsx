@@ -37,7 +37,8 @@ describe("pint receipts on venue pages", () => {
     const priceRecord = root.querySelector('section[aria-labelledby="ledgerPriceHeading"]');
     expect(priceRecord?.querySelector(".priceBadge")?.textContent).toBe("£5.00");
     expect(priceRecord?.querySelector('a[href="https://www.smallbeern8.co.uk/drinks"]')?.textContent).toBe("Published menu");
-    expect(priceRecord?.querySelector("time")?.dateTime).toBe("2026-09-21T18:58:02.492Z");
+    expect(priceRecord?.querySelector("time")?.dateTime).toBe("2026-10-23T16:15:47.970Z");
+    expect(priceRecord?.textContent).toContain("collected 23 October 2026");
     expect(priceRecord?.textContent).not.toContain("Public pint report");
   });
   it.each([
