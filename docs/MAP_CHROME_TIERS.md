@@ -13,11 +13,21 @@ The [phone map resting-layer contract](rules/components-sheets-chrome-and-naviga
 owns Tonight's placement, List access, the bottom card and the TfL badge policy.
 Mobile map action geometry belongs to `components/mobile/mobileMapShell.css`.
 
-In the phone Filters sheet, **Pub listings tonight** counts eligible What's-on
-listings after duplicate removal. `tonightPubListingCount` in
-`lib/tonightOutListings.ts` applies the same pub-match, check-date, and ended-event
-filters as Tonight. This count covers that feed only, not every listing across
-Tonight's sources. Its location label distinguishes **near you** from **in London**.
+The map's Tonight count, cards, category choices, and onboarding use eligible
+What's-on listings after duplicate removal. `filterTonightPubSurfaceRows` in
+`lib/tonightOutListings.ts` applies Tonight's pub-match, check-date, and ended-event
+filters. `tonightPubListingCount` counts those rows.
+
+The phone Filters sheet labels this count **Pub listings tonight**.
+The count and source caption cover What's-on only, while Tonight also accepts
+Out listings. The phone count distinguishes **near you** from **in London**.
+CityMCP **Pins** keep their separate count and actions.
+
+A selected category stays selected when its eligible listings disappear.
+The open lane explains that category's empty result and keeps **All** available
+to clear the filter. An empty category does not mean every category is empty.
+After a successful read, an empty phone Tonight sheet states that nothing is
+listed unless it explains a selected category's empty result.
 
 ## Narrow desktop state
 
