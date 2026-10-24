@@ -217,6 +217,134 @@ describe("configured chat request deadline", () => {
     },
   );
 
+  it.each(
+    (["records", "provider", "provider-metadata"] as const).flatMap((path) =>
+      [false, true].flatMap((stream) => [500, 2_000].map((lookupMs) => ({ path, stream, lookupMs })))),
+  )("prevents expired runner registration writes, path: $path, stream: $stream, lookup: $lookupMs ms", async ({ path, stream, lookupMs }) => {
+    if (path === "records") {
+      const venues = await venueStore.loadConciergeVenues("london");
+      vi.spyOn(venueStore, "loadConciergeVenues").mockResolvedValue(venues);
+    }
+    const threadId = "conv_registrationprior01";
+    await turnStore.registerPubPalToolTurn(threadId, {
+      ownerId: "owner-a", cityId: "london", query: "Find four pubs in Soho", turns: [], summary: "",
+    });
+    const prior = (await readOwnedPubPalToolTurn(threadId, "owner-a"))!;
+    const initialRow = {
+      conversation_id: threadId, owner_id: "owner-a", payload: { ...prior, surface: "text" },
+      expires_at: new Date(prior.expiresAt).toISOString(),
+    };
+    const rows = new Map([[threadId, initialRow]]);
+    const signedId = "conv_registrationprovider01";
+    const metadataId = path === "provider-metadata" ? "conv_registrationmetadata01" : signedId;
+    const delayedId = path === "records" ? threadId : metadataId;
+    let preparationRead = true;
+    let registrationRead = true;
+    const upsert = vi.fn(async (row: typeof initialRow) => {
+      rows.set(row.conversation_id, structuredClone(row));
+      return { error: null };
+    });
+    vi.spyOn(supabase, "requireSupabaseAdmin").mockReturnValue({
+      from: () => {
+        let id = "";
+        const selection = {
+          eq: (_column: string, value: string) => { id = value; return selection; },
+          gt: () => selection,
+          maybeSingle: async () => {
+            let delay = 0;
+            if (preparationRead) {
+              preparationRead = false;
+              delay = 21_000;
+            } else if (id === delayedId && registrationRead) {
+              registrationRead = false;
+              delay = lookupMs;
+            }
+            if (delay) await new Promise((resolve) => setTimeout(resolve, delay));
+            return { data: structuredClone(rows.get(id) ?? null), error: null };
+          },
+        };
+        return { select: () => selection, upsert };
+      },
+    } as unknown as ReturnType<typeof supabase.requireSupabaseAdmin>);
+    vi.spyOn(supabase, "isSupabaseConfigured").mockReturnValue(true);
+    state.unavailable = true;
+    const provider = vi.fn(async () => Response.json({
+      signed_url: `wss://api.elevenlabs.io/v1/convai/conversation?conversation_id=${signedId}`,
+    }));
+    vi.stubGlobal("fetch", provider);
+    const close = vi.fn();
+    const sent: Array<{ type: string }> = [];
+    const socket = vi.fn();
+    vi.stubGlobal("WebSocket", class {
+      private listeners: Record<string, Array<(event: unknown) => void>> = {};
+      constructor() {
+        socket();
+        queueMicrotask(() => {
+          this.emit("open", {});
+          this.emit("message", { data: JSON.stringify({ type: "conversation_initiation_metadata", conversation_initiation_metadata_event: { conversation_id: metadataId } }) });
+        });
+      }
+      private emit(type: string, event: unknown) {
+        for (const listener of this.listeners[type] ?? []) listener(event);
+      }
+      addEventListener(type: string, listener: (event: unknown) => void) {
+        (this.listeners[type] ??= []).push(listener);
+      }
+      send(raw: string) {
+        const payload = JSON.parse(raw);
+        sent.push(payload);
+        if (payload.type === "user_message") {
+          this.emit("message", { data: JSON.stringify({ type: "agent_response", agent_response_event: { agent_response: "A useful sourced reply." } }) });
+          this.emit("message", { data: JSON.stringify({ type: "agent_response_complete" }) });
+        }
+      }
+      close() { close(); }
+    });
+    vi.useFakeTimers();
+    let completed: { response: Response; body: string } | undefined;
+    const pending = POST(deadlineRequest(path === "records" ? "Cheap pints near Soho" : "Find four quiet pubs in Soho", stream, threadId))
+      .then(async (response) => { completed = { response, body: await response.text() }; });
+    await vi.advanceTimersByTimeAsync(21_000);
+    expect(completed).toBeUndefined();
+    await vi.advanceTimersByTimeAsync(1_000);
+    expect(completed).toBeDefined();
+    await pending;
+    const late = lookupMs === 2_000;
+    const isProvider = path !== "records";
+    expect(completed!.response.status).toBe(late && isProvider && !stream ? 503 : 200);
+    const events = completed!.body.trim().split("\n").map((line) => JSON.parse(line));
+    if (late && isProvider) {
+      expect(events).toEqual([expect.objectContaining(stream ? { type: "error" } : { code: "UNAVAILABLE" })]);
+    } else {
+      const body = stream ? events.at(-1).body : events[0];
+      if (isProvider) {
+        expect(body.answer).toBe("A useful sourced reply.");
+        expect(body.conversationId).toBe(metadataId);
+      } else {
+        expect(body.cards).toHaveLength(4);
+        expect(body.conversationId).toBe(late ? "" : threadId);
+        expect(body.answer.includes("Conversation history could not be kept")).toBe(late);
+      }
+    }
+    const writesAtDeadline = upsert.mock.calls.length;
+    const sentAtDeadline = sent.length;
+    await vi.advanceTimersByTimeAsync(1_000);
+    expect(upsert).toHaveBeenCalledTimes(writesAtDeadline);
+    expect(sent).toHaveLength(sentAtDeadline);
+    if (late) {
+      expect(await readOwnedPubPalToolTurn(threadId, "owner-a")).toEqual(prior);
+      if (isProvider) expect(await readOwnedPubPalToolTurn(metadataId, "owner-a")).toBeNull();
+    } else {
+      expect((await readOwnedPubPalToolTurn(delayedId, "owner-a"))?.query)
+        .toBe(isProvider ? "Find four quiet pubs in Soho" : "Cheap pints near Soho");
+    }
+    expect(upsert).toHaveBeenCalledTimes((path === "provider-metadata" ? 1 : 0) + (late ? 0 : 1));
+    expect(provider).toHaveBeenCalledTimes(isProvider ? 1 : 0);
+    expect(socket).toHaveBeenCalledTimes(isProvider ? 1 : 0);
+    expect(close).toHaveBeenCalledTimes(isProvider ? 1 : 0);
+    expect(sent.filter((event) => event.type === "user_message")).toHaveLength(isProvider && !late ? 1 : 0);
+  });
+
   it.each([false, true])("settles an owned records follow-up and ignores a late venue read, stream: %s", async (stream) => {
     const threadId = "conv_recordsdeadline01";
     await turnStore.registerPubPalToolTurn(threadId, {

@@ -288,6 +288,7 @@ export async function runPalElevenLabsChatTurn(
       try {
         const stored = await Promise.race([
           registerPubPalToolTurn(threadId, {
+            deadline,
             query, cityId, ownerId: input.ownerId, turns: prior.turns, summary: prior.summary,
             cards: result.cards, proposals: result.proposals, hints: [result.answer], toolsUsed: result.toolsUsed,
           }).then(() => true, () => false),
@@ -330,6 +331,7 @@ export async function runPalElevenLabsChatTurn(
   const signedUrl = session.signedUrl;
   const registerTurn = (id: string) =>
     registerPubPalToolTurn(id, {
+      deadline,
       query,
       cityId,
       ownerId: input.ownerId,
