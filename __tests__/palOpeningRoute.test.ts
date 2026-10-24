@@ -1,4 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { join } from "node:path";
 
 const state = vi.hoisted(() => ({ owner: "owner-a" as string | null, unavailable: false, inferred: false, limited: false, authReads: 0, memoryReads: 0 }));
 vi.mock("@/lib/authServer", () => ({ callerUserId: async () => { state.authReads += 1; return state.owner; } }));
@@ -214,6 +216,82 @@ describe("configured chat request deadline", () => {
       method: "POST",
       headers: { "content-type": "application/json", ...(stream ? { accept: "application/x-ndjson" } : {}) },
       body: JSON.stringify({ query, threadId }),
+    },
+  );
+
+  it.each([false, true].flatMap((stream) => ["greeting", "acceptance"].map((kind) => ({ stream, kind }))))(
+    "returns the opening when a timely owned write commits after expiry, stream: $stream, kind: $kind",
+    async ({ stream, kind }) => {
+      await confirmNight();
+      const initial = await (await opening()).json();
+      const prior = (await readOwnedPubPalToolTurn(initial.conversationId, "owner-a"))!;
+      mkdirSync("artifacts/ci-2350", { recursive: true });
+      const directory = mkdtempSync(join(process.cwd(), "artifacts/ci-2350/opening-"));
+      const file = join(directory, "rows.json");
+      const initialRow = { conversation_id: initial.conversationId, owner_id: "owner-a",
+        payload: { ...prior, surface: "text" }, expires_at: new Date(prior.expiresAt).toISOString() };
+      writeFileSync(file, JSON.stringify({ [initial.conversationId]: initialRow }));
+      const rows = (): Record<string, typeof initialRow> => JSON.parse(readFileSync(file, "utf8"));
+      let lookupCount = 0;
+      const upsert = vi.fn(async (row: typeof initialRow) => {
+        await new Promise((resolve) => setTimeout(resolve, 2_000));
+        writeFileSync(file, JSON.stringify({ ...rows(), [row.conversation_id]: row }));
+        return { error: null };
+      });
+      vi.spyOn(supabase, "requireSupabaseAdmin").mockReturnValue({
+        from: () => {
+          let id = "";
+          const selection = {
+            eq: (_column: string, value: string) => { id = value; return selection; },
+            gt: () => selection,
+            maybeSingle: async () => {
+              // The internal ownership lookup finishes with one second left.
+              if (++lookupCount === (kind === "greeting" ? 1 : 2)) {
+                await new Promise((resolve) => setTimeout(resolve, 21_000));
+              }
+              return { data: rows()[id] ?? null, error: null };
+            },
+          };
+          return { select: () => selection, upsert };
+        },
+      } as unknown as ReturnType<typeof supabase.requireSupabaseAdmin>);
+      vi.spyOn(supabase, "isSupabaseConfigured").mockReturnValue(true);
+      const provider = vi.spyOn(globalThis, "fetch");
+      vi.useFakeTimers();
+      const query = kind === "greeting" ? "Hi" : "Yes";
+      const threadId = kind === "greeting" ? undefined : initial.conversationId;
+      let completed: { response: Response; body: Record<string, unknown> } | undefined;
+      const pending = POST(deadlineRequest(query, stream, threadId)).then(async (response) => {
+        completed = { response, body: await response.json() };
+      });
+      try {
+        await vi.advanceTimersByTimeAsync(21_000);
+        expect(upsert).toHaveBeenCalledTimes(1);
+        expect(completed).toBeUndefined();
+        expect(rows()).toEqual({ [initial.conversationId]: initialRow });
+        await vi.advanceTimersByTimeAsync(1_000);
+        expect(completed).toBeDefined();
+        await pending;
+        // A turn that already started its owned commit must not become a 503.
+        const atDeadline = completed!;
+        await vi.advanceTimersByTimeAsync(1_000);
+        const saved = await readOwnedPubPalToolTurn(String(upsert.mock.calls[0]![0].conversation_id), "owner-a");
+        expect(saved).not.toBeNull();
+        expect(saved?.hints[0]).toContain(kind === "greeting" ? "What kind of night are you planning?" : "Which area and price per pint");
+        expect(atDeadline.response.status).toBe(200);
+        expect(atDeadline.body.answer).toBe(saved!.hints[0]);
+        expect(atDeadline.body.conversationId).toBe(upsert.mock.calls[0]![0].conversation_id);
+        if (kind === "acceptance") {
+          // A lost response retried after the commit replays the same reply.
+          const retry = await POST(deadlineRequest(query, stream, threadId));
+          expect(retry.status).toBe(200);
+          expect(await retry.json()).toEqual(atDeadline.body);
+          expect(upsert).toHaveBeenCalledTimes(1);
+        }
+        expect(provider).not.toHaveBeenCalled();
+      } finally {
+        rmSync(directory, { recursive: true, force: true });
+      }
     },
   );
 

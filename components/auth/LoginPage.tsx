@@ -450,29 +450,25 @@ function LoginPageFooter({ legalLead }: { legalLead?: string }): React.JSX.Eleme
   );
 }
 
-function SignInUnavailable(): React.JSX.Element {
+function SignInUnavailable({ signedIn }: { signedIn: boolean }): React.JSX.Element {
   return (
     <main className="loginPage">
       <div className="loginPageInner">
         <PageHead
           title="Sign-in is temporarily unavailable"
-          lead="You can still browse the map."
-          primary={<button type="button" onClick={() => window.location.reload()}>Try again</button>}
+          lead={signedIn ? "Your current account is still available." : "You can still browse the map."}
+          primary={signedIn
+            ? <Link href="/map">Continue to the map</Link>
+            : <button type="button" onClick={() => window.location.reload()}>Try again</button>}
+          secondary={signedIn ? <Link href="/u/you">Your profile</Link> : undefined}
         />
-        <p className="loginPageNotice" role="alert">Your account could not be checked.</p>
-        <LoginPageFooter />
+        <p className="loginPageNotice" role="alert">{signedIn
+          ? "You are still signed in. Try again later to add another account."
+          : "Your account could not be checked."}</p>
+        {!signedIn ? <LoginPageFooter /> : null}
       </div>
     </main>
   );
-}
-
-function hasUnavailableSignIn(input: {
-  configured: boolean;
-  loading: boolean;
-  state: ReturnType<typeof useAuth>["supabaseAuthState"];
-  signedIn: boolean;
-}): boolean {
-  return input.configured && !input.loading && input.state === "unavailable" && !input.signedIn;
 }
 
 /**
@@ -725,8 +721,8 @@ export default function LoginPage({
     onUseDifferentAccount: () => setUseDifferentAccount(true),
   });
 
-  if (hasUnavailableSignIn({ configured, loading, state: supabaseAuthState, signedIn: showSignedIn })) {
-    return <SignInUnavailable />;
+  if (configured && !loading && supabaseAuthState === "unavailable" && (!user || adding)) {
+    return <SignInUnavailable signedIn={Boolean(user)} />;
   }
 
   return (

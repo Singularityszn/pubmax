@@ -59,6 +59,8 @@ type PubPalToolTurnPayload = {
 
 type OwnedWrite = {
   deadline?: number;
+  /** Called after ownership and deadline checks, immediately before persistence. */
+  onWriteStarted?: () => void;
   query: string;
   cityId: CityId;
   turns?: PubPalFenceTurn[];
@@ -208,7 +210,9 @@ const memoryPubPalToolTurnStore: PubPalToolTurnStore = {
     pruneMemory(now);
     const existing = memoryTurns.get(conversationId) ?? null;
     if (existing && existing.ownerId !== input.ownerId) throw new PubPalToolTurnAccessError();
-    memoryTurns.set(conversationId, mergeOwned(existing, input, now));
+    const stored = mergeOwned(existing, input, now);
+    input.onWriteStarted?.();
+    memoryTurns.set(conversationId, stored);
   },
 
   async read(conversationId) {
@@ -446,7 +450,9 @@ const supabasePubPalToolTurnStore: PubPalToolTurnStore = {
         const existing = claimedTurn(await lookupStoredRow(conversationId));
         if (existing && existing.ownerId !== input.ownerId) throw new PubPalToolTurnAccessError();
         if (input.deadline !== undefined) assertPalChatDeadline(input.deadline);
-        await writeStoredRow(conversationId, mergeOwned(existing, input, Date.now()));
+        const stored = mergeOwned(existing, input, Date.now());
+        input.onWriteStarted?.();
+        await writeStoredRow(conversationId, stored);
       },
     });
   },

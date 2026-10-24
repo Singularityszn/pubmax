@@ -18,14 +18,20 @@ async function readPalOpening(ownerId: string) {
   return palOpeningMessage(pal.name, { memories, taste });
 }
 
-export async function openPalConversation(ownerId: string, deadline?: number) {
+export async function openPalConversation(
+  ownerId: string,
+  deadline?: number,
+  onWriteStarted?: (opening: { answer: string; conversationId: string }) => void,
+) {
   const answer = await readPalOpening(ownerId);
   if (deadline !== undefined) assertPalChatDeadline(deadline);
   const conversationId = newPalLocalThreadId();
+  const opening = { answer, conversationId, cards: [], proposals: [], sources: [], toolsUsed: [], status: "ready" };
   await registerPubPalToolTurn(conversationId, {
     deadline,
+    onWriteStarted: () => onWriteStarted?.(opening),
     ownerId, cityId: "london", query: "", turns: [{ role: "assistant", content: answer }],
     cards: [], proposals: [], hints: [answer], toolsUsed: [],
   });
-  return { answer, conversationId, cards: [], proposals: [], sources: [], toolsUsed: [], status: "ready" };
+  return opening;
 }

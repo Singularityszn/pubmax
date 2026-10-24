@@ -1,4 +1,4 @@
-import { assertPalChatDeadline, beforePalChatDeadline } from "@/lib/palChatDeadline";
+import { PalChatDeadlineExceeded, assertPalChatDeadline, beforePalChatDeadline } from "@/lib/palChatDeadline";
 import { openPalConversation } from "@/lib/palOpening.server";
 import { palOpeningAcceptance, palOpeningFollowUp } from "@/lib/palOpening";
 import { readOwnedPubPalToolTurn, registerPubPalToolTurn } from "@/lib/pubPalToolTurnStore";
@@ -136,9 +136,14 @@ export async function GET(request: Request): Promise<Response> {
   }
 }
 
+function openingResponse(opening: { answer: string; conversationId: string }): Response {
+  return jsonNoStore({ ...opening, cards: [], proposals: [], sources: [], toolsUsed: [], status: "ready" });
+}
+
 async function openingReply(
   request: Request, record: Record<string, unknown>, query: string,
   prepared?: { ownerId: string; context: PalElevenLabsChatContext },
+  onWriteStarted?: (response: Response) => void,
 ): Promise<Response | null> {
   const social = socialTurnKind(query);
   const firstGreeting = social === "greeting" && !record.threadId && normaliseTurns(record.turns).length === 0;
@@ -147,24 +152,36 @@ async function openingReply(
     const ownerId = prepared?.ownerId ?? await callerUserId(request);
     if (ownerId) {
       try {
-        if (firstGreeting) return jsonNoStore(await openPalConversation(ownerId, prepared?.context.deadline));
+        if (firstGreeting) return jsonNoStore(await openPalConversation(
+          ownerId, prepared?.context.deadline, (opening) => onWriteStarted?.(openingResponse(opening)),
+        ));
         const prior = prepared
           ? prepared.context.prior.ownedTurn ?? null
           : threadId ? await readOwnedPubPalToolTurn(threadId, ownerId) : null;
         // The sole assistant turn and matching result hint are the pending opening.
         // Clearing its hint consumes it without adding this ask to earlier history.
-        if (!threadId || !prior || prior.query || prior.turns.length !== 1 || prior.turns[0]?.role !== "assistant"
-          || prior.hints.length !== 1 || prior.hints[0] !== prior.turns[0].content) return null;
+        if (!threadId || !prior || prior.turns.length !== 1 || prior.turns[0]?.role !== "assistant"
+          || prior.hints.length !== 1) return null;
         let answer: string | null = null;
         if (palOpeningAcceptance(query)) answer = palOpeningFollowUp(query, prior.turns[0].content);
+        // A retry after an uncertain commit replays its answer without another write.
+        if (prior.query) {
+          return prepared && prior.query === query && answer && prior.hints[0] === answer
+            ? openingResponse({ answer, conversationId: threadId }) : null;
+        }
+        if (prior.hints[0] !== prior.turns[0].content) return null;
+        // The configured runner replaces the pending opening with the actual turn.
+        // Do not consume it in a separate write before a substantive ask succeeds.
+        if (prepared && !answer) return null;
         if (prepared) assertPalChatDeadline(prepared.context.deadline);
         await registerPubPalToolTurn(threadId, {
           deadline: prepared?.context.deadline,
+          onWriteStarted: answer ? () => onWriteStarted?.(openingResponse({ answer, conversationId: threadId })) : undefined,
           ownerId, cityId: prior.cityId, query: answer ? query : "", turns: prior.turns,
           cards: [], proposals: [], hints: answer ? [answer] : [], toolsUsed: [],
         });
         if (answer) {
-          return jsonNoStore({ answer, conversationId: threadId, cards: [], proposals: [], sources: [], toolsUsed: [], status: "ready" });
+          return openingResponse({ answer, conversationId: threadId });
         }
       } catch {
         return publicApiError("Your saved conversation could not be read just now.", "UNAVAILABLE", 503, { retryable: true });
@@ -252,11 +269,16 @@ export async function POST(request: Request): Promise<Response> {
     });
   }
 
+  let committingOpening: Response | undefined;
   try {
-    const readOpening = () => openingReply(request, record, query, context ? { context, ownerId: ownerId! } : undefined);
+    const readOpening = () => openingReply(request, record, query, context ? { context, ownerId: ownerId! } : undefined,
+      (response) => { committingOpening = response; });
     const opening = context ? await beforePalChatDeadline(context.deadline, readOpening) : await readOpening();
     if (opening) return opening;
-  } catch {
+  } catch (error) {
+    // Persistence can finish after the request budget. The owned opening is
+    // already a useful answer, so an in-flight commit must not become a 503.
+    if (error instanceof PalChatDeadlineExceeded && committingOpening) return committingOpening;
     return publicApiError(PAL_ERROR_FALLBACK, "UNAVAILABLE", 503, { retryable: true });
   }
 
