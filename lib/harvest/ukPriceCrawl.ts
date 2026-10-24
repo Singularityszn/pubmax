@@ -55,6 +55,7 @@ export const UK_PRICE_DROP_REASONS = [
   // "Peroni Half £3.55 £7.10", and taking the cheapest figure on the line puts
   // a half-pint price on a pub's card as the price of a pint.
   "half-measure-not-a-pint",
+  "fractional-measure-not-a-pint",
   // The figure is a BOTTLE or a CAN, and a bottled beer beside a draught list
   // is a different drink at a different price. Publishing the cheaper of the
   // two as the pub's beer price undercuts the pint nobody can buy at it.
@@ -155,7 +156,7 @@ const CATEGORY_WORDS: ReadonlyArray<{ category: DrinkCategory; pattern: RegExp }
   {
     category: "cocktail",
     pattern:
-      /\b(cocktail|martini|negroni|margarita|mojito|daiquiri|old fashioned|aperol spritz|spritz|bloody mary|cosmopolitan|pornstar|espresso martini|highball|sour)\b/i,
+      /\b(cocktail|martini|negroni|margarita|mojito|daiquiri|old fashioned|aperol spritz|spritz|bloody mary|cosmopolitan|pornstar|espresso martini|highball|mai tai|paloma|long island(?: iced tea)?|clover club|caipirinha|(?:whisky|whiskey|amaretto|pisco|gin|vodka) sour)\b/i,
   },
   {
     // A SOFT DRINK WEARING A BEER WORD. "Ginger ale" and "ginger beer" sit on
@@ -169,7 +170,7 @@ const CATEGORY_WORDS: ReadonlyArray<{ category: DrinkCategory; pattern: RegExp }
   {
     category: "beer",
     pattern:
-      /\b(beer|pilsner|pils|draught|draft|on tap|cask|keg|lager|real ale|ale|cider|stout|guinness|ipa|pale ale|bitter|porter|session|neck oil|madri|camden|amstel|carling|fosters|foster's|peroni|heineken|cruzcampo|kronenbourg|beavertown|estrella|moretti|birra|san miguel|stella|carlsberg|thatchers|aspall|inches|doom bar|landlord|hophead)\b/i,
+      /\b(beer|pilsner|pils|draught|draft|on tap|cask|keg|lager|real ale|ale|cider|stout|guinness|ipa|neipa|pale ale|bitter|porter|session|neck oil|madri|camden|amstel|carling|fosters|foster's|peroni|heineken|cruzcampo|kronenbourg|beavertown|estrella|moretti|birra|san miguel|stella|carlsberg|thatchers|aspall|inches|doom bar|landlord|hophead)\b/i,
   },
   {
     category: "wine",
@@ -773,6 +774,9 @@ function categoryDecisionFromLabel(
 ): ReturnType<typeof categoryDecisionFor> | "item-name-ambiguous" | "no-category-word-nearby" {
   if (!drinkLabel) return null;
   if (itemName) {
+    if (/\bsour\b/i.test(itemName.own) && !categoryDecisionFor(itemName.own, itemName.own.length)) {
+      return "no-category-word-nearby";
+    }
     const ownTitle = titleCategory(itemName.own);
     if (ownTitle) return { category: ownTitle, fromMixer: false };
     const ownCategory = categoryDecisionFor(itemName.own, itemName.own.length)?.category ?? null;
@@ -807,16 +811,23 @@ function priceItemIdentity(
   verbatim: string,
   priceAtInContext: number,
 ): { drinkLabel?: string; decision: ReturnType<typeof categoryDecisionFromLabel> } {
-  const itemName = printedItemName(text, at);
+  let itemName = printedItemName(text, at);
+  // Some menus print the price first. Its name follows on the same item,
+  // never in the previous item's description.
+  const after = (text.slice(at + verbatim.length).split("\n", 1)[0] ?? "").trim();
+  const priceFirst = itemName && /[\p{L}\p{N}]/u.test(after) && (!/[\p{L}\p{N}]/u.test(itemName.own)
+    || (!after.includes("£") && titleCategory(after) === "cocktail"));
+  if (itemName && priceFirst) itemName = { ...itemName, own: after };
   if (itemName && /^[*_]+$/.test(itemName.own)) return { decision: "item-name-ambiguous" };
   const markdownPrice = itemName !== undefined && /[*_]+$/.test(itemName.own);
   const printedTitle = normalizeHarvestDrinkLabel(
     itemName?.own.replace(/^[*_]+|[.*_\s]+$/g, "") ?? "",
   );
-  const drinkLabel = printedTitle && (markdownPrice || titleCategory(printedTitle))
+  const drinkLabel = printedTitle && (priceFirst || markdownPrice || categoryDecisionFor(printedTitle, printedTitle.length))
     ? printedTitle
     : drinkLabelFromPriceContext(context, verbatim, priceAtInContext) ?? undefined;
   const decision = categoryDecisionFromLabel(drinkLabel, itemName);
+  if (priceFirst && !decision) return { decision: "no-category-word-nearby" };
   return {
     drinkLabel,
     decision: markdownPrice && !decision ? "no-category-word-nearby" : decision,
@@ -837,6 +848,43 @@ function keylessPriceDropReason(
     return "food-word-nearby";
   }
   return null;
+}
+
+/** A section's bottle or can measure lasts until the next printed heading. */
+function inBottledSection(text: string, at: number): boolean {
+  const itemStart = text.lastIndexOf("\n", at - 1);
+  if (itemStart < 0) return false;
+  const lines = text.slice(0, itemStart).split("\n");
+  for (const line of lines.reverse()) {
+    const heading = line.replace(/[\u200b-\u200d\ufeff]/g, "").trim();
+    if (!heading || heading.includes("£")) continue;
+    const section = /^(?:[A-Z][A-Z \d().%&-]*)(?:\([^)]*\))?$/.test(heading)
+      || /^(?:draught|draft|keg|cask|beers?|wines?|cocktails?|soft drinks?|bottled beers?|cans?)$/i.test(heading);
+    if (heading.length <= 80 && section) {
+      return isBottledMeasure(heading);
+    }
+  }
+  return false;
+}
+
+function beerMeasureDrop(
+  text: string, at: number, verbatim: string, priceGbp: number, drinkLabel?: string,
+): UkPriceDropReason | null {
+  const before = drinkLabel ?? text.slice(Math.max(0, at - 30), at);
+  const after = text.slice(at + verbatim.length, at + verbatim.length + 12);
+  if (isHalfMeasure(before) || isFirstOfAMeasurePair(after) || isHalfOfABarePair(after, priceGbp)) {
+    return "half-measure-not-a-pint";
+  }
+  const lineStart = text.lastIndexOf("\n", at - 1) + 1;
+  const previousPrices = [...text.slice(lineStart, at).matchAll(PRICE_PATTERN)];
+  const ownBefore = previousPrices.length > 0
+    ? before.replace(/^\s*\(?\s*(?:[12]\s*\/\s*3\b|[⅓⅔])\s*\)?\s*/, "")
+    : before;
+  if (/(?:\b[12]\s*\/\s*3\b|[⅓⅔])/.test(ownBefore)
+    || /^\s*\(?\s*(?:[12]\s*\/\s*3\b|[⅓⅔])/.test(after.split("\n", 1)[0] ?? "")) {
+    return "fractional-measure-not-a-pint";
+  }
+  return isBottledMeasure(before) || inBottledSection(text, at) ? "bottled-measure-not-a-pint" : null;
 }
 
 /**
@@ -894,18 +942,9 @@ function decideKeylessUkPriceAt(
   }
   const drop = keylessPriceDropReason(category, priceGbp, context);
   if (drop) return { drop };
-  // A preceding item's printed measure cannot turn this item's pint into a
-  // bottle. A paired price has no second label, so it keeps the nearby context.
-  const before = drinkLabel ?? text.slice(Math.max(0, at - 30), at);
-  const after = text.slice(at + verbatim.length, at + verbatim.length + 12);
-  if (
-    category === "beer" &&
-    (isHalfMeasure(before) || isFirstOfAMeasurePair(after) || isHalfOfABarePair(after, priceGbp))
-  ) {
-    return { drop: "half-measure-not-a-pint" };
-  }
-  if (category === "beer" && isBottledMeasure(before)) {
-    return { drop: "bottled-measure-not-a-pint" };
+  if (category === "beer") {
+    const measureDrop = beerMeasureDrop(text, at, verbatim, priceGbp, drinkLabel);
+    if (measureDrop) return { drop: measureDrop };
   }
   return {
     kept: {

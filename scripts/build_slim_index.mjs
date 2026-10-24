@@ -37,6 +37,9 @@ import { nightOutPlaceRowValidationErrors } from "../lib/nightOutPlaceContract.m
 import { legacyCheapestPriceEvidence } from "../lib/legacyPriceEvidence.mjs";
 import { isCurrentVenueRow, isLivePriceRow } from "../lib/priceRowEligibility.mjs";
 import { legacyOsmVenueKind } from "../lib/legacyOsmVenueKind.mjs";
+import { buildVenueFeatureHints } from "./lib/venueFeatureHints.mjs";
+import { readPlacesEnrichmentPacks } from "./lib/placesEnrichmentStamp.mjs";
+import { UK_OSM_PUBS_FILE } from "../lib/ukOsmPubsFile.mjs";
 import { cheapestPriceReadDay } from "../lib/priceReadDay.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -997,6 +1000,21 @@ async function main() {
       { id: row.id, famous: { seed: row, slim: famousSlim } },
       1,
     );
+  }
+  const featureHints = buildVenueFeatureHints(
+    slim,
+    JSON.parse(await readFile(path.join(ROOT, UK_OSM_PUBS_FILE), "utf8")).pubs,
+    JSON.parse(await readFile(path.join(ROOT, "data/osm/facts/london_pub_facts.json"), "utf8")).rows,
+    Object.values(readPlacesEnrichmentPacks(ROOT)).flatMap((pack) => pack.venues),
+  );
+  for (const venue of slim) {
+    const feature = featureHints.get(venue.id);
+    if (!feature) continue;
+    if (feature.outdoorSeating) venue.filterHints.outdoorSeating = feature.outdoorSeating;
+    if (feature.beerGarden) {
+      venue.filterHints.amenities.beerGarden = true;
+      venue.filterHints.beerGardenSource = feature.beerGarden;
+    }
   }
   detailIndex.count = detailLines.length;
 

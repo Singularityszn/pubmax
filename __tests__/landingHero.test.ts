@@ -90,7 +90,7 @@ describe("landing hero policy", () => {
 
   it("keeps the plain receipt door for a document with no card behind it", () => {
     // Quiet, and it asks for no location: only the primary carries locate=1.
-    expect(LANDING_FALLBACK_RECEIPT_HREF).toBe("/near");
+    expect(LANDING_FALLBACK_RECEIPT_HREF).toBe("/map?log=1");
     expect(LANDING_FALLBACK_RECEIPT_HREF).not.toContain("locate=1");
   });
 

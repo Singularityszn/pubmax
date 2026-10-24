@@ -1,5 +1,8 @@
 "use client";
 
+import VenueFeatureFilters from "@/components/map/VenueFeatureFilters";
+import { mapDrinkCoverage } from "@/lib/drinkCoverage";
+
 import { CalendarClock, ChevronRight, List, MapPinned, Navigation2, ShieldCheck, X } from "lucide-react";
 import { formatGbp } from "@/lib/formatGbp";
 import { priceBand, priceBandAreaForVenue } from "@/lib/priceBand";
@@ -68,7 +71,6 @@ import {
   withForcedVenue,
 } from "@/lib/filterMapVenues";
 import {
-  OPEN_NOW_FILTER_CAPTION,
   openNowStatesForVenues,
   type OpenNowState,
 } from "@/lib/openNow";
@@ -1858,6 +1860,7 @@ export default function PubMap({
   const [nearbyLoading, setNearbyLoading] = useState(false);
   const [nearbyError, setNearbyError] = useState<string | null>(null);
   const [userLocation, setUserLocation] = useState<UserLocation | null>(null);
+  const [logPickerLocation, setLogPickerLocation] = useState<UserLocation | null>(null);
   const readerPosition = useMapReaderPosition();
   // Purpose-limited copy used only after the viewer explicitly asks for travel
   // times. A location granted for "Pubs near me" must not silently become a
@@ -3023,6 +3026,10 @@ export default function PubMap({
     [baseVenues, dropsByVenueId, priceUpdates, cityId],
   );
   const pubVenues = useMemo(() => venues.filter(isPubVenue), [venues]);
+  const drinkCoverage = useMemo(() => ({
+    ...mapDrinkCoverage(pubVenues, activeMapDrinkLane, drinkLensPrices, venueIndexFailed ? "degraded" : !loaded || loadedCityId !== cityId ? "loading" : drinkIndexStatus),
+    ...(coffeePilotLensOn ? { coffeePilot: { count: coffeePilot.cafes.length, status: coffeePilot.status } } : {}),
+  }), [pubVenues, activeMapDrinkLane, drinkLensPrices, drinkIndexStatus, venueIndexFailed, loaded, loadedCityId, cityId, coffeePilotLensOn, coffeePilot.cafes.length, coffeePilot.status]);
   const hasSavedPub = useMemo(
     () => hasSavedPubVenue(pubVenues, savedIds),
     [pubVenues, savedIds],
@@ -3807,8 +3814,8 @@ export default function PubMap({
   // D1 — the picker is grounded in a real origin: the reader's fix, else the
   // centre of the map they are looking at. It never offers a city-wide five.
   const logNearbyOrigin = useMemo(
-    () => resolveLogNearbyOrigin({ userLocation, mapCenter: mapViewport.center }),
-    [mapViewport.center, userLocation],
+    () => resolveLogNearbyOrigin({ pickerLocation: logPickerLocation, userLocation, mapCenter: mapViewport.center }),
+    [mapViewport.center, userLocation, logPickerLocation],
   );
   const logNearbyCandidates = useMemo(
     () =>
@@ -3837,7 +3844,7 @@ export default function PubMap({
 
   useEffect(() => {
     const request = pendingNearMeRequest;
-    const location = request?.location ?? userLocation ?? venueJourneyLocation;
+    const location = request?.location ?? logPickerLocation ?? userLocation ?? venueJourneyLocation;
     if (!location) return;
     const loader = slimLoaderRef.current;
     const finish = () => {
@@ -3932,6 +3939,7 @@ export default function PubMap({
     setMode,
     setRouteMapped,
     showLoadedRoute,
+    logPickerLocation,
     userLocation,
     venueJourneyLocation,
     venueIndexAttempt,
@@ -4295,9 +4303,9 @@ export default function PubMap({
   const [searchFitToken, setSearchFitToken] = useState(0);
   const [searchRecoveryToken, setSearchRecoveryToken] = useState(0);
   const [searchAreaNewsArea, setSearchAreaNewsArea] = useState<string | null>(null);
-  // The query whose camera an explicit pick already owns. Cleared on every
-  // keystroke, so the next word re-arms the typed-search move.
-  const searchQueryCameraOwnedRef = useRef<string | null>(null);
+  // Arrival framing owns the initial query before the canvas is ready.
+  // A keystroke releases that ownership for the typed-search move.
+  const searchQueryCameraOwnedRef = useRef<string | null>(seed.filters.query.trim() || null);
   const filteredVenuesRef = useRef(filteredVenues);
   useEffect(() => {
     filteredVenuesRef.current = filteredVenues;
@@ -6142,7 +6150,6 @@ export default function PubMap({
 
   const venuePanel = renderSelectedPlacePanel();
   const storyPanel = renderStoryPanel();
-  const storyOnlyOpen = storyOpen && !detailOpen && !planningOpen;
 
   // The held frame keeps its own question (painted, tappable pins), and loses
   // it outright the moment there is no canvas to paint them: an honest card
@@ -6300,6 +6307,7 @@ export default function PubMap({
             onOpen={() => changeMapOverlay("tonight")}
           />
         ) : null}
+        <VenueFeatureFilters filters={filters} onChange={setFilters} resultCount={loaded && loadedCityId === cityId ? filteredVenueCount : null} />
         <MapExperienceLensControl
           lens={experienceLens}
           allSelected={!drinkFiltersActive}
@@ -6375,26 +6383,6 @@ export default function PubMap({
             setFilters((current) => ({ ...current, maxPrice }))
           }
         />
-        <label className="mobileMapFilterToggle">
-          <input
-            type="checkbox"
-            checked={filters.openNow}
-            onChange={(event) =>
-              setFilters((current) => ({
-                ...current,
-                openNow: event.target.checked,
-              }))
-            }
-          />
-          <span>
-            <strong>Open now</strong>
-            {filters.openNow ? (
-              <small>{OPEN_NOW_FILTER_CAPTION}</small>
-            ) : (
-              <small>Hide pubs we know are closed. Pubs without hours stay visible.</small>
-            )}
-          </span>
-        </label>
       </div>
     );
   }
@@ -6475,6 +6463,8 @@ export default function PubMap({
           filters.zone !== "all"
         }
         openNowActive={filters.openNow}
+        beerGardenActive={filters.requireBeerGarden}
+        outdoorSeatingActive={filters.requireOutdoorSeating}
         savedOnlyActive={savedOnly}
         priceCapActive={
           experienceLens === "all" &&
@@ -6505,6 +6495,7 @@ export default function PubMap({
             <DrinkLanePicker
               lane={activeMapDrinkLane}
               status={drinkIndexStatus}
+              coverage={experienceLens === "all" ? drinkCoverage : undefined}
               variant="sheet"
               onChange={(lane) => {
                 changeDrinkLane(lane);
@@ -6569,6 +6560,7 @@ export default function PubMap({
               requestAnimationFrame(focusMapSearch);
             }}
             onResetFilters={resetLogIntentFilters}
+            onLocation={setLogPickerLocation}
           />
         }
         nearMeContent={
@@ -6971,6 +6963,7 @@ export default function PubMap({
         onDrinkBrandChange={changeDrinkBrand}
         onDrinkLaneChange={changeDrinkLane}
         drinkLaneStatus={drinkIndexStatus}
+        drinkCoverage={experienceLens === "all" ? drinkCoverage : undefined}
         spoonsValueOn={spoonsValueOn}
         spoonsValueLens={spoonsValueLens}
         onSpoonsValueChange={changeSpoonsValue}
@@ -7058,6 +7051,7 @@ export default function PubMap({
             focusMapSearch();
           }}
           onResetFilters={resetLogIntentFilters}
+          onLocation={setLogPickerLocation}
           onDismiss={clearLogIntent}
         />
       ) : null}
@@ -7129,6 +7123,7 @@ export default function PubMap({
 
   /* The phone's one bottom sheet: whichever of the venue detail or the planner owns the surface. */
   function renderPhoneSheet() {
+    const storyOnlyOpen = storyOpen && !detailOpen && !planningOpen;
     return mobileViewport ? (
           <Sheet
             kind={

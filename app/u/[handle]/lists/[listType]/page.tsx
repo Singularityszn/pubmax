@@ -1,3 +1,5 @@
+import { notFound } from "next/navigation";
+import { isKnownTestHandle } from "@/lib/accountPublicAccess.server";
 import type { Route } from "next";
 import type { Metadata } from "next";
 
@@ -56,6 +58,7 @@ function plural(count: number, singular: string): string {
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   const { handle, listType: rawListType } = await params;
   const ownerHandle = normalizeHandle(handle);
+  if (isKnownTestHandle(ownerHandle)) notFound();
   const listType = cleanListType(decodeParam(rawListType));
 
   if (!ownerHandle || !listType) {
@@ -109,6 +112,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 export default async function SavedListPage({ params }: PageProps) {
   const { handle, listType: rawListType } = await params;
   const ownerHandle = normalizeHandle(handle);
+  if (isKnownTestHandle(ownerHandle)) notFound();
   const listType = cleanListType(decodeParam(rawListType));
 
   const socialFriendsLaunchEnabled = isSocialFriendsLaunchEnabled(

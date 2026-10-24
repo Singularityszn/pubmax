@@ -74,8 +74,9 @@ The area value survives crawl URL synchronisation until a venue query or
 selection replaces it. A different area selection updates it. If a link has
 both `area` and a non-empty `q` or `sel`, the venue query or selection wins.
 A later page load resolves the area against the current city catalogue.
-These links do not create an `/area` route or require a separate server-rendered
-map document.
+These links do not require a separate server-rendered map document. The
+[area-root contract](specs/governed-priced-landings/PRODUCT.md#held-areaarea)
+owns `/area/{area}` redirects.
 
 ## Fail-soft for an unknown `?sel=`
 

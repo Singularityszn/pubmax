@@ -680,7 +680,7 @@ function drinkFromDrop(
   drop: PriceOutcome["drop"],
   fact: SourcedFact,
 ): ListedDrinkLine | null {
-  if (drop === "bottled-measure-not-a-pint" || drop === "half-measure-not-a-pint") {
+  if (drop === "bottled-measure-not-a-pint" || drop === "half-measure-not-a-pint" || drop === "fractional-measure-not-a-pint") {
     return listedDrink(label, line, priceGbp, fact.sourceUrl, fact.seenOn, sizeOf(line));
   }
   if (drop !== "no-category-word-nearby") return null;
