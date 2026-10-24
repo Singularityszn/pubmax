@@ -19,6 +19,8 @@
     "test": "node scripts/check_node_modules_fresh.mjs && vitest run",
     "test:rls": "node scripts/rls/run-session-tests.mjs",
     "test:e2e": "playwright test",
+    "review:dedup": "node scripts/review-finding-dedup.mjs",
+    "test:review-dedup": "node --test __tests__/reviewFindingDedup.test.mjs",
     "e2e:cli": "playwright cli",
     "test:prod-smoke": "playwright test -c playwright.prod-smoke.config.ts",
     "perf:cwv-sweep": "PUBMAX_CWV_SWEEP=1 playwright test --project=chromium-cwv",
