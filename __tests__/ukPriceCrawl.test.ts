@@ -25,6 +25,7 @@ import {
   pageText,
   pubNameSlug,
   readVenueDrinkPrices,
+  readKeylessUkPriceDecisions,
   renderLooksEmpty,
   sitemapLocations,
 } from "@/lib/harvest/ukPriceCrawl";
@@ -40,6 +41,90 @@ const drinksList = `
 </body></html>`;
 
 describe("what a page states", () => {
+  it.each([
+    "Guinness pint £6.20 Kernel stout £6.00 (2/3)",
+    "Guinness pint £6.20 Kernel stout (2/3) £6.00",
+    "Kernel stout £6.00 (2/3) Guinness pint £6.20",
+    "Kernel stout (2/3) £6.00 Guinness pint £6.20",
+    "Guinness pint £6.20 Kernel stout £6.00 ⅔",
+    "Kernel stout £6.00 ⅔ Guinness pint £6.20",
+    "Guinness pint £6.20 Kernel stout £6.00 (1/3)",
+    "Kernel stout £6.00 (⅓) Guinness pint £6.20",
+    "Guinness pint £6.20\n2/3 Kernel stout £6.00",
+  ])("keeps a pint beside a fractional pour: %s", (row) => {
+    for (const format of ["html", "text"] as const) {
+      const reading = readVenueDrinkPrices(format === "html" ? `<p>${row.replace(/\n/g, "</p><p>")}</p>` : row, format);
+      expect(reading.kept.map(({ priceGbp }) => priceGbp)).toEqual([6.2]);
+      expect(reading.drops).toEqual(["fractional-measure-not-a-pint"]);
+    }
+  });
+
+  it("keeps a useful drinks list when a neighbouring pour is fractional", () => {
+    const reading = readVenueDrinkPrices(`<p>Guinness pint £6.20 Kernel stout £6.00 (2/3)</p>
+      <p>Madri pint £6.40</p><p>Neck Oil pint £6.80</p><p>House red wine 175ml £7.50</p>`, "html");
+    expect(reading.kept.map(({ priceGbp }) => priceGbp)).toEqual([6.2, 6.4, 6.8, 7.5]);
+    expect(pageStatesADrinksList(reading)).toBe(true);
+  });
+
+  it("does not publish Small Beer fractional pours as pints or borrow their measure", () => {
+    // Small Beer drinks page, read 23 October 2026. Each paragraph is one item.
+    const menu = `<p>Never Come Back, Hazy IPA, 6.5%, Two Flints (Windsor) £8.60(2/3)</p>
+      <p>Locals, IPA, 6%, Beak (Lewes) £7.40 (2/3)</p>
+      <p>Dest, Pilsner, 5%, Beak (Lewes) £7.50</p>
+      <p>Cascade, Dry Stout, 4.6%, The Kernel (Bermondsey) £6.00(2/3)</p>`;
+    const reading = readVenueDrinkPrices(menu, "html");
+    expect(reading.kept.map((row) => row.priceGbp)).toEqual([7.5]);
+    expect(reading.drops).toEqual(Array(3).fill("fractional-measure-not-a-pint"));
+  });
+
+  it("keeps a price-first cocktail attached to its own name", () => {
+    const reading = readVenueDrinkPrices(`<p>£12 Espresso Martini</p><p>Sacred Vodka, Coffee</p>
+      <p>£10 Negroni</p><p>Sacred Gin, Campari, Vermouth</p>`, "html");
+    expect(reading.kept.map(({ category, priceGbp, drinkLabel }) => ({ category, priceGbp, drinkLabel }))).toEqual([
+      { category: "cocktail", priceGbp: 12, drinkLabel: "Espresso Martini" },
+      { category: "cocktail", priceGbp: 10, drinkLabel: "Negroni" },
+    ]);
+  });
+
+  it("does not let an unknown price-first name inherit the previous cocktail's spirit", () => {
+    const reading = readVenueDrinkPrices(`<p>£12 Clover Club</p><p>Sacred Gin, Lemon, Dry Vermouth</p>
+      <p>£10 Topsfield Tea</p><p>Vodka, Lemon, Brewed Tea, Peach Syrup</p>
+      <p>Tequila, Cointreau, Lime, Jalapeno, Tajin Rim £10 Pisco Sour</p>`, "html");
+    expect(reading.kept.map(({ category, priceGbp, drinkLabel }) => ({ category, priceGbp, drinkLabel }))).toEqual([
+      { category: "cocktail", priceGbp: 12, drinkLabel: "Clover Club" },
+      { category: "cocktail", priceGbp: 10, drinkLabel: "Pisco Sour" },
+    ]);
+  });
+
+  it("keeps the 440ml can heading with every beer until the next section", () => {
+    const reading = readVenueDrinkPrices(`<p>LOW ABV (440ml Cans)</p>
+      <p>Cosmic Turtle, NEIPA, 0.5%, Below Brew (Bath) £6.90</p>
+      <p>Wild Juice Chase, Juicy Pale Ale, 0.5%, Below Brew (Bath) £6.90</p>
+      <p>Forgot to Take my Pils, Pilsner, 0.5%, Below Brew (Bath) £6.90</p>
+      <p>Draught</p><p>Guinness pint £6.20</p>`, "html");
+    expect(reading.kept.map((row) => row.priceGbp)).toEqual([6.2]);
+    expect(reading.drops).toEqual(Array(3).fill("bottled-measure-not-a-pint"));
+  });
+
+  it.each(["Bottled Beers", "Bottled Beers & Ciders"])("ends %s at the captured On Draught heading", (heading) => {
+    for (const format of ["text", "html"] as const) {
+      const lines = [heading, "Peroni £5.50", "On Draught", "Guinness £6.20"];
+      const menu = format === "text" ? lines.join("\n") : lines.map((line) => `<p>${line.replace(/&/g, "&amp;")}</p>`).join("");
+      const reading = readVenueDrinkPrices(menu, format);
+      expect(reading.kept.map(({ category, priceGbp }) => ({ category, priceGbp }))).toEqual([{ category: "beer", priceGbp: 6.2 }]);
+      expect(reading.drops).toEqual(["bottled-measure-not-a-pint"]);
+      const decisions = [...readKeylessUkPriceDecisions(menu, format).values()];
+      expect(decisions.map((decision) => decision.drop ?? decision.kept?.priceGbp)).toEqual(["bottled-measure-not-a-pint", 6.2]);
+    }
+  });
+
+  it("does not label an unqualified sour style as a cocktail", () => {
+    const reading = readVenueDrinkPrices(`<p>Raspberry, Apricot &amp; Lemon, Sour, 4%, Howling Hops £7.70</p>`, "html");
+    expect(reading.kept).toEqual([]);
+    expect(reading.drops).toEqual(["no-category-word-nearby"]);
+    expect(readVenueDrinkPrices("<p>Pisco Sour £10</p>", "html").kept[0]?.category).toBe("cocktail");
+  });
+
   it.each(["section", "article", 'div class="menubox"'])(
     "limits wine inference to preceding headings in %s", (container) => {
       const reading = readVenueDrinkPrices(`<${container}>
@@ -154,8 +239,8 @@ describe("what a page states", () => {
   it("keeps a stated price per drink and names its category", () => {
     const reading = readVenueDrinkPrices(drinksList);
     expect(cheapestPerCategory(reading)).toEqual([
-      { category: "beer", priceGbp: 6.2, drinkLabel: "Draught Madri pint" },
       { category: "beer", priceGbp: 6.4, drinkLabel: "Guinness pint" },
+      { category: "beer", priceGbp: 6.2, drinkLabel: "Madri pint" },
       { category: "beer", priceGbp: 6.8, drinkLabel: "Neck Oil pint" },
       { category: "gin", priceGbp: 8, drinkLabel: "Gordon's gin and tonic" },
       { category: "wine", priceGbp: 7.5, drinkLabel: "House red wine", servingSize: "175ml" },

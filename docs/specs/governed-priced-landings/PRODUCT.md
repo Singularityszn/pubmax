@@ -8,13 +8,18 @@ evidence: what a named beer costs, and what it costs in one part of London.
 
 ## Held: `/area/{area}`
 
-The area landing page itself is NOT published. Captain decision, 2026-08-15: it
-duplicates `/borough/{slug}`, which is already linked from the borough index,
-the Pint Index league table and the site footer, and two crawlable
-"cheapest pints in X" families would compete for one canonical. The path
-segment exists only as the parent of the brand-by-area page, so `/area/clapham`
-answers 404 and nothing links to it, advertises it or breadcrumbs to it. The
-brand-by-area page's parent crumb is the brand's own London page.
+The area landing page itself is not published because it duplicates
+`/borough/{slug}`. The borough index, Pint Index league table, and site footer
+link to that borough family.
+
+`/area/{area}` permanently redirects to the matching London map area. The route
+accepts a catalogue slug or a name or alias converted with `slugifyVenueName`.
+Exactly one area must match. Unknown or ambiguous names return 404. The redirect
+uses `mapAreaHref`, so the destination carries the area rather than a venue-name
+query. Regression cases are in `__tests__/areaRedirect.test.ts`.
+
+Area roots remain absent from the sitemap, advertised links, and breadcrumbs.
+The brand-by-area page's parent crumb is the brand's own London page.
 
 ## What a page may claim
 
@@ -54,8 +59,8 @@ brand-by-area page's parent crumb is the brand's own London page.
   the whole of `lib/beers.ts` after the map lens catalogue, so every brand this
   family publishes re-prices the map it opens.
 - `/drink/{brand}` secondary: `/map?sel={venueId}&brand={brand}&log=1`, because
-  `log=1` arms the composer for a RESOLVED venue and has nothing to open without
-  one.
+  `log=1` opens that pub's composer when the map resolves it. Without a resolved
+  pub, it opens the pub picker.
 - `/area/{area}/drink/{brand}` primary: `/map?sel={cheapest venueId}&brand={brand}`.
   Never `?q={area name}`: `q` is a free-text venue filter, so an area name
   narrows the map to whatever pubs happen to carry those words, and

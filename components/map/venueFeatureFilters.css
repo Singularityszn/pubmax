@@ -1,0 +1,8 @@
+.venueFeatureFilters { display: grid; gap: 8px; padding-top: 12px; border-top: 1px solid var(--hairline); }
+.venueFeatureFiltersHeading { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.venueFeatureFiltersChoices { display: flex; flex-wrap: wrap; gap: 8px; }
+.venueFeatureFilters button { min-height: var(--control-height); padding: 8px 12px; border: 1px solid var(--line); border-radius: var(--control-radius); color: var(--ink); background: var(--panel); font: inherit; cursor: pointer; }
+.venueFeatureFilters button[aria-pressed="true"] { border-color: var(--ink); color: var(--paper); background: var(--ink); }
+.venueFeatureFilters button:focus-visible { outline: 2px solid var(--brass-bright); outline-offset: 2px; }
+.venueFeatureFilters p { margin: 0; color: var(--ink-soft); font-size: var(--text-xs); line-height: 1.5; }
+.venueFeatureFilters p[role="status"] { color: var(--ink); }

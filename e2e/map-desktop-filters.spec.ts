@@ -77,12 +77,12 @@ for (const viewport of DESKTOP) {
       const filters = page.locator(".mapToolbar .mapVenueKindFilterBtn");
       await expect(filters).toBeVisible();
       await expect(filters).toHaveAttribute("aria-expanded", "false");
-      // The panel holds three questions now, not one: the venue types, the
+      // The panel groups venue types, pub features, the
       // experience lens and the fare zones all moved in behind this control
       // (7 Sep 2026, walk finding B9), so the accessible name says all three.
       await expect(filters).toHaveAttribute(
         "aria-label",
-        "Filters: venue types, view and zone",
+        "Filters: venue types, view and zone, pub features",
       );
       // The word shows where the toolbar row can afford it: from 641 to 900px
       // the search field is what a longer label would cost.
@@ -187,7 +187,7 @@ for (const viewport of DESKTOP) {
       // on (lib/venueKindFilters.ts, mapFilterRefinementCount).
       await expect(filters).toHaveAttribute(
         "aria-label",
-        "Filters: venue types, view and zone, 2 filters on",
+        "Filters: venue types, view and zone, 2 filters on, pub features",
       );
 
       // Closing and reopening reads the same state back: the popover is a view
@@ -208,7 +208,7 @@ for (const viewport of DESKTOP) {
       await expect(count).toHaveCount(0);
       await expect(filters).toHaveAttribute(
         "aria-label",
-        "Filters: venue types, view and zone",
+        "Filters: venue types, view and zone, pub features",
       );
     });
 

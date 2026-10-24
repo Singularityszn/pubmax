@@ -13,6 +13,12 @@ The [phone map resting-layer contract](rules/components-sheets-chrome-and-naviga
 owns Tonight's placement, List access, the bottom card and the TfL badge policy.
 Mobile map action geometry belongs to `components/mobile/mobileMapShell.css`.
 
+In the phone Filters sheet, **Pub listings tonight** counts eligible What's-on
+listings after duplicate removal. `tonightPubListingCount` in
+`lib/tonightOutListings.ts` applies the same pub-match, check-date, and ended-event
+filters as Tonight. This count covers that feed only, not every listing across
+Tonight's sources. Its location label distinguishes **near you** from **in London**.
+
 ## Narrow desktop state
 
 Tablet and narrow-desktop widths use a contained toolbar rather than squeezing

@@ -20,7 +20,8 @@
 import Link from "next/link";
 import { ArrowRight, ExternalLink, MapPin } from "lucide-react";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useSyncExternalStore } from "react";
+import { formatConditionDate } from "@/lib/tonightConditions";
 
 import NowSegment from "@/components/nav/NowSegment";
 import SiteNav from "@/components/nav/SiteNav";
@@ -76,8 +77,7 @@ import "./today.css";
 
 type Props = {
   dateLabel: string;
-  /** The server instant this page was composed at, so the client can rebuild the
-   *  greeting after personalization without drifting to a different time band. */
+  /** The server instant used for the first render before the client clock is available. */
   nowIso: string;
   greeting: DayGreeting;
   weather: WeatherBrief | null;
@@ -378,6 +378,26 @@ const TODAY_HEADING = "What’s on across London today.";
 /** What the morning brief turned out to be for this reader. */
 type BriefShape = { personalized: boolean; muted: boolean };
 
+function readTodayMinute(): number {
+  return Math.floor(Date.now() / 60_000) * 60_000;
+}
+
+function serverTodayMinute(): null {
+  return null;
+}
+
+function subscribeTodayClock(onChange: () => void): () => void {
+  const onVisible = () => {
+    if (document.visibilityState === "visible") onChange();
+  };
+  const timer = window.setInterval(onVisible, 60_000);
+  document.addEventListener("visibilitychange", onVisible);
+  return () => {
+    window.clearInterval(timer);
+    document.removeEventListener("visibilitychange", onVisible);
+  };
+}
+
 export default function TodayClient({
   dateLabel,
   nowIso,
@@ -414,19 +434,19 @@ export default function TodayClient({
   // one thing it must never append (components/auth/useViewerHandle.ts).
   const deviceHandle = useViewerHandle() ?? "";
 
-  // Rebuild the greeting whenever the resolved weather or the handle changes,
-  // always against the SERVER instant, so the time-of-day band stays exactly
-  // what was rendered. `brief.weather` is the personalized (area-resolved) read
-  // when personalization has run, and the server's city-level read before that.
-  const shownGreeting =
-    brief.weather === weather && !deviceHandle
-      ? greeting
-      : buildDayGreeting({
-          now: new Date(nowIso),
-          weather: brief.weather,
-          dateLabel,
-          name: deviceHandle,
-        });
+  // Preserve the server text for hydration, then read the current London day.
+  // An ISR document can be older than the reader's time band.
+  const clientMinute = useSyncExternalStore(subscribeTodayClock, readTodayMinute, serverTodayMinute);
+  const shownNow = clientMinute === null ? new Date(nowIso) : new Date(clientMinute);
+  const shownDateLabel = clientMinute === null ? dateLabel : formatConditionDate(shownNow);
+  const shownGreeting = clientMinute === null && brief.weather === weather && !deviceHandle
+    ? greeting
+    : buildDayGreeting({
+        now: shownNow,
+        weather: brief.weather,
+        dateLabel: shownDateLabel,
+        name: deviceHandle,
+      });
 
   // The brief was on screen, and what it turned out to be. Both props are
   // booleans on purpose: WHICH area or topic a reader mutes is a small set that
@@ -513,7 +533,7 @@ export default function TodayClient({
           // children put React's separators round the period, and a reader of
           // the stripped document saw "Good morning ." with no name.
           <span data-testid="today-greeting">
-            {`${shownGreeting.salutation}. ${dateLabel}.`}
+            {`${shownGreeting.salutation}. ${shownDateLabel}.`}
           </span>
         }
         primary={
