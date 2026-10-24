@@ -5,6 +5,15 @@
  */
 export const PUBLIC_UPDATES = [
   {
+    id: "2026-10-22-london-menu-details",
+    date: "2026-10-22",
+    title: "Updated London menu details",
+    changes: [
+      "Updated sourced menu details for London bars and food stops.",
+      "Removed listings we could not check from current recommendations.",
+    ],
+  },
+  {
     id: "2026-10-19-london-prices-and-pub-pages",
     date: "2026-10-19",
     title: "More London menu prices, steadier pub pages",

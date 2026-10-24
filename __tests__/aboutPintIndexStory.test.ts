@@ -38,6 +38,7 @@ vi.mock("@/lib/publicPintIndexSnapshot.server", () => ({
 }));
 
 import AboutPage from "@/app/about/page";
+import { siteJsonLd } from "@/lib/siteJsonLd";
 
 function snapshot(
   observations: PintIndexSnapshot["observations"],
@@ -215,10 +216,20 @@ describe("About outings story (Wave S1)", () => {
     expect(note).not.toMatch(/\b(journey|unlock|seamless|curated|discover|elevate|experience)\b/iu);
   });
 
-  it("names the founder on the Organization JSON-LD", async () => {
+  it("links AboutPage to the site's single organization and website identities", async () => {
     const html = await renderAbout();
+    const script = html.match(/<script[^>]*type="application\/ld\+json"[^>]*>([\s\S]*?)<\/script>/);
+    expect(script).not.toBeNull();
+    const about = JSON.parse(script![1]!);
 
-    expect(html).toContain('"founder":{"@type":"Person","name":"Karan Manoharan"');
+    expect(about.about).toEqual({ "@id": "https://pubmaxxing.com/#organization" });
+    expect(about.isPartOf).toEqual({ "@id": "https://pubmaxxing.com/#website" });
+    const organization = siteJsonLd.find((node) => node["@id"] === about.about["@id"]);
+    expect(organization).toMatchObject({
+      "@type": "Organization",
+      email: "hello@pubmaxxing.com",
+      founder: { "@type": "Person", name: "Karan Manoharan" },
+    });
   });
 
   // The head is the launch Screen (docs/design/LAUNCH_SCREENS.md): kicker,

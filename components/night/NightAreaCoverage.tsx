@@ -7,7 +7,7 @@ import {
   type CoverageStatus,
   type NightArea,
 } from "@/lib/nightAreas";
-import { nightAreaCoverageDetail } from "@/lib/nightPresentation";
+import { nightAreaCoverageDetail, nightAreaCoverageMeta } from "@/lib/nightPresentation";
 
 type CoverageBucket = "route_ready" | CoverageStatus;
 type CoverageTone = "ready" | "captured" | "reviewed" | "discovered" | "paused";
@@ -116,6 +116,7 @@ function CoverageRow({ area, now }: { area: NightArea; now: Date }) {
           </span>
         </div>
         <p>{state.detail}</p>
+        <p>{nightAreaCoverageMeta(area, now)}</p>
       </div>
       <Link
         className={`nightAreaCoverage__action${routeReady ? " nightAreaCoverage__action--ready" : ""}`}

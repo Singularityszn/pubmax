@@ -5,7 +5,68 @@ an independent refresh, separate from open PRs #2347, #2339 and #2346. Those PRs
 must be reconciled before merge, especially homepage copy, Tonight credits,
 area availability and About schema. This change does not deploy production.
 
-## Warm-cache test correction
+## Review fix round on 24 October 2026
+
+This round starts at `1b66ce553f9b1e42842fc155e493d0c1b944a597`, against
+base `0bb6fa2e4c0c04ac26db4a1b95305f2d47fb0559`.
+The changes remain uncommitted for the outer executor.
+All browser, performance and full-suite receipts below describe earlier heads.
+They do not validate this round.
+
+### Navigation spacing
+
+The five navigation tabs and the Pal control now constrain their label widths.
+Labels wrap when enlarged text needs another line. Page clearance reserves that
+space. Native large-text mode retains its existing icon-only controls.
+Destinations, accessible names, safe areas and the equal-column highlight remain.
+
+The browser regression measures each rendered text line against its control
+and every sibling label. It also checks text scaling, touch targets, destinations
+and page clearance at 320px and 390px, in both themes, at 100% and 200% text.
+The production-page browser checks remain unrun in this round.
+Playwright cannot start because Chromium headless shell revision 1248 is absent.
+No browser was installed and no replacement executable was searched for.
+The earlier 9.59px overlap remains historical failure evidence.
+This round does not claim a fresh visible reproduction or a browser pass.
+
+### Borough photography
+
+The executed Southwark page reproduced the wrong photograph and licensed credit.
+The page now uses the shared place-photo resolver and renderer.
+Southwark selects the founder's Shard photograph. Camden retains its licensed
+photograph, and boroughs without a photograph retain the credited London fallback.
+The borough index remains photo-free. Responsive formats, source dimensions and
+priority loading remain explicit. The existing 260px frame ceiling remains.
+
+The composition regression renders the actual async page and checks its output.
+It checks Southwark's credit, place, alt text, formats, dimensions and priority.
+It also checks the licensed Camden path and the London fallback.
+A separate browser regression checks the Southwark image actually decodes.
+That browser regression remains unrun because Chromium is absent.
+
+### Dependency repair
+
+The direct `@vercel/oidc` dependency is pinned to `3.2.0`.
+The ineffective scoped `@vercel/cli-config` Zod override is removed.
+Npm regenerated the lockfile and installed the declared dependencies.
+The OIDC token tests execute the installed package and check request precedence,
+environment fallback inside and outside a request, and missing-token errors.
+The focused verification passed 56 tests in four files with one worker:
+`boroughPhotoComposition`, `landingPhotoRender`, `placePhoto` and `searchProvider`.
+The Southwark composition test failed before the fix and passed afterward.
+Local command receipts are in `artifacts/review-fixes/`.
+
+`npm ls` confirms both OIDC consumers use `3.2.0`, with no installed
+`@vercel/cli-config`, and retains `body-parser@2.4.0`.
+Inspection of the 15 installed OIDC runtime modules found no CLI configuration
+or Zod references. The package declares no runtime dependencies.
+`npm audit --json` reports zero findings. The audit alone is not runtime proof.
+`git diff --check` passed.
+This review phase did not run the full test suite, lint, a production build,
+hosted checks, a push or a deployment. The outer executor owns those phases.
+Physical-device and real-account coverage remain unverified.
+
+## Historical warm-cache test correction
 
 The latest targeted checks pass all existing ceilings for Home, Pub Pal and About.
 Playwright routing disabled the HTTP cache, so discarded warm-up loads could not warm the static assets.
@@ -27,7 +88,8 @@ Script sizes and request counts remain unchanged in these samples.
 The cache regression failed before the fix and passed afterward.
 The browser checks also confirm third-party blocking and service-worker isolation.
 All six measurement-helper unit tests pass.
-The configured dependency audit also passes after updating body-parser and replacing the pinned, vulnerable nested Zod version.
+The historical dependency audit passed after the body-parser update and scoped Zod override.
+That audit did not establish remediation of Zod bundled inside CLI configuration code.
 This test phase did not run the full suite, lint or separate static checks.
 The outer executor owns those phases and the remaining delivery decisions.
 

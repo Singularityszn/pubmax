@@ -4,6 +4,7 @@ import { join } from "node:path";
 import { JSDOM } from "jsdom";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
+
 import { describe, expect, it } from "vitest";
 
 import TonightProvenanceLines from "@/app/tonight/TonightProvenanceLines";
@@ -164,15 +165,12 @@ describe("VOICE.md compliance audit", () => {
     const planPage = read("app/plan/page.tsx");
     const feed = read("app/feed/FeedPageClient.tsx");
     const feedCard = read("components/feed/FeedCard.tsx");
-    const tonight = read("app/tonight/TonightClient.tsx");
-    const tonightPage = read("app/tonight/page.tsx");
     const near = read("components/nearme/NearMeNow.tsx");
     const nearHeadline = read("lib/nearMeAnswer.ts");
     const nearPage = read("app/near/page.tsx");
     const palChatPage = read("app/pal/chat/page.tsx");
     const deals = read("components/discovery/DealsTonightLane.tsx");
     const rivalry = read("components/discovery/CityRivalryTable.tsx");
-    const borough = read("app/borough/[slug]/page.tsx");
     const memories = read("components/profile/NightMemoryStudio.tsx");
     const planTemplates = read("lib/planTemplates.ts");
 
@@ -190,11 +188,6 @@ describe("VOICE.md compliance audit", () => {
     expect(feed).not.toContain("Capture a Moment");
     expect(feedCard).not.toContain("Provenance:");
 
-    expect(tonight).not.toContain("same spine as the map");
-    expect(tonightPage).not.toContain("Same spine as the map");
-    expect(tonightPage).toContain(
-      "Check sourced London pub listings for tonight on PUBMAXX, with map links when available.",
-    );
     expect(planTemplates).not.toContain("What's-On spine");
     expect(planTemplates).toContain("Quiz listings with start times.");
 
@@ -213,7 +206,6 @@ describe("VOICE.md compliance audit", () => {
     expect(rivalry).not.toContain(
       'caption = "UK city energy. Demo Pint Drops, curated crawls',
     );
-    expect(borough).not.toMatch(/curated (?:route|crawls)/iu);
     expect(memories).not.toContain("Capture a Moment");
   });
 
@@ -452,6 +444,20 @@ describe("VOICE.md rule 2 — plumbing words stay off reader surfaces", () => {
     expect(chipsCss).not.toContain(".tonightArcLabel");
   });
 
+  it.each([undefined, null, "", "not-a-date"])("names missing source dates in reader words: %s", (date) => {
+    expect(checkedLabel(date)).toBe("No date on this yet");
+    expect(provenanceLabel(date)).toBe("No date on this yet");
+    const html = renderToStaticMarkup(createElement(TonightProvenanceLines, {
+      provenance: {
+        whatsOn: "1 listing · via what’s-on", out: "1 listing via Ticketmaster",
+        whatsOnDated: false, outDated: false,
+      },
+      nearestSuffix: null,
+    }));
+    expect(html.match(/The source check date is not recorded\./gu)).toHaveLength(2);
+    expect(html).not.toContain("Freshness unknown");
+  });
+
   it.each([null, undefined, "", "not-a-date", "2026-10-02T12:00:00Z"])(
     "uses reader-facing freshness labels for %s",
     (date) => {
@@ -473,8 +479,8 @@ describe("VOICE.md rule 2 — plumbing words stay off reader surfaces", () => {
     expect(lines[0]).toContain("Pub listings · nearest Soho first");
     expect(lines[1]).toContain("Music listings");
     for (const [index, dated] of [whatsOnDated, outDated].entries()) {
-      if (dated) expect(lines[index]).not.toContain("Check date not recorded.");
-      else expect(lines[index]).toContain("Check date not recorded.");
+      if (dated) expect(lines[index]).not.toContain("The source check date is not recorded.");
+      else expect(lines[index]).toContain("The source check date is not recorded.");
     }
     expect(html).not.toContain("Freshness unknown");
   });

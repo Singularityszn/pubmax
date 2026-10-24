@@ -106,6 +106,47 @@ function metresApart(
   return Math.hypot(dx, dy);
 }
 
+test("picker location refresh preserves the settled and saved camera", async ({ page, context }) => {
+  test.setTimeout(180_000);
+  await page.setViewportSize({ width: 1280, height: 800 });
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await context.grantPermissions(["geolocation"]);
+  await context.setGeolocation({ latitude: 51.517, longitude: -0.12 });
+  await prepareMap(page);
+  await page.addInitScript(() => {
+    localStorage.setItem("pubmax:map-first-visit-arrival:v1", "dismissed");
+  });
+  const travelRequests: string[] = [];
+  page.on("request", (request) => {
+    if (request.url().includes("/api/citymcp/journey")) travelRequests.push(request.url());
+  });
+  await page.goto("/map?log=1");
+  const picker = page.locator(".logIntentFallback:visible");
+  await expect(picker).toBeVisible({ timeout: 60_000 });
+  await expect.poll(async () => {
+    const camera = await readCamera(page);
+    return !camera.moving && !camera.settling;
+  }, { timeout: 60_000 }).toBe(true);
+  const before = await readCamera(page);
+  const savedViewport = () => page.evaluate(() => {
+    const record = localStorage.getItem("map-resume:v2:london:view");
+    return record ? JSON.parse(record).viewport : null;
+  });
+  await expect.poll(savedViewport).not.toBeNull();
+  const savedBefore = await savedViewport();
+  await context.setGeolocation({ latitude: 51.541, longitude: -0.142 });
+  await picker.getByRole("button", { name: "Near me", exact: true }).click();
+  await expect(picker.getByRole("button", { name: /Bucks Head/ })).toBeVisible({ timeout: 15_000 });
+  for (let sample = 0; sample < 8; sample += 1) {
+    await page.waitForTimeout(500);
+    const after = await readCamera(page);
+    expect(metresApart(after.center, before.center)).toBeLessThan(1);
+    expect(after.zoom).toBeCloseTo(before.zoom, 5);
+    expect(await savedViewport()).toEqual(savedBefore);
+  }
+  expect(travelRequests).toEqual([]);
+});
+
 test.describe("map you are here dot", () => {
   test("granted location paints a dot that moves without moving the camera", async ({
     page,

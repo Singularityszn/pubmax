@@ -10,7 +10,8 @@
 // old dataset index never held still opens, because the detail module folds
 // those seeds.
 
-import { readFileSync } from "node:fs";
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { createElement, type ReactNode } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
@@ -83,7 +84,7 @@ import { LEDGER_READ_UNAVAILABLE } from "@/app/ledger/[id]/ledgerReadUnavailable
 import LedgerPage, { generateMetadata as ledgerMetadata } from "@/app/ledger/[id]/page";
 import { clampOgText } from "@/lib/ogCardText";
 import { resetVenueAliasesForTests } from "@/lib/venueAliases";
-import { resetVenueDetailCachesForTests } from "@/lib/venueDetailIndex";
+import { resetVenueDetailCachesForTests, setVenueDetailIndexFileForTests, setVenueDetailRowsFileForTests } from "@/lib/venueDetailIndex";
 import { groupVenuePrices, type VenuePrice } from "@/lib/venues";
 import { defined } from "@/__tests__/helpers/defined";
 
@@ -176,6 +177,37 @@ describe.each([
     titleClass: "ledgerEmptyTitle",
   },
 ])("$surface when lookupCanonicalVenueId cannot read the alias file", ({ page, metadata, href, notFoundLine, titleClass }) => {
+  it.each(["manifest", "detail rows"] as const)("recovers the rendered page after an unavailable %s read", async (failure) => {
+    const dir = mkdtempSync(join(tmpdir(), "venue-page-recovery-"));
+    const indexFile = join(dir, "venue_detail_index.json");
+    const rowsFile = join(dir, "venue_details.jsonl");
+    const detail = `${JSON.stringify({ id: venue.id, rows: venue.prices })}\n`;
+    const index = JSON.stringify({
+      version: 1, detailsFile: "venue_details.jsonl", count: 1,
+      venues: { [venue.id]: { offset: 0, length: Buffer.byteLength(detail), rowCount: venue.prices.length } },
+    });
+    vi.stubEnv("NODE_ENV", "production");
+    setVenueDetailIndexFileForTests(indexFile);
+    setVenueDetailRowsFileForTests(rowsFile);
+    try {
+      if (failure !== "manifest") writeFileSync(indexFile, index);
+      if (failure !== "detail rows") writeFileSync(rowsFile, detail);
+      const failed = await render(page, venue.id);
+      expect(failed).toContain("We could not load this pub");
+      expect(failed).toContain("Try again");
+      expect(failed).not.toContain(notFoundLine);
+      writeFileSync(indexFile, index);
+      writeFileSync(rowsFile, detail);
+      const recovered = await render(page, venue.id);
+      expect(recovered).toContain(venue.name);
+      expect(recovered).not.toContain("We could not load this pub");
+    } finally {
+      resetVenueDetailCachesForTests();
+      vi.unstubAllEnvs();
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
   it("answers unavailable, reads again on the next request, and does not cache the failure", async () => {
     // This id is in the dataset under its own key. The old page returned it
     // without asking the alias file. The detail module asks first, so an

@@ -110,12 +110,12 @@ export const LANDING_PRIMARY_LABEL = "Cheapest pints near me";
  * The receipt door's one label, with or without a card behind it (UX audit
  * 16 Oct 2026). It used to read "Still £6.50?", which asked a stranger a
  * riddle about a pub they had never seen; the label now says what the tap
- * does. With a card the door opens that pub's composer holding the printed
- * figure; without one it is the plain price door below.
+ * does. The general door asks which pub the reader is in before opening
+ * a blank price form. Pub-specific confirmation links keep their own seed.
  */
 export const LANDING_RECEIPT_LABEL = "Log what you paid";
-/** The receipt door when no card can back one: the plain price door. */
-export const LANDING_FALLBACK_RECEIPT_HREF = "/near";
+/** The general price door asks the reader to choose a pub first. */
+export const LANDING_FALLBACK_RECEIPT_HREF = "/map?log=1";
 
 /**
  * The Pint Drop door for one pub: the map opens on that pub with the composer

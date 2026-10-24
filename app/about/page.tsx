@@ -13,6 +13,7 @@ import { buildLeagueTable, indexSummary } from "@/lib/pintIndex";
 import { priceBand } from "@/lib/priceBand";
 import { loadPublicPintIndexSnapshot } from "@/lib/publicPintIndexSnapshot.server";
 import { HELLO_EMAIL, HELLO_MAILTO } from "@/lib/siteContact";
+import { SITE_ORGANIZATION_ID, SITE_WEBSITE_ID } from "@/lib/siteJsonLd";
 
 import "./about.css";
 
@@ -97,38 +98,15 @@ export default async function AboutPage() {
   const pintIndexSummary = indexSummary(pintIndexRows);
   const nonce = (await headers()).get("x-nonce") ?? undefined;
 
-  // AboutPage + Organization JSON-LD. NOTE (see agent report): components/seo/
-  // JsonLd.tsx from PR #274 is NOT on this base branch, so this is inlined here
-  // following the layout.tsx nonce-aware CSP pattern. If #274 lands first,
-  // migrate this block to <JsonLd> and drop the inline script to avoid two
-  // Organization nodes on the site.
+  // The root layout publishes both referenced identities.
   const jsonLd = {
     "@context": "https://schema.org",
     "@type": "AboutPage",
     name: PAGE_TITLE,
     description: PAGE_DESCRIPTION,
     url: "https://pubmaxxing.com/about",
-    isPartOf: {
-      "@type": "WebSite",
-      name: "PUBMAXX",
-      url: "https://pubmaxxing.com",
-    },
-    about: {
-      "@type": "Organization",
-      name: "PUBMAXX",
-      alternateName: "PUBMAXXING",
-      url: "https://pubmaxxing.com",
-      logo: "https://pubmaxxing.com/icon-512.png",
-      description:
-        "Find pubs, compare listed drink prices and share a plan. Free to use, with no paid ranking.",
-      email: HELLO_EMAIL,
-      founder: {
-        "@type": "Person",
-        name: "Karan Manoharan",
-        url: "https://x.com/karansznx",
-      },
-      sameAs: ["https://x.com/karansznx"],
-    },
+    isPartOf: { "@id": SITE_WEBSITE_ID },
+    about: { "@id": SITE_ORGANIZATION_ID },
   };
 
   return (

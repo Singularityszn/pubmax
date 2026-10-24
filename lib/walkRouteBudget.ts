@@ -11,18 +11,21 @@
 // which ORS 403s and EVERY route degrades to straight lines for everyone.
 //
 // This module adds a DURABLE global daily counter for the ACTUAL provider calls,
-// reusing the exact same check_rate_limit seam (lib/supabase, via isLimited)
+// reusing check_rate_limit through lib/pintDrops reserveRateLimit
 // with a single global bucket keyed `ors-global:<UTC-date>` and a 24h window.
 // Each real provider call consumes one unit; cache hits and the keyless path
 // never call in here, so they never consume budget. Over budget -> the caller
 // skips the provider and serves the straight leg (the existing fail-soft path).
 //
-// COST: at most one cheap durable round-trip per ACTUAL provider call, and an
+// COST: admission takes at most one durable round-trip per provider call, and an
 // in-process short-circuit once the day is exhausted (the exhausted verdict is
 // cached for a few minutes), so an exhausted Friday night costs ZERO durable
 // reads per request. The dominant debounced map-redraw sends one request with
 // at most one uncached leg, i.e. one durable read; a cold full route does one
-// per uncached leg (bounded by WALK_ROUTE_MAX_STOPS - 1).
+// per uncached leg (bounded by WALK_ROUTE_MAX_STOPS - 1). Each unused durable
+// reservation attempts at most one refund RPC with only the bucket key.
+// The RPC removes at most one unit through a single atomic UPDATE.
+// The request size does not grow with the bucket. The timeout is 2.5 seconds.
 //
 // DEGRADED MODE (documented, inherited from isLimited):
 //   • Supabase configured + durable RPC answers -> the true GLOBAL cap holds.
@@ -35,7 +38,7 @@
 //     design target, the in-memory budget is the fail-soft floor — never a hard
 //     stop on routing, which stays fail-soft to straight lines throughout.
 
-import { isLimited } from "@/lib/pintDrops";
+import { reserveRateLimit, type RateLimitReservation } from "@/lib/pintDrops";
 import { log } from "@/lib/log";
 import { DAY_MS } from "@/lib/dayMs";
 
@@ -47,10 +50,8 @@ export const ORS_DAILY_BUDGET_DEFAULT = 2000;
  *  window makes the durable counter prune anything older than a day too. */
 export const ORS_BUDGET_WINDOW_MS = DAY_MS;
 
-/** Once exhausted, cache that verdict this long so we stop paying a durable
- *  round-trip (and stop making provider calls) for the rest of the window. Short
- *  enough that a freed budget — a rolled UTC day, or a raised env cap — recovers
- *  within minutes rather than being pinned for the whole day. */
+/** Cache exhaustion for this long unless a successful same-day refund clears it.
+ *  A new UTC day rechecks immediately. A raised cap takes effect after expiry. */
 const ORS_BUDGET_EXHAUSTED_TTL_MS = 5 * 60 * 1000;
 
 /**
@@ -71,8 +72,10 @@ export function orsBudgetKey(now: number = Date.now()): string {
 
 // In-process short-circuit: once the durable check reports the day is spent, we
 // remember that (scoped to the UTC date so a rolled day is never held down by a
-// stale flag) and skip the durable round-trip until the TTL lapses.
+// stale flag) and skip the durable round-trip until expiry or a same-day refund.
 let exhausted: { date: string; until: number } = { date: "", until: 0 };
+// A refusal that started before a same-day refund must not restore exhaustion.
+const refundGenerations = new Map<string, number>();
 
 /**
  * Emit ONE structured WARN when the global daily ORS budget is first observed
@@ -86,34 +89,53 @@ function warnOrsBudgetExhausted(date: string, budget: number): void {
 }
 
 /**
- * Reserve ONE unit of the global daily ORS budget for an actual provider call
- * that is about to happen. Returns true when the call may proceed, false when
- * the day is over budget and the caller must serve the straight leg instead.
+ * Reserve one unit for an outbound call, or return null when none is available.
+ * Commit immediately before dispatch. Release in finally to attempt a refund
+ * to the original backend if cancellation prevented dispatch.
  *
  * Call this ONLY immediately before a real ORS fetch — never for a cache hit or
  * the keyless path — so budget is consumed per PROVIDER CALL, not per request.
- * Delegates to isLimited (the check_rate_limit seam), inheriting its documented
+ * Uses the same check_rate_limit seam as isLimited, inheriting its documented
  * durable/degraded behaviour verbatim (see the module header).
  */
-export async function consumeOrsBudget(now: number = Date.now()): Promise<boolean> {
+export async function reserveOrsBudget(now: number = Date.now(), signal?: AbortSignal): Promise<RateLimitReservation | null> {
+  if (signal?.aborted) return null;
   const date = new Date(now).toISOString().slice(0, 10);
 
   // Short-circuit: the day is already known-exhausted and the TTL hasn't lapsed.
   // Costs nothing — no durable round-trip, no provider call.
-  if (exhausted.date === date && now < exhausted.until) return false;
+  if (exhausted.date === date && now < exhausted.until) return null;
 
   const key = orsBudgetKey(now);
-  const over = await isLimited(key, key, orsDailyBudget(), ORS_BUDGET_WINDOW_MS);
-  if (over) {
+  const refundGeneration = refundGenerations.get(date) ?? 0;
+  const reservation = await reserveRateLimit(key, orsDailyBudget(), ORS_BUDGET_WINDOW_MS, signal);
+  if (!reservation && !signal?.aborted && refundGeneration === (refundGenerations.get(date) ?? 0)) {
     exhausted = { date, until: now + ORS_BUDGET_EXHAUSTED_TTL_MS };
     warnOrsBudgetExhausted(date, orsDailyBudget());
-    return false;
+    return null;
   }
-  return true;
+  return reservation && {
+    commit: reservation.commit,
+    release: async () => {
+      const returned = await reservation.release();
+      if (returned) {
+        refundGenerations.set(date, (refundGenerations.get(date) ?? 0) + 1);
+        if (exhausted.date === date) exhausted = { date: "", until: 0 };
+      }
+      return returned;
+    },
+  };
+}
+
+/** Non-cancellable callers spend their admitted reservation immediately. */
+export async function consumeOrsBudget(now: number = Date.now()): Promise<boolean> {
+  const reservation = await reserveOrsBudget(now);
+  return reservation?.commit() ?? false;
 }
 
 /** Test-only: clear the in-process exhausted flag between cases. The durable
  *  counter itself resets via the supabase/in-memory limiter reset. */
 export function __resetOrsBudget(): void {
   exhausted = { date: "", until: 0 };
+  refundGenerations.clear();
 }

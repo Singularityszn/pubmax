@@ -6,6 +6,7 @@ import {
   formatSuggestDistance,
   LOCALITY_FLY_ZOOM,
   mapSearchVenuesLeadAreas,
+  mergeMapSearchVenueSuggestions,
   SUGGEST_PUB_LIMIT,
 } from "@/lib/mapSearchSuggest";
 import {
@@ -33,6 +34,23 @@ function venue(overrides: Partial<Venue> & { id: string }): Venue {
     ...overrides,
   } as Venue;
 }
+
+it("uses a loaded pub's known price when an area match is rendered from the index", () => {
+  const result = mergeMapSearchVenueSuggestions({
+    query: "Reviewland",
+    drinkCategory: "beer",
+    venues: [
+      venue({ id: "alpha", name: "Review Alpha", locality: "Reviewland" }),
+      venue({ id: "zulu", name: "Review Zulu", locality: "Reviewland", latestContributorPrice: 4.7 }),
+    ],
+    pubs: [],
+    indexedVenues: [
+      { kind: "venue", id: "alpha", name: "Review Alpha", area: "Reviewland", cityId: "london", venueKind: "pub" },
+      { kind: "venue", id: "zulu", name: "Review Zulu", area: "Reviewland", cityId: "london", venueKind: "pub" },
+    ],
+  });
+  expect(result.map((row) => row.item.id)).toEqual(["zulu", "alpha"]);
+});
 
 const UK_PLACES: UkPlace[] = [
   {
@@ -74,6 +92,50 @@ const soho = getNightArea("piccadilly-soho");
 
 // A map centre far from Shoreditch so distance ordering is unambiguous.
 const CENTRE: [number, number] = [soho.centre.lng, soho.centre.lat];
+
+describe("drink-aware venue suggestions", () => {
+  const venues = [
+    venue({ id: "restaurant", name: "Soho Kitchen", kind: "restaurant", cheapestPrice: 12 }),
+    venue({ id: "pub", name: "The Soho Arms", kind: "pub", latitude: 51.51, cheapestPrice: 5.2 }),
+    venue({ id: "cocktails", name: "Soho Cocktails", kind: "bar", cheapestPrice: 10 }),
+  ];
+
+  it("puts a priced pub above nearer food and cocktail matches in Pints", () => {
+    const result = buildMapSearchSuggestions({ cityId: "london", query: "Soho", venues,
+      userLocation: null, mapCenter: [-0.12, 51.5], drinkCategory: "beer" });
+    expect(result.pubs.map((item) => item.id)).toEqual(["pub", "cocktails", "restaurant"]);
+    expect(result.pubs[0]?.priceLabel).toBe("£5.20");
+    expect(result.pubs.find((item) => item.id === "restaurant")?.priceLabel).toBeNull();
+  });
+
+  it("keeps an exact venue name above an area-like pint match", () => {
+    const result = buildMapSearchSuggestions({ cityId: "london", query: "Soho Kitchen",
+      venues: [...venues, venue({ id: "other", name: "Soho Kitchen Arms", kind: "pub", cheapestPrice: 4 })],
+      userLocation: null, mapCenter: [-0.12, 51.5], drinkCategory: "beer" });
+    expect(result.pubs[0]?.id).toBe("restaurant");
+  });
+
+  it("preserves distance order for another drink category", () => {
+    const result = buildMapSearchSuggestions({ cityId: "london", query: "Soho", venues,
+      userLocation: null, mapCenter: [-0.12, 51.5], drinkCategory: "wine" });
+    expect(result.pubs.map((item) => item.id)).toEqual(["cocktails", "restaurant", "pub"]);
+  });
+
+  it.each([
+    { drinkCategory: "beer", expected: ["priced", "unpriced"] },
+    { drinkCategory: "wine", expected: ["unpriced", "priced"] },
+  ])("keeps loaded name tiers independent of area matches in $drinkCategory", ({ drinkCategory, expected }) => {
+    const matchingVenues = [
+      venue({ id: "priced", name: "The Riverside Arms", kind: "pub", cheapestPrice: 5.2, latitude: 51.51 }),
+      venue({ id: "unpriced", name: "East Riverside Inn", kind: "pub", locality: "Side" }),
+    ];
+    const suggestions = buildMapSearchSuggestions({ cityId: "london", query: "side", venues: matchingVenues,
+      userLocation: null, mapCenter: [-0.12, 51.5], drinkCategory });
+    expect(suggestions.pubs.map((item) => item.id)).toEqual(expected);
+    expect(mergeMapSearchVenueSuggestions({ query: "side", drinkCategory, venues: matchingVenues,
+      pubs: suggestions.pubs, indexedVenues: [] }).map((row) => row.item.id)).toEqual(expected);
+  });
+});
 
 describe("formatSuggestDistance — honest, origin-aware register", () => {
   it("reads the viewer's own distance as 'away'", () => {

@@ -1,0 +1,56 @@
+{
+  "ci": {
+    "sha": "41b04f278031e1d14cebd30722ca303e3365f6a8",
+    "runId": 39991697098,
+    "jobId": 120545044513,
+    "case": "1440px loaded route opens its first venue without a deferred planner handoff",
+    "initialAttemptSeconds": 30.2,
+    "initialAttemptResult": "overall test timeout at 30000ms",
+    "retrySeconds": 23.9,
+    "gateResult": "failed because one test required a retry"
+  },
+  "local": {
+    "serverSha": "7c4cafb790b80a77788f2f5f754900e1960d7468",
+    "server": "http://127.0.0.1:3228",
+    "mode": "isolated local production build with disposable keyless runtime and fake public auth configuration",
+    "productionBuildExitCode": 0,
+    "beforeHarnessRuns": 5,
+    "afterHarnessRuns": 10,
+    "retries": 0,
+    "durationsSeconds": {
+      "before": [
+        8.4,
+        8.5,
+        4.0,
+        5.7,
+        5.2
+      ],
+      "after": [
+        7.3,
+        8.5,
+        6.9,
+        7.3,
+        8.7,
+        10.7,
+        9.3,
+        12.1,
+        14.3,
+        9.6
+      ]
+    },
+    "indexedFixtureCasesPassed": 4
+  },
+  "change": {
+    "testDeadlineMs": 90000,
+    "assertions": "existing sole-drawer helper and planner transition invariant retained",
+    "serviceWorkers": "blocked only for indexed-search network fixtures",
+    "productionBudgetsChanged": false,
+    "actionsChanged": false
+  },
+  "limits": [
+    "The CI failure did not reproduce in five local baseline runs.",
+    "The CI log identifies an overall deadline failure. It does not establish an application defect.",
+    "A new GitHub run must verify the repaired harness without retries.",
+    "These are test durations, not page performance measurements."
+  ]
+}

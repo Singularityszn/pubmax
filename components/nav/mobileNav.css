@@ -288,6 +288,10 @@ body:has(.mobileMapUtilityCorner) {
 }
 
 @media (max-width: 640px) {
+  :root:not([data-text-scale="large"]) {
+    --tabbar-h: max(64px, calc(2.1 * var(--text-2xs) + 48px));
+  }
+
   /* The bar alone: its lane, the home indicator and one gap, so the last line
      of a page that hides the create disc ends a gap above the rail instead of
      touching it. */
@@ -455,6 +459,7 @@ body:has(.mobileMapUtilityCorner) {
 
   .mobileTab {
     flex: 1;
+    min-width: 0;
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -466,9 +471,6 @@ body:has(.mobileMapUtilityCorner) {
     border-radius: calc(var(--tab-rail-radius) - var(--tab-inset));
     color: var(--muted);
     text-decoration: none;
-    /* iOS-convention tab labels — floored at 11px (the one sub-12px exception),
-       ellipsis preserved by .mobileTabLabel. Idle words stay a step lighter
-       so the page you are on is the one that carries weight. */
     font-size: var(--text-2xs);
     font-weight: 600;
     letter-spacing: 0.01em;
@@ -498,9 +500,9 @@ body:has(.mobileMapUtilityCorner) {
     align-items: center;
     justify-content: center;
     gap: 0.2rem;
-    white-space: nowrap;
+    white-space: normal;
+    min-width: 0;
     max-width: 100%;
-    overflow: hidden;
   }
 
   /* AT A LARGE OS TEXT SIZE THE BAR KEEPS ITS SHAPE AND DROPS ITS WORDS.
@@ -516,12 +518,10 @@ body:has(.mobileMapUtilityCorner) {
     display: none;
   }
 
-  /* Ellipsis needs a block-level text box: it does nothing on the flex
-     container above, so the word carries its own. */
   .mobileTabLabelText {
     min-width: 0;
-    overflow: hidden;
-    text-overflow: ellipsis;
+    overflow-wrap: anywhere;
+    text-align: center;
   }
 
   .mobileTabPreviewDot {
