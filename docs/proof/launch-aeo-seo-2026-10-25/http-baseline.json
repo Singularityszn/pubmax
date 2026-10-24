@@ -1,0 +1,259 @@
+{
+  "atUTC": "2026-10-24T21:00:35.743551+00:00",
+  "method": "completed HTTP GET bodies, no browser JavaScript, ordinary audit user agent",
+  "results": [
+    {
+      "path": "/api/version",
+      "url": "https://pubmaxxing.com/api/version",
+      "status": 200,
+      "bytes": 119,
+      "cache": {
+        "Age": "0",
+        "Cache-Control": "no-store, no-cache, must-revalidate, max-age=0",
+        "Content-Type": "application/json",
+        "X-Vercel-Cache": "MISS",
+        "X-Vercel-Id": "lhr1::lhr1::lfjxw-1792875632624-ce08726c62fa"
+      },
+      "version": {
+        "ok": true,
+        "deploymentId": "dpl_5cRQ5FGnGy8ZQGuQUXbsm7gqrN8D",
+        "gitCommitSha": "70283b8fa23043f142c18b092a8f8d2c07ec1aae"
+      }
+    },
+    {
+      "path": "/",
+      "url": "https://pubmaxxing.com/",
+      "status": 200,
+      "bytes": 99516,
+      "cache": {
+        "Age": "2955",
+        "Cache-Control": "public, max-age=0, must-revalidate",
+        "Content-Type": "text/html; charset=utf-8",
+        "X-Vercel-Cache": "HIT",
+        "X-Vercel-Id": "lhr1::lhr1::h9756-1792875632746-2227146a34ee"
+      },
+      "title": "PUBMAXX: listed pint prices on an interactive map",
+      "canonical": [
+        "https://pubmaxxing.com"
+      ],
+      "robots": "index, follow, max-image-preview:large",
+      "description": "PUBMAXX is a price-aware London pub map: listed pint prices, what's on tonight, and crawl plans.",
+      "jsonldTypes": [
+        "WebSite",
+        "Organization"
+      ],
+      "dateLabels": [
+        "Saturday 24 October",
+        "Saturday 24 October"
+      ]
+    },
+    {
+      "path": "/about",
+      "url": "https://pubmaxxing.com/about",
+      "status": 200,
+      "bytes": 90512,
+      "cache": {
+        "Age": "0",
+        "Cache-Control": "private, no-cache, no-store, max-age=0, must-revalidate",
+        "Content-Type": "text/html; charset=utf-8",
+        "X-Vercel-Cache": "MISS",
+        "X-Vercel-Id": "lhr1::lhr1::27fxl-1792875632883-67ecc2977e45"
+      },
+      "title": "About PUBMAXX | PUBMAXX",
+      "canonical": [
+        "https://pubmaxxing.com/about"
+      ],
+      "robots": "index, follow, max-image-preview:large",
+      "description": "A pint in London can cost eight quid. PUBMAXX puts listed prices on one map for nights out, coffee, food, and sober hangs. We name and link publishers when recorded, and say when none is recorded. Free, and nobody pays to rank.",
+      "jsonldTypes": [
+        "WebSite",
+        "Organization",
+        "AboutPage"
+      ],
+      "dateLabels": []
+    },
+    {
+      "path": "/today",
+      "url": "https://pubmaxxing.com/today",
+      "status": 200,
+      "bytes": 139599,
+      "cache": {
+        "Age": "7621",
+        "Cache-Control": "public, max-age=0, must-revalidate",
+        "Content-Type": "text/html; charset=utf-8",
+        "X-Vercel-Cache": "STALE",
+        "X-Vercel-Id": "lhr1::lhr1::lfjxw-1792875633253-72033aa6564f"
+      },
+      "title": "Today in London | PUBMAXX",
+      "canonical": [
+        "https://pubmaxxing.com/today"
+      ],
+      "robots": "index, follow, max-image-preview:large",
+      "description": "Your morning brief: is it a pint-in-the-garden day, tonight's top picks, how you'll get home, and one sourced pub fact.",
+      "jsonldTypes": [
+        "WebSite",
+        "Organization"
+      ],
+      "dateLabels": []
+    },
+    {
+      "path": "/tonight",
+      "url": "https://pubmaxxing.com/tonight",
+      "status": 200,
+      "bytes": 159856,
+      "cache": {
+        "Age": "860",
+        "Cache-Control": "public, max-age=0, must-revalidate",
+        "Content-Type": "text/html; charset=utf-8",
+        "X-Vercel-Cache": "STALE",
+        "X-Vercel-Id": "lhr1::lhr1::j7q7b-1792875633398-d3e1f655ca9c"
+      },
+      "title": "Tonight in London | PUBMAXX",
+      "canonical": [
+        "https://pubmaxxing.com/tonight"
+      ],
+      "robots": "index, follow, max-image-preview:large",
+      "description": "Check sourced London pub listings for tonight on PUBMAXX, with map links when available.",
+      "jsonldTypes": [
+        "WebSite",
+        "Organization"
+      ],
+      "dateLabels": []
+    },
+    {
+      "path": "/crawls",
+      "url": "https://pubmaxxing.com/crawls",
+      "status": 200,
+      "bytes": 87475,
+      "cache": {
+        "Age": "0",
+        "Cache-Control": "private, no-cache, no-store, max-age=0, must-revalidate",
+        "Content-Type": "text/html; charset=utf-8",
+        "X-Vercel-Cache": "MISS",
+        "X-Vercel-Id": "lhr1::lhr1::8zbj2-1792875633623-d3e0d0270f3b"
+      },
+      "title": "London pub crawl routes | PUBMAXX",
+      "canonical": [
+        "https://pubmaxxing.com/crawls"
+      ],
+      "robots": "index, follow, max-image-preview:large",
+      "description": "London pub crawls you can share, with their stops, prices and vibe. Pick a route worth the walk, or build your own on the map.",
+      "jsonldTypes": [
+        "WebSite",
+        "Organization"
+      ],
+      "dateLabels": []
+    },
+    {
+      "path": "/pint-index",
+      "url": "https://pubmaxxing.com/pint-index",
+      "status": 200,
+      "bytes": 104739,
+      "cache": {
+        "Age": "0",
+        "Cache-Control": "private, no-cache, no-store, max-age=0, must-revalidate",
+        "Content-Type": "text/html; charset=utf-8",
+        "X-Vercel-Cache": "MISS",
+        "X-Vercel-Id": "lhr1::lhr1::fhgfx-1792875633824-6a3011245772"
+      },
+      "title": "London pint prices by borough and fare zone | PUBMAXX",
+      "canonical": [
+        "https://pubmaxxing.com/pint-index"
+      ],
+      "robots": "noindex, follow",
+      "description": "Compare London\u2019s listed pint prices by fare zone. The borough league uses only prices with a public source and date.",
+      "jsonldTypes": [
+        "WebSite",
+        "Organization"
+      ],
+      "dateLabels": []
+    },
+    {
+      "path": "/out",
+      "url": "https://pubmaxxing.com/tonight",
+      "status": 200,
+      "bytes": 159856,
+      "cache": {
+        "Age": "861",
+        "Cache-Control": "public, max-age=0, must-revalidate",
+        "Content-Type": "text/html; charset=utf-8",
+        "X-Vercel-Cache": "STALE",
+        "X-Vercel-Id": "lhr1::lhr1::8sdqd-1792875634648-76c945c028f4"
+      },
+      "title": "Tonight in London | PUBMAXX",
+      "canonical": [
+        "https://pubmaxxing.com/tonight"
+      ],
+      "robots": "index, follow, max-image-preview:large",
+      "description": "Check sourced London pub listings for tonight on PUBMAXX, with map links when available.",
+      "jsonldTypes": [
+        "WebSite",
+        "Organization"
+      ],
+      "dateLabels": []
+    },
+    {
+      "path": "/area/soho",
+      "url": "https://pubmaxxing.com/map?area=piccadilly-soho",
+      "status": 200,
+      "bytes": 71162,
+      "cache": {
+        "Age": "2588",
+        "Cache-Control": "public, max-age=0, must-revalidate",
+        "Content-Type": "text/html; charset=utf-8",
+        "X-Vercel-Cache": "HIT",
+        "X-Vercel-Id": "lhr1::lhr1::mn5g5-1792875634925-06685a0e73f5"
+      },
+      "title": "London pub map | PUBMAXX",
+      "canonical": [
+        "https://pubmaxxing.com/map"
+      ],
+      "robots": "index, follow, max-image-preview:large",
+      "description": "PUBMAXX is the London pub map, with listed pint prices and crawl planning.",
+      "jsonldTypes": [
+        "WebSite",
+        "Organization"
+      ],
+      "dateLabels": []
+    },
+    {
+      "path": "/robots.txt",
+      "url": "https://pubmaxxing.com/robots.txt",
+      "status": 200,
+      "bytes": 2669,
+      "cache": {
+        "Age": "0",
+        "Cache-Control": "public, max-age=0, must-revalidate",
+        "Content-Type": "text/plain; charset=utf-8",
+        "X-Vercel-Cache": "MISS",
+        "X-Vercel-Id": "lhr1::lfjxw-1792875635004-0bc3d72c25ae"
+      }
+    },
+    {
+      "path": "/llms.txt",
+      "url": "https://pubmaxxing.com/llms.txt",
+      "status": 200,
+      "bytes": 2396,
+      "cache": {
+        "Age": "0",
+        "Cache-Control": "public, max-age=0, s-maxage=3600, stale-while-revalidate=86400",
+        "Content-Type": "text/plain; charset=utf-8",
+        "X-Vercel-Cache": "MISS",
+        "X-Vercel-Id": "lhr1::h5cfl-1792875635192-a4085369b651"
+      }
+    },
+    {
+      "path": "/sitemap.xml",
+      "url": "https://pubmaxxing.com/sitemap.xml",
+      "status": 200,
+      "bytes": 448473,
+      "cache": {
+        "Age": "0",
+        "Cache-Control": "public, max-age=0, must-revalidate",
+        "Content-Type": "application/xml",
+        "X-Vercel-Cache": "MISS",
+        "X-Vercel-Id": "lhr1::h5cfl-1792875635377-d31b8893b712"
+      }
+    }
+  ]
+}

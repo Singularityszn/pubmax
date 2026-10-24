@@ -30,6 +30,7 @@ import PriceBadge from "@/components/PriceBadge";
 import { Button } from "@/components/ui/button";
 import { RowList, RowListItem } from "@/components/ui/row-list";
 import Screen from "@/components/ui/screen";
+import PreparedBriefStamp from "@/components/seo/PreparedBriefStamp";
 import { useWhatsOnTonight, type TonightFreshnessKind, type WhatsOnTonight } from "@/components/map/useWhatsOnTonight";
 import { useOutListings } from "@/components/out/useOutListings";
 import EditorialRail from "@/components/out/EditorialRail";
@@ -683,6 +684,7 @@ export default function TonightClient({
         }
       >
       <div className="tonightPrimary" data-status={listingsStatus}>
+      <PreparedBriefStamp preparedAt={initial?.renderedAt} />
       {/* The lede membership follows the Tonight rule in
           docs/rules/app-proxy-csp-caching-and-file-tracing.md. Chain blocks
           and cheap pints stay outside it so they cannot lead the answer. */}

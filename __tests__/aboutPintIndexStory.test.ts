@@ -38,6 +38,7 @@ vi.mock("@/lib/publicPintIndexSnapshot.server", () => ({
 
 import AboutPage from "@/app/about/page";
 import { siteJsonLd } from "@/lib/siteJsonLd";
+import { SITE_PRODUCT_DESCRIPTION } from "@/lib/siteProductCopy";
 
 function snapshot(
   observations: PintIndexSnapshot["observations"],
@@ -138,6 +139,15 @@ describe("About Pint Index story", () => {
 describe("About outings story (Wave S1)", () => {
   beforeEach(() => {
     fixtures.snapshot = snapshot([]);
+  });
+
+  it("supports the site identity description with visible planning and account rules", async () => {
+    const html = await renderAbout();
+    expect(html).toContain(SITE_PRODUCT_DESCRIPTION);
+    expect(html).toContain("Browse and save pubs on this device without an account");
+    expect(html.replace(/\s+/g, " ")).toContain("Sign in to sync your saves, log prices and use Social when it is available");
+    const website = siteJsonLd.find((node) => node["@type"] === "WebSite");
+    expect(website?.description).toBe(SITE_PRODUCT_DESCRIPTION);
   });
 
   it("names daytime and sober outings without inventing biography or metrics", async () => {

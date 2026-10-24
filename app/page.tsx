@@ -8,6 +8,8 @@ import { HISTORIC_PUB_COUNT } from "@/components/landing/londonMapGeometry";
 import { landingPhotoFor } from "@/lib/landingImagery";
 import { loadLandingHeroData } from "@/lib/landingPubCard.server";
 import { readTrustedHandoffFlag } from "@/lib/trustedHandoffFlags.server";
+import { homeProductDescription } from "@/lib/siteProductCopy";
+import { appPageTitle } from "@/lib/brandNaming";
 
 // The words a forwarded link shows beside the card. They say the same thing the
 // page itself says, because a referral link (/r/<code>) lands on /#referral=…
@@ -15,8 +17,8 @@ import { readTrustedHandoffFlag } from "@/lib/trustedHandoffFlags.server";
 // the same line lib/homeOgCard.tsx prints on the share card. The hero's lede is
 // the measured saving when the dataset backs one, but a static head and card
 // may hold no figure of their own, so they keep the map line.
-const HOME_TITLE = "PUBMAXX: what a pint costs, pub by pub";
-const HOME_DESCRIPTION = `London on one map, with ${HISTORIC_PUB_COUNT} historic pubs cited and a listed price wherever we hold one. Who listed it, and the day they did.`;
+const HOME_TITLE = "London pint prices and pub crawls with friends";
+const HOME_DESCRIPTION = homeProductDescription(HISTORIC_PUB_COUNT);
 
 // Self-canonical for the homepage (Wave S1.4). Title/description inherit the
 // root layout defaults; this pins the canonical URL and the homepage's own
@@ -30,9 +32,11 @@ const HOME_DESCRIPTION = `London on one map, with ${HISTORIC_PUB_COUNT} historic
 // measurement. Next replaces a parent's openGraph object wholesale rather than
 // merging it, so the homepage restates the fields it keeps.
 export const metadata: Metadata = {
+  title: HOME_TITLE,
+  description: HOME_DESCRIPTION,
   alternates: { canonical: "/" },
   openGraph: {
-    title: HOME_TITLE,
+    title: appPageTitle(HOME_TITLE),
     description: HOME_DESCRIPTION,
     url: "https://pubmaxxing.com",
     siteName: "PUBMAXX",
@@ -50,7 +54,7 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: "summary_large_image",
-    title: HOME_TITLE,
+    title: appPageTitle(HOME_TITLE),
     description: HOME_DESCRIPTION,
     images: ["/api/home-card"],
   },

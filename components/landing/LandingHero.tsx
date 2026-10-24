@@ -478,7 +478,9 @@ function AnswerCard({
         ) : (
           sourceLine(evidence)
         )}
-        {observedOn ? `, collected ${collectedDay(observedOn)}` : ""}.
+        {observedOn
+          ? `, source read ${collectedDay(observedOn)}`
+          : typeof evidence === "object" ? ", read day not recorded" : ""}.
       </p>
       {standing ? (
         <span className="lpStanding" data-standing={standing} title={priceStandingNote(standing)}>

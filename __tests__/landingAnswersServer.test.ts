@@ -82,4 +82,15 @@ describe("loadLandingAnswers weather tile", () => {
       measured: false,
     });
   });
+
+  it.each([
+    ["2026-10-24T23:59:59+01:00", "Saturday 24 October"],
+    ["2026-10-25T00:00:00+01:00", "Sunday 25 October"],
+    ["2026-10-25T01:30:00+01:00", "Sunday 25 October"],
+    ["2026-10-25T01:30:00+00:00", "Sunday 25 October"],
+  ])("dates both completed answers with London's day at %s", async (instant, stamp) => {
+    const answer = await loadLandingAnswers(new Date(instant));
+    expect(answer.today.stamp).toBe(stamp);
+    expect(answer.tonight.stamp).toBe(stamp);
+  });
 });

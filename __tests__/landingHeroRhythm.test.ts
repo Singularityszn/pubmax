@@ -107,7 +107,7 @@ describe("landing hero rhythm", () => {
     // The figures are the ones handed in (lib/pintSavings.ts measures them from
     // the priced read), never typed into the hero.
     expect(hero).toContain(
-      '<p class="screenLede">The average listed pint across 950 London pubs is £5.54. In the cheapest third it&#x27;s £4.17. That&#x27;s £1.37 a pint you keep.</p>',
+      '<p class="screenLede">The average of each pub&#x27;s cheapest listed pint across 950 priced London pubs is £5.54. The cheapest third averages £4.17. That&#x27;s a £1.37 gap per pint.</p>',
     );
     expect(hero).toContain('alt="Tower Bridge and the Thames in London from above"');
     expect(hero).toContain('/landing/hero-thames-1600.avif');

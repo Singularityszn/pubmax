@@ -10,12 +10,8 @@
 // surface that formats a standing's price itself can drop that "est.", which is
 // why `priceStandingFigure` is the ONE place a figure becomes a string.
 //
-// `confirmed` is defined here and has NO PRODUCER YET. Nothing in the tree can
-// confirm a price today: `PintDropReviewStatus` in lib/pintDrops.ts is
-// "hidden" | "pending" | "reported", with no confirmed state and no
-// confirmationId writer. The type is written now so the surfaces are built
-// against the whole vocabulary rather than retrofitted onto it. Building the
-// confirm path is the named follow-up.
+// A `confirmed` input comes from the community confirmation path. A public
+// publisher URL and its read timestamp do not supply community confirmation.
 //
 // This module imports one leaf formatter and nothing else, so a surface that
 // needs a standing does not pull the venue index in behind it.
@@ -297,7 +293,7 @@ export function priceStandingNote(standing: PriceStanding): string {
     case "estimate":
       return "Nobody has published this price. We modelled it, and it is not a quote.";
     case "none":
-      return "Nobody has published or reported a price here yet.";
+      return "This record does not support a current confirmed or listed price.";
   }
 }
 

@@ -1,0 +1,5 @@
+.stamp {
+  margin: 0 0 var(--space-4);
+  color: var(--color-text-muted);
+  font: 550 var(--text-xs)/1.5 var(--font-data);
+}

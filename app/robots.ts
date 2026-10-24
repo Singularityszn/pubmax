@@ -2,14 +2,10 @@ import type { MetadataRoute } from "next";
 
 import { PRODUCTION_SITE_ORIGIN } from "@/lib/siteUrlConfig.mjs";
 
-// Wave S1.1 — robots policy. PUBMAXX WANTS to be crawled, by search engines and
-// by AI assistants alike: our moat is unique, dated, provenance-first facts
-// (3,000+ tracked pint prices, 346 cited historic pubs), and the growth thesis
-// (see docs/PRD_SEARCH_GROWTH_2026-07-16.md) is that both Google AND the AI
-// engines reward extractable structured facts. So we allow all crawlers, and
-// name the major AI crawlers explicitly to DOCUMENT that intent — an allow entry
-// for GPTBot/ClaudeBot/etc. is functionally the same as the wildcard, but makes
-// "yes, index and cite us" unambiguous to anyone reading robots.txt.
+// Public paths are crawlable and every group keeps the same private-path
+// exclusions. Named training and user-fetch tokens retain their existing
+// permissions. Search crawlers without an explicit group use the wildcard.
+// Search crawling, user fetching and model training are separate permissions.
 //
 // Disallow list — only surfaces that are private, member-tokened, or
 // user-generated-ephemeral, never the public data surfaces:
@@ -39,18 +35,18 @@ import { PRODUCTION_SITE_ORIGIN } from "@/lib/siteUrlConfig.mjs";
 // second indexed copy of pubmaxxing.com. The check is the Vercel env var, not
 // the hostname — preview hosts change every deployment.
 //
-// The nonce CSP (proxy.ts) forces dynamic rendering, so this file is served
-// per-request rather than statically — fine for a robots response.
+// Next caches this metadata route by default. The deployment environment
+// selects the production or non-production policy.
 
 // Explicitly-named AI + search crawlers we welcome. Listing them documents the
 // "be AI-visible" decision; the policy each gets is the same as the wildcard.
 const NAMED_AI_CRAWLERS = [
-  "GPTBot", // OpenAI (ChatGPT browsing + training)
+  "GPTBot", // OpenAI training crawler; search and user fetching are separate.
   "ClaudeBot", // Anthropic (Claude training crawler)
   "Claude-User", // Anthropic (Claude live user-initiated fetch)
   "PerplexityBot", // Perplexity
   "Google-Extended", // Google Gemini / Vertex data control token
-  "Bingbot", // Bing / Copilot (ChatGPT search reads Bing)
+  "Bingbot", // Bing search crawler.
 ] as const;
 
 // Private / member-tokened / ephemeral-UGC surfaces kept out of every crawler.

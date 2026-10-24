@@ -68,6 +68,13 @@ describe("the landing FAQ", () => {
     expect(html).not.toContain("each figure shows the day");
   });
 
+  it("explains anonymous browsing and device saves, and sign-in for contributions", () => {
+    const html = renderToStaticMarkup(createElement(LandingFaq));
+    expect(html).toContain("plan a crawl with friends and share the route");
+    expect(html).toContain("Browse and save pubs on this device without an account");
+    expect(html).toContain("sign in if asked");
+  });
+
   it("names the button the sheet really prints, and the bill rule the composer states", () => {
     const answer = LANDING_FAQ.find((entry) => entry.id === "log-a-price")?.answer ?? "";
     expect(answer).toContain(`tap ${LOG_PRICE_DOOR_LABEL}`);

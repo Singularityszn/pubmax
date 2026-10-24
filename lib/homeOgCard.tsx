@@ -1,6 +1,7 @@
 import { ImageResponse } from "next/og";
 
 import { HISTORIC_PUB_COUNT } from "@/components/landing/londonMapGeometry";
+import { homeProductDescription } from "@/lib/siteProductCopy";
 import { loadAboutStats, type AboutStats } from "@/lib/aboutStats";
 import {
   CardShell,
@@ -67,7 +68,7 @@ export const HOME_CARD_EYEBROW = "Real prices · One map · Nobody pays to rank"
 export const HOME_CARD_HERO_LEAD = "What a pint";
 export const HOME_CARD_HERO_TAIL = "costs,";
 export const HOME_CARD_HERO_ACCENT = "pub by pub.";
-export const HOME_CARD_SUPPORT = `London on one map, with ${HISTORIC_PUB_COUNT} historic pubs cited and a listed price wherever we hold one. Who listed it, and the day they did.`;
+export const HOME_CARD_SUPPORT = homeProductDescription(HISTORIC_PUB_COUNT);
 
 export function HomeOgCard({ stats }: { stats: AboutStats }) {
   const coverageBits = homeCardCoverage(stats);

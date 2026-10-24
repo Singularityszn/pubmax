@@ -1,0 +1,49 @@
+[
+  [
+    {
+      "@context": "https://schema.org",
+      "@type": "WebSite",
+      "@id": "https://pubmaxxing.com/#website",
+      "name": "PUBMAXX",
+      "alternateName": [
+        "PubMaxxing",
+        "PUBMAXXING",
+        "PubMaxx",
+        "Pubmax",
+        "Pub Maxxing",
+        "Pubmaxing"
+      ],
+      "url": "https://pubmaxxing.com",
+      "description": "PUBMAXX is a London pub map and crawl planner with listed pint prices, explicit source status and cited pub history.",
+      "publisher": {
+        "@id": "https://pubmaxxing.com/#organization"
+      }
+    },
+    {
+      "@context": "https://schema.org",
+      "@type": "Organization",
+      "@id": "https://pubmaxxing.com/#organization",
+      "name": "PUBMAXX",
+      "alternateName": [
+        "PubMaxxing",
+        "PUBMAXXING",
+        "PubMaxx",
+        "Pubmax",
+        "Pub Maxxing",
+        "Pubmaxing"
+      ],
+      "url": "https://pubmaxxing.com",
+      "logo": "https://pubmaxxing.com/brand/icon-512.png",
+      "email": "hello@pubmaxxing.com",
+      "founder": {
+        "@type": "Person",
+        "name": "Karan Manoharan",
+        "url": "https://x.com/karansznx",
+        "sameAs": [
+          "https://x.com/karansznx",
+          "https://github.com/karanmrn"
+        ]
+      }
+    }
+  ]
+]

@@ -26,7 +26,7 @@ export const LANDING_FAQ: readonly Question[] = [
     id: "how-it-works",
     question: `How does ${BRAND_NAME} work?`,
     answer:
-      "Compare listed pint prices pub by pub, then plan a crawl with friends. No pub can pay to rank higher.",
+      "Compare listed pint prices pub by pub, then plan a crawl with friends and share the route. Browse and save pubs on this device without an account.",
   },
   {
     id: "prices",
@@ -38,7 +38,7 @@ export const LANDING_FAQ: readonly Question[] = [
     id: "log-a-price",
     question: "How do I log a price?",
     answer:
-      `Open a pub on the map, tap ${LOG_PRICE_DOOR_LABEL}, type what you paid and press Log it. ${RECEIPT_REQUIRED_LINE}`,
+      `Open a pub on the map, tap ${LOG_PRICE_DOOR_LABEL}, sign in if asked, type what you paid and press Log it. ${RECEIPT_REQUIRED_LINE}`,
   },
 ];
 
