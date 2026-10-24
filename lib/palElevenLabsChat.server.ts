@@ -50,21 +50,23 @@ async function sleep(ms: number): Promise<void> {
 async function waitForPubPalToolTurn(
   conversationId: string,
   toolsRan: boolean,
+  turnDeadline: number,
 ): Promise<PubPalToolTurn | null> {
+  const read = () => beforePalChatDeadline(turnDeadline, () => readPubPalToolTurn(conversationId));
   // A reply that ran no tool has no cards to wait for.
-  if (!toolsRan) return readPubPalToolTurn(conversationId);
-  const deadline = Date.now() + TOOL_TURN_WAIT_MS;
+  if (!toolsRan) return read();
+  const deadline = Math.min(turnDeadline, Date.now() + TOOL_TURN_WAIT_MS);
   while (Date.now() < deadline) {
-    const peek = await readPubPalToolTurn(conversationId);
+    const peek = await read();
     if (
       peek &&
       (peek.cards.length > 0 || peek.proposals.length > 0 || peek.hints.length > 0)
     ) {
       return peek;
     }
-    await sleep(TOOL_TURN_POLL_MS);
+    await sleep(Math.min(TOOL_TURN_POLL_MS, Math.max(0, deadline - Date.now())));
   }
-  return readPubPalToolTurn(conversationId);
+  return read();
 }
 
 type PriorSession = { turns: PubPalFenceTurn[]; summary: string; conversationId?: string; ownedTurn?: PubPalToolTurn };
@@ -269,7 +271,14 @@ export async function runPalElevenLabsChatTurn(
   // The three reads are null exactly when the records answer; testing them here
   // also tells the compiler so.
   if (answeredFromRecords || !sessionRead || !memoriesRead || !tasteRead) {
-    const result = await runAsk({ query: recordQuery ?? query, cityId, skipModel: true });
+    let result: Awaited<ReturnType<typeof runAsk>>;
+    try {
+      result = await beforePalChatDeadline(deadline, () => runAsk({ query: recordQuery ?? query, cityId, skipModel: true }));
+    } catch (error) {
+      const code = error instanceof PalChatDeadlineExceeded ? "TIMEOUT" : "UNAVAILABLE";
+      recordFailure(code, "tool_result");
+      return { ok: false, code };
+    }
     // A first answer from the records opens no provider session, so it gets a
     // local thread: the follow-up reads this turn back instead of starting blind.
     let threadId = unsupported ? "" : prior.conversationId ?? newPalLocalThreadId();
@@ -282,7 +291,9 @@ export async function runPalElevenLabsChatTurn(
             query, cityId, ownerId: input.ownerId, turns: prior.turns, summary: prior.summary,
             cards: result.cards, proposals: result.proposals, hints: [result.answer], toolsUsed: result.toolsUsed,
           }).then(() => true, () => false),
-          new Promise<false>((resolve) => { timer = setTimeout(() => resolve(false), LOCAL_TURN_WRITE_BUDGET_MS); }),
+          new Promise<false>((resolve) => {
+            timer = setTimeout(() => resolve(false), Math.min(LOCAL_TURN_WRITE_BUDGET_MS, Math.max(0, deadline - Date.now())));
+          }),
         ]);
         if (!stored) {
           // A public record answer needs no persisted conversation. Clear the
@@ -305,8 +316,10 @@ export async function runPalElevenLabsChatTurn(
     };
   }
 
-  const session = await sessionRead;
-  if (Date.now() >= deadline) {
+  let session: PalSignedConversation;
+  try {
+    session = await beforePalChatDeadline(deadline, () => sessionRead);
+  } catch {
     recordFailure("TIMEOUT", "signed_url");
     return { ok: false, code: "TIMEOUT" };
   }
@@ -392,14 +405,7 @@ export async function runPalElevenLabsChatTurn(
         finish({ ok: false, code: "TIMEOUT" }, "deadline");
         return;
       }
-      const agentMessage = latestReply;
-      void (async () => {
-        try {
-          finish(answer(agentMessage, conversationId ? await readPubPalToolTurn(conversationId) : null));
-        } catch {
-          finish({ ok: false, code: "TIMEOUT" }, "tool_result");
-        }
-      })();
+      finish(answer(latestReply, null));
     }, Math.max(0, deadline - Date.now()));
 
     const finish = (outcome: PalElevenLabsChatOutcome, failureStage: PalChatFailureStage = "turn") => {
@@ -422,7 +428,7 @@ export async function runPalElevenLabsChatTurn(
       const events = toolEvents;
       void (async () => {
         try {
-          const turn = conversationId ? await waitForPubPalToolTurn(conversationId, events > 0) : null;
+          const turn = conversationId ? await waitForPubPalToolTurn(conversationId, events > 0, deadline) : null;
           if (generation !== replyGeneration || events !== toolEvents) return;
           finish(answer(agentMessage, turn));
         } catch {
@@ -438,6 +444,7 @@ export async function runPalElevenLabsChatTurn(
     input.signal?.addEventListener("abort", onAbort, { once: true });
 
     ws.addEventListener("open", () => {
+      if (settled || Date.now() >= deadline) return;
       ws.send(
         JSON.stringify({
           type: "conversation_initiation_client_data",
@@ -462,7 +469,7 @@ export async function runPalElevenLabsChatTurn(
     });
 
     const receiveMetadata = (id: string | undefined): void => {
-      if (settled || metadataReceived) return;
+      if (settled || Date.now() >= deadline || metadataReceived) return;
       metadataReceived = true;
       conversationId = id?.trim() ?? "";
       void (async () => {
@@ -478,7 +485,7 @@ export async function runPalElevenLabsChatTurn(
             memoriesRead,
             tasteRead,
           ]);
-          if (settled) return;
+          if (settled || Date.now() >= deadline) return;
           userMessageSent = true;
           ws.send(
             JSON.stringify({ type: "user_message", text: userMessageText(query, prior, memories, taste) }),
@@ -490,6 +497,7 @@ export async function runPalElevenLabsChatTurn(
     };
 
     ws.addEventListener("message", (event) => {
+      if (settled || Date.now() >= deadline) return;
       let payload: AgentResponseEvent;
       try {
         payload = JSON.parse(String(event.data)) as AgentResponseEvent;

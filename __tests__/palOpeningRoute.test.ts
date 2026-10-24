@@ -25,6 +25,7 @@ import { isLimited } from "@/lib/pintDrops";
 import { offlineFetch } from "@/evals/pal/offlineFetch";
 import * as palStore from "@/lib/pubPalStore";
 import * as turnStore from "@/lib/pubPalToolTurnStore";
+import * as venueStore from "@/lib/concierge/venues.server";
 
 const report = "I visited The Crown on 10 October 2026, drank Camden Hells and spent £26.80 in total.";
 const request = (body: unknown) => new Request("http://localhost/api/pub-pal/chat", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
@@ -214,6 +215,172 @@ describe("configured chat request deadline", () => {
       body: JSON.stringify({ query, threadId }),
     },
   );
+
+  it.each([false, true])("settles an owned records follow-up and ignores a late venue read, stream: %s", async (stream) => {
+    const threadId = "conv_recordsdeadline01";
+    await turnStore.registerPubPalToolTurn(threadId, {
+      ownerId: "owner-a", cityId: "london", query: "Find four pubs in Soho", turns: [], summary: "",
+    });
+    const prior = await readOwnedPubPalToolTurn(threadId, "owner-a");
+    const venues = await venueStore.loadConciergeVenues("london");
+    let release!: (value: typeof venues) => void;
+    const venueRead = new Promise<typeof venues>((resolve) => { release = resolve; });
+    vi.spyOn(venueStore, "loadConciergeVenues").mockReturnValue(venueRead);
+    vi.spyOn(turnStore, "readOwnedPubPalToolTurn").mockImplementationOnce(() => new Promise((resolve) => {
+      setTimeout(() => resolve(prior), 21_000);
+    }));
+    const persist = vi.spyOn(turnStore, "registerPubPalToolTurn");
+    const provider = vi.spyOn(globalThis, "fetch");
+    vi.useFakeTimers();
+    let completed: { response: Response; body: string } | undefined;
+    const pending = POST(deadlineRequest("Same area, but under £6.50 a pint.", stream, threadId)).then(async (response) => {
+      completed = { response, body: await response.text() };
+    });
+    await vi.advanceTimersByTimeAsync(21_000);
+    expect(completed).toBeUndefined();
+    await vi.advanceTimersByTimeAsync(1_000);
+    const atDeadline = completed;
+    release(venues);
+    await vi.advanceTimersByTimeAsync(1_000);
+    expect(persist).not.toHaveBeenCalled();
+    expect(provider).not.toHaveBeenCalled();
+    expect(atDeadline).toBeDefined();
+    await pending;
+    expect(completed!.response.status).toBe(stream ? 200 : 503);
+    expect(JSON.parse(completed!.body)).toMatchObject(stream ? { type: "error" } : { code: "UNAVAILABLE" });
+    expect((await readOwnedPubPalToolTurn(threadId, "owner-a"))?.query).toBe("Find four pubs in Soho");
+  });
+
+  it.each([false, true])("caps a records history write at the remaining turn budget, stream: %s", async (stream) => {
+    const venues = await venueStore.loadConciergeVenues("london");
+    let venueRead: Promise<typeof venues> | undefined;
+    vi.spyOn(venueStore, "loadConciergeVenues").mockImplementation(() => venueRead ??= new Promise((resolve) => {
+      setTimeout(() => resolve(venues), 21_500);
+    }));
+    const persist = vi.spyOn(turnStore, "registerPubPalToolTurn").mockImplementation(() => new Promise(() => {}));
+    const provider = vi.spyOn(globalThis, "fetch");
+    vi.useFakeTimers();
+    let completed: { response: Response; body: string } | undefined;
+    const pending = POST(deadlineRequest("Cheap pints near Soho", stream)).then(async (response) => {
+      completed = { response, body: await response.text() };
+    });
+    await vi.advanceTimersByTimeAsync(21_500);
+    expect(completed).toBeUndefined();
+    expect(persist).toHaveBeenCalledTimes(1);
+    await vi.advanceTimersByTimeAsync(500);
+    expect(completed).toBeDefined();
+    await pending;
+    expect(completed!.response.status).toBe(200);
+    const event = JSON.parse(completed!.body);
+    const body = stream ? event.body : event;
+    expect(body.cards).toHaveLength(4);
+    expect(body.answer).toContain("Conversation history could not be kept");
+    expect(body.conversationId).toBe("");
+    expect(provider).not.toHaveBeenCalled();
+  });
+
+  it.each(
+    [false, true].flatMap((stream) => [false, true].flatMap((toolsRan) => [false, true].map((stalled) => ({ stream, toolsRan, stalled })))),
+  )(
+    "settles provider readback before the deadline, stream: $stream, tools: $toolsRan, stalled: $stalled",
+    async ({ stream, toolsRan, stalled }) => {
+      const signedUrl = "wss://api.elevenlabs.io/v1/convai/conversation?conversation_id=conv_deadlineprovider01";
+      const provider = vi.fn(async () => Response.json({ signed_url: signedUrl }));
+      vi.stubGlobal("fetch", provider);
+      const readback = { query: "Find four quiet pubs in Soho", cityId: "london" as const, turns: [], summary: "", expiresAt: Date.now() + 60_000,
+        cards: [{ key: "crown", venueId: "venue-crown", title: "The Crown", place: "Soho", note: "Listed pint", price: 4.8 }],
+        proposals: [], hints: [], toolsUsed: ["search_venues"],
+      };
+      const read = vi.spyOn(turnStore, "readPubPalToolTurn").mockImplementation(() => stalled ? new Promise(() => {}) : Promise.resolve(readback));
+      const close = vi.fn();
+      const sent: unknown[] = [];
+      let emit!: (type: string, payload: unknown) => void;
+      vi.stubGlobal("WebSocket", class {
+        private listeners: Record<string, Array<(event: unknown) => void>> = {};
+        constructor() {
+          emit = (type, payload) => {
+            for (const listener of this.listeners[type] ?? []) listener(payload);
+          };
+          queueMicrotask(() => {
+            emit("open", {});
+            emit("message", { data: JSON.stringify({ type: "conversation_initiation_metadata", conversation_initiation_metadata_event: { conversation_id: "conv_deadlineprovider01" } }) });
+          });
+        }
+        addEventListener(type: string, listener: (event: unknown) => void) {
+          (this.listeners[type] ??= []).push(listener);
+        }
+        send(raw: string) {
+          const payload = JSON.parse(raw);
+          sent.push(payload);
+          if (payload.type === "user_message") setTimeout(() => {
+            if (toolsRan) {
+              emit("message", { data: JSON.stringify({ type: "agent_tool_request", agent_tool_request: { tool_call_id: "call_1" } }) });
+              emit("message", { data: JSON.stringify({ type: "agent_tool_response", agent_tool_response: { tool_call_id: "call_1" } }) });
+            }
+            emit("message", { data: JSON.stringify({ type: "agent_response", agent_response_event: { agent_response: "A useful sourced reply." } }) });
+            emit("message", { data: JSON.stringify({ type: "agent_response_complete" }) });
+          }, 21_500);
+        }
+        close() { close(); }
+      });
+      vi.useFakeTimers();
+      let completed: { response: Response; body: string } | undefined;
+      const pending = POST(deadlineRequest("Find four quiet pubs in Soho", stream)).then(async (response) => {
+        completed = { response, body: await response.text() };
+      });
+      await vi.advanceTimersByTimeAsync(21_900);
+      if (stalled) expect(completed).toBeUndefined();
+      expect(read).toHaveBeenCalledTimes(1);
+      await vi.advanceTimersByTimeAsync(100);
+      expect(completed).toBeDefined();
+      expect(close).toHaveBeenCalledTimes(1);
+      await pending;
+      expect(completed!.response.status).toBe(200);
+      const event = JSON.parse(completed!.body);
+      const body = stream ? event.body : event;
+      expect(body.answer).toBe("A useful sourced reply.");
+      expect(body.cards).toEqual(stalled ? [] : readback.cards);
+      expect(body.toolsUsed).toEqual(stalled ? [] : ["search_venues"]);
+      const sentAtDeadline = sent.length;
+      emit("open", {});
+      emit("message", { data: JSON.stringify({ type: "ping" }) });
+      await vi.advanceTimersByTimeAsync(1_000);
+      expect(sent).toHaveLength(sentAtDeadline);
+      expect(read).toHaveBeenCalledTimes(1);
+      expect(provider).toHaveBeenCalledTimes(1);
+    },
+  );
+
+  it.each([false, true])("settles a stalled signed URL body without late provider work, stream: %s", async (stream) => {
+    let release!: () => void;
+    const provider = vi.fn(async () => new Response(new ReadableStream({
+      start(controller) {
+        release = () => {
+          controller.enqueue(new TextEncoder().encode(JSON.stringify({ signed_url: "wss://api.elevenlabs.io/v1/convai/conversation?conversation_id=conv_latesignedurl01" })));
+          controller.close();
+        };
+      },
+    })));
+    vi.stubGlobal("fetch", provider);
+    const socket = vi.fn();
+    vi.stubGlobal("WebSocket", socket);
+    const persist = vi.spyOn(turnStore, "registerPubPalToolTurn");
+    vi.useFakeTimers();
+    let completed: { response: Response; body: string } | undefined;
+    const pending = POST(deadlineRequest("Find four quiet pubs in Soho", stream)).then(async (response) => {
+      completed = { response, body: await response.text() };
+    });
+    await vi.advanceTimersByTimeAsync(22_000);
+    expect(completed).toBeDefined();
+    await pending;
+    expect(completed!.response.status).toBe(stream ? 200 : 503);
+    expect(JSON.parse(completed!.body)).toMatchObject(stream ? { type: "error" } : { code: "UNAVAILABLE" });
+    release();
+    await vi.advanceTimersByTimeAsync(0);
+    expect(socket).not.toHaveBeenCalled();
+    expect(persist).not.toHaveBeenCalled();
+    expect(provider).toHaveBeenCalledTimes(1);
+  });
 
   it.each([false, true])("reuses the prepared owned opening instead of a second history read, stream: %s", async (stream) => {
     await confirmNight();

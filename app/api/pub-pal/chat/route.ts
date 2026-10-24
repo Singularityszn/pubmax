@@ -322,7 +322,7 @@ export async function POST(request: Request): Promise<Response> {
   }
 
   try {
-    return await beforePalChatDeadline(context!.deadline, () => configuredTurn(turn, context!, request));
+    return await configuredTurn(turn, context!, request);
   } catch {
     return publicApiError(PAL_ERROR_FALLBACK, "UNAVAILABLE", 503, { retryable: true });
   }
@@ -332,8 +332,7 @@ async function configuredTurn(turn: PalElevenLabsChatInput, context: PalElevenLa
   // The spend ceiling applies only when a provider turn is needed. The
   // address limiter, owner check and safety fence still cover local records.
   if (palChatRecordQuery(turn.query, context.prior.turns) === null) {
-    const budgetRefusal = await paidSpendBudgetRefusal("pub-pal-chat");
-    assertPalChatDeadline(context.deadline);
+    const budgetRefusal = await beforePalChatDeadline(context.deadline, () => paidSpendBudgetRefusal("pub-pal-chat"));
     if (budgetRefusal) return budgetRefusal;
   }
 
