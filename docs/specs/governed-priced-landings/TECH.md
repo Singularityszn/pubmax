@@ -80,9 +80,11 @@ no such pub. It is declared as its own runtime data pack
 - `app/drink/[slug]/{page,opengraph-image}.tsx`
 - `app/area/[slug]/drink/[brand]/{page,opengraph-image}.tsx`
 
-Both declare `dynamicParams = false` and NO `revalidate`: every page reads the
-per-request CSP nonce, so the document is dynamic and a revalidate window would
-bound nothing. Each OG route carries `loadOgFonts()` and `OG_CACHE_HEADERS`, and
+Both declare `dynamicParams = false`. The [document caching contract](../../rules/app-proxy-csp-caching-and-file-tracing.md#only-the-listed-documents-are-exempt-from-the-nonce-and-the-two-lists-are-the-fence)
+owns their prerendering and revalidation policy. The area-root redirect follows
+the [product contract](PRODUCT.md#held-areaarea).
+
+Each OG route carries `loadOgFonts()` and `OG_CACHE_HEADERS`, and
 `notFound()`s an unpublished slug rather than answering a 200 branded card. The
 brand-by-area page owns its own card because Next would otherwise serve the
 nearest ancestor's while the page declares `twitter: summary_large_image`.

@@ -181,7 +181,7 @@ test.describe("desktop map right-rail (D3.1/D3.2)", () => {
     await expect(bars).toHaveAttribute("aria-pressed", "false");
     // The count rides the closed control, so no filter is invisible.
     await expect(filters.locator(".mapVenueKindFilterCount")).toHaveText("1");
-    // The panel holds three questions now, not one: the venue types, the
+    // The panel groups venue types, pub features, the
     // experience lens and the fare zones all moved in behind this control
     // (7 Sep 2026, walk finding B9). So the count covers every refinement the
     // panel holds, and the accessible name says what the count counts. A badge
@@ -189,7 +189,7 @@ test.describe("desktop map right-rail (D3.1/D3.2)", () => {
     // filters were on (lib/venueKindFilters.ts, mapFilterRefinementCount).
     await expect(filters).toHaveAttribute(
       "aria-label",
-      "Filters: venue types, view and zone, 1 filter on",
+      "Filters: venue types, view and zone, 1 filter on, pub features",
     );
   });
 

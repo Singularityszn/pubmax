@@ -148,23 +148,23 @@ describe("buildTonightChip", () => {
 
   it("names the listing count for a one-tap cold start", () => {
     expect(buildTonightChip(1, false)).toMatchObject({
-      label: "Tonight listings",
+      label: "Pub listings tonight",
       count: 1,
-      ariaLabel: "Tonight listings: 1",
+      ariaLabel: "Pub listings tonight: 1 via What's-on in London",
     });
     expect(buildTonightChip(3, false)).toMatchObject({
-      label: "Tonight listings",
+      label: "Pub listings tonight",
       count: 3,
-      ariaLabel: "Tonight listings: 3",
+      ariaLabel: "Pub listings tonight: 3 via What's-on in London",
     });
   });
 
   it("claims near you only when the fetch was location-scoped", () => {
     expect(buildTonightChip(1, true)).toMatchObject({
-      ariaLabel: "Tonight listings: 1 near you",
+      ariaLabel: "Pub listings tonight: 1 via What's-on near you",
     });
     expect(buildTonightChip(3, true)).toMatchObject({
-      ariaLabel: "Tonight listings: 3 near you",
+      ariaLabel: "Pub listings tonight: 3 via What's-on near you",
     });
   });
 });

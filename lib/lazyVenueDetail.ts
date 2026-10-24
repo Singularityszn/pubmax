@@ -11,7 +11,17 @@ export function mergeLazyDetailPins(slimPins: Venue[], detailById: Map<string, V
     // hydrated record. The zone feeds the zone lens and the sheet's zone
     // compare; the read day keeps a fresh price from looking aging once the
     // pub is opened (components/map/canvas/geojson.ts, pinPriceAging).
-    const carried: Partial<Pick<Venue, "zone" | "priceObservedAt">> = {
+    // The slim builder carries sourced features before a detail request. Keep
+    // those same facts when opening a pub, so its filter membership stays put.
+    const featureHints = pin.filterHints?.outdoorSeating || pin.filterHints?.beerGardenSource
+      ? { ...pin.filterHints, ...detail.filterHints,
+          ...(pin.filterHints.outdoorSeating ? { outdoorSeating: pin.filterHints.outdoorSeating } : {}),
+          ...(pin.filterHints.beerGardenSource ? { beerGardenSource: pin.filterHints.beerGardenSource,
+            amenities: { ...pin.filterHints.amenities, ...detail.filterHints?.amenities, beerGarden: true } } : {}),
+        }
+      : undefined;
+    const carried: Partial<Pick<Venue, "zone" | "priceObservedAt" | "filterHints">> = {
+      ...(featureHints ? { filterHints: featureHints } : {}),
       ...(detail.zone === undefined && pin.zone !== undefined ? { zone: pin.zone } : {}),
       ...(detail.priceObservedAt === undefined && pin.priceObservedAt !== undefined
         ? { priceObservedAt: pin.priceObservedAt }

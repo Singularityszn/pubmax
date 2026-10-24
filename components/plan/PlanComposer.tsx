@@ -42,6 +42,8 @@ import { readRememberedPlanHostName, rememberPlanHostName } from "@/lib/planHost
 import { cleanCultureOpener, type CultureOpenerDTO } from "@/lib/cultureCrawl";
 import { readLastCrew, subscribeLastCrew } from "@/lib/lastCrew";
 import { getNightArea, isNightAreaRouteReady, NIGHT_AREAS, type NightArea } from "@/lib/nightAreas";
+import { nightAreaCoverageMeta } from "@/lib/nightPresentation";
+export { nightAreaCoverageMeta } from "@/lib/nightPresentation";
 import { nearestNightPatch } from "@/lib/nearestNightPatch";
 import { venueAreaClaim } from "@/lib/venueTruth";
 import {
@@ -1137,30 +1139,6 @@ export function nightAreaCoverageSummary(
   }
 }
 
-function formatCoverageDate(value: string | null): string | null {
-  if (!value) return null;
-  const timestamp = Date.parse(value);
-  if (!Number.isFinite(timestamp)) return null;
-  return new Intl.DateTimeFormat("en-GB", {
-    day: "numeric",
-    month: "short",
-    year: "numeric",
-    timeZone: "UTC",
-  }).format(new Date(timestamp));
-}
-
-/** Keep the review window visible anywhere coverage is presented. */
-export function nightAreaCoverageMeta(area: NightArea, now = new Date()): string {
-  const reviewed = formatCoverageDate(area.lastReviewedAt);
-  const expires = formatCoverageDate(area.reviewExpiresAt);
-  if (!reviewed) return "Not checked yet.";
-  if (!expires) return `Last checked ${reviewed}.`;
-  const expiry = Date.parse(area.reviewExpiresAt ?? "");
-  if (Number.isFinite(expiry) && expiry <= now.getTime()) {
-    return `Last checked ${reviewed} · review expired ${expires}.`;
-  }
-  return `Last checked ${reviewed} · review through ${expires}.`;
-}
 
 function nextEvening(): string {
   return defaultLondonStartInput();

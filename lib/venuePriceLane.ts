@@ -15,7 +15,7 @@ import { answerEvidenceFor, type AnswerPublisher } from "@/lib/landingHero";
 import type { PricedVenue } from "@/lib/priceUpdates";
 import type { EstimatedPriceInput, ListedPriceInput, PriceStanding } from "@/lib/priceTier";
 import { formatTrustDay, trustPillLabel } from "@/lib/trustPill";
-import { isPubVenue } from "@/lib/venueKindFilters";
+import { isPubVenueKind } from "@/lib/venueKindFilters";
 import type { Venue } from "@/lib/venues";
 import type { VenuePriceReadStatus } from "@/lib/mapExperienceLens";
 import type { VenueDropReadStatus } from "@/lib/venueDropRead";
@@ -157,7 +157,7 @@ export function venuePriceFallbackPending(
  * way, through `venueSourcedPrice`.
  */
 export function venuePriceLane(
-  venue: Venue,
+  venue: Pick<Venue, "cheapestPrice"> & Partial<Pick<Venue, "kind" | "anchorLabel" | "prices">>,
   latestContributorPrice: number | null | undefined,
   sourcedPrice: PricedVenue["sourcedPrice"],
   bundle: VenueBundlePrices = {},
@@ -170,7 +170,7 @@ export function venuePriceLane(
     venue.cheapestPrice !== null && venue.cheapestPrice !== undefined
       ? venue.cheapestPrice
       : null;
-  if (!isPubVenue(venue) && venue.anchorLabel && cheapestPrice !== null) {
+  if (!isPubVenueKind(venue.kind) && venue.anchorLabel && cheapestPrice !== null) {
     return { lane: "anchor", anchorLabel: venue.anchorLabel, cheapestPrice };
   }
   if (latestContributorPrice !== null && latestContributorPrice !== undefined) {

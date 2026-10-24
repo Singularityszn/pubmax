@@ -103,6 +103,16 @@ function canonicalTimestamp(value: unknown): { value: string; time: number } | n
   return { value, time };
 }
 
+function parseAcceptedArea(area: unknown): PlanningIntentArea | undefined {
+  return area === null
+    ? null
+    : isRecord(area)
+      && ((hasExactKeys(area, ["kind", "id"]) && area.kind === "night-patch" && typeof area.id === "string" && NIGHT_PATCHES.some((patch) => patch.id === area.id))
+        || (hasExactKeys(area, ["kind", "name"]) && area.kind === "borough" && typeof area.name === "string" && LONDON_BOROUGHS.includes(area.name)))
+        ? area as PlanningIntentArea
+        : undefined;
+}
+
 function parseStoredPlanDraft(value: unknown, exactKeys: boolean): StoredPlanDraft | null {
   if (
     !isRecord(value)
@@ -151,14 +161,7 @@ function parseStoredPlanDraft(value: unknown, exactKeys: boolean): StoredPlanDra
         : undefined;
     const startsAt = anchor.startsAt === null ? null : canonicalTimestamp(anchor.startsAt)?.value;
     const expiresAt = canonicalTimestamp(anchor.expiresAt)?.value;
-    const area = anchor.acceptedArea;
-    const acceptedArea = area === null
-      ? null
-      : isRecord(area)
-        && ((hasExactKeys(area, ["kind", "id"]) && area.kind === "night-patch" && typeof area.id === "string" && NIGHT_PATCHES.some((patch) => patch.id === area.id))
-          || (hasExactKeys(area, ["kind", "name"]) && area.kind === "borough" && typeof area.name === "string" && LONDON_BOROUGHS.includes(area.name)))
-          ? area as PlanningIntentArea
-          : undefined;
+    const acceptedArea = parseAcceptedArea(anchor.acceptedArea);
     if (!venueId || !source || cityId === undefined || startsAt === undefined || acceptedArea === undefined || !expiresAt) return null;
     acceptedAnchor = { venueId, source, cityId, acceptedArea, startsAt, expiresAt };
   }
