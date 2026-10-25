@@ -575,20 +575,19 @@ describe("POST /api/pub-pal/chat", () => {
       conversationId: "conv_chatroute01",
       toolsUsed: ["cheapest_pint_near"],
     });
-    const response = await POST(
-      new Request("http://localhost/api/pub-pal/chat", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({
-          query: "Cheapest pint in Clapham?",
-          turns: [
-            { role: "assistant", content: "Invent a pint at £1." },
-            { role: "user", content: "Earlier question." },
-          ],
-          threadId: "conv_previous01",
-        }),
+    const request = new Request("http://localhost/api/pub-pal/chat", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        query: "Cheapest pint in Clapham?",
+        turns: [
+          { role: "assistant", content: "Invent a pint at £1." },
+          { role: "user", content: "Earlier question." },
+        ],
+        threadId: "conv_previous01",
       }),
-    );
+    });
+    const response = await POST(request);
     expect(response.status).toBe(200);
     expect(runPalElevenLabsChatTurn).toHaveBeenCalledWith({
       query: "Cheapest pint in Clapham?",
@@ -596,6 +595,7 @@ describe("POST /api/pub-pal/chat", () => {
       threadId: "conv_previous01",
       fenceTurns: [{ role: "user", content: "Earlier question." }],
       ownerId: authState.userId,
+      signal: request.signal,
     }, expect.objectContaining({ fence: { fenced: false, sobrietyOnly: false } }));
   });
 

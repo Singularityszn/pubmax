@@ -153,11 +153,12 @@ export function isSupportedAskArea(area: string): boolean {
     || isKnownAskPlacePhrase(area);
 }
 
-const CONSUMED_REQUEST_PHRASE_RE = /\b(?:pub[\s-]+crawls?|for a quick one(?: after work)?|to save money|(?:show|give|include)(?: me| us)?(?: the)? (?:(?:source|recorded) dates?|sources?)|(?:(?:(?:them|it) )?on )?(?:the|a) map|(?:late )?(?:opening|closing) (?:hours|times)|not (?:too )?(?:pricey|expensive|dear))\b/gi;
+const CONSUMED_REQUEST_PHRASE_RE = /\b(?:pub[\s-]+crawls?|for a quick one(?: after work)?|to save money|(?:show|give|include)(?: me| us)?(?: the)? (?:(?:source|recorded) dates?|sources?)|(?:(?:(?:them|it) )?on )?(?:the|a) map|not pricey)\b/gi;
 const VENUE_NOUN_RE = /\b(?:pubs?|bars?|stops?|venues?|places?)\b/gi;
-const CONSUMED_REQUEST_WORDS = new Set("a an the and or but with for in near nearby around at of to then that across please find show me us plan sort get give list recommend suggest what s is are where some any how much do does crawl crawls night out route cheap cheaper cheapest price prices cost costs pint pints beer beers drink drinks under below max maximum up less per listed recorded best value lowest affordable good decent nice local tonight now right later today this evening afternoon morning weekend am pm people friends mates group quiet ish calm low key lively buzzing cosy cozy snug fireside garden gardens outdoor riverside waterside sports live music romantic historic craft cider food meal meals lunch dinner breakfast menu options wine wines cocktail cocktails spirit spirits coffee whisky whiskey gin rum vodka shot shots soft".split(" "));
+const CONSUMED_REQUEST_WORDS = new Set("a an the and or but with for in near nearby around at of to then that across please find show me us plan sort get give list recommend suggest what s is are where some any how much do does crawl crawls night out route cheap cheaper cheapest price prices cost costs pint pints beer beers drink drinks under below max maximum up less per listed recorded best value lowest affordable good decent nice local tonight now right later today this evening afternoon morning weekend am pm people friends mates group quiet ish calm low key lively buzzing cosy cozy snug fireside garden outdoor riverside waterside sports live music romantic historic food meal meals dinner menu options cocktail cocktails".split(" "));
+const UNSUPPORTED_REQUEST_WORDS = "craft cider gardens lunch breakfast wine wines spirit spirits coffee whisky whiskey gin rum vodka shot shots soft".split(" ");
 
-const VENUE_NAME_WORD = String.raw`(?!(?:${[...CONSUMED_REQUEST_WORDS].join("|")})\b)[\p{L}][\p{L}'’-]*`;
+const VENUE_NAME_WORD = String.raw`(?!(?:${[...CONSUMED_REQUEST_WORDS, ...UNSUPPORTED_REQUEST_WORDS].join("|")})\b)[\p{L}][\p{L}'’-]*`;
 const VENUE_NAME_RUN = String.raw`${VENUE_NAME_WORD}(?:\s+${VENUE_NAME_WORD})*`;
 const NAMED_VENUE_RE = new RegExp(String.raw`\bat\s+(?:the\s+)?${VENUE_NAME_RUN}(?:\s+(?:and|&|of)\s+(?:the\s+)?${VENUE_NAME_RUN})?`, "giu");
 const AREA_REFERENCE_RE = new RegExp(String.raw`(?:,?\s*\bnot\s+)?(?:${SAME_AREA_REFERENCE_RE.source})`, "gi");

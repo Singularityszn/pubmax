@@ -22,14 +22,20 @@ export async function openPalConversation(
   ownerId: string,
   deadline?: number,
   onWriteStarted?: (opening: { answer: string; conversationId: string }) => void,
+  signal?: AbortSignal,
 ) {
+  signal?.throwIfAborted();
   const answer = await readPalOpening(ownerId);
   if (deadline !== undefined) assertPalChatDeadline(deadline);
+  signal?.throwIfAborted();
   const conversationId = newPalLocalThreadId();
   const opening = { answer, conversationId, cards: [], proposals: [], sources: [], toolsUsed: [], status: "ready" };
   await registerPubPalToolTurn(conversationId, {
     deadline,
-    onWriteStarted: () => onWriteStarted?.(opening),
+    onWriteStarted: () => {
+      signal?.throwIfAborted();
+      onWriteStarted?.(opening);
+    },
     ownerId, cityId: "london", query: "", turns: [{ role: "assistant", content: answer }],
     cards: [], proposals: [], hints: [answer], toolsUsed: [],
   });

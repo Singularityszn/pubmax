@@ -146,6 +146,27 @@ const UNSUPPORTED_CONSTRAINTS = [
   "Find four dog-friendly pubs in Soho under £6 a pint",
   "Find four pubs in Soho for vegan drinkers under £6 a pint",
   "Cheap pints near Soho that match my notes",
+  "Find four pubs in Soho with late opening hours",
+  "Find four pubs in Soho with late closing times",
+  "Find four craft beer pubs in Soho",
+  "Find four pubs in Soho with cider",
+  "Find four pubs in Soho with wine",
+  "Find four pubs in Soho with spirits",
+  "Find four pubs in Soho with coffee",
+  "Find four whisky pubs in Soho",
+  "Find four pubs in Soho with whiskey",
+  "Find four gin pubs in Soho",
+  "Find four pubs in Soho with rum",
+  "Find four pubs in Soho with vodka",
+  "Find four pubs in Soho with shots",
+  "Find four pubs in Soho with soft drinks",
+  "Find four pubs in Soho with gardens",
+  "Find four pubs in Soho with lunch",
+  "Find four pubs in Soho with breakfast",
+  "Plan a crawl in Soho with craft beer and cider pubs",
+  "Find four pubs in Soho, not expensive",
+  "Find four pubs in Soho, not dear",
+  "Find four pubs in Soho, not too pricey",
 ];
 
 describe("asks naming a constraint no local tool implements", () => {
@@ -301,10 +322,30 @@ describe("confirmed owner context in a later plain recommendation", () => {
     expect(ids(body).every((id) => id.startsWith("camden-"))).toBe(true);
   });
 
-  it("lets the current mood win over a remembered preference", async () => {
+  it("keeps a confirmed garden preference beside a current quiet mood", async () => {
     await remember(OWNER, "venue_preference", "garden");
     const body = await localAnswer(await ask("Find four quiet pubs in Soho"));
-    expect(ids(body)[0]).toBe("soho-snug");
+    expect(body.toolsUsed).toEqual(["search_venues"]);
+    expect(ids(body)[0]).toBe("soho-garden");
+    expect(ids(body).every((id) => id.startsWith("soho-"))).toBe(true);
+  });
+
+  it("keeps an earlier owned garden recommendation beside a current quiet mood", async () => {
+    await registerPubPalToolTurn(THREAD, { query: "Find four garden pubs in Camden", cityId: "london", ownerId: OWNER, turns: [] });
+    const body = await localAnswer(await ask("Find four quiet pubs in Soho", THREAD));
+    expect(body.toolsUsed).toEqual(["search_venues"]);
+    expect(ids(body)[0]).toBe("soho-garden");
+    expect(ids(body).every((id) => id.startsWith("soho-"))).toBe(true);
+  });
+
+  it("keeps an uncertain remembered mood beside a current mood on the provider path", async () => {
+    await remember(OWNER, "atmosphere_preference", "lively");
+    await expectProviderRefusal(await ask("Find four quiet pubs in Soho"));
+  });
+
+  it("keeps an uncertain earlier owned mood beside a current mood on the provider path", async () => {
+    await registerPubPalToolTurn(THREAD, { query: "Find four lively pubs in Camden", cityId: "london", ownerId: OWNER, turns: [] });
+    await expectProviderRefusal(await ask("Find four quiet pubs in Soho", THREAD));
   });
 
   it("lets the current budget lead a remembered preference", async () => {

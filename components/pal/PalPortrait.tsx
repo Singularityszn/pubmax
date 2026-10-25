@@ -74,6 +74,7 @@ export default function PalPortrait({ appearance, name, compact = false, state =
     state,
     temperament: genome?.temperament,
     modelUrl: compact ? null : pubPalMascotModelSrc(appearance.species),
+    enabled: !compact,
   });
   const mascotSize = compact ? 96 : 192;
   // A species that ships a master is drawn as that photograph. The legacy

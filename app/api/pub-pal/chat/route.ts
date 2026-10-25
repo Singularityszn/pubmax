@@ -76,7 +76,7 @@ function answerBody(outcome: Extract<PalElevenLabsChatOutcome, { ok: true }>) {
 function streamTurn(input: PalElevenLabsChatInput, context: PalElevenLabsChatContext, request: Request): Response {
   const encoder = new TextEncoder();
   const abort = new AbortController();
-  request.signal.addEventListener("abort", () => abort.abort(), { once: true });
+  const signal = AbortSignal.any([request.signal, abort.signal]);
   const stream = new ReadableStream<Uint8Array>({
     async start(controller) {
       const send = (event: PalChatStreamEvent) => {
@@ -89,7 +89,7 @@ function streamTurn(input: PalElevenLabsChatInput, context: PalElevenLabsChatCon
       try {
         const outcome = await runPalElevenLabsChatTurn({
           ...input,
-          signal: abort.signal,
+          signal,
           onProgress: send,
         }, context);
         send(
@@ -153,6 +153,7 @@ async function openingReply(
       try {
         if (firstGreeting) return jsonNoStore(await openPalConversation(
           ownerId, prepared?.context.deadline, (opening) => onWriteStarted?.(openingResponse(opening)),
+          prepared ? request.signal : undefined,
         ));
         const prior = prepared
           ? prepared.context.prior.ownedTurn ?? null
@@ -172,10 +173,16 @@ async function openingReply(
         // The configured runner replaces the pending opening with the actual turn.
         // Do not consume it in a separate write before a substantive ask succeeds.
         if (prepared && !answer) return null;
-        if (prepared) assertPalChatDeadline(prepared.context.deadline);
+        if (prepared) {
+          assertPalChatDeadline(prepared.context.deadline);
+          request.signal.throwIfAborted();
+        }
         await registerPubPalToolTurn(threadId, {
           deadline: prepared?.context.deadline,
-          onWriteStarted: answer ? () => onWriteStarted?.(openingResponse({ answer, conversationId: threadId })) : undefined,
+          onWriteStarted: () => {
+            if (prepared) request.signal.throwIfAborted();
+            if (answer) onWriteStarted?.(openingResponse({ answer, conversationId: threadId }));
+          },
           ownerId, cityId: prior.cityId, query: answer ? query : "", turns: prior.turns,
           cards: [], proposals: [], hints: answer ? [answer] : [], toolsUsed: [],
         });
@@ -249,6 +256,7 @@ export async function POST(request: Request): Promise<Response> {
     threadId: record.threadId,
     fenceTurns: turns.filter((item) => item.role === "user"),
     ownerId: ownerId!,
+    signal: request.signal,
   };
   // Current and browser safety requests must still answer when stored history is unavailable.
   let fence = configured ? regexFenceIntent(query, turns) : await resolvePubPalFenceIntent(query, turns);
@@ -353,6 +361,7 @@ export async function POST(request: Request): Promise<Response> {
 async function configuredTurn(turn: PalElevenLabsChatInput, context: PalElevenLabsChatContext, request: Request): Promise<Response> {
   // The spend ceiling applies only when a provider turn is needed. The
   // address limiter, owner check and safety fence still cover local records.
+  if (turn.signal?.aborted) return publicApiError(PAL_ERROR_FALLBACK, "UNAVAILABLE", 503, { retryable: true });
   if (context.recordQuery === null) {
     const budgetRefusal = await beforePalChatDeadline(context.deadline, () => paidSpendBudgetRefusal("pub-pal-chat"));
     if (budgetRefusal) return budgetRefusal;

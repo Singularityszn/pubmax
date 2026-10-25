@@ -212,15 +212,15 @@ body:has(.palExperience) {
 .palPortrait[data-pal-state="sleeping"] .palPortraitMascot img { filter: brightness(.72); }
 
 @media (prefers-reduced-motion: no-preference) {
-  .palPortrait[data-pal-state="idle"] .palPortraitMascot { animation: palMascotIdle 4.8s var(--ease-in-out-strong) infinite; transform-origin: center; }
-  .palPortrait[data-pal-state="noticing"] .palPortraitMascot { animation: palMascotNotice 1.4s var(--ease-out-strong) infinite; transform-origin: center bottom; }
-  .palPortrait[data-pal-state="celebrating"] .palPortraitMascot { animation: palMascotCelebrate .8s var(--ease-out-strong) infinite alternate; transform-origin: center bottom; }
-  .palPortrait[data-pal-state="sleeping"] .palPortraitMascot { animation: palMascotSleep 5s ease-in-out infinite; }
-  .palPortrait[data-pal-state="error"] .palPortraitMascot { animation: palMascotError .32s steps(2, end) 3; }
+  .palPortrait:not(.isCompact)[data-pal-state="idle"] .palPortraitMascot { animation: palMascotIdle 4.8s var(--ease-in-out-strong) infinite; transform-origin: center; }
+  .palPortrait:not(.isCompact)[data-pal-state="noticing"] .palPortraitMascot { animation: palMascotNotice 1.4s var(--ease-out-strong) infinite; transform-origin: center bottom; }
+  .palPortrait:not(.isCompact)[data-pal-state="celebrating"] .palPortraitMascot { animation: palMascotCelebrate .8s var(--ease-out-strong) infinite alternate; transform-origin: center bottom; }
+  .palPortrait:not(.isCompact)[data-pal-state="sleeping"] .palPortraitMascot { animation: palMascotSleep 5s ease-in-out infinite; }
+  .palPortrait:not(.isCompact)[data-pal-state="error"] .palPortraitMascot { animation: palMascotError .32s steps(2, end) 3; }
   /* The wake-up stretch: the photograph lifts out of its sleeping settle and
      brightens back from the sleeping dim, once. */
-  .palPortrait[data-pal-state="waking"] .palPortraitMascot { animation: palMascotWake 1.3s var(--ease-out-strong) both; transform-origin: center bottom; }
-  .palPortrait[data-pal-state="waking"] .palPortraitMascot img { animation: palMascotWakeLight .7s ease-out both; }
+  .palPortrait:not(.isCompact)[data-pal-state="waking"] .palPortraitMascot { animation: palMascotWake 1.3s var(--ease-out-strong) both; transform-origin: center bottom; }
+  .palPortrait:not(.isCompact)[data-pal-state="waking"] .palPortraitMascot img { animation: palMascotWakeLight .7s ease-out both; }
 }
 
 .palProgress { width: min(84rem, 100%); height: 1px; margin: .5rem auto 0; background: var(--pal-line); }
@@ -496,7 +496,7 @@ body:has(.analyticsConsentPrompt) .palPrintRow { display: none; }
 @keyframes palMascotWakeLight { from { filter: drop-shadow(0 .8rem 1.1rem color-mix(in srgb, var(--ink-deep) 30%, transparent)) brightness(.72); } }
 
 @media (prefers-reduced-motion: no-preference) {
-  .palPortraitCore { animation: palBreathe 4.8s ease-in-out infinite; }
+  .palPortrait:not(.isCompact) .palPortraitCore { animation: palBreathe 4.8s ease-in-out infinite; }
 }
 
 @media (max-width: 900px) {

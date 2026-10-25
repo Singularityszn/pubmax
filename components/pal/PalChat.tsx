@@ -538,9 +538,12 @@ function PalChatBody({ owner }: { owner: string | null }) {
       }
       const priorUsers = turnsRef.current.filter((turn) => turn.role === "user").map((turn) => turn.content).slice(0, -1);
       const routedQuery = refineRoutedAskQuery(text, priorUsers.at(-1), priorUsers);
-      const locality = SAME_AREA_REFERENCE_RE.test(routedQuery) || resolveAskLocality(routedQuery).kind !== "supported"
+      const askLocality = SAME_AREA_REFERENCE_RE.test(routedQuery) || resolveAskLocality(routedQuery).kind !== "supported"
         ? null
         : resolvePalLocality(routedQuery, null);
+      const locality: PalLocality | null = askLocality?.unplaced
+        ? { scope: "query", area: null, label: askLocality.unplaced, grounded: true }
+        : askLocality;
       const proposals =
         result.status === "answered" || result.status === "empty"
           ? result.proposals ?? []

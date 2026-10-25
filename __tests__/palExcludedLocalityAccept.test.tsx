@@ -173,12 +173,45 @@ it.each([
   expect(chatServer).toHaveBeenCalledTimes(2);
 });
 
-it("keeps Elephant and Castle unplaced rather than reusing Soho", async () => {
+const EAC = "Find four pubs in Elephant and Castle";
+const EAC_LINE = "In Elephant and Castle, the area you named.";
+
+function lastLocalityLine(): string | null {
+  const row = [...container.querySelectorAll(".palChatRow--pal")].at(-1);
+  return row?.querySelector(".palChatLocality")?.textContent ?? null;
+}
+
+it("names Elephant and Castle as the searched area with no planning area on a direct ask", async () => {
+  expect(await askAndAccept(EAC, "venue-1")).toBeNull();
+  expect(lastLocalityLine()).toBe(EAC_LINE);
+  const text = container.textContent ?? "";
+  expect(text).not.toContain("couldn't place");
+  expect(text).not.toContain("Across London");
+});
+
+it("names Elephant and Castle rather than reusing Soho", async () => {
   await askAndAccept(SOHO, "venue-1");
-  expect(await askAndAccept("Find four pubs in Elephant and Castle", "venue-2")).toBeNull();
+  expect(await askAndAccept(EAC, "venue-2")).toBeNull();
+  expect(lastLocalityLine()).toBe(EAC_LINE);
   const text = container.textContent ?? "";
   expect(text).not.toContain("Around Soho, the area you last picked.");
-  expect(text).toContain(`couldn't place "Elephant and Castle"`);
+  expect(text).not.toContain("couldn't place");
+  expect(text).not.toContain("Across London");
+});
+
+it("keeps the Elephant and Castle label and no planning area for a same-area follow-up", async () => {
+  expect(await askAndAccept(EAC, "venue-1")).toBeNull();
+  expect(await askAndAccept("Find four pubs in the same area, not in Camden", "venue-2")).toBeNull();
+  expect(lastLocalityLine()).toBe(EAC_LINE);
+});
+
+it.each([
+  "Find four pubs in Elephant and Castle or Soho",
+  "Find four pubs in Soho or Camden",
+])("accepts no area after Elephant and Castle for the alternatives in %s", async (followUp) => {
+  expect(await askAndAccept(EAC, "venue-1")).toBeNull();
+  expect(await askAndAccept(followUp, "venue-2")).toBeNull();
+  expect(lastLocalityLine()).not.toBe(EAC_LINE);
 });
 
 it.each([

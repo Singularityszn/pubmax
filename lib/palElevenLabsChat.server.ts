@@ -177,8 +177,10 @@ export async function preparePalElevenLabsChatTurn(
 ): Promise<PalElevenLabsChatContext> {
   return beforePalChatDeadline(deadline, async () => {
     const query = input.query.trim().slice(0, 500);
+    input.signal?.throwIfAborted();
     const prior = await priorOwnedSession(input.threadId, input.ownerId);
     assertPalChatDeadline(deadline);
+    input.signal?.throwIfAborted();
     const fenceTurns = (input.fenceTurns ?? []).filter((turn) => turn.role === "user");
     const fence = await resolvePubPalFenceIntent(query, [
       ...fenceTurns,
@@ -186,7 +188,10 @@ export async function preparePalElevenLabsChatTurn(
     ]);
     if (fence.fenced) return { prior, fence, deadline, recordQuery: null };
     assertPalChatDeadline(deadline);
-    return { prior, fence, deadline, ...(await palChatAdmission(query, input.ownerId, prior)) };
+    input.signal?.throwIfAborted();
+    const admission = await palChatAdmission(query, input.ownerId, prior);
+    input.signal?.throwIfAborted();
+    return { prior, fence, deadline, ...admission };
   });
 }
 
@@ -230,6 +235,7 @@ export function palChatRecordQuery(query: string, turns: readonly PubPalFenceTur
 
 const RECOMMENDATION_TOOLS = new Set<AskToolName>(["search_venues", "propose_plan", "cheapest_pint_near"]);
 const MOOD_TOOLS = new Set<AskToolName>(["search_venues", "propose_plan"]);
+const QUIET_COMPANIONS = new Set<ConciergeMood>(["garden", "food"]);
 const MEMORY_MOOD_KINDS = new Set<string>(["venue_preference", "atmosphere_preference"]);
 
 function canonicalMemoryMood(memory: PalRecalledMemory): ConciergeMood | null {
@@ -269,7 +275,10 @@ async function palChatAdmission(
     if (earlier.maxPintPrice !== undefined) budget = earlier.maxPintPrice;
   }
   const carried = current.maxPintPrice === undefined ? budget : undefined;
-  const guidance = current.mood.length > 0 ? [] : [...new Set<ConciergeMood>([...remembered, ...moods])];
+  const guidance = [...new Set<ConciergeMood>([...remembered, ...moods])].filter((mood) => !current.mood.includes(mood));
+  const combined = [...current.mood, ...guidance];
+  if (current.mood.length > 0 && guidance.length > 0
+    && !(combined.includes("quiet") && combined.every((mood) => mood === "quiet" || QUIET_COMPANIONS.has(mood)))) return provider;
   if (guidance.length === 0 && carried === undefined) return { recordQuery, personal };
   const guidedText = [...guidance, recordQuery, ...(carried === undefined ? [] : [`under £${carried.toFixed(2).replace(/\.00$/, "")}`])].join(" ");
   const guided = guidedText.length <= 500 && calls.every((call) => MOOD_TOOLS.has(call.name)) ? palChatRecordQuery(guidedText) : null;
@@ -326,6 +335,7 @@ export async function runPalElevenLabsChatTurn(
     recordFailure("TIMEOUT", "context");
     return { ok: false, code: "TIMEOUT" };
   }
+  if (input.signal?.aborted) return { ok: false, code: "TIMEOUT" };
   const answeredFromRecords = recordQuery !== null;
   if (fenced) {
     return {
@@ -357,6 +367,7 @@ export async function runPalElevenLabsChatTurn(
     }
     // A first answer from the records opens no provider session, so it gets a
     // local thread: the follow-up reads this turn back instead of starting blind.
+    if (input.signal?.aborted) return { ok: false, code: "TIMEOUT" };
     let threadId = unsupported ? "" : prior.conversationId ?? newPalLocalThreadId();
     let historyUnavailable = false;
     if (threadId) {
@@ -365,6 +376,7 @@ export async function runPalElevenLabsChatTurn(
         const stored = await Promise.race([
           registerPubPalToolTurn(threadId, {
             deadline,
+            onWriteStarted: () => input.signal?.throwIfAborted(),
             query, cityId, ownerId: input.ownerId, turns: prior.turns, summary: prior.summary,
             cards: result.cards, proposals: result.proposals, hints: [result.answer], toolsUsed: result.toolsUsed,
           }).then(() => true, () => false),
@@ -404,10 +416,12 @@ export async function runPalElevenLabsChatTurn(
     recordFailure("PROVIDER_UNAVAILABLE", "signed_url", session.reason);
     return { ok: false, code: "PROVIDER_UNAVAILABLE" };
   }
+  if (input.signal?.aborted) return { ok: false, code: "TIMEOUT" };
   const signedUrl = session.signedUrl;
   const registerTurn = (id: string) =>
     registerPubPalToolTurn(id, {
       deadline,
+      onWriteStarted: () => input.signal?.throwIfAborted(),
       query,
       cityId,
       ownerId: input.ownerId,
@@ -477,6 +491,7 @@ export async function runPalElevenLabsChatTurn(
         if (!settled && latestReply && replyIsAnswer()) finishWithLatestReply();
       }, ms);
     };
+    const onAbort = () => finish({ ok: false, code: "TIMEOUT" }, "caller_cancel");
     const timer = setTimeout(() => {
       if (settled) return;
       if (!latestReply || !replyIsAnswer()) {
@@ -492,6 +507,7 @@ export async function runPalElevenLabsChatTurn(
       if (!outcome.ok) recordFailure(outcome.code, failureStage);
       clearTimeout(timer);
       clearSettle();
+      input.signal?.removeEventListener("abort", onAbort);
       try {
         ws.close();
       } catch {
@@ -519,9 +535,8 @@ export async function runPalElevenLabsChatTurn(
 
     const ws = new WebSocket(signedUrl);
 
-    const onAbort = () => finish({ ok: false, code: "TIMEOUT" }, "caller_cancel");
-    if (input.signal?.aborted) onAbort();
     input.signal?.addEventListener("abort", onAbort, { once: true });
+    if (input.signal?.aborted) onAbort();
 
     ws.addEventListener("open", () => {
       if (settled || Date.now() >= deadline) return;

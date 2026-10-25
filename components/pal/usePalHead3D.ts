@@ -87,7 +87,7 @@ export function palHeadTarget(input: {
 
 export function usePalHead3D(
   frameRef: RefObject<HTMLElement | null>,
-  { signal, state, temperament, modelUrl, decorative = false }: {
+  { signal, state, temperament, modelUrl, decorative = false, enabled = true }: {
     signal?: PalVoiceSignal;
     state: PalAnimationState;
     temperament?: PalTemperament;
@@ -95,6 +95,7 @@ export function usePalHead3D(
     modelUrl?: string | null;
     /** A voice face remains outside the accessibility tree and Tab order. */
     decorative?: boolean;
+    enabled?: boolean;
   },
 ): void {
   const stateRef = useRef(state);
@@ -106,7 +107,7 @@ export function usePalHead3D(
 
   useEffect(() => {
     const frame = frameRef.current;
-    if (!frame) return;
+    if (!frame || !enabled) return;
     const host = modelUrl ? frame.querySelector<HTMLElement>("[data-pal-model-host]") : null;
     const drawing = host?.querySelector<HTMLElement>("[data-pal-model-drawing]");
     let motion: MediaQueryList | null = null;
@@ -355,5 +356,5 @@ export function usePalHead3D(
       frame.removeAttribute("data-head-3d");
       clearCssPose();
     };
-  }, [decorative, frameRef, modelUrl, signal]);
+  }, [decorative, enabled, frameRef, modelUrl, signal]);
 }

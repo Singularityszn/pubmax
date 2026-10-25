@@ -25,15 +25,16 @@ let frameId = 0;
 let frames: Map<number, FrameRequestCallback>;
 let mounted: Array<{ surface: PalMeshSurface; status: (value: PalMeshStatus) => void }>;
 
-function Portrait({ species = "robin", decorative = false, signal }: {
+function Portrait({ species = "robin", decorative = false, compact = false, signal }: {
   species?: PubPalSpecies;
   decorative?: boolean;
+  compact?: boolean;
   signal?: PalVoiceSignal;
 }) {
   const appearance = { ...DEFAULT_PAL_DRAFT.appearance, species };
   return decorative
     ? <PalVoiceFace appearance={appearance} state="idle" signal={signal} />
-    : <PalPortrait name="Nova" appearance={appearance} signal={signal} />;
+    : <PalPortrait name="Nova" appearance={appearance} compact={compact} signal={signal} />;
 }
 
 async function render(props: Parameters<typeof Portrait>[0] = {}) {
@@ -181,5 +182,46 @@ describe("the selected Pal model lifecycle", () => {
     expect(renderer.mount).not.toHaveBeenCalled();
     expect(frames.size).toBe(0);
     expect(container.querySelector("img")).not.toBeNull();
+  });
+
+  it("keeps an initially compact portrait still and starts live work once when it grows", async () => {
+    await render({ compact: true });
+    document.dispatchEvent(new Event("visibilitychange"));
+    window.dispatchEvent(new PageTransitionEvent("pageshow", { persisted: true }));
+    await act(async () => { await vi.dynamicImportSettled(); });
+    const portrait = container.querySelector<HTMLElement>(".palPortrait")!;
+    expect(frames.size).toBe(0);
+    expect(renderer.mount).not.toHaveBeenCalled();
+    expect(portrait.hasAttribute("data-head-3d")).toBe(false);
+    expect(portrait.style.getPropertyValue("--pal-yaw")).toBe("");
+    expect(container.querySelector("[data-pal-model-host]")).toBeNull();
+    expect(container.querySelector("img")).not.toBeNull();
+    await render({ compact: false });
+    expect(renderer.mount).toHaveBeenCalledOnce();
+    expect(frames.size).toBe(1);
+    expect(portrait.getAttribute("data-head-3d")).toBe("live");
+    await act(async () => { root.render(null); });
+    expect(frames.size).toBe(0);
+    expect(mounted[0]!.surface.dispose).toHaveBeenCalledOnce();
+  });
+
+  it("cancels live work and disposes the model when a live portrait turns compact", async () => {
+    await render();
+    markReady();
+    frame(1000);
+    const portrait = container.querySelector<HTMLElement>(".palPortrait")!;
+    expect(mounted[0]!.surface.renderPose).toHaveBeenCalledOnce();
+    expect(frames.size).toBe(1);
+    expect(portrait.style.getPropertyValue("--pal-yaw")).not.toBe("");
+    await render({ compact: true });
+    expect(frames.size).toBe(0);
+    expect(mounted[0]!.surface.dispose).toHaveBeenCalledOnce();
+    expect(portrait.hasAttribute("data-head-3d")).toBe(false);
+    expect(portrait.style.getPropertyValue("--pal-yaw")).toBe("");
+    expect(container.querySelector("[data-pal-model-host]")).toBeNull();
+    expect(container.querySelector("img")).not.toBeNull();
+    document.dispatchEvent(new Event("visibilitychange"));
+    expect(frames.size).toBe(0);
+    expect(renderer.mount).toHaveBeenCalledOnce();
   });
 });

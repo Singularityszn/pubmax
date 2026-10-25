@@ -202,7 +202,7 @@ const PERSONAL_MEMORY_OPERATIONS = [
 
 const ASKS_WITHOUT_MEMORY_OPERATION = [
   ["Find four pubs in Soho to save money", "search_venues"],
-  ["Plan a crawl in Soho with gardens", "propose_plan"],
+  ["Plan a crawl in Soho with a garden", "propose_plan"],
 ] as const;
 
 const GENERIC_PERSONALISATION = [
@@ -397,7 +397,7 @@ describe("memory operations named without a determiner beside local record answe
   });
 
   it.each([
-    ["Find four pubs in Soho with quiet gardens", "search_venues"],
+    ["Find four pubs in Soho with a quiet garden", "search_venues"],
     ["Plan a crawl in Soho to save money", "propose_plan"],
   ] as const)("keeps an ordinary ask without a memory operation local over configured HTTP: %s", async (query, tool) => {
     expect(palChatRecordQuery(query)).toBe(query);

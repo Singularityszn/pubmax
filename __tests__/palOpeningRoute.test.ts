@@ -302,6 +302,7 @@ describe("configured chat request deadline", () => {
     if (path === "records") {
       const venues = await venueStore.loadConciergeVenues("london");
       vi.spyOn(venueStore, "loadConciergeVenues").mockResolvedValue(venues);
+      vi.spyOn(palStore, "listPalMemoriesResult").mockResolvedValue({ ok: true, value: [] });
     }
     const threadId = "conv_registrationprior01";
     await turnStore.registerPubPalToolTurn(threadId, {
@@ -345,7 +346,7 @@ describe("configured chat request deadline", () => {
       },
     } as unknown as ReturnType<typeof supabase.requireSupabaseAdmin>);
     vi.spyOn(supabase, "isSupabaseConfigured").mockReturnValue(true);
-    state.unavailable = true;
+    if (path !== "records") state.unavailable = true;
     const provider = vi.fn(async () => Response.json({
       signed_url: `wss://api.elevenlabs.io/v1/convai/conversation?conversation_id=${signedId}`,
     }));
@@ -380,7 +381,7 @@ describe("configured chat request deadline", () => {
     });
     vi.useFakeTimers();
     let completed: { response: Response; body: string } | undefined;
-    const pending = POST(deadlineRequest(path === "records" ? "Cheap pints near Soho" : "Find four quiet pubs in Soho", stream, threadId))
+    const pending = POST(deadlineRequest(path === "records" ? "Cheap pints near Soho" : "Find four dog-friendly pubs in Soho", stream, threadId))
       .then(async (response) => { completed = { response, body: await response.text() }; });
     await vi.advanceTimersByTimeAsync(21_000);
     expect(completed).toBeUndefined();
@@ -414,7 +415,7 @@ describe("configured chat request deadline", () => {
       if (isProvider) expect(await readOwnedPubPalToolTurn(metadataId, "owner-a")).toBeNull();
     } else {
       expect((await readOwnedPubPalToolTurn(delayedId, "owner-a"))?.query)
-        .toBe(isProvider ? "Find four quiet pubs in Soho" : "Cheap pints near Soho");
+        .toBe(isProvider ? "Find four dog-friendly pubs in Soho" : "Cheap pints near Soho");
     }
     expect(upsert).toHaveBeenCalledTimes((path === "provider-metadata" ? 1 : 0) + (late ? 0 : 1));
     expect(provider).toHaveBeenCalledTimes(isProvider ? 1 : 0);
@@ -495,7 +496,7 @@ describe("configured chat request deadline", () => {
       const signedUrl = "wss://api.elevenlabs.io/v1/convai/conversation?conversation_id=conv_deadlineprovider01";
       const provider = vi.fn(async () => Response.json({ signed_url: signedUrl }));
       vi.stubGlobal("fetch", provider);
-      const readback = { query: "Find four quiet pubs in Soho", cityId: "london" as const, turns: [], summary: "", expiresAt: Date.now() + 60_000,
+      const readback = { query: "Find four dog-friendly pubs in Soho", cityId: "london" as const, turns: [], summary: "", expiresAt: Date.now() + 60_000,
         cards: [{ key: "crown", venueId: "venue-crown", title: "The Crown", place: "Soho", note: "Listed pint", price: 4.8 }],
         proposals: [], hints: [], toolsUsed: ["search_venues"],
       };
@@ -536,7 +537,7 @@ describe("configured chat request deadline", () => {
       });
       vi.useFakeTimers();
       let completed: { response: Response; body: string } | undefined;
-      const pending = POST(deadlineRequest("Find four quiet pubs in Soho", stream)).then(async (response) => {
+      const pending = POST(deadlineRequest("Find four dog-friendly pubs in Soho", stream)).then(async (response) => {
         completed = { response, body: await response.text() };
       });
       await vi.advanceTimersByTimeAsync(21_900);
@@ -585,7 +586,7 @@ describe("configured chat request deadline", () => {
     const persist = vi.spyOn(turnStore, "registerPubPalToolTurn");
     vi.useFakeTimers();
     let completed: { response: Response; body: string } | undefined;
-    const pending = POST(deadlineRequest("Find four quiet pubs in Soho", stream)).then(async (response) => {
+    const pending = POST(deadlineRequest("Find four dog-friendly pubs in Soho", stream)).then(async (response) => {
       completed = { response, body: await response.text() };
     });
     await vi.advanceTimersByTimeAsync(22_000);
@@ -714,7 +715,7 @@ describe("configured chat request deadline", () => {
     const provider = vi.spyOn(globalThis, "fetch");
     vi.useFakeTimers();
     let response: Response | undefined;
-    const pending = POST(deadlineRequest("Find four quiet pubs in Soho", stream)).then((value) => { response = value; });
+    const pending = POST(deadlineRequest("Find four dog-friendly pubs in Soho", stream)).then((value) => { response = value; });
     await vi.advanceTimersByTimeAsync(22_000);
     expect(response).toBeDefined();
     await pending;
