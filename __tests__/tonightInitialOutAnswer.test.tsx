@@ -246,9 +246,9 @@ describe("Tonight's serialized Out answer", () => {
       expect(doc.querySelector('[data-tonight-provenance="whats-on"]')?.textContent)
         .toBe("1 listing · Checked 22 Oct · via what’s-on");
       expect(doc.querySelector('[data-tonight-provenance="out"]')?.textContent)
-        .toBe(`No pub-matched events via Skiddle${observedAt === OBSERVED ? " · Checked 22 Oct" : " · The source check date is not recorded."}`);
+        .toBe(`No pub-matched events via Skiddle${observedAt === OBSERVED ? " · Checked 22 Oct" : " · The live listings source check date is not recorded."}`);
       expect(doc.querySelector('[data-tonight-provenance="undated-out"]')?.textContent ?? null)
-        .toBe(observedAt === OBSERVED ? null : " · The source check date is not recorded.");
+        .toBe(observedAt === OBSERVED ? null : " · The live listings source check date is not recorded.");
     });
 
     it.each([
@@ -268,9 +268,9 @@ describe("Tonight's serialized Out answer", () => {
         },
       }, whatsOn, [suggestion]), "text/html");
       expect(doc.querySelector('[data-tonight-provenance="out"]')?.textContent)
-        .toBe(`No pub-matched events via ${expected}${dated ? " · Checked 22 Oct" : " · The source check date is not recorded."}`);
+        .toBe(`No pub-matched events via ${expected}${dated ? " · Checked 22 Oct" : " · The live listings source check date is not recorded."}`);
       expect(doc.querySelector('[data-tonight-provenance="undated-out"]')?.textContent ?? null)
-        .toBe(dated ? null : " · The source check date is not recorded.");
+        .toBe(dated ? null : " · The live listings source check date is not recorded.");
     });
 
     it.each([
@@ -306,9 +306,9 @@ describe("Tonight's serialized Out answer", () => {
         },
       }), "text/html");
       expect(doc.querySelector('[data-tonight-provenance="out"]')?.textContent)
-        .toBe(`No pub-matched events via Skiddle and Ticketmaster${observedAt === "not-a-date" ? " · The source check date is not recorded." : " · Checked 21 Oct"}`);
+        .toBe(`No pub-matched events via Skiddle and Ticketmaster${observedAt === "not-a-date" ? " · The live listings source check date is not recorded." : " · Checked 21 Oct"}`);
       expect(doc.querySelector('[data-tonight-provenance="undated-out"]')?.textContent ?? null)
-        .toBe(observedAt === "not-a-date" ? " · The source check date is not recorded." : null);
+        .toBe(observedAt === "not-a-date" ? " · The live listings source check date is not recorded." : null);
     });
 
     it("credits a truly empty read using actual provider checks", () => {
