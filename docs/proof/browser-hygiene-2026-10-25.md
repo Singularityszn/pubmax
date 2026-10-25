@@ -50,8 +50,8 @@ At scroll offset 336px, the existing scroll behaviour correctly hid Create.
 The repair uses the existing visibility policy to omit the generic control on Ledger routes.
 It preserves Ledger's own actions and the global scroll behaviour.
 The new browser test checks the warning's real hit target and the existing links at phone and desktop widths.
-The failing browser run is retained under `artifacts/fab-overlap/red`.
-The measured boxes and screenshots are under `artifacts/fab-overlap/before.json` and its sibling images.
+The original run recorded the failing browser result under `artifacts/fab-overlap/red`.
+It recorded the measured boxes and screenshots under `artifacts/fab-overlap/before.json` and its sibling images.
 
 ## Production-build check
 
@@ -85,5 +85,6 @@ The audit found no high or critical vulnerabilities.
 Freshness retained two stale datasets and three unmeasurable store feeds as advisory findings.
 Those datasets and feeds are not reported fresh.
 
-Raw screenshots and browser results remain in `artifacts/hygiene-*` in this worktree.
+The original run recorded raw screenshots and browser results under `artifacts/hygiene-*`.
+The ignored `artifacts/` directory is not included in this checkout.
 The link test writes its exact GET receipts and attaches them to the Playwright result.
