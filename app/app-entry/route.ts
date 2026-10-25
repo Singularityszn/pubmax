@@ -17,7 +17,7 @@ export function GET(): Response {
 <meta name="color-scheme" content="dark">
 <title>PUBMAXX</title>
 <meta http-equiv="refresh" content="2;url=/">
-<script src="/theme-init.js?v=entry-v1"></script>
+<script src="/theme-init.js?v=entry-home-v2"></script>
 </head><body></body></html>`, {
     headers: {
       "Content-Type": "text/html; charset=utf-8",

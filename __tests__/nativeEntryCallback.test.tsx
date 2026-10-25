@@ -7,6 +7,11 @@ import AppEntryRoute from "@/components/native/AppEntryRoute";
 import { readAuthCallbackAttempt } from "@/lib/authRedirect";
 import { establishAuthCallbackSession } from "@/lib/authCallbackClient";
 import { PREFERRED_CITY_KEY } from "@/lib/cityPreference";
+import {
+  CONSENT_ANSWER_MOMENT_KEY,
+  CONSENT_FIRST_ROUTE_KEY,
+  noteConsentRouteVisited,
+} from "@/lib/consentAnswerMoment";
 import { SESSION_ENTRY_CONSUMED_KEY } from "@/lib/entryDecision";
 import { markTourSeen } from "@/lib/firstRunTour";
 import {
@@ -112,14 +117,21 @@ describe.each([false, true])("native callback, previously routed=%s", (routed) =
     else expect(replace).toHaveBeenCalledWith("/onboarding");
   });
 
-  it("keeps ordinary React entry routing", async () => {
+  it("keeps ordinary React entry routing without counting the rewrite as a consent answer", async () => {
     if (routed) localStorage.setItem(doneKey, "1");
+    noteConsentRouteVisited("/");
     const container = document.createElement("div");
     document.body.append(container);
     root = createRoot(container);
     await act(() => root!.render(createElement(AppEntryRoute)));
     if (routed) expect(replace).not.toHaveBeenCalled();
     else expect(replace).toHaveBeenCalledWith("/onboarding");
+    const arrival = routed ? "/" : "/onboarding";
+    noteConsentRouteVisited(arrival);
+    expect(sessionStorage.getItem(CONSENT_FIRST_ROUTE_KEY)).toBe(arrival);
+    expect(sessionStorage.getItem(CONSENT_ANSWER_MOMENT_KEY)).toBeNull();
+    noteConsentRouteVisited("/map");
+    expect(sessionStorage.getItem(CONSENT_ANSWER_MOMENT_KEY)).toBe("second-route");
   });
 
   it.each([

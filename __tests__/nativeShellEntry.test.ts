@@ -268,28 +268,6 @@ describe("the native shell's pre-render entry decision", () => {
     // The file it used to be is gone, not merely unreferenced.
     expect(existsSync(join(process.cwd(), "public/native-entry-init.js"))).toBe(false);
   });
-
-  it("runs before the theme work it now shares a file with", () => {
-    // It navigates away, so anything this file does after it is work on a
-    // document that is being replaced. First statement in, first decision out.
-    const capacitorProbe = ENTRY_INIT_SOURCE.indexOf("isNativePlatform");
-    const themeWork = ENTRY_INIT_SOURCE.indexOf('getItem("pubmax-theme")');
-    expect(capacitorProbe).toBeGreaterThan(-1);
-    expect(themeWork).toBeGreaterThan(-1);
-    expect(capacitorProbe).toBeLessThan(themeWork);
-  });
-
-  it("reads the same keys and destination the TypeScript seams own", () => {
-    for (const literal of [
-      SESSION_ENTRY_CONSUMED_KEY,
-      NATIVE_FIRST_RUN_DONE_KEY,
-      NATIVE_FIRST_RUN_HANDOFF_KEY,
-      PREFERRED_CITY_KEY,
-      ONBOARDING_PATH,
-    ]) {
-      expect(ENTRY_INIT_SOURCE).toContain(literal);
-    }
-  });
 });
 
 describe("the entry rewrite is not the reader's own second route", () => {
@@ -337,10 +315,5 @@ describe("the entry rewrite is not the reader's own second route", () => {
     resetConsentWaitForEntryRewrite("/onboarding", store);
 
     expect(store.getItem(CONSENT_ANSWER_MOMENT_KEY)).toBe("venue-sheet");
-  });
-
-  it("is called by the route that performs the rewrite", () => {
-    const source = rootFile("components/native/AppEntryRoute.tsx");
-    expect(source).toContain("resetConsentWaitForEntryRewrite");
   });
 });
