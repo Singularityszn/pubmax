@@ -658,6 +658,15 @@ button.siteNavMoreItem {
 }
 
 @media (min-width: 641px) and (max-width: 767px) {
+  /* Keep the theme and signed-in controls clear of the primary links. */
+  .siteNavBar {
+    gap: 2px;
+  }
+
+  .siteNavLink.isActive {
+    padding-inline: 5px;
+  }
+
   .siteNavBar:not(.siteNavBarFloating) {
     --site-nav-width: min(1100px, 100vw - 24px);
   }
