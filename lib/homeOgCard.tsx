@@ -56,10 +56,8 @@ export function homeCardCoverage(stats: AboutStats): string[] {
   return bits;
 }
 
-// The hero, kept in step with the landing page it fronts: the h1 line the
-// product already owns, then the lede under it. No jokes on this card, because
-// a figure sits four lines below (docs/VOICE.md, "Where the jokes live").
-// The supporting description is shared with the homepage metadata.
+// The card keeps the landing page's h1 and uses the metadata's description.
+// No jokes beside the coverage figures (docs/VOICE.md, "Where the jokes live").
 export const HOME_CARD_EYEBROW = "Real prices · One map · Nobody pays to rank";
 export const HOME_CARD_HERO_LEAD = "What a pint";
 export const HOME_CARD_HERO_TAIL = "costs,";

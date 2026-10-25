@@ -15,9 +15,9 @@ import {
  *
  * A night with nothing listed is still a night out, and the answer to it is a
  * pub with a price on it rather than a question about a vibe. The section
- * line carries the collection day ONCE, because a listed price is a figure
- * from a day and every row here was read on it. Each figure wears its band
- * through the one price badge, never a bare coloured number.
+ * line uses the oldest source read so a newer row cannot redate older prices.
+ * If any row has no read date, the section prints no date.
+ * Each figure wears its band through the one price badge, never a bare coloured number.
  */
 export default function TonightCheapPints({
   rows = [],

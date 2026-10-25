@@ -206,9 +206,8 @@ export function priceStandingFor(
 }
 
 /**
- * The two ways a printed figure can be read, as far as its AGE goes. A drinker's
- * log ages on the confirmation clock; a price a pub or chain published ages on
- * the listing clock. The windows are the standings' own, never a second pair.
+ * A drinker's log uses the confirmation clock. A publicly listed price uses
+ * the listing clock. Both clocks use the standings' own windows, never a second pair.
  */
 export type PriceAgeLane = "drinker" | "published";
 
