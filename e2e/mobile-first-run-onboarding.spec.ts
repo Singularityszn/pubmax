@@ -173,7 +173,7 @@ test("direct web onboarding redirects home without mutating onboarding state", a
   }))).toEqual({ city: "london", companion: "fox", tour: "1" });
 });
 
-test("returning native direct onboarding redirects to Tonight without mutation", async ({ page }) => {
+test("a same-origin returning native onboarding visit redirects to Tonight without mutation", async ({ page }) => {
   await installNativeShell(page);
   await page.goto("/about");
   await waitForDeepLinkBootStamp(page);
@@ -185,7 +185,9 @@ test("returning native direct onboarding redirects to Tonight without mutation",
     window.sessionStorage.clear();
   });
 
-  await page.goto("/onboarding");
+  // The proxy admits onboarding document navigation started by this origin.
+  // A browser-initiated goto is correctly rejected before the native gate runs.
+  await page.evaluate(() => window.location.assign("/onboarding"));
   await expect(page).toHaveURL(/\/tonight$/);
   await expect(page.getByRole("heading", { name: "London is ready." })).toHaveCount(0);
   await expect.poll(() => page.evaluate(() => ({

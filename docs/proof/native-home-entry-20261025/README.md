@@ -58,6 +58,36 @@ Listing proves that the specs load. It does not prove browser behavior.
 
 The two browser contracts now expect Home on a normal returning launch.
 They retain explicit Tonight composition and worker-cache checks.
-Their browser execution, full repository verification and publication checks remain with the release owner.
+Both browser files passed all nine cases against the local production build in 13.8 seconds.
+The returning launch reached Home and remained there after hydration.
+Onboarding completion, same-origin native onboarding fallback and explicit Tonight parity passed.
+Full repository verification and publication checks remain with the release owner.
 No current iPhone homepage launch, signed native rebuild, site deployment or production fix is claimed here.
 An unchanged binary that loads the current production origin still receives its existing remote launch policy.
+
+## Browser fixture correction
+
+The first browser run passed eight cases and failed the returning native onboarding case.
+That case expected Tonight but received the homepage.
+The test used `page.goto('/onboarding')`, which starts a browser navigation from outside the page.
+The proxy correctly rejects that document request before the native onboarding gate runs.
+The old homepage redirect then opened Tonight and concealed this fixture error.
+
+The corrected case uses `window.location.assign('/onboarding')` from its existing `/about` document.
+This models the same-origin document navigation admitted by `startedOnThisOrigin` in `proxy.ts`.
+The client gate must still send a completed native first run to Tonight without changing stored data.
+The test retains those assertions. It changes no product code, request user agent or shared helper.
+The proxy does not use the native user-agent token for this decision.
+Both corrected browser files then passed against the same completed build.
+
+```sh
+PW_SKIP_WEBSERVER=1 PW_SKIP_KEYLESS_WEBSERVER=1 PW_PORT=32197 \
+PW_NEXT_DIST_DIR=.next-home-entry-1025 \
+node node_modules/@playwright/test/cli.js test \
+  e2e/native-shell-tonight-parity.spec.ts e2e/mobile-first-run-onboarding.spec.ts \
+  --project=chromium --workers=1 --trace=on
+```
+
+The private server used the repository's `webServer.env` from `playwright.config.ts`.
+It served the production build for commit `8a1191dc3` with the corrected test fixture.
+No product source changed between the completed build and this browser rerun.
