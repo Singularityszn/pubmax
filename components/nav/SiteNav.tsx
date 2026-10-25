@@ -4,16 +4,14 @@ import type { Route } from "next";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { CirclePlus } from "lucide-react";
-import { useMemo, useSyncExternalStore } from "react";
+import { useSyncExternalStore } from "react";
 
+import ThemeToggle from "@/components/ThemeToggle";
 import IntentLink from "@/components/nav/IntentLink";
 import MessagesLink from "@/components/nav/MessagesLink";
 import { PalSiteNavButton } from "@/components/nav/PalNavButton";
 import NotificationBell from "@/components/nav/NotificationBell";
-import SiteNavMore, {
-  siteNavMoreItems,
-  type SiteNavMoreItem,
-} from "@/components/nav/SiteNavMore";
+import SiteNavMore from "@/components/nav/SiteNavMore";
 import SignInButton from "@/components/auth/SignInButton";
 import PubmaxxWordmark from "@/components/brand/PubmaxxWordmark";
 import { useCommandPalette } from "@/components/command/CommandPaletteProvider";
@@ -25,11 +23,6 @@ import {
 } from "@/components/nav/navigationModel";
 import { useSocialSurfaceName } from "@/lib/useSocialFriendsLaunch";
 import { FOCUS_TRAP_EXEMPT_ATTRIBUTE } from "@/lib/useFocusTrap";
-import {
-  themeSwitchLabel,
-  toggleThemeChoice,
-  useThemeChoice,
-} from "@/lib/useThemeChoice";
 import {
   preferredCityMapHref,
   readPreferredCity,
@@ -47,8 +40,8 @@ import "./navigation.css";
 // The mobile fix: at ≤640px the app already renders a fixed bottom tab bar
 // (MobileTabBar: Map/Tonight/Plan/Social/You). Repeating the full link list up top
 // there caused the old `.appNav` pill to overflow the viewport on /map. So on
-// mobile this renders a COMPACT bar — just the wordmark + the signed-in
-// bell/messages + sign-in — and hides the full link list (see siteNav.css
+// Mobile renders the wordmark, theme, account controls and signed-in activity.
+// It hides the full link list (see siteNav.css
 // @media ≤640px). On desktop the full links + active state show. Nothing may
 // horizontally overflow at 390px.
 //
@@ -115,47 +108,24 @@ function primaryKeyForLegacyActive(active?: NavKey): NavKey | undefined {
 }
 
 /**
- * The theme row the desktop More menu carries. The theme left the primary
- * header (Oct 2026 UX audit) because it is a setting, not a destination; on a
- * phone it lives on the You page's Appearance block.
- */
-function siteNavThemeItem(theme: "light" | "dark"): SiteNavMoreItem {
-  return {
-    id: "theme",
-    label: theme === "dark" ? "Light theme" : "Dark theme",
-    description: themeSwitchLabel(theme),
-    onSelect: toggleThemeChoice,
-  };
-}
-
-/**
  * The right-hand action island, ONE component for the app bar and the landing
- * header: More (desktop), compose, the ⌘K hint, the signed-in bell and
- * messages (each renders nothing for a signed-out visitor, who has nothing
- * behind them), and sign-in.
+ * header. It offers the theme, desktop utilities and account controls.
+ * The bell and messages appear only for signed-in visitors.
  */
 export function SiteNavActions({ className = "siteNavActions" }: { className?: string }) {
   const pathname = usePathname() ?? "";
   // Imperative handle onto the global ⌘K palette (feature N1) — the button below
   // opens it for pointer users who won't reach for the shortcut.
   const { open: openCommandPalette } = useCommandPalette();
-  const theme = useThemeChoice();
-  const moreItems = useMemo(
-    () => [...siteNavMoreItems(), siteNavThemeItem(theme)],
-    [theme],
-  );
 
   return (
     <div className={className}>
-      {/* D2.2: secondary destinations (Drink Wall/Near/Historic/Pal) and the
-          theme row. Social is a primary tab, so it is not repeated here. Desktop
-          only — siteNav.css hides .siteNavMore at ≤640 so mobile is
-          unchanged. */}
       {/* The Pub Pal's own door (PalNavButton.tsx): the person's Pal and its
           name, first among the actions. Hidden <=640px, where it rises out of
           the phone dock instead. */}
       <PalSiteNavButton pathname={pathname} />
-      <SiteNavMore items={moreItems} />
+      <SiteNavMore />
+      <ThemeToggle />
       {/* Moment compose (desktop). On phones the floating create action owns
           this; the top bar has no such affordance, so desktop users reach
           /moment here. Carries the same returnTo the mobile action uses
