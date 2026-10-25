@@ -196,12 +196,6 @@ export function arrivalWelcomeLine(
     : `Welcome back, @${named}.`;
 }
 
-/**
- * Where a completed sign-in lands. A returning drinker goes back to what they
- * were doing; only a person with nowhere to return to is sent to their own
- * page. Sending everyone to the account surface was half of why signing in
- * felt like paperwork.
- */
 const ARRIVAL_PATH_ORIGIN = "https://pubmax.invalid";
 
 /** True when the path collapses to this site's `/`, not to a foreign origin. */
@@ -217,6 +211,10 @@ function normalisesToSameOriginRoot(candidate: string): boolean {
   }
 }
 
+/**
+ * Return a sign-in to its safe, normalised path. Sign-up, a missing or unsafe
+ * return path, and a sign-in page destination all use the account page instead.
+ */
 export function arrivalDestination(
   intent: ArrivalIntent,
   from: string | null,
