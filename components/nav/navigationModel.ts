@@ -53,8 +53,8 @@ const PLAN_NAV_MATCH: readonly string[] = ["/plan", "/crawls"];
  * city", because choosing a city is a setting a reader makes once, not a place
  * they go back to every night. Neither /out nor /places lights a tab.
  *
- * The `now` key keeps the Tonight label. Its main links use useNowHref:
- * Day from 04:00 to 16:00 London time, Tonight through the remaining night.
+ * The `now` key keeps the Tonight label. Main links use useNowHref.
+ * The hook owns the automatic default and the stable server fallback.
  * Both pages belong to this tab. Explicit page links keep their destination.
  */
 export const PRIMARY_NAV_ITEMS: readonly PrimaryNavItem[] = [

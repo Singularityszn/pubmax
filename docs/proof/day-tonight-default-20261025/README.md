@@ -1,16 +1,7 @@
 # Automatic Day and Tonight entry, 25 October 2026
 
-The main Tonight link opens Day from 04:00 until 16:00 on the Europe/London clock.
-It opens Tonight from 16:00 across midnight until 04:00.
-Every currently selectable city uses this timezone.
-The 04:00 boundary follows the existing listings and planner service day.
-The greeting clock retains its independent 05:00 morning boundary.
-
-The phone dock, desktop navigation and homepage share the same rule.
-Explicit Day and Tonight links keep their destinations.
-A clock change updates the main link without redirecting an open page.
-No manual preference is stored.
-The cached server document keeps a stable Tonight link until hydration.
+The [Day and Tonight navigation guide](../../../README.md#features) owns the product behaviour.
+This record describes the source, checks and limits observed on 25 October 2026.
 
 ## Source and browser custody
 
