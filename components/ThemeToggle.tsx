@@ -16,12 +16,9 @@ export default function ThemeToggle({ floating = false }: { floating?: boolean }
   const theme = useThemeChoice();
   const label = themeSwitchLabel(theme);
 
-  // React 19 hydration can strip the attribute the no-flash script set on
-  // <html>, so a reload lands with no data-theme even though the choice is
-  // still in localStorage. Re-assert it on mount (DOM write only — not
-  // setState — so it doesn't trip react-hooks/set-state-in-effect). The
-  // MutationObserver in the shared store then re-reads it, so the icon
-  // resolves too.
+  // React hydration can remove the attribute set before paint. Recover only
+  // when no valid theme remains. Write the DOM attribute without setting React
+  // state. The shared store observes that write and updates the icon.
   useEffect(() => {
     const current = document.documentElement.dataset.theme;
     // Route changes retain the active choice even when storage rejects writes.

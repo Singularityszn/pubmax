@@ -52,7 +52,7 @@ export function toggleThemeChoice(): void {
   try {
     safeLocalStorage()?.setItem(THEME_STORAGE_KEY, next);
   } catch {
-    // Site data blocked: the attribute still flips for this view.
+    // The active document retains the choice when storage rejects writes.
   }
 }
 
