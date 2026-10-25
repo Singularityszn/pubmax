@@ -54,8 +54,8 @@ The existing drinker-confirmed count and map price authority remain unchanged.
 The bundle builder publishes `listed_coverage.json`, a compact index of eligible coffee and alcohol-free listings.
 The browser intersects that index with loaded pub IDs and rechecks observation age.
 The existing per-venue menu reader also carries named Listed coffee and alcohol-free bundle rows.
-Both the index and menu adapter reject coffee liqueurs and ambiguous neighbouring labels.
-Plain coffee servings use a narrow name list. Explicit alcoholic ABV labels cannot enter the alcohol-free adapter.
+The [bundle reference](../../../public/data/uk_prices/README.md#map-listing-coverage)
+names the shared adapter and its eligibility rules.
 Unnamed legacy rows remain in their source bundle but do not enter this named menu count.
 The index has 26 pub/category entries in this snapshot. The new source observations cover both categories at one pub.
 

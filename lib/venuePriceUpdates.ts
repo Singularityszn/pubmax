@@ -3,16 +3,16 @@ import { isNonAlcoholicDrink } from "@/lib/nonAlcoholicDrinks";
 import { isValidDrinkPriceUpdate } from "@/lib/drinkPriceUpdates";
 // The observed price-update rows about ONE venue, as they ride on venue detail.
 //
-// The two packs (public/data/{drink,food}_price_updates/latest.json, 1862 KB
-// and 1519 KB) are national. The Drinks tab draws a handful of rows about the
-// pub whose sheet is open, so GET /api/venue/[id] scopes them server-side and
-// carries them on the venue the sheet already fetches, the same seam
-// `bundlePrices` uses (lib/venuePriceLane.ts).
+// The price-update packs and UK price bundle are national. The Drinks tab
+// needs only the open pub's rows, so GET /api/venue/[id] scopes them server-side
+// and carries them on the venue the sheet already fetches. The bundle reference
+// owns the menu-adapter contract: public/data/uk_prices/README.md.
 //
 // AN UNREAD PACK IS NOT AN EMPTY ONE. The field is `null` when the server could
-// not read a pack, and `{ drink: [], food: [] }` when it read them and this pub
-// has no row. Both draw the same menu today, but a surface that wants to say
-// "no sourced price" can tell them apart without asking a second time.
+// not read a required pack or bundle, and `{ drink: [], food: [] }` when the
+// reads succeeded and this pub has no row. Both draw the same menu today.
+// A surface that wants to say "no sourced price" can tell them apart without
+// asking a second time.
 
 import { authoritativeBundleRows, strongestBundleRow, type UkPriceBundleRow } from "@/lib/ukPriceBundle";
 

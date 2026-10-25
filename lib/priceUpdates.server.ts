@@ -106,8 +106,8 @@ export async function allDrinkPriceUpdates(): Promise<DrinkPriceUpdate[]> {
 }
 
 /**
- * Every overlay row either pack holds about one venue, scoped by the keys that
- * venue answers to (lib/venueMenu.ts `venueMenuLookupKeys`).
+ * Overlay rows and eligible site-harvest menu rows for one venue, scoped by
+ * its lookup keys (lib/venueMenu.ts `venueMenuLookupKeys`).
  *
  * Null when the read failed, so the caller publishes an absence it can tell
  * from an empty answer.
