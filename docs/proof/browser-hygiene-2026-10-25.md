@@ -1,6 +1,6 @@
 # Browser acceptance, 25 October 2026
 
-This lane adds browser regression coverage without changing product behaviour.
+This lane adds browser regression coverage and a narrow Ledger chrome repair.
 Its starting commit is `a87240e748c859556b3604db508db257af96ca03`.
 The branch is `codex/battle-browser-hygiene-1025`.
 
@@ -39,9 +39,16 @@ It now clears that choice once and waits for real route hydration before navigat
 The coordinator owns full verification, the production build, the publication gate and the preview PR.
 No merge, production deployment, settings change or migration occurred in this lane.
 
-Ledger's production screenshot shows the floating Create control over an aged-price warning.
-The local keyless ledger lacked that public report, so this lane did not establish matching hitbox evidence.
-The shared chrome issue remains open for a fixture-backed reproduction.
+The first local keyless Ledger check lacked the public report.
+A later public-response replay against the Ledger lane's production build, `6e39c78c`, reproduced the overlap at 390 by 900.
+At scroll offset 36px, the warning occupied `(20,799,350,29.7)` and Create occupied `(322,761,56,56)` with opacity 1.
+The regression failed because the warning's final word did not own its hit target.
+At scroll offset 336px, the existing scroll behaviour correctly hid Create.
+The repair uses the existing visibility policy to omit the generic control on Ledger routes.
+It preserves Ledger's own actions and the global scroll behaviour.
+The new browser test checks the warning's real hit target and the existing links at phone and desktop widths.
+The failing browser run is retained under `artifacts/fab-overlap/red`.
+The measured boxes and screenshots are under `artifacts/fab-overlap/before.json` and its sibling images.
 
 Raw screenshots and browser results remain in `artifacts/hygiene-*` in this worktree.
 The link test writes its exact GET receipts and attaches them to the Playwright result.
