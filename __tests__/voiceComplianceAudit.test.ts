@@ -454,7 +454,7 @@ describe("VOICE.md rule 2 — plumbing words stay off reader surfaces", () => {
       },
       nearestSuffix: null,
     }));
-    expect(html.match(/The source check date is not recorded\./gu)).toHaveLength(2);
+    expect(html.match(/The (?:what’s-on|live listings) source check date is not recorded\./gu)).toHaveLength(2);
     expect(html).not.toContain("Freshness unknown");
   });
 
@@ -479,8 +479,8 @@ describe("VOICE.md rule 2 — plumbing words stay off reader surfaces", () => {
     expect(lines[0]).toContain("Pub listings · nearest Soho first");
     expect(lines[1]).toContain("Music listings");
     for (const [index, dated] of [whatsOnDated, outDated].entries()) {
-      if (dated) expect(lines[index]).not.toContain("The source check date is not recorded.");
-      else expect(lines[index]).toContain("The source check date is not recorded.");
+      if (dated) expect(lines[index]).not.toContain("source check date is not recorded.");
+      else expect(lines[index]).toContain("source check date is not recorded.");
     }
     expect(html).not.toContain("Freshness unknown");
   });
