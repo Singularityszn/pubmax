@@ -8,10 +8,9 @@
 > **Historical implementation snapshot.** This PRD records the 18 July review
 > state and is not the current build ledger. Since then, F1-F3 have landed,
 > the prompt-orchestration contract and implementation have landed, A2HS is
-> suppressed inside the native shell, and Android is also scaffolded. A first
-> native launch opens guarded `/onboarding`, and a relaunch resumes it until
-> Skip or Plan my night; later cold starts open `/tonight`, while a later
-> in-session Home visit may reach `/`. F4 (real Team
+> suppressed inside the native shell, and Android is also scaffolded.
+> The [native-entry contract](CAPACITOR_WRAP.md#native-entry) owns current launch behaviour.
+> F4 (real Team
 > ID + Associated Domains) remains owner-blocked. APNs and FCM delivery still
 > need owner credentials, signed builds, and physical-device proof.
 > Use `docs/CAPACITOR_WRAP.md`, `docs/STORE_READINESS.md`, and
@@ -37,7 +36,7 @@ The three native superpowers the shell adds on top of the site:
 
 1. **Real camera** — moment capture goes through `@capacitor/camera` instead of the WKWebView file-input (`lib/nativeCamera.ts`, wired into `components/moment/MomentCapture.tsx`). The web `capture="environment"` attribute is unreliable inside WKWebView; the native path returns a `File` shaped exactly like a file-input selection, so the rest of the moment pipeline is unchanged.
 2. **Push** — device-token registration today (`lib/nativePush.ts` → `POST /api/push-tokens`), server-side delivery behind an APNs-ready seam (`lib/pushProvider.ts`, `lib/pushSender.ts`). The launch payload is the **night-signal "went live" broadcast** (`broadcastNightSignalLive()`), the only push that can send pre-identity (see §2).
-3. **Home-screen presence** - a real App Store icon and one entry policy. A first native launch opens the guarded `/onboarding` route, and a relaunch resumes it until Skip or Plan my night. Later cold starts open `/tonight`; a later in-session Home visit can reach the landing page. `lib/entryDecision.ts`, `lib/nativeFirstRun.ts`, and `components/native/AppEntryRoute.tsx` own this behavior.
+3. **Home-screen presence** - a real App Store icon and the [native-entry contract](CAPACITOR_WRAP.md#native-entry).
 
 **What v1 deliberately is NOT:**
 - **No offline app rebuild.** The shell loads `https://pubmaxxing.com` live (remote-URL mode). There is no bundled copy of the product. `native/web-stub/offline.html`, wired through `server.errorPath`, gives an honest retry surface when the first production load fails.
@@ -160,7 +159,7 @@ Per `docs/MERGE_ORDER_2026-07-18.md`, the native stack lands **last** in the que
 |---|---|---|
 | Remote-URL shell + full site loop | ✅ source-ready | Runtime proof still needs Xcode, Simulator, and device checks. |
 | Real camera capture | ✅ source-ready | Usage strings and camera seam are committed; physical-device capture is unproved. |
-| Home-screen icon + entry policy | ✅ source-ready | First eligible native launch opens guarded `/onboarding`; later cold starts open `/tonight`. |
+| Home-screen icon + entry policy | ✅ source-ready | See the [native-entry contract](CAPACITOR_WRAP.md#native-entry). |
 | A2HS behavior inside shell | ✅ source-ready | `isNativeAppShell()` classifies the installed Capacitor shell as standalone, so the install prompt stays hidden. |
 | **Push delivery** | ❌ won't deliver | APNs requires a **paid** account for the entitlement + an APNs key; `selectPushProvider("ios")` stays on the `noopPushProvider` with no keys. Registration UI can be exercised but no notification arrives. |
 | **Universal links** (`/plan/*`, `/rounds/*`, `/p/*`) | ❌ won't verify | AASA carries a `TEAMID` placeholder and Associated Domains needs a real Team ID; personal teams can't validate the entitlement. |
@@ -179,7 +178,7 @@ When the owner enrolls (the longest pole, per `docs/prd/fable-implement-prd.md` 
 6. **Xcode capabilities** — add **Push Notifications** and **Associated Domains** (`applinks:pubmaxxing.com`) to the App target.
 7. **Verify AppDelegate APNs forwarding** - committed `ios/App/App/AppDelegate.swift` forwards `didRegisterForRemoteNotificationsWithDeviceToken` and `didFailToRegisterForRemoteNotificationsWithError` to Capacitor. It remains unproved until Xcode compiles the shell and a signed device registers.
 8. **TestFlight** — archive, upload, internal testing.
-9. **Review-readiness (Apple's thin-wrapper bar).** Apple rejects apps that are "just a website." Our three superpowers are the answer, and they must be demonstrably live at review time: **real camera** capture in moments, **push** notifications (night-signal go-live), and **universal links** that deep-link `/plan`, `/rounds`, `/p` into the app. Guarded first-run onboarding, later `/tonight` cold starts, and home-screen identity reinforce that this is an app, not a bookmark. Do not submit for review until push actually delivers (step 4) and universal links verify (step 5-6), or the thin-wrapper rejection is likely.
+9. **Review-readiness (Apple's thin-wrapper bar).** Apple rejects apps that are "just a website." Our three superpowers are the answer, and they must be demonstrably live at review time: **real camera** capture in moments, **push** notifications (night-signal go-live), and **universal links** that deep-link `/plan`, `/rounds`, `/p` into the app. The [native-entry contract](CAPACITOR_WRAP.md#native-entry) owns launch behaviour. Do not submit for review until push actually delivers (step 4) and universal links verify (step 5-6), or the thin-wrapper rejection is likely.
 
 ---
 
@@ -214,7 +213,7 @@ v1 is "built" when, on the merged native cluster (§3.1 full target):
 1. **Boots on Simulator and on a physical device** via free personal-team signing; the app opens and loads pubmaxxing.com in the WKWebView with no error screen.
 2. **The map loop works** end-to-end inside the shell — near-me answer, map pan/tap, venue sheets, prices (the same server-rendered surfaces the web serves; `isNativeApp()` branches do not degrade them).
 3. **Moment capture uses the native camera** - the moment composer's picker routes through `captureNativePhoto()` (`lib/nativeCamera.ts`) inside the shell, returns a `File`, and the existing upload pipeline is unchanged. Required iOS usage strings are committed.
-4. **First-run follows the owner-locked entry policy** - a genuinely first-time native launch with no persisted city preference opens guarded `/onboarding` exactly once. Later cold starts open `/tonight`; a later in-session Home visit may reach `/`; deep links keep their destination.
+4. **First-run follows the [native-entry contract](CAPACITOR_WRAP.md#native-entry).**
 5. **Prompts obey orchestration** - shared budget and explicit same-tap priority prevent interruptive surfaces from stacking. Runtime proof must still confirm the source contract inside the shell.
 6. **A2HS is suppressed inside the shell** - the "Add to Home Screen" prompt never appears because the native bridge is classified as already installed.
 

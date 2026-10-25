@@ -46,13 +46,9 @@ export default function AppEntryRoute(): null {
       clearNativeFirstRunHandoff();
       return;
     }
-    // THE REWRITE IS THE APP'S MOVE, NOT THE READER'S. Landing then Tonight
-    // is two routes, and reaching a second route is one of the answers the
-    // consent card waits for, so the shell's own cold-start rewrite used to put
-    // the card on the first screen a new person ever saw
-    // (lib/consentAnswerMoment.ts, docs/proof/mobile-shells-refresh/).
-    // The destination is named, so the route the rewrite LEAVES is swallowed
-    // whichever effect React runs first (lib/consentAnswerMoment.ts).
+    // An automatic entry rewrite must not count as the reader's second route.
+    // Naming the destination excludes the preceding route from consent timing,
+    // regardless of which effect runs first (lib/consentAnswerMoment.ts).
     resetConsentWaitForEntryRewrite(decision.href);
     if (decision.reason === "native-first-run") {
       // Eligibility is carried out-of-URL and consumed by the guarded route.

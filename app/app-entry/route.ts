@@ -1,7 +1,8 @@
 // This document bypasses the React layout and its speculative asset fetches.
 // The shared pre-paint script owns the decision and falls back to the root
 // when the bridge or storage is unavailable.
-// Use a fresh script URL so an upgraded shell cannot reuse the root-only script.
+// Change the script URL when launch policy changes, so cached bytes cannot
+// preserve the previous destination in an unchanged native binary.
 // The refresh comes first, and a scripted replace supersedes it without
 // cancelling this document's load: Capacitor iOS treats any failed main-frame
 // load, even a cancel, as offline. It fires only when the script never runs,
