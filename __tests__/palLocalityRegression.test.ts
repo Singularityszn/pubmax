@@ -330,3 +330,82 @@ describe("owned-history crawl counts against the fixed three-stop plan", () => {
     expect(deniedFetch).not.toHaveBeenCalled();
   });
 });
+
+const UNRESOLVED_QUANTITIES = [
+  "Plan a crawl in Soho with four LGBTQ+ pubs",
+  "Plan a crawl in Soho with a dozen pubs",
+  "Plan a crawl in Soho with a pair of pubs",
+  "Plan a crawl in Soho with three pubs and a dozen pubs",
+  "Plan a crawl in Soho with three pubs and a pair of pubs",
+  "Plan a crawl in Soho with a dozen stops",
+  "Plan a crawl in Soho with a pair of venues",
+  "Plan a dozen-stop crawl in Soho",
+  "Plan a three-stop crawl in Soho with a dozen pubs",
+  "Plan a crawl in Soho with three stops and a pair of bars",
+];
+
+describe("unresolved stop and venue quantities against the fixed three-stop plan", () => {
+  it.each(UNRESOLVED_QUANTITIES)("rejects a direct unresolved quantity in the public predicate: %s", (query) => {
+    expect(palChatRecordQuery(query)).toBeNull();
+    expect(palChatRecordQuery(query.replace(" in Soho", " in the same area"), [{ role: "user", content: SOHO }])).toBeNull();
+  });
+
+  it.each(UNRESOLVED_QUANTITIES)("rejects an owned same-area unresolved quantity in the public predicate: %s", async (query) => {
+    const followUp = query.replace(" in Soho", " in the same area");
+    await registerPubPalToolTurn(THREAD, { query: SOHO, cityId: "london", ownerId: OWNER, turns: [] });
+    const context = await preparePalElevenLabsChatTurn({ query: followUp, ownerId: OWNER, threadId: THREAD });
+    expect(palChatRecordQuery(followUp, context.prior.turns)).toBeNull();
+  });
+
+  it.each(UNRESOLVED_QUANTITIES)("keeps a direct unresolved quantity on the configured HTTP provider path: %s", async (query) => {
+    const response = await ask(query);
+    expect(response.status).toBe(429);
+    expect(await response.json()).toEqual({ error: "Paid budget spent" });
+    expect(paidSpendBudgetRefusal).toHaveBeenCalledOnce();
+    expect(deniedFetch).not.toHaveBeenCalled();
+  });
+
+  it.each(UNRESOLVED_QUANTITIES)("keeps an owned same-area unresolved quantity on the configured HTTP provider path: %s", async (query) => {
+    const followUp = query.replace(" in Soho", " in the same area");
+    await registerPubPalToolTurn(THREAD, { query: SOHO, cityId: "london", ownerId: OWNER, turns: [] });
+    const response = await ask(followUp, THREAD);
+    expect(response.status).toBe(429);
+    expect(await response.json()).toEqual({ error: "Paid budget spent" });
+    expect(paidSpendBudgetRefusal).toHaveBeenCalledOnce();
+    expect(deniedFetch).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    "Plan a pub crawl in Soho",
+    "A pub crawl in Soho for three, not pricey",
+    "Plan a crawl in Soho with three garden pubs",
+    "Plan a crawl in Soho for four of us at 8 pm with three garden pubs",
+  ])("keeps a default or fully resolved three-stop crawl local: %s", async (query) => {
+    expect(palChatRecordQuery(query)).toBe(query);
+    const response = await ask(query);
+    expect(response.status).toBe(200);
+    expect(await response.json()).toMatchObject({ toolsUsed: ["propose_plan"] });
+    expect(paidSpendBudgetRefusal).not.toHaveBeenCalled();
+    expect(deniedFetch).not.toHaveBeenCalled();
+  });
+
+  it.each(["Plan a pub crawl in the same area", "Plan a crawl in the same area with three pubs"])(
+    "keeps an owned default or three-pub crawl local with a three-stop draft: %s", async (query) => {
+      await registerPubPalToolTurn(THREAD, { query: SOHO, cityId: "london", ownerId: OWNER, turns: [] });
+      const context = await preparePalElevenLabsChatTurn({ query, ownerId: OWNER, threadId: THREAD });
+      expect(palChatRecordQuery(query, context.prior.turns)).toBe(query.replace("in the same area", "in Soho"));
+      const response = await ask(query, THREAD);
+      expect(response.status).toBe(200);
+      const body = await response.json() as {
+        toolsUsed: string[];
+        cards: Array<{ venueId: string }>;
+        proposals: Array<{ kind: string; stopIds?: string[] }>;
+      };
+      expect(body.toolsUsed).toEqual(["propose_plan"]);
+      expect(body.cards).toHaveLength(3);
+      expect(body.proposals.find((proposal) => proposal.kind === "draft_plan")?.stopIds).toHaveLength(3);
+      expect(paidSpendBudgetRefusal).not.toHaveBeenCalled();
+      expect(deniedFetch).not.toHaveBeenCalled();
+    },
+  );
+});

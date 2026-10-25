@@ -198,9 +198,16 @@ const PLAN_STOP_COUNT_RE = new RegExp(
   "gi",
 );
 
+const UNCLAIMED_VENUE_RE = /-(?:stop|pub|bar|venue|place)s?\b|\b(?:stops|pubs|bars|venues|places)\b|\b(?:stop|pub|bar|venue|place)\b(?![-\s]+crawl\b)/i;
+
 /** The fixed three-stop plan admits an ask only when every stated stop count is three. */
 function statesOnlyThreeStops(query: string): boolean {
-  return [...query.matchAll(PLAN_STOP_COUNT_RE)].every(([, count]) => (NUMBER_WORDS[count!.toLowerCase()] ?? Number(count)) === 3);
+  let onlyThree = true;
+  const unclaimed = query.replace(PLAN_STOP_COUNT_RE, (_phrase: string, count: string) => {
+    onlyThree = onlyThree && (NUMBER_WORDS[count.toLowerCase()] ?? Number(count)) === 3;
+    return " ";
+  });
+  return onlyThree && !UNCLAIMED_VENUE_RE.test(unclaimed);
 }
 
 /** Constrained local record answers that need no provider narration or durable plan write. */
