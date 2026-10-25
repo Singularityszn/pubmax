@@ -11,11 +11,7 @@ import {
   useThemeChoice,
 } from "@/lib/useThemeChoice";
 
-// The icon toggle. It no longer rides the primary header (Oct 2026 UX audit):
-// the theme is a setting, so the desktop More menu and the You page's
-// Appearance block offer it in words, and this icon stays where the map's
-// Layers sheet already groups "Map appearance". All three read and write
-// through lib/useThemeChoice.ts.
+// The shared header and the map Layers sheet use the same saved theme choice.
 export default function ThemeToggle({ floating = false }: { floating?: boolean }) {
   const theme = useThemeChoice();
   const label = themeSwitchLabel(theme);
@@ -41,7 +37,7 @@ export default function ThemeToggle({ floating = false }: { floating?: boolean }
       aria-label={label}
       title={label}
     >
-      {theme === "dark" ? <Sun size={20} /> : <Moon size={20} />}
+      {theme === "dark" ? <Sun size={20} aria-hidden="true" /> : <Moon size={20} aria-hidden="true" />}
     </button>
   );
 }

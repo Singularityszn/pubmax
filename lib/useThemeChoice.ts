@@ -1,10 +1,6 @@
 "use client";
 
-// The one reading and the one write of the light/dark choice, shared by every
-// control that offers it: the icon toggle (components/ThemeToggle.tsx, kept on
-// the map's Layers sheet), the desktop More menu's theme row (SiteNav) and the
-// Appearance setting on the You page. The theme left the primary header in the
-// Oct 2026 UX audit; living here keeps the three doors to it one mechanism.
+// The header, map Layers sheet and You page share the device theme choice.
 
 import { useSyncExternalStore } from "react";
 
