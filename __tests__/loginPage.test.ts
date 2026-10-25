@@ -163,6 +163,21 @@ describe("login page", () => {
     expect(html).not.toContain("Sign-in is temporarily unavailable");
   });
 
+  it("explains why another account cannot be added while sign-in is unavailable", () => {
+    authState.current.supabaseAuthState = "unavailable";
+    authState.current.user = { email: "member@example.test" };
+    const html = renderToStaticMarkup(
+      createElement(LoginPageWithProps, { addAccount: true }),
+    );
+
+    expect(html).toContain(
+      'role="alert">You are still signed in. Sign-in is unavailable, so you cannot add another account.</p>',
+    );
+    expect(html).toContain('href="/map">Continue to the map</a>');
+    expect(html).toContain('href="/u/you">Your profile</a>');
+    expect(html).not.toContain("email form");
+  });
+
   it("renders the sign-in wall at /login", async () => {
     const { default: LoginRoute } = await import("@/app/login/page");
     const html = renderToStaticMarkup(
