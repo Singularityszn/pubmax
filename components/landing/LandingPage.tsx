@@ -22,6 +22,7 @@ import {
   readPreferredCity,
   subscribePreferredCity,
 } from "@/lib/cityPreference";
+import { useNowHref } from "@/lib/useNowHref";
 import { PRIMARY_NAV_ITEMS, primaryNavLabel } from "@/components/nav/navigationModel";
 import { warmMapRoute } from "@/lib/mapWarmup";
 import { HELLO_MAILTO } from "@/lib/siteContact";
@@ -78,6 +79,7 @@ export default function LandingPage({
 }) {
   const router = useRouter();
   const citySaving = strangerSavingLine(averages);
+  const nowHref = useNowHref();
   const preferredCity = useSyncExternalStore(
     subscribePreferredCity,
     readPreferredCity,
@@ -121,7 +123,7 @@ export default function LandingPage({
                 {item.label}
               </Link>
             ) : (
-              <Link key={item.key} prefetch={false} href={item.href}>
+              <Link key={item.key} prefetch={false} href={item.key === "now" ? nowHref : item.href}>
                 {primaryNavLabel(item, socialLabel)}
               </Link>
             ),

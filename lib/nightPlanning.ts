@@ -2,6 +2,7 @@ import { PLAN_PRICE_AMOUNT, planPriceLimits } from "@/lib/planPriceLimits";
 import { formatGbp } from "@/lib/formatGbp";
 import { isDrinkCategory, type DrinkCategory } from "@/lib/drinks";
 import { londonHour } from "@/lib/londonHour";
+import { NIGHT_SERVICE_END_HOUR, NIGHT_SERVICE_START_HOUR } from "@/lib/nightServiceHours";
 import { NIGHT_AREAS, type NightAreaSlug } from "@/lib/nightAreas";
 import { isNightAreaSlug } from "@/lib/nightAreaSlugs";
 import { planRequestedDrinkCategory } from "@/lib/planDrinkRequest";
@@ -59,8 +60,8 @@ function defaultDaypart(now: Date): Daypart {
   // The small hours (past midnight, before the daytime cutoff) are still last
   // night's late_night, not the next day's daytime — check them before the
   // hour < 16 daytime band so they cannot be swallowed by it.
-  if (hour < 4) return "late_night";
-  if (hour < 16) return "daytime";
+  if (hour < NIGHT_SERVICE_END_HOUR) return "late_night";
+  if (hour < NIGHT_SERVICE_START_HOUR) return "daytime";
   if (hour < 19) return "after_work";
   if (hour < 23) return "evening";
   return "get_home";
