@@ -79,8 +79,8 @@ for (const instant of ["2026-01-15T03:59:59Z", "2026-07-16T02:59:59Z"]) {
     await page.clock.install({ time: new Date(Date.parse(instant) - 120_000) });
     await page.goto("/tonight");
     const tab = dock(page).getByRole("link", { name: "Tonight", exact: true });
-    await expect(tab).toHaveAttribute("href", "/tonight");
     await page.clock.pauseAt(new Date(instant));
+    await expect(tab).toHaveAttribute("href", "/tonight");
     await page.clock.runFor(1_000);
     await expect(tab).toHaveAttribute("href", "/today");
     await expect(page).toHaveURL(/\/tonight$/);
