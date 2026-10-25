@@ -1,5 +1,33 @@
 import { expect, test } from "@playwright/test";
 
+test.describe("prepared briefs after hydration", () => {
+  test.use({ timezoneId: "America/New_York" });
+
+  for (const route of ["/today", "/tonight"]) {
+    test(`${route} keeps its serialized London preparation label after hydration`, async ({ page }) => {
+      const errors: string[] = [];
+      page.on("pageerror", (error) => errors.push(error.message));
+      const response = await page.goto(route);
+      const html = await response!.text();
+      const serialized = await page.evaluate((documentHtml) =>
+        new DOMParser().parseFromString(documentHtml, "text/html")
+          .querySelector('[data-testid="brief-prepared-at"] time')?.textContent,
+      html);
+      expect(serialized).toMatch(/ (?:GMT|BST)$/);
+
+      // A successful theme toggle proves the client has attached before comparing.
+      const theme = page.getByRole("button", { name: /Switch to .* theme/ });
+      const initialLabel = await theme.getAttribute("aria-label");
+      await expect(async () => {
+        await theme.click();
+        await expect(theme).not.toHaveAttribute("aria-label", initialLabel!, { timeout: 1_000 });
+      }).toPass({ timeout: 20_000 });
+      await expect(page.getByTestId("brief-prepared-at").locator("time")).toHaveText(serialized!);
+      expect(errors).toEqual([]);
+    });
+  }
+});
+
 for (const width of [390, 1440]) {
   test(`crawl estimate names its straight-line basis at ${width}px`, async ({ page }) => {
     await page.setViewportSize({ width, height: 1000 });
