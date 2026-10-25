@@ -985,12 +985,11 @@ export default function TonightClient({
           they have not read yet. */}
       <div className="tonightHeadCredits">
         <TonightUnmatchedNotice out={outAnswer} />
-        {ready || empty ? (
-          <TonightProvenanceLines
-            provenance={provenance}
-            nearestSuffix={nearestPatchSuffix}
-          />
-        ) : null}
+        <TonightProvenanceLines
+          provenance={provenance}
+          nearestSuffix={nearestPatchSuffix}
+          showCredits={ready || empty}
+        />
         <TonightShareButton />
       </div>
 

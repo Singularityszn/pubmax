@@ -16,14 +16,16 @@ const UNDATED_OUT_LINE = "The live listings source check date is not recorded.";
 export default function TonightProvenanceLines({
   provenance,
   nearestSuffix,
+  showCredits = true,
 }: {
   provenance: TonightProvenanceCredits;
+  showCredits?: boolean;
   /** " · nearest Soho first", or null when the page names no patch. */
   nearestSuffix: string | null;
 }) {
   return (
     <>
-      {provenance.whatsOn ? (
+      {showCredits && provenance.whatsOn ? (
         <p
           className="tonightProvenance"
           data-tonight-provenance="whats-on"
@@ -39,7 +41,7 @@ export default function TonightProvenanceLines({
           {provenance.whatsOnExclusions}
         </p>
       ) : null}
-      {provenance.out ? (
+      {showCredits && provenance.out ? (
         <p
           className="tonightProvenance"
           data-tonight-provenance="out"
