@@ -1,15 +1,7 @@
 import { describe, expect, it } from "vitest";
 
-// Contract tests for the entry-decision seam (lib/entryDecision.ts, issue
-// #439 + owner amendment 2026-07-21). Precedence under test: deep links bypass
-// untouched (shell or not), then a native first-run opens the dedicated
-// onboarding, then a session-revisit (the cold-start decision already ran this
-// session) stays on the landing page, then a shell cold start lands on
-// /tonight, then the browser keeps the landing page.
-//
-// The 2026-07-21 amendment relaxes "the shell never sees the landing page" to
-// "the shell never COLD-STARTS on the landing page": a cold start still lands
-// on /tonight, but a later in-app arrival at "/" reaches the landing page.
+// Contract tests for native Home, native onboarding, PWA Tonight and explicit
+// destinations. Session revisits retain the existing Home behavior.
 import {
   consumeDeepLinkBootEntry,
   decideEntry,
@@ -43,7 +35,7 @@ const WEB_ROOT: EntryContext = {
 };
 
 describe("decideEntry", () => {
-  it("locks the shell start surface to /tonight", () => {
+  it("keeps the PWA and onboarding completion surface at /tonight", () => {
     expect(SHELL_START_PATH).toBe("/tonight");
   });
 
@@ -51,11 +43,10 @@ describe("decideEntry", () => {
     expect(decideEntry(WEB_ROOT)).toEqual({ kind: "stay", reason: "web-default" });
   });
 
-  it("native shell cold start at the root lands on /tonight", () => {
+  it("native shell cold start at the root keeps the homepage", () => {
     expect(decideEntry({ ...WEB_ROOT, isNativeShell: true })).toEqual({
-      kind: "route",
-      href: SHELL_START_PATH,
-      reason: "shell-cold-start",
+      kind: "stay",
+      reason: "native-home",
     });
   });
 
@@ -81,12 +72,10 @@ describe("decideEntry", () => {
     ).toEqual({ kind: "stay", reason: "session-revisit" });
   });
 
-  it("cold start still lands on /tonight before the session flag is set", () => {
-    // The very first arrival this session: flag not yet consumed → /tonight.
-    expect(decideEntry({ ...WEB_ROOT, isNativeShell: true })).toEqual({
-      kind: "route",
-      href: SHELL_START_PATH,
-      reason: "shell-cold-start",
+  it("keeps the native homepage even when standalone display is also detected", () => {
+    expect(decideEntry({ ...WEB_ROOT, isNativeShell: true, isStandaloneDisplay: true })).toEqual({
+      kind: "stay",
+      reason: "native-home",
     });
   });
 
@@ -181,15 +170,15 @@ describe("session-entry flag (owner amendment 2026-07-21)", () => {
     expect(hasConsumedSessionEntry(storage)).toBe(true);
   });
 
-  it("full cold-start → revisit lifecycle: /tonight first, landing after", () => {
+  it("keeps the homepage on a native cold start and a later home tap", () => {
     const storage = makeMemoryStorage();
-    // Cold start: flag unset → shell lands on /tonight.
+    // A returning native launch keeps the homepage before any session stamp.
     const cold = decideEntry({
       ...WEB_ROOT,
       isNativeShell: true,
       sessionEntryConsumed: hasConsumedSessionEntry(storage),
     });
-    expect(cold).toEqual({ kind: "route", href: SHELL_START_PATH, reason: "shell-cold-start" });
+    expect(cold).toEqual({ kind: "stay", reason: "native-home" });
     // The component stamps the flag after deciding.
     markSessionEntryConsumed(storage);
     // In-app home tap: flag set → stays on the landing page.
@@ -202,12 +191,10 @@ describe("session-entry flag (owner amendment 2026-07-21)", () => {
   });
 
   it("fail-safe: with no storage the flag reads false, so every arrival is a cold start", () => {
-    // Passing null storage models sessionStorage being absent (SSR, private
-    // mode, disabled). The read must fail toward the OLD behavior (cold start,
-    // shell → /tonight), never toward landing-on-cold-start.
+    // Storage failure must not change a returning native launch destination.
     expect(hasConsumedSessionEntry(null)).toBe(false);
     // Marking is a silent no-op when there is no storage — the flag still reads
-    // false the next time, so a shell keeps cold-starting on /tonight.
+    // false the next time, so the native decision remains independent of it.
     markSessionEntryConsumed(null);
     expect(hasConsumedSessionEntry(null)).toBe(false);
     expect(
@@ -216,7 +203,7 @@ describe("session-entry flag (owner amendment 2026-07-21)", () => {
         isNativeShell: true,
         sessionEntryConsumed: hasConsumedSessionEntry(null),
       }),
-    ).toEqual({ kind: "route", href: SHELL_START_PATH, reason: "shell-cold-start" });
+    ).toEqual({ kind: "stay", reason: "native-home" });
   });
 });
 
@@ -247,15 +234,14 @@ describe("consumeDeepLinkBootEntry", () => {
     const storage = makeMemoryStorage();
     expect(consumeDeepLinkBootEntry("/", storage)).toBe(false);
     expect(hasConsumedSessionEntry(storage)).toBe(false);
-    // The Capacitor shell (which loads the site root) still cold-starts on
-    // /tonight exactly as before.
+    // A returning Capacitor launch keeps the homepage without a stamp.
     expect(
       decideEntry({
         ...WEB_ROOT,
         isNativeShell: true,
         sessionEntryConsumed: hasConsumedSessionEntry(storage),
       }),
-    ).toEqual({ kind: "route", href: SHELL_START_PATH, reason: "shell-cold-start" });
+    ).toEqual({ kind: "stay", reason: "native-home" });
   });
 
   it("no storage: stamping is a silent no-op and boots keep the old behavior", () => {

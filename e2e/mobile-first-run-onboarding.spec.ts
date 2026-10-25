@@ -149,9 +149,9 @@ test("native first run with analytics decided hands one useful Plan to the conte
   )).toBe("1");
   await expectPushAskOnNextRoute(page);
 
-  // The next native root boot is still the owner-locked /tonight cold start.
+  // A completed native first run returns to Home on the next normal launch.
   await relaunchNativeShell(page);
-  await expect(page).toHaveURL(/\/tonight$/);
+  await expect(page).toHaveURL(/\/$/);
   await expect(page.getByRole("dialog", { name: NATIVE_PUSH_PROMPT_COPY.title })).toHaveCount(0);
 });
 
@@ -173,7 +173,7 @@ test("direct web onboarding redirects home without mutating onboarding state", a
   }))).toEqual({ city: "london", companion: "fox", tour: "1" });
 });
 
-test("returning native direct onboarding redirects to Tonight without mutation", async ({ page }) => {
+test("a same-origin returning native onboarding visit redirects to Tonight without mutation", async ({ page }) => {
   await installNativeShell(page);
   await page.goto("/about");
   await waitForDeepLinkBootStamp(page);
@@ -185,7 +185,9 @@ test("returning native direct onboarding redirects to Tonight without mutation",
     window.sessionStorage.clear();
   });
 
-  await page.goto("/onboarding");
+  // The proxy admits onboarding document navigation started by this origin.
+  // A browser-initiated goto is correctly rejected before the native gate runs.
+  await page.evaluate(() => window.location.assign(new URL("/onboarding", window.location.origin).href));
   await expect(page).toHaveURL(/\/tonight$/);
   await expect(page.getByRole("heading", { name: "London is ready." })).toHaveCount(0);
   await expect.poll(() => page.evaluate(() => ({
@@ -221,6 +223,6 @@ test("Skip releases onboarding budget for the next Plan but never prompts on reb
   await expectPushAskOnNextRoute(page);
 
   await relaunchNativeShell(page);
-  await expect(page).toHaveURL(/\/tonight$/);
+  await expect(page).toHaveURL(/\/$/);
   await expect(page.getByRole("dialog", { name: NATIVE_PUSH_PROMPT_COPY.title })).toHaveCount(0);
 });

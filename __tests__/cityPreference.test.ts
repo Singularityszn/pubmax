@@ -162,11 +162,9 @@ describe("the browser refuses site data", () => {
   });
 });
 
-// A native launch with ANY stored city value opens Tonight from /app-entry
-// (public/theme-init.js reads only the key's presence). Tonight's city-aware
-// chrome reads it back through readPreferredCity(), so a city lib/cities.ts
-// has since disabled, or a value that never parsed, must read as no
-// preference and send the Map tab to London rather than a dead city.
+// City-aware chrome validates stored values through readPreferredCity(). A
+// disabled or unparseable city must send the Map tab to London rather than a
+// destination the product no longer supports.
 describe("a stored city Tonight cannot use", () => {
   afterEach(() => {
     vi.doUnmock("@/lib/cities");

@@ -930,8 +930,8 @@ export default function PubmaxxAccountHub() {
         {/* The account's own data doors, last in the settings block because
             they are things a reader goes looking for rather than meets on the
             way past: the portable copy (UK GDPR) beside the in-app deletion
-            door (App Store 5.1.1(v), Play 2024), then the legal row the native
-            shell can otherwise never reach. */}
+            door (App Store 5.1.1(v), Play 2024), then the legal row for readers
+            who enter through an explicit link and do not visit the Home footer. */}
         <div className="accountHubDataDoors">
           <AccountExportCard />
           <DeleteAccountCard />

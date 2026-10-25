@@ -1,0 +1,19 @@
+Tool-output transcript, 25 October 2026.
+The command returned this output inline. This file preserves the relevant excerpt.
+
+Command:
+node node_modules/vitest/vitest.mjs run --configLoader runner __tests__/nativeShellEntry.test.ts -t 'opens the homepage on a returning app-entry boot'
+
+Exit code: 1
+Start at: 11:30:07
+Duration: 1.90s
+Test Files: 1 failed (1)
+Tests: 1 failed | 19 skipped (20)
+
+FAIL __tests__/nativeShellEntry.test.ts > the native shell's pre-render entry decision > opens the homepage on a returning app-entry boot even if the session stamp survives
+AssertionError: expected [ '/tonight' ] to deeply equal [ '/' ]
+
+Expected: ["/"]
+Received: ["/tonight"]
+
+The test failed at __tests__/nativeShellEntry.test.ts:120:18 before the pre-paint destination changed.

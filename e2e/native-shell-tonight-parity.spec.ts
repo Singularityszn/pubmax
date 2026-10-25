@@ -11,9 +11,9 @@ import { expectStreamedPageSettled } from "./helpers/streamedPage";
 // was a 5 September build whose synced config loaded a preview deployment
 // from before #1575. So the root cause was a stale rig, not a shell defect,
 // and this spec is the fence that keeps it that way. It drives the ways the
-// shell reaches /tonight - the pre-paint entry rewrite from `/`, and the same
-// launch once the offline worker controls the page with a stale shell copy in
-// its cache - and holds each one to a plain fetch of the same URL.
+// shell opens Home, then explicitly visits /tonight. The worker case checks
+// an explicit Tonight visit with a stale shell copy in its cache. Both visits
+// must match a plain fetch of the same URL.
 
 const VIEWPORT = { width: 390, height: 844 };
 const PARITY_VERSION = "parity";
@@ -153,7 +153,7 @@ test("the loading skeleton draws the nav where the loaded /tonight draws it", as
   }
 });
 
-test("a shell cold start lands on the same /tonight a plain fetch serves", async ({
+test("a shell cold start opens Home and an explicit Tonight visit matches the web", async ({
   page,
   request,
 }) => {
@@ -165,7 +165,12 @@ test("a shell cold start lands on the same /tonight a plain fetch serves", async
   expect(plain).toEqual({ actionsAfterLede: false, actionRows: 1 });
 
   await bootAsShell(page);
-  await page.goto("/");
+  await page.goto("/app-entry");
+  await expect(page).toHaveURL(/\/$/);
+  await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
+  await expectStreamedPageSettled(page);
+  await expect(page).toHaveURL(/\/$/);
+  await page.goto("/tonight");
   await page.waitForURL(/\/tonight$/, { timeout: 30_000 });
   expect(await orderInDom(page)).toEqual(plain);
 });
@@ -193,7 +198,7 @@ test("a worker-controlled shell never serves a stale /tonight while the network 
   // worker controls the navigation from its first request.
   const relaunch = await context.newPage();
   await relaunch.setViewportSize(VIEWPORT);
-  await relaunch.goto("/");
+  await relaunch.goto("/tonight");
   await relaunch.waitForURL(/\/tonight$/, { timeout: 30_000 });
   await expect
     .poll(() => relaunch.evaluate(() => Boolean(navigator.serviceWorker.controller)), {

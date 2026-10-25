@@ -14,7 +14,7 @@ import { useEffect } from "react";
 // WHERE SUPPORTED, REGISTRATION IS OWED TO EVERY ROUTE, NOT ONLY THE MAP.
 // The first-pins gate exists so installing the worker cannot tax the map's
 // cold path, and it is kept for exactly that. What it may not be is the ONLY key: the native
-// shell cold-starts on /tonight (lib/entryDecision.ts), so a reader whose
+// shell can open Home or an explicit link, so a reader whose
 // sessions are Tonight, Out, Social or You never opened /map, never fired
 // `pubmax:first-pins`, and got no offline shell at all — in an app whose
 // worker header says pub cellars have terrible signal. So there are TWO
