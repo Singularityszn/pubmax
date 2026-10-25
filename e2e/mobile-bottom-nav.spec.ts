@@ -113,7 +113,8 @@ test.describe("mobile bottom-tab navigation", () => {
     await expect(picker.getByRole("button", { name: /Dolphin Tavern|Enterprise/ })).toHaveCount(0);
   });
 
-  test("Tonight tab routes to /tonight", async ({ page }) => {
+  test("Tonight tab routes to /tonight after 16:00", async ({ page }) => {
+    await page.clock.setFixedTime(new Date("2026-01-15T18:00:00Z"));
     await page.goto("/map");
 
     await primaryNav(page).getByRole("link", { name: "Tonight", exact: true }).click();
