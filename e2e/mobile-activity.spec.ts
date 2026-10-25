@@ -107,8 +107,15 @@ test.describe("mobile Activity", () => {
     await expectTappable(siteNav.getByLabel("Open PUBMAXX landing page"), "mobile site wordmark");
     await expectTappable(siteNav.getByLabel(/^Activity/), "Activity bell");
     await expectTappable(siteNav.getByLabel(/^Messages/), "Messages bell");
-    // The theme left the header for More (desktop) and the You page.
-    await expect(siteNav.getByRole("button", { name: /switch to/i })).toHaveCount(0);
+    const theme = siteNav.getByRole("button", { name: /Switch to (light|dark) theme/ });
+    await expectTappable(theme, "header theme button");
+    const themeBefore = await page.locator("html").getAttribute("data-theme");
+    const nextTheme = themeBefore === "dark" ? "light" : "dark";
+    await expect(async () => {
+      await theme.click();
+      await expect(page.locator("html")).toHaveAttribute("data-theme", nextTheme, { timeout: 1_000 });
+    }).toPass({ timeout: 20_000 });
+    await expect(theme).toHaveAccessibleName(`Switch to ${nextTheme === "dark" ? "light" : "dark"} theme`);
 
     const primaryNav = page.getByRole("navigation", { name: "Primary" });
     await expect(primaryNav).toBeVisible();

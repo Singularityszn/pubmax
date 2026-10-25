@@ -38,32 +38,17 @@
 // is already too late. The root layout inlines these bytes, so every web route
 // keeps one render-blocking decision without another script request.
 //
-// WHAT IT DECIDES, AND WHAT IT DELIBERATELY DOES NOT. Both routing branches of
-// lib/entryDecision.ts's `decideEntry` are decidable from storage alone:
+// Native first-run launches open onboarding. Returning launches open the
+// public homepage. The installed PWA launch policy belongs to entryDecision.ts
+// and is unchanged by this native-only script.
 //
-//   - rule 4, `shell-cold-start`: the first-run mark is present, so this is an
-//     ordinary later launch and it lands on /tonight. The mark is the done mark,
-//     or an earlier release's routed mark beside a tour mark.
-//   - rule 2, `native-first-run`: the first-run mark is absent, and EITHER an
-//     unfinished step is stored, an earlier release's routed mark stands alone,
-//     OR no city value is stored. An unfinished
-//     journey resumes whatever city it stored. With no stored city value at
-//     all, `readPreferredCity()` answers null under every possible
-//     enabled-city table in lib/cities.ts. So this reads the ABSENCE of the
-//     city key and never its contents, and forks no table.
+// A missing city or an unfinished step can establish first-run eligibility
+// without duplicating the enabled-city table. At the root, a stored city with
+// no completion mark is left to AppEntryRoute. The static /app-entry document
+// opens the root, where that same React gate validates the stored city.
+// No launch marks first-run complete or changes a stored city.
 //
-// The ONE case left to the client at the root is a stored city value with
-// neither the first-run mark nor an unfinished step. Whether that value counts
-// depends on whether lib/cities.ts still has that city enabled, and a second
-// copy of the city list here would be a second place for it to be wrong.
-// AppEntryRoute decides that one exactly as before, one paint later. The static
-// /app-entry document has no React, so there that case takes rule 4 and opens
-// /tonight. Tonight reads the value through readPreferredCity(), so a disabled
-// or unparseable city falls back to London. It never stamps the first-run mark,
-// so a person who later clears the city still sees onboarding.
-//
-// __tests__/nativeShellEntry.test.ts runs THIS FILE against a window of its
-// own, which is why every reference below goes through `window`.
+// __tests__/nativeShellEntry.test.ts executes these bytes before React loads.
 // ---------------------------------------------------------------------------
 (function () {
   var appEntry = window.location.pathname === "/app-entry";
@@ -118,16 +103,18 @@
         window.location.replace("/onboarding");
         return;
       }
-      // At the root, a stored city is left to AppEntryRoute (see above). The
-      // static entry document has no React to defer to, so it takes rule 4.
+      // At the root, AppEntryRoute validates a stored city. The static
+      // document opens the root so the same React gate can decide.
       if (!appEntry) return;
     }
 
-    // Rule 4. Stamp before navigating, exactly as AppEntryRoute does, so a slow
-    // transition cannot leave the flag unset and bounce the next arrival.
+    // A returning native launch opens Home. Stamp before leaving the static
+    // entry document, so the root pre-paint pass keeps that destination.
     session.setItem("pubmax:entryDecision:consumed:v1", "1");
-    routed = true;
-    window.location.replace("/tonight");
+    if (appEntry) {
+      routed = true;
+      window.location.replace("/");
+    }
   } catch {
     // No bridge, no storage, or a WebView that refuses one of them. The React
     // path in components/native/AppEntryRoute.tsx is still mounted and still

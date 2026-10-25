@@ -36,11 +36,10 @@ test.describe("site navigation touch targets", () => {
     await expectTappable(nav.getByRole("link", { name: "Plan", exact: true }), "tablet Plan link");
     await expectTappable(nav.getByRole("link", { name: "Tonight", exact: true }), "tablet Tonight link");
     await expectTappable(nav.getByRole("link", { name: "You", exact: true }), "tablet You link");
-    // Signed out, the bell and messages are not drawn (nothing is behind them),
-    // and the theme moved from the bar into More.
+    // Signed-out visitors retain the theme control without bell or messages.
     await expect(nav.getByLabel(/^Activity/)).toHaveCount(0);
     await expect(nav.getByLabel(/^Messages/)).toHaveCount(0);
-    await expect(nav.getByRole("button", { name: /switch to/i })).toHaveCount(0);
+    await expectTappable(nav.getByRole("button", { name: /Switch to (light|dark) theme/ }), "tablet theme button");
     await expectTappable(nav.getByRole("button", { name: "More pages" }), "tablet More menu");
     const signIn = nav.getByRole("button", { name: "Sign in" });
     if ((await signIn.count()) > 0) {
