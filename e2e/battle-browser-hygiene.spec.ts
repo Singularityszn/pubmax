@@ -83,13 +83,18 @@ for (const width of [1280, 390]) {
         await route.fulfill({ json: { drafts: [] } });
         return;
       }
-      submitted.push(route.request().postDataJSON());
+      const body: { text?: string } = route.request().postDataJSON();
+      submitted.push(body);
+      const items = [
+        { rawLine: "The Harp, Soho", name: "The Harp", areaHint: "Soho", state: "matched",
+          venue: { id: "harp", name: "The Harp", area: "Soho", layer: "curated" } },
+        { rawLine: "The Crown, Soho", name: "The Crown", areaHint: "Soho", state: "matched",
+          venue: { id: "crown", name: "The Crown", area: "Soho", layer: "curated" } },
+      ];
       await route.fulfill(submitted.length === 1
         ? { status: 503, json: { error: "Matching is unavailable. Try again." } }
-        : { json: { importId: "retry-fixture", source: null, truncated: false, items: [
-          { rawLine: "The Harp, Soho", name: "The Harp", areaHint: "Soho", state: "matched",
-            venue: { id: "harp", name: "The Harp", area: "Soho", layer: "curated" } },
-        ] } });
+        : { json: { importId: "retry-fixture", source: null, truncated: false,
+          items: body.text?.includes("\n") ? items : items.slice(0, 1) } });
     });
     await page.goto("/plan");
     const door = page.getByRole("button", { name: "Import a pub list", exact: true });
@@ -116,9 +121,18 @@ for (const width of [1280, 390]) {
     await expect(text).toHaveValue("The Harp, Soho");
     await expect(match).toBeEnabled();
     await match.click();
-    await expect(dialog.getByText("1 lines to review.", { exact: false })).toBeVisible();
+    await expect(dialog.getByText("1 line to review.", { exact: false })).toBeVisible();
     await expect(text).toHaveCount(0);
     expect(submitted).toEqual([{ text: "The Harp, Soho" }, { text: "The Harp, Soho" }]);
+    await dialog.getByRole("button", { name: "Import another list", exact: true }).click();
+    await text.fill("The Harp, Soho\nThe Crown, Soho");
+    await match.click();
+    await expect(dialog.getByText("2 lines to review.", { exact: false })).toBeVisible();
+    await expect(text).toHaveCount(0);
+    expect(submitted).toEqual([
+      { text: "The Harp, Soho" }, { text: "The Harp, Soho" },
+      { text: "The Harp, Soho\nThe Crown, Soho" },
+    ]);
     await page.screenshot({ path: info.outputPath("import-retry.png"), fullPage: true });
     await page.keyboard.press("Escape");
     await expect(dialog).toHaveCount(0);
