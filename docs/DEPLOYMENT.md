@@ -619,15 +619,26 @@ product code:
 | Check source | What it means | Fix path |
 |---|---|---|
 | First-party CI | GitHub Actions workflows under `.github/workflows/`. A successful run proves only the jobs that ran at that commit. Push browser checks do not include the full scheduled suite. | Read failed job logs. Keep skipped checks separate from successful checks. |
-| `Vercel` | The `chengdu` project uses an Ignored Build Step that skips Git and API builds. GitHub can report success with the description `Canceled by Ignored Build Step`. | Check the deployment state and source. Require `READY`, then verify the SHA and deployment ID through `/api/version`. A canceled build proves neither compilation nor deployment. The captain approves any build-policy change. |
+| `Vercel` | The `chengdu` project's Ignored Build Step can cancel a deployment while GitHub reports success with the description `Canceled by Ignored Build Step`. Production and preview outcomes can differ. | Check each deployment's state, source, target and commit. Require `READY`, then verify the SHA and deployment ID through `/api/version`. A cancelled build proves neither compilation nor deployment. The captain approves any build-policy change. |
 | `Supabase Preview` | Supabase GitHub integration. | If it says `Remote migration versions not found in local migrations directory`, sync migration history: pull/export the missing remote migrations or repair the Supabase migration table so remote and `supabase/migrations/` agree. Do not delete local migrations to make this pass. |
 | GitHub Actions `startup_failure` | GitHub failed before allocating a job. GitHub shows no jobs and no logs. | Investigate the runner or account. Do not infer a product failure or a Vercel build result. Run `npm run ci` locally for the full local gate. |
 | `Greptile Review` | External AI review/check app. | Treat as code-review signal, not a build gate. Address concrete findings in PR comments. |
 | Other external app suites | Checks owned by GitHub Apps rather than the first-party workflows. | Identify the integration and its requirement. The captain approves changes to repository or integration settings. |
 
-The build-policy handoff is in [the build methodology](agents/build-methodology.md#handing-off-to-the-captains-local-codex).
+The publication gates are in [the build methodology](agents/build-methodology.md#completing-a-task).
 The daily browser and performance workflows already build and measure the app.
 Their schedules do not create a Vercel preview.
+
+The [25 October deployment audit](proof/git-preview-audit-20261025/README.md)
+records READY Git production builds alongside cancelled Git previews. That
+record does not establish the current policy or guarantee the next build.
+
+For a consecutive-build acceptance target, record each real push and its exact
+commit, deployment ID, target and terminal state. A successful GitHub integration
+check cannot replace the deployment result. Do not create empty commits to meet
+the count. A local build or CLI preview does not prove that the Git build path
+works. Keep the target incomplete until the required consecutive Git builds are
+READY and their deployed versions match.
 
 #### Daily Git preview proposal
 
