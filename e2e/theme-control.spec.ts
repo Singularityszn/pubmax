@@ -50,7 +50,12 @@ for (const width of [320, 390, 641, 768, 1440]) {
       await expect(page.locator("html")).toHaveAttribute("data-theme", "light", { timeout: 1_000 });
     }).toPass();
     await expect(button).toHaveAccessibleName("Switch to dark theme");
-    if (width === 390) await page.screenshot({ path: test.info().outputPath("home-light.png") });
+    // Check the painted Home surface, not only the theme attribute.
+    await expect.poll(() => page.locator(".lp").evaluate((element) => {
+      const channels = getComputedStyle(element).backgroundColor.match(/[\d.]+/g)?.slice(0, 3).map(Number);
+      return channels?.length === 3 && channels.every((channel) => channel > 128);
+    })).toBe(true);
+    if (width === 390) await page.screenshot({ path: test.info().outputPath("home-light.png"), animations: "disabled" });
     await page.goto("/tonight");
     await expectHeaderThemeControl(page);
     await expect(page.locator("html")).toHaveAttribute("data-theme", "light");
