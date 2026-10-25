@@ -328,7 +328,6 @@ describe("runPalElevenLabsChatTurn", () => {
 
   it.each([
     { query: "A pub crawl in Soho for three, not pricey", tool: "propose_plan", count: 3 },
-    { query: "Two quiet pubs near Borough Market", tool: "search_venues", count: 2 },
   ])("answers the constrained night from owned local records: $query", async ({ query, tool, count }) => {
     const deniedFetch = vi.fn(async () => { throw new Error("Provider egress denied"); });
     vi.stubGlobal("fetch", deniedFetch);
@@ -600,14 +599,10 @@ describe("runPalElevenLabsChatTurn", () => {
         });
         expect(fetch).not.toHaveBeenCalled();
         expect(wsState.socketsOpened).toBe(0);
-      } else if (palChatRecordQuery(current) !== null) {
-        // A current ask the records answer stays local, and the fence must not refuse it.
-        expect(outcome.ok && outcome.message).not.toMatch(/whether to have another drink/);
-        expect(fetch).not.toHaveBeenCalled();
-        expect(wsState.socketsOpened).toBe(0);
       } else {
-        expect(outcome).toMatchObject({ message: SOURCED_ANSWER });
+        expect(outcome).toMatchObject({ message: SOURCED_ANSWER, conversationId: "conv_regression01" });
         expect(wsState.socketsOpened).toBe(1);
+        expect(wsState.userMessageText).toContain(`Current user message: ${current}`);
       }
     },
   );

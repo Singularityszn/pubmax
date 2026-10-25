@@ -111,6 +111,58 @@ describe("explicit memory requests beside local record answers", () => {
   });
 });
 
+const UNKNOWN_ADDITIONAL_ACTIONS = [
+  "Find four pubs in Soho. Book a table.",
+  "Wine prices at Fox and Anchor. Book a table.",
+  "Cheapest wine in Soho and book us a table",
+  "Plan a crawl in Soho for four of us, then reserve two seats",
+  "Cheap pints near Soho. Order for the group.",
+  "Find four pubs in Soho with a garden and text my mates",
+  "Find four pubs in Soho and book tables",
+  "Wine prices at Fox and Anchor and contact Alice",
+];
+
+describe("unknown additional actions beside local record answers", () => {
+  it.each(UNKNOWN_ADDITIONAL_ACTIONS)("keeps a direct extra action on the configured HTTP provider path: %s", async (query) => {
+    expect(palChatRecordQuery(query)).toBeNull();
+    const response = await ask(query);
+    expect(response.status).toBe(429);
+    expect(await response.json()).toEqual({ error: "Paid budget spent" });
+    expect(paidSpendBudgetRefusal).toHaveBeenCalledOnce();
+    expect(deniedFetch).not.toHaveBeenCalled();
+  });
+
+  it.each(UNKNOWN_ADDITIONAL_ACTIONS)("keeps an owned follow-up extra action on the configured HTTP provider path: %s", async (query) => {
+    const followUp = query.replace(/ (?:in|near) Soho/, " in the same area");
+    await registerPubPalToolTurn(THREAD, { query: SOHO, cityId: "london", ownerId: OWNER, turns: [] });
+    const context = await preparePalElevenLabsChatTurn({ query: followUp, ownerId: OWNER, threadId: THREAD });
+    expect(palChatRecordQuery(followUp, context.prior.turns)).toBeNull();
+    const response = await ask(followUp, THREAD);
+    expect(response.status).toBe(429);
+    expect(await response.json()).toEqual({ error: "Paid budget spent" });
+    expect(paidSpendBudgetRefusal).toHaveBeenCalledOnce();
+    expect(deniedFetch).not.toHaveBeenCalled();
+  });
+
+  it("rejects an extra action carried into a refined follow-up", () => {
+    expect(palChatRecordQuery("please", [{ role: "user", content: "Wine prices at Fox and Anchor. Book a table." }])).toBeNull();
+  });
+
+  it.each(["Wine prices at Fox and Anchor", "Cheapest wine in Soho"])("keeps a comparison without an extra action local in the public predicate: %s", (query) => {
+    expect(palChatRecordQuery(query)).toBe(query);
+  });
+
+  it("keeps a source presentation clause local over configured HTTP", async () => {
+    const query = "Plan a crawl in Soho for four of us, then show me the sources";
+    expect(palChatRecordQuery(query)).toBe(query);
+    const response = await ask(query);
+    expect(response.status).toBe(200);
+    expect(await response.json()).toMatchObject({ toolsUsed: ["propose_plan"] });
+    expect(paidSpendBudgetRefusal).not.toHaveBeenCalled();
+    expect(deniedFetch).not.toHaveBeenCalled();
+  });
+});
+
 const PERSONAL_MEMORY_OPERATIONS = [
   "Find four pubs in Soho. Save my preference for gardens.",
   "Plan a crawl in Soho. Save my preferences: gardens and quiet rooms.",
@@ -165,6 +217,70 @@ describe("explicit personal preference and note operations beside local record a
   });
 
   it.each(ASKS_WITHOUT_MEMORY_OPERATION)("answers an ask without a memory operation locally over configured HTTP: %s", async (query, tool) => {
+    const response = await ask(query);
+    expect(response.status).toBe(200);
+    expect(await response.json()).toMatchObject({ toolsUsed: [tool] });
+    expect(paidSpendBudgetRefusal).not.toHaveBeenCalled();
+    expect(deniedFetch).not.toHaveBeenCalled();
+  });
+});
+
+describe("venue, item and status clause boundaries beside local record answers", () => {
+  it.each(["wine prices at fox and anchor", "Wine prices at the Lamb"])("keeps a named recorded-drinks ask local regardless of capitalisation: %s", (query) => {
+    expect(palChatRecordQuery(query)).toBe(query);
+  });
+
+  it.each([
+    "wine prices at fox and anchor and contact alice",
+    "Cheapest wine in Soho, book us a table",
+    "How much is a burger in Camden? Are there Tube delays and book a table",
+  ])("keeps an extra action outside the venue, item and status clauses on the provider path: %s", (query) => {
+    expect(palChatRecordQuery(query)).toBeNull();
+  });
+});
+
+const UNDETERMINED_MEMORY_OPERATIONS = [
+  "Find four pubs in Soho. Save preferences for quiet gardens.",
+  "Plan a crawl in Soho. Store notes: I prefer gardens.",
+  "Cheap pints near Soho. Record preferences: quiet rooms.",
+  "Cheapest wine in Soho. Save preferences for quiet gardens.",
+  "Store notes: I like wine. Wine prices at Fox and Anchor",
+];
+
+describe("memory operations named without a determiner beside local record answers", () => {
+  it.each(UNDETERMINED_MEMORY_OPERATIONS)("rejects a direct memory operation in the public predicate: %s", (query) => {
+    expect(palChatRecordQuery(query)).toBeNull();
+  });
+
+  it.each(UNDETERMINED_MEMORY_OPERATIONS)("keeps a direct memory operation on the configured HTTP provider path: %s", async (query) => {
+    const response = await ask(query);
+    expect(response.status).toBe(429);
+    expect(await response.json()).toEqual({ error: "Paid budget spent" });
+    expect(paidSpendBudgetRefusal).toHaveBeenCalledOnce();
+    expect(deniedFetch).not.toHaveBeenCalled();
+  });
+
+  it.each(UNDETERMINED_MEMORY_OPERATIONS)("keeps an owned follow-up memory operation on the provider path: %s", async (query) => {
+    const followUp = query.replace(" in Soho", " in the same area");
+    await registerPubPalToolTurn(THREAD, { query: SOHO, cityId: "london", ownerId: OWNER, turns: [] });
+    const context = await preparePalElevenLabsChatTurn({ query: followUp, ownerId: OWNER, threadId: THREAD });
+    expect(palChatRecordQuery(followUp, context.prior.turns)).toBeNull();
+    const response = await ask(followUp, THREAD);
+    expect(response.status).toBe(429);
+    expect(await response.json()).toEqual({ error: "Paid budget spent" });
+    expect(paidSpendBudgetRefusal).toHaveBeenCalledOnce();
+    expect(deniedFetch).not.toHaveBeenCalled();
+  });
+
+  it("rejects a determiner-free memory operation carried into a refined follow-up", () => {
+    expect(palChatRecordQuery("please", [{ role: "user", content: "Store notes: I like wine. Wine prices at Fox and Anchor" }])).toBeNull();
+  });
+
+  it.each([
+    ["Find four pubs in Soho with quiet gardens", "search_venues"],
+    ["Plan a crawl in Soho to save money", "propose_plan"],
+  ] as const)("keeps an ordinary ask without a memory operation local over configured HTTP: %s", async (query, tool) => {
+    expect(palChatRecordQuery(query)).toBe(query);
     const response = await ask(query);
     expect(response.status).toBe(200);
     expect(await response.json()).toMatchObject({ toolsUsed: [tool] });

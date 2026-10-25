@@ -600,6 +600,8 @@ describe("routeAskDeterministically: complete requested venue quantity", () => {
     "Find three pubs and a dozen pubs in Soho",
     "Find three more pubs in Soho",
     "Find another three pubs in Soho",
+    "Find three pubs in Soho followed by a heap",
+    "Find three pubs with food and a gaggle in Soho",
   ])("keeps the default card limit when the complete quantity is not one supported count: %s", (query) => {
     expect(routeAskDeterministically(query)).toEqual([{ name: "search_venues", args: { query, limit: 4 } }]);
   });

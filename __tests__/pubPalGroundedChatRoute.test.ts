@@ -25,7 +25,7 @@ const REQUESTS = [
 
 const LOCAL_NIGHT_REQUESTS = [
   { query: "A pub crawl in Soho for three, not pricey", count: 3, tool: "propose_plan" },
-  { query: "Two quiet pubs near Borough Market", count: 2, tool: "search_venues" },
+  { query: "Two quiet pubs near Borough Market", count: 1, tool: "search_venues", ids: ["venue-fpmfjs"] },
 ];
 
 describe("configured Pub Pal local record answers", () => {
@@ -109,7 +109,7 @@ describe("configured Pub Pal local record answers", () => {
   );
 
   it.each(LOCAL_NIGHT_REQUESTS.flatMap((request) => [false, true].map((stream) => ({ ...request, stream }))))(
-    "returns the constrained local night without provider spend: $query, stream=$stream", async ({ query, count, tool, stream }) => {
+    "returns the constrained local night without provider spend: $query, stream=$stream", async ({ query, count, tool, stream, ids }) => {
       const response = await POST(new Request("http://localhost/api/pub-pal/chat", {
         method: "POST",
         headers: { "content-type": "application/json", accept: stream ? PAL_CHAT_STREAM_TYPE : "application/json" },
@@ -128,6 +128,7 @@ describe("configured Pub Pal local record answers", () => {
       const answer = body as unknown as AskResponseBody;
       expect(answer.cards).toHaveLength(count);
       expect(new Set(answer.cards.map((card) => card.venueId)).size).toBe(count);
+      if (ids) expect(answer.cards.map((card) => card.venueId)).toEqual(ids);
       expect(answer.cards.every((card) => Boolean(card.venueId) && Boolean(card.provenance?.label))).toBe(true);
       if (tool === "propose_plan") {
         expect(answer.cards.every((card) => typeof card.price === "number" && card.price > 0 && card.price <= 6)).toBe(true);

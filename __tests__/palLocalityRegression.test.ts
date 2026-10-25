@@ -14,7 +14,9 @@ vi.mock("@/lib/paidSpendBudget.server", () => ({
 vi.mock("@/lib/concierge/venues.server", () => ({ loadConciergeVenues: vi.fn() }));
 
 import { POST } from "@/app/api/pub-pal/chat/route";
-import { refineRoutedAskQuery, refineVenueAreaFollowUp, resolveAskLocality } from "@/lib/ask/router";
+import { refineRoutedAskQuery, refineVenueAreaFollowUp, resolveAskLocality, routeAskDeterministically } from "@/lib/ask/router";
+import { runAskTool } from "@/lib/ask/tools";
+import { requestedVenueQuantity } from "@/lib/concierge/intentPolicy";
 import { loadConciergeVenues } from "@/lib/concierge/venues.server";
 import type { ConciergeVenue } from "@/lib/concierge/rank";
 import { palChatRecordQuery, preparePalElevenLabsChatTurn } from "@/lib/palElevenLabsChat.server";
@@ -128,6 +130,73 @@ describe("supported locality at the local answer boundary", () => {
       expect(deniedFetch).not.toHaveBeenCalled();
     },
   );
+});
+
+const UNCONSUMED_ADDITIVE_QUANTITIES = [
+  "Find three pubs in Soho followed by a dozen",
+  "Find three pubs in Soho, then a handful",
+  "Find three pubs in Soho plus several",
+  "Find three pubs in Soho with food and several",
+  "Find three pubs plus several in Soho",
+  "Find three pubs and a bar in Soho",
+  "Find three pubs in Soho for four of us plus several",
+  "Find three pubs in Soho under £6.50 a pint followed by several",
+  "Pints under £6.50 in Soho across three pubs and several",
+  "Plan a crawl in Soho at 8 pm with three pubs then a score",
+  "Plan a pub crawl in Soho followed by a dozen",
+  "A pub crawl in Soho for three plus several",
+  "Plan a crawl in Soho with several stops",
+  "Find three pubs in Soho followed by a heap",
+  "Find three pubs with food and a gaggle in Soho",
+];
+
+describe("unconsumed additive quantities before or after the area, party, price and time", () => {
+  it.each(UNCONSUMED_ADDITIVE_QUANTITIES)("keeps a direct request on the configured HTTP provider path: %s", async (query) => {
+    expect(palChatRecordQuery(query)).toBeNull();
+    const response = await ask(query);
+    expect(response.status).toBe(429);
+    expect(await response.json()).toEqual({ error: "Paid budget spent" });
+    expect(paidSpendBudgetRefusal).toHaveBeenCalledOnce();
+    expect(deniedFetch).not.toHaveBeenCalled();
+  });
+
+  it.each(UNCONSUMED_ADDITIVE_QUANTITIES)("keeps an owned same-area request on the configured HTTP provider path: %s", async (query) => {
+    const followUp = query.replace(" in Soho", " in the same area");
+    await registerPubPalToolTurn(THREAD, { query: SOHO, cityId: "london", ownerId: OWNER, turns: [] });
+    const context = await preparePalElevenLabsChatTurn({ query: followUp, ownerId: OWNER, threadId: THREAD });
+    expect(palChatRecordQuery(followUp, context.prior.turns)).toBeNull();
+    const response = await ask(followUp, THREAD);
+    expect(response.status).toBe(429);
+    expect(await response.json()).toEqual({ error: "Paid budget spent" });
+    expect(paidSpendBudgetRefusal).toHaveBeenCalledOnce();
+    expect(deniedFetch).not.toHaveBeenCalled();
+  });
+
+  it.each(["Three pubs plus several", "Three pubs, then several"])("rejects a short follow-up refined into the owned area: %s", (query) => {
+    expect(refineRoutedAskQuery(query, SOHO)).toBe(`${query} in Soho`);
+    expect(palChatRecordQuery(query, [{ role: "user", content: SOHO }])).toBeNull();
+  });
+
+  it.each(["Find three pubs in Soho followed by a dozen", "Find three pubs plus several in Soho", "Find three pubs in Soho followed by a heap", "Find three pubs with food and a gaggle in Soho"])(
+    "leaves the shared quantity unresolved so the router keeps its default count: %s", (query) => {
+      expect(requestedVenueQuantity(query)).toBeNull();
+      expect(routeAskDeterministically(query)).toEqual([{ name: "search_venues", args: { query, limit: 4 } }]);
+    },
+  );
+
+  it.each([
+    ["Find three pubs in Soho for a quick one after work", "search_venues", 3],
+    ["Find three pubs near Soho, not pricey", "search_venues", 3],
+    ["Plan a crawl in Soho for 6 people at 8 pm", "propose_plan", undefined],
+  ] as const)("keeps a complete request local through the same seams: %s", async (query, tool, count) => {
+    expect(requestedVenueQuantity(query)).toBe(count);
+    expect(palChatRecordQuery(query)).toBe(query);
+    const response = await ask(query);
+    expect(response.status).toBe(200);
+    expect(await response.json()).toMatchObject({ toolsUsed: [tool] });
+    expect(paidSpendBudgetRefusal).not.toHaveBeenCalled();
+    expect(deniedFetch).not.toHaveBeenCalled();
+  });
 });
 
 const OXFORD_NOT_SOHO = "Find four pubs in Oxford, not in Soho";
@@ -548,6 +617,126 @@ describe("complete requested venue quantity at the local answer boundary", () =>
     const body = await response.json() as { toolsUsed: string[]; cards: unknown[] };
     expect(body.toolsUsed).toEqual([tool]);
     expect(body.cards).toHaveLength(count);
+    expect(paidSpendBudgetRefusal).not.toHaveBeenCalled();
+    expect(deniedFetch).not.toHaveBeenCalled();
+  });
+});
+
+const ELLIPTICAL_ADDITIVE_QUANTITIES = [
+  "Find three pubs followed by a dozen in Soho",
+  "Find three pubs plus a couple in Soho",
+  "Plan a crawl in Soho with three pubs followed by a dozen",
+  "Pints under £6.50 in Soho across three pubs followed by a dozen",
+];
+
+describe("additive word quantities without a second venue noun", () => {
+  it.each(ELLIPTICAL_ADDITIVE_QUANTITIES)("leaves the shared venue quantity unresolved: %s", (query) => {
+    expect(requestedVenueQuantity(query)).toBeNull();
+    expect(requestedVenueQuantity(query.replace(" in Soho", " in the same area"))).toBeNull();
+  });
+
+  it.each(["Find three pubs followed by a dozen in Soho", "Find three pubs plus a couple in Soho"])(
+    "routes the default discovery count instead of the first conjunct: %s", (query) => {
+      expect(routeAskDeterministically(query)).toEqual([{ name: "search_venues", args: { query, limit: 4 } }]);
+    },
+  );
+
+  it.each(ELLIPTICAL_ADDITIVE_QUANTITIES)("keeps a direct elliptical quantity on the configured HTTP provider path: %s", async (query) => {
+    expect(palChatRecordQuery(query)).toBeNull();
+    const response = await ask(query);
+    expect(response.status).toBe(429);
+    expect(await response.json()).toEqual({ error: "Paid budget spent" });
+    expect(paidSpendBudgetRefusal).toHaveBeenCalledOnce();
+    expect(deniedFetch).not.toHaveBeenCalled();
+  });
+
+  it.each(ELLIPTICAL_ADDITIVE_QUANTITIES)("keeps an owned same-area elliptical quantity on the configured HTTP provider path: %s", async (query) => {
+    const followUp = query.replace(" in Soho", " in the same area");
+    await registerPubPalToolTurn(THREAD, { query: SOHO, cityId: "london", ownerId: OWNER, turns: [] });
+    const context = await preparePalElevenLabsChatTurn({ query: followUp, ownerId: OWNER, threadId: THREAD });
+    expect(palChatRecordQuery(followUp, context.prior.turns)).toBeNull();
+    const response = await ask(followUp, THREAD);
+    expect(response.status).toBe(429);
+    expect(await response.json()).toEqual({ error: "Paid budget spent" });
+    expect(paidSpendBudgetRefusal).toHaveBeenCalledOnce();
+    expect(deniedFetch).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ["Find four pubs in Soho", 4],
+    ["Find three pubs and four friends in Soho", 3],
+    ["Plan a crawl in Soho with three pubs and 8 pm", 3],
+    ["A three-stop pub crawl in Soho", 3],
+    ["Four pubs in Soho with food and a garden", 4],
+    ["A pub crawl in Soho for three, not pricey", undefined],
+  ] as const)("keeps a complete single venue quantity: %s", (query, count) => {
+    expect(requestedVenueQuantity(query)).toBe(count);
+  });
+});
+
+function placedPub(id: string, name: string, searchText: string, area: string, lat: number, lng: number): ConciergeVenue {
+  return { ...listedPub(id, name, searchText), area, lat, lng };
+}
+
+const TEXT_MEMBERSHIP_VENUES = [
+  listedPub("soho-one", "Soho One"),
+  listedPub("oxford-arms", "Oxford Arms"),
+  placedPub("market-porter", "Market Porter", "Market Porter 9 Stoney Street Borough Market London SE1", "Southwark", 51.5053, -0.0912),
+  placedPub("globe-tavern", "Globe Tavern", "Globe Tavern 8 Bedale Street Borough Market London SE1", "Southwark", 51.5052, -0.0909),
+  placedPub("rake", "Rake", "Rake 14 Winchester Walk Borough Market London SE1", "Southwark", 51.5058, -0.0915),
+  placedPub("wheatsheaf", "Wheatsheaf", "Wheatsheaf 6 Stoney Street London SE1", "Southwark", 51.5054, -0.0911),
+  placedPub("warrington", "Warrington", "Warrington 93 Warrington Crescent Maida Vale London W9", "Westminster", 51.5266, -0.1866),
+  placedPub("elgin", "Elgin", "Elgin 255 Elgin Avenue London W9", "Westminster", 51.5268, -0.1903),
+];
+
+const BOROUGH_MARKET_MEMBERS = ["globe-tavern", "market-porter", "rake"];
+
+describe("area text membership outside a night-area circle", () => {
+  beforeEach(() => {
+    vi.mocked(loadConciergeVenues).mockResolvedValue(TEXT_MEMBERSHIP_VENUES);
+  });
+
+  it.each([
+    ["Find four pubs near Borough Market", BOROUGH_MARKET_MEMBERS],
+    ["Find four pubs in Maida Vale", ["warrington"]],
+  ] as const)("searches only pubs whose own records name the place: %s", async (query, ids) => {
+    const result = await runAskTool("search_venues", { query, limit: 4 }, { cityId: "london", query, skipModel: true });
+    expect(result.ok).toBe(true);
+    expect(result.cards.map((card) => card.venueId).sort()).toEqual([...ids]);
+    expect(result.answerHint).toContain(`Only ${ids.length} listed`);
+    expect(result.cards.every((card) => !/\bNear\b/.test(card.note))).toBe(true);
+  });
+
+  it("plans a Borough Market crawl from its text members alone", async () => {
+    const query = "Plan a crawl near Borough Market";
+    const result = await runAskTool("propose_plan", {}, { cityId: "london", query, skipModel: true });
+    expect(result.ok).toBe(true);
+    expect(result.cards.map((card) => card.venueId).sort()).toEqual(BOROUGH_MARKET_MEMBERS);
+    expect(result.proposals.find((proposal) => proposal.kind === "draft_plan")).toMatchObject({ label: "Open in Plan", query });
+  });
+
+  it("withholds a Maida Vale crawl when one listed pub names it", async () => {
+    const query = "Plan a crawl in Maida Vale";
+    const result = await runAskTool("propose_plan", {}, { cityId: "london", query, skipModel: true });
+    expect(result.ok).toBe(false);
+    expect(result.cards.map((card) => card.venueId)).toEqual(["warrington"]);
+    expect(result.proposals).toEqual([]);
+  });
+
+  it("keeps the existing Soho night-area circle beside its text members", async () => {
+    const query = "Find four pubs in Soho";
+    const result = await runAskTool("search_venues", { query, limit: 4 }, { cityId: "london", query, skipModel: true });
+    expect(result.cards.map((card) => card.venueId).sort()).toEqual(["oxford-arms", "soho-one"]);
+    expect(result.cards.find((card) => card.venueId === "oxford-arms")?.note).toContain("Near Piccadilly & Soho");
+  });
+
+  it("answers Borough Market discovery locally with honest scarcity over configured HTTP", async () => {
+    const response = await ask("Find four pubs near Borough Market");
+    expect(response.status).toBe(200);
+    const body = await response.json() as { toolsUsed: string[]; cards: Array<{ venueId: string; provenance?: { label?: string } }> };
+    expect(body.toolsUsed).toEqual(["search_venues"]);
+    expect(body.cards.map((card) => card.venueId).sort()).toEqual(BOROUGH_MARKET_MEMBERS);
+    expect(body.cards.every((card) => Boolean(card.provenance?.label))).toBe(true);
     expect(paidSpendBudgetRefusal).not.toHaveBeenCalled();
     expect(deniedFetch).not.toHaveBeenCalled();
   });

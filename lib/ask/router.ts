@@ -2,13 +2,12 @@
 // from the user query without calling a paid model.
 
 import { NIGHT_AREAS } from "@/lib/nightAreas";
-import { LONDON_BOROUGHS } from "@/lib/boroughs";
 import { detectWhatsOnIntent } from "@/lib/concierge/whatsOn";
 import type { AskToolName } from "@/lib/ask/types";
 import type { DrinkCategory } from "@/lib/drinks";
 import { isKnownAskPlacePhrase } from "@/lib/ask/placePhrases";
 import { palAsksForVenueDiscovery } from "@/lib/palMapAsk";
-import { defaultKnownAreas, deterministicAreaInText, extractExplicitBudget, namesExcludedPlace, requestedVenueQuantity, withoutExcludedPlaces } from "@/lib/concierge/intentPolicy";
+import { defaultKnownAreas, deterministicAreaInText, extractExplicitBudget, isCompleteLocalRequest, isSupportedAskArea, namesExcludedPlace, requestedVenueQuantity, SAME_AREA_REFERENCE_RE, withoutExcludedPlaces, withoutSameAreaReference } from "@/lib/concierge/intentPolicy";
 
 export type RoutedToolCall = {
   name: AskToolName;
@@ -99,6 +98,9 @@ type AskPriceIntent =
   | { kind: "recorded-drinks"; venueName: string; category?: DrinkCategory }
   | { kind: "unsupported"; coverage: UnsupportedPriceComparison };
 
+const TRANSIT_ANCHOR = String.raw`(?:near|close to|by)\s+(?:the\s+)?(?:tube|(?:[A-Za-z&'’-]+\s+)*station)`;
+const TRAILING_TRANSIT_ANCHOR_RE = new RegExp(String.raw`\s+${TRANSIT_ANCHOR}$`, "i");
+
 function namedDrinkVenue(query: string): string | null {
   const match = stripTrailingQualifiers(stripTrailingPunctuation(query))
     .replace(/\s+costs?$/i, "")
@@ -106,7 +108,7 @@ function namedDrinkVenue(query: string): string | null {
   if (!match?.[1] || PRICE_COMPARISON_RE.test(match[1]) || ITEM_PRICE_RE.test(match[1])) return null;
   return stripTrailingQualifiers(match[1])
     .split(/\s+(?:with|for)\s+/i)[0]!
-    .replace(/\s+(?:near|close to|by)\s+(?:the\s+)?(?:tube|(?:[A-Za-z&'’-]+\s+)*station)$/i, "")
+    .replace(TRAILING_TRANSIT_ANCHOR_RE, "")
     .trim() || null;
 }
 
@@ -135,17 +137,22 @@ export function resolveAskJourney(query: string): { from?: string; to: string } 
 
 // Presentation requests describe the answer, not an item whose price is sought.
 // Keep this whole-clause match narrow so a second food/drink ask stays visible.
-const PRICE_PRESENTATION_CLAUSE_RE = /^(?:please\s+)?(?:show|include|give)(?:\s+me)?\s+(?:the\s+)?(?:sources?|source dates?|recorded dates?|map)(?:\s+and\s+(?:the\s+)?(?:sources?|source dates?|recorded dates?|map))*$/i;
+const PRICE_PRESENTATION_CLAUSE_RE = /^(?:please\s+)?(?:show|include|give)(?:\s+(?:me|us))?\s+(?:(?:them|it)\s+on\s+(?:the|a)\s+map|(?:the\s+)?(?:sources?|source dates?|recorded dates?|map)(?:\s+and\s+(?:the\s+)?(?:sources?|source dates?|recorded dates?|map))*)$/i;
 
-function priceQuestion(query: string): string {
-  const clauses = askRequestClauses(withoutExcludedPlaces(query)).flatMap((clause) => clause.split(/(?<=[.!?])\s+(?=(?:please\s+)?(?:show|include|give)\s)/i)).map((clause) =>
+function requestClauses(query: string): string[] {
+  return askRequestClauses(withoutExcludedPlaces(query)).flatMap((clause) => clause.split(/(?<=[.!?])\s+(?=(?:please\s+)?(?:show|include|give)\s)/i)).map((clause) =>
     stripTrailingQualifiers(stripTrailingPunctuation(clause)),
   );
-  const priceClauses = clauses.filter((clause) =>
-    clause.length > 0 && !socialTurnKind(clause) && !PRICE_PRESENTATION_CLAUSE_RE.test(clause) && !((isCityStatusRequest(clause) || JOURNEY_RE.test(clause))
-      && !ITEM_PRICE_RE.test(clause) && !PRICE_COMPARISON_RE.test(clause)),
-  );
-  return priceClauses.join(" and ");
+}
+
+function isStatusClause(clause: string): boolean {
+  return (isCityStatusRequest(clause) || JOURNEY_RE.test(clause)) && !ITEM_PRICE_RE.test(clause) && !PRICE_COMPARISON_RE.test(clause);
+}
+
+function priceQuestion(query: string): string {
+  return requestClauses(query).filter((clause) =>
+    clause.length > 0 && !socialTurnKind(clause) && !PRICE_PRESENTATION_CLAUSE_RE.test(clause) && !isStatusClause(clause),
+  ).join(" and ");
 }
 
 export function namedMenuRequest(query: string): { venueName: string; subject: string } | null {
@@ -286,6 +293,25 @@ export function recordedDrinkComparison(query: string): RoutedToolCall | null {
     ? { name: "venue_drinks", args: { venueName: intent.venueName, ...(intent.category ? { drinkCategory: intent.category } : {}) } }
     : null;
 }
+const TRANSIT_ANCHOR_RE = new RegExp(String.raw`\b${TRANSIT_ANCHOR}\b`, "gi");
+const CITY_STATUS_WORDS_RE = new RegExp(CITY_STATUS_RE.source, "gi");
+const DISCOVERY_REFERENCE_RE = new RegExp(String.raw`(?:${VENUE_DISCOVERY_RE.source})(?![\s-]+crawls?\b)`, "gi");
+
+export function isCompleteAskRequest(query: string): boolean {
+  const statusComplete = requestClauses(query)
+    .filter((clause) => isStatusClause(clause) && !JOURNEY_RE.test(clause))
+    .every((clause) => isCompleteLocalRequest(clause.replace(TRANSIT_INTERROGATIVE_RE, " ").replace(CITY_STATUS_WORDS_RE, " ")));
+  const question = priceQuestion(query);
+  const kind = resolveAskPriceIntent(query).kind;
+  const attached = question.split(/\s*,\s*|(?<=[.!?])\s+/)
+    .filter((part) => /^(?:with|for)\b/i.test(part) || PRICE_COMPARISON_RE.test(part) || ITEM_PRICE_RE.test(part)).join(", ");
+  const item = kind === "unsupported" || kind === "menu" || kind === "recorded-drinks" ? priceComparisonSubject(attached) ?? "" : "";
+  return statusComplete && isCompleteLocalRequest(
+    question.replace(TRANSIT_ANCHOR_RE, " ").replace(DISCOVERY_REFERENCE_RE, " place "),
+    item.split(/\s+(?:and|&)\s+/i)[0]!.split(/\s+/),
+  );
+}
+
 const FIND_DESK_RE =
   /\b(work from|sit and work|laptop|wi-?fi|desk|co-?working|somewhere to work|plug socket)\b/i;
 // "it's quiet" is missing on purpose: quiet is how a drinker asks for a pub,
@@ -368,7 +394,7 @@ export function socialTurnKind(query: string): "greeting" | "thanks" | null {
  * own claim wins, so a pint ask after a wifi ask cannot be swallowed by
  * find_desk matching the earlier sentence.
  */
-export const SAME_AREA_REFERENCE_RE = /(?:\b(?:in|near|around)\s+)?\b(?:the\s+)?same\s+(?:area|patch|neighbou?rhood)\b/i;
+export { SAME_AREA_REFERENCE_RE };
 
 export function unambiguousAskArea(text: string): string | null | undefined {
   text = withoutExcludedPlaces(text.replace(SAME_AREA_REFERENCE_RE, ""));
@@ -397,19 +423,14 @@ export function resolveAskLocality(text: string):
   const area = unambiguousAskArea(text);
   if (area === null) return { kind: "ambiguous" };
   if (area === undefined) return { kind: "missing" };
-  const key = area.toLocaleLowerCase("en-GB");
-  const supported = key === "london"
-    || defaultKnownAreas().some((label) => label.toLocaleLowerCase("en-GB") === key)
-    || LONDON_BOROUGHS.some((label) => label.toLocaleLowerCase("en-GB") === key)
-    || isKnownAskPlacePhrase(area);
-  return { kind: supported ? "supported" : "unsupported", area };
+  return { kind: isSupportedAskArea(area) ? "supported" : "unsupported", area };
 }
 
 export function refineVenueAreaFollowUp(query: string, priorUserContent: string | readonly string[] | null | undefined): string | null {
   if (!SAME_AREA_REFERENCE_RE.test(query) || /\bat\s+\S/i.test(query)) return null;
   const price = resolveAskPriceIntent(query);
   if (price.kind !== "none" && price.kind !== "pint" && price.kind !== "plan") return null;
-  const namedQuery = query.replace(SAME_AREA_REFERENCE_RE, "");
+  const namedQuery = withoutSameAreaReference(query);
   const namedArea = unambiguousAskArea(namedQuery);
   if (namedArea === null) return null;
   if (namedArea) return namedQuery.replace(/\s+/g, " ").trim();

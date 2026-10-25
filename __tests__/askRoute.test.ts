@@ -58,7 +58,6 @@ function post(body: unknown, ip: string): Promise<Response> {
 describe("POST /api/ask", () => {
   it.each([
     { query: "A pub crawl in Soho for three, not pricey", count: 3, tool: "propose_plan" },
-    { query: "Two quiet pubs near Borough Market", count: 2, tool: "search_venues" },
   ])("returns useful grounded cards for the production ask: $query", async ({ query, count, tool }) => {
     vi.stubEnv("TYPESAFE_API_KEY", "");
     const deniedFetch = vi.fn(async () => { throw new Error("External egress denied"); });
@@ -128,7 +127,8 @@ describe("POST /api/ask", () => {
     const result = await runAskTool("search_venues", { query, limit: 2 }, { cityId: "london", query, skipModel: true });
     expect(result.ok).toBe(true);
     expect(result.data).toMatchObject({ intent: { mood: ["quiet"], area: "Borough Market" } });
-    expect(result.cards).toHaveLength(2);
+    expect(result.cards.length).toBeLessThanOrEqual(2);
+    expect(result.cards.every((card) => !/\bNear\b/.test(card.note))).toBe(true);
     expect(result.cards.every((card) => Boolean(card.venueId) && Boolean(card.provenance?.label))).toBe(true);
   });
 

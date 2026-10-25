@@ -2,7 +2,7 @@ import "server-only";
 
 import { extractExplicitBudget, requestedVenueQuantity } from "@/lib/concierge/intentPolicy";
 import { composeAnswer, runAsk } from "@/lib/ask/runAsk";
-import { recordedDrinkComparison, refineRoutedAskQuery, resolveAskLocality, SAME_AREA_REFERENCE_RE, resolveAskPriceIntent, routeAskDeterministically, unsupportedPriceComparison } from "@/lib/ask/router";
+import { isCompleteAskRequest, recordedDrinkComparison, refineRoutedAskQuery, resolveAskLocality, SAME_AREA_REFERENCE_RE, resolveAskPriceIntent, routeAskDeterministically, unsupportedPriceComparison } from "@/lib/ask/router";
 import type { AskCard, AskProposal } from "@/lib/ask/types";
 import { resolveAskCityId } from "@/lib/ask/tools";
 import {
@@ -185,14 +185,16 @@ export async function preparePalElevenLabsChatTurn(
 
 /** The validated read-only pint/menu asks that need no provider narration. */
 
-const MEMORY_REQUEST_RE = /\b(?:remember|forget|keep in mind|make a note|note that)\b|\b(?:save|store|record|add|keep|update|change|edit|correct|delete|remove|erase|clear)\s+(?:[\w'’-]+\s+){0,2}(?:my|our|a|an|the|this|these|those)\s+(?:[\w'’-]+\s+)?(?:preferences?|notes?|memor(?:y|ies))\b/i;
+const MEMORY_REQUEST_RE = /\b(?:remember|forget|keep in mind|make a note|note that)\b|\b(?:save|store|record|add|keep|update|change|edit|correct|delete|remove|erase|clear)\s+(?:[\w'’-]+\s+){0,2}(?:(?:my|our|a|an|the|this|these|those)\s+)?(?:[\w'’-]+\s+)?(?:preferences?|notes?|memor(?:y|ies))\b/i;
 
 /** Constrained local record answers that need no provider narration or durable plan write. */
 export function palChatRecordQuery(query: string, turns: readonly PubPalFenceTurn[] = []): string | null {
   if (MEMORY_REQUEST_RE.test(query)) return null;
+  if (!isCompleteAskRequest(query) || requestedVenueQuantity(query) === null) return null;
   if (unsupportedPriceComparison(query) || recordedDrinkComparison(query)) return query;
   const priorAsks = turns.filter((turn) => turn.role === "user").map((turn) => turn.content);
   const routedQuery = refineRoutedAskQuery(query, priorAsks.at(-1), priorAsks);
+  if (!isCompleteAskRequest(routedQuery)) return null;
   if (SAME_AREA_REFERENCE_RE.test(routedQuery) || MEMORY_REQUEST_RE.test(routedQuery)) return null;
   if (unsupportedPriceComparison(routedQuery) || recordedDrinkComparison(routedQuery)) return routedQuery;
   const intent = resolveAskPriceIntent(routedQuery);

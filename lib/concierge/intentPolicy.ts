@@ -7,6 +7,7 @@
 import { CONCIERGE_MOODS, type ConciergeIntent, type ConciergeMood } from "@/lib/concierge/rank";
 import { NIGHT_AREAS } from "@/lib/nightAreas";
 import { isKnownAskPlacePhrase } from "@/lib/ask/placePhrases";
+import { LONDON_BOROUGHS } from "@/lib/boroughs";
 
 /** Keyless cheap-pint cap. Same figure the regex path has always used. */
 export const CHEAP_PINT_GBP = 6;
@@ -132,13 +133,51 @@ const VENUE_QUANTITY_RE = new RegExp(
   `(?<![£$€]\\s*|\\d[.,/])\\b(${CARDINAL_PHRASE})[-\\s]+(?:(?!${COUNT_GAP_STOP})[a-z][a-z'’]*[-\\s]+)*(?:stops?|pubs?|bars?|venues?|places?)\\b`,
   "gi",
 );
+const PARTY_QUANTITY = `[£$€]\\s*${CARDINAL_PHRASE}|\\b${CARDINAL_PHRASE}[-\\s]*(?:of|${QUANTITY_UNIT}|(?:a|per)\\s+pint)\\b|\\bfor[-\\s]+${CARDINAL_PHRASE}\\b(?![-\\s]+more\\b)`;
+const PARTY_QUANTITY_RE = new RegExp(PARTY_QUANTITY, "gi");
 const OWNED_QUANTITY_RE = new RegExp(
-  `[£$€]\\s*${CARDINAL_PHRASE}|\\b${CARDINAL_PHRASE}[-\\s]*(?:of|${QUANTITY_UNIT}|(?:a|per)\\s+pint)\\b|\\bfor[-\\s]+${CARDINAL_PHRASE}\\b(?![-\\s]+more\\b)|\\b(?:a|an|the)[-\\s]+(?:(?!${CARDINAL_WORD}\\b)[a-z'’]+[-\\s]+)?one\\b`,
+  `${PARTY_QUANTITY}|\\b(?:a|an|the)[-\\s]+(?:(?!${CARDINAL_WORD}\\b)[a-z'’]+[-\\s]+)?one\\b`,
   "gi",
 );
 const BARE_CARDINAL_RE = new RegExp(`\\b${CARDINAL_TOKEN}\\b`, "i");
 const RELATIVE_QUANTITY_RE = /\b(?:another|more)\b/i;
 const UNSTATED_QUANTITY_RE = new RegExp(`\\ban?[-\\s]+(?:(?!${COUNT_GAP_STOP})[a-z][a-z'’]*[-\\s]+)+(?:stops|pubs|bars|venues|places)\\b`, "i");
+
+export const SAME_AREA_REFERENCE_RE = /(?:\b(?:in|near|around)\s+)?\b(?:the\s+)?same\s+(?:area|patch|neighbou?rhood)\b/i;
+
+export function isSupportedAskArea(area: string): boolean {
+  const key = area.toLocaleLowerCase("en-GB");
+  return key === "london"
+    || defaultKnownAreas().some((label) => label.toLocaleLowerCase("en-GB") === key)
+    || LONDON_BOROUGHS.some((label) => label.toLocaleLowerCase("en-GB") === key)
+    || isKnownAskPlacePhrase(area);
+}
+
+const CONSUMED_REQUEST_PHRASE_RE = /\b(?:pub[\s-]+crawls?|for a quick one(?: after work)?|to save money|that (?:suits?|match(?:es)?) (?:my|our) (?:preferences?|notes?)|(?:show|give|include)(?: me| us)?(?: the)? (?:(?:source|recorded) dates?|sources?)|(?:(?:(?:them|it) )?on )?(?:the|a) map|(?:late )?(?:opening|closing) (?:hours|times)|not (?:too )?(?:pricey|expensive|dear))\b/gi;
+const VENUE_NOUN_RE = /\b(?:pubs?|bars?|stops?|venues?|places?)\b/gi;
+const CONSUMED_REQUEST_WORDS = new Set("a an the and or but with for in near nearby around at of to then that across please find show me us plan sort get give list recommend suggest what s is are where some any how much do does crawl crawls night out route cheap cheaper cheapest price prices cost costs pint pints beer beers drink drinks under below max maximum up less per listed recorded best value lowest affordable good decent nice local tonight now right later today this evening afternoon morning weekend am pm people friends mates group quiet ish calm low key lively buzzing cosy cozy snug fireside garden gardens outdoor riverside waterside sports live music romantic historic dog friendly craft cider food meal meals lunch dinner breakfast burger burgers pizza sandwich sandwiches menu calories calorie kcal dietary vegan vegetarian gluten servings options wine wines cocktail cocktails spirit spirits coffee whisky whiskey gin rum vodka shot shots soft alcohol free non alcoholic".split(" "));
+
+const VENUE_NAME_WORD = String.raw`(?!(?:${[...CONSUMED_REQUEST_WORDS].join("|")})\b)[\p{L}][\p{L}'’-]*`;
+const VENUE_NAME_RUN = String.raw`${VENUE_NAME_WORD}(?:\s+${VENUE_NAME_WORD})*`;
+const NAMED_VENUE_RE = new RegExp(String.raw`\bat\s+(?:the\s+)?${VENUE_NAME_RUN}(?:\s+(?:and|&|of)\s+(?:the\s+)?${VENUE_NAME_RUN})?`, "giu");
+const AREA_REFERENCE_RE = new RegExp(String.raw`(?:,?\s*\bnot\s+)?(?:${SAME_AREA_REFERENCE_RE.source})`, "gi");
+
+export function withoutSameAreaReference(text: string): string {
+  return text.replace(AREA_REFERENCE_RE, " ");
+}
+
+export function isCompleteLocalRequest(text: string, itemWords: readonly string[] = []): boolean {
+  let rest = withoutSameAreaReference(withoutExcludedPlaces(text));
+  const area = deterministicAreaInText(rest, defaultKnownAreas());
+  if (area && isSupportedAskArea(area)) rest = rest.replace(new RegExp(`\\b${escapeRegExp(area)}\\b`, "giu"), " ");
+  let venueNouns = 0;
+  rest = rest.replace(NAMED_VENUE_RE, " at ").replace(CONSUMED_REQUEST_PHRASE_RE, " ")
+    .replace(VENUE_QUANTITY_RE, () => { venueNouns += 1; return " "; })
+    .replace(PARTY_QUANTITY_RE, " ")
+    .replace(VENUE_NOUN_RE, () => { venueNouns += 1; return " "; });
+  const item = new Set(itemWords.flatMap((word) => word.toLowerCase().match(/[\p{L}\p{N}]+/gu) ?? []));
+  return venueNouns <= 1 && (rest.toLowerCase().match(/[\p{L}\p{N}]+/gu) ?? []).every((word) => CONSUMED_REQUEST_WORDS.has(word) || item.has(word));
+}
 
 export function requestedVenueQuantity(query: string): number | null | undefined {
   if (RELATIVE_QUANTITY_RE.test(query) || UNSTATED_QUANTITY_RE.test(query)) return null;
@@ -150,7 +189,7 @@ export function requestedVenueQuantity(query: string): number | null | undefined
   if (/\b[a-z]+-(?:stops?|pubs?|bars?|venues?|places?)\b/i.test(unclaimed) || BARE_CARDINAL_RE.test(unclaimed.replace(OWNED_QUANTITY_RE, " "))) return null;
   if (counts.length !== 1) return counts.length === 0 ? undefined : null;
   const count = NUMBER_WORDS[counts[0]!] ?? Number(counts[0]);
-  return Number.isInteger(count) && count > 0 ? count : null;
+  return Number.isInteger(count) && count > 0 && isCompleteLocalRequest(query) ? count : null;
 }
 
 /** A preposition directly before an area: "in Shoreditch", "near Soho". */
