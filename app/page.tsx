@@ -9,7 +9,7 @@ import { landingPhotoFor } from "@/lib/landingImagery";
 import { loadLandingHeroData } from "@/lib/landingPubCard.server";
 import { readTrustedHandoffFlag } from "@/lib/trustedHandoffFlags.server";
 import { homeProductDescription } from "@/lib/siteProductCopy";
-import { appPageTitle } from "@/lib/brandNaming";
+import { appPageTitle, BRAND_NAME } from "@/lib/brandNaming";
 
 // The words a forwarded link shows beside the card. They say the same thing the
 // page itself says, because a referral link (/r/<code>) lands on /#referral=…
@@ -28,7 +28,8 @@ const HOME_DESCRIPTION = homeProductDescription(HISTORIC_PUB_COUNT);
 // measurement. Next replaces a parent's openGraph object wholesale rather than
 // merging it, so the homepage restates the fields it keeps.
 export const metadata: Metadata = {
-  title: HOME_TITLE,
+  // A layout's title template does not apply to its own root page segment.
+  title: { absolute: `${HOME_TITLE} | ${BRAND_NAME}` },
   description: HOME_DESCRIPTION,
   alternates: { canonical: "/" },
   openGraph: {

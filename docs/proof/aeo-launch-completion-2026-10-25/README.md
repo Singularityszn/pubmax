@@ -47,7 +47,7 @@ The patch does not change training permissions or add schema families.
 `git diff --check` passed during preparation.
 Root admitted focused tests and targeted lint within a 1.5 GiB family allowance.
 Each admission required at least 11.75 GiB available by free, inactive and speculative pages.
-Full verification, coverage, build, browser and no-mistakes remain held.
+Full verification, coverage, build, browser and no-mistakes were held at that preparation stage.
 
 Regression tests were prepared before implementation.
 The exact base, test patch and reproduction plan are preserved in the external evidence directory.
@@ -63,6 +63,25 @@ An invalid CLI attempt is separate from the regression evidence.
 An admission sequencing error is recorded in `admission-sequence-error.json`.
 The failed and successful runs remain preserved.
 Required repository, browser, no-mistakes and hosted checks remain pending.
+
+## Current main reconciliation
+
+The prepared patch merged actual main `a87240e748c859556b3604db508db257af96ca03` without conflicts.
+The reconciled head `6c7c55e7975b77fa7b0bf04876daf20c3d27a1d7` passed all 373 focused tests.
+Its private production build passed with one build worker.
+The local version endpoint reported that exact SHA.
+
+The first Chromium discovery run passed six cases and failed the homepage title assertion.
+The emitted title omitted the brand because a layout template does not apply to its own route segment.
+The existing browser assertion remains unchanged.
+The correction uses an absolute branded homepage title and preserves child-page template behaviour.
+Five focused metadata and branding suites passed all 66 tests after this correction.
+The failing browser log remains `discovery-browser-current-main.log` in the external evidence directory.
+The corrected emitted title and final integrated build still require browser verification.
+
+This local build used fake public authentication configuration and keyless stores.
+The authentication-provider endpoint returned 503 in that environment.
+These checks do not establish authenticated account acceptance.
 
 The donor's historical report and validation attempts do not validate this reconciled patch.
 Authenticated planning and Social journeys remain unverified on this patch.

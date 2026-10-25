@@ -13,7 +13,9 @@ import { metadata as homeMetadata } from "@/app/page";
 // is exercised by the admission tests, independently of this display wording.
 describe("the public discovery metadata", () => {
   it("gives the homepage its own friends-and-planning description in the document head", () => {
-    expect(homeMetadata.title).toBe("London pint prices and pub crawls with friends");
+    expect(homeMetadata.title).toEqual({
+      absolute: "London pint prices and pub crawls with friends | PUBMAXX",
+    });
     expect(homeMetadata.description).toContain("Plan a crawl and share the route with your mates");
     expect(homeMetadata.openGraph?.description).toBe(homeMetadata.description);
     expect(homeMetadata.twitter?.description).toBe(homeMetadata.description);
