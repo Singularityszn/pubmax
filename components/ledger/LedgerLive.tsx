@@ -18,7 +18,7 @@ import { venuePriceLane, venuePriceLaneIsDrinkerLog, venuePriceLaneObservedGbp, 
 import { ANON_HANDLE_LABEL } from "@/lib/pintDropShared";
 import { venueListedPint, type VenueListedPint } from "@/lib/venueListedPint";
 import type { PricedVenue } from "@/lib/priceUpdates";
-import { priceStandingFor, priceStandingFigure } from "@/lib/priceTier";
+import { HOW_WE_ESTIMATE_HREF, HOW_WE_ESTIMATE_LABEL, priceStandingFor, priceStandingFigure, priceStandingNote } from "@/lib/priceTier";
 import ShareWithFamilyButton from "@/components/ledger/ShareWithFamilyButton";
 import type { VenueClaim } from "@/lib/curation";
 import type { FamilyTableEntry, LedgerEntry, RedactedFamilyEntry } from "@/lib/ledger";
@@ -174,7 +174,16 @@ function LedgerPublishedPriceRecord({ publishedLane, listedPint, venueId }: {
       {listedPint?.pintName ? displayDrinkName(listedPint.pintName) : "Cheapest listed pint"}
     </p>
     <ListedPriceSource evidence={listedPint ?? publishedLane} />
-  </> : publishedLane?.lane === "estimate" ? <p>{priceStandingFigure(priceStandingFor({ estimate: publishedLane.estimate }))}</p> : null;
+  </> : publishedLane?.lane === "estimate" ? <>
+    <p>Estimated pint price</p>
+    <p>{priceStandingFigure(priceStandingFor({ estimate: publishedLane.estimate }))}</p>
+    <p>{priceStandingNote("estimate")}</p>
+    <p>
+      Modelled from {publishedLane.estimate.sampleSize} published {publishedLane.estimate.sampleSize === 1 ? "price" : "prices"} ({publishedLane.estimate.basis.replaceAll("_", " ")}), calculated on{" "}
+      <time dateTime={publishedLane.estimate.computedAt}>{formatLedgerDate(publishedLane.estimate.computedAt)}</time>.{" "}
+      <Link className="ledgerMapLink" href={HOW_WE_ESTIMATE_HREF}>{HOW_WE_ESTIMATE_LABEL}</Link>
+    </p>
+  </> : null;
 }
 
 /** Public reports arrive with the logbook, never in the shared cached document. */
@@ -190,6 +199,8 @@ export function LedgerPriceRecord({ venue, bundle }: {
   };
   const { state, reload } = useLedgerLive();
   const publicPint = state.status === "ready" ? state.log.pintPrice : null;
+  // A cached document cannot know whether a public report exists.
+  const readableBundle = state.status === "ready" ? bundle : { ...bundle, estimate: null };
   const reportPrice = publicPint?.priceGbp != null
     ? { priceGbp: publicPint.priceGbp, observedAt: publicPint.createdAt }
     : null;
@@ -197,14 +208,15 @@ export function LedgerPriceRecord({ venue, bundle }: {
     pintVenue,
     publicPint?.state === "confirmed" || publicPint?.state === "corroborated" ? publicPint.priceGbp : null,
     venue.sourcedPrice,
-    bundle,
+    readableBundle,
     publicPint?.state === "logged-once" ? reportPrice : null,
     publicPint?.state === "aged-out" ? reportPrice : null,
     publicPint?.split ? { split: publicPint.split, observedAt: publicPint.createdAt } : null,
   );
-  const publishedLane = venuePriceLane(pintVenue, null, venue.sourcedPrice, bundle);
+  const publishedLane = venuePriceLane(pintVenue, null, venue.sourcedPrice, readableBundle);
   const currentPriceGbp = priceLane ? venuePriceLaneObservedGbp(priceLane) : undefined;
-  const publishedRecord = <LedgerPublishedPriceRecord publishedLane={publishedLane} listedPint={listedPint} venueId={venueId} />;
+  const publishedRecord = publicPint && publishedLane?.lane === "estimate" ? null
+    : <LedgerPublishedPriceRecord publishedLane={publishedLane} listedPint={listedPint} venueId={venueId} />;
   const reportRecord = publicPint ? <>
     <p>Public pint report</p>
     {publicPint.split ? <p>{pintPriceSplitLine(publicPint.split)}</p> : publicPint.priceGbp !== null ? (
