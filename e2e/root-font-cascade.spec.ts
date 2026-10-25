@@ -30,14 +30,14 @@ for (const width of [390, 1440]) {
         };
         await expect.poll(readFonts).toEqual(expected);
         if (javaScriptEnabled) {
-          // The theme left the header: on every width it is the Appearance
-          // setting on the You page (components/profile/AppearancePref.tsx).
+          // Exercise the Appearance setting independently of the header button.
           await page.goto("/u/you");
-          await expect(page.getByTestId("appearance-pref")).toBeVisible();
+          const appearance = page.getByTestId("appearance-pref");
+          await expect(appearance).toBeVisible();
           await expect.poll(readFonts).toEqual(expected);
           await expect(async () => {
-            await page.getByRole("button", { name: "Switch to dark theme", exact: true }).click();
-            await expect(page.getByRole("button", { name: "Switch to light theme", exact: true })).toBeVisible({ timeout: 1_000 });
+            await appearance.getByRole("button", { name: "Switch to dark theme", exact: true }).click();
+            await expect(appearance.getByRole("button", { name: "Switch to light theme", exact: true })).toBeVisible({ timeout: 1_000 });
           }).toPass({ timeout: 20_000 });
           await expect.poll(readFonts).toEqual(expected);
         }
