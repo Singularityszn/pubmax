@@ -1,9 +1,11 @@
 # Founder London collage
 
-Photographs the captain took of London, shown below the landing hero. The one
-photo list is `LONDON_COLLAGE_PHOTOS` in `lib/landingLondonCollage.ts`: the
-landing renders it and `scripts/landing/build-london-collage.mjs` encodes it.
-Originals never enter the repo; the encoder strips all metadata.
+This collection contains the captain's London photographs. `LONDON_COLLAGE_PHOTOS`
+in `lib/landingLondonCollage.ts` owns the collection, and
+`scripts/landing/build-london-collage.mjs` encodes it.
+The [homepage display contract](../../../docs/rules/components-design-system-and-launch-primitives.md#the-front-door-shows-london-then-answers-in-one-tap)
+owns the selected photographs and their layout.
+Originals never enter the repo. The encoder strips all metadata.
 
 ## Add a photograph
 

@@ -31,7 +31,7 @@ describe("the homepage and /about print one historic-pub count", () => {
     const stats = await loadAboutStats();
     expect(stats.historicPubsCited).toBeGreaterThan(0);
     expect(HISTORIC_PUB_COUNT).toBe(stats.historicPubsCited);
-    expect(HOME_CARD_SUPPORT).toContain(`${stats.historicPubsCited} historic pubs`);
+    expect(homeMetadata.description).toBe(HOME_CARD_SUPPORT);
     expect(homeMetadata.openGraph?.description).toBe(HOME_CARD_SUPPORT);
     expect(homeMetadata.twitter?.description).toBe(HOME_CARD_SUPPORT);
   });

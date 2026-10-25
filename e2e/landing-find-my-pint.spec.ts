@@ -126,7 +126,7 @@ test.describe("landing hierarchy", () => {
     await expect(card).toBeVisible();
     await expect(card.locator(".lpPubName a")).toHaveAttribute("href", /\/map\?sel=/);
     await expect(card.locator(".priceBadge").first()).toContainText(/£\d+\.\d\d/);
-    await expect(card.locator(".lpPubSource")).toContainText(/collected \d+ \w+ \d{4}\./);
+    await expect(card.locator(".lpPubSource")).toContainText(/source read \d+ \w+ \d{4}\./);
     await expect(card.locator(".lpStanding")).toContainText("Listed");
     await expect(card.locator(".lpPubThen")).toContainText(/£\d+\.\d\d in \w+ \d{4}\./);
     await expect(card.locator(".lpPubThenSource a")).toHaveAttribute("href", /^https?:\/\//);

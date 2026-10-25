@@ -922,3 +922,26 @@ a.lpPubPint { text-decoration: underline; text-underline-offset: 3px; }
 @media (min-width: 641px) and (max-width: 767px) {
   .lpNav { width: min(1100px, 100vw - 24px); }
 }
+
+/* Optional history stays with its pub, without competing with today's price. */
+.lpEarlierPrices { margin-top: var(--space-4); }
+.lpEarlierPrices summary {
+  width: fit-content;
+  min-height: 44px;
+  padding-block: var(--space-3);
+  color: var(--color-text-soft);
+  cursor: pointer;
+  font-size: var(--text-sm);
+}
+.lpEarlierPrices summary:focus-visible {
+  outline: 2px solid var(--brass-ink);
+  outline-offset: 3px;
+}
+.lpSavingSummary {
+  max-width: 54ch;
+  margin: 0;
+  font-size: var(--text-md);
+  line-height: var(--leading-normal);
+  color: var(--color-text);
+  text-wrap: pretty;
+}

@@ -2,12 +2,9 @@ import { isNightAreaRouteReady, type NightArea } from "@/lib/nightAreas";
 
 export function nightAreaCoverageDetail(area: NightArea, now: Date): string {
   if (isNightAreaRouteReady(area, now)) {
-    return "Prices here are fresh and checked. Plan a crawl whenever.";
+    return "Enough checked information to plan a crawl.";
   }
-  const openChecks = area.missingEvidence.length;
-  return openChecks > 0
-    ? `${openChecks} more ${openChecks === 1 ? "check" : "checks"} to do here before a crawl.`
-    : "Not enough fresh information here yet to plan a crawl.";
+  return "Not enough checked information to plan a crawl here yet.";
 }
 
 export function getHomeEndingDescription(

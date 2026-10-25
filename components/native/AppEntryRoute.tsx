@@ -1,21 +1,12 @@
 "use client";
 
-// Mounted only on the homepage (app/page.tsx) — the route the Capacitor
-// older remote-URL binaries open first. New binaries use the static /app-entry
-// document and keep this component as the storage fallback.
-// lib/entryDecision.ts owns the whole policy (deep links bypass,
-// shell cold-starts land on /tonight, native first-run opens onboarding,
-// browser visits keep the landing page); this component only snapshots the
-// live context, applies the decision, and records the unfinished first-run step.
-//
-// Owner amendment (2026-07-21, amends #439): the decision fires only on the
-// session's FIRST arrival at "/". We stamp the per-session flag
-// (markSessionEntryConsumed) right after deciding, so a later in-app arrival at
-// "/" (e.g. tapping the PUBMAXX wordmark) reads the flag and stays on the
-// landing page instead of bouncing back to /tonight. This component remounts on
-// every client navigation to "/", so the second arrival re-runs decideEntry
-// with sessionEntryConsumed already true and resolves to a "stay".
-// Renders nothing; a no-op on the web and during SSR.
+// The homepage owns the React fallback for native first-run routing.
+// New binaries first open /app-entry, whose pre-paint script opens onboarding
+// or Home. Older binaries open the root directly.
+// lib/entryDecision.ts keeps explicit links, native onboarding and PWA entry
+// behavior in one pure decision. Returning native launches stay on Home.
+// The session stamp also lets a later PWA Home tap stay at the root.
+// This component renders nothing and does not route an ordinary web visit.
 
 import { useEffect, useRef } from "react";
 import { usePathname, useRouter } from "next/navigation";
@@ -55,13 +46,9 @@ export default function AppEntryRoute(): null {
       clearNativeFirstRunHandoff();
       return;
     }
-    // THE REWRITE IS THE APP'S MOVE, NOT THE READER'S. Landing then Tonight
-    // is two routes, and reaching a second route is one of the answers the
-    // consent card waits for, so the shell's own cold-start rewrite used to put
-    // the card on the first screen a new person ever saw
-    // (lib/consentAnswerMoment.ts, docs/proof/mobile-shells-refresh/).
-    // The destination is named, so the route the rewrite LEAVES is swallowed
-    // whichever effect React runs first (lib/consentAnswerMoment.ts).
+    // An automatic entry rewrite must not count as the reader's second route.
+    // Naming the destination excludes the preceding route from consent timing,
+    // regardless of which effect runs first (lib/consentAnswerMoment.ts).
     resetConsentWaitForEntryRewrite(decision.href);
     if (decision.reason === "native-first-run") {
       // Eligibility is carried out-of-URL and consumed by the guarded route.

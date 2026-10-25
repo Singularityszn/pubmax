@@ -37,8 +37,7 @@ test.describe("desktop toolbar beside the venue drawer", () => {
     const selected = new URL(page.url()).searchParams.get("sel");
     const nav = page.locator('.siteNavBar[aria-label="Site navigation"]');
     await expect.poll(() => nav.evaluate((node) => node.closest("[inert]") !== null)).toBe(false);
-    // The theme is a row of the More menu (it left the header in the Oct 2026
-    // UX audit), so the menu and the setting are both reached beside the pub.
+    // Both the More menu and the restored theme button work beside the pub.
     const more = nav.getByRole("button", { name: "More pages", exact: true });
     const menu = page.getByRole("menu", { name: "More pages", exact: true });
     const themeOf = () => page.evaluate(() => document.documentElement.dataset.theme ?? "");
@@ -46,11 +45,11 @@ test.describe("desktop toolbar beside the venue drawer", () => {
     await more.click();
     await expect(menu).toBeVisible();
     await expect.poll(() => menu.evaluate((node) => node.closest("[inert]") !== null)).toBe(false);
-    await menu.getByRole("menuitem", { name: /(Dark|Light) theme/ }).click();
-    await expect.poll(themeOf).not.toBe(themeBefore);
-    await expectSoleDesktopDrawer(page, "venue");
-    if (await menu.count()) await page.keyboard.press("Escape");
+    await page.keyboard.press("Escape");
     await expect(menu).toHaveCount(0);
+    await nav.getByRole("button", { name: /Switch to (light|dark) theme/ }).click();
+    await expect(page.locator("html")).toHaveAttribute("data-theme", themeBefore === "dark" ? "light" : "dark");
+    await expectSoleDesktopDrawer(page, "venue");
     await more.click();
     await expect(menu).toBeVisible();
     await page.keyboard.press("Escape");

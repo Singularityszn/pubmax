@@ -1,0 +1,125 @@
+{
+  "head": "aacd8818884146464d57d2818158929535d61ff0",
+  "base": "0bb6fa2e4c0c04ac26db4a1b95305f2d47fb0559",
+  "browser": "Playwright 1.64.0 Chromium 156.0.8078.4 revision 1248",
+  "surface": "Fresh isolated production compile/generate build on 127.0.0.1:3197. Disposable keyless stores. No real accounts or production services.",
+  "sourceChanges": false,
+  "configuredBaseline": {
+    "command": "npm run verify:no-mistakes:changed",
+    "result": "passed",
+    "provenance": "Supplied by outer executor. Not rerun in this targeted test phase."
+  },
+  "checks": [
+    {
+      "name": "production compile and generate",
+      "evidence": "build.log",
+      "exitCode": 0
+    },
+    {
+      "name": "writing refresh browser regressions",
+      "evidence": "browser.log",
+      "exitCode": 0
+    },
+    {
+      "name": "initial supplemental browser checks",
+      "evidence": "extra.log",
+      "exitCode": 1
+    },
+    {
+      "name": "native select keyboard diagnostic",
+      "evidence": "keyboard-probe.json",
+      "exitCode": 0
+    },
+    {
+      "name": "corrected supplemental browser checks",
+      "evidence": "extra-final.log",
+      "exitCode": 0
+    },
+    {
+      "name": "responsive page matrix",
+      "evidence": "matrix.json",
+      "exitCode": 0
+    },
+    {
+      "name": "performance ceilings",
+      "evidence": "performance-native.log",
+      "exitCode": 0
+    },
+    {
+      "name": "Historic photo reuse and initial image loading probe",
+      "evidence": "photo-reservation.log",
+      "exitCode": 1
+    },
+    {
+      "name": "corrected visible image loading probe",
+      "evidence": "photo-reservation-final.log",
+      "exitCode": 0
+    },
+    {
+      "name": "performance browser isolation",
+      "evidence": "cache-isolation.log",
+      "exitCode": 0
+    },
+    {
+      "name": "Pub Pal onboarding and draft restoration",
+      "evidence": "pal-onboarding.log",
+      "exitCode": 0
+    },
+    {
+      "name": "focused executable tests",
+      "evidence": "focused-unit.log",
+      "exitCode": 0
+    },
+    {
+      "name": "local HTTP credential-context probe",
+      "evidence": "oidc-runtime.json",
+      "exitCode": 0
+    },
+    {
+      "name": "served image formats and private metadata",
+      "evidence": "served-photo-assets.json",
+      "exitCode": 0
+    },
+    {
+      "name": "installed dependency graph",
+      "evidence": "dependency-tree.json",
+      "exitCode": 0
+    }
+  ],
+  "excludedInitialAttempts": [
+    {
+      "evidence": "extra.log",
+      "reason": "The added driver used ArrowDown/Enter on the macOS native selector. The keyboard diagnostic showed the value remained oldest. Type-ahead a/Enter selected az. All affected scenarios passed with that native interaction. No product change."
+    },
+    {
+      "evidence": "photo-reservation.log",
+      "reason": "The latency probe waited for every image, including lazy images outside the viewport. Trace network evidence shows only visible Southwark and Crown Tavern images were requested and both returned 200. The corrected test checks the visible image and stable link geometry. No product change."
+    }
+  ],
+  "freshEvidence": "All screenshots, HTTP probes and measurements in this directory were generated in this run at the recorded head. Supplied older evidence and tracked before views remain historical.",
+  "limits": [
+    "Chromium emulation is not physical-device verification.",
+    "No real-account or hosted OIDC issuance was tested. A local HTTP host supplied disposable credentials to the real OIDC package and application search provider.",
+    "Full verify, hosted review, CI, push and PR phases belong to the outer executor.",
+    "Process snapshots do not establish native Test phase completion. The outer executor owns that check."
+  ],
+  "cleanup": {
+    "serverStop": "Explicit SIGTERM to recorded task-owned supervisor after all validation. The server and supervisor exited 143. This was intentional teardown.",
+    "awaitedSessions": [
+      37878,
+      69556,
+      40808,
+      78905,
+      32409,
+      50569,
+      33933,
+      28713,
+      95439,
+      83607,
+      78496,
+      89109,
+      30256
+    ],
+    "processEvidence": "process-final.json"
+  }
+}

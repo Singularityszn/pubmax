@@ -323,7 +323,7 @@ Next.js 16 **App Router** (React 19, TS, no CSS framework — hand-written CSS w
 | `components/map/VenueInspector.tsx` | Selected venue: amenities, provenance claims, prices, Pint Drops, The Landlord |
 | `components/map/PintDropComposer.tsx` | The contribution form |
 | `components/map/{usePintDrops,useCrawlUrl}.ts` | `/api/pint-drops` traffic; shareable-URL seed/sync |
-| `components/ThemeToggle.tsx` | Theme button — `useSyncExternalStore`, hydration-safe, reload-persistent |
+| `components/ThemeToggle.tsx` | Theme button. See [Appearance](../README.md#features) for controls and saved choices. |
 
 ### How it works
 
@@ -342,7 +342,9 @@ Five state atoms: `mode`, `filters`, `builtIds`, `selectedVenueId`, `rows`. A se
 
 **URL state.** [Map URL parameters](MAP_URL_PARAMS.md) owns URL seeding, crawl synchronisation, and the boundary between sheet history and separate route visits.
 
-**The theme system (no-flash + `useSyncExternalStore`).** Two cooperating pieces avoid the classic hydration mismatch: (1) the **no-flash script** runs synchronously in `<head>`, reading `localStorage["pubmax-theme"]`/`prefers-color-scheme` and setting `html[data-theme]` before paint; (2) `ThemeToggle` reads via `useSyncExternalStore` with a **deterministic `"light"` server snapshot**, so server HTML === first client render (no #418). After hydration it re-reads the real attribute; a `MutationObserver` keeps the icon synced; a mount `useEffect` re-asserts `data-theme` from `localStorage` (a DOM write, not setState).
+**The theme system.** `public/theme-init.js` sets `html[data-theme]` before paint. `useThemeChoice` uses `useSyncExternalStore` with a deterministic `"light"` server snapshot so the server output matches the first client render. After hydration, the store reads the current attribute and observes later changes through `MutationObserver`.
+
+`ThemeToggle` preserves a valid active attribute when it mounts. If the attribute is missing or invalid, the mount effect resolves the saved choice first, then the system appearance. The effect writes the attribute without setting React state.
 
 **Features hang off the state:** Featured routes (`loadCuratedCrawl` → build mode + `builtIds`, instantly shareable); Pubs near me (`startNearbyCrawl`, an event handler, feature-detects geolocation, degrades gracefully); Pint Drops (`usePintDrops` owns all API traffic + client photo validation); The Landlord (`LandlordPanel`).
 

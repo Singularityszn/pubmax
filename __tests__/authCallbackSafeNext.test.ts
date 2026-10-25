@@ -48,6 +48,21 @@ describe("safeNext (auth callback open-redirect guard)", () => {
     expect(safeNext("", ORIGIN)).toBe("/");
     expect(safeNext(null, ORIGIN)).toBe("/");
   });
+
+  it("rejects dot-segment paths that normalise to a protocol-relative URL", () => {
+    const hostile = [
+      "/..//evil.example",
+      "/.//evil.example",
+      "/%2e%2e//evil.example",
+      "/a/..//evil.example/phish?x=1",
+    ];
+    for (const next of hostile) {
+      expect(safeNext(next, ORIGIN), next).toBe("/");
+    }
+    expect(safeNext("//evil.example", ORIGIN)).toBe("/");
+    expect(safeNext("/map", ORIGIN)).toBe("/map");
+    expect(safeNext("/area/soho/../map", ORIGIN)).toBe("/area/map");
+  });
 });
 
 describe("auth callback flow", () => {
@@ -78,6 +93,38 @@ describe("auth callback flow", () => {
 
     expect(response.headers.get("location")).toBe(
       `${ORIGIN}/?_authCallback=1&_authAttempt=${ATTEMPT}&_referralSignupProof=${signupProof}`,
+    );
+  });
+
+  it("keeps a dot-segment next on this origin", async () => {
+    const hostile = [
+      "/..//evil.example",
+      "/.//evil.example",
+      "/%2e%2e//evil.example",
+      "/a/..//evil.example/phish?x=1",
+    ];
+    for (const next of hostile) {
+      const response = await GET(
+        new Request(
+          `${ORIGIN}/auth/callback?next=${encodeURIComponent(next)}&_authAttempt=${ATTEMPT}`,
+        ),
+      );
+      expect(response.status, next).toBe(307);
+      expect(response.headers.get("location"), next).toBe(
+        `${ORIGIN}/?_authCallback=1&_authAttempt=${ATTEMPT}`,
+      );
+    }
+  });
+
+  it("keeps a dot-segment next on this origin when the attempt is missing", async () => {
+    const response = await GET(
+      new Request(
+        `${ORIGIN}/auth/callback?next=${encodeURIComponent("/..//evil.example")}`,
+      ),
+    );
+
+    expect(response.headers.get("location")).toBe(
+      `${ORIGIN}/?_authCallback=1&authError=1`,
     );
   });
 

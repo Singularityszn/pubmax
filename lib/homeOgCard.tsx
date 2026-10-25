@@ -1,6 +1,7 @@
 import { ImageResponse } from "next/og";
 
 import { HISTORIC_PUB_COUNT } from "@/components/landing/londonMapGeometry";
+import { homeProductDescription } from "@/lib/siteProductCopy";
 import { loadAboutStats, type AboutStats } from "@/lib/aboutStats";
 import {
   CardShell,
@@ -55,19 +56,13 @@ export function homeCardCoverage(stats: AboutStats): string[] {
   return bits;
 }
 
-// The hero, kept in step with the landing page it fronts: the h1 line the
-// product already owns, then the lede under it. No jokes on this card, because
-// a figure sits four lines below (docs/VOICE.md, "Where the jokes live").
-// The support line is the hero lede with the historic-pub count resolved
-// (components/landing/londonMapGeometry.ts HISTORIC_PUB_COUNT, every cited pub,
-// the figure /about and /historic print). It was typed as 298, the pubs inside
-// a drawing the landing no longer shows (site review, 18 Oct 2026).
-// __tests__/homeOgCard.test.ts holds the figure to that constant.
+// The card keeps the landing page's h1 and uses the metadata's description.
+// No jokes beside the coverage figures (docs/VOICE.md, "Where the jokes live").
 export const HOME_CARD_EYEBROW = "Real prices · One map · Nobody pays to rank";
 export const HOME_CARD_HERO_LEAD = "What a pint";
 export const HOME_CARD_HERO_TAIL = "costs,";
 export const HOME_CARD_HERO_ACCENT = "pub by pub.";
-export const HOME_CARD_SUPPORT = `London on one map, with ${HISTORIC_PUB_COUNT} historic pubs cited and a listed price wherever we hold one. Who listed it, and the day they did.`;
+export const HOME_CARD_SUPPORT = homeProductDescription(HISTORIC_PUB_COUNT);
 
 export function HomeOgCard({ stats }: { stats: AboutStats }) {
   const coverageBits = homeCardCoverage(stats);

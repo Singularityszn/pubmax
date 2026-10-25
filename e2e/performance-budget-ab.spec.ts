@@ -109,7 +109,7 @@ async function openArm(
   origin: string,
   routes: readonly RouteBudget[],
 ): Promise<Arm> {
-  const context = await browser.newContext({ baseURL: origin });
+  const context = await browser.newContext({ baseURL: origin, serviceWorkers: "block" });
   const page = await context.newPage();
   // EVERY NAVIGATION IS BOUND AT ITS OWN ALLOWANCE, which the config leaves
   // unbounded. A server that stalls without closing its socket hangs one

@@ -61,21 +61,22 @@ test.describe("Today mobile block geometry", () => {
         const main = document.querySelector<HTMLElement>(".todayPage")!;
         const entry = document.querySelector<HTMLElement>(".todayNearEntry")!;
         const tabBar = document.querySelector<HTMLElement>(".mobileTabBar")!;
-        const rootStyle = getComputedStyle(document.documentElement);
         // The body's one reserve is the create action's published top edge
         // (components/nav/mobileNav.css): the tab bar, the home indicator and
         // the lane the floating create action owns above the bar.
         const lane = document.createElement("div");
         lane.style.paddingBottom = "var(--float-stack-top-create)";
+        lane.style.paddingTop = "var(--tabbar-h)";
         document.body.append(lane);
         const createLaneTop = Number.parseFloat(getComputedStyle(lane).paddingBottom);
+        const tabBarHeight = Number.parseFloat(getComputedStyle(lane).paddingTop);
         lane.remove();
         return {
           bodyPaddingBottom: Number.parseFloat(getComputedStyle(document.body).paddingBottom),
           createLaneTop,
           mainPaddingBottom: Number.parseFloat(getComputedStyle(main).paddingBottom),
           nearEntryMargin: Number.parseFloat(getComputedStyle(entry).marginBlockStart),
-          tabBarHeight: Number.parseFloat(rootStyle.getPropertyValue("--tabbar-h")),
+          tabBarHeight,
           horizontalOverflow: document.documentElement.scrollWidth - window.innerWidth,
           tabBarTop: tabBar.getBoundingClientRect().top,
         };

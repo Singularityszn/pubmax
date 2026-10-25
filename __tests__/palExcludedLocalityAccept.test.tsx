@@ -205,6 +205,37 @@ it("keeps the Elephant and Castle label and no planning area for a same-area fol
   expect(lastLocalityLine()).toBe(EAC_LINE);
 });
 
+const EAC_CASINGS = [
+  "find two pubs in elephant and castle",
+  "Find two pubs in Elephant and castle",
+  "FIND TWO PUBS IN ELEPHANT AND CASTLE",
+];
+
+it.each(EAC_CASINGS)("names the whole Elephant and Castle with no planning area on a direct ask for %s", async (query) => {
+  expect(await askAndAccept(query, "venue-1")).toBeNull();
+  expect(lastLocalityLine()).toBe(EAC_LINE);
+  const text = container.textContent ?? "";
+  expect(text).not.toContain("couldn't place");
+  expect(text).not.toContain("Across London");
+});
+
+it.each(EAC_CASINGS)("names the whole Elephant and Castle after a Soho answer for %s", async (query) => {
+  expect(await askAndAccept(SOHO, "venue-1")).toEqual(SOHO_AREA);
+  expect(await askAndAccept(query, "venue-2")).toBeNull();
+  expect(lastLocalityLine()).toBe(EAC_LINE);
+  const text = container.textContent ?? "";
+  expect(text).not.toContain("Around Soho, the area you last picked.");
+  expect(text).not.toContain("couldn't place");
+  expect(text).not.toContain("Across London");
+});
+
+it.each(EAC_CASINGS)("keeps the whole Elephant and Castle label for a same-area follow-up after %s", async (query) => {
+  expect(await askAndAccept(query, "venue-1")).toBeNull();
+  expect(lastLocalityLine()).toBe(EAC_LINE);
+  expect(await askAndAccept("Find four pubs in the same area, not in Camden", "venue-2")).toBeNull();
+  expect(lastLocalityLine()).toBe(EAC_LINE);
+});
+
 it.each([
   "Find four pubs in Elephant and Castle or Soho",
   "Find four pubs in Soho or Camden",
@@ -222,4 +253,30 @@ it.each([
 ] as Array<[string, Array<Record<string, string>>]>)("accepts the named area after a Soho answer for %s", async (followUp, areas) => {
   expect(await askAndAccept(SOHO, "venue-1")).toEqual(SOHO_AREA);
   expect(areas).toContainEqual(await askAndAccept(followUp, "venue-2"));
+});
+
+const DALSTON_LINE = "In Dalston, the area you named.";
+
+const DALSTON_CASINGS = [
+  "Find two pubs in Dalston",
+  "find two pubs in dalston",
+  "FIND TWO PUBS IN DALSTON",
+];
+
+it.each(DALSTON_CASINGS)("names Dalston with no planning area on a direct ask for %s", async (query) => {
+  expect(await askAndAccept(query, "venue-1")).toBeNull();
+  expect(lastLocalityLine()).toBe(DALSTON_LINE);
+  const text = container.textContent ?? "";
+  expect(text).not.toContain("couldn't place");
+  expect(text).not.toContain("Across London");
+});
+
+it.each(DALSTON_CASINGS)("names Dalston after a Soho answer for %s", async (query) => {
+  expect(await askAndAccept(SOHO, "venue-1")).toEqual(SOHO_AREA);
+  expect(await askAndAccept(query, "venue-2")).toBeNull();
+  expect(lastLocalityLine()).toBe(DALSTON_LINE);
+  const text = container.textContent ?? "";
+  expect(text).not.toContain("Around Soho, the area you last picked.");
+  expect(text).not.toContain("couldn't place");
+  expect(text).not.toContain("Across London");
 });

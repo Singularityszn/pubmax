@@ -51,7 +51,7 @@ describe("locality and recency claims", () => {
       }),
     );
 
-    expect(html).toContain("Lowest listed prices in central London. Snapshot from 3 July 2026.");
+    expect(html).toContain("Lowest listed prices in central London. Records from 3 July 2026.");
     expect(html).not.toContain(formatPintDatasetSnapshot());
     expect(html).not.toContain(formatPintDatasetAsOf());
     expect(html).not.toContain("Lowest listed prices near you today");
@@ -79,7 +79,7 @@ describe("locality and recency claims", () => {
       }),
     );
 
-    expect(html).toContain("Lowest listed prices in central London. Snapshot from 3 July 2026.");
+    expect(html).toContain("Lowest listed prices in central London. Records from 3 July 2026.");
     expect(html).not.toContain(formatPintDatasetSnapshot());
     expect(html).not.toContain(formatPintDatasetAsOf());
   });

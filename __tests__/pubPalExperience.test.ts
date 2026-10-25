@@ -136,7 +136,7 @@ describe("Pub Pal first meeting and onboarding", () => {
     await settle();
 
     expect(container.textContent).toContain("3 of 5");
-    expect(container.textContent).toContain("Tune the signal.");
+    expect(container.textContent).toContain("Choose its look");
     expect(container.textContent).not.toContain("Meet your Pub Pal");
   });
 
@@ -163,7 +163,7 @@ describe("Pub Pal first meeting and onboarding", () => {
     });
     await settle();
 
-    expect(container.textContent).toContain("The grown-up bit first.");
+    expect(container.textContent).toContain("Before you start");
     expect(container.textContent).toContain("1 of 5");
   });
 
@@ -284,7 +284,7 @@ describe("Pub Pal setup for a signed-in account", () => {
     await renderSignedIn(false);
 
     expect(container.textContent).toContain("1 of 5");
-    expect(container.textContent).toContain("The grown-up bit first.");
+    expect(container.textContent).toContain("Before you start");
     expect(container.querySelector("input[type=checkbox]")).not.toBeNull();
   });
 
@@ -292,10 +292,10 @@ describe("Pub Pal setup for a signed-in account", () => {
     await renderSignedIn(true);
 
     // We ask once: the account's own answer stands, so there is no second tap.
-    expect(container.textContent).not.toContain("The grown-up bit first.");
+    expect(container.textContent).not.toContain("Before you start");
     expect(container.querySelector("input[type=checkbox]")).toBeNull();
     expect(container.textContent).toContain("1 of 4");
-    expect(container.textContent).toContain("Who finds you?");
+    expect(container.textContent).toContain("Choose your Pub Pal");
 
     // Back from the first step leaves setup, it does not open the skipped one.
     await act(async () => buttonContaining("Back").click());
@@ -305,7 +305,7 @@ describe("Pub Pal setup for a signed-in account", () => {
 
   it("does not let browser Back restore the hidden 18+ step", async () => {
     await renderSignedIn(true);
-    expect(container.textContent).toContain("Who finds you?");
+    expect(container.textContent).toContain("Choose your Pub Pal");
 
     // Walk forward one step, then use the real browser Back twice. The first
     // lands on the first visible step, the second on the entry the wizard
@@ -318,7 +318,7 @@ describe("Pub Pal setup for a signed-in account", () => {
     });
     await act(async () => buttonContaining("Continue").click());
     await settle();
-    expect(container.textContent).not.toContain("Who finds you?");
+    expect(container.textContent).not.toContain("Choose your Pub Pal");
     const entries = window.history.length;
 
     for (let press = 0; press < 2; press += 1) {
@@ -326,10 +326,10 @@ describe("Pub Pal setup for a signed-in account", () => {
         window.history.back();
       });
       await settle();
-      expect(container.textContent).not.toContain("The grown-up bit first.");
+      expect(container.textContent).not.toContain("Before you start");
     }
 
-    expect(container.textContent).toContain("Who finds you?");
+    expect(container.textContent).toContain("Choose your Pub Pal");
     expect(window.history.length).toBeLessThanOrEqual(entries);
   });
 

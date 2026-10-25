@@ -11,7 +11,7 @@ PUBMAX sounds like a Londoner who knows the pub, not a brand that owns one. Dry,
 Say it the way you'd say it to a mate, not the way a startup says it in a deck.
 
 - London pints cost a fortune. We show you what every pub actually charges, so you stop guessing and stop overpaying.
-- Every price says exactly what its own record supports. When the record names a publisher, show its valid label and link it only if the URL is safe. If the URL is refused, keep the label as plain text and say "Link unavailable." Reserve "Publisher not recorded" for a price with no valid recorded publisher label. Never infer one from venue notes, image credits, or unrelated metadata. The ones logged by drinkers carry the day they were seen; only the people-logged lanes carry per-row dates. No made-up numbers.
+- Every price says exactly what its own record supports. When the record names a publisher, show its valid label and link it only if the URL is safe. If the URL is refused, keep the label as plain text and say "Link unavailable." Reserve "Publisher not recorded" for a price with no valid recorded publisher label. Never infer one from venue notes, image credits, or unrelated metadata. Drinker reports carry the day the drinker saw the price. Listed prices can show when their source was read. A source read does not confirm the pub's current price. No made-up numbers.
 - Nobody buys their way to the top. There's a hard wall in the code (`lib/sponsorship.ts`) between paid placements and the prices you see. A sponsored thing says "Sponsored" and sits in its own slot. Prices are never for sale.
 
 Never write the mission as a mission. No "we're on a journey to democratise fair pricing." State the problem, hand the reader a choice, move on.
@@ -177,3 +177,15 @@ Copy the rhythm of these. They are the voice at its best.
 - `The city's having a quiet one tonight.`
 - `handed down from the old hands who drank them first`
 - `Be the first to drop one. Snap your pint, log the price, pass down a story.`
+
+## Page-level editing
+
+Lead with the answer and one clear next action. Explain each policy once, then
+link to it where useful. Keep prices, source labels, relevant dates and uncertainty
+beside the facts they qualify. Optional history and background can use a labelled
+disclosure. Permission and data-loss explanations stay visible before the action.
+
+A short sentence must still say something useful. Replace internal progress
+counts with the action available to the reader. Keep quoted sources and
+user-written posts intact. Review copy in the rendered page at phone and desktop
+widths before calling the edit complete.

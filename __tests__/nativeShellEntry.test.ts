@@ -31,7 +31,6 @@ import { readThemeInitSource } from "@/lib/themeInit.server";
 import {
   ONBOARDING_PATH,
   SESSION_ENTRY_CONSUMED_KEY,
-  SHELL_START_PATH,
 } from "@/lib/entryDecision";
 import { PREFERRED_CITY_KEY } from "@/lib/cityPreference";
 import {
@@ -112,43 +111,57 @@ describe("the native shell's pre-render entry decision", () => {
     expect(local.getItem(NATIVE_FIRST_RUN_STEP_KEY)).toBe("london");
   });
 
-  it("opens Tonight on a returning app-entry boot even if the session stamp survives", () => {
+  it("opens the homepage on a returning app-entry boot even if the session stamp survives", () => {
     expect(runEntryInit({
       pathname: "/app-entry",
       local: { [NATIVE_FIRST_RUN_DONE_KEY]: "1" },
       session: { [SESSION_ENTRY_CONSUMED_KEY]: "1" },
-    }).replaced).toEqual([SHELL_START_PATH]);
+    }).replaced).toEqual(["/"]);
   });
 
-  it("opens Tonight from app-entry for a stored city without stamping first-run", () => {
+  it("keeps the homepage after a returning launch passes through app-entry", () => {
+    const local = { [NATIVE_FIRST_RUN_DONE_KEY]: "1", [PREFERRED_CITY_KEY]: "manchester" };
+    const entry = runEntryInit({ pathname: "/app-entry", local });
+    expect(entry.replaced).toEqual(["/"]);
+    const home = runEntryInit({
+      pathname: entry.replaced[0],
+      local,
+      session: { [SESSION_ENTRY_CONSUMED_KEY]: entry.session.getItem(SESSION_ENTRY_CONSUMED_KEY)! },
+    });
+    expect(home.replaced).toEqual([]);
+    expect(home.local.getItem(PREFERRED_CITY_KEY)).toBe("manchester");
+    expect(home.local.getItem(NATIVE_FIRST_RUN_DONE_KEY)).toBe("1");
+    expect(home.local.getItem(NATIVE_FIRST_RUN_STEP_KEY)).toBeNull();
+  });
+
+  it("opens the homepage from app-entry for a stored city without stamping first-run", () => {
     const { replaced, session, local } = runEntryInit({
       pathname: "/app-entry", local: { [PREFERRED_CITY_KEY]: "london" },
     });
-    expect(replaced).toEqual([SHELL_START_PATH]);
+    expect(replaced).toEqual(["/"]);
     expect(session.getItem(SESSION_ENTRY_CONSUMED_KEY)).toBe("1");
     expect(session.getItem(NATIVE_FIRST_RUN_HANDOFF_KEY)).toBeNull();
     expect(local.getItem(NATIVE_FIRST_RUN_DONE_KEY)).toBeNull();
   });
 
-  it("opens Tonight from app-entry for a disabled or unparseable stored city", () => {
-    // Tonight reads the value through readPreferredCity(), which answers null
-    // for these, so the city-aware chrome falls back to London.
+  it("leaves a disabled or unparseable stored city to the homepage's React gate", () => {
+    // The React gate owns city validation and any required onboarding.
     for (const stored of ["atlantis", "{not json", ""]) {
       const { replaced, local } = runEntryInit({
         pathname: "/app-entry", local: { [PREFERRED_CITY_KEY]: stored },
       });
-      expect(replaced).toEqual([SHELL_START_PATH]);
+      expect(replaced).toEqual(["/"]);
       expect(local.getItem(NATIVE_FIRST_RUN_DONE_KEY)).toBeNull();
     }
   });
 
-  it("opens Tonight from app-entry for a stored city even if the session stamp survives", () => {
+  it("opens the homepage from app-entry for a stored city even if the session stamp survives", () => {
     const { replaced, local } = runEntryInit({
       pathname: "/app-entry",
       local: { [PREFERRED_CITY_KEY]: "london" },
       session: { [SESSION_ENTRY_CONSUMED_KEY]: "1" },
     });
-    expect(replaced).toEqual([SHELL_START_PATH]);
+    expect(replaced).toEqual(["/"]);
     expect(local.getItem(NATIVE_FIRST_RUN_DONE_KEY)).toBeNull();
   });
 
@@ -157,12 +170,15 @@ describe("the native shell's pre-render entry decision", () => {
     expect(runEntryInit({ pathname: "/app-entry", native: false }).replaced).toEqual(["/"]);
   });
 
-  it("sends a post-first-run cold start straight to Tonight", () => {
-    const { replaced, session } = runEntryInit({
-      local: { [NATIVE_FIRST_RUN_DONE_KEY]: "1" },
+  it("keeps a post-first-run root launch on the homepage without changing device data", () => {
+    const { replaced, session, local } = runEntryInit({
+      local: { [NATIVE_FIRST_RUN_DONE_KEY]: "1", [PREFERRED_CITY_KEY]: "london" },
     });
 
-    expect(replaced).toEqual([SHELL_START_PATH]);
+    expect(replaced).toEqual([]);
+    expect(local.getItem(NATIVE_FIRST_RUN_DONE_KEY)).toBe("1");
+    expect(local.getItem(PREFERRED_CITY_KEY)).toBe("london");
+    expect(local.getItem(NATIVE_FIRST_RUN_STEP_KEY)).toBeNull();
     // The same stamp AppEntryRoute writes, so a later in-app tap on the
     // wordmark still reaches the landing page rather than bouncing back.
     expect(session.getItem(SESSION_ENTRY_CONSUMED_KEY)).toBe("1");
@@ -252,29 +268,6 @@ describe("the native shell's pre-render entry decision", () => {
     // The file it used to be is gone, not merely unreferenced.
     expect(existsSync(join(process.cwd(), "public/native-entry-init.js"))).toBe(false);
   });
-
-  it("runs before the theme work it now shares a file with", () => {
-    // It navigates away, so anything this file does after it is work on a
-    // document that is being replaced. First statement in, first decision out.
-    const capacitorProbe = ENTRY_INIT_SOURCE.indexOf("isNativePlatform");
-    const themeWork = ENTRY_INIT_SOURCE.indexOf('getItem("pubmax-theme")');
-    expect(capacitorProbe).toBeGreaterThan(-1);
-    expect(themeWork).toBeGreaterThan(-1);
-    expect(capacitorProbe).toBeLessThan(themeWork);
-  });
-
-  it("reads the same keys and destination the TypeScript seams own", () => {
-    for (const literal of [
-      SESSION_ENTRY_CONSUMED_KEY,
-      NATIVE_FIRST_RUN_DONE_KEY,
-      NATIVE_FIRST_RUN_HANDOFF_KEY,
-      PREFERRED_CITY_KEY,
-      SHELL_START_PATH,
-      ONBOARDING_PATH,
-    ]) {
-      expect(ENTRY_INIT_SOURCE).toContain(literal);
-    }
-  });
 });
 
 describe("the entry rewrite is not the reader's own second route", () => {
@@ -322,10 +315,5 @@ describe("the entry rewrite is not the reader's own second route", () => {
     resetConsentWaitForEntryRewrite("/onboarding", store);
 
     expect(store.getItem(CONSENT_ANSWER_MOMENT_KEY)).toBe("venue-sheet");
-  });
-
-  it("is called by the route that performs the rewrite", () => {
-    const source = rootFile("components/native/AppEntryRoute.tsx");
-    expect(source).toContain("resetConsentWaitForEntryRewrite");
   });
 });

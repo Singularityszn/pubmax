@@ -27,6 +27,7 @@ import NowSegment from "@/components/nav/NowSegment";
 import SiteNav from "@/components/nav/SiteNav";
 import PriceBadge from "@/components/PriceBadge";
 import Screen from "@/components/ui/screen";
+import PreparedBriefStamp from "@/components/seo/PreparedBriefStamp";
 import {
   buildDayGreeting,
   picksCardStatus,
@@ -121,7 +122,7 @@ function WeatherCard({ weather }: { weather: WeatherBrief | null }) {
       </h2>
       {weather.stale ? (
         <p className="todayStale" role="status">
-          {weather.checkedLabel}. It may have moved on.
+          {weather.checkedLabel}. Conditions may have changed.
         </p>
       ) : null}
       {/* The facts and their source in one line. The day is printed ONCE: a
@@ -547,6 +548,7 @@ export default function TodayClient({
           </Link>
         }
       >
+      <PreparedBriefStamp preparedAt={nowIso} />
       <div className="todayStack">
         <div className="todayBriefColumn">
           <WeatherCard weather={brief.weather} />

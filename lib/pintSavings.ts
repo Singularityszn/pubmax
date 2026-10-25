@@ -12,8 +12,8 @@
 // (1) THE FIGURE IS MEASURED, NEVER TYPED. The city average is the mean
 //     cheapest pint over every priced pub the dataset holds. The cheap average
 //     is the mean over the cheapest third of them, the same third
-//     lib/priceBand.ts calls `cheap`. The gap between the two is what one pint
-//     is worth, and __tests__/pintSavings.test.ts measures both from the
+//     lib/priceBand.ts calls `cheap`. The gap describes the sample, never a
+//     promised saving. __tests__/pintSavings.test.ts measures both from the
 //     shipped dataset, so a re-collected dataset moves the sentence rather than
 //     leaving it stale.
 //
@@ -85,7 +85,7 @@ export function pintPriceAverages(prices: readonly number[]): PintPriceAverages 
   };
 }
 
-/** What one pint is worth: the gap between the city average and the cheap third. */
+/** A sample comparison, never a promised saving for an individual reader. */
 export function savingPerPintGbp(averages: PintPriceAverages): number {
   return round2(Math.max(0, averages.averageGbp - averages.cheapAverageGbp));
 }
@@ -99,7 +99,7 @@ export function strangerSavingLine(averages: PintPriceAverages | null): string |
   if (!averages) return null;
   const gap = savingPerPintGbp(averages);
   if (gap < 0.05) return null;
-  return `The average listed pint across ${averages.sampleSize.toLocaleString("en-GB")} London pubs is ${formatGbp(averages.averageGbp)}. In the cheapest third it's ${formatGbp(averages.cheapAverageGbp)}. That's ${formatGbp(gap)} a pint you keep.`;
+  return `The average of each pub's cheapest listed pint across ${averages.sampleSize.toLocaleString("en-GB")} priced London pubs is ${formatGbp(averages.averageGbp)}. The cheapest third averages ${formatGbp(averages.cheapAverageGbp)}. That's a ${formatGbp(gap)} gap per pint.`;
 }
 
 /** One price a reader logged, with the pub it was logged at. */

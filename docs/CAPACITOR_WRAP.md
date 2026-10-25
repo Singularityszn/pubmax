@@ -1,16 +1,23 @@
 # Capacitor Native Wrap
 
+## Native entry
+
 PUBMAXXING ships to the App Store as a Capacitor shell around the production PWA.
 The Next.js app is **server-rendered** — there is no static export — so the
 shells run in **remote-URL mode**: `capacitor.config.ts` points
 `server.url` at `https://pubmaxxing.com/` and `server.appStartPath` at
 `app-entry`. The origin must stay at the root because Capacitor iOS checks
 sibling navigation against `server.url` as a URL prefix. This static document runs
-the entry decision and replaces itself with onboarding or Tonight before the
-WKWebView loads any React or landing assets. A launch with any stored city
-value, no first-run mark and no unfinished step opens Tonight. Tonight reads
-that value through `readPreferredCity()`, so a disabled or unparseable city
-falls back to London.
+the entry decision before React loads. A new or unfinished native first run
+opens onboarding. A returning native launch opens the public homepage at `/`.
+The root React gate validates a stored city when no first-run completion mark
+exists. Explicit links and auth callbacks retain their destinations. Installed
+PWAs retain their Tonight launch route. The native Home rule applies to iOS
+and Android. It does not clear account data, onboarding state or city choices.
+Installed binaries receive this homepage rule only after an authorised production
+release. A pull request does not change the installed phone's launch destination.
+The static document uses a versioned script URL to avoid reusing a cached launch
+policy. The [document contract](../__tests__/appEntryDocument.test.ts) checks that URL.
 If the entry script never runs, the document's refresh hands the launch to the
 root after two seconds. Where a registered service worker controls the page,
 its offline handler redirects `/app-entry` to the root's cached document and

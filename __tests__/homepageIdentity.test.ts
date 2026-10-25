@@ -31,6 +31,7 @@ vi.mock("@/components/nav/SiteNav", () => ({
 import RootLayout from "@/app/layout";
 import LandingPage from "@/components/landing/LandingPage";
 import type { siteJsonLd } from "@/lib/siteJsonLd";
+import { SITE_PRODUCT_DESCRIPTION } from "@/lib/siteProductCopy";
 
 async function renderedIdentity(): Promise<typeof siteJsonLd> {
   const layout = await RootLayout({ children: createElement("main") });
@@ -73,6 +74,8 @@ describe("homepage identity", () => {
     expect(siteJsonLd).toHaveLength(2);
     const website = siteJsonLd.find((node) => node["@type"] === "WebSite");
     expect(website?.name).toBe("PUBMAXX");
+    expect(website?.description).toBe(SITE_PRODUCT_DESCRIPTION);
+    expect(website?.description).toContain("planning crawls with friends and sharing routes");
     expect(website?.alternateName).toContain("PubMaxxing");
     expect(website?.alternateName).not.toContain("PUBMAXX");
     expect(website?.url).toBe("https://pubmaxxing.com");

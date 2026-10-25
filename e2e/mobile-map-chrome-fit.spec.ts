@@ -1567,10 +1567,14 @@ for (const viewport of VIEWPORTS) {
     expect(promptBox!.x, "the card is full bleed").toBeLessThanOrEqual(1);
     expect(promptBox!.width, "the card is full bleed")
       .toBeGreaterThanOrEqual(viewport.width - 1);
-    const lane = await page.evaluate(() =>
-      Number.parseFloat(
-        getComputedStyle(document.documentElement).getPropertyValue("--tabbar-h"),
-      ) || 0);
+    const lane = await page.evaluate(() => {
+      const probe = document.createElement("div");
+      probe.style.cssText = "position:fixed;visibility:hidden;height:var(--tabbar-h)";
+      document.body.append(probe);
+      const height = probe.getBoundingClientRect().height;
+      probe.remove();
+      return height;
+    });
     expect(
       Math.abs(promptBox!.y + promptBox!.height - (viewport.height - lane)),
       "the card sits on the reserved tab-bar lane",

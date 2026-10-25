@@ -2,10 +2,9 @@
  * The Europe/London wall clock — pub presence follows London evenings
  * regardless of where the server runs. Deterministic for a given Date.
  *
- * This is a LEAF module on purpose. The nav model reads it to decide the Now
- * tab href, and the nav model is mounted in the root layout, so it may not drag
- * a module graph behind it: reading the hour off lib/ambientPresence shipped the
- * demo Pint Drop rosters to every route for one Intl call.
+ * This module stays independent because main navigation reads it through
+ * useNowHref on every route. Importing lib/ambientPresence for the hour once
+ * shipped the demo Pint Drop rosters to every route for one Intl call.
  *
  * The formatter is built ONCE and held. `useSyncExternalStore` calls its
  * snapshot on every render and on every store notification, so a formatter

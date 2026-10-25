@@ -7,34 +7,49 @@ import { metadata as crawlsMetadata } from "@/app/crawls/page";
 import { metadata as mapMetadata } from "@/app/map/page";
 import { metadata as palMetadata } from "@/app/pal/page";
 import { metadata as tonightMetadata } from "@/app/tonight/page";
+import { metadata as homeMetadata } from "@/app/page";
 
 // The committed public snapshot is a genuine empty read. A populated fixture
 // is exercised by the admission tests, independently of this display wording.
 describe("the public discovery metadata", () => {
+  it("gives the homepage its own friends-and-planning description in the document head", () => {
+    expect(homeMetadata.title).toEqual({
+      absolute: "London pint prices and pub crawls with friends | PUBMAXX",
+    });
+    expect(homeMetadata.description).toContain("Plan a crawl and share the route with your mates");
+    expect(homeMetadata.openGraph?.description).toBe(homeMetadata.description);
+    expect(homeMetadata.twitter?.description).toBe(homeMetadata.description);
+  });
+
   it("gives Tonight its own canonical and the same poster on both share cards", () => {
     expect(tonightMetadata.title).toBe("Tonight in London");
+    expect(tonightMetadata.description).toBe(
+      "Check sourced London pub listings for tonight on PUBMAXX, with map links when available.",
+    );
     expect(tonightMetadata.alternates?.canonical).toBe("/tonight");
     expect(tonightMetadata.openGraph).toMatchObject({
       title: "Tonight in London",
+      description: "Check sourced London pub listings for tonight on PUBMAXX, with map links when available.",
       url: "/tonight",
       images: [{ url: "/tonight/opengraph-image" }],
     });
     expect(tonightMetadata.twitter).toMatchObject({
       title: "Tonight in London",
+      description: "Check sourced London pub listings for tonight on PUBMAXX, with map links when available.",
       images: ["/tonight/opengraph-image"],
     });
   });
 
   it("gives Pub Pal its own canonical and matching share cards", () => {
-    expect(palMetadata.title).toBe("Meet your Pub Pal");
+    expect(palMetadata.title).toBe("Plan your night with Pub Pal");
     expect(palMetadata.alternates?.canonical).toBe("/pal");
     expect(palMetadata.openGraph).toMatchObject({
-      title: "Meet your Pub Pal",
+      title: "Plan your night with Pub Pal",
       url: "/pal",
       images: [{ url: "/pal/circuit-robin-512.png" }],
     });
     expect(palMetadata.twitter).toMatchObject({
-      title: "Meet your Pub Pal",
+      title: "Plan your night with Pub Pal",
       images: ["/pal/circuit-robin-512.png"],
     });
   });

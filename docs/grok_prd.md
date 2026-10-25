@@ -85,7 +85,8 @@ Plans under `docs/superpowers/plans/` from 2026-07-26 onward map to merged PRs. 
 | PostHog analytics rail | #623 |
 | Privacy + terms pages | #627 |
 
-Also locked already: **six-tab nav** + `/tonight` cold start (Wayfinder); Color V2 Waves A/B/C; pin collision / clustering contracts in `buildScene.ts`.
+Also locked already: **six-tab nav** (Wayfinder); Color V2 Waves A/B/C; pin collision / clustering contracts in `buildScene.ts`.
+Current launch behaviour follows the [native-entry contract](CAPACITOR_WRAP.md#native-entry).
 
 ### 2.3 GitHub Issues
 

@@ -1,5 +1,33 @@
 import { expect, test } from "@playwright/test";
 
+test.describe("prepared briefs after hydration", () => {
+  test.use({ timezoneId: "America/New_York" });
+
+  for (const route of ["/today", "/tonight"]) {
+    test(`${route} keeps its serialized London preparation label after hydration`, async ({ page }) => {
+      const errors: string[] = [];
+      page.on("pageerror", (error) => errors.push(error.message));
+      const response = await page.goto(route);
+      const html = await response!.text();
+      const serialized = await page.evaluate((documentHtml) =>
+        new DOMParser().parseFromString(documentHtml, "text/html")
+          .querySelector('[data-testid="brief-prepared-at"] time')?.textContent,
+      html);
+      expect(serialized).toMatch(/ (?:GMT|BST)$/);
+
+      // A successful theme toggle proves the client has attached before comparing.
+      const theme = page.getByRole("button", { name: /Switch to .* theme/ });
+      const initialLabel = await theme.getAttribute("aria-label");
+      await expect(async () => {
+        await theme.click();
+        await expect(theme).not.toHaveAttribute("aria-label", initialLabel!, { timeout: 1_000 });
+      }).toPass({ timeout: 20_000 });
+      await expect(page.getByTestId("brief-prepared-at").locator("time")).toHaveText(serialized!);
+      expect(errors).toEqual([]);
+    });
+  }
+});
+
 for (const width of [390, 1440]) {
   test(`crawl estimate names its straight-line basis at ${width}px`, async ({ page }) => {
     await page.setViewportSize({ width, height: 1000 });
@@ -16,6 +44,34 @@ for (const width of [390, 1440]) {
 
 test.describe("completed public discovery documents without JavaScript", () => {
   test.use({ javaScriptEnabled: false });
+
+  test("homepage explains planning and price sources in completed HTML", async ({ page }) => {
+    expect((await page.goto("/"))?.status()).toBe(200);
+    await expect(page).toHaveTitle("London pint prices and pub crawls with friends | PUBMAXX");
+    await expect(page.locator('meta[name="description"]')).toHaveAttribute("content", /Plan a crawl and share the route with your mates/);
+    await expect(page.locator("#faq")).toContainText("public directories");
+    await expect(page.locator("#faq")).toContainText("source read days where known");
+    await expect(page.locator("#faq")).toContainText("sign in if asked");
+    await expect(page.locator(".lpPubSource")).toContainText(/source read|read day not recorded/);
+    await expect(page.locator('.lpStanding[data-standing="listed"]')).toHaveAttribute("title", "A public source lists this price. Its source and read day are shown when recorded.");
+    const graph = await page.locator('script[type="application/ld+json"]').first().textContent();
+    const nodes = JSON.parse(graph ?? "[]") as Array<Record<string, unknown>>;
+    const website = nodes.find((node) => node["@type"] === "WebSite");
+    const organization = nodes.find((node) => node["@type"] === "Organization");
+    expect(website?.["@id"]).toBe("https://pubmaxxing.com/#website");
+    expect(website?.description).toContain("planning crawls with friends and sharing routes");
+    expect(organization?.["@id"]).toBe("https://pubmaxxing.com/#organization");
+    expect(organization).not.toHaveProperty("sameAs");
+    expect(nodes.map((node) => node["@type"])).not.toContain("FAQPage");
+  });
+
+  test("About explains anonymous saves and account features without JavaScript", async ({ page }) => {
+    expect((await page.goto("/about"))?.status()).toBe(200);
+    const description = page.locator('section[aria-labelledby="map"]');
+    await expect(description).toContainText("Browse and save pubs on this device without an account");
+    await expect(description).toContainText("send an invite link to your mates");
+    await expect(description).toContainText("Sign in to sync your saves, log prices and use Social when it is available");
+  });
 
   test("crawl directory exposes the named routes and ordered map links", async ({ page }) => {
     const response = await page.goto("/crawls");
@@ -48,6 +104,8 @@ test.describe("completed public discovery documents without JavaScript", () => {
     // Recommendations can expire. The keyless listing availability answer
     // must remain readable even when no recommendation clears its age limit.
     await expect(page.locator('[data-testid="tonight-lede"]')).toBeVisible();
+    await expect(page.getByTestId("brief-prepared-at")).toContainText("Source dates can be older");
+    await expect(page.getByTestId("brief-prepared-at").locator("time")).toHaveAttribute("datetime", /T.*Z$/);
     await expect(page.locator('[data-testid="tonight-lede"]')).not.toContainText("Loading listings");
     await expect(page.locator('[data-testid="tonight-lede"]')).toContainText(/not available|No confirmed|not set up|not configured|couldn.t|unavailable|Nothing confirmed/i);
   });

@@ -1,6 +1,7 @@
 import { BRAND_NAME } from "@/lib/brandNaming";
 import { HELLO_EMAIL } from "@/lib/siteContact";
 import { PRODUCTION_SITE_ORIGIN } from "@/lib/siteUrlConfig.mjs";
+import { SITE_PRODUCT_DESCRIPTION } from "@/lib/siteProductCopy";
 
 /**
  * Closed alternate spellings searchers use for the product. PUBMAXX is the one
@@ -19,9 +20,6 @@ const SITE_BRAND_ALTERNATE_NAMES = [
 export const SITE_ORGANIZATION_ID = `${PRODUCTION_SITE_ORIGIN}/#organization`;
 export const SITE_WEBSITE_ID = `${PRODUCTION_SITE_ORIGIN}/#website`;
 
-const SITE_DESCRIPTION =
-  "PUBMAXX is a London pub map and crawl planner with listed pint prices, explicit source status and cited pub history.";
-
 /** Site-wide Organization + WebSite graph (root layout JSON-LD). */
 export const siteJsonLd = [
   {
@@ -31,7 +29,7 @@ export const siteJsonLd = [
     name: BRAND_NAME,
     alternateName: [...SITE_BRAND_ALTERNATE_NAMES],
     url: PRODUCTION_SITE_ORIGIN,
-    description: SITE_DESCRIPTION,
+    description: SITE_PRODUCT_DESCRIPTION,
     publisher: { "@id": SITE_ORGANIZATION_ID },
   },
   {

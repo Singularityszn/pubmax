@@ -57,6 +57,19 @@ test("Today keeps confirmed events or offers Tonight's sourced pub suggestions a
       while (walker.nextNode()) {
         const node = walker.currentNode;
         if (!node.textContent?.trim()) continue;
+        // A screen-reader label has glyph bounds even when CSS clips all ink.
+        // Its range cannot prove that the floating action covers visible text.
+        let parent = node.parentElement;
+        let clipped = false;
+        while (parent && parent !== row.parentElement) {
+          const style = getComputedStyle(parent);
+          if (style.clip === "rect(0px, 0px, 0px, 0px)" || style.clipPath === "inset(50%)") {
+            clipped = true;
+            break;
+          }
+          parent = parent.parentElement;
+        }
+        if (clipped) continue;
         const range = document.createRange();
         range.selectNodeContents(node);
         if ([...range.getClientRects()].some((rect) =>

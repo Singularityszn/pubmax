@@ -23,20 +23,20 @@ test("route-first Pal chooser shows every companion and restores its five-step d
 
   // The Pal is the front door (#1280): the meeting screen opens with its one
   // primary action and no route-activation gate in front of it.
-  await expect(page.getByRole("heading", { name: "A little signal that becomes yours." })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Plan your night with Pub Pal" })).toBeVisible();
   await expect(page.locator("[data-primary-action]")).toHaveCount(1);
   // `Meet your Pub Pal` is painted on the SERVER, so it is tappable before
   // React attaches and Playwright's actionability check passes on a tap that is
   // then dropped with nothing on screen saying so (#1464). Retry the TAP rather
   // than waiting harder on the step behind it.
-  const adultHeading = page.getByRole("heading", { name: "The grown-up bit first." });
+  const adultHeading = page.getByRole("heading", { name: "Before you start" });
   await expect(async () => {
     await page.getByRole("button", { name: /Meet your Pub Pal/ }).click();
     await expect(adultHeading).toBeVisible({ timeout: 1_000 });
   }).toPass({ timeout: 20_000 });
   await page.getByRole("checkbox", { name: /18 or over/ }).check();
   await page.getByRole("button", { name: /Continue/ }).click();
-  await expect(page.getByRole("heading", { name: "Who finds you?" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Choose your Pub Pal" })).toBeVisible();
 
   for (const species of PAL_ONBOARDING_SPECIES) {
     await expect(page.getByRole("button", { name: new RegExp(`^${SPECIES_TITLES[species]}`) })).toBeVisible();
@@ -52,7 +52,7 @@ test("route-first Pal chooser shows every companion and restores its five-step d
   await page.waitForTimeout(300);
   await page.reload();
 
-  await expect(page.getByRole("heading", { name: "Who finds you?" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Choose your Pub Pal" })).toBeVisible();
   await expect(page.getByRole("button", { name: /^Pigeon/ })).toHaveAttribute("aria-pressed", "true");
   await expect(page.getByRole("textbox", { name: "Name" })).toHaveValue("Beacon");
   const layout = await page.evaluate(() => ({ width: document.documentElement.scrollWidth, viewport: window.innerWidth }));

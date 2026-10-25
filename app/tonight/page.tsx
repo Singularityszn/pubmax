@@ -7,11 +7,11 @@ import {
   type PlacePhoto,
 } from "@/components/listing/placePhotoRules";
 import { venueCheapestPintObservedAt } from "@/lib/drinks";
-import { AREA_PHOTOS } from "@/lib/landingImagery";
 import { loadHistoricPubs } from "@/lib/historic";
 import { hypedPubPriceIndex, hypedPubsForPage } from "@/lib/hypedPubs";
 import { loadHypedPubs } from "@/lib/hypedPubs.server";
 import { loadMapSelectableVenueIds } from "@/lib/mapEagerVenueIndex.server";
+import { LONDON_NIGHT_AREA_SLUGS } from "@/lib/nightAreaSlugs";
 import { buildQuietPint, isQuietPintWindow } from "@/lib/quietPint";
 import { loadTodayOutAnswer, loadTodayWhatsOnAnswer } from "@/lib/todayListings.server";
 import { readSpoonsValue } from "@/lib/spoonsValue.server";
@@ -89,7 +89,7 @@ function tonightPhotos(hypedVenueIds: readonly (string | null)[]): {
     if (venueId && photo) pubPhotos[venueId] = photo;
   }
   const areaPhotos: Record<string, PlacePhoto> = {};
-  for (const slug of Object.keys(AREA_PHOTOS)) {
+  for (const slug of LONDON_NIGHT_AREA_SLUGS) {
     const photo = areaPlacePhoto(slug);
     if (photo) areaPhotos[slug] = photo;
   }

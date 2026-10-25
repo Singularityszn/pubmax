@@ -12,15 +12,8 @@ import {
 
 // The signed-in reader's own saving, in pounds.
 //
-// A STRANGER's line, the dataset's own arithmetic (the mean listed pint across
-// every priced London pub against the mean across the cheapest third), is the
-// hero's supporting line now (components/landing/LandingHero.tsx), so this band
-// prints nothing for a stranger rather than saying it twice.
-//
-// A SIGNED IN READER reads their own total: every price they logged that came
-// in under that average, counted for the gap it actually beat it by. The read
-// only runs when there is a handle to read, so a stranger's landing makes no
-// request and the route's own request ceiling never moves.
+// The city comparison appears beside this reader total in LandingPage.
+// Fetch personal reports only when the viewer has a handle.
 
 type Logged = { priceGbp: number | null };
 

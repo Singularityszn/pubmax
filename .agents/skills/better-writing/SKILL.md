@@ -5,6 +5,37 @@ description: Writes and reviews your interface copy, from labels and errors to e
 
 # Writing
 
+## PUBMAXX
+
+Read `docs/VOICE.md` before editing product copy. It owns the voice and vocabulary.
+Keep its dry London humour where appropriate. This skill does not replace it with
+generic marketing copy or technical writing.
+
+Review the whole page before individual sentences. Identify its purpose, main
+action, repeated explanations and information the reader needs before acting.
+Keep the useful answer first. Move optional background into a labelled disclosure
+or a relevant reference page. Do not hide a price's source, date or uncertainty,
+a permission explanation, or the consequence of a destructive action.
+
+Check each claim and control label against the behaviour it describes. A listed
+price is not a live price. A pub recommendation is not a confirmed event. Unknown
+information must stay unknown after a rewrite. Preserve quoted sources, legal
+meaning and user-written posts.
+
+Examples of the intended direction:
+
+| Before | After | Reason |
+| --- | --- | --- |
+| A little signal that becomes yours. | Plan your night with Pub Pal | Name the task. |
+| Streets the map sits on. | Around London | Name the places shown. |
+| 4 more checks to do here before a crawl. | Not enough checked information to plan a crawl here yet. | Explain the limit without internal progress reporting. |
+| Repeated paragraphs about how prices are sourced | One explanation, with source labels beside each price | Keep trust information where it applies. |
+
+Use `unslop` on changed prose. Review the rendered page at phone and desktop
+widths. Check wrapping, truncation, heading order, button labels and the space
+left by removed text. Record which pages and states were reviewed, including
+anything that could not be checked. Do not rewrite clear copy just to shorten it.
+
 This skill writes and reviews interface copy such as labels, errors, empty states and confirmations, along with the terms that run through them. It matches the product's existing voice and flags copy that misleads people or leaves them without a way forward.
 
 A deliberate brand voice is not a defect. Raise a departure from plain language only when it creates inconsistency, ambiguity, translation risk or a tone the stakes don't support. Rewording that merely suits your taste is not a finding.

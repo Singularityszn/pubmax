@@ -69,7 +69,7 @@ describe("a price is dated by its own row's read", () => {
         ],
       }),
     );
-    expect(html).toContain("Snapshot from 3 July 2026");
+    expect(html).toContain("Records from 3 July 2026");
     expect(html).not.toContain("2 October 2026");
   });
 

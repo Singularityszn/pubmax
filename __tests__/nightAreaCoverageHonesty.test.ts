@@ -41,7 +41,7 @@ describe("Night Area coverage honesty", () => {
       new Date("2026-08-27T12:00:00.000Z"),
     );
 
-    expect(detail).toBe("2 more checks to do here before a crawl.");
+    expect(detail).toBe("Not enough checked information to plan a crawl here yet.");
     expect(detail).not.toContain("price checks");
   });
 });

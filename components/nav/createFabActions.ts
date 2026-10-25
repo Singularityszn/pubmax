@@ -89,7 +89,9 @@ export function createFabTitle(actions: readonly Pick<CreateFabAction, "label">[
 const CREATE_FAB_HIDDEN_PATHS: readonly string[] = ["/pal", "/login", "/moment", "/plan"];
 
 export function createFabVisible(pathname: string): boolean {
-  return !CREATE_FAB_HIDDEN_PATHS.includes(pathname);
+  // Ledger already carries the pub's own actions. Keep the reading column clear.
+  return !CREATE_FAB_HIDDEN_PATHS.includes(pathname)
+    && !/^\/ledger(?:\/|$)/.test(pathname);
 }
 
 /**

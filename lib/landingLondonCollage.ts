@@ -1,7 +1,6 @@
-// Founder London collage on the landing page (captain 26 Sep 2026, restored
-// with each patch's pint price on 18 Oct 2026).
-// The one photo list: the landing renders it and
-// scripts/landing/build-london-collage.mjs encodes it. To add a photograph see
+// Founder London photograph collection for the homepage and place pages.
+// The encoder reads the full collection. LONDON_JOURNAL_PHOTOS selects the
+// homepage photographs. To add a photograph see
 // public/landing/london-collage/README.md.
 
 import { haversineMeters } from "./greatCircle.mjs";
@@ -22,9 +21,8 @@ export type LondonCollagePhoto = {
    */
   area: string;
   /**
-   * The photo's named cell in the desktop mosaic's grid-template-areas
-   * (components/landing/landingLondonCollage.css), so ten photos fill a
-   * four-by-five grid with no empty cell.
+   * The named desktop grid cell for a selected homepage photograph.
+   * components/landing/landingLondonCollage.css owns the grid arrangement.
    */
   cell: string;
   /** Where the photo was taken, [latitude, longitude]: the centre of its price line. */
@@ -182,6 +180,18 @@ export const LONDON_COLLAGE_PHOTOS: readonly LondonCollagePhoto[] = [
 ];
 
 export const LONDON_COLLAGE_CREDIT = "Photos by the PUBMAXX founder";
+
+/** A short selection for the homepage. The full collection still serves place pages. */
+export const LONDON_JOURNAL_PHOTOS: readonly LondonCollagePhoto[] = [
+  "southwark-shard", "crown-tavern", "leadenhall-boxhall", "canary-wharf-night",
+].flatMap((id) => LONDON_COLLAGE_PHOTOS.filter((photo) => photo.id === id));
+
+export function londonPhotoMapHref(photo: LondonCollagePhoto): `/map?${string}` {
+  // Two London pubs share this name. This photograph shows the Clerkenwell pub.
+  return photo.id === "crown-tavern"
+    ? "/map?sel=venue-13sug69"
+    : `/map?q=${encodeURIComponent(photo.caption)}`;
+}
 
 export function londonCollageSrc(photo: LondonCollagePhoto, width: number, format: "avif" | "webp"): string {
   return `${PHOTO_DIR}/${photo.id}-${width}.${format}`;

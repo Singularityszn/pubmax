@@ -67,6 +67,9 @@ async function settle(
   width: (typeof WIDTHS)[number],
   requiredSelectors: readonly string[],
 ): Promise<void> {
+  if (route === "/about") {
+    await page.getByText("Press details and downloads", { exact: true }).click();
+  }
   await page.evaluate(async () => {
     const step = Math.round(window.innerHeight * 0.8);
     for (let y = 0; y < document.body.scrollHeight; y += step) {
@@ -366,6 +369,7 @@ test.describe("the /about press-kit floor without a coarse pointer", () => {
       await page.setViewportSize({ width, height: 844 });
       const response = await page.goto("/about", { waitUntil: "load" });
       expect(response?.ok(), `/about @${width}: navigation must succeed`).toBe(true);
+      await page.getByText("Press details and downloads", { exact: true }).click();
       const links = page.locator(".aboutLogoLinks .aboutLink");
       await expect(links.first()).toBeVisible({ timeout: REQUIRED_SELECTOR_TIMEOUT_MS });
       expect(

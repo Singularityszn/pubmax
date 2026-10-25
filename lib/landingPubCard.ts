@@ -1,10 +1,10 @@
 // The one real pub card on the landing page. Pure: no fs, no React.
 //
 // Captain decision 2026-09-03 (issue #1354): above the fold sits one real pub
-// with today's price on record, who listed it and when, and the archaeology
+// with a listed price on record, who listed it and when, and the archaeology
 // line with its source. Nothing here is invented. The price is the venue's
 // listed cheapest pint from the bundled dataset, the publisher is the row's
-// own page, the collection day is the freshness registry's stamp, and the
+// own page, the date belongs to that row's source read, and the
 // "then" figure is a dated, sourced row from public/data/price_history.
 //
 // The history lane is second class by law (lib/priceHistory.ts): it reaches
@@ -50,7 +50,7 @@ export type LandingPubCardData = {
   name: string;
   area: string;
   primaryBorough: string;
-  /** Listed cheapest pint today, in pounds. */
+  /** Cheapest listed pint in pounds, without a claim about today's price. */
   priceGbp: number;
   /** The pint the price is for, as the dataset names it. */
   pintName: string;

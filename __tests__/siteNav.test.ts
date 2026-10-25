@@ -115,11 +115,11 @@ describe("SiteNav current page state", () => {
     navigationState.pathname = "/tonight";
   });
 
-  it("does not mark Tonight current when the host page is Today", async () => {
+  it("marks Tonight current when the host page is Day", async () => {
     navigationState.pathname = "/today";
     const markup = await renderSiteNav("today");
     const row = markup.match(/<ul class="siteNavLinks">[\s\S]*?<\/ul>/)?.[0] ?? "";
-    expect(row.match(/aria-current="page"/g) ?? []).toHaveLength(0);
+    expect(row.match(/aria-current="page"/g) ?? []).toHaveLength(1);
   });
 
   it.each(["/social", "/feed"])("marks Social current on %s", async (pathname) => {

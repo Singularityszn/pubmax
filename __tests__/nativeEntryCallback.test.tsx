@@ -7,6 +7,11 @@ import AppEntryRoute from "@/components/native/AppEntryRoute";
 import { readAuthCallbackAttempt } from "@/lib/authRedirect";
 import { establishAuthCallbackSession } from "@/lib/authCallbackClient";
 import { PREFERRED_CITY_KEY } from "@/lib/cityPreference";
+import {
+  CONSENT_ANSWER_MOMENT_KEY,
+  CONSENT_FIRST_ROUTE_KEY,
+  noteConsentRouteVisited,
+} from "@/lib/consentAnswerMoment";
 import { SESSION_ENTRY_CONSUMED_KEY } from "@/lib/entryDecision";
 import { markTourSeen } from "@/lib/firstRunTour";
 import {
@@ -112,13 +117,21 @@ describe.each([false, true])("native callback, previously routed=%s", (routed) =
     else expect(replace).toHaveBeenCalledWith("/onboarding");
   });
 
-  it("keeps ordinary React entry routing", async () => {
+  it("keeps ordinary React entry routing without counting the rewrite as a consent answer", async () => {
     if (routed) localStorage.setItem(doneKey, "1");
+    noteConsentRouteVisited("/");
     const container = document.createElement("div");
     document.body.append(container);
     root = createRoot(container);
     await act(() => root!.render(createElement(AppEntryRoute)));
-    expect(replace).toHaveBeenCalledWith(routed ? "/tonight" : "/onboarding");
+    if (routed) expect(replace).not.toHaveBeenCalled();
+    else expect(replace).toHaveBeenCalledWith("/onboarding");
+    const arrival = routed ? "/" : "/onboarding";
+    noteConsentRouteVisited(arrival);
+    expect(sessionStorage.getItem(CONSENT_FIRST_ROUTE_KEY)).toBe(arrival);
+    expect(sessionStorage.getItem(CONSENT_ANSWER_MOMENT_KEY)).toBeNull();
+    noteConsentRouteVisited("/map");
+    expect(sessionStorage.getItem(CONSENT_ANSWER_MOMENT_KEY)).toBe("second-route");
   });
 
   it.each([
@@ -134,7 +147,8 @@ describe.each([false, true])("native callback, previously routed=%s", (routed) =
       localStorage,
       sessionStorage,
     });
-    expect(replace).toHaveBeenCalledWith(routed ? "/tonight" : "/onboarding");
+    if (routed) expect(replace).not.toHaveBeenCalled();
+    else expect(replace).toHaveBeenCalledWith("/onboarding");
     replace.mockClear();
     sessionStorage.clear();
     if (!routed) localStorage.removeItem(doneKey);
@@ -142,7 +156,8 @@ describe.each([false, true])("native callback, previously routed=%s", (routed) =
     document.body.append(container);
     root = createRoot(container);
     await act(() => root!.render(createElement(AppEntryRoute)));
-    expect(replace).toHaveBeenCalledWith(routed ? "/tonight" : "/onboarding");
+    if (routed) expect(replace).not.toHaveBeenCalled();
+    else expect(replace).toHaveBeenCalledWith("/onboarding");
     // Unmarked root errors remain outside callback validation's accepted scope.
     expect(readAuthCallbackAttempt(window.location.href)).toBeNull();
   });
@@ -150,7 +165,7 @@ describe.each([false, true])("native callback, previously routed=%s", (routed) =
 
 // Releases before the resumable journey stamped the routed mark when routing
 // STARTED, and stamped the tour mark only on Skip or Plan my night. An upgrade
-// must keep a finished device on Tonight and resume an interrupted one, and the
+// must keep a finished device on the homepage and resume an interrupted one. The
 // pre-paint script and the React entry must agree on every one of them.
 describe("upgrade from a release that marked routing start", () => {
   async function destinations(seed: () => void): Promise<Record<string, string[]>> {
@@ -196,16 +211,16 @@ describe("upgrade from a release that marked routing start", () => {
   it.each([
     ["the current tour mark", () => markTourSeen()],
     ["the legacy tour mark", () => localStorage.setItem("pubmax-tour-v1-done", "1")],
-  ])("keeps a finished legacy journey on Tonight with %s on every entry path", async (_label, seedTour) => {
+  ])("keeps a finished legacy journey on the homepage with %s on every entry path", async (_label, seedTour) => {
     const seen = await destinations(() => {
       localStorage.setItem(NATIVE_FIRST_RUN_LEGACY_ROUTED_KEY, "1");
       seedTour();
     });
-    expect(seen).toEqual({ "/": ["/tonight"], "/app-entry": ["/tonight"], React: ["/tonight"] });
+    expect(seen).toEqual({ "/": [], "/app-entry": ["/"], React: [] });
     expect(readNativeFirstRunStep()).toBeNull();
   });
 
-  it("finishes a resumed legacy journey on Skip, so the next launch opens Tonight", async () => {
+  it("finishes a resumed legacy journey on Skip, so the next launch opens the homepage", async () => {
     localStorage.setItem(NATIVE_FIRST_RUN_LEGACY_ROUTED_KEY, "1");
     rememberNativeFirstRunStep("budget");
     markNativeFirstRunRouted();
@@ -214,7 +229,7 @@ describe("upgrade from a release that marked routing start", () => {
     const seen = await destinations(() => {
       for (const [key, value] of Object.entries(done)) localStorage.setItem(key, value);
     });
-    expect(seen).toEqual({ "/": ["/tonight"], "/app-entry": ["/tonight"], React: ["/tonight"] });
+    expect(seen).toEqual({ "/": [], "/app-entry": ["/"], React: [] });
   });
 
   it("does not resume a new journey from the tour mark alone", async () => {

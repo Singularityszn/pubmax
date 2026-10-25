@@ -33,7 +33,7 @@ for (const width of [1280, 390]) {
     await expect(page.getByText("A dated concert", { exact: true })).toHaveCount(0);
     await expect(page.getByText("We can’t date these listings yet.", { exact: true })).toHaveCount(0);
     await expect(page.locator('[data-tonight-provenance="undated-whats-on"]'))
-      .toHaveText("The source check date is not recorded.");
+      .toContainText("The what’s-on source check date is not recorded.");
     await page.screenshot({ path: testInfo.outputPath(`source-check-${width}.png`), fullPage: true });
   });
 
@@ -57,9 +57,9 @@ for (const width of [1280, 390]) {
     } }));
     await page.goto("/tonight");
     const credit = page.locator('[data-tonight-provenance="out"]');
-    await expect(credit).toHaveText("No pub-matched events via Ticketmaster");
+    await expect(credit).toHaveText("No pub-matched events via Ticketmaster · The live listings source check date is not recorded.");
     await expect(page.locator('[data-tonight-provenance="undated-out"]'))
-      .toHaveText("The source check date is not recorded.");
+      .toContainText("The live listings source check date is not recorded.");
     await page.screenshot({ path: testInfo.outputPath(`shared-source-${width}.png`), fullPage: true });
   });
 }
@@ -113,7 +113,7 @@ for (const width of [1280, 390]) {
         } else {
           await expect(credit).not.toContainText("Checked");
           await expect(page.locator('[data-tonight-provenance="undated-out"]'))
-            .toHaveText("The source check date is not recorded.");
+            .toContainText("The live listings source check date is not recorded.");
         }
         await page.screenshot({ path: info.outputPath("publisher-boundary.png"), fullPage: true });
       });

@@ -142,9 +142,12 @@ for (const width of [641, 700, 768, 900] as const) {
         const hit = document.elementFromPoint(rect.left + rect.width / 2, rect.top + rect.height / 2);
         if (!hit || !link.contains(hit)) covered.push(link.textContent?.trim() ?? "?");
       }
-      return { covered, overflow: document.documentElement.scrollWidth - document.documentElement.clientWidth };
+      const primaryRight = Math.max(...Array.from(document.querySelectorAll(".siteNavLinks .siteNavLink"), (link) => link.getBoundingClientRect().right));
+      const actionsLeft = document.querySelector(".siteNavActions")!.getBoundingClientRect().left;
+      return { covered, primaryRight, actionsLeft, overflow: document.documentElement.scrollWidth - document.documentElement.clientWidth };
     });
     expect(findings.covered).toEqual([]);
+    expect(findings.primaryRight).toBeLessThanOrEqual(findings.actionsLeft);
     expect(findings.overflow).toBeLessThanOrEqual(0);
     await mkdir(SHOTS, { recursive: true });
     const barBox = (await bar.boundingBox())!;

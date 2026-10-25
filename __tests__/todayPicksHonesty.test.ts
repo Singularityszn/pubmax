@@ -5,6 +5,7 @@
 // thrown. This renders the real client with each read status and reads the copy
 // the card actually prints.
 
+import { JSDOM } from "jsdom";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
@@ -77,6 +78,13 @@ const PUB_SUGGESTION: HypedPub = {
 };
 
 describe("Today picks card honesty", () => {
+  it.each(["ready", "degraded"] as const)("keeps %s copy free of unsupported recovery promises", (status) => {
+    const document = new JSDOM(renderToday(status)).window.document;
+    const copy = document.body.textContent ?? "";
+    expect(copy).not.toContain("refresh this by hand right now");
+    expect(copy).not.toContain("catch up shortly");
+  });
+
   it("offers the sourced pub suggestions from Tonight when no events are listed", () => {
     const ready = renderToday("ready", [PUB_SUGGESTION]);
     expect(ready).toContain("Top picks for tonight.");

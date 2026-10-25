@@ -1,0 +1,356 @@
+{
+  "testedSource": "b44976e2337d5fca8a640c99249273e50cd545ca",
+  "scope": "Same production build before and after the working performance-helper correction. This is not a new comparison against the base commit.",
+  "rootCause": "Playwright request routing disabled HTTP caching, so discarded warm-up loads could not warm the static assets.",
+  "correction": "Browser-native Network.setBlockedURLs blocks third parties and allows the exact app origin without disabling the HTTP cache.",
+  "method": {
+    "browser": "Desktop Chrome",
+    "deviceScaleFactor": 1,
+    "warmupRuns": 1,
+    "measuredRuns": 3,
+    "resampleRuns": 2,
+    "resampleWhy": "A median of 3 is only a median when the samples agree. On the Avrea runners the 6 September sweep reported LCP spreads of 37 to 51 percent on /today, /discover, /drinks and /crawls, past this method's own 12 percent width, so a route flipped between pass and fail on one commit. A route whose spread passes sampleSpreadWarnPct on any metric is measured twice more and its median is taken over 5 samples. Extra samples are only ever taken where the run said it could not measure, so a quiet route costs nothing and a noisy one is judged on more evidence rather than on less.",
+    "resampleWithinCeilingPct": 10,
+    "resampleWithinCeilingWhy": "The second reason to spend the resample budget, and it reads BOTH WAYS. The spread rule asks whether the samples agreed with each other and is blind to where they sit: on 6 September /map agreed with itself to 14 percent and still read 612 ms in one attempt of the job and 956 ms in the next against a 900 ms ceiling, while /pubs asked 68 requests in one attempt and 69 in the other against a ceiling of 68. So a median within this percentage of its own ceiling, on EITHER side of it, buys the extra samples. The band is symmetric on the captain's decision of 7 September 2026: the first cut fired on anything at or above the ceiling minus the margin, a band with no upper edge, so it spent evidence on every breach and never on a figure sitting comfortably under, which is a rescue budget rather than a measurement. A route far over its ceiling now buys nothing, because that is a regression rather than jitter, and the spread rule still covers the run where a box genuinely stalled. lib/performanceBudgets.ts medianSitsOnTheLine is the one owner of the arithmetic. It only ever ADDS runs and decides nothing.",
+    "noisyWarmupRuns": 2,
+    "noisyResampleRuns": 4,
+    "noisyFloorWhy": "The noise floor: what a route carrying a noisy record spends instead of warmupRuns and resampleRuns. Two discarded navigations rather than one, and four resample runs rather than two, so a marked route is judged on the median of seven. It exists because four routes on these runners could not measure themselves in three: the 6 September sweep put their LCP samples 37 to 51 percent apart, past this method's own 12 percent width, and two pull requests then went red on routes they had not touched (#1604 on /crawls at 320 against 300, #1611, a docs-only change, on /today at 364 against 300 and /onboarding at 908 against 900). The answer to a figure nobody can repeat is more evidence, never a bigger ceiling: not one ceiling in this file moved for it. Both numbers are absolute counts rather than deltas, so a reader learns what a route costs without doing arithmetic, and neither is spent on an unmarked route, so a quiet sweep costs exactly what it did before.",
+    "aggregate": "median",
+    "cpuThrottleRate": 4,
+    "network": {
+      "profile": "chrome-fast-4g",
+      "latencyMs": 75,
+      "downloadBytesPerSecond": 1012500,
+      "uploadBytesPerSecond": 168750,
+      "quietMs": 2500,
+      "drainCeilingMs": 90000,
+      "streamAfterMs": 12000,
+      "why": "Chrome DevTools' own Fast 4G preset, written out in its own units: 9 Mbit/s down and 1.5 Mbit/s up at 90% of nominal, with a 20 ms base round trip scaled by 3.75. Loopback has no round trip at all, so it cannot see a waterfall, and a waterfall is what the requests ceiling exists to catch. The numbers are here rather than in code because two runs are only comparable when the wire under them was the same."
+    },
+    "viewport": {
+      "width": 390,
+      "height": 844
+    },
+    "thirdPartyBlocked": true,
+    "futureDeviceMigration": "A later DPR-3 migration is possible, but it must re-seed every ceiling in one commit. playwright.config.ts already has iPhone 14 wiring; the cost is re-measurement, not plumbing.",
+    "countedUpTo": "route interactive: the later of the document's own load event and the first in-page frame on which the route's readiness gate held. A resource counts if it STARTED before that moment, so the post-paint background warmup is excluded by construction rather than by how fast the box is.",
+    "boundaryClock": "page",
+    "sampleSpreadWarnPct": 12,
+    "sampleSpreadFloors": {
+      "serverRenderMs": 25,
+      "jsDecodedKB": 20,
+      "requests": 3,
+      "lcpMs": 250
+    }
+  },
+  "unchanged": [
+    "All route ceilings",
+    "4x CPU throttle",
+    "Fast 4G network profile",
+    "Viewport",
+    "Sample counts",
+    "App copy and behavior"
+  ],
+  "routes": [
+    {
+      "path": "/",
+      "ceilings": {
+        "serverRenderMs": 150,
+        "jsDecodedKB": 1010,
+        "requests": 46,
+        "lcpMs": 800
+      },
+      "before": {
+        "samples": [
+          {
+            "requests": 38,
+            "jsDecodedKB": 858,
+            "serverRenderMs": 3,
+            "lcpMs": 1012,
+            "cls": 0.000005932089667854812,
+            "boundarySource": "page-ready",
+            "stillOpen": []
+          },
+          {
+            "requests": 38,
+            "jsDecodedKB": 858,
+            "serverRenderMs": 2,
+            "lcpMs": 984,
+            "cls": 0.000005932089667854812,
+            "boundarySource": "page-ready",
+            "stillOpen": []
+          },
+          {
+            "requests": 38,
+            "jsDecodedKB": 858,
+            "serverRenderMs": 4,
+            "lcpMs": 984,
+            "cls": 0.000005932089667854812,
+            "boundarySource": "page-ready",
+            "stillOpen": []
+          }
+        ],
+        "aggregate": {
+          "serverRenderMs": 3,
+          "jsDecodedKB": 858,
+          "requests": 38,
+          "lcpMs": 984,
+          "cls": 0.000005932089667854812,
+          "boundarySource": "page-ready",
+          "stillOpen": []
+        }
+      },
+      "after": {
+        "samples": [
+          {
+            "requests": 38,
+            "jsDecodedKB": 858,
+            "serverRenderMs": 2,
+            "lcpMs": 248,
+            "cls": 0,
+            "boundarySource": "page-ready",
+            "stillOpen": []
+          },
+          {
+            "requests": 38,
+            "jsDecodedKB": 858,
+            "serverRenderMs": 1,
+            "lcpMs": 240,
+            "cls": 0,
+            "boundarySource": "page-ready",
+            "stillOpen": []
+          },
+          {
+            "requests": 38,
+            "jsDecodedKB": 858,
+            "serverRenderMs": 1,
+            "lcpMs": 248,
+            "cls": 0,
+            "boundarySource": "page-ready",
+            "stillOpen": []
+          }
+        ],
+        "aggregate": {
+          "serverRenderMs": 1,
+          "jsDecodedKB": 858,
+          "requests": 38,
+          "lcpMs": 248,
+          "cls": 0,
+          "boundarySource": "page-ready",
+          "stillOpen": []
+        }
+      },
+      "breaches": []
+    },
+    {
+      "path": "/pal",
+      "ceilings": {
+        "serverRenderMs": 150,
+        "jsDecodedKB": 1050,
+        "requests": 45,
+        "lcpMs": 700
+      },
+      "before": {
+        "samples": [
+          {
+            "requests": 38,
+            "jsDecodedKB": 915,
+            "serverRenderMs": 2,
+            "lcpMs": 852,
+            "cls": 0.000003336800438168332,
+            "boundarySource": "page-ready",
+            "stillOpen": []
+          },
+          {
+            "requests": 38,
+            "jsDecodedKB": 915,
+            "serverRenderMs": 2,
+            "lcpMs": 964,
+            "cls": 0.000003336800438168332,
+            "boundarySource": "page-ready",
+            "stillOpen": []
+          },
+          {
+            "requests": 38,
+            "jsDecodedKB": 915,
+            "serverRenderMs": 2,
+            "lcpMs": 848,
+            "cls": 0.000003336800438168332,
+            "boundarySource": "page-ready",
+            "stillOpen": []
+          }
+        ],
+        "aggregate": {
+          "serverRenderMs": 2,
+          "jsDecodedKB": 915,
+          "requests": 38,
+          "lcpMs": 852,
+          "cls": 0.000003336800438168332,
+          "boundarySource": "page-ready",
+          "stillOpen": []
+        }
+      },
+      "after": {
+        "samples": [
+          {
+            "requests": 38,
+            "jsDecodedKB": 915,
+            "serverRenderMs": 1,
+            "lcpMs": 236,
+            "cls": 0,
+            "boundarySource": "page-ready",
+            "stillOpen": [
+              "http://localhost:3187/map?_rsc=H7lvpUuISKEU_Lq2",
+              "http://localhost:3187/map?_rsc=Yi4JvK9aPgdvvU8N",
+              "http://localhost:3187/map?_rsc=Oe8SbBFlqs2lr6by"
+            ]
+          },
+          {
+            "requests": 38,
+            "jsDecodedKB": 915,
+            "serverRenderMs": 2,
+            "lcpMs": 204,
+            "cls": 0,
+            "boundarySource": "page-ready",
+            "stillOpen": [
+              "http://localhost:3187/map?_rsc=H7lvpUuISKEU_Lq2",
+              "http://localhost:3187/map?_rsc=Yi4JvK9aPgdvvU8N",
+              "http://localhost:3187/map?_rsc=Oe8SbBFlqs2lr6by"
+            ]
+          },
+          {
+            "requests": 38,
+            "jsDecodedKB": 915,
+            "serverRenderMs": 2,
+            "lcpMs": 212,
+            "cls": 0,
+            "boundarySource": "page-ready",
+            "stillOpen": [
+              "http://localhost:3187/map?_rsc=H7lvpUuISKEU_Lq2",
+              "http://localhost:3187/map?_rsc=Yi4JvK9aPgdvvU8N",
+              "http://localhost:3187/map?_rsc=Oe8SbBFlqs2lr6by"
+            ]
+          }
+        ],
+        "aggregate": {
+          "serverRenderMs": 2,
+          "jsDecodedKB": 915,
+          "requests": 38,
+          "lcpMs": 212,
+          "cls": 0,
+          "boundarySource": "page-ready",
+          "stillOpen": [
+            "http://localhost:3187/map?_rsc=H7lvpUuISKEU_Lq2",
+            "http://localhost:3187/map?_rsc=Yi4JvK9aPgdvvU8N",
+            "http://localhost:3187/map?_rsc=Oe8SbBFlqs2lr6by"
+          ]
+        }
+      },
+      "breaches": []
+    },
+    {
+      "path": "/about",
+      "ceilings": {
+        "serverRenderMs": 150,
+        "jsDecodedKB": 960,
+        "requests": 43,
+        "lcpMs": 500
+      },
+      "before": {
+        "samples": [
+          {
+            "requests": 33,
+            "jsDecodedKB": 771,
+            "serverRenderMs": 24,
+            "lcpMs": 948,
+            "cls": 0.000003336800438168332,
+            "boundarySource": "page-ready",
+            "stillOpen": []
+          },
+          {
+            "requests": 33,
+            "jsDecodedKB": 771,
+            "serverRenderMs": 14,
+            "lcpMs": 856,
+            "cls": 0.000003336800438168332,
+            "boundarySource": "page-ready",
+            "stillOpen": []
+          },
+          {
+            "requests": 33,
+            "jsDecodedKB": 771,
+            "serverRenderMs": 7,
+            "lcpMs": 852,
+            "cls": 0.000003336800438168332,
+            "boundarySource": "page-ready",
+            "stillOpen": []
+          }
+        ],
+        "aggregate": {
+          "serverRenderMs": 14,
+          "jsDecodedKB": 771,
+          "requests": 33,
+          "lcpMs": 856,
+          "cls": 0.000003336800438168332,
+          "boundarySource": "page-ready",
+          "stillOpen": []
+        }
+      },
+      "after": {
+        "samples": [
+          {
+            "requests": 33,
+            "jsDecodedKB": 771,
+            "serverRenderMs": 7,
+            "lcpMs": 220,
+            "cls": 0,
+            "boundarySource": "page-ready",
+            "stillOpen": []
+          },
+          {
+            "requests": 33,
+            "jsDecodedKB": 771,
+            "serverRenderMs": 6,
+            "lcpMs": 224,
+            "cls": 0,
+            "boundarySource": "page-ready",
+            "stillOpen": []
+          },
+          {
+            "requests": 33,
+            "jsDecodedKB": 771,
+            "serverRenderMs": 9,
+            "lcpMs": 220,
+            "cls": 0,
+            "boundarySource": "page-ready",
+            "stillOpen": []
+          }
+        ],
+        "aggregate": {
+          "serverRenderMs": 7,
+          "jsDecodedKB": 771,
+          "requests": 33,
+          "lcpMs": 220,
+          "cls": 0,
+          "boundarySource": "page-ready",
+          "stillOpen": []
+        }
+      },
+      "breaches": []
+    }
+  ],
+  "focusedVerification": {
+    "cacheRegressionBefore": "Failed: 1339 transferred bytes, expected 0.",
+    "cacheAndThirdPartyBlockingAfter": "Passed. A same-origin static asset transferred 0 bytes on reuse. A CSP-allowed third-party request failed with inspector blocking.",
+    "serviceWorkerIsolation": "Passed.",
+    "measurementHelperUnitTests": "6 passed.",
+    "dependencyAuditBefore": "Failed: four high-severity entries from body-parser 2.3.0 and nested Zod 4.1.11.",
+    "dependencyAuditAfter": "Passed: no high or critical vulnerabilities after body-parser 2.4.0 and reuse of Zod 4.6.7."
+  },
+  "limits": [
+    "Only Home, Pub Pal and About were measured.",
+    "Pub Pal retained the named open map-prefetch streams in the samples. The existing stream rule remains unchanged.",
+    "No full suite, lint, separate static checks, CI, merge or deployment was run in this phase.",
+    "No account or device verification is claimed."
+  ]
+}

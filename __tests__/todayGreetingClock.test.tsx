@@ -96,4 +96,24 @@ describe("Today uses the reader's clock after hydration", () => {
     expect(screen.getByTestId("today-greeting").textContent).toBe("Good evening. Friday 23 Oct.");
     expect(screen.getByTestId("tube-slot").textContent).toBe("evening");
   });
+
+  it("replaces a warm ISR date across London midnight on launch day", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-10-24T23:59:30+01:00"));
+    expect(serverGreetingMarkup()).toContain("Saturday 17 October");
+    render(page());
+    expect(screen.getByTestId("today-greeting").textContent).toBe("Still up. Saturday 24 Oct.");
+    expect(screen.getByTestId("brief-prepared-at").querySelector("time")?.dateTime).toBe(MORNING.toISOString());
+    act(() => { vi.advanceTimersByTime(60_000); });
+    expect(screen.getByTestId("today-greeting").textContent).toBe("Still up. Sunday 25 Oct.");
+    expect(screen.getByTestId("brief-prepared-at").querySelector("time")?.dateTime).toBe(MORNING.toISOString());
+  });
+
+  it.each(["2026-10-25T01:30:00+01:00", "2026-10-25T01:30:00+00:00"])("keeps the correct day in the repeated hour at %s", (instant) => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date(instant));
+    render(page());
+    expect(screen.getByTestId("today-greeting").textContent).toBe("Still up. Sunday 25 Oct.");
+    expect(screen.getByTestId("tube-slot").textContent).toBe("night");
+  });
 });

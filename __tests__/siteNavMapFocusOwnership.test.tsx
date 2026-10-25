@@ -94,16 +94,15 @@ it("keeps visible navigation and theme usable beside a nonmodal selected pub", a
   for (const link of document.querySelectorAll<HTMLAnchorElement>(".siteNavLinks a")) {
     expect(link.closest("[inert]")).toBeNull();
   }
-  // The theme lives in the More menu (it left the header); both stay usable.
-  const more = control<HTMLButtonElement>(".siteNavMoreBtn");
-  expect(more.closest("[inert]")).toBeNull();
-  await act(async () => { more.focus(); more.click(); });
-  const theme = [...document.querySelectorAll<HTMLElement>('[role="menu"][aria-label="More pages"] [role="menuitem"]')]
-    .find((item) => item.textContent?.includes("Dark theme"));
-  if (!theme) throw new Error("Missing control: Dark theme");
+  const theme = control<HTMLButtonElement>('button[aria-label="Switch to dark theme"]');
   expect(theme.closest("[inert]")).toBeNull();
   await act(async () => { theme.click(); });
   expect(document.documentElement.dataset.theme).toBe("dark");
+  expect(window.localStorage.getItem("pubmax-theme")).toBe("dark");
+  expect(theme.getAttribute("aria-label")).toBe("Switch to light theme");
+  await act(async () => { theme.click(); });
+  expect(document.documentElement.dataset.theme).toBe("light");
+  expect(window.localStorage.getItem("pubmax-theme")).toBe("light");
   expect(document.querySelector('[aria-label="Selected pub"]')).not.toBeNull();
   expect(onBack).not.toHaveBeenCalled();
 });

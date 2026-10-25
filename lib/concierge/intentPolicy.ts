@@ -133,7 +133,10 @@ const VENUE_QUANTITY_RE = new RegExp(
   `(?<![£$€]\\s*|\\d[.,/])\\b(${CARDINAL_PHRASE})(?=[-\\s]+(?:(?!${COUNT_GAP_STOP})[a-z][a-z'’]*[-\\s]+)*(?:stops?|pubs?|bars?|venues?|places?)\\b)`,
   "gi",
 );
-const PARTY_QUANTITY = `[£$€]\\s*${CARDINAL_PHRASE}|\\b${CARDINAL_PHRASE}[-\\s]*(?:of|${QUANTITY_UNIT}|(?:a|per)\\s+pint)\\b|\\bfor[-\\s]+${CARDINAL_PHRASE}\\b(?![-\\s]+more\\b)`;
+const PARTY_NUMBER = `(?:[1-9]|1\\d|20|${Object.keys(NUMBER_WORDS).join("|")})`;
+const PARTY_NUMBER_START = `(?<![a-z0-9][-.,/]|[£$€]\\s*|\\b${CARDINAL_TOKEN}[-\\s]+(?:(?:and|or|to)[-\\s]+)?)`;
+const PARTY_NUMBER_END = `(?![-\\s]+(?:(?:and|or|to)[-\\s]+)?(?:${CARDINAL_TOKEN}|a[-\\s]+half|more)\\b|[.,/]\\d)`;
+const PARTY_QUANTITY = `[£$€]\\s*${CARDINAL_PHRASE}|\\b${CARDINAL_PHRASE}[-\\s]*(?:am|pm|o['’]clock|hours?|hrs?|minutes?|mins?|pounds?|quid|pence|gbp|(?:a|per)\\s+pint)\\b|${PARTY_NUMBER_START}\\b${PARTY_NUMBER}\\s+(?:of us|people|mates|pax)\\b|\\b(?:for|group of)\\s+${PARTY_NUMBER}\\b${PARTY_NUMBER_END}`;
 const PARTY_QUANTITY_RE = new RegExp(PARTY_QUANTITY, "gi");
 const OWNED_QUANTITY_RE = new RegExp(
   `${PARTY_QUANTITY}|\\b(?:a|an|the)[-\\s]+(?:(?!${CARDINAL_WORD}\\b)[a-z'’]+[-\\s]+)?one\\b`,
@@ -153,10 +156,10 @@ export function isSupportedAskArea(area: string): boolean {
     || isKnownAskPlacePhrase(area);
 }
 
-const CONSUMED_REQUEST_PHRASE_RE = /\b(?:pub[\s-]+crawls?|for a quick one(?: after work)?|to save money|(?:show|give|include)(?: me| us)?(?: the)? (?:(?:source|recorded) dates?|sources?)|(?:(?:(?:them|it) )?on )?(?:the|a) map|not pricey)\b/gi;
+const CONSUMED_REQUEST_PHRASE_RE = /\b(?:pub[\s-]+crawls?|for a quick one(?: after work)?|to save money|(?:show|give|include)(?: me| us)?(?: the)? (?:(?:source|recorded) dates?|sources?)|(?:(?:(?:them|it) )?on )?(?:the|a) map|not pricey|low-key|live(?=[\s-]+sports?\b))\b/gi;
 const VENUE_NOUN_RE = /\b(?:pubs?|bars?|stops?|venues?|places?)\b/gi;
-const CONSUMED_REQUEST_WORDS = new Set("a an the and or but with for in near nearby around at of to then that across please find show me us plan sort get give list recommend suggest what s is are where some any how much do does crawl crawls night out route cheap cheaper cheapest price prices cost costs pint pints beer beers drink drinks under below max maximum up less per listed recorded best value lowest affordable good decent nice local tonight now right later today this evening afternoon morning weekend am pm people friends mates group quiet ish calm low key lively buzzing cosy cozy snug fireside garden outdoor riverside waterside sports live music romantic historic food meal meals dinner menu options cocktail cocktails".split(" "));
-const UNSUPPORTED_REQUEST_WORDS = "craft cider gardens lunch breakfast wine wines spirit spirits coffee whisky whiskey gin rum vodka shot shots soft".split(" ");
+const CONSUMED_REQUEST_WORDS = new Set("a an the and or but with for in near nearby around at of to then that across please find show me us plan sort get give list recommend suggest what s is are where some any how much do does crawl crawls night out route cheap cheaper cheapest price prices cost costs pint pints beer beers drink drinks under below max maximum up less per listed recorded best value lowest affordable good decent nice local tonight now right later today this evening afternoon morning weekend am pm people friends mates group quiet ish calm lively buzzing cosy cozy snug fireside garden outdoor riverside waterside sports romantic historic food meal dinner menu options cocktail cocktails".split(" "));
+const UNSUPPORTED_REQUEST_WORDS = "craft cider gardens lunch breakfast wine wines spirit spirits coffee whisky whiskey gin rum vodka shot shots soft low key live music meals".split(" ");
 
 const VENUE_NAME_WORD = String.raw`(?!(?:${[...CONSUMED_REQUEST_WORDS, ...UNSUPPORTED_REQUEST_WORDS].join("|")})\b)[\p{L}][\p{L}'’-]*`;
 const VENUE_NAME_RUN = String.raw`${VENUE_NAME_WORD}(?:\s+${VENUE_NAME_WORD})*`;

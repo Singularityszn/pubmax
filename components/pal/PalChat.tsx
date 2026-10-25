@@ -76,6 +76,7 @@ import { palChatResultFromBody } from "@/lib/palChatClient";
 import { palOpeningMessage } from "@/lib/palOpening";
 import { createPalChatSession } from "@/lib/palChatClient";
 import { refineRoutedAskQuery, resolveAskLocality, SAME_AREA_REFERENCE_RE } from "@/lib/ask/router";
+import { canonicalAskPlaceLabel } from "@/lib/ask/placePhrases";
 import { clearPalChatThread, palChatMapAnswer, readPalChatThread, savePalChatThread, type PalChatEntry as Entry, type PalChatThread } from "@/lib/palChatThread";
 import {
   cheapestGlanceLine,
@@ -538,11 +539,15 @@ function PalChatBody({ owner }: { owner: string | null }) {
       }
       const priorUsers = turnsRef.current.filter((turn) => turn.role === "user").map((turn) => turn.content).slice(0, -1);
       const routedQuery = refineRoutedAskQuery(text, priorUsers.at(-1), priorUsers);
-      const askLocality = SAME_AREA_REFERENCE_RE.test(routedQuery) || resolveAskLocality(routedQuery).kind !== "supported"
+      const searchLocality = resolveAskLocality(routedQuery);
+      const askLocality = SAME_AREA_REFERENCE_RE.test(routedQuery) || searchLocality.kind !== "supported"
         ? null
         : resolvePalLocality(routedQuery, null);
-      const locality: PalLocality | null = askLocality?.unplaced
-        ? { scope: "query", area: null, label: askLocality.unplaced, grounded: true }
+      const searchLabel = askLocality && !askLocality.grounded && !askLocality.askedLondon && searchLocality.kind === "supported"
+        ? canonicalAskPlaceLabel(searchLocality.area)
+        : null;
+      const locality: PalLocality | null = searchLabel
+        ? { scope: "query", area: null, label: searchLabel, grounded: true }
         : askLocality;
       const proposals =
         result.status === "answered" || result.status === "empty"

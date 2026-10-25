@@ -129,7 +129,7 @@ export async function GET(request: Request): Promise<Response> {
   const ownerId = await callerUserId(request);
   if (!ownerId) return publicApiError("Sign in to read your Pal opening.", "UNAUTHENTICATED", 401);
   try {
-    return jsonNoStore(await openPalConversation(ownerId));
+    return jsonNoStore(await openPalConversation(ownerId, undefined, undefined, request.signal));
   } catch {
     return publicApiError("Your saved memories could not be read just now.", "UNAVAILABLE", 503, { retryable: true });
   }
@@ -153,8 +153,9 @@ async function openingReply(
       try {
         if (firstGreeting) return jsonNoStore(await openPalConversation(
           ownerId, prepared?.context.deadline, (opening) => onWriteStarted?.(openingResponse(opening)),
-          prepared ? request.signal : undefined,
+          request.signal,
         ));
+        request.signal.throwIfAborted();
         const prior = prepared
           ? prepared.context.prior.ownedTurn ?? null
           : threadId ? await readOwnedPubPalToolTurn(threadId, ownerId) : null;
@@ -173,14 +174,12 @@ async function openingReply(
         // The configured runner replaces the pending opening with the actual turn.
         // Do not consume it in a separate write before a substantive ask succeeds.
         if (prepared && !answer) return null;
-        if (prepared) {
-          assertPalChatDeadline(prepared.context.deadline);
-          request.signal.throwIfAborted();
-        }
+        if (prepared) assertPalChatDeadline(prepared.context.deadline);
+        request.signal.throwIfAborted();
         await registerPubPalToolTurn(threadId, {
           deadline: prepared?.context.deadline,
           onWriteStarted: () => {
-            if (prepared) request.signal.throwIfAborted();
+            request.signal.throwIfAborted();
             if (answer) onWriteStarted?.(openingResponse({ answer, conversationId: threadId }));
           },
           ownerId, cityId: prior.cityId, query: answer ? query : "", turns: prior.turns,

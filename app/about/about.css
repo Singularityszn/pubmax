@@ -234,3 +234,16 @@
     min-height: 44px;
   }
 }
+
+.aboutDisclosure > summary {
+  min-height: 44px;
+  padding-block: var(--space-3);
+  font-weight: 600;
+  color: var(--ink);
+  cursor: pointer;
+}
+.aboutDisclosure > summary:focus-visible {
+  outline: 2px solid var(--brass-ink);
+  outline-offset: 3px;
+}
+.aboutDisclosure[open] > summary { margin-bottom: var(--space-3); }

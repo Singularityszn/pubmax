@@ -352,7 +352,7 @@ describe("fixed three-stop plan admission", () => {
     "Plan a three-stop crawl in Soho for 6 people",
     "Plan a crawl in Soho at 8 pm with three garden pubs",
     "Plan a crawl in Soho with three quiet riverside garden pubs",
-    "Plan a crawl in Soho for 2 to 4 of us with three garden pubs",
+    "Plan a crawl in Soho for 4 of us with three garden pubs",
   ])(
     "keeps the fixed three-stop plan local, with party size apart from stops: %s", async (query) => {
       expect(palChatRecordQuery(query)).toBe(query);
@@ -453,10 +453,10 @@ describe("additive venue quantities against local admission", () => {
 
   it.each([
     "Find three pubs for four of us in Soho",
-    "Find three pubs and four friends in Soho",
+    "Find three pubs for four people in Soho",
     "Find three pubs in Soho under £6.50 a pint",
     "Plan a crawl in Soho with three pubs for four of us",
-    "Plan a crawl in Soho with three pubs and four friends",
+    "Plan a crawl in Soho with three pubs for four people",
     "Plan a crawl in Soho with three pubs at 8 pm",
     "Plan a crawl in Soho with three pubs and 8 pm",
   ])("keeps a single local count with a party, time or price modifier: %s", async (query) => {
@@ -464,6 +464,44 @@ describe("additive venue quantities against local admission", () => {
     const response = await ask(query);
     expect(response.status).toBe(200);
     expect(paidSpendBudgetRefusal).not.toHaveBeenCalled();
+    expect(deniedFetch).not.toHaveBeenCalled();
+  });
+});
+
+const UNSUPPORTED_PARTY_FORMS = [
+  "Plan a crawl in Soho for 2 to 4 of us with three garden pubs",
+  "Find three pubs and four friends in Soho",
+  "Plan a crawl in Soho with three pubs and four friends",
+];
+
+describe("party forms the local parser does not implement", () => {
+  it.each(UNSUPPORTED_PARTY_FORMS)("keeps a direct unsupported party form on the configured HTTP provider path: %s", async (query) => {
+    expect(palChatRecordQuery(query)).toBeNull();
+    const response = await ask(query);
+    expect(response.status).toBe(429);
+    expect(await response.json()).toEqual({ error: "Paid budget spent" });
+    expect(paidSpendBudgetRefusal).toHaveBeenCalledOnce();
+    expect(deniedFetch).not.toHaveBeenCalled();
+  });
+
+  it.each(UNSUPPORTED_PARTY_FORMS)("keeps an owned same-area unsupported party form on the configured HTTP provider path: %s", async (query) => {
+    const followUp = query.replace(" in Soho", " in the same area");
+    await registerPubPalToolTurn(THREAD, { query: SOHO, cityId: "london", ownerId: OWNER, turns: [] });
+    const context = await preparePalElevenLabsChatTurn({ query: followUp, ownerId: OWNER, threadId: THREAD });
+    expect(palChatRecordQuery(followUp, context.prior.turns)).toBeNull();
+    const response = await ask(followUp, THREAD);
+    expect(response.status).toBe(429);
+    expect(await response.json()).toEqual({ error: "Paid budget spent" });
+    expect(paidSpendBudgetRefusal).toHaveBeenCalledOnce();
+    expect(deniedFetch).not.toHaveBeenCalled();
+  });
+
+  it.each(UNSUPPORTED_PARTY_FORMS)("keeps a short refinement of an owned unsupported party form on the configured HTTP provider path: %s", async (query) => {
+    await registerPubPalToolTurn(THREAD, { query, cityId: "london", ownerId: OWNER, turns: [] });
+    const response = await ask("please", THREAD);
+    expect(response.status).toBe(429);
+    expect(await response.json()).toEqual({ error: "Paid budget spent" });
+    expect(paidSpendBudgetRefusal).toHaveBeenCalledOnce();
     expect(deniedFetch).not.toHaveBeenCalled();
   });
 });
@@ -664,7 +702,7 @@ describe("additive word quantities without a second venue noun", () => {
 
   it.each([
     ["Find four pubs in Soho", 4],
-    ["Find three pubs and four friends in Soho", 3],
+    ["Find three pubs for four people in Soho", 3],
     ["Plan a crawl in Soho with three pubs and 8 pm", 3],
     ["A three-stop pub crawl in Soho", 3],
     ["Four pubs in Soho with food and a garden", 4],

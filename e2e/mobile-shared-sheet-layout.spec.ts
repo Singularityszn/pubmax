@@ -100,6 +100,11 @@ async function expectSheetInsideViewport(
         if (tabBarStyle.opacity === "1" && tabBarStyle.transform === "none") tabBarState = "shown";
         else if (tabBarStyle.opacity !== "0" || tabBarRect.top < window.innerHeight) tabBarState = "moving";
       }
+      const probe = document.createElement("div");
+      probe.style.cssText = "position:fixed;visibility:hidden;height:var(--tabbar-h)";
+      document.body.append(probe);
+      const tabBarReserve = probe.getBoundingClientRect().height;
+      probe.remove();
       return {
         top: rect.top,
         right: rect.right,
@@ -112,9 +117,7 @@ async function expectSheetInsideViewport(
         portalBottom: portal?.getBoundingClientRect().bottom ?? null,
         tabBar: tabBarState,
         tabBarTop: tabBarRect?.top ?? null,
-        tabBarReserve: Number.parseFloat(
-          getComputedStyle(document.documentElement).getPropertyValue("--tabbar-h"),
-        ),
+        tabBarReserve,
       };
     });
     expect(geometry.tabBar).not.toBe("moving");

@@ -889,7 +889,7 @@ function SocialPageAccountState({
         <Screen
           as="section"
           kicker={surfaceName}
-          title="Crews and people who are already here."
+          title={initialState.tab === "discover" ? "Pubs and pints" : "Plans, photos and people"}
           titleId="social-title"
           primary={primary}
           secondary={secondary}

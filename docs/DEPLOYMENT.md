@@ -159,7 +159,9 @@ Buckets are not SQL objects, so create it **out of band** (Supabase dashboard â†
 
 ### 3. Browser sign-in (email magic link + Google + Apple + Microsoft)
 
-The web and Android paths call Supabase Auth with `signInWithOtp` for passwordless email and `signInWithOAuth` for Google, Apple, or Microsoft (Supabase provider id `azure`). All four methods request the canonical site's `/auth/callback`, then return to the path where sign-in started. The canonical browser client uses the implicit flow, with tokens in the URL fragment. `AuthProvider` captures and scrubs them before asynchronous verification or session installation. The callback rejects absolute, protocol-relative, and backslash redirect targets; never add a client-controlled redirect that bypasses that seam. The separate iPhone paths follow the [provider-return contract](rules/ios-native-auth-return.md) and [email-return contract](rules/ios-native-email-return.md).
+The web and Android paths call Supabase Auth with `signInWithOtp` for passwordless email and `signInWithOAuth` for Google, Apple, or Microsoft (Supabase provider id `azure`). All four methods request the canonical site's `/auth/callback`, then return to the path where sign-in started. The canonical browser client uses the implicit flow, with tokens in the URL fragment. `AuthProvider` captures and scrubs them before asynchronous verification or session installation. The separate iPhone paths follow the [provider-return contract](rules/ios-native-auth-return.md) and [email-return contract](rules/ios-native-email-return.md).
+
+Post-auth navigation uses `safeAuthNext` in [`lib/authRedirect.ts`](../lib/authRedirect.ts) to reject absolute URLs, protocol-relative URLs and paths with backslashes. The guard also checks the normalised path and resolves it again against the app origin. A path such as `/..//evil.example`, which becomes `//evil.example`, returns `/` instead. The callback checks the final redirect destination against the request origin before sending it. Never add a client-controlled redirect that bypasses the shared guard.
 
 App fragments are never copied into Supabase's `redirectTo`: the browser holds them in a TTL-limited record keyed by a cryptographically random attempt ID. It restores them only for a claimed local attempt and matching return path, because Plan invite fragments contain one-use capabilities. The Web Locks API coordinates one live attempt across tabs, and the initiating tab records its attempt in `sessionStorage` to allow an explicit retry. Starting an attempt requires persistent browser storage and Web Locks; an incoming token callback without a local claim follows the confirmation path below. Secrets stay in the Supabase dashboard. The Next.js app only needs the public URL and publishable key above.
 
@@ -617,15 +619,26 @@ product code:
 | Check source | What it means | Fix path |
 |---|---|---|
 | First-party CI | GitHub Actions workflows under `.github/workflows/`. A successful run proves only the jobs that ran at that commit. Push browser checks do not include the full scheduled suite. | Read failed job logs. Keep skipped checks separate from successful checks. |
-| `Vercel` | The `chengdu` project uses an Ignored Build Step that skips Git and API builds. GitHub can report success with the description `Canceled by Ignored Build Step`. | Check the deployment state and source. Require `READY`, then verify the SHA and deployment ID through `/api/version`. A canceled build proves neither compilation nor deployment. The captain approves any build-policy change. |
+| `Vercel` | The `chengdu` project's Ignored Build Step can cancel a deployment while GitHub reports success with the description `Canceled by Ignored Build Step`. Production and preview outcomes can differ. | Check each deployment's state, source, target and commit. Require `READY`, then verify the SHA and deployment ID through `/api/version`. A cancelled build proves neither compilation nor deployment. The captain approves any build-policy change. |
 | `Supabase Preview` | Supabase GitHub integration. | If it says `Remote migration versions not found in local migrations directory`, sync migration history: pull/export the missing remote migrations or repair the Supabase migration table so remote and `supabase/migrations/` agree. Do not delete local migrations to make this pass. |
 | GitHub Actions `startup_failure` | GitHub failed before allocating a job. GitHub shows no jobs and no logs. | Investigate the runner or account. Do not infer a product failure or a Vercel build result. Run `npm run ci` locally for the full local gate. |
 | `Greptile Review` | External AI review/check app. | Treat as code-review signal, not a build gate. Address concrete findings in PR comments. |
 | Other external app suites | Checks owned by GitHub Apps rather than the first-party workflows. | Identify the integration and its requirement. The captain approves changes to repository or integration settings. |
 
-The build-policy handoff is in [the build methodology](agents/build-methodology.md#handing-off-to-the-captains-local-codex).
+The publication gates are in [the build methodology](agents/build-methodology.md#completing-a-task).
 The daily browser and performance workflows already build and measure the app.
 Their schedules do not create a Vercel preview.
+
+The [25 October deployment audit](proof/git-preview-audit-20261025/README.md)
+records READY Git production builds alongside cancelled Git previews. That
+record does not establish the current policy or guarantee the next build.
+
+For a consecutive-build acceptance target, record each real push and its exact
+commit, deployment ID, target and terminal state. A successful GitHub integration
+check cannot replace the deployment result. Do not create empty commits to meet
+the count. A local build or CLI preview does not prove that the Git build path
+works. Keep the target incomplete until the required consecutive Git builds are
+READY and their deployed versions match.
 
 #### Daily Git preview proposal
 

@@ -167,7 +167,42 @@ const UNSUPPORTED_CONSTRAINTS = [
   "Find four pubs in Soho, not expensive",
   "Find four pubs in Soho, not dear",
   "Find four pubs in Soho, not too pricey",
+  "Find four low key pubs in Soho",
+  "Find four pubs in Soho, low key",
+  "Find four pubs in Soho with meals",
+  "Find four pubs in Soho with music",
+  "Find four pubs in Soho with live music",
+  "Plan a crawl in Soho with live music",
+  "Find four pubs in Soho for eleven",
+  "Find four pubs in Soho for eleven people",
+  "Find four pubs in Soho for thirteen",
+  "Find four pubs in Soho for twenty-one",
+  "Find four pubs in Soho for twelve hundred",
+  "Find four pubs in Soho for one hundred",
+  "Find four pubs in Soho for 3.5",
+  "Find four pubs in Soho for 25",
+  "A pub crawl in Soho for eleven, not pricey",
 ];
+
+const SUPPORTED_CONTROLS = [
+  "Find four low-key pubs in Soho",
+  "Find four food pubs in Soho",
+  "Find four pubs in Soho with a meal",
+  "Find four pubs in Soho for dinner",
+  "Find four pubs in Soho for three",
+  "Find four pubs in Soho for twelve",
+  "Find four pubs in Soho for 3",
+  "Find four pubs in Soho for twelve people",
+];
+
+function expectSourcedSohoCards(body: ChatBody) {
+  expect(body.cards.length).toBeGreaterThan(0);
+  for (const card of body.cards) {
+    expect(card.venueId.startsWith("soho-")).toBe(true);
+    expect(typeof card.price === "number" && card.price > 0).toBe(true);
+    expect(card.provenance?.label).toBeTruthy();
+  }
+}
 
 describe("asks naming a constraint no local tool implements", () => {
   it.each(UNSUPPORTED_CONSTRAINTS)("keeps the direct ask on the configured provider path: %s", async (query) => {
@@ -195,6 +230,34 @@ describe("asks naming a constraint no local tool implements", () => {
       expect(card.provenance?.label).toBeTruthy();
     }
     expect(body.proposals.find((proposal) => proposal.kind === "draft_plan")).toMatchObject({ label: "Open in Plan", query });
+  });
+
+  it.each(SUPPORTED_CONTROLS)("answers the supported direct ask locally with sourced cards: %s", async (query) => {
+    expectSourcedSohoCards(await localAnswer(await ask(query)));
+  });
+
+  it.each(SUPPORTED_CONTROLS)("answers the supported owned same-area ask locally with sourced cards: %s", async (query) => {
+    await registerPubPalToolTurn(THREAD, { query: SOHO, cityId: "london", ownerId: OWNER, turns: [] });
+    expectSourcedSohoCards(await localAnswer(await ask(query.replace(/ in Soho/, " in the same area"), THREAD)));
+  });
+});
+
+const COUNTED_HOURS_DISCOVERY = ["1", "2", "3", "4", "5", "6", "one", "two", "three", "four", "five", "six"]
+  .map((count) => `Find me ${count} quiet local pub in Soho with late opening hours`);
+
+describe("counted discovery naming unchecked opening hours", () => {
+  it.each(COUNTED_HOURS_DISCOVERY)("keeps the direct counted hours ask on the configured provider path: %s", async (query) => {
+    await expectProviderRefusal(await ask(query));
+  });
+
+  it.each(COUNTED_HOURS_DISCOVERY)("keeps the owned same-area counted hours ask on the configured provider path: %s", async (query) => {
+    await registerPubPalToolTurn(THREAD, { query: SOHO, cityId: "london", ownerId: OWNER, turns: [] });
+    await expectProviderRefusal(await ask(query.replace(" in Soho", " in the same area"), THREAD));
+  });
+
+  it.each(COUNTED_HOURS_DISCOVERY)("keeps a short refinement of the owned counted hours ask on the configured provider path: %s", async (query) => {
+    await registerPubPalToolTurn(THREAD, { query, cityId: "london", ownerId: OWNER, turns: [] });
+    await expectProviderRefusal(await ask("please", THREAD));
   });
 });
 
@@ -336,6 +399,49 @@ describe("confirmed owner context in a later plain recommendation", () => {
     expect(body.toolsUsed).toEqual(["search_venues"]);
     expect(ids(body)[0]).toBe("soho-garden");
     expect(ids(body).every((id) => id.startsWith("soho-"))).toBe(true);
+  });
+
+  it("keeps a confirmed garden preference beside a current low-key mood", async () => {
+    await remember(OWNER, "venue_preference", "garden");
+    const body = await localAnswer(await ask("Find four low-key pubs in Soho"));
+    expect(ids(body)[0]).toBe("soho-garden");
+    expect(ids(body).every((id) => id.startsWith("soho-"))).toBe(true);
+  });
+
+  it("follows an earlier owned low-key recommendation in a plain Soho ask", async () => {
+    await registerPubPalToolTurn(THREAD, { query: "Find four low-key pubs in Camden", cityId: "london", ownerId: OWNER, turns: [] });
+    expectSourcedSohoCards(await localAnswer(await ask(SOHO, THREAD)));
+  });
+
+  it.each([
+    "Find four low key pubs in Soho",
+    "Find four pubs in Soho with meals",
+    "Find four pubs in Soho with live music",
+    "Find four pubs in Soho for eleven",
+  ])("keeps a current unapplied constraint beside a confirmed garden preference on the provider path: %s", async (query) => {
+    await remember(OWNER, "venue_preference", "garden");
+    await expectProviderRefusal(await ask(query));
+  });
+
+  it.each([
+    "Find four low key pubs in Soho",
+    "Find four pubs in Soho with meals",
+    "Find four pubs in Soho with music",
+    "Find four pubs in Soho for thirteen",
+  ])("keeps a current unapplied constraint after an earlier owned garden ask on the provider path: %s", async (query) => {
+    await registerPubPalToolTurn(THREAD, { query: "Find four garden pubs in Camden", cityId: "london", ownerId: OWNER, turns: [] });
+    await expectProviderRefusal(await ask(query, THREAD));
+  });
+
+  it.each([
+    "Find four low key pubs in Camden",
+    "Find four pubs in Camden with meals",
+    "Find four pubs in Camden with music",
+    "Find four pubs in Camden with live music",
+    "Find four pubs in Camden for eleven",
+  ])("keeps an earlier owned unapplied constraint off a later plain Soho ask: %s", async (query) => {
+    await registerPubPalToolTurn(THREAD, { query, cityId: "london", ownerId: OWNER, turns: [] });
+    await expectProviderRefusal(await ask(SOHO, THREAD));
   });
 
   it("keeps an uncertain remembered mood beside a current mood on the provider path", async () => {

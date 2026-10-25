@@ -1,0 +1,164 @@
+{
+  "head": "58d4c36eca0d5eac525ba7b60218b0f02a74dd40",
+  "base": "0bb6fa2e4c0c04ac26db4a1b95305f2d47fb0559",
+  "time": "2026-10-25T00:39:42.667223+00:00",
+  "browser": "Playwright 1.64.0 Chromium 156.0.8078.4 revision 1248",
+  "surface": "Fresh isolated production compile/generate build at http://127.0.0.1:3199, disposable keyless stores, no real accounts or hosted credential issuance",
+  "sourceChanges": false,
+  "configuredBaseline": {
+    "command": "npm run verify:no-mistakes:changed",
+    "result": "passed",
+    "provenance": "Supplied by outer executor. Full verification and static checks were not repeated in this assigned product test phase."
+  },
+  "checks": [
+    {
+      "name": "production compile",
+      "evidence": "build.log",
+      "exitCode": 0
+    },
+    {
+      "name": "production generate",
+      "evidence": "build.log",
+      "exitCode": 0
+    },
+    {
+      "name": "writing refresh browser regressions",
+      "evidence": "browser-final.log",
+      "exitCode": 0
+    },
+    {
+      "name": "supplemental browser scenarios",
+      "evidence": "extra-final.log",
+      "exitCode": 0
+    },
+    {
+      "name": "responsive page matrix",
+      "evidence": "matrix.json",
+      "exitCode": 0
+    },
+    {
+      "name": "Pal onboarding and draft restoration",
+      "evidence": "pal-onboarding.log",
+      "exitCode": 0
+    },
+    {
+      "name": "Pal memory and voice consent",
+      "evidence": "privacy-final.log",
+      "exitCode": 0
+    },
+    {
+      "name": "Home, Pal and About performance ceilings",
+      "evidence": "performance-native.log",
+      "exitCode": 0
+    },
+    {
+      "name": "Historic enlarged filter control screenshots",
+      "evidence": "historic-controls.log",
+      "exitCode": 0
+    },
+    {
+      "name": "Today/Tonight sourced fallback parity",
+      "evidence": "today-parity.log",
+      "exitCode": 0
+    },
+    {
+      "name": "About disclosures and rendered copy",
+      "evidence": "rendered-copy.json",
+      "exitCode": 0
+    },
+    {
+      "name": "settled Map and Plan controls",
+      "evidence": "surfaces.log",
+      "exitCode": 0
+    },
+    {
+      "name": "expired Discover coverage browsing",
+      "evidence": "eligibility.log",
+      "exitCode": 0
+    },
+    {
+      "name": "local HTTP OIDC request context",
+      "evidence": "oidc-runtime.json",
+      "exitCode": 0
+    },
+    {
+      "name": "served image metadata and dimensions",
+      "evidence": "served-photo-assets.json",
+      "exitCode": 0
+    },
+    {
+      "name": "focused executable unit tests",
+      "evidence": "focused-unit.log",
+      "exitCode": 0
+    },
+    {
+      "name": "installed dependency graph",
+      "evidence": "dependency-tree.json",
+      "exitCode": 0
+    },
+    {
+      "name": "served product version",
+      "evidence": "version.json",
+      "exitCode": 0
+    },
+    {
+      "name": "fresh browser provenance launch and close",
+      "evidence": "browser-provenance.json",
+      "exitCode": 0
+    }
+  ],
+  "excludedProbes": [
+    {
+      "log": "extra.log",
+      "reason": "The added Home probe expected capitalised Prices despite correct lowercase qualified text. The added Historic probe guessed a Crown Tavern detail URL absent from the public catalogue. Corrected probes check the savings date qualification and actual Southwark Historic filter. Both passed without a product change."
+    },
+    {
+      "log": "privacy.log",
+      "reason": "The added exact Name locator omitted the helpful text included in the accessible name. The corrected accessible-name prefix drove both full five-step previews successfully."
+    },
+    {
+      "log": "media.log",
+      "reason": "The first asset probe guessed leadenhall-market from its public caption. The actual public asset identifier is leadenhall-boxhall. Corrected HTTP probes passed for all four displayed places, both formats and both sizes."
+    }
+  ],
+  "freshEvidence": "All runtime receipts and screenshots here were created in this run. Existing tracked before views remain historical. The initial browser run also passed. The final browser run retained a separate output directory after the Pal run reused the first output directory.",
+  "limits": [
+    "Chromium viewport emulation does not prove physical-device rendering.",
+    "Anonymous and local disposable credential flows were tested. Real-account data and hosted OIDC issuance were not accessed.",
+    "Full verification, hosted review, CI, PR and Document phases belong to the outer executor.",
+    "The final process snapshot precedes agent exit. Only the outer executor can establish the native completion guard result."
+  ],
+  "cleanup": {
+    "serverSupervisor": 82830,
+    "serverPid": 82833,
+    "signal": "SIGTERM",
+    "awaitedServerSessionExitCode": 143,
+    "meaning": "Intentional owned-server teardown after all checks completed",
+    "removed": [
+      ".next-test-phase",
+      "artifacts/local-test-phase"
+    ],
+    "awaitedExecSessions": [
+      70905,
+      92883,
+      69457,
+      30381,
+      72237,
+      20642,
+      20252,
+      30418,
+      87166,
+      97168,
+      33114,
+      92816,
+      49715,
+      72864,
+      14967,
+      62411,
+      49840
+    ],
+    "processEvidence": "process-final.json",
+    "workingTreeStatus": ""
+  },
+  "evidenceLinks": "evidence-links.json"
+}

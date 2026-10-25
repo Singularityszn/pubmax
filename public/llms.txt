@@ -1,7 +1,7 @@
 # PUBMAXX
 
-> A map-first London night planner with cited historic-pub heritage and a
-> provenance-gated public price index.
+> A London pub map for comparing listed pint prices, planning crawls with
+> friends and sharing routes, with cited pub history and a public price index.
 
 PUBMAXX is at https://pubmaxxing.com. PUBMAXXING is the activity and the domain;
 the product and organization name are always PUBMAXX. Product map
@@ -9,6 +9,11 @@ prices and the citable public Pint Index have different evidence boundaries.
 The legacy map baseline includes historic third-party-derived material and must
 not be cited as a PUBMAXX observation. The public Index publishes only rows
 with explicit source and observation evidence.
+
+People can browse and save pubs on their device without an account, create a
+plan and send its invite link to friends. Accounts sync saves and are required
+for price contributions and Social when it is available. These product features
+do not change which prices qualify for the public Index.
 
 ## Citable data surfaces
 
@@ -21,6 +26,10 @@ with explicit source and observation evidence.
 ## Product surfaces
 
 - [Map](https://pubmaxxing.com/map): interactive pub map and night planner.
+- [About](https://pubmaxxing.com/about): how planning, sharing, accounts and
+  price evidence work.
+- [Plan](https://pubmaxxing.com/plan): create an outing and share its invite
+  link. Private plan documents are not public price evidence.
 - [Boroughs](https://pubmaxxing.com/borough): product browsing pages based on
   the legacy map dataset. Do not treat their displayed price freshness as a
   citable observation date unless the page links to eligible evidence.

@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "generatedAt": "2026-10-23T16:15:47.970Z",
+  "generatedAt": "2026-10-25T18:14:24.121Z",
   "snapshot": {
     "pubs": 38122,
     "statedWebsite": 1860,
@@ -36,16 +36,16 @@
     "inputRead": false
   },
   "hostsCrawledThisRun": 1,
-  "hostsInLedger": 1,
+  "hostsInLedger": 3,
   "pagesRead": 3,
   "pdfs": {
     "seen": 0,
     "read": 0,
     "unreadable": 0
   },
-  "pageBudget": 6,
+  "pageBudget": 8,
   "outcomes": {
-    "priced": 1,
+    "priced": 3,
     "robots-disallowed": 0,
     "robots-unreadable": 0,
     "policy-refused-host": 0,
@@ -56,17 +56,20 @@
     "exa-site-unbound": 0
   },
   "robotsFiles": {
-    "rules-file": 1
+    "rules-file": 2,
+    "absent": 1
   },
-  "pubsOnPricedHosts": 1,
+  "pubsOnPricedHosts": 3,
   "drops": {
-    "no-price-on-page": 1,
-    "food-word-nearby": 1,
-    "no-category-word-nearby": 2,
-    "fractional-measure-not-a-pint": 3,
+    "no-price-on-page": 5,
+    "offer-not-a-menu-price": 65,
+    "no-category-word-nearby": 153,
+    "outside-category-band": 53,
+    "food-word-nearby": 10,
     "bottled-measure-not-a-pint": 3,
-    "outside-category-band": 1,
-    "item-name-ambiguous": 3
+    "mixer-serve-not-one-drink": 4,
+    "page-is-not-a-drinks-list": 3,
+    "item-name-ambiguous": 20
   },
   "sourcesRefusedByPolicy": [
     {

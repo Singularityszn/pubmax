@@ -1,0 +1,17 @@
+Tool-output transcript, 25 October 2026.
+The command returned this output inline. This file preserves the relevant excerpt.
+
+Command:
+node node_modules/vitest/vitest.mjs run --configLoader runner __tests__/entryDecision.test.ts __tests__/nativeShellEntry.test.ts __tests__/nativeEntryCallback.test.tsx __tests__/nativeWrap.test.ts __tests__/nativeFirstRun.test.ts __tests__/landingPrimaryDoor.test.tsx __tests__/cityPreference.test.ts __tests__/nativeDeepLinks.test.ts __tests__/onboardingFlow.test.ts __tests__/offlineReadyRegistration.test.tsx __tests__/accountSurfaceStoreDoors.test.tsx
+
+Exit code: 0
+Start at: 11:33:04
+Duration: 5.97s
+Test Files: 11 passed (11)
+Tests: 214 passed (214)
+
+Not implemented: Window's scrollTo() method
+Not implemented: Window's scrollTo() method
+Not implemented: Window's scrollTo() method
+
+Isolate: 11 workers spawned, approximately 460ms startup each.

@@ -173,8 +173,9 @@ describe("interrupted native onboarding", () => {
     });
 
     await tap("Skip");
+    expect(router.replace).toHaveBeenCalledWith("/tonight");
     expect(decideEntry(readEntryContext("/"))).toEqual({
-      kind: "route", href: "/tonight", reason: "shell-cold-start",
+      kind: "stay", reason: "native-home",
     });
   });
 
@@ -208,7 +209,7 @@ describe("interrupted native onboarding", () => {
     expect(readPlannerHandoff()?.patch).toEqual({ lat: 51.5136, lng: -0.1365 });
     expect(window.localStorage.getItem(NATIVE_FIRST_RUN_PATCH_KEY)).toBeNull();
     expect(decideEntry(readEntryContext("/"))).toEqual({
-      kind: "route", href: "/tonight", reason: "shell-cold-start",
+      kind: "stay", reason: "native-home",
     });
   });
 });

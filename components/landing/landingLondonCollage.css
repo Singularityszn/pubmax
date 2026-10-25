@@ -138,30 +138,20 @@
     scroll-snap-type: none;
   }
 
-  .lpCollageTile--hero {
-    grid-column: span 2;
-  }
-
-  .lpCollageTile--hero .lpCollageTile__frame {
-    aspect-ratio: 16 / 9;
-  }
 }
 
 /* ── Desktop: a fixed mosaic ───────────────────────────────────────────── */
 
 /* Every photo has a named cell (its `cell` in lib/landingLondonCollage.ts), so
-   the ten photos fill four columns by five rows exactly and no empty cell is
+   the selected photos fill four columns by two rows exactly and no empty cell is
    left at the end. Add a row here when a photo is added there. */
 @media (min-width: 1024px) {
   .lpCollageMosaic {
     display: grid;
     grid-template-columns: repeat(4, minmax(0, 1fr));
     grid-template-areas:
-      "sw  cwn rt  rt"
-      "sw  ct  rt  rt"
-      "ex  cr  pb  pb"
-      "ex  cr  pb  pb"
-      "lb  cws th  th";
+      "sw sw ct lb"
+      "sw sw cwn cwn";
     grid-auto-rows: clamp(200px, 21vw, 280px);
     gap: var(--space-3);
     margin-inline: 0;
@@ -181,4 +171,19 @@
   .lpCollageTile__frame {
     aspect-ratio: auto;
   }
+}
+
+.lpCollageTile__link {
+  display: grid;
+  min-width: 0;
+  color: inherit;
+  text-decoration: none;
+  border-radius: var(--radius-lg);
+}
+.lpCollageTile__link:focus-visible {
+  outline: 2px solid var(--brass-ink);
+  outline-offset: 4px;
+}
+@media (hover: hover) and (pointer: fine) {
+  .lpCollageTile__link:hover .lpCollageTile__place { text-decoration: underline; }
 }

@@ -12,18 +12,23 @@ export function wordsOnly(value: string): string {
     .trim();
 }
 
+const PLACE_LABELS: readonly string[] = [
+  ...NIGHT_AREAS.flatMap((area) => [area.name, ...area.aliases, ...area.transportAnchors]),
+  ...localityGazetteer.localities.map((locality) => locality.name),
+  ...stationZones.stations.map((station) => station.name),
+];
+
 /** Place names of two or more words: night areas, London localities, TfL stations. */
 export const PLACE_PHRASES: readonly string[][] = [
-  ...new Set(
-    [
-      ...NIGHT_AREAS.flatMap((area) => [area.name, ...area.aliases, ...area.transportAnchors]),
-      ...localityGazetteer.localities.map((locality) => locality.name),
-      ...stationZones.stations.map((station) => station.name),
-    ].map(wordsOnly),
-  ),
+  ...new Set(PLACE_LABELS.map(wordsOnly)),
 ]
   .map((phrase) => phrase.split(" "))
   .filter((words) => words.length > 1);
+
+export function canonicalAskPlaceLabel(value: string): string | null {
+  const phrase = wordsOnly(value).replace(/^the\s+/, "");
+  return PLACE_LABELS.find((label) => wordsOnly(label) === phrase) ?? null;
+}
 
 export function isKnownAskPlacePhrase(value: string): boolean {
   const phrase = wordsOnly(value).replace(/^the\s+/, "");

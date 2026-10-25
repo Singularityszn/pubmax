@@ -1,0 +1,106 @@
+{
+  "baseSource": "1dd819f3c75a9c69da6e0039fc47199fb5eed7e3",
+  "targetSource": "0cf756fabeb50e4fecb294b1097fdfdd4f60843b with gate test corrections",
+  "method": "Unchanged perf/route-budgets.json through e2e/helpers/perfMeasurement.ts",
+  "serviceWorkers": "blocked in both measurement contexts",
+  "verdict": "no-go: both absolute paint ceilings remain exceeded",
+  "measured": {
+    "/pal": {
+      "serverRenderMs": 2,
+      "jsDecodedKB": 916,
+      "requests": 38,
+      "lcpMs": 844,
+      "cls": 3.336800438168332e-06,
+      "boundarySource": "page-ready",
+      "stillOpen": []
+    },
+    "/about": {
+      "serverRenderMs": 7,
+      "jsDecodedKB": 771,
+      "requests": 33,
+      "lcpMs": 852,
+      "cls": 3.336800438168332e-06,
+      "boundarySource": "page-ready",
+      "stillOpen": []
+    }
+  },
+  "samples": {
+    "/pal": [
+      {
+        "requests": 38,
+        "jsDecodedKB": 916,
+        "serverRenderMs": 2,
+        "lcpMs": 852,
+        "cls": 3.336800438168332e-06,
+        "boundarySource": "page-ready",
+        "stillOpen": []
+      },
+      {
+        "requests": 38,
+        "jsDecodedKB": 916,
+        "serverRenderMs": 2,
+        "lcpMs": 836,
+        "cls": 3.336800438168332e-06,
+        "boundarySource": "page-ready",
+        "stillOpen": []
+      },
+      {
+        "requests": 38,
+        "jsDecodedKB": 916,
+        "serverRenderMs": 2,
+        "lcpMs": 844,
+        "cls": 3.336800438168332e-06,
+        "boundarySource": "page-ready",
+        "stillOpen": []
+      }
+    ],
+    "/about": [
+      {
+        "requests": 33,
+        "jsDecodedKB": 771,
+        "serverRenderMs": 8,
+        "lcpMs": 848,
+        "cls": 3.336800438168332e-06,
+        "boundarySource": "page-ready",
+        "stillOpen": []
+      },
+      {
+        "requests": 33,
+        "jsDecodedKB": 771,
+        "serverRenderMs": 7,
+        "lcpMs": 852,
+        "cls": 3.336800438168332e-06,
+        "boundarySource": "page-ready",
+        "stillOpen": []
+      },
+      {
+        "requests": 33,
+        "jsDecodedKB": 771,
+        "serverRenderMs": 6,
+        "lcpMs": 884,
+        "cls": 3.336800438168332e-06,
+        "boundarySource": "page-ready",
+        "stillOpen": []
+      }
+    ]
+  },
+  "judgment": {
+    "breaches": [
+      {
+        "path": "/pal",
+        "metric": "lcpMs",
+        "measured": 844,
+        "budget": 700,
+        "overBy": 21
+      },
+      {
+        "path": "/about",
+        "metric": "lcpMs",
+        "measured": 852,
+        "budget": 500,
+        "overBy": 70
+      }
+    ],
+    "unmeasured": []
+  }
+}

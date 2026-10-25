@@ -15,10 +15,9 @@ import {
 /**
  * The ONE way a route's cost is measured in this suite.
  *
- * Two specs read these numbers - e2e/performance-budget.spec.ts, which enforces
- * perf/route-budgets.json, and e2e/ux-lane-perf-verification.spec.ts, which
- * reports the same routes plus LCP and CLS - and two figures are only
- * comparable when they were taken the same way. So the method lives here once:
+ * The budget, A/B comparison and UX report specs share these measurements.
+ * docs/PERFORMANCE_BUDGETS.md owns their method and comparison rules.
+ * Two figures are comparable only when measured the same way. This helper owns
  * the tracked warm-up and median runs, the CPU throttle, the third-party block,
  * and the app-defined cut for what counts as "before interactive".
  *
@@ -250,18 +249,22 @@ export async function preparePerfPage(
     requestAnimationFrame(tick);
   }, { routes: gateRoutes });
 
-  if (method.thirdPartyBlocked) {
-    await page.route("**/*", (route) => {
-      if (route.request().url().startsWith(origin)) return route.continue();
-      return route.abort();
-    });
-  }
-
   const rate = method.cpuThrottleRate;
   const network = method.network;
   const throttlesNetwork = network && network.profile !== "loopback";
-  if ((rate && rate > 1) || throttlesNetwork) {
+  if (method.thirdPartyBlocked || (rate && rate > 1) || throttlesNetwork) {
     const session = await page.context().newCDPSession(page);
+    if (method.thirdPartyBlocked || throttlesNetwork) {
+      await session.send("Network.enable");
+    }
+    if (method.thirdPartyBlocked) {
+      // Playwright routing disables HTTP caching, turning every measured warm
+      // navigation into a cold load. Browser-native blocking keeps the cache.
+      await session.send("Network.setBlockedURLs", {
+        urlPatterns: [{ urlPattern: `${origin}/*`, block: false }],
+        urls: ["*"],
+      });
+    }
     if (rate && rate > 1) {
       await session.send("Emulation.setCPUThrottlingRate", { rate });
     }
@@ -270,7 +273,6 @@ export async function preparePerfPage(
       // still lose the night to a waterfall, and a waterfall only costs
       // anything where a round trip does - so the rig pins one named profile
       // with its own numbers rather than measuring over a wire nobody has.
-      await session.send("Network.enable");
       await session.send("Network.emulateNetworkConditions", {
         offline: false,
         latency: network.latencyMs,

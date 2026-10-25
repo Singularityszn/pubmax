@@ -2,9 +2,8 @@
 
 // Desktop SiteNav "More" overflow (Wave D2.2). Secondary destinations that are
 // not in the primary Map/Tonight/Plan/Social/You row. Social is a primary tab
-// (captain, 16 Oct 2026), so it is never repeated here. SiteNav adds one action row of its own,
-// the light/dark theme, which left the header for this menu. Desktop ≥641 only -
-// CSS hides this entire control on phones so the compact bar stays unchanged.
+// (captain, 16 Oct 2026), so it is never repeated here.
+// Desktop ≥641 only. CSS hides this entire control on phones.
 // Link and action items share one implementation. Esc closes; ArrowUp/Down
 // move focus.
 //

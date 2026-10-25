@@ -2,9 +2,9 @@ import type { Route } from "next";
 import Link from "next/link";
 import type { ReactNode } from "react";
 
-import LandingPhoto from "@/components/landing/LandingPhoto";
+import PlacePhoto from "@/components/listing/PlacePhoto";
 import Screen from "@/components/ui/screen";
-import type { ResolvedLandingPhoto } from "@/lib/landingImagery";
+import type { PlacePhoto as PlacePhotoData } from "@/components/listing/placePhotoRules";
 
 // The head both borough surfaces share (docs/design/LAUNCH_SCREENS.md): the
 // map door is the one primary action and "Find my pint" is the quiet way
@@ -35,7 +35,7 @@ export default function BoroughScreen({
   mapHref: Route;
   mapLabel: string;
   /** The chapter's photograph. Absent on the index; see the note above. */
-  photo?: ResolvedLandingPhoto;
+  photo?: PlacePhotoData;
   children?: ReactNode;
 }) {
   return (
@@ -50,9 +50,8 @@ export default function BoroughScreen({
       secondary={<Link prefetch={false} href="/near">Find my pint</Link>}
     >
       {photo ? (
-        <LandingPhoto
-          resolved={photo}
-          variant="band"
+        <PlacePhoto
+          photo={photo}
           sizes="(max-width: 1100px) 100vw, 1040px"
           priority
           className="boroughPhoto"

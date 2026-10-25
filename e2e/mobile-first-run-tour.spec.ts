@@ -76,7 +76,7 @@ test.describe("mobile first-run tour", () => {
     const meet = page.getByRole("button", { name: /Meet your Pub Pal/i });
     await expectHydrated(meet);
     await meet.click();
-    await expect(page.getByRole("heading", { name: "The grown-up bit first." })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Before you start" })).toBeVisible();
 
     const geometry = await page.evaluate(() => {
       const actions = document.querySelector(".palOnboardingActions")?.getBoundingClientRect();

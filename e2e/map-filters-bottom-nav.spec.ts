@@ -16,6 +16,7 @@ function primaryNav(page: Page) {
 
 test.describe("map filters sheet and bottom navigation", () => {
   test("primary tabs stay tappable above an open filters sheet", async ({ page }) => {
+    await page.clock.setFixedTime(new Date("2026-01-15T18:00:00Z"));
     await page.goto("/map");
 
     await (await mobileMapShellControl(page, "filters")).click();

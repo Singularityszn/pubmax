@@ -5,7 +5,7 @@ import { expect, test, type Page, type Route } from "@playwright/test";
 
 import { runnerShotDir } from "@/e2e/helpers/runnerShotDir";
 
-const SOCIAL_TITLE = "Crews and people who are already here.";
+const SOCIAL_TITLE = "Plans, photos and people";
 const SOCIAL_PREVIEW_BOUNDARY =
   "Social is invite-only for now. It opens more widely soon.";
 

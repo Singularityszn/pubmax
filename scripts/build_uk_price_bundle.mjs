@@ -44,6 +44,8 @@
 // __tests__/priceEstimateAuthorityFence.test.ts for it: the bundle PRESENTS an
 // estimate as an estimate, which is exactly the exception that list exists for.
 
+import { listedMapDrinkCoverageRows } from "@/lib/listedMapDrinkCoverage";
+
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import process from "node:process";
@@ -489,6 +491,8 @@ function main() {
     path.join(OUT_DIR, "manifest.json"),
     `${JSON.stringify(manifest, null, 2)}\n`,
   );
+
+  writeFileSync(path.join(OUT_DIR, "listed_coverage.json"), `${JSON.stringify(listedMapDrinkCoverageRows(rows))}\n`);
 
   // The published copy of the crawl's own rows, so the bundle is reproducible
   // from the tree rather than from a working directory nobody commits.

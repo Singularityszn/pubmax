@@ -14,7 +14,7 @@ import type { MapDrinkCoverage } from "@/components/map/DrinkCoverage";
 import DrinkLanePicker from "@/components/map/DrinkLanePicker";
 import SpoonsValueLensControl from "@/components/map/SpoonsValueLensControl";
 import DrinkShapeChips from "@/components/map/DrinkShapeChips";
-import VenueFeatureFilters from "@/components/map/VenueFeatureFilters";
+import VenueFeatureFilters, { activeVenueFeatureCount } from "@/components/map/VenueFeatureFilters";
 import MapVenueKindFilter from "@/components/map/MapVenueKindFilter";
 import FavoritePintPicker from "@/components/map/FavoritePintPicker";
 import PersonaLensPicker from "@/components/map/PersonaLensPicker";
@@ -463,7 +463,7 @@ export default function MapToolbar({
             because a phone reads the same toggles in its Filters sheet. */}
         {isMobile === false && venueKindVisibility && onVenueKindVisibilityChange ? (
           <MapVenueKindFilter
-            featureFilterCount={Number(filters.requireBeerGarden) + Number(filters.requireOutdoorSeating === true) + Number(filters.openNow)}
+            featureFilterCount={activeVenueFeatureCount(filters)}
             featureFilters={<VenueFeatureFilters filters={filters} onChange={onFiltersChange} resultCount={searchSettled ? filteredVenueCount : null} />}
             visibility={venueKindVisibility}
             experienceLens={experienceLens}

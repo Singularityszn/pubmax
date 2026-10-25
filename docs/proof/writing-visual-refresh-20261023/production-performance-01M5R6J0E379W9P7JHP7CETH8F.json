@@ -1,0 +1,174 @@
+[
+  {
+    "route": {
+      "path": "/",
+      "readySelector": "main",
+      "why": "The landing every shared link and every search result opens.",
+      "serverRenderMs": 150,
+      "jsDecodedKB": 1010,
+      "requests": 46,
+      "lcpMs": 800
+    },
+    "samples": [
+      {
+        "requests": 38,
+        "jsDecodedKB": 858,
+        "serverRenderMs": 1,
+        "lcpMs": 344,
+        "cls": 0,
+        "boundarySource": "page-ready",
+        "stillOpen": []
+      },
+      {
+        "requests": 38,
+        "jsDecodedKB": 858,
+        "serverRenderMs": 1,
+        "lcpMs": 316,
+        "cls": 0,
+        "boundarySource": "page-ready",
+        "stillOpen": []
+      },
+      {
+        "requests": 38,
+        "jsDecodedKB": 858,
+        "serverRenderMs": 1,
+        "lcpMs": 340,
+        "cls": 0,
+        "boundarySource": "page-ready",
+        "stillOpen": []
+      }
+    ],
+    "aggregate": {
+      "serverRenderMs": 1,
+      "jsDecodedKB": 858,
+      "requests": 38,
+      "lcpMs": 340,
+      "cls": 0,
+      "boundarySource": "page-ready",
+      "stillOpen": []
+    }
+  },
+  {
+    "route": {
+      "path": "/pal",
+      "readySelector": ".palExperience",
+      "settledSelectorHidden": ".palLoading",
+      "why": "The front door's one primary action, so it is measured beside the landing that sends people to it. The 2026-09-01 seed sweep measured 1745 KB decoded, of which a single 603 KB chunk was the ElevenLabs conversation SDK, parsed before first paint for a control the reader may never reach and the deployment may not even have switched on. That chunk now loads when the availability probe says voice is on (components/pubpal/PubPalVoiceSession.tsx), so this ceiling ratchets to 1300 KB against an expected ~1142 KB. CI's sweep is the oracle; U8's ratchet check banks whatever slack is left.",
+      "serverRenderMs": 150,
+      "jsDecodedKB": 1050,
+      "requests": 45,
+      "lcpMs": 700
+    },
+    "samples": [
+      {
+        "requests": 39,
+        "jsDecodedKB": 915,
+        "serverRenderMs": 1,
+        "lcpMs": 332,
+        "cls": 0,
+        "boundarySource": "page-ready",
+        "stillOpen": []
+      },
+      {
+        "requests": 39,
+        "jsDecodedKB": 915,
+        "serverRenderMs": 1,
+        "lcpMs": 316,
+        "cls": 0,
+        "boundarySource": "page-ready",
+        "stillOpen": []
+      },
+      {
+        "requests": 39,
+        "jsDecodedKB": 915,
+        "serverRenderMs": 1,
+        "lcpMs": 328,
+        "cls": 0,
+        "boundarySource": "page-ready",
+        "stillOpen": [
+          "http://127.0.0.1:3199/map?_rsc=H7lvpUuISKEU_Lq2",
+          "http://127.0.0.1:3199/map?_rsc=Yi4JvK9aPgdvvU8N",
+          "http://127.0.0.1:3199/map?_rsc=Oe8SbBFlqs2lr6by"
+        ]
+      }
+    ],
+    "aggregate": {
+      "serverRenderMs": 1,
+      "jsDecodedKB": 915,
+      "requests": 39,
+      "lcpMs": 328,
+      "cls": 0,
+      "boundarySource": "page-ready",
+      "stillOpen": [
+        "http://127.0.0.1:3199/map?_rsc=H7lvpUuISKEU_Lq2",
+        "http://127.0.0.1:3199/map?_rsc=Yi4JvK9aPgdvvU8N",
+        "http://127.0.0.1:3199/map?_rsc=Oe8SbBFlqs2lr6by"
+      ]
+    }
+  },
+  {
+    "route": {
+      "path": "/about",
+      "readySelector": "main",
+      "why": "The page that states what the figures mean and where they come from, linked from every trust claim on the site. It composes nothing per request, so it is the floor a server-rendered page here should sit on. The 1900 KB ceiling was stale by 800 KB: the 2026-09-01 sweep measured 1081 KB decoded over 24 chunks with no MapLibre, no Convex, no voice SDK and no image cropper in any of them, so there was no accidental import to split, only slack to bank. The REQUEST ceiling is left where it is: a seed run counts requests against its own interactive moment on a different box and network, and this one counted 62 on / where CI is green at 50, so a request figure measured here is not comparable to the sweep's. Decoded bytes are.",
+      "serverRenderMs": 150,
+      "jsDecodedKB": 960,
+      "requests": 43,
+      "lcpMs": 500
+    },
+    "samples": [
+      {
+        "requests": 33,
+        "jsDecodedKB": 771,
+        "serverRenderMs": 6,
+        "lcpMs": 308,
+        "cls": 0,
+        "boundarySource": "page-ready",
+        "stillOpen": [
+          "http://127.0.0.1:3199/map?_rsc=H7lvpUuISKEU_Lq2",
+          "http://127.0.0.1:3199/map?_rsc=Yi4JvK9aPgdvvU8N",
+          "http://127.0.0.1:3199/map?_rsc=Oe8SbBFlqs2lr6by"
+        ]
+      },
+      {
+        "requests": 33,
+        "jsDecodedKB": 771,
+        "serverRenderMs": 6,
+        "lcpMs": 308,
+        "cls": 0,
+        "boundarySource": "page-ready",
+        "stillOpen": [
+          "http://127.0.0.1:3199/map?_rsc=H7lvpUuISKEU_Lq2",
+          "http://127.0.0.1:3199/map?_rsc=Yi4JvK9aPgdvvU8N",
+          "http://127.0.0.1:3199/map?_rsc=Oe8SbBFlqs2lr6by"
+        ]
+      },
+      {
+        "requests": 33,
+        "jsDecodedKB": 771,
+        "serverRenderMs": 5,
+        "lcpMs": 312,
+        "cls": 0,
+        "boundarySource": "page-ready",
+        "stillOpen": [
+          "http://127.0.0.1:3199/map?_rsc=H7lvpUuISKEU_Lq2",
+          "http://127.0.0.1:3199/map?_rsc=Yi4JvK9aPgdvvU8N",
+          "http://127.0.0.1:3199/map?_rsc=Oe8SbBFlqs2lr6by"
+        ]
+      }
+    ],
+    "aggregate": {
+      "serverRenderMs": 6,
+      "jsDecodedKB": 771,
+      "requests": 33,
+      "lcpMs": 308,
+      "cls": 0,
+      "boundarySource": "page-ready",
+      "stillOpen": [
+        "http://127.0.0.1:3199/map?_rsc=H7lvpUuISKEU_Lq2",
+        "http://127.0.0.1:3199/map?_rsc=Yi4JvK9aPgdvvU8N",
+        "http://127.0.0.1:3199/map?_rsc=Oe8SbBFlqs2lr6by"
+      ]
+    }
+  }
+]

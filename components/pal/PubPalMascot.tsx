@@ -49,8 +49,7 @@ export function PubPalMascot({
   className?: string;
 }) {
   const slug = pubPalMascotSlugFor(species);
-  // A species with no master has no renditions to point at, so drawing one would
-  // ask for four files that do not exist. The caller owes it a rig instead.
+  // A species without a master has no renditions to request.
   if (!slug) return null;
   const kind: PubPalMascotKind = circular ? "avatar" : "square";
   const renderedSizes = sizes ?? `${size}px`;

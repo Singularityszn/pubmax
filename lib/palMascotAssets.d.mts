@@ -1,4 +1,4 @@
-export const PAL_MASCOT_SIZES: readonly [32, 64, 128, 512];
+export const PAL_MASCOT_SIZES: readonly [32, 64, 128, 256, 512];
 
 export const PAL_MASCOT_WEBP_512_BUDGET: number;
 

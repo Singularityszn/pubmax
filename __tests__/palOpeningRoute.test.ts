@@ -725,3 +725,159 @@ describe("configured chat request deadline", () => {
     expect(provider).not.toHaveBeenCalled();
   });
 });
+
+describe("opening request cancellation", () => {
+  type OpeningPath = "get" | "greeting" | "acceptance";
+  const send = (path: OpeningPath, signal: AbortSignal, threadId?: string) => path === "get"
+    ? GET(new Request("http://localhost/api/pub-pal/chat", { signal }))
+    : POST(new Request("http://localhost/api/pub-pal/chat", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(path === "greeting" ? { query: "Hi" } : { query: "Yes", threadId }),
+      signal,
+    }));
+
+  it.each((["get", "greeting"] as const).flatMap((path) => [false, true].map((aborted) => ({ path, aborted }))))(
+    "registers no opening after an abort during the opening read, path: $path, aborted: $aborted",
+    async ({ path, aborted }) => {
+      const pal = await palStore.getPubPalResult("owner-a");
+      let started!: () => void;
+      const reading = new Promise<void>((resolve) => { started = resolve; });
+      let release!: (value: typeof pal) => void;
+      const personalRead = vi.spyOn(palStore, "getPubPalResult").mockImplementationOnce(() => {
+        started();
+        return new Promise<typeof pal>((resolve) => { release = resolve; });
+      });
+      const persist = vi.spyOn(turnStore, "registerPubPalToolTurn");
+      const provider = vi.spyOn(globalThis, "fetch");
+      const controller = new AbortController();
+      const pending = send(path, controller.signal);
+      await reading;
+      expect(persist).not.toHaveBeenCalled();
+      if (aborted) controller.abort();
+      release(pal);
+      const response = await pending;
+      expect(response.status).toBe(aborted ? 503 : 200);
+      expect(personalRead).toHaveBeenCalled();
+      expect(persist).toHaveBeenCalledTimes(aborted ? 0 : 1);
+      expect(provider).not.toHaveBeenCalled();
+    },
+  );
+
+  it.each([false, true])("does not consume an existing opening after an abort during its owned read, aborted: %s", async (aborted) => {
+    await confirmNight();
+    const initial = await (await opening()).json();
+    const prior = await readOwnedPubPalToolTurn(initial.conversationId, "owner-a");
+    let started!: () => void;
+    const reading = new Promise<void>((resolve) => { started = resolve; });
+    let release!: (value: typeof prior) => void;
+    const read = vi.spyOn(turnStore, "readOwnedPubPalToolTurn").mockImplementationOnce(() => {
+      started();
+      return new Promise<typeof prior>((resolve) => { release = resolve; });
+    });
+    const persist = vi.spyOn(turnStore, "registerPubPalToolTurn");
+    const provider = vi.spyOn(globalThis, "fetch");
+    const controller = new AbortController();
+    const pending = send("acceptance", controller.signal, initial.conversationId);
+    await reading;
+    expect(persist).not.toHaveBeenCalled();
+    if (aborted) controller.abort();
+    release(prior);
+    const response = await pending;
+    expect(response.status).toBe(aborted ? 503 : 200);
+    expect(read).toHaveBeenCalledTimes(1);
+    expect(persist).toHaveBeenCalledTimes(aborted ? 0 : 1);
+    expect(provider).not.toHaveBeenCalled();
+    if (aborted) {
+      expect(await readOwnedPubPalToolTurn(initial.conversationId, "owner-a")).toEqual(prior);
+    } else {
+      const body = await response.json();
+      expect(body.answer).toContain("Which area and price per pint");
+      expect(await readOwnedPubPalToolTurn(initial.conversationId, "owner-a")).toMatchObject({ query: "Yes", hints: [body.answer] });
+    }
+  });
+
+  it.each(["get", "greeting", "acceptance"] as const)("starts no opening work for an already aborted request, path: %s", async (path) => {
+    await confirmNight();
+    const initial = await (await opening()).json();
+    const before = await readOwnedPubPalToolTurn(initial.conversationId, "owner-a");
+    const personalRead = vi.spyOn(palStore, "getPubPalResult");
+    const read = vi.spyOn(turnStore, "readOwnedPubPalToolTurn");
+    const persist = vi.spyOn(turnStore, "registerPubPalToolTurn");
+    const provider = vi.spyOn(globalThis, "fetch");
+    const controller = new AbortController();
+    controller.abort();
+    const response = await send(path, controller.signal, initial.conversationId);
+    expect(response.status).toBe(503);
+    expect(personalRead).not.toHaveBeenCalled();
+    expect(read).not.toHaveBeenCalled();
+    expect(persist).not.toHaveBeenCalled();
+    expect(provider).not.toHaveBeenCalled();
+    expect(await readOwnedPubPalToolTurn(initial.conversationId, "owner-a")).toEqual(before);
+  });
+
+  it.each((["get", "greeting", "acceptance"] as const).flatMap((path) => [false, true].map((aborted) => ({ path, aborted }))))(
+    "starts no durable opening write after an abort during its registration lookup, path: $path, aborted: $aborted",
+    async ({ path, aborted }) => {
+      await confirmNight();
+      const initial = await (await opening()).json();
+      const prior = (await readOwnedPubPalToolTurn(initial.conversationId, "owner-a"))!;
+      vi.spyOn(palStore, "getPubPalResult").mockResolvedValue(
+        { ok: true, value: null } as unknown as Awaited<ReturnType<typeof palStore.getPubPalResult>>,
+      );
+      const initialRow = {
+        conversation_id: initial.conversationId as string, owner_id: "owner-a", payload: { ...prior, surface: "text" },
+        expires_at: new Date(prior.expiresAt).toISOString(),
+      };
+      const rows = new Map([[initialRow.conversation_id, initialRow]]);
+      const gatedLookup = path === "acceptance" ? 2 : 1;
+      let lookups = 0;
+      let started!: () => void;
+      const lookupStarted = new Promise<void>((resolve) => { started = resolve; });
+      let release!: () => void;
+      const gate = new Promise<void>((resolve) => { release = resolve; });
+      const upsert = vi.fn(async (row: typeof initialRow) => {
+        rows.set(row.conversation_id, structuredClone(row));
+        return { error: null };
+      });
+      vi.spyOn(supabase, "requireSupabaseAdmin").mockReturnValue({
+        from: () => {
+          let id = "";
+          const selection = {
+            eq: (_column: string, value: string) => { id = value; return selection; },
+            gt: () => selection,
+            maybeSingle: async () => {
+              if (++lookups === gatedLookup) {
+                started();
+                await gate;
+              }
+              return { data: structuredClone(rows.get(id) ?? null), error: null };
+            },
+          };
+          return { select: () => selection, upsert };
+        },
+      } as unknown as ReturnType<typeof supabase.requireSupabaseAdmin>);
+      vi.spyOn(supabase, "isSupabaseConfigured").mockReturnValue(true);
+      const provider = vi.spyOn(globalThis, "fetch");
+      const controller = new AbortController();
+      const pending = send(path, controller.signal, initialRow.conversation_id);
+      await lookupStarted;
+      expect(upsert).not.toHaveBeenCalled();
+      if (aborted) controller.abort();
+      release();
+      const response = await pending;
+      expect(response.status).toBe(aborted ? 503 : 200);
+      expect(upsert).toHaveBeenCalledTimes(aborted ? 0 : 1);
+      expect(provider).not.toHaveBeenCalled();
+      if (aborted) {
+        expect([...rows.keys()]).toEqual([initialRow.conversation_id]);
+        expect(await readOwnedPubPalToolTurn(initialRow.conversation_id, "owner-a")).toEqual(prior);
+      } else {
+        const body = await response.json();
+        expect(upsert.mock.calls[0]![0].conversation_id).toBe(body.conversationId);
+        if (path === "acceptance") expect(body.conversationId).toBe(initialRow.conversation_id);
+        expect((await readOwnedPubPalToolTurn(body.conversationId, "owner-a"))?.hints).toEqual([body.answer]);
+      }
+    },
+  );
+});

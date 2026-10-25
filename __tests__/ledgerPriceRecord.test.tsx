@@ -2,6 +2,7 @@
 import { readFileSync } from "node:fs";
 import { act, type ComponentProps } from "react";
 import { createRoot, type Root } from "react-dom/client";
+import { renderToStaticMarkup } from "react-dom/server";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("@/components/auth/AuthProvider", () => ({ useAuth: () => ({ session: null, loading: false }) }));
@@ -58,6 +59,71 @@ describe("Ledger price record", () => {
     expect(container.querySelector("a")?.getAttribute("href")).toBe("/p/hatton-report");
     expect(container.textContent).toContain("Over 30 days old");
     expect(container.textContent).not.toContain("No pint price");
+  });
+  it("keeps Hatton's dated report without a competing modelled figure", async () => {
+    vi.stubGlobal("fetch", vi.fn(async () => answer(report)));
+    await act(async () => root.render(view(null, "venue-1vle947", { estimate: {
+      priceGbp: 6.5, basis: "regional_baseline", sampleSize: 120, computedAt: "2026-10-01T12:00:00Z",
+    } })));
+    expect(container.textContent).toContain("£4.70");
+    expect(container.textContent).toContain("Over 30 days old");
+    expect(container.textContent).not.toContain("£6.50");
+  });
+  it("keeps the cached server document neutral until public reports are read", () => {
+    const html = renderToStaticMarkup(view(null, "venue-1vle947", { estimate: {
+      priceGbp: 6.5, basis: "regional_baseline", sampleSize: 120, computedAt: "2026-10-01T12:00:00Z",
+    } }));
+    const document = new DOMParser().parseFromString(html, "text/html");
+    expect(document.body.textContent).toContain("Checking the price record");
+    expect(document.body.textContent).not.toContain("£6.50");
+    expect(document.body.textContent).not.toContain("Nobody has published");
+  });
+  it("waits for a delayed public report without flashing the estimate", async () => {
+    let resolveRead: (response: Response) => void = () => {};
+    vi.stubGlobal("fetch", vi.fn(() => new Promise<Response>((resolve) => { resolveRead = resolve; })));
+    await act(async () => root.render(view(null, "venue-1vle947", { estimate: {
+      priceGbp: 6.5, basis: "regional_baseline", sampleSize: 120, computedAt: "2026-10-01T12:00:00Z",
+    } })));
+    expect(container.textContent).toContain("Checking the price record");
+    expect(container.textContent).not.toContain("£6.50");
+    await act(async () => resolveRead(answer(report)));
+    expect(container.textContent).toContain("£4.70");
+    expect(container.textContent).toContain("Over 30 days old");
+    expect(container.textContent).not.toContain("£6.50");
+  });
+  it("offers retry after a failed public read and estimates only after a successful empty read", async () => {
+    let rejectRead: (error: Error) => void = () => {};
+    let resolveRetry: (response: Response) => void = () => {};
+    vi.stubGlobal("fetch", vi.fn()
+      .mockImplementationOnce(() => new Promise<Response>((_resolve, reject) => { rejectRead = reject; }))
+      .mockImplementationOnce(() => new Promise<Response>((resolve) => { resolveRetry = resolve; })));
+    await act(async () => root.render(view(null, "venue-1vle947", { estimate: {
+      priceGbp: 6.5, basis: "regional_baseline", sampleSize: 120, computedAt: "2026-10-01T12:00:00Z",
+    } })));
+    await act(async () => rejectRead(new Error("unavailable")));
+    expect(container.textContent).toContain("did not answer");
+    expect(container.textContent).not.toContain("£6.50");
+    expect(container.textContent).not.toContain("Nobody has published");
+    await act(async () => container.querySelector("button")?.click());
+    expect(container.textContent).toContain("Checking the price record");
+    expect(container.textContent).not.toContain("£6.50");
+    await act(async () => resolveRetry(answer(null)));
+    expect(container.textContent).toContain("Estimated pint price");
+    expect(container.textContent).toContain("£6.50");
+    expect(container.textContent).not.toContain("did not answer");
+  });
+  it("explains a modelled pint price when there is no report", async () => {
+    vi.stubGlobal("fetch", vi.fn(async () => answer(null)));
+    await act(async () => root.render(view(null, "venue-1vle947", { estimate: {
+      priceGbp: 6.5, basis: "regional_baseline", sampleSize: 120, computedAt: "2026-10-01T12:00:00Z",
+    } })));
+    expect(container.textContent).toContain("Estimated pint price");
+    expect(container.textContent).toContain("est. £6.50");
+    expect(container.textContent).toContain("120 published prices");
+    expect(container.textContent).toContain("regional baseline");
+    expect(container.textContent).toContain("not a quote");
+    expect(container.querySelector('a[href="/how-we-estimate"]')?.textContent).toBe("How we estimate");
+    expect(container.querySelector("time")?.dateTime).toBe("2026-10-01T12:00:00Z");
   });
   it("does not claim absence while loading or when the store fails", async () => {
     let rejectRead: (error: Error) => void = () => {};
