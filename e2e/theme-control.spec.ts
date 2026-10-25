@@ -9,10 +9,11 @@ async function expectHeaderThemeControl(page: Page, minimumSize = 44) {
   });
   await expect(button).toBeVisible();
   await expect(button).toBeInViewport();
-  const box = await button.boundingBox();
-  expect(box).not.toBeNull();
-  expect(box!.width).toBeGreaterThanOrEqual(minimumSize);
-  expect(box!.height).toBeGreaterThanOrEqual(minimumSize);
+  // Native sizing attaches after hydration, including after a reload.
+  await expect.poll(async () => {
+    const box = await button.boundingBox();
+    return box ? Math.min(box.width, box.height) : 0;
+  }).toBeGreaterThanOrEqual(minimumSize);
   expect(await button.evaluate((element) => {
     const box = element.getBoundingClientRect();
     return element.contains(document.elementFromPoint(box.x + box.width / 2, box.y + box.height / 2));
@@ -116,6 +117,12 @@ for (const width of [320, 1440]) {
     await button.click();
     await expect(page.locator("html")).toHaveAttribute("data-theme", "light");
     await expect(button).toHaveAccessibleName("Switch to dark theme");
+    // Capture the painted light header after the browser updates its colours.
+    await expect.poll(() => page.locator(".siteNavBar").evaluate((element) => {
+      const channels = getComputedStyle(element).backgroundColor.match(/[\d.]+/g)?.slice(0, 3).map(Number);
+      return channels?.length === 3 && channels.every((channel) => channel > 128);
+    })).toBe(true);
+    await page.evaluate(() => new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve()))));
     await page.screenshot({ path: test.info().outputPath("signed-in-light.png"), animations: "disabled" });
   });
 }
