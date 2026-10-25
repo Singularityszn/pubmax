@@ -149,9 +149,9 @@ test("native first run with analytics decided hands one useful Plan to the conte
   )).toBe("1");
   await expectPushAskOnNextRoute(page);
 
-  // The next native root boot is still the owner-locked /tonight cold start.
+  // A completed native first run returns to Home on the next normal launch.
   await relaunchNativeShell(page);
-  await expect(page).toHaveURL(/\/tonight$/);
+  await expect(page).toHaveURL(/\/$/);
   await expect(page.getByRole("dialog", { name: NATIVE_PUSH_PROMPT_COPY.title })).toHaveCount(0);
 });
 
@@ -221,6 +221,6 @@ test("Skip releases onboarding budget for the next Plan but never prompts on reb
   await expectPushAskOnNextRoute(page);
 
   await relaunchNativeShell(page);
-  await expect(page).toHaveURL(/\/tonight$/);
+  await expect(page).toHaveURL(/\/$/);
   await expect(page.getByRole("dialog", { name: NATIVE_PUSH_PROMPT_COPY.title })).toHaveCount(0);
 });

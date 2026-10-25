@@ -1,47 +1,19 @@
-// Entry-decision seam — the ONE place that decides which surface the app
-// starts on when it boots at the site root ("/"). Owner-locked (issue #439):
-// the wrapped app COLD-STARTS on /tonight after first-run; a genuine native
-// first-run opens the dedicated onboarding.
+// The native app opens the public homepage after first-run onboarding.
+// Owner amendment, 25 October 2026, replaces the native Tonight launch rule.
+// Installed PWAs retain their Tonight start route.
 //
-// Owner amendment (2026-07-21, amends #439): the old absolute "the shell never
-// sees the landing page" is relaxed to "the shell never COLD-STARTS on the
-// landing page". A cold start is unchanged — the shell still lands on /tonight.
-// But a deliberate in-app navigation to "/" (e.g. tapping the PUBMAXX
-// wordmark, SiteNav.tsx href="/") must now REACH the landing page — the Home
-// Screen that shows how the app works. So the entry decision only fires on the
-// session's FIRST arrival at "/" (the cold start); every later arrival stays.
+// Decision order:
+// 1. Explicit non-root links keep their destination.
+// 2. A new or unfinished native first run opens onboarding.
+// 3. A later root arrival keeps the homepage.
+// 4. A returning native launch keeps the homepage, even without session storage.
+// 5. A standalone PWA root launch opens Tonight.
+// 6. A browser root visit keeps the homepage.
 //
-// The "already decided this session" signal is a per-session flag persisted in
-// sessionStorage through the seam at the bottom (markSessionEntryConsumed /
-// hasConsumedSessionEntry), injectable so the pure decision stays hermetically
-// testable. Fail-safe: no storage → the flag reads false, so we behave like a
-// cold start EVERY time (shell → /tonight). We never fail toward
-// landing-on-cold-start.
-//
-// "App shell" here means either signal, probed through existing seams only:
-//   - the Capacitor native wrap (lib/nativePlatform.ts isNativeApp(); the
-//     older remote-URL binaries load the site root; newer ones start at the
-//     static "/app-entry" document, decided by public/theme-init.js alone), or
-//   - an installed PWA running standalone (display-mode media query or the
-//     iOS navigator.standalone flag, same signals lib/a2hsPrompt.ts reads).
-//
-// Decision precedence (contract-tested in __tests__/entryDecision.test.ts):
-//   1. Deep link — any path other than "/" is an explicit destination (share
-//      link, push click-through, universal link) and bypasses the decision
-//      untouched, shell or not. The decision NEVER rewrites a deep link.
-//   2. Native first-run at the root — a new or unfinished native first run
-//      opens the dedicated onboarding (lib/nativeFirstRun.ts gate, native shell only).
-//      Precedence UNCHANGED by the 2026-07-21 amendment.
-//   3. Session revisit — the cold-start decision already ran this session, so a
-//      later arrival at "/" (in-app home tap) stays on the landing page, shell
-//      or not. NEW (2026-07-21 amendment).
-//   4. Shell cold start — the session's first shell open at the root lands on
-//      /tonight.
-//   5. Web default — a browser visit keeps the marketing landing page.
-//
-// The decision is a pure function of an explicit context snapshot so it unit
-// tests in the node vitest env; the thin live probes at the bottom are the
-// only globals readers, mirroring the lib/a2hsPrompt.ts snapshot idiom.
+// Older native binaries open the root. Newer binaries open /app-entry, whose
+// public/theme-init.js script opens onboarding or the root before React loads.
+// The session flag also lets a PWA reach Home after its initial entry.
+// The pure decision and pre-paint script have separate contract tests.
 
 import type { Route } from "next";
 import { readPreferredCity } from "@/lib/cityPreference";
@@ -52,7 +24,7 @@ import {
 } from "@/lib/nativeFirstRun";
 import { isNativeApp } from "@/lib/nativePlatform";
 
-/** Where every post-first-run shell open lands (owner-locked, issue #439). */
+/** PWA launch and native onboarding completion destination. */
 export const SHELL_START_PATH = "/tonight";
 /** The native shell's first-run surface, resumed until Skip or Plan my night (owner-locked, issue #441).
  *  Held in a leaf so proxy.ts can read the path without this module's imports. */
@@ -85,10 +57,10 @@ export type EntryContext = {
 };
 
 export type EntryDecision =
-  | { kind: "stay"; reason: "deep-link" | "web-default" | "session-revisit" }
+  | { kind: "stay"; reason: "deep-link" | "web-default" | "session-revisit" | "native-home" }
   | { kind: "route"; href: Route; reason: "native-first-run" | "shell-cold-start" };
 
-/** Either app-shell signal — the surfaces that must never see the landing page. */
+/** Whether this visit runs inside a native shell or an installed PWA. */
 export function isAppShell(ctx: Pick<EntryContext, "isNativeShell" | "isStandaloneDisplay">): boolean {
   return ctx.isNativeShell || ctx.isStandaloneDisplay;
 }
@@ -106,6 +78,7 @@ export function decideEntry(ctx: EntryContext, firstRunHref: Route = ONBOARDING_
   // session. Once it has run, a later arrival at "/" — the in-app home tap —
   // stays on the landing page, shell or not.
   if (ctx.sessionEntryConsumed) return { kind: "stay", reason: "session-revisit" };
+  if (ctx.isNativeShell) return { kind: "stay", reason: "native-home" };
   if (isAppShell(ctx)) {
     return { kind: "route", href: SHELL_START_PATH, reason: "shell-cold-start" };
   }
@@ -157,10 +130,8 @@ function resolveSessionStorage(storage?: Storage | null): Storage | null {
 }
 
 /**
- * Has this session's cold-start entry decision already run? Fail-safe: with no
- * storage (SSR, private mode, disabled) this returns false, so the caller treats
- * every arrival as a cold start (shell → /tonight) — the old behavior — and
- * never mistakes a cold start for a revisit that would land on the landing page.
+ * Has this session's entry decision run? Missing storage returns false.
+ * Native launches still keep the homepage. A PWA root launch opens Tonight.
  */
 export function hasConsumedSessionEntry(storage?: Storage | null): boolean {
   const store = resolveSessionStorage(storage);
@@ -173,9 +144,8 @@ export function hasConsumedSessionEntry(storage?: Storage | null): boolean {
 }
 
 /**
- * Mark this session's cold-start entry decision as run. No-op on SSR / storage
- * failure — worst case the next "/" arrival is treated as another cold start
- * (shell re-lands on /tonight), never as landing-on-cold-start.
+ * Mark this session's entry decision as run. SSR and storage failures are
+ * silent. The native homepage destination does not depend on this flag.
  */
 export function markSessionEntryConsumed(storage?: Storage | null): void {
   const store = resolveSessionStorage(storage);

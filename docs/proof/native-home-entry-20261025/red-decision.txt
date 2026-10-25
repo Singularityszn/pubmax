@@ -1,0 +1,29 @@
+Tool-output transcript, 25 October 2026.
+The command returned this output inline. This file preserves the relevant excerpt.
+
+Command:
+node node_modules/vitest/vitest.mjs run --configLoader runner __tests__/entryDecision.test.ts -t 'native shell cold start at the root keeps the homepage'
+
+Exit code: 1
+Start at: 11:29:52
+Duration: 1.29s
+Test Files: 1 failed (1)
+Tests: 1 failed | 22 skipped (23)
+
+FAIL __tests__/entryDecision.test.ts > decideEntry > native shell cold start at the root keeps the homepage
+AssertionError: expected { kind: 'route', ...(2) } to deeply equal { kind: 'stay', reason: 'native-home' }
+
+Expected:
+{
+  "kind": "stay",
+  "reason": "native-home"
+}
+
+Received:
+{
+  "href": "/tonight",
+  "kind": "route",
+  "reason": "shell-cold-start"
+}
+
+The test failed at __tests__/entryDecision.test.ts:55:63 before the decision changed.
