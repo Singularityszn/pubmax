@@ -59,6 +59,28 @@ describe("Ledger price record", () => {
     expect(container.textContent).toContain("Over 30 days old");
     expect(container.textContent).not.toContain("No pint price");
   });
+  it("keeps Hatton's dated report without a competing modelled figure", async () => {
+    vi.stubGlobal("fetch", vi.fn(async () => answer(report)));
+    await act(async () => root.render(view(null, "venue-1vle947", { estimate: {
+      priceGbp: 6.5, basis: "regional_baseline", sampleSize: 120, computedAt: "2026-10-01T12:00:00Z",
+    } })));
+    expect(container.textContent).toContain("£4.70");
+    expect(container.textContent).toContain("Over 30 days old");
+    expect(container.textContent).not.toContain("£6.50");
+  });
+  it("explains a modelled pint price when there is no report", async () => {
+    vi.stubGlobal("fetch", vi.fn(async () => answer(null)));
+    await act(async () => root.render(view(null, "venue-1vle947", { estimate: {
+      priceGbp: 6.5, basis: "regional_baseline", sampleSize: 120, computedAt: "2026-10-01T12:00:00Z",
+    } })));
+    expect(container.textContent).toContain("Estimated pint price");
+    expect(container.textContent).toContain("est. £6.50");
+    expect(container.textContent).toContain("120 published prices");
+    expect(container.textContent).toContain("regional baseline");
+    expect(container.textContent).toContain("not a quote");
+    expect(container.querySelector('a[href="/how-we-estimate"]')?.textContent).toBe("How we estimate");
+    expect(container.querySelector("time")?.dateTime).toBe("2026-10-01T12:00:00Z");
+  });
   it("does not claim absence while loading or when the store fails", async () => {
     let rejectRead: (error: Error) => void = () => {};
     vi.stubGlobal("fetch", vi.fn(() => new Promise<Response>((_resolve, reject) => { rejectRead = reject; })));
