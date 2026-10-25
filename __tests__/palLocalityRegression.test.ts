@@ -331,6 +331,74 @@ describe("owned-history crawl counts against the fixed three-stop plan", () => {
   });
 });
 
+const ADDITIVE_QUANTITIES = [
+  "Plan a crawl in Soho with three pubs then three more pubs",
+  "Plan a crawl in Soho with 3 pubs and 3 more pubs",
+  "Plan a crawl in Soho with three pubs plus three more bars",
+  "Find three pubs then three more pubs in Soho",
+  "Find 3 pubs plus 3 more bars in Soho",
+  "Find three pubs and three more pubs in Soho under £6.50 a pint",
+  "Plan a crawl in Soho with three pubs then three more",
+  "Plan a crawl in Soho with 3 pubs and 3 more",
+  "Find three pubs then three more in Soho",
+  "Find 3 pubs plus 3 in Soho",
+  "Find three pubs and another three in Soho under £6.50 a pint",
+];
+
+describe("additive venue quantities against local admission", () => {
+  it.each(ADDITIVE_QUANTITIES)("keeps a direct additive quantity on the provider path: %s", async (query) => {
+    expect(palChatRecordQuery(query)).toBeNull();
+    const response = await ask(query);
+    expect(response.status).toBe(429);
+    expect(await response.json()).toEqual({ error: "Paid budget spent" });
+    expect(paidSpendBudgetRefusal).toHaveBeenCalledOnce();
+    expect(deniedFetch).not.toHaveBeenCalled();
+  });
+
+  it.each(ADDITIVE_QUANTITIES)("keeps an owned same-area additive quantity on the provider path: %s", async (query) => {
+    const followUp = query.replace(" in Soho", " in the same area");
+    await registerPubPalToolTurn(THREAD, { query: SOHO, cityId: "london", ownerId: OWNER, turns: [] });
+    const context = await preparePalElevenLabsChatTurn({ query: followUp, ownerId: OWNER, threadId: THREAD });
+    expect(palChatRecordQuery(followUp, context.prior.turns)).toBeNull();
+    const response = await ask(followUp, THREAD);
+    expect(response.status).toBe(429);
+    expect(await response.json()).toEqual({ error: "Paid budget spent" });
+    expect(paidSpendBudgetRefusal).toHaveBeenCalledOnce();
+    expect(deniedFetch).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ["Find three pubs in Soho", "search_venues", 3],
+    ["Plan a crawl in Soho with three pubs", "propose_plan", 3],
+    ["A pub crawl in Soho for three, not pricey", "propose_plan", 3],
+  ] as const)("keeps a single local count: %s", async (query, tool, count) => {
+    expect(palChatRecordQuery(query)).toBe(query);
+    const response = await ask(query);
+    expect(response.status).toBe(200);
+    const body = await response.json() as { toolsUsed: string[]; cards: unknown[] };
+    expect(body.toolsUsed).toEqual([tool]);
+    expect(body.cards).toHaveLength(count);
+    expect(paidSpendBudgetRefusal).not.toHaveBeenCalled();
+    expect(deniedFetch).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    "Find three pubs for four of us in Soho",
+    "Find three pubs and four friends in Soho",
+    "Find three pubs in Soho under £6.50 a pint",
+    "Plan a crawl in Soho with three pubs for four of us",
+    "Plan a crawl in Soho with three pubs and four friends",
+    "Plan a crawl in Soho with three pubs at 8 pm",
+    "Plan a crawl in Soho with three pubs and 8 pm",
+  ])("keeps a single local count with a party, time or price modifier: %s", async (query) => {
+    expect(palChatRecordQuery(query)).toBe(query);
+    const response = await ask(query);
+    expect(response.status).toBe(200);
+    expect(paidSpendBudgetRefusal).not.toHaveBeenCalled();
+    expect(deniedFetch).not.toHaveBeenCalled();
+  });
+});
+
 const UNRESOLVED_QUANTITIES = [
   "Plan a crawl in Soho with four LGBTQ+ pubs",
   "Plan a crawl in Soho with a dozen pubs",

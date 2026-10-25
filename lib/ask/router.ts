@@ -8,7 +8,7 @@ import type { AskToolName } from "@/lib/ask/types";
 import type { DrinkCategory } from "@/lib/drinks";
 import { isKnownAskPlacePhrase } from "@/lib/ask/placePhrases";
 import { palAsksForVenueDiscovery } from "@/lib/palMapAsk";
-import { defaultKnownAreas, deterministicAreaInText, extractExplicitBudget, withoutExcludedPlaces } from "@/lib/concierge/intentPolicy";
+import { defaultKnownAreas, deterministicAreaInText, extractExplicitBudget, namesExcludedPlace, withoutExcludedPlaces } from "@/lib/concierge/intentPolicy";
 
 export type RoutedToolCall = {
   name: AskToolName;
@@ -385,6 +385,12 @@ export function unambiguousAskArea(text: string): string | null | undefined {
     || (candidates.length === 0 && /\b(?:or|and)\b|[,/]/i.test(area)) ? null : area;
 }
 
+function excludesAskArea(text: string, area: string): boolean {
+  const key = area.toLocaleLowerCase("en-GB");
+  const known = NIGHT_AREAS.find((candidate) => [candidate.name, ...candidate.aliases].some((label) => label.toLocaleLowerCase("en-GB") === key));
+  return (known ? [known.name, ...known.aliases] : [area]).some((label) => namesExcludedPlace(text, label));
+}
+
 export function resolveAskLocality(text: string):
   | { kind: "supported" | "unsupported"; area: string }
   | { kind: "ambiguous" | "missing" } {
@@ -408,10 +414,12 @@ export function refineVenueAreaFollowUp(query: string, priorUserContent: string 
   if (namedArea === null) return null;
   if (namedArea) return namedQuery.replace(/\s+/g, " ").trim();
   const priorLines = typeof priorUserContent === "string" ? [priorUserContent] : priorUserContent ?? [];
+  const unresolved = [query];
   for (const line of [...priorLines].reverse()) {
     if (socialTurnKind(line)) continue;
     const area = unambiguousAskArea(line.replace(SAME_AREA_REFERENCE_RE, ""));
     if (area === null) return null;
+    if (area && unresolved.some((text) => excludesAskArea(text, area))) return null;
     if (area) {
       // A leading reference carries no subject, so a budget names pubs. After a
       // stated subject, "pubs" would follow the figure and read as a count.
@@ -419,6 +427,7 @@ export function refineVenueAreaFollowUp(query: string, priorUserContent: string 
       const prefix = leading && extractExplicitBudget(query) !== undefined ? "pubs in" : "in";
       return query.replace(SAME_AREA_REFERENCE_RE, `${prefix} ${area}`);
     }
+    unresolved.push(line);
   }
   return null;
 }
@@ -439,7 +448,7 @@ export function refineRoutedAskQuery(
   if (unambiguousAskArea(query) !== undefined) return query;
   const priorPlace = unambiguousAskArea(priorUserContent);
   if (priorPlace === null) return query;
-  if (priorPlace) return `${query} in ${priorPlace}`;
+  if (priorPlace) return excludesAskArea(query, priorPlace) ? query : `${query} in ${priorPlace}`;
   return `${priorUserContent} - ${query}`;
 }
 

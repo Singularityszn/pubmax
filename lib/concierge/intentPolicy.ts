@@ -132,6 +132,10 @@ export function withoutExcludedPlaces(text: string): string {
   return text.replace(EXCLUDED_PLACE_RE, "");
 }
 
+export function namesExcludedPlace(text: string, place: string): boolean {
+  return [...text.matchAll(EXCLUDED_PLACE_RE)].some((match) => wholePhraseInText(match[0], place));
+}
+
 /**
  * Nouns a bare area names a night out with: "a Shoreditch crawl", "Soho pubs",
  * "a Shoreditch pub-crawl". A singular "pub" or "bar" is left out, because

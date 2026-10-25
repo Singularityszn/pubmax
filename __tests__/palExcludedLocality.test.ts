@@ -14,14 +14,16 @@ vi.mock("@/lib/paidSpendBudget.server", () => ({
 vi.mock("@/lib/concierge/venues.server", () => ({ loadConciergeVenues: vi.fn() }));
 
 import { POST } from "@/app/api/pub-pal/chat/route";
-import { routeAskDeterministically } from "@/lib/ask/router";
+import { refineRoutedAskQuery, refineVenueAreaFollowUp, routeAskDeterministically } from "@/lib/ask/router";
+import { runAsk } from "@/lib/ask/runAsk";
 import { areaCandidatesInText, areaVerbatimInText, defaultKnownAreas, validateJudgedIntent } from "@/lib/concierge/intentPolicy";
 import { loadConciergeVenues } from "@/lib/concierge/venues.server";
 import type { ConciergeVenue } from "@/lib/concierge/rank";
 import { palChatRecordQuery, preparePalElevenLabsChatTurn } from "@/lib/palElevenLabsChat.server";
 import { paidSpendBudgetRefusal } from "@/lib/paidSpendBudget.server";
 import { __resetPintDrops } from "@/lib/pintDrops";
-import { invokePubPalAskTool } from "@/lib/pubPalToolInvoke.server";
+import { invokePubPalAskTool, resolvePubPalToolQuery } from "@/lib/pubPalToolInvoke.server";
+import { windowPalSessionTurns } from "@/lib/palSessionSummary";
 import { __resetPubPalToolTurnStore, registerPubPalToolTurn } from "@/lib/pubPalToolTurnStore";
 
 const OWNER = "11111111-1111-4111-8111-111111111111";
@@ -191,5 +193,76 @@ describe("sibling tools read only the positive area", () => {
       expect(validateJudgedIntent({ mood: [], groupSize: 2, area }, query)).toEqual({ mood: [], groupSize: 2, area });
       expect(validateJudgedIntent({ mood: [], groupSize: 2, area: excluded }, query)).toBeNull();
     }
+  });
+});
+
+const SOHO_ASK = "Find four pubs in Soho";
+const SAME_AREA_ASK = "Find four pubs in the same area";
+const EXCLUDED_REFERENCES = [
+  "Find four pubs in the same area, not in Soho",
+  "Find four pubs around the same patch, not in Soho",
+  "Find four pubs in the same neighbourhood, but not in Soho",
+  "Plan a pub crawl in the same area, not in Soho",
+  "Find four pubs in the same area, not in Soho. Soho is too busy.",
+  "Find four pubs around the same patch, not in Soho. Soho is too busy.",
+  "Find four pubs in the same neighbourhood, but not in Soho. Soho is too busy.",
+  "Plan a pub crawl in the same area, not in Soho. Soho is too busy.",
+];
+
+describe("an inferred area never becomes the place the ask excludes", () => {
+  it.each(EXCLUDED_REFERENCES)("keeps %s unresolved through follow-up, session and tool query resolution", (query) => {
+    expect(refineVenueAreaFollowUp(query, [SOHO_ASK])).toBeNull();
+    expect(refineVenueAreaFollowUp(query, ["Find four pubs in Camden", SOHO_ASK])).toBeNull();
+    expect(refineRoutedAskQuery(query, SOHO_ASK, [SOHO_ASK])).toBe(query);
+    expect(refineVenueAreaFollowUp(SAME_AREA_ASK, [SOHO_ASK, query])).toBeNull();
+    const session = windowPalSessionTurns("", [
+      { role: "user", content: SOHO_ASK }, { role: "user", content: query }, { role: "user", content: SAME_AREA_ASK },
+    ]);
+    expect(session.turns.map((turn) => turn.content)).toEqual([SOHO_ASK, query, SAME_AREA_ASK]);
+    expect(resolvePubPalToolQuery({ turnQuery: query, args: {}, turns: session.turns.slice(0, 1) })).toBe(query);
+    expect(palChatRecordQuery(query, [{ role: "user", content: SOHO_ASK }])).toBeNull();
+  });
+
+  it("keeps positive locality, a different exclusion and an ordinary short follow-up", () => {
+    expect(refineRoutedAskQuery("Pubs not in Soho", SOHO_ASK, [SOHO_ASK])).toBe("Pubs not in Soho");
+    expect(refineRoutedAskQuery("Four quiet pubs", SOHO_ASK, [SOHO_ASK])).toBe("Four quiet pubs in Soho");
+    expect(refineVenueAreaFollowUp("Find four pubs in the same area, not in Camden", [SOHO_ASK])).toBe("Find four pubs in Soho, not in Camden");
+    expect(refineVenueAreaFollowUp("Find four pubs in the same area, not in Camden. Camden is too busy.", [SOHO_ASK])).toBe("Find four pubs in Soho, not in Camden. Camden is too busy.");
+    expect(palChatRecordQuery("Find four pubs in the same area, not in Camden", [{ role: "user", content: SOHO_ASK }])).toBe("Find four pubs in Soho, not in Camden");
+    expect(palChatRecordQuery("Find four pubs in Camden, not in Soho", [{ role: "user", content: SOHO_ASK }])).toBe("Find four pubs in Camden, not in Soho");
+  });
+
+  it.each(EXCLUDED_REFERENCES)("sends %s after owned Soho history to the provider path over HTTP", async (query) => {
+    await registerPubPalToolTurn(THREAD, { query: SOHO_ASK, cityId: "london", ownerId: OWNER, turns: [] });
+    const context = await preparePalElevenLabsChatTurn({ query, ownerId: OWNER, threadId: THREAD });
+    expect(palChatRecordQuery(query, context.prior.turns)).toBeNull();
+    const response = await ask(query, THREAD);
+    expect(response.status).toBe(429);
+    expect(await response.json()).toEqual({ error: "Paid budget spent" });
+    expect(paidSpendBudgetRefusal).toHaveBeenCalledOnce();
+    expect(deniedFetch).not.toHaveBeenCalled();
+  });
+
+  it("still answers a different exclusion from owned Soho records over HTTP", async () => {
+    await registerPubPalToolTurn(THREAD, { query: SOHO_ASK, cityId: "london", ownerId: OWNER, turns: [] });
+    const response = await ask("Find four pubs in the same area, not in Camden", THREAD);
+    expect(response.status).toBe(200);
+    const body = await response.json() as Answer;
+    expect(body.cards).toHaveLength(4);
+    expect(body.cards.every((card) => card.venueId.startsWith("soho-"))).toBe(true);
+    expect(paidSpendBudgetRefusal).not.toHaveBeenCalled();
+    expect(deniedFetch).not.toHaveBeenCalled();
+  });
+
+  it("does not infer or label the excluded place in owned tool execution or runAsk", async () => {
+    const query = EXCLUDED_REFERENCES[0]!;
+    await registerPubPalToolTurn(THREAD, { query, cityId: "london", ownerId: OWNER, turns: [{ role: "user", content: SOHO_ASK }] });
+    const { result } = await invokePubPalAskTool({ toolName: "search_venues", args: {}, conversationId: THREAD });
+    const toolCards = result.cards as Array<{ venueId: string; title: string; note: string }>;
+    expect(toolCards.filter((card) => card.venueId.startsWith("soho-"))).toEqual([]);
+    expect(toolCards.map((card) => `${card.title} ${card.note}`).join(" ")).not.toMatch(/soho/i);
+    const answer = await runAsk({ query, cityId: "london", skipModel: true, turns: [{ role: "user", content: SOHO_ASK }] });
+    expect(answer.cards.filter((card) => String(card.venueId ?? "").startsWith("soho-"))).toEqual([]);
+    expect(deniedFetch).not.toHaveBeenCalled();
   });
 });

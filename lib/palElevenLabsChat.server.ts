@@ -188,7 +188,8 @@ export async function preparePalElevenLabsChatTurn(
 /** A cardinal word: zero to nineteen, the tens, and the scale words. */
 const CARDINAL_WORD = "(?:zero|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|thirteen|fourteen|fifteen|sixteen|seventeen|eighteen|nineteen|twenty|thirty|forty|fifty|sixty|seventy|eighty|ninety|hundred|thousand|million)";
 const CARDINAL_TOKEN = `(?:\\d+(?:[.,/]\\d+)*|${CARDINAL_WORD})`;
-const COUNT_GAP_STOP = `(?:${CARDINAL_WORD}|us|people|persons?|friends?|mates?|guys|adults|pax|am|pm|o['’]clock|hours?|hrs?|minutes?|mins?|pounds?|quid|pence|gbp|each|per|in|at|near|around|by|with|for|from|to|then|but|not|than|stops?|pubs?|bars?|venues?|places?)\\b`;
+const QUANTITY_UNIT = "(?:us|people|persons?|friends?|mates?|guys|adults|pax|am|pm|o['’]clock|hours?|hrs?|minutes?|mins?|pounds?|quid|pence|gbp)";
+const COUNT_GAP_STOP = `(?:${CARDINAL_WORD}|${QUANTITY_UNIT}|each|per|in|at|near|around|by|with|for|from|to|then|but|not|than|stops?|pubs?|bars?|venues?|places?)\\b`;
 /**
  * A stated number of stops or pubs, read whole so "twenty-three" or "2.3" is
  * never taken for its tail. Party size ("for four of us") is not one.
@@ -196,6 +197,11 @@ const COUNT_GAP_STOP = `(?:${CARDINAL_WORD}|us|people|persons?|friends?|mates?|g
 const PLAN_STOP_COUNT_RE = new RegExp(
   `(?<![£$€]\\s*|\\d[.,/])\\b(${CARDINAL_TOKEN}(?:[-\\s]+(?:(?:and|or|to)[-\\s]+)?(?:${CARDINAL_TOKEN}|a[-\\s]+half))*)[-\\s]+(?:(?!${COUNT_GAP_STOP})[a-z][a-z'’]*[-\\s]+)*(?:stops?|pubs?|bars?|venues?|places?)\\b`,
   "gi",
+);
+
+const ADDITIVE_COUNT_RE = new RegExp(
+  `\\b(?:stops?|pubs?|bars?|venues?|places?)[\\s,;-]+(?:(?:then|and|plus)[-\\s]+|[&+]\\s*)+(?:another[-\\s]+)?${CARDINAL_TOKEN}\\b(?![.,/:]\\d|[-\\s]*(?:of|${QUANTITY_UNIT})\\b)`,
+  "i",
 );
 
 const UNCLAIMED_VENUE_RE = /-(?:stop|pub|bar|venue|place)s?\b|\b(?:stops|pubs|bars|venues|places)\b|\b(?:stop|pub|bar|venue|place)\b(?![-\s]+crawl\b)/i;
@@ -210,8 +216,11 @@ function statesOnlyThreeStops(query: string): boolean {
   return onlyThree && !UNCLAIMED_VENUE_RE.test(unclaimed);
 }
 
+const MEMORY_REQUEST_RE = /\b(?:remember|forget|keep in mind|make a note|note that)\b/i;
+
 /** Constrained local record answers that need no provider narration or durable plan write. */
 export function palChatRecordQuery(query: string, turns: readonly PubPalFenceTurn[] = []): string | null {
+  if (MEMORY_REQUEST_RE.test(query)) return null;
   if (unsupportedPriceComparison(query) || recordedDrinkComparison(query)) return query;
   const priorAsks = turns.filter((turn) => turn.role === "user").map((turn) => turn.content);
   const routedQuery = refineRoutedAskQuery(query, priorAsks.at(-1), priorAsks);
@@ -220,6 +229,7 @@ export function palChatRecordQuery(query: string, turns: readonly PubPalFenceTur
   const intent = resolveAskPriceIntent(routedQuery);
   const calls = routeAskDeterministically(routedQuery);
   if (resolveAskLocality(routedQuery).kind !== "supported") return null;
+  if ((routedQuery.match(PLAN_STOP_COUNT_RE)?.length ?? 0) > 1 || ADDITIVE_COUNT_RE.test(query) || ADDITIVE_COUNT_RE.test(routedQuery)) return null;
   // A count belongs to the requested pubs, not the party. The router remains
   // authoritative for the number of cards and all other requested tools.
   const countedPubs = /\b(?:[1-6]|one|two|three|four|five|six)\s+(?:(?:good|quiet|lively|cosy|cozy|cheap|historic|local|nearby|listed|great|best)\s+)*pubs?\b/i.test(routedQuery);

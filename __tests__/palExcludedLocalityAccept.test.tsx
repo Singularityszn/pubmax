@@ -27,7 +27,7 @@ vi.mock("@/lib/planningIntent", async (importOriginal) => ({
 }));
 
 import { AnswerCard } from "@/components/pal/PalChat";
-import { refineRoutedAskQuery, resolveAskLocality } from "@/lib/ask/router";
+import { refineRoutedAskQuery, resolveAskLocality, SAME_AREA_REFERENCE_RE } from "@/lib/ask/router";
 import type { PalCard } from "@/lib/palChat";
 import { palLocalityLine, resolvePalLocality } from "@/lib/palLocality";
 import { writePlanningIntent } from "@/lib/planningIntent";
@@ -67,6 +67,41 @@ it.each([
     expect(intent?.acceptedArea).toEqual(locality.area);
     expect(JSON.stringify(intent?.acceptedArea)).toMatch(wanted);
     expect(JSON.stringify(intent?.acceptedArea)).not.toMatch(excluded);
+  } finally {
+    await act(async () => root.unmount());
+  }
+});
+
+it.each([
+  ["Find four pubs in the same area, not in Soho", null, /soho/i],
+  ["Find four pubs around the same patch, not in Soho", null, /soho/i],
+  ["Find four pubs in the same area, not in Soho. Soho is too busy.", null, /soho/i],
+  ["Find four pubs around the same patch, not in Soho. Soho is too busy.", null, /soho/i],
+  ["Find four pubs in the same area, not in Camden", /soho/i, /camden/i],
+  ["Find four pubs in Camden, not in Soho", /camden/i, /soho/i],
+] as const)("accepts no excluded area after owned Soho history for %s", async (text, wanted, excluded) => {
+  const priorUsers = ["Find four pubs in Soho"];
+  const routedQuery = refineRoutedAskQuery(text, priorUsers.at(-1), priorUsers);
+  const locality = SAME_AREA_REFERENCE_RE.test(routedQuery) || resolveAskLocality(routedQuery).kind !== "supported"
+    ? null
+    : resolvePalLocality(routedQuery, null);
+  const card = {
+    key: "accept-2", venueId: "venue-accept-2", title: "Test Arms", place: "", note: "", price: null,
+    provenance: { label: "On record", kind: "directory" },
+  } as unknown as PalCard;
+  const host = document.createElement("ul");
+  document.body.append(host);
+  const root = createRoot(host);
+  try {
+    await act(async () => root.render(createElement(AnswerCard, { card, onOpen: vi.fn(), locality })));
+    const accept = host.querySelector<HTMLAnchorElement>("a.palChatCardAccept");
+    expect(accept?.textContent).toBe("Use this pub");
+    await act(async () => { accept!.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true })); });
+    const intent = vi.mocked(writePlanningIntent).mock.calls.at(-1)?.[0];
+    expect(intent?.acceptedVenueId).toBe("venue-accept-2");
+    if (wanted) expect(JSON.stringify(intent?.acceptedArea)).toMatch(wanted);
+    else expect(intent?.acceptedArea).toBeNull();
+    expect(JSON.stringify(intent?.acceptedArea ?? null)).not.toMatch(excluded);
   } finally {
     await act(async () => root.unmount());
   }
