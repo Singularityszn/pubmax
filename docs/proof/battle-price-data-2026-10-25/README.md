@@ -53,7 +53,7 @@ The existing per-venue menu reader also carries named Listed coffee and alcohol-
 Both the index and menu adapter reject coffee liqueurs and ambiguous neighbouring labels.
 Plain coffee servings use a narrow name list. Explicit alcoholic ABV labels cannot enter the alcohol-free adapter.
 Unnamed legacy rows remain in their source bundle but do not enter this named menu count.
-The index has 31 pub/category entries in this snapshot. The new source observations cover both categories at one pub.
+The index has 26 pub/category entries in this snapshot. The new source observations cover both categories at one pub.
 
 ## Verification
 
@@ -73,3 +73,24 @@ The loaded-pub denominator changes as spatial shards arrive. It is not a city in
 The captured runtime reported no page errors. Screenshots and DOM text are beside this report.
 This is local signed-out desktop proof. It does not prove a hosted preview or physical phone.
 Full `npm run verify` and the publication gate remain pending the coordinator's resource slot.
+
+## Follow-up adapter audit
+
+The first adapter admitted historical section headings and fragments in the alcohol-free category.
+The follow-up rejects generic Non-Alcoholic headings, concatenated menu fragments, country-only labels and explicit alcoholic names without low-no evidence.
+It also withholds a large-pack label when the source row gives no serving size.
+These checks are conservative display restrictions. They do not repair or reverify the historical source observations.
+The eligible inventory is recorded in `eligible-menu-audit.json` with each original source date and URL.
+The inventory contains 43 named rows. Only 31 site-harvest rows need the new menu bridge.
+The 12 publisher-update rows already reach the menu through their existing pack and are not added twice.
+The three reviewed Bull's Head prices and source dates are unchanged.
+
+ABV checking uses the existing product rule in `alcoholTypeForDrink`: up to and including 0.5 percent is low-no.
+Full numeric parsing keeps 0.3 and 0.5 percent intact. It no longer reads a fractional digit as an integer percentage.
+The adapter also calls the existing `isValidDrinkPriceUpdate` row validator.
+No claim here guarantees that every historical category assignment is correct.
+
+An unavailable bundle now returns `null` from the existing per-venue price-update read.
+A successful empty read still returns `{ drink: [], food: [] }`.
+Five focused suites passed 22 tests after these corrections, including both read states and observed bad-label examples.
+The existing screenshots show the unchanged Bull's Head rows and counts before this follow-up.

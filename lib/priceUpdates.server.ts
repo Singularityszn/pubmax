@@ -124,8 +124,9 @@ export async function venuePriceUpdatesFor(
     food.push(...(index.foodByKey.get(key) ?? []));
   }
   const bundle = await ukPriceBundleRowsByVenue();
+  if (bundle.status === "unavailable") return null;
   for (const key of new Set(keys)) {
-    drink.push(...namedNonBeerBundleUpdates(bundle.byVenue.get(key) ?? []));
+    drink.push(...namedNonBeerBundleUpdates((bundle.byVenue.get(key) ?? []).filter((row) => row.lane === "site-harvest")));
   }
   return { drink, food };
 }

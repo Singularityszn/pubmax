@@ -1,0 +1,357 @@
+{
+  "auditedAt": "2026-10-25T18:33:51.010Z",
+  "notes": [
+    "An adapter eligibility audit does not reverify historical source pages.",
+    "Only site-harvest rows are newly added to the per-venue menu read. Publisher-update rows already arrive through their existing pack."
+  ],
+  "rows": [
+    {
+      "venueId": "venue-13xdb1p",
+      "name": "Corona Cero 0.0% 330ml",
+      "category": "alcohol-free",
+      "priceGbp": 4.95,
+      "observedAt": "2026-09-21T18:27:31.674Z",
+      "sourceUrl": "https://www.theploughstjohnshill.co.uk/the-bar/"
+    },
+    {
+      "venueId": "venue-1gyylm3",
+      "name": "Peroni 0.0%",
+      "category": "alcohol-free",
+      "priceGbp": 4,
+      "observedAt": "2026-09-21T18:23:05.326Z",
+      "sourceUrl": "https://www.therebelinn.com/drinks"
+    },
+    {
+      "venueId": "venue-1hz0avt",
+      "name": "Steinbock, Riesling, Germany",
+      "category": "alcohol-free",
+      "priceGbp": 7.1,
+      "observedAt": "2026-10-13T10:19:25.911Z",
+      "sourceUrl": "https://www.theeaglew12.co.uk/wp-content/uploads/sites/61/2025/04/Eagle1612_cocktails1-1.pdf",
+      "servingSize": "125ml"
+    },
+    {
+      "venueId": "venue-1hz0avt",
+      "name": "Steinbock, Riesling, Germany",
+      "category": "alcohol-free",
+      "priceGbp": 35.5,
+      "observedAt": "2026-10-13T10:19:25.911Z",
+      "sourceUrl": "https://www.theeaglew12.co.uk/wp-content/uploads/sites/61/2025/04/Eagle1612_cocktails1-1.pdf",
+      "servingSize": "750ml"
+    },
+    {
+      "venueId": "venue-1hz0avt",
+      "name": "Nooh La Coste Rosé, Provence",
+      "category": "alcohol-free",
+      "priceGbp": 8.9,
+      "observedAt": "2026-10-13T10:19:25.911Z",
+      "sourceUrl": "https://www.theeaglew12.co.uk/wp-content/uploads/sites/61/2025/04/Eagle1612_cocktails1-1.pdf",
+      "servingSize": "125ml"
+    },
+    {
+      "venueId": "venue-1hz0avt",
+      "name": "Nooh La Coste Rosé, Provence",
+      "category": "alcohol-free",
+      "priceGbp": 46.5,
+      "observedAt": "2026-10-13T10:19:25.911Z",
+      "sourceUrl": "https://www.theeaglew12.co.uk/wp-content/uploads/sites/61/2025/04/Eagle1612_cocktails1-1.pdf",
+      "servingSize": "750ml"
+    },
+    {
+      "venueId": "venue-1hz0avt",
+      "name": "Apple & Elderflower",
+      "category": "alcohol-free",
+      "priceGbp": 5.35,
+      "observedAt": "2026-10-13T10:19:25.911Z",
+      "sourceUrl": "https://www.theeaglew12.co.uk/wp-content/uploads/sites/61/2025/04/Eagle1612_cocktails1-1.pdf"
+    },
+    {
+      "venueId": "venue-1hz0avt",
+      "name": "Cranberry & Mint",
+      "category": "alcohol-free",
+      "priceGbp": 5.35,
+      "observedAt": "2026-10-13T10:19:25.911Z",
+      "sourceUrl": "https://www.theeaglew12.co.uk/wp-content/uploads/sites/61/2025/04/Eagle1612_cocktails1-1.pdf"
+    },
+    {
+      "venueId": "venue-1hz0avt",
+      "name": "Raspberry & Rose",
+      "category": "alcohol-free",
+      "priceGbp": 4.35,
+      "observedAt": "2026-10-13T10:19:25.911Z",
+      "sourceUrl": "https://www.theeaglew12.co.uk/wp-content/uploads/sites/61/2025/04/Eagle1612_cocktails1-1.pdf"
+    },
+    {
+      "venueId": "venue-1hz0avt",
+      "name": "TRIP Cherry Lemon",
+      "category": "alcohol-free",
+      "priceGbp": 4.85,
+      "observedAt": "2026-10-13T10:19:25.911Z",
+      "sourceUrl": "https://www.theeaglew12.co.uk/wp-content/uploads/sites/61/2025/04/Eagle1612_cocktails1-1.pdf"
+    },
+    {
+      "venueId": "venue-1hz0avt",
+      "name": "TRIP Elderflower Mint",
+      "category": "alcohol-free",
+      "priceGbp": 4.85,
+      "observedAt": "2026-10-13T10:19:25.911Z",
+      "sourceUrl": "https://www.theeaglew12.co.uk/wp-content/uploads/sites/61/2025/04/Eagle1612_cocktails1-1.pdf"
+    },
+    {
+      "venueId": "venue-1hz0avt",
+      "name": "Ginger Yuzu Fizz",
+      "category": "alcohol-free",
+      "priceGbp": 8,
+      "observedAt": "2026-10-13T10:19:25.911Z",
+      "sourceUrl": "https://www.theeaglew12.co.uk/wp-content/uploads/sites/61/2025/04/Eagle1612_cocktails1-1.pdf"
+    },
+    {
+      "venueId": "venue-1hz0avt",
+      "name": "Negroni 0.0",
+      "category": "alcohol-free",
+      "priceGbp": 10.5,
+      "observedAt": "2026-10-13T10:19:25.911Z",
+      "sourceUrl": "https://www.theeaglew12.co.uk/wp-content/uploads/sites/61/2025/04/Eagle1612_cocktails1-1.pdf"
+    },
+    {
+      "venueId": "venue-1hz0avt",
+      "name": "Blood Orange Paloma 0.0",
+      "category": "alcohol-free",
+      "priceGbp": 10,
+      "observedAt": "2026-10-13T10:19:25.911Z",
+      "sourceUrl": "https://www.theeaglew12.co.uk/wp-content/uploads/sites/61/2025/04/Eagle1612_cocktails1-1.pdf"
+    },
+    {
+      "venueId": "venue-1jh3vn9",
+      "name": "Everleaf Mountain Non-Alcoholic",
+      "category": "alcohol-free",
+      "priceGbp": 6.5,
+      "observedAt": "2026-10-18T21:37:55.150Z",
+      "sourceUrl": "https://blackcapcamden.co.uk"
+    },
+    {
+      "venueId": "venue-1pfypco",
+      "name": "Lucky Saint Unfiltered 330ml bottle 0.5% England",
+      "category": "alcohol-free",
+      "priceGbp": 5.35,
+      "observedAt": "2026-09-21T18:22:05.247Z",
+      "sourceUrl": "https://www.thehandinhandwimbledon.co.uk/food-drink/"
+    },
+    {
+      "venueId": "venue-1vse4lh",
+      "name": "Corona Cero 0.0% –",
+      "category": "alcohol-free",
+      "priceGbp": 4.5,
+      "observedAt": "2026-09-21T18:56:51.214Z",
+      "sourceUrl": "https://thebrownswood.co.uk/drinks-menu/"
+    },
+    {
+      "venueId": "venue-1ynmd1u",
+      "name": "Cappuccino",
+      "category": "coffee",
+      "priceGbp": 2.95,
+      "observedAt": "2026-10-18T23:32:29.015Z",
+      "sourceUrl": "https://www.thegreyhoundhotel.com/food-drink/"
+    },
+    {
+      "venueId": "venue-1ynmd1u",
+      "name": "Flat White",
+      "category": "coffee",
+      "priceGbp": 2.2,
+      "observedAt": "2026-10-18T23:32:29.015Z",
+      "sourceUrl": "https://www.thegreyhoundhotel.com/food-drink/"
+    },
+    {
+      "venueId": "venue-1ynmd1u",
+      "name": "Macchiato",
+      "category": "coffee",
+      "priceGbp": 2.95,
+      "observedAt": "2026-10-18T23:32:29.015Z",
+      "sourceUrl": "https://www.thegreyhoundhotel.com/food-drink/"
+    },
+    {
+      "venueId": "venue-9e93hd",
+      "name": "Erdinger Alkoholfrei 0.5% / 500ml",
+      "category": "alcohol-free",
+      "priceGbp": 4.9,
+      "observedAt": "2026-09-21T18:34:04.966Z",
+      "sourceUrl": "https://www.theguardhousewoolwich.co.uk/food-and-drink/"
+    },
+    {
+      "venueId": "venue-9v05po",
+      "name": "Guiness 0.0% 568ml",
+      "category": "alcohol-free",
+      "priceGbp": 5.5,
+      "observedAt": "2026-10-19T15:58:48.114Z",
+      "sourceUrl": "https://www.thejollycoopers.co.uk/menus/"
+    },
+    {
+      "venueId": "venue-ege2qq",
+      "name": "Nooh La Coste Rosé, Provence 22kcal per 125ml serve Glass",
+      "category": "alcohol-free",
+      "priceGbp": 8.6,
+      "observedAt": "2026-10-25T18:14:24.119Z",
+      "sourceUrl": "https://www.thebullsheadhotel.co.uk/food-drink/"
+    },
+    {
+      "venueId": "venue-ege2qq",
+      "name": "Single Espresso",
+      "category": "coffee",
+      "priceGbp": 2.5,
+      "observedAt": "2026-10-25T18:14:24.119Z",
+      "sourceUrl": "https://www.thebullsheadhotel.co.uk/food-drink/"
+    },
+    {
+      "venueId": "venue-ege2qq",
+      "name": "Double Espresso",
+      "category": "coffee",
+      "priceGbp": 3.1,
+      "observedAt": "2026-10-25T18:14:24.119Z",
+      "sourceUrl": "https://www.thebullsheadhotel.co.uk/food-drink/"
+    },
+    {
+      "venueId": "venue-hgasw5",
+      "name": "Erdinger Alkoholfrei 0%",
+      "category": "alcohol-free",
+      "priceGbp": 5.05,
+      "observedAt": "2026-09-04T13:41:06.663Z",
+      "sourceUrl": "https://www.theprincealbertbattersea.co.uk/food-and-drink"
+    },
+    {
+      "venueId": "venue-uk-n305415325",
+      "name": "Corona Cero 330ml",
+      "category": "alcohol-free",
+      "priceGbp": 4.95,
+      "observedAt": "2026-10-18T21:37:58.600Z",
+      "sourceUrl": "https://www.theduchessofkent.co.uk/food-and-drinks/"
+    },
+    {
+      "venueId": "venue-uk-n305415325",
+      "name": "Lucky Saint 330ml",
+      "category": "alcohol-free",
+      "priceGbp": 5.65,
+      "observedAt": "2026-10-18T21:37:58.600Z",
+      "sourceUrl": "https://www.theduchessofkent.co.uk/food-and-drinks/"
+    },
+    {
+      "venueId": "venue-uk-n305415325",
+      "name": "Rekorderlig Strawberry & Lime 0% 500ml",
+      "category": "alcohol-free",
+      "priceGbp": 5.95,
+      "observedAt": "2026-10-18T21:37:58.600Z",
+      "sourceUrl": "https://www.theduchessofkent.co.uk/food-and-drinks/"
+    },
+    {
+      "venueId": "venue-uk-n316763478",
+      "name": "Rekorderlig Strawberry & Lime 0% 500ml",
+      "category": "alcohol-free",
+      "priceGbp": 6.05,
+      "observedAt": "2026-10-18T21:38:00.909Z",
+      "sourceUrl": "https://www.thepaternoster.com/food-drink/"
+    },
+    {
+      "venueId": "venue-uk-n3664716857",
+      "name": "Macchiato",
+      "category": "coffee",
+      "priceGbp": 2.3,
+      "observedAt": "2026-09-04T13:28:28.838Z",
+      "sourceUrl": "https://www.groveexmouth.co.uk/food-drink/"
+    },
+    {
+      "venueId": "venue-uk-n388744360",
+      "name": "0% Guinness – 568ml",
+      "category": "alcohol-free",
+      "priceGbp": 6,
+      "observedAt": "2026-09-04T14:06:01.977Z",
+      "sourceUrl": "https://www.thepartridgestretton.co.uk/drinks-menu/"
+    },
+    {
+      "venueId": "venue-uk-w1028952707",
+      "name": "Heineken 0%",
+      "category": "alcohol-free",
+      "priceGbp": 2.8,
+      "observedAt": "2026-09-04T13:32:41.692Z",
+      "sourceUrl": "https://www.windmilllittleworth.com/drinks"
+    },
+    {
+      "venueId": "venue-uk-w1278554504",
+      "name": "Double Espresso",
+      "category": "coffee",
+      "priceGbp": 3,
+      "observedAt": "2026-09-04T13:53:35.309Z",
+      "sourceUrl": "https://www.theanchoraspleyguise.co.uk/coffee-menu"
+    },
+    {
+      "venueId": "venue-uk-w147669044",
+      "name": "Heniken Zero",
+      "category": "alcohol-free",
+      "priceGbp": 3.6,
+      "observedAt": "2026-10-18T23:32:31.698Z",
+      "sourceUrl": "https://www.crownofmitcham.co.uk/menu?menu=menu"
+    },
+    {
+      "venueId": "venue-uk-w147927710",
+      "name": "Erdinger Low Alcohol",
+      "category": "alcohol-free",
+      "priceGbp": 4.95,
+      "observedAt": "2026-09-21T18:18:34.533Z",
+      "sourceUrl": "https://www.handandspear.co.uk/food-drink/"
+    },
+    {
+      "venueId": "venue-uk-w200067744",
+      "name": "Espresso",
+      "category": "coffee",
+      "priceGbp": 3.95,
+      "observedAt": "2026-09-04T14:08:13.820Z",
+      "sourceUrl": "https://www.thenewinnwalton.co.uk/foodmenu/"
+    },
+    {
+      "venueId": "venue-uk-w399207581",
+      "name": "Becks Blue",
+      "category": "alcohol-free",
+      "priceGbp": 2,
+      "observedAt": "2026-09-04T14:14:07.197Z",
+      "sourceUrl": "https://barleymowwmc.wordpress.com/bar-prices/"
+    },
+    {
+      "venueId": "venue-uk-w599464583",
+      "name": "Erdinger Alkoholfrei 500ml",
+      "category": "alcohol-free",
+      "priceGbp": 4.5,
+      "observedAt": "2026-09-04T13:52:58.904Z",
+      "sourceUrl": "https://www.blueboarpub.co.uk/food-drink/"
+    },
+    {
+      "venueId": "venue-uk-w619265567",
+      "name": "Corona Cero 0%",
+      "category": "alcohol-free",
+      "priceGbp": 4.25,
+      "observedAt": "2026-09-21T19:01:31.164Z",
+      "sourceUrl": "https://www.bedfordarms.co.uk/food-drinks/"
+    },
+    {
+      "venueId": "venue-uk-w745483505",
+      "name": "Asahi Zero",
+      "category": "alcohol-free",
+      "priceGbp": 4.95,
+      "observedAt": "2026-10-19T16:21:31.607Z",
+      "sourceUrl": "https://loreoftheland.com/menu/drinks-menu/"
+    },
+    {
+      "venueId": "venue-uk-w745483505",
+      "name": "Bitburger Zero",
+      "category": "alcohol-free",
+      "priceGbp": 4.9,
+      "observedAt": "2026-10-19T16:21:31.607Z",
+      "sourceUrl": "https://loreoftheland.com/menu/drinks-menu/"
+    },
+    {
+      "venueId": "venue-uwqipn",
+      "name": "Espresso",
+      "category": "coffee",
+      "priceGbp": 2.5,
+      "observedAt": "2026-09-21T18:18:09.102Z",
+      "sourceUrl": "http://jollycoopers.co.uk/menu"
+    }
+  ]
+}

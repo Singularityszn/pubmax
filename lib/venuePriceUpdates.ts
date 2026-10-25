@@ -1,3 +1,6 @@
+import { alcoholTypeForDrink } from "@/lib/drinks";
+import { isNonAlcoholicDrink } from "@/lib/nonAlcoholicDrinks";
+import { isValidDrinkPriceUpdate } from "@/lib/drinkPriceUpdates";
 // The observed price-update rows about ONE venue, as they ride on venue detail.
 //
 // The two packs (public/data/{drink,food}_price_updates/latest.json, 1862 KB
@@ -45,7 +48,18 @@ export function namedNonBeerBundleUpdates(rows: readonly UkPriceBundleRow[], now
     // The legacy reader can mistake a coffee liqueur or its neighbour for coffee.
     // Only plain named coffee servings cross this display adapter.
     if (row.category === "coffee" && !/^(?:(?:single|double|iced|filter|decaf|oat)\s+){0,2}(?:espresso|americano|cappuccino|latte|flat white|mocha|matcha(?: latte)?|macchiato|cortado|coffee)$/i.test(row.drinkLabel.trim())) return [];
-    if (row.category === "alcohol-free" && /\b[1-9]\d*(?:\.\d+)?\s*%/.test(row.drinkLabel)) return [];
-    return [{ venueKey: row.venueId, drinkName: row.drinkLabel, category: row.category, priceGbp: row.priceGbp, source: { label: row.publisher, url: row.sourceUrl, licence: "Published menu price facts" }, observedAt: row.observedAt, lane: "publisher" as const, ...(row.servingSize ? { servingSize: row.servingSize } : {}) }];
+    const label = row.drinkLabel.trim();
+    if (/^[^\p{L}\p{N}]|^\p{Ll}/u.test(label)) return [];
+    if (row.category === "alcohol-free") {
+      // A large pack in a label does not establish the serving sold at this price.
+      if (!row.servingSize && /\b(?:[7-9]\d\s*cl|[7-9]\d{2}\s*ml)\b/i.test(label)) return [];
+      if (/^(?:non[- ]alcoholic|alcohol[- ]free)(?:\s+(?:bottles?|beers?|wines?|drinks?))*$/i.test(label) || /\b(?:price range|beer and cider|sparkling wines|mocktails)\b/i.test(label)) return [];
+      if (!isNonAlcoholicDrink(label) && (!/\s/.test(label) || /\b(?:sherry|liqueur|tequila|vodka|gin|rum|whisk[ey]+)\b/i.test(label))) return [];
+      for (const match of label.matchAll(/(?:^|[^\d.])(\d+(?:[.,]\d+)?)\s*%/g)) {
+        if (alcoholTypeForDrink({ name: label, abv: Number(match[1]!.replace(",", ".")) }) !== "low-no") return [];
+      }
+    }
+    const update: DrinkPriceUpdate = { venueKey: row.venueId, drinkName: row.drinkLabel, category: row.category, priceGbp: row.priceGbp, source: { label: row.publisher, url: row.sourceUrl, licence: "Published menu price facts" }, observedAt: row.observedAt, lane: "publisher", ...(row.servingSize ? { servingSize: row.servingSize } : {}) };
+    return isValidDrinkPriceUpdate(update, now) ? [update] : [];
   });
 }

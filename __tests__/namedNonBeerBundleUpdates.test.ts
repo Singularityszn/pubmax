@@ -12,3 +12,12 @@ it("preserves the listed alcohol-free glass price and never creates a community 
   const rows = namedNonBeerBundleUpdates([{ ...coffee, category: "alcohol-free", priceGbp: 8.6, drinkLabel: "Nooh La Coste Rosé, Provence 22kcal per 125ml serve Glass" }], Date.parse("2026-10-25T12:00:00Z"));
   expect(rows[0]).toMatchObject({ category: "alcohol-free", priceGbp: 8.6, lane: "publisher", observedAt: coffee.observedAt });
 });
+it("rejects observed section headings, fragments and an alcoholic sherry in the AF category", () => {
+  const labels = ["Non-Alcoholic Bottles", "Non-Alcoholic", "onade 49 kcal Non-Alcoholic Sparkling Wines Steinbock Riesling, Germany S 125ml", "£ 166.95 Price range:", "SONDER MOCKTAILS 0.0% abv", "Australia", "Tanqueray Alcohol Free 70cl", "Harveys Sherry 50ml", "Beer and Cider Beavertown Lazer Crush (0.3%) 330ml"];
+  expect(namedNonBeerBundleUpdates(labels.map((drinkLabel) => ({ ...coffee, category: "alcohol-free", drinkLabel })), Date.parse("2026-10-25T12:00:00Z"))).toEqual([]);
+});
+it("uses the product's 0.5 percent low-no ceiling without matching the fractional digit as alcoholic ABV", () => {
+  const low = ["Erdinger Alkoholfrei 0.5% / 500ml", "Beavertown Lazer Crush (0.3%) 330ml", "Alcohol-free example 0.0%"];
+  expect(namedNonBeerBundleUpdates(low.map((drinkLabel) => ({ ...coffee, category: "alcohol-free", drinkLabel })), Date.parse("2026-10-25T12:00:00Z"))).toHaveLength(3);
+  expect(namedNonBeerBundleUpdates([{ ...coffee, category: "alcohol-free", drinkLabel: "Alcohol-free example 0.6%" }], Date.parse("2026-10-25T12:00:00Z"))).toEqual([]);
+});
