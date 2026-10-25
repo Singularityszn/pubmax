@@ -62,7 +62,7 @@ Logs include `red-focused.log`, `green-focused.log`, `green-focused-retry.log` a
 An invalid CLI attempt is separate from the regression evidence.
 An admission sequencing error is recorded in `admission-sequence-error.json`.
 The failed and successful runs remain preserved.
-Required repository, browser, no-mistakes and hosted checks remain pending.
+Those focused runs did not replace repository, browser, no-mistakes or hosted checks.
 
 ## Current main reconciliation
 
@@ -77,11 +77,54 @@ The existing browser assertion remains unchanged.
 The correction uses an absolute branded homepage title and preserves child-page template behaviour.
 Five focused metadata and branding suites passed all 66 tests after this correction.
 The failing browser log remains `discovery-browser-current-main.log` in the external evidence directory.
-The corrected emitted title and final integrated build still require browser verification.
+The corrected emitted title passed the unchanged browser assertion in the later runs below.
 
 This local build used fake public authentication configuration and keyless stores.
 The authentication-provider endpoint returned 503 in that environment.
 These checks do not establish authenticated account acceptance.
+
+## Final local product checks
+
+Actual main advanced to `e5b82b9957bf6b1c3b5511a84da639569e2dc2cc` during validation.
+The patch merged it without conflicts at `251ade2f9e7c20ae87d235d2559ed587a10e8bc0`.
+The merged Tonight provenance and exclusion changes remain alongside the original page-preparation seed.
+Five focused integration suites passed all 101 tests.
+
+Visual inspection found a real preparation-stamp hydration defect.
+Node emitted `GMT`, while Chromium emitted `GMT+0` and reported React error 418.
+Both new production-browser regressions failed against the retained `40ca511` build.
+The fix formats numeric London date parts and derives GMT or BST from that instant's London offset.
+It preserves the serialized ISO value and original server preparation time.
+Winter, summer, midnight and both DST boundaries have independent expected labels.
+The correction passed 78 focused tests and targeted lint before the main integration.
+
+The private production build at `251ade2f9e7c20ae87d235d2559ed587a10e8bc0` passed with one build worker.
+The local version endpoint reported that exact SHA.
+All 40 Chromium cases passed with one worker across discovery, landing and Day/Home integration.
+All five Plan invite cases also passed against that same private production build.
+They cover desktop creation, mobile sharing, anonymous guests, private invite boundaries and local RSVP persistence.
+Both hydration cases compare actual server text with the hydrated label after a successful theme toggle.
+They also reject page errors from Today and Tonight.
+The original homepage title, source, account-copy and layout assertions remain unchanged.
+
+The public pages were inspected at 390 by 844 and 1440 by 900 pixels.
+The browser used `America/New_York`, while both preparation stamps retained their London labels.
+No horizontal overflow appeared in the checked homepage.
+Completed HTML without JavaScript, metadata, schema identities, canonicals and sourced hero links passed.
+Local robots, llms, sitemap and the public share-card image returned 200.
+The non-production robots response blocked all paths, as intended.
+The production crawler policy is separately exercised through Next's real robots serializer.
+
+The environment used fake public auth configuration, keyless in-memory stores and empty app-provider credentials.
+Authentication-provider reads returned 503 in this fixture environment.
+The browser checks do not establish real account, crawler-firewall, physical-device or live-provider acceptance.
+No release or real account mutation occurred.
+Full verification and the native publication gate remain pending at this record's commit.
+
+External receipts include `browser-hydration-red.log`, `hydration-focused-green.log`, `fresh-main-focused-green.log`,
+`build-integrated-green.log`, `browser-integrated-green.log` and `version-integrated-green.json`.
+The disposable Plan journey log is `browser-plan-acceptance.log`.
+Local screenshots and console evidence remain under `artifacts/playwright-cli/aeo-final/` and `artifacts/playwright-cli/aeo-hydration/`.
 
 The donor's historical report and validation attempts do not validate this reconciled patch.
 Authenticated planning and Social journeys remain unverified on this patch.
