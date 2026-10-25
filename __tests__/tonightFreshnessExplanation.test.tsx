@@ -28,7 +28,7 @@ describe("Tonight source explanations", () => {
   it("explains a stale pub listing without presenting it as confirmed tonight", () => {
     const html = render([listing]);
     expect(html).toContain("1 pub listing hidden: its source check is older than 24 hours.");
-    expect(html).toContain("The what’s-on source check date is not recorded.");
+    expect(html).not.toContain("The what’s-on source check date is not recorded.");
     expect(html).not.toContain("Checked 25 Oct");
   });
 
@@ -54,7 +54,7 @@ describe("Tonight source explanations", () => {
     expect(html).toContain("1 pub listing hidden: its source check date is not recorded.");
   });
 
-  it("keeps the missing what’s-on date separate from a dated Ticketmaster read", () => {
+  it("keeps an old what’s-on check separate from a dated Ticketmaster read", () => {
     const html = renderToStaticMarkup(createElement(TonightProvenanceLines, {
       nearestSuffix: null,
       provenance: tonightProvenanceCredits({
@@ -66,7 +66,8 @@ describe("Tonight source explanations", () => {
         },
       }),
     }));
-    expect(html).toContain("The what’s-on source check date is not recorded.");
+    expect(html).toContain("1 pub listing hidden: its source check is older than 24 hours.");
+    expect(html).not.toContain("The what’s-on source check date is not recorded.");
     expect(html).toContain("No pub-matched events via Ticketmaster · Checked 25 Oct");
     expect(html).not.toContain("The live listings source check date is not recorded.");
   });

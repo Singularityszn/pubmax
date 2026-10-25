@@ -31,7 +31,7 @@ export default function TonightProvenanceLines({
         >
           {provenance.whatsOn}
           {nearestSuffix}
-          {!provenance.whatsOnDated ? <span data-tonight-provenance="undated-whats-on"> · {UNDATED_WHATS_ON_LINE}</span> : null}
+          {!provenance.whatsOnDated && !provenance.whatsOnExclusions ? <span data-tonight-provenance="undated-whats-on"> · {UNDATED_WHATS_ON_LINE}</span> : null}
         </p>
       ) : null}
       {provenance.whatsOnExclusions ? (
