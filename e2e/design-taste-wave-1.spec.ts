@@ -193,7 +193,7 @@ test.describe("desktop taste wave 1", () => {
       expect(actionStyles.every(({ backgroundImage }) => backgroundImage === "none")).toBe(true);
       expect(new Set(actionStyles.map(({ label }) => label)).size).toBe(7);
       await expectSentenceCase(page.locator(".nightAreaCoverage__eyebrow").first());
-      await expectSentenceCase(page.locator(".nightAreaCoverage__sectionLabel").first());
+      await expectSentenceCase(page.getByRole("heading", { name: "Where you can plan a crawl tonight", exact: true }));
     });
   }
 });

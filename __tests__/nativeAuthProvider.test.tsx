@@ -64,6 +64,8 @@ vi.mock("@/lib/authSessionResumeClient", () => ({
   clearPersistedSession: async () => {}, persistSessionForResume: async () => "stored", markResumePersisted: () => {},
   resumeAlreadyPersisted: () => true, requestResumeLink: vi.fn(),
 }));
+import { deviceAccountOwner } from "@/lib/deviceAccountIdentity";
+import { readDeviceAccounts, rememberDeviceAccount } from "@/lib/deviceAccountSessions";
 import { setProviderAuthState } from "@/lib/authProviderRevision";
 import { AuthProvider, useAuth } from "@/components/auth/AuthProvider";
 
@@ -281,6 +283,28 @@ describe("AuthProvider's installed iPhone OAuth consumer", () => {
     await act(async () => { finish(); await pending; await switched; });
     expect(container.textContent).toBe("selected-account");
     expect(h.navigate).not.toHaveBeenCalled();
+  });
+
+  it.each(["account", "device"] as const)("forgets the signed-out %s rows after a final provider refresh", async (scope) => {
+    await act(async () => {
+      h.session = original;
+      h.subscriber?.("SIGNED_IN", original);
+    });
+    rememberDeviceAccount(localStorage, {
+      userId: replacement.user.id, refreshToken: replacement.refresh_token,
+    }, Date.now());
+    // A provider can finish an in-flight refresh before its sign-out request resolves.
+    h.signOut.mockImplementation(async () => {
+      h.subscriber?.("TOKEN_REFRESHED", original);
+      h.session = null;
+      h.subscriber?.("SIGNED_OUT", null);
+    });
+    await act(async () => { await actions.signOut(scope); });
+    expect(readDeviceAccounts(localStorage).map((row) => row.userId)).toEqual(
+      scope === "device" ? [] : [replacement.user.id],
+    );
+    expect(container.textContent).toBe(scope === "device" ? "signed-out" : replacement.user.id);
+    expect(deviceAccountOwner(localStorage)).toBe(scope === "device" ? null : replacement.user.id);
   });
 
   it("does not resurrect an account after explicit sign-out during the code exchange", async () => {

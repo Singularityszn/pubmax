@@ -69,6 +69,7 @@
   body:has(.mapArrivalCard) .createFabRoot,
   body:has(.appShell.detail-open) .createFabRoot,
   body:has(.appShell.planning-open) .createFabRoot,
+  body:has(.mapVenueList--open) .createFabRoot,
   body:has(.nightCard) .createFabRoot,
   .createFabRoot.isKeyboardHidden {
     opacity: 0;
@@ -87,6 +88,7 @@
   body:has(.mapArrivalCard) .createFabRoot :is(.createFab, .createFabMenu),
   body:has(.appShell.detail-open) .createFabRoot :is(.createFab, .createFabMenu),
   body:has(.appShell.planning-open) .createFabRoot :is(.createFab, .createFabMenu),
+  body:has(.mapVenueList--open) .createFabRoot :is(.createFab, .createFabMenu),
   body:has(.nightCard) .createFabRoot :is(.createFab, .createFabMenu),
   .createFabRoot.isKeyboardHidden :is(.createFab, .createFabMenu) {
     pointer-events: none;
@@ -235,6 +237,7 @@
   body:has(.mapArrivalCard) .createFabRoot,
   body:has(.appShell.detail-open) .createFabRoot,
   body:has(.appShell.planning-open) .createFabRoot,
+  body:has(.mapVenueList--open) .createFabRoot,
   body:has(.nightCard) .createFabRoot {
     transition: none;
   }

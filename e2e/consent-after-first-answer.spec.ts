@@ -284,9 +284,12 @@ for (const viewport of WIDTHS) {
       // the bar and the body's clearance read (components/nav/mobileNav.css).
       const lane = await page.evaluate(() => {
         if (document.querySelector(".mobileTabBar, .mobileTabBarClearance") === null) return 0;
-        const raw = getComputedStyle(document.documentElement)
-          .getPropertyValue("--tabbar-h");
-        return Number.parseFloat(raw) || 0;
+        const probe = document.createElement("div");
+        probe.style.cssText = "position:fixed;visibility:hidden;height:var(--tabbar-h)";
+        document.body.append(probe);
+        const height = probe.getBoundingClientRect().height;
+        probe.remove();
+        return height;
       });
       expect(
         Math.abs(box.y + box.height - (viewport.height - lane)),

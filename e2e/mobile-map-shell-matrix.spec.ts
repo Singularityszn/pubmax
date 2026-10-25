@@ -216,11 +216,13 @@ for (const viewport of VIEWPORTS) {
       await listShortcut.click();
       await expect(page.locator(".mobileSheetPortal:visible")).toHaveCount(0);
       await expect(page.locator(".mapVenueListPanel")).toBeVisible();
+      await expect(page.getByTestId("create-fab")).toBeHidden();
       await expect(page.getByRole("heading", { name: "Venues on the map" })).toBeVisible();
       // Opened from Map controls, the list offers Back, so its close names the map
       // it returns to (components/map/MapVenueList.tsx).
       await page.getByRole("button", { name: "Close and return to the London map" }).click();
       await expect(page.locator(".mapVenueListPanel")).toHaveCount(0);
+      await expect(page.getByTestId("create-fab")).toBeVisible();
 
       await more.click();
       await page.getByRole("button", { name: "Close Map controls" }).click();

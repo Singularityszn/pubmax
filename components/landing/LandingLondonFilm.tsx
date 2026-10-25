@@ -1,12 +1,16 @@
 "use client";
 
-import { useState } from "react";
+import { useCallback, useState } from "react";
 import "./landingLondonFilm.css";
 
 /** Mount the media only after a deliberate request, including with reduced motion. */
 export default function LandingLondonFilm() {
   const [requested, setRequested] = useState(false);
   const [failed, setFailed] = useState(false);
+  const focusVideo = useCallback((node: HTMLVideoElement | null) => node?.focus(), []);
+  const focusRetry = useCallback((node: HTMLButtonElement | null) => {
+    if (failed) node?.focus();
+  }, [failed]);
 
   return (
     <section className="lpFilm" aria-labelledby="london-film-title">
@@ -27,7 +31,7 @@ export default function LandingLondonFilm() {
             height={960}
             controls
             tabIndex={0}
-            ref={(node) => node?.focus()}
+            ref={focusVideo}
             autoPlay
             muted
             playsInline
@@ -43,7 +47,7 @@ export default function LandingLondonFilm() {
           <button
             type="button"
             className="lpFilmPlay"
-            ref={(node) => { if (failed) node?.focus(); }}
+            ref={focusRetry}
             onClick={() => { setFailed(false); setRequested(true); }}
             aria-describedby="london-film-description"
           >

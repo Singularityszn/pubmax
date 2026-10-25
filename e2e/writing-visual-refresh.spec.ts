@@ -55,6 +55,50 @@ test("film failure preserves an accessible retry", async ({ page }) => {
   await expect(film.getByRole("button", { name: /Try the film again/ })).toBeVisible();
 });
 
+// Playback and retry may move focus once. A preferred-city update must not move it again.
+for (const failed of [false, true]) {
+  for (const update of ["same-tab", "cross-tab"] as const) {
+    test(`film preserves focus and scroll after a ${update} city update while ${failed ? "awaiting retry" : "playing"}`, async ({ page, context }) => {
+      await page.emulateMedia({ reducedMotion: "reduce" });
+      await page.addInitScript(() => localStorage.removeItem("pubmax:preferredCity:v1"));
+      if (failed) await page.route("**/landing/london-film/london.mp4", (route) => route.abort());
+      await page.goto("/");
+      const film = page.getByRole("region", { name: "London, day to night" });
+      await film.getByRole("button", { name: /Play London film/ }).click();
+      const target = failed ? film.getByRole("button", { name: /Try the film again/ }) : film.locator("video");
+      await expect(target).toBeFocused();
+      const elsewhere = page.getByRole("link", { name: "Pick your city", exact: true });
+      await elsewhere.scrollIntoViewIfNeeded();
+      await elsewhere.focus();
+      const scrollY = await page.evaluate(() => window.scrollY);
+      if (update === "same-tab") {
+        await page.evaluate(() => {
+          localStorage.setItem("pubmax:preferredCity:v1", "manchester");
+          window.dispatchEvent(new Event("pubmax:preferred-city"));
+        });
+      } else {
+        const otherTab = await context.newPage();
+        try {
+          await otherTab.goto("/privacy");
+          await otherTab.evaluate(() => localStorage.setItem("pubmax:preferredCity:v1", "manchester"));
+        } finally {
+          await otherTab.close();
+        }
+      }
+      // The changed destination proves the LandingPage subscription rendered the update.
+      await expect(page.getByRole("navigation", { name: "Landing navigation" }).getByRole("link", { name: "Map", exact: true })).toHaveAttribute("href", "/map/manchester");
+      await expect(elsewhere).toBeFocused();
+      expect(await page.evaluate(() => window.scrollY)).toBeCloseTo(scrollY, 0);
+      if (failed) {
+        await page.unroute("**/landing/london-film/london.mp4");
+        await target.click();
+        await expect(film.locator("video")).toBeFocused();
+        await expect.poll(() => film.locator("video").evaluate((video: HTMLVideoElement) => video.currentTime)).toBeGreaterThan(0);
+      }
+    });
+  }
+}
+
 test("optional explanations stay available by keyboard", async ({ page }) => {
   await page.goto("/about");
   const press = page.locator("details").filter({ has: page.getByText("Press details and downloads", { exact: true }) });

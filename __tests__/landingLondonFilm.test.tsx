@@ -36,4 +36,42 @@ describe("the optional London film", () => {
       container.remove();
     }
   });
+
+  for (const failed of [false, true]) {
+    it(`keeps the reader's focus after a parent update in the ${failed ? "retry" : "playing"} state`, async () => {
+      vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
+      const container = document.createElement("div");
+      document.body.append(container);
+      const root = createRoot(container);
+      function Parent({ update }: { update: number }) {
+        return createElement("div", null,
+          createElement(LandingLondonFilm),
+          createElement("button", { id: "elsewhere" }, `Another control ${update}`),
+        );
+      }
+      try {
+        await act(async () => root.render(createElement(Parent, { update: 0 })));
+        await act(async () => container.querySelector<HTMLButtonElement>(".lpFilmPlay")!.click());
+        const video = container.querySelector("video")!;
+        expect(document.activeElement).toBe(video);
+        if (failed) {
+          await act(async () => video.dispatchEvent(new Event("error")));
+          expect(document.activeElement).toBe(container.querySelector(".lpFilmPlay"));
+        }
+        const elsewhere = container.querySelector<HTMLButtonElement>("#elsewhere")!;
+        elsewhere.focus();
+        await act(async () => root.render(createElement(Parent, { update: 1 })));
+        expect(elsewhere.textContent).toBe("Another control 1");
+        expect(document.activeElement).toBe(elsewhere);
+        if (failed) {
+          await act(async () => container.querySelector<HTMLButtonElement>(".lpFilmPlay")!.click());
+          expect(document.activeElement).toBe(container.querySelector("video"));
+        }
+      } finally {
+        await act(async () => root.unmount());
+        container.remove();
+      }
+    });
+  }
+
 });
