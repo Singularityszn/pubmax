@@ -181,6 +181,15 @@ describe("About outings story (Wave S1)", () => {
     expect(copy).not.toMatch(/prices from real people|every figure links back/iu);
   });
 
+  it("explains device saves, plan invites and account features in visible HTML", async () => {
+    const document = new JSDOM(await renderAbout()).window.document;
+    const text = document.querySelector('section[aria-labelledby="map"]')?.textContent?.replace(/\s+/gu, " ");
+    expect(text).toContain("planning crawls with friends and sharing routes");
+    expect(text).toContain("Browse and save pubs on this device without an account");
+    expect(text).toContain("send an invite link to your mates");
+    expect(text).toContain("Sign in to sync your saves, log prices and use Social when it is available");
+  });
+
   it("keeps the founder note to the owner-approved beats", async () => {
     const html = await renderAbout();
 

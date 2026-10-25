@@ -61,7 +61,9 @@ describe("what the cheap pub is worth", () => {
     expect(gap).toBeGreaterThan(0.5);
     expect(gap).toBeLessThan(4);
     const line = strangerSavingLine(averages);
-    expect(line).toContain(`${gap.toFixed(2)} a pint you keep`);
+    expect(line).toContain("average of each pub's cheapest listed pint");
+    expect(line).toContain(`${averages!.sampleSize.toLocaleString("en-GB")} priced London pubs`);
+    expect(line).toContain(`£${gap.toFixed(2)} gap per pint`);
     expect(line).not.toContain("!");
   });
 });

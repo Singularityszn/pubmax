@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 
-import { createElement } from "react";
+import { act, createElement } from "react";
+import { createRoot } from "react-dom/client";
 import { renderToStaticMarkup } from "react-dom/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -136,6 +137,53 @@ beforeEach(() => {
 });
 
 describe("Tonight's server photo composition", () => {
+  it("dates the prepared page separately from the older listing source", () => {
+    const document = new DOMParser().parseFromString(documentFor(answer), "text/html");
+    const stamp = document.querySelector('[data-testid="brief-prepared-at"]');
+    expect(stamp?.querySelector("time")?.dateTime).toBe("2026-10-22T17:00:00.000Z");
+    expect(stamp?.textContent).toContain("Source dates can be older");
+    expect(stamp?.querySelector("time")?.dateTime).not.toBe(OBSERVED);
+  });
+
+  it("keeps the original preparation timestamp when browser listings replace the serialized answer", async () => {
+    const target = document.createElement("div");
+    document.body.append(target);
+    const root = createRoot(target);
+    const clock = vi.spyOn(Date, "now").mockReturnValue(NOW + 60 * 60 * 1000);
+    const props = {
+      initialListings: { whatsOn, out: answer, renderedAt: NOW },
+      mapSelectableVenueIds: ["venue-pub"],
+      hypedPubs: [],
+    };
+    try {
+      await act(async () => root.render(createElement(TonightClient, props)));
+      expect(target.textContent).toContain("Thursday pub quiz");
+      vi.mocked(useOutListings).mockReturnValue({ ...answer, body, pending: false, retry: vi.fn() });
+      vi.mocked(useWhatsOnTonight).mockReturnValue({
+        rows: [{ ...pub, id: "refreshed-quiz", kind: "quiz", title: "Browser refreshed quiz" }],
+        summary: new Map(), status: "ready", asOf: OBSERVED,
+        sourceObservedAt: OBSERVED, sourceFreshnessKind: "provider-observed",
+        kindObservedAt: { quiz: OBSERVED }, retry: vi.fn(),
+      });
+      await act(async () => root.render(createElement(TonightClient, props)));
+      expect(target.textContent).toContain("Browser refreshed quiz");
+      expect(target.textContent).not.toContain("Thursday pub quiz");
+      expect(target.querySelector('[data-testid="brief-prepared-at"] time')?.getAttribute("datetime"))
+        .toBe("2026-10-22T17:00:00.000Z");
+      await act(async () => root.render(createElement(TonightClient, {
+        ...props,
+        initialListings: { ...props.initialListings, renderedAt: NOW + 30 * 60 * 1000 },
+      })));
+      expect(target.querySelector('[data-testid="brief-prepared-at"] time')?.getAttribute("datetime"))
+        .toBe("2026-10-22T17:30:00.000Z");
+      expect(target.textContent).toContain("Browser refreshed quiz");
+    } finally {
+      await act(async () => root.unmount());
+      clock.mockRestore();
+      target.remove();
+    }
+  });
+
   it("passes founder and licensed area photos plus the London fallback to the client", async () => {
     vi.mocked(loadTodayOutAnswer).mockResolvedValue(answer);
     vi.mocked(loadTodayWhatsOnAnswer).mockResolvedValue(whatsOn);

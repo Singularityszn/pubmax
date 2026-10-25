@@ -1,5 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { NextRequest } from "next/server";
+import { resolveRobots } from "next/dist/build/webpack/loaders/metadata/resolve-route-data";
+import { parseRobotsTxt, robotsAllows } from "@/lib/harvest/robots";
 
 // Route modules can run assertServerEnv() at import scope. Homepage is light
 // but keep the house pattern available if a sibling pulls serverEnv later.
@@ -51,6 +53,38 @@ function disallowPaths(policy: ReturnType<typeof robots>): string[] {
     return Array.isArray(rule.disallow) ? rule.disallow : [rule.disallow];
   });
 }
+
+describe("search crawlers use the public/private policy", () => {
+  const searchAgents = ["Googlebot", "Bingbot", "OAI-SearchBot", "Claude-SearchBot", "PerplexityBot"];
+  const publicPaths = ["/", "/about", "/map", "/crawls", "/historic", "/tonight", "/plan", "/pint-index"];
+  const privatePaths = ["/api/plans", "/api/heritage", "/admin", "/messages/inbox", "/profile", "/activity", "/auth/callback", "/p/private-drop", "/rounds/private-code", "/plan/private-id", "/bar-tab/private-id", "/map/arrival"];
+
+  it.each(searchAgents)("lets %s read public documents and public cards, while excluding private paths", (agent) => {
+    vi.stubEnv("VERCEL_ENV", "production");
+    // Exercise Next's emitted robots document with the real parser and path
+    // evaluator. RFC 9309 selects the matching group, or * when absent.
+    const parsed = parseRobotsTxt(resolveRobots(robots()));
+    const selected = parsed.groups.get(agent.toLowerCase()) ?? parsed.groups.get("*");
+    expect(selected).toBeDefined();
+    const rules = { groups: new Map([["*", selected!]]), sitemaps: parsed.sitemaps };
+    for (const path of [...publicPaths, "/api/home-card", "/api/pint-card"]) {
+      expect(robotsAllows(rules, path).allowed, `${agent} ${path}`).toBe(true);
+    }
+    for (const path of [...privatePaths, "/api/plan-card"]) {
+      expect(robotsAllows(rules, path).allowed, `${agent} ${path}`).toBe(false);
+    }
+  });
+
+  it.each(searchAgents)("blocks %s on previews", (agent) => {
+    vi.stubEnv("VERCEL_ENV", "preview");
+    const parsed = parseRobotsTxt(resolveRobots(robots()));
+    const selected = parsed.groups.get(agent.toLowerCase()) ?? parsed.groups.get("*");
+    const rules = { groups: new Map([["*", selected!]]), sitemaps: parsed.sitemaps };
+    for (const path of [...publicPaths, ...privatePaths]) {
+      expect(robotsAllows(rules, path).allowed, `${agent} ${path}`).toBe(false);
+    }
+  });
+});
 
 describe("preview deployments must not be indexable", () => {
   it("serves a crawl-friendly robots policy only on VERCEL_ENV=production", () => {

@@ -149,6 +149,24 @@ describe("landing hero policy", () => {
     expect(stale.standing).toBe("none");
   });
 
+  it("keeps an official menu's publisher link and source-read day without calling it community-confirmed", () => {
+    const evidence = answerEvidenceFor({
+      priceGbp: 6.5,
+      prices: [{
+        app_price_id: "official-menu",
+        pint_name: "PRAVHA",
+        price_gbp: 6.5,
+        pub_url: "https://pub.example/drinks",
+        scraped_at_values: "2026-07-04T12:00:00+01:00",
+      }],
+    }, NOW);
+    expect(evidence).toEqual({
+      publisher: { label: "pub.example", url: "https://pub.example/drinks" },
+      standing: "listed",
+      observedOn: "2026-07-04",
+    });
+  });
+
   it("dates a listing by the day its own row was read, never by a later re-collection", () => {
     // Two pubs in one bundle: one the latest re-read restated, one it did not.
     // Each keeps the day its own row was read at the source.

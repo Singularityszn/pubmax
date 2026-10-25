@@ -27,6 +27,7 @@ import NowSegment from "@/components/nav/NowSegment";
 import SiteNav from "@/components/nav/SiteNav";
 import PriceBadge from "@/components/PriceBadge";
 import Screen from "@/components/ui/screen";
+import PreparedBriefStamp from "@/components/seo/PreparedBriefStamp";
 import {
   buildDayGreeting,
   picksCardStatus,
@@ -547,6 +548,7 @@ export default function TodayClient({
           </Link>
         }
       >
+      <PreparedBriefStamp preparedAt={nowIso} />
       <div className="todayStack">
         <div className="todayBriefColumn">
           <WeatherCard weather={brief.weather} />

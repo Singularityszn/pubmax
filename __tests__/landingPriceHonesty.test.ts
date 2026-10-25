@@ -104,13 +104,13 @@ describe("landing price honesty", () => {
     expect(badge?.classList.contains(`priceBand-${band}`)).toBe(true);
     const publisher = rendered.querySelector<HTMLAnchorElement>('.lpPubCard a[href="https://example.com/menu"]');
     expect(publisher?.textContent).toBe("Pub menu");
-    expect(publisher?.parentElement?.textContent).toContain("Listed by Pub menu, collected 2 October 2026.");
+    expect(publisher?.parentElement?.textContent).toContain("Listed by Pub menu, source read 2 October 2026.");
     expect(rendered.body.textContent).not.toContain("No publisher recorded");
   });
 
   it("prints the missing publisher and date honestly", () => {
     const rendered = renderCard({ publisher: null, observedOn: null });
-    expect(rendered.body.textContent).toContain("No publisher recorded.");
+    expect(rendered.body.textContent).toContain("No publisher recorded, read day not recorded.");
     expect(rendered.body.textContent).not.toContain("Listed by");
     expect(rendered.body.textContent).not.toContain("collected");
     expect(rendered.querySelector('a[href="https://example.com/menu"]')).toBeNull();

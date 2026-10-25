@@ -7,10 +7,18 @@ import { metadata as crawlsMetadata } from "@/app/crawls/page";
 import { metadata as mapMetadata } from "@/app/map/page";
 import { metadata as palMetadata } from "@/app/pal/page";
 import { metadata as tonightMetadata } from "@/app/tonight/page";
+import { metadata as homeMetadata } from "@/app/page";
 
 // The committed public snapshot is a genuine empty read. A populated fixture
 // is exercised by the admission tests, independently of this display wording.
 describe("the public discovery metadata", () => {
+  it("gives the homepage its own friends-and-planning description in the document head", () => {
+    expect(homeMetadata.title).toBe("London pint prices and pub crawls with friends");
+    expect(homeMetadata.description).toContain("Plan a crawl and share the route with your mates");
+    expect(homeMetadata.openGraph?.description).toBe(homeMetadata.description);
+    expect(homeMetadata.twitter?.description).toBe(homeMetadata.description);
+  });
+
   it("gives Tonight its own canonical and the same poster on both share cards", () => {
     expect(tonightMetadata.title).toBe("Tonight in London");
     expect(tonightMetadata.description).toBe(

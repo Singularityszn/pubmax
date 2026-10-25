@@ -221,6 +221,20 @@ describe("London tonight windowing (04:00 service-day rollback)", () => {
     expect(Date.parse(bounds.end) - Date.parse(bounds.start)).toBe(13 * 60 * 60 * 1000);
   });
 
+  it.each(["2026-10-25T01:30:00+01:00", "2026-10-25T01:30:00+00:00"])("keeps both repeated-hour events in the same service-day window at %s", (instant) => {
+    const now = Date.parse(instant);
+    expect(londonServiceDayBounds(now)).toEqual({
+      start: "2026-10-24T15:00:00.000Z",
+      end: "2026-10-25T04:00:00.000Z",
+    });
+    const rows = [
+      makeRow({ id: "first-0130", startsAt: "2026-10-25T01:30:00+01:00" }),
+      makeRow({ id: "second-0130", startsAt: "2026-10-25T01:30:00+00:00" }),
+      makeRow({ id: "next-day", startsAt: "2026-10-25T04:00:00+00:00" }),
+    ];
+    expect(filterTonight(rows, now).map((row) => row.id)).toEqual(["first-0130", "second-0130"]);
+  });
+
   it("isOnTonight / filterTonight select rows inside the window", () => {
     const now = Date.parse("2026-07-11T20:00:00.000Z");
     const inside = makeRow({ id: "in", startsAt: "2026-07-11T19:30:00+01:00" });
