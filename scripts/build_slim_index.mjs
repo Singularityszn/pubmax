@@ -1021,6 +1021,8 @@ async function main() {
     JSON.parse(await readFile(path.join(ROOT, "data/amenities/london_pub_website_hours_dogs.json"), "utf8")).rows,
   );
   for (const venue of slim) {
+    // Omit the legacy false sport bit to fit dated source tuples within the
+    // unchanged shard ceiling. Explicit negatives stay in liveSportsSource.
     if (!venue.filterHints.amenities.liveSports) delete venue.filterHints.amenities.liveSports;
     const feature = featureHints.get(venue.id);
     if (!feature) continue;

@@ -40,8 +40,8 @@ export function filterMapVenues(
 }
 
 /**
- * UK base pubs carry no accessibility evidence, so an accessibility filter
- * leaves none of them confirmed and the base layer must draw nothing.
+ * UK base pubs carry no sourced feature or accessibility evidence. Those
+ * filters must hide the base layer rather than imply confirmed matches.
  */
 export function mapFiltersSuspendUkBasePubs(filters: Filters): boolean {
   return Boolean(filters.requireBeerGarden || filters.requireOutdoorSeating || filters.requireLiveSports || filters.requireDogFriendly || filters.requireDarts || filters.requirePool) || anyAccessibilityFilterActive({
