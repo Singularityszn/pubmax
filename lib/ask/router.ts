@@ -8,7 +8,7 @@ import type { AskToolName } from "@/lib/ask/types";
 import type { DrinkCategory } from "@/lib/drinks";
 import { isKnownAskPlacePhrase } from "@/lib/ask/placePhrases";
 import { palAsksForVenueDiscovery } from "@/lib/palMapAsk";
-import { defaultKnownAreas, deterministicAreaInText, extractExplicitBudget } from "@/lib/concierge/intentPolicy";
+import { defaultKnownAreas, deterministicAreaInText, extractExplicitBudget, withoutExcludedPlaces } from "@/lib/concierge/intentPolicy";
 
 export type RoutedToolCall = {
   name: AskToolName;
@@ -138,7 +138,7 @@ export function resolveAskJourney(query: string): { from?: string; to: string } 
 const PRICE_PRESENTATION_CLAUSE_RE = /^(?:please\s+)?(?:show|include|give)(?:\s+me)?\s+(?:the\s+)?(?:sources?|source dates?|recorded dates?|map)(?:\s+and\s+(?:the\s+)?(?:sources?|source dates?|recorded dates?|map))*$/i;
 
 function priceQuestion(query: string): string {
-  const clauses = askRequestClauses(query).flatMap((clause) => clause.split(/(?<=[.!?])\s+(?=(?:please\s+)?(?:show|include|give)\s)/i)).map((clause) =>
+  const clauses = askRequestClauses(withoutExcludedPlaces(query)).flatMap((clause) => clause.split(/(?<=[.!?])\s+(?=(?:please\s+)?(?:show|include|give)\s)/i)).map((clause) =>
     stripTrailingQualifiers(stripTrailingPunctuation(clause)),
   );
   const priceClauses = clauses.filter((clause) =>
@@ -316,7 +316,7 @@ function stripTrailingQualifiers(phrase: string): string {
 
 /** "in X" at the end of an ask: a PLACE, never a pub. */
 function extractInPlace(query: string): string | null {
-  const match = stripTrailingPunctuation(query).match(/\bin\s+([A-Za-z][A-Za-z\s'-]{1,40})$/i);
+  const match = stripTrailingPunctuation(withoutExcludedPlaces(query)).match(/\bin\s+([A-Za-z][A-Za-z\s'-]{1,40})$/i);
   const place = match?.[1] ? stripTrailingPunctuation(stripTrailingQualifiers(match[1])) : "";
   return place || null;
 }
@@ -329,7 +329,7 @@ function extractInPlace(query: string): string | null {
  * happens to share the name.
  */
 function extractNearAnchorName(query: string): string | null {
-  const match = stripTrailingPunctuation(query).match(
+  const match = stripTrailingPunctuation(withoutExcludedPlaces(query)).match(
     /\b(?:near|nearby|around|round|close to|closest to)\s+([A-Za-z][A-Za-z\s'-]{1,40})$/i,
   );
   const place = match?.[1] ? stripTrailingPunctuation(stripTrailingQualifiers(match[1])) : "";
@@ -370,11 +370,8 @@ export function socialTurnKind(query: string): "greeting" | "thanks" | null {
  */
 export const SAME_AREA_REFERENCE_RE = /(?:\b(?:in|near|around)\s+)?\b(?:the\s+)?same\s+(?:area|patch|neighbou?rhood)\b/i;
 
-/** An excluded place ("not in Soho") is never the place the ask is about. */
-const EXCLUDED_PLACE_RE = /,?\s*\b(?:but\s+)?not\s+(?:in|near|around)\s+[^,.!?;]+?(?=\s+(?:but|and|or)\b|[,.!?;]|$)/giu;
-
 export function unambiguousAskArea(text: string): string | null | undefined {
-  text = text.replace(SAME_AREA_REFERENCE_RE, "").replace(EXCLUDED_PLACE_RE, "");
+  text = withoutExcludedPlaces(text.replace(SAME_AREA_REFERENCE_RE, ""));
   const knownAreas = defaultKnownAreas();
   const area = deterministicAreaInText(text, knownAreas);
   if (!area) return undefined;

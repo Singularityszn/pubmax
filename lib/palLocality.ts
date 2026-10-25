@@ -8,6 +8,7 @@
 
 import { LONDON_BOROUGHS } from "@/lib/boroughs";
 import { normalizeSearchText } from "@/lib/textSlug";
+import { withoutExcludedPlaces } from "@/lib/concierge/intentPolicy";
 import {
   NIGHT_PATCHES,
   resolveNightPatch,
@@ -161,6 +162,7 @@ export function resolvePalLocality(
   query: string,
   remembered: RememberedArea | null,
 ): PalLocality {
+  query = withoutExcludedPlaces(query);
   const fromQuery = areaFromQuery(query);
   if (fromQuery) {
     return { scope: "query", area: fromQuery, label: labelFor(fromQuery), grounded: true };

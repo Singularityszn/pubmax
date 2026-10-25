@@ -125,6 +125,13 @@ export function extractExplicitBudget(text: string): number | undefined {
 /** A preposition directly before an area: "in Shoreditch", "near Soho". */
 const AREA_PREPOSITION_BEFORE = /\b(?:in|near|around|at)\s+$/iu;
 
+const EXCLUDED_PLACE_RE = /,?\s*\b(?:but\s+)?not\s+(?:in|near|around)\s+[^,.!?;]+?(?:\s+but(?=\s+(?:in|near|around)\b)|(?=\s+(?:but|and|or)\b|[,.!?;]|$))/giu;
+
+/** An excluded place ("not in Soho") is never the place the ask is about. */
+export function withoutExcludedPlaces(text: string): string {
+  return text.replace(EXCLUDED_PLACE_RE, "");
+}
+
 /**
  * Nouns a bare area names a night out with: "a Shoreditch crawl", "Soho pubs",
  * "a Shoreditch pub-crawl". A singular "pub" or "bar" is left out, because
@@ -159,7 +166,8 @@ export function deterministicAreaInText(
   text: string,
   knownAreas: readonly string[],
 ): string | undefined {
-  return firstKnownAreaNamedIn(text, knownAreas) ?? extractAreaPhrase(text);
+  const positive = withoutExcludedPlaces(text);
+  return firstKnownAreaNamedIn(positive, knownAreas) ?? extractAreaPhrase(positive);
 }
 
 function firstKnownAreaNamedIn(
@@ -202,6 +210,7 @@ function firstKnownAreaNamedIn(
  * "King's Cross" wins over a shorter neighbour.
  */
 export function areaCandidatesInText(text: string, knownAreas: readonly string[]): string[] {
+  text = withoutExcludedPlaces(text);
   const hits: string[] = [];
   const seen = new Set<string>();
   const sorted = [...knownAreas].sort((a, b) => b.length - a.length);
@@ -286,7 +295,7 @@ function pickedChoice(
 export function areaVerbatimInText(originalText: string, area: string): boolean {
   const needle = area.trim();
   if (!needle) return false;
-  return originalText.toLocaleLowerCase("en-GB").includes(needle.toLocaleLowerCase("en-GB"));
+  return withoutExcludedPlaces(originalText).toLocaleLowerCase("en-GB").includes(needle.toLocaleLowerCase("en-GB"));
 }
 
 export type ConciergeJudgmentAnswers = {

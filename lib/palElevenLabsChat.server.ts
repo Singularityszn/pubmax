@@ -187,13 +187,14 @@ export async function preparePalElevenLabsChatTurn(
 
 /** A cardinal word: zero to nineteen, the tens, and the scale words. */
 const CARDINAL_WORD = "(?:zero|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|thirteen|fourteen|fifteen|sixteen|seventeen|eighteen|nineteen|twenty|thirty|forty|fifty|sixty|seventy|eighty|ninety|hundred|thousand|million)";
-const CARDINAL_TOKEN = `(?:\\d+(?:[.,]\\d+)*|${CARDINAL_WORD})`;
+const CARDINAL_TOKEN = `(?:\\d+(?:[.,/]\\d+)*|${CARDINAL_WORD})`;
+const COUNT_GAP_STOP = `(?:${CARDINAL_WORD}|us|people|persons?|friends?|mates?|guys|adults|pax|am|pm|o['’]clock|hours?|hrs?|minutes?|mins?|pounds?|quid|pence|gbp|each|per|in|at|near|around|by|with|for|from|to|then|but|not|than|stops?|pubs?|bars?|venues?|places?)\\b`;
 /**
  * A stated number of stops or pubs, read whole so "twenty-three" or "2.3" is
  * never taken for its tail. Party size ("for four of us") is not one.
  */
 const PLAN_STOP_COUNT_RE = new RegExp(
-  `\\b(${CARDINAL_TOKEN}(?:[-\\s]+(?:and[-\\s]+)?${CARDINAL_TOKEN})*)[-\\s]+(?:(?:good|quiet|lively|cosy|cozy|cheap|historic|local|nearby|listed|great|best)\\s+)*(?:stops?|pubs?|bars?|venues?|places?)\\b`,
+  `(?<![£$€]\\s*|\\d[.,/])\\b(${CARDINAL_TOKEN}(?:[-\\s]+(?:(?:and|or|to)[-\\s]+)?(?:${CARDINAL_TOKEN}|a[-\\s]+half))*)[-\\s]+(?:(?!${COUNT_GAP_STOP})[a-z][a-z'’]*[-\\s]+)*(?:stops?|pubs?|bars?|venues?|places?)\\b`,
   "gi",
 );
 

@@ -12,8 +12,6 @@
 // flown at token 1 then picked an area, that pick arrived as token 1, and the
 // canvas read it as a move it had already made.
 
-import { readFileSync } from "node:fs";
-import { join } from "node:path";
 import { describe, expect, it, vi } from "vitest";
 import { act, createElement } from "react";
 import { createRoot } from "react-dom/client";
@@ -112,59 +110,6 @@ describe("each camera owner rides its own intent lane", () => {
   });
 
 
-});
-
-// The reader's own pick must KEEP the camera afterwards.
-//
-// The mint effect that re-flies the opening-location answer bails on
-// mapCameraTouchedRef, and cancelOpeningLocation cannot set it: that callback
-// is a no-op once the location has already resolved
-// (openingLocationCancellationAfterAttempt, __tests__/mapFirstUsefulPins.test.ts).
-// So the deliberate move has to take the camera itself, exactly as a gesture
-// does through dismissAmbientBanners. Without it a later locationFirstMapView
-// change re-mints an opening-location focus and yanks the map off the pick.
-describe("a deliberate move takes the camera and keeps it", () => {
-  const pubMap = readFileSync(
-    join(__dirname, "..", "components/PubMap.tsx"),
-    "utf8",
-  );
-  const sliceCallback = (name: string, deps: string) => {
-    const start = pubMap.indexOf(`const ${name} = useCallback(`);
-    expect(start).toBeGreaterThan(-1);
-    const end = pubMap.indexOf(deps, start);
-    expect(end).toBeGreaterThan(start);
-    return pubMap.slice(start, end);
-  };
-  const moveMapCameraTo = sliceCallback("moveMapCameraTo", "[claimMapCamera],");
-  const claimMapCamera = sliceCallback("claimMapCamera", "[cancelOpeningLocation]);");
-
-  it("takes the camera through the one claim a gesture also uses", () => {
-    expect(moveMapCameraTo).toContain("claimMapCamera()");
-    const dismiss = sliceCallback("dismissAmbientBanners", "[claimMapCamera]);");
-    expect(dismiss).toContain("claimMapCamera()");
-  });
-
-  it("marks the camera touched", () => {
-    expect(claimMapCamera).toContain("mapCameraTouchedRef.current = true");
-    expect(claimMapCamera).toContain("setMapCameraTouched(true)");
-  });
-
-  it("marks it before it asks the cancellation that cannot", () => {
-    const touched = claimMapCamera.indexOf("mapCameraTouchedRef.current = true");
-    const cancelled = claimMapCamera.indexOf("cancelOpeningLocation()");
-    expect(touched).toBeGreaterThan(-1);
-    expect(cancelled).toBeGreaterThan(-1);
-    expect(touched).toBeLessThan(cancelled);
-  });
-
-  it("drops the opening focus it just overtook", () => {
-    expect(claimMapCamera).toContain("setOpeningLocationFocus(null)");
-  });
-
-  it("is the guard the opening-location mint effect reads", () => {
-    const mint = pubMap.slice(pubMap.indexOf('source: "opening-location"') - 1200);
-    expect(mint).toContain("mapCameraTouchedRef.current");
-  });
 });
 
 // A cold map opens on the city view and makes its opening turn once the

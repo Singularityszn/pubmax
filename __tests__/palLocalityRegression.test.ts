@@ -250,6 +250,20 @@ describe("fixed three-stop plan admission", () => {
     "Plan a crawl in Soho with four\nstops",
     "Plan a crawl in Soho with twenty\nthree stops",
     "Plan a crawl in Soho with 4\tstops",
+    "Plan a crawl in Soho with four garden pubs",
+    "Plan a crawl in Soho with four dog-friendly garden pubs",
+    "Plan a crawl in Soho with four of the best pubs",
+    "Plan a crawl in Soho with four really nice old riverside craft beer and cider pubs",
+    "Plan a crawl in Soho with four\ngarden pubs",
+    "Plan a crawl in Soho with 4 garden pubs",
+    "Plan a crawl in Soho with twenty-three garden pubs",
+    "Plan a crawl in Soho for four of us with two garden pubs",
+    "Plan a crawl in Soho with 2/3 pubs",
+    "Plan a crawl in Soho with 2 to 3 pubs",
+    "Plan a crawl in Soho with two or three pubs",
+    "Plan a crawl in Soho with three and a half pubs",
+    "Plan a crawl in Soho with three-and-a-half garden pubs",
+    "Plan a crawl in Soho with four exceptionally welcoming dog-friendly riverside garden pubs",
   ])("keeps an explicit non-three stop count on the provider path: %s", async (query) => {
     expect(palChatRecordQuery(query)).toBeNull();
     expect(palChatRecordQuery(query.replace(" in Soho", " in the same area"), [{ role: "user", content: SOHO }])).toBeNull();
@@ -261,7 +275,16 @@ describe("fixed three-stop plan admission", () => {
     expect(deniedFetch).not.toHaveBeenCalled();
   });
 
-  it.each(["A three-stop pub crawl in Soho", "A pub crawl in Soho for three", "Plan a crawl in Soho for four of us"])(
+  it.each([
+    "A three-stop pub crawl in Soho",
+    "A pub crawl in Soho for three",
+    "Plan a crawl in Soho for four of us",
+    "Plan a crawl in Soho for four of us with three garden pubs",
+    "Plan a three-stop crawl in Soho for 6 people",
+    "Plan a crawl in Soho at 8 pm with three garden pubs",
+    "Plan a crawl in Soho with three exceptionally welcoming dog-friendly riverside garden pubs",
+    "Plan a crawl in Soho for 2 to 4 of us with three garden pubs",
+  ])(
     "keeps the fixed three-stop plan local, with party size apart from stops: %s", async (query) => {
       expect(palChatRecordQuery(query)).toBe(query);
       const response = await ask(query);
@@ -271,4 +294,39 @@ describe("fixed three-stop plan admission", () => {
       expect(deniedFetch).not.toHaveBeenCalled();
     },
   );
+});
+
+describe("owned-history crawl counts against the fixed three-stop plan", () => {
+  it.each([
+    ["Plan a crawl in the same area with four garden pubs", false],
+    ["Plan a crawl in the same area with four of the best pubs", false],
+    ["Plan a crawl in the same area for four of us with two cosy pubs", false],
+    ["Plan a crawl in the same area with 2/3 pubs", false],
+    ["Plan a crawl in the same area with three and a half pubs", false],
+    ["Plan a crawl in the same area with four exceptionally welcoming dog-friendly riverside garden pubs", false],
+    ["Plan a crawl in the same area with three garden pubs", true],
+    ["Plan a crawl in the same area for four of us", true],
+  ] as const)("%s keeps the fixed three-stop plan=%s", async (query, fixedThree) => {
+    await registerPubPalToolTurn(THREAD, { query: SOHO, cityId: "london", ownerId: OWNER, turns: [] });
+    const context = await preparePalElevenLabsChatTurn({ query, ownerId: OWNER, threadId: THREAD });
+    expect(palChatRecordQuery(query, context.prior.turns)).toBe(fixedThree ? query.replace("in the same area", "in Soho") : null);
+    const response = await ask(query, THREAD);
+    if (fixedThree) {
+      expect(response.status).toBe(200);
+      const body = await response.json() as {
+        toolsUsed: string[];
+        cards: Array<{ venueId: string }>;
+        proposals: Array<{ kind: string; stopIds?: string[] }>;
+      };
+      expect(body.toolsUsed).toEqual(["propose_plan"]);
+      expect(body.cards).toHaveLength(3);
+      expect(body.proposals.find((proposal) => proposal.kind === "draft_plan")?.stopIds).toHaveLength(3);
+      expect(paidSpendBudgetRefusal).not.toHaveBeenCalled();
+    } else {
+      expect(response.status).toBe(429);
+      expect(await response.json()).toEqual({ error: "Paid budget spent" });
+      expect(paidSpendBudgetRefusal).toHaveBeenCalledOnce();
+    }
+    expect(deniedFetch).not.toHaveBeenCalled();
+  });
 });

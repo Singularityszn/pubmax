@@ -4445,6 +4445,7 @@ export default function PubMap({
   // mobile active-search chip so a restored (or typed) query is never an
   // invisible filter. Leaves every other filter and the camera untouched.
   const changeMapSearchQuery = useCallback((query: string) => {
+    if (query.trim()) setNearbyMapResult(null);
     setSearchPickedVenueId("");
     searchQueryCameraOwnedRef.current = null;
     setSearchAreaNewsArea(null);
