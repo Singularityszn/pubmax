@@ -15,10 +15,9 @@ import {
 /**
  * The ONE way a route's cost is measured in this suite.
  *
- * Two specs read these numbers - e2e/performance-budget.spec.ts, which enforces
- * perf/route-budgets.json, and e2e/ux-lane-perf-verification.spec.ts, which
- * reports the same routes plus LCP and CLS - and two figures are only
- * comparable when they were taken the same way. So the method lives here once:
+ * The budget, A/B comparison and UX report specs share these measurements.
+ * docs/PERFORMANCE_BUDGETS.md owns their method and comparison rules.
+ * Two figures are comparable only when measured the same way. This helper owns
  * the tracked warm-up and median runs, the CPU throttle, the third-party block,
  * and the app-defined cut for what counts as "before interactive".
  *

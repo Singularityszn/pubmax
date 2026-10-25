@@ -30,7 +30,7 @@ import "./landingLondonCollage.css";
 
 const WIDEST = lastOf(LONDON_COLLAGE_WIDTHS);
 
-/** Phone strip tile width, tablet hero span, then the widest desktop span (2 of 5 columns). */
+/** Match the strip width and the widest grid tile to avoid oversized downloads. */
 const COLLAGE_SIZES =
   "(max-width: 640px) min(72vw, 280px), (max-width: 1023px) 50vw, min(50vw, 600px)";
 

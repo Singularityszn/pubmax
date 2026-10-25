@@ -170,9 +170,8 @@ export function formatPintDatasetSnapshot(): string {
 }
 
 /**
- * "a snapshot from 16 July 2026" — the same fact inside a sentence, kept apart
- * from the caption above so a surface never has to lowercase somebody else's
- * sentence to use it.
+ * The collection date inside a sentence. This stays separate from the caption
+ * so callers do not need to change its wording or case.
  */
 export function formatPintDatasetAsOf(): string {
   return `with records from ${formatObservedDate(PINT_DATASET_OBSERVED_AT)}`;

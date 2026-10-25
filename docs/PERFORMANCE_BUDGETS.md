@@ -632,6 +632,14 @@ instead of quietly reading as a heavier route.
 
 ### What the sweep does NOT reset, and why route order matters
 
+`preparePerfPage` blocks third-party requests through browser-native
+`Network.setBlockedURLs`. Playwright request routing disables the HTTP cache,
+so it cannot provide that block for warm-cache measurements.
+Every measurement context blocks service workers, including the budget, A/B
+and UX report contexts. This keeps worker caching outside the measurements.
+The cache-isolation regression in `e2e/performance-budget.spec.ts` checks both
+rules through actual requests and browser cache behaviour.
+
 `resetPerfState` clears cookies, `localStorage` and `sessionStorage` before every
 route, because one sweep shares one page and a route was otherwise measured with
 whatever the last one stored. It does **not** clear the HTTP cache.

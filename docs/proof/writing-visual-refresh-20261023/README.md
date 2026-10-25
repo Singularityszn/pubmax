@@ -6,9 +6,60 @@ required reconciliation for homepage copy, Tonight credits, area availability
 and About schema. The 25 October receipt below records the reconciled base.
 This change does not deploy production.
 
-## Production acceptance on 25 October 2026
+## Current run receipts on 25 October 2026
 
-These receipts validate product code `aacd8818884146464d57d2818158929535d61ff0`
+Run `01M5R6J0E379W9P7JHP7CETH8F` tested
+`58d4c36eca0d5eac525ba7b60218b0f02a74dd40` against
+`0bb6fa2e4c0c04ac26db4a1b95305f2d47fb0559`.
+Product source is unchanged from `aacd8818884146464d57d2818158929535d61ff0`.
+The [current Test report](production-acceptance-01M5R6J0E379W9P7JHP7CETH8F.json)
+records a fresh production build and runtime checks after the notification correction.
+The earlier failed runs below remain historical receipts.
+
+The Test report records these results:
+
+| Check | Result |
+| --- | --- |
+| Writing, navigation, photography and film regressions | 31 passed |
+| Corrected supplemental scenarios | 17 passed |
+| Ten page families at three widths in both themes | 60 passed |
+| Historic keyboard controls at 320, 390, 768 and 1440px with 200% text | 8 passed across both themes |
+| Pub Pal layout, onboarding and draft restoration | 6 passed |
+| Pub Pal voice and memory choices | 2 passed across both themes |
+| Today and Tonight sourced fallback parity | Passed |
+| Settled Map and Plan controls, expired Discover coverage and About disclosures | Passed |
+| OIDC credential precedence, environment fallback and missing-credential refusal | Passed |
+| Served photograph formats, dimensions and private metadata | Passed |
+| Focused executable unit tests | 122 passed |
+
+The [current page matrix](production-matrix-01M5R6J0E379W9P7JHP7CETH8F.json)
+records each route, width and theme.
+The [current performance samples](production-performance-01M5R6J0E379W9P7JHP7CETH8F.json)
+passed unchanged ceilings for Home, Pub Pal and About.
+Their measured largest contentful paint values were 340ms, 328ms and 308ms, respectively.
+
+The browser was Playwright 1.64.0 with Chromium 156.0.8078.4, revision 1248.
+It used an isolated local production build and disposable keyless stores.
+Physical devices, real accounts and hosted OIDC issuance remain untested.
+Three discarded probe attempts remain disclosed in the Test report.
+The corrected probes passed without product changes.
+
+The outer executor supplied a passing `npm run verify:no-mistakes:changed` baseline.
+The Test phase did not repeat full verification or static checks.
+The 524.1-second full verification receipt below belongs to the previous run.
+It is not a receipt for this run.
+
+The report records awaited command sessions and intentional server teardown.
+Its final process snapshot contained only the native agent and its parent.
+That snapshot precedes agent exit. The outer executor owns the completion verdict.
+This document does not claim completed hosted review, CI, a merge or a deployment.
+Raw logs and fresh captures remain under
+`/Users/karanmanoharan/.no-mistakes/evidence/01M5R6J0E379W9P7JHP7CETH8F/`.
+The copied JSON receipts retain their original contents and evidence filenames.
+
+## Historical production acceptance on 25 October 2026
+
+Run `01M5R541JEM1F916H92JH55M2M` tested product code `aacd8818884146464d57d2818158929535d61ff0`
 against `0bb6fa2e4c0c04ac26db4a1b95305f2d47fb0559`.
 The earlier overlapping PRs are included in that base.
 Both original and rebased refresh histories remain preserved.
@@ -51,16 +102,16 @@ The gate still rejected native Test completion after these product checks passed
 The process trace identified the desktop turn-ended notification helper at agent exit.
 The supported headless-worker override now disables that optional notification.
 All validation and process-completion checks remain enabled.
-A new complete gate run must pass before this change is ready for review.
-This receipt does not claim a completed gate, hosted review or CI result.
+The current run above supersedes the pending runtime checks for this historical head.
+This failed run does not establish a completed gate, hosted review or CI result.
 
-### Current page captures
+### Historical page captures at `aacd88188`
 
 The initial before captures below use `1dd819f3c`.
-The current captures use `aacd88188`, which also includes later main changes.
+These production captures use `aacd88188`, which also includes later main changes.
 They do not attribute every visible difference to this refresh.
 
-| Page | Starting capture | Current production capture |
+| Page | Starting capture | Production capture at `aacd88188` |
 | --- | --- | --- |
 | Home | ![Home before](before-home-phone.png) | ![Home after](production-home-phone.png) |
 | About | ![About before](before-about-phone.png) | ![About after](production-about-phone.png) |
@@ -90,9 +141,9 @@ The after capture includes the selected Southwark state from the keyboard check.
 
 This round starts at `1b66ce553f9b1e42842fc155e493d0c1b944a597`, against
 base `0bb6fa2e4c0c04ac26db4a1b95305f2d47fb0559`.
-The changes remain uncommitted for the outer executor.
-All browser, performance and full-suite receipts below describe earlier heads.
-They do not validate this round.
+The changes were uncommitted when this historical round was recorded.
+The current run above supplies later runtime evidence.
+The missing-browser observations below describe this round only.
 
 ### Navigation spacing
 
@@ -104,8 +155,8 @@ Destinations, accessible names, safe areas and the equal-column highlight remain
 The browser regression measures each rendered text line against its control
 and every sibling label. It also checks text scaling, touch targets, destinations
 and page clearance at 320px and 390px, in both themes, at 100% and 200% text.
-The production-page browser checks remain unrun in this round.
-Playwright cannot start because Chromium headless shell revision 1248 is absent.
+The production-page browser checks did not run in this round.
+Chromium headless shell revision 1248 was absent then.
 No browser was installed and no replacement executable was searched for.
 The earlier 9.59px overlap remains historical failure evidence.
 This round does not claim a fresh visible reproduction or a browser pass.
@@ -123,7 +174,7 @@ The composition regression renders the actual async page and checks its output.
 It checks Southwark's credit, place, alt text, formats, dimensions and priority.
 It also checks the licensed Camden path and the London fallback.
 A separate browser regression checks the Southwark image actually decodes.
-That browser regression remains unrun because Chromium is absent.
+That browser regression did not run in this round because Chromium was absent.
 
 ### Dependency repair
 
@@ -149,7 +200,7 @@ Physical-device and real-account coverage remain unverified.
 
 ## Historical warm-cache test correction
 
-The latest targeted checks pass all existing ceilings for Home, Pub Pal and About.
+This historical correction passed all existing ceilings for Home, Pub Pal and About.
 Playwright routing disabled the HTTP cache, so discarded warm-up loads could not warm the static assets.
 The measurement helper now uses browser-native blocking for third-party requests.
 It preserves the HTTP cache, service-worker isolation, CPU throttle, network profile and sample counts.
@@ -201,7 +252,7 @@ The selected robin WebP falls from 21,724 to 8,422 bytes. Its decoded pixel coun
 All 28 added renditions decode at 256 by 256 pixels without camera metadata.
 Larger renditions, dimensions, artwork, crops and motion keep their existing behavior.
 
-Current public captures show [Pub Pal at 390 by 844 pixels](gate-pal-phone.png) and [Discover at 1440 by 900 pixels](gate-discover-desktop.png).
+Historical public captures from this round show [Pub Pal at 390 by 844 pixels](gate-pal-phone.png) and [Discover at 1440 by 900 pixels](gate-discover-desktop.png).
 Both captures use Chromium, the light theme and the initial public state.
 
 Focused verification passed 64 unit tests, 11 layout and contrast checks, and the service-worker isolation regression.
@@ -293,9 +344,11 @@ without a copy change. Inventory coverage does not mean browser verification.
 These entries record treatment and evidence limits for the refresh. Real
 signed-in backend states and dynamic URLs remain outside the browser proof.
 
-## Evidence
+## Historical evidence from the original refresh
 
-Matched baseline and final captures are under `artifacts/writing-refresh/`, with
+These captures predate the rebase and later gate corrections.
+They do not validate the current head.
+Matched baseline and original refresh captures are under `artifacts/writing-refresh/`, with
 seven page families at 390, 768 and 1440 pixels in both themes. The baseline and
 final builds use the same Playwright environment on private ports 3199 and 3198.
 Earlier development captures remain diagnostic only. Both builds use test
@@ -311,7 +364,7 @@ provider configuration, not a real signed-in account.
 
 ![Optional London film with a static poster and playback button](film-desktop.png)
 
-The final production build passed. Nine additional accessibility, keyboard and
+The original production build passed. Nine additional accessibility, keyboard and
 reduced-motion checks passed. The focused Chromium run passed all 32
 checks across the new journal/film suite and the existing homepage, photography
 and Pub Pal layout suites. It covers 390, 768 and 1440 pixels in light and dark,
@@ -343,7 +396,7 @@ poster. No video element or media request exists before Play. Playback has
 native controls, place captions, keyboard focus and an error retry. Reduced
 motion keeps the poster static until the reader requests playback.
 
-## Repository verification
+## Historical repository verification on 23 October 2026
 
 `PUBMAX_VERIFY_COMMITTED_DATA=1 NEXT_PUBLIC_SW_VERSION=local npm run verify`
 passed on 23 October 2026. The coverage run passed 43,521 tests in 2,104 files,
@@ -398,7 +451,7 @@ Open planner. The destination and eligibility rules are unchanged.
 - [x] Separate copy/layout and photography/film in distinct commits.
 - [x] Include requested playback, reserved media dimensions and failure recovery.
 - [x] Complete the performance comparison and scoped budget checks.
-- [x] Complete final repository verification.
+- [x] Record the historical repository verification receipts above.
 - [ ] Complete the required publishing gate and hosted review.
 
 Real account sessions, physical devices and assistive-technology software were
