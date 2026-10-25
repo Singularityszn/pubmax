@@ -667,6 +667,7 @@ export type TonightProvenanceCredits = {
   out: string | null;
   /** False when What's-On could not be dated. */
   whatsOnDated: boolean;
+  /** Show a missing-date notice without mistaking stale-only exclusions for missing evidence. */
   whatsOnUndated: boolean;
   /** False when Out could not be dated. */
   outDated: boolean;

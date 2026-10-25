@@ -1,11 +1,8 @@
 "use client";
 
-// The credit lines under the Tonight heading, lifted out of TonightClient whole.
-//
-// Each lane is credited and dated by its OWN read (see tonightProvenanceCredits),
-// so this renders two independent pairs: the credit itself, and the plain
-// sentence a lane gets when it could not be dated at all. Presentation only —
-// every decision is already made by the credits it is handed.
+// Each feed uses its own source evidence. A failed Out read must not suppress
+// known What's-On exclusions or receive successful-read credits.
+// tonightProvenanceCredits decides which dates and exclusions apply.
 
 import type { TonightProvenanceCredits } from "@/lib/tonightOutListings";
 

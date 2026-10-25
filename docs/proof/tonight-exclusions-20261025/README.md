@@ -9,8 +9,7 @@ All browser non-GET requests were blocked before navigation.
 The source bundle carries Cask's 25 October music listing with a 7 October source
 check. The 24-hour freshness rule excludes that listing in both versions.
 The changed page says why the listing is hidden. It no longer describes that
-old recorded check as an absent check. A displayed listing with an unknown
-source date keeps its missing-date message beside unrelated stale exclusions.
+old recorded check as an absent check.
 
 | Before | After, desktop | After, mobile |
 | --- | --- | --- |
@@ -36,7 +35,13 @@ The rendered regression fixtures cover a CityMCP food offer without `asOf`
 beside stale Cask music. They also cover duplicate orderings, a displayed Out
 duplicate, and a dated listing beside an unrelated stale exclusion.
 
-This review worktree has no `node_modules`. React, Vitest, Playwright, and
-Next.js are unavailable. The new regressions could not run, and the mixed-feed
-desktop and mobile screenshots could not be captured. The screenshots above
-remain historical stale-only evidence. They do not prove the review correction.
+The later `tonightExclusionsClient` fixtures render `TonightClient` with stale
+Cask listings beside failed, degraded, or pending Out reads and unavailable venue matching.
+The [browser regression](../../../e2e/tonight-exclusions.spec.ts) exercises the
+page's real fetch hooks at desktop and mobile widths with intercepted responses.
+These fixtures do not establish live provider availability or a hosted preview's status.
+
+During the first review, the worktree lacked dependencies. That review could
+not run its new regressions or capture mixed-feed screenshots. The screenshots
+above remain historical stale-only evidence. They do not prove the later review
+corrections. The outer run owns subsequent test results and browser evidence.

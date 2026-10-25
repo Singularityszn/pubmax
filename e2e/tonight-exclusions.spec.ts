@@ -21,7 +21,8 @@ const staleLine = "1 pub listing hidden: its source check is older than 24 hours
 
 for (const width of [1440, 390]) {
   for (const scenario of [
-    "stale", "undated deal", "mixed", "24-hour boundary", "past and unmatched",
+    "stale", "invalid row date", "stale with invalid row date", "separate feed dates",
+    "undated deal", "mixed", "24-hour boundary", "past and unmatched",
     "duplicates stale-first", "duplicates fresh-first", "Out duplicate",
     "Out timeout", "Out degraded", "Out unavailable",
   ]) {
@@ -38,6 +39,16 @@ for (const width of [1440, 390]) {
       let rows: WhatsOnRow[] = [cask];
       let kindObservedAt: Record<string, string> = { music: STALE };
       let out: Record<string, unknown> = { ...outReady };
+      if (scenario === "invalid row date" || scenario === "stale with invalid row date") {
+        const undated = { ...cask, id: "undated-music", venueId: "venue-xjf3n0", placeName: "The Dove",
+          title: "Undated concert", observedAt: "not-a-date" };
+        rows = scenario === "invalid row date" ? [undated] : [cask, undated];
+        kindObservedAt = {};
+      }
+      if (scenario === "separate feed dates") {
+        rows = [{ ...cask, observedAt: "2026-10-24T13:00:00Z" }];
+        kindObservedAt = { music: "2026-10-24T13:00:00Z" };
+      }
       if (scenario === "undated deal") {
         rows = [{ ...cask, kind: "deal", title: "Sunday food offer", observedAt: FRESH }];
         kindObservedAt = {};
@@ -84,7 +95,27 @@ for (const width of [1440, 390]) {
       const exclusions = page.locator('[data-tonight-provenance="excluded-whats-on"]');
       const whatsOn = page.locator('[data-tonight-provenance="whats-on"]');
       const outCredit = page.locator('[data-tonight-provenance="out"]');
-      if (scenario.startsWith("duplicates") || scenario === "Out duplicate") {
+      if (scenario === "invalid row date" || scenario === "stale with invalid row date") {
+        // The What's-On wire contract requires a valid observedAt. Malformed
+        // rows are rejected by the real hook before listing credits are built.
+        if (scenario === "invalid row date") {
+          await expect(page.locator('[data-tonight-provenance="undated-whats-on"]'))
+            .toContainText("The what’s-on source check date is not recorded.");
+          await expect(exclusions).toHaveCount(0);
+        } else {
+          await expect(exclusions).toHaveText(staleLine);
+          await expect(page.locator('[data-tonight-provenance="undated-whats-on"]')).toHaveCount(0);
+        }
+        await expect(page.getByRole("heading", { name: "Undated concert", exact: true })).toHaveCount(0);
+        await expect(page.getByRole("heading", { name: "Bluegrass", exact: true })).toHaveCount(0);
+        await expect(outCredit).toHaveText("No pub-matched events via Ticketmaster · Checked 25 Oct");
+      } else if (scenario === "separate feed dates") {
+        await expect(page.getByRole("heading", { name: "Bluegrass", exact: true })).toBeVisible();
+        await expect(whatsOn).toContainText("Checked 24 Oct");
+        await expect(whatsOn).not.toContainText("Checked 25 Oct");
+        await expect(outCredit).toHaveText("No pub-matched events via Ticketmaster · Checked 25 Oct");
+        await expect(exclusions).toHaveCount(0);
+      } else if (scenario.startsWith("duplicates") || scenario === "Out duplicate") {
         const listing = scenario === "Out duplicate"
           ? page.locator('[aria-labelledby="music-tonight-title"]').getByText("Bluegrass", { exact: true })
           : page.getByRole("heading", { name: "Bluegrass", exact: true });
