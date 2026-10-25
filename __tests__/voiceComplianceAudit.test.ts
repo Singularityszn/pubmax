@@ -450,11 +450,11 @@ describe("VOICE.md rule 2 — plumbing words stay off reader surfaces", () => {
     const html = renderToStaticMarkup(createElement(TonightProvenanceLines, {
       provenance: {
         whatsOn: "1 listing · via what’s-on", out: "1 listing via Ticketmaster",
-        whatsOnDated: false, outDated: false,
+        whatsOnDated: false, whatsOnUndated: true, outDated: false,
       },
       nearestSuffix: null,
     }));
-    expect(html.match(/The source check date is not recorded\./gu)).toHaveLength(2);
+    expect(html.match(/The (?:what’s-on|live listings) source check date is not recorded\./gu)).toHaveLength(2);
     expect(html).not.toContain("Freshness unknown");
   });
 
@@ -472,22 +472,22 @@ describe("VOICE.md rule 2 — plumbing words stay off reader surfaces", () => {
     [false, false], [false, true], [true, false], [true, true],
   ])("dates each Tonight lane independently (%s, %s)", (whatsOnDated, outDated) => {
     const html = renderToStaticMarkup(createElement(TonightProvenanceLines, {
-      provenance: { whatsOn: "Pub listings", out: "Music listings", whatsOnDated, outDated },
+      provenance: { whatsOn: "Pub listings", out: "Music listings", whatsOnDated, whatsOnUndated: !whatsOnDated, outDated },
       nearestSuffix: " · nearest Soho first",
     }));
     const lines = html.split("</p>");
     expect(lines[0]).toContain("Pub listings · nearest Soho first");
     expect(lines[1]).toContain("Music listings");
     for (const [index, dated] of [whatsOnDated, outDated].entries()) {
-      if (dated) expect(lines[index]).not.toContain("The source check date is not recorded.");
-      else expect(lines[index]).toContain("The source check date is not recorded.");
+      if (dated) expect(lines[index]).not.toContain("source check date is not recorded.");
+      else expect(lines[index]).toContain("source check date is not recorded.");
     }
     expect(html).not.toContain("Freshness unknown");
   });
 
   it("prints no date notice for absent Tonight lanes", () => {
     const html = renderToStaticMarkup(createElement(TonightProvenanceLines, {
-      provenance: { whatsOn: null, out: null, whatsOnDated: false, outDated: false },
+      provenance: { whatsOn: null, out: null, whatsOnDated: false, whatsOnUndated: false, outDated: false },
       nearestSuffix: null,
     }));
     expect(html).toBe("");

@@ -560,9 +560,10 @@ export default function TonightClient({
         out: outAnswer,
         whatsOnRows: rows,
         whatsOnChecked: checked,
+        now: renderedAt,
         pubSuggestionCount,
       }),
-    [creditedGroups, outAnswer, rows, checked, pubSuggestionCount],
+    [creditedGroups, outAnswer, rows, checked, pubSuggestionCount, renderedAt],
   );
   // A lane that could not answer is named beside the cards, not only in place
   // of them: a degraded Out answer still carrying Ticketmaster rows makes the
@@ -984,12 +985,11 @@ export default function TonightClient({
           they have not read yet. */}
       <div className="tonightHeadCredits">
         <TonightUnmatchedNotice out={outAnswer} />
-        {ready || empty ? (
-          <TonightProvenanceLines
-            provenance={provenance}
-            nearestSuffix={nearestPatchSuffix}
-          />
-        ) : null}
+        <TonightProvenanceLines
+          provenance={provenance}
+          nearestSuffix={nearestPatchSuffix}
+          showCredits={ready || empty}
+        />
         <TonightShareButton />
       </div>
 

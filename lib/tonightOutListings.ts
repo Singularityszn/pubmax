@@ -21,6 +21,7 @@ import { tonightPrimaryRows } from "@/lib/tonightPrimary";
 import {
   WHATS_ON_KINDS,
   coveringObservedAt,
+  dedupeKey,
   dedupeRows,
   filterNotPast,
   musicLaneRows,
@@ -658,12 +659,16 @@ export const TONIGHT_WHATS_ON_CREDIT = "via what’s-on";
 const TONIGHT_QUIET_NIGHT_LABEL = "Quiet night";
 
 export type TonightProvenanceCredits = {
+  /** Why current pub listings from what’s-on did not pass the 24-hour rule. */
+  whatsOnExclusions?: string | null;
   /** Null when only Out contributes displayed groups. */
   whatsOn: string | null;
   /** The Out credit for displayed groups or a successful read with no pub matches. */
   out: string | null;
   /** False when What's-On could not be dated. */
   whatsOnDated: boolean;
+  /** Show a missing-date notice without mistaking stale-only exclusions for missing evidence. */
+  whatsOnUndated: boolean;
   /** False when Out could not be dated. */
   outDated: boolean;
 };
@@ -685,9 +690,11 @@ export function tonightProvenanceCredits(input: {
   whatsOnRows: readonly WhatsOnRow[];
   whatsOnChecked: string | null;
   pubSuggestionCount?: number;
+  now?: number;
 }): TonightProvenanceCredits {
+  const renderedRows = input.renderedGroups.map((group) => group.row);
   const lanes = tonightListingLanes(
-    input.renderedGroups.map((group) => group.row),
+    renderedRows,
     input.out.body?.events ?? [],
   );
   // With nothing from Out, the coverage count is What's-On's claim, empty night
@@ -716,12 +723,42 @@ export function tonightProvenanceCredits(input: {
     emptyOutRead,
   );
   const whatsOnDated = creditsWhatsOn ? input.whatsOnChecked !== null : true;
+  const whatsOnExclusions = tonightFreshnessExclusions(
+    input.whatsOnRows, renderedRows, input.now ?? Date.now(),
+  );
   return {
     whatsOn,
+    whatsOnExclusions,
     out: out.text,
     whatsOnDated,
+    whatsOnUndated: !whatsOnDated && (lanes.whatsOnCount > 0 || !whatsOnExclusions),
     outDated: out.dated,
   };
+}
+
+/** Explain only rows that the source-age rule excludes from this night's pub list. */
+function tonightFreshnessExclusions(
+  rows: readonly WhatsOnRow[], renderedRows: readonly WhatsOnRow[], now: number,
+): string | null {
+  const acceptedKeys = new Set([
+    ...filterTonightPubSurfaceRows(rows, now), ...renderedRows,
+  ].map(dedupeKey));
+  const candidates = dedupeRows(filterNotPast([...rows], now).filter(
+    (row) => tonightRowHasListedPub(row),
+  )).filter((row) => !acceptedKeys.has(dedupeKey(row)));
+  const undated = candidates.filter((row) => !Number.isFinite(Date.parse(row.observedAt))).length;
+  const stale = candidates.length - undated;
+  const lines: string[] = [];
+  for (const [count, singular, plural] of [
+    [stale, "its source check is older than 24 hours", "their source checks are older than 24 hours"],
+    [undated, "its source check date is not recorded", "their source check dates are not recorded"],
+  ] as const) {
+    if (!count) continue;
+    lines.push(count === 1
+      ? `1 pub listing hidden: ${singular}.`
+      : `${count} pub listings hidden: ${plural}.`);
+  }
+  return lines.length ? lines.join(" ") : null;
 }
 
 function outLaneCredit(
