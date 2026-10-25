@@ -6,6 +6,7 @@
 
 import { CONCIERGE_MOODS, type ConciergeIntent, type ConciergeMood } from "@/lib/concierge/rank";
 import { NIGHT_AREAS } from "@/lib/nightAreas";
+import { isKnownAskPlacePhrase } from "@/lib/ask/placePhrases";
 
 /** Keyless cheap-pint cap. Same figure the regex path has always used. */
 export const CHEAP_PINT_GBP = 6;
@@ -122,6 +123,36 @@ export function extractExplicitBudget(text: string): number | undefined {
   return Math.min(15, Math.max(3, n));
 }
 
+const CARDINAL_WORD = "(?:zero|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|thirteen|fourteen|fifteen|sixteen|seventeen|eighteen|nineteen|twenty|thirty|forty|fifty|sixty|seventy|eighty|ninety|hundred|thousand|million)";
+const CARDINAL_TOKEN = `(?:\\d+(?:[.,/]\\d+)*|${CARDINAL_WORD})`;
+const CARDINAL_PHRASE = `${CARDINAL_TOKEN}(?:[-\\s]+(?:(?:and|or|to)[-\\s]+)?(?:${CARDINAL_TOKEN}|a[-\\s]+half))*`;
+const QUANTITY_UNIT = "(?:us|people|persons?|friends?|mates?|guys|adults|pax|am|pm|o['’]clock|hours?|hrs?|minutes?|mins?|pounds?|quid|pence|gbp)";
+const COUNT_GAP_STOP = `(?:${CARDINAL_WORD}|${QUANTITY_UNIT}|each|per|in|at|near|around|by|with|for|from|to|then|but|not|than|stops?|pubs?|bars?|venues?|places?)\\b`;
+const VENUE_QUANTITY_RE = new RegExp(
+  `(?<![£$€]\\s*|\\d[.,/])\\b(${CARDINAL_PHRASE})[-\\s]+(?:(?!${COUNT_GAP_STOP})[a-z][a-z'’]*[-\\s]+)*(?:stops?|pubs?|bars?|venues?|places?)\\b`,
+  "gi",
+);
+const OWNED_QUANTITY_RE = new RegExp(
+  `[£$€]\\s*${CARDINAL_PHRASE}|\\b${CARDINAL_PHRASE}[-\\s]*(?:of|${QUANTITY_UNIT}|(?:a|per)\\s+pint)\\b|\\bfor[-\\s]+${CARDINAL_PHRASE}\\b(?![-\\s]+more\\b)|\\b(?:a|an|the)[-\\s]+(?:(?!${CARDINAL_WORD}\\b)[a-z'’]+[-\\s]+)?one\\b`,
+  "gi",
+);
+const BARE_CARDINAL_RE = new RegExp(`\\b${CARDINAL_TOKEN}\\b`, "i");
+const RELATIVE_QUANTITY_RE = /\b(?:another|more)\b/i;
+const UNSTATED_QUANTITY_RE = new RegExp(`\\ban?[-\\s]+(?:(?!${COUNT_GAP_STOP})[a-z][a-z'’]*[-\\s]+)+(?:stops|pubs|bars|venues|places)\\b`, "i");
+
+export function requestedVenueQuantity(query: string): number | null | undefined {
+  if (RELATIVE_QUANTITY_RE.test(query) || UNSTATED_QUANTITY_RE.test(query)) return null;
+  const counts: string[] = [];
+  const unclaimed = query.replace(VENUE_QUANTITY_RE, (_phrase: string, count: string) => {
+    counts.push(count.toLowerCase());
+    return " ";
+  });
+  if (/\b[a-z]+-(?:stops?|pubs?|bars?|venues?|places?)\b/i.test(unclaimed) || BARE_CARDINAL_RE.test(unclaimed.replace(OWNED_QUANTITY_RE, " "))) return null;
+  if (counts.length !== 1) return counts.length === 0 ? undefined : null;
+  const count = NUMBER_WORDS[counts[0]!] ?? Number(counts[0]);
+  return Number.isInteger(count) && count > 0 ? count : null;
+}
+
 /** A preposition directly before an area: "in Shoreditch", "near Soho". */
 const AREA_PREPOSITION_BEFORE = /\b(?:in|near|around|at)\s+$/iu;
 
@@ -171,7 +202,9 @@ export function deterministicAreaInText(
   knownAreas: readonly string[],
 ): string | undefined {
   const positive = withoutExcludedPlaces(text);
-  return firstKnownAreaNamedIn(positive, knownAreas) ?? extractAreaPhrase(positive);
+  const known = firstKnownAreaNamedIn(positive, knownAreas);
+  const phrase = extractAreaPhrase(positive);
+  return known && !(phrase && isKnownAskPlacePhrase(phrase) && phrase.toLowerCase().startsWith(`${known.toLowerCase()} `)) ? known : phrase;
 }
 
 function firstKnownAreaNamedIn(

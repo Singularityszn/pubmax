@@ -477,3 +477,78 @@ describe("unresolved stop and venue quantities against the fixed three-stop plan
     },
   );
 });
+
+const COMPLETE_QUANTITY_RESIDUALS = [
+  "Find twenty-three pubs in Soho",
+  "Find twenty three pubs in Soho",
+  "Find 2.3 pubs in Soho",
+  "Find three pubs followed by three more in Soho",
+  "Find three pubs alongside three more in Soho",
+  "Find three pubs in Soho then three more",
+  "Find three pubs in Soho plus three more",
+  "Plan a crawl in Soho with three pubs followed by three more",
+  "Plan a crawl in Soho with three pubs alongside three more",
+  "Plan a pub crawl in Soho followed by three more",
+  "Plan a three-stop crawl in Soho plus three more",
+  "Pints under £6.50 in Soho across 23 pubs",
+  "Pints under £6.50 in Soho across twenty-three pubs",
+  "Pints under £6.50 in Soho across twenty three pubs",
+  "Pints under £6.50 in Soho across three pubs followed by three more",
+  "Find three pubs and a dozen pubs in Soho",
+  "Find three pubs and a dozen more in Soho",
+  "Find three more pubs in Soho",
+  "Plan a crawl in Soho with three pubs and a dozen more",
+  "Pints under £6.50 in Soho across a dozen pubs",
+  "Plan a crawl in Soho with a dozen exceptionally welcoming dog-friendly riverside garden pubs",
+];
+
+const COMPLETE_SUPPORTED_QUANTITIES = [
+  ["Find two pubs in Soho for three of us", "search_venues", 2],
+  ["Pints under £6.50 in Soho across three pubs", "search_venues", 3],
+  ["Plan a crawl in Soho for three with three pubs", "propose_plan", 3],
+] as const;
+
+describe("complete requested venue quantity at the local answer boundary", () => {
+  it.each(COMPLETE_QUANTITY_RESIDUALS)("rejects a direct truncated or additive quantity in the public predicate: %s", (query) => {
+    expect(palChatRecordQuery(query)).toBeNull();
+  });
+
+  it.each(COMPLETE_QUANTITY_RESIDUALS)("rejects an owned same-area truncated or additive quantity in the public predicate: %s", async (query) => {
+    const followUp = query.replace(" in Soho", " in the same area");
+    await registerPubPalToolTurn(THREAD, { query: SOHO, cityId: "london", ownerId: OWNER, turns: [] });
+    const context = await preparePalElevenLabsChatTurn({ query: followUp, ownerId: OWNER, threadId: THREAD });
+    expect(palChatRecordQuery(followUp, context.prior.turns)).toBeNull();
+  });
+
+  it.each(COMPLETE_QUANTITY_RESIDUALS)("keeps a direct truncated or additive quantity on the configured HTTP provider path: %s", async (query) => {
+    const response = await ask(query);
+    expect(response.status).toBe(429);
+    expect(await response.json()).toEqual({ error: "Paid budget spent" });
+    expect(paidSpendBudgetRefusal).toHaveBeenCalledOnce();
+    expect(deniedFetch).not.toHaveBeenCalled();
+  });
+
+  it.each(COMPLETE_QUANTITY_RESIDUALS)("keeps an owned same-area truncated or additive quantity on the configured HTTP provider path: %s", async (query) => {
+    const followUp = query.replace(" in Soho", " in the same area");
+    await registerPubPalToolTurn(THREAD, { query: SOHO, cityId: "london", ownerId: OWNER, turns: [] });
+    const response = await ask(followUp, THREAD);
+    expect(response.status).toBe(429);
+    expect(await response.json()).toEqual({ error: "Paid budget spent" });
+    expect(paidSpendBudgetRefusal).toHaveBeenCalledOnce();
+    expect(deniedFetch).not.toHaveBeenCalled();
+  });
+
+  it.each(COMPLETE_SUPPORTED_QUANTITIES)("keeps a complete supported quantity local in the public predicate: %s", (query) => {
+    expect(palChatRecordQuery(query)).toBe(query);
+  });
+
+  it.each(COMPLETE_SUPPORTED_QUANTITIES)("answers a complete supported quantity locally over configured HTTP: %s", async (query, tool, count) => {
+    const response = await ask(query);
+    expect(response.status).toBe(200);
+    const body = await response.json() as { toolsUsed: string[]; cards: unknown[] };
+    expect(body.toolsUsed).toEqual([tool]);
+    expect(body.cards).toHaveLength(count);
+    expect(paidSpendBudgetRefusal).not.toHaveBeenCalled();
+    expect(deniedFetch).not.toHaveBeenCalled();
+  });
+});

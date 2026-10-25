@@ -110,3 +110,65 @@ describe("explicit memory requests beside local record answers", () => {
     expect(deniedFetch).not.toHaveBeenCalled();
   });
 });
+
+const PERSONAL_MEMORY_OPERATIONS = [
+  "Find four pubs in Soho. Save my preference for gardens.",
+  "Plan a crawl in Soho. Save my preferences: gardens and quiet rooms.",
+  "Cheap pints near Soho. Store a note: I like gardens.",
+  "Cheapest wine in Soho. Update my notes: I prefer gardens.",
+  "Update my preferences: I like wine. Wine prices at Fox and Anchor",
+];
+
+const ASKS_WITHOUT_MEMORY_OPERATION = [
+  ["Find four pubs in Soho to save money", "search_venues"],
+  ["Find four pubs in Soho that suit my preferences", "search_venues"],
+  ["Find four pubs in Soho that match my notes", "search_venues"],
+  ["Plan a crawl in Soho that suits my preference for gardens", "propose_plan"],
+] as const;
+
+describe("explicit personal preference and note operations beside local record answers", () => {
+  it.each(PERSONAL_MEMORY_OPERATIONS)("rejects a direct personal memory operation in the public predicate: %s", (query) => {
+    expect(palChatRecordQuery(query)).toBeNull();
+  });
+
+  it.each(PERSONAL_MEMORY_OPERATIONS)("rejects an owned follow-up personal memory operation in the public predicate: %s", async (query) => {
+    const followUp = query.replace(" in Soho", " in the same area");
+    await registerPubPalToolTurn(THREAD, { query: SOHO, cityId: "london", ownerId: OWNER, turns: [] });
+    const context = await preparePalElevenLabsChatTurn({ query: followUp, ownerId: OWNER, threadId: THREAD });
+    expect(palChatRecordQuery(followUp, context.prior.turns)).toBeNull();
+  });
+
+  it.each(PERSONAL_MEMORY_OPERATIONS)("keeps a direct personal memory operation on the configured HTTP provider path: %s", async (query) => {
+    const response = await ask(query);
+    expect(response.status).toBe(429);
+    expect(await response.json()).toEqual({ error: "Paid budget spent" });
+    expect(paidSpendBudgetRefusal).toHaveBeenCalledOnce();
+    expect(deniedFetch).not.toHaveBeenCalled();
+  });
+
+  it.each(PERSONAL_MEMORY_OPERATIONS)("keeps an owned follow-up personal memory operation on the configured HTTP provider path: %s", async (query) => {
+    const followUp = query.replace(" in Soho", " in the same area");
+    await registerPubPalToolTurn(THREAD, { query: SOHO, cityId: "london", ownerId: OWNER, turns: [] });
+    const response = await ask(followUp, THREAD);
+    expect(response.status).toBe(429);
+    expect(await response.json()).toEqual({ error: "Paid budget spent" });
+    expect(paidSpendBudgetRefusal).toHaveBeenCalledOnce();
+    expect(deniedFetch).not.toHaveBeenCalled();
+  });
+
+  it.each(ASKS_WITHOUT_MEMORY_OPERATION)("keeps an ask without a memory operation local in the public predicate: %s", (query) => {
+    expect(palChatRecordQuery(query)).toBe(query);
+  });
+
+  it("rejects a memory operation carried into a refined follow-up in the public predicate", () => {
+    expect(palChatRecordQuery("please", [{ role: "user", content: "Remember that I like wine. Wine prices at Fox and Anchor" }])).toBeNull();
+  });
+
+  it.each(ASKS_WITHOUT_MEMORY_OPERATION)("answers an ask without a memory operation locally over configured HTTP: %s", async (query, tool) => {
+    const response = await ask(query);
+    expect(response.status).toBe(200);
+    expect(await response.json()).toMatchObject({ toolsUsed: [tool] });
+    expect(paidSpendBudgetRefusal).not.toHaveBeenCalled();
+    expect(deniedFetch).not.toHaveBeenCalled();
+  });
+});

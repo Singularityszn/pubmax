@@ -583,3 +583,32 @@ describe("Ask tool allowlist", () => {
     expect(isAskToolName("web_search")).toBe(false);
   });
 });
+
+describe("routeAskDeterministically: complete requested venue quantity", () => {
+  it.each([
+    "Find 23 pubs in Soho",
+    "Find twenty-three pubs in Soho",
+    "Find twenty three pubs in Soho",
+    "Find 2.3 pubs in Soho",
+    "Find three pubs followed by three more pubs in Soho",
+    "Find three pubs alongside three more in Soho",
+    "Find 3 pubs plus 3 in Soho",
+    "Drink prices in twenty-three pubs in Camden",
+    "Drink prices in twenty three pubs in Camden",
+    "Drink prices in 2.3 pubs in Camden",
+    "Drink prices in three pubs followed by three more in Camden",
+    "Find three pubs and a dozen pubs in Soho",
+    "Find three more pubs in Soho",
+    "Find another three pubs in Soho",
+  ])("keeps the default card limit when the complete quantity is not one supported count: %s", (query) => {
+    expect(routeAskDeterministically(query)).toEqual([{ name: "search_venues", args: { query, limit: 4 } }]);
+  });
+
+  it.each([
+    ["Find three pubs in Soho", 3],
+    ["Find two pubs in Soho for three of us", 2],
+    ["Drink prices in three pubs in Camden", 3],
+  ] as const)("uses a complete supported count as the card limit: %s", (query, limit) => {
+    expect(routeAskDeterministically(query)).toEqual([{ name: "search_venues", args: { query, limit } }]);
+  });
+});

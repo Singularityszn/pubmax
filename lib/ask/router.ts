@@ -8,7 +8,7 @@ import type { AskToolName } from "@/lib/ask/types";
 import type { DrinkCategory } from "@/lib/drinks";
 import { isKnownAskPlacePhrase } from "@/lib/ask/placePhrases";
 import { palAsksForVenueDiscovery } from "@/lib/palMapAsk";
-import { defaultKnownAreas, deterministicAreaInText, extractExplicitBudget, namesExcludedPlace, withoutExcludedPlaces } from "@/lib/concierge/intentPolicy";
+import { defaultKnownAreas, deterministicAreaInText, extractExplicitBudget, namesExcludedPlace, requestedVenueQuantity, withoutExcludedPlaces } from "@/lib/concierge/intentPolicy";
 
 export type RoutedToolCall = {
   name: AskToolName;
@@ -578,9 +578,8 @@ function conciergeClaim(
 }
 
 function requestedVenueCount(query: string): number | null {
-  const count = query.match(/\b(1|2|3|4|5|6|one|two|three|four|five|six)\s+(?:(?:good|quiet|lively|cosy|cozy|cheap|historic|local|nearby|listed|great|best)\s+)*(?:pubs?|bars?|venues?|places?)\b/i)?.[1]?.toLowerCase();
-  const words: Record<string, number> = { one: 1, two: 2, three: 3, four: 4, five: 5, six: 6 };
-  return count ? words[count] ?? Number(count) : null;
+  const count = requestedVenueQuantity(query);
+  return typeof count === "number" && count <= 6 ? count : null;
 }
 
 /**

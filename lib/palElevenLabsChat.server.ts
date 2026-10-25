@@ -1,6 +1,6 @@
 import "server-only";
 
-import { extractExplicitBudget, NUMBER_WORDS } from "@/lib/concierge/intentPolicy";
+import { extractExplicitBudget, requestedVenueQuantity } from "@/lib/concierge/intentPolicy";
 import { composeAnswer, runAsk } from "@/lib/ask/runAsk";
 import { recordedDrinkComparison, refineRoutedAskQuery, resolveAskLocality, SAME_AREA_REFERENCE_RE, resolveAskPriceIntent, routeAskDeterministically, unsupportedPriceComparison } from "@/lib/ask/router";
 import type { AskCard, AskProposal } from "@/lib/ask/types";
@@ -185,38 +185,7 @@ export async function preparePalElevenLabsChatTurn(
 
 /** The validated read-only pint/menu asks that need no provider narration. */
 
-/** A cardinal word: zero to nineteen, the tens, and the scale words. */
-const CARDINAL_WORD = "(?:zero|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|thirteen|fourteen|fifteen|sixteen|seventeen|eighteen|nineteen|twenty|thirty|forty|fifty|sixty|seventy|eighty|ninety|hundred|thousand|million)";
-const CARDINAL_TOKEN = `(?:\\d+(?:[.,/]\\d+)*|${CARDINAL_WORD})`;
-const QUANTITY_UNIT = "(?:us|people|persons?|friends?|mates?|guys|adults|pax|am|pm|o['’]clock|hours?|hrs?|minutes?|mins?|pounds?|quid|pence|gbp)";
-const COUNT_GAP_STOP = `(?:${CARDINAL_WORD}|${QUANTITY_UNIT}|each|per|in|at|near|around|by|with|for|from|to|then|but|not|than|stops?|pubs?|bars?|venues?|places?)\\b`;
-/**
- * A stated number of stops or pubs, read whole so "twenty-three" or "2.3" is
- * never taken for its tail. Party size ("for four of us") is not one.
- */
-const PLAN_STOP_COUNT_RE = new RegExp(
-  `(?<![£$€]\\s*|\\d[.,/])\\b(${CARDINAL_TOKEN}(?:[-\\s]+(?:(?:and|or|to)[-\\s]+)?(?:${CARDINAL_TOKEN}|a[-\\s]+half))*)[-\\s]+(?:(?!${COUNT_GAP_STOP})[a-z][a-z'’]*[-\\s]+)*(?:stops?|pubs?|bars?|venues?|places?)\\b`,
-  "gi",
-);
-
-const ADDITIVE_COUNT_RE = new RegExp(
-  `\\b(?:stops?|pubs?|bars?|venues?|places?)[\\s,;-]+(?:(?:then|and|plus)[-\\s]+|[&+]\\s*)+(?:another[-\\s]+)?${CARDINAL_TOKEN}\\b(?![.,/:]\\d|[-\\s]*(?:of|${QUANTITY_UNIT})\\b)`,
-  "i",
-);
-
-const UNCLAIMED_VENUE_RE = /-(?:stop|pub|bar|venue|place)s?\b|\b(?:stops|pubs|bars|venues|places)\b|\b(?:stop|pub|bar|venue|place)\b(?![-\s]+crawl\b)/i;
-
-/** The fixed three-stop plan admits an ask only when every stated stop count is three. */
-function statesOnlyThreeStops(query: string): boolean {
-  let onlyThree = true;
-  const unclaimed = query.replace(PLAN_STOP_COUNT_RE, (_phrase: string, count: string) => {
-    onlyThree = onlyThree && (NUMBER_WORDS[count.toLowerCase()] ?? Number(count)) === 3;
-    return " ";
-  });
-  return onlyThree && !UNCLAIMED_VENUE_RE.test(unclaimed);
-}
-
-const MEMORY_REQUEST_RE = /\b(?:remember|forget|keep in mind|make a note|note that)\b/i;
+const MEMORY_REQUEST_RE = /\b(?:remember|forget|keep in mind|make a note|note that)\b|\b(?:save|store|record|add|keep|update|change|edit|correct|delete|remove|erase|clear)\s+(?:[\w'’-]+\s+){0,2}(?:my|our|a|an|the|this|these|those)\s+(?:[\w'’-]+\s+)?(?:preferences?|notes?|memor(?:y|ies))\b/i;
 
 /** Constrained local record answers that need no provider narration or durable plan write. */
 export function palChatRecordQuery(query: string, turns: readonly PubPalFenceTurn[] = []): string | null {
@@ -224,26 +193,28 @@ export function palChatRecordQuery(query: string, turns: readonly PubPalFenceTur
   if (unsupportedPriceComparison(query) || recordedDrinkComparison(query)) return query;
   const priorAsks = turns.filter((turn) => turn.role === "user").map((turn) => turn.content);
   const routedQuery = refineRoutedAskQuery(query, priorAsks.at(-1), priorAsks);
-  if (SAME_AREA_REFERENCE_RE.test(routedQuery)) return null;
+  if (SAME_AREA_REFERENCE_RE.test(routedQuery) || MEMORY_REQUEST_RE.test(routedQuery)) return null;
   if (unsupportedPriceComparison(routedQuery) || recordedDrinkComparison(routedQuery)) return routedQuery;
   const intent = resolveAskPriceIntent(routedQuery);
   const calls = routeAskDeterministically(routedQuery);
   if (resolveAskLocality(routedQuery).kind !== "supported") return null;
-  if ((routedQuery.match(PLAN_STOP_COUNT_RE)?.length ?? 0) > 1 || ADDITIVE_COUNT_RE.test(query) || ADDITIVE_COUNT_RE.test(routedQuery)) return null;
   // A count belongs to the requested pubs, not the party. The router remains
   // authoritative for the number of cards and all other requested tools.
-  const countedPubs = /\b(?:[1-6]|one|two|three|four|five|six)\s+(?:(?:good|quiet|lively|cosy|cozy|cheap|historic|local|nearby|listed|great|best)\s+)*pubs?\b/i.test(routedQuery);
-  const localDiscovery = intent.kind === "none" && countedPubs
-    && calls.length === 1 && calls[0].name === "search_venues";
+  const quantity = requestedVenueQuantity(routedQuery);
+  if (quantity === null || requestedVenueQuantity(query) === null) return null;
+  const localDiscovery = intent.kind === "none" && quantity !== undefined
+    && calls.length === 1 && calls[0].name === "search_venues" && calls[0].args.limit === quantity;
   const localPlan = (intent.kind === "none" || intent.kind === "plan")
     && /\b(?:crawl|three[- ]stop|3[- ]stop)\b/i.test(routedQuery)
-    && statesOnlyThreeStops(routedQuery)
+    && (quantity === undefined || quantity === 3)
     && calls.length === 1 && calls[0].name === "propose_plan";
   // Listed pint discovery is local. Keep mixed requests and other tools on
   // their own paths rather than dropping a sibling request to gain speed.
   const pintBudget = /\bpints?\b/i.test(routedQuery) && extractExplicitBudget(routedQuery) !== undefined;
   const localPints = (intent.kind === "pint" || (intent.kind === "none" && pintBudget)) && calls.length > 0
-    && calls.every((call) => call.name === "search_venues" || call.name === "cheapest_pint_near");
+    && calls.every((call) => call.name === "search_venues"
+      ? quantity === undefined || call.args.limit === quantity
+      : call.name === "cheapest_pint_near" && quantity === undefined);
   return localDiscovery || localPlan || localPints
     ? routedQuery : null;
 }
