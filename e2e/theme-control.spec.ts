@@ -1,6 +1,7 @@
 import { expect, test, type Page } from "@playwright/test";
 
 import { installNativeShell } from "./helpers/nativeShell";
+import { installAuthDoubles, seedSignedIn } from "./helpers/authDoubles";
 
 async function expectHeaderThemeControl(page: Page, minimumSize = 44) {
   const button = page.locator(".siteNavActions").getByRole("button", {
@@ -97,5 +98,24 @@ for (const platform of ["ios", "android"]) {
     await page.reload();
     await expectHeaderThemeControl(page, 48);
     await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
+  });
+}
+
+// Oracle: the repair must remain reachable beside signed-in account controls.
+// A crowded header must not hide or cover the theme button on a narrow phone.
+for (const width of [320, 1440]) {
+  test(`${width}px: signed-in account controls leave the theme button usable`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 844 });
+    await installAuthDoubles(page);
+    await seedSignedIn(page, "A");
+    await page.goto("/tonight");
+    const header = page.locator(".siteNavActions");
+    await expect(header.getByRole("button", { name: /^Account options for / })).toBeVisible();
+    const button = await expectHeaderThemeControl(page);
+    await expect(button).toHaveAccessibleName("Switch to light theme");
+    await button.click();
+    await expect(page.locator("html")).toHaveAttribute("data-theme", "light");
+    await expect(button).toHaveAccessibleName("Switch to dark theme");
+    await page.screenshot({ path: test.info().outputPath("signed-in-light.png"), animations: "disabled" });
   });
 }
