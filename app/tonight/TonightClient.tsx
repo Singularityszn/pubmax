@@ -687,7 +687,6 @@ export default function TonightClient({
         }
       >
       <div className="tonightPrimary" data-status={listingsStatus}>
-      <PreparedBriefStamp preparedAt={pagePreparedAt} />
       {/* The lede membership follows the Tonight rule in
           docs/rules/app-proxy-csp-caching-and-file-tracing.md. Chain blocks
           and cheap pints stay outside it so they cannot lead the answer. */}
@@ -988,6 +987,7 @@ export default function TonightClient({
           are about. A stamp is a footnote on the data, and nobody shares a list
           they have not read yet. */}
       <div className="tonightHeadCredits">
+        <PreparedBriefStamp preparedAt={pagePreparedAt} />
         <TonightUnmatchedNotice out={outAnswer} />
         <TonightProvenanceLines
           provenance={provenance}
