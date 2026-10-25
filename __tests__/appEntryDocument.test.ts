@@ -12,7 +12,7 @@ describe("the static app-entry document", () => {
     expect(response.headers.get("x-robots-tag")).toBe("noindex, nofollow");
     expect(new TextEncoder().encode(html).length).toBeLessThan(1024);
     expect([...document.querySelectorAll("script")].map((script) => script.getAttribute("src")))
-      .toEqual(["/theme-init.js?v=entry-v1"]);
+      .toEqual(["/theme-init.js?v=entry-home-v2"]);
     expect(document.querySelectorAll("link, img, style")).toHaveLength(0);
     expect(html).not.toContain("_next/");
   });

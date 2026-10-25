@@ -1,12 +1,9 @@
 // The legal and support row on the account surface.
 //
-// WHY IT IS HERE AND NOT ONLY IN THE FOOTER: the native shell starts on
-// `/tonight` (`SHELL_START_PATH` in `lib/entryDecision.ts`) and the phone nav
-// carries no More menu, so a person can use the app for weeks and never open
-// `/`, which is the one page that holds these links. Play requires the privacy
-// notice to be reachable inside the app, Apple expects a reviewer to find it,
-// and for a product about alcohol in the UK the Drinkaware link is owed on its
-// own merits.
+// Keep privacy, terms and support available on the account surface. A person
+// can open the app through an explicit link without seeing the Home footer.
+// Store reviewers also need these links beside the account controls.
+// The Drinkaware link explains responsible drinking in the UK.
 //
 // The address is `lib/siteContact.ts` and is never typed here, so moving to a
 // company inbox stays the one-line change that module is built for.

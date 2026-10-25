@@ -175,17 +175,17 @@ test("/map stays console-healthy across repeated /map↔/feed navigation", async
   // Exercise the normal theme path in both directions. Page errors are
   // recorded above, so the historical MapLibre `sources` exception fails this
   // test even when the canvas remains superficially usable.
-  // The theme left the header for the desktop More menu (Oct 2026 UX audit).
+  // The restored header button must replace the map style in both directions.
   for (let index = 0; index < 2; index += 1) {
+    const themeBefore = await page.locator("html").getAttribute("data-theme");
     await page
       .getByRole("navigation", { name: "Site navigation" })
-      .getByRole("button", { name: "More pages" })
+      .getByRole("button", { name: /Switch to (light|dark) theme/ })
       .click();
-    const themeItem = page.getByRole("menuitem", { name: /^(Dark|Light) theme/ });
-    await expect(themeItem).toBeVisible();
-    await themeItem.click();
+    await expect(page.locator("html")).toHaveAttribute("data-theme", themeBefore === "dark" ? "light" : "dark");
     await expect(page.locator(".maplibreMap canvas").first()).toBeVisible();
     await page.waitForTimeout(2_000);
+    await page.screenshot({ path: test.info().outputPath(`map-theme-${index}.png`), animations: "disabled" });
   }
   await page.setViewportSize({ width: 390, height: 844 });
   // A phone has no map-edge compass: its reset is "Reset view" in the Layers tab
