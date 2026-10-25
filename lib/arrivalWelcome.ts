@@ -15,6 +15,8 @@
 // hop and dies with the tab, so the greeting lands exactly once on the page the
 // person actually arrives at.
 
+import { safeAuthNext } from "@/lib/authRedirect";
+
 /** Which door the person came through. The two differ in copy and in landing. */
 export type ArrivalIntent = "signin" | "signup";
 
@@ -200,6 +202,21 @@ export function arrivalWelcomeLine(
  * page. Sending everyone to the account surface was half of why signing in
  * felt like paperwork.
  */
+const ARRIVAL_PATH_ORIGIN = "https://pubmax.invalid";
+
+/** True when the path collapses to this site's `/`, not to a foreign origin. */
+function normalisesToSameOriginRoot(candidate: string): boolean {
+  try {
+    const destination = new URL(candidate, ARRIVAL_PATH_ORIGIN);
+    if (destination.origin !== ARRIVAL_PATH_ORIGIN) return false;
+    const serialised = `${destination.pathname}${destination.search}${destination.hash}` || "/";
+    if (serialised !== "/") return false;
+    return new URL(serialised, ARRIVAL_PATH_ORIGIN).origin === ARRIVAL_PATH_ORIGIN;
+  } catch {
+    return false;
+  }
+}
+
 export function arrivalDestination(
   intent: ArrivalIntent,
   from: string | null,
@@ -213,5 +230,10 @@ export function arrivalDestination(
   // A sign-in page is never a destination: landing back on it is the dead end
   // this whole change exists to remove.
   if (/^\/(login|signin)(\/|\?|$)/.test(candidate)) return accountPath;
-  return candidate;
+  // Same boundary as the auth callback. A dot-segment path can look local and
+  // then serialise as `//other.example`. That is not a page to return to.
+  const safe = safeAuthNext(candidate, ARRIVAL_PATH_ORIGIN);
+  if (/^\/(login|signin)(\/|\?|$)/.test(safe)) return accountPath;
+  if (safe === "/" && !normalisesToSameOriginRoot(candidate)) return accountPath;
+  return safe;
 }

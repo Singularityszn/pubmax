@@ -115,7 +115,17 @@ describe("where a completed sign-in lands", () => {
   });
 
   it("refuses an off-site or malformed return path", () => {
-    for (const hostile of ["//evil.test/map", "https://evil.test", "\\evil", "map", ""]) {
+    for (const hostile of [
+      "//evil.test/map",
+      "https://evil.test",
+      "\\evil",
+      "map",
+      "",
+      "/..//evil.example",
+      "/.//evil.example",
+      "/%2e%2e//evil.example",
+      "/a/..//evil.example/phish?x=1",
+    ]) {
       expect(arrivalDestination("signin", hostile, "/u/you")).toBe("/u/you");
     }
     expect(arrivalDestination("signin", null, "/u/you")).toBe("/u/you");

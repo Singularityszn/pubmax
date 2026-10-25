@@ -16,7 +16,14 @@ export function safeAuthNext(raw: string | null | undefined, origin: string): st
     const allowedOrigin = new URL(origin).origin;
     const destination = new URL(trimmed, allowedOrigin);
     if (destination.origin !== allowedOrigin) return "/";
-    return `${destination.pathname}${destination.search}${destination.hash}` || "/";
+    // Validate the path AFTER normalisation. `/..//evil.example` parses as a
+    // same-origin URL whose pathname is `//evil.example`. Returning that path
+    // makes the next `new URL(path, origin)` a protocol-relative redirect, and
+    // the auth callback would carry the session fragment to that other origin.
+    const serialised = `${destination.pathname}${destination.search}${destination.hash}` || "/";
+    if (!serialised.startsWith("/") || serialised.startsWith("//")) return "/";
+    if (new URL(serialised, allowedOrigin).origin !== allowedOrigin) return "/";
+    return serialised;
   } catch {
     return "/";
   }
