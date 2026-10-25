@@ -35,6 +35,24 @@ import {
 } from "@/lib/authRedirect";
 import { verifyReferralSignupProof } from "@/lib/referralSignupProof.server";
 
+/**
+ * The Location we are about to send. Re-parse it and keep it only when its
+ * origin is this request. A normalised `//` path parses as another origin;
+ * that answer is `/` on this origin instead.
+ */
+function locationOnRequestOrigin(dest: URL, requestOrigin: string): URL {
+  const allowed = new URL(requestOrigin).origin;
+  const fallback = new URL("/", allowed);
+  try {
+    if (dest.origin !== allowed || dest.pathname.startsWith("//")) return fallback;
+    const again = new URL(`${dest.pathname}${dest.search}`, allowed);
+    if (again.origin !== allowed) return fallback;
+    return dest;
+  } catch {
+    return fallback;
+  }
+}
+
 // A browser that names itself and is not an iPhone, iPad or iPod cannot be the
 // app that holds the email verifier. iPadOS Safari can report a desktop
 // browser, so the page still offers the app link.
@@ -97,7 +115,7 @@ export async function GET(request: Request): Promise<Response> {
     dest.searchParams.set(AUTH_CALLBACK_MARKER, "1");
     if (attemptId) dest.searchParams.set(AUTH_ATTEMPT_PARAM, attemptId);
     dest.searchParams.set("authError", "1");
-    return NextResponse.redirect(dest);
+    return NextResponse.redirect(locationOnRequestOrigin(dest, url.origin));
   }
 
   // Forward to the target path with the callback marker. The browser carries
@@ -114,5 +132,5 @@ export async function GET(request: Request): Promise<Response> {
   // carrying. Legitimate callbacks never send one (buildAuthCallbackUrl strips
   // it); drop a crafted one rather than lose the session.
   dest.hash = "";
-  return NextResponse.redirect(dest);
+  return NextResponse.redirect(locationOnRequestOrigin(dest, url.origin));
 }

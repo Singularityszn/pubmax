@@ -47,6 +47,10 @@ describe("where a handle and password sign-in lands", () => {
       "/\n/evil.example",
       "/\r/evil.example",
       "//evil.example",
+      "/..//evil.example",
+      "/.//evil.example",
+      "/%2e%2e//evil.example",
+      "/a/..//evil.example/phish?x=1",
       "/\\evil.example",
       "\\\\evil.example",
       "https://evil.example/",
@@ -58,7 +62,8 @@ describe("where a handle and password sign-in lands", () => {
       expect(landedOrigin, `landed off-site for ${JSON.stringify(redirectTo)}`).toBe(
         ORIGIN,
       );
-      expect(calls[0]?.startsWith("/")).toBe(true);
+      expect(calls[0]?.startsWith("/"), redirectTo).toBe(true);
+      expect(calls[0]?.startsWith("//"), redirectTo).toBe(false);
     }
   });
 
