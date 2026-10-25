@@ -86,6 +86,10 @@ test("a visitor with blocked preference storage can still switch the visible the
   await expect(page.locator(".siteNavActions").getByRole("button", { name: "Switch to dark theme" })).toBeVisible();
   expect(await page.evaluate(() => localStorage.getItem("pubmax-theme"))).toBeNull();
   await page.screenshot({ path: test.info().outputPath("blocked-storage-light.png") });
+  await page.getByRole("navigation", { name: "Now", exact: true }).getByRole("link", { name: "Day", exact: true }).click();
+  await expect(page).toHaveURL(/\/today$/);
+  await expect(page.locator("html")).toHaveAttribute("data-theme", "light");
+  await expect(page.locator(".siteNavActions").getByRole("button", { name: "Switch to dark theme" })).toBeVisible();
 });
 
 test("a signed-out phone reader keeps Appearance and the header in sync", async ({ page }) => {

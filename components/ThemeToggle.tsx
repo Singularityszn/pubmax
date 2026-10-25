@@ -23,6 +23,9 @@ export default function ThemeToggle({ floating = false }: { floating?: boolean }
   // MutationObserver in the shared store then re-reads it, so the icon
   // resolves too.
   useEffect(() => {
+    const current = document.documentElement.dataset.theme;
+    // Route changes retain the active choice even when storage rejects writes.
+    if (current === "light" || current === "dark") return;
     document.documentElement.dataset.theme = resolveThemePreference(
       storedThemeChoice(),
       window.matchMedia("(prefers-color-scheme: dark)").matches,
