@@ -181,7 +181,7 @@ export function ImportSession({ phase, onClose, returnFocusRef }: { phase: Viewe
             })}>{draft.venueIds.length} pubs{draft.source?.handle ? ` from ${draft.source.handle}` : ""} · {new Date(draft.createdAt).toLocaleDateString("en-GB")}</Button>
           </li>)}</ul></section> : null}
         </> : <>
-          <p ref={reviewIntroRef} tabIndex={-1}>{review.items.length} lines to review. Choose a pub where a name could mean more than one.</p>
+          <p ref={reviewIntroRef} tabIndex={-1}>{review.items.length} {review.items.length === 1 ? "line" : "lines"} to review. Choose a pub where a name could mean more than one.</p>
           {review.source ? <p>List credit: <a href={review.source.url} target="_blank" rel="noreferrer noopener">{review.source.handle ?? "Original post"}</a></p> : null}
           {review.truncated ? <p>We kept the first 40 lines. Import the rest as another list.</p> : null}
           {review.missingCount ? <p>{review.missingCount} saved pubs are no longer listed. We kept their IDs in your draft.</p> : null}

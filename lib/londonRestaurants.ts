@@ -242,6 +242,9 @@ function filtersAskBeyondARestaurantRow(filters: Filters): boolean {
     filters.requirePintDrops ||
     filters.requireBeerGarden ||
     filters.requireOutdoorSeating ||
+    filters.requireDogFriendly ||
+    filters.requireDarts ||
+    filters.requirePool ||
     filters.requireNonAlcoholic ||
     filters.requireLiveSports ||
     filters.requireCocktails ||

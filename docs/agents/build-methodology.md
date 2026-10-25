@@ -47,8 +47,9 @@ prose you did not touch.
 
 Some steps only work on the captain's machine. Supabase's connector holds a destructive statement
 (`DROP`, `REVOKE`, `DELETE`) for an approval a cloud session cannot show, so the call times out.
-`npm run release:prod` needs `VERCEL_TOKEN` and `SUPABASE_ACCESS_TOKEN`. The `exit 0` Ignored Build
-Step on the `chengdu` Vercel project skips every Git and API build. When a cloud session hits one:
+`npm run release:prod` needs `VERCEL_TOKEN` and `SUPABASE_ACCESS_TOKEN`. See
+[deployment checks and build-policy limits](../DEPLOYMENT.md#known-github-check-sources).
+When a cloud session reaches a blocker:
 
 1. Stop at the blocker. Never reword SQL or route around an approval gate to get past it.
 2. Push your work, then open an issue labelled `ready-for-agent` that a fresh agent can act on alone:
