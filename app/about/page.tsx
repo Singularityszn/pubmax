@@ -14,6 +14,7 @@ import { priceBand } from "@/lib/priceBand";
 import { loadPublicPintIndexSnapshot } from "@/lib/publicPintIndexSnapshot.server";
 import { HELLO_EMAIL, HELLO_MAILTO } from "@/lib/siteContact";
 import { SITE_ORGANIZATION_ID, SITE_WEBSITE_ID } from "@/lib/siteJsonLd";
+import { SITE_PRODUCT_DESCRIPTION } from "@/lib/siteProductCopy";
 
 import "./about.css";
 
@@ -31,7 +32,7 @@ import "./about.css";
 
 const PAGE_TITLE = "About PUBMAXX";
 const PAGE_DESCRIPTION =
-  "A pint in London can cost eight quid. PUBMAXX puts listed prices on one map for nights out, coffee, food, and sober hangs. We name and link publishers when recorded, and say when none is recorded. Free, and nobody pays to rank.";
+  `${SITE_PRODUCT_DESCRIPTION} Free to browse, with named sources where recorded. Nobody pays to rank.`;
 
 export const metadata: Metadata = {
   title: PAGE_TITLE,
@@ -144,9 +145,15 @@ export default async function AboutPage() {
 
       <section className="aboutSection" aria-labelledby="map">
         <h2 id="map" className="aboutH2">What the map does</h2>
+        <p className="aboutBody">{SITE_PRODUCT_DESCRIPTION}</p>
         <p className="aboutBody">
           Compare listed drink prices, read pub histories with references and
           share a plan with the stops and walking route. PUBMAXX is free to use.
+        </p>
+        <p className="aboutBody">
+          Browse and save pubs on this device without an account. Create a plan
+          and send an invite link to your mates. Sign in to sync your saves, log
+          prices and use Social when it is available.
         </p>
         <p className="aboutBody">
           You can also find coffee, food and alcohol-free choices. Food listings

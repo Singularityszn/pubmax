@@ -2,19 +2,15 @@
 // that claim looks.
 //
 // FOUR STANDINGS, AND THE GAP BETWEEN TWO OF THEM IS THE WHOLE POINT. A
-// `listed` price was published by the pub or its chain and carries the URL and
+// `listed` price was published by a public source and carries the URL and
 // the day it was read. An `estimate` was MODELLED here and was never published
 // by anybody, so it may never be printed as a bare figure: it says "est. £X",
 // it carries the basis it was modelled from, and it links to the method. A
 // surface that formats a standing's price itself can drop that "est.", which is
 // why `priceStandingFigure` is the ONE place a figure becomes a string.
 //
-// `confirmed` is defined here and has NO PRODUCER YET. Nothing in the tree can
-// confirm a price today: `PintDropReviewStatus` in lib/pintDrops.ts is
-// "hidden" | "pending" | "reported", with no confirmed state and no
-// confirmationId writer. The type is written now so the surfaces are built
-// against the whole vocabulary rather than retrofitted onto it. Building the
-// confirm path is the named follow-up.
+// A `confirmed` input comes from the community confirmation path. A public
+// publisher URL and its read timestamp do not supply community confirmation.
 //
 // This module imports one leaf formatter and nothing else, so a surface that
 // needs a standing does not pull the venue index in behind it.
@@ -57,13 +53,13 @@ type PriceStandingReason =
   | "modelled"
   | "nothing_known";
 
-/** A price somebody confirmed. No producer exists yet; see the module note. */
+/** A price somebody confirmed through the community confirmation path. */
 export type ConfirmedPriceInput = {
   priceGbp: number;
   observedAt: string;
 };
 
-/** A price the pub or its chain PUBLISHED, with the two things that make it citable. */
+/** A publicly listed price, with its source link and the day that source was read. */
 export type ListedPriceInput = {
   priceGbp: number;
   sourceUrl: string;
@@ -210,9 +206,8 @@ export function priceStandingFor(
 }
 
 /**
- * The two ways a printed figure can be read, as far as its AGE goes. A drinker's
- * log ages on the confirmation clock; a price a pub or chain published ages on
- * the listing clock. The windows are the standings' own, never a second pair.
+ * A drinker's log uses the confirmation clock. A publicly listed price uses
+ * the listing clock. Both clocks use the standings' own windows, never a second pair.
  */
 export type PriceAgeLane = "drinker" | "published";
 
@@ -292,11 +287,11 @@ export function priceStandingNote(standing: PriceStanding): string {
     case "confirmed":
       return `A drinker confirmed this price in the last ${CONFIRMED_MAX_AGE_DAYS} days.`;
     case "listed":
-      return "The pub or its chain published this price. The date and the page are below.";
+      return "A public source lists this price. Its source and read day are shown when recorded.";
     case "estimate":
       return "Nobody has published this price. We modelled it, and it is not a quote.";
     case "none":
-      return "Nobody has published or reported a price here yet.";
+      return "This record does not support a current confirmed or listed price.";
   }
 }
 

@@ -59,10 +59,10 @@ function render(overrides: Partial<LandingPubCardData> = {}, index: LandingArchi
 describe("landing answer card copy", () => {
   const html = render();
 
-  it("prints the listed price, who listed it and the collection day", () => {
+  it("prints the listed price, who listed it and the source-read day", () => {
     expect(html).toContain("£6.50");
     expect(html).toContain("a pint of Pravha");
-    expect(html).toMatch(/Listed by <a href="https:\/\/www\.pint-prices\.com\/pub\/x"[^>]*>pint-prices\.com<\/a>, collected 3 July 2026\./);
+    expect(html).toMatch(/Listed by <a href="https:\/\/www\.pint-prices\.com\/pub\/x"[^>]*>pint-prices\.com<\/a>, source read 3 July 2026\./);
     expect(html).toContain('href="/map?sel=venue-test"');
   });
 
@@ -119,13 +119,13 @@ describe("landing answer card copy", () => {
 
   it("says no publisher is recorded when the row names none, and prints no day it does not hold", () => {
     const bare = render({ publisher: null, observedOn: null });
-    expect(bare).toContain("No publisher recorded.");
-    expect(bare).not.toMatch(/collected \d/);
+    expect(bare).toContain("No publisher recorded, read day not recorded.");
+    expect(bare).not.toMatch(/source read \d/);
   });
 
   it("dates the listing by the day its own row was read", () => {
     const unread = render({ observedOn: "2026-08-21" });
-    expect(unread).toContain("collected 21 August 2026.");
+    expect(unread).toContain("source read 21 August 2026.");
   });
 
   it("opens the pub picker without a preselected pub or price", () => {

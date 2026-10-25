@@ -30,6 +30,7 @@ import PriceBadge from "@/components/PriceBadge";
 import { Button } from "@/components/ui/button";
 import { RowList, RowListItem } from "@/components/ui/row-list";
 import Screen from "@/components/ui/screen";
+import PreparedBriefStamp from "@/components/seo/PreparedBriefStamp";
 import { useWhatsOnTonight, type TonightFreshnessKind, type WhatsOnTonight } from "@/components/map/useWhatsOnTonight";
 import { useOutListings } from "@/components/out/useOutListings";
 import EditorialRail from "@/components/out/EditorialRail";
@@ -283,6 +284,8 @@ function useInitialListings(
     whatsOn: initial ? initialWhatsOnView(initial.whatsOn) : liveWhatsOn,
     out: initial?.out ?? liveOut,
     renderedAt: initial?.renderedAt,
+    // A new server response updates the page date. Browser reads do not.
+    pagePreparedAt: seed?.renderedAt,
     clearInitial,
   };
 }
@@ -356,7 +359,7 @@ export default function TonightClient({
   const liveOut = useOutListings("tonight");
   const initialAnswer = useInitialListings(initialListings, liveWhatsOn, liveOut);
   const { rows, status, sourceFreshnessKind, kindObservedAt } = initialAnswer.whatsOn;
-  const { renderedAt, clearInitial } = initialAnswer;
+  const { renderedAt, pagePreparedAt, clearInitial } = initialAnswer;
   const { retry } = liveWhatsOn;
   const { retry: retryOut } = liveOut;
   const {
@@ -984,6 +987,7 @@ export default function TonightClient({
           are about. A stamp is a footnote on the data, and nobody shares a list
           they have not read yet. */}
       <div className="tonightHeadCredits">
+        <PreparedBriefStamp preparedAt={pagePreparedAt} />
         <TonightUnmatchedNotice out={outAnswer} />
         <TonightProvenanceLines
           provenance={provenance}

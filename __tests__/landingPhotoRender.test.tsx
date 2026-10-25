@@ -230,7 +230,7 @@ describe("a pub card we hold no photograph of is text and price", () => {
     expect(own).toContain("£4.20");
     expect(own).toContain("a pint of Ruddles");
     expect(own).toContain(
-      'Listed by <a href="https://www.pint-prices.com/pub/x" target="_blank" rel="noopener noreferrer">pint-prices.com</a>, collected 3 July 2026.',
+      'Listed by <a href="https://www.pint-prices.com/pub/x" target="_blank" rel="noopener noreferrer">pint-prices.com</a>, source read 3 July 2026.',
     );
     expect(own).toMatch(/<a [^>]*href="[^"]*sel=venue-not-in-the-set"[^>]*>The Moon on the Hill<\/a>/);
     expect(own).not.toContain("No photo yet");

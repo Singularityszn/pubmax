@@ -9,30 +9,15 @@ price nobody can correct.
 
 ## The four standings
 
-`lib/priceTier.ts` is the whole vocabulary, and it is the only place a standing
-is decided. A surface narrows from it and never restates it.
-
-| Standing | Tone | What it means | Ceiling |
-| --- | --- | --- | --- |
-| `confirmed` | green | A drinker confirmed this price | 30 days |
-| `listed` | amber | The pub or its chain published it, with a URL and a date | 365 days |
-| `estimate` | modelled | We modelled it. Nobody published it | the basis's own day |
-| `none` | grey | Nothing is known | n/a |
+The [price-standing contract](../rules/lib-prices-trust-and-drinks.md#a-price-says-what-it-is-worth-and-a-modelled-figure-may-never-pass-as-a-publishe)
+owns the vocabulary, evidence requirements, age limits and community confirmation path.
+`lib/priceTier.ts` decides each standing. A surface narrows from it and never restates it.
 
 `priceStandingFor` takes the strongest claim the evidence supports and never a
 stronger one. An expired confirmation does not become an estimate by itself: it
 falls through, and the pub takes whatever standing its own remaining evidence
 supports. The reason travels with the decision, so a surface can still say that
 a listing went stale rather than only that a pub has no price.
-
-**`confirmed` has no producer yet, and that is deliberate.** Nothing in the tree
-can confirm a price today: `PintDropReviewStatus` in `lib/pintDrops.ts` is
-`"hidden" | "pending" | "reported"`, with no confirmed state and no
-`confirmationId` writer. The type is written now so every surface is built
-against the whole vocabulary rather than retrofitted onto it later. **Building
-the confirm path is the named follow-up**, and it is the single highest-value
-one, because it is the only price supply that grows with the product rather than
-with scraping budget.
 
 ### Two ceilings, and why one of them is ours rather than the brief's
 
@@ -199,7 +184,7 @@ Everything behind that argument is built and tested
 
 ## What this does not do
 
-- It does not confirm anything. See the follow-up above.
+- The estimate engine does not confirm prices.
 - It does not harvest. PR 2 extends the first-party lane to permitted chain
   menus UK-wide, which is what puts chain rows in the basis table and lifts
   estimate coverage off 7.8%.

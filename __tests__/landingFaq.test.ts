@@ -60,6 +60,16 @@ describe("the landing FAQ", () => {
     expect(LANDING_FAQ[0]?.question).toBe("How does PUBMAXX work?");
   });
 
+  it("names directories and conditional source-read days without promising a date for every price", () => {
+    const html = renderToStaticMarkup(createElement(LandingFaq));
+    expect(html).toContain("pub menus, public directories and drinkers logging what they paid");
+    expect(html).toContain("source read days where known");
+    expect(html).toContain("Each price names its publisher when recorded, or says one is missing");
+    expect(html).not.toMatch(/every price has a date|each figure shows the day/i);
+    expect(html).toContain("share a plan with friends");
+    expect(html).toContain("sign in if asked");
+  });
+
   it("names the button the sheet really prints, and the bill rule the composer states", () => {
     const answer = LANDING_FAQ.find((entry) => entry.id === "log-a-price")?.answer ?? "";
     expect(answer).toContain(`tap ${LOG_PRICE_DOOR_LABEL}`);

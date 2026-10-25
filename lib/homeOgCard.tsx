@@ -1,6 +1,7 @@
 import { ImageResponse } from "next/og";
 
-import { LANDING_INTRO } from "@/lib/landingHero";
+import { HISTORIC_PUB_COUNT } from "@/components/landing/londonMapGeometry";
+import { homeProductDescription } from "@/lib/siteProductCopy";
 import { loadAboutStats, type AboutStats } from "@/lib/aboutStats";
 import {
   CardShell,
@@ -55,15 +56,13 @@ export function homeCardCoverage(stats: AboutStats): string[] {
   return bits;
 }
 
-// The hero, kept in step with the landing page it fronts: the h1 line the
-// product already owns, then the lede under it. No jokes on this card, because
-// a figure sits four lines below (docs/VOICE.md, "Where the jokes live").
-// The introduction is shared with the page and its metadata.
+// The card keeps the landing page's h1 and uses the metadata's description.
+// No jokes beside the coverage figures (docs/VOICE.md, "Where the jokes live").
 export const HOME_CARD_EYEBROW = "Real prices · One map · Nobody pays to rank";
 export const HOME_CARD_HERO_LEAD = "What a pint";
 export const HOME_CARD_HERO_TAIL = "costs,";
 export const HOME_CARD_HERO_ACCENT = "pub by pub.";
-export const HOME_CARD_SUPPORT = LANDING_INTRO;
+export const HOME_CARD_SUPPORT = homeProductDescription(HISTORIC_PUB_COUNT);
 
 export function HomeOgCard({ stats }: { stats: AboutStats }) {
   const coverageBits = homeCardCoverage(stats);

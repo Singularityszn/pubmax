@@ -122,8 +122,10 @@ describe("home card copy", () => {
     expect(hero).toBe("What a pint costs, pub by pub.");
     expect(landing).toMatch(/<h1[^>]*>What a pint costs, pub by pub\.<\/h1>/u);
 
-    expect(HOME_CARD_SUPPORT).toBe("Find a London pub, compare listed pint prices and plan your night.");
-    expect(landing).toContain(HOME_CARD_SUPPORT);
+    expect(landing).toContain("Find a London pub, compare listed pint prices and plan your night.");
+    expect(HOME_CARD_SUPPORT).toContain("historic pubs cited and a listed price wherever we hold one");
+    expect(HOME_CARD_SUPPORT).toContain("Plan a crawl and share the route with your mates");
+    expect(homeMetadata.description).toBe(HOME_CARD_SUPPORT);
     expect(renderCard(stats())).toContain(HOME_CARD_SUPPORT);
   });
 

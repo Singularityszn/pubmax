@@ -59,7 +59,7 @@ Which third of a city's priced pints a figure falls into: cheap, average, or exp
 _Avoid_: Traffic light for trust, borough band, colour derived from a Price Standing
 
 **Price Standing**:
-How far a pint figure may be trusted, said in words rather than colour: Confirmed (a drinker checked it inside 30 days), Listed (the pub or its chain published it, with a public source and the day it was read), Estimate (modelled by PUBMAXX and published by nobody), or none. `lib/priceTier.ts` decides, and takes the strongest claim the evidence supports and never a stronger one. An Estimate never prints bare and never carries authority.
+How far a pint figure may be trusted, said in words rather than colour. The [price-standing contract](docs/rules/lib-prices-trust-and-drinks.md#a-price-says-what-it-is-worth-and-a-modelled-figure-may-never-pass-as-a-publishe) owns the vocabulary, evidence requirements and estimate limits. `lib/priceTier.ts` decides each standing.
 _Avoid_: Price Band, confidence score, an Estimate presented as a published price
 
 **Price Lane**:
