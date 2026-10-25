@@ -88,3 +88,19 @@ Those datasets and feeds are not reported fresh.
 The original run recorded raw screenshots and browser results under `artifacts/hygiene-*`.
 The ignored `artifacts/` directory is not included in this checkout.
 The link test writes its exact GET receipts and attaches them to the Playwright result.
+
+## Import count follow-up
+
+The first gate's documentation commit, `1dd73c6e7ee3643ae41fcb9d6c0ede8995aab10f`, is preserved.
+The single-line import review exposed the existing text `1 lines to review`.
+Both browser widths failed when the assertion required the correct singular wording.
+The component now uses `line` for one item and `lines` otherwise.
+The retry tests retain their original failure, preserved-input, retry, cleared-input and focus checks.
+They also check a second import containing two lines.
+
+The production build at `8365f43d803db441cd3dc19277bb49ba084636dc` passed.
+Its version response confirms that source commit.
+All ten browser cases passed against it in 8.2 seconds, including the one-line and two-line assertions at both widths.
+The 52 focused import unit, model and route tests passed, as did ESLint.
+The earlier full-suite result above remains bound to the committed Ledger repair before this copy-only follow-up.
+The red and green browser evidence remains under `artifacts/import-copy-*` in the original worktree.
