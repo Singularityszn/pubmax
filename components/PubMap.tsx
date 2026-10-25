@@ -3028,6 +3028,7 @@ export default function PubMap({
   );
   const pubVenues = useMemo(() => venues.filter(isPubVenue), [venues]);
   const drinkCoverage = useMemo(() => ({
+    loadedPubIds: pubVenues.map((venue) => venue.id),
     ...mapDrinkCoverage(pubVenues, activeMapDrinkLane, drinkLensPrices, venueIndexFailed ? "degraded" : !loaded || loadedCityId !== cityId ? "loading" : drinkIndexStatus),
     ...(coffeePilotLensOn ? { coffeePilot: { count: coffeePilot.cafes.length, status: coffeePilot.status } } : {}),
   }), [pubVenues, activeMapDrinkLane, drinkLensPrices, drinkIndexStatus, venueIndexFailed, loaded, loadedCityId, cityId, coffeePilotLensOn, coffeePilot.cafes.length, coffeePilot.status]);

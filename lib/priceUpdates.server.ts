@@ -11,7 +11,8 @@ import {
   parseFoodPriceUpdates,
   type FoodPriceUpdate,
 } from "@/lib/foodPriceUpdates";
-import type { VenuePriceUpdates } from "@/lib/venuePriceUpdates";
+import { namedNonBeerBundleUpdates, type VenuePriceUpdates } from "@/lib/venuePriceUpdates";
+import { ukPriceBundleRowsByVenue } from "@/lib/ukPriceBundle.server";
 
 // The two observed price-update packs, read once per process and indexed by the
 // venue key each row is about.
@@ -121,6 +122,10 @@ export async function venuePriceUpdatesFor(
   for (const key of keys) {
     drink.push(...(index.drinkByKey.get(key) ?? []));
     food.push(...(index.foodByKey.get(key) ?? []));
+  }
+  const bundle = await ukPriceBundleRowsByVenue();
+  for (const key of new Set(keys)) {
+    drink.push(...namedNonBeerBundleUpdates(bundle.byVenue.get(key) ?? []));
   }
   return { drink, food };
 }

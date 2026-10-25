@@ -11,6 +11,8 @@
 // has no row. Both draw the same menu today, but a surface that wants to say
 // "no sourced price" can tell them apart without asking a second time.
 
+import { authoritativeBundleRows, strongestBundleRow, type UkPriceBundleRow } from "@/lib/ukPriceBundle";
+
 import type { DrinkPriceUpdate } from "@/lib/drinkPriceUpdates";
 import type { FoodPriceUpdate } from "@/lib/foodPriceUpdates";
 import type { Venue } from "@/lib/venues";
@@ -34,4 +36,16 @@ export function venuePriceUpdatesOf(venue: Venue): VenuePriceUpdates {
     drink: Array.isArray(updates.drink) ? updates.drink : [],
     food: Array.isArray(updates.food) ? updates.food : [],
   };
+}
+
+/** Named non-beer menu observations can ride the existing venue-menu read. */
+export function namedNonBeerBundleUpdates(rows: readonly UkPriceBundleRow[], now = Date.now()): DrinkPriceUpdate[] {
+  return authoritativeBundleRows(rows).flatMap((row) => {
+    if ((row.category !== "coffee" && row.category !== "alcohol-free") || !row.drinkLabel || !row.sourceUrl || !row.publisher || strongestBundleRow([row], now).standing !== "listed") return [];
+    // The legacy reader can mistake a coffee liqueur or its neighbour for coffee.
+    // Only plain named coffee servings cross this display adapter.
+    if (row.category === "coffee" && !/^(?:(?:single|double|iced|filter|decaf|oat)\s+){0,2}(?:espresso|americano|cappuccino|latte|flat white|mocha|matcha(?: latte)?|macchiato|cortado|coffee)$/i.test(row.drinkLabel.trim())) return [];
+    if (row.category === "alcohol-free" && /\b[1-9]\d*(?:\.\d+)?\s*%/.test(row.drinkLabel)) return [];
+    return [{ venueKey: row.venueId, drinkName: row.drinkLabel, category: row.category, priceGbp: row.priceGbp, source: { label: row.publisher, url: row.sourceUrl, licence: "Published menu price facts" }, observedAt: row.observedAt, lane: "publisher" as const, ...(row.servingSize ? { servingSize: row.servingSize } : {}) }];
+  });
 }
