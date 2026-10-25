@@ -450,7 +450,7 @@ describe("VOICE.md rule 2 — plumbing words stay off reader surfaces", () => {
     const html = renderToStaticMarkup(createElement(TonightProvenanceLines, {
       provenance: {
         whatsOn: "1 listing · via what’s-on", out: "1 listing via Ticketmaster",
-        whatsOnDated: false, outDated: false,
+        whatsOnDated: false, whatsOnUndated: true, outDated: false,
       },
       nearestSuffix: null,
     }));
@@ -472,7 +472,7 @@ describe("VOICE.md rule 2 — plumbing words stay off reader surfaces", () => {
     [false, false], [false, true], [true, false], [true, true],
   ])("dates each Tonight lane independently (%s, %s)", (whatsOnDated, outDated) => {
     const html = renderToStaticMarkup(createElement(TonightProvenanceLines, {
-      provenance: { whatsOn: "Pub listings", out: "Music listings", whatsOnDated, outDated },
+      provenance: { whatsOn: "Pub listings", out: "Music listings", whatsOnDated, whatsOnUndated: !whatsOnDated, outDated },
       nearestSuffix: " · nearest Soho first",
     }));
     const lines = html.split("</p>");
@@ -487,7 +487,7 @@ describe("VOICE.md rule 2 — plumbing words stay off reader surfaces", () => {
 
   it("prints no date notice for absent Tonight lanes", () => {
     const html = renderToStaticMarkup(createElement(TonightProvenanceLines, {
-      provenance: { whatsOn: null, out: null, whatsOnDated: false, outDated: false },
+      provenance: { whatsOn: null, out: null, whatsOnDated: false, whatsOnUndated: false, outDated: false },
       nearestSuffix: null,
     }));
     expect(html).toBe("");
