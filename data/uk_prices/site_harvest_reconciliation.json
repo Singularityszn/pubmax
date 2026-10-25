@@ -10309,6 +10309,22 @@
         "rowCount": 7984,
         "siteHarvestRows": 3869
       }
+    },
+    {
+      "sourceEvidencePath": "data/uk_prices/later_publications/2026-10-25-thebullsheadhotel-co-uk-food-drink.json",
+      "sourceEvidenceSha256": "4398e3c3efbd1a78a8d66a88b6e49dd15c0701f0eb4ebb354f8af9d3918e0ff3",
+      "sourceUrl": "https://www.thebullsheadhotel.co.uk/food-drink/",
+      "sourceObservedAt": "2026-10-25T18:14:24.119Z",
+      "addedRows": 2,
+      "currentLedger": {
+        "sha256": "d7ceaae058bc148dfa2903a6f7bc4c08d3dfc88df562ee8bbff59fb4b2053284",
+        "rowCount": 4033,
+        "rowIdentitySetSha256": "14fff6a094479bc8b2b39de5499af54dd0846c469f39735b6b8bfa565556ca56"
+      },
+      "currentBundle": {
+        "rowCount": 7986,
+        "siteHarvestRows": 3871
+      }
     }
   ]
 }

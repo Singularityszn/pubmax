@@ -11,7 +11,8 @@ import {
   parseFoodPriceUpdates,
   type FoodPriceUpdate,
 } from "@/lib/foodPriceUpdates";
-import type { VenuePriceUpdates } from "@/lib/venuePriceUpdates";
+import { namedNonBeerBundleUpdates, type VenuePriceUpdates } from "@/lib/venuePriceUpdates";
+import { ukPriceBundleRowsByVenue } from "@/lib/ukPriceBundle.server";
 
 // The two observed price-update packs, read once per process and indexed by the
 // venue key each row is about.
@@ -105,8 +106,8 @@ export async function allDrinkPriceUpdates(): Promise<DrinkPriceUpdate[]> {
 }
 
 /**
- * Every overlay row either pack holds about one venue, scoped by the keys that
- * venue answers to (lib/venueMenu.ts `venueMenuLookupKeys`).
+ * Overlay rows and eligible site-harvest menu rows for one venue, scoped by
+ * its lookup keys (lib/venueMenu.ts `venueMenuLookupKeys`).
  *
  * Null when the read failed, so the caller publishes an absence it can tell
  * from an empty answer.
@@ -121,6 +122,11 @@ export async function venuePriceUpdatesFor(
   for (const key of keys) {
     drink.push(...(index.drinkByKey.get(key) ?? []));
     food.push(...(index.foodByKey.get(key) ?? []));
+  }
+  const bundle = await ukPriceBundleRowsByVenue();
+  if (bundle.status === "unavailable") return null;
+  for (const key of new Set(keys)) {
+    drink.push(...namedNonBeerBundleUpdates((bundle.byVenue.get(key) ?? []).filter((row) => row.lane === "site-harvest")));
   }
   return { drink, food };
 }

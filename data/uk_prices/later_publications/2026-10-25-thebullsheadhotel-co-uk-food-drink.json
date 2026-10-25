@@ -1,0 +1,42 @@
+{
+  "version": 1,
+  "sourceUrl": "https://www.thebullsheadhotel.co.uk/food-drink/",
+  "observedAt": "2026-10-25T18:14:24.119Z",
+  "evidence": "Mint Magnesium, Lion’s Mane, Lemon Balm (22kcal) £4.75 Ginger Yuzu Fizz Three Spirit Social, Yuzu Sherbet, Fever-Tree Ginger Ale (84kcal) £8.00 Non-Alcohol Sparkling Wine Steinbock, Riesling, Germany 75ml bottle 28kcal per 125ml serve £34.00 Nooh La Coste Rosé, Provence 22kcal per 125ml serve Glass £8.60 Bottle £45 AF = Alcohol Free Old fashioned Bulleit Bourbon, Angostura bitters, orange twist, brown sugar £12.00 Margarita Patron, Triple Sec, lime juice, sugar syrup £12.00 Espresso Martini Absolut Vanilla, espresso, sugar syrup £12.00 Passion Fruit Martini Passoa, Absolut Vanilla, pineapple j",
+  "evidenceReadAt": "2026-10-25T19:09:48.097Z",
+  "reader": "Manual review of scripts/harvest/uk-prices/run.mjs bounded document crawl on 25 October 2026, with source-policy and live robots checks. Two new named observations retained. Page evidence re-read by scripts/harvest/uk-prices/record-later-publications.mjs behind its source-policy and live robots gates.",
+  "rows": [
+    {
+      "host": "thebullsheadhotel.co.uk",
+      "venueId": "venue-uk-n428941713",
+      "osmId": "node/428941713",
+      "name": "The Bull's Head",
+      "postcode": null,
+      "lat": 51.410984,
+      "lng": 0.076585,
+      "category": "alcohol-free",
+      "priceGbp": 8.6,
+      "drinkLabel": "Nooh La Coste Rosé, Provence 22kcal per 125ml serve Glass",
+      "sourceUrl": "https://www.thebullsheadhotel.co.uk/food-drink/",
+      "observedAt": "2026-10-25T18:14:24.119Z",
+      "pubsOnHost": 1,
+      "linesOnPage": 12
+    },
+    {
+      "host": "thebullsheadhotel.co.uk",
+      "venueId": "venue-uk-n428941713",
+      "osmId": "node/428941713",
+      "name": "The Bull's Head",
+      "postcode": null,
+      "lat": 51.410984,
+      "lng": 0.076585,
+      "category": "coffee",
+      "priceGbp": 3.1,
+      "drinkLabel": "Double Espresso",
+      "sourceUrl": "https://www.thebullsheadhotel.co.uk/food-drink/",
+      "observedAt": "2026-10-25T18:14:24.119Z",
+      "pubsOnHost": 1,
+      "linesOnPage": 12
+    }
+  ]
+}
