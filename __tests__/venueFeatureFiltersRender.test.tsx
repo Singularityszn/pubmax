@@ -17,6 +17,7 @@ describe("the map's shared pub feature controls", () => {
     act(() => button?.click());
     expect(onChange).toHaveBeenCalledWith({ ...filters, requireOutdoorSeating: true });
     expect(host.textContent).toContain("OpenStreetMap and Google Places");
+    expect(host.textContent).toContain("Live sport: OpenStreetMap.");
     expect(host.querySelector('[role="status"]')?.textContent).toBe("8 matching places loaded on the map.");
     act(() => root.unmount());
   });

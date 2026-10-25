@@ -108,6 +108,36 @@ describe("feature hint source join", () => {
 });
 
 describe("sport and dog map choices", () => {
+  it("excludes Finery without a sport source tuple before and after details load", () => {
+    const slimRows = JSON.parse(readFileSync("public/data/venues_slim.json", "utf8")).rows as SlimVenue[];
+    const rows = JSON.parse(readFileSync("public/data/pint_prices_app_dataset.json", "utf8")) as VenuePrice[];
+    const slim = slimRows.find((row) => row.id === "venue-15898y3");
+    if (!slim) throw new Error("Finery missing from committed slim pack");
+    const detail = groupVenuePrices(rows.filter((row) => row.pub_name === "Finery"))[0];
+    if (!detail) throw new Error("Finery missing from committed price rows");
+    expect(detail.id).toBe("venue-15898y3");
+    expect(detail.amenities.liveSports).toBe(true);
+    expect(slim.filterHints?.liveSportsSource).toBeUndefined();
+    const slimPin = slimVenueToPin(slim);
+    const hydrated = mergeLazyDetailPins([slimPin], new Map([[detail.id, detail]]));
+    const filters = { ...initialFilters, requireLiveSports: true };
+    expect(filterMapVenues([slimPin], filters, () => false)).toEqual([]);
+    expect(filterMapVenues(hydrated, filters, () => false)).toEqual([]);
+    expect(filterMapVenues([detail], filters, () => false)).toEqual([]);
+  });
+  it("keeps the specified 512 sport matches across whole-pack detail hydration", () => {
+    const slimRows = JSON.parse(readFileSync("public/data/venues_slim.json", "utf8")).rows as SlimVenue[];
+    const rows = JSON.parse(readFileSync("public/data/pint_prices_app_dataset.json", "utf8")) as VenuePrice[];
+    const slimPins = slimRows.map(slimVenueToPin);
+    const details = groupVenuePrices(rows);
+    const hydrated = mergeLazyDetailPins(slimPins, new Map(details.map((venue) => [venue.id, venue])));
+    const filters = { ...initialFilters, requireLiveSports: true };
+    const before = filterMapVenues(slimPins, filters, () => false).map((venue) => venue.id).sort();
+    const after = filterMapVenues(hydrated, filters, () => false).map((venue) => venue.id).sort();
+    expect(before).toHaveLength(512);
+    expect(after).toHaveLength(512);
+    expect(after).toEqual(before);
+  });
   it("excludes unknown sport before details load", () => {
     const unknown = pin("unknown", { amenities: { ...pin("unknown").amenities, liveSports: true } });
     expect(filterMapVenues([unknown], { ...initialFilters, requireLiveSports: true }, () => false)).toEqual([]);

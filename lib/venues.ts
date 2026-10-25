@@ -1173,10 +1173,8 @@ function matchesRecordedExtras(venue: Venue, filters: Filters): boolean {
     if (venueAmenityStatus(venue).liveSports === "known-false" || venue.osmFacts?.liveSport === "no") return false;
     const source = venue.filterHints?.liveSportsSource;
     if (source?.[0] === false) return false;
-    const recordedSport = venue.prices.some((row) => truthyFlag(row.live_sports) && Boolean(row.source_datasets?.trim()));
-    if (!recordedSport && venue.osmFacts?.liveSport !== "yes"
-      && !positiveFeatureSource(source, ["OpenStreetMap"])
-) return false;
+    if (venue.osmFacts?.liveSport !== "yes"
+      && !positiveFeatureSource(source, ["OpenStreetMap"])) return false;
   }
   if (filters.requireDogFriendly) {
     const policy = venue.siteFacts?.dogs?.policy;

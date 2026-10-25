@@ -194,7 +194,12 @@ export function withCityCameraAttitude(
 
 export function validateMobileMapFilters(value: unknown): Filters | null {
   if (!value || typeof value !== "object") return null;
-  const raw = value as Partial<Filters>;
+  const raw: Partial<Filters> = {
+    requireDogFriendly: false,
+    requireDarts: false,
+    requirePool: false,
+    ...(value as Partial<Filters>),
+  };
   if (
     typeof raw.query !== "string" ||
     typeof raw.drinkCategory !== "string" ||
