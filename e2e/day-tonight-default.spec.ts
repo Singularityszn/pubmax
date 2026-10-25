@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { installNativeShell } from "./helpers/nativeShell";
 
 // The main tab uses the clock. The two page links remain explicit choices.
 test.use({ viewport: { width: 390, height: 844 }, timezoneId: "America/New_York" });
@@ -72,3 +73,38 @@ test("desktop and landing links use the same daytime default", async ({ page }) 
   await expect(desktop.getByRole("link", { name: "Tonight", exact: true })).toHaveAttribute("href", "/today");
   await expect(desktop.getByRole("link", { name: "Tonight", exact: true })).toHaveAttribute("aria-current", "page");
 });
+
+for (const instant of ["2026-01-15T03:59:59Z", "2026-07-16T02:59:59Z"]) {
+  test(`the main link changes at the 04:00 service rollover without rerouting at ${instant}`, async ({ page }) => {
+    await page.clock.install({ time: new Date(instant) });
+    await page.goto("/tonight");
+    const tab = dock(page).getByRole("link", { name: "Tonight", exact: true });
+    await expect(tab).toHaveAttribute("href", "/tonight");
+    await page.clock.pauseAt(new Date(instant));
+    await page.clock.runFor(1_000);
+    await expect(tab).toHaveAttribute("href", "/today");
+    await expect(page).toHaveURL(/\/tonight$/);
+    await expect(page.getByRole("navigation", { name: "Now", exact: true }).getByRole("link", { name: "Tonight", exact: true }))
+      .toHaveAttribute("aria-current", "page");
+  });
+}
+
+for (const platform of ["ios", "android"] as const) {
+  test(`a returning ${platform} launch keeps Home and the chosen city before opening Day`, async ({ page }) => {
+    await installNativeShell(page, platform);
+    await page.addInitScript(() => {
+      localStorage.setItem("pubmax:nativeFirstRun:done:v2", "1");
+      localStorage.setItem("pubmax:preferredCity:v1", "glasgow");
+    });
+    await page.clock.setFixedTime(new Date("2026-07-15T08:00:00Z"));
+    await page.goto("/app-entry");
+    await expect(page).toHaveURL(/\/$/);
+    const tab = dock(page).getByRole("link", { name: "Tonight", exact: true });
+    await expect(tab).toHaveAttribute("href", "/today");
+    await expect(page.locator("html")).toHaveAttribute("data-native-shell", platform);
+    await expect(dock(page).getByRole("link", { name: "Map", exact: true })).toHaveAttribute("href", "/map/glasgow");
+    await tab.click();
+    await expect(page).toHaveURL(/\/today$/);
+    expect(await page.evaluate(() => localStorage.getItem("pubmax:preferredCity:v1"))).toBe("glasgow");
+  });
+}
