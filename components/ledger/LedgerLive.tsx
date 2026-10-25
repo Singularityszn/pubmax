@@ -199,6 +199,8 @@ export function LedgerPriceRecord({ venue, bundle }: {
   };
   const { state, reload } = useLedgerLive();
   const publicPint = state.status === "ready" ? state.log.pintPrice : null;
+  // A cached document cannot know whether a public report exists.
+  const readableBundle = state.status === "ready" ? bundle : { ...bundle, estimate: null };
   const reportPrice = publicPint?.priceGbp != null
     ? { priceGbp: publicPint.priceGbp, observedAt: publicPint.createdAt }
     : null;
@@ -206,12 +208,12 @@ export function LedgerPriceRecord({ venue, bundle }: {
     pintVenue,
     publicPint?.state === "confirmed" || publicPint?.state === "corroborated" ? publicPint.priceGbp : null,
     venue.sourcedPrice,
-    bundle,
+    readableBundle,
     publicPint?.state === "logged-once" ? reportPrice : null,
     publicPint?.state === "aged-out" ? reportPrice : null,
     publicPint?.split ? { split: publicPint.split, observedAt: publicPint.createdAt } : null,
   );
-  const publishedLane = venuePriceLane(pintVenue, null, venue.sourcedPrice, bundle);
+  const publishedLane = venuePriceLane(pintVenue, null, venue.sourcedPrice, readableBundle);
   const currentPriceGbp = priceLane ? venuePriceLaneObservedGbp(priceLane) : undefined;
   const publishedRecord = publicPint && publishedLane?.lane === "estimate" ? null
     : <LedgerPublishedPriceRecord publishedLane={publishedLane} listedPint={listedPint} venueId={venueId} />;
