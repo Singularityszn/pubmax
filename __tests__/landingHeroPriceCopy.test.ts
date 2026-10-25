@@ -84,6 +84,8 @@ describe("landing answer card copy", () => {
   });
 
   it("prints the archive line with its month and its source day, and no movement it was not given", () => {
+    expect(html).toContain('<details class="lpEarlierPrices"><summary>Earlier prices</summary>');
+    expect(html).not.toMatch(/<details[^>]*\bopen[=>\s]/);
     expect(html).toMatch(
       /<strong>£3\.60<\/strong> in July 2013\. We can&#x27;t tell it was the same pint, so we don&#x27;t call it a change\./,
     );

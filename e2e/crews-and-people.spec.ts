@@ -6,7 +6,7 @@ import { expect, test } from "@playwright/test";
 // search and invite-link actions remain available in the control rail.
 
 const PHONE = { width: 390, height: 844 };
-const SOCIAL_TITLE = "Crews and people who are already here.";
+const SOCIAL_TITLE = "Plans, photos and people";
 
 test.describe("Signed-out Social", () => {
   test("offers no crew surface anywhere on the page", async ({ page }) => {

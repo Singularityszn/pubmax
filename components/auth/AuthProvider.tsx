@@ -1383,6 +1383,9 @@ export function AuthProvider({
       const supabase = await ensureSupabaseBrowser();
       if (!supabase) return;
       const departing = sessionTransitions.current.currentUserId();
+      // The provider can finish a refresh before SIGNED_OUT clears the session.
+      // Clear device data after that final event, before another account takes over.
+      await supabase.auth.signOut();
       // Explicit sign-out is the one place the durable resume cookie dies too —
       // a transient SIGNED_OUT (failed refresh) must keep it for silent restore.
       // AWAITED, because an account sign-out may hand the device straight to the
@@ -1402,8 +1405,6 @@ export function AuthProvider({
       else if (departing) forgetDeviceAccount(browserLocalStorage(), departing);
       emitDeviceAccountSessionsChanged();
       setWelcomeBack(null);
-      await supabase.auth.signOut();
-      // onAuthStateChange fires SIGNED_OUT → session clears via the subscription.
       if (scope === "device") return;
       // The person asked to leave ONE account on a device that still holds
       // another signed-in one. Leaving it signed out would strand a session

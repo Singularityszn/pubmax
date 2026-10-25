@@ -36,6 +36,8 @@ import { expect, test } from "@playwright/test";
 import { PERFORMANCE_BUDGETS } from "../lib/performanceBudgets";
 import { measurePerfRoute, preparePerfPage, type PerfRoute } from "./helpers/perfMeasurement";
 
+test.use({ serviceWorkers: "block" });
+
 type UxLaneRoute = PerfRoute & {
   /**
    * Route path in perf/route-budgets.json whose ceiling is printed beside this

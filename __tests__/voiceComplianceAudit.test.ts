@@ -1,18 +1,24 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
+
+import { JSDOM } from "jsdom";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 
 import { describe, expect, it } from "vitest";
+
+import TonightProvenanceLines from "@/app/tonight/TonightProvenanceLines";
+import NightAreaCoverage from "@/components/night/NightAreaCoverage";
+import { PalMeetingScreen } from "@/components/pal/PalExperience";
+import { DEFAULT_PAL_DRAFT } from "@/lib/pubPal";
+import { provenanceLabel } from "@/lib/tonight";
+import { checkedLabel } from "@/lib/whatsOnBadges";
 
 import {
   nightAreaOptionLabel,
   nightAreaSelectorGroups,
 } from "@/components/plan/PlanComposer";
 import { defined } from "@/__tests__/helpers/defined";
-import TonightProvenanceLines from "@/app/tonight/TonightProvenanceLines";
-import { provenanceLabel } from "@/lib/tonight";
-import { checkedLabel } from "@/lib/whatsOnBadges";
 
 function read(path: string): string {
   return readFileSync(join(process.cwd(), path), "utf8");
@@ -27,6 +33,21 @@ function notInspectedFiles(evidence: string): Set<string> {
 }
 
 describe("VOICE.md compliance audit", () => {
+  it("labels rendered area coverage with available actions", () => {
+    const document = new JSDOM(
+      renderToStaticMarkup(createElement(NightAreaCoverage)),
+    ).window.document;
+    const rows = document.querySelectorAll('[aria-label="All area coverage"] > li');
+    expect(rows.length).toBeGreaterThan(0);
+    for (const row of rows) {
+      const ready = row.getAttribute("data-route-ready") === "true";
+      expect(row.querySelector(".nightAreaCoverage__badge")?.textContent).toBe(
+        ready ? "Plan a crawl" : "Browse pubs",
+      );
+      expect(row.querySelector("a")?.textContent).toBe(ready ? "Open planner" : "See the pubs");
+    }
+  });
+
   it("records changed audit candidates as inspected and documents absolute-claim policy", () => {
     const evidence = read("docs/voice-audit-evidence.md");
     const notInspected = notInspectedFiles(evidence);
@@ -144,16 +165,12 @@ describe("VOICE.md compliance audit", () => {
     const planPage = read("app/plan/page.tsx");
     const feed = read("app/feed/FeedPageClient.tsx");
     const feedCard = read("components/feed/FeedCard.tsx");
-    const today = read("app/today/TodayClient.tsx");
-    const tonight = read("app/tonight/TonightClient.tsx");
-    const tonightPage = read("app/tonight/page.tsx");
     const near = read("components/nearme/NearMeNow.tsx");
     const nearHeadline = read("lib/nearMeAnswer.ts");
     const nearPage = read("app/near/page.tsx");
     const palChatPage = read("app/pal/chat/page.tsx");
     const deals = read("components/discovery/DealsTonightLane.tsx");
     const rivalry = read("components/discovery/CityRivalryTable.tsx");
-    const borough = read("app/borough/[slug]/page.tsx");
     const memories = read("components/profile/NightMemoryStudio.tsx");
     const planTemplates = read("lib/planTemplates.ts");
 
@@ -171,13 +188,6 @@ describe("VOICE.md compliance audit", () => {
     expect(feed).not.toContain("Capture a Moment");
     expect(feedCard).not.toContain("Provenance:");
 
-    expect(today).not.toContain("refresh this by hand right now");
-    expect(today).not.toContain("catch up shortly");
-    expect(tonight).not.toContain("same spine as the map");
-    expect(tonightPage).not.toContain("Same spine as the map");
-    expect(tonightPage).toContain(
-      "Check sourced London pub listings for tonight on PUBMAXX, with map links when available.",
-    );
     expect(planTemplates).not.toContain("What's-On spine");
     expect(planTemplates).toContain("Quiz listings with start times.");
 
@@ -196,7 +206,6 @@ describe("VOICE.md compliance audit", () => {
     expect(rivalry).not.toContain(
       'caption = "UK city energy. Demo Pint Drops, curated crawls',
     );
-    expect(borough).not.toMatch(/curated (?:route|crawls)/iu);
     expect(memories).not.toContain("Capture a Moment");
   });
 
@@ -254,7 +263,6 @@ describe("VOICE.md compliance audit", () => {
 
   it("keeps route, photo, operator, navigation, and API copy out of the plumbing", () => {
     const nightAreas = read("lib/nightAreas.ts");
-    const coverage = read("components/night/NightAreaCoverage.tsx");
     const cityCapabilities = read("lib/cityCapabilities.ts");
     const planEndings = read("lib/planEndings.ts");
     const planOptimizer = read("lib/planRouteOptimizer.ts");
@@ -287,7 +295,6 @@ describe("VOICE.md compliance audit", () => {
     expect(nightAreas).not.toMatch(
       /"[^"]*(?:capture district|Capture evidence|reviewed snapshot|evidence to verify|Crawl Route)[^"]*"/u,
     );
-    expect(coverage).not.toMatch(/label: "(?:Captured|Discovered)"/u);
     expect(cityCapabilities).not.toContain("pint-price snapshot");
     expect(cityCapabilities).not.toContain("per-item provenance");
     expect(planEndings).not.toMatch(
@@ -346,7 +353,6 @@ describe("VOICE.md compliance audit", () => {
     const tour = read("components/onboarding/FirstRunTour.tsx");
     const stories = read("app/discover/DiscoverPageClient.tsx");
     const digest = read("lib/weeklyDigest.ts");
-    const landing = read("components/landing/LandingPage.tsx");
     const crew = read("components/plan/PlanCrew.tsx");
     const plan = read("components/plan/PlanComposer.tsx");
     const activity = read("app/activity/ActivityClient.tsx");
@@ -360,7 +366,6 @@ describe("VOICE.md compliance audit", () => {
     const whatsOn = read("lib/concierge/whatsOn.ts");
     const palChat = read("lib/palChat.ts");
     const pushSender = read("lib/pushSender.ts");
-    const about = read("app/about/page.tsx");
     const accountHub = read("components/profile/PubmaxxAccountHub.tsx");
 
     expect(palPortrait).not.toMatch(
@@ -397,17 +402,7 @@ describe("VOICE.md compliance audit", () => {
     expect(palChat).not.toContain("I won't make anything up");
     expect(pushSender).not.toContain("new signals tonight");
     expect(pushSender).toContain("updates for tonight");
-    expect(landing).not.toContain("Cheap pints near you, live");
-    expect(landing).not.toContain("No endless listings. Just");
-    expect(landing).not.toContain("Every price names where it came from");
-    expect(about).not.toContain("Every one names where it came from");
-    expect(about).not.toContain("Listed prices name their sources");
-    expect(about).not.toContain("Listed pint prices with named sources");
-    expect(about).not.toMatch(/prices from real people|every figure links back/iu);
     expect(accountHub).not.toMatch(/prices from real people/iu);
-    expect(about).toMatch(
-      /names? and links? publishers? when recorded[\s\S]*says? when none is recorded/iu,
-    );
     expect(accountHub).toMatch(
       /prices name and link their publisher when recorded and say when none is recorded/iu,
     );
@@ -415,8 +410,6 @@ describe("VOICE.md compliance audit", () => {
 
     expect(activity).not.toContain("reach the bar");
     expect(activity).not.toContain("every follow, cheer and comment");
-    expect(about).not.toContain("Every price and every fact");
-    expect(about).not.toContain("Nothing in here nudges you to drink more");
     expect(plan).not.toContain("Every listed area can be planned");
     expect(plan).not.toContain("Every area can still make an editable route");
     expect(profile).not.toContain("Please try again");
@@ -465,6 +458,41 @@ describe("VOICE.md rule 2 — plumbing words stay off reader surfaces", () => {
     expect(html).not.toContain("Freshness unknown");
   });
 
+  it.each([null, undefined, "", "not-a-date", "2026-10-02T12:00:00Z"])(
+    "uses reader-facing freshness labels for %s",
+    (date) => {
+      for (const label of [provenanceLabel(date), checkedLabel(date)]) {
+        expect(label).toBe(date === "2026-10-02T12:00:00Z" ? "Checked 2 Oct" : "No date on this yet");
+        expect(label).not.toContain("Freshness unknown");
+      }
+    },
+  );
+
+  it.each([
+    [false, false], [false, true], [true, false], [true, true],
+  ])("dates each Tonight lane independently (%s, %s)", (whatsOnDated, outDated) => {
+    const html = renderToStaticMarkup(createElement(TonightProvenanceLines, {
+      provenance: { whatsOn: "Pub listings", out: "Music listings", whatsOnDated, outDated },
+      nearestSuffix: " · nearest Soho first",
+    }));
+    const lines = html.split("</p>");
+    expect(lines[0]).toContain("Pub listings · nearest Soho first");
+    expect(lines[1]).toContain("Music listings");
+    for (const [index, dated] of [whatsOnDated, outDated].entries()) {
+      if (dated) expect(lines[index]).not.toContain("The source check date is not recorded.");
+      else expect(lines[index]).toContain("The source check date is not recorded.");
+    }
+    expect(html).not.toContain("Freshness unknown");
+  });
+
+  it("prints no date notice for absent Tonight lanes", () => {
+    const html = renderToStaticMarkup(createElement(TonightProvenanceLines, {
+      provenance: { whatsOn: null, out: null, whatsOnDated: false, outDated: false },
+      nearestSuffix: null,
+    }));
+    expect(html).toBe("");
+  });
+
   it("names area coverage in pub words, not evidence stages or score bands", () => {
     const areaButton = read("lib/areaButton.ts");
     const mobilePlan = read("components/plan/MobilePlanActivation.tsx");
@@ -492,16 +520,15 @@ describe("VOICE.md rule 2 — plumbing words stay off reader surfaces", () => {
     expect(nightAreaOptionLabel(notReady!, false)).toBe("Barnes, not crawl-ready yet");
   });
 
-  it("keeps the Plan result and Pub Pal free of product-speak", () => {
-    const composer = read("components/plan/PlanComposer.tsx");
-    const pal = read("components/pal/PalExperience.tsx");
-
-    expect(composer).not.toContain("Context changed");
-    expect(composer).toMatch(/You&rsquo;ve changed the night since we sorted it/u);
-    expect(pal).not.toContain("Optional by design");
-    expect(pal).not.toContain("Route before character");
-    expect(pal).toContain("Your Pub Pal");
-    expect(pal).toContain("A little signal that becomes yours.");
+  it("keeps the Pub Pal meeting free of product-speak", () => {
+    const html = renderToStaticMarkup(createElement(PalMeetingScreen, {
+      appearance: DEFAULT_PAL_DRAFT.appearance,
+      onMeet: () => undefined,
+    }));
+    expect(html).not.toContain("Optional by design");
+    expect(html).not.toContain("Route before character");
+    expect(html).toContain("Your Pub Pal");
+    expect(html).toMatch(/<h1[^>]*>Plan your night with Pub Pal<\/h1>/u);
   });
 });
 

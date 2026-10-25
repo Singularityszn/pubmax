@@ -143,6 +143,7 @@ describe("the Plan result", () => {
     await sortIt("Quiet in Clapham for 4");
     const heading = () => document.querySelector("#plan-result-title")?.textContent;
     expect(heading()).toBe("Tonight in Clapham");
+    expect(document.querySelector(".planComposer__routeStale")).toBeNull();
 
     const tune = [...document.querySelectorAll("button")].find((button) => button.textContent?.includes("Tune details"))!;
     await act(async () => { tune.click(); });
@@ -156,6 +157,10 @@ describe("the Plan result", () => {
     });
     await settle();
 
+    const notice = document.querySelector(".planComposer__routeStale");
+    expect(notice?.textContent).toContain("You’ve changed the night since we sorted it");
+    expect(notice?.textContent).not.toContain("Context changed");
+    expect(notice?.querySelector("button")?.textContent).toBe("Regenerate route");
     expect(area.value).toBe("victoria");
     expect(heading()).toBe("Tonight in Clapham");
     const meta = [...document.querySelectorAll(".planStop__meta")].map((node) => node.textContent);

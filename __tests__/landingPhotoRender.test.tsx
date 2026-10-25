@@ -13,7 +13,6 @@ vi.mock("@/lib/landingPubCard.server", () => ({
     card: heroData.card,
     archive: {},
     rail: [],
-    averages: null,
   }),
 }));
 vi.mock("@/lib/landingAnswers.server", () => ({
@@ -30,9 +29,10 @@ vi.mock("@/components/native/AppEntryRoute", () => ({ default: () => null }));
 
 import Home from "@/app/page";
 import BoroughScreen from "@/app/borough/BoroughScreen";
+import { boroughPlacePhoto } from "@/components/listing/placePhotoRules";
 import LandingHero from "@/components/landing/LandingHero";
 import LandingSkylinePreload from "@/components/landing/LandingSkylinePreload";
-import { landingPhotoFor, LANDING_PHOTOS, LONDON_PHOTO_ID, PUB_PHOTOS } from "@/lib/landingImagery";
+import { LANDING_PHOTOS, LONDON_PHOTO_ID, PUB_PHOTOS } from "@/lib/landingImagery";
 import type { LandingArchiveIndex } from "@/lib/landingHero";
 import type { LandingPubCardData } from "@/lib/landingPubCard";
 import { defined } from "@/__tests__/helpers/defined";
@@ -286,10 +286,10 @@ describe("a borough chapter carries its own photograph", () => {
         titleId: "boroughHeading",
         mapHref: "/map",
         mapLabel: "Open the map here",
-        photo: landingPhotoFor({ boroughSlug: "camden" }),
+        photo: boroughPlacePhoto("Camden") ?? undefined,
       }),
     );
-    expect(html).toContain("landingPhoto--band");
+    expect(html).toContain("placePhoto boroughPhoto");
     expect(html).toContain("/landing/london/camden-lock-640.avif 640w");
     expect(html).toContain(defined(LANDING_PHOTOS["camden-lock"]).credit.author);
     expect(html).not.toContain("No photo yet");
@@ -306,5 +306,7 @@ describe("a borough chapter carries its own photograph", () => {
       }),
     );
     expect(html).not.toContain("landingPhoto");
+    expect(html).not.toContain("placePhoto");
+    expect(html).not.toContain("<picture");
   });
 });

@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { getVercelOidcTokenSync } from "@vercel/oidc";
 
 import { runLevelFailure } from "@/lib/cityEnrichmentCheckpoint";
 import {
@@ -46,6 +47,7 @@ function tavilyResponse(overrides: Record<string, unknown> = {}) {
 
 afterEach(() => {
   vi.unstubAllGlobals();
+  vi.unstubAllEnvs();
   vi.restoreAllMocks();
 });
 
@@ -366,5 +368,34 @@ describe("gateway spend guard", () => {
     const refusal = await provider.search({ query: "second" }).catch((error) => error);
     expect(refusal).toBeInstanceOf(SearchProviderBudgetError);
     expect(runLevelFailure(refusal)).toBe(true);
+  });
+});
+
+
+describe("Vercel OIDC synchronous token contract", () => {
+  it("uses the request token before the environment token", () => {
+    vi.stubEnv("VERCEL_OIDC_TOKEN", "environment-token");
+    vi.stubGlobal(Symbol.for("@vercel/request-context"), {
+      get: () => ({ headers: { "x-vercel-oidc-token": "request-token" } }),
+    });
+    expect(getVercelOidcTokenSync()).toBe("request-token");
+  });
+
+  it("uses the environment token when the request has no token", () => {
+    vi.stubEnv("VERCEL_OIDC_TOKEN", "environment-token");
+    vi.stubGlobal(Symbol.for("@vercel/request-context"), { get: () => ({ headers: {} }) });
+    expect(getVercelOidcTokenSync()).toBe("environment-token");
+  });
+
+  it("uses the environment token outside a request", () => {
+    vi.stubEnv("VERCEL_OIDC_TOKEN", "environment-token");
+    vi.stubGlobal(Symbol.for("@vercel/request-context"), undefined);
+    expect(getVercelOidcTokenSync()).toBe("environment-token");
+  });
+
+  it("throws when neither source supplies a token", () => {
+    vi.stubEnv("VERCEL_OIDC_TOKEN", undefined);
+    vi.stubGlobal(Symbol.for("@vercel/request-context"), { get: () => ({ headers: {} }) });
+    expect(() => getVercelOidcTokenSync()).toThrow("The 'x-vercel-oidc-token' header is missing from the request.");
   });
 });

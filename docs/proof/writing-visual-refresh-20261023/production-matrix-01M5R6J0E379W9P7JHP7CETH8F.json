@@ -1,0 +1,818 @@
+[
+  {
+    "route": "/",
+    "width": 390,
+    "theme": "light",
+    "headings": [
+      "What a pint costs, pub by pub."
+    ],
+    "title": "PUBMAXX: listed pint prices on an interactive map",
+    "description": "Find a London pub, compare listed pint prices and plan your night.",
+    "overflow": 0,
+    "screenshot": "home-390-light.png",
+    "result": "pass"
+  },
+  {
+    "route": "/about",
+    "width": 390,
+    "theme": "light",
+    "headings": [
+      "A pint in London can cost eight quid. Nobody tells you where it doesn’t."
+    ],
+    "title": "About PUBMAXX | PUBMAXX",
+    "description": "A pint in London can cost eight quid. PUBMAXX puts listed prices on one map for nights out, coffee, food, and sober hangs. We name and link publishers when recorded, and say when none is recorded. Free, and nobody pays to rank.",
+    "overflow": 0,
+    "screenshot": "about-390-light.png",
+    "result": "pass"
+  },
+  {
+    "route": "/tonight",
+    "width": 390,
+    "theme": "light",
+    "headings": [
+      "What’s on across London tonight."
+    ],
+    "title": "Tonight in London | PUBMAXX",
+    "description": "Check sourced London pub listings for tonight on PUBMAXX, with map links when available.",
+    "overflow": 0,
+    "screenshot": "tonight-390-light.png",
+    "result": "pass"
+  },
+  {
+    "route": "/today",
+    "width": 390,
+    "theme": "light",
+    "headings": [
+      "What’s on across London today."
+    ],
+    "title": "Today in London | PUBMAXX",
+    "description": "Your morning brief: is it a pint-in-the-garden day, tonight's top picks, how you'll get home, and one sourced pub fact.",
+    "overflow": 0,
+    "screenshot": "today-390-light.png",
+    "result": "pass"
+  },
+  {
+    "route": "/social?tab=discover",
+    "width": 390,
+    "theme": "light",
+    "headings": [
+      "Pubs and pints"
+    ],
+    "title": "Social | PUBMAXX",
+    "description": "Pub-night posts in the order they went up, plus public posts about pubs.",
+    "overflow": 0,
+    "screenshot": "social-tab-discover-390-light.png",
+    "result": "pass"
+  },
+  {
+    "route": "/pal",
+    "width": 390,
+    "theme": "light",
+    "headings": [
+      "Plan your night with Pub Pal"
+    ],
+    "title": "Plan your night with Pub Pal | PUBMAXX",
+    "description": "Find a pub or plan a route with Pub Pal. Choose its look, voice and what it can remember.",
+    "overflow": 0,
+    "screenshot": "pal-390-light.png",
+    "result": "pass"
+  },
+  {
+    "route": "/borough/southwark",
+    "width": 390,
+    "theme": "light",
+    "headings": [
+      "Pubs in Southwark."
+    ],
+    "title": "The cheapest pints and best pubs in Southwark | PUBMAXX",
+    "description": "81 pubs in Southwark, ranked cheapest-first. Pints from £2.49. Plan a crawl through the area on PUBMAXX.",
+    "overflow": 0,
+    "screenshot": "borough-southwark-390-light.png",
+    "photo": {
+      "src": "http://127.0.0.1:3199/landing/london-collage/southwark-shard-640.avif",
+      "width": 390,
+      "height": 519,
+      "alt": "The Shard seen down a Southwark street under a mackerel sky, London"
+    },
+    "result": "pass"
+  },
+  {
+    "route": "/historic",
+    "width": 390,
+    "theme": "light",
+    "headings": [
+      "London’s historic pubs"
+    ],
+    "title": "London's historic pubs, cited from Wikipedia and Wikidata | PUBMAXX",
+    "description": "A browsable index of London's notable, historic pubs. Dates, listed-building grades, and one cited sentence each, sourced from Wikipedia and Wikidata. Filter by borough, jump straight onto the map.",
+    "overflow": 0,
+    "screenshot": "historic-390-light.png",
+    "result": "pass"
+  },
+  {
+    "route": "/map",
+    "width": 390,
+    "theme": "light",
+    "headings": [
+      "London pub map"
+    ],
+    "title": "London pub map | PUBMAXX",
+    "description": "PUBMAXX is the London pub map, with listed pint prices and crawl planning.",
+    "overflow": 0,
+    "screenshot": "map-390-light.png",
+    "result": "pass"
+  },
+  {
+    "route": "/plan",
+    "width": 390,
+    "theme": "light",
+    "headings": [
+      "Plan a pub crawl"
+    ],
+    "title": "Plan a pub crawl | PUBMAXX",
+    "description": "Put the pubs in order, pick a time, and send one link to the crew.",
+    "overflow": 0,
+    "screenshot": "plan-390-light.png",
+    "result": "pass"
+  },
+  {
+    "route": "/",
+    "width": 390,
+    "theme": "dark",
+    "headings": [
+      "What a pint costs, pub by pub."
+    ],
+    "title": "PUBMAXX: listed pint prices on an interactive map",
+    "description": "Find a London pub, compare listed pint prices and plan your night.",
+    "overflow": 0,
+    "screenshot": "home-390-dark.png",
+    "result": "pass"
+  },
+  {
+    "route": "/about",
+    "width": 390,
+    "theme": "dark",
+    "headings": [
+      "A pint in London can cost eight quid. Nobody tells you where it doesn’t."
+    ],
+    "title": "About PUBMAXX | PUBMAXX",
+    "description": "A pint in London can cost eight quid. PUBMAXX puts listed prices on one map for nights out, coffee, food, and sober hangs. We name and link publishers when recorded, and say when none is recorded. Free, and nobody pays to rank.",
+    "overflow": 0,
+    "screenshot": "about-390-dark.png",
+    "result": "pass"
+  },
+  {
+    "route": "/tonight",
+    "width": 390,
+    "theme": "dark",
+    "headings": [
+      "What’s on across London tonight."
+    ],
+    "title": "Tonight in London | PUBMAXX",
+    "description": "Check sourced London pub listings for tonight on PUBMAXX, with map links when available.",
+    "overflow": 0,
+    "screenshot": "tonight-390-dark.png",
+    "result": "pass"
+  },
+  {
+    "route": "/today",
+    "width": 390,
+    "theme": "dark",
+    "headings": [
+      "What’s on across London today."
+    ],
+    "title": "Today in London | PUBMAXX",
+    "description": "Your morning brief: is it a pint-in-the-garden day, tonight's top picks, how you'll get home, and one sourced pub fact.",
+    "overflow": 0,
+    "screenshot": "today-390-dark.png",
+    "result": "pass"
+  },
+  {
+    "route": "/social?tab=discover",
+    "width": 390,
+    "theme": "dark",
+    "headings": [
+      "Pubs and pints"
+    ],
+    "title": "Social | PUBMAXX",
+    "description": "Pub-night posts in the order they went up, plus public posts about pubs.",
+    "overflow": 0,
+    "screenshot": "social-tab-discover-390-dark.png",
+    "result": "pass"
+  },
+  {
+    "route": "/pal",
+    "width": 390,
+    "theme": "dark",
+    "headings": [
+      "Plan your night with Pub Pal"
+    ],
+    "title": "Plan your night with Pub Pal | PUBMAXX",
+    "description": "Find a pub or plan a route with Pub Pal. Choose its look, voice and what it can remember.",
+    "overflow": 0,
+    "screenshot": "pal-390-dark.png",
+    "result": "pass"
+  },
+  {
+    "route": "/borough/southwark",
+    "width": 390,
+    "theme": "dark",
+    "headings": [
+      "Pubs in Southwark."
+    ],
+    "title": "The cheapest pints and best pubs in Southwark | PUBMAXX",
+    "description": "81 pubs in Southwark, ranked cheapest-first. Pints from £2.49. Plan a crawl through the area on PUBMAXX.",
+    "overflow": 0,
+    "screenshot": "borough-southwark-390-dark.png",
+    "photo": {
+      "src": "http://127.0.0.1:3199/landing/london-collage/southwark-shard-640.avif",
+      "width": 390,
+      "height": 519,
+      "alt": "The Shard seen down a Southwark street under a mackerel sky, London"
+    },
+    "result": "pass"
+  },
+  {
+    "route": "/historic",
+    "width": 390,
+    "theme": "dark",
+    "headings": [
+      "London’s historic pubs"
+    ],
+    "title": "London's historic pubs, cited from Wikipedia and Wikidata | PUBMAXX",
+    "description": "A browsable index of London's notable, historic pubs. Dates, listed-building grades, and one cited sentence each, sourced from Wikipedia and Wikidata. Filter by borough, jump straight onto the map.",
+    "overflow": 0,
+    "screenshot": "historic-390-dark.png",
+    "result": "pass"
+  },
+  {
+    "route": "/map",
+    "width": 390,
+    "theme": "dark",
+    "headings": [
+      "London pub map"
+    ],
+    "title": "London pub map | PUBMAXX",
+    "description": "PUBMAXX is the London pub map, with listed pint prices and crawl planning.",
+    "overflow": 0,
+    "screenshot": "map-390-dark.png",
+    "result": "pass"
+  },
+  {
+    "route": "/plan",
+    "width": 390,
+    "theme": "dark",
+    "headings": [
+      "Plan a pub crawl"
+    ],
+    "title": "Plan a pub crawl | PUBMAXX",
+    "description": "Put the pubs in order, pick a time, and send one link to the crew.",
+    "overflow": 0,
+    "screenshot": "plan-390-dark.png",
+    "result": "pass"
+  },
+  {
+    "route": "/",
+    "width": 768,
+    "theme": "light",
+    "headings": [
+      "What a pint costs, pub by pub."
+    ],
+    "title": "PUBMAXX: listed pint prices on an interactive map",
+    "description": "Find a London pub, compare listed pint prices and plan your night.",
+    "overflow": 0,
+    "screenshot": "home-768-light.png",
+    "result": "pass"
+  },
+  {
+    "route": "/about",
+    "width": 768,
+    "theme": "light",
+    "headings": [
+      "A pint in London can cost eight quid. Nobody tells you where it doesn’t."
+    ],
+    "title": "About PUBMAXX | PUBMAXX",
+    "description": "A pint in London can cost eight quid. PUBMAXX puts listed prices on one map for nights out, coffee, food, and sober hangs. We name and link publishers when recorded, and say when none is recorded. Free, and nobody pays to rank.",
+    "overflow": 0,
+    "screenshot": "about-768-light.png",
+    "result": "pass"
+  },
+  {
+    "route": "/tonight",
+    "width": 768,
+    "theme": "light",
+    "headings": [
+      "What’s on across London tonight."
+    ],
+    "title": "Tonight in London | PUBMAXX",
+    "description": "Check sourced London pub listings for tonight on PUBMAXX, with map links when available.",
+    "overflow": 0,
+    "screenshot": "tonight-768-light.png",
+    "result": "pass"
+  },
+  {
+    "route": "/today",
+    "width": 768,
+    "theme": "light",
+    "headings": [
+      "What’s on across London today."
+    ],
+    "title": "Today in London | PUBMAXX",
+    "description": "Your morning brief: is it a pint-in-the-garden day, tonight's top picks, how you'll get home, and one sourced pub fact.",
+    "overflow": 0,
+    "screenshot": "today-768-light.png",
+    "result": "pass"
+  },
+  {
+    "route": "/social?tab=discover",
+    "width": 768,
+    "theme": "light",
+    "headings": [
+      "Pubs and pints"
+    ],
+    "title": "Social | PUBMAXX",
+    "description": "Pub-night posts in the order they went up, plus public posts about pubs.",
+    "overflow": 0,
+    "screenshot": "social-tab-discover-768-light.png",
+    "result": "pass"
+  },
+  {
+    "route": "/pal",
+    "width": 768,
+    "theme": "light",
+    "headings": [
+      "Plan your night with Pub Pal"
+    ],
+    "title": "Plan your night with Pub Pal | PUBMAXX",
+    "description": "Find a pub or plan a route with Pub Pal. Choose its look, voice and what it can remember.",
+    "overflow": 0,
+    "screenshot": "pal-768-light.png",
+    "result": "pass"
+  },
+  {
+    "route": "/borough/southwark",
+    "width": 768,
+    "theme": "light",
+    "headings": [
+      "Pubs in Southwark."
+    ],
+    "title": "The cheapest pints and best pubs in Southwark | PUBMAXX",
+    "description": "81 pubs in Southwark, ranked cheapest-first. Pints from £2.49. Plan a crawl through the area on PUBMAXX.",
+    "overflow": 0,
+    "screenshot": "borough-southwark-768-light.png",
+    "photo": {
+      "src": "http://127.0.0.1:3199/landing/london-collage/southwark-shard-1280.avif",
+      "width": 768,
+      "height": 1024,
+      "alt": "The Shard seen down a Southwark street under a mackerel sky, London"
+    },
+    "result": "pass"
+  },
+  {
+    "route": "/historic",
+    "width": 768,
+    "theme": "light",
+    "headings": [
+      "London’s historic pubs"
+    ],
+    "title": "London's historic pubs, cited from Wikipedia and Wikidata | PUBMAXX",
+    "description": "A browsable index of London's notable, historic pubs. Dates, listed-building grades, and one cited sentence each, sourced from Wikipedia and Wikidata. Filter by borough, jump straight onto the map.",
+    "overflow": 0,
+    "screenshot": "historic-768-light.png",
+    "result": "pass"
+  },
+  {
+    "route": "/map",
+    "width": 768,
+    "theme": "light",
+    "headings": [
+      "London pub map"
+    ],
+    "title": "London pub map | PUBMAXX",
+    "description": "PUBMAXX is the London pub map, with listed pint prices and crawl planning.",
+    "overflow": 0,
+    "screenshot": "map-768-light.png",
+    "result": "pass"
+  },
+  {
+    "route": "/plan",
+    "width": 768,
+    "theme": "light",
+    "headings": [
+      "Plan a pub crawl"
+    ],
+    "title": "Plan a pub crawl | PUBMAXX",
+    "description": "Put the pubs in order, pick a time, and send one link to the crew.",
+    "overflow": 0,
+    "screenshot": "plan-768-light.png",
+    "result": "pass"
+  },
+  {
+    "route": "/",
+    "width": 768,
+    "theme": "dark",
+    "headings": [
+      "What a pint costs, pub by pub."
+    ],
+    "title": "PUBMAXX: listed pint prices on an interactive map",
+    "description": "Find a London pub, compare listed pint prices and plan your night.",
+    "overflow": 0,
+    "screenshot": "home-768-dark.png",
+    "result": "pass"
+  },
+  {
+    "route": "/about",
+    "width": 768,
+    "theme": "dark",
+    "headings": [
+      "A pint in London can cost eight quid. Nobody tells you where it doesn’t."
+    ],
+    "title": "About PUBMAXX | PUBMAXX",
+    "description": "A pint in London can cost eight quid. PUBMAXX puts listed prices on one map for nights out, coffee, food, and sober hangs. We name and link publishers when recorded, and say when none is recorded. Free, and nobody pays to rank.",
+    "overflow": 0,
+    "screenshot": "about-768-dark.png",
+    "result": "pass"
+  },
+  {
+    "route": "/tonight",
+    "width": 768,
+    "theme": "dark",
+    "headings": [
+      "What’s on across London tonight."
+    ],
+    "title": "Tonight in London | PUBMAXX",
+    "description": "Check sourced London pub listings for tonight on PUBMAXX, with map links when available.",
+    "overflow": 0,
+    "screenshot": "tonight-768-dark.png",
+    "result": "pass"
+  },
+  {
+    "route": "/today",
+    "width": 768,
+    "theme": "dark",
+    "headings": [
+      "What’s on across London today."
+    ],
+    "title": "Today in London | PUBMAXX",
+    "description": "Your morning brief: is it a pint-in-the-garden day, tonight's top picks, how you'll get home, and one sourced pub fact.",
+    "overflow": 0,
+    "screenshot": "today-768-dark.png",
+    "result": "pass"
+  },
+  {
+    "route": "/social?tab=discover",
+    "width": 768,
+    "theme": "dark",
+    "headings": [
+      "Pubs and pints"
+    ],
+    "title": "Social | PUBMAXX",
+    "description": "Pub-night posts in the order they went up, plus public posts about pubs.",
+    "overflow": 0,
+    "screenshot": "social-tab-discover-768-dark.png",
+    "result": "pass"
+  },
+  {
+    "route": "/pal",
+    "width": 768,
+    "theme": "dark",
+    "headings": [
+      "Plan your night with Pub Pal"
+    ],
+    "title": "Plan your night with Pub Pal | PUBMAXX",
+    "description": "Find a pub or plan a route with Pub Pal. Choose its look, voice and what it can remember.",
+    "overflow": 0,
+    "screenshot": "pal-768-dark.png",
+    "result": "pass"
+  },
+  {
+    "route": "/borough/southwark",
+    "width": 768,
+    "theme": "dark",
+    "headings": [
+      "Pubs in Southwark."
+    ],
+    "title": "The cheapest pints and best pubs in Southwark | PUBMAXX",
+    "description": "81 pubs in Southwark, ranked cheapest-first. Pints from £2.49. Plan a crawl through the area on PUBMAXX.",
+    "overflow": 0,
+    "screenshot": "borough-southwark-768-dark.png",
+    "photo": {
+      "src": "http://127.0.0.1:3199/landing/london-collage/southwark-shard-1280.avif",
+      "width": 768,
+      "height": 1024,
+      "alt": "The Shard seen down a Southwark street under a mackerel sky, London"
+    },
+    "result": "pass"
+  },
+  {
+    "route": "/historic",
+    "width": 768,
+    "theme": "dark",
+    "headings": [
+      "London’s historic pubs"
+    ],
+    "title": "London's historic pubs, cited from Wikipedia and Wikidata | PUBMAXX",
+    "description": "A browsable index of London's notable, historic pubs. Dates, listed-building grades, and one cited sentence each, sourced from Wikipedia and Wikidata. Filter by borough, jump straight onto the map.",
+    "overflow": 0,
+    "screenshot": "historic-768-dark.png",
+    "result": "pass"
+  },
+  {
+    "route": "/map",
+    "width": 768,
+    "theme": "dark",
+    "headings": [
+      "London pub map"
+    ],
+    "title": "London pub map | PUBMAXX",
+    "description": "PUBMAXX is the London pub map, with listed pint prices and crawl planning.",
+    "overflow": 0,
+    "screenshot": "map-768-dark.png",
+    "result": "pass"
+  },
+  {
+    "route": "/plan",
+    "width": 768,
+    "theme": "dark",
+    "headings": [
+      "Plan a pub crawl"
+    ],
+    "title": "Plan a pub crawl | PUBMAXX",
+    "description": "Put the pubs in order, pick a time, and send one link to the crew.",
+    "overflow": 0,
+    "screenshot": "plan-768-dark.png",
+    "result": "pass"
+  },
+  {
+    "route": "/",
+    "width": 1440,
+    "theme": "light",
+    "headings": [
+      "What a pint costs, pub by pub."
+    ],
+    "title": "PUBMAXX: listed pint prices on an interactive map",
+    "description": "Find a London pub, compare listed pint prices and plan your night.",
+    "overflow": 0,
+    "screenshot": "home-1440-light.png",
+    "result": "pass"
+  },
+  {
+    "route": "/about",
+    "width": 1440,
+    "theme": "light",
+    "headings": [
+      "A pint in London can cost eight quid. Nobody tells you where it doesn’t."
+    ],
+    "title": "About PUBMAXX | PUBMAXX",
+    "description": "A pint in London can cost eight quid. PUBMAXX puts listed prices on one map for nights out, coffee, food, and sober hangs. We name and link publishers when recorded, and say when none is recorded. Free, and nobody pays to rank.",
+    "overflow": 0,
+    "screenshot": "about-1440-light.png",
+    "result": "pass"
+  },
+  {
+    "route": "/tonight",
+    "width": 1440,
+    "theme": "light",
+    "headings": [
+      "What’s on across London tonight."
+    ],
+    "title": "Tonight in London | PUBMAXX",
+    "description": "Check sourced London pub listings for tonight on PUBMAXX, with map links when available.",
+    "overflow": 0,
+    "screenshot": "tonight-1440-light.png",
+    "result": "pass"
+  },
+  {
+    "route": "/today",
+    "width": 1440,
+    "theme": "light",
+    "headings": [
+      "What’s on across London today."
+    ],
+    "title": "Today in London | PUBMAXX",
+    "description": "Your morning brief: is it a pint-in-the-garden day, tonight's top picks, how you'll get home, and one sourced pub fact.",
+    "overflow": 0,
+    "screenshot": "today-1440-light.png",
+    "result": "pass"
+  },
+  {
+    "route": "/social?tab=discover",
+    "width": 1440,
+    "theme": "light",
+    "headings": [
+      "Pubs and pints"
+    ],
+    "title": "Social | PUBMAXX",
+    "description": "Pub-night posts in the order they went up, plus public posts about pubs.",
+    "overflow": 0,
+    "screenshot": "social-tab-discover-1440-light.png",
+    "result": "pass"
+  },
+  {
+    "route": "/pal",
+    "width": 1440,
+    "theme": "light",
+    "headings": [
+      "Plan your night with Pub Pal"
+    ],
+    "title": "Plan your night with Pub Pal | PUBMAXX",
+    "description": "Find a pub or plan a route with Pub Pal. Choose its look, voice and what it can remember.",
+    "overflow": 0,
+    "screenshot": "pal-1440-light.png",
+    "result": "pass"
+  },
+  {
+    "route": "/borough/southwark",
+    "width": 1440,
+    "theme": "light",
+    "headings": [
+      "Pubs in Southwark."
+    ],
+    "title": "The cheapest pints and best pubs in Southwark | PUBMAXX",
+    "description": "81 pubs in Southwark, ranked cheapest-first. Pints from £2.49. Plan a crawl through the area on PUBMAXX.",
+    "overflow": 0,
+    "screenshot": "borough-southwark-1440-light.png",
+    "photo": {
+      "src": "http://127.0.0.1:3199/landing/london-collage/southwark-shard-1280.avif",
+      "width": 1039,
+      "height": 1386,
+      "alt": "The Shard seen down a Southwark street under a mackerel sky, London"
+    },
+    "result": "pass"
+  },
+  {
+    "route": "/historic",
+    "width": 1440,
+    "theme": "light",
+    "headings": [
+      "London’s historic pubs"
+    ],
+    "title": "London's historic pubs, cited from Wikipedia and Wikidata | PUBMAXX",
+    "description": "A browsable index of London's notable, historic pubs. Dates, listed-building grades, and one cited sentence each, sourced from Wikipedia and Wikidata. Filter by borough, jump straight onto the map.",
+    "overflow": 0,
+    "screenshot": "historic-1440-light.png",
+    "result": "pass"
+  },
+  {
+    "route": "/map",
+    "width": 1440,
+    "theme": "light",
+    "headings": [
+      "London pub map"
+    ],
+    "title": "London pub map | PUBMAXX",
+    "description": "PUBMAXX is the London pub map, with listed pint prices and crawl planning.",
+    "overflow": 0,
+    "screenshot": "map-1440-light.png",
+    "result": "pass"
+  },
+  {
+    "route": "/plan",
+    "width": 1440,
+    "theme": "light",
+    "headings": [
+      "Plan a pub crawl"
+    ],
+    "title": "Plan a pub crawl | PUBMAXX",
+    "description": "Put the pubs in order, pick a time, and send one link to the crew.",
+    "overflow": 0,
+    "screenshot": "plan-1440-light.png",
+    "result": "pass"
+  },
+  {
+    "route": "/",
+    "width": 1440,
+    "theme": "dark",
+    "headings": [
+      "What a pint costs, pub by pub."
+    ],
+    "title": "PUBMAXX: listed pint prices on an interactive map",
+    "description": "Find a London pub, compare listed pint prices and plan your night.",
+    "overflow": 0,
+    "screenshot": "home-1440-dark.png",
+    "result": "pass"
+  },
+  {
+    "route": "/about",
+    "width": 1440,
+    "theme": "dark",
+    "headings": [
+      "A pint in London can cost eight quid. Nobody tells you where it doesn’t."
+    ],
+    "title": "About PUBMAXX | PUBMAXX",
+    "description": "A pint in London can cost eight quid. PUBMAXX puts listed prices on one map for nights out, coffee, food, and sober hangs. We name and link publishers when recorded, and say when none is recorded. Free, and nobody pays to rank.",
+    "overflow": 0,
+    "screenshot": "about-1440-dark.png",
+    "result": "pass"
+  },
+  {
+    "route": "/tonight",
+    "width": 1440,
+    "theme": "dark",
+    "headings": [
+      "What’s on across London tonight."
+    ],
+    "title": "Tonight in London | PUBMAXX",
+    "description": "Check sourced London pub listings for tonight on PUBMAXX, with map links when available.",
+    "overflow": 0,
+    "screenshot": "tonight-1440-dark.png",
+    "result": "pass"
+  },
+  {
+    "route": "/today",
+    "width": 1440,
+    "theme": "dark",
+    "headings": [
+      "What’s on across London today."
+    ],
+    "title": "Today in London | PUBMAXX",
+    "description": "Your morning brief: is it a pint-in-the-garden day, tonight's top picks, how you'll get home, and one sourced pub fact.",
+    "overflow": 0,
+    "screenshot": "today-1440-dark.png",
+    "result": "pass"
+  },
+  {
+    "route": "/social?tab=discover",
+    "width": 1440,
+    "theme": "dark",
+    "headings": [
+      "Pubs and pints"
+    ],
+    "title": "Social | PUBMAXX",
+    "description": "Pub-night posts in the order they went up, plus public posts about pubs.",
+    "overflow": 0,
+    "screenshot": "social-tab-discover-1440-dark.png",
+    "result": "pass"
+  },
+  {
+    "route": "/pal",
+    "width": 1440,
+    "theme": "dark",
+    "headings": [
+      "Plan your night with Pub Pal"
+    ],
+    "title": "Plan your night with Pub Pal | PUBMAXX",
+    "description": "Find a pub or plan a route with Pub Pal. Choose its look, voice and what it can remember.",
+    "overflow": 0,
+    "screenshot": "pal-1440-dark.png",
+    "result": "pass"
+  },
+  {
+    "route": "/borough/southwark",
+    "width": 1440,
+    "theme": "dark",
+    "headings": [
+      "Pubs in Southwark."
+    ],
+    "title": "The cheapest pints and best pubs in Southwark | PUBMAXX",
+    "description": "81 pubs in Southwark, ranked cheapest-first. Pints from £2.49. Plan a crawl through the area on PUBMAXX.",
+    "overflow": 0,
+    "screenshot": "borough-southwark-1440-dark.png",
+    "photo": {
+      "src": "http://127.0.0.1:3199/landing/london-collage/southwark-shard-1280.avif",
+      "width": 1039,
+      "height": 1386,
+      "alt": "The Shard seen down a Southwark street under a mackerel sky, London"
+    },
+    "result": "pass"
+  },
+  {
+    "route": "/historic",
+    "width": 1440,
+    "theme": "dark",
+    "headings": [
+      "London’s historic pubs"
+    ],
+    "title": "London's historic pubs, cited from Wikipedia and Wikidata | PUBMAXX",
+    "description": "A browsable index of London's notable, historic pubs. Dates, listed-building grades, and one cited sentence each, sourced from Wikipedia and Wikidata. Filter by borough, jump straight onto the map.",
+    "overflow": 0,
+    "screenshot": "historic-1440-dark.png",
+    "result": "pass"
+  },
+  {
+    "route": "/map",
+    "width": 1440,
+    "theme": "dark",
+    "headings": [
+      "London pub map"
+    ],
+    "title": "London pub map | PUBMAXX",
+    "description": "PUBMAXX is the London pub map, with listed pint prices and crawl planning.",
+    "overflow": 0,
+    "screenshot": "map-1440-dark.png",
+    "result": "pass"
+  },
+  {
+    "route": "/plan",
+    "width": 1440,
+    "theme": "dark",
+    "headings": [
+      "Plan a pub crawl"
+    ],
+    "title": "Plan a pub crawl | PUBMAXX",
+    "description": "Put the pubs in order, pick a time, and send one link to the crew.",
+    "overflow": 0,
+    "screenshot": "plan-1440-dark.png",
+    "result": "pass"
+  }
+]

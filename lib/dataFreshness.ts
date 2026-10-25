@@ -148,20 +148,17 @@ export function formatObservedDate(date: Date): string {
  * to compose its own date element (a `<time>` inside a dense caption, say)
  * still takes the WORDS from here rather than typing them a second time.
  */
-export const SNAPSHOT_CAPTION_PREFIX = "Snapshot from";
+export const SNAPSHOT_CAPTION_PREFIX = "Records from";
 
 /**
- * "Snapshot from 16 July 2026" - a point-in-time price lane named as what it
+ * "Records from 16 July 2026" - a point-in-time price lane named as what it
  * is, for a caption that stands on its own.
  *
  * THE ONE COMPOSER of that caption, shared by every lane the freshness spine
  * reports as a `snapshot`: the hand-collected pint bundle, and the per-drink
  * price updates, which carry no refresh path at all (captain ruling
  * 2026-09-05: their only permitted source publishes no per-drink web prices).
- * The word SNAPSHOT is the one the spine uses for the same fact
- * (lib/freshness.ts), so what a drinker reads and what the audit reports cannot
- * drift into two vocabularies. It claims nothing about currency: the date is
- * the whole claim.
+ * The date describes the held records. It does not claim that prices are current.
  */
 export function formatSnapshotFrom(date: Date): string {
   return `${SNAPSHOT_CAPTION_PREFIX} ${formatObservedDate(date)}`;
@@ -173,12 +170,11 @@ export function formatPintDatasetSnapshot(): string {
 }
 
 /**
- * "a snapshot from 16 July 2026" — the same fact inside a sentence, kept apart
- * from the caption above so a surface never has to lowercase somebody else's
- * sentence to use it.
+ * The collection date inside a sentence. This stays separate from the caption
+ * so callers do not need to change its wording or case.
  */
 export function formatPintDatasetAsOf(): string {
-  return `a snapshot from ${formatObservedDate(PINT_DATASET_OBSERVED_AT)}`;
+  return `with records from ${formatObservedDate(PINT_DATASET_OBSERVED_AT)}`;
 }
 
 /** ISO date (YYYY-MM-DD) for JSON-LD dateModified / temporalCoverage. */

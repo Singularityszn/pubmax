@@ -21,6 +21,10 @@ import {
 } from "../lib/performanceBudgets";
 import { measurePerfRedirect, preparePerfPage, runPerfRoute } from "./helpers/perfMeasurement";
 
+// A worker installed after warm-up can answer later samples from cache.
+// Keep every navigation on the tracked network profile.
+test.use({ serviceWorkers: "block" });
+
 // The enforced site performance budget (docs/PERFORMANCE_BUDGETS.md).
 //
 // One spec measures every budgeted route against perf/route-budgets.json and
@@ -216,4 +220,39 @@ test("every budgeted route stays inside its performance budget", async ({ page, 
       ? "no breach"
       : `Over the performance budget. Fix the route or take the ceiling up deliberately (docs/PERFORMANCE_BUDGETS.md).\n\n${formatBreachTable(breaches)}\n${unmeasuredReport}`,
   ).toEqual([]);
+});
+
+test("performance browser prevents service-worker registration", async ({ page }) => {
+  await page.goto("/pal");
+  const registered = await page.evaluate(async () => Boolean(
+    await navigator.serviceWorker.register("/sw.js?v=perf-isolation"),
+  ));
+  expect(registered).toBe(false);
+  expect(page.context().serviceWorkers()).toEqual([]);
+});
+
+test("performance warm-up retains HTTP caching while blocking third parties", async ({ page, baseURL }) => {
+  await preparePerfPage(page, new URL(baseURL!).origin);
+  await page.goto("/about");
+  const asset = await page.locator('link[rel="stylesheet"]').first().getAttribute("href");
+  expect(asset).toBeTruthy();
+  const cached = await page.evaluate(async (url) => {
+    await (await fetch(url, { cache: "reload" })).text();
+    performance.clearResourceTimings();
+    await (await fetch(url)).text();
+    const entry = performance.getEntriesByName(
+      new URL(url, location.href).href,
+    ).at(-1) as PerformanceResourceTiming;
+    return { transferred: entry.transferSize, decoded: entry.decodedBodySize };
+  }, asset!);
+  expect(cached.decoded).toBeGreaterThan(0);
+  expect(cached.transferred).toBe(0);
+
+  // This origin passes the document CSP, so the failure must come from the rig.
+  const thirdParty = "https://tiles.openfreemap.org/__pubmax_perf_block_probe";
+  const refused = page.waitForEvent(
+    "requestfailed", request => request.url() === thirdParty,
+  );
+  await page.evaluate(url => fetch(url).catch(() => null), thirdParty);
+  expect((await refused).failure()?.errorText).toBe("inspector");
 });

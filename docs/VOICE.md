@@ -177,3 +177,15 @@ Copy the rhythm of these. They are the voice at its best.
 - `The city's having a quiet one tonight.`
 - `handed down from the old hands who drank them first`
 - `Be the first to drop one. Snap your pint, log the price, pass down a story.`
+
+## Page-level editing
+
+Lead with the answer and one clear next action. Explain each policy once, then
+link to it where useful. Keep prices, source labels, relevant dates and uncertainty
+beside the facts they qualify. Optional history and background can use a labelled
+disclosure. Permission and data-loss explanations stay visible before the action.
+
+A short sentence must still say something useful. Replace internal progress
+counts with the action available to the reader. Keep quoted sources and
+user-written posts intact. Review copy in the rendered page at phone and desktop
+widths before calling the edit complete.

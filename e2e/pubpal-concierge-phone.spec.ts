@@ -178,10 +178,10 @@ test.describe("Pub Pal concierge at 390px", () => {
       expect((await meet.boundingBox())?.height ?? 0).toBeGreaterThanOrEqual(44);
       await meet.click();
 
-      await expect(page.getByRole("heading", { name: "The grown-up bit first." })).toBeVisible();
+      await expect(page.getByRole("heading", { name: "Before you start" })).toBeVisible();
       await page.getByRole("checkbox", { name: /18 or over/ }).check();
       await page.getByRole("button", { name: /Continue/ }).click();
-      await expect(page.getByRole("heading", { name: "Who finds you?" })).toBeVisible();
+      await expect(page.getByRole("heading", { name: "Choose your Pub Pal" })).toBeVisible();
 
       const species = page.getByRole("button", { name: /^Greyhound/ });
       expect((await species.boundingBox())?.height ?? 0).toBeGreaterThanOrEqual(44);

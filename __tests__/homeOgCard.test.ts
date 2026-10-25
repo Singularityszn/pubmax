@@ -1,11 +1,23 @@
-import { readFileSync } from "fs";
-import { join } from "path";
+import { createElement, type ReactNode } from "react";
 
 import { renderToStaticMarkup } from "react-dom/server";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
+
+vi.mock("server-only", () => ({}));
+vi.mock("@/lib/aboutStats", () => ({ loadAboutStats: vi.fn() }));
+vi.mock("next/og", () => ({
+  ImageResponse: class {
+    constructor(element: ReactNode) {
+      return new Response(renderToStaticMarkup(element));
+    }
+  },
+}));
 
 import { MARK_GEOMETRY } from "@/components/brand/PubmaxxMark";
-import type { AboutStats } from "@/lib/aboutStats";
+import { metadata as homeMetadata } from "@/app/page";
+import { GET as referralGet } from "@/app/r/[code]/route";
+import LandingHero from "@/components/landing/LandingHero";
+import { loadAboutStats, type AboutStats } from "@/lib/aboutStats";
 import {
   HOME_CARD_EYEBROW,
   HOME_CARD_HERO_ACCENT,
@@ -14,6 +26,7 @@ import {
   HOME_CARD_SUPPORT,
   HomeOgCard,
   homeCardCoverage,
+  renderHomeOgCard,
 } from "@/lib/homeOgCard";
 import { MARK_POLYGONS, Wordmark } from "@/lib/ogBrand";
 
@@ -30,12 +43,6 @@ import { MARK_POLYGONS, Wordmark } from "@/lib/ogBrand";
 //      wordmark.
 //
 // So: one derived source for the numbers, and the header's own wordmark.
-
-const REPO_ROOT = join(__dirname, "..");
-
-function readSource(relativePath: string): string {
-  return readFileSync(join(REPO_ROOT, relativePath), "utf8");
-}
 
 function stats(overrides: Partial<AboutStats> = {}): AboutStats {
   return {
@@ -88,15 +95,16 @@ describe("home card figures are derived, never typed in", () => {
     expect(markup).toContain(HOME_CARD_HERO_ACCENT);
   });
 
-  it("reads the counts through lib/aboutStats and never opens the dataset itself", () => {
-    const source = readSource("lib/homeOgCard.tsx");
-    expect(source).toContain('from "@/lib/aboutStats"');
-    expect(source).toContain("loadAboutStats()");
-    // The duplicate read that produced the 1,908 claim. Neither the file path
-    // nor a second grouping may come back.
-    expect(source).not.toContain("pint_prices_app_dataset.json");
-    expect(source).not.toContain("groupVenuePrices");
-    expect(source).not.toMatch(/readFile/);
+  it.each([
+    [12, 40, 1, ["12 pubs tracked", "40 prices on record", "London"]],
+    [24, 80, 3, ["24 pubs tracked", "80 prices on record", "London + 2 cities"]],
+  ])("renders loaded counts for %s pubs", async (pubsTracked, pintPricesObserved, citiesCovered, expected) => {
+    vi.mocked(loadAboutStats).mockResolvedValue(stats({ pubsTracked, pintPricesObserved, citiesCovered }));
+    const response = await renderHomeOgCard();
+    const markup = await response.text();
+    for (const figure of expected) expect(markup).toContain(figure);
+    expect(markup).not.toContain("953 pubs tracked");
+    expect(markup).not.toContain("2,788 prices on record");
   });
 
   it("prints the figures it was handed", () => {
@@ -108,29 +116,15 @@ describe("home card figures are derived, never typed in", () => {
 });
 
 describe("home card copy", () => {
-  it("says what the landing page says", async () => {
-    // The card fronts the landing page, so its hero is that page's h1 and its
-    // support line is that page's lede. A drift here is a share preview
-    // promising something the page it opens does not say.
-    // The h1 and the lede both live in the hero; the page no longer restates
-    // the claim as a second heading under "What it saves you".
-    const landing = [
-      readSource("components/landing/LandingHero.tsx"),
-      readSource("components/landing/LandingPage.tsx"),
-    ].join("\n");
+  it("says what the landing page says", () => {
+    const landing = renderToStaticMarkup(createElement(LandingHero, { card: null, archive: {}, rail: [] }));
     const hero = `${HOME_CARD_HERO_LEAD} ${HOME_CARD_HERO_TAIL} ${HOME_CARD_HERO_ACCENT}`;
     expect(hero).toBe("What a pint costs, pub by pub.");
-    expect(landing).toContain("What a pint costs, pub by pub.");
+    expect(landing).toMatch(/<h1[^>]*>What a pint costs, pub by pub\.<\/h1>/u);
 
-    const { HISTORIC_PUB_COUNT } = await import(
-      "@/components/landing/londonMapGeometry"
-    );
-    expect(landing.replace(/\s+/g, " ")).toContain(
-      "London on one map, with ${HISTORIC_PUB_COUNT} historic pubs cited and a listed price wherever we hold one.",
-    );
-    expect(HOME_CARD_SUPPORT.split(". ")[0]).toBe(
-      `London on one map, with ${HISTORIC_PUB_COUNT} historic pubs cited and a listed price wherever we hold one`,
-    );
+    expect(HOME_CARD_SUPPORT).toBe("Find a London pub, compare listed pint prices and plan your night.");
+    expect(landing).toContain(HOME_CARD_SUPPORT);
+    expect(renderCard(stats())).toContain(HOME_CARD_SUPPORT);
   });
 
   it("keeps the retired night-OS lines off the card", () => {
@@ -195,15 +189,23 @@ describe("home card brand", () => {
 });
 
 describe("the invite path needs no card of its own", () => {
-  it("lands a referral on the homepage, whose head names this card", () => {
-    // /r/<code> redirects to /#referral=<code>. A fragment never reaches the
-    // server, so the document a crawler previews is the homepage.
-    const referral = readSource("app/r/[code]/route.ts");
-    expect(referral).toContain('new URL("/", request.url)');
-    expect(referral).toContain("referral");
-
-    const home = readSource("app/page.tsx");
-    expect(home).toContain('url: "/api/home-card"');
-    expect(home).toContain('images: ["/api/home-card"]');
-  });
+  it.each(["friday-pints", "code with & = # ?"])(
+    "lands referral %s on the homepage, whose head names this card",
+    async (code) => {
+      const response = await referralGet(new Request("https://pubmaxxing.com/r/invite"), {
+        params: Promise.resolve({ code }),
+      });
+      expect(response.status).toBe(307);
+      const destination = new URL(response.headers.get("location")!);
+      expect(destination.origin).toBe("https://pubmaxxing.com");
+      expect(destination.pathname).toBe("/");
+      expect(destination.search).toBe("");
+      expect(new URLSearchParams(destination.hash.slice(1)).get("referral")).toBe(code);
+      expect(response.headers.get("cache-control")).toBe("no-store");
+      expect(homeMetadata.openGraph?.images).toEqual([
+        expect.objectContaining({ url: "/api/home-card", width: 1200, height: 630 }),
+      ]);
+      expect(homeMetadata.twitter?.images).toEqual(["/api/home-card"]);
+    },
+  );
 });

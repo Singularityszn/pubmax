@@ -51,10 +51,10 @@ Rules the table obeys:
 | `/near` | Near you | Cheapest pints within a short walk. | Find my pint | Pick a patch |
 | `/today` | Today in London | What's on across London today. | Find my pint | Open the map |
 | `/tonight` | Tonight in London | What's on across London tonight. (or: What's on near you tonight.) | Open the map | Find my pint |
-| `/social` | Social | Crews and people who are already here. | Post (a verified account); Sign in (a stranger on the posts tab); Open the map (a stranger on `?tab=discover`, and a stranger while `PUBMAX_SOCIAL_FRIENDS_LAUNCH=0`) | Find your lot |
+| `/social` | Social | Pubs and pints (Discover tab), otherwise Plans, photos and people | Post (a verified account); Sign in (a stranger on the posts tab); Open the map (a stranger on `?tab=discover`, and a stranger while `PUBMAX_SOCIAL_FRIENDS_LAUNCH=0`) | Find your lot |
 | `/plan` | Plan | Plan a pub crawl | Plan it (submit the ask) | Step by step |
 | `/plan/[id]` | Your plan | (the plan's own name) | Send to the crew | Open the map |
-| `/pal` | Your Pub Pal | A little signal that becomes yours. | Meet your Pub Pal | Back to the map |
+| `/pal` | Your Pub Pal | Plan your night with Pub Pal | Meet your Pub Pal | Back to the map |
 | `/pal/chat` | Your Pub Pal | (the Pal's name) | the composer's own submit (Ask), beside the field; the head paints none | Back to your Pub Pal |
 | `/u/you` and `/u/[handle]` | You (or the handle) | (the display name) | Edit profile (owner) or Follow (visitor) | Share |
 | `/login` | Sign in | Welcome back (a returning session), Make an account (the New here door), or Sign in or create your account (a first visit, which may not be greeted as a return: `lib/loginPageFraming.ts`) | the email form's own submit (Email me a sign-in link), beside the field; the head paints none while the form is on screen | Use a password |

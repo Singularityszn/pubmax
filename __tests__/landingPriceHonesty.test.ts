@@ -1,46 +1,61 @@
-import { readFileSync } from "node:fs";
-import { join } from "node:path";
+import { JSDOM } from "jsdom";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
+
+vi.mock("next/dynamic", () => ({ default: () => () => null }));
+vi.mock("next/navigation", () => ({
+  usePathname: () => "/",
+  useRouter: () => ({ prefetch: () => Promise.resolve() }),
+}));
+vi.mock("@/components/auth/SignInButton", () => ({ default: () => null }));
+vi.mock("@/components/nav/MessagesLink", () => ({ default: () => null }));
+vi.mock("@/components/nav/NotificationBell", () => ({ default: () => null }));
+vi.mock("@/lib/analytics", () => ({ trackEvent: vi.fn() }));
 
 import LandingFaq from "@/components/landing/LandingFaq";
+import LandingHero from "@/components/landing/LandingHero";
+import LandingPage from "@/components/landing/LandingPage";
+import type { LandingPubCardData } from "@/lib/landingPubCard";
 
-// The landing may only claim what the price data supports. Every price row
-// in the curated index carries the same collection stamp; a named publisher
-// appears only when the row names one; only the drinker-logged lane carries
-// a per-row day. So the copy never says "every price is dated" and never
-// invents a source. The disclosure sentence lives in the footer, once.
-
-const landingSource = readFileSync(
-  join(process.cwd(), "components/landing/LandingPage.tsx"),
-  "utf8",
-);
-const cardSource = readFileSync(
-  join(process.cwd(), "components/landing/LandingHero.tsx"),
-  "utf8",
-);
+const landing = new JSDOM(renderToStaticMarkup(createElement(LandingPage))).window.document;
+const copy = landing.body.textContent ?? "";
 const faqText = renderToStaticMarkup(createElement(LandingFaq))
   .replace(/<[^>]+>/g, " ")
   .replace(/&#x27;/g, "'");
 
-// Comment lines are not copy; strip them so a note about a banned phrase is
-// not read as the phrase. JSX text wraps across source lines, so whitespace
-// is collapsed before a sentence is looked for.
-const copy = landingSource
-  .split("\n")
-  .filter((line) => !/^\s*(\/\/|\/\*|\*)/.test(line))
-  .join("\n")
-  .replace(/\s+/g, " ");
-const lower = copy.toLowerCase();
-// The words a reader sees: JSX text between tags, plus the string props the
-// page prints. Code (`!==`, `!stats`) is not copy.
-const visible = [...copy.matchAll(/>([^<>{}]+)</g)].map((m) => m[1]).join(" ");
+const card: LandingPubCardData = {
+  id: "venue-test",
+  name: "The Test Arms",
+  area: "City of London",
+  primaryBorough: "City of London",
+  priceGbp: 4.13,
+  pintName: "a pint of bitter",
+  drinkHref: null,
+  publisher: { label: "Pub menu", url: "https://example.com/menu" },
+  observedOn: "2026-10-02",
+  standing: "listed",
+  then: {
+    priceGbp: 3.5,
+    observedOn: "2013-07-14",
+    source: { label: "Earlier menu", url: "https://example.com/earlier" },
+  },
+  movementLine: null,
+  mapHref: "/map?sel=venue-test",
+};
+
+function renderCard(overrides: Partial<LandingPubCardData> = {}) {
+  return new JSDOM(renderToStaticMarkup(createElement(LandingHero, {
+    card: { ...card, ...overrides }, archive: {}, rail: [],
+  }))).window.document;
+}
 
 describe("landing price honesty", () => {
   it("never says every price is dated or sourced", () => {
     for (const banned of [
+      "cheap pints near you, live",
+      "no endless listings. just",
       "each dated",
       "dated prices",
       "every one dated",
@@ -51,46 +66,58 @@ describe("landing price honesty", () => {
       "each sourced",
       "sourced prices",
     ]) {
-      expect(lower, banned).not.toContain(banned);
+      expect(copy.toLowerCase(), banned).not.toContain(banned);
     }
   });
 
-  it("carries the disclosure sentence once, in the footer", () => {
-    expect(copy).toContain("When a price record names a publisher, we name and link it.");
-    expect(copy).toContain("When no publisher is recorded, the price says so.");
-    expect(lower).toContain("the ones drinkers log come with the day they were seen");
-    expect(copy.match(/we name and link it/g)).toHaveLength(1);
+  it("explains missing sources and drinker dates once, in the FAQ", () => {
+    expect(faqText).toContain("Each price names its publisher when recorded, or says one is missing");
+    expect(faqText).toContain("drinker reports show their date");
+    expect(faqText.match(/publisher when recorded/g)).toHaveLength(1);
+    expect(landing.querySelector("footer")?.textContent).toContain("Free to use. No pub can pay to rank higher.");
   });
 
   it("keeps the saving beat as one column of plain words", () => {
-    // The city's saving is the hero's line now; this band holds the reader's
-    // own total (signed in only) and the map, and no second hero claim.
-    expect(copy).toContain('aria-label="What it saves you"');
+    const worth = landing.querySelector('section[aria-label="What it saves you"]');
+    expect(worth).not.toBeNull();
     expect(copy).not.toContain("The cheapest listed pint near you, on one map.");
-    const worth = copy.match(/aria-label="What it saves you"[\s\S]*?<\/section>/)?.[0] ?? "";
-    expect(worth).toContain("Open the map");
-    expect(worth).not.toContain("data-primary-action");
-    expect(worth).not.toMatch(/href="\/plan"/);
-    // The gap sentence moved to the questions, and it is still said once.
-    expect(faqText).toContain("we'd rather leave a gap than invent a figure.");
-    expect(faqText.match(/we'd rather leave a gap than invent a figure\./gi)).toHaveLength(1);
+    expect(worth?.querySelector("a")?.textContent).toBe("Open the map");
+    expect(worth?.querySelector("a")?.getAttribute("href")).toBe("/map");
+    expect(worth?.querySelector("[data-primary-action]")).toBeNull();
+    expect(worth?.querySelector('a[href="/plan"]')).toBeNull();
+    expect(faqText).toContain("Prices can change, so check at the bar.");
   });
 
   it("stays out of the marketing register", () => {
-    expect(visible.toLowerCase()).not.toMatch(/\b(journey|unlock|seamless|curated|elevate|empower|discover)\b/u);
-    expect(visible).not.toContain("!");
-    expect(visible.toLowerCase()).not.toMatch(/thousands of|discord|co-founder/u);
+    expect(copy.toLowerCase()).not.toMatch(/\b(journey|unlock|seamless|curated|elevate|empower|discover)\b/u);
+    expect(copy).not.toContain("!");
+    expect(copy.toLowerCase()).not.toMatch(/thousands of|discord|co-founder/u);
   });
 
-  it("prints the pub card from data alone and names the publisher only when the row does", () => {
-    expect(cardSource).not.toMatch(/£\d/);
-    expect(cardSource).toContain("No publisher recorded");
-    expect(cardSource).toMatch(/Listed by/);
-    // A near-you answer reads the slim index's listed cheapest figure, the
-    // same one /near prints; the slim index's build-time `priceBand` field and
-    // a demo seed may never reach the card. The colour the card paints is
-    // lib/priceBand.ts's own call over the listed figure, which is the law.
-    expect(cardSource).not.toMatch(/\.priceBand\b|latestDemoPrice|data-band/);
-    expect(cardSource).toMatch(/priceBand\(answer\.priceGbp/);
+  it.each([
+    [4.13, "£4.13", "cheap"],
+    [7.41, "£7.41", "expensive"],
+  ])("prints the supplied £%s price with its band and publisher", (priceGbp, price, band) => {
+    const rendered = renderCard({ priceGbp });
+    const badge = rendered.querySelector(".priceBadge--current");
+    expect(badge?.textContent).toBe(price);
+    expect(badge?.classList.contains(`priceBand-${band}`)).toBe(true);
+    const publisher = rendered.querySelector<HTMLAnchorElement>('.lpPubCard a[href="https://example.com/menu"]');
+    expect(publisher?.textContent).toBe("Pub menu");
+    expect(publisher?.parentElement?.textContent).toContain("Listed by Pub menu, collected 2 October 2026.");
+    expect(rendered.body.textContent).not.toContain("No publisher recorded");
+  });
+
+  it("prints the missing publisher and date honestly", () => {
+    const rendered = renderCard({ publisher: null, observedOn: null });
+    expect(rendered.body.textContent).toContain("No publisher recorded.");
+    expect(rendered.body.textContent).not.toContain("Listed by");
+    expect(rendered.body.textContent).not.toContain("collected");
+    expect(rendered.querySelector('a[href="https://example.com/menu"]')).toBeNull();
+  });
+
+  it("prints no pub price when no card data is available", () => {
+    expect(landing.querySelector(".lpPubCard")).toBeNull();
+    expect(landing.querySelector(".priceBadge--current")).toBeNull();
   });
 });

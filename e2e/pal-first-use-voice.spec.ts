@@ -227,14 +227,14 @@ test("the phone voice choice survives Back and reload without unused character c
   await page.goto("/pal");
   await expect(async () => {
     await page.getByRole("button", { name: "Meet your Pub Pal", exact: true }).click();
-    await expect(page.getByRole("heading", { name: "The grown-up bit first.", exact: true })).toBeVisible({ timeout: 1_000 });
+    await expect(page.getByRole("heading", { name: "Before you start", exact: true })).toBeVisible({ timeout: 1_000 });
   }).toPass({ timeout: 20_000 });
   await page.getByRole("checkbox", { name: /18 or over/ }).check();
   await page.getByRole("button", { name: "Continue", exact: true }).click();
-  await expect(page.getByRole("heading", { name: "Who finds you?", exact: true })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Choose your Pub Pal", exact: true })).toBeVisible();
   await page.getByRole("textbox", { name: /^Name/ }).fill("Beacon");
   await page.getByRole("button", { name: "Continue", exact: true }).click();
-  await expect(page.getByRole("heading", { name: "Tune the signal.", exact: true })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Choose its look", exact: true })).toBeVisible();
   await page.getByRole("button", { name: "Continue", exact: true }).click();
   const heading = page.getByRole("heading", { name: "Choose a voice.", exact: true });
   await expect(heading).toBeVisible();

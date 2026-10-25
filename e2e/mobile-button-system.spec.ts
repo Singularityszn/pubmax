@@ -69,7 +69,7 @@ for (const viewport of DEVICES) {
       // therefore not a wait for hydration: retry the tap itself until the
       // first onboarding step opens (same idiom as e2e/plan-invite.spec.ts).
       const meetPal = page.getByRole("button", { name: /Meet your Pub Pal/i });
-      const eligibility = page.getByRole("heading", { name: "The grown-up bit first." });
+      const eligibility = page.getByRole("heading", { name: "Before you start" });
       await expect(async () => {
         await meetPal.click();
         await expect(eligibility).toBeVisible({ timeout: 1_000 });
@@ -668,19 +668,26 @@ for (const surface of COMPOSE_LANE_CELLS) {
   }
 }
 
-// The lane above reaches only rows that opt in, and running prose cannot give
-// up 80px of its line, so on /about the + sat on the paragraph a reader was in
-// (16 Oct 2026 design audit, 390x844). Reading down tucks it; reading up, the
-// foot of the page and keyboard focus each bring it back
-// (lib/createFabScrollTuck.ts).
-test("390px: the compose action steps off prose while the reader scrolls down", async ({ page }) => {
+test("390px: About keeps the floating create control off the reading surface", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await setTheme(page, "light");
+  await page.goto("/about");
+  await expect(page.getByRole("navigation", { name: "Primary", exact: true })).toBeVisible();
+  await expect(page.getByTestId("create-fab")).toBeHidden();
+  await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
+  await expect(page.getByTestId("create-fab")).toBeHidden();
+});
+
+// Historic has a long public list and keeps Create. Down-scroll tucks it.
+// Up-scroll, keyboard focus and the page end each restore it.
+test("390px: the compose action steps off the Historic list while the reader scrolls down", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.emulateMedia({ reducedMotion: "reduce" });
   await setTheme(page, "light");
   await page.addInitScript(() => {
     window.localStorage.setItem("pubmaxx:analytics-consent:v1", "denied");
   });
-  await page.goto("/about");
+  await page.goto("/historic");
 
   const root = page.locator(".createFabRoot");
   const fab = page.getByTestId("create-fab");
@@ -704,6 +711,10 @@ test("390px: the compose action steps off prose while the reader scrolls down", 
   await expect(root).toHaveCSS("opacity", "1");
   await expect(fab).toHaveCSS("pointer-events", "auto");
   await fab.blur();
+  await expect(async () => {
+    await page.mouse.wheel(0, 240);
+    await expect(root).toHaveCSS("opacity", "0", { timeout: 1_000 });
+  }).toPass({ timeout: 15_000 });
 
   await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
   await expect(root).toHaveCSS("opacity", "1");

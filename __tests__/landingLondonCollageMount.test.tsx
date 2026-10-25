@@ -5,7 +5,7 @@ import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import LandingLondonCollage from "@/components/landing/LandingLondonCollage";
-import { LONDON_COLLAGE_PHOTOS, londonCollageSrcSet } from "@/lib/landingLondonCollage";
+import { LONDON_JOURNAL_PHOTOS, londonCollageSrcSet } from "@/lib/landingLondonCollage";
 
 let container: HTMLDivElement;
 let root: Root;
@@ -48,8 +48,8 @@ describe("the founder London collage once the reader scrolls near it", () => {
   it("holds every tile at its final size and fetches nothing until the section nears view", async () => {
     await act(async () => root.render(createElement(LandingLondonCollage)));
 
-    expect(container.querySelectorAll(".lpCollageTile")).toHaveLength(LONDON_COLLAGE_PHOTOS.length);
-    expect(container.querySelectorAll(".lpCollageTile__frame")).toHaveLength(LONDON_COLLAGE_PHOTOS.length);
+    expect(container.querySelectorAll(".lpCollageTile")).toHaveLength(LONDON_JOURNAL_PHOTOS.length);
+    expect(container.querySelectorAll(".lpCollageTile__frame")).toHaveLength(LONDON_JOURNAL_PHOTOS.length);
     expect(container.querySelector("img")).toBeNull();
     expect(observerOptions?.rootMargin).toBe("200px 0px");
 
@@ -63,9 +63,9 @@ describe("the founder London collage once the reader scrolls near it", () => {
 
     expect(disconnect).toHaveBeenCalled();
     const images = container.querySelectorAll<HTMLImageElement>("img.lpCollageTile__img");
-    expect(images).toHaveLength(LONDON_COLLAGE_PHOTOS.length);
+    expect(images).toHaveLength(LONDON_JOURNAL_PHOTOS.length);
 
-    for (const photo of LONDON_COLLAGE_PHOTOS) {
+    for (const photo of LONDON_JOURNAL_PHOTOS) {
       const tile = container.querySelector(`[data-collage-id="${photo.id}"]`);
       const img = tile?.querySelector("img");
       expect(img?.getAttribute("alt")).toBe(photo.alt);

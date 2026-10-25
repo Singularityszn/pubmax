@@ -16,7 +16,7 @@ import type { LandingAnswers } from "@/lib/landingAnswers";
 import type { LandingArchiveIndex, LandingRailRow } from "@/lib/landingHero";
 import type { LondonCollageAreaPrice } from "@/lib/landingLondonCollage";
 import type { LandingPubCardData } from "@/lib/landingPubCard";
-import type { PintPriceAverages } from "@/lib/pintSavings";
+import { strangerSavingLine, type PintPriceAverages } from "@/lib/pintSavings";
 import {
   preferredCityMapHref,
   readPreferredCity,
@@ -33,6 +33,7 @@ import LandingAnswerCards from "./LandingAnswerCards";
 import LandingFaq from "./LandingFaq";
 import LandingHero from "./LandingHero";
 import LandingLondonCollage from "./LandingLondonCollage";
+import LandingLondonFilm from "./LandingLondonFilm";
 import LandingSavings from "./LandingSavings";
 import "./landing.css";
 
@@ -76,6 +77,7 @@ export default function LandingPage({
   socialFriendsLaunchEnabled?: boolean;
 }) {
   const router = useRouter();
+  const citySaving = strangerSavingLine(averages);
   const preferredCity = useSyncExternalStore(
     subscribePreferredCity,
     readPreferredCity,
@@ -138,7 +140,7 @@ export default function LandingPage({
             one real pub and three next-cheapest rows. The DOM order is the
             phone order; the desktop only seats the picture and the rows beside
             the copy. */}
-        <LandingHero card={card} archive={archive} rail={rail} averages={averages} />
+        <LandingHero card={card} archive={archive} rail={rail} />
 
         {/* The founder's own photographs of London, each patch with the
             cheapest listed pint a short walk from where it was taken. Straight
@@ -148,14 +150,14 @@ export default function LandingPage({
 
         {answers ? <LandingAnswerCards answers={answers} /> : null}
 
-        {/* The city's saving is the hero's line now; this band carries the
-            signed-in reader's own total, when there is one, and the map. */}
+        {/* Keep the calculation and the dates behind it together. */}
         <section className="lpWorth" aria-label="What it saves you">
           {/* When the prices behind the hero's average were read (site review,
               18 Oct 2026: "Freshness is quiet"). It sits here and not in the
               hero, because at 320px a third lede line put the primary under
               the tab bar (e2e/landing-find-my-pint.spec.ts). */}
-          {priceReadLine ? <p className="lpPriceReads">{priceReadLine}</p> : null}
+          {citySaving ? <p className="lpSavingSummary">{citySaving}</p> : null}
+          {citySaving && priceReadLine ? <p className="lpPriceReads">{priceReadLine}</p> : null}
           <LandingSavings averages={averages} />
           <Link
             prefetch={false}
@@ -173,6 +175,7 @@ export default function LandingPage({
         </div>
 
         <LandingFaq />
+        <LandingLondonFilm />
       </main>
 
       <footer className="lpFooter">
@@ -182,9 +185,7 @@ export default function LandingPage({
               <PubmaxxWordmark />
             </Link>
             <p className="lpFooterProvenance">
-              When a price record names a publisher, we name and link it. When no
-              publisher is recorded, the price says so. The ones drinkers log come
-              with the day they were seen, and no pub can pay to rank higher.
+              Free to use. No pub can pay to rank higher.
             </p>
           </div>
 

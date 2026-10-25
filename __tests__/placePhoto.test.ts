@@ -26,6 +26,8 @@ describe("pubPlacePhoto", () => {
     expect(photo?.credit).toMatchObject({ kind: "licensed" });
     expect(pubPlacePhoto("venue-not-here")).toBeNull();
     expect(pubPlacePhoto(null)).toBeNull();
+    expect(pubPlacePhoto("venue-13sug69")).toMatchObject({ key: "collage:crown-tavern", scope: "pub", credit: { kind: "founder" } });
+    expect(pubPlacePhoto("venue-1drd13s")).toBeNull();
   });
 });
 
@@ -33,8 +35,8 @@ describe("boroughPlacePhoto", () => {
   it("names the place it shows, and answers nothing for a borough we hold no photograph of", () => {
     const southwark = boroughPlacePhoto("Southwark");
     expect(southwark).toMatchObject({
-      key: "landing:borough-market",
-      place: "Borough Market, Southwark",
+      key: "collage:southwark-shard",
+      place: "Southwark",
       scope: "borough",
       namesPlace: true,
     });
@@ -101,6 +103,7 @@ describe("areaPlacePhoto and londonPlacePhoto", () => {
     });
     expect(areaPlacePhoto("dalston")).toBeNull();
     expect(areaPlacePhoto(null)).toBeNull();
+    expect(areaPlacePhoto("canary-wharf")).toMatchObject({ key: "collage:canary-wharf-night", scope: "area", namesPlace: true });
   });
 
   it("never hands a pub photograph to an area", () => {
