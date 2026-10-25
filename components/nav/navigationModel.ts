@@ -54,7 +54,7 @@ const PLAN_NAV_MATCH: readonly string[] = ["/plan", "/crawls"];
  * they go back to every night. Neither /out nor /places lights a tab.
  *
  * The `now` key keeps the Tonight label. Its main links use useNowHref:
- * Day before 16:00 London time, Tonight from 16:00 until midnight.
+ * Day from 04:00 to 16:00 London time, Tonight through the remaining night.
  * Both pages belong to this tab. Explicit page links keep their destination.
  */
 export const PRIMARY_NAV_ITEMS: readonly PrimaryNavItem[] = [

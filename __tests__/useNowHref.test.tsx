@@ -31,14 +31,26 @@ const href = () => host.querySelector("a")?.getAttribute("href");
 
 describe("automatic Day and Tonight entry", () => {
   it.each([
-    ["2026-01-15T00:00:00Z", "/today"],
+    ["2026-01-15T00:00:00Z", "/tonight"],
     ["2026-01-15T09:00:00Z", "/today"],
+    ["2026-01-15T03:59:59.999Z", "/tonight"],
+    ["2026-01-15T04:00:00Z", "/today"],
+    ["2026-07-15T02:59:59.999Z", "/tonight"],
+    ["2026-07-15T03:00:00Z", "/today"],
+    ["2026-03-29T00:59:59Z", "/tonight"],
+    ["2026-03-29T01:00:00Z", "/tonight"],
+    ["2026-03-29T02:59:59.999Z", "/tonight"],
+    ["2026-03-29T03:00:00Z", "/today"],
+    ["2026-10-25T00:30:00Z", "/tonight"],
+    ["2026-10-25T01:30:00Z", "/tonight"],
+    ["2026-10-25T03:59:59.999Z", "/tonight"],
+    ["2026-10-25T04:00:00Z", "/today"],
     ["2026-01-15T15:59:59.999Z", "/today"],
     ["2026-01-15T16:00:00Z", "/tonight"],
     ["2026-01-15T23:59:59Z", "/tonight"],
     ["2026-07-15T14:59:59.999Z", "/today"],
     ["2026-07-15T15:00:00Z", "/tonight"],
-    ["2026-07-15T23:00:00Z", "/today"],
+    ["2026-07-15T23:00:00Z", "/tonight"],
     ["2026-03-29T14:59:59Z", "/today"],
     ["2026-03-29T15:00:00Z", "/tonight"],
     ["2026-10-25T15:59:59Z", "/today"],
@@ -70,8 +82,13 @@ describe("automatic Day and Tonight entry", () => {
     expect(href()).toBe("/tonight");
   });
 
-  it("resets at midnight and still opens Day the next morning", async () => {
+  it("keeps Tonight across midnight and opens Day at the 04:00 service rollover", async () => {
     await renderAt("2026-07-15T22:59:59.999Z");
+    expect(href()).toBe("/tonight");
+    await act(async () => vi.advanceTimersByTime(1));
+    expect(href()).toBe("/tonight");
+    vi.setSystemTime(new Date("2026-07-16T02:59:59.999Z"));
+    await act(async () => window.dispatchEvent(new Event("focus")));
     expect(href()).toBe("/tonight");
     await act(async () => vi.advanceTimersByTime(1));
     expect(href()).toBe("/today");

@@ -2,11 +2,13 @@
 
 import { useSyncExternalStore } from "react";
 import { londonHour } from "@/lib/londonHour";
+import { NIGHT_SERVICE_END_HOUR, NIGHT_SERVICE_START_HOUR } from "@/lib/nightServiceHours";
 
 // All currently selectable cities use Europe/London. Keep the host device's
 // timezone out of this choice, including when the reader travels abroad.
 function readNowHref(): "/today" | "/tonight" {
-  return londonHour(new Date()) < 16 ? "/today" : "/tonight";
+  const hour = londonHour(new Date());
+  return hour >= NIGHT_SERVICE_END_HOUR && hour < NIGHT_SERVICE_START_HOUR ? "/today" : "/tonight";
 }
 
 function subscribeClock(onChange: () => void): () => void {
@@ -14,7 +16,7 @@ function subscribeClock(onChange: () => void): () => void {
   const refresh = () => {
     clearTimeout(timer);
     onChange();
-    // Align with the next minute so the 16:00 cutoff and midnight reset do
+    // Align with the next minute so the 16:00 cutoff and 04:00 rollover do
     // not wait for a polling interval started at an arbitrary second.
     timer = setTimeout(refresh, 60_000 - (Date.now() % 60_000));
   };

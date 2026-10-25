@@ -8,6 +8,11 @@
 // no licence field (per the B1 row contract).
 
 import {
+  NIGHT_SERVICE_END_HOUR as SERVICE_DAY_ROLLBACK_HOUR,
+  NIGHT_SERVICE_START_HOUR as WINDOW_OPEN_HOUR,
+} from "@/lib/nightServiceHours";
+
+import {
   eventIdentityKey,
   isCalendarDate as isCalendarDateShape,
   isHttpUrl,
@@ -306,13 +311,6 @@ export function parseWhatsOnRows(raw: unknown, now: number = Date.now()): WhatsO
   }
   return dedupeRows(valid);
 }
-
-// Before this hour (London local) "tonight" still belongs to the PREVIOUS
-// calendar evening's window — the same rollback lib/tfl.ts uses so the small
-// hours resolve against the evening that is still running.
-const SERVICE_DAY_ROLLBACK_HOUR = 4;
-// The evening window opens at 16:00 and runs to 04:00 the next morning.
-const WINDOW_OPEN_HOUR = 16;
 
 type LondonParts = {
   year: number;

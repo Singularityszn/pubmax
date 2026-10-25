@@ -22,6 +22,12 @@ for (const [time, target] of [
   ["2026-10-25T15:59:59Z", "/today"],
   ["2026-10-25T16:00:00Z", "/tonight"],
   ["2026-07-16T08:00:00Z", "/today"],
+  ["2026-01-15T00:00:00Z", "/tonight"],
+  ["2026-01-15T03:59:59Z", "/tonight"],
+  ["2026-01-15T04:00:00Z", "/today"],
+  ["2026-07-15T23:00:00Z", "/tonight"],
+  ["2026-07-16T02:59:59Z", "/tonight"],
+  ["2026-07-16T03:00:00Z", "/today"],
 ] as const) {
   test(`the main tab uses ${target} at ${time} from a device abroad`, async ({ page }) => {
     await page.clock.setFixedTime(new Date(time));
