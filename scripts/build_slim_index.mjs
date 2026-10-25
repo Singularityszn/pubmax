@@ -752,6 +752,8 @@ function buildFilterHints(rows, venueId, scrapedIds, drinkSubtypes) {
       cocktails: prices.some((price) => truthyFlag(price.cocktails)),
       beerGarden: prices.some((price) => truthyFlag(price.beer_garden)),
       liveSports: prices.some((price) => truthyFlag(price.live_sports)),
+      ...(prices.some((price) => truthyFlag(price.darts)) ? { darts: true } : {}),
+      ...(prices.some((price) => truthyFlag(price.pool)) ? { pool: true } : {}),
       nonAlcoholic:
         prices.some((price) => isNonAlcoholicDrinkName(price.pint_name)) ||
         prices.some((price) => truthyFlag(price.non_alcoholic)),
@@ -845,6 +847,16 @@ function groupLondonRows(rows) {
     else grouped.set(key, [row]);
   }
   return { grouped, droppedOob };
+}
+
+function applyFeatureHints(venue, feature) {
+    if (feature.liveSportsSource) venue.filterHints.liveSportsSource = feature.liveSportsSource;
+    if (feature.dogsWelcome) venue.filterHints.dogsWelcome = feature.dogsWelcome;
+    if (feature.outdoorSeating) venue.filterHints.outdoorSeating = feature.outdoorSeating;
+    if (feature.beerGarden) {
+      venue.filterHints.amenities.beerGarden = true;
+      venue.filterHints.beerGardenSource = feature.beerGarden;
+    }
 }
 
 async function main() {
@@ -1006,15 +1018,13 @@ async function main() {
     JSON.parse(await readFile(path.join(ROOT, UK_OSM_PUBS_FILE), "utf8")).pubs,
     JSON.parse(await readFile(path.join(ROOT, "data/osm/facts/london_pub_facts.json"), "utf8")).rows,
     Object.values(readPlacesEnrichmentPacks(ROOT)).flatMap((pack) => pack.venues),
+    JSON.parse(await readFile(path.join(ROOT, "data/amenities/london_pub_website_hours_dogs.json"), "utf8")).rows,
   );
   for (const venue of slim) {
+    if (!venue.filterHints.amenities.liveSports) delete venue.filterHints.amenities.liveSports;
     const feature = featureHints.get(venue.id);
     if (!feature) continue;
-    if (feature.outdoorSeating) venue.filterHints.outdoorSeating = feature.outdoorSeating;
-    if (feature.beerGarden) {
-      venue.filterHints.amenities.beerGarden = true;
-      venue.filterHints.beerGardenSource = feature.beerGarden;
-    }
+    applyFeatureHints(venue, feature);
   }
   detailIndex.count = detailLines.length;
 

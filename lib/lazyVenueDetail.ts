@@ -13,8 +13,14 @@ export function mergeLazyDetailPins(slimPins: Venue[], detailById: Map<string, V
     // pub is opened (components/map/canvas/geojson.ts, pinPriceAging).
     // The slim builder carries sourced features before a detail request. Keep
     // those same facts when opening a pub, so its filter membership stays put.
-    const featureHints = pin.filterHints?.outdoorSeating || pin.filterHints?.beerGardenSource
+    const featureHints = pin.filterHints?.outdoorSeating || pin.filterHints?.beerGardenSource || pin.filterHints?.liveSportsSource || pin.filterHints?.dogsWelcome || pin.filterHints?.amenities.liveSports || pin.filterHints?.amenities.darts || pin.filterHints?.amenities.pool
       ? { ...pin.filterHints, ...detail.filterHints,
+          amenities: { ...pin.filterHints.amenities, ...detail.filterHints?.amenities,
+            liveSports: pin.filterHints.amenities.liveSports,
+            darts: pin.filterHints.amenities.darts,
+            pool: pin.filterHints.amenities.pool },
+          ...(pin.filterHints.liveSportsSource ? { liveSportsSource: pin.filterHints.liveSportsSource } : {}),
+          ...(pin.filterHints.dogsWelcome ? { dogsWelcome: pin.filterHints.dogsWelcome } : {}),
           ...(pin.filterHints.outdoorSeating ? { outdoorSeating: pin.filterHints.outdoorSeating } : {}),
           ...(pin.filterHints.beerGardenSource ? { beerGardenSource: pin.filterHints.beerGardenSource,
             amenities: { ...pin.filterHints.amenities, ...detail.filterHints?.amenities, beerGarden: true } } : {}),

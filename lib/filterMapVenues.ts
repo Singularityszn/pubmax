@@ -18,7 +18,6 @@ export function filterMapVenues(
     ...filters,
     canonicalOnly: false,
     requireNonAlcoholic: false,
-    requireLiveSports: false,
     requireWater: false,
     requireHeritage: false,
     // Accessibility requires confirmed evidence even before detail hydrates.
@@ -45,7 +44,7 @@ export function filterMapVenues(
  * leaves none of them confirmed and the base layer must draw nothing.
  */
 export function mapFiltersSuspendUkBasePubs(filters: Filters): boolean {
-  return Boolean(filters.requireBeerGarden || filters.requireOutdoorSeating) || anyAccessibilityFilterActive({
+  return Boolean(filters.requireBeerGarden || filters.requireOutdoorSeating || filters.requireLiveSports || filters.requireDogFriendly || filters.requireDarts || filters.requirePool) || anyAccessibilityFilterActive({
     stepFree: filters.requireStepFree,
     accessibleToilet: filters.requireAccessibleToilet,
     seatedService: filters.requireSeatedService,
