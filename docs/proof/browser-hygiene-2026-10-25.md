@@ -8,7 +8,9 @@ The branch is `codex/battle-browser-hygiene-1025`.
 
 The browser used local Chromium at desktop 1280px and phone 390px widths.
 The private development server used port 3217 and this lane's installed dependencies.
-These results do not establish production-build, hosted, physical-device or real-provider authentication acceptance.
+The initial results below came from development mode.
+The later production-build checks are recorded separately below.
+Neither establishes hosted, physical-device or real-provider authentication acceptance.
 
 | Finding | Observed result |
 | --- | --- |
@@ -36,11 +38,12 @@ The unchanged test passed in 22.2 seconds with a 120-second invocation budget.
 The consent test initially inherited the suite's returning-visitor denial.
 It now clears that choice once and waits for real route hydration before navigating.
 
-The coordinator owns full verification, the production build, the publication gate and the preview PR.
+The initial handoff left full verification, the production build and publication with the coordinator.
+The coordinator later returned this lane for the bounded chrome repair and its own verification and publication.
 No merge, production deployment, settings change or migration occurred in this lane.
 
 The first local keyless Ledger check lacked the public report.
-A later public-response replay against the Ledger lane's production build, `6e39c78c`, reproduced the overlap at 390 by 900.
+A later public-response replay against the Ledger lane's production build, `6e39c78c32f405294bf4f90b03c10d1b4e86b0be`, reproduced the overlap at 390 by 900.
 At scroll offset 36px, the warning occupied `(20,799,350,29.7)` and Create occupied `(322,761,56,56)` with opacity 1.
 The regression failed because the warning's final word did not own its hit target.
 At scroll offset 336px, the existing scroll behaviour correctly hid Create.
@@ -49,6 +52,38 @@ It preserves Ledger's own actions and the global scroll behaviour.
 The new browser test checks the warning's real hit target and the existing links at phone and desktop widths.
 The failing browser run is retained under `artifacts/fab-overlap/red`.
 The measured boxes and screenshots are under `artifacts/fab-overlap/before.json` and its sibling images.
+
+## Production-build check
+
+The isolated `.next-hygiene-prod` build passed.
+Its local `/api/version` reports `ac3e5b1b1de4cebbb87f04954fb15deb168ee8f1`.
+Chromium passed all ten browser cases against that build in 8.5 seconds.
+These include the seven initial checks, both Ledger hitbox checks and the existing full import review/save case.
+The production-build link crawl again returned HTTP 200 for all 64 targets.
+All import writes remained intercepted local fixtures.
+The four selected Pints ranking cases also passed against this build in 10.7 seconds.
+
+The before image uses the Ledger lane's production build with the captured public response.
+The after image uses this lane's production build with the same public pint fields in a minimal browser fixture.
+Both show a 390 by 900 viewport after a 36px scroll.
+
+<!-- before-and-after:start -->
+| Before (Ledger at 390px) | After (Ledger at 390px) |
+|:---:|:---:|
+| ![Before](./browser-hygiene-2026-10-25/ledger-before-390.png) | ![After](./browser-hygiene-2026-10-25/ledger-after-390.png) |
+
+<!-- before-and-after:end -->
+
+## Full verification
+
+`npm run verify:no-mistakes` passed on the committed repair.
+This runs the complete `npm run verify` with the repository's committed-data wrapper.
+It passed 43,856 unit tests, with one existing skip, 697 PostgreSQL tests and 10 serial PostgreSQL harness tests.
+Lint, schema types, TypeScript, public-map checks, dead-code checks, coverage, browser-skip policy and install-script policy passed.
+Lint retained three existing complexity warnings in unrelated auth and Pub Pal code.
+The audit found no high or critical vulnerabilities.
+Freshness retained two stale datasets and three unmeasurable store feeds as advisory findings.
+Those datasets and feeds are not reported fresh.
 
 Raw screenshots and browser results remain in `artifacts/hygiene-*` in this worktree.
 The link test writes its exact GET receipts and attaches them to the Playwright result.
