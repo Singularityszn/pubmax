@@ -187,7 +187,7 @@ test("a same-origin returning native onboarding visit redirects to Tonight witho
 
   // The proxy admits onboarding document navigation started by this origin.
   // A browser-initiated goto is correctly rejected before the native gate runs.
-  await page.evaluate(() => window.location.assign("/onboarding"));
+  await page.evaluate(() => window.location.assign(new URL("/onboarding", window.location.origin).href));
   await expect(page).toHaveURL(/\/tonight$/);
   await expect(page.getByRole("heading", { name: "London is ready." })).toHaveCount(0);
   await expect.poll(() => page.evaluate(() => ({

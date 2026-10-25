@@ -137,5 +137,10 @@ Everything below is MERGED, deployed to production (pubmaxxing.com, chengdu Verc
 ## DECISIONS LEDGER (locked, morning 2026-07-20)
 
 - Frontend destination: **app-store-ready frontend** (vibe loop wired, judge backlog burned, first-run onboarding, native-shell UX, both-theme evidence refresh).
-- Wrapped-app entry follows the current [native-entry contract](CAPACITOR_WRAP.md#native-entry).
+- Wrapped-app cold start: **/tonight** on every open after first-run. Landing page becomes web-only marketing; the app never sees it.
 - Next frontend lane (queued, first action next Fable session): plan-page vibe picker + share stamp wiring (full brief in docs/handoffs/FABLE_HANDOFF.md "Remaining this week" item 0).
+
+### Amendment, 25 October 2026
+
+Returning native launches now target the homepage at `/`, as defined by the current [native-entry contract](CAPACITOR_WRAP.md#native-entry).
+This amendment supersedes the July cold-start decision above. The installed app changes only after an authorised production release.
