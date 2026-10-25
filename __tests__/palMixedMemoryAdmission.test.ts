@@ -101,6 +101,16 @@ describe("explicit memory requests beside local record answers", () => {
     ["Find four pubs in Soho with a garden", "search_venues"],
     ["Plan a crawl in Soho", "propose_plan"],
     ["Cheap pints near Soho", "search_venues"],
+    ["Find four pubs in Soho", "search_venues"],
+    ["Find four quiet pubs in Soho", "search_venues"],
+    ["Find four pubs in Soho with food", "search_venues"],
+    ["Find four pubs in Soho, not in Camden", "search_venues"],
+    ["Find four pubs not in Camden but in Soho", "search_venues"],
+    ["Find four pubs in Soho, not in Camden Town", "search_venues"],
+    ["Find four pubs in Soho, not in Elephant and Castle", "search_venues"],
+    ["Find two pubs in Soho for three of us", "search_venues"],
+    ["A pub crawl in Soho for three, not pricey", "propose_plan"],
+    ["Plan a three-stop crawl in Soho", "propose_plan"],
   ] as const)("keeps an ordinary records request local: %s", async (query, tool) => {
     expect(palChatRecordQuery(query)).toBe(query);
     const response = await ask(query);
@@ -120,32 +130,51 @@ const UNKNOWN_ADDITIONAL_ACTIONS = [
   "Find four pubs in Soho with a garden and text my mates",
   "Find four pubs in Soho and book tables",
   "Wine prices at Fox and Anchor and contact Alice",
+  "Find four pubs in Soho, not in Camden then book a table",
+  "Find four pubs in Soho, not in Camden, then book a table",
+  "Find four pubs in Soho, not in Camden. Book a table.",
+  "Find four pubs in Soho, not in Camden; book a table",
+  "Find four pubs not in Camden but in Soho then book a table",
+  "Find four pubs in Soho, not in Camden book a table",
+  "Find four pubs in Soho, not in Camden Town then book a table",
+  "Find four pubs in Soho, not in Elephant and Castle then book a table",
 ];
 
 describe("unknown additional actions beside local record answers", () => {
   it.each(UNKNOWN_ADDITIONAL_ACTIONS)("keeps a direct extra action on the configured HTTP provider path: %s", async (query) => {
-    expect(palChatRecordQuery(query)).toBeNull();
     const response = await ask(query);
     expect(response.status).toBe(429);
     expect(await response.json()).toEqual({ error: "Paid budget spent" });
     expect(paidSpendBudgetRefusal).toHaveBeenCalledOnce();
     expect(deniedFetch).not.toHaveBeenCalled();
+    expect(palChatRecordQuery(query)).toBeNull();
   });
 
   it.each(UNKNOWN_ADDITIONAL_ACTIONS)("keeps an owned follow-up extra action on the configured HTTP provider path: %s", async (query) => {
     const followUp = query.replace(/ (?:in|near) Soho/, " in the same area");
     await registerPubPalToolTurn(THREAD, { query: SOHO, cityId: "london", ownerId: OWNER, turns: [] });
     const context = await preparePalElevenLabsChatTurn({ query: followUp, ownerId: OWNER, threadId: THREAD });
-    expect(palChatRecordQuery(followUp, context.prior.turns)).toBeNull();
     const response = await ask(followUp, THREAD);
     expect(response.status).toBe(429);
     expect(await response.json()).toEqual({ error: "Paid budget spent" });
     expect(paidSpendBudgetRefusal).toHaveBeenCalledOnce();
     expect(deniedFetch).not.toHaveBeenCalled();
+    expect(palChatRecordQuery(followUp, context.prior.turns)).toBeNull();
   });
 
   it("rejects an extra action carried into a refined follow-up", () => {
     expect(palChatRecordQuery("please", [{ role: "user", content: "Wine prices at Fox and Anchor. Book a table." }])).toBeNull();
+  });
+
+  it.each(UNKNOWN_ADDITIONAL_ACTIONS)("keeps an extra action carried into a refined owned follow-up on the configured HTTP provider path: %s", async (query) => {
+    await registerPubPalToolTurn(THREAD, { query, cityId: "london", ownerId: OWNER, turns: [] });
+    const context = await preparePalElevenLabsChatTurn({ query: "please", ownerId: OWNER, threadId: THREAD });
+    const response = await ask("please", THREAD);
+    expect(response.status).toBe(429);
+    expect(await response.json()).toEqual({ error: "Paid budget spent" });
+    expect(paidSpendBudgetRefusal).toHaveBeenCalledOnce();
+    expect(deniedFetch).not.toHaveBeenCalled();
+    expect(palChatRecordQuery("please", context.prior.turns)).toBeNull();
   });
 
   it.each(["Wine prices at Fox and Anchor", "Cheapest wine in Soho"])("keeps a comparison without an extra action local in the public predicate: %s", (query) => {
@@ -225,6 +254,37 @@ describe("explicit personal preference and note operations beside local record a
   });
 });
 
+const UNRESOLVED_LOCAL_CAPABILITIES = [
+  "Find three pubs followed by a dozen in Soho",
+  "Find 3 pubs followed by a dozen in Soho",
+  "Plan a crawl of three pubs followed by a dozen in Soho",
+  "Find three pubs followed by a dozen in Soho under £6 a pint",
+  "Cheap pints in three pubs followed by a dozen in Soho",
+  "Find three pubs followed by a dozen in Soho, not in Camden",
+  "Find three pubs followed by a dozen not in Camden but in Soho",
+  "Find four pubs in Soho with vegan food",
+  "Find four vegan pubs in Soho",
+  "Find four vegetarian pubs in Soho",
+  "Find four gluten-free pubs in Soho",
+  "Find four halal pubs in Soho",
+  "Find four pubs in Soho with halal food",
+  "Find four pubs in Soho with vegetarian options",
+  "Find four pubs in Soho, not in Camden with vegan food",
+  "Find four pubs in Soho, not in Camden followed by a dozen",
+  "Find four pubs in Soho, not in Camden Town with halal food",
+  "Find four pubs not in Camden but in Soho with vegetarian options",
+  "Find four halal quiet pubs in Soho",
+  "Find four quiet halal pubs in Soho",
+  "Find four low calorie pubs in Soho",
+  "Find four pubs in Soho with low calorie food",
+  "Find four burger pubs in Soho",
+  "Find four pubs in Soho with pizza",
+  "Find four pubs in Soho with sandwiches",
+  "Find four pubs in Soho, not in Camden with low calorie food",
+  "Find four pubs not in Camden but in Soho with burgers",
+  "Find four quiet low calorie pubs in Soho, not in Camden Town",
+];
+
 describe("venue, item and status clause boundaries beside local record answers", () => {
   it.each(["wine prices at fox and anchor", "Wine prices at the Lamb"])("keeps a named recorded-drinks ask local regardless of capitalisation: %s", (query) => {
     expect(palChatRecordQuery(query)).toBe(query);
@@ -236,6 +296,38 @@ describe("venue, item and status clause boundaries beside local record answers",
     "How much is a burger in Camden? Are there Tube delays and book a table",
   ])("keeps an extra action outside the venue, item and status clauses on the provider path: %s", (query) => {
     expect(palChatRecordQuery(query)).toBeNull();
+  });
+
+  it.each(UNRESOLVED_LOCAL_CAPABILITIES)("keeps a direct unresolved quantity or dietary request on the configured HTTP provider path: %s", async (query) => {
+    const response = await ask(query);
+    expect(response.status).toBe(429);
+    expect(await response.json()).toEqual({ error: "Paid budget spent" });
+    expect(paidSpendBudgetRefusal).toHaveBeenCalledOnce();
+    expect(deniedFetch).not.toHaveBeenCalled();
+    expect(palChatRecordQuery(query)).toBeNull();
+  });
+
+  it.each(UNRESOLVED_LOCAL_CAPABILITIES)("keeps an owned same-area unresolved quantity or dietary request on the configured HTTP provider path: %s", async (query) => {
+    const followUp = query.replace(/ (?:in|near) Soho/, " in the same area");
+    await registerPubPalToolTurn(THREAD, { query: SOHO, cityId: "london", ownerId: OWNER, turns: [] });
+    const context = await preparePalElevenLabsChatTurn({ query: followUp, ownerId: OWNER, threadId: THREAD });
+    const response = await ask(followUp, THREAD);
+    expect(response.status).toBe(429);
+    expect(await response.json()).toEqual({ error: "Paid budget spent" });
+    expect(paidSpendBudgetRefusal).toHaveBeenCalledOnce();
+    expect(deniedFetch).not.toHaveBeenCalled();
+    expect(palChatRecordQuery(followUp, context.prior.turns)).toBeNull();
+  });
+
+  it.each(UNRESOLVED_LOCAL_CAPABILITIES)("keeps a refined owned follow-up of an unresolved quantity or dietary request on the configured HTTP provider path: %s", async (query) => {
+    await registerPubPalToolTurn(THREAD, { query, cityId: "london", ownerId: OWNER, turns: [] });
+    const context = await preparePalElevenLabsChatTurn({ query: "please", ownerId: OWNER, threadId: THREAD });
+    const response = await ask("please", THREAD);
+    expect(response.status).toBe(429);
+    expect(await response.json()).toEqual({ error: "Paid budget spent" });
+    expect(paidSpendBudgetRefusal).toHaveBeenCalledOnce();
+    expect(deniedFetch).not.toHaveBeenCalled();
+    expect(palChatRecordQuery("please", context.prior.turns)).toBeNull();
   });
 });
 

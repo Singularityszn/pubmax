@@ -396,6 +396,8 @@ describe("routeAskDeterministically: Pub Pal V0.1 concierge tools", () => {
     ["Find me four pubs in the same area", "Find me four pubs in Soho", "search_venues"],
     ["A three-stop pub crawl in the same patch", "A three-stop pub crawl in Soho", "propose_plan"],
     ["Pints under £6.50 in the same neighbourhood", "Pints under £6.50 in Soho", "search_venues"],
+    ["Find three pubs followed by a dozen in the same area", "Find three pubs followed by a dozen in Soho", "search_venues"],
+    ["A crawl of three pubs followed by a dozen in the same patch", "A crawl of three pubs followed by a dozen in Soho", "propose_plan"],
   ])("resolves every area follow-up through the shared boundary: %s", (query, expected, tool) => {
     const resolved = refineRoutedAskQuery(query, "Find four pubs in Soho");
     expect(resolved).toBe(expected);
@@ -602,6 +604,12 @@ describe("routeAskDeterministically: complete requested venue quantity", () => {
     "Find another three pubs in Soho",
     "Find three pubs in Soho followed by a heap",
     "Find three pubs with food and a gaggle in Soho",
+    "Find three pubs followed by a dozen in Soho",
+    "Find 3 pubs followed by a dozen in Soho",
+    "Find three pubs followed by a dozen in Soho, not in Camden",
+    "Find three pubs followed by a dozen not in Camden but in Soho",
+    "Find three pubs followed by a dozen in Soho under £6 a pint",
+    "Drink prices in three pubs followed by a dozen in Camden",
   ])("keeps the default card limit when the complete quantity is not one supported count: %s", (query) => {
     expect(routeAskDeterministically(query)).toEqual([{ name: "search_venues", args: { query, limit: 4 } }]);
   });

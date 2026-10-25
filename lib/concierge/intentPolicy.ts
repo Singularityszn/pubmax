@@ -130,7 +130,7 @@ const CARDINAL_PHRASE = `${CARDINAL_TOKEN}(?:[-\\s]+(?:(?:and|or|to)[-\\s]+)?(?:
 const QUANTITY_UNIT = "(?:us|people|persons?|friends?|mates?|guys|adults|pax|am|pm|o['’]clock|hours?|hrs?|minutes?|mins?|pounds?|quid|pence|gbp)";
 const COUNT_GAP_STOP = `(?:${CARDINAL_WORD}|${QUANTITY_UNIT}|each|per|in|at|near|around|by|with|for|from|to|then|but|not|than|stops?|pubs?|bars?|venues?|places?)\\b`;
 const VENUE_QUANTITY_RE = new RegExp(
-  `(?<![£$€]\\s*|\\d[.,/])\\b(${CARDINAL_PHRASE})[-\\s]+(?:(?!${COUNT_GAP_STOP})[a-z][a-z'’]*[-\\s]+)*(?:stops?|pubs?|bars?|venues?|places?)\\b`,
+  `(?<![£$€]\\s*|\\d[.,/])\\b(${CARDINAL_PHRASE})(?=[-\\s]+(?:(?!${COUNT_GAP_STOP})[a-z][a-z'’]*[-\\s]+)*(?:stops?|pubs?|bars?|venues?|places?)\\b)`,
   "gi",
 );
 const PARTY_QUANTITY = `[£$€]\\s*${CARDINAL_PHRASE}|\\b${CARDINAL_PHRASE}[-\\s]*(?:of|${QUANTITY_UNIT}|(?:a|per)\\s+pint)\\b|\\bfor[-\\s]+${CARDINAL_PHRASE}\\b(?![-\\s]+more\\b)`;
@@ -153,9 +153,9 @@ export function isSupportedAskArea(area: string): boolean {
     || isKnownAskPlacePhrase(area);
 }
 
-const CONSUMED_REQUEST_PHRASE_RE = /\b(?:pub[\s-]+crawls?|for a quick one(?: after work)?|to save money|that (?:suits?|match(?:es)?) (?:my|our) (?:preferences?|notes?)|(?:show|give|include)(?: me| us)?(?: the)? (?:(?:source|recorded) dates?|sources?)|(?:(?:(?:them|it) )?on )?(?:the|a) map|(?:late )?(?:opening|closing) (?:hours|times)|not (?:too )?(?:pricey|expensive|dear))\b/gi;
+const CONSUMED_REQUEST_PHRASE_RE = /\b(?:pub[\s-]+crawls?|for a quick one(?: after work)?|to save money|that (?:suits?|match(?:es)?) (?:my|our) (?:preferences?|notes?)|(?:show|give|include)(?: me| us)?(?: the)? (?:(?:source|recorded) dates?|sources?)|(?:(?:(?:them|it) )?on )?(?:the|a) map|(?:late )?(?:opening|closing) (?:hours|times)|not (?:too )?(?:pricey|expensive|dear)|exceptionally welcoming)\b/gi;
 const VENUE_NOUN_RE = /\b(?:pubs?|bars?|stops?|venues?|places?)\b/gi;
-const CONSUMED_REQUEST_WORDS = new Set("a an the and or but with for in near nearby around at of to then that across please find show me us plan sort get give list recommend suggest what s is are where some any how much do does crawl crawls night out route cheap cheaper cheapest price prices cost costs pint pints beer beers drink drinks under below max maximum up less per listed recorded best value lowest affordable good decent nice local tonight now right later today this evening afternoon morning weekend am pm people friends mates group quiet ish calm low key lively buzzing cosy cozy snug fireside garden gardens outdoor riverside waterside sports live music romantic historic dog friendly craft cider food meal meals lunch dinner breakfast burger burgers pizza sandwich sandwiches menu calories calorie kcal dietary vegan vegetarian gluten servings options wine wines cocktail cocktails spirit spirits coffee whisky whiskey gin rum vodka shot shots soft alcohol free non alcoholic".split(" "));
+const CONSUMED_REQUEST_WORDS = new Set("a an the and or but with for in near nearby around at of to then that across please find show me us plan sort get give list recommend suggest what s is are where some any how much do does crawl crawls night out route cheap cheaper cheapest price prices cost costs pint pints beer beers drink drinks under below max maximum up less per listed recorded best value lowest affordable good decent nice local tonight now right later today this evening afternoon morning weekend am pm people friends mates group quiet ish calm low key lively buzzing cosy cozy snug fireside garden gardens outdoor riverside waterside sports live music romantic historic dog friendly craft cider food meal meals lunch dinner breakfast menu options wine wines cocktail cocktails spirit spirits coffee whisky whiskey gin rum vodka shot shots soft alcohol free non alcoholic".split(" "));
 
 const VENUE_NAME_WORD = String.raw`(?!(?:${[...CONSUMED_REQUEST_WORDS].join("|")})\b)[\p{L}][\p{L}'’-]*`;
 const VENUE_NAME_RUN = String.raw`${VENUE_NAME_WORD}(?:\s+${VENUE_NAME_WORD})*`;
@@ -172,7 +172,7 @@ export function isCompleteLocalRequest(text: string, itemWords: readonly string[
   if (area && isSupportedAskArea(area)) rest = rest.replace(new RegExp(`\\b${escapeRegExp(area)}\\b`, "giu"), " ");
   let venueNouns = 0;
   rest = rest.replace(NAMED_VENUE_RE, " at ").replace(CONSUMED_REQUEST_PHRASE_RE, " ")
-    .replace(VENUE_QUANTITY_RE, () => { venueNouns += 1; return " "; })
+    .replace(VENUE_QUANTITY_RE, " ")
     .replace(PARTY_QUANTITY_RE, " ")
     .replace(VENUE_NOUN_RE, () => { venueNouns += 1; return " "; });
   const item = new Set(itemWords.flatMap((word) => word.toLowerCase().match(/[\p{L}\p{N}]+/gu) ?? []));
@@ -195,15 +195,21 @@ export function requestedVenueQuantity(query: string): number | null | undefined
 /** A preposition directly before an area: "in Shoreditch", "near Soho". */
 const AREA_PREPOSITION_BEFORE = /\b(?:in|near|around|at)\s+$/iu;
 
-const EXCLUDED_PLACE_RE = /,?\s*\b(?:but\s+)?not\s+(?:in|near|around)\s+[^,.!?;]+?(?:\s+but(?=\s+(?:in|near|around)\b)|(?=\s+(?:but|and|or)\b|[,.!?;]|$))/giu;
+const EXCLUDED_PLACE_RE = /,?\s*\b(?:but\s+)?not\s+(?:in|near|around)\s+((?:(?!\s+(?:but\s+)?not\s+(?:in|near|around)\b)[^,.!?;])+)/giu;
+
+function excludedPlaceClause(match: string, place: string): string {
+  const ends = [...place.matchAll(/\S+/gu)].map((word) => word.index + word[0].length);
+  const end = ends.slice(1).reverse().find((length) => isSupportedAskArea(place.slice(0, length))) ?? ends[0] ?? 0;
+  return match.slice(0, match.length - place.length + end);
+}
 
 /** An excluded place ("not in Soho") is never the place the ask is about. */
 export function withoutExcludedPlaces(text: string): string {
-  return text.replace(EXCLUDED_PLACE_RE, "");
+  return text.replace(EXCLUDED_PLACE_RE, (match: string, place: string) => match.slice(excludedPlaceClause(match, place).length).replace(/^\s+but(?=\s+(?:in|near|around)\b)/iu, ""));
 }
 
 export function namesExcludedPlace(text: string, place: string): boolean {
-  return [...text.matchAll(EXCLUDED_PLACE_RE)].some((match) => wholePhraseInText(match[0], place));
+  return [...text.matchAll(EXCLUDED_PLACE_RE)].some((match) => wholePhraseInText(excludedPlaceClause(match[0], match[1]!), place));
 }
 
 /**
