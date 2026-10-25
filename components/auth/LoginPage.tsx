@@ -435,6 +435,42 @@ function renderLoginPageHeadActions({
   return { primary, secondary };
 }
 
+function LoginPageFooter({ legalLead }: { legalLead?: string }): React.JSX.Element {
+  return (
+    <footer className="loginPageFoot">
+      <Link href="/map" className="loginPageQuietLink">
+        <LogIn size={14} aria-hidden="true" />
+        Browse without signing in
+      </Link>
+      {legalLead ? <p className="loginPageLegal">
+        {legalLead}{" "}<Link href="/terms">terms</Link> and{" "}
+        <Link href="/privacy">privacy notice</Link>.
+      </p> : null}
+    </footer>
+  );
+}
+
+function SignInUnavailable({ signedIn }: { signedIn: boolean }): React.JSX.Element {
+  return (
+    <main className="loginPage">
+      <div className="loginPageInner">
+        <PageHead
+          title="Sign-in is temporarily unavailable"
+          lead={signedIn ? "Your current account is still available." : "You can still browse the map."}
+          primary={signedIn
+            ? <Link href="/map">Continue to the map</Link>
+            : <button type="button" onClick={() => window.location.reload()}>Try again</button>}
+          secondary={signedIn ? <Link href="/u/you">Your profile</Link> : undefined}
+        />
+        <p className="loginPageNotice" role="alert">{signedIn
+          ? "You are still signed in. Try again later to add another account."
+          : "Your account could not be checked."}</p>
+        {!signedIn ? <LoginPageFooter /> : null}
+      </div>
+    </main>
+  );
+}
+
 /**
  * Full-page sign-in surface. Owns the email-link flow as a first-class page
  * (not only the nav popover). Phone nav Sign in routes here; desktop may still
@@ -471,6 +507,7 @@ export default function LoginPage({
     user,
     loading,
     configured,
+    supabaseAuthState,
     clerkIntegrationConfigured,
     socialProviders,
     socialProvidersResolved,
@@ -684,6 +721,10 @@ export default function LoginPage({
     onUseDifferentAccount: () => setUseDifferentAccount(true),
   });
 
+  if (configured && !loading && supabaseAuthState === "unavailable" && (!user || adding)) {
+    return <SignInUnavailable signedIn={Boolean(user)} />;
+  }
+
   return (
     <main className="loginPage">
       <div className="loginPageInner">
@@ -784,17 +825,7 @@ export default function LoginPage({
           </section>
         ) : null}
 
-        <footer className="loginPageFoot">
-          <Link href="/map" className="loginPageQuietLink">
-            <LogIn size={14} aria-hidden="true" />
-            Browse without signing in
-          </Link>
-          <p className="loginPageLegal">
-            {door.legalLead}{" "}
-            <Link href="/terms">terms</Link> and{" "}
-            <Link href="/privacy">privacy notice</Link>.
-          </p>
-        </footer>
+        <LoginPageFooter legalLead={door.legalLead} />
       </div>
     </main>
   );

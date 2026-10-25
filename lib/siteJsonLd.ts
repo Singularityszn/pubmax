@@ -1,4 +1,5 @@
 import { BRAND_NAME } from "@/lib/brandNaming";
+import { HELLO_EMAIL } from "@/lib/siteContact";
 import { PRODUCTION_SITE_ORIGIN } from "@/lib/siteUrlConfig.mjs";
 
 /**
@@ -15,8 +16,8 @@ const SITE_BRAND_ALTERNATE_NAMES = [
   "Pubmaxing",
 ] as const;
 
-const SITE_ORGANIZATION_ID = `${PRODUCTION_SITE_ORIGIN}/#organization`;
-const SITE_WEBSITE_ID = `${PRODUCTION_SITE_ORIGIN}/#website`;
+export const SITE_ORGANIZATION_ID = `${PRODUCTION_SITE_ORIGIN}/#organization`;
+export const SITE_WEBSITE_ID = `${PRODUCTION_SITE_ORIGIN}/#website`;
 
 const SITE_DESCRIPTION =
   "PUBMAXX is a London pub map and crawl planner with listed pint prices, explicit source status and cited pub history.";
@@ -43,11 +44,12 @@ export const siteJsonLd = [
     // A raster logo: Google's Organization logo needs a crawlable image of at
     // least 112x112, and a PNG is the format every consumer of it reads.
     logo: `${PRODUCTION_SITE_ORIGIN}/brand/icon-512.png`,
+    email: HELLO_EMAIL,
     founder: {
       "@type": "Person",
       name: "Karan Manoharan",
       url: "https://x.com/karansznx",
+      sameAs: ["https://x.com/karansznx", "https://github.com/karanmrn"],
     },
-    sameAs: ["https://x.com/karansznx", "https://github.com/karanmrn"],
   },
 ];

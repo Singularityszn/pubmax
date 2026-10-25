@@ -71,10 +71,9 @@ function alertText(findings: FreshnessFindings): string {
 }
 
 /**
- * Report the audit's findings, stale and unresolved kept apart. Console-only by
- * design (structured line per feed so it is greppable in Vercel logs). Returns
- * the notices it emitted so the cron response can echo them. A future notifier
- * can replace the body of this function — callers and the shape stay put.
+ * Keep stale and unresolved findings separate so an unknown age cannot imply
+ * stale data. Return the notices for the cron response. Alert delivery follows
+ * docs/rules/lib-observability.md.
  */
 export function notifyFreshnessFindings(
   stale: readonly FreshnessResult[],

@@ -116,6 +116,36 @@ describe("POST /api/plans/generate — anchored", () => {
     expect(resolvePlanningAnchorMock).not.toHaveBeenCalled();
   });
 
+  it("routes only the imported cluster and signs its exact ordered stops", async () => {
+    resolvePlanningAnchorMock.mockResolvedValue(resolved("anchor-venue"));
+    loadConciergeVenuesMock.mockResolvedValueOnce([
+      claphamVenue("anchor-venue", 0), claphamVenue("listed-1", 1), claphamVenue("listed-2", 2),
+      claphamVenue("outside-list", 1, { cheapestPrice: 1 }),
+    ]);
+    const response = await generate({ intake: intake(),
+      anchor: { ...ANCHOR, venueIds: ["anchor-venue", "listed-1", "listed-2"] } });
+    const body = await response.json();
+    expect(response.status).toBe(200);
+    const ids = body.stops.map((stop: { venueId: string }) => stop.venueId);
+    expect(new Set(ids)).toEqual(new Set(["anchor-venue", "listed-1", "listed-2"]));
+    expect(ids[0]).toBe("anchor-venue");
+    expect(verifyAnchoredPlanGroundingProofV2(body.groundingProof, ids, body.operationKey).ok).toBe(true);
+    expect(verifyAnchoredPlanGroundingProofV2(body.groundingProof, [...ids].reverse(), body.operationKey).ok).toBe(false);
+  });
+
+  it("refuses a replacement when an imported pub is unavailable", async () => {
+    resolvePlanningAnchorMock.mockResolvedValue(resolved("anchor-venue"));
+    loadConciergeVenuesMock.mockResolvedValueOnce([
+      claphamVenue("anchor-venue", 0), claphamVenue("listed-1", 1), claphamVenue("outside-list", 2),
+    ]);
+    const response = await generate({ intake: intake(),
+      anchor: { ...ANCHOR, venueIds: ["anchor-venue", "listed-1", "missing"] } });
+    const body = await response.json();
+    expect(body.outcome).toBe("anchor-conflict");
+    expect(body.stops).toEqual([]);
+    expect(body.groundingProof).toBeUndefined();
+  });
+
   it("handles an accepted Venue by default and returns it first with a valid V2 proof", async () => {
     resolvePlanningAnchorMock.mockResolvedValue(resolved("anchor-venue"));
     loadConciergeVenuesMock.mockResolvedValueOnce([

@@ -7,9 +7,11 @@ import { defined } from "@/__tests__/helpers/defined";
 
 type WorkflowStep = {
   name?: string;
+  if?: string;
   uses?: string;
   run?: string;
   env?: Record<string, string>;
+  with?: Record<string, unknown>;
 };
 type WorkflowJob = {
   name?: string;
@@ -28,12 +30,12 @@ type Workflow = {
 
 // The layout pins are three named jobs that share one step list, not a matrix.
 const LAYOUT_PIN_JOBS = ["layout-pins-1", "layout-pins-2", "layout-pins-3"];
-// Run unless the classifier succeeded and said docs or data. A failed
+// Run unless the classifier succeeded and said no screen code changed. A failed
 // classifier must run the layout pins, not skip them: a skipped check counts
-// as passed for branch protection, so skipping would let a code change merge
+// as passed for branch protection, so skipping would let a screen change merge
 // without them (fail closed).
 const LAYOUT_PIN_IF =
-  "${{ !cancelled() && (needs.change-scope.result != 'success' || needs.change-scope.outputs.scope == 'code') }}";
+  "${{ !cancelled() && (needs.change-scope.result != 'success' || needs.change-scope.outputs.layout == 'ui') }}";
 
 // A `${{ ... }}` expression is one word even though it holds spaces.
 function runWords(run: string | undefined): string[] {
@@ -114,7 +116,7 @@ describe("browser CI policy", () => {
     }
   });
 
-  it("runs the layout-pinning browser specs on every code pull request, in three named shards", () => {
+  it("runs the layout-pinning browser specs on every screen-code pull request, in three named shards", () => {
     const { jobs } = parse(readFileSync(workflowPath, "utf8")) as Workflow;
     const layoutJobs = LAYOUT_PIN_JOBS.map((id) => defined(jobs[id], id));
     layoutJobs.forEach((job, index) => {
@@ -131,6 +133,7 @@ describe("browser CI policy", () => {
     const layoutPinsJob = defined(layoutJobs[0]);
     const [testStep, ...extraTestSteps] = playwrightSteps(layoutPinsJob);
     expect(extraTestSteps).toEqual([]);
+    expect(testStep?.if).toBeUndefined();
     const run = runWords(defined(testStep, "layout-pins Playwright step").run);
     expect(run).toContain(`--shard=\${{ env.LAYOUT_SHARD }}/${LAYOUT_PIN_JOBS.length}`);
     expect(run).toContain("--workers=1");
@@ -157,6 +160,18 @@ describe("browser CI policy", () => {
     expect(gate[gate.indexOf("scripts/assert-playwright-gate.mjs") + 1]).toBe(
       testStep?.env?.PLAYWRIGHT_JSON_OUTPUT_NAME,
     );
+  });
+
+  it("runs the same layout steps for every pull request branch", () => {
+    // The before/after evidence steps for three October branches were gated
+    // on their names. Those pull requests merged, and no step may be kept
+    // for one branch again.
+    const { jobs } = parse(readFileSync(workflowPath, "utf8")) as Workflow;
+    for (const id of LAYOUT_PIN_JOBS) {
+      for (const step of defined(jobs[id]).steps) {
+        expect(step.if, `${id} / ${step.name}`).toBeUndefined();
+      }
+    }
   });
 
   it("names only spec files that exist in each pull-request browser job", () => {

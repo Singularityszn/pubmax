@@ -326,20 +326,8 @@ export default function LandingHero({
     </Link>
   );
 
-  // The receipt door, quiet now. It carries the anchor pub where there is one,
-  // so the composer opens on that pub holding the figure the card printed. The
-  // label says what the tap does; "Still" and a figure read as a riddle.
-  const receipt = answer ? (
-    <Link
-      key="receipt"
-      prefetch={false}
-      href={pintDropDoorHref(answer.id, answer.priceGbp)}
-      onClick={() => trackLandingCta("receipt")}
-      aria-describedby="lp-answer-name"
-    >
-      {LANDING_RECEIPT_LABEL}
-    </Link>
-  ) : (
+  // A general contribution starts with the pub the reader chooses.
+  const receipt = (
     <Link
       key="receipt"
       prefetch={false}

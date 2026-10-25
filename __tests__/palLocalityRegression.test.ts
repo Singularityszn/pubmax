@@ -14,7 +14,7 @@ vi.mock("@/lib/paidSpendBudget.server", () => ({
 vi.mock("@/lib/concierge/venues.server", () => ({ loadConciergeVenues: vi.fn() }));
 
 import { POST } from "@/app/api/pub-pal/chat/route";
-import { refineRoutedAskQuery, refineVenueAreaFollowUp } from "@/lib/ask/router";
+import { refineRoutedAskQuery, refineVenueAreaFollowUp, resolveAskLocality } from "@/lib/ask/router";
 import { loadConciergeVenues } from "@/lib/concierge/venues.server";
 import type { ConciergeVenue } from "@/lib/concierge/rank";
 import { palChatRecordQuery, preparePalElevenLabsChatTurn } from "@/lib/palElevenLabsChat.server";
@@ -130,6 +130,77 @@ describe("supported locality at the local answer boundary", () => {
   );
 });
 
+const OXFORD_NOT_SOHO = "Find four pubs in Oxford, not in Soho";
+const SOHO_NOT_OXFORD = "Find four pubs in Soho, not in Oxford";
+
+describe("positive locality over an excluded place", () => {
+  it("resolves the positive place at the public locality boundary", () => {
+    expect(resolveAskLocality(OXFORD_NOT_SOHO)).toEqual({ kind: "unsupported", area: "Oxford" });
+    expect(resolveAskLocality(SOHO_NOT_OXFORD)).toEqual({ kind: "supported", area: "Soho" });
+    expect(resolveAskLocality("Find four pubs in Soho or Oxford")).toEqual({ kind: "ambiguous" });
+    expect(resolveAskLocality("Find four pubs in Soho, Oxford, please")).toEqual({ kind: "ambiguous" });
+    expect(resolveAskLocality("Four pubs in Soho with food and a garden")).toEqual({ kind: "supported", area: "Soho" });
+    expect(resolveAskLocality("Find four pubs")).toEqual({ kind: "missing" });
+  });
+
+  it("keeps the positive unsupported place through local, history and tool query boundaries", () => {
+    expect(palChatRecordQuery(OXFORD_NOT_SOHO)).toBeNull();
+    expect(palChatRecordQuery(OXFORD_NOT_SOHO, [{ role: "user", content: SOHO }])).toBeNull();
+    for (const followUp of ["Four quiet pubs", "Find four pubs in the same area", "Pints under £6.50 in the same area"]) {
+      expect(palChatRecordQuery(followUp, [{ role: "user", content: OXFORD_NOT_SOHO }])).toBeNull();
+    }
+    expect(refineVenueAreaFollowUp("Find four pubs in the same area", [SOHO, OXFORD_NOT_SOHO])).toBe("Find four pubs in Oxford");
+    const session = windowPalSessionTurns("", [
+      { role: "user", content: SOHO }, { role: "user", content: OXFORD_NOT_SOHO },
+    ]);
+    const query = resolvePubPalToolQuery({ turnQuery: "Find four pubs in the same area", args: {}, turns: session.turns });
+    expect(query).toBe("Find four pubs in Oxford");
+    expect(palChatRecordQuery(query)).toBeNull();
+  });
+
+  it("keeps a supported positive Soho local when it excludes Oxford", () => {
+    expect(palChatRecordQuery(SOHO_NOT_OXFORD)).toBe(SOHO_NOT_OXFORD);
+    expect(palChatRecordQuery("Four quiet pubs", [{ role: "user", content: SOHO_NOT_OXFORD }])).toBe("Four quiet pubs in Soho");
+    expect(refineVenueAreaFollowUp("Find four pubs in the same area", [SOHO_NOT_OXFORD])).toBe(SOHO);
+  });
+
+  it("does not borrow Soho through an owned Oxford-not-Soho turn", async () => {
+    await registerPubPalToolTurn(THREAD, {
+      query: OXFORD_NOT_SOHO, cityId: "london", ownerId: OWNER, turns: [{ role: "user", content: SOHO }],
+    });
+    const context = await preparePalElevenLabsChatTurn({ query: "Four quiet pubs", ownerId: OWNER, threadId: THREAD });
+    expect(context.prior.turns.map((turn) => turn.content)).toEqual([SOHO, OXFORD_NOT_SOHO]);
+    expect(palChatRecordQuery("Four quiet pubs", context.prior.turns)).toBeNull();
+    const response = await ask("Find four pubs in the same area", THREAD);
+    expect(response.status).toBe(429);
+    expect(paidSpendBudgetRefusal).toHaveBeenCalledOnce();
+    expect(deniedFetch).not.toHaveBeenCalled();
+  });
+
+  it.each([false, true])("answers Oxford-not-Soho on the provider path over HTTP, prior Soho=%s", async (priorSoho) => {
+    let threadId: string | undefined;
+    if (priorSoho) {
+      const first = await ask(SOHO);
+      expect(first.status).toBe(200);
+      threadId = (await first.json()).conversationId;
+      expect(threadId).toBeTruthy();
+    }
+    const response = await ask(OXFORD_NOT_SOHO, threadId);
+    expect(response.status).toBe(429);
+    expect(await response.json()).toEqual({ error: "Paid budget spent" });
+    expect(paidSpendBudgetRefusal).toHaveBeenCalledOnce();
+    expect(deniedFetch).not.toHaveBeenCalled();
+  });
+
+  it("answers Soho-not-Oxford from local records over HTTP", async () => {
+    const response = await ask(SOHO_NOT_OXFORD);
+    expect(response.status).toBe(200);
+    expect(await response.json()).toMatchObject({ toolsUsed: ["search_venues"] });
+    expect(paidSpendBudgetRefusal).not.toHaveBeenCalled();
+    expect(deniedFetch).not.toHaveBeenCalled();
+  });
+});
+
 describe("configured HTTP locality with London name and address collisions", () => {
   it.each([false, true])("does not answer Oxford with London pub matches, prior Soho=%s", async (priorSoho) => {
     let threadId: string | undefined;
@@ -156,6 +227,47 @@ describe("configured HTTP locality with London name and address collisions", () 
       const response = await ask(query, THREAD);
       expect(response.status).toBe(429);
       expect(paidSpendBudgetRefusal).toHaveBeenCalledOnce();
+      expect(deniedFetch).not.toHaveBeenCalled();
+    },
+  );
+});
+
+describe("fixed three-stop plan admission", () => {
+  it.each([
+    "Plan a crawl in Soho with four stops",
+    "Plan a 4-stop crawl in Soho",
+    "Plan four pubs in a crawl in Soho",
+    "Plan a crawl in Soho with two stops",
+    "Plan a crawl in Soho with 100 stops",
+    "Plan a crawl in Soho with eleven stops",
+    "Plan a crawl in Soho with thirteen stops",
+    "Plan a crawl in Soho with twenty-three stops",
+    "Plan a crawl in Soho with twenty three stops",
+    "Plan a crawl in Soho with one hundred and three stops",
+    "Plan a crawl in Soho with 2.3 stops",
+    "Plan a crawl in Soho with 2-3 stops",
+    "Plan a crawl in Soho with zero stops",
+    "Plan a crawl in Soho with four\nstops",
+    "Plan a crawl in Soho with twenty\nthree stops",
+    "Plan a crawl in Soho with 4\tstops",
+  ])("keeps an explicit non-three stop count on the provider path: %s", async (query) => {
+    expect(palChatRecordQuery(query)).toBeNull();
+    expect(palChatRecordQuery(query.replace(" in Soho", " in the same area"), [{ role: "user", content: SOHO }])).toBeNull();
+    expect(palChatRecordQuery(`${query}. Are there Tube delays?`)).toBeNull();
+    const response = await ask(query);
+    expect(response.status).toBe(429);
+    expect(await response.json()).toEqual({ error: "Paid budget spent" });
+    expect(paidSpendBudgetRefusal).toHaveBeenCalledOnce();
+    expect(deniedFetch).not.toHaveBeenCalled();
+  });
+
+  it.each(["A three-stop pub crawl in Soho", "A pub crawl in Soho for three", "Plan a crawl in Soho for four of us"])(
+    "keeps the fixed three-stop plan local, with party size apart from stops: %s", async (query) => {
+      expect(palChatRecordQuery(query)).toBe(query);
+      const response = await ask(query);
+      expect(response.status).toBe(200);
+      expect(await response.json()).toMatchObject({ toolsUsed: ["propose_plan"] });
+      expect(paidSpendBudgetRefusal).not.toHaveBeenCalled();
       expect(deniedFetch).not.toHaveBeenCalled();
     },
   );

@@ -17,7 +17,7 @@ import { formatPrice } from "@/lib/venues";
 import { priceBand } from "@/lib/priceBand";
 import PriceBadge from "@/components/PriceBadge";
 
-import "@/components/ui/rowList.css";
+import "@/components/ui/primitives.css";
 import "./pintIndexArrival.css";
 
 // The one tap between "interesting London number" and "what about my patch".

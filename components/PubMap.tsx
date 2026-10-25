@@ -1,5 +1,8 @@
 "use client";
 
+import VenueFeatureFilters from "@/components/map/VenueFeatureFilters";
+import { mapDrinkCoverage } from "@/lib/drinkCoverage";
+
 import { CalendarClock, ChevronRight, List, MapPinned, Navigation2, ShieldCheck, X } from "lucide-react";
 import { formatGbp } from "@/lib/formatGbp";
 import { priceBand, priceBandAreaForVenue } from "@/lib/priceBand";
@@ -67,7 +70,6 @@ import {
   createMemberStabilizer,
 } from "@/lib/filterMapVenues";
 import {
-  OPEN_NOW_FILTER_CAPTION,
   openNowStatesForVenues,
   type OpenNowState,
 } from "@/lib/openNow";
@@ -357,6 +359,7 @@ import { useSelParamSync } from "@/components/map/pubmap/useSelParamSync";
 import { useMapKeyboardShortcuts } from "@/components/map/pubmap/useMapKeyboardShortcuts";
 import { useLandmarkJourney } from "@/components/map/pubmap/useLandmarkJourney";
 import { useLogIntent } from "@/components/map/pubmap/useLogIntent";
+import { useLogPickerLocation } from "@/components/map/pubmap/useLogPickerLocation";
 import { useLogIntentRevealScope } from "@/components/map/pubmap/useLogIntentRevealScope";
 import { MappedRouteChip } from "@/components/map/pubmap/MappedRouteChip";
 import { BandOnboardingChip } from "@/components/map/pubmap/BandOnboardingChip";
@@ -626,6 +629,7 @@ import { currentSurface, homeActionLabel, type SurfaceEntry } from "@/lib/surfac
 import { readMapSurfaceHistory } from "@/lib/mapSurfaceHistory";
 import { mapListOpenFromSearch } from "@/lib/mapListRoute";
 import { buildTonightChip } from "@/lib/mapChromeTiers";
+import { tonightPubListingCount } from "@/lib/tonightOutListings";
 import { buildMapPeek, type MapPeekModel } from "@/lib/mapPeek";
 import {
   filtersForCuratedCrawl,
@@ -1088,37 +1092,28 @@ function mapChipLabelFor(input: {
 }
 
 /**
- * The venues the map pins. While a search field holds the caret or the search
- * overlay is open, the pins keep every filter but the query, so a half-typed
- * name never empties the map. Otherwise they are the filtered venues.
+ * Search narrows the results and camera, not the surrounding price context.
+ * Pins keep every other filter after a query is restored or its field blurs.
  */
-function useSearchStablePinVenues({
-  searchFieldFocused,
-  mapOverlay,
+function useMapPinVenues({
   venues,
   mapFilters,
   venueSignals,
   openNowStateById,
   savedOnly,
   savedIds,
-  filteredVenues,
 }: {
-  searchFieldFocused: boolean;
-  mapOverlay: MapOverlay;
   venues: readonly Venue[];
   mapFilters: Filters;
   venueSignals: ReadonlyMap<string, { hasPintDrops: boolean }>;
   openNowStateById: ReadonlyMap<string, OpenNowState> | null;
   savedOnly: boolean;
   savedIds: ReadonlySet<string>;
-  filteredVenues: Venue[];
 }): Venue[] {
   const pinFilterKey = JSON.stringify(mapPinFilters(mapFilters));
   // eslint-disable-next-line react-hooks/exhaustive-deps -- the key includes every non-query filter
   const pinFilters = useMemo(() => mapPinFilters(mapFilters), [pinFilterKey]);
-  const searchActive = searchFieldFocused || mapOverlay === "search";
-  const searchPinVenues = useMemo(() => {
-    if (!searchActive) return null;
+  return useMemo(() => {
     const candidates = filterMapVenues(
       venues,
       pinFilters,
@@ -1126,8 +1121,7 @@ function useSearchStablePinVenues({
       (id) => openNowStateById?.get(id) ?? "unknown",
     );
     return savedOnly ? candidates.filter((venue) => savedIds.has(venue.id)) : candidates;
-  }, [searchActive, openNowStateById, pinFilters, savedIds, savedOnly, venues, venueSignals]);
-  return searchPinVenues ?? filteredVenues;
+  }, [openNowStateById, pinFilters, savedIds, savedOnly, venues, venueSignals]);
 }
 
 /**
@@ -1203,7 +1197,7 @@ function MobileMapTonightLens({
       <CalendarClock size={16} aria-hidden="true" />
       <span className="mobileMapTonightLensText">
         <strong>{tonightLens.label}</strong>
-        <small>{tonightLens.count} {tonightLens.count === 1 ? "listing" : "listings"}{nearReader ? " near you" : " in London"}</small>
+        <small>{tonightLens.count} via What&apos;s-on{nearReader ? " near you" : " in London"}</small>
       </span>
       <ChevronRight size={16} aria-hidden="true" className="mobileMapTonightLensChevron" />
     </button>
@@ -3030,6 +3024,10 @@ export default function PubMap({
     [baseVenues, dropsByVenueId, priceUpdates, cityId],
   );
   const pubVenues = useMemo(() => venues.filter(isPubVenue), [venues]);
+  const drinkCoverage = useMemo(() => ({
+    ...mapDrinkCoverage(pubVenues, activeMapDrinkLane, drinkLensPrices, venueIndexFailed ? "degraded" : !loaded || loadedCityId !== cityId ? "loading" : drinkIndexStatus),
+    ...(coffeePilotLensOn ? { coffeePilot: { count: coffeePilot.cafes.length, status: coffeePilot.status } } : {}),
+  }), [pubVenues, activeMapDrinkLane, drinkLensPrices, drinkIndexStatus, venueIndexFailed, loaded, loadedCityId, cityId, coffeePilotLensOn, coffeePilot.cafes.length, coffeePilot.status]);
   const hasSavedPub = useMemo(
     () => hasSavedPubVenue(pubVenues, savedIds),
     [pubVenues, savedIds],
@@ -3144,16 +3142,13 @@ export default function PubMap({
     [pipelineVenues, savedOnly, savedIds],
   );
 
-  const pinVenues = useSearchStablePinVenues({
-    searchFieldFocused: mapSearchFieldFocused,
-    mapOverlay,
+  const pinVenues = useMapPinVenues({
     venues,
     mapFilters: effectiveMapFilters,
     venueSignals,
     openNowStateById,
     savedOnly,
     savedIds,
-    filteredVenues,
   });
 
   const nearbyMapResultForView = useMemo(() => {
@@ -3184,6 +3179,11 @@ export default function PubMap({
     query: filters.query,
     searchPickedVenueId,
   });
+  // Search matches the canvas frames while surrounding venues stay on the map.
+  const queryVenues = useMemo(() => {
+    const matchingIds = new Set(filteredVenues.map((venue) => venue.id));
+    return canvasVenues.filter((venue) => matchingIds.has(venue.id));
+  }, [canvasVenues, filteredVenues]);
   const experienceLensPrices = useMemo(
     () =>
       experienceLens === "all"
@@ -3797,11 +3797,35 @@ export default function PubMap({
   );
   const tonightLaneForcedOpen = Boolean(tonightLaneKind);
 
+  // The landmark whose story is open, resolved against the city's own catalog.
+  // Resolved HERE, ahead of the overlay coordination below, because the story
+  // is a surface the reader is on: it hides the planning pill and it enters
+  // the Back trail like the venue sheet and the planner do.
+  const activeLandmark = useMemo(
+    () =>
+      activeLandmarkId
+        ? cityLandmarks.find((landmark) => landmark.id === activeLandmarkId) ?? null
+        : null,
+    [activeLandmarkId, cityLandmarks],
+  );
+  const storyOpen = activeLandmark !== null;
+  const coordinatedMobileOverlay: MapOverlay = coordinatedMapOverlay({
+    logIntentFallbackVisible,
+    detailOpen: mapSelection.detailOpen,
+    planningOpen,
+    storyOpen,
+    mapOverlay,
+  });
+  const { location: logPickerLocation, setLocation: setLogPickerLocation } = useLogPickerLocation(
+    mobileViewport ? coordinatedMobileOverlay === "moment" : logIntentFallbackVisible,
+    userLocation,
+  );
+
   // D1 — the picker is grounded in a real origin: the reader's fix, else the
   // centre of the map they are looking at. It never offers a city-wide five.
   const logNearbyOrigin = useMemo(
-    () => resolveLogNearbyOrigin({ userLocation, mapCenter: mapViewport.center }),
-    [mapViewport.center, userLocation],
+    () => resolveLogNearbyOrigin({ pickerLocation: logPickerLocation, userLocation, mapCenter: mapViewport.center }),
+    [mapViewport.center, userLocation, logPickerLocation],
   );
   const logNearbyCandidates = useMemo(
     () =>
@@ -3830,7 +3854,7 @@ export default function PubMap({
 
   useEffect(() => {
     const request = pendingNearMeRequest;
-    const location = request?.location ?? userLocation ?? venueJourneyLocation;
+    const location = request?.location ?? logPickerLocation ?? userLocation ?? venueJourneyLocation;
     if (!location) return;
     const loader = slimLoaderRef.current;
     const finish = () => {
@@ -3925,6 +3949,7 @@ export default function PubMap({
     setMode,
     setRouteMapped,
     showLoadedRoute,
+    logPickerLocation,
     userLocation,
     venueJourneyLocation,
     venueIndexAttempt,
@@ -4288,9 +4313,10 @@ export default function PubMap({
   const [searchFitToken, setSearchFitToken] = useState(0);
   const [searchRecoveryToken, setSearchRecoveryToken] = useState(0);
   const [searchAreaNewsArea, setSearchAreaNewsArea] = useState<string | null>(null);
-  // The query whose camera an explicit pick already owns. Cleared on every
-  // keystroke, so the next word re-arms the typed-search move.
-  const searchQueryCameraOwnedRef = useRef<string | null>(null);
+  // The query whose camera an explicit pick or the arrival framing already
+  // owns. Arrival framing owns the initial query before the canvas is ready.
+  // Every keystroke clears it, so the next word re-arms the typed-search move.
+  const searchQueryCameraOwnedRef = useRef<string | null>(seed.filters.query.trim() || null);
   const searchMatchVenuesRef = useRef(searchMatchVenues);
   useEffect(() => {
     searchMatchVenuesRef.current = searchMatchVenues;
@@ -4336,6 +4362,9 @@ export default function PubMap({
         // answer for this query. Do not let the timer fire late and replace it.
         cameraOwnedByPick: searchQueryCameraOwnedRef.current === trimmedMapQuery,
       });
+      // Search takes the camera beyond the reader's location. Release its
+      // Near me membership so the matching venues can paint and frame there.
+      if (move !== "none") setNearbyMapResult(null);
       if (move === "select-one") {
         // Fly to the one match and open its sheet (reuses the pin path).
         const [match] = searchMatchVenuesRef.current;
@@ -4349,14 +4378,9 @@ export default function PubMap({
     return () => window.clearTimeout(handle);
   }, [mapSearchFieldFocused, searchOverlayOpen, trimmedMapQuery, selectVenue, ukPlaceArrival]);
 
-  // #397: a query restored from the URL (?q=) must fly to its matches exactly
-  // like typed search does (#371). The typed-search effect above deliberately
-  // skips first paint, and the arrival framing prop can miss the restore on the
-  // slow two-stage venue load (mapReady fires before slim pins match) — leaving
-  // the query in the field and a pin count on screen while the camera sits on
-  // the default view with no match in sight. Drive the same select-one /
-  // fit-many result here once the map is ready and the slim pins have matched.
-  // A zero-result query never moves the camera and never claims pins.
+  // A restored query frames its matches without reopening a closed sheet.
+  // Explicit sel owns sheet restoration, while typed search keeps its own
+  // select-one behavior. Wait until both the map and matching pins are ready.
   const didRestoreQueryFlyRef = useRef(false);
   useEffect(() => {
     const matches = searchMatchVenues;
@@ -4384,18 +4408,13 @@ export default function PubMap({
     // No matches can also mean the slim pins are still loading. Keep waiting
     // without consuming the one-shot restore.
     if (restore === "wait") return;
-    const firstMatchId = matches[0]?.id;
     // Defer the state write out of the effect body (matches the typed-search
     // effect above) and latch on the actual fire, so re-renders while the pins
     // are still settling reschedule cleanly instead of losing the fly-to.
     const handle = window.setTimeout(() => {
       didRestoreQueryFlyRef.current = true;
       searchQueryCameraOwnedRef.current = trimmedMapQuery;
-      if (restore === "select-single" && firstMatchId) {
-        selectVenue(firstMatchId);
-      } else if (restore === "fit-many") {
-        setSearchFitToken((token) => token + 1);
-      }
+      setSearchFitToken((token) => token + 1);
     }, 0);
     return () => window.clearTimeout(handle);
   }, [
@@ -4404,7 +4423,6 @@ export default function PubMap({
     arrivalSearch,
     trimmedMapQuery,
     selectedVenueId,
-    selectVenue,
   ]);
 
   const focusMapSearch = useCallback(() => {
@@ -4827,8 +4845,8 @@ export default function PubMap({
     (camera: { center: [number, number]; zoom: number }) => {
       setNearbyMapResult(null);
       // A deliberate move is the reader taking the camera, exactly as a
-      // gesture is (dismissAmbientBanners sets the same flag), and it is set
-      // FIRST because the cancellation below cannot do it: cancelOpeningLocation
+      // gesture is (dismissAmbientBanners claims it the same way). claimMapCamera
+      // sets the flag FIRST because its cancellation cannot do it: cancelOpeningLocation
       // early-returns once the location has already resolved
       // (openingLocationCancellationAfterAttempt). Two readers of this ref then
       // hold the pick. The opening-location mint effect bails on it. So do both
@@ -5041,6 +5059,7 @@ export default function PubMap({
       query: filters.query,
       onQueryChange: changeMapSearchQuery,
       venues: limitedCoverageSearch ? NO_SEARCH_VENUES : venues,
+      drinkCategory: filters.drinkCategory,
       localities: limitedCoverageSearch ? NO_LOCALITIES : localities,
       places: ukPlaces,
       includeLocalResults: !limitedCoverageSearch,
@@ -5075,25 +5094,6 @@ export default function PubMap({
       });
     }
   }, [activateGeneratedPlan, changeExperienceLens, setActiveCrawl]);
-  // The landmark whose story is open, resolved against the city's own catalog.
-  // Resolved HERE, ahead of the overlay coordination below, because the story
-  // is a surface the reader is on: it hides the planning pill and it enters
-  // the Back trail like the venue sheet and the planner do.
-  const activeLandmark = useMemo(
-    () =>
-      activeLandmarkId
-        ? cityLandmarks.find((landmark) => landmark.id === activeLandmarkId) ?? null
-        : null,
-    [activeLandmarkId, cityLandmarks],
-  );
-  const storyOpen = activeLandmark !== null;
-  const coordinatedMobileOverlay: MapOverlay = coordinatedMapOverlay({
-    logIntentFallbackVisible,
-    detailOpen,
-    planningOpen,
-    storyOpen,
-    mapOverlay,
-  });
   const activeNightAreaSlug = nightAreaSlugOf(activeNightArea);
   const mobileShellState: MobileShellState = {
     overlay: coordinatedMobileOverlay,
@@ -5745,7 +5745,7 @@ export default function PubMap({
   // (GateZ regression). Once the lane has no rows (quiet night / non-London),
   // onboarding is free to show as before.
   const { hasRows: tonightLaneHasRows, pending: tonightLanePending } =
-    tonightLaneReadState(isLondon, whatsOnTonight.status, whatsOnTonight.rows.length);
+    tonightLaneReadState(isLondon, whatsOnTonight.status, tonightPubListingCount(whatsOnTonight.rows));
   // W3: curated crawl waits until first-map orientation (band-colour tour) is
   // done — at most one orientation surface after consent.
   const mapOrientationPending = !hasSeenTour();
@@ -6142,7 +6142,6 @@ export default function PubMap({
 
   const venuePanel = renderSelectedPlacePanel();
   const storyPanel = renderStoryPanel();
-  const storyOnlyOpen = storyOpen && !detailOpen && !planningOpen;
 
   // The held frame keeps its own question (painted, tappable pins), and loses
   // it outright the moment there is no canvas to paint them: an honest card
@@ -6295,11 +6294,12 @@ export default function PubMap({
       <div className="mobileMapFilters">
         {isLondon ? (
           <MobileMapTonightLens
-            rowCount={whatsOnTonight.rows.length}
+            rowCount={tonightPubListingCount(whatsOnTonight.rows)}
             nearReader={userLocation != null}
             onOpen={() => changeMapOverlay("tonight")}
           />
         ) : null}
+        <VenueFeatureFilters filters={filters} onChange={setFilters} resultCount={loaded && loadedCityId === cityId ? filteredVenueCount : null} />
         <MapExperienceLensControl
           lens={experienceLens}
           allSelected={!drinkFiltersActive}
@@ -6375,26 +6375,6 @@ export default function PubMap({
             setFilters((current) => ({ ...current, maxPrice }))
           }
         />
-        <label className="mobileMapFilterToggle">
-          <input
-            type="checkbox"
-            checked={filters.openNow}
-            onChange={(event) =>
-              setFilters((current) => ({
-                ...current,
-                openNow: event.target.checked,
-              }))
-            }
-          />
-          <span>
-            <strong>Open now</strong>
-            {filters.openNow ? (
-              <small>{OPEN_NOW_FILTER_CAPTION}</small>
-            ) : (
-              <small>Hide pubs we know are closed. Pubs without hours stay visible.</small>
-            )}
-          </span>
-        </label>
       </div>
     );
   }
@@ -6475,6 +6455,8 @@ export default function PubMap({
           filters.zone !== "all"
         }
         openNowActive={filters.openNow}
+        beerGardenActive={filters.requireBeerGarden}
+        outdoorSeatingActive={filters.requireOutdoorSeating}
         savedOnlyActive={savedOnly}
         priceCapActive={
           experienceLens === "all" &&
@@ -6505,6 +6487,7 @@ export default function PubMap({
             <DrinkLanePicker
               lane={activeMapDrinkLane}
               status={drinkIndexStatus}
+              coverage={experienceLens === "all" ? drinkCoverage : undefined}
               variant="sheet"
               onChange={(lane) => {
                 changeDrinkLane(lane);
@@ -6569,6 +6552,7 @@ export default function PubMap({
               requestAnimationFrame(focusMapSearch);
             }}
             onResetFilters={resetLogIntentFilters}
+            onLocation={setLogPickerLocation}
           />
         }
         nearMeContent={
@@ -6787,6 +6771,7 @@ export default function PubMap({
           if (filteredPubVenueCount === 1 && match) {
             moveMapCameraTo({ center: [match.longitude, match.latitude], zoom: 14.5 });
           } else {
+            setNearbyMapResult(null);
             setSearchRecoveryToken((token) => token + 1);
           }
         }}
@@ -6903,6 +6888,7 @@ export default function PubMap({
         fitQueryOnArrival={shouldFitQueryVenuesOnArrival(arrivalSearch)}
         searchFitToken={searchFitToken}
         searchRecoveryToken={searchRecoveryToken}
+        queryVenues={queryVenues}
         userLocation={userLocation}
         nearMePending={nearbyLoading}
         readerPosition={readerPosition}
@@ -6969,6 +6955,7 @@ export default function PubMap({
         onDrinkBrandChange={changeDrinkBrand}
         onDrinkLaneChange={changeDrinkLane}
         drinkLaneStatus={drinkIndexStatus}
+        drinkCoverage={experienceLens === "all" ? drinkCoverage : undefined}
         spoonsValueOn={spoonsValueOn}
         spoonsValueLens={spoonsValueLens}
         onSpoonsValueChange={changeSpoonsValue}
@@ -7056,6 +7043,7 @@ export default function PubMap({
             focusMapSearch();
           }}
           onResetFilters={resetLogIntentFilters}
+          onLocation={setLogPickerLocation}
           onDismiss={clearLogIntent}
         />
       ) : null}
@@ -7127,6 +7115,7 @@ export default function PubMap({
 
   /* The phone's one bottom sheet: whichever of the venue detail or the planner owns the surface. */
   function renderPhoneSheet() {
+    const storyOnlyOpen = storyOpen && !detailOpen && !planningOpen;
     return mobileViewport ? (
           <Sheet
             kind={

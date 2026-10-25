@@ -28,6 +28,7 @@ function orsResponse(coordinates: number[][]) {
 }
 
 afterEach(() => {
+  vi.restoreAllMocks();
   vi.unstubAllEnvs();
 });
 
@@ -73,6 +74,26 @@ describe("fetchWalkLeg", () => {
       ]),
     );
     expect(await fetchWalkLeg(A, B, { apiKey: "k", doFetch })).toEqual([A, B]);
+  });
+
+  it("reports a provider refusal without exposing coordinates, credentials, or its body", async () => {
+    const logged = vi.spyOn(console, "error").mockImplementation(() => {});
+    const doFetch = vi.fn<WalkRouteFetch>().mockResolvedValue({
+      ok: false, status: 403, json: async () => ({ error: "ork_private" }),
+    });
+    expect(await fetchWalkLeg(A, B, { apiKey: "ork_private", doFetch })).toBeNull();
+    const lines = logged.mock.calls.map(([line]) => String(line)).join("\n");
+    expect(lines).toContain('"event":"walk_route.provider_failed"');
+    expect(lines).toContain('"status":403');
+    for (const value of ["ork_private", "51.5136", "-0.1005"]) expect(lines).not.toContain(value);
+  });
+
+  it("does not send an already-cancelled provider request", async () => {
+    const doFetch = vi.fn<WalkRouteFetch>().mockResolvedValue(orsResponse([A, B]));
+    const controller = new AbortController();
+    controller.abort();
+    expect(await fetchWalkLeg(A, B, { apiKey: "k", doFetch, signal: controller.signal })).toBeNull();
+    expect(doFetch).not.toHaveBeenCalled();
   });
 
   it("falls back to null on a non-200", async () => {

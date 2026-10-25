@@ -1,0 +1,50 @@
+{
+  "red": [
+    {
+      "query": "Five pubs in Clapham with short walks and listed pint prices.",
+      "requestStopCount": null,
+      "requestTransportConstraints": [
+        "walking"
+      ],
+      "status": 200,
+      "inferredStopCount": 5,
+      "outcome": "anchor-only"
+    },
+    {
+      "query": null,
+      "requestStopCount": null,
+      "requestTransportConstraints": [],
+      "status": 200,
+      "inferredStopCount": 3,
+      "outcome": "route"
+    }
+  ],
+  "green": [
+    {
+      "query": "Five pubs in Clapham with short walks and listed pint prices.",
+      "requestStopCount": null,
+      "requestTransportConstraints": [
+        "walking"
+      ],
+      "status": 200,
+      "inferredStopCount": 5,
+      "outcome": "anchor-only"
+    },
+    {
+      "query": null,
+      "requestStopCount": 5,
+      "requestTransportConstraints": [],
+      "status": 200,
+      "inferredStopCount": 5,
+      "outcome": "route"
+    },
+    {
+      "query": "Three pubs in Clapham with listed pint prices.",
+      "requestStopCount": null,
+      "requestTransportConstraints": [],
+      "status": 200,
+      "inferredStopCount": 3,
+      "outcome": "route"
+    }
+  ]
+}

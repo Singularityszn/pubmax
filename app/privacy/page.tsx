@@ -27,7 +27,7 @@ import "../legal.css";
 const PAGE_TITLE = "Privacy";
 const PAGE_DESCRIPTION =
   "What PUBMAXX collects, why, who else sees it, how long we keep it, and how to get it deleted. Written against the app's behaviour.";
-const LAST_UPDATED = "20 October 2026";
+const LAST_UPDATED = "22 October 2026";
 
 export const metadata: Metadata = {
   title: PAGE_TITLE,
@@ -469,6 +469,9 @@ export default function PrivacyPage() {
             Page visits and events include browser and version, operating
             system, device type, screen and viewport size, the referring page,
             recognised campaign parameters and coarse app paths. The browser
+            records page exits, time on each page and the furthest proportion
+            scrolled, so we can measure visits and reading depth. We exclude
+            message, account and admin pages from these measurements. The browser
             SDK also sends Web Vitals, and how long the map took to show its
             pubs, so we can measure loading and interaction performance. No
             account, handle, email, message content, free text or precise
@@ -504,9 +507,10 @@ export default function PrivacyPage() {
           </li>
           <li>
             Turning consent off deletes the browser analytics identifier and
-            stops PostHog page visits, product events, the hosting
+            stops PostHog page visits and exits, product events, the hosting
             provider&rsquo;s pageview counter and its Speed Insights Web
-            Vitals.
+            Vitals. If you allow analytics again, page measurements start fresh.
+            They exclude time and scrolling while analytics were off.
           </li>
         </ul>
 
@@ -758,6 +762,18 @@ export default function PrivacyPage() {
               directions link gives <code>google.com</code> your origin rounded
               to three decimal places and the selected venue. Other Google map
               links include the venue or search only, not your shared location.
+            </dd>
+          </div>
+          <div className="legalRow">
+            <dt>Imported pub lists</dt>
+            <dd>
+              We match the pub names in a caption, note or message you paste.
+              Short prose may go to OpenRouter, using providers that do not retain it.
+              We discard the pasted text after matching and exclude it from logs and analytics.
+              If you save the list, we keep its matched pub IDs, your optional source link,
+              its creator handle when the link names one, and the save date in a private night draft.
+              Only your account can read that draft. Your account export includes it.
+              Deleting your account removes it. We never fetch the source link.
             </dd>
           </div>
           <div className="legalRow">

@@ -101,3 +101,12 @@ describe("parsePlanGenerationRequest", () => {
     expect(result).toMatchObject({ ok: false, code: "MALFORMED_REQUEST" });
   });
 });
+
+it.each([[], ["a", "b"], ["a", "b", "b"], ["b", "c", "d"], ["a", "b", "bad id"], Array.from({ length: 7 }, (_, i) => `id-${i}`)].map((ids) => [ids]))(
+  "rejects an invalid imported cluster %j", async (venueIds) => {
+    const result = await parsePlanGenerationRequest(request({ query: "Soho", anchor: {
+      venueId: "a", source: "map-search", acceptedArea: null, startsAt: null, venueIds,
+    } }), NOW);
+    expect(result.ok).toBe(false);
+  },
+);

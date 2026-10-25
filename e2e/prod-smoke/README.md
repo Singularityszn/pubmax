@@ -119,7 +119,9 @@ The captain makes the account and the secrets. An agent never does.
 1. Choose a mailbox the team controls and does not use for anything else, such
    as a plus address.
 2. Open `https://pubmaxxing.com/login`, choose **New here**, and sign up with
-   that email. Pick a handle that says what it is, such as `pubmaxx_smoke`.
+   that email. Use the reserved operational handle `pubmaxx_smoke`.
+   The public-access policy in [`lib/accountPublicAccess.server.ts`](../../lib/accountPublicAccess.server.ts)
+   excludes this handle from public profile lists, contribution reads, and saved-list pages.
 3. On the profile, create a password. It needs at least 8 characters, with one
    capital letter, one number and one special character.
 4. Sign out. Then sign in once with **Sign in with handle and password** to

@@ -476,6 +476,77 @@ function hasReliablePoundPrices(markdown) {
   return pounds.length >= 3;
 }
 
+function gardenPubsByHost(gardenRaw) {
+  const gardenByHost = new Map();
+  for (const row of gardenRaw) {
+    if (!row?.url) continue;
+    const host = youngsHostname(row.url);
+    if (!host) continue;
+    const existing = gardenByHost.get(host) ?? {
+      url: row.url.split("/garden")[0].replace(/\/+$/, "") || row.url,
+      region: row.region,
+      sourcePage: row.sourcePage,
+      name: "",
+    };
+    if (
+      row.name &&
+      !/^explore/i.test(row.name) &&
+      row.name.length < 80 &&
+      !/best pub gardens|for those looking|burger shack/i.test(row.name)
+    ) {
+      existing.name = row.name;
+    }
+    if (row.region) existing.region = row.region;
+    gardenByHost.set(host, existing);
+  }
+  return gardenByHost;
+}
+
+function matchEditorialVenue(pub, dataset) {
+  const pc = pub.postcode.toLowerCase().replace(/\s+/g, "");
+  let hit = null;
+  for (const venue of dataset) {
+    const addr = (venue.address ?? "").toLowerCase().replace(/\s+/g, "");
+    if (pc && addr.includes(pc)) {
+      hit = venue;
+      break;
+    }
+  }
+  if (!hit && pub.name === "The Grenadier") {
+    hit =
+      dataset.find((v) => /grenadier/i.test(v.name) && /wilton|sw1x/i.test(v.address)) ?? null;
+  }
+  if (!hit) {
+    for (const venue of dataset) {
+      const nameL = venue.name.toLowerCase();
+      if (!pub.aliases.some((a) => nameL.includes(a))) continue;
+      if (!/\blondon\b|\bec\d|\bw\d|\bsw\d|\bse\d|\bn\d|\be\d|\bnw\d/i.test(venue.address)) {
+        continue;
+      }
+      // Ambiguous common names require postcode (already tried).
+      if (["the albion", "ship soho", "ye olde mitre", "ye old mitre", "olde mitre"].some((a) =>
+        pub.aliases.includes(a),
+      )) {
+        continue;
+      }
+      hit = venue;
+      break;
+    }
+  }
+  return hit;
+}
+
+function preferredEnrichment(prev, rec) {
+  if (prev && prev.source === "greene-king.co.uk") {
+    // Keep Greene King as the primary overlay; do not graft another chain's tiles.
+    return prev;
+  } else if (prev && prev.source === "nicholsonspubs.co.uk" && rec.source === "youngs.co.uk") {
+    return prev;
+  } else {
+    return { ...prev, ...rec };
+  }
+}
+
 function main() {
   const archived = {
     youngs: archiveMarkdown([/^youngs\.co\.uk-/], join(CHAINS_DIR, "youngs", "raw")),
@@ -565,28 +636,7 @@ function main() {
   }
 
   const gardenRaw = loadJson(join(CHAINS_DIR, "youngs", "garden_pubs_raw.json"));
-  const gardenByHost = new Map();
-  for (const row of gardenRaw) {
-    if (!row?.url) continue;
-    const host = youngsHostname(row.url);
-    if (!host) continue;
-    const existing = gardenByHost.get(host) ?? {
-      url: row.url.split("/garden")[0].replace(/\/+$/, "") || row.url,
-      region: row.region,
-      sourcePage: row.sourcePage,
-      name: "",
-    };
-    if (
-      row.name &&
-      !/^explore/i.test(row.name) &&
-      row.name.length < 80 &&
-      !/best pub gardens|for those looking|burger shack/i.test(row.name)
-    ) {
-      existing.name = row.name;
-    }
-    if (row.region) existing.region = row.region;
-    gardenByHost.set(host, existing);
-  }
+  const gardenByHost = gardenPubsByHost(gardenRaw);
 
   const youngsMdFiles = [
     ...archived.youngs.map((f) => join(CHAINS_DIR, "youngs", "raw", f)),
@@ -687,36 +737,7 @@ function main() {
   const eeMatched = [];
   const eeUnmatched = [];
   for (const pub of eePubs) {
-    const pc = pub.postcode.toLowerCase().replace(/\s+/g, "");
-    let hit = null;
-    for (const venue of dataset) {
-      const addr = (venue.address ?? "").toLowerCase().replace(/\s+/g, "");
-      if (pc && addr.includes(pc)) {
-        hit = venue;
-        break;
-      }
-    }
-    if (!hit && pub.name === "The Grenadier") {
-      hit =
-        dataset.find((v) => /grenadier/i.test(v.name) && /wilton|sw1x/i.test(v.address)) ?? null;
-    }
-    if (!hit) {
-      for (const venue of dataset) {
-        const nameL = venue.name.toLowerCase();
-        if (!pub.aliases.some((a) => nameL.includes(a))) continue;
-        if (!/\blondon\b|\bec\d|\bw\d|\bsw\d|\bse\d|\bn\d|\be\d|\bnw\d/i.test(venue.address)) {
-          continue;
-        }
-        // Ambiguous common names require postcode (already tried).
-        if (["the albion", "ship soho", "ye olde mitre", "ye old mitre", "olde mitre"].some((a) =>
-          pub.aliases.includes(a),
-        )) {
-          continue;
-        }
-        hit = venue;
-        break;
-      }
-    }
+    const hit = matchEditorialVenue(pub, dataset);
     if (hit) {
       eeMatched.push({
         name: pub.name,
@@ -737,14 +758,7 @@ function main() {
 
   for (const [venueId, rec] of Object.entries(enrichmentAdditions)) {
     const prev = existing.venues[venueId];
-    if (prev && prev.source === "greene-king.co.uk") {
-      // Keep Greene King as the primary overlay; do not graft another chain's tiles.
-      existing.venues[venueId] = prev;
-    } else if (prev && prev.source === "nicholsonspubs.co.uk" && rec.source === "youngs.co.uk") {
-      existing.venues[venueId] = prev;
-    } else {
-      existing.venues[venueId] = { ...prev, ...rec };
-    }
+    existing.venues[venueId] = preferredEnrichment(prev, rec);
   }
   writeFileSync(ENRICHMENT_PATH, `${JSON.stringify(existing, null, 2)}\n`);
 

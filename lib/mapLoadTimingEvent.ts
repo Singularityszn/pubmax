@@ -35,9 +35,14 @@ const DEVICE_MEMORY_BUCKETS = new Set([0.25, 0.5, 1, 2, 4, 8, 16, 32]);
 
 /** The milestone properties, each the first matching mark of this visit. */
 export const MAP_LOAD_MILESTONES = {
+  map_chunk_ready_ms: "pubmax:map-chunk-ready",
+  slim_venues_ready_ms: "pubmax:slim-venues-ready",
   map_constructed_ms: "pubmax:map-constructed",
+  map_style_load_ms: "pubmax:map-style-load",
+  map_icons_ready_ms: "pubmax:map-icons-ready",
   scene_built_ms: "pubmax:map-scene-built",
   first_pins_ms: "pubmax:first-pins",
+  pubs_source_loaded_ms: "pubmax:pubs-source-loaded",
   pins_visible_ms: "pubmax:pins-visible",
 } as const;
 export type MapLoadMilestone = keyof typeof MAP_LOAD_MILESTONES;

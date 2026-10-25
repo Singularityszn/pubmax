@@ -12,8 +12,12 @@
 // EVERY failure is soft: a missing key, a non-200, a malformed payload, a
 // network error or an abort all resolve to null. A leg that cannot be routed
 // falls back to its straight segment; the map never breaks.
+// Diagnostics contain only fixed failure categories and HTTP status. Never log
+// coordinates, credentials, response bodies or exception text. Caught caller
+// aborts are silent, and an already-aborted signal prevents a provider call.
 
 import { isValidLngLat, type LngLat } from "@/lib/walkRoute";
+import { log } from "@/lib/log";
 
 /** The GeoJSON directions endpoint — returns a LineString FeatureCollection. */
 export const ORS_FOOT_WALKING_URL =
@@ -30,20 +34,24 @@ const WALK_LEG_TIMEOUT_MS = 4000;
 // Bound a fetch to `timeoutMs`, honouring any caller signal too, without
 // depending on AbortSignal.any/timeout being present. The returned signal
 // aborts when either the deadline elapses or the caller's signal fires; `clear`
-// releases the timer so a fast reply never leaves it pending.
+// releases the timer and caller listener after every outcome.
 function deadlineSignal(
   callerSignal: AbortSignal | undefined,
   timeoutMs: number,
 ): { signal: AbortSignal; clear: () => void } {
   const controller = new AbortController();
+  const onAbort = () => controller.abort(callerSignal?.reason);
   const timer = setTimeout(() => {
     controller.abort(new DOMException("walk-route ORS timeout", "TimeoutError"));
   }, timeoutMs);
   if (callerSignal) {
     if (callerSignal.aborted) controller.abort(callerSignal.reason);
-    else callerSignal.addEventListener("abort", () => controller.abort(callerSignal.reason), { once: true });
+    else callerSignal.addEventListener("abort", onAbort, { once: true });
   }
-  return { signal: controller.signal, clear: () => clearTimeout(timer) };
+  return { signal: controller.signal, clear: () => {
+    clearTimeout(timer);
+    callerSignal?.removeEventListener("abort", onAbort);
+  } };
 }
 
 /** Trimmed ORS_API_KEY, or null when unset/blank (the keyless default). */
@@ -118,7 +126,7 @@ export async function fetchWalkLegRoute(
   opts: FetchWalkLegOptions = {},
 ): Promise<RoutedWalkLeg | null> {
   const apiKey = opts.apiKey === undefined ? orsApiKey() : opts.apiKey;
-  if (!apiKey) return null;
+  if (!apiKey || opts.signal?.aborted) return null;
   const doFetch = opts.doFetch ?? defaultFetch;
   const { signal, clear } = deadlineSignal(opts.signal, opts.timeoutMs ?? WALK_LEG_TIMEOUT_MS);
   try {
@@ -137,10 +145,17 @@ export async function fetchWalkLegRoute(
       }),
       signal,
     });
-    if (!response.ok) return null;
-    return parseOrsRoute(await response.json());
+    if (!response.ok) {
+      log("error", "walk_route.provider_failed", { reason: "http", status: response.status });
+      return null;
+    }
+    const route = parseOrsRoute(await response.json());
+    if (!route) log("error", "walk_route.provider_failed", { reason: "invalid_response" });
+    return route;
   } catch {
-    // Network error, abort, timeout, or a JSON parse throw — all degrade to straight.
+    if (!opts.signal?.aborted) {
+      log("error", "walk_route.provider_failed", { reason: signal.aborted ? "timeout" : "network_or_json" });
+    }
     return null;
   } finally {
     clear();

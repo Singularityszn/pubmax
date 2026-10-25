@@ -50,6 +50,44 @@ beforeEach(() => {
 });
 
 describe("loadMapSearchIndex", () => {
+  it("carries only supported pub pint prices into the compact index", async () => {
+    loadSlimVenuesForCityResult.mockImplementation(async (cityId) => ({
+      rows: cityId === "london" ? [
+        { ...slimRow("priced", "Test Arms", "Camden"), cheapestPrice: 4.7 },
+        { ...slimRow("bar", "Test Bar", "Camden"), kind: "bar", cheapestPrice: 12 },
+        { ...slimRow("invalid", "Test Invalid", "Camden"), cheapestPrice: -1 },
+      ] : [],
+      status: "ready",
+    }));
+    const { loadMapSearchIndex } = await freshLoader();
+    const index = await loadMapSearchIndex();
+    expect(index.venues.find((venue) => venue.id === "priced")?.pintPrice).toBe(4.7);
+    expect(index.venues.find((venue) => venue.id === "bar")?.pintPrice).toBeUndefined();
+    expect(index.venues.find((venue) => venue.id === "invalid")?.pintPrice).toBeUndefined();
+  });
+
+  it("keeps venue kinds from city packs and held venues in search results", async () => {
+    loadSlimVenuesForCityResult.mockImplementation(async (cityId) => ({
+      rows: cityId === "london"
+        ? [{ ...slimRow("hatton-bar", "Hatton Bar", "Camden"), kind: "bar" }]
+        : [],
+      status: "ready",
+    }));
+    const { loadMapSearchIndex } = await freshLoader();
+
+    const index = await loadMapSearchIndex({
+      currentCityId: "london",
+      currentVenues: [{
+        id: "hatton-food", name: "Hatton Kitchen", primaryBorough: "Camden", kind: "restaurant",
+      }],
+    });
+
+    expect(searchMapSearchIndex(index, "Hatton")).toEqual([
+      expect.objectContaining({ id: "hatton-bar", venueKind: "bar" }),
+      expect.objectContaining({ id: "hatton-food", venueKind: "restaurant" }),
+    ]);
+  });
+
   it("answers for the whole current city, not just the shards the map has read", async () => {
     loadSlimVenuesForCityResult.mockImplementation(async (cityId) => ({
       rows: cityId === "london" ? LONDON_PACK : [],

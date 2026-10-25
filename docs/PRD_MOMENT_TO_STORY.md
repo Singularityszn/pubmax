@@ -26,7 +26,7 @@ PUBMAXX helps a Pubmaxxer keep the people, places, drinks, events and side quest
 - Canonical five-tab navigation: Map, Tonight, Moment, Stories and You.
 - Social feed creation controls for both Moment and Pint Drop.
 - Direct Moment entry from the You Memory studio.
-- Neutral light and dark surfaces with coral reserved for creation and selection.
+- Surface and accent choices follow the [design system](DESIGN_SYSTEM.md#launch-tokens).
 - Deliberate 4:5 mobile crop for the landing drink-signal image.
 
 ## Quality bars

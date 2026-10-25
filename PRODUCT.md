@@ -44,11 +44,8 @@ Warm, decisive, local — like a friend who already knows the good pint streets.
 
 Explored in `docs/design-explorations/`. **Ship A for light, B for dark — not a blend.**
 
-- **Light default — Direction A Candle Coral:** warm paper with a candle/peach tint + coral primary CTA (`--brass` family). Hierarchy lives in coral on Plan actions and selection, not in sand-beige body alone.
-- **Dark theme - Direction B Night Out:** deep ink paper + coral CTA + amber route energy + pint neon for go/cheap. Explicitly **no purple mesh or glow**.
-- **Field Guide semantics retained:** `--river` / `--pint` / `--brick` keep their jobs for pins, prices, and heritage. Coral owns the primary CTA in both themes; amber remains a route and price signal.
-
-Token source of truth: `app/globals.css` (light) and `app/theme.css` (dark). Visual detail: `DESIGN.md`.
+The [visual specification](DESIGN.md#2-colors) owns each theme's colour roles.
+The [engineering guide](docs/DESIGN_SYSTEM.md#where-things-live) identifies the runtime token owners.
 
 For the messaging exception to this colour decision, see the [design system](docs/DESIGN_SYSTEM.md).
 

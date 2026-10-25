@@ -56,3 +56,13 @@ Authoritative registry and sanitization: `lib/analyticsEvents.ts`. This file is 
 
 - The browser SDK never calls `identify`. Every browser event carries the consented `anon_` device id only, signed in or not.
 - Sign-in and sign-out do not touch the PostHog person. A later opt-in after an opt-out calls `reset` and resumes the new anonymous device id.
+
+## Imported pub lists
+
+| Event | Properties |
+| --- | --- |
+| `pub_list_import_started` | `input_kind` (`pasted_text`) |
+| `pub_list_import_matched` | `count_matched`, `count_ambiguous`, `count_unmatched` (integers, 0 to 40) |
+| `pub_list_import_routed` | `stops` (integer, 3 to 6) |
+
+The import funnel carries no pasted text, source URL, handle, venue ID or coordinates.

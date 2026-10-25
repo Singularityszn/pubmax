@@ -253,11 +253,13 @@ describe("the tonight lede, hydrated", () => {
     );
   });
 
-  it("dates the quiet night from the read that produced it", async () => {
+  it("dates the chain-only source matches from the read that produced them", async () => {
     await mount();
     const provenance = container.querySelector('[data-tonight-provenance="whats-on"]');
-    expect(provenance?.textContent).toContain("Quiet night");
+    expect(provenance?.textContent).toContain("Pub-matched listings");
     expect(provenance?.textContent).toContain("Checked");
+    expect(provenance?.textContent).not.toContain("Quiet night");
+    expect(provenance?.textContent).not.toContain("No pub-matched events");
     expect(provenance?.textContent).not.toContain("No date on this yet");
   });
 

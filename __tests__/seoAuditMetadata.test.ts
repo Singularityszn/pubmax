@@ -4,10 +4,55 @@ vi.mock("server-only", () => ({}));
 
 import { generateMetadata } from "@/app/pint-index/page";
 import { metadata as crawlsMetadata } from "@/app/crawls/page";
+import { metadata as mapMetadata } from "@/app/map/page";
+import { metadata as palMetadata } from "@/app/pal/page";
+import { metadata as tonightMetadata } from "@/app/tonight/page";
 
 // The committed public snapshot is a genuine empty read. A populated fixture
 // is exercised by the admission tests, independently of this display wording.
 describe("the public discovery metadata", () => {
+  it("gives Tonight its own canonical and the same poster on both share cards", () => {
+    expect(tonightMetadata.title).toBe("Tonight in London");
+    expect(tonightMetadata.alternates?.canonical).toBe("/tonight");
+    expect(tonightMetadata.openGraph).toMatchObject({
+      title: "Tonight in London",
+      url: "/tonight",
+      images: [{ url: "/tonight/opengraph-image" }],
+    });
+    expect(tonightMetadata.twitter).toMatchObject({
+      title: "Tonight in London",
+      images: ["/tonight/opengraph-image"],
+    });
+  });
+
+  it("gives Pub Pal its own canonical and matching share cards", () => {
+    expect(palMetadata.title).toBe("Meet your Pub Pal");
+    expect(palMetadata.alternates?.canonical).toBe("/pal");
+    expect(palMetadata.openGraph).toMatchObject({
+      title: "Meet your Pub Pal",
+      url: "/pal",
+      images: [{ url: "/pal/circuit-robin-512.png" }],
+    });
+    expect(palMetadata.twitter).toMatchObject({
+      title: "Meet your Pub Pal",
+      images: ["/pal/circuit-robin-512.png"],
+    });
+  });
+
+  it("gives the London map its own canonical and matching share cards", () => {
+    expect(mapMetadata.title).toBe("London pub map");
+    expect(mapMetadata.alternates?.canonical).toBe("/map");
+    expect(mapMetadata.openGraph).toMatchObject({
+      title: "London pub map",
+      url: "/map",
+      images: [{ url: "/api/city-map-card?city=london" }],
+    });
+    expect(mapMetadata.twitter).toMatchObject({
+      title: "London pub map",
+      images: ["/api/city-map-card?city=london"],
+    });
+  });
+
   it("names the Pint Index content without duplicating the layout's brand suffix", async () => {
     const metadata = await generateMetadata();
     expect(metadata.title).toBe("London pint prices by borough and fare zone");

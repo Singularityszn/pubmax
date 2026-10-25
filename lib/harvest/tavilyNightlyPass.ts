@@ -680,7 +680,7 @@ function drinkFromDrop(
   drop: PriceOutcome["drop"],
   fact: SourcedFact,
 ): ListedDrinkLine | null {
-  if (drop === "bottled-measure-not-a-pint" || drop === "half-measure-not-a-pint") {
+  if (drop === "bottled-measure-not-a-pint" || drop === "half-measure-not-a-pint" || drop === "fractional-measure-not-a-pint") {
     return listedDrink(label, line, priceGbp, fact.sourceUrl, fact.seenOn, sizeOf(line));
   }
   if (drop !== "no-category-word-nearby") return null;
@@ -1144,6 +1144,50 @@ async function robotsAllowedUrls(urls: readonly string[], robots: RobotsChecker)
   return out;
 }
 
+function hasCompleteListedEvidence(
+  evidence: VenueEvidence,
+  pages: readonly { boundSnippet?: boolean }[],
+  urls: readonly string[],
+): boolean {
+  const stored = Boolean(evidence.website) || evidence.excerpts.length > 0 || evidence.drinks.length > 0;
+  const extractedText = pages.some((page) => !page.boundSnippet);
+  return (extractedText || urls.length === 0) && stored;
+}
+
+function hasUnboundSearchResults(
+  search: unknown,
+  searched: ReturnType<typeof pagesFromPayload>,
+  permitted: ReadonlySet<string>,
+  venue: NightlyVenue,
+): boolean {
+  const returnedResults = Array.isArray((search as { results?: unknown }).results)
+    ? (search as { results: unknown[] }).results.length
+    : 0;
+  const refusedBinding = searched.some((page) => !permitted.has(page.url) && resultStatesVenue({
+    url: page.url,
+    title: page.title,
+    content: page.text,
+    description: page.title,
+  }, venue));
+  return returnedResults > 0 && !refusedBinding;
+}
+
+function listedPagesFromExtract(
+  extracted: unknown,
+  urls: readonly string[],
+  hits: readonly SearchHit[],
+): ReturnType<typeof pagesFromPayload> {
+  const extractedPages = pagesFromPayload(extracted);
+  const pages: ReturnType<typeof pagesFromPayload> = [];
+  for (const url of urls) {
+    const extractedPage = extractedPages.find((page) => sameListedUrl(page.url, url));
+    if (!extractedPage?.text.trim()) continue;
+    const hit = hits.find((row) => sameListedUrl(row.url, url));
+    pushListedPage(pages, url, extractedPage.text, extractedPage.title ?? hit?.title);
+  }
+  return pages;
+}
+
 export async function runNightlyPass(input: {
   venues: readonly NightlyVenue[];
   cursor: NightlyCursor;
@@ -1217,13 +1261,7 @@ export async function runNightlyPass(input: {
         continue;
       }
       if (!responseFailed(extracted)) {
-        const extractedPages = pagesFromPayload(extracted);
-        for (const url of urls) {
-          const extractedPage = extractedPages.find((page) => sameListedUrl(page.url, url));
-          if (!extractedPage?.text.trim()) continue;
-          const hit = hits.find((row) => sameListedUrl(row.url, url));
-          pushListedPage(pages, url, extractedPage.text, extractedPage.title ?? hit?.title);
-        }
+        pages.push(...listedPagesFromExtract(extracted, urls, hits));
       }
     }
     if (
@@ -1240,19 +1278,8 @@ export async function runNightlyPass(input: {
       : [...new Set(hits.filter((hit) => isOperatorHost(hit.url)).map((hit) => hit.url))];
     const evidence = evidenceFor(venue, today, website, pages, candidates);
     queue = mergeQueue(queue, [evidence]);
-    const stored = Boolean(evidence.website) || evidence.excerpts.length > 0 || evidence.drinks.length > 0;
-    const extractedText = pages.some((page) => !page.boundSnippet);
-    const returnedResults = Array.isArray((search as { results?: unknown }).results)
-      ? (search as { results: unknown[] }).results.length
-      : 0;
-    const refusedBinding = searched.some((page) => !permitted.has(page.url) && resultStatesVenue({
-      url: page.url,
-      title: page.title,
-      content: page.text,
-      description: page.title,
-    }, venue));
-    const unboundSearch = !website && returnedResults > 0 && !refusedBinding;
-    if (((extractedText || urls.length === 0) && stored) || unboundSearch) {
+    const unboundSearch = !website && hasUnboundSearchResults(search, searched, permitted, venue);
+    if (hasCompleteListedEvidence(evidence, pages, urls) || unboundSearch) {
       cursor = advanceCursor(cursor, [venue.id], today);
     }
     if (input.persist) await input.persist({ queue, cursor });

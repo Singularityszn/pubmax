@@ -1,0 +1,20 @@
+[
+  {
+    "@context": "https://schema.org",
+    "@type": "LandmarksOrHistoricalBuildings",
+    "name": "Black Lion",
+    "url": "https://pubmaxxing.com/historic/black-lion",
+    "description": "pub in Kilburn, London",
+    "address": {
+      "@type": "PostalAddress",
+      "addressLocality": "Hammersmith and Fulham",
+      "addressRegion": "London",
+      "addressCountry": "GB"
+    },
+    "geo": {
+      "@type": "GeoCoordinates",
+      "latitude": 51.4905,
+      "longitude": -0.24209
+    }
+  }
+]

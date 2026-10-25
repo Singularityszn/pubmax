@@ -10,12 +10,6 @@ export const LANDING_PRIMARY_HREF = "/near?locate=1";
 export const LANDING_FIRST_RUN_HREF = "/onboarding?start=web";
 export const NEAR_FIRST_RUN_CHIP_NAME = "New here? Set your budget and patch";
 
-// The first QUIET door, which used to be the primary. It reads "Log what you
-// paid" either way (UX audit 16 Oct 2026): with a real pub behind the document
-// it opens that pub's Pint Drop door, with no card it is the plain receipt door.
+// The general price door asks the reader to choose a pub before a blank form.
 export const LANDING_RECEIPT_NAME = /^Log what you paid$/;
-// #1462 — the door carries the figure the card printed, so the composer it
-// opens holds it. The pattern, not the figure, because the figure is the
-// dataset's and rots in a string.
-export const LANDING_RECEIPT_HREF =
-  /^\/map\?sel=[^&]+&log=1&price=\d+\.\d\d$|^\/near$/;
+export const LANDING_RECEIPT_HREF = "/map?log=1";

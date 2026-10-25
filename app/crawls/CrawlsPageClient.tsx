@@ -309,7 +309,7 @@ function FeaturedCrawlCard({
   const stops = crawl.venueIds.length;
   const meta = [
     `${stops} stop${stops === 1 ? "" : "s"}${originName ? ` from ${originName}` : ""}`,
-    routeSummary ? `${routeSummary.totalMinutes} min walk` : null,
+    routeSummary ? `${routeSummary.totalMinutes} min straight-line estimate` : null,
   ]
     .filter(Boolean)
     .join(", ");

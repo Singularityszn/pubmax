@@ -25,6 +25,8 @@
 // private card, the visit reports, the wall photos, the saved pubs, the Wanted
 // list, the linked socials and the Night Profile out of it.
 
+import type { PubListNightDraft } from "@/lib/pubListImport";
+
 import type { DrinkCategory } from "@/lib/drinks";
 import type { OccupancyLevel } from "@/lib/occupancy";
 import type { ConversationKind } from "@/lib/messageGroupThread";
@@ -292,6 +294,7 @@ export type AccountExport = {
   pubRankings: AccountExportLane<AccountExportPubRanking>;
   /** Pubs the account added, with their prices and what each menu file was. */
   venueSubmissions: AccountExportLane<AccountExportVenueSubmission>;
+  pubListNightDrafts: AccountExportLane<PubListNightDraft>;
   socialLinks: AccountExportLane<PublicSocialConnection>;
   /** At most one row, the same way `identity` is. */
   nightProfile: AccountExportLane<NightProfile>;
@@ -317,6 +320,7 @@ export const ACCOUNT_EXPORT_LANES = [
   "diary",
   "pubRankings",
   "venueSubmissions",
+  "pubListNightDrafts",
   "socialLinks",
   "nightProfile",
   "messages",

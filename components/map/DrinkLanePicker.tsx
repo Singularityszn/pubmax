@@ -1,5 +1,7 @@
 "use client";
 
+import DrinkCoverage, { type MapDrinkCoverage } from "@/components/map/DrinkCoverage";
+
 import { GlassWater, X } from "lucide-react";
 
 import { IconButton } from "@/components/ui/icon-button";
@@ -27,6 +29,7 @@ import "./drinkLanePicker.css";
 export default function DrinkLanePicker({
   lane,
   status = "ready",
+  coverage,
   variant = "panel",
   onChange,
   onClose,
@@ -34,6 +37,7 @@ export default function DrinkLanePicker({
   lane: DrinkCategory;
   /** How complete the selected lane's cross-venue read was, for the note. */
   status?: CategoryPriceIndexStatus;
+  coverage?: MapDrinkCoverage;
   variant?: "panel" | "sheet";
   onChange: (lane: DrinkCategory) => void;
   onClose?: () => void;
@@ -101,7 +105,8 @@ export default function DrinkLanePicker({
           ? "Pin colours follow the cheapest pint on record."
           : `Pin colours follow confirmed ${active?.noun ?? "drink"} prices that drinkers logged. Pubs without one stay unknown.`}
       </p>
-      {note ? (
+      {coverage ? <DrinkCoverage category={lane} coverage={coverage} /> : null}
+      {!coverage && note ? (
         <p className="drinkLanePickerStatus" role="status" aria-live="polite">
           {note}
         </p>

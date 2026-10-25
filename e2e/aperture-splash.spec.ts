@@ -1,5 +1,20 @@
 import { expect, test, type Page } from "@playwright/test";
 
+type SplashMeasurements = {
+  __pubmaxSplashCls: number;
+  __pubmaxSplashShifts: Array<{
+    time: number;
+    value: number;
+    hadRecentInput: boolean;
+    fonts: FontFaceSetLoadStatus;
+    sources: Array<{
+      element: string | null;
+      previousRect: DOMRectInit;
+      currentRect: DOMRectInit;
+    }>;
+  }>;
+};
+
 // feat(landing): hero scroll cinema with aperture splash - PIECE 3.
 // The splash block in public/theme-init.js skips real automated browsers by
 // default (navigator.webdriver), which every other spec in this suite relies on
@@ -21,14 +36,37 @@ async function overrideWebdriver(page: Page) {
 
 async function trackCls(page: Page) {
   await page.addInitScript(() => {
-    (window as unknown as { __pubmaxSplashCls: number }).__pubmaxSplashCls = 0;
+    const measurements = window as unknown as SplashMeasurements;
+    measurements.__pubmaxSplashCls = 0;
+    measurements.__pubmaxSplashShifts = [];
     if (PerformanceObserver.supportedEntryTypes.includes("layout-shift")) {
       new PerformanceObserver((list) => {
         for (const entry of list.getEntries() as Array<
-          PerformanceEntry & { value: number; hadRecentInput: boolean }
+          PerformanceEntry & {
+            value: number;
+            hadRecentInput: boolean;
+            sources: Array<{
+              node: Node | null;
+              previousRect: DOMRectReadOnly;
+              currentRect: DOMRectReadOnly;
+            }>;
+          }
         >) {
+          measurements.__pubmaxSplashShifts.push({
+            time: entry.startTime,
+            value: entry.value,
+            hadRecentInput: entry.hadRecentInput,
+            fonts: document.fonts.status,
+            sources: entry.sources.map((source) => ({
+              element: source.node instanceof Element
+                ? source.node.outerHTML
+                : source.node?.parentElement?.outerHTML ?? null,
+              previousRect: source.previousRect.toJSON(),
+              currentRect: source.currentRect.toJSON(),
+            })),
+          });
           if (!entry.hadRecentInput) {
-            (window as unknown as { __pubmaxSplashCls: number }).__pubmaxSplashCls += entry.value;
+            measurements.__pubmaxSplashCls += entry.value;
           }
         }
       }).observe({ type: "layout-shift", buffered: true });
@@ -80,10 +118,18 @@ test.describe("aperture splash - eligible session (navigator.webdriver overridde
       }),
     ).toBeVisible();
 
-    const cls = await page.evaluate(
-      () => (window as unknown as { __pubmaxSplashCls: number }).__pubmaxSplashCls,
-    );
-    expect(cls).toBeLessThan(0.01);
+    const measurements = await page.evaluate(() => {
+      const measured = window as unknown as SplashMeasurements;
+      return { cls: measured.__pubmaxSplashCls, shifts: measured.__pubmaxSplashShifts };
+    });
+    await test.info().attach("landing-layout-shifts", {
+      body: JSON.stringify(measurements, null, 2),
+      contentType: "application/json",
+    });
+    expect(
+      measurements.cls,
+      `Landing layout shifts: ${JSON.stringify(measurements.shifts, null, 2)}`,
+    ).toBeLessThan(0.01);
   });
 
   test("does not replay on a second load in the same session", async ({ page }) => {

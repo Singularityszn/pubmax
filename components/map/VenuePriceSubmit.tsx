@@ -655,6 +655,87 @@ export default function VenuePriceSubmit({
     );
   }
 
+  function renderPhotoRows() {
+    const photoLocked = submitting || missionPending;
+    return (
+      <>
+        <div className="vpsubPhotoRow">
+          <input
+            ref={receiptPhotoInputRef}
+            className="vpsubPhotoInput"
+            type="file"
+            accept={PHOTO_ACCEPT}
+            aria-label={`Photo of the bill at ${venueName}`}
+            onChange={(event) => {
+              onReceiptPhotoChosen(event.target.files?.[0]);
+            }}
+          />
+          <button
+            type="button"
+            className="vpsubPhotoBtn"
+            data-testid="receipt-photo-btn"
+            onClick={() => void chooseReceiptPhoto()}
+            disabled={photoLocked}
+          >
+            <Camera size={16} aria-hidden="true" />
+            {receiptPhoto ? "Change the bill" : RECEIPT_PHOTO_ACTION}
+          </button>
+          {receiptPhoto ? (
+            <button
+              type="button"
+              className="vpsubPhotoClear"
+              onClick={clearReceiptPhoto}
+              disabled={photoLocked}
+            >
+              Remove
+            </button>
+          ) : null}
+        </div>
+        {receiptPhoto ? null : (
+          <p className="vpsubPhotoWhy">{RECEIPT_REQUIRED_LINE}</p>
+        )}
+
+        {receiptPhoto ? (
+          <>
+            <p className="vpsubPhotoWhy">{PINT_PHOTO_FUN_LINE}</p>
+            <div className="vpsubPhotoRow">
+              <input
+                ref={pintPhotoInputRef}
+                className="vpsubPhotoInput"
+                type="file"
+                accept={PHOTO_ACCEPT}
+                aria-label={`Optional pint photo for ${venueName}`}
+                onChange={(event) => {
+                  onPintPhotoChosen(event.target.files?.[0]);
+                }}
+              />
+              <button
+                type="button"
+                className="vpsubPhotoBtn"
+                data-testid="pint-photo-btn"
+                onClick={() => void choosePintPhoto()}
+                disabled={photoLocked}
+              >
+                <Camera size={16} aria-hidden="true" />
+                {pintPhoto ? "Change the pint" : PINT_PHOTO_ACTION}
+              </button>
+              {pintPhoto ? (
+                <button
+                  type="button"
+                  className="vpsubPhotoClear"
+                  onClick={clearPintPhoto}
+                  disabled={photoLocked}
+                >
+                  Remove
+                </button>
+              ) : null}
+            </div>
+          </>
+        ) : null}
+      </>
+    );
+  }
+
   return (
     <section
       id={`venue-price-submit-${venueId}`}
@@ -752,79 +833,7 @@ export default function VenuePriceSubmit({
       {/* THE BILL, THEN THE PINT. The bill is the condition of logging a price
           and says why in one line; the pint photo is offered right after it,
           for fun, and is never a condition of anything (captain 7 Sept 2026). */}
-      <div className="vpsubPhotoRow">
-        <input
-          ref={receiptPhotoInputRef}
-          className="vpsubPhotoInput"
-          type="file"
-          accept={PHOTO_ACCEPT}
-          aria-label={`Photo of the bill at ${venueName}`}
-          onChange={(event) => {
-            onReceiptPhotoChosen(event.target.files?.[0]);
-          }}
-        />
-        <button
-          type="button"
-          className="vpsubPhotoBtn"
-          data-testid="receipt-photo-btn"
-          onClick={() => void chooseReceiptPhoto()}
-          disabled={submitting || missionPending}
-        >
-          <Camera size={16} aria-hidden="true" />
-          {receiptPhoto ? "Change the bill" : RECEIPT_PHOTO_ACTION}
-        </button>
-        {receiptPhoto ? (
-          <button
-            type="button"
-            className="vpsubPhotoClear"
-            onClick={clearReceiptPhoto}
-            disabled={submitting || missionPending}
-          >
-            Remove
-          </button>
-        ) : null}
-      </div>
-      {receiptPhoto ? null : (
-        <p className="vpsubPhotoWhy">{RECEIPT_REQUIRED_LINE}</p>
-      )}
-
-      {receiptPhoto ? (
-        <>
-          <p className="vpsubPhotoWhy">{PINT_PHOTO_FUN_LINE}</p>
-          <div className="vpsubPhotoRow">
-            <input
-              ref={pintPhotoInputRef}
-              className="vpsubPhotoInput"
-              type="file"
-              accept={PHOTO_ACCEPT}
-              aria-label={`Optional pint photo for ${venueName}`}
-              onChange={(event) => {
-                onPintPhotoChosen(event.target.files?.[0]);
-              }}
-            />
-            <button
-              type="button"
-              className="vpsubPhotoBtn"
-              data-testid="pint-photo-btn"
-              onClick={() => void choosePintPhoto()}
-              disabled={submitting || missionPending}
-            >
-              <Camera size={16} aria-hidden="true" />
-              {pintPhoto ? "Change the pint" : PINT_PHOTO_ACTION}
-            </button>
-            {pintPhoto ? (
-              <button
-                type="button"
-                className="vpsubPhotoClear"
-                onClick={clearPintPhoto}
-                disabled={submitting || missionPending}
-              >
-                Remove
-              </button>
-            ) : null}
-          </div>
-        </>
-      ) : null}
+      {renderPhotoRows()}
 
       {visibleError ? (
         <p id="vpsubError" className="vpsubError" role="alert">

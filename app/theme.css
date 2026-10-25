@@ -157,7 +157,7 @@ html[data-theme="dark"] {
   /* M4 — dusk/night signature look. Deep indigo zenith fading to a warm brass
      horizon band (setSky); warmed 3-D building massing (never full brass —
      stays a desaturated warm gray so footprints read against inkDeep); park
-     tint deliberately NOT --pint (neon-go semantic) so foliage never collides
+     tint deliberately NOT --pint (positive status) so foliage never collides
      with the "cheap pint" UI colour. */
   --map-sky-zenith: #141a3d;
   --map-sky-horizon: var(--brass);

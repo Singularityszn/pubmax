@@ -1,0 +1,32 @@
+[
+  {
+    "@id": "https://pubmaxxing.com/#organization",
+    "@type": "Organization",
+    "name": "PUBMAXX",
+    "founder": {
+      "@type": "Person",
+      "name": "Karan Manoharan",
+      "url": "https://x.com/karansznx"
+    },
+    "sameAs": [
+      "https://x.com/karansznx",
+      "https://github.com/karanmrn"
+    ]
+  },
+  {
+    "@type": "AboutPage",
+    "about": {
+      "@type": "Organization",
+      "name": "PUBMAXX",
+      "email": "hello@pubmaxxing.com",
+      "sameAs": [
+        "https://x.com/karansznx"
+      ]
+    },
+    "isPartOf": {
+      "@type": "WebSite",
+      "name": "PUBMAXX",
+      "url": "https://pubmaxxing.com"
+    }
+  }
+]

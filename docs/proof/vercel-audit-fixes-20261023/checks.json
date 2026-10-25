@@ -1,0 +1,54 @@
+{
+  "base": "d64a5cf0474407d51c7d2b521a7337c2c3f8c663",
+  "verify": {
+    "exitCode": 0,
+    "unitFilesPassed": 2103,
+    "unitTestsPassed": 43417,
+    "unitTestsSkipped": 1,
+    "skipReason": "Live Context.dev proof requires CONTEXT_DEV_API_KEY",
+    "databaseFilesPassed": 75,
+    "databaseTestsPassed": 691,
+    "databaseTestsSkipped": 0,
+    "lintErrors": 0,
+    "existingLintWarnings": 10,
+    "coveragePercent": {
+      "statements": 84.68,
+      "branches": 78.51,
+      "functions": 88.66,
+      "lines": 88.32
+    },
+    "advisoryStaleDatasets": [
+      "area_news",
+      "google_places_content"
+    ],
+    "unmeasurableFeeds": [
+      "night_signal_candidates",
+      "weather",
+      "whats_on"
+    ]
+  },
+  "productionBuild": {
+    "exitCode": 0,
+    "environment": "local Playwright keyless server with fake public auth configuration"
+  },
+  "browser": {
+    "engine": "installed Chrome",
+    "testsPassed": 20,
+    "testsFailed": 0,
+    "realAuthentication": false,
+    "vercelSdkScriptResponses": "local boundary doubles"
+  },
+  "reviews": {
+    "standardsFindings": 0,
+    "behaviorFindings": 0
+  },
+  "notProven": [
+    "production provider recovery",
+    "live alert delivery",
+    "moderation backlog drain",
+    "field Core Web Vitals",
+    "physical-device acceptance"
+  ],
+  "productionChanges": false,
+  "taskBranchPushed": false
+}

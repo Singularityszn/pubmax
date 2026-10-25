@@ -140,8 +140,6 @@ const vercelIgnore = readFileSync(join(root, ".vercelignore"), "utf8");
 
 describe("core UI audit fixes", () => {
   it("makes the near-me answer the landing hero's one primary action", () => {
-    // No card behind the document here, so the quiet receipt door is the plain
-    // one; __tests__/landingFindMyPintHierarchy.test.ts pins the card case.
     const rendered = renderToStaticMarkup(createElement(LandingPage));
     const hero = rendered.match(/<section class="screen lpHero"[\s\S]*?<\/section>/)?.[0];
     expect(hero, "landing hero present").toBeTruthy();
@@ -149,7 +147,7 @@ describe("core UI audit fixes", () => {
       /data-primary-action=""><a[^>]*href="\/near\?locate=1"[^>]*>Cheapest pints near me<\/a>/,
     );
     expect(hero?.match(/data-primary-action/g)).toHaveLength(1);
-    expect(hero).toMatch(/class="screenSecondary"><a[^>]*href="\/near"[^>]*>Log what you paid<\/a>/);
+    expect(hero).toMatch(/class="screenSecondary"><a[^>]*href="\/map\?log=1"[^>]*>Log what you paid<\/a>/);
   });
 
   it("publishes the complete PUBMAXX brand to assistive technology", () => {

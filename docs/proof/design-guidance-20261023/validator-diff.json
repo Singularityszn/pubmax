@@ -1,0 +1,50 @@
+{
+  "tokens": {
+    "colors": {
+      "added": [
+        "primary"
+      ],
+      "removed": [],
+      "modified": [
+        "brick"
+      ]
+    },
+    "typography": {
+      "added": [],
+      "removed": [],
+      "modified": []
+    },
+    "rounded": {
+      "added": [],
+      "removed": [],
+      "modified": []
+    },
+    "spacing": {
+      "added": [],
+      "removed": [],
+      "modified": []
+    },
+    "components": {
+      "added": [],
+      "removed": [],
+      "modified": []
+    }
+  },
+  "findings": {
+    "before": {
+      "errors": 0,
+      "warnings": 1,
+      "infos": 1
+    },
+    "after": {
+      "errors": 0,
+      "warnings": 0,
+      "infos": 1
+    },
+    "delta": {
+      "errors": 0,
+      "warnings": -1
+    }
+  },
+  "regression": false
+}

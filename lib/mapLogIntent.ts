@@ -1,3 +1,5 @@
+import type { MapIntentQuery as QueryLike } from "@/lib/mapUrlIntent";
+export { hasMapLogIntent } from "@/lib/mapUrlIntent";
 import { formatGbp } from "@/lib/formatGbp";
 import { haversineKm } from "@/lib/haversine";
 import { drinkLensPriceNoun, type MapLensPrice } from "@/lib/mapExperienceLens";
@@ -78,10 +80,11 @@ export type LogNearbyOriginResolution = {
  * rather than the same five pubs to every visitor.
  */
 export function resolveLogNearbyOrigin(input: {
+  pickerLocation?: LogNearbyOrigin | null;
   userLocation?: { lat: number; lng: number } | null;
   mapCenter?: [number, number] | null;
 }): LogNearbyOriginResolution {
-  const user = input.userLocation;
+  const user = input.pickerLocation ?? input.userLocation;
   if (user && Number.isFinite(user.lat) && Number.isFinite(user.lng)) {
     return { origin: { lat: user.lat, lng: user.lng }, source: "user" };
   }
@@ -166,14 +169,6 @@ export function buildLogNearbyCandidates(
         : {}),
     };
   });
-}
-
-type QueryLike = string | { get(name: string): string | null };
-
-export function hasMapLogIntent(query: QueryLike): boolean {
-  if (typeof query !== "string") return query.get("log") === "1";
-  const normalized = query.startsWith("?") ? query.slice(1) : query;
-  return new URLSearchParams(normalized).get("log") === "1";
 }
 
 /**

@@ -104,6 +104,7 @@ describe("the full-suite escalation", () => {
     expect(defined(checkSteps(plan(modified("package.json")))[0]).env).toEqual({
       NODE_OPTIONS: "--max-old-space-size=2048",
       VITEST_MAX_WORKERS: "1",
+      TYPESAFE_API_KEY: "",
     });
     vi.stubEnv("NODE_OPTIONS", "--max-old-space-size=4096");
     vi.stubEnv("VITEST_MAX_WORKERS", "8");
@@ -123,6 +124,20 @@ describe("the full-suite escalation", () => {
     expect(spawnSync).toHaveBeenLastCalledWith("npm", ["run", "verify"], expect.objectContaining({
       env: expect.objectContaining({ NODE_OPTIONS: "--max-old-space-size=2048", VITEST_MAX_WORKERS: "1" }),
     }));
+  });
+
+  it("runs the full merge bar with an empty TYPESAFE_API_KEY and leaves the parent's key in place", () => {
+    const sentinel = "synthetic-typesafe-sentinel-not-a-real-key";
+    vi.stubEnv("TYPESAFE_API_KEY", sentinel);
+    vi.mocked(spawnSync).mockReturnValue({ status: 0 } as ReturnType<typeof spawnSync>);
+    const full = defined(checkSteps(plan(modified("scripts/verify-changed.mjs")))[0]);
+    expect(runCheckStep(full)).toBe(true);
+    expect(spawnSync).toHaveBeenLastCalledWith("npm", ["run", "verify"], expect.objectContaining({
+      env: expect.objectContaining({
+        TYPESAFE_API_KEY: "", NODE_OPTIONS: "--max-old-space-size=2048", VITEST_MAX_WORKERS: "1",
+      }),
+    }));
+    expect(process.env.TYPESAFE_API_KEY).toBe(sentinel);
   });
 
   it("builds with one Next worker and keeps the build typecheck on", async () => {

@@ -53,6 +53,7 @@ export const PAID_SPEND_LANES = [
   "pub-pal-chat",
   "pub-pal-voice",
   "plan-generate",
+  "pub-list-import",
   "typesafe",
 ] as const;
 
@@ -60,6 +61,12 @@ export type PaidSpendLane = (typeof PAID_SPEND_LANES)[number];
 
 /** Rolling window the ceiling covers. A rolling day, so midnight is not a burst. */
 export const PAID_SPEND_BUDGET_WINDOW_MS = 24 * 60 * 60 * 1000;
+
+/** Request counts only. A full or closed lane uses the existing refusal alert. */
+export function paidSpendWarningThreshold(used: number, budget: number): 80 | 90 | null {
+  if (budget <= 0 || used >= budget || used < Math.ceil(budget * 0.8)) return null;
+  return used >= Math.ceil(budget * 0.9) ? 90 : 80;
+}
 
 /**
  * Calls each lane may make in one rolling day across the WHOLE deployment.
@@ -75,6 +82,7 @@ export const PAID_SPEND_DEFAULT_DAILY_BUDGET: Record<PaidSpendLane, number> = {
   // a monthly allowance but never across accounts until this ceiling.
   "pub-pal-voice": 200,
   "plan-generate": 1_000,
+  "pub-list-import": 1_000,
   typesafe: 5_000,
 };
 

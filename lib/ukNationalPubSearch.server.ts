@@ -94,6 +94,26 @@ function getRows(): IndexRow[] | null {
   }
 }
 
+/** Imports need all candidates, including closed pubs, before resolving a name. */
+export function getUkNationalPubCatalog(): {
+  status: "ready" | "degraded";
+  pubs: (UkNationalPubHit & { closed: boolean })[];
+} {
+  const index = getRows();
+  if (!index) return { status: "degraded", pubs: [] };
+  return {
+    status: "ready",
+    pubs: index.map((row) => ({
+      id: ukBaseIdFor(row.osmRef),
+      name: displayVenueName(row.name),
+      address: row.address,
+      lat: row.lat,
+      lng: row.lng,
+      closed: VERIFIED_CLOSED_OSM_REFS.has(row.osmRef),
+    })),
+  };
+}
+
 /** Test-only: inject a parsed index (or clear with null). */
 export function __setUkNationalPubSearchIndexForTests(
   raw: unknown | null,

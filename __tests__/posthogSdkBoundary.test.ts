@@ -54,6 +54,16 @@ function decodedRequests(): string[] {
   });
 }
 
+function emittedEvents() {
+  return decodedRequests().flatMap((request) => {
+    const body = request.slice(request.indexOf(" ") + 1);
+    if (!body) return [];
+    type EmittedEvent = { event: string; properties: Record<string, unknown> };
+    const parsed = JSON.parse(body) as EmittedEvent | EmittedEvent[] | { batch: EmittedEvent[] };
+    return Array.isArray(parsed) ? parsed : "batch" in parsed ? parsed.batch : [parsed];
+  });
+}
+
 function settle(ms = 300): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
@@ -113,8 +123,11 @@ beforeAll(async () => {
   // pageview is still queued here.
   await settle(500);
   capturedBeforeUnload = decodedRequests().filter((request) => request.includes("$pageview")).length;
-  // Leaving the page flushes the queue in one beacon, and is where the SDK
-  // would add a $pageleave if it were on.
+  window.history.replaceState(null, "", "/privacy");
+  capturePosthogPageview("/privacy", ANON);
+  await settle(10);
+  // Internal navigation carries the previous visit on the next pageview.
+  // Leaving the document flushes the final pageleave in the same beacon.
   window.dispatchEvent(new Event("pagehide"));
   window.dispatchEvent(new Event("beforeunload"));
   await settle(100);
@@ -161,12 +174,19 @@ describe("PostHog SDK boundary (real posthog-js, stubbed fetch)", () => {
     expect(captures.every(({ url }) => url.startsWith("/ingest/"))).toBe(true);
   });
 
-  it("never sends $pageleave: the privacy page lists no time on page or scroll depth", () => {
-    expect(posthog.config.capture_pageleave).toBe(false);
-    for (const request of decodedRequests()) {
-      expect(request).not.toContain("$pageleave");
-      expect(request).not.toContain("$prev_pageview_duration");
-    }
+  it("sends the final pageleave with duration and scroll depth through ingest", () => {
+    const exits = decodedRequests().filter((request) => request.includes('"event":"$pageleave"'));
+    expect(exits).toHaveLength(1);
+    expect(exits[0]).toContain('"$prev_pageview_pathname":"/privacy"');
+    expect(exits[0]).toContain('"$prev_pageview_duration":');
+    expect(exits[0]).toContain('"$prev_pageview_max_content_percentage":');
+  });
+
+  it("keeps the previous visit measurements on internal navigation", () => {
+    const request = decodedRequests().find((entry) => entry.includes('"$prev_pageview_pathname":"/map"'));
+    expect(request).toContain('"$prev_pageview_id":');
+    expect(request).toContain('"$prev_pageview_duration":');
+    expect(request).toContain('"$prev_pageview_max_content_percentage":');
   });
 
   it("loads no recorder, heatmap or survey code and sends no $snapshot or $$heatmap", () => {
@@ -179,6 +199,140 @@ describe("PostHog SDK boundary (real posthog-js, stubbed fetch)", () => {
     for (const request of decodedRequests()) {
       expect(request).not.toContain("$snapshot");
       expect(request).not.toContain("$$heatmap");
+    }
+  });
+});
+
+describe("consent epochs at the real SDK boundary", () => {
+  it.each(["queued", "direct"])("isolates the first %s view and its exit after renewed consent", async (mode) => {
+    const { capturePosthogPageview, syncPosthogConsent } = await import("@/lib/posthogClient");
+    const events = emittedEvents;
+    const firstId = mode === "queued" ? "anon_1111111111111111" : "anon_3333333333333333";
+    const renewedId = mode === "queued" ? "anon_2222222222222222" : "anon_4444444444444444";
+    const start = Date.now();
+    vi.useFakeTimers({ toFake: ["Date"] });
+    try {
+      vi.setSystemTime(start);
+      posthog.set_config({ request_batching: false });
+      syncPosthogConsent(false);
+      window.localStorage.setItem("pubmaxx:analytics-id:v1", firstId);
+      window.history.replaceState(null, "", "/privacy");
+      syncPosthogConsent(true);
+      capturePosthogPageview("/privacy", firstId);
+      await vi.waitFor(() => expect(events()).toEqual(expect.arrayContaining([
+        expect.objectContaining({ properties: expect.objectContaining({ distinct_id: firstId }) }),
+      ])));
+      const oldView = events().find(({ event, properties }) => event === "$pageview" && properties.distinct_id === firstId)!;
+
+      syncPosthogConsent(false);
+      window.localStorage.removeItem("pubmaxx:analytics-id:v1");
+      const countAtWithdrawal = sent.length;
+      vi.setSystemTime(start + 120_000);
+      window.dispatchEvent(new Event("scroll"));
+      window.dispatchEvent(new Event("pagehide"));
+      await settle(10);
+      expect(sent).toHaveLength(countAtWithdrawal);
+
+      window.localStorage.setItem("pubmaxx:analytics-id:v1", renewedId);
+      syncPosthogConsent(true);
+      if (mode === "direct") await settle(10);
+      capturePosthogPageview("/privacy", renewedId);
+      await vi.waitFor(() => expect(events().some(({ properties }) => properties.distinct_id === renewedId)).toBe(true));
+      const renewedView = events().find(({ event, properties }) => event === "$pageview" && properties.distinct_id === renewedId)!;
+      expect(renewedView.properties.$pageview_id).toEqual(expect.any(String));
+      expect(renewedView.properties.$pageview_id).not.toBe(oldView.properties.$pageview_id);
+
+      vi.setSystemTime(start + 123_000);
+      window.dispatchEvent(new Event("pagehide"));
+      await settle(10);
+      const exit = events().find(({ event, properties }) => event === "$pageleave" && properties.distinct_id === renewedId)!;
+      expect(exit.properties).toMatchObject({
+        $prev_pageview_id: renewedView.properties.$pageview_id,
+        $prev_pageview_duration: expect.any(Number),
+        $prev_pageview_max_content_percentage: expect.any(Number),
+      });
+      expect(exit.properties.$prev_pageview_duration).toBeGreaterThan(2);
+      expect(exit.properties.$prev_pageview_duration).toBeLessThanOrEqual(3);
+      expect(exit.properties.$prev_pageview_id).not.toBe(oldView.properties.$pageview_id);
+
+      window.history.replaceState(null, "", "/terms");
+      capturePosthogPageview("/terms", renewedId);
+      await settle(10);
+      const nextView = events().find(({ event, properties }) => event === "$pageview" && properties.distinct_id === renewedId && properties.$pathname === "/terms")!;
+      expect(nextView.properties).toMatchObject({
+        $prev_pageview_id: renewedView.properties.$pageview_id,
+        $prev_pageview_duration: exit.properties.$prev_pageview_duration,
+      });
+      expect(renewedView.properties).not.toHaveProperty("$prev_pageview_id");
+      expect(Object.keys(renewedView.properties).filter((key) => key.startsWith("$prev_pageview_"))).toEqual([]);
+    } finally {
+      syncPosthogConsent(false);
+      vi.useRealTimers();
+    }
+  });
+});
+
+describe("Activity privacy at the real SDK boundary", () => {
+  it.each(["navigation", "final exit"])("excludes Activity engagement on %s and resumes public measurements", async (mode) => {
+    const { capturePosthogPageview, syncPosthogConsent } = await import("@/lib/posthogClient");
+    const anonymousId = mode === "navigation" ? "anon_5555555555555555" : "anon_6666666666666666";
+    const events = () => emittedEvents().filter(({ properties }) => properties.distinct_id === anonymousId);
+    const start = Date.now();
+    vi.useFakeTimers({ toFake: ["Date"] });
+    try {
+      vi.setSystemTime(start);
+      posthog.set_config({ request_batching: false });
+      syncPosthogConsent(false);
+      window.localStorage.setItem("pubmaxx:analytics-id:v1", anonymousId);
+      window.history.replaceState(null, "", "/privacy");
+      syncPosthogConsent(true);
+      capturePosthogPageview("/privacy", anonymousId);
+      await vi.waitFor(() => expect(events()).toHaveLength(1));
+
+      vi.setSystemTime(start + 2_000);
+      window.history.replaceState(null, "", "/activity");
+      capturePosthogPageview("/activity", anonymousId);
+      await vi.waitFor(() => expect(events()).toHaveLength(2));
+      vi.setSystemTime(start + 32_000);
+      window.dispatchEvent(new Event("scroll"));
+      if (mode === "final exit") window.dispatchEvent(new Event("pagehide"));
+      await settle(10);
+
+      vi.setSystemTime(start + 42_000);
+      window.history.replaceState(null, "", "/terms");
+      capturePosthogPageview("/terms", anonymousId);
+      vi.setSystemTime(start + 45_000);
+      window.dispatchEvent(new Event("scroll"));
+      window.history.replaceState(null, "", "/about");
+      capturePosthogPageview("/about", anonymousId);
+      vi.setSystemTime(start + 47_000);
+      window.dispatchEvent(new Event("scroll"));
+      window.dispatchEvent(new Event("pagehide"));
+      await settle(10);
+
+      const termsView = events().find(({ event, properties }) => event === "$pageview" && properties.$pathname === "/terms")!;
+      const activityExits = events().filter(({ event, properties }) => event === "$pageleave" && properties.$prev_pageview_pathname === "/activity");
+      expect(activityExits).toEqual([]);
+      expect(Object.keys(termsView.properties).filter((key) => key.startsWith("$prev_pageview_"))).toEqual([]);
+      const activityView = events().find(({ event, properties }) => event === "$pageview" && properties.$pathname === "/activity")!;
+      expect(activityView.properties).not.toHaveProperty("$pageview_id");
+      expect(Object.keys(activityView.properties).filter((key) => key.startsWith("$prev_pageview_"))).toEqual([]);
+      const aboutView = events().find(({ event, properties }) => event === "$pageview" && properties.$pathname === "/about")!;
+      expect(aboutView.properties).toMatchObject({
+        $prev_pageview_id: termsView.properties.$pageview_id,
+        $prev_pageview_pathname: "/terms",
+        $prev_pageview_duration: 3,
+        $prev_pageview_max_content_percentage: expect.any(Number),
+      });
+      const publicExit = events().find(({ event, properties }) => event === "$pageleave" && properties.$prev_pageview_pathname === "/about")!;
+      expect(publicExit.properties).toMatchObject({
+        $prev_pageview_id: aboutView.properties.$pageview_id,
+        $prev_pageview_duration: 2,
+        $prev_pageview_max_content_percentage: expect.any(Number),
+      });
+    } finally {
+      syncPosthogConsent(false);
+      vi.useRealTimers();
     }
   });
 });

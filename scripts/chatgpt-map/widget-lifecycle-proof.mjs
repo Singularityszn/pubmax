@@ -79,7 +79,7 @@ try {
   host = createServer((_req, res) => res.writeHead(200, { "Content-Type": "text/html" }).end(html));
   await new Promise((resolve) => host.listen(0, "127.0.0.1", resolve));
   const hostUrl = `http://127.0.0.1:${host.address().port}`;
-  browser = await chromium.launch({ headless: true, args: ["--enable-unsafe-swiftshader"] });
+  browser = await chromium.launch({ channel: process.env.PUBMAX_BROWSER_CHANNEL || undefined, headless: true, args: ["--enable-unsafe-swiftshader"] });
 
   for (const name of ["inline-capability", "pending-link", "late-import", "worker-blob", "url-bounds", "url-boundary-fallback", "pending-initialization", "unused-id-retention", "publisher-label-retention"]) {
     const check = { name };
@@ -304,14 +304,14 @@ try {
         try {
           await session.send("Debugger.enable");
           let target;
-          const statement = 'element("area").textContent=data.area;';
+          const statement = 'isEvening=Array.isArray(data.venueIds)&&data.venueIds.length===3;';
           for (const script of scripts) {
             const { scriptSource } = await session.send("Debugger.getScriptSource", { scriptId: script.scriptId });
             const lines = scriptSource.split("\n");
             const line = lines.findIndex((text, index) => text.includes(statement) && lines[index - 1]?.includes("latestVenues=safeVenues(data.venues)"));
             if (line >= 0) {
               assert.equal(target, undefined, "Multiple actual render projection statements found");
-              target = { scriptId: script.scriptId, lineNumber: script.startLine + line, columnNumber: lines[line].indexOf("element(") + (line === 0 ? script.startColumn : 0) };
+              target = { scriptId: script.scriptId, lineNumber: script.startLine + line, columnNumber: lines[line].indexOf("isEvening=") + (line === 0 ? script.startColumn : 0) };
             }
           }
           assert.ok(target, "Actual served widget render projection statement missing");

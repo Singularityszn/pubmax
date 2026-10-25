@@ -14,8 +14,10 @@ export type FoodPriceUpdate = {
   category: FoodCategory;
   priceGbp: number;
   caloriesKcal?: number;
+  caloriesProvenance?: FoodItem["caloriesProvenance"];
   description?: string;
   dietary?: FoodDietary[];
+  dietaryProvenance?: FoodItem["dietaryProvenance"];
   source: { label: string; url: string; licence: string };
   observedAt: string;
 };
@@ -69,7 +71,7 @@ function calorieFields(update: FoodPriceUpdate): Pick<FoodItem, "caloriesKcal" |
   if (update.caloriesKcal === undefined) return {};
   return {
     caloriesKcal: update.caloriesKcal,
-    caloriesProvenance: {
+    caloriesProvenance: update.caloriesProvenance ?? {
       ...updateProvenance(update),
       sourceUrl: update.source.url,
     },
@@ -94,7 +96,7 @@ function foodFromPriceUpdate(update: FoodPriceUpdate): FoodItem {
     priceGbp: update.priceGbp,
     description: update.description,
     dietary: update.dietary,
-    ...(update.dietary !== undefined ? { dietaryProvenance: { ...updateProvenance(update), sourceUrl: update.source.url } } : {}),
+    ...(update.dietary !== undefined ? { dietaryProvenance: update.dietaryProvenance ?? { ...updateProvenance(update), sourceUrl: update.source.url } } : {}),
     provenance: updateProvenance(update),
     source: update.source.url,
     ...calorieFields(update),
@@ -125,7 +127,7 @@ export function applyFoodPriceUpdatesToMenu(
       description: update.description ?? item.description,
       dietary: update.dietary ?? item.dietary,
       dietaryProvenance: update.dietary !== undefined
-        ? { ...updateProvenance(update), sourceUrl: update.source.url }
+        ? update.dietaryProvenance ?? { ...updateProvenance(update), sourceUrl: update.source.url }
         : item.dietaryProvenance,
       source: update.source.url,
       ...calorieFields(update),
@@ -139,20 +141,59 @@ export function applyFoodPriceUpdatesToMenu(
   return merged;
 }
 
-export function parseFoodPriceUpdates(raw: unknown, now: number = Date.now()): FoodPriceUpdate[] {
+/** Keep validated source observations for packs that will be read again. */
+export function parseFoodPriceObservations(raw: unknown, now: number = Date.now()): FoodPriceUpdate[] {
   const rows = Array.isArray(raw)
     ? raw
     : typeof raw === "object" && raw !== null && Array.isArray((raw as { updates?: unknown }).updates)
       ? (raw as { updates: unknown[] }).updates
       : [];
-  const newestByKey = new Map<string, FoodPriceUpdate>();
-  for (const row of rows) {
-    if (!isValidFoodPriceUpdate(row, now)) continue;
+  return rows
+    .filter((row): row is FoodPriceUpdate => isValidFoodPriceUpdate(row, now))
+    .map((row) => ({
+      venueKey: row.venueKey,
+      itemName: row.itemName,
+      category: row.category,
+      priceGbp: row.priceGbp,
+      caloriesKcal: row.caloriesKcal,
+      description: row.description,
+      dietary: row.dietary,
+      source: { label: row.source.label, url: row.source.url, licence: row.source.licence },
+      observedAt: row.observedAt,
+    }));
+}
+
+export function parseFoodPriceUpdates(raw: unknown, now: number = Date.now()): FoodPriceUpdate[] {
+  const newestByKey = new Map<string, {
+    price: FoodPriceUpdate;
+    dietary?: FoodPriceUpdate;
+    calories?: FoodPriceUpdate;
+  }>();
+  for (const row of parseFoodPriceObservations(raw, now)) {
     const key = rowKey(row.venueKey, row.itemName, row.category);
     const existing = newestByKey.get(key);
-    if (!existing || Date.parse(row.observedAt) > Date.parse(existing.observedAt)) {
-      newestByKey.set(key, row);
+    if (!existing) {
+      newestByKey.set(key, {
+        price: row,
+        dietary: row.dietary !== undefined ? row : undefined,
+        calories: row.caloriesKcal !== undefined ? row : undefined,
+      });
+      continue;
+    }
+    const observedAt = Date.parse(row.observedAt);
+    if (observedAt > Date.parse(existing.price.observedAt)) existing.price = row;
+    if (row.dietary !== undefined && (!existing.dietary || observedAt > Date.parse(existing.dietary.observedAt))) {
+      existing.dietary = row;
+    }
+    if (row.caloriesKcal !== undefined && (!existing.calories || observedAt > Date.parse(existing.calories.observedAt))) {
+      existing.calories = row;
     }
   }
-  return Array.from(newestByKey.values());
+  return Array.from(newestByKey.values(), ({ price, dietary, calories }) => ({
+    ...price,
+    dietary: dietary?.dietary,
+    dietaryProvenance: dietary && dietary !== price ? { ...updateProvenance(dietary), sourceUrl: dietary.source.url } : undefined,
+    caloriesKcal: calories?.caloriesKcal,
+    caloriesProvenance: calories && calories !== price ? { ...updateProvenance(calories), sourceUrl: calories.source.url } : undefined,
+  }));
 }

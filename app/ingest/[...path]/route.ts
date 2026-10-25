@@ -13,8 +13,9 @@ const MAX_REQUEST_BYTES = 1024 * 1024;
 // and bills no event, and it still spends the same budget, because the budget
 // is spent before the path is resolved: a flood must be walled before it is
 // read, not sorted first. The browser config this proxy serves
-// (`lib/posthogClient.ts`) turns off autocapture, pageview, pageleave, heatmaps
-// and dead clicks, and disables session replay, but it leaves
+// (`lib/posthogClient.ts`) turns off autocapture, automatic pageviews, heatmaps
+// and dead clicks, and disables session replay. It sends explicit pageviews
+// and final page exits through the closed browser filter. It leaves
 // `capture_exceptions` and `capture_performance` on, so a device also sends
 // `$exception` on an uncaught error and `$web_vitals` on a page load without
 // the product asking. Batching is on, so one flush carries every event queued

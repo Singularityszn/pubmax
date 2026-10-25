@@ -1,5 +1,5 @@
 import { randomBytes } from "node:crypto";
-import { resolve } from "node:path";
+import { isAbsolute, resolve } from "node:path";
 import { loadEnvConfig } from "@next/env";
 import { defineConfig, devices } from "@playwright/test";
 
@@ -101,6 +101,17 @@ if (
   throw new Error(
     "PUBMAX_E2E_LOGIN=1 requires real Supabase URL, publishable key, and service-role key in the local environment.",
   );
+}
+
+const PUBLIC_EVIDENCE_PHASE = process.env.PUBMAX_PUBLIC_EVIDENCE_PHASE;
+const PUBLIC_EVIDENCE_ROOT = process.env.PUBMAX_PUBLIC_EVIDENCE_ROOT;
+if (PUBLIC_EVIDENCE_PHASE && (
+  !["before", "after"].includes(PUBLIC_EVIDENCE_PHASE) ||
+  !PUBLIC_EVIDENCE_ROOT || !isAbsolute(PUBLIC_EVIDENCE_ROOT) ||
+  !process.env.CI || E2E_LOGIN || REAL_AUTH_CONFIGURED || DISPOSABLE_PLAN_DB ||
+  SKIP_WEBSERVER || !SKIP_KEYLESS_WEBSERVER || SCREENSHOT_RUN
+)) {
+  throw new Error("Public evidence needs a separate absolute checkout and one keyless CI server");
 }
 
 export const E2E_SERVER_ENV = {
@@ -227,10 +238,13 @@ export default defineConfig({
         "**/map-console-health.spec.ts",
         "**/map-credits.spec.ts",
         "**/map-opening-preview.spec.ts",
+        "**/map-arrival.spec.ts",
         "**/map-arrival-turn.spec.ts",
         "**/map-you-are-here.spec.ts",
         "**/map-arrival-card-pins.spec.ts",
         "**/map-desktop-arrival-chrome.spec.ts",
+        "**/mobile-map-first-visit.spec.ts",
+        "**/mobile-map-shell-matrix.spec.ts",
         "**/map-tile-retry.spec.ts",
         "**/map-webgl-recovery.spec.ts",
         "**/map-fallback.spec.ts",
@@ -354,8 +368,9 @@ export default defineConfig({
         // The document's opening prices held to the engine's own first frame:
         // a real camera and a real painted-pin probe to compare against.
         "**/map-opening-preview.spec.ts",
-        // The opening turn and the first-visit card's grip on the pins: both
+        // The arrival journeys, opening turn and first-visit card's grip on the pins
         // read a real camera and a real painted-pin probe.
+        "**/map-arrival.spec.ts",
         "**/map-arrival-turn.spec.ts",
         "**/map-arrival-card-pins.spec.ts",
         // The reader's own dot: a real GeoJSON source on a real scene, and a
@@ -363,6 +378,10 @@ export default defineConfig({
         "**/map-you-are-here.spec.ts",
         // The arrival chrome count at 1440: a rendered map, so a real canvas.
         "**/map-desktop-arrival-chrome.spec.ts",
+        // First visit needs revealed pins. The shell matrix reads a real camera
+        // and rendered basemap at each zoom, so both require software WebGL.
+        "**/mobile-map-first-visit.spec.ts",
+        "**/mobile-map-shell-matrix.spec.ts",
         // A deep-linked pin's painted position against the phone sheet's own
         // rendered edge: both need a real MapLibre camera to project from.
         "**/map-deep-link-pin.spec.ts",
@@ -460,6 +479,7 @@ export default defineConfig({
     ? undefined
     : [
       {
+        cwd: PUBLIC_EVIDENCE_PHASE ? PUBLIC_EVIDENCE_ROOT : undefined,
         command: SCREENSHOT_RUN
           ? `npm run start -- --port ${PORT}`
           : `node scripts/run-with-restored-next-env.mjs npm run build && npm run start -- --port ${PORT}${DISPOSABLE_PLAN_DB ? " --hostname 127.0.0.1" : ""}`,

@@ -2,7 +2,7 @@ import type { Route } from "next";
 import Link from "next/link";
 import type { ReactNode } from "react";
 
-import "./rowList.css";
+import "./primitives.css";
 
 /**
  * A list of things, read down the page: one hairline between rows and no box

@@ -45,19 +45,18 @@ export function shouldFitQueryVenuesOnArrival(search: string): boolean {
 
 /**
  * What a URL-restored search query (`?q=`) should do to the camera once the map
- * is ready and the pins have matched. Mirrors typed search (#371): one match
- * flies to and opens that venue; several frame them all; zero never moves the
- * camera and never claims pins (the count chips stay honest at nothing).
+ * is ready and the pins have matched. The query frames its matches without
+ * opening a venue sheet. Only an explicit `sel` restores a sheet. A query
+ * with no matches leaves the camera still.
  */
-export type QueryRestoreFit = "select-single" | "fit-many" | "none";
+export type QueryRestoreFit = "fit-matches" | "none";
 
 export function resolveQueryRestoreFit(matchCount: number): QueryRestoreFit {
   if (matchCount <= 0) return "none";
-  if (matchCount === 1) return "select-single";
-  return "fit-many";
+  return "fit-matches";
 }
 
-export type ArrivalQueryRestore = "wait" | "select-single" | "fit-many" | "retire";
+export type ArrivalQueryRestore = "wait" | "fit-matches" | "retire";
 
 /**
  * Decide whether the frozen arrival query may still move the live Map.
@@ -75,11 +74,13 @@ export function resolveArrivalQueryRestore(input: {
   didRestore: boolean;
   matchCount: number;
 }): ArrivalQueryRestore {
-  const arrivalQuery = new URLSearchParams(input.arrivalSearch).get("q")?.trim() ?? "";
+  const arrivalParams = new URLSearchParams(input.arrivalSearch);
+  const arrivalQuery = arrivalParams.get("q")?.trim() ?? "";
   if (
     !shouldFitQueryVenuesOnArrival(input.arrivalSearch) ||
     !arrivalQuery ||
     input.currentQuery.trim() !== arrivalQuery ||
+    arrivalParams.get("sel")?.trim() ||
     input.selectedVenueId ||
     input.didRestore
   ) {

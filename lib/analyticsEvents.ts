@@ -61,6 +61,9 @@ export const ANALYTICS_EVENTS = {
   desk_answer_served: ["outcome"],
   venue_accepted: ["source", "hasArea", "hasDate", "hasProvenance"],
   planning_handoff_opened: ["from", "to"],
+  pub_list_import_started: ["input_kind"],
+  pub_list_import_matched: ["count_matched", "count_ambiguous", "count_unmatched"],
+  pub_list_import_routed: ["stops"],
   map_search_no_results: [],
   map_area_switched: [],
   map_search_jump: [],
@@ -531,6 +534,7 @@ const MAX_STRING_LEN = 40;
 const CONTRIBUTION_GATE_STEPS = CONTRIBUTION_GATE_STATUSES;
 
 const SAFE_STRING_VALUES = new Set([
+  "pasted_text",
   // fixed product surfaces and provenance
   "landing", "home", "map", "tonight", "tomorrow", "weekend", "plan", "you", "pal", "borough", "city", "crawl", "recap",
   "moment", "price",
@@ -605,6 +609,9 @@ const SAFE_STRING_VALUES = new Set([
 ]);
 
 const TRUSTED_HANDOFF_REQUIRED_KEYS = {
+  pub_list_import_started: ["input_kind"],
+  pub_list_import_matched: ["count_matched", "count_ambiguous", "count_unmatched"],
+  pub_list_import_routed: ["stops"],
   near_answer_ready: ["source", "resultBand"],
   near_venue_opened: ["source", "positionBand"],
   near_mode_switched: ["mode"],
@@ -704,6 +711,12 @@ function isAllowedTrustedHandoffEventProp(
     return isAllowedVerifiedOutcomeProp(name, key, value);
   }
   switch (name) {
+    case "pub_list_import_started":
+      return key === "input_kind" && value === "pasted_text";
+    case "pub_list_import_matched":
+      return typeof value === "number" && Number.isInteger(value) && value >= 0 && value <= 40;
+    case "pub_list_import_routed":
+      return key === "stops" && typeof value === "number" && Number.isInteger(value) && value >= 3 && value <= 6;
     case "near_answer_ready":
       return key === "source"
         ? includesValue(NEAR_ANSWER_SOURCES, value)

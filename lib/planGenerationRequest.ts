@@ -26,7 +26,7 @@ export const MAX_PLAN_GENERATION_BODY_BYTES = 16_384;
 const MAX_PLAN_GENERATION_QUERY_LENGTH = 500;
 
 const REQUEST_KEYS = ["query", "context", "cityId", "intake", "operationKey", "anchor"] as const;
-const ANCHOR_KEYS = ["venueId", "source", "acceptedArea", "startsAt"] as const;
+const ANCHOR_KEYS = ["venueId", "source", "acceptedArea", "startsAt", "venueIds"] as const;
 const NIGHT_PATCH_AREA_KEYS = ["kind", "id"] as const;
 const BOROUGH_AREA_KEYS = ["kind", "name"] as const;
 const ANCHOR_VENUE_ID_PATTERN = /^[A-Za-z0-9:_-]{1,128}$/;
@@ -48,6 +48,8 @@ const CONTEXT_KEYS = [
 ] as const satisfies readonly (keyof NightContext)[];
 
 export type PlanGenerationAnchor = {
+  /** Imported crawl candidates. Selection cannot add pubs outside this set. */
+  venueIds?: string[];
   venueId: string;
   source: PlanningIntentSource;
   acceptedArea: PlanningIntentArea;
@@ -124,7 +126,8 @@ function canonicalIsoOrNull(value: unknown): string | null | undefined {
 /** Parse the optional acceptance anchor. `undefined` return rejects the request. */
 function parseAnchor(value: unknown): PlanGenerationAnchor | null | undefined {
   if (value === undefined || value === null) return null;
-  if (!isPlainRecord(value) || !hasExactKeys(value, ANCHOR_KEYS)) return undefined;
+  if (!isPlainRecord(value) || !hasOnlyKeys(value, ANCHOR_KEYS)
+    || !["venueId", "source", "acceptedArea", "startsAt"].every((key) => Object.hasOwn(value, key))) return undefined;
   if (typeof value.venueId !== "string" || !ANCHOR_VENUE_ID_PATTERN.test(value.venueId)) return undefined;
   if (typeof value.source !== "string" || !(PLANNING_INTENT_SOURCES as readonly string[]).includes(value.source)) {
     return undefined;
@@ -133,7 +136,13 @@ function parseAnchor(value: unknown): PlanGenerationAnchor | null | undefined {
   if (acceptedArea === undefined) return undefined;
   const startsAt = canonicalIsoOrNull(value.startsAt);
   if (startsAt === undefined) return undefined;
+  if (value.venueIds !== undefined && (!Array.isArray(value.venueIds)
+    || value.venueIds.length < 3 || value.venueIds.length > 6
+    || value.venueIds.some((id) => typeof id !== "string" || !ANCHOR_VENUE_ID_PATTERN.test(id))
+    || new Set(value.venueIds).size !== value.venueIds.length
+    || !value.venueIds.includes(value.venueId))) return undefined;
   return {
+    ...(value.venueIds ? { venueIds: value.venueIds as string[] } : {}),
     venueId: value.venueId,
     source: value.source as PlanningIntentSource,
     acceptedArea,

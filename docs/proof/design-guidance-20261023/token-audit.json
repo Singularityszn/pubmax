@@ -1,0 +1,138 @@
+{
+  "scope": "Default DOM colour subset. CSS parsed with PostCSS, YAML parsed with yaml. Excludes legacy, accessibility, component overrides and rendered contrast.",
+  "checked": 22,
+  "results": [
+    {
+      "name": "primary",
+      "token": "--brass",
+      "theme": "light",
+      "value": "#ff5a5f"
+    },
+    {
+      "name": "ink",
+      "token": "--ink",
+      "theme": "light",
+      "value": "#17171a"
+    },
+    {
+      "name": "ink-soft",
+      "token": "--ink-soft",
+      "theme": "light",
+      "value": "#3f3f46"
+    },
+    {
+      "name": "muted",
+      "token": "--muted",
+      "theme": "light",
+      "value": "#666670"
+    },
+    {
+      "name": "line",
+      "token": "--line",
+      "theme": "light",
+      "value": "#e2e0e3"
+    },
+    {
+      "name": "line-soft",
+      "token": "--line-soft",
+      "theme": "light",
+      "value": "#ece9eb"
+    },
+    {
+      "name": "paper",
+      "token": "--paper",
+      "theme": "light",
+      "value": "#f8f2ec"
+    },
+    {
+      "name": "panel",
+      "token": "--panel",
+      "theme": "light",
+      "value": "#eee7df"
+    },
+    {
+      "name": "panel-raised",
+      "token": "--panel-raised",
+      "theme": "light",
+      "value": "#fdf9f4"
+    },
+    {
+      "name": "ink-deep",
+      "token": "--ink-deep",
+      "theme": "light",
+      "value": "#0b0b0d"
+    },
+    {
+      "name": "brass",
+      "token": "--brass",
+      "theme": "light",
+      "value": "#ff5a5f"
+    },
+    {
+      "name": "brass-bright",
+      "token": "--brass-bright",
+      "theme": "light",
+      "value": "#ff7a55"
+    },
+    {
+      "name": "pint",
+      "token": "--pint",
+      "theme": "light",
+      "value": "#18a76d"
+    },
+    {
+      "name": "amber",
+      "token": "--amber",
+      "theme": "light",
+      "value": "#f2a71b"
+    },
+    {
+      "name": "brick",
+      "token": "--brick",
+      "theme": "light",
+      "value": "#b8323c"
+    },
+    {
+      "name": "river",
+      "token": "--river",
+      "theme": "light",
+      "value": "#2864d8"
+    },
+    {
+      "name": "river-bright",
+      "token": "--river-bright",
+      "theme": "light",
+      "value": "#29b6f6"
+    },
+    {
+      "name": "night-paper",
+      "token": "--paper",
+      "theme": "dark",
+      "value": "#0a0a0b"
+    },
+    {
+      "name": "night-panel",
+      "token": "--panel",
+      "theme": "dark",
+      "value": "#141416"
+    },
+    {
+      "name": "night-panel-raised",
+      "token": "--panel-raised",
+      "theme": "dark",
+      "value": "#202024"
+    },
+    {
+      "name": "night-amber",
+      "token": "--amber",
+      "theme": "dark",
+      "value": "#f0a01a"
+    },
+    {
+      "name": "night-pint",
+      "token": "--pint",
+      "theme": "dark",
+      "value": "#5fb389"
+    }
+  ]
+}

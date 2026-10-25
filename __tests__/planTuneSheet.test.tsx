@@ -186,3 +186,19 @@ describe("PlanTuneSheet", () => {
     expect(onClose).not.toHaveBeenCalled();
   });
 });
+
+it("returns focus to the supplied trigger when its body mounts after another control held focus", async () => {
+  media({ dialog: true, reduce: true });
+  (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
+  host = document.createElement("div"); document.body.append(host);
+  const trigger = document.createElement("button"); trigger.textContent = "Import a pub list";
+  const previousControl = document.createElement("input");
+  host.append(trigger, previousControl); previousControl.focus();
+  const mount = document.createElement("div"); host.append(mount); root = createRoot(mount);
+  const triggerRef = { current: trigger };
+  const render = (open: boolean) => root!.render(<PlanTuneSheet open={open} title="Import a pub list"
+    returnFocusRef={triggerRef} onClose={() => render(false)}><p>Review</p></PlanTuneSheet>);
+  await act(async () => render(true));
+  await act(async () => { window.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true })); });
+  expect(document.activeElement).toBe(trigger);
+});

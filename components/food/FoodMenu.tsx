@@ -21,6 +21,12 @@ function isDemoProvenance(prov: FoodProvenance): boolean {
   return prov.source === "seed" || prov.source.toLowerCase().includes("demo");
 }
 
+function isUsableDietaryEvidence(prov: FoodItem["dietaryProvenance"], observed: Date | null): boolean {
+  return Boolean(prov && prov.source.trim() && prov.licence.trim() &&
+    !isDemoProvenance(prov) && firstHttp(prov.sourceUrl) &&
+    observed && Number.isFinite(observed.getTime()));
+}
+
 function ProvChip({ prov, source }: { prov: FoodProvenance; source?: string }) {
   const label = provenanceLabel(prov);
   const kind = isDemoProvenance(prov) ? "demo" : "sourced";
@@ -51,8 +57,11 @@ function FoodRow({ item }: { item: FoodItem }) {
     calorieProv.source === item.provenance.source &&
     calorieProv.licence === item.provenance.licence &&
     calorieProv.observedAt === item.provenance.observedAt;
+  const dietaryProv = item.dietaryProvenance;
+  const dietaryDate = dietaryProv ? new Date(dietaryProv.observedAt) : null;
+  const hasDietaryEvidence = isUsableDietaryEvidence(dietaryProv, dietaryDate);
   const dietary =
-    item.dietary && item.dietary.length > 0
+    hasDietaryEvidence && item.dietary && item.dietary.length > 0
       ? item.dietary.map((d) => d.replace("-", " ")).join(" · ")
       : "";
   return (
@@ -60,7 +69,16 @@ function FoodRow({ item }: { item: FoodItem }) {
       <div className="drinkRowMain">
         <span className="drinkName">{item.name}</span>
         {item.description ? <span className="drinkMeta">{item.description}</span> : null}
-        {dietary ? <span className="drinkServing">{dietary}</span> : null}
+        {dietary && dietaryProv && dietaryDate ? (
+          <div className="drinkServing">
+            <span>{dietary}</span>{" "}
+            <ProvChip prov={dietaryProv} source={dietaryProv.sourceUrl} />{" "}
+            <span className="drinkObservationAge">
+              {SNAPSHOT_CAPTION_PREFIX}{" "}
+              <time dateTime={dietaryProv.observedAt}>{formatObservedDate(dietaryDate)}</time>
+            </span>
+          </div>
+        ) : null}
         {hasCalories && calorieProv && calorieDate ? (
           <div className="foodCalories drinkMeta">
             <span>{item.caloriesKcal} kcal on the menu</span>{" "}

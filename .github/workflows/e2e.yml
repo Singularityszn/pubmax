@@ -141,11 +141,12 @@ jobs:
     # Decides once, on Linux, whether this change needs the macOS layout
     # pins. The free plan runs only 5 macOS jobs at once and every pull
     # request held 3 of them, even a docs-only one whose steps were all
-    # skipped. The layout-pin jobs below read this output and are skipped
-    # whole when it is not "code", so a docs or data pull request starts no
-    # macOS runner. They are three named jobs, not a matrix: a skipped
-    # matrix job reports under its unexpanded name, but a skipped named job
-    # reports under its own name and counts as passed for branch protection.
+    # skipped. The layout-pin jobs below read the "layout" output and are
+    # skipped whole when it is not "ui", so a pull request that changes no
+    # screen code starts no macOS runner. They are three named jobs, not a
+    # matrix: a skipped matrix job reports under its unexpanded name, but a
+    # skipped named job reports under its own name and counts as passed for
+    # branch protection.
     # The layout jobs fail closed: if this job fails, they run anyway, so a
     # broken classifier can never turn a code change into a skipped (passed)
     # layout check.
@@ -153,6 +154,7 @@ jobs:
     timeout-minutes: 5
     outputs:
       scope: ${{ steps.scope.outputs.scope }}
+      layout: ${{ steps.layout.outputs.layout }}
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -179,12 +181,33 @@ jobs:
           echo "scope=$scope" >> "$GITHUB_OUTPUT"
           echo "Change scope: $scope"
 
+      - name: Classify the layout change
+        id: layout
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+        run: |
+          set -euo pipefail
+          layout=ui
+          if [ "$EVENT_NAME" = pull_request ]; then
+            layout="$(git diff --no-renames --name-only HEAD^1 HEAD | awk '
+              NF == 0 { next }
+              { files++ }
+              /^__tests__\// || /^data\// || /^public\/data\// { next }
+              /^supabase\/(migrations|rollbacks)\// || /^docs\// || /\.md$/ { next }
+              /^scripts\// || /^app\/api\// || /^app\/(.*\/)?route\.[cm]?[jt]sx?$/ { next }
+              { ui++ }
+              END { if (ui || !files) print "ui"; else print "none" }')"
+          fi
+          echo "layout=$layout" >> "$GITHUB_OUTPUT"
+          echo "Layout scope: $layout"
+
   layout-pins-1:
     name: Browser layout pins (1/3)
     # The browser specs that hold layout and chrome once held by source-text
     # unit tests (the CSS and JSX regex pins removed in the test-suite prune).
     # A regex over a stylesheet no longer guards these surfaces, so the specs
-    # that measure them run on every pull request that changes code. They are
+    # that measure them run on every pull request that changes screen code
+    # (the layout scope above). They are
     # cut into three shards on separate runners, one worker each, so the law
     # pins above keep their own clock. The three jobs share one step list
     # (the YAML anchor below) and differ only in LAYOUT_SHARD.
@@ -192,7 +215,7 @@ jobs:
     # and on ubuntu-latest (16 Oct 2026) four of them failed on a measured
     # edge, for example 7px short at 320px.
     needs: [change-scope]
-    if: ${{ !cancelled() && (needs.change-scope.result != 'success' || needs.change-scope.outputs.scope == 'code') }}
+    if: ${{ !cancelled() && (needs.change-scope.result != 'success' || needs.change-scope.outputs.layout == 'ui') }}
     runs-on: macos-latest
     timeout-minutes: 40
     env:
@@ -242,6 +265,7 @@ jobs:
           e2e/desktop-map-chrome-fit.spec.ts
           e2e/desktop-map-rail.spec.ts
           e2e/desktop-sheet-chrome-fit.spec.ts
+          e2e/feedback.spec.ts
           e2e/first-run-chrome-share.spec.ts
           e2e/first-run-tour-placement.spec.ts
           e2e/launch-phone-controls.spec.ts
@@ -283,6 +307,7 @@ jobs:
           e2e/price-source-create-action.spec.ts
           e2e/profile-avatar.spec.ts
           e2e/profile-hero-desktop.spec.ts
+          e2e/public-updates.spec.ts
           e2e/quality-floor.spec.ts
           e2e/social-composer.spec.ts
           e2e/tonight-vibe-chips.spec.ts
@@ -308,7 +333,7 @@ jobs:
   layout-pins-2:
     name: Browser layout pins (2/3)
     needs: [change-scope]
-    if: ${{ !cancelled() && (needs.change-scope.result != 'success' || needs.change-scope.outputs.scope == 'code') }}
+    if: ${{ !cancelled() && (needs.change-scope.result != 'success' || needs.change-scope.outputs.layout == 'ui') }}
     runs-on: macos-latest
     timeout-minutes: 40
     env:
@@ -318,7 +343,7 @@ jobs:
   layout-pins-3:
     name: Browser layout pins (3/3)
     needs: [change-scope]
-    if: ${{ !cancelled() && (needs.change-scope.result != 'success' || needs.change-scope.outputs.scope == 'code') }}
+    if: ${{ !cancelled() && (needs.change-scope.result != 'success' || needs.change-scope.outputs.layout == 'ui') }}
     runs-on: macos-latest
     timeout-minutes: 40
     env:

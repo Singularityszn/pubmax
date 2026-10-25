@@ -10,6 +10,7 @@ import { authedActionFetch } from "@/lib/authedFetch";
 import { discardBody } from "@/lib/responseBody";
 import { normalizeHandle } from "@/lib/profiles";
 import { safeLocalStorage } from "@/lib/safeStorage";
+import { subscribeVisiblePolling } from "@/lib/visiblePolling";
 import { useSocialFriendsLaunch } from "@/lib/useSocialFriendsLaunch";
 
 const HANDLE_KEY = "pubmax_handle";
@@ -40,13 +41,17 @@ export default function NotificationBell(): React.JSX.Element | null {
     };
   }, [authHandle, socialFriendsLaunchEnabled]);
 
+  const effectiveHandle = normalizeHandle(authHandle ?? "") || handle.trim();
+
   const refresh = useCallback(async () => {
+    if (document.visibilityState === "hidden") return;
+    if (abortRef.current && !abortRef.current.signal.aborted) return;
     if (!socialFriendsLaunchEnabled) return;
     if (!user) {
       setUnread(0);
       return;
     }
-    const h = normalizeHandle(authHandle ?? "") || handle.trim();
+    const h = effectiveHandle;
     if (!h) return;
     abortRef.current?.abort();
     const controller = new AbortController();
@@ -60,11 +65,14 @@ export default function NotificationBell(): React.JSX.Element | null {
         return;
       }
       const body = (await res.json()) as { unread?: number };
+      if (controller.signal.aborted || abortRef.current !== controller) return;
       setUnread(typeof body.unread === "number" ? body.unread : 0);
     } catch {
       // Aborted / offline — leave the badge as-is; the nav never breaks on this.
+    } finally {
+      if (abortRef.current === controller) abortRef.current = null;
     }
-  }, [handle, authHandle, socialFriendsLaunchEnabled, user]);
+  }, [effectiveHandle, socialFriendsLaunchEnabled, user]);
 
   useEffect(() => {
     if (!socialFriendsLaunchEnabled) return;
@@ -73,17 +81,9 @@ export default function NotificationBell(): React.JSX.Element | null {
       void Promise.resolve().then(() => setUnread(0));
       return;
     }
-    if (!handle.trim() && !authHandle) return;
-    void Promise.resolve().then(() => refresh());
-    const onFocus = () => void refresh();
-    window.addEventListener("focus", onFocus);
-    const interval = window.setInterval(() => void refresh(), POLL_MS);
-    return () => {
-      window.removeEventListener("focus", onFocus);
-      window.clearInterval(interval);
-      abortRef.current?.abort();
-    };
-  }, [handle, refresh, authHandle, socialFriendsLaunchEnabled, user]);
+    if (!effectiveHandle) return;
+    return subscribeVisiblePolling(() => void refresh(), POLL_MS, () => abortRef.current?.abort());
+  }, [effectiveHandle, refresh, socialFriendsLaunchEnabled, user]);
 
   // A signed-out visitor has no activity to read, so the bell is not drawn for
   // them at all (Oct 2026 UX audit): an icon with nothing behind it is noise in

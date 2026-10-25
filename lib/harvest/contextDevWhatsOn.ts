@@ -229,6 +229,36 @@ export function isPartnerFixturePage(url: string): boolean {
   return page.hostname.replace(/^www\./, "") === "greeneking.co.uk" && /\/sports\/fixtures\/?$/.test(page.pathname);
 }
 
+function cardDropReason(
+  card: ReturnType<typeof listingCards>[number],
+  lines: readonly string[],
+  pubName: string,
+  now: number,
+): string | null {
+  if (/^(?:january|february|march|april|may|june|july|august|september|october|november|december)\s*\(\d+\)$/i.test(card.title)) {
+    return "incomplete-fixture";
+  }
+  const otherVenue = /\bat (the [\p{L} '&-]+?)(?:[🎤🎭]|$)/iu.exec(card.title)?.[1];
+  const venueWords = (value: string) => value.toLowerCase().replace(/\bthe\b/g, "").replace(/[^a-z0-9]/g, "");
+  if (otherVenue && venueWords(otherVenue) !== venueWords(pubName)) {
+    return "other-venue";
+  }
+  const dates = lines.map((line) => resolveEventDate(line, now)).filter((date) => date.ok);
+  if (new Set(dates.map((date) => JSON.stringify(date.date))).size > 1) {
+    return "conflicting-dates";
+  }
+  if (/every other|fortnight|alternate|monthly|first |last |second |third |fourth /i.test(card.text)) {
+    return "unsupported-recurrence";
+  }
+  if (/\bdoors\b|sign[- ]?ups?/i.test(card.text) && !/\bstarts?\b|\bbegins?\b|\bkick[- ]?off\b/i.test(card.text)) {
+    return "doors-only";
+  }
+  if (/\b(?:UTC|GMT|BST|CET|EST|PST)\b|\d{2}:\d{2}\s*[+-]\d{2}:\d{2}/i.test(card.text)) {
+    return "explicit-timezone";
+  }
+  return null;
+}
+
 /** Parse the existing listing and hours shapes from one fresh own-site read. */
 export function readPubWhatsOn(pub: WhatsOnPub, markdown: string, sourceUrl: string, observedAt: string, asOf = observedAt) {
   const now = Date.parse(observedAt);
@@ -246,31 +276,9 @@ export function readPubWhatsOn(pub: WhatsOnPub, markdown: string, sourceUrl: str
     const named = lines.find((line) => line.length <= 80 && eventKindFrom(line));
     const kind = named ? eventKindFrom(named) : null;
     if (!kind) continue;
-    if (/^(?:january|february|march|april|may|june|july|august|september|october|november|december)\s*\(\d+\)$/i.test(card.title)) {
-      drops.push({ title: card.title, reason: "incomplete-fixture" });
-      continue;
-    }
-    const otherVenue = /\bat (the [\p{L} '&-]+?)(?:[🎤🎭]|$)/iu.exec(card.title)?.[1];
-    const venueWords = (value: string) => value.toLowerCase().replace(/\bthe\b/g, "").replace(/[^a-z0-9]/g, "");
-    if (otherVenue && venueWords(otherVenue) !== venueWords(pub.name)) {
-      drops.push({ title: card.title, reason: "other-venue" });
-      continue;
-    }
-    const dates = lines.map((line) => resolveEventDate(line, now)).filter((date) => date.ok);
-    if (new Set(dates.map((date) => JSON.stringify(date.date))).size > 1) {
-      drops.push({ title: card.title, reason: "conflicting-dates" });
-      continue;
-    }
-    if (/every other|fortnight|alternate|monthly|first |last |second |third |fourth /i.test(card.text)) {
-      drops.push({ title: card.title, reason: "unsupported-recurrence" });
-      continue;
-    }
-    if (/\bdoors\b|sign[- ]?ups?/i.test(card.text) && !/\bstarts?\b|\bbegins?\b|\bkick[- ]?off\b/i.test(card.text)) {
-      drops.push({ title: card.title, reason: "doors-only" });
-      continue;
-    }
-    if (/\b(?:UTC|GMT|BST|CET|EST|PST)\b|\d{2}:\d{2}\s*[+-]\d{2}:\d{2}/i.test(card.text)) {
-      drops.push({ title: card.title, reason: "explicit-timezone" });
+    const dropReason = cardDropReason(card, lines, pub.name, now);
+    if (dropReason) {
+      drops.push({ title: card.title, reason: dropReason });
       continue;
     }
     const starts = [...card.text.matchAll(/\b(?:starts?|begins?|kick[- ]?off)\s*(?:at|:)?\s*(\d{1,2}(?:[:.]\d{2})?\s*(?:am|pm)|\d{1,2}:\d{2})\b/gi)]

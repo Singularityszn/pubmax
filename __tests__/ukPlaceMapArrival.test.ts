@@ -5,6 +5,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 
 import UkPlaceArrivalBanner from "@/components/map/UkPlaceArrivalBanner";
+import MapLoading from "@/app/map/loading";
 import { PIN_MIN_ZOOM as UK_BASE_MIN_ZOOM } from "@/components/map/canvas/buildScene";
 import { mergeCrawlUrlSearch } from "@/components/map/useCrawlUrl";
 import { CITIES } from "@/lib/cities";
@@ -163,12 +164,9 @@ describe("UK place map arrival", () => {
   });
 
   it("keeps route-level loading copy neutral before place query is available", () => {
-    const loading = readFileSync(
-      join(process.cwd(), "components/map/MapLoadingSkeleton.tsx"),
-      "utf8",
-    );
+    const loading = renderToStaticMarkup(createElement(MapLoading));
 
-    expect(loading).toContain("UK venue map");
-    expect(loading).not.toContain("London venue map");
+    expect(loading).toContain("Loading pubs…");
+    expect(loading).not.toContain("London");
   });
 });

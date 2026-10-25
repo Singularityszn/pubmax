@@ -19,7 +19,7 @@
 
 import { SlidersHorizontal } from "lucide-react";
 import dynamic from "next/dynamic";
-import { useEffect, useId, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState, type ReactNode } from "react";
 
 import MapExperienceLensControl from "@/components/map/MapExperienceLens";
 import ZonePicker from "@/components/map/ZonePicker";
@@ -46,6 +46,8 @@ const TonightArcChips = dynamic(
 
 export default function MapVenueKindFilter({
   visibility,
+  featureFilters,
+  featureFilterCount = 0,
   experienceLens = "all",
   experienceSummary = "",
   lensAllSelected = true,
@@ -56,6 +58,8 @@ export default function MapVenueKindFilter({
   onChange,
 }: {
   visibility: VenueKindVisibility;
+  featureFilters?: ReactNode;
+  featureFilterCount?: number;
   experienceLens?: MapExperienceLens;
   /** The lens's own one-line summary, as the toolbar row used to print it. */
   experienceSummary?: string;
@@ -77,7 +81,7 @@ export default function MapVenueKindFilter({
   const buttonRef = useRef<HTMLButtonElement | null>(null);
   const hidden = hiddenVenueKindCount(visibility, experienceLens);
   const zoneParsed = zone === null ? null : parseZoneParam(zone);
-  const refinements = mapFilterRefinementCount({
+  const refinements = featureFilterCount + mapFilterRefinementCount({
     hiddenKinds: hidden,
     lensNarrowed: experienceLens !== "all",
     zoneNarrowed: zoneParsed !== null && zoneParsed !== "all",
@@ -119,7 +123,7 @@ export default function MapVenueKindFilter({
         }
         aria-expanded={open}
         aria-controls={panelId}
-        aria-label={venueKindFilterAriaLabel(refinements)}
+        aria-label={featureFilters ? `${venueKindFilterAriaLabel(refinements)}, pub features` : venueKindFilterAriaLabel(refinements)}
         onClick={() => setOpen((current) => !current)}
       >
         <SlidersHorizontal size={16} aria-hidden="true" />
@@ -140,6 +144,7 @@ export default function MapVenueKindFilter({
           role="dialog"
           aria-label="Filters"
         >
+          {featureFilters}
           <TonightArcChips
             visibility={visibility}
             experienceLens={experienceLens}

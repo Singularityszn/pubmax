@@ -78,6 +78,15 @@ export async function GET(request: Request, context: Context): Promise<Response>
   return jsonNoStore({ completion: completionLookup.completion });
 }
 
+function completionErrorResponse(error: string): Response {
+  return publicApiError(
+    error === "forbidden" ? "Only the Plan host can complete this Plan." : error === "conflict" ? "That route has changed. Refresh and try again." : error === "arrival_required" ? "Mark at least one route stop as arrived before completing this Plan." : error === "error" ? "Plan completion is temporarily unavailable." : "Could not complete this Plan.",
+    error === "error" ? "PLAN_COMPLETION_UNAVAILABLE" : error === "forbidden" ? "PLAN_COMPLETION_FORBIDDEN" : error === "not_found" ? "PLAN_NOT_FOUND" : error === "conflict" ? "PLAN_ROUTE_CONFLICT" : error === "arrival_required" ? "PLAN_ARRIVAL_REQUIRED" : "PLAN_COMPLETION_INVALID",
+    error === "forbidden" ? 403 : error === "not_found" ? 404 : error === "conflict" ? 409 : error === "error" ? 503 : 400,
+    { retryable: error === "error" || error === "conflict" },
+  );
+}
+
 export async function POST(request: Request, context: Context): Promise<Response> {
   const limiterKey = `plan-complete:${hashIp(clientIp(request))}`;
   if (await isLimited(limiterKey, limiterKey, 30)) {
@@ -121,11 +130,6 @@ export async function POST(request: Request, context: Context): Promise<Response
     ...(terminalVenueId ? { terminalVenueId } : {}),
     endingSelection: canonicalSelection,
   });
-  if (!result.ok) return publicApiError(
-    result.error === "forbidden" ? "Only the Plan host can complete this Plan." : result.error === "conflict" ? "That route has changed. Refresh and try again." : result.error === "arrival_required" ? "Mark at least one route stop as arrived before completing this Plan." : result.error === "error" ? "Plan completion is temporarily unavailable." : "Could not complete this Plan.",
-    result.error === "error" ? "PLAN_COMPLETION_UNAVAILABLE" : result.error === "forbidden" ? "PLAN_COMPLETION_FORBIDDEN" : result.error === "not_found" ? "PLAN_NOT_FOUND" : result.error === "conflict" ? "PLAN_ROUTE_CONFLICT" : result.error === "arrival_required" ? "PLAN_ARRIVAL_REQUIRED" : "PLAN_COMPLETION_INVALID",
-    result.error === "forbidden" ? 403 : result.error === "not_found" ? 404 : result.error === "conflict" ? 409 : result.error === "error" ? 503 : 400,
-    { retryable: result.error === "error" || result.error === "conflict" },
-  );
+  if (!result.ok) return completionErrorResponse(result.error);
   return verifiedCompletionResponse(result.plan, result.completion, result.created, result.created ? 201 : 200);
 }

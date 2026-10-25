@@ -276,6 +276,7 @@ test.describe("mobile landing entry", () => {
   });
 
   test("routes the primary, the quiet doors and the map link where they say", async ({ page }) => {
+    test.slow();
     await page.goto("/");
 
     await page.locator(".lpHero").getByRole("link", { name: LANDING_PRIMARY_NAME }).click();
@@ -285,11 +286,23 @@ test.describe("mobile landing entry", () => {
     await expect(page).toHaveURL(/\/near\?locate=1(?:&patch=[^&]+)?$/);
     await page.goto("/");
 
-    // The receipt door, quiet now: the pub's own Pint Drop door.
+    // The general receipt door asks which pub before it opens a blank form.
     const receipt = page.locator(".lpHero .screenSecondary a").first();
     await expect(receipt).toHaveText(LANDING_RECEIPT_NAME);
     await receipt.click();
-    await expect(page).toHaveURL(/\/map\?sel=[^&]+&log=1&price=\d+\.\d\d$|\/near$/);
+    await expect(page).toHaveURL(/\/map\?log=1$/);
+    const picker = page.locator(".logIntentFallback:visible");
+    await expect(picker).toBeVisible({ timeout: 45_000 });
+    await expect(picker.getByRole("button", { name: "Search pubs", exact: true })).toBeVisible();
+    await expect(picker.getByRole("button", { name: "Near me", exact: true })).toBeVisible();
+    await expect(page.locator(".spillPriceStep .priceStepper input")).toHaveCount(0);
+    const pub = picker.locator(".logIntentNearbyBtn").first();
+    const priceInput = page.locator(".spillPriceStep .priceStepper input");
+    await expect(async () => {
+      if (await pub.isVisible()) await pub.click({ timeout: 2_000 });
+      await expect(priceInput).toBeVisible({ timeout: 2_000 });
+    }).toPass({ timeout: 30_000 });
+    await expect(priceInput).toHaveValue("");
     await page.goto("/");
 
     await page.locator(".lpWorth").getByRole("link", { name: "Open the map" }).click();

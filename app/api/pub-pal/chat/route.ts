@@ -1,3 +1,4 @@
+import { PalChatDeadlineExceeded, assertPalChatDeadline, beforePalChatDeadline } from "@/lib/palChatDeadline";
 import { openPalConversation } from "@/lib/palOpening.server";
 import { palOpeningAcceptance, palOpeningFollowUp } from "@/lib/palOpening";
 import { readOwnedPubPalToolTurn, registerPubPalToolTurn } from "@/lib/pubPalToolTurnStore";
@@ -7,7 +8,7 @@ import { publicApiError } from "@/lib/apiError";
 import { askCardSources } from "@/lib/ask/types";
 import { jsonNoStore } from "@/lib/apiResponses";
 import { callerUserId } from "@/lib/authServer";
-import { refineRoutedAskQuery, socialTurnKind } from "@/lib/ask/router";
+import { isVenueHoursQuestion, refineRoutedAskQuery, socialTurnKind } from "@/lib/ask/router";
 import { runAsk } from "@/lib/ask/runAsk";
 import type { AskTurn } from "@/lib/ask/types";
 import { parseConciergeIntent } from "@/lib/concierge/intent";
@@ -135,28 +136,52 @@ export async function GET(request: Request): Promise<Response> {
   }
 }
 
-async function openingReply(request: Request, record: Record<string, unknown>, query: string): Promise<Response | null> {
+function openingResponse(opening: { answer: string; conversationId: string }): Response {
+  return jsonNoStore({ ...opening, cards: [], proposals: [], sources: [], toolsUsed: [], status: "ready" });
+}
+
+async function openingReply(
+  request: Request, record: Record<string, unknown>, query: string,
+  prepared?: { ownerId: string; context: PalElevenLabsChatContext },
+  onWriteStarted?: (response: Response) => void,
+): Promise<Response | null> {
   const social = socialTurnKind(query);
   const firstGreeting = social === "greeting" && !record.threadId && normaliseTurns(record.turns).length === 0;
   const threadId = typeof record.threadId === "string" && isPubPalConversationId(record.threadId) ? record.threadId : null;
   if (firstGreeting || threadId) {
-    const ownerId = await callerUserId(request);
+    const ownerId = prepared?.ownerId ?? await callerUserId(request);
     if (ownerId) {
       try {
-        if (firstGreeting) return jsonNoStore(await openPalConversation(ownerId));
-        const prior = threadId ? await readOwnedPubPalToolTurn(threadId, ownerId) : null;
+        if (firstGreeting) return jsonNoStore(await openPalConversation(
+          ownerId, prepared?.context.deadline, (opening) => onWriteStarted?.(openingResponse(opening)),
+        ));
+        const prior = prepared
+          ? prepared.context.prior.ownedTurn ?? null
+          : threadId ? await readOwnedPubPalToolTurn(threadId, ownerId) : null;
         // The sole assistant turn and matching result hint are the pending opening.
         // Clearing its hint consumes it without adding this ask to earlier history.
-        if (!threadId || !prior || prior.query || prior.turns.length !== 1 || prior.turns[0]?.role !== "assistant"
-          || prior.hints.length !== 1 || prior.hints[0] !== prior.turns[0].content) return null;
+        if (!threadId || !prior || prior.turns.length !== 1 || prior.turns[0]?.role !== "assistant"
+          || prior.hints.length !== 1) return null;
         let answer: string | null = null;
         if (palOpeningAcceptance(query)) answer = palOpeningFollowUp(query, prior.turns[0].content);
+        // A retry after an uncertain commit replays its answer without another write.
+        if (prior.query) {
+          return prepared && prior.query === query && answer && prior.hints[0] === answer
+            ? openingResponse({ answer, conversationId: threadId }) : null;
+        }
+        if (prior.hints[0] !== prior.turns[0].content) return null;
+        // The configured runner replaces the pending opening with the actual turn.
+        // Do not consume it in a separate write before a substantive ask succeeds.
+        if (prepared && !answer) return null;
+        if (prepared) assertPalChatDeadline(prepared.context.deadline);
         await registerPubPalToolTurn(threadId, {
+          deadline: prepared?.context.deadline,
+          onWriteStarted: answer ? () => onWriteStarted?.(openingResponse({ answer, conversationId: threadId })) : undefined,
           ownerId, cityId: prior.cityId, query: answer ? query : "", turns: prior.turns,
           cards: [], proposals: [], hints: answer ? [answer] : [], toolsUsed: [],
         });
         if (answer) {
-          return jsonNoStore({ answer, conversationId: threadId, cards: [], proposals: [], sources: [], toolsUsed: [], status: "ready" });
+          return openingResponse({ answer, conversationId: threadId });
         }
       } catch {
         return publicApiError("Your saved conversation could not be read just now.", "UNAVAILABLE", 503, { retryable: true });
@@ -164,6 +189,23 @@ async function openingReply(request: Request, record: Record<string, unknown>, q
     }
   }
   return null;
+}
+
+function keylessSocialReply(query: string, turns: AskTurn[]): Response | null {
+  const social = socialTurnKind(query);
+  if (!social) return null;
+  return jsonNoStore({
+    answer: social === "thanks"
+      ? "You're welcome."
+      : turns.some((turn) => turn.role === "assistant")
+        ? "Hey."
+        : "Hi. What kind of night are you planning?",
+    cards: [],
+    proposals: [],
+    sources: [],
+    status: "ready",
+    toolsUsed: [],
+  });
 }
 
 export async function POST(request: Request): Promise<Response> {
@@ -227,28 +269,25 @@ export async function POST(request: Request): Promise<Response> {
     });
   }
 
-  const opening = await openingReply(request, record, query);
-  if (opening) return opening;
+  let committingOpening: Response | undefined;
+  try {
+    const readOpening = () => openingReply(request, record, query, context ? { context, ownerId: ownerId! } : undefined,
+      (response) => { committingOpening = response; });
+    const opening = context ? await beforePalChatDeadline(context.deadline, readOpening) : await readOpening();
+    if (opening) return opening;
+  } catch (error) {
+    // Persistence can finish after the request budget. The owned opening is
+    // already a useful answer, so an in-flight commit must not become a 503.
+    if (error instanceof PalChatDeadlineExceeded && committingOpening) return committingOpening;
+    return publicApiError(PAL_ERROR_FALLBACK, "UNAVAILABLE", 503, { retryable: true });
+  }
 
   // Voice is optional. Keyless deploys still answer from the same grounded
   // tools as /api/ask, and they never call OpenRouter.
   if (!configured) {
     try {
-      const social = socialTurnKind(query);
-      if (social) {
-        return jsonNoStore({
-          answer: social === "thanks"
-            ? "You're welcome."
-            : turns.some((turn) => turn.role === "assistant")
-              ? "Hey."
-              : "Hi. What kind of night are you planning?",
-          cards: [],
-          proposals: [],
-          sources: [],
-          status: "ready",
-          toolsUsed: [],
-        });
-      }
+      const social = keylessSocialReply(query, turns);
+      if (social) return social;
       const answer = await runAsk({
         query,
         cityId: record.cityId,
@@ -256,10 +295,10 @@ export async function POST(request: Request): Promise<Response> {
         skipModel: true,
         traceRoute: "api/pub-pal/chat",
       });
-      // search_venues ranks on area, mood, budget and group size only. With
-      // none of them it lists the same arbitrary pubs for any words ("hi how
-      // are you", "sup"), so ask for one instead.
-      if (answer.toolsUsed.length === 1 && answer.toolsUsed[0] === "search_venues") {
+      // Discovery ranks on area, mood, budget and group size. Without one,
+      // it lists arbitrary pubs, so ask for a constraint. Preserve named-hours
+      // results, including refusals and read failures, before this fallback.
+      if (!isVenueHoursQuestion(query) && answer.toolsUsed.length === 1 && answer.toolsUsed[0] === "search_venues") {
         const priorUser = [...turns].reverse().find((turn) => turn.role === "user");
         const { intent } = await parseConciergeIntent(
           refineRoutedAskQuery(query, priorUser?.content, turns.filter((turn) => turn.role === "user").map((turn) => turn.content)),
@@ -305,14 +344,18 @@ export async function POST(request: Request): Promise<Response> {
     }
   }
 
-  return configuredTurn(turn, context!, request);
+  try {
+    return await configuredTurn(turn, context!, request);
+  } catch {
+    return publicApiError(PAL_ERROR_FALLBACK, "UNAVAILABLE", 503, { retryable: true });
+  }
 }
 
 async function configuredTurn(turn: PalElevenLabsChatInput, context: PalElevenLabsChatContext, request: Request): Promise<Response> {
   // The spend ceiling applies only when a provider turn is needed. The
   // address limiter, owner check and safety fence still cover local records.
   if (palChatRecordQuery(turn.query, context.prior.turns) === null) {
-    const budgetRefusal = await paidSpendBudgetRefusal("pub-pal-chat");
+    const budgetRefusal = await beforePalChatDeadline(context.deadline, () => paidSpendBudgetRefusal("pub-pal-chat"));
     if (budgetRefusal) return budgetRefusal;
   }
 

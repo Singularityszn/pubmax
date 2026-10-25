@@ -849,3 +849,67 @@ describe("Your name is asked for once, beside Lock", () => {
     expect(field?.closest(".planComposer__lock")).toBeNull();
   });
 });
+
+describe("an accepted pub without enough companion stops", () => {
+  it.each([
+    "Three pubs in central London with listed pint prices",
+    "",
+    " \t\n ",
+  ])("retracts walking after editing to %j and keeps the incomplete draft editable", async (editedQuery) => {
+    const query = "Three pubs in central London with short walks";
+    const inferredContext = inferNightContext(query).context;
+    vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo) => {
+      const url = typeof input === "string" ? input : input.url;
+      return new Response(JSON.stringify(url.includes("/api/plans/generate")
+        ? {
+            grounded: true,
+            groundingProof: "anchor-only-proof",
+            operationKey: "anchor-only-operation",
+            anchored: true,
+            anchorVenueId: HELD_ACCEPTANCE.venueId,
+            anchorSource: HELD_ACCEPTANCE.source,
+            outcome: "anchor-only",
+            routeReady: false,
+            reason: "ANCHOR_COMPANIONS_INSUFFICIENT",
+            inferredContext,
+            stops: [{ venueId: HELD_ACCEPTANCE.venueId, venueName: "The Held Arms" }],
+          }
+        : []), { status: 200, headers: { "content-type": "application/json" } });
+    }));
+    writePlanDraftEnvelope({
+      title: "Friday plan",
+      creatorName: "",
+      startTime: "",
+      conciergeQuery: "",
+      stops: [{ key: 1, venueId: HELD_ACCEPTANCE.venueId, venueName: "The Held Arms" }],
+      acceptedAnchor: {
+        ...HELD_ACCEPTANCE,
+        expiresAt: new Date(Date.now() + 60 * 60 * 1000).toISOString(),
+      },
+    }, "planning-intent", sessionStorage);
+
+    await mountComposer();
+    await act(async () => { typeInto("#plan-concierge-query", query); });
+    await act(async () => { clickButton("Make a plan"); });
+    await settleComposerEffects();
+
+    expect(document.querySelector("#plan-route-status")?.textContent).toBe(
+      "We kept The Held Arms. We could not build the 3-stop route you asked for. Change the details or add pubs.",
+    );
+    await openTuneDetails();
+    expect(document.querySelector<HTMLSelectElement>("#plan-context-stops")?.value).toBe("3");
+
+    await act(async () => {
+      typeInto("#plan-concierge-query", editedQuery);
+    });
+    await act(async () => { clickButton("Plan it again"); });
+    await settleComposerEffects();
+    const generationCalls = vi.mocked(fetch).mock.calls.filter(([input]) =>
+      String(input).includes("/api/plans/generate"),
+    );
+    const editedRequest = JSON.parse(String(generationCalls.at(-1)?.[1]?.body)) as {
+      context: { transportConstraints: string[] };
+    };
+    expect(editedRequest.context.transportConstraints).toEqual([]);
+  });
+});

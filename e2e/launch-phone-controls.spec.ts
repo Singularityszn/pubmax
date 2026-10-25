@@ -294,6 +294,63 @@ test.describe("phone controls on the launch surfaces", () => {
   }
 });
 
+// Phone target sizes must not depend on the pointer media query.
+for (const hasTouch of [false, true]) {
+  test.describe(`Discover targets with touch ${hasTouch ? "enabled" : "disabled"}`, () => {
+    test.use({ hasTouch, isMobile: hasTouch });
+
+    for (const route of ["/discover", "/social?tab=discover"]) {
+      for (const width of WIDTHS) {
+        test(`${route} keeps all three target types at 44px at ${width}px`, async ({ page }, testInfo) => {
+          await page.setViewportSize({ width, height: 844 });
+          await page.route("**/api/pint-drops", (request) => request.fulfill({
+            json: { drops: [{
+              venueId: "venue-1vle947",
+              venueName: "The Sir Christopher Hatton",
+              priceGbp: 5,
+              createdAt: new Date().toISOString(),
+            }] },
+          }));
+          const response = await page.goto(route, { waitUntil: "load" });
+          expect(response?.ok()).toBe(true);
+          const discover = page.locator(`${ROUTE_ROOTS["/discover"]}:visible`).first();
+          await expect(discover).toBeVisible();
+          // Browser emulation can report a different pointer. Geometry must hold either way.
+          const reportedPointer = await page.evaluate(() => ({
+            coarse: matchMedia("(pointer: coarse)").matches,
+            fine: matchMedia("(pointer: fine)").matches,
+          }));
+          await discover.locator("#cheap-title").scrollIntoViewIfNeeded();
+
+          const measurements = [];
+          for (const selector of [".discoverBrandChip", "a.leaderboardPub", "a.tonightPub"]) {
+            const targets = discover.locator(selector);
+            await expect(targets.first()).toBeVisible({ timeout: REQUIRED_SELECTOR_TIMEOUT_MS });
+            const sizes = await targets.evaluateAll((elements) => elements.map((element) => {
+              const rect = element.getBoundingClientRect();
+              return { width: rect.width, height: rect.height };
+            }));
+            measurements.push({ selector, sizes });
+            for (const size of sizes) {
+              expect(size.height, `${route} @${width}: ${selector}`).toBeGreaterThanOrEqual(MIN_TAP_HEIGHT_PX);
+              expect(size.width, `${route} @${width}: ${selector}`).toBeGreaterThanOrEqual(MIN_TAP_WIDTH_PX);
+            }
+          }
+          await testInfo.attach("Discover target geometry", {
+            body: JSON.stringify({ route, width, hasTouch, reportedPointer, measurements }, null, 2),
+            contentType: "application/json",
+          });
+          await discover.locator(".discoverBrandChip").first().scrollIntoViewIfNeeded();
+          await testInfo.attach("Discover brand targets", {
+            body: await page.screenshot(),
+            contentType: "image/png",
+          });
+        });
+      }
+    }
+  });
+}
+
 // THE /about PRESS-KIT FLOOR HOLDS AT A PHONE WIDTH WITHOUT THE POINTER QUERY.
 // On 16 October 2026 the macOS layout-pins shard measured these links at 93x23
 // at 390 on one attempt and 44px on the retry: 23px is their fine-pointer

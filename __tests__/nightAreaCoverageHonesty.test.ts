@@ -45,3 +45,14 @@ describe("Night Area coverage honesty", () => {
     expect(detail).not.toContain("price checks");
   });
 });
+
+it("shows existing area review dates on the public Social coverage board", async () => {
+  const { createElement } = await import("react");
+  const { renderToStaticMarkup } = await import("react-dom/server");
+  const { default: NightAreaCoverage } = await import("@/components/night/NightAreaCoverage");
+  const markup = renderToStaticMarkup(createElement(NightAreaCoverage));
+
+  expect(markup).toContain("Last checked 13 Jul 2026");
+  expect(markup).toContain("Not checked yet.");
+  expect(markup).toContain("review expired 1 Jun 2026");
+});

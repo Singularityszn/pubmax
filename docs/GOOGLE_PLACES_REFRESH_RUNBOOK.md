@@ -26,6 +26,12 @@ Anyone with the Places API key in `.env.local` who can reach `places.googleapis.
 
 ## Steps
 
+For a local preview without external requests, run `npm run enrich:google-places -- --dry-run --refresh`.
+Add `--pack=uk_cities` to inspect the shared task cap. The preview does not refresh any copied field.
+
+`--usage` reads live Google metrics. `--write --exclusive` changes daily quota overrides before requests and restores them afterwards.
+If production settings must stay unchanged, use the preview only.
+
 1. Start from fresh `main` on a new branch.
 2. Preview the push and the spend: `npm run enrich:google-places -- --dry-run --usage --refresh`. Add `--pack=uk_cities` for the UK-city pack. Check that the planned calls fit the cap it reports.
 3. Wait for any other job that shares the key to finish, then run `npm run enrich:google-places -- --write --exclusive --refresh` (with the same `--pack=`). A push that stops part way resumes with the same command without `--refresh`.

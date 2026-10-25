@@ -899,3 +899,19 @@ describe("invite loop events", () => {
     });
   });
 });
+
+describe("private pub list funnel", () => {
+  it("drops pasted text, source URLs, handles, IDs and coordinates", () => {
+    expect(sanitizeEvent("pub_list_import_started", { input_kind: "pasted_text", text: "secret", sourceUrl: "https://example.com", handle: "@person" }))
+      .toEqual({ name: "pub_list_import_started", props: { input_kind: "pasted_text" } });
+    expect(sanitizeEvent("pub_list_import_matched", { count_matched: 3, count_ambiguous: 1, count_unmatched: 2, venueId: "secret", lat: 51 }))
+      .toEqual({ name: "pub_list_import_matched", props: { count_matched: 3, count_ambiguous: 1, count_unmatched: 2 } });
+    expect(sanitizeEvent("pub_list_import_routed", { stops: 4, text: "secret" }))
+      .toEqual({ name: "pub_list_import_routed", props: { stops: 4 } });
+  });
+  it("refuses invented inputs, incomplete counts and invalid route sizes", () => {
+    expect(sanitizeEvent("pub_list_import_started", { input_kind: "handle" })).toBeNull();
+    expect(sanitizeEvent("pub_list_import_matched", { count_matched: 41 })).toBeNull();
+    expect(sanitizeEvent("pub_list_import_routed", { stops: 2 })).toBeNull();
+  });
+});

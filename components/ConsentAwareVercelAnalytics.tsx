@@ -1,13 +1,13 @@
 "use client";
 
-import { useEffect } from "react";
+import { lazy, Suspense, useEffect, useSyncExternalStore } from "react";
 
-import {
-  Analytics,
-  type BeforeSendEvent,
-} from "@vercel/analytics/next";
+import type { BeforeSendEvent } from "@vercel/analytics/next";
 
-import { analyticsCollectionAllowed, flushVerifiedAnalyticsOutbox } from "@/lib/analytics";
+import { analyticsCollectionAllowed, flushVerifiedAnalyticsOutbox, subscribeAnalyticsConsent } from "@/lib/analytics";
+
+const Analytics = lazy(() => import("@vercel/analytics/next").then((module) => ({ default: module.Analytics })));
+const serverConsent = () => false;
 
 export function consentAwareBeforeSend(
   event: BeforeSendEvent,
@@ -24,7 +24,8 @@ export function shouldMountVercelAnalytics(
 
 /** Vercel pageviews remain disabled until explicit analytics consent. */
 export default function ConsentAwareVercelAnalytics() {
+  const allowed = useSyncExternalStore(subscribeAnalyticsConsent, analyticsCollectionAllowed, serverConsent);
   useEffect(() => { void flushVerifiedAnalyticsOutbox(); }, []);
-  if (!shouldMountVercelAnalytics(process.env.NODE_ENV, process.env.VERCEL)) return null;
-  return <Analytics beforeSend={consentAwareBeforeSend} />;
+  if (!allowed || !shouldMountVercelAnalytics(process.env.NODE_ENV, process.env.VERCEL)) return null;
+  return <Suspense fallback={null}><Analytics beforeSend={consentAwareBeforeSend} /></Suspense>;
 }

@@ -2,19 +2,17 @@ import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 
-import { readFileSync } from "node:fs";
-import { join } from "node:path";
-
 import PalPortrait from "@/components/pal/PalPortrait";
 import { PAL_MASCOT_SLUGS } from "@/lib/palMascotAssets.mjs";
 import { DEFAULT_PAL_DRAFT, PAL_ONBOARDING_SPECIES } from "@/lib/pubPal";
 
-function portraitMarkup(species: typeof DEFAULT_PAL_DRAFT.appearance.species): string {
+function portraitMarkup(species: typeof DEFAULT_PAL_DRAFT.appearance.species, compact = false): string {
   return renderToStaticMarkup(
     createElement(PalPortrait, {
       appearance: { ...DEFAULT_PAL_DRAFT.appearance, species },
       name: "Pub Pal",
       state: "noticing",
+      compact,
     }),
   );
 }
@@ -66,11 +64,28 @@ describe("PalPortrait circuit robin", () => {
     expect(raven).not.toContain("/pal/circuit-");
   });
 
-  // The rigs were deleted with the captain's 2026-09-04 decision, so the
-  // component may hold no drawing of its own.
-  it("holds no SVG drawing code", () => {
-    const source = readFileSync(join(process.cwd(), "components", "pal", "PalPortrait.tsx"), "utf8");
-    expect(source).not.toContain("<svg");
-    expect(source).not.toContain("palRig");
+  // The rigs were deleted with the captain's 2026-09-04 decision: a species
+  // with a master draws its own photograph and model host, never a rig.
+  it("renders each supported species from its own master with a model host, never a rig or icon", () => {
+    for (const species of PAL_ONBOARDING_SPECIES) {
+      const html = portraitMarkup(species);
+      expect(html).toContain(`/pal/${PAL_MASCOT_SLUGS[species]}-`);
+      expect(html).toContain("data-pal-model-host");
+      expect(html).not.toContain("palRig");
+      expect(html).not.toContain("palLegacyIcon");
+      const compact = portraitMarkup(species, true);
+      expect(compact).toContain(`/pal/${PAL_MASCOT_SLUGS[species]}-`);
+      expect(compact).not.toContain("data-pal-model-host");
+    }
+  });
+
+  it("keeps the legacy hound on the greyhound master and a legacy icon off the model host", () => {
+    const hound = portraitMarkup("hound");
+    expect(hound).toContain("circuit-greyhound");
+    expect(hound).not.toContain("palLegacyIcon");
+    const raven = portraitMarkup("raven");
+    expect(raven).toMatch(/<svg\b[^>]*palLegacyIcon/);
+    expect(raven).not.toContain("data-pal-model-host");
+    expect(raven).not.toContain("palRig");
   });
 });

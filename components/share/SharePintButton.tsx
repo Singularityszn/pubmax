@@ -8,7 +8,7 @@ import { PINT_SHARE_LABEL, type PintShare } from "@/lib/pintShare";
 // The ghost text button's own sheet, worn as the primitive renders it
 // (`uiButton uiButton--ghost`), without pulling the primitive's class-merging
 // helpers into /near for one button.
-import "@/components/ui/button.css";
+import "@/components/ui/primitives.css";
 import "./sharePint.css";
 
 // "Share this pint": ONE quiet action beside a listed pint (lib/pintShare.ts).

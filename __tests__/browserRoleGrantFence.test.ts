@@ -56,6 +56,7 @@ const TABLE_SELECT: Readonly<Record<string, readonly BrowserRole[]>> = {
   profile_handle_aliases: SIGNED_IN,
   profiles: SIGNED_IN,
   pub_heritage: EVERYONE,
+  pub_list_night_drafts: SIGNED_IN,
   pub_pal_mastery_events: SIGNED_IN,
   pub_pal_memories: SIGNED_IN,
   pub_pal_voice_usage: SIGNED_IN,

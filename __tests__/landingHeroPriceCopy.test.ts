@@ -126,11 +126,8 @@ describe("landing answer card copy", () => {
     expect(unread).toContain("collected 21 August 2026.");
   });
 
-  it("opens the card pub's composer holding its figure, as the first QUIET door", () => {
-    // The receipt door stopped being the primary on 7 Sep 2026: it ends in a
-    // sign-in ask, and /near answers a stranger with no wall at all. Its label
-    // says what the tap does (UX audit 16 Oct 2026).
-    expect(html).toMatch(/class="screenSecondary"><a[^>]*href="\/map\?sel=venue-test&amp;log=1&amp;price=6\.50"[^>]*>Log what you paid<\/a>/);
+  it("opens the pub picker without a preselected pub or price", () => {
+    expect(html).toMatch(/class="screenSecondary"><a[^>]*href="\/map\?log=1"[^>]*>Log what you paid<\/a>/);
     expect(html).toMatch(/data-primary-action=""><a[^>]*href="\/near\?locate=1"[^>]*>Cheapest pints near me<\/a>/);
   });
 });

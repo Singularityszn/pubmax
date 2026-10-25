@@ -36,12 +36,12 @@ export type FiltersChipModel = {
   ariaLabel: string;
 };
 
-export const TONIGHT_LISTINGS_LABEL = "Tonight listings";
+export const TONIGHT_LISTINGS_LABEL = "Pub listings tonight";
 
 export type TonightChipModel = {
   label: typeof TONIGHT_LISTINGS_LABEL;
   count: number;
-  /** Screen-reader detail, e.g. "Tonight listings: 3" or "... near you". */
+  /** Screen-reader detail, e.g. "Pub listings tonight: 3 via What's-on" or "... near you". */
   ariaLabel: string;
 };
 
@@ -80,6 +80,8 @@ export function buildFiltersChip(input: {
   savedOnlyActive?: boolean;
   /** Open now is on (known-closed pubs dropped; unknown hours stay). */
   openNowActive?: boolean;
+  beerGardenActive?: boolean;
+  outdoorSeatingActive?: boolean;
 }): FiltersChipModel {
   const refinements =
     (input.drinkFiltersActive ? 1 : 0) +
@@ -87,7 +89,9 @@ export function buildFiltersChip(input: {
     (input.zoneActive ? 1 : 0) +
     (input.experienceLabel ? 1 : 0) +
     (input.savedOnlyActive ? 1 : 0) +
-    (input.openNowActive ? 1 : 0);
+    (input.openNowActive ? 1 : 0) +
+    (input.beerGardenActive ? 1 : 0) +
+    (input.outdoorSeatingActive ? 1 : 0);
   const parts: string[] = [];
   if (input.experienceLabel) parts.push(input.experienceLabel);
   if (input.drinkFiltersActive) parts.push("drinks");
@@ -95,6 +99,8 @@ export function buildFiltersChip(input: {
   if (input.zoneActive) parts.push("zone");
   if (input.savedOnlyActive) parts.push("saved only");
   if (input.openNowActive) parts.push("open now");
+  if (input.beerGardenActive) parts.push("beer garden");
+  if (input.outdoorSeatingActive) parts.push("outdoor seating");
   return {
     label: "Filters",
     refinements,
@@ -166,10 +172,10 @@ export function buildTonightChip(
 ): TonightChipModel | null {
   if (!Number.isFinite(rowCount) || rowCount <= 0) return null;
   const count = Math.floor(rowCount);
-  const nearSuffix = nearReader ? " near you" : "";
+  const areaSuffix = nearReader ? " near you" : " in London";
   return {
     label: TONIGHT_LISTINGS_LABEL,
     count,
-    ariaLabel: `${TONIGHT_LISTINGS_LABEL}: ${count}${nearSuffix}`,
+    ariaLabel: `${TONIGHT_LISTINGS_LABEL}: ${count} via What's-on${areaSuffix}`,
   };
 }

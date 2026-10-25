@@ -26,6 +26,33 @@ describe("area-news refresh job", () => {
     expect(() => parseArgs(["--max-result", "1"])).toThrow("Unsupported argument: --max-result");
   });
 
+  it("publishes collected facts without searching again after the candidate limit", async () => {
+    const searchFn = vi.fn()
+      .mockResolvedValueOnce([
+        { url: "https://news.example/current", published_at: "2026-08-27T09:00:00Z" },
+      ])
+      .mockRejectedValue(new Error("provider unavailable"));
+    const writeDataset = vi.fn();
+    const snapshot = await refreshAreaNews({
+      now: NOW,
+      queries: ["first", "unneeded"],
+      maxCandidates: 1,
+      searchFn,
+      fetchFn: vi.fn().mockResolvedValue({
+        url: "https://news.example/current",
+        published_at: "2026-08-27T09:00:00Z",
+        content: factContent("Current opening", "The page states this fact."),
+      }),
+      writeDataset,
+      logger: vi.fn(),
+    });
+
+    expect(snapshot.latestObservedAt).toBe("2026-08-27");
+    expect(snapshot.entries).toHaveLength(1);
+    expect(writeDataset).toHaveBeenCalledWith(snapshot);
+    expect(searchFn).toHaveBeenCalledOnce();
+  });
+
   it("fails loud when a search operation exceeds its deadline", async () => {
     const writeDataset = vi.fn();
     let receivedSignal: AbortSignal | undefined;

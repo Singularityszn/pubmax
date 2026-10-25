@@ -1,5 +1,7 @@
 import { publicApiError } from "@/lib/apiError";
 import { jsonNoStore } from "@/lib/apiResponses";
+import { isDeployedProduction } from "@/lib/deploymentEnv";
+import { log } from "@/lib/log";
 import { assertCronRequest } from "@/lib/cronAuth";
 import { socialInteractionStore } from "@/lib/socialInteractionStore";
 import {
@@ -24,6 +26,7 @@ export async function GET(request: Request): Promise<Response> {
   }
   try {
     if (!isOpenAISocialModerationConfigured()) {
+      if (isDeployedProduction()) log("error", "social_interactions.moderation_unconfigured");
       console.warn(
         "[cron:moderate-social-interactions] OPENAI_API_KEY absent: moderation queue skipped.",
       );

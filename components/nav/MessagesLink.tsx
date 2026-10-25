@@ -12,6 +12,7 @@ import { subscribeMessagesRead } from "@/lib/messagesUnreadSignal";
 import { discardBody } from "@/lib/responseBody";
 import { normalizeHandle } from "@/lib/profiles";
 import { safeLocalStorage } from "@/lib/safeStorage";
+import { subscribeVisiblePolling } from "@/lib/visiblePolling";
 
 const HANDLE_KEY = "pubmax_handle";
 const POLL_MS = 60_000;
@@ -39,12 +40,16 @@ export default function MessagesLink(): React.JSX.Element | null {
     };
   }, [authHandle]);
 
-  const refresh = useCallback(async () => {
+  const effectiveHandle = normalizeHandle(authHandle ?? "") || handle.trim();
+
+  const refresh = useCallback(async (supersede = false) => {
+    if (document.visibilityState === "hidden") return;
+    if (abortRef.current && !abortRef.current.signal.aborted && !supersede) return;
     if (!user) {
       setUnread(0);
       return;
     }
-    const h = normalizeHandle(authHandle ?? "") || handle.trim();
+    const h = effectiveHandle;
     if (!h) return;
     abortRef.current?.abort();
     const controller = new AbortController();
@@ -58,12 +63,15 @@ export default function MessagesLink(): React.JSX.Element | null {
         return;
       }
       const body = (await res.json()) as { conversations?: ConversationDTO[] };
+      if (controller.signal.aborted || abortRef.current !== controller) return;
       const total = (body.conversations ?? []).reduce((sum, c) => sum + (c.unread || 0), 0);
       setUnread(total);
     } catch {
       // aborted / offline — leave the badge as-is; the nav never breaks on this.
+    } finally {
+      if (abortRef.current === controller) abortRef.current = null;
     }
-  }, [handle, user, authHandle]);
+  }, [effectiveHandle, user]);
 
   useEffect(() => {
     // Never setState synchronously in the effect body (react-hooks/set-state-in-effect).
@@ -71,19 +79,14 @@ export default function MessagesLink(): React.JSX.Element | null {
       void Promise.resolve().then(() => setUnread(0));
       return;
     }
-    void Promise.resolve().then(() => refresh());
-    const onFocus = () => void refresh();
-    window.addEventListener("focus", onFocus);
-    // A thread that was just read says so, so the badge drops at once.
-    const unsubscribeRead = subscribeMessagesRead(onFocus);
-    const interval = window.setInterval(() => void refresh(), POLL_MS);
+    const stop = subscribeVisiblePolling(() => void refresh(), POLL_MS, () => abortRef.current?.abort());
+    // A completed thread read supersedes an older unread-count request.
+    const unsubscribeRead = subscribeMessagesRead(() => void refresh(true));
     return () => {
-      window.removeEventListener("focus", onFocus);
+      stop();
       unsubscribeRead();
-      window.clearInterval(interval);
-      abortRef.current?.abort();
     };
-  }, [handle, refresh, user]);
+  }, [refresh, user]);
 
   // A signed-out visitor has no inbox, so the link is not drawn for them at all
   // (Oct 2026 UX audit). It appears once a session exists.

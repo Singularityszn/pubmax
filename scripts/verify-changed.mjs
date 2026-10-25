@@ -226,13 +226,14 @@ const TSCONFIG_DIR = "node_modules/.cache/verify-changed";
  */
 export function checkSteps(plan) {
   // The full merge bar caps each Node heap it starts, over a higher inherited NODE_OPTIONS,
-  // and runs Vitest on one worker, over the coverage run's own maxWorkers.
+  // and runs Vitest on one worker, over the coverage run's own maxWorkers. It empties
+  // TYPESAFE_API_KEY, so no test in it can reach the provider with a key the parent inherited.
   if (plan.full) {
     return [{
       label: "full merge bar",
       command: "npm",
       args: ["run", "verify"],
-      env: { NODE_OPTIONS: "--max-old-space-size=2048", VITEST_MAX_WORKERS: "1" },
+      env: { NODE_OPTIONS: "--max-old-space-size=2048", VITEST_MAX_WORKERS: "1", TYPESAFE_API_KEY: "" },
     }];
   }
 

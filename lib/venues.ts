@@ -294,7 +294,13 @@ export type Venue = {
   accessibility?: VenueAccessibility;
 };
 
+export type VenueFeatureObservation = readonly [
+  value: boolean, source: "OpenStreetMap" | "Google Places", observedAt: string,
+];
+
 export type VenueFilterHints = {
+  outdoorSeating?: VenueFeatureObservation;
+  beerGardenSource?: VenueFeatureObservation;
   searchText: string;
   amenities: {
     food: boolean;
@@ -359,6 +365,7 @@ export type Filters = {
   stopCount: number;
   routeWindow: number;
   requireBeerGarden: boolean;
+  requireOutdoorSeating?: boolean;
   requireNonAlcoholic: boolean;
   requireLiveSports: boolean;
   requireFood: boolean;
@@ -413,6 +420,7 @@ export const initialFilters: Filters = {
   stopCount: 6,
   routeWindow: 20,
   requireBeerGarden: false,
+  requireOutdoorSeating: false,
   requireNonAlcoholic: false,
   requireLiveSports: false,
   requireFood: false,
@@ -1141,14 +1149,36 @@ function matchesVenueQuery(venue: Venue, query: string): boolean {
   return hasSlimFlag(venue, (hints) => hints.searchText.includes(query));
 }
 
+function positiveFeatureSource(
+  observation: VenueFeatureObservation | undefined,
+  sources: readonly VenueFeatureObservation[1][],
+): boolean {
+  if (observation?.[0] !== true || !sources.includes(observation[1])) return false;
+  const observedAt = Date.parse(observation[2]);
+  return Number.isFinite(observedAt) && observedAt <= Date.now();
+}
+
 function matchesVenueAmenities(venue: Venue, filters: Filters): boolean {
+  if (filters.requireBeerGarden) {
+    // A blank source column is unknown, not a denial of the dated OSM fact.
+    // Keep an explicit absence authoritative instead of overwriting its status.
+    if (venueAmenityStatus(venue).beerGarden === "known-false") return false;
+    const gardenSource = venue.filterHints?.beerGardenSource;
+    const gardenKnown = venue.amenities.beerGarden
+      || positiveFeatureSource(gardenSource, ["OpenStreetMap"])
+      || (!gardenSource && hasSlimFlag(venue, (hints) => hints.amenities.beerGarden));
+    if (!gardenKnown) return false;
+  }
   const checks = [
-    [filters.requireBeerGarden, venue.amenities.beerGarden, (hints: VenueFilterHints) => hints.amenities.beerGarden],
     [filters.requireNonAlcoholic, venue.amenities.nonAlcoholic, (hints: VenueFilterHints) => hints.amenities.nonAlcoholic],
     [filters.requireLiveSports, venue.amenities.liveSports, (hints: VenueFilterHints) => hints.amenities.liveSports],
     [filters.requireFood, venue.amenities.food, (hints: VenueFilterHints) => hints.amenities.food],
     [filters.requireCocktails, venue.amenities.cocktails, (hints: VenueFilterHints) => hints.amenities.cocktails],
   ] as const;
+  const outdoorStated = positiveFeatureSource(
+    venue.filterHints?.outdoorSeating, ["OpenStreetMap", "Google Places"],
+  );
+  if (filters.requireOutdoorSeating && !outdoorStated) return false;
   return checks.every(([required, detailedValue, pickHint]) => {
     return !required || detailedValue || hasSlimFlag(venue, pickHint);
   });

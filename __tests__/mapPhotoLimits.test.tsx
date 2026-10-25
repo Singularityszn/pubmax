@@ -35,6 +35,12 @@ import VenuePriceSubmit from "@/components/map/VenuePriceSubmit";
 import { usePintDrops, type PintDropsState, type PhotoSlotName } from "@/components/map/usePintDrops";
 import type { CommunityPricesState } from "@/components/map/useCommunityPrices";
 import { UPLOAD_PHOTO_MAX_BYTES } from "@/lib/uploadBodyLimit";
+import {
+  PINT_PHOTO_ACTION,
+  PINT_PHOTO_FUN_LINE,
+  RECEIPT_PHOTO_ACTION,
+  RECEIPT_REQUIRED_LINE,
+} from "@/lib/pintDropReceipt";
 
 let container: HTMLDivElement;
 let root: Root;
@@ -127,6 +133,36 @@ describe.each([false, true])("the quick price composer with native=%s", (native)
     const price = container.querySelector<HTMLButtonElement>(".vpsubQuickChip");
     if (!price) throw new Error("Price chip did not render");
     await act(async () => { price.click(); });
+  });
+
+  it("asks for the bill first, then offers the pint, and removes each photo on its own", async () => {
+    const rows = () => Array.from(container.querySelectorAll(".vpsubPhotoRow"));
+    const why = () => Array.from(container.querySelectorAll(".vpsubPhotoWhy"), (line) => line.textContent);
+    const removes = () => Array.from(container.querySelectorAll<HTMLButtonElement>(".vpsubPhotoClear"));
+    expect(rows()).toHaveLength(1);
+    expect(why()).toEqual([RECEIPT_REQUIRED_LINE]);
+    expect(removes()).toHaveLength(0);
+    expect(container.querySelector("[data-testid=receipt-photo-btn]")?.textContent).toBe(RECEIPT_PHOTO_ACTION);
+    expect(container.querySelector("[data-testid=pint-photo-btn]")).toBeNull();
+
+    const accepted = photo(UPLOAD_PHOTO_MAX_BYTES);
+    await choose("receipt", accepted);
+    expect(rows()).toHaveLength(2);
+    expect(why()).toEqual([PINT_PHOTO_FUN_LINE]);
+    expect(removes()).toHaveLength(1);
+    expect(container.querySelector("[data-testid=pint-photo-btn]")?.textContent).toBe(PINT_PHOTO_ACTION);
+
+    await choose("pint", accepted);
+    expect(removes()).toHaveLength(2);
+    expect(removes().every((button) => !button.disabled)).toBe(true);
+    await act(async () => { removes()[1]!.click(); });
+    expect(container.querySelector("[data-testid=pint-photo-btn]")?.textContent).toBe(PINT_PHOTO_ACTION);
+    expect(container.querySelector("[data-testid=receipt-photo-btn]")?.textContent).toBe("Change the bill");
+
+    await act(async () => { removes()[0]!.click(); });
+    expect(rows()).toHaveLength(1);
+    expect(why()).toEqual([RECEIPT_REQUIRED_LINE]);
+    expect(container.querySelector<HTMLButtonElement>(".vpsubLog")?.disabled).toBe(true);
   });
 
   it.each(["receipt", "pint"] as const)("refuses an oversized %s and recovers when a supported photo is chosen", async (slot) => {

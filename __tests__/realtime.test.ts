@@ -19,6 +19,11 @@ let capturedEvent: string | null = null;
 let capturedChannel: { name: string; privateChannel: boolean | undefined } | null = null;
 let subscribeCb: ((status: string) => void) | null = null;
 let removed = false;
+let initialSession: object | null = {};
+let authChanged: ((_event: string, session: object | null) => void) | null = null;
+let authRemoved = false;
+let clientReady = true;
+let loadClient = () => Promise.resolve(fakeSupabase);
 
 function makeFakeChannel() {
   return {
@@ -35,6 +40,13 @@ function makeFakeChannel() {
 }
 
 const fakeSupabase = {
+  auth: {
+    onAuthStateChange(callback: (_event: string, session: object | null) => void) {
+      authChanged = callback;
+      queueMicrotask(() => callback("INITIAL_SESSION", initialSession));
+      return { data: { subscription: { unsubscribe: () => { authRemoved = true; } } } };
+    },
+  },
   channel: (name: string, opts?: { config?: { private?: boolean } }) => {
     capturedChannel = { name, privateChannel: opts?.config?.private };
     return makeFakeChannel();
@@ -45,7 +57,8 @@ const fakeSupabase = {
 };
 
 vi.mock("@/lib/authClient", () => ({
-  getSupabaseBrowser: () => fakeSupabase,
+  getSupabaseBrowser: () => clientReady ? fakeSupabase : null,
+  ensureSupabaseBrowser: () => loadClient(),
   isAuthConfigured: () => true,
 }));
 
@@ -59,6 +72,12 @@ import {
 } from "@/lib/realtime";
 
 beforeEach(() => {
+  vi.stubGlobal("window", {});
+  initialSession = {};
+  authChanged = null;
+  authRemoved = false;
+  clientReady = true;
+  loadClient = () => Promise.resolve(fakeSupabase);
   capturedHandler = null;
   capturedEvent = null;
   capturedChannel = null;
@@ -111,9 +130,10 @@ describe("countSpillingNow (pure)", () => {
 });
 
 describe("subscribeToNewDrops — SIGNAL ONLY", () => {
-  it("fires the nudge on a private broadcast WITHOUT passing the payload", () => {
+  it("fires the nudge on a private broadcast WITHOUT passing the payload", async () => {
     const nudge = vi.fn();
     const unsub = subscribeToNewDrops(nudge);
+    await vi.advanceTimersByTimeAsync(0);
     // Simulate a successful channel join so the watchdog is cancelled.
     subscribeCb?.("SUBSCRIBED");
     expect(capturedHandler).toBeTypeOf("function");
@@ -136,11 +156,13 @@ describe("subscribeToNewDrops — SIGNAL ONLY", () => {
 
     unsub();
     expect(removed).toBe(true);
+    expect(authRemoved).toBe(true);
   });
 
-  it("falls back to polling on a 30s interval if the channel never joins", () => {
+  it("falls back to polling on a 30s interval if the channel never joins", async () => {
     const poll = vi.fn();
     const unsub = subscribeToNewDrops(() => {}, { poll });
+    await vi.advanceTimersByTimeAsync(0);
     // Never call subscribeCb('SUBSCRIBED') — let the join watchdog (5s) fire.
     vi.advanceTimersByTime(5_000);
     // Now the poll interval (30s) should be running.
@@ -151,14 +173,76 @@ describe("subscribeToNewDrops — SIGNAL ONLY", () => {
     unsub();
   });
 
-  it("falls back to polling if the channel errors mid-session", () => {
+  it("falls back to polling if the channel errors mid-session", async () => {
     const poll = vi.fn();
     const unsub = subscribeToNewDrops(() => {}, { poll });
+    await vi.advanceTimersByTimeAsync(0);
     subscribeCb?.("SUBSCRIBED"); // joins fine
     subscribeCb?.("CHANNEL_ERROR"); // then drops
     vi.advanceTimersByTime(30_000);
     expect(poll).toHaveBeenCalledTimes(1);
     unsub();
+  });
+
+  it("starts on the poll lane, joins after sign-in and detaches after sign-out", async () => {
+    initialSession = null;
+    const nudge = vi.fn();
+    const poll = vi.fn();
+    const unsub = subscribeToNewDrops(nudge, { poll });
+    await vi.advanceTimersByTimeAsync(30_000);
+    expect(capturedChannel).toBeNull();
+    expect(poll).toHaveBeenCalledTimes(1);
+    authChanged?.("SIGNED_IN", {});
+    await vi.advanceTimersByTimeAsync(0);
+    subscribeCb?.("SUBSCRIBED");
+    expect(capturedChannel?.privateChannel).toBe(true);
+    const previousSignal = capturedHandler;
+    authChanged?.("SIGNED_OUT", null);
+    await vi.advanceTimersByTimeAsync(0);
+    previousSignal?.({});
+    expect(removed).toBe(true);
+    expect(nudge).not.toHaveBeenCalled();
+    await vi.advanceTimersByTimeAsync(30_000);
+    expect(poll).toHaveBeenCalledTimes(2);
+    unsub();
+  });
+
+  it("upgrades a cold client to live delivery and stops its temporary poll", async () => {
+    clientReady = false;
+    let loaded!: (value: typeof fakeSupabase) => void;
+    loadClient = () => new Promise((resolve) => { loaded = resolve; });
+    const poll = vi.fn();
+    const unsub = subscribeToNewDrops(vi.fn(), { poll });
+    await vi.advanceTimersByTimeAsync(30_000);
+    expect(poll).toHaveBeenCalledTimes(1);
+    loaded(fakeSupabase);
+    await vi.advanceTimersByTimeAsync(0);
+    subscribeCb?.("SUBSCRIBED");
+    await vi.advanceTimersByTimeAsync(30_000);
+    expect(poll).toHaveBeenCalledTimes(1);
+    unsub();
+  });
+
+  it("does not attach when the client finishes loading after cleanup", async () => {
+    clientReady = false;
+    let loaded!: (value: typeof fakeSupabase) => void;
+    loadClient = () => new Promise((resolve) => { loaded = resolve; });
+    const poll = vi.fn();
+    const unsub = subscribeToNewDrops(vi.fn(), { poll });
+    unsub();
+    loaded(fakeSupabase);
+    await vi.advanceTimersByTimeAsync(60_000);
+    expect(capturedChannel).toBeNull();
+    expect(authChanged).toBeNull();
+    expect(poll).not.toHaveBeenCalled();
+  });
+
+  it("ignores an auth event already queued when the caller unmounts", async () => {
+    const unsub = subscribeToNewDrops(vi.fn(), { poll: vi.fn() });
+    unsub();
+    await vi.advanceTimersByTimeAsync(0);
+    expect(capturedChannel).toBeNull();
+    expect(authRemoved).toBe(true);
   });
 });
 

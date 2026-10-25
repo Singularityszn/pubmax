@@ -1,6 +1,12 @@
 # Design System: Taste Standard
 **Skill:** stitch-design-taste
 
+> This is an optional example for a new project with no existing design system.
+> It is not the PUBMAXX design contract. For PUBMAXX, read the repository-root
+> [DESIGN.md](../../../DESIGN.md) and [engineering guide](../../../docs/DESIGN_SYSTEM.md).
+> Their fonts, colours, components, motion, and accessibility rules take precedence.
+> Do not copy this example's font bans, permanent animations, or sample values into PUBMAXX.
+
 ---
 
 ## Configuration — Set Your Style

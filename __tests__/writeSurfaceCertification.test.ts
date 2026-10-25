@@ -201,7 +201,9 @@ describe("mutating API surface certification", () => {
     // 157: plus POST for Social photos 2 to 4.
     // 159: plus POST and DELETE for your pubs in your own order (0186).
     // 161: plus POST /api/venue-submissions and POST /api/admin/venue-submissions (Add a pub).
-    expect(mutationHandlers).toHaveLength(161);
+    // 162: plus the anonymous POST /api/mcp transport.
+    // 163: plus the signed-in POST /api/pub-list-import entry point.
+    expect(mutationHandlers).toHaveLength(163);
     expect(certifiedMutationHandlers()).toEqual(
       mutationHandlers.map(mutationHandlerKey),
     );

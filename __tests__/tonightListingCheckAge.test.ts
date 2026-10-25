@@ -83,8 +83,17 @@ describe("a Tonight listing must have been checked within the day", () => {
     });
     expect(observedAt).toBeNull();
     const credits = tonightProvenanceCredits({
+      whatsOnRows: [],
       renderedGroups: groupTonightListings([], null),
-      outEvents: [],
+      out: {
+        body: {
+          status: "degraded",
+          venueMatch: "ready",
+          events: [],
+        },
+        failed: false,
+        pending: false,
+      },
       whatsOnChecked: null,
     });
     expect(credits.whatsOn).not.toMatch(/listing/);

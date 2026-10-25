@@ -50,7 +50,7 @@ afterEach(() => {
 describe.each(variants)("$label service-night races", ({ options, url }) => {
   it.each(nights)("rejects a late previous-night answer and reuses only the new snapshot during $label", async ({ before, after }) => {
     vi.setSystemTime(new Date(before));
-    let release = (_response: Response) => {};
+    let release: (response: Response) => void = () => {};
     const current = answer("current", after);
     const fetchImpl = vi.fn<typeof fetch>()
       .mockImplementationOnce(() => new Promise<Response>((resolve) => { release = resolve; }))
@@ -78,7 +78,7 @@ describe.each(variants)("$label service-night races", ({ options, url }) => {
 
   it.each(nights)("starts a separate read for a post-rollover caller while the previous read is pending during $label", async ({ before, after }) => {
     vi.setSystemTime(new Date(before));
-    let release = (_response: Response) => {};
+    let release: (response: Response) => void = () => {};
     const current = answer("current", after);
     const fetchImpl = vi.fn<typeof fetch>()
       .mockImplementationOnce(() => new Promise<Response>((resolve) => { release = resolve; }))
@@ -131,7 +131,7 @@ describe.each(variants)("$label service-night races", ({ options, url }) => {
 
 it("still joins a same-night read made by another surface when one caller cancels", async () => {
   vi.setSystemTime(new Date(nights[0].before));
-  let release = (_response: Response) => {};
+  let release: (response: Response) => void = () => {};
   const fetchImpl = vi.fn<typeof fetch>(() => new Promise<Response>((resolve) => { release = resolve; }));
   const controller = new AbortController();
   const gone = vi.fn();

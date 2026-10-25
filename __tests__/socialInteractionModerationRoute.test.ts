@@ -70,6 +70,20 @@ describe("Social interaction moderation worker", () => {
     expect(processModerationQueue).not.toHaveBeenCalled();
   });
 
+  it("alerts an operator when deployed production cannot moderate", async () => {
+    vi.stubEnv("OPENAI_API_KEY", "");
+    vi.stubEnv("VERCEL_ENV", "production");
+    const logged = vi.spyOn(console, "error").mockImplementation(() => {});
+    const { GET } = await import("@/app/api/cron/moderate-social-interactions/route");
+    const response = await GET(new Request("http://localhost/api/cron/moderate-social-interactions", {
+      headers: { Authorization: "Bearer cron-secret" },
+    }));
+    expect(response.status).toBe(200);
+    expect(await response.json()).toMatchObject({ ok: true, skipped: "openai_not_configured" });
+    expect(logged.mock.calls.some(([line]) => String(line).includes('"event":"social_interactions.moderation_unconfigured"'))).toBe(true);
+    logged.mockRestore();
+  });
+
   it("skips before claiming jobs when OpenAI moderation is not configured", async () => {
     vi.stubEnv("OPENAI_API_KEY", "");
     const { GET } = await import("@/app/api/cron/moderate-social-interactions/route");

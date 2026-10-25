@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
+import { useCallback, useRef, useState, useSyncExternalStore } from "react";
 import { X } from "lucide-react";
 
 import {
@@ -145,22 +145,6 @@ export default function CitySuggestBanner({
       { enableHighAccuracy: false, timeout: 5000, maximumAge: 60_000 },
     );
   }, [cityId, loadPlaces, onLocationFound]);
-
-  // Reuse an already-granted permission without prompting again. A first-time
-  // visitor still has to tap Near me, preserving the Home Area privacy boundary.
-  useEffect(() => {
-    if (typeof navigator === "undefined" || !("permissions" in navigator)) return;
-    let cancelled = false;
-    navigator.permissions
-      .query({ name: "geolocation" })
-      .then((permission) => {
-        if (!cancelled && permission.state === "granted") checkNearby();
-      })
-      .catch(() => {});
-    return () => {
-      cancelled = true;
-    };
-  }, [checkNearby]);
 
   if (!visible) {
     return null;

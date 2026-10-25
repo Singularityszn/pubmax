@@ -42,6 +42,8 @@ import { readRememberedPlanHostName, rememberPlanHostName } from "@/lib/planHost
 import { cleanCultureOpener, type CultureOpenerDTO } from "@/lib/cultureCrawl";
 import { readLastCrew, subscribeLastCrew } from "@/lib/lastCrew";
 import { getNightArea, isNightAreaRouteReady, NIGHT_AREAS, type NightArea } from "@/lib/nightAreas";
+import { nightAreaCoverageMeta } from "@/lib/nightPresentation";
+export { nightAreaCoverageMeta } from "@/lib/nightPresentation";
 import { nearestNightPatch } from "@/lib/nearestNightPatch";
 import { venueAreaClaim } from "@/lib/venueTruth";
 import {
@@ -334,6 +336,30 @@ export function generatedPlanAnchorFromResponse(value: unknown): GeneratedPlanAn
     source: row.anchorSource,
     outcome: row.outcome,
   });
+}
+
+function generatedRouteFeedback(input: {
+  inferredContext: NightContext | undefined;
+  submittedContext: Partial<NightContext>;
+  generatedAnchor: GeneratedPlanAnchor | null;
+  suggested: DraftStop[];
+}): { reconciled: NightContext | null; conciergeNote: string; routeStatus: string } {
+  const { inferredContext, submittedContext, generatedAnchor, suggested } = input;
+  const anchorOnly = generatedAnchor?.outcome === "anchor-only";
+  const reconciled = inferredContext
+    ? reconcileGeneratedNightContext(
+        inferredContext,
+        submittedContext,
+        anchorOnly ? normalizePlanStopCount(inferredContext.stopCount) : suggested.length,
+      )
+    : null;
+  const routeStatus = anchorOnly
+    ? `We kept ${suggested[0]!.venueName}. We could not build the ${normalizePlanStopCount(reconciled?.stopCount)}-stop route you asked for. Change the details or add pubs.`
+    : "Route refreshed. Review the preview, then lock it in when it feels right.";
+  const conciergeNote = anchorOnly
+    ? routeStatus
+    : `${planStopCountPhrase(suggested.length)} we can stand behind, shaped by the outing you set.`;
+  return { reconciled, conciergeNote, routeStatus };
 }
 
 /** Validate attribution returned by POST /api/plans; never source it from draft storage. */
@@ -1114,30 +1140,6 @@ export function nightAreaCoverageSummary(
   }
 }
 
-function formatCoverageDate(value: string | null): string | null {
-  if (!value) return null;
-  const timestamp = Date.parse(value);
-  if (!Number.isFinite(timestamp)) return null;
-  return new Intl.DateTimeFormat("en-GB", {
-    day: "numeric",
-    month: "short",
-    year: "numeric",
-    timeZone: "UTC",
-  }).format(new Date(timestamp));
-}
-
-/** Keep the review window visible anywhere coverage is presented. */
-export function nightAreaCoverageMeta(area: NightArea, now = new Date()): string {
-  const reviewed = formatCoverageDate(area.lastReviewedAt);
-  const expires = formatCoverageDate(area.reviewExpiresAt);
-  if (!reviewed) return "Not checked yet.";
-  if (!expires) return `Last checked ${reviewed}.`;
-  const expiry = Date.parse(area.reviewExpiresAt ?? "");
-  if (Number.isFinite(expiry) && expiry <= now.getTime()) {
-    return `Last checked ${reviewed} · review expired ${expires}.`;
-  }
-  return `Last checked ${reviewed} · review through ${expires}.`;
-}
 
 function nextEvening(): string {
   return defaultLondonStartInput();
@@ -2256,9 +2258,13 @@ function PlanComposerForm({
       setRouteSorted(true);
       setCultureOpener(cleanCultureOpener(body.cultureOpener));
       const grounded = isGroundedGeneratedRoute(body, suggested);
-      const reconciled = body.inferredContext
-        ? reconcileGeneratedNightContext(body.inferredContext as NightContext, submittedContext, suggested.length)
-        : null;
+      const generatedAnchor = generatedPlanAnchorFromResponse(body);
+      const { reconciled, conciergeNote, routeStatus: generationStatus } = generatedRouteFeedback({
+        inferredContext: body.inferredContext,
+        submittedContext,
+        generatedAnchor,
+        suggested,
+      });
       if (reconciled) {
         setNightContext(reconciled);
         if (!user) writeDeviceNightContext(reconciled);
@@ -2268,15 +2274,15 @@ function PlanComposerForm({
       setRouteStale(false);
       setGroundingProof(typeof body.groundingProof === "string" ? body.groundingProof : null);
       setCreateOperationKey(typeof body.operationKey === "string" ? body.operationKey : null);
-      setPlanAnchor(generatedPlanAnchorFromResponse(body));
+      setPlanAnchor(generatedAnchor);
       markPalRouteActivation();
       if (new URLSearchParams(window.location.search).get("from") === "onboarding") {
         recordPlanHighIntentAction();
       }
       trackEvent("plan_started");
       trackEvent("plan_generated", { stops: suggested.length, grounded });
-      setConciergeNote(`${planStopCountPhrase(suggested.length)} we can stand behind, shaped by the outing you set.`);
-      setRouteStatus("Route refreshed. Review the preview, then lock it in when it feels right.");
+      setConciergeNote(conciergeNote);
+      setRouteStatus(generationStatus);
       setRouteRevealTick((tick) => tick + 1);
       setRouteDrawKey(suggested.map((stop) => stop.venueId).join(">"));
       if (body.inferredContext) {

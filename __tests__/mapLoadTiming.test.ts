@@ -69,6 +69,7 @@ beforeEach(() => {
 
 afterEach(() => {
   vi.useRealTimers();
+  vi.restoreAllMocks();
   vi.resetModules();
   vi.unstubAllEnvs();
   posthogState.captures = [];
@@ -136,6 +137,61 @@ describe("map_load_timing event shape", () => {
 });
 
 describe("map_load_timing at the browser SDK boundary", () => {
+  it("keeps bounded stage clocks as integers through both sanitizers", async () => {
+    const { sanitizePosthogEvent } = await import("@/lib/posthogClient");
+    const raw = {
+      ...PAINTED,
+      map_chunk_ready_ms: 0,
+      slim_venues_ready_ms: 650.4,
+      map_style_load_ms: 850.6,
+      map_icons_ready_ms: 1_000,
+      pubs_source_loaded_ms: 86_400_000,
+    };
+    const expected = {
+      ...PAINTED,
+      map_chunk_ready_ms: 0,
+      slim_venues_ready_ms: 650,
+      map_style_load_ms: 851,
+      map_icons_ready_ms: 1_000,
+      pubs_source_loaded_ms: 86_400_000,
+    };
+    expect(sanitizeMapLoadTimingProps(raw)).toEqual(expected);
+    expect(sanitizePosthogEvent({
+      uuid: UUID,
+      event: MAP_LOAD_TIMING_EVENT,
+      properties: { ...raw, distinct_id: ANON },
+    })?.properties).toMatchObject(expected);
+  });
+
+  it.each([
+    undefined, null, -1, Number.NaN, Number.POSITIVE_INFINITY,
+    Number.NEGATIVE_INFINITY, 86_400_001, "650", "https://private.example/?handle=secret",
+  ])("omits invalid stage clocks (%s) through both sanitizers", async (invalid) => {
+    const { sanitizePosthogEvent } = await import("@/lib/posthogClient");
+    const raw = {
+      ...PAINTED,
+      map_chunk_ready_ms: invalid,
+      slim_venues_ready_ms: invalid,
+      map_style_load_ms: invalid,
+      map_icons_ready_ms: invalid,
+      pubs_source_loaded_ms: invalid,
+    };
+    expect(sanitizeMapLoadTimingProps(raw)).toEqual(PAINTED);
+    const sanitized = sanitizePosthogEvent({
+      uuid: UUID,
+      event: MAP_LOAD_TIMING_EVENT,
+      properties: { ...raw, distinct_id: ANON },
+    });
+    expect(sanitized?.properties).toMatchObject(PAINTED);
+    for (const key of [
+      "map_chunk_ready_ms", "slim_venues_ready_ms", "map_style_load_ms",
+      "map_icons_ready_ms", "pubs_source_loaded_ms",
+    ]) {
+      expect(sanitized?.properties).not.toHaveProperty(key);
+    }
+    expect(JSON.stringify(sanitized)).not.toMatch(/private|secret/);
+  });
+
   it("passes before_send with the closed shape and a query-free URL", async () => {
     const { sanitizePosthogEvent } = await import("@/lib/posthogClient");
     const event: CaptureResult = {
@@ -143,6 +199,11 @@ describe("map_load_timing at the browser SDK boundary", () => {
       event: MAP_LOAD_TIMING_EVENT,
       properties: {
         ...PAINTED,
+        map_chunk_ready_ms: 500,
+        slim_venues_ready_ms: 700,
+        map_style_load_ms: 1_000,
+        map_icons_ready_ms: 1_400,
+        pubs_source_loaded_ms: 1_900,
         token: "phc_public",
         distinct_id: ANON,
         $device_id: ANON,
@@ -154,6 +215,13 @@ describe("map_load_timing at the browser SDK boundary", () => {
     const sanitized = sanitizePosthogEvent(event);
     expect(sanitized?.event).toBe(MAP_LOAD_TIMING_EVENT);
     expect(sanitized?.properties).toMatchObject(PAINTED);
+    expect(sanitized?.properties).toMatchObject({
+      map_chunk_ready_ms: 500,
+      slim_venues_ready_ms: 700,
+      map_style_load_ms: 1_000,
+      map_icons_ready_ms: 1_400,
+      pubs_source_loaded_ms: 1_900,
+    });
     expect(sanitized?.properties.$pathname).toBe("/map");
     expect(sanitized?.properties.$current_url).toBe("https://pubmaxxing.com/map");
     expect(JSON.stringify(sanitized)).not.toMatch(/secret|example\.com/);
@@ -300,6 +368,87 @@ describe("startMapLoadTiming", () => {
     });
     return { capture, stop, markPubmaxTiming };
   }
+
+  it("captures the first loading stages after a late mount on the document clock", async () => {
+    grantConsent();
+    const now = vi.spyOn(performance, "now").mockReturnValue(3_600_000);
+    performance.mark("pubmax:map-chunk-ready", { startTime: 100 });
+    performance.mark("pubmax:slim-venues-ready", { startTime: 200 });
+    performance.mark("pubmax:map-style-load", { startTime: 300 });
+    performance.mark("pubmax:map-icons-ready", { startTime: 400 });
+    performance.mark("pubmax:pubs-source-loaded", { startTime: 500 });
+    performance.mark("pubmax:pins-visible", { startTime: 600 });
+
+    const { capture, stop } = await start({ mountMs: 3_600_000 });
+    performance.mark("pubmax:map-chunk-ready", { startTime: 3_600_100 });
+    performance.mark("pubmax:slim-venues-ready", { startTime: 3_600_200 });
+    performance.mark("pubmax:map-style-load", { startTime: 3_600_300 });
+    performance.mark("pubmax:map-icons-ready", { startTime: 3_600_400 });
+    performance.mark("pubmax:pubs-source-loaded", { startTime: 3_600_500 });
+    performance.mark("pubmax:map-chunk-ready", { startTime: 3_600_700 });
+    performance.mark("pubmax:slim-venues-ready", { startTime: 3_600_800 });
+    performance.mark("pubmax:map-style-load", { startTime: 3_600_900 });
+    performance.mark("pubmax:map-icons-ready", { startTime: 3_601_000 });
+    performance.mark("pubmax:pubs-source-loaded", { startTime: 3_601_100 });
+    performance.mark("pubmax:pins-visible", { startTime: 3_601_200 });
+    now.mockReturnValue(3_601_250);
+    window.dispatchEvent(new Event("pubmax:pins-visible"));
+    window.dispatchEvent(new Event("pubmax:pins-visible"));
+    window.dispatchEvent(new PageTransitionEvent("pagehide", { persisted: false }));
+    stop();
+
+    expect(capture.mock.calls).toEqual([
+      [expect.objectContaining({
+        outcome: "painted",
+        mount_ms: 3_600_000,
+        elapsed_ms: 3_601_250,
+        map_chunk_ready_ms: 3_600_100,
+        slim_venues_ready_ms: 3_600_200,
+        map_style_load_ms: 3_600_300,
+        map_icons_ready_ms: 3_600_400,
+        pubs_source_loaded_ms: 3_600_500,
+        pins_visible_ms: 3_601_200,
+      }), {}],
+    ]);
+  });
+
+  it.each(["painted", "timeout", "abandoned"] as const)(
+    "leaves missing stages absent on one %s outcome",
+    async (outcome) => {
+      grantConsent();
+      vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+      const now = vi.spyOn(performance, "now").mockReturnValue(3_600_000);
+      performance.mark("pubmax:slim-venues-ready", { startTime: 100 });
+      performance.mark("pubmax:map-style-load", { startTime: 200 });
+      performance.mark("pubmax:map-icons-ready", { startTime: 300 });
+      performance.mark("pubmax:pubs-source-loaded", { startTime: 400 });
+      const { capture, stop } = await start({ mountMs: 3_600_000 });
+      performance.mark("pubmax:map-chunk-ready", { startTime: 3_600_000 });
+      if (outcome === "painted") {
+        now.mockReturnValue(3_601_000);
+        performance.mark("pubmax:pins-visible", { startTime: 3_601_000 });
+        window.dispatchEvent(new Event("pubmax:pins-visible"));
+      } else if (outcome === "timeout") {
+        now.mockReturnValue(3_630_000);
+        vi.advanceTimersByTime(MAP_LOAD_TIMEOUT_MS);
+      } else {
+        stop();
+      }
+      window.dispatchEvent(new Event("pubmax:pins-visible"));
+      stop();
+      vi.advanceTimersByTime(MAP_LOAD_TIMEOUT_MS);
+
+      expect(capture.mock.calls).toEqual([
+        [expect.objectContaining({ outcome, map_chunk_ready_ms: 3_600_000 }), {}],
+      ]);
+      const [props] = capture.mock.calls[0] as [MapLoadTimingProps];
+      expect(props).not.toHaveProperty("slim_venues_ready_ms");
+      expect(props).not.toHaveProperty("map_style_load_ms");
+      expect(props).not.toHaveProperty("map_icons_ready_ms");
+      expect(props).not.toHaveProperty("pubs_source_loaded_ms");
+      expect(sanitizeMapLoadTimingProps(props)).toEqual(props);
+    },
+  );
 
   it("sends one painted event carrying this visit's milestones", async () => {
     grantConsent();

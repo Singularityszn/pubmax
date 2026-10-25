@@ -13,6 +13,24 @@ async function loadSubject(): Promise<Subject> {
 }
 
 describe("creator-list discovery", () => {
+  it("excludes the known smoke account without hiding real names containing test or smoke", async () => {
+    const { discoverCreatorLists } = await loadSubject();
+    const listSavedByHandles = vi.fn(async ({ handles }: { handles: readonly string[] }) =>
+      new Map(handles.map((handle) => [handle, [{
+        venueId: "venue-1", venueName: "The Fox", venueMapUrl: "/map?sel=venue-1" as const,
+        listType: "Want to Visit", savedAt: "2026-10-23T12:00:00.000Z",
+      }]])),
+    );
+    const result = await discoverCreatorLists({ limit: 3 }, {
+      listProfiles: async () => [{ handle: "pubmaxx_smoke" }, { handle: "smokey" }, { handle: "tester" }, { handle: "zoe" }],
+      withdrawnHandles: async () => new Set<string>(),
+      listSavedByHandles,
+    });
+    expect(result.lists.map((list) => list.ownerHandle)).toEqual(["smokey", "tester"]);
+    expect(listSavedByHandles).toHaveBeenCalledWith({ handles: ["smokey", "tester"] });
+    expect(result.nextCursor).toBe("tester");
+  });
+
   it("reads examined creators through one batched saved-list read", async () => {
     const { discoverCreatorLists } = await loadSubject();
     const listSavedByHandles = vi.fn(async ({ handles }: { handles: readonly string[] }) =>

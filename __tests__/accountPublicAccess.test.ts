@@ -5,6 +5,7 @@ import {
   __setMemoryProfileWithdrawn,
   filterProfilesWithdrawnFromPublic,
   profilePublicPresence,
+  withdrawnHandles,
 } from "@/lib/accountPublicAccess.server";
 import { projectPublicAuthors } from "@/lib/avatarResolve";
 import { getPintDropById } from "@/lib/pintDropLookup";
@@ -41,6 +42,14 @@ const DROP = {
 };
 
 describe("account public access", () => {
+  it("withholds the known smoke profile and its public contributions without changing its account", async () => {
+    const smoke = __seedMemoryOwnedProfile("pubmaxx_smoke", "user-smoke");
+    const real = __seedMemoryOwnedProfile("smokey", "user-real");
+    await expect(profilePublicPresence(smoke)).resolves.toBe("withdrawn");
+    await expect(withdrawnHandles(["pubmaxx_smoke", "smokey"])).resolves.toEqual(new Set(["pubmaxx_smoke"]));
+    await expect(filterProfilesWithdrawnFromPublic([smoke, real])).resolves.toEqual([real]);
+  });
+
   afterEach(() => {
     __resetMemoryProfileWithdrawals();
     __resetMemoryProfiles();

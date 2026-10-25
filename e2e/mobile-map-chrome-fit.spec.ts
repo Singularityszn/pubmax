@@ -666,8 +666,8 @@ for (const viewport of VIEWPORTS) {
       (root) => root.firstElementChild?.className ?? "",
     );
     expect(first, "the lens leads the sheet").toContain("mobileMapTonightLens");
-    await expect(lens).toContainText("Tonight listings");
-    await tapRenderedCentre(page, lens, viewport.width, "Tonight listings lens");
+    await expect(lens).toContainText("Pub listings tonight");
+    await tapRenderedCentre(page, lens, viewport.width, "Pub listings tonight lens");
     await expect(
       page.locator('.mobileSheetPortal[data-sheet-kind="tonight"]:visible'),
     ).toHaveCount(1);

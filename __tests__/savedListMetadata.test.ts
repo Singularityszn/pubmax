@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it } from "vitest";
 
-import { generateMetadata } from "@/app/u/[handle]/lists/[listType]/page";
+import SavedListPage, { generateMetadata } from "@/app/u/[handle]/lists/[listType]/page";
 import { __resetMemoryProfiles } from "@/lib/profileStore";
 import {
   __resetMemorySavedListFollows,
@@ -25,6 +25,12 @@ async function venueIds(count: number): Promise<string[]> {
 }
 
 describe("saved-list detail metadata", () => {
+  it("does not publish a saved-list page or share preview for the known smoke account", async () => {
+    const props = { params: Promise.resolve({ handle: "pubmaxx_smoke", listType: "Want%20to%20Visit" }) };
+    await expect(generateMetadata(props)).rejects.toMatchObject({ digest: "NEXT_HTTP_ERROR_FALLBACK;404" });
+    await expect(SavedListPage(props)).rejects.toMatchObject({ digest: "NEXT_HTTP_ERROR_FALLBACK;404" });
+  });
+
   it("publishes an attributed social preview with saved/follower counts and list cover", async () => {
     const [first, second] = await venueIds(2);
     await savedPubsStore().toggleSaved({

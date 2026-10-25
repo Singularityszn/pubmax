@@ -219,6 +219,27 @@ export async function checkRateLimitDurable(
   return verdict;
 }
 
+/** Read admitted requests from the existing durable rolling window. Null means unknown. */
+export async function readRateLimitDurableUsage(
+  key: string,
+  windowMs: number,
+  signal: AbortSignal,
+): Promise<number | null> {
+  try {
+    const admin = getSupabaseAdmin();
+    if (!admin) return null;
+    const { data, error } = await admin.from("rate_limits")
+      .select("hits").eq("key", key).abortSignal(signal).maybeSingle();
+    if (error || !data) return null;
+    const cutoff = Date.now() - windowMs;
+    const timestamps = data.hits.map((hit) => Date.parse(hit));
+    if (timestamps.some((hit) => !Number.isFinite(hit))) return null;
+    return timestamps.filter((hit) => hit > cutoff).length;
+  } catch {
+    return null;
+  }
+}
+
 /**
  * Client IP for request-boundary use. Most callers immediately sha256-hash it
  * with hashIp for rate limits, so raw IPs are never stored or logged. The

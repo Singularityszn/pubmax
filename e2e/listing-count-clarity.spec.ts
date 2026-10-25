@@ -5,13 +5,14 @@ import { ICON_SIZE } from "../lib/iconScale";
 test.use({ launchOptions: { args: ["--use-angle=swiftshader", "--enable-unsafe-swiftshader"] } });
 test.setTimeout(90_000);
 
-function listing(index: number) {
+function listing(index: number, pubMatched = false) {
   return {
     id: `count-fixture-${index}`,
+    sourceId: `count-fixture-${index}`,
     kind: "quiz",
     title: `Count fixture ${index}`,
     placeName: `Count fixture venue ${index}`,
-    ...(index === 0 ? { venueId: "venue-4xlgb0" } : {}),
+    ...(index === 0 || pubMatched ? { venueId: "venue-4xlgb0" } : {}),
     startsAt: new Date(Date.now() + 3_600_000).toISOString(),
     observedAt: new Date(Date.now() - 60_000).toISOString(),
     source: { label: "Count fixture", url: `https://example.com/listing/${index}` },
@@ -22,7 +23,7 @@ function listing(index: number) {
 async function openTonightLens(page: Page, count: number) {
   await (await mobileMapShellControl(page, "filters", 30_000)).click();
   const sheet = page.locator('.mobileSheetPortal[data-sheet-kind="filters"]:visible');
-  const lens = sheet.getByRole("button", { name: `Tonight listings: ${count}`, exact: true });
+  const lens = sheet.getByRole("button", { name: `Pub listings tonight: ${count} via What's-on in London`, exact: true });
   await expect(lens).toBeVisible({ timeout: 30_000 });
   return lens;
 }
@@ -35,7 +36,7 @@ test("the phone map names listing rows and keeps the label readable", async ({ p
     localStorage.setItem("pubmax:map-first-visit-arrival:v1", "dismissed");
   });
   await page.route("**/api/whats-on?**", (route) => route.fulfill({
-    json: { rows: [listing(0), listing(1), listing(2)], asOf: null, servedAt: new Date().toISOString() },
+    json: { rows: [listing(0, true), listing(1, true), listing(2, true), listing(3)], asOf: null, servedAt: new Date().toISOString() },
   }));
 
   for (const width of [320, 390, 430]) {
@@ -53,8 +54,8 @@ test("the phone map names listing rows and keeps the label readable", async ({ p
     expect(new Set(heights).size, `chip heights at ${width}px: ${heights.join(", ")}`).toBe(1);
     expect(heights.every((height) => height >= 44)).toBe(true);
     const lens = await openTonightLens(page, 3);
-    await expect(lens.locator("strong")).toHaveText("Tonight listings");
-    await expect(lens.locator("small")).toHaveText("3 listings in London");
+    await expect(lens.locator("strong")).toHaveText("Pub listings tonight");
+    await expect(lens.locator("small")).toHaveText("3 via What's-on in London");
     for (const label of [lens.locator("strong"), lens.locator("small")]) {
       const bounds = await label.evaluate((element) => ({
         width: element.clientWidth,
@@ -82,7 +83,7 @@ test("the longest drink lanes keep a three-digit Tonight count whole on a 320px 
     localStorage.setItem("pubmax:map-first-visit-arrival:v1", "dismissed");
   });
   await page.route("**/api/whats-on?**", (route) => route.fulfill({
-    json: { rows: Array.from({ length: 132 }, (_, index) => listing(index)), asOf: null, servedAt: new Date().toISOString() },
+    json: { rows: Array.from({ length: 132 }, (_, index) => listing(index, true)), asOf: null, servedAt: new Date().toISOString() },
   }));
 
   const lanes = [
@@ -134,8 +135,8 @@ test("the longest drink lanes keep a three-digit Tonight count whole on a 320px 
         expect(drink.right, `drink chip clear of TfL, ${where}`).toBeLessThanOrEqual(tfl.left);
       }
       const lens = await openTonightLens(page, 132);
-      await expect(lens.locator("strong"), where).toHaveText("Tonight listings");
-      await expect(lens.locator("small"), where).toHaveText("132 listings in London");
+      await expect(lens.locator("strong"), where).toHaveText("Pub listings tonight");
+      await expect(lens.locator("small"), where).toHaveText("132 via What's-on in London");
       const parts = await lens.evaluate((element) => {
         const read = (part: Element) => {
           const rect = part.getBoundingClientRect();

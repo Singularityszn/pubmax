@@ -1,0 +1,24 @@
+{
+  "source": "Replay of the retained 22 October 2026 production Flight capture",
+  "captureCommit": "e81aaa6a04b720ddb8ef4b909b35ffad445b0088",
+  "captureDeployment": "dpl_H8cZfyzhPPUorvaNVF8hiddpwjxn",
+  "implementationBase": "90864cf3ffd18001bc4db95e655868c55fbcda44",
+  "renderedAt": "2026-10-22T13:54:45.928Z",
+  "beforeRows": 78,
+  "afterRows": 2,
+  "beforeOutBytes": 44461,
+  "afterOutBytes": 1785,
+  "savedJsonBytes": 42676,
+  "beforeInitialListingsBytes": 85501,
+  "afterInitialListingsBytes": 42825,
+  "retainedRows": [
+    {
+      "id": "events-tm-10bs932"
+    },
+    {
+      "id": "events-tm-34evkm",
+      "venueId": "venue-1137z1c"
+    }
+  ],
+  "preservesOtherBodyFields": true
+}

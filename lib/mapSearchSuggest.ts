@@ -2,11 +2,10 @@
 // panel under the map's search input that names matching AREAS and PUBS, each
 // with its distance from the viewer.
 //
-// House pattern (see lib/areaButton.ts, lib/mapVenueList.ts): all the matching,
-// ranking and distance logic lives here, hermetic and node-testable, so the
-// React shell in components/map/MapSearchSuggest.tsx is a thin render over these
-// models. No fs, no serverEnv, no route imports — safe to import on the client
-// and to unit test without a DOM.
+// Shared venue-name relevance and pint priority live in lib/mapSearchIndex.ts.
+// This module adds area, place and distance suggestions for the React shell in
+// components/map/MapSearchSuggest.tsx. No fs, serverEnv or route imports, so the
+// client can import these models and unit tests need no DOM.
 
 import {
   areaCoverageLabel,
@@ -42,6 +41,7 @@ import {
 import type { UkBasePub } from "@/lib/ukBasePubs";
 import { kebabSlug, normalizeSearchText } from "@/lib/textSlug";
 import { venueSearchNames } from "@/lib/venueSearchNames.mjs";
+import { mapSearchNameTier, mapSearchPintRank, mapSearchVenueScore, type MapSearchIndexResult } from "@/lib/mapSearchIndex";
 
 export type { UkBasePubSuggestion };
 export { UK_BASE_SEARCH_GROUP_LABEL } from "@/lib/ukBasePubSearch";
@@ -125,6 +125,47 @@ export type PubSuggestion = {
   distanceLabel: string;
 };
 
+export type MapSearchVenueSuggestion =
+  | { type: "pub"; item: PubSuggestion }
+  | { type: "indexedVenue"; item: Extract<MapSearchIndexResult, { kind: "venue" }> };
+
+/** Rank the current city's loaded and indexed rows before rendering or keyboard navigation. */
+export function mergeMapSearchVenueSuggestions(input: {
+  query: string;
+  drinkCategory?: string;
+  venues: readonly Venue[];
+  pubs: readonly PubSuggestion[];
+  indexedVenues: readonly Extract<MapSearchIndexResult, { kind: "venue" }>[];
+}): MapSearchVenueSuggestion[] {
+  const loaded = new Map(input.venues.map((venue) => [venue.id, venue]));
+  const rows: MapSearchVenueSuggestion[] = [
+    ...input.pubs.map((item) => ({ type: "pub" as const, item })),
+    ...input.indexedVenues.map((item) => ({ type: "indexedVenue" as const, item })),
+  ];
+  const preferPints = !input.drinkCategory || input.drinkCategory === "beer";
+  const rank = (row: MapSearchVenueSuggestion) => {
+    const venue = loaded.get(row.item.id);
+    const record = row.type === "indexedVenue" ? row.item : {
+      id: row.item.id, name: row.item.name, sourceName: venue?.sourceName,
+      area: row.item.boroughLabel,
+    };
+    const nameTier = mapSearchNameTier(venueSearchNames(record), input.query);
+    return {
+      score: preferPints
+        ? mapSearchVenueScore(record, input.query) ?? Number.MAX_SAFE_INTEGER
+        : nameTier === 0 ? 0 : 1,
+      pint: venue
+        ? mapSearchPintRank(venue.kind, mapSearchVerifiedPrice(venue))
+        : row.type === "indexedVenue"
+          ? mapSearchPintRank(row.item.venueKind, row.item.pintPrice)
+          : mapSearchPintRank(row.item.kind, null),
+    };
+  };
+  return rows.map((row, index) => ({ row, index, ...rank(row) }))
+    .sort((a, b) => a.score - b.score || (preferPints ? a.pint - b.pint : 0) || a.index - b.index)
+    .map(({ row }) => row);
+}
+
 /**
  * A UK place from the national gazetteer (public/data/uk_base/places.json).
  * Uses the same arrival hrefs as buildCityChooserSearchResults so an uncovered pick lands the
@@ -167,6 +208,8 @@ export type MapSearchSuggestInput = {
   cityId: CityId;
   query: string;
   venues: Venue[];
+  /** The selected drink category. The resting map uses the pint lane. */
+  drinkCategory?: string;
   /** The Greater London locality gazetteer (public/data/london_localities.json).
    *  Optional + defaults to []: a non-London city, or a fetch that hasn't
    *  landed yet, simply falls back to the modelled areas + boroughs. */
@@ -292,7 +335,7 @@ function matchTier(labels: readonly string[], query: string): number | null {
  * drop overrides the baseline. Mirrors lib/areaButton so the popup and the area
  * sheet never disagree on a pub's price.
  */
-function verifiedPrice(venue: Venue): number | null {
+export function mapSearchVerifiedPrice(venue: Venue): number | null {
   const price = isPubVenue(venue)
     ? venue.latestContributorPrice ?? venue.cheapestPrice
     : venue.cheapestPrice;
@@ -388,7 +431,7 @@ function buildPubSuggestion(
     venue.longitude,
     venue.latitude,
   ]);
-  const price = verifiedPrice(venue);
+  const price = mapSearchVerifiedPrice(venue);
   const anchor = compactVenueAnchor(venue);
   const canShowPrice = isPubVenue(venue) || anchor !== null;
 
@@ -580,22 +623,28 @@ export function buildMapSearchSuggestions(input: MapSearchSuggestInput): MapSear
     .slice(0, Math.max(0, areaLimit))
     .map((entry) => entry.suggestion);
 
-  const pubMatches: { tier: number; suggestion: PubSuggestion }[] = [];
+  const pubMatches: { tier: number; pintRank: number; suggestion: PubSuggestion }[] = [];
+  const preferPints = !input.drinkCategory || input.drinkCategory === "beer";
   if (includeLocalResults && !isEmptyQuery) {
     const seen = new Set<string>();
     for (const venue of venues) {
       if (!venue.name || seen.has(venue.id)) continue;
-      const tier = matchTier(venueSearchNames(venue), query);
+      const tier = mapSearchNameTier(venueSearchNames(venue), query);
       if (tier === null) continue;
       seen.add(venue.id);
       pubMatches.push({
         tier,
+        pintRank: isPubVenue(venue) ? mapSearchVerifiedPrice(venue) !== null ? 0 : 1 : 2,
         suggestion: buildPubSuggestion(venue, originPoint, origin),
       });
     }
   }
   const rankedPubs = pubMatches
-    .sort(comparePub)
+    .sort((left, right) => {
+      if (left.tier !== right.tier) return left.tier - right.tier;
+      if (preferPints && left.pintRank !== right.pintRank) return left.pintRank - right.pintRank;
+      return comparePub(left, right);
+    })
     .slice(0, Math.max(0, pubLimit))
     .map((entry) => entry.suggestion);
 

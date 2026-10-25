@@ -112,7 +112,16 @@ export default function CommandPalette({
   const runCommand = useCallback(
     (command: Command) => {
       const ctx: CommandContext = {
-        navigate: (href) => router.push(href),
+        navigate: (href) => {
+          // Reopening the mounted map's picker must retain its camera and GPS
+          // fix. Native history publishes the query to useSearchParams without
+          // making a route request that can replace the map's document.
+          if (href === "/map?log=1" && window.location.pathname === "/map") {
+            window.history.pushState(null, "", href);
+            return;
+          }
+          router.push(href);
+        },
         close: onClose,
         toggleTheme,
       };

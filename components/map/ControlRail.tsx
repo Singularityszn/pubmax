@@ -177,7 +177,7 @@ export default function ControlRail({
         </div>
         <div>
           <p className="eyebrow">PUBMAXX</p>
-          <h1>Design the right {cityDisplayName} pub crawl.</h1>
+          <h2>Design the right {cityDisplayName} pub crawl.</h2>
         </div>
       </div>
 

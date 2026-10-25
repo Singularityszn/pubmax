@@ -169,6 +169,12 @@ export function pintTrustFor<D extends SummaryDrop>(
   drops: readonly D[],
   now: number = Date.now(),
 ): PintTrustReading<D> {
+  // Invalid and future-dated rows cannot describe a price a drinker paid.
+  drops = drops.filter((drop) => {
+    const observedAt = Date.parse(drop.createdAt);
+    return Number.isFinite(observedAt) && observedAt <= now
+      && typeof drop.priceGbp === "number" && Number.isFinite(drop.priceGbp) && drop.priceGbp > 0;
+  });
   const confirmed = confirmedPriceDrop(drops, now);
   if (confirmed) {
     return {

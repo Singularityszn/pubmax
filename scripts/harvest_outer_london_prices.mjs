@@ -307,6 +307,29 @@ export function pubDiscoveryAvailable(environment = process.env) {
   }
 }
 
+function drinkPageHasEvidence(page) {
+  return DRINK_MENU_KW.test(page.markdown) || (page.json?.drinks || []).length;
+}
+
+function pricedDrinkSummary(validated) {
+  const validatedPints = validated
+    .filter((v) => v.category === "beer")
+    .filter((v) => v.priceGbp >= MIN_PINT && v.priceGbp <= MAX_PINT)
+    .toSorted((a, b) => a.priceGbp - b.priceGbp);
+  const cheapestPint = validatedPints[0] ?? null;
+  const categories = [...new Set(validated.map((v) => v.category))].sort();
+  const headline = cheapestPint
+    ? `£${cheapestPint.priceGbp.toFixed(2)} ${cheapestPint.drinkName}`
+    : `${validated.length} drink row(s) (${categories.join(", ")})`;
+  return {
+    cheapestPint,
+    categories,
+    priceGbp: cheapestPint?.priceGbp ?? null,
+    drink: cheapestPint?.drinkName ?? validated[0]?.drinkName,
+    headline,
+  };
+}
+
 function main() {
   assertProviderCredentials(["plain-page"]);
   const exaDiscovery = pubDiscoveryAvailable();
@@ -534,7 +557,7 @@ function main() {
             continue;
           }
           const drink = drinkResult.page;
-          if (DRINK_MENU_KW.test(drink.markdown) || (drink.json?.drinks || []).length) {
+          if (drinkPageHasEvidence(drink)) {
             md = drink.markdown;
             pageUrl = drink.finalUrl;
             extracted = drink.json?.drinks || [];
@@ -558,11 +581,7 @@ function main() {
         continue;
       }
 
-      const validatedPints = validated
-        .filter((v) => v.category === "beer")
-        .filter((v) => v.priceGbp >= MIN_PINT && v.priceGbp <= MAX_PINT)
-        .toSorted((a, b) => a.priceGbp - b.priceGbp);
-      const cheapestPint = validatedPints[0] ?? null;
+      const { cheapestPint, categories, priceGbp, drink, headline } = pricedDrinkSummary(validated);
       priced += 1;
 
       if (cheapestPint) {
@@ -588,21 +607,17 @@ function main() {
         });
       }
 
-      const categories = [...new Set(validated.map((v) => v.category))].sort();
       log.push({
         ...rec,
         result: "priced",
-        cheapestPint: cheapestPint?.priceGbp ?? null,
-        drink: cheapestPint?.drinkName ?? validated[0]?.drinkName,
+        cheapestPint: priceGbp,
+        drink,
         categories,
         allDrinks: validated,
         sourceUrl: pageUrl,
         observedAt,
         requests: venueRequests,
       });
-      const headline = cheapestPint
-        ? `£${cheapestPint.priceGbp.toFixed(2)} ${cheapestPint.drinkName}`
-        : `${validated.length} drink row(s) (${categories.join(", ")})`;
       console.log(`  PRICED ${row.pub_name} (${row.primary_borough}): ${headline}`);
     }
 

@@ -45,7 +45,7 @@ export const OG = {
 
 export const OG_SIZE = { width: 1200, height: 630 } as const;
 
-// Shared Cache-Control for every dynamic OG image (metadata `opengraph-image`
+// Default Cache-Control for dynamic OG images (metadata `opengraph-image`
 // routes + the `*-card` API routes). These render a font-loaded, fs-reading PNG
 // on a Node function; the per-request CSP nonce (proxy.ts) forces dynamic
 // rendering, so Next does NOT apply its static-image immutable cache — without
@@ -64,7 +64,7 @@ export const OG_CACHE_HEADERS = { "cache-control": OG_CACHE_CONTROL } as const;
 // next deploy, and Vercel's edge cache is scoped to a deployment, so a new deploy
 // never serves the old plate. The edge may therefore hold it for a year instead
 // of re-rasterizing it every hour. The browser still revalidates (max-age=0).
-// A card that reads anything live keeps OG_CACHE_HEADERS.
+// Live-data cards use OG_CACHE_HEADERS or a shorter policy owned by their route.
 const OG_DEPLOY_STABLE_CACHE_CONTROL =
   "public, max-age=0, s-maxage=31536000, stale-while-revalidate=86400";
 export const OG_DEPLOY_STABLE_CACHE_HEADERS = {

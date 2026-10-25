@@ -11,7 +11,7 @@ import { palGenomeFor, palGenomeStyle } from "@/lib/palGenome";
 import { subscribePalMoments } from "@/lib/palMoments";
 import type { PubPal } from "@/lib/pubPal";
 import { pubPalMascotSlugFor } from "@/lib/pubPalMascot";
-import "./palNav.css";
+import "./navigation.css";
 
 // The Pub Pal's own door in the navigation: the raised button in the middle of
 // the phone dock (MobileTabBar.tsx) and the Pal button in the desktop bar

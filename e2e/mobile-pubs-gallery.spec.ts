@@ -1,5 +1,7 @@
 import { expect, test, type Locator, type Page } from "@playwright/test";
 
+import { PERFORMANCE_BUDGETS } from "../lib/performanceBudgets";
+
 const MOBILE = { width: 390, height: 844 };
 
 function watchPageErrors(page: Page): string[] {
@@ -49,6 +51,20 @@ test.describe("mobile Pubs gallery", () => {
       window.localStorage.setItem("pubmax-tour-v1-done", "1");
       window.sessionStorage.setItem("pubmax_onboarding_dismissed", "1");
     });
+  });
+
+  test("the performance readiness gate reaches the rendered gallery", async ({ page }) => {
+    const route = PERFORMANCE_BUDGETS.routes.find((entry) => entry.path === "/pubs");
+    expect(route, "the pub gallery has a performance budget").toBeDefined();
+    if (!route) throw new Error("The pub gallery has no performance budget.");
+
+    await page.goto(route.path, { waitUntil: "load" });
+    const ready = page.locator(route.readySelector).first();
+    await expect(ready).toBeVisible();
+    await expect(
+      ready.getByRole("heading", { level: 1, name: "Pub chains in London" }),
+    ).toBeVisible();
+    await expect(ready.locator(".pubsCard").first()).toBeVisible();
   });
 
   test("filters, cards, and card actions stay thumb-safe and navigable", async ({ page }) => {

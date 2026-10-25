@@ -33,6 +33,7 @@ import {
 } from "@/lib/ask/conciergeTools";
 import { loadDeskVenues } from "@/lib/ask/deskVenues.server";
 import { formatGbp } from "@/lib/formatGbp";
+import { listedPriceReceipt } from "@/lib/listedPriceReceipt";
 import type {
   AskToolArgs,
   AskToolContext,
@@ -133,6 +134,17 @@ function toPricedPoints(venues: readonly ConciergeVenue[]): PricedPoint[] {
     cheapestPrice: venue.cheapestPrice,
     borough: venue.area,
   }));
+}
+
+/** A listed pint keeps its own publisher and read date, unknowns included. */
+function listedPintSource(venue: ConciergeVenue | undefined, now: number): AskSource {
+  return {
+    label: listedPriceReceipt({
+      priceSource: venue?.priceSource ?? undefined,
+      priceObservedAt: venue?.priceObservedAt ?? undefined,
+    }, now),
+    kind: "directory",
+  };
 }
 
 function openProposal(venueId: string, name: string): AskProposal {
@@ -262,6 +274,7 @@ export async function toolCheapestPintNear(
     };
   }
 
+  const now = ctx.now ?? Date.now();
   const cards: AskCard[] = rows.map((row) => ({
     key: `cheapest:${row.id}`,
     venueId: row.id,
@@ -271,14 +284,14 @@ export async function toolCheapestPintNear(
       walkMinutes: row.walkMinutes ?? null,
     }),
     price: row.cheapestPrice,
-    provenance: DIRECTORY,
+    provenance: listedPintSource(venues.find((venue) => venue.id === row.id), now),
   }));
 
   return {
     ok: true,
     tool: "cheapest_pint_near",
     data: { anchor, scope, rows },
-    provenance: [DIRECTORY],
+    provenance: askCardSources(cards),
     cards,
     priceEvidence: rows.map((row) => listedPintEvidence(`cheapest:${row.id}`, row.id, row.cheapestPrice)),
     proposals: cards

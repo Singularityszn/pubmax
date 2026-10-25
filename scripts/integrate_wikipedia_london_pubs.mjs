@@ -382,6 +382,22 @@ function makeDatasetRow({ name, lat, lng, borough, description, wikipediaUrl, se
   };
 }
 
+function wikipediaRowFields(row, extract, wikiUrl) {
+  const updates = {};
+  if (!String(row.source_datasets ?? "").includes("wikipedia_london_list")) {
+    updates.source_datasets = row.source_datasets
+      ? `${row.source_datasets}|wikipedia_london_list`
+      : "wikipedia_london_list";
+  }
+  if (!row.description?.trim()) updates.description = extract;
+  if (!row.comment?.includes("wikipedia.org")) {
+    updates.comment = row.comment
+      ? `${row.comment} | Wikipedia: ${wikiUrl}`
+      : `Wikipedia: ${wikiUrl}`;
+  }
+  return updates;
+}
+
 async function main() {
   const { dryRun, heritageOnly, skipFetch, limit } = parseArgs(process.argv.slice(2));
   const seed = loadJson(SEED_PATH, null);
@@ -457,17 +473,7 @@ async function main() {
         }
 
         const wikiUrl = summary.pageUrl || pub.url;
-        if (!String(row.source_datasets ?? "").includes("wikipedia_london_list")) {
-          row.source_datasets = row.source_datasets
-            ? `${row.source_datasets}|wikipedia_london_list`
-            : "wikipedia_london_list";
-        }
-        if (!row.description?.trim()) row.description = extract;
-        if (!row.comment?.includes("wikipedia.org")) {
-          row.comment = row.comment
-            ? `${row.comment} | Wikipedia: ${wikiUrl}`
-            : `Wikipedia: ${wikiUrl}`;
-        }
+        Object.assign(row, wikipediaRowFields(row, extract, wikiUrl));
 
         report.matched += 1;
         report.matches.push({

@@ -195,6 +195,24 @@ html[data-legacy="1"] .drinkCategoryTitle {
   opacity: 0.85;
 }
 
+.foodMenu .drinkServing {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-1);
+}
+
+.foodMenu .drinkServing .drinkProvChip {
+  max-inline-size: 100%;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+.foodMenu .drinkServing .drinkObservationAge {
+  max-inline-size: 100%;
+  text-align: start;
+}
+
 .drinkLowNoChip {
   width: fit-content;
   margin-top: 3px;

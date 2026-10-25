@@ -1,7 +1,7 @@
 import type { Route } from "next";
 import "server-only";
 
-import { withdrawnHandles } from "@/lib/accountPublicAccess.server";
+import { isKnownTestHandle, withdrawnHandles } from "@/lib/accountPublicAccess.server";
 import type {
   CreatorListDiscoveryItem,
   CreatorListDiscoveryResult,
@@ -105,7 +105,7 @@ export async function discoverCreatorLists(
   const withdrawn = await dependencies.withdrawnHandles(
     examined.map((profile) => profile.handle),
   );
-  const visible = examined.filter((profile) => !withdrawn.has(profile.handle));
+  const visible = examined.filter((profile) => !isKnownTestHandle(profile.handle) && !withdrawn.has(profile.handle));
   const savedByProfile = await dependencies.listSavedByHandles({
     handles: visible.map((profile) => profile.handle),
   });

@@ -85,10 +85,10 @@ describe("shouldFitQueryVenuesOnArrival", () => {
 });
 
 describe("resolveQueryRestoreFit", () => {
-  it("mirrors typed search: one match selects, several fit, zero stays put", () => {
-    expect(resolveQueryRestoreFit(1)).toBe("select-single");
-    expect(resolveQueryRestoreFit(8)).toBe("fit-many");
-    expect(resolveQueryRestoreFit(2)).toBe("fit-many");
+  it("frames one or several matches without selecting a venue", () => {
+    expect(resolveQueryRestoreFit(1)).toBe("fit-matches");
+    expect(resolveQueryRestoreFit(8)).toBe("fit-matches");
+    expect(resolveQueryRestoreFit(2)).toBe("fit-matches");
   });
 
   it("never moves the camera or claims pins for a zero-result restore", () => {
@@ -111,9 +111,9 @@ describe("resolveArrivalQueryRestore", () => {
     expect(resolveArrivalQueryRestore({ ...base, matchCount: 0 })).toBe("wait");
   });
 
-  it("selects one match and fits several matches while the arrival query still owns search", () => {
-    expect(resolveArrivalQueryRestore({ ...base, matchCount: 1 })).toBe("select-single");
-    expect(resolveArrivalQueryRestore({ ...base, matchCount: 4 })).toBe("fit-many");
+  it("frames one or several matches while the arrival query still owns search", () => {
+    expect(resolveArrivalQueryRestore({ ...base, matchCount: 1 })).toBe("fit-matches");
+    expect(resolveArrivalQueryRestore({ ...base, matchCount: 4 })).toBe("fit-matches");
   });
 
   it("retires restoration when the reader clears or changes the arrival query", () => {
@@ -133,6 +133,15 @@ describe("resolveArrivalQueryRestore", () => {
         matchCount: 1,
       }),
     ).toBe("retire");
+  });
+
+  it("leaves explicit sel restoration in charge before its venue resolves", () => {
+    expect(resolveArrivalQueryRestore({
+      ...base,
+      arrivalSearch: "?q=The+Ice+Wharf&sel=venue-17u2i1w",
+      selectedVenueId: "",
+      matchCount: 1,
+    })).toBe("retire");
   });
 
   it("retires restoration when a Venue selection already owns the camera", () => {

@@ -12,6 +12,7 @@ import { readSpoonsValue } from "@/lib/spoonsValue.server";
 import { pricePulseLastModified, publishedEditions } from "@/lib/pricePulse";
 import { PRICE_PULSE_EDITION_FILES } from "@/lib/pricePulseEditions";
 import { EXPLAINER_REVIEWED_ON } from "@/lib/pricePulseExplainer";
+import { PUBLIC_UPDATES } from "@/lib/publicUpdates";
 import {
   drinkBrandAreaLandingRoute,
   loadDrinkBrandAreaLandings,
@@ -27,8 +28,7 @@ import {
 // most of it from bots). Scope is provenance-first and honest:
 //
 //  Included:
-//   - static hubs: /, /map, /borough, /historic, /pubs, /tonight,
-//     /places, /crawls, /social while Social is live by default.
+//   - static hubs declared in staticRoutes below, with their admission gates
 //   - /map/{city} for every enabled non-London city (London is /map)
 //   - /borough/{slug} for every borough present in the price dataset
 //   - /drink/{slug} and /area/{slug}/drink/{brand} for every governed drink
@@ -183,6 +183,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     },
     { path: "/pubs", priority: 0.7, changeFrequency: "weekly", lastModified: pricesModified },
     { path: "/tonight", priority: 0.6, changeFrequency: "daily", lastModified: now },
+    { path: "/pal", priority: 0.5, changeFrequency: "monthly", lastModified: now },
     {
       path: "/how-we-estimate",
       priority: 0.4,
@@ -202,6 +203,15 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     { path: "/privacy", priority: 0.3, changeFrequency: "yearly", lastModified: now },
     { path: "/terms", priority: 0.3, changeFrequency: "yearly", lastModified: now },
     { path: "/credits", priority: 0.3, changeFrequency: "monthly", lastModified: now },
+    { path: "/feedback", priority: 0.3, changeFrequency: "yearly", lastModified: now },
+    {
+      path: "/updates",
+      priority: 0.4,
+      changeFrequency: "weekly",
+      lastModified: new Date(Math.max(
+        ...PUBLIC_UPDATES.map((update) => Date.parse(`${update.date}T00:00:00Z`)),
+      )),
+    },
     // The public account-deletion page. Play Console holds this URL in its Data
     // safety form and expects to be able to open it, so it is listed like the
     // other token-free content pages rather than living only behind a link.

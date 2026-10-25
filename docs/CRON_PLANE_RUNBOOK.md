@@ -5,39 +5,9 @@ Freshness jobs cover weather, all bounded What's-On lanes, Night Signal
 candidates, and a rotating UK city pub-enrichment sweep. No job fabricates data
 or reports false success.
 
-Area news is a committed research snapshot, not a Vercel cron lane. Refresh it
-from a local checkout with `npm run refresh:area-news`. The job searches and
-fetches current London pub sources through Keenable, keeps only dated facts in
-the 21-day serving window, and preserves the existing archive rows. A provider
-error or a run with no valid facts fails loudly and does not replace the file.
-Set `KEENABLE_API_KEY` for the keyed API. Without it, the job uses Keenable's
-public endpoint. Run `node scripts/build_area_news_matches.mjs` after the
-refresh only when venue-match badges need rebuilding.
-The step-by-step refresh and review is
-[`AREA_NEWS_REFRESH_RUNBOOK.md`](./AREA_NEWS_REFRESH_RUNBOOK.md).
-
-### Area-news investigation handoff
-
-The snapshot stopped at 18 July because the original Lane A implementation was
-a one-time editorial extraction. `docs/research/sweep-central-west.md`,
-`sweep-east.md`, `sweep-north.md`, and `sweep-south.md` were compiled on 18
-July from Exa search plus Firecrawl REST extraction, with WebFetch used in the
-north sweep. The app loaded their reviewed facts from `data/area_news.json`,
-but no repeatable acquisition command or scheduled writer existed. The July
-snapshot therefore aged in place while its reader continued to serve archive
-rows.
-
-`npm run refresh:area-news` is now the repeatable July-extraction replacement:
-Keenable `search_web_pages` finds candidates, `fetch_page_content` reads each
-page and extracts one dated fact, and the command keeps the prior artifact when
-any search or page fetch fails. It does not publish partial success.
-
-This differs from What's-On. What's-On's official event lane refreshes durable
-Supabase rows from its authenticated Vercel cron and preserves each failed
-provider lane. Its broader harvested lanes still use local files and review
-PRs. Area news has no durable store or server-safe file writer, so it remains a
-manually run, reviewed static artifact. Its 21-day read filter is the safety
-net until a successful refresh is merged.
+Area news is a committed research snapshot, not a Vercel cron lane. The
+[area-news refresh runbook](./AREA_NEWS_REFRESH_RUNBOOK.md) owns its local
+refresh procedure, provider access, validation, and archive rules.
 
 > **Vercel owns server-safe scheduled work.** File-producing acquisition runs through
 > the Mac's local launchd scheduler and review PRs; see
@@ -62,7 +32,7 @@ in the same commit.
 |---|---|---|---|---|
 | `GET /api/cron/refresh-weather` | `0 */6 * * *` | 01:00·07:00·13:00·19:00 / 00:00·06:00·12:00·18:00 | Fetch Open-Meteo for every night area → durable `weather_snapshots` store | 60s |
 | `GET /api/cron/refresh-whats-on` | `30 5 * * *` and `0 15 * * *` | **06:30** and **16:00** / 05:30 and 15:00 | Refresh bounded quiz, deal, music, and sport lanes plus official Ticketmaster / Skiddle events into `whats_on_listings`; readers prefer non-expired durable rows and fall back to bundled files | 60s |
-| `GET /api/cron/freshness-audit` | `30 6 * * *` | 07:30 / 06:30 | Read the freshness spine, report stale feeds and unresolvable feeds as two separate findings (console only) | 30s |
+| `GET /api/cron/freshness-audit` | `30 6 * * *` | 07:30 / 06:30 | Read the freshness spine and report stale feeds and unresolvable feeds separately. See [failure posture](#failure-posture-never-fake-success) for alert delivery. | 30s |
 | `GET /api/cron/refresh-night-signals` | `15 5 * * *` | 06:15 / 05:15 | Exa sweep for PENDING Night Signal candidates + freshness stamp — never publishes; human review still gates the feed | 60s |
 | `GET /api/cron/moderate-social-posts` | `*/10 * * * *` | Every 10 minutes | Claim and moderate up to 20 queued Social posts; posts stay held until approval | 30s |
 | `GET /api/cron/moderate-social-interactions` | `*/10 * * * *` | Every 10 minutes | Claim and moderate up to 20 queued comments or quote posts; text stays held until approval | 30s |
@@ -128,7 +98,7 @@ own observation times and bundled files remain the fallback.
 | What's-On — bounded lanes | Question One plus existing first-party definitions and bundled venue inputs | **none** | Cron refreshes quiz, deal, music, and sport into `whats_on_listings`; a failed lane leaves its prior rows unchanged. Broader Exa / Firecrawl harvest remains a separate recovery path. |
 | What's-On — events vertical | Ticketmaster / Skiddle | `TICKETMASTER_API_KEY`, `SKIDDLE_API_KEY` | Cron persists live rows to `whats_on_listings`. Without an official provider key, that event lane is skipped while bounded lanes can still refresh. Skiddle also needs **written commercial approval** (email dev@skiddle.com) and `SKIDDLE_BRAND_ASSET_PRESENT`. |
 | **Night Signals — candidates** | Exa | `EXA_API_KEY` | Cron logs the absent key and no-op skips; candidates stay wherever the last sweep left them. |
-| **Social text moderation** | OpenAI | `OPENAI_API_KEY` | Both crons answer `200 { skipped: "openai_not_configured" }` before they claim a job; queued posts, comments, and quotes stay pending. The posts cron still reads the backlog and logs its `[social-moderation][ALERT]` findings on that skip. |
+| **Social text moderation** | OpenAI | `OPENAI_API_KEY` | See [failure posture](#failure-posture-never-fake-success) for missing-key responses, held content and production diagnostics. |
 | **UK city pub enrichment** | Exa through Vercel AI Gateway, with Tavily fallback (discovery only - never provenance; see `data/price_sources.json`) | `SEARCH_PROVIDER`, `AI_GATEWAY_API_KEY` or automatic Vercel OIDC, `SEARCH_GATEWAY_MAX_CALLS`, `TAVILY_API_KEY` | Defaults to Exa. Missing Gateway credentials or a failed Gateway request fall back loudly when Tavily is configured. Explicit Tavily selection requires `TAVILY_API_KEY` and does not use Exa. When the selection has no configured provider or fallback, the cron is an honest no-op. Set server-only values as Vercel secrets. |
 
 Provider-key failures follow the table above. A missing key never produces fake
@@ -297,10 +267,9 @@ would only duplicate the live path. Same for `/api/last-train` and friends
   lanes may still produce an overall successful refresh.
 - A bounded lane fails → its prior rows remain unchanged; other lanes may
   advance, and the combined response reports `ok:false`.
-- Freshness audit → **never 500s**; a broken artifact surfaces as that dataset's
-  own `unknown` status. Alerting is **console-only** today
-  (`lib/freshnessNotify.ts` is the seam a later push/alert integration hangs
-  off; push delivery is a separate lane and this plane sends none).
+- Freshness audit → **never 500s**. A broken artifact returns that dataset's
+  own `unknown` status. `lib/freshnessNotify.ts` sends system findings through
+  `PUBMAX_ALERT_WEBHOOK_URL` when configured. An unset webhook sends nothing.
 - Social moderation provider failures keep posts, comments, and quotes held.
   Retryable failures use bounded backoff; terminal failures require an
   authenticated requeue action.
@@ -309,6 +278,14 @@ would only duplicate the live path. Same for `/api/last-train` and friends
   failed drain. The posts cron still inspects the backlog and emits its findings
   on that path, so a growing pending queue is never silent. A store failure is
   the separate **503 `UNAVAILABLE`** answer, with the cause logged.
+  In deployed production, each missing-key skip also logs an error event:
+  `social_posts.moderation_unconfigured` or
+  `social_interactions.moderation_unconfigured`. These events qualify for
+  webhook delivery under the [alert policy](rules/lib-observability.md#an-alert-leaves-the-process-through-one-webhook-and-unset-is-silent).
+  Pending content stays held.
+  Configure the provider key and alert destination before release. Inspect the
+  backlog, then use the authenticated drain and terminal-requeue actions.
+  A `200` skipped response does not prove that moderation processed content.
 - A drain that claimed nothing names why, and the two crons word it apart
   because only one of them can tell. The posts cron answers **`200 { skipped:
   "queue_empty" }`** and only when the backlog read agrees `pending` is 0. The

@@ -51,7 +51,7 @@ keeps preview hosts private, so open them signed in to the Vercel team.
 | 1.2.3 | Demo content is off | Captain | `NEXT_PUBLIC_DEMO_CONTENT=off` in Preview and in Production. `NEXT_PUBLIC_DEMO_DRINKS` stays unset. A seeded pour beside a real Pint Drop is a trust failure. | Vercel, Project, Settings, Environment Variables |
 | 1.2.4 | The map paints | Fleet | Pins render, clusters open, the console is clean. | `<preview-url>/map` |
 | 1.2.5 | A pub sheet is honest | Fleet | The sheet shows a real figure with its lane, or one honest absence line. Never a blank. | Tap any pin on `<preview-url>/map` |
-| 1.2.6 | The front door asks for a price | Fleet | The landing primary action is `Log what you paid` and it opens `/near?locate=1`. | `<preview-url>/` |
+| 1.2.6 | The landing actions reach their destinations | Fleet | Both landing actions follow the [landing feature guide](../README.md#features). | `<preview-url>/` |
 | 1.2.7 | Sign-in completes | Captain | A magic link from the preview lands signed in. The captain holds the mailbox. | `<preview-url>/login` |
 | 1.2.8 | The admin door refuses a stranger | Fleet | `GET /admin` answers 401 with the token form alone. | `<preview-url>/admin` in a private window |
 

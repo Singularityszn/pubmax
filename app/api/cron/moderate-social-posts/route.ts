@@ -1,5 +1,7 @@
 import { publicApiError } from "@/lib/apiError";
 import { jsonNoStore } from "@/lib/apiResponses";
+import { isDeployedProduction } from "@/lib/deploymentEnv";
+import { log } from "@/lib/log";
 import { assertCronRequest } from "@/lib/cronAuth";
 import { notifySocialModerationFindings } from "@/lib/socialModerationNotify";
 import {
@@ -52,6 +54,7 @@ export async function GET(request: Request): Promise<Response> {
     // model: their bytes are the account's, and nothing else will collect them.
     const expiredVideoUploads = await socialPostVideoStore().sweepExpiredUploads(20);
     if (!isOpenAISocialModerationConfigured()) {
+      if (isDeployedProduction()) log("error", "social_posts.moderation_unconfigured");
       console.warn(
         "[cron:moderate-social-posts] OPENAI_API_KEY absent: moderation queue skipped.",
       );

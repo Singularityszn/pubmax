@@ -1,5 +1,8 @@
 import "server-only";
 
+import { listPubListNightDrafts } from "@/lib/pubListImportDraftStore.server";
+import type { PubListNightDraft } from "@/lib/pubListImport";
+
 // The reads behind an account's own export, assembled into the ONE document
 // `lib/accountExport.ts` defines.
 //
@@ -156,6 +159,7 @@ export type AccountExportDeps = {
   diary(userId: string): Promise<{ status: "ready" | "degraded"; entries: DiaryEntryDTO[] }>;
   pubRankings(profileId: string): Promise<SocialPubRankingRow[]>;
   venueSubmissions(userId: string): Promise<{ status: "ready" | "degraded"; submissions: VenueSubmission[] }>;
+  pubListNightDrafts(userId: string, limit: number): Promise<PubListNightDraft[]>;
   socialLinks(userId: string): Promise<PublicSocialConnection[]>;
   nightProfile(userId: string): Promise<NightProfile | null>;
   prices(
@@ -280,6 +284,7 @@ function storeDeps(): AccountExportDeps {
     diary: (userId) => diaryStore().listForOwner(userId),
     pubRankings: (profileId) => socialPubRankingStore().read({ profileId }),
     venueSubmissions: (userId) => venueSubmissionStore().listForOwner(userId),
+    pubListNightDrafts: listPubListNightDrafts,
     async socialLinks(userId) {
       return (await socialConnectionStore().list(userId)).map(publicSocialConnection);
     },
@@ -749,6 +754,11 @@ export async function buildAccountExport(
     };
   });
 
+  const pubListNightDrafts = await lane<PubListNightDraft>(async () => ({
+    degraded: false,
+    items: await deps.pubListNightDrafts(userId, ACCOUNT_EXPORT_LANE_CAP + 1),
+  }));
+
   const socialLinks = await lane<PublicSocialConnection>(async () => ({
     degraded: false,
     items: await deps.socialLinks(userId),
@@ -786,6 +796,7 @@ export async function buildAccountExport(
     diary,
     pubRankings,
     venueSubmissions,
+    pubListNightDrafts,
     socialLinks,
     nightProfile,
     messages,

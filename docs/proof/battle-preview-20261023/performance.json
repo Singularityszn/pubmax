@@ -1,0 +1,212 @@
+{
+  "method": "Local production builds. Desktop 1280x800. Fresh context per run. One excluded warmup. Five measured runs per route and commit. Alternating order. Third-party requests blocked equally. No Vercel toolbar.",
+  "samples": [
+    {
+      "commit": "live",
+      "path": "/",
+      "run": 1,
+      "fcp": 164,
+      "lcp": 164,
+      "load": 133.79999995231628
+    },
+    {
+      "commit": "candidate",
+      "path": "/",
+      "run": 1,
+      "fcp": 208,
+      "lcp": 208,
+      "load": 201.69999980926514
+    },
+    {
+      "commit": "candidate",
+      "path": "/",
+      "run": 2,
+      "fcp": 188,
+      "lcp": 188,
+      "load": 172.79999995231628
+    },
+    {
+      "commit": "live",
+      "path": "/",
+      "run": 2,
+      "fcp": 128,
+      "lcp": 128,
+      "load": 124.90000009536743
+    },
+    {
+      "commit": "live",
+      "path": "/",
+      "run": 3,
+      "fcp": 268,
+      "lcp": 268,
+      "load": 186.29999995231628
+    },
+    {
+      "commit": "candidate",
+      "path": "/",
+      "run": 3,
+      "fcp": 344,
+      "lcp": 344,
+      "load": 269.2999999523163
+    },
+    {
+      "commit": "candidate",
+      "path": "/",
+      "run": 4,
+      "fcp": 292,
+      "lcp": 292,
+      "load": 200.10000014305115
+    },
+    {
+      "commit": "live",
+      "path": "/",
+      "run": 4,
+      "fcp": 448,
+      "lcp": 448,
+      "load": 424.09999990463257
+    },
+    {
+      "commit": "live",
+      "path": "/",
+      "run": 5,
+      "fcp": 172,
+      "lcp": 172,
+      "load": 155.5
+    },
+    {
+      "commit": "candidate",
+      "path": "/",
+      "run": 5,
+      "fcp": 144,
+      "lcp": 144,
+      "load": 137.59999990463257
+    },
+    {
+      "commit": "live",
+      "path": "/map",
+      "run": 1,
+      "fcp": 72,
+      "lcp": 424,
+      "load": 79.90000009536743
+    },
+    {
+      "commit": "candidate",
+      "path": "/map",
+      "run": 1,
+      "fcp": 80,
+      "lcp": 484,
+      "load": 95.29999995231628
+    },
+    {
+      "commit": "candidate",
+      "path": "/map",
+      "run": 2,
+      "fcp": 76,
+      "lcp": 424,
+      "load": 89.89999985694885
+    },
+    {
+      "commit": "live",
+      "path": "/map",
+      "run": 2,
+      "fcp": 112,
+      "lcp": 456,
+      "load": 117.5
+    },
+    {
+      "commit": "live",
+      "path": "/map",
+      "run": 3,
+      "fcp": 368,
+      "lcp": 968,
+      "load": 218.5
+    },
+    {
+      "commit": "candidate",
+      "path": "/map",
+      "run": 3,
+      "fcp": 128,
+      "lcp": 416,
+      "load": 143.40000009536743
+    },
+    {
+      "commit": "candidate",
+      "path": "/map",
+      "run": 4,
+      "fcp": 80,
+      "lcp": 412,
+      "load": 88.70000004768372
+    },
+    {
+      "commit": "live",
+      "path": "/map",
+      "run": 4,
+      "fcp": 88,
+      "lcp": 408,
+      "load": 105.10000014305115
+    },
+    {
+      "commit": "live",
+      "path": "/map",
+      "run": 5,
+      "fcp": 68,
+      "lcp": 396,
+      "load": 86.5
+    },
+    {
+      "commit": "candidate",
+      "path": "/map",
+      "run": 5,
+      "fcp": 64,
+      "lcp": 404,
+      "load": 77.89999985694885
+    }
+  ],
+  "medians": [
+    {
+      "path": "/",
+      "metric": "fcp",
+      "live": 172,
+      "candidate": 208,
+      "changePercent": 20.93023255813953
+    },
+    {
+      "path": "/",
+      "metric": "lcp",
+      "live": 172,
+      "candidate": 208,
+      "changePercent": 20.93023255813953
+    },
+    {
+      "path": "/",
+      "metric": "load",
+      "live": 155.5,
+      "candidate": 200.10000014305115,
+      "changePercent": 28.68167211771777
+    },
+    {
+      "path": "/map",
+      "metric": "fcp",
+      "live": 88,
+      "candidate": 80,
+      "changePercent": -9.090909090909093
+    },
+    {
+      "path": "/map",
+      "metric": "lcp",
+      "live": 424,
+      "candidate": 416,
+      "changePercent": -1.8867924528301883
+    },
+    {
+      "path": "/map",
+      "metric": "load",
+      "live": 105.10000014305115,
+      "candidate": 89.89999985694885,
+      "changePercent": -14.462416998490625
+    }
+  ],
+  "baselineCommit": "e81aaa6a04b720ddb8ef4b909b35ffad445b0088",
+  "candidateBaseCommit": "b58546dfe18ce2834e576e8378bf99cb6c475e04",
+  "candidateState": "Uncommitted battle-test implementation, before publication"
+}

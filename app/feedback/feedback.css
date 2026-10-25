@@ -1,0 +1,40 @@
+.feedbackPage {
+  padding-bottom: calc(var(--space-12) * 2 + env(safe-area-inset-bottom, 0px));
+}
+
+.feedbackNote,
+.feedbackFallback {
+  max-width: 40rem;
+  color: var(--color-text-soft);
+  font-size: var(--text-base);
+  line-height: var(--leading-normal);
+}
+
+.feedbackNote {
+  margin: var(--space-3) 0 0;
+}
+
+.feedbackFallback {
+  margin-top: var(--space-8);
+  padding-top: var(--space-6);
+  border-top: 1px solid var(--color-border);
+}
+
+.feedbackFallback h2 {
+  margin: 0 0 var(--space-3);
+  color: var(--color-text);
+  font-family: var(--font-display);
+  font-size: var(--text-lg);
+  line-height: var(--leading-tight);
+}
+
+.feedbackFallback p {
+  margin: var(--space-3) 0 0;
+}
+
+.feedbackEmail {
+  color: var(--color-text);
+  font-weight: 600;
+  overflow-wrap: anywhere;
+  user-select: text;
+}

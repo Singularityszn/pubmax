@@ -1,0 +1,66 @@
+{
+  "measuredAt": "2026-10-21T21:48:07.833Z",
+  "engine": "maplibre-gl 6.14.0",
+  "browser": "installed Chrome",
+  "viewport": {
+    "width": 390,
+    "height": 844
+  },
+  "source": "Live /map pubmax:pins-visible event and __pubmaxPaintedMapTapPoints probe, deterministic empty basemap, actual shipped eager data",
+  "eagerSha256": "a50fc8e8a3d55c6414be1e100b38f671a003029d262815c1d9ad3312dd646c49",
+  "painted": [
+    {
+      "kind": "cluster",
+      "id": "402",
+      "x": 66.24121417696902,
+      "y": 399.4693525455191,
+      "lng": -0.14241456985473633,
+      "lat": 51.52309698578392
+    },
+    {
+      "kind": "cluster",
+      "id": "241",
+      "x": 50.30188350425026,
+      "y": 471.01948637941996,
+      "lng": -0.14410972595214844,
+      "lat": 51.51355006001529
+    },
+    {
+      "kind": "cluster",
+      "id": "145",
+      "x": 119.76532434513884,
+      "y": 471.3331985785221,
+      "lng": -0.13253331184387207,
+      "lat": 51.51350999876814
+    },
+    {
+      "kind": "cluster",
+      "id": "2194",
+      "x": 126.50710558545724,
+      "y": 578.8154976002594,
+      "lng": -0.1307201385498047,
+      "lat": 51.50061512375089
+    },
+    {
+      "kind": "cluster",
+      "id": "593",
+      "x": 150.64392519893116,
+      "y": 535.6351600008966,
+      "lng": -0.12711524963378906,
+      "lat": 51.50560388987785
+    },
+    {
+      "kind": "cluster",
+      "id": "497",
+      "x": 59.140225010591145,
+      "y": 524.7063698712055,
+      "lng": -0.14193177223205566,
+      "lat": 51.50690608833315
+    }
+  ],
+  "moved": false,
+  "visible": 3573.2000000476837,
+  "revisionAtCapture": "local",
+  "publicationRevisionNote": "The builder invocation used revision local. The publication retains its prior revision. The measured rows are unchanged.",
+  "rowsSha256": "e2b25c773d2b34ea6bd9cc66118ffe8b2e820caebf6f046b9056d5cd083324e9"
+}

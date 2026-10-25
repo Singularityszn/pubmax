@@ -79,6 +79,22 @@ describe("Playwright project registration", () => {
     }
   });
 
+  it.each([
+    "**/map-arrival.spec.ts",
+    "**/map-arrival-card-pins.spec.ts",
+    "**/map-arrival-turn.spec.ts",
+  ])("assigns the painted-pin journey %s exclusively to chromium-gl", async (glob) => {
+    const projects = await loadProjects();
+    const owners = projects.filter((project) =>
+      globsOf(project.testMatch).includes(glob),
+    );
+
+    expect(owners.map((project) => project.name)).toEqual(["chromium-gl"]);
+    expect(
+      globsOf(projects.find((project) => project.name === "chromium")?.testIgnore),
+    ).toContain(glob);
+  });
+
   it("leaves CI at Playwright's default worker count and caps the local rig at two", async () => {
     vi.stubEnv("CI", "true");
     vi.resetModules();

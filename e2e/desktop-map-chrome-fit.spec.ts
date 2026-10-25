@@ -2,6 +2,7 @@ import { expect, test, type Locator, type Page } from "@playwright/test";
 
 import { paintedAmbientSurfaces } from "./helpers/ambientMapSurfaces";
 import { expectLayoutSettled } from "./helpers/layoutSettled";
+import { expectSoleDesktopDrawer } from "./helpers/mapSurfaceDrawers";
 
 const DESKTOP = { width: 1440, height: 900 };
 const DESKTOP_WIDTHS = [1024, 1280, 1440, 1600] as const;
@@ -584,6 +585,10 @@ test("1440px Plan an outing takes ownership from an open venue", async ({
 test("1440px loaded route opens its first venue without a deferred planner handoff", async ({
   page,
 }) => {
+  // The cold story load and lazy venue drawer share one test deadline.
+  // CI exhausted 30 seconds, while its warm retry needed 23.9 seconds.
+  // Use the existing desktop journey budget so each state wait can finish.
+  test.setTimeout(90_000);
   await page.setViewportSize(DESKTOP);
   await page.addInitScript(() => {
     window.localStorage.clear();
@@ -622,8 +627,6 @@ test("1440px loaded route opens its first venue without a deferred planner hando
   const onboarding = page.getByRole("dialog", { name: "Start with a story" });
   await expect(onboarding).toBeVisible({ timeout: 20_000 });
 
-  const planner = page.locator(".mapDrawer.left.springDrawer");
-  const venue = page.locator(".mapDrawer.right.springDrawer");
   await page.evaluate(() => {
     const plannerDrawer = document.querySelector(
       ".mapDrawer.left.springDrawer",
@@ -651,9 +654,7 @@ test("1440px loaded route opens its first venue without a deferred planner hando
     })
     .click();
 
-  await expect(venue).toHaveAttribute("aria-hidden", "false");
-  await expect(planner).toHaveAttribute("aria-hidden", "true");
-  await expect(page.locator(".mapDrawer.springDrawer.open")).toHaveCount(1);
+  await expectSoleDesktopDrawer(page, "venue");
   const plannerTransitions = await page.evaluate(
     () =>
       (

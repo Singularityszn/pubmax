@@ -47,6 +47,29 @@ describe("committed bundled data restore", () => {
     expect(readFileSync(join(cwd, "public/data/baseline.json"), "utf8")).toBe("{}\n");
   });
 
+  it("clears the provider key only in the payload and forwards unrelated environment values", () => {
+    const cwd = join(tmpdir(), `pubmax-bundled-keyless-${Date.now()}`);
+    mkdirSync(cwd, { recursive: true });
+    initialiseGit(cwd);
+    const env = {
+      ...process.env,
+      OPENROUTER_API_KEY: "fake-sentinel-not-a-provider-key",
+      PUBMAX_DISPOSABLE_FORWARDING: "disposable-forwarding-value",
+    };
+    const result = spawnSync(process.execPath, [bundledWrapper, process.execPath, "-e", `
+      console.log(JSON.stringify({
+        providerKeyPresent: Boolean(process.env.OPENROUTER_API_KEY),
+        unrelatedValueForwarded: process.env.PUBMAX_DISPOSABLE_FORWARDING === "disposable-forwarding-value",
+      }));
+      require("fs").appendFileSync("public/data/baseline.json", "dirty\\n");
+      process.exit(process.env.OPENROUTER_API_KEY ? 8 : 0);
+    `], { cwd, env, encoding: "utf8" });
+    expect(JSON.parse(result.stdout)).toEqual({ providerKeyPresent: false, unrelatedValueForwarded: true });
+    expect(result.status).toBe(0);
+    expect(Boolean(env.OPENROUTER_API_KEY)).toBe(true);
+    expect(readFileSync(join(cwd, "public/data/baseline.json"), "utf8")).toBe("{}\n");
+  });
+
   it("removes a shard file the wrapped command added and keeps one that was already there", () => {
     const cwd = join(tmpdir(), `pubmax-bundled-restore-untracked-${Date.now()}`);
     mkdirSync(cwd, { recursive: true });

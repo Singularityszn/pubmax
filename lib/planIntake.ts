@@ -4,11 +4,12 @@ import {
   type NightPatchId,
   type RememberedArea,
 } from "@/lib/nightPatches";
-import type {
-  Budget,
-  Daypart,
-  NightContext,
-  NightAreaSlug,
+import {
+  inferNightContext,
+  type Budget,
+  type Daypart,
+  type NightContext,
+  type NightAreaSlug,
 } from "@/lib/nightPlanning";
 import { lastOf } from "@/lib/tuple";
 import type { CityId } from "@/lib/cities";
@@ -804,14 +805,20 @@ export function buildPlanGenerationIntakeBody(
   // sends what the describe-first entry sends: every step nobody answered is
   // skipped, never left both empty and unskipped, which the API refuses.
   const sent = skipRemainingPlanIntake(draft);
+  // Transport needs come from the current description. Preserve recovered
+  // control choices, whose explicit ownership is not stored across reloads.
+  // Clearing the description keeps the stop count currently shown by the composer.
+  const retainedStopCount = cleanQuery ? undefined : currentContext?.stopCount;
   const context = {
     ...stripPlanIntakeOwnedContext(currentContext),
+    ...(isPlanStopCount(retainedStopCount) ? { stopCount: retainedStopCount } : {}),
+    transportConstraints: inferNightContext(cleanQuery).context.transportConstraints,
     ...explicitContext,
     ...planIntakeNightContextPatch(sent),
   };
   return {
     ...(cleanQuery ? { query: cleanQuery } : {}),
-    ...(Object.keys(context).length > 0 ? { context } : {}),
+    context,
     ...(anchor?.cityId ? { cityId: anchor.cityId } : {}),
     intake: planIntakeHandoff(sent),
     ...(anchor ? {

@@ -94,55 +94,6 @@
     "extractedVia": "manual"
   },
   {
-    "id": "food-mangal-1",
-    "name": "Mangal 1",
-    "address": "10 Arcola Street, London E8 2DJ",
-    "borough": "Hackney",
-    "lat": 51.54905,
-    "lng": -0.07072,
-    "kind": "food",
-    "hasStory": true,
-    "fameGates": [
-      {
-        "kind": "longevity",
-        "sourceUrl": "https://www.timeout.com/london/restaurants/mangal-ocakbasi"
-      },
-      {
-        "kind": "cultural_weight",
-        "sourceUrl": "https://mangal1.com/"
-      },
-      {
-        "kind": "distinct_experience",
-        "sourceUrl": "https://mangal1.com/"
-      }
-    ],
-    "sourceUrl": "https://mangal1.com/",
-    "observedAt": "2026-08-25",
-    "anchor": {
-      "kind": "signature_item",
-      "label": "Adana kebab",
-      "price": 18,
-      "observedAt": "2026-07-26",
-      "sourceUrl": "https://mangal1.com/"
-    },
-    "story": {
-      "text": "Ali Dirik opened Dalston's first ocakbasi in 1991, establishing the charcoal-counter template that transformed the neighbourhood.",
-      "sourceUrl": "https://mangal1.com/"
-    },
-    "category": "late_food",
-    "job": "crawl_ending_food",
-    "description": "Ali Dirik opened Dalston's first ocakbasi in 1991, establishing the charcoal-counter template that transformed the neighbourhood.",
-    "area": "Hackney",
-    "location": {
-      "lat": 51.54905,
-      "lng": -0.07072
-    },
-    "sourceName": "mangal1.com",
-    "expiresAt": "2026-09-24",
-    "discoveredVia": "manual",
-    "extractedVia": "manual"
-  },
-  {
     "id": "food-mangal-2",
     "name": "Mangal 2",
     "address": "4 Stoke Newington Road, London N16 7XN",
@@ -522,44 +473,6 @@
     ]
   },
   {
-    "id": "food-berenjak-soho",
-    "name": "Berenjak Soho",
-    "address": "27 Romilly Street, London W1D 5AL",
-    "borough": "Westminster",
-    "lat": 51.51286,
-    "lng": -0.13057,
-    "kind": "food",
-    "hasStory": true,
-    "fameGates": [
-      {
-        "kind": "recognition",
-        "sourceUrl": "https://www.timeout.com/london/restaurants/berenjak"
-      },
-      {
-        "kind": "distinct_experience",
-        "sourceUrl": "https://berenjaklondon.com/soho"
-      }
-    ],
-    "sourceUrl": "https://berenjaklondon.com/soho",
-    "observedAt": "2026-10-05",
-    "story": {
-      "text": "Berenjak models a Tehran hole-in-the-wall, grilling Persian kebabs over charcoal beside a tiny hayat courtyard.",
-      "sourceUrl": "https://berenjaklondon.com/soho"
-    },
-    "category": "late_food",
-    "job": "crawl_ending_food",
-    "description": "Berenjak models a Tehran hole-in-the-wall, grilling Persian kebabs over charcoal beside a tiny hayat courtyard.",
-    "area": "Westminster",
-    "location": {
-      "lat": 51.51286,
-      "lng": -0.13057
-    },
-    "sourceName": "berenjaklondon.com",
-    "expiresAt": "2026-11-04",
-    "discoveredVia": "manual",
-    "extractedVia": "manual"
-  },
-  {
     "id": "food-fm-mangal",
     "name": "FM Mangal",
     "address": "54 Camberwell Church Street, London SE5 8QZ",
@@ -740,51 +653,6 @@
     },
     "sourceName": "maroush.com",
     "expiresAt": "2026-11-20",
-    "discoveredVia": "manual",
-    "extractedVia": "manual"
-  },
-  {
-    "id": "food-maroush-edgware-road",
-    "name": "Maroush Edgware Road",
-    "address": "21 Edgware Road, London W2 2JE",
-    "borough": "Westminster",
-    "lat": 51.51415,
-    "lng": -0.16008,
-    "kind": "food",
-    "hasStory": true,
-    "fameGates": [
-      {
-        "kind": "longevity",
-        "sourceUrl": "https://www.timeout.com/london/restaurants/maroush-i"
-      },
-      {
-        "kind": "cultural_weight",
-        "sourceUrl": "https://www.maroush.com/restaurants"
-      }
-    ],
-    "sourceUrl": "https://www.maroush.com/restaurants",
-    "observedAt": "2026-08-25",
-    "anchor": {
-      "kind": "signature_item",
-      "label": "Lamb shawarma",
-      "price": 10.5,
-      "observedAt": "2026-07-26",
-      "sourceUrl": "https://www.maroush.com/restaurants"
-    },
-    "story": {
-      "text": "Marouf Abouzaki opened Maroush on Edgware Road in 1981 and helped make the street London's Lebanese heart.",
-      "sourceUrl": "https://www.maroush.com/blog/little-beirut-london-edgware-road"
-    },
-    "category": "late_food",
-    "job": "crawl_ending_food",
-    "description": "Marouf Abouzaki opened Maroush on Edgware Road in 1981 and helped make the street London's Lebanese heart.",
-    "area": "Westminster",
-    "location": {
-      "lat": 51.51415,
-      "lng": -0.16008
-    },
-    "sourceName": "maroush.com",
-    "expiresAt": "2026-09-24",
     "discoveredVia": "manual",
     "extractedVia": "manual"
   },
@@ -976,86 +844,6 @@
     "extractedVia": "manual"
   },
   {
-    "id": "food-wong-kei",
-    "name": "Wong Kei",
-    "address": "41-43 Wardour Street, London W1D 6PY",
-    "borough": "Westminster",
-    "lat": 51.51173,
-    "lng": -0.13265,
-    "kind": "food",
-    "hasStory": true,
-    "fameGates": [
-      {
-        "kind": "longevity",
-        "sourceUrl": "https://wongkeilondon.com/"
-      },
-      {
-        "kind": "cultural_weight",
-        "sourceUrl": "https://en.wikipedia.org/wiki/Wong_Kei"
-      }
-    ],
-    "sourceUrl": "https://wongkeilondon.com/",
-    "observedAt": "2026-10-05",
-    "story": {
-      "text": "Chinatown's vast, brisk canteen has served Cantonese roast meats and noodles across multiple floors since the 1970s.",
-      "sourceUrl": "https://wongkeilondon.com/"
-    },
-    "category": "late_food",
-    "job": "crawl_ending_food",
-    "description": "Chinatown's vast, brisk canteen has served Cantonese roast meats and noodles across multiple floors since the 1970s.",
-    "area": "Westminster",
-    "location": {
-      "lat": 51.51173,
-      "lng": -0.13265
-    },
-    "sourceName": "wongkeilondon.com",
-    "expiresAt": "2026-11-04",
-    "discoveredVia": "manual",
-    "extractedVia": "manual"
-  },
-  {
-    "id": "food-bar-italia",
-    "name": "Bar Italia",
-    "address": "22 Frith Street, London W1D 4RF",
-    "borough": "Westminster",
-    "lat": 51.51343,
-    "lng": -0.13165,
-    "kind": "food",
-    "hasStory": true,
-    "fameGates": [
-      {
-        "kind": "longevity",
-        "sourceUrl": "https://www.instagram.com/baritaliasoho"
-      },
-      {
-        "kind": "cultural_weight",
-        "sourceUrl": "https://en.wikipedia.org/wiki/Bar_Italia"
-      },
-      {
-        "kind": "distinct_experience",
-        "sourceUrl": "https://www.instagram.com/baritaliasoho"
-      }
-    ],
-    "sourceUrl": "https://www.instagram.com/baritaliasoho",
-    "observedAt": "2026-10-05",
-    "story": {
-      "text": "The Polledri family opened Bar Italia in 1949 beneath the room where John Logie Baird first demonstrated television.",
-      "sourceUrl": "https://www.instagram.com/baritaliasoho"
-    },
-    "category": "late_food",
-    "job": "crawl_ending_food",
-    "description": "The Polledri family opened Bar Italia in 1949 beneath the room where John Logie Baird first demonstrated television.",
-    "area": "Westminster",
-    "location": {
-      "lat": 51.51343,
-      "lng": -0.13165
-    },
-    "sourceName": "instagram.com",
-    "expiresAt": "2026-11-04",
-    "discoveredVia": "manual",
-    "extractedVia": "manual"
-  },
-  {
     "id": "food-vq-chelsea",
     "name": "VQ Chelsea",
     "address": "325 Fulham Road, London SW10 9QL",
@@ -1099,46 +887,5 @@
     "expiresAt": "2026-11-20",
     "discoveredVia": "manual",
     "extractedVia": "manual"
-  },
-  {
-    "id": "food-golden-dragon",
-    "name": "Golden Dragon",
-    "address": "28-29 Gerrard Street, London W1D 6JW",
-    "borough": "Westminster",
-    "lat": 51.51169,
-    "lng": -0.13121,
-    "kind": "food",
-    "hasStory": true,
-    "fameGates": [
-      {
-        "kind": "longevity",
-        "sourceUrl": "https://www.timeout.com/london/restaurants/golden-dragon"
-      },
-      {
-        "kind": "cultural_weight",
-        "sourceUrl": "https://goldendragonlondon.com/"
-      }
-    ],
-    "sourceUrl": "https://goldendragonlondon.com/",
-    "observedAt": "2026-10-05",
-    "story": {
-      "text": "Golden Dragon's long Gerrard Street dining room is a Chinatown constant for dim sum by day and Cantonese roast meats late.",
-      "sourceUrl": "https://goldendragonlondon.com/"
-    },
-    "category": "late_food",
-    "job": "crawl_ending_food",
-    "description": "Golden Dragon's long Gerrard Street dining room is a Chinatown constant for dim sum by day and Cantonese roast meats late.",
-    "area": "Westminster",
-    "location": {
-      "lat": 51.51169,
-      "lng": -0.13121
-    },
-    "sourceName": "goldendragonlondon.com",
-    "expiresAt": "2026-11-04",
-    "discoveredVia": "manual",
-    "extractedVia": "manual",
-    "placesNameAliases": [
-      "golden dragon chinatown"
-    ]
   }
 ]

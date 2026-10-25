@@ -23,14 +23,32 @@ import {
 import { getPricedVenues } from "@/lib/venuePriceIndex";
 import { matchedWetherspoonsVenueIds } from "@/lib/wetherspoonsMatch.server";
 import TonightClient from "./TonightClient";
+import { initialTonightOutAnswer } from "./initialOutAnswer";
 
 // The server composes the public listing answer through the same readers as
 // Today. The browser revalidates it through the shared map and Out API readers.
+const title = "Tonight in London";
+const description =
+  "Check sourced London pub listings for tonight on PUBMAXX, with map links when available.";
+const image = "/tonight/opengraph-image";
+
 export const metadata: Metadata = {
-  title: "Tonight in London",
-  description:
-    "Check sourced London pub listings for tonight on PUBMAXX, with map links when available.",
+  title,
+  description,
   alternates: { canonical: "/tonight" },
+  openGraph: {
+    title,
+    description,
+    type: "website",
+    url: "/tonight",
+    images: [{ url: image, width: 1200, height: 630, alt: "What's on in London tonight. PUBMAXX" }],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title,
+    description,
+    images: [image],
+  },
 };
 
 export const runtime = "nodejs";
@@ -154,7 +172,11 @@ export default async function TonightPage() {
 
   return (
     <TonightClient
-      initialListings={{ whatsOn, out, renderedAt: now.getTime() }}
+      initialListings={{
+        whatsOn,
+        out: initialTonightOutAnswer(out, now.getTime()),
+        renderedAt: now.getTime(),
+      }}
       quietPint={quietPint}
       softPlansWindow={softPlansWindow}
       mapSelectableVenueIds={
