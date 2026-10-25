@@ -4,7 +4,7 @@ import type { Filters } from "@/lib/venues";
 import { OPEN_NOW_FILTER_CAPTION } from "@/lib/openNow";
 import "./venueFeatureFilters.css";
 
-export const FEATURE_CHOICES = [
+const FEATURE_CHOICES = [
   ["requireBeerGarden", "Beer garden"],
   ["requireOutdoorSeating", "Outdoor seating"],
   ["requireLiveSports", "Live sport"],
