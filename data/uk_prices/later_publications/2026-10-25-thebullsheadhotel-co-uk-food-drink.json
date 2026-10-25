@@ -1,0 +1,58 @@
+{
+  "version": 1,
+  "sourceUrl": "https://www.thebullsheadhotel.co.uk/food-drink/",
+  "observedAt": "2026-10-25T18:14:24.119Z",
+  "evidence": "The committed source-read proof records Single Espresso £2.50, Double Espresso £3.10 and Nooh La Coste Rosé, Glass £8.60 in the Non-Alcohol Sparkling Wine section. The Nooh row preserves the printed 125ml serving wording. The source calls its menus sample menus and says prices may change. The stated address is Royal Parade, Chislehurst, Kent, BR7 6NR.",
+  "sourceProofPath": "docs/proof/battle-price-data-2026-10-25/README.md",
+  "reader": "Publication accounting for the existing bounded permission-checked source read. Facts transcribed from the committed local proof and its three accepted ledger observations. No new source read or observation date.",
+  "rows": [
+    {
+      "host": "thebullsheadhotel.co.uk",
+      "venueId": "venue-uk-n428941713",
+      "osmId": "node/428941713",
+      "name": "The Bull's Head",
+      "postcode": null,
+      "lat": 51.410984,
+      "lng": 0.076585,
+      "category": "alcohol-free",
+      "priceGbp": 8.6,
+      "drinkLabel": "Nooh La Coste Rosé, Provence 22kcal per 125ml serve Glass",
+      "sourceUrl": "https://www.thebullsheadhotel.co.uk/food-drink/",
+      "observedAt": "2026-10-25T18:14:24.119Z",
+      "pubsOnHost": 1,
+      "linesOnPage": 12
+    },
+    {
+      "host": "thebullsheadhotel.co.uk",
+      "venueId": "venue-uk-n428941713",
+      "osmId": "node/428941713",
+      "name": "The Bull's Head",
+      "postcode": null,
+      "lat": 51.410984,
+      "lng": 0.076585,
+      "category": "coffee",
+      "priceGbp": 3.1,
+      "drinkLabel": "Double Espresso",
+      "sourceUrl": "https://www.thebullsheadhotel.co.uk/food-drink/",
+      "observedAt": "2026-10-25T18:14:24.119Z",
+      "pubsOnHost": 1,
+      "linesOnPage": 12
+    },
+    {
+      "host": "thebullsheadhotel.co.uk",
+      "venueId": "venue-uk-n428941713",
+      "osmId": "node/428941713",
+      "name": "The Bull's Head",
+      "postcode": null,
+      "lat": 51.410984,
+      "lng": 0.076585,
+      "category": "coffee",
+      "priceGbp": 2.5,
+      "drinkLabel": "Single Espresso",
+      "sourceUrl": "https://www.thebullsheadhotel.co.uk/food-drink/",
+      "observedAt": "2026-10-25T18:14:24.119Z",
+      "pubsOnHost": 1,
+      "linesOnPage": 12
+    }
+  ]
+}

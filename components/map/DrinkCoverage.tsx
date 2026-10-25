@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { loadedListedDrinkCoverage } from "@/lib/listedMapDrinkCoverage";
+import { loadSurfaceJson } from "@/lib/surfaceDataCache";
 import type { CoffeePilotStatus } from "@/lib/coffeePilot";
 import { drinkLaneNoun } from "@/lib/drinkLanes";
 import type { DrinkCategory } from "@/lib/drinks";
@@ -20,12 +21,13 @@ export default function DrinkCoverage({ category, coverage }: {
   useEffect(() => {
     if (!showsListed || !hasLoadedPubIds) return;
     const controller = new AbortController();
-    void fetch("/data/uk_prices/listed_coverage.json", { signal: AbortSignal.any([controller.signal, AbortSignal.timeout(8000)]) }).then(async (response) => {
-      if (!response.ok) throw new Error("Listed coverage unavailable");
-      const rows: unknown = await response.json();
-      loadedListedDrinkCoverage(rows, [], "coffee");
-      if (!controller.signal.aborted) setListingRead({ rows, status: "ready" });
-    }).catch(() => { if (!controller.signal.aborted) setListingRead({ rows: null, status: "failed" }); });
+    void loadSurfaceJson<unknown>("/data/uk_prices/listed_coverage.json", {
+      signal: AbortSignal.any([controller.signal, AbortSignal.timeout(8000)]),
+      freshForMs: 5 * 60_000,
+      validate: (rows) => { loadedListedDrinkCoverage(rows, [], "coffee"); return true; },
+    }, (rows) => { setListingRead({ rows, status: "ready" }); }).then((status) => {
+      if (status === "failed" && !controller.signal.aborted) setListingRead({ rows: null, status: "failed" });
+    });
     return () => controller.abort();
   }, [showsListed, hasLoadedPubIds]);
   const listed = listingRead.status === "ready" ? loadedListedDrinkCoverage(listingRead.rows, coverage.loadedPubIds ?? [], category) : null;

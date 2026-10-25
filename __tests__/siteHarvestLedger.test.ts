@@ -111,13 +111,18 @@ describe("site harvest ledger", () => {
     expect(normalizeSiteHarvestLedgerRow(bare)).toBe(bare);
   });
 
-  it("committed site_harvest.jsonl has no duplicate bundle collect keys", () => {
+  it("committed site_harvest.jsonl has no duplicate collect keys at one observation time", () => {
     const text = readFileSync(
       join(process.cwd(), "data/uk_prices/site_harvest.jsonl"),
       "utf8",
     );
     const rows = parseSiteHarvestLedgerText(text);
-    expect(siteHarvestLedgerDuplicateKeys(rows, owners)).toEqual([]);
+    // A later source read preserves the earlier observation in the audit ledger.
+    // Two entries for the same serving at the same instant are still duplicates.
+    const byObservation = Map.groupBy(rows, (row) => row.observedAt);
+    for (const observations of byObservation.values()) {
+      expect(siteHarvestLedgerDuplicateKeys(observations, owners)).toEqual([]);
+    }
     for (const row of rows) {
       expect(siteHarvestLedgerCollectKey(row, owners)).toBeTruthy();
     }
