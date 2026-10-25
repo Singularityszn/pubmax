@@ -463,7 +463,7 @@ function SignInUnavailable({ signedIn }: { signedIn: boolean }): React.JSX.Eleme
           secondary={signedIn ? <Link href="/u/you">Your profile</Link> : undefined}
         />
         <p className="loginPageNotice" role="alert">{signedIn
-          ? "You are still signed in. Try again later to add another account."
+          ? "You are still signed in. Sign-in is unavailable, so you cannot add another account."
           : "Your account could not be checked."}</p>
         {!signedIn ? <LoginPageFooter /> : null}
       </div>
