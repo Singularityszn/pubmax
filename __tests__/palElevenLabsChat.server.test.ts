@@ -310,7 +310,8 @@ describe("runPalElevenLabsChatTurn", () => {
     expect(outcome.proposals.length).toBeGreaterThan(0);
     expect(wsState.socketsOpened).toBe(0);
     expect(deniedFetch).not.toHaveBeenCalled();
-    expect(tasteMocks.readPalTaste).not.toHaveBeenCalled();
+    expect(tasteMocks.readPalTaste).toHaveBeenCalledOnce();
+    expect(tasteMocks.readPalTaste.mock.calls.every(([owner]) => owner === "11111111-1111-4111-8111-111111111111")).toBe(true);
     expect(storeMocks.registerPubPalToolTurn).toHaveBeenCalledWith(outcome.conversationId, expect.objectContaining({ query, ownerId: "11111111-1111-4111-8111-111111111111", cards: outcome.cards }));
   });
 
@@ -346,7 +347,8 @@ describe("runPalElevenLabsChatTurn", () => {
     }
     expect(wsState.socketsOpened).toBe(0);
     expect(deniedFetch).not.toHaveBeenCalled();
-    expect(tasteMocks.readPalTaste).not.toHaveBeenCalled();
+    expect(tasteMocks.readPalTaste).toHaveBeenCalledOnce();
+    expect(tasteMocks.readPalTaste.mock.calls.every(([owner]) => owner === ownerId)).toBe(true);
   });
 
   it.each([

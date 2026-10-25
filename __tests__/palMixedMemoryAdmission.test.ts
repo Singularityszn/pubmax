@@ -202,10 +202,14 @@ const PERSONAL_MEMORY_OPERATIONS = [
 
 const ASKS_WITHOUT_MEMORY_OPERATION = [
   ["Find four pubs in Soho to save money", "search_venues"],
-  ["Find four pubs in Soho that suit my preferences", "search_venues"],
-  ["Find four pubs in Soho that match my notes", "search_venues"],
-  ["Plan a crawl in Soho that suits my preference for gardens", "propose_plan"],
+  ["Plan a crawl in Soho with gardens", "propose_plan"],
 ] as const;
+
+const GENERIC_PERSONALISATION = [
+  "Find four pubs in Soho that suit my preferences",
+  "Find four pubs in Soho that match my notes",
+  "Plan a crawl in Soho that suits my preference for gardens",
+];
 
 describe("explicit personal preference and note operations beside local record answers", () => {
   it.each(PERSONAL_MEMORY_OPERATIONS)("rejects a direct personal memory operation in the public predicate: %s", (query) => {
@@ -250,6 +254,30 @@ describe("explicit personal preference and note operations beside local record a
     expect(response.status).toBe(200);
     expect(await response.json()).toMatchObject({ toolsUsed: [tool] });
     expect(paidSpendBudgetRefusal).not.toHaveBeenCalled();
+    expect(deniedFetch).not.toHaveBeenCalled();
+  });
+});
+
+describe("generic personalisation no local tool implements", () => {
+  it.each(GENERIC_PERSONALISATION)("rejects the direct ask in the public predicate: %s", (query) => {
+    expect(palChatRecordQuery(query)).toBeNull();
+  });
+
+  it.each(GENERIC_PERSONALISATION)("keeps the direct ask on the configured HTTP provider path: %s", async (query) => {
+    const response = await ask(query);
+    expect(response.status).toBe(429);
+    expect(await response.json()).toEqual({ error: "Paid budget spent" });
+    expect(paidSpendBudgetRefusal).toHaveBeenCalledOnce();
+    expect(deniedFetch).not.toHaveBeenCalled();
+  });
+
+  it.each(GENERIC_PERSONALISATION)("keeps an owned same-area ask on the configured HTTP provider path: %s", async (query) => {
+    const followUp = query.replace(" in Soho", " in the same area");
+    await registerPubPalToolTurn(THREAD, { query: SOHO, cityId: "london", ownerId: OWNER, turns: [] });
+    const response = await ask(followUp, THREAD);
+    expect(response.status).toBe(429);
+    expect(await response.json()).toEqual({ error: "Paid budget spent" });
+    expect(paidSpendBudgetRefusal).toHaveBeenCalledOnce();
     expect(deniedFetch).not.toHaveBeenCalled();
   });
 });

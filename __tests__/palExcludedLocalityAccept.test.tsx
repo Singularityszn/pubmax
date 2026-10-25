@@ -1,9 +1,14 @@
 // @vitest-environment jsdom
 
 import { act, createElement } from "react";
-import { createRoot } from "react-dom/client";
-import { afterEach, expect, it, vi } from "vitest";
+import { createRoot, type Root } from "react-dom/client";
+import { afterEach, beforeEach, expect, it, vi } from "vitest";
 
+const chatServer = vi.hoisted(() => vi.fn());
+
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({ push: vi.fn(), replace: vi.fn(), prefetch: vi.fn() }),
+}));
 vi.mock("next/link", () => ({
   default: ({ children, href, className, onClick }: {
     children: React.ReactNode;
@@ -19,90 +24,169 @@ vi.mock("next/link", () => ({
     },
   }, children),
 }));
-vi.mock("@/lib/pintDrops", () => ({ isLimited: async () => false }));
-vi.mock("@/lib/supabase", () => ({ clientIp: () => "203.0.113.45", hashIp: (ip: string) => ip, isSupabaseConfigured: () => false, requiresSupabaseStore: () => false }));
+vi.mock("@/components/auth/AuthProvider", () => ({
+  useAuth: () => ({ user: null, session: null }),
+}));
+vi.mock("@/components/nav/SiteNav", () => ({
+  default: () => createElement("nav", null, "Navigation"),
+}));
+vi.mock("@/components/pal/PubPalMascot", () => ({
+  PubPalMascot: () => createElement("span", null, "Pal"),
+}));
+vi.mock("@/components/map/useWhatsOnTonight", () => ({
+  useWhatsOnTonight: () => ({ rows: [], status: "idle" }),
+}));
+vi.mock("@/lib/analytics", () => ({ trackEvent: vi.fn() }));
+vi.mock("@/lib/venuesSlim", () => ({
+  loadSlimVenuesForCity: vi.fn(async () => []),
+  loadSlimVenuesForCityResult: vi.fn(async () => ({ status: "ready", rows: [] })),
+}));
+vi.mock("@/lib/activePlan", () => ({
+  readActivePlan: () => null,
+  isPlanActiveNow: () => false,
+}));
+vi.mock("@/components/plan/usePlanMemberRead", () => ({
+  readPlanMemberProjection: vi.fn(async () => null),
+}));
+vi.mock("@/lib/authedFetch", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/lib/authedFetch")>()),
+  authedActionFetch: chatServer,
+}));
 vi.mock("@/lib/planningIntent", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/lib/planningIntent")>()),
   writePlanningIntent: vi.fn(),
 }));
 
-import { AnswerCard } from "@/components/pal/PalChat";
-import { refineRoutedAskQuery, resolveAskLocality, SAME_AREA_REFERENCE_RE } from "@/lib/ask/router";
-import type { PalCard } from "@/lib/palChat";
-import { palLocalityLine, resolvePalLocality } from "@/lib/palLocality";
+import PalChat from "@/components/pal/PalChat";
 import { writePlanningIntent } from "@/lib/planningIntent";
+import { clearSurfaceCache } from "@/lib/surfaceDataCache";
 
-afterEach(() => {
+const SOHO = "Find four pubs in Soho";
+const SOHO_AREA = { kind: "night-patch", id: "soho" };
+const CAMDEN_AREAS = [{ kind: "night-patch", id: "camden" }, { kind: "borough", name: "Camden" }];
+
+let container: HTMLDivElement;
+let root: Root | null = null;
+let served: string[] = [];
+
+async function serve(input: RequestInfo | URL, init: RequestInit = {}): Promise<Response> {
+  if (String(input) !== "/api/pub-pal/chat" || init.method !== "POST") {
+    return Response.json({ error: "Not found" }, { status: 404 });
+  }
+  const { query } = JSON.parse(String(init.body)) as { query: string };
+  served.push(query);
+  const index = served.length;
+  return Response.json({
+    answer: `One listed pub for ${query}.`,
+    conversationId: "conv_acceptlocality01",
+    toolsUsed: ["search_venues"],
+    cards: [{
+      key: `venue-${index}`,
+      venueId: `venue-${index}`,
+      title: `Answer Arms ${index}`,
+      place: "London",
+      note: "Listed pint on record.",
+      price: 5.2,
+      provenance: { label: "Recorded price", kind: "directory", url: "https://example.com/menu" },
+    }],
+    proposals: [],
+  });
+}
+
+beforeEach(async () => {
+  clearSurfaceCache();
+  window.localStorage.clear();
+  window.sessionStorage.clear();
+  (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
+  served = [];
   vi.mocked(writePlanningIntent).mockClear();
+  chatServer.mockReset().mockImplementation(serve);
+  container = document.createElement("div");
+  document.body.append(container);
+  root = createRoot(container);
+  await act(async () => {
+    root?.render(createElement(PalChat));
+  });
+});
+
+afterEach(async () => {
+  await act(async () => {
+    root?.unmount();
+  });
+  root = null;
+  container.remove();
   document.body.replaceChildren();
+  window.localStorage.clear();
+  window.sessionStorage.clear();
+  clearSurfaceCache();
+});
+
+async function settle(): Promise<void> {
+  for (let step = 0; step < 6; step += 1) {
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+  }
+}
+
+async function submit(text: string): Promise<void> {
+  const input = container.querySelector<HTMLInputElement>(".palChatInput");
+  if (!input) throw new Error("Pal chat input not found");
+  await act(async () => {
+    Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set?.call(input, text);
+    input.dispatchEvent(new Event("input", { bubbles: true }));
+  });
+  const form = container.querySelector<HTMLFormElement>("form");
+  if (!form) throw new Error("Pal chat form not found");
+  await act(async () => {
+    form.dispatchEvent(new Event("submit", { bubbles: true, cancelable: true }));
+  });
+  await settle();
+}
+
+async function askAndAccept(query: string, venueId: string): Promise<unknown> {
+  await submit(query);
+  expect(served.at(-1)).toBe(query);
+  const link = [...container.querySelectorAll<HTMLAnchorElement>("a.palChatCardAccept")].at(-1);
+  if (!link) throw new Error("Use this pub not found");
+  expect(link.textContent).toBe("Use this pub");
+  await act(async () => {
+    link.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true }));
+  });
+  const intent = vi.mocked(writePlanningIntent).mock.calls.at(-1)?.[0];
+  expect(intent).toMatchObject({ source: "pal", acceptedVenueId: venueId });
+  return (intent as { acceptedArea: unknown }).acceptedArea;
+}
+
+it.each([
+  "Find four pubs in the same area, not in Soho",
+  "Find four pubs around the same patch, not in Soho",
+  "Find four pubs in the same area, not in Soho. Soho is too busy.",
+  "Find four pubs around the same patch, not in Soho. Soho is too busy.",
+  "Find four pubs in Oxford",
+  "Find four pubs in Soho or Camden",
+  "Find four pubs in Elephant and Castle or Soho",
+  "Find four pubs in Elephant and Castle",
+])("accepts no area after a Soho answer for %s", async (followUp) => {
+  expect(await askAndAccept(SOHO, "venue-1")).toEqual(SOHO_AREA);
+  expect(await askAndAccept(followUp, "venue-2")).toBeNull();
+  expect(chatServer).toHaveBeenCalledTimes(2);
+});
+
+it("keeps Elephant and Castle unplaced rather than reusing Soho", async () => {
+  await askAndAccept(SOHO, "venue-1");
+  expect(await askAndAccept("Find four pubs in Elephant and Castle", "venue-2")).toBeNull();
+  const text = container.textContent ?? "";
+  expect(text).not.toContain("Around Soho, the area you last picked.");
+  expect(text).toContain(`couldn't place "Elephant and Castle"`);
 });
 
 it.each([
-  ["Find four pubs in Camden, not in Soho", /camden/i, /soho/i],
-  ["Find four pubs not in Camden but in Soho", /soho/i, /camden/i],
-])("labels and accepts the positive area of %s", async (query, wanted, excluded) => {
-  const routed = refineRoutedAskQuery(query, undefined, []);
-  const asked = resolveAskLocality(routed);
-  expect(asked.kind).toBe("supported");
-  expect("area" in asked ? asked.area : "").toMatch(wanted);
-  const locality = resolvePalLocality(routed, null);
-  expect(locality.scope).toBe("query");
-  expect(palLocalityLine(locality)).toMatch(wanted);
-  expect(palLocalityLine(locality)).not.toMatch(excluded);
-
-  const card = {
-    key: "accept-1", venueId: "venue-accept-1", title: "Test Arms", place: "", note: "", price: null,
-    provenance: { label: "On record", kind: "directory" },
-  } as unknown as PalCard;
-  const host = document.createElement("ul");
-  document.body.append(host);
-  const root = createRoot(host);
-  try {
-    await act(async () => root.render(createElement(AnswerCard, { card, onOpen: vi.fn(), locality })));
-    const accept = host.querySelector<HTMLAnchorElement>("a.palChatCardAccept");
-    expect(accept?.textContent).toBe("Use this pub");
-    await act(async () => { accept!.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true })); });
-    const intent = vi.mocked(writePlanningIntent).mock.calls.at(-1)?.[0];
-    expect(intent?.acceptedVenueId).toBe("venue-accept-1");
-    expect(intent?.acceptedArea).toEqual(locality.area);
-    expect(JSON.stringify(intent?.acceptedArea)).toMatch(wanted);
-    expect(JSON.stringify(intent?.acceptedArea)).not.toMatch(excluded);
-  } finally {
-    await act(async () => root.unmount());
-  }
-});
-
-it.each([
-  ["Find four pubs in the same area, not in Soho", null, /soho/i],
-  ["Find four pubs around the same patch, not in Soho", null, /soho/i],
-  ["Find four pubs in the same area, not in Soho. Soho is too busy.", null, /soho/i],
-  ["Find four pubs around the same patch, not in Soho. Soho is too busy.", null, /soho/i],
-  ["Find four pubs in the same area, not in Camden", /soho/i, /camden/i],
-  ["Find four pubs in Camden, not in Soho", /camden/i, /soho/i],
-] as const)("accepts no excluded area after owned Soho history for %s", async (text, wanted, excluded) => {
-  const priorUsers = ["Find four pubs in Soho"];
-  const routedQuery = refineRoutedAskQuery(text, priorUsers.at(-1), priorUsers);
-  const locality = SAME_AREA_REFERENCE_RE.test(routedQuery) || resolveAskLocality(routedQuery).kind !== "supported"
-    ? null
-    : resolvePalLocality(routedQuery, null);
-  const card = {
-    key: "accept-2", venueId: "venue-accept-2", title: "Test Arms", place: "", note: "", price: null,
-    provenance: { label: "On record", kind: "directory" },
-  } as unknown as PalCard;
-  const host = document.createElement("ul");
-  document.body.append(host);
-  const root = createRoot(host);
-  try {
-    await act(async () => root.render(createElement(AnswerCard, { card, onOpen: vi.fn(), locality })));
-    const accept = host.querySelector<HTMLAnchorElement>("a.palChatCardAccept");
-    expect(accept?.textContent).toBe("Use this pub");
-    await act(async () => { accept!.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true })); });
-    const intent = vi.mocked(writePlanningIntent).mock.calls.at(-1)?.[0];
-    expect(intent?.acceptedVenueId).toBe("venue-accept-2");
-    if (wanted) expect(JSON.stringify(intent?.acceptedArea)).toMatch(wanted);
-    else expect(intent?.acceptedArea).toBeNull();
-    expect(JSON.stringify(intent?.acceptedArea ?? null)).not.toMatch(excluded);
-  } finally {
-    await act(async () => root.unmount());
-  }
+  ["Find four pubs in the same area, not in Camden", [SOHO_AREA]],
+  ["Four quiet pubs in Soho", [SOHO_AREA]],
+  ["Find four pubs not in Camden but in Soho", [SOHO_AREA]],
+  ["Find four pubs in Camden, not in Soho", CAMDEN_AREAS],
+] as Array<[string, Array<Record<string, string>>]>)("accepts the named area after a Soho answer for %s", async (followUp, areas) => {
+  expect(await askAndAccept(SOHO, "venue-1")).toEqual(SOHO_AREA);
+  expect(areas).toContainEqual(await askAndAccept(followUp, "venue-2"));
 });

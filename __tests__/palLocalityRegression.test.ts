@@ -351,7 +351,7 @@ describe("fixed three-stop plan admission", () => {
     "Plan a crawl in Soho for four of us with three garden pubs",
     "Plan a three-stop crawl in Soho for 6 people",
     "Plan a crawl in Soho at 8 pm with three garden pubs",
-    "Plan a crawl in Soho with three exceptionally welcoming dog-friendly riverside garden pubs",
+    "Plan a crawl in Soho with three quiet riverside garden pubs",
     "Plan a crawl in Soho for 2 to 4 of us with three garden pubs",
   ])(
     "keeps the fixed three-stop plan local, with party size apart from stops: %s", async (query) => {

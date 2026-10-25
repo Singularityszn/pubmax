@@ -1,9 +1,11 @@
 import "server-only";
 
-import { extractExplicitBudget, requestedVenueQuantity } from "@/lib/concierge/intentPolicy";
+import { DEFAULT_GROUP_SIZE, extractExplicitBudget, requestedVenueQuantity, withoutExcludedPlaces } from "@/lib/concierge/intentPolicy";
+import { parseConciergeIntent } from "@/lib/concierge/intent";
+import { CONCIERGE_MOODS, type ConciergeMood } from "@/lib/concierge/rank";
 import { composeAnswer, runAsk } from "@/lib/ask/runAsk";
-import { isCompleteAskRequest, recordedDrinkComparison, refineRoutedAskQuery, resolveAskLocality, SAME_AREA_REFERENCE_RE, resolveAskPriceIntent, routeAskDeterministically, unsupportedPriceComparison } from "@/lib/ask/router";
-import type { AskCard, AskProposal } from "@/lib/ask/types";
+import { isCompleteAskRequest, recordedDrinkComparison, refineRoutedAskQuery, resolveAskLocality, SAME_AREA_REFERENCE_RE, resolveAskPriceIntent, routeAskDeterministically, socialTurnKind, unsupportedPriceComparison } from "@/lib/ask/router";
+import type { AskCard, AskProposal, AskToolName } from "@/lib/ask/types";
 import { resolveAskCityId } from "@/lib/ask/tools";
 import {
   readConfirmedPalMemories,
@@ -164,6 +166,8 @@ export type PalElevenLabsChatContext = {
   prior: PriorSession;
   fence: PubPalFenceIntent;
   deadline: number;
+  recordQuery: string | null;
+  personal?: { memories: PalRecalledMemory[] | null; taste: PalTaste | null };
 };
 
 /** Prepare owned history and its safety result once, before any opening or provider turn. */
@@ -172,14 +176,17 @@ export async function preparePalElevenLabsChatTurn(
   deadline = Date.now() + CHAT_TIMEOUT_MS,
 ): Promise<PalElevenLabsChatContext> {
   return beforePalChatDeadline(deadline, async () => {
+    const query = input.query.trim().slice(0, 500);
     const prior = await priorOwnedSession(input.threadId, input.ownerId);
     assertPalChatDeadline(deadline);
     const fenceTurns = (input.fenceTurns ?? []).filter((turn) => turn.role === "user");
-    const fence = await resolvePubPalFenceIntent(input.query.trim().slice(0, 500), [
+    const fence = await resolvePubPalFenceIntent(query, [
       ...fenceTurns,
       ...prior.turns,
     ]);
-    return { prior, fence, deadline };
+    if (fence.fenced) return { prior, fence, deadline, recordQuery: null };
+    assertPalChatDeadline(deadline);
+    return { prior, fence, deadline, ...(await palChatAdmission(query, input.ownerId, prior)) };
   });
 }
 
@@ -219,6 +226,56 @@ export function palChatRecordQuery(query: string, turns: readonly PubPalFenceTur
       : call.name === "cheapest_pint_near" && quantity === undefined);
   return localDiscovery || localPlan || localPints
     ? routedQuery : null;
+}
+
+const RECOMMENDATION_TOOLS = new Set<AskToolName>(["search_venues", "propose_plan", "cheapest_pint_near"]);
+const MOOD_TOOLS = new Set<AskToolName>(["search_venues", "propose_plan"]);
+const MEMORY_MOOD_KINDS = new Set<string>(["venue_preference", "atmosphere_preference"]);
+
+function canonicalMemoryMood(memory: PalRecalledMemory): ConciergeMood | null {
+  const value = memory.value.trim().toLocaleLowerCase("en-GB");
+  return MEMORY_MOOD_KINDS.has(memory.kind) ? CONCIERGE_MOODS.find((mood) => mood === value) ?? null : null;
+}
+
+async function palChatAdmission(
+  query: string,
+  ownerId: string,
+  prior: PriorSession,
+): Promise<Pick<PalElevenLabsChatContext, "recordQuery" | "personal">> {
+  const recordQuery = palChatRecordQuery(query, prior.turns);
+  if (recordQuery === null || unsupportedPriceComparison(recordQuery) || recordedDrinkComparison(recordQuery)) return { recordQuery };
+  const calls = routeAskDeterministically(recordQuery);
+  if (!calls.some((call) => RECOMMENDATION_TOOLS.has(call.name))) return { recordQuery };
+  const [memories, taste] = await Promise.all([readConfirmedPalMemories(ownerId, query), readPalTaste(ownerId)]);
+  const personal = { memories, taste };
+  const provider = { recordQuery: null, personal };
+  if (memories === null || palTastePreamble(taste).length > 0 || prior.summary.trim()) return provider;
+  const remembered = memories.flatMap((memory) => canonicalMemoryMood(memory) ?? []);
+  if (remembered.length !== memories.length) return provider;
+  const intentOf = async (text: string) => (await parseConciergeIntent(text, { skipModel: true })).intent;
+  const current = await intentOf(recordQuery);
+  let moods: ConciergeMood[] = [];
+  let budget: number | undefined;
+  for (const turn of prior.turns) {
+    if (turn.role !== "user" || socialTurnKind(turn.content)) continue;
+    if (!isCompleteAskRequest(turn.content) || /\bnot\b/i.test(withoutExcludedPlaces(turn.content))) return provider;
+    if (unsupportedPriceComparison(turn.content) || recordedDrinkComparison(turn.content)) continue;
+    const earlier = await intentOf(turn.content);
+    const recommends = routeAskDeterministically(turn.content).some((call) => RECOMMENDATION_TOOLS.has(call.name));
+    if ((earlier.maxPintPrice !== undefined && !recommends && current.maxPintPrice === undefined)
+      || (earlier.groupSize !== DEFAULT_GROUP_SIZE && current.groupSize === DEFAULT_GROUP_SIZE)
+      || (earlier.mood.length > 0 && !recommends)) return provider;
+    if (earlier.mood.length > 0) moods = earlier.mood;
+    if (earlier.maxPintPrice !== undefined) budget = earlier.maxPintPrice;
+  }
+  const carried = current.maxPintPrice === undefined ? budget : undefined;
+  const guidance = current.mood.length > 0 ? [] : [...new Set<ConciergeMood>([...remembered, ...moods])];
+  if (guidance.length === 0 && carried === undefined) return { recordQuery, personal };
+  const guidedText = [...guidance, recordQuery, ...(carried === undefined ? [] : [`under £${carried.toFixed(2).replace(/\.00$/, "")}`])].join(" ");
+  const guided = guidedText.length <= 500 && calls.every((call) => MOOD_TOOLS.has(call.name)) ? palChatRecordQuery(guidedText) : null;
+  const sameTools = guided !== null
+    && routeAskDeterministically(guided).map((call) => call.name).join() === calls.map((call) => call.name).join();
+  return sameTools ? { recordQuery: guided, personal } : provider;
 }
 
 export async function runPalElevenLabsChatTurn(
@@ -264,13 +321,11 @@ export async function runPalElevenLabsChatTurn(
     recordFailure(code, "context");
     return { ok: false, code };
   }
-  const { prior, fence: { fenced, sobrietyOnly } } = context;
+  const { prior, recordQuery, personal, fence: { fenced, sobrietyOnly } } = context;
   if (Date.now() >= deadline) {
     recordFailure("TIMEOUT", "context");
     return { ok: false, code: "TIMEOUT" };
   }
-  const turns = prior.turns;
-  const recordQuery = palChatRecordQuery(query, turns);
   const answeredFromRecords = recordQuery !== null;
   if (fenced) {
     return {
@@ -283,14 +338,12 @@ export async function runPalElevenLabsChatTurn(
     };
   }
 
-  // Only unfenced turns start provider and personal reads. These independent
-  // reads run together after the owned context and safety check finish.
   const sessionRead = answeredFromRecords ? null : fetchPalSignedConversation({
     apiKey, agentId, timeoutMs: Math.max(1, deadline - Date.now()),
   });
   // Read from the signed-in owner's own Pal and logs, never from the request body.
-  const memoriesRead = answeredFromRecords ? null : readConfirmedPalMemories(input.ownerId, query);
-  const tasteRead = answeredFromRecords ? null : readPalTaste(input.ownerId);
+  const memoriesRead = answeredFromRecords ? null : personal ? Promise.resolve(personal.memories) : readConfirmedPalMemories(input.ownerId, query);
+  const tasteRead = answeredFromRecords ? null : personal ? Promise.resolve(personal.taste) : readPalTaste(input.ownerId);
   // The three reads are null exactly when the records answer; testing them here
   // also tells the compiler so.
   if (answeredFromRecords || !sessionRead || !memoriesRead || !tasteRead) {
@@ -358,7 +411,7 @@ export async function runPalElevenLabsChatTurn(
       query,
       cityId,
       ownerId: input.ownerId,
-      turns,
+      turns: prior.turns,
       summary: prior.summary,
     });
   // The signed URL already names the conversation, so the turn is registered

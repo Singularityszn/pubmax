@@ -22,7 +22,6 @@ import {
 } from "@/lib/palChatStream";
 import {
   runPalElevenLabsChatTurn,
-  palChatRecordQuery,
   preparePalElevenLabsChatTurn,
   type PalElevenLabsChatContext,
   type PalElevenLabsChatInput,
@@ -354,7 +353,7 @@ export async function POST(request: Request): Promise<Response> {
 async function configuredTurn(turn: PalElevenLabsChatInput, context: PalElevenLabsChatContext, request: Request): Promise<Response> {
   // The spend ceiling applies only when a provider turn is needed. The
   // address limiter, owner check and safety fence still cover local records.
-  if (palChatRecordQuery(turn.query, context.prior.turns) === null) {
+  if (context.recordQuery === null) {
     const budgetRefusal = await beforePalChatDeadline(context.deadline, () => paidSpendBudgetRefusal("pub-pal-chat"));
     if (budgetRefusal) return budgetRefusal;
   }

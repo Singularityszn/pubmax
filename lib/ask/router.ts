@@ -305,7 +305,8 @@ export function isCompleteAskRequest(query: string): boolean {
   const kind = resolveAskPriceIntent(query).kind;
   const attached = question.split(/\s*,\s*|(?<=[.!?])\s+/)
     .filter((part) => /^(?:with|for)\b/i.test(part) || PRICE_COMPARISON_RE.test(part) || ITEM_PRICE_RE.test(part)).join(", ");
-  const item = kind === "unsupported" || kind === "menu" || kind === "recorded-drinks" ? priceComparisonSubject(attached) ?? "" : "";
+  const item = kind === "unsupported" || kind === "menu" || kind === "recorded-drinks"
+    ? priceComparisonSubject(attached) ?? "" : "";
   return statusComplete && isCompleteLocalRequest(
     question.replace(TRANSIT_ANCHOR_RE, " ").replace(DISCOVERY_REFERENCE_RE, " place "),
     item.split(/\s+(?:and|&)\s+/i)[0]!.split(/\s+/),
@@ -408,7 +409,7 @@ export function unambiguousAskArea(text: string): string | null | undefined {
   const location = text.match(/\b(?:in|near|around)\s+(.+?)(?=[!?]|\.(?:\s|$)|$)/iu)?.[1] ?? area;
   const places = location.replace(area, "").replace(/,?\s*\b(?:please|for|with|under|below|max|but|and\s+(?:show|put|open|map)|not)\b.*$/i, "");
   return candidates.length > 1 || /\b(?:or|and)\b|[,/]/i.test(places)
-    || (candidates.length === 0 && /\b(?:or|and)\b|[,/]/i.test(area)) ? null : area;
+    || (!isSupportedAskArea(area) && /\b(?:or|and)\b|[,/]/i.test(area)) ? null : area;
 }
 
 function excludesAskArea(text: string, area: string): boolean {
