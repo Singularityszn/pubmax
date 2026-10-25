@@ -2,10 +2,91 @@
 
 Base: `1dd819f3c`, current `origin/main` when this work started. The owner chose
 an independent refresh, separate from open PRs #2347, #2339 and #2346. Those PRs
-must be reconciled before merge, especially homepage copy, Tonight credits,
-area availability and About schema. This change does not deploy production.
+required reconciliation for homepage copy, Tonight credits, area availability
+and About schema. The 25 October receipt below records the reconciled base.
+This change does not deploy production.
 
-## Review fix round on 24 October 2026
+## Production acceptance on 25 October 2026
+
+These receipts validate product code `aacd8818884146464d57d2818158929535d61ff0`
+against `0bb6fa2e4c0c04ac26db4a1b95305f2d47fb0559`.
+The earlier overlapping PRs are included in that base.
+Both original and rebased refresh histories remain preserved.
+The writing/layout and photography/film commits remain separate.
+
+The full local `npm run verify` passed in 524.1 seconds.
+It passed 43,852 unit tests, 697 database tests and 10 cleanup checks.
+One existing live-provider test was skipped.
+Freshness checks reported two stale-data advisories and three unmeasurable store feeds.
+Those feeds are not reported as fresh.
+
+Fresh production output passed the following checks:
+
+| Check | Result |
+| --- | --- |
+| Writing, navigation, photography and film regressions | 31 passed |
+| Extra keyboard, location, photo and recovery scenarios | 14 passed |
+| Ten page families at three widths in both themes | 60 passed |
+| Historic controls at 320, 390, 768 and 1440px with 200% text | Passed in both themes |
+| Home, Pub Pal and About performance ceilings | Passed without budget changes |
+| Image formats, credits, dimensions and private metadata | Passed |
+| Pub Pal onboarding, draft recovery and delayed visible image layout | Passed |
+| Actual OIDC credential precedence and missing-credential refusal | Passed |
+
+The measured LCP values were 340ms for Home, 328ms for Pub Pal and 300ms for About.
+These are local Chromium measurements, not physical-device results.
+The browser was Chromium 156.0.8078.4 with Playwright 1.64.0, revision 1248.
+The application used disposable keyless stores.
+No real account or hosted OIDC issuance was tested.
+
+The [production receipt](production-acceptance-20261025.json) records the test commands,
+corrected disposable drivers, cleanup and limitations.
+The [page matrix](production-matrix-20261025.json) records each route, width and theme.
+Two initial driver failures remain disclosed in the receipt.
+One used an ineffective native-select key sequence.
+The other waited for lazy images outside the viewport.
+Corrected tests passed without product changes.
+
+The gate still rejected native Test completion after these product checks passed.
+The process trace identified the desktop turn-ended notification helper at agent exit.
+The supported headless-worker override now disables that optional notification.
+All validation and process-completion checks remain enabled.
+A new complete gate run must pass before this change is ready for review.
+This receipt does not claim a completed gate, hosted review or CI result.
+
+### Current page captures
+
+The initial before captures below use `1dd819f3c`.
+The current captures use `aacd88188`, which also includes later main changes.
+They do not attribute every visible difference to this refresh.
+
+| Page | Starting capture | Current production capture |
+| --- | --- | --- |
+| Home | ![Home before](before-home-phone.png) | ![Home after](production-home-phone.png) |
+| About | ![About before](before-about-phone.png) | ![About after](production-about-phone.png) |
+| Pub Pal | ![Pub Pal before](before-pal-phone.png) | ![Pub Pal after](production-pal-phone.png) |
+
+Additional phone captures cover [Tonight](production-tonight-phone.png),
+[Today](production-today-phone.png), [Discover](production-social-tab-discover-phone.png),
+[Plan](production-plan-phone.png), [Map](production-map-phone.png),
+[Historic](production-historic-phone.png) and [Southwark](production-borough-southwark-phone.png).
+The local visual review retains 42 matched comparisons across both themes and all three widths.
+
+### Historic filter regression
+
+At 390px and 200% text, the borough selector extended 82px beyond the viewport.
+The field and selector now fit their available width.
+Browser tests check control bounds, touch height, page overflow and focus in both themes.
+The extra interaction checks select Southwark and sort the results by keyboard.
+
+| Before at 200% text | After at 200% text |
+| --- | --- |
+| ![Historic selector overflows at 390px](historic-before-200-dark.png) | ![Historic selector fits after selecting Southwark by keyboard](historic-after-200-dark.png) |
+
+The before capture uses `96aeb6bf3`. The after capture uses `aacd88188`.
+The after capture includes the selected Southwark state from the keyboard check.
+
+## Historical review fix round on 24 October 2026
 
 This round starts at `1b66ce553f9b1e42842fc155e493d0c1b944a597`, against
 base `0bb6fa2e4c0c04ac26db4a1b95305f2d47fb0559`.
