@@ -8,6 +8,7 @@ import { Fragment, useCallback, useMemo, useSyncExternalStore, type CSSPropertie
 import { useViewerHandle } from "@/components/auth/useViewerHandle";
 import { useViewerSession } from "@/components/auth/useViewerSession";
 import { profilePath } from "@/lib/appLink";
+import { useNowHref } from "@/lib/useNowHref";
 import { warmNavRoute } from "@/lib/mapWarmup";
 import {
   PRIMARY_NAV_ITEMS,
@@ -90,6 +91,7 @@ export function buildTabs(
   youHref: NextRoute = "/u/you" as NextRoute,
   mapHref: NextRoute = "/map",
   socialLabel: string = socialSurfaceName(true),
+  nowHref: "/today" | "/tonight" = "/tonight",
 ): Tab[] {
   const icons = {
     now: CalendarClock,
@@ -108,7 +110,9 @@ export function buildTabs(
           ? mapHref
           : item.key === "you"
             ? youHref
-            : item.href,
+            : item.key === "now"
+              ? nowHref
+              : item.href,
       Icon: icons[item.key],
     }));
 }
@@ -172,9 +176,10 @@ function MobileTabBarContent({ pathname }: { pathname: string }) {
     serverStrictModalFocusTrap,
   );
   const socialLabel = useSocialSurfaceName();
+  const nowHref = useNowHref();
   const tabs = useMemo(
-    () => buildTabs(youHref, mapHref, socialLabel),
-    [youHref, mapHref, socialLabel],
+    () => buildTabs(youHref, mapHref, socialLabel, nowHref),
+    [youHref, mapHref, socialLabel, nowHref],
   );
   // Drives the gliding highlight pill (mobileNav.css). -1 (no match — e.g. a
   // route none of the tabs own) hides it via CSS rather than pinning it to a

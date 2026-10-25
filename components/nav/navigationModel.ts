@@ -53,13 +53,13 @@ const PLAN_NAV_MATCH: readonly string[] = ["/plan", "/crawls"];
  * city", because choosing a city is a setting a reader makes once, not a place
  * they go back to every night. Neither /out nor /places lights a tab.
  *
- * The `now` key reads "Tonight" and opens /tonight at every hour, so the word
- * and the page always agree. The daytime door is the page's own Day | Tonight
- * segment. Map stays canonical /map.
+ * The `now` key keeps the Tonight label. Its main links use useNowHref:
+ * Day before 16:00 London time, Tonight from 16:00 until midnight.
+ * Both pages belong to this tab. Explicit page links keep their destination.
  */
 export const PRIMARY_NAV_ITEMS: readonly PrimaryNavItem[] = [
   { key: "map", href: "/map", label: "Map", match: ["/map"] },
-  { key: "now", href: "/tonight", label: "Tonight", match: ["/tonight"] },
+  { key: "now", href: "/tonight", label: "Tonight", match: ["/today", "/tonight"] },
   // Plan owns the composer, a shared plan at /plan/[id] and the crawl routes
   // (PLAN_NAV_MATCH).
   { key: "plan", href: "/plan", label: "Plan", match: [...PLAN_NAV_MATCH] },

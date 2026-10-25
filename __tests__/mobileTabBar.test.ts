@@ -9,8 +9,8 @@ import { defined } from "@/__tests__/helpers/defined";
 // Plan, Social, You (Social by the captain's call, 16 Oct 2026). Out folded
 // into Tonight (/out 308s there at the edge) and Places is the city setting
 // reached from the map's chip, so neither is a tab. Moment is a floating +
-// action, never a destination. The URL is the truth: Today owns its
-// Day | Tonight segment rather than a primary tab.
+// action, never a destination. The URL preserves each explicit
+// Day | Tonight choice. Both pages belong to the Tonight tab.
 
 function activeLabel(pathname: string): string | undefined {
   const tabs = buildTabs();
@@ -60,11 +60,16 @@ describe("mobile tab bar contract", () => {
     const tabs = buildTabs();
     const byLabel = Object.fromEntries(tabs.map((tab) => [tab.label, tab]));
     expect(defined(byLabel.Tonight).href).toBe("/tonight");
-    expect(defined(byLabel.Tonight).match).toEqual(["/tonight"]);
+    expect(defined(byLabel.Tonight).match).toEqual(["/today", "/tonight"]);
     expect(defined(byLabel.Map).href).toBe("/map");
     expect(defined(byLabel.Plan).href).toBe("/plan");
     expect(defined(byLabel.Social).href).toBe("/social");
     expect(defined(byLabel.You).href).toBe("/u/you");
+  });
+
+  it("accepts the automatic daytime destination without changing the tab name", () => {
+    expect(buildTabs("/u/you" as Route, "/map", "Social", "/today").find((tab) => tab.key === "now"))
+      .toMatchObject({ href: "/today", label: "Tonight", ariaLabel: "Tonight" });
   });
 
   it("accepts the preferred-city Map destination", () => {
@@ -80,8 +85,8 @@ describe("mobile tab bar contract", () => {
   });
 
   it("marks each door on its own routes, and the folded doors light nothing", () => {
-    expect(activeLabel("/today")).toBeUndefined();
-    expect(activeLabel("/today/highlights")).toBeUndefined();
+    expect(activeLabel("/today")).toBe("Tonight");
+    expect(activeLabel("/today/highlights")).toBe("Tonight");
     expect(activeLabel("/tonight")).toBe("Tonight");
     expect(activeLabel("/plan")).toBe("Plan");
     expect(activeLabel("/plan/abc123")).toBe("Plan");

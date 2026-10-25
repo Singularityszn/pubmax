@@ -6,6 +6,8 @@ import { usePathname } from "next/navigation";
 import { CirclePlus } from "lucide-react";
 import { useMemo, useSyncExternalStore } from "react";
 
+import { useNowHref } from "@/lib/useNowHref";
+
 import IntentLink from "@/components/nav/IntentLink";
 import MessagesLink from "@/components/nav/MessagesLink";
 import { PalSiteNavButton } from "@/components/nav/PalNavButton";
@@ -103,7 +105,7 @@ function primaryKeyForLegacyActive(active?: NavKey): NavKey | undefined {
   // The crawl routes are walks to plan, never Social (PLAN_NAV_MATCH).
   if (active === "crawls") return "plan";
   // Out folded into Tonight, so the retired Out page lights Tonight.
-  if (active === "tonight" || active === "out") return "now";
+  if (active === "today" || active === "tonight" || active === "out") return "now";
   // The city picker is a setting reached from the map's chip, not a door.
   if (active === "places") return undefined;
   // Borough pages are data/discovery, not Social. There is no primary tab for
@@ -212,6 +214,7 @@ export default function SiteNav({
   );
   const mapHref = preferredCity ? preferredCityMapHref() : "/map";
   const links = LINKS;
+  const nowHref = useNowHref();
 
   // The map is full-bleed with an overflow-hidden shell, so the bar floats
   // (fixed) over it. Every other page keeps the bar in normal flow.
@@ -246,7 +249,7 @@ export default function SiteNav({
           return (
             <li key={link.key} className="siteNavItem">
               <IntentLink
-                href={link.key === "map" ? mapHref : link.href}
+                href={link.key === "map" ? mapHref : link.key === "now" ? nowHref : link.href}
                 className={isActive ? "siteNavLink isActive" : "siteNavLink"}
                 aria-current={isActive ? "page" : undefined}
                 aria-label={label}
