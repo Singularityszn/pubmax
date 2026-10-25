@@ -38,7 +38,7 @@ Seven Playwright cases passed without retries.
 
 The native cases use `e2e/helpers/nativeShell.ts` to exercise native document behavior in Chromium.
 They do not verify the installed phone or actual native system-bar plugins.
-Physical iPhone acceptance remains with the device owner.
+Physical iPhone acceptance remains unverified until the device owner supplies evidence.
 
 ## Images
 
