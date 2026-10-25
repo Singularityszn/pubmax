@@ -89,6 +89,46 @@ describe("mobile map session adapter", () => {
     }
   });
 
+  it("restores a session saved before dog, darts and pool filters existed", () => {
+    const filters = { ...seedCrawlState("").filters, query: "Camden", maxPrice: 7.5, requireLiveSports: true };
+    const legacyFilters: Partial<typeof filters> = { ...filters };
+    delete legacyFilters.requireDogFriendly;
+    delete legacyFilters.requireDarts;
+    delete legacyFilters.requirePool;
+    const session = {
+      version: 1,
+      savedAt: "2026-10-24T18:00:00Z",
+      cityId: "london",
+      viewport: { center: [-0.12, 51.51], zoom: 13, pitch: 28, bearing: -8 },
+      filters: legacyFilters,
+      nightArea: "shoreditch",
+      selectedVenueId: "venue-15898y3",
+      poiHidden: { ...defaultPoiHiddenMobile(), tube: false, park: false },
+      openSheet: "venue",
+    };
+    window.localStorage.setItem(MOBILE_MAP_SESSION_KEY, JSON.stringify(session));
+    expect(readMobileMapSession()).toEqual({
+      ...session,
+      filters: { ...filters, requireDogFriendly: false, requireDarts: false, requirePool: false },
+    });
+  });
+
+  it.each(["requireDogFriendly", "requireDarts", "requirePool"] as const)(
+    "defaults absent %s to false and rejects malformed present values",
+    (key) => {
+      const current = seedCrawlState("").filters;
+      const legacy: Partial<typeof current> = { ...current };
+      delete legacy[key];
+      expect(validateMobileMapFilters(legacy)?.[key]).toBe(false);
+      for (const value of [false, true]) {
+        expect(validateMobileMapFilters({ ...current, [key]: value })?.[key]).toBe(value);
+      }
+      for (const value of [null, undefined, "true", 1, [], {}]) {
+        expect(validateMobileMapFilters({ ...current, [key]: value })).toBeNull();
+      }
+    },
+  );
+
   it("upgrades a dead-flat saved viewport to the city's designed camera attitude", () => {
     const flat = { center: [-0.12, 51.52] as [number, number], zoom: 12, pitch: 0, bearing: 0 };
     const london = { pitch: 38, bearing: -8 };

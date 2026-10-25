@@ -295,18 +295,22 @@ export type Venue = {
 };
 
 export type VenueFeatureObservation = readonly [
-  value: boolean, source: "OpenStreetMap" | "Google Places", observedAt: string,
+  value: boolean, source: "OpenStreetMap" | "Google Places" | "Pub website", observedAt: string,
 ];
 
 export type VenueFilterHints = {
   outdoorSeating?: VenueFeatureObservation;
   beerGardenSource?: VenueFeatureObservation;
+  liveSportsSource?: VenueFeatureObservation;
+  dogsWelcome?: VenueFeatureObservation;
   searchText: string;
   amenities: {
     food: boolean;
     cocktails: boolean;
     beerGarden: boolean;
-    liveSports: boolean;
+    liveSports?: boolean;
+    darts?: boolean;
+    pool?: boolean;
     nonAlcoholic: boolean;
   };
   curation: {
@@ -366,6 +370,9 @@ export type Filters = {
   routeWindow: number;
   requireBeerGarden: boolean;
   requireOutdoorSeating?: boolean;
+  requireDogFriendly?: boolean;
+  requireDarts?: boolean;
+  requirePool?: boolean;
   requireNonAlcoholic: boolean;
   requireLiveSports: boolean;
   requireFood: boolean;
@@ -421,6 +428,9 @@ export const initialFilters: Filters = {
   routeWindow: 20,
   requireBeerGarden: false,
   requireOutdoorSeating: false,
+  requireDogFriendly: false,
+  requireDarts: false,
+  requirePool: false,
   requireNonAlcoholic: false,
   requireLiveSports: false,
   requireFood: false,
@@ -1158,6 +1168,28 @@ function positiveFeatureSource(
   return Number.isFinite(observedAt) && observedAt <= Date.now();
 }
 
+function matchesRecordedExtras(venue: Venue, filters: Filters): boolean {
+  if (filters.requireLiveSports) {
+    if (venueAmenityStatus(venue).liveSports === "known-false" || venue.osmFacts?.liveSport === "no") return false;
+    const source = venue.filterHints?.liveSportsSource;
+    if (source?.[0] === false) return false;
+    if (venue.osmFacts?.liveSport !== "yes"
+      && !positiveFeatureSource(source, ["OpenStreetMap"])) return false;
+  }
+  if (filters.requireDogFriendly) {
+    const policy = venue.siteFacts?.dogs?.policy;
+    const source = venue.filterHints?.dogsWelcome;
+    if (policy === "not-allowed" || source?.[0] === false) return false;
+    if (policy !== "welcome" && venue.osmFacts?.dog !== "yes" && venue.osmFacts?.dog !== "leashed"
+      && !positiveFeatureSource(source, ["OpenStreetMap", "Pub website"])) return false;
+  }
+  for (const [required, key] of [[filters.requireDarts, "darts"], [filters.requirePool, "pool"]] as const) {
+    if (required && (venueAmenityStatus(venue)[key] === "known-false"
+      || (!venue.amenities[key] && venue.filterHints?.amenities[key] !== true))) return false;
+  }
+  return true;
+}
+
 function matchesVenueAmenities(venue: Venue, filters: Filters): boolean {
   if (filters.requireBeerGarden) {
     // A blank source column is unknown, not a denial of the dated OSM fact.
@@ -1169,9 +1201,10 @@ function matchesVenueAmenities(venue: Venue, filters: Filters): boolean {
       || (!gardenSource && hasSlimFlag(venue, (hints) => hints.amenities.beerGarden));
     if (!gardenKnown) return false;
   }
+  if (!matchesRecordedExtras(venue, filters)) return false;
   const checks = [
     [filters.requireNonAlcoholic, venue.amenities.nonAlcoholic, (hints: VenueFilterHints) => hints.amenities.nonAlcoholic],
-    [filters.requireLiveSports, venue.amenities.liveSports, (hints: VenueFilterHints) => hints.amenities.liveSports],
+
     [filters.requireFood, venue.amenities.food, (hints: VenueFilterHints) => hints.amenities.food],
     [filters.requireCocktails, venue.amenities.cocktails, (hints: VenueFilterHints) => hints.amenities.cocktails],
   ] as const;
