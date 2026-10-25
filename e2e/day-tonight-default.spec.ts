@@ -76,7 +76,7 @@ test("desktop and landing links use the same daytime default", async ({ page }) 
 
 for (const instant of ["2026-01-15T03:59:59Z", "2026-07-16T02:59:59Z"]) {
   test(`the main link changes at the 04:00 service rollover without rerouting at ${instant}`, async ({ page }) => {
-    await page.clock.install({ time: new Date(instant) });
+    await page.clock.install({ time: new Date(Date.parse(instant) - 120_000) });
     await page.goto("/tonight");
     const tab = dock(page).getByRole("link", { name: "Tonight", exact: true });
     await expect(tab).toHaveAttribute("href", "/tonight");
