@@ -198,7 +198,7 @@
       "name": "Single Espresso",
       "category": "coffee",
       "priceGbp": 2.5,
-      "observedAt": "2026-10-25T18:14:24.119Z",
+      "observedAt": "2026-09-21T18:21:05.365Z",
       "sourceUrl": "https://www.thebullsheadhotel.co.uk/food-drink/"
     },
     {
@@ -353,5 +353,6 @@
       "observedAt": "2026-09-21T18:18:09.102Z",
       "sourceUrl": "http://jollycoopers.co.uk/menu"
     }
-  ]
+  ],
+  "correctedAt": "2026-10-25T19:11:36.558Z"
 }

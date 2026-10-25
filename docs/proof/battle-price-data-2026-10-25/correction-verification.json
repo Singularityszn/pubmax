@@ -1,0 +1,93 @@
+{
+  "testedBase": "606111c6e944ba3b749e93bb2f9d505bf4dfd39e",
+  "correction": "working tree",
+  "historicalLedgerPrefixSha256": "000bded8a9a65d65f33be79447bf32b7df1f963699c94ce7f9a2a00fbe63614d",
+  "historicalLedgerRows": 4031,
+  "earlierAuditRecordsUnchanged": true,
+  "newPublicationRows": 2,
+  "singleEspressoObservedAt": "2026-09-21T18:21:05.365Z",
+  "builderExit": 0,
+  "deterministicOutputs": [
+    "public/data/uk_prices/rows.json",
+    "public/data/uk_prices/listed_coverage.json",
+    "data/uk_prices/site_harvest.jsonl"
+  ],
+  "manifestComparedExcept": "generatedAt",
+  "focusedTestFiles": 7,
+  "focusedTests": 75,
+  "focusedTestExit": 0,
+  "configuredGate": "Pending outer executor. This phase prohibits lint, static analysis and gate control.",
+  "browser": {
+    "exit": 0,
+    "menuViewports": [
+      {
+        "width": 1440,
+        "height": 1000
+      },
+      {
+        "width": 390,
+        "height": 844
+      }
+    ],
+    "coverageViewports": [
+      {
+        "width": 1440,
+        "height": 1000
+      },
+      {
+        "width": 390,
+        "height": 844
+      }
+    ],
+    "mode": "Signed-out local Next.js dev build with Chromium. Mobile viewport emulation, not a physical device.",
+    "menuPageErrors": [],
+    "menuEvidence": "corrected-browser.json",
+    "coverageEvidence": "corrected-coverage.json"
+  },
+  "earlierAuditRecordBytesUnchanged": true,
+  "baselinePintDataAndSourcePolicyUnchanged": true,
+  "venueApi": {
+    "status": 200,
+    "rows": [
+      {
+        "venueKey": "venue-ege2qq",
+        "drinkName": "Nooh La Coste Rosé, Provence 22kcal per 125ml serve Glass",
+        "category": "alcohol-free",
+        "priceGbp": 8.6,
+        "source": {
+          "label": "thebullsheadhotel.co.uk",
+          "url": "https://www.thebullsheadhotel.co.uk/food-drink/",
+          "licence": "Published menu price facts"
+        },
+        "observedAt": "2026-10-25T18:14:24.119Z",
+        "lane": "publisher"
+      },
+      {
+        "venueKey": "venue-ege2qq",
+        "drinkName": "Single Espresso",
+        "category": "coffee",
+        "priceGbp": 2.5,
+        "source": {
+          "label": "thebullsheadhotel.co.uk",
+          "url": "https://www.thebullsheadhotel.co.uk/food-drink/",
+          "licence": "Published menu price facts"
+        },
+        "observedAt": "2026-09-21T18:21:05.365Z",
+        "lane": "publisher"
+      },
+      {
+        "venueKey": "venue-ege2qq",
+        "drinkName": "Double Espresso",
+        "category": "coffee",
+        "priceGbp": 3.1,
+        "source": {
+          "label": "thebullsheadhotel.co.uk",
+          "url": "https://www.thebullsheadhotel.co.uk/food-drink/",
+          "licence": "Published menu price facts"
+        },
+        "observedAt": "2026-10-25T18:14:24.119Z",
+        "lane": "publisher"
+      }
+    ]
+  }
+}

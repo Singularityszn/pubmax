@@ -16,14 +16,16 @@ The hosts were `thescolthead.co.uk`, `threecrownsn16.com` and `thebullsheadhotel
 The live robots checks admitted all three. The committed harvest report describes those bounded reads.
 It does not establish global freshness.
 
-The runs produced 173 candidates. Review selected three observations from the Bull's Head in Chislehurst.
-The other 170 candidates were not published by this refresh.
+The runs produced 173 candidates. Review published two new observations from the Bull's Head in Chislehurst.
+The other 171 candidates were not published by this refresh.
+The Single Espresso read repeated an existing observation and adds no new publication.
 Some candidates misclassified liqueurs or borrowed neighbouring drink categories.
 This bounded data change does not repair the general parser or endorse those candidates.
-Existing source observations remain unchanged.
+Existing source observations remain unchanged. The recorded ledger prefix remains byte-for-byte intact.
 
 Source: <https://www.thebullsheadhotel.co.uk/food-drink/>.
-Observation: `2026-10-25T18:14:24.119Z`.
+New Double Espresso and alcohol-free observations: `2026-10-25T18:14:24.119Z`.
+Existing Single Espresso observation: `2026-09-21T18:21:05.365Z`.
 The source menu states Single Espresso £2.50 and Double Espresso £3.10.
 Its Non-Alcohol Sparkling Wine section states Nooh La Coste Rosé, Glass £8.60.
 The source calls its menus sample menus and says prices may change.
@@ -32,10 +34,12 @@ The live source states Royal Parade, Chislehurst, Kent, BR7 6NR.
 Its OSM point is `51.410984, 0.076585`.
 The curated Bulls Head is in Chislehurst, Bromley at `51.4116, 0.0769545`, approximately 73 metres away.
 The bundle builder resolves that identity to `venue-ege2qq`.
-GET `/api/venue/venue-ege2qq` returns the three named observations through the existing `priceUpdates` field.
+GET `/api/venue/venue-ege2qq` returns all three named prices through the existing `priceUpdates` field.
 
-Review selected the three source observations as input to the existing bundle builder.
+Review selected only the Double Espresso and alcohol-free observations as new bundle input.
 `npm run build:uk-price-bundle` generated the ledger copy, public rows and manifest.
+`npm run harvest:uk-record-publications` recorded the two new rows with gated page evidence.
+The producer read the source again and recorded that evidence time separately.
 No observation timestamp came from a rebuild timestamp.
 
 ## Coverage behaviour
@@ -55,24 +59,36 @@ Plain coffee servings use a narrow name list. Explicit alcoholic ABV labels cann
 Unnamed legacy rows remain in their source bundle but do not enter this named menu count.
 The index has 26 pub/category entries in this snapshot. The new source observations cover both categories at one pub.
 
-## Verification
+## Correction verification
 
-The initial publication test failed because the helper read the wrong decision date field.
-The corrected helper uses the shared standing decision's `asOf` field.
-Targeted reader and rendered-component checks cover identity deduplication, loaded scope, separate confirmations, source dates and failed reads.
-A clean worktree-local `npm ci --ignore-scripts` installed 784 packages and reported zero vulnerabilities.
-`npm run typecheck` passed. `npm run validate-data` passed all 22 datasets.
-The validation also reported existing stale `area_news` and `google_places_content` advisories.
-The seven targeted suites passed 60 tests with worktree-local dependencies.
-The local Chromium check used a private dev server at `localhost:4312`, isolated `.next-price`, and a 1440 by 1000 viewport.
-The Menu tab displayed both espresso prices, their publisher and the 25 October source date.
-The alcohol-free menu displayed Nooh La Coste Rosé at £8.60 with its publisher and date.
-The coffee picker showed zero of 175 loaded pubs confirmed, one Listed pub and 12 separate Shoreditch cafés.
-The alcohol-free picker showed zero of 175 loaded pubs confirmed and one Listed pub.
+The restored tests reproduced the duplicate collect key and missing historical bundle row before the correction.
+The restored coffee evidence test found 84 historical rows instead of 85.
+Seven focused suites now pass all 75 tests with exit 0.
+These include the global duplicate check, historical bundle counts, 85-row coffee cohort and retained coverage-cache tests.
+
+The existing builder reproduces the price rows, coverage index and ledger bytes across two runs.
+The manifest matches apart from its generation time.
+All 4,031 historical ledger rows retain their original bytes. Earlier reconciliation records remain unchanged.
+Only the new publication record changes, from three added rows to two.
+The page-evidence producer read the permitted source again and recorded its own evidence time.
+
+Chromium checks passed at 1440 by 1000 and 390 by 844 on an isolated local development build.
+The server used `127.0.0.1:4319` and `.next-price-contract`.
+Both menus show Single Espresso dated 21 September and Double Espresso dated 25 October.
+Both alcohol-free menus show the named £8.60 glass with its 125ml wording and 25 October date.
+The source links remain on the Bull's Head page. Neither menu run reported a page error.
+The coverage panels show positive Listed counts beside zero drinker-confirmed prices.
+The coffee panels show the separate 12-café count.
 The loaded-pub denominator changes as spatial shards arrive. It is not a city inventory.
-The captured runtime reported no page errors. Screenshots and DOM text are beside this report.
-This is local signed-out desktop proof. It does not prove a hosted preview or physical phone.
-Full `npm run verify` and the publication gate remain pending the coordinator's resource slot.
+
+`corrected-browser.json` and `corrected-coverage.json` contain the current browser results.
+The desktop and mobile screenshots sit beside these files.
+`correction-verification.json` records the focused tests, rebuild comparison and historical preservation checks.
+This proof covers signed-out local Chromium with mobile emulation. Hosted preview and physical-device checks remain outside this phase.
+
+The outer executor must run `verify:no-mistakes:changed` on the corrected commit before publication.
+This assigned phase prohibits lint, static analysis, complete-suite checks and gate control.
+This phase does not claim that the configured gate passed.
 
 ## Follow-up adapter audit
 
@@ -83,7 +99,7 @@ These checks are conservative display restrictions. They do not repair or reveri
 The eligible inventory is recorded in `eligible-menu-audit.json` with each original source date and URL.
 The inventory contains 43 named rows. Only 31 site-harvest rows need the new menu bridge.
 The 12 publisher-update rows already reach the menu through their existing pack and are not added twice.
-The three reviewed Bull's Head prices and source dates are unchanged.
+The three Bull's Head prices remain unchanged. Single Espresso retains its original 21 September source date.
 
 ABV checking uses the existing product rule in `alcoholTypeForDrink`: up to and including 0.5 percent is low-no.
 Full numeric parsing keeps 0.3 and 0.5 percent intact. It no longer reads a fractional digit as an integer percentage.
@@ -93,4 +109,4 @@ No claim here guarantees that every historical category assignment is correct.
 An unavailable bundle now returns `null` from the existing per-venue price-update read.
 A successful empty read still returns `{ drink: [], food: [] }`.
 Five focused suites passed 22 tests after these corrections, including both read states and observed bad-label examples.
-The existing screenshots show the unchanged Bull's Head rows and counts before this follow-up.
+The corrected screenshots show the preserved Single Espresso date and the two new observations.

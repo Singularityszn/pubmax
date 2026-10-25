@@ -1,6 +1,6 @@
 // Coffee pilot fence (PR 1): tea, water and affogato never become coffee prices;
 // matcha is a coffee word; flat white, latte and matcha latte do not collapse.
-// Legacy misfiled coffee rows stay committed as evidence.
+// The 85 legacy `category: coffee` bundle rows stay committed as evidence.
 
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
@@ -271,6 +271,25 @@ describe("coffee pilot judged harvest fence", () => {
 });
 
 describe("coffee pilot bundle regression fixture", () => {
+  it("keeps 85 coffee evidence rows from the recorded 23 October cohort", () => {
+    const rows = JSON.parse(readFileSync(BUNDLE_ROWS, "utf8")) as Array<{
+      category: string;
+      sourceUrl: string | null;
+      observedAt: string;
+    }>;
+    const reconciliation = JSON.parse(readFileSync(
+      join(process.cwd(), "data/uk_prices/site_harvest_reconciliation.json"), "utf8",
+    )) as { laterPublications: Array<{ sourceUrl: string; sourceObservedAt: string }> };
+    // The recorded Small Beer publication closes this historical cohort.
+    // Later publications may add coffee without changing its evidence count.
+    const laterSources = new Set(reconciliation.laterPublications
+      .filter((publication) => publication.sourceObservedAt > "2026-10-23T16:15:47.970Z")
+      .map((publication) => `${publication.sourceUrl}|${publication.sourceObservedAt}`));
+    const coffee = rows.filter((row) => row.category === "coffee" &&
+      !laterSources.has(`${row.sourceUrl}|${row.observedAt}`));
+    expect(coffee).toHaveLength(85);
+  });
+
   it("flags every tea, water and affogato label the bundle already misfiled", () => {
     const rows = JSON.parse(readFileSync(BUNDLE_ROWS, "utf8")) as Array<{
       category: string;

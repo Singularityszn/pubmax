@@ -514,8 +514,17 @@ describe("site-harvest withdrawal reconciliation", () => {
     const identity = (row: { drinkLabel?: string; servingSize?: string; priceGbp?: number; observedAt?: string }) =>
       `${row.drinkLabel}|${row.servingSize}|${row.priceGbp}|${row.observedAt}`;
     expect(bundledSourceRows.map(identity).sort()).toEqual(sourceRows.map(identity).sort());
-    // The current bundle supersedes older observations of the same serving.
-    // Its filtered rows cannot reconstruct a historical bundle's row count.
-    // The latest-publication test above checks the current bundle counts.
+    // A later publication is its URL AT its observation time: a dated
+    // re-observation of a historical URL leaves that URL's earlier rows historical.
+    const laterSources = new Set(
+      reconciliation.laterPublications.map((later) => `${later.sourceUrl}|${later.sourceObservedAt}`),
+    );
+    const historicalBundle = bundleRows.filter(
+      (row) => !laterSources.has(`${row.sourceUrl ?? ""}|${row.observedAt}`),
+    );
+    expect(publication.currentBundle).toEqual({
+      rowCount: historicalBundle.length,
+      siteHarvestRows: historicalBundle.filter((row) => row.lane === "site-harvest").length,
+    });
   });
 });
