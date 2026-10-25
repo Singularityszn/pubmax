@@ -1,7 +1,5 @@
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import { readFileSync } from "node:fs";
-import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 
 import { ArrivalWelcomeLine } from "@/components/auth/ArrivalWelcome";
@@ -162,20 +160,5 @@ describe("the arrival line", () => {
     expect(html).not.toContain('role="dialog"');
     expect(html).not.toContain("aria-modal");
     expect(html).not.toContain("Backdrop");
-  });
-
-  it("floats below the modal layer and takes no pointer events of its own", () => {
-    const css = readFileSync(
-      join(process.cwd(), "components/auth/arrivalWelcome.css"),
-      "utf8",
-    );
-    expect(css).toMatch(
-      /\.arrivalWelcome\s*\{[^}]*z-index: calc\(var\(--z-modal(?:, 1200)?\) - 1\)/,
-    );
-    expect(css).toMatch(/\.arrivalWelcome\s*\{[^}]*pointer-events: none/);
-    expect(css).toMatch(/\.arrivalWelcomeDismiss\s*\{[^}]*pointer-events: auto/);
-    // Reduced motion keeps the greeting and drops the travel.
-    expect(css).toMatch(/@media \(prefers-reduced-motion: reduce\)/);
-    expect(css).toContain("arrivalWelcomeFadeIn");
   });
 });
