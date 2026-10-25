@@ -39,10 +39,10 @@ import "./navigation.css";
 //
 // The mobile fix: at ≤640px the app already renders a fixed bottom tab bar
 // (MobileTabBar: Map/Tonight/Plan/Social/You). Repeating the full link list up top
-// there caused the old `.appNav` pill to overflow the viewport on /map. So on
+// there caused the old `.appNav` pill to overflow the viewport on /map.
 // Mobile renders the wordmark, theme, account controls and signed-in activity.
-// It hides the full link list (see siteNav.css
-// @media ≤640px). On desktop the full links + active state show. Nothing may
+// It hides the full link list (siteNav.css, @media ≤640px).
+// On desktop the full links + active state show. Nothing may
 // horizontally overflow at 390px.
 //
 // No effects: usePathname() marks the active link, which keeps this clear of
