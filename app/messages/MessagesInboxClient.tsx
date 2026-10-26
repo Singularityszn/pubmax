@@ -337,7 +337,7 @@ export default function MessagesInboxClient({
     ? "No conversations match your search."
     : filter === "unread" ? "No unread conversations to show." : "No group conversations yet.";
   const filteredEmptyLine = hasSearch
-    ? "Try another name or a few words from a message."
+    ? "Try another name, handle or group title."
     : filter === "groups" ? "Get the people joining you tonight into one conversation."
       : partial ? "Some unread counts couldn't be checked. Your conversations are in All."
         : failed ? "Couldn't check for new messages. Your conversations are in All."
@@ -366,7 +366,7 @@ export default function MessagesInboxClient({
             <input
               type="search"
               aria-label="Search conversations"
-              placeholder="Search names or messages"
+              placeholder="Search names or handles"
               value={searchQuery}
               onChange={(event) => setInboxSearch({ revision: accountRevision, query: event.target.value, filter })}
             />

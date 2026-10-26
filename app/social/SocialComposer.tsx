@@ -504,7 +504,7 @@ function AudienceField({ draft, nameHidden, onDraft }: { draft: Draft; nameHidde
       </label>
       <p id={hintId}>
         {nameHidden || draft.visibility === "public"
-          ? "Anyone on Social can see this. Your exact pub stays between mutual friends."
+          ? "Anyone on Social can see your words and photos. Only mutual friends can see the pub you tag."
           : draft.visibility === "friends"
             ? "Only people you follow who follow you back can see this."
             : "Only you can see this."}
