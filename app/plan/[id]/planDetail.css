@@ -17,3 +17,30 @@
   font-size: var(--text-sm);
   line-height: var(--leading-snug);
 }
+
+.planDetailScreen ~ .planPage__grid .planSummary__heading {
+  margin-left: 0;
+}
+
+.planDetailScreen ~ .planPage__grid .planRouteMiniMap {
+  padding: 0;
+  border: 0;
+  background: none;
+}
+
+.planDetailScreen ~ .planPage__grid .planRouteMiniMap__canvas {
+  height: clamp(224px, 38vw, 320px);
+  border-radius: var(--radius-lg);
+}
+
+.planDetailScreen ~ .planPage__grid .planRouteMiniMap__attrib {
+  right: var(--space-2);
+  bottom: var(--space-2);
+}
+
+@media (max-width: 900px) {
+  /* The walk comes before invitations and votes on a saved plan. */
+  .planDetailScreen ~ .planPage__grid .planPage__side {
+    order: initial;
+  }
+}
