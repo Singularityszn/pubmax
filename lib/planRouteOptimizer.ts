@@ -96,9 +96,8 @@ export type GroundedPlanRouteConstraints = {
   streetWalkKm?: (fromVenueId: string, toVenueId: string) => number | null;
   /**
    * Prefer a route with at most one pub per known operator. A crawl of three
-   * branches of one chain is the same pub three times. When no such route is
-   * feasible the best route without the rule is returned, so the preference
-   * never turns a route into a refusal.
+   * branches of one chain is the same pub three times. If the bounded searches
+   * find no such route, retry without this preference.
    */
   oneStopPerOperator?: boolean;
 };
@@ -113,7 +112,7 @@ function repeatsOperator<T>(route: readonly GroundedPlanRouteCandidate<T>[]): bo
   return false;
 }
 
-/** The strongest candidates for the search, capping each operator under the one-per-operator rule. */
+/** Bound the search slice, capping each operator under the one-per-operator rule. */
 function searchSlice<T>(
   candidates: readonly GroundedPlanRouteCandidate<T>[],
   constraints: GroundedPlanRouteConstraints,
@@ -557,15 +556,13 @@ function searchWithBudgetFallback<T>(
   return search(affordable);
 }
 
-/** Visit unordered combinations in descending score-bound order, then check every ordering. */
+/** Bound route ordering work without reducing the evidence available for alternatives. */
 function findBestRoute<T>(
   eligible: readonly GroundedPlanRouteCandidate<T>[],
   constraints: GroundedPlanRouteConstraints,
 ): EvaluatedRoute<T> | null {
   const target = planStopCount(constraints.stopCount);
-  // Six-stop route ordering grows factorially. Search the strongest fourteen
-  // grounded candidates, while keeping the complete eligible set for honest
-  // scarcity and per-stop alternatives.
+  // Keep the complete eligible set for scarcity counts and per-stop alternatives.
   return searchWithBudgetFallback(eligible, constraints, (ranked) => target > 3
     ? beamBestRoute(ranked.map((candidate) => [candidate]), ranked, target, constraints)
     : searchBestRouteCombinations(ranked, target, [], constraints));
@@ -629,7 +626,7 @@ function routeEligibleCandidates<T>(
     : eligible;
 }
 
-/** Select the strongest feasible route of the requested size, with deterministic tie-breaks. */
+/** Select a feasible route with bounded searches and deterministic tie-breaks. */
 export function selectGroundedPlanRoute<T>(
   candidates: readonly GroundedPlanRouteCandidate<T>[],
   constraints: GroundedPlanRouteConstraints,
