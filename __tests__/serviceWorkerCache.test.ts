@@ -1316,6 +1316,85 @@ describe("old Plan navigation privacy", () => {
   );
 });
 
+describe("offline nearby navigation", () => {
+  it.each([
+    "/near",
+    "/near?patch=soho&drink=guinness&locate=1",
+  ])("shows the offline explanation for %s instead of a cached homepage", async (path) => {
+    const home = new Response("Cached homepage");
+    const offline = new Response(
+      readFileSync(join(process.cwd(), "public", "offline.html"), "utf8"),
+      { headers: { "Content-Type": "text/html; charset=utf-8" } },
+    );
+    const { listeners } = rolloutWorkerHarness({
+      entries: {
+        "pubmax-sw-shell-target": [["/", home], ["/offline.html", offline]],
+      },
+    });
+
+    const navigation = dispatchFetch(listeners.get("fetch")!, {
+      method: "GET",
+      mode: "navigate",
+      url: `https://pubmaxxing.com${path}`,
+    } as Request);
+    const response = await navigation.response as Response;
+
+    expect(response).toBe(offline);
+    expect(response.status).toBe(200);
+    expect(response.headers.get("location")).toBeNull();
+    expect(await response.clone().text()).toContain("You're offline.");
+    await Promise.all(navigation.lifetime);
+  });
+
+  it("returns an explicit 503 for /near when the offline document is missing despite a cached homepage", async () => {
+    const home = new Response("Cached homepage without an offline document");
+    const { listeners } = rolloutWorkerHarness({
+      entries: {
+        "pubmax-sw-shell-target": [["/", home]],
+      },
+    });
+
+    const navigation = dispatchFetch(listeners.get("fetch")!, {
+      method: "GET",
+      mode: "navigate",
+      url: "https://pubmaxxing.com/near",
+    } as Request);
+    const response = await navigation.response as Response;
+
+    expect(response.status).toBe(503);
+    expect(response.headers.get("Content-Type")).toBe("text/plain; charset=utf-8");
+    expect(response.headers.get("location")).toBeNull();
+    expect(await response.clone().text()).toBe("You're offline and nothing is cached yet.");
+    await Promise.all(navigation.lifetime);
+  });
+
+  it("returns the successful /near network response unchanged despite cached fallback documents", async () => {
+    const live = new Response("Live nearby results", {
+      headers: { "Content-Type": "text/html; charset=utf-8" },
+    });
+    const { listeners } = rolloutWorkerHarness({
+      response: live,
+      entries: {
+        "pubmax-sw-shell-target": [
+          ["/", new Response("Cached homepage")],
+          ["/offline.html", new Response("Cached offline explanation")],
+        ],
+      },
+    });
+
+    const navigation = dispatchFetch(listeners.get("fetch")!, {
+      method: "GET",
+      mode: "navigate",
+      url: "https://pubmaxxing.com/near",
+    } as Request);
+    const response = await navigation.response as Response;
+
+    expect(response).toBe(live);
+    expect(await response.clone().text()).toBe("Live nearby results");
+    await Promise.all(navigation.lifetime);
+  });
+});
+
 describe("stalled and preloaded navigations", () => {
   const TIMEOUT_MS = 4000;
   const NOW = Date.parse("2026-10-15T21:00:00Z");

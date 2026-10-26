@@ -586,18 +586,22 @@ async function handleNavigation(event, request, url) {
     if (url.pathname === "/app-entry") {
       return Response.redirect(new URL("/", url).href, 302);
     }
-    // Offline, a plan detail page reopens from its cached preview before the
-    // generic shell ladder. Member details still require their live API.
-    const plan = await matchPlanNavigationAcrossCaches(url);
-    if (plan) return plan;
-    const exact = await matchCacheFamily(SHELL_CACHE, url.href, {
-      ignoreSearch: true,
-    });
-    if (exact) return exact;
-    const home = await matchCacheFamily(SHELL_CACHE, "/", {
-      ignoreSearch: true,
-    });
-    if (home) return home;
+    // Nearby results need a connection. Show the offline explanation rather
+    // than unrelated homepage content under the nearby address.
+    if (url.pathname !== "/near") {
+      // Offline, a plan detail page reopens from its cached preview before the
+      // generic shell ladder. Member details still require their live API.
+      const plan = await matchPlanNavigationAcrossCaches(url);
+      if (plan) return plan;
+      const exact = await matchCacheFamily(SHELL_CACHE, url.href, {
+        ignoreSearch: true,
+      });
+      if (exact) return exact;
+      const home = await matchCacheFamily(SHELL_CACHE, "/", {
+        ignoreSearch: true,
+      });
+      if (home) return home;
+    }
     const offline = await matchCacheFamily(SHELL_CACHE, OFFLINE_URL, {
       ignoreSearch: true,
     });
