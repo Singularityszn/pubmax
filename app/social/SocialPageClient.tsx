@@ -351,13 +351,15 @@ export function SocialPostCard({ post, lane, canEdit = false, draftScope, onEdit
           ) : null}
           <PostPlace venueId={exactVenueId} venueName={venueName} areaName={area?.name ?? null} />
         </div>
-        {when ? <time dateTime={post.createdAt}>{when}</time> : null}
+        <div className="socialPostMeta__context">
+          {when ? <time dateTime={post.createdAt}>{when}</time> : null}
+          <span className="socialPostAudience">{post.visibility === "friends" ? "Mutual friends" : post.visibility === "private" ? "Only you" : "Public"}</span>
+        </div>
       </header>
       {post.kind === "feature_request" ? (
         <p className="socialPostKind">Feature request</p>
       ) : null}
       <PostMedia post={post} onOpenVideo={onOpenVideo} />
-      {interactive ? <SocialPostActions postId={post.id} /> : null}
       {review ? (
         <p className="socialPostReview">
           <ReviewStars rating={review.rating} label={`${post.author.handle ? `@${post.author.handle}` : HIDDEN_NAME_AUTHOR_LABEL} scored ${venueName ?? "this pub"} ${review.rating} out of 5`} />
@@ -377,6 +379,7 @@ export function SocialPostCard({ post, lane, canEdit = false, draftScope, onEdit
           ))}
         </p>
       ) : null}
+      {interactive ? <SocialPostActions postId={post.id} /> : null}
       {post.editedAt ? <p className="socialPostEdited">Edited</p> : null}
       {lane ? <PostWhy lane={lane} post={post} areaName={area?.name ?? null} /> : null}
       {canEdit && draftScope && onEdited ? <SocialComposer key={`${draftScope}:${post.id}`} post={post} draftScope={draftScope} onSaved={onEdited} /> : null}
@@ -942,46 +945,24 @@ function SocialPageAccountState({
             <FoundersWallLink className="socialFoundersLink" />
           </div>
         ) : (
-        <div className="socialLayout">
-          <aside className="socialControlRail" aria-label={`${surfaceName} views`}>
-            {showViewerCards ? <SocialTagInbox /> : null}
+        <>
+        <div className="socialFeedNavigation">
+          {switcher}
+          {showPostsControls ? (
+            <nav className="socialNightLinks" aria-label="Your night out">
+              <Link prefetch={false} href="/messages">Messages</Link>
+              <Link prefetch={false} href="/pal">Your Pub Pal</Link>
+              <Link prefetch={false} href="/plan">Plan a crawl</Link>
+            </nav>
+          ) : null}
+        </div>
+        <div className={isPosts ? "socialLayout" : "socialLayout socialLayout--discover"}>
+          <div className="socialFeedColumn">
+            {showPostsControls ? <PostsControls state={initialState} /> : null}
             {showViewerCards ? <SocialOutbox draftScope={draftScope} submittedPost={submittedPost} onPostChanged={(updated) => {
               if (updated) setSubmittedPost(updated);
               setFeedAttempt((value) => value + 1);
             }} /> : null}
-            {switcher}
-            {showPostsControls ? <PostsControls state={initialState} /> : null}
-            {/* Crews render their own neutral identity state before the
-                verified gate answers. Protected crew data still stays behind
-                that gate. */}
-            {showViewerCards ? <PubRankingPanel refreshKey={submittedPost?.id ?? ""} /> : null}
-            {showViewerCards ? (
-              <CrewsPanel viewerHandle={viewerHandle} compact />
-            ) : null}
-            {/* Friend-graph formation rides the posts tab, and an EMERGENCY
-                ROLLBACK (PUBMAX_SOCIAL_FRIENDS_LAUNCH=0) takes it with the rest
-                of the surface: the body beside these becomes the preview
-                boundary, so leaving them mounted would offer follows on a page
-                that says it is not open yet. Pinned by
-                __tests__/socialRollbackRender.test.tsx. */}
-            {/* ONE live copy of the packs on this page. Signed-in cards keep
-                their follow results; stranger cards are read-only, and the
-                two render paths must never appear together. */}
-            {friendsLaunchEnabled && isPosts ? <StarterPacks compact /> : null}
-            {/* The founders wall. Public, already sitemapped, and until now
-                reachable from nowhere inside the app. One quiet link, no
-                count, and no branch on whether this reader holds a number:
-                that would make the number a capability, which
-                lib/foundingMembers.ts forbids. */}
-            {isPosts ? <FoundersWallLink className="socialFoundersLink" /> : null}
-            {/* And ONE live copy of the search-and-invite surface, for the same
-                reason: the body used to mount a second one beside it, so an
-                unverified viewer met the same heading, the same field and the
-                same invite button twice at 1440 and stacked at 390 - and both
-                copies carried `id="find-lot-title"`, which left every
-                `aria-labelledby` on the page pointing at the first. */}
-            {friendsLaunchEnabled && isPosts ? <FindYourLot myHandle={viewerHandle} compact /> : null}
-          </aside>
 
           {!friendsLaunchEnabled ? (
             <SocialAccessBoundary
@@ -1041,6 +1022,10 @@ function SocialPageAccountState({
               aria-label={`${surfaceName} posts`}
               aria-busy={feedStatus === "loading" || loadingMore}
             >
+              <header className="socialFeedHeading">
+                <h2>{initialState.feed === "following" ? "Your lot, lately" : initialState.feed === "nearby" ? "Around your patch" : "Across the pub tables"}</h2>
+                <p>{initialState.feed === "following" ? "Posts from people you follow. Newest first." : initialState.feed === "nearby" ? "Public posts tagged in this area. Newest first." : "Public posts from across town. Newest first."}</p>
+              </header>
               <p
                 className="srOnly"
                 role="status"
@@ -1077,9 +1062,16 @@ function SocialPageAccountState({
                 </div>
               ) : posts.length === 0 ? (
                 <div className="socialFeedEmpty" role="status">
-                  <EmptyState title="No posts here yet.">
-                    Search a handle or send an invite to find your lot. Nights
-                    from mutuals land here.
+                  <EmptyState title="No posts here yet." action={
+                    initialState.feed === "following"
+                      ? <Link prefetch={false} href="/social?feed=discover">See posts across town</Link>
+                      : <Link prefetch={false} href="/social">Back to your following feed</Link>
+                  }>
+                    {initialState.feed === "following"
+                      ? "Your noticeboard is waiting for a good pub story. Find your lot below or share one of your own."
+                      : initialState.feed === "nearby"
+                        ? "No public posts in this patch yet. Pick another area or start the conversation."
+                        : "A quiet noticeboard, for now. Share a pub you rate or a photo from your night."}
                   </EmptyState>
                   {/* The search-and-invite surface is the rail's, once. */}
                   <PeopleDirectory myHandle={viewerHandle} />
@@ -1116,10 +1108,47 @@ function SocialPageAccountState({
             </section>
           )}
 
+          </div>
+          <aside className="socialControlRail" aria-label={`${surfaceName} views`}>
+            {showViewerCards ? <SocialTagInbox /> : null}
+
+            {/* Crews render their own neutral identity state before the
+                verified gate answers. Protected crew data still stays behind
+                that gate. */}
+            {showViewerCards ? <PubRankingPanel refreshKey={submittedPost?.id ?? ""} /> : null}
+            {showViewerCards ? (
+              <CrewsPanel viewerHandle={viewerHandle} compact />
+            ) : null}
+            {/* Friend-graph formation rides the posts tab, and an EMERGENCY
+                ROLLBACK (PUBMAX_SOCIAL_FRIENDS_LAUNCH=0) takes it with the rest
+                of the surface: the body beside these becomes the preview
+                boundary, so leaving them mounted would offer follows on a page
+                that says it is not open yet. Pinned by
+                __tests__/socialRollbackRender.test.tsx. */}
+            {/* ONE live copy of the packs on this page. Signed-in cards keep
+                their follow results; stranger cards are read-only, and the
+                two render paths must never appear together. */}
+            {friendsLaunchEnabled && isPosts ? <StarterPacks compact /> : null}
+            {/* The founders wall. Public, already sitemapped, and until now
+                reachable from nowhere inside the app. One quiet link, no
+                count, and no branch on whether this reader holds a number:
+                that would make the number a capability, which
+                lib/foundingMembers.ts forbids. */}
+            {isPosts ? <FoundersWallLink className="socialFoundersLink" /> : null}
+            {/* And ONE live copy of the search-and-invite surface, for the same
+                reason: the body used to mount a second one beside it, so an
+                unverified viewer met the same heading, the same field and the
+                same invite button twice at 1440 and stacked at 390 - and both
+                copies carried `id="find-lot-title"`, which left every
+                `aria-labelledby` on the page pointing at the first. */}
+            {friendsLaunchEnabled && isPosts ? <FindYourLot myHandle={viewerHandle} compact /> : null}
+          </aside>
+
           {showPostsControls ? (
             <SocialContextRail status={visibleActivityStatus} items={visibleActivityItems} />
           ) : null}
         </div>
+        </>
         )}
         </Screen>
       </main>

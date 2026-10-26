@@ -25,6 +25,7 @@ import {
   SOCIAL_CREW_HOST_CAPABILITY_HEADER,
   SOCIAL_CREW_VISIBILITIES,
   type SocialCrewListItemDTO,
+  type SocialCrewPhase,
   type SocialCrewVisibility,
 } from "@/lib/socialCrew";
 import { discardBody } from "@/lib/responseBody";
@@ -50,6 +51,8 @@ import {
   SocialViewerState,
   type SocialViewerPhase,
 } from "@/components/social/SocialViewerState";
+
+import { Chip } from "@/components/ui/chip";
 
 import "./crews.css";
 
@@ -108,7 +111,9 @@ export default function CrewsPanel({
   );
   const [status, setStatus] = useState<ListState>("loading");
   const [crews, setCrews] = useState<SocialCrewListItemDTO[]>([]);
+  const [hasMoreCrews, setHasMoreCrews] = useState(false);
   const [attempt, setAttempt] = useState(0);
+  const [phaseFilter, setPhaseFilter] = useState<SocialCrewPhase | "all">("all");
 
   const [start, setStart] = useState<StartState>("idle");
   const [name, setName] = useState("");
@@ -165,6 +170,7 @@ export default function CrewsPanel({
       })
       .then((page) => {
         setCrews(page.items);
+        setHasMoreCrews(page.nextCursor !== null);
         setStatus("ready");
       })
       .catch((error: unknown) => {
@@ -271,6 +277,7 @@ export default function CrewsPanel({
       setVisibility(CREW_DEFAULT_VISIBILITY);
       setVenue(null);
       setVenueQuery("");
+      setPhaseFilter("all");
       setAttempt((value) => value + 1);
     } catch (error) {
       setStart("naming");
@@ -279,6 +286,9 @@ export default function CrewsPanel({
   }, [name, start, venue, viewerHandle, visibility, when]);
 
   const cleanName = cleanCrewName(name);
+  const visibleCrews = crews.filter(
+    (crew) => hasMoreCrews || phaseFilter === "all" || crew.phase === phaseFilter,
+  );
 
   if (viewerPhase !== "resolved") {
     return (
@@ -308,14 +318,49 @@ export default function CrewsPanel({
       className={compact ? "crews crews--compact" : "crews"}
       aria-labelledby="crews-title"
     >
-      <h2 id="crews-title" className="crews__title">
-        Your crews
-      </h2>
+      <div className="crews__head">
+        <h2 id="crews-title" className="crews__title">
+          Your crews
+        </h2>
+        {start === "idle" ? (
+          <button
+            type="button"
+            className="crews__button"
+            onClick={() => setStart("naming")}
+          >
+            Start a crew
+          </button>
+        ) : null}
+      </div>
+
+      {status === "ready" && !hasMoreCrews && crews.length > 1 ? (
+        <div className="crews__filters" role="group" aria-label="Filter your crews">
+          {(["all", ...Object.keys(CREW_PHASE_LABEL)] as (SocialCrewPhase | "all")[]).map((phase) => {
+            const count = phase === "all"
+              ? crews.length
+              : crews.filter((crew) => crew.phase === phase).length;
+            const label = phase === "all" ? "All" : CREW_PHASE_LABEL[phase];
+            return (
+              <Chip
+                key={phase}
+                aria-pressed={phaseFilter === phase}
+                aria-label={`${label}, ${count} ${count === 1 ? "crew" : "crews"}`}
+                onClick={() => setPhaseFilter(phase)}
+              >
+                {label}
+                <span className="crews__filterCount" aria-hidden="true">{count}</span>
+              </Chip>
+            );
+          })}
+        </div>
+      ) : null}
 
       {status === "loading" ? (
-        <div className="crews__skeletons" aria-hidden="true">
-          <span />
-          <span />
+        <div role="status" aria-label="Loading your crews" aria-busy="true">
+          <div className="crews__skeletons" aria-hidden="true">
+            <span />
+            <span />
+          </div>
         </div>
       ) : status === "error" ? (
         <div className="crews__notice" role="alert">
@@ -332,9 +377,16 @@ export default function CrewsPanel({
         <p className="crews__empty" role="status">
           {CREW_EMPTY_COPY}
         </p>
+      ) : visibleCrews.length === 0 ? (
+        <div className="crews__notice" role="status">
+          <p>No crews match this filter.</p>
+          <button className="crews__button" type="button" onClick={() => setPhaseFilter("all")}>
+            Show all crews
+          </button>
+        </div>
       ) : (
         <ul className="crews__list">
-          {crews.map((crew) => {
+          {visibleCrews.map((crew) => {
             const starts = crewStartsCaption(crew.startsAt);
             return (
               <li key={crew.crewId} className="crews__row">
@@ -358,16 +410,7 @@ export default function CrewsPanel({
       )}
 
       {start === "idle" ? (
-        <div className="crews__startBlock">
-          <button
-            type="button"
-            className="crews__button crews__button--primary"
-            onClick={() => setStart("naming")}
-          >
-            Start a crew
-          </button>
-          <p className="crews__note">{CREW_WHAT_IT_IS}</p>
-        </div>
+        <p className="crews__note">{CREW_WHAT_IT_IS}</p>
       ) : (
         <form
           className="crews__form"
