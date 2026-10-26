@@ -553,6 +553,11 @@ describe("confirmed owner context in a later plain recommendation", () => {
 
   it("answers a factual drink-price lookup from records without a personal read", async () => {
     await remember(OWNER, "venue_preference", "garden");
+    // The named pub is a record inside this test's own city boundary.
+    vi.mocked(loadConciergeVenues).mockResolvedValue([
+      ...VENUES,
+      pub("farringdon-fox-anchor", "Fox and Anchor", "Farringdon", "Fox and Anchor Charterhouse Street Farringdon London", [51.5203, -0.101], 6.2, { food: true }),
+    ]);
     vi.mocked(listPalMemoriesResult).mockClear();
     const response = await ask("Wine prices at Fox and Anchor");
     expect(response.status).toBe(200);

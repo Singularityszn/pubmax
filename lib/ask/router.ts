@@ -297,10 +297,22 @@ const TRANSIT_ANCHOR_RE = new RegExp(String.raw`\b${TRANSIT_ANCHOR}\b`, "gi");
 const CITY_STATUS_WORDS_RE = new RegExp(CITY_STATUS_RE.source, "gi");
 const DISCOVERY_REFERENCE_RE = new RegExp(String.raw`(?:${VENUE_DISCOVERY_RE.source})(?![\s-]+crawls?\b)`, "gi");
 
-export function isCompleteAskRequest(query: string): boolean {
+/**
+ * The venue phrase a factual price ask names, for a caller that binds it to
+ * records. An unsupported subject carries no typed venue, so its phrase is read
+ * from the question; area discovery and plans name none.
+ */
+export function namedAskVenue(query: string): string | null {
+  const intent = resolveAskPriceIntent(query);
+  if (intent.kind === "unsupported") return namedDrinkVenue(priceQuestion(query));
+  return "venueName" in intent ? intent.venueName : null;
+}
+
+/** `venueName` is a validated venue binding, read as isCompleteLocalRequest reads it. */
+export function isCompleteAskRequest(query: string, venueName?: string | null): boolean {
   const statusComplete = requestClauses(query)
     .filter((clause) => isStatusClause(clause) && !JOURNEY_RE.test(clause))
-    .every((clause) => isCompleteLocalRequest(clause.replace(TRANSIT_INTERROGATIVE_RE, " ").replace(CITY_STATUS_WORDS_RE, " ")));
+    .every((clause) => isCompleteLocalRequest(clause.replace(TRANSIT_INTERROGATIVE_RE, " ").replace(CITY_STATUS_WORDS_RE, " "), [], venueName));
   const question = priceQuestion(query);
   const kind = resolveAskPriceIntent(query).kind;
   const attached = question.split(/\s*,\s*|(?<=[.!?])\s+/)
@@ -310,6 +322,7 @@ export function isCompleteAskRequest(query: string): boolean {
   return statusComplete && isCompleteLocalRequest(
     question.replace(TRANSIT_ANCHOR_RE, " ").replace(DISCOVERY_REFERENCE_RE, " place "),
     item.split(/\s+(?:and|&)\s+/i)[0]!.split(/\s+/),
+    venueName,
   );
 }
 

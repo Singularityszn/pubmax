@@ -2,11 +2,14 @@ import "server-only";
 
 import { DEFAULT_GROUP_SIZE, extractExplicitBudget, requestedVenueQuantity, withoutExcludedPlaces } from "@/lib/concierge/intentPolicy";
 import { parseConciergeIntent } from "@/lib/concierge/intent";
-import { CONCIERGE_MOODS, type ConciergeMood } from "@/lib/concierge/rank";
+import { CONCIERGE_MOODS, type ConciergeMood, type ConciergeVenue } from "@/lib/concierge/rank";
+import { loadConciergeVenues } from "@/lib/concierge/venues.server";
 import { composeAnswer, runAsk } from "@/lib/ask/runAsk";
-import { isCompleteAskRequest, recordedDrinkComparison, refineRoutedAskQuery, resolveAskLocality, SAME_AREA_REFERENCE_RE, resolveAskPriceIntent, routeAskDeterministically, socialTurnKind, unsupportedPriceComparison } from "@/lib/ask/router";
+import { isCompleteAskRequest, namedAskVenue, recordedDrinkComparison, refineRoutedAskQuery, resolveAskLocality, SAME_AREA_REFERENCE_RE, resolveAskPriceIntent, routeAskDeterministically, socialTurnKind, unsupportedPriceComparison } from "@/lib/ask/router";
 import type { AskCard, AskProposal, AskToolName } from "@/lib/ask/types";
 import { resolveAskCityId } from "@/lib/ask/tools";
+import { wordsOnly } from "@/lib/ask/placePhrases";
+import { uniqueExactVenueNameMatch } from "@/lib/ask/venueResolution";
 import {
   readConfirmedPalMemories,
   palMemoryPreamble,
@@ -189,7 +192,8 @@ export async function preparePalElevenLabsChatTurn(
     if (fence.fenced) return { prior, fence, deadline, recordQuery: null };
     assertPalChatDeadline(deadline);
     input.signal?.throwIfAborted();
-    const admission = await palChatAdmission(query, input.ownerId, prior);
+    const recordBound = (text: string) => recordBoundRequest(text, input.cityId, deadline, input.signal);
+    const admission = await palChatAdmission(query, input.ownerId, prior, recordBound);
     input.signal?.throwIfAborted();
     return { prior, fence, deadline, ...admission };
   });
@@ -233,6 +237,36 @@ export function palChatRecordQuery(query: string, turns: readonly PubPalFenceTur
     ? routedQuery : null;
 }
 
+/**
+ * The longest leading part of a named phrase that at least one listed pub carries
+ * exactly, as the ask wrote it. It recognises the name without choosing a pub.
+ */
+function listedVenueName(venues: readonly ConciergeVenue[], phrase: string): string | null {
+  const ends = [...phrase.matchAll(/[\p{L}\p{N}]+/gu)].map((word) => word.index + word[0].length).reverse();
+  for (const end of ends) {
+    const name = phrase.slice(0, end);
+    const words = wordsOnly(name);
+    const forms = words.startsWith("the ") ? [words, words.slice(4)] : [words, `the ${words}`];
+    if (forms.some((form) => venues.some((venue) => uniqueExactVenueNameMatch([venue], form)))) return name;
+  }
+  return null;
+}
+
+/**
+ * A record answer is complete against the city's own pubs: a named venue is
+ * consumed only as a listed name, so anything after it stays part of the ask.
+ * Several pubs may share that name; the tools still pick one or ask which.
+ */
+async function recordBoundRequest(text: string, cityId: unknown, deadline: number, signal?: AbortSignal): Promise<boolean> {
+  const phrase = namedAskVenue(text);
+  if (!phrase) return isCompleteAskRequest(text, null);
+  const venues = await loadConciergeVenues(resolveAskCityId(cityId));
+  assertPalChatDeadline(deadline);
+  signal?.throwIfAborted();
+  const name = listedVenueName(venues, phrase);
+  return name !== null && isCompleteAskRequest(text, name);
+}
+
 const RECOMMENDATION_TOOLS = new Set<AskToolName>(["search_venues", "propose_plan", "cheapest_pint_near"]);
 const MOOD_TOOLS = new Set<AskToolName>(["search_venues", "propose_plan"]);
 const QUIET_COMPANIONS = new Set<ConciergeMood>(["garden", "food"]);
@@ -247,8 +281,11 @@ async function palChatAdmission(
   query: string,
   ownerId: string,
   prior: PriorSession,
+  recordBound: (text: string) => Promise<boolean>,
 ): Promise<Pick<PalElevenLabsChatContext, "recordQuery" | "personal">> {
-  const recordQuery = palChatRecordQuery(query, prior.turns);
+  // The public predicate is preliminary; a record answer is also bound to the city's pubs.
+  const preliminary = palChatRecordQuery(query, prior.turns);
+  const recordQuery = preliminary !== null && await recordBound(preliminary) ? preliminary : null;
   if (recordQuery === null || unsupportedPriceComparison(recordQuery) || recordedDrinkComparison(recordQuery)) return { recordQuery };
   const calls = routeAskDeterministically(recordQuery);
   if (!calls.some((call) => RECOMMENDATION_TOOLS.has(call.name))) return { recordQuery };
@@ -264,7 +301,8 @@ async function palChatAdmission(
   let budget: number | undefined;
   for (const turn of prior.turns) {
     if (turn.role !== "user" || socialTurnKind(turn.content)) continue;
-    if (!isCompleteAskRequest(turn.content) || /\bnot\b/i.test(withoutExcludedPlaces(turn.content))) return provider;
+    // An earlier ask is held to the same city-bound name test as the current one.
+    if (!(await recordBound(turn.content)) || /\bnot\b/i.test(withoutExcludedPlaces(turn.content))) return provider;
     if (unsupportedPriceComparison(turn.content) || recordedDrinkComparison(turn.content)) continue;
     const earlier = await intentOf(turn.content);
     const recommends = routeAskDeterministically(turn.content).some((call) => RECOMMENDATION_TOOLS.has(call.name));
@@ -282,7 +320,7 @@ async function palChatAdmission(
   if (guidance.length === 0 && carried === undefined) return { recordQuery, personal };
   const guidedText = [...guidance, recordQuery, ...(carried === undefined ? [] : [`under £${carried.toFixed(2).replace(/\.00$/, "")}`])].join(" ");
   const guided = guidedText.length <= 500 && calls.every((call) => MOOD_TOOLS.has(call.name)) ? palChatRecordQuery(guidedText) : null;
-  const sameTools = guided !== null
+  const sameTools = guided !== null && await recordBound(guided)
     && routeAskDeterministically(guided).map((call) => call.name).join() === calls.map((call) => call.name).join();
   return sameTools ? { recordQuery: guided, personal } : provider;
 }

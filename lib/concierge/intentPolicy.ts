@@ -170,12 +170,19 @@ export function withoutSameAreaReference(text: string): string {
   return text.replace(AREA_REFERENCE_RE, " ");
 }
 
-export function isCompleteLocalRequest(text: string, itemWords: readonly string[] = []): boolean {
+/**
+ * `venueName` is a caller's validated venue binding. Left undefined, any run of
+ * non-request words after "at" reads as a name, which only a preliminary check
+ * may accept. A string consumes exactly that name, before the area so a pub
+ * named after one stays whole. Null consumes no name at all.
+ */
+export function isCompleteLocalRequest(text: string, itemWords: readonly string[] = [], venueName?: string | null): boolean {
   let rest = withoutSameAreaReference(withoutExcludedPlaces(text));
+  if (venueName) rest = rest.replace(new RegExp(String.raw`\bat\s+${escapeRegExp(venueName)}(?![\p{L}\p{N}])`, "giu"), " at ");
   const area = deterministicAreaInText(rest, defaultKnownAreas());
   if (area && isSupportedAskArea(area)) rest = rest.replace(new RegExp(`\\b${escapeRegExp(area)}\\b`, "giu"), " ");
   let venueNouns = 0;
-  rest = rest.replace(NAMED_VENUE_RE, " at ").replace(CONSUMED_REQUEST_PHRASE_RE, " ")
+  rest = (venueName === undefined ? rest.replace(NAMED_VENUE_RE, " at ") : rest).replace(CONSUMED_REQUEST_PHRASE_RE, " ")
     .replace(VENUE_QUANTITY_RE, " ")
     .replace(PARTY_QUANTITY_RE, " ")
     .replace(VENUE_NOUN_RE, () => { venueNouns += 1; return " "; });
