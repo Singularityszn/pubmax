@@ -36,7 +36,7 @@ function fitPreviewRoute(map: maplibregl.Map, stopCoords: LngLat[], lineCoords: 
   const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
   map.fitBounds(box, {
     padding,
-    maxZoom: 15,
+    maxZoom: 18,
     duration: reduced ? 0 : 600,
     bearing: PREVIEW_BEARING,
     pitch: PREVIEW_PITCH,

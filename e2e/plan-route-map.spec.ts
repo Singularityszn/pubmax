@@ -2,6 +2,9 @@ import { expect, test, type Page } from "@playwright/test";
 
 import { installAuthDoubles, seedSignedIn } from "./helpers/authDoubles";
 import { describeFirstQuery, describeFirstSubmit } from "./helpers/planDescribeFirst";
+import { UI_UX_CHROMIUM_ARGS } from "../scripts/lib/uiUxBattleTestBrowser.mjs";
+
+test.use({ serviceWorkers: "block", launchOptions: { args: [...UI_UX_CHROMIUM_ARGS] } });
 
 async function openHydratedPlanComposer(page: Page): Promise<void> {
   await page.goto("/plan");
@@ -15,7 +18,7 @@ async function openHydratedPlanComposer(page: Page): Promise<void> {
 }
 
 function futureLondonFirstPint(): string {
-  const when = new Date(Date.now() + 2 * 60 * 60 * 1000);
+  const when = new Date(Date.now() + 6 * 60 * 60 * 1000);
   const parts = new Intl.DateTimeFormat("en-GB", {
     timeZone: "Europe/London",
     year: "numeric",
@@ -53,7 +56,7 @@ test.describe("locked plan route map", () => {
     await page.getByRole("button", { name: "Regenerate route" }).click();
     await expect(page.getByRole("button", { name: "Lock it in" })).toBeEnabled();
     await page.getByRole("button", { name: "Lock it in" }).click();
-    await expect(page).toHaveURL(/\/plan\/[0-9a-f-]{36}/);
+    await expect(page).toHaveURL(/\/plan\/[0-9a-f-]{36}$/);
 
     const mapPreview = page.locator(".planRouteMiniMap__canvas.maplibreMap");
     await expect(mapPreview).toBeVisible({ timeout: 60_000 });
@@ -65,9 +68,29 @@ test.describe("locked plan route map", () => {
 
     const mapCard = page.locator(".planRouteMiniMap--clickable");
     await expect(mapCard).toBeVisible();
+    const routeHref = await mapCard.getAttribute("href");
+    expect(routeHref).toBeTruthy();
+    const routeStops = new URL(routeHref!, "http://localhost").searchParams.get("pubs")!.split(",");
+    const planUrl = page.url();
+
+    const navigation = page.getByRole("navigation", { name: "Site navigation" });
+    await expect(navigation.getByRole("link", { name: "Map", exact: true })).toHaveAttribute("href", routeHref!);
+    await navigation.getByRole("link", { name: "Map", exact: true }).click();
+    await expect(page.locator(".mapLoading")).toHaveCount(0, { timeout: 60_000 });
+    await expect(page.locator(".mapCanvasWrap[data-route-stops]")).toHaveAttribute("data-route-stops", String(routeStops.length), { timeout: 60_000 });
+
+    await page.goto(planUrl);
+    await expect(mapCard).toBeVisible();
 
     await mapCard.click();
     await expect(page).toHaveURL(/\/map\?mode=build&pubs=/);
-    await expect(page.locator(".mapCanvasWrap, .mapCanvasSkeleton")).toBeVisible();
+    await expect(page.locator(".mapCanvasWrap[data-route-stops]")).toHaveAttribute("data-route-stops", String(routeStops.length), { timeout: 60_000 });
+
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto(planUrl);
+    const mobileMap = page.getByRole("navigation", { name: "Primary", exact: true }).getByRole("link", { name: "Map", exact: true });
+    await expect(mobileMap).toHaveAttribute("href", routeHref!);
+    await mobileMap.click();
+    await expect(page.locator(".mapCanvasWrap[data-route-stops]")).toHaveAttribute("data-route-stops", String(routeStops.length), { timeout: 60_000 });
   });
 });

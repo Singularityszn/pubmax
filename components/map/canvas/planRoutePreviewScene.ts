@@ -3,6 +3,7 @@ import { applyBasemapTaste } from "@/lib/mapBasemapTaste";
 import { buildRoute, buildRouteStops, type SceneCtx } from "@/components/map/canvas/buildScene";
 import { readTokens } from "@/components/map/canvas/tokens";
 import { POI_CATEGORIES, type PoiCategory } from "@/lib/pois";
+import { ROUTE_STOP_NAME_ANCHOR_OFFSET } from "@/lib/routeStopLabel";
 
 const EMPTY_FC: GeoJSON.FeatureCollection = { type: "FeatureCollection", features: [] };
 
@@ -18,13 +19,7 @@ function emptyPoiHidden(): Record<PoiCategory, boolean> {
  * The side offset matches buildScene's 1.6em radial offset. The under/over
  * fallbacks sit 2em out so they clear their own disc's collision box.
  */
-export const PREVIEW_STOP_NAME_ANCHOR_OFFSET = [
-  "match",
-  ["get", "labelSide"],
-  "west",
-  ["literal", ["right", [-1.6, 0], "top-right", [0.6, 2], "bottom-right", [0.6, -2]]],
-  ["literal", ["left", [1.6, 0], "top-left", [-0.6, 2], "bottom-left", [-0.6, -2]]],
-] satisfies maplibregl.ExpressionSpecification;
+export const PREVIEW_STOP_NAME_ANCHOR_OFFSET = ROUTE_STOP_NAME_ANCHOR_OFFSET;
 
 /** Route line + numbered stops on the live basemap — same layers as PubMapCanvas. */
 export function syncPlanRoutePreviewScene(

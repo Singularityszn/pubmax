@@ -45,17 +45,20 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-function mount(queryVenuesRef: { current: Venue[] }) {
+function mount(queryVenuesRef: { current: Venue[] }, route: Venue[] = [], gesture = { active: false, endedAt: null as number | null }) {
   function Camera() {
     camera = useMapCamera({
-      mapRef: { current: { stop: vi.fn(), fitBounds, getBearing: () => -8 } as unknown as Map },
+      mapRef: { current: {
+        stop: vi.fn(), fitBounds, getBearing: () => -8,
+        getContainer: () => ({ clientWidth: 1280, clientHeight: 900, getBoundingClientRect: () => ({ top: 0 }) }),
+      } as unknown as Map },
       reducedRef: { current: true },
       cityViewRef: { current: { center: [-0.13, 51.51], zoom: 12, pitch: 40, bearing: -8 } },
       cityBoundsRef: { current: [[-0.3, 51.4], [0.1, 51.7]] },
-      routeRef: { current: [] },
+      routeRef: { current: route },
       venuesRef: { current: surrounding },
       queryVenuesRef,
-      gestureCameraRef: { current: { active: false, endedAt: null } },
+      gestureCameraRef: { current: gesture },
     });
     return null;
   }
@@ -71,6 +74,41 @@ function fitQuery() {
 }
 
 describe("query camera with contextual price pins", () => {
+  it("recovers the whole walk immediately after a drag while automatic fits stand down", () => {
+    mount({ current: [] }, soho, { active: false, endedAt: performance.now() });
+    act(() => {
+      camera.fitRoute();
+      pendingFrame?.(performance.now());
+      pendingFrame = undefined;
+    });
+    expect(fitBounds).not.toHaveBeenCalled();
+    act(() => {
+      camera.fitRoute("route-recovery");
+      pendingFrame?.(performance.now());
+      pendingFrame = undefined;
+    });
+    expect(fitBounds).toHaveBeenCalledOnce();
+    act(() => {
+      camera.fitRoute("route-recovery");
+      pendingFrame?.(performance.now());
+      pendingFrame = undefined;
+    });
+    expect(fitBounds).toHaveBeenCalledTimes(2);
+  });
+
+  it("lets a short walking route reach street zoom without changing its bearing", () => {
+    mount({ current: [] }, [pub("first-stop", -0.135, 51.511), pub("last-stop", -0.134, 51.5115)]);
+    act(() => {
+      camera.fitRoute();
+      pendingFrame?.(performance.now());
+      pendingFrame = undefined;
+    });
+    const options = fitBounds.mock.calls[0]?.[1];
+    expect(options.maxZoom).toBeGreaterThanOrEqual(17);
+    expect(options.bearing).toBe(-8);
+    expect(options.duration).toBe(0);
+  });
+
   it("frames only the query matches while other pins remain in the map dataset", () => {
     mount({ current: soho });
     fitQuery();

@@ -32,6 +32,7 @@ import {
   subscribePreferredCity,
 } from "@/lib/cityPreference";
 
+import { usePlanMapHref } from "@/components/nav/PlanMapNavigation";
 import "./navigation.css";
 
 // Shared app-wide top navigation. One bar, used on every APP page (map, feed,
@@ -185,7 +186,7 @@ export default function SiteNav({
     readPreferredCity,
     () => null,
   );
-  const mapHref = preferredCity ? preferredCityMapHref() : "/map";
+  const mapHref = usePlanMapHref(preferredCity ? preferredCityMapHref() : "/map");
   const links = LINKS;
   const nowHref = useNowHref();
 

@@ -25,23 +25,31 @@ function routeFitPadding(
   map: maplibregl.Map,
   isPhone: boolean,
 ): number | maplibregl.PaddingOptions {
-  if (!isPhone) return 90;
   const container = map.getContainer();
+  const containerTop = container.getBoundingClientRect().top;
+  const statusBounds = isPhone ? null : document.querySelector(".cityStatusStack")?.getBoundingClientRect();
+  // The status strip can arrive after the route. Reserve its measured 720px
+  // viewport lane before it loads, then clear a taller visible strip too.
+  const desktopTop = Math.max(300, statusBounds?.height ? statusBounds.bottom - containerTop + 16 : 0);
+  const padding = isPhone
+    ? { ...PHONE_ROUTE_PADDING, top: Math.max(PHONE_ROUTE_PADDING.top,
+        measureTopChromeBottom(containerTop, PHONE_ROUTE_PADDING.top)) }
+    : { top: desktopTop, right: 72, bottom: 180, left: 72 };
   const verticalScale = Math.min(
     1,
     Math.max(0, (container.clientHeight - MIN_ROUTE_CONTENT_PX)
-      / (PHONE_ROUTE_PADDING.top + PHONE_ROUTE_PADDING.bottom)),
+      / (padding.top + padding.bottom)),
   );
   const horizontalScale = Math.min(
     1,
     Math.max(0, (container.clientWidth - MIN_ROUTE_CONTENT_PX)
-      / (PHONE_ROUTE_PADDING.left + PHONE_ROUTE_PADDING.right)),
+      / (padding.left + padding.right)),
   );
   return {
-    top: Math.floor(PHONE_ROUTE_PADDING.top * verticalScale),
-    right: Math.floor(PHONE_ROUTE_PADDING.right * horizontalScale),
-    bottom: Math.floor(PHONE_ROUTE_PADDING.bottom * verticalScale),
-    left: Math.floor(PHONE_ROUTE_PADDING.left * horizontalScale),
+    top: Math.floor(padding.top * verticalScale),
+    right: Math.floor(padding.right * horizontalScale),
+    bottom: Math.floor(padding.bottom * verticalScale),
+    left: Math.floor(padding.left * horizontalScale),
   };
 }
 
@@ -289,15 +297,17 @@ export function useMapCamera(refs: CameraRefs) {
     }));
   }, [mapRef, reducedRef, scheduleCamera]);
 
-  const fitRoute = useCallback(() => {
+  const routeRecoverySequence = useRef(0);
+  const fitRoute = useCallback((kind: "route" | "route-recovery" = "route") => {
     const current = routeRef.current;
     if (current.length < 2) return;
     const bounds = new maplibregl.LngLatBounds();
     current.forEach((venue) => bounds.extend([venue.longitude, venue.latitude]));
     const isPhone = window.matchMedia("(max-width: 640px)").matches;
-    scheduleCamera("route", `route:${current.map((venue) => venue.id).join(">")}`, (map) => map.fitBounds(bounds, {
+    const request = kind === "route-recovery" ? ++routeRecoverySequence.current : 0;
+    scheduleCamera(kind, `${kind}:${request}:${current.map((venue) => venue.id).join(">")}`, (map) => map.fitBounds(bounds, {
       padding: routeFitPadding(map, isPhone),
-      maxZoom: 15,
+      maxZoom: 18,
       duration: reducedRef.current ? 0 : 800,
       // fitBounds defaults bearing to 0, silently flattening a rotated map on
       // every route fit (and the flat camera then persists via the session
