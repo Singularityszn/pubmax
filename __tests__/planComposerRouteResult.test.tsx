@@ -45,7 +45,8 @@ import PlanComposer, { planComposerVenueIndexPath } from "@/components/plan/Plan
 import { resolveFutureLondonStartIso } from "@/lib/planIntake";
 import { readPlanningIntent, writePlanningIntent } from "@/lib/planningIntent";
 import { parsePlanGenerationRequest } from "@/lib/planGenerationRequest";
-import { inferNightContext } from "@/lib/nightPlanning";
+import { inferNightContext, type NightContext } from "@/lib/nightPlanning";
+import { DEFAULT_PLAN_STOP_COUNT } from "@/lib/planStopCount";
 import type { PlanState } from "@/lib/plan";
 
 const GENERATED = {
@@ -55,7 +56,24 @@ const GENERATED = {
     { venueId: "venue-a", venueName: "Pub A", reason: "Close to the heart of the area." },
     { venueId: "venue-b", venueName: "Pub B", reason: "0.6 km from the area centre." },
   ],
-  inferredContext: { nightArea: "clapham", daypart: "evening", groupSize: 4 },
+  // The whole night the route answers with, as the generator sends it for
+  // "Quiet in Clapham for 4" in the evening.
+  inferredContext: {
+    nightArea: "clapham",
+    daypart: "evening",
+    partyType: "friends",
+    groupSize: 4,
+    stopCount: DEFAULT_PLAN_STOP_COUNT,
+    budget: "standard",
+    budgetLimitPence: null,
+    zeroProof: false,
+    drinkCategory: null,
+    wetherspoonsPreferred: false,
+    atmosphere: ["quiet"],
+    foodNeeds: [],
+    accessibility: [],
+    transportConstraints: [],
+  } satisfies NightContext,
 };
 
 let root: Root | null = null;
@@ -91,6 +109,9 @@ afterEach(async () => {
 
 async function settle(): Promise<void> {
   await act(async () => {
+    // A render can start a next/dynamic import nothing awaits. Its loadable's
+    // update has to land in here, not after.
+    await vi.dynamicImportSettled();
     for (let turn = 0; turn < 5; turn += 1) await Promise.resolve();
   });
 }
@@ -103,6 +124,19 @@ async function mountComposer(): Promise<void> {
     root.render(createElement(PlanComposer));
   });
   await settle();
+}
+
+// Pass-through: what React reports still reaches the console. Checked once the
+// test, and the unmount in afterEach, are done.
+function expectNoConsoleErrors(): void {
+  const consoleError = vi.spyOn(console, "error");
+  onTestFinished(() => {
+    try {
+      expect(consoleError.mock.calls).toEqual([]);
+    } finally {
+      consoleError.mockRestore();
+    }
+  });
 }
 
 function venueIndexReads(): number {
@@ -126,6 +160,7 @@ async function sortIt(query: string): Promise<void> {
 
 describe("the Plan result", () => {
   it("reads the venue index and draws its datalist only once the composer is up", async () => {
+    expectNoConsoleErrors();
     await mountComposer();
     expect(document.querySelector("#plan-describe-first-query")).not.toBeNull();
     expect(document.querySelector("#plan-venue-options")).toBeNull();
@@ -173,6 +208,7 @@ describe("the Plan result", () => {
   });
 
   it("keeps the area the route was sorted for when the night's area is changed", async () => {
+    expectNoConsoleErrors();
     vi.useFakeTimers({ toFake: ["Date"] });
     vi.setSystemTime(new Date("2026-10-07T12:00:00Z"));
     onTestFinished(() => { vi.useRealTimers(); });
