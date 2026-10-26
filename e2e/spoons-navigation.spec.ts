@@ -1,6 +1,7 @@
 import { expect, test } from "@playwright/test";
+import { installAuthDoubles, seedSignedIn } from "./helpers/authDoubles";
 
-for (const width of [320, 390, 768, 1440]) {
+for (const width of [320, 390, 641, 768, 900, 1440]) {
   test(`${width}px Spoons navigation opens searchable recorded costs`, async ({ page }, testInfo) => {
     await page.setViewportSize({ width, height: 844 });
     const errors: string[] = [];
@@ -10,6 +11,14 @@ for (const width of [320, 390, 768, 1440]) {
     const nav = page.getByRole("navigation", { name: width <= 640 ? "Primary" : "Site navigation" });
     const spoons = nav.getByRole("link", { name: "Spoons", exact: true });
     await expect(spoons).toBeVisible();
+    const covered = await nav.locator(width <= 640 ? "a" : ".siteNavLink").evaluateAll((links) =>
+      links.filter((link) => {
+        const box = link.getBoundingClientRect();
+        const hit = document.elementFromPoint(box.x + box.width / 2, box.y + box.height / 2);
+        return !hit || !link.contains(hit);
+      }).map((link) => link.textContent),
+    );
+    expect(covered).toEqual([]);
     const box = (await spoons.boundingBox())!;
     expect(box.width).toBeGreaterThanOrEqual(44);
     expect(box.height).toBeGreaterThanOrEqual(44);
@@ -46,6 +55,57 @@ for (const width of [320, 390, 768, 1440]) {
     expect(errors).toEqual([]);
   });
 }
+
+for (const width of [641, 768, 900]) {
+  test(`${width}px signed-in navigation keeps every destination reachable`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 844 });
+    await installAuthDoubles(page);
+    await seedSignedIn(page, "A");
+    await page.goto("/spoons-value");
+    await expect(page.locator(".siteNavLinks .siteNavLink")).toHaveCount(6);
+    await expect(page.locator(".siteNavActions .siteNavBell")).toBeVisible();
+    const blocked = await page.locator(".siteNavLinks .siteNavLink").evaluateAll((links) =>
+      links.filter((link) => {
+        const box = link.getBoundingClientRect();
+        const hit = document.elementFromPoint(box.x + box.width / 2, box.y + box.height / 2);
+        return !hit || !link.contains(hit) || link.scrollWidth > link.clientWidth + 1;
+      }).map((link) => link.textContent),
+    );
+    expect(blocked).toEqual([]);
+  });
+}
+
+test.describe("short phone Drink sheet", () => {
+  test.use({ isMobile: true, hasTouch: true });
+  test("touch scrolling reaches lower content without moving the map shell", async ({ page, context }, testInfo) => {
+    await page.setViewportSize({ width: 320, height: 568 });
+    await page.goto("/map?drink=soft-drink");
+    const open = page.getByRole("button", { name: /Drink shown on the map/ });
+    const sheet = page.locator('.mobileSheetPortal[data-sheet-kind="drink"]');
+    await expect(async () => {
+      await open.click();
+      await expect(sheet).toBeVisible({ timeout: 1_000 });
+    }).toPass({ timeout: 30_000 });
+    await sheet.getByRole("button", { name: "Spoons value", exact: true }).click();
+    await expect(sheet.locator(".spoonsValueLensLegend")).toBeVisible();
+    const body = sheet.locator(".mobileSharedSheetBody");
+    await expect.poll(() => body.evaluate((element) => element.scrollHeight - element.clientHeight)).toBeGreaterThan(0);
+    const box = (await body.boundingBox())!;
+    const cdp = await context.newCDPSession(page);
+    const x = box.x + box.width / 2;
+    const start = box.y + box.height * 0.8;
+    const travel = box.height * 0.6;
+    await cdp.send("Input.dispatchTouchEvent", { type: "touchStart", touchPoints: [{ x, y: start }] });
+    for (let step = 1; step <= 12; step += 1) {
+      await cdp.send("Input.dispatchTouchEvent", { type: "touchMove", touchPoints: [{ x, y: start - travel * step / 12 }] });
+    }
+    await cdp.send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] });
+    await expect.poll(() => body.evaluate((element) => element.scrollTop)).toBeGreaterThan(0);
+    expect(await page.evaluate(() => window.scrollY)).toBe(0);
+    await page.screenshot({ path: testInfo.outputPath("drink-touch-scroll-320.png") });
+    await cdp.detach();
+  });
+});
 
 for (const width of [390, 1440]) {
   test(`${width}px Drink exposes Lucia and opens the existing price list`, async ({ page }, testInfo) => {
