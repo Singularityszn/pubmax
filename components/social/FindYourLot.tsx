@@ -61,6 +61,8 @@ export default function FindYourLot({
   const viewerSession = useViewerSession();
   const identityViewerHandle = useViewerHandle();
   const [query, setQuery] = useState("");
+  const [searchAttempt, setSearchAttempt] = useState(0);
+  const searchInput = useRef<HTMLInputElement>(null);
   const [matches, setMatches] = useState<SearchMatch[]>([]);
   const [status, setStatus] = useState<"idle" | "loading" | "ready" | "error">("idle");
   const [followByHandle, setFollowByHandle] = useState<Record<string, FollowState>>({});
@@ -107,7 +109,10 @@ export default function FindYourLot({
         if (debounceRef.current) clearTimeout(debounceRef.current);
       };
     }
-    void Promise.resolve().then(() => setStatus("loading"));
+    void Promise.resolve().then(() => {
+      setMatches([]);
+      setStatus("loading");
+    });
     // One controller per effect run: a new query, a switch of account or the
     // session resolving cancels the request in flight, so a late answer for the
     // previous viewer can never overwrite the current viewer's relations.
@@ -154,7 +159,7 @@ export default function FindYourLot({
       controller.abort();
       if (debounceRef.current) clearTimeout(debounceRef.current);
     };
-  }, [query, socialFriendsLaunchEnabled, viewer]);
+  }, [query, searchAttempt, socialFriendsLaunchEnabled, viewer]);
 
   async function follow(handle: string) {
     if (!socialFriendsLaunchEnabled || !viewer) {
@@ -262,23 +267,43 @@ export default function FindYourLot({
         Find your lot
       </h2>
       <p className="findLot__body">
-        Search a mate&rsquo;s handle, or send an invite link. A lot is mutual.
-        They follow you back, and you share nights.
+        A familiar face for the next round. Search a handle or send a mate an
+        invite. Follow each other to become mates.
       </p>
 
-      <label className="findLot__field">
-        <span className="srOnly">Search handles</span>
-        <input
-          type="search"
-          autoComplete="off"
-          spellCheck={false}
-          inputMode="search"
-          placeholder="Handle"
-          value={query}
-          onChange={(event) => setQuery(event.target.value)}
-          maxLength={32}
-        />
-      </label>
+      <div className="findLot__search">
+        <label className="findLot__field">
+          <span className="srOnly">Search handles</span>
+          <span className="findLot__at" aria-hidden="true">@</span>
+          <input
+            ref={searchInput}
+            aria-describedby="find-lot-search-help"
+            type="search"
+            autoComplete="off"
+            spellCheck={false}
+            inputMode="search"
+            placeholder="Your mate's handle"
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+            maxLength={32}
+          />
+        </label>
+        {query ? (
+          <button
+            className="findLot__clear"
+            type="button"
+            onClick={() => {
+              setQuery("");
+              searchInput.current?.focus();
+            }}
+          >
+            Clear
+          </button>
+        ) : null}
+      </div>
+      <p id="find-lot-search-help" className="findLot__muted">
+        Enter at least two characters of their handle.
+      </p>
 
       {status === "loading" ? (
         <p className="findLot__muted" role="status">
@@ -286,13 +311,22 @@ export default function FindYourLot({
         </p>
       ) : null}
       {status === "error" ? (
-        <p className="findLot__error" role="alert">
-          Couldn&rsquo;t search right now.
-        </p>
+        <div className="findLot__recovery" role="alert">
+          <p className="findLot__error">Couldn&rsquo;t search right now.</p>
+          <button
+            className="findLot__follow"
+            type="button"
+            onClick={() => setSearchAttempt((attempt) => attempt + 1)}
+          >
+            Try search again
+          </button>
+        </div>
       ) : null}
       {status === "ready" && matches.length === 0 ? (
         <p className="findLot__muted" role="status">
-          No claimed handles match that.
+          {viewer
+            ? "No claimed handles match that. Check the spelling, or invite them below."
+            : "No claimed handles match that. Check the spelling and try another handle."}
         </p>
       ) : null}
 
@@ -381,7 +415,7 @@ export default function FindYourLot({
             disabled={inviteBusy}
             onClick={() => void mintInviteLink()}
           >
-            {inviteBusy ? "Minting…" : "Get invite link"}
+            {inviteBusy ? "Making link…" : "Get invite link"}
           </button>
         ) : viewerSession.signedIn ? (
           <Link className="findLot__follow" href="/u/you">

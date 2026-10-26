@@ -324,11 +324,13 @@ test("the first-run dock leads with the loop and only Social may ask a stranger 
 test("mobile keeps Tonight as a root tab that opens /tonight", async ({
   page,
 }) => {
+  await page.clock.setFixedTime(new Date("2026-10-26T20:00:00Z"));
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto("/discover");
 
   const primaryNav = page.getByRole("navigation", { name: "Primary" });
   await expect(primaryNav.getByRole("link", { name: "Tonight", exact: true })).toBeVisible();
+  await expect(primaryNav.getByRole("link", { name: "Tonight", exact: true })).toHaveAttribute("href", "/tonight");
   await primaryNav.getByRole("link", { name: "Tonight", exact: true }).click();
   await expect(page).toHaveURL(/\/tonight$/);
   await expect(page.getByTestId("tonight-screen")).toBeVisible();

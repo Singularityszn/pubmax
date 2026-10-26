@@ -124,6 +124,62 @@ function expectPlanRetired(fetchMock: ReturnType<typeof stubPlanCleanup>) {
   });
 }
 
+describe("crew list filters", () => {
+  it("offers no phase counts or filters while more crew rows remain unread", async () => {
+    authedActionFetch.mockResolvedValue(Response.json({
+      items: [1, 2].map((index) => ({
+        kind: "member",
+        crewId: `50000000-0000-4000-8000-00000000000${index}`,
+        title: `Camden crew ${index}`,
+        phase: "planning",
+        nightArea: "Camden",
+        startsAt: "2026-10-26T18:30:00.000Z",
+        viewer: { memberId: "30000000-0000-4000-8000-000000000001", role: "member" },
+      })),
+      nextCursor: "another-page",
+    }));
+    await act(async () => root.render(createElement(CrewsPanel, { viewerHandle: "alice" })));
+    expect(container.querySelectorAll(".crews__row")).toHaveLength(2);
+    expect(container.querySelector(".crews__filters")).toBeNull();
+    expect(container.textContent).not.toContain("No crews match this filter.");
+  });
+
+  it("filters real crew rows by phase and keeps the crew route reachable", async () => {
+    const phases = ["planning", "live"] as const;
+    authedActionFetch.mockResolvedValue(Response.json({
+      items: phases.map((phase, index) => ({
+        kind: "member",
+        crewId: `50000000-0000-4000-8000-00000000000${index + 1}`,
+        title: ["Friday in Camden", "Round at the Crown"][index],
+        phase,
+        nightArea: "Camden",
+        startsAt: "2026-10-26T18:30:00.000Z",
+        viewer: { memberId: "30000000-0000-4000-8000-000000000001", role: "member" },
+      })),
+      nextCursor: null,
+    }));
+    await act(async () => root.render(createElement(CrewsPanel, { viewerHandle: "alice" })));
+    expect(container.querySelectorAll(".crews__row")).toHaveLength(2);
+    const filter = container.querySelector<HTMLButtonElement>('button[aria-label="Out now, 1 crew"]');
+    expect(filter).not.toBeNull();
+    await act(async () => filter!.click());
+    expect(filter?.getAttribute("aria-pressed")).toBe("true");
+    expect(container.querySelectorAll(".crews__row")).toHaveLength(1);
+    expect(container.querySelector(".crews__rowLink")?.textContent).toContain("Round at the Crown");
+    expect(container.querySelector(".crews__rowLink")?.getAttribute("href")).toBe(
+      "/social/crews/50000000-0000-4000-8000-000000000002",
+    );
+    const doneFilter = container.querySelector<HTMLButtonElement>('button[aria-label="Done, 0 crews"]');
+    await act(async () => doneFilter!.click());
+    expect(container.querySelectorAll(".crews__row")).toHaveLength(0);
+    expect(container.textContent).toContain("No crews match this filter.");
+    const reset = [...container.querySelectorAll("button")].find((button) => button.textContent === "Show all crews");
+    await act(async () => reset!.click());
+    expect(container.querySelectorAll(".crews__row")).toHaveLength(2);
+    expect(authedActionFetch).toHaveBeenCalledTimes(1);
+  });
+});
+
 describe("crew visibility creation", () => {
   it("offers every supported visibility and defaults to invite only", async () => {
     await act(async () => {
