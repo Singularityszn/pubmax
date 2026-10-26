@@ -1,14 +1,11 @@
 import { expect, test } from "@playwright/test";
-import { UI_UX_CHROMIUM_ARGS } from "../scripts/lib/uiUxBattleTestBrowser.mjs";
-
-test.use({ serviceWorkers: "block", launchOptions: { args: [...UI_UX_CHROMIUM_ARGS] } });
-
 // A real short Soho walk reproduced with the saved-plan map link.
 const STOP_IDS = ["venue-7tarkc", "venue-122cuu1", "venue-s2ppfm"];
 
 for (const width of [320, 390, 768, 1280, 1440]) {
   test(`a short walking route fills useful map space at ${width}px`, async ({ page, request }, testInfo) => {
-    await page.setViewportSize({ width, height: width === 1280 ? 720 : 900 });
+    const height = width === 320 ? 568 : width === 390 ? 844 : width === 1280 ? 720 : 900;
+    await page.setViewportSize({ width, height });
     await page.emulateMedia({ reducedMotion: "reduce" });
     let releaseStatus = () => {};
     const delayedStatus = width === 768 || width === 1280;
@@ -79,5 +76,28 @@ for (const width of [320, 390, 768, 1280, 1440]) {
     }, coordinates);
     expect(uncoveredStops).toEqual([true, true, true]);
     await page.screenshot({ path: testInfo.outputPath(`short-walk-${width}.png`) });
+    if (width === 1280) {
+      const projectedStops = () => page.evaluate((stops) => {
+        const probe = (window as typeof window & {
+          __pubmaxMapCamera?: { project(point: [number, number]): { x: number; y: number } };
+        }).__pubmaxMapCamera;
+        return stops.map(stop => probe!.project(stop));
+      }, coordinates);
+      const original = await projectedStops();
+      for (let attempt = 0; attempt < 2; attempt += 1) {
+        await page.mouse.move(640, 460);
+        await page.mouse.down();
+        await page.mouse.move(840, 460, { steps: 12 });
+        await expect.poll(async () => Math.abs((await projectedStops())[0]!.x - original[0]!.x))
+          .toBeGreaterThan(80);
+        await page.mouse.up();
+        await page.getByRole("button", { name: "Show whole walk", exact: true }).click();
+        await expect.poll(async () => (await projectedStops()).every((point, index) => {
+          const before = original[index]!;
+          return Math.hypot(point.x - before.x, point.y - before.y) < 5;
+        })).toBe(true);
+      }
+      await page.screenshot({ path: testInfo.outputPath("route-recovered-twice.png") });
+    }
   });
 }
