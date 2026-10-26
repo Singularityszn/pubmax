@@ -220,20 +220,85 @@ export function planChecks({ changed, importers, testFiles, readText, env = {} }
 const TSCONFIG_DIR = "node_modules/.cache/verify-changed";
 
 /**
+ * The explicitly listed provider credentials and configuration the full merge bar's
+ * child gets as empty strings. A bounded list, not every app secret and not a
+ * no-network guarantee. Each push provider's names are emptied together, so none is
+ * left half-configured.
+ */
+const EMPTIED_IN_FULL_BAR = [
+  "AI_GATEWAY_API_KEY",
+  "ARIZE_API_KEY",
+  "BROWSERBASE_API_KEY",
+  "CLERK_SECRET_KEY",
+  "CONTEXT_DEV_API_KEY",
+  "ELEVENLABS_API_KEY",
+  "EVENTBRITE_API_TOKEN",
+  "EXA_API_KEY",
+  "FIRECRAWL_API_KEY",
+  "FOOTBALL_DATA_API_KEY",
+  "GOOGLE_PLACES_API_KEY",
+  "KEENABLE_API_KEY",
+  "OPENAI_API_KEY",
+  "OPENROUTER_API_KEY",
+  "ORS_API_KEY",
+  "PARALLEL_API_KEY",
+  "POSTHOG_PROJECT_API_KEY",
+  "PW_DISPOSABLE_SERVICE_ROLE_KEY",
+  "RESEND_API_KEY",
+  "SKIDDLE_API_KEY",
+  "SUPABASE_ACCESS_TOKEN",
+  "SUPABASE_SERVICE_ROLE_KEY",
+  "TAVILY_API_KEY",
+  "THESPORTSDB_API_KEY",
+  "TICKETMASTER_API_KEY",
+  "TYPESAFE_API_KEY",
+  "VERCEL_OIDC_TOKEN",
+  "NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY",
+  "NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY",
+  "NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN",
+  "ARIZE_SPACE_KEY",
+  "TFL_APP_KEY",
+  "ELEVENLABS_LLM_SHARED_SECRET",
+  "APNS_KEY_ID",
+  "APNS_TEAM_ID",
+  "APNS_PRIVATE_KEY",
+  "APNS_ENV",
+  "FCM_PROJECT_ID",
+  "FCM_CLIENT_EMAIL",
+  "FCM_PRIVATE_KEY_ID",
+  "FCM_PRIVATE_KEY",
+  "NEXT_PUBLIC_VAPID_PUBLIC_KEY",
+  "VAPID_PRIVATE_KEY",
+  "VAPID_SUBJECT",
+  "X_CLIENT_ID",
+  "X_CLIENT_SECRET",
+  "INSTAGRAM_CLIENT_ID",
+  "INSTAGRAM_CLIENT_SECRET",
+  "TIKTOK_CLIENT_KEY",
+  "TIKTOK_CLIENT_SECRET",
+  "SOCIAL_CONNECTION_ENCRYPTION_KEY",
+  "PUBMAX_ALERT_WEBHOOK_URL",
+];
+
+/**
  * The commands a plan runs, in order.
  * @param {ReturnType<typeof planChecks>} plan
  * @returns {{ label: string, command: string, args: string[], env?: Record<string, string> }[]}
  */
 export function checkSteps(plan) {
   // The full merge bar caps each Node heap it starts, over a higher inherited NODE_OPTIONS,
-  // and runs Vitest on one worker, over the coverage run's own maxWorkers. It empties
-  // TYPESAFE_API_KEY, so no test in it can reach the provider with a key the parent inherited.
+  // and runs Vitest on one worker, over the coverage run's own maxWorkers. It empties the
+  // credentials in EMPTIED_IN_FULL_BAR, so a test in it cannot use one the parent inherited.
   if (plan.full) {
     return [{
       label: "full merge bar",
       command: "npm",
       args: ["run", "verify"],
-      env: { NODE_OPTIONS: "--max-old-space-size=2048", VITEST_MAX_WORKERS: "1", TYPESAFE_API_KEY: "" },
+      env: {
+        NODE_OPTIONS: "--max-old-space-size=2048",
+        VITEST_MAX_WORKERS: "1",
+        ...Object.fromEntries(EMPTIED_IN_FULL_BAR.map((name) => [name, ""])),
+      },
     }];
   }
 

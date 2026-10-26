@@ -8,7 +8,7 @@
 // These cases pin that plan: what escalates to the full suite, what is linted,
 // typechecked and tested, and that CI still runs every unit test on every PR.
 
-import { spawnSync } from "node:child_process";
+import { spawnSync, type SpawnSyncOptions } from "node:child_process";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
@@ -37,6 +37,66 @@ vi.mock("node:child_process", async (original) => ({
 afterEach(() => vi.unstubAllEnvs());
 
 const ROOT = process.cwd();
+
+/**
+ * The explicitly listed provider credentials and configuration the full merge bar's
+ * child must see empty. A bounded list, not every app secret and not a no-network
+ * guarantee. Each push provider's names are listed together, so none is half-configured.
+ */
+const CREDENTIALS = [
+  "AI_GATEWAY_API_KEY",
+  "ARIZE_API_KEY",
+  "BROWSERBASE_API_KEY",
+  "CLERK_SECRET_KEY",
+  "CONTEXT_DEV_API_KEY",
+  "ELEVENLABS_API_KEY",
+  "EVENTBRITE_API_TOKEN",
+  "EXA_API_KEY",
+  "FIRECRAWL_API_KEY",
+  "FOOTBALL_DATA_API_KEY",
+  "GOOGLE_PLACES_API_KEY",
+  "KEENABLE_API_KEY",
+  "OPENAI_API_KEY",
+  "OPENROUTER_API_KEY",
+  "ORS_API_KEY",
+  "PARALLEL_API_KEY",
+  "POSTHOG_PROJECT_API_KEY",
+  "PW_DISPOSABLE_SERVICE_ROLE_KEY",
+  "RESEND_API_KEY",
+  "SKIDDLE_API_KEY",
+  "SUPABASE_ACCESS_TOKEN",
+  "SUPABASE_SERVICE_ROLE_KEY",
+  "TAVILY_API_KEY",
+  "THESPORTSDB_API_KEY",
+  "TICKETMASTER_API_KEY",
+  "TYPESAFE_API_KEY",
+  "VERCEL_OIDC_TOKEN",
+  "NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY",
+  "NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY",
+  "NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN",
+  "ARIZE_SPACE_KEY",
+  "TFL_APP_KEY",
+  "ELEVENLABS_LLM_SHARED_SECRET",
+  "APNS_KEY_ID",
+  "APNS_TEAM_ID",
+  "APNS_PRIVATE_KEY",
+  "APNS_ENV",
+  "FCM_PROJECT_ID",
+  "FCM_CLIENT_EMAIL",
+  "FCM_PRIVATE_KEY_ID",
+  "FCM_PRIVATE_KEY",
+  "NEXT_PUBLIC_VAPID_PUBLIC_KEY",
+  "VAPID_PRIVATE_KEY",
+  "VAPID_SUBJECT",
+  "X_CLIENT_ID",
+  "X_CLIENT_SECRET",
+  "INSTAGRAM_CLIENT_ID",
+  "INSTAGRAM_CLIENT_SECRET",
+  "TIKTOK_CLIENT_KEY",
+  "TIKTOK_CLIENT_SECRET",
+  "SOCIAL_CONNECTION_ENCRYPTION_KEY",
+  "PUBMAX_ALERT_WEBHOOK_URL",
+];
 
 const modified = (...paths: string[]): ChangedFile[] => paths.map((path) => ({ path, status: "M" }));
 
@@ -104,7 +164,7 @@ describe("the full-suite escalation", () => {
     expect(defined(checkSteps(plan(modified("package.json")))[0]).env).toEqual({
       NODE_OPTIONS: "--max-old-space-size=2048",
       VITEST_MAX_WORKERS: "1",
-      TYPESAFE_API_KEY: "",
+      ...Object.fromEntries(CREDENTIALS.map((name) => [name, ""])),
     });
     vi.stubEnv("NODE_OPTIONS", "--max-old-space-size=4096");
     vi.stubEnv("VITEST_MAX_WORKERS", "8");
@@ -138,6 +198,44 @@ describe("the full-suite escalation", () => {
       }),
     }));
     expect(process.env.TYPESAFE_API_KEY).toBe(sentinel);
+  });
+
+  it("runs the full merge bar in a child that sees every explicitly listed provider credential and configuration value empty, and leaves the parent's values in place", async () => {
+    const { spawnSync: realSpawnSync } =
+      await vi.importActual<typeof import("node:child_process")>("node:child_process");
+    const sentinels = Object.fromEntries(CREDENTIALS.map((name) => [name, `SYNTHETIC-${name}-sentinel`]));
+    for (const name of CREDENTIALS) vi.stubEnv(name, defined(sentinels[name]));
+    const oauth = "SYNTHETIC-claude-code-oauth-sentinel";
+    vi.stubEnv("CLAUDE_CODE_OAUTH_TOKEN", oauth);
+    vi.stubEnv("NODE_OPTIONS", "--max-old-space-size=4096");
+    vi.stubEnv("VITEST_MAX_WORKERS", "8");
+
+    // Stands in for npm run verify. It prints variable names only, never values.
+    const check = [
+      `const leaked = ${JSON.stringify(CREDENTIALS)}.filter((name) => process.env[name] !== "");`,
+      `if (leaked.length > 0) console.error("credentials not empty: " + leaked.join(", "));`,
+      `const limited = process.env.NODE_OPTIONS === "--max-old-space-size=2048" && process.env.VITEST_MAX_WORKERS === "1";`,
+      `if (!limited) console.error("NODE_OPTIONS or VITEST_MAX_WORKERS is not the full merge bar limit");`,
+      `process.exit(leaked.length === 0 && limited ? 0 : 1);`,
+    ].join("\n");
+    let childStatus: number | null | undefined;
+    vi.mocked(spawnSync).mockClear();
+    vi.mocked(spawnSync).mockImplementationOnce(((command: string, args: readonly string[], options: SpawnSyncOptions) => {
+      expect([command, ...args]).toEqual(["npm", "run", "verify"]);
+      const child = realSpawnSync(process.execPath, ["-e", check], options);
+      childStatus = child.status;
+      return child;
+    }) as unknown as typeof spawnSync);
+
+    const full = defined(checkSteps(plan(modified("package.json")))[0]);
+    const ok = runCheckStep(full);
+    expect(spawnSync).toHaveBeenCalledTimes(1);
+    expect(childStatus).toBe(0);
+    expect(ok).toBe(true);
+    expect(CREDENTIALS.filter((name) => process.env[name] !== sentinels[name])).toEqual([]);
+    expect(process.env.CLAUDE_CODE_OAUTH_TOKEN === oauth, "CLAUDE_CODE_OAUTH_TOKEN").toBe(true);
+    expect(process.env.NODE_OPTIONS).toBe("--max-old-space-size=4096");
+    expect(process.env.VITEST_MAX_WORKERS).toBe("8");
   });
 
   it("builds with one Next worker and keeps the build typecheck on", async () => {
