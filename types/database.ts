@@ -27,6 +27,9 @@ export type Database = {
           night_memory_ids: string[];
           night_moment_ids: string[];
           venue_photo_ids: string[];
+          retired_display_name: string | null;
+          retired_handles: string[];
+          night_story_ids: string[];
         };
         Insert: {
           account_user_id: string;
@@ -40,6 +43,9 @@ export type Database = {
           night_memory_ids?: string[];
           night_moment_ids?: string[];
           venue_photo_ids?: string[];
+          retired_display_name?: string | null;
+          retired_handles?: string[];
+          night_story_ids?: string[];
         };
         Update: {
           account_user_id?: string;
@@ -53,6 +59,9 @@ export type Database = {
           night_memory_ids?: string[];
           night_moment_ids?: string[];
           venue_photo_ids?: string[];
+          retired_display_name?: string | null;
+          retired_handles?: string[];
+          night_story_ids?: string[];
         };
         Relationships: [];
       };
