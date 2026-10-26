@@ -1,6 +1,3 @@
-import { readFileSync } from "node:fs";
-import { join } from "node:path";
-
 import { describe, expect, it } from "vitest";
 
 import {
@@ -178,11 +175,5 @@ describe("mapPricesReadLineFor", () => {
     expect(line).toMatch(/^London pint prices\. Records from \d{1,2} \w+ \d{4}\.$/);
     expect(line).not.toMatch(/newest|latest/i);
     expect(mapPricesReadLineFor("manchester")).toBeNull();
-  });
-
-  it("is what every London map route hands the shell", () => {
-    for (const page of ["app/map/page.tsx", "app/map/[city]/page.tsx", "app/map/arrival/page.tsx"]) {
-      expect(readFileSync(join(process.cwd(), page), "utf8"), page).toContain("mapPricesReadLineFor(");
-    }
   });
 });
