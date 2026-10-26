@@ -280,3 +280,59 @@ it.each(DALSTON_CASINGS)("names Dalston after a Soho answer for %s", async (quer
   expect(text).not.toContain("couldn't place");
   expect(text).not.toContain("Across London");
 });
+
+async function remountWithSavedThread(): Promise<void> {
+  // Storage and the surface cache are kept, as when the reader comes back to the tab.
+  await act(async () => {
+    root?.unmount();
+  });
+  root = createRoot(container);
+  await act(async () => {
+    root?.render(createElement(PalChat));
+  });
+  await settle();
+}
+
+async function acceptLatestCard(venueId: string): Promise<unknown> {
+  const link = [...container.querySelectorAll<HTMLAnchorElement>("a.palChatCardAccept")].at(-1);
+  if (!link) throw new Error("Use this pub not found");
+  expect(link.textContent).toBe("Use this pub");
+  vi.mocked(writePlanningIntent).mockClear();
+  await act(async () => {
+    link.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true }));
+  });
+  expect(writePlanningIntent).toHaveBeenCalledTimes(1);
+  const intent = vi.mocked(writePlanningIntent).mock.calls[0]?.[0];
+  expect(intent).toMatchObject({ source: "pal", acceptedVenueId: venueId });
+  return (intent as { acceptedArea: unknown }).acceptedArea;
+}
+
+const textsOf = (selector: string): Array<string | null> => [...container.querySelectorAll(selector)].map((node) => node.textContent);
+
+it("keeps the whole Elephant and Castle with no planning area when the chat is reopened", async () => {
+  const query = "find two pubs in elephant and castle";
+  expect(await askAndAccept(query, "venue-1")).toBeNull();
+  expect(lastLocalityLine()).toBe(EAC_LINE);
+  await remountWithSavedThread();
+  expect(textsOf(".palChatBubble--user")).toEqual([query]);
+  expect(lastLocalityLine()).toBe(EAC_LINE);
+  const text = container.textContent ?? "";
+  expect(text).not.toContain("Across London");
+  expect(text).not.toContain("couldn't place");
+  expect(await acceptLatestCard("venue-1")).toBeNull();
+  expect(chatServer).toHaveBeenCalledTimes(1);
+});
+
+it("keeps Elephant and Castle rather than Soho for a same-area follow-up when the chat is reopened", async () => {
+  const followUp = "Find four pubs in the same area, not in Camden";
+  const lines = ["In Soho, the area you named.", EAC_LINE, EAC_LINE];
+  expect(await askAndAccept(SOHO, "venue-1")).toEqual(SOHO_AREA);
+  expect(await askAndAccept(EAC, "venue-2")).toBeNull();
+  expect(await askAndAccept(followUp, "venue-3")).toBeNull();
+  expect(textsOf(".palChatLocality")).toEqual(lines);
+  await remountWithSavedThread();
+  expect(textsOf(".palChatBubble--user")).toEqual([SOHO, EAC, followUp]);
+  expect(textsOf(".palChatLocality")).toEqual(lines);
+  expect(await acceptLatestCard("venue-3")).toBeNull();
+  expect(chatServer).toHaveBeenCalledTimes(3);
+});

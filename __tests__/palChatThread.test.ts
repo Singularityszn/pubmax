@@ -4,7 +4,8 @@ import { DEVICE_IDENTITY_CHANGED_EVENT } from "@/lib/deviceAccountIdentity";
 import { readPalChatThread, savePalChatThread, clearPalChatThread, palChatMapAnswer, type PalChatEntry } from "@/lib/palChatThread";
 import { clearSurfaceCache, SURFACE_CACHE_NAMESPACE, writeSurfaceSnapshot } from "@/lib/surfaceDataCache";
 import { refineRoutedAskQuery } from "@/lib/ask/router";
-import { resolvePalLocality } from "@/lib/palLocality";
+import { palLocalityLine, resolvePalLocality, type PalLocality } from "@/lib/palLocality";
+import { windowPalSessionTurns } from "@/lib/palSessionSummary";
 import type { AskTurn } from "@/lib/ask/types";
 
 const NOW = Date.parse("2026-10-20T00:00:00Z");
@@ -153,5 +154,104 @@ describe("the current chat recommendation map", () => {
     expect(palChatMapAnswer(timeline)?.answer.cards).toEqual([]);
     savePalChatThread("owner-a", timeline, "", 0, transcript);
     expect(palChatMapAnswer(readPalChatThread("owner-a")!.entries)?.answer.cards).toEqual([]);
+  });
+});
+
+describe("a restored answer for a named place without a planning area", () => {
+  type AnswerEntry = Extract<PalChatEntry, { kind: "answer" }>;
+  const EAC_LINE = "In Elephant and Castle, the area you named.";
+  const scoped = (label: string): PalLocality => ({ scope: "query", area: null, label, grounded: true });
+  // A synthetic listing, so the card is not evidence for any real pub, place or price.
+  const answerFor = (id: string, message: string, locality: PalLocality, place: string | null): AnswerEntry => ({
+    kind: "answer", id, locality, proposals: [], recall: null,
+    answer: place
+      ? { status: "answered", message, toolsUsed: ["search_venues"], cards: [
+        { key: "listing-" + id, venueId: "venue-listing-" + id, title: "Test Listing Tavern", place, note: "", price: null, provenance: { kind: "directory", label: "On record" } },
+      ] }
+      : { status: "empty", message, toolsUsed: ["search_venues"], cards: [] },
+  });
+  // The session hands the thread its windowed turns, which the save windows again.
+  const historyFor = (timeline: PalChatEntry[]): AskTurn[] => windowPalSessionTurns("", timeline.flatMap((entry): AskTurn[] =>
+    entry.kind === "user" ? [{ role: "user", content: entry.text }]
+      : entry.kind === "answer" ? [{ role: "assistant", content: entry.answer.message }] : [])).turns;
+  const restoredLocality = (index: number): PalLocality | null | undefined => {
+    const entry = readPalChatThread("owner-a")?.entries[index];
+    return entry?.kind === "answer" ? entry.locality : undefined;
+  };
+
+  it.each([
+    ["find two pubs in elephant and castle", "Elephant and Castle", "Elephant and Castle", EAC_LINE],
+    ["Find two pubs in Elephant and castle", "Elephant and Castle", "Elephant and Castle", EAC_LINE],
+    ["Find two pubs in Dalston", "Dalston", null, "In Dalston, the area you named."],
+  ] as Array<[string, string, string | null, string]>)("keeps %s scoped to %s with no planning area", (query, label, place, line) => {
+    const timeline: PalChatEntry[] = [{ kind: "user", id: "t-1", text: query }, answerFor("t-2", "Listed pubs for " + label + ".", scoped(label), place)];
+    savePalChatThread("owner-a", timeline, "", 0, historyFor(timeline));
+    const locality = restoredLocality(1);
+    expect(locality).toEqual({ scope: "query", area: null, label, grounded: true });
+    expect(locality ? palLocalityLine(locality) : null).toBe(line);
+  });
+
+  it("keeps Elephant and Castle for a same-area follow-up instead of replaying its words London-wide", () => {
+    const eac = scoped("Elephant and Castle");
+    const timeline: PalChatEntry[] = [
+      { kind: "user", id: "t-1", text: "Find four pubs in Elephant and Castle" },
+      answerFor("t-2", "Listed pubs in Elephant and Castle.", eac, "Elephant and Castle"),
+      { kind: "user", id: "t-3", text: "Find four pubs in the same area, not in Camden" },
+      answerFor("t-4", "More listed pubs in Elephant and Castle.", eac, "Elephant and Castle"),
+    ];
+    savePalChatThread("owner-a", timeline, "", 0, historyFor(timeline));
+    expect(readPalChatThread("owner-a")?.turns).toHaveLength(4);
+    const localities = [1, 3].map((index) => restoredLocality(index));
+    expect(localities).toEqual([
+      { scope: "query", area: null, label: "Elephant and Castle", grounded: true },
+      { scope: "query", area: null, label: "Elephant and Castle", grounded: true },
+    ]);
+    expect(localities.map((locality) => locality ? palLocalityLine(locality) : null)).toEqual([EAC_LINE, EAC_LINE]);
+  });
+
+  it("keeps a visible navigation receipt from moving an older same-area answer away from Elephant and Castle", () => {
+    const eac = scoped("Elephant and Castle");
+    const initial: PalChatEntry[] = [
+      { kind: "user", id: "t-1", text: "Find four pubs in Elephant and Castle" },
+      answerFor("t-2", "Listed pubs in Elephant and Castle.", eac, "Elephant and Castle"),
+    ];
+    // Navigation is shown in the thread but is never a provider turn.
+    const navigation: PalChatEntry[] = [
+      { kind: "user", id: "t-3", text: "Take me to The Lock Tavern in Camden" },
+      { kind: "answer", id: "t-4", answer: { status: "answered", message: "Opening The Lock Tavern", cards: [] }, locality: null, proposals: [], recall: null },
+    ];
+    const followUp: PalChatEntry[] = [
+      { kind: "user", id: "t-5", text: "Find four pubs in the same area" },
+      answerFor("t-6", "More listed pubs in Elephant and Castle.", eac, "Elephant and Castle"),
+    ];
+    const providerTurns = historyFor([...initial, ...followUp]);
+    expect(providerTurns).toHaveLength(4);
+    expect(providerTurns.map((turn) => turn.content).join(" | ")).not.toMatch(/Lock Tavern|Camden/);
+    savePalChatThread("owner-a", [...initial, ...navigation, ...followUp], "", 0, providerTurns);
+    const restored = readPalChatThread("owner-a")!;
+    expect(restored.entries).toHaveLength(6);
+    expect(restored.turns).toHaveLength(4);
+    expect(restored.turns.map((turn) => turn.content).join(" | ")).not.toMatch(/Lock Tavern|Camden/);
+    expect(restored.priorAsks).toHaveLength(2);
+    expect(restored.priorAsks[0]).toBe("Find four pubs in Elephant and Castle");
+    expect(restoredLocality(3)).toBeNull();
+    expect(restoredLocality(1)).toEqual({ scope: "query", area: null, label: "Elephant and Castle", grounded: true });
+    const latest = restoredLocality(5);
+    expect(latest).toEqual({ scope: "query", area: null, label: "Elephant and Castle", grounded: true });
+    expect(latest ? palLocalityLine(latest) : null).toBe(EAC_LINE);
+  });
+
+  it.each([
+    "Find four pubs in Oxford",
+    "Find four pubs in Soho or Camden",
+  ])("does not restore a copied Elephant and Castle label saved for %s", (query) => {
+    const timeline: PalChatEntry[] = [{ kind: "user", id: "t-1", text: query }, answerFor("t-2", "Nothing listed for that.", scoped("Elephant and Castle"), null)];
+    savePalChatThread("owner-a", timeline, "", 0, historyFor(timeline));
+    const locality = restoredLocality(1);
+    expect(locality).not.toBeUndefined();
+    expect(locality?.area ?? null).toBeNull();
+    expect(locality?.grounded ?? false).toBe(false);
+    const line = locality ? palLocalityLine(locality) : null;
+    expect(line === null || line.startsWith("Across London.")).toBe(true);
   });
 });

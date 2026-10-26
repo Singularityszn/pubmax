@@ -67,7 +67,7 @@ import { palMapAskTarget, palPubAskVenue, type PalMapAskVenue } from "@/lib/palM
 import { formatPalWhen, type PalCard } from "@/lib/palChat";
 import { venueAcceptUrl, venueMapUrl } from "@/lib/venueMapUrl";
 import { palRecall } from "@/lib/palRecall";
-import { palLocalityLine, resolvePalLocality, type PalLocality } from "@/lib/palLocality";
+import { palLocalityLine, type PalLocality } from "@/lib/palLocality";
 import { PLAN_FIELD_LABEL } from "@/lib/planCopy";
 import { planPalRouteHandoffHref } from "@/lib/planOccasion";
 import { writePlanningIntent } from "@/lib/planningIntent";
@@ -75,9 +75,7 @@ import { authedActionFetch } from "@/lib/authedFetch";
 import { palChatResultFromBody } from "@/lib/palChatClient";
 import { palOpeningMessage } from "@/lib/palOpening";
 import { createPalChatSession } from "@/lib/palChatClient";
-import { refineRoutedAskQuery, resolveAskLocality, SAME_AREA_REFERENCE_RE } from "@/lib/ask/router";
-import { canonicalAskPlaceLabel } from "@/lib/ask/placePhrases";
-import { clearPalChatThread, palChatMapAnswer, readPalChatThread, savePalChatThread, type PalChatEntry as Entry, type PalChatThread } from "@/lib/palChatThread";
+import { clearPalChatThread, palChatLocality, palChatMapAnswer, readPalChatThread, savePalChatThread, type PalChatEntry as Entry, type PalChatThread } from "@/lib/palChatThread";
 import {
   cheapestGlanceLine,
   cheapestGlanceReceipt,
@@ -538,17 +536,7 @@ function PalChatBody({ owner }: { owner: string | null }) {
         return;
       }
       const priorUsers = turnsRef.current.filter((turn) => turn.role === "user").map((turn) => turn.content).slice(0, -1);
-      const routedQuery = refineRoutedAskQuery(text, priorUsers.at(-1), priorUsers);
-      const searchLocality = resolveAskLocality(routedQuery);
-      const askLocality = SAME_AREA_REFERENCE_RE.test(routedQuery) || searchLocality.kind !== "supported"
-        ? null
-        : resolvePalLocality(routedQuery, null);
-      const searchLabel = askLocality && !askLocality.grounded && !askLocality.askedLondon && searchLocality.kind === "supported"
-        ? canonicalAskPlaceLabel(searchLocality.area)
-        : null;
-      const locality: PalLocality | null = searchLabel
-        ? { scope: "query", area: null, label: searchLabel, grounded: true }
-        : askLocality;
+      const { locality, routedQuery } = palChatLocality(text, priorUsers);
       const proposals =
         result.status === "answered" || result.status === "empty"
           ? result.proposals ?? []
@@ -560,7 +548,7 @@ function PalChatBody({ owner }: { owner: string | null }) {
       markConsentAnswerMoment("pal-reply");
       setEntries((prev) => [
         ...prev,
-        { kind: "answer", id: nextId(), answer: result, locality, proposals, recall },
+        { kind: "answer", id: nextId(), answer: result, locality, routedQuery, proposals, recall },
       ]);
     },
     [nextId, openMapFromAsk, pending, createSession, owner],

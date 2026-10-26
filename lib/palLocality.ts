@@ -21,7 +21,7 @@ type PalLocalityScope = "query" | "remembered" | "london-wide";
 
 export type PalLocality = {
   scope: PalLocalityScope;
-  /** The canonical acceptance area, ready for the "pal" PlanningIntent. Null = London-wide. */
+  /** The canonical acceptance area, ready for the "pal" PlanningIntent. Null = no canonical planning area: London-wide, or a named place the taxonomy has no area for. */
   area: PlanningIntentArea;
   /** Human label for copy ("Brixton", "Soho", "London"). */
   label: string;
