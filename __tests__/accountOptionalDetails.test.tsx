@@ -114,11 +114,11 @@ async function withSignedInHub(
   const host = document.body.appendChild(document.createElement("div"));
   const root = createRoot(host);
   try {
-    await act(async () => root.render(createElement(
-      SocialFriendsLaunchProvider,
-      { value: true },
-      createElement(PubmaxxAccountHub),
-    )));
+    await act(async () => root.render(
+      <SocialFriendsLaunchProvider value={true}>
+        <PubmaxxAccountHub />
+      </SocialFriendsLaunchProvider>,
+    ));
     await run(host);
   } finally {
     await act(async () => root.unmount());

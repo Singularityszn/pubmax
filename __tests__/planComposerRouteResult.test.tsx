@@ -995,7 +995,7 @@ describe("choosing another area after an unsupported request", () => {
 
     const generated = fetchMock.mock.calls.filter(([input]) => String(input).includes("/api/plans/generate"));
     expect(generated).toHaveLength(2);
-    const requestBody = String(generated[1][1]?.body);
+    const requestBody = String(generated[1]?.[1]?.body);
     expect(JSON.parse(requestBody)).toMatchObject({
       query: "Quiet pints for 4 under £6 in Victoria",
       context: { nightArea: "victoria" },

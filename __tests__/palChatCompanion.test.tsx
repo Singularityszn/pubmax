@@ -47,9 +47,9 @@ it("aborts an old owner's read and ignores its late completion", async () => {
   fetches.fetch.mockImplementationOnce(() => new Promise<Response>(resolve => { finishA = resolve; }))
     .mockResolvedValueOnce(response("owner-b", "Bob Pal"));
   await render("owner-a");
-  const signal = fetches.fetch.mock.calls[0][1].signal as AbortSignal;
+  const signal = fetches.fetch.mock.calls[0]?.[1]?.signal as AbortSignal | undefined;
   await render("owner-b");
-  expect(signal.aborted).toBe(true);
+  expect(signal?.aborted).toBe(true);
   expect(container.textContent).toBe("Bob Pal");
   await act(async () => { finishA(response("owner-a", "Alice Pal")); });
   expect(container.textContent).toBe("Bob Pal");

@@ -264,7 +264,7 @@ describe("POST /api/ask", () => {
     expect(result.answer).toContain("Sherlock Holmes");
     expect(result.answer).not.toMatch(/More than one listed pub|other drinks across pubs|cheapest listed pints/i);
     expect(result.cards.length).toBeGreaterThan(0);
-    const bound = [...result.cards, ...result.proposals].map((item: { venueId?: string }) => item.venueId);
+    const bound = [...result.cards, ...result.proposals].map((item) => ("venueId" in item ? item.venueId : undefined));
     expect(new Set(bound)).toEqual(new Set(["venue-gk2fp9"]));
     expect(result.cards).toContainEqual(expect.objectContaining({
       venueId: "venue-gk2fp9", price: 7.2,

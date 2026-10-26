@@ -220,12 +220,13 @@ export function palChatRecordQuery(query: string, turns: readonly PubPalFenceTur
   // authoritative for the number of cards and all other requested tools.
   const quantity = requestedVenueQuantity(routedQuery);
   if (quantity === null || requestedVenueQuantity(query) === null) return null;
+  const [soleCall] = calls;
   const localDiscovery = intent.kind === "none" && quantity !== undefined
-    && calls.length === 1 && calls[0].name === "search_venues" && calls[0].args.limit === quantity;
+    && calls.length === 1 && soleCall?.name === "search_venues" && soleCall.args.limit === quantity;
   const localPlan = (intent.kind === "none" || intent.kind === "plan")
     && /\b(?:crawl|three[- ]stop|3[- ]stop)\b/i.test(routedQuery)
     && (quantity === undefined || quantity === 3)
-    && calls.length === 1 && calls[0].name === "propose_plan";
+    && calls.length === 1 && soleCall?.name === "propose_plan";
   // Listed pint discovery is local. Keep mixed requests and other tools on
   // their own paths rather than dropping a sibling request to gain speed.
   const pintBudget = /\bpints?\b/i.test(routedQuery) && extractExplicitBudget(routedQuery) !== undefined;
