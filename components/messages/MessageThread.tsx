@@ -1120,10 +1120,10 @@ export default function MessageThread({
               </p>
               <div className="threadStarters" role="group" aria-label="Start the conversation">
                 <button type="button" disabled={sending} onClick={() => openPicker("venue")}>
-                  <MapPin size={17} aria-hidden="true" /> Share a pub
+                  <MapPin size={16} aria-hidden="true" /> Share a pub
                 </button>
                 <button type="button" disabled={sending} onClick={() => openPicker("event")}>
-                  <CalendarDays size={17} aria-hidden="true" /> Share a plan
+                  <CalendarDays size={16} aria-hidden="true" /> Share a plan
                 </button>
               </div>
             </li>

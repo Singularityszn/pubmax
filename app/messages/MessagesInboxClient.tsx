@@ -442,7 +442,7 @@ export default function MessagesInboxClient({
           ) : null}
           {filteredConversations.length === 0 ? (
             <div className="messagesFilteredEmpty" role="status">
-              <MessageCircle size={28} aria-hidden="true" />
+              <MessageCircle size={24} aria-hidden="true" />
               <h2>{filteredEmptyTitle}</h2>
               <p>{filteredEmptyLine}</p>
               <button type="button" className="threadRetryBtn" onClick={() => {
@@ -475,7 +475,7 @@ export default function MessagesInboxClient({
                   >
                     {c.kind === "group" ? (
                       <span className="messageAvatar messageAvatarGroup" style={{ "--message-avatar-size": "56px" } as React.CSSProperties} aria-hidden="true">
-                        <UsersRound size={26} />
+                        <UsersRound size={24} />
                       </span>
                     ) : (
                       <MessageAvatar handle={c.otherHandle} avatarUrl={c.otherAvatarUrl} label={c.otherDisplayName} size={56} />
