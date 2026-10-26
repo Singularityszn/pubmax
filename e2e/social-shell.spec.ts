@@ -143,7 +143,7 @@ test("pub prompts keep composition deliberate and preserve the chosen audience",
   await page.route("**/api/social/posts**", (route) => fulfil(route, [post("night-plan", "Anyone know a pub garden worth the walk?", "2026-10-26T18:00:00.000Z")]));
   await page.route("**/api/social/tags?**", (route) => route.fulfill({ json: { proposals: [], nextCursor: null } }));
   await page.route("**/api/social/outbox", (route) => route.fulfill({ json: { posts: [] } }));
-  await page.route("**/api/social/crews?**", (route) => route.fulfill({ json: { items: [], nextCursor: null } }));
+  await page.route("**/api/social/crews", (route) => route.fulfill({ json: { items: [], nextCursor: null } }));
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto("/social");
   await expect(page.locator(".socialPostBody")).toHaveText("Anyone know a pub garden worth the walk?");
