@@ -76,7 +76,7 @@ export type PlanStore = {
   join(id: string, name: unknown, options?: { collaborationAuthorized?: boolean; idempotencyKey?: string; userId?: string }): Promise<PlanJoinResult>;
   updatePresence(id: string, memberToken: unknown, status: unknown): Promise<PlanPresenceResult>;
   update(id: string, memberToken: unknown, update: { status?: PlannedNightStatus; context?: NightContext; stops?: PlanStopDTO[]; expectedRouteRevision?: number; groundedUpgrade?: boolean }): Promise<PlanUpdateResult>;
-  addAction(id: string, memberToken: unknown, action: { type: PlanActionDTO["type"]; stopPosition?: number; ending?: CrawlEnding; idempotencyKey?: string }): Promise<PlanUpdateResult>;
+  addAction(id: string, memberToken: unknown, action: { type: PlanActionDTO["type"]; stopPosition?: number; expectedRouteRevision?: number; ending?: CrawlEnding; idempotencyKey?: string }): Promise<PlanUpdateResult>;
   getCompletion(id: string): Promise<PlanCompletionDTO | null>;
   complete(id: string, memberToken: unknown, input: { expectedRouteRevision: number; ending: CrawlEnding; terminalVenueId?: string; endingSelection: EndingSelection }): Promise<PlanCompletionResult>;
 };
@@ -247,6 +247,12 @@ async function readSupabasePlanState(
     return admin.from(STOPS).select("venue_id,venue_name,position")
       .eq("plan_id", id).order("position");
   };
+  const readActions = async () => {
+    const result = await admin.from(ACTIONS)
+      .select("id,type,stop_position,ending,created_at,venue_id,route_revision").eq("plan_id", id).order("created_at");
+    if (result.error?.code !== "42703") return result;
+    return admin.from(ACTIONS).select("id,type,stop_position,ending,created_at").eq("plan_id", id).order("created_at");
+  };
   const [
     { data: stopRows, error: stopsError },
     { data: memberRows, error: membersError },
@@ -257,25 +263,32 @@ async function readSupabasePlanState(
       .eq("plan_id", id)
       .is("membership_revoked_at", null)
       .order("joined_at").order("id"),
-    admin.from(ACTIONS).select("id,type,stop_position,ending,created_at").eq("plan_id", id).order("created_at"),
+    readActions(),
   ]);
   if (stopsError || membersError || actionsError) {
     throw new Error(stopsError?.message ?? membersError?.message ?? actionsError?.message);
   }
+  const plan = planFromRow(planRow as Record<string, unknown>);
+  const stops = (stopRows ?? []).map((row) => stopFromRow(row as Record<string, unknown>));
   return {
-    plan: planFromRow(planRow as Record<string, unknown>),
-    stops: (stopRows ?? []).map((row) => stopFromRow(row as Record<string, unknown>)),
+    plan,
+    stops,
     crew: socialOwnerAccountId === null
       ? (memberRows ?? []).map((row) => memberFromRow(row as Record<string, unknown>))
       : [],
     context: (planRow as Record<string, unknown>).night_context as NightContext | null ?? null,
-    actions: (actionRows ?? []).map((row) => ({
-      id: String(row.id),
-      type: row.type as PlanActionDTO["type"],
-      stopPosition: row.stop_position as number | null,
-      ending: row.ending as CrawlEnding | null,
-      createdAt: String(row.created_at),
-    })),
+    actions: projectPlanActions((actionRows ?? []).map((raw) => {
+      const row = raw as unknown as Record<string, unknown>;
+      return {
+        id: String(row.id),
+        type: row.type as PlanActionDTO["type"],
+        stopPosition: row.stop_position as number | null,
+        ending: row.ending as CrawlEnding | null,
+        createdAt: String(row.created_at),
+        venueId: typeof row.venue_id === "string" ? row.venue_id : null,
+        routeRevision: typeof row.route_revision === "number" ? row.route_revision : null,
+      };
+    }), stops, routeRevisionOf(plan)),
     ending: (planRow as Record<string, unknown>).ending as CrawlEnding | null ?? null,
   };
 }
@@ -483,12 +496,13 @@ export const supabasePlanStore: PlanStore = {
     if (!identityResult.ok) return { ok: false, error: "error" };
     const identity = identityResult.identity;
     if (!identity?.collaborationAuthorized || (action.type === "swapped" && identity.role !== "host")) return { ok: false, error: "forbidden" };
-    if (!Number.isInteger(action.stopPosition)
-      || !current.stops.some((stop) => stop.position === action.stopPosition)) {
+    if (!Number.isInteger(action.stopPosition) || action.stopPosition! < 0 || action.stopPosition! > 7) {
       return { ok: false, error: "invalid" };
     }
     const key = action.idempotencyKey.trim();
-    const requestHash = planRequestDigest({ type: action.type, stopPosition: action.stopPosition ?? null });
+    const requestHash = planRequestDigest({ type: action.type, stopPosition: action.stopPosition ?? null,
+      ...(action.expectedRouteRevision !== undefined ? { expectedRouteRevision: action.expectedRouteRevision } : {}),
+    });
     const createdAt = new Date().toISOString();
     const { data, error } = await requireSupabaseAdmin().rpc("add_plan_action_idempotent_atomic", {
       p_plan_id: id,
@@ -499,11 +513,13 @@ export const supabasePlanStore: PlanStore = {
       p_idempotency_key_hash: planIdempotencyDigest(`plan-action-key:${id}`, key),
       p_request_hash: requestHash,
       p_created_at: createdAt,
+      p_expected_route_revision: action.expectedRouteRevision ?? null,
     });
     if (error) return { ok: false, error: "error" };
     if (data === "forbidden") return { ok: false, error: "forbidden" };
     if (data === "not_found") return { ok: false, error: "not_found" };
     if (data === "conflict") return { ok: false, error: "conflict" };
+    if (data === "invalid") return { ok: false, error: "invalid" };
     if (data !== "applied" && data !== "replayed") return { ok: false, error: "error" };
     const plan = await this.get(id);
     return plan ? { ok: true, plan } : { ok: false, error: "error" };
@@ -531,7 +547,12 @@ export const supabasePlanStore: PlanStore = {
     if (!identityResult.ok) return { ok: false, error: "error" };
     if (identityResult.identity?.role !== "host") return { ok: false, error: "forbidden" };
     try {
-      const { data, error } = await requireSupabaseAdmin().rpc("complete_plan_atomic", {
+      const admin = requireSupabaseAdmin();
+      // Old-schema reads can stay available, but its positional completion
+      // function cannot safely qualify an arrival after a route edit.
+      const capability = await admin.from(ACTIONS).select("venue_id,route_revision").eq("plan_id", id).limit(1);
+      if (capability.error) return { ok: false, error: "error" };
+      const { data, error } = await admin.rpc("complete_plan_atomic", {
         p_plan_id: id,
         p_token_hash: hashPlanMemberToken(rawToken),
         p_expected_route_revision: input.expectedRouteRevision,
@@ -574,12 +595,28 @@ function publicCompletion(completion: StoredCompletion): PlanCompletionDTO {
     completedAt: completion.completedAt,
   };
 }
+type StoredPlanAction = PlanActionDTO & { venueId?: string | null; routeRevision?: number | null };
+
+/** Keep history attached to its pub when a host edits or reorders the route. */
+function projectPlanActions(
+  actions: readonly StoredPlanAction[],
+  stops: readonly PlanStopDTO[],
+  revision: number,
+): PlanActionDTO[] {
+  return actions.map(({ id, type, stopPosition, ending, createdAt, venueId }) => ({
+    id, type, ending, createdAt,
+    stopPosition: type === "ending" ? stopPosition
+      : venueId ? stops.find((stop) => stop.venueId === venueId)?.position ?? null
+      : revision === 1 ? stopPosition : null,
+  }));
+}
+
 type MemoryPlan = {
   plan: PlanDTO;
   stops: PlanStopDTO[];
   crew: MemoryMember[];
   context: NightContext | null;
-  actions: PlanActionDTO[];
+  actions: StoredPlanAction[];
   ending: CrawlEnding | null;
   completion: StoredCompletion | null;
   inviteToken: string;
@@ -620,7 +657,17 @@ function mintInviteToken(): string {
   return randomBytes(16).toString("hex");
 }
 
+function restoreMemoryActionIdentity(value: MemoryPlan): void {
+  if (routeRevisionOf(value.plan) !== 1) return;
+  for (const action of value.actions) {
+    if (action.type === "ending" || action.venueId !== undefined || action.routeRevision !== undefined) continue;
+    const stop = value.stops.find((candidate) => candidate.position === action.stopPosition);
+    if (stop) { action.venueId = stop.venueId; action.routeRevision = 1; }
+  }
+}
+
 function publicState(value: MemoryPlan): PlanState {
+  restoreMemoryActionIdentity(value);
   return {
     plan: { ...value.plan },
     stops: value.stops.map((stop) => ({ ...stop })).sort((a, b) => a.position - b.position),
@@ -633,7 +680,7 @@ function publicState(value: MemoryPlan): PlanState {
     }))
       .sort((a, b) => a.joinedAt.localeCompare(b.joinedAt)),
     context: value.context ? structuredClone(value.context) : null,
-    actions: value.actions.map((action) => ({ ...action })),
+    actions: projectPlanActions(value.actions, value.stops, routeRevisionOf(value.plan)),
     ending: value.ending,
   };
 }
@@ -768,6 +815,7 @@ export const memoryPlanStore: PlanStore = {
     const plan = memoryPlans.get(id);
     if (!plan) return { ok: false, error: "not_found" };
     if (plan.crew[0]?.tokenHash !== hashPlanMemberToken(rawToken)) return { ok: false, error: "forbidden" };
+    restoreMemoryActionIdentity(plan);
     if (update.stops) {
       const stops = cleanReplacementStops(update.stops);
       if (!stops || !Number.isInteger(update.expectedRouteRevision) || update.expectedRouteRevision! < 1 || update.status) return { ok: false, error: "invalid" };
@@ -819,20 +867,27 @@ export const memoryPlanStore: PlanStore = {
     if (!plan) return { ok: false, error: "not_found" };
     const actorIndex = plan.crew.findIndex((candidate) => candidate.tokenHash === hashPlanMemberToken(rawToken));
     if (actorIndex < 0 || !plan.crew[actorIndex]?.collaborationAuthorized || (action.type === "swapped" && actorIndex !== 0)) return { ok: false, error: "forbidden" };
-    if (!Number.isInteger(action.stopPosition)
-      || !plan.stops.some((stop) => stop.position === action.stopPosition)) {
+    if (!Number.isInteger(action.stopPosition) || action.stopPosition! < 0 || action.stopPosition! > 7) {
       return { ok: false, error: "invalid" };
     }
     const key = action.idempotencyKey.trim();
     const keyHash = planIdempotencyDigest(`plan-action-key:${id}`, key);
-    const requestHash = planRequestDigest({ type: action.type, stopPosition: action.stopPosition ?? null });
+    const requestHash = planRequestDigest({ type: action.type, stopPosition: action.stopPosition ?? null,
+      ...(action.expectedRouteRevision !== undefined ? { expectedRouteRevision: action.expectedRouteRevision } : {}),
+    });
     const requestId = `${id}:${plan.crew[actorIndex]!.id}:${keyHash}`;
     const replay = planMemory.actionRequests.get(requestId);
     if (replay) {
       return replay.requestHash === requestHash ? { ok: true, plan: publicState(plan) } : { ok: false, error: "conflict" };
     }
+    if ((action.expectedRouteRevision ?? 1) !== routeRevisionOf(plan.plan)) return { ok: false, error: "conflict" };
+    if (!plan.stops.some((stop) => stop.position === action.stopPosition)) return { ok: false, error: "invalid" };
     const actionId = planIdempotentUuid(`plan-action:${id}:${plan.crew[actorIndex]!.id}`, key);
-    plan.actions.push({ id: actionId, type: action.type, stopPosition: action.stopPosition ?? null, ending: action.ending ?? null, createdAt: stamp() });
+    plan.actions.push({
+      id: actionId, type: action.type, stopPosition: action.stopPosition ?? null,
+      venueId: plan.stops.find((stop) => stop.position === action.stopPosition)!.venueId,
+      routeRevision: routeRevisionOf(plan.plan), ending: action.ending ?? null, createdAt: stamp(),
+    });
     planMemory.actionRequests.set(requestId, { requestHash, actionId });
     if (plan.plan.status === "draft" || plan.plan.status === "ready") plan.plan.status = "active";
     return { ok: true, plan: publicState(plan) };
@@ -857,12 +912,14 @@ export const memoryPlanStore: PlanStore = {
     if (plan.completion) {
       return { ok: true, plan: publicState(plan), completion: publicCompletion(plan.completion), created: false };
     }
+    restoreMemoryActionIdentity(plan);
     const qualifyingArrival = plan.actions.find((action) => (
       action.type === "arrived"
-      && action.stopPosition !== null
-      && plan.stops.some((stop) => stop.position === action.stopPosition)
+      && action.venueId
+      && plan.stops.some((stop) => stop.venueId === action.venueId)
     ));
-    if (!qualifyingArrival || qualifyingArrival.stopPosition === null) return { ok: false, error: "arrival_required" };
+    if (!qualifyingArrival) return { ok: false, error: "arrival_required" };
+    const arrivedStop = plan.stops.find((stop) => stop.venueId === qualifyingArrival.venueId)!;
     if (input.ending === "food" && !input.terminalVenueId) return { ok: false, error: "invalid" };
     if (input.terminalVenueId && !plan.stops.some((stop) => stop.venueId === input.terminalVenueId)) return { ok: false, error: "invalid" };
     const completedAt = stamp();
@@ -877,7 +934,7 @@ export const memoryPlanStore: PlanStore = {
       routeSnapshot: plan.stops.map((stop) => ({ ...stop })),
       qualifyingArrival: {
         actionId: qualifyingArrival.id,
-        stopPosition: qualifyingArrival.stopPosition,
+        stopPosition: arrivedStop.position,
         arrivedAt: qualifyingArrival.createdAt,
       },
       actorMemberId: actor.id,

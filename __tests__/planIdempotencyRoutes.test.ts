@@ -55,6 +55,27 @@ afterEach(() => {
 });
 
 describe("Plan mutation idempotency", () => {
+  it("returns current state for stale action intent and preserves exact replay after an edit", async () => {
+    const host = await create("arrival-route-intent");
+    const id = host.body.plan.plan.id;
+    const request = (key: string, expectedRouteRevision?: number) => ACTION(new Request(`${URL}/${id}/actions`, {
+      method: "POST", headers: { authorization: `Bearer ${host.body.memberToken}`, "idempotency-key": key },
+      body: JSON.stringify({ type: "arrived", stopPosition: 0, ...(expectedRouteRevision !== undefined ? { expectedRouteRevision } : {}) }),
+    }), ctx(id));
+    expect((await request("old-arrival", 1)).status).toBe(201);
+    expect((await memoryPlanStore.update(id, host.body.memberToken, {
+      expectedRouteRevision: 1,
+      stops: ["d", "e", "f"].map((venueId, position) => ({ venueId, venueName: venueId, position })),
+    })).ok).toBe(true);
+    const stale = await request("stale-arrival", 1);
+    expect(stale.status).toBe(409);
+    expect(await stale.json()).toMatchObject({ details: { plan: { plan: { routeRevision: 2 } } } });
+    expect((await request("legacy-missing-revision")).status).toBe(409);
+    expect((await request("old-arrival", 1)).status).toBe(201);
+    expect((await request("current-arrival", 2)).status).toBe(201);
+    expect((await memoryPlanStore.get(id))?.actions).toHaveLength(2);
+  });
+
   it("requires a retry key for every material public mutation", async () => {
     const missingCreate = await CREATE(new Request(URL, { method: "POST", body: JSON.stringify(payload) }));
     expect(missingCreate.status).toBe(400);

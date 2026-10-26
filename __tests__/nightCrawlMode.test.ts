@@ -221,7 +221,7 @@ describe("NightCrawlMode failed action reconciliation", () => {
       settledRender,
       (element) => (element.props as { role?: string }).role === "status",
     );
-    expect(textOf(status)).toBe("That update was rejected. Open the full plan to check the route.");
+    expect(textOf(status)).toBe("The route changed. Review the stops and try again.");
   });
 
   it("leaves the cursor where the batch rollback put it when a held stop is refused too", async () => {
@@ -258,6 +258,34 @@ describe("NightCrawlMode failed action reconciliation", () => {
 });
 
 describe("NightCrawlMode final-stop handoff", () => {
+  it.each([0, null])("keeps the current crawl open when an old final-stop replay now belongs at %s", async (currentPosition) => {
+    harness.activeCursor = 1;
+    const current: PlanState = {
+      ...PLAN,
+      plan: { ...PLAN.plan, routeRevision: 2 },
+      stops: currentPosition === 0 ? [PLAN.stops[1]!, PLAN.stops[0]!].map((stop, position) => ({ ...stop, position }))
+        : [{ venueId: "replacement-0", venueName: "Replacement First", position: 0 }, { venueId: "replacement-1", venueName: "Replacement Final", position: 1 }],
+      actions: [{ id: "old-arrival", type: "arrived", stopPosition: currentPosition, ending: null, createdAt: "2026-08-30T22:00:00.000Z" }],
+    };
+    harness.flush.mockResolvedValue([{
+      planId: PLAN_ID, entryId: `night-crawl-action:${PLAN_ID}:arrived:1`,
+      outcome: "confirmed", type: "arrived", stopPosition: 1, expectedRouteRevision: 1, plan: current,
+    }]);
+    const arrive = findElement(renderMode(), (element) => element.type === "button" && textOf(element).includes("We are here"));
+    expect(arrive).not.toBeNull();
+    await (arrive?.props as { onClick: () => Promise<void> }).onClick();
+    // The button starts the async action without returning its promise.
+    // Wait for canonical reconciliation before checking the handoff guard.
+    await vi.waitFor(() => {
+      expect(harness.stateValues[0]).toEqual(current);
+    });
+    expect(harness.enqueue).toHaveBeenCalledWith(expect.objectContaining({
+      planId: PLAN_ID, type: "arrived", expectedRouteRevision: 1,
+      stop: PLAN.stops[1],
+    }));
+    expect(harness.handoff).not.toHaveBeenCalled();
+  });
+
   it("opens the existing ending owner after the final Stop action confirms", async () => {
     harness.activeCursor = 1;
     harness.enqueue.mockResolvedValue({

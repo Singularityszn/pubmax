@@ -69,6 +69,13 @@ import "./nightCrawl.css";
 
 const TFL_JOURNEY_PLANNER = "https://tfl.gov.uk/plan-a-journey/";
 
+function actionRouteRevision(value: unknown): number | null {
+  if (value === undefined) return 1;
+  if (typeof value !== "number" && typeof value !== "string") return null;
+  const revision = typeof value === "string" ? Number(value) : value;
+  return Number.isSafeInteger(revision) && revision > 0 ? revision : null;
+}
+
 // Global presence → hero "who is where" chip. Only statuses that read as a real
 // position get a chip; a plain "in" is dropped so the row stays a glance.
 const CREW_CHIP: Partial<Record<CrewPresenceStatus, { label: string; tone: "here" | "ahead" | "late" }>> = {
@@ -197,8 +204,11 @@ export default function NightCrawlMode({ planId, initialState }: { planId: strin
   }, [collapseKey]);
 
   const handOffConfirmedStop = useCallback(
-    (confirmedPlan: PlanState | undefined, stopPosition: number) => {
+    (confirmedPlan: PlanState | undefined, stopPosition: number, expectedRouteRevision?: number) => {
       if (!confirmedPlan) return;
+      const confirmedRevision = actionRouteRevision(confirmedPlan.plan.routeRevision);
+      const requestedRevision = actionRouteRevision(expectedRouteRevision);
+      if (confirmedRevision === null || requestedRevision === null || requestedRevision !== confirmedRevision) return;
       const target = nightCrawlHandoffTarget({
         stops: confirmedPlan.stops,
         actions: confirmedPlan.actions,
@@ -231,7 +241,7 @@ export default function NightCrawlMode({ planId, initialState }: { planId: strin
           return next;
         });
         setNote(null);
-        handOffConfirmedStop(result.plan, result.stopPosition);
+        handOffConfirmedStop(result.plan, result.stopPosition, result.expectedRouteRevision);
         return;
       }
       if (result.outcome === "offline") return;
@@ -240,9 +250,11 @@ export default function NightCrawlMode({ planId, initialState }: { planId: strin
         delete next[result.stopPosition];
         return next;
       });
+      if (result.outcome === "conflict" && result.plan) setPlan(result.plan);
       const tone = result.outcome === "conflict" ? "rejected" : result.outcome;
       setNote({
-        text: nightCrawlActionNote(result.type, result.venueName, tone),
+        text: result.outcome === "conflict" ? "The route changed. Review the stops and try again."
+          : nightCrawlActionNote(result.type, result.venueName, tone),
         tone,
       });
       removePlanMutationOutboxEntry(result.entryId);
@@ -337,6 +349,11 @@ export default function NightCrawlMode({ planId, initialState }: { planId: strin
   const runAction = useCallback(
     async (type: NightCrawlActionType) => {
       if (busy || !hero || !canUpdatePlan) return;
+      const expectedRouteRevision = actionRouteRevision(plan.plan.routeRevision);
+      if (expectedRouteRevision === null) {
+        setNote({ text: "The route could not be checked. Reload the plan and try again.", tone: "rejected" });
+        return;
+      }
       const stopPosition = hero.position;
       const heroName = hero.venueName;
       const previousCursor = cursor;
@@ -377,7 +394,7 @@ export default function NightCrawlMode({ planId, initialState }: { planId: strin
       }
 
       const scope = nightCrawlIdempotencyScope(planId, type, stopPosition);
-      const payload = nightCrawlActionPayload(type, hero);
+      const payload = { ...nightCrawlActionPayload(type, hero), expectedRouteRevision };
       const key = await persistentPlanMutationKey(scope, payload);
       // Fingerprint aligns with the idempotency key scope: same tap, same key.
       const print = `${scope}:${JSON.stringify(payload)}`;
@@ -389,6 +406,7 @@ export default function NightCrawlMode({ planId, initialState }: { planId: strin
           planId,
           type,
           stop: hero,
+          expectedRouteRevision,
           idempotencyKey: key,
           fingerprint: print,
           previousCursor,
@@ -405,13 +423,17 @@ export default function NightCrawlMode({ planId, initialState }: { planId: strin
         clearPersistentPlanMutationKey(scope, key);
         if (mine.plan) setPlan(mine.plan);
         reconcile("confirmed");
-        handOffConfirmedStop(mine.plan, stopPosition);
+        handOffConfirmedStop(mine.plan, stopPosition, expectedRouteRevision);
         setBusy(null);
         return;
       }
       if (mine?.outcome === "forbidden" || mine?.outcome === "rejected" || mine?.outcome === "conflict") {
         clearPersistentPlanMutationKey(scope, key);
         reconcile(mine.outcome === "conflict" ? "rejected" : mine.outcome);
+        if (mine.outcome === "conflict") {
+          if (mine.plan) setPlan(mine.plan);
+          setNote({ text: "The route changed. Review the stops and try again.", tone: "rejected" });
+        }
         setBusy(null);
         return;
       }
@@ -421,7 +443,7 @@ export default function NightCrawlMode({ planId, initialState }: { planId: strin
       reconcile("offline", stillQueued);
       setBusy(null);
     },
-    [busy, hero, cursor, stops, canUpdatePlan, planId, optimistic, handOffConfirmedStop],
+    [busy, hero, cursor, stops, canUpdatePlan, planId, plan.plan.routeRevision, optimistic, handOffConfirmedStop],
   );
 
   if (!activeNow) return null;

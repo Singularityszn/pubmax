@@ -143,6 +143,22 @@ describe("planMutationOutbox", () => {
     expect(hasPendingPlanMutation("plan-1")).toBe(true);
   });
 
+  it("persists the displayed revision and stops retrying a stale action with current state", async () => {
+    const current = { plan: { id: "plan-1", routeRevision: 2 }, stops: [{ ...stop, venueId: "replacement" }], crew: [] };
+    const send = vi.fn<typeof fetch>(async () => new Response(JSON.stringify({ details: { plan: current } }), { status: 409 }));
+    vi.stubGlobal("fetch", send);
+    await enqueueNightCrawlAction({
+      planId: "plan-1", type: "arrived", stop, expectedRouteRevision: 1,
+      idempotencyKey: "revision-action", fingerprint: "revision-action", previousCursor: 0, optimisticCursor: 1,
+    });
+    const result = await flushPlanMutationOutbox({ planId: "plan-1" });
+    expect(JSON.parse(send.mock.calls[0]![1]!.body as string).expectedRouteRevision).toBe(1);
+    expect(result[0]).toMatchObject({ outcome: "conflict", plan: current });
+    await flushPlanMutationOutbox({ planId: "plan-1" });
+    expect(send).toHaveBeenCalledTimes(1);
+    expect(hasPendingPlanMutation("plan-1")).toBe(false);
+  });
+
   it("marks 409 as conflict without deleting the row", async () => {
     vi.stubGlobal(
       "fetch",

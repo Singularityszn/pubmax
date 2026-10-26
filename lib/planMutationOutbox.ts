@@ -32,7 +32,7 @@ export type PlanMutationOutboxEntry = {
   idempotencyKey: string;
   method: "POST";
   path: string;
-  body: { type: NightCrawlActionType; stopPosition: number; memberToken: string };
+  body: { type: NightCrawlActionType; stopPosition: number; expectedRouteRevision?: number; memberToken: string };
   /** Cursor before the optimistic advance — needed to roll back after a failed replay. */
   previousCursor: number;
   /** Cursor after the optimistic advance. */
@@ -53,6 +53,7 @@ export type PlanMutationFlushResult = {
   plan?: PlanState;
   type: NightCrawlActionType;
   stopPosition: number;
+  expectedRouteRevision?: number;
   previousCursor: number;
   optimisticCursor: number;
   venueName: string;
@@ -142,6 +143,7 @@ function resultFromEntry(
     plan,
     type: entry.body.type,
     stopPosition: entry.body.stopPosition,
+    ...(entry.body.expectedRouteRevision !== undefined ? { expectedRouteRevision: entry.body.expectedRouteRevision } : {}),
     previousCursor: entry.previousCursor,
     optimisticCursor: entry.optimisticCursor,
     venueName: entry.venueName,
@@ -190,7 +192,7 @@ async function enqueuePlanMutation(input: {
   scope: string;
   idempotencyKey: string;
   path: string;
-  body: { type: NightCrawlActionType; stopPosition: number };
+  body: { type: NightCrawlActionType; stopPosition: number; expectedRouteRevision?: number };
   previousCursor: number;
   optimisticCursor: number;
   venueName: string;
@@ -214,6 +216,7 @@ async function enqueuePlanMutation(input: {
     body: {
       type: input.body.type,
       stopPosition: input.body.stopPosition,
+      ...(input.body.expectedRouteRevision !== undefined ? { expectedRouteRevision: input.body.expectedRouteRevision } : {}),
       memberToken: PLAN_HTTP_ONLY_SESSION,
     },
     previousCursor: input.previousCursor,
@@ -241,6 +244,7 @@ export async function enqueueNightCrawlAction(input: {
   planId: string;
   type: NightCrawlActionType;
   stop: PlanStopDTO;
+  expectedRouteRevision?: number;
   idempotencyKey: string;
   fingerprint: string;
   previousCursor: number;
@@ -252,7 +256,9 @@ export async function enqueueNightCrawlAction(input: {
     scope,
     idempotencyKey: input.idempotencyKey,
     path: `/api/plans/${input.planId}/actions`,
-    body: { type: input.type, stopPosition: input.stop.position },
+    body: { type: input.type, stopPosition: input.stop.position,
+      ...(input.expectedRouteRevision !== undefined ? { expectedRouteRevision: input.expectedRouteRevision } : {}),
+    },
     previousCursor: input.previousCursor,
     optimisticCursor: input.optimisticCursor,
     venueName: input.stop.venueName,
@@ -311,7 +317,8 @@ export function flushPlanMutationOutbox(options?: {
             const body = (await response.json().catch(() => null)) as PlanState | null;
             if (status === 409) {
               markEntry(entry, { status: "conflict", lastHttpStatus: status });
-              results.push(resultFromEntry(entry, "conflict"));
+              const current = (body as unknown as { details?: { plan?: PlanState } } | null)?.details?.plan;
+              results.push(resultFromEntry(entry, "conflict", current && Array.isArray(current.stops) ? current : undefined));
               continue;
             }
             const outcome = classifyActionOutcome(status);

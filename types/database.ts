@@ -1837,6 +1837,8 @@ export type Database = {
           created_at: string;
           idempotency_key_hash: string | null;
           request_hash: string | null;
+          venue_id: string | null;
+          route_revision: number | null;
         };
         Insert: {
           id: string;
@@ -1848,6 +1850,8 @@ export type Database = {
           created_at?: string;
           idempotency_key_hash?: string | null;
           request_hash?: string | null;
+          venue_id?: string | null;
+          route_revision?: number | null;
         };
         Update: {
           id?: string;
@@ -1859,6 +1863,8 @@ export type Database = {
           created_at?: string;
           idempotency_key_hash?: string | null;
           request_hash?: string | null;
+          venue_id?: string | null;
+          route_revision?: number | null;
         };
         Relationships: [
           {
@@ -6692,7 +6698,8 @@ export type Database = {
         };
         Returns: boolean;
       };
-      add_plan_action_idempotent_atomic: {
+      add_plan_action_idempotent_atomic:
+        | {
         Args: {
           p_plan_id: string | null;
           p_token_hash: string | null;
@@ -6702,6 +6709,20 @@ export type Database = {
           p_idempotency_key_hash: string | null;
           p_request_hash: string | null;
           p_created_at: string | null;
+        };
+        Returns: string;
+      }
+        | {
+        Args: {
+          p_plan_id: string | null;
+          p_token_hash: string | null;
+          p_action_id: string | null;
+          p_type: string | null;
+          p_stop_position: number | null;
+          p_idempotency_key_hash: string | null;
+          p_request_hash: string | null;
+          p_created_at: string | null;
+          p_expected_route_revision: number | null;
         };
         Returns: string;
       };

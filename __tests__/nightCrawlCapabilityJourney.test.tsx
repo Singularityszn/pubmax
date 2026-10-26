@@ -5,7 +5,8 @@ import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import NightCrawlMode from "@/components/plan/NightCrawlMode";
-import { markActivePlan, readActivePlan } from "@/lib/activePlan";
+import { markActivePlan, readActivePlan, setActivePlanStopIndex } from "@/lib/activePlan";
+import { consumeNightModeEndingHandoff } from "@/lib/nightModeHandoff";
 import { clearPlanCapability, PLAN_HTTP_ONLY_SESSION, writePlanCapability } from "@/lib/planSessionCapability";
 import { __resetPlanMutationOutboxForTests, listPlanMutationOutbox } from "@/lib/planMutationOutbox";
 import type { PlanState } from "@/lib/plan";
@@ -52,9 +53,9 @@ afterEach(async () => {
   vi.unstubAllGlobals();
 });
 
-async function render(role: "host" | "guest", collaborationAuthorized: boolean) {
+async function render(role: "host" | "guest", collaborationAuthorized: boolean, initialState: PlanState = plan) {
   writePlanCapability(planId, { token: PLAN_HTTP_ONLY_SESSION, role, collaborationAuthorized });
-  await act(async () => root.render(createElement(NightCrawlMode, { planId, initialState: plan })));
+  await act(async () => root.render(createElement(NightCrawlMode, { planId, initialState })));
 }
 
 // The outbox flush runs on fetch and Response.json() promises that settle
@@ -82,6 +83,49 @@ async function tap(label: string) {
     }
   });
 }
+
+describe("Night mode route revision at the mounted action boundary", () => {
+  it.each([undefined, 2, "2"])("queues a numeric revision and permits the matching final handoff for %s", async (routeRevision) => {
+    const fixture: PlanState = { ...plan, plan: { ...plan.plan, routeRevision } };
+    const requests: unknown[] = [];
+    vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      if (String(input).endsWith("/actions")) {
+        requests.push(JSON.parse(String(init?.body)));
+        return Response.json({ ...fixture, actions: [{ id: "final-arrival", type: "arrived",
+          stopPosition: 1, ending: null, createdAt: new Date().toISOString() }] });
+      }
+      return Response.json(fixture);
+    }));
+    setActivePlanStopIndex(1);
+    await render("host", true, fixture);
+    await settle(() => expect(action("We are here")).toBeDefined());
+    await tap("We are here");
+    await settle(() => expect(requests).toHaveLength(1));
+    expect(requests[0]).toEqual(expect.objectContaining({ type: "arrived", stopPosition: 1,
+      expectedRouteRevision: routeRevision === undefined ? 1 : 2 }));
+    expect(await listPlanMutationOutbox()).toHaveLength(0);
+    expect(consumeNightModeEndingHandoff(planId)).toBe(true);
+  });
+
+  it.each(["malformed", "", "0", "-1", "1.5", 0, -1, 1.5, Number.MAX_SAFE_INTEGER + 1])(
+    "refuses malformed revision %s before queuing or advancing", async (routeRevision) => {
+      const fixture: PlanState = { ...plan, plan: { ...plan.plan, routeRevision } };
+      let posted = 0;
+      vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL) => {
+        if (String(input).endsWith("/actions")) posted += 1;
+        return Response.json(fixture);
+      }));
+      await render("host", true, fixture);
+      await settle(() => expect(action("We are here")).toBeDefined());
+      await tap("We are here");
+      await settle(() => expect(host.textContent).toContain("Reload the plan and try again."));
+      expect(posted).toBe(0);
+      expect(await listPlanMutationOutbox()).toHaveLength(0);
+      expect(readActivePlan()?.stopIndex).toBe(0);
+      expect(consumeNightModeEndingHandoff(planId)).toBe(false);
+    },
+  );
+});
 
 describe("Night mode action permissions and recovery", () => {
   it.each([false, true])("reads the route after bootstrap and removes it after revocation (collapsed: %s)", async (collapsed) => {
