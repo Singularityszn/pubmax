@@ -104,6 +104,21 @@ afterEach(() => {
 
 for (const [name, store] of [["memory", memoryPintDropStore], ["Supabase", supabasePintDropStore]] as const) {
   describe(`${name} complete attributed author geography`, () => {
+    for (const handle of [author, "apubmaxxer"]) {
+      it(`excludes withheld attribution from author-filtered timelines for ${handle}`, async () => {
+        seed(0, { handle });
+        seed(1, { handle, visibility: "anonymous", venueId: "venue-anonymous" });
+        seed(2, { handle, authorRetiredAt: "2026-01-02T00:00:00Z", venueId: "venue-retired" });
+        const publicRows = await store.listVisible();
+        expect(publicRows.map((drop) => drop.id)).toContain("00000000-0000-0000-0000-000000000002");
+        for (const viewer of [undefined, { handle }]) {
+          const timeline = await store.listVisible(undefined, viewer, handle);
+          expect(timeline.map((drop) => drop.id)).toEqual(["00000000-0000-0000-0000-000000000001"]);
+          expect(await store.listVisibleAuthorVenueIds(handle, viewer)).toEqual(["venue-eltcmh"]);
+        }
+      });
+    }
+
     it("keeps an older area beyond 500 author rows with equal timestamps", async () => {
       for (let i = 0; i < 500; i++) seed(i, { venueId: "venue-1pfnt71" });
       seed(500);

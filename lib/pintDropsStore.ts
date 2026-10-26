@@ -28,6 +28,7 @@ import {
 } from "@/lib/pintDropConfirmation";
 import {
   authorRetiredAtFromRow,
+  contributorHasRetired,
   publicContributorHandle,
 } from "@/lib/retiredContributor";
 import {
@@ -171,9 +172,9 @@ export type PintDropStore = {
    * same trust posture as lib/notifications.ts.
    */
   /**
-   * @param authorHandle When set, only drops authored by this handle (normalized)
-   *   are returned — used by passport / profile surfaces so clients never pull
-   *   the global public feed just to filter client-side.
+   * @param authorHandle Returns only drops whose public DTO retains this
+   *   normalized handle. Passport and profile surfaces use this filter instead
+   *   of downloading the global public feed.
    */
   listVisible(
     venueId?: string,
@@ -703,6 +704,13 @@ async function hasPricedDropTodayAcrossIds(
   return (await storedVenueIds(venueId)).some((id) => hasPricedDropTodayMemory(id, handle, day));
 }
 
+/** An author-filtered read must not recover an identity the public DTO withholds. */
+function matchesAttributedAuthor(drop: PersistableDrop, author: string): boolean {
+  return visibilityOf(drop) !== "anonymous"
+    && !contributorHasRetired(drop.authorRetiredAt)
+    && normalizeViewerHandle(drop.handle) === author;
+}
+
 async function attributedAuthorVenueIds(
   rows: PersistableDrop[],
   author: string,
@@ -710,10 +718,9 @@ async function attributedAuthorVenueIds(
 ): Promise<string[]> {
   const permitted = rows.filter(
     (drop) =>
-      normalizeViewerHandle(drop.handle) === author &&
+      matchesAttributedAuthor(drop, author) &&
       visibilityOf(drop) !== "legacy" &&
-      canViewOnPublicSurface(drop, viewer) &&
-      normalizeViewerHandle(toDTO(drop).handle) === author,
+      canViewOnPublicSurface(drop, viewer),
   );
   const published = await dropWithdrawnFromViewer(permitted, viewer);
   return [...new Set(published.map((drop) => drop.venueId))].sort();
@@ -749,7 +756,7 @@ export const memoryPintDropStore: PintDropStore = {
       (d) =>
         visibilityOf(d) !== "legacy" &&
         canViewOnPublicSurface(d, viewer) &&
-        (!author || normalizeViewerHandle(d.handle) === author),
+        (!author || matchesAttributedAuthor(d, author)),
     );
     const published = await dropWithdrawnFromViewer(permitted, viewer);
     return newestFirstCapped(published).map((d) => toDTO(withVerifiedReportCount(d)));
@@ -1261,7 +1268,8 @@ export const supabasePintDropStore: PintDropStore = {
       .map(fromRow)
       .concat(seeds)
       .filter((d) => venueId || dropMatchesCityScope(d.venueId, cityId))
-      .filter((d) => canViewOnPublicSurface(d, viewer));
+      .filter((d) => canViewOnPublicSurface(d, viewer))
+      .filter((d) => !author || matchesAttributedAuthor(d, author));
     const published = await dropWithdrawnFromViewer(permitted, viewer);
     const capped = newestFirstCapped(published);
     return toDTOsWithBatchedPhotos(capped);
