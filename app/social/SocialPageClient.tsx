@@ -1024,7 +1024,7 @@ function SocialPageAccountState({
             >
               <header className="socialFeedHeading">
                 <h2>{initialState.feed === "following" ? "Your lot, lately" : initialState.feed === "nearby" ? "Around your patch" : "Across the pub tables"}</h2>
-                <p>{initialState.feed === "following" ? "Yours and the people you follow. Newest first." : initialState.feed === "nearby" ? "Public posts tagged in this area. Newest first." : "Public posts from across town. Newest first."}</p>
+                <p>{initialState.feed === "following" ? "Posts from people you follow. Newest first." : initialState.feed === "nearby" ? "Public posts tagged in this area. Newest first." : "Public posts from across town. Newest first."}</p>
               </header>
               <p
                 className="srOnly"

@@ -155,6 +155,9 @@ test("pub prompts keep composition deliberate and preserve the chosen audience",
   await page.getByRole("button", { name: "Post", exact: true }).click();
   const composer = page.getByRole("dialog", { name: "New post", exact: true });
   await expect(composer).toBeVisible();
+  await expect.poll(() => composer.evaluate((dialog) =>
+    dialog.contains(document.elementFromPoint(window.innerWidth - 42, window.innerHeight - 109))),
+  { message: "The composer must cover the floating create button" }).toBe(true);
   await page.screenshot({ path: testInfo.outputPath("composer-390.png") });
   await composer.getByRole("button", { name: "Who's about?", exact: true }).click();
   await expect(composer.getByRole("textbox", { name: "Write post", exact: true })).toHaveValue("Who's about? ");
@@ -165,6 +168,9 @@ test("pub prompts keep composition deliberate and preserve the chosen audience",
   await page.getByRole("button", { name: "Post", exact: true }).click();
   await expect(composer.getByRole("textbox", { name: "Write post", exact: true })).toHaveValue("Who's about? ");
   await expect(composer.getByRole("combobox", { name: "Visibility", exact: true })).toHaveValue("private");
+  await page.keyboard.press("Escape");
+  await expect(composer).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Post", exact: true })).toBeFocused();
 });
 
 test("preview shows one safe boundary and never requests or leaks protected posts", async ({
