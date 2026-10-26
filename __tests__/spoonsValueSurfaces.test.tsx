@@ -104,6 +104,9 @@ describe("the ranking table", () => {
       milliunits: 15_739,
       pence: 996,
       round: "3 pints of Sandford Orchards The General",
+      postcode: "TQ14 8EN",
+      checkedAt: "2026-08-30",
+      lines: [{ name: "Sandford Orchards The General", servingLabel: "Pint", quantity: 3, glasses: 3, linePricePence: 996, lineMilliunits: 15_739 }],
       venueId: "venue-uk-n1",
     },
     {
@@ -118,6 +121,9 @@ describe("the ranking table", () => {
       milliunits: 4_057,
       pence: 999,
       round: "2 pints of something dear",
+      postcode: "AB1 2CD",
+      checkedAt: "2026-08-30",
+      lines: [{ name: "something dear", servingLabel: "Pint", quantity: 2, glasses: 2, linePricePence: 999, lineMilliunits: 4_057 }],
       venueId: null,
     },
   ];
@@ -174,6 +180,7 @@ describe("the ranking table", () => {
     expect(html).not.toContain("priceBand-");
     expect(html).toContain("£9.96");
     expect(html).toContain("3 pints of Sandford Orchards The General");
+    expect(html).toContain("Round costs");
   });
 
   it("says a rank does not move when a reader narrows the list", () => {

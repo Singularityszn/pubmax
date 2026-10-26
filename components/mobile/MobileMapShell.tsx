@@ -132,6 +132,7 @@ function tflEdgeForCity(
 /** The sheets that open at full height; every other kind opens at half. */
 const FULL_HEIGHT_SHEETS: readonly MapSheetKind[] = [
   "moment",
+  "drink",
   "layers",
   "near-me",
   "area",

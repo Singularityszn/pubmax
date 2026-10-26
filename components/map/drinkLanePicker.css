@@ -136,3 +136,23 @@
   gap: var(--space-2);
   min-width: 0;
 }
+
+.drinkLanePickerLucia {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 12px;
+  min-height: 44px;
+  padding: 8px 12px;
+  border: 1px solid var(--line-soft);
+  border-radius: var(--control-radius);
+  color: var(--ink);
+  font-size: var(--text-sm);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.drinkLanePickerLucia span { color: var(--ink-soft); }
+.drinkLanePickerLucia:focus-visible {
+  outline: 2px solid var(--ink);
+  outline-offset: 2px;
+}

@@ -1,17 +1,42 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useId, useMemo, useState } from "react";
 
 import {
   applySpoonsValueCut,
   formatBasketCost,
   formatUnitsLabel,
+  formatRoundLine,
   spoonsValueMapHref,
   type SpoonsValueCut,
   type SpoonsValueCutId,
   type SpoonsValueTableRow,
 } from "@/lib/spoonsValue";
+
+function RoundCosts({ row }: { row: SpoonsValueTableRow }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <details className="spoonsRoundDetails" onToggle={(event) => setOpen(event.currentTarget.open)}>
+      <summary>Round costs</summary>
+      {open ? (
+        <>
+          <ul>
+            {row.lines.map((line, index) => (
+              <li key={index}>
+                <span>{formatRoundLine(line)}</span>
+                <span>{formatBasketCost(line.linePricePence)} total · {formatUnitsLabel(line.lineMilliunits)}</span>
+                {line.bundleLabel ? <span>{line.bundleLabel}</span> : null}
+              </li>
+            ))}
+          </ul>
+          <p>Round total {formatBasketCost(row.pence)} · {formatUnitsLabel(row.milliunits)}</p>
+          {row.checkedAt ? <p>Source read {row.checkedAt.slice(0, 10)}. Prices may have changed.</p> : null}
+        </>
+      ) : null}
+    </details>
+  );
+}
 
 /**
  * The ranking itself.
@@ -36,10 +61,27 @@ export default function SpoonsValueTable({
   cuts: readonly SpoonsValueCut[];
 }) {
   const [cut, setCut] = useState<SpoonsValueCutId>("all");
-  const shown = useMemo(() => applySpoonsValueCut(rows, cut), [rows, cut]);
+  const [query, setQuery] = useState("");
+  const searchId = useId();
+  const shown = useMemo(() => {
+    const needle = query.trim().toLocaleLowerCase("en-GB");
+    return applySpoonsValueCut(rows, cut).filter((row) =>
+      [row.name, row.town, row.county, row.postcode].join(" ").toLocaleLowerCase("en-GB").includes(needle),
+    );
+  }, [rows, cut, query]);
 
   return (
     <>
+      <div className="spoonsSearch">
+        <label htmlFor={searchId}>Find a Spoons</label>
+        <input
+          id={searchId}
+          type="search"
+          placeholder="Pub, town or postcode"
+          value={query}
+          onChange={(event) => setQuery(event.target.value)}
+        />
+      </div>
       <div className="spoonsTableCuts" role="group" aria-label="Narrow the ranking">
         {cuts.map((option) => {
           const selected = option.id === cut;
@@ -60,7 +102,7 @@ export default function SpoonsValueTable({
 
       <div className="spoonsTableScroll">
         <table className="spoonsTable">
-          <caption className="spoonsTableCaption">
+          <caption className="spoonsTableCaption" aria-live="polite">
             {`${shown.length} of ${rows.length} pubs. Rank is national, so it does not change when you narrow the list.`}
           </caption>
           <thead>
@@ -76,6 +118,12 @@ export default function SpoonsValueTable({
             </tr>
           </thead>
           <tbody>
+            {shown.length === 0 ? (
+              <tr><td colSpan={3}>
+                <p>No pubs match this search.</p>
+                <button type="button" className="spoonsTableCut" onClick={() => { setQuery(""); setCut("all"); }}>Show all pubs</button>
+              </td></tr>
+            ) : null}
             {shown.map((row) => {
               const href = spoonsValueMapHref(row);
               return (
@@ -102,6 +150,7 @@ export default function SpoonsValueTable({
                         <span className="spoonsTableCost">{formatBasketCost(row.pence)}</span>
                       </span>
                     </span>
+                    <RoundCosts row={row} />
                   </th>
                   <td className="spoonsTableUnits">
                     <span className="spoonsTableUnitsFigure">

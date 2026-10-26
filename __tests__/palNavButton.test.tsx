@@ -201,13 +201,13 @@ describe("the Pal's own door", () => {
 });
 
 describe("the phone dock", () => {
-  it("puts the Pal between Tonight and Plan, and keeps the five destinations", async () => {
+  it("puts the Pal between Tonight and Plan, and keeps the six destinations", async () => {
     await render(createElement(MobileTabBar));
     const links = [...host.querySelectorAll<HTMLAnchorElement>("nav[aria-label='Primary'] a")];
-    expect(links.map((link) => link.textContent)).toEqual(["Map", "Tonight", "Pal", "Plan", "Social", "You"]);
-    expect(host.querySelectorAll(".mobileTab")).toHaveLength(5);
+    expect(links.map((link) => link.textContent)).toEqual(["Map", "Tonight", "Pal", "Plan", "Spoons", "Social", "You"]);
+    expect(host.querySelectorAll(".mobileTab")).toHaveLength(6);
     const list = host.querySelector<HTMLElement>(".mobileTabList")!;
-    expect(list.style.getPropertyValue("--tab-count")).toBe("6");
+    expect(list.style.getPropertyValue("--tab-count")).toBe("7");
   });
 
   it("slides the well to each tab's own column and skips the Pal's", () => {

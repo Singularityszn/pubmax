@@ -130,9 +130,14 @@ export default async function SpoonsValuePage() {
             </p>
           ) : null}
 
-          <SpoonsValueHistogram rows={rows} />
-
+          <p className="spoonsSourceNote">
+            Recorded rounds and costs from <a href={pack.provenance.sourceUrl} target="_blank" rel="noopener noreferrer">SpoonMe</a>,
+            published {pack.provenance.publishedAt}. Prices may have changed.
+            {" "}<Link prefetch={false} href={SPOONS_VALUE_MAP_HREF}>Open the Spoons map</Link>
+          </p>
           <SpoonsValueTable rows={rows} cuts={cuts} />
+
+          <SpoonsValueHistogram rows={rows} />
 
           <section className="spoonsCredit" aria-label="Where these figures come from">
             <h2 className="spoonsCreditTitle">Where these figures come from</h2>

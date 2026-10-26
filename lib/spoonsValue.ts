@@ -594,12 +594,15 @@ export type SpoonsValueTableRow = Readonly<{
   name: string;
   town: string;
   county: string;
+  postcode: string;
   country: string;
   airport: boolean;
   londonZ12: boolean;
   milliunits: number;
   pence: number;
   round: string;
+  lines: readonly SpoonsValueLine[];
+  checkedAt: string;
   venueId: string | null;
 }>;
 
@@ -610,12 +613,15 @@ export function toTableRow(row: SpoonsValueRow): SpoonsValueTableRow {
     name: row.name,
     town: row.town,
     county: row.county,
+    postcode: row.postcode,
     country: row.country,
     airport: row.airport,
     londonZ12: row.londonZ12,
     milliunits: row.milliunits,
     pence: row.pence,
     round: formatRound(row),
+    lines: row.lines,
+    checkedAt: row.checkedAt,
     venueId: row.venueId,
   };
 }

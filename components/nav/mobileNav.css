@@ -606,3 +606,9 @@ body:has(.mobileMapUtilityCorner) {
     transition: none;
   }
 }
+
+/* Seven dock columns, including Pub Pal, retain 44px targets at 320px. */
+@media (max-width: 360px) {
+  .mobileTabBar { padding-inline: 3px; }
+  .mobileTabList { --tab-inset: 1px; }
+}
