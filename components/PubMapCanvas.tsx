@@ -1184,6 +1184,7 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
     type: "FeatureCollection",
     features: [],
   });
+  const routeLineKeyRef = useRef<string | null>(null);
   const routeStopsRef = useRef<GeoJSON.FeatureCollection>({
     type: "FeatureCollection",
     features: [],
@@ -1367,6 +1368,7 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
     cityViewRef,
     cityBoundsRef,
     routeRef,
+    routeLineRef,
     venuesRef,
     queryVenuesRef,
     gestureCameraRef,
@@ -4196,8 +4198,14 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
   }, [poiHidden, mapReady]);
 
   // Route + selection ring → sources/filter.
+  const routeCoordKey = route.map((v) => `${v.longitude},${v.latitude}`).join(";");
   useEffect(() => {
-    routeLineRef.current = routeToLine(route);
+    // Selection and venue-data refreshes must retain a routed road line.
+    // Only a different ordered coordinate sequence needs a new fallback.
+    if (routeLineKeyRef.current !== routeCoordKey) {
+      routeLineKeyRef.current = routeCoordKey;
+      routeLineRef.current = routeToLine(route);
+    }
     routeStopsRef.current = routeToStops(route);
     selectedIdRef.current = selectedVenueId;
     // A parent re-render hands over a new `route` array for the same stops;
@@ -4317,7 +4325,7 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
       applyMapFocusMute(map, selectedIdRef.current ? "selection"
         : route.length >= 2 ? "route" : "browse", selectionMuteStoreRef.current);
     });
-  }, [route, selectedVenueId, mapReady, applyToMap, applyRouteData]);
+  }, [route, routeCoordKey, selectedVenueId, mapReady, applyToMap, applyRouteData]);
 
   // Road-following upgrade (T4). The effect above paints the straight line
   // instantly (routeToLine, drawn dashed as "approximate"); here we ask
@@ -4328,10 +4336,10 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
   // last route (mirrors the hover-detail fetch above). `routeCoordKey` is the
   // ordered `lng,lat;lng,lat` wire format /api/walk-route decodes (parseStops),
   // and re-fires only when the stop coordinates actually change.
-  const routeCoordKey = route.map((v) => `${v.longitude},${v.latitude}`).join(";");
   useEffect(() => {
     if (!mapReady) return;
     if (routeCoordKey.split(";").length < 2) return;
+    const gestureAtRequest = gestureCameraRef.current.endedAt;
     const controller = new AbortController();
     const timeout = window.setTimeout(() => controller.abort(), 8000);
     fetch(`/api/walk-route?stops=${encodeURIComponent(routeCoordKey)}`, {
@@ -4339,11 +4347,16 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
     })
       .then((response) => (response.ok ? response.json() : null))
       .then((body: { line?: GeoJSON.FeatureCollection; source?: string } | null) => {
+        if (controller.signal.aborted || routeLineKeyRef.current !== routeCoordKey) return;
         // Only upgrade when the server actually routed roads; a "straight"
         // response is the same geometry we already painted, so leave it dashed.
         if (!body || body.source !== "ors" || !body.line?.features?.length) return;
         routeLineRef.current = body.line;
         applyRouteData();
+        // A pavement bend can extend beyond the stops. Fit the upgraded line
+        // only while the reader has not taken the camera during this request.
+        if (!selectedIdRef.current && !gestureCameraRef.current.active
+          && gestureCameraRef.current.endedAt === gestureAtRequest) fitRoute();
         const stops = palWalkStopsFromKey(routeCoordKey);
         walkPals({ key: routeCoordKey, stops, path: palWalkPathFrom(body.line), road: true });
       })
@@ -4358,7 +4371,7 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
       window.clearTimeout(timeout);
       controller.abort();
     };
-  }, [routeCoordKey, mapReady, applyRouteData, walkPals]);
+  }, [routeCoordKey, mapReady, applyRouteData, walkPals, fitRoute]);
 
   // The Pal walks a crawl route of two or more stops (the road line takes over
   // above once routed), and goes to a stop the reader taps; with no crawl it

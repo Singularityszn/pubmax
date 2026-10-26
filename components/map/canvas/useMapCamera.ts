@@ -210,6 +210,7 @@ type CameraRefs = {
   cityViewRef: MutableRefObject<MapView>;
   cityBoundsRef: MutableRefObject<[[number, number], [number, number]]>;
   routeRef: MutableRefObject<Venue[]>;
+  routeLineRef: MutableRefObject<GeoJSON.FeatureCollection>;
   venuesRef: MutableRefObject<Venue[]>;
   queryVenuesRef?: MutableRefObject<Venue[]>;
   /** Live gesture ownership. See lib/mapGestureGuard.ts for the rule. */
@@ -227,6 +228,7 @@ export function useMapCamera(refs: CameraRefs) {
     cityViewRef,
     cityBoundsRef,
     routeRef,
+    routeLineRef,
     venuesRef,
     queryVenuesRef,
     gestureCameraRef,
@@ -311,9 +313,21 @@ export function useMapCamera(refs: CameraRefs) {
     if (current.length < 2) return;
     const bounds = new maplibregl.LngLatBounds();
     current.forEach((venue) => bounds.extend([venue.longitude, venue.latitude]));
+    const extendLine = (coordinates: GeoJSON.Position[]) => {
+      for (const [lng, lat] of coordinates) {
+        if (typeof lng === "number" && typeof lat === "number"
+          && Number.isFinite(lng) && Number.isFinite(lat)) bounds.extend([lng, lat]);
+      }
+    };
+    for (const feature of routeLineRef.current.features) {
+      const geometry = feature.geometry;
+      if (geometry.type === "LineString") extendLine(geometry.coordinates);
+      else if (geometry.type === "MultiLineString") geometry.coordinates.forEach(extendLine);
+    }
+    const boundsKey = bounds.toArray().flat().join(",");
     const isPhone = window.matchMedia("(max-width: 640px)").matches;
     const request = kind === "route-recovery" ? ++routeRecoverySequence.current : 0;
-    scheduleCamera(kind, `${kind}:${request}:${current.map((venue) => venue.id).join(">")}`, (map) => map.fitBounds(bounds, {
+    scheduleCamera(kind, `${kind}:${request}:${current.map((venue) => venue.id).join(">")}:${boundsKey}`, (map) => map.fitBounds(bounds, {
       padding: routeFitPadding(map, isPhone),
       maxZoom: 18,
       duration: reducedRef.current ? 0 : 800,
@@ -322,7 +336,7 @@ export function useMapCamera(refs: CameraRefs) {
       // snapshot). Preserve the user's current rotation instead.
       bearing: map.getBearing(),
     }));
-  }, [reducedRef, routeRef, scheduleCamera]);
+  }, [reducedRef, routeRef, routeLineRef, scheduleCamera]);
 
   // Fit the active city's bounds (not a city switcher — CitySwitcher owns that).
   const fitCityBounds = useCallback(() => {

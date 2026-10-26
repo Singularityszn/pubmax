@@ -45,7 +45,8 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-function mount(queryVenuesRef: { current: Venue[] }, route: Venue[] = [], gesture = { active: false, endedAt: null as number | null }) {
+function mount(queryVenuesRef: { current: Venue[] }, route: Venue[] = [], gesture = { active: false, endedAt: null as number | null },
+  routeLineRef: { current: GeoJSON.FeatureCollection } = { current: { type: "FeatureCollection", features: [] } }) {
   function Camera() {
     camera = useMapCamera({
       mapRef: { current: {
@@ -56,6 +57,7 @@ function mount(queryVenuesRef: { current: Venue[] }, route: Venue[] = [], gestur
       cityViewRef: { current: { center: [-0.13, 51.51], zoom: 12, pitch: 40, bearing: -8 } },
       cityBoundsRef: { current: [[-0.3, 51.4], [0.1, 51.7]] },
       routeRef: { current: route },
+      routeLineRef,
       venuesRef: { current: surrounding },
       queryVenuesRef,
       gestureCameraRef: { current: gesture },
@@ -74,6 +76,49 @@ function fitQuery() {
 }
 
 describe("query camera with contextual price pins", () => {
+  it("fits road detours beyond the stops and reads the latest road during recovery", () => {
+    const line = (geometry: GeoJSON.Geometry): GeoJSON.FeatureCollection => ({
+      type: "FeatureCollection", features: [{ type: "Feature", properties: {}, geometry }],
+    });
+    const routeLineRef = { current: line({ type: "LineString", coordinates: [] }) };
+    mount({ current: [] }, soho, { active: false, endedAt: null }, routeLineRef);
+    const fit = (kind: "route" | "route-recovery" = "route") => act(() => {
+      camera.fitRoute(kind);
+      pendingFrame?.(performance.now());
+      pendingFrame = undefined;
+    });
+    fit();
+    expect((fitBounds.mock.calls[0]![0] as LngLatBounds).toArray())
+      .toEqual([[-0.139, 51.514], [-0.129, 51.516]]);
+    routeLineRef.current = line({ type: "MultiLineString", coordinates: [
+      [[-0.16, 51.52], [-0.13, 51.515]], [[-0.12, 51.51], [NaN, 51.5], [-0.1, Infinity]],
+    ] });
+    fit();
+    expect(fitBounds).toHaveBeenCalledTimes(2);
+    expect((fitBounds.mock.calls[1]![0] as LngLatBounds).toArray())
+      .toEqual([[-0.16, 51.51], [-0.12, 51.52]]);
+    routeLineRef.current = line({ type: "LineString", coordinates: [[-0.18, 51.53]] });
+    fit("route-recovery");
+    expect((fitBounds.mock.calls[2]![0] as LngLatBounds).toArray())
+      .toEqual([[-0.18, 51.514], [-0.129, 51.53]]);
+  });
+
+  it("ignores non-line geometry and never frames a road without route stops", () => {
+    const routeLineRef: { current: GeoJSON.FeatureCollection } = { current: {
+      type: "FeatureCollection", features: [{ type: "Feature", properties: {},
+        geometry: { type: "Point", coordinates: [-2, 53] } }],
+    } };
+    mount({ current: [] }, soho, { active: false, endedAt: null }, routeLineRef);
+    act(() => { camera.fitRoute(); pendingFrame?.(performance.now()); });
+    expect((fitBounds.mock.calls[0]![0] as LngLatBounds).toArray())
+      .toEqual([[-0.139, 51.514], [-0.129, 51.516]]);
+    fitBounds.mockClear();
+    pendingFrame = undefined;
+    mount({ current: [] }, [], { active: false, endedAt: null }, routeLineRef);
+    act(() => { camera.fitRoute("route-recovery"); pendingFrame?.(performance.now()); });
+    expect(fitBounds).not.toHaveBeenCalled();
+  });
+
   it("reserves the tablet toolbar and status lane before transport data arrives", () => {
     const toolbar = document.createElement("div");
     toolbar.className = "mapToolbar";
@@ -90,7 +135,10 @@ describe("query camera with contextual price pins", () => {
   });
 
   it("recovers the whole walk immediately after a drag while automatic fits stand down", () => {
-    mount({ current: [] }, soho, { active: false, endedAt: performance.now() });
+    mount({ current: [] }, soho, { active: false, endedAt: performance.now() }, {
+      current: { type: "FeatureCollection", features: [{ type: "Feature", properties: {},
+        geometry: { type: "LineString", coordinates: [[-0.16, 51.52]] } }] },
+    });
     act(() => {
       camera.fitRoute();
       pendingFrame?.(performance.now());
