@@ -288,6 +288,18 @@ function canonicalMemoryMood(memory: PalRecalledMemory): ConciergeMood | null {
   return MEMORY_MOOD_KINDS.has(memory.kind) ? CONCIERGE_MOODS.find((mood) => mood === value) ?? null : null;
 }
 
+/**
+ * The ask to bind to the city's pubs before it may be answered from the records.
+ * A named recorded-drinks or menu ask is left whole to that binding, which reads
+ * the whole name, the record's own area and the complete ask, since a record
+ * area need not be a general search area the public predicate would accept.
+ */
+function palChatRecordCandidate(query: string, turns: readonly PubPalFenceTurn[]): string | null {
+  const namedFactual = !MEMORY_REQUEST_RE.test(query) && requestedVenueQuantity(query) !== null
+    && !unsupportedPriceComparison(query) && Boolean(recordedDrinkComparison(query)) && Boolean(namedAskVenue(query));
+  return namedFactual ? query : palChatRecordQuery(query, turns);
+}
+
 async function palChatAdmission(
   query: string,
   ownerId: string,
@@ -295,12 +307,7 @@ async function palChatAdmission(
   recordBound: (text: string) => Promise<boolean>,
 ): Promise<Pick<PalElevenLabsChatContext, "recordQuery" | "personal">> {
   // The public predicate is preliminary; a record answer is also bound to the city's pubs.
-  // A named recorded-drinks or menu ask is left to that binding, which reads the
-  // whole name, the record's own area and the complete ask, since the search
-  // vocabulary does not know record areas.
-  const namedFactual = !MEMORY_REQUEST_RE.test(query) && requestedVenueQuantity(query) !== null
-    && !unsupportedPriceComparison(query) && recordedDrinkComparison(query) && namedAskVenue(query);
-  const preliminary = namedFactual ? query : palChatRecordQuery(query, prior.turns);
+  const preliminary = palChatRecordCandidate(query, prior.turns);
   const recordQuery = preliminary !== null && await recordBound(preliminary) ? preliminary : null;
   if (recordQuery === null || unsupportedPriceComparison(recordQuery) || recordedDrinkComparison(recordQuery)) return { recordQuery };
   const calls = routeAskDeterministically(recordQuery);
