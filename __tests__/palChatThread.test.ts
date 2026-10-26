@@ -254,4 +254,87 @@ describe("a restored answer for a named place without a planning area", () => {
     const line = locality ? palLocalityLine(locality) : null;
     expect(line === null || line.startsWith("Across London.")).toBe(true);
   });
+
+  // A resolved canonical locality, saved as if the tab cache had copied it onto the answer.
+  const copied = (place: string): PalLocality => resolvePalLocality("Find four pubs in " + place, null);
+  const expectFailClosed = (locality: PalLocality | null | undefined, ...copies: PalLocality[]) => {
+    expect(locality).not.toBeUndefined();
+    expect(locality?.area ?? null).toBeNull();
+    expect(locality?.grounded ?? false).toBe(false);
+    for (const copy of copies) expect(locality?.label ?? null).not.toBe(copy.label);
+    const line = locality ? palLocalityLine(locality) : null;
+    expect(line === null || line.startsWith("Across London.")).toBe(true);
+  };
+
+  it.each([
+    { kind: "a number", routedQuery: 42, place: "Soho" },
+    { kind: "an array holding a Soho ask", routedQuery: ["Find four pubs in Soho"], place: "Soho" },
+    // Far longer than any ask, so it is damage: a kept prefix would name Camden.
+    { kind: "an oversized ask that opens in Camden and excludes it late", routedQuery: "Find four pubs in Camden" + ", near the river".repeat(300) + ", but not in Camden", place: "Camden" },
+    { kind: "an ambiguous Soho or Camden ask", routedQuery: "Find four pubs in Soho or Camden", place: "Soho" },
+    { kind: "an unresolved same-area ask", routedQuery: "Find four pubs in the same area", place: "Camden" },
+  ] as Array<{ kind: string; routedQuery: unknown; place: string }>)("gives a same-area ask with no history no area from a saved routed query of $kind", ({ routedQuery, place }) => {
+    const copy = copied(place);
+    expect(copy.grounded).toBe(true);
+    expect(copy.area).not.toBeNull();
+    const timeline: PalChatEntry[] = [
+      { kind: "user", id: "t-1", text: "Find four pubs in the same area" },
+      Object.assign(answerFor("t-2", "Nothing listed for that.", copy, null), { routedQuery }),
+    ];
+    savePalChatThread("owner-a", timeline, "", 0, historyFor(timeline));
+    expectFailClosed(restoredLocality(1), copy);
+  });
+
+  it("fails a repeated same-area pair closed instead of guessing which saved exchange it was", () => {
+    const soho = copied("Soho");
+    const camden = copied("Camden");
+    const reply = "More listed pubs nearby.";
+    const timeline: PalChatEntry[] = [
+      { kind: "user", id: "t-1", text: "Find four pubs in Elephant and Castle" },
+      answerFor("t-2", "Listed pubs in Elephant and Castle.", scoped("Elephant and Castle"), "Elephant and Castle"),
+      { kind: "user", id: "t-3", text: "Find four pubs in the same area" },
+      answerFor("t-4", reply, soho, null),
+      { kind: "user", id: "t-5", text: "Find four pubs in the same area" },
+      answerFor("t-6", reply, camden, null),
+    ];
+    savePalChatThread("owner-a", timeline, "conv_returntest1", NOW, historyFor(timeline));
+    const restored = readPalChatThread("owner-a")!;
+    expect(restored.entries).toHaveLength(6);
+    expect(restored.turns).toHaveLength(6);
+    expect(restored.turns.at(-1)).toEqual({ role: "assistant", content: reply });
+    expect(restored.priorAsks[0]).toBe("Find four pubs in Elephant and Castle");
+    expect(restored.conversationId).toBe("conv_returntest1");
+    expect(readPalChatThread("owner-b")).toBeNull();
+    const named = restoredLocality(1);
+    expect(named).toEqual({ scope: "query", area: null, label: "Elephant and Castle", grounded: true });
+    expect(named ? palLocalityLine(named) : null).toBe(EAC_LINE);
+    expectFailClosed(restoredLocality(3), soho, camden);
+    expectFailClosed(restoredLocality(5), soho, camden);
+  });
+
+  it("binds no history when the visible pairs cross the order of the saved exchanges", () => {
+    const eac = scoped("Elephant and Castle");
+    const namedPair: PalChatEntry[] = [
+      { kind: "user", id: "t-1", text: "Find four pubs in Elephant and Castle" },
+      answerFor("t-2", "Listed pubs in Elephant and Castle.", eac, "Elephant and Castle"),
+    ];
+    const sameAreaPair: PalChatEntry[] = [
+      { kind: "user", id: "t-3", text: "Find four pubs in the same area" },
+      answerFor("t-4", "More listed pubs nearby.", eac, null),
+    ];
+    // The provider was asked the named place first; the visible thread shows the pairs the other way round.
+    savePalChatThread("owner-a", [...sameAreaPair, ...namedPair], "conv_returntest1", NOW, historyFor([...namedPair, ...sameAreaPair]));
+    const restored = readPalChatThread("owner-a")!;
+    expect(restored.entries.map((entry) => entry.kind === "user" ? entry.text : entry.kind))
+      .toEqual(["Find four pubs in the same area", "answer", "Find four pubs in Elephant and Castle", "answer"]);
+    expect(restored.turns).toHaveLength(4);
+    expect(restored.turns.at(-1)).toEqual({ role: "assistant", content: "More listed pubs nearby." });
+    expect(restored.priorAsks[0]).toBe("Find four pubs in Elephant and Castle");
+    expect(restored.conversationId).toBe("conv_returntest1");
+    expect(readPalChatThread("owner-b")).toBeNull();
+    expectFailClosed(restoredLocality(1), eac);
+    const named = restoredLocality(3);
+    expect(named).toEqual({ scope: "query", area: null, label: "Elephant and Castle", grounded: true });
+    expect(named ? palLocalityLine(named) : null).toBe(EAC_LINE);
+  });
 });
