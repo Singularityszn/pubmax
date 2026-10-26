@@ -113,6 +113,37 @@ afterEach(() => {
 });
 
 describe("Social composer comment policy", () => {
+  it("starts a pub recommendation from a prompt without posting it", async () => {
+    await mount({});
+    await act(async () => button(host, "New post").click());
+    await act(async () => button(host, "A pub worth sharing").click());
+    expect(host.querySelector("textarea")?.value).toBe("A pub worth sharing: ");
+    expect(document.activeElement).toBe(host.querySelector("textarea"));
+    expect(transport.authedActionJson).not.toHaveBeenCalled();
+    expect(host.textContent).toContain("Only people you follow who follow you back can see this.");
+    expect([...host.querySelectorAll("button")].some((item) => item.textContent === "A pub worth sharing")).toBe(false);
+  });
+
+  it("explains the chosen audience and preserves a written draft when the composer closes", async () => {
+    await mount({});
+    await act(async () => button(host, "New post").click());
+    await act(async () => setBody(host, "The snug upstairs is worth the stairs."));
+    const visibility = [...host.querySelectorAll("label")]
+      .find((label) => label.textContent?.startsWith("Visibility"))?.querySelector("select");
+    expect(visibility).not.toBeNull();
+    await act(async () => {
+      visibility!.value = "private";
+      visibility!.dispatchEvent(new Event("change", { bubbles: true }));
+    });
+    expect(host.textContent).toContain("Only you can see this.");
+    await act(async () => button(host, "Cancel").click());
+    await act(async () => button(host, "New post").click());
+    expect(host.querySelector("textarea")?.value).toBe("The snug upstairs is worth the stairs.");
+    expect(host.textContent).toContain("Only you can see this.");
+    expect(host.querySelector('[aria-label="Post prompts"]')).toBeNull();
+    expect(transport.authedActionJson).not.toHaveBeenCalled();
+  });
+
   it("offers no Comments setting on a new post", async () => {
     await mount({});
     await act(async () => {
