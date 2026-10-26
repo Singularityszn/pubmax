@@ -23,8 +23,9 @@ Three rules this tree already holds bear on the design, and they stay:
   (`PLG_STRATEGY.md` anti-goals, the Social beta contract).
 - **A post never becomes venue or price authority.** A venue's rating and its
   prices come from their own lanes (`docs/adr/0010-community-price-trust.md`).
-- **A post that names a pub is friends-only.** `social_posts_public_venue_check`
-  keeps a person's whereabouts out of public posts.
+- **Exact pub details follow the reader's authority.** The
+  [Social post route contract](../WRITE_SURFACE_CERTIFICATION.md) owns the
+  visibility and venue-projection rules.
 
 ## Decision
 
@@ -98,10 +99,10 @@ shown to its author only; the post and its other photos stay up.
 
 ### 5. The card is photo-first, the feed is not ranked
 
-The card reads like a photo app: who and where, the media edge to edge at 4:5,
-then Cheers, comments, save and report, then the score and the words. Reels
-open full screen and swipe vertically. The feed's order is unchanged: newest
-first, in the same three lanes.
+The card shows the author, permitted place details, time, and audience before
+the media. The score, words, and hashtags precede Cheers, comments, save, and
+report. Reels open full screen and swipe vertically. The feed stays newest
+first in the same three lanes.
 
 ### 6. A pub's own page, laid out like a booking app
 

@@ -207,7 +207,7 @@ describe("Social viewer surfaces", () => {
       Array.from(host.querySelectorAll<HTMLElement>("[data-viewer-card]"),
         (card) => card.dataset.viewerCard,
       ),
-    ).toEqual(["composer", "tag-inbox", "outbox", "crews"]);
+    ).toEqual(["composer", "outbox", "tag-inbox", "crews"]);
   });
 
   it("withholds viewer cards while viewer session is unresolved", async () => {
