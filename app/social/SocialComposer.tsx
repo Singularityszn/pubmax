@@ -478,11 +478,48 @@ function PolicyFields({ draft, hasPhoto, nameHidden, onDraft }: { draft: Draft; 
     <>
       <label>Hashtags<input value={draft.hashtags} onChange={(event) => onDraft({ ...draft, hashtags: event.currentTarget.value })} /></label>
       {hasPhoto && !nameHidden ? <label>Photo tags<input value={draft.tagHandles} onChange={(event) => onDraft({ ...draft, tagHandles: event.currentTarget.value })} /></label> : null}
-      {nameHidden
-        ? <label>Visibility<select value="public" disabled><option value="public">Public</option></select></label>
-        : <label>Visibility<select value={draft.visibility} onChange={(event) => onDraft({ ...draft, visibility: event.currentTarget.value as Draft["visibility"] })}><option value="private">Private</option><option value="friends">Friends</option><option value="public">Public</option></select></label>}
       <label>Post type<select value={draft.kind} onChange={(event) => onDraft({ ...draft, kind: event.currentTarget.value as Draft["kind"] })}><option value="standard">Post</option><option value="feature_request">Feature request</option></select></label>
     </>
+  );
+}
+
+function AudienceField({ draft, nameHidden, onDraft }: { draft: Draft; nameHidden: boolean; onDraft: (draft: Draft) => void }) {
+  const hintId = useId();
+  return (
+    <div className="socialComposerAudience">
+      <label>
+        Visibility
+        <select
+          value={nameHidden ? "public" : draft.visibility}
+          disabled={nameHidden}
+          aria-describedby={hintId}
+          onChange={(event) => onDraft({ ...draft, visibility: event.currentTarget.value as Draft["visibility"] })}
+        >
+          <option value="private">Private</option>
+          <option value="friends">Friends</option>
+          <option value="public">Public</option>
+        </select>
+      </label>
+      <p id={hintId}>
+        {nameHidden || draft.visibility === "public"
+          ? "Anyone on Social can see this. Your exact pub stays between mutual friends."
+          : draft.visibility === "friends"
+            ? "Only people you follow who follow you back can see this."
+            : "Only you can see this."}
+      </p>
+    </div>
+  );
+}
+
+function PostPrompts({ editing, ready, body, onChoose }: { editing: boolean; ready: boolean; body: string; onChoose: (body: string) => void }) {
+  if (editing || !ready || body) return null;
+  return (
+    <div className="socialComposerPrompts" aria-label="Post prompts">
+      <span>Start with a thought</span>
+      {["A pub worth sharing", "Who's about?"].map((prompt) => (
+        <button key={prompt} type="button" onClick={() => onChoose(prompt === "Who's about?" ? "Who's about? " : `${prompt}: `)}>{prompt}</button>
+      ))}
+    </div>
   );
 }
 
@@ -966,17 +1003,25 @@ export default function SocialComposer({
               </button>
             ) : null}
 
+            <AudienceField draft={draft} nameHidden={nameHidden} onDraft={setDraft} />
+
             <label className="socialComposerBody">
               Write post
               <textarea
                 ref={bodyRef}
                 maxLength={2000}
+                placeholder="A pub worth the walk? A photo worth keeping?"
                 value={draft.body}
                 onChange={(event) =>
                   setDraft({ ...draft, body: event.currentTarget.value })
                 }
               />
             </label>
+            <p className="socialComposerCount"><span>{draft.body.length}</span> / 2000</p>
+            <PostPrompts editing={editing} ready={draftReady} body={draft.body} onChoose={(body) => {
+              setDraft((current) => ({ ...current, body }));
+              bodyRef.current?.focus();
+            }} />
 
             <MediaEditors
               editing={editing} video={video} videoPreviewUrl={videoPreviewUrl} videoDuration={videoDuration}
