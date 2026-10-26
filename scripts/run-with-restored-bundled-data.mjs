@@ -52,12 +52,14 @@ function mappedVerificationEnvironment() {
     "PUBMAX_KNIP_BASE_REF", "PUBMAX_KNIP_AHEAD", "PUBMAX_KNIP_HEAD_REPORT", "PUBMAX_KNIP_BASE_REPORT",
   ];
   const env = Object.fromEntries(names.flatMap(name => process.env[name] === undefined ? [] : [[name, process.env[name]]]));
-  // Forward the supported heap option, never arbitrary preloads or env-file
-  // options. Set defaults here, where the daemon's real child is spawned.
-  const heap = /(?:^|\s)--max-old-space-size(?:=|\s+)([1-9]\d*)(?=\s|$)/.exec(process.env.NODE_OPTIONS ?? "")?.[1] ?? "1536";
+  // Bound mapped verification at its actual spawn, independently of the
+  // coding parent's login profile. Preserve smaller heaps, cap larger ones,
+  // and never forward arbitrary preloads or env-file options. One Vitest
+  // worker applies even when its command line requests a larger pool.
+  const inheritedHeap = /(?:^|\s)--max-old-space-size(?:=|\s+)([1-9]\d*)(?=\s|$)/.exec(process.env.NODE_OPTIONS ?? "")?.[1];
+  const heap = Math.min(Number(inheritedHeap ?? 2048), 2048);
   env.NODE_OPTIONS = `--max-old-space-size=${heap}`;
-  const workers = process.env.VITEST_MAX_WORKERS ?? "";
-  env.VITEST_MAX_WORKERS = /^[1-9]\d*$/.test(workers) ? workers : "1";
+  env.VITEST_MAX_WORKERS = "1";
   return env;
 }
 

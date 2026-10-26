@@ -40,8 +40,12 @@ describe("committed bundled data restore", () => {
     },
   );
 
-  it.each([false, true])("starts the mapped verifier and its grandchild keyless before setup (explicit controls: %s)", (explicitControls) => {
-    const cwd = join(tmpdir(), `pubmax-mapped-keyless-${Date.now()}-${explicitControls}`);
+  it.each([
+    { label: "defaults", inheritedHeap: "", inheritedWorkers: "", expectedHeap: 2048 },
+    { label: "smaller heap", inheritedHeap: "--max-old-space-size=1024", inheritedWorkers: "2", expectedHeap: 1024 },
+    { label: "oversized login inheritance", inheritedHeap: "--max-old-space-size=4096", inheritedWorkers: "8", expectedHeap: 2048 },
+  ])("starts the mapped verifier and its grandchild keyless before setup ($label)", ({ label, inheritedHeap, inheritedWorkers, expectedHeap }) => {
+    const cwd = join(tmpdir(), `pubmax-mapped-keyless-${Date.now()}-${label.replaceAll(" ", "-")}`);
     mkdirSync(join(cwd, "scripts"), { recursive: true });
     initialiseGit(cwd);
     writeFileSync(join(cwd, ".env.example"), "TYPESAFE_API_KEY=example-only\n");
@@ -67,18 +71,18 @@ describe("committed bundled data restore", () => {
     const env: NodeJS.ProcessEnv = { ...process.env, ...Object.fromEntries(credentials.map(key => [key, "fake-sentinel"])),
       PUBMAX_VERIFY_FULL: "1", PUBMAX_VERIFY_BASE: "HEAD~1", PUBMAX_VERIFY_COMMITTED_DATA: "1",
       DEPLOYMENT_VERSION: "local", PUBMAX_PG_MAX_CLUSTERS: "2", PUBMAX_KNIP_BASE_REF: "origin/main",
-      NODE_OPTIONS: explicitControls ? "--max-old-space-size=1024" : "",
-      VITEST_MAX_WORKERS: explicitControls ? "2" : "" };
+      NODE_OPTIONS: inheritedHeap,
+      VITEST_MAX_WORKERS: inheritedWorkers };
     const result = spawnSync(process.execPath, [bundledWrapper, process.execPath, "scripts/verify-changed.mjs"], { cwd, env, encoding: "utf8" });
     expect(result.status, result.stderr).toBe(0);
-    const expected = { clean: true, heap: explicitControls ? "--max-old-space-size=1024" : "--max-old-space-size=1536",
+    const expected = { clean: true, heap: `--max-old-space-size=${expectedHeap}`,
       heapLimitMiB: expect.any(Number),
-      workers: explicitControls ? "2" : "1", full: "1", base: "HEAD~1", committed: "1", deployment: "local",
+      workers: "1", full: "1", base: "HEAD~1", committed: "1", deployment: "local",
       pgSlots: "2", knipBase: "origin/main", pathPresent: true, homePresent: true };
     const observed = JSON.parse(result.stdout);
     expect(observed).toEqual({ beforeSetup: expected, grandchild: expected });
     for (const child of [observed.beforeSetup, observed.grandchild]) {
-      const oldSpaceMiB = explicitControls ? 1024 : 1536;
+      const oldSpaceMiB = expectedHeap;
       expect(child.heapLimitMiB).toBeGreaterThanOrEqual(oldSpaceMiB);
       expect(child.heapLimitMiB).toBeLessThan(oldSpaceMiB + 256);
     }
