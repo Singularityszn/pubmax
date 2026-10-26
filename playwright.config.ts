@@ -231,6 +231,7 @@ export default defineConfig({
         "**/ui-ux-battle-test-keyless.spec.ts",
         "**/map-gl.spec.ts",
         "**/map-gestures.spec.ts",
+        "**/map-short-walk-framing.spec.ts",
         "**/map-deep-link-pin.spec.ts",
         // Every WebGL journey belongs to chromium-gl. Keeping these out of the
         // plain Chromium project avoids running the same spec without SwiftShader
@@ -365,6 +366,7 @@ export default defineConfig({
         "**/map-gl.spec.ts",
         // Two-finger rotate and tilt against a real MapLibre canvas.
         "**/map-gestures.spec.ts",
+        "**/map-short-walk-framing.spec.ts",
         // The document's opening prices held to the engine's own first frame:
         // a real camera and a real painted-pin probe to compare against.
         "**/map-opening-preview.spec.ts",
