@@ -117,10 +117,15 @@ function repeatsOperator<T>(route: readonly GroundedPlanRouteCandidate<T>[]): bo
 function searchSlice<T>(
   candidates: readonly GroundedPlanRouteCandidate<T>[],
   constraints: GroundedPlanRouteConstraints,
+  affordableFirst = false,
 ): GroundedPlanRouteCandidate<T>[] {
-  const ranked = [...candidates].sort((left, right) => right.score - left.score
-    || left.venueId.localeCompare(right.venueId, "en-GB"));
-  if (!constraints.oneStopPerOperator) return ranked.slice(0, MAX_ROUTE_SEARCH_CANDIDATES);
+  const byScore = (left: GroundedPlanRouteCandidate<T>, right: GroundedPlanRouteCandidate<T>) =>
+    right.score - left.score || left.venueId.localeCompare(right.venueId, "en-GB");
+  const ranked = [...candidates].sort((left, right) =>
+    (affordableFirst ? left.price.pence! - right.price.pence! : 0) || byScore(left, right));
+  if (!constraints.oneStopPerOperator) {
+    return ranked.slice(0, MAX_ROUTE_SEARCH_CANDIDATES).sort(byScore);
+  }
   const perOperator = new Map<string, number>();
   const slice: GroundedPlanRouteCandidate<T>[] = [];
   for (const candidate of ranked) {
@@ -132,7 +137,7 @@ function searchSlice<T>(
     }
     slice.push(candidate);
   }
-  return slice;
+  return slice.sort(byScore);
 }
 
 export type SelectedGroundedPlanStop<T> = GroundedPlanRouteCandidate<T> & {
@@ -484,6 +489,8 @@ function beamBestRoute<T>(
   target: number,
   constraints: GroundedPlanRouteConstraints,
 ): EvaluatedRoute<T> | null {
+  const cheapest = constraints.budgetLimitPence === null ? [] : [...additions]
+    .sort((left, right) => left.price.pence! - right.price.pence!);
   let beam = seeds.map((route) => ({ route: [...route], score: route.reduce((total, candidate) => total + candidate.score, 0) }));
   while (beam[0] && beam[0].route.length < target) {
     const next: { route: GroundedPlanRouteCandidate<T>[]; score: number; key: string; distance: number }[] = [];
@@ -493,6 +500,21 @@ function beamBestRoute<T>(
         if (used.has(candidate.venueId)) continue;
         const route = [...partial.route, candidate];
         if (!partialRouteAllowed(route, constraints)) continue;
+        if (constraints.budgetLimitPence !== null) {
+          // Do not spend the beam on prefixes that cannot afford even the
+          // cheapest unused pubs. This is only a lower bound: other hard
+          // constraints still run when the complete route is evaluated.
+          const routeIds = new Set([...used, candidate.venueId]);
+          let remaining = target - route.length;
+          let minimumTotal = route.reduce((total, stop) => total + stop.price.pence!, 0);
+          for (const addition of cheapest) {
+            if (remaining === 0) break;
+            if (routeIds.has(addition.venueId)) continue;
+            minimumTotal += addition.price.pence!;
+            remaining -= 1;
+          }
+          if (remaining > 0 || minimumTotal > constraints.budgetLimitPence) continue;
+        }
         let distance = 0;
         for (let index = 1; index < route.length; index += 1) {
           distance += walkKm(route[index - 1]!, route[index]!, constraints);
@@ -518,6 +540,23 @@ function beamBestRoute<T>(
   return best;
 }
 
+/** Try one affordable slice before reporting scarcity, without widening either search. */
+function searchWithBudgetFallback<T>(
+  candidates: readonly GroundedPlanRouteCandidate<T>[],
+  constraints: GroundedPlanRouteConstraints,
+  search: (ranked: readonly GroundedPlanRouteCandidate<T>[]) => EvaluatedRoute<T> | null,
+): EvaluatedRoute<T> | null {
+  const ranked = searchSlice(candidates, constraints);
+  const best = search(ranked);
+  if (best || constraints.budgetLimitPence === null || candidates.length <= ranked.length) return best;
+  // Eligibility already requires a usable price for every candidate under a
+  // ceiling. Select cheaper pubs, then restore score order for score pruning.
+  const affordable = searchSlice(candidates, constraints, true);
+  if (affordable.length === ranked.length
+    && affordable.every((candidate, index) => candidate.venueId === ranked[index]!.venueId)) return null;
+  return search(affordable);
+}
+
 /** Visit unordered combinations in descending score-bound order, then check every ordering. */
 function findBestRoute<T>(
   eligible: readonly GroundedPlanRouteCandidate<T>[],
@@ -527,16 +566,9 @@ function findBestRoute<T>(
   // Six-stop route ordering grows factorially. Search the strongest fourteen
   // grounded candidates, while keeping the complete eligible set for honest
   // scarcity and per-stop alternatives.
-  const ranked = searchSlice(eligible, constraints);
-  if (target > 3) {
-    return beamBestRoute(
-      ranked.map((candidate) => [candidate]),
-      ranked,
-      target,
-      constraints,
-    );
-  }
-  return searchBestRouteCombinations(ranked, target, [], constraints);
+  return searchWithBudgetFallback(eligible, constraints, (ranked) => target > 3
+    ? beamBestRoute(ranked.map((candidate) => [candidate]), ranked, target, constraints)
+    : searchBestRouteCombinations(ranked, target, [], constraints));
 }
 
 /**
@@ -660,21 +692,12 @@ function findBestAnchoredRoute<T>(
 ): EvaluatedRoute<T> | null {
   const targetCompanions = planStopCount(constraints.stopCount) - 1;
   // The anchor's own operator counts: a companion from its chain is the repeat.
-  const ranked = searchSlice(
-    constraints.oneStopPerOperator && anchor.operator
-      ? companions.filter((candidate) => candidate.operator !== anchor.operator)
-      : companions,
-    constraints,
-  );
-  if (targetCompanions > 2) {
-    return beamBestRoute([[anchor]], ranked, planStopCount(constraints.stopCount), constraints);
-  }
-  return searchBestRouteCombinations(
-    ranked,
-    targetCompanions,
-    [anchor],
-    constraints,
-  );
+  const eligible = constraints.oneStopPerOperator && anchor.operator
+    ? companions.filter((candidate) => candidate.operator !== anchor.operator)
+    : companions;
+  return searchWithBudgetFallback(eligible, constraints, (ranked) => targetCompanions > 2
+    ? beamBestRoute([[anchor]], ranked, planStopCount(constraints.stopCount), constraints)
+    : searchBestRouteCombinations(ranked, targetCompanions, [anchor], constraints));
 }
 
 /** Keep accepted anchor as Stop 1; return an anchor-only draft when N-1 companions cannot be grounded. */
