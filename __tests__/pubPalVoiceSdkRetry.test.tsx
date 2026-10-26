@@ -3,7 +3,7 @@
 import { act, createElement, type ReactNode } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { Conversation } from "@elevenlabs/client";
+import { Conversation } from "@elevenlabs/react";
 
 type FakeSessionOptions = {
   onConversationCreated?: (conversation: FakeConversation) => void;
@@ -114,8 +114,10 @@ beforeEach(() => {
   releasedIds = [];
   rejectPendingStartup = null;
   client.startSession.mockReset();
-  // Spy on the installed client's shared class. Externalized SDK imports do
-  // not see Vitest module mocks, but they use this same static method.
+  // Spy on the Conversation class the installed React SDK re-exports: its
+  // ConversationProvider calls this static, which comes from its own nested
+  // client rather than the root @elevenlabs/client. Externalized SDK imports
+  // do not see Vitest module mocks, so the class itself is spied on.
   vi.spyOn(Conversation, "startSession").mockImplementation((options) => (
     client.startSession(options as FakeSessionOptions) as unknown as ReturnType<typeof Conversation.startSession>
   ));
