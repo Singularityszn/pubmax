@@ -11,7 +11,8 @@ for (const width of [320, 390, 768, 1280, 1440]) {
     await page.setViewportSize({ width, height: width === 1280 ? 720 : 900 });
     await page.emulateMedia({ reducedMotion: "reduce" });
     let releaseStatus = () => {};
-    const statusReady = width === 1280
+    const delayedStatus = width === 768 || width === 1280;
+    const statusReady = delayedStatus
       ? new Promise<void>((resolve) => { releaseStatus = resolve; })
       : Promise.resolve();
     page.on("close", () => releaseStatus());
@@ -61,7 +62,7 @@ for (const width of [320, 390, 768, 1280, 1440]) {
           && point.y >= 170 && point.y <= innerHeight - 180);
     }, coordinates), { timeout: 60_000 }).toBe(true);
     releaseStatus();
-    if (width === 1280) await expect(page.locator(".cityStatusBanner")).toBeVisible();
+    if (delayedStatus) await expect(page.locator(".cityStatusBanner")).toBeVisible();
     await expect(page.locator(".mapLoading")).toHaveCount(0, { timeout: 60_000 });
     const uncoveredStops = await page.evaluate((stops) => {
       const probe = (window as typeof window & {
@@ -69,7 +70,11 @@ for (const width of [320, 390, 768, 1280, 1440]) {
       }).__pubmaxMapCamera;
       return stops.map((stop) => {
         const point = probe!.project(stop);
-        return Boolean(document.elementFromPoint(point.x, point.y)?.closest(".maplibregl-canvas"));
+        // A visible centre is insufficient: a banner can cover half a marker
+        // and its name. Check the full disc with breathing room above it.
+        return [0, -22, 22].every(offset => Boolean(
+          document.elementFromPoint(point.x, point.y + offset)?.closest(".maplibregl-canvas"),
+        ));
       });
     }, coordinates);
     expect(uncoveredStops).toEqual([true, true, true]);

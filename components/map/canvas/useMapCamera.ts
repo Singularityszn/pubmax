@@ -28,9 +28,17 @@ function routeFitPadding(
   const container = map.getContainer();
   const containerTop = container.getBoundingClientRect().top;
   const statusBounds = isPhone ? null : document.querySelector(".cityStatusStack")?.getBoundingClientRect();
-  // The status strip can arrive after the route. Reserve its measured 720px
-  // viewport lane before it loads, then clear a taller visible strip too.
-  const desktopTop = Math.max(300, statusBounds?.height ? statusBounds.bottom - containerTop + 16 : 0);
+  const toolbar = isPhone ? null : document.querySelector(".mapToolbar");
+  const toolbarBounds = toolbar?.getBoundingClientRect();
+  const chromeStyle = toolbar ? getComputedStyle(toolbar) : null;
+  const statusGap = Number.parseFloat(chromeStyle?.getPropertyValue("--city-status-desktop-gap") ?? "") || 82;
+  const statusHeight = Number.parseFloat(chromeStyle?.getPropertyValue("--city-status-desktop-height") ?? "") || 58;
+  // Reserve the banner below the actual toolbar, including its lower tablet
+  // position, before transport data arrives. Clear taller visible content too.
+  const reservedBottom = toolbarBounds?.height
+    ? toolbarBounds.bottom - containerTop + statusGap + statusHeight + 16
+    : 300;
+  const desktopTop = Math.max(reservedBottom, statusBounds?.height ? statusBounds.bottom - containerTop + 16 : 0);
   const padding = isPhone
     ? { ...PHONE_ROUTE_PADDING, top: Math.max(PHONE_ROUTE_PADDING.top,
         measureTopChromeBottom(containerTop, PHONE_ROUTE_PADDING.top)) }

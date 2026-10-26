@@ -74,6 +74,21 @@ function fitQuery() {
 }
 
 describe("query camera with contextual price pins", () => {
+  it("reserves the tablet toolbar and status lane before transport data arrives", () => {
+    const toolbar = document.createElement("div");
+    toolbar.className = "mapToolbar";
+    toolbar.getBoundingClientRect = () => ({ top: 171, bottom: 230, height: 59 }) as DOMRect;
+    document.body.append(toolbar);
+    mount({ current: [] }, soho);
+    act(() => {
+      camera.fitRoute();
+      pendingFrame?.(performance.now());
+      pendingFrame = undefined;
+    });
+    toolbar.remove();
+    expect(fitBounds.mock.calls[0]?.[1].padding.top).toBeGreaterThanOrEqual(386);
+  });
+
   it("recovers the whole walk immediately after a drag while automatic fits stand down", () => {
     mount({ current: [] }, soho, { active: false, endedAt: performance.now() });
     act(() => {
