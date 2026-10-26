@@ -1,6 +1,6 @@
 "use client";
 
-import { Send, ChevronLeft, ImageIcon, MapPin, Plus } from "lucide-react";
+import { Send, ChevronLeft, ImageIcon, MapPin, Plus, CalendarDays, UsersRound } from "lucide-react";
 import Link from "next/link";
 import {
   useCallback,
@@ -1041,7 +1041,7 @@ export default function MessageThread({
       // name is the title or the people in it.
       return (
         <span className="threadWith">
-          <MessageAvatar handle={otherHandle || (threadName ?? "")} size={36} />
+          <span className="messageAvatar messageAvatarGroup" style={{ "--message-avatar-size": "36px" } as React.CSSProperties} aria-hidden="true"><UsersRound size={20} /></span>
           <span className="threadWithGroup">
             <span className="threadWithHandle">{threadName}</span>
             <span className="threadWithMembers">
@@ -1118,6 +1118,14 @@ export default function MessageThread({
                   ? GROUP_EMPTY_THREAD_LINE
                   : "Say hello. This one stays between the two of you."}
               </p>
+              <div className="threadStarters" role="group" aria-label="Start the conversation">
+                <button type="button" disabled={sending} onClick={() => openPicker("venue")}>
+                  <MapPin size={17} aria-hidden="true" /> Share a pub
+                </button>
+                <button type="button" disabled={sending} onClick={() => openPicker("event")}>
+                  <CalendarDays size={17} aria-hidden="true" /> Share a plan
+                </button>
+              </div>
             </li>
           ) : null}
           {timeline.map((item) => {
@@ -1144,6 +1152,7 @@ export default function MessageThread({
               >
                 {/* The box the 75% width limit lives on. */}
                 <div className="messageLine">
+                  {isGroup && !mine && item.first ? <span className="messageSender">@{m.senderHandle}</span> : null}
                   <div
                     className={[
                       mine ? "messageBubble messageBubbleMine" : "messageBubble messageBubbleTheirs",
