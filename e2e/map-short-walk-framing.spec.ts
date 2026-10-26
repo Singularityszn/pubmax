@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { DEFAULT_PAL_DRAFT } from "../lib/pubPal";
 // A real short Soho walk reproduced with the saved-plan map link.
 const STOP_IDS = ["venue-7tarkc", "venue-122cuu1", "venue-s2ppfm"];
 
@@ -30,7 +31,13 @@ for (const width of [320, 390, 768, 1280, 1440]) {
       const { venue } = await response.json();
       return [venue.longitude, venue.latitude] as [number, number];
     }));
-    await page.addInitScript(() => {
+    await page.addInitScript(({ appearance, personality, voice }) => {
+      const now = "2026-10-26T12:00:00.000Z";
+      localStorage.setItem("pubmax_pub_pal_v1", JSON.stringify({
+        id: "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb", ownerId: "owner-e2e", name: "Ripley",
+        adultAttestedAt: now, appearance, personality, voice, muted: false, hidden: false,
+        proposalPreferences: {}, masteryPoints: 0, createdAt: now, updatedAt: now,
+      }));
       localStorage.setItem("pubmax-theme", "dark");
       localStorage.setItem("pubmax-tour-v1-done", "1");
       localStorage.setItem("pubmax-tour-v2-done", "1");
@@ -38,7 +45,7 @@ for (const width of [320, 390, 768, 1280, 1440]) {
       sessionStorage.setItem("pubmax_onboarding_dismissed", "1");
       localStorage.setItem("pubmaxx:analytics-consent:v1", "denied");
       localStorage.setItem("pubmax:map-first-visit-arrival:v1", "dismissed");
-    });
+    }, DEFAULT_PAL_DRAFT);
     await page.goto(`/map?mode=build&pubs=${STOP_IDS.join(",")}`);
     await expect(page.locator(".mapCanvasWrap[data-route-stops]")).toHaveAttribute("data-route-stops", "3", { timeout: 60_000 });
     await expect(page.locator(".maplibregl-canvas")).toBeVisible();
@@ -75,6 +82,27 @@ for (const width of [320, 390, 768, 1280, 1440]) {
       });
     }, coordinates);
     expect(uncoveredStops).toEqual([true, true, true]);
+    const companion = page.locator(".palMapMarker:not([data-pal-crew])");
+    await expect(companion).toBeVisible();
+    await expect(companion).toHaveAttribute("data-pal-walk", "waiting");
+    // Pointer-events:none makes elementFromPoint ignore this decorative
+    // overlay. Compare its painted bounds with every numbered stop instead.
+    await expect.poll(() => page.evaluate((stops) => {
+      const probe = (window as typeof window & {
+        __pubmaxMapCamera?: { project(point: [number, number]): { x: number; y: number } };
+      }).__pubmaxMapCamera;
+      const marker = document.querySelector(".palMapMarker:not([data-pal-crew])");
+      if (!probe || !marker) return false;
+      const box = marker.getBoundingClientRect();
+      return stops.every(stop => {
+        const point = probe.project(stop);
+        const nearestX = Math.max(box.left, Math.min(point.x, box.right));
+        const nearestY = Math.max(box.top, Math.min(point.y, box.bottom));
+        // The 16px disc has a 2.5px stroke. Include its painted rim and a
+        // small gap, not just its fill, when checking the resting companion.
+        return Math.hypot(point.x - nearestX, point.y - nearestY) > 18;
+      });
+    }, coordinates)).toBe(true);
     await page.screenshot({ path: testInfo.outputPath(`short-walk-${width}.png`) });
     if (width === 1280) {
       const projectedStops = () => page.evaluate((stops) => {

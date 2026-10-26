@@ -233,6 +233,24 @@ describe("the Pal on the map", () => {
     expect(markerHarness.instances).toHaveLength(1);
   });
 
+  it("pauses beside the intermediate stop so its number remains visible", () => {
+    store(pal());
+    const marker = createPalMapMarker(map);
+    marker.walk({ key: crawlKey, stops: crawl, path: crawl });
+    runFrames(1);
+    const instance = markerHarness.instances[0]!;
+    for (let frame = 0; frame < 1_000 && instance.options.element.classList.contains("isWalking"); frame += 1) {
+      runFrames(1);
+    }
+    expect(instance.lngLat).toEqual(crawl[1]);
+    expect(instance.options.element.dataset.palWalk).toBe("walking");
+    expect(instance.options.offset).toEqual([14, -12]);
+    runFrames(20);
+    expect(instance.options.element.classList.contains("isWalking")).toBe(true);
+    expect(instance.options.offset).toEqual([-19, 4]);
+    marker.destroy();
+  });
+
   it("carries on along the road line at the same point of the walk", () => {
     store(pal());
     const marker = createPalMapMarker(map);
@@ -301,6 +319,7 @@ describe("the Pal on the map", () => {
     const [instance] = markerHarness.instances;
     expect(instance!.lngLat).toEqual(crawl[0]);
     expect(instance!.options.element.dataset.palWalk).toBe("setting-off");
+    expect(instance!.options.offset).toEqual([14, -12]);
     expect(frames).toHaveLength(0);
     handlers.forEach((handler) => handler());
     expect(frames).toHaveLength(1);
