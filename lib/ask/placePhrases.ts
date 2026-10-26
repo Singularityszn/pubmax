@@ -34,3 +34,9 @@ export function isKnownAskPlacePhrase(value: string): boolean {
   const phrase = wordsOnly(value).replace(/^the\s+/, "");
   return PLACE_PHRASES.some((words) => words.join(" ") === phrase);
 }
+
+/** A typed venue phrase as the venue tool reads it: the name, then any area after "in" or a comma. */
+export function venueNameAndArea(phrase: string): { name: string; area: string } {
+  const [name = "", ...area] = phrase.split(/,\s*|\s+in\s+/i);
+  return { name, area: area.join(", ").trim() };
+}

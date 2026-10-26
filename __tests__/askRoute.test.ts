@@ -242,13 +242,42 @@ describe("POST /api/ask", () => {
     expect(result.data).not.toMatchObject({ kind: "unsupported-price" });
   });
 
-  it.each(["Any tube delays and how much is wine at The Lamb?", "How much is wine at The Lamb and any tube delays?"])("retains recorded categories and independent status in both clause orders: %s", async (query) => {
+  it.each(["Any tube delays and how much is wine at The Lamb?", "How much is wine at The Lamb and any tube delays?"])("asks which listed pub a shared name means beside independent status in both clause orders: %s", async (query) => {
+    const ambiguity = /More than one listed pub is called (?:The )?Lamb\. Name its area to choose one\./;
     const result = await runAsk({ query, cityId: "london", skipModel: true });
     expect(result.toolsUsed).toEqual(["city_status", "venue_drinks"]);
     expect(result.answer).not.toMatch(/other drinks across pubs|cheapest listed pints/i);
+    expect(result.answer).toContain("City status is unavailable just now.");
+    expect(result.answer).toMatch(ambiguity);
+    expect(result.cards).toEqual([]);
+    expect(result.proposals).toEqual([]);
     const recorded = await runAskTool("venue_prices", { venueName: "Soho", query: "pints" }, { cityId: "london", query, skipModel: true });
-    expect(recorded.tool).toBe("venue_drinks");
-    expect(recorded.priceEvidence?.every((price) => price.category === "wine")).toBe(true);
+    expect(recorded).toMatchObject({ ok: false, tool: "venue_drinks", data: null, cards: [], proposals: [] });
+    expect(recorded.answerHint).toMatch(ambiguity);
+    expect(recorded.priceEvidence ?? []).toEqual([]);
+  });
+
+  it.each(["Any tube delays and how much is wine at Sherlock Holmes?", "How much is wine at Sherlock Holmes and any tube delays?"])("reads the one listed pub's wine evidence beside independent status in both clause orders: %s", async (query) => {
+    const result = await runAsk({ query, cityId: "london", skipModel: true });
+    expect(result.toolsUsed).toEqual(["city_status", "venue_drinks"]);
+    expect(result.answer).toContain("City status is unavailable just now.");
+    expect(result.answer).toContain("Sherlock Holmes");
+    expect(result.answer).not.toMatch(/More than one listed pub|other drinks across pubs|cheapest listed pints/i);
+    expect(result.cards.length).toBeGreaterThan(0);
+    const bound = [...result.cards, ...result.proposals].map((item: { venueId?: string }) => item.venueId);
+    expect(new Set(bound)).toEqual(new Set(["venue-gk2fp9"]));
+    expect(result.cards).toContainEqual(expect.objectContaining({
+      venueId: "venue-gk2fp9", price: 7.2,
+      menuEvidence: expect.objectContaining({ itemName: "Organic Pinot Grigio, Riff, Italy", category: "wine" }),
+    }));
+    const recorded = await runAskTool("venue_prices", { venueName: "Soho", query: "pints" }, { cityId: "london", query, skipModel: true });
+    expect(recorded).toMatchObject({ ok: true, tool: "venue_drinks", data: { venueId: "venue-gk2fp9" } });
+    const evidence = recorded.priceEvidence ?? [];
+    expect(evidence.length).toBeGreaterThan(0);
+    expect(evidence.filter((price) => price.category !== "wine" || price.venueId !== "venue-gk2fp9")).toEqual([]);
+    expect(evidence).toContainEqual(expect.objectContaining({
+      venueId: "venue-gk2fp9", category: "wine", priceGbp: 7.2, itemName: "Organic Pinot Grigio, Riff, Italy",
+    }));
   });
 
   it.each([

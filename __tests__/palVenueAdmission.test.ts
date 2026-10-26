@@ -28,7 +28,8 @@ import { readConfirmedPalMemories } from "@/lib/palConfirmedMemories.server";
 import { paidSpendBudgetRefusal } from "@/lib/paidSpendBudget.server";
 import { readPalTaste } from "@/lib/palTaste.server";
 import { __resetPintDrops } from "@/lib/pintDrops";
-import { __resetPubPalToolTurnStore, registerPubPalToolTurn } from "@/lib/pubPalToolTurnStore";
+import { invokePubPalAskTool } from "@/lib/pubPalToolInvoke.server";
+import { __resetPubPalToolTurnStore, readOwnedPubPalToolTurn, registerPubPalToolTurn } from "@/lib/pubPalToolTurnStore";
 
 const OWNER = "11111111-1111-4111-8111-111111111111";
 const THREAD = "conv_venueadmit01";
@@ -161,6 +162,26 @@ const SUPPORTED_NAME_QUALIFIERS: Array<[query: string, name: string]> = [
   ["Wine prices at Fox and Anchor for four", "Fox and Anchor"],
 ];
 
+// A listed name beside the supported area that holds it, with the one record it binds.
+const AREA_QUALIFIED_NAMES: Array<[query: string, name: string, venueId: string]> = [
+  ["Wine prices at The Lamb in Bloomsbury", "The Lamb", "pva-lamb-bloomsbury"],
+  ["Menu at The Lamb in Bloomsbury", "The Lamb", "pva-lamb-bloomsbury"],
+  ["Wine prices at The Eagle in Islington", "The Eagle", "pva-eagle-islington"],
+];
+
+// The exact ask an owned thread carries, beside the args the agent sends the tool.
+const AREA_QUALIFIED_TOOL_CALLS: Array<[query: string, args: Record<string, string>]> = [
+  ["Wine prices at The Lamb in Bloomsbury", { venueName: "The Lamb in Bloomsbury", drinkCategory: "wine" }],
+  ["Menu at The Lamb in Bloomsbury", { venueName: "The Lamb in Bloomsbury" }],
+];
+
+// An action after the area is still part of the ask, not part of the place.
+const AREA_QUALIFIED_ACTION_TAILS = [
+  "Wine prices at The Lamb in Bloomsbury and juggle",
+  "Wine prices at The Lamb in Bloomsbury and plan a crawl",
+  "Menu at The Lamb in Bloomsbury and juggle",
+];
+
 describe("venue names beside sibling actions over configured HTTP", () => {
   it.each(ACTION_TAILS)("keeps an action after a venue name on the provider path: %s", async (query) => {
     await expectProviderAdmission(await ask(query));
@@ -228,6 +249,46 @@ describe("listed venue names and area discovery over configured HTTP", () => {
     const body = await expectLocalRecords(await ask("Price of Coke at The Eagle"), "venue_drinks");
     expect(body.cards).toEqual([]);
     expect(body.answer).toMatch(/listed pub/);
+  });
+
+  it("asks which listed pub a shared name means for a recorded drink category from the records", async () => {
+    const body = await expectLocalRecords(await ask("Wine prices at The Eagle"), "venue_drinks");
+    expect(body).toMatchObject({ cards: [], proposals: [] });
+    expect(body.answer).toMatch(/listed pub/);
+  });
+});
+
+describe("listed venue names qualified by a supported area over configured HTTP", () => {
+  it.each(AREA_QUALIFIED_NAMES)("answers a listed venue in its area from the records: %s", async (query, name, venueId) => {
+    const body = await expectLocalRecords(await ask(query), "venue_drinks");
+    expect(body.answer).toContain(name);
+    const bound = [...body.cards, ...body.proposals].map((item: { venueId?: string }) => item.venueId).filter(Boolean);
+    expect(new Set(bound)).toEqual(new Set([venueId]));
+    expect((await readOwnedPubPalToolTurn(body.conversationId, OWNER))?.query).toBe(query);
+  });
+
+  it.each(AREA_QUALIFIED_ACTION_TAILS)("keeps an action after a venue area on the provider path: %s", async (query) => {
+    await expectProviderAdmission(await ask(query));
+  });
+
+  it("keeps a pub search in a record area the general search does not cover on the provider path", async () => {
+    await expectProviderAdmission(await ask("Find four pubs in Bloomsbury"));
+  });
+});
+
+describe("listed venue names qualified by the record's own area at the owned tool seam", () => {
+  it.each(AREA_QUALIFIED_TOOL_CALLS)("reads the one listed venue for an owned thread from the records: %s", async (query, args) => {
+    await registerPubPalToolTurn(THREAD, { query, cityId: "london", ownerId: OWNER, turns: [] });
+    const { result } = await invokePubPalAskTool({ toolName: "venue_drinks", args, conversationId: THREAD });
+    expect(result.tool).toBe("venue_drinks");
+    expect(result.proposals).toEqual([expect.objectContaining({ venueId: "pva-lamb-bloomsbury" })]);
+    const bound = [...(result.cards as Array<{ venueId?: string }>), ...(result.proposals as Array<{ venueId?: string }>)]
+      .map((item) => item.venueId).filter(Boolean);
+    expect(new Set(bound)).toEqual(new Set(["pva-lamb-bloomsbury"]));
+    expect(result.answerHint).toContain("The Lamb");
+    expect(paidSpendBudgetRefusal).not.toHaveBeenCalled();
+    expect(deniedFetch).not.toHaveBeenCalled();
+    expect(deniedSocket).not.toHaveBeenCalled();
   });
 });
 

@@ -126,8 +126,11 @@ describe("cheapest_pint_near", () => {
     expect(result.ok).toBe(true);
     expect(result.cards.map((card) => card.venueId)).toEqual(["near-cheap", "near-dear"]);
     expect(result.answerHint).toContain("The Crown at £4.50");
+    // Neither near pub's fixture supplies a publisher or a read date, so each
+    // card must say so rather than claim a source it does not have.
     for (const card of result.cards) {
-      expect(card.provenance?.label).toBe("On record");
+      expect(card.provenance?.kind).toBe("directory");
+      expect(card.provenance?.label).toBe("Publisher not recorded. Source read date unknown.");
     }
   });
 

@@ -8,7 +8,7 @@ import { composeAnswer, runAsk } from "@/lib/ask/runAsk";
 import { isCompleteAskRequest, namedAskVenue, recordedDrinkComparison, refineRoutedAskQuery, resolveAskLocality, SAME_AREA_REFERENCE_RE, resolveAskPriceIntent, routeAskDeterministically, socialTurnKind, unsupportedPriceComparison } from "@/lib/ask/router";
 import type { AskCard, AskProposal, AskToolName } from "@/lib/ask/types";
 import { resolveAskCityId } from "@/lib/ask/tools";
-import { wordsOnly } from "@/lib/ask/placePhrases";
+import { venueNameAndArea, wordsOnly } from "@/lib/ask/placePhrases";
 import { uniqueExactVenueNameMatch } from "@/lib/ask/venueResolution";
 import {
   readConfirmedPalMemories,
@@ -239,22 +239,33 @@ export function palChatRecordQuery(query: string, turns: readonly PubPalFenceTur
 
 /**
  * The named phrase, as the ask wrote it, when at least one listed pub carries
- * the whole of it exactly. A listed name at its start is not enough, since the
- * rest would vanish into the venue. It recognises the name without choosing a pub.
+ * the whole of it exactly, or when the venue tool reads it as a listed name and
+ * an area that is wholly the area a pub of that name is filed under. A listed
+ * name at its start is not enough, since the rest would vanish into the venue.
+ * It recognises the name without choosing a pub.
  */
 function listedVenueName(venues: readonly ConciergeVenue[], phrase: string): string | null {
   const last = [...phrase.matchAll(/[\p{L}\p{N}]+/gu)].at(-1);
   if (!last) return null;
   const name = phrase.slice(0, last.index + last[0].length);
+  if (namesListedVenue(venues, name)) return name;
+  // The tool keeps the typed area and reads only pubs filed under it, so the
+  // area is the record's own, never a search area standing in for it.
+  const typed = venueNameAndArea(name);
+  const areaVenues = venues.filter((venue) => venue.area.toLowerCase() === typed.area.toLowerCase());
+  return typed.area && namesListedVenue(areaVenues, typed.name) ? name : null;
+}
+
+function namesListedVenue(venues: readonly ConciergeVenue[], name: string): boolean {
   const words = wordsOnly(name);
   const forms = words.startsWith("the ") ? [words, words.slice(4)] : [words, `the ${words}`];
-  return forms.some((form) => venues.some((venue) => uniqueExactVenueNameMatch([venue], form))) ? name : null;
+  return words !== "" && forms.some((form) => venues.some((venue) => uniqueExactVenueNameMatch([venue], form)));
 }
 
 /**
  * A record answer is complete against the city's own pubs: the whole named
- * phrase the tools will read must be a listed name, so a request after a name
- * stays part of the ask, not the venue. Several pubs may share that name; the
+ * phrase the tools will read must be a listed name, or a listed name in its own
+ * record area, so a request after a name stays part of the ask, not the venue. Several pubs may share that name; the
  * tools still pick one or ask which.
  */
 async function recordBoundRequest(text: string, cityId: unknown, deadline: number, signal?: AbortSignal): Promise<boolean> {
@@ -284,7 +295,12 @@ async function palChatAdmission(
   recordBound: (text: string) => Promise<boolean>,
 ): Promise<Pick<PalElevenLabsChatContext, "recordQuery" | "personal">> {
   // The public predicate is preliminary; a record answer is also bound to the city's pubs.
-  const preliminary = palChatRecordQuery(query, prior.turns);
+  // A named recorded-drinks or menu ask is left to that binding, which reads the
+  // whole name, the record's own area and the complete ask, since the search
+  // vocabulary does not know record areas.
+  const namedFactual = !MEMORY_REQUEST_RE.test(query) && requestedVenueQuantity(query) !== null
+    && !unsupportedPriceComparison(query) && recordedDrinkComparison(query) && namedAskVenue(query);
+  const preliminary = namedFactual ? query : palChatRecordQuery(query, prior.turns);
   const recordQuery = preliminary !== null && await recordBound(preliminary) ? preliminary : null;
   if (recordQuery === null || unsupportedPriceComparison(recordQuery) || recordedDrinkComparison(recordQuery)) return { recordQuery };
   const calls = routeAskDeterministically(recordQuery);

@@ -7,6 +7,7 @@ import "server-only";
 // spine - plus the pure policy in `lib/ask/conciergeTools.ts`. Nothing here
 // derives a price, widens a trust gate, or writes anything.
 
+import { venueNameAndArea } from "@/lib/ask/placePhrases";
 import { uniqueExactVenueNameMatch } from "@/lib/ask/venueResolution";
 import { nightAreaForMapQuery } from "@/lib/nightAreas";
 import { venueSearchNames } from "@/lib/venueSearchNames.mjs";
@@ -90,6 +91,16 @@ function withoutLeadingArticle(value: string): string {
   return value.trim().toLowerCase().replace(/^the\s+/, "");
 }
 
+/** Every pub an exact name names, article or not. More than one is a question of which. */
+function exactVenueNameHits(
+  venues: readonly ConciergeVenue[],
+  needle: string,
+): ConciergeVenue[] {
+  const bare = withoutLeadingArticle(needle);
+  return venues.filter((venue) =>
+    uniqueExactVenueNameMatch([venue], needle) ?? uniqueExactVenueNameMatch([venue], `The ${bare}`));
+}
+
 function matchVenue(
   venues: readonly ConciergeVenue[],
   needle: string,
@@ -104,6 +115,9 @@ function matchVenue(
   const exact = uniqueExactVenueNameMatch(venues, needle)
     ?? uniqueExactVenueNameMatch(venues, `The ${bare}`);
   if (exact) return exact;
+  // Two pubs sharing that exact name is a question of which, so neither a prefix
+  // nor a substring may pick the first of them.
+  if (exactVenueNameHits(venues, needle).length > 1) return null;
   // Past an exact name, a place-shaped word may never land on a name-alike pub:
   // "Angel" is Islington, not The Angel Hillingdon on a prefix.
   if (isPlaceShapedWord(needle)) return null;
@@ -399,9 +413,8 @@ function resolveVenueDrinksTarget(
   const namesArea = venueNameArg
     ? matchArea(venues, venueNameArg) !== null
     : false;
-  const menuNameParts = venueNameArg.split(/,\s*|\s+in\s+/i);
-  const menuName = menuNameParts[0] ?? "";
-  const menuArea = menuNameParts.slice(1).join(", ").trim();
+  // Chat admission reads the typed phrase through this same split.
+  const { name: menuName, area: menuArea } = venueNameAndArea(venueNameArg);
   const menuVenues = menuArea
     ? venues.filter((candidate) => candidate.area.toLowerCase() === menuArea.toLowerCase())
     : venues;
@@ -416,7 +429,11 @@ function resolveVenueDrinksTarget(
     (namesArea ? null : isMenuRequest || menuArea ? namedMenuVenue : matchVenue(venues, venueNameArg, "strict")) ??
     (venueNameArg ? null : matchVenue(venues, query, "strict"));
 
-  return { venue, venueId, namedMenuVenue, isMenuRequest };
+  // A name two listed pubs share picks neither, so the answer asks which.
+  const ambiguousName = !venue && !namesArea && menuName.trim() && exactVenueNameHits(menuVenues, menuName).length > 1
+    ? menuName.trim() : null;
+
+  return { venue, venueId, namedMenuVenue, isMenuRequest, ambiguousName };
 }
 
 function venueDrinkAnswerHint({
@@ -469,7 +486,7 @@ export async function toolVenueDrinks(
   }
   const drinkCategory = requestedCategory ?? null;
   const venues = await loadConciergeVenues(ctx.cityId);
-  const { venue, venueId, namedMenuVenue, isMenuRequest } = resolveVenueDrinksTarget(venues, args, ctx.query);
+  const { venue, venueId, namedMenuVenue, isMenuRequest, ambiguousName } = resolveVenueDrinksTarget(venues, args, ctx.query);
 
   if (!venue) {
     return {
@@ -479,7 +496,9 @@ export async function toolVenueDrinks(
       provenance: [],
       cards: [],
       proposals: [],
-      answerHint: VENUE_DRINKS_NO_VENUE,
+      answerHint: ambiguousName
+        ? `More than one listed pub is called ${ambiguousName}. Name its area to choose one.`
+        : VENUE_DRINKS_NO_VENUE,
     };
   }
 
