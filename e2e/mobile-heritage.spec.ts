@@ -41,7 +41,12 @@ test("mobile historic index and detail stay provenance-honest and map-linked", a
   await expect(page).toHaveURL(/\/historic\/[a-z0-9-]+$/);
   await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
   await expect(page.getByRole("heading", { name: "On record" })).toBeVisible();
-  await expect(page.getByText(/Cited from Wikipedia and Wikidata/i)).toBeVisible();
+  const provenance = page.locator(".hdProvenance");
+  const credits = provenance.getByRole("link", { name: "Data credits", exact: true });
+  await expect(provenance).toHaveText("Data credits");
+  await expect(credits).toBeVisible();
+  await expect(credits).toHaveAttribute("href", "/credits");
+  await expect(page.locator(".hdStory .hdCite").first()).toBeVisible();
 
   await expect
     .poll(async () =>
