@@ -496,6 +496,77 @@ test("feed retry repeats only the failed chronological read", async ({
   expect(accessReads).toBe(1);
 });
 
+test("comment failures stay distinct from an empty conversation and can be retried", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await mockAccess(page, "verified");
+  await page.route("**/api/social/posts**", (route) => fulfil(route, [post("reply-post", "Where shall we meet?", "2026-10-26T18:00:00.000Z")]));
+  let attempts = 0;
+  await page.route("**/api/social/interactions?**", async (route) => {
+    const view = new URL(route.request().url()).searchParams.get("view");
+    if (view === "summary") {
+      await route.fulfill({ json: { summary: { cheered: false, saved: false, cheerCount: 0 } } });
+    } else if (view === "comments") {
+      attempts += 1;
+      await route.fulfill(attempts === 1
+        ? { status: 503, json: { error: "Unavailable" } }
+        : { json: { items: [{ id: "reply-1", body: "At the pub garden.", author: { handle: "alex" }, moderationState: "approved", createdAt: "2026-10-26T18:05:00.000Z" }], nextCursor: null } });
+    } else {
+      await route.fulfill({ json: { items: [], nextCursor: null } });
+    }
+  });
+  await page.goto("/social");
+  await page.getByRole("button", { name: "Comment", exact: true }).click();
+  const replies = page.getByRole("region", { name: "Comments", exact: true });
+  await expect(replies.getByRole("alert")).toContainText("Comments could not load.");
+  await expect(replies.getByText("No comments yet.")).toHaveCount(0);
+  await replies.getByLabel("Add a comment", { exact: true }).fill("See you there");
+  await replies.getByRole("button", { name: "Retry comments" }).click();
+  await expect(replies.getByText("At the pub garden.", { exact: false })).toBeVisible();
+  await expect(replies.getByLabel("Add a comment", { exact: true })).toHaveValue("See you there");
+  expect(attempts).toBe(2);
+});
+
+test("post reactions wait for confirmation and recover a refused change", async ({ page }) => {
+  await mockAccess(page, "verified");
+  await page.route("**/api/social/posts**", (route) => fulfil(route, [post("reaction-post", "A good table in the garden.", "2026-10-26T18:00:00.000Z")]));
+  let release: (() => void) | undefined;
+  const held = new Promise<void>((resolve) => { release = resolve; });
+  let writes = 0;
+  let summaryReads = 0;
+  await page.route("**/api/social/interactions**", async (route) => {
+    if (route.request().method() === "PUT") {
+      writes += 1;
+      await held;
+      await route.fulfill({ status: 503, json: { error: "Unavailable" } });
+    } else if (new URL(route.request().url()).searchParams.get("view") === "summary") {
+      summaryReads += 1;
+      await route.fulfill(summaryReads === 1
+        ? { status: 503, json: { error: "Unavailable" } }
+        : { json: { summary: { cheered: false, saved: false, cheerCount: 2 } } });
+    } else {
+      await route.fulfill({ json: { items: [], nextCursor: null } });
+    }
+  });
+  await page.goto("/social");
+  const cheer = page.getByRole("button", { name: /^Cheers/ });
+  await expect(cheer).toBeDisabled();
+  await page.getByRole("button", { name: "Retry reactions" }).click();
+  await expect(cheer).toHaveText("Cheers 2");
+  await cheer.click();
+  try {
+    await expect(cheer).toBeDisabled();
+    await expect(page.getByRole("button", { name: "Save", exact: true })).toBeDisabled();
+  } finally {
+    release?.();
+  }
+  await expect(cheer).toBeEnabled();
+  await expect(cheer).toHaveAttribute("aria-pressed", "false");
+  await expect(cheer).toHaveText("Cheers 2");
+  await expect(page.getByText("Cheers did not go through. Try again.")).toBeVisible();
+  expect(writes).toBe(1);
+  expect(summaryReads).toBe(2);
+});
+
 test("verified Activity rail shows reauthorised generic notifications only", async ({
   page,
 }) => {
