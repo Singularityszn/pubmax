@@ -707,7 +707,7 @@ function PlanSummaryMember({ planId, state, scope }: { planId: string; state: Pl
     return (
       <div className="planSummary__editor" aria-labelledby="plan-route-editor-title" aria-busy={saving || loadingPreview}>
         <h3 id="plan-route-editor-title">Route preview</h3>
-        <p>{anchoredPlan ? "Review the fresh route with Stop 1 kept." : "Swap a stop to make a private draft."} {isHost ? `Save only when it differs and still has ${PLAN_STOP_COUNT_RANGE_SENTENCE} distinct stops.` : "The route stays unchanged until the host accepts your proposal."}</p>
+        <p>{anchoredPlan ? "Review the new route. Stop 1 stays put." : "Swap a stop to try a different pub."} {isHost ? "Nothing changes for the crew until you save." : "The route stays unchanged until the host accepts your proposal."}</p>
         <ol className="planSummary__editStops">
           {draftStops.map((stop, index) => (
             <li key={`${stop.position}-${stop.venueId}`}>
@@ -735,8 +735,8 @@ function PlanSummaryMember({ planId, state, scope }: { planId: string; state: Pl
             <button type="button" className="planSummary__save" onClick={() => void saveRoute()} disabled={saving || !canSaveDraft} aria-disabled={saving || !canSaveDraft}>
               {saving ? "Saving…" : canSaveDraft ? "Save route changes" : "Choose a route change"}
             </button>
-            <button type="button" className="planSummary__cancel" onClick={() => { clearPendingRoute(planId); setLocalStops(canonicalStops); setLocalAuthority(null); closeEditor(); announce("Unsaved route changes discarded."); }} disabled={saving}>
-              Discard draft
+            <button type="button" className="planSummary__cancel" onClick={() => { clearPendingRoute(planId); setLocalStops(canonicalStops); setLocalAuthority(null); closeEditor(); announce(hasRouteChanged ? "Unsaved route changes discarded." : "Your saved route is unchanged."); }} disabled={saving}>
+              {hasRouteChanged ? "Discard changes" : "Close editor"}
             </button>
           </div>
         ) : <p className="planSummary__editorNote">Explain the change in Crew decisions. Only the host can make it the plan&apos;s route.</p>}
