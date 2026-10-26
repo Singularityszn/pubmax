@@ -9,6 +9,7 @@ import {
   contextDevEventSources,
   HARVEST_SKIP_REASONS,
   HARVEST_SOURCES,
+  hasRecordedHarvestPermission,
   harvestSource,
   harvestSourcesOfKind,
   isHarvestableChainMenuUrl,
@@ -110,6 +111,7 @@ describe("every source is a decision with evidence", () => {
     expect(harvestSourcesOfKind("open-data").map((source) => source.id).sort()).toEqual([
       "fsa-fhrs-api",
       "historic-england-nhle",
+      "osm-overpass-heritage-2218-identity",
       "wikidata-query-service",
     ]);
     for (const source of harvestSourcesOfKind("open-data")) {
@@ -135,6 +137,48 @@ describe("every source is a decision with evidence", () => {
     expect(() => openDataSourceUrl("nope", "/")).toThrow(/no open-data source/);
     // Only an open-data row hands out a URL, however permitted another row is.
     expect(() => openDataSourceUrl("wetherspoon-food-drink", "/")).toThrow(/no open-data source/);
+  });
+
+  it("permits only the four-object heritage identity query, without granting host permission", () => {
+    const id = "osm-overpass-heritage-2218-identity";
+    const query = "[out:json][timeout:10][maxsize:16777216];(node(213434643);way(1414645898);node(316951209);way(1499736517););out body geom;";
+    const source = defined(harvestSource(id));
+    const url = openDataSourceUrl(id, `?data=${encodeURIComponent(query)}`);
+    expect(source.access.allowed).toBe(true);
+    expect(source.access.checkedOn).toBe("2026-10-26");
+    expect(source.firstParty).toBe(false);
+    expect(url.href).toBe(source.url);
+    expect(url.origin).toBe("https://overpass-api.de");
+    expect(url.pathname).toBe("/api/interpreter");
+    expect(url.searchParams.get("data")).toBe(query);
+    expect(openDataSourceUrl(id, "").href).toBe(url.href);
+    expect(hasRecordedHarvestPermission("https://api.ratings.food.gov.uk/Establishments/1")).toBe(true);
+    expect(hasRecordedHarvestPermission(url.href)).toBe(false);
+    expect(hasRecordedHarvestPermission("https://overpass-api.de/api/interpreter?data=arbitrary")).toBe(false);
+    expect(hasRecordedHarvestPermission("https://api.openstreetmap.org/api/0.6/way/1414645898/full")).toBe(false);
+
+    for (const changed of [
+      query.replace("213434643", "1"),
+      query.replace("1414645898", "1"),
+      query.replace("316951209", "1"),
+      query.replace("1499736517", "1"),
+      query.replace("timeout:10", "timeout:180"),
+      query.replace("maxsize:16777216", "maxsize:536870912"),
+      query.replace("body geom", "meta geom"),
+      `${query}node(1);out;`,
+    ]) {
+      expect(() => openDataSourceUrl(id, `?data=${encodeURIComponent(changed)}`)).toThrow(/only its fixed identity query/);
+    }
+    for (const path of ["/api/status", "/api/interpreter", `${url.search}&data=extra`, `${url.search}#extra`]) {
+      expect(() => openDataSourceUrl(id, path)).toThrow(/only its fixed identity query/);
+    }
+    for (const path of [
+      "https://api.openstreetmap.org/api/0.6/way/1414645898/full",
+      "https://evil.example/api/interpreter",
+      `http://overpass-api.de/api/interpreter${url.search}`,
+    ]) {
+      expect(() => openDataSourceUrl(id, path)).toThrow(/is not/);
+    }
   });
 
   it("keeps Context.dev on FIRST-PARTY venue-events pages only", () => {

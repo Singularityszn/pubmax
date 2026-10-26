@@ -127,6 +127,10 @@ const DIRECTORY_CHECKED_ON = "2026-09-14";
 // read live and what was not.
 const OPEN_DATA_CHECKED_ON = "2026-10-17";
 
+const HERITAGE_IDENTITY_SOURCE_ID = "osm-overpass-heritage-2218-identity";
+const HERITAGE_IDENTITY_QUERY =
+  "[out:json][timeout:10][maxsize:16777216];(node(213434643);way(1414645898);node(316951209);way(1499736517););out body geom;";
+
 export const HARVEST_SOURCES: readonly HarvestSource[] = [
   // --- chain deals: first-party operator offers pages ----------------------
   {
@@ -418,6 +422,23 @@ export const HARVEST_SOURCES: readonly HarvestSource[] = [
 
   // --- open data: public APIs read by a builder into a committed pack ------
   {
+    id: HERITAGE_IDENTITY_SOURCE_ID,
+    label: "OpenStreetMap - issue 2218 identity evidence via Overpass",
+    url: `https://overpass-api.de/api/interpreter?data=${encodeURIComponent(HERITAGE_IDENTITY_QUERY)}`,
+    kind: "open-data",
+    firstParty: false,
+    nonFirstPartyException:
+      "One evidence query for The Swan node 213434643 and way 1414645898, and George and Dragon node 316951209 and way 1499736517. Take object ids, identity tags, node coordinates and way geometry. Exclude contributor metadata, prices, hours, operation claims, new venue promotion and all other objects. This permits no recurring ingestion or application backend use.",
+    access: {
+      allowed: true,
+      evidence:
+        "Read live on 26 Oct 2026: OpenStreetMap's copyright page (https://www.openstreetmap.org/copyright) licenses its data under ODbL, with attribution to OpenStreetMap contributors and share-alike requirements. The operator's Commons guidance (https://dev.overpass-api.de/overpass-doc/en/preface/commons.html) supports modest manual queries, discourages bulk requests and production application backend reliance, and documents explicit timeout and maxsize limits. The Overpass API documentation (https://wiki.openstreetmap.org/wiki/Overpass_API) identifies this interpreter endpoint. OSMF's API policy (https://operations.osmfoundation.org/policies/api/) reserves its core editing API for editing, so this permission excludes api.openstreetmap.org. NOT read live: the four objects or their geometry.",
+      checkedOn: "2026-10-26",
+    },
+    notes:
+      "One fixed GET only, after separate execution admission. The registered query has a 10-second server timeout and 16 MiB server memory limit. The reader must use openDataSourceUrl, redirect: error, a 15-second client deadline and a 1 MiB response limit. No retries, parallel requests or mirror fallback. Stop on a failed response, an Overpass error or missing objects. Record the source snapshot and read time. Keep the attribution: © OpenStreetMap contributors, ODbL 1.0, https://www.openstreetmap.org/copyright. The query uses out body geom, never out meta. Geometry and identity decisions remain unproved.",
+  },
+  {
     id: "fsa-fhrs-api",
     label: "Food Standards Agency - Food Hygiene Rating Scheme API",
     url: "https://api.ratings.food.gov.uk/",
@@ -498,6 +519,7 @@ export function allowedHarvestSources(kind: HarvestSourceKind): HarvestSource[] 
  * path that would resolve anywhere else (`//other.host/`, another scheme) is
  * refused before it is asked. Builders pair this with `redirect: "error"`, so
  * the host they land on is the host this returned.
+ * The one-off heritage source permits only its complete registered query URL.
  */
 export function openDataSourceUrl(id: string, pathAndQuery: string): URL {
   const source = harvestSource(id);
@@ -511,6 +533,9 @@ export function openDataSourceUrl(id: string, pathAndQuery: string): URL {
   const url = new URL(pathAndQuery, base);
   if (url.protocol !== "https:" || url.host !== base.host) {
     throw new Error(`sourcePolicy: ${url.href} is not ${source.id}'s ${base.origin}`);
+  }
+  if (source.id === HERITAGE_IDENTITY_SOURCE_ID && url.href !== base.href) {
+    throw new Error(`sourcePolicy: ${source.id} permits only its fixed identity query`);
   }
   return url;
 }
@@ -908,7 +933,10 @@ export function isHarvestableOperatorUrl(value: unknown): value is string {
  * inheriting a permission the table never granted them.
  */
 const PERMITTED_SOURCE_HOSTS: ReadonlySet<string> = new Set(
-  HARVEST_SOURCES.filter(isHarvestSourceAllowed).flatMap((source) => {
+  // A fixed evidence query grants no permission to other readers of its host.
+  HARVEST_SOURCES.filter((source) =>
+    isHarvestSourceAllowed(source) && source.id !== HERITAGE_IDENTITY_SOURCE_ID,
+  ).flatMap((source) => {
     try {
       const host = normalizeHarvestHostname(new URL(source.url).hostname)?.replace(/^www\./, "");
       return host ? [host] : [];
