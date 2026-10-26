@@ -11,9 +11,30 @@ async function setTheme(page: Page, theme: "light" | "dark"): Promise<void> {
   }, theme);
 }
 
+// DESIGN_SYSTEM.md caps policy (design judgement 2026-08-01, finding 2.12):
+// labels are sentence case at about 0.01em. Wide tracking existed only to make
+// caps legible, so a label that drops its caps and keeps 0.13em is still the
+// retired look. The floor is that contract's own figure, not a copied style.
+const RETIRED_TRACKING_EM = 0.02;
+
 async function expectSentenceCase(locator: Locator): Promise<void> {
   await expect(locator).toBeVisible();
   await expect(locator).toHaveCSS("text-transform", "none");
+  const { letterSpacing, fontSize } = await locator.evaluate((element) => {
+    const styles = getComputedStyle(element);
+    return { letterSpacing: styles.letterSpacing, fontSize: styles.fontSize };
+  });
+  // Computed letter-spacing is "normal" or a pixel length.
+  const spacing = letterSpacing === "normal"
+    ? 0
+    : letterSpacing.endsWith("px") ? Number.parseFloat(letterSpacing) : Number.NaN;
+  const size = Number.parseFloat(fontSize);
+  expect(Number.isFinite(spacing), `letter-spacing ${letterSpacing}`).toBe(true);
+  expect(size, `font-size ${fontSize}`).toBeGreaterThan(0);
+  // Rounded to a thousandth of an em, so a declared 0.02em fails rather than
+  // slipping under the floor on float noise.
+  const tracking = Math.round((spacing / size) * 1000) / 1000;
+  expect(tracking, `letter-spacing ${letterSpacing} at ${fontSize}`).toBeLessThan(RETIRED_TRACKING_EM);
 }
 
 function futureListingStart(): string {
@@ -194,6 +215,34 @@ test.describe("desktop taste wave 1", () => {
       expect(new Set(actionStyles.map(({ label }) => label)).size).toBe(7);
       await expectSentenceCase(page.locator(".nightAreaCoverage__eyebrow").first());
       await expectSentenceCase(page.getByRole("heading", { name: "Where you can plan a crawl tonight", exact: true }));
+    });
+
+    // The launch kickers and the Pal's first setup eyebrow are the public,
+    // signed-out places the caps policy paints. Reduced motion keeps the Pal
+    // portrait still. Nothing is confirmed, created or sent.
+    test(`launch kickers and the Pal age check stay sentence case in ${theme} mode`, async ({ page }) => {
+      await setTheme(page, theme);
+      await page.emulateMedia({ reducedMotion: "reduce" });
+      await page.setViewportSize({ width: 1440, height: 900 });
+
+      await page.goto("/plan");
+      await expectSentenceCase(page.locator("main .kicker").filter({ visible: true }).first());
+
+      await page.goto("/pal/chat");
+      await expectSentenceCase(page.locator("main .kicker").filter({ visible: true }).first());
+
+      await page.goto("/pal");
+      await expectSentenceCase(page.locator("main .kicker").filter({ visible: true }).first());
+      // The meeting paints on the server, so a tap before hydration does
+      // nothing: tap again until setup's first step is up.
+      const meet = page.getByRole("button", { name: "Meet your Pub Pal" });
+      const ageCheck = page.getByRole("heading", { level: 1, name: "Before you start" });
+      await expect(async () => {
+        if (await meet.isVisible()) await meet.click();
+        await expect(ageCheck).toBeVisible({ timeout: 1_000 });
+      }).toPass();
+      await expectSentenceCase(page.locator(".palEyebrow").filter({ hasText: /^Age check$/ }));
+      await expect(page.getByRole("checkbox", { name: /18 or over/ })).not.toBeChecked();
     });
   }
 });
