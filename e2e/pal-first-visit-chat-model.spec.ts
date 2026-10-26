@@ -77,7 +77,7 @@ test("a failed model keeps the original artwork and meeting action usable", asyn
   const meet = page.getByRole("button", { name: "Meet your Pub Pal", exact: true });
   await expect(async () => {
     await meet.click();
-    await expect(page.getByRole("heading", { name: "The grown-up bit first.", exact: true })).toBeVisible({ timeout: 1_000 });
+    await expect(page.getByRole("heading", { name: "Before you start", exact: true })).toBeVisible({ timeout: 1_000 });
   }).toPass();
 });
 

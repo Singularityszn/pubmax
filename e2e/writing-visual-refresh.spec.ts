@@ -135,6 +135,9 @@ for (const width of [320, 390]) {
         await page.setViewportSize({ width, height: 844 });
         await page.emulateMedia({ colorScheme: theme, reducedMotion: "reduce" });
         await page.addInitScript((value) => localStorage.setItem("pubmax-theme", value), theme);
+        // The Tonight label follows the clock. Start from a fixed London evening
+        // (20:30 BST, 19:30 under GMT) before the app first reads the time.
+        await page.clock.install({ time: new Date("2026-10-16T19:30:00.000Z") });
         await page.goto("/about");
         const dock = page.getByRole("navigation", { name: "Primary", exact: true });
         await expect(dock).toBeVisible();
