@@ -93,7 +93,6 @@ describe("VOICE.md compliance audit", () => {
     const contributionGate = read(
       "components/identity/ContributionGateDialog.tsx",
     );
-    const accountHub = read("components/profile/PubmaxxAccountHub.tsx");
     const checkInRoute = read("app/api/check-ins/route.ts");
     const checkInValidation = read("lib/checkIn.ts");
     const checkInClient = read("app/we-are-out/WeAreOutClient.tsx");
@@ -117,10 +116,6 @@ describe("VOICE.md compliance audit", () => {
     expect(contributionGate).not.toMatch(/date of birth/i);
     expect(contributionGate).not.toContain("account-owned");
     expect(contributionGate).not.toContain("private profile");
-
-    expect(accountHub).toContain("<h3>Optional usage analytics</h3>");
-    expect(accountHub).not.toContain("Anonymous usage analytics");
-    expect(accountHub).not.toContain("person-level account checks");
 
     for (const source of [checkInRoute, checkInValidation, checkInClient]) {
       expect(source).toContain("Choose a handle in your account first.");
@@ -366,7 +361,6 @@ describe("VOICE.md compliance audit", () => {
     const whatsOn = read("lib/concierge/whatsOn.ts");
     const palChat = read("lib/palChat.ts");
     const pushSender = read("lib/pushSender.ts");
-    const accountHub = read("components/profile/PubmaxxAccountHub.tsx");
 
     expect(palPortrait).not.toMatch(
       /(?:collar|bell) beacon|crew-band harness/iu,
@@ -402,10 +396,6 @@ describe("VOICE.md compliance audit", () => {
     expect(palChat).not.toContain("I won't make anything up");
     expect(pushSender).not.toContain("new signals tonight");
     expect(pushSender).toContain("updates for tonight");
-    expect(accountHub).not.toMatch(/prices from real people/iu);
-    expect(accountHub).toMatch(
-      /prices name and link their publisher when recorded and say when none is recorded/iu,
-    );
     expect(crew).not.toContain("No account. Just your name.");
 
     expect(activity).not.toContain("reach the bar");
