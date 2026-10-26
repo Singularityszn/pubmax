@@ -52,7 +52,7 @@ function json(body: unknown, status = 200): Response {
 }
 
 function button(host: HTMLElement, label: string): HTMLButtonElement {
-  const match = [...host.querySelectorAll("button")].find(
+  const match = [...host.ownerDocument.body.querySelectorAll("button")].find(
     (candidate) => candidate.textContent === label,
   );
   if (!(match instanceof HTMLButtonElement)) {
@@ -118,7 +118,7 @@ describe("Social composer latest-post reload", () => {
         await Promise.resolve();
         await Promise.resolve();
       });
-      expect(host.textContent).toContain("Post changed. Your draft is still here.");
+      expect(host.ownerDocument.body.textContent).toContain("Post changed. Your draft is still here.");
 
       await act(async () => {
         button(host, "Load latest").click();
@@ -130,7 +130,7 @@ describe("Social composer latest-post reload", () => {
         button(host, "Load latest").click();
         await new Promise((resolve) => setTimeout(resolve, 0));
       });
-      expect(host.textContent).toContain("Latest post could not be loaded.");
+      expect(host.ownerDocument.body.textContent).toContain("Latest post could not be loaded.");
     } finally {
       process.off("unhandledRejection", onUnhandled);
     }
@@ -161,8 +161,8 @@ describe("Social composer latest-post reload", () => {
       await Promise.resolve();
     });
 
-    expect(host.textContent).not.toContain("The operation was aborted.");
-    expect(host.querySelector('[role="alert"]')).toBeNull();
+    expect(host.ownerDocument.body.textContent).not.toContain("The operation was aborted.");
+    expect(host.ownerDocument.body.querySelector('[role="alert"]')).toBeNull();
 
     await act(async () => {
       button(host, "Save").click();
@@ -170,7 +170,7 @@ describe("Social composer latest-post reload", () => {
       await Promise.resolve();
     });
 
-    expect(host.textContent).toContain("network failed");
-    expect(host.querySelector('[role="alert"]')).not.toBeNull();
+    expect(host.ownerDocument.body.textContent).toContain("network failed");
+    expect(host.ownerDocument.body.querySelector('[role="alert"]')).not.toBeNull();
   });
 });

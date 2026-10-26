@@ -30,7 +30,7 @@ import SocialComposer from "@/app/social/SocialComposer";
 const DRAFT_KEY = "pubmaxx:social-composer:v1:account-a:new";
 
 function button(host: HTMLElement, label: string): HTMLButtonElement {
-  const match = [...host.querySelectorAll("button")].find(
+  const match = [...host.ownerDocument.body.querySelectorAll("button")].find(
     (candidate) => candidate.textContent === label,
   );
   if (!(match instanceof HTMLButtonElement)) {
@@ -40,7 +40,7 @@ function button(host: HTMLElement, label: string): HTMLButtonElement {
 }
 
 function setBody(host: HTMLElement, value: string): void {
-  const field = host.querySelector("textarea");
+  const field = host.ownerDocument.body.querySelector("textarea");
   if (!(field instanceof HTMLTextAreaElement)) throw new Error("Post body not found");
   const setter = Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, "value")?.set;
   setter?.call(field, value);
@@ -123,7 +123,7 @@ describe("Social composer Clear draft", () => {
       await Promise.resolve();
       await Promise.resolve();
     });
-    expect(host.querySelector("textarea")?.value).toBe("");
+    expect(host.ownerDocument.body.querySelector("textarea")?.value).toBe("");
     // A reload now, before the cleared draft's own write, finds nothing to restore.
     expect(localStorage.getItem(DRAFT_KEY)).toBeNull();
   });

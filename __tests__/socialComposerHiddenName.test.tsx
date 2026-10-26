@@ -57,7 +57,7 @@ function json(body: unknown, status = 200): Response {
 }
 
 function button(host: HTMLElement, label: string): HTMLButtonElement {
-  const match = [...host.querySelectorAll("button")].find(
+  const match = [...host.ownerDocument.body.querySelectorAll("button")].find(
     (candidate) => candidate.textContent === label,
   );
   if (!(match instanceof HTMLButtonElement)) {
@@ -67,7 +67,7 @@ function button(host: HTMLElement, label: string): HTMLButtonElement {
 }
 
 function setBody(host: HTMLElement, value: string): void {
-  const field = host.querySelector("textarea");
+  const field = host.ownerDocument.body.querySelector("textarea");
   if (!(field instanceof HTMLTextAreaElement)) throw new Error("Post body not found");
   const setter = Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, "value")?.set;
   setter?.call(field, value);
@@ -113,7 +113,7 @@ afterEach(() => {
 });
 
 function hiddenNameSwitch(): HTMLInputElement {
-  const label = [...host.querySelectorAll("label")].find((candidate) =>
+  const label = [...host.ownerDocument.body.querySelectorAll("label")].find((candidate) =>
     (candidate.textContent ?? "").includes(HIDDEN_NAME_TOGGLE_LABEL));
   const input = label?.querySelector("input");
   if (!(input instanceof HTMLInputElement)) throw new Error("Hidden-name switch not found");
@@ -121,7 +121,7 @@ function hiddenNameSwitch(): HTMLInputElement {
 }
 
 function labels(): string[] {
-  return [...host.querySelectorAll("label")].map((label) => label.textContent ?? "");
+  return [...host.ownerDocument.body.querySelectorAll("label")].map((label) => label.textContent ?? "");
 }
 
 describe("Social composer hidden-name switch", () => {
@@ -140,7 +140,7 @@ describe("Social composer hidden-name switch", () => {
     });
     expect(hiddenNameSwitch().checked).toBe(true);
     expect(labels().some((text) => text.startsWith("Venue"))).toBe(false);
-    const visibility = [...host.querySelectorAll("select")].find((select) =>
+    const visibility = [...host.ownerDocument.body.querySelectorAll("select")].find((select) =>
       select.closest("label")?.textContent?.startsWith("Visibility"));
     expect(visibility?.value).toBe("public");
     expect(visibility?.disabled).toBe(true);
@@ -183,7 +183,7 @@ describe("Social composer hidden-name switch", () => {
     await act(async () => {
       button(host, "Edit post").click();
     });
-    expect(host.textContent).toContain(HIDDEN_NAME_OWN_LINE);
+    expect(host.ownerDocument.body.textContent).toContain(HIDDEN_NAME_OWN_LINE);
     expect(labels().some((text) => text.includes(HIDDEN_NAME_TOGGLE_LABEL))).toBe(false);
     expect(labels().some((text) => text.startsWith("Venue"))).toBe(false);
   });

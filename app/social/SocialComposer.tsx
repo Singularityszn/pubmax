@@ -1,6 +1,7 @@
 "use client";
 
 import { type ReactNode, type RefObject, useEffect, useId, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 
 import { nightAreasByCity } from "@/lib/nightAreas";
 import { getCity } from "@/lib/cities";
@@ -14,6 +15,7 @@ import {
 } from "@/lib/socialHiddenName";
 import type { SocialPostDTO } from "@/lib/socialPosts";
 import { useDismissOnEscape } from "@/lib/useDismissOnEscape";
+import { useFocusTrap } from "@/lib/useFocusTrap";
 import { SOCIAL_REVIEW_MAX, SOCIAL_REVIEW_MIN, SOCIAL_REVIEW_STEP } from "@/lib/socialPostReviews";
 import {
   formatSocialVideoDuration,
@@ -572,7 +574,6 @@ export default function SocialComposer({
 
   function closeComposer() {
     setOpen(false);
-    window.requestAnimationFrame(() => triggerRef.current?.focus());
   }
 
   function openComposer() {
@@ -618,7 +619,8 @@ export default function SocialComposer({
     setVenueAnnouncement(`${venue.name} selected.`);
   }
 
-  useDismissOnEscape(open, closeComposer);
+  useDismissOnEscape(open, closeComposer, dialogRef);
+  useFocusTrap(open, dialogRef, "strict-modal", triggerRef);
 
   useEffect(() => {
     let active = true;
@@ -700,7 +702,14 @@ export default function SocialComposer({
   }
 
   useEffect(() => {
-    if (open) bodyRef.current?.focus();
+    if (!open) return;
+    const root = document.documentElement;
+    const previousOverflow = root.style.overflow;
+    root.style.overflow = "hidden";
+    bodyRef.current?.focus();
+    return () => {
+      root.style.overflow = previousOverflow;
+    };
   }, [open]);
 
   useEffect(() => {
@@ -710,31 +719,6 @@ export default function SocialComposer({
       feedbackRef.current?.scrollIntoView({ block: "nearest" });
     });
   }, [feedback, feedbackIsStatus]);
-
-  useEffect(() => {
-    const dialog = dialogRef.current;
-    if (!open || !dialog) return;
-    const keepFocusInside = (event: KeyboardEvent) => {
-      if (event.key !== "Tab") return;
-      const controls = Array.from(
-        dialog.querySelectorAll<HTMLElement>(
-          'button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [href], [tabindex]:not([tabindex="-1"])',
-        ),
-      ).filter((control) => !control.hasAttribute("hidden"));
-      const first = controls[0];
-      const last = controls.at(-1);
-      if (!first || !last) return;
-      if (event.shiftKey && document.activeElement === first) {
-        event.preventDefault();
-        last.focus();
-      } else if (!event.shiftKey && document.activeElement === last) {
-        event.preventDefault();
-        first.focus();
-      }
-    };
-    dialog.addEventListener("keydown", keepFocusInside);
-    return () => dialog.removeEventListener("keydown", keepFocusInside);
-  }, [open]);
 
   useEffect(() => {
     if (!open || typeof BroadcastChannel === "undefined") return;
@@ -944,7 +928,7 @@ export default function SocialComposer({
       >
         {triggerLabel ?? (editing ? "Edit post" : "New post")}
       </button>
-      {open ? (
+      {open ? createPortal(
         <div
           className="socialComposerBackdrop"
           role="presentation"
@@ -1080,7 +1064,8 @@ export default function SocialComposer({
               </p>
             ) : null}
           </section>
-        </div>
+        </div>,
+        document.body,
       ) : null}
     </>
   );
