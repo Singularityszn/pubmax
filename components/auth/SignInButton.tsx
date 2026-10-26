@@ -22,6 +22,7 @@ import { useCallback, useEffect, useId, useRef, useState, useSyncExternalStore }
 import { LogIn } from "lucide-react";
 
 import { useAuth, type SignOutScope } from "@/components/auth/authContext";
+import HandleAvatar from "@/components/profile/HandleAvatar";
 import AccountMenu from "@/components/auth/AccountMenu";
 import ClerkAccountSlot from "@/components/auth/ClerkAccountSlot";
 import MagicLinkForm from "@/components/auth/MagicLinkForm";
@@ -100,10 +101,6 @@ function accountIdentity(
     (typeof metadata.full_name === "string" && metadata.full_name)
     || (typeof metadata.name === "string" && metadata.name)
     || "";
-  const providerAvatar =
-    (typeof metadata.avatar_url === "string" && metadata.avatar_url)
-    || (typeof metadata.picture === "string" && metadata.picture)
-    || "";
   return {
     navName:
       card?.displayName
@@ -112,7 +109,7 @@ function accountIdentity(
       || email
       || "Signed in",
     cardName: card?.displayName || providerName || (handle ? handleOnly(handle) : "Your account"),
-    avatar: card?.avatarUrl || providerAvatar,
+    avatar: card?.avatarUrl ?? "",
   };
 }
 
@@ -361,13 +358,17 @@ export default function SignInButton({
       accountHandle,
       card,
     );
-    const avatarControl = avatar ? (
-      // eslint-disable-next-line @next/next/no-img-element -- remote IdP avatar; no next/image loader configured for it
-      <img className="authAvatar" src={avatar} alt="" width={28} height={28} />
-    ) : (
-      <span className="authAvatarFallback" aria-hidden="true">
-        {authAvatarInitials(name)}
-      </span>
+    const avatarControl = (
+      <HandleAvatar
+        key={`${user.id}:${accountHandle ?? ""}`}
+        handle={accountHandle ?? ""}
+        avatarUrl={avatar}
+        displayName={name}
+        initials={authAvatarInitials(name)}
+        className="authAvatarFallback"
+        imageClassName="authAvatar"
+        size={28}
+      />
     );
 
     if (compact) {

@@ -177,8 +177,17 @@ export default function ProfileHeader({
           half. An unfilled slot keeps the brass treatment, so an initials-era
           profile still reads as a card rather than a gap. */}
       <div className="profileCover" aria-hidden="true">
-        <ProfileCoverCarousel covers={covers} />
-        <span className="profileCoverFalloff" />
+        {showCover ? (
+          <>
+            <ProfileCoverCarousel key={handle} covers={covers} />
+            <span className="profileCoverFalloff" />
+          </>
+        ) : (
+          <div className="profileCoverDefault">
+            <span className="profileCoverWordmark">PUBMAXX</span>
+            <span className="profileCoverMotto">Good pubs.<br />Better company.</span>
+          </div>
+        )}
       </div>
 
       {/* The hero: the face over the band's edge, the name beside it, and the
@@ -186,6 +195,7 @@ export default function ProfileHeader({
       <div className="profileHeroBody">
         <div className="profileIdentity">
           <HandleAvatar
+            key={handle}
             handle={handle}
             displayName={displayName}
             avatarUrl={avatarUrl}
