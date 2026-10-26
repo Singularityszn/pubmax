@@ -156,7 +156,6 @@ describe("VOICE.md compliance audit", () => {
   });
 
   it("keeps journeys, empty states, and locality copy plain and supportable", () => {
-    const plan = read("components/plan/PlanComposer.tsx");
     const planPage = read("app/plan/page.tsx");
     const feed = read("app/feed/FeedPageClient.tsx");
     const feedCard = read("components/feed/FeedCard.tsx");
@@ -169,11 +168,6 @@ describe("VOICE.md compliance audit", () => {
     const memories = read("components/profile/NightMemoryStudio.tsx");
     const planTemplates = read("lib/planTemplates.ts");
 
-    for (const source of [plan, planPage]) {
-      expect(source).not.toMatch(
-        /capture state|captured coverage|evidence capture|evidence gate|evidence gaps|snapshot/iu,
-      );
-    }
     expect(planPage).not.toContain("group-chat archaeology");
     expect(planPage).not.toContain("actually make sense");
 
@@ -409,9 +403,6 @@ describe("VOICE.md compliance audit", () => {
     expect(pintDropsStore).not.toContain("Please try a different image");
     expect(whatsOn).not.toContain("No verified");
     expect(whatsOn).not.toMatch(/Found .* verified /u);
-    expect(plan).not.toContain(
-      "Night Context could not be saved. Please try again.",
-    );
   });
 });
 

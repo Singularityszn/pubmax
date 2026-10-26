@@ -46,6 +46,7 @@ import { resolveFutureLondonStartIso } from "@/lib/planIntake";
 import { readPlanningIntent, writePlanningIntent } from "@/lib/planningIntent";
 import { parsePlanGenerationRequest } from "@/lib/planGenerationRequest";
 import { inferNightContext } from "@/lib/nightPlanning";
+import type { PlanState } from "@/lib/plan";
 
 const GENERATED = {
   routeRevision: 1,
@@ -134,6 +135,41 @@ describe("the Plan result", () => {
 
     expect(document.querySelector("#plan-composer #plan-venue-options")).not.toBeNull();
     expect(venueIndexReads()).toBe(1);
+  });
+
+  // What a reader can read at the two moments the composer is read at: the
+  // question it opens on, and the route it answers with. The words are the
+  // ones on screen, never the names the code gives its own stages.
+  it("opens on the description and answers with the route's own pubs, in reader words", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2026-10-07T12:00:00Z"));
+    onTestFinished(() => { vi.useRealTimers(); });
+    const plumbing = /capture state|captured coverage|evidence capture|evidence gate|evidence gaps|snapshot/iu;
+    await mountComposer();
+
+    const composer = document.querySelector<HTMLFormElement>("#plan-composer")!;
+    const field = composer.querySelector<HTMLInputElement>("#plan-describe-first-query");
+    expect(field).not.toBeNull();
+    expect(field!.disabled).toBe(false);
+    expect(composer.querySelector("h1, h2")?.textContent?.trim()).toBeTruthy();
+    expect([...composer.querySelectorAll("button")].find((button) => button.textContent?.trim() === "Plan it")).toBeDefined();
+    expect(composer.querySelector("#plan-result-title")).toBeNull();
+    expect(composer.querySelector(".planStop")).toBeNull();
+    expect([...composer.querySelectorAll("button")].some((button) => button.textContent === "Lock it in")).toBe(false);
+    expect(composer.textContent).not.toMatch(plumbing);
+
+    await sortIt("Quiet in Clapham for 4");
+
+    expect(document.querySelector("#plan-result-title")?.textContent).toBe("Tonight in Clapham");
+    expect(document.querySelector("#plan-route-status")?.textContent)
+      .toBe("Route refreshed. Review the preview, then lock it in when it feels right.");
+    expect(document.querySelector(".planComposer__previewLabel")?.textContent).toBe("Preview · revision 1");
+    expect([...document.querySelectorAll(".planStop__name")].map((node) => node.textContent)).toEqual(["Pub A", "Pub B"]);
+    expect(document.querySelector(".planComposer__submit")?.textContent).toBe("Lock it in");
+    const read = [".planResult", ".planComposer__stops", ".planComposer__lock"]
+      .map((selector) => document.querySelector(selector)?.textContent ?? "");
+    expect(read.every(Boolean)).toBe(true);
+    for (const text of read) expect(text).not.toMatch(plumbing);
   });
 
   it("keeps the area the route was sorted for when the night's area is changed", async () => {
@@ -945,5 +981,94 @@ describe("choosing another area after an unsupported request", () => {
     expect(laterAgain.disabled).toBe(true);
     expect(document.querySelector("#plan-concierge-status")?.textContent).toContain("Hackney is saved.");
     expect(fetchMock.mock.calls.filter(([input]) => String(input).includes("/api/plans/generate"))).toHaveLength(2);
+  });
+});
+
+// The create went through and the details save did not, so the reader is told
+// exactly that: the route exists, and its details are what still need a tap.
+describe("a locked route whose details do not save", () => {
+  const PLAN_ID = "00000000-0000-4000-8000-000000000001";
+  const MEMBER_TOKEN = "00000000-0000-4000-8000-000000000002";
+  const OPERATION_KEY = "create-00000000-0000-4000-8000-000000000003";
+  const DETAILS_NOT_SAVED = "The route was created, but its details could not be saved. Try again.";
+
+  it("sends the night with the host's pass to the details save, and says the route was made when it fails", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2026-10-07T12:00:00Z"));
+    onTestFinished(() => { vi.useRealTimers(); });
+    const creates: Array<{ startTime?: unknown; stops?: unknown; context?: unknown }> = [];
+    const createKeys: Array<string | null> = [];
+    const patches: Array<RequestInit | undefined> = [];
+    fetchMock.mockImplementation(async (input, init) => {
+      const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
+      if (url.includes("/api/plans/generate")) {
+        const request = JSON.parse(String(init?.body)) as { query: string };
+        return Response.json({ ...GENERATED, operationKey: OPERATION_KEY, inferredContext: inferNightContext(request.query).context });
+      }
+      if (url === "/api/plans" && init?.method === "POST") {
+        const request = JSON.parse(String(init?.body)) as {
+          title: string;
+          startTime: string;
+          stops: Array<{ venueId: string; venueName: string }>;
+          context?: unknown;
+        };
+        creates.push(request);
+        createKeys.push(new Headers(init?.headers).get("idempotency-key"));
+        const plan: PlanState = {
+          plan: { id: PLAN_ID, title: request.title, startTime: request.startTime, createdAt: new Date().toISOString(), routeRevision: 1, status: "draft" },
+          stops: request.stops.map(({ venueId, venueName }, position) => ({ venueId, venueName, position })),
+          crew: [],
+          // The store's context-free create: the night is not on the record yet.
+          context: null,
+        };
+        return Response.json({ plan, memberToken: MEMBER_TOKEN, created: true, grounded: true }, { status: 201 });
+      }
+      if (url === `/api/plans/${PLAN_ID}` && init?.method === "PATCH") {
+        patches.push(init);
+        return Response.json({ error: { message: "Service unavailable." } }, { status: 503 });
+      }
+      return Response.json([]);
+    });
+    await mountComposer();
+    await sortIt("Quiet in Clapham for 4 across 2 pubs");
+    expect([...document.querySelectorAll(".planStop__name")].map((node) => node.textContent)).toEqual(["Pub A", "Pub B"]);
+
+    const name = document.querySelector<HTMLInputElement>("#plan-name")!;
+    await act(async () => {
+      Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")!.set!.call(name, "Sam");
+      name.dispatchEvent(new Event("input", { bubbles: true }));
+    });
+    await settle();
+    const startIso = resolveFutureLondonStartIso(document.querySelector<HTMLInputElement>("#plan-time")!.value, null, new Date());
+    expect(startIso).not.toBeNull();
+
+    // Nothing is missing, so the tap is a lock, not an explanation.
+    const lock = document.querySelector<HTMLButtonElement>(".planComposer__submit")!;
+    expect(lock.textContent).toBe("Lock it in");
+    expect(lock.getAttribute("aria-disabled")).toBeNull();
+    expect(document.querySelector("#plan-lock-hint")).toBeNull();
+    expect(document.querySelector("#plan-composer [role='alert']")).toBeNull();
+
+    await act(async () => { lock.click(); });
+    await vi.waitFor(() => {
+      if (!document.querySelector("#plan-composer [role='alert']")) throw new Error("the lock has not answered");
+    }, { timeout: 4000 });
+    await settle();
+
+    expect(creates).toHaveLength(1);
+    expect(createKeys).toEqual([OPERATION_KEY]);
+    expect(creates[0]).toMatchObject({
+      startTime: startIso,
+      stops: [{ venueId: "venue-a", venueName: "Pub A" }, { venueId: "venue-b", venueName: "Pub B" }],
+      context: { nightArea: "clapham", stopCount: 2 },
+    });
+    expect(patches).toHaveLength(1);
+    expect(new Headers(patches[0]?.headers).get("authorization")).toBe(`Bearer ${MEMBER_TOKEN}`);
+    expect(JSON.parse(String(patches[0]?.body))).toEqual({ status: "ready", context: creates[0]!.context });
+
+    expect([...document.querySelectorAll("#plan-composer [role='alert']")].map((node) => node.textContent)).toEqual([DETAILS_NOT_SAVED]);
+    expect(document.body.textContent).not.toContain("Night Context could not be saved");
+    expect(lock.textContent).toBe("Lock it in");
+    expect([...document.querySelectorAll(".planStop__name")].map((node) => node.textContent)).toEqual(["Pub A", "Pub B"]);
   });
 });
