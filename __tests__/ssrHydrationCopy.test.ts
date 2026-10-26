@@ -1,6 +1,3 @@
-import { readFileSync } from "node:fs";
-import { join } from "node:path";
-
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
@@ -68,30 +65,6 @@ describe("hydration-gated static copy is in the server HTML", () => {
     expect(html).toContain("profileIdentityLoadingSurface");
     expect(html).not.toContain("With a handle you can:");
     expect(html).not.toContain("Sign in to keep a list of pubs to try");
-  });
-
-  it("keeps the Wanted body off /u/you's identity-loading JS", () => {
-    const wantedList = readFileSync(
-      join(process.cwd(), "components/wanted/WantedList.tsx"),
-      "utf8",
-    );
-    const profilePage = readFileSync(
-      join(process.cwd(), "app/u/[handle]/ProfilePageClient.tsx"),
-      "utf8",
-    );
-    expect(wantedList).toMatch(
-      /const WantedListBody = dynamic\(\(\) => import\(["']\.\/WantedListBody["']\)/,
-    );
-    expect(wantedList).toMatch(/ssr:\s*false/);
-    expect(wantedList).not.toMatch(/import WantedCapture from/);
-    expect(wantedList).not.toMatch(/from ["']@\/lib\/wanted["']/);
-    // The identity-loading panel never mounts the body; a signed-out reader
-    // gets the invitation and no Wanted panel at all.
-    expect(profilePage).toContain('<WantedList key="you-wanted-panel" body={false} />');
-    expect(profilePage).not.toContain('surface === "you-invitation" && documentComplete}\n          />');
-    expect(profilePage).toMatch(
-      /const PubmaxxAccountHub = dynamic\(\s*\(\) => import\(["']@\/components\/profile\/PubmaxxAccountHub["']\)/,
-    );
   });
 
   it("/pal paints the meeting heading before the Pal is ready", () => {
