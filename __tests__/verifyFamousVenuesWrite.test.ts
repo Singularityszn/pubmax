@@ -277,6 +277,12 @@ describe("verify:famous-venues daily batch", () => {
   });
 });
 
+const firstTaskDir = (stateRoot: string) => {
+  const [task] = readdirSync(stateRoot);
+  if (task === undefined) throw new Error(`No verifier task directory under ${stateRoot}`);
+  return path.join(stateRoot, task);
+};
+
 describe("famous verifier source 429 quarantine", () => {
   let root: string;
   let stateRoot: string;
@@ -310,7 +316,7 @@ describe("famous verifier source 429 quarantine", () => {
   const quarantine = (hash: string) => args("--quarantine-source-429", hash);
   const sha256 = (bytes: Buffer | string) => createHash("sha256").update(bytes).digest("hex");
   const json = (file: string) => JSON.parse(readFileSync(file, "utf8"));
-  const taskDir = () => path.join(stateRoot, readdirSync(stateRoot)[0]);
+  const taskDir = () => firstTaskDir(stateRoot);
   const checkpointFile = () => path.join(taskDir(), "checkpoint.json");
   const files = (dir: string) => readdirSync(dir).sort().map((name) => [name, readFileSync(path.join(dir, name))] as const);
   const snapshots = () => files(path.join(taskDir(), "snapshots"));
@@ -596,7 +602,7 @@ describe("famous verifier targeted durable continuation", () => {
     expect(existsSync(stateRoot)).toBe(false);
     const fetchImpl = network();
     await expect(run(fetchImpl, following)).resolves.toMatchObject({ rowsChecked: following.length ? 1 : 3 });
-    const task = path.join(stateRoot, readdirSync(stateRoot)[0]);
+    const task = firstTaskDir(stateRoot);
     expect(existsSync(path.join(task, "checkpoint.json"))).toBe(true);
     expect(readFileSync(artifact, "utf8")).toBe(committed);
     expect(packs()).toEqual(venues);
@@ -605,7 +611,7 @@ describe("famous verifier targeted durable continuation", () => {
   it("publishes the daily report on the same receipt without another request", async () => {
     await expect(run(network(), [])).resolves.toMatchObject({ rowsChecked: 3, placesCalls: 3 });
     expect(packs()).toEqual(venues);
-    const task = path.join(stateRoot, readdirSync(stateRoot)[0]);
+    const task = firstTaskDir(stateRoot);
     const checkpointPath = path.join(task, "checkpoint.json");
     const reported = json(checkpointPath);
     const quiet = vi.fn(async () => { throw new Error("Daily publication must not send a request"); });
@@ -624,7 +630,7 @@ describe("famous verifier targeted durable continuation", () => {
     await expect(run(fetchImpl, reportArgs)).resolves.toMatchObject({ rowsChecked: 2, placesCalls: 100 });
     expect(packs()).toEqual(venues);
     expect(existsSync(path.join(famous, "verification_2026-10-21.json"))).toBe(false);
-    const task = path.join(stateRoot, readdirSync(stateRoot)[0]);
+    const task = firstTaskDir(stateRoot);
     const checkpointPath = path.join(task, "checkpoint.json");
     const reported = json(checkpointPath);
     expect(reported.records.every((record: { applied?: boolean }) => !record.applied)).toBe(true);
@@ -648,7 +654,7 @@ describe("famous verifier targeted durable continuation", () => {
   it("refuses a report-to-write transition for an older mode-bound checkpoint", async () => {
     const reportArgs = args("a").filter((arg) => arg !== "--write");
     await run(network(), reportArgs);
-    const task = path.join(stateRoot, readdirSync(stateRoot)[0]);
+    const task = firstTaskDir(stateRoot);
     const checkpointPath = path.join(task, "checkpoint.json");
     const legacy = json(checkpointPath);
     legacy.version = 1;
@@ -687,7 +693,7 @@ describe("famous verifier targeted durable continuation", () => {
     await expect(run(fetchImpl)).rejects.toThrow(/budget/);
     expect(fetchImpl.mock.calls.filter(([url]) => String(url).includes("places.googleapis.com"))).toHaveLength(1);
     expect(packs().map((venue: Row) => venue.observedAt)).toEqual(["2026-10-21", "2026-08-25", "2026-08-25"]);
-    const task = path.join(stateRoot, readdirSync(stateRoot)[0]);
+    const task = firstTaskDir(stateRoot);
     expect(json(path.join(task, "checkpoint.json")).placesCalls).toBe(40);
     const resumed = network();
     await expect(run(resumed)).rejects.toThrow(/halt|budget/);
@@ -708,7 +714,7 @@ describe("famous verifier targeted durable continuation", () => {
     await expect(run(fetchImpl, args("a"))).rejects.toThrow(/budget/);
     expect(fetchImpl.mock.calls.filter(([url]) => String(url).includes("places.googleapis.com"))).toHaveLength(0);
     expect(packs()).toEqual(venues);
-    const task = path.join(stateRoot, readdirSync(stateRoot)[0]);
+    const task = firstTaskDir(stateRoot);
     expect(json(path.join(task, "checkpoint.json")).placesCalls).toBe(100);
   });
 
@@ -717,7 +723,7 @@ describe("famous verifier targeted durable continuation", () => {
     const initial = network();
     await run(initial, args("a"));
     expect(initial.mock.calls.filter(([url]) => String(url).includes("places.googleapis.com"))).toHaveLength(1);
-    const task = path.join(stateRoot, readdirSync(stateRoot)[0]);
+    const task = firstTaskDir(stateRoot);
     const checkpointPath = path.join(task, "checkpoint.json");
     const checkpoint = json(checkpointPath);
     checkpoint.placesCalls = 2;
@@ -757,7 +763,7 @@ describe("famous verifier targeted durable continuation", () => {
     const resumed = network();
     await expect(run(resumed)).rejects.toThrow(/halt/);
     expect(resumed).not.toHaveBeenCalled();
-    const task = path.join(stateRoot, readdirSync(stateRoot)[0]);
+    const task = firstTaskDir(stateRoot);
     expect(json(path.join(task, "checkpoint.json")).placesCalls).toBe(100);
   });
 
@@ -779,7 +785,7 @@ describe("famous verifier targeted durable continuation", () => {
     expect(json(path.join(famous, "verification_2026-10-21.json")).checks[0].checkedAt).toBe("2026-10-21T12:00:00.000Z");
     expect(json(path.join(famous, "verification_2026-10-21.json")).summary.placesLiveApiCalls).toBe(1);
     expect(json(path.join(famous, "verification_2026-10-22.json")).summary.placesLiveApiCalls).toBe(1);
-    const task = path.join(stateRoot, readdirSync(stateRoot)[0]);
+    const task = firstTaskDir(stateRoot);
     expect(json(path.join(task, "checkpoint.json")).placesCalls).toBe(100);
   });
 
@@ -807,7 +813,7 @@ describe("famous verifier targeted durable continuation", () => {
     });
     await expect(run(network(), args("a"))).rejects.toThrow(/crash after response/);
     vi.mocked(renameSync).mockImplementation(actual.renameSync);
-    const task = path.join(stateRoot, readdirSync(stateRoot)[0]);
+    const task = firstTaskDir(stateRoot);
     expect(json(path.join(task, "checkpoint.json")).placesCalls).toBe(99);
     const resumed = network();
     await expect(run(resumed, args("a"))).rejects.toThrow(/EEXIST/);
@@ -823,7 +829,7 @@ describe("famous verifier targeted durable continuation", () => {
     const fetchImpl = vi.fn(async (url: string | URL | Request, init?: RequestInit) => String(url).includes("places.googleapis.com")
       ? new Response(new Uint8Array(1024 * 1024 + 1)) : base(url, init));
     await expect(run(fetchImpl, args("a"))).rejects.toThrow(/provider/);
-    const task = path.join(stateRoot, readdirSync(stateRoot)[0]);
+    const task = firstTaskDir(stateRoot);
     const checkpoint = json(path.join(task, "checkpoint.json"));
     expect(checkpoint.placesCalls).toBe(99);
     expect(checkpoint.halt).toMatch(/provider/);
@@ -832,7 +838,7 @@ describe("famous verifier targeted durable continuation", () => {
 
   it("preserves immutable snapshots and refuses scope changes or a damaged checkpoint", async () => {
     await run(network(), args("a"));
-    const task = path.join(stateRoot, readdirSync(stateRoot)[0]);
+    const task = firstTaskDir(stateRoot);
     const snapshotDir = path.join(task, "snapshots");
     const before = readdirSync(snapshotDir).map((name) => [name, readFileSync(path.join(snapshotDir, name), "utf8")]);
     const resumed = network();
@@ -855,7 +861,7 @@ describe("famous verifier targeted durable continuation", () => {
   };
   type Transport = ReturnType<typeof network>;
   const sha256 = (bytes: Buffer | string) => createHash("sha256").update(bytes).digest("hex");
-  const taskDir = () => path.join(stateRoot, readdirSync(stateRoot)[0]);
+  const taskDir = () => firstTaskDir(stateRoot);
   const checkpointFile = () => path.join(taskDir(), "checkpoint.json");
   const snapshotEntries = () => readdirSync(path.join(taskDir(), "snapshots")).sort()
     .map((name) => [name, readFileSync(path.join(taskDir(), "snapshots", name))] as const);

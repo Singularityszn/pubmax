@@ -290,7 +290,7 @@ describe("famous verifier permission before paid dispatch", () => {
 
   it("refuses a cross-operator robots redirect without requesting its target", async () => {
     writeRows();
-    const fetchImpl = vi.fn(async () => new Response(null, { status: 302, headers: { location: "https://another.example/robots.txt" } }));
+    const fetchImpl = vi.fn<typeof fetch>(async () => new Response(null, { status: 302, headers: { location: "https://another.example/robots.txt" } }));
     await run(fetchImpl);
     expect(fetchImpl.mock.calls.every(([url]) => !String(url).includes("another.example"))).toBe(true);
     expect(check()).toEqual(sampleRow);
@@ -317,7 +317,7 @@ describe("famous verifier permission before paid dispatch", () => {
 
   it("bounds robots streams before the existing checker can read them", async () => {
     writeRows();
-    const fetchImpl = vi.fn(async () => new Response(new Uint8Array(512 * 1024 + 1)));
+    const fetchImpl = vi.fn<typeof fetch>(async () => new Response(new Uint8Array(512 * 1024 + 1)));
     await run(fetchImpl);
     expect(fetchImpl.mock.calls.every(([url]) => String(url).endsWith("/robots.txt"))).toBe(true);
     expect(check()).toEqual(sampleRow);
