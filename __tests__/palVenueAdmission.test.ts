@@ -120,6 +120,9 @@ const ACTION_TAILS = [
   "Wine prices at The Lamb and contact Alice",
   "Wine prices at The Lamb and sing",
   "Wine prices at Fox and Anchor and juggle",
+  "Wine prices at The Lamb and plan a crawl",
+  "Wine prices at Fox and Anchor and plan a crawl",
+  "Wine prices at The Lamb and show four pubs in Soho",
 ];
 
 // A sample of verbs no local tool performs, not a list the code should block.
@@ -136,6 +139,8 @@ const OWNED_ACTION_PRIORS = [
   "Wine prices at The Lamb and contact Alice",
   "Wine prices at Kings Arms and email Priya",
   "Wine prices at Fox and Anchor and juggle",
+  "Wine prices at The Lamb and plan a crawl",
+  "Wine prices at Fox and Anchor and plan a crawl",
 ];
 
 // Each ask beside the fixture name its answer must carry.
@@ -147,6 +152,13 @@ const SUPPORTED_NAMES: Array<[query: string, name: string]> = [
   ["Wine prices at King's Arms", "King's Arms"],
   ["Wine prices at Kings Arms", "King's Arms"],
   ["Wine prices at The Lamb", "The Lamb"],
+];
+
+// Existing request vocabulary after a listed name, which is not part of the name.
+const SUPPORTED_NAME_QUALIFIERS: Array<[query: string, name: string]> = [
+  ["Wine prices at Fox and Anchor please", "Fox and Anchor"],
+  ["Wine prices at Fox and Anchor tonight", "Fox and Anchor"],
+  ["Wine prices at Fox and Anchor for four", "Fox and Anchor"],
 ];
 
 describe("venue names beside sibling actions over configured HTTP", () => {
@@ -165,6 +177,11 @@ describe("venue names beside sibling actions over configured HTTP", () => {
 
   it("keeps an owned prior action on the provider path behind a new recommendation", async () => {
     await registerPubPalToolTurn(THREAD, { query: "Wine prices at The Lamb and contact Alice", cityId: "london", ownerId: OWNER, turns: [] });
+    await expectProviderAdmission(await ask("Find four pubs at Soho", THREAD));
+  });
+
+  it("keeps an owned prior supported second action on the provider path behind a new recommendation", async () => {
+    await registerPubPalToolTurn(THREAD, { query: "Wine prices at The Lamb and plan a crawl", cityId: "london", ownerId: OWNER, turns: [] });
     await expectProviderAdmission(await ask("Find four pubs at Soho", THREAD));
   });
 });
@@ -186,10 +203,16 @@ describe("listed venue names and area discovery over configured HTTP", () => {
     expect(body.answer).toContain(name);
   });
 
+  it.each(SUPPORTED_NAME_QUALIFIERS)("answers a listed venue beside a request qualifier from the records: %s", async (query, name) => {
+    const body = await expectLocalRecords(await ask(query), "venue_drinks");
+    expect(body.answer).toContain(name);
+  });
+
   it("answers an owned please after a listed venue from the records", async () => {
     await registerPubPalToolTurn(THREAD, { query: "Wine prices at Fox and Anchor", cityId: "london", ownerId: OWNER, turns: [] });
     const body = await expectLocalRecords(await ask("please", THREAD), "venue_drinks");
     expect(body.conversationId).toBe(THREAD);
+    expect(body.answer).toContain("Fox and Anchor");
   });
 
   it("discovers Soho pubs at an area without reading the area as a pub name", async () => {
@@ -218,5 +241,20 @@ describe("unsupported factual price subjects over configured HTTP", () => {
     expect(paidSpendBudgetRefusal).not.toHaveBeenCalled();
     expect(deniedFetch).not.toHaveBeenCalled();
     expect(deniedSocket).not.toHaveBeenCalled();
+  });
+
+  it("refuses a pint and food price at a named venue beside a supported area locally with the exact coverage answer", async () => {
+    const response = await ask("How much is a pint and food at The Lamb in Camden?");
+    expect(response.status).toBe(200);
+    const body = await response.json();
+    expect(body.answer).toBe(FOOD_PRICE_REFUSAL);
+    expect(body).toMatchObject({ cards: [], proposals: [], toolsUsed: [] });
+    expect(paidSpendBudgetRefusal).not.toHaveBeenCalled();
+    expect(deniedFetch).not.toHaveBeenCalled();
+    expect(deniedSocket).not.toHaveBeenCalled();
+  });
+
+  it("keeps a planning action after a pint and food price at a named venue on the provider path", async () => {
+    await expectProviderAdmission(await ask("How much is a pint and food at The Lamb and plan a crawl"));
   });
 });

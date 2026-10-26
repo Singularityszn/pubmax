@@ -304,7 +304,12 @@ const DISCOVERY_REFERENCE_RE = new RegExp(String.raw`(?:${VENUE_DISCOVERY_RE.sou
  */
 export function namedAskVenue(query: string): string | null {
   const intent = resolveAskPriceIntent(query);
-  if (intent.kind === "unsupported") return namedDrinkVenue(priceQuestion(query));
+  if (intent.kind === "unsupported") {
+    const phrase = namedDrinkVenue(priceQuestion(query));
+    // A final supported area qualifies the place, so the name before it is bound whole.
+    const qualified = phrase?.match(/^(.+)\s+(?:in|near|around)\s+(.+)$/i);
+    return qualified && isSupportedAskArea(qualified[2]!) ? qualified[1]!.trim() : phrase;
+  }
   return "venueName" in intent ? intent.venueName : null;
 }
 
@@ -334,12 +339,13 @@ const REPORT_OCCUPANCY_RE =
   /\b(it'?s (?:empty|full|rammed|packed|heaving)|report (?:the )?(?:crowd|occupancy)|no seats|some seats|log how busy)\b/i;
 
 /**
- * Time and group words a drinker hangs on the end of an ask. They are not
- * part of a place name, so a `$` capture that keeps "Camden tonight" cannot
- * place Camden at all.
+ * Time, group and politeness words a drinker hangs on the end of an ask, also
+ * after the " - " a short follow-up is appended with. They are not part of a
+ * place or pub name, so a `$` capture that keeps "Camden tonight" cannot place
+ * Camden at all, and "at Fox and Anchor - please" names Fox and Anchor.
  */
 const TRAILING_QUALIFIER_RE =
-  /(?:^|\s+)(?:tonight|right now|now|later|today|this evening|this afternoon|this morning|this weekend|with mates|for (?:two|a few|\d+)|for a quick one(?: after work)?)\s*$/i;
+  /(?:^|\s+)(?:-\s+)?(?:please|tonight|right now|now|later|today|this evening|this afternoon|this morning|this weekend|with mates|for (?:two|a few|\d+)|for a quick one(?: after work)?)\s*$/i;
 
 function stripTrailingPunctuation(phrase: string): string {
   return phrase.replace(/[?.!,;:]+$/g, "").trim();

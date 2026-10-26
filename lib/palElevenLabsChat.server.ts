@@ -238,24 +238,24 @@ export function palChatRecordQuery(query: string, turns: readonly PubPalFenceTur
 }
 
 /**
- * The longest leading part of a named phrase that at least one listed pub carries
- * exactly, as the ask wrote it. It recognises the name without choosing a pub.
+ * The named phrase, as the ask wrote it, when at least one listed pub carries
+ * the whole of it exactly. A listed name at its start is not enough, since the
+ * rest would vanish into the venue. It recognises the name without choosing a pub.
  */
 function listedVenueName(venues: readonly ConciergeVenue[], phrase: string): string | null {
-  const ends = [...phrase.matchAll(/[\p{L}\p{N}]+/gu)].map((word) => word.index + word[0].length).reverse();
-  for (const end of ends) {
-    const name = phrase.slice(0, end);
-    const words = wordsOnly(name);
-    const forms = words.startsWith("the ") ? [words, words.slice(4)] : [words, `the ${words}`];
-    if (forms.some((form) => venues.some((venue) => uniqueExactVenueNameMatch([venue], form)))) return name;
-  }
-  return null;
+  const last = [...phrase.matchAll(/[\p{L}\p{N}]+/gu)].at(-1);
+  if (!last) return null;
+  const name = phrase.slice(0, last.index + last[0].length);
+  const words = wordsOnly(name);
+  const forms = words.startsWith("the ") ? [words, words.slice(4)] : [words, `the ${words}`];
+  return forms.some((form) => venues.some((venue) => uniqueExactVenueNameMatch([venue], form))) ? name : null;
 }
 
 /**
- * A record answer is complete against the city's own pubs: a named venue is
- * consumed only as a listed name, so anything after it stays part of the ask.
- * Several pubs may share that name; the tools still pick one or ask which.
+ * A record answer is complete against the city's own pubs: the whole named
+ * phrase the tools will read must be a listed name, so a request after a name
+ * stays part of the ask, not the venue. Several pubs may share that name; the
+ * tools still pick one or ask which.
  */
 async function recordBoundRequest(text: string, cityId: unknown, deadline: number, signal?: AbortSignal): Promise<boolean> {
   const phrase = namedAskVenue(text);
