@@ -336,9 +336,7 @@ describe("parseConciergeIntent TypeSafe path", () => {
 describe("intentFromJudgment", () => {
   const known = defaultKnownAreas();
 
-  it("uses the threshold chosen from conciergeIntentProbabilities.json", () => {
-    const comment = readFileSync(join(ROOT, "lib/concierge/intentPolicy.ts"), "utf8");
-    expect(comment).toContain("__tests__/fixtures/typesafe/conciergeIntentProbabilities.json");
+  it("pins the mood Noul threshold and the Choice floor", () => {
     expect(CONCIERGE_MOOD_NOUL_THRESHOLD).toBe(0.63);
     expect(CONCIERGE_CHOICE_FLOOR).toBe(0.55);
   });

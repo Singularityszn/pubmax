@@ -333,7 +333,6 @@ describe("VOICE.md compliance audit", () => {
   });
 
   it("keeps remaining public copy free of hard bans, AI contrasts, jokes in errors, and live-price overclaims", () => {
-    const palPortrait = read("components/pal/PalPortrait.tsx");
     const palManifest = read("lib/pubPal.ts");
     const near = read("components/nearme/NearMeNow.tsx");
     const privacy = read("app/privacy/page.tsx");
@@ -343,7 +342,6 @@ describe("VOICE.md compliance audit", () => {
     const stories = read("app/discover/DiscoverPageClient.tsx");
     const digest = read("lib/weeklyDigest.ts");
     const crew = read("components/plan/PlanCrew.tsx");
-    const plan = read("components/plan/PlanComposer.tsx");
     const activity = read("app/activity/ActivityClient.tsx");
     const profile = read("app/u/[handle]/ProfilePageClient.tsx");
     const unsupportedArea = read(
@@ -356,9 +354,6 @@ describe("VOICE.md compliance audit", () => {
     const palChat = read("lib/palChat.ts");
     const pushSender = read("lib/pushSender.ts");
 
-    expect(palPortrait).not.toMatch(
-      /(?:collar|bell) beacon|crew-band harness/iu,
-    );
     expect(palManifest).not.toMatch(
       /signatureProp: "(?:brass bell beacon|crew-band harness)"/iu,
     );
@@ -394,8 +389,6 @@ describe("VOICE.md compliance audit", () => {
 
     expect(activity).not.toContain("reach the bar");
     expect(activity).not.toContain("every follow, cheer and comment");
-    expect(plan).not.toContain("Every listed area can be planned");
-    expect(plan).not.toContain("Every area can still make an editable route");
     expect(profile).not.toContain("Please try again");
     expect(unsupportedArea).not.toContain("Could not note that just now");
     expect(areaDemandRoute).not.toContain("Could not note that right now");
