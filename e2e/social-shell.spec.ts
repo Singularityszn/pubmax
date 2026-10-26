@@ -98,7 +98,7 @@ async function mockAccess(
           ? {
               state,
               viewerHandle: "night_owl",
-              draftScope: "abcdefghijklmnopqrstuvwxyz0123456789abcdefghijk",
+              draftScope: "a".repeat(43),
             }
           : { state },
       ),
@@ -110,7 +110,9 @@ async function mockActivity(page: Page, items: unknown[] = []): Promise<void> {
   await page.route("**/api/social/interactions?**", async (route) => {
     await route.fulfill({
       contentType: "application/json",
-      body: JSON.stringify({ items, nextCursor: null }),
+      body: JSON.stringify(new URL(route.request().url()).searchParams.get("view") === "summary"
+        ? { summary: { cheered: false, saved: false, cheerCount: 0 } }
+        : { items, nextCursor: null }),
     });
   });
 }
@@ -133,6 +135,36 @@ test.beforeEach(async ({ page }) => {
     window.localStorage.setItem("pubmax-tour-v1-done", "1");
     window.sessionStorage.setItem("pubmax_onboarding_dismissed", "1");
   });
+});
+
+test("pub prompts keep composition deliberate and preserve the chosen audience", async ({ page }, testInfo) => {
+  await mockAccess(page, "verified");
+  await mockActivity(page);
+  await page.route("**/api/social/posts**", (route) => fulfil(route, [post("night-plan", "Anyone know a pub garden worth the walk?", "2026-10-26T18:00:00.000Z")]));
+  await page.route("**/api/social/tags?**", (route) => route.fulfill({ json: { proposals: [], nextCursor: null } }));
+  await page.route("**/api/social/outbox", (route) => route.fulfill({ json: { posts: [] } }));
+  await page.route("**/api/social/crews?**", (route) => route.fulfill({ json: { items: [], nextCursor: null } }));
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto("/social");
+  await expect(page.locator(".socialPostBody")).toHaveText("Anyone know a pub garden worth the walk?");
+  await expect(page.getByRole("button", { name: "Post", exact: true })).toBeEnabled();
+  await page.screenshot({ path: testInfo.outputPath("feed-390.png") });
+  await page.setViewportSize({ width: 1440, height: 1000 });
+  await page.screenshot({ path: testInfo.outputPath("feed-1440.png") });
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.getByRole("button", { name: "Post", exact: true }).click();
+  const composer = page.getByRole("dialog", { name: "New post", exact: true });
+  await expect(composer).toBeVisible();
+  await page.screenshot({ path: testInfo.outputPath("composer-390.png") });
+  await composer.getByRole("button", { name: "Who's about?", exact: true }).click();
+  await expect(composer.getByRole("textbox", { name: "Write post", exact: true })).toHaveValue("Who's about? ");
+  await expect(composer.getByText("Only people you follow who follow you back can see this.")).toBeVisible();
+  await composer.getByRole("combobox", { name: "Visibility", exact: true }).selectOption("private");
+  await expect(composer.getByText("Only you can see this.", { exact: true })).toBeVisible();
+  await composer.getByRole("button", { name: "Cancel", exact: true }).click();
+  await page.getByRole("button", { name: "Post", exact: true }).click();
+  await expect(composer.getByRole("textbox", { name: "Write post", exact: true })).toHaveValue("Who's about? ");
+  await expect(composer.getByRole("combobox", { name: "Visibility", exact: true })).toHaveValue("private");
 });
 
 test("preview shows one safe boundary and never requests or leaks protected posts", async ({
