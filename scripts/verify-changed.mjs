@@ -59,6 +59,7 @@ export const FOUNDATIONS = Object.freeze([
   /^__tests__\/helpers\//,
   // The gate's own plan: a change to it proves itself on the whole suite.
   /^scripts\/verify-changed\.(?:mjs|d\.mts)$/,
+  /^scripts\/run-with-restored-bundled-data\.mjs$/,
 ]);
 
 const SOURCE = /\.(?:[cm]?[jt]s|tsx|jsx)$/;
