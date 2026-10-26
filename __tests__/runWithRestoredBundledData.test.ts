@@ -44,6 +44,19 @@ describe("committed bundled data restore", () => {
     { label: "defaults", inheritedHeap: "", inheritedWorkers: "", expectedHeap: 2048 },
     { label: "smaller heap", inheritedHeap: "--max-old-space-size=1024", inheritedWorkers: "2", expectedHeap: 1024 },
     { label: "oversized login inheritance", inheritedHeap: "--max-old-space-size=4096", inheritedWorkers: "8", expectedHeap: 2048 },
+    { label: "last duplicate is smaller", inheritedHeap: "--max-old-space-size=4096 --max-old-space-size=1024", inheritedWorkers: "8", expectedHeap: 1024 },
+    { label: "last duplicate is larger", inheritedHeap: "--max-old-space-size=1024 --max-old-space-size=4096", inheritedWorkers: "8", expectedHeap: 2048 },
+    { label: "underscore smaller heap", inheritedHeap: "--max_old_space_size=1024", inheritedWorkers: "8", expectedHeap: 1024 },
+    { label: "underscore oversized heap", inheritedHeap: "--max_old_space_size=4096", inheritedWorkers: "8", expectedHeap: 2048 },
+    { label: "last underscore is smaller", inheritedHeap: "--max-old-space-size=4096 --max_old_space_size=1024", inheritedWorkers: "8", expectedHeap: 1024 },
+    { label: "last dashed is smaller", inheritedHeap: "--max_old_space_size=4096 --max-old-space-size=1024", inheritedWorkers: "8", expectedHeap: 1024 },
+    { label: "mixed spelling", inheritedHeap: "--max_old-space_size=1024", inheritedWorkers: "8", expectedHeap: 1024 },
+    { label: "quoted last option", inheritedHeap: '--max-old-space-size=4096 "--max_old_space_size=1024"', inheritedWorkers: "8", expectedHeap: 1024 },
+    { label: "quoted last value", inheritedHeap: '--max-old-space-size=4096 --max_old_space_size="1024"', inheritedWorkers: "8", expectedHeap: 1024 },
+    { label: "quoted unrelated value", inheritedHeap: '--max-old-space-size=1024 --title="label --max-old-space-size=512"', inheritedWorkers: "8", expectedHeap: 1024 },
+    { label: "leading zero value", inheritedHeap: "--max-old-space-size=4096 --max_old_space_size=01024", inheritedWorkers: "8", expectedHeap: 1024 },
+    { label: "positive sign value", inheritedHeap: "--max-old-space-size=4096 --max_old_space_size=+1024", inheritedWorkers: "8", expectedHeap: 1024 },
+    { label: "last zero restores bounded default", inheritedHeap: "--max-old-space-size=1024 --max_old_space_size=0", inheritedWorkers: "8", expectedHeap: 2048 },
   ])("starts the mapped verifier and its grandchild keyless before setup ($label)", ({ label, inheritedHeap, inheritedWorkers, expectedHeap }) => {
     const cwd = join(tmpdir(), `pubmax-mapped-keyless-${Date.now()}-${label.replaceAll(" ", "-")}`);
     mkdirSync(join(cwd, "scripts"), { recursive: true });

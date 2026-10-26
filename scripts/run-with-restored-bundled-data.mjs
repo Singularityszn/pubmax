@@ -56,8 +56,15 @@ function mappedVerificationEnvironment() {
   // coding parent's login profile. Preserve smaller heaps, cap larger ones,
   // and never forward arbitrary preloads or env-file options. One Vitest
   // worker applies even when its command line requests a larger pool.
-  const inheritedHeap = /(?:^|\s)--max-old-space-size(?:=|\s+)([1-9]\d*)(?=\s|$)/.exec(process.env.NODE_OPTIONS ?? "")?.[1];
-  const heap = Math.min(Number(inheritedHeap ?? 2048), 2048);
+  const options = ((process.env.NODE_OPTIONS ?? "").match(/(?:[^ "]+|"(?:\\[\s\S]|[^"\\])*")+/g) ?? [])
+    .map(option => option.replace(/"((?:\\[\s\S]|[^"\\])*)"/g,
+      (_, quoted) => quoted.replace(/\\([\s\S])/g, "$1")));
+  let inheritedHeap = 2048;
+  for (const option of options) {
+    const match = /^--max[-_]old[-_]space[-_]size=(\+?\d+)$/.exec(option);
+    if (match) inheritedHeap = Number(match[1]) || 2048;
+  }
+  const heap = Math.min(inheritedHeap, 2048);
   env.NODE_OPTIONS = `--max-old-space-size=${heap}`;
   env.VITEST_MAX_WORKERS = "1";
   return env;
