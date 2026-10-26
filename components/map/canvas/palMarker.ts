@@ -261,7 +261,7 @@ export function createPalMapMarker(map: maplibregl.Map, crew?: { pal: PalMarkerL
     element.classList.toggle("isWalking", moment.pausedAt === null);
     if (moment.pausedAt !== null && moment.pausedAt !== pausedAt) restartClass("isLanding");
     pausedAt = moment.pausedAt;
-    place(moment.at, walkOffset);
+    place(moment.at, moment.pausedAt === null ? walkOffset : perchOffset);
     frame = requestAnimationFrame(step);
   };
 
@@ -334,7 +334,7 @@ export function createPalMapMarker(map: maplibregl.Map, crew?: { pal: PalMarkerL
       if (typeof map.loaded === "function" && !map.loaded()) {
         // Stand at the first stop until the map has painted.
         element.dataset.palWalk = "setting-off";
-        place(route.stops[0]!, walkOffset);
+        place(route.stops[0]!, perchOffset);
         const timer = window.setTimeout(start, START_WAIT_MS);
         map.once("idle", start);
         cancelStart = () => {
