@@ -254,6 +254,7 @@ export default defineConfig({
         "**/map-london-restaurants.spec.ts",
         "**/map-live-qa-0924.spec.ts",
         "**/plan-route-strip.spec.ts",
+        "**/map-crawl-spa-handoff.spec.ts",
         "**/ui-ux-battle-test.spec.ts",
         "**/signed-in-review.spec.ts",
         // The Core Web Vitals sweep owns its own project: it needs a real GL
@@ -364,6 +365,8 @@ export default defineConfig({
       // a real WebGL2 context (SwiftShader), so both run here.
       testMatch: [
         "**/map-gl.spec.ts",
+        // A plain map that stays mounted draws the walk a locked plan links to.
+        "**/map-crawl-spa-handoff.spec.ts",
         // Two-finger rotate and tilt against a real MapLibre canvas.
         "**/map-gestures.spec.ts",
         "**/map-short-walk-framing.spec.ts",
