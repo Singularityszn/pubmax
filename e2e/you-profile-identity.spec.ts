@@ -104,6 +104,8 @@ for (const view of [
       return {
         nav: rect(".youProfileTabs"), journal: rect(".profileJournal"),
         sidebar: rect(".profileSidebar"), settings: rect("#account-settings"),
+        cover: rect(".profileCover"), name: rect(".profileNames"),
+        actions: rect(".profileActions"), avatar: rect(".profileAvatar"),
         overflow: document.documentElement.scrollWidth > innerWidth + 1,
       };
     });
@@ -113,6 +115,11 @@ for (const view of [
     expect(geometry.settings.top).toBeGreaterThanOrEqual(geometry.journal.bottom);
     if (view.width >= 1024) expect(geometry.sidebar.right).toBeLessThan(geometry.journal.left);
     else expect(geometry.journal.bottom).toBeLessThanOrEqual(geometry.sidebar.top);
+    if (view.width > 640) {
+      expect(geometry.name.top).toBeGreaterThanOrEqual(geometry.cover.bottom);
+      expect(geometry.actions.top).toBeGreaterThanOrEqual(geometry.cover.bottom);
+      expect(geometry.avatar.top).toBeLessThan(geometry.cover.bottom);
+    }
     await page.screenshot({ path: `artifacts/you-profile/after-${view.width}-${view.theme}.png` });
     await nav.getByRole("link", { name: "Saved", exact: true }).click();
     await expect(nav.getByRole("link", { name: "Saved", exact: true })).toHaveAttribute("aria-current", "location");

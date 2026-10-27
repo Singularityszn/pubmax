@@ -53,6 +53,7 @@
 .profilePage .profileSidebar,
 .profilePage .profileJournal {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   align-content: start;
   min-width: 0;
   gap: 24px;
@@ -1655,6 +1656,18 @@
 }
 
 /* ── Responsive ──────────────────────────────────────────────────────── */
+@media (min-width: 641px) {
+  /* The default cover keeps the avatar overlap. Names and actions sit below it. */
+  .profilePage .profileHeader:not(.profileHeaderWithCover):not(.profileHeaderLoading) .profileIdentity {
+    margin-top: 0;
+    padding-top: 18px;
+    align-items: flex-start;
+  }
+  .profilePage .profileHeader:not(.profileHeaderWithCover):not(.profileHeaderLoading) .profileAvatar {
+    margin-top: calc(-1 * (var(--profile-avatar-overlap) + 18px));
+  }
+}
+
 @media (max-width: 640px) {
 
   /* On a phone the name goes UNDER the face rather than beside it: at 390px a
