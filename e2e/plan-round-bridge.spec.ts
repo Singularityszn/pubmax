@@ -140,15 +140,25 @@ test("an active Plan starts a Round with its ordered stops", async ({ page }) =>
     });
     const geometry = await page.locator(".planSummary").evaluate((summary) => {
       const starter = summary.querySelector<HTMLElement>(".roundStarter");
-      const rail = summary.querySelector<HTMLElement>(".planSummary__rail");
+      const rails = Array.from(summary.querySelectorAll<HTMLElement>(".planRoute__stopsTrack .planSummary__stops > li"))
+        .flatMap((row) => {
+          const style = getComputedStyle(row, "::before");
+          if (style.content === "none" || style.display === "none") return [];
+          const rect = row.getBoundingClientRect();
+          return [new DOMRect(
+            rect.left + Number.parseFloat(style.left),
+            rect.top + Number.parseFloat(style.top),
+            Number.parseFloat(style.width),
+            Number.parseFloat(style.height),
+          )];
+        });
       const input = summary.querySelector<HTMLInputElement>(".roundStarterRow input");
       const action = summary.querySelector<HTMLButtonElement>(".roundStarterRow button");
-      if (!starter || !rail || !input || !action) {
+      if (!starter || !rails.length || !input || !action) {
         throw new Error("Plan RoundStarter geometry is incomplete");
       }
 
       const starterRect = starter.getBoundingClientRect();
-      const railRect = rail.getBoundingClientRect();
       const actionRect = action.getBoundingClientRect();
       const overlaps = (first: DOMRect, second: DOMRect) =>
         first.left < second.right &&
@@ -157,11 +167,16 @@ test("an active Plan starts a Round with its ordered stops", async ({ page }) =>
         first.bottom > second.top;
 
       return {
-        starterRailOverlap: overlaps(starterRect, railRect),
-        actionRailOverlap: overlaps(actionRect, railRect),
+        railCount: rails.length,
+        validRails: rails.every(rect => [rect.x, rect.y, rect.width, rect.height].every(Number.isFinite)
+          && rect.width > 0 && rect.height > 0),
+        starterRailOverlap: rails.some(rect => overlaps(starterRect, rect)),
+        actionRailOverlap: rails.some(rect => overlaps(actionRect, rect)),
       };
     });
 
+    expect(geometry.railCount).toBe(stops.length - 1);
+    expect(geometry.validRails).toBe(true);
     expect
       .soft(
         geometry.starterRailOverlap,
