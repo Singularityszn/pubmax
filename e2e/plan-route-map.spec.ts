@@ -2,6 +2,7 @@ import { expect, test, type Page } from "@playwright/test";
 
 import { installAuthDoubles, seedSignedIn } from "./helpers/authDoubles";
 import { describeFirstQuery, describeFirstSubmit } from "./helpers/planDescribeFirst";
+import { expectLayoutSettled } from "./helpers/layoutSettled";
 import { UI_UX_CHROMIUM_ARGS } from "../scripts/lib/uiUxBattleTestBrowser.mjs";
 
 test.use({ serviceWorkers: "block", launchOptions: { args: [...UI_UX_CHROMIUM_ARGS] } });
@@ -99,6 +100,52 @@ test.describe("locked plan route map", () => {
     await expect(edit).toBeFocused();
     await expect(walkingLink).not.toHaveAttribute("href", originalHref!);
     await expect(mapLink).toHaveAttribute("href", (await walkingLink.getAttribute("href"))!);
+
+    // Root text-size emulation, not browser zoom or native Dynamic Type.
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.emulateMedia({ reducedMotion: "reduce" });
+    await page.addStyleTag({ content: "html { font-size: 200% !important; }" });
+    await expect.poll(() => page.evaluate(() => getComputedStyle(document.documentElement).fontSize)).toBe("32px");
+    await page.evaluate(() => document.fonts.ready);
+    await edit.scrollIntoViewIfNeeded();
+    await expectLayoutSettled(edit);
+    await edit.focus();
+    await expect(edit).toBeFocused();
+    const editGeometry = await edit.evaluate((button) => {
+      const rect = button.getBoundingClientRect();
+      return {
+        left: rect.left, right: rect.right, top: rect.top, bottom: rect.bottom,
+        width: rect.width, height: rect.height,
+        viewportWidth: innerWidth, viewportHeight: innerHeight,
+        labelFits: button.scrollWidth <= button.clientWidth,
+      };
+    });
+    expect(editGeometry.left).toBeGreaterThanOrEqual(0);
+    expect(editGeometry.right).toBeLessThanOrEqual(editGeometry.viewportWidth);
+    expect(editGeometry.top).toBeGreaterThanOrEqual(0);
+    expect(editGeometry.bottom).toBeLessThanOrEqual(editGeometry.viewportHeight);
+    expect(editGeometry.width).toBeGreaterThanOrEqual(44);
+    expect(editGeometry.height).toBeGreaterThanOrEqual(44);
+    expect(editGeometry.labelFits).toBe(true);
+    await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+    await walkingLink.click({ trial: true });
+    const stopNames = page.locator(".planRoute__stopsTrack .planRoute__body > strong");
+    const stopLinks = page.getByRole("link", { name: "Open on the map", exact: true });
+    const savedIds = new URL((await walkingLink.getAttribute("href"))!, page.url()).searchParams.get("pubs")!.split(",");
+    await expect(stopNames).toHaveCount(savedIds.length);
+    await expect(stopLinks).toHaveCount(savedIds.length);
+    for (let index = 0; index < savedIds.length; index += 1) {
+      const name = stopNames.nth(index);
+      await name.scrollIntoViewIfNeeded();
+      await expect(name).toBeVisible();
+      expect(await name.evaluate((element) => {
+        const rect = element.getBoundingClientRect();
+        return element.scrollWidth <= element.clientWidth && rect.left >= 0 && rect.right <= innerWidth;
+      })).toBe(true);
+      await stopLinks.nth(index).click({ trial: true });
+      await stopLinks.nth(index).focus();
+      await expect(stopLinks.nth(index)).toBeFocused();
+    }
   });
 
   test("shows a real map preview and deep-links to the crawl on the main map", async ({
