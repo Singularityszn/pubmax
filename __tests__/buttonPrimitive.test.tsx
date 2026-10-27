@@ -57,23 +57,23 @@ describe("the Button primitive", () => {
     expect(base.indexOf("font: inherit")).toBeLessThan(base.indexOf("font-size:"));
   });
 
-  it("composes classes from that sheet and nothing from a utility layer", () => {
+  it("composes classes and keeps server-painted buttons disabled until ready", () => {
     expect(renderToStaticMarkup(createElement(Button, null, "Go"))).toBe(
-      '<button class="uiButton uiButton--primary">Go</button>',
+      '<button class=\"uiButton uiButton--primary\" disabled=\"\">Go</button>',
     );
     expect(
       renderToStaticMarkup(createElement(Button, { variant: "secondary", size: "large" }, "Go")),
-    ).toBe('<button class="uiButton uiButton--secondary uiButton--large">Go</button>');
+    ).toBe('<button class=\"uiButton uiButton--secondary uiButton--large\" disabled=\"\">Go</button>');
     expect(
       renderToStaticMarkup(createElement(Button, { variant: "ghost", size: "icon" }, "x")),
-    ).toBe('<button class="uiButton uiButton--ghost uiButton--icon">x</button>');
+    ).toBe('<button class=\"uiButton uiButton--ghost uiButton--icon\" disabled=\"\">x</button>');
     // The one control that ENDS something differs in fill alone.
     expect(
       renderToStaticMarkup(createElement(Button, { variant: "danger" }, "Delete my account")),
-    ).toBe('<button class="uiButton uiButton--danger">Delete my account</button>');
+    ).toBe('<button class=\"uiButton uiButton--danger\" disabled=\"\">Delete my account</button>');
     // A circular icon control keeps the pill (owner ruling 2026-07-23).
     expect(renderToStaticMarkup(createElement(IconButton, null, "x"))).toBe(
-      '<button class="uiButton uiButton--secondary uiButton--icon shrink-0 uiButton--pill">x</button>',
+      '<button class=\"uiButton uiButton--secondary uiButton--icon shrink-0 uiButton--pill\" disabled=\"\">x</button>',
     );
   });
 

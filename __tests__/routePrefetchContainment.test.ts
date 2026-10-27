@@ -13,6 +13,7 @@ vi.mock("next/navigation", () => ({
   useRouter: () => ({ prefetch: () => {} }),
 }));
 vi.mock("next/link", () => ({
+  useLinkStatus: () => ({ pending: false }),
   default: ({ prefetch, ...props }: ComponentProps<typeof Link>) => {
     renderedLinks({ prefetch, ...props });
     return createElement("a", props);

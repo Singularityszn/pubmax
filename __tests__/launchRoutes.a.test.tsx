@@ -150,7 +150,7 @@ describe("launch routes (group a) carry one primary action", () => {
     const rendered = renderNear();
     expect(rendered.match(/data-primary-action/g)).toHaveLength(1);
     expect(rendered).toMatch(
-      /class="screenPrimary" data-primary-action=""><button type="button">[\s\S]*?Find my pint<\/button>/,
+      /class="screenPrimary" data-primary-action=""><button type="button" disabled="">[\s\S]*?Find my pint<\/button>/,
     );
   });
 

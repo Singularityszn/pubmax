@@ -56,6 +56,7 @@ async function seedReturningPal(page: Page) {
 }
 
 for (const { width, planWidth, pageWidth } of [
+  { width: 320, planWidth: 276, pageWidth: 276 },
   { width: 390, planWidth: 346, pageWidth: 346 },
   { width: 768, planWidth: 640, pageWidth: 704 },
   { width: 1309, planWidth: 640, pageWidth: 1176 },

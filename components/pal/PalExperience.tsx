@@ -1,5 +1,7 @@
 "use client";
 
+import { useClientReady } from "@/lib/useClientReady";
+
 import { useEffect, useMemo, useRef, useState, type Dispatch, type SetStateAction } from "react";
 import Link from "next/link";
 import {
@@ -244,10 +246,13 @@ function PalTasteToggle({
 export function PalMeetingScreen({
   appearance,
   onMeet,
+  pending = false,
 }: {
   appearance: PubPalAppearance;
   onMeet: () => void;
+  pending?: boolean;
 }) {
+  const clientReady = useClientReady();
   return (
     <main id="main" className="palExperience palMeeting">
       <Screen
@@ -258,9 +263,12 @@ export function PalMeetingScreen({
         titleId="pal-meeting-title"
         lede="Find a pub or plan a route. You choose its look, voice and what it can remember."
         primary={
-          <button type="button" onClick={onMeet}>
+          <>
+          <button type="button" onClick={onMeet} disabled={!clientReady || pending} aria-busy={pending || undefined}>
             Meet your Pub Pal
           </button>
+          {pending ? <p role="status">Opening your Pub Pal…</p> : null}
+          </>
         }
         secondary={<Link href="/map">Back to the map</Link>}
       >
@@ -1058,6 +1066,7 @@ export default function PalExperience() {
   if (loading || !ready || ownerTransitioning) {
     return (
       <PalMeetingScreen
+        pending={mode === "onboarding"}
         appearance={draft.appearance}
         onMeet={() => setMode("onboarding")}
       />

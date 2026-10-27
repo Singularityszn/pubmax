@@ -16,6 +16,7 @@ const inbox = vi.hoisted(() => ({
 }));
 
 vi.mock("next/link", () => ({
+  useLinkStatus: () => ({ pending: false }),
   default: ({ href, children, ...props }: { href: string; children?: React.ReactNode }) =>
     createElement("a", { href, ...props }, children),
 }));
