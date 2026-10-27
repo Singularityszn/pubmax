@@ -19,6 +19,7 @@ import {
   toTableRow,
 } from "@/lib/spoonsValue";
 import { readSpoonsValue } from "@/lib/spoonsValue.server";
+import { SITE_ORGANIZATION_ID } from "@/lib/siteJsonLd";
 
 import SpoonsValueHistogram from "./SpoonsValueHistogram";
 import SpoonsValueTable from "./SpoonsValueTable";
@@ -94,7 +95,7 @@ export default async function SpoonsValuePage() {
       "@type": "Person",
       name: pack.provenance.author,
     },
-    publisher: { "@type": "Organization", name: "PUBMAXX", url: SITE_URL },
+    publisher: { "@id": SITE_ORGANIZATION_ID },
     isBasedOn: pack.provenance.sourceUrl,
     variableMeasured: "Alcohol units purchasable for £10, by pub",
     measurementTechnique:
