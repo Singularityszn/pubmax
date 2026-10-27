@@ -471,6 +471,7 @@
 .profilePage .profileIdentity {
   position: relative;
   display: flex;
+  flex-wrap: wrap;
   align-items: flex-end;
   gap: clamp(14px, 2vw, 26px);
   margin-top: calc(-1 * var(--profile-avatar-overlap));

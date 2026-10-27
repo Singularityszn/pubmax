@@ -77,9 +77,15 @@ for (const view of [
   { width: 1440, height: 1000, theme: "dark" },
   { width: 390, height: 844, theme: "light" },
   { width: 390, height: 844, theme: "dark" },
+  { width: 641, height: 1100, theme: "light" },
+  { width: 641, height: 1100, theme: "dark" },
+  { width: 768, height: 1100, theme: "light" },
+  { width: 768, height: 1100, theme: "dark" },
+  { width: 900, height: 1100, theme: "light" },
+  { width: 900, height: 1100, theme: "dark" },
   { width: 320, height: 720, theme: "light" },
 ] as const) {
-  test(`profile sections and activity fit ${view.width}px in ${view.theme}`, async ({ page }) => {
+  test(`profile sections and activity fit ${view.width}px in ${view.theme}`, async ({ page }, testInfo) => {
     test.setTimeout(60_000);
     await page.setViewportSize({ width: view.width, height: view.height });
     await installProfileCards(page);
@@ -96,6 +102,7 @@ for (const view of [
       expect(box?.height ?? 0).toBeGreaterThanOrEqual(44);
     }
     await expect(page.locator("#timeline")).toBeVisible();
+    await expect(page.locator("#account-settings")).toBeVisible();
     const geometry = await page.evaluate(() => {
       const rect = (selector: string) => {
         const box = document.querySelector(selector)!.getBoundingClientRect();
@@ -106,10 +113,19 @@ for (const view of [
         sidebar: rect(".profileSidebar"), settings: rect("#account-settings"),
         cover: rect(".profileCover"), name: rect(".profileNames"),
         actions: rect(".profileActions"), avatar: rect(".profileAvatar"),
+        nameClientWidth: document.querySelector<HTMLElement>(".profileDisplayName")!.clientWidth,
+        nameScrollWidth: document.querySelector<HTMLElement>(".profileDisplayName")!.scrollWidth,
+        actionTargets: [...document.querySelectorAll<HTMLElement>(".profileActions a, .profileActions button")].map((control) => {
+          const box = control.getBoundingClientRect();
+          return { text: control.textContent?.trim(), left: box.left, top: box.top, width: box.width, height: box.height,
+            clientWidth: control.clientWidth, scrollWidth: control.scrollWidth, clientHeight: control.clientHeight, scrollHeight: control.scrollHeight };
+        }),
         overflow: document.documentElement.scrollWidth > innerWidth + 1,
       };
     });
+    await testInfo.attach("profile-geometry", { body: JSON.stringify({ view, geometry }), contentType: "application/json" });
     expect(geometry.overflow).toBe(false);
+    expect(geometry.nameScrollWidth).toBeLessThanOrEqual(geometry.nameClientWidth + 1);
     expect(geometry.nav.bottom).toBeLessThanOrEqual(geometry.journal.top);
     expect(geometry.settings.top).toBeGreaterThanOrEqual(geometry.sidebar.bottom);
     expect(geometry.settings.top).toBeGreaterThanOrEqual(geometry.journal.bottom);
