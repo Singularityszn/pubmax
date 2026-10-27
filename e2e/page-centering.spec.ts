@@ -100,4 +100,25 @@ for (const { width, planWidth, pageWidth } of [
       expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(width);
     });
   }
+
+  for (const { path, selector } of [
+    { path: "/", selector: ".lpHero" },
+    { path: "/today", selector: ".todayScreen" },
+    { path: "/tonight", selector: ".tonightDesktopGrid" },
+    { path: "/social", selector: ".socialPage" },
+    { path: "/messages", selector: ".messagesMain" },
+    { path: "/u/you", selector: ".profileMain" },
+  ]) {
+    test(`${path} keeps its main content balanced without horizontal overflow at ${width}px`, async ({ page }) => {
+      await page.setViewportSize({ width, height: 1000 });
+      await page.goto(path);
+      await expectStreamedPageSettled(page);
+      await page.evaluate(() => document.fonts.ready);
+      const box = await restingBox(page.locator(selector));
+      expect(Math.abs(box.x - (width - box.x - box.width)), "equal space on both sides").toBeLessThanOrEqual(2);
+      expect(box.x).toBeGreaterThanOrEqual(0);
+      expect(box.x + box.width).toBeLessThanOrEqual(width);
+      expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(width);
+    });
+  }
 }
