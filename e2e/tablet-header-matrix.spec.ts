@@ -23,6 +23,10 @@ for (const width of [641, 768, 900]) {
               localStorage.setItem("pubmax-tour-v1-done", "1");
               localStorage.setItem("pubmax_onboarding_dismissed", "1");
               sessionStorage.setItem("pubmax_onboarding_dismissed", "1");
+              if (location.pathname === "/map") {
+                localStorage.removeItem("pubmax:map-first-visit-arrival:v1");
+                localStorage.removeItem("pubmax:map-chosen-area:v1");
+              }
             }, theme);
             if (signedIn) await seedSignedIn(page, "A");
             else {
@@ -47,7 +51,14 @@ for (const width of [641, 768, 900]) {
             await page.addStyleTag({ content: `html { font-size: ${rootSize}px !important; }` });
             await page.evaluate(() => document.fonts.ready.then(() => undefined));
             await expectLayoutSettled(nav);
-            if (path === "/map") await expectLayoutSettled(page.locator(".mapToolbar"));
+            if (path === "/map") {
+              await expectLayoutSettled(page.locator(".mapToolbar"));
+              const arrival = page.getByRole("complementary", { name: "First visit", exact: true });
+              await expect(arrival).toBeVisible();
+              await expect(arrival.getByRole("heading", { name: "Cheapest pints near you?", exact: true })).toBeVisible();
+              await expect(arrival.getByText("Location is used only while the map is open.", { exact: true })).toBeVisible();
+              await expectLayoutSettled(arrival);
+            }
             const geometry = await page.evaluate(() => {
               const rect = (element: Element) => {
                 const box = element.getBoundingClientRect();
@@ -117,6 +128,8 @@ for (const width of [641, 768, 900]) {
             expect(geometry.nav).not.toBeNull();
             if (path === "/map") {
               expect(geometry.toolbar).not.toBeNull();
+              expect(geometry.arrival).not.toBeNull();
+              expect(geometry.arrivalText).toHaveLength(2);
               expect(geometry.toolbar?.top).toBeGreaterThanOrEqual(geometry.nav?.bottom ?? Infinity);
               if (geometry.banner) expect(geometry.banner.top).toBeGreaterThanOrEqual(geometry.toolbar?.bottom ?? Infinity);
             } else if (geometry.contentHeading) expect(geometry.contentHeading.top).toBeGreaterThanOrEqual(geometry.nav?.bottom ?? Infinity);
