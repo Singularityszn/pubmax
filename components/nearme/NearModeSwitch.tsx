@@ -1,5 +1,7 @@
 "use client";
 
+import { ReadyButton } from "@/components/ui/ready-button";
+
 import { NEAR_MODES, type NearMode } from "@/lib/nearDesk";
 
 import "./nearModeSwitch.css";
@@ -47,7 +49,7 @@ export default function NearModeSwitch({
         {NEAR_MODES.map((mode) => {
           const selected = mode === value;
           return (
-            <button
+            <ReadyButton
               key={mode}
               type="button"
               role="radio"
@@ -57,7 +59,7 @@ export default function NearModeSwitch({
               onClick={() => onChange(mode)}
             >
               {LABELS[mode]}
-            </button>
+            </ReadyButton>
           );
         })}
       </div>

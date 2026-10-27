@@ -1,5 +1,7 @@
 "use client";
 
+import { useClientReady } from "@/lib/useClientReady";
+
 // Desktop SiteNav "More" overflow (Wave D2.2). Secondary destinations that are
 // not in the primary Map/Tonight/Plan/Social/You row. Social is a primary tab
 // (captain, 16 Oct 2026), so it is never repeated here.
@@ -82,6 +84,7 @@ export default function SiteNavMore({
   ariaLabel = "More pages",
   className,
 }: SiteNavMoreProps = {}): React.JSX.Element {
+  const ready = useClientReady();
   const pathname = usePathname() ?? "";
   const menuId = useId();
   const buttonRef = useRef<HTMLButtonElement | null>(null);
@@ -279,6 +282,7 @@ export default function SiteNavMore({
       <button
         ref={buttonRef}
         type="button"
+        disabled={!ready}
         className={open ? "siteNavMoreBtn isOpen" : "siteNavMoreBtn"}
         aria-haspopup="menu"
         aria-expanded={open}

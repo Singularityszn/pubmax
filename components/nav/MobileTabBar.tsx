@@ -17,6 +17,7 @@ import {
   type PrimaryNavKey,
 } from "@/components/nav/navigationModel";
 import { PalDockButton } from "@/components/nav/PalNavButton";
+import NavPendingIndicator from "@/components/nav/NavPendingIndicator";
 import { socialSurfaceName } from "@/lib/socialLaunch";
 import { useSocialSurfaceName } from "@/lib/useSocialFriendsLaunch";
 import { requestMobileSheetDismiss } from "@/lib/mobileShell";
@@ -255,7 +256,7 @@ function MobileTabBarContent({ pathname }: { pathname: string }) {
                   // top downloads unrelated route code before the current page is
                   // useful.
                   prefetch={false}
-                  className={"mobileTab pressable" + (active ? " isActive" : "")}
+                  className={"mobileTab pressable navPendingLink" + (active ? " isActive" : "")}
                   aria-label={tab.ariaLabel}
                   aria-current={active ? "page" : undefined}
                   onPointerDown={() => warmTab(tab.href)}
@@ -274,6 +275,7 @@ function MobileTabBarContent({ pathname }: { pathname: string }) {
                     <span className="mobileTabLabelText">{tab.label}</span>
                     {tab.preview ? <span className="mobileTabPreviewDot" aria-hidden="true" /> : null}
                   </span>
+                  <NavPendingIndicator />
                 </Link>
               </li>
             </Fragment>
