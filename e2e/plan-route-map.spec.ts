@@ -44,6 +44,63 @@ test.describe("locked plan route map", () => {
     });
   });
 
+  test("keyboard route save returns focus after the edit control is enabled", async ({ page }) => {
+    await openHydratedPlanComposer(page);
+    await describeFirstQuery(page).fill("Quiet in Clapham for 4, not pricey");
+    await describeFirstSubmit(page).click();
+    await expect(page.getByText("Route refreshed. Review the preview")).toBeVisible();
+    await page.getByLabel("Your name").fill("Keyboard route tester");
+    await page.getByLabel("First pint").fill(futureLondonFirstPint());
+    await page.getByRole("button", { name: "Regenerate route", exact: true }).click();
+    await page.getByRole("button", { name: "Lock it in", exact: true }).click();
+    await expect(page).toHaveURL(/\/plan\/[0-9a-f-]{36}$/);
+
+    const walkingLink = page.getByRole("link", { name: "See the walking route", exact: true });
+    const originalHref = await walkingLink.getAttribute("href");
+    const edit = page.getByRole("button", { name: "Edit route", exact: true });
+    await edit.focus();
+    await page.keyboard.press("Enter");
+    await expect(page.getByRole("button", { name: "Editing", exact: true })).toBeEnabled();
+    const close = page.getByRole("button", { name: "Close editor", exact: true });
+    await close.focus();
+    await page.keyboard.press("Enter");
+    await expect(edit).toBeFocused();
+
+    await page.keyboard.press("Enter");
+    await page.getByRole("button", { name: /^Swap stop 1,/ }).click();
+    const mapLink = page.getByRole("navigation", { name: "Site navigation" })
+      .getByRole("link", { name: "Map", exact: true });
+    await expect(mapLink).toHaveAttribute("href", originalHref!);
+
+    let releaseResponse = () => {};
+    let markResponseReady = () => {};
+    const heldResponse = new Promise<void>((resolve) => { releaseResponse = resolve; });
+    const responseReady = new Promise<void>((resolve) => { markResponseReady = resolve; });
+    const planId = new URL(page.url()).pathname.split("/").at(-1)!;
+    await page.route(`**/api/plans/${planId}`, async (route) => {
+      if (route.request().method() !== "PATCH") return route.continue();
+      const response = await route.fetch();
+      markResponseReady();
+      await heldResponse;
+      await route.fulfill({ response });
+    });
+    const save = page.getByRole("button", { name: "Save route changes", exact: true });
+    await save.focus();
+    await page.keyboard.press("Enter");
+    try {
+      await responseReady;
+      await expect(page.getByRole("button", { name: "Editing", exact: true })).toBeDisabled();
+      await expect(page.getByRole("button", { name: "Saving…", exact: true })).toBeDisabled();
+    } finally {
+      releaseResponse();
+    }
+    await expect(page.getByText("Route saved. The new order is the plan's route now.", { exact: true })).toBeVisible();
+    await expect(edit).toBeEnabled();
+    await expect(edit).toBeFocused();
+    await expect(walkingLink).not.toHaveAttribute("href", originalHref!);
+    await expect(mapLink).toHaveAttribute("href", (await walkingLink.getAttribute("href"))!);
+  });
+
   test("shows a real map preview and deep-links to the crawl on the main map", async ({
     page,
   }) => {
