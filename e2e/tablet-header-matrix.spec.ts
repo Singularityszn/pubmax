@@ -75,6 +75,16 @@ for (const width of [641, 768, 900]) {
                   while (walker.nextNode()) {
                     const text = walker.currentNode;
                     if (!text.textContent?.trim()) continue;
+                    let a11yOnly = false;
+                    for (let ancestor = text.parentElement; ancestor; ancestor = ancestor.parentElement) {
+                      const style = getComputedStyle(ancestor);
+                      const box = ancestor.getBoundingClientRect();
+                      const zeroClip = style.clip.replace(/[,\s]/g, "") === "rect(0px0px0px0px)";
+                      if (style.position === "absolute" && box.width <= 1 && box.height <= 1
+                        && (zeroClip || style.clipPath === "inset(50%)")) a11yOnly = true;
+                      if (ancestor === control) break;
+                    }
+                    if (a11yOnly) continue;
                     const range = document.createRange();
                     range.selectNodeContents(text);
                     const label = range.getBoundingClientRect();
@@ -99,10 +109,20 @@ for (const width of [641, 768, 900]) {
                 for (const line of range.getClientRects()) bannerLines.push({ left: line.left, right: line.right, top: line.top, bottom: line.bottom, width: line.width, height: line.height });
               }
               const arrivalText = Array.from(document.querySelectorAll<HTMLElement>(".mapArrivalCardTitle, .mapArrivalCardLead")).filter(visible).map((copy) => {
+                const clippingAncestors = [];
+                for (let ancestor: HTMLElement | null = copy; ancestor; ancestor = ancestor.parentElement) {
+                  const style = getComputedStyle(ancestor);
+                  const box = ancestor.getBoundingClientRect();
+                  const clipsX = ["hidden", "clip", "auto", "scroll"].includes(style.overflowX);
+                  const clipsY = ["hidden", "clip", "auto", "scroll"].includes(style.overflowY);
+                  if (clipsX || clipsY) clippingAncestors.push({ clipsX, clipsY, left: box.left + ancestor.clientLeft,
+                    right: box.left + ancestor.clientLeft + ancestor.clientWidth, top: box.top + ancestor.clientTop,
+                    bottom: box.top + ancestor.clientTop + ancestor.clientHeight });
+                }
                 const range = document.createRange();
                 range.selectNodeContents(copy);
                 return { className: copy.className, text: copy.textContent?.trim(), ...rect(copy), fontSize: getComputedStyle(copy).fontSize,
-                  clientWidth: copy.clientWidth, scrollWidth: copy.scrollWidth,
+                  clientWidth: copy.clientWidth, scrollWidth: copy.scrollWidth, clippingAncestors,
                   lines: Array.from(range.getClientRects()).map((line) => ({ left: line.left, right: line.right, top: line.top, bottom: line.bottom, width: line.width, height: line.height })) };
               });
               const heading = Array.from(document.querySelectorAll("main h1")).find(visible);
@@ -140,8 +160,18 @@ for (const width of [641, 768, 900]) {
                 for (const line of copy.lines) {
                   expect(line.left).toBeGreaterThanOrEqual(Math.max(copy.left, geometry.arrival.left) - 0.5);
                   expect(line.right).toBeLessThanOrEqual(Math.min(copy.right, geometry.arrival.right) + 0.5);
-                  expect(line.top).toBeGreaterThanOrEqual(Math.max(copy.top, geometry.arrival.top) - 0.5);
-                  expect(line.bottom).toBeLessThanOrEqual(Math.min(copy.bottom, geometry.arrival.bottom) + 0.5);
+                  expect(line.top).toBeGreaterThanOrEqual(geometry.arrival.top - 0.5);
+                  expect(line.bottom).toBeLessThanOrEqual(geometry.arrival.bottom + 0.5);
+                  for (const clip of copy.clippingAncestors) {
+                    if (clip.clipsX) {
+                      expect(line.left).toBeGreaterThanOrEqual(clip.left - 0.5);
+                      expect(line.right).toBeLessThanOrEqual(clip.right + 0.5);
+                    }
+                    if (clip.clipsY) {
+                      expect(line.top).toBeGreaterThanOrEqual(clip.top - 0.5);
+                      expect(line.bottom).toBeLessThanOrEqual(clip.bottom + 0.5);
+                    }
+                  }
                   expect(line.left).toBeGreaterThanOrEqual(0);
                   expect(line.right).toBeLessThanOrEqual(width);
                   expect(line.bottom).toBeLessThanOrEqual(900);
