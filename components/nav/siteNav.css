@@ -945,3 +945,15 @@ button.siteNavMoreItem {
   animation: none;
   mix-blend-mode: normal;
 }
+
+/* Tablet rows keep their intrinsic labels and targets when text grows. */
+@media (min-width: 641px) and (max-width: 900px) {
+  .siteNavBar {
+    flex-wrap: wrap;
+  }
+
+  .siteNavLinks {
+    flex: 1 1 max-content;
+    flex-wrap: wrap;
+  }
+}
