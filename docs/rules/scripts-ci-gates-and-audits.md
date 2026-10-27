@@ -36,7 +36,7 @@ Moved from [`scripts/AGENTS.md`](../../scripts/AGENTS.md). Authoritative policy 
 
   The launcher filters the mapped verifier's environment before the child starts, including before test setup. Its allowlist retains runtime locations and verifier controls. Application, provider, production database, TypeSafe, and coding credentials do not reach that child. The coding parent's environment stays unchanged. Non-mapped payloads retain their existing environment behaviour, which clears only `OPENROUTER_API_KEY`.
 
-  For mapped verification, the launcher refuses standard project env files because Next and Vite can reload credentials after environment filtering. These files are `.env`, `.env.local`, and the development, test, and production variants, with or without `.local`. The launcher exits with code 2 before payload startup and does not modify those files. `.env.example` is permitted. Use a checkout without standard project env files for mapped verification.
+  For mapped verification, the launcher refuses standard project env files because Next and Vite can reload credentials after environment filtering. These files are .env, .env.local, and the development, test, and production variants, with or without .local. The launcher exits with code 2 before payload startup and does not modify those files. `.env.example` is permitted. Use a checkout without standard project env files for mapped verification.
 
   The mapped heap defaults to 2048 MiB and never exceeds 2048 MiB. The launcher preserves smaller positive requests from the last inherited heap option, including underscore spellings. A zero request uses the bounded default. The launcher emits only the bounded canonical heap flag in `NODE_OPTIONS`. It does not forward preloads or env-file options.
 
