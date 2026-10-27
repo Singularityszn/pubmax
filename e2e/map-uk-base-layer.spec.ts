@@ -1,6 +1,7 @@
 import { expect, test, type Page } from "@playwright/test";
 import { attachBill } from "./helpers/priceBill";
-import { mobileMapShellControl } from "./helpers/mobileMapShell";
+import { expectMapLoadingFrameReleased, mobileMapShellControl } from "./helpers/mobileMapShell";
+import { expectLayoutSettled } from "./helpers/layoutSettled";
 
 // The UK base layer's two load-bearing promises, asserted in a real browser
 // with a real MapLibre canvas (this spec runs in the `chromium-gl` project):
@@ -391,3 +392,75 @@ test("a fresh national overview stays below the UK base gate and fetches no data
     ),
   ).toEqual([]);
 });
+
+// A direct national URL is the genuine entry available on this branch.
+// The new homepage UK directory link belongs to the separate UK candidate.
+for (const { width, height, theme } of [
+  { width: 320, height: 568, theme: "light" },
+  { width: 320, height: 568, theme: "dark" },
+  { width: 390, height: 844, theme: "light" },
+] as const) {
+  test(`national coverage note clears the peek card at ${width}px ${theme}`, async ({ page }, testInfo) => {
+    await page.setViewportSize({ width, height });
+    await page.emulateMedia({ colorScheme: theme });
+    await page.addInitScript((value) => localStorage.setItem("pubmax-theme", value), theme);
+    const response = await page.goto("/map?uk=1");
+    expect(response?.status()).toBe(200);
+    await expect(page.locator("html")).toHaveAttribute("data-theme", theme);
+    await expect(page.locator(".mapCanvasWrap")).toHaveAttribute("data-uk-base-status", "zoom_required", { timeout: 45_000 });
+    await expect(page.locator(".maplibreMap canvas").first()).toBeVisible();
+    await expect.poll(() => page.evaluate(async () => {
+      const target = window as Window & {
+        __pubmaxMapCamera?: { read: () => { center: [number, number]; zoom: number; moving: boolean; settling: boolean } };
+        __pubmaxPaintedMapTapPoints?: { state?: () => { loaded: boolean; styleLoaded: boolean | null; tilesLoaded: boolean | null } };
+      };
+      for (let frame = 0; frame < 3; frame += 1) {
+        await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+        const camera = target.__pubmaxMapCamera?.read();
+        const paint = target.__pubmaxPaintedMapTapPoints?.state?.();
+        if (!camera || camera.moving || camera.settling
+          || Math.abs(camera.center[0] + 2.5) > 0.05
+          || Math.abs(camera.center[1] - 54.2) > 0.05
+          || Math.abs(camera.zoom - 5.6) > 0.05
+          || !paint?.loaded || !paint.styleLoaded || !paint.tilesLoaded) return false;
+      }
+      return true;
+    }), { timeout: 45_000, message: "national camera, style and tiles must be fully ready" }).toBe(true);
+    await expectMapLoadingFrameReleased(page);
+    await expect(page.locator(".mapFallback")).toHaveCount(0);
+    const note = page.getByRole("complementary", { name: "UK pub map", exact: true });
+    const peek = page.locator(".mapPeek");
+    await expectLayoutSettled(note);
+    await expectLayoutSettled(peek);
+    const geometry = await note.evaluate((element) => {
+      const body = element.querySelector(".ukPlaceArrivalCopy > span");
+      const card = document.querySelector(".mapPeek");
+      if (!body || !card) throw new Error("National note body or peek card missing");
+      const range = document.createRange();
+      range.selectNodeContents(body);
+      const cardRect = card.getBoundingClientRect();
+      const lines = [...range.getClientRects()].filter(rect => rect.width > 0 && rect.height > 0);
+      return {
+        note: element.getBoundingClientRect().toJSON(), peek: cardRect.toJSON(),
+        lines: lines.map(rect => ({
+          ...rect.toJSON(),
+          uncovered: body.contains(document.elementFromPoint(rect.left + rect.width / 2, rect.top + rect.height / 2)),
+          overlapsPeek: rect.left < cardRect.right && rect.right > cardRect.left
+            && rect.top < cardRect.bottom && rect.bottom > cardRect.top,
+          inViewport: rect.left >= 0 && rect.right <= innerWidth && rect.top >= 0 && rect.bottom <= innerHeight,
+        })),
+      };
+    });
+    await testInfo.attach("national-note-geometry", { body: JSON.stringify(geometry, null, 2), contentType: "application/json" });
+    await page.screenshot({ path: testInfo.outputPath("national-note-clearance.png") });
+    expect(geometry.lines.length).toBeGreaterThan(0);
+    expect(geometry.lines.every(line => line.inViewport && line.uncovered && !line.overlapsPeek), "every line of national coverage copy must remain readable").toBe(true);
+    const dismiss = note.getByRole("button", { name: "Dismiss UK pub map note", exact: true });
+    const dismissBox = await dismiss.boundingBox();
+    expect(dismissBox?.width).toBeGreaterThanOrEqual(44);
+    expect(dismissBox?.height).toBeGreaterThanOrEqual(44);
+    await dismiss.click();
+    await expect(note).toHaveCount(0);
+    await expect(peek).toBeVisible();
+  });
+}

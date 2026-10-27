@@ -22,6 +22,25 @@
   margin-left: 0;
 }
 
+.planDetailScreen ~ .planPage__grid > * {
+  min-width: 0;
+}
+
+.planDetailScreen ~ .planPage__grid .planSummary__headingRow {
+  flex-wrap: wrap;
+}
+
+.planDetailScreen ~ .planPage__grid .planSummary__headingRow > h2 {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.planDetailScreen ~ .planPage__grid .planSummary__edit {
+  max-width: 100%;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
 .planDetailScreen ~ .planPage__grid .planRouteMiniMap {
   padding: 0;
   border: 0;
@@ -39,6 +58,10 @@
 }
 
 @media (max-width: 900px) {
+  .planDetailScreen ~ .planPage__grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
   /* The walk comes before invitations and votes on a saved plan. */
   .planDetailScreen ~ .planPage__grid .planPage__side {
     order: initial;
