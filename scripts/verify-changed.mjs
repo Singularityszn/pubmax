@@ -1,35 +1,8 @@
 #!/usr/bin/env node
 /**
- * Entry point for `npm run verify:no-mistakes:changed`, the local no-mistakes
- * Test step.
- *
- * THE FULL SUITE RUNS ONCE, IN GITHUB CI. Owner decision, 16 October 2026: the
- * local pipeline ran the whole unit suite through `npm run coverage`, about 40
- * minutes on an 8 GB MacBook Air, and the CI unit shards then ran it again on
- * the same head. This command runs only the checks the diff against the
- * merge-base with origin/main can reach:
- *
- *   - ESLint on the changed files it lints.
- *   - A scoped typecheck: the changed TypeScript files and their DIRECT
- *     importers, through a generated tsconfig that extends the root one. A
- *     full native tsc peaks near 4.5 GB, which an 8 GB laptop cannot spare.
- *   - `vitest related --run --maxWorkers=2` over the changed files, plus every
- *     test file that names a changed file by its repo path (a fence reads a
- *     doc or a config by path, which no import graph can see). It fails on any
- *     failing test it runs.
- *   - The whole-tree gates only `npm run verify` runs and no workflow does
- *     (deadcode, the install-script allowlist, the dependency audit), and the
- *     input-scoped gates
- *     (test:rls, validate-data, db:types:check, gate:e2e-skips, chatgpt-map)
- *     when their inputs change.
- *
- * It runs the full `npm run verify` instead when the change touches a shared
- * foundation (FOUNDATIONS below), deletes a source module, or edits a module
- * more than FULL_SUITE_FAN_IN tracked modules import directly, or when
- * PUBMAX_VERIFY_FULL=1 is set. A missing origin/main also runs the full bar,
- * because there is nothing to scope against.
- *
- * Rule: docs/rules/scripts-ci-gates-and-audits.md#the-no-mistakes-test-step-runs-change-scoped-checks-and-ci-runs-the-full-suite
+ * Local no-mistakes Test step: `npm run verify:no-mistakes:changed`.
+ * Execution and isolation contract:
+ * docs/rules/scripts-ci-gates-and-audits.md#the-no-mistakes-test-step-runs-change-scoped-checks-and-ci-runs-the-full-suite
  * Fence: __tests__/verifyChanged.test.ts, __tests__/noMistakesTestCommand.test.ts
  */
 import { spawnSync, execFileSync } from "node:child_process";
