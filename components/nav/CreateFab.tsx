@@ -1,5 +1,7 @@
 "use client";
 
+import { ReadyButton } from "@/components/ui/ready-button";
+
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
 import { Plus } from "lucide-react";
@@ -138,7 +140,7 @@ function CreateFabContent({ routerReturnTo }: { routerReturnTo: string }) {
       inert={chromeWithdrawn || undefined}
     >
       {menuOpen ? (
-        <button
+        <ReadyButton
           className="createFabScrim"
           type="button"
           aria-hidden="true"
@@ -168,7 +170,7 @@ function CreateFabContent({ routerReturnTo }: { routerReturnTo: string }) {
           ))}
         </div>
       ) : null}
-      <button
+      <ReadyButton
         type="button"
         className="createFab"
         data-testid="create-fab"
@@ -197,7 +199,7 @@ function CreateFabContent({ routerReturnTo }: { routerReturnTo: string }) {
         }}
       >
         <Plus size={24} aria-hidden="true" />
-      </button>
+      </ReadyButton>
     </div>
   );
 }

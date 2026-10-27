@@ -23,6 +23,10 @@
   color: var(--ink);
 }
 
+.planPage--composer {
+  padding-inline: var(--page-gutter);
+}
+
 .planPage__hero {
   max-width: 920px;
   margin: clamp(50px, 9vw, 112px) auto clamp(34px, 6vw, 72px);
@@ -636,6 +640,11 @@
    that, was the card-in-card the template ban names. */
 .planComposer { max-width: 920px; margin: 0 auto; padding: 0 0 clamp(22px, 5vw, 46px); display: grid; grid-template-columns: 1fr 1fr; gap: 22px; }
 
+/* The import, free-text form and guide share one centred reading column. */
+.planPage--composer .planComposer:not([data-result="true"]) {
+  max-width: var(--content-max);
+}
+
 .planComposer__accepted {
   grid-column: 1 / -1;
   min-width: 0;
@@ -716,7 +725,7 @@
 .planDescribeFirst__form { order: -1; }
 .planDescribeFirst > .planStopCount { order: -1; }
 .planDescribeFirst > .screenHead > .screenActions { margin-top: var(--space-1); }
-.planDescribeFirst__form { display: grid; max-width: 34rem; }
+.planDescribeFirst__form { display: grid; }
 .planDescribeFirst__empty { margin: 8px 0 0; color: var(--color-negative); font-size: var(--text-sm); font-weight: 700; }
 .planDescribeFirst__form input[aria-invalid="true"] { border-color: var(--color-negative); }
 .planDescribeFirst__form input { min-height: 48px; border: 1px solid var(--line); border-radius: var(--radius); padding: 0 16px; font: inherit; background: var(--panel-raised); color: var(--ink); }
@@ -1548,67 +1557,11 @@ html[data-theme="dark"] .planCrew__join button { color: #090d0b; }
   }
 }
 
-/* Desktop composer (D2): the describe-first surface was capped at 920px while
-   every other wide shell uses --content-max-wide, which left a dead gutter at
-   1440 and 1920. The head and the field share one row; chips stay full width. */
+/* A returned route can use the wider page without widening the entry form. */
 @media (min-width: 1024px) {
-  .planPage--composer .planComposer {
+  .planPage--composer .planComposer[data-result="true"] {
     max-width: var(--content-max-wide);
     gap: clamp(24px, 3vw, 40px);
-  }
-
-  .planComposer .planDescribeFirst {
-    grid-template-columns: minmax(0, 1.05fr) minmax(340px, 420px);
-    column-gap: clamp(32px, 4vw, 56px);
-    align-items: start;
-  }
-
-  /* The heading holds the left column; the field, the stop count and the
-     actions that submit them stack in the right one, in that order. Auto
-     placement used to seat the field top right and "Sort it" bottom left, so
-     the submit sat a column away from the field it submits. */
-  .planDescribeFirst > .screenHead > .kicker {
-    grid-column: 1;
-    grid-row: 1;
-  }
-
-  .planDescribeFirst > .screenHead > .screenTitle {
-    grid-column: 1;
-    grid-row: 2 / span 3;
-  }
-
-  .planDescribeFirst__form {
-    grid-column: 2;
-    grid-row: 2;
-  }
-
-  .planDescribeFirst > .planStopCount {
-    grid-column: 2;
-    grid-row: 3;
-    margin-top: 0;
-  }
-
-  .planDescribeFirst > .screenHead > .screenActions {
-    grid-column: 2;
-    grid-row: 4;
-    margin-top: 0;
-  }
-
-  .planDescribeFirst__oneTap {
-    grid-column: 2;
-    grid-row: 5;
-  }
-
-  .planDescribeFirst__chips {
-    grid-column: 1 / -1;
-  }
-
-  .planDescribeFirst > .screenHead > .screenTitle {
-    max-width: none;
-  }
-
-  .planDescribeFirst__form {
-    max-width: none;
   }
 
   .planDescribeFirst__chip {

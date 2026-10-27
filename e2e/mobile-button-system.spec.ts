@@ -3,6 +3,7 @@ import { expect, test, type Page } from "@playwright/test";
 import { LANDING_QUIET_DOORS, LANDING_RECEIPT_LABEL } from "@/lib/landingHero";
 
 import { LANDING_PRIMARY_NAME } from "./helpers/landingHero";
+import { installAuthDoubles, seedSignedIn } from "./helpers/authDoubles";
 
 const DEVICES = [
   { width: 390, height: 844 },
@@ -10,6 +11,78 @@ const DEVICES = [
 ] as const;
 
 const THEMES = ["light", "dark"] as const;
+
+for (const width of [390, 1440]) {
+  for (const theme of THEMES) {
+    test(`${width}px ${theme}: rendered Button geometry and type follow the design-system tokens`, async ({ page }) => {
+      await page.setViewportSize({ width, height: 900 });
+      await page.emulateMedia({ reducedMotion: "reduce" });
+      await setTheme(page, theme);
+      await installAuthDoubles(page);
+      await seedSignedIn(page, "A");
+
+      for (const route of ["/plan", "/pal", "/u/you"]) {
+        await page.goto(route);
+        if (route === "/pal") {
+          await page.getByRole("button", { name: /Meet your Pub Pal/i }).click();
+          await expect(page.getByRole("heading", { name: "Before you start" })).toBeVisible();
+        }
+        if (route === "/u/you") {
+          await expect(page.getByRole("button", { name: "Create private Memory", exact: true })).toBeAttached();
+        }
+        await expect(page.locator(".uiButton").first()).toBeAttached();
+        await page.mouse.move(0, 0);
+
+        const findings = await page.locator(".uiButton").evaluateAll((buttons) => {
+          const failures: string[] = [];
+          let measured = 0;
+          for (const button of buttons) {
+            if (button.getBoundingClientRect().height === 0) continue;
+            measured += 1;
+            const element = button as HTMLElement;
+            const large = element.classList.contains("uiButton--large");
+            const icon = element.classList.contains("uiButton--icon");
+            const pill = element.classList.contains("uiButton--pill");
+            const probe = document.createElement("span");
+            probe.style.cssText = `position:absolute;visibility:hidden;min-height:var(--control-height);padding:0 var(${large ? "--space-5" : "--control-pad-x"});border-radius:var(${pill ? "--radius-pill" : "--control-radius"});font-size:var(${large ? "--text-base" : "--control-font-size"});font-weight:var(--control-font-weight)`;
+            probe.style.backgroundColor = element.classList.contains("uiButton--secondary")
+              ? "var(--control-secondary-surface)"
+              : element.classList.contains("uiButton--ghost")
+                ? "transparent"
+                : element.classList.contains("uiButton--danger") ? "var(--brick)" : "var(--color-accent)";
+            element.append(probe);
+            const expected = getComputedStyle(probe);
+            const actual = getComputedStyle(element);
+            const properties = ["fontSize", "fontWeight", "backgroundColor", "borderTopLeftRadius", "borderTopRightRadius", "borderBottomLeftRadius", "borderBottomRightRadius"] as const;
+            for (const property of properties) {
+              if (actual[property] !== expected[property]) failures.push(`${element.textContent?.trim()}: ${property} ${actual[property]} != ${expected[property]}`);
+            }
+            for (const property of ["paddingLeft", "paddingRight"] as const) {
+              const padding = icon ? "0px" : expected[property];
+              if (actual[property] !== padding) failures.push(`${element.textContent?.trim()}: ${property} ${actual[property]} != ${padding}`);
+            }
+            for (const property of ["paddingTop", "paddingBottom"] as const) {
+              if (actual[property] !== "0px") failures.push(`${element.textContent?.trim()}: ${property}`);
+            }
+            for (const property of ["borderTopWidth", "borderRightWidth", "borderBottomWidth", "borderLeftWidth"] as const) {
+              if (actual[property] !== "1px") failures.push(`${element.textContent?.trim()}: ${property}`);
+            }
+            if (!large && actual.minHeight !== expected.minHeight) failures.push(`${element.textContent?.trim()}: min-height`);
+            if (icon && actual.width !== expected.minHeight) failures.push(`${element.textContent?.trim()}: icon width`);
+            if (element.getBoundingClientRect().height < 44) failures.push(`${element.textContent?.trim()}: touch height`);
+            if (actual.alignItems !== "center") failures.push(`${element.textContent?.trim()}: vertical alignment`);
+            const alignment = element.classList.contains("uiButton--start") ? "flex-start" : "center";
+            if (actual.justifyContent !== alignment) failures.push(`${element.textContent?.trim()}: horizontal alignment`);
+            probe.remove();
+          }
+          return { failures, measured };
+        });
+        expect(findings.measured, route).toBeGreaterThan(0);
+        expect(findings.failures, route).toEqual([]);
+      }
+    });
+  }
+}
 
 async function setTheme(page: Page, theme: (typeof THEMES)[number]): Promise<void> {
   await page.addInitScript((value) => {

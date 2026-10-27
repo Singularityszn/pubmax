@@ -12,6 +12,7 @@ const preferredCityState = vi.hoisted(() => ({
 
 vi.mock("next/dynamic", () => ({ default: () => () => null }));
 vi.mock("next/link", () => ({
+  useLinkStatus: () => ({ pending: false }),
   default: ({ href, children, ...props }: { href: string; children: ReactNode }) =>
     createElement("a", { href, ...props }, children),
 }));

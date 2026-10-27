@@ -1,5 +1,7 @@
 "use client";
 
+import { ReadyButton } from "@/components/ui/ready-button";
+
 // Today get-there strip (card 3) — "how you'll get home tonight".
 //
 // Follows the TonightGetHomeStrip pattern (lib/tfl.ts via /api/last-train,
@@ -166,10 +168,10 @@ export default function TodayGetThereStrip() {
           <DisruptionLine lat={origin.lat} lng={origin.lng} />
           <div className="todayCardFootRow">
             <span className="todayProvenance">via TfL</span>
-            <button type="button" className={TODAY_TEXT_BUTTON_CLASS} onClick={clearOrigin}>
+            <ReadyButton type="button" className={TODAY_TEXT_BUTTON_CLASS} onClick={clearOrigin}>
               <X size={14} aria-hidden="true" />
               {removeLabel}
-            </button>
+            </ReadyButton>
           </div>
         </div>
       ) : origin && result?.kind === "none" ? (
@@ -181,10 +183,10 @@ export default function TodayGetThereStrip() {
           </p>
           <DisruptionLine lat={origin.lat} lng={origin.lng} />
           <div className="todayCardFootRow">
-            <button type="button" className={TODAY_TEXT_BUTTON_CLASS} onClick={clearOrigin}>
+            <ReadyButton type="button" className={TODAY_TEXT_BUTTON_CLASS} onClick={clearOrigin}>
               <X size={14} aria-hidden="true" />
               {removeLabel}
-            </button>
+            </ReadyButton>
           </div>
         </div>
       ) : origin ? (
@@ -208,7 +210,7 @@ export default function TodayGetThereStrip() {
               ) : null}
             </p>
           ))}
-          <button
+          <ReadyButton
             type="button"
             className="todayButton"
             onClick={requestLocation}
@@ -220,7 +222,7 @@ export default function TodayGetThereStrip() {
               : locationStatus === "unavailable"
                 ? LOCATION_RETRY_LABEL
                 : LOCATION_SHARE_LABEL[SURFACE]}
-          </button>
+          </ReadyButton>
           {/* The answer that needs no location at all. Offered from the start,
               because a reader who will not share should not have to be refused
               first to find out there is another way. The chips themselves cost
@@ -233,7 +235,7 @@ export default function TodayGetThereStrip() {
               aria-label={LOCATION_MANUAL_GROUP_LABEL}
             >
               {MANUAL_AREAS.map((patch) => (
-                <button
+                <ReadyButton
                   key={patch.id}
                   type="button"
                   className="todayAreaChip"
@@ -241,18 +243,18 @@ export default function TodayGetThereStrip() {
                 >
                   <MapPin size={14} aria-hidden="true" />
                   {patch.label}
-                </button>
+                </ReadyButton>
               ))}
             </div>
           ) : (
-            <button
+            <ReadyButton
               type="button"
               className={TODAY_TEXT_BUTTON_CLASS}
               onClick={() => setAreaPickerAsked(true)}
             >
               <MapPin size={14} aria-hidden="true" />
               {LOCATION_MANUAL_OPEN_LABEL}
-            </button>
+            </ReadyButton>
           )}
           <span className="todaySrOnly" role="status" aria-live="polite">
             {locationStatus === "requesting"

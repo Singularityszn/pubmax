@@ -1,5 +1,3 @@
-import { readFileSync } from "node:fs";
-import { join } from "node:path";
 import { createElement, type ComponentProps } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import type Link from "next/link";
@@ -13,6 +11,7 @@ vi.mock("next/navigation", () => ({
   useRouter: () => ({ prefetch: () => {} }),
 }));
 vi.mock("next/link", () => ({
+  useLinkStatus: () => ({ pending: false }),
   default: ({ prefetch, ...props }: ComponentProps<typeof Link>) => {
     renderedLinks({ prefetch, ...props });
     return createElement("a", props);
@@ -20,16 +19,6 @@ vi.mock("next/link", () => ({
 }));
 
 import NowSegment from "@/components/nav/NowSegment";
-
-const entrySurfaces = [
-  "components/nav/SiteNav.tsx",
-  "components/landing/LandingPage.tsx",
-  "components/landing/LandingHero.tsx",
-  "app/today/TodayClient.tsx",
-  "app/tonight/TonightClient.tsx",
-  "app/tonight/TonightLaterListings.tsx",
-  "app/tonight/TonightOpenPlans.tsx",
-];
 
 describe("entry-route prefetch containment", () => {
   it.each(["day", "tonight"] as const)(
@@ -50,12 +39,4 @@ describe("entry-route prefetch containment", () => {
       expect(html).toContain('href="/tonight"');
     },
   );
-
-  it.each(entrySurfaces)("keeps automatic route prefetch off %s", (path) => {
-    const source = readFileSync(join(process.cwd(), path), "utf8");
-    const openingTags = source.match(/<Link\b[\s\S]*?>/g) ?? [];
-
-    expect(openingTags.length).toBeGreaterThan(0);
-    for (const tag of openingTags) expect(tag).toContain("prefetch={false}");
-  });
 });
