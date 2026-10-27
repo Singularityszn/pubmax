@@ -104,7 +104,7 @@ for (const { width, planWidth, pageWidth } of [
   for (const { path, selector } of [
     { path: "/", selector: ".lpHero" },
     { path: "/today", selector: ".todayScreen" },
-    { path: "/tonight", selector: ".tonightDesktopGrid" },
+    { path: "/tonight", selector: ".tonightPage" },
     { path: "/social", selector: ".socialPage" },
     { path: "/messages", selector: ".messagesMain" },
     { path: "/u/you", selector: ".profileMain" },
