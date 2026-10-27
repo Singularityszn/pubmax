@@ -24,6 +24,15 @@ const SKIP_KEYLESS_WEBSERVER = process.env.PW_SKIP_KEYLESS_WEBSERVER === "1";
 const DISPOSABLE_PLAN_DB = process.env.PW_DISPOSABLE_PLAN_DB === "1";
 const DISPOSABLE_SUPABASE_URL = process.env.PW_DISPOSABLE_SUPABASE_URL;
 const DISPOSABLE_SERVICE_ROLE_KEY = process.env.PW_DISPOSABLE_SERVICE_ROLE_KEY;
+const DISPOSABLE_PLAN_AUTH = process.env.PW_DISPOSABLE_PLAN_AUTH === "1";
+const DISPOSABLE_AUTH_PREBUILT = process.env.PW_DISPOSABLE_AUTH_PREBUILT === "1";
+if (DISPOSABLE_AUTH_PREBUILT && !DISPOSABLE_PLAN_AUTH) {
+  throw new Error("Disposable prebuilt mode requires genuine Plan authentication.");
+}
+const DISPOSABLE_PUBLISHABLE_KEY = process.env.PW_DISPOSABLE_PUBLISHABLE_KEY;
+if (DISPOSABLE_PLAN_AUTH && (!DISPOSABLE_PLAN_DB || !DISPOSABLE_PUBLISHABLE_KEY)) {
+  throw new Error("Real Plan authentication requires the disposable database and its public key.");
+}
 if (DISPOSABLE_PLAN_DB) {
   const url = DISPOSABLE_SUPABASE_URL && new URL(DISPOSABLE_SUPABASE_URL);
   if (!url || url.protocol !== "http:" || url.hostname !== "127.0.0.1" ||
@@ -61,7 +70,12 @@ const E2E_TRACKED_OUTPUTS_ALLOWLIST =
 // trusted Plan claims never use that storage escape hatch. Give each Playwright
 // invocation a fresh process-only signing key shared by its build/start shell.
 // webServer.env keeps both values out of the command string and process argv.
-const E2E_PLAN_SIGNING_SECRET = randomBytes(32).toString("base64url");
+const E2E_PLAN_SIGNING_SECRET = DISPOSABLE_PLAN_AUTH
+  ? process.env.PW_DISPOSABLE_PLAN_SIGNING_SECRET ?? ""
+  : randomBytes(32).toString("base64url");
+if (DISPOSABLE_PLAN_AUTH && Buffer.byteLength(E2E_PLAN_SIGNING_SECRET, "utf8") < 32) {
+  throw new Error("Disposable Plan authentication requires one run-owned signing key.");
+}
 // Public-only deterministic test key. The private half is neither needed nor
 // present: E2E stubs the browser subscription while exercising the real UI and
 // registration POST. NEXT_PUBLIC_* must be present at Next build time.
@@ -129,7 +143,7 @@ export const E2E_SERVER_ENV = {
   // server stores remain keyless and in memory.
   NEXT_PUBLIC_SUPABASE_URL: DISPOSABLE_PLAN_DB ? DISPOSABLE_SUPABASE_URL! : E2E_SUPABASE_URL,
   NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY:
-    E2E_SUPABASE_PUBLISHABLE_KEY,
+    DISPOSABLE_PLAN_AUTH ? DISPOSABLE_PUBLISHABLE_KEY! : E2E_SUPABASE_PUBLISHABLE_KEY,
   SUPABASE_URL: DISPOSABLE_PLAN_DB ? DISPOSABLE_SUPABASE_URL! : "",
   SUPABASE_SERVICE_ROLE_KEY: DISPOSABLE_PLAN_DB ? DISPOSABLE_SERVICE_ROLE_KEY! : "",
   OPENROUTER_API_KEY: DISPOSABLE_PLAN_DB ? "" : process.env.OPENROUTER_API_KEY ?? "",
@@ -480,7 +494,9 @@ export default defineConfig({
     : [
       {
         cwd: PUBLIC_EVIDENCE_PHASE ? PUBLIC_EVIDENCE_ROOT : undefined,
-        command: SCREENSHOT_RUN
+        command: DISPOSABLE_AUTH_PREBUILT
+          ? `npm run start -- --port ${PORT} --hostname 127.0.0.1`
+          : SCREENSHOT_RUN
           ? `npm run start -- --port ${PORT}`
           : `node scripts/run-with-restored-next-env.mjs npm run build && npm run start -- --port ${PORT}${DISPOSABLE_PLAN_DB ? " --hostname 127.0.0.1" : ""}`,
         // Trusted Plan claims never touch the keyless escape hatch: give each run a

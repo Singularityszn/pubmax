@@ -7,10 +7,6 @@ vi.mock("@/lib/supabase", async (importOriginal) => {
   return { ...actual, isSupabaseConfigured: () => false };
 });
 vi.mock("@/lib/serverEnv", () => ({ assertServerEnv: () => {} }));
-vi.mock("@/lib/pintDrops", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("@/lib/pintDrops")>();
-  return { ...actual, isLimited: async () => false };
-});
 
 import { POST as CREATE } from "@/app/api/plans/route";
 import { GET, PATCH } from "@/app/api/plans/[id]/route";
@@ -23,6 +19,7 @@ import { __resetPlanCollaboration } from "@/lib/planCollaborationStore";
 import { PLAN_MEMBER_SESSION_MAX_AGE_SECONDS } from "@/lib/planMemberCapability";
 import { PLAN_HTTP_ONLY_SESSION } from "@/lib/planSessionCapability";
 import { __resetMemoryPlans } from "@/lib/planStore";
+import { __resetPintDrops } from "@/lib/pintDrops";
 import type { PlanState } from "@/lib/plan";
 
 const URL = "http://localhost/api/plans";
@@ -51,6 +48,7 @@ async function createPlan() {
 }
 
 beforeEach(() => {
+  __resetPintDrops();
   __resetMemoryPlans();
   __resetPlanCollaboration();
 });
@@ -260,6 +258,102 @@ describe("Plan public HTTP contract", () => {
     expect(joined.memberToken).toMatch(/^[a-f0-9]{64}$/);
     expect(joined.role).toBe("guest");
     expect(JSON.stringify(joined.plan)).not.toContain(joined.memberToken);
+  });
+
+  it("requires actual member authority for presence when the token is missing", async () => {
+    const { body } = await createPlan();
+    const response = await PRESENCE(new Request(`${URL}/${body.plan.plan.id}/presence`, {
+      method: "POST",
+      body: JSON.stringify({ status: "on_the_way" }),
+    }), ctx(body.plan.plan.id));
+    expect(response.status).toBe(401);
+    expect(response.headers.get("cache-control")).toBe("no-store");
+    expect(await response.json()).toEqual({
+      error: expect.any(String), code: "PLAN_PRESENCE_REQUIRED", retryable: false,
+    });
+  });
+
+  it("requires actual member authority for presence when only the HttpOnly marker remains", async () => {
+    const { body } = await createPlan();
+    const response = await PRESENCE(new Request(`${URL}/${body.plan.plan.id}/presence`, {
+      method: "POST",
+      body: JSON.stringify({ memberToken: PLAN_HTTP_ONLY_SESSION, status: "on_the_way" }),
+    }), ctx(body.plan.plan.id));
+    expect(response.status).toBe(401);
+    expect(response.headers.get("cache-control")).toBe("no-store");
+    expect(await response.json()).toEqual({
+      error: expect.any(String), code: "PLAN_PRESENCE_REQUIRED", retryable: false,
+    });
+  });
+
+  it("accepts an opaque presence bearer before a conflicting cookie and body", async () => {
+    const { body } = await createPlan();
+    const response = await PRESENCE(new Request(`${URL}/${body.plan.plan.id}/presence`, {
+      method: "POST",
+      headers: {
+        authorization: `Bearer ${body.memberToken}`,
+        cookie: `pubmax_plan_member_${body.plan.plan.id}=wrong-cookie`,
+      },
+      body: JSON.stringify({ memberToken: "wrong-body", status: "on_the_way" }),
+    }), ctx(body.plan.plan.id));
+    expect(response.status).toBe(200);
+    expect(await response.json()).toMatchObject({ crew: [{ name: "Karan", status: "on_the_way" }] });
+  });
+
+  it("uses the real presence cookie before the body when the bearer is only the marker", async () => {
+    const { response: created, body } = await createPlan();
+    const cookie = created.headers.get("set-cookie")?.split(";")[0] ?? "";
+    expect(cookie).toMatch(/^pubmax_plan_member_[0-9a-f-]{36}=[0-9a-f]{64}$/);
+    const response = await PRESENCE(new Request(`${URL}/${body.plan.plan.id}/presence`, {
+      method: "POST",
+      headers: { authorization: `Bearer ${PLAN_HTTP_ONLY_SESSION}`, cookie },
+      body: JSON.stringify({ memberToken: "wrong-body", status: "here" }),
+    }), ctx(body.plan.plan.id));
+    expect(response.status).toBe(200);
+    expect(await response.json()).toMatchObject({ crew: [{ name: "Karan", status: "here" }] });
+  });
+
+  it("keeps invalid status distinct when presence authority is valid", async () => {
+    const { body } = await createPlan();
+    const response = await PRESENCE(new Request(`${URL}/${body.plan.plan.id}/presence`, {
+      method: "POST",
+      headers: { authorization: `Bearer ${body.memberToken}` },
+      body: JSON.stringify({ status: "not-a-crew-status" }),
+    }), ctx(body.plan.plan.id));
+    expect(response.status).toBe(400);
+    expect(await response.json()).toEqual({
+      error: "Choose a valid crew status.", code: "PLAN_PRESENCE_INVALID", retryable: false,
+    });
+  });
+
+  it("keeps the real presence rate limit ahead of a missing-authority refusal", async () => {
+    vi.stubEnv("PUBMAX_E2E_RATE_LIMIT_MAX", "8");
+    try {
+      const { body } = await createPlan();
+      for (let attempt = 0; attempt < 8; attempt += 1) {
+        const response = await PRESENCE(new Request(`${URL}/${body.plan.plan.id}/presence`, {
+          method: "POST",
+          headers: { authorization: `Bearer ${body.memberToken}` },
+          body: JSON.stringify({ status: "here" }),
+        }), ctx(body.plan.plan.id));
+        expect(response.status).toBe(200);
+        await response.json();
+      }
+      const refused = await PRESENCE(new Request(`${URL}/${body.plan.plan.id}/presence`, {
+        method: "POST", body: JSON.stringify({ status: "on_the_way" }),
+      }), ctx(body.plan.plan.id));
+      expect(refused.status).toBe(429);
+      expect(await refused.json()).toEqual({
+        error: "Too many updates, slow down.", code: "PLAN_PRESENCE_RATE_LIMITED", retryable: true,
+      });
+      const read = await GET(new Request(`${URL}/${body.plan.plan.id}`, {
+        headers: { authorization: `Bearer ${body.memberToken}` },
+      }), ctx(body.plan.plan.id));
+      expect(read.status).toBe(200);
+      expect(await read.json()).toMatchObject({ crew: [{ name: "Karan", status: "here" }] });
+    } finally {
+      vi.unstubAllEnvs();
+    }
   });
 
   it("allows only the member token to change that member's live presence", async () => {
