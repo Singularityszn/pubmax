@@ -1,4 +1,4 @@
-.pubImportDoor { max-width: 920px; margin: var(--space-4) auto; }
+.pubImportDoor { max-width: var(--content-max); margin: var(--space-4) auto; }
 .pubImport { color: var(--ink); overflow-wrap: anywhere; padding-bottom: var(--space-6); }
 .pubImport label { display: block; font-weight: 650; margin: var(--space-3) 0 var(--space-2); }
 .pubImport textarea, .pubImport input, .pubImport select {

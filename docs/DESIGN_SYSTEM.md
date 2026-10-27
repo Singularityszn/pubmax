@@ -204,6 +204,8 @@ sizes: `--text-2xs`, `--text-xs`, `--text-sm`, `--text-base`, `--text-md`,
 `--space-5`, `--space-6`, `--space-8`, `--space-10`, `--space-12`.
 `--page-gutter` is the one horizontal inset;
 `--content-max` the reading column; `--content-max-wide` the page.
+Both Pub Pal meeting and returning pages use the page cap and shared gutter.
+`e2e/page-centering.spec.ts` checks their balanced margins and horizontal overflow.
 
 **Shape and depth.** `--radius`, `--radius-sm`, `--radius-lg`, `--radius-pill`
 and `--control-radius` for buttons and control chips. `--shadow`,
@@ -217,6 +219,11 @@ sits outside every cascade layer on purpose: `app/globals.css` resets
 layered utility whatever the order, which is how a Tailwind `text-sm font-bold`
 on the primitive rendered as 16px at weight 400. A bespoke text button reads
 the same tokens rather than restating a figure.
+
+The native `Button` path uses `components/ui/ready-button.tsx` and
+`lib/useClientReady.ts`. The `asChild` path keeps Radix `Slot` and the
+child's native element. The [control guide](../README.md#features) owns
+user-facing readiness and navigation feedback.
 
 **Chips.** `components/ui/chip.tsx` is the primitive and
 `components/ui/chip.css` paints it, outside every cascade layer for the reason

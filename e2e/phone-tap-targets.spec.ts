@@ -225,6 +225,90 @@ test.describe("phone tap targets @390", () => {
   }
 });
 
+for (const width of [320, 390]) {
+  test(`compiled row styles keep the full focus and click target with pending feedback at ${width}px`, async ({ page }, testInfo) => {
+    await prepare(page);
+    await page.setViewportSize({ width, height: PHONE.height });
+    await page.goto("/tonight");
+    await expect(page.getByRole("button", { name: /Switch to .* theme/i }).first()).toBeEnabled();
+    const stylesheets = await page.locator('link[rel="stylesheet"]').evaluateAll((links) =>
+      links.map((link) => (link as HTMLLinkElement).href),
+    );
+    expect(stylesheets.length).toBeGreaterThan(0);
+
+    // Reuse the app's compiled CSS. The fixture keeps this composition test
+    // independent of the server clock that controls Tonight's soft-plan rows.
+    // Live route tap targets and Next navigation are tested separately.
+    await page.setContent(`<!doctype html><html data-theme="light"><head></head><body>
+      <main><ul class="rowList"><li class="rowListItem rowListItem--link">
+        <span class="rowListBody"><a class="rowListTitle rowListTitleLink navPendingLink" href="#row-destination">
+          Row destination<span class="navPendingIndicator" data-pending aria-hidden="true"></span>
+        </a></span>
+      </li></ul></main>
+    </body></html>`);
+    for (const url of stylesheets) await page.addStyleTag({ url });
+    const row = page.locator(".rowListItem");
+    const link = page.getByRole("link", { name: "Row destination", exact: true });
+    await expect(row).toHaveCSS("display", "grid");
+    await expect(link.locator(".navPendingIndicator")).toBeVisible();
+    await page.keyboard.press("Tab");
+    await expect(link).toBeFocused();
+
+    const ring = await link.evaluate((element) => {
+      const style = getComputedStyle(element, "::after");
+      return {
+        width: Number.parseFloat(style.width),
+        height: Number.parseFloat(style.height),
+        outlineWidth: Number.parseFloat(style.outlineWidth),
+        outlineStyle: style.outlineStyle,
+      };
+    });
+    const size = await row.evaluate((element) => ({ width: element.clientWidth, height: element.clientHeight }));
+    expect(ring.outlineWidth).toBeGreaterThan(0);
+    expect(ring.outlineStyle).not.toBe("none");
+    expect(ring.width).toBeGreaterThanOrEqual(MIN_HIT);
+    expect(ring.height).toBeGreaterThanOrEqual(MIN_HIT);
+    expect(Math.abs(ring.width - size.width)).toBeLessThanOrEqual(1);
+    expect(Math.abs(ring.height - size.height)).toBeLessThanOrEqual(1);
+
+    const rowBox = await row.boundingBox();
+    const linkBox = await link.boundingBox();
+    expect(rowBox).not.toBeNull();
+    expect(linkBox).not.toBeNull();
+    // Choose from geometry only. Some layouts have no horizontal padding.
+    // Hit testing below verifies the chosen point; it must not select it.
+    const rowRight = rowBox!.x + rowBox!.width;
+    const rowBottom = rowBox!.y + rowBox!.height;
+    const linkRight = linkBox!.x + linkBox!.width;
+    const linkBottom = linkBox!.y + linkBox!.height;
+    const midX = rowBox!.x + rowBox!.width / 2;
+    const midY = rowBox!.y + rowBox!.height / 2;
+    const point = [
+      { edge: "left", gap: linkBox!.x - rowBox!.x, x: (rowBox!.x + linkBox!.x) / 2, y: midY },
+      { edge: "top", gap: linkBox!.y - rowBox!.y, x: midX, y: (rowBox!.y + linkBox!.y) / 2 },
+      { edge: "right", gap: rowRight - linkRight, x: (linkRight + rowRight) / 2, y: midY },
+      { edge: "bottom", gap: rowBottom - linkBottom, x: midX, y: (linkBottom + rowBottom) / 2 },
+    ].find((candidate) => candidate.gap > 2);
+    await testInfo.attach("compiled-row-geometry", {
+      body: JSON.stringify({ width, row: rowBox, anchor: linkBox, pseudo: ring, rowClient: size, point: point ?? null }, null, 2),
+      contentType: "application/json",
+    });
+    expect(point, "the row must have an edge gap outside its anchor").toBeDefined();
+    const { x, y } = point!;
+    expect(x).toBeGreaterThan(rowBox!.x);
+    expect(x).toBeLessThan(rowRight);
+    expect(y).toBeGreaterThan(rowBox!.y);
+    expect(y).toBeLessThan(rowBottom);
+    expect(x < linkBox!.x || x > linkRight || y < linkBox!.y || y > linkBottom).toBe(true);
+    expect(await link.evaluate((element, target) => {
+      const hit = document.elementFromPoint(target.x, target.y);
+      return hit === element || element.contains(hit);
+    }, { x, y })).toBe(true);
+    await page.mouse.click(x, y);
+    await expect(page).toHaveURL(/#row-destination$/);
+  });
+}
+
 test.describe("coral words in light @390", () => {
   test.describe.configure({ timeout: 90_000 });
   for (const route of ROUTES.filter((candidate) => candidate.path !== "/moment")) {
@@ -234,6 +318,13 @@ test.describe("coral words in light @390", () => {
       if ("open" in route) await route.open(page);
       await expect(route.ready(page)).toBeVisible({ timeout: 20_000 });
       await expect(page.locator("html")).not.toHaveAttribute("data-theme", "dark");
+      if (route.path === "/tonight") {
+        for (const name of ["Tomorrow", "Weekend"]) {
+          const control = page.getByRole("button", { name, exact: true });
+          await expect(control).toBeEnabled();
+          await expect(control).toHaveCSS("opacity", "1");
+        }
+      }
 
       const results = await new AxeBuilder({ page }).withRules(["color-contrast"]).analyze();
       await testInfo.attach(`axe color-contrast ${route.path} light`, {
