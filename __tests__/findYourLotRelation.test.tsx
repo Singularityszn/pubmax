@@ -100,6 +100,19 @@ afterEach(() => {
 });
 
 describe("FindYourLot relation", () => {
+  it("retries a failed search without making the person retype their handle", async () => {
+    search.mockResolvedValueOnce(json({}, 503));
+    await typeQuery("sam");
+    await vi.waitFor(() => expect(host.querySelector('[role="alert"]')).not.toBeNull());
+    const retry = [...host.querySelectorAll("button")].find((button) => button.textContent === "Try search again");
+    expect(retry).toBeDefined();
+    await act(async () => retry!.click());
+    await vi.waitFor(() => expect(host.querySelectorAll("li.findLot__row")).toHaveLength(4));
+    expect(search).toHaveBeenCalledTimes(2);
+    expect(host.querySelector<HTMLInputElement>('input[type="search"]')?.value).toBe("sam");
+    expect(host.querySelector('[role="alert"]')).toBeNull();
+  });
+
   it("names the viewer in the search so the answer can say who they already follow", async () => {
     await typeQuery("sam");
     await vi.waitFor(() => expect(host.querySelectorAll("li.findLot__row")).toHaveLength(4));

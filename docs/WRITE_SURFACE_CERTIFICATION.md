@@ -267,10 +267,11 @@ bodies.
   digest of the stable profile ID, never the raw profile ID, handle or account
   ID. Feed reads partition budgets by lane and listed nearby area.
 - **Validation:** Kind, visibility, text, listed area, hashtags and comment
-  policy use `validateSocialPostCreate`. Public posts cannot carry an exact
-  venue. Raw object keys and every client-supplied ownership, timestamp,
-  revision or moderation field are rejected. Photo references remain closed
-  until the ownership-checked upload task ships.
+  policy use `validateSocialPostCreate`. Public posts may tag a venue.
+  Only the author and mutual friends receive its exact venue fields on reads
+  (`exactVenueAllowed` in `lib/socialPostStore.ts`). Raw object keys and every
+  client-supplied ownership, timestamp, revision or moderation field are
+  rejected. Photo references use the ownership-checked upload path.
 - **Moderation:** Durable creation starts in pending moderation and the same
   database write queues an OpenAI moderation job carrying body plus normalised
   hashtags. Pending content cannot reach direct reads or any feed. A protected

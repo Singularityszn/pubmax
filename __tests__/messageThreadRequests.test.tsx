@@ -439,3 +439,17 @@ describe("a group thread is named by the group, never by one of its people", () 
     ).toHaveLength(0);
   });
 });
+
+describe("group conversation sender labels", () => {
+  it("names each incoming run by its sender and leaves own messages unlabelled", async () => {
+    fetchLog.threadConversation = { kind: "group", members: ["ken", "sam", "maisie"], title: "Friday regulars" };
+    fetchLog.threadRows = [
+      { ...ONE_ROW[0], id: "m1", senderHandle: "sam" },
+      { ...ONE_ROW[0], id: "m2", senderHandle: "sam", createdAt: "2026-09-05T10:00:10Z" },
+      { ...ONE_ROW[0], id: "m3", senderHandle: "maisie", createdAt: "2026-09-05T10:00:20Z" },
+      { ...ONE_ROW[0], id: "m4", senderHandle: "ken", createdAt: "2026-09-05T10:00:30Z" },
+    ];
+    await mount();
+    expect(Array.from(container.querySelectorAll(".messageSender"), (label) => label.textContent)).toEqual(["@sam", "@maisie"]);
+  });
+});

@@ -49,6 +49,73 @@ html[data-text-scale="large"] .socialPage .screenHead {
   min-width: 0;
 }
 
+.socialFeedNavigation {
+  display: grid;
+  align-items: center;
+  gap: var(--space-3);
+  margin-bottom: var(--space-4);
+}
+
+.socialNightLinks {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: var(--space-1) var(--space-5);
+}
+
+.socialNightLinks a {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--control-height);
+  color: var(--ink);
+  font-size: var(--text-sm);
+  font-weight: 650;
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+
+.socialNightLinks a:focus-visible {
+  outline: 2px solid var(--river);
+  outline-offset: 3px;
+}
+
+.socialFeedColumn {
+  display: grid;
+  gap: var(--space-3);
+  min-width: 0;
+}
+
+.socialLayout--discover {
+  display: block;
+}
+
+.socialLayout--discover .socialDiscoverBody {
+  grid-column: auto;
+}
+
+.socialLayout--discover .socialControlRail {
+  display: none;
+}
+
+.socialFeedHeading {
+  margin-bottom: var(--space-5);
+  padding-top: var(--space-2);
+}
+
+.socialFeedHeading h2 {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: var(--text-lg);
+  line-height: var(--leading-tight);
+}
+
+.socialFeedHeading p {
+  margin: var(--space-2) 0 0;
+  color: var(--ink-soft);
+  font-size: var(--text-sm);
+  line-height: var(--leading-normal);
+}
+
 /* A STRANGER ON THE POSTS TAB READS ONE COLUMN (taste plan, 18 Oct 2026).
    The head and the column under it share one reading width, centred on the
    page, so a desktop is not a 260px rail beside 70% of empty canvas. */
@@ -324,6 +391,25 @@ span.socialPostAvatar {
   white-space: pre-wrap;
 }
 
+.socialPostCard:not([data-has-media]) .socialPostBody {
+  margin-block: var(--space-3) var(--space-4);
+  font-size: var(--text-md);
+  line-height: var(--leading-normal);
+}
+
+.socialPostMeta__context {
+  display: grid;
+  flex-shrink: 0;
+  gap: var(--space-1);
+  margin-left: auto;
+  text-align: right;
+}
+
+.socialPostAudience {
+  color: var(--ink-soft);
+  font-size: var(--text-xs);
+}
+
 .socialPostPhoto {
   margin: 0;
 }
@@ -427,7 +513,7 @@ span.socialPostAvatar {
 
 .socialComposerBackdrop {
   position: fixed;
-  z-index: 1000;
+  z-index: calc(var(--z-tabbar) + 10);
   inset: 0;
   display: grid;
   place-items: end center;
@@ -448,7 +534,7 @@ span.socialPostAvatar {
     max(16px, env(safe-area-inset-right))
     calc(24px + env(safe-area-inset-bottom, 0px))
     max(16px, env(safe-area-inset-left));
-  border-radius: 20px 20px 0 0;
+  border-radius: var(--radius-lg) var(--radius-lg) 0 0;
   background: var(--panel-raised);
   overflow: auto;
   overscroll-behavior: contain;
@@ -525,6 +611,58 @@ span.socialPostAvatar {
   margin: 0;
   padding: 12px;
   resize: none;
+}
+
+.socialComposerAudience {
+  display: grid;
+  grid-template-columns: minmax(0, 140px) minmax(0, 1fr);
+  align-items: center;
+  gap: var(--space-3);
+  padding-block: var(--space-4);
+  border-bottom: 1px solid var(--hairline);
+}
+
+.socialComposerAudience label {
+  margin: 0;
+}
+
+.socialComposerAudience p {
+  margin: 0;
+  color: var(--ink-soft);
+  font-size: var(--text-sm);
+  line-height: var(--leading-normal);
+}
+
+.socialComposerCount {
+  margin: var(--space-2) 0;
+  color: var(--ink-soft);
+  font-family: var(--font-data);
+  font-size: var(--text-xs);
+  text-align: right;
+}
+
+.socialComposerPrompts {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  padding-bottom: var(--space-3);
+}
+
+.socialComposerPrompts > span {
+  flex-basis: 100%;
+  color: var(--ink-soft);
+  font-size: var(--text-sm);
+}
+
+.socialComposerPrompts button {
+  padding: 0 var(--control-pad-x);
+  border: 1px solid var(--hairline-strong);
+  border-radius: var(--control-radius);
+  background: transparent;
+  color: var(--ink);
+  font-size: var(--control-font-size);
+  font-weight: var(--control-font-weight);
 }
 
 .socialComposer label > select {
@@ -1057,8 +1195,23 @@ span.socialPostAvatar {
     grid-column: 2 / 4;
   }
 
-  .socialLaneNav {
-    grid-auto-flow: row;
+  .socialFeedColumn {
+    grid-column: 2;
+    grid-row: 1;
+  }
+
+  .socialControlRail {
+    grid-column: 1;
+    grid-row: 1;
+  }
+
+  .socialContextRail {
+    grid-column: 3;
+    grid-row: 1;
+  }
+
+  .socialFeedNavigation {
+    grid-template-columns: minmax(220px, 260px) minmax(0, 1fr);
   }
 
 }
@@ -1470,36 +1623,6 @@ span.socialPostAvatar {
   font: inherit;
   font-size: var(--text-sm);
   font-weight: 700;
-}
-
-/* Below the desktop grid a reader meets the feed straight after the lanes,
-   the way a photo app opens: switcher, lanes and your own pending posts first,
-   then the posts, then crews, rankings and the invite surface. The rail keeps
-   its landmark; only its box steps aside so its children can be ordered with
-   the feed. Only once the feed is on the page: the signed-out door keeps its
-   rail-first order. */
-@media (max-width: 1023px) {
-  .socialLayout:has(.socialPostList) {
-    display: flex;
-    flex-direction: column;
-    align-items: stretch;
-  }
-
-  .socialLayout:has(.socialPostList) > .socialControlRail {
-    display: contents;
-  }
-
-  .socialLayout:has(.socialPostList) > .socialControlRail > * {
-    order: 2;
-  }
-
-  .socialLayout:has(.socialPostList) > .socialControlRail > :is(.socialSwitcher, .socialLaneNav, .socialAreaField, .socialTagInbox, .socialOutbox) {
-    order: 0;
-  }
-
-  .socialLayout:has(.socialPostList) > :not(.socialControlRail) {
-    order: 1;
-  }
 }
 
 /* A photo feed reads at a phone's width even on a wide screen. */
@@ -1959,6 +2082,13 @@ span.socialPostAvatar {
   align-items: center;
   gap: 8px;
   min-height: 44px;
+}
+
+.socialComposer .socialHiddenName input[type="checkbox"] {
+  flex: none;
+  width: 24px;
+  min-height: 24px;
+  accent-color: var(--ink);
 }
 
 .socialHiddenName__hint {

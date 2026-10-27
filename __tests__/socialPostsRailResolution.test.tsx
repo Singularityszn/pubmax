@@ -15,6 +15,7 @@ const viewer = vi.hoisted(() => ({
 const transport = vi.hoisted(() => ({ request: vi.fn() }));
 
 vi.mock("next/link", () => ({
+  useLinkStatus: () => ({ pending: false }),
   default: ({ href, children, ...props }: { href: string; children?: ReactNode; prefetch?: boolean }) => {
     const domProps = { ...props };
     delete domProps.prefetch;

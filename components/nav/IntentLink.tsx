@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { useCallback, type ComponentProps } from "react";
 
 import { warmNavRoute } from "@/lib/mapWarmup";
+import NavPendingIndicator from "@/components/nav/NavPendingIndicator";
 
 // A link to a chip destination, warmed on intent rather than on sight.
 //
@@ -41,6 +42,8 @@ export default function IntentLink({
   onPointerDown,
   onFocus,
   onTouchStart,
+  children,
+  className,
   ...props
 }: IntentLinkProps) {
   const warm = useIntentWarm();
@@ -71,6 +74,11 @@ export default function IntentLink({
         onTouchStart?.(event);
       }}
       {...props}
-    />
+      className={[className, "navPendingLink"].filter(Boolean).join(" ")}
+    >
+      {children}
+      {/* An unnamed link derives its name from its children. Keep the hint decorative there. */}
+      <NavPendingIndicator announce={Boolean(props["aria-label"] || props["aria-labelledby"])} />
+    </Link>
   );
 }

@@ -46,15 +46,21 @@ export default function SocialPostActions({
   postId: string;
 }) {
   const [summary, setSummary] = useState<Summary | null>(null);
+  const [summaryError, setSummaryError] = useState(false);
+  const [summaryAttempt, setSummaryAttempt] = useState(0);
   const [commentsOpen, setCommentsOpen] = useState(false);
   const [comments, setComments] = useState<Comment[] | null>(null);
+  const [commentsLoading, setCommentsLoading] = useState(false);
+  const [commentsError, setCommentsError] = useState(false);
   const [draft, setDraft] = useState("");
   const [sending, setSending] = useState(false);
+  const [reactionPending, setReactionPending] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
   const [reportOpen, setReportOpen] = useState(false);
   const commentsId = useId();
   const inputId = useId();
   const commentKey = useRef(requestKey());
+  const reactionInFlight = useRef(false);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -62,29 +68,54 @@ export default function SocialPostActions({
       credentials: "same-origin",
       signal: controller.signal,
     }, { requiresIdentity: true })
-      .then((response) => (response.ok ? response.json() : null))
-      .then((body: { summary?: Summary } | null) => {
-        if (body?.summary) setSummary(body.summary);
+      .then((response) => {
+        if (!response.ok) {
+          discardBody(response);
+          throw new Error("Reactions unavailable");
+        }
+        return response.json();
       })
-      .catch(() => {});
+      .then((body: { summary?: Summary } | null) => {
+        const value = body?.summary;
+        if (!value || typeof value.cheered !== "boolean" || typeof value.saved !== "boolean" ||
+          !Number.isSafeInteger(value.cheerCount) || value.cheerCount < 0) {
+          throw new Error("Reactions unavailable");
+        }
+        if (!controller.signal.aborted) setSummary(value);
+      })
+      .catch(() => {
+        if (!controller.signal.aborted) setSummaryError(true);
+      });
     return () => controller.abort();
-  }, [postId]);
+  }, [postId, summaryAttempt]);
 
   const loadComments = useCallback(async () => {
+    setCommentsLoading(true);
+    setCommentsError(false);
     try {
       const response = await authedFetch(`/api/social/interactions?view=comments&postId=${encodeURIComponent(postId)}`, {
         credentials: "same-origin",
       }, { requiresIdentity: true });
-      const body = response.ok ? (await response.json()) as { items?: Comment[] } : null;
-      setComments(body?.items ?? []);
+      if (!response.ok) {
+        discardBody(response);
+        throw new Error("Comments unavailable");
+      }
+      const body = (await response.json()) as { items?: Comment[] };
+      if (!Array.isArray(body.items)) throw new Error("Comments unavailable");
+      setComments(body.items);
     } catch {
-      setComments([]);
+      setCommentsError(true);
+    } finally {
+      setCommentsLoading(false);
     }
   }, [postId]);
 
 
   async function toggle(kind: "cheer" | "save") {
-    if (!summary) return;
+    if (!summary || reactionInFlight.current) return;
+    reactionInFlight.current = true;
+    setReactionPending(true);
+    setNotice(null);
     const on = kind === "cheer" ? !summary.cheered : !summary.saved;
     const previous = summary;
     setSummary(kind === "cheer"
@@ -102,6 +133,9 @@ export default function SocialPostActions({
     } catch {
       setSummary(previous);
       setNotice(kind === "cheer" ? "Cheers did not go through. Try again." : "Save did not go through. Try again.");
+    } finally {
+      reactionInFlight.current = false;
+      setReactionPending(false);
     }
   }
 
@@ -158,7 +192,7 @@ export default function SocialPostActions({
           type="button"
           className="socialPostAction"
           aria-pressed={summary?.cheered ?? false}
-          disabled={!summary}
+          disabled={!summary || reactionPending}
           onClick={() => void toggle("cheer")}
         >
           <Beer size={20} aria-hidden="true" />
@@ -170,7 +204,7 @@ export default function SocialPostActions({
           aria-expanded={commentsOpen}
           aria-controls={commentsId}
           onClick={() => {
-            if (!commentsOpen && comments === null) void loadComments();
+            if (!commentsOpen && comments === null && !commentsLoading) void loadComments();
             setCommentsOpen((open) => !open);
           }}
         >
@@ -182,7 +216,7 @@ export default function SocialPostActions({
           className="socialPostAction socialPostAction--end"
           aria-pressed={summary?.saved ?? false}
           aria-label={summary?.saved ? "Saved" : "Save"}
-          disabled={!summary}
+          disabled={!summary || reactionPending}
           onClick={() => void toggle("save")}
         >
           <Bookmark size={20} aria-hidden="true" />
@@ -197,6 +231,15 @@ export default function SocialPostActions({
           <Flag size={20} aria-hidden="true" />
         </button>
       </div>
+      {summaryError ? (
+        <div role="alert">
+          <p>Reactions could not load.</p>
+          <button type="button" onClick={() => {
+            setSummaryError(false);
+            setSummaryAttempt((attempt) => attempt + 1);
+          }}>Retry reactions</button>
+        </div>
+      ) : null}
       {reportOpen ? (
         <div className="socialPostReport" role="group" aria-label="Why are you reporting this post?">
           {REPORT_REASONS.map(([reason, label]) => (
@@ -207,8 +250,14 @@ export default function SocialPostActions({
       {notice ? <p className="socialPostActions__notice" role="status">{notice}</p> : null}
       {commentsOpen ? (
         <section id={commentsId} className="socialPostComments" aria-label="Comments">
-          {comments === null ? <p role="status">Loading comments…</p> : null}
-          {comments && comments.length === 0 ? <p className="socialPostComments__empty">No comments yet.</p> : null}
+          {commentsLoading ? <p role="status">Loading comments…</p> : null}
+          {commentsError ? (
+            <div role="alert">
+              <p>Comments could not load.</p>
+              <button type="button" onClick={() => void loadComments()}>Retry comments</button>
+            </div>
+          ) : null}
+          {!commentsLoading && !commentsError && comments && comments.length === 0 ? <p className="socialPostComments__empty">No comments yet.</p> : null}
           {comments && comments.length > 0 ? (
             <ul>
               {comments.map((comment) => {
