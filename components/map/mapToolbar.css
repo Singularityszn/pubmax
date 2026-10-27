@@ -864,3 +864,15 @@ html[data-theme="dark"] .drinkShapeChipLabel {
     width: 100%;
   }
 }
+
+/* The tablet zoom column clears the arrival card's actual occupied berth.
+   Without a card, -12px cancels its top gap so the existing max terms win. */
+@media (min-width: 641px) and (max-width: 900px) {
+  .appShell:not(.detail-open) .mapStage .maplibregl-ctrl-top-right {
+    top: max(
+      calc(var(--map-overlay-top) + var(--map-camera-stack-height) + var(--map-chrome-gap)),
+      calc(var(--map-top-clearance) + var(--map-toolbar-resting-height) + var(--map-chrome-gap)),
+      calc(var(--map-top-clearance) + var(--map-toolbar-resting-height) + 12px + var(--map-arrival-occupied-height, -12px) + var(--map-chrome-gap))
+    );
+  }
+}
