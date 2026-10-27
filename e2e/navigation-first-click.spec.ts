@@ -46,7 +46,7 @@ for (const viewport of [
       await expect(feedback).toBeVisible({ timeout: 1_000 });
       await expect(plan).toHaveAccessibleName("Plan");
       await expect(page).toHaveURL(/\/u\/you$/);
-      expect(await plan.boundingBox()).toEqual(initialBox);
+      await expect.poll(() => plan.boundingBox()).toEqual(initialBox);
     } finally {
       releaseRoute();
     }
