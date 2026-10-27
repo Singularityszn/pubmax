@@ -47,7 +47,23 @@ function readLayout() {
   };
 }
 
-test("tablet Map clears its real SSR header before and after hydration at 641px and root32", async ({ page }, testInfo) => {
+function readBoundary() {
+  const state = (selector: string) => {
+    const node = document.querySelector<HTMLElement>(selector);
+    if (!node) return { present: false, visible: false, display: null, fontSize: null, height: 0, controls: 0 };
+    const style = getComputedStyle(node);
+    return { present: true, visible: node.getClientRects().length > 0 && style.visibility !== "hidden",
+      display: style.display, fontSize: style.fontSize, height: node.getBoundingClientRect().height,
+      controls: node.querySelectorAll("a[href], button, input").length };
+  };
+  return { rootFont: getComputedStyle(document.documentElement).fontSize,
+    forcedAttributes: document.querySelectorAll("[data-native-shell], [data-text-scale]").length,
+    styleSheetCount: document.styleSheets.length, fontsStatus: document.fonts.status,
+    nav: state('nav[aria-label="Site navigation"]'), toolbar: state(".mapToolbar"),
+    loadingFrame: state(".mapSkeleton, .mapLoading") };
+}
+
+test("tablet Map clears its first real header and toolbar through loading at 641px and root32", async ({ page }, testInfo) => {
   test.setTimeout(90_000);
   await page.setViewportSize({ width: 641, height: 900 });
   await page.emulateMedia({ colorScheme: "light", reducedMotion: "reduce" });
@@ -89,7 +105,8 @@ test("tablet Map clears its real SSR header before and after hydration at 641px 
   const screenshots: string[] = [];
   let initial: ReturnType<typeof readLayout> = null;
   let final: ReturnType<typeof readLayout> = null;
-  const samples: Array<NonNullable<ReturnType<typeof readLayout>>> = [];
+  let initialBoundary: ReturnType<typeof readBoundary> | null = null;
+  const samples: Array<{ boundary: ReturnType<typeof readBoundary>; layout: ReturnType<typeof readLayout> }> = [];
   let sampling = true;
   let sampleLimitReached = false;
   let sampleFailure = false;
@@ -102,6 +119,8 @@ test("tablet Map clears its real SSR header before and after hydration at 641px 
   });
   const assertClearance = (layout: NonNullable<ReturnType<typeof readLayout>>) => {
     expect(layout.rootFont).toBe("32px");
+    expect(layout.navDisplay).toBe("flex");
+    expect(layout.toolbarDisplay).toBe("flex");
     expect(layout.forcedAttributes).toBe(0);
     expect(layout.toolbar.top).toBeGreaterThanOrEqual(layout.nav.bottom + 12);
     expect(layout.documentWidth).toBeLessThanOrEqual(layout.viewportWidth);
@@ -119,32 +138,21 @@ test("tablet Map clears its real SSR header before and after hydration at 641px 
     const documentHandle = await page.evaluateHandle(() => document);
     try {
       await expect.poll(() => blockedCount, { timeout: 5_000 }).toBeGreaterThan(0);
-      try {
-        await expect.poll(async () => {
-          const layout = await page.evaluate(readLayout);
-          return Boolean(layout && layout.rootFont === "32px" && layout.navDisplay === "flex" && layout.toolbarDisplay === "flex"
-            && layout.nav.height >= 44 && layout.toolbar.height >= 44
-            && layout.navControls.length >= 5 && layout.toolbarControls.length >= 2);
-        }, { timeout: 10_000 }).toBe(true);
-      } catch {
-        throw new Error("SETUP_LIMIT: real compiled-CSS SSR navigation/toolbar controls were absent while Next scripts were held. No first-render coverage.");
-      }
+      await expect.poll(() => page.evaluate(() => getComputedStyle(document.documentElement).fontSize)).toBe("32px");
       await page.evaluate(() => Promise.race([
         document.fonts.ready.then(() => true),
         new Promise<boolean>((resolve) => setTimeout(() => resolve(false), 5_000)),
-      ])).then((ready) => expect(ready, "SSR fonts settled before hydration").toBe(true));
-      const nav = page.getByRole("navigation", { name: "Site navigation", exact: true });
-      const toolbar = page.locator(".mapToolbar");
-      await expectLayoutSettled(nav, { timeout: 3_000 });
-      await expectLayoutSettled(toolbar, { timeout: 3_000 });
+      ])).then((ready) => expect(ready, "Initial document fonts settled before script release").toBe(true));
+      initialBoundary = await page.evaluate(readBoundary);
       initial = await page.evaluate(readLayout);
-      expect(initial).not.toBeNull();
       expect(gateTimedOut).toBe(false);
       expect(released).toBe(false);
-      expect(initial!.measuredInline).toBe("");
+      expect(initialBoundary.rootFont).toBe("32px");
+      expect(initialBoundary.forcedAttributes).toBe(0);
       await page.screenshot({ path: testInfo.outputPath("first-render-ssr.png"), timeout: 3_000 });
       screenshots.push("first-render-ssr.png");
-      assertClearance(initial!);
+      const nav = page.getByRole("navigation", { name: "Site navigation", exact: true });
+      const toolbar = page.locator(".mapToolbar");
 
       // Finite frame sampling, not a production observer or a claim about every paint.
       sampler = (async () => {
@@ -155,9 +163,9 @@ test("tablet Map clears its real SSR header before and after hydration at 641px 
             requestAnimationFrame(() => { clearTimeout(timeout); resolve(true); });
           }));
           if (!tick) { sampleFailure = true; break; }
+          const boundary = await page.evaluate(readBoundary);
           const layout = await page.evaluate(readLayout);
-          if (layout) samples.push(layout);
-          else sampleFailure = true;
+          samples.push({ boundary, layout });
         }
         if (sampling) sampleLimitReached = true;
       })().catch(() => { sampleFailure = true; });
@@ -180,14 +188,31 @@ test("tablet Map clears its real SSR header before and after hydration at 641px 
       expect(sampleFailure).toBe(false);
       expect(sampleLimitReached).toBe(false);
       expect(samples.length).toBeGreaterThan(1);
-      expect(samples.some((sample) => sample.measuredInline !== "")).toBe(true);
+      expect(samples.some((sample) => sample.layout && sample.layout.measuredInline !== "")).toBe(true);
       expect(final!.measuredInline).toMatch(/^\d+px$/);
       expect(Math.abs(Number.parseFloat(final!.measuredInline) - final!.nav.height)).toBeLessThanOrEqual(1);
-      for (const layout of [initial!, ...samples, final!]) {
+      let controlsAppeared = false;
+      for (const observation of [{ boundary: initialBoundary!, layout: initial }, ...samples, { boundary: await page.evaluate(readBoundary), layout: final }]) {
+        expect(observation.boundary.rootFont).toBe("32px");
+        expect(observation.boundary.forcedAttributes).toBe(0);
+        const layout = observation.layout;
+        if (!layout) {
+          expect(controlsAppeared, "real controls do not disappear after their first observed appearance").toBe(false);
+          continue;
+        }
+        controlsAppeared = true;
         assertClearance(layout);
+        expect(layout.measuredInline).toMatch(/^\d+px$/);
+        expect(Math.abs(Number.parseFloat(layout.measuredInline) - layout.nav.height)).toBeLessThanOrEqual(1);
         expect(layout.navOverlaps).toEqual([]);
         expect(layout.toolbarOverlaps).toEqual([]);
+        for (const control of [...layout.navControls, ...layout.toolbarControls]) {
+          expect(control.width, `${control.name} width from first appearance`).toBeGreaterThanOrEqual(44);
+          expect(control.height, `${control.name} height from first appearance`).toBeGreaterThanOrEqual(44);
+          expect(control.centreOwned, `${control.name} hit from first appearance`).toBe(true);
+        }
       }
+      expect(controlsAppeared).toBe(true);
       expect(final!.navOverlaps).toEqual([]);
       expect(final!.toolbarOverlaps).toEqual([]);
       for (const control of [...final!.navControls, ...final!.toolbarControls]) {
@@ -219,9 +244,9 @@ test("tablet Map clears its real SSR header before and after hydration at 641px 
         .then(() => { screenshots.push("first-render-failure.png"); }).catch(() => undefined);
     }
     await page.close().catch(() => { routeFailures.push("owned_page_close_failed"); });
-    const report = { initial, final, samples, blockedCount, gateTimedOut, routeFailures, pendingRoutes: waiting.size,
+    const report = { initialBoundary, initial, final, samples, blockedCount, gateTimedOut, routeFailures, pendingRoutes: waiting.size,
       sampleFailure, sampleLimitReached, committedDocumentRequests, documentRequests,
-      scope: "real compiled CSS and SSR DOM, fixture auth only after hydration; finite rAF samples, not every painted frame" };
+      scope: "honest SSR/loading presence and compiled CSS, then first real controls through readiness; fixture auth only after hydration; finite rAF samples, not every painted frame" };
     try {
       const output = testInfo.outputPath("first-render.json");
       await writeFile(output, JSON.stringify(report, null, 2));
