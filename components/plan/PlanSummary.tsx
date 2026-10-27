@@ -434,9 +434,10 @@ function PlanSummaryMember({ planId, state, scope }: { planId: string; state: Pl
   // focus on the document. Focus returns to the control that reopens the
   // editor, so a keyboard or screen-reader host keeps their place.
   const editControl = useRef<HTMLButtonElement | null>(null);
+  const restoreEditFocus = useRef(false);
   const closeEditor = () => {
+    restoreEditFocus.current = true;
     setEditing(false);
-    editControl.current?.focus({ preventScroll: true });
   };
   const [loadingPreview, setLoadingPreview] = useState(false);
   const [localAuthority, setLocalAuthority] = useState<RouteGenerationAuthority | null>(null);
@@ -495,6 +496,13 @@ function PlanSummaryMember({ planId, state, scope }: { planId: string; state: Pl
     isHost,
     anchoredPlan,
   });
+  useEffect(() => {
+    if (!restoreEditFocus.current || editing || pending || saving || loadingPreview) return;
+    const control = editControl.current;
+    if (!canBeginEditing || !control || control.disabled) return;
+    restoreEditFocus.current = false;
+    control.focus({ preventScroll: true });
+  }, [canBeginEditing, editing, pending, saving, loadingPreview]);
   useEffect(() => {
     if (memberToken && role) setActivePlanRole(planId, role);
   }, [memberToken, planId, role]);
