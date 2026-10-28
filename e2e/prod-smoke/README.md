@@ -90,11 +90,12 @@ someone sees it. Timeouts allow for real network latency instead.
 `.github/workflows/prod-smoke.yml` runs the suite when Vercel reports a
 successful Production deployment to GitHub. It checks out the deployed commit,
 so the specs match the code they test. Vercel's Git integration sends that
-report. A `vercel deploy --prod` from a laptop does not, so start the workflow
-by hand after one:
+report. A `vercel deploy --prod` from a laptop does not. `npm run release:prod`
+dispatches the workflow for you. After any other CLI deploy, start it by hand
+and name the deployment that the live site must serve:
 
 ```sh
-gh workflow run prod-smoke.yml
+gh workflow run prod-smoke.yml -f deployment_id=dpl_...
 ```
 
 Before the suite runs, the workflow checks that the live site serves the
@@ -104,7 +105,9 @@ newer deploy already serves production, the run skips with a notice, because the
 newer deploy's own run tests it. If production moves while the suite runs, the
 run fails and says so: its verdict no longer belongs to the commit it checked
 out. A dispatched run tests the ref it was dispatched on, so dispatch it on the
-commit that is live.
+commit that is live. A dispatch that names a `deployment_id` fails when
+production serves another deployment, so that deployment stays unverified. A
+dispatch with no `deployment_id` tests whatever production serves.
 
 The workflow always tests `https://pubmaxxing.com`, so the smoke account's
 secrets never go to another origin. `SMOKE_BASE_URL` is for local runs only.

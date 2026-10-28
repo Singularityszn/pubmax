@@ -1,7 +1,10 @@
-import { readFileSync } from "node:fs";
+import { spawnSync } from "node:child_process";
+import { chmodSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
 import path from "node:path";
 
 import { describe, expect, it } from "vitest";
+import { parse } from "yaml";
 
 import {
   ReleaseRefusal,
@@ -13,6 +16,63 @@ import {
 
 const ROOT = path.resolve(__dirname, "..");
 const SHA = "a".repeat(40);
+
+type SmokeStep = { id?: string; env?: Record<string, string>; run?: string };
+
+/** The workflow's "bound" step, as GitHub reads it. */
+function boundStep(): SmokeStep {
+  const workflow = parse(readFileSync(path.join(ROOT, ".github/workflows/prod-smoke.yml"), "utf8"));
+  const step = (workflow.jobs.smoke.steps as SmokeStep[]).find((candidate) => candidate.id === "bound");
+  if (!step?.run) throw new Error("prod-smoke.yml has no bound step");
+  return step;
+}
+
+/**
+ * Runs the bound step's script the way a GitHub runner does, with curl and jq
+ * replaced so /api/version answers `live` on the production origin and `mine`
+ * on a deployment URL.
+ */
+function runBoundStep(input: { live: string; expected?: string; deploymentUrl?: string; mine?: string }) {
+  const bin = mkdtempSync(path.join(tmpdir(), "prod-smoke-bound-"));
+  writeFileSync(
+    path.join(bin, "curl"),
+    [
+      "#!/bin/sh",
+      'for arg in "$@"; do url="$arg"; done',
+      'case "$url" in https://pubmaxxing.com/*) id="$FAKE_LIVE" ;; *) id="$FAKE_MINE" ;; esac',
+      'printf \'{"deploymentId":"%s"}\' "$id"',
+      "",
+    ].join("\n"),
+  );
+  writeFileSync(
+    path.join(bin, "jq"),
+    [
+      `#!${process.execPath}`,
+      'let body = "";',
+      'process.stdin.on("data", (chunk) => { body += chunk; });',
+      'process.stdin.on("end", () => { process.stdout.write(`${JSON.parse(body).deploymentId ?? ""}\\n`); });',
+      "",
+    ].join("\n"),
+  );
+  chmodSync(path.join(bin, "curl"), 0o755);
+  chmodSync(path.join(bin, "jq"), 0o755);
+  const outputFile = path.join(bin, "github-output");
+  writeFileSync(outputFile, "");
+  const result = spawnSync("bash", ["--noprofile", "--norc", "-eo", "pipefail", "-c", boundStep().run as string], {
+    encoding: "utf8",
+    env: {
+      PATH: `${bin}:${process.env.PATH}`,
+      GITHUB_OUTPUT: outputFile,
+      FAKE_LIVE: input.live,
+      FAKE_MINE: input.mine ?? "",
+      DEPLOYMENT_URL: input.deploymentUrl ?? "",
+      EXPECTED_DEPLOYMENT_ID: input.expected ?? "",
+    },
+  });
+  const output = readFileSync(outputFile, "utf8");
+  rmSync(bin, { recursive: true, force: true });
+  return { status: result.status, stdout: result.stdout, output };
+}
 
 type Call = { command: string; args: string[] };
 
@@ -190,6 +250,7 @@ describe("releaseProduction", () => {
     expect(at("gh run watch")).toBeGreaterThan(at("gh workflow run"));
     expect(calls.find((call) => call.args[0] === "workflow")?.args).toEqual([
       "workflow", "run", "prod-smoke.yml", "--repo", "Singularityszn/pubmax", "--ref", "main",
+      "-f", "deployment_id=dpl_new",
     ]);
     expect(calls.find((call) => call.args[0] === "run" && call.args[1] === "watch")?.args).toContain("--exit-status");
   });
@@ -232,6 +293,70 @@ describe("releaseProduction", () => {
     await expect(releaseProduction(harness({ "gh run watch": { status: 1, stdout: "" } }).deps, { pollMs: 10 })).rejects.toThrow(
       /smoke suite failed/,
     );
+  });
+
+  it("reports the released deployment unverified when A is replaced by B before the job starts", async () => {
+    const { deps, calls, said } = harness();
+    let dispatched = false;
+    let live = "dpl_old";
+    const base = deps.run;
+    deps.run = async (command, args, options) => {
+      if (command === "vercel" && args[0] === "promote") live = "dpl_new";
+      if (command === "gh" && args[0] === "workflow") {
+        dispatched = true;
+        // Another release promotes B after A's dispatch and before its job starts.
+        live = "dpl_b";
+      }
+      if (command === "gh" && args[0] === "run" && args[1] === "watch") {
+        const input = calls.find((call) => call.args[0] === "workflow")?.args.find((arg) => arg.startsWith("deployment_id="));
+        const job = runBoundStep({ live, expected: input?.slice("deployment_id=".length) });
+        calls.push({ command, args });
+        return { status: job.status ?? 1, stdout: job.stdout };
+      }
+      return base(command, args, options);
+    };
+    deps.deploymentIdAt = async (origin) => (origin === "https://pubmax-abc.vercel.app" ? "dpl_new" : live);
+
+    await expect(releaseProduction(deps, { pollMs: 10 })).rejects.toThrow(
+      "https://pubmaxxing.com now serves dpl_b, not dpl_new. Smoke run 77 did not test the released deployment, so dpl_new is unverified.",
+    );
+    expect(dispatched).toBe(true);
+    expect(said.some((line) => /smoke suite passed/.test(line))).toBe(false);
+  });
+});
+
+describe("prod-smoke.yml binds a dispatched run to the released deployment", () => {
+  it("declares the input and hands it to the check before the suite", () => {
+    const workflow = parse(readFileSync(path.join(ROOT, ".github/workflows/prod-smoke.yml"), "utf8"));
+    expect(workflow.on.workflow_dispatch.inputs.deployment_id).toMatchObject({ required: false, type: "string" });
+    expect(boundStep().env?.EXPECTED_DEPLOYMENT_ID).toBe("${{ inputs.deployment_id }}");
+  });
+
+  it("runs the suite when production serves the named deployment, and keeps it as the after-check baseline", () => {
+    const job = runBoundStep({ live: "dpl_a", expected: "dpl_a" });
+    expect(job.status).toBe(0);
+    expect(job.output).toBe("live=dpl_a\nrun=true\n");
+  });
+
+  it("fails, never skips, when production serves another deployment", () => {
+    const job = runBoundStep({ live: "dpl_b", expected: "dpl_a" });
+    expect(job.status).toBe(1);
+    expect(job.stdout).toContain("not the released deployment dpl_a");
+    expect(job.stdout).toContain("unverified");
+    expect(job.output).not.toContain("run=");
+  });
+
+  it("refuses a deployment id that is not one", () => {
+    const job = runBoundStep({ live: "dpl_a", expected: "dpl_a;rm" });
+    expect(job.status).toBe(1);
+    expect(job.stdout).toContain("Unexpected deployment id");
+  });
+
+  it("keeps the deployment_status and bare dispatch paths as they were", () => {
+    expect(runBoundStep({ live: "dpl_a" }).output).toBe("live=dpl_a\nrun=true\n");
+    const newer = runBoundStep({ live: "dpl_b", mine: "dpl_a", deploymentUrl: "https://pubmax-a.vercel.app" });
+    expect(newer.status).toBe(0);
+    expect(newer.output).toBe("live=dpl_b\nrun=false\n");
   });
 });
 

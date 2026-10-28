@@ -2,7 +2,7 @@
 // reports nothing to GitHub, so Vercel never starts prod-smoke.yml for it and a
 // release used to end at `vercel promote` with nothing watching the live site.
 // This list ends where the proof is: it dispatches the smoke suite on the
-// released commit and waits for the verdict.
+// released commit, names the released deployment, and waits for the verdict.
 //
 // Every effect arrives through `deps`, so the order and the refusals are tested
 // without a network, a Vercel account or a GitHub run. The command name
@@ -115,10 +115,15 @@ export async function releaseProduction(deps, options = {}) {
   say(`Production serves ${deploymentId}.`);
 
   // 4. Dispatch the smoke suite on the released commit and wait for the verdict.
+  // The run tests whatever the live origin serves, so it is told which
+  // deployment that must be, and it fails when production serves another.
   const dispatchedAtMs = now();
   const dispatch = await run(
     "gh",
-    ["workflow", "run", SMOKE_WORKFLOW, "--repo", repository, "--ref", RELEASE_BRANCH],
+    [
+      "workflow", "run", SMOKE_WORKFLOW, "--repo", repository, "--ref", RELEASE_BRANCH,
+      "-f", `deployment_id=${deploymentId}`,
+    ],
     {},
   );
   if (dispatch.status !== 0) {
@@ -151,6 +156,15 @@ export async function releaseProduction(deps, options = {}) {
     {},
   );
   if (watched.status !== 0) {
+    // A deploy that replaced this one before or during the run fails the run
+    // without testing this deployment, so that is no verdict on it.
+    const live = await deploymentIdAt(PRODUCTION_ORIGIN);
+    if (live !== deploymentId) {
+      throw new ReleaseRefusal(
+        `${PRODUCTION_ORIGIN} now serves ${live ?? "no deployment"}, not ${deploymentId}. ` +
+          `Smoke run ${smokeRun.databaseId} did not test the released deployment, so ${deploymentId} is unverified.`,
+      );
+    }
     throw new ReleaseRefusal(
       `The production smoke suite failed for ${deploymentId}. Production serves it now: ` +
         "read the run, then fix forward or roll back with `vercel rollback`.",

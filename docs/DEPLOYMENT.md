@@ -386,7 +386,9 @@ This is the way to ship to production. It runs these steps in order and stops at
 3. It stages a Production-target build with `scripts/deploy-vercel.mjs --prod --skip-domain`, so the build stamps the commit and reads Production environment values, and no domain moves yet.
 4. It reads `/api/version` on the new deployment, then runs `vercel promote`.
 5. It waits until `https://pubmaxxing.com/api/version` names the new deployment.
-6. It dispatches `.github/workflows/prod-smoke.yml` with `gh workflow run`, finds the run on the released commit, and waits with `gh run watch --exit-status`.
+6. It dispatches `.github/workflows/prod-smoke.yml` with `gh workflow run`, names the released deployment in the `deployment_id` input, finds the run on the released commit, and waits with `gh run watch --exit-status`.
+
+The run fails when production serves another deployment before or after the suite. In that case the command reports that the released deployment is unverified, because no run tested it.
 
 A CLI deploy reports nothing to GitHub, so Vercel never starts the smoke suite for it. Before this command, nothing tested a release made from a Mac. A failed smoke run exits non-zero. The new deploy is already live at that point, so read the run, then fix forward or roll back with `vercel rollback`.
 
