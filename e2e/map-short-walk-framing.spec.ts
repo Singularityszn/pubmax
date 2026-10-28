@@ -393,7 +393,7 @@ type SohoProbeWindow = Window & {
     project(point: [number, number]): { x: number; y: number };
   };
   __pubmaxPaintedMapTapPoints?: (() => Array<{ kind: string; id: string; x: number; y: number }>) & {
-    state?: () => { loaded: boolean };
+    state?: () => { loaded: boolean; sourceLoaded: Record<string, boolean | null> };
     trace?: typeof import("../components/map/canvas/pubHitTrace").pubHitTrace;
   };
 };
@@ -477,6 +477,7 @@ for (const { theme, motion } of [
       const offsets = [[0, 0], [-radius, 0], [radius, 0], [0, -radius], [0, radius], [-15, -15], [15, -15], [-15, 15], [15, 15]];
       const state = camera.read();
       const loadingOverlayVisible = document.querySelector(".mapLoading") !== null;
+      const loadingState = view.__pubmaxPaintedMapTapPoints?.state?.();
       const colourCanvas = document.createElement("canvas");
       colourCanvas.width = colourCanvas.height = 1;
       const colour = colourCanvas.getContext("2d")!;
@@ -485,10 +486,12 @@ for (const { theme, motion } of [
       return {
         // Full-map loading includes background tiles, not route readiness.
         // The pixel and hit assertions below prove the route itself is usable.
-        ready: !state.moving && !state.settling && !loadingOverlayVisible,
+        ready: !state.moving && !state.settling && !loadingOverlayVisible
+          && loadingState?.sourceLoaded["route-stops"] === true
+          && loadingState.sourceLoaded["route-line"] === true,
         loadingOverlayVisible,
         cameraState: state,
-        loadingState: view.__pubmaxPaintedMapTapPoints?.state?.(),
+        loadingState,
         viewport: { width: innerWidth, height: innerHeight },
         theme: document.documentElement.getAttribute("data-theme"),
         rootFontSize: getComputedStyle(document.documentElement).fontSize,
@@ -507,11 +510,18 @@ for (const { theme, motion } of [
       };
     }, [...SOHO_FOUR_PUBS]);
 
+    const waitForRouteFrame = () => expect.poll(async () => {
+      if (!(await readMap())?.ready) return false;
+      await page.evaluate(() => new Promise<void>((resolve) =>
+        requestAnimationFrame(() => requestAnimationFrame(() => resolve()))));
+      return (await readMap())?.ready;
+    }).toBe(true);
+
     // First observe all responsive states without selecting or dragging.
     for (const viewport of SOHO_VIEWPORTS) {
       await page.setViewportSize({ width: viewport.width, height: viewport.height });
       await expectLayoutSettled(page.locator(".mapCanvasWrap"));
-      await expect.poll(async () => (await readMap())?.ready).toBe(true);
+      await waitForRouteFrame();
       const geometry = await readMap();
       const screenshot = await page.screenshot();
       await testInfo.attach(`four-soho-${theme}-${viewport.name}-geometry`, {
@@ -580,7 +590,7 @@ for (const { theme, motion } of [
         await expect(recover).toBeVisible();
         await recover.click();
         try {
-          await expect.poll(async () => (await readMap())?.ready).toBe(true);
+          await waitForRouteFrame();
         } catch (error) {
           await testInfo.attach(`recovery-${viewport.name}-${pub.id}`, {
             body: JSON.stringify(await readMap(), null, 2), contentType: "application/json",
