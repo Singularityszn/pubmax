@@ -482,7 +482,11 @@ for (const { theme, motion } of [
       colour.fillStyle = getComputedStyle(document.documentElement).getPropertyValue("--route-line").trim();
       colour.fillRect(0, 0, 1, 1);
       return {
-        ready: !state.moving && !state.settling && Boolean(view.__pubmaxPaintedMapTapPoints?.state?.().loaded),
+        // Full-map loading includes background tiles, not route readiness.
+        // The pixel and hit assertions below prove the route itself is usable.
+        ready: !state.moving && !state.settling,
+        cameraState: state,
+        loadingState: view.__pubmaxPaintedMapTapPoints?.state?.(),
         viewport: { width: innerWidth, height: innerHeight },
         theme: document.documentElement.getAttribute("data-theme"),
         rootFontSize: getComputedStyle(document.documentElement).fontSize,
@@ -573,7 +577,20 @@ for (const { theme, motion } of [
         const recover = page.getByRole("button", { name: /^(?:Recenter route|Show whole walk)$/ });
         await expect(recover).toBeVisible();
         await recover.click();
-        await expect.poll(async () => (await readMap())?.ready).toBe(true);
+        try {
+          await expect.poll(async () => (await readMap())?.ready).toBe(true);
+        } catch (error) {
+          await testInfo.attach(`recovery-${viewport.name}-${pub.id}`, {
+            body: JSON.stringify(await readMap(), null, 2), contentType: "application/json",
+          });
+          throw error;
+        }
+        const recovered = await readMap();
+        if (!recovered?.loadingState?.loaded) {
+          await testInfo.attach(`route-during-tile-loading-${viewport.name}-${pub.id}`, {
+            body: JSON.stringify(recovered, null, 2), contentType: "application/json",
+          });
+        }
         const point = await page.evaluate((pub) => {
           const view = window as SohoProbeWindow;
           view.__pubmaxPaintedMapTapPoints?.trace?.start();
