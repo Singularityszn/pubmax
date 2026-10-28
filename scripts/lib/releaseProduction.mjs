@@ -152,8 +152,8 @@ export async function releaseProduction(deps, options = {}) {
     {},
   );
   if (watched.status !== 0) {
-    // A deploy that replaced this one before or during the run fails the run
-    // without testing this deployment, so that is no verdict on it.
+    // A replacement before or during the run prevents a complete verdict on
+    // the released deployment.
     const live = await deploymentIdAt(PRODUCTION_ORIGIN);
     if (live !== deploymentId) {
       throw new ReleaseRefusal(
