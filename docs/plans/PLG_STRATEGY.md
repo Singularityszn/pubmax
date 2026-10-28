@@ -97,6 +97,11 @@ SHIPPED 2026-08-07 (landing wave 0, [#787](https://github.com/Singularityszn/pub
 
 **Done when:** a cold visitor can state what the product does in 5 seconds and open the map without geolocation theatre.
 
+The approved October 2026 search-discovery work extends this wave with compact
+links to existing public borough, drink, heritage, and crawl pages. Repeated pub
+names gain grounded branch labels. Preserve the existing drink-page publication
+floors and keep merged, deployed, and measured outcomes separate.
+
 ### Wave 1 — Double down on the night link (collaboration virality)
 
 Treat `/plan` + `/invite/[token]` as the **Calendly loop**:
@@ -108,6 +113,25 @@ Treat `/plan` + `/invite/[token]` as the **Calendly loop**:
 
 **Done when:** median successful plan creates ≥1 external invite, and ≥30% of invites get an RSVP or map open within 24h.
 
+The approved comparison work adds one public `/tools` destination. It connects
+an exact mixed order, a comparable walk, and a shortlist of up to three pubs.
+It serves bargain hunters, group organisers, and visitors through the same
+evidence. Alcohol-free drinks, soft drinks, and coffee remain explicit choices.
+
+A complete order total requires evidence for every selected drink and serving.
+Unknown items keep a known subtotal separate from complete totals. Walking
+comparisons require compatible routed evidence from the same public meeting
+point. A failed route does not erase the price answer.
+
+The group chooses through existing private polls and voluntary external sharing.
+The chosen pub continues into the existing plan invitation. Personal origins,
+budgets, and plans stay out of public comparison previews and indexed URLs.
+No new voting database or Pub Pal dependency is required.
+
+Measure successful comparisons, map arrivals, plan actions, and invitation
+engagement separately. A share-button tap is not evidence of a recipient visit.
+Search ranks, traffic, and AI citations remain unknown until actually measured.
+
 ### Wave 2 — Price flywheel without begging (data network effect)
 
 Signup only at the contribution gate, with one clear bargain: “Log tonight’s pint so your mates see it on the map.”
@@ -118,6 +142,21 @@ Signup only at the contribution gate, with one clear bargain: “Log tonight’s
 - Poster / beer-mat physical QR ([docs/growth/POSTER_SPEC.md](docs/growth/POSTER_SPEC.md)) into `/near` or map with UTM — distribution as product design (Thiel)
 
 **Done when:** corroborated coverage rises week-on-week in 3+ boroughs without paid ads.
+
+Start the [Islington evidence pilot](../growth/ISLINGTON_EVIDENCE_PILOT.md) in
+November 2026. The founder targets 25 to 30 distinct pubs, with no purchase
+required. The Index still needs 20 qualifying pubs in one borough and UTC month.
+The pilot remains pending real collection and publication approval.
+
+Collect beer, wine, alcohol-free, coffee, and soft-drink evidence separately.
+Only eligible beer-pint evidence enters the Index. The read-only diagnostic
+reports existing validation failures, qualifying monthly groups, and exclusions.
+It never converts directory coverage into admitted Index coverage.
+
+After collection, prepare a monthly Price Pulse draft for owner review.
+An order comparison card requires deliberate sharing. Historical price changes
+require the same branch, drink, and serving. Existing get-home actions keep their
+own current transport evidence. None of these experiments rewards consumption.
 
 ### Wave 3 — Lot density (true network effect), still not “Twitter”
 
@@ -133,6 +172,11 @@ Only after Waves 1–2 show k-factor and coverage moving:
 ### Wave 4 — Concentric expansion
 
 Expand city packs only when London’s price graph and invite loop are obviously winning. Next cities inherit the same honesty fences; do not launch Social-first in a new city.
+
+Liverpool Street, Waterloo, and public editorial-route proposals remain held
+under [ADR 0018](../adr/0018-station-and-editorial-discovery.md). Resolve their
+distinct purpose and source coverage before creating new public URL families.
+The existing standalone-area hold remains in force.
 
 ---
 

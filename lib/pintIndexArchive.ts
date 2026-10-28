@@ -144,21 +144,28 @@ function pintIndexMonthOf(iso: string): string | null {
   return new Date(parsed).toISOString().slice(0, 7);
 }
 
+/** UTC month groups shared by admission and its read-only diagnostic. */
+export function pintIndexObservationsByMonth(
+  observations: readonly PintIndexObservation[],
+): Map<string, PintIndexObservation[]> {
+  const months = new Map<string, PintIndexObservation[]>();
+  for (const observation of observations) {
+    const month = pintIndexMonthOf(observation.observedAt);
+    if (month === null) continue;
+    const monthObservations = months.get(month) ?? [];
+    monthObservations.push(observation);
+    months.set(month, monthObservations);
+  }
+  return months;
+}
+
 /**
  * Admit a validated snapshot when one borough meets the floor within any single UTC month.
  * Group before counting unique pubs so later observations cannot erase an earlier qualifying month.
  * This controls hub indexing and its sitemap row, not the displayed league or dated editions.
  */
 export function pintIndexMeetsAdmissionFloor(snapshot: PintIndexSnapshot): boolean {
-  const months = new Map<string, PintIndexObservation[]>();
-  for (const observation of snapshot.observations) {
-    const month = pintIndexMonthOf(observation.observedAt);
-    if (month === null) continue;
-    const observations = months.get(month) ?? [];
-    observations.push(observation);
-    months.set(month, observations);
-  }
-  return [...months.values()].some((observations) =>
+  return [...pintIndexObservationsByMonth(snapshot.observations).values()].some((observations) =>
     buildLeagueTable({ ...snapshot, observations })
       .some((row) => row.pubCount >= SEED_BOROUGH_MONTHLY_TARGET),
   );
