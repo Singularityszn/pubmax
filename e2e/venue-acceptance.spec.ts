@@ -89,16 +89,18 @@ for (const width of [320, 390] as const) {
       await expect(toolbar).toBeVisible({ timeout: 30_000 });
       // Hydration rewrites the root's style attribute, so the scale is set once
       // the sheet is up, as e2e/mobile-large-text.spec.ts does, then read back.
-      const rootFontPx = await page.evaluate(async (scale) => {
-        const root = document.documentElement;
-        root.setAttribute("data-text-scale", scale === 1 ? "default" : "large");
-        root.style.fontSize = `${scale * 100}%`;
-        await new Promise<void>((resolve) => {
-          requestAnimationFrame(() => requestAnimationFrame(() => resolve()));
-        });
-        return Number.parseFloat(getComputedStyle(root).fontSize);
-      }, textScale);
-      expect(rootFontPx).toBeCloseTo(16 * textScale);
+      await expect(async () => {
+        const rootFontPx = await page.evaluate(async (scale) => {
+          const root = document.documentElement;
+          root.setAttribute("data-text-scale", scale === 1 ? "default" : "large");
+          root.style.fontSize = `${scale * 100}%`;
+          await new Promise<void>((resolve) => {
+            requestAnimationFrame(() => requestAnimationFrame(() => resolve()));
+          });
+          return Number.parseFloat(getComputedStyle(root).fontSize);
+        }, textScale);
+        expect(rootFontPx).toBeCloseTo(16 * textScale);
+      }).toPass({ timeout: 10_000 });
       const share = toolbar.getByRole("button", { name: `Share ${VENUE_NAME}` });
       await expect(share).toBeVisible();
       await expect(toolbar.getByRole("button")).toHaveCount(1);

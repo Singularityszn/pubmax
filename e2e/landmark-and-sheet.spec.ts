@@ -245,6 +245,7 @@ test("mobile drag-sheet traps focus at half and contains it at full (#17)", asyn
 
   await detent.click();
   await expect(sheet).toHaveClass(/sheet-full/);
+  await expect(sheet).toHaveAttribute("data-sheet-motion", "idle");
   await expect(sheet).toHaveAttribute("role", "dialog");
   await expect(sheet).not.toHaveAttribute("aria-modal");
   await expect(page.locator("body > [inert]")).not.toHaveCount(0);
@@ -258,16 +259,19 @@ test("mobile drag-sheet traps focus at half and contains it at full (#17)", asyn
 
   await collapse.click();
   await expect(sheet).toHaveClass(/sheet-half/);
+  await expect(sheet).toHaveAttribute("data-sheet-motion", "idle");
   await expect(sheet).not.toHaveAttribute("aria-modal");
   await expect(page.locator("body > [inert]")).not.toHaveCount(0);
 
   await page.emulateMedia({ reducedMotion: "reduce" });
   await sheet.getByRole("button", { name: "Expand sheet" }).click();
   await expect(sheet).toHaveClass(/sheet-full/);
-  const reducedMotionHeight = await sheet.evaluate((node) =>
-    Number.parseFloat((node as HTMLElement).style.maxHeight),
-  );
-  expect(reducedMotionHeight).toBeCloseTo(844 * 0.92 - 64, 0);
+  // Full leaves the same eight-percent map strip above the sheet. Its bottom
+  // clears the live dock, whose two-line labels can make it taller than 64px.
+  await expect.poll(async () => (await sheet.boundingBox())?.y).toBeCloseTo(844 * 0.08, 0);
+  const fullBox = await sheet.boundingBox();
+  const dockBox = await page.locator(".mobileTabBar").boundingBox();
+  expect(fullBox!.y + fullBox!.height).toBeLessThanOrEqual(dockBox!.y + 1);
 
   expect(errors).toEqual([]);
 });
