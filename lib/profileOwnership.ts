@@ -9,6 +9,10 @@
 // whether the write may proceed.
 //
 // Rules:
+//   • A RESERVED handle opens no lane. A deleted account's tombstone answers 404
+//     to every caller, and a retired alias (a renamed account's previous
+//     handle, held only in the alias ledger) answers 409 to everybody but its
+//     own account, exactly as the claim and rename doors already refuse them.
 //   • An existing unlinked legacy profile is frozen against account ownership.
 //     It keeps the anonymous demo path, but an authenticated write cannot claim
 //     it. A genuinely new handle can still be created and linked. That demo path
@@ -23,9 +27,10 @@
 
 import { withdrawnHandles } from "@/lib/accountPublicAccess.server";
 import { callerUserId } from "@/lib/authServer";
+import { identityHandleStore } from "@/lib/identityHandleStore";
 import { assessPubmaxxHandle } from "@/lib/pubmaxxIdentity";
 import { normalizeHandle } from "@/lib/profiles";
-import { profileStore } from "@/lib/profileStore";
+import { isProfileTombstoned, profileStore } from "@/lib/profileStore";
 
 export type OwnershipDecision =
   | { allowed: true; reason: "unlinked" | "owner" }
@@ -39,6 +44,20 @@ type HandleActionIntent = "read" | "write" | "delete";
 
 const NOT_OWNER_ERROR =
   "This handle belongs to a signed-in account. Sign in as its owner to continue.";
+
+const HANDLE_NOT_AVAILABLE_ERROR = "That handle is not available.";
+
+/**
+ * A handle with no profiles row that the alias ledger still holds is a retired
+ * alias: the previous handle of a renamed account. Only that account may keep
+ * the answer it had before; everybody else meets the claim door's refusal.
+ */
+async function isAliasHeldFromCaller(handle: string, caller: string | null): Promise<boolean> {
+  const identities = identityHandleStore();
+  if ((await identities.availability(handle)).available) return false;
+  if (!caller) return true;
+  return (await identities.ownedHandle(caller, [handle])) !== handle;
+}
 
 export type HandleActionOptions = {
   /**
@@ -106,8 +125,9 @@ export function gateHasVerifiedActor(gate: HandleActionGate): boolean {
  * link a genuinely new handle. Reads and deletes never claim ownership.
  *
  * Unlinked, non-reserved handles keep the demo path. Linked handles require the
- * matching signed-in owner. Fail-closed on store errors so an outage cannot open
- * a linked handle to anonymous writes.
+ * matching signed-in owner. A deleted account's tombstone answers 404 and a
+ * retired alias 409, because both are held. Fail-closed on store errors so an
+ * outage cannot open a linked handle to anonymous writes.
  *
  * A route that already verified the bearer passes `verifiedUserId` so the JWT
  * is checked once per request rather than once per gate. Omitting it keeps the
@@ -155,6 +175,17 @@ export async function gateHandleAction(
         error: NOT_OWNER_ERROR,
       };
     }
+    // A deleted account keeps its row so its handle stays reserved, and the FK
+    // clears the owner. That row is nobody's to write or read through a handle
+    // gate: not the demo lane's and not a new account's (audit finding
+    // lib/profileOwnership:gateHandleAction-unlinked-lane-ignores-tombstone-and-retired-alias).
+    if (isProfileTombstoned(existing)) {
+      return {
+        allowed: false,
+        status: 404,
+        error: "Profile not found.",
+      };
+    }
     // Reserved contributor handles stay blocked for new claims and hijacks, but
     // a signed-in owner saving their own current handle must succeed idempotently.
     // A linked handle taken by someone else is a 403, not a reserved 409.
@@ -167,6 +198,15 @@ export async function gateHandleAction(
           error: assessment.error,
         };
       }
+    }
+    // A retired alias has no profiles row, so it used to read as a handle nobody
+    // holds and opened the demo lane under a renamed account's old name.
+    if (!existing && (await isAliasHeldFromCaller(key, caller))) {
+      return {
+        allowed: false,
+        status: 409,
+        error: HANDLE_NOT_AVAILABLE_ERROR,
+      };
     }
     const linkNewHandle = handleActionIntent(request.method) === "write";
     if (
@@ -208,7 +248,7 @@ export async function gateHandleAction(
           return {
             allowed: false,
             status: 409,
-            error: "That handle is not available.",
+            error: HANDLE_NOT_AVAILABLE_ERROR,
           };
         }
         throw err;

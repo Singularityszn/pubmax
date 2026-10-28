@@ -30,6 +30,12 @@ vi.mock("@/lib/profileStore", async (importOriginal) => {
   };
 });
 
+// The alias ledger behind gateHandleAction stays beside the memory profiles.
+vi.mock("@/lib/identityHandleStore", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/identityHandleStore")>();
+  return { ...actual, identityHandleStore: () => actual.memoryIdentityHandleStore };
+});
+
 import { POST as postSaved } from "@/app/api/saved-pubs/route";
 import { POST as postFollow } from "@/app/api/saved-pubs/list-follows/route";
 import { __resetMemoryProfiles, memoryProfileStore } from "@/lib/profileStore";
