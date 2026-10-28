@@ -1,4 +1,4 @@
-import { expect, test, type Route } from "@playwright/test";
+import { expect, test, type Route, type JSHandle } from "@playwright/test";
 import { writeFile } from "node:fs/promises";
 
 import { ACCOUNTS, installAuthDoubles, seedSignedIn } from "./helpers/authDoubles";
@@ -10,6 +10,7 @@ test.use({ storageState: { cookies: [], origins: [] } });
 
 // External draft only. Install beside the existing e2e helpers only after review.
 // The initial document is real SSR, not fixture-signed-in SSR or device proof.
+function createFrameCollector() {
 function readLayout() {
   const nav = document.querySelector<HTMLElement>('nav[aria-label="Site navigation"]');
   const toolbar = document.querySelector<HTMLElement>(".mapToolbar");
@@ -63,6 +64,52 @@ function readBoundary() {
     loadingFrame: state(".mapSkeleton, .mapLoading") };
 }
 
+  const samples: Array<{ boundary: ReturnType<typeof readBoundary>; layout: ReturnType<typeof readLayout> }> = [];
+  const events: Array<{ reason: string; atMs: number }> = [];
+  let frame = 0;
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  let active = false;
+  let failed = false;
+  let limitReached = false;
+  const record = (reason: string) => events.push({ reason, atMs: Date.now() });
+  const stop = (reason: string) => {
+    active = false;
+    cancelAnimationFrame(frame);
+    clearTimeout(timer);
+    record(reason);
+  };
+  const collect = () => {
+    if (!active) return;
+    try {
+      samples.push({ boundary: readBoundary(), layout: readLayout() });
+      if (samples.length >= 1_200) { limitReached = true; stop("sample_cap"); return; }
+      frame = requestAnimationFrame(collect);
+    } catch {
+      failed = true;
+      stop("collector_rejected");
+    }
+  };
+  return {
+    readBoundary, readLayout,
+    start() {
+      active = true;
+      record("started");
+      timer = setTimeout(() => { limitReached = true; stop("total_expired"); }, 25_000);
+      frame = requestAnimationFrame(collect);
+    },
+    finish() {
+      if (active) {
+        // Read final readiness atomically before cancelling the outstanding frame.
+        try { samples.push({ boundary: readBoundary(), layout: readLayout() }); }
+        catch { failed = true; record("final_read_rejected"); }
+        stop("readiness_stop");
+      }
+      return { samples, events, failed, limitReached };
+    },
+  };
+}
+type Collector = ReturnType<typeof createFrameCollector>;
+
 test("tablet Map clears its first real header and toolbar through loading at 641px and root32", async ({ page }, testInfo) => {
   test.setTimeout(90_000);
   await page.setViewportSize({ width: 641, height: 900 });
@@ -103,21 +150,21 @@ test("tablet Map clears its first real header and toolbar through loading at 641
     finally { waiting.delete(route); }
   };
   const screenshots: string[] = [];
-  let initial: ReturnType<typeof readLayout> = null;
-  let final: ReturnType<typeof readLayout> = null;
-  let initialBoundary: ReturnType<typeof readBoundary> | null = null;
-  const samples: Array<{ boundary: ReturnType<typeof readBoundary>; layout: ReturnType<typeof readLayout> }> = [];
-  let sampling = true;
+  let initial: ReturnType<Collector["readLayout"]> = null;
+  let final: ReturnType<Collector["readLayout"]> = null;
+  let initialBoundary: ReturnType<Collector["readBoundary"]> | null = null;
+  let samples: Array<{ boundary: ReturnType<Collector["readBoundary"]>; layout: ReturnType<Collector["readLayout"]> }> = [];
   let sampleLimitReached = false;
   let sampleFailure = false;
-  let sampler: Promise<void> | null = null;
+  let samplerEvents: Array<{ reason: string; atMs: number }> = [];
+  let collector: JSHandle<Collector> | null = null;
   let failure: unknown;
   let documentRequests = 0;
   let committedDocumentRequests = 0;
   page.on("request", (request) => {
     if (request.isNavigationRequest() && request.resourceType() === "document" && request.frame() === page.mainFrame()) documentRequests += 1;
   });
-  const assertClearance = (layout: NonNullable<ReturnType<typeof readLayout>>) => {
+  const assertClearance = (layout: NonNullable<ReturnType<Collector["readLayout"]>>) => {
     expect(layout.rootFont).toBe("32px");
     expect(layout.navDisplay).toBe("flex");
     expect(layout.toolbarDisplay).toBe("flex");
@@ -143,8 +190,9 @@ test("tablet Map clears its first real header and toolbar through loading at 641
         document.fonts.ready.then(() => true),
         new Promise<boolean>((resolve) => setTimeout(() => resolve(false), 5_000)),
       ])).then((ready) => expect(ready, "Initial document fonts settled before script release").toBe(true));
-      initialBoundary = await page.evaluate(readBoundary);
-      initial = await page.evaluate(readLayout);
+      collector = await page.evaluateHandle(createFrameCollector);
+      initialBoundary = await collector.evaluate((value) => value.readBoundary());
+      initial = await collector.evaluate((value) => value.readLayout());
       expect(gateTimedOut).toBe(false);
       expect(released).toBe(false);
       expect(initialBoundary.rootFont).toBe("32px");
@@ -154,21 +202,8 @@ test("tablet Map clears its first real header and toolbar through loading at 641
       const nav = page.getByRole("navigation", { name: "Site navigation", exact: true });
       const toolbar = page.locator(".mapToolbar");
 
-      // Finite frame sampling, not a production observer or a claim about every paint.
-      sampler = (async () => {
-        const deadline = Date.now() + 25_000;
-        while (sampling && Date.now() < deadline && samples.length < 1_200) {
-          const tick = await page.evaluate(() => new Promise<boolean>((resolve) => {
-            const timeout = setTimeout(() => resolve(false), 500);
-            requestAnimationFrame(() => { clearTimeout(timeout); resolve(true); });
-          }));
-          if (!tick) { sampleFailure = true; break; }
-          const boundary = await page.evaluate(readBoundary);
-          const layout = await page.evaluate(readLayout);
-          samples.push({ boundary, layout });
-        }
-        if (sampling) sampleLimitReached = true;
-      })().catch(() => { sampleFailure = true; });
+      // One browser callback reads boundary and layout in the same frame.
+      await collector.evaluate((value) => value.start());
       release();
       clearTimeout(timer);
       await expect(nav.getByRole("button", { name: `Account options for ${ACCOUNTS.A.name}`, exact: true })).toBeEnabled();
@@ -176,9 +211,12 @@ test("tablet Map clears its first real header and toolbar through loading at 641
       await expectMapToolbarReady(page);
       await expectLayoutSettled(nav);
       await expectLayoutSettled(toolbar);
-      final = await page.evaluate(readLayout);
-      sampling = false;
-      await sampler;
+      final = await collector.evaluate((value) => value.readLayout());
+      const collected = await collector.evaluate((value) => value.finish());
+      samples = collected.samples;
+      samplerEvents = collected.events;
+      sampleFailure = collected.failed;
+      sampleLimitReached = collected.limitReached;
       await page.screenshot({ path: testInfo.outputPath("first-render-hydrated.png"), timeout: 3_000 });
       screenshots.push("first-render-hydrated.png");
       expect(final).not.toBeNull();
@@ -192,7 +230,7 @@ test("tablet Map clears its first real header and toolbar through loading at 641
       expect(final!.measuredInline).toMatch(/^\d+px$/);
       expect(Math.abs(Number.parseFloat(final!.measuredInline) - final!.nav.height)).toBeLessThanOrEqual(1);
       let controlsAppeared = false;
-      for (const observation of [{ boundary: initialBoundary!, layout: initial }, ...samples, { boundary: await page.evaluate(readBoundary), layout: final }]) {
+      for (const observation of [{ boundary: initialBoundary!, layout: initial }, ...samples, { boundary: await collector.evaluate((value) => value.readBoundary()), layout: final }]) {
         expect(observation.boundary.rootFont).toBe("32px");
         expect(observation.boundary.forcedAttributes).toBe(0);
         const layout = observation.layout;
@@ -232,11 +270,23 @@ test("tablet Map clears its first real header and toolbar through loading at 641
     }
   } catch (error) { failure = error; }
   finally {
-    sampling = false;
     clearTimeout(timer);
     release();
     await page.unroute(pattern, handler).catch(() => { routeFailures.push("unroute_failed"); });
-    if (sampler) await sampler;
+    if (collector) {
+      try {
+        const collected = await collector.evaluate((value) => value.finish());
+        samples = collected.samples;
+        samplerEvents = collected.events;
+        sampleFailure ||= collected.failed;
+        sampleLimitReached ||= collected.limitReached;
+      } catch {
+        sampleFailure = true;
+        samplerEvents.push({ reason: "evaluator_rejected", atMs: Date.now() });
+        if (!failure) failure = new Error("First-render sampler evaluator rejected.");
+      }
+      await collector.dispose();
+    }
     const cleanupDeadline = Date.now() + 2_000;
     while (waiting.size && Date.now() < cleanupDeadline) await new Promise((resolve) => setTimeout(resolve, 20));
     if (failure) {
@@ -245,7 +295,7 @@ test("tablet Map clears its first real header and toolbar through loading at 641
     }
     await page.close().catch(() => { routeFailures.push("owned_page_close_failed"); });
     const report = { initialBoundary, initial, final, samples, blockedCount, gateTimedOut, routeFailures, pendingRoutes: waiting.size,
-      sampleFailure, sampleLimitReached, committedDocumentRequests, documentRequests,
+      sampleFailure, samplerEvents, sampleLimitReached, committedDocumentRequests, documentRequests,
       scope: "honest SSR/loading presence and compiled CSS, then first real controls through readiness; fixture auth only after hydration; finite rAF samples, not every painted frame" };
     try {
       const output = testInfo.outputPath("first-render.json");
