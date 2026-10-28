@@ -18,8 +18,8 @@ export function loadPublicPriceStats() {
 
 async function readPublicPriceStats() {
   try {
-    const file = path.join(process.cwd(), "public", "data", "pint_prices_app_dataset.json");
-    const rows = JSON.parse(await fs.readFile(file, "utf8")) as VenuePrice[];
+    const file = path.join(/* turbopackIgnore: true */ process.cwd(), "public", "data", "pint_prices_app_dataset.json");
+    const rows = JSON.parse(await fs.readFile(/* turbopackIgnore: true */ file, "utf8")) as VenuePrice[];
     return computePublicPriceStats(rows);
   } catch {
     // Preserve the public loaders' empty-data behaviour and allow a later retry.
