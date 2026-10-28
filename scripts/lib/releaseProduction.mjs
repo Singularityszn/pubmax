@@ -8,17 +8,24 @@
 // without a network, a Vercel account or a GitHub run. The command name
 // "vercel" is resolved by the entry script (scripts/lib/vercelCli.mjs).
 
+import { stripVTControlCharacters } from "node:util";
+
 export const PRODUCTION_ORIGIN = "https://pubmaxxing.com";
 export const SMOKE_WORKFLOW = "prod-smoke.yml";
 export const RELEASE_BRANCH = "main";
 export const DEFAULT_REPOSITORY = "Singularityszn/pubmax";
 
-const DEPLOYMENT_URL_PATTERN = /https:\/\/[a-z0-9-]+\.vercel\.app/g;
+const DEPLOYMENT_RESULT_LINE = /^(?:(?:▲[ \t]+)?Production(?::[ \t]*|[ \t]+))?(https:\/\/[a-z0-9-]+\.vercel\.app)\/?(?:[ \t]+\[[^\]\r\n]*\])?[ \t]*$/;
 
-/** The deployment URL the Vercel CLI printed. The last one wins: it is the result line. */
+/** Read the staged result, never an alias or a URL embedded in a log message. */
 export function parseDeploymentUrl(output) {
-  const matches = String(output ?? "").match(DEPLOYMENT_URL_PATTERN);
-  return matches ? matches[matches.length - 1] : null;
+  const urls = new Set();
+  for (const line of stripVTControlCharacters(String(output ?? "")).split(/[\r\n]+/)) {
+    const match = line.trim().match(DEPLOYMENT_RESULT_LINE);
+    if (match) urls.add(match[1]);
+  }
+  // Repeated result lines may name one upload. Conflicting results are unsafe.
+  return urls.size === 1 ? [...urls][0] : null;
 }
 
 export function pickDispatchedRun(runs, { sha, dispatchedAtMs, deploymentId }) {

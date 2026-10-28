@@ -61,6 +61,7 @@ function runBoundStep(input: { live: string; expected?: string; deploymentUrl?: 
   const result = spawnSync("bash", ["--noprofile", "--norc", "-eo", "pipefail", "-c", boundStep().run as string], {
     encoding: "utf8",
     env: {
+      NODE_ENV: "test",
       PATH: `${bin}:${process.env.PATH}`,
       GITHUB_OUTPUT: outputFile,
       FAKE_LIVE: input.live,
@@ -175,10 +176,21 @@ function environmentHarness({ deploymentId = "dpl_new", promoteStatus = 0 }: {
 }
 
 describe("parseDeploymentUrl", () => {
-  it("takes the last deployment URL the CLI printed", () => {
+  it("selects one staged result and ignores later alias and help URLs", () => {
     expect(
-      parseDeploymentUrl("Inspect: https://vercel.com/x\nhttps://one.vercel.app\nhttps://two-abc.vercel.app\n"),
+      parseDeploymentUrl(
+        "Inspect: https://vercel.com/x\n\u001b[32m▲ Production\u001b[0m  https://two-abc.vercel.app [1m]\n" +
+        "▲ Aliased  https://one.vercel.app\nTry vercel curl https://one.vercel.app\n",
+      ),
     ).toBe("https://two-abc.vercel.app");
+    expect(parseDeploymentUrl("https://two-abc.vercel.app\n")).toBe("https://two-abc.vercel.app");
+    expect(parseDeploymentUrl("Production: https://two-abc.vercel.app\nhttps://two-abc.vercel.app\n"))
+      .toBe("https://two-abc.vercel.app");
+    expect(parseDeploymentUrl("https://one.vercel.app\nhttps://two-abc.vercel.app\n")).toBeNull();
+    expect(parseDeploymentUrl("Production: https://one.vercel.app\nProduction: https://two-abc.vercel.app\n"))
+      .toBeNull();
+    expect(parseDeploymentUrl("▲ Aliased https://one.vercel.app\n")).toBeNull();
+    expect(parseDeploymentUrl("Try vercel curl https://one.vercel.app\n")).toBeNull();
     expect(parseDeploymentUrl("nothing here")).toBeNull();
   });
 });
@@ -201,6 +213,65 @@ describe("pickDispatchedRun", () => {
 });
 
 describe("releaseProduction", () => {
+  it("keeps the uploaded deployment bound when a project alias moves before promotion", async () => {
+    const immutableUrl = "https://pubmax-abc.vercel.app";
+    const projectAlias = "https://pubmax-project.vercel.app";
+    const fixture = harness({
+      "node scripts/deploy-vercel.mjs": {
+        status: 0,
+        stdout: `▲ Production      ${immutableUrl}\n▲ Aliased         ${projectAlias}\n`,
+      },
+    });
+    const events: string[] = [];
+    const canonicalIds = ["dpl_old", "dpl_new"];
+    let aliasDeploymentId = "dpl_old";
+    const { deps } = fixture;
+    const run = deps.run;
+    const sleep = deps.sleep;
+    deps.preflight = [{ name: "migration ledger", run: async () => { events.push("preflight"); } }];
+    deps.run = async (command, args, options) => {
+      const result = await run(command, args, options);
+      if (command === "node" && args[0] === "scripts/deploy-vercel.mjs") events.push("deploy");
+      if (command === "vercel" && args[0] === "promote") {
+        // The provider can move the alias after its earlier identity lookup.
+        aliasDeploymentId = "dpl_new";
+        const promotedId = args[1] === immutableUrl ? "dpl_new" : aliasDeploymentId;
+        events.push(`promote:${args[1]}:${promotedId}`);
+      }
+      if (command === "gh" && args[0] === "workflow") events.push("dispatch");
+      if (command === "gh" && args[0] === "run" && args[1] === "watch") events.push("watch");
+      return result;
+    };
+    deps.deploymentIdAt = async (origin) => {
+      if (origin === immutableUrl) {
+        events.push("verify:immutable:dpl_new");
+        return "dpl_new";
+      }
+      if (origin === projectAlias) {
+        events.push(`verify:alias:${aliasDeploymentId}`);
+        return aliasDeploymentId;
+      }
+      expect(origin).toBe("https://pubmaxxing.com");
+      const id = canonicalIds.shift() ?? "dpl_new";
+      events.push(`live:${id}`);
+      return id;
+    };
+    deps.sleep = async (ms) => {
+      events.push("wait");
+      await sleep(ms);
+    };
+
+    const receipt = await releaseProduction(deps, { pollMs: 10 });
+
+    expect({ events, receipt }).toEqual({
+      events: [
+        "preflight", "deploy", "verify:immutable:dpl_new",
+        `promote:${immutableUrl}:dpl_new`, "live:dpl_old", "wait", "live:dpl_new", "dispatch", "watch",
+      ],
+      receipt: { sha: SHA, deploymentId: "dpl_new", deploymentUrl: immutableUrl, smokeRunId: 77 },
+    });
+  });
+
   it("stages production values without moving domains before identity verification and promotion", async () => {
     const fixture = environmentHarness();
     const result = await releaseProduction(fixture.deps, { pollMs: 10 });
