@@ -254,16 +254,46 @@ for (const width of [320, 390]) {
     await page.keyboard.press("Tab");
     await expect(link).toBeFocused();
 
-    const ring = await link.evaluate((element) => {
+    const geometry = await link.evaluate((element) => {
+      const rowElement = element.closest<HTMLElement>(".rowListItem");
+      if (!rowElement) throw new Error("The compiled row fixture has no row");
       const style = getComputedStyle(element, "::after");
+      const describe = (target: Element) => {
+        const computed = getComputedStyle(target);
+        const rect = target.getBoundingClientRect();
+        return {
+          x: rect.x, y: rect.y, width: rect.width, height: rect.height,
+          position: computed.position, boxSizing: computed.boxSizing,
+          padding: computed.padding, borderWidth: computed.borderWidth,
+        };
+      };
       return {
-        width: Number.parseFloat(style.width),
-        height: Number.parseFloat(style.height),
-        outlineWidth: Number.parseFloat(style.outlineWidth),
-        outlineStyle: style.outlineStyle,
+        ring: {
+          width: Number.parseFloat(style.width),
+          height: Number.parseFloat(style.height),
+          outlineWidth: Number.parseFloat(style.outlineWidth),
+          outlineStyle: style.outlineStyle,
+          position: style.position, boxSizing: style.boxSizing,
+          inset: style.inset,
+        },
+        size: { width: rowElement.clientWidth, height: rowElement.clientHeight },
+        row: describe(rowElement),
+        anchor: describe(element),
+        viewport: {
+          innerWidth, innerHeight,
+          clientWidth: document.documentElement.clientWidth,
+          clientHeight: document.documentElement.clientHeight,
+          visualWidth: visualViewport?.width ?? null,
+          visualHeight: visualViewport?.height ?? null,
+        },
+        stylesheets: Array.from(document.styleSheets, (sheet) => sheet.href),
       };
     });
-    const size = await row.evaluate((element) => ({ width: element.clientWidth, height: element.clientHeight }));
+    await testInfo.attach("compiled-row-atomic-geometry", {
+      body: JSON.stringify({ width, ...geometry }, null, 2),
+      contentType: "application/json",
+    });
+    const { ring, size } = geometry;
     expect(ring.outlineWidth).toBeGreaterThan(0);
     expect(ring.outlineStyle).not.toBe("none");
     expect(ring.width).toBeGreaterThanOrEqual(MIN_HIT);
