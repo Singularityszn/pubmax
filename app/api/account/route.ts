@@ -13,9 +13,9 @@
 // every private write in this app goes through; a caller with no claimed handle
 // keeps the door, because a handle is not what makes an account theirs.
 //
-// The write is `lib/accountDeletion.server.ts`: the account's own Storage
-// objects through the Storage API first, then the one auth row. Migration
-// `0078`'s trigger, as restated by `0145`, owns everything downstream.
+// `lib/accountDeletion.server.ts` owns the deletion sequence. The account
+// deletion rule in `docs/rules/app-auth-and-account-routes.md` explains why
+// object keys must be collected before deletion and bytes removed afterwards.
 //
 // A DELETE IS IDEMPOTENT, so the door must still answer AFTER the auth row it
 // names has gone. The bearer is therefore verified on the lane that falls back
@@ -48,10 +48,10 @@ export async function DELETE(request: Request): Promise<Response> {
   // request and we know exactly whose account it names. Verification scout
   // verify-preview-4 measured that: `DELETE 200 at 21:02:17, DELETE 401 at
   // 21:02:31`, with the documented 410 `already-gone` unreachable behind it.
-  // `{ allowDeletedAccount: true }` reads the verified claims in exactly that
-  // state, bound to this app's audience and role, so a deleted account is still
-  // NAMED by its own unexpired token and the request reaches the idempotent
-  // answer it was promised. The target is still the token rather than a field.
+  // `{ allowDeletedAccount: true }` also verifies signed claims after GoTrue
+  // accepts the caller or reports `user_not_found`. Only the latter permits
+  // verification without a live account. `VerifyCallerAuthOptions` owns this
+  // contract, including the audience and role requirements.
   //
   // A LIVE ACCOUNT IS STILL ASKED ABOUT. The lane asks GoTrue first, so a token
   // whose session was revoked by sign-out or a password change, or whose

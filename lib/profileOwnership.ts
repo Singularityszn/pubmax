@@ -9,10 +9,11 @@
 // whether the write may proceed.
 //
 // Rules:
-//   • A RESERVED handle opens no lane. A deleted account's tombstone answers 404
-//     to every caller, and a retired alias (a renamed account's previous
-//     handle, held only in the alias ledger) answers 409 to every caller.
-//   • An existing unlinked legacy profile is frozen against account ownership.
+//   • A deleted account's retained row answers 404. A retired alias answers 409
+//     when no row exists or an unowned row collides with another profile's alias.
+//     Both refusals apply to every caller, including the alias owner.
+//     `requireAccountOwner` refuses non-owners with 403 before these checks.
+//   • An existing live, unlinked, non-reserved legacy profile is frozen against account ownership.
 //     It keeps the anonymous demo path, but an authenticated write cannot claim
 //     it. A genuinely new handle can still be created and linked. That demo path
 //     grants no VERIFIED ACTOR, so a write whose record has to be attributable
