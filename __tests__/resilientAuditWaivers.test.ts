@@ -3,9 +3,9 @@ import { describe, expect, it } from "vitest";
 // The audit gate may waive named advisories (see WAIVED_ADVISORIES in the
 // script). These tests pin the blast radius of that mechanism: a waiver
 // covers exactly the advisory named, and a finding that mixes a waived
-// advisory with anything else still fails. The live map holds only the
-// dev-only braces advisory; classifyFindings is exercised with a local map so
-// the machinery stays pinned independently of the live waiver.
+// advisory with anything else still fails. The live map is empty;
+// classifyFindings is exercised with a local map so the machinery stays
+// pinned independently of any live waiver.
 
 // @ts-expect-error - plain .mjs build script, no type declarations
 import { WAIVED_ADVISORIES, classifyFindings } from "../scripts/resilient-audit.mjs";
@@ -20,10 +20,8 @@ function advisory(url: string, severity = "high") {
 }
 
 describe("resilient-audit waivers", () => {
-  it("ships with only the dev-only braces waiver, at high severity", () => {
-    expect([...WAIVED_ADVISORIES]).toEqual([
-      ["https://github.com/advisories/GHSA-vfj7-8cjw-p6xm", "high"],
-    ]);
+  it("ships with no live waivers", () => {
+    expect([...WAIVED_ADVISORIES]).toEqual([]);
   });
 
   it("waives a finding whose only advisory is waived", () => {
