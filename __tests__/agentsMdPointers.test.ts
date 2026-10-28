@@ -125,6 +125,7 @@ const NOT_REPO_PATHS = new Set([
   "plan_crew_members.token_hash",
   // Database column name, not a repository path.
   "public.pint_drops.receipt_photo_key",
+  "round_spends.receipt_photo_key",
   // Database column name, not a repository path.
   "community_prices.actor",
   // Database column name, not a repository path.
