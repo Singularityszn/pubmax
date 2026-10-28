@@ -491,6 +491,7 @@ import {
   retireMapOpeningLocation,
   resolveMapOpeningView,
 } from "@/lib/mapOpeningLocation";
+import { mapLocationWasExposed } from "@/lib/mapLocationExposure";
 import { createMapCameraOwnership } from "@/lib/mapCameraProvenance";
 import type { MapOpeningLocation } from "@/lib/mapOpeningLocation";
 import { latchMapReaderLocationWatch } from "@/lib/mapReaderPosition";
@@ -1382,9 +1383,11 @@ export default function PubMap({
     mapResumeSeed: mapResumeSeed?.viewport ? mapResumeSeed : null,
     restoredMobileSession,
   });
-  const [cameraOwnership] = useState(() => createMapCameraOwnership(
-    mapResumeSeed?.viewport ? mapResumeSeed : restoredMobileSession,
-  ));
+  const [cameraOwnership] = useState(() => {
+    const ownership = createMapCameraOwnership(mapResumeSeed?.viewport ? mapResumeSeed : restoredMobileSession);
+    if (mapLocationWasExposed()) ownership.exposeLocation();
+    return ownership;
+  });
   useEffect(() => {
     cameraOwnership.attach();
     return () => cameraOwnership.detach();
@@ -1858,7 +1861,7 @@ export default function PubMap({
   const [nearbyLoading, setNearbyLoading] = useState(false);
   const [nearbyError, setNearbyError] = useState<string | null>(null);
   const [userLocation, setUserLocation] = useState<UserLocation | null>(null);
-  const readerPosition = useMapReaderPosition();
+  const readerPosition = useMapReaderPosition(invalidatePrivateCamera);
   // Purpose-limited copy used only after the viewer explicitly asks for travel
   // times. A location granted for "Pubs near me" must not silently become a
   // precise journey request for every venue they inspect.

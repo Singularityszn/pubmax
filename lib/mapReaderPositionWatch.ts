@@ -16,6 +16,7 @@ const PERMISSION_DENIED = 1;
  */
 export function attachMapReaderPositionWatch(
   onUpdate: MapReaderPositionListener,
+  onLocationExposure: () => void = () => {},
 ): () => void {
   if (typeof navigator === "undefined" || !navigator.geolocation) {
     return () => {};
@@ -38,6 +39,7 @@ export function attachMapReaderPositionWatch(
 
   const onPosition = (fix: GeolocationPosition) => {
     if (detached) return;
+    onLocationExposure();
     onUpdate(mapReaderPositionFromGeolocation(fix));
   };
 
@@ -52,6 +54,7 @@ export function attachMapReaderPositionWatch(
 
   const startWatch = () => {
     if (detached || watchId !== null) return;
+    onLocationExposure();
     watchId = navigator.geolocation.watchPosition(
       onPosition,
       onWatchError,

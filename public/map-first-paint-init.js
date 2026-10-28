@@ -61,6 +61,10 @@
       return new Promise(function (resolve) {
         function settle(value) { resolve(value); }
         try {
+          try {
+            window.__pubmaxMapLocationExposed = true;
+            window.dispatchEvent(new Event("pubmax:map-location-exposure"));
+          } catch { /* Exposure signalling never changes the location request. */ }
           nav.geolocation.getCurrentPosition(
             function (position) {
               try {
