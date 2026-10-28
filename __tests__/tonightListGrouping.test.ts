@@ -61,6 +61,31 @@ describe("groupTonightListings", () => {
     expect(defined(grouped[0]).alternates.map((r) => r.placeName)).toEqual(["Second"]);
   });
 
+  it("keeps one quiz company's quizzes at different pubs as separate cards", () => {
+    // Question One titles every venue's quiz the same way, at the same time.
+    const quiz = (placeName: string, venueId?: string) =>
+      makeRow({
+        kind: "quiz",
+        title: "Pub quiz - Wednesdays 7:30pm",
+        placeName,
+        ...(venueId ? { venueId } : {}),
+        source: { label: "Question One", url: `https://questionone.com/venues/${placeName}/` },
+      });
+    const grouped = groupTonightListings(
+      [quiz("Royal Oak, Bethnal Green", "venue-a"), quiz("Eagle, Hoxton", "venue-b"), quiz("Royal Oak, Borough")],
+      null,
+    );
+    expect(grouped).toHaveLength(3);
+    expect(grouped.every((group) => group.venueCount === 1 && group.alternates.length === 0)).toBe(true);
+  });
+
+  it("still folds one pub's quiz listed twice by the same source into one card", () => {
+    const row = { kind: "quiz" as const, title: "Thursday Quiz", venueId: "venue-a", placeName: "The Sharp Wit" };
+    const grouped = groupTonightListings([makeRow(row), makeRow(row)], null);
+    expect(grouped).toHaveLength(1);
+    expect(defined(grouped[0]).venueCount).toBe(1);
+  });
+
   it("passes a lone listing through untouched (count 1, no alternates)", () => {
     const grouped = groupTonightListings([makeRow({ title: "Solo Quiz", kind: "quiz" })], null);
     expect(grouped).toHaveLength(1);
