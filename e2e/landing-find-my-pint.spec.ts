@@ -346,12 +346,16 @@ async function expectLandingPrimaryClear(page: Page, viewport: { width: number; 
   expect(hitOwnership).toEqual(Array<boolean>(9).fill(true));
 }
 
-test("homepage quiet actions remain clickable beside Create on a narrow phone", async ({ page }) => {
+for (const textSize of [16, 32]) {
+test(`homepage quiet actions remain clickable beside Create on a narrow phone with ${textSize}px text`, async ({ page }) => {
   await page.setViewportSize({ width: 320, height: 568 });
   await prepareClearanceLanding(page, "dark", false);
   await page.goto("/");
   const create = page.getByRole("button", { name: "Create", exact: true });
   await expect(create).toBeEnabled();
+  await page.evaluate((size) => { document.documentElement.style.fontSize = `${size}px`; }, textSize);
+  await page.evaluate(() => document.fonts.ready);
+  await expect.poll(() => page.evaluate(() => window.innerWidth - document.documentElement.clientWidth)).toBeGreaterThan(0);
   await create.focus();
   await expect(page.locator(".createFabRoot")).toHaveCSS("opacity", "1");
 
@@ -369,6 +373,7 @@ test("homepage quiet actions remain clickable beside Create on a narrow phone", 
   await page.getByRole("link", { name: "What's on tonight", exact: true }).click();
   await expect(page).toHaveURL(/\/tonight$/);
 });
+}
 
 for (const viewport of [{ width: 320, height: 568 }, { width: 390, height: 844 }]) {
   for (const theme of ["light", "dark"] as const) {
