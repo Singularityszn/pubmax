@@ -3,7 +3,7 @@
 // already did this year, from records the app already keeps: the nights kept
 // on this device (lib/nightsKept.ts), the crawls walked on this device
 // (lib/crawlCompletion.ts) and the prices they mapped (GET /api/pint-drops/
-// stats). It is the first cut of the Year in Pints wrap, so it keeps that
+// stats?year=...). Sharing is defined in lib/yearInPints.ts. It keeps the
 // wrap's law: it is free forever, a year read back and never a score. It
 // counts no pints drunk, no streak and no rank, and nothing in the product
 // branches on it.
@@ -23,7 +23,7 @@ export type PalYearInput = {
   /** London days (YYYY-MM-DD) a finished night was kept on this device. */
   nightsKeptDays: readonly string[];
   crawls: readonly PalYearCrawl[];
-  /** Prices mapped so far, and in how many boroughs; null when unknown. */
+  /** The caller supplies prices and boroughs for `year` in London time. Null means unknown. */
   contributions: { pricesMapped: number; boroughs: number } | null;
 };
 
@@ -41,7 +41,7 @@ export type PalYearFacts = {
   boroughs: number;
 };
 
-const MONTHS = [
+export const MONTHS = [
   "January", "February", "March", "April", "May", "June",
   "July", "August", "September", "October", "November", "December",
 ] as const;
@@ -107,7 +107,7 @@ export function palYearFacts(input: PalYearInput): PalYearFacts {
 }
 
 /** "18 October", from a London day. */
-function dayLabel(day: string): string {
+export function dayLabel(day: string): string {
   const month = MONTHS[Number(day.slice(5, 7)) - 1];
   return month ? `${Number(day.slice(8, 10))} ${month}` : day;
 }

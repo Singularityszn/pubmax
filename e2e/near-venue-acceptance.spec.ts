@@ -1,5 +1,7 @@
 import { test, expect, type Page } from "@playwright/test";
 
+import { expectStreamedPageSettled } from "@/e2e/helpers/streamedPage";
+
 test.setTimeout(60_000);
 
 // Permanent Near acceptance keeps browsing and accepting separate. Opening a
@@ -38,6 +40,9 @@ test("Near separates browsing from permanent Venue acceptance", async ({ page })
   // Shareable patch link answers immediately, no geolocation prompt needed.
   const response = await page.goto("/near?patch=soho");
   expect(response?.status()).toBe(200);
+  // Until React swaps the streamed segment in, the document holds two copies
+  // of the Near section and a strict locator refuses both.
+  await expectStreamedPageSettled(page);
 
   // Standard app chrome (upstream centered Near shell) — never the removed
   // custom back-arrow shell.

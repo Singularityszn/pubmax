@@ -5,13 +5,14 @@ const DAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", 
 
 /**
  * A clock time as a reader reads it. OSM writes a close past midnight as an
- * hour beyond 24 (`28:00` is 04:00 the next morning), which is no wall-clock
- * time, so it prints the next day's clock and says so.
+ * hour from 24 (`28:00` is 04:00 the next morning, `24:15` is 00:15), which is
+ * no wall-clock time, so it prints the next day's clock and says so. `24:00`
+ * is the end of the day and stays as written.
  */
 function clockLabel(time: string): string {
   const match = /^(\d{2}):(\d{2})$/.exec(time);
   const hour = Number(match?.[1]);
-  if (!match || hour <= 24) return time;
+  if (!match || hour < 24 || time === "24:00") return time;
   return `${String(hour - 24).padStart(2, "0")}:${match[2]} next day`;
 }
 

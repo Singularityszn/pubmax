@@ -2,6 +2,7 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { defined } from "@/__tests__/helpers/defined";
+import { MAP_DOCUMENT_QUERY_KEYS } from "@/lib/mapDocumentTwin";
 
 type Listener = (event: unknown) => void;
 
@@ -674,7 +675,7 @@ describe("service worker map cache", () => {
       rolloutWorkerHarness({
         rejectCurrentWrites: true,
         entries: {
-          "pubmax-sw-shell-legacy-active": [
+          "pubmax-sw-shell-v2-legacy-active": [
             ["/map", shellResponse],
             ["/p/legacy-drop", new Response("legacy Pint Drop")],
           ],
@@ -705,8 +706,8 @@ describe("service worker map cache", () => {
         .get("pubmax-sw-swr-legacy-active")
         ?.has("https://pubmaxxing.com/_next/static/chunks/legacy.js"),
     ).toBe(true);
-    expect(records.has("pubmax-sw-shell-legacy-active")).toBe(true);
-    expect(records.get("pubmax-sw-shell-legacy-active")
+    expect(records.has("pubmax-sw-shell-v2-legacy-active")).toBe(true);
+    expect(records.get("pubmax-sw-shell-v2-legacy-active")
       ?.has("https://pubmaxxing.com/p/legacy-drop")).toBe(false);
     expect(records.has("pubmax-sw-data-legacy-active")).toBe(true);
     expect(records.has("pubmax-sw-preview-plan-v2-legacy-active")).toBe(true);
@@ -727,7 +728,7 @@ describe("service worker map cache", () => {
     );
     await expect(navigation.response).resolves.toBe(shellResponse);
     expect(await fakeCaches.keys()).toContain(
-      "pubmax-sw-shell-legacy-active",
+      "pubmax-sw-shell-v2-legacy-active",
     );
 
     const planNavigation = dispatchFetch(
@@ -769,8 +770,8 @@ describe("service worker map cache", () => {
       entries: {
         "pubmax-sw-preview-plan-v2-target": [["/plan/current?old=1", currentPlan], ...excluded],
         "pubmax-sw-preview-plan-v2-legacy-active": [["/plan/legacy?old=1", legacyPlan], ...excluded],
-        "pubmax-sw-shell-target": [defined(shells[0]), ...excluded],
-        "pubmax-sw-shell-legacy-active": [...shells.slice(1), ...excluded],
+        "pubmax-sw-shell-v2-target": [defined(shells[0]), ...excluded],
+        "pubmax-sw-shell-v2-legacy-active": [...shells.slice(1), ...excluded],
       },
     });
     expect(importScripts).toHaveBeenCalledOnce();
@@ -805,10 +806,10 @@ describe("service worker map cache", () => {
     expect([...(records.get("pubmax-sw-preview-plan-v2-legacy-active")?.keys() ?? [])]).toEqual(
       rejectCurrentWrites ? [`${origin}/plan/legacy?old=1`] : [],
     );
-    expect([...records.get("pubmax-sw-shell-target")!.keys()]).toEqual(
+    expect([...records.get("pubmax-sw-shell-v2-target")!.keys()]).toEqual(
       (rejectCurrentWrites ? shells.slice(0, 1) : shells).map(([path]) => `${origin}${path}`),
     );
-    expect([...(records.get("pubmax-sw-shell-legacy-active")?.keys() ?? [])]).toEqual(
+    expect([...(records.get("pubmax-sw-shell-v2-legacy-active")?.keys() ?? [])]).toEqual(
       (rejectCurrentWrites ? shells.slice(1) : []).map(([path]) => `${origin}${path}`),
     );
   });
@@ -910,10 +911,10 @@ describe("service worker map cache", () => {
   it("never serves a Pint Drop from a shell cache before activation", async () => {
     const { listeners } = rolloutWorkerHarness({
       entries: {
-        "pubmax-sw-shell-target": [
+        "pubmax-sw-shell-v2-target": [
           ["/p/current-drop", new Response("cached Pint Drop")],
         ],
-        "pubmax-sw-shell-legacy-active": [
+        "pubmax-sw-shell-v2-legacy-active": [
           ["/p/legacy-drop", new Response("old Pint Drop")],
         ],
       },
@@ -931,7 +932,7 @@ describe("service worker map cache", () => {
   it("hands an offline native entry to the root ladder instead of the cached root", async () => {
     const home = new Response("offline home");
     const { listeners } = rolloutWorkerHarness({
-      entries: { "pubmax-sw-shell-target": [["/", home]] },
+      entries: { "pubmax-sw-shell-v2-target": [["/", home]] },
     });
 
     const entry = dispatchFetch(
@@ -962,7 +963,7 @@ describe("service worker map cache", () => {
 
     expect(await navigation.response).toBe(pintDrop);
     await Promise.all(navigation.lifetime);
-    expect(records.get("pubmax-sw-shell-target")?.size ?? 0).toBe(0);
+    expect(records.get("pubmax-sw-shell-v2-target")?.size ?? 0).toBe(0);
     expect(records.get("pubmax-sw-preview-plan-v2-target")?.size ?? 0).toBe(0);
   });
 
@@ -970,10 +971,10 @@ describe("service worker map cache", () => {
     const mapResponse = new Response("offline map");
     const { listeners, records } = rolloutWorkerHarness({
       entries: {
-        "pubmax-sw-shell-target": [
+        "pubmax-sw-shell-v2-target": [
           ["/p/current-drop", new Response("current Pint Drop")],
         ],
-        "pubmax-sw-shell-legacy-active": [
+        "pubmax-sw-shell-v2-legacy-active": [
           ["/p/legacy-drop", new Response("legacy Pint Drop")],
           ["/map", mapResponse],
         ],
@@ -982,10 +983,10 @@ describe("service worker map cache", () => {
 
     await Promise.all(dispatchLifecycle(listeners.get("activate")!));
 
-    expect([...records.get("pubmax-sw-shell-target")!.keys()]).toEqual([
+    expect([...records.get("pubmax-sw-shell-v2-target")!.keys()]).toEqual([
       "https://pubmaxxing.com/map",
     ]);
-    expect(records.has("pubmax-sw-shell-legacy-active")).toBe(false);
+    expect(records.has("pubmax-sw-shell-v2-legacy-active")).toBe(false);
 
     const map = dispatchFetch(
       listeners.get("fetch")!,
@@ -998,7 +999,7 @@ describe("service worker map cache", () => {
     const { deletedCaches, fakeSelf, listeners, records } =
       rolloutWorkerHarness({
         entries: {
-          "pubmax-sw-shell-legacy-active": [
+          "pubmax-sw-shell-v2-legacy-active": [
             ["/map", new Response("offline map")],
           ],
           "pubmax-sw-data-legacy-active": [
@@ -1010,10 +1011,10 @@ describe("service worker map cache", () => {
     const lifetime = dispatchLifecycle(listeners.get("activate")!);
     await expect(Promise.all(lifetime)).resolves.toBeDefined();
 
-    expect(deletedCaches).toEqual(["pubmax-sw-shell-legacy-active"]);
+    expect(deletedCaches).toEqual(["pubmax-sw-shell-v2-legacy-active"]);
     expect(
       records
-        .get("pubmax-sw-shell-target")
+        .get("pubmax-sw-shell-v2-target")
         ?.has("https://pubmaxxing.com/map"),
     ).toBe(true);
     expect(
@@ -1251,7 +1252,7 @@ describe("trusted Plan preview continuity", () => {
         "pubmax-sw-plan-target": [["/plan/shared?old=1", unsafe]],
         "pubmax-sw-plan-legacy-active": [["/plan/shared?old=1", unsafe]],
         "pubmax-sw-preview-plan-v2-previous": [["/plan/shared?trusted=1", trusted]],
-        "pubmax-sw-shell-target": [["/", new Response("Public landing shell")]],
+        "pubmax-sw-shell-v2-target": [["/", new Response("Public landing shell")]],
       },
     });
 
@@ -1297,7 +1298,7 @@ describe("old Plan navigation privacy", () => {
         rejectDeletes: true,
         entries: {
           [oldCache]: [["/plan/private-night?old=1", oldHtml]],
-          "pubmax-sw-shell-target": [["/", home]],
+          "pubmax-sw-shell-v2-target": [["/", home]],
         },
       });
       // Cache deletion is best-effort. Privacy must hold when old bytes remain.
@@ -1378,7 +1379,7 @@ describe("stalled and preloaded navigations", () => {
     expect(await navigation.response).toBe(preloaded);
     expect(doFetch).not.toHaveBeenCalled();
     await Promise.all(navigation.lifetime);
-    expect(records.get("pubmax-sw-shell-target")?.has("https://pubmaxxing.com/map")).toBe(true);
+    expect(records.get("pubmax-sw-shell-v2-target")?.has("https://pubmaxxing.com/map")).toBe(true);
   });
 
   it("falls back to fetch when no preload response is offered", async () => {
@@ -1395,7 +1396,7 @@ describe("stalled and preloaded navigations", () => {
     const shelf = shelvedShell("shelved tonight", 60_000, 60);
     const network = stalledNetwork();
     const { listeners, records } = rolloutWorkerHarness({
-      entries: { "pubmax-sw-shell-target": [["/tonight", shelf]] },
+      entries: { "pubmax-sw-shell-v2-target": [["/tonight", shelf]] },
       pendingResponse: network.pending,
     });
 
@@ -1407,7 +1408,7 @@ describe("stalled and preloaded navigations", () => {
     const live = new Response("live tonight");
     network.resolve(live);
     await Promise.all(navigation.lifetime);
-    const stored = records.get("pubmax-sw-shell-target")?.get("https://pubmaxxing.com/tonight");
+    const stored = records.get("pubmax-sw-shell-v2-target")?.get("https://pubmaxxing.com/tonight");
     expect(await stored?.response.text()).toBe("live tonight");
   });
 
@@ -1416,7 +1417,7 @@ describe("stalled and preloaded navigations", () => {
     const shelf = shelvedShell("old tonight", 4 * 60_000, 120);
     const network = stalledNetwork();
     const { listeners } = rolloutWorkerHarness({
-      entries: { "pubmax-sw-shell-target": [["/tonight", shelf]] },
+      entries: { "pubmax-sw-shell-v2-target": [["/tonight", shelf]] },
       pendingResponse: network.pending,
     });
 
@@ -1432,7 +1433,7 @@ describe("stalled and preloaded navigations", () => {
     const shelf = shelvedShell("shelved map", 50 * 60_000);
     const network = stalledNetwork();
     const { listeners } = rolloutWorkerHarness({
-      entries: { "pubmax-sw-shell-target": [["/map", shelf]] },
+      entries: { "pubmax-sw-shell-v2-target": [["/map", shelf]] },
       pendingResponse: network.pending,
     });
 
@@ -1446,7 +1447,7 @@ describe("stalled and preloaded navigations", () => {
     const shelf = new Response("undated home");
     const network = stalledNetwork();
     const { listeners } = rolloutWorkerHarness({
-      entries: { "pubmax-sw-shell-target": [["/", shelf]] },
+      entries: { "pubmax-sw-shell-v2-target": [["/", shelf]] },
       pendingResponse: network.pending,
     });
 
@@ -1461,7 +1462,7 @@ describe("stalled and preloaded navigations", () => {
     const home = shelvedShell("fresh home", 0);
     const network = stalledNetwork();
     const { listeners } = rolloutWorkerHarness({
-      entries: { "pubmax-sw-shell-target": [["/", home]] },
+      entries: { "pubmax-sw-shell-v2-target": [["/", home]] },
       pendingResponse: network.pending,
     });
 
@@ -1475,7 +1476,7 @@ describe("stalled and preloaded navigations", () => {
   it("keeps the offline ladder when the preload fails outright", async () => {
     const home = new Response("offline home");
     const { doFetch, listeners } = rolloutWorkerHarness({
-      entries: { "pubmax-sw-shell-target": [["/", home]] },
+      entries: { "pubmax-sw-shell-v2-target": [["/", home]] },
     });
 
     const navigation = navigate(
@@ -1485,5 +1486,142 @@ describe("stalled and preloaded navigations", () => {
     );
     expect(await navigation.response).toBe(home);
     expect(doFetch).not.toHaveBeenCalled();
+  });
+});
+
+describe("map document twins", () => {
+  const TIMEOUT_MS = 4000;
+  const NOW = Date.parse("2026-10-28T21:00:00Z");
+  const SHELL = "pubmax-sw-shell-v2-target";
+
+  function dated(body: string) {
+    return new Response(body, { headers: { date: new Date(NOW).toUTCString() } });
+  }
+
+  function navigate(listener: Listener, path: string) {
+    return dispatchFetch(
+      listener,
+      { method: "GET", mode: "navigate", url: `https://pubmaxxing.com${path}` } as Request,
+    );
+  }
+
+  beforeEach(() => {
+    vi.useFakeTimers();
+    vi.setSystemTime(NOW);
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it("gives every key the server renders a twin for its own shelf entry", async () => {
+    // lib/mapDocumentTwin.ts is the oracle: these keys change the document,
+    // while ?sel= only moves the camera and shares the plain map shell.
+    const { listeners, records } = rolloutWorkerHarness({
+      entries: {},
+      response: new Response("map document"),
+    });
+
+    for (const key of [...MAP_DOCUMENT_QUERY_KEYS, "sel"]) {
+      const navigation = navigate(listeners.get("fetch")!, `/map?${key}=leeds`);
+      await navigation.response;
+      await Promise.all(navigation.lifetime);
+    }
+
+    expect([...defined(records.get(SHELL)).keys()].sort()).toEqual([
+      "https://pubmaxxing.com/map",
+      ...MAP_DOCUMENT_QUERY_KEYS.map((key) => `https://pubmaxxing.com/map?${key}=leeds`),
+    ].sort());
+  });
+
+  it("shelves a town map under its exact query, never under the shared map shell", async () => {
+    const { listeners, records } = rolloutWorkerHarness({
+      entries: {},
+      response: new Response("leeds map"),
+    });
+
+    const navigation = navigate(listeners.get("fetch")!, "/map?place=leeds");
+    await navigation.response;
+    await Promise.all(navigation.lifetime);
+
+    expect([...defined(records.get(SHELL)).keys()]).toEqual([
+      "https://pubmaxxing.com/map?place=leeds",
+    ]);
+  });
+
+  it("never answers a stalled town map from the shared map shell", async () => {
+    let resolve!: (response: Response) => void;
+    const pending = new Promise<Response>((done) => {
+      resolve = done;
+    });
+    const { listeners } = rolloutWorkerHarness({
+      entries: { [SHELL]: [["/map", dated("london map")]] },
+      pendingResponse: pending,
+    });
+
+    const navigation = navigate(listeners.get("fetch")!, "/map?place=leeds");
+    let settled = false;
+    void navigation.response!.then(() => {
+      settled = true;
+    });
+    await vi.advanceTimersByTimeAsync(TIMEOUT_MS * 5);
+    expect(settled).toBe(false);
+
+    const live = new Response("live leeds map");
+    resolve(live);
+    expect(await navigation.response).toBe(live);
+  });
+
+  it("offline, reopens a town map only from its own exact-query shelf", async () => {
+    const london = dated("london map");
+    const york = dated("york map");
+    const home = dated("home");
+    const { listeners } = rolloutWorkerHarness({
+      entries: {
+        [SHELL]: [["/map", london], ["/map?place=york", york], ["/", home]],
+      },
+    });
+    const fetchListener = listeners.get("fetch")!;
+
+    expect(await navigate(fetchListener, "/map?place=leeds").response).toBe(home);
+    expect(await navigate(fetchListener, "/map?place=york").response).toBe(york);
+    expect(await navigate(fetchListener, "/map?sel=some-pub").response).toBe(london);
+  });
+
+  it("keeps only the most recent twenty town maps beside the shared map shell", async () => {
+    const { listeners, records } = rolloutWorkerHarness({
+      entries: { [SHELL]: [["/map", dated("london map")]] },
+      response: new Response("town map"),
+    });
+
+    for (let town = 0; town < 21; town += 1) {
+      const navigation = navigate(listeners.get("fetch")!, `/map?place=town-${town}`);
+      await navigation.response;
+      await Promise.all(navigation.lifetime);
+    }
+
+    const keys = [...defined(records.get(SHELL)).keys()];
+    expect(keys).toContain("https://pubmaxxing.com/map");
+    expect(keys).not.toContain("https://pubmaxxing.com/map?place=town-0");
+    expect(keys).toContain("https://pubmaxxing.com/map?place=town-20");
+    expect(keys.filter((key) => key.includes("?place="))).toHaveLength(20);
+  });
+
+  it("retires v1 shell caches that filed a town map under the plain map key", async () => {
+    const leedsUnderMap = dated("leeds map filed as /map");
+    const { deletedCaches, listeners, records } = rolloutWorkerHarness({
+      entries: {
+        "pubmax-sw-shell-legacy-active": [["/map", leedsUnderMap]],
+        "pubmax-sw-shell-v2-previous": [["/offline.html", dated("offline")]],
+      },
+    });
+
+    await Promise.all(dispatchLifecycle(listeners.get("activate")!));
+
+    expect(deletedCaches).toContain("pubmax-sw-shell-legacy-active");
+    expect(records.has("pubmax-sw-shell-legacy-active")).toBe(false);
+    expect(records.get(SHELL)?.has("https://pubmaxxing.com/offline.html")).toBe(true);
+    const offline = await navigate(listeners.get("fetch")!, "/map").response;
+    expect(offline).not.toBe(leedsUnderMap);
   });
 });
