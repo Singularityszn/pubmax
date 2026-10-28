@@ -2,8 +2,8 @@
  * UX lane 13: LCP, CLS and decoded JS at 390x844 against perf/route-budgets.json.
  *
  * Gated on PUBMAX_PERF_BUDGET and owned by the ux-lane-performance CI job
- * (.github/workflows/ci.yml), so the markdown table for the PR body really is
- * produced by a run. It is a JOB OF ITS OWN rather than a second file in the
+ * (.github/workflows/performance.yml), so a run produces the Markdown table
+ * for the PR body. It is a JOB OF ITS OWN rather than a second file in the
  * performance-budget step: both sweeps build and serve the app themselves, and
  * this route set's map load runs 10 to 25 seconds cold.
  *

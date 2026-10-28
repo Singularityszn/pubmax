@@ -3,10 +3,9 @@ import type { Page } from "@playwright/test";
 /**
  * Pin the page clock to a London evening.
  *
- * The main Tonight tab follows the London clock (lib/useNowHref.ts): it opens
- * /today from 04:00 to 16:00 and /tonight the rest of the day. A journey that
- * ends on that tab and expects /tonight passes in an evening run and fails in
- * every morning one, which is when the nightly suite runs.
+ * The main Tonight tab follows the London clock (lib/useNowHref.ts).
+ * Fix the clock so a journey that expects /tonight does not depend on the
+ * suite's start time. README.md owns the Day and Tonight navigation schedule.
  */
 export async function pinLondonEvening(page: Page): Promise<void> {
   await page.clock.setFixedTime(new Date("2026-10-26T20:00:00Z"));
