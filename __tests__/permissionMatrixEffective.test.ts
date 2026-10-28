@@ -1036,6 +1036,31 @@ describe("private Night Memory, Moment and its object", () => {
     expect(truth(`select count(*) from public.night_moments where memory_id = '${ALICE_MEMORY}'`)).toBe("1");
   });
 
+  it("a contributor's unconsented Moment in A's Memory stays out of A's Moment list", async () => {
+    // October 2026 audit: a Story contributor's private Moment lands in the
+    // host's Memory, and the workspace withholds it until consent. The Memory
+    // list must not hand the host its caption and a signed photo URL anyway.
+    const contributed = "f3000000-0000-4000-8000-0000000000c1";
+    const secret = "BOB-PRIVATE-CAPTION rooftop at midnight";
+    const object = `night-moments/${BOB}/${ALICE_MEMORY}/photo.webp`;
+    truth(`insert into public.night_moments (id, memory_id, owner_id, kind, caption, media_object_key)
+      values ('${contributed}', '${ALICE_MEMORY}', '${BOB}', 'photo', '${secret}', '${object}')
+      returning id`);
+    try {
+      const alice = await defined(handlers.listMoments)(
+        request(`/api/night-memories/${ALICE_MEMORY}/moments`, { bearer: BEARER_ALICE }),
+        context({ id: ALICE_MEMORY }),
+      );
+      expect(alice.status).toBe(200);
+      const body = await readJson<{ moments: Array<{ id: string }> }>(alice);
+      expect(body.moments.map((row) => row.id)).toEqual([ALICE_MOMENT]);
+      expect(JSON.stringify(body)).not.toContain(secret);
+      expect(JSON.stringify(body)).not.toContain(object);
+    } finally {
+      truth(`delete from public.night_moments where id = '${contributed}' returning id`);
+    }
+  });
+
   it("only the owner may describe a photo Moment", async () => {
     const bob = await defined(handlers.altText)(
       request(`/api/night-moments/${ALICE_MOMENT}/alt-text`, {
