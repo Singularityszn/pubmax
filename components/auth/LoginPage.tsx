@@ -379,6 +379,15 @@ function DoorSwitch({
   );
 }
 
+function shouldShowWelcomeBack(state: {
+  loading: boolean;
+  showSignedIn: boolean;
+  hasAuthSurface: boolean;
+  returning: boolean;
+}): boolean {
+  return !state.loading && !state.showSignedIn && state.hasAuthSurface && state.returning;
+}
+
 function renderLoginPageHeadActions({
   showSignedIn,
   showWelcomeBack,
@@ -687,8 +696,12 @@ export default function LoginPage({
     intent,
     door,
   });
-  const showWelcomeBack =
-    !loading && !showSignedIn && hasAuthSurface && Boolean(welcomeBack) && !useDifferentAccount;
+  const showWelcomeBack = shouldShowWelcomeBack({
+    loading,
+    showSignedIn,
+    hasAuthSurface,
+    returning,
+  });
 
 
   // ONE painted control for the page. A signed-in reader gets the map door and
