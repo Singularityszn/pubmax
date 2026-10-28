@@ -12,8 +12,8 @@ assertServerEnv();
 // cannot both tell the truth about availability and hide moderation: an
 // anonymous "taken" beside a 404 resolve and a null profile named an account
 // that was banned or suspended (security audit, October 2026). So the check
-// costs a signed-in account and is attributable to it, and the claim RPC's own
-// "taken" is the one remaining, authenticated, existence signal.
+// requires a signed-in account and is attributable to it. Both this check and
+// the claim RPC still answer "taken" to an authenticated caller.
 export async function GET(request: Request): Promise<Response> {
   const ownerId = await callerUserId(request);
   if (!ownerId) return publicApiError("Sign in to check a PUBMAXX handle.", "UNAUTHENTICATED", 401);
