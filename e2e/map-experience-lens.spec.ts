@@ -146,7 +146,7 @@ for (const { width, height } of [
       return node.contains(document.elementFromPoint(rect.left + rect.width / 2, rect.top + rect.height / 2));
     })).toBe(true);
     await reset.click();
-    await expect(toggle).toHaveAttribute("aria-label", "Filters: venue types, view and zone");
+    await expect(toggle).toHaveAttribute("aria-label", "Filters: venue types, view and zone, pub features");
     const views = panel.getByRole("group", { name: "Map view" });
     for (const label of ["All", "No alcohol", "Food"]) {
       const control = views.getByRole("button", { name: label, exact: true });
