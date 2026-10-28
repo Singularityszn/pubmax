@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import { installAuthDoubles, seedSignedIn } from "./helpers/authDoubles";
 import { expectMapLoadingFrameReleased } from "./helpers/mobileMapShell";
 import { expectMapToolbarReady } from "./helpers/mapToolbar";
+import { expectLayoutSettled } from "./helpers/layoutSettled";
 import { expect, test } from "@playwright/test";
 import sharp from "sharp";
 import { DEFAULT_PAL_DRAFT } from "../lib/pubPal";
@@ -396,8 +397,12 @@ type SohoProbeWindow = Window & {
   };
 };
 
-for (const theme of ["light", "dark"] as const) {
-  test(`four Soho pubs keep their identities and approximate walk visible across desktop and phone resizing in ${theme}`, async ({ page, context, baseURL }, testInfo) => {
+for (const { theme, motion } of [
+  { theme: "light", motion: "reduce" },
+  { theme: "dark", motion: "reduce" },
+  { theme: "dark", motion: "no-preference" },
+] as const) {
+  test(`four Soho pubs keep their identities and approximate walk visible across desktop and phone resizing in ${theme}${motion === "no-preference" ? " with motion" : ""}`, async ({ page, context, baseURL }, testInfo) => {
     test.setTimeout(180_000);
     testInfo.annotations.push({ type: "visual-review-required",
       description: "Review every fit image for four complete numbered discs, correct stop numbers and readable labels. Automated public-pin checks do not prove these details." });
@@ -406,7 +411,7 @@ for (const theme of ["light", "dark"] as const) {
     await installAuthDoubles(page);
     await seedSignedIn(page, "A");
     await page.setViewportSize({ width: SOHO_VIEWPORTS[0].width, height: SOHO_VIEWPORTS[0].height });
-    await page.emulateMedia({ reducedMotion: "reduce", colorScheme: theme });
+    await page.emulateMedia({ reducedMotion: motion, colorScheme: theme });
     await page.addInitScript((chosenTheme) => {
       localStorage.setItem("pubmax-theme", chosenTheme);
       localStorage.setItem("pubmax-tour-v1-done", "1");
@@ -498,6 +503,7 @@ for (const theme of ["light", "dark"] as const) {
     // First observe all responsive states without selecting or dragging.
     for (const viewport of SOHO_VIEWPORTS) {
       await page.setViewportSize({ width: viewport.width, height: viewport.height });
+      await expectLayoutSettled(page.locator(".mapCanvasWrap"));
       await expect.poll(async () => (await readMap())?.ready).toBe(true);
       const geometry = await readMap();
       const screenshot = await page.screenshot();
@@ -510,7 +516,9 @@ for (const theme of ["light", "dark"] as const) {
       expect(geometry).not.toBeNull();
       expect(geometry!.theme).toBe(theme);
       expect(geometry!.viewport).toEqual({ width: viewport.width, height: viewport.height });
-      expect(geometry!.span).toBeGreaterThanOrEqual(Math.min(240, viewport.width * 0.45));
+      // A short landscape view has less vertical map space. Keep a useful
+      // footprint while the independent disc-clearance checks stay in force.
+      expect(geometry!.span).toBeGreaterThanOrEqual(Math.min(240, viewport.width * 0.45, viewport.height * 0.5));
       for (const point of geometry!.points) {
         expect(point.clearRim, `${point.id} full disc clears app chrome`).toBe(true);
         expect(point.x).toBeGreaterThanOrEqual(geometry!.canvas.left + 22);
@@ -559,6 +567,7 @@ for (const theme of ["light", "dark"] as const) {
     // each fixed stop, then require the real click trace to hit its route disc.
     for (const viewport of SOHO_VIEWPORTS) {
       await page.setViewportSize({ width: viewport.width, height: viewport.height });
+      await expectLayoutSettled(page.locator(".mapCanvasWrap"));
       for (const pub of SOHO_FOUR_PUBS) {
         await page.getByRole("button", { name: /^(?:Recenter route|Show whole walk)$/ }).click();
         await expect.poll(async () => (await readMap())?.ready).toBe(true);

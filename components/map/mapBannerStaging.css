@@ -207,3 +207,15 @@
     display: none;
   }
 }
+
+/* The active walk owns a short landscape view. Its last-train action remains
+   available while the ambient service banner yields its map space. */
+@media (min-width: 641px) and (max-height: 500px) {
+  .appShell:has(.mapCanvasWrap[data-route-stops]:not([data-route-stops="0"])) .cityStatusStack {
+    display: none;
+  }
+
+  .appShell:has(.mapCanvasWrap[data-route-stops]:not([data-route-stops="0"])) .mappedRouteChip {
+    bottom: 12px;
+  }
+}

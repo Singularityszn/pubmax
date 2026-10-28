@@ -27,6 +27,7 @@ function routeFitPadding(
 ): number | maplibregl.PaddingOptions {
   const container = map.getContainer();
   const containerTop = container.getBoundingClientRect().top;
+  const shortLandscape = !isPhone && container.clientHeight <= 500;
   const statusBounds = isPhone ? null : document.querySelector(".cityStatusStack")?.getBoundingClientRect();
   const toolbar = isPhone ? null : document.querySelector(".mapToolbar");
   const toolbarBounds = toolbar?.getBoundingClientRect();
@@ -36,13 +37,17 @@ function routeFitPadding(
   // Reserve the banner below the actual toolbar, including its lower tablet
   // position, before transport data arrives. Clear taller visible content too.
   const reservedBottom = toolbarBounds?.height
-    ? toolbarBounds.bottom - containerTop + statusGap + statusHeight + 16
+    ? toolbarBounds.bottom - containerTop + (shortLandscape ? 0 : statusGap + statusHeight) + 16
     : 300;
   const desktopTop = Math.max(reservedBottom, statusBounds?.height ? statusBounds.bottom - containerTop + 16 : 0);
+  const routeChip = shortLandscape ? document.querySelector(".mappedRouteChip")?.getBoundingClientRect() : null;
+  const desktopBottom = shortLandscape
+    ? Math.max(72, routeChip?.height ? container.getBoundingClientRect().bottom - routeChip.top + 16 : 88)
+    : 180;
   const padding = isPhone
     ? { ...PHONE_ROUTE_PADDING, top: Math.max(PHONE_ROUTE_PADDING.top,
         measureTopChromeBottom(containerTop, PHONE_ROUTE_PADDING.top)) }
-    : { top: desktopTop, right: 72, bottom: 180, left: 72 };
+    : { top: desktopTop, right: 72, bottom: desktopBottom, left: 72 };
   const verticalScale = Math.min(
     1,
     Math.max(0, (container.clientHeight - MIN_ROUTE_CONTENT_PX)
@@ -256,7 +261,8 @@ export function useMapCamera(refs: CameraRefs) {
     // inside it. `map.stop()` is behind the guard too: an intent that must
     // stand down may not interrupt the reader's own momentum either.
     if (cameraIntentBlocked(kind, gestureCameraRef.current, performance.now())) return;
-    if (kind !== "route" && kind !== "route-recovery") routeFrameRef.current = null;
+    // The automatic opening turn preserves the route's camera ownership.
+    if (kind !== "route" && kind !== "route-recovery" && kind !== "arrival") routeFrameRef.current = null;
     const run = () => {
       const map = mapRef.current;
       if (!map) return;
