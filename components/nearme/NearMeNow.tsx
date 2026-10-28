@@ -1,5 +1,7 @@
 "use client";
 
+import { ReadyButton } from "@/components/ui/ready-button";
+
 import { useCallback, useEffect, useRef, useState } from "react";
 import PriceBadge from "@/components/PriceBadge";
 import { samePathWithQuery } from "@/lib/appLink";
@@ -750,13 +752,13 @@ function NearMeIdleIntro({
       <ul className="nmnAreaChips" aria-label="Pick an area">
         {NIGHT_PATCHES.map((entry) => (
           <li key={entry.id}>
-            <button
+            <ReadyButton
               type="button"
               className="nmnBoroughChip"
               onClick={() => onPickPatch(entry)}
             >
               {entry.label}
-            </button>
+            </ReadyButton>
           </li>
         ))}
       </ul>
@@ -769,14 +771,14 @@ function NearMeIdleIntro({
     return (
       <div className="nmnIntro">
         <h1 className="nmnLede">{nearIntroLede()}</h1>
-        <button
+        <ReadyButton
           type="button"
           className="nmnLocate"
           data-primary-action=""
           onClick={onLocate}
         >
           <LocateFixed size={16} aria-hidden="true" /> Find my pint
-        </button>
+        </ReadyButton>
         {hint}
         {patches}
       </div>
@@ -794,9 +796,9 @@ function NearMeIdleIntro({
       title={nearIntroLede()}
       titleId="near-title"
       primary={
-        <button type="button" onClick={onLocate}>
+        <ReadyButton type="button" onClick={onLocate}>
           <LocateFixed size={16} aria-hidden="true" /> Find my pint
-        </button>
+        </ReadyButton>
       }
     >
       {hint}
@@ -834,9 +836,9 @@ export function NearMeReadUnavailable({
   return (
     <div className="nmnStatus nmnStatusFail" role="status">
       <p>We could not read the pub list for {areaLabel} just now.</p>
-      <button type="button" className="nmnRetry nmnRetryGhost" onClick={onRetry}>
+      <ReadyButton type="button" className="nmnRetry nmnRetryGhost" onClick={onRetry}>
         <RotateCw size={16} aria-hidden="true" /> Try again
-      </button>
+      </ReadyButton>
     </div>
   );
 }
@@ -867,9 +869,9 @@ function NearMeOutsideCoverage({
         onPickPatch={onPickPatch}
       />
       <footer className="nmnFoot nmnFootArea">
-        <button type="button" className="nmnRetry nmnRetryGhost" onClick={onLocate}>
+        <ReadyButton type="button" className="nmnRetry nmnRetryGhost" onClick={onLocate}>
           <LocateFixed size={16} aria-hidden="true" /> Try my location again
-        </button>
+        </ReadyButton>
       </footer>
     </div>
   );
@@ -926,9 +928,9 @@ function NearMeLocatedAnswer({
         <a className="nmnRetry" href={resolvedMapHref}>
           <MapPin size={16} aria-hidden="true" /> Open the full map
         </a>
-        <button type="button" className="nmnRetry nmnRetryGhost" onClick={onLocate}>
+        <ReadyButton type="button" className="nmnRetry nmnRetryGhost" onClick={onLocate}>
           <RotateCw size={16} aria-hidden="true" /> Update location
-        </button>
+        </ReadyButton>
       </footer>
     </>
   );
@@ -1034,9 +1036,9 @@ function NearMeAreaAnswer({
           onPickPatch={onPickPatch}
           onPickBorough={onPickBorough}
         />
-        <button type="button" className="nmnRetry nmnRetryGhost" onClick={onLocate}>
+        <ReadyButton type="button" className="nmnRetry nmnRetryGhost" onClick={onLocate}>
           <LocateFixed size={16} aria-hidden="true" /> Try my location again
-        </button>
+        </ReadyButton>
       </footer>
     </>
   );
@@ -1157,24 +1159,24 @@ export function NearMeCardList({
         const share = index === 0 && topShare?.venueId === card.id ? topShare : null;
         return onAccept ? (
           <li key={card.id} className="nmnCardRow">
-            <button type="button" className="nmnCard nmnCardBrowse" onClick={() => onOpen(card.id)}>
+            <ReadyButton type="button" className="nmnCard nmnCardBrowse" onClick={() => onOpen(card.id)}>
               <NearMeCardBody card={card} trustLabel={trustLabelForCard(card, priceTrust)} />
-            </button>
-            <button
+            </ReadyButton>
+            <ReadyButton
               type="button"
               className="nmnAccept"
               aria-label={`Keep ${card.name} for tonight`}
               onClick={() => onAccept(card.id)}
             >
               Keep for tonight
-            </button>
+            </ReadyButton>
             {share ? <SharePintButton share={share} className="nmnSharePint" /> : null}
           </li>
         ) : (
           <li key={card.id}>
-            <button type="button" className="nmnCard" onClick={() => onOpen(card.id)}>
+            <ReadyButton type="button" className="nmnCard" onClick={() => onOpen(card.id)}>
               <NearMeCardBody card={card} trustLabel={trustLabelForCard(card, priceTrust)} />
-            </button>
+            </ReadyButton>
             {share ? <SharePintButton share={share} className="nmnSharePint" /> : null}
           </li>
         );
@@ -1248,7 +1250,7 @@ function AreaPicker({
 
   return (
     <div className="nmnArea">
-      <button
+      <ReadyButton
         type="button"
         className="nmnRetry"
         aria-expanded={open}
@@ -1256,7 +1258,7 @@ function AreaPicker({
       >
         <MapPin size={16} aria-hidden="true" /> Change area
         <ChevronDown size={14} aria-hidden="true" className={open ? "nmnAreaCaretOpen" : undefined} />
-      </button>
+      </ReadyButton>
       <div className={`nmnAreaPanel${open ? " nmnAreaPanelOpen" : ""}`} aria-hidden={!open}>
         <ul className="nmnAreaChips" aria-label="Pick an area">
           {NIGHT_PATCHES.map((entry) => {
@@ -1264,7 +1266,7 @@ function AreaPicker({
             const lightly = profile ? patchIsLimited(profile) : false;
             return (
               <li key={entry.id}>
-                <button
+                <ReadyButton
                   type="button"
                   className="nmnBoroughChip"
                   data-active={entry.label === activeLabel || undefined}
@@ -1278,7 +1280,7 @@ function AreaPicker({
                 >
                   {entry.label}
                   {lightly ? <span className="nmnChipTier">Lightly covered</span> : null}
-                </button>
+                </ReadyButton>
               </li>
             );
           })}
@@ -1287,7 +1289,7 @@ function AreaPicker({
           <ul className="nmnAreaChips nmnAreaBoroughs" aria-label="All London boroughs">
             {boroughs.map((name) => (
               <li key={name}>
-                <button
+                <ReadyButton
                   type="button"
                   className="nmnBoroughChip"
                   data-active={name === activeLabel || undefined}
@@ -1298,19 +1300,19 @@ function AreaPicker({
                   }}
                 >
                   {name}
-                </button>
+                </ReadyButton>
               </li>
             ))}
           </ul>
         ) : (
-          <button
+          <ReadyButton
             type="button"
             className="nmnAreaMore"
             tabIndex={open ? undefined : -1}
             onClick={() => setShowBoroughs(true)}
           >
             More areas <ChevronDown size={14} aria-hidden="true" />
-          </button>
+          </ReadyButton>
         )}
       </div>
     </div>

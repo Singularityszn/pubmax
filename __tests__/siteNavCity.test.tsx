@@ -13,6 +13,7 @@ vi.mock("next/navigation", () => ({
 vi.mock("next/link", async () => {
   const { forwardRef, createElement } = await import("react");
   return {
+    useLinkStatus: () => ({ pending: false }),
     default: forwardRef<HTMLAnchorElement, { href: string; children: ReactNode; prefetch?: boolean }>(
       function Link({ href, children, prefetch: _prefetch, ...props }, ref) {
         void _prefetch;

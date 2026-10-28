@@ -7,6 +7,7 @@ import { CirclePlus } from "lucide-react";
 import { useSyncExternalStore } from "react";
 
 import { useNowHref } from "@/lib/useNowHref";
+import { useClientReady } from "@/lib/useClientReady";
 
 import ThemeToggle from "@/components/ThemeToggle";
 import IntentLink from "@/components/nav/IntentLink";
@@ -115,6 +116,7 @@ function primaryKeyForLegacyActive(active?: NavKey): NavKey | undefined {
  * The bell and messages appear only for signed-in visitors.
  */
 export function SiteNavActions({ className = "siteNavActions" }: { className?: string }) {
+  const ready = useClientReady();
   const pathname = usePathname() ?? "";
   // Imperative handle onto the global ⌘K palette (feature N1) — the button below
   // opens it for pointer users who won't reach for the shortcut.
@@ -148,6 +150,7 @@ export function SiteNavActions({ className = "siteNavActions" }: { className?: s
       <button
         type="button"
         className="siteNavCmdk"
+        disabled={!ready}
         onClick={openCommandPalette}
         aria-label="Open command palette"
         title="Search & jump to a page (⌘K / Ctrl+K)"

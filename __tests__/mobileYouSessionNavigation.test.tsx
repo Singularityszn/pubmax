@@ -18,6 +18,7 @@ vi.mock("next/navigation", () => ({
   useRouter: () => ({ prefetch: vi.fn() }),
 }));
 vi.mock("next/link", () => ({
+  useLinkStatus: () => ({ pending: false }),
   default: ({ prefetch, ...props }: {
     href: string;
     prefetch?: boolean;

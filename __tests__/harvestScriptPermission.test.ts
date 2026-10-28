@@ -8,7 +8,10 @@
 // The lanes covered, and the defect each case pins:
 //   * scripts/harvest_chain_menu_prices.mjs - a sitemap <loc> is the host's
 //     string, so it is put back through the chain allow-list; robots is asked
-//     before the sitemap itself is read; a redirect off the chain drops the row.
+//     before the sitemap itself is read; a redirect off the chain drops the row,
+//     and a refused redirect hop is never requested at all.
+//   * scripts/lib/permittedHarvestFetch.mjs - each redirect hop is asked the
+//     row's host, the fence and robots before it is requested.
 //   * scripts/refresh_pint_price_observations.mjs - a non-first-party
 //     aggregator with no sourcePolicy row is refused before the first request.
 //   * scripts/harvest/run.mjs - the events and facts lanes read the landed URL
@@ -22,7 +25,9 @@ import { createHarvestReporter } from "@/lib/harvest/runReport";
 import { harvestSource, REFUSED_ESTATE_HOSTS, type HarvestSource } from "@/lib/harvest/sourcePolicy";
 import { defined } from "@/__tests__/helpers/defined";
 
-import { harvestChainMenuPrices, menuPagesFor } from "../scripts/harvest_chain_menu_prices.mjs";
+import { fetchText, harvestChainMenuPrices, menuPagesFor } from "../scripts/harvest_chain_menu_prices.mjs";
+import { createPermittedFetch, HarvestRefusal } from "../scripts/lib/permittedHarvestFetch.mjs";
+import { HARVEST_REDIRECT_HOP_LIMIT } from "@/lib/harvest/redirectChain";
 import {
   collect as collectPintPrices,
   permittedPintPricesSource,
@@ -61,9 +66,15 @@ function respond(
   };
 }
 
+/** A redirect answer, as a fetch with `redirect: "manual"` hands it back. */
+function redirectTo(location: string, { url, status = 302 }: { url: string; status?: number }): FakeResponse {
+  return { ...respond("", { url, status }), headers: new Headers({ location }) };
+}
+
 /** A fetch that answers from a table and records every URL it was asked for. */
 function fetchFrom(pages: Record<string, (url: string) => FakeResponse>) {
-  return vi.fn(async (input: RequestInfo | URL) => {
+  // Typed as a fetch, so a case can read the redirect mode each request carried.
+  return vi.fn<(input: RequestInfo | URL, init?: RequestInit) => Promise<Response>>(async (input) => {
     const url = input instanceof Request ? input.url : String(input);
     const page = pages[url];
     if (!page) throw new Error(`unexpected fetch ${url}`);
@@ -165,6 +176,206 @@ describe("chain menu prices: the sitemap is the host's string", () => {
 
     expect(rows).toEqual([]);
     expect(report.drops["redirect-left-source"]).toBe(1);
+  });
+});
+
+describe("chain menu prices: a redirect hop is asked before it is sent", () => {
+  const fetchedUrls = (fetchImpl: ReturnType<typeof fetchFrom>) => fetchImpl.mock.calls.map(([url]) => String(url));
+
+  it("never requests a 302 target off the chain's allow-list", async () => {
+    const offChain = `https://${REFUSED_ESTATE}/menus/canary-wharf`;
+    const fetchImpl = fetchFrom({
+      [SITEMAP]: (url) => respond(sitemapListing(OWN_MENU), { url, type: "application/xml" }),
+      [OWN_MENU]: (url) => redirectTo(offChain, { url }),
+      [offChain]: (url) => respond(MENU_HTML, { url }),
+    });
+
+    const { rows, report } = await harvestChainMenuPrices({
+      sources: [STONEGATE],
+      fetchImpl,
+      robots: allowAll,
+      sleepImpl: noSleep,
+    });
+
+    expect(fetchedUrls(fetchImpl)).toEqual([SITEMAP, OWN_MENU]);
+    expect(fetchImpl.mock.calls.every(([, init]) => init?.redirect === "manual")).toBe(true);
+    expect(rows).toEqual([]);
+    expect(report.drops["redirect-left-source"]).toBe(1);
+  });
+
+  it("never requests a hop that robots disallows, even on the chain's own host", async () => {
+    const disallowed = "https://www.slugandlettuce.co.uk/private/canary-wharf";
+    const robots = vi.fn(async (url: string) =>
+      url === disallowed
+        ? { allowed: false, reason: "robots-disallowed", evidence: `${url} disallowed` }
+        : { allowed: true, reason: "allowed", evidence: `${url} permitted` },
+    );
+    const fetchImpl = fetchFrom({
+      [SITEMAP]: (url) => respond(sitemapListing(OWN_MENU), { url, type: "application/xml" }),
+      [OWN_MENU]: (url) => redirectTo("/private/canary-wharf", { url, status: 301 }),
+      [disallowed]: (url) => respond(MENU_HTML, { url }),
+    });
+
+    const { rows, report } = await harvestChainMenuPrices({
+      sources: [STONEGATE],
+      fetchImpl,
+      robots,
+      sleepImpl: noSleep,
+    });
+
+    expect(robots).toHaveBeenCalledWith(disallowed);
+    expect(fetchedUrls(fetchImpl)).toEqual([SITEMAP, OWN_MENU]);
+    expect(rows).toEqual([]);
+    expect(report.drops["redirect-robots-refused"]).toBe(1);
+  });
+
+  it("follows a permitted hop and stamps the row with the page that stated the price", async () => {
+    const moved = "https://www.slugandlettuce.co.uk/menus/canary-wharf/";
+    const fetchImpl = fetchFrom({
+      [SITEMAP]: (url) => respond(sitemapListing(OWN_MENU), { url, type: "application/xml" }),
+      [OWN_MENU]: (url) => redirectTo(moved, { url, status: 308 }),
+      [moved]: (url) => respond(MENU_HTML, { url }),
+    });
+
+    const { rows } = await harvestChainMenuPrices({
+      sources: [STONEGATE],
+      fetchImpl,
+      robots: allowAll,
+      sleepImpl: noSleep,
+    });
+
+    expect(allowAll).toHaveBeenCalledWith(moved);
+    expect(fetchedUrls(fetchImpl)).toEqual([SITEMAP, OWN_MENU, moved]);
+    expect(rows).toEqual([expect.objectContaining({ url: moved, priceGbp: 6.2 })]);
+  });
+});
+
+describe.each([
+  { lane: "menu", refusedUrl: OWN_MENU },
+  { lane: "sitemap", refusedUrl: SITEMAP },
+])("chain $lane redirect refusal reporting", ({ refusedUrl }) => {
+  it.each([
+    { failure: "same-host loop", location: refusedUrl, reason: "redirect-hop-limit", requests: HARVEST_REDIRECT_HOP_LIMIT + 1 },
+    { failure: "invalid Location", location: "http://[", reason: "redirect-unreadable", requests: 1 },
+    { failure: "off-source target", location: "https://another-host.example/menu", reason: "redirect-left-source", requests: 1 },
+  ])("counts $failure as $reason", async ({ location, reason, requests }) => {
+    const fetchImpl = fetchFrom({
+      [SITEMAP]: (url) => respond(sitemapListing(OWN_MENU), { url, type: "application/xml" }),
+      [refusedUrl]: (url) => redirectTo(location, { url }),
+    });
+
+    const { rows, report } = await harvestChainMenuPrices({
+      sources: [STONEGATE],
+      fetchImpl,
+      robots: allowAll,
+      sleepImpl: noSleep,
+    });
+
+    expect(rows).toEqual([]);
+    expect(report.drops).toEqual({ [reason]: 1 });
+    const requestedUrls = fetchImpl.mock.calls.map(([url]) => String(url));
+    expect(requestedUrls.filter((url) => url === refusedUrl)).toHaveLength(requests);
+    expect(requestedUrls.every((url) => url === SITEMAP || url === refusedUrl)).toBe(true);
+  });
+});
+
+describe("chain menu prices: a typed caller supplies the robots checker", () => {
+  // The declaration once omitted `robots` from fetchText's options, so a
+  // caller that followed it could not pass the checker, and an allowed
+  // redirect failed with "robots is not a function". These cases type-check
+  // against scripts/harvest_chain_menu_prices.d.mts and read the refusal
+  // reasons it declares.
+  it("follows a permitted hop through the checker it was handed", async () => {
+    const moved = "https://www.slugandlettuce.co.uk/menus/canary-wharf/";
+    const fetchImpl = fetchFrom({
+      [OWN_MENU]: (url) => redirectTo(moved, { url, status: 301 }),
+      [moved]: (url) => respond(MENU_HTML, { url }),
+    });
+
+    const page = await fetchText(OWN_MENU, { sourceId: STONEGATE.id, robots: allowAll, fetchImpl });
+
+    expect(allowAll).toHaveBeenCalledWith(moved);
+    expect(page).toMatchObject({ ok: true, landedUrl: moved, body: MENU_HTML });
+  });
+
+  it("names the refusal reason on the page and on the sitemap listing", async () => {
+    const disallowed = "https://www.slugandlettuce.co.uk/private/sitemap.xml";
+    const robots = vi.fn(async (url: string) =>
+      url === disallowed
+        ? { allowed: false, reason: "robots-disallowed", evidence: `${url} disallowed` }
+        : { allowed: true, reason: "allowed", evidence: `${url} permitted` },
+    );
+    const fetchImpl = fetchFrom({ [SITEMAP]: (url) => redirectTo(disallowed, { url }) });
+
+    const page = await fetchText(SITEMAP, { sourceId: STONEGATE.id, robots, fetchImpl });
+    expect(page.ok).toBe(false);
+    expect(page.reason).toBe("redirect-robots-refused");
+
+    const listed = await menuPagesFor(STONEGATE, () => true, { robots, fetchImpl });
+    expect(listed.pages).toEqual([]);
+    expect(listed.reason).toBe("redirect-robots-refused");
+    expect(fetchImpl.mock.calls.map(([url]) => String(url))).not.toContain(disallowed);
+  });
+});
+
+describe("permitted harvest fetch: a redirect hop is asked before it is sent", () => {
+  const fetchedUrls = (fetchImpl: ReturnType<typeof fetchFrom>) => fetchImpl.mock.calls.map(([url]) => String(url));
+
+  it("never requests a 302 target off the row's own host", async () => {
+    const offHost = "https://another-host.example/menus/canary-wharf";
+    const fetchImpl = fetchFrom({
+      [OWN_MENU]: (url) => redirectTo(offHost, { url }),
+      [offHost]: (url) => respond(MENU_HTML, { url }),
+    });
+    const permittedFetch = createPermittedFetch({ source: STONEGATE, fetchImpl, robots: allowAll });
+
+    await expect(permittedFetch(OWN_MENU)).rejects.toThrow(HarvestRefusal);
+    expect(fetchedUrls(fetchImpl)).toEqual([OWN_MENU]);
+    expect(allowAll).not.toHaveBeenCalledWith(offHost);
+  });
+
+  it("never requests a hop that robots disallows", async () => {
+    const disallowed = "https://www.slugandlettuce.co.uk/private/";
+    const robots = vi.fn(async (url: string) =>
+      url === disallowed
+        ? { allowed: false, reason: "robots-disallowed", evidence: `${url} disallowed` }
+        : { allowed: true, reason: "allowed", evidence: `${url} permitted` },
+    );
+    const fetchImpl = fetchFrom({
+      [OWN_MENU]: (url) => redirectTo(disallowed, { url, status: 307 }),
+      [disallowed]: (url) => respond(MENU_HTML, { url }),
+    });
+    const permittedFetch = createPermittedFetch({ source: STONEGATE, fetchImpl, robots });
+
+    await expect(permittedFetch(OWN_MENU)).rejects.toThrow(/REFUSED .*private.*disallowed/);
+    expect(fetchedUrls(fetchImpl)).toEqual([OWN_MENU]);
+  });
+
+  it("stops a redirect loop at the hop limit", async () => {
+    const other = "https://www.slugandlettuce.co.uk/menus/canary-wharf/";
+    const fetchImpl = fetchFrom({
+      [OWN_MENU]: (url) => redirectTo(other, { url }),
+      [other]: (url) => redirectTo(OWN_MENU, { url }),
+    });
+    const permittedFetch = createPermittedFetch({ source: STONEGATE, fetchImpl, robots: allowAll });
+
+    await expect(permittedFetch(OWN_MENU)).rejects.toThrow(/redirected more than 5 times/);
+    expect(fetchImpl).toHaveBeenCalledTimes(HARVEST_REDIRECT_HOP_LIMIT + 1);
+  });
+
+  it("returns the page a permitted hop led to", async () => {
+    const moved = "https://www.slugandlettuce.co.uk/menus/canary-wharf/";
+    const fetchImpl = fetchFrom({
+      [OWN_MENU]: (url) => redirectTo(moved, { url, status: 301 }),
+      [moved]: (url) => respond(MENU_HTML, { url }),
+    });
+    const permittedFetch = createPermittedFetch({ source: STONEGATE, fetchImpl, robots: allowAll });
+
+    const response = await permittedFetch(OWN_MENU, { redirect: "follow" });
+    expect(await response.text()).toBe(MENU_HTML);
+    expect(fetchedUrls(fetchImpl)).toEqual([OWN_MENU, moved]);
+    // A caller cannot turn automatic following back on.
+    expect(fetchImpl.mock.calls.every(([, init]) => init?.redirect === "manual")).toBe(true);
   });
 });
 
