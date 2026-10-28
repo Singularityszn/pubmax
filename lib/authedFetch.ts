@@ -4,7 +4,7 @@
 // can verify the caller. Anonymous requests remain valid for unlinked demo
 // handles — matching ProfileEditor's pattern.
 
-import { waitUnlessAborted } from "@/lib/abortableDelay";
+import { abortReason, waitUnlessAborted } from "@/lib/abortableDelay";
 import { getAccessToken } from "@/lib/authClient";
 import {
   readProviderAccountRevision,
@@ -49,10 +49,6 @@ export class AuthActionSessionError extends Error {
 
 function abortError(): DOMException {
   return new DOMException("The operation was aborted.", "AbortError");
-}
-
-function abortReason(signal: AbortSignal): unknown {
-  return signal.reason === undefined ? abortError() : signal.reason;
 }
 
 type QueuedAction = Readonly<{
