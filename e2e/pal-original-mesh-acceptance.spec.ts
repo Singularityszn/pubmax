@@ -1,17 +1,19 @@
 import { expect, test } from "@playwright/test";
 import { ACCOUNTS, AUTH_STORAGE_KEY, readDeviceAccounts, readDeviceIdentity } from "./helpers/authDoubles";
-import { ROBIN, FOX, fixture, capture, decoded, ready, shot, observeDisposal, evidence, portrait, host, canvas } from "./helpers/originalMeshAcceptance";
+import { ROBIN, FOX, fixture, capture, decoded, ready, shot, observeDisposal, observeInput, recordHitPoint, requireDeliveredInput, recordGestureEndCommand, requireEndedInput, evidence, portrait, host, canvas } from "./helpers/originalMeshAcceptance";
 
 test.use({ storageState: { cookies: [], origins: [] }, serviceWorkers: "block", colorScheme: "light", reducedMotion: "no-preference" });
 test.beforeEach(async ({ page }) => { test.setTimeout(90_000); await page.clock.install(); });
 
 for (const touch of [false, true]) {
   test.describe(touch ? "M1" : "D1", () => {
-    test.use({ viewport: touch ? { width: 390, height: 844 } : { width: 1440, height: 900 }, hasTouch: touch });
-    test(`${touch ? "M1 touch" : "D1 desktop"}: idle and frozen horizontal drag paint the original Robin`, async ({ page }, info) => {
+    test.use({ viewport: touch ? { width: 390, height: 844 } : { width: 1440, height: 900 }, hasTouch: touch, isMobile: touch });
+    test(`${touch ? "M1 touch" : "D1 desktop"}: idle and frozen horizontal drag paint the original Robin`, async ({ page, hasTouch, isMobile, viewport }, info) => {
       const fx = await fixture(page, info.project.use.baseURL!); const seen = capture(page);
       await evidence(page, info, seen, fx, async () => {
-        await page.goto("/pal"); await ready(page, seen);
+        await page.goto("/pal");
+        await observeInput(page, { hasTouch, isMobile, viewport });
+        await ready(page, seen);
         await portrait(page).scrollIntoViewIfNeeded();
         await page.clock.pauseAt(await page.evaluate(() => Date.now() + 100));
         const idleA = await shot(page, info, "idle-a");
@@ -20,35 +22,36 @@ for (const touch of [false, true]) {
         expect(idleB.equals(idleA), "Explicit idle RAF advances must change actual mesh pixels").toBe(false);
         const frozen = await shot(page, info, "frozen-a");
         expect((await shot(page, info, "frozen-control")).equals(frozen), "No-input frozen frames must match").toBe(true);
-        const box = await canvas(page).boundingBox(); if (!box) throw Error("Canvas geometry unavailable");
-        const x = box.x + box.width / 2, y = box.y + box.height / 2;
         await canvas(page).evaluate(node => { node.addEventListener("pointerdown", event => { (node as HTMLCanvasElement & { acceptancePointer?: string }).acceptancePointer = (event as PointerEvent).pointerType; }, { once: true }); });
         // Each drag gets the production 30 Hz draw interval. Home supplies
         // its neutral control at the same frozen timestamp as the rotated image.
-        const compareAtCurrentTime = async (name: string) => {
+        const compareAtCurrentTime = async (name: string, endGesture: () => Promise<unknown>) => {
           await page.clock.runFor(50);
+          await requireDeliveredInput(page, touch ? "touch" : "mouse", name);
           const rotated = await shot(page, info, name + "-rotated");
+          await recordGestureEndCommand(page, name);
+          await endGesture();
+          await requireEndedInput(page, touch ? "touch" : "mouse", name);
           await host(page).press("Home");
           const neutral = await shot(page, info, name + "-neutral");
           expect(rotated.equals(neutral), "Drag and neutral differ at the same pose timestamp").toBe(false);
           expect((await shot(page, info, name + "-neutral-control")).equals(neutral), "Two no-input neutral captures match at that timestamp").toBe(true);
         };
-        if (touch) {
-          const cdp = await page.context().newCDPSession(page);
-          try {
-            await cdp.send("Input.dispatchTouchEvent", { type: "touchStart", touchPoints: [{ x, y, id: 1 }] });
-            await cdp.send("Input.dispatchTouchEvent", { type: "touchMove", touchPoints: [{ x: x + 30, y, id: 1 }] });
-            await compareAtCurrentTime("drag-right");
-            await cdp.send("Input.dispatchTouchEvent", { type: "touchMove", touchPoints: [{ x: x - 30, y, id: 1 }] });
-            await compareAtCurrentTime("drag-left");
-            await cdp.send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] });
-          } finally { await cdp.detach(); }
-        } else {
-          await page.mouse.move(x, y); await page.mouse.down(); await page.mouse.move(x + 30, y);
-          await compareAtCurrentTime("drag-right");
-          await page.mouse.move(x - 30, y);
-          await compareAtCurrentTime("drag-left");
-          await page.mouse.up();
+        for (const [name, dx] of [["drag-right", 30], ["drag-left", -30]] as const) {
+          const box = await canvas(page).boundingBox(); if (!box) throw Error("Canvas geometry unavailable");
+          const x = box.x + box.width / 2, y = box.y + box.height / 2;
+          await recordHitPoint(page, x, y, name);
+          if (touch) {
+            const cdp = await page.context().newCDPSession(page);
+            try {
+              await cdp.send("Input.dispatchTouchEvent", { type: "touchStart", touchPoints: [{ x, y, id: 1 }] });
+              await cdp.send("Input.dispatchTouchEvent", { type: "touchMove", touchPoints: [{ x: x + dx, y, id: 1 }] });
+              await compareAtCurrentTime(name, () => cdp.send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] }));
+            } finally { await cdp.detach(); }
+          } else {
+            await page.mouse.move(x, y); await page.mouse.down(); await page.mouse.move(x + dx, y);
+            await compareAtCurrentTime(name, () => page.mouse.up());
+          }
         }
         expect(await canvas(page).evaluate(node => (node as HTMLCanvasElement & { acceptancePointer?: string }).acceptancePointer)).toBe(touch ? "touch" : "mouse");
       });
