@@ -2,34 +2,37 @@
 // reports nothing to GitHub, so Vercel never starts prod-smoke.yml for it and a
 // release used to end at `vercel promote` with nothing watching the live site.
 // This list ends where the proof is: it dispatches the smoke suite on the
-// released commit and waits for the verdict.
+// released commit, names the released deployment, and waits for the verdict.
 //
 // Every effect arrives through `deps`, so the order and the refusals are tested
 // without a network, a Vercel account or a GitHub run. The command name
 // "vercel" is resolved by the entry script (scripts/lib/vercelCli.mjs).
+
+import { stripVTControlCharacters } from "node:util";
 
 export const PRODUCTION_ORIGIN = "https://pubmaxxing.com";
 export const SMOKE_WORKFLOW = "prod-smoke.yml";
 export const RELEASE_BRANCH = "main";
 export const DEFAULT_REPOSITORY = "Singularityszn/pubmax";
 
-const DEPLOYMENT_URL_PATTERN = /https:\/\/[a-z0-9-]+\.vercel\.app/g;
+const DEPLOYMENT_RESULT_LINE = /^(?:(?:▲[ \t]+)?Production(?::[ \t]*|[ \t]+))?(https:\/\/[a-z0-9-]+\.vercel\.app)\/?(?:[ \t]+\[[^\]\r\n]*\])?[ \t]*$/;
 
-/** The deployment URL the Vercel CLI printed. The last one wins: it is the result line. */
+/** Read the staged result, never an alias or a URL embedded in a log message. */
 export function parseDeploymentUrl(output) {
-  const matches = String(output ?? "").match(DEPLOYMENT_URL_PATTERN);
-  return matches ? matches[matches.length - 1] : null;
+  const urls = new Set();
+  for (const line of stripVTControlCharacters(String(output ?? "")).split(/[\r\n]+/)) {
+    const match = line.trim().match(DEPLOYMENT_RESULT_LINE);
+    if (match) urls.add(match[1]);
+  }
+  // Repeated result lines may name one upload. Conflicting results are unsafe.
+  return urls.size === 1 ? [...urls][0] : null;
 }
 
-/**
- * The smoke run this release dispatched. A run started by somebody else, or on
- * another commit, is not this release's verdict, so a run counts only when it
- * was created after the dispatch and checked out the released commit.
- */
-export function pickDispatchedRun(runs, { sha, dispatchedAtMs }) {
+export function pickDispatchedRun(runs, { sha, dispatchedAtMs, deploymentId }) {
   const slackMs = 5_000;
   const candidates = (runs ?? [])
     .filter((run) => run.headSha === sha)
+    .filter((run) => run.displayTitle === `Production smoke ${deploymentId}`)
     .filter((run) => Date.parse(run.createdAt) >= dispatchedAtMs - slackMs)
     .sort((a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt));
   return candidates[0] ?? null;
@@ -115,10 +118,15 @@ export async function releaseProduction(deps, options = {}) {
   say(`Production serves ${deploymentId}.`);
 
   // 4. Dispatch the smoke suite on the released commit and wait for the verdict.
+  // The run tests whatever the live origin serves, so it is told which
+  // deployment that must be, and it fails when production serves another.
   const dispatchedAtMs = now();
   const dispatch = await run(
     "gh",
-    ["workflow", "run", SMOKE_WORKFLOW, "--repo", repository, "--ref", RELEASE_BRANCH],
+    [
+      "workflow", "run", SMOKE_WORKFLOW, "--repo", repository, "--ref", RELEASE_BRANCH,
+      "-f", `deployment_id=${deploymentId}`,
+    ],
     {},
   );
   if (dispatch.status !== 0) {
@@ -131,12 +139,12 @@ export async function releaseProduction(deps, options = {}) {
       "gh",
       [
         "run", "list", "--repo", repository, "--workflow", SMOKE_WORKFLOW, "--event", "workflow_dispatch",
-        "--branch", RELEASE_BRANCH, "--limit", "10", "--json", "databaseId,headSha,createdAt",
+        "--branch", RELEASE_BRANCH, "--limit", "10", "--json", "databaseId,headSha,createdAt,displayTitle",
       ],
       { capture: true },
     );
     if (listed.status === 0) {
-      smokeRun = pickDispatchedRun(JSON.parse(listed.stdout || "[]"), { sha, dispatchedAtMs });
+      smokeRun = pickDispatchedRun(JSON.parse(listed.stdout || "[]"), { sha, dispatchedAtMs, deploymentId });
     }
     if (smokeRun) break;
     if (now() >= runDeadline) {
@@ -151,6 +159,15 @@ export async function releaseProduction(deps, options = {}) {
     {},
   );
   if (watched.status !== 0) {
+    // A replacement before or during the run prevents a complete verdict on
+    // the released deployment.
+    const live = await deploymentIdAt(PRODUCTION_ORIGIN);
+    if (live !== deploymentId) {
+      throw new ReleaseRefusal(
+        `${PRODUCTION_ORIGIN} now serves ${live ?? "no deployment"}, not ${deploymentId}. ` +
+          `Smoke run ${smokeRun.databaseId} did not test the released deployment, so ${deploymentId} is unverified.`,
+      );
+    }
     throw new ReleaseRefusal(
       `The production smoke suite failed for ${deploymentId}. Production serves it now: ` +
         "read the run, then fix forward or roll back with `vercel rollback`.",

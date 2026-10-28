@@ -10,6 +10,8 @@ export type QuizCard = {
   title: string;
   day: string | null;
   time: string | null;
+  /** Set when one directory record states more than one weekly slot. */
+  idSuffix?: string;
 };
 
 export type QuizVenueDetail = {
@@ -19,12 +21,20 @@ export type QuizVenueDetail = {
   feeRaw: string | null;
   address: string | null;
   postcode: string | null;
+  /** The directory JSON only: "Free" stated as the price. */
+  freeEntry?: boolean;
+  /** The directory JSON only: the venue's own map point and name. */
+  lat?: number | null;
+  lng?: number | null;
+  name?: string | null;
 };
 
 export type WhatsOnQuizRow = {
   id: string;
   venueId: string | null;
   placeName: string;
+  lat?: number;
+  lng?: number;
   kind: "quiz";
   startsAt: string;
   title: string;
@@ -61,6 +71,10 @@ export declare function decodeEntities(text: unknown): string;
 export declare function parseQuestionOneVenuesPage(html: unknown): QuizCard[];
 export declare function parseQuestionOneNextPage(html: unknown, pageUrl?: string): string | null;
 export declare function parseQuestionOneVenueDetail(html: unknown): QuizVenueDetail;
+export declare function parseQuestionOneVenuesApi(json: unknown): {
+  cards: QuizCard[];
+  detailsByUrl: Map<string, QuizVenueDetail>;
+};
 export declare function isWeeklyCadence(title: unknown): boolean;
 export declare function placeNameFromQuestionOneTitle(title: unknown): string;
 export declare function buildQuestionOneRows(input: {
