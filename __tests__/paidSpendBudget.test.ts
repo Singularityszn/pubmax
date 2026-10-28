@@ -7,7 +7,7 @@
 // limiter can never refuse because each value is its own bucket, and which the
 // deployment ceiling stops reaching the model the moment it is spent.
 
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("@/lib/serverEnv", () => ({ assertProductionSecrets: () => {} }));
 
