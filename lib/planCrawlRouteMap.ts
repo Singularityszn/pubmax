@@ -14,8 +14,18 @@ export type ResolvedPlanCrawlRoute = {
   coords: LngLat[];
   names: string[];
   venueIds: string[];
-  area: string;
+  areaDescription: string;
 };
+
+/** Describe all recorded stop areas without assigning a borough from distance. */
+export function planRouteAreaDescription(areas: readonly string[]): string {
+  const labels = areas.map((area) => area.trim());
+  if (labels.length === 0 || labels.some((area) => !area)) return "";
+  const unique = [...new Set(labels)].sort((left, right) => left.localeCompare(right, "en-GB"));
+  if (unique.length === 1) return `in ${unique[0]}`;
+  const last = unique.pop();
+  return `across ${unique.join(", ")} and ${last}`;
+}
 
 /** Bounds for fitBounds: every stop plus every vertex on the drawn walking line. */
 export function planCrawlRouteFitBounds(
