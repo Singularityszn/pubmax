@@ -5,6 +5,8 @@ import { priceStandingFor } from "@/lib/priceTier";
 export const PUB_COMPARISON_MAX_VENUES = 3;
 export const PUB_COMPARISON_MAX_LINES = 10;
 export const PUB_COMPARISON_MAX_QUANTITY = 12;
+const DRINK_LABEL_MAX = 160;
+const SERVING_MAX = 40;
 
 export type PubComparisonOrderLine = {
   category: DrinkCategory;
@@ -111,8 +113,8 @@ export function parsePubComparisonRequest(value: unknown): PubComparisonRequest 
   const identities = new Set<string>();
   for (const raw of value.order) {
     if (!record(raw) || !onlyKeys(raw, ["category", "drinkLabel", "serving", "quantity"]) || !isDrinkCategory(raw.category)) return null;
-    const drinkLabel = text(raw.drinkLabel, 80);
-    const serving = text(raw.serving, 40);
+    const drinkLabel = text(raw.drinkLabel, DRINK_LABEL_MAX);
+    const serving = text(raw.serving, SERVING_MAX);
     if (!drinkLabel || !serving || !Number.isInteger(raw.quantity) || (raw.quantity as number) < 1 || (raw.quantity as number) > PUB_COMPARISON_MAX_QUANTITY) return null;
     const key = comparisonDrinkKey({ category: raw.category, drinkLabel, serving });
     if (identities.has(key)) return null;
@@ -194,7 +196,8 @@ export function comparePubOrders(request: PubComparisonRequest, venues: readonly
 export function comparisonCatalogueDrinks(venues: readonly PubComparisonVenueInput[]): PubComparisonDrink[] {
   const drinks = new Map<string, PubComparisonDrink>();
   for (const venue of venues) for (const row of venue.evidence) {
-    if (!comparisonServingIsExplicit(row.serving)) continue;
+    if (!text(row.drinkLabel, DRINK_LABEL_MAX) || !text(row.serving, SERVING_MAX)
+      || !comparisonServingIsExplicit(row.serving)) continue;
     const drink = { category: row.category, drinkLabel: row.drinkLabel, serving: row.serving };
     const key = comparisonDrinkKey(drink);
     if (!drinks.has(key)) drinks.set(key, { ...drink, key });

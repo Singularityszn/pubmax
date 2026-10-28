@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { comparePubOrders, parsePubComparisonRequest, type PubComparisonEvidence, type PubComparisonVenueInput } from "@/lib/pubComparison";
+import { comparePubOrders, comparisonCatalogueDrinks, parsePubComparisonRequest, type PubComparisonEvidence, type PubComparisonVenueInput } from "@/lib/pubComparison";
 
 const now = Date.parse("2026-10-28T12:00:00Z");
 const order = [{ category: "beer" as const, drinkLabel: "Guinness", serving: "pint", quantity: 2 }];
@@ -21,6 +21,13 @@ describe("pub order comparison", () => {
 });
 
 describe("comparison request", () => {
+  it("accepts offered menu names without truncating their drink identity", () => {
+    const drinkLabel = "Tropical alcohol-free botanical spritz with pineapple, rosemary and orange served over ice";
+    const choices = comparisonCatalogueDrinks([venue("a", [evidence({ drinkLabel, category: "alcohol-free", serving: "250ml" })])]);
+    expect(choices).toHaveLength(1);
+    expect(parsePubComparisonRequest({ venueIds: ["a"], order: [{ category: "alcohol-free", drinkLabel: choices[0]?.drinkLabel, serving: "250ml", quantity: 1 }] })?.order[0]?.drinkLabel).toBe(drinkLabel);
+  });
+
   it("refuses a fourth pub and private origin coordinates", () => {
     expect(parsePubComparisonRequest({ venueIds: ["a", "b", "c", "d"], order })).toBeNull();
     expect(parsePubComparisonRequest({ venueIds: ["a"], order, origin: { lat: 51, lng: 0 } })).toBeNull();
