@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const receiptStorage = vi.hoisted(() => ({
-  upload: vi.fn(async (_key: string, _bytes: unknown, _options: unknown): Promise<{
+  upload: vi.fn(async (): Promise<{
     error: { message: string } | null;
   }> => ({ error: null })),
 }));
