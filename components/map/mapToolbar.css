@@ -876,3 +876,13 @@ html[data-theme="dark"] .drinkShapeChipLabel {
     );
   }
 }
+
+/* A short landscape walk needs the space between its header and route actions.
+   The measured header still reserves room when text makes it taller. */
+@media (min-width: 641px) and (max-height: 500px) {
+  .appShell:has(.mapCanvasWrap[data-route-stops]:not([data-route-stops="0"])) {
+    --map-top-clearance: calc(
+      var(--topbar-inset) + var(--site-nav-floating-height, calc(6rem + 44px)) + 12px
+    );
+  }
+}
