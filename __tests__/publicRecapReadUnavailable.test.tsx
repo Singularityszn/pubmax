@@ -200,14 +200,15 @@ describe("the store read has three answers", () => {
     expect(store.asked).not.toContain("night_moments");
   });
 
-  it("reads as before 0198 when the ledger has no departure columns yet", async () => {
+  it.each(["42703", "PGRST204"])("answers unavailable without the departure columns (%s)", async (code) => {
     seedPublishedStory();
     store.answers.set("account_retention_ledger", {
       data: null,
-      error: { code: "42703", message: "column account_retention_ledger.night_story_ids does not exist" },
+      error: { code, message: "column account_retention_ledger.night_story_ids does not exist" },
     });
-    const read = await readPublishedRecapSource(STORY_ID);
-    expect(read.status).toBe("found");
+    await expect(readPublishedRecapSource(STORY_ID)).resolves.toEqual({ status: "unavailable" });
+    await expect(readNightStory(STORY_ID, null)).resolves.toEqual({ status: "unavailable" });
+    expect(store.asked).not.toContain("night_moments");
   });
 
   it("answers unavailable when the consents read failed, never a found source with the departed Moment", async () => {
