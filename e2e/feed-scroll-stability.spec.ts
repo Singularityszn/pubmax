@@ -39,6 +39,7 @@ test.describe("canonical Social route", () => {
     await page.setViewportSize(MOBILE);
     const response = await page.goto("/social");
     expect(response?.status()).toBe(200);
+    await expectStreamedPageSettled(page);
     await expect(page.locator("h1.screenTitle")).toBeVisible();
     await expect(page.getByRole("status", { name: "Social posts", exact: true })).toContainText("Sign in to use Social.");
     await expect(page.getByRole("link", { name: "Sign in", exact: true }).last()).toHaveAttribute("href", "/login?mode=signin&from=%2Fsocial");
