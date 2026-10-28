@@ -33,7 +33,7 @@ Authoritative registry and sanitization: `lib/analyticsEvents.ts`. This file is 
 
 | Event | Properties |
 | --- | --- |
-| `content_shared` | `channel` (`copy`, `native`, `whatsapp`, `x`, `sms`, `instagram`, `tiktok`), `surface` (`plan`, `recap`, `poster`, `tonight`, `pint`, `other`) |
+| `content_shared` | `channel` (`copy`, `native`, `whatsapp`, `x`, `sms`, `instagram`, `tiktok`), `surface` (`plan`, `recap`, `poster`, `tonight`, `pint`, `year`, `other`) |
 | `error_shown` | `surface` (closed page surface enum), `kind` (`network`, `auth`, `validation`, `server`, `unknown`) |
 
 ## System (browser SDK via `/ingest`)

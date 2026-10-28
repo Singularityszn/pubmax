@@ -41,7 +41,7 @@ export type PalYearFacts = {
   boroughs: number;
 };
 
-const MONTHS = [
+export const MONTHS = [
   "January", "February", "March", "April", "May", "June",
   "July", "August", "September", "October", "November", "December",
 ] as const;
@@ -107,7 +107,7 @@ export function palYearFacts(input: PalYearInput): PalYearFacts {
 }
 
 /** "18 October", from a London day. */
-function dayLabel(day: string): string {
+export function dayLabel(day: string): string {
   const month = MONTHS[Number(day.slice(5, 7)) - 1];
   return month ? `${Number(day.slice(8, 10))} ${month}` : day;
 }
