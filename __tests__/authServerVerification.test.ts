@@ -37,8 +37,8 @@ describe("verifyCallerAuth — the deleted-account lane", () => {
   // so its bearer may outlive the auth row. It must NOT outlive a sign-out, a
   // password change or a ban (audit finding
   // lib/authServer:localOnly-jwt-lane-skips-revocation-ban-and-audience): the
-  // lane asks GoTrue first, and reads the token's own claims ONLY when GoTrue
-  // answers `user_not_found`, bound to this app's audience and role.
+  // lane asks GoTrue first and binds the signed claims to this app's audience
+  // and role. Only `user_not_found` permits naming a deleted account.
   function adminWith(
     getUser: ReturnType<typeof vi.fn>,
     getClaims: ReturnType<typeof vi.fn> = vi.fn(),
@@ -79,7 +79,7 @@ describe("verifyCallerAuth — the deleted-account lane", () => {
       identity: { id: "user-1", email: "k@example.com", createdAt: "2026-01-01T00:00:00Z" },
     });
     expect(admin.auth.getUser).toHaveBeenCalledWith("live-token");
-    expect(getClaims).not.toHaveBeenCalled();
+    expect(getClaims).toHaveBeenCalledWith("live-token");
   });
 
   it.each([

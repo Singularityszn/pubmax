@@ -29,8 +29,9 @@ import "server-only";
 // account is gone: `DELETE /api/account` passes `{ allowDeletedAccount: true }`
 // so a second delete reaches its documented 410 rather than a 401 about an
 // account we know the caller owns. That lane still asks GoTrue first, so a
-// revoked session or a ban is refused for every live account, and it reads the
-// token's own claims only once GoTrue says the account is gone (audit finding
+// revoked session or a ban is refused for every live account. Signed claims
+// bind every deletion to this app's audience and role. Only `user_not_found`
+// permits a deleted account to be named by its token (audit finding
 // lib/authServer:localOnly-jwt-lane-skips-revocation-ban-and-audience). That
 // argument is written at the call site.
 
@@ -109,12 +110,11 @@ export type VerifyCallerAuthOptions = Readonly<{
   /**
    * Also name the caller when the account their token names no longer exists.
    *
-   * GoTrue is asked first, exactly as on the default lane, so a revoked
-   * session, a ban or a foreign token is refused for every live account. Only
-   * when GoTrue answers `user_not_found` is the token verified here against
-   * the project JWKS, bound to this app's audience and role, and its `sub`
-   * returned. Pass it only where the answer must survive the account's own
-   * deletion: `DELETE /api/account` is the whole list, and says why at the
+   * GoTrue first checks the session and ban state, as on the default lane.
+   * If GoTrue accepts the caller or answers `user_not_found`, the signed
+   * claims must also match this app's audience and role.
+   * Pass it only where the answer must survive the account's own deletion:
+   * `DELETE /api/account` is the whole list, and says why at the
    * call site. Every other caller wants the plain account lane.
    */
   allowDeletedAccount?: boolean;
@@ -138,17 +138,17 @@ function isUserNotFoundError(error: unknown): boolean {
 }
 
 /**
- * Name the caller of an account GoTrue says no longer exists, from the token's
- * own claims.
+ * Check the signed token's audience, role and subject for account deletion.
+ * GoTrue must first accept the caller or report a deleted account.
  *
  * `getClaims` checks the signature (against a JWKS fetched once per process and
  * cached by supabase-js) and the expiry, and nothing else, so this binds the
  * claims to this app's audience and role as well. Where the project still signs
- * HS256, supabase-js falls back to `getUser` inside `getClaims`, which answers
- * `user_not_found` again, so the token is read as invalid. A client with no
+ * HS256, supabase-js falls back to `getUser` inside `getClaims`. For a deleted
+ * account it answers `user_not_found` again, so the token is read as invalid. A client with no
  * `getClaims` cannot verify the token here at all, which is invalid too.
  */
-async function verifyDeletedAccountClaims(
+async function verifyAppTokenClaims(
   admin: NonNullable<ReturnType<typeof getSupabaseAdmin>>,
   token: string,
 ): Promise<CallerAuthVerification> {
@@ -216,7 +216,7 @@ async function verifyBearer(
     if (error) {
       if (isGoTrueUserBannedError(error)) return { status: "banned" };
       if (allowDeletedAccount && isUserNotFoundError(error)) {
-        return await verifyDeletedAccountClaims(admin, token);
+        return await verifyAppTokenClaims(admin, token);
       }
       return {
         status: isInvalidBearerError(error) ? "invalid" : "unavailable",
@@ -225,6 +225,11 @@ async function verifyBearer(
     const id = data.user?.id;
     if (typeof id !== "string" || !id) return { status: "invalid" };
     if (isAuthUserBannedUntil(data.user)) return { status: "banned" };
+    if (allowDeletedAccount) {
+      const claims = await verifyAppTokenClaims(admin, token);
+      if (claims.status !== "verified") return claims;
+      if (claims.identity.id !== id) return { status: "invalid" };
+    }
     const email = typeof data.user?.email === "string" ? data.user.email : null;
     const createdAt =
       typeof data.user?.created_at === "string" ? data.user.created_at : null;
