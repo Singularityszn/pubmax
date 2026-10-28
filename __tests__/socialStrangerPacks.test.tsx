@@ -27,6 +27,7 @@ const transport = vi.hoisted(() => ({
 }));
 
 vi.mock("next/link", () => ({
+  useLinkStatus: () => ({ pending: false }),
   default: ({ href, children, ...props }: { href: string; children?: ReactNode }) =>
     createElement("a", { href, ...props }, children),
 }));
@@ -207,7 +208,7 @@ describe("Social viewer surfaces", () => {
       Array.from(host.querySelectorAll<HTMLElement>("[data-viewer-card]"),
         (card) => card.dataset.viewerCard,
       ),
-    ).toEqual(["composer", "tag-inbox", "outbox", "crews"]);
+    ).toEqual(["composer", "outbox", "tag-inbox", "crews"]);
   });
 
   it("withholds viewer cards while viewer session is unresolved", async () => {

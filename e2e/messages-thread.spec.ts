@@ -378,6 +378,54 @@ test.describe("the message thread at 320", () => {
 });
 
 test.describe("the inbox on a phone", () => {
+  test("filters conversations and starts a pub plan without sending it", async ({ page }, testInfo) => {
+    await page.setViewportSize(PHONE);
+    await installThread(page, fixture());
+    const now = new Date().toISOString();
+    await page.route("**/api/messages?**", (route) => route.fulfill({ json: { conversations: [
+      { id: "c1", otherHandle: THEM, lastBody: "Meet outside at seven?", lastAt: now, unread: 2 },
+      { id: "c2", kind: "group", title: "Friday regulars", otherHandle: "tom", memberHandles: [ME, "tom", "maisie"], lastBody: "I can make the first stop", lastAt: now, lastFromMe: true, unread: 0 },
+      { id: "c4", otherHandle: "tom_the_lamb", lastAt: now, unread: 0 },
+    ] } }));
+    await page.route("**/api/messages/c2**", (route) => route.fulfill({ json: {
+      conversation: { kind: "group", members: [ME, "tom", "maisie"], title: "Friday regulars" },
+      messages: [
+        { id: "group-1", conversationId: "c2", senderHandle: "tom", body: "The Harp at seven?", createdAt: now, read: true, flagged: false },
+        { id: "group-2", conversationId: "c2", senderHandle: "maisie", body: "See you there", createdAt: now, read: true, flagged: false },
+      ],
+    } }));
+    await page.goto("/messages");
+    await expect(page.locator(".conversationLink")).toHaveCount(3);
+    await page.screenshot({ path: testInfo.outputPath("inbox-390.png") });
+    await page.getByRole("button", { name: "Unread", exact: true }).click();
+    await expect(page.locator(".conversationLink")).toHaveCount(1);
+    await page.getByRole("button", { name: "Groups", exact: true }).click();
+    await expect(page.locator(".conversationLink")).toHaveCount(1);
+    await page.getByRole("link", { name: /Friday regulars/ }).click();
+    await expect(page.locator(".messageSender")).toHaveText(["@tom", "@maisie"]);
+    await page.screenshot({ path: testInfo.outputPath("group-390.png") });
+    await page.goto("/messages/c4");
+    const starters = page.getByRole("group", { name: "Start the conversation" });
+    await expect(starters).toBeVisible();
+    await page.screenshot({ path: testInfo.outputPath("empty-thread-390.png") });
+    await starters.getByRole("button", { name: "Share a pub", exact: true }).click();
+    await expect(page.getByRole("searchbox", { name: "Search pubs", exact: true })).toBeFocused();
+    await page.getByRole("button", { name: "Cancel", exact: true }).click();
+    await starters.getByRole("button", { name: "Share a plan", exact: true }).click();
+    await expect(page.getByRole("textbox", { name: "Which plan?", exact: true })).toBeFocused();
+    await page.getByRole("button", { name: "Cancel", exact: true }).click();
+    await expect(page.locator(".messageBubble")).toHaveCount(0);
+    await page.setViewportSize(NARROW);
+    await expectComposerInView(page);
+    await expectNoHorizontalOverflow(page, NARROW.width);
+    await page.setViewportSize(DESKTOP);
+    await page.goto("/messages");
+    await expect(page.locator(".conversationLink")).toHaveCount(3);
+    await page.screenshot({ path: testInfo.outputPath("inbox-1440.png") });
+    await page.evaluate(() => { document.documentElement.dataset.theme = "dark"; });
+    await page.screenshot({ path: testInfo.outputPath("inbox-dark-1440.png") });
+  });
+
   test("is a list of faces, and an unread row says how many", async ({ page }) => {
     await page.setViewportSize(PHONE);
     await installThread(page, fixture());

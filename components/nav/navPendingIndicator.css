@@ -1,0 +1,32 @@
+/* Existing positioned link styles keep their containing block. */
+@layer base {
+  :where(.navPendingLink) {
+    position: relative;
+  }
+}
+
+.navPendingIndicator {
+  position: absolute;
+  inset-inline: 10px;
+  bottom: 3px;
+  height: 3px;
+  border-radius: var(--radius-pill);
+  background: currentColor;
+  visibility: hidden;
+  pointer-events: none;
+}
+
+.navPendingIndicator[data-pending] {
+  visibility: visible;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .navPendingIndicator[data-pending] {
+    animation: navPendingPulse 900ms ease-in-out infinite alternate;
+  }
+}
+
+@keyframes navPendingPulse {
+  from { opacity: 0.45; }
+  to { opacity: 1; }
+}
