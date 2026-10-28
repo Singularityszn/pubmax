@@ -164,11 +164,12 @@
     {
       "path": "/signin",
       "readySelector": "main.loginPage",
-      "why": "The live alias of /login, budgeted separately because an alias that quietly diverges from what it aliases is worse than two pages.",
+      "why": "The alias redirects to /login and ships no document. Measure the redirect here. The destination keeps its own page budget under /login.",
       "serverRenderMs": 150,
-      "jsDecodedKB": 950,
-      "requests": 40,
-      "lcpMs": 400
+      "jsDecodedKB": 0,
+      "requests": 1,
+      "lcpMs": 0,
+      "redirectsTo": "/login"
     },
     {
       "path": "/plan",
