@@ -27,7 +27,7 @@ These have no upstream. They describe this repo's own conventions and point at t
 | --- | --- |
 | `pubmax-nextjs` | Route handlers, the API error envelope, `proxy.ts`, CSP, caching and file tracing. |
 | `pubmax-supabase` | The admin and browser clients, stores, migrations and rollbacks, RLS helpers and private Realtime channels. Read it with the vendored `supabase` skill. |
-| `pubmax-ai-sdk` | The `ai` v7 AI Gateway call, the direct OpenRouter calls, TypeSafe, paid-spend lanes and model tracing. |
+| `pubmax-ai-sdk` | The `ai` v7 AI Gateway call, direct OpenRouter calls, TypeSafe, paid-spend lanes, model tracing, and local guidance for the installed TanStack AI skills. |
 
 ## Packs
 
