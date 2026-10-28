@@ -157,6 +157,8 @@ describe("Pub Pal first meeting and onboarding", () => {
     await act(async () => {
       buttonContaining("Meet your Pub Pal").click();
     });
+    expect(buttonContaining("Meet your Pub Pal").disabled).toBe(true);
+    expect(container.querySelector('[role="status"]')?.textContent).toBe("Opening your Pub Pal…");
     authState.current = { user: null, loading: false, configured: true };
     await act(async () => {
       root?.render(createElement(PalExperience));

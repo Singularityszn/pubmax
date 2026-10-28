@@ -4,6 +4,7 @@ import { useEffect } from "react";
 import { Moon, Sun } from "lucide-react";
 
 import { resolveThemePreference } from "@/lib/themePreference";
+import { useClientReady } from "@/lib/useClientReady";
 import {
   storedThemeChoice,
   themeSwitchLabel,
@@ -13,6 +14,7 @@ import {
 
 // The shared header and the map Layers sheet use the same saved theme choice.
 export default function ThemeToggle({ floating = false }: { floating?: boolean }) {
+  const ready = useClientReady();
   const theme = useThemeChoice();
   const label = themeSwitchLabel(theme);
 
@@ -32,6 +34,7 @@ export default function ThemeToggle({ floating = false }: { floating?: boolean }
   return (
     <button
       type="button"
+      disabled={!ready}
       onClick={toggleThemeChoice}
       className={floating ? "themeToggle floating" : "themeToggle"}
       aria-label={label}

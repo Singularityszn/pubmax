@@ -49,7 +49,11 @@
   overflow-wrap: anywhere;
 }
 
-/* The title's link covers the whole row. */
+/* The row owns the stretched target and its keyboard focus outline. */
+.rowListTitleLink {
+  position: static;
+}
+
 .rowListTitleLink::after {
   content: "";
   position: absolute;

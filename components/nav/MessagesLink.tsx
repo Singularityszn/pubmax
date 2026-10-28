@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import { useAuth } from "@/components/auth/AuthProvider";
+import NavPendingIndicator from "@/components/nav/NavPendingIndicator";
 import { authedActionFetch } from "@/lib/authedFetch";
 import type { ConversationDTO } from "@/lib/messages";
 import { subscribeMessagesRead } from "@/lib/messagesUnreadSignal";
@@ -109,7 +110,7 @@ export default function MessagesLink(): React.JSX.Element | null {
       // a dynamic route prefetched on sight is a server render queued in front
       // of the page the reader is waiting for (components/nav/IntentLink.tsx).
       prefetch={false}
-      className="siteNavBell"
+      className="siteNavBell navPendingLink"
       aria-label={label}
       title={label}
       onPointerDown={() => {
@@ -129,6 +130,7 @@ export default function MessagesLink(): React.JSX.Element | null {
           {unread > 99 ? "99+" : unread}
         </span>
       ) : null}
+      <NavPendingIndicator />
     </Link>
   );
 }

@@ -9,6 +9,7 @@ const state = vi.hoisted(() => ({
   fetch: vi.fn<(url: string, init: RequestInit) => Promise<Response>>(),
 }));
 vi.mock("next/link", () => ({
+  useLinkStatus: () => ({ pending: false }),
   default: ({ href, children, prefetch, ...props }: { href: string; children?: React.ReactNode; prefetch?: boolean }) => {
     void prefetch;
     return createElement("a", { href, ...props }, children);

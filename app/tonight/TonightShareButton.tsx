@@ -1,5 +1,7 @@
 "use client";
 
+import { ReadyButton } from "@/components/ui/ready-button";
+
 import { offlineOrMessage } from "@/lib/apiErrorMessage";
 
 // "Share tonight" affordance (Wave D · D1). Shares the /tonight URL — whose
@@ -54,7 +56,7 @@ export default function TonightShareButton(): React.JSX.Element {
   return (
     <div className="tonightShareControl">
       <div className="tonightShareAction">
-        <button
+        <ReadyButton
           type="button"
           className="tonightShare pressable"
           onClick={onShare}
@@ -71,7 +73,7 @@ export default function TonightShareButton(): React.JSX.Element {
               Share
             </>
           )}
-        </button>
+        </ReadyButton>
       </div>
       {error ? (
         <p
