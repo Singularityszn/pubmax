@@ -54,7 +54,7 @@ describe("parseOsmOpeningHours later-rule override", () => {
     })).toBe(true);
   });
 
-  it("overrides weekday windows from the twenty shipped desk-pack patterns", () => {
+  it("overrides weekday windows from nineteen shipped desk-pack patterns", () => {
     const cases: Array<{ raw: string; day: number; want: { opens: string; closes: string }[] }> = [
       { raw: "Mo-Fr 08:30-15:00; Su-Sa 08:30-16:00", day: 3, want: [{ opens: "08:30", closes: "16:00" }] },
       { raw: "Mo-Fr 09:30-19:00; We off; Sa 09:30-17:00; Su off", day: 3, want: [] },
@@ -68,7 +68,6 @@ describe("parseOsmOpeningHours later-rule override", () => {
         day: 5,
         want: [{ opens: "00:00", closes: "00:30" }, { opens: "08:00", closes: "24:00" }],
       },
-      { raw: "Mo-Th 09:00-19:00; Tu-We,Fr 09:00-17:00; Sa 09:00-13:00; Su,PH off", day: 3, want: [{ opens: "09:00", closes: "17:00" }] },
       { raw: "Mo-Fr 11:30-15:00,17:00-22:30; Tu off; Th off; Sa,Su 11:30-16:00,17:00-22:30", day: 4, want: [] },
       { raw: "Mo-Su 09:00-17:30; Sa 09:00-17:45; Su 09:30-17:45", day: 0, want: [{ opens: "09:30", closes: "17:45" }] },
       { raw: "Mo-Fr 08:30-17:00; Sa-Su 09:00-17:00; Fr-Sa 18:00-23:00", day: 5, want: [{ opens: "18:00", closes: "23:00" }] },
@@ -81,12 +80,18 @@ describe("parseOsmOpeningHours later-rule override", () => {
       { raw: "Mo-Su 08:00-15:30; Th-Sa 08:00-22:00", day: 4, want: [{ opens: "08:00", closes: "22:00" }] },
       { raw: "Mo-Th 07:00-19:00, Th,Fr 07:00-22:00, Su 08:00-19:00", day: 4, want: [{ opens: "07:00", closes: "22:00" }] },
     ];
-    expect(cases).toHaveLength(20);
+    expect(cases).toHaveLength(19);
     for (const row of cases) {
       const hours = parseOsmOpeningHours(row.raw);
       expect(hours, row.raw).not.toBeNull();
       expect(hours?.[row.day], row.raw).toEqual(row.want);
     }
+  });
+
+  it("leaves a shipped desk-pack pattern unknown when a day list names a public holiday", () => {
+    // Reading `Su,PH off` as `Su off` would rank the desk open on a weekday
+    // bank holiday that OSM states it is closed.
+    expect(parseOsmOpeningHours("Mo-Th 09:00-19:00; Tu-We,Fr 09:00-17:00; Sa 09:00-13:00; Su,PH off")).toBeNull();
   });
 
   it("does not rank a Sunday-morning venue as open when Sunday is the later window", () => {

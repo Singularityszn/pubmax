@@ -150,6 +150,27 @@ describe("readOsmOpeningHours", () => {
     expect(readOsmOpeningHours("12:00-23:00")).toBeNull();
     expect(readOsmOpeningHours("Mo-Sa 11:23:00; Su 12:00-22:00")).toBeNull();
   });
+
+  it("reads nothing when one day list mixes a known day with a token it does not know", () => {
+    // The committed pack states these. Keeping `Su` and dropping `PH` would
+    // print a Sunday-only table and hide the public-holiday hours.
+    const mixed: Record<string, string> = {
+      "way/164010931": "Mo-Sa 12:00-23:00; Su,PH 12:00-19:00",
+      "way/300860985": "Mo-Sa 12:00-23:00; Su, PH 12:00-22:00",
+      // Ghost Whale, Atlantic Road, SW9.
+      "node/11006274641": "Mo 16:00-20:00; Tu 16:00-21:00; We 16:00-23:00; Th-Sa 12:00-23:00; Su,PH 12:00-20:00",
+    };
+    for (const [osmId, openingHours] of Object.entries(mixed)) {
+      expect(pack.rows.find((row: OsmPubFacts) => row.osmId === osmId)?.openingHours).toBe(openingHours);
+      expect(readOsmOpeningHours(openingHours)).toBeNull();
+      expect(parseOsmOpeningHours(openingHours)).toBeNull();
+      const view = osmPubFactsView({ osmId, readOn: "2026-10-05", openingHours });
+      expect(view?.hours).toBeNull();
+      expect(view?.hoursRaw).toBe(openingHours);
+    }
+    expect(readOsmOpeningHours("Mo-Sa 12:00-23:00; Su,PH off")).toBeNull();
+    expect(readOsmOpeningHours("Mo,Xx 12:00-23:00")).toBeNull();
+  });
 });
 
 describe("osmPubFactsView", () => {
