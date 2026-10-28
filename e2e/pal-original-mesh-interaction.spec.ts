@@ -32,13 +32,6 @@ test("the owned original Robin paints and responds to arrows and Home", async ({
     forbidden.push(route.request().url());
     await route.abort("blockedbyclient");
   });
-  page.on("response", response => {
-    if (new URL(response.url()).pathname.endsWith("/circuit-robin-c69915c4a4df.glb") && response.ok()) {
-      pendingBodies.push((async () => {
-        models.push({ url: response.url(), sha256: createHash("sha256").update(await response.body()).digest("hex") });
-      })().catch(error => { evidenceErrors.push("GLB body: " + String(error)); }));
-    }
-  });
   await installAuthDoubles(page);
   await seedSignedIn(page, "A");
   await page.addInitScript(() => {
@@ -61,6 +54,20 @@ test("the owned original Robin paints and responds to arrows and Home", async ({
   await page.route("**/api/pub-pal/memories", route => route.fulfill({ json: { memories: [] } }));
   await page.route("**/api/pub-pal/voice-token", route => route.fulfill({ json: { available: false } }));
   try {
+    // Observe only requests started by the target Pal document, after fixture seeding.
+    const palRequests = new Set<import("@playwright/test").Request>();
+    page.on("request", request => {
+      if (request.frame() === page.mainFrame()
+        && new URL(request.frame().url()).pathname === "/pal"
+        && new URL(request.url()).pathname.endsWith("/circuit-robin-c69915c4a4df.glb")) palRequests.add(request);
+    });
+    page.on("response", response => {
+    if (palRequests.has(response.request()) && response.ok()) {
+      pendingBodies.push((async () => {
+        models.push({ url: response.url(), sha256: createHash("sha256").update(await response.body()).digest("hex") });
+      })().catch(error => { evidenceErrors.push("GLB body: " + String(error)); }));
+    }
+  });
     await page.goto("/pal");
     await expect(page.getByRole("heading", { name: "Mesh regression", exact: true })).toBeVisible();
     const portrait = page.locator(".palHomePortrait");
