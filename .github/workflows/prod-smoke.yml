@@ -1,4 +1,5 @@
 name: Production smoke
+run-name: Production smoke ${{ inputs.deployment_id || github.run_id }}
 
 # Real journeys against the live site after every production deploy, with
 # nothing mocked. e2e/prod-smoke/README.md is the runbook, including how the

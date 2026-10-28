@@ -93,7 +93,9 @@ function harness(overrides: Partial<Record<string, { status: number; stdout: str
     if (command === "gh" && args[0] === "run" && args[1] === "list") {
       return {
         status: 0,
-        stdout: JSON.stringify([{ databaseId: 77, headSha: SHA, createdAt: new Date(clock).toISOString() }]),
+        stdout: JSON.stringify([{
+          databaseId: 77, headSha: SHA, createdAt: new Date(clock).toISOString(), displayTitle: "Production smoke dpl_new",
+        }]),
       };
     }
     return { status: 0, stdout: "" };
@@ -183,14 +185,18 @@ describe("parseDeploymentUrl", () => {
 
 describe("pickDispatchedRun", () => {
   const dispatchedAtMs = Date.parse("2026-10-06T10:00:00Z");
-  it("ignores a run on another commit or one older than the dispatch", () => {
+  it("requires the released deployment, commit and dispatch time", () => {
     const runs = [
-      { databaseId: 1, headSha: "b".repeat(40), createdAt: "2026-10-06T10:00:30Z" },
-      { databaseId: 2, headSha: SHA, createdAt: "2026-10-06T09:00:00Z" },
-      { databaseId: 3, headSha: SHA, createdAt: "2026-10-06T10:00:10Z" },
+      { databaseId: 1, headSha: "b".repeat(40), createdAt: "2026-10-06T10:00:30Z", displayTitle: "Production smoke dpl_a" },
+      { databaseId: 2, headSha: SHA, createdAt: "2026-10-06T09:00:00Z", displayTitle: "Production smoke dpl_a" },
+      { databaseId: 3, headSha: SHA, createdAt: "2026-10-06T10:00:10Z", displayTitle: "Production smoke dpl_a" },
+      { databaseId: 4, headSha: SHA, createdAt: "2026-10-06T10:00:20Z", displayTitle: "Production smoke dpl_b" },
+      { databaseId: 5, headSha: SHA, createdAt: "2026-10-06T10:00:30Z", displayTitle: "Production smoke dpl_a_extra" },
+      { databaseId: 6, headSha: SHA, createdAt: "2026-10-06T10:00:40Z" },
     ];
-    expect(pickDispatchedRun(runs, { sha: SHA, dispatchedAtMs })?.databaseId).toBe(3);
-    expect(pickDispatchedRun(runs.slice(0, 2), { sha: SHA, dispatchedAtMs })).toBeNull();
+    const input = { sha: SHA, dispatchedAtMs, deploymentId: "dpl_a" };
+    expect(pickDispatchedRun(runs, input)?.databaseId).toBe(3);
+    expect(pickDispatchedRun(runs.filter((run) => run.databaseId !== 3), input)).toBeNull();
   });
 });
 
@@ -307,9 +313,17 @@ describe("releaseProduction", () => {
         // Another release promotes B after A's dispatch and before its job starts.
         live = "dpl_b";
       }
+      if (command === "gh" && args[0] === "run" && args[1] === "list") {
+        calls.push({ command, args });
+        return { status: 0, stdout: JSON.stringify([
+          { databaseId: 77, headSha: SHA, createdAt: new Date(deps.now()).toISOString(), displayTitle: "Production smoke dpl_new" },
+          { databaseId: 88, headSha: SHA, createdAt: new Date(deps.now() + 1).toISOString(), displayTitle: "Production smoke dpl_b" },
+        ]) };
+      }
       if (command === "gh" && args[0] === "run" && args[1] === "watch") {
         const input = calls.find((call) => call.args[0] === "workflow")?.args.find((arg) => arg.startsWith("deployment_id="));
-        const job = runBoundStep({ live, expected: input?.slice("deployment_id=".length) });
+        const expected = args[2] === "88" ? "dpl_b" : input?.slice("deployment_id=".length);
+        const job = runBoundStep({ live, expected });
         calls.push({ command, args });
         return { status: job.status ?? 1, stdout: job.stdout };
       }
@@ -321,7 +335,25 @@ describe("releaseProduction", () => {
       "https://pubmaxxing.com now serves dpl_b, not dpl_new. Smoke run 77 did not test the released deployment, so dpl_new is unverified.",
     );
     expect(dispatched).toBe(true);
+    expect(calls.find((call) => call.args[1] === "watch")?.args[2]).toBe("77");
     expect(said.some((line) => /smoke suite passed/.test(line))).toBe(false);
+  });
+
+  it("accepts its own successful run when another deployment has a newer run", async () => {
+    const { deps, calls } = harness({ "gh run list": { status: 0, stdout: JSON.stringify([
+      { databaseId: 77, headSha: SHA, createdAt: new Date(1_000_010).toISOString(), displayTitle: "Production smoke dpl_new" },
+      { databaseId: 88, headSha: SHA, createdAt: new Date(1_000_011).toISOString(), displayTitle: "Production smoke dpl_b" },
+    ]) } });
+    await expect(releaseProduction(deps, { pollMs: 10 })).resolves.toMatchObject({ smokeRunId: 77 });
+    expect(calls.find((call) => call.args[1] === "watch")?.args[2]).toBe("77");
+  });
+
+  it("reports an unverified release when only another deployment's run appears", async () => {
+    const { deps, calls } = harness({ "gh run list": { status: 0, stdout: JSON.stringify([
+      { databaseId: 88, headSha: SHA, createdAt: new Date(1_000_010).toISOString(), displayTitle: "Production smoke dpl_b" },
+    ]) } });
+    await expect(releaseProduction(deps, { pollMs: 10, runLookupTimeoutMs: 20 })).rejects.toThrow(/live and unverified/);
+    expect(calls.some((call) => call.args[1] === "watch")).toBe(false);
   });
 });
 
@@ -329,6 +361,7 @@ describe("prod-smoke.yml binds a dispatched run to the released deployment", () 
   it("declares the input and hands it to the check before the suite", () => {
     const workflow = parse(readFileSync(path.join(ROOT, ".github/workflows/prod-smoke.yml"), "utf8"));
     expect(workflow.on.workflow_dispatch.inputs.deployment_id).toMatchObject({ required: false, type: "string" });
+    expect(workflow["run-name"]).toBe("Production smoke ${{ inputs.deployment_id || github.run_id }}");
     expect(boundStep().env?.EXPECTED_DEPLOYMENT_ID).toBe("${{ inputs.deployment_id }}");
   });
 

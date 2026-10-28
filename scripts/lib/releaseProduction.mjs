@@ -21,15 +21,11 @@ export function parseDeploymentUrl(output) {
   return matches ? matches[matches.length - 1] : null;
 }
 
-/**
- * The smoke run this release dispatched. A run started by somebody else, or on
- * another commit, is not this release's verdict, so a run counts only when it
- * was created after the dispatch and checked out the released commit.
- */
-export function pickDispatchedRun(runs, { sha, dispatchedAtMs }) {
+export function pickDispatchedRun(runs, { sha, dispatchedAtMs, deploymentId }) {
   const slackMs = 5_000;
   const candidates = (runs ?? [])
     .filter((run) => run.headSha === sha)
+    .filter((run) => run.displayTitle === `Production smoke ${deploymentId}`)
     .filter((run) => Date.parse(run.createdAt) >= dispatchedAtMs - slackMs)
     .sort((a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt));
   return candidates[0] ?? null;
@@ -136,12 +132,12 @@ export async function releaseProduction(deps, options = {}) {
       "gh",
       [
         "run", "list", "--repo", repository, "--workflow", SMOKE_WORKFLOW, "--event", "workflow_dispatch",
-        "--branch", RELEASE_BRANCH, "--limit", "10", "--json", "databaseId,headSha,createdAt",
+        "--branch", RELEASE_BRANCH, "--limit", "10", "--json", "databaseId,headSha,createdAt,displayTitle",
       ],
       { capture: true },
     );
     if (listed.status === 0) {
-      smokeRun = pickDispatchedRun(JSON.parse(listed.stdout || "[]"), { sha, dispatchedAtMs });
+      smokeRun = pickDispatchedRun(JSON.parse(listed.stdout || "[]"), { sha, dispatchedAtMs, deploymentId });
     }
     if (smokeRun) break;
     if (now() >= runDeadline) {
