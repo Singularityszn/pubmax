@@ -25,7 +25,7 @@ import { createHarvestReporter } from "@/lib/harvest/runReport";
 import { harvestSource, REFUSED_ESTATE_HOSTS, type HarvestSource } from "@/lib/harvest/sourcePolicy";
 import { defined } from "@/__tests__/helpers/defined";
 
-import { harvestChainMenuPrices, menuPagesFor } from "../scripts/harvest_chain_menu_prices.mjs";
+import { fetchText, harvestChainMenuPrices, menuPagesFor } from "../scripts/harvest_chain_menu_prices.mjs";
 import { createPermittedFetch, HarvestRefusal } from "../scripts/lib/permittedHarvestFetch.mjs";
 import { HARVEST_REDIRECT_HOP_LIMIT } from "@/lib/harvest/redirectChain";
 import {
@@ -276,6 +276,45 @@ describe.each([
     const requestedUrls = fetchImpl.mock.calls.map(([url]) => String(url));
     expect(requestedUrls.filter((url) => url === refusedUrl)).toHaveLength(requests);
     expect(requestedUrls.every((url) => url === SITEMAP || url === refusedUrl)).toBe(true);
+  });
+});
+
+describe("chain menu prices: a typed caller supplies the robots checker", () => {
+  // The declaration once omitted `robots` from fetchText's options, so a
+  // caller that followed it could not pass the checker, and an allowed
+  // redirect failed with "robots is not a function". These cases type-check
+  // against scripts/harvest_chain_menu_prices.d.mts and read the refusal
+  // reasons it declares.
+  it("follows a permitted hop through the checker it was handed", async () => {
+    const moved = "https://www.slugandlettuce.co.uk/menus/canary-wharf/";
+    const fetchImpl = fetchFrom({
+      [OWN_MENU]: (url) => redirectTo(moved, { url, status: 301 }),
+      [moved]: (url) => respond(MENU_HTML, { url }),
+    });
+
+    const page = await fetchText(OWN_MENU, { sourceId: STONEGATE.id, robots: allowAll, fetchImpl });
+
+    expect(allowAll).toHaveBeenCalledWith(moved);
+    expect(page).toMatchObject({ ok: true, landedUrl: moved, body: MENU_HTML });
+  });
+
+  it("names the refusal reason on the page and on the sitemap listing", async () => {
+    const disallowed = "https://www.slugandlettuce.co.uk/private/sitemap.xml";
+    const robots = vi.fn(async (url: string) =>
+      url === disallowed
+        ? { allowed: false, reason: "robots-disallowed", evidence: `${url} disallowed` }
+        : { allowed: true, reason: "allowed", evidence: `${url} permitted` },
+    );
+    const fetchImpl = fetchFrom({ [SITEMAP]: (url) => redirectTo(disallowed, { url }) });
+
+    const page = await fetchText(SITEMAP, { sourceId: STONEGATE.id, robots, fetchImpl });
+    expect(page.ok).toBe(false);
+    expect(page.reason).toBe("redirect-robots-refused");
+
+    const listed = await menuPagesFor(STONEGATE, () => true, { robots, fetchImpl });
+    expect(listed.pages).toEqual([]);
+    expect(listed.reason).toBe("redirect-robots-refused");
+    expect(fetchImpl.mock.calls.map(([url]) => String(url))).not.toContain(disallowed);
   });
 });
 
