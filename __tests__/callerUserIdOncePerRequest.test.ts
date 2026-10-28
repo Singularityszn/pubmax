@@ -67,6 +67,23 @@ function bearer(url: string, token: string, body: unknown): Request {
   });
 }
 
+/** A priced Round spend carries the photo of the bill, as every price door does. */
+function billedBearer(url: string, token: string, body: unknown): Request {
+  const form = new FormData();
+  form.set("payload", JSON.stringify(body));
+  form.set(
+    "receipt_photo",
+    new File([new Uint8Array([0xff, 0xd8, 0xff, 0xe0, 0x00, 0x10, 0x4a, 0x46, 0x49, 0x46])], "bill.jpg", {
+      type: "image/jpeg",
+    }),
+  );
+  return new Request(url, {
+    method: "POST",
+    headers: { authorization: `Bearer ${token}` },
+    body: form,
+  });
+}
+
 beforeAll(async () => {
   const index = await getVenueIndex();
   venueId = [...index.keys()][0] ?? "";
@@ -139,7 +156,7 @@ describe("one auth.getUser per Request", () => {
 
     authState.getUser.mockClear();
     const spend = await postRoundAction(
-      bearer(roundUrl, "token-round", {
+      billedBearer(roundUrl, "token-round", {
         action: "recordSpend",
         handle: "q2round",
         payerHandle: "q2round",
