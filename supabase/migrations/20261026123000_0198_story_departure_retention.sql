@@ -10,19 +10,6 @@ alter table public.account_retention_ledger
   add column retired_handles text[] not null default '{}',
   add column night_story_ids uuid[] not null default '{}';
 
--- Recover identity only through the stable retained profile id. This does not
--- invent a Story association for a departure whose join rows already cascaded.
-update public.account_retention_ledger ledger
-set retired_display_name = profile.display_name,
-    retired_handles = array(
-      select distinct handle from (
-        select ledger.retired_handle as handle
-        union select alias.handle from public.profile_handle_aliases alias
-          where alias.profile_id = ledger.profile_id
-      ) names where handle is not null and btrim(handle) <> '' order by handle
-    )
-from public.profiles profile where profile.id = ledger.profile_id;
-
 create index account_retention_ledger_night_story_ids_idx
   on public.account_retention_ledger using gin (night_story_ids);
 

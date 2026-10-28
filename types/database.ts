@@ -3856,6 +3856,7 @@ export type Database = {
           items: Json;
           recorded_at: string;
           promotion_actor: string | null;
+          receipt_photo_key: string | null;
         };
         Insert: {
           id?: string;
@@ -3869,6 +3870,7 @@ export type Database = {
           items?: Json;
           recorded_at?: string;
           promotion_actor?: string | null;
+          receipt_photo_key?: string | null;
         };
         Update: {
           id?: string;
@@ -3882,6 +3884,7 @@ export type Database = {
           items?: Json;
           recorded_at?: string;
           promotion_actor?: string | null;
+          receipt_photo_key?: string | null;
         };
         Relationships: [
           {

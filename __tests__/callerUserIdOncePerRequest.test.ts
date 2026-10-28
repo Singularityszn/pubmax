@@ -16,6 +16,9 @@ vi.mock("@/lib/supabase", async (importOriginal) => {
     isSupabaseConfigured: () => false,
     requiresSupabaseStore: () => false,
     getSupabaseAdmin: () => ({ auth: { getUser: authState.getUser } }),
+    requireSupabaseAdmin: () => ({
+      storage: { from: () => ({ upload: async () => ({ error: null }) }) },
+    }),
   };
 });
 vi.mock("@/lib/serverEnv", () => ({ assertServerEnv: () => {} }));
@@ -73,8 +76,11 @@ function billedBearer(url: string, token: string, body: unknown): Request {
   form.set("payload", JSON.stringify(body));
   form.set(
     "receipt_photo",
-    new File([new Uint8Array([0xff, 0xd8, 0xff, 0xe0, 0x00, 0x10, 0x4a, 0x46, 0x49, 0x46])], "bill.jpg", {
-      type: "image/jpeg",
+    new File([new Uint8Array(Buffer.from(
+      "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAIAAACQd1PeAAAADElEQVR4nGP4//8/AAX+Av4N70a4AAAAAElFTkSuQmCC",
+      "base64",
+    ))], "bill.png", {
+      type: "image/png",
     }),
   );
   return new Request(url, {

@@ -287,6 +287,7 @@ async function recordSpend(
   const promotionOwner = billedPromotionOwner(contributor, observed, receipt);
   const result = await store.recordSpend(code, {
     ...spendInput,
+    receipt,
     initialPromotionStatus:
       observed.length > 0 && promotionOwner ? "pending" : "diary_only",
     ...(promotionOwner ? { promotionActor: promotionOwner } : {}),

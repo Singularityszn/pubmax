@@ -743,20 +743,6 @@ type DepartedReadResult =
   | { status: "found"; departed: DepartedContributor[] }
   | { status: "unavailable" };
 
-/**
- * PostgREST's answer for a ledger column this database does not have yet. A
- * deploy that runs ahead of 0198 then reads as it did before, the 0150
- * permalink precedent, rather than taking every public recap down.
- */
-function isMissingStoryDepartureColumnError(error: { code?: string; message?: string }): boolean {
-  const code = error.code ?? "";
-  const message = error.message ?? "";
-  return (
-    (code === "42703" || code === "PGRST204") &&
-    ["night_story_ids", "retired_handles", "retired_display_name"].some((column) => message.includes(column))
-  );
-}
-
 /** The memory backend has no auth cascade, so it has no retained departures. */
 async function noRetainedStoryDepartures(): Promise<DepartedReadResult> {
   return { status: "found", departed: [] };
@@ -780,7 +766,6 @@ async function readRetainedStoryDeparturesFromDatabase(storyId: string): Promise
       .from("account_retention_ledger")
       .select("account_user_id,retired_handle,retired_display_name,retired_handles")
       .contains("night_story_ids", [storyId]);
-    if (error && isMissingStoryDepartureColumnError(error)) return { status: "found", departed: [] };
     if (error) return { status: "unavailable" };
     const departed: DepartedContributor[] = [];
     for (const raw of data ?? []) {

@@ -195,9 +195,8 @@ describe.skipIf(skipReason !== null)("account deletion and published Story redac
       expect(await store.readPublishedRecapSource(storyId)).toEqual({ status: "absent" });
       expect(await store.readNightStory(storyId, null)).toEqual({ status: "absent" });
     }
-    // Without the 0198 columns the reader serves as it did before the migration
-    // rather than taking every public recap down.
     const afterRollback = await store.readPublishedRecapSource(unrelated.storyId);
-    expect(afterRollback.status).toBe("found");
+    expect(afterRollback.status).toBe("unavailable");
+    expect(await store.readNightStory(unrelated.storyId, null)).toEqual({ status: "unavailable" });
   });
 });

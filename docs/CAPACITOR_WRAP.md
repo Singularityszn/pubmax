@@ -439,10 +439,11 @@ user/plan identity**. Consequences, enforced in code:
      physical-device sign-in proof for its final signed binary.
    - **The route seam is a credential fence.** Another app on the phone can
      send an explicit intent or a scheme link. `lib/nativeDeepLinks.ts` refuses
-     a sign-in response fragment (tokens or an error) on every path in both
-     forms. It admits the HTTPS `/auth/callback` only when its `_authAttempt`
-     is the live, unclaimed attempt this device started. A sign-in link that
-     another device asked for does not open in the app.
+     a sign-in response fragment (tokens or an error) on every other path in
+     both forms. The HTTPS `/auth/callback` accepts one only when its single
+     `_authAttempt` is the live, unclaimed attempt this device started.
+     This exception supports Android provider and email sign-in returns.
+     A sign-in link that another device asked for does not open in the app.
    - **Universal links and App Links need a signed build to test.** A
      team-less simulator build writes an empty entitlements file, so
      `https://pubmaxxing.com/map?sel=<id>` opens Safari there however correct

@@ -78,8 +78,9 @@ export const NATIVE_DEEP_LINK_EXACT_PATHS: readonly string[] = ALLOWED_EXACT_PAT
  * `pubmaxx://map?sel=<id>`, the family in the host. This navigation router
  * is a credential fence. Any app on the phone can send the shell an explicit
  * intent or a scheme link, so it refuses a sign-in response fragment (tokens
- * or an error) on every path in both forms, and admits the https
- * `/auth/callback` only for the sign-in attempt this device started. The
+ * or an error) on every other path in both forms. The HTTPS `/auth/callback`
+ * accepts one only when its single `_authAttempt` is the live, unclaimed
+ * attempt this device started, for Android provider and email sign-in. The
  * separate native email consumer accepts only verifier-bound PKCE returns.
  * Other apps can register the same scheme, but an intercepted code cannot be
  * exchanged without the app's verifier.

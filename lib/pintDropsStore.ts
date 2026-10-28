@@ -1009,7 +1009,7 @@ function isMissingMeasureColumnError(error: {
  * the key: the drop is saved without it, and a photo is lost where a price
  * would have been.
  */
-function isMissingReceiptColumnError(error: { code?: string; message?: string } | null): boolean {
+export function isMissingReceiptColumnError(error: { code?: string; message?: string } | null): boolean {
   if (!error) return false;
   const code = error.code ?? "";
   const message = (error.message ?? "").toLowerCase();

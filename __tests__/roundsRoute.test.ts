@@ -1,5 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+const receiptStorage = vi.hoisted(() => ({
+  upload: vi.fn(async (_key: string, _bytes: unknown, _options: unknown): Promise<{
+    error: { message: string } | null;
+  }> => ({ error: null })),
+}));
+
 // Handler-level coverage for the Round routes. Backend selection is the
 // roundsStore() seam (Supabase when configured, memory otherwise). We pin the
 // in-memory store deterministically by mocking isSupabaseConfigured() === false
@@ -8,7 +14,13 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 // see profileOwnershipRoute.test.ts / pintDrops.test.ts for the house pattern).
 vi.mock("@/lib/supabase", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/lib/supabase")>();
-  return { ...actual, isSupabaseConfigured: () => false };
+  return {
+    ...actual,
+    isSupabaseConfigured: () => false,
+    requireSupabaseAdmin: () => ({
+      storage: { from: () => ({ upload: receiptStorage.upload }) },
+    }),
+  };
 });
 vi.mock("@/lib/serverEnv", () => ({ assertServerEnv: () => {} }));
 const venueLookupState = vi.hoisted(() => ({ unavailable: false }));
@@ -270,15 +282,17 @@ function action(
   );
 }
 
-// The smallest JPEG head the server's magic-byte sniff accepts: a bill photo.
-const BILL_JPEG = new Uint8Array([0xff, 0xd8, 0xff, 0xe0, 0x00, 0x10, 0x4a, 0x46, 0x49, 0x46, 0x00, 0x01]);
+const BILL_PNG = new Uint8Array(Buffer.from(
+  "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAIAAACQd1PeAAAADElEQVR4nGP4//8/AAX+Av4N70a4AAAAAElFTkSuQmCC",
+  "base64",
+));
 
 /** A recordSpend that carries the photo of the bill, as the two price doors do. */
 function billedAction(
   code: string,
   body: unknown,
   headers?: Record<string, string>,
-  bill: File = new File([BILL_JPEG], "bill.jpg", { type: "image/jpeg" }),
+  bill: File = new File([BILL_PNG], "bill.png", { type: "image/png" }),
 ): Promise<Response> {
   const form = new FormData();
   form.set("payload", JSON.stringify(body));
@@ -309,6 +323,7 @@ async function authorizeContributor(
 }
 
 beforeEach(() => {
+  receiptStorage.upload.mockReset().mockResolvedValue({ error: null });
   __resetMemoryRounds();
   __resetMemoryIdentityHandles();
   __resetMemoryProfiles();
@@ -752,6 +767,47 @@ describe("POST /api/rounds/[code] — actions", () => {
     expect(await readCommunityPrices("venue-1")).toEqual([]);
   });
 
+  it("refuses a truncated image before saving the spend or promoting a price", async () => {
+    await authorizeContributor("user-ken", "ken");
+    const { round } = await newRound("ken");
+    await action(round.code, { action: "addStop", handle: "ken", venueId: "venue-1" });
+    const response = await billedAction(round.code, {
+      action: "recordSpend", handle: "ken", payerHandle: "ken", venueId: "venue-1",
+      clientRef: "truncated-receipt",
+      items: [{ drinkName: "Guinness", drinkCategory: "beer", priceGbp: 6.2 }],
+    }, undefined, new File([BILL_PNG.slice(0, 16)], "bill.png", { type: "image/png" }));
+    expect(response.status).toBe(400);
+    expect(((await (await get(round.code)).json()) as RoundState).spends).toEqual([]);
+    expect(await readCommunityPrices("venue-1")).toEqual([]);
+    expect(receiptStorage.upload).not.toHaveBeenCalled();
+  });
+
+  it("keeps the spend and logs a receipt Storage failure", async () => {
+    await authorizeContributor("user-ken", "ken");
+    const { round } = await newRound("ken");
+    await action(round.code, { action: "addStop", handle: "ken", venueId: "venue-1" });
+    receiptStorage.upload.mockResolvedValueOnce({ error: { message: "Storage unavailable" } });
+    const logged = vi.spyOn(console, "log").mockImplementation(() => {});
+    const errors = vi.spyOn(console, "error").mockImplementation(() => {});
+    try {
+      const response = await billedAction(round.code, {
+        action: "recordSpend", handle: "ken", payerHandle: "ken", venueId: "venue-1",
+        clientRef: "receipt-outage",
+        items: [{ drinkName: "Guinness", drinkCategory: "beer", priceGbp: 6.2 }],
+      });
+      expect(response.status).toBe(200);
+      const state = await response.json() as RoundState;
+      expect(state.spends).toHaveLength(1);
+      expect(state.spends[0]?.receiptPhotoKey).toBeUndefined();
+      expect(state.spends[0]?.items[0]?.promotionStatus).toBe("promoted");
+      expect(await readCommunityPrices("venue-1")).toHaveLength(1);
+      expect(logged).toHaveBeenCalledWith(expect.stringContaining('"event":"rounds.receipt_upload_failed"'));
+    } finally {
+      logged.mockRestore();
+      errors.mockRestore();
+    }
+  });
+
   it("attributes an account's itemised Round price to its public handle", async () => {
     await authorizeContributor("user-ken", "ken");
     const { round } = await newRound("ken");
@@ -771,6 +827,15 @@ describe("POST /api/rounds/[code] — actions", () => {
     });
 
     expect(res.status).toBe(200);
+    const saved = ((await res.clone().json()) as RoundState).spends[0];
+    expect(saved?.receiptPhotoKey).toBe(`venue-1/${saved?.id}/receipt.jpg`);
+    expect(receiptStorage.upload).toHaveBeenCalledWith(
+      saved?.receiptPhotoKey,
+      expect.any(Uint8Array),
+      { contentType: "image/jpeg", upsert: false },
+    );
+    const reloaded = ((await (await get(round.code)).json()) as RoundState).spends[0];
+    expect(reloaded?.receiptPhotoKey).toBe(saved?.receiptPhotoKey);
     const rows = await readCommunityPrices("venue-1");
     expect(rows).toHaveLength(1);
     expect(
@@ -840,6 +905,9 @@ describe("POST /api/rounds/[code] — actions", () => {
     const state = (await retried.json()) as RoundState;
     expect(state.spends).toHaveLength(1);
     expect(state.spends[0]?.items[0]?.promotionStatus).toBe("promoted");
+    expect(state.spends[0]?.receiptPhotoKey).toBe(held.spends[0]?.receiptPhotoKey);
+    expect(state.spends[0]?.receiptPhotoKey).toBeTruthy();
+    expect(receiptStorage.upload).toHaveBeenCalledTimes(1);
     expect(await readCommunityPrices("venue-1")).toHaveLength(1);
   });
 
