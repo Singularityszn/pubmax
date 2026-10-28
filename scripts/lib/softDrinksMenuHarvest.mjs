@@ -255,8 +255,11 @@ export function classifySoftDrinkSubtypeId(drinkLabel) {
 
 function menuPdfUrlsFromPageText(text) {
   const input = String(text);
-  const labelled = [];
-  const seen = new Set();
+  // A URL is a labelled candidate when any of its links carries a drinks-menu
+  // label, whatever order the links appear in. Unlabelled links stay eligible
+  // for the URL-text fallback below.
+  const labelled = new Set();
+  const linked = [];
   const add = (rawUrl, label = "") => {
     let url;
     try {
@@ -266,34 +269,40 @@ function menuPdfUrlsFromPageText(text) {
     }
     if (!/^https?:$/.test(url.protocol) || !/\.pdf$/i.test(url.pathname)) return;
     url.hash = "";
-    const normalized = url.href;
-    if (seen.has(normalized)) return;
-    seen.add(normalized);
+    linked.push(url.href);
     if (/\b(?:drinks?\s+(?:list|menu)|soft[- ]?drinks?\s+(?:list|menu))\b/i.test(label)) {
-      labelled.push(normalized);
+      labelled.add(url.href);
     }
   };
 
-  for (const match of input.matchAll(/\[([^\]]+)\]\((https?:\/\/[^\s)]+?\.pdf(?:\?[^\s)]*)?)\)/gi)) {
+  const markdownLink = /\[([^\]]+)\]\((https?:\/\/[^\s)]+?\.pdf(?:\?[^\s)]*)?)\)/gi;
+  const anchorLink = /<a\b[^>]*href=["']([^"']+\.pdf(?:\?[^"']*)?)["'][^>]*>([\s\S]*?)<\/a>/gi;
+  for (const match of input.matchAll(markdownLink)) {
     add(match[2], match[1]);
   }
-  for (const match of input.matchAll(/<a\b[^>]*href=["']([^"']+\.pdf(?:\?[^"']*)?)["'][^>]*>([\s\S]*?)<\/a>/gi)) {
+  for (const match of input.matchAll(anchorLink)) {
     add(match[1], match[2].replace(/<[^>]+>/g, " "));
   }
-  if (labelled.length > 0) return labelled;
+  if (labelled.size > 0) return [...labelled];
 
-  const fallback = [];
-  for (const match of input.matchAll(/https?:\/\/[^\s"'<>]+?\.pdf(?:\?[^\s"'<>]*)?/gi)) {
-    const href = match[0];
-    if (!/drink/i.test(href) || /wine|spritz|cocktail|food/i.test(href)) continue;
+  // Parsed links keep their exact URL. The bare-URL scan reads only the text
+  // left once that link markup is gone, so a delimiter such as Markdown's
+  // closing parenthesis never becomes part of a query.
+  const bareText = input.replace(markdownLink, " ").replace(anchorLink, " ");
+  const bareUrls = [];
+  for (const match of bareText.matchAll(/https?:\/\/[^\s"'<>]+?\.pdf(?:\?[^\s"'<>]*)?/gi)) {
     try {
-      const normalized = new URL(href).href;
-      if (!seen.has(normalized)) fallback.push(normalized);
+      bareUrls.push(new URL(match[0]).href);
     } catch {
       continue;
     }
   }
-  return fallback;
+  const fallback = new Set();
+  for (const href of [...linked, ...bareUrls]) {
+    if (!/drink/i.test(href) || /wine|spritz|cocktail|food/i.test(href)) continue;
+    fallback.add(href);
+  }
+  return [...fallback];
 }
 
 /** Follow a same-origin, policy-approved menu PDF with bounded network reads. */

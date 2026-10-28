@@ -72,7 +72,7 @@ const USER_AGENT =
   `PubmaxxingBot/0.1 (+https://pubmaxxing.com; what's-on data curation; contact ${CONTACT_EMAIL})`;
 const FETCH_DELAY_MS = 1500;
 
-/** The lib/harvest/sourcePolicy.ts row a live run needs. It does not exist today. */
+/** The lib/harvest/sourceRegistry.ts row a live run needs. It does not exist today. */
 export const GREENE_KING_SPORT_SOURCE_ID = "greene-king-pub-sport";
 
 const defaultSleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
