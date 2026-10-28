@@ -99,6 +99,57 @@ describe("soft drinks menu harvest", () => {
     expect(events.map((event) => event.status)).toEqual(["unreadable-pdf"]);
   });
 
+  describe("menu PDF candidacy", () => {
+    const pageUrl = "https://www.theeaglew12.co.uk/food-drink";
+    const fetchedPdfUrls = async (pageText: string): Promise<unknown[]> => {
+      const fetchImpl = vi.fn().mockResolvedValue(
+        new Response("%PDF", { headers: { "content-type": "application/pdf" } }),
+      );
+      await softDrinkRowsFromMenuPdfLinks(pageText, {
+        pageUrl,
+        sourceId: "youngs-menu-prices",
+        associatedHosts: ["theeaglew12.co.uk"],
+        fetchImpl,
+        robotsChecker: async () => ({ allowed: true, reason: "allowed", evidence: "fixture" }),
+      });
+      return fetchImpl.mock.calls.map((call) => call[0]);
+    };
+
+    it("keeps a PDF whose drinks-menu label comes after a generic label for the same URL", async () => {
+      const urls = await fetchedPdfUrls(
+        [
+          "[Download](https://www.theeaglew12.co.uk/menus/current.pdf)",
+          "[Drinks menu](https://www.theeaglew12.co.uk/menus/current.pdf)",
+        ].join(" "),
+      );
+      expect(urls).toEqual(["https://www.theeaglew12.co.uk/menus/current.pdf"]);
+    });
+
+    it("keeps a labelled-first PDF unchanged", async () => {
+      const urls = await fetchedPdfUrls(
+        [
+          "[Drinks menu](https://www.theeaglew12.co.uk/menus/current.pdf)",
+          "[Download](https://www.theeaglew12.co.uk/menus/current.pdf)",
+        ].join(" "),
+      );
+      expect(urls).toEqual(["https://www.theeaglew12.co.uk/menus/current.pdf"]);
+    });
+
+    it("lets an unlabelled PDF with drink in its URL reach the fallback", async () => {
+      const urls = await fetchedPdfUrls(
+        "[Download](https://www.theeaglew12.co.uk/menus/drinks.pdf)",
+      );
+      expect(urls).toEqual(["https://www.theeaglew12.co.uk/menus/drinks.pdf"]);
+    });
+
+    it("keeps a fallback PDF query without the Markdown closing parenthesis", async () => {
+      const urls = await fetchedPdfUrls(
+        "[Download](https://www.theeaglew12.co.uk/menus/drinks.pdf?rev=2)",
+      );
+      expect(urls).toEqual(["https://www.theeaglew12.co.uk/menus/drinks.pdf?rev=2"]);
+    });
+  });
+
   it("classifies Coke Zero, Diet Coke and still water subtypes", () => {
     expect(classifySoftDrinkSubtypeId("330ml Kingsdown Still/Sparkling Water")).toBe(
       "soft-drink-still-water",
