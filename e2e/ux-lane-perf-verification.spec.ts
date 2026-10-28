@@ -61,7 +61,7 @@ const UX_LANE_ROUTES: UxLaneRoute[] = [
     budgetNote:
       "ceiling belongs to /map, the CDN-cached prerendered document, while /map/london renders per request with a nonce. The figure is reported for comparison, not against this document's own ceiling",
   },
-  { path: "/out", readySelector: "main", budgetPath: "/out" },
+  { path: "/tonight", readySelector: "main", budgetPath: "/tonight" },
 ];
 
 /** The PR table's file name, uploaded by the ux-lane-performance CI job. */

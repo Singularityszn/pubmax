@@ -179,7 +179,7 @@ jobs:
             test-results/perf-budget-breaches.json
           if-no-files-found: ignore
 
-  # UX lane 13: four arrival routes (/, /near, /map/london, /out) reported with
+  # UX lane 13: four arrival routes (/, /near, /map/london, /tonight) reported with
   # LCP and CLS beside decoded JS, attached as a markdown table for the PR body.
   # It measures on the method e2e/helpers/perfMeasurement.ts owns, so its figures
   # are comparable to the ceilings above. It REPORTS rather than gates: a route

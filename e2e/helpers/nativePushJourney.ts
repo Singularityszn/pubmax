@@ -1,5 +1,35 @@
 import type { Page } from "@playwright/test";
 
+/**
+ * Pin the page clock to a London evening.
+ *
+ * The main Tonight tab follows the London clock (lib/useNowHref.ts): it opens
+ * /today from 04:00 to 16:00 and /tonight the rest of the day. A journey that
+ * ends on that tab and expects /tonight passes in an evening run and fails in
+ * every morning one, which is when the nightly suite runs.
+ */
+export async function pinLondonEvening(page: Page): Promise<void> {
+  await page.clock.setFixedTime(new Date("2026-10-26T20:00:00Z"));
+}
+
+type MarkedWindow = Window & { __pubmaxDocumentMark?: true };
+
+/**
+ * Mark the live document, so a later read can tell an in-app navigation from a
+ * fresh boot. performance.timeOrigin cannot tell them apart once the clock is
+ * pinned: the fake clock reports the pinned instant as every document's origin.
+ */
+export async function markDocument(page: Page): Promise<void> {
+  await page.evaluate(() => {
+    (window as MarkedWindow).__pubmaxDocumentMark = true;
+  });
+}
+
+/** True while the document marked by markDocument is still the live one. */
+export async function isMarkedDocument(page: Page): Promise<boolean> {
+  return page.evaluate(() => (window as MarkedWindow).__pubmaxDocumentMark === true);
+}
+
 export async function installSuccessfulPlanRoute(page: Page): Promise<void> {
   await page.route("**/api/plans/generate", async (route) => {
     if (route.request().method() === "GET") {

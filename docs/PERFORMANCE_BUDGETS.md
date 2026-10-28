@@ -9,7 +9,7 @@ CI refuses a change that goes past it.
 - The rules and the failure table: [`lib/performanceBudgets.ts`](../lib/performanceBudgets.ts)
 - The measuring: [`e2e/performance-budget.spec.ts`](../e2e/performance-budget.spec.ts)
 - The method every perf spec shares: [`e2e/helpers/perfMeasurement.ts`](../e2e/helpers/perfMeasurement.ts)
-- The UX lane report: [`e2e/ux-lane-perf-verification.spec.ts`](../e2e/ux-lane-perf-verification.spec.ts). Four arrival routes (`/`, `/near`, `/map/london`, `/out`) with LCP and CLS beside decoded JS, written as a markdown table for the PR body. It REPORTS: a route over a ceiling here is a warning, and the only failure is a route it could not measure at all
+- The UX lane report: [`e2e/ux-lane-perf-verification.spec.ts`](../e2e/ux-lane-perf-verification.spec.ts). Four arrival routes (`/`, `/near`, `/map/london`, `/tonight`) with LCP and CLS beside decoded JS, written as a markdown table for the PR body. It REPORTS: a route over a ceiling here is a warning, and the only failure is a route it could not measure at all
 - The gate: the `performance-budget` job in `.github/workflows/performance.yml`, which runs nightly on main and on demand since 15 September 2026 (it ran on every pull request in `ci.yml` before that); the UX lane report is its own `ux-lane-performance` job in the same workflow, because one 15-minute wall cannot hold two full sweeps
 - The evidence behind a RED run: [`scripts/perf-ab.mjs`](../scripts/perf-ab.mjs), an `if: failure()` step in that same job. It rebuilds the merge base, re-measures the breached routes against it on the same box with the navigations interleaved, and prints whether the branch or the box is slower. It gates nothing and moves no ceiling; the rule is [`perf/AGENTS.md`](../perf/AGENTS.md)
 - The API gate: the `api-latency-budget` job in `.github/workflows/api-performance.yml` probes a successful main deployment
@@ -36,7 +36,7 @@ profile rather than loopback. Measured figure first, ceiling second:
 | `/map` **over** | 6 / 150 | 2985 / 3400 | 331 / 160 | 980 / 1500 |
 | `/today` | 11 / 150 | 919 / 1060 | 45 / 52 | 208 / 2500 |
 | `/tonight` | 8 / 150 | 931 / 1080 | 52 / 56 | 196 / 2500 |
-| `/out` | 7 / 150 | 871 / 1010 | 42 / 49 | 528 / 2500 |
+| `/out` **redirects to `/tonight`** | - / 150 | 0 / 0 | 1 / 1 | 0 / 0 |
 | `/about` | 8 / 150 | 833 / 960 | 37 / 43 | 256 / 2500 |
 | `/pubs` | 14 / 150 | 1091 / 1200 | 59 / 68 | 296 / 2500 |
 | `/webmcp` | 6 / 150 | 869 / 1000 | 38 / 44 | 172 / 2500 |
