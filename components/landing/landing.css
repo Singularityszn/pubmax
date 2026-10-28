@@ -350,7 +350,8 @@ a.lpPubPint { text-decoration: underline; text-underline-offset: 3px; }
 
 /* ── Text links (the quiet door below the hero) ─────────────────────────── */
 
-.lpTextLink {
+.lpTextLink,
+.lpDiscoveryLink {
   min-height: 44px;
   display: inline-flex;
   align-items: center;
@@ -362,7 +363,8 @@ a.lpPubPint { text-decoration: underline; text-underline-offset: 3px; }
   text-underline-offset: 5px;
 }
 @media (hover: hover) and (pointer: fine) {
-  .lpTextLink:hover {
+  .lpTextLink:hover,
+  .lpDiscoveryLink:hover {
     color: var(--ink);
   }
 }
