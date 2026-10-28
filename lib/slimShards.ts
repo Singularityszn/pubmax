@@ -294,7 +294,7 @@ export type SlimShardLoader = {
    * Venues from location shards intersecting the walk radius, loaded (with one
    * retry) if needed. Status reports whether all required shards loaded.
    */
-  nearPoint(lat: number, lng: number): Promise<SlimShardLoadResult>;
+  nearPoint(lat: number, lng: number, radiusKm?: number): Promise<SlimShardLoadResult>;
   /** Every shard (for by-id / whole-index consumers). */
   all(): Promise<SlimVenue[]>;
   /**
@@ -863,7 +863,7 @@ export function createSlimShardLoader(
 
     initialResult,
 
-    async nearPoint(lat: number, lng: number): Promise<SlimShardLoadResult> {
+    async nearPoint(lat: number, lng: number, radiusKm = WALKABLE_RADIUS_KM): Promise<SlimShardLoadResult> {
       const m = await manifest();
       if (!m) {
         return {
@@ -873,7 +873,7 @@ export function createSlimShardLoader(
       }
       const needed = shardsForBounds(
         m,
-        boundsForRadius(lat, lng, WALKABLE_RADIUS_KM),
+        boundsForRadius(lat, lng, Number.isFinite(radiusKm) && radiusKm > 0 ? radiusKm : WALKABLE_RADIUS_KM),
         0,
         true,
       ).filter((s) => s.partition !== "kind" && !loadedUrls.has(s.url));

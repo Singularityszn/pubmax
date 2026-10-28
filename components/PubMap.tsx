@@ -1,5 +1,8 @@
 "use client";
 
+import { useMapDiscoveryFilters } from "@/lib/useMapDiscoveryFilters";
+import { WIDENED_RADIUS_KM } from "@/lib/nearMeAnswer";
+
 import VenueFeatureFilters from "@/components/map/VenueFeatureFilters";
 import { mapDrinkCoverage } from "@/lib/drinkCoverage";
 
@@ -721,6 +724,7 @@ import VenuePeekPlanDoor from "@/components/map/inspector/VenuePeekPlanDoor";
 // never rides in the eager map chunk (perf budget, PR #306) — it only mounts
 // when the Near-me sheet opens, and answers from the already-loaded venues.
 const NearMeNow = dynamic(() => import("@/components/nearme/NearMeNow"), { ssr: false });
+const MapNearbyDiscovery = dynamic(() => import("@/components/map/MapNearbyDiscovery"), { ssr: false });
 
 // Mobile venue-detail bottom sheet: the drag gesture + snap→px math live in
 // useSheetDrag (components/map/useSheetDrag.ts). PubMap only owns WHICH snap is
@@ -1677,7 +1681,7 @@ export default function PubMap({
   const preSheetFocusRef = useRef<HTMLElement | null>(null);
   const [venueInitialTab, setVenueInitialTab] = useState<VenueTabRequest>("overview");
   const [gettingHomeRequestId, setGettingHomeRequestId] = useState(0);
-  const [filters, setFilters] = useState<Filters>(restoredSession.filters);
+  const [filters, setFilters, currentFilterKeys] = useMapDiscoveryFilters(restoredSession.filters);
   // First-party Wetherspoon directory for Open now hours. Loaded once; match is
   // name+distance only and never invents hours for unmatched pubs.
   const [wetherspoonsDirectoryPubs, setWetherspoonsDirectoryPubs] = useState<
@@ -3928,7 +3932,7 @@ export default function PubMap({
       setNearbyLoading(false);
       setPendingNearMeRequest(null);
     };
-    void loader.nearPoint(location.lat, location.lng)
+    void loader.nearPoint(location.lat, location.lng, request?.kind === "map" ? WIDENED_RADIUS_KM : undefined)
       .then((result) => {
         if (
           cancelled ||
@@ -6571,7 +6575,29 @@ export default function PubMap({
           />
         }
         nearMeContent={
-          mapOverlay === "near-me" ? (
+          mapOverlay === "near-me" && userLocation ? (
+            <MapNearbyDiscovery
+              cityId={cityId}
+              titledByHost
+              venues={filteredPubVenues}
+              filters={experienceLens === "no-alcohol"
+                ? { ...filtersForExperienceLens(filters, experienceLens), requireNonAlcoholic: true }
+                : filters}
+              currentFilterKeys={currentFilterKeys}
+              location={userLocation}
+              lensPrices={activeLensPrices}
+              onSelectVenue={selectVenue}
+              onApplyFilters={(next) => {
+                changeExperienceLens(next.requireNonAlcoholic && !next.drinkCategory ? "no-alcohol" : "all");
+                if ((next.drinkCategory && next.drinkCategory !== DEFAULT_DRINK_LANE) || next.requireNonAlcoholic || !next.drinkBrand) {
+                  changeFavoritePint(null);
+                }
+                setFilters(next);
+              }}
+              hasPintDrops={(id) => Boolean(venueSignals.get(id)?.hasPintDrops)}
+              openNowState={(id) => openNowStateById?.get(id) ?? "unknown"}
+            />
+          ) : mapOverlay === "near-me" ? (
             <NearMeNow
               cityId={cityId}
               onSelectVenue={selectVenue}
