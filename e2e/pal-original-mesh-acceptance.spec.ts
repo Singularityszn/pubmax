@@ -15,7 +15,7 @@ for (const touch of [false, true]) {
         await observeInput(page, { hasTouch, isMobile, viewport });
         await ready(page, seen);
         await portrait(page).scrollIntoViewIfNeeded();
-        await page.clock.pauseAt(await page.evaluate(() => Date.now() + 100));
+        await page.clock.pauseAt(await page.evaluate((timeout) => Date.now() + timeout, info.timeout));
         const idleA = await shot(page, info, "idle-a");
         await page.clock.runFor(300);
         const idleB = await shot(page, info, "idle-b");
@@ -114,7 +114,7 @@ test.describe("R1", () => {
       await page.emulateMedia({ reducedMotion: "reduce" }); await decoded(page, true); await expect(canvas(page)).toHaveCount(0);
       await expect(portrait(page).locator(".palPortrait")).not.toHaveAttribute("data-head-3d");
       const requests = seen.requests.length;
-      await page.clock.pauseAt(await page.evaluate(() => Date.now() + 100)); await page.clock.runFor(500);
+      await page.clock.pauseAt(await page.evaluate((timeout) => Date.now() + timeout, info.timeout)); await page.clock.runFor(500);
       await expect(canvas(page)).toHaveCount(0); expect(seen.requests.length).toBe(requests);
       expect(await portrait(page).locator(".palPortrait").evaluate(node => ["yaw", "pitch", "roll", "lean", "lift", "scale"].map(name => (node as HTMLElement).style.getPropertyValue("--pal-" + name)))).toEqual(["", "", "", "", "", ""]);
     });
