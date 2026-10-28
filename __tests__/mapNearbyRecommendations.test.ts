@@ -107,3 +107,36 @@ describe("current drink choices", () => {
     expect(reset.filters.requireNonAlcoholic).toBe(false);
   });
 });
+
+
+describe("nearby evidence and local scope", () => {
+  it("accepts an exact trusted drink price when the old venue menu lacks its selectors", () => {
+    const venue = pub("Local", 51.501, 3);
+    const selected: NearbyPrice = {
+      category: "gin", drinkLabel: "Community gin", measureLabel: "", priceGbp: 4,
+      sourceLabel: "Community report", sourceUrl: "https://example.com/report",
+      observedAt: "2026-10-28", servingKnown: false,
+    };
+    const result = rank([venue], {
+      filters: { ...initialFilters, drinkCategory: "gin", drinkBrand: "hendricks", drinkSubtype: "gin-london-dry" },
+      priceForVenue: () => selected,
+    });
+    expect(result.cards[0]!.price).toEqual(selected);
+    expect(result.cards[0]!.price.servingKnown).toBe(false);
+  });
+
+  it("keeps a local match when a cheaper pub exists outside the walking radius", () => {
+    const result = rank([pub("Local", 51.501, 6), pub("Further", 51.515, 2)]);
+    expect(result.scope).toBe("walkable");
+    expect(result.radiusKm).toBe(1);
+    expect(result.cards.map((card) => card.venue.id)).toEqual(["Local"]);
+    expect(result.cards[0]!.roles).toEqual(["cheapest", "best-match"]);
+  });
+
+  it("retains amenity constraints when a trusted selected drink price exists", () => {
+    const result = rank([pub("Unchecked", 51.501, 3)], {
+      filters: { ...initialFilters, requireFood: true },
+    });
+    expect(result.cards).toEqual([]);
+  });
+});
