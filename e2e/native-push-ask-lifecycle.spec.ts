@@ -3,7 +3,12 @@ import { expect, test } from "@playwright/test";
 import { NATIVE_PUSH_PROMPT_COPY } from "@/lib/nativePushPrompt";
 
 import { answerFirstRunQuestions } from "@/e2e/helpers/firstRunJourney";
-import { installSuccessfulPlanRoute } from "@/e2e/helpers/nativePushJourney";
+import {
+  installSuccessfulPlanRoute,
+  isMarkedDocument,
+  markDocument,
+  pinLondonEvening,
+} from "@/e2e/helpers/nativePushJourney";
 import { installNativeShell } from "@/e2e/helpers/nativeShell";
 import { expectStreamedPageSettled } from "@/e2e/helpers/streamedPage";
 
@@ -11,6 +16,7 @@ for (const theme of ["light", "dark"] as const) {
   for (const finish of ["Plan my night", "Skip"] as const) {
     test(`native push ask survives planning navigation after ${finish} in ${theme}`, async ({ page }) => {
       test.setTimeout(90_000);
+      await pinLondonEvening(page);
       await page.setViewportSize({ width: 390, height: 844 });
       await page.emulateMedia({ colorScheme: theme, reducedMotion: "reduce" });
       await installNativeShell(page);
@@ -64,10 +70,10 @@ for (const theme of ["light", "dark"] as const) {
       await expect(page.getByRole("complementary", { name: "First visit" })).toBeVisible({ timeout: 30_000 });
       await expect(ask).toHaveCount(0);
 
-      const documentStartedAt = await page.evaluate(() => performance.timeOrigin);
+      await markDocument(page);
       await tabs.getByRole("link", { name: "Tonight", exact: true }).click();
       await expect(page).toHaveURL(/\/tonight$/);
-      expect(await page.evaluate(() => performance.timeOrigin)).toBe(documentStartedAt);
+      expect(await isMarkedDocument(page)).toBe(true);
       await expectStreamedPageSettled(page);
       await expect(ask).toBeVisible();
       await expect(page.getByText(NATIVE_PUSH_PROMPT_COPY.body)).toBeVisible();
@@ -94,12 +100,13 @@ for (const theme of ["light", "dark"] as const) {
       await page.screenshot({ path: phoneShot });
       await test.info().attach("Tonight push ask", { path: phoneShot, contentType: "image/png" });
 
-      // A new document must not revive the stored useful-action sequence.
+      // A new document must not revive the stored useful-action sequence. A
+      // completed native first run returns to Home on the next normal launch.
       await page.evaluate(() => window.sessionStorage.clear());
       await page.goto("/");
-      await expect(page).toHaveURL(/\/tonight$/);
+      await expect(page).toHaveURL(/\/$/);
       await expectStreamedPageSettled(page);
-      expect(await page.evaluate(() => performance.timeOrigin)).not.toBe(documentStartedAt);
+      expect(await isMarkedDocument(page)).toBe(false);
       await expect(ask).toHaveCount(0);
     });
   }
