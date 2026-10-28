@@ -2,6 +2,8 @@
 
 import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { Button } from "@/components/ui/button";
+import { useAuth } from "@/components/auth/authContext";
+import { readComparisonDraft, saveComparisonDraft } from "@/lib/pubComparisonDraft";
 import { trackEvent } from "@/lib/analytics";
 import { categoryLabel } from "@/lib/drinks";
 import { cityIdFromVenueId, isNationalBaseVenueId } from "@/lib/cityVenueIds";
@@ -17,6 +19,11 @@ type SearchHit = { id: string; name: string; area: string };
 type SearchState = { query: string; hits: SearchHit[]; message: string };
 
 export default function PubComparisonForm() {
+  const { user, accountRevision, identityResolved } = useAuth();
+  return <ComparisonSession key={`${accountRevision}:${user?.id ?? "guest"}`} owner={identityResolved ? user?.id ?? "guest" : null} />;
+}
+
+function ComparisonSession({ owner }: { owner: string | null }) {
   const [query, setQuery] = useState("");
   const [search, setSearch] = useState<SearchState>({ query: "", hits: [], message: "" });
   const [selected, setSelected] = useState<SearchHit[]>([]);
@@ -32,6 +39,8 @@ export default function PubComparisonForm() {
   const [busy, setBusy] = useState(false);
   const submitRef = useRef<AbortController | null>(null);
   const viewedRef = useRef(false);
+  const restoredOwnerRef = useRef<string | null>(null);
+  const inputsChangedRef = useRef(false);
   const venueKey = selected.map((venue) => venue.id).join(",");
   const currentCatalogue = catalogue?.key === venueKey ? catalogue.value : null;
   const currentCatalogueError = catalogueError?.key === venueKey ? catalogueError.message : null;
@@ -48,6 +57,21 @@ export default function PubComparisonForm() {
     if (!viewedRef.current) { viewedRef.current = true; trackEvent("pub_comparison_viewed"); }
     return () => submitRef.current?.abort();
   }, []);
+
+  useEffect(() => {
+    if (!owner || restoredOwnerRef.current === owner) return;
+    const draft = readComparisonDraft(owner);
+    if (!draft) return;
+    let active = true;
+    void Promise.resolve().then(() => {
+      if (!active || inputsChangedRef.current) return;
+      restoredOwnerRef.current = owner;
+      setSelected(draft.venueIds.map((id) => ({ id, name: "Selected pub", area: "" })));
+      setOrder(draft.order);
+      setMeetingPointId(draft.meetingPointId ?? "");
+    });
+    return () => { active = false; };
+  }, [owner]);
 
   useEffect(() => {
     const trimmed = query.trim();
@@ -88,6 +112,7 @@ export default function PubComparisonForm() {
   }, [venueKey, reload]);
 
   function changeInputs(work: () => void) {
+    inputsChangedRef.current = true;
     submitRef.current?.abort();
     submitRef.current = null;
     setBusy(false);
@@ -111,6 +136,7 @@ export default function PubComparisonForm() {
       if (!response.ok) throw new Error(errorMessageFrom(body, "Could not compare this order."));
       if (controller.signal.aborted) return;
       setResult({ key: requestKey, value: body });
+      if (owner) saveComparisonDraft(request, owner);
       trackEvent(body.completeVenueCount >= 2 ? "pub_comparison_ready" : "pub_comparison_incomplete");
     } catch (cause) {
       if (!controller.signal.aborted) setError(offlineOrMessage(cause instanceof Error ? cause.message : "Could not compare this order. Try again."));
@@ -141,8 +167,8 @@ export default function PubComparisonForm() {
         <ul className="pubComparisonSelected" aria-label="Selected pubs">
           {selected.map((hit) => {
             const venue = currentCatalogue?.venues.find((row) => row.id === hit.id);
-            return <li key={hit.id}><span>{hit.name}{venue?.address ? `, ${venue.address}` : hit.area ? `, ${hit.area}` : ""}</span>
-              <Button variant="ghost" type="button" aria-label={`Remove ${hit.name}${venue?.address ? `, ${venue.address}` : ""}`}
+            return <li key={hit.id}><span>{venue?.name ?? hit.name}{venue?.address ? `, ${venue.address}` : hit.area ? `, ${hit.area}` : ""}</span>
+              <Button variant="ghost" type="button" aria-label={`Remove ${venue?.name ?? hit.name}${venue?.address ? `, ${venue.address}` : ""}`}
                 onClick={() => changeInputs(() => setSelected((rows) => rows.filter((row) => row.id !== hit.id)))}>Remove</Button>
             </li>;
           })}
@@ -186,7 +212,8 @@ export default function PubComparisonForm() {
           <option value="">Compare prices only</option>
           {currentCatalogue?.meetingPoints.map((point) => <option key={point.id} value={point.id}>{point.name}</option>)}
         </select>
-        <p>Your choices stay in this tab. PUBMAXX sends them to its comparison service when needed. It does not save an order or create a round.</p>
+        <p>Your last submitted order stays in this tab for up to two hours, so you can return from the map. PUBMAXX sends your choices to its comparison service but does not save an order on its servers or create a round.</p>
+        <p>If your browser blocks tab storage, keep this page open to retain your choices.</p>
       </fieldset>
       <Button type="submit" data-primary-action="" disabled={selected.length < 2 || order.length === 0 || busy}>{busy ? "Comparing…" : "Compare these pubs"}</Button>
       {error ? <p role="alert">{error}</p> : null}

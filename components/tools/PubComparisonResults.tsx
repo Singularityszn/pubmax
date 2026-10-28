@@ -46,7 +46,7 @@ export default function PubComparisonResults({ result }: { result: PubComparison
             <a href={venue.mapHref} onClick={() => trackEvent("pub_comparison_map_requested")}>Open this pub to plan<span className="sr-only">: {comparisonPubLabel(venue)}</span></a>
             <a href={`/ledger/${encodeURIComponent(venue.id)}`}>Read the pub record<span className="sr-only">: {comparisonPubLabel(venue)}</span></a>
           </div>
-          <p>On the map, keep this pub for your plan. The existing planner lets you choose a time and invite your friends.</p>
+          <p>On the map, keep this pub for your plan. Your comparison order stays here. The planner uses its own drink choices and invitation.</p>
         </li>;
       })}
     </ol>
