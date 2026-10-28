@@ -72,10 +72,11 @@ describe("the pre-paint gate in public/theme-init.js", () => {
     expect(document.documentElement.dataset.mapPreview).toBeUndefined();
   });
 
-  it("leaves it off for a visitor whose remembered location moves the camera", () => {
+  it("erases a legacy location before applying the ordinary preview gate", () => {
     localStorage.setItem("pubmax:map-opening-location:v1", JSON.stringify({ lat: 51.5, lng: -0.1 }));
     runThemeInit("/map");
-    expect(document.documentElement.dataset.mapPreview).toBeUndefined();
+    expect(localStorage.getItem("pubmax:map-opening-location:v1")).toBeNull();
+    expect(document.documentElement.dataset.mapPreview).toBe("on");
   });
 });
 

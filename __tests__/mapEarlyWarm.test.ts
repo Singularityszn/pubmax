@@ -109,7 +109,7 @@ describe("mapEarlyWarm", () => {
     expect(fetchSpy.mock.calls.map(([input]) => input)).not.toContain("/data/london.json");
   });
 
-  it("uses fallback when Permissions API is unavailable", async () => {
+  it("ignores a legacy exact location when Permissions API is unavailable", async () => {
     const manifest = {
       revision: "deploy-42",
       shards: [
@@ -127,7 +127,8 @@ describe("mapEarlyWarm", () => {
       innerWidth: 390,
       innerHeight: 844,
       location: { href: "https://pubmaxxing.com/map" },
-      localStorage: { getItem: vi.fn(() => null) },
+      localStorage: { getItem: vi.fn((key: string) => key === "pubmax:map-opening-location:v1"
+        ? JSON.stringify({ lat: 51.74, lng: 0.25 }) : null) },
       addEventListener: vi.fn((type: string, listener: () => void) => {
         if (type === "pubmax:first-pins") firstPinsListener = listener;
       }),
