@@ -600,9 +600,23 @@ for (const { theme, motion } of [
         }, pub);
         expect(point, `${pub.id} has a projected route stop`).not.toBeNull();
         await page.mouse.click(point!.x, point!.y);
-        const hits = await page.evaluate(() => (window as SohoProbeWindow)
-          .__pubmaxPaintedMapTapPoints?.trace?.read().clicks.at(-1)?.hits ?? []);
-        expect(hits).toContainEqual({ layer: "route-stops", venueId: pub.id });
+        try {
+          await expect.poll(() => page.evaluate(() => (window as SohoProbeWindow)
+            .__pubmaxPaintedMapTapPoints?.trace?.read().clicks.length ?? 0)).toBe(1);
+          const trace = await page.evaluate(() => (window as SohoProbeWindow)
+            .__pubmaxPaintedMapTapPoints?.trace?.read() ?? null);
+          expect(trace?.clicks[0]?.hits).toContainEqual({ layer: "route-stops", venueId: pub.id });
+        } catch (error) {
+          await testInfo.attach(`missed-click-${viewport.name}-${pub.id}`, {
+            body: JSON.stringify({ point, map: await readMap(), trace: await page.evaluate(() =>
+              (window as SohoProbeWindow).__pubmaxPaintedMapTapPoints?.trace?.read()) }, null, 2),
+            contentType: "application/json",
+          });
+          await testInfo.attach(`missed-click-${viewport.name}-${pub.id}-view`, {
+            body: await page.screenshot(), contentType: "image/png",
+          });
+          throw error;
+        }
         await expect.poll(() => new URL(page.url()).searchParams.get("sel")).toBe(pub.id);
         const address = page.locator(".venueAddress:visible");
         await expect(address).toHaveCount(1);
