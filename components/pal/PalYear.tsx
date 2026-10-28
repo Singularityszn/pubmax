@@ -36,9 +36,9 @@ async function venueName(venueId: string, signal: AbortSignal): Promise<string |
   }
 }
 
-async function contributions(handle: string, signal: AbortSignal): Promise<{ pricesMapped: number; boroughs: number } | null> {
+async function contributions(handle: string, year: number, signal: AbortSignal): Promise<{ pricesMapped: number; boroughs: number } | null> {
   try {
-    const response = await fetch(`/api/pint-drops/stats?handle=${encodeURIComponent(handle)}`, { signal });
+    const response = await fetch(`/api/pint-drops/stats?handle=${encodeURIComponent(handle)}&year=${year}`, { signal });
     if (!response.ok) {
       discardBody(response);
       return null;
@@ -66,7 +66,7 @@ export default function PalYear({ palName, print }: { palName: string; print: re
     const nightsKeptDays = readNightsKept(storage).days;
     const crawls = Object.values(readProgress(storage).crawls);
     void (async () => {
-      const mapped = handle ? await contributions(handle, controller.signal) : null;
+      const mapped = handle ? await contributions(handle, year, controller.signal) : null;
       if (controller.signal.aborted) return;
       const next = palYearFacts({ year, nightsKeptDays, crawls, contributions: mapped });
       setFacts(next);

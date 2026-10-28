@@ -1,6 +1,7 @@
 import { expect, test } from "@playwright/test";
 import { mkdir, writeFile } from "node:fs/promises";
 
+import { londonDayKey } from "../lib/pintContributions";
 import { DEFAULT_PAL_DRAFT } from "../lib/pubPal";
 import { ACCOUNTS, installAuthDoubles, seedSignedIn } from "./helpers/authDoubles";
 
@@ -15,11 +16,11 @@ const SHOTS = "artifacts/pal-year";
 test("the Pal reads the year back from this device", async ({ page }) => {
   test.setTimeout(120_000);
   await page.setViewportSize({ width: 390, height: 844 });
-  const year = new Date().getFullYear();
+  const year = Number(londonDayKey(new Date()).slice(0, 4));
   // The Pal home is a signed-in page: account A, its Pal, and its own
   // mapped prices, answered here so the test reads the card, not the stores.
   await installAuthDoubles(page);
-  const now = "2026-10-04T12:00:00.000Z";
+  const now = `${year}-01-01T12:00:00.000Z`;
   const serverPal = {
     id: "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb", ownerId: ACCOUNTS.A.id,
     adultAttestedAt: now, ...DEFAULT_PAL_DRAFT, name: "Ripley", muted: false, hidden: false,
@@ -31,7 +32,7 @@ test("the Pal reads the year back from this device", async ({ page }) => {
     json: { stats: { handle: ACCOUNTS.A.handle, pintsMapped: 6, total: 6, streak: { current: 0, best: 0 }, byBorough: [{ borough: "Camden", count: 4 }, { borough: "Islington", count: 2 }] } },
   }));
   await page.addInitScript(({ year: thisYear, ownerId, appearance, personality, voice }) => {
-    const now = "2026-10-04T12:00:00.000Z";
+    const now = `${thisYear}-01-01T12:00:00.000Z`;
     // The share sheet, answered here so the test reads what was sent.
     Object.defineProperty(window.navigator, "share", {
       configurable: true,
@@ -51,11 +52,11 @@ test("the Pal reads the year back from this device", async ({ page }) => {
       proposalPreferences: {}, masteryPoints: 0, createdAt: now, updatedAt: now,
     }));
     window.localStorage.setItem("pubmax:nights-kept:v1", JSON.stringify({
-      version: 1, days: [`${thisYear}-02-20`, `${thisYear}-10-03`, `${thisYear}-10-17`], lastPlanId: null,
+      version: 1, days: [`${thisYear}-01-01`, `${thisYear}-01-02`, `${thisYear}-01-03`], lastPlanId: null,
     }));
     window.localStorage.setItem("pubmax_crawl_progress", JSON.stringify({ crawls: {
-      soho: { stopIds: ["venue-1ufn31x", "venue-1t8siin", "venue-xiesdn"], visited: ["venue-1ufn31x", "venue-1t8siin", "venue-xiesdn"], startedAt: `${thisYear}-02-20T19:00:00.000Z`, completedAt: `${thisYear}-02-20T22:00:00.000Z` },
-      again: { stopIds: ["venue-xiesdn", "venue-xjf3n0"], visited: ["venue-xiesdn", "venue-xjf3n0"], startedAt: `${thisYear}-10-17T19:00:00.000Z`, completedAt: `${thisYear}-10-17T22:00:00.000Z` },
+      soho: { stopIds: ["venue-1ufn31x", "venue-1t8siin", "venue-xiesdn"], visited: ["venue-1ufn31x", "venue-1t8siin", "venue-xiesdn"], startedAt: `${thisYear}-01-01T19:00:00.000Z`, completedAt: `${thisYear}-01-01T22:00:00.000Z` },
+      again: { stopIds: ["venue-xiesdn", "venue-xjf3n0"], visited: ["venue-xiesdn", "venue-xjf3n0"], startedAt: `${thisYear}-01-03T19:00:00.000Z`, completedAt: `${thisYear}-01-03T22:00:00.000Z` },
     } }));
   }, { year, ownerId: ACCOUNTS.A.id, ...DEFAULT_PAL_DRAFT });
   await seedSignedIn(page, "A");
@@ -68,10 +69,10 @@ test("the Pal reads the year back from this device", async ({ page }) => {
   await expect(card.getByRole("heading", { name: december ? "Your Year in Pints" : "Your year so far" })).toBeVisible();
   const lines = card.locator(".palYearLines li");
   await expect(lines.first()).toHaveText("We kept 3 nights together this year.");
-  await expect(card).toContainText("October was our busiest month.");
+  await expect(card).toContainText("January was our busiest month.");
   await expect(card).toContainText("We walked 5 stops.");
   await expect(card).toContainText(/You kept coming back to .+\. 2 crawls in all\./);
-  await expect(card).toContainText(/Our first night was 20 February, starting at .+\./);
+  await expect(card).toContainText(/Our first night was 1 January, starting at .+\./);
   await expect(card).toContainText("You have mapped 6 prices across 2 boroughs so far. Every one helps the next person.");
   await expect(card).not.toContainText(/streak|rank|points/i);
 
@@ -90,7 +91,7 @@ test("the Pal reads the year back from this device", async ({ page }) => {
   const pick = card.getByRole("group", { name: "What goes on the card" });
   await expect(pick.getByRole("checkbox", { name: "3 nights out." })).toBeChecked();
   await expect(pick.getByRole("checkbox", { name: /^Kept coming back to .+\. 2 crawls in all\.$/ })).not.toBeChecked();
-  const first = pick.getByRole("checkbox", { name: /^First night out: 20 February, at .+\.$/ });
+  const first = pick.getByRole("checkbox", { name: /^First night out: 1 January, at .+\.$/ });
   await expect(first).not.toBeChecked();
   await first.check();
   await pick.getByRole("checkbox", { name: /^6 prices mapped across 2 boroughs\./ }).uncheck();
@@ -112,9 +113,9 @@ test("the Pal reads the year back from this device", async ({ page }) => {
   const sharedLines = page.getByTestId("year-share-lines").locator("li");
   await expect(sharedLines).toHaveText([
     "3 nights out.",
-    "October was the busiest month.",
+    "January was the busiest month.",
     "5 stops walked.",
-    /^First night out: 20 February, at .+\.$/,
+    /^First night out: 1 January, at .+\.$/,
   ]);
   await expect(page.getByRole("link", { name: "Read your own year" })).toHaveAttribute("href", "/pal");
   await expect(page.locator('meta[name="robots"]')).toHaveAttribute("content", /noindex/);

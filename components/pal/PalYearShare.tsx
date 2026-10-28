@@ -46,9 +46,9 @@ export default function PalYearShare({
   const [sent, setSent] = useState<Sent>("idle");
 
   const offered = yearShareOffer(facts, names);
-  const everything = yearShareFrom(facts, new Set(offered), today);
+  const everything = yearShareFrom(facts, new Set(offered), today, names);
   if (!everything) return null;
-  const chosen = yearShareFrom(facts, new Set(offered.filter((part) => picked.has(part))), today);
+  const chosen = yearShareFrom(facts, picked, today, names);
 
   const toggle = (part: YearSharePart, on: boolean) => {
     setSent("idle");

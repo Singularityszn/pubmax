@@ -65,7 +65,9 @@ export function yearShareOffer(facts: PalYearFacts, venueNames: Readonly<Record<
       case "favourite":
         return facts.favourite !== null && Boolean(venueNames[facts.favourite.venueId]);
       case "first":
-        return facts.firstNight !== null;
+        return facts.firstNight !== null && (
+          !facts.firstNight.firstStopVenueId || Boolean(venueNames[facts.firstNight.firstStopVenueId])
+        );
       case "prices":
         return facts.pricesMapped > 0;
     }
@@ -80,19 +82,21 @@ export function yearShareFrom(
   facts: PalYearFacts,
   parts: ReadonlySet<YearSharePart>,
   today: string,
+  venueNames: Readonly<Record<string, string>>,
 ): YearShare | null {
+  const selected = new Set(yearShareOffer(facts, venueNames).filter((part) => parts.has(part)));
   const sameYear = today.startsWith(`${facts.year}-`);
   const share: YearShare = { year: facts.year, through: sameYear ? monthOf(today) : 12 };
-  if (parts.has("nights") && facts.nightsKept > 0) share.nights = facts.nightsKept;
-  if (parts.has("month") && facts.nightsKept > 1 && facts.busiestMonth) {
+  if (selected.has("nights")) share.nights = facts.nightsKept;
+  if (selected.has("month") && facts.busiestMonth) {
     share.month = MONTHS.indexOf(facts.busiestMonth as (typeof MONTHS)[number]) + 1;
   }
-  if (parts.has("stops") && facts.stopsWalked > 0) share.stops = facts.stopsWalked;
-  if (parts.has("favourite") && facts.favourite) share.favourite = { ...facts.favourite };
-  if (parts.has("first") && facts.firstNight) {
+  if (selected.has("stops")) share.stops = facts.stopsWalked;
+  if (selected.has("favourite") && facts.favourite) share.favourite = { ...facts.favourite };
+  if (selected.has("first") && facts.firstNight) {
     share.first = { day: facts.firstNight.day, venueId: facts.firstNight.firstStopVenueId };
   }
-  if (parts.has("prices") && facts.pricesMapped > 0) {
+  if (selected.has("prices")) {
     share.prices = { count: facts.pricesMapped, boroughs: facts.boroughs };
   }
   return hasLines(share) ? share : null;
@@ -192,7 +196,7 @@ export function parseYearShare(yearRaw: string | null | undefined, params: Param
   const nights = intParam(params, "n", 1, MAX_NIGHTS);
   if (nights !== undefined) share.nights = nights;
   const month = intParam(params, "m", 1, through);
-  if (month !== undefined && nights !== undefined && nights > 1) share.month = month;
+  if (month !== undefined) share.month = month;
   const stops = intParam(params, "s", 1, MAX_STOPS);
   if (stops !== undefined) share.stops = stops;
   const favourite = venueParam(params, "fv");

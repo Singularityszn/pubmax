@@ -159,7 +159,7 @@ describe("the year on /pal", () => {
       },
     }));
     fetchMock.mockImplementation(async (url: string) => {
-      if (url.startsWith("/api/pint-drops/stats?handle=ripley-fan")) {
+      if (url === "/api/pint-drops/stats?handle=ripley-fan&year=2026") {
         return Response.json({ stats: { pintsMapped: 12, byBorough: [{ borough: "Camden" }, { borough: "Hackney" }, { borough: "Islington" }] } });
       }
       if (url === "/api/venue/pub-a") return Response.json({ venue: { name: "The Crown" } });
@@ -202,7 +202,7 @@ describe("the year on /pal", () => {
       },
     }));
     fetchMock.mockImplementation(async (url: string) => {
-      if (url.startsWith("/api/pint-drops/stats?handle=ripley-fan")) {
+      if (url === "/api/pint-drops/stats?handle=ripley-fan&year=2026") {
         return Response.json({ stats: { pintsMapped: 4, byBorough: [{ borough: "Camden", count: 4 }] } });
       }
       if (url === "/api/venue/pub-a") return Response.json({ venue: { name: "The Crown" } });
@@ -274,5 +274,55 @@ describe("the year on /pal", () => {
     expect(button("Share the card")?.disabled).toBe(true);
     expect(host.textContent).toContain("Tick a line to share the card.");
     expect(host.querySelector(".palYearShareActions a")).toBeNull();
+  });
+
+  it.each(["missing", "failed", "pending"])("withholds the first-night checkbox when its venue name is %s", async (state) => {
+    seedYear();
+    const seededFetch = fetchMock.getMockImplementation()!;
+    fetchMock.mockImplementation(async (url: string) => {
+      if (url !== "/api/venue/pub-x") return seededFetch(url);
+      if (state === "failed") throw new Error("offline");
+      if (state === "pending") return new Promise<Response>(() => {});
+      return new Response(null, { status: 404 });
+    });
+    const share = vi.fn<(data: { url: string }) => Promise<void>>(async () => undefined);
+    vi.stubGlobal("navigator", { ...navigator, share });
+    await render();
+    await click(button("Share my year"));
+    expect([...host.querySelectorAll(".palYearShareRow")].some((row) => row.textContent?.startsWith("First night out:"))).toBe(false);
+    await click(button("Share the card"));
+    const sent = new URL(share.mock.calls[0]![0].url);
+    expect(sent.searchParams.has("fd")).toBe(false);
+    expect(sent.searchParams.has("fs")).toBe(false);
+  });
+
+  it("shares a date-only checkbox without a location", async () => {
+    seedYear();
+    window.localStorage.removeItem(CRAWL_PROGRESS_KEY);
+    const share = vi.fn<(data: { url: string }) => Promise<void>>(async () => undefined);
+    vi.stubGlobal("navigator", { ...navigator, share });
+    await render();
+    await click(button("Share my year"));
+    const first = [...host.querySelectorAll(".palYearShareRow")].find((row) => row.textContent === "First night out: 20 February.");
+    await click(first?.querySelector("input"));
+    await click(button("Share the card"));
+    const sent = new URL(share.mock.calls[0]![0].url);
+    expect(sent.searchParams.get("fd")).toBe("02-20");
+    expect(sent.searchParams.has("fs")).toBe(false);
+  });
+
+  it("shares the busiest month after every other count is unticked", async () => {
+    seedYear();
+    const share = vi.fn<(data: { url: string }) => Promise<void>>(async () => undefined);
+    vi.stubGlobal("navigator", { ...navigator, share });
+    await render();
+    await click(button("Share my year"));
+    for (const row of host.querySelectorAll(".palYearShareRow")) {
+      const input = row.querySelector<HTMLInputElement>("input")!;
+      if (input.checked && row.textContent !== "October was the busiest month.") await click(input);
+    }
+    await click(button("Share the card"));
+    const sent = new URL(share.mock.calls[0]![0].url);
+    expect(sent.search).toBe("?to=10&m=10");
   });
 });
