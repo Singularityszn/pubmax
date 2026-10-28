@@ -395,9 +395,10 @@ function AccountOnboardingForUser({
     let active = true;
     const controller = new AbortController();
     const timer = window.setTimeout(() => {
+      // The check answers a signed-in account only, so it carries the bearer.
       void checkAccountHandleAvailability(
         assessment.handle,
-        fetch,
+        undefined,
         controller.signal,
       ).then((result) => {
         if (!active) return;
