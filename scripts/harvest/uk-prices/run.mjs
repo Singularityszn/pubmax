@@ -58,8 +58,10 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync, appendFileSync } from "node:fs";
 import path from "node:path";
 import process from "node:process";
+import { pathToFileURL } from "node:url";
 
 import { pdfIsWorthReading, readPdfText } from "../../../lib/harvest/pdfText.ts";
+import { fetchFollowingPermittedRedirects } from "../../../lib/harvest/redirectChain.ts";
 import { createRobotsChecker } from "../../../lib/harvest/robots.ts";
 import {
   HARVEST_SOURCES,
@@ -210,27 +212,49 @@ function hostOf(website) {
   }
 }
 
-async function fetchText(url) {
+/**
+ * Share the robots cache between the host walk and redirect checks so both
+ * use the same permission decision for each origin during the run.
+ */
+const robots = createRobotsChecker();
+
+export async function fetchText(url, { fetchImpl = fetch, robots: checkRobots = robots } = {}) {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), PAGE_TIMEOUT_MS);
   try {
-    const response = await fetch(url, {
-      headers: {
-        accept: "text/html,application/xhtml+xml,application/pdf;q=0.8,*/*;q=0.5",
-        "user-agent": USER_AGENT,
+    const followed = await fetchFollowingPermittedRedirects(
+      url,
+      {
+        headers: {
+          accept: "text/html,application/xhtml+xml,application/pdf;q=0.8,*/*;q=0.5",
+          "user-agent": USER_AGENT,
+        },
+        signal: controller.signal,
       },
-      signal: controller.signal,
-      redirect: "follow",
-    });
+      {
+        fetchImpl,
+        permitHop: async (next, from) => {
+          if (harvestRedirectLanding(from, next).outcome === "refused") {
+            return { allowed: false, reason: "redirect-refused" };
+          }
+          return checkRobots(next);
+        },
+      },
+    );
+    if (followed.refusal) {
+      const { status, reason, url: finalUrl } = followed.refusal;
+      return { ok: false, status, body: "", reason, finalUrl };
+    }
+    const { response } = followed;
     // THE ALLOW-LIST IS ASKED ABOUT THE PAGE WE LANDED ON, NOT ONLY THE ONE WE
-    // ASKED FOR. `redirect: "follow"` lets the HOST pick the last hop, so a
-    // permitted site that 30x-es to a refused one used to be read in full and
+    // ASKED FOR. Every hop was asked before it was sent; the final response is
+    // asked again, so a fetch that reports some other landing is not trusted.
+    // A permitted site that 30x-ed to a refused one used to be read in full and
     // the row was then stamped with the asked-for URL, naming a page that never
-    // stated the price. `harvestRedirectLanding` is the one owner of that rule;
-    // `finalUrl` was already carried here and read by nothing.
-    const landing = harvestRedirectLanding(url, response.url);
+    // stated the price. `harvestRedirectLanding` is the one owner of that rule.
+    const landing = harvestRedirectLanding(url, response.url || followed.url);
     if (landing.outcome === "refused") {
-      return { ok: false, status: response.status, body: "", redirectedAway: true, finalUrl: landing.url };
+      return { ok: false, status: response.status, body: "", reason: "redirect-refused", finalUrl: landing.url };
     }
     const landed = landing.url;
     if (!response.ok) return { ok: false, status: response.status, body: "", finalUrl: landed };
@@ -848,7 +872,6 @@ async function main() {
     .sort((a, b) => b.pubs.length - a.pubs.length)
     .slice(0, Number.isFinite(HOST_LIMIT) ? HOST_LIMIT : hosts.length);
 
-  const robots = createRobotsChecker();
   let spent = 0;
   let pdfsSeen = 0;
   let pdfsRead = 0;
@@ -975,4 +998,6 @@ async function main() {
   if (!DRY_RUN) console.log(`  report → ${path.relative(ROOT, REPORT_PATH)}`);
 }
 
-await main();
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+  await main();
+}

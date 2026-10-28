@@ -3,6 +3,7 @@
 // every host is asked, and a host that will not answer is refused.
 
 import { describe, expect, it, vi } from "vitest";
+import { HARVEST_REDIRECT_HOP_LIMIT } from "@/lib/harvest/redirectChain";
 
 import {
   CHALLENGE_PAGE_SIGNATURES,
@@ -124,6 +125,50 @@ Disallow: /
 });
 
 describe("asking a host before reading it", () => {
+  it.each([
+    "http://127.0.0.1/admin",
+    "https://www.nicholsonspubs.co.uk/robots.txt",
+    "file:///etc/passwd",
+  ])("never requests a policy-refused robots redirect: %s", async (refused) => {
+    const fetchImpl = vi.fn<typeof fetch>(async (input) => {
+      const location = String(input) === "https://thepub.co.uk/robots.txt" ? "/rules" : refused;
+      return new Response(null, { status: 302, headers: { location } });
+    });
+    const check = createRobotsChecker({ fetchImpl });
+
+    expect(await check("https://thepub.co.uk/menu")).toMatchObject({ allowed: false, reason: "robots-unreadable" });
+    expect(await check("https://thepub.co.uk/drinks")).toMatchObject({ allowed: false, reason: "robots-unreadable" });
+    expect(fetchImpl.mock.calls.map(([url]) => String(url))).toEqual([
+      "https://thepub.co.uk/robots.txt",
+      "https://thepub.co.uk/rules",
+    ]);
+    expect(fetchImpl.mock.calls.every(([, init]) => init?.redirect === "manual")).toBe(true);
+  });
+
+  it("refuses a robots redirect loop at the fixed hop limit", async () => {
+    const fetchImpl = vi.fn<typeof fetch>(async () =>
+      new Response(null, { status: 302, headers: { location: "/robots.txt" } }),
+    );
+    const check = createRobotsChecker({ fetchImpl });
+
+    expect(await check("https://thepub.co.uk/menu")).toMatchObject({ allowed: false, reason: "robots-unreadable" });
+    expect(fetchImpl).toHaveBeenCalledTimes(HARVEST_REDIRECT_HOP_LIMIT + 1);
+  });
+
+  it("applies rules from a permitted cross-host robots redirect to the original page", async () => {
+    const target = "https://rules.thepub.co.uk/policy.txt";
+    const fetchImpl = vi.fn<typeof fetch>(async (input) =>
+      String(input) === "https://thepub.co.uk/robots.txt"
+        ? new Response(null, { status: 302, headers: { location: target } })
+        : robotsResponse("User-agent: *\nDisallow: /private\n"),
+    );
+    const check = createRobotsChecker({ fetchImpl });
+
+    expect(await check("https://thepub.co.uk/private/menu")).toMatchObject({ allowed: false, reason: "robots-disallowed" });
+    expect(await check("https://thepub.co.uk/menu")).toMatchObject({ allowed: true, reason: "allowed" });
+    expect(fetchImpl.mock.calls.map(([url]) => String(url))).toEqual(["https://thepub.co.uk/robots.txt", target]);
+  });
+
   it("permits a page the host allows", async () => {
     const fetchImpl = vi.fn(async () => robotsResponse("User-agent: *\nDisallow: /basket\n"));
     const check = createRobotsChecker({ fetchImpl: fetchImpl as unknown as typeof fetch });
