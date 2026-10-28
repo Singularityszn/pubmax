@@ -50,11 +50,43 @@ beforeEach(() => {
 });
 
 describe("PUBMAXX handle APIs", () => {
+  it("answers handle availability only to a signed-in account", async () => {
+    // October 2026 audit: an anonymous "taken" beside a 404 resolve and a null
+    // profile named an account that moderation withdrew. A claim needs an
+    // account, so asking whether one would succeed needs one too.
+    __seedMemoryOwnedProfile("night_owl", "owner-user");
+    const anonymous = await availability(request("/api/identity/handle/availability?handle=night_owl"));
+    expect(anonymous.status).toBe(401);
+    const body = await anonymous.json();
+    expect(body).toMatchObject({ code: "UNAUTHENTICATED" });
+    expect(body).not.toHaveProperty("available");
+    expect(body).not.toHaveProperty("reason");
+
+    authState.userId = "asking-user";
+    const signedIn = await availability(request("/api/identity/handle/availability?handle=night_owl"));
+    expect(signedIn.status).toBe(200);
+    expect(await signedIn.json()).toEqual({ handle: "night_owl", available: false, reason: "taken" });
+  });
+
+  it("keys the availability limiter to the account as well as the address", async () => {
+    authState.userId = "busy-user";
+    let last: Response | null = null;
+    for (let attempt = 0; attempt < 41; attempt += 1) {
+      last = await availability(request("/api/identity/handle/availability?handle=quiet_owl"));
+    }
+    expect(last?.status).toBe(429);
+    authState.userId = "other-user";
+    const other = await availability(request("/api/identity/handle/availability?handle=quiet_owl"));
+    expect(other.status).toBe(200);
+  });
+
   it("checks availability case-insensitively and requires auth to claim", async () => {
+    authState.userId = "asking-user";
     let response = await availability(request("/api/identity/handle/availability?handle=Night_Owl"));
     expect(response.status).toBe(200);
     expect(await response.json()).toEqual({ handle: "night_owl", available: true });
 
+    authState.userId = null;
     response = await claim(request("/api/identity/handle/claim", "POST", { handle: "night_owl" }));
     expect(response.status).toBe(401);
 
@@ -73,7 +105,7 @@ describe("PUBMAXX handle APIs", () => {
       hasPassword: null,
     });
 
-    authState.userId = null;
+    authState.userId = "asking-user";
     response = await availability(request("/api/identity/handle/availability?handle=NIGHT_OWL"));
     expect(await response.json()).toEqual({ handle: "night_owl", available: false, reason: "taken" });
   });
@@ -151,6 +183,7 @@ describe("PUBMAXX handle APIs", () => {
     expect(body).not.toMatchObject({ status: "gone" });
     expect(body).not.toHaveProperty("handle", "legacy_owl");
 
+    authState.userId = "asking-user";
     const availabilityResponse = await availability(
       request("/api/identity/handle/availability?handle=legacy_owl"),
     );
@@ -228,7 +261,7 @@ describe("PUBMAXX handle APIs", () => {
       profile: null,
     });
 
-    authState.userId = null;
+    authState.userId = "asking-user";
     const availabilityResponse = await availability(
       request("/api/identity/handle/availability?handle=ghost_owl"),
     );
