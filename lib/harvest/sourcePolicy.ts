@@ -887,10 +887,10 @@ function underRefusedHost(hostname: string): boolean {
 /**
  * What a crawl lane may do with the page a redirect chain LANDED on.
  *
- * `redirect: "follow"` means the host, not us, chooses the last hop, so the
- * permission we asked about is not necessarily the permission we spent. Both
- * price lanes carried the landed URL already and read it with nothing; this is
- * the rule they read it with, in one place, so the two cannot drift.
+ * A redirect lets the host, not us, choose the last hop, so the permission we
+ * asked about is not necessarily the permission we spent. Callers that use
+ * `fetchFollowingPermittedRedirects` check each hop before its request.
+ * This rule checks the final response independently.
  *
  * `refused` means the chain left the allow-list and the page is not ours to
  * read. `redirected` means it stayed inside and the row's provenance should
