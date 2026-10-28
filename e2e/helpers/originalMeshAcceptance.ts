@@ -188,7 +188,7 @@ export async function requireDeliveredInput(page: Page, pointerType: string, ges
 }
 
 
-export function classifyBodyErrors(seen: Capture) {
+function classifyBodyErrors(seen: Capture) {
   const cancelledReplaced: Array<Record<string, unknown>> = [];
   const fatal: typeof seen.errors = [];
   for (const error of seen.errors) {
