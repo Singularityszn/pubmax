@@ -1,7 +1,8 @@
 import type * as maplibregl from "maplibre-gl";
+import { ROUTE_STOP_NAME_ANCHOR_OFFSET } from "@/lib/routeStopLabel";
 import {
   applyBasemapTaste,
-  applySelectionMute,
+  applyMapFocusMute,
 } from "@/lib/mapBasemapTaste";
 import { isTransitNetworkVisible } from "@/lib/poiToggleGroups";
 import { TRANSPORT_CATEGORIES, type PoiCategory } from "@/lib/pois";
@@ -906,7 +907,7 @@ export function buildRoute(ctx: SceneCtx) {
     layout: { "line-cap": "round", "line-join": "round" },
     paint: {
       "line-color": dark ? tokens.inkDeep : tokens.paper,
-      "line-width": 6,
+      "line-width": 9,
       "line-opacity": 0.85,
     },
   });
@@ -917,7 +918,7 @@ export function buildRoute(ctx: SceneCtx) {
     layout: { "line-cap": "round", "line-join": "round" },
     paint: {
       "line-color": tokens.routeLine,
-      "line-width": 4,
+      "line-width": 5,
       // Solid at full strength for a routed line; a faint underlay under the
       // dash for the straight fallback.
       "line-opacity": ["case", ["==", ["get", "source"], "straight"], 0.3, 0.95],
@@ -1833,7 +1834,7 @@ export function buildRouteStops(ctx: SceneCtx) {
     source: "route-stops",
     paint: {
       "circle-color": tokens.inkDeep,
-      "circle-radius": 13,
+      "circle-radius": 16,
       "circle-stroke-color": tokens.brassBright,
       "circle-stroke-width": 2.5,
     },
@@ -1859,11 +1860,10 @@ export function buildRouteStops(ctx: SceneCtx) {
     layout: {
       "text-field": ["get", "stopName"],
       "text-font": textFont,
-      "text-size": ["interpolate", ["linear"], ["zoom"], 13.5, 10, 16, 12],
-      // Ride beside the numbered disc (radius 13px), flipping side to dodge the
+      "text-size": ["interpolate", ["linear"], ["zoom"], 13.5, 12, 16, 14],
+      // Ride beside the numbered disc, flipping side to dodge the
       // route line and neighbouring stops.
-      "text-variable-anchor": ["left", "right", "top", "bottom"],
-      "text-radial-offset": 1.6,
+      "text-variable-anchor-offset": ROUTE_STOP_NAME_ANCHOR_OFFSET,
       "text-justify": "auto",
       "text-max-width": 9,
     },
@@ -1881,14 +1881,14 @@ export function buildRouteStops(ctx: SceneCtx) {
     layout: {
       "text-field": ["get", "label"],
       "text-font": textFont,
-      "text-size": 13,
+      "text-size": 14,
       "text-allow-overlap": true,
       // The stop discs are a circle layer, which takes no part in symbol
       // collision. The number does, so padded out to the disc's radius it
       // claims the whole disc, and a name that would cover another stop is
       // dropped or flips side instead of sitting under that stop's disc (QA
       // journeys F23). The number itself always shows (allow-overlap).
-      "text-padding": 9,
+      "text-padding": 12,
     },
     // Stops are always dark-filled, so the label is the light-side token.
     paint: { "text-color": dark ? tokens.ink : tokens.paper },
@@ -1974,6 +1974,7 @@ function buildTonight(ctx: SceneCtx) {
 // the synchronous build returns).
 /** Pins-first slice: pub layers in their original stack position; taste/transit defer. */
 export function assembleSceneCritical(ctx: SceneCtx) {
+  const freshStyle = !ctx.map.getLayer("pubs-point");
   registerSceneIcons(ctx);
   // BEFORE the pub layers on purpose — see buildUserLocation.
   buildUserLocation(ctx);
@@ -1986,11 +1987,12 @@ export function assembleSceneCritical(ctx: SceneCtx) {
   buildPubs(ctx);
   buildCoffeePilot(ctx);
   buildRouteStops(ctx);
-  applySelectionState(ctx);
+  applySelectionState(ctx, freshStyle);
 }
 
 /** Visual polish and network-heavy overlays after the first paint frame. */
 export function assembleSceneDeferred(ctx: SceneCtx) {
+  applyMapFocusMute(ctx.map, "browse", ctx.selectionMuteStore);
   applySceneTaste(ctx);
   buildSkyAndBuildings(ctx);
   buildTransitLines(ctx);
@@ -1998,16 +2000,11 @@ export function assembleSceneDeferred(ctx: SceneCtx) {
   applySelectionState(ctx);
 }
 
-// M2 · POI-at-initiation gating — re-apply the selection mute after a fresh
-// style build. A setStyle (theme swap) wipes every layer and its paint, so the
-// previous store's snapshots are stale: clear them, then, if a venue is still
-// selected, re-mute (recapturing this style's fresh originals). With nothing
-// selected this is a pure clear — the initial city overview stays untouched
-// (PRD part c: landmark/POI set visible and unchanged at zero selection).
-export function applySelectionState(ctx: SceneCtx) {
+// A theme change creates fresh paint values. Discard the old snapshots and
+// restore the current focus from these new originals. Browsing stays unchanged.
+export function applySelectionState(ctx: SceneCtx, freshStyle = false) {
   const { map, selectionMuteStore, selectedId } = ctx;
-  selectionMuteStore.clear();
-  if (selectedId) {
-    applySelectionMute(map, true, selectionMuteStore);
-  }
+  if (freshStyle) selectionMuteStore.clear();
+  applyMapFocusMute(map, selectedId ? "selection"
+    : (ctx.routeStops?.features.length ?? 0) >= 2 ? "route" : "browse", selectionMuteStore);
 }

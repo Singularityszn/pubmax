@@ -25,23 +25,39 @@ function routeFitPadding(
   map: maplibregl.Map,
   isPhone: boolean,
 ): number | maplibregl.PaddingOptions {
-  if (!isPhone) return 90;
   const container = map.getContainer();
+  const containerTop = container.getBoundingClientRect().top;
+  const statusBounds = isPhone ? null : document.querySelector(".cityStatusStack")?.getBoundingClientRect();
+  const toolbar = isPhone ? null : document.querySelector(".mapToolbar");
+  const toolbarBounds = toolbar?.getBoundingClientRect();
+  const chromeStyle = toolbar ? getComputedStyle(toolbar) : null;
+  const statusGap = Number.parseFloat(chromeStyle?.getPropertyValue("--city-status-desktop-gap") ?? "") || 82;
+  const statusHeight = Number.parseFloat(chromeStyle?.getPropertyValue("--city-status-desktop-height") ?? "") || 58;
+  // Reserve the banner below the actual toolbar, including its lower tablet
+  // position, before transport data arrives. Clear taller visible content too.
+  const reservedBottom = toolbarBounds?.height
+    ? toolbarBounds.bottom - containerTop + statusGap + statusHeight + 16
+    : 300;
+  const desktopTop = Math.max(reservedBottom, statusBounds?.height ? statusBounds.bottom - containerTop + 16 : 0);
+  const padding = isPhone
+    ? { ...PHONE_ROUTE_PADDING, top: Math.max(PHONE_ROUTE_PADDING.top,
+        measureTopChromeBottom(containerTop, PHONE_ROUTE_PADDING.top)) }
+    : { top: desktopTop, right: 72, bottom: 180, left: 72 };
   const verticalScale = Math.min(
     1,
     Math.max(0, (container.clientHeight - MIN_ROUTE_CONTENT_PX)
-      / (PHONE_ROUTE_PADDING.top + PHONE_ROUTE_PADDING.bottom)),
+      / (padding.top + padding.bottom)),
   );
   const horizontalScale = Math.min(
     1,
     Math.max(0, (container.clientWidth - MIN_ROUTE_CONTENT_PX)
-      / (PHONE_ROUTE_PADDING.left + PHONE_ROUTE_PADDING.right)),
+      / (padding.left + padding.right)),
   );
   return {
-    top: Math.floor(PHONE_ROUTE_PADDING.top * verticalScale),
-    right: Math.floor(PHONE_ROUTE_PADDING.right * horizontalScale),
-    bottom: Math.floor(PHONE_ROUTE_PADDING.bottom * verticalScale),
-    left: Math.floor(PHONE_ROUTE_PADDING.left * horizontalScale),
+    top: Math.floor(padding.top * verticalScale),
+    right: Math.floor(padding.right * horizontalScale),
+    bottom: Math.floor(padding.bottom * verticalScale),
+    left: Math.floor(padding.left * horizontalScale),
   };
 }
 
@@ -194,6 +210,7 @@ type CameraRefs = {
   cityViewRef: MutableRefObject<MapView>;
   cityBoundsRef: MutableRefObject<[[number, number], [number, number]]>;
   routeRef: MutableRefObject<Venue[]>;
+  routeLineRef: MutableRefObject<GeoJSON.FeatureCollection>;
   venuesRef: MutableRefObject<Venue[]>;
   queryVenuesRef?: MutableRefObject<Venue[]>;
   /** Live gesture ownership. See lib/mapGestureGuard.ts for the rule. */
@@ -211,6 +228,7 @@ export function useMapCamera(refs: CameraRefs) {
     cityViewRef,
     cityBoundsRef,
     routeRef,
+    routeLineRef,
     venuesRef,
     queryVenuesRef,
     gestureCameraRef,
@@ -289,22 +307,36 @@ export function useMapCamera(refs: CameraRefs) {
     }));
   }, [mapRef, reducedRef, scheduleCamera]);
 
-  const fitRoute = useCallback(() => {
+  const routeRecoverySequence = useRef(0);
+  const fitRoute = useCallback((kind: "route" | "route-recovery" = "route") => {
     const current = routeRef.current;
     if (current.length < 2) return;
     const bounds = new maplibregl.LngLatBounds();
     current.forEach((venue) => bounds.extend([venue.longitude, venue.latitude]));
+    const extendLine = (coordinates: GeoJSON.Position[]) => {
+      for (const [lng, lat] of coordinates) {
+        if (typeof lng === "number" && typeof lat === "number"
+          && Number.isFinite(lng) && Number.isFinite(lat)) bounds.extend([lng, lat]);
+      }
+    };
+    for (const feature of routeLineRef.current.features) {
+      const geometry = feature.geometry;
+      if (geometry.type === "LineString") extendLine(geometry.coordinates);
+      else if (geometry.type === "MultiLineString") geometry.coordinates.forEach(extendLine);
+    }
+    const boundsKey = bounds.toArray().flat().join(",");
     const isPhone = window.matchMedia("(max-width: 640px)").matches;
-    scheduleCamera("route", `route:${current.map((venue) => venue.id).join(">")}`, (map) => map.fitBounds(bounds, {
+    const request = kind === "route-recovery" ? ++routeRecoverySequence.current : 0;
+    scheduleCamera(kind, `${kind}:${request}:${current.map((venue) => venue.id).join(">")}:${boundsKey}`, (map) => map.fitBounds(bounds, {
       padding: routeFitPadding(map, isPhone),
-      maxZoom: 15,
+      maxZoom: 18,
       duration: reducedRef.current ? 0 : 800,
       // fitBounds defaults bearing to 0, silently flattening a rotated map on
       // every route fit (and the flat camera then persists via the session
       // snapshot). Preserve the user's current rotation instead.
       bearing: map.getBearing(),
     }));
-  }, [reducedRef, routeRef, scheduleCamera]);
+  }, [reducedRef, routeRef, routeLineRef, scheduleCamera]);
 
   // Fit the active city's bounds (not a city switcher — CitySwitcher owns that).
   const fitCityBounds = useCallback(() => {

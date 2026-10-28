@@ -280,24 +280,39 @@
 .planShare h2 { margin: 0; font-size: clamp(1.65rem, 4vw, 2.8rem); line-height: 1; }
 
 .planRoute__stopsTrack {
+  --plan-stop-marker-size: 48px;
   position: relative;
-  margin-top: 42px;
+  margin-top: var(--space-6);
 }
-
-/* The route spine belongs to the stops only (#1539), never the crew card. */
-.planRoute__stopsTrack .planSummary__rail {
-  position: absolute;
-  left: clamp(46px, 7vw, 78px);
-  top: 0;
-  bottom: 0;
-  width: 3px;
-  border-radius: var(--radius-sm);
-  background: var(--hairline-strong);
-}
-
 
 .planSummary__stops { list-style: none; margin: 0; padding: 0; display: grid; gap: 14px; }
-.planRoute__stopsTrack > .planSummary__stops { margin: 0; }
+.planRoute__stopsTrack > .planSummary__stops { margin: 0; gap: var(--space-4); }
+.planRoute__stopsTrack .planSummary__stops li {
+  grid-template-columns: var(--plan-stop-marker-size) minmax(0, 1fr);
+  align-items: start;
+  gap: var(--space-4);
+  padding-bottom: var(--space-4);
+}
+.planRoute__stopsTrack .planSummary__stops li:not(:last-child)::before {
+  content: "";
+  position: absolute;
+  left: calc(var(--plan-stop-marker-size) / 2 - 1px);
+  top: calc(var(--plan-stop-marker-size) / 2);
+  bottom: calc(-1 * var(--space-4) - var(--plan-stop-marker-size) / 2);
+  width: 2px;
+  background: var(--hairline-strong);
+}
+.planRoute__stopsTrack .planSummary__marker {
+  width: var(--plan-stop-marker-size);
+  height: var(--plan-stop-marker-size);
+}
+.planRoute__stopsTrack .planSummary__stops strong {
+  padding-top: var(--space-2);
+  font-size: clamp(1.25rem, 2vw, 1.5rem);
+  line-height: var(--leading-snug);
+  letter-spacing: -0.02em;
+  overflow-wrap: anywhere;
+}
 .planSummary__stops li { min-height: 92px; display: grid; grid-template-columns: 58px 1fr; gap: 22px; align-items: center; position: relative; }
 .planSummary__marker {
   z-index: 1;
@@ -326,8 +341,7 @@
    Provenance: every value is an estimate, never a guarantee — the caption says
    so once, and the accent only encodes the group-fit verdict. */
 .planRoute__basis {
-  margin: 30px 0 -8px;
-  padding-left: 72px;
+  margin: var(--space-4) 0 0;
   color: var(--muted);
   font-size: var(--text-xs);
   letter-spacing: 0.01em;
@@ -335,22 +349,11 @@
 .planRoute__body { display: grid; gap: 6px; min-width: 0; }
 .planRoute__selectedDrinkPrice { color: var(--ink-soft); font-size: var(--text-sm); line-height: 1.4; }
 
-/* "See the walking route" — deep links the whole ordered crawl to the map,
-   where the route follows real walking roads. Sits above the stop list, aligned
-   with the numbered rows' text column. */
+/* Keep the whole-walk action beside the preview, including without WebGL. */
 .planRoute__walk {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  /* 44px tap target that does not move the layout: 14px of padding each side,
-     taken back out of the margins. It measured 141x16. */
-  padding-block: 14px;
-  margin: 8px 0 -18px 72px;
-  color: var(--color-text-muted);
-  font-weight: 700;
-  font-size: var(--text-sm);
-  letter-spacing: 0.01em;
-  text-underline-offset: 3px;
+  margin-top: var(--space-3);
+  width: 100%;
+  justify-content: space-between;
 }
 
 /* ── On-tonight event chips (C3) ───────────────────────────────────────────
@@ -1196,7 +1199,6 @@ html[data-theme="dark"] .planPage {
   background: var(--paper);
 }
 /* Dark ink on amber fills only — primary CTAs use coral + --color-on-accent. */
-html[data-theme="dark"] .planSummary__marker,
 html[data-theme="dark"] .planCrew__join button { color: #090d0b; }
 
 @media (max-width: 900px) {
@@ -1252,6 +1254,7 @@ html[data-theme="dark"] .planCrew__join button { color: #090d0b; }
   .planCollab__fields { grid-template-columns: 1fr; }
   .planSummary__stops li { grid-template-columns: 48px 1fr; gap: 14px; }
   .planSummary__marker { width: 42px; height: 42px; box-shadow: 0 0 0 5px var(--panel-raised); }
+  .planRoute__stopsTrack { --plan-stop-marker-size: 42px; }
   .planComposer__routeStale { align-items: stretch; flex-direction: column; }
   .planComposer__regenerate { width: 100%; }
   .planComposer__routeStatus { margin-left: 0; }
@@ -1421,6 +1424,12 @@ html[data-theme="dark"] .planCrew__join button { color: #090d0b; }
   font-size: var(--text-sm);
   font-weight: 700;
   color: var(--ink);
+}
+.planRouteMiniMap__accuracy {
+  margin: 0 0 var(--space-2);
+  color: var(--ink-soft);
+  font-size: var(--text-xs);
+  line-height: var(--leading-snug);
 }
 .planRouteMiniMap__srOnly {
   position: absolute;

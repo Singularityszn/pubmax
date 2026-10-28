@@ -27,7 +27,7 @@ export default function UkNationalBrowseBanner({
   const label = variant === "outside" ? "Outside priced city map" : "UK pub map";
 
   return (
-    <aside className="ukPlaceArrival" aria-label={label}>
+    <aside className="ukPlaceArrival" data-variant={variant} aria-label={label}>
       <MapPin className="ukPlaceArrivalIcon" size={16} aria-hidden="true" />
       <span className="ukPlaceArrivalCopy">
         <strong>{copy.title}</strong>
