@@ -43,6 +43,7 @@ vi.mock("@/lib/palChatClient", async (importOriginal) => ({
 
 import PalChat from "@/components/pal/PalChat";
 import { clearSurfaceCache } from "@/lib/surfaceDataCache";
+import * as chatThread from "@/lib/palChatThread";
 
 let container: HTMLDivElement;
 let root: Root | null = null;
@@ -68,6 +69,7 @@ afterEach(async () => {
   });
   root = null;
   container.remove();
+  vi.restoreAllMocks();
 });
 
 async function typeQuery(text: string): Promise<void> {
@@ -89,6 +91,21 @@ async function submit(text: string): Promise<void> {
 }
 
 describe("a typed Pal answer that streams in", () => {
+  it("keeps failed history restoration visible and preserves history until an explicit new conversation", async () => {
+    const read = vi.spyOn(chatThread, "readPalChatThread").mockRejectedValueOnce(new Error("Chunk unavailable"));
+    const save = vi.spyOn(chatThread, "savePalChatThread");
+    await act(async () => { root?.render(createElement(PalChat, { key: "failed-history" })); });
+    expect(container.textContent).toContain("Your earlier conversation could not be restored.");
+    expect(container.querySelector<HTMLInputElement>(".palChatInput")?.disabled).toBe(true);
+    expect(save).not.toHaveBeenCalled();
+    read.mockResolvedValueOnce(null);
+    await act(async () => { container.querySelector<HTMLButtonElement>(".palChatReset")?.click(); });
+    expect(container.querySelector<HTMLInputElement>(".palChatInput")?.disabled).toBe(false);
+    askSession.mockResolvedValue({ status: "empty", message: "Nothing sourced for that.", cards: [], proposals: [] });
+    await submit("Find pubs in Soho");
+    expect(container.textContent).toContain("Nothing sourced for that.");
+    expect(askSession).toHaveBeenCalledTimes(1);
+  });
   it("opens with a conversational greeting without creating a provider session", () => {
     expect(container.querySelector(".palChatRow--pal .palChatBubble")?.textContent).toBe(
       "Hi. What kind of night are you planning?",

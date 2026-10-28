@@ -17,14 +17,14 @@ import {
   PAL_CHAT_STREAM_TYPE,
   readPalChatStream,
 } from "@/lib/palChatStream";
-import { windowPalSessionTurns } from "@/lib/palSessionSummary";
+import { recentPalSessionTurns, PAL_SESSION_RECENT_TURNS } from "@/lib/palSessionTurns";
 import { isPubPalConversationId } from "@/lib/pubPalConversationId";
 
 export type PalChatResult =
   | (PalAnswer & { proposals: AskProposal[] })
   | { status: "error"; message: string; needsSignIn?: boolean };
 
-const PAL_CHAT_TIMEOUT_MS = 25_000;
+export const PAL_CHAT_TIMEOUT_MS = 25_000;
 
 type SessionOptions = {
   timeoutMs?: number;
@@ -116,7 +116,7 @@ export function createPalChatSession(options: SessionOptions = {}) {
   const timeoutMs = options.timeoutMs ?? PAL_CHAT_TIMEOUT_MS;
   const fetchImpl = options.fetchImpl ?? signedInFetch;
   let currentId = 0;
-  let turns: AskTurn[] = windowPalSessionTurns("", [...(options.initialTurns ?? [])]).turns;
+  let turns: AskTurn[] = [...(options.initialTurns ?? [])];
   let threadId = options.initialConversationId && isPubPalConversationId(options.initialConversationId) ? options.initialConversationId : "";
 
   /**
@@ -128,16 +128,28 @@ export function createPalChatSession(options: SessionOptions = {}) {
     query: string,
     cityId: string,
     onText?: (text: string) => void,
-  ): Promise<PalChatResult | null> {
+  ): Promise<(PalChatResult & { routedQuery?: string }) | null> {
     const requestId = ++currentId;
     try {
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+      let timeoutId: ReturnType<typeof setTimeout>;
+      const deadline = new Promise<never>((_resolve, reject) => {
+        timeoutId = setTimeout(() => {
+          controller.abort();
+          reject(new DOMException("Aborted", "AbortError"));
+        }, timeoutMs);
+      });
+      const withinDeadline = <T,>(work: Promise<T>): Promise<T> => Promise.race([work, deadline]);
       let response: Response;
       let body: unknown;
       let streamError: string | null = null;
+      let routedQuery = query;
       try {
-        response = await fetchImpl("/api/pub-pal/chat", {
+        const recent = await withinDeadline(recentPalSessionTurns(turns));
+        const { refineRoutedAskQuery } = await withinDeadline(import("@/lib/ask/router"));
+        const priorUsers = recent.filter((turn) => turn.role === "user").map((turn) => turn.content);
+        routedQuery = refineRoutedAskQuery(query, priorUsers.at(-1), priorUsers);
+        response = await withinDeadline(fetchImpl("/api/pub-pal/chat", {
           method: "POST",
           headers: {
             "content-type": "application/json",
@@ -146,63 +158,65 @@ export function createPalChatSession(options: SessionOptions = {}) {
           body: JSON.stringify({
             query,
             cityId,
-            turns: turns.slice(-6),
+            turns: recent.slice(-PAL_SESSION_RECENT_TURNS),
             ...(threadId ? { threadId } : {}),
           }),
           signal: controller.signal,
-        });
+        }));
         if (response.ok && response.body && isPalChatStreamResponse(response)) {
           let text = "";
           let final: unknown = null;
-          await readPalChatStream(response.body, (event) => {
+          await withinDeadline(readPalChatStream(response.body, (event) => {
             if (event.type === "final") final = event.body;
             else if (event.type === "error") streamError = event.error;
             else {
               text = event.type === "delta" ? text + event.text : "";
-              if (requestId === currentId) onText?.(text);
+              if (requestId === currentId && !controller.signal.aborted) onText?.(text);
             }
-          });
+          }));
           // A stream that ends without its final event was cut off.
           body = final;
           streamError ??= final === null ? PAL_ERROR_FALLBACK : null;
         } else {
-          body = await response.json();
+          body = await withinDeadline(response.json());
         }
-      } finally {
-        clearTimeout(timeoutId);
-      }
-      if (requestId !== currentId) return null;
-      if (streamError !== null) return { status: "error", message: streamError };
-      if (!response.ok) {
-        const record =
+        if (requestId !== currentId) return null;
+        if (streamError !== null) return { status: "error", message: streamError };
+        if (!response.ok) {
+          const record =
+            body && typeof body === "object" && !Array.isArray(body)
+              ? (body as Record<string, unknown>)
+              : {};
+          return {
+            status: "error",
+            message:
+              typeof record.error === "string" ? record.error : PAL_ERROR_FALLBACK,
+            ...(response.status === 401 ? { needsSignIn: true } : {}),
+          };
+        }
+        const result = palChatResultFromBody(body);
+        const conversationId =
           body && typeof body === "object" && !Array.isArray(body)
-            ? (body as Record<string, unknown>)
-            : {};
-        return {
-          status: "error",
-          message:
-            typeof record.error === "string" ? record.error : PAL_ERROR_FALLBACK,
-          ...(response.status === 401 ? { needsSignIn: true } : {}),
-        };
+            ? (body as Record<string, unknown>).conversationId
+            : undefined;
+        if (result.status !== "error") {
+          const recent = await withinDeadline(recentPalSessionTurns([
+            ...turns,
+            { role: "user", content: query },
+            { role: "assistant", content: result.message },
+          ]));
+          if (requestId !== currentId) return null;
+          turns = recent;
+          options.onTurns?.(turns.map((turn) => ({ ...turn })));
+        }
+        if (typeof conversationId === "string" && (conversationId === "" || isPubPalConversationId(conversationId))) {
+          threadId = conversationId;
+          options.onConversationId?.(threadId);
+        }
+        return result.status === "error" ? result : { ...result, routedQuery };
+      } finally {
+        clearTimeout(timeoutId!);
       }
-      const result = palChatResultFromBody(body);
-      const conversationId =
-        body && typeof body === "object" && !Array.isArray(body)
-          ? (body as Record<string, unknown>).conversationId
-          : undefined;
-      if (typeof conversationId === "string" && (conversationId === "" || isPubPalConversationId(conversationId))) {
-        threadId = conversationId;
-        options.onConversationId?.(threadId);
-      }
-      if (result.status !== "error") {
-        turns = windowPalSessionTurns("", [
-          ...turns,
-          { role: "user", content: query },
-          { role: "assistant", content: result.message },
-        ]).turns;
-        options.onTurns?.(turns.map((turn) => ({ ...turn })));
-      }
-      return result;
     } catch (error) {
       if (requestId !== currentId) return null;
       return {
