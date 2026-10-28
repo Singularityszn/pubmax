@@ -99,12 +99,9 @@
   .appShell .mapStage > .mapConciergeAsk,
   .appShell .mapStage > .tonightLane,
   .appShell .mapStage .mapLayersControl,
-  /* The camera stack's city-fit + recenter chips are re-homed into the mobile
-     top bar, so hide those two — but NOT the whole stack: the compass is the
-     only recovery once the map is rotated or tilted (#367), and the
-     coordinator provides no replacement for it. */
-  .appShell .mapStage .mapCameraControls .mapFitLondonBtn,
-  .appShell .mapStage .mapCameraControls .mapRecenterBtn {
+  /* The city chooser owns city framing. Keep route recovery visible: the
+     mobile top bar has no replacement for Show whole walk. */
+  .appShell .mapStage .mapCameraControls .mapFitLondonBtn {
     display: none !important;
   }
 
