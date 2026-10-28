@@ -10,6 +10,11 @@ export type NearbyPrice = {
   drinkLabel: string;
   measureLabel: string;
   category: DrinkCategory;
+  sourceLabel?: string;
+  sourceUrl?: string;
+  observedAt?: string;
+  /** False means that the source does not identify the serving measure. */
+  servingKnown?: boolean;
 };
 
 export type MapNearbyCard = {
@@ -113,15 +118,21 @@ export function rankMapNearbyRecommendations(options: MapNearbyOptions): MapNear
   const empty: MapNearbyRecommendations = { ...preferences, cards: [], scope: "none", radiusKm, qualifyingWithinWalk: 0 };
   if (!validPoint(options.location.lat, options.location.lng) || preferences.blockedConstraints.length) return empty;
   const candidates: Array<MapNearbyCard & { matchCount: number }> = [];
-  // The selected drink price owns the cap below. A venue's unrelated pint cannot exclude that drink.
-  const filterInputs = { ...preferences.filters, maxPrice: Number.POSITIVE_INFINITY };
+  // The price callback owns drink selectors and the cap below. Legacy menu gaps must not hide trusted drink evidence.
+  const filterInputs = {
+    ...preferences.filters,
+    maxPrice: Number.POSITIVE_INFINITY,
+    drinkCategory: "",
+    drinkBrand: "",
+    drinkSubtype: "",
+  };
   const filtered = filterVenues([...options.venues], filterInputs, options.hasPintDrops, options.openNowState);
   for (const venue of filtered) {
     if (!isPublicRankablePub(venue) || !validPoint(venue.latitude, venue.longitude)) continue;
     const distanceKm = haversineKm([options.location.lng, options.location.lat], [venue.longitude, venue.latitude]);
     if (distanceKm > radiusKm) continue;
     const price = options.priceForVenue(venue, preferences.filters);
-    if (!price || !Number.isFinite(price.priceGbp) || price.priceGbp <= 0 || !price.drinkLabel.trim() || !price.measureLabel.trim()) continue;
+    if (!price || !Number.isFinite(price.priceGbp) || price.priceGbp <= 0 || !price.drinkLabel.trim() || (!price.measureLabel.trim() && price.servingKnown !== false)) continue;
     if (preferences.filters.drinkCategory && price.category !== preferences.filters.drinkCategory) continue;
     if (preferences.filters.requireNonAlcoholic && price.category !== "soft-drink" && price.category !== "alcohol-free") continue;
     if (price.category === "beer" && preferences.filters.maxPrice < NO_PINT_PRICE_CAP && price.priceGbp > preferences.filters.maxPrice) continue;
@@ -129,7 +140,8 @@ export function rankMapNearbyRecommendations(options: MapNearbyOptions): MapNear
     candidates.push({ venue, price, distanceKm, walkMinutes: walkMinutesFromKm(distanceKm), roles: [], reasons, matchCount: reasons.length });
   }
   const walkable = candidates.filter((card) => card.distanceKm <= WALKABLE_RADIUS_KM);
-  const pool = walkable.length >= 2 ? walkable : candidates;
+  const widened = candidates.filter((card) => card.distanceKm <= WIDENED_RADIUS_KM);
+  const pool = walkable.length ? walkable : widened.length ? widened : candidates;
   if (!pool.length) return empty;
   const byDistance = (a: MapNearbyCard, b: MapNearbyCard) => a.distanceKm - b.distanceKm || a.price.priceGbp - b.price.priceGbp || a.venue.id.localeCompare(b.venue.id);
   const cheapest = [...pool].sort((a, b) => a.price.priceGbp - b.price.priceGbp || byDistance(a, b))[0]!;
@@ -142,8 +154,9 @@ export function rankMapNearbyRecommendations(options: MapNearbyOptions): MapNear
     ? [toCard(cheapest, ["cheapest", "best-match"])]
     : [toCard(cheapest, ["cheapest"]), toCard(best, ["best-match"])];
   return {
-    ...preferences, cards, radiusKm: pool === walkable ? WALKABLE_RADIUS_KM : radiusKm,
-    scope: pool === walkable ? "walkable" : radiusKm > WIDENED_RADIUS_KM ? "farther" : "widened",
+    ...preferences, cards,
+    radiusKm: pool === walkable ? WALKABLE_RADIUS_KM : pool === widened ? WIDENED_RADIUS_KM : radiusKm,
+    scope: pool === walkable ? "walkable" : pool === widened ? "widened" : "farther",
     qualifyingWithinWalk: walkable.length,
   };
 }
