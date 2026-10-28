@@ -94,6 +94,9 @@ export default async function DrinkBrandLandingPage({ params }: PageProps) {
         mapSelectableVenueIds={mapSelectableVenueIds}
         areaPages={pricedLandingBrandAreaLinks(landing.slug, areaLandings)}
       />
+      <p className="drinkBrandDirectory__context">
+        Choosing with friends? <a href="/tools">Compare the same order at up to three pubs</a>.
+      </p>
     </main>
   );
 }

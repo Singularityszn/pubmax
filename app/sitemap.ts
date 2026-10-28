@@ -191,6 +191,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       lastModified: now,
     },
     { path: "/crawls", priority: 0.6, changeFrequency: "weekly", lastModified: now },
+    { path: "/tools", priority: 0.6, changeFrequency: "monthly", lastModified: now },
     // The city picker. /choose-city held this row until the picker was made
     // one page: it now 308s to /places (proxy.ts), and the canonical moved in
     // the same commit, so the list keeps its place in the index.

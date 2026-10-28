@@ -6,7 +6,7 @@ reviewed surface—even when a POST is semantically read-only. The regression te
 Adding a mutating route or removing its authority/abuse boundary fails
 CI until this certification is deliberately updated.
 
-> **Inventory: 163 mutating handlers across 130 route files.** Each exported
+> **Inventory: 164 mutating handlers across 131 route files.** Each exported
 > `POST`, `PUT`, `PATCH`, or `DELETE` is one reviewed surface. A file with two
 > mutation methods contributes two entries. Read-only handlers do not enter this
 > inventory. Both counts are merge-conflict coordination points.
@@ -144,6 +144,7 @@ Protection in a sibling method cannot certify another method.
 - `POST app/api/pub-pal/tools/[toolName]`
 - `POST app/api/pub-pal/voice-token`
 - `POST app/api/pub-list-import`
+- `POST app/api/pub-comparison`
 - `POST app/api/push-tokens`
 - `DELETE app/api/push-tokens`
 - `POST app/api/step-out-nudge`
@@ -1654,3 +1655,14 @@ The resume action and GET read only the verified account's drafts. Missing stora
 Invalid input answers 400, missing sign-in answers 401, and a spent budget answers 429.
 An oversized body answers 413. Unavailable account checks or catalogues answer a retryable 503.
 `__tests__/pubListImportRoute.test.ts` exercises these responses through the real import entry point.
+
+### `app/api/pub-comparison` - read-only pub order comparison
+
+POST calculates an order without creating a price report, Round, plan or poll.
+GET and POST share a hashed-address budget of 20 requests per minute.
+The POST body is bounded at 8 KiB and accepts only the closed comparison schema.
+The service resolves up to three canonical public London pubs and exact servings.
+Meeting points come from the public landmark catalogue. Arbitrary coordinates and URLs are refused.
+Walking uses the existing ORS quota and cache, with at most three route legs.
+Every response is private and uncacheable, including validation, rate-limit and unavailable errors.
+`__tests__/pubComparison.route.test.ts` covers the public HTTP boundary.
