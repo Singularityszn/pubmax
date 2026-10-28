@@ -233,6 +233,7 @@ export function useMapCamera(refs: CameraRefs) {
     queryVenuesRef,
     gestureCameraRef,
   } = refs;
+  const routeFrameRef = useRef<{ key: string; gestureEndedAt: number | null } | null>(null);
   const coordinator = useMemo(() => createCameraIntentCoordinator({
     requestFrame: (callback) => requestAnimationFrame(callback),
     cancelFrame: (id) => cancelAnimationFrame(id),
@@ -255,6 +256,7 @@ export function useMapCamera(refs: CameraRefs) {
     // inside it. `map.stop()` is behind the guard too: an intent that must
     // stand down may not interrupt the reader's own momentum either.
     if (cameraIntentBlocked(kind, gestureCameraRef.current, performance.now())) return;
+    if (kind !== "route" && kind !== "route-recovery") routeFrameRef.current = null;
     const run = () => {
       const map = mapRef.current;
       if (!map) return;
@@ -327,16 +329,28 @@ export function useMapCamera(refs: CameraRefs) {
     const boundsKey = bounds.toArray().flat().join(",");
     const isPhone = window.matchMedia("(max-width: 640px)").matches;
     const request = kind === "route-recovery" ? ++routeRecoverySequence.current : 0;
-    scheduleCamera(kind, `${kind}:${request}:${current.map((venue) => venue.id).join(">")}:${boundsKey}`, (map) => map.fitBounds(bounds, {
-      padding: routeFitPadding(map, isPhone),
-      maxZoom: 18,
-      duration: reducedRef.current ? 0 : 800,
-      // fitBounds defaults bearing to 0, silently flattening a rotated map on
-      // every route fit (and the flat camera then persists via the session
-      // snapshot). Preserve the user's current rotation instead.
-      bearing: map.getBearing(),
-    }));
-  }, [reducedRef, routeRef, routeLineRef, scheduleCamera]);
+    const routeKey = current.map((venue) => venue.id).join(">");
+    const container = mapRef.current?.getContainer();
+    const viewportKey = `${container?.clientWidth}:${container?.clientHeight}`;
+    scheduleCamera(kind, `${kind}:${request}:${routeKey}:${boundsKey}:${viewportKey}`, (map) => {
+      routeFrameRef.current = { key: routeKey, gestureEndedAt: gestureCameraRef.current.endedAt };
+      map.fitBounds(bounds, {
+        padding: routeFitPadding(map, isPhone),
+        maxZoom: 18,
+        duration: reducedRef.current ? 0 : 800,
+        // Keep the current rotation when fitting the route.
+        bearing: map.getBearing(),
+      });
+    });
+  }, [gestureCameraRef, mapRef, reducedRef, routeRef, routeLineRef, scheduleCamera]);
+
+  const fitResizedRoute = useCallback(() => {
+    const frame = routeFrameRef.current;
+    const gesture = gestureCameraRef.current;
+    if (!frame || gesture.active || frame.gestureEndedAt !== gesture.endedAt
+      || frame.key !== routeRef.current.map((venue) => venue.id).join(">")) return;
+    fitRoute();
+  }, [fitRoute, gestureCameraRef, routeRef]);
 
   // Fit the active city's bounds (not a city switcher — CitySwitcher owns that).
   const fitCityBounds = useCallback(() => {
@@ -428,6 +442,7 @@ export function useMapCamera(refs: CameraRefs) {
     cameraLanePending,
     easeArrivalBearing,
     fitRoute,
+    fitResizedRoute,
     fitCityBounds,
     fitQueryVenues,
     fitNearby,

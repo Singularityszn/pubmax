@@ -271,7 +271,7 @@ test("a road response after a drag waits for Show whole walk before reframing", 
   const view = () => page.evaluate(() => {
     const probe = (window as typeof window & {
       __pubmaxMapCamera: {
-        read(): { moving: boolean; settling: boolean; zoom: number; bearing: number; pitch: number };
+        read(): { moving: boolean; settling: boolean; zoom: number; bearing: number; pitch: number; center: [number, number] };
         project(point: [number, number]): { x: number; y: number };
       };
     }).__pubmaxMapCamera;
@@ -305,10 +305,16 @@ test("a road response after a drag waits for Show whole walk before reframing", 
     await expect.poll(async () => Math.abs((await view()).anchor.x - before.anchor.x)).toBeGreaterThan(80);
     await page.mouse.up();
     await expect.poll(async () => { const state = await view(); return !state.moving && !state.settling; }).toBe(true);
-    const held = await view();
+    const dragged = await view();
     // Release beyond the generic gesture hold: that hold alone must not make
     // this test pass when a late road response steals the reader's view.
     await page.waitForTimeout(GESTURE_CAMERA_HOLD_MS + 100);
+    await page.setViewportSize({ width: 1100, height: 900 });
+    await expect.poll(async () => { const state = await view(); return !state.moving && !state.settling; }).toBe(true);
+    const held = await view();
+    expect(held.zoom).toBeCloseTo(dragged.zoom, 6);
+    expect(held.center[0]).toBeCloseTo(dragged.center[0], 6);
+    expect(held.center[1]).toBeCloseTo(dragged.center[1], 6);
     const responseReady = page.waitForResponse(response => response.url().includes("/api/walk-route?") && response.ok());
     releaseRoad();
     await (await responseReady).finished();
@@ -386,6 +392,7 @@ type SohoProbeWindow = Window & {
   };
   __pubmaxPaintedMapTapPoints?: (() => Array<{ kind: string; id: string; x: number; y: number }>) & {
     state?: () => { loaded: boolean };
+    trace?: typeof import("../components/map/canvas/pubHitTrace").pubHitTrace;
   };
 };
 
@@ -431,7 +438,7 @@ for (const theme of ["light", "dark"] as const) {
     const ready = await context.request.patch(`/api/plans/${body.plan.plan.id}`, {
       data: {
         memberToken: body.memberToken, status: "ready",
-        context: { nightArea: "soho", daypart: "evening", partyType: "friends", groupSize: 4, budget: "standard" },
+        context: { nightArea: "piccadilly-soho", daypart: "evening", partyType: "friends", groupSize: 4, budget: "standard" },
       },
     });
     expect(ready.ok()).toBe(true);
@@ -460,7 +467,6 @@ for (const theme of ["light", "dark"] as const) {
       if (!camera || !canvas) return null;
       const box = canvas.getBoundingClientRect();
       const points = pubs.map((pub) => ({ id: pub.id, ...camera.project([pub.lng, pub.lat]) }));
-      const painted = view.__pubmaxPaintedMapTapPoints?.() ?? [];
       const radius = 21;
       const offsets = [[0, 0], [-radius, 0], [radius, 0], [0, -radius], [0, radius], [-15, -15], [15, -15], [-15, 15], [15, 15]];
       const state = camera.read();
@@ -476,7 +482,7 @@ for (const theme of ["light", "dark"] as const) {
         rootFontSize: getComputedStyle(document.documentElement).fontSize,
         canvas: { left: box.left, top: box.top, right: box.right, bottom: box.bottom },
         points: points.map((point) => ({
-          ...point, painted: painted.some((pin) => pin.kind === "pin" && pin.id === point.id),
+          ...point,
           clearRim: offsets.every(([dx, dy]) => document.elementFromPoint(point.x + dx!, point.y + dy!) === canvas),
         })),
         lineColour: Array.from(colour.getImageData(0, 0, 1, 1).data).slice(0, 3),
@@ -506,7 +512,6 @@ for (const theme of ["light", "dark"] as const) {
       expect(geometry!.viewport).toEqual({ width: viewport.width, height: viewport.height });
       expect(geometry!.span).toBeGreaterThanOrEqual(Math.min(240, viewport.width * 0.45));
       for (const point of geometry!.points) {
-        expect(point.painted, `${point.id} is a rendered public pin`).toBe(true);
         expect(point.clearRim, `${point.id} full disc clears app chrome`).toBe(true);
         expect(point.x).toBeGreaterThanOrEqual(geometry!.canvas.left + 22);
         expect(point.x).toBeLessThanOrEqual(geometry!.canvas.right - 22);
@@ -550,16 +555,23 @@ for (const theme of ["light", "dark"] as const) {
       expect(new URL(page.url()).searchParams.get("pubs")).toBe(SOHO_FOUR_ORDER);
     }
 
-    // Identity checks use the painted-pin probe, never guessed canvas taps.
+    // Route stops are excluded from the ordinary price-pin probe. Project
+    // each fixed stop, then require the real click trace to hit its route disc.
     for (const viewport of SOHO_VIEWPORTS) {
       await page.setViewportSize({ width: viewport.width, height: viewport.height });
       for (const pub of SOHO_FOUR_PUBS) {
         await page.getByRole("button", { name: /^(?:Recenter route|Show whole walk)$/ }).click();
         await expect.poll(async () => (await readMap())?.ready).toBe(true);
-        const point = await page.evaluate((id) => (window as SohoProbeWindow)
-          .__pubmaxPaintedMapTapPoints?.().find((pin) => pin.kind === "pin" && pin.id === id) ?? null, pub.id);
-        expect(point, `${pub.id} has a painted point for this single trusted tap`).not.toBeNull();
+        const point = await page.evaluate((pub) => {
+          const view = window as SohoProbeWindow;
+          view.__pubmaxPaintedMapTapPoints?.trace?.start();
+          return view.__pubmaxMapCamera?.project([pub.lng, pub.lat]) ?? null;
+        }, pub);
+        expect(point, `${pub.id} has a projected route stop`).not.toBeNull();
         await page.mouse.click(point!.x, point!.y);
+        const hits = await page.evaluate(() => (window as SohoProbeWindow)
+          .__pubmaxPaintedMapTapPoints?.trace?.read().clicks.at(-1)?.hits ?? []);
+        expect(hits).toContainEqual({ layer: "route-stops", venueId: pub.id });
         await expect.poll(() => new URL(page.url()).searchParams.get("sel")).toBe(pub.id);
         const address = page.locator(".venueAddress:visible");
         await expect(address).toHaveCount(1);
