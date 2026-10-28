@@ -82,8 +82,8 @@ export function isOnPermittedSourceHost(source, url) {
  * Build a fetch bound to one ALLOWED policy row.
  *
  * Every call: the URL must be on the row's host and pass the fence, and the
- * host's robots.txt (read by `createRobotsChecker`, once per host per run) must
- * permit the path. Redirects are followed by hand, and each `Location` is put
+ * host's robots.txt must permit the path. See `createRobotsChecker` for the
+ * cache contract. Redirects are followed by hand, and each `Location` is put
  * to the same two questions BEFORE it is requested, so a refused hop is never
  * sent. A failure of any of them throws `HarvestRefusal`.
  */

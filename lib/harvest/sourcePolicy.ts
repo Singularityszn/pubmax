@@ -888,9 +888,9 @@ function underRefusedHost(hostname: string): boolean {
  * What a crawl lane may do with the page a redirect chain LANDED on.
  *
  * A redirect lets the host, not us, choose the last hop, so the permission we
- * asked about is not necessarily the permission we spent. The lanes ask each
- * hop before it is sent (`lib/harvest/redirectChain.ts`) and read the final
- * response with this rule, in one place, so they cannot drift.
+ * asked about is not necessarily the permission we spent. Callers that use
+ * `fetchFollowingPermittedRedirects` check each hop before its request.
+ * This rule checks the final response independently.
  *
  * `refused` means the chain left the allow-list and the page is not ours to
  * read. `redirected` means it stayed inside and the row's provenance should
