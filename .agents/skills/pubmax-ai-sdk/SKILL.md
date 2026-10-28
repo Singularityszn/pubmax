@@ -1,6 +1,6 @@
 ---
 name: pubmax-ai-sdk
-description: PubMaxxing's conventions for model calls, covering the Vercel AI SDK (`ai` v7 with AI Gateway), direct OpenRouter calls, TypeSafe, and TanStack AI migration guidance. Use when adding or changing server code that calls a model, a paid model lane, or model tracing in this repo.
+description: PubMaxxing's conventions for model calls, covering the Vercel AI SDK (`ai` v7 with AI Gateway), direct OpenRouter calls, and TypeSafe. Use for TanStack AI API or migration work, or when changing server model calls, paid model lanes, or model tracing.
 ---
 
 # Model calls in PubMaxxing
@@ -9,7 +9,9 @@ This repo calls models three ways, and every call runs on the server. The other 
 
 ## TanStack AI guidance
 
-The app does not currently use TanStack AI. Do not add TanStack packages or migrate an existing path unless the task asks for that runtime change. For TanStack API and migration work, first read the user-level `tanstack-ai` or `tanstack-ai-migration` skill in `~/.agents/skills/`. Follow the installed package's own skill and docs. Do not write TanStack APIs from memory.
+The app does not currently use TanStack AI. Unless the task requests a runtime change, do not add TanStack packages or migrate an existing path.
+
+For TanStack API work, first read `~/.agents/skills/tanstack-ai/SKILL.md`. For migration work, first read `~/.agents/skills/tanstack-ai-migration/SKILL.md`. Follow the installed package's own skill and docs. Do not write TanStack APIs from memory.
 
 If a migration is requested, preserve the controls in this skill. Port one model path at a time. Keep keyless behavior, paid-spend limits, timeouts, deterministic fallbacks, privacy rules, and tracing. Update the tests and this skill when a path changes. Keep TypeSafe's typed judgments unless the task explicitly replaces them.
 
@@ -50,7 +52,6 @@ Do not assume that an existing path has a control. Check this table and the code
 
 - Model tracing loads only in the Node runtime, from `instrumentation.node.ts`. Do not import an OpenTelemetry package in code that the proxy or the edge runtime can reach.
 - The app runs with no model keys. Each feature must still answer without them.
-- The TanStack AI skills describe upstream APIs. They do not replace this repo's paid-spend, privacy, keyless-runtime, or fallback rules.
 
 ## Proof
 
