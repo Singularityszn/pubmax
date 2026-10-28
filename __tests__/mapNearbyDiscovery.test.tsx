@@ -4,7 +4,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import MapNearbyDiscovery from "@/components/map/MapNearbyDiscovery";
 import { DEFAULT_NIGHT_PROFILE_INPUT } from "@/lib/nightProfile";
 import { initialFilters } from "@/lib/venues";
-import { nearbyVenue } from "./helpers/mapNearbyFixtures";
+import { nearbyPriceRow, nearbyVenue } from "./helpers/mapNearbyFixtures";
 
 const { useAccount } = vi.hoisted(() => ({ useAccount: vi.fn() }));
 vi.mock("@/lib/useMapNearbyProfile", () => ({ useMapNearbyProfile: useAccount }));
@@ -70,4 +70,14 @@ it("lets the map sheet own the only heading", () => {
   render(<MapNearbyDiscovery {...baseProps} titledByHost />);
   expect(screen.queryByRole("heading", { name: "Near you" })).toBeNull();
   expect(screen.getByText("Near you")).toBeTruthy();
+});
+
+
+it("keeps the current favourite pint ahead of a saved different drink", () => {
+  useAccount.mockReturnValue({ profile: { ...DEFAULT_NIGHT_PROFILE_INPUT, context: { ...DEFAULT_NIGHT_PROFILE_INPUT.context, drinkCategory: "gin" } }, status: "ready" });
+  const venue = nearbyVenue({ prices: [nearbyPriceRow({ pint_name: "Amstel", price_gbp: 3 }), nearbyPriceRow()], cheapestPrice: 3, cheapestPint: "Amstel" });
+  render(<MapNearbyDiscovery {...baseProps} venues={[venue]} favoritePint="guinness" />);
+  expect(screen.getByText("Guinness · pint")).toBeTruthy();
+  expect(screen.queryByText("Amstel · pint")).toBeNull();
+  expect(screen.queryByRole("button", { name: "Use saved preferences" })).toBeNull();
 });

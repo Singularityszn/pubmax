@@ -89,3 +89,21 @@ describe("slim recorded serving sizes", () => {
     expect(mapNearbyPriceForVenue(venue, initialFilters)?.measureLabel).toBe(label.endsWith("330ml") ? "330ml" : "half pint");
   });
 });
+
+describe("current favourite pint", () => {
+  it("selects the Guinness row rather than a cheaper Amstel row", () => {
+    const venue = nearbyVenue({ prices: [nearbyPriceRow({ pint_name: "Amstel", price_gbp: 3 }), nearbyPriceRow()], cheapestPrice: 3, cheapestPint: "Amstel" });
+    expect(mapNearbyPriceForVenue(venue, initialFilters, null, "guinness")).toMatchObject({ drinkLabel: "Guinness", priceGbp: 4.5 });
+  });
+
+  it("matches a slim summary through the canonical beer identifier", () => {
+    const venue = nearbyVenue({ prices: [], cheapestPint: "BEVERTOWN NECK OIL" });
+    expect(mapNearbyPriceForVenue(venue, initialFilters, null, "neck-oil")?.drinkLabel).toBe("BEVERTOWN NECK OIL");
+    expect(mapNearbyPriceForVenue(venue, initialFilters, null, "guinness")).toBeNull();
+  });
+
+  it("refuses unknown identifiers and does not use a generic category report", () => {
+    expect(mapNearbyPriceForVenue(nearbyVenue(), initialFilters, null, "unknown-beer")).toBeNull();
+    expect(mapNearbyPriceForVenue(nearbyVenue({ prices: [], cheapestPrice: null }), initialFilters, lens({ category: "beer" }), "guinness")).toBeNull();
+  });
+});

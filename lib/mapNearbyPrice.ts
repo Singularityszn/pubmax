@@ -1,3 +1,4 @@
+import { BEERS, normalizeBeer } from "@/lib/beers";
 import { findBrand, haystackMatchesBrand } from "@/lib/drinkBrands";
 import { selectDrinkBrandPriceForVenue } from "@/lib/drinkBrandLanding";
 import { drinkCategoryFromText } from "@/lib/drinkCategoryFromText";
@@ -32,9 +33,12 @@ export function mapNearbyPriceForVenue(
   venue: Venue,
   filters: Filters,
   lensPrices: ReadonlyMap<string, MapLensPrice> | null = null,
+  favoritePint: string | null = null,
 ): NearbyPrice | null {
   const category = selectedCategory(filters);
   if (filters.drinkCategory && !category) return null;
+  const favorite = category === "beer" && favoritePint ? favoritePint : null;
+  if (favorite && !BEERS.some((beer) => beer.id === favorite)) return null;
   const brand = filters.drinkBrand ? findBrand(filters.drinkBrand) : null;
   const subtype = filters.drinkSubtype ? parseDrinkSubtypeParam(filters.drinkSubtype, category) : null;
   if ((filters.drinkBrand && !brand) || (filters.drinkSubtype && !subtype)) return null;
@@ -42,7 +46,8 @@ export function mapNearbyPriceForVenue(
   const categoryMatches = (value: DrinkCategory) => category
     ? value === category
     : filters.requireNonAlcoholic && (value === "alcohol-free" || value === "soft-drink");
-  const labelMatches = (label: string) => (!brand || haystackMatchesBrand(label, brand.brand))
+  const labelMatches = (label: string) => (!favorite || normalizeBeer(label) === favorite)
+    && (!brand || haystackMatchesBrand(label, brand.brand))
     && (!subtype || drinkSubtypeMembers(subtype).some((member) => drinkLabelMatchesSubtype(label, member)))
     && (!filters.topShelfOnly || haystackIsTopShelf(label));
   const candidates: NearbyPrice[] = [];
@@ -88,7 +93,7 @@ export function mapNearbyPriceForVenue(
     });
   }
   const lens = lensPrices?.get(venue.id);
-  if (!brand && !subtype && !filters.topShelfOnly && lens?.venueId === venue.id && lens.category
+  if (!favorite && !brand && !subtype && !filters.topShelfOnly && lens?.venueId === venue.id && lens.category
     && categoryMatches(lens.category) && positivePrice(lens.priceGbp)) {
     const submittedDate = typeof lens.submittedAt === "number" ? new Date(lens.submittedAt) : null;
     const observedAt = lens.observedAt ?? (submittedDate && Number.isFinite(submittedDate.getTime())
