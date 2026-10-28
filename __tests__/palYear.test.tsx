@@ -3,6 +3,8 @@ import { act, createElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+vi.mock("@/lib/authClient", () => ({ getAccessToken: async () => "owner-token" }));
+
 const viewer = vi.hoisted(() => ({ handle: null as string | null }));
 vi.mock("@/components/auth/useViewerHandle", () => ({ useViewerHandle: () => viewer.handle }));
 
@@ -167,6 +169,10 @@ describe("the year on /pal", () => {
       "Our first night was 20 February, starting at The Crown.",
       "You have mapped 4 prices so far. Every one helps the next person.",
     ]);
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/api/pint-drops/stats?handle=ripley-fan",
+      expect.objectContaining({ headers: { authorization: "Bearer owner-token" } }),
+    );
     expect(host.querySelector(".palYearNote")?.textContent).toBe("Read from this device and your own mapped prices. Only you see it.");
   });
 });

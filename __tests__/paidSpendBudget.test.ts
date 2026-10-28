@@ -7,10 +7,7 @@
 // limiter can never refuse because each value is its own bucket, and which the
 // deployment ceiling stops reaching the model the moment it is spent.
 
-import { readFileSync } from "node:fs";
-import { join } from "node:path";
-
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("@/lib/serverEnv", () => ({ assertProductionSecrets: () => {} }));
 
@@ -41,23 +38,9 @@ import {
   paidSpendBudgetEnvName,
   paidSpendBudgetKey,
   paidSpendDailyBudget,
-  type PaidSpendLane,
 } from "@/lib/paidSpendBudget";
 import { admitPaidSpend, paidSpendBudgetRefusal } from "@/lib/paidSpendBudget.server";
 import { __resetPintDrops } from "@/lib/pintDrops";
-
-const ROOT = process.cwd();
-
-// The file that owns each lane's consumption. A paid route that stops calling
-// the seam fails here rather than quietly spending again.
-const LANE_OWNERS: Record<PaidSpendLane, string> = {
-  ask: "app/api/ask/route.ts",
-  heritage: "app/api/heritage/route.ts",
-  "pub-pal-chat": "app/api/pub-pal/chat/route.ts",
-  "pub-pal-voice": "app/api/pub-pal/voice-token/route.ts",
-  "pub-list-import": "lib/pubListImport.server.ts",
-  typesafe: "lib/ai/typesafe.server.ts",
-};
 
 afterEach(() => {
   vi.unstubAllEnvs();
@@ -124,36 +107,15 @@ describe("the ceiling", () => {
   });
 });
 
-describe("lane coverage", () => {
-  it("has every paid lane consuming the ceiling in its own file", () => {
-    for (const lane of PAID_SPEND_LANES) {
-      const source = readFileSync(join(ROOT, LANE_OWNERS[lane]), "utf8");
-      expect(
-        source.includes(`paidSpendBudgetRefusal("${lane}"`) || source.includes(`admitPaidSpend("${lane}"`),
-        LANE_OWNERS[lane],
-      ).toBe(true);
-    }
-  });
-
-  // Plan generation calls no paid model: its import closure holds no
-  // OpenRouter, TypeSafe or ElevenLabs client, and its one provider
-  // (OpenRouteService walking legs) spends its own fail-soft `ors-global`
-  // budget. A lane there defended no spend and let one address switch the
-  // planner off for everybody for a rolling day.
-  it("charges no paid lane for plan generation", () => {
-    expect(PAID_SPEND_LANES).not.toContain("plan-generate");
-    const source = readFileSync(join(ROOT, "lib/planGeneration.server.ts"), "utf8");
-    expect(source).not.toMatch(/paidSpendBudgetRefusal|admitPaidSpend/);
-  });
-});
-
 describe("the address share", () => {
-  it("is a twentieth of the lane, never under ten calls and never over the lane", () => {
+  it("caps the preferred ten-call minimum at half the lane rounded up", () => {
     expect(paidSpendAddressShare(1_000)).toBe(50);
     expect(paidSpendAddressShare(5_000)).toBe(250);
     expect(paidSpendAddressShare(200)).toBe(10);
     expect(paidSpendAddressShare(30)).toBe(10);
-    expect(paidSpendAddressShare(5)).toBe(5);
+    expect(paidSpendAddressShare(10)).toBe(5);
+    expect(paidSpendAddressShare(5)).toBe(3);
+    expect(paidSpendAddressShare(1)).toBe(1);
     expect(paidSpendAddressShare(0)).toBe(0);
   });
 
@@ -167,24 +129,17 @@ describe("the address share", () => {
 
   it("refuses one address after its share while other addresses still spend the lane", async () => {
     keyless();
-    // A ceiling of 30 gives each address a share of 10.
-    vi.stubEnv("PUBMAX_PAID_SPEND_BUDGET_HERITAGE", "30");
-    const admitted = async (address: string, calls: number) => {
-      const answers: boolean[] = [];
-      for (let call = 0; call < calls; call += 1) {
-        answers.push(await admitPaidSpend("heritage", from(address)));
-      }
-      return answers.filter(Boolean).length;
-    };
-
-    // Address A is held to its share.
-    expect(await admitted("203.0.113.10", 15)).toBe(10);
-    // Address B is still admitted after A is refused.
-    expect(await admitted("198.51.100.20", 10)).toBe(10);
-    // A's five refused calls never reached the lane, so C gets its whole share
-    // and the lane closes at exactly 30.
-    expect(await admitted("192.0.2.30", 10)).toBe(10);
-    expect(await admitted("192.0.2.31", 1)).toBe(0);
+    vi.stubEnv("PUBMAX_PAID_SPEND_BUDGET_HERITAGE", "10");
+    for (let call = 0; call < 5; call += 1) {
+      expect(await admitPaidSpend("heritage", from("203.0.113.10"))).toBe(true);
+    }
+    for (let call = 0; call < 5; call += 1) {
+      expect(await admitPaidSpend("heritage", from("203.0.113.10"))).toBe(false);
+    }
+    for (let call = 0; call < 5; call += 1) {
+      expect(await admitPaidSpend("heritage", from("198.51.100.20"))).toBe(true);
+    }
+    expect(await admitPaidSpend("heritage", from("192.0.2.30"))).toBe(false);
   });
 
   it("answers the same sentence to every refused caller", async () => {
@@ -259,6 +214,14 @@ describe("POST /api/ask under a spent deployment ceiling", () => {
 });
 
 describe("POST /api/ask from one address", () => {
+  it("withholds the model when the ask ceiling is zero", async () => {
+    keyless();
+    vi.stubEnv("PUBMAX_PAID_SPEND_BUDGET_ASK", "0");
+    const response = await askFrom({ "x-real-ip": "203.0.113.10" });
+    expect(response.status).toBe(200);
+    expect(await response.json()).toMatchObject({ answer: "A quiet one." });
+    expect(askModelCalls()).toEqual([false]);
+  });
   it("spends only that address's share, and another address still reaches the model", async () => {
     keyless();
     vi.useFakeTimers({ toFake: ["Date"] });

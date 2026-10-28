@@ -6,16 +6,11 @@ vi.mock("@/lib/authServer", () => ({
 
 // A retired alias (a renamed account's previous handle) lives only in the alias
 // ledger, and the memory rename does not move a profiles row, so the alias
-// state is set here. `aliases` maps a handle to the account whose alias it is.
+// state is set here. `aliases` maps each handle to its profile id.
 const identity = vi.hoisted(() => ({ aliases: new Map<string, string>() }));
 vi.mock("@/lib/identityHandleStore", () => ({
   identityHandleStore: () => ({
-    availability: async (handle: string) =>
-      identity.aliases.has(handle)
-        ? { handle, available: false, reason: "taken" }
-        : { handle, available: true },
-    ownedHandle: async (ownerId: string, handles: readonly string[]) =>
-      handles.find((handle) => identity.aliases.get(handle) === ownerId) ?? null,
+    aliasProfileId: async (handle: string) => identity.aliases.get(handle) ?? null,
   }),
 }));
 
@@ -177,7 +172,7 @@ describe("gateHandleAction on a reserved handle", () => {
 
   it.each(METHODS)("answers 409 to a stranger on a retired alias (%s)", async (method) => {
     identity.aliases.set("old_name", "user-renamed");
-    for (const caller of [null, "user-other"]) {
+    for (const caller of [null, "user-other", "user-renamed"]) {
       mockedCaller.mockResolvedValue(caller);
       const gate = await gateHandleAction(req({ method }), "old_name");
       expect(gate).toEqual({ allowed: false, status: 409, error: "That handle is not available." });
@@ -185,9 +180,12 @@ describe("gateHandleAction on a reserved handle", () => {
     expect(await memoryProfileStore.getByHandle("old_name")).toBeNull();
   });
 
-  it("leaves the alias owner's own answer as it was", async () => {
-    identity.aliases.set("old_name", "user-renamed");
-    mockedCaller.mockResolvedValue("user-renamed");
-    expect(await gateHandleAction(req(), "old_name")).toMatchObject({ allowed: true });
+  it.each(METHODS)("refuses an existing unowned alias collision (%s)", async (method) => {
+    __seedMemoryLegacyProfile("old_name");
+    identity.aliases.set("old_name", "another-profile");
+    expect(await gateHandleAction(req({ method }), "old_name")).toMatchObject({
+      allowed: false, status: 409,
+    });
+    expect(await memoryProfileStore.getByHandle("old_name")).not.toBeNull();
   });
 });

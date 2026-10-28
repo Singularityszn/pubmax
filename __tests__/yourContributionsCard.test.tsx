@@ -7,7 +7,10 @@ import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import YourContributionsCard from "@/components/profile/YourContributionsCard";
+import { clearSurfaceCache } from "@/lib/surfaceDataCache";
 import type { ContributionSummary } from "@/lib/pintContributions";
+
+vi.mock("@/lib/authClient", () => ({ getAccessToken: async () => "owner-token" }));
 
 vi.mock("next/link", () => ({
   default: ({
@@ -46,6 +49,7 @@ function mountCard(claimNudge = false): Promise<void> {
 }
 
 beforeEach(() => {
+  clearSurfaceCache();
   (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
   vi.stubGlobal(
     "fetch",
@@ -77,6 +81,14 @@ describe("the You card counts what you mapped, never days running", () => {
     expect(host.textContent).not.toContain("1-day mapping");
     expect(host.querySelector(".contribStreak")).toBeNull();
     expect(host.querySelector(".contribStreakLabel")).toBeNull();
+  });
+
+  it("sends the bearer for the owner's private contribution counts", async () => {
+    await mountCard();
+    expect(fetch).toHaveBeenCalledWith(
+      expect.stringContaining("/api/pint-drops/stats?handle="),
+      expect.objectContaining({ headers: { authorization: "Bearer owner-token" } }),
+    );
   });
 
   it("keeps the counts the card is for", async () => {

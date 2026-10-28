@@ -221,13 +221,33 @@ describe.skipIf(skipReason !== null)("the anonymous demo lane on a reserved hand
 });
 
 describe.skipIf(skipReason !== null)("0197 reserves an alias against every other profile row", () => {
-  it("reproduces the fault: before 0197 a bare insert takes a retired alias", () => {
+  it("refuses writes while a pre-migration alias collision still exists", async () => {
     sql(`insert into public.profiles(handle) values ('${RETIRED_ALIAS}');`);
+    db().sqlFile(FORWARD);
+    const beforeName = sql(`select coalesce(display_name, '') from public.profiles where handle = '${RETIRED_ALIAS}';`);
+    const before = sql("select count(*) from public.crawl_stories;");
+    const responses = [
+      await routes.PATCH(
+        anonymous(`http://localhost/api/profiles/${RETIRED_ALIAS}`, "PATCH", { displayName: "Squatter" }),
+        handleParams(RETIRED_ALIAS),
+      ),
+      await routes.DELETE(
+        anonymous(`http://localhost/api/profiles/${RETIRED_ALIAS}`, "DELETE"),
+        handleParams(RETIRED_ALIAS),
+      ),
+      await routes.CRAWL(anonymous("http://localhost/api/crawls", "POST", {
+        title: "A reserved name", stops: [{ venueId: PUB }], authorHandle: RETIRED_ALIAS,
+      })),
+    ];
+    expect(responses.map((response) => response.status)).toEqual([409, 409, 409]);
+    await expect(profiles.ensure(RETIRED_ALIAS)).rejects.toThrow(/not available/);
+    expect(sql(`select count(*) from public.profiles where handle = '${RETIRED_ALIAS}';`)).toBe("1");
+    expect(sql(`select coalesce(display_name, '') from public.profiles where handle = '${RETIRED_ALIAS}';`)).toBe(beforeName);
+    expect(sql("select count(*) from public.crawl_stories;")).toBe(before);
     sql(`delete from public.profiles where handle = '${RETIRED_ALIAS}';`);
   });
 
   it("refuses an insert or a handle change onto another profile's alias", () => {
-    db().sqlFile(FORWARD);
     expect(refusal(`insert into public.profiles(handle) values ('${RETIRED_ALIAS}');`))
       .toMatch(/held by another profile/);
     expect(refusal(`insert into public.profiles(handle) values ('${CURRENT_HANDLE.toUpperCase()}');`))

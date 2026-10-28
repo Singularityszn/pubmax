@@ -163,6 +163,18 @@ describe("Pub Pal voice token route", () => {
     expect(voiceState.rpc).not.toHaveBeenCalled();
   });
 
+  it("refuses a zero lane ceiling before calling the voice provider", async () => {
+    vi.stubEnv("PUBMAX_PAID_SPEND_BUDGET_PUB_PAL_VOICE", "0");
+    voiceState.configured = false;
+    const providerFetch = vi.fn();
+    vi.stubGlobal("fetch", providerFetch);
+    const response = await POST(issueRequest());
+    expect(response.status).toBe(429);
+    expect(await response.json()).toMatchObject({ code: "DAILY_BUDGET_SPENT" });
+    expect(providerFetch).not.toHaveBeenCalled();
+    expect(voiceState.rpc).not.toHaveBeenCalled();
+  });
+
   it("spends the deployment ceiling after the allowance and hands the reservation back on refusal", async () => {
     voiceState.ceilingSpent = true;
     voiceState.rpc.mockImplementation(async (name: string) => {

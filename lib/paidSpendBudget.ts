@@ -114,18 +114,18 @@ export function paidSpendBudgetKey(lane: PaidSpendLane): string {
 
 /** One address may spend a twentieth of a lane in the same rolling window. */
 const PAID_SPEND_ADDRESS_SHARE_DIVISOR = 20;
-/** A small lane still lets one address make this many calls. */
+/** The preferred minimum, bounded by half the lane rounded up. */
 const PAID_SPEND_ADDRESS_SHARE_MINIMUM = 10;
 
 /**
  * The calls one caller address may spend from a lane whose ceiling is
- * `budget`: a twentieth of the lane, never fewer than ten calls, and never
- * more than the lane itself. A closed lane gives no share.
+ * `budget`: a twentieth of the lane with a preferred minimum of ten calls,
+ * capped at half the lane rounded up. A closed lane gives no share.
  */
 export function paidSpendAddressShare(budget: number): number {
   if (budget <= 0) return 0;
   return Math.min(
-    budget,
+    Math.ceil(budget / 2),
     Math.max(PAID_SPEND_ADDRESS_SHARE_MINIMUM, Math.ceil(budget / PAID_SPEND_ADDRESS_SHARE_DIVISOR)),
   );
 }

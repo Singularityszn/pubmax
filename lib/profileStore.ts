@@ -950,17 +950,12 @@ export const supabaseProfileStore: ProfileStore = {
     const key = normalizeHandle(handle);
     if (!key) throw new Error("A profile needs a non-empty handle.");
     const existing = await this.getByHandle(key);
+    const { supabaseIdentityHandleStore } = await import("@/lib/identityHandleStore");
+    const aliasProfileId = await supabaseIdentityHandleStore.aliasProfileId(key);
+    if (aliasProfileId && aliasProfileId !== existing?.id) {
+      throw new Error("That handle is not available.");
+    }
     if (existing) return existing;
-    // A retired alias has no profiles row, only an alias row. Minting one here
-    // would put a second, unowned profile under a renamed account's old name.
-    // Migration 0197 refuses the same insert in the database.
-    const { data: aliases, error: aliasError } = await admin()
-      .from("profile_handle_aliases")
-      .select("profile_id")
-      .eq("handle", key)
-      .limit(1);
-    if (aliasError) throw new Error(aliasError.message);
-    if ((aliases ?? []).length > 0) throw new Error("That handle is not available.");
 
     const { data, error } = await admin()
       .from(TABLE)
@@ -1371,6 +1366,11 @@ export const memoryProfileStore: ProfileStore = {
     const key = normalizeHandle(handle);
     if (!key) throw new Error("A profile needs a non-empty handle.");
     const existing = memoryProfiles.get(key);
+    const { memoryIdentityHandleStore } = await import("@/lib/identityHandleStore");
+    const aliasProfileId = await memoryIdentityHandleStore.aliasProfileId(key);
+    if (aliasProfileId && aliasProfileId !== existing?.id) {
+      throw new Error("That handle is not available.");
+    }
     if (existing) return existing;
     const now = new Date().toISOString();
     const record: ProfileRecord = {

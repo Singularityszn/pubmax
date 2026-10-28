@@ -11,8 +11,7 @@
 // Rules:
 //   • A RESERVED handle opens no lane. A deleted account's tombstone answers 404
 //     to every caller, and a retired alias (a renamed account's previous
-//     handle, held only in the alias ledger) answers 409 to everybody but its
-//     own account, exactly as the claim and rename doors already refuse them.
+//     handle, held only in the alias ledger) answers 409 to every caller.
 //   • An existing unlinked legacy profile is frozen against account ownership.
 //     It keeps the anonymous demo path, but an authenticated write cannot claim
 //     it. A genuinely new handle can still be created and linked. That demo path
@@ -46,18 +45,6 @@ const NOT_OWNER_ERROR =
   "This handle belongs to a signed-in account. Sign in as its owner to continue.";
 
 const HANDLE_NOT_AVAILABLE_ERROR = "That handle is not available.";
-
-/**
- * A handle with no profiles row that the alias ledger still holds is a retired
- * alias: the previous handle of a renamed account. Only that account may keep
- * the answer it had before; everybody else meets the claim door's refusal.
- */
-async function isAliasHeldFromCaller(handle: string, caller: string | null): Promise<boolean> {
-  const identities = identityHandleStore();
-  if ((await identities.availability(handle)).available) return false;
-  if (!caller) return true;
-  return (await identities.ownedHandle(caller, [handle])) !== handle;
-}
 
 export type HandleActionOptions = {
   /**
@@ -199,9 +186,10 @@ export async function gateHandleAction(
         };
       }
     }
-    // A retired alias has no profiles row, so it used to read as a handle nobody
-    // holds and opened the demo lane under a renamed account's old name.
-    if (!existing && (await isAliasHeldFromCaller(key, caller))) {
+    const aliasProfileId = !rowUserId
+      ? await identityHandleStore().aliasProfileId(key)
+      : null;
+    if (aliasProfileId && aliasProfileId !== existing?.id) {
       return {
         allowed: false,
         status: 409,

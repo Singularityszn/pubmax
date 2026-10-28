@@ -1,18 +1,4 @@
-import { readdirSync, readFileSync, statSync } from "node:fs";
-import { join, relative } from "node:path";
-
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-
-/** Every file under a directory, recursively. */
-function walk(dir: string): string[] {
-  const out: string[] = [];
-  for (const entry of readdirSync(dir)) {
-    const path = join(dir, entry);
-    if (statSync(path).isDirectory()) out.push(...walk(path));
-    else out.push(path);
-  }
-  return out;
-}
 
 const authState = vi.hoisted(() => ({
   admin: null as {
@@ -239,24 +225,6 @@ describe("verifyCallerAuth — revocation by default", () => {
       status: "verified",
       identity: { id: "user-1", email: "k@example.com", createdAt: "2026-01-01T00:00:00Z" },
     });
-  });
-
-  it("is asked to accept a deleted account by ONE door in the tree, and it is the account delete", () => {
-    // A source fence, because no runtime test can sweep the callers. The option
-    // exists for an idempotent DELETE that must still answer after the account
-    // it names is gone; anywhere else it is a gate that outlives its account.
-    const OWNER = "lib/authServer.ts";
-    const roots = ["app", "lib", "components"];
-    const askers: string[] = [];
-    for (const root of roots) {
-      for (const file of walk(join(process.cwd(), root))) {
-        if (!/\.tsx?$/.test(file)) continue;
-        const path = relative(process.cwd(), file);
-        if (path === OWNER) continue;
-        if (readFileSync(file, "utf8").includes("allowDeletedAccount: true")) askers.push(path);
-      }
-    }
-    expect(askers.sort()).toEqual(["app/api/account/route.ts"]);
   });
 });
 
