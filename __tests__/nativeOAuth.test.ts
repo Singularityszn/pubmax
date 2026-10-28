@@ -1,5 +1,7 @@
+// @vitest-environment jsdom
 import { afterEach, describe, expect, it, vi } from "vitest";
 
+import { beginAuthAttempt } from "@/lib/authRedirect";
 import { activateNativeDeepLinks } from "@/lib/nativeDeepLinks";
 import {
   closeSystemBrowser,
@@ -110,8 +112,18 @@ describe("the callback closes the system browser", () => {
     await Promise.resolve();
     expect(browser.close).not.toHaveBeenCalled();
 
-    open!({ url: "https://pubmaxxing.com/auth/callback?code=abc" });
-    await vi.waitFor(() => expect(navigate).toHaveBeenLastCalledWith("/auth/callback?code=abc"));
+    // The return is admitted only for the attempt this device started.
+    localStorage.clear();
+    const started = beginAuthAttempt("https://pubmaxxing.com/map", undefined, {
+      persistentStorage: localStorage,
+      tabStorage: sessionStorage,
+      cryptoProvider: crypto,
+    });
+    if (!started.ok) throw new Error(started.message);
+    open!({ url: `https://pubmaxxing.com/auth/callback?_authAttempt=${started.id}&code=abc` });
+    await vi.waitFor(() =>
+      expect(navigate).toHaveBeenLastCalledWith(`/auth/callback?_authAttempt=${started.id}&code=abc`),
+    );
     await vi.waitFor(() => expect(browser.close).toHaveBeenCalledOnce());
     cleanup();
   });
