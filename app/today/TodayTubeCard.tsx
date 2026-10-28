@@ -33,8 +33,14 @@ import "@/components/transport/disruptionLine.css";
 
 type DisruptionResponse = { disruption?: PatchDisruption | null };
 
-export default function TodayTubeCard({ slot }: { slot: DaySlot }) {
-  const [disruption, setDisruption] = useState<PatchDisruption | null>(null);
+export default function TodayTubeCard({
+  slot,
+  initialDisruption = null,
+}: {
+  slot: DaySlot;
+  initialDisruption?: PatchDisruption | null;
+}) {
+  const [disruption, setDisruption] = useState<PatchDisruption | null>(initialDisruption);
 
   useEffect(() => {
     const centre = rememberedAreaCentre(readRememberedArea());
