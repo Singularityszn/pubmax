@@ -90,6 +90,7 @@ the honest refusal for that route (401, 403, 400 or 409) and no change.
 | Unfurler (`/api/plan-card`) | PNG from the preview only | same | same | same |
 | List Night Memories (`GET /api/night-memories`) | 401 | own only | own only | n/a |
 | A's Moments (`GET /api/night-memories/[id]/moments`) | 401 | empty list | own rows | n/a |
+| A Story contributor's Moment in A's Memory, listed by A (`GET /api/night-memories/[id]/moments`) | n/a | n/a | absent: the list holds A's own Moments only, with no caption and no signed photo URL for the contributor's | n/a |
 | Add a Moment to A's Memory | 401 | denied | allowed | n/a |
 | Describe A's photo Moment (`PATCH alt-text`) | 401 | 403 | allowed | n/a |
 | `night_moments` at the table | denied | no rows, no writes | own rows, no writes | n/a |

@@ -18,6 +18,7 @@ import {
   getNightStory,
   getNightStoryWorkspace,
   getPublishedRecapSource,
+  listNightMoments,
   listNightStoryInbox,
   markContributorsDepartedByProfileId,
   proposeNightStoryPublication,
@@ -94,6 +95,23 @@ describe("collaborative Night Story storage", () => {
 
     await setMomentPublicationConsent("friend", story!.id, moment!.id, "withdrawn");
     expect((await getNightStory(story!.id, null))?.publishedMomentIds).toEqual([]);
+  });
+
+  it("keeps a contributor's unconsented Moment out of the host's Memory list", async () => {
+    // The workspace withholds it before consent; the Memory list is the same
+    // Moment through a second door and must not disclose it either.
+    const memory = await createNightMemory("host", { title: "Crew night" });
+    const own = await addNightMoment("host", memory!.id, { kind: "event", caption: "Host note" });
+    const contributed = await addNightMoment("friend", memory!.id, {
+      kind: "photo", caption: "FRIEND-PRIVATE-CAPTION rooftop at midnight",
+    }, { allowContributor: true, mediaObjectKey: `night-moments/friend/${memory!.id}/photo.webp` });
+    const story = await createNightStory("host", { memoryId: memory!.id, title: "Crew night" });
+    expect((await getNightStoryWorkspace("host", story!.id))?.moments.map((moment) => moment.id)).toEqual([own!.id]);
+
+    const listed = await listNightMoments("host", memory!.id);
+    expect(listed.map((moment) => moment.id)).toEqual([own!.id]);
+    expect(JSON.stringify(listed)).not.toContain("FRIEND-PRIVATE-CAPTION");
+    expect(contributed).not.toBeNull();
   });
 
   it("ships an atomic configured-backend draft authorization check", () => {

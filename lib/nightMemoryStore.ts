@@ -345,6 +345,11 @@ export async function addNightMoment(
   return error || !data ? null : momentFromRow(data as Record<string, unknown>);
 }
 
+/**
+ * The Memory owner's own Moments. A Story contributor's Moment also lives in
+ * this Memory, but it is theirs: the Story workspace shows it to the host only
+ * after consent, so this second door never lists it at all.
+ */
 export async function listNightMoments(
   ownerId: string,
   memoryId: string,
@@ -353,13 +358,14 @@ export async function listNightMoments(
   if (!memory || memory.ownerId !== ownerId) return [];
   if (!isSupabaseConfigured()) {
     return [...moments.values()]
-      .filter((moment) => moment.memoryId === memoryId)
+      .filter((moment) => moment.memoryId === memoryId && moment.ownerId === ownerId)
       .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
   }
   const { data, error } = await requireSupabaseAdmin()
     .from("night_moments")
     .select("*")
     .eq("memory_id", memoryId)
+    .eq("owner_id", ownerId)
     .order("created_at", { ascending: false });
   return error ? [] : (data ?? []).map((row) => momentFromRow(row as Record<string, unknown>));
 }
