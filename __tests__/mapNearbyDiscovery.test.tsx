@@ -65,3 +65,9 @@ describe("map nearby discovery", () => {
     expect(screen.getByRole("link", { name: "Choose another area" }).getAttribute("href")).toBe("/near");
   });
 });
+
+it("lets the map sheet own the only heading", () => {
+  render(<MapNearbyDiscovery {...baseProps} titledByHost />);
+  expect(screen.queryByRole("heading", { name: "Near you" })).toBeNull();
+  expect(screen.getByText("Near you")).toBeTruthy();
+});

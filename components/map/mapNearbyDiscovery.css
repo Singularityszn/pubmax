@@ -5,7 +5,8 @@
   color: var(--ink);
 }
 
-.mapNearbyDiscoveryHeader h2 {
+.mapNearbyDiscoveryHeader h2,
+.mapNearbyDiscoveryHeader .mapNearbyDiscoveryTitle {
   margin: 0;
   font-family: var(--font-display);
   font-size: var(--text-xl);

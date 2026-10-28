@@ -74,17 +74,16 @@ export function mapNearbyPriceForVenue(
       ...(drink.provenance.observedAt ? { observedAt: drink.provenance.observedAt } : {}),
     });
   }
-  // Slim and community-merged pint summaries retain their own price and named drink.
+  // A slim baseline retains its own named pint. A report summary has no independent drink identity.
   const summaryCategory = drinkCategoryFromText(venue.cheapestPint) ?? "beer";
   const community = venue.latestContributorPrice === venue.cheapestPrice;
-  if ((venue.prices.length === 0 || community) && summaryCategory === "beer" && categoryMatches(summaryCategory)
+  if (venue.prices.length === 0 && !community && summaryCategory === "beer" && categoryMatches(summaryCategory)
     && positivePrice(venue.cheapestPrice) && isLivePriceRow({ price_gbp: venue.cheapestPrice })
     && venue.cheapestPint.trim() && labelMatches(venue.cheapestPint)) {
     candidates.push({
       priceGbp: venue.cheapestPrice, drinkLabel: venue.cheapestPint, measureLabel: "pint",
       servingKnown: true, category: "beer",
-      ...(community ? { sourceLabel: "Drinker reports", observedAt: venue.latestContributorAt ?? undefined }
-        : { sourceLabel: venue.priceSource, observedAt: venue.priceObservedAt }),
+      sourceLabel: venue.priceSource, observedAt: venue.priceObservedAt,
     });
   }
   const lens = lensPrices?.get(venue.id);
