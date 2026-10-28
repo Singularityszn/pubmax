@@ -215,6 +215,7 @@ test("mobile drag-sheet traps focus at half and contains it at full (#17)", asyn
   // A fresh pick rests at the "half" snap on open (the class drives the CSS
   // transform). We assert the mounted-snap class the sheet actually opens with.
   await expect(sheet).toHaveClass(/sheet-half/);
+  await expect(sheet).toHaveAttribute("data-sheet-motion", "idle");
 
   // The detent is a full touch target and a keyboard-operable counterpart to
   // dragging the grabber.
@@ -245,6 +246,7 @@ test("mobile drag-sheet traps focus at half and contains it at full (#17)", asyn
 
   await detent.click();
   await expect(sheet).toHaveClass(/sheet-full/);
+  await expect(sheet).toHaveAttribute("data-sheet-motion", "idle");
   await expect(sheet).toHaveAttribute("role", "dialog");
   await expect(sheet).not.toHaveAttribute("aria-modal");
   await expect(page.locator("body > [inert]")).not.toHaveCount(0);
@@ -258,16 +260,39 @@ test("mobile drag-sheet traps focus at half and contains it at full (#17)", asyn
 
   await collapse.click();
   await expect(sheet).toHaveClass(/sheet-half/);
+  await expect(sheet).toHaveAttribute("data-sheet-motion", "idle");
   await expect(sheet).not.toHaveAttribute("aria-modal");
   await expect(page.locator("body > [inert]")).not.toHaveCount(0);
 
   await page.emulateMedia({ reducedMotion: "reduce" });
   await sheet.getByRole("button", { name: "Expand sheet" }).click();
   await expect(sheet).toHaveClass(/sheet-full/);
-  const reducedMotionHeight = await sheet.evaluate((node) =>
-    Number.parseFloat((node as HTMLElement).style.maxHeight),
-  );
-  expect(reducedMotionHeight).toBeCloseTo(844 * 0.92 - 64, 0);
+  await expect(sheet).toHaveAttribute("data-sheet-motion", "idle");
+  await expect(async () => {
+    const geometry = await sheet.evaluate((node) => {
+      const dock = document.querySelector(".mobileTabBar");
+      if (!dock) throw new Error("Primary dock is missing");
+      const box = node.getBoundingClientRect();
+      const dockBox = dock.getBoundingClientRect();
+      const dockHeight = Number.parseFloat(getComputedStyle(dock, "::before").height);
+      return {
+        top: box.top,
+        bottom: box.bottom,
+        height: box.height,
+        cap: Number.parseFloat((node as HTMLElement).style.maxHeight),
+        dockTop: dockBox.bottom - dockHeight,
+        dockHeight,
+        viewportHeight: window.innerHeight,
+      };
+    });
+    expect(geometry.dockHeight).toBeGreaterThan(0);
+    const fullCap = geometry.viewportHeight * 0.92 - geometry.dockHeight;
+    expect(geometry.cap).toBeCloseTo(fullCap, 0);
+    expect(geometry.height).toBeGreaterThan(0);
+    expect(geometry.height).toBeLessThanOrEqual(fullCap + 1);
+    expect(geometry.top).toBeGreaterThanOrEqual(0);
+    expect(Math.abs(geometry.bottom - geometry.dockTop)).toBeLessThan(2);
+  }).toPass({ timeout: 10_000 });
 
   expect(errors).toEqual([]);
 });
