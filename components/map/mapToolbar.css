@@ -662,7 +662,7 @@ html[data-theme="dark"] .drinkShapeChipLabel {
        The rem fallback reserves space before the client publishes its height. */
     --map-top-clearance: max(
       calc(171px + env(safe-area-inset-top, 0px)),
-      calc(var(--topbar-inset, 12px) + var(--site-nav-floating-height, calc(6rem + 44px)) + 12px)
+      calc(var(--topbar-inset) + var(--site-nav-floating-height, calc(6rem + 44px)) + 12px)
     );
     --map-overlay-top: calc(var(--map-top-clearance) + 58px);
     --map-toolbar-resting-height: 155px;
