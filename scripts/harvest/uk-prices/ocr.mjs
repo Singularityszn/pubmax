@@ -293,8 +293,8 @@ function pubsByHost() {
 }
 
 /**
- * One robots checker per run, shared by the host walk and by every redirect hop
- * a page fetch is asked to follow, so a host's robots.txt is read once.
+ * Share the robots cache between the host walk and redirect checks so both
+ * use the same permission decision for each origin during the run.
  */
 const robots = createRobotsChecker();
 
