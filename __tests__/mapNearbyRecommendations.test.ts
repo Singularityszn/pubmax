@@ -179,3 +179,11 @@ describe("current map style precedence", () => {
     expect(result.cards.map((card) => card.venue.id)).toEqual(["Cheap"]);
   });
 });
+
+it("lets the exact-price adapter own top-shelf matching instead of legacy venue hints", () => {
+  const result = rank([pub("Gin", 51.501, 3)], {
+    filters: { ...initialFilters, drinkCategory: "gin", topShelfOnly: true },
+    priceForVenue: () => ({ priceGbp: 6, drinkLabel: "Hendrick's gin", measureLabel: "25ml", servingKnown: true, category: "gin" }),
+  });
+  expect(result.cards[0]!.price.drinkLabel).toBe("Hendrick's gin");
+});

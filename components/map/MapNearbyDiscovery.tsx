@@ -24,6 +24,7 @@ export type MapNearbyDiscoveryProps = {
   venues: Venue[];
   filters: Filters;
   currentFilterKeys?: readonly (keyof Filters)[];
+  favoritePint?: string | null;
   location: { lat: number; lng: number };
   lensPrices: ReadonlyMap<string, MapLensPrice> | null;
   onSelectVenue: (id: string) => void;
@@ -81,7 +82,7 @@ function NearbyCard({ card, onSelectVenue }: { card: MapNearbyCard; onSelectVenu
 }
 
 export default function MapNearbyDiscovery({
-  cityId, venues, filters, currentFilterKeys, location, lensPrices, onSelectVenue, onApplyFilters,
+  cityId, venues, filters, currentFilterKeys, favoritePint = null, location, lensPrices, onSelectVenue, onApplyFilters,
   hasPintDrops, openNowState, wetherspoonsMatchedIds, titledByHost = false,
 }: MapNearbyDiscoveryProps) {
   const auth = useAuth();
@@ -90,7 +91,12 @@ export default function MapNearbyDiscovery({
     ? `${accountId}:${auth.accountRevision}` : null;
   const account = useMapNearbyProfile(ownerKey);
   const savedProfile = account.profile?.cityId === cityId ? account.profile : null;
-  const savedFilters = resolveMapNearbyFilters(filters, savedProfile, currentFilterKeys).filters;
+  const favoriteActive = Boolean(favoritePint) && !filters.requireNonAlcoholic
+    && (!filters.drinkCategory || filters.drinkCategory === "beer");
+  const currentKeys = useMemo<readonly (keyof Filters)[] | undefined>(() => favoriteActive
+    ? [...new Set<keyof Filters>([...(currentFilterKeys ?? []), "drinkCategory"])] : currentFilterKeys,
+  [favoriteActive, currentFilterKeys]);
+  const savedFilters = resolveMapNearbyFilters(filters, savedProfile, currentKeys).filters;
   const needsSavedDrinkAction = savedFilters.drinkCategory !== filters.drinkCategory
     || savedFilters.requireNonAlcoholic !== filters.requireNonAlcoholic;
   // A different saved drink needs its map lens first. Other saved constraints still apply.
@@ -99,10 +105,10 @@ export default function MapNearbyDiscovery({
     context: { ...savedProfile.context, drinkCategory: null, zeroProof: false },
   } : savedProfile, [savedProfile, needsSavedDrinkAction]);
   const answer = useMemo(() => rankMapNearbyRecommendations({
-    location, venues, filters, currentFilterKeys, savedProfile: activeProfile,
+    location, venues, filters, currentFilterKeys: currentKeys, savedProfile: activeProfile,
     hasPintDrops, openNowState, wetherspoonsMatchedIds,
-    priceForVenue: (venue, effectiveFilters) => mapNearbyPriceForVenue(venue, effectiveFilters, lensPrices),
-  }), [location, venues, filters, currentFilterKeys, activeProfile, lensPrices, hasPintDrops, openNowState, wetherspoonsMatchedIds]);
+    priceForVenue: (venue, effectiveFilters) => mapNearbyPriceForVenue(venue, effectiveFilters, lensPrices, favoriteActive ? favoritePint : null),
+  }), [location, venues, filters, currentKeys, activeProfile, lensPrices, favoriteActive, favoritePint, hasPintDrops, openNowState, wetherspoonsMatchedIds]);
   const pending = account.status === "loading" || auth.loading
     || auth.providerAuthState === "unresolved"
     || (auth.providerAuthState === "authenticated" && !auth.identityResolved);
