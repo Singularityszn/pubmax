@@ -141,6 +141,13 @@ describe("soft drinks menu harvest", () => {
       );
       expect(urls).toEqual(["https://www.theeaglew12.co.uk/menus/drinks.pdf"]);
     });
+
+    it("keeps a fallback PDF query without the Markdown closing parenthesis", async () => {
+      const urls = await fetchedPdfUrls(
+        "[Download](https://www.theeaglew12.co.uk/menus/drinks.pdf?rev=2)",
+      );
+      expect(urls).toEqual(["https://www.theeaglew12.co.uk/menus/drinks.pdf?rev=2"]);
+    });
   });
 
   it("classifies Coke Zero, Diet Coke and still water subtypes", () => {
