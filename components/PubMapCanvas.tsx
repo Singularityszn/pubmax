@@ -1359,7 +1359,7 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
     cameraLanePending,
     easeArrivalBearing,
     fitRoute,
-    fitResizedRoute,
+    fitOwnedRoute,
     fitCityBounds,
     fitQueryVenues,
     fitNearby,
@@ -4340,7 +4340,6 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
   useEffect(() => {
     if (!mapReady) return;
     if (routeCoordKey.split(";").length < 2) return;
-    const gestureAtRequest = gestureCameraRef.current.endedAt;
     const controller = new AbortController();
     const timeout = window.setTimeout(() => controller.abort(), 8000);
     fetch(`/api/walk-route?stops=${encodeURIComponent(routeCoordKey)}`, {
@@ -4356,8 +4355,7 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
         applyRouteData();
         // A pavement bend can extend beyond the stops. Fit the upgraded line
         // only while the reader has not taken the camera during this request.
-        if (!selectedIdRef.current && !gestureCameraRef.current.active
-          && gestureCameraRef.current.endedAt === gestureAtRequest) fitRoute();
+        if (!selectedIdRef.current) fitOwnedRoute();
         const stops = palWalkStopsFromKey(routeCoordKey);
         walkPals({ key: routeCoordKey, stops, path: palWalkPathFrom(body.line), road: true });
       })
@@ -4372,7 +4370,7 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
       window.clearTimeout(timeout);
       controller.abort();
     };
-  }, [routeCoordKey, mapReady, applyRouteData, walkPals, fitRoute]);
+  }, [routeCoordKey, mapReady, applyRouteData, walkPals, fitOwnedRoute]);
 
   // The Pal walks a crawl route of two or more stops (the road line takes over
   // above once routed), and goes to a stop the reader taps; with no crawl it
@@ -4500,11 +4498,11 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
       if (width === container.clientWidth && height === container.clientHeight) return;
       width = container.clientWidth;
       height = container.clientHeight;
-      if (!selectedIdRef.current) fitResizedRoute();
+      if (!selectedIdRef.current) fitOwnedRoute();
     };
     map.on("resize", refit);
     return () => { map.off("resize", refit); };
-  }, [mapReady, fitResizedRoute]);
+  }, [mapReady, fitOwnedRoute]);
 
   // Cinematic fly-to on venue selection (after the route framing above).
   // `selectedPresent` closes the ?sel= deep-link race: on first load the

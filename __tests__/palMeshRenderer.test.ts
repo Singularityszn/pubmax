@@ -2,6 +2,9 @@
 import { readFileSync } from "node:fs";
 import { act } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import * as THREE from "three";
+
+const graphics = vi.hoisted(() => ({ dispose: vi.fn(), loseContext: vi.fn(), disconnect: vi.fn() }));
 
 vi.mock("three", async (importOriginal) => {
   const actual = await importOriginal<typeof import("three")>();
@@ -10,8 +13,8 @@ vi.mock("three", async (importOriginal) => {
     setPixelRatio() {}
     setSize() {}
     render() {}
-    dispose() {}
-    forceContextLoss() {}
+    dispose = graphics.dispose;
+    forceContextLoss = graphics.loseContext;
   } };
 });
 
@@ -26,8 +29,9 @@ let textureFails = false;
 let fetchModel: ReturnType<typeof vi.fn>;
 
 beforeEach(() => {
+  vi.clearAllMocks();
   textureFails = false;
-  vi.stubGlobal("ResizeObserver", class { observe() {} disconnect() {} });
+  vi.stubGlobal("ResizeObserver", class { observe() {} disconnect = graphics.disconnect; });
   vi.stubGlobal("createImageBitmap", vi.fn());
   vi.spyOn(URL, "createObjectURL").mockReturnValue("blob:original-pal-texture");
   vi.spyOn(URL, "revokeObjectURL").mockImplementation(() => {});
@@ -46,6 +50,7 @@ afterEach(() => {
   surface = undefined;
   vi.restoreAllMocks();
   vi.unstubAllGlobals();
+  vi.useRealTimers();
   document.body.innerHTML = "";
 });
 
@@ -79,5 +84,57 @@ describe("the original mesh renderer", () => {
     expect(statuses).toContain("model-unavailable");
     expect(statuses).not.toContain("ready");
     expect(host.querySelector("canvas")).toBeNull();
+  });
+
+  it.each(["dispose", "deadline"] as const)("cancels a pending asset read on %s and ignores a late response", async (end) => {
+    vi.useFakeTimers();
+    let finish!: (response: { ok: boolean; arrayBuffer: () => Promise<ArrayBuffer> }) => void;
+    const pending = new Promise<{ ok: boolean; arrayBuffer: () => Promise<ArrayBuffer> }>(resolve => { finish = resolve; });
+    fetchModel.mockImplementation(() => pending);
+    const { host, statuses } = mount();
+    const signal = (fetchModel.mock.calls[0]![1] as RequestInit).signal!;
+    expect(signal.aborted).toBe(false);
+    expect(statuses).toEqual(["loading"]);
+    if (end === "deadline") {
+      await vi.advanceTimersByTimeAsync(9_999);
+      expect(signal.aborted).toBe(false);
+      await vi.advanceTimersByTimeAsync(1);
+      expect(statuses).toEqual(["loading", "model-unavailable"]);
+    } else {
+      surface!.dispose();
+      expect(statuses).toEqual(["loading"]);
+    }
+    expect(signal.aborted).toBe(true);
+    expect(host.querySelector("canvas")).toBeNull();
+    expect(graphics.disconnect).toHaveBeenCalledOnce();
+    expect(graphics.dispose).toHaveBeenCalledOnce();
+    expect(graphics.loseContext).toHaveBeenCalledOnce();
+    const readBytes = vi.fn(async () => bytes);
+    finish({ ok: true, arrayBuffer: readBytes });
+    await vi.runAllTimersAsync();
+    expect(statuses).not.toContain("ready");
+    expect(host.querySelector("canvas")).toBeNull();
+    expect(fetchModel).toHaveBeenCalledOnce();
+    surface!.dispose();
+    expect(graphics.dispose).toHaveBeenCalledOnce();
+  });
+
+  it("releases decoded geometry, materials and textures when the portrait leaves", async () => {
+    const geometryDisposed = vi.spyOn(THREE.BufferGeometry.prototype, "dispose");
+    const materialDisposed = vi.spyOn(THREE.Material.prototype, "dispose");
+    const textureDisposed = vi.spyOn(THREE.Texture.prototype, "dispose");
+    const { host, statuses } = mount();
+    await settle();
+    expect(statuses).toContain("ready");
+    surface!.dispose();
+    expect(geometryDisposed).toHaveBeenCalled();
+    expect(materialDisposed).toHaveBeenCalled();
+    expect(textureDisposed).toHaveBeenCalled();
+    expect(graphics.disconnect).toHaveBeenCalledOnce();
+    expect(graphics.dispose).toHaveBeenCalledOnce();
+    expect(graphics.loseContext).toHaveBeenCalledOnce();
+    expect(host.querySelector("canvas")).toBeNull();
+    expect(surface!.renderPose({ yaw: 10, pitch: 0, roll: 0, lean: 0, lift: 0, scale: 1 }, performance.now())).toBe(false);
+    expect(fetchModel).toHaveBeenCalledOnce();
   });
 });

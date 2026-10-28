@@ -2,8 +2,7 @@ import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 
-import { readFileSync } from "node:fs";
-import { join } from "node:path";
+import { JSDOM } from "jsdom";
 
 import PalPortrait from "@/components/pal/PalPortrait";
 import { PAL_MASCOT_SLUGS } from "@/lib/palMascotAssets.mjs";
@@ -66,11 +65,18 @@ describe("PalPortrait circuit robin", () => {
     expect(raven).not.toContain("/pal/circuit-");
   });
 
-  // The rigs were deleted with the captain's 2026-09-04 decision, so the
-  // component may hold no drawing of its own.
-  it("holds no SVG drawing code", () => {
-    const source = readFileSync(join(process.cwd(), "components", "pal", "PalPortrait.tsx"), "utf8");
-    expect(source).not.toContain("<svg");
-    expect(source).not.toContain("palRig");
+  it.each(PAL_ONBOARDING_SPECIES)("keeps %s artwork accessible while its model waits", (species) => {
+    const dom = new JSDOM(portraitMarkup(species));
+    try {
+      const image = dom.window.document.querySelector('img[alt="Pub Pal"]');
+      expect(image?.getAttribute("src")).toMatch(new RegExp(`^/pal/${PAL_MASCOT_SLUGS[species]}-\\d+\\.png$`));
+      expect(image?.hasAttribute("aria-hidden")).toBe(false);
+      expect(dom.window.document.querySelector('svg')).toBeNull();
+      const model = dom.window.document.querySelector('[data-pal-model-host]');
+      expect(model?.getAttribute("aria-hidden")).toBe("true");
+      expect(model?.hasAttribute("tabindex")).toBe(false);
+    } finally {
+      dom.window.close();
+    }
   });
 });

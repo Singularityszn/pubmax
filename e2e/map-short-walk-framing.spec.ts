@@ -371,6 +371,80 @@ test("a road response after a drag waits for Show whole walk before reframing", 
   }
 });
 
+test("a late road response preserves an explicit area search and its resized view", async ({ page }) => {
+  test.setTimeout(120_000);
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await page.addInitScript(() => {
+    localStorage.setItem("pubmax-tour-v1-done", "1");
+    localStorage.setItem("pubmax_onboarding_dismissed", "1");
+    sessionStorage.setItem("pubmax_onboarding_dismissed", "1");
+    localStorage.setItem("pubmax:map-first-visit-arrival:v1", "dismissed");
+    localStorage.setItem("pubmaxx:analytics-consent:v1", "denied");
+  });
+  let holdRoad = false;
+  let requested = false;
+  let warmRoadDelivered = false;
+  let releaseRoad = () => {};
+  const roadGate = new Promise<void>(resolve => { releaseRoad = resolve; });
+  page.on("close", releaseRoad);
+  await page.route("**/api/walk-route?**", async route => {
+    if (holdRoad) {
+      requested = true;
+      await roadGate;
+    }
+    if (!page.isClosed()) await route.fulfill({ json: recordedSohoWalk });
+    if (!holdRoad) warmRoadDelivered = true;
+  });
+  const view = () => page.evaluate(() => (window as typeof window & {
+    __pubmaxMapCamera: { read(): { moving: boolean; settling: boolean; zoom: number; bearing: number; pitch: number; center: [number, number] } };
+  }).__pubmaxMapCamera.read());
+  try {
+    await page.goto(`/map?mode=build&pubs=${STOP_IDS.join(",")}`);
+    await expect(page.locator(".mapLoading")).toHaveCount(0, { timeout: 60_000 });
+    await expect.poll(() => warmRoadDelivered).toBe(true);
+    await expectMapToolbarReady(page);
+    await page.getByRole("button", { name: "Edit stops", exact: true }).click();
+    await page.getByRole("button", { name: "Hide line", exact: true }).click();
+    await expect(page.locator(".mapCanvasWrap[data-route-stops]")).toHaveAttribute("data-route-stops", "0");
+    holdRoad = true;
+    await page.getByRole("button", { name: "Map route", exact: true }).click();
+    await page.getByRole("button", { name: "Close and return to the London map", exact: true }).click();
+    await expect.poll(() => requested).toBe(true);
+    await expect.poll(async () => { const state = await view(); return !state.moving && !state.settling; }).toBe(true);
+    const walk = await view();
+    await page.locator(".mapToolbar").getByRole("combobox", { name: "Search pubs" }).fill("White");
+    await page.getByRole("group", { name: "Areas", exact: true })
+      .getByRole("option", { name: /Whitechapel/i }).click();
+    await expect.poll(async () => Math.abs((await view()).center[0] - walk.center[0])).toBeGreaterThan(0.01);
+    await expect.poll(async () => { const state = await view(); return !state.moving && !state.settling; }).toBe(true);
+    const chosen = await view();
+    const responseReady = page.waitForResponse(response => response.url().includes("/api/walk-route?") && response.ok());
+    releaseRoad();
+    await (await responseReady).finished();
+    for (let frame = 0; frame < 5; frame += 1) {
+      await page.evaluate(() => new Promise<void>(resolve => requestAnimationFrame(() => resolve())));
+      const after = await view();
+      expect(after.center[0]).toBeCloseTo(chosen.center[0], 6);
+      expect(after.center[1]).toBeCloseTo(chosen.center[1], 6);
+      expect(after.zoom).toBeCloseTo(chosen.zoom, 6);
+      expect(after.bearing).toBeCloseTo(chosen.bearing, 6);
+      expect(after.pitch).toBeCloseTo(chosen.pitch, 6);
+    }
+    await page.setViewportSize({ width: 1100, height: 900 });
+    await expectLayoutSettled(page.locator(".mapCanvasWrap .maplibregl-canvas"));
+    const resized = await view();
+    expect(resized.center[0]).toBeCloseTo(chosen.center[0], 6);
+    expect(resized.center[1]).toBeCloseTo(chosen.center[1], 6);
+    expect(resized.zoom).toBeCloseTo(chosen.zoom, 6);
+    await expect(page.locator(".mapCanvasWrap[data-route-stops]")).toHaveAttribute("data-route-stops", "3");
+    await page.getByRole("button", { name: "Show whole walk", exact: true }).click();
+    await expect.poll(async () => Math.abs((await view()).center[0] - chosen.center[0])).toBeGreaterThan(0.01);
+  } finally {
+    releaseRoad();
+  }
+});
+
 // Independent fixture: committed catalogue revision768f69c954a9 and Root/QA's
 // west-to-east test order. This is not an optimal walk or current-price claim.
 const SOHO_FOUR_PUBS = [

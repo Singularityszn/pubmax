@@ -246,6 +246,7 @@ test("on the phone map the consent card waits for a first action, then takes the
 
   // One element at the foot: the pill has stepped down and the card overlaps nothing.
   await expect(prompt).toBeVisible({ timeout: 30_000 });
+  await expectMobileMapShellReady(page);
   await expect(pill).toHaveCount(1);
   await expect(pill).toBeHidden();
   const card = await prompt.boundingBox();

@@ -354,7 +354,7 @@ export function useMapCamera(refs: CameraRefs) {
     });
   }, [gestureCameraRef, mapRef, reducedRef, routeRef, routeLineRef, scheduleCamera]);
 
-  const fitResizedRoute = useCallback(() => {
+  const fitOwnedRoute = useCallback(() => {
     const frame = routeFrameRef.current;
     const gesture = gestureCameraRef.current;
     if (!frame || gesture.active || frame.gestureEndedAt !== gesture.endedAt
@@ -452,7 +452,7 @@ export function useMapCamera(refs: CameraRefs) {
     cameraLanePending,
     easeArrivalBearing,
     fitRoute,
-    fitResizedRoute,
+    fitOwnedRoute,
     fitCityBounds,
     fitQueryVenues,
     fitNearby,
