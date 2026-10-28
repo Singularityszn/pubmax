@@ -1,11 +1,19 @@
 ---
 name: pubmax-ai-sdk
-description: PubMaxxing's conventions for model calls, covering the Vercel AI SDK (`ai` v7 with AI Gateway), the direct OpenRouter calls and TypeSafe. Use when adding or changing any server code that calls a language or vision model, a paid model lane, or model tracing in this repo.
+description: PubMaxxing's conventions for model calls, covering the Vercel AI SDK (`ai` v7 with AI Gateway), direct OpenRouter calls, and TypeSafe. Use for TanStack AI API or migration work, or when changing server model calls, paid model lanes, or model tracing.
 ---
 
 # Model calls in PubMaxxing
 
 This repo calls models three ways, and every call runs on the server. The other controls differ by path today. The table under "Controls today" says which path has which. A new call must have all of them, as the rules below say.
+
+## TanStack AI guidance
+
+The app does not currently use TanStack AI. Unless the task requests a runtime change, do not add TanStack packages or migrate an existing path.
+
+For TanStack API work, first read `~/.agents/skills/tanstack-ai/SKILL.md`. For migration work, first read `~/.agents/skills/tanstack-ai-migration/SKILL.md`. Follow the installed package's own skill and docs. Do not write TanStack APIs from memory.
+
+If a migration is requested, preserve the controls in this skill. Port one model path at a time. Keep keyless behavior, paid-spend limits, timeouts, deterministic fallbacks, privacy rules, and tracing. Update the tests and this skill when a path changes. Keep TypeSafe's typed judgments unless the task explicitly replaces them.
 
 ## Where each kind lives
 

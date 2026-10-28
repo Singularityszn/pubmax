@@ -37,10 +37,14 @@ function expandDayToken(token: string): number[] {
   return [];
 }
 
+// One token it cannot read empties the whole list. `Su,PH 12:00-19:00` must
+// not become a Sunday-only rule that hides the public-holiday hours.
 function parseDayList(raw: string): number[] {
   const days = new Set<number>();
   for (const token of raw.split(/\s*,\s*/)) {
-    for (const day of expandDayToken(token.trim())) days.add(day);
+    const expanded = expandDayToken(token.trim());
+    if (expanded.length === 0) return [];
+    for (const day of expanded) days.add(day);
   }
   return [...days];
 }
