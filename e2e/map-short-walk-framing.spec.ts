@@ -311,6 +311,7 @@ test("a road response after a drag waits for Show whole walk before reframing", 
     // this test pass when a late road response steals the reader's view.
     await page.waitForTimeout(GESTURE_CAMERA_HOLD_MS + 100);
     await page.setViewportSize({ width: 1100, height: 900 });
+    await expectLayoutSettled(page.locator(".mapCanvasWrap .maplibregl-canvas"));
     await expect.poll(async () => { const state = await view(); return !state.moving && !state.settling; }).toBe(true);
     const held = await view();
     expect(held.zoom).toBeCloseTo(dragged.zoom, 6);
@@ -375,7 +376,7 @@ test("a road response after a drag waits for Show whole walk before reframing", 
 const SOHO_FOUR_PUBS = [
   { id: "venue-nyowgc", name: "Coach & Horses", address: "1 Great Malborough Street, W1F 7HG", lng: -0.137432, lat: 51.5149 },
   { id: "venue-xiesdn", name: "The Dog & Duck", address: "18 Bateman St, London W1D 3AJ", lng: -0.132014, lat: 51.514 },
-  { id: "venue-15i2wst", name: "Golden Lion (Soho)", address: "51 Dean Street, W1D 5BH", lng: -0.131572, lat: 51.5125 },
+  { id: "venue-15i2wst", name: "Golden Lion (Soho)", address: "51 Dean St, London W1D 5BH, UK", lng: -0.131572, lat: 51.5125 },
   { id: "venue-phqazo", name: "The Coach & Horses", address: "29 Greek St, London W1D 5DH", lng: -0.130129, lat: 51.5133 },
 ] as const;
 const SOHO_FOUR_MAP_HREF = "/map?mode=build&pubs=venue-nyowgc%2Cvenue-xiesdn%2Cvenue-15i2wst%2Cvenue-phqazo";
