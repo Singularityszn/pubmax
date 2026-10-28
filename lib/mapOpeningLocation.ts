@@ -35,32 +35,10 @@ function resolveStorage(storage?: Storage | null): Storage | null {
   return storage === undefined ? safeLocalStorage() : storage;
 }
 
-export function readMapOpeningLocation(
-  storage?: Storage | null,
-): MapOpeningLocation | null {
-  const store = resolveStorage(storage);
-  if (!store) return null;
-  try {
-    const raw = store.getItem(STORAGE_KEY);
-    if (!raw) return null;
-    const value: unknown = JSON.parse(raw);
-    return validLocation(value) ? value : null;
-  } catch {
-    return null;
-  }
-}
-
-export function writeMapOpeningLocation(
-  location: MapOpeningLocation,
-  storage?: Storage | null,
-): void {
-  if (!validLocation(location)) return;
-  const store = resolveStorage(storage);
-  if (!store) return;
-  try {
-    store.setItem(STORAGE_KEY, JSON.stringify(location));
-  } catch {
-    // Location is an optional speed hint. Storage failure never blocks the map.
+/** Retire the old exact-coordinate cache without reading its contents. */
+export function retireMapOpeningLocation(storage?: Storage | null): void {
+  try { resolveStorage(storage)?.removeItem(STORAGE_KEY); } catch {
+    // Storage refusal must not block the map.
   }
 }
 

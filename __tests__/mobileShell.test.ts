@@ -38,6 +38,7 @@ describe("mobile map session adapter", () => {
     const filters = seedCrawlState("").filters;
     const poiHidden = { ...defaultPoiHiddenMobile(), tube: false, park: false };
     writeMobileMapSession({
+      cameraProvenance: { version: 1, source: "public-place" },
       viewport: { center: [-0.12, 51.51], zoom: 13, pitch: 28, bearing: -8 },
       filters,
       cityId: "london",
@@ -57,6 +58,19 @@ describe("mobile map session adapter", () => {
       openSheet: "venue",
       filters,
     });
+  });
+
+  it("erases an unmarked camera but preserves all other saved state", () => {
+    const legacy = {
+      version: 1, savedAt: "2026-10-28T12:00:00Z", cityId: "london",
+      viewport: { center: [-0.0916478, 51.5286], zoom: 15, pitch: 38, bearing: 0 },
+      filters: seedCrawlState("").filters, nightArea: "shoreditch", selectedVenueId: "venue-1",
+      poiHidden: defaultPoiHiddenMobile(), openSheet: "venue",
+    };
+    window.localStorage.setItem(MOBILE_MAP_SESSION_KEY, JSON.stringify(legacy));
+    expect(readMobileMapSession()).toEqual({ ...legacy, viewport: null, cameraProvenance: null });
+    expect(JSON.parse(window.localStorage.getItem(MOBILE_MAP_SESSION_KEY)!))
+      .toEqual({ ...legacy, viewport: null, cameraProvenance: null });
   });
 
   it("upgrades a session without layer choices and rejects a drifted shape", () => {
@@ -109,6 +123,8 @@ describe("mobile map session adapter", () => {
     window.localStorage.setItem(MOBILE_MAP_SESSION_KEY, JSON.stringify(session));
     expect(readMobileMapSession()).toEqual({
       ...session,
+      viewport: null,
+      cameraProvenance: null,
       filters: { ...filters, requireDogFriendly: false, requireDarts: false, requirePool: false },
     });
   });

@@ -1,3 +1,4 @@
+import { readMapCameraProvenance, type MapCameraProvenance } from "@/lib/mapCameraProvenance";
 import type { Filters } from "@/lib/venues";
 import { parseCityId, type CityId } from "@/lib/cities";
 import { parsePoiHidden, type PoiHidden } from "@/lib/poiToggleGroups";
@@ -87,6 +88,7 @@ export type MobileShellState = {
 };
 
 export type MobileMapSessionV1 = {
+  cameraProvenance?: MapCameraProvenance | null;
   version: 1;
   savedAt: string;
   viewport: MapViewportSnapshot | null;
@@ -235,13 +237,21 @@ export function readMobileMapSession(): MobileMapSessionV1 | null {
   if (typeof window === "undefined") return null;
   try {
     const raw = JSON.parse(window.localStorage.getItem(MOBILE_MAP_SESSION_KEY) ?? "null") as Partial<MobileMapSessionV1> | null;
-    const cityId = parseCityId(raw?.cityId);
-    const filters = validateMobileMapFilters(raw?.filters);
-    if (!raw || raw.version !== 1 || !filters || !cityId) return null;
+    if (!raw || typeof raw !== "object") return null;
+    const cameraProvenance = readMapCameraProvenance(raw.cameraProvenance);
+    if (!cameraProvenance && raw.viewport) {
+      try {
+        window.localStorage.setItem(MOBILE_MAP_SESSION_KEY, JSON.stringify({ ...raw, viewport: null, cameraProvenance: null }));
+      } catch { /* Reading the other session fields still works when writes are blocked. */ }
+    }
+    const cityId = parseCityId(raw.cityId);
+    const filters = validateMobileMapFilters(raw.filters);
+    if (raw.version !== 1 || !filters || !cityId) return null;
     return {
+      cameraProvenance,
       version: 1,
       savedAt: typeof raw.savedAt === "string" ? raw.savedAt : new Date(0).toISOString(),
-      viewport: validateMapViewport(raw.viewport),
+      viewport: cameraProvenance ? validateMapViewport(raw.viewport) : null,
       filters,
       cityId,
       nightArea: isNightAreaSlug(raw.nightArea) ? raw.nightArea : null,
@@ -261,10 +271,24 @@ export function writeMobileMapSession(value: Omit<MobileMapSessionV1, "version" 
   try {
     window.localStorage.setItem(MOBILE_MAP_SESSION_KEY, JSON.stringify({
       ...value,
+      viewport: readMapCameraProvenance(value.cameraProvenance) ? value.viewport : null,
+      cameraProvenance: readMapCameraProvenance(value.cameraProvenance),
       version: 1,
       savedAt: new Date().toISOString(),
     } satisfies MobileMapSessionV1));
   } catch {
     // Cross-tab recovery is best-effort in private/quota-constrained browsers.
   }
+}
+
+/** Remove only the stored camera. Filters and chosen public places remain intact. */
+export function clearMobileMapSessionCamera(): void {
+  if (typeof window === "undefined") return;
+  try {
+    const text = window.localStorage.getItem(MOBILE_MAP_SESSION_KEY);
+    if (!text) return;
+    const value = JSON.parse(text);
+    if (!value || typeof value !== "object") return;
+    window.localStorage.setItem(MOBILE_MAP_SESSION_KEY, JSON.stringify({ ...value, viewport: null, cameraProvenance: null }));
+  } catch { /* Storage is optional. */ }
 }

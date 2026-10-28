@@ -17,8 +17,11 @@ import {
   isPersistableMapResumeViewport,
   readMapResume,
   readMapResumeSync,
+  clearMapResumeCamera,
   scheduleMapResumeWrite,
 } from "@/lib/mapResume";
+import { offlineCache } from "@/lib/offlineCache";
+import { createMapCameraOwnership } from "@/lib/mapCameraProvenance";
 import type { Venue } from "@/lib/venues";
 
 function storage(): Storage {
@@ -41,6 +44,13 @@ const value = {
   rows: [{ id: "venue-1", name: "Test pub", lat: 51.52, lng: -0.12, borough: "Camden", cheapestPrice: 5 }],
 };
 
+function cameraFor(viewport: typeof value.viewport) {
+  const owner = createMapCameraOwnership();
+  owner.beginPublicPlace(viewport.center);
+  owner.settle(viewport);
+  return owner.capture(viewport)!;
+}
+
 // A resident pin whose name read is counted, so a test sees each compaction.
 function countedPin(reads: { count: number }): Venue {
   const pin = { id: "venue-1", latitude: 51.52, longitude: -0.12, primaryBorough: "Camden", cheapestPrice: 5 };
@@ -55,9 +65,12 @@ function countedPin(reads: { count: number }): Venue {
 }
 
 describe("map resume", () => {
-  beforeEach(() => idb.clear());
+  beforeEach(async () => {
+    await readMapResume("london", 1_000);
+    idb.clear();
+  });
 
-  it("persists the viewport only once location and camera settle", () => {
+  it("considers a camera only once the opening and camera settle", () => {
     expect(isPersistableMapResumeViewport(false, false)).toBe(false);
     expect(isPersistableMapResumeViewport(true, false)).toBe(false);
     expect(isPersistableMapResumeViewport(false, true)).toBe(false);
@@ -66,23 +79,23 @@ describe("map resume", () => {
 
   it("mirrors a valid snapshot for synchronous warm paint", () => {
     const store = storage();
-    createMapResumeWriter(store)("london", value.viewport, [countedPin({ count: 0 })], 1_000);
-    expect(readMapResumeSync("london", 1_000, store)).toEqual({ ...value, version: 2, savedAt: 1_000 });
+    createMapResumeWriter(store)("london", value.viewport, [countedPin({ count: 0 })], 1_000, cameraFor(value.viewport));
+    expect(readMapResumeSync("london", 1_000, store)).toEqual({ ...value, cameraProvenance: { version: 1, source: "public-place" }, version: 2, savedAt: 1_000 });
   });
 
   it("ignores malformed synchronous snapshots", () => {
     const store = storage();
-    createMapResumeWriter(store)("london", value.viewport, [countedPin({ count: 0 })], 1_000);
+    createMapResumeWriter(store)("london", value.viewport, [countedPin({ count: 0 })], 1_000, cameraFor(value.viewport));
     store.setItem("map-resume:v2:london:rows", "broken");
     expect(readMapResumeSync("london", 1_000, store)).toBeNull();
   });
 
-  it("needs both records, each inside the age limit", () => {
+  it("reuses fresh rows even when their camera record is absent", () => {
     const store = storage();
-    createMapResumeWriter(store)("london", value.viewport, [countedPin({ count: 0 })], 1_000);
+    createMapResumeWriter(store)("london", value.viewport, [countedPin({ count: 0 })], 1_000, cameraFor(value.viewport));
     const view = store.getItem("map-resume:v2:london:view");
     store.removeItem("map-resume:v2:london:view");
-    expect(readMapResumeSync("london", 1_000, store)).toBeNull();
+    expect(readMapResumeSync("london", 1_000, store)).toMatchObject({ viewport: null, rows: value.rows });
     store.setItem("map-resume:v2:london:view", view ?? "");
     expect(readMapResumeSync("london", 1_000 + 15 * 24 * 60 * 60 * 1000, store)).toBeNull();
   });
@@ -102,10 +115,10 @@ describe("map resume", () => {
     const pins = [countedPin(reads)];
     const write = createMapResumeWriter(store);
 
-    expect(write("london", value.viewport, pins, 1_000)).toBe(true);
-    expect(write("london", value.viewport, pins, 2_000)).toBe(false);
+    expect(write("london", value.viewport, pins, 1_000, cameraFor(value.viewport))).toBe(true);
+    expect(write("london", value.viewport, pins, 2_000, cameraFor(value.viewport))).toBe(false);
     const moved = { ...value.viewport, zoom: 16 };
-    expect(write("london", moved, pins, 3_000)).toBe(true);
+    expect(write("london", moved, pins, 3_000, cameraFor(moved))).toBe(true);
 
     expect(reads.count).toBe(1);
     expect(setItem.mock.calls.map(([key]) => key)).toEqual([
@@ -116,6 +129,7 @@ describe("map resume", () => {
     expect(readMapResumeSync("london", 3_000, store)).toEqual({
       ...value,
       viewport: moved,
+      cameraProvenance: { version: 1, source: "public-place" },
       version: 2,
       savedAt: 3_000,
     });
@@ -126,26 +140,26 @@ describe("map resume", () => {
     const setItem = vi.spyOn(store, "setItem");
     const reads = { count: 0 };
     const write = createMapResumeWriter(store);
-    write("london", value.viewport, [countedPin(reads)], 1_000);
-    expect(write("london", value.viewport, [countedPin(reads)], 2_000)).toBe(true);
+    write("london", value.viewport, [countedPin(reads)], 1_000, cameraFor(value.viewport));
+    expect(write("london", value.viewport, [countedPin(reads)], 2_000, cameraFor(value.viewport))).toBe(true);
     expect(reads.count).toBe(2);
     expect(setItem).toHaveBeenCalledTimes(4);
     expect(readMapResumeSync("london", 2_000, store)?.savedAt).toBe(2_000);
   });
 
-  it("drops the one-record v1 snapshot it replaces", () => {
+  it("drops the one-record v1 snapshot it replaces", async () => {
     const store = storage();
     store.setItem("map-resume:v1:london", JSON.stringify({ ...value, version: 1, savedAt: 500 }));
-    createMapResumeWriter(store)("london", value.viewport, [countedPin({ count: 0 })], 1_000);
+    createMapResumeWriter(store)("london", value.viewport, [countedPin({ count: 0 })], 1_000, cameraFor(value.viewport));
     expect(store.getItem("map-resume:v1:london")).toBeNull();
-    expect(idb.get("map-resume:v1:london")).toBeNull();
+    await vi.waitFor(() => expect(idb.get("map-resume:v1:london")).toBeNull());
   });
 
   it("stores IndexedDB as the same text and reads it back", async () => {
-    createMapResumeWriter(storage())("london", value.viewport, [countedPin({ count: 0 })], 1_000);
-    expect(typeof idb.get("map-resume:v2:london:view")).toBe("string");
+    createMapResumeWriter(storage())("london", value.viewport, [countedPin({ count: 0 })], 1_000, cameraFor(value.viewport));
+    await vi.waitFor(() => expect(typeof idb.get("map-resume:v2:london:view")).toBe("string"));
     expect(typeof idb.get("map-resume:v2:london:rows")).toBe("string");
-    expect(await readMapResume("london", 1_000)).toEqual({ ...value, version: 2, savedAt: 1_000 });
+    expect(await readMapResume("london", 1_000)).toEqual({ ...value, cameraProvenance: { version: 1, source: "public-place" }, version: 2, savedAt: 1_000 });
   });
 
   it("waits for idle time, and cancels a write the next move replaces", () => {
@@ -164,7 +178,7 @@ describe("map resume", () => {
     cancel();
     expect(cancelIdleCallback).toHaveBeenCalledWith(1);
     idle[0]?.();
-    expect(write).toHaveBeenCalledTimes(1);
+    expect(write).not.toHaveBeenCalled();
     expect(timing.setTimeout).not.toHaveBeenCalled();
   });
 
@@ -172,7 +186,87 @@ describe("map resume", () => {
     const timing = { setTimeout: vi.fn(() => 7), clearTimeout: vi.fn() };
     const write = vi.fn();
     scheduleMapResumeWrite(write, timing)();
-    expect(timing.setTimeout).toHaveBeenCalledWith(write, 250);
+    expect(timing.setTimeout).toHaveBeenCalledWith(expect.any(Function), 250);
     expect(timing.clearTimeout).toHaveBeenCalledWith(7);
   });
+});
+
+describe("camera privacy in resume storage", () => {
+  beforeEach(async () => {
+    await readMapResume("london", 1_000);
+    idb.clear();
+  });
+
+  it("keeps legacy venue rows while erasing an unmarked synchronous camera", () => {
+    const store = storage();
+    store.setItem("map-resume:v2:london:view", JSON.stringify({
+      version: 2, cityId: "london", savedAt: 1_000, viewport: value.viewport,
+    }));
+    const rows = JSON.stringify({ version: 2, cityId: "london", savedAt: 1_000, rows: value.rows });
+    store.setItem("map-resume:v2:london:rows", rows);
+    expect(readMapResumeSync("london", 1_000, store)).toMatchObject({ viewport: null, rows: value.rows });
+    expect(store.getItem("map-resume:v2:london:view")).toBeNull();
+    expect(store.getItem("map-resume:v2:london:rows")).toBe(rows);
+  });
+
+  it("keeps legacy venue rows while rejecting an unmarked asynchronous camera", async () => {
+    idb.set("map-resume:v2:london:view", JSON.stringify({
+      version: 2, cityId: "london", savedAt: 1_000, viewport: value.viewport,
+    }));
+    idb.set("map-resume:v2:london:rows", JSON.stringify({
+      version: 2, cityId: "london", savedAt: 1_000, rows: value.rows,
+    }));
+    expect(await readMapResume("london", 1_000)).toMatchObject({ viewport: null, rows: value.rows });
+    await vi.waitFor(() => expect(idb.get("map-resume:v2:london:view")).toBeNull());
+    expect(idb.get("map-resume:v2:london:rows")).toContain('"venue-1"');
+  });
+
+  it("retains rows without persisting an automatic location camera", async () => {
+    const store = storage();
+    createMapResumeWriter(store)("london", value.viewport, [countedPin({ count: 0 })], 1_000);
+    expect(store.getItem("map-resume:v2:london:view")).toBeNull();
+    expect(readMapResumeSync("london", 1_000, store)).toMatchObject({ viewport: null, rows: value.rows });
+    await vi.waitFor(() => expect(idb.get("map-resume:v2:london:rows")).toContain('"venue-1"'));
+    expect(idb.get("map-resume:v2:london:view")).toBeNull();
+  });
+
+  it("rechecks ownership before a queued asynchronous camera write", async () => {
+    const store = storage();
+    const owner = createMapCameraOwnership();
+    owner.beginPublicPlace(value.viewport.center);
+    owner.settle(value.viewport);
+    createMapResumeWriter(store)("london", value.viewport, [countedPin({ count: 0 })], 1_000, owner.capture(value.viewport));
+    owner.invalidate();
+    await vi.waitFor(() => expect(idb.get("map-resume:v2:london:view")).toBeNull());
+  });
+  it("erases a camera whose asynchronous write finishes after location revokes it", async () => {
+    let release!: () => void;
+    const pending = new Promise<void>((resolve) => { release = resolve; });
+    let started = false;
+    const set = vi.spyOn(offlineCache, "set").mockImplementation(async (key, payload) => {
+      if (key === "map-resume:v2:london:view" && payload !== null) {
+        started = true;
+        await pending;
+      }
+      idb.set(key, payload);
+      return true;
+    });
+    try {
+      const owner = createMapCameraOwnership();
+      owner.beginPublicPlace(value.viewport.center);
+      owner.settle(value.viewport);
+      const store = storage();
+      createMapResumeWriter(store)("london", value.viewport, [countedPin({ count: 0 })], 1_000, owner.capture(value.viewport));
+      await vi.waitFor(() => expect(started).toBe(true));
+      owner.invalidate();
+      clearMapResumeCamera("london", store);
+      release();
+      await vi.waitFor(() => expect(idb.get("map-resume:v2:london:view")).toBeNull());
+      expect(store.getItem("map-resume:v2:london:view")).toBeNull();
+    } finally {
+      release();
+      set.mockRestore();
+    }
+  });
+
 });
