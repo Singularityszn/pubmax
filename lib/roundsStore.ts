@@ -37,7 +37,7 @@ import {
 import { isDrinkCategory } from "@/lib/drinks";
 import { normalizeHandle } from "@/lib/profiles";
 import { log } from "@/lib/log";
-import { isMissingReceiptColumnError, PhotoRefusalError, uploadPhoto } from "@/lib/pintDropsStore";
+import { deletePhotos, isMissingReceiptColumnError, PhotoRefusalError, uploadPhoto } from "@/lib/pintDropsStore";
 import { admin, selectStore } from "@/lib/storeBackend";
 
 // How many times to retry a code collision before giving up. A 6-char code over a
@@ -364,7 +364,7 @@ const supabaseRoundsStore: RoundsStore = {
         return { ok: true, state, created: false };
       }
       const id = crypto.randomUUID();
-      const receiptPhotoKey = await uploadRoundReceipt(clean.venueId, id, input.receipt);
+      let receiptPhotoKey = await uploadRoundReceipt(clean.venueId, id, input.receipt);
       const row = {
         id,
         round_id: state.round.id,
@@ -387,9 +387,16 @@ const supabaseRoundsStore: RoundsStore = {
       let { error } = await admin().from(SPENDS).insert(row);
       if (isMissingReceiptColumnError(error)) {
         log("warn", "rounds.receipt_column_missing", { spendId: id, migration: "0199" });
+        if (receiptPhotoKey) {
+          await deletePhotos([receiptPhotoKey]);
+          receiptPhotoKey = undefined;
+        }
         const { receipt_photo_key: _receipt, ...withoutReceipt } = row;
         void _receipt;
         ({ error } = await admin().from(SPENDS).insert(withoutReceipt));
+      }
+      if (error?.code && receiptPhotoKey) {
+        await deletePhotos([receiptPhotoKey]);
       }
       if (error && (error as { code?: string }).code !== "23505") {
         throw new Error(error.message);
@@ -678,6 +685,9 @@ export const memoryRoundsStore: RoundsStore = {
       }
     }
     const created = !round.spends.some((spend) => spend.clientRef === clean.clientRef);
+    if (!created && receiptPhotoKey) {
+      await deletePhotos([receiptPhotoKey]);
+    }
     if (created) {
       memorySeq += 1;
       round.spends.push({
