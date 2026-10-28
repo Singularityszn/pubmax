@@ -125,6 +125,7 @@ export function rankMapNearbyRecommendations(options: MapNearbyOptions): MapNear
     drinkCategory: "",
     drinkBrand: "",
     drinkSubtype: "",
+    requireNonAlcoholic: false,
   };
   const filtered = filterVenues([...options.venues], filterInputs, options.hasPintDrops, options.openNowState);
   for (const venue of filtered) {

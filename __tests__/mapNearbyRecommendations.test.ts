@@ -140,3 +140,13 @@ describe("nearby evidence and local scope", () => {
     expect(result.cards).toEqual([]);
   });
 });
+
+describe("trusted no-alcohol price evidence", () => {
+  it("does not require a legacy amenity hint when the exact selected price proves the drink", () => {
+    const result = rank([pub("Soft", 51.501, 3)], {
+      filters: { ...initialFilters, requireNonAlcoholic: true },
+      priceForVenue: () => ({ priceGbp: 4, drinkLabel: "Soft drinks", measureLabel: "", servingKnown: false, category: "soft-drink" }),
+    });
+    expect(result.cards[0]!.price.category).toBe("soft-drink");
+  });
+});
