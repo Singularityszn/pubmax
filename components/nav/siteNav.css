@@ -670,6 +670,10 @@ button.siteNavMoreItem {
   .siteNavBar:not(.siteNavBarFloating) {
     --site-nav-width: min(1100px, 100vw - 24px);
   }
+
+  .siteNavBarFloating {
+    width: calc(100vw - 24px);
+  }
 }
 
 /* ── Mobile: the COMPACT bar (the overflow fix) ────────────────────────── */
@@ -940,4 +944,16 @@ button.siteNavMoreItem {
 ::view-transition-new(site-nav-bar) {
   animation: none;
   mix-blend-mode: normal;
+}
+
+/* Tablet rows keep their intrinsic labels and targets when text grows. */
+@media (min-width: 641px) and (max-width: 900px) {
+  .siteNavBar {
+    flex-wrap: wrap;
+  }
+
+  .siteNavLinks {
+    flex: 1 1 max-content;
+    flex-wrap: wrap;
+  }
 }
