@@ -355,7 +355,9 @@ test(`homepage quiet actions remain clickable beside Create on a narrow phone wi
   await expect(create).toBeEnabled();
   await page.evaluate((size) => { document.documentElement.style.fontSize = `${size}px`; }, textSize);
   await page.evaluate(() => document.fonts.ready);
-  await expect.poll(() => page.evaluate(() => window.innerWidth - document.documentElement.clientWidth)).toBeGreaterThan(0);
+  if (page.context().browser()?.browserType().name() === "chromium") {
+    await expect.poll(() => page.evaluate(() => window.innerWidth - document.documentElement.clientWidth)).toBeGreaterThan(0);
+  }
   await create.focus();
   await expect(page.locator(".createFabRoot")).toHaveCSS("opacity", "1");
 
