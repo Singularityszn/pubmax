@@ -190,9 +190,10 @@ const LAYOUT_PIN_JOBS = ["layout-pins-1", "layout-pins-2", "layout-pins-3"];
 // Run unless the classifier succeeded and said no screen code changed. A
 // failed classifier must run the layout pins, not skip them: a skipped check
 // counts as passed for branch protection, so skipping would let a screen
-// change merge without them (fail closed).
+// change merge without them (fail closed). The nightly and a dispatch skip
+// them, because the full suite runs every layout spec on the same commit.
 const LAYOUT_PIN_IF =
-  "${{ !cancelled() && (needs.change-scope.result != 'success' || needs.change-scope.outputs.layout == 'ui') }}";
+  "${{ !cancelled() && github.event_name != 'schedule' && github.event_name != 'workflow_dispatch' && (needs.change-scope.result != 'success' || needs.change-scope.outputs.layout == 'ui') }}";
 
 describe("what each scope runs", () => {
   it("gates every step after the classifier, and never a whole job", () => {

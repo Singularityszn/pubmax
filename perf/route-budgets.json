@@ -200,11 +200,12 @@
     {
       "path": "/feed",
       "readySelector": "main.socialPage",
-      "why": "Social Posts, and the heaviest of the shared social shells.",
+      "why": "Social Posts' retired address. next.config.mjs has answered /feed with a 308 to /social since #765 (6 August 2026), so the row measured /social plus one redirect round trip under Social's old ceilings. It is budgeted for the redirect: the page it lands on carries its own ceiling under \"/social\".",
       "serverRenderMs": 150,
-      "jsDecodedKB": 1130,
-      "requests": 56,
-      "lcpMs": 400
+      "jsDecodedKB": 0,
+      "requests": 1,
+      "lcpMs": 0,
+      "redirectsTo": "/social"
     },
     {
       "path": "/discover",

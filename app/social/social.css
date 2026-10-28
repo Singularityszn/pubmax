@@ -136,15 +136,27 @@ html[data-text-scale="large"] .socialPage .screenHead {
   min-width: 0;
 }
 
-.socialDoorSlot[aria-busy="true"] .socialRailContent {
+/* Only the title waits for the account, because only the title names a door.
+   The value line reads the same for every reader, so it paints with the
+   document. It is the page's largest text, and holding it behind the session
+   made the session's answer the page's largest paint: /social measured LCP
+   456 ms on a local production build (144 ms once the line paints with the
+   document) and up to 828 ms on the nightly box, against a 400 ms ceiling. */
+.socialDoorSlot[aria-busy="true"] .socialRailContent .emptyStateTitle {
   visibility: hidden;
 }
 
 .socialRailPending {
   position: absolute;
-  inset: var(--space-6) 0;
-  display: grid;
-  align-content: center;
+  inset: var(--space-6) 0 auto;
+}
+
+.socialRailPending .socialIdentitySkeletons {
+  margin-top: 0;
+}
+
+.socialRailPending .socialIdentitySkeletons span:last-child {
+  display: none;
 }
 
 /* A segmented control (docs/DESIGN_SYSTEM.md "Edges"): ONE hairline around
