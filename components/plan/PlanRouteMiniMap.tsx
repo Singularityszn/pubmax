@@ -14,6 +14,7 @@ import {
 } from "@/lib/routeMiniMap";
 import {
   planCrawlRouteGeoJSON,
+  planRouteAreaDescription,
   type PlanCrawlRouteStop,
   type ResolvedPlanCrawlRoute,
 } from "@/lib/planCrawlRouteMap";
@@ -51,16 +52,14 @@ async function fetchStopCoords(
         const lng = venue?.longitude;
         if (typeof lat !== "number" || typeof lng !== "number") return null;
         if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
+        const locality = typeof venue?.locality === "string" ? venue.locality.trim() : "";
+        const primaryBorough = typeof venue?.primaryBorough === "string" ? venue.primaryBorough.trim() : "";
+        const hasArea = Boolean(primaryBorough || (locality && !/^(?:london|greater london)$/i.test(locality)));
         return {
           coord: [lng, lat] as LngLat,
           name: stop.venueName,
           venueId: stop.venueId,
-          area: typeof venue?.locality === "string" || typeof venue?.primaryBorough === "string"
-            ? venueAreaLabel({
-                locality: typeof venue.locality === "string" ? venue.locality : undefined,
-                primaryBorough: typeof venue.primaryBorough === "string" ? venue.primaryBorough : undefined,
-              })
-            : "",
+          area: hasArea ? venueAreaLabel({ locality, primaryBorough }) : "",
         };
       } catch {
         return null;
@@ -74,7 +73,7 @@ async function fetchStopCoords(
     coords: rows.map((row) => row.coord),
     names: rows.map((row) => row.name),
     venueIds: rows.map((row) => row.venueId),
-    area: rows.find((row) => row.area)?.area ?? "",
+    areaDescription: planRouteAreaDescription(rows.map((row) => row.area)),
   };
 }
 
@@ -98,7 +97,7 @@ function reorderedRoute(
     coords: from.map((index) => resolved.coords[index]!),
     names: from.map((index) => resolved.names[index]!),
     venueIds: from.map((index) => resolved.venueIds[index]!),
-    area: resolved.area,
+    areaDescription: resolved.areaDescription,
   };
 }
 
@@ -234,8 +233,8 @@ export default function PlanRouteMiniMap({
   }
 
   const count = activeResolved.coords.length;
-  const title = activeResolved.area
-    ? `Route map: ${count} stops in ${activeResolved.area}`
+  const title = activeResolved.areaDescription
+    ? `Route map: ${count} stops ${activeResolved.areaDescription}`
     : `Route map: ${count} stops`;
   const description = `Walking route between ${activeResolved.names.join(", ")}.`;
 

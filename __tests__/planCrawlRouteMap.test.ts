@@ -16,7 +16,7 @@ const RESOLVED: ResolvedPlanCrawlRoute = {
   ],
   names: ["First", "Middle", "Last"],
   venueIds: ["a", "b", "c"],
-  area: "Westminster",
+  areaDescription: "in Westminster",
 };
 
 describe("planCrawlRouteFitBounds", () => {
