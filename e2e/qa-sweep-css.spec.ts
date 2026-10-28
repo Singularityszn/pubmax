@@ -2,6 +2,7 @@ import { expect, test, type Page } from "@playwright/test";
 
 import { measureHitArea, resolvedColour } from "@/e2e/helpers/hitArea";
 import { desktopVenueDrawer } from "@/e2e/helpers/mapSurfaceDrawers";
+import { expectHydrated } from "@/e2e/helpers/streamedPage";
 
 // The small fixes from the signed-in and signed-out QA sweeps, measured in the
 // browser under the shipped stylesheets. The arrival ask beside an open drawer
@@ -22,7 +23,11 @@ test.beforeEach(async ({ page }) => {
   });
 });
 
+// The probe is a node the server never sent. Prepended before React has
+// hydrated its host, it makes hydration throw the host away and paint it again
+// without the probe, and a slow runner reaches `load` before hydration ends.
 async function inject(page: Page, html: string, host = "main"): Promise<void> {
+  await expectHydrated(page.locator(host).first());
   await page.evaluate(
     ({ html, host }) => {
       const probe = document.createElement("div");
