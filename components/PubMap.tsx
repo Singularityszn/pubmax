@@ -6595,6 +6595,7 @@ export default function PubMap({
               currentFilterKeys={currentFilterKeys}
               location={userLocation}
               lensPrices={activeLensPrices}
+              favoritePint={experienceLens === "all" && !mapDrinkLensCategory ? favoritePint : null}
               onSelectVenue={selectVenue}
               onApplyFilters={(next) => {
                 changeExperienceLens(next.requireNonAlcoholic && !next.drinkCategory ? "no-alcohol" : "all");
