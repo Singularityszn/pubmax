@@ -31,7 +31,7 @@ describe("PalPortrait circuit robin", () => {
     const html = portraitMarkup("robin");
     expect(html).toContain("circuit-robin");
     expect(html).toMatch(/<img\b[^>]*alt="Pub Pal"/);
-    expect(html).not.toContain('role="img"');
+    expect(html).toContain('aria-hidden="true"');
   });
 
   it("draws the rendered species from its own master, never the robin's", () => {
@@ -48,14 +48,14 @@ describe("PalPortrait circuit robin", () => {
     for (const species of PAL_ONBOARDING_SPECIES) {
       const html = portraitMarkup(species);
       expect(html).toContain(`/pal/${PAL_MASCOT_SLUGS[species]}-`);
-      expect(html).not.toContain('role="img"');
+      expect(html).toContain('aria-hidden="true"');
     }
   });
 
   it("draws the legacy hound from the greyhound's master, because it is the same dog", () => {
     const hound = portraitMarkup("hound");
     expect(hound).toContain("circuit-greyhound");
-    expect(hound).not.toContain('role="img"');
+    expect(hound).toContain('aria-hidden="true"');
   });
 
   it("draws a legacy species with no master as a named icon, never a rig", () => {
