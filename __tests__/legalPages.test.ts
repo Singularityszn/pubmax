@@ -40,13 +40,14 @@ const landing = read("components/landing/LandingPage.tsx");
 const sitemap = read("app/sitemap.ts");
 
 describe("legal content pages", () => {
-  it("gives copyright owners a report address and the required notice details", () => {
+  it("gives copyright owners a UK report path without a US oath requirement", () => {
     expect(termsText).toContain("Copyright reports");
     expect(termsText).toContain("Identify the copyrighted work");
     expect(termsText).toContain("Give the exact page or content URL");
-    expect(termsText).toContain("good faith");
-    expect(termsText).toContain("under penalty of perjury");
-    expect(termsText).toContain("physical or electronic signature");
+    expect(termsText).toContain("Give your full name, postal address and email address.");
+    expect(termsText).toContain("Explain why you believe the use infringes your copyright.");
+    expect(termsText).not.toContain("under penalty of perjury");
+    expect(termsText).not.toContain("physical or electronic signature");
     expect(renderToStaticMarkup(createElement(TermsPage))).toContain('aria-labelledby="copyright"');
   });
   it("reaches the reader from the site footer", () => {

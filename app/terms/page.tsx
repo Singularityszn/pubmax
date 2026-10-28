@@ -238,16 +238,11 @@ export default function TermsPage() {
         <ol className="legalList">
           <li>Identify the copyrighted work, or list the works covered by your report.</li>
           <li>Give the exact page or content URL so we can find the material.</li>
-          <li>Give your name, postal address, telephone number and email address.</li>
+          <li>Give your full name, postal address and email address.</li>
+          <li>Explain why you believe the use infringes your copyright.</li>
           <li>
-            State that you believe in good faith that the use is not authorised
-            by the copyright owner, its agent or the law.
+            Tell us whether you own the rights or act on the owner&rsquo;s behalf.
           </li>
-          <li>
-            State that the information is accurate and, under penalty of perjury,
-            that you can act for the owner of the right concerned.
-          </li>
-          <li>Include your physical or electronic signature.</li>
         </ol>
         <p className="legalBody">
           We review reports and may remove content under the rules below.
