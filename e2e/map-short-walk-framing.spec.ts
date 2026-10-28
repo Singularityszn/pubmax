@@ -476,6 +476,7 @@ for (const { theme, motion } of [
       const radius = 21;
       const offsets = [[0, 0], [-radius, 0], [radius, 0], [0, -radius], [0, radius], [-15, -15], [15, -15], [-15, 15], [15, 15]];
       const state = camera.read();
+      const loadingOverlayVisible = document.querySelector(".mapLoading") !== null;
       const colourCanvas = document.createElement("canvas");
       colourCanvas.width = colourCanvas.height = 1;
       const colour = colourCanvas.getContext("2d")!;
@@ -484,7 +485,8 @@ for (const { theme, motion } of [
       return {
         // Full-map loading includes background tiles, not route readiness.
         // The pixel and hit assertions below prove the route itself is usable.
-        ready: !state.moving && !state.settling,
+        ready: !state.moving && !state.settling && !loadingOverlayVisible,
+        loadingOverlayVisible,
         cameraState: state,
         loadingState: view.__pubmaxPaintedMapTapPoints?.state?.(),
         viewport: { width: innerWidth, height: innerHeight },
