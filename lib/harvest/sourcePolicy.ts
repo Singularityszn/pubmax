@@ -51,6 +51,12 @@ export type HarvestSourceKind =
   // opening hours and never a price, which is why it is not a flavour of
   // `chain-menu-prices`.
   | "pub-directory"
+  // A quiz company's own list of the pubs where it runs a weekly quiz. It names
+  // a pub, a weekday, a start time and an entry fee, and never a drink price.
+  // Its own kind rather than `venue-events`, because the Context.dev lane reads
+  // every first-party `venue-events` page through a model, and this list is
+  // read as structured facts by one reader.
+  | "quiz-directory"
   // A public body's or a commons' open-data API, read by a builder into its
   // own committed pack. Its permission is the publisher's open licence and API
   // terms rather than robots.txt, and it states facts about businesses it does
@@ -126,6 +132,9 @@ const DIRECTORY_CHECKED_ON = "2026-09-14";
 // run. Not every terms page could be read: each row's evidence says what was
 // read live and what was not.
 const OPEN_DATA_CHECKED_ON = "2026-10-17";
+// The quiz directory, read against the live robots.txt, its page list and its
+// footer on this day.
+const QUIZ_CHECKED_ON = "2026-10-28";
 
 export const HARVEST_SOURCES: readonly HarvestSource[] = [
   // --- chain deals: first-party operator offers pages ----------------------
@@ -416,6 +425,23 @@ export const HARVEST_SOURCES: readonly HarvestSource[] = [
       "Checked 2026-08-09: the London search page is a national promo shelf in any case (its cards were North Shields and Northampton events), so the permitted half carries no London listing worth taking.",
   },
 
+  // --- quiz directory: a quiz company's own list of its weekly quizzes ------
+  {
+    id: "questionone-quiz-venues",
+    label: "Question One",
+    url: "https://questionone.com/wp-json/wp/v2/venues",
+    kind: "quiz-directory",
+    firstParty: true,
+    access: {
+      allowed: true,
+      evidence:
+        "Captain decision, 28 Oct 2026 (survey question Q2, option a), on the condition that robots and terms are checked first. Read live on 28 Oct 2026. robots.txt: HTTP 200, `User-agent: *` with `Disallow: /wp-admin/` and `Allow: /wp-admin/admin-ajax.php` only, and no Crawl-delay, so /venues/ and /wp-json/ are permitted. Terms: the site publishes no terms of use. The WordPress page list (/wp-json/wp/v2/pages) holds no terms page, /terms/, /terms-and-conditions/, /terms-of-use/ and /privacy-policy/ answer 404, the footer says only `© 2026 Question One. All rights reserved`, and the one terms link on the site is Google's reCAPTCHA notice on the contact form. Nothing read forbids automated reading.",
+      checkedOn: QUIZ_CHECKED_ON,
+    },
+    notes:
+      "Question One runs the quizzes it lists, so the list is first party for the quiz and not for the pub. This url is the JSON of the same directory that https://questionone.com/venues/ shows: on 28 Oct 2026 it held 128 venues in 2 pages of 100, 84 of them with a Greater London postcode. FACTS ONLY plus a link out: a row takes the weekday, the start time, the entry fee, the postcode and the map point, and links to the venue's own page on questionone.com. The description text, the phone number and the images are never stored or shown. A non-weekly title (monthly, every other week) is dropped, never rolled forward weekly. Read by refreshQuestionOneQuiz in lib/whatsOnRefresh.server.ts on every What's-On cron run, and by scripts/whatson/quizRefresh.mjs for the bundled pack. Both read through scripts/whatson/questionOneDirectory.mjs.",
+  },
+
   // --- open data: public APIs read by a builder into a committed pack ------
   {
     id: "fsa-fhrs-api",
@@ -643,6 +669,11 @@ export function isHarvestableChainMenuUrl(
  * A venue's own site is first-party by definition, so it needs no table row -
  * but it still has to be a real http(s) origin we can attribute, and it may
  * never be one of the hosts we may not read, wearing a venue's name.
+ *
+ * The lanes that read a pub's own events page (scripts/harvest/run.mjs
+ * `--events` and scripts/whatson/contextDevHarvest.mjs) were confirmed by the
+ * captain on 28 Oct 2026 (survey question Q2, option a). Each one asks the
+ * host's own robots.txt live, once per run, before it reads a page.
  */
 const REFUSED_HOSTS = new Set([
   ...HARVEST_SOURCES.filter(isRefusedOnPermission).map((source) => {
