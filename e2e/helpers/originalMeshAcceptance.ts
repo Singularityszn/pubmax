@@ -63,7 +63,9 @@ export async function fixture(page: Page, baseURL: string, twoOwners = false) {
 
 export function capture(page: Page) {
   const requests: Request[] = [], bodies: Promise<void>[] = [];
-  const events: Array<Record<string, unknown>> = [], models: Array<{ url: string; sha256: string }> = [], errors: string[] = [];
+  const events: Array<Record<string, unknown>> = [], models: Array<{ requestId: number; url: string; sha256: string }> = [];
+  const errors: Array<{ requestId: number; url: string; message: string }> = [];
+  const readyProofs: Array<{ requestId: number; url: string; sha256: string; readyVisibleMesh: true }> = [];
   const tracked = new Map<Request, number>();
   page.on("request", request => {
     if (request.frame() === page.mainFrame() && new URL(request.frame().url()).pathname === "/pal" && modelPath(request.url())) {
@@ -79,10 +81,10 @@ export function capture(page: Page) {
     events.push({ event: "response", id, status: response.status() });
     bodies.push((async () => {
       if (!response.ok()) throw Error(`Model response status ${response.status()}`);
-      models.push({ url: response.url(), sha256: createHash("sha256").update(await response.body()).digest("hex") });
-    })().catch(error => { errors.push(`Request ${id}: ${String(error)}`); }));
+      models.push({ requestId: id, url: response.url(), sha256: createHash("sha256").update(await response.body()).digest("hex") });
+    })().catch(error => { errors.push({ requestId: id, url: response.url(), message: String(error) }); }));
   });
-  return { requests, models, events, errors, settle: () => Promise.all(bodies) };
+  return { requests, models, events, errors, readyProofs, settle: () => Promise.all(bodies) };
 }
 export type Capture = ReturnType<typeof capture>;
 
@@ -99,6 +101,10 @@ export async function ready(page: Page, seen: Capture, character: Character = RO
   await expect(portrait(page).locator(".palPortrait")).toHaveAttribute("data-head-3d", "mesh");
   await expect.poll(async () => { await seen.settle(); return seen.models.filter(x => x.url.endsWith(character.file)).map(x => x.sha256); }).toContain(character.sha);
   await decoded(page);
+  // This proof is recorded only after the real ready/visible/exact-asset assertions.
+  for (const model of seen.models.filter(item => item.url.endsWith(character.file) && item.sha256 === character.sha)) {
+    seen.readyProofs.push({ ...model, readyVisibleMesh: true });
+  }
 }
 export async function shot(page: Page, info: TestInfo, name: string) {
   const bytes = await canvas(page).screenshot({ path: info.outputPath(name + ".png") });
@@ -128,6 +134,126 @@ export async function observeDisposal(page: Page) {
   });
   return retained;
 }
+
+// Test-only observation. These passive listeners never dispatch or cancel input.
+export async function observeInput(page: Page, resolved: { hasTouch: boolean; isMobile: boolean; viewport: { width: number; height: number } | null }) {
+  await page.evaluate(options => {
+    type Observation = { events: Record<string, unknown>[]; points: Record<string, unknown>[]; dropped: number; currentGesture: string; capabilities: Record<string, unknown> };
+    const state: Observation = { events: [], points: [], dropped: 0, currentGesture: "", capabilities: {
+      resolved: options, maxTouchPoints: navigator.maxTouchPoints, userAgent: navigator.userAgent,
+      coarsePointer: matchMedia("(pointer: coarse)").matches, hoverNone: matchMedia("(hover: none)").matches,
+      viewport: { width: innerWidth, height: innerHeight }, documentClientWidth: document.documentElement.clientWidth,
+      metaViewport: document.querySelector('meta[name="viewport"]')?.getAttribute("content") ?? null,
+      devicePixelRatio, scrollX, scrollY,
+    } };
+    (window as typeof window & { originalMeshInputObservation?: Observation }).originalMeshInputObservation = state;
+    const describe = (target: EventTarget | null) => target instanceof Element ? { tag: target.tagName, id: target.id, classes: target.className } : null;
+    const record = (event: Event) => {
+      if (state.events.length >= 160) { state.dropped++; return; }
+      const pointer = event as PointerEvent; const touch = event as TouchEvent;
+      const owned = document.querySelector<HTMLCanvasElement>(".palHomePortrait canvas");
+      state.events.push({ type: event.type, gesture: state.currentGesture, target: describe(event.target),
+        ownedCanvasTarget: event.target === owned, pointerType: pointer.pointerType ?? null, pointerId: pointer.pointerId ?? null,
+        clientX: pointer.clientX ?? null, clientY: pointer.clientY ?? null, touches: touch.touches?.length ?? null,
+        changedTouches: touch.changedTouches ? Array.from(touch.changedTouches).map(t => ({ id: t.identifier, x: t.clientX, y: t.clientY })) : null,
+        captured: owned && typeof pointer.pointerId === "number" ? owned.hasPointerCapture(pointer.pointerId) : null,
+        defaultPrevented: event.defaultPrevented, cancelable: event.cancelable, scrollX, scrollY, at: performance.now() });
+    };
+    for (const type of ["pointerdown", "pointermove", "pointerup", "pointercancel", "gotpointercapture", "lostpointercapture", "touchstart", "touchmove", "touchend", "touchcancel"]) {
+      document.addEventListener(type, record, { capture: true, passive: true });
+    }
+    window.addEventListener("scroll", record, { capture: true, passive: true });
+  }, resolved);
+}
+export async function recordHitPoint(page: Page, x: number, y: number, gesture: string) {
+  const point = await page.evaluate(({ x, y, gesture }) => {
+    const state = (window as typeof window & { originalMeshInputObservation?: { currentGesture: string; points: unknown[] } }).originalMeshInputObservation;
+    if (!state) throw Error("Input observation was not installed"); state.currentGesture = gesture;
+    const canvas = document.querySelector<HTMLCanvasElement>(".palHomePortrait canvas");
+    const hit = document.elementFromPoint(x, y);
+    const describe = (node: Element) => ({ tag: node.tagName, id: node.id, classes: node.className,
+      touchAction: getComputedStyle(node).touchAction, pointerEvents: getComputedStyle(node).pointerEvents,
+      box: node.getBoundingClientRect().toJSON() });
+    const value = { gesture, x, y, scrollX, scrollY, ownedCanvasHit: !!canvas && hit === canvas,
+      canvas: canvas ? describe(canvas) : null, stack: document.elementsFromPoint(x, y).slice(0, 8).map(describe) };
+    if (state.points.length < 8) state.points.push(value);
+    return value;
+  }, { x, y, gesture });
+  expect(point.ownedCanvasHit, "Injected start point must actually hit the owned canvas").toBe(true);
+}
+export async function requireDeliveredInput(page: Page, pointerType: string, gesture: string) {
+  const events = await page.evaluate(() => (window as typeof window & { originalMeshInputObservation?: { events: Record<string, unknown>[] } }).originalMeshInputObservation?.events ?? []);
+  expect(events.some(e => e.gesture === gesture && e.type === "pointerdown" && e.pointerType === pointerType && e.ownedCanvasTarget === true), "The canvas received this gesture's actual pointerdown").toBe(true);
+  expect(events.some(e => e.gesture === gesture && e.type === "pointermove" && e.pointerType === pointerType && e.ownedCanvasTarget === true), "The canvas received this gesture's actual pointermove").toBe(true);
+}
+
+
+export function classifyBodyErrors(seen: Capture) {
+  const cancelledReplaced: Array<Record<string, unknown>> = [];
+  const fatal: typeof seen.errors = [];
+  for (const error of seen.errors) {
+    const abortedOrdinal = seen.events.findIndex(event => event.event === "requestfailed" && event.id === error.requestId && event.failure === "net::ERR_ABORTED");
+    const expectedSHA = error.url.endsWith(ROBIN.file) ? ROBIN.sha : error.url.endsWith(FOX.file) ? FOX.sha : null;
+    const replacement = seen.models.find(model => model.requestId !== error.requestId && model.url === error.url && expectedSHA !== null && model.sha256 === expectedSHA
+      && abortedOrdinal >= 0 && seen.events.findIndex(event => event.event === "requestfinished" && event.id === model.requestId) > abortedOrdinal
+      && seen.readyProofs.some(proof => proof.requestId === model.requestId && proof.url === model.url && proof.sha256 === expectedSHA && proof.readyVisibleMesh));
+    if (replacement) {
+      const replacementFinishedOrdinal = seen.events.findIndex(event => event.event === "requestfinished" && event.id === replacement.requestId);
+      cancelledReplaced.push({ error, recordedFailure: "net::ERR_ABORTED", abortedOrdinal, replacementFinishedOrdinal, replacement, readyVisibleMesh: true, cause: "UNKNOWN" });
+    } else fatal.push(error);
+  }
+  return { cancelledReplaced, fatal };
+}
+
+
+export async function recordGestureEndCommand(page: Page, gesture: string) {
+  await page.evaluate(gesture => {
+    const state = (window as typeof window & { originalMeshInputObservation?: { events: Record<string, unknown>[]; dropped: number } }).originalMeshInputObservation;
+    if (!state) throw Error("Input observation unavailable before end command");
+    if (state.events.length >= 160) { state.dropped++; return; }
+    state.events.push({ type: "end-command", observedEvent: false, gesture, scrollX, scrollY, at: performance.now() });
+  }, gesture);
+}
+
+export async function requireEndedInput(page: Page, pointerType: string, gesture: string) {
+  const read = () => page.evaluate(() => {
+    const state = (window as typeof window & { originalMeshInputObservation?: { events: Record<string, unknown>[]; points: Record<string, unknown>[]; dropped: number } }).originalMeshInputObservation;
+    if (!state) throw Error("Input observation unavailable at gesture end");
+    return { ...state, finalScrollX: scrollX, finalScrollY: scrollY };
+  });
+  // Node-side polling does not advance the frozen page clock.
+  await expect.poll(async () => {
+    const state = await read();
+    const events = state.events.filter(event => event.gesture === gesture);
+    const downIndex = events.findIndex(event => event.type === "pointerdown" && event.pointerType === pointerType && event.ownedCanvasTarget === true);
+    if (downIndex < 0) return false;
+    const id = events[downIndex]!.pointerId;
+    const commandedEnd = events.findIndex(event => event.type === "end-command");
+    if (commandedEnd <= downIndex) return false;
+    const up = events.some((event, index) => index > commandedEnd && event.type === "pointerup" && event.pointerType === pointerType && event.pointerId === id && event.ownedCanvasTarget === true);
+    if (!up) return false;
+    if (pointerType !== "touch") return true;
+    const startIndex = events.findIndex(event => event.type === "touchstart" && event.ownedCanvasTarget === true);
+    if (startIndex < 0) return false;
+    const startTouches = events[startIndex]!.changedTouches as Array<{ id: number }> | null;
+    return !!startTouches?.length && events.some((event, index) => index > commandedEnd && index > startIndex && event.type === "touchend" && event.ownedCanvasTarget === true && event.touches === 0
+      && (event.changedTouches as Array<{ id: number }> | null)?.some(touch => touch.id === startTouches[0]!.id));
+  }, { message: "This gesture delivered matching pointerup and, for touch, touchend before Home" }).toBe(true);
+  const state = await read();
+  const events = state.events.filter(event => event.gesture === gesture);
+  const point = state.points.find(point => point.gesture === gesture);
+  expect(point, "Gesture start geometry was retained").toBeDefined();
+  expect(state.dropped, "No input observation was dropped").toBe(0);
+  expect(events.some(event => event.type === "pointercancel" || event.type === "touchcancel"), "The completed gesture was not cancelled").toBe(false);
+  expect(events.some(event => event.type === "scroll" || event.scrollX !== point!.scrollX || event.scrollY !== point!.scrollY), "The gesture did not cause unexpected native scrolling").toBe(false);
+  expect(state.finalScrollX).toBe(point!.scrollX); expect(state.finalScrollY).toBe(point!.scrollY);
+  // Close this observation interval before Home can focus or scroll the frame.
+  await page.evaluate(() => {
+    const state = (window as typeof window & { originalMeshInputObservation?: { currentGesture: string } }).originalMeshInputObservation;
+    if (state) state.currentGesture = "after-gesture";
+  });
+}
+
 export async function evidence(page: Page, info: TestInfo, seen: Capture, fx: Awaited<ReturnType<typeof fixture>>, run: () => Promise<void>) {
   let primary: unknown;
   const secondary: string[] = [];
@@ -137,12 +263,15 @@ export async function evidence(page: Page, info: TestInfo, seen: Capture, fx: Aw
     try { await page.clock.resume(); } catch (error) { secondary.push("Clock: " + String(error)); }
     try { await page.screenshot({ path: info.outputPath("actual-frame.png") }); } catch (error) { secondary.push("Screenshot: " + String(error)); }
     await seen.settle();
+    let inputObservation: unknown = null;
+    try { inputObservation = await page.evaluate(() => (window as typeof window & { originalMeshInputObservation?: unknown }).originalMeshInputObservation ?? null); }
+    catch (error) { secondary.push("Input observation: " + String(error)); }
     let frame: unknown;
     try { frame = await portrait(page).evaluateAll(nodes => nodes.map(n => ({ text: n.textContent, canvases: n.querySelectorAll("canvas").length, states: Array.from(n.querySelectorAll("[data-pal-model-host]")).map(h => ({ state: (h as HTMLElement).dataset.modelState, name: h.getAttribute("aria-label"), hidden: h.getAttribute("aria-hidden") })) }))); }
     catch (error) { secondary.push("Frame: " + String(error)); }
-    try { await writeFile(info.outputPath("evidence.json"), JSON.stringify({ events: seen.events, models: seen.models, bodyErrors: seen.errors, boundary: fx.boundary, ownerReads: fx.ownerReads, frame, primaryFailure: primary ? String(primary) : null, secondary, rendering: "Real WebGL through SwiftShader software rendering. No hardware-GPU or physical-device acceptance." }, null, 2)); }
+    try { await writeFile(info.outputPath("evidence.json"), JSON.stringify({ events: seen.events, models: seen.models, bodyErrors: seen.errors, bodyClassification: classifyBodyErrors(seen), readyProofs: seen.readyProofs, boundary: fx.boundary, ownerReads: fx.ownerReads, frame, inputObservation, primaryFailure: primary ? String(primary) : null, secondary, rendering: "Real WebGL through SwiftShader software rendering. No hardware-GPU or physical-device acceptance." }, null, 2)); }
     catch (error) { secondary.push("Receipt: " + String(error)); }
   }
   if (primary) throw primary;
-  expect(seen.errors).toEqual([]); expect(fx.boundary).toEqual([]); expect(secondary).toEqual([]);
+  expect(classifyBodyErrors(seen).fatal).toEqual([]); expect(fx.boundary).toEqual([]); expect(secondary).toEqual([]);
 }
