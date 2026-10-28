@@ -88,7 +88,7 @@ export default function VenuePintsTab({
                   style={{ display: "block", marginTop: "8px" }}
                 >
                   {dropMsg.text}
-                  {dropMsg.ok && dropMsg.links && dropMsg.links.length > 0 ? (
+                  {dropMsg.links && dropMsg.links.length > 0 ? (
                     <span className="composerMsgLinks">
                       {dropMsg.links.map((link) => (
                         <Link key={link.href} href={link.href} className="composerMsgLink">

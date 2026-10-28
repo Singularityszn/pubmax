@@ -40,6 +40,15 @@ const landing = read("components/landing/LandingPage.tsx");
 const sitemap = read("app/sitemap.ts");
 
 describe("legal content pages", () => {
+  it("gives copyright owners a report address and the required notice details", () => {
+    expect(termsText).toContain("Copyright reports");
+    expect(termsText).toContain("Identify the copyrighted work");
+    expect(termsText).toContain("Give the exact page or content URL");
+    expect(termsText).toContain("good faith");
+    expect(termsText).toContain("under penalty of perjury");
+    expect(termsText).toContain("physical or electronic signature");
+    expect(renderToStaticMarkup(createElement(TermsPage))).toContain('aria-labelledby="copyright"');
+  });
   it("reaches the reader from the site footer", () => {
     expect(landing).toMatch(/<Link\b[^>]*href="\/privacy"[^>]*>/);
     expect(landing).toMatch(/<Link\b[^>]*href="\/terms"[^>]*>/);
@@ -692,10 +701,11 @@ describe("legal content pages", () => {
     );
   });
 
-  it("keeps existing tools open while making full Social 18+", () => {
-    expect(terms).toMatch(
-      /map and existing contribution tools don&rsquo;t use age to block an\s+account/i,
-    );
+  it("separates public browsing from adult-only contributions and Social", () => {
+    for (const text of [termsText, privacyText]) {
+      expect(text).toContain("The public map can be read without an age check.");
+      expect(text).toContain("Price submissions and pub photo walls require a signed-in account, a claimed handle and an 18+ answer.");
+    }
     expect(termsText).toMatch(/Social is live by default/i);
     expect(termsText).toMatch(/one recorded self-assertion can answer the access question/i);
     expect(terms).toMatch(/Pubs\s+decide who they serve/i);

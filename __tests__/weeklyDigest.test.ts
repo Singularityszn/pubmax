@@ -337,7 +337,7 @@ describe("rendering — honest, email-safe", () => {
 
   it("toEmailMessage bundles subject/html/text and substitutes the unsubscribe URL", () => {
     const url = "https://pubmaxxing.com/u/tok-123";
-    const msg = toEmailMessage(rich, { unsubscribeUrl: url });
+    const msg = toEmailMessage(rich, { unsubscribeUrl: url, postalAddress: "PUBMAXX, 1 Example Street, London, TEST 1AA" });
     expect(msg.to).toBe("d@e.com");
     expect(msg.subject).toBe(rich.subject);
     expect(msg.html).toContain("PUBMAXX");
@@ -349,15 +349,33 @@ describe("rendering — honest, email-safe", () => {
     expect(msg.text).not.toContain("{{");
   });
 
+  it("includes the sender postal address in both email parts", () => {
+    const options = {
+      unsubscribeUrl: "https://example.com/unsubscribe/signed-token",
+      postalAddress: "PUBMAXX, Test & Co, 1 Example Street, London, TEST 1AA",
+    };
+    const message = toEmailMessage(rich, options);
+    expect(message.html).toContain("PUBMAXX, Test &amp; Co, 1 Example Street, London, TEST 1AA");
+    expect(message.text).toContain(options.postalAddress);
+  });
+
+  it("refuses a sendable email without a sender postal address", () => {
+    for (const postalAddress of [undefined, "", "   "]) {
+      const options = { unsubscribeUrl: "https://example.com/unsubscribe/token", postalAddress };
+      // @ts-expect-error Exercise missing input from an untyped caller.
+      expect(() => toEmailMessage(rich, options)).toThrow(/postalAddress is required/);
+    }
+  });
+
   it("toEmailMessage requires an absolute http(s) unsubscribe URL", () => {
-    expect(() => toEmailMessage(rich, { unsubscribeUrl: "" })).toThrow(
+    expect(() => toEmailMessage(rich, { unsubscribeUrl: "", postalAddress: "Test address" })).toThrow(
       /unsubscribeUrl is required/,
     );
-    expect(() => toEmailMessage(rich, { unsubscribeUrl: "not-a-url" })).toThrow(
+    expect(() => toEmailMessage(rich, { unsubscribeUrl: "not-a-url", postalAddress: "Test address" })).toThrow(
       /absolute http\(s\) URL/,
     );
     expect(() =>
-      toEmailMessage(rich, { unsubscribeUrl: "ftp://x/y" }),
+      toEmailMessage(rich, { unsubscribeUrl: "ftp://x/y", postalAddress: "Test address" }),
     ).toThrow(/absolute http\(s\) URL/);
   });
 

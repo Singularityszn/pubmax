@@ -1,8 +1,17 @@
 import "server-only";
 
-import { accountIsAdult } from "@/lib/adultGate";
+import { accountIsAdult, type AccountAdultEvidence } from "@/lib/adultGate";
 import { adultSelfAssertionStore } from "@/lib/adultSelfAssertionStore";
 import { privateIdentityStore } from "@/lib/privateIdentityStore";
+
+/** Read both account answers. Write gates must distinguish a failed read. */
+export async function accountAdultEvidence(userId: string): Promise<AccountAdultEvidence> {
+  const [privateIdentity, adultSelfAssertedAt] = await Promise.all([
+    privateIdentityStore().read(userId),
+    adultSelfAssertionStore().read(userId),
+  ]);
+  return { dateOfBirth: privateIdentity?.dateOfBirth ?? null, adultSelfAssertedAt };
+}
 
 /**
  * Has this account ALREADY answered the age question as an adult? A stored
@@ -16,14 +25,7 @@ import { privateIdentityStore } from "@/lib/privateIdentityStore";
  */
 export async function accountAdultOnFile(userId: string): Promise<boolean> {
   try {
-    const [privateIdentity, adultSelfAssertedAt] = await Promise.all([
-      privateIdentityStore().read(userId),
-      adultSelfAssertionStore().read(userId),
-    ]);
-    return accountIsAdult({
-      dateOfBirth: privateIdentity?.dateOfBirth ?? null,
-      adultSelfAssertedAt,
-    });
+    return accountIsAdult(await accountAdultEvidence(userId));
   } catch {
     return false;
   }

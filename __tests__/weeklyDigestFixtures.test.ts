@@ -83,6 +83,7 @@ describe("weekly digest fixtures", () => {
       // Final provider-ready message: unsubscribe URL substituted + guarded.
       const { html, text } = toEmailMessage(digest, {
         unsubscribeUrl: FIXTURE_UNSUBSCRIBE_URL,
+        postalAddress: "EXAMPLE ONLY: PUBMAXX, 1 Example Street, London, TEST 1AA",
       });
 
       const htmlPath = join(OUT_DIR, `${name}.html`);

@@ -18,7 +18,7 @@ import "../legal.css";
 const PAGE_TITLE = "Terms of use";
 const PAGE_DESCRIPTION =
   "Plain-language terms covering what PUBMAXX is, what you can post, what map prices mean, and where our responsibility ends.";
-const LAST_UPDATED = "18 October 2026";
+const LAST_UPDATED = "28 October 2026";
 
 export const metadata: Metadata = {
   title: PAGE_TITLE,
@@ -79,8 +79,9 @@ export default function TermsPage() {
       <section className="legalSection" aria-labelledby="age">
         <h2 id="age" className="legalH2">Age and alcohol</h2>
         <p className="legalBody">
-          The map and existing contribution tools don&rsquo;t use age to block an
-          account. Social is live by default and may return to preview during an
+          The public map can be read without an age check. Price submissions and
+          pub photo walls require a signed-in account, a claimed handle and an 18+ answer.
+          Social is live by default and may return to preview during an
           emergency rollback. Full access needs a signed-in account, a claimed
           handle and an 18+ answer. The date of birth you gave at onboarding
           decides when it is present; otherwise, one recorded self-assertion can
@@ -225,6 +226,33 @@ export default function TermsPage() {
             map.
           </li>
         </ul>
+      </section>
+
+      <section className="legalSection" aria-labelledby="copyright">
+        <h2 id="copyright" className="legalH2">Copyright reports</h2>
+        <p className="legalBody">
+          If someone posts your work without permission, send a copyright report
+          to <a href={CONTACT_MAILTO} className="legalLink">{CONTACT_EMAIL}</a>.
+          Include the following details so we can assess it:
+        </p>
+        <ol className="legalList">
+          <li>Identify the copyrighted work, or list the works covered by your report.</li>
+          <li>Give the exact page or content URL so we can find the material.</li>
+          <li>Give your name, postal address, telephone number and email address.</li>
+          <li>
+            State that you believe in good faith that the use is not authorised
+            by the copyright owner, its agent or the law.
+          </li>
+          <li>
+            State that the information is accurate and, under penalty of perjury,
+            that you can act for the owner of the right concerned.
+          </li>
+          <li>Include your physical or electronic signature.</li>
+        </ol>
+        <p className="legalBody">
+          We review reports and may remove content under the rules below.
+          Sending a report does not guarantee removal.
+        </p>
       </section>
 
       <section className="legalSection" aria-labelledby="use">

@@ -28,7 +28,8 @@
 //   3. const users    = resolveDigestRecipients(members);      // lib/weeklyDigest
 //   4. const messages = users.map((u) => toEmailMessage(
 //        generateWeeklyDigest({ user: u, now: new Date(), ...datasets }),
-//        { unsubscribeUrl: unsubscribeUrlFor(u) }));            // REQUIRED per-recipient
+//        { unsubscribeUrl: unsubscribeUrlFor(u), postalAddress: senderPostalAddress }));
+//        // The owner must supply the real sender address before delivery is enabled.
 //        // toEmailMessage substitutes {{unsubscribe_url}} and throws if any
 //        // {{…}} placeholder survives — a message can never ship half-templated.
 //   5. const results  = await provider.send(messages);         // noop → all "skipped"
@@ -79,7 +80,7 @@ async function main() {
   if (!isEmailProviderConfigured()) {
     log(
       "email provider not configured (RESEND_API_KEY + EMAIL_FROM absent) — noop. "
-        + "Nothing sent. Set the keys to activate delivery; see docs/EMAIL_DIGEST.md.",
+        + "Nothing sent. Delivery remains unimplemented; see docs/EMAIL_DIGEST.md before enabling marketing.",
     );
     return; // exit 0 — the current, expected state.
   }

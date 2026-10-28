@@ -1,5 +1,8 @@
 import { isModerator } from "@/lib/adminAuth";
 import { callerUserId } from "@/lib/authServer";
+import { accountIsAdult, needsAdultSelfAssertion } from "@/lib/adultGate";
+import { accountAdultEvidence } from "@/lib/adultOnFile.server";
+import { contributionAdultRefusal } from "@/lib/contributionGateStatus";
 
 // Single write-path seam for community "Pint Drops".
 //
@@ -460,6 +463,27 @@ export async function POST(request: Request): Promise<Response> {
       "UNAUTHENTICATED",
       401,
     );
+  }
+  if (canonicalDrop.priceGbp !== null && ownership.callerUserId) {
+    try {
+      const evidence = await accountAdultEvidence(ownership.callerUserId);
+      const refusal = contributionAdultRefusal({
+        isAdult: accountIsAdult(evidence),
+        needsSelfAssertion: needsAdultSelfAssertion(evidence),
+      });
+      if (refusal) {
+        return publicApiError(refusal.error, "ADULT_REQUIRED", 409, {
+          compatibilityFields: { status: refusal.status },
+        });
+      }
+    } catch {
+      return publicApiError(
+        "We could not check your account just now. Try again.",
+        "IDENTITY_UNAVAILABLE",
+        503,
+        { retryable: true },
+      );
+    }
   }
   // AND A PRICE COMES WITH THE BILL (captain 7 Sept 2026). Asked before the
   // rate limit and the daily cap, so a refusal spends neither. An unpriced
