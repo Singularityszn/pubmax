@@ -74,8 +74,7 @@ import { writePlanningIntent } from "@/lib/planningIntent";
 import { authedActionFetch } from "@/lib/authedFetch";
 import { palChatResultFromBody } from "@/lib/palChatClient";
 import { palOpeningMessage } from "@/lib/palOpening";
-import { createPalChatSession } from "@/lib/palChatClient";
-import { refineRoutedAskQuery } from "@/lib/ask/router";
+import { createPalChatSession, PAL_CHAT_TIMEOUT_MS } from "@/lib/palChatClient";
 import { clearPalChatThread, palChatMapAnswer, readPalChatThread, savePalChatThread, type PalChatEntry as Entry, type PalChatThread } from "@/lib/palChatThread";
 import {
   cheapestGlanceLine,
@@ -294,8 +293,9 @@ function PalChatBody({ owner }: { owner: string | null }) {
   const auth = captureAccountAuth(user?.id ?? null, session);
   const [entries, setEntries] = useState<Entry[]>([]);
   const [query, setQuery] = useState("");
+  const [threadReady, setThreadReady] = useState(false);
   const browserReady = useSyncExternalStore(() => () => {}, () => true, () => false);
-  const inputReady = browserReady && owner !== null;
+  const inputReady = threadReady && browserReady && owner !== null;
   const [pending, setPending] = useState(false);
   // The answer text so far while the Pal is still writing it, "" until it starts.
   const [streamText, setStreamText] = useState("");
@@ -329,27 +329,11 @@ function PalChatBody({ owner }: { owner: string | null }) {
   }), []);
 
   useEffect(() => {
-    if (!owner || sessionRef.current || priorAsksRef.current.length) return;
-    const saved = readPalChatThread(owner);
-    if (!saved?.entries.length) return;
-    let active = true;
-    queueMicrotask(() => {
-      if (!active) return;
-      sessionRef.current = createSession(saved);
-      conversationRef.current = { id: saved.conversationId, at: saved.conversationAt };
-      counterRef.current = saved.entries.length;
-      priorAsksRef.current = saved.priorAsks;
-      turnsRef.current = saved.turns;
-      savedEntriesRef.current = saved.entries;
-      setEntries(saved.entries);
-    });
-    return () => { active = false; };
-  }, [owner, createSession]);
-
-  useEffect(() => {
     if (!owner || pending || !entries.length || entries === savedEntriesRef.current) return;
-    savePalChatThread(owner, entries, conversationRef.current.id, conversationRef.current.at, turnsRef.current);
+    const controller = new AbortController();
+    void savePalChatThread(owner, entries, conversationRef.current.id, conversationRef.current.at, turnsRef.current, controller.signal).catch(() => {});
     savedEntriesRef.current = entries;
+    return () => { controller.abort(); };
   }, [entries, pending, owner]);
 
   const nextId = useCallback(() => {
@@ -358,10 +342,41 @@ function PalChatBody({ owner }: { owner: string | null }) {
   }, []);
 
   useEffect(() => {
-    if (!owner || owner === "anonymous" || entries.length || sessionRef.current || readPalChatThread(owner)?.entries.length) return;
+    if (!owner || entries.length || sessionRef.current) return;
     const request = ++openingReadRef.current;
     let active = true;
+    let restoreTimeout: ReturnType<typeof setTimeout> | undefined;
     void (async () => {
+      try {
+        const saved = await Promise.race([
+          readPalChatThread(owner),
+          new Promise<never>((_resolve, reject) => {
+            restoreTimeout = setTimeout(() => reject(new Error("History load timed out")), PAL_CHAT_TIMEOUT_MS);
+          }),
+        ]);
+        if (!active || request !== openingReadRef.current) return;
+        setThreadReady(true);
+        if (saved?.entries.length) {
+          sessionRef.current = createSession(saved);
+          conversationRef.current = { id: saved.conversationId, at: saved.conversationAt };
+          counterRef.current = saved.entries.length;
+          priorAsksRef.current = saved.priorAsks;
+          turnsRef.current = saved.turns;
+          savedEntriesRef.current = saved.entries;
+          setEntries(saved.entries);
+          return;
+        }
+      } catch {
+        if (active && request === openingReadRef.current) {
+          const failure: Entry[] = [{ kind: "error", id: nextId(), message: "Your earlier conversation could not be restored. Start a new conversation to continue." }];
+          savedEntriesRef.current = failure;
+          setEntries(failure);
+        }
+        return;
+      } finally {
+        clearTimeout(restoreTimeout);
+      }
+      if (owner === "anonymous") return;
       let answer = palOpeningMessage("", { memories: null, taste: null });
       let conversationId = "";
       try {
@@ -380,7 +395,7 @@ function PalChatBody({ owner }: { owner: string | null }) {
       conversationRef.current = { id: conversationId, at: Date.now() };
       setEntries([{ kind: "answer", id: nextId(), answer: { status: "empty", message: answer, cards: [] }, locality: null, proposals: [], recall: null }]);
     })();
-    return () => { active = false; };
+    return () => { active = false; clearTimeout(restoreTimeout); };
   }, [owner, entries.length, createSession, nextId]);
 
   useEffect(() => {
@@ -505,7 +520,7 @@ function PalChatBody({ owner }: { owner: string | null }) {
   const ask = useCallback(
     async (raw: string, options: { preserveDraft?: boolean } = {}) => {
       const text = raw.trim();
-      if (!text || pending || !owner) return;
+      if (!text || pending || !owner || !threadReady) return;
       openingReadRef.current += 1;
       if (await openMapFromAsk(text)) return;
       sessionRef.current ??= createSession();
@@ -537,8 +552,7 @@ function PalChatBody({ owner }: { owner: string | null }) {
         return;
       }
       // Ground WHERE this answer applies from the query and remembered area.
-      const priorUsers = turnsRef.current.filter((turn) => turn.role === "user").map((turn) => turn.content).slice(0, -1);
-      const locality = resolvePalLocality(refineRoutedAskQuery(text, priorUsers.at(-1), priorUsers), readRememberedArea());
+      const locality = resolvePalLocality(result.routedQuery ?? text, readRememberedArea());
       const proposals =
         result.status === "answered" || result.status === "empty"
           ? result.proposals ?? []
@@ -553,7 +567,7 @@ function PalChatBody({ owner }: { owner: string | null }) {
         { kind: "answer", id: nextId(), answer: result, locality, proposals, recall },
       ]);
     },
-    [nextId, openMapFromAsk, pending, createSession, owner],
+    [nextId, openMapFromAsk, pending, createSession, owner, threadReady],
   );
 
   const dismissProposal = useCallback((entryId: string, proposalId: string) => {
@@ -795,6 +809,7 @@ function PalChatBody({ owner }: { owner: string | null }) {
         savedEntriesRef.current = null;
         counterRef.current = 0;
         setEntries([]);
+        setThreadReady(true);
         setQuery("");
         composerInput.current?.focus();
       }}>New conversation</button> : null}

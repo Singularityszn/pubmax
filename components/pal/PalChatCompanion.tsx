@@ -6,7 +6,6 @@ import { DEFAULT_PAL_DRAFT, type PalAnimationState, type PubPal } from "@/lib/pu
 import { palGenomeFor } from "@/lib/palGenome";
 import { readLocalPal, subscribeLocalPal } from "@/lib/localPal";
 import PalPortrait from "./PalPortrait";
-import "@/app/pal/pal.css";
 
 /** The chat keeps the person's selected companion beside the conversation. */
 export default function PalChatCompanion({ owner, state }: { owner: string | null; state: PalAnimationState }) {
