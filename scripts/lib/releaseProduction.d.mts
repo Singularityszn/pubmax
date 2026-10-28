@@ -5,11 +5,11 @@ export const DEFAULT_REPOSITORY: string;
 
 export function parseDeploymentUrl(output: string | null | undefined): string | null;
 
-export type SmokeRunRow = { databaseId: number; headSha: string; createdAt: string };
+export type SmokeRunRow = { databaseId: number; headSha: string; createdAt: string; displayTitle?: string };
 
 export function pickDispatchedRun(
   runs: readonly SmokeRunRow[] | null | undefined,
-  input: { sha: string; dispatchedAtMs: number },
+  input: { sha: string; dispatchedAtMs: number; deploymentId: string },
 ): SmokeRunRow | null;
 
 export class ReleaseRefusal extends Error {}
