@@ -1,3 +1,7 @@
+import { randomUUID } from "node:crypto";
+import { installAuthDoubles, seedSignedIn } from "./helpers/authDoubles";
+import { expectMapLoadingFrameReleased } from "./helpers/mobileMapShell";
+import { expectMapToolbarReady } from "./helpers/mapToolbar";
 import { expect, test } from "@playwright/test";
 import sharp from "sharp";
 import { DEFAULT_PAL_DRAFT } from "../lib/pubPal";
@@ -358,3 +362,217 @@ test("a road response after a drag waits for Show whole walk before reframing", 
     releaseRoad();
   }
 });
+
+// Independent fixture: committed catalogue revision768f69c954a9 and Root/QA's
+// west-to-east test order. This is not an optimal walk or current-price claim.
+const SOHO_FOUR_PUBS = [
+  { id: "venue-nyowgc", name: "Coach & Horses", address: "1 Great Malborough Street, W1F 7HG", lng: -0.137432, lat: 51.5149 },
+  { id: "venue-xiesdn", name: "The Dog & Duck", address: "18 Bateman St, London W1D 3AJ", lng: -0.132014, lat: 51.514 },
+  { id: "venue-15i2wst", name: "Golden Lion (Soho)", address: "51 Dean Street, W1D 5BH", lng: -0.131572, lat: 51.5125 },
+  { id: "venue-phqazo", name: "The Coach & Horses", address: "29 Greek St, London W1D 5DH", lng: -0.130129, lat: 51.5133 },
+] as const;
+const SOHO_FOUR_MAP_HREF = "/map?mode=build&pubs=venue-nyowgc%2Cvenue-xiesdn%2Cvenue-15i2wst%2Cvenue-phqazo";
+const SOHO_FOUR_ORDER = "venue-nyowgc,venue-xiesdn,venue-15i2wst,venue-phqazo";
+const SOHO_VIEWPORTS = [
+  { name: "desktop", width: 1440, height: 900 },
+  { name: "portrait", width: 390, height: 844 },
+  { name: "landscape", width: 844, height: 390 },
+] as const;
+
+type SohoProbeWindow = Window & {
+  __pubmaxMapCamera?: {
+    read(): { moving: boolean; settling: boolean };
+    project(point: [number, number]): { x: number; y: number };
+  };
+  __pubmaxPaintedMapTapPoints?: (() => Array<{ kind: string; id: string; x: number; y: number }>) & {
+    state?: () => { loaded: boolean };
+  };
+};
+
+for (const theme of ["light", "dark"] as const) {
+  test(`four Soho pubs keep their identities and approximate walk visible across desktop and phone resizing in ${theme}`, async ({ page, context, baseURL }, testInfo) => {
+    test.setTimeout(180_000);
+    testInfo.annotations.push({ type: "visual-review-required",
+      description: "Review every fit image for four complete numbered discs, correct stop numbers and readable labels. Automated public-pin checks do not prove these details." });
+    expect(baseURL, "this write fixture requires a private local server").toBeTruthy();
+    expect(["localhost", "127.0.0.1"]).toContain(new URL(baseURL!).hostname);
+    await installAuthDoubles(page);
+    await seedSignedIn(page, "A");
+    await page.setViewportSize({ width: SOHO_VIEWPORTS[0].width, height: SOHO_VIEWPORTS[0].height });
+    await page.emulateMedia({ reducedMotion: "reduce", colorScheme: theme });
+    await page.addInitScript((chosenTheme) => {
+      localStorage.setItem("pubmax-theme", chosenTheme);
+      localStorage.setItem("pubmax-tour-v1-done", "1");
+      localStorage.setItem("pubmax-tour-v2-done", "1");
+      localStorage.setItem("pubmax_onboarding_dismissed", "1");
+      sessionStorage.setItem("pubmax_onboarding_dismissed", "1");
+      localStorage.setItem("pubmaxx:analytics-consent:v1", "denied");
+      localStorage.setItem("pubmax:identityNudge:dismissedAt:v1", String(Date.now()));
+      localStorage.setItem("pubmax:map-first-visit-arrival:v1", "dismissed");
+    }, theme);
+    // External routing failure only. Never invent a road or call a provider.
+    await page.route("**/api/walk-route?**", (route) => route.fulfill({
+      status: 503, json: { error: "Walking route unavailable.", code: "UNAVAILABLE", retryable: true },
+    }));
+    // The existing local public API creates the saved-plan precondition.
+    // Member capability stays in memory. The real generator/Lock it in journey
+    // remains covered by plan-route-map and map-crawl-spa-handoff.
+    const created = await context.request.post("/api/plans", {
+      headers: { "idempotency-key": randomUUID() },
+      data: {
+        title: "Four Soho pubs", creatorName: "Soho route fixture",
+        startTime: new Date(Date.now() + 2 * 60 * 60 * 1000).toISOString(),
+        stops: SOHO_FOUR_PUBS.map((pub) => ({ venueId: pub.id, venueName: pub.name })),
+      },
+    });
+    expect(created.status()).toBe(201);
+    const body = await created.json() as { memberToken: string; plan: { plan: { id: string } } };
+    const planPath = `/plan/${body.plan.plan.id}`;
+    const ready = await context.request.patch(`/api/plans/${body.plan.plan.id}`, {
+      data: {
+        memberToken: body.memberToken, status: "ready",
+        context: { nightArea: "soho", daypart: "evening", partyType: "friends", groupSize: 4, budget: "standard" },
+      },
+    });
+    expect(ready.ok()).toBe(true);
+    await page.goto(planPath);
+    await expect(page.locator(".planRoute__stopsTrack .planRoute__body > strong"))
+      .toHaveText(SOHO_FOUR_PUBS.map((pub) => pub.name));
+    const walking = page.getByRole("link", { name: "See the walking route", exact: true });
+    await expect(walking).toHaveAttribute("href", SOHO_FOUR_MAP_HREF);
+    await expect(page.getByRole("navigation", { name: "Site navigation", exact: true })
+      .getByRole("link", { name: "Map", exact: true })).toHaveAttribute("href", SOHO_FOUR_MAP_HREF);
+    const originalDocument = await page.evaluateHandle(() => document);
+    await walking.click();
+    await expect(page).toHaveURL(new URL(SOHO_FOUR_MAP_HREF, baseURL!).href);
+    expect(await originalDocument.evaluate((original) => original === document)).toBe(true);
+    await expectMapLoadingFrameReleased(page);
+    await expectMapToolbarReady(page);
+    await expect(page.locator(".mapCanvasWrap[data-route-stops]"))
+      .toHaveAttribute("data-route-stops", "4", { timeout: 60_000 });
+    const originalCanvas = await page.locator(".mapCanvasWrap .maplibregl-canvas").elementHandle();
+    expect(originalCanvas).not.toBeNull();
+
+    const readMap = () => page.evaluate((pubs) => {
+      const view = window as SohoProbeWindow;
+      const camera = view.__pubmaxMapCamera;
+      const canvas = document.querySelector<HTMLCanvasElement>(".mapCanvasWrap .maplibregl-canvas");
+      if (!camera || !canvas) return null;
+      const box = canvas.getBoundingClientRect();
+      const points = pubs.map((pub) => ({ id: pub.id, ...camera.project([pub.lng, pub.lat]) }));
+      const painted = view.__pubmaxPaintedMapTapPoints?.() ?? [];
+      const radius = 21;
+      const offsets = [[0, 0], [-radius, 0], [radius, 0], [0, -radius], [0, radius], [-15, -15], [15, -15], [-15, 15], [15, 15]];
+      const state = camera.read();
+      const colourCanvas = document.createElement("canvas");
+      colourCanvas.width = colourCanvas.height = 1;
+      const colour = colourCanvas.getContext("2d")!;
+      colour.fillStyle = getComputedStyle(document.documentElement).getPropertyValue("--route-line").trim();
+      colour.fillRect(0, 0, 1, 1);
+      return {
+        ready: !state.moving && !state.settling && Boolean(view.__pubmaxPaintedMapTapPoints?.state?.().loaded),
+        viewport: { width: innerWidth, height: innerHeight },
+        theme: document.documentElement.getAttribute("data-theme"),
+        rootFontSize: getComputedStyle(document.documentElement).fontSize,
+        canvas: { left: box.left, top: box.top, right: box.right, bottom: box.bottom },
+        points: points.map((point) => ({
+          ...point, painted: painted.some((pin) => pin.kind === "pin" && pin.id === point.id),
+          clearRim: offsets.every(([dx, dy]) => document.elementFromPoint(point.x + dx!, point.y + dy!) === canvas),
+        })),
+        lineColour: Array.from(colour.getImageData(0, 0, 1, 1).data).slice(0, 3),
+        lineSamples: pubs.slice(1).map((pub, index) => [0.23, 0.31, 0.42, 0.5, 0.61, 0.73, 0.79]
+          .map((fraction) => camera.project([
+            pubs[index]!.lng + (pub.lng - pubs[index]!.lng) * fraction,
+            pubs[index]!.lat + (pub.lat - pubs[index]!.lat) * fraction,
+          ]))),
+        span: Math.max(...points.map((point) => point.x)) - Math.min(...points.map((point) => point.x)),
+      };
+    }, [...SOHO_FOUR_PUBS]);
+
+    // First observe all responsive states without selecting or dragging.
+    for (const viewport of SOHO_VIEWPORTS) {
+      await page.setViewportSize({ width: viewport.width, height: viewport.height });
+      await expect.poll(async () => (await readMap())?.ready).toBe(true);
+      const geometry = await readMap();
+      const screenshot = await page.screenshot();
+      await testInfo.attach(`four-soho-${theme}-${viewport.name}-geometry`, {
+        body: JSON.stringify(geometry, null, 2), contentType: "application/json",
+      });
+      await testInfo.attach(`four-soho-${theme}-${viewport.name}`, { body: screenshot, contentType: "image/png" });
+      expect(await originalCanvas!.evaluate((canvas) => canvas.isConnected
+        && canvas === document.querySelector(".mapCanvasWrap .maplibregl-canvas"))).toBe(true);
+      expect(geometry).not.toBeNull();
+      expect(geometry!.theme).toBe(theme);
+      expect(geometry!.viewport).toEqual({ width: viewport.width, height: viewport.height });
+      expect(geometry!.span).toBeGreaterThanOrEqual(Math.min(240, viewport.width * 0.45));
+      for (const point of geometry!.points) {
+        expect(point.painted, `${point.id} is a rendered public pin`).toBe(true);
+        expect(point.clearRim, `${point.id} full disc clears app chrome`).toBe(true);
+        expect(point.x).toBeGreaterThanOrEqual(geometry!.canvas.left + 22);
+        expect(point.x).toBeLessThanOrEqual(geometry!.canvas.right - 22);
+        expect(point.y).toBeGreaterThanOrEqual(geometry!.canvas.top + 22);
+        expect(point.y).toBeLessThanOrEqual(geometry!.canvas.bottom - 22);
+      }
+      for (let first = 0; first < geometry!.points.length; first += 1) {
+        for (const other of geometry!.points.slice(first + 1)) {
+          const point = geometry!.points[first]!;
+          expect(Math.hypot(point.x - other.x, point.y - other.y), "fixed stop centres reserve separate disc space").toBeGreaterThan(40);
+        }
+      }
+      // The independently fixed straight segments must actually paint.
+      // The existing three-stop recorded-road case owns pavement geometry.
+      const paintedSegments: number[][] = [];
+      for (const segment of geometry!.lineSamples) {
+        const matchingSamples: number[] = [];
+        for (const point of segment) {
+          expect(point.x).toBeGreaterThanOrEqual(4);
+          expect(point.y).toBeGreaterThanOrEqual(4);
+          expect(point.x).toBeLessThan(viewport.width - 4);
+          expect(point.y).toBeLessThan(viewport.height - 4);
+          const { data } = await sharp(screenshot).extract({ left: Math.round(point.x) - 3,
+            top: Math.round(point.y) - 3, width: 7, height: 7 }).removeAlpha().raw().toBuffer({ resolveWithObject: true });
+          let matching = 0;
+          for (let offset = 0; offset < data.length; offset += 3) {
+            if (geometry!.lineColour.every((channel, index) => Math.abs(data[offset + index]! - channel) < 35)) matching += 1;
+          }
+          matchingSamples.push(matching);
+        }
+        paintedSegments.push(matchingSamples);
+      }
+      await testInfo.attach(`four-soho-${theme}-${viewport.name}-line-pixels`, {
+        body: JSON.stringify(paintedSegments), contentType: "application/json",
+      });
+      // Several positions prevent a valid dash gap at one midpoint reading as
+      // an absent line. At least one sampled position must contain painted ink.
+      for (const segment of paintedSegments) {
+        expect(segment.some((matching) => matching > 2), "the approximate segment visibly paints").toBe(true);
+      }
+      expect(new URL(page.url()).searchParams.get("pubs")).toBe(SOHO_FOUR_ORDER);
+    }
+
+    // Identity checks use the painted-pin probe, never guessed canvas taps.
+    for (const viewport of SOHO_VIEWPORTS) {
+      await page.setViewportSize({ width: viewport.width, height: viewport.height });
+      for (const pub of SOHO_FOUR_PUBS) {
+        await page.getByRole("button", { name: /^(?:Recenter route|Show whole walk)$/ }).click();
+        await expect.poll(async () => (await readMap())?.ready).toBe(true);
+        const point = await page.evaluate((id) => (window as SohoProbeWindow)
+          .__pubmaxPaintedMapTapPoints?.().find((pin) => pin.kind === "pin" && pin.id === id) ?? null, pub.id);
+        expect(point, `${pub.id} has a painted point for this single trusted tap`).not.toBeNull();
+        await page.mouse.click(point!.x, point!.y);
+        await expect.poll(() => new URL(page.url()).searchParams.get("sel")).toBe(pub.id);
+        const address = page.locator(".venueAddress:visible");
+        await expect(address).toHaveCount(1);
+        await expect(address).toHaveText(pub.address);
+        await testInfo.attach(`four-soho-${theme}-${viewport.name}-${pub.id}`, {
+          body: await page.screenshot(), contentType: "image/png",
+        });
+        const close = page.getByRole("button", { name: "Close pub detail", exact: true });
+        await expect(close).toBeVisible();
+        await close.click();
+        await expect(close).not.toBeVisible();
+        expect(new URL(page.url()).searchParams.get("pubs")).toBe(SOHO_FOUR_ORDER);
+      }
+    }
+  });
+}
