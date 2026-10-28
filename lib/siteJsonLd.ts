@@ -52,7 +52,10 @@ export const siteJsonLd = [
   },
 ];
 
-/** Homepage product identity, separate from the site and its publisher. */
+/**
+ * Homepage-only page and free-app identity, linked to the site-wide graph.
+ * This markup does not claim Google software-app rich-result eligibility.
+ */
 export const homeJsonLd = [
   {
     "@context": "https://schema.org",
