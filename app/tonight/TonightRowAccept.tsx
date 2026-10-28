@@ -1,5 +1,7 @@
 "use client";
 
+import { ReadyButton } from "@/components/ui/ready-button";
+
 // Keep and its failure travel together. The acceptance failure belongs to one
 // row, so it renders beside that row's own Keep button and never as a single
 // page-level alert above the whole list.
@@ -40,14 +42,14 @@ export function TonightRowAccept({
   const message = tonightRowAcceptanceError(acceptanceError, venueId, familyKey);
   return (
     <>
-      <button
+      <ReadyButton
         type="button"
         className={`${className} pressable`}
         aria-label={`Keep ${placeName} for tonight`}
         onClick={() => onAccept(venueId, familyKey, evidence)}
       >
         {label}
-      </button>
+      </ReadyButton>
       {message ? (
         <p className="tonightAcceptanceError" role="alert">{message}</p>
       ) : null}

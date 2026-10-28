@@ -10,6 +10,8 @@
   --pal-soft: var(--ink-soft);
   position: relative;
   min-height: 100dvh;
+  max-width: var(--content-max-wide);
+  margin-inline: auto;
   overflow: hidden;
   /* The shared top nav sits above this in the flow (app/pal/page.tsx), so the
      page only needs the head's own breathing room, not a bar's clearance.
@@ -17,7 +19,7 @@
      safe-area inset is never added here again: added twice, it put a blank
      band the height of the notch between the bar and the head on an iPhone
      (e2e/page-shell-safe-area-top.spec.ts). */
-  padding: var(--space-6) clamp(1rem, 4vw, 4.5rem) calc(6rem + env(safe-area-inset-bottom));
+  padding: var(--space-6) var(--page-gutter) calc(6rem + env(safe-area-inset-bottom));
   color: var(--pal-paper);
   font-family: var(--font-body);
 }
@@ -503,7 +505,7 @@ body:has(.analyticsConsentPrompt) .palPrintRow { display: none; }
      published footprint (--night-pill-clearance, 0px unless a pill is floating),
      so the "Meet your Pub Pal" CTA always clears BOTH the tab bar and the pill
      instead of hiding behind either. */
-  .palExperience { padding: 1.75rem 1rem calc(var(--tabbar-h, 64px) + env(safe-area-inset-bottom, 0px) + 3.25rem + var(--night-pill-clearance, 0px)); }
+  .palExperience { padding: 1.75rem var(--page-gutter) calc(var(--tabbar-h, 64px) + env(safe-area-inset-bottom, 0px) + 3.25rem + var(--night-pill-clearance, 0px)); }
   .palTopbar { grid-template-columns: 1fr auto; }
   .palOnboarding .palTopbar { grid-template-columns: 1fr auto 1fr; }
   .palHomeHero, .palOnboardingLayout, .palControls { grid-template-columns: 1fr; }
