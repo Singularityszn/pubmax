@@ -1,0 +1,127 @@
+.mapNearbyDiscovery {
+  display: grid;
+  gap: var(--space-4);
+  min-width: 0;
+  color: var(--ink);
+}
+
+.mapNearbyDiscoveryHeader h2 {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: var(--text-xl);
+}
+
+.mapNearbyDiscoveryHeader p,
+.mapNearbyDiscoveryNotice,
+.mapNearbyDiscoveryEmpty p {
+  margin: 0;
+  font-size: var(--text-sm);
+  line-height: var(--leading-normal);
+  color: var(--ink-soft);
+}
+
+.mapNearbyDiscoveryCards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 16rem), 1fr));
+  gap: var(--space-3);
+}
+
+.mapNearbyDiscoveryCard {
+  min-width: 0;
+  padding: var(--space-4);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  background: var(--panel-raised);
+}
+
+.mapNearbyDiscoveryRole {
+  margin: 0 0 var(--space-2);
+  font-size: var(--text-xs);
+  font-weight: 700;
+  color: var(--ink-soft);
+}
+
+.mapNearbyDiscoverySelect {
+  display: flex;
+  width: 100%;
+  min-height: 44px;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-1) 0;
+  border: 0;
+  background: transparent;
+  color: var(--ink);
+  text-align: left;
+  cursor: pointer;
+}
+
+.mapNearbyDiscoverySelect:focus-visible {
+  outline: 2px solid var(--ink);
+  outline-offset: var(--space-1);
+}
+
+.mapNearbyDiscoveryPub {
+  display: grid;
+  min-width: 0;
+  gap: var(--space-1);
+}
+
+.mapNearbyDiscoveryPub strong {
+  font-family: var(--font-display);
+  font-size: var(--text-lg);
+  line-height: var(--leading-snug);
+  overflow-wrap: anywhere;
+}
+
+.mapNearbyDiscoveryPub > span,
+.mapNearbyDiscoveryDrink,
+.mapNearbyDiscoveryDistance,
+.mapNearbyDiscoveryReason,
+.mapNearbyDiscoverySource {
+  font-size: var(--text-xs);
+  line-height: var(--leading-normal);
+}
+
+.mapNearbyDiscoveryDrink {
+  margin: var(--space-2) 0 0;
+  color: var(--ink);
+}
+
+.mapNearbyDiscoveryDistance,
+.mapNearbyDiscoveryReason,
+.mapNearbyDiscoverySource {
+  margin: var(--space-2) 0 0;
+  color: var(--ink-soft);
+  overflow-wrap: anywhere;
+}
+
+.mapNearbyDiscoveryNotice {
+  display: grid;
+  justify-items: start;
+  gap: var(--space-2);
+}
+
+.mapNearbyDiscoveryNotice p {
+  margin: 0;
+}
+
+.mapNearbyDiscoveryActions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+  margin-top: var(--space-3);
+}
+
+.mapNearbyDiscovery a {
+  color: var(--ink);
+  text-decoration: underline;
+  text-underline-offset: 0.15em;
+}
+
+.mapNearbyDiscoveryActions a {
+  display: inline-flex;
+  min-height: 44px;
+  align-items: center;
+}
