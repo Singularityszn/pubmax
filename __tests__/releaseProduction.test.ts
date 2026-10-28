@@ -1,7 +1,10 @@
-import { readFileSync } from "node:fs";
+import { spawnSync } from "node:child_process";
+import { chmodSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
 import path from "node:path";
 
 import { describe, expect, it } from "vitest";
+import { parse } from "yaml";
 
 import {
   ReleaseRefusal,
@@ -13,6 +16,64 @@ import {
 
 const ROOT = path.resolve(__dirname, "..");
 const SHA = "a".repeat(40);
+
+type SmokeStep = { id?: string; env?: Record<string, string>; run?: string };
+
+/** The workflow's "bound" step, as GitHub reads it. */
+function boundStep(): SmokeStep {
+  const workflow = parse(readFileSync(path.join(ROOT, ".github/workflows/prod-smoke.yml"), "utf8"));
+  const step = (workflow.jobs.smoke.steps as SmokeStep[]).find((candidate) => candidate.id === "bound");
+  if (!step?.run) throw new Error("prod-smoke.yml has no bound step");
+  return step;
+}
+
+/**
+ * Runs the bound step's script the way a GitHub runner does, with curl and jq
+ * replaced so /api/version answers `live` on the production origin and `mine`
+ * on a deployment URL.
+ */
+function runBoundStep(input: { live: string; expected?: string; deploymentUrl?: string; mine?: string }) {
+  const bin = mkdtempSync(path.join(tmpdir(), "prod-smoke-bound-"));
+  writeFileSync(
+    path.join(bin, "curl"),
+    [
+      "#!/bin/sh",
+      'for arg in "$@"; do url="$arg"; done',
+      'case "$url" in https://pubmaxxing.com/*) id="$FAKE_LIVE" ;; *) id="$FAKE_MINE" ;; esac',
+      'printf \'{"deploymentId":"%s"}\' "$id"',
+      "",
+    ].join("\n"),
+  );
+  writeFileSync(
+    path.join(bin, "jq"),
+    [
+      `#!${process.execPath}`,
+      'let body = "";',
+      'process.stdin.on("data", (chunk) => { body += chunk; });',
+      'process.stdin.on("end", () => { process.stdout.write(`${JSON.parse(body).deploymentId ?? ""}\\n`); });',
+      "",
+    ].join("\n"),
+  );
+  chmodSync(path.join(bin, "curl"), 0o755);
+  chmodSync(path.join(bin, "jq"), 0o755);
+  const outputFile = path.join(bin, "github-output");
+  writeFileSync(outputFile, "");
+  const result = spawnSync("bash", ["--noprofile", "--norc", "-eo", "pipefail", "-c", boundStep().run as string], {
+    encoding: "utf8",
+    env: {
+      NODE_ENV: "test",
+      PATH: `${bin}:${process.env.PATH}`,
+      GITHUB_OUTPUT: outputFile,
+      FAKE_LIVE: input.live,
+      FAKE_MINE: input.mine ?? "",
+      DEPLOYMENT_URL: input.deploymentUrl ?? "",
+      EXPECTED_DEPLOYMENT_ID: input.expected ?? "",
+    },
+  });
+  const output = readFileSync(outputFile, "utf8");
+  rmSync(bin, { recursive: true, force: true });
+  return { status: result.status, stdout: result.stdout, output };
+}
 
 type Call = { command: string; args: string[] };
 
@@ -33,7 +94,9 @@ function harness(overrides: Partial<Record<string, { status: number; stdout: str
     if (command === "gh" && args[0] === "run" && args[1] === "list") {
       return {
         status: 0,
-        stdout: JSON.stringify([{ databaseId: 77, headSha: SHA, createdAt: new Date(clock).toISOString() }]),
+        stdout: JSON.stringify([{
+          databaseId: 77, headSha: SHA, createdAt: new Date(clock).toISOString(), displayTitle: "Production smoke dpl_new",
+        }]),
       };
     }
     return { status: 0, stdout: "" };
@@ -113,28 +176,102 @@ function environmentHarness({ deploymentId = "dpl_new", promoteStatus = 0 }: {
 }
 
 describe("parseDeploymentUrl", () => {
-  it("takes the last deployment URL the CLI printed", () => {
+  it("selects one staged result and ignores later alias and help URLs", () => {
     expect(
-      parseDeploymentUrl("Inspect: https://vercel.com/x\nhttps://one.vercel.app\nhttps://two-abc.vercel.app\n"),
+      parseDeploymentUrl(
+        "Inspect: https://vercel.com/x\n\u001b[32m▲ Production\u001b[0m  https://two-abc.vercel.app [1m]\n" +
+        "▲ Aliased  https://one.vercel.app\nTry vercel curl https://one.vercel.app\n",
+      ),
     ).toBe("https://two-abc.vercel.app");
+    expect(parseDeploymentUrl("https://two-abc.vercel.app\n")).toBe("https://two-abc.vercel.app");
+    expect(parseDeploymentUrl("Production: https://two-abc.vercel.app\nhttps://two-abc.vercel.app\n"))
+      .toBe("https://two-abc.vercel.app");
+    expect(parseDeploymentUrl("https://one.vercel.app\nhttps://two-abc.vercel.app\n")).toBeNull();
+    expect(parseDeploymentUrl("Production: https://one.vercel.app\nProduction: https://two-abc.vercel.app\n"))
+      .toBeNull();
+    expect(parseDeploymentUrl("▲ Aliased https://one.vercel.app\n")).toBeNull();
+    expect(parseDeploymentUrl("Try vercel curl https://one.vercel.app\n")).toBeNull();
     expect(parseDeploymentUrl("nothing here")).toBeNull();
   });
 });
 
 describe("pickDispatchedRun", () => {
   const dispatchedAtMs = Date.parse("2026-10-06T10:00:00Z");
-  it("ignores a run on another commit or one older than the dispatch", () => {
+  it("requires the released deployment, commit and dispatch time", () => {
     const runs = [
-      { databaseId: 1, headSha: "b".repeat(40), createdAt: "2026-10-06T10:00:30Z" },
-      { databaseId: 2, headSha: SHA, createdAt: "2026-10-06T09:00:00Z" },
-      { databaseId: 3, headSha: SHA, createdAt: "2026-10-06T10:00:10Z" },
+      { databaseId: 1, headSha: "b".repeat(40), createdAt: "2026-10-06T10:00:30Z", displayTitle: "Production smoke dpl_a" },
+      { databaseId: 2, headSha: SHA, createdAt: "2026-10-06T09:00:00Z", displayTitle: "Production smoke dpl_a" },
+      { databaseId: 3, headSha: SHA, createdAt: "2026-10-06T10:00:10Z", displayTitle: "Production smoke dpl_a" },
+      { databaseId: 4, headSha: SHA, createdAt: "2026-10-06T10:00:20Z", displayTitle: "Production smoke dpl_b" },
+      { databaseId: 5, headSha: SHA, createdAt: "2026-10-06T10:00:30Z", displayTitle: "Production smoke dpl_a_extra" },
+      { databaseId: 6, headSha: SHA, createdAt: "2026-10-06T10:00:40Z" },
     ];
-    expect(pickDispatchedRun(runs, { sha: SHA, dispatchedAtMs })?.databaseId).toBe(3);
-    expect(pickDispatchedRun(runs.slice(0, 2), { sha: SHA, dispatchedAtMs })).toBeNull();
+    const input = { sha: SHA, dispatchedAtMs, deploymentId: "dpl_a" };
+    expect(pickDispatchedRun(runs, input)?.databaseId).toBe(3);
+    expect(pickDispatchedRun(runs.filter((run) => run.databaseId !== 3), input)).toBeNull();
   });
 });
 
 describe("releaseProduction", () => {
+  it("keeps the uploaded deployment bound when a project alias moves before promotion", async () => {
+    const immutableUrl = "https://pubmax-abc.vercel.app";
+    const projectAlias = "https://pubmax-project.vercel.app";
+    const fixture = harness({
+      "node scripts/deploy-vercel.mjs": {
+        status: 0,
+        stdout: `▲ Production      ${immutableUrl}\n▲ Aliased         ${projectAlias}\n`,
+      },
+    });
+    const events: string[] = [];
+    const canonicalIds = ["dpl_old", "dpl_new"];
+    let aliasDeploymentId = "dpl_old";
+    const { deps } = fixture;
+    const run = deps.run;
+    const sleep = deps.sleep;
+    deps.preflight = [{ name: "migration ledger", run: async () => { events.push("preflight"); } }];
+    deps.run = async (command, args, options) => {
+      const result = await run(command, args, options);
+      if (command === "node" && args[0] === "scripts/deploy-vercel.mjs") events.push("deploy");
+      if (command === "vercel" && args[0] === "promote") {
+        // The provider can move the alias after its earlier identity lookup.
+        aliasDeploymentId = "dpl_new";
+        const promotedId = args[1] === immutableUrl ? "dpl_new" : aliasDeploymentId;
+        events.push(`promote:${args[1]}:${promotedId}`);
+      }
+      if (command === "gh" && args[0] === "workflow") events.push("dispatch");
+      if (command === "gh" && args[0] === "run" && args[1] === "watch") events.push("watch");
+      return result;
+    };
+    deps.deploymentIdAt = async (origin) => {
+      if (origin === immutableUrl) {
+        events.push("verify:immutable:dpl_new");
+        return "dpl_new";
+      }
+      if (origin === projectAlias) {
+        events.push(`verify:alias:${aliasDeploymentId}`);
+        return aliasDeploymentId;
+      }
+      expect(origin).toBe("https://pubmaxxing.com");
+      const id = canonicalIds.shift() ?? "dpl_new";
+      events.push(`live:${id}`);
+      return id;
+    };
+    deps.sleep = async (ms) => {
+      events.push("wait");
+      await sleep(ms);
+    };
+
+    const receipt = await releaseProduction(deps, { pollMs: 10 });
+
+    expect({ events, receipt }).toEqual({
+      events: [
+        "preflight", "deploy", "verify:immutable:dpl_new",
+        `promote:${immutableUrl}:dpl_new`, "live:dpl_old", "wait", "live:dpl_new", "dispatch", "watch",
+      ],
+      receipt: { sha: SHA, deploymentId: "dpl_new", deploymentUrl: immutableUrl, smokeRunId: 77 },
+    });
+  });
+
   it("stages production values without moving domains before identity verification and promotion", async () => {
     const fixture = environmentHarness();
     const result = await releaseProduction(fixture.deps, { pollMs: 10 });
@@ -190,6 +327,7 @@ describe("releaseProduction", () => {
     expect(at("gh run watch")).toBeGreaterThan(at("gh workflow run"));
     expect(calls.find((call) => call.args[0] === "workflow")?.args).toEqual([
       "workflow", "run", "prod-smoke.yml", "--repo", "Singularityszn/pubmax", "--ref", "main",
+      "-f", "deployment_id=dpl_new",
     ]);
     expect(calls.find((call) => call.args[0] === "run" && call.args[1] === "watch")?.args).toContain("--exit-status");
   });
@@ -232,6 +370,97 @@ describe("releaseProduction", () => {
     await expect(releaseProduction(harness({ "gh run watch": { status: 1, stdout: "" } }).deps, { pollMs: 10 })).rejects.toThrow(
       /smoke suite failed/,
     );
+  });
+
+  it("reports the released deployment unverified when A is replaced by B before the job starts", async () => {
+    const { deps, calls, said } = harness();
+    let dispatched = false;
+    let live = "dpl_old";
+    const base = deps.run;
+    deps.run = async (command, args, options) => {
+      if (command === "vercel" && args[0] === "promote") live = "dpl_new";
+      if (command === "gh" && args[0] === "workflow") {
+        dispatched = true;
+        // Another release promotes B after A's dispatch and before its job starts.
+        live = "dpl_b";
+      }
+      if (command === "gh" && args[0] === "run" && args[1] === "list") {
+        calls.push({ command, args });
+        return { status: 0, stdout: JSON.stringify([
+          { databaseId: 77, headSha: SHA, createdAt: new Date(deps.now()).toISOString(), displayTitle: "Production smoke dpl_new" },
+          { databaseId: 88, headSha: SHA, createdAt: new Date(deps.now() + 1).toISOString(), displayTitle: "Production smoke dpl_b" },
+        ]) };
+      }
+      if (command === "gh" && args[0] === "run" && args[1] === "watch") {
+        const input = calls.find((call) => call.args[0] === "workflow")?.args.find((arg) => arg.startsWith("deployment_id="));
+        const expected = args[2] === "88" ? "dpl_b" : input?.slice("deployment_id=".length);
+        const job = runBoundStep({ live, expected });
+        calls.push({ command, args });
+        return { status: job.status ?? 1, stdout: job.stdout };
+      }
+      return base(command, args, options);
+    };
+    deps.deploymentIdAt = async (origin) => (origin === "https://pubmax-abc.vercel.app" ? "dpl_new" : live);
+
+    await expect(releaseProduction(deps, { pollMs: 10 })).rejects.toThrow(
+      "https://pubmaxxing.com now serves dpl_b, not dpl_new. Smoke run 77 did not test the released deployment, so dpl_new is unverified.",
+    );
+    expect(dispatched).toBe(true);
+    expect(calls.find((call) => call.args[1] === "watch")?.args[2]).toBe("77");
+    expect(said.some((line) => /smoke suite passed/.test(line))).toBe(false);
+  });
+
+  it("accepts its own successful run when another deployment has a newer run", async () => {
+    const { deps, calls } = harness({ "gh run list": { status: 0, stdout: JSON.stringify([
+      { databaseId: 77, headSha: SHA, createdAt: new Date(1_000_010).toISOString(), displayTitle: "Production smoke dpl_new" },
+      { databaseId: 88, headSha: SHA, createdAt: new Date(1_000_011).toISOString(), displayTitle: "Production smoke dpl_b" },
+    ]) } });
+    await expect(releaseProduction(deps, { pollMs: 10 })).resolves.toMatchObject({ smokeRunId: 77 });
+    expect(calls.find((call) => call.args[1] === "watch")?.args[2]).toBe("77");
+  });
+
+  it("reports an unverified release when only another deployment's run appears", async () => {
+    const { deps, calls } = harness({ "gh run list": { status: 0, stdout: JSON.stringify([
+      { databaseId: 88, headSha: SHA, createdAt: new Date(1_000_010).toISOString(), displayTitle: "Production smoke dpl_b" },
+    ]) } });
+    await expect(releaseProduction(deps, { pollMs: 10, runLookupTimeoutMs: 20 })).rejects.toThrow(/live and unverified/);
+    expect(calls.some((call) => call.args[1] === "watch")).toBe(false);
+  });
+});
+
+describe("prod-smoke.yml binds a dispatched run to the released deployment", () => {
+  it("declares the input and hands it to the check before the suite", () => {
+    const workflow = parse(readFileSync(path.join(ROOT, ".github/workflows/prod-smoke.yml"), "utf8"));
+    expect(workflow.on.workflow_dispatch.inputs.deployment_id).toMatchObject({ required: false, type: "string" });
+    expect(workflow["run-name"]).toBe("Production smoke ${{ inputs.deployment_id || github.run_id }}");
+    expect(boundStep().env?.EXPECTED_DEPLOYMENT_ID).toBe("${{ inputs.deployment_id }}");
+  });
+
+  it("runs the suite when production serves the named deployment, and keeps it as the after-check baseline", () => {
+    const job = runBoundStep({ live: "dpl_a", expected: "dpl_a" });
+    expect(job.status).toBe(0);
+    expect(job.output).toBe("live=dpl_a\nrun=true\n");
+  });
+
+  it("fails, never skips, when production serves another deployment", () => {
+    const job = runBoundStep({ live: "dpl_b", expected: "dpl_a" });
+    expect(job.status).toBe(1);
+    expect(job.stdout).toContain("not the released deployment dpl_a");
+    expect(job.stdout).toContain("unverified");
+    expect(job.output).not.toContain("run=");
+  });
+
+  it("refuses a deployment id that is not one", () => {
+    const job = runBoundStep({ live: "dpl_a", expected: "dpl_a;rm" });
+    expect(job.status).toBe(1);
+    expect(job.stdout).toContain("Unexpected deployment id");
+  });
+
+  it("keeps the deployment_status and bare dispatch paths as they were", () => {
+    expect(runBoundStep({ live: "dpl_a" }).output).toBe("live=dpl_a\nrun=true\n");
+    const newer = runBoundStep({ live: "dpl_b", mine: "dpl_a", deploymentUrl: "https://pubmax-a.vercel.app" });
+    expect(newer.status).toBe(0);
+    expect(newer.output).toBe("live=dpl_b\nrun=false\n");
   });
 });
 
