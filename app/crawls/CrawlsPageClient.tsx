@@ -14,7 +14,8 @@ import { formatGbp } from "@/lib/formatGbp";
 import { loadSlimVenues, type SlimVenue } from "@/lib/venuesSlim";
 import SiteNav from "@/components/nav/SiteNav";
 import RoundStarter from "@/components/round/RoundStarter";
-import { RowList } from "@/components/ui/row-list";
+import type { CityCrawlGroup } from "@/lib/cityCrawlDirectory";
+import { RowList, RowListItem } from "@/components/ui/row-list";
 import Screen from "@/components/ui/screen";
 import { plainDashes } from "@/components/listing/displayCase";
 import PlacePhoto from "@/components/listing/PlacePhoto";
@@ -96,7 +97,8 @@ function crawlMapHref(story: CrawlStory): Route {
   return `/map?${params.toString()}`;
 }
 
-export default function CrawlsPageClient({ pack, encodedStory, featuredPhoto = null }: {
+export default function CrawlsPageClient({ pack, encodedStory, featuredPhoto = null, cityCrawlGroups = [] }: {
+  cityCrawlGroups?: CityCrawlGroup[];
   pack?: string;
   encodedStory?: string | null;
   /**
@@ -270,6 +272,8 @@ export default function CrawlsPageClient({ pack, encodedStory, featuredPhoto = n
                 ))}
               </div>
             ) : null}
+
+            <CityCrawlLinks groups={cityCrawlGroups} />
 
             <RoundStarter />
 
@@ -489,5 +493,26 @@ function CrawlPoster({
         <p className="crawlFootnote">Pubs, prices and the route between them.</p>
       </Screen>
     </article>
+  );
+}
+
+
+export function CityCrawlLinks({ groups }: { groups: readonly CityCrawlGroup[] }) {
+  if (groups.length === 0) return null;
+  return (
+    <section className="crawlCompactGroups" aria-labelledby="otherCityCrawlsHeading">
+      <h2 id="otherCityCrawlsHeading" className="crawlCompactGroupHeading">Crawls in other cities</h2>
+      {groups.map((group) => (
+        <section key={group.cityId} className="crawlCompactGroup" aria-labelledby={`cityCrawls-${group.cityId}`}>
+          <h3 id={`cityCrawls-${group.cityId}`} className="crawlCompactGroupHeading">{group.cityName}</h3>
+          {group.priceNote ? <p className="crawlEyebrow">{group.priceNote}</p> : null}
+          <RowList label={`${group.cityName} crawls`}>
+            {group.crawls.map((crawl) => (
+              <RowListItem key={crawl.id} href={crawl.href} title={crawl.name} meta={`${crawl.stops} stops`} />
+            ))}
+          </RowList>
+        </section>
+      ))}
+    </section>
   );
 }
