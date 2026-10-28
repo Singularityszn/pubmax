@@ -14,10 +14,9 @@ import "server-only";
 
 import { listEnabledCities } from "@/lib/cities";
 import { loadHistoricPubs } from "@/lib/historic";
-import { getPricedVenues } from "@/lib/venuePriceIndex";
-import { averagePriceGbp, pubCheapestPrices } from "@/lib/pintSavings";
-import { isLivePriceRow } from "@/lib/priceRowEligibility.mjs";
-import { groupVenuePrices, type VenuePrice } from "@/lib/venues";
+import { computePublicPriceStats } from "@/lib/publicPriceStats";
+import { loadPublicPriceStats, resetPublicPriceStatsForTests } from "@/lib/publicPriceStats.server";
+import type { VenuePrice } from "@/lib/venues";
 
 export type AboutStats = {
   /** Distinct venues carrying at least one price observation. */
@@ -57,55 +56,16 @@ export function computeAboutStats(
   rows: VenuePrice[],
   opts: ComputeOpts,
 ): AboutStats {
-  const safeRows = Array.isArray(rows) ? rows : [];
-
-  // A price observation is any live row with a usable positive numeric price.
-  // A superseded row is dated history, never an observation of today.
-  const pricedRows = safeRows.filter(
-    (row) =>
-      isLivePriceRow(row) &&
-      typeof row.price_gbp === "number" &&
-      Number.isFinite(row.price_gbp) &&
-      row.price_gbp > 0,
-  );
-
-  // "Pubs tracked" uses the same grouping the app uses everywhere else, so the
-  // number on /about matches what a user would count on the map — but only
-  // venues carrying at least one accepted price observation qualify.
-  const pubs = groupVenuePrices(pricedRows);
-  const pubsTracked = pubs.length;
-
-  const prices = pricedRows.map((row) => row.price_gbp as number);
-
-  const pintPricesObserved = prices.length;
-  const cheapestPint = prices.length ? Math.min(...prices) : null;
-  const dearestPint = prices.length ? Math.max(...prices) : null;
-  const averagePint = averagePriceGbp(pubCheapestPrices(pubs));
-
-  const boroughs = new Set(
-    safeRows
-      .map((r) => (r.primary_borough ?? "").trim())
-      .filter((b) => b.length > 0),
-  );
-
+  const { venues: _venues, averages: _averages, ...prices } = computePublicPriceStats(rows);
   return {
-    pubsTracked,
-    pintPricesObserved,
-    cheapestPint,
-    dearestPint,
-    averagePint,
-    boroughsCovered: boroughs.size,
+    ...prices,
     historicPubsCited: Math.max(0, opts.historicPubsCited),
     citiesCovered: Math.max(0, opts.citiesCovered),
   };
 }
 
-// Every input below is a file bundled with the deployment, so the answer cannot
-// change between two requests to the same instance. The landing page is on the
-// per-request render path (the CSP nonce keeps every route dynamic), and the
-// raw price read alone is a 6.7 MB JSON.parse, so an unmemoized loader charged
-// that parse to EVERY homepage view. Hold the promise, not the value, so
-// concurrent first requests share one read instead of racing several.
+// The public price snapshot owns the bundled read. This promise also shares
+// the independent historic and enabled-city counts between callers.
 let cachedStats: Promise<AboutStats> | null = null;
 
 // The loader: reads the real bundled datasets (defensive — each source already
@@ -130,46 +90,19 @@ export function resetAboutStatsForTests(): void {
     Boolean(process.env.VITEST_WORKER_ID)
   ) {
     cachedStats = null;
+    resetPublicPriceStatsForTests();
   }
 }
 
 async function readAboutStats(): Promise<AboutStats> {
-  const [historic, pricedVenues] = await Promise.all([
+  const [historic, snapshot] = await Promise.all([
     loadHistoricPubs(),
-    getPricedVenues(),
+    loadPublicPriceStats(),
   ]);
-
-  // getPricedVenues returns grouped Venue[]; re-read the raw rows for the
-  // observation-level counts (cheapest/dearest/average/price count). Reuse the
-  // same file path via a light read to keep this module the single source.
-  const rows = await loadPriceRows();
-
-  const stats = computeAboutStats(rows, {
+  const { venues: _venues, averages: _averages, ...prices } = snapshot;
+  return {
+    ...prices,
     historicPubsCited: historic.length,
     citiesCovered: listEnabledCities().length,
-  });
-
-  // If the raw read failed but the grouped venues loaded, fall back to the
-  // grouped count so "pubs tracked" is never wrongly zero.
-  if (stats.pubsTracked === 0 && pricedVenues.length > 0) {
-    return { ...stats, pubsTracked: pricedVenues.length };
-  }
-  return stats;
-}
-
-async function loadPriceRows(): Promise<VenuePrice[]> {
-  try {
-    const { promises: fs } = await import("fs");
-    const path = await import("path");
-    const file = path.join(
-      process.cwd(),
-      "public",
-      "data",
-      "pint_prices_app_dataset.json",
-    );
-    const parsed = JSON.parse(await fs.readFile(file, "utf8"));
-    return Array.isArray(parsed) ? (parsed as VenuePrice[]) : [];
-  } catch {
-    return [];
-  }
+  };
 }
