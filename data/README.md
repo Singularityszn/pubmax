@@ -32,7 +32,7 @@ never applied to an unread row.
 
 `node scripts/refresh_pint_price_observations.mjs` re-reads the same 32 borough
 pages and 932 pub pages the first extract read. It REFUSES before any request
-until `lib/harvest/sourcePolicy.ts` holds an allowed `pint-prices-com` row with a
+until `lib/harvest/sourceRegistry.ts` holds an allowed `pint-prices-com` row with a
 `nonFirstPartyException`, because pint-prices.com is an aggregator rather than a
 pub's own site; that row is the captain's call. With the row in place, every
 page is asked of robots.txt live and must stay on the row's own host. For every row the source still

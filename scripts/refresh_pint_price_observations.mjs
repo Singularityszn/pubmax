@@ -39,7 +39,7 @@
 //
 // NOTHING IS FETCHED WITHOUT PERMISSION, AND PERMISSION IS NOT A COMMENT.
 // pint-prices.com is a price AGGREGATOR, not the pubs' own publisher, so it is
-// read only under a `lib/harvest/sourcePolicy.ts` row (id `pint-prices-com`)
+// read only under a `lib/harvest/sourceRegistry.ts` row (id `pint-prices-com`)
 // that is allowed AND states its own `nonFirstPartyException`. No such row
 // exists today, so this lane REFUSES before its first request. Adding the row
 // is the captain's call, not a code change. With a row, every URL is taken

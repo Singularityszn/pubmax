@@ -14,7 +14,7 @@ import { openDataSourceUrl } from "../../lib/harvest/sourcePolicy.ts";
 
 export const FSA_HYGIENE_PACK_VERSION = 1;
 
-/** The FSA API's row in lib/harvest/sourcePolicy.ts. */
+/** The FSA API's row in lib/harvest/sourceRegistry.ts. */
 const FSA_SOURCE_POLICY_ID = "fsa-fhrs-api";
 
 export const FSA_SOURCE = Object.freeze({
@@ -114,8 +114,9 @@ const RETRYABLE = new Set([429, 500, 502, 503, 504]);
  * GET one FSA API path as JSON, or null when the FSA answers 404.
  *
  * THE SOURCE POLICY OWNS THE HOST. The URL comes from `openDataSourceUrl`
- * (lib/harvest/sourcePolicy.ts, row `fsa-fhrs-api`), which refuses a path that
- * resolves to any other host or scheme, and a redirect is an error, so no
+ * (lib/harvest/sourcePolicy.ts, row `fsa-fhrs-api` in
+ * lib/harvest/sourceRegistry.ts), which refuses a path that resolves to any
+ * other host or scheme, and a redirect is an error, so no
  * response from another host is ever read. A 429 or a 5xx is
  * asked again after the server's `Retry-After` (or a doubling wait from
  * `baseDelayMs`), at most `maxAttempts` times in all; any other failure stops

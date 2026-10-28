@@ -134,7 +134,8 @@ The listings page itself is read main-content only, where the listings are.
 
 ## Adding a source
 
-Add a registered source to `HARVEST_SOURCES` with its access decision, the rule
+Add a registered source to `HARVEST_SOURCES` in
+`lib/harvest/sourceRegistry.ts` with its access decision, the rule
 behind that decision, and the day the rule was checked. The
 [source ledger](data/SOURCE_LEDGER.md) owns the separate venue own-site input
 contracts. A source that publishes what somebody else owns also needs

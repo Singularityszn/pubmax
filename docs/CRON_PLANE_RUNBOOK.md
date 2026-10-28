@@ -179,7 +179,7 @@ The **full** generic What's-On ingest still cannot run inside a serverless cron:
   a committed file the **read-only serverless filesystem cannot write**.
 - The cron runs bounded replacements for those lanes and writes the rows to
   `whats_on_listings`. Quiz reads Question One's venue directory as JSON under
-  the `questionone-quiz-venues` row in `lib/harvest/sourcePolicy.ts`.
+  the `questionone-quiz-venues` row in `lib/harvest/sourceRegistry.ts`.
   The cron and the bundled-pack command share
   [`questionOneDirectory.mjs`](../scripts/whatson/questionOneDirectory.mjs),
   which owns pagination and the page limit. A failed or over-limit read keeps
