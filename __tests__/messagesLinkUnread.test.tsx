@@ -15,11 +15,6 @@ const inbox = vi.hoisted(() => ({
   auth: { user: { id: "user-ken" }, handle: "ken" },
 }));
 
-vi.mock("next/link", () => ({
-  useLinkStatus: () => ({ pending: false }),
-  default: ({ href, children, ...props }: { href: string; children?: React.ReactNode }) =>
-    createElement("a", { href, ...props }, children),
-}));
 vi.mock("next/navigation", () => ({ useRouter: () => ({ prefetch: vi.fn() }) }));
 vi.mock("@/components/auth/AuthProvider", () => ({ useAuth: () => inbox.auth }));
 vi.mock("@/lib/authedFetch", () => ({

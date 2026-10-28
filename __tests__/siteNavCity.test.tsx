@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 
-import { act, type ReactNode } from "react";
+import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 
@@ -10,18 +10,6 @@ vi.mock("next/navigation", () => ({
   usePathname: () => "/places",
   useRouter: () => ({ prefetch: () => {} }),
 }));
-vi.mock("next/link", async () => {
-  const { forwardRef, createElement } = await import("react");
-  return {
-    useLinkStatus: () => ({ pending: false }),
-    default: forwardRef<HTMLAnchorElement, { href: string; children: ReactNode; prefetch?: boolean }>(
-      function Link({ href, children, prefetch: _prefetch, ...props }, ref) {
-        void _prefetch;
-        return createElement("a", { href, ref, ...props }, children);
-      },
-    ),
-  };
-});
 vi.mock("@/components/command/CommandPaletteProvider", () => ({
   useCommandPalette: () => ({ open: () => {} }),
 }));
