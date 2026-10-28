@@ -117,8 +117,8 @@ type AgentResponseEvent = {
   type?: string;
   agent_response_event?: { agent_response?: string };
   text_response_part?: { type?: string; text?: string };
-  agent_tool_request?: { tool_call_id?: string };
-  agent_tool_response?: { tool_call_id?: string };
+  agent_tool_request?: { tool_call_id?: string; tool_name?: string };
+  agent_tool_response?: { tool_call_id?: string; tool_name?: string };
   ping_event?: { event_id?: number };
   conversation_initiation_metadata_event?: {
     conversation_id?: string;
@@ -203,6 +203,33 @@ export async function runPalElevenLabsChatTurn(
   context?: PalElevenLabsChatContext,
 ): Promise<PalElevenLabsChatOutcome> {
   const startedAt = Date.now();
+  // Deadline diagnostics contain only fixed milestones and counters, never content or identities.
+  const progress = {
+    socketOpenAtMs: null as number | null,
+    metadataAtMs: null as number | null,
+    memoriesReadyAtMs: null as number | null,
+    tasteReadyAtMs: null as number | null,
+    registrationStarted: 0,
+    registrationReady: 0,
+    registrationReadyAtMs: null as number | null,
+    sendReturnedAtMs: null as number | null,
+    firstReplyAtMs: null as number | null,
+    preSendEventCount: 0,
+    replyCount: 0,
+    streamDeltaCount: 0,
+    lastStreamStopAtMs: null as number | null,
+    toolRequestCount: 0,
+    toolResponseCount: 0,
+    recognizedRecallRequestCount: 0,
+    recognizedRecallResponseCount: 0,
+    lastToolResponseAtMs: null as number | null,
+    completeCount: 0,
+    ignoredCompleteCount: 0,
+    lastCompleteAtMs: null as number | null,
+    pendingToolCount: 0,
+    replyEligible: false as boolean,
+  } satisfies Record<string, number | boolean | null>;
+  const elapsed = () => Math.max(0, Date.now() - startedAt);
   const recordFailure = (
     code: Extract<PalElevenLabsChatOutcome, { ok: false }>["code"],
     stage: PalChatFailureStage,
@@ -213,7 +240,8 @@ export async function runPalElevenLabsChatTurn(
       code,
       stage,
       ...(reason ? { reason } : {}),
-      durationMs: Math.max(0, Date.now() - startedAt),
+      durationMs: elapsed(),
+      ...(stage === "deadline" ? { progress: { ...progress } } : {}),
     });
   };
   const apiKey = process.env.ELEVENLABS_API_KEY?.trim();
@@ -266,8 +294,14 @@ export async function runPalElevenLabsChatTurn(
     apiKey, agentId, timeoutMs: Math.max(1, deadline - Date.now()),
   });
   // Read from the signed-in owner's own Pal and logs, never from the request body.
-  const memoriesRead = answeredFromRecords ? null : readConfirmedPalMemories(input.ownerId, query);
-  const tasteRead = answeredFromRecords ? null : readPalTaste(input.ownerId);
+  const memoriesRead = answeredFromRecords ? null : readConfirmedPalMemories(input.ownerId, query).then((value) => {
+    progress.memoriesReadyAtMs = elapsed();
+    return value;
+  });
+  const tasteRead = answeredFromRecords ? null : readPalTaste(input.ownerId).then((value) => {
+    progress.tasteReadyAtMs = elapsed();
+    return value;
+  });
   // The three reads are null exactly when the records answer; testing them here
   // also tells the compiler so.
   if (answeredFromRecords || !sessionRead || !memoriesRead || !tasteRead) {
@@ -329,15 +363,21 @@ export async function runPalElevenLabsChatTurn(
     return { ok: false, code: "PROVIDER_UNAVAILABLE" };
   }
   const signedUrl = session.signedUrl;
-  const registerTurn = (id: string) =>
-    registerPubPalToolTurn(id, {
+  const registerTurn = (id: string) => {
+    progress.registrationStarted += 1;
+    return registerPubPalToolTurn(id, {
       deadline,
       query,
       cityId,
       ownerId: input.ownerId,
       turns,
       summary: prior.summary,
+    }).then((value) => {
+      progress.registrationReady += 1;
+      progress.registrationReadyAtMs = elapsed();
+      return value;
     });
+  };
   // The signed URL already names the conversation, so the turn is registered
   // while the socket opens rather than after the agent's metadata arrives. The
   // metadata is still what decides: a different id there registers that one.
@@ -413,6 +453,8 @@ export async function runPalElevenLabsChatTurn(
     const finish = (outcome: PalElevenLabsChatOutcome, failureStage: PalChatFailureStage = "turn") => {
       if (settled) return;
       settled = true;
+      progress.pendingToolCount = pendingToolCalls.size;
+      progress.replyEligible = Boolean(latestReply && replyIsAnswer());
       if (!outcome.ok) recordFailure(outcome.code, failureStage);
       clearTimeout(timer);
       clearSettle();
@@ -449,6 +491,7 @@ export async function runPalElevenLabsChatTurn(
 
     ws.addEventListener("open", () => {
       if (settled || Date.now() >= deadline) return;
+      progress.socketOpenAtMs = elapsed();
       ws.send(
         JSON.stringify({
           type: "conversation_initiation_client_data",
@@ -475,6 +518,7 @@ export async function runPalElevenLabsChatTurn(
     const receiveMetadata = (id: string | undefined): void => {
       if (settled || Date.now() >= deadline || metadataReceived) return;
       metadataReceived = true;
+      progress.metadataAtMs = elapsed();
       conversationId = id?.trim() ?? "";
       void (async () => {
         try {
@@ -494,6 +538,7 @@ export async function runPalElevenLabsChatTurn(
           ws.send(
             JSON.stringify({ type: "user_message", text: userMessageText(query, prior, memories, taste) }),
           );
+          progress.sendReturnedAtMs = elapsed();
         } catch {
           finish({ ok: false, code: "UNAVAILABLE" }, "registration");
         }
@@ -508,6 +553,13 @@ export async function runPalElevenLabsChatTurn(
       } catch {
         return;
       }
+
+      // Count known reply/tool traffic that handling ignores before the send attempt.
+      if (!userMessageSent && (
+        payload.type === "agent_response" || payload.type === "agent_chat_response_part"
+        || payload.type === "agent_tool_request" || payload.type === "agent_tool_response"
+        || payload.type === "agent_response_complete"
+      )) progress.preSendEventCount += 1;
 
       if (payload.type === "ping") {
         ws.send(
@@ -530,8 +582,11 @@ export async function runPalElevenLabsChatTurn(
         if (part?.type === "start") {
           resetStream();
         } else if (part?.type === "delta" && part.text) {
+          progress.streamDeltaCount += 1;
           streamedText = true;
           input.onProgress?.({ type: "delta", text: part.text });
+        } else if (part?.type === "stop") {
+          progress.lastStreamStopAtMs = elapsed();
         }
         return;
       }
@@ -542,6 +597,8 @@ export async function runPalElevenLabsChatTurn(
         if (!reply) return;
         latestReply = reply;
         replyGeneration += 1;
+        progress.replyCount += 1;
+        progress.firstReplyAtMs ??= elapsed();
         replyToolEvents = toolEvents;
         // The reply is the answer unless a tool event follows it in the window.
         armSettle(REPLY_SETTLE_MS);
@@ -553,6 +610,8 @@ export async function runPalElevenLabsChatTurn(
         clearSettle();
         resetStream();
         toolEvents += 1;
+        progress.toolRequestCount += 1;
+        if (payload.agent_tool_request?.tool_name === "recall_memories") progress.recognizedRecallRequestCount += 1;
         pendingToolCalls.add(payload.agent_tool_request?.tool_call_id ?? "");
         return;
       }
@@ -562,12 +621,21 @@ export async function runPalElevenLabsChatTurn(
         clearSettle();
         resetStream();
         toolEvents += 1;
+        progress.toolResponseCount += 1;
+        progress.lastToolResponseAtMs = elapsed();
+        if (payload.agent_tool_response?.tool_name === "recall_memories") progress.recognizedRecallResponseCount += 1;
         pendingToolCalls.delete(payload.agent_tool_response?.tool_call_id ?? "");
         return;
       }
 
       if (payload.type === "agent_response_complete") {
-        if (!userMessageSent || !latestReply || !replyIsAnswer()) return;
+        if (!userMessageSent) return;
+        progress.completeCount += 1;
+        progress.lastCompleteAtMs = elapsed();
+        if (!latestReply || !replyIsAnswer()) {
+          progress.ignoredCompleteCount += 1;
+          return;
+        }
         armSettle(TURN_END_SETTLE_MS);
       }
     });

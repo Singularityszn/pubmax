@@ -1471,13 +1471,43 @@ describe("private typed Pal failure diagnostics", () => {
     vi.useFakeTimers({ toFake: ["Date", "setTimeout", "clearTimeout"] });
     vi.stubGlobal("fetch", vi.fn(async () => Response.json({ signed_url: SIGNED_URL })));
     wsState.replyScript = [];
-    const pending = runPalElevenLabsChatTurn({ query: "quiet pubs", ownerId: "private-owner" });
+    const query = "quiet pubs with private-request-marker";
+    const pending = runPalElevenLabsChatTurn({ query, ownerId: "private-owner" });
     await vi.advanceTimersByTimeAsync(22_000);
     await expect(pending).resolves.toEqual({ ok: false, code: "TIMEOUT" });
     expect(failures()).toEqual([{
       level: "warn", event: "pub_pal.chat_failed", code: "TIMEOUT",
       stage: "deadline", durationMs: 22_000, ts: expect.any(Number),
+      progress: {
+        socketOpenAtMs: 0,
+        metadataAtMs: 0,
+        memoriesReadyAtMs: 0,
+        tasteReadyAtMs: 0,
+        registrationStarted: 1,
+        registrationReady: 1,
+        registrationReadyAtMs: 0,
+        sendReturnedAtMs: 0,
+        firstReplyAtMs: null,
+        preSendEventCount: 2,
+        replyCount: 0,
+        streamDeltaCount: 0,
+        lastStreamStopAtMs: null,
+        toolRequestCount: 0,
+        toolResponseCount: 0,
+        recognizedRecallRequestCount: 0,
+        recognizedRecallResponseCount: 0,
+        lastToolResponseAtMs: null,
+        completeCount: 0,
+        ignoredCompleteCount: 0,
+        lastCompleteAtMs: null,
+        pendingToolCount: 0,
+        replyEligible: false,
+      },
     }]);
+    const output = JSON.stringify(failures());
+    for (const privateValue of [query, "private-owner", SIGNED_URL, "conv_regression01", PAL_GREETING, "test-key"]) {
+      expect(output).not.toContain(privateValue);
+    }
   });
 
   it("records result-store failure without logging the provider answer", async () => {
