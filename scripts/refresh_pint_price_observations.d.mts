@@ -2,7 +2,7 @@ import type { HarvestSource } from "../lib/harvest/sourcePolicy.ts";
 
 type RobotsAsk = (url: string) => Promise<{ allowed: boolean; reason: string; evidence: string }>;
 
-/** The sourcePolicy row this lane needs before it may send one request. */
+/** The sourceRegistry row this lane needs before it may send one request. */
 export declare const PINT_PRICES_SOURCE_ID: "pint-prices-com";
 
 /** The permitted source row, or a throw that names the captain's call. */
