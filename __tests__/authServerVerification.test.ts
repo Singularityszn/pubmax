@@ -46,58 +46,160 @@ afterEach(() => {
   vi.unstubAllEnvs();
 });
 
-describe("verifyCallerAuth — the opt-in local claims lane", () => {
-  // `getClaims` verifies the token against the project's JWKS and asks the auth
-  // server nothing. That is faster and WEAKER: it says the signature and the
-  // expiry are good and says nothing about whether the account still exists.
-  // So it is opt-in, and `DELETE /api/account` is the whole list of callers.
-  function adminWithClaims(getClaims: ReturnType<typeof vi.fn>) {
-    return { auth: { getUser: vi.fn(), getClaims } };
+describe("verifyCallerAuth — the deleted-account lane", () => {
+  // `DELETE /api/account` must still answer after the account it names is gone,
+  // so its bearer may outlive the auth row. It must NOT outlive a sign-out, a
+  // password change or a ban (audit finding
+  // lib/authServer:localOnly-jwt-lane-skips-revocation-ban-and-audience): the
+  // lane asks GoTrue first, and reads the token's own claims ONLY when GoTrue
+  // answers `user_not_found`, bound to this app's audience and role.
+  function adminWith(
+    getUser: ReturnType<typeof vi.fn>,
+    getClaims: ReturnType<typeof vi.fn> = vi.fn(),
+  ) {
+    return { auth: { getUser, getClaims } };
   }
 
-  it("verifies the bearer locally and never calls getUser when asked to", async () => {
-    const getClaims = vi.fn().mockResolvedValue({
-      data: { claims: { sub: "user-1", email: "k@example.com" } },
-      error: null,
-    });
-    const admin = adminWithClaims(getClaims);
-    authState.admin = admin as never;
+  const liveClaims = {
+    sub: "user-1",
+    email: "k@example.com",
+    aud: "authenticated",
+    role: "authenticated",
+  };
 
-    await expect(
-      verifyCallerAuth(request("es256-token"), { localOnly: true }),
-    ).resolves.toEqual({
-      status: "verified",
-      identity: { id: "user-1", email: "k@example.com", createdAt: null },
-    });
-    expect(getClaims).toHaveBeenCalledWith("es256-token");
-    expect(admin.auth.getUser).not.toHaveBeenCalled();
-  });
+  function claimsLane(claims: Record<string, unknown>) {
+    return vi.fn().mockResolvedValue({ data: { claims }, error: null });
+  }
 
-  it("reads an expired or forged token as invalid through the same code table", async () => {
-    const admin = adminWithClaims(
-      vi.fn().mockResolvedValue({ data: null, error: { name: "AuthInvalidJwtError", status: 401 } }),
+  function gotrueError(error: Record<string, unknown>) {
+    return vi.fn().mockResolvedValue({ data: { user: null }, error });
+  }
+
+  it("asks GoTrue first and answers a live account from it", async () => {
+    const getClaims = claimsLane(liveClaims);
+    const admin = adminWith(
+      vi.fn().mockResolvedValue({
+        data: { user: { id: "user-1", email: "k@example.com", created_at: "2026-01-01T00:00:00Z" } },
+        error: null,
+      }),
+      getClaims,
     );
     authState.admin = admin as never;
+
     await expect(
-      verifyCallerAuth(request("bad"), { localOnly: true }),
+      verifyCallerAuth(request("live-token"), { allowDeletedAccount: true }),
+    ).resolves.toEqual({
+      status: "verified",
+      identity: { id: "user-1", email: "k@example.com", createdAt: "2026-01-01T00:00:00Z" },
+    });
+    expect(admin.auth.getUser).toHaveBeenCalledWith("live-token");
+    expect(getClaims).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ["a revoked session", { status: 403, code: "session_not_found" }],
+    ["a missing session", { name: "AuthSessionMissingError", status: 400 }],
+    ["a foreign audience", { status: 401, code: "unexpected_audience" }],
+    ["a forged or expired token", { status: 401, code: "bad_jwt" }],
+  ])("refuses %s even though its signature still verifies", async (_label, error) => {
+    const getClaims = claimsLane(liveClaims);
+    authState.admin = adminWith(gotrueError(error), getClaims) as never;
+
+    await expect(
+      verifyCallerAuth(request("captured-token"), { allowDeletedAccount: true }),
+    ).resolves.toEqual({ status: "invalid" });
+    expect(getClaims).not.toHaveBeenCalled();
+  });
+
+  it("refuses a banned account, whether GoTrue says so in the error or the user", async () => {
+    const getClaims = claimsLane(liveClaims);
+    authState.admin = adminWith(
+      gotrueError({ status: 403, code: "user_banned" }),
+      getClaims,
+    ) as never;
+    await expect(
+      verifyCallerAuth(request("banned-token"), { allowDeletedAccount: true }),
+    ).resolves.toEqual({ status: "banned" });
+
+    authState.admin = adminWith(
+      vi.fn().mockResolvedValue({
+        data: { user: { id: "user-1", email: null, banned_until: "2999-01-01T00:00:00.000Z" } },
+        error: null,
+      }),
+      getClaims,
+    ) as never;
+    await expect(
+      verifyCallerAuth(request("banned-token"), { allowDeletedAccount: true }),
+    ).resolves.toEqual({ status: "banned" });
+    expect(getClaims).not.toHaveBeenCalled();
+  });
+
+  it("names a deleted account from its own verified claims", async () => {
+    const getClaims = claimsLane({ ...liveClaims, sub: "deleted-account" });
+    authState.admin = adminWith(
+      gotrueError({ status: 403, code: "user_not_found" }),
+      getClaims,
+    ) as never;
+
+    await expect(
+      verifyCallerAuth(request("token-of-a-deleted-account"), { allowDeletedAccount: true }),
+    ).resolves.toEqual({
+      status: "verified",
+      identity: { id: "deleted-account", email: "k@example.com", createdAt: null },
+    });
+    expect(getClaims).toHaveBeenCalledWith("token-of-a-deleted-account");
+  });
+
+  it("accepts the audience as a list that names this app", async () => {
+    authState.admin = adminWith(
+      gotrueError({ status: 403, code: "user_not_found" }),
+      claimsLane({ ...liveClaims, aud: ["authenticated"] }),
+    ) as never;
+
+    await expect(
+      verifyCallerAuth(request("token"), { allowDeletedAccount: true }),
+    ).resolves.toMatchObject({ status: "verified" });
+  });
+
+  it.each([
+    ["a foreign audience", { aud: "another-app" }],
+    ["no audience", { aud: undefined }],
+    ["the anon role", { role: "anon" }],
+    ["the service role", { role: "service_role" }],
+    ["no subject", { sub: undefined }],
+  ])("refuses a deleted account's token with %s", async (_label, overrides) => {
+    authState.admin = adminWith(
+      gotrueError({ status: 403, code: "user_not_found" }),
+      claimsLane({ ...liveClaims, ...overrides }),
+    ) as never;
+
+    await expect(
+      verifyCallerAuth(request("token"), { allowDeletedAccount: true }),
     ).resolves.toEqual({ status: "invalid" });
   });
 
-  it("falls through to the auth server when the client cannot verify locally", async () => {
-    // An older supabase-js has no `getClaims`. The opt-in caller is not left
-    // unverified: it takes the account check it was trying to skip.
-    authState.admin?.auth.getUser.mockResolvedValue({
-      data: { user: { id: "user-1", email: null, created_at: null } },
-      error: null,
-    });
+  it("reads an expired or forged deleted-account token as invalid", async () => {
+    authState.admin = adminWith(
+      gotrueError({ status: 403, code: "user_not_found" }),
+      vi.fn().mockResolvedValue({ data: null, error: { name: "AuthInvalidJwtError", status: 401 } }),
+    ) as never;
 
     await expect(
-      verifyCallerAuth(request("token"), { localOnly: true }),
-    ).resolves.toEqual({
-      status: "verified",
-      identity: { id: "user-1", email: null, createdAt: null },
-    });
-    expect(authState.admin?.auth.getUser).toHaveBeenCalledWith("token");
+      verifyCallerAuth(request("bad"), { allowDeletedAccount: true }),
+    ).resolves.toEqual({ status: "invalid" });
+  });
+
+  it("answers unavailable when GoTrue cannot answer, and never reads the claims", async () => {
+    const getClaims = claimsLane(liveClaims);
+    authState.admin = adminWith(
+      gotrueError({ status: 503, code: "unexpected_failure" }),
+      getClaims,
+    ) as never;
+
+    await expect(
+      verifyCallerAuth(request("token"), { allowDeletedAccount: true }),
+    ).resolves.toEqual({ status: "unavailable" });
+    expect(getClaims).not.toHaveBeenCalled();
   });
 });
 
@@ -139,7 +241,7 @@ describe("verifyCallerAuth — revocation by default", () => {
     });
   });
 
-  it("is asked for locally by ONE door in the tree, and it is the account delete", () => {
+  it("is asked to accept a deleted account by ONE door in the tree, and it is the account delete", () => {
     // A source fence, because no runtime test can sweep the callers. The option
     // exists for an idempotent DELETE that must still answer after the account
     // it names is gone; anywhere else it is a gate that outlives its account.
@@ -151,7 +253,7 @@ describe("verifyCallerAuth — revocation by default", () => {
         if (!/\.tsx?$/.test(file)) continue;
         const path = relative(process.cwd(), file);
         if (path === OWNER) continue;
-        if (readFileSync(file, "utf8").includes("localOnly: true")) askers.push(path);
+        if (readFileSync(file, "utf8").includes("allowDeletedAccount: true")) askers.push(path);
       }
     }
     expect(askers.sort()).toEqual(["app/api/account/route.ts"]);

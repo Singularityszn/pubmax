@@ -25,10 +25,14 @@ import "server-only";
 // saving anyway: `lib/messageAuth.ts` asks `callerUserId`, which needs account
 // metadata and has always asked GoTrue.
 //
-// ONE caller opts out, and it is the one door that MUST answer after the
-// account is gone: `DELETE /api/account` passes `{ localOnly: true }` so a
-// second delete reaches its documented 410 rather than a 401 about an account
-// we know the caller owns. That argument is written at the call site.
+// ONE caller widens it, and it is the one door that MUST answer after the
+// account is gone: `DELETE /api/account` passes `{ allowDeletedAccount: true }`
+// so a second delete reaches its documented 410 rather than a 401 about an
+// account we know the caller owns. That lane still asks GoTrue first, so a
+// revoked session or a ban is refused for every live account, and it reads the
+// token's own claims only once GoTrue says the account is gone (audit finding
+// lib/authServer:localOnly-jwt-lane-skips-revocation-ban-and-audience). That
+// argument is written at the call site.
 
 import { isAuthUserBannedUntil, isGoTrueUserBannedError } from "@/lib/authAccountBan";
 import { getSupabaseAdmin } from "@/lib/supabase";
@@ -103,52 +107,74 @@ function isInvalidBearerError(error: unknown): boolean {
 
 export type VerifyCallerAuthOptions = Readonly<{
   /**
-   * Verify the token HERE against the project JWKS rather than asking GoTrue
-   * who it belongs to.
+   * Also name the caller when the account their token names no longer exists.
    *
-   * It is faster and it is weaker: a locally verified token says the signature
-   * and the expiry are good and says nothing about whether the account still
-   * exists. Pass it only where the answer must survive the account's own
-   * deletion — `DELETE /api/account` is the whole list — and say why at the
-   * call site. Every other caller wants revocation.
+   * GoTrue is asked first, exactly as on the default lane, so a revoked
+   * session, a ban or a foreign token is refused for every live account. Only
+   * when GoTrue answers `user_not_found` is the token verified here against
+   * the project JWKS, bound to this app's audience and role, and its `sub`
+   * returned. Pass it only where the answer must survive the account's own
+   * deletion: `DELETE /api/account` is the whole list, and says why at the
+   * call site. Every other caller wants the plain account lane.
    */
-  localOnly?: boolean;
+  allowDeletedAccount?: boolean;
 }>;
 
+/** The audience and role GoTrue signs into a signed-in user's access token. */
+const APP_TOKEN_AUDIENCE = "authenticated";
+const APP_TOKEN_ROLE = "authenticated";
+
+function namesAppAudience(aud: unknown): boolean {
+  if (typeof aud === "string") return aud === APP_TOKEN_AUDIENCE;
+  return Array.isArray(aud) && aud.includes(APP_TOKEN_AUDIENCE);
+}
+
+function isUserNotFoundError(error: unknown): boolean {
+  return Boolean(
+    error &&
+      typeof error === "object" &&
+      (error as { code?: unknown }).code === "user_not_found",
+  );
+}
+
 /**
- * Verify the bearer locally against the project JWKS, for the one caller that
- * asked for it.
+ * Name the caller of an account GoTrue says no longer exists, from the token's
+ * own claims.
  *
  * `getClaims` checks the signature (against a JWKS fetched once per process and
- * cached by supabase-js) and the expiry, so an ES256 token is verified in
- * microseconds with nothing on the wire. Where the project still signs HS256,
- * supabase-js falls back to `getUser` inside `getClaims`, so an HS256 project
- * gets the account check back for free. Nothing here trusts a claim it did not
- * verify — but nothing here asks whether the account is still there either,
- * which is why it is opt-in. Returns null when the client cannot answer
- * locally at all, and the caller falls through to GoTrue.
+ * cached by supabase-js) and the expiry, and nothing else, so this binds the
+ * claims to this app's audience and role as well. Where the project still signs
+ * HS256, supabase-js falls back to `getUser` inside `getClaims`, which answers
+ * `user_not_found` again, so the token is read as invalid. A client with no
+ * `getClaims` cannot verify the token here at all, which is invalid too.
  */
-async function verifyClaimsLocally(
+async function verifyDeletedAccountClaims(
   admin: NonNullable<ReturnType<typeof getSupabaseAdmin>>,
   token: string,
-): Promise<CallerAuthVerification | null> {
+): Promise<CallerAuthVerification> {
   const auth = admin.auth as {
     getClaims?: (
       jwt: string,
     ) => Promise<{
-      data: { claims: { sub?: unknown; email?: unknown } } | null;
+      data: {
+        claims: { sub?: unknown; email?: unknown; aud?: unknown; role?: unknown };
+      } | null;
       error: unknown;
     }>;
   };
-  if (typeof auth.getClaims !== "function") return null;
+  if (typeof auth.getClaims !== "function") return { status: "invalid" };
   const { data, error } = await auth.getClaims(token);
   if (error) {
     if (isGoTrueUserBannedError(error)) return { status: "banned" };
     return { status: isInvalidBearerError(error) ? "invalid" : "unavailable" };
   }
-  const id = data?.claims?.sub;
+  const claims = data?.claims;
+  if (!claims || !namesAppAudience(claims.aud) || claims.role !== APP_TOKEN_ROLE) {
+    return { status: "invalid" };
+  }
+  const id = claims.sub;
   if (typeof id !== "string" || !id) return { status: "invalid" };
-  const email = typeof data.claims.email === "string" ? data.claims.email : null;
+  const email = typeof claims.email === "string" ? claims.email : null;
   return { status: "verified", identity: { id, email, createdAt: null } };
 }
 
@@ -159,14 +185,15 @@ const verificationByRequest = new WeakMap<Request, Promise<CallerAuthVerificatio
  * `gateHandleAction`, `resolveContributionIdentity` and any other caller on
  * that same object share the in-flight promise, so a signed-in route asks
  * `auth.getUser` once. The settled answer, including a failure, stays with
- * that Request. The next Request verifies again. `localOnly` is never shared:
- * it is a weaker answer and its one caller asks for it once.
+ * that Request. The next Request verifies again. `allowDeletedAccount` is
+ * never shared: it can name an account the default lane refuses, and its one
+ * caller asks for it once.
  */
 export function verifyCallerAuth(
   request: Request,
   options: VerifyCallerAuthOptions = {},
 ): Promise<CallerAuthVerification> {
-  if (options.localOnly) return verifyBearer(request, true);
+  if (options.allowDeletedAccount) return verifyBearer(request, true);
   const cached = verificationByRequest.get(request);
   if (cached) return cached;
   const pending = verifyBearer(request, false);
@@ -176,7 +203,7 @@ export function verifyCallerAuth(
 
 async function verifyBearer(
   request: Request,
-  localOnly: boolean,
+  allowDeletedAccount: boolean,
 ): Promise<CallerAuthVerification> {
   const token = bearerToken(request);
   if (!token) return { status: "absent" };
@@ -185,13 +212,12 @@ async function verifyBearer(
   if (!admin) return { status: "unavailable" };
 
   try {
-    if (localOnly) {
-      const local = await verifyClaimsLocally(admin, token);
-      if (local) return local;
-    }
     const { data, error } = await admin.auth.getUser(token);
     if (error) {
       if (isGoTrueUserBannedError(error)) return { status: "banned" };
+      if (allowDeletedAccount && isUserNotFoundError(error)) {
+        return await verifyDeletedAccountClaims(admin, token);
+      }
       return {
         status: isInvalidBearerError(error) ? "invalid" : "unavailable",
       };
