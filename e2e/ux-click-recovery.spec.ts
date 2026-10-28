@@ -65,8 +65,14 @@ test("desktop Moment returns to the selected pub, including live map history", a
   await page.goto("/map?sel=venue-eltcmh");
   const share = page.getByRole("link", { name: "Share a Moment", exact: true });
   await expect(share).toBeVisible();
-  // The map can change its URL without a React router render.
-  await page.evaluate(() => history.replaceState(history.state, "", "/map?sel=venue-eltcmh&drink=wine"));
+  // Drive the map's own state and URL writer through its visible controls.
+  await page.getByRole("button", { name: "Drink: Pints", exact: true }).click();
+  const wine = page.getByRole("group", { name: "Drink prices shown on the map", exact: true })
+    .getByRole("button", { name: "Wine", exact: true });
+  await wine.click();
+  await expect(wine).toHaveAttribute("aria-pressed", "true");
+  await expect(page.getByRole("button", { name: "Drink: Wine", exact: true })).toBeVisible();
+  await expect(page).toHaveURL(/\/map\?sel=venue-eltcmh&drink=wine$/);
   await share.click();
   await expect(page).toHaveURL(/\/moment\?/);
   expect(new URL(page.url()).searchParams.get("returnTo")).toBe("/map?sel=venue-eltcmh&drink=wine");
@@ -77,7 +83,14 @@ test("keyboard Moment activation keeps map context in a new tab", async ({ page 
   await page.goto("/map?sel=venue-eltcmh");
   const share = page.getByRole("link", { name: "Share a Moment", exact: true });
   await expect(share).toBeVisible();
-  await page.evaluate(() => history.replaceState(history.state, "", "/map?sel=venue-eltcmh&drink=wine"));
+  // Drive the map's own state and URL writer through its visible controls.
+  await page.getByRole("button", { name: "Drink: Pints", exact: true }).click();
+  const wine = page.getByRole("group", { name: "Drink prices shown on the map", exact: true })
+    .getByRole("button", { name: "Wine", exact: true });
+  await wine.click();
+  await expect(wine).toHaveAttribute("aria-pressed", "true");
+  await expect(page.getByRole("button", { name: "Drink: Wine", exact: true })).toBeVisible();
+  await expect(page).toHaveURL(/\/map\?sel=venue-eltcmh&drink=wine$/);
   await share.focus();
   const [popup] = await Promise.all([
     page.waitForEvent("popup"),
