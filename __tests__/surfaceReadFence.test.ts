@@ -45,6 +45,7 @@ const SURFACE_READ_EXEMPTIONS = [
   { path: "components/map/CitySuggestBanner.tsx", fetchCount: 1, reason: "map search suggestion is an interactive pack read" },
   { path: "components/map/NearbyBusDepartures.tsx", fetchCount: 1, reason: "nearby transport is live and location-scoped" },
   { path: "components/map/canvas/iconSprite.ts", fetchCount: 1, reason: "the map icon atlas is a static image the canvas decodes into map images, never painted data; its URL carries its own hash" },
+  { path: "components/pal/originalPalMeshRenderer.mjs", fetchCount: 1, reason: "the original Pal model is a static binary asset decoded by the renderer, with its own abort and load deadline, not a reloadable JSON surface" },
   { path: "components/map/UnverifiedPubSheet.tsx", fetchCount: 1, reason: "harvest overlay is an additive lazy read for one unverified pub sheet and never paints a reload surface" },
   { path: "components/map/inspector/VenueSpoonsValueRow.tsx", fetchCount: 1, reason: "the Spoons value row is an additive lazy read for one pub, edge-cacheable because an imported menu reading is the same for every reader, and it renders nothing rather than wording an absence" },
   { path: "components/map/VenueBuzz.tsx", fetchCount: 1, reason: "buzz is an interactive detail read; the place search beside it moved to the shared lib/cityPlaceSearch.ts" },
