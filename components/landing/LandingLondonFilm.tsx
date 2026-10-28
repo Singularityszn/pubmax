@@ -1,10 +1,12 @@
 "use client";
 
 import { useCallback, useState } from "react";
+import { useClientReady } from "@/lib/useClientReady";
 import "./landingLondonFilm.css";
 
 /** Mount the media only after a deliberate request, including with reduced motion. */
 export default function LandingLondonFilm() {
+  const ready = useClientReady();
   const [requested, setRequested] = useState(false);
   const [failed, setFailed] = useState(false);
   const focusVideo = useCallback((node: HTMLVideoElement | null) => node?.focus(), []);
@@ -47,6 +49,7 @@ export default function LandingLondonFilm() {
           <button
             type="button"
             className="lpFilmPlay"
+            disabled={!ready}
             ref={focusRetry}
             onClick={() => { setFailed(false); setRequested(true); }}
             aria-describedby="london-film-description"

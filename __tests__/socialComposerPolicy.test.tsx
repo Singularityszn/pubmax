@@ -57,7 +57,7 @@ function json(body: unknown, status = 200): Response {
 }
 
 function button(host: HTMLElement, label: string): HTMLButtonElement {
-  const match = [...host.querySelectorAll("button")].find(
+  const match = [...host.ownerDocument.body.querySelectorAll("button")].find(
     (candidate) => candidate.textContent === label,
   );
   if (!(match instanceof HTMLButtonElement)) {
@@ -67,7 +67,7 @@ function button(host: HTMLElement, label: string): HTMLButtonElement {
 }
 
 function setBody(host: HTMLElement, value: string): void {
-  const field = host.querySelector("textarea");
+  const field = host.ownerDocument.body.querySelector("textarea");
   if (!(field instanceof HTMLTextAreaElement)) throw new Error("Post body not found");
   const setter = Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, "value")?.set;
   setter?.call(field, value);
@@ -113,12 +113,60 @@ afterEach(() => {
 });
 
 describe("Social composer comment policy", () => {
+  it("opens outside the page header and blocks background controls until it closes", async () => {
+    host.className = "screenPrimary";
+    await mount({});
+    const trigger = button(host, "New post");
+    await act(async () => trigger.click());
+    const dialog = document.body.querySelector('[role="dialog"]');
+    expect(dialog?.closest(".screenPrimary")).toBeNull();
+    expect(dialog?.parentElement?.parentElement).toBe(document.body);
+    expect(host.inert).toBe(true);
+    expect(document.documentElement.style.overflow).toBe("hidden");
+    await act(async () => document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true })));
+    expect(document.body.querySelector('[role="dialog"]')).toBeNull();
+    expect(host.inert).not.toBe(true);
+    expect(document.activeElement).toBe(trigger);
+    expect(document.documentElement.style.overflow).not.toBe("hidden");
+  });
+
+  it("starts a pub recommendation from a prompt without posting it", async () => {
+    await mount({});
+    await act(async () => button(host, "New post").click());
+    await act(async () => button(host, "A pub worth sharing").click());
+    expect(host.ownerDocument.body.querySelector("textarea")?.value).toBe("A pub worth sharing: ");
+    expect(document.activeElement).toBe(host.ownerDocument.body.querySelector("textarea"));
+    expect(transport.authedActionJson).not.toHaveBeenCalled();
+    expect(host.ownerDocument.body.textContent).toContain("Only people you follow who follow you back can see this.");
+    expect([...host.ownerDocument.body.querySelectorAll("button")].some((item) => item.textContent === "A pub worth sharing")).toBe(false);
+  });
+
+  it("explains the chosen audience and preserves a written draft when the composer closes", async () => {
+    await mount({});
+    await act(async () => button(host, "New post").click());
+    await act(async () => setBody(host, "The snug upstairs is worth the stairs."));
+    const visibility = [...host.ownerDocument.body.querySelectorAll("label")]
+      .find((label) => label.textContent?.startsWith("Visibility"))?.querySelector("select");
+    expect(visibility).not.toBeNull();
+    await act(async () => {
+      visibility!.value = "private";
+      visibility!.dispatchEvent(new Event("change", { bubbles: true }));
+    });
+    expect(host.ownerDocument.body.textContent).toContain("Only you can see this.");
+    await act(async () => button(host, "Cancel").click());
+    await act(async () => button(host, "New post").click());
+    expect(host.ownerDocument.body.querySelector("textarea")?.value).toBe("The snug upstairs is worth the stairs.");
+    expect(host.ownerDocument.body.textContent).toContain("Only you can see this.");
+    expect(host.ownerDocument.body.querySelector('[aria-label="Post prompts"]')).toBeNull();
+    expect(transport.authedActionJson).not.toHaveBeenCalled();
+  });
+
   it("offers no Comments setting on a new post", async () => {
     await mount({});
     await act(async () => {
       button(host, "New post").click();
     });
-    const labels = [...host.querySelectorAll("label")].map((label) => label.textContent ?? "");
+    const labels = [...host.ownerDocument.body.querySelectorAll("label")].map((label) => label.textContent ?? "");
     expect(labels.some((text) => text.startsWith("Visibility"))).toBe(true);
     expect(labels.some((text) => text.startsWith("Comments"))).toBe(false);
   });
@@ -153,7 +201,7 @@ describe("Social composer comment policy", () => {
     await act(async () => {
       button(host, "Edit post").click();
     });
-    expect([...host.querySelectorAll("label")].some((label) => (label.textContent ?? "").startsWith("Comments"))).toBe(false);
+    expect([...host.ownerDocument.body.querySelectorAll("label")].some((label) => (label.textContent ?? "").startsWith("Comments"))).toBe(false);
     await act(async () => {
       setBody(host, "Keep the policy, new words");
     });

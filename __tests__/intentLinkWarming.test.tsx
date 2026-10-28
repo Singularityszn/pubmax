@@ -6,6 +6,7 @@ import { expect, it, vi } from "vitest";
 const { prefetch } = vi.hoisted(() => ({ prefetch: vi.fn() }));
 vi.mock("next/navigation", () => ({ useRouter: () => ({ prefetch }) }));
 vi.mock("next/link", () => ({
+  useLinkStatus: () => ({ pending: false }),
   default: ({ prefetch: automaticPrefetch, ...props }: { href: string; prefetch?: boolean; children?: ReactNode }) => {
     expect(automaticPrefetch).toBe(false);
     return createElement("a", props);
