@@ -171,9 +171,11 @@ test("text over a landing photograph ships the alpha the contrast contract is pr
     await expect(card.locator(".landingPhoto__scrim")).toHaveCount(0);
   }
 
-  // A borough band's credit sits over its photograph on every run, so the
-  // contract is proved in a browser whichever pub the home card names.
-  await open(page, "/borough/camden", { width: 390, height: 844 });
+  // An area landing's band credit sits over its photograph on every run, so
+  // the contract is proved in a browser whichever pub the home card names.
+  // Borough chapters no longer carry a band: their photograph is a
+  // PlacePhoto with the credit under it (#2352).
+  await open(page, "/area/victoria/drink/guinness", { width: 390, height: 844 });
   const creditAlpha = await page.locator(".landingPhoto--band .landingPhotoCredit").evaluate((node) => {
     const match = getComputedStyle(node).backgroundColor.match(/rgba?\([^)]*?,\s*([0-9.]+)\s*\)/);
     return match ? Number(match[1]) : 1;
@@ -191,10 +193,11 @@ test("the picture costs the primary action nothing: it stays above the fold", as
 
 test("a borough chapter carries its own picture, and nothing spills sideways", async ({ page }) => {
   await open(page, "/borough/camden", { width: 320, height: 568 });
-  const band = page.locator(".landingPhoto--band");
-  await expect(band).toHaveCount(1);
-  await expect(band.locator(".landingPhoto__img")).toBeVisible();
-  await expect(band.locator(".landingPhotoCredit")).toBeVisible();
+  const photo = page.locator(".boroughPhoto");
+  await expect(photo).toHaveCount(1);
+  await expect(photo).toHaveAttribute("data-photo-scope", "borough");
+  await expect(photo.locator(".placePhoto__img")).toBeVisible();
+  await expect(photo.locator(".placePhotoCredit")).toBeVisible();
 
   const overflow = await page.evaluate(
     () => document.documentElement.scrollWidth - window.innerWidth,
@@ -204,8 +207,9 @@ test("a borough chapter carries its own picture, and nothing spills sideways", a
 
 test("a borough we hold no picture of still shows London, never an empty slot", async ({ page }) => {
   await open(page, "/borough/waltham-forest", { width: 390, height: 844 });
-  const band = page.locator(".landingPhoto--band");
-  await expect(band).toHaveCount(1);
-  await expect(band.locator(".landingPhoto__img")).toBeVisible();
+  const photo = page.locator(".boroughPhoto");
+  await expect(photo).toHaveCount(1);
+  await expect(photo).toHaveAttribute("data-photo-scope", "london");
+  await expect(photo.locator(".placePhoto__img")).toBeVisible();
   await expect(page.getByText("No photo yet")).toHaveCount(0);
 });

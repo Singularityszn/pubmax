@@ -140,12 +140,16 @@ describe("Social Posts account resolution", () => {
     const content = slot!.querySelector(".emptyState")!.parentElement!;
     const pendingChildren = Array.from(door.children);
     const sizingContent = content.textContent;
-    // The hidden sizing copy is the same shape as the answer (a one-line title
-    // and the value line) and names no door before the session answers.
+    // The sizing copy is the same shape as the answer (a one-line title and
+    // the value line) and names no door before the session answers. Only the
+    // title waits: the value line reads the same for every reader, so it
+    // paints with the document rather than when the session answers, which
+    // made it /social's largest paint.
     expect(sizingContent).toContain(SOCIAL_SIGNED_OUT_VALUE_LINE);
     expect(sizingContent).not.toMatch(/sign in/i);
     expect(content.getAttribute("aria-hidden")).toBe("true");
-    expect(getComputedStyle(content).visibility).toBe("hidden");
+    expect(getComputedStyle(content.querySelector(".emptyStateTitle")!).visibility).toBe("hidden");
+    expect(getComputedStyle(content.querySelector(".emptyStateLine")!).visibility).toBe("visible");
     expect(getComputedStyle(content).display).not.toBe("none");
     expect(getComputedStyle(content).position).not.toBe("absolute");
     const status = slot!.querySelector('[role="status"]')!;
@@ -166,6 +170,7 @@ describe("Social Posts account resolution", () => {
     expect(content.textContent).toContain(SOCIAL_SIGNED_OUT_VALUE_LINE);
     expect(content.hasAttribute("aria-hidden")).toBe(false);
     expect(getComputedStyle(content).visibility).toBe("visible");
+    expect(getComputedStyle(content.querySelector(".emptyStateTitle")!).visibility).toBe("visible");
     expect(slot!.getAttribute("role")).toBe("status");
     expect(slot!.querySelector('[role="status"]')).toBeNull();
     expect(host.querySelectorAll('a[href*="/login"]')).toHaveLength(1);
@@ -192,7 +197,9 @@ describe("Social Posts account resolution", () => {
 
     const slot = host.querySelector('section[aria-label="Social posts"]')!;
     expect(slot.getAttribute("aria-busy")).toBe("true");
-    expect(getComputedStyle(slot.querySelector(".emptyState")!.parentElement!).visibility).toBe("hidden");
+    // The stale signed-out title is hidden again; the value line names no door.
+    expect(getComputedStyle(slot.querySelector(".emptyStateTitle")!).visibility).toBe("hidden");
+    expect(slot.querySelector(".emptyStateTitle")!.textContent).not.toMatch(/sign in/i);
     expect(host.querySelector('a[href*="/login"]')).toBeNull();
     expect(host.querySelectorAll("#find-lot-title")).toHaveLength(1);
     expect(host.querySelectorAll(".socialFoundersLink")).toHaveLength(1);
