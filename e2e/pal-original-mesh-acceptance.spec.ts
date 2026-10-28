@@ -148,6 +148,16 @@ test.describe("O1", () => {
       expect(storedPal).toMatchObject({ id: "cccccccc-cccc-4ccc-8ccc-cccccccccccc", ownerId: ACCOUNTS.B.id, name: "Fox", appearance: { species: "fox" } });
       expect(fx.ownerReads).toContain(ACCOUNTS.B.id);
       await expect(page.getByRole("img", { name: /Robin in 3D/ })).toHaveCount(0);
+      // The mounted account menu is still open after switching. Dismiss it
+      // through the product's supported Escape action before judging pixels.
+      await page.keyboard.press("Escape");
+      await expect(page.locator(".authAccountMenu")).toBeHidden();
+      await canvas(page).scrollIntoViewIfNeeded();
+      await expect.poll(() => canvas(page).evaluate(node => {
+        const box = node.getBoundingClientRect();
+        const hit = document.elementFromPoint(box.x + box.width / 2, box.y + box.height / 2);
+        return hit === node;
+      }), { message: "The current fox canvas is unobscured at its centre" }).toBe(true);
       await shot(page, info, "owner-b"); await old.dispose();
     });
   });
