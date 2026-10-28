@@ -6,9 +6,9 @@ check layer.
 
 ## GitHub-hosted runners
 
-Every job uses `ubuntu-latest`, including Browser law pins. Six Playwright
-jobs stay on `macos-latest`, each with a reason in `MACOS_JOBS` in
-`__tests__/ciRunnerIsolation.test.ts`:
+Jobs use `ubuntu-latest` by default, including Browser law pins. The
+`MACOS_JOBS` list in `__tests__/ciRunnerIsolation.test.ts` owns the exceptions
+and their reasons:
 
 - The layout pins and the two nightly full-suite jobs. Their specs were proved on
   macOS glyph widths. Both use the same self-hosted webfonts, but Linux
@@ -106,7 +106,18 @@ repository secret.
 
 Job `timeout-minutes` values in `ci.yml`, `e2e.yml`, `rls-session.yml`, and the Playwright jobs in `performance.yml` stay at the ceilings already set for those jobs (about 2× the p95 measured on the previous runners), with floors on the freshness gate (20 minutes) and Coverage (30 minutes). Do not raise one to hide a slow hosted run; see `perf/AGENTS.md`. `security-ci.yml` uses fixed ceilings (10, 15, and 45 minutes for zizmor, osv-scanner, and Semgrep).
 
-Browser law pins, the three browser layout-pin shards and the two `performance.yml` jobs keep `--workers=1`. [What a pull request runs](#what-a-pull-request-runs) defines when the layout shards run. The nightly full suite runs as two jobs. `Full browser suite (1-8/8)` cuts the plain Chromium project into eight shards and builds one server. `Full browser suite (WebGL and keyless)` runs the other four projects and builds both servers. On 28 Oct 2026 the old four shards held about 620 tests each, and shard 4 reached the 45-minute wall on 8 of 8 nights, so its failures never printed. Playwright cuts shards by test count, and the slow map and WebGL specs sit together at the end of its order, so more shards of every project still left one over the wall. Each job keeps Playwright's default worker count, which `playwright.config.ts` leaves unset when `CI` is set, and a hosted macOS runner resolves that to one worker. The nightly and a dispatch skip the three layout-pin jobs, because the full suite runs every layout spec on the same commit.
+Browser law pins, the browser layout-pin shards and the `performance.yml` jobs
+keep `--workers=1`. [What a pull request runs](#what-a-pull-request-runs)
+defines when the layout shards run.
+
+The nightly full suite separates plain Chromium shards from the WebGL and
+keyless projects. The [browser workflow](../.github/workflows/e2e.yml) owns
+the shard matrix and project lists. Each Chromium shard builds one server.
+`Full browser suite (WebGL and keyless)` builds both the normal and keyless
+servers. Each job uses Playwright's default worker count. `playwright.config.ts`
+leaves that count unset in CI, and a hosted macOS runner resolves it to one worker.
+Scheduled runs and manual dispatches skip the layout-pin jobs because the full
+suite covers those specs on the same commit.
 
 Each workflow has its own concurrency group. A newer pull request head supersedes that pull request's older runs of the same workflow, so rerun the latest workflow run for the current head. The nightly browser suite and manual dispatches never cancel: each one gets a group of its own (`run-<run_id>`). Main pushes of `ci.yml`, `rls-session.yml` and `security-ci.yml` also get a group of their own. GitHub keeps only one waiting run per group, so the old per-ref group dropped waiting main pushes. There is no repo-wide group and no shared browser queue.
 
@@ -184,7 +195,7 @@ An empty diff and every event other than a pull request read `ui`. A push to `ma
 | Browser tests / law pins | green, steps skipped | green, steps skipped | runs |
 | Browser tests / Change scope | runs (Linux, classifier only) | runs | runs |
 | Browser tests / layout pins (1-3/3) | skipped, no macOS runner | skipped, no macOS runner | runs for a `ui` change, skipped for `none` |
-| Browser tests / full suite (1-8/8) and (WebGL and keyless) | not run on pull requests (nightly and dispatch only) | same | same |
+| Browser tests / full suite | not run on pull requests (nightly and dispatch only) | same | same |
 | RLS session tests | green, steps skipped | green, steps skipped | runs |
 | Security CI (zizmor, osv-scanner, Semgrep) | runs | runs | runs |
 

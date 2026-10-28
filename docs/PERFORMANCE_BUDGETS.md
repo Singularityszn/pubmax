@@ -68,9 +68,10 @@ profile rather than loopback. Measured figure first, ceiling second:
 | `/places` | 6 / 150 | 861 / 1000 | 40 / 46 | 188 / 2500 |
 
 The `/onboarding` and `/choose-city` rows show redirect budgets without measured
-server times. The seed sweep measured their former documents. The `/out` and `/feed`
-rows above retain their seed figures. Their current budgets measure a redirect to
-`/tonight` and to `/social`, and each target keeps its own page budget. See
+server times. The seed sweep measured their former documents. The `/out`, `/feed`
+and `/signin` rows above retain their seed figures. Their current budgets measure
+redirects to `/tonight`, `/social` and `/login`, respectively. Each target keeps
+its own page budget. See
 [`perf/route-budgets.json`](../perf/route-budgets.json) for current ceilings.
 
 `measurePerfRedirect` measures the 3xx response time as `serverRenderMs`.

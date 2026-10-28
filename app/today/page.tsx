@@ -65,8 +65,8 @@ export const runtime = "nodejs";
 //      into dynamic rendering. The remembered area, the briefing-arrival marker
 //      and the viewer's location are all read by the client after load.
 //   2. Nothing personal may reach this document. One prerendered copy is handed
-//      to every stranger, so the greeting names no one and the get-there strip
-//      and the Tube card own their own client fetches.
+//      to every stranger, so the greeting names no one. Viewer-specific reads
+//      stay in client components, including the Tube refresh.
 export const dynamic = "force-static";
 // The brief reads the current London day: the greeting's slot, the weather
 // snapshot's staleness, tonight's listing window and the pub-of-the-day
