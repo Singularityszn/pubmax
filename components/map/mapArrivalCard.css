@@ -100,7 +100,7 @@
 
   /* An open sheet owns the foot of the map. The ask is withheld behind it
      rather than painted through its scrim, and is back when the sheet closes. */
-  body:has(.mobileSheetPortal) .mapArrivalCard {
+  body:has(.mobileSheetPortal:not([data-sheet-exiting="true"])) .mapArrivalCard {
     visibility: hidden;
   }
 

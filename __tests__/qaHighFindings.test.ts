@@ -1,6 +1,8 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
+import { JSDOM } from "jsdom";
+import postcss from "postcss";
 import { describe, expect, it, vi, afterEach } from "vitest";
 
 import {
@@ -42,12 +44,38 @@ describe("QA high findings — mobile sheet and consent layering", () => {
     );
   });
 
-  it("hides the analytics consent card while any map sheet is open", () => {
-    const rule = globalCss.match(
-      /body:has\(\.mobileSheetPortal\) \.analyticsConsentPrompt,\s*body:has\(\.chooseAreaDesktopScrim\) \.analyticsConsentPrompt\s*{([^}]*)}/,
-    )?.[1] ?? "";
-    expect(rule).toMatch(/visibility:\s*hidden/);
-    expect(rule).toMatch(/pointer-events:\s*none/);
+  const consentHidingSelectors: string[] = [];
+  postcss.parse(globalCss).walkRules((rule) => {
+    const hidesConsent = rule.nodes.some(
+      (node) => node.type === "decl" && node.prop === "visibility" && node.value === "hidden",
+    );
+    const disablesPointers = rule.nodes.some(
+      (node) => node.type === "decl" && node.prop === "pointer-events" && node.value === "none",
+    );
+    if (hidesConsent && disablesPointers) {
+      consentHidingSelectors.push(
+        ...rule.selectors.filter((selector) => selector.includes(".analyticsConsentPrompt")),
+      );
+    }
+  });
+
+  // These fixtures check selector matching, not browser paint or the CSS cascade.
+  it.each([
+    ["an active mobile portal", '<div class="mobileSheetPortal"></div>', true],
+    [
+      "only a retained exiting mobile portal",
+      '<div class="mobileSheetPortal" data-sheet-exiting="true"></div>',
+      false,
+    ],
+    ["a desktop choose-area scrim", '<div class="chooseAreaDesktopScrim"></div>', true],
+  ])("applies consent hiding selectors with %s", (_state, surface, hidden) => {
+    const dom = new JSDOM(`<body>${surface}<aside class="analyticsConsentPrompt"></aside></body>`);
+    try {
+      const consent = dom.window.document.querySelector(".analyticsConsentPrompt")!;
+      expect(consentHidingSelectors.some((selector) => consent.matches(selector))).toBe(hidden);
+    } finally {
+      dom.window.close();
+    }
   });
 
   it("dismisses open map sheets before primary-tab navigation", () => {
