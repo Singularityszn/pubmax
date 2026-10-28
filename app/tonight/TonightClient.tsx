@@ -1,5 +1,7 @@
 "use client";
 
+import { ReadyButton } from "@/components/ui/ready-button";
+
 // First-class "Tonight" screen — PRIMARY What's-On spine (/api/whats-on),
 // same source as the map Tonight lane (W1). CityMCP things-to-do stays a
 // secondary Discover overlay; this page must never disagree with the lane.
@@ -715,7 +717,7 @@ export default function TonightClient({
               role="group"
               aria-label="Filter tonight by kind"
             >
-              <button
+              <ReadyButton
                 type="button"
                 className="tonightChip"
                 data-active={activeKind === null}
@@ -726,9 +728,9 @@ export default function TonightClient({
                 {activeKind === null ? (
                   <span className="tonightChipCount">{groupedAll.length}</span>
                 ) : null}
-              </button>
+              </ReadyButton>
               {facets.map((facet) => (
-                <button
+                <ReadyButton
                   key={facet.kind}
                   type="button"
                   className="tonightChip"
@@ -746,7 +748,7 @@ export default function TonightClient({
                       {activeKind === null ? facet.count : grouped.length}
                     </span>
                   ) : null}
-                </button>
+                </ReadyButton>
               ))}
             </div>
           ) : null}
@@ -962,13 +964,13 @@ export default function TonightClient({
             <p className="tonightStatus" role="status">
               No {activeKind ? WHATS_ON_KIND_META[activeKind].label.toLowerCase() : "matching"}{" "}
               listings tonight.{" "}
-              <button
+              <ReadyButton
                 type="button"
                 className="tonightInlineReset"
                 onClick={() => setActiveKind(null)}
               >
                 Show all
-              </button>
+              </ReadyButton>
             </p>
           ) : null}
         </>
@@ -1180,16 +1182,16 @@ export default function TonightClient({
                 </p>
               ))}
               {origin ? (
-                <button
+                <ReadyButton
                   type="button"
                   className="tonightLocationButton"
                   onClick={clearLocation}
                 >
                   <X size={16} aria-hidden="true" />
                   {LOCATION_REMOVE_LABEL}
-                </button>
+                </ReadyButton>
               ) : (
-                <button
+                <ReadyButton
                   type="button"
                   className="tonightLocationButton"
                   onClick={requestLocation}
@@ -1201,7 +1203,7 @@ export default function TonightClient({
                     : locationStatus === "unavailable"
                       ? LOCATION_RETRY_LABEL
                       : LOCATION_SHARE_LABEL[LOCATION_SURFACE]}
-                </button>
+                </ReadyButton>
               )}
               <span className="tonightSrOnly" role="status" aria-live="polite">
                 {locationStatus === "requesting"

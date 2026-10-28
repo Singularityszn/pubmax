@@ -6,6 +6,7 @@ import { useEffect, useState, type CSSProperties } from "react";
 
 import { useAuth } from "@/components/auth/authContext";
 import { PubPalMascot } from "@/components/pal/PubPalMascot";
+import NavPendingIndicator from "@/components/nav/NavPendingIndicator";
 import { readLocalPal, subscribeLocalPal } from "@/lib/localPal";
 import { palGenomeFor, palGenomeStyle } from "@/lib/palGenome";
 import { subscribePalMoments } from "@/lib/palMoments";
@@ -111,7 +112,7 @@ export function PalDockButton({ pathname, onNavigate }: { pathname: string; onNa
     <Link
       href={PAL_NAV_HREF}
       prefetch={false}
-      className={"mobileTabPal pressable" + (active ? " isActive" : "") + (cheering ? " isCheering" : "")}
+      className={"mobileTabPal pressable navPendingLink" + (active ? " isActive" : "") + (cheering ? " isCheering" : "")}
       aria-label={palNavLabel(pal)}
       aria-current={active ? "page" : undefined}
       onClick={onNavigate}
@@ -120,6 +121,7 @@ export function PalDockButton({ pathname, onNavigate }: { pathname: string; onNa
       <span className="mobileTabLabel">
         <span className="mobileTabLabelText">Pal</span>
       </span>
+      <NavPendingIndicator />
     </Link>
   );
 }
@@ -132,13 +134,14 @@ export function PalSiteNavButton({ pathname }: { pathname: string }) {
     <Link
       href={PAL_NAV_HREF}
       prefetch={false}
-      className={"siteNavPal" + (active ? " isActive" : "") + (cheering ? " isCheering" : "")}
+      className={"siteNavPal navPendingLink" + (active ? " isActive" : "") + (cheering ? " isCheering" : "")}
       aria-label={palNavLabel(pal)}
       aria-current={active ? "page" : undefined}
       title={palNavLabel(pal)}
     >
       <PalNavFace pal={pal} size={32} />
       <span className="siteNavPalName">{pal ? pal.name : "Pal"}</span>
+      <NavPendingIndicator />
     </Link>
   );
 }

@@ -393,3 +393,21 @@ describe("private photo rendering", () => {
     expect(revoke).toHaveBeenCalledWith("blob:private-photo");
   });
 });
+
+describe("empty conversation starters", () => {
+  it("opens pub and plan pickers without sending or replacing the message draft", async () => {
+    state.request.mockImplementation(() => Promise.resolve(Response.json({ messages: [], conversation: { kind: "direct", members: ["alice", "bridget"] } })));
+    await thread();
+    await typeInto(field(), "Meet at seven?");
+    const starters = host.querySelector('[aria-label="Start the conversation"]');
+    expect(starters).not.toBeNull();
+    await act(async () => starters!.querySelector<HTMLButtonElement>("button")!.click());
+    expect(host.textContent).toContain("Search pubs");
+    expect(document.activeElement).toBe(host.querySelector(".composerVenueSearch"));
+    expect(field().value).toBe("Meet at seven?");
+    await act(async () => button("Share a plan").click());
+    expect(host.textContent).toContain("Which plan?");
+    expect(field().value).toBe("Meet at seven?");
+    expect(state.request.mock.calls.some(([, init]) => init?.method === "POST")).toBe(false);
+  });
+});

@@ -1,6 +1,7 @@
 "use client";
 
 import { type ReactNode, type RefObject, useEffect, useId, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 
 import { nightAreasByCity } from "@/lib/nightAreas";
 import { getCity } from "@/lib/cities";
@@ -14,6 +15,7 @@ import {
 } from "@/lib/socialHiddenName";
 import type { SocialPostDTO } from "@/lib/socialPosts";
 import { useDismissOnEscape } from "@/lib/useDismissOnEscape";
+import { useFocusTrap } from "@/lib/useFocusTrap";
 import { SOCIAL_REVIEW_MAX, SOCIAL_REVIEW_MIN, SOCIAL_REVIEW_STEP } from "@/lib/socialPostReviews";
 import {
   formatSocialVideoDuration,
@@ -478,11 +480,48 @@ function PolicyFields({ draft, hasPhoto, nameHidden, onDraft }: { draft: Draft; 
     <>
       <label>Hashtags<input value={draft.hashtags} onChange={(event) => onDraft({ ...draft, hashtags: event.currentTarget.value })} /></label>
       {hasPhoto && !nameHidden ? <label>Photo tags<input value={draft.tagHandles} onChange={(event) => onDraft({ ...draft, tagHandles: event.currentTarget.value })} /></label> : null}
-      {nameHidden
-        ? <label>Visibility<select value="public" disabled><option value="public">Public</option></select></label>
-        : <label>Visibility<select value={draft.visibility} onChange={(event) => onDraft({ ...draft, visibility: event.currentTarget.value as Draft["visibility"] })}><option value="private">Private</option><option value="friends">Friends</option><option value="public">Public</option></select></label>}
       <label>Post type<select value={draft.kind} onChange={(event) => onDraft({ ...draft, kind: event.currentTarget.value as Draft["kind"] })}><option value="standard">Post</option><option value="feature_request">Feature request</option></select></label>
     </>
+  );
+}
+
+function AudienceField({ draft, nameHidden, onDraft }: { draft: Draft; nameHidden: boolean; onDraft: (draft: Draft) => void }) {
+  const hintId = useId();
+  return (
+    <div className="socialComposerAudience">
+      <label>
+        Visibility
+        <select
+          value={nameHidden ? "public" : draft.visibility}
+          disabled={nameHidden}
+          aria-describedby={hintId}
+          onChange={(event) => onDraft({ ...draft, visibility: event.currentTarget.value as Draft["visibility"] })}
+        >
+          <option value="private">Private</option>
+          <option value="friends">Friends</option>
+          <option value="public">Public</option>
+        </select>
+      </label>
+      <p id={hintId}>
+        {nameHidden || draft.visibility === "public"
+          ? "Anyone on Social can see your words and photos. Only mutual friends can see the pub you tag."
+          : draft.visibility === "friends"
+            ? "Only people you follow who follow you back can see this."
+            : "Only you can see this."}
+      </p>
+    </div>
+  );
+}
+
+function PostPrompts({ editing, ready, body, onChoose }: { editing: boolean; ready: boolean; body: string; onChoose: (body: string) => void }) {
+  if (editing || !ready || body) return null;
+  return (
+    <div className="socialComposerPrompts" aria-label="Post prompts">
+      <span>Start with a thought</span>
+      {["A pub worth sharing", "Who's about?"].map((prompt) => (
+        <button key={prompt} type="button" onClick={() => onChoose(prompt === "Who's about?" ? "Who's about? " : `${prompt}: `)}>{prompt}</button>
+      ))}
+    </div>
   );
 }
 
@@ -535,7 +574,6 @@ export default function SocialComposer({
 
   function closeComposer() {
     setOpen(false);
-    window.requestAnimationFrame(() => triggerRef.current?.focus());
   }
 
   function openComposer() {
@@ -581,7 +619,8 @@ export default function SocialComposer({
     setVenueAnnouncement(`${venue.name} selected.`);
   }
 
-  useDismissOnEscape(open, closeComposer);
+  useDismissOnEscape(open, closeComposer, dialogRef);
+  useFocusTrap(open, dialogRef, "strict-modal", triggerRef);
 
   useEffect(() => {
     let active = true;
@@ -663,7 +702,14 @@ export default function SocialComposer({
   }
 
   useEffect(() => {
-    if (open) bodyRef.current?.focus();
+    if (!open) return;
+    const root = document.documentElement;
+    const previousOverflow = root.style.overflow;
+    root.style.overflow = "hidden";
+    bodyRef.current?.focus();
+    return () => {
+      root.style.overflow = previousOverflow;
+    };
   }, [open]);
 
   useEffect(() => {
@@ -673,31 +719,6 @@ export default function SocialComposer({
       feedbackRef.current?.scrollIntoView({ block: "nearest" });
     });
   }, [feedback, feedbackIsStatus]);
-
-  useEffect(() => {
-    const dialog = dialogRef.current;
-    if (!open || !dialog) return;
-    const keepFocusInside = (event: KeyboardEvent) => {
-      if (event.key !== "Tab") return;
-      const controls = Array.from(
-        dialog.querySelectorAll<HTMLElement>(
-          'button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [href], [tabindex]:not([tabindex="-1"])',
-        ),
-      ).filter((control) => !control.hasAttribute("hidden"));
-      const first = controls[0];
-      const last = controls.at(-1);
-      if (!first || !last) return;
-      if (event.shiftKey && document.activeElement === first) {
-        event.preventDefault();
-        last.focus();
-      } else if (!event.shiftKey && document.activeElement === last) {
-        event.preventDefault();
-        first.focus();
-      }
-    };
-    dialog.addEventListener("keydown", keepFocusInside);
-    return () => dialog.removeEventListener("keydown", keepFocusInside);
-  }, [open]);
 
   useEffect(() => {
     if (!open || typeof BroadcastChannel === "undefined") return;
@@ -907,7 +928,7 @@ export default function SocialComposer({
       >
         {triggerLabel ?? (editing ? "Edit post" : "New post")}
       </button>
-      {open ? (
+      {open ? createPortal(
         <div
           className="socialComposerBackdrop"
           role="presentation"
@@ -966,17 +987,25 @@ export default function SocialComposer({
               </button>
             ) : null}
 
+            <AudienceField draft={draft} nameHidden={nameHidden} onDraft={setDraft} />
+
             <label className="socialComposerBody">
               Write post
               <textarea
                 ref={bodyRef}
                 maxLength={2000}
+                placeholder="A pub worth the walk? A photo worth keeping?"
                 value={draft.body}
                 onChange={(event) =>
                   setDraft({ ...draft, body: event.currentTarget.value })
                 }
               />
             </label>
+            <p className="socialComposerCount"><span>{draft.body.length}</span> / 2000</p>
+            <PostPrompts editing={editing} ready={draftReady} body={draft.body} onChoose={(body) => {
+              setDraft((current) => ({ ...current, body }));
+              bodyRef.current?.focus();
+            }} />
 
             <MediaEditors
               editing={editing} video={video} videoPreviewUrl={videoPreviewUrl} videoDuration={videoDuration}
@@ -1035,7 +1064,8 @@ export default function SocialComposer({
               </p>
             ) : null}
           </section>
-        </div>
+        </div>,
+        document.body,
       ) : null}
     </>
   );
