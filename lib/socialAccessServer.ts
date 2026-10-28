@@ -115,11 +115,19 @@ function supabaseAuthConfig(): { url: string; key: string } | null {
 // The trade-off is a ban: GoTrue refuses a banned account's refresh, and a
 // remembered answer skips that question for up to the TTL on this instance. A
 // request whose bearer GoTrue has just called banned never reads the memory,
-// so the window only stays open for a caller sending no bearer at all.
+// so the window only stays open for a caller sending no bearer at all, and
+// only for a read: RESUME_COOKIE_METHODS keeps every write off this lane.
 const RESUME_VERIFY_TTL_MS = 60_000;
 const RESUME_VERIFY_MAX_ENTRIES = 500;
 const resumeVerified = new Map<string, { userId: string; expiresAt: number }>();
 const resumeInFlight = new Map<string, Promise<SupabaseSessionVerification>>();
+
+// THE COOKIE IS AN AMBIENT CREDENTIAL, SO IT ONLY READS. The browser attaches
+// it to every same-site request, and a remembered answer outlives a revocation.
+// The lane exists for GET media an `<img>` asks for, so a write (post, comment,
+// cheer, crew, ranking, tag) must carry a bearer that GoTrue checks on every
+// request (October 2026 security audit).
+const RESUME_COOKIE_METHODS: ReadonlySet<string> = new Set(["GET", "HEAD"]);
 
 function resumeTokenKey(refreshToken: string): string {
   return createHash("sha256").update(refreshToken).digest("hex");
@@ -200,6 +208,7 @@ async function verifySupabaseSessionFromRequest(
     bearerBanned = bearer.status === "banned";
   }
   if (!request) return { status: "absent" };
+  if (!RESUME_COOKIE_METHODS.has(request.method.toUpperCase())) return { status: "absent" };
 
   const payload = decodeAuthResumeCookie(
     authResumeCookieFromHeader(request.headers.get("cookie")),

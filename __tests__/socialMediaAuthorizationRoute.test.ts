@@ -3,7 +3,9 @@ import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { GET } from "@/app/api/social/media/[mediaId]/route";
 import { GET as adminGET } from "@/app/api/admin/social-posts/media/[mediaId]/route";
 import { POST as createModeratorSession } from "@/app/api/admin/session/route";
+import { POST as createSocialPost } from "@/app/api/social/posts/route";
 import { AUTH_RESUME_COOKIE, decodeAuthResumeCookie, encodeAuthResumeCookie } from "@/lib/authSessionResume";
+import { requireVerifiedSocialActor } from "@/lib/socialAccessServer";
 
 const MEDIA_ID = "11111111-1111-4111-8111-111111111111";
 const PROFILE_ID = "22222222-2222-4222-8222-222222222222";
@@ -253,4 +255,34 @@ it("never remembers a refused refresh as a sign-in", async () => {
   expect(refused.headers.get("set-cookie")).toBeNull();
   await expectPhoto(await serve(resumeCookie("fixture-rotating-refused")));
   expect(refreshes()).toBe(2);
+});
+
+it("never lets the resume cookie alone write to Social", async () => {
+  // October 2026 audit: the lane remembered a verified token for a minute, so a
+  // token GoTrue had since revoked still wrote as the account. The cookie is an
+  // ambient credential; a write must carry a bearer GoTrue checks every time.
+  const post = (headers: HeadersInit) => createSocialPost(new Request("https://app.test/api/social/posts", {
+    method: "POST",
+    headers: { ...headers, "content-type": "application/json" },
+    body: "{}",
+  }));
+  await expectPhoto(await serve(resumeCookie("fixture-rotating-writes")));
+  expect(refreshes()).toBe(1);
+
+  for (const token of ["fixture-rotating-writes", "fixture-rotating-writes-rotated"]) {
+    const refused = await post(resumeCookie(token));
+    expect(refused.status).toBe(401);
+    expect(await refused.json()).toMatchObject({ code: "SOCIAL_SIGN_IN_REQUIRED" });
+  }
+  for (const method of ["POST", "PUT", "PATCH", "DELETE"]) {
+    const request = new Request("https://app.test/api/social/crews", { method, headers: resumeCookie("fixture-rotating-writes") });
+    expect(await requireVerifiedSocialActor(request)).toMatchObject({ ok: false, status: 401, code: "SOCIAL_SIGN_IN_REQUIRED" });
+  }
+  // No redeem is attempted for a write.
+  expect(refreshes()).toBe(1);
+
+  // A write with a bearer still resolves the actor, then meets the route's own checks.
+  const signedIn = await post({ authorization: "Bearer fixture-user-token" });
+  expect(signedIn.status).toBe(400);
+  expect(await signedIn.json()).toMatchObject({ code: "INVALID_IDEMPOTENCY_KEY" });
 });
