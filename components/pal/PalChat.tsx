@@ -23,6 +23,7 @@ import PalCardPrice from "@/components/pal/PalCardPrice";
 import { useRouter } from "next/navigation";
 import { ArrowUp, MapPin, Sparkles } from "lucide-react";
 
+import PalChatCompanion from "./PalChatCompanion";
 import { PubPalMascot } from "@/components/pal/PubPalMascot";
 import PalRecommendationMap from "@/components/pal/PalRecommendationMap";
 import Screen from "@/components/ui/screen";
@@ -780,6 +781,8 @@ function PalChatBody({ owner }: { owner: string | null }) {
         lede="Straight answers from what we've actually seen. Every card shows its source. No made-up venues, prices or events."
         secondary={<Link prefetch={false} href="/pal">Back to your Pub Pal</Link>}
       >
+
+      <PalChatCompanion owner={owner} state={pending ? streamText ? "speaking" : "thinking" : "idle"} />
 
       {!empty ? <button type="button" className="palChatReset" disabled={pending} onClick={() => {
         openingReadRef.current += 1;
