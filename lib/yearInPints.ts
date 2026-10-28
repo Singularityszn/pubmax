@@ -50,8 +50,8 @@ function monthOf(day: string): number {
 }
 
 /**
- * The lines this year can offer for the card. A favourite pub is offered only
- * once its name is known, because a person ticks the line they can read.
+ * A favourite or venue-backed first night is offered only when its pub name
+ * is visible. A first night without a venue offers only its date.
  */
 export function yearShareOffer(facts: PalYearFacts, venueNames: Readonly<Record<string, string>>): YearSharePart[] {
   return YEAR_SHARE_PARTS.filter((part) => {

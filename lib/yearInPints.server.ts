@@ -7,8 +7,8 @@ import { yearShareVenueIds, type YearShare } from "@/lib/yearInPints";
 // rules). A shared year names a pub by its dataset id only, and the card and
 // the shared page read its name here, so a link can never put words of its
 // own on a card. A pub that has since closed keeps its name, because it was
-// still that person's pub. An id the dataset does not know names nothing, and
-// its line is left out.
+// still that person's pub. An unknown id omits the favourite line or leaves
+// only the first night's date.
 
 async function venueName(id: string): Promise<string | null> {
   try {
