@@ -13,3 +13,11 @@ export function waitUnlessAborted(delayMs: number, signal?: AbortSignal): Promis
     signal?.addEventListener("abort", onAbort, { once: true });
   });
 }
+
+/** The reason a signal aborted with, or an AbortError when it carries none. */
+export function abortReason(
+  signal: AbortSignal,
+  message = "The operation was aborted.",
+): unknown {
+  return signal.reason === undefined ? new DOMException(message, "AbortError") : signal.reason;
+}

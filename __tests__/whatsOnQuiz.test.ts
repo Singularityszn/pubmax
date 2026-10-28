@@ -13,10 +13,12 @@ import {
   nextWeeklyOccurrence,
   parseQuestionOneNextPage,
   parseQuestionOneVenueDetail,
+  parseQuestionOneVenuesApi,
   parseQuestionOneVenuesPage,
   parseSpeedQuizzingFindEvents,
   placeNameFromQuestionOneTitle,
 } from "../scripts/whatson/quizParsers.mjs";
+import { buildVenueResolverIndex } from "../scripts/whatson/resolveVenueId.mjs";
 import { defined } from "@/__tests__/helpers/defined";
 
 const fixture = (name: string) =>
@@ -218,6 +220,156 @@ describe("buildQuestionOneRows", () => {
       expect(row.confidence).toBe("listed");
       expect(new Date(row.startsAt).getTime()).toBeGreaterThan(new Date(observedAt).getTime());
     }
+  });
+});
+
+// Seven real records from https://questionone.com/wp-json/wp/v2/venues, read
+// 28 Oct 2026 with the reader's own `_fields` (link, title, acf.dates,
+// acf.price, acf.location). The directory lists Sydney and Melbourne too.
+const DIRECTORY = JSON.parse(fixture("question-one-venues-api.json")) as unknown[];
+
+describe("parseQuestionOneVenuesApi", () => {
+  it("reads one card per weekly slot, and the fee, postcode and map point as the detail", () => {
+    const { cards, detailsByUrl } = parseQuestionOneVenuesApi(DIRECTORY);
+    expect(cards).toHaveLength(7);
+    expect(cards[0]).toEqual({
+      url: "https://questionone.com/venues/sporting-page-sundays-7-30pm/",
+      title: "Sporting Page, Chelsea",
+      day: "Sunday",
+      time: "19:30",
+    });
+    expect(detailsByUrl.get(defined(cards[0]).url)).toEqual({
+      day: null,
+      time: null,
+      feeGbp: 2,
+      feeRaw: "£2",
+      freeEntry: false,
+      address: "The Sporting Page, Camera Place, London, UK",
+      postcode: "SW10 0BH",
+      lat: 51.4846455,
+      lng: -0.1794144,
+      name: "The Sporting Page",
+    });
+  });
+
+  it("states no fee for a bare number, free entry for Free, and nothing for a missing location", () => {
+    const { cards, detailsByUrl } = parseQuestionOneVenuesApi(DIRECTORY);
+    const byTitle = (part: string) => detailsByUrl.get(defined(cards.find((c) => c.title.includes(part))).url);
+    expect(byTitle("Royal Oak")).toMatchObject({ feeGbp: null, feeRaw: null, freeEntry: false });
+    expect(byTitle("The Boot")).toMatchObject({ feeGbp: null, feeRaw: "FREE", freeEntry: true });
+    expect(byTitle("Hare and Billet")).toMatchObject({ feeGbp: 1, postcode: "SE3 0RB" });
+    expect(byTitle("Tower Bridge Arms")).toMatchObject({ address: null, postcode: null, lat: null, lng: null });
+  });
+
+  it("gives a record with two slots two cards with their own id suffix, and skips a record with no link", () => {
+    const { cards } = parseQuestionOneVenuesApi([
+      {
+        link: "https://questionone.com/venues/two-nights/",
+        title: { rendered: "Two Nights, Soho" },
+        acf: { dates: [{ day: "monday", time: "19:00:00" }, { day: "THURSDAY", time: "8:30" }] },
+      },
+      { title: { rendered: "No Link, Soho" }, acf: { dates: [{ day: "monday", time: "19:00" }] } },
+      "not a record",
+    ]);
+    expect(cards).toEqual([
+      { url: "https://questionone.com/venues/two-nights/", title: "Two Nights, Soho", day: "Monday", time: "19:00", idSuffix: "monday" },
+      { url: "https://questionone.com/venues/two-nights/", title: "Two Nights, Soho", day: "Thursday", time: "08:30", idSuffix: "thursday" },
+    ]);
+  });
+
+  it("keeps a malformed slot as no slot, never a guessed one", () => {
+    const { cards } = parseQuestionOneVenuesApi([
+      {
+        link: "https://questionone.com/venues/bad-slot/",
+        title: { rendered: "Bad Slot, Soho" },
+        acf: { dates: [{ day: "someday", time: "19:00" }] },
+      },
+    ]);
+    expect(cards).toEqual([
+      { url: "https://questionone.com/venues/bad-slot/", title: "Bad Slot, Soho", day: null, time: null },
+    ]);
+  });
+});
+
+describe("buildQuestionOneRows from the directory JSON", () => {
+  // Wednesday 28 Oct 2026, 12:00 London: the clocks went back on the 25th.
+  const observedAt = "2026-10-28T12:00:00.000Z";
+
+  it("emits London weekly rows with the stated point, and drops the rest by name", () => {
+    const { cards, detailsByUrl } = parseQuestionOneVenuesApi(DIRECTORY);
+    const { rows, dropped } = buildQuestionOneRows({ cards, detailsByUrl, observedAt });
+    // Poole is every other Sunday; Histon and Sydney's Paddington are not London.
+    expect(dropped).toEqual({ nonWeekly: 1, notLondon: 2, noSlot: 0 });
+    expect(rows.map((row) => row.placeName)).toEqual([
+      "Sporting Page, Chelsea",
+      "Tower Bridge Arms, Tower Hill",
+      "Royal Oak, Bethnal Green",
+      "Hare and Billet, Blackheath",
+    ]);
+    expect(rows[2]).toEqual({
+      id: "quiz-qo-pub-quiz-royal-oak-bethnal-green-wednesdays",
+      venueId: null,
+      placeName: "Royal Oak, Bethnal Green",
+      lat: 51.5295878,
+      lng: -0.0693438,
+      kind: "quiz",
+      startsAt: "2026-10-28T19:30:00+00:00",
+      title: "Pub quiz — Wednesdays 7:30pm",
+      detail: "Weekly pub quiz — every Wednesday 19:30 · E2 7RG · run by Question One",
+      source: {
+        label: "Question One",
+        url: "https://questionone.com/venues/pub-quiz-royal-oak-bethnal-green-wednesdays/",
+      },
+      observedAt,
+      confidence: "listed",
+    });
+  });
+
+  it("drops a Paddington outside London by its map point, before the area name is asked", () => {
+    const { cards, detailsByUrl } = parseQuestionOneVenuesApi([
+      {
+        link: "https://questionone.com/venues/far-paddington/",
+        title: { rendered: "Lord Dudley, Paddington" },
+        acf: { dates: [{ day: "thursday", time: "19:30" }], location: { lat: -33.887, lng: 151.226 } },
+      },
+    ]);
+    const { rows, dropped } = buildQuestionOneRows({ cards, detailsByUrl, observedAt });
+    expect(rows).toEqual([]);
+    expect(dropped.notLondon).toBe(1);
+  });
+
+  it("names the pub only when name AND postcode or point agree", () => {
+    const index = buildVenueResolverIndex([
+      { pub_name: "Royal Oak", address: "73 Columbia Road, London E2 7RG", latitude: 51.52959, longitude: -0.06934 },
+      { pub_name: "Royal Oak", address: "44 Tabard Street, London SE1 4JU", latitude: 51.4984, longitude: -0.0912 },
+    ]);
+    const { cards, detailsByUrl } = parseQuestionOneVenuesApi(DIRECTORY);
+    const { rows } = buildQuestionOneRows({ cards, detailsByUrl, observedAt, venueIndex: index });
+    const bethnalGreen = defined(rows.find((row) => row.placeName === "Royal Oak, Bethnal Green"));
+    const [expected] = [...index.byNormalizedName.values()].flat().filter((c) => c.address.includes("E2 7RG"));
+    expect(bethnalGreen.venueId).toBe(defined(expected).venueId);
+    // Tower Bridge Arms states no postcode and no point, so it stays unnamed.
+    expect(rows.find((row) => row.placeName.startsWith("Tower Bridge"))?.venueId).toBeNull();
+  });
+
+  it("prints free entry and a fractional fee as the directory states them", () => {
+    const { cards, detailsByUrl } = parseQuestionOneVenuesApi([
+      {
+        link: "https://questionone.com/venues/free-one/",
+        title: { rendered: "Free One, Soho" },
+        acf: { dates: [{ day: "friday", time: "19:00" }], price: "Free", location: { post_code: "W1D 5NA" } },
+      },
+      {
+        link: "https://questionone.com/venues/half-one/",
+        title: { rendered: "Half One, Soho" },
+        acf: { dates: [{ day: "friday", time: "19:00" }], price: "£1.5", location: { post_code: "W1D 5NA" } },
+      },
+    ]);
+    const { rows } = buildQuestionOneRows({ cards, detailsByUrl, observedAt });
+    expect(rows[0]?.detail).toBe("Weekly pub quiz — every Friday 19:00 · free entry · W1D 5NA · run by Question One");
+    expect(rows[0]).not.toHaveProperty("priceGbp");
+    expect(rows[1]?.detail).toBe("Weekly pub quiz — every Friday 19:00 · entry £1.50 · W1D 5NA · run by Question One");
+    expect(rows[1]?.priceGbp).toBe(1.5);
   });
 });
 

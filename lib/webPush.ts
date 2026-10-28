@@ -2,22 +2,22 @@
 // never asks permission by itself: a UI may call registerWebPush() only after a
 // real user action, preserving the shared prompt budget and consent boundary.
 
+import { abortReason } from "@/lib/abortableDelay";
 import { encodeWebPushSubscription } from "@/lib/webPushSubscription";
 
 const WEB_PUSH_REGISTRATION_CEILING_MS = 10_000;
 
-function abortReason(signal: AbortSignal): unknown {
-  return signal.reason
-    ?? new DOMException("The web push registration was cancelled.", "AbortError");
+function webPushAbortReason(signal: AbortSignal): unknown {
+  return abortReason(signal, "The web push registration was cancelled.");
 }
 
 /** Race browser work against a signal, so a promise that never settles (a service
  * worker that never becomes ready) cannot hold a prompt open for ever. */
 function waitForWebPushWork<T>(work: PromiseLike<T>, signal?: AbortSignal): Promise<T> {
   if (!signal) return Promise.resolve(work);
-  if (signal.aborted) return Promise.reject(abortReason(signal));
+  if (signal.aborted) return Promise.reject(webPushAbortReason(signal));
   return new Promise<T>((resolve, reject) => {
-    const onAbort = () => reject(abortReason(signal));
+    const onAbort = () => reject(webPushAbortReason(signal));
     signal.addEventListener("abort", onAbort, { once: true });
     Promise.resolve(work)
       .then(resolve, reject)
@@ -33,7 +33,7 @@ function registrationScope(parentSignal?: AbortSignal): {
 } {
   const controller = new AbortController();
   const onParentAbort = () => {
-    if (parentSignal) controller.abort(abortReason(parentSignal));
+    if (parentSignal) controller.abort(webPushAbortReason(parentSignal));
   };
   if (parentSignal?.aborted) onParentAbort();
   else parentSignal?.addEventListener("abort", onParentAbort, { once: true });

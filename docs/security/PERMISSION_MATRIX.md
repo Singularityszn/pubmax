@@ -255,12 +255,8 @@ Three gaps were measured and closed in `isHarvestableOperatorUrl`:
 3. **Credentials in a URL passed through**, and they are sent to whatever the
    URL names.
 
-And one gap that a single-URL check cannot see: **a redirect chain was never
-re-asked**. Both price crawl lanes fetch with `redirect: "follow"`, so the HOST
-picks the last hop; both computed a `finalUrl` and handed it to nothing, so a
-permitted site that 30x-ed to a refused one was read in full and the row was
-then stamped with the asked-for URL, naming a page that never stated the price.
-`harvestRedirectLanding` is the one owner of that rule and both lanes read it.
+The [harvest redirect contract](../rules/scripts-harvest-and-source-permission.md#a-url-we-decide-to-fetch-is-somebody-else-s-string-and-the-allow-list-is-asked-a)
+owns redirect permission checks and the final response check.
 
 ## Password paths, for the leaked-password setting
 

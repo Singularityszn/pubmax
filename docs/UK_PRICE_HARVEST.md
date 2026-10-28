@@ -28,6 +28,9 @@ missing one: a challenge page or a 403 means no permission can be read, and a
 page we cannot ask about is a page we do not take. A genuine 404 publishes no
 restriction and is honoured.
 
+The [harvest redirect contract](./rules/scripts-harvest-and-source-permission.md#a-url-we-decide-to-fetch-is-somebody-else-s-string-and-the-allow-list-is-asked-a)
+also governs page redirects, robots redirects and refusal reasons.
+
 Four findings live under that one word, and they are separated because only two
 of them are about permission.
 
