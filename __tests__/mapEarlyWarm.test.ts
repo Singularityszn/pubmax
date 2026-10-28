@@ -100,6 +100,7 @@ describe("mapEarlyWarm", () => {
     await new Promise((resolve) => setTimeout(resolve, 0));
     await new Promise((resolve) => setTimeout(resolve, 0));
 
+    expect((window as typeof window & { __pubmaxMapLocationExposed?: boolean }).__pubmaxMapLocationExposed).toBe(true);
     expect(query).toHaveBeenCalledOnce();
     expect(getCurrentPosition).toHaveBeenCalledOnce();
     expect(fetchSpy.mock.calls.map(([input]) => input)).toContain(
