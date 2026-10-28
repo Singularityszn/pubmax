@@ -239,7 +239,7 @@ describe("the page a redirect chain landed on", () => {
 });
 
 describe("both price crawl lanes spend the one rule", () => {
-  it("asks the landing rule about every fetch, rather than trusting the asked-for URL", async () => {
+  it("asks about every redirect hop before it is sent, and the landing rule about the final page", async () => {
     const { readFileSync } = await import("node:fs");
     const { join } = await import("node:path");
     for (const lane of ["run.mjs", "ocr.mjs"]) {
@@ -247,10 +247,14 @@ describe("both price crawl lanes spend the one rule", () => {
         join(process.cwd(), "scripts/harvest/uk-prices", lane),
         "utf8",
       );
-      // A lane that follows redirects must read where it landed. Both used to
+      // `redirect: "follow"` sent the request to every hop before anything
+      // asked about it. Each hop is now asked the table and robots first.
+      expect(source, lane).not.toContain('redirect: "follow"');
+      expect(source, lane).toContain("fetchFollowingPermittedRedirects(");
+      expect(source, lane).toContain("permitHop: permitRedirectHop");
+      // The final page is still read for where it landed. Both used to
       // compute `finalUrl` and hand it to nothing.
-      expect(source, lane).toContain('redirect: "follow"');
-      expect(source, lane).toContain("harvestRedirectLanding(url, response.url)");
+      expect(source, lane).toContain("harvestRedirectLanding(url, response.url || followed.url)");
       expect(source, lane).not.toContain("finalUrl: response.url || url");
     }
   });
@@ -264,7 +268,7 @@ describe("every other harvest lane that follows a redirect spends the same rule"
     // `landedUrl` lib/harvest/firecrawl.ts carries. Each of these used to
     // follow the redirect and then read nothing about where it went.
     const lanes = [
-      { file: "scripts/harvest_chain_menu_prices.mjs", call: "harvestRedirectLanding(url, response.url)" },
+      { file: "scripts/harvest_chain_menu_prices.mjs", call: "harvestRedirectLanding(followed.url, response.url)" },
       { file: "scripts/backfill_site_harvest_drink_labels.mjs", call: "harvestRedirectLanding(url, response.url)" },
       { file: "scripts/refresh_pint_price_observations.mjs", call: "harvestRedirectLanding(url, response.url)" },
       { file: "scripts/harvest/run.mjs", call: "harvestRedirectLanding(url, page.landedUrl)" },
@@ -272,6 +276,14 @@ describe("every other harvest lane that follows a redirect spends the same rule"
     for (const { file, call } of lanes) {
       const source = readFileSync(join(process.cwd(), file), "utf8");
       expect(source, file).toContain(call);
+    }
+    // The chain lane and the shared permitted fetch follow redirects by hand,
+    // so a refused hop is never requested. __tests__/harvestScriptPermission.test.ts
+    // proves it with fake 302 chains.
+    for (const file of ["scripts/harvest_chain_menu_prices.mjs", "scripts/lib/permittedHarvestFetch.mjs"]) {
+      const source = readFileSync(join(process.cwd(), file), "utf8");
+      expect(source, file).not.toContain('redirect: "follow"');
+      expect(source, file).toContain("fetchFollowingPermittedRedirects(");
     }
     // run.mjs has four scrapes (the deal page, a venue's home and what's-on
     // pages, an operator page), and each one reads its landing.

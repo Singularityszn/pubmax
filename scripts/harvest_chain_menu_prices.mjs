@@ -34,6 +34,7 @@ import path from "node:path";
 import process from "node:process";
 import { fileURLToPath } from "node:url";
 
+import { fetchFollowingPermittedRedirects } from "../lib/harvest/redirectChain.ts";
 import { createRobotsChecker } from "../lib/harvest/robots.ts";
 import {
   harvestRedirectLanding,
@@ -86,23 +87,43 @@ async function readChainPintPricesMaybeJudged(html, ctx) {
 /**
  * Read one page of a chain source.
  *
- * `redirect: "follow"` lets the HOST pick the last hop, so the permission we
- * asked about is not necessarily the permission we spend. The landing is asked
- * twice: `harvestRedirectLanding` refuses a hop onto a refused estate or our
- * own network, and the chain's own allow-list refuses a hop onto any host this
- * source row does not cover. Either way the body is never read.
+ * Redirects are followed BY HAND, and each hop is asked before it is requested:
+ * `harvestRedirectLanding` refuses a hop onto a refused estate or our own
+ * network, the chain's own allow-list refuses a hop onto any host this source
+ * row does not cover, and robots must permit the hop's path. A refused hop is
+ * never sent. The final response is asked the same landing questions again, as
+ * a second fence, and either way a refused body is never read.
  */
-export async function fetchText(url, { sourceId, fetchImpl = fetch } = {}) {
+export async function fetchText(url, { sourceId, robots, fetchImpl = fetch } = {}) {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), PAGE_TIMEOUT_MS);
+  const leftSource = (to) =>
+    harvestRedirectLanding(url, to).outcome === "refused" || !isHarvestableChainMenuUrl(to, sourceId);
   try {
-    const response = await fetchImpl(url, {
-      headers: { accept: "text/html,application/xhtml+xml", "user-agent": USER_AGENT },
-      signal: controller.signal,
-      redirect: "follow",
-    });
-    const landing = harvestRedirectLanding(url, response.url);
-    if (landing.outcome === "refused" || !isHarvestableChainMenuUrl(landing.url, sourceId)) {
+    const followed = await fetchFollowingPermittedRedirects(
+      url,
+      {
+        headers: { accept: "text/html,application/xhtml+xml", "user-agent": USER_AGENT },
+        signal: controller.signal,
+      },
+      {
+        fetchImpl,
+        permitHop: async (next) => {
+          if (leftSource(next)) return { allowed: false, reason: "redirect-left-source" };
+          const decision = await robots(next);
+          return decision.allowed ? decision : { ...decision, reason: "redirect-robots-refused" };
+        },
+      },
+    );
+    if (followed.refusal) {
+      const { status, reason, url: refusedUrl } = followed.refusal;
+      return reason === "redirect-robots-refused"
+        ? { ok: false, status, body: "", redirectRobotsRefused: true, landedUrl: refusedUrl }
+        : { ok: false, status, body: "", redirectedAway: true, landedUrl: refusedUrl };
+    }
+    const { response } = followed;
+    const landing = harvestRedirectLanding(followed.url, response.url);
+    if (leftSource(landing.url)) {
       await response.body?.cancel?.();
       return { ok: false, status: response.status, body: "", redirectedAway: true, landedUrl: landing.url };
     }
@@ -132,7 +153,7 @@ export async function menuPagesFor(source, spend, { robots, fetchImpl = fetch } 
   const decision = await robots(source.url);
   if (!decision.allowed) return { pages: [], offAllowList: 0, refusal: decision };
   if (!spend()) return { pages: [], offAllowList: 0, refusal: null };
-  const sitemap = await fetchText(source.url, { sourceId: source.id, fetchImpl });
+  const sitemap = await fetchText(source.url, { sourceId: source.id, robots, fetchImpl });
   if (!sitemap.ok) return { pages: [], offAllowList: 0, refusal: null };
   const named = [...sitemap.body.matchAll(/<loc>([^<]+)<\/loc>/g)].map((match) => match[1].trim());
   const pages = named.filter((url) => isHarvestableChainMenuUrl(url, source.id));
@@ -206,14 +227,17 @@ export async function harvestChainMenuPrices({
         break;
       }
       await sleepImpl(delayMs);
-      const page = await fetchText(url, { sourceId: source.id, fetchImpl });
+      const page = await fetchText(url, { sourceId: source.id, robots, fetchImpl });
       if (page.redirectedAway) {
         // The host sent us somewhere this source does not cover. Nothing on
         // that page is this chain's statement, so no row and no coverage.
         drops.push("redirect-left-source");
         continue;
       }
-      if (page.ok && page.landedUrl !== url && !(await robots(page.landedUrl)).allowed) {
+      if (
+        page.redirectRobotsRefused ||
+        (page.ok && page.landedUrl !== url && !(await robots(page.landedUrl)).allowed)
+      ) {
         drops.push("redirect-robots-refused");
         continue;
       }
