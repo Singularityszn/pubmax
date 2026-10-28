@@ -435,7 +435,7 @@ const PLAN_ONE_TAP_OUTCOMES = ["remembered", "located", "no-location", "out-of-r
 export const VOICE_END_REASONS = ["user", "disconnect", "cap", "error"] as const;
 export type VoiceEndReason = (typeof VOICE_END_REASONS)[number];
 export const CONTENT_SHARE_CHANNELS = ["copy", "native", "whatsapp", "x", "sms", "instagram", "tiktok"] as const;
-export const CONTENT_SHARE_SURFACES = ["plan", "recap", "poster", "tonight", "pint", "other"] as const;
+export const CONTENT_SHARE_SURFACES = ["plan", "recap", "poster", "tonight", "pint", "year", "other"] as const;
 export type ContentShareSurface = (typeof CONTENT_SHARE_SURFACES)[number];
 export const ERROR_SHOWN_SURFACES = [
   "landing", "home", "map", "tonight", "plan", "you", "pal", "recap", "near", "other",

@@ -11,9 +11,10 @@ import "server-only";
 //
 // The quiz lane reads Question One, so it asks lib/harvest/sourcePolicy.ts
 // first, through the same door the CLI uses (scripts/lib/permittedHarvestFetch.mjs).
-// With no allowed `questionone-quiz-venues` row it fetches nothing: the kind is
-// reported as refused, its stored rows stand, and the run is not failed for it,
-// because a refusal is a decision rather than an outage.
+// The `questionone-quiz-venues` row was allowed on 28 Oct 2026. If the row is
+// missing or refused, the lane fetches nothing: the kind is reported as
+// refused, its stored rows stand, and the run is not failed for it, because a
+// refusal is a decision rather than an outage.
 
 import { createSkiddleProvider } from "@/lib/events/skiddle";
 import { createTicketmasterProvider } from "@/lib/events/ticketmaster";
@@ -44,12 +45,11 @@ import {
 } from "../scripts/whatson/musicRefresh.mjs";
 import { fetchLiveSportFixtures, SPORT_FIXTURE_HORIZON_MS } from "@/lib/sport/liveFixtures";
 import { buildSportFixtureRows } from "../scripts/whatson/sportFixtures.mjs";
+import { buildQuestionOneRows, isGreaterLondonLatLng } from "../scripts/whatson/quizParsers.mjs";
 import {
-  buildQuestionOneRows,
-  isGreaterLondonLatLng,
-  parseQuestionOneNextPage,
-  parseQuestionOneVenuesPage,
-} from "../scripts/whatson/quizParsers.mjs";
+  QUESTION_ONE_SOURCE_ID,
+  readQuestionOneDirectory,
+} from "../scripts/whatson/questionOneDirectory.mjs";
 import { loadCanonicalVenueIndex } from "../scripts/whatson/resolveVenueId.mjs";
 import {
   createPermittedFetch,
@@ -395,7 +395,7 @@ export async function refreshOfficialWhatsOnListings(
 }
 
 // The same row scripts/whatson/quizRefresh.mjs reads under.
-export const QUESTION_ONE_SOURCE_ID = "questionone-quiz-venues";
+export { QUESTION_ONE_SOURCE_ID };
 
 export type QuizRefreshNetwork = {
   fetchImpl?: typeof fetch;
@@ -403,9 +403,14 @@ export type QuizRefreshNetwork = {
 };
 
 /**
- * Question One's venue archive, read only under an allowed source-policy row.
+ * Question One's venue directory, read only under an allowed source-policy row.
  * Throws HarvestRefusal before any request when the row is missing or refused,
  * and for any page robots.txt refuses or that sits off the row's own host.
+ *
+ * The whole directory, or nothing: the walk reads every page the directory
+ * states and throws rather than return part of it (scripts/whatson/
+ * questionOneDirectory.mjs). Each record carries its postcode and map point,
+ * which is what lets a row name the pub Tonight lists it under.
  */
 export async function refreshQuestionOneQuiz(
   now: number,
@@ -416,28 +421,18 @@ export async function refreshQuestionOneQuiz(
   const permittedFetch = createPermittedFetch({ source: permission.source, ...network });
 
   const observedAt = new Date(now).toISOString();
-  const cards = [];
-  const seenUrls = new Set<string>();
   // The walk starts at the ROW's url, never at a constant of this module.
-  let url: string | null = permission.source.url;
-
-  for (let page = 0; url && page < 4; page += 1) {
-    const response = await permittedFetch(url, {
+  const { cards, detailsByUrl } = await readQuestionOneDirectory({
+    sourceUrl: permission.source.url,
+    permittedFetch,
+    init: () => ({
       headers: { "user-agent": "PubmaxxingBot/0.1 (+https://pubmaxxing.com)" },
       signal: AbortSignal.timeout(8_000),
-    });
-    if (!response.ok) throw new Error(`Question One returned ${response.status}`);
-    const html = await response.text();
-    for (const card of parseQuestionOneVenuesPage(html)) {
-      if (seenUrls.has(card.url)) continue;
-      seenUrls.add(card.url);
-      cards.push(card);
-    }
-    url = parseQuestionOneNextPage(html, url);
-  }
+    }),
+  });
 
   const venueIndex = loadCanonicalVenueIndex();
-  return buildQuestionOneRows({ cards, observedAt, venueIndex }).rows as WhatsOnRow[];
+  return buildQuestionOneRows({ cards, detailsByUrl, observedAt, venueIndex }).rows as WhatsOnRow[];
 }
 
 function defaultKindRefreshers(now: number): Record<WhatsOnKind, () => Promise<WhatsOnRow[]>> {
