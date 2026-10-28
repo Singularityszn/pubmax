@@ -215,6 +215,8 @@ export async function runPalElevenLabsChatTurn(
     sendReturnedAtMs: null as number | null,
     firstReplyAtMs: null as number | null,
     preSendEventCount: 0,
+    parseFailureCount: 0,
+    unrecognizedMessageCount: 0,
     replyCount: 0,
     streamDeltaCount: 0,
     lastStreamStopAtMs: null as number | null,
@@ -551,8 +553,13 @@ export async function runPalElevenLabsChatTurn(
       try {
         payload = JSON.parse(String(event.data)) as AgentResponseEvent;
       } catch {
+        progress.parseFailureCount += 1;
         return;
       }
+      if (![
+        "ping", "conversation_initiation_metadata", "agent_chat_response_part", "agent_response",
+        "agent_tool_request", "agent_tool_response", "agent_response_complete",
+      ].includes(payload.type ?? "")) progress.unrecognizedMessageCount += 1;
 
       // Count known reply/tool traffic that handling ignores before the send attempt.
       if (!userMessageSent && (

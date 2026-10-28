@@ -1470,6 +1470,16 @@ describe("private typed Pal failure diagnostics", () => {
   it("records the unchanged reply deadline without logging the unfinished conversation", async () => {
     vi.useFakeTimers({ toFake: ["Date", "setTimeout", "clearTimeout"] });
     vi.stubGlobal("fetch", vi.fn(async () => Response.json({ signed_url: SIGNED_URL })));
+    vi.stubGlobal("WebSocket", class extends MockElevenLabsWebSocket {
+      override addEventListener(type: string, listener: (event: unknown) => void): void {
+        super.addEventListener(type, listener);
+        if (type !== "message") return;
+        queueMicrotask(() => {
+          listener({ data: "{private-malformed-frame" });
+          listener({ data: JSON.stringify({ type: "private-unsupported-frame", text: "private-frame-content" }) });
+        });
+      }
+    });
     wsState.replyScript = [];
     const query = "quiet pubs with private-request-marker";
     const pending = runPalElevenLabsChatTurn({ query, ownerId: "private-owner" });
@@ -1489,6 +1499,8 @@ describe("private typed Pal failure diagnostics", () => {
         sendReturnedAtMs: 0,
         firstReplyAtMs: null,
         preSendEventCount: 2,
+        parseFailureCount: 1,
+        unrecognizedMessageCount: 1,
         replyCount: 0,
         streamDeltaCount: 0,
         lastStreamStopAtMs: null,
@@ -1505,7 +1517,7 @@ describe("private typed Pal failure diagnostics", () => {
       },
     }]);
     const output = JSON.stringify(failures());
-    for (const privateValue of [query, "private-owner", SIGNED_URL, "conv_regression01", PAL_GREETING, "test-key"]) {
+    for (const privateValue of [query, "private-owner", SIGNED_URL, "conv_regression01", PAL_GREETING, "test-key", "private-malformed-frame", "private-unsupported-frame", "private-frame-content"]) {
       expect(output).not.toContain(privateValue);
     }
   });
