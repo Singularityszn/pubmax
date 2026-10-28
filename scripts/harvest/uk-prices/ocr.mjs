@@ -322,7 +322,8 @@ export async function fetchPage(url, { fetchImpl = fetch, robots: checkRobots = 
       },
     );
     if (followed.refusal) {
-      return { ok: false, status: followed.refusal.status, body: "", redirectedAway: true, finalUrl: followed.refusal.url };
+      const { status, reason, url: finalUrl } = followed.refusal;
+      return { ok: false, status, body: "", reason, finalUrl };
     }
     const { response } = followed;
     // THE ALLOW-LIST IS ASKED ABOUT THE PAGE WE LANDED ON, NOT ONLY THE ONE WE
@@ -333,7 +334,7 @@ export async function fetchPage(url, { fetchImpl = fetch, robots: checkRobots = 
     // stated the price. `harvestRedirectLanding` is the one owner of that rule.
     const landing = harvestRedirectLanding(url, response.url || followed.url);
     if (landing.outcome === "refused") {
-      return { ok: false, status: response.status, body: "", redirectedAway: true, finalUrl: landing.url };
+      return { ok: false, status: response.status, body: "", reason: "redirect-refused", finalUrl: landing.url };
     }
     const landed = landing.url;
     if (!response.ok) return { ok: false, status: response.status, body: "", finalUrl: landed };

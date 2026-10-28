@@ -117,15 +117,13 @@ export async function fetchText(url, { sourceId, robots, fetchImpl = fetch } = {
     );
     if (followed.refusal) {
       const { status, reason, url: refusedUrl } = followed.refusal;
-      return reason === "redirect-robots-refused"
-        ? { ok: false, status, body: "", redirectRobotsRefused: true, landedUrl: refusedUrl }
-        : { ok: false, status, body: "", redirectedAway: true, landedUrl: refusedUrl };
+      return { ok: false, status, body: "", reason, landedUrl: refusedUrl };
     }
     const { response } = followed;
     const landing = harvestRedirectLanding(followed.url, response.url);
     if (leftSource(landing.url)) {
       await response.body?.cancel?.();
-      return { ok: false, status: response.status, body: "", redirectedAway: true, landedUrl: landing.url };
+      return { ok: false, status: response.status, body: "", reason: "redirect-left-source", landedUrl: landing.url };
     }
     if (!response.ok) return { ok: false, status: response.status, body: "", landedUrl: landing.url };
     return { ok: true, status: response.status, body: await response.text(), landedUrl: landing.url };
@@ -154,7 +152,7 @@ export async function menuPagesFor(source, spend, { robots, fetchImpl = fetch } 
   if (!decision.allowed) return { pages: [], offAllowList: 0, refusal: decision };
   if (!spend()) return { pages: [], offAllowList: 0, refusal: null };
   const sitemap = await fetchText(source.url, { sourceId: source.id, robots, fetchImpl });
-  if (!sitemap.ok) return { pages: [], offAllowList: 0, refusal: null };
+  if (!sitemap.ok) return { pages: [], offAllowList: 0, refusal: null, reason: sitemap.reason };
   const named = [...sitemap.body.matchAll(/<loc>([^<]+)<\/loc>/g)].map((match) => match[1].trim());
   const pages = named.filter((url) => isHarvestableChainMenuUrl(url, source.id));
   return { pages, offAllowList: named.length - pages.length, refusal: null };
@@ -208,6 +206,7 @@ export async function harvestChainMenuPrices({
   for (const source of allowed) {
     const delayMs = (source.crawlDelaySeconds ?? 1) * 1000;
     const listed = await menuPagesFor(source, spend, { robots, fetchImpl });
+    if (listed.reason) drops.push(listed.reason);
     if (listed.refusal) {
       skipped.push({ id: source.id, reason: listed.refusal.reason, checkedOn: new Date().toISOString().slice(0, 10), evidence: listed.refusal.evidence });
       continue;
@@ -228,16 +227,11 @@ export async function harvestChainMenuPrices({
       }
       await sleepImpl(delayMs);
       const page = await fetchText(url, { sourceId: source.id, robots, fetchImpl });
-      if (page.redirectedAway) {
-        // The host sent us somewhere this source does not cover. Nothing on
-        // that page is this chain's statement, so no row and no coverage.
-        drops.push("redirect-left-source");
+      if (page.reason) {
+        drops.push(page.reason);
         continue;
       }
-      if (
-        page.redirectRobotsRefused ||
-        (page.ok && page.landedUrl !== url && !(await robots(page.landedUrl)).allowed)
-      ) {
+      if (page.ok && page.landedUrl !== url && !(await robots(page.landedUrl)).allowed) {
         drops.push("redirect-robots-refused");
         continue;
       }

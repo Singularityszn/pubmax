@@ -250,6 +250,35 @@ describe("chain menu prices: a redirect hop is asked before it is sent", () => {
   });
 });
 
+describe.each([
+  { lane: "menu", refusedUrl: OWN_MENU },
+  { lane: "sitemap", refusedUrl: SITEMAP },
+])("chain $lane redirect refusal reporting", ({ refusedUrl }) => {
+  it.each([
+    { failure: "same-host loop", location: refusedUrl, reason: "redirect-hop-limit", requests: HARVEST_REDIRECT_HOP_LIMIT + 1 },
+    { failure: "invalid Location", location: "http://[", reason: "redirect-unreadable", requests: 1 },
+    { failure: "off-source target", location: "https://another-host.example/menu", reason: "redirect-left-source", requests: 1 },
+  ])("counts $failure as $reason", async ({ location, reason, requests }) => {
+    const fetchImpl = fetchFrom({
+      [SITEMAP]: (url) => respond(sitemapListing(OWN_MENU), { url, type: "application/xml" }),
+      [refusedUrl]: (url) => redirectTo(location, { url }),
+    });
+
+    const { rows, report } = await harvestChainMenuPrices({
+      sources: [STONEGATE],
+      fetchImpl,
+      robots: allowAll,
+      sleepImpl: noSleep,
+    });
+
+    expect(rows).toEqual([]);
+    expect(report.drops).toEqual({ [reason]: 1 });
+    const requestedUrls = fetchImpl.mock.calls.map(([url]) => String(url));
+    expect(requestedUrls.filter((url) => url === refusedUrl)).toHaveLength(requests);
+    expect(requestedUrls.every((url) => url === SITEMAP || url === refusedUrl)).toBe(true);
+  });
+});
+
 describe("permitted harvest fetch: a redirect hop is asked before it is sent", () => {
   const fetchedUrls = (fetchImpl: ReturnType<typeof fetchFrom>) => fetchImpl.mock.calls.map(([url]) => String(url));
 

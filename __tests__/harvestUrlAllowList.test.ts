@@ -263,7 +263,7 @@ describe.each([
 
     const result = await fetchPage(PERMITTED, { fetchImpl, robots });
 
-    expect(result).toMatchObject({ ok: false, redirectedAway: true, body: "", finalUrl: refused });
+    expect(result).toMatchObject({ ok: false, reason: "redirect-refused", body: "", finalUrl: refused });
     expect(fetchImpl.mock.calls.map(([url]) => String(url))).toEqual([PERMITTED, moved]);
     expect(robots.mock.calls).toEqual([[moved]]);
   });
@@ -283,7 +283,7 @@ describe.each([
 
     const result = await fetchPage(PERMITTED, { fetchImpl, robots });
 
-    expect(result).toMatchObject({ ok: false, redirectedAway: true, body: "", finalUrl: refused });
+    expect(result).toMatchObject({ ok: false, reason: "robots-disallowed", body: "", finalUrl: refused });
     expect(fetchImpl.mock.calls.map(([url]) => String(url))).toEqual([PERMITTED, moved]);
     expect(robots.mock.calls).toEqual([[moved], [refused]]);
   });
@@ -298,7 +298,7 @@ describe.each([
 
     const result = await fetchPage(PERMITTED, { fetchImpl, robots: createRobotsChecker({ fetchImpl }) });
 
-    expect(result).toMatchObject({ ok: false, redirectedAway: true, body: "", finalUrl: moved });
+    expect(result).toMatchObject({ ok: false, reason: "robots-unreadable", body: "", finalUrl: moved });
     expect(fetchImpl.mock.calls.map(([url]) => String(url))).toEqual([PERMITTED, robotsUrl]);
   });
 
@@ -316,10 +316,24 @@ describe.each([
 
     const result = await fetchPage(PERMITTED, { fetchImpl, robots: allow });
 
-    expect(result).toMatchObject({ ok: false, redirectedAway: true, body: "", finalUrl: refused });
+    expect(result).toMatchObject({ ok: false, reason: "redirect-refused", body: "", finalUrl: refused });
     expect(readBody).not.toHaveBeenCalled();
     expect(readBytes).not.toHaveBeenCalled();
     expect(fetchImpl.mock.calls.map(([url]) => String(url))).toEqual([PERMITTED, moved]);
+  });
+
+  it.each([
+    { failure: "same-host loop", location: "/menu", reason: "redirect-hop-limit", requests: 6 },
+    { failure: "invalid Location", location: "http://[", reason: "redirect-unreadable", requests: 1 },
+  ])("preserves the $reason reason for a $failure", async ({ location, reason, requests }) => {
+    const fetchImpl = vi.fn<typeof fetch>(async () =>
+      new Response(null, { status: 302, headers: { location } }),
+    );
+
+    const result = await fetchPage(PERMITTED, { fetchImpl, robots: allow });
+
+    expect(result).toMatchObject({ ok: false, status: 302, body: "", reason, finalUrl: PERMITTED });
+    expect(fetchImpl.mock.calls.map(([url]) => String(url))).toEqual(Array(requests).fill(PERMITTED));
   });
 
   it("returns the final permitted page and its URL after a relative redirect", async () => {
